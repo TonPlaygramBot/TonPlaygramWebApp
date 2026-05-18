@@ -95,11 +95,10 @@ const BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO = 1.14;
 // sit exactly on the playable dark squares instead of drifting toward the
 // decorative rim.
 const CHECKERS_PLAYABLE_MAPPING_RATIO = 1.44;
-// Keep the seated players close enough to the table that their hands, chairs,
-// and avatar bodies read as part of the board action instead of spectators.
-const CHAIR_TABLE_PROXIMITY_OFFSET = -0.08;
+// Portrait mobile framing tweak: push chairs visibly away from the table.
+const CHAIR_OUTWARD_OFFSET = 0.11;
 const CHAIR_DISTANCE =
-  TABLE_RADIUS + 0.5 * CHECKERS_ARENA_SCALE + CHAIR_TABLE_PROXIMITY_OFFSET;
+  TABLE_RADIUS + 0.56 * CHECKERS_ARENA_SCALE + CHAIR_OUTWARD_OFFSET;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_THICKNESS_SCALED = 0.09 * MODEL_SCALE * STOOL_SCALE;
@@ -111,11 +110,11 @@ const ARM_DEPTH = SEAT_DEPTH * 0.75;
 const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
 // Checkers uses the shared Chess Battle seated avatars in a smaller arena;
 // boost only their visual target height so the humans read larger at gameplay camera distance.
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 1.7;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 1.45;
 const SEATED_HUMAN_TARGET_HEIGHT =
   BACK_HEIGHT * 2.95 * SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER;
 const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
-const SEATED_HUMAN_SEAT_Z_OFFSET = SEAT_DEPTH * 0.42;
+const SEATED_HUMAN_SEAT_Z_OFFSET = SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_MOVE_DURATION_MS = 700;
 const SEATED_HUMAN_PICKUP_PHASE_END = 0.26;
 const SEATED_HUMAN_CARRY_PHASE_END = 0.78;
@@ -133,17 +132,7 @@ const CHECKERS_TABLE_BASE_HEIGHT_SCALE = 1.22;
 const CHECKERS_TABLE_BASE_RADIUS_SCALE = 1.08;
 const CHECKERS_TABLE_TRIM_HEIGHT_SCALE = 0.94;
 const CHECKERS_TABLE_TRIM_RADIUS_SCALE = 0.9;
-const CHECKERS_BOTTOM_FACE_CAMERA_YAW_LIMIT = THREE.MathUtils.degToRad(18);
-const CHECKERS_BOTTOM_FACE_CAMERA_PITCH_LIMIT = THREE.MathUtils.degToRad(12);
-const CHECKERS_BOTTOM_FACE_CAMERA_LOOK_DISTANCE = TABLE_RADIUS * 3.2;
-const CHECKERS_BOTTOM_FACE_CAMERA_EYE_HEIGHT =
-  CHAIR_HEIGHT + SEATED_HUMAN_TARGET_HEIGHT * 0.82;
-const CHECKERS_BOTTOM_FACE_CAMERA_SEAT_FORWARD = SEAT_DEPTH * 0.34;
-const CHECKERS_BOTTOM_FACE_CAMERA_BASE_TARGET = new THREE.Vector3(
-  0,
-  TABLE_HEIGHT + 0.08 * CHECKERS_ARENA_SCALE,
-  0
-);
+const CHECKERS_CAMERA_FRAME_COMPENSATION = 1.08;
 // Lower chairs toward the floor for stronger downward screen placement.
 const CHECKERS_GRAPHICS_PROFILE_STORAGE_KEY =
   'checkersBattleRoyalGraphicsProfile';
@@ -1741,52 +1730,6 @@ function resolveGraphicsHdriVariant(baseVariant, profile, renderer) {
   };
 }
 
-function getBottomPlayerFaceCameraPosition() {
-  return new THREE.Vector3(
-    0,
-    CHECKERS_BOTTOM_FACE_CAMERA_EYE_HEIGHT,
-    CHAIR_DISTANCE - CHECKERS_BOTTOM_FACE_CAMERA_SEAT_FORWARD
-  );
-}
-
-function applyBottomPlayerFaceCamera(camera, controls, lookState = {}) {
-  if (!camera) return;
-  const yaw = clamp(
-    Number.isFinite(lookState.yaw) ? lookState.yaw : 0,
-    -CHECKERS_BOTTOM_FACE_CAMERA_YAW_LIMIT,
-    CHECKERS_BOTTOM_FACE_CAMERA_YAW_LIMIT
-  );
-  const pitch = clamp(
-    Number.isFinite(lookState.pitch) ? lookState.pitch : 0,
-    -CHECKERS_BOTTOM_FACE_CAMERA_PITCH_LIMIT,
-    CHECKERS_BOTTOM_FACE_CAMERA_PITCH_LIMIT
-  );
-  const eyePosition = getBottomPlayerFaceCameraPosition();
-  camera.position.copy(eyePosition);
-
-  const baseDirection = CHECKERS_BOTTOM_FACE_CAMERA_BASE_TARGET.clone()
-    .sub(eyePosition)
-    .normalize();
-  const lookDirection = baseDirection.applyAxisAngle(
-    new THREE.Vector3(0, 1, 0),
-    yaw
-  );
-  const right = new THREE.Vector3()
-    .crossVectors(lookDirection, new THREE.Vector3(0, 1, 0))
-    .normalize();
-  if (right.lengthSq() > 0) {
-    lookDirection.applyAxisAngle(right, pitch).normalize();
-  }
-  const target = eyePosition
-    .clone()
-    .add(lookDirection.multiplyScalar(CHECKERS_BOTTOM_FACE_CAMERA_LOOK_DISTANCE));
-  camera.lookAt(target);
-  if (controls) {
-    controls.enabled = false;
-    controls.target.copy(target);
-  }
-}
-
 async function loadPolyHavenHdriEnvironment(renderer, variant = {}) {
   if (!renderer) return null;
   const url = await resolveHdriUrl(variant);
@@ -1874,8 +1817,6 @@ export default function CheckersBattleRoyal() {
   const rendererRef = useRef(null);
   const cameraRef = useRef(null);
   const controlsRef = useRef(null);
-  const faceCameraLookRef = useRef({ yaw: 0, pitch: 0 });
-  const viewModeRef = useRef('3d');
   const tableRef = useRef(null);
   const chairsRef = useRef([]);
   const chairLoadRequestRef = useRef(0);
@@ -1908,9 +1849,6 @@ export default function CheckersBattleRoyal() {
     light: [],
     dark: []
   });
-  useEffect(() => {
-    viewModeRef.current = viewMode;
-  }, [viewMode]);
   useEffect(() => {
     if (mode !== 'online') return;
     if (!initialTableId) {
@@ -2698,17 +2636,36 @@ export default function CheckersBattleRoyal() {
     );
     cameraRef.current = camera;
 
-    applyBottomPlayerFaceCamera(camera, null, faceCameraLookRef.current);
+    const isPortrait = mount.clientHeight > mount.clientWidth;
+    const cameraSeatAngle = Math.PI / 2;
+    const cameraBackOffset =
+      ((isPortrait ? 2.55 : 1.78) + 0.35) * CHECKERS_ARENA_SCALE;
+    const cameraForwardOffset =
+      (isPortrait ? 0.08 : 0.2) *
+      CHECKERS_ARENA_SCALE *
+      CHECKERS_CAMERA_FRAME_COMPENSATION;
+    const cameraHeightOffset =
+      (isPortrait ? 1.72 : 1.34) *
+      CHECKERS_ARENA_SCALE *
+      CHECKERS_CAMERA_FRAME_COMPENSATION;
+    const cameraRadius =
+      CHAIR_DISTANCE +
+      cameraBackOffset * CHECKERS_CAMERA_FRAME_COMPENSATION -
+      cameraForwardOffset;
+    camera.position.set(
+      Math.cos(cameraSeatAngle) * cameraRadius,
+      TABLE_HEIGHT + cameraHeightOffset,
+      Math.sin(cameraSeatAngle) * cameraRadius
+    );
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controlsRef.current = controls;
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.target.set(0, TABLE_HEIGHT, 0);
-    controls.enabled = false;
-    controls.enablePan = false;
-    controls.screenSpacePanning = false;
-    controls.enableZoom = false;
+    controls.enablePan = true;
+    controls.screenSpacePanning = true;
+    controls.enableZoom = true;
     controls.minDistance = TABLE_RADIUS * 1.85;
     controls.maxDistance = TABLE_RADIUS * 4.9;
     controls.minPolarAngle = THREE.MathUtils.degToRad(28);
@@ -2975,12 +2932,9 @@ export default function CheckersBattleRoyal() {
         id: event.pointerId,
         x: event.clientX,
         y: event.clientY,
-        lastX: event.clientX,
-        lastY: event.clientY,
         at: performance.now(),
         pointerType: event.pointerType || 'mouse',
-        handledOnDown: false,
-        cameraLookDrag: false
+        handledOnDown: false
       };
       renderer.domElement.setPointerCapture?.(event.pointerId);
 
@@ -2997,36 +2951,6 @@ export default function CheckersBattleRoyal() {
       const pointerDown = pointerDownRef.current;
       if (!pointerDown || pointerDown.id !== event.pointerId) return;
       pointerDownRef.current = null;
-    };
-
-    const onPointerMove = (event) => {
-      const pointerDown = pointerDownRef.current;
-      if (!pointerDown || pointerDown.id !== event.pointerId) return;
-      if (viewModeRef.current !== '3d') return;
-      const dxFromStart = event.clientX - pointerDown.x;
-      const dyFromStart = event.clientY - pointerDown.y;
-      const dragDistance = Math.hypot(dxFromStart, dyFromStart);
-      if (!pointerDown.cameraLookDrag && dragDistance < 6) return;
-
-      const dx = event.clientX - pointerDown.lastX;
-      const dy = event.clientY - pointerDown.lastY;
-      pointerDown.lastX = event.clientX;
-      pointerDown.lastY = event.clientY;
-      pointerDown.cameraLookDrag = true;
-      pointerDown.handledOnDown = true;
-
-      const look = faceCameraLookRef.current;
-      look.yaw = clamp(
-        look.yaw - dx * 0.003,
-        -CHECKERS_BOTTOM_FACE_CAMERA_YAW_LIMIT,
-        CHECKERS_BOTTOM_FACE_CAMERA_YAW_LIMIT
-      );
-      look.pitch = clamp(
-        look.pitch - dy * 0.0025,
-        -CHECKERS_BOTTOM_FACE_CAMERA_PITCH_LIMIT,
-        CHECKERS_BOTTOM_FACE_CAMERA_PITCH_LIMIT
-      );
-      applyBottomPlayerFaceCamera(camera, controls, look);
     };
 
     const onPointerUp = (event) => {
@@ -3243,7 +3167,6 @@ export default function CheckersBattleRoyal() {
     renderer.domElement.addEventListener('pointerdown', onPointerDown, {
       passive: true
     });
-    renderer.domElement.addEventListener('pointermove', onPointerMove);
     renderer.domElement.addEventListener('pointerup', onPointerUp);
     renderer.domElement.addEventListener('pointercancel', onPointerCancel);
     window.addEventListener('resize', onResize);
@@ -3297,11 +3220,7 @@ export default function CheckersBattleRoyal() {
         }
       }
       previousFrameAt = now;
-      if (viewModeRef.current === '3d') {
-        applyBottomPlayerFaceCamera(camera, controls, faceCameraLookRef.current);
-      } else {
-        controls.update();
-      }
+      controls.update();
       renderer.render(scene, camera);
     };
     loop();
@@ -3310,7 +3229,6 @@ export default function CheckersBattleRoyal() {
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', onResize);
       renderer.domElement.removeEventListener('pointerdown', onPointerDown);
-      renderer.domElement.removeEventListener('pointermove', onPointerMove);
       renderer.domElement.removeEventListener('pointerup', onPointerUp);
       renderer.domElement.removeEventListener('pointercancel', onPointerCancel);
       disposeGroupMeshes(piecesGroupRef.current);
@@ -3807,25 +3725,32 @@ export default function CheckersBattleRoyal() {
     if (!camera || !controls) return;
 
     const target = new THREE.Vector3(0, TABLE_HEIGHT, 0);
-    controls.enabled = false;
-    controls.enableRotate = false;
-    controls.enablePan = false;
-    controls.enableZoom = false;
     if (viewMode === '2d') {
       camera.position.set(
         0,
         TABLE_HEIGHT + 9.2 * CHECKERS_ARENA_SCALE,
         0.001
       );
+      controls.enableRotate = false;
       controls.minPolarAngle = 0;
       controls.maxPolarAngle = 0;
-      controls.target.copy(target);
-      camera.lookAt(target);
     } else {
+      const cameraSeatAngle = Math.PI / 2;
+      const cameraRadius =
+        CHAIR_DISTANCE +
+        2.7 * CHECKERS_ARENA_SCALE * CHECKERS_CAMERA_FRAME_COMPENSATION;
+      camera.position.set(
+        Math.cos(cameraSeatAngle) * cameraRadius,
+        TABLE_HEIGHT +
+          1.72 * CHECKERS_ARENA_SCALE * CHECKERS_CAMERA_FRAME_COMPENSATION,
+        Math.sin(cameraSeatAngle) * cameraRadius
+      );
+      controls.enableRotate = true;
       controls.minPolarAngle = THREE.MathUtils.degToRad(28);
       controls.maxPolarAngle = ARENA_CAMERA_DEFAULTS.phiMax;
-      applyBottomPlayerFaceCamera(camera, controls, faceCameraLookRef.current);
     }
+    controls.target.copy(target);
+    controls.update();
   }, [viewMode]);
 
   const restartGame = () => {
