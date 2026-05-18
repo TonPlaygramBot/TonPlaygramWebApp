@@ -28323,11 +28323,15 @@ const shotPowerRef = useRef(0);
         } else {
           aimDir.normalize();
         }
-        const sourcePower = Math.max(
-          Number.isFinite(committedPowerOverride) ? committedPowerOverride : 0,
-          Number.isFinite(shotPowerRef.current) ? shotPowerRef.current : 0,
-          Number.isFinite(powerRef.current) ? powerRef.current : 0
-        );
+        const committedPower = Number.isFinite(committedPowerOverride)
+          ? committedPowerOverride
+          : null;
+        const sourcePower = committedPower !== null
+          ? committedPower
+          : Math.max(
+              Number.isFinite(shotPowerRef.current) ? shotPowerRef.current : 0,
+              Number.isFinite(powerRef.current) ? powerRef.current : 0
+            );
         const clampedPower = clampPower(sourcePower, 0);
         if (clampedPower < MIN_SHOT_POWER_TO_FIRE) {
           setShootingState(false);
@@ -34733,14 +34737,29 @@ const shotPowerRef = useRef(0);
       value: powerRef.current * 100,
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
-      onChange: (v) => applyPower(v / 100),
-      onStart: () => {
+      onStart: (value) => {
         captureCueStickAnchor();
+        const normalized = clampPower(
+          (Number.isFinite(value) ? value : slider.min) / 100,
+          0
+        );
+        shotPowerRef.current = normalized;
       },
-      onCommit: () => {
-        fireRef.current?.();
+      onChange: (v) => {
+        const normalized = clampPower(v / 100, 0);
+        shotPowerRef.current = normalized;
+        applyPower(normalized);
+      },
+      onCommit: (value) => {
+        const commitValue = Number.isFinite(value)
+          ? value
+          : (slider.get?.() ?? slider.min);
+        const normalized = clampPower(commitValue / 100, 0);
+        shotPowerRef.current = normalized;
+        powerRef.current = normalized;
+        fireRef.current?.(normalized);
         requestAnimationFrame(() => {
-          slider.set(slider.min, { animate: true });
+          slider.animateToMin?.({ duration: 180 });
           applyPower(0);
         });
       }
@@ -34759,6 +34778,7 @@ const shotPowerRef = useRef(0);
       slider.set(slider.min, { animate: true });
     }
     applyPower(0);
+    shotPowerRef.current = 0;
     cuePullCurrentRef.current = 0;
     cuePullTargetRef.current = 0;
   }, [applyPower, hud.over, hud.turn, shotActive]);
