@@ -1567,11 +1567,18 @@ const SHOT_FORCE_BOOST =
   SHOT_POWER_REDUCTION *
   SHOT_POWER_MULTIPLIER *
   SHOT_POWER_INCREASE;
-const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
-const SHOT_MIN_FACTOR = 0.25;
-const SHOT_POWER_RANGE = 0.75;
-const SPIN_POWER_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.25;
+// Keep the live Snooker Royal strike impulse in parity with SnookerRoyalProvided.jsx.
+// The provided build uses one physical cue-stick contact event at 88% of a
+// 120ms stroke, then launches from these exact power and spin coefficients.
+const PROVIDED_SHOT_POWER_BOOST = 0.455;
+const PROVIDED_SHOT_MIN_FACTOR = 0.25;
+const PROVIDED_SHOT_POWER_RANGE = 0.75;
+const PROVIDED_SHOT_FULL_SPEED = 12 * WORLD_SCALE * PROVIDED_SHOT_POWER_BOOST;
+const PROVIDED_SHOT_SPIN_SCALE = 0.25;
+const PROVIDED_SPIN_GLOBAL_SCALE = 0.82;
+const PROVIDED_CUE_CONTACT_HIT_RATIO = 0.88;
+const SPIN_POWER_REFERENCE_SPEED = PROVIDED_SHOT_FULL_SPEED * 1.25;
 const SPIN_POWER_MIN_SCALE = 0.35;
 const SPIN_POWER_MAX_SCALE = 1.25;
 const BALL_COLLISION_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.8;
@@ -22995,13 +23002,12 @@ const shotVisualPowerRef = useRef(0);
           const preferZoomReplay =
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
           const frameStateCurrent = frameRef.current ?? null;
-          const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
           const isBreakCameraShot = Boolean(frameStateCurrent?.meta?.breakInProgress);
-          const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
-          const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
+          const powerScale = PROVIDED_SHOT_MIN_FACTOR + PROVIDED_SHOT_POWER_RANGE * clampedPower;
           const base = aimDir
             .clone()
-            .multiplyScalar(speedBase * powerScale);
+            .normalize()
+            .multiplyScalar(PROVIDED_SHOT_FULL_SPEED * powerScale);
           const predictedCueSpeed = base.length();
           shotPrediction.speed = predictedCueSpeed;
           if (shouldRecordReplay) {
@@ -23137,26 +23143,49 @@ const shotVisualPowerRef = useRef(0);
           }
           const appliedSpin = applySpinConstraints(aimDir, true);
           const liftAngle = resolveUserCueLift();
-          const liftStrength = normalizeCueLift(liftAngle);
-          const physicsSpin = mapSpinForPhysics(appliedSpin);
           const ranges = spinRangeRef.current || {};
+          const providedSpinRaw = mapSpinForPhysics(normalizeSpinInput(appliedSpin));
+          const providedSpinMapped = {
+            x: (providedSpinRaw.x ?? 0) * PROVIDED_SPIN_GLOBAL_SCALE,
+            y: (providedSpinRaw.y ?? 0) * PROVIDED_SPIN_GLOBAL_SCALE
+          };
           const powerSpinScale = 0.55 + clampedPower * 0.45;
-          const baseSide = physicsSpin.x * (ranges.side ?? 0);
-          let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
-          let spinTop = physicsSpin.y * (ranges.forward ?? 0) * powerSpinScale;
-          if (physicsSpin.y < 0) {
-            spinTop *= BACKSPIN_MULTIPLIER;
-          } else if (physicsSpin.y > 0) {
-            spinTop *= TOPSPIN_MULTIPLIER;
-          }
+          const rawTopSpin =
+            (providedSpinMapped.y ?? 0) * PROVIDED_SHOT_SPIN_SCALE * powerSpinScale;
+          const spinSide =
+            (providedSpinMapped.x ?? 0) *
+            PROVIDED_SHOT_SPIN_SCALE *
+            SIDE_SPIN_MULTIPLIER *
+            powerSpinScale;
+          const spinTop =
+            rawTopSpin < 0
+              ? rawTopSpin * BACKSPIN_MULTIPLIER
+              : rawTopSpin * TOPSPIN_MULTIPLIER;
+          const contactSideThrow =
+            spinSide * clampedPower * 1.05 * WORLD_SCALE * PROVIDED_SHOT_POWER_BOOST;
+          const shotSide = new THREE.Vector2(aimDir.y, -aimDir.x);
+          if (shotSide.lengthSq() > 1e-8) shotSide.normalize();
           let shotImpactApplied = false;
           const applyShotImpactAtCueContact = () => {
             if (shotImpactApplied) return false;
             shotImpactApplied = true;
             shotImpulseApplied = true;
             cue.vel.copy(base);
+            cue.vel.addScaledVector(shotSide, contactSideThrow);
             if (cue.spin) {
               cue.spin.set(spinSide, spinTop);
+            }
+            if (cue.omega) {
+              cue.omega.set(0, 0, 0);
+              const launchSpeed = cue.vel.length();
+              if (launchSpeed > 1e-6) {
+                cue.omega.addScaledVector(
+                  new THREE.Vector3(cue.vel.y, 0, -cue.vel.x).normalize(),
+                  launchSpeed / BALL_R
+                );
+                cue.omega.x += -spinTop * clampedPower * 18;
+                cue.omega.z += -spinSide * clampedPower * 18;
+              }
             }
             if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
             cue.spinMode = 'standard';
@@ -23166,49 +23195,11 @@ const shotVisualPowerRef = useRef(0);
             cueLiftRef.current.lift = 0;
             cueLiftRef.current.startLift = 0;
             cue.impacted = false;
-            cue.launchDir = aimDir.clone().normalize();
+            cue.launchDir = cue.vel.lengthSq() > 1e-8 ? cue.vel.clone().normalize() : null;
+            cue.lastShotSpin = { x: spinSide, y: spinTop };
             maxPowerLiftTriggered = false;
             cue.lift = 0;
             cue.liftVel = 0;
-            const topSpinWeight = Math.max(0, physicsSpin.y || 0);
-            if (
-              clampedPower >= JUMP_SHOT_POWER_THRESHOLD &&
-              liftStrength >= JUMP_SHOT_LIFT_THRESHOLD &&
-              topSpinWeight >= JUMP_SHOT_TOPSPIN_THRESHOLD
-            ) {
-              const powerRatio = THREE.MathUtils.clamp(
-                (clampedPower - JUMP_SHOT_POWER_THRESHOLD) /
-                  Math.max(1 - JUMP_SHOT_POWER_THRESHOLD, 1e-4),
-                0,
-                1
-              );
-              const liftRatio = THREE.MathUtils.clamp(
-                (liftStrength - JUMP_SHOT_LIFT_THRESHOLD) /
-                  Math.max(1 - JUMP_SHOT_LIFT_THRESHOLD, 1e-4),
-                0,
-                1
-              );
-              const spinRatio = THREE.MathUtils.clamp(
-                (topSpinWeight - JUMP_SHOT_TOPSPIN_THRESHOLD) /
-                  Math.max(1 - JUMP_SHOT_TOPSPIN_THRESHOLD, 1e-4),
-                0,
-                1
-              );
-              const jumpStrength =
-                (0.25 + 0.75 * powerRatio) *
-                (0.4 + 0.6 * liftRatio) *
-                (0.55 + 0.45 * spinRatio);
-              const jumpVelocity = MAX_POWER_BOUNCE_IMPULSE * JUMP_SHOT_LAUNCH_SCALE * jumpStrength;
-              const physicsHeight =
-                (jumpVelocity * jumpVelocity) /
-                (2 * Math.max(MAX_POWER_BOUNCE_GRAVITY, 1e-6));
-              const jumpHeight = Math.min(
-                MAX_POWER_LIFT_HEIGHT * JUMP_SHOT_HEIGHT_SCALE,
-                physicsHeight
-              );
-              cue.lift = Math.max(cue.lift ?? 0, jumpHeight);
-              cue.liftVel = Math.max(cue.liftVel ?? 0, jumpVelocity);
-            }
             playCueHit(clampedPower * 0.6);
             return true;
           };
@@ -23299,8 +23290,8 @@ const shotVisualPowerRef = useRef(0);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
           const pullbackDuration = 0;
-          const strikeDuration = 110;
-          const holdDuration = 45;
+          const strikeDuration = CUE_LOGIC_STRIKE_TIME_MS;
+          const holdDuration = CUE_LOGIC_HOLD_TIME_MS;
           const returnDuration = 0;
           // Keep the no-character cue stroke matching the old human-rig shot:
           // drive the tip forward from pullback into cue-ball contact instead
@@ -23401,7 +23392,7 @@ const shotVisualPowerRef = useRef(0);
               holdDuration,
               animationStyle: 'linear',
               strikeWindowRatio: 0.12,
-              hitArmRatio: 0.88
+              hitArmRatio: PROVIDED_CUE_CONTACT_HIT_RATIO
             });
             if (sample.hitArmed) {
               applyShotImpactAtCueContact();
