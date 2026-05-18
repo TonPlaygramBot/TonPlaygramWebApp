@@ -6715,20 +6715,20 @@ const DOMINO_LENGTH = DOMINO_WORLD_SCALE * (0.016 / 0.22) * 2;
 const DOUBLE_END_SHIFT = Math.max(0, (DOMINO_LENGTH - DOMINO_WIDTH) / 2);
 const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.0025; // keep chain tiles touching without visible overlap
 const DOMINO_HAND_GAP = DOMINO_WIDTH + DOMINO_CHAIN_GAP;
-// Keep player-hand dominoes compact, with every seat tucked a little lower
-// and closer to the tabletop center.
+// Keep player-hand dominoes compact, with opponent hands tucked lower and
+// closer to the tabletop center while the bottom player's hand anchor stays fixed.
 const PLAYER_HAND_TILE_SCALE = 0.82;
 const HUMAN_PLAYER_HAND_TILE_SCALE = 0.72;
 const PLAYER_HAND_GAP_SCALE = 0.5;
 const PLAYER_HAND_MIN_GAP_SCALE = 0.76;
-const PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 5.18;
-const HUMAN_PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 7.18;
-const PLAYER_HAND_VERTICAL_RAISE = DOMINO_WIDTH * 3.68;
-const PLAYER_HAND_CENTER_VERTICAL_DROP = DOMINO_WIDTH * 3.18;
-const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 6.12;
+const PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 5.65;
+const HUMAN_PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 7.8;
+const PLAYER_HAND_VERTICAL_RAISE = DOMINO_WIDTH * 4.0;
+const PLAYER_HAND_CENTER_VERTICAL_DROP = DOMINO_WIDTH * 3.0;
+const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 6.7;
 const HUMAN_HAND_VERTICAL_OFFSET = DOMINO_WIDTH * 0.0;
-const HUMAN_BOTTOM_EXTRA_OUTWARD = DOMINO_WIDTH * 1.25;
-const HUMAN_BOTTOM_EXTRA_RAISE = DOMINO_WIDTH * 6.42;
+const HUMAN_BOTTOM_EXTRA_OUTWARD = DOMINO_WIDTH * 1.45;
+const HUMAN_BOTTOM_EXTRA_RAISE = DOMINO_WIDTH * 6.9;
 // Keep the bottom player's upright tiles separated by a small visible gap.
 const HUMAN_BOTTOM_HAND_GAP_SCALE = 1.04;
 const DOMINO_DOUBLE_NEIGHBOR_EXTRA_GAP = 0;
@@ -8277,12 +8277,12 @@ function normalizeDominoCharacterRoot(root) {
   if (!bounds.isEmpty()) root.position.y -= bounds.min.y;
 }
 
-const DOMINO_HELD_RACK_HAND_LIFT = 0.66 * MODEL_SCALE;
+const DOMINO_HELD_RACK_HAND_LIFT = 0.72 * MODEL_SCALE;
 // Keep the character-held domino fan slightly tucked in toward the tabletop
 // so seated hands read closer to their dominoes instead of floating outward.
-const DOMINO_HELD_RACK_OUTWARD_OFFSET = 0.6 * MODEL_SCALE;
-const DOMINO_HELD_RACK_BOTTOM_HAND_LIFT = 0.96 * MODEL_SCALE;
-const DOMINO_HELD_RACK_BOTTOM_OUTWARD_OFFSET = 0.94 * MODEL_SCALE;
+const DOMINO_HELD_RACK_OUTWARD_OFFSET = 0.68 * MODEL_SCALE;
+const DOMINO_HELD_RACK_BOTTOM_HAND_LIFT = 1.04 * MODEL_SCALE;
+const DOMINO_HELD_RACK_BOTTOM_OUTWARD_OFFSET = 1.04 * MODEL_SCALE;
 
 function createHeldDominoRack(seatIndex, handTiles = []) {
   const rack = new THREE.Group();
