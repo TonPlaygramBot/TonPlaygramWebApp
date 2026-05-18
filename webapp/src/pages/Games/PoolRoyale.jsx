@@ -1900,8 +1900,8 @@ const POOL_HUMAN_CFG = Object.freeze({
   strikeTime: CUE_STRIKE_DURATION_MS / 1000,
   holdTime: CUE_STRIKE_HOLD_MS / 1000,
   bridgeDist: 0.28 * POOL_HUMAN_WORLD_SCALE,
-  edgeMargin: 0.78 * POOL_HUMAN_WORLD_SCALE,
-  desiredShootDistance: 1.38 * POOL_HUMAN_WORLD_SCALE,
+  edgeMargin: 0.5 * POOL_HUMAN_WORLD_SCALE,
+  desiredShootDistance: 0.82 * POOL_HUMAN_WORLD_SCALE,
   poseLambda: 9,
   moveLambda: 5.6,
   rotLambda: 8.5,
@@ -1915,11 +1915,8 @@ const POOL_HUMAN_CFG = Object.freeze({
   bridgeHandSide: -0.115 * POOL_HUMAN_WORLD_SCALE,
   bridgePalmUnderCueDrop: 0.052 * POOL_HUMAN_WORLD_SCALE,
   chinToCueHeight: 0.11 * POOL_HUMAN_WORLD_SCALE,
-  upperBodyCueBallLean: 0.18 * POOL_HUMAN_WORLD_SCALE,
-  chestCueBallLean: 0.24 * POOL_HUMAN_WORLD_SCALE,
-  headCueBallLean: 0.28 * POOL_HUMAN_WORLD_SCALE,
   footGroundY: 0.035 * POOL_HUMAN_WORLD_SCALE,
-  footLockStrength: 1.0,
+  footLockStrength: 1,
   kneeBendShot: 0.16 * POOL_HUMAN_WORLD_SCALE,
   rightElbowShotRise: 0.18 * POOL_HUMAN_WORLD_SCALE,
   rightElbowShotSide: -0.46 * POOL_HUMAN_WORLD_SCALE,
@@ -2573,7 +2570,7 @@ function movePoolRoyaleCueToHumanHand(human, cueStick) {
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_LIFT_DRAG_SCALE = 0.0048;
 const CUE_LIFT_MAX_TILT = THREE.MathUtils.degToRad(12.5);
-const CUE_FRONT_SECTION_RATIO = 0.28;
+const CUE_FRONT_SECTION_RATIO = 0.38; // SnookerRoyalProvided.jsx exact rear/front cue split (rear = 0.62)
 const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 4.9;
 const CUE_OBSTRUCTION_RANGE = BALL_R * 11.2;
 const CUE_OBSTRUCTION_LIFT = BALL_R * 1.18;
@@ -17396,6 +17393,8 @@ const showRuleToast = useCallback((message) => {
 }, []);
 const powerRef = useRef(hud.power);
 const shotPowerRef = useRef(0);
+const draggingSliderRef = useRef(false);
+const poolRoyalShotStateRef = useRef('idle');
   const clampPower = useCallback((value, fallback = 0) => {
     if (!Number.isFinite(value)) return fallback;
     return THREE.MathUtils.clamp(value, 0, 1);
@@ -26821,10 +26820,10 @@ const shotPowerRef = useRef(0);
         normalMap: null,
         roughnessMap: null,
         bumpScale: 0.02 * SCALE,
-        roughness: 0.4,
-        metalness: 0.0,
-        clearcoat: 0.48,
-        clearcoatRoughness: 0.3
+        roughness: 0.34,
+        metalness: 0,
+        clearcoat: 0.56,
+        clearcoatRoughness: 0.24
       });
       shaftMaterial.userData = shaftMaterial.userData || {};
       shaftMaterial.userData.isCueWood = true;
@@ -26835,17 +26834,13 @@ const shotPowerRef = useRef(0);
       cueMaterialsRef.current.buttRingMaterial = null;
       cueMaterialsRef.current.buttCapMaterial = null;
       cueMaterialsRef.current.styleIndex = initialIndex;
-      const frontLength = THREE.MathUtils.clamp(
-        cueLen * CUE_FRONT_SECTION_RATIO,
-        cueLen * 0.1,
-        cueLen * 0.5
-      );
-      const rearLength = Math.max(cueLen - frontLength, 1e-4);
+      const rearLength = cueLen * 0.62;
+      const frontLength = cueLen * CUE_FRONT_SECTION_RATIO;
       const rearStart = -rearLength / 2 + frontLength / 2;
-      const buttLength = Math.min(rearLength * 0.45, rearLength);
+      const buttLength = Math.min(rearLength * 0.36, 0.52 * SCALE);
       const rearShaftLength = Math.max(rearLength - buttLength, 0);
       const tipShaftRadius = 0.008 * SCALE;
-      const buttShaftRadius = 0.025 * SCALE;
+      const buttShaftRadius = 0.026 * SCALE;
       const joinRadius = THREE.MathUtils.lerp(
         tipShaftRadius,
         buttShaftRadius,
@@ -26906,12 +26901,12 @@ const shotPowerRef = useRef(0);
       tipCtx.globalAlpha = 1;
       const tipTex = new THREE.CanvasTexture(tipCanvas);
 
-      const connectorHeight = 0.015 * SCALE;
-      const tipRadius = CUE_TIP_RADIUS;
-      const tipLen = 0.015 * SCALE * 1.5;
+      const connectorHeight = 0.038 * SCALE;
+      const tipRadius = 0.008 * SCALE * 1.05;
+      const tipLen = 0.024 * SCALE;
       const tipMaterial = new THREE.MeshStandardMaterial({
         color: 0x1f3f73,
-        roughness: 1,
+        roughness: 0.95,
         metalness: 0,
         map: tipTex
       });
@@ -26942,9 +26937,11 @@ const shotPowerRef = useRef(0);
           32
         ),
         new THREE.MeshPhysicalMaterial({
-          color: 0xcd7f32,
-          metalness: 0.8,
-          roughness: 0.5
+          color: 0xf8fafc,
+          roughness: 0.22,
+          metalness: 0.04,
+          clearcoat: 0.5,
+          clearcoatRoughness: 0.18
         })
       );
       connector.rotation.x = -Math.PI / 2;
@@ -26963,8 +26960,8 @@ const shotPowerRef = useRef(0);
         cueBody.add(butt);
       }
 
-      const stripeLength = rearLength * 0.42;
-      const stripeCenter = frontLength / 2 + rearLength * 0.32;
+      const stripeLength = Math.min(rearLength * 0.34, 0.48 * SCALE);
+      const stripeCenter = -cueLen / 2 + Math.max(buttLength * 0.28, rearLength * 0.18) + stripeLength / 2;
 
       const buttCap = new THREE.Mesh(
         new THREE.SphereGeometry(0.03 * SCALE, 32, 16),
@@ -33088,10 +33085,11 @@ const shotPowerRef = useRef(0);
           1
         ) <= POOL_HUMAN_CUE_CAMERA_POSE_BLEND_MAX;
         const sliderPullingForHuman =
-          Boolean(sliderInstanceRef.current?.dragging) ||
+          Boolean(draggingSliderRef.current) ||
+          poolRoyalShotStateRef.current === 'dragging' ||
           THREE.MathUtils.clamp(powerRef.current ?? 0, 0, 1) > 0.01;
         const activeHumanStroke = cueStrokeStateRef.current;
-        const humanShotState = (shooting || cueAnimating || aiTakingShot || (ENABLE_CUE_STROKE_ANIMATION && activeHumanStroke))
+        const humanShotState = (poolRoyalShotStateRef.current === 'striking' || shooting || cueAnimating || aiTakingShot || (ENABLE_CUE_STROKE_ANIMATION && activeHumanStroke))
           ? 'striking'
           : sliderPullingForHuman && !replayActive
             ? 'dragging'
@@ -34734,33 +34732,33 @@ const shotPowerRef = useRef(0);
     if (!mount) return undefined;
     const slider = new PoolRoyalePowerSlider({
       mount,
-      value: powerRef.current * 100,
+      value: 0,
+      min: 0,
+      max: 100,
+      step: 1,
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
-      onStart: (value) => {
+      onStart: () => {
         captureCueStickAnchor();
-        const normalized = clampPower(
-          (Number.isFinite(value) ? value : slider.min) / 100,
-          0
-        );
-        shotPowerRef.current = normalized;
+        draggingSliderRef.current = true;
+        poolRoyalShotStateRef.current = 'dragging';
       },
-      onChange: (v) => {
-        const normalized = clampPower(v / 100, 0);
-        shotPowerRef.current = normalized;
+      onChange: (value) => {
+        const normalized = clampPower(value / 100, 0);
         applyPower(normalized);
+        if (draggingSliderRef.current) shotPowerRef.current = normalized;
       },
       onCommit: (value) => {
-        const commitValue = Number.isFinite(value)
-          ? value
-          : (slider.get?.() ?? slider.min);
-        const normalized = clampPower(commitValue / 100, 0);
+        const normalized = clampPower(value / 100, 0);
         shotPowerRef.current = normalized;
         powerRef.current = normalized;
+        draggingSliderRef.current = false;
+        poolRoyalShotStateRef.current = normalized > 0.02 ? 'striking' : 'idle';
         fireRef.current?.(normalized);
         requestAnimationFrame(() => {
           slider.animateToMin?.({ duration: 180 });
           applyPower(0);
+          poolRoyalShotStateRef.current = 'idle';
         });
       }
     });
@@ -34779,6 +34777,8 @@ const shotPowerRef = useRef(0);
     }
     applyPower(0);
     shotPowerRef.current = 0;
+    draggingSliderRef.current = false;
+    poolRoyalShotStateRef.current = 'idle';
     cuePullCurrentRef.current = 0;
     cuePullTargetRef.current = 0;
   }, [applyPower, hud.over, hud.turn, shotActive]);
