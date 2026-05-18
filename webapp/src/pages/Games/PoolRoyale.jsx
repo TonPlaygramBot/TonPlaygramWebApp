@@ -1825,9 +1825,9 @@ const TABLE_LIFT =
 const BASE_LEG_HEIGHT = TABLE.THICK * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
 const LEG_RADIUS_SCALE = 1.2; // 20% thicker cylindrical legs
 const BASE_LEG_LENGTH_SCALE = 0.72; // previous leg extension factor used for baseline stance
-const LEG_ELEVATION_SCALE = 1.1; // extend the visible leg drop so the shorter rails keep the same overall stance
-const LEG_LENGTH_SHRINK = 0.96; // keep the legs longer so the base reaches lower under the rails
-const BASE_HEIGHT_REDUCTION = 0.94; // let table bases and legs fill more vertical space under the shorter rails
+const LEG_ELEVATION_SCALE = 0.96; // restore the lower, grounded playfield stance used by Pool Royale before the recent lift
+const LEG_LENGTH_SHRINK = 0.867; // keep the shorter grounded leg/base proportions from the previous table tuning
+const BASE_HEIGHT_REDUCTION = 0.69; // trim the base height so the playfield sits closer to floor level
 const LEG_LENGTH_SCALE =
   BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE * LEG_LENGTH_SHRINK * BASE_HEIGHT_REDUCTION;
 const LEG_HEIGHT_OFFSET = FRAME_TOP_Y - 0.3; // relationship between leg room and visible leg height
@@ -1836,11 +1836,7 @@ const BASE_LEG_ROOM_HEIGHT =
   (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * BASE_LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
 const LEG_ROOM_HEIGHT =
   (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
-const LEG_TABLETOP_ANCHOR_SCALE = BASE_LEG_LENGTH_SCALE * 1.04 * LEG_LENGTH_SHRINK * 0.86;
-const LEG_TABLETOP_ANCHOR_ROOM_HEIGHT =
-  (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * LEG_TABLETOP_ANCHOR_SCALE - LEG_HEIGHT_OFFSET;
-// Lock the tabletop to the pre-tuning height while the extended base/legs grow downward.
-const TABLETOP_HEIGHT_LOCK_DELTA = LEG_TABLETOP_ANCHOR_ROOM_HEIGHT - BASE_LEG_ROOM_HEIGHT;
+const LEG_ELEVATION_DELTA = LEG_ROOM_HEIGHT - BASE_LEG_ROOM_HEIGHT;
 const LEG_TOP_OVERLAP = TABLE.THICK * 0.25; // sink legs slightly into the apron so they appear connected
 const LEG_POCKET_CLEARANCE = TABLE.WALL * 1.35; // pull the classic legs deeper toward the short-rail centres to clear pocket drops
 const CLASSIC_SHORT_RAIL_CENTER_PULL = TABLE.WALL * 0.55; // additional inward shift so legs visually hug the middle of each short rail
@@ -1857,10 +1853,10 @@ const SKIRT_DROP_MULTIPLIER = 0; // remove the apron/skirt drop so the table bod
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
 const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.095; // raise the apron further so it fully meets the lowered rails
 const BASE_HEIGHT_FILL = BASE_HEIGHT_REDUCTION; // keep custom bases aligned with the shorter leg height
-// Keep the playfield/tabletop at its legacy height; only the base/legs extend downward.
+// Ground the full table assembly back to the lower Pool Royale stance from the prior tuning.
 const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
-const TABLE_HEIGHT_DROP = (TABLE_H + TABLE.THICK) * 0.3; // lower the full table assembly a bit more so balls/cue sit lower in frame
-const TABLE_Y = BASE_TABLE_Y + TABLETOP_HEIGHT_LOCK_DELTA - TABLE_HEIGHT_DROP;
+const TABLE_HEIGHT_DROP = (TABLE_H + TABLE.THICK) * 0.24; // lower the assembly so the playfield and legs feel planted on the floor
+const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA - TABLE_HEIGHT_DROP;
 const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.07;
@@ -1880,8 +1876,6 @@ const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit a
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 0.86; // trim global pullback so charge-up stays readable without over-drawing the cue
 const CUE_PULL_RETURN_PUSH = 1.22; // accelerate the forward cue drive so push-through feels snappier
-const CUE_FOLLOW_THROUGH_MIN = BALL_R * 0.18; // match Snooker Champion's visible forward push on short strokes
-const CUE_FOLLOW_THROUGH_MAX = BALL_R * 1.8; // let the cue drive through contact without chasing the moving cue ball
 const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER; // keep Pool Royale release gate identical to Bilardo Shqip
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
@@ -28667,7 +28661,6 @@ const shotPowerRef = useRef(0);
             strikeDuration: strokeProfile.strikeDuration ?? LIVE_CUE_FORWARD_DURATION_MS,
             applied: false
           };
-          applyShotAtImpact(shotImpactPayload);
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -28774,14 +28767,10 @@ const shotPowerRef = useRef(0);
           const contactPos = impactPos
             .clone()
             .addScaledVector(dir, contactAdvance);
-          const followDistance = THREE.MathUtils.lerp(
-            CUE_FOLLOW_THROUGH_MIN,
-            CUE_FOLLOW_THROUGH_MAX,
-            clampedPower
-          );
-          const followPos = contactPos
-            .clone()
-            .addScaledVector(dir, followDistance);
+          // Match SnookerRoyalProvided.jsx: once power is released the cue
+          // drives forward to the cue-ball contact gap, applies the shot there,
+          // and holds/stops at contact instead of following the moving cue ball.
+          const followPos = contactPos.clone();
           const followDurationResolved = strikeHoldDuration;
           const recoverDuration = strokeProfile.recoverDuration ?? 0;
           const forwardPreviewHold =
