@@ -208,6 +208,149 @@ const FIREARM_CAPTURE_ANIMATION_IDS = new Set(
   CAPTURE_ANIMATION_OPTIONS.map((option) => option.id).filter((id) => !GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[id])
 );
 
+const CHESS_CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
+  fpsGunAttack: {
+    urls: [
+      'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@main/main/scene.gltf',
+      'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/main/main/scene.gltf'
+    ],
+    scale: 0.24
+  },
+  glockSidearmAttack: {
+    urls: ['https://cdn.jsdelivr.net/gh/webaverse/pistol@master/glock.glb', 'https://raw.githubusercontent.com/webaverse/pistol/master/glock.glb'],
+    scale: 0.13
+  },
+  assaultRifleAttack: {
+    urls: ['https://cdn.jsdelivr.net/gh/webaverse/pistol@master/military.glb', 'https://raw.githubusercontent.com/webaverse/pistol/master/military.glb'],
+    scale: 0.13,
+    textureOverrideUrls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/AK47.jpeg']
+  },
+  uziSprayAttack: {
+    urls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Uzi/scene.gltf', 'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Uzi/scene.gltf'],
+    scale: 0.2
+  },
+  ak47VolleyAttack: {
+    urls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/AK47/scene.gltf', 'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/AK47/scene.gltf'],
+    scale: 0.24,
+    textureOverrideUrls: [
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/AK47/textures/Material.001_baseColor.png',
+      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/AK47/textures/Material.001_baseColor.png',
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/AK47.jpeg'
+    ]
+  },
+  krsvBurstAttack: {
+    urls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/KRSV/scene.gltf', 'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/KRSV/scene.gltf'],
+    scale: 0.24
+  },
+  smithSidearmAttack: {
+    urls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/Smith/scene.gltf', 'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/Smith/scene.gltf'],
+    scale: 0.13
+  },
+  mosinMarksmanAttack: {
+    urls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Mosin/scene.gltf', 'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Mosin/scene.gltf'],
+    scale: 0.5125
+  },
+  sigsauerTacticalAttack: {
+    urls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models3/SigSauer/scene.gltf', 'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models3/SigSauer/scene.gltf'],
+    scale: 0.13,
+    textureOverrideUrls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/SigSauer.jpg']
+  },
+  shotgunBlastAttack: {
+    urls: ['https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/main/main/scene.gltf', 'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@main/main/scene.gltf'],
+    scale: 0.24
+  },
+  sniperShotAttack: {
+    urls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Mosin/scene.gltf', 'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Mosin/scene.gltf'],
+    scale: 0.504
+  },
+  smgBurstAttack: {
+    urls: ['https://cdn.jsdelivr.net/gh/webaverse/uzi@main/uzi.glb', 'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/pistol.glb'],
+    scale: 0.2
+  },
+  compactCarbineAttack: {
+    urls: ['https://cdn.jsdelivr.net/gh/webaverse/pistol@master/military.glb', 'https://raw.githubusercontent.com/webaverse/pistol/master/military.glb'],
+    scale: 0.21
+  },
+  marksmanDmrAttack: {
+    urls: ['https://cdn.jsdelivr.net/gh/webaverse/pistol@master/military.glb', 'https://cdn.jsdelivr.net/gh/LazerMaker/gun-models-ak47-and-supprest-pistol-@master/ak47.glb'],
+    scale: 0.23
+  },
+  polyShotgun01Attack: { urls: ['https://static.poly.pizza/032e6589-3188-41bc-b92b-e25528344275.glb'], scale: 0.205 },
+  polyAssaultRifle01Attack: { urls: ['https://static.poly.pizza/b3e6be61-0299-4866-a227-58f5f3fe610b.glb'], scale: 0.208 },
+  polyPistol01Attack: { urls: ['https://static.poly.pizza/3b53f0fe-f86e-451c-816d-6ab9bd265cdc.glb'], scale: 0.122 },
+  polyRevolver01Attack: { urls: ['https://static.poly.pizza/9e728565-67a3-44db-9567-982320abff09.glb'], scale: 0.13 },
+  polySawedOff01Attack: { urls: ['https://static.poly.pizza/9a6ee0ee-068b-4774-8b0f-679c3cef0b6e.glb'], scale: 0.175 },
+  polyRevolver02Attack: { urls: ['https://static.poly.pizza/7951b3b9-d3a5-4ec8-81b7-11111f1c8e88.glb'], scale: 0.13 },
+  polyShotgun02Attack: { urls: ['https://static.poly.pizza/f71d6771-f512-4374-bd23-ba00b564db68.glb'], scale: 0.215 },
+  polyShotgun03Attack: { urls: ['https://static.poly.pizza/08f27141-8e64-425a-9161-1bbd6956dfca.glb'], scale: 0.21 },
+  polySmg01Attack: { urls: ['https://static.poly.pizza/fb8ae707-d5b9-4eb8-ab8c-1c78d3c1f710.glb'], scale: 0.17 },
+  polyRobotLargeGunAttack: { urls: ['https://static.poly.pizza/78e23275-cb6a-4ba3-ae5e-48a9b4ee2e65.glb'], scale: 0.17 },
+  polyRobotFlyingGunAttack: { urls: ['https://static.poly.pizza/6d0889f1-0c3f-4f98-b011-fbcf6c79a93b.glb'], scale: 0.16 },
+  polyBazooka01Attack: { urls: ['https://static.poly.pizza/613e3b1b-d07c-496b-94a1-7c85b507bac4.glb'], scale: 0.22 },
+  polyGrenadeLauncher01Attack: { urls: ['https://static.poly.pizza/503bb2c5-4a69-404b-9b82-13e85e8f8467.glb'], scale: 0.2 },
+  polyDynamiteBomb01Attack: { urls: ['https://static.poly.pizza/38e858db-325f-4dce-9680-da62c20c5c31.glb'], scale: 0.12 },
+  polyMolotov01Attack: { urls: ['https://static.poly.pizza/d7bb0b50-09af-49f8-b1f9-dbdb0c707d40.glb'], scale: 0.095 },
+  polyGasTank01Attack: { urls: ['https://static.poly.pizza/9c4d2ac5-114b-4da2-a26a-8049e2b1ba04.glb'], scale: 0.12 },
+  polyHandGrenade01Attack: { urls: ['https://static.poly.pizza/03fa7f5b-4df5-45d6-86fb-87e8590f28d7.glb'], scale: 0.075 },
+  polyTank01Attack: { urls: ['https://static.poly.pizza/58c387b2-636f-49dc-a900-13b0852717d6.glb'], scale: 0.125 }
+});
+const CHESS_CAPTURE_WEAPON_MODEL_CACHE = new Map();
+const CHESS_CAPTURE_WEAPON_MODEL_FAILURE = new Set();
+const CHESS_CAPTURE_WEAPON_LOAD_TIMEOUT_MS = 22000;
+const CHESS_LARGE_FIREARM_IDS = new Set([
+  'ak47VolleyAttack',
+  'mosinMarksmanAttack',
+  'shotgunBlastAttack',
+  'sniperShotAttack',
+  'marksmanDmrAttack',
+  'compactCarbineAttack',
+  'polyShotgun01Attack',
+  'polyAssaultRifle01Attack',
+  'polyShotgun02Attack',
+  'polyShotgun03Attack',
+  'polyRobotLargeGunAttack',
+  'polyRobotFlyingGunAttack',
+  'polyBazooka01Attack',
+  'polyGrenadeLauncher01Attack',
+  'polyTank01Attack'
+]);
+const CHESS_FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
+  fpsGunAttack: 2.2,
+  glockSidearmAttack: 1,
+  uziSprayAttack: 1.65,
+  smgBurstAttack: 1.65,
+  ak47VolleyAttack: 2.2,
+  krsvBurstAttack: 2.2,
+  smithSidearmAttack: 1,
+  mosinMarksmanAttack: 3.5,
+  sniperShotAttack: 2.8,
+  shotgunBlastAttack: 2.2,
+  polyShotgun01Attack: 2.05,
+  polyAssaultRifle01Attack: 2.15,
+  polyPistol01Attack: 1.02,
+  polyRevolver01Attack: 1.08,
+  polySawedOff01Attack: 1.56,
+  polyRevolver02Attack: 1.08,
+  polyShotgun02Attack: 2.22,
+  polyShotgun03Attack: 2.1,
+  polySmg01Attack: 1.68,
+  polyRobotLargeGunAttack: 1.95,
+  polyRobotFlyingGunAttack: 1.45,
+  polyBazooka01Attack: 2.6,
+  polyGrenadeLauncher01Attack: 2.35,
+  polyDynamiteBomb01Attack: 1.22,
+  polyMolotov01Attack: 0.92,
+  polyGasTank01Attack: 1.28,
+  polyHandGrenade01Attack: 0.48,
+  polyTank01Attack: 2.3
+});
+const CHESS_FIREARM_FLAT_ROTATION = Object.freeze([-Math.PI * 0.5, -Math.PI * 0.02, 0]);
+const CHESS_FIREARM_AIM_ROTATION = Object.freeze([0, -Math.PI * 0.5, 0]);
+const CHESS_FIREARM_MUZZLE_YAW_CORRECTION_BY_ID = Object.freeze({
+  ak47VolleyAttack: Math.PI,
+  krsvBurstAttack: Math.PI
+});
+
 const CAPTURE_VEHICLE_TEXTURE_CACHE = new Map();
 const CAPTURE_POLYHAVEN_TEXTURE_CACHE = new Map();
 const CAPTURE_POLYHAVEN_TEXTURE_SETS = new Map();
@@ -3604,6 +3747,149 @@ function normalizeModel(object, targetSize) {
   object.position.x -= center.x;
   object.position.z -= center.z;
   object.position.y -= normalized.min.y;
+}
+
+
+function alignObjectBottomToY(object, y = 0) {
+  if (!object?.isObject3D) return;
+  object.updateMatrixWorld?.(true);
+  const box = getRenderableMeshBounds(object) || new THREE.Box3().setFromObject(object);
+  if (!Number.isFinite(box.min.y)) return;
+  object.position.y += y - box.min.y;
+  object.updateMatrixWorld?.(true);
+}
+
+function fitObjectToTargetSize(object, targetSize = 0.12) {
+  if (!object?.isObject3D) return;
+  object.updateMatrixWorld?.(true);
+  const box = getRenderableMeshBounds(object) || new THREE.Box3().setFromObject(object);
+  const size = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z);
+  if (!Number.isFinite(maxDim) || maxDim <= 0) return;
+  object.scale.multiplyScalar(targetSize / maxDim);
+  object.updateMatrixWorld?.(true);
+}
+
+function prepareChessCaptureWeaponClone(template, captureAnimationId, { flat = true } = {}) {
+  const clone = cloneSkinned(template);
+  clone.traverse((node) => {
+    if (!node?.isMesh) return;
+    node.castShadow = true;
+    node.receiveShadow = true;
+    node.frustumCulled = false;
+    node.visible = true;
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
+    materials.forEach((material) => {
+      if (!material) return;
+      if (material.map) applySRGBColorSpace(material.map);
+      if (material.emissiveMap) applySRGBColorSpace(material.emissiveMap);
+      material.needsUpdate = true;
+    });
+  });
+  clone.position.set(0, 0, 0);
+  clone.rotation.set(0, 0, 0);
+  clone.scale.setScalar(1);
+  fitObjectToTargetSize(
+    clone,
+    (flat ? 0.18 : 0.24) *
+      (CHESS_LARGE_FIREARM_IDS.has(captureAnimationId) ? 1.38 : 0.92) *
+      (CHESS_FIREARM_RACK_SIZE_MULTIPLIER_BY_ID[captureAnimationId] ?? 1)
+  );
+  alignObjectBottomToY(clone, 0);
+  const rotation = flat ? CHESS_FIREARM_FLAT_ROTATION : CHESS_FIREARM_AIM_ROTATION;
+  clone.rotation.set(rotation[0], rotation[1], rotation[2]);
+  const muzzleYawCorrection = CHESS_FIREARM_MUZZLE_YAW_CORRECTION_BY_ID[captureAnimationId] ?? 0;
+  if (muzzleYawCorrection) clone.rotateY(muzzleYawCorrection);
+  clone.updateMatrixWorld?.(true);
+  const box = getRenderableMeshBounds(clone) || new THREE.Box3().setFromObject(clone);
+  const center = box.getCenter(new THREE.Vector3());
+  clone.position.x -= center.x;
+  clone.position.z -= center.z;
+  alignObjectBottomToY(clone, 0);
+  return clone;
+}
+
+async function loadChessCaptureWeaponModel(captureAnimationId) {
+  const config = CHESS_CAPTURE_WEAPON_MODEL_CONFIG[captureAnimationId];
+  const candidateUrls = Array.isArray(config?.urls) ? config.urls.filter(Boolean) : [];
+  if (!candidateUrls.length) return null;
+  if (CHESS_CAPTURE_WEAPON_MODEL_CACHE.has(captureAnimationId)) {
+    return CHESS_CAPTURE_WEAPON_MODEL_CACHE.get(captureAnimationId);
+  }
+  const withLoadTimeout = async (promise) =>
+    Promise.race([
+      promise,
+      new Promise((resolve) => {
+        globalThis.setTimeout(() => resolve(null), CHESS_CAPTURE_WEAPON_LOAD_TIMEOUT_MS);
+      })
+    ]);
+  const promise = (async () => {
+    const loader = createConfiguredGLTFLoader();
+    loader.setCrossOrigin?.('anonymous');
+    let loadedRoot = null;
+    const assignLoadedGltf = (gltf) => gltf?.scene || gltf?.scenes?.[0] || null;
+    for (let i = 0; i < candidateUrls.length; i += 1) {
+      const candidateUrl = candidateUrls[i];
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        loadedRoot = assignLoadedGltf(await withLoadTimeout(loader.loadAsync(candidateUrl)));
+      } catch (error) {
+        if (i === candidateUrls.length - 1) {
+          console.warn('Chess capture weapon model load failed', captureAnimationId, candidateUrl, error);
+        }
+      }
+      if (loadedRoot) break;
+    }
+    if (!loadedRoot) return null;
+    const textureOverrideUrls = Array.isArray(config?.textureOverrideUrls) ? config.textureOverrideUrls.filter(Boolean) : [];
+    let textureOverride = null;
+    if (textureOverrideUrls.length) {
+      const textureLoader = new THREE.TextureLoader();
+      textureLoader.setCrossOrigin?.('anonymous');
+      for (let t = 0; t < textureOverrideUrls.length; t += 1) {
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          textureOverride = await withLoadTimeout(textureLoader.loadAsync(textureOverrideUrls[t]));
+          if (textureOverride) {
+            textureOverride.flipY = false;
+            applySRGBColorSpace(textureOverride);
+            textureOverride.needsUpdate = true;
+            break;
+          }
+        } catch {}
+      }
+    }
+    loadedRoot.traverse((node) => {
+      if (!node?.isMesh) return;
+      if (captureAnimationId === 'fpsGunAttack' && `${node.name || ''}`.toLowerCase().includes('armmesh')) {
+        node.visible = false;
+        return;
+      }
+      node.castShadow = true;
+      node.receiveShadow = true;
+      node.frustumCulled = false;
+      const materials = Array.isArray(node.material) ? node.material : [node.material];
+      materials.forEach((material) => {
+        if (!material) return;
+        if (textureOverride && !material.map) material.map = textureOverride;
+        if (material.map) applySRGBColorSpace(material.map);
+        if (material.emissiveMap) applySRGBColorSpace(material.emissiveMap);
+        material.transparent = false;
+        material.opacity = 1;
+        material.needsUpdate = true;
+      });
+    });
+    fitObjectToTargetSize(loadedRoot, config.scale ?? 0.12);
+    return loadedRoot;
+  })();
+  CHESS_CAPTURE_WEAPON_MODEL_CACHE.set(captureAnimationId, promise);
+  const resolved = await promise;
+  if (resolved) return resolved;
+  CHESS_CAPTURE_WEAPON_MODEL_FAILURE.add(captureAnimationId);
+  const fallbackId = Array.from(FIREARM_CAPTURE_ANIMATION_IDS).find(
+    (id) => id !== captureAnimationId && !CHESS_CAPTURE_WEAPON_MODEL_FAILURE.has(id) && CHESS_CAPTURE_WEAPON_MODEL_CONFIG[id]
+  );
+  return fallbackId ? loadChessCaptureWeaponModel(fallbackId) : null;
 }
 
 function prepareCaptureModel(root) {
@@ -7711,12 +7997,17 @@ function Chess3D({
     []
   );
   const quickSwapWeapons = useMemo(() => {
-    const ownedIds = new Set((ownedCaptureAnimations || []).map((option) => option.id));
-    return QUICK_SWAP_WEAPON_IDS
-      .filter((id) => ownedIds.has(id))
-      .map((id) => CAPTURE_ANIMATION_OPTIONS.find((option) => option.id === id))
-      .filter(Boolean);
+    const ownedById = new Map((ownedCaptureAnimations || []).map((option) => [option.id, option]));
+    const ordered = QUICK_SWAP_WEAPON_IDS.map((id) => ownedById.get(id)).filter(Boolean);
+    const quickIds = new Set(ordered.map((option) => option.id));
+    const remaining = (ownedCaptureAnimations || []).filter((option) => !quickIds.has(option.id));
+    return [...ordered, ...remaining];
   }, [ownedCaptureAnimations, QUICK_SWAP_WEAPON_IDS]);
+  const syncParkedWeaponVisualsRef = useRef(() => {});
+  const selectedCaptureAnimationIdRef = useRef(selectedCaptureAnimationId);
+  useEffect(() => {
+    selectedCaptureAnimationIdRef.current = selectedCaptureAnimationId;
+  }, [selectedCaptureAnimationId]);
   const [weaponSwapOpen, setWeaponSwapOpen] = useState(false);
   const [weaponSwapTargetKind, setWeaponSwapTargetKind] = useState(null);
   const PIECE_GROUP_BY_PARKED_KIND = useMemo(() => ({
@@ -7731,6 +8022,7 @@ function Chess3D({
     knight: 'droneAttack',
     pawn: 'missileJavelin'
   }));
+  const captureAnimationByPieceGroupRef = useRef(captureAnimationByPieceGroup);
   useEffect(() => {
     setCaptureAnimationByPieceGroup((prev) => ({
       kingQueen: prev.kingQueen || 'fighterJetAttack',
@@ -7739,6 +8031,10 @@ function Chess3D({
       pawn: prev.pawn || 'missileJavelin'
     }));
   }, []);
+  useEffect(() => {
+    captureAnimationByPieceGroupRef.current = captureAnimationByPieceGroup;
+    syncParkedWeaponVisualsRef.current?.();
+  }, [captureAnimationByPieceGroup]);
   const handleCaptureAnimationSwap = useCallback(
     (optionId) => {
       if (!optionId) return;
@@ -7762,10 +8058,11 @@ function Chess3D({
     // Parked pads (jet / drone / helicopter / truck) can now be swapped with any owned firearm.
     // Keep full firearm inventory visible when player taps one of those parked vehicles.
     if (['jet', 'drone', 'helicopter', 'truck'].includes(weaponSwapTargetKind)) {
-      const firearmOnly = pool.filter((option) =>
-        FIREARM_CAPTURE_ANIMATION_IDS.has(option.id)
-      );
-      if (firearmOnly.length) return firearmOnly;
+      const firearmAndOriginalVehicle = pool.filter((option) => {
+        if (FIREARM_CAPTURE_ANIMATION_IDS.has(option.id)) return true;
+        return GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[option.id] === weaponSwapTargetKind;
+      });
+      if (firearmAndOriginalVehicle.length) return firearmAndOriginalVehicle;
     }
 
     const filtered = pool.filter((option) => {
@@ -11269,8 +11566,8 @@ function Chess3D({
       'compactCarbineAttack'
     ]);
 
-    const resolveFirearmCaptureProfile = () => {
-      const singleShot = SINGLE_SHOT_FIREARM_IDS.has(selectedCaptureAnimationId);
+    const resolveFirearmCaptureProfile = (captureAnimationId = selectedCaptureAnimationIdRef.current) => {
+      const singleShot = SINGLE_SHOT_FIREARM_IDS.has(captureAnimationId);
       return {
         bulletCount: singleShot ? 1 : 7,
         duration: singleShot ? 0.62 : 1.15,
@@ -11289,7 +11586,7 @@ function Chess3D({
 
     const resolveCaptureKindForPiece = (pieceType) => {
       const group = resolvePieceGroupFromType(pieceType);
-      const selectedId = captureAnimationByPieceGroup[group] || selectedCaptureAnimationId;
+      const selectedId = captureAnimationByPieceGroupRef.current?.[group] || selectedCaptureAnimationIdRef.current;
       if (FIREARM_CAPTURE_ANIMATION_IDS.has(selectedId)) return 'firearm';
       return GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[selectedId] || 'truck';
     };
@@ -11483,12 +11780,24 @@ function Chess3D({
         });
       }
       if (captureKind === 'firearm') {
-        const firearmProfile = resolveFirearmCaptureProfile();
+        const group = resolvePieceGroupFromType(movingType);
+        const firearmAnimationId = captureAnimationByPieceGroupRef.current?.[group] || selectedCaptureAnimationIdRef.current;
+        const firearmProfile = resolveFirearmCaptureProfile(firearmAnimationId);
         playAudio(missileLaunchSoundRef);
         const missileFx = createFxMissile();
         missileFx.root.scale.setScalar(CAPTURE_MISSILE_SCALE * 0.52);
         missileFx.root.visible = false;
         captureFxGroup.add(missileFx.root);
+        const firearmFx = new THREE.Group();
+        firearmFx.visible = false;
+        captureFxGroup.add(firearmFx);
+        void loadChessCaptureWeaponModel(firearmAnimationId).then((template) => {
+          if (!template || !firearmFx.parent) return;
+          firearmFx.clear();
+          const weaponClone = prepareChessCaptureWeaponClone(template, firearmAnimationId, { flat: false });
+          weaponClone.position.y = -0.04;
+          firearmFx.add(weaponClone);
+        });
         activeCaptureFx.push({
           type: 'firearm',
           t: 0,
@@ -11497,6 +11806,7 @@ function Chess3D({
           to: targetPos.clone(),
           targetMesh,
           missileFx,
+          firearmFx,
           bulletCount: firearmProfile.bulletCount,
           impactAt: firearmProfile.impactAt,
           singleShot: firearmProfile.singleShot,
@@ -11957,6 +12267,55 @@ function Chess3D({
     board = parseFEN(START_FEN);
     pieceMeshes = Array.from({ length: 8 }, () => Array(8).fill(null));
     const allPieceMeshes = [];
+    const getParkedCaptureAnimationForKind = (kind) => {
+      const group = PIECE_GROUP_BY_PARKED_KIND[kind];
+      return (group && captureAnimationByPieceGroupRef.current?.[group]) || selectedCaptureAnimationIdRef.current;
+    };
+    const applyParkedWeaponVisual = (unit) => {
+      if (!unit?.root) return;
+      const animationId = getParkedCaptureAnimationForKind(unit.kind);
+      const showFirearm = FIREARM_CAPTURE_ANIMATION_IDS.has(animationId);
+      const baseChildren = unit.baseChildren || [];
+      baseChildren.forEach((child) => {
+        child.visible = !showFirearm;
+      });
+      if (!showFirearm) {
+        if (unit.parkedFirearmDisplay) {
+          unit.root.remove(unit.parkedFirearmDisplay);
+          disposeObject3D(unit.parkedFirearmDisplay);
+          unit.parkedFirearmDisplay = null;
+          unit.parkedFirearmAnimationId = null;
+        }
+        unit.root.position.y = unit.homePosition.y;
+        unit.root.rotation.copy(unit.homeRotation);
+        unit.root.quaternion.setFromEuler(unit.root.rotation);
+        return;
+      }
+      unit.root.position.y = unit.tableSurfacePosition?.y ?? unit.homePosition.y;
+      unit.root.rotation.copy(unit.homeRotation);
+      unit.root.rotateX(Math.PI * 0.5);
+      unit.root.quaternion.setFromEuler(unit.root.rotation);
+      if (unit.parkedFirearmAnimationId === animationId && unit.parkedFirearmDisplay) return;
+      if (unit.parkedFirearmDisplay) {
+        unit.root.remove(unit.parkedFirearmDisplay);
+        disposeObject3D(unit.parkedFirearmDisplay);
+        unit.parkedFirearmDisplay = null;
+      }
+      unit.parkedFirearmAnimationId = animationId;
+      void loadChessCaptureWeaponModel(animationId).then((template) => {
+        if (!template || !unit.root || getParkedCaptureAnimationForKind(unit.kind) !== animationId) return;
+        const display = new THREE.Group();
+        const clone = prepareChessCaptureWeaponClone(template, animationId, { flat: true });
+        clone.position.y += 0.015;
+        display.add(clone);
+        unit.parkedFirearmDisplay = display;
+        unit.root.add(display);
+      });
+    };
+    const syncParkedWeaponVisuals = () => {
+      parkedAirUnits.forEach((unit) => applyParkedWeaponVisual(unit));
+    };
+    syncParkedWeaponVisualsRef.current = syncParkedWeaponVisuals;
     const rebuildParkedAirUnits = () => {
       parkedAirUnits.forEach((unit) => {
         if (unit?.root?.parent) unit.root.parent.remove(unit.root);
@@ -12105,7 +12464,12 @@ function Chess3D({
       parkedAirUnits.forEach((unit) => {
         if (!unit?.root) return;
         unit.root.visible = true;
+        unit.baseChildren = [...unit.root.children];
+        const tableSurfacePosition = unit.homePosition.clone();
+        tableSurfacePosition.y = currentPieceYOffset + SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT + 0.035;
+        unit.tableSurfacePosition = tableSurfacePosition;
       });
+      syncParkedWeaponVisuals();
     };
 
     const syncBoardFromState = (payload = {}) => {
@@ -13776,6 +14140,10 @@ function Chess3D({
               }
               fx.missileFx.root.visible = false;
               captureFxGroup.remove(fx.missileFx.root);
+              if (fx.firearmFx) {
+                captureFxGroup.remove(fx.firearmFx);
+                disposeObject3D(fx.firearmFx);
+              }
               activeCaptureFx.splice(i, 1);
             }
           } else if (fx.type === 'firearm') {
@@ -13787,6 +14155,14 @@ function Chess3D({
             fx.missileFx.root.visible = true;
             fx.missileFx.root.position.copy(shooterPos).addScaledVector(aimDir, 0.08);
             orientForwardKeepingUp(fx.missileFx.root, aimDir);
+            if (fx.firearmFx) {
+              fx.firearmFx.visible = true;
+              fx.firearmFx.position.copy(shooterPos).addScaledVector(aimDir, -0.03);
+              fx.firearmFx.position.y += 0.02 + Math.sin(u * Math.PI * 8) * 0.006;
+              orientForwardKeepingUp(fx.firearmFx, aimDir);
+              const recoil = Math.sin(Math.min(1, u * Math.max(1, fx.bulletCount || 1)) * Math.PI) * 0.025;
+              fx.firearmFx.position.addScaledVector(aimDir, -recoil);
+            }
 
             const bulletsToFire = Math.max(1, fx.bulletCount || 1);
             const fireStep = 1 / bulletsToFire;
@@ -13813,6 +14189,10 @@ function Chess3D({
             if (u >= 1) {
               fx.missileFx.root.visible = false;
               captureFxGroup.remove(fx.missileFx.root);
+              if (fx.firearmFx) {
+                captureFxGroup.remove(fx.firearmFx);
+                disposeObject3D(fx.firearmFx);
+              }
               activeCaptureFx.splice(i, 1);
             }
           } else if (fx.type === 'missile') {
@@ -14264,7 +14644,11 @@ function Chess3D({
                 </div>
                 <div className="space-y-2">
                   {quickSwapWeaponList.map((option) => {
-                    const isSelected = option.id === selectedCaptureAnimationId;
+                    const targetGroup = weaponSwapTargetKind ? PIECE_GROUP_BY_PARKED_KIND[weaponSwapTargetKind] : null;
+                    const activeOptionId = targetGroup
+                      ? captureAnimationByPieceGroup[targetGroup]
+                      : selectedCaptureAnimationId;
+                    const isSelected = option.id === activeOptionId;
                     return (
                       <button
                         key={option.id}
