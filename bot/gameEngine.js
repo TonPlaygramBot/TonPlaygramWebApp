@@ -297,7 +297,11 @@ export class GameRoom {
       if (!result) return;
 
       const total = result.dice.reduce((a, b) => a + b, 0);
-      this.io.to(this.id).emit('diceRolled', { playerId: player.playerId, value: total });
+      this.io.to(this.id).emit('diceRolled', {
+        playerId: player.playerId,
+        value: total,
+        dice: result.dice
+      });
       const from = prevPositions[playerIndex];
       const to = result.path.length ? result.path[result.path.length - 1] : from;
 
