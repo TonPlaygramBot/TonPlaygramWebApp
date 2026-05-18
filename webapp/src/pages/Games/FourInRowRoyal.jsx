@@ -144,9 +144,9 @@ const TARGET_CHAIR_SIZE = new THREE.Vector3(
   1.7001562547683715 * CHAIR_SCALE
 );
 
-const FOUR_IN_ROW_CHARACTER_PROPORTION_SCALE = 2.08;
-const FOUR_IN_ROW_CHARACTER_EXTRA_LOWER_OFFSET = 0.36;
-const FOUR_IN_ROW_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.5;
+const FOUR_IN_ROW_CHARACTER_PROPORTION_SCALE = 1.75;
+const FOUR_IN_ROW_CHARACTER_EXTRA_LOWER_OFFSET = 0.32;
+const FOUR_IN_ROW_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.42;
 const FOUR_IN_ROW_CHARACTER_MODEL_CACHE = new Map();
 const FOUR_IN_ROW_CHESS_HUMAN_OPTIONS = Object.freeze(
   CHESS_HUMAN_CHARACTER_OPTIONS.filter((option) => Array.isArray(option?.modelUrls) && option.modelUrls.length)
@@ -160,70 +160,50 @@ const GRAPHICS_PRESETS = Object.freeze([
     id: 'hd50',
     label: 'HD Performance (50 Hz)',
     fps: 50,
-    pixelRatioScale: 0.82,
-    pixelRatioCap: 1.15,
-    shadowMapSize: 512,
-    maxAnisotropy: 1,
-    antialias: false,
-    preferredHdriResolutions: ['2k', '1k'],
-    preferredModelResolutions: ['1k', '2k'],
-    skyboxResolutionScale: 0.65,
+    pixelRatioScale: 1,
+    pixelRatioCap: 1.4,
+    shadowMapSize: 768,
+    preferredHdriResolutions: ['2k'],
     description: 'Battery saver profile for 50–60 Hz devices.'
   },
   {
     id: 'fhd60',
     label: 'Full HD (60 Hz)',
     fps: 60,
-    pixelRatioScale: 0.95,
-    pixelRatioCap: 1.35,
-    shadowMapSize: 768,
-    maxAnisotropy: 2,
-    antialias: true,
-    preferredHdriResolutions: ['2k', '4k'],
-    preferredModelResolutions: ['1k', '2k'],
-    skyboxResolutionScale: 0.85,
+    pixelRatioScale: 1.05,
+    pixelRatioCap: 1.55,
+    shadowMapSize: 1024,
+    preferredHdriResolutions: ['4k', '2k'],
     description: 'Balanced clarity and smoothness tuned for most phones.'
   },
   {
     id: 'qhd90',
     label: 'Quad HD (90 Hz)',
     fps: 90,
-    pixelRatioScale: 1.05,
-    pixelRatioCap: 1.55,
-    shadowMapSize: 1024,
-    maxAnisotropy: 4,
-    antialias: true,
-    preferredHdriResolutions: ['4k', '2k', '8k'],
-    preferredModelResolutions: ['2k', '1k'],
-    skyboxResolutionScale: 1,
+    pixelRatioScale: 1.15,
+    pixelRatioCap: 1.75,
+    shadowMapSize: 1536,
+    preferredHdriResolutions: ['8k', '4k', '2k'],
     description: 'Sharper board details with faster animation cadence.'
   },
   {
     id: 'uhd120',
     label: 'Ultra HD (120 Hz)',
     fps: 120,
-    pixelRatioScale: 1.15,
-    pixelRatioCap: 1.75,
-    shadowMapSize: 1536,
-    maxAnisotropy: 6,
-    antialias: true,
-    preferredHdriResolutions: ['4k', '8k', '2k'],
-    preferredModelResolutions: ['2k', '1k'],
-    skyboxResolutionScale: 1,
+    pixelRatioScale: 1.25,
+    pixelRatioCap: 2,
+    shadowMapSize: 2048,
+    preferredHdriResolutions: ['8k', '4k', '2k'],
     description: 'High-fidelity preset for flagship mobile GPUs.'
   },
   {
     id: 'ultra144',
     label: 'Ultra HD+ (144 Hz)',
     fps: 144,
-    pixelRatioScale: 1.22,
-    pixelRatioCap: 1.9,
+    pixelRatioScale: 1.35,
+    pixelRatioCap: 2.2,
     shadowMapSize: 2048,
-    maxAnisotropy: 8,
-    antialias: true,
     preferredHdriResolutions: ['8k', '4k'],
-    preferredModelResolutions: ['2k', '1k'],
-    skyboxResolutionScale: 1,
     description: 'Maximum smoothness preset where thermals allow.'
   }
 ]);
@@ -605,7 +585,7 @@ function normalizeFourInRowPbrTexture(texture, maxAnisotropy = 1) {
   texture.flipY = false;
   texture.wrapS = texture.wrapS ?? THREE.ClampToEdgeWrapping;
   texture.wrapT = texture.wrapT ?? THREE.ClampToEdgeWrapping;
-  texture.anisotropy = Math.max(1, maxAnisotropy);
+  texture.anisotropy = Math.max(texture.anisotropy ?? 1, maxAnisotropy);
   texture.needsUpdate = true;
 }
 
@@ -648,7 +628,7 @@ function normalizeFourInRowHumanModelUrlCandidates(modelUrls = []) {
 function applyFourInRowTextureQuality(texture, maxAnisotropy = 1) {
   if (!texture) return;
   texture.flipY = false;
-  texture.anisotropy = Math.max(1, maxAnisotropy);
+  texture.anisotropy = Math.max(texture.anisotropy ?? 1, maxAnisotropy);
   texture.needsUpdate = true;
 }
 
@@ -908,7 +888,7 @@ async function loadFourInRowCharacterModel(option, renderer = null, maxAnisotrop
     ? normalizeFourInRowHumanModelUrlCandidates(modelUrls)
     : normalizeFourInRowHumanModelUrlCandidates(fallbackOption.modelUrls || []);
   if (!candidateUrls.length) throw new Error('Missing Chess Battle Royal human model URL');
-  const cacheKey = `${selectedOption.id || fallbackOption.id || candidateUrls[0]}::aniso${maxAnisotropy}::${candidateUrls.join('|')}`;
+  const cacheKey = `${selectedOption.id || fallbackOption.id || candidateUrls[0]}::${candidateUrls.join('|')}`;
   if (FOUR_IN_ROW_CHARACTER_MODEL_CACHE.has(cacheKey)) {
     return FOUR_IN_ROW_CHARACTER_MODEL_CACHE.get(cacheKey);
   }
@@ -1275,11 +1255,11 @@ function extractPolyhavenIncludeUrlMap(manifest, resolution = '2k') {
   return map;
 }
 
-async function resolvePolyhavenModelCandidates(assetId, preferredResolutions = ['2k', '1k']) {
+async function resolvePolyhavenModelCandidates(assetId) {
   if (!assetId) return [];
   const fallbackUrls = await resolvePolyhavenModelUrls(assetId);
   const manifest = await getPolyhavenFilesManifest(assetId);
-  const preferred = [...new Set([...(preferredResolutions || []), '2k', '1k', '4k'])];
+  const preferred = ['2k', '1k', '4k'];
   const fromManifest = preferred
     .map((resolution) => {
       const url = manifest?.gltf?.[resolution]?.gltf?.url;
@@ -1290,28 +1270,21 @@ async function resolvePolyhavenModelCandidates(assetId, preferredResolutions = [
       };
     })
     .filter(Boolean);
-  const fallback = fallbackUrls
-    .slice()
-    .sort((a, b) => {
-      const aIndex = preferred.findIndex((resolution) => a.includes(`/${resolution}/`) || a.includes(`_${resolution}.`));
-      const bIndex = preferred.findIndex((resolution) => b.includes(`/${resolution}/`) || b.includes(`_${resolution}.`));
-      return (aIndex < 0 ? preferred.length : aIndex) - (bIndex < 0 ? preferred.length : bIndex);
-    })
-    .map((url) => ({
-      url,
-      includeUrlMap: null
-    }));
+  const fallback = fallbackUrls.map((url) => ({
+    url,
+    includeUrlMap: null
+  }));
   return [...fromManifest, ...fallback];
 }
 
-async function createChairModel(chairTheme, renderer = null, graphicsPreset = GRAPHICS_PRESETS[1]) {
+async function createChairModel(chairTheme, renderer = null) {
   const loader = createConfiguredGLTFLoader(renderer);
   const fallbackAssetId = 'painted_wooden_chair_01';
   const candidateAssetIds = [chairTheme?.assetId, fallbackAssetId].filter(Boolean);
   let lastError = null;
 
   for (const assetId of candidateAssetIds) {
-    const candidates = await resolvePolyhavenModelCandidates(assetId, graphicsPreset?.preferredModelResolutions);
+    const candidates = await resolvePolyhavenModelCandidates(assetId);
     for (const candidate of candidates) {
       try {
         if (MeshoptDecoder?.ready) {
@@ -1341,12 +1314,6 @@ async function createChairModel(chairTheme, renderer = null, graphicsPreset = GR
           obj.receiveShadow = true;
         });
         preserveOriginalGltfTextureMapping(root);
-        const maxAnisotropy = getFourInRowPresetMaxAnisotropy(renderer, graphicsPreset);
-        root.traverse((obj) => {
-          if (!obj?.isMesh) return;
-          const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-          mats.forEach((mat) => applyFourInRowMaterialTextureQuality(mat, maxAnisotropy));
-        });
         root.updateMatrixWorld(true);
         fitChairModelToFootprint(root);
         if (!chairTheme?.preserveMaterials) {
@@ -1376,27 +1343,6 @@ const safeThumbnail = (value) => {
 
 const getGraphicsPreset = (graphicsId) =>
   GRAPHICS_PRESETS.find((g) => g.id === graphicsId) || GRAPHICS_PRESETS[1] || GRAPHICS_PRESETS[0];
-
-function getFourInRowPresetMaxAnisotropy(renderer, preset = GRAPHICS_PRESETS[1]) {
-  const deviceMax = renderer?.capabilities?.getMaxAnisotropy?.() || preset?.maxAnisotropy || 1;
-  return Math.max(1, Math.min(deviceMax, preset?.maxAnisotropy || 1));
-}
-
-function applyFourInRowMaterialTextureQuality(material, maxAnisotropy = 1) {
-  if (!material) return;
-  ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap', 'alphaMap'].forEach((slot) => {
-    if (material[slot]) applyFourInRowTextureQuality(material[slot], maxAnisotropy);
-  });
-  material.needsUpdate = true;
-}
-
-function applyFourInRowObjectTextureQuality(object, maxAnisotropy = 1) {
-  object?.traverse?.((node) => {
-    if (!node?.isMesh) return;
-    const materials = Array.isArray(node.material) ? node.material : [node.material];
-    materials.forEach((material) => applyFourInRowMaterialTextureQuality(material, maxAnisotropy));
-  });
-}
 
 const getArenaYOffsetForHdri = (hdriId) => {
   const variant =
@@ -1826,15 +1772,9 @@ export default function FourInRowRoyal() {
     arenaYOffsetRef.current = arenaRoot.position.y;
     scene.add(arenaRoot);
 
-    const initialGraphicsPreset = getGraphicsPreset(appearance.graphics);
-    graphicsPresetRef.current = initialGraphicsPreset;
-    const renderer = new THREE.WebGLRenderer({
-      antialias: initialGraphicsPreset.antialias !== false,
-      alpha: true,
-      powerPreference: 'high-performance'
-    });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     applyRendererSRGB(renderer);
-    renderer.shadowMap.enabled = initialGraphicsPreset.shadowMapSize > 0;
+    renderer.shadowMap.enabled = true;
     mount.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
@@ -1930,20 +1870,12 @@ export default function FourInRowRoyal() {
       humanOptions[1] ||
       playerHumanOption;
     Promise.all([
-      createChairModel(chairTheme, renderer, initialGraphicsPreset),
-      loadFourInRowCharacterModel(
-        playerHumanOption,
-        renderer,
-        getFourInRowPresetMaxAnisotropy(renderer, initialGraphicsPreset)
-      ).catch((error) => {
+      createChairModel(chairTheme, renderer),
+      loadFourInRowCharacterModel(playerHumanOption, renderer).catch((error) => {
         console.warn('Four in Row Chess Battle player human failed to load.', playerHumanOption?.id, error);
         return null;
       }),
-      loadFourInRowCharacterModel(
-        aiHumanOption,
-        renderer,
-        getFourInRowPresetMaxAnisotropy(renderer, initialGraphicsPreset)
-      ).catch((error) => {
+      loadFourInRowCharacterModel(aiHumanOption, renderer).catch((error) => {
         console.warn('Four in Row Chess Battle opponent human failed to load.', aiHumanOption?.id, error);
         return null;
       })
@@ -2321,24 +2253,19 @@ export default function FourInRowRoyal() {
       );
       renderer.setSize(width, height);
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-      renderer.shadowMap.enabled = preset.shadowMapSize > 0;
-      key.castShadow = preset.shadowMapSize > 0;
       key.shadow.mapSize.setScalar(preset.shadowMapSize);
     };
     onResize();
     animationClockRef.current.start();
 
     let raf;
-    let frameAccumulator = 0;
     const animate = () => {
       raf = requestAnimationFrame(animate);
-      frameAccumulator += Math.min(animationClockRef.current.getDelta(), 0.1);
+      const delta = Math.min(animationClockRef.current.getDelta(), 0.1);
       const elapsed = animationClockRef.current.elapsedTime;
       const preset = graphicsPresetRef.current;
       const frameBudget = 1 / Math.max(30, preset.fps || 60);
-      if (frameAccumulator < frameBudget * 0.92) return;
-      const delta = Math.min(frameAccumulator, 0.1);
-      frameAccumulator = 0;
+      if (delta < frameBudget * 0.92) return;
 
       for (let i = characterChipActionsRef.current.length - 1; i >= 0; i -= 1) {
         const action = characterChipActionsRef.current[i];
@@ -2495,7 +2422,7 @@ export default function FourInRowRoyal() {
   useEffect(() => {
     const scene = sceneRef.current;
     const graphicsPreset = getGraphicsPreset(appearance.graphics);
-    const qualityKey = `${(graphicsPreset.preferredHdriResolutions || []).join(',')}::sky${graphicsPreset.skyboxResolutionScale || 1}`;
+    const qualityKey = (graphicsPreset.preferredHdriResolutions || []).join(',');
     if (
       !scene ||
       (envRef.current.hdriId === appearance.hdriId &&
@@ -2528,8 +2455,8 @@ export default function FourInRowRoyal() {
         32
       );
       const groundedResolution = Math.max(
-        48,
-        Math.floor((variant?.groundResolution ?? 112) * (graphicsPreset.skyboxResolutionScale || 1))
+        96,
+        Math.floor(variant?.groundResolution ?? 112)
       );
       const skybox = new GroundedSkybox(
         envMap,
@@ -2730,10 +2657,7 @@ export default function FourInRowRoyal() {
       )
     );
     renderer.setSize(width, height);
-    renderer.shadowMap.enabled = preset.shadowMapSize > 0;
-    key.castShadow = preset.shadowMapSize > 0;
     key.shadow.mapSize.setScalar(preset.shadowMapSize);
-    applyFourInRowObjectTextureQuality(sceneRef.current, getFourInRowPresetMaxAnisotropy(renderer, preset));
   }, [appearance.graphics]);
 
   useEffect(() => {
