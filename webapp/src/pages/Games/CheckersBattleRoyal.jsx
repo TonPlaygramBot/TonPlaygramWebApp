@@ -73,9 +73,9 @@ const clamp01 = (value, fallback = 0) => {
 const smoothEase = (t) => t * t * (3 - 2 * t);
 const CHECKERS_ARENA_BASE_SCALE = 0.48;
 // Requested visual tuning: keep the Checkers Battle Royal table/board setup
-// a bit smaller while preserving layout relationships between the board, table,
+// compact while preserving layout relationships between the board, table,
 // pieces, chairs, and seated humans.
-const CHECKERS_ARENA_SCALE = CHECKERS_ARENA_BASE_SCALE * 0.8;
+const CHECKERS_ARENA_SCALE = CHECKERS_ARENA_BASE_SCALE * 0.68;
 const MODEL_SCALE = 0.75 * CHECKERS_ARENA_SCALE;
 const STOOL_SCALE = 0.92 * CHECKERS_ARENA_SCALE;
 const TABLE_RADIUS = 3.0 * MODEL_SCALE;
@@ -137,9 +137,10 @@ const CHECKERS_TABLE_BASE_HEIGHT_SCALE = 1.22;
 const CHECKERS_TABLE_BASE_RADIUS_SCALE = 1.08;
 const CHECKERS_TABLE_TRIM_HEIGHT_SCALE = 0.94;
 const CHECKERS_TABLE_TRIM_RADIUS_SCALE = 0.9;
-const CHECKERS_CAMERA_FRAME_COMPENSATION = 1.08;
+const CHECKERS_CAMERA_FRAME_COMPENSATION = 1.3;
 const PLAYER_FACE_CAMERA_SEAT_ANGLE = Math.PI / 2;
-const PLAYER_FACE_CAMERA_RADIUS = TABLE_RADIUS * 0.98;
+const PLAYER_FACE_CAMERA_RADIUS =
+  TABLE_RADIUS * 0.98 * CHECKERS_CAMERA_FRAME_COMPENSATION;
 const PLAYER_FACE_CAMERA_EYE_HEIGHT = 1.68 * CHECKERS_ARENA_SCALE;
 const PLAYER_FACE_CAMERA_TARGET_HEIGHT = 0.18 * CHECKERS_ARENA_SCALE;
 const PLAYER_FACE_CAMERA_YAW_LIMIT = THREE.MathUtils.degToRad(18);
@@ -3824,7 +3825,8 @@ export default function CheckersBattleRoyal() {
     if (viewMode === '2d') {
       camera.position.set(
         0,
-        TABLE_HEIGHT + 9.2 * CHECKERS_ARENA_SCALE,
+        TABLE_HEIGHT +
+          9.2 * CHECKERS_ARENA_SCALE * CHECKERS_CAMERA_FRAME_COMPENSATION,
         0.001
       );
       controls.enableRotate = false;
