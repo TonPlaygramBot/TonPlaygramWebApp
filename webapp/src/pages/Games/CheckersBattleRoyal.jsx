@@ -110,11 +110,12 @@ const ARM_DEPTH = SEAT_DEPTH * 0.75;
 const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
 // Checkers uses the shared Chess Battle seated avatars in a smaller arena;
 // boost only their visual target height so the humans read larger at gameplay camera distance.
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 1.45;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 1.72;
 const SEATED_HUMAN_TARGET_HEIGHT =
   BACK_HEIGHT * 2.95 * SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER;
 const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = SEAT_DEPTH * 0.2;
+const CHECKERS_SEATED_HUMAN_IDLE_PROFILE = Object.freeze({ relaxedArmsDown: true });
 const SEATED_HUMAN_MOVE_DURATION_MS = 700;
 const SEATED_HUMAN_PICKUP_PHASE_END = 0.26;
 const SEATED_HUMAN_CARRY_PHASE_END = 0.78;
@@ -2315,7 +2316,7 @@ export default function CheckersBattleRoyal() {
           });
           chair.add(actor);
           const rig = saveSeatedHumanBoneRig(actor);
-          applySeatedHumanPose(rig, 'idle', 1, 0);
+          applySeatedHumanPose(rig, 'idle', 1, 0, CHECKERS_SEATED_HUMAN_IDLE_PROFILE);
           seatedHumanActorsRef.current.push({ playerIndex, chair, actor, rig });
         });
       } catch (error) {
@@ -2485,7 +2486,7 @@ export default function CheckersBattleRoyal() {
       if (!entry?.rig) return;
       const action = seatedHumanMoveActionsRef.current.get(entry.playerIndex);
       if (!action) {
-        applySeatedHumanPose(entry.rig, 'idle', 1, 0);
+        applySeatedHumanPose(entry.rig, 'idle', 1, 0, CHECKERS_SEATED_HUMAN_IDLE_PROFILE);
         return;
       }
       const rawT = clamp((now - action.startedAt) / Math.max(action.duration, 1), 0, 1);
@@ -2535,7 +2536,7 @@ export default function CheckersBattleRoyal() {
       if (rawT >= 1) {
         const linkedAnim = activeAnimationsRef.current.find((anim) => anim.object === action.object);
         if (linkedAnim) linkedAnim.handCarried = false;
-        applySeatedHumanPose(entry.rig, 'idle', 1, 0);
+        applySeatedHumanPose(entry.rig, 'idle', 1, 0, CHECKERS_SEATED_HUMAN_IDLE_PROFILE);
         seatedHumanMoveActionsRef.current.delete(entry.playerIndex);
       }
     });
