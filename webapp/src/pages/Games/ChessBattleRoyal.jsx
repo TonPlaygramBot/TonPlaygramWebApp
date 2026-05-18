@@ -2812,6 +2812,7 @@ const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -2.2; // push parked vehicles much f
 const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.26; // lift pad markers/parked units from floor to board/table level
 const SIDE_PARKED_AIR_UNITS_LANE_SPREAD = 1.92; // increase spacing between parking slots
 const SIDE_PARKED_TRUCK_SCALE_MULTIPLIER = 1.06; // keep truck close to true-size relative to helicopter shell
+const SIDE_PARKED_FIREARM_DISPLAY_SIZE_RATIO = 0.92; // scale parked firearm swaps to match the vehicle occupying that pad
 
 function getTableHeightForShape(shapeId) {
   if (LOWER_PROFILE_TABLE_SHAPE_IDS.has(shapeId)) {
@@ -3770,7 +3771,7 @@ function fitObjectToTargetSize(object, targetSize = 0.12) {
   object.updateMatrixWorld?.(true);
 }
 
-function prepareChessCaptureWeaponClone(template, captureAnimationId, { flat = true } = {}) {
+function prepareChessCaptureWeaponClone(template, captureAnimationId, { flat = true, targetSize = null } = {}) {
   const clone = cloneSkinned(template);
   clone.traverse((node) => {
     if (!node?.isMesh) return;
@@ -3789,11 +3790,13 @@ function prepareChessCaptureWeaponClone(template, captureAnimationId, { flat = t
   clone.position.set(0, 0, 0);
   clone.rotation.set(0, 0, 0);
   clone.scale.setScalar(1);
+  const baseTargetSize =
+    (flat ? 0.18 : 0.24) *
+    (CHESS_LARGE_FIREARM_IDS.has(captureAnimationId) ? 1.38 : 0.92) *
+    (CHESS_FIREARM_RACK_SIZE_MULTIPLIER_BY_ID[captureAnimationId] ?? 1);
   fitObjectToTargetSize(
     clone,
-    (flat ? 0.18 : 0.24) *
-      (CHESS_LARGE_FIREARM_IDS.has(captureAnimationId) ? 1.38 : 0.92) *
-      (CHESS_FIREARM_RACK_SIZE_MULTIPLIER_BY_ID[captureAnimationId] ?? 1)
+    Number.isFinite(targetSize) && targetSize > 0 ? targetSize : baseTargetSize
   );
   alignObjectBottomToY(clone, 0);
   const rotation = flat ? CHESS_FIREARM_FLAT_ROTATION : CHESS_FIREARM_AIM_ROTATION;
@@ -12305,7 +12308,10 @@ function Chess3D({
       void loadChessCaptureWeaponModel(animationId).then((template) => {
         if (!template || !unit.root || getParkedCaptureAnimationForKind(unit.kind) !== animationId) return;
         const display = new THREE.Group();
-        const clone = prepareChessCaptureWeaponClone(template, animationId, { flat: true });
+        const clone = prepareChessCaptureWeaponClone(template, animationId, {
+          flat: true,
+          targetSize: unit.parkedFirearmDisplayTargetSize
+        });
         clone.position.y += 0.015;
         display.add(clone);
         unit.parkedFirearmDisplay = display;
@@ -12465,6 +12471,20 @@ function Chess3D({
         if (!unit?.root) return;
         unit.root.visible = true;
         unit.baseChildren = [...unit.root.children];
+        const parkedBounds = getRenderableMeshBounds(unit.root) || new THREE.Box3().setFromObject(unit.root);
+        const parkedSize = parkedBounds.getSize(new THREE.Vector3());
+        const maxParkedWorldDim = Math.max(parkedSize.x, parkedSize.y, parkedSize.z);
+        const rootWorldScale = unit.root.getWorldScale(new THREE.Vector3());
+        const maxRootWorldScale = Math.max(
+          Math.abs(rootWorldScale.x),
+          Math.abs(rootWorldScale.y),
+          Math.abs(rootWorldScale.z),
+          0.001
+        );
+        const canScaleParkedFirearm = Number.isFinite(maxParkedWorldDim) && maxParkedWorldDim > 0;
+        unit.parkedFirearmDisplayTargetSize = canScaleParkedFirearm
+          ? (maxParkedWorldDim / maxRootWorldScale) * SIDE_PARKED_FIREARM_DISPLAY_SIZE_RATIO
+          : null;
         const tableSurfacePosition = unit.homePosition.clone();
         tableSurfacePosition.y = currentPieceYOffset + SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT + 0.035;
         unit.tableSurfacePosition = tableSurfacePosition;
