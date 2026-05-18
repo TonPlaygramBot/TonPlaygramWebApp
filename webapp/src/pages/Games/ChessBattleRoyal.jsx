@@ -208,6 +208,21 @@ const GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID = Object.freeze({
 const FIREARM_CAPTURE_ANIMATION_IDS = new Set(
   CAPTURE_ANIMATION_OPTIONS.map((option) => option.id).filter((id) => !GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[id])
 );
+const pickRandomChessCaptureAnimationId = (preferredIds = []) => {
+  const preferred = preferredIds
+    .map((id) => CAPTURE_ANIMATION_OPTIONS.find((option) => option.id === id)?.id)
+    .filter(Boolean);
+  const pool = preferred.length ? preferred : CAPTURE_ANIMATION_OPTIONS.map((option) => option.id).filter(Boolean);
+  return pool[Math.floor(Math.random() * pool.length)] || CAPTURE_ANIMATION_OPTIONS[0]?.id || 'missileJavelin';
+};
+
+const createRandomAiCaptureLoadout = () => ({
+  kingQueen: pickRandomChessCaptureAnimationId(['fighterJetAttack', 'helicopterAttack', 'droneAttack', 'ak47VolleyAttack', 'sniperShotAttack']),
+  bishopRook: pickRandomChessCaptureAnimationId(['helicopterAttack', 'fighterJetAttack', 'missileJavelin', 'shotgunBlastAttack', 'polyAssaultRifle01Attack']),
+  knight: pickRandomChessCaptureAnimationId(['droneAttack', 'fighterJetAttack', 'uziSprayAttack', 'polySmg01Attack', 'glockSidearmAttack']),
+  pawn: pickRandomChessCaptureAnimationId(['missileJavelin', 'droneAttack', 'glockSidearmAttack', 'polyPistol01Attack', 'smithSidearmAttack'])
+});
+
 
 const CHESS_CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   fpsGunAttack: {
@@ -346,8 +361,11 @@ const CHESS_FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
   polyTank01Attack: 2.3
 });
 const CHESS_FIREARM_FLAT_ROTATION = Object.freeze([-Math.PI * 0.5, -Math.PI * 0.02, 0]);
-const CHESS_FIREARM_AIM_ROTATION = Object.freeze([0, -Math.PI * 0.5, 0]);
+const CHESS_FIREARM_AIM_ROTATION = Object.freeze([0, Math.PI * 0.5, 0]);
 const CHESS_FIREARM_HANDHELD_SCALE_MULTIPLIER = 1.72;
+const CHESS_FATAL_BULLET_SLOWMO_MS = 820;
+const CHESS_FATAL_BULLET_CAMERA_DISTANCE = 0.34;
+const CHESS_FATAL_BULLET_CAMERA_HEIGHT = 0.16;
 const CHESS_FIREARM_MUZZLE_YAW_CORRECTION_BY_ID = Object.freeze({
   ak47VolleyAttack: Math.PI,
   krsvBurstAttack: Math.PI
@@ -513,7 +531,7 @@ const LAYOUT_SCALE_FACTOR = 0.7225;
 const TABLE_LAYOUT_SCALE_FACTOR = 0.52; // Scale down board/table/chairs further for a tighter portrait composition.
 const PIECE_SCALE_FACTOR = 0.73 * LAYOUT_SCALE_FACTOR * 1.5 * 0.82 * 1.14; // Keep piece visual size stable while shrinking board footprint.
 const PIECE_FOOTPRINT_RATIO = 0.86;
-const BOARD_GROUP_Y_OFFSET = 0.05;
+const BOARD_GROUP_Y_OFFSET = 0.005;
 const BOARD_MODEL_Y_OFFSET = -0.12;
 const BOARD_VISUAL_Y_OFFSET = -0.03;
 const BOARD_SURFACE_DROP = 0.05;
@@ -3006,19 +3024,19 @@ const CUSTOMIZATION_SECTIONS = [
 
 const SHAPE_CUSTOMIZATION_TABLE_IDS = new Set(['hexagonTable', 'murlan-default', 'grandOval']);
 const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
-  classicOctagon: 0.024,
-  hexagonTable: 0.024,
-  grandOval: 0.024,
-  diamondEdge: 0.024
+  classicOctagon: 0,
+  hexagonTable: 0,
+  grandOval: 0,
+  diamondEdge: 0
 });
 const LOWER_PROFILE_TABLE_SHAPE_IDS = new Set(['classicOctagon', 'hexagonTable', 'grandOval', 'diamondEdge']);
 const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0;
-const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 17.5; // keep side parking weapons realistic beside seated humans
+const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 22.5; // keep side parking weapons realistic beside seated humans
 const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -2.2; // push parked vehicles much farther to the sides
 const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.26; // lift pad markers/parked units from floor to board/table level
 const SIDE_PARKED_AIR_UNITS_LANE_SPREAD = 1.92; // increase spacing between parking slots
-const SIDE_PARKED_TRUCK_SCALE_MULTIPLIER = 1.06; // keep truck close to true-size relative to helicopter shell
-const SIDE_PARKED_FIREARM_DISPLAY_SIZE_RATIO = 0.92; // scale parked firearm swaps to match the vehicle occupying that pad
+const SIDE_PARKED_TRUCK_SCALE_MULTIPLIER = 1.22; // keep truck close to true-size relative to helicopter shell
+const SIDE_PARKED_FIREARM_DISPLAY_SIZE_RATIO = 1.2; // scale parked firearm swaps to match the vehicle occupying that pad
 
 function getTableHeightForShape(shapeId) {
   if (LOWER_PROFILE_TABLE_SHAPE_IDS.has(shapeId)) {
@@ -8232,6 +8250,7 @@ function Chess3D({
     pawn: 'missileJavelin'
   }));
   const captureAnimationByPieceGroupRef = useRef(captureAnimationByPieceGroup);
+  const aiCaptureAnimationByPieceGroupRef = useRef(createRandomAiCaptureLoadout());
   useEffect(() => {
     setCaptureAnimationByPieceGroup((prev) => ({
       kingQueen: prev.kingQueen || 'fighterJetAttack',
@@ -9340,11 +9359,12 @@ function Chess3D({
           nextTable.group.position.x += placementOffset.x;
           nextTable.group.position.z += placementOffset.z;
         }
-        positionChessBattleChairRing(arena.chairs || [], nextTable);
-        (arena.chairs || []).forEach((chair) => {
+        const chairDistances = positionChessBattleChairRing([], nextTable);
+        (arena.chairs || []).forEach((chair, playerIndex) => {
           if (!chair?.group) return;
+          const baseZ = playerIndex === 0 ? chairDistances.playerChairDistance : -chairDistances.opponentChairDistance;
           chair.group.position.x = placementOffset.x;
-          chair.group.position.z += placementOffset.z;
+          chair.group.position.z = placementOffset.z + baseZ;
           alignGroupToFloorY(chair.group, arenaFloorY);
         });
         if (boardGroup && nextTable?.group) {
@@ -10426,6 +10446,7 @@ function Chess3D({
     const captureFxGroup = new THREE.Group();
     scene.add(captureFxGroup);
     const activeCaptureFx = [];
+    const fatalBulletCamera = { active: false, bullet: null, untilMs: 0 };
     let board = null;
     let pieceMeshes = null;
     const parkedAirUnits = [];
@@ -11246,12 +11267,67 @@ function Chess3D({
       }
       return { root, flash, fire, smoke };
     };
-    const launchExplosion = (position) => {
+    const launchExplosion = (position, targetMesh = null) => {
       const explosion = createFxExplosion(position);
       captureFxGroup.add(explosion.root);
       playAudio(bombSoundRef, { maxDurationMs: 520 });
       playAudio(missileImpactSoundRef);
       activeCaptureFx.push({ type: 'explosion', t: 0, duration: LUDO_CAPTURE_EXPLOSION_TIME, explosion });
+      if (targetMesh) launchPieceBreakDebris(targetMesh, position);
+    };
+    const samplePieceFragmentMaterial = (targetMesh) => {
+      let material = null;
+      targetMesh?.traverse?.((node) => {
+        if (material || !node?.isMesh) return;
+        const mats = Array.isArray(node.material) ? node.material : [node.material];
+        material = mats.find(Boolean) || null;
+      });
+      if (material?.clone) {
+        const clone = material.clone();
+        clone.transparent = true;
+        clone.opacity = 0.96;
+        clone.roughness = Math.min(1, (clone.roughness ?? 0.5) + 0.18);
+        return clone;
+      }
+      return new THREE.MeshStandardMaterial({ color: 0xf8fafc, metalness: 0.25, roughness: 0.52, transparent: true, opacity: 0.96 });
+    };
+    const launchPieceBreakDebris = (targetMesh, impactPos) => {
+      if (!targetMesh?.parent) return;
+      const bounds = new THREE.Box3().setFromObject(targetMesh);
+      if (bounds.isEmpty()) return;
+      const center = bounds.getCenter(new THREE.Vector3());
+      const size = bounds.getSize(new THREE.Vector3());
+      const floorY = Math.max(bounds.min.y, currentPieceYOffset);
+      const fragments = [];
+      const fragmentCount = 18;
+      for (let idx = 0; idx < fragmentCount; idx += 1) {
+        const radius = THREE.MathUtils.lerp(0.012, 0.034, Math.random());
+        const geometry = idx % 3 === 0
+          ? new THREE.TetrahedronGeometry(radius, 0)
+          : new THREE.BoxGeometry(radius * 1.25, radius * 0.8, radius * 1.05);
+        const mesh = new THREE.Mesh(geometry, samplePieceFragmentMaterial(targetMesh));
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        const start = center.clone();
+        start.x += THREE.MathUtils.randFloatSpread(Math.max(size.x, 0.05) * 0.34);
+        start.y += THREE.MathUtils.randFloat(0.02, Math.max(size.y, 0.08) * 0.38);
+        start.z += THREE.MathUtils.randFloatSpread(Math.max(size.z, 0.05) * 0.34);
+        mesh.position.copy(start);
+        captureFxGroup.add(mesh);
+        const outward = start.clone().sub(impactPos || center);
+        if (outward.lengthSq() < 1e-5) outward.set(THREE.MathUtils.randFloatSpread(1), 0.25, THREE.MathUtils.randFloatSpread(1));
+        outward.normalize();
+        fragments.push({
+          mesh,
+          start,
+          velocity: outward.multiplyScalar(THREE.MathUtils.randFloat(0.15, 0.42)).add(new THREE.Vector3(0, THREE.MathUtils.randFloat(0.18, 0.42), 0)),
+          spin: new THREE.Vector3(THREE.MathUtils.randFloat(-7, 7), THREE.MathUtils.randFloat(-7, 7), THREE.MathUtils.randFloat(-7, 7)),
+          floorY,
+          settled: false
+        });
+      }
+      targetMesh.visible = false;
+      activeCaptureFx.push({ type: 'pieceDebris', t: 0, duration: 1.55, fragments, targetMesh });
     };
     const qBezier = (a, b, c, t) => {
       const ab = new THREE.Vector3().copy(a).lerp(b, t);
@@ -11850,9 +11926,14 @@ function Chess3D({
       return 'pawn';
     };
 
-    const resolveCaptureKindForPiece = (pieceType) => {
+    const resolveCaptureAnimationForPiece = (pieceType, isWhiteSide = true) => {
       const group = resolvePieceGroupFromType(pieceType);
-      const selectedId = captureAnimationByPieceGroupRef.current?.[group] || selectedCaptureAnimationIdRef.current;
+      const loadout = isWhiteSide ? captureAnimationByPieceGroupRef.current : aiCaptureAnimationByPieceGroupRef.current;
+      return (group && loadout?.[group]) || selectedCaptureAnimationIdRef.current;
+    };
+
+    const resolveCaptureKindForPiece = (pieceType, isWhiteSide = true) => {
+      const selectedId = resolveCaptureAnimationForPiece(pieceType, isWhiteSide);
       if (FIREARM_CAPTURE_ANIMATION_IDS.has(selectedId)) return 'firearm';
       return GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[selectedId] || 'truck';
     };
@@ -11874,7 +11955,8 @@ function Chess3D({
         }
         return timing;
       };
-      const captureKind = resolveCaptureKindForPiece(movingType);
+      const isWhiteAttacker = movingMesh?.userData?.w !== false;
+      const captureKind = resolveCaptureKindForPiece(movingType, isWhiteAttacker);
       if (captureKind === 'truck') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
         const missileFx = createFxGroundMissile();
@@ -12046,8 +12128,7 @@ function Chess3D({
         });
       }
       if (captureKind === 'firearm') {
-        const group = resolvePieceGroupFromType(movingType);
-        const firearmAnimationId = captureAnimationByPieceGroupRef.current?.[group] || selectedCaptureAnimationIdRef.current;
+        const firearmAnimationId = resolveCaptureAnimationForPiece(movingType, isWhiteAttacker);
         const firearmProfile = resolveFirearmCaptureProfile(firearmAnimationId);
         playAudio(missileLaunchSoundRef);
         const missileFx = createFxMissile();
@@ -12087,9 +12168,10 @@ function Chess3D({
           shooterSeatIndex: movingMesh?.userData?.w ? 0 : 1,
           muzzleOffset: new THREE.Vector3(0.24, 0.14, 0)
         });
+        const firearmResolveMs = firearmProfile.duration * 1000 + CHESS_FATAL_BULLET_SLOWMO_MS * 0.72;
         return withAuto3d({
-          moveDelayMs: firearmProfile.duration * 1000,
-          captureResolveDelayMs: firearmProfile.duration * 1000
+          moveDelayMs: firearmResolveMs,
+          captureResolveDelayMs: firearmResolveMs
         });
       }
       if (distance <= 1.5) {
@@ -12540,13 +12622,14 @@ function Chess3D({
     board = parseFEN(START_FEN);
     pieceMeshes = Array.from({ length: 8 }, () => Array(8).fill(null));
     const allPieceMeshes = [];
-    const getParkedCaptureAnimationForKind = (kind) => {
+    const getParkedCaptureAnimationForKind = (kind, isWhiteSide = true) => {
       const group = PIECE_GROUP_BY_PARKED_KIND[kind];
-      return (group && captureAnimationByPieceGroupRef.current?.[group]) || selectedCaptureAnimationIdRef.current;
+      const loadout = isWhiteSide ? captureAnimationByPieceGroupRef.current : aiCaptureAnimationByPieceGroupRef.current;
+      return (group && loadout?.[group]) || selectedCaptureAnimationIdRef.current;
     };
     const applyParkedWeaponVisual = (unit) => {
       if (!unit?.root) return;
-      const animationId = getParkedCaptureAnimationForKind(unit.kind);
+      const animationId = getParkedCaptureAnimationForKind(unit.kind, unit.isWhite !== false);
       const showFirearm = FIREARM_CAPTURE_ANIMATION_IDS.has(animationId);
       const baseChildren = unit.baseChildren || [];
       baseChildren.forEach((child) => {
@@ -12576,7 +12659,7 @@ function Chess3D({
       }
       unit.parkedFirearmAnimationId = animationId;
       void loadChessCaptureWeaponModel(animationId).then((template) => {
-        if (!template || !unit.root || getParkedCaptureAnimationForKind(unit.kind) !== animationId) return;
+        if (!template || !unit.root || getParkedCaptureAnimationForKind(unit.kind, unit.isWhite !== false) !== animationId) return;
         const display = new THREE.Group();
         const clone = prepareChessCaptureWeaponClone(template, animationId, {
           flat: true,
@@ -13379,6 +13462,7 @@ function Chess3D({
             ? half + BOARD.rim + 1 + row * captureRowSpacing
             : -half - BOARD.rim - 1 - row * captureRowSpacing;
           cancelPieceAnimation(targetMesh);
+          targetMesh.visible = true;
           targetMesh.position.y = captureY;
           animatePieceTo(
             targetMesh,
@@ -14074,7 +14158,38 @@ function Chess3D({
           const fx = activeCaptureFx[i];
           fx.t += dt;
           const u = clamp01(fx.t / fx.duration);
-          if (fx.type === 'drone') {
+          if (fx.type === 'pieceDebris') {
+            const gravity = 0.9;
+            (fx.fragments || []).forEach((fragment) => {
+              const age = Math.min(fx.t, fx.duration);
+              const pos = fragment.start.clone().addScaledVector(fragment.velocity, age);
+              pos.y -= gravity * age * age * 0.5;
+              if (pos.y <= fragment.floorY + 0.01) {
+                pos.y = fragment.floorY + 0.01;
+                fragment.velocity.multiplyScalar(0.72);
+                fragment.settled = true;
+              }
+              fragment.mesh.position.copy(pos);
+              fragment.mesh.rotation.x += fragment.spin.x * dt;
+              fragment.mesh.rotation.y += fragment.spin.y * dt;
+              fragment.mesh.rotation.z += fragment.spin.z * dt;
+              const fade = clamp01((fx.duration - fx.t) / 0.45, 1);
+              const mats = Array.isArray(fragment.mesh.material) ? fragment.mesh.material : [fragment.mesh.material];
+              mats.forEach((mat) => {
+                if (!mat) return;
+                mat.opacity = Math.min(mat.opacity ?? 1, fade);
+                mat.transparent = true;
+              });
+            });
+            if (u >= 1) {
+              (fx.fragments || []).forEach((fragment) => {
+                fragment.mesh.userData?.dispose?.();
+                captureFxGroup.remove(fragment.mesh);
+                disposeObject3D(fragment.mesh);
+              });
+              activeCaptureFx.splice(i, 1);
+            }
+          } else if (fx.type === 'drone') {
             const impactTime = CAPTURE_GROUND_FIRE_TIME + CAPTURE_DRONE_TRAVEL_TIME;
             const launchPos = fx.returnToOrigin
               ? fx.launchPos.clone()
@@ -14426,7 +14541,7 @@ function Chess3D({
             if (fx.t >= impactTime) {
               if (!fx.hasExploded) {
                 fx.hasExploded = true;
-                launchExplosion(targetPos);
+                launchExplosion(targetPos, fx.targetMesh);
               }
               fx.missileFx.root.visible = false;
               captureFxGroup.remove(fx.missileFx.root);
@@ -14478,6 +14593,12 @@ function Chess3D({
               bullet.mesh.position.copy(pos);
               orientForwardKeepingUp(bullet.mesh, bullet.dir);
               bullet.mesh.visible = bulletAge < 1;
+              if (bullet.isFatal && bulletAge >= 0.98 && !bullet.impactTriggered) {
+                bullet.impactTriggered = true;
+                fx.hitTriggered = true;
+                playAudio(missileImpactSoundRef, { volume: fx.singleShot ? 0.9 : 0.65 });
+                launchExplosion(bullet.to, fx.targetMesh);
+              }
             });
             fx.liveBullets = (fx.liveBullets || []).filter((bullet) => {
               if ((now - bullet.startMs) / Math.max(1, bullet.durationMs) < 1.05) return true;
@@ -14523,8 +14644,17 @@ function Chess3D({
                 to: bulletTo,
                 dir: aimDir.clone(),
                 startMs: now,
-                durationMs: Math.max(90, fx.duration * 1000 * fireStep * 0.86)
+                durationMs: shotIndex === bulletsToFire - 1
+                  ? Math.max(CHESS_FATAL_BULLET_SLOWMO_MS, fx.duration * 1000 * fireStep * 1.42)
+                  : Math.max(90, fx.duration * 1000 * fireStep * 0.86),
+                isFatal: shotIndex === bulletsToFire - 1,
+                impactTriggered: false
               });
+              if (shotIndex === bulletsToFire - 1) {
+                fatalBulletCamera.active = true;
+                fatalBulletCamera.bullet = fx.liveBullets[fx.liveBullets.length - 1];
+                fatalBulletCamera.untilMs = now + CHESS_FATAL_BULLET_SLOWMO_MS + 260;
+              }
               const shell = createFirearmShellMesh(fx.bulletProfile);
               const ejectSide = new THREE.Vector3().crossVectors(aimDir, WORLD_UP).normalize();
               shell.position.copy(muzzlePos).addScaledVector(ejectSide, 0.035);
@@ -14540,10 +14670,10 @@ function Chess3D({
               }
             }
 
-            if (!fx.hitTriggered && u >= fx.impactAt) {
+            if (!fx.hitTriggered && u >= fx.impactAt && !(fx.liveBullets || []).some((bullet) => bullet.isFatal)) {
               fx.hitTriggered = true;
               playAudio(missileImpactSoundRef, { volume: fx.singleShot ? 0.9 : 0.65 });
-              launchExplosion(targetPos);
+              launchExplosion(targetPos, fx.targetMesh);
             }
 
             if (u >= 1 && !(fx.liveBullets || []).length && !(fx.liveShells || []).length) {
@@ -14571,7 +14701,7 @@ function Chess3D({
               puff.position.set(-0.5 - idx * 0.14, Math.sin(fx.t * 10 + idx) * 0.015, 0);
             });
             if (u >= 1) {
-              launchExplosion(targetPos);
+              launchExplosion(targetPos, fx.targetMesh);
               captureFxGroup.remove(fx.missileFx.root);
               activeCaptureFx.splice(i, 1);
             }
@@ -14841,6 +14971,23 @@ function Chess3D({
           );
         }
         camera.lookAt(lookTarget);
+      }
+
+      if (fatalBulletCamera.active && fatalBulletCamera.bullet?.mesh?.parent && now < fatalBulletCamera.untilMs) {
+        const bullet = fatalBulletCamera.bullet;
+        const bulletPos = bullet.mesh.position.clone();
+        const chaseDir = bullet.dir?.clone?.().normalize?.() || new THREE.Vector3(0, 0, 1);
+        const cameraPos = bulletPos
+          .clone()
+          .addScaledVector(chaseDir, -CHESS_FATAL_BULLET_CAMERA_DISTANCE)
+          .addScaledVector(WORLD_UP, CHESS_FATAL_BULLET_CAMERA_HEIGHT);
+        camera.position.lerp(cameraPos, 0.42);
+        camera.lookAt(bulletPos.clone().lerp(bullet.to, 0.72).addScaledVector(WORLD_UP, 0.035));
+        if (controls) controls.enabled = false;
+      } else if (fatalBulletCamera.active) {
+        fatalBulletCamera.active = false;
+        fatalBulletCamera.bullet = null;
+        if (controls && !fpvEnabled) controls.enabled = true;
       }
 
       controls?.update();
