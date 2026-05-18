@@ -8277,15 +8277,17 @@ function normalizeDominoCharacterRoot(root) {
   if (!bounds.isEmpty()) root.position.y -= bounds.min.y;
 }
 
-const DOMINO_HELD_RACK_HAND_LIFT = 0.72 * MODEL_SCALE;
-// Keep the character-held domino fan slightly tucked in toward the tabletop
-// so seated hands read closer to their dominoes instead of floating outward.
-const DOMINO_HELD_RACK_OUTWARD_OFFSET = 0.68 * MODEL_SCALE;
+const DOMINO_HELD_RACK_HAND_LIFT = 0.98 * MODEL_SCALE;
+// Keep the non-bottom players' held domino fans lifted and pushed farther
+// outward so their hands read clearly around the top and side seats.
+const DOMINO_HELD_RACK_OUTWARD_OFFSET = 0.96 * MODEL_SCALE;
 const DOMINO_HELD_RACK_BOTTOM_HAND_LIFT = 1.04 * MODEL_SCALE;
 const DOMINO_HELD_RACK_BOTTOM_OUTWARD_OFFSET = 1.04 * MODEL_SCALE;
 
 function createHeldDominoRack(seatIndex, handTiles = []) {
   const rack = new THREE.Group();
+  const isBottom = seatIndex === human;
+  const horizontalTileSpacing = isBottom ? 0.092 : 0.12;
   const visibleTiles = Array.isArray(handTiles) ? handTiles.slice(0, 5) : [];
   const desiredSignature = visibleTiles.map((tile) => `${tile.a}:${tile.b}`).join('|');
   const tiles = visibleTiles.length ? visibleTiles : [{ a: 6, b: 6 }, { a: 5, b: 4 }];
@@ -8293,11 +8295,10 @@ function createHeldDominoRack(seatIndex, handTiles = []) {
     const mini = makeDomino(tile.a ?? 0, tile.b ?? 0, { flat: false, faceUp: true });
     const centered = index - (tiles.length - 1) / 2;
     mini.scale.setScalar(0.3);
-    mini.position.set(centered * 0.12 * MODEL_SCALE, (1.42 + Math.abs(centered) * 0.014) * MODEL_SCALE, 0.5 * MODEL_SCALE + index * 0.006);
+    mini.position.set(centered * horizontalTileSpacing * MODEL_SCALE, (1.42 + Math.abs(centered) * 0.014) * MODEL_SCALE, 0.5 * MODEL_SCALE + index * 0.006);
     mini.rotation.set(THREE.MathUtils.degToRad(-74), THREE.MathUtils.degToRad(centered * -7), THREE.MathUtils.degToRad(centered * 10));
     rack.add(mini);
   });
-  const isBottom = seatIndex === human;
   const handLift = isBottom ? DOMINO_HELD_RACK_BOTTOM_HAND_LIFT : DOMINO_HELD_RACK_HAND_LIFT;
   const outwardOffset = isBottom ? DOMINO_HELD_RACK_BOTTOM_OUTWARD_OFFSET : DOMINO_HELD_RACK_OUTWARD_OFFSET;
   rack.position.set(
