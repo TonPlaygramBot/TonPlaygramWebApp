@@ -179,6 +179,8 @@ const TABLE_Z = 2.35;
 const TABLE_TOP_Y = 0.94;
 const TARGET_Z = -21.8;
 const BULLET_SPIN = 245;
+const STANDARD_HELD_WEAPON_LENGTH = 1.24;
+const STANDARD_TABLE_WEAPON_LENGTH = 0.72;
 const SERVICE_PISTOL_AIM = {
   mount: new THREE.Vector3(0.34, 1.27, -0.12),
   muzzle: new THREE.Vector3(0.01, -0.035, -1.21),
@@ -616,7 +618,9 @@ function configureGltfTextureAdapters(renderer: THREE.WebGLRenderer) {
   ktx2LoaderAdapter?.dispose();
 
   dracoLoaderAdapter = new DRACOLoader();
-  dracoLoaderAdapter.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+  dracoLoaderAdapter.setDecoderPath(
+    'https://www.gstatic.com/draco/v1/decoders/'
+  );
 
   ktx2LoaderAdapter = new KTX2Loader();
   ktx2LoaderAdapter.setTranscoderPath(
@@ -823,6 +827,77 @@ function configureModel(root: THREE.Object3D, renderer: THREE.WebGLRenderer) {
       material.needsUpdate = true;
     });
   });
+}
+
+function reinforceWeaponMaterials(root: THREE.Object3D) {
+  root.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (!(mesh as any).isMesh && !(mesh as any).isSkinnedMesh) return;
+    mesh.visible = true;
+    mesh.frustumCulled = false;
+
+    const materials = Array.isArray((mesh as any).material)
+      ? (mesh as any).material
+      : (mesh as any).material
+        ? [(mesh as any).material]
+        : [];
+
+    materials.forEach((material: any) => {
+      material.side = THREE.DoubleSide;
+      if (
+        material.transparent &&
+        !material.alphaMap &&
+        material.opacity < 0.18
+      ) {
+        material.opacity = 1;
+        material.transparent = false;
+        material.depthWrite = true;
+      }
+      if (material.map?.isTexture)
+        material.map.colorSpace = THREE.SRGBColorSpace;
+      material.needsUpdate = true;
+    });
+  });
+}
+
+function normalizeWeaponPresentation(
+  root: THREE.Object3D,
+  targetLength: number
+) {
+  reinforceWeaponMaterials(root);
+  normalizeToLength(root, targetLength);
+}
+
+function getWeaponBoundsForSockets(root: THREE.Object3D) {
+  const savedPosition = root.position.clone();
+  root.position.set(0, 0, 0);
+  root.updateMatrixWorld(true);
+  const box = getRenderableBounds(root);
+  root.position.copy(savedPosition);
+  root.updateMatrixWorld(true);
+  return box;
+}
+
+function getWeaponMuzzleLocal(root: THREE.Object3D) {
+  const box = getWeaponBoundsForSockets(root);
+  if (!box) return new THREE.Vector3(0.02, 0.02, -0.95);
+  const size = box.getSize(new THREE.Vector3());
+  return new THREE.Vector3(
+    0.02,
+    Math.max(0.02, size.y * 0.04),
+    box.min.z - 0.045
+  );
+}
+
+function getWeaponShellPortLocal(root: THREE.Object3D) {
+  const box = getWeaponBoundsForSockets(root);
+  if (!box) return new THREE.Vector3(0.12, 0.03, -0.42);
+  const size = box.getSize(new THREE.Vector3());
+  return new THREE.Vector3(
+    Math.max(0.1, size.x * 0.28),
+    Math.max(0.03, size.y * 0.08),
+    THREE.MathUtils.lerp(box.min.z, box.max.z, 0.42)
+  );
 }
 
 function getRenderableBounds(root: THREE.Object3D) {
@@ -1204,6 +1279,7 @@ function makeBulletHead(
   const group = new THREE.Group();
   group.add(cloneRenderable(source));
   applyServicePistolTextureMaps(group, maps);
+  reinforceWeaponMaterials(group);
   centerRoot(group);
   group.updateMatrixWorld(true);
   const size = new THREE.Box3()
@@ -2072,8 +2148,9 @@ function createBullet(
   let visual: THREE.Object3D;
   if (nineMm) {
     visual = cloneRenderable(ammoTemplates.bullet);
-    visual.scale.multiplyScalar(cinematic ? 1.08 : 1);
+    centerRoot(visual);
     orientBulletTipForward(visual);
+    normalizeToLength(visual, cinematic ? 0.16 : 0.135);
   } else {
     visual = makePointedRifleBullet(longGun, shotgun, cinematic);
   }
@@ -2124,12 +2201,12 @@ function createBullet(
     pos: root.position.clone(),
     t: 0,
     age: 0,
-    speed: cinematic ? (nineMm ? 0.34 : longGun ? 0.62 : speed) : speed,
+    speed: cinematic ? (nineMm ? 0.62 : longGun ? 0.62 : speed) : speed,
     spin: 0,
     cinematic,
     launched: true,
     prelaunch: 0,
-    life: cinematic ? (nineMm ? 8.5 : longGun ? 6.2 : 4.2) : 1.2,
+    life: cinematic ? (nineMm ? 6.2 : longGun ? 6.2 : 4.2) : 1.2,
     flightQuat: root.quaternion.clone(),
     impacted: false,
     impactAge: 0
@@ -2673,11 +2750,7 @@ export default function ShootingRange() {
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color('#111827');
-    scene.fog = new THREE.Fog(
-      '#111827',
-      18,
-      86
-    );
+    scene.fog = new THREE.Fog('#111827', 18, 86);
 
     const camera = new THREE.PerspectiveCamera(
       62,
@@ -2833,12 +2906,7 @@ export default function ShootingRange() {
     darkBackstop.castShadow = true;
     scene.add(darkBackstop);
 
-    addScenarioTrainingGeometry(
-      scene,
-      rangeConfig,
-      metalMat,
-      asphaltMat
-    );
+    addScenarioTrainingGeometry(scene, rangeConfig, metalMat, asphaltMat);
 
     const propFallbackMat = new THREE.MeshStandardMaterial({
       color: '#8b5e34',
@@ -2861,7 +2929,6 @@ export default function ShootingRange() {
         () => disposed
       );
     });
-
 
     const securityCameraAnchors = [
       {
@@ -3156,7 +3223,7 @@ export default function ShootingRange() {
       const nineMm = isNineMmWeapon(entry);
       const held = cloneRenderable(source);
       configureModel(held, renderer);
-      normalizeToLength(held, nineMm ? 1.95 : 1.14);
+      normalizeWeaponPresentation(held, STANDARD_HELD_WEAPON_LENGTH);
       if (nineMm) {
         orientWeaponForward(held);
         held.rotation.y += Math.PI / 2;
@@ -3174,19 +3241,11 @@ export default function ShootingRange() {
       lane.pickupLift = lift ? 1 : 0;
 
       const muzzle = new THREE.Object3D();
-      muzzle.position.copy(
-        nineMm
-          ? SERVICE_PISTOL_AIM.muzzle
-          : new THREE.Vector3(0.02, 0.02, -0.95)
-      );
+      muzzle.position.copy(getWeaponMuzzleLocal(held));
       held.add(muzzle);
 
       const shellPort = new THREE.Object3D();
-      shellPort.position.copy(
-        nineMm
-          ? SERVICE_PISTOL_AIM.shellPort
-          : new THREE.Vector3(0.12, 0.03, -0.42)
-      );
+      shellPort.position.copy(getWeaponShellPortLocal(held));
       held.add(shellPort);
 
       lane.muzzle = muzzle;
@@ -3246,7 +3305,7 @@ export default function ShootingRange() {
           weaponSourcesRef.current[index] as THREE.Object3D
         );
         configureModel(model, renderer);
-        normalizeToLength(model, 0.72);
+        normalizeWeaponPresentation(model, STANDARD_TABLE_WEAPON_LENGTH);
         layWeaponFlatOnTable(model);
         group.add(model);
 
@@ -3315,7 +3374,10 @@ export default function ShootingRange() {
 
               const loadedTableModel = cloneScene(gltf.scene);
               configureModel(loadedTableModel, renderer);
-              normalizeToLength(loadedTableModel, 0.72);
+              normalizeWeaponPresentation(
+                loadedTableModel,
+                STANDARD_TABLE_WEAPON_LENGTH
+              );
               layWeaponFlatOnTable(loadedTableModel);
               tableWeapon.root.add(loadedTableModel);
               tableWeapon.model = loadedTableModel;
@@ -3971,7 +4033,6 @@ export default function ShootingRange() {
       // FPS walk controls are disabled because only lane-based ranges remain.
     }
 
-
     function updateBullets(dt: number) {
       for (let i = bulletsRef.current.length - 1; i >= 0; i -= 1) {
         const bullet = bulletsRef.current[i];
@@ -4008,6 +4069,7 @@ export default function ShootingRange() {
         bullet.root.quaternion.copy(bullet.flightQuat);
         bullet.spin += BULLET_SPIN * dt;
         bullet.spinGroup.rotation.set(0, 0, bullet.spin);
+        bullet.spinGroup.position.set(0, 0, 0);
 
         bullet.trail.position.copy(bullet.pos).lerp(bullet.muzzle, 0.15);
         bullet.trail.lookAt(bullet.end);
