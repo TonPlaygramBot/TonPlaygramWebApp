@@ -287,7 +287,7 @@ const RESULT_COMPLIMENTS = {
 } as const;
 
 const CFG = {
-  laneY: -1.9,
+  laneY: -1.5,
   laneHalfW: 1.36,
   gutterHalfW: 1.72,
   laneCenterOffset: 1.82,
@@ -2318,6 +2318,11 @@ function createEnvironment(
     roughness: 0.9,
     metalness: 0.01
   });
+  const sideFloorMat = new THREE.MeshStandardMaterial({
+    color: 0x171417,
+    roughness: 0.78,
+    metalness: 0.02
+  });
   const rubberMat = new THREE.MeshStandardMaterial({
     color: 0x05070a,
     roughness: 0.86,
@@ -2336,22 +2341,13 @@ function createEnvironment(
     toneMapped: false
   });
 
-  const sidePanelMat =
-    (woodMat as THREE.Material).clone?.() || (woodMat as THREE.Material);
-  const sidePanelLength = 34.2;
-  const sidePanelWidth = 1.95;
-  const sidePanelZ = -6.2;
-  const sidePanelX =
-    CFG.laneCenterOffset + CFG.gutterHalfW + sidePanelWidth * 0.5 + 0.05;
-  for (const side of [-1, 1]) {
-    const sideFloor = new THREE.Mesh(
-      new THREE.PlaneGeometry(sidePanelWidth, sidePanelLength),
-      sidePanelMat
-    );
-    sideFloor.rotation.x = -Math.PI / 2;
-    sideFloor.position.set(side * sidePanelX, CFG.laneY - 0.024, sidePanelZ);
-    group.add(sideFloor);
-  }
+  const sideFloor = new THREE.Mesh(
+    new THREE.PlaneGeometry(8.4, 27.8),
+    sideFloorMat
+  );
+  sideFloor.rotation.x = -Math.PI / 2;
+  sideFloor.position.set(0, CFG.laneY - 0.024, -3.72);
+  group.add(sideFloor);
   const loungeCarpet = new THREE.Mesh(
     new THREE.PlaneGeometry(3.8, 4.95),
     carpetMat
@@ -2418,11 +2414,11 @@ function createEnvironment(
 
   for (const [laneIndex, laneCenter] of LANE_CENTERS.entries()) {
     const lane = new THREE.Mesh(
-      new THREE.PlaneGeometry(CFG.laneHalfW * 2, 34.2, 72, 500),
+      new THREE.PlaneGeometry(CFG.laneHalfW * 2, 28.8, 72, 420),
       laneMat
     );
     lane.rotation.x = -Math.PI / 2;
-    lane.position.set(laneCenter, CFG.laneY, -9.9);
+    lane.position.set(laneCenter, CFG.laneY, -7.2);
     lane.receiveShadow = true;
     group.add(lane);
 
