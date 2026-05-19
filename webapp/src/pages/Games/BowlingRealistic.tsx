@@ -286,7 +286,7 @@ const RESULT_COMPLIMENTS = {
 } as const;
 
 const CFG = {
-  laneY: -1.0,
+  laneY: -1.22,
   laneHalfW: 1.36,
   gutterHalfW: 1.72,
   laneCenterOffset: 1.82,
