@@ -34,7 +34,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     tintOriginalTrimGold: true,
     chromeMaterialSurfaceNames: ['diamonds', 'railSight', 'sideApron', 'apronStrip', 'railSightLower', 'cornerRailSight'],
     blackMaterialSurfaceNames: [],
-    forceGeneratedChromePlates: false,
+    forceGeneratedChromePlates: true,
     hideSurfaceRoles: []
   }
 ]);
