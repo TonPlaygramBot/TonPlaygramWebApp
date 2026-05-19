@@ -604,14 +604,17 @@ const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.28; // Lower the 3D player c
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 1.35;
 const PLAYER_VIEW_LOOK_TARGET_UP_BIAS = 0.22; // Aim slightly upward from the lower camera toward the pieces/opponent.
-const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 4.85; // Push board/chairs/avatars further downward on portrait screens to match the reference framing.
-const FPV_FACE_FORWARD_OFFSET = 0.006; // keep the camera almost exactly at the eyes for a true first-person perspective.
-const FPV_FACE_UP_OFFSET = 0.002; // slight lift so the board edge does not clip while still feeling eye-level.
+const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 5.45; // Push board/chairs/avatars further downward on portrait screens to match the reference framing.
+const FPV_FACE_FORWARD_OFFSET = 0.012; // keep the camera almost exactly at the eyes for a true first-person perspective.
+const FPV_FACE_UP_OFFSET = 0.0; // slight lift so the board edge does not clip while still feeling eye-level.
 const FPV_LOOK_AHEAD_DISTANCE = BOARD.tile * BOARD_SCALE * 5.8; // prioritize looking down the board journey toward the opponent side.
 const FPV_LOOK_TARGET_UP_OFFSET = 0.09; // keep gaze a touch above board center so opponent character remains in frame.
 const FPV_OPPONENT_HEAD_UP_OFFSET = 0.04; // bias look target toward opponent head/upper torso instead of chest.
 const FPV_HEAD_FOLLOW_SMOOTHING = 0.78;
-const FPV_BOB_AMPLITUDE = 0.004;
+const FPV_BOB_AMPLITUDE = 0.0;
+const FPV_LOOK_DRAG_SPEED = 0.0045;
+const FPV_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(18);
+const FPV_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(12);
 const SEATED_HUMAN_MOVE_DURATION_MS = 520; // Slightly longer to keep finger contact readable during pickup/carry/place.
 const SEATED_HUMAN_PICKUP_PHASE_END = 0.24;
 const SEATED_HUMAN_CARRY_PHASE_END = 0.8;
@@ -8503,7 +8506,7 @@ function Chess3D({
   });
   const [moveMode, setMoveMode] = useState('click');
   const [seatAnchors, setSeatAnchors] = useState([]);
-  const [viewMode, setViewMode] = useState('2d');
+  const [viewMode, setViewMode] = useState('3d');
   const [canReplay, setCanReplay] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [showChat, setShowChat] = useState(false);
@@ -10523,11 +10526,11 @@ function Chess3D({
     };
 
     cameraViewRef.current = { setMode: setViewModeInternal };
-    // Start every match in locked 2D mode by default and preserve board state when customizations change.
+    // Start every match in 3D mode by default and preserve board state when customizations change.
     restoreAutoViewTo2dRef.current = false;
-    viewModeRef.current = '2d';
-    setViewMode('2d');
-    setViewModeInternal('2d');
+    viewModeRef.current = '3d';
+    setViewMode('3d');
+    setViewModeInternal('3d');
 
     const fit = () => {
       const w = host.clientWidth;
@@ -14185,8 +14188,16 @@ function Chess3D({
       if (viewModeRef.current === 'fpv') {
         const fp = firstPersonViewRef.current;
         if (fp.activeLook) {
-          fp.targetYaw -= (event.movementX || 0) * 0.0024;
-          fp.targetPitch = clamp(fp.targetPitch - (event.movementY || 0) * 0.002, -0.6, 0.5);
+          fp.targetYaw = clamp(
+            fp.targetYaw - (event.movementX || 0) * FPV_LOOK_DRAG_SPEED,
+            -FPV_LOOK_YAW_LIMIT,
+            FPV_LOOK_YAW_LIMIT
+          );
+          fp.targetPitch = clamp(
+            fp.targetPitch - (event.movementY || 0) * FPV_LOOK_DRAG_SPEED,
+            -FPV_LOOK_PITCH_LIMIT,
+            FPV_LOOK_PITCH_LIMIT
+          );
         }
         return;
       }
@@ -15350,10 +15361,23 @@ function Chess3D({
           .copy(eyeWorld)
           .addScaledVector(eyeForward, FPV_FACE_FORWARD_OFFSET)
           .addScaledVector(eyeUp, FPV_FACE_UP_OFFSET + bobOffset);
-        const lookTarget = eyeWorld
-          .clone()
-          .addScaledVector(eyeForward, FPV_LOOK_AHEAD_DISTANCE)
-          .addScaledVector(WORLD_UP, FPV_LOOK_TARGET_UP_OFFSET);
+        const boardCenter = new THREE.Vector3(0, TABLE_HEIGHT + FPV_LOOK_TARGET_UP_OFFSET, 0);
+        const boardVector = boardCenter.clone().sub(camera.position);
+        const horizontalDistance = Math.hypot(boardVector.x, boardVector.z);
+        const baseYaw = Math.atan2(boardVector.x, -boardVector.z);
+        const basePitch = Math.atan2(boardVector.y, Math.max(1e-4, horizontalDistance));
+        const lookYaw = baseYaw + fpState.yaw;
+        const lookPitch = clamp(
+          basePitch + fpState.pitch,
+          basePitch - FPV_LOOK_PITCH_LIMIT,
+          basePitch + FPV_LOOK_PITCH_LIMIT
+        );
+        const lookDirection = new THREE.Vector3(
+          Math.sin(lookYaw) * Math.cos(lookPitch),
+          Math.sin(lookPitch),
+          -Math.cos(lookYaw) * Math.cos(lookPitch)
+        );
+        const lookTarget = camera.position.clone().addScaledVector(lookDirection, FPV_LOOK_AHEAD_DISTANCE);
         const opponentEntry = Array.isArray(seatedActors)
           ? seatedActors.find((entry) => entry?.playerIndex === 1)
           : null;
@@ -15363,7 +15387,7 @@ function Chess3D({
         if (opponentHead) {
           lookTarget.lerp(
             opponentHead.clone().addScaledVector(WORLD_UP, FPV_OPPONENT_HEAD_UP_OFFSET),
-            0.86
+            0.25
           );
         }
         camera.lookAt(lookTarget);
