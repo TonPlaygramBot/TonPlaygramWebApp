@@ -92,8 +92,8 @@ const BOARD_AND_CHIPS_SCALE =
   TABLE_SET_SIZE_BOOST;
 const CAMERA_FRAME_MATCH_SCALE =
   ROW_GAME_SCALE_REDUCTION * TABLE_CHAIR_BOARD_GLOBAL_SCALE_BOOST;
-const CAMERA_CLOSER_RADIUS_FACTOR = 0.82;
-const CAMERA_HEIGHT_MATCH_BOOST = 1.22;
+const CAMERA_CLOSER_RADIUS_FACTOR = 0.76;
+const CAMERA_HEIGHT_MATCH_BOOST = 1.3;
 const ARENA_VISUAL_SCALE = 1;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE * TABLE_SCALE;
 const TABLE_HEIGHT =
@@ -142,7 +142,7 @@ const TARGET_CHAIR_SIZE = new THREE.Vector3(
   1.7001562547683715 * CHAIR_SCALE
 );
 
-const FOUR_IN_ROW_CHARACTER_PROPORTION_SCALE = 2.02;
+const FOUR_IN_ROW_CHARACTER_PROPORTION_SCALE = 1.9;
 const FOUR_IN_ROW_CHARACTER_EXTRA_LOWER_OFFSET = 0.4;
 const FOUR_IN_ROW_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.42;
 const FOUR_IN_ROW_CHARACTER_MODEL_CACHE = new Map();
@@ -1857,14 +1857,17 @@ export default function FourInRowRoyal() {
 
     const controls = new OrbitControls(perspective, renderer.domElement);
     controls.enablePan = false;
+    controls.enableRotate = false;
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.target.set(0, arenaRoot.position.y + TABLE_HEIGHT + 0.08, 0);
     controls.minPolarAngle = THREE.MathUtils.degToRad(30);
     controls.maxPolarAngle =
       ARENA_CAMERA_DEFAULTS.phiMax + THREE.MathUtils.degToRad(16);
-    controls.rotateSpeed = 0.85;
-    controls.zoomSpeed = 0.7;
+    controls.minDistance = cameraRadius * 0.92;
+    controls.maxDistance = cameraRadius * 1.08;
+    controls.rotateSpeed = 0;
+    controls.zoomSpeed = 0.55;
     renderer.domElement.style.touchAction = 'none';
     controlsRef.current = controls;
 
@@ -2912,9 +2915,6 @@ export default function FourInRowRoyal() {
             </span>
             <span className="leading-none">Menu</span>
           </button>
-          <h1 className="pointer-events-none rounded-2xl border border-white/15 bg-black/60 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em]">
-            4 in a Row
-          </h1>
         </div>
 
         <div className="absolute top-20 right-4 flex flex-col items-end gap-3 pointer-events-none">
