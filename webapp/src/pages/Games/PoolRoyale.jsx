@@ -1929,7 +1929,7 @@ const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 0.86; // trim global pullback so charge-up stays readable without over-drawing the cue
 const CUE_PULL_RETURN_PUSH = 1.22; // accelerate the forward cue drive so push-through feels snappier
 const CUE_FOLLOW_THROUGH_MIN = 0; // stop the cue at impact instead of following the moving cue ball
-const CUE_FOLLOW_THROUGH_MAX = BALL_R * 0.22; // allow only a tiny visible contact settle after impact
+const CUE_FOLLOW_THROUGH_MAX = 0; // stop at impact: cue pushes forward to strike, then immediately settles
 const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER; // keep Pool Royale release gate identical to Bilardo Shqip
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
@@ -27150,7 +27150,7 @@ const shotPowerRef = useRef(0);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
       table.add(cueStick);
-      const humanRig = createPoolRoyaleHumanRig(table, rendererRef.current);
+      const humanRig = null; // Human character/rig disabled: cue stick now stays table-driven only.
       const cueShadow = ENABLE_CUE_CLOTH_SHADOW
         ? (() => {
             const shadowWidth = Math.max(BALL_R * CUE_SHADOW_WIDTH_RATIO, BALL_R * 0.4);
@@ -33266,18 +33266,20 @@ const shotPowerRef = useRef(0);
             : replayActive
               ? 'rolling'
               : 'idle';
-        updatePoolRoyaleHumanFrame(
-          humanRig,
-          Math.min(0.033, Math.max(0.001, deltaSeconds || 1 / 60)),
-          humanShotState,
-          cueBallWorldForHuman,
-          aimForwardForHuman,
-          cueStick,
-          cueLen,
-          THREE.MathUtils.clamp(powerRef.current ?? 0, 0, 1)
-        );
-        if (humanShotState === 'idle' || humanShotState === 'rolling') {
-          movePoolRoyaleCueToHumanHand(humanRig, cueStick);
+        if (humanRig) {
+          updatePoolRoyaleHumanFrame(
+            humanRig,
+            Math.min(0.033, Math.max(0.001, deltaSeconds || 1 / 60)),
+            humanShotState,
+            cueBallWorldForHuman,
+            aimForwardForHuman,
+            cueStick,
+            cueLen,
+            THREE.MathUtils.clamp(powerRef.current ?? 0, 0, 1)
+          );
+          if (humanShotState === 'idle' || humanShotState === 'rolling') {
+            movePoolRoyaleCueToHumanHand(humanRig, cueStick);
+          }
         }
         syncCueShadow();
 
