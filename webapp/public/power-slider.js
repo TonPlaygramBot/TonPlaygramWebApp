@@ -27,7 +27,6 @@ export class PowerSlider {
     this.locked = false;
     this._returnAnimFrame = null;
     this._shotAnimFrame = null;
-    this._shotState = null;
 
     this.el = document.createElement('div');
     this.el.className = `ps ps-theme-${theme}`;
@@ -320,53 +319,23 @@ export class PowerSlider {
   _playShotAnimation(powerValue) {
     this._cancelShotAnimation();
     const power = this._clamp(this._step(powerValue));
-    const pullStart = this.value;
-    const range = Math.max(1, this.max - this.min);
-    const normalized = (power - this.min) / range;
-    const strikeOvershoot = Math.max(
-      this.min + (this.max - this.min) * 0.14,
-      this.min + 1
-    );
-    const strikeTarget = Math.max(this.min, Math.min(strikeOvershoot, pullStart));
-    const forwardDuration = Math.round(80 + 90 * normalized);
-    const settleDuration = 140;
+    const pullDuration = 90;
+    const resetDuration = 150;
+    const strikeOvershoot = Math.max(this.min + (this.max - this.min) * 0.14, this.min + 1);
 
-    this._shotState = {
-      released: false,
-      phase: 'forward',
-      startedAt: performance.now(),
-      from: pullStart,
-      to: strikeTarget,
-      duration: forwardDuration,
-      settleDuration,
-      power
-    };
+    this.animateTo(strikeOvershoot, { duration: pullDuration });
 
+    const startedAt = performance.now();
     const step = (now) => {
-      if (!this._shotState) return;
-      const state = this._shotState;
-      const t = Math.min(1, Math.max(0, (now - state.startedAt) / state.duration));
+      const t = Math.min(1, Math.max(0, (now - startedAt) / resetDuration));
       const eased = 1 - Math.pow(1 - t, 3);
-      const next = state.from + (state.to - state.from) * eased;
+      const next = strikeOvershoot + (this.min - strikeOvershoot) * eased;
       this.set(next, { animate: true });
-
       if (t >= 1) {
-        if (state.phase === 'forward') {
-          if (!state.released && typeof this.onShotRelease === 'function') {
-            state.released = true;
-            this.onShotRelease(state.power);
-          }
-          state.phase = 'settle';
-          state.startedAt = now;
-          state.from = state.to;
-          state.to = this.min;
-          state.duration = state.settleDuration;
-        } else {
-          this._cancelShotAnimation();
-          return;
-        }
+        this._shotAnimFrame = null;
+        if (typeof this.onShotRelease === 'function') this.onShotRelease(power);
+        return;
       }
-
       this._shotAnimFrame = requestAnimationFrame(step);
     };
 
@@ -378,7 +347,6 @@ export class PowerSlider {
       cancelAnimationFrame(this._shotAnimFrame);
       this._shotAnimFrame = null;
     }
-    this._shotState = null;
   }
 
   _cancelReturnAnimation() {
