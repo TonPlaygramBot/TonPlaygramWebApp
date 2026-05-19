@@ -23301,6 +23301,7 @@ const sliderResetTimerRef = useRef(null);
               : rawTopSpin * TOPSPIN_MULTIPLIER;
           let contactFallbackHandle = null;
           let shotImpactApplied = false;
+          const releasePower = clampedPower;
           const applyShotImpactAtCueContact = () => {
             if (shotImpactApplied) return false;
             shotImpactApplied = true;
@@ -23310,7 +23311,7 @@ const sliderResetTimerRef = useRef(null);
               contactFallbackHandle = null;
             }
             const impactPower = THREE.MathUtils.clamp(
-              committedShotPowerRef.current || clampedPower,
+              releasePower,
               0,
               1
             );
@@ -23490,6 +23491,11 @@ const sliderResetTimerRef = useRef(null);
           const returnDuration = 0;
           const contactGap = SNOOKER_PROVIDED_CONTACT_GAP;
           const strikeStartPull = visualPull;
+          const followThroughDistance = THREE.MathUtils.clamp(
+            strikeStartPull * (0.16 + releasePower * 0.2),
+            CUE_FOLLOW_THROUGH_MIN,
+            CUE_FOLLOW_THROUGH_MAX
+          );
           cueStick.visible = true;
           cueStick.position.copy(pullPos);
           const startTime = performance.now();
@@ -23524,12 +23530,13 @@ const sliderResetTimerRef = useRef(null);
           }
           if (ENABLE_CUE_STROKE_ANIMATION && shotRecording) {
             const impactPos = buildCuePosition(-Math.max(0, CUE_TIP_CLEARANCE - contactGap));
+            const settlePos = buildCuePosition(-followThroughDistance);
             const strokeStartOffset = Math.max(0, startTime - (shotRecording.startTime ?? startTime));
             shotRecording.cueStroke = {
               warmup: serializeVector3Snapshot(idlePos),
               start: serializeVector3Snapshot(pullPos),
               impact: serializeVector3Snapshot(impactPos),
-              settle: serializeVector3Snapshot(impactPos),
+              settle: serializeVector3Snapshot(settlePos),
               idle: serializeVector3Snapshot(idlePos),
               rotationX: cueStick.rotation.x,
               rotationY: cueStick.rotation.y,
@@ -23565,7 +23572,17 @@ const sliderResetTimerRef = useRef(null);
               return;
             }
             if (elapsed <= strikeDuration + holdDuration) {
-              const holdPos = buildCuePosition(contactGap - CUE_TIP_CLEARANCE);
+              const holdNorm = THREE.MathUtils.clamp(
+                (elapsed - strikeDuration) / Math.max(holdDuration, 1),
+                0,
+                1
+              );
+              const followThroughPull = THREE.MathUtils.lerp(
+                contactGap - CUE_TIP_CLEARANCE,
+                -followThroughDistance,
+                easeOutCubic(holdNorm)
+              );
+              const holdPos = buildCuePosition(followThroughPull);
               cueStick.position.copy(holdPos);
               applyShotImpactAtCueContact();
               requestAnimationFrame(animateStroke);
