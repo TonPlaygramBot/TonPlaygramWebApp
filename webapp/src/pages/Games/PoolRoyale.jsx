@@ -24795,6 +24795,10 @@ const shotPowerRef = useRef(0);
               syncCueShadow();
               return true;
             }
+            if (!stroke.shotApplied) {
+              stroke.shotApplied = true;
+              stroke.onImpact?.();
+            }
             cueStick.position.copy(idlePos ?? followPos ?? impactPos);
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
@@ -28849,7 +28853,7 @@ const shotPowerRef = useRef(0);
               wobbleAmount: THREE.MathUtils.lerp(0.0014, 0.0036, clampedPower),
               strikeImpactThreshold: 0.88,
               strikeExtraFollow: Math.min(0.018, Math.max(0, (rawSpin?.y ?? 0) * clampedPower) * 0.016),
-              forwardOnly: false,
+              forwardOnly: true,
               releaseStartsFromCurrentPull: true,
               onImpact: () => applyShotImpactOnce(),
               animationStyle: strokeStyle,
@@ -34761,11 +34765,19 @@ const shotPowerRef = useRef(0);
         applyPower(normalized);
       },
       onCommit: (value) => {
-        const normalized = clampPower(value / 100, 0);
-        shotPowerRef.current = normalized;
-        powerRef.current = normalized;
+        const normalizedFromSlider = clampPower(value / 100, 0);
+        const committedPower = clampPower(
+          Math.max(
+            Number.isFinite(normalizedFromSlider) ? normalizedFromSlider : 0,
+            Number.isFinite(shotPowerRef.current) ? shotPowerRef.current : 0,
+            Number.isFinite(powerRef.current) ? powerRef.current : 0
+          ),
+          0
+        );
+        shotPowerRef.current = committedPower;
+        powerRef.current = committedPower;
         slider.animateToMin({ duration: 180 });
-        fireRef.current?.(normalized);
+        fireRef.current?.(committedPower);
         requestAnimationFrame(() => applyPower(0));
       }
     });
