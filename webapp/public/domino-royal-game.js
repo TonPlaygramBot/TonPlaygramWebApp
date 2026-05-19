@@ -7980,8 +7980,8 @@ const DOMINO_CHARACTER_THEMES = Object.freeze([
     skinTone: 0xe3b08b
   }
 ]);
-const DOMINO_CHARACTER_PROPORTION_SCALE = 2.9;
-const DOMINO_HUMAN_CHARACTER_SCALE_BOOST = 0.8;
+const DOMINO_CHARACTER_PROPORTION_SCALE = 2.55;
+const DOMINO_HUMAN_CHARACTER_SCALE_BOOST = 0.55;
 // Seat avatars from the chair footprint instead of adding a table-facing Z offset.
 // This keeps every human visually aligned with the chair that owns the seat.
 const DOMINO_CHARACTER_CHAIR_SEAT_OUTWARD_BIAS = 0.02;
