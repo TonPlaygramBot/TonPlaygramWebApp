@@ -154,6 +154,7 @@ const FOUR_IN_ROW_CHARACTER_LOAD_TIMEOUT_MS = 8000;
 const FOUR_IN_ROW_CHAIR_LOAD_TIMEOUT_MS = 5000;
 const FOUR_IN_ROW_CHARACTER_CHIP_PICKUP_LIFT = 0.18 * MODEL_SCALE;
 const FOUR_IN_ROW_CHARACTER_CHIP_CARRY_LIFT = 0.32 * MODEL_SCALE;
+const FOUR_IN_ROW_MENU_TOP_CLASS = 'top-24';
 
 const GRAPHICS_PRESETS = Object.freeze([
   {
@@ -779,6 +780,8 @@ function classifyFourInRowChessDominoHumanSurface(obj, mat) {
   if (/skin|head|face|neck|hand|finger|wolf3d_head|wolf3d_body|bodymesh/.test(name) && !/outfit|shirt|pants|trouser|shoe|sock|cloth|jacket|hood|dress|skirt|uniform|suit/.test(name)) return 'skin';
   if (/shirt|top|torso|chest|jacket|hood|dress|skirt|sleeve|upper|outfit_top|wolf3d_outfit_top/.test(name)) return 'upperCloth';
   if (/pants|trouser|jean|short|legging|bottom|outfit_bottom/.test(name)) return 'lowerCloth';
+  if (/earring|necklace|chain|ring|bracelet|watch|jewel|jewelry|pendant|metal/.test(name)) return 'jewelry';
+  if (/button|buttons|btn/.test(name)) return 'buttonAccent';
   if (/tie|scarf|belt|strap|bag|hat|cap|glove|sock|accessory|accent/.test(name)) return 'accentCloth';
   if (/cloth|clothing|uniform|outfit|suit/.test(name)) return 'upperCloth';
   if (isFourInRowChessHumanNearlyWhiteMaterial(mat) && /torso|chest|spine|pelvis|hip|leg|arm|body|mesh/.test(name)) return 'upperCloth';
@@ -808,7 +811,7 @@ function applyFourInRowChessDominoClothMaterial(mat, cloth, maxAnisotropy = 1) {
   mat.userData = { ...(mat.userData || {}), chessDominoCloth: cloth.source };
 }
 
-function enhanceFourInRowChessDominoCharacterMaterials(instance, option, maxAnisotropy = 1, seatIndex = 0) {
+function enhanceFourInRowChessDominoCharacterMaterials(instance, option, maxAnisotropy = 1, seatIndex = 0, stylistSeed = 0) {
   if (!option?.dominoClothTheme || !instance?.traverse) return;
   const clothSlots = {
     upperCloth: resolveFourInRowChessDominoClothSlot(option, 'upper', seatIndex),
@@ -818,6 +821,7 @@ function enhanceFourInRowChessDominoCharacterMaterials(instance, option, maxAnis
   const skinColor = new THREE.Color(option?.skinTone ?? 0xd2a07c);
   const hairColor = new THREE.Color(option?.hairColor ?? 0x21150f);
   const eyeColor = new THREE.Color(option?.eyeColor ?? 0x3f5f75);
+  const jewelryColor = new THREE.Color(((seatIndex + stylistSeed) % 2 === 0) ? 0xd4af37 : 0xc0c0c0);
 
   instance.traverse((obj) => {
     if (!obj?.isMesh) return;
@@ -848,6 +852,18 @@ function enhanceFourInRowChessDominoCharacterMaterials(instance, option, maxAnis
         if (isFourInRowChessHumanLowSaturationLightMaterial(mat)) mat.color = new THREE.Color(0x111827);
         mat.roughness = 0.78;
         mat.metalness = 0.02;
+      } else if (surface === 'buttonAccent') {
+        mat.map = null;
+        mat.color = new THREE.Color(0xe2e8f0);
+        mat.roughness = 0.22;
+        mat.metalness = 0.82;
+        mat.envMapIntensity = 0.9;
+      } else if (surface === 'jewelry') {
+        mat.map = null;
+        mat.color = jewelryColor.clone();
+        mat.roughness = 0.2;
+        mat.metalness = 0.95;
+        mat.envMapIntensity = 1.2;
       } else if (surface === 'mouth') {
         if (isFourInRowChessHumanNearlyWhiteMaterial(mat)) mat.color = new THREE.Color(0xf8fafc);
         mat.roughness = 0.32;
@@ -878,7 +894,7 @@ function normalizeFourInRowSeatedHumanRootToChair(root) {
   root.updateMatrixWorld(true);
 }
 
-function loadFourInRowCharacterModelOrFallback(option, renderer, label) {
+function loadFourInRowCharacterModelOrFallback(option, renderer, label, seatIndex = 0, stylistSeed = 0) {
   let timeoutId = null;
   const timeoutPromise = new Promise((resolve) => {
     timeoutId = window.setTimeout(() => {
@@ -887,7 +903,7 @@ function loadFourInRowCharacterModelOrFallback(option, renderer, label) {
     }, FOUR_IN_ROW_CHARACTER_LOAD_TIMEOUT_MS);
   });
   return Promise.race([
-    loadFourInRowCharacterModel(option, renderer),
+    loadFourInRowCharacterModel(option, renderer, 1, seatIndex, stylistSeed),
     timeoutPromise
   ])
     .catch((error) => {
@@ -915,7 +931,13 @@ function createFourInRowChairModelOrFallback(chairTheme, renderer) {
   });
 }
 
-async function loadFourInRowCharacterModel(option, renderer = null, maxAnisotropy = 1) {
+async function loadFourInRowCharacterModel(
+  option,
+  renderer = null,
+  maxAnisotropy = 1,
+  seatIndex = 0,
+  stylistSeed = 0
+) {
   const fallbackOption = FOUR_IN_ROW_CHESS_HUMAN_OPTIONS[0] || {};
   const selectedOption = option || fallbackOption;
   const modelUrls = Array.isArray(selectedOption?.modelUrls)
@@ -983,7 +1005,13 @@ async function loadFourInRowCharacterModel(option, renderer = null, maxAnisotrop
         mat.needsUpdate = true;
       });
     });
-    enhanceFourInRowChessDominoCharacterMaterials(root, selectedOption, maxAnisotropy, 0);
+    enhanceFourInRowChessDominoCharacterMaterials(
+      root,
+      selectedOption,
+      maxAnisotropy,
+      seatIndex,
+      stylistSeed
+    );
     const adapter = selectedOption?.seatedAdapter || {};
     root.userData = {
       ...(root.userData || {}),
@@ -1556,12 +1584,14 @@ export default function FourInRowRoyal() {
     winningCellsRef.current = winningCells;
   }, [winningCells]);
   const [configOpen, setConfigOpen] = useState(false);
+  const [characterSeed, setCharacterSeed] = useState(() => Math.floor(Math.random() * 1_000_000));
 
   const resetMatch = () => {
     setBoard(createBoard(rows, cols));
     setTurn('player');
     setWinner(null);
     setWinningCells([]);
+    setCharacterSeed((seed) => seed + 1);
   };
 
   const worldFromCell = (r, c) => [
@@ -1932,13 +1962,13 @@ export default function FourInRowRoyal() {
       CHESS_HUMAN_CHARACTER_OPTIONS[0];
     const aiHumanPool = humanOptions.filter((option) => option.id !== playerHumanOption?.id);
     const aiHumanOption =
-      aiHumanPool[Math.floor(Math.random() * Math.max(aiHumanPool.length, 1))] ||
+      aiHumanPool[(Math.abs(characterSeed) + 1) % Math.max(aiHumanPool.length, 1)] ||
       humanOptions[1] ||
       playerHumanOption;
     Promise.all([
       createFourInRowChairModelOrFallback(chairTheme, renderer),
-      loadFourInRowCharacterModelOrFallback(playerHumanOption, renderer, 'player'),
-      loadFourInRowCharacterModelOrFallback(aiHumanOption, renderer, 'opponent')
+      loadFourInRowCharacterModelOrFallback(playerHumanOption, renderer, 'player', 0, characterSeed),
+      loadFourInRowCharacterModelOrFallback(aiHumanOption, renderer, 'opponent', 1, characterSeed)
     ]).then(([chairTemplate, playerTemplate, aiTemplate]) => {
       if (!arenaRootRef.current) return;
       chairMeshesRef.current.forEach((chair) => {
@@ -2470,6 +2500,7 @@ export default function FourInRowRoyal() {
       mount.removeChild(renderer.domElement);
     };
   }, [
+    characterSeed,
     rows,
     cols,
     boardWidth,
@@ -2902,7 +2933,7 @@ export default function FourInRowRoyal() {
       <div ref={mountRef} className="absolute inset-0" />
 
       <div className="absolute inset-0 pointer-events-none z-20">
-        <div className="absolute top-20 left-4 flex flex-col items-start gap-3 pointer-events-none">
+        <div className={`absolute ${FOUR_IN_ROW_MENU_TOP_CLASS} left-4 flex flex-col items-start gap-3 pointer-events-none`}>
           <button
             type="button"
             onClick={() => setConfigOpen((open) => !open)}
