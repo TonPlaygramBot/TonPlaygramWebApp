@@ -114,6 +114,7 @@ type HumanRig = {
   throwT: number;
   recoverT: number;
   celebrateT: number;
+  celebrateVariant: "armsUp" | "fistPump" | "sideWave";
   celebrateNext: boolean;
   returnWalkT: number;
   pickT: number;
@@ -198,7 +199,7 @@ const PORTRAIT_CAMERA_HEIGHT_OFFSET = 0.18;
 const BOWLING_CAMERA_PULLBACK = 0.5;
 const BOWLING_HUMAN_SHOT_BROADCAST_PULLBACK = 1.15;
 const BOWLING_CAMERA_WIDER_FOV_BOOST = 1.5;
-const BOWLING_HDRI_WALL_ALIGNMENT_Y = Math.PI / 2;
+const BOWLING_HDRI_WALL_ALIGNMENT_Y = 0;
 const BOWLING_GRAPHICS_PROFILES: Record<
   GraphicsQuality,
   {
@@ -286,7 +287,7 @@ const RESULT_COMPLIMENTS = {
 } as const;
 
 const CFG = {
-  laneY: -1.22,
+  laneY: -1.5,
   laneHalfW: 1.36,
   gutterHalfW: 1.72,
   laneCenterOffset: 1.82,
@@ -296,8 +297,8 @@ const CFG = {
   approachStopZ: 4.98,
   foulZ: 4.55,
   arrowsZ: 0.78,
-  pinDeckZ: -13.55,
-  backStopZ: -16.08,
+  pinDeckZ: -16.2,
+  backStopZ: -18.8,
   ballR: 0.18,
   pinR: 0.17,
   pinToppleThreshold: 0.58,
@@ -309,7 +310,7 @@ const CFG = {
   celebrateDuration: 1.85,
   seatWalkDuration: 1.25,
   standDuration: 0.5,
-  returnWalkDuration: 1.72,
+  returnWalkDuration: 1.44,
   pickDuration: 0.58,
   releaseT: 0.62
 };
@@ -321,6 +322,13 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 const easeInOut = (t: number) => t * t * (3 - 2 * t);
 const HDRI_RES_LADDER = ['8k', '4k', '2k', '1k'] as const;
+const CELEBRATION_VARIANTS = ['armsUp', 'fistPump', 'sideWave'] as const;
+const BOWLING_SFX = {
+  throw: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8f4f5f572.mp3?filename=bowling-ball-roll-6891.mp3',
+  strike: 'https://cdn.pixabay.com/download/audio/2022/03/24/audio_1710eb2548.mp3?filename=small-crowd-cheer-6713.mp3',
+  spare: 'https://cdn.pixabay.com/download/audio/2022/03/10/audio_e325dc0d53.mp3?filename=success-fanfare-trumpets-6185.mp3'
+} as const;
+
 const BOWLING_RULE_SUMMARY = OFFICIAL_TEN_PIN_RULE_SUMMARY;
 const SHOOTING_ZONE_DEPTH = 3.55;
 const SHOOTING_ZONE_SIDE_PAD = 0.42;
@@ -984,6 +992,7 @@ function addHuman(
     throwT: 0,
     recoverT: 0,
     celebrateT: 0,
+    celebrateVariant: CELEBRATION_VARIANTS[Math.floor(Math.random() * CELEBRATION_VARIANTS.length)],
     celebrateNext: false,
     returnWalkT: 0,
     pickT: 0,
@@ -1548,9 +1557,21 @@ function animateFallbackHuman(
     if (torso) torso.rotation.x = -0.12;
   } else if (mode === 'celebrate') {
     const wave = Math.sin(t * 8);
-    if (leftArm) leftArm.rotation.x = -1.9 + wave * 0.18;
-    if (rightArm) rightArm.rotation.x = -1.8 - wave * 0.18;
-    if (torso) torso.rotation.z = wave * 0.06;
+    if (rig.celebrateVariant === 'fistPump') {
+      if (rightArm) rightArm.rotation.x = -1.95 + wave * 0.35;
+      if (leftArm) leftArm.rotation.x = -0.45 + wave * 0.08;
+      if (torso) torso.rotation.z = wave * 0.12;
+    } else if (rig.celebrateVariant === 'sideWave') {
+      if (leftArm) leftArm.rotation.x = -1.35 + wave * 0.22;
+      if (rightArm) rightArm.rotation.x = -1.35 - wave * 0.22;
+      if (leftArm) leftArm.rotation.z = 0.75;
+      if (rightArm) rightArm.rotation.z = -0.75;
+      if (torso) torso.rotation.y = wave * 0.1;
+    } else {
+      if (leftArm) leftArm.rotation.x = -1.9 + wave * 0.18;
+      if (rightArm) rightArm.rotation.x = -1.8 - wave * 0.18;
+      if (torso) torso.rotation.z = wave * 0.06;
+    }
   }
 }
 
@@ -2270,11 +2291,7 @@ function createEnvironment(
     woodMat = makeFallbackWoodMaterial();
   }
 
-  const gutterMat = new THREE.MeshStandardMaterial({
-    color: 0x262f3a,
-    roughness: 0.38,
-    metalness: 0.2
-  });
+  const gutterMat = (woodMat as THREE.Material).clone?.() || woodMat;
   const metalMat = new THREE.MeshPhysicalMaterial({
     color: 0xcfd7e2,
     roughness: 0.11,
@@ -2397,22 +2414,22 @@ function createEnvironment(
 
   for (const [laneIndex, laneCenter] of LANE_CENTERS.entries()) {
     const lane = new THREE.Mesh(
-      new THREE.PlaneGeometry(CFG.laneHalfW * 2, 23.55, 72, 360),
+      new THREE.PlaneGeometry(CFG.laneHalfW * 2, 28.8, 72, 420),
       laneMat
     );
     lane.rotation.x = -Math.PI / 2;
-    lane.position.set(laneCenter, CFG.laneY, -5.98);
+    lane.position.set(laneCenter, CFG.laneY, -7.2);
     lane.receiveShadow = true;
     group.add(lane);
 
     for (let b = 1; b < LANE_BOARD_COUNT; b++) {
       const x = laneCenter - CFG.laneHalfW + b * BOARD_WIDTH;
       const board = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.005, 23.2),
+        new THREE.PlaneGeometry(0.005, 28.4),
         boardLineMat
       );
       board.rotation.x = -Math.PI / 2;
-      board.position.set(x, CFG.laneY + 0.004, -5.98);
+      board.position.set(x, CFG.laneY + 0.004, -7.2);
       group.add(board);
     }
     for (const board of [5, 10, 15, 20, 25, 30, 35]) {
@@ -2426,7 +2443,7 @@ function createEnvironment(
       group.add(dot);
     }
     const oil = new THREE.Mesh(
-      new THREE.PlaneGeometry(CFG.laneHalfW * 2 - 0.08, 18.1),
+      new THREE.PlaneGeometry(CFG.laneHalfW * 2 - 0.08, 23.2),
       new THREE.MeshPhysicalMaterial({
         color: 0xcfefff,
         transparent: true,
@@ -2439,7 +2456,7 @@ function createEnvironment(
       })
     );
     oil.rotation.x = -Math.PI / 2;
-    oil.position.set(laneCenter, CFG.laneY + 0.002, -4.76);
+    oil.position.set(laneCenter, CFG.laneY + 0.002, -6.4);
     group.add(oil);
     for (const [x, z, w, d] of [
       [-0.52, -2.6, 0.14, 10.8],
@@ -3821,7 +3838,7 @@ function updateBallReturn(ball: BallState, dt: number) {
     return false;
   }
   if (ball.returnState === 'hidden') {
-    ball.returnT += dt / 1.05;
+    ball.returnT += dt / 0.86;
     if (ball.returnT >= 1) {
       ball.returnState = 'returning';
       ball.returnT = 0;
@@ -3832,7 +3849,7 @@ function updateBallReturn(ball: BallState, dt: number) {
     return false;
   }
   if (ball.returnState === 'returning') {
-    ball.returnT += dt / 1.75;
+    ball.returnT += dt / 1.35;
     const t = easeOutCubic(clamp01(ball.returnT));
     ball.pos.set(
       BOWLING_RETURN_SIDE_X,
@@ -4882,6 +4899,7 @@ export default function MobileBowlingRealistic() {
       shouldResetRackBeforeNextRoll = result.resetPins;
       rackResetLane = 0;
       if (strike) {
+        void new Audio(BOWLING_SFX.strike).play().catch(() => undefined);
         status = `${playerBefore.name} STRIKE!`;
         compliment =
           RESULT_COMPLIMENTS.strike[
@@ -4893,6 +4911,7 @@ export default function MobileBowlingRealistic() {
           ];
       }
       if (spare) {
+        void new Audio(BOWLING_SFX.spare).play().catch(() => undefined);
         status = `${playerBefore.name} SPARE!`;
         compliment =
           RESULT_COMPLIMENTS.spare[
@@ -5184,6 +5203,7 @@ export default function MobileBowlingRealistic() {
       }
       pendingIntent = intent;
       startApproach(player, intent, activeLaneCenter());
+      void new Audio(BOWLING_SFX.throw).play().catch(() => undefined);
       setHud((prev) => ({
         ...prev,
         power: 0,
@@ -5230,7 +5250,13 @@ export default function MobileBowlingRealistic() {
           player.pos.x - bowlingRackPickupX(),
           player.pos.z - BOWLING_RACK_Z
         );
-        if (!ball.held && rackDistance > 1.9) {
+        if (officialTenPinPlayerFinished(localScores[activePlayer])) {
+          player.action = 'toSeat';
+          player.seatT = 0.001;
+          setHud((prev) => ({ ...prev, status: `${localScores[activePlayer].name} finished the game and is returning to the chair.` }));
+          player.approachFrom.copy(player.pos);
+          player.approachTo.copy(player.seatPos);
+        } else if (!ball.held && rackDistance > 1.9) {
           player.action = 'toRack';
           player.returnWalkT = 0.001;
           player.approachTo.copy(player.pos);
@@ -5258,6 +5284,7 @@ export default function MobileBowlingRealistic() {
             } else {
               pendingIntent = makeAiIntent();
               startApproach(player, pendingIntent, activeLaneCenter());
+              void new Audio(BOWLING_SFX.throw).play().catch(() => undefined);
               aiTurnDelay = 0.85 + Math.random() * 0.5;
               setHud((prev) => ({
                 ...prev,
@@ -5279,7 +5306,13 @@ export default function MobileBowlingRealistic() {
           playerRigs[0].pos.x - bowlingRackPickupX(),
           playerRigs[0].pos.z - BOWLING_RACK_Z
         );
-        if (rackDistance > 1.9) {
+        if (officialTenPinPlayerFinished(localScores[0])) {
+          playerRigs[0].action = 'toSeat';
+          playerRigs[0].seatT = 0.001;
+          setHud((prev) => ({ ...prev, status: 'Frame complete — returning directly to chair.' }));
+          playerRigs[0].approachFrom.copy(playerRigs[0].pos);
+          playerRigs[0].approachTo.copy(playerRigs[0].seatPos);
+        } else if (rackDistance > 1.9) {
           playerRigs[0].action = 'toRack';
           playerRigs[0].returnWalkT = 0.001;
           playerRigs[0].approachTo.copy(playerRigs[0].pos);
