@@ -209,6 +209,9 @@ const FIREARM_CAPTURE_ANIMATION_IDS = new Set(
   CAPTURE_ANIMATION_OPTIONS.map((option) => option.id).filter((id) => !GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[id])
 );
 
+const resolveFirearmTypeForAnimationId = (captureAnimationId) =>
+  LUDO_WEAPON_TYPE_BY_ANIMATION_ID[captureAnimationId] || 'Rifle';
+
 const CHESS_CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   fpsGunAttack: {
     urls: [
@@ -352,6 +355,17 @@ const CHESS_FIREARM_HANDHELD_SCALE_MULTIPLIER = 1.9;
 const CHESS_FIREARM_MUZZLE_YAW_CORRECTION_BY_ID = Object.freeze({
   ak47VolleyAttack: Math.PI,
   krsvBurstAttack: Math.PI
+});
+
+const CHESS_FIREARM_HOLD_PROFILE_BY_TYPE = Object.freeze({
+  Rifle: { supportGrip: 0.94, shoulderX: -1.14, shoulderZ: -1.34, forearmX: -0.52, wristX: 0.02 },
+  AssaultRifle: { supportGrip: 0.96, shoulderX: -1.16, shoulderZ: -1.36, forearmX: -0.54, wristX: 0.03 },
+  SMG: { supportGrip: 0.92, shoulderX: -1.12, shoulderZ: -1.31, forearmX: -0.46, wristX: 0.05 },
+  Shotgun: { supportGrip: 0.98, shoulderX: -1.18, shoulderZ: -1.4, forearmX: -0.58, wristX: -0.01 },
+  SniperRifle: { supportGrip: 0.9, shoulderX: -1.22, shoulderZ: -1.42, forearmX: -0.6, wristX: -0.03 },
+  DMR: { supportGrip: 0.92, shoulderX: -1.2, shoulderZ: -1.38, forearmX: -0.56, wristX: -0.01 },
+  Pistol: { supportGrip: 0.86, shoulderX: -1.02, shoulderZ: -1.2, forearmX: -0.36, wristX: 0.07 },
+  Revolver: { supportGrip: 0.84, shoulderX: -1.0, shoulderZ: -1.18, forearmX: -0.34, wristX: 0.08 }
 });
 
 const CAPTURE_VEHICLE_TEXTURE_CACHE = new Map();
@@ -511,7 +525,7 @@ const BOARD = { N: 8, tile: 4.2, rim: 3, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.24; // Lower tokens slightly so they stay grounded on the board after shrinking.
 const LAYOUT_SCALE_FACTOR = 0.7225;
-const TABLE_LAYOUT_SCALE_FACTOR = 0.58; // Slightly enlarge board/table/chairs so the chess arena reads bigger on screen.
+const TABLE_LAYOUT_SCALE_FACTOR = 0.66; // Slightly enlarge board/table/chairs so the chess arena reads bigger on screen.
 const PIECE_SCALE_FACTOR = 0.73 * LAYOUT_SCALE_FACTOR * 1.5 * 0.82 * 1.2; // Upsize pieces a bit so they stay proportional to the larger board.
 const PIECE_FOOTPRINT_RATIO = 0.86;
 const BOARD_GROUP_Y_OFFSET = -0.034; // sink the board slab so its visible playing surface rests on the table felt.
@@ -582,8 +596,8 @@ const CAMERA_PULL_FORWARD_MIN = THREE.MathUtils.degToRad(15);
 const CAMERA_CAPTURE_VIEW_UPWARD_BIAS = THREE.MathUtils.degToRad(21); // raise forced 3D animation camera for a stronger portrait top-down feel.
 const CAMERA_CAPTURE_VIEW_RADIUS_SCALE = 1.18; // keep forced 3D animation wider during capture so the board stays fully readable
 const CAMERA_CAPTURE_BOTTOM_AVATAR_SCREEN_OFFSET = 0; // keep projected avatars pinned to the seated character chest anchors
-const CAMERA_LOCKED_3D_PHI = THREE.MathUtils.degToRad(72); // tilt closer to horizon so the camera looks more upward at board/table/chairs.
-const CAMERA_LOCKED_3D_RADIUS_SCALE = 0.59; // move locked 3D camera closer to the table for a tighter composition.
+const CAMERA_LOCKED_3D_PHI = THREE.MathUtils.degToRad(76); // tilt closer to horizon so the camera looks more upward at board/table/chairs.
+const CAMERA_LOCKED_3D_RADIUS_SCALE = 0.52; // move locked 3D camera closer to the table for a tighter composition.
 const CHECKERS_CAMERA_FRAME_COMPENSATION = 1.06;
 const PLAYER_FACE_CAMERA_SEAT_ANGLE = Math.PI / 2;
 const PLAYER_FACE_CAMERA_RADIUS = TABLE_RADIUS * 0.9 * CHECKERS_CAMERA_FRAME_COMPENSATION;
@@ -1055,13 +1069,15 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, m
     chestX = THREE.MathUtils.lerp(chestX, 0.31, t);
     headX = THREE.MathUtils.lerp(headX, 0.09, t);
   } else if (mode === 'firearmAim') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -1.08, t);
+    const firearmType = motionProfile?.firearmType || 'Rifle';
+    const holdProfile = CHESS_FIREARM_HOLD_PROFILE_BY_TYPE[firearmType] || CHESS_FIREARM_HOLD_PROFILE_BY_TYPE.Rifle;
+    shoulderX = THREE.MathUtils.lerp(shoulderX, holdProfile.shoulderX ?? -1.08, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, -0.04, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.28, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.48, t);
+    shoulderZ = THREE.MathUtils.lerp(shoulderZ, holdProfile.shoulderZ ?? -1.28, t);
+    forearmX = THREE.MathUtils.lerp(forearmX, holdProfile.forearmX ?? -0.48, t);
     forearmY = THREE.MathUtils.lerp(forearmY, -0.1, t);
     forearmZ = THREE.MathUtils.lerp(forearmZ, -0.02, t);
-    wristX = THREE.MathUtils.lerp(wristX, 0.03, t);
+    wristX = THREE.MathUtils.lerp(wristX, holdProfile.wristX ?? 0.03, t);
     wristY = THREE.MathUtils.lerp(wristY, 0.1, t);
     wristZ = THREE.MathUtils.lerp(wristZ, -0.06, t);
     chestX = THREE.MathUtils.lerp(chestX, 0.34, t);
@@ -1069,7 +1085,7 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, m
     addBoneRot(rig, rig.leftUpperArm, -0.92, -0.08, 0.92);
     addBoneRot(rig, rig.leftForeArm, -0.66, 0.12, -0.28);
     addBoneRot(rig, rig.leftHand, -0.04, -0.12, 0.08);
-    applyLeftHandSupportGrip(rig, Math.max(0.72, handGrip));
+    applyLeftHandSupportGrip(rig, Math.max(holdProfile.supportGrip ?? 0.72, handGrip));
   } else if (mode === 'carryPiece') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.98, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, -0.02, t);
@@ -3168,9 +3184,9 @@ const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
 const LOWER_PROFILE_TABLE_SHAPE_IDS = new Set(['classicOctagon', 'hexagonTable', 'grandOval', 'diamondEdge']);
 const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0;
 const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 20.5; // make parked jet/helicopter/drone read large beside the table
-const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -2.2; // push parked vehicles much farther to the sides
+const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -2.85; // push parked vehicles much farther to the sides
 const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.26; // lift pad markers/parked units from floor to board/table level
-const SIDE_PARKED_AIR_UNITS_LANE_SPREAD = 1.92; // increase spacing between parking slots
+const SIDE_PARKED_AIR_UNITS_LANE_SPREAD = 2.22; // increase spacing between parking slots
 const SIDE_PARKED_TRUCK_SCALE_MULTIPLIER = 1.22; // keep truck as prominent as the parked aircraft
 const SIDE_PARKED_FIREARM_DISPLAY_SIZE_RATIO = 1.22; // scale parked firearm swaps to match the larger vehicles occupying each pad
 
@@ -13900,6 +13916,8 @@ function Chess3D({
         if (existingAction) {
           disposeSeatedHumanMoveAction(existingAction);
         }
+        const captureAnimationIdForAction = selectedCaptureAnimationIdRef.current;
+        const isFirearmCaptureAction = Boolean(capturedPiece) && FIREARM_CAPTURE_ANIMATION_IDS.has(captureAnimationIdForAction);
         seatedHumanMoveActionsRef.current.set(moverSeatIndex, {
           playerIndex: moverSeatIndex,
           mesh: m,
@@ -13907,6 +13925,10 @@ function Chess3D({
           to: toWorldPos.clone(),
           toSquare: { r: rr, c: cc },
           isCapture: Boolean(capturedPiece),
+          isFirearmCapture: isFirearmCaptureAction,
+          firearmType: isFirearmCaptureAction
+            ? resolveFirearmTypeForAnimationId(captureAnimationIdForAction)
+            : null,
           forwardReach,
           sideReach,
           gripOffset: null,
@@ -15248,7 +15270,7 @@ function Chess3D({
             intensity = clamp01((u - SEATED_HUMAN_PICKUP_PHASE_END) / (0.44 - SEATED_HUMAN_PICKUP_PHASE_END));
             grip = intensity;
           } else if (u < carryPhaseEnd) {
-            mode = 'carryPiece';
+            mode = action.isFirearmCapture ? 'firearmAim' : 'carryPiece';
             intensity = clamp01((u - 0.44) / (carryPhaseEnd - 0.44));
             grip = 1;
           } else {
@@ -15258,7 +15280,8 @@ function Chess3D({
           }
           applySeatedHumanPose(entry.rig, mode, intensity, grip, {
             forwardReach: action.forwardReach,
-            sideReach: action.sideReach
+            sideReach: action.sideReach,
+            firearmType: action.firearmType
           });
           if (action?.mesh) {
             if (SEATED_HUMAN_CONTACT_HELPERS_ENABLED && !action.handHelper && !action.pieceHelper) {
