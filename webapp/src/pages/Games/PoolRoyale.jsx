@@ -1778,6 +1778,9 @@ const SHOT_BASE_SPEED = 12 * WORLD_SCALE * SHOT_POWER_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
 const SHOT_SPIN_SCALE = 0.25;
+const CUE_STICK_MASS_KG = 0.54;
+const CUE_BALL_MASS_KG = 0.17;
+const CUE_BALL_STICK_COR = 0.78;
 const SPIN_POWER_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.25;
 const SPIN_POWER_MIN_SCALE = 0.35;
 const SPIN_POWER_MAX_SCALE = 1.25;
@@ -1803,7 +1806,9 @@ function applyPoolRoyaleCueShot(cueBall, power, aimDir, spinInput = { x: 0, y: 0
     y: spinInput?.y ?? 0
   };
   const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * p;
-  const speed = SHOT_BASE_SPEED * powerScale;
+  const cueSpeed = SHOT_BASE_SPEED * powerScale;
+  const transfer = ((1 + CUE_BALL_STICK_COR) * CUE_STICK_MASS_KG) / (CUE_STICK_MASS_KG + CUE_BALL_MASS_KG);
+  const speed = cueSpeed * transfer;
   cueBall.vel.copy(dir).multiplyScalar(speed);
   cueBall.vel.addScaledVector(side, (spin.x ?? 0) * p * 1.05 * WORLD_SCALE * SHOT_POWER_BOOST);
   if (cueBall.spin) {
@@ -27026,7 +27031,6 @@ const shotPowerRef = useRef(0);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
       table.add(cueStick);
-      const humanRig = createPoolRoyaleHumanRig(table, rendererRef.current);
       const cueShadow = ENABLE_CUE_CLOTH_SHADOW
         ? (() => {
             const shadowWidth = Math.max(BALL_R * CUE_SHADOW_WIDTH_RATIO, BALL_R * 0.4);
@@ -33079,53 +33083,6 @@ const shotPowerRef = useRef(0);
           updateChalkVisibility(null);
         }
 
-        const cueBallWorldForHuman = cue?.pos
-          ? new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y)
-          : cueStickAnchorRef.current.clone();
-        const aimForwardForHuman = new THREE.Vector3(aimDir.x, 0, aimDir.y);
-        if (aimForwardForHuman.lengthSq() < 1e-8) {
-          aimForwardForHuman.set(0, 0, 1);
-        } else {
-          aimForwardForHuman.normalize();
-        }
-        const cueCameraLoweredForHuman = THREE.MathUtils.clamp(
-          cameraBlendRef.current ?? 1,
-          0,
-          1
-        ) <= POOL_HUMAN_CUE_CAMERA_POSE_BLEND_MAX;
-        const sliderPullingForHuman =
-          Boolean(sliderInstanceRef.current?.dragging) ||
-          THREE.MathUtils.clamp(powerRef.current ?? 0, 0, 1) > 0.01;
-        const activeHumanStroke = cueStrokeStateRef.current;
-        const humanShotState = (shooting || cueAnimating || aiTakingShot || (ENABLE_CUE_STROKE_ANIMATION && activeHumanStroke))
-          ? 'striking'
-          : sliderPullingForHuman && !replayActive
-            ? 'dragging'
-            : cueCameraLoweredForHuman && !replayActive
-              ? 'aiming'
-              : replayActive
-                ? 'rolling'
-                : 'idle';
-        const humanPower = THREE.MathUtils.clamp(
-          humanShotState === 'striking'
-            ? Math.max(shotPowerRef.current ?? 0, powerRef.current ?? 0)
-            : powerRef.current ?? 0,
-          0,
-          1
-        );
-        updatePoolRoyaleHumanFrame(
-          humanRig,
-          Math.min(0.033, Math.max(0.001, deltaSeconds || 1 / 60)),
-          humanShotState,
-          cueBallWorldForHuman,
-          aimForwardForHuman,
-          cueStick,
-          cueLen,
-          humanPower
-        );
-        if (humanShotState === 'idle' || humanShotState === 'rolling') {
-          movePoolRoyaleCueToHumanHand(humanRig, cueStick);
-        }
         syncCueShadow();
 
         if (!shouldSlowAim) {
