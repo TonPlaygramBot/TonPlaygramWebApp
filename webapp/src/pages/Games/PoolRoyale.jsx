@@ -34761,19 +34761,11 @@ const shotPowerRef = useRef(0);
         applyPower(normalized);
       },
       onCommit: (value) => {
-        const sliderPower = Number.isFinite(value)
-          ? clampPower(value / 100, 0)
-          : null;
-        const normalized = sliderPower ?? Math.max(
-          Number.isFinite(shotPowerRef.current) ? shotPowerRef.current : 0,
-          Number.isFinite(powerRef.current) ? powerRef.current : 0
-        );
+        const normalized = clampPower(value / 100, 0);
         shotPowerRef.current = normalized;
         powerRef.current = normalized;
-        // Fire first so the shot always uses the committed slider value,
-        // then animate the handle back to zero for the next stroke.
-        fireRef.current?.(normalized);
         slider.animateToMin({ duration: 180 });
+        fireRef.current?.(normalized);
         requestAnimationFrame(() => applyPower(0));
       }
     });
