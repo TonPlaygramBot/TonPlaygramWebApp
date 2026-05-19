@@ -149,23 +149,31 @@ namespace Aiming
 
             if (_shotState == ShotState.Dragging)
             {
-                float pull = PullDistanceFromPower(_power);
-                _chargedCueDepth = idleTipGap + pull;
-                _currentCueDepth = _chargedCueDepth;
-                UpdateCuePose();
-
                 bool sliderDroppedToRelease = _previousSliderPower > threshold && _power <= threshold;
                 if (sliderDroppedToRelease)
                 {
-                    if (HasValidReleaseGesture(_chargedCueDepth - idleTipGap))
+                    float releasePullDistance = Mathf.Max(
+                        Mathf.Max(0f, _chargedCueDepth - idleTipGap),
+                        Mathf.Max(0f, _currentCueDepth - idleTipGap)
+                    );
+                    if (HasValidReleaseGesture(releasePullDistance))
                     {
+                        _latchedPullDistance = releasePullDistance;
                         ReleaseAndStrike();
                     }
                     else
                     {
                         CancelCharge();
                     }
+
+                    _previousSliderPower = nextPower;
+                    return;
                 }
+
+                float pull = PullDistanceFromPower(_power);
+                _chargedCueDepth = idleTipGap + pull;
+                _currentCueDepth = _chargedCueDepth;
+                UpdateCuePose();
             }
 
             _previousSliderPower = nextPower;
