@@ -2753,7 +2753,7 @@ function runCharacterAction(store, rig, action) {
       rightMiddleFinger: { x: THREE.MathUtils.degToRad(7), y: THREE.MathUtils.degToRad(1) }
     };
     const reachToCards = buildPoseVariant(basePose, {
-      spine: { x: 0, z: 0 },
+      spine: { x: THREE.MathUtils.degToRad(-17), z: THREE.MathUtils.degToRad(-1) },
       leftUpperArm: { x: THREE.MathUtils.degToRad(-12), y: THREE.MathUtils.degToRad(7), z: THREE.MathUtils.degToRad(3) },
       leftForeArm: { x: THREE.MathUtils.degToRad(12), y: THREE.MathUtils.degToRad(2) },
       leftHand: { x: THREE.MathUtils.degToRad(5), y: THREE.MathUtils.degToRad(3) },
@@ -2764,7 +2764,7 @@ function runCharacterAction(store, rig, action) {
       ...openFingers
     });
     const pinchPickup = buildPoseVariant(basePose, {
-      spine: { x: 0, z: 0 },
+      spine: { x: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-1) },
       leftUpperArm: { x: THREE.MathUtils.degToRad(-10), y: THREE.MathUtils.degToRad(6), z: THREE.MathUtils.degToRad(2) },
       leftForeArm: { x: THREE.MathUtils.degToRad(10), y: THREE.MathUtils.degToRad(2) },
       rightUpperArm: { x: THREE.MathUtils.degToRad(-76), y: THREE.MathUtils.degToRad(-21), z: THREE.MathUtils.degToRad(-24) },
@@ -2774,14 +2774,14 @@ function runCharacterAction(store, rig, action) {
       ...pinchFingers
     });
     const controlledCarry = buildPoseVariant(basePose, {
-      spine: { x: 0, z: 0 },
+      spine: { x: THREE.MathUtils.degToRad(-3) },
       rightUpperArm: { x: THREE.MathUtils.degToRad(-16), y: THREE.MathUtils.degToRad(-24), z: THREE.MathUtils.degToRad(-22) },
       rightForeArm: { x: THREE.MathUtils.degToRad(22), y: THREE.MathUtils.degToRad(-2) },
       rightHand: { x: THREE.MathUtils.degToRad(7), y: THREE.MathUtils.degToRad(-15), z: THREE.MathUtils.degToRad(-9) },
       ...pinchFingers
     });
     const hoverAboveTable = buildPoseVariant(basePose, {
-      spine: { x: 0, z: 0 },
+      spine: { x: THREE.MathUtils.degToRad(5), z: THREE.MathUtils.degToRad(1) },
       leftUpperArm: { x: THREE.MathUtils.degToRad(-6), y: THREE.MathUtils.degToRad(5) },
       rightUpperArm: { x: THREE.MathUtils.degToRad(20), y: THREE.MathUtils.degToRad(-25), z: THREE.MathUtils.degToRad(-22) },
       rightForeArm: { x: THREE.MathUtils.degToRad(46), y: THREE.MathUtils.degToRad(-2) },
@@ -2789,14 +2789,14 @@ function runCharacterAction(store, rig, action) {
       ...pinchFingers
     });
     const tableContact = buildPoseVariant(basePose, {
-      spine: { x: 0, z: 0 },
+      spine: { x: THREE.MathUtils.degToRad(9), z: THREE.MathUtils.degToRad(1) },
       rightUpperArm: { x: THREE.MathUtils.degToRad(34), y: THREE.MathUtils.degToRad(-22), z: THREE.MathUtils.degToRad(-19) },
       rightForeArm: { x: THREE.MathUtils.degToRad(58), y: THREE.MathUtils.degToRad(-1) },
       rightHand: { x: THREE.MathUtils.degToRad(10), y: THREE.MathUtils.degToRad(-6), z: THREE.MathUtils.degToRad(-1) },
       ...pinchFingers
     });
     const releaseOnTable = buildPoseVariant(basePose, {
-      spine: { x: 0, z: 0 },
+      spine: { x: THREE.MathUtils.degToRad(7) },
       rightUpperArm: { x: THREE.MathUtils.degToRad(34), y: THREE.MathUtils.degToRad(-20), z: THREE.MathUtils.degToRad(-18) },
       rightForeArm: { x: THREE.MathUtils.degToRad(56) },
       rightHand: { x: THREE.MathUtils.degToRad(15), y: THREE.MathUtils.degToRad(-5) },
