@@ -8345,13 +8345,13 @@ function createDominoCharacterRig(instance, seatRoot, seatIndex, player) {
   addDominoBoneOffset(bones.hips, THREE.MathUtils.degToRad(-9), 0, 0);
   addDominoBoneOffset(bones.spine, THREE.MathUtils.degToRad(-3), 0, 0);
   addDominoBoneOffset(bones.head, THREE.MathUtils.degToRad(2), 0, 0);
-  // Lower both arms further and pitch wrists inward so hands sit closer to the domino line.
-  addDominoBoneOffset(bones.leftUpperArm, THREE.MathUtils.degToRad(-73), THREE.MathUtils.degToRad(-7), THREE.MathUtils.degToRad(-3.5));
-  addDominoBoneOffset(bones.leftForeArm, THREE.MathUtils.degToRad(69), THREE.MathUtils.degToRad(-3), THREE.MathUtils.degToRad(-1.5));
-  addDominoBoneOffset(bones.leftHand, THREE.MathUtils.degToRad(41), THREE.MathUtils.degToRad(-4), THREE.MathUtils.degToRad(-1.5));
-  addDominoBoneOffset(bones.rightUpperArm, THREE.MathUtils.degToRad(-78), THREE.MathUtils.degToRad(10), THREE.MathUtils.degToRad(5.5));
-  addDominoBoneOffset(bones.rightForeArm, THREE.MathUtils.degToRad(71), THREE.MathUtils.degToRad(6), THREE.MathUtils.degToRad(2.5));
-  addDominoBoneOffset(bones.rightHand, THREE.MathUtils.degToRad(43), THREE.MathUtils.degToRad(6), THREE.MathUtils.degToRad(2.5));
+  // Lower both arms and pitch wrists inward so hands rest closer to the domino line.
+  addDominoBoneOffset(bones.leftUpperArm, THREE.MathUtils.degToRad(-66), THREE.MathUtils.degToRad(-6), THREE.MathUtils.degToRad(-3));
+  addDominoBoneOffset(bones.leftForeArm, THREE.MathUtils.degToRad(61), THREE.MathUtils.degToRad(-2), THREE.MathUtils.degToRad(-1));
+  addDominoBoneOffset(bones.leftHand, THREE.MathUtils.degToRad(33), THREE.MathUtils.degToRad(-3), THREE.MathUtils.degToRad(-1));
+  addDominoBoneOffset(bones.rightUpperArm, THREE.MathUtils.degToRad(-71), THREE.MathUtils.degToRad(9), THREE.MathUtils.degToRad(5));
+  addDominoBoneOffset(bones.rightForeArm, THREE.MathUtils.degToRad(62), THREE.MathUtils.degToRad(5), THREE.MathUtils.degToRad(2));
+  addDominoBoneOffset(bones.rightHand, THREE.MathUtils.degToRad(35), THREE.MathUtils.degToRad(5), THREE.MathUtils.degToRad(2));
   addDominoBoneOffset(bones.leftThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(9.2), THREE.MathUtils.degToRad(2.9));
   addDominoBoneOffset(bones.rightThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(1.7), THREE.MathUtils.degToRad(-1.1));
   addDominoBoneOffset(bones.leftCalf, THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(1.1), THREE.MathUtils.degToRad(0.6));
