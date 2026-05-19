@@ -1833,9 +1833,9 @@ const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // disable preview-only spin defle
 const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
-const SHOT_POWER_ADJUSTMENT = 0.62; // reduce overall Pool Royale power by an additional 20%
-const SHOT_POWER_BOOST = 1.32; // add stronger cue drive while preserving slider feel
-const SHOT_GLOBAL_POWER_SCALE = 0.94; // stronger Pool Royale strike speed so shots carry more power
+const SHOT_POWER_ADJUSTMENT = 0.52; // soften Pool Royale cue-force so charged shots match intended slider power more closely
+const SHOT_POWER_BOOST = 1.0; // remove extra hidden boost so release power tracks player-selected charge
+const SHOT_GLOBAL_POWER_SCALE = 0.82; // trim final strike speed so overall table pace matches prior balanced tuning
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
