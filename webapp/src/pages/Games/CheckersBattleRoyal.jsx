@@ -323,7 +323,7 @@ const CHAIR_GROUND_SINK = 0.44;
 // additional breathing room around the smaller board.
 const CHAIR_VISUAL_SCALE = 0.9;
 const CHAIR_VISUAL_HEIGHT_SCALE = 0.93;
-const CHAIR_NON_POLYHAVEN_SIDE_SCALE = 0.6;
+const CHAIR_NON_POLYHAVEN_SIDE_SCALE = 1;
 const CHAIR_TARGET_SCALE_FACTOR = 0.72;
 const TARGET_CHAIR_SIZE = new THREE.Vector3(
   1.3162499970197679 * CHAIR_TARGET_SCALE_FACTOR,
@@ -432,7 +432,7 @@ const CHECKERS_CHIP_SET_BY_ID = Object.freeze({
 
 const FALLBACK_SEAT_POSITIONS = [
   { left: '50%', top: '18%' },
-  { left: '50%', top: '82%' }
+  { left: '50%', top: '88%' }
 ];
 const RULE_SUMMARY =
   'Forced captures are ON. Chain captures are mandatory. Reach the far rank to crown a king.';
