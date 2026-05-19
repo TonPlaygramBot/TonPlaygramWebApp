@@ -583,6 +583,13 @@ const CAMERA_CAPTURE_VIEW_RADIUS_SCALE = 1.18; // keep forced 3D animation wider
 const CAMERA_CAPTURE_BOTTOM_AVATAR_SCREEN_OFFSET = 0; // keep projected avatars pinned to the seated character chest anchors
 const CAMERA_LOCKED_3D_PHI = THREE.MathUtils.degToRad(72); // tilt closer to horizon so the camera looks more upward at board/table/chairs.
 const CAMERA_LOCKED_3D_RADIUS_SCALE = 0.59; // move locked 3D camera closer to the table for a tighter composition.
+const CHECKERS_CAMERA_FRAME_COMPENSATION = 1.06;
+const PLAYER_FACE_CAMERA_SEAT_ANGLE = Math.PI / 2;
+const PLAYER_FACE_CAMERA_RADIUS = TABLE_RADIUS * 0.98 * CHECKERS_CAMERA_FRAME_COMPENSATION;
+const PLAYER_FACE_CAMERA_EYE_HEIGHT = 2.05 * MODEL_SCALE;
+const PLAYER_FACE_CAMERA_TARGET_HEIGHT = 0.18 * MODEL_SCALE;
+const PLAYER_FACE_CAMERA_YAW_LIMIT = THREE.MathUtils.degToRad(18);
+const PLAYER_FACE_CAMERA_PITCH_LIMIT = THREE.MathUtils.degToRad(12);
 const SAND_TIMER_RADIUS_FACTOR = 0.68;
 const SAND_TIMER_SURFACE_OFFSET = 0.2;
 const SAND_TIMER_SCALE = 0.36;
@@ -3034,6 +3041,36 @@ function alignArenaContentsToRoom(groups = [], roomHalfWidth, roomHalfDepth, pre
   }
   return new THREE.Vector3(shiftX, 0, shiftZ);
 }
+
+const getBottomPlayerFaceCameraPosition = () => {
+  const radius = Math.max(PLAYER_FACE_CAMERA_RADIUS, TABLE_RADIUS * 0.95);
+  return new THREE.Vector3(
+    Math.cos(PLAYER_FACE_CAMERA_SEAT_ANGLE) * radius,
+    TABLE_HEIGHT + PLAYER_FACE_CAMERA_EYE_HEIGHT,
+    Math.sin(PLAYER_FACE_CAMERA_SEAT_ANGLE) * radius
+  );
+};
+
+const applyBottomPlayerFaceCamera = (camera, look = { yaw: 0, pitch: 0 }) => {
+  if (!camera) return;
+  const position = getBottomPlayerFaceCameraPosition();
+  camera.position.copy(position);
+  const tableFaceTarget = new THREE.Vector3(0, TABLE_HEIGHT + PLAYER_FACE_CAMERA_TARGET_HEIGHT, 0);
+  const horizontalDistance = Math.hypot(tableFaceTarget.x - position.x, tableFaceTarget.z - position.z);
+  const basePitch = Math.atan2(tableFaceTarget.y - position.y, horizontalDistance);
+  const yaw = clamp(look.yaw || 0, -PLAYER_FACE_CAMERA_YAW_LIMIT, PLAYER_FACE_CAMERA_YAW_LIMIT);
+  const pitch = clamp(
+    basePitch + (look.pitch || 0),
+    basePitch - PLAYER_FACE_CAMERA_PITCH_LIMIT,
+    basePitch + PLAYER_FACE_CAMERA_PITCH_LIMIT
+  );
+  const direction = new THREE.Vector3(
+    Math.sin(yaw) * Math.cos(pitch),
+    Math.sin(pitch),
+    -Math.cos(yaw) * Math.cos(pitch)
+  );
+  camera.lookAt(position.clone().add(direction));
+};
 
 function groundArenaGroups(groups = [], floorY = 0) {
   const currentFloor = computeGroupFloorY(groups);
@@ -10332,56 +10369,23 @@ function Chess3D({
     // Camera orbit via OrbitControls
     camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
     const isPortrait = host.clientHeight > host.clientWidth;
-    const cameraSeatAngle = PLAYER_VIEW_SEAT_THETA;
-    const cameraBackOffset =
-      isPortrait ? PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT : PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE;
-    const cameraForwardOffset = isPortrait
-      ? PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT
-      : PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE;
-    const cameraHeightOffset = isPortrait
-      ? PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT
-      : PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE;
-    const cameraRadius = playerChairDistance + cameraBackOffset - cameraForwardOffset;
-    camera.position.set(
-      Math.cos(cameraSeatAngle) * cameraRadius + tablePlacementOffset.x,
-      tableSurfaceY + cameraHeightOffset,
-      Math.sin(cameraSeatAngle) * cameraRadius + tablePlacementOffset.z
-    );
-    camera.lookAt(boardLookTarget);
+    applyBottomPlayerFaceCamera(camera, { yaw: 0, pitch: 0 });
 
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.enablePan = false;
     controls.screenSpacePanning = true;
-    controls.enableZoom = true;
-    controls.minDistance = CAMERA_3D_MIN_RADIUS;
-    controls.maxDistance = CAMERA_3D_MAX_RADIUS;
-    controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
+    controls.enableZoom = false;
+    controls.enableRotate = false;
+    controls.minDistance = TABLE_RADIUS * 1.85;
+    controls.maxDistance = TABLE_RADIUS * 4.9;
+    controls.minPolarAngle = THREE.MathUtils.degToRad(28);
     controls.maxPolarAngle = CAM.phiMax;
     controls.rotateSpeed = 0.85;
     controls.zoomSpeed = 0.7;
     controls.panSpeed = 0.6;
-    controls.target.copy(boardLookTarget);
-    const cameraOffset = camera.position.clone().sub(boardLookTarget);
-    const cameraSpherical = new THREE.Spherical().setFromVector3(cameraOffset);
-    const horizontalSwing = THREE.MathUtils.degToRad(isPortrait ? 95 : 80);
-    const verticalAllowanceUp = THREE.MathUtils.degToRad(isPortrait ? 38 : 28);
-    const verticalAllowanceDown = THREE.MathUtils.degToRad(isPortrait ? 42 : 30);
-    controls.minPolarAngle = clamp(
-      cameraSpherical.phi - verticalAllowanceUp,
-      CAMERA_PULL_FORWARD_MIN,
-      CAM.phiMax
-    );
-    controls.maxPolarAngle = clamp(
-      cameraSpherical.phi + verticalAllowanceDown,
-      CAMERA_PULL_FORWARD_MIN,
-      CAM.phiMax
-    );
-    controls.minAzimuthAngle = cameraSpherical.theta - horizontalSwing;
-    controls.maxAzimuthAngle = cameraSpherical.theta + horizontalSwing;
-    controls.minDistance = CAMERA_3D_MIN_RADIUS;
-    controls.maxDistance = CAMERA_3D_MAX_RADIUS;
+    controls.target.set(0, TABLE_HEIGHT, 0);
     controls.update();
     controlsRef.current = controls;
     syncSkyboxToCamera = () => {
