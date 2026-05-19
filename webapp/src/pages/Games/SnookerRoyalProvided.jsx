@@ -133,7 +133,7 @@ const OFFICIAL_SNOOKER_BLACK_FROM_TOP_CUSHION_M = 0.324;
 const OFFICIAL_SNOOKER_POCKET_CORNER_MOUTH_M = 0.086;
 const OFFICIAL_SNOOKER_POCKET_MIDDLE_MOUTH_M = 0.095;
 const SNOOKER_TABLE_VISUAL_LENGTH_TRIM = 1.08; // larger GLB cabinet framing so the imported snooker table wraps the official mapped cushion rectangle
-const SNOOKER_PLAYFIELD_SCALE = (2.62 * WORLD_SCALE) / OFFICIAL_SNOOKER_PLAYFIELD_WIDTH_M;
+const SNOOKER_PLAYFIELD_SCALE = (2.55 * WORLD_SCALE) / OFFICIAL_SNOOKER_PLAYFIELD_WIDTH_M;
 const SNOOKER_OFFICIAL_PLAYFIELD_W = OFFICIAL_SNOOKER_PLAYFIELD_WIDTH_M * SNOOKER_PLAYFIELD_SCALE;
 const SNOOKER_OFFICIAL_PLAYFIELD_L = OFFICIAL_SNOOKER_PLAYFIELD_LENGTH_M * SNOOKER_PLAYFIELD_SCALE;
 const SNOOKER_OFFICIAL_BALL_R = (OFFICIAL_SNOOKER_BALL_DIAMETER_M * SNOOKER_PLAYFIELD_SCALE) / 2;
@@ -151,7 +151,7 @@ const SNOOKER_SHOT_POWER_RANGE = 0.75;
 const SNOOKER_SHOT_FULL_SPEED = 12 * WORLD_SCALE * SNOOKER_SHOT_POWER_BOOST;
 const SNOOKER_BALL_MASS = 0.17;
 const SNOOKER_SHOT_SPIN_SCALE = 0.25;
-const SNOOKER_SPIN_GLOBAL_SCALE = 0.68; // match Pool Royale's reduced cue-spin input so centre-ball shots do not over-rotate
+const SNOOKER_SPIN_GLOBAL_SCALE = 0.82; // match Pool Royale's reduced cue-spin input so centre-ball shots do not over-rotate
 const SNOOKER_SPIN_GLOBAL_BOOST_MULTIPLIER = 1.2;
 const SNOOKER_SIDE_SPIN_MULTIPLIER = 1.5 * SNOOKER_SPIN_GLOBAL_BOOST_MULTIPLIER;
 const SNOOKER_BACKSPIN_MULTIPLIER = 2.6 * SNOOKER_SPIN_GLOBAL_BOOST_MULTIPLIER;
@@ -237,7 +237,7 @@ const CFG = {
   tableTopY: 0.84 * WORLD_SCALE,
   tableW: SNOOKER_OFFICIAL_PLAYFIELD_W,
   tableL: SNOOKER_OFFICIAL_PLAYFIELD_L,
-  tableVisualMultiplier: 1.12 * SNOOKER_TABLE_VISUAL_LENGTH_TRIM,
+  tableVisualMultiplier: 1.08 * SNOOKER_TABLE_VISUAL_LENGTH_TRIM,
   railH: 0.08 * WORLD_SCALE,
   ballR: SNOOKER_OFFICIAL_BALL_R,
   friction: 1.18,
@@ -1211,8 +1211,8 @@ function applyCueShot(cueBall, power, yaw, out, spinInput = { x: 0, y: 0 }) {
   if (launchSpeed > 1e-6 && cueBall.omega) {
     const rollingAxis = new THREE.Vector3(cueBall.vel.z, 0, -cueBall.vel.x).normalize();
     cueBall.omega.addScaledVector(rollingAxis, launchSpeed / CFG.ballR);
-    cueBall.omega.x += -(spin.y ?? 0) * p * 11;
-    cueBall.omega.z += -(spin.x ?? 0) * p * 11;
+    cueBall.omega.x += -(spin.y ?? 0) * p * 18;
+    cueBall.omega.z += -(spin.x ?? 0) * p * 18;
   }
   cueBall.launchDir = cueBall.vel.lengthSq() > 1e-8 ? cueBall.vel.clone().normalize() : null;
   cueBall.impacted = false;
@@ -2310,10 +2310,7 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
       let gap = CFG.idleGap;
       const spinOffset = mapSpinForPhysics(spinRef.current);
       if (state === 'dragging') gap += pull + practiceStroke;
-      if (state === 'striking') {
-        const strikeMotionNorm = didHit ? 0.88 : strikeNorm;
-        gap = lerp(CFG.idleGap + pull, CFG.contactGap, easeOutCubic(strikeMotionNorm));
-      }
+      if (state === 'striking') gap = lerp(CFG.idleGap + pull, CFG.contactGap, easeOutCubic(strikeNorm));
       const cueTipShoot = cueBallWorld.clone()
         .addScaledVector(aimForward, -(CFG.ballR + gap))
         .addScaledVector(aimSide, (spinOffset.x ?? 0) * CFG.ballR * 0.52)
@@ -2528,6 +2525,44 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
                 <span className={railOverheadSide === 'front' ? 'text-emerald-100' : 'text-white/65'}>▼</span>
               </span>
             </button>
+            <button
+              type="button"
+              disabled={!hasReplay}
+              onClick={() => {
+                if (!hasReplay) return;
+                replayStartedAtRef.current = performance.now();
+                setReplayActive(true);
+              }}
+              className={`flex h-12 w-12 items-center justify-center rounded-full border text-[15px] font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+                replayActive
+                  ? 'border-amber-200 bg-amber-300/25 text-amber-100'
+                  : hasReplay
+                    ? 'border-white/30 bg-black/70 text-white hover:bg-black/60'
+                    : 'border-white/10 bg-black/45 text-white/35'
+              }`}
+              aria-label="Replay last snooker shot"
+            >
+              <span aria-hidden="true">↻</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setReplaySkipAll((prev) => {
+                  const next = !prev;
+                  replaySkipAllRef.current = next;
+                  if (next) setReplayActive(false);
+                  return next;
+                });
+              }}
+              className={`flex h-12 w-12 items-center justify-center rounded-full border text-[10px] font-black uppercase tracking-[0.08em] shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+                replaySkipAll
+                  ? 'border-rose-300 bg-rose-500/25 text-rose-100'
+                  : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
+              }`}
+              aria-label="Skip all replays"
+            >
+              Skip
+            </button>
           </div>
         </div>
 
@@ -2738,18 +2773,6 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
             />
           </div>
         </div>
-        {replayActive ? (
-          <div className="pointer-events-none absolute inset-y-0 right-0 z-[70] flex items-center pr-2">
-            <button
-              type="button"
-              onClick={() => setReplayActive(false)}
-              className="pointer-events-auto rounded-l-xl border border-white/30 bg-black/70 px-3 py-2 text-[11px] font-black uppercase tracking-[0.12em] text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition hover:bg-black/60"
-              aria-label="Skip current replay"
-            >
-              Skip
-            </button>
-          </div>
-        ) : null}
         {lastQuickMessage ? (
           <div className="pointer-events-none absolute left-1/2 top-24 z-40 -translate-x-1/2 rounded-full border border-white/15 bg-black/70 px-4 py-2 text-sm font-semibold text-white shadow-xl backdrop-blur">
             {lastQuickMessage}
