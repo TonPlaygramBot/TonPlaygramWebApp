@@ -1835,7 +1835,7 @@ const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.62; // reduce overall Pool Royale power by an additional 20%
 const SHOT_POWER_BOOST = 1.32; // add stronger cue drive while preserving slider feel
-const SHOT_GLOBAL_POWER_SCALE = 0.94; // stronger Pool Royale strike speed so shots carry more power
+const SHOT_GLOBAL_POWER_SCALE = 0.78; // tone down Pool Royale strike speed so shots match the requested game power pacing
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -11944,7 +11944,7 @@ export function Table3D(
   const brandPlateWidth = Math.min(PLAY_W * 0.32, Math.max(BALL_R * 9.6, PLAY_W * 0.23));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 0.92;
+  const brandPlateOutwardShift = endRailW * 0.62;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -12117,8 +12117,8 @@ export function Table3D(
   if (shortRailWordmarkTexture) {
     const logoWidth = Math.min(PLAY_W * 0.44, Math.max(BALL_R * 13.5, PLAY_W * 0.34));
     const logoHeight = Math.max(BALL_R * 1.4, railH * 0.18);
-    const logoY = railsTopY - railH * 0.34;
-    const logoInset = Math.max(MICRO_EPS, endRailW * 0.07);
+    const logoY = railsTopY - railH * 0.22;
+    const logoInset = Math.max(MICRO_EPS, endRailW * 0.16);
     const logoZ = halfH + endRailW - logoInset;
     const logoMat = new THREE.MeshBasicMaterial({
       color: 0xffffff,
