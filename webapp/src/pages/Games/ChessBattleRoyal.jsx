@@ -317,24 +317,24 @@ const CHESS_LARGE_FIREARM_IDS = new Set([
 ]);
 const CHESS_FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
   fpsGunAttack: 2.2,
-  glockSidearmAttack: 2.2,
-  uziSprayAttack: 2.2,
-  smgBurstAttack: 2.2,
+  glockSidearmAttack: 1,
+  uziSprayAttack: 1.65,
+  smgBurstAttack: 1.65,
   ak47VolleyAttack: 2.2,
   krsvBurstAttack: 2.2,
-  smithSidearmAttack: 2.2,
-  mosinMarksmanAttack: 2.2,
-  sniperShotAttack: 2.2,
+  smithSidearmAttack: 1,
+  mosinMarksmanAttack: 3.5,
+  sniperShotAttack: 2.8,
   shotgunBlastAttack: 2.2,
-  polyShotgun01Attack: 2.2,
-  polyAssaultRifle01Attack: 2.2,
-  polyPistol01Attack: 2.2,
-  polyRevolver01Attack: 2.2,
-  polySawedOff01Attack: 2.2,
-  polyRevolver02Attack: 2.2,
-  polyShotgun02Attack: 2.2,
-  polyShotgun03Attack: 2.2,
-  polySmg01Attack: 2.2,
+  polyShotgun01Attack: 2.05,
+  polyAssaultRifle01Attack: 2.15,
+  polyPistol01Attack: 1.02,
+  polyRevolver01Attack: 1.08,
+  polySawedOff01Attack: 1.56,
+  polyRevolver02Attack: 1.08,
+  polyShotgun02Attack: 2.22,
+  polyShotgun03Attack: 2.1,
+  polySmg01Attack: 1.68,
   polyRobotLargeGunAttack: 1.95,
   polyRobotFlyingGunAttack: 1.45,
   polyBazooka01Attack: 2.6,
@@ -347,7 +347,7 @@ const CHESS_FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
 });
 const CHESS_FIREARM_FLAT_ROTATION = Object.freeze([-Math.PI * 0.5, -Math.PI * 0.02, 0]);
 const CHESS_FIREARM_AIM_ROTATION = Object.freeze([0, Math.PI * 0.5, 0]); // flip handheld weapons so their muzzles face the target.
-const CHESS_FIREARM_HANDHELD_SCALE_MULTIPLIER = 1.9;
+const CHESS_FIREARM_HANDHELD_SCALE_MULTIPLIER = 1.72;
 const CHESS_FIREARM_MUZZLE_YAW_CORRECTION_BY_ID = Object.freeze({
   ak47VolleyAttack: Math.PI,
   krsvBurstAttack: Math.PI
@@ -611,7 +611,7 @@ const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.08; // raise player camera w
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.78;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 1.35;
 const PLAYER_VIEW_LOOK_TARGET_UP_BIAS = 0.6; // increase upward aim so the table/pieces/opponent sit higher in view.
-const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 10.9; // push table/chairs/humans further down in frame toward the bottom edge.
+const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 9.7; // push table/chairs/humans further down in frame toward the bottom edge.
 const FPV_FACE_FORWARD_OFFSET = 0.012; // keep the camera almost exactly at the eyes for a true first-person perspective.
 const FPV_FACE_UP_OFFSET = 0.0; // slight lift so the board edge does not clip while still feeling eye-level.
 const FPV_LOOK_AHEAD_DISTANCE = BOARD.tile * BOARD_SCALE * 5.8; // prioritize looking down the board journey toward the opponent side.
@@ -2208,11 +2208,11 @@ const CHESS_FIREARM_BULLET_PROFILE_BY_TYPE = Object.freeze({
 });
 
 const CHESS_LUDO_PROJECTILE_PROFILE_BY_TYPE = Object.freeze({
-  Pistol: Object.freeze({ projectileKind: 'pistol-round', caliberLabel: '9mm sidearm round', bulletRadius: 0.0034, bulletLength: 0.027, bulletSpeed: 0.28, shellRadius: 0.0026, shellLength: 0.014, shellArc: 0.042 }),
-  SMG: Object.freeze({ projectileKind: 'smg-round', caliberLabel: '9mm SMG round', bulletRadius: 0.0032, bulletLength: 0.028, bulletSpeed: 0.3, shellRadius: 0.0025, shellLength: 0.014, shellArc: 0.058 }),
-  Rifle: Object.freeze({ projectileKind: 'rifle-round', caliberLabel: '5.56 rifle round', bulletRadius: 0.0038, bulletLength: 0.041, bulletSpeed: 0.34, shellRadius: 0.003, shellLength: 0.021, shellArc: 0.054 }),
-  Sniper: Object.freeze({ projectileKind: 'marksman-round', caliberLabel: '7.62 marksman round', bulletRadius: 0.0042, bulletLength: 0.052, bulletSpeed: 0.37, shellRadius: 0.0032, shellLength: 0.024, shellArc: 0.036 }),
-  Shotgun: Object.freeze({ projectileKind: 'buckshot-pellet', caliberLabel: '12-gauge buckshot', bulletRadius: 0.0032, bulletLength: 0.013, bulletSpeed: 0.24, shellRadius: 0.004, shellLength: 0.023, shellArc: 0.061 }),
+  Pistol: Object.freeze({ projectileKind: 'pistol-round', caliberLabel: '9mm sidearm round', bulletRadius: 0.0034, bulletLength: 0.027, bulletSpeed: 0.21, shellRadius: 0.0026, shellLength: 0.014, shellArc: 0.042 }),
+  SMG: Object.freeze({ projectileKind: 'smg-round', caliberLabel: '9mm SMG round', bulletRadius: 0.0032, bulletLength: 0.028, bulletSpeed: 0.23, shellRadius: 0.0025, shellLength: 0.014, shellArc: 0.058 }),
+  Rifle: Object.freeze({ projectileKind: 'rifle-round', caliberLabel: '5.56 rifle round', bulletRadius: 0.0038, bulletLength: 0.041, bulletSpeed: 0.26, shellRadius: 0.003, shellLength: 0.021, shellArc: 0.054 }),
+  Sniper: Object.freeze({ projectileKind: 'marksman-round', caliberLabel: '7.62 marksman round', bulletRadius: 0.0042, bulletLength: 0.052, bulletSpeed: 0.29, shellRadius: 0.0032, shellLength: 0.024, shellArc: 0.036 }),
+  Shotgun: Object.freeze({ projectileKind: 'buckshot-pellet', caliberLabel: '12-gauge buckshot', bulletRadius: 0.0032, bulletLength: 0.013, bulletSpeed: 0.17, shellRadius: 0.004, shellLength: 0.023, shellArc: 0.061 }),
   GrenadeLauncher: Object.freeze({ projectileKind: 'explosive-warhead', caliberLabel: 'explosive warhead', bulletRadius: 0.0064, bulletLength: 0.046, bulletSpeed: 0.14, shellRadius: 0.0046, shellLength: 0.03, shellArc: 0.03 })
 });
 
@@ -3192,14 +3192,6 @@ function createRandomAiCaptureLoadout() {
     knight: chooseRandomCaptureAnimationId('drone', 'droneAttack'),
     pawn: chooseRandomCaptureAnimationId('truck', 'missileJavelin')
   };
-}
-
-function pickRandomAiHumanCharacterOption(playerOption) {
-  const fallback = HUMAN_CHARACTER_OPTIONS[0] ?? null;
-  const playerId = playerOption?.id ?? null;
-  const pool = HUMAN_CHARACTER_OPTIONS.filter((option) => option?.id && option.id !== playerId);
-  if (!pool.length) return fallback;
-  return pool[Math.floor(Math.random() * pool.length)] ?? fallback;
 }
 
 function getTableHeightForShape(shapeId) {
@@ -8272,9 +8264,6 @@ function Chess3D({
     return { ...DEFAULT_APPEARANCE };
   });
   const appearanceRef = useRef(appearance);
-  const aiHumanCharacterOptionRef = useRef(
-    pickRandomAiHumanCharacterOption(HUMAN_CHARACTER_OPTIONS[normalizeAppearance(appearance).humanCharacter])
-  );
   const paletteRef = useRef(createChessPalette(appearance));
   const [activeCustomizationKey, setActiveCustomizationKey] = useState(
     CUSTOMIZATION_SECTIONS[0]?.key ?? 'tables'
@@ -9620,36 +9609,28 @@ function Chess3D({
     }
 
     const selectedHumanCharacterId = humanCharacterOption?.id ?? HUMAN_CHARACTER_OPTIONS[0]?.id ?? 'default';
-    const aiHumanCharacterOption =
-      aiHumanCharacterOptionRef.current?.id &&
-      aiHumanCharacterOptionRef.current.id !== selectedHumanCharacterId
-        ? aiHumanCharacterOptionRef.current
-        : pickRandomAiHumanCharacterOption(humanCharacterOption);
-    aiHumanCharacterOptionRef.current = aiHumanCharacterOption;
     if (selectedHumanCharacterId !== (arena.selectedHumanCharacterId ?? 'default')) {
-      const perSeatOptions = [humanCharacterOption, aiHumanCharacterOptionRef.current];
-      void Promise.all(
-        perSeatOptions.map((option) =>
-          loadSeatedHumanTemplate(option, arena.renderer, arena.maxAnisotropy || 1)
-        )
+      void loadSeatedHumanTemplate(
+        humanCharacterOption,
+        arena.renderer,
+        arena.maxAnisotropy || 1
       )
-        .then((templates) => {
+        .then((humanTemplate) => {
           if (!arenaRef.current) return;
+          const baseScale =
+            humanTemplate?.userData?.seatedHumanScale ?? computeSeatedHumanScale(humanTemplate);
+          const seatedYawOffset = Number.isFinite(humanTemplate?.userData?.seatedYawOffset)
+            ? humanTemplate.userData.seatedYawOffset
+            : 0;
+          const seatedYOffset = Number.isFinite(humanTemplate?.userData?.seatedYOffset)
+            ? humanTemplate.userData.seatedYOffset
+            : 0;
+          const seatedZOffset = Number.isFinite(humanTemplate?.userData?.seatedZOffset)
+            ? humanTemplate.userData.seatedZOffset
+            : 0;
           const nextActors = [];
           (arena.chairs || []).forEach((chair, playerIndex) => {
             if (!chair?.group) return;
-            const humanTemplate = templates[playerIndex] || templates[0];
-            const baseScale =
-              humanTemplate?.userData?.seatedHumanScale ?? computeSeatedHumanScale(humanTemplate);
-            const seatedYawOffset = Number.isFinite(humanTemplate?.userData?.seatedYawOffset)
-              ? humanTemplate.userData.seatedYawOffset
-              : 0;
-            const seatedYOffset = Number.isFinite(humanTemplate?.userData?.seatedYOffset)
-              ? humanTemplate.userData.seatedYOffset
-              : 0;
-            const seatedZOffset = Number.isFinite(humanTemplate?.userData?.seatedZOffset)
-              ? humanTemplate.userData.seatedZOffset
-              : 0;
             const actor = cloneSkinned(humanTemplate);
             actor.scale.setScalar(baseScale);
             actor.position.set(
@@ -10234,23 +10215,23 @@ function Chess3D({
     seatedHumanMoveActionsRef.current.forEach((action) => disposeSeatedHumanMoveAction(action));
     seatedHumanMoveActionsRef.current.clear();
     try {
-      aiHumanCharacterOptionRef.current = pickRandomAiHumanCharacterOption(humanCharacterOption);
-      const perSeatOptions = [humanCharacterOption, aiHumanCharacterOptionRef.current];
-      for (let playerIndex = 0; playerIndex < chairs.length; playerIndex += 1) {
-        const chair = chairs[playerIndex];
-        const option = perSeatOptions[playerIndex] || humanCharacterOption;
-        const humanTemplate = await loadSeatedHumanTemplate(option, renderer, maxAnisotropy || 1);
-        const baseScale =
-          humanTemplate?.userData?.seatedHumanScale ?? computeSeatedHumanScale(humanTemplate);
-        const seatedYawOffset = Number.isFinite(humanTemplate?.userData?.seatedYawOffset)
-          ? humanTemplate.userData.seatedYawOffset
-          : 0;
-        const seatedYOffset = Number.isFinite(humanTemplate?.userData?.seatedYOffset)
-          ? humanTemplate.userData.seatedYOffset
-          : 0;
-        const seatedZOffset = Number.isFinite(humanTemplate?.userData?.seatedZOffset)
-          ? humanTemplate.userData.seatedZOffset
-          : 0;
+      const humanTemplate = await loadSeatedHumanTemplate(
+        humanCharacterOption,
+        renderer,
+        maxAnisotropy || 1
+      );
+      const baseScale =
+        humanTemplate?.userData?.seatedHumanScale ?? computeSeatedHumanScale(humanTemplate);
+      const seatedYawOffset = Number.isFinite(humanTemplate?.userData?.seatedYawOffset)
+        ? humanTemplate.userData.seatedYawOffset
+        : 0;
+      const seatedYOffset = Number.isFinite(humanTemplate?.userData?.seatedYOffset)
+        ? humanTemplate.userData.seatedYOffset
+        : 0;
+      const seatedZOffset = Number.isFinite(humanTemplate?.userData?.seatedZOffset)
+        ? humanTemplate.userData.seatedZOffset
+        : 0;
+      chairs.forEach((chair, playerIndex) => {
         const actor = cloneSkinned(humanTemplate);
         actor.scale.setScalar(baseScale);
         actor.position.set(
@@ -10272,7 +10253,7 @@ function Chess3D({
         });
         positionSeatedHumanChestAvatarAnchor(chair, actor);
         seatedHumanActorsRef.current.push({ playerIndex, chair, actor, rig, fpvMeshes });
-      }
+      });
       arena.selectedHumanCharacterId = humanCharacterOption?.id ?? HUMAN_CHARACTER_OPTIONS[0]?.id ?? 'default';
     } catch (error) {
       console.warn('Chess Battle Royal: unable to attach seated human actors', error);
