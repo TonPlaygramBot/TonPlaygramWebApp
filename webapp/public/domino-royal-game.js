@@ -8629,14 +8629,14 @@ function runDominoCharacterAction(seatIndex, type = 'PLAY') {
       z: THREE.MathUtils.degToRad(-17)
     },
     rightForeArm: {
-      x: THREE.MathUtils.degToRad(-46),
-      y: THREE.MathUtils.degToRad(16) + inwardElbowYaw,
-      z: THREE.MathUtils.degToRad(-2)
+      x: THREE.MathUtils.degToRad(-48),
+      y: THREE.MathUtils.degToRad(11) + inwardElbowYaw,
+      z: THREE.MathUtils.degToRad(-3)
     },
     rightHand: {
-      x: THREE.MathUtils.degToRad(-21),
-      y: THREE.MathUtils.degToRad(-13),
-      z: THREE.MathUtils.degToRad(-8)
+      x: THREE.MathUtils.degToRad(-24),
+      y: THREE.MathUtils.degToRad(-18),
+      z: THREE.MathUtils.degToRad(-12)
     },
     rightThumb: { x: playFingerOpen, y: THREE.MathUtils.degToRad(15), z: THREE.MathUtils.degToRad(12) },
     rightIndex: { x: playFingerOpen, y: THREE.MathUtils.degToRad(-13), z: THREE.MathUtils.degToRad(-6) },
@@ -8651,14 +8651,14 @@ function runDominoCharacterAction(seatIndex, type = 'PLAY') {
       z: THREE.MathUtils.degToRad(-18)
     },
     rightForeArm: {
-      x: THREE.MathUtils.degToRad(-36),
-      y: THREE.MathUtils.degToRad(18) + inwardElbowYaw,
-      z: THREE.MathUtils.degToRad(-3)
+      x: THREE.MathUtils.degToRad(-38),
+      y: THREE.MathUtils.degToRad(12) + inwardElbowYaw,
+      z: THREE.MathUtils.degToRad(-4)
     },
     rightHand: {
-      x: THREE.MathUtils.degToRad(-26),
-      y: THREE.MathUtils.degToRad(-13),
-      z: THREE.MathUtils.degToRad(-9)
+      x: THREE.MathUtils.degToRad(-30),
+      y: THREE.MathUtils.degToRad(-19),
+      z: THREE.MathUtils.degToRad(-13)
     },
     rightThumb: { x: THREE.MathUtils.degToRad(-4), y: THREE.MathUtils.degToRad(18), z: THREE.MathUtils.degToRad(14) },
     rightIndex: { x: THREE.MathUtils.degToRad(6), y: THREE.MathUtils.degToRad(-16), z: THREE.MathUtils.degToRad(-7) },
@@ -8689,17 +8689,6 @@ function runDominoCharacterAction(seatIndex, type = 'PLAY') {
     head: { x: THREE.MathUtils.degToRad(5) }
   });
   const release = makeDominoPose(carry, {
-    rightUpperArm: {
-      x: THREE.MathUtils.degToRad(92),
-      y: THREE.MathUtils.degToRad(-1) + inwardReachYaw * 0.38,
-      z: THREE.MathUtils.degToRad(2)
-    },
-    rightForeArm: {
-      x: THREE.MathUtils.degToRad(24),
-      y: THREE.MathUtils.degToRad(-3) + inwardElbowYaw * 0.2,
-      z: THREE.MathUtils.degToRad(0)
-    },
-    rightHand: { x: THREE.MathUtils.degToRad(4), y: THREE.MathUtils.degToRad(3), z: THREE.MathUtils.degToRad(1) },
     rightThumb: { x: THREE.MathUtils.degToRad(6), y: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(-9) },
     rightIndex: { x: THREE.MathUtils.degToRad(-14), y: THREE.MathUtils.degToRad(9), z: THREE.MathUtils.degToRad(4) },
     rightMiddle: { x: THREE.MathUtils.degToRad(-9), y: THREE.MathUtils.degToRad(4), z: THREE.MathUtils.degToRad(2) }
