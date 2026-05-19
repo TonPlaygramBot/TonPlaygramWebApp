@@ -145,6 +145,8 @@ const TARGET_CHAIR_SIZE = new THREE.Vector3(
 const FOUR_IN_ROW_CHARACTER_PROPORTION_SCALE = 2.15;
 const FOUR_IN_ROW_CHARACTER_EXTRA_LOWER_OFFSET = 0.32;
 const FOUR_IN_ROW_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.42;
+const FOUR_IN_ROW_HUMAN_CHARACTER_SCALE_MULTIPLIER = 0.93;
+const FOUR_IN_ROW_HUMAN_CHARACTER_EXTRA_LOWER_OFFSET = 0.07;
 const FOUR_IN_ROW_CHARACTER_MODEL_CACHE = new Map();
 const FOUR_IN_ROW_CHESS_HUMAN_OPTIONS = Object.freeze(
   CHESS_HUMAN_CHARACTER_OPTIONS.filter((option) => Array.isArray(option?.modelUrls) && option.modelUrls.length)
@@ -1127,14 +1129,15 @@ function attachFourInRowSeatedCharacter({ template, chair, theme, isHumanSeat = 
   const measuredHeight = Math.max(0.01, bounds.max.y - bounds.min.y);
   const targetHeight = Math.max(TARGET_CHAIR_SIZE.y * 1.16, 0.01);
   const adapterScale = instance.userData?.seatedScaleMultiplier ?? 1;
-  const seatScale = (targetHeight / measuredHeight) * adapterScale * FOUR_IN_ROW_CHARACTER_PROPORTION_SCALE;
+  const humanScaleMultiplier = isHumanSeat ? FOUR_IN_ROW_HUMAN_CHARACTER_SCALE_MULTIPLIER : 1;
+  const seatScale = (targetHeight / measuredHeight) * adapterScale * FOUR_IN_ROW_CHARACTER_PROPORTION_SCALE * humanScaleMultiplier;
   const scaleDelta = Math.max(0, FOUR_IN_ROW_CHARACTER_PROPORTION_SCALE - 1);
   seatRoot.scale.multiplyScalar(seatScale);
   const adapterYOffset = instance.userData?.seatedYOffset ?? 0;
   const adapterZOffset = instance.userData?.seatedZOffset ?? 0;
   seatRoot.position.set(
     0,
-    -0.42 - scaleDelta * 0.08 - FOUR_IN_ROW_CHARACTER_EXTRA_LOWER_OFFSET + adapterYOffset,
+    -0.42 - scaleDelta * 0.08 - FOUR_IN_ROW_CHARACTER_EXTRA_LOWER_OFFSET - (isHumanSeat ? FOUR_IN_ROW_HUMAN_CHARACTER_EXTRA_LOWER_OFFSET : 0) + adapterYOffset,
     0.5 - 0.03 - FOUR_IN_ROW_CHARACTER_EXTRA_OUTWARD_OFFSET + adapterZOffset
   );
   seatRoot.rotation.set(0, instance.userData?.seatedYawOffset ?? 0, 0);
@@ -1202,10 +1205,11 @@ function attachFourInRowFallbackSeatedCharacter({ chair, theme, isHumanSeat = fa
   const seatRoot = new THREE.Group();
   const character = createFourInRowFallbackSeatedHuman(theme, isHumanSeat);
   const scaleDelta = Math.max(0, FOUR_IN_ROW_CHARACTER_PROPORTION_SCALE - 1);
-  seatRoot.scale.setScalar(TARGET_CHAIR_SIZE.y * 0.52);
+  const humanScaleMultiplier = isHumanSeat ? FOUR_IN_ROW_HUMAN_CHARACTER_SCALE_MULTIPLIER : 1;
+  seatRoot.scale.setScalar(TARGET_CHAIR_SIZE.y * 0.52 * humanScaleMultiplier);
   seatRoot.position.set(
     0,
-    -0.42 - scaleDelta * 0.08 - FOUR_IN_ROW_CHARACTER_EXTRA_LOWER_OFFSET,
+    -0.42 - scaleDelta * 0.08 - FOUR_IN_ROW_CHARACTER_EXTRA_LOWER_OFFSET - (isHumanSeat ? FOUR_IN_ROW_HUMAN_CHARACTER_EXTRA_LOWER_OFFSET : 0),
     0.5 - 0.03 - FOUR_IN_ROW_CHARACTER_EXTRA_OUTWARD_OFFSET
   );
   seatRoot.add(character);
