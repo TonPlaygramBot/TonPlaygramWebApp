@@ -102,7 +102,6 @@ import {
   smoothDamp,
   SPIN_STUN_RADIUS
 } from './snookerRoyalSpinUtils.js';
-import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
@@ -1678,6 +1677,7 @@ const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear secti
 
 
 const HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
+const ENABLE_SNOOKER_HUMAN_CHARACTER = false;
 
 function enableShadow(obj) {
   obj.traverse((child) => {
@@ -22140,7 +22140,9 @@ const sliderResetTimerRef = useRef(null);
       cueStick.visible = false;
       table.add(cueStick);
       table.add(providedCue.group);
-      const snookerHumanPlayer = createSnookerRoyalHumanPlayer(table, renderer);
+      const snookerHumanPlayer = ENABLE_SNOOKER_HUMAN_CHARACTER
+        ? createSnookerRoyalHumanPlayer(table, renderer)
+        : null;
       applySelectedCueStyle(cueStyleIndexRef.current ?? cueStyleIndex);
 
       const closeCueGallery = () => {
@@ -23486,66 +23488,29 @@ const sliderResetTimerRef = useRef(null);
           const strikeDuration = CUE_LOGIC_STRIKE_TIME_MS;
           const holdDuration = CUE_LOGIC_HOLD_TIME_MS;
           const returnDuration = 0;
-          // Keep the no-character cue stroke matching the old human-rig shot:
-          // drive the tip forward from pullback into cue-ball contact instead
-          // of stopping at the original address gap.
-          const impactPush = THREE.MathUtils.clamp(
-            CUE_TIP_CLEARANCE - SNOOKER_PROVIDED_CONTACT_GAP,
-            BALL_R * 0.08,
-            BALL_R * 0.3
-          );
-          const impactPos = buildCuePosition(-impactPush);
-          // Stop the visible cue at contact so it reads as a push without
-          // chasing the moving cue ball after physics takes over.
-          const followExtra = 0;
-          TMP_VEC3_FOLLOW_DIR.copy(impactPos).sub(pullPos);
-          if (TMP_VEC3_FOLLOW_DIR.lengthSq() > 1e-8) {
-            TMP_VEC3_FOLLOW_DIR.normalize();
-          }
-          const settlePos = impactPos
-            .clone()
-            .addScaledVector(TMP_VEC3_FOLLOW_DIR, followExtra);
+          const contactGap = SNOOKER_PROVIDED_CONTACT_GAP;
+          const strikeStartPull = visualPull;
           cueStick.visible = true;
-          cueStick.position.copy(idlePos);
+          cueStick.position.copy(pullPos);
           const startTime = performance.now();
-          const pullEndTime = startTime + pullbackDuration;
-          const impactTime = pullEndTime + strikeDuration;
-          const holdEndTime = impactTime + holdDuration;
-          const returnTime = holdEndTime + returnDuration;
+          const impactTime = startTime + strikeDuration;
           contactFallbackHandle = window.setTimeout(() => {
-            // Same commit point as SnookerRoyalProvided: if a throttled frame
-            // misses the contact sample, still transfer the slider power exactly
-            // when the cue tip reaches the cue ball.
             applyShotImpactAtCueContact();
           }, Math.max(0, impactTime - performance.now()));
-          const forwardPreviewHold =
-            impactTime +
-            Math.min(
-              holdDuration,
-              Math.max(180, strikeDuration * 0.9)
-            );
-          powerImpactHoldRef.current = Math.max(
-            powerImpactHoldRef.current || 0,
-            forwardPreviewHold
-          );
+          const forwardPreviewHold = impactTime + Math.min(holdDuration, Math.max(180, strikeDuration * 0.9));
+          powerImpactHoldRef.current = Math.max(powerImpactHoldRef.current || 0, forwardPreviewHold);
           const holdUntil = powerImpactHoldRef.current || 0;
           const holdActive = holdUntil > performance.now();
           if (holdActive) {
             if (activeShotView?.mode === 'pocket') {
               queuedPocketView = activeShotView;
               queuedPocketView.pendingActivation = true;
-              queuedPocketView.activationDelay = Math.max(
-                queuedPocketView.activationDelay ?? 0,
-                holdUntil
-              );
+              queuedPocketView.activationDelay = Math.max(queuedPocketView.activationDelay ?? 0, holdUntil);
               activeShotView = null;
               updatePocketCameraState(false);
             } else if (queuedPocketView) {
               queuedPocketView.pendingActivation = true;
-              queuedPocketView.activationDelay = Math.max(
-                queuedPocketView.activationDelay ?? 0,
-                holdUntil
-              );
+              queuedPocketView.activationDelay = Math.max(queuedPocketView.activationDelay ?? 0, holdUntil);
             }
             if (activeShotView?.mode === 'action') {
               suspendedActionView = activeShotView;
@@ -23558,12 +23523,13 @@ const sliderResetTimerRef = useRef(null);
             }
           }
           if (ENABLE_CUE_STROKE_ANIMATION && shotRecording) {
+            const impactPos = buildCuePosition(-Math.max(0, CUE_TIP_CLEARANCE - contactGap));
             const strokeStartOffset = Math.max(0, startTime - (shotRecording.startTime ?? startTime));
             shotRecording.cueStroke = {
               warmup: serializeVector3Snapshot(idlePos),
               start: serializeVector3Snapshot(pullPos),
               impact: serializeVector3Snapshot(impactPos),
-              settle: serializeVector3Snapshot(settlePos),
+              settle: serializeVector3Snapshot(impactPos),
               idle: serializeVector3Snapshot(idlePos),
               rotationX: cueStick.rotation.x,
               rotationY: cueStick.rotation.y,
@@ -23584,50 +23550,40 @@ const sliderResetTimerRef = useRef(null);
               return;
             }
             const elapsed = Math.max(0, now - startTime);
-            const sample = sampleCueStrokeTimeline({
-              elapsed,
-              pullbackDuration,
-              strikeDuration,
-              holdDuration,
-              animationStyle: 'linear',
-              strikeWindowRatio: 0.12,
-              hitArmRatio: 0.98
-            });
-            if (sample.hitArmed) {
-              applyShotImpactAtCueContact();
-            }
-            if (sample.phase === 'pullback') {
-              cueStick.position.lerpVectors(idlePos, pullPos, easeInOutQuad(sample.t));
-            } else if (sample.phase === 'release' || sample.phase === 'strike') {
-              const strikeEase = easeOutCubic(sample.t);
-              const dynamicFollow =
-                followExtra * (0.55 + 0.45 * Math.sin(sample.t * Math.PI));
-              cueStick.position.lerpVectors(pullPos, impactPos, strikeEase);
-              if (dynamicFollow > 1e-6) {
-                cueStick.position.addScaledVector(TMP_VEC3_FOLLOW_DIR, dynamicFollow);
-              }
-            } else if (sample.phase === 'hold') {
-              cueStick.position.lerpVectors(impactPos, settlePos, easeInOutQuad(sample.t));
-            } else if (now <= returnTime && returnDuration > 0) {
-              const t = THREE.MathUtils.clamp((now - holdEndTime) / returnDuration, 0, 1);
-              cueStick.position.lerpVectors(settlePos, idlePos, easeInOutQuad(t));
-            } else {
-              cueStick.visible = false;
-              cueAnimating = false;
-              shotVisualPowerRef.current = 0;
-              cuePullCurrentRef.current = 0;
-              cuePullTargetRef.current = 0;
-              if (cameraRef.current && sphRef.current) {
-                topViewRef.current = false;
-                topViewLockedRef.current = false;
-                setIsTopDownView(false);
-                const sph = sphRef.current;
-                sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
-                updateCamera();
-              }
+            const strikeNorm = THREE.MathUtils.clamp(elapsed / Math.max(strikeDuration, 1), 0, 1);
+            const striking = elapsed <= strikeDuration;
+            if (striking) {
+              const gap = THREE.MathUtils.lerp(
+                CUE_TIP_CLEARANCE + strikeStartPull,
+                contactGap,
+                easeOutCubic(strikeNorm)
+              );
+              const cuePos = buildCuePosition(gap - CUE_TIP_CLEARANCE);
+              cueStick.position.copy(cuePos);
+              if (strikeNorm > 0.88) applyShotImpactAtCueContact();
+              requestAnimationFrame(animateStroke);
               return;
             }
-            requestAnimationFrame(animateStroke);
+            if (elapsed <= strikeDuration + holdDuration) {
+              const holdPos = buildCuePosition(contactGap - CUE_TIP_CLEARANCE);
+              cueStick.position.copy(holdPos);
+              applyShotImpactAtCueContact();
+              requestAnimationFrame(animateStroke);
+              return;
+            }
+            cueStick.visible = false;
+            cueAnimating = false;
+            shotVisualPowerRef.current = 0;
+            cuePullCurrentRef.current = 0;
+            cuePullTargetRef.current = 0;
+            if (cameraRef.current && sphRef.current) {
+              topViewRef.current = false;
+              topViewLockedRef.current = false;
+              setIsTopDownView(false);
+              const sph = sphRef.current;
+              sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
+              updateCamera();
+            }
           };
           if (ENABLE_CUE_STROKE_ANIMATION) {
             requestAnimationFrame(animateStroke);
@@ -26688,24 +26644,26 @@ const sliderResetTimerRef = useRef(null);
           }
         }
 
-        try {
-          updateSnookerRoyalHumanPlayer(snookerHumanPlayer, deltaSeconds, {
-            cue,
-            cueStick,
-            cueLen,
-            aimDir: showingRemoteAim
-              ? new THREE.Vector2(remoteAimState?.dir?.x ?? 0, remoteAimState?.dir?.y ?? 1)
-              : activeAiPlan?.aimDir || aimDir,
-            visible: cue?.active && !currentHud?.over,
-            power: Math.max(powerRef.current ?? 0, shotVisualPowerRef.current ?? 0, activeAiPlan?.power ?? 0),
-            shooting,
-            cueAnimating
-          });
-        } catch (error) {
-          snookerHumanPlayer.disabled = true;
-          snookerHumanPlayer.root.visible = false;
-          snookerHumanPlayer.modelRoot.visible = false;
-          console.warn('Snooker Royal human player disabled after pose error', error);
+        if (snookerHumanPlayer) {
+          try {
+            updateSnookerRoyalHumanPlayer(snookerHumanPlayer, deltaSeconds, {
+              cue,
+              cueStick,
+              cueLen,
+              aimDir: showingRemoteAim
+                ? new THREE.Vector2(remoteAimState?.dir?.x ?? 0, remoteAimState?.dir?.y ?? 1)
+                : activeAiPlan?.aimDir || aimDir,
+              visible: cue?.active && !currentHud?.over,
+              power: Math.max(powerRef.current ?? 0, shotVisualPowerRef.current ?? 0, activeAiPlan?.power ?? 0),
+              shooting,
+              cueAnimating
+            });
+          } catch (error) {
+            snookerHumanPlayer.disabled = true;
+            snookerHumanPlayer.root.visible = false;
+            snookerHumanPlayer.modelRoot.visible = false;
+            console.warn('Snooker Royal human player disabled after pose error', error);
+          }
         }
 
         if (!shouldSlowAim) {
