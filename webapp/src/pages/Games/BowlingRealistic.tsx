@@ -328,8 +328,6 @@ const BOWLING_APPROACH_STEP_LENGTH = 0.72;
 const BOWLING_APPROACH_STEP_COUNT = 4;
 const SHOOTING_READY_Z =
   CFG.foulZ + BOWLING_APPROACH_STEP_LENGTH * BOWLING_APPROACH_STEP_COUNT;
-const SPIN_CONTROL_SIZE = 126;
-const SPIN_DOT_SIZE = 26;
 const LANE_BOARD_COUNT = 39;
 const BOARD_WIDTH = (CFG.laneHalfW * 2) / LANE_BOARD_COUNT;
 const BOWLING_MURLAN_CHAIR_URLS = [
@@ -3343,7 +3341,7 @@ function computeIntent(
   const releaseX = clamp(releaseScreenX * 0.82, -0.86, 0.86);
   const targetX = clamp(targetScreenX * 1.02, -1.04, 1.04);
   const power = vertical;
-  const spin = mapSpinForPhysics(spinInput);
+  const spin = mapSpinForPhysics({ x: 0, y: 0 });
   const forwardSpin = clamp(spin.y, -1, 1);
   const speed =
     lerp(6.6, 18.4, easeOutCubic(power)) *
@@ -4085,6 +4083,10 @@ function updateCamera(
   lookState?: CameraLookState | null,
   replayShotView = false
 ) {
+  const forceBroadcastShotCamera =
+    usePlayerPerspective &&
+    (['approach', 'throw', 'recover'].includes(player.action) || ball.rolling);
+  const usingPlayerPerspective = usePlayerPerspective && !forceBroadcastShotCamera;
   let desired: THREE.Vector3;
   let look: THREE.Vector3;
   const isActiveGameplay =
@@ -4098,7 +4100,7 @@ function updateCamera(
       CFG.foulZ + 5.25
     );
     look = new THREE.Vector3(laneCenter, CFG.laneY + 0.5, CFG.arrowsZ - 0.9);
-  } else if (!usePlayerPerspective) {
+  } else if (!usingPlayerPerspective) {
     const laneCenter = ball.laneCenter || player.standPos.x;
     const broadcast = getBroadcastCameraPose(player, ball);
     desired = broadcast.desired;
@@ -4152,7 +4154,7 @@ function updateCamera(
     );
   } else if (ball.rolling) {
     const laneCenter = ball.laneCenter;
-    if (usePlayerPerspective) {
+    if (usingPlayerPerspective) {
       const broadcast = getBroadcastCameraPose(player, ball);
       desired = broadcast.desired.clone();
       look = broadcast.look.clone();
@@ -4374,7 +4376,6 @@ export default function MobileBowlingRealistic() {
     1,
     5
   );
-  const [spinKnob, setSpinKnob] = useState({ x: 0, y: 0 });
   const [hud, setHud] = useState<HudState>({
     power: 0,
     status:
@@ -4467,23 +4468,6 @@ export default function MobileBowlingRealistic() {
   };
   const [shootingUiVisible, setShootingUiVisible] = useState(false);
   const scoresMemo = useMemo(() => scores, [scores]);
-
-  const setSpinFromPointer = (e: React.PointerEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    const max = rect.width * 0.5 - SPIN_DOT_SIZE * 0.5;
-    const rawX = (e.clientX - cx) / max;
-    const rawY = -(e.clientY - cy) / max;
-    const len = Math.hypot(rawX, rawY);
-    const scale = len > 1 ? 1 / len : 1;
-    const value = {
-      x: clamp(rawX * scale, -1, 1),
-      y: clamp(rawY * scale, -1, 1)
-    };
-    spinControlRef.current = value;
-    setSpinKnob({ x: value.x * max, y: -value.y * max });
-  };
 
   const requestManualBallPickup = (label: string) => {
     ballPickRequestRef.current = label;
@@ -5263,7 +5247,7 @@ export default function MobileBowlingRealistic() {
               applyActiveBallVariant(randomVariant.label);
               ball.held = true;
               ball.mesh.visible = true;
-              player.action = 'pickBall';
+              player.action = 'idle';
               player.pickT = 0.001;
               syncHeldBallToHuman(ball, player);
               aiTurnDelay = 0.55;
@@ -5364,7 +5348,7 @@ export default function MobileBowlingRealistic() {
         (player.action === 'pickBall' || player.action === 'toApproach') &&
         mechanismBusy
       ) {
-        player.action = 'pickBall';
+        player.action = 'idle';
       }
       if (pinsMoving) pinsWereMoving = true;
       const resetCompleteStanding = updatePinReset(pinReset, arenaDecor, dt);
@@ -5909,108 +5893,6 @@ export default function MobileBowlingRealistic() {
             </label>
           </div>
         ) : null}
-        {shootingUiVisible ? (
-          <div
-            onPointerDown={(e) => {
-              e.currentTarget.setPointerCapture(e.pointerId);
-              setSpinFromPointer(e);
-            }}
-            onPointerMove={(e) => setSpinFromPointer(e)}
-            onPointerUp={(e) => {
-              try {
-                e.currentTarget.releasePointerCapture(e.pointerId);
-              } catch {}
-            }}
-            onPointerCancel={(e) => {
-              try {
-                e.currentTarget.releasePointerCapture(e.pointerId);
-              } catch {}
-            }}
-            style={{
-              position: 'absolute',
-              right: 18,
-              bottom: 76,
-              width: SPIN_CONTROL_SIZE,
-              height: SPIN_CONTROL_SIZE,
-              borderRadius: '50%',
-              background: '#fff',
-              border: '1px solid rgba(255,255,255,0.78)',
-              boxShadow: '0 18px 34px rgba(0,0,0,0.45)',
-              pointerEvents: 'auto',
-              touchAction: 'none'
-            }}
-          >
-            <div
-              style={{
-                position: 'absolute',
-                inset: '33.33%',
-                borderRadius: '50%',
-                border: '1px solid rgba(15,23,42,0.18)'
-              }}
-            />
-            <div
-              style={{
-                position: 'absolute',
-                inset: '16.66%',
-                borderRadius: '50%',
-                border: '1px solid rgba(15,23,42,0.14)'
-              }}
-            />
-            <div
-              style={{
-                position: 'absolute',
-                left: '50%',
-                top: 8,
-                bottom: 8,
-                width: 1,
-                background: 'rgba(15,23,42,0.16)',
-                transform: 'translateX(-50%)'
-              }}
-            />
-            <div
-              style={{
-                position: 'absolute',
-                top: '50%',
-                left: 8,
-                right: 8,
-                height: 1,
-                background: 'rgba(15,23,42,0.16)',
-                transform: 'translateY(-50%)'
-              }}
-            />
-            <div
-              style={{
-                position: 'absolute',
-                left: '50%',
-                top: '50%',
-                width: SPIN_DOT_SIZE,
-                height: SPIN_DOT_SIZE,
-                borderRadius: '50%',
-                transform: `translate(calc(-50% + ${spinKnob.x}px), calc(-50% + ${spinKnob.y}px))`,
-                background: '#dc2626',
-                border: '2px solid rgba(255,255,255,0.92)',
-                boxShadow: '0 8px 18px rgba(0,0,0,0.34)'
-              }}
-            />
-            <div
-              style={{
-                position: 'absolute',
-                left: 0,
-                right: 0,
-                bottom: -22,
-                textAlign: 'center',
-                color: '#dff7ff',
-                fontSize: 10,
-                fontWeight: 900
-              }}
-            >
-              SPIN {spinControlRef.current.x >= 0 ? '+' : ''}
-              {spinControlRef.current.x.toFixed(2)} /{' '}
-              {spinControlRef.current.y >= 0 ? '+' : ''}
-              {spinControlRef.current.y.toFixed(2)}
-            </div>
-          </div>
-        ) : null}
 
         <div
           style={{
@@ -6037,7 +5919,7 @@ export default function MobileBowlingRealistic() {
             {shootingUiVisible ? '🎥 Pull-back shot cam' : '🎲 Random ball'}
           </span>
           <span>📍 Auto shooting line</span>
-          <span>🌀 Spin at line</span>
+          <span>🎬 Broadcast camera</span>
         </div>
         {replayActive ? (
           <button
