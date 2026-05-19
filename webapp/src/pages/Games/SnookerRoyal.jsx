@@ -1678,6 +1678,7 @@ const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear secti
 
 
 const HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
+const ENABLE_SNOOKER_HUMAN_CHARACTER = false;
 
 function enableShadow(obj) {
   obj.traverse((child) => {
@@ -22140,7 +22141,9 @@ const sliderResetTimerRef = useRef(null);
       cueStick.visible = false;
       table.add(cueStick);
       table.add(providedCue.group);
-      const snookerHumanPlayer = createSnookerRoyalHumanPlayer(table, renderer);
+      const snookerHumanPlayer = ENABLE_SNOOKER_HUMAN_CHARACTER
+        ? createSnookerRoyalHumanPlayer(table, renderer)
+        : null;
       applySelectedCueStyle(cueStyleIndexRef.current ?? cueStyleIndex);
 
       const closeCueGallery = () => {
@@ -26688,24 +26691,26 @@ const sliderResetTimerRef = useRef(null);
           }
         }
 
-        try {
-          updateSnookerRoyalHumanPlayer(snookerHumanPlayer, deltaSeconds, {
-            cue,
-            cueStick,
-            cueLen,
-            aimDir: showingRemoteAim
-              ? new THREE.Vector2(remoteAimState?.dir?.x ?? 0, remoteAimState?.dir?.y ?? 1)
-              : activeAiPlan?.aimDir || aimDir,
-            visible: cue?.active && !currentHud?.over,
-            power: Math.max(powerRef.current ?? 0, shotVisualPowerRef.current ?? 0, activeAiPlan?.power ?? 0),
-            shooting,
-            cueAnimating
-          });
-        } catch (error) {
-          snookerHumanPlayer.disabled = true;
-          snookerHumanPlayer.root.visible = false;
-          snookerHumanPlayer.modelRoot.visible = false;
-          console.warn('Snooker Royal human player disabled after pose error', error);
+        if (snookerHumanPlayer) {
+          try {
+            updateSnookerRoyalHumanPlayer(snookerHumanPlayer, deltaSeconds, {
+              cue,
+              cueStick,
+              cueLen,
+              aimDir: showingRemoteAim
+                ? new THREE.Vector2(remoteAimState?.dir?.x ?? 0, remoteAimState?.dir?.y ?? 1)
+                : activeAiPlan?.aimDir || aimDir,
+              visible: cue?.active && !currentHud?.over,
+              power: Math.max(powerRef.current ?? 0, shotVisualPowerRef.current ?? 0, activeAiPlan?.power ?? 0),
+              shooting,
+              cueAnimating
+            });
+          } catch (error) {
+            snookerHumanPlayer.disabled = true;
+            snookerHumanPlayer.root.visible = false;
+            snookerHumanPlayer.modelRoot.visible = false;
+            console.warn('Snooker Royal human player disabled after pose error', error);
+          }
         }
 
         if (!shouldSlowAim) {
