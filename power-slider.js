@@ -10,6 +10,7 @@ export class PowerSlider {
       onChange,
       onStart,
       onCommit,
+      onShotRelease,
       theme = 'default',
       labels = false
     } = opts;
@@ -23,8 +24,10 @@ export class PowerSlider {
     this.onChange = onChange;
     this.onStart = onStart;
     this.onCommit = onCommit;
+    this.onShotRelease = onShotRelease;
     this.locked = false;
     this._returnAnimFrame = null;
+    this._shotAnimFrame = null;
 
     this.el = document.createElement('div');
     this.el.className = `ps ps-theme-${theme}`;
@@ -239,6 +242,7 @@ export class PowerSlider {
     if (this.locked) return;
     e.preventDefault();
     this._cancelReturnAnimation();
+    this._cancelShotAnimation();
     this.dragging = true;
     this.el.classList.add('ps-no-animate');
     this.el.setPointerCapture(e.pointerId);
@@ -267,6 +271,7 @@ export class PowerSlider {
     this.el.removeEventListener('pointercancel', this._onPointerUp);
     this.el.classList.remove('ps-no-animate');
     if (typeof this.onCommit === 'function') this.onCommit(this.value);
+    this._playShotAnimation(this.value);
   }
 
   _wheel(e) {
@@ -302,6 +307,39 @@ export class PowerSlider {
         if (typeof this.onStart === 'function') this.onStart(this.value);
       }
       e.preventDefault();
+    }
+  }
+
+  _playShotAnimation(powerValue) {
+    this._cancelShotAnimation();
+    const power = this._clamp(this._step(powerValue));
+    const pullDuration = 90;
+    const resetDuration = 150;
+    const strikeOvershoot = Math.max(this.min + (this.max - this.min) * 0.14, this.min + 1);
+
+    this.animateTo(strikeOvershoot, { duration: pullDuration });
+
+    const startedAt = performance.now();
+    const step = (now) => {
+      const t = Math.min(1, Math.max(0, (now - startedAt) / resetDuration));
+      const eased = 1 - Math.pow(1 - t, 3);
+      const next = strikeOvershoot + (this.min - strikeOvershoot) * eased;
+      this.set(next, { animate: true });
+      if (t >= 1) {
+        this._shotAnimFrame = null;
+        if (typeof this.onShotRelease === 'function') this.onShotRelease(power);
+        return;
+      }
+      this._shotAnimFrame = requestAnimationFrame(step);
+    };
+
+    this._shotAnimFrame = requestAnimationFrame(step);
+  }
+
+  _cancelShotAnimation() {
+    if (this._shotAnimFrame != null) {
+      cancelAnimationFrame(this._shotAnimFrame);
+      this._shotAnimFrame = null;
     }
   }
 
