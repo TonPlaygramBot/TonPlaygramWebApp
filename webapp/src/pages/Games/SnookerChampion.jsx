@@ -1,8 +1,7 @@
-import SnookerRoyalProvided from './SnookerRoyalProvided.jsx';
+import SnookerChampionProvided from './SnookerChampionProvided.jsx';
 
 export default function SnookerChampion() {
-  // Keep Snooker Champion mounted on the Snooker Royal scene implementation so
-  // the GLB table, ball rack, table mapping, camera rig, broadcast flow, power,
-  // and spin physics stay identical between the two games.
-  return <SnookerRoyalProvided gameTitle="Snooker Champion" />;
+  // Dedicated Snooker Champion implementation that mirrors Snooker Royal table,
+  // mapping, rules, and broadcast package while preserving Champion-specific flow.
+  return <SnookerChampionProvided gameTitle="Snooker Champion" />;
 }
