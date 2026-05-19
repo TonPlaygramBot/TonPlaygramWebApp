@@ -8,26 +8,26 @@ export class PowerSlider {
       step = 1,
       cueSrc = '',
       onChange,
-      onStart,
       onCommit,
       onShotRelease,
+      onStart,
       theme = 'default',
       labels = false
     } = opts;
 
     if (!mount) throw new Error('mount required');
 
-    this.theme = theme;
     this.min = min;
     this.max = max;
     this.step = step;
     this.onChange = onChange;
-    this.onStart = onStart;
     this.onCommit = onCommit;
     this.onShotRelease = onShotRelease;
+    this.onStart = onStart;
     this.locked = false;
     this._returnAnimFrame = null;
     this._shotAnimFrame = null;
+    this._shotState = null;
 
     this.el = document.createElement('div');
     this.el.className = `ps ps-theme-${theme}`;
@@ -41,38 +41,31 @@ export class PowerSlider {
     this.track.className = 'ps-track';
     this.el.appendChild(this.track);
 
-    this.handle = document.createElement('div');
-    this.handle.className = 'ps-handle';
-    this.handleText = document.createElement('span');
-    this.handleText.className = 'ps-handle-text';
-    this.handleText.textContent = 'Pull';
-
     this.powerBar = document.createElement('div');
     this.powerBar.className = 'ps-power-bar';
     this.powerFill = document.createElement('div');
     this.powerFill.className = 'ps-power-bar-fill';
     this.powerBar.appendChild(this.powerFill);
+    this.el.appendChild(this.powerBar);
+
+    this.handle = document.createElement('div');
+    this.handle.className = 'ps-handle';
+    this.handleText = document.createElement('span');
+    this.handleText.className = 'ps-handle-text';
+    this.handleText.textContent = 'Pull';
+    this.handle.append(this.handleText);
 
     this.cueImg = document.createElement('img');
     this.cueImg.className = 'ps-cue-img';
     this.cueImg.alt = '';
-    this.hasCueImage = Boolean(cueSrc);
-    if (this.hasCueImage) this.cueImg.src = cueSrc;
-    else this.el.classList.add('ps-no-cue-image');
+    if (cueSrc) this.cueImg.src = cueSrc;
+    this.handle.append(this.cueImg);
 
-    if (this.hasCueImage) this.handle.append(this.cueImg, this.handleText, this.powerBar);
-    else this.handle.append(this.handleText, this.powerBar);
     this.el.appendChild(this.handle);
 
     this.tooltip = document.createElement('div');
     this.tooltip.className = 'ps-tooltip';
     this.el.appendChild(this.tooltip);
-
-    const isBilliardsTheme = this.theme === 'pool-royale' || this.theme === 'snooker-royale';
-    if (isBilliardsTheme) {
-      this.handle.style.left = '50%';
-      this.tooltip.style.left = '50%';
-    }
 
     if (labels) {
       const wrap = document.createElement('div');
@@ -96,15 +89,22 @@ export class PowerSlider {
     this._onPointerUp = this._pointerUp.bind(this);
     this._onWheel = this._wheel.bind(this);
     this._onKeyDown = this._keyDown.bind(this);
+    this._onResize = () => {
+      this._setupPowerBar();
+      this._update(false);
+    };
+
     this.el.addEventListener('pointerdown', this._onPointerDown);
     this.el.addEventListener('wheel', this._onWheel, { passive: false });
     this.el.addEventListener('keydown', this._onKeyDown);
+    window.addEventListener('resize', this._onResize);
 
-    if (this.hasCueImage) {
-      this.cueImg.addEventListener('load', () => {
-        this._update(false);
-      });
-    }
+    this.cueImg.addEventListener('load', () => {
+      this._setupPowerBar();
+      this._update(false);
+    });
+
+    this._setupPowerBar();
 
     this.set(value);
   }
@@ -136,7 +136,8 @@ export class PowerSlider {
     const step = (now) => {
       const t = Math.min(1, Math.max(0, (now - startedAt) / duration));
       const eased = 1 - Math.pow(1 - t, 3);
-      this.set(start + (target - start) * eased, { animate: true });
+      const next = start + (target - start) * eased;
+      this.set(next, { animate: true });
       if (t >= 1) {
         this._returnAnimFrame = null;
         return;
@@ -169,6 +170,7 @@ export class PowerSlider {
     this.el.removeEventListener('pointerdown', this._onPointerDown);
     this.el.removeEventListener('wheel', this._onWheel);
     this.el.removeEventListener('keydown', this._onKeyDown);
+    window.removeEventListener('resize', this._onResize);
     this.el.remove();
   }
 
@@ -185,30 +187,19 @@ export class PowerSlider {
   _update(animate = true) {
     const range = this.max - this.min || 1;
     const ratio = (this.value - this.min) / range;
-    this.el.style.setProperty('--ps-ratio', String(ratio));
     const trackH = this.el.clientHeight;
     const handleH = this.handle.offsetHeight;
     const y = ratio * (trackH - handleH);
-    const translateX = this.theme === 'pool-royale' || this.theme === 'snooker-royale' ? '-50%' : '0';
-    this.handle.style.transform = `translate(${translateX}, ${y}px)`;
+    this.handle.style.transform = `translate(0, ${y}px)`;
     const ttH = this.tooltip.offsetHeight;
-    this.tooltip.style.transform = `translate(${translateX}, ${y - ttH - 8}px)`;
+    this.tooltip.style.transform = `translate(0, ${y - ttH - 8}px)`;
     const pct = ratio * 100;
     this.powerFill.style.clipPath = `inset(0 0 ${100 - pct}% 0)`;
     this._updateHandleColor(ratio);
-    const pctValue = Math.round(this.value);
-    if (this.handleText) {
-      this.handleText.textContent = pctValue <= this.min ? 'Pull' : `${pctValue}%`;
-    }
-    this.tooltip.textContent = `${pctValue}%`;
+    this.tooltip.textContent = `${Math.round(this.value)}%`;
     this.el.setAttribute('aria-valuenow', String(Math.round(this.value)));
     if (ratio >= 0.9) this.el.classList.add('ps-hot');
     else this.el.classList.remove('ps-hot');
-    if (this.hasCueImage && (this.theme === 'pool-royale' || this.theme === 'snooker-royale')) {
-      const drop = ratio * 28;
-      const tilt = -8 - ratio * 10;
-      this.cueImg.style.transform = `translateY(${drop}px) rotate(${tilt}deg)`;
-    }
   }
 
   _updateHandleColor(ratio) {
@@ -224,10 +215,32 @@ export class PowerSlider {
     this.track.style.background = `linear-gradient(to bottom, ${lowColor} 0%, ${color} ${pct}%, var(--ps-track-bg) ${pct}%, var(--ps-track-bg) 100%)`;
   }
 
-  _setupPowerBar() {}
+  _setupPowerBar() {
+    if (!this.powerBar) return;
+    const uWidth = this._measureCharWidth('u');
+    const pWidth = this._measureCharWidth('P');
+    this.powerBar.style.width = `${uWidth}px`;
+    const textRect = this.handleText.getBoundingClientRect();
+    const imgRect = this.cueImg.getBoundingClientRect();
+    const elRect = this.el.getBoundingClientRect();
+    const left = textRect.left - elRect.left + pWidth;
+    const top = textRect.bottom - elRect.top;
+    const height = imgRect.bottom - textRect.bottom;
+    this.powerBar.style.left = `${left}px`;
+    this.powerBar.style.top = `${top}px`;
+    this.powerBar.style.height = `${height}px`;
+  }
 
-  _measureCharWidth() {
-    return 0;
+  _measureCharWidth(ch) {
+    const span = document.createElement('span');
+    span.textContent = ch;
+    span.className = this.handleText.className;
+    span.style.visibility = 'hidden';
+    span.style.position = 'absolute';
+    this.el.appendChild(span);
+    const width = span.getBoundingClientRect().width;
+    span.remove();
+    return width;
   }
 
   _updateFromClientY(y) {
@@ -244,13 +257,12 @@ export class PowerSlider {
     this._cancelReturnAnimation();
     this._cancelShotAnimation();
     this.dragging = true;
+    if (typeof this.onStart === 'function') this.onStart(this.value);
     this.el.classList.add('ps-no-animate');
     this.el.setPointerCapture(e.pointerId);
-    if (typeof this.onStart === 'function') this.onStart(this.value);
     this._updateFromClientY(e.clientY);
     this.el.addEventListener('pointermove', this._onPointerMove);
     this.el.addEventListener('pointerup', this._onPointerUp);
-    this.el.addEventListener('pointercancel', this._onPointerUp);
   }
 
   _pointerMove(e) {
@@ -261,14 +273,9 @@ export class PowerSlider {
   _pointerUp(e) {
     if (!this.dragging) return;
     this.dragging = false;
-    try {
-      this.el.releasePointerCapture(e.pointerId);
-    } catch {
-      // ignore
-    }
+    this.el.releasePointerCapture(e.pointerId);
     this.el.removeEventListener('pointermove', this._onPointerMove);
     this.el.removeEventListener('pointerup', this._onPointerUp);
-    this.el.removeEventListener('pointercancel', this._onPointerUp);
     this.el.classList.remove('ps-no-animate');
     if (typeof this.onCommit === 'function') this.onCommit(this.value);
     this._playShotAnimation(this.value);
@@ -313,23 +320,53 @@ export class PowerSlider {
   _playShotAnimation(powerValue) {
     this._cancelShotAnimation();
     const power = this._clamp(this._step(powerValue));
-    const pullDuration = 90;
-    const resetDuration = 150;
-    const strikeOvershoot = Math.max(this.min + (this.max - this.min) * 0.14, this.min + 1);
+    const pullStart = this.value;
+    const range = Math.max(1, this.max - this.min);
+    const normalized = (power - this.min) / range;
+    const strikeOvershoot = Math.max(
+      this.min + (this.max - this.min) * 0.14,
+      this.min + 1
+    );
+    const strikeTarget = Math.max(this.min, Math.min(strikeOvershoot, pullStart));
+    const forwardDuration = Math.round(80 + 90 * normalized);
+    const settleDuration = 140;
 
-    this.animateTo(strikeOvershoot, { duration: pullDuration });
+    this._shotState = {
+      released: false,
+      phase: 'forward',
+      startedAt: performance.now(),
+      from: pullStart,
+      to: strikeTarget,
+      duration: forwardDuration,
+      settleDuration,
+      power
+    };
 
-    const startedAt = performance.now();
     const step = (now) => {
-      const t = Math.min(1, Math.max(0, (now - startedAt) / resetDuration));
+      if (!this._shotState) return;
+      const state = this._shotState;
+      const t = Math.min(1, Math.max(0, (now - state.startedAt) / state.duration));
       const eased = 1 - Math.pow(1 - t, 3);
-      const next = strikeOvershoot + (this.min - strikeOvershoot) * eased;
+      const next = state.from + (state.to - state.from) * eased;
       this.set(next, { animate: true });
+
       if (t >= 1) {
-        this._shotAnimFrame = null;
-        if (typeof this.onShotRelease === 'function') this.onShotRelease(power);
-        return;
+        if (state.phase === 'forward') {
+          if (!state.released && typeof this.onShotRelease === 'function') {
+            state.released = true;
+            this.onShotRelease(state.power);
+          }
+          state.phase = 'settle';
+          state.startedAt = now;
+          state.from = state.to;
+          state.to = this.min;
+          state.duration = state.settleDuration;
+        } else {
+          this._cancelShotAnimation();
+          return;
+        }
       }
+
       this._shotAnimFrame = requestAnimationFrame(step);
     };
 
@@ -341,6 +378,7 @@ export class PowerSlider {
       cancelAnimationFrame(this._shotAnimFrame);
       this._shotAnimFrame = null;
     }
+    this._shotState = null;
   }
 
   _cancelReturnAnimation() {
