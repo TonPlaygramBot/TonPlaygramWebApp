@@ -34761,19 +34761,11 @@ const shotPowerRef = useRef(0);
         applyPower(normalized);
       },
       onCommit: (value) => {
-        const normalizedFromSlider = clampPower(value / 100, 0);
-        const committedPower = clampPower(
-          Math.max(
-            Number.isFinite(normalizedFromSlider) ? normalizedFromSlider : 0,
-            Number.isFinite(shotPowerRef.current) ? shotPowerRef.current : 0,
-            Number.isFinite(powerRef.current) ? powerRef.current : 0
-          ),
-          0
-        );
-        shotPowerRef.current = committedPower;
-        powerRef.current = committedPower;
+        const normalized = clampPower(value / 100, 0);
+        shotPowerRef.current = normalized;
+        powerRef.current = normalized;
         slider.animateToMin({ duration: 180 });
-        fireRef.current?.(committedPower);
+        fireRef.current?.(normalized);
         requestAnimationFrame(() => applyPower(0));
       }
     });
