@@ -82,7 +82,7 @@ const SNOOKER_TEXTURE_OPTIONS = Object.freeze([
   { id: 'oak', label: 'Oak Tournament', rail: 0x76512f, trim: 0xd9dde7 }
 ]);
 const DEFAULT_CLOTH_ID = 'snooker-green';
-const WORLD_SCALE = 3.5;
+const WORLD_SCALE = 3.6;
 const SNOOKER_CHAMPION_STORAGE_PREFIX = 'snookerChampion:';
 const SNOOKER_BALL_VALUES = Object.freeze({ red: 1, yellow: 2, green: 3, brown: 4, blue: 5, pink: 6, black: 7 });
 const SNOOKER_COLOR_LABELS = Object.freeze({ yellow: 'Yellow', green: 'Green', brown: 'Brown', blue: 'Blue', pink: 'Pink', black: 'Black' });
@@ -1211,8 +1211,8 @@ function applyCueShot(cueBall, power, yaw, out, spinInput = { x: 0, y: 0 }) {
   if (launchSpeed > 1e-6 && cueBall.omega) {
     const rollingAxis = new THREE.Vector3(cueBall.vel.z, 0, -cueBall.vel.x).normalize();
     cueBall.omega.addScaledVector(rollingAxis, launchSpeed / CFG.ballR);
-    cueBall.omega.x += -(spin.y ?? 0) * p * 18;
-    cueBall.omega.z += -(spin.x ?? 0) * p * 18;
+    cueBall.omega.x += -(spin.y ?? 0) * p * 11;
+    cueBall.omega.z += -(spin.x ?? 0) * p * 11;
   }
   cueBall.launchDir = cueBall.vel.lengthSq() > 1e-8 ? cueBall.vel.clone().normalize() : null;
   cueBall.impacted = false;
@@ -1867,7 +1867,6 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
   const [foul, setFoul] = useState('');
   const [hasReplay, setHasReplay] = useState(false);
   const [replayActive, setReplayActive] = useState(false);
-  const [replaySkipAll, setReplaySkipAll] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
@@ -1892,7 +1891,6 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
   const cameraHeightOffsetRef = useRef(0);
   const replayModeRef = useRef(false);
   const replayStartedAtRef = useRef(0);
-  const replaySkipAllRef = useRef(false);
   const rulesRef = useRef(createSnookerRulesState());
   const activeFrameRate = FRAME_RATE_OPTIONS.find((item) => item.id === frameRateId) ?? FRAME_RATE_OPTIONS[1];
   const activeHdri = POOL_ROYALE_HDRI_VARIANTS.find((item) => item.id === environmentHdriId) ?? POOL_ROYALE_HDRI_VARIANTS[0];
@@ -1938,7 +1936,6 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
   useEffect(() => { broadcastSystemRef.current = broadcastSystemId; }, [broadcastSystemId]);
   useEffect(() => { railOverheadSideRef.current = railOverheadSide === 'front' ? 'front' : 'back'; }, [railOverheadSide]);
   useEffect(() => { replayModeRef.current = replayActive; }, [replayActive]);
-  useEffect(() => { replaySkipAllRef.current = replaySkipAll; }, [replaySkipAll]);
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const update = () => setIsPortraitHud(window.innerHeight > window.innerWidth);
@@ -2329,13 +2326,12 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
           didHit = true;
           beginSnookerShotRules(rulesRef.current);
           applyCueShot(cueBall, shotPowerRef.current, aimYawRef.current, tmpC, spinRef.current);
-          if (!replaySkipAllRef.current) {
-            recordingReplay = true;
-            replayStartedAt = now;
-            lastReplaySampleAt = 0;
-            replayFramesRef.current = [{ t: 0, balls: createReplaySnapshot(balls), cameraMode: 'cue-follow' }];
-            setHasReplay(false);
-          }
+          recordingReplay = true;
+          replayStartedAt = now;
+          lastReplaySampleAt = 0;
+          replayFramesRef.current = [{ t: 0, balls: createReplaySnapshot(balls), cameraMode: 'cue-follow' }];
+          setHasReplay(false);
+          setShotState('idle');
         }
         if (strikeT >= CFG.strikeTime + CFG.holdTime) { strikeT = 0; didHit = false; setShotState('idle'); }
       }
@@ -2368,7 +2364,7 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
           recordingReplay = false;
           const replayReady = replayFramesRef.current.length > 2;
           setHasReplay(replayReady);
-          const shouldAutoReplay = replayReady && !replaySkipAllRef.current && ((rulesRef.current.shotPotCount ?? 0) > 0 || Boolean(rulesRef.current.shotFoul));
+          const shouldAutoReplay = replayReady && ((rulesRef.current.shotPotCount ?? 0) > 0 || Boolean(rulesRef.current.shotFoul));
           if (shouldAutoReplay) {
             replayStartedAtRef.current = performance.now();
             setReplayActive(true);
@@ -2525,44 +2521,6 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
                 <span className={railOverheadSide === 'front' ? 'text-emerald-100' : 'text-white/65'}>▼</span>
               </span>
             </button>
-            <button
-              type="button"
-              disabled={!hasReplay}
-              onClick={() => {
-                if (!hasReplay) return;
-                replayStartedAtRef.current = performance.now();
-                setReplayActive(true);
-              }}
-              className={`flex h-12 w-12 items-center justify-center rounded-full border text-[15px] font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
-                replayActive
-                  ? 'border-amber-200 bg-amber-300/25 text-amber-100'
-                  : hasReplay
-                    ? 'border-white/30 bg-black/70 text-white hover:bg-black/60'
-                    : 'border-white/10 bg-black/45 text-white/35'
-              }`}
-              aria-label="Replay last snooker shot"
-            >
-              <span aria-hidden="true">↻</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setReplaySkipAll((prev) => {
-                  const next = !prev;
-                  replaySkipAllRef.current = next;
-                  if (next) setReplayActive(false);
-                  return next;
-                });
-              }}
-              className={`flex h-12 w-12 items-center justify-center rounded-full border text-[10px] font-black uppercase tracking-[0.08em] shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
-                replaySkipAll
-                  ? 'border-rose-300 bg-rose-500/25 text-rose-100'
-                  : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
-              }`}
-              aria-label="Skip all replays"
-            >
-              Skip
-            </button>
           </div>
         </div>
 
@@ -2598,19 +2556,7 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
                 ))}
               </div>
               <div className="mt-4 space-y-4">
-                <div>
-                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">Replay broadcast</h3>
-                  <div className="mt-2 grid grid-cols-2 gap-2">
-                    <button type="button" disabled={!hasReplay} onClick={() => { if (hasReplay) { replayStartedAtRef.current = performance.now(); setReplayActive(true); } }} className={optionButtonClass(replayActive)}>
-                      <span className="font-black uppercase tracking-[0.2em]">Replay shot</span>
-                      <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] opacity-70">Uses cue, rail, and pocket broadcast cameras.</span>
-                    </button>
-                    <button type="button" onClick={() => { setReplaySkipAll((prev) => { const next = !prev; replaySkipAllRef.current = next; if (next) setReplayActive(false); return next; }); setConfigOpen(false); }} className={optionButtonClass(replaySkipAll)}>
-                      <span className="font-black uppercase tracking-[0.2em]">Replay off</span>
-                      <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] opacity-70">Turns off automatic Snooker Royal-style pot/foul replays.</span>
-                    </button>
-                  </div>
-                </div>
+                
                 <div>
                   <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">Graphics</h3>
                   <div className="mt-2 grid gap-2">
@@ -2732,6 +2678,17 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
           {foul ? <><br /><span className="font-bold text-red-200">{foul}</span></> : null}
           <br />{tableStatus} • {humanStatus}
         </div>
+
+        {replayActive ? (
+          <button
+            type="button"
+            onClick={() => setReplayActive(false)}
+            className="pointer-events-auto absolute right-0 top-1/2 z-50 -translate-y-1/2 rounded-l-2xl border border-white/30 bg-black/75 px-3 py-5 text-[10px] font-black uppercase tracking-[0.12em] text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur hover:bg-black/60"
+            aria-label="Skip replay"
+          >
+            Skip
+          </button>
+        ) : null}
 
         <div
           className="pointer-events-auto absolute z-40 h-[320px] w-[70px] touch-none select-none"
