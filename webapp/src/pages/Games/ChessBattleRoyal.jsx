@@ -615,6 +615,8 @@ const FPV_BOB_AMPLITUDE = 0.0;
 const FPV_LOOK_DRAG_SPEED = 0.0045;
 const FPV_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(18);
 const FPV_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(12);
+const CHECKERS_MATCH_CAMERA_YAW_LIMIT = THREE.MathUtils.degToRad(18);
+const CHECKERS_MATCH_CAMERA_PITCH_LIMIT = THREE.MathUtils.degToRad(12);
 const SEATED_HUMAN_MOVE_DURATION_MS = 520; // Slightly longer to keep finger contact readable during pickup/carry/place.
 const SEATED_HUMAN_PICKUP_PHASE_END = 0.24;
 const SEATED_HUMAN_CARRY_PHASE_END = 0.8;
@@ -10365,23 +10367,22 @@ function Chess3D({
     controls.target.copy(boardLookTarget);
     const cameraOffset = camera.position.clone().sub(boardLookTarget);
     const cameraSpherical = new THREE.Spherical().setFromVector3(cameraOffset);
-    const horizontalSwing = THREE.MathUtils.degToRad(isPortrait ? 95 : 80);
-    const verticalAllowanceUp = THREE.MathUtils.degToRad(isPortrait ? 38 : 28);
-    const verticalAllowanceDown = THREE.MathUtils.degToRad(isPortrait ? 42 : 30);
     controls.minPolarAngle = clamp(
-      cameraSpherical.phi - verticalAllowanceUp,
+      cameraSpherical.phi - CHECKERS_MATCH_CAMERA_PITCH_LIMIT,
       CAMERA_PULL_FORWARD_MIN,
       CAM.phiMax
     );
     controls.maxPolarAngle = clamp(
-      cameraSpherical.phi + verticalAllowanceDown,
+      cameraSpherical.phi + CHECKERS_MATCH_CAMERA_PITCH_LIMIT,
       CAMERA_PULL_FORWARD_MIN,
       CAM.phiMax
     );
-    controls.minAzimuthAngle = cameraSpherical.theta - horizontalSwing;
-    controls.maxAzimuthAngle = cameraSpherical.theta + horizontalSwing;
-    controls.minDistance = CAMERA_3D_MIN_RADIUS;
-    controls.maxDistance = CAMERA_3D_MAX_RADIUS;
+    controls.minAzimuthAngle = cameraSpherical.theta - CHECKERS_MATCH_CAMERA_YAW_LIMIT;
+    controls.maxAzimuthAngle = cameraSpherical.theta + CHECKERS_MATCH_CAMERA_YAW_LIMIT;
+    // Match Checkers Battle Royal framing: allow left/right/up/down look only,
+    // while keeping the camera position locked (no in/out movement).
+    controls.minDistance = cameraSpherical.radius;
+    controls.maxDistance = cameraSpherical.radius;
     controls.update();
     controlsRef.current = controls;
     syncSkyboxToCamera = () => {
@@ -10488,12 +10489,20 @@ function Chess3D({
         controls.enableRotate = true;
         controls.enablePan = false;
         controls.enableZoom = true;
-        controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
-        controls.maxPolarAngle = CAM.phiMax;
-        controls.minAzimuthAngle = -Infinity;
-        controls.maxAzimuthAngle = Infinity;
-        controls.minDistance = CAMERA_3D_MIN_RADIUS;
-        controls.maxDistance = CAMERA_3D_MAX_RADIUS;
+        controls.minPolarAngle = clamp(
+          current.phi - CHECKERS_MATCH_CAMERA_PITCH_LIMIT,
+          CAMERA_PULL_FORWARD_MIN,
+          CAM.phiMax
+        );
+        controls.maxPolarAngle = clamp(
+          current.phi + CHECKERS_MATCH_CAMERA_PITCH_LIMIT,
+          CAMERA_PULL_FORWARD_MIN,
+          CAM.phiMax
+        );
+        controls.minAzimuthAngle = current.theta - CHECKERS_MATCH_CAMERA_YAW_LIMIT;
+        controls.maxAzimuthAngle = current.theta + CHECKERS_MATCH_CAMERA_YAW_LIMIT;
+        controls.minDistance = current.radius;
+        controls.maxDistance = current.radius;
         const restore = cameraMemory.last3d || default3d;
         const targetPhi = clamp(
           restore.phi - (isForcedCapture3dView ? CAMERA_CAPTURE_VIEW_UPWARD_BIAS : 0),
