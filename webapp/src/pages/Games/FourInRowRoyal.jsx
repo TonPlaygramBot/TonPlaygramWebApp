@@ -1837,11 +1837,11 @@ export default function FourInRowRoyal() {
     const isPortrait = mount.clientHeight > mount.clientWidth;
     const cameraSeatAngle = Math.PI / 2;
     const cameraBackOffset =
-      ((isPortrait ? 2.18 : 1.52) + 0.28) * CAMERA_FRAME_MATCH_SCALE;
+      ((isPortrait ? 1.98 : 1.36) + 0.24) * CAMERA_FRAME_MATCH_SCALE;
     const cameraForwardOffset =
-      (isPortrait ? 0.36 : 0.42) * CAMERA_FRAME_MATCH_SCALE;
+      (isPortrait ? 0.44 : 0.5) * CAMERA_FRAME_MATCH_SCALE;
     const cameraHeightOffset =
-      (isPortrait ? 0.92 : 0.76) *
+      (isPortrait ? 1.08 : 0.9) *
       CAMERA_FRAME_MATCH_SCALE *
       TABLE_AND_CHAIR_SIZE_MULTIPLIER *
       CAMERA_HEIGHT_MATCH_BOOST;
@@ -1859,7 +1859,7 @@ export default function FourInRowRoyal() {
     controls.enablePan = false;
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
-    controls.target.set(0, arenaRoot.position.y + TABLE_HEIGHT - 0.07, 0);
+    controls.target.set(0, arenaRoot.position.y + TABLE_HEIGHT + 0.08, 0);
     controls.minPolarAngle = THREE.MathUtils.degToRad(30);
     controls.maxPolarAngle =
       ARENA_CAMERA_DEFAULTS.phiMax + THREE.MathUtils.degToRad(16);
