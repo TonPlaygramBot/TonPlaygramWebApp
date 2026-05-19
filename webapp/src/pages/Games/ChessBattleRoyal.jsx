@@ -585,7 +585,7 @@ const CAMERA_LOCKED_3D_PHI = THREE.MathUtils.degToRad(72); // tilt closer to hor
 const CAMERA_LOCKED_3D_RADIUS_SCALE = 0.59; // move locked 3D camera closer to the table for a tighter composition.
 const CHECKERS_CAMERA_FRAME_COMPENSATION = 1.06;
 const PLAYER_FACE_CAMERA_SEAT_ANGLE = Math.PI / 2;
-const PLAYER_FACE_CAMERA_RADIUS = TABLE_RADIUS * 0.98 * CHECKERS_CAMERA_FRAME_COMPENSATION;
+const PLAYER_FACE_CAMERA_RADIUS = TABLE_RADIUS * 0.9 * CHECKERS_CAMERA_FRAME_COMPENSATION;
 const PLAYER_FACE_CAMERA_EYE_HEIGHT = 2.05 * MODEL_SCALE;
 const PLAYER_FACE_CAMERA_TARGET_HEIGHT = 0.18 * MODEL_SCALE;
 const PLAYER_FACE_CAMERA_YAW_LIMIT = THREE.MathUtils.degToRad(18);
@@ -9530,7 +9530,11 @@ function Chess3D({
           const targetY = boardGroup
             ? boardWorld.y + (BOARD.baseH + 0.12) * BOARD_SCALE
             : (nextTable?.surfaceY ?? TABLE_HEIGHT) + (BOARD.baseH + 0.12) * BOARD_SCALE;
-          arena.boardLookTarget.set(placementOffset.x, targetY, placementOffset.z);
+          arena.boardLookTarget.set(
+            placementOffset.x,
+            targetY,
+            placementOffset.z + PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS
+          );
         }
         const arenaGroups = [nextTable?.group, ...(arena.chairs || []).map((chair) => chair.group)];
         groundArenaGroups(arenaGroups, arenaFloorY);
@@ -10385,7 +10389,7 @@ function Chess3D({
     controls.rotateSpeed = 0.85;
     controls.zoomSpeed = 0.7;
     controls.panSpeed = 0.6;
-    controls.target.set(0, TABLE_HEIGHT, 0);
+    controls.target.copy(boardLookTarget);
     controls.update();
     controlsRef.current = controls;
     syncSkyboxToCamera = () => {
