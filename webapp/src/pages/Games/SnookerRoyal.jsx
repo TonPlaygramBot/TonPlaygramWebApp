@@ -27775,7 +27775,7 @@ const sliderResetTimerRef = useRef(null);
   }, [isPortrait, uiScale]);
 
   // --------------------------------------------------
-  // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
+  // Pull slider (SnookerRoyalProvided logic)
   // --------------------------------------------------
   const sliderRef = useRef(null);
   const showPowerSlider = hud.turn === 0 && !hud.over && !replayActive && !shotActive;
@@ -27785,42 +27785,32 @@ const sliderResetTimerRef = useRef(null);
     }
     const mount = sliderRef.current;
     if (!mount) return undefined;
+    mount.innerHTML = '';
     const slider = new PoolRoyalePowerSlider({
       mount,
-      value: powerRef.current * 100,
+      value: 0,
+      min: 0,
+      max: 100,
+      step: 1,
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
-      onChange: (v) => applyPower(v / 100),
       onStart: () => {
         sliderDraggingRef.current = true;
-        if (sliderResetTimerRef.current) {
-          clearTimeout(sliderResetTimerRef.current);
-          sliderResetTimerRef.current = null;
-        }
-        captureCueStickAnchor();
+      },
+      onChange: (value) => {
+        const normalized = THREE.MathUtils.clamp(value / 100, 0, 1);
+        applyPower(normalized);
+        if (sliderDraggingRef.current) committedShotPowerRef.current = normalized;
       },
       onCommit: (value) => {
         const normalized = THREE.MathUtils.clamp(value / 100, 0, 1);
-        sliderDraggingRef.current = false;
         committedShotPowerRef.current = normalized;
-        shotVisualPowerRef.current = normalized;
+        sliderDraggingRef.current = false;
         applyPower(normalized);
         if (normalized > 0.02) {
           fireRef.current?.(normalized);
         }
         slider.animateToMin({ duration: 180 });
-        if (sliderResetTimerRef.current) {
-          clearTimeout(sliderResetTimerRef.current);
-          sliderResetTimerRef.current = null;
-        }
-        const resetDelay = normalized > 0.02
-          ? CUE_LOGIC_STRIKE_TIME_MS + CUE_LOGIC_HOLD_TIME_MS + 180
-          : 180;
-        sliderResetTimerRef.current = window.setTimeout(() => {
-          sliderResetTimerRef.current = null;
-          committedShotPowerRef.current = 0;
-          applyPower(0);
-        }, resetDelay);
       }
     });
     sliderInstanceRef.current = slider;
@@ -27829,7 +27819,7 @@ const sliderResetTimerRef = useRef(null);
       sliderInstanceRef.current = null;
       slider.destroy();
     };
-  }, [applySliderLock, captureCueStickAnchor, showPowerSlider]);
+  }, [applySliderLock, showPowerSlider]);
   useEffect(() => {
     if (shotActive || hud.over || hud.turn !== 0) return;
     const slider = sliderInstanceRef.current;
