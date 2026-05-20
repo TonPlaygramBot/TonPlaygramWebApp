@@ -1497,9 +1497,7 @@ async function loadCaptureWeaponModel(captureAnimationId) {
             // eslint-disable-next-line no-await-in-loop
             textureOverride = await withLoadTimeout(textureLoader.loadAsync(textureOverrideUrls[t]));
             if (textureOverride) {
-              textureOverride.flipY = false;
-              applySRGBColorSpace(textureOverride);
-              textureOverride.needsUpdate = true;
+              normalizeCaptureWeaponTexture(textureOverride, { isColor: true });
               break;
             }
           } catch {
@@ -1522,11 +1520,11 @@ async function loadCaptureWeaponModel(captureAnimationId) {
         node.visible = true;
         const materials = Array.isArray(node.material) ? node.material : [node.material];
         materials.forEach((material) => {
-          if (material?.map) applySRGBColorSpace(material.map);
           if (textureOverride && (forceTextureOverride || !material?.map)) {
             material.map = textureOverride;
           }
-          if (material?.emissiveMap) applySRGBColorSpace(material.emissiveMap);
+          normalizeCaptureWeaponTexture(material?.map, { isColor: true });
+          normalizeCaptureWeaponTexture(material?.emissiveMap, { isColor: true });
           material.transparent = false;
           material.opacity = 1;
           material.needsUpdate = true;
@@ -1579,6 +1577,18 @@ function startCaptureWeaponAnimation({
   targetModel.userData.captureWeaponMixer = mixer;
   targetModel.userData.captureWeaponActions = actions;
   return { mixer, actions };
+}
+
+
+function normalizeCaptureWeaponTexture(texture, { isColor = false } = {}) {
+  if (!texture?.isTexture) return;
+  texture.flipY = false;
+  if (isColor) applySRGBColorSpace(texture);
+  texture.generateMipmaps = true;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.anisotropy = Math.max(texture.anisotropy ?? 1, 8);
+  texture.needsUpdate = true;
 }
 
 function stopCaptureWeaponMixersForObjectTree(rootObject, mixersStore) {
