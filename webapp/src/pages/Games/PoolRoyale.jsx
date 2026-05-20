@@ -37,6 +37,17 @@ import {
   POOL_ROYALE_TABLE_MODEL_STORAGE_KEY,
   resolvePoolRoyaleTableModel
 } from '../../config/poolRoyaleTableModels.js';
+const DEFAULT_PROCEDURAL_TABLE_MODEL_ID = 'procedural-showood-hybrid';
+const LEGACY_POOL_ROYALE_MODEL_MIGRATIONS = Object.freeze({
+  'showood-seven-foot': DEFAULT_PROCEDURAL_TABLE_MODEL_ID
+});
+
+function migrateLegacyPoolRoyaleTableModelId(modelId) {
+  if (typeof modelId !== 'string') return modelId;
+  const normalized = modelId.trim();
+  if (!normalized) return normalized;
+  return LEGACY_POOL_ROYALE_MODEL_MIGRATIONS[normalized] ?? normalized;
+}
 import { resolveTableSize as resolveSnookerTableSize } from '../../config/snookerClubTables.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { chatBeep } from '../../assets/coreSoundData.js';
@@ -1269,7 +1280,7 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
 const DEFAULT_COMMENTARY_PRESET_ID = POOL_ROYALE_COMMENTARY_PRESETS[0]?.id || 'english';
 const SHOWOOD_ORIGINAL_TABLE_BASE_ID = 'showoodOriginal';
 const DEFAULT_PROCEDURAL_TABLE_BASE_ID = 'classicCylinders';
-const DEFAULT_TABLE_BASE_ID = SHOWOOD_ORIGINAL_TABLE_BASE_ID;
+const DEFAULT_TABLE_BASE_ID = DEFAULT_PROCEDURAL_TABLE_BASE_ID;
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const ENABLE_CUE_STROKE_ANIMATION = true;
@@ -1305,19 +1316,19 @@ const REPLAY_CAMERA_START_DELAY_MS = 0;
     WALL: 2.6 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
-const FRAME_RAIL_OUTWARD_SCALE = 1.38; // expand wooden frame rails outward by 38% on all sides
+const FRAME_RAIL_OUTWARD_SCALE = 1; // keep procedural rail footprint while preserving Showood-like profile geometry
 const RAIL_HEIGHT = TABLE.THICK * 1.9; // lift all six cushions/rails a touch more so the top profile reads higher without changing playfield size
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.024; // push the corner jaws just a bit farther outward so the fascia follows the rounded rail and chrome cut
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
-const POCKET_JAW_CORNER_INNER_SCALE = 1.62; // stretch the inner lip into a longer Showood-style rounded pocket jaw while keeping playable mouth size
-const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 1.03; // round and widen the middle jaws slightly more while keeping the corner match
-const POCKET_JAW_CORNER_OUTER_SCALE = 1.86; // broaden the outer jaw shoulder to mirror the Showood rounded pocket cup profile
+const POCKET_JAW_CORNER_INNER_SCALE = 1.44; // keep procedural jaw size but retain the Showood-like rounded inner lip geometry
+const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE; // keep middle jaws the same size as corner jaws
+const POCKET_JAW_CORNER_OUTER_SCALE = 1.62; // preserve Showood cup silhouette without oversizing jaw shoulders
 const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.036; // nudge corner jaws a touch farther outward to keep the jaw shoulder aligned with the rail cut
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
-const POCKET_JAW_DEPTH_SCALE = 1.08; // deepen all jaw bodies so the default pockets carry the same Showood jaw depth
+const POCKET_JAW_DEPTH_SCALE = 1; // preserve procedural jaw depth for faster and lighter procedural rendering
 const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.094; // lower all six jaws a hair more so the mouths sit slightly deeper
 const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.036; // trim a little more from the jaw bottoms
 const POCKET_JAW_CORNER_BOTTOM_CLEARANCE = TABLE.THICK * 0.012; // keep corner jaw bottom trim aligned with the global bottom reduction
@@ -1344,7 +1355,7 @@ const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.74; // pull both corner-jaw flanks inward a bit more while keeping current jaw height
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.5; // expand both middle-jaw flanks slightly so all six jaws open up evenly
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.995; // keep middle jaw arcs slightly tighter so side jaws look a bit smaller
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.12; // add Showood-like extra depth so side jaws match the corner jaw type
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // keep side-jaw depth equal to the original procedural table
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.01; // pull middle-pocket jaws a bit farther downward than corners
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.028; // reduce the outward shift so middle-pocket jaws sit a bit more inward toward table center
 const POCKET_JAW_INWARD_PULL = 0; // keep the jaw centers aligned with the snooker pocket layout
@@ -15721,10 +15732,12 @@ function PoolRoyaleGame({
   );
   const activeTableBase = useMemo(
     () =>
-      availableTableBases.find((variant) => variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID) ??
-      POOL_ROYALE_BASE_VARIANTS.find((variant) => variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID) ??
+      availableTableBases.find((variant) => variant.id === tableBaseId) ??
+      POOL_ROYALE_BASE_VARIANTS.find((variant) => variant.id === tableBaseId) ??
+      availableTableBases.find((variant) => variant.id === DEFAULT_TABLE_BASE_ID) ??
+      POOL_ROYALE_BASE_VARIANTS.find((variant) => variant.id === DEFAULT_TABLE_BASE_ID) ??
       POOL_ROYALE_BASE_VARIANTS[0],
-    [availableTableBases]
+    [availableTableBases, tableBaseId]
   );
   const resolvedHdriResolution = useMemo(() => {
     return autoHdriResolutionFromGraphics;
@@ -15781,9 +15794,7 @@ function PoolRoyaleGame({
     if (!isPoolOptionUnlocked('tableFinish', tableFinishId, poolInventory)) {
       setTableFinishId(DEFAULT_TABLE_FINISH_ID);
     }
-    if (tableBaseId !== SHOWOOD_ORIGINAL_TABLE_BASE_ID) {
-      setTableBaseId(SHOWOOD_ORIGINAL_TABLE_BASE_ID);
-    } else if (!isPoolOptionUnlocked('tableBase', tableBaseId, poolInventory)) {
+    if (!isPoolOptionUnlocked('tableBase', tableBaseId, poolInventory)) {
       setTableBaseId(DEFAULT_TABLE_BASE_ID);
     }
     if (!isPoolOptionUnlocked('clothColor', clothColorId, poolInventory)) {
@@ -37527,10 +37538,15 @@ export default function PoolRoyale() {
   const tableModelKey = useMemo(() => {
     const params = new URLSearchParams(location.search);
     const requested = params.get('tableModel');
-    if (requested) return resolvePoolRoyaleTableModel(requested).id;
+    if (requested) {
+      return resolvePoolRoyaleTableModel(migrateLegacyPoolRoyaleTableModelId(requested)).id;
+    }
     try {
-      return resolvePoolRoyaleTableModel(
+      const storedModelId = migrateLegacyPoolRoyaleTableModelId(
         window.localStorage?.getItem(POOL_ROYALE_TABLE_MODEL_STORAGE_KEY)
+      );
+      return resolvePoolRoyaleTableModel(
+        storedModelId
       ).id;
     } catch {}
     return resolvePoolRoyaleTableModel().id;
