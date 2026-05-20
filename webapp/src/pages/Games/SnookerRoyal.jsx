@@ -2116,7 +2116,17 @@ function getSnookerCueEndpoints(cueStick, cueLen) {
 
 function updateSnookerRoyalHumanPlayer(human, dt, options) {
   if (!human?.root || human.disabled) return;
-  const { cue, cueStick, cueLen, aimDir, visible, power = 0, shooting = false, cueAnimating = false } = options || {};
+  const {
+    cue,
+    cueStick,
+    cueLen,
+    aimDir,
+    visible,
+    power = 0,
+    shooting = false,
+    cueAnimating = false,
+    tableCueVisible = true
+  } = options || {};
   const cuePos = cue?.pos;
   if (!cuePos || !cue?.active || !visible) {
     human.root.visible = false;
@@ -2163,7 +2173,12 @@ function updateSnookerRoyalHumanPlayer(human, dt, options) {
     .addScaledVector(dir, -SNOOKER_HUMAN_CFG.bridgeBackFromBall)
     .addScaledVector(side, SNOOKER_HUMAN_CFG.bridgeSide)
     .setY(CUE_Y + BALL_R * 0.08);
-  const grip = cueEndpoints.butt.clone().lerp(cueEndpoints.tip, 0.37 + pullPose * 0.08);
+  const gripBlend = tableCueVisible ? (0.37 + pullPose * 0.08) : 0.62;
+  const grip = cueEndpoints.butt
+    .clone()
+    .lerp(cueEndpoints.tip, gripBlend)
+    .addScaledVector(side, tableCueVisible ? 0 : BALL_R * 0.18)
+    .setY(tableCueVisible ? cueEndpoints.butt.y : CUE_Y + BALL_R * 0.52);
   updateSnookerHumanOrientationHelpers(human, { rootTarget, cueBall, playfieldTarget, dir, bridge, grip });
   const chestWorld = cueBall.clone().addScaledVector(dir, -0.44 * SNOOKER_HUMAN_WORLD_SCALE).setY(CUE_Y + SNOOKER_HUMAN_CFG.chestCueOffsetY);
   const headWorld = cueBall.clone().addScaledVector(dir, -0.34 * SNOOKER_HUMAN_WORLD_SCALE).setY(CUE_Y + SNOOKER_HUMAN_CFG.chinCueOffsetY + 0.08 * SNOOKER_HUMAN_WORLD_SCALE);
@@ -23251,10 +23266,10 @@ const powerRef = useRef(hud.power);
           cueStick.position.copy(idlePos);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
-          const pullbackDuration = 0;
+          const pullbackDuration = 115;
           const strikeDuration = 110;
           const holdDuration = 45;
-          const returnDuration = 0;
+          const returnDuration = 95;
           // Keep the no-character cue stroke matching the old human-rig shot:
           // drive the tip forward from pullback into cue-ball contact instead
           // of stopping at the original address gap.
@@ -23274,7 +23289,16 @@ const powerRef = useRef(hud.power);
           const settlePos = impactPos
             .clone()
             .addScaledVector(TMP_VEC3_FOLLOW_DIR, followExtra);
-          cueStick.visible = true;
+          const cameraForCueVisibility =
+            activeRenderCameraRef.current ?? cameraRef.current ?? camera;
+          const cueBallY = cue?.pos ? CUE_Y : BALL_CENTER_Y;
+          const cameraHeightAboveCue =
+            (cameraForCueVisibility?.position?.y ?? cueBallY) - cueBallY;
+          const isStandingCueView =
+            !shooting &&
+            !cueAnimating &&
+            cameraHeightAboveCue > BALL_R * 3.4;
+          cueStick.visible = !isStandingCueView;
           cueStick.position.copy(idlePos);
           const startTime = performance.now();
           const pullEndTime = startTime + pullbackDuration;
@@ -23371,7 +23395,13 @@ const powerRef = useRef(hud.power);
               const t = THREE.MathUtils.clamp((now - holdEndTime) / returnDuration, 0, 1);
               cueStick.position.lerpVectors(settlePos, idlePos, easeInOutQuad(t));
             } else {
-              cueStick.visible = false;
+              const releaseCamera =
+                activeRenderCameraRef.current ?? cameraRef.current ?? camera;
+              const releaseCueBallY = cue?.pos ? CUE_Y : BALL_CENTER_Y;
+              const releaseHeightAboveCue =
+                (releaseCamera?.position?.y ?? releaseCueBallY) - releaseCueBallY;
+              const standingReleaseView = releaseHeightAboveCue > BALL_R * 3.4;
+              cueStick.visible = !standingReleaseView;
               cueAnimating = false;
               cuePullCurrentRef.current = 0;
               cuePullTargetRef.current = 0;
@@ -26437,7 +26467,8 @@ const powerRef = useRef(hud.power);
             visible: cueStick.visible || cueAnimating || shooting,
             power: powerRef.current ?? activeAiPlan?.power ?? 0,
             shooting,
-            cueAnimating
+            cueAnimating,
+            tableCueVisible: cueStick.visible
           });
         } catch (error) {
           snookerHumanPlayer.disabled = true;
