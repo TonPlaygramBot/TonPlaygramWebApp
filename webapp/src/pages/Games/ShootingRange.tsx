@@ -169,13 +169,13 @@ type ShotEffectRuntime = {
 };
 
 const USER_LANE = 0;
-const LANE_COUNT = 4;
+const LANE_COUNT = 1;
 const SHOTS_PER_PLAYER = 5;
 const PICK_SECONDS = 5;
 const TARGET_HALF_WIDTH = 1.05 / 2;
 const TARGET_HALF_HEIGHT = 1.58 / 2;
-const LANE_X = [-4.9, -1.65, 1.65, 4.9];
-const TABLE_Z = 2.35;
+const LANE_X = [0];
+const TABLE_Z = 2.15;
 const TABLE_TOP_Y = 0.94;
 const TARGET_Z = -21.8;
 const BULLET_SPIN = 245;
@@ -2490,13 +2490,10 @@ export default function ShootingRange() {
   const [pickTimer, setPickTimer] = useState(PICK_SECONDS);
   const [selectedWeapon, setSelectedWeapon] = useState(0);
   const [ammo, setAmmo] = useState(STATS[WEAPONS[0].weaponClass].mag);
-  const [laneScores, setLaneScores] = useState([0, 0, 0, 0]);
-  const [shotsLeft, setShotsLeft] = useState([
-    SHOTS_PER_PLAYER,
-    SHOTS_PER_PLAYER,
-    SHOTS_PER_PLAYER,
-    SHOTS_PER_PLAYER
-  ]);
+  const [laneScores, setLaneScores] = useState(() => Array.from({ length: LANE_COUNT }, () => 0));
+  const [shotsLeft, setShotsLeft] = useState(() =>
+    Array.from({ length: LANE_COUNT }, () => SHOTS_PER_PLAYER)
+  );
   const [winnerText, setWinnerText] = useState('');
   const [userLane, setUserLane] = useState(USER_LANE);
   const [lastHitText, setLastHitText] = useState('');
@@ -2525,10 +2522,7 @@ export default function ShootingRange() {
         params.get('mode') === 'online'
           ? ('online' as MatchMode)
           : ('ai' as MatchMode),
-      playerCount: Math.min(
-        LANE_COUNT,
-        Math.max(2, Number.isFinite(parsedPlayers) ? parsedPlayers : LANE_COUNT)
-      ),
+      playerCount: LANE_COUNT,
       playerName: params.get('name') || 'Player',
       playerFlag: params.get('flag') || '',
       aiFlag: params.get('aiFlag') || '',
@@ -2544,13 +2538,10 @@ export default function ShootingRange() {
   const viewModeRef = useRef<ViewMode>('tables');
   const selectedWeaponRef = useRef(0);
   const ammoRef = useRef(STATS[WEAPONS[0].weaponClass].mag);
-  const shotsLeftRef = useRef([
-    SHOTS_PER_PLAYER,
-    SHOTS_PER_PLAYER,
-    SHOTS_PER_PLAYER,
-    SHOTS_PER_PLAYER
-  ]);
-  const laneScoresRef = useRef([0, 0, 0, 0]);
+  const shotsLeftRef = useRef(
+    Array.from({ length: LANE_COUNT }, () => SHOTS_PER_PLAYER)
+  );
+  const laneScoresRef = useRef(Array.from({ length: LANE_COUNT }, () => 0));
   const userLaneRef = useRef(USER_LANE);
   const winnerLaneRef = useRef<number | null>(null);
 
@@ -2985,7 +2976,7 @@ export default function ShootingRange() {
       const x = LANE_X[lane];
 
       const boothBench = new THREE.Mesh(
-        new THREE.BoxGeometry(2.55, 0.16, 1.15),
+        new THREE.BoxGeometry(5.8, 0.2, 2.4),
         tableMat
       );
       boothBench.position.set(x, TABLE_TOP_Y, TABLE_Z);
@@ -2994,7 +2985,7 @@ export default function ShootingRange() {
       scene.add(boothBench);
 
       const boothShelf = new THREE.Mesh(
-        new THREE.BoxGeometry(2.55, 0.11, 0.78),
+        new THREE.BoxGeometry(5.8, 0.14, 1.4),
         metalMat
       );
       boothShelf.position.set(x, 0.55, TABLE_Z);
@@ -3006,17 +2997,17 @@ export default function ShootingRange() {
         new THREE.BoxGeometry(0.12, 2.15, 1.26),
         laneMat
       );
-      leftDivider.position.set(x - 1.48, 1.36, TABLE_Z);
+      leftDivider.position.set(x - 3.0, 1.36, TABLE_Z);
       leftDivider.castShadow = true;
       leftDivider.receiveShadow = true;
       scene.add(leftDivider);
 
       const rightDivider = leftDivider.clone();
-      rightDivider.position.x = x + 1.48;
+      rightDivider.position.x = x + 3.0;
       scene.add(rightDivider);
 
       const boothHead = new THREE.Mesh(
-        new THREE.BoxGeometry(2.55, 0.14, 0.95),
+        new THREE.BoxGeometry(5.8, 0.14, 1.5),
         metalMat
       );
       boothHead.position.set(x, 4.45, 1.1);
@@ -3050,7 +3041,7 @@ export default function ShootingRange() {
       scene.add(redCenter);
 
       const yellowFireLine = new THREE.Mesh(
-        new THREE.BoxGeometry(2.45, 0.014, 0.12),
+        new THREE.BoxGeometry(5.7, 0.014, 0.12),
         new THREE.MeshStandardMaterial({ color: '#facc15', roughness: 0.82 })
       );
       yellowFireLine.position.set(x, 0.024, 1.95);
@@ -3114,7 +3105,7 @@ export default function ShootingRange() {
     const pointer = new THREE.Vector2();
 
     function buildCharacters() {
-      const randomizedLanes = shuffle([0, 1, 2, 3]);
+      const randomizedLanes = shuffle(Array.from({ length: LANE_COUNT }, (_, lane) => lane));
       const humanLaneIndex = randomizedLanes[0];
       userLaneRef.current = humanLaneIndex;
       playerWalkPosRef.current.set(LANE_X[humanLaneIndex], 0, 3.05);
@@ -3334,13 +3325,14 @@ export default function ShootingRange() {
         group.add(icon);
 
         const localIndex = slot.localIndex;
-        const col = localIndex % 2;
-        const row = Math.floor(localIndex / 2);
+        const columns = 4;
+        const col = localIndex % columns;
+        const row = Math.floor(localIndex / columns);
 
         group.position.set(
-          LANE_X[tableIndex] + (col === 0 ? -0.46 : 0.46),
+          LANE_X[tableIndex] + (col - (columns - 1) / 2) * 0.92,
           TABLE_TOP_Y + 0.03,
-          TABLE_Z - 0.28 + row * 0.25
+          TABLE_Z - 0.72 + row * 0.44
         );
 
         scene.add(group);
