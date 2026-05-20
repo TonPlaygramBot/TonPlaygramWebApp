@@ -420,6 +420,9 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://cdn.statically.io/gh/webaverse/pistol/master/military.glb'
     ],
     scale: 0.13,
+    textureOverrideUrls: [
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/AK47.jpeg'
+    ]
   },
   uziSprayAttack: {
     label: 'Uzi',
@@ -468,6 +471,9 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models3/SigSauer/scene.gltf'
     ],
     scale: 0.13,
+    textureOverrideUrls: [
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/SigSauer.jpg'
+    ]
   },
   grenadeBlastAttack: {
     label: 'Grenade Blast',
@@ -477,6 +483,9 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://cdn.statically.io/gh/friuns2/bingextension/main/grenade.glb'
     ],
     scale: 0.11,
+    textureOverrideUrls: [
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/SigSauer.jpg'
+    ]
   },
   shotgunBlastAttack: {
     label: 'Shotgun Blast',
