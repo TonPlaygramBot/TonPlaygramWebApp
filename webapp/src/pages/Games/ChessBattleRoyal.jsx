@@ -3194,7 +3194,12 @@ const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
   diamondEdge: 0.024
 });
 const LOWER_PROFILE_TABLE_SHAPE_IDS = new Set(['classicOctagon', 'hexagonTable', 'grandOval', 'diamondEdge']);
-const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0.06;
+const SHORT_PEDESTAL_SCALE_BY_SHAPE = Object.freeze({
+  classicOctagon: 0.74,
+  hexagonTable: 0.72,
+  grandOval: 0.72,
+  diamondEdge: 0.7
+});
 const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 20.5; // make parked jet/helicopter/drone read large beside the table
 const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -4.2; // push parked vehicles and parked weapons farther to the arena sides
 const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.26; // lift pad markers/parked units from floor to board/table level
@@ -3235,9 +3240,16 @@ function pickRandomAiHumanCharacterOption(playerOption) {
 
 function getTableHeightForShape(shapeId) {
   if (LOWER_PROFILE_TABLE_SHAPE_IDS.has(shapeId)) {
-    return TABLE_HEIGHT - LOWER_PROFILE_TABLE_HEIGHT_DELTA;
+    // Keep cloth/board surface aligned with other tables while shortening the visible pedestal only.
+    return TABLE_HEIGHT;
   }
   return TABLE_HEIGHT;
+}
+
+function getPedestalHeightScaleForShape(shapeId) {
+  const override = SHORT_PEDESTAL_SCALE_BY_SHAPE[shapeId];
+  if (Number.isFinite(override)) return override;
+  return 1.14;
 }
 
 function normalizeAppearance(value = {}) {
@@ -3584,6 +3596,7 @@ async function buildTableFromTheme(theme, options = {}) {
       renderer,
       tableRadius,
       tableHeight,
+      pedestalHeightScale: getPedestalHeightScaleForShape(shapeOption?.id),
       woodOption,
       clothOption,
       baseOption,
