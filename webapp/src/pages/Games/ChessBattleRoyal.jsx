@@ -565,7 +565,7 @@ const CAMERA_TABLE_SPAN_FACTOR = 2.6;
 const WALL_PROXIMITY_FACTOR = 0.5; // Bring arena walls 50% closer
 const WALL_HEIGHT_MULTIPLIER = 2; // Double wall height
 const CHAIR_SCALE = 1.02 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
-const CHAIR_WIDTH_SCALE = 1.34; // Make chairs a bit bigger so they read more prominently in portrait.
+const CHAIR_WIDTH_SCALE = 1.4; // Make chairs a bit bigger so they read more prominently in portrait.
 const CHAIR_VERTICAL_OFFSET = -0.065 * MODEL_SCALE;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
 const PLAYER_CHAIR_EXTRA_CLEARANCE = 0.16 * MODEL_SCALE; // push local bottom chair/human farther away from the table than the opponent.
@@ -611,7 +611,8 @@ const SAND_TIMER_SCALE = 0.36;
 const SEATED_HUMAN_DEFAULT_MODEL_URL = CHESS_HUMAN_CHARACTER_OPTIONS[0]?.modelUrls?.[0];
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 3.2;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.28; // Scale seated human characters a bit smaller relative to the enlarged chairs.
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.08; // Scale seated human characters a bit smaller relative to the enlarged chairs.
+const FAILED_HUMAN_CHARACTER_IDS = new Set();
 const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
@@ -1428,9 +1429,14 @@ function positionSeatedHumanChestAvatarAnchor(chair, actor) {
 async function loadSeatedHumanTemplate(option, renderer = null, maxAnisotropy = 1) {
   const fallbackOption = CHESS_HUMAN_CHARACTER_OPTIONS[0] || {};
   const selectedOption = option || fallbackOption;
-  const cacheKey = selectedOption.id || fallbackOption.id || 'default';
+  const selectedId = selectedOption.id || fallbackOption.id || 'default';
+  const fallbackId = fallbackOption.id || selectedId || 'default';
+  const cacheKey = selectedId;
   const cached = seatedHumanTemplatePromiseById.get(cacheKey);
   if (cached) return cached;
+  if (FAILED_HUMAN_CHARACTER_IDS.has(selectedId) && selectedId !== fallbackId) {
+    return loadSeatedHumanTemplate(fallbackOption, renderer, maxAnisotropy);
+  }
   const promise = (async () => {
     const loader = createConfiguredGLTFLoader(renderer);
     loader.setCrossOrigin('anonymous');
@@ -1452,6 +1458,12 @@ async function loadSeatedHumanTemplate(option, renderer = null, maxAnisotropy = 
       }
     }
     if (!root) {
+      FAILED_HUMAN_CHARACTER_IDS.add(selectedId);
+      seatedHumanTemplatePromiseById.delete(cacheKey);
+      if (selectedId !== fallbackId) {
+        console.warn(`Chess Battle Royal: human "${selectedId}" failed to load, falling back to "${fallbackId}".`, lastError);
+        return loadSeatedHumanTemplate(fallbackOption, renderer, maxAnisotropy);
+      }
       throw lastError || new Error('Missing seated human scene');
     }
     normalizeSeatedHumanRootToChair(root);
@@ -3214,7 +3226,9 @@ function createRandomAiCaptureLoadout() {
 function pickRandomAiHumanCharacterOption(playerOption) {
   const fallback = HUMAN_CHARACTER_OPTIONS[0] ?? null;
   const playerId = playerOption?.id ?? null;
-  const pool = HUMAN_CHARACTER_OPTIONS.filter((option) => option?.id && option.id !== playerId);
+  const pool = HUMAN_CHARACTER_OPTIONS.filter(
+    (option) => option?.id && option.id !== playerId && !FAILED_HUMAN_CHARACTER_IDS.has(option.id)
+  );
   if (!pool.length) return fallback;
   return pool[Math.floor(Math.random() * pool.length)] ?? fallback;
 }
