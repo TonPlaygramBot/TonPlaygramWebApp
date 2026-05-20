@@ -366,17 +366,6 @@ const FIREARM_RACK_OPPOSITE_SEAT_TARGET_BY_PLAYER = Object.freeze({
   0: 2,
   2: 0
 });
-const KNOWN_LUDO_WEAPON_SOURCES = Object.freeze({
-  awp: 'https://cdn.jsdelivr.net/gh/GarbajYT/godot-sniper-rifle@master/AWP.glb',
-  awpRaw: 'https://raw.githubusercontent.com/GarbajYT/godot-sniper-rifle/master/AWP.glb',
-  mrtk: 'https://cdn.jsdelivr.net/gh/microsoft/MixedRealityToolkit@main/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb',
-  mrtkRaw: 'https://raw.githubusercontent.com/microsoft/MixedRealityToolkit/main/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb',
-  pistol: 'https://cdn.jsdelivr.net/gh/SAAAM-LLC/3D_model_bundle@main/SAM_ASSET-PISTOL-IN-HOLSTER.glb',
-  pistolRaw: 'https://raw.githubusercontent.com/SAAAM-LLC/3D_model_bundle/main/SAM_ASSET-PISTOL-IN-HOLSTER.glb',
-  fps: 'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@main/main/scene.gltf',
-  fpsRaw: 'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/main/main/scene.gltf'
-});
-const polyWeaponSource = (id) => `https://static.poly.pizza/${id}.glb`;
 const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   mrtkGunAttack: {
     label: 'MRTK Gun',
@@ -391,11 +380,8 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   pistolHolsterAttack: {
     label: 'Pistol Holster',
     urls: [
-      polyWeaponSource('3b53f0fe-f86e-451c-816d-6ab9bd265cdc'),
-      polyWeaponSource('9e728565-67a3-44db-9567-982320abff09'),
-      KNOWN_LUDO_WEAPON_SOURCES.pistol,
-      KNOWN_LUDO_WEAPON_SOURCES.pistolRaw,
-      KNOWN_LUDO_WEAPON_SOURCES.mrtk
+      'https://raw.githubusercontent.com/SAAAM-LLC/3D_model_bundle/main/SAM_ASSET-PISTOL-IN-HOLSTER.glb',
+      'https://cdn.jsdelivr.net/gh/SAAAM-LLC/3D_model_bundle@main/SAM_ASSET-PISTOL-IN-HOLSTER.glb'
     ],
     scale: 0.138
   },
@@ -412,33 +398,31 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   glockSidearmAttack: {
     label: 'Glock',
     urls: [
-      polyWeaponSource('3b53f0fe-f86e-451c-816d-6ab9bd265cdc'),
-      KNOWN_LUDO_WEAPON_SOURCES.pistol,
-      KNOWN_LUDO_WEAPON_SOURCES.pistolRaw
+      'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/glock.glb',
+      'https://raw.githubusercontent.com/webaverse/pistol/master/glock.glb'
     ],
     scale: 0.13
   },
   pistolSidearmAttack: {
     label: 'Pistol Sidearm',
     urls: [
-      polyWeaponSource('3b53f0fe-f86e-451c-816d-6ab9bd265cdc'),
-      KNOWN_LUDO_WEAPON_SOURCES.pistol,
-      KNOWN_LUDO_WEAPON_SOURCES.pistolRaw,
-      KNOWN_LUDO_WEAPON_SOURCES.mrtk
+      'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/pistol.glb',
+      'https://raw.githubusercontent.com/webaverse/pistol/master/pistol.glb',
+      'https://cdn.statically.io/gh/webaverse/pistol/master/pistol.glb'
     ],
     scale: 0.115
   },
   assaultRifleAttack: {
     label: 'Assault Rifle',
     urls: [
-      polyWeaponSource('b3e6be61-0299-4866-a227-58f5f3fe610b'),
-      polyWeaponSource('032e6589-3188-41bc-b92b-e25528344275'),
-      KNOWN_LUDO_WEAPON_SOURCES.fps,
-      KNOWN_LUDO_WEAPON_SOURCES.fpsRaw,
-      KNOWN_LUDO_WEAPON_SOURCES.mrtk,
-      KNOWN_LUDO_WEAPON_SOURCES.awp
+      'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/military.glb',
+      'https://raw.githubusercontent.com/webaverse/pistol/master/military.glb',
+      'https://cdn.statically.io/gh/webaverse/pistol/master/military.glb'
     ],
-    scale: 0.13
+    scale: 0.13,
+    textureOverrideUrls: [
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/AK47.jpeg'
+    ]
   },
   uziSprayAttack: {
     label: 'Uzi',
@@ -446,11 +430,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Uzi/scene.gltf',
       'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Uzi/scene.gltf'
     ],
-    scale: 0.2,
-    textureOverrideUrls: [
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/Uzi.png',
-      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/images/Uzi.png'
-    ]
+    scale: 0.2
   },
   ak47VolleyAttack: {
     label: 'AK-47',
@@ -472,11 +452,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/KRSV/scene.gltf',
       'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/KRSV/scene.gltf'
     ],
-    scale: 0.24,
-    textureOverrideUrls: [
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/KRSV.jpg',
-      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/images/KRSV.jpg'
-    ]
+    scale: 0.24
   },
   smithSidearmAttack: {
     label: 'Smith',
@@ -484,11 +460,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/Smith/scene.gltf',
       'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/Smith/scene.gltf'
     ],
-    scale: 0.13,
-    textureOverrideUrls: [
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/Smith.jpeg',
-      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/images/Smith.jpeg'
-    ]
+    scale: 0.13
   },
   mosinMarksmanAttack: {
     label: 'Mosin',
@@ -496,11 +468,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Mosin/scene.gltf',
       'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Mosin/scene.gltf'
     ],
-    scale: 0.5125,
-    textureOverrideUrls: [
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/Mosin.png',
-      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/images/Mosin.png'
-    ]
+    scale: 0.5125
   },
   sigsauerTacticalAttack: {
     label: 'SigSauer Tactical',
@@ -528,13 +496,10 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   shotgunBlastAttack: {
     label: 'Shotgun Blast',
     urls: [
-      polyWeaponSource('032e6589-3188-41bc-b92b-e25528344275'),
-      polyWeaponSource('9a6ee0ee-068b-4774-8b0f-679c3cef0b6e'),
-      polyWeaponSource('08f27141-8e64-425a-9161-1bbd6956dfca'),
-      KNOWN_LUDO_WEAPON_SOURCES.fps,
-      KNOWN_LUDO_WEAPON_SOURCES.fpsRaw,
-      KNOWN_LUDO_WEAPON_SOURCES.awp,
-      KNOWN_LUDO_WEAPON_SOURCES.awpRaw
+      'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/main/main/scene.gltf',
+      'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@main/main/scene.gltf',
+      'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/master/main/scene.gltf',
+      'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@master/main/scene.gltf'
     ],
     scale: 0.24
   },
@@ -549,17 +514,10 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   smgBurstAttack: {
     label: 'SMG',
     urls: [
-      polyWeaponSource('fb8ae707-d5b9-4eb8-ab8c-1c78d3c1f710'),
-      KNOWN_LUDO_WEAPON_SOURCES.mrtk,
-      KNOWN_LUDO_WEAPON_SOURCES.fps,
-      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Uzi/scene.gltf',
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Uzi/scene.gltf'
+      'https://cdn.jsdelivr.net/gh/webaverse/uzi@main/uzi.glb',
+      'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/pistol.glb'
     ],
-    scale: 0.2,
-    textureOverrideUrls: [
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/Uzi.png',
-      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/images/Uzi.png'
-    ]
+    scale: 0.2
   },
   compactCarbineAttack: {
     label: 'Compact Carbine',
@@ -640,11 +598,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   polyGrenadeLauncher01Attack: {
     label: 'CreativeTrio Grenade Launcher',
     urls: ['https://static.poly.pizza/503bb2c5-4a69-404b-9b82-13e85e8f8467.glb'],
-    scale: 0.2,
-    textureOverrideUrls: [
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/Uzi.png',
-      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/images/Uzi.png'
-    ]
+    scale: 0.2
   },
   polyDynamiteBomb01Attack: {
     label: 'CreativeTrio Dynamite Bomb',
@@ -1543,7 +1497,9 @@ async function loadCaptureWeaponModel(captureAnimationId) {
             // eslint-disable-next-line no-await-in-loop
             textureOverride = await withLoadTimeout(textureLoader.loadAsync(textureOverrideUrls[t]));
             if (textureOverride) {
-              normalizeCaptureWeaponTexture(textureOverride, { isColor: true });
+              textureOverride.flipY = false;
+              applySRGBColorSpace(textureOverride);
+              textureOverride.needsUpdate = true;
               break;
             }
           } catch {
@@ -1566,11 +1522,11 @@ async function loadCaptureWeaponModel(captureAnimationId) {
         node.visible = true;
         const materials = Array.isArray(node.material) ? node.material : [node.material];
         materials.forEach((material) => {
+          if (material?.map) applySRGBColorSpace(material.map);
           if (textureOverride && (forceTextureOverride || !material?.map)) {
             material.map = textureOverride;
           }
-          normalizeCaptureWeaponTexture(material?.map, { isColor: true });
-          normalizeCaptureWeaponTexture(material?.emissiveMap, { isColor: true });
+          if (material?.emissiveMap) applySRGBColorSpace(material.emissiveMap);
           material.transparent = false;
           material.opacity = 1;
           material.needsUpdate = true;
@@ -1623,18 +1579,6 @@ function startCaptureWeaponAnimation({
   targetModel.userData.captureWeaponMixer = mixer;
   targetModel.userData.captureWeaponActions = actions;
   return { mixer, actions };
-}
-
-
-function normalizeCaptureWeaponTexture(texture, { isColor = false } = {}) {
-  if (!texture?.isTexture) return;
-  texture.flipY = false;
-  if (isColor) applySRGBColorSpace(texture);
-  texture.generateMipmaps = true;
-  texture.minFilter = THREE.LinearMipmapLinearFilter;
-  texture.magFilter = THREE.LinearFilter;
-  texture.anisotropy = Math.max(texture.anisotropy ?? 1, 8);
-  texture.needsUpdate = true;
 }
 
 function stopCaptureWeaponMixersForObjectTree(rootObject, mixersStore) {
@@ -4759,14 +4703,14 @@ const SEATED_HELPER_AVATAR_BADGE_FORWARD = 0.048 * MODEL_SCALE;
 const AVATAR_ANCHOR_SCREEN_DEADBAND_PERCENT = 0.38;
 const AVATAR_ANCHOR_DEPTH_DEADBAND = 0.055;
 // Lift first-person camera anchor so viewpoint aligns at eye level on portrait screens.
-const SEATED_HELPER_FACE_CAMERA_UP = 0.11 * MODEL_SCALE;
+const SEATED_HELPER_FACE_CAMERA_UP = 0.146 * MODEL_SCALE;
 // Move camera anchor to the face-front side so the local player's head stays out of portrait framing.
-const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.038 * MODEL_SCALE;
+const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.072 * MODEL_SCALE;
 // The bottom-seat gameplay camera is intentionally raised and pushed farther toward the table so
 // portrait players see over the local avatar and closer into the Ludo board/action area.
-const SEATED_FACE_CAMERA_GAMEPLAY_FORWARD = 0.28 * MODEL_SCALE;
-const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.55 * MODEL_SCALE;
-const SEATED_FACE_CAMERA_GAMEPLAY_LOOK_DOWN = 0.34 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_FORWARD = 0.39 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.68 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_LOOK_DOWN = 0.44 * MODEL_SCALE;
 const SEATED_CONTACT_IK_ITERATIONS = 9;
 const SEATED_CONTACT_IK_MAX_STEP_RAD = 0.34;
 const SEATED_CONTACT_DICE_Y_OFFSET = 0.005;
@@ -4844,11 +4788,11 @@ const CAMERA_ZOOM_MAX_FACTOR = 1;
 const LUDO_CAMERA_PHI_MIN = 0.92;
 const LUDO_CAMERA_PHI_MAX = 1.22;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
-const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.32;
+const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.18;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.26;
-const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 2.02;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 2.38;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.98;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 0.94;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.2;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.84;
 const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_PORTRAIT = 0.42 * MODEL_SCALE;
 const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_LANDSCAPE = 0.2 * MODEL_SCALE;
@@ -4871,8 +4815,8 @@ const PORTRAIT_CAMERA_EXTRA_LIFT = 0.14;
 const CAMERA_PLAYER_CENTER_X_EPSILON = 0.0001;
 const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
 const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
-const CAMERA_LOOK_PITCH_LIMIT = 0;
-const CAMERA_LOOK_MIN_PITCH = 0;
+const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(7);
+const CAMERA_LOOK_MIN_PITCH = THREE.MathUtils.degToRad(-8);
 const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
 const CAMERA_LOOK_YAW_RECENTER_SPEED = 0.055;
 const LUDO_CAMERA_CUSTOM_LOOK_ENABLED = true;
@@ -11999,7 +11943,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           const tracers = Array.from({ length: 10 }, () => createCaptureBulletTracerFx('#ffe39a'));
           const shells = Array.from({ length: Math.max(16, Math.min(42, shots + 6)) }, () => createCaliberShellCasingFx(mergedBallistics, servicePistolAmmo));
           const pelletsPerShot = FIREARM_SCATTER_PROJECTILE_IDS.has(resolvedCaptureAnimationId) ? 14 : 1;
-          const useHeadOnlyProjectileVisuals = resolvedCaptureAnimationId === 'ak47VolleyAttack';
           const projectileCount = shots * pelletsPerShot;
           const finalProjectileStartIndex = Math.max(0, projectileCount - 1);
           const bullets = Array.from({ length: projectileCount }, (_, index) => {
@@ -12020,22 +11963,18 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             mesh.userData.prelaunchMs = useServicePistolAmmo && isFinalCinematic ? FIREARM_SERVICE_PISTOL_PRELAUNCH_MS : 0;
             mesh.userData.insideBarrelOffset = useServicePistolAmmo && isFinalCinematic ? FIREARM_SERVICE_PISTOL_INSIDE_BARREL_OFFSET : 0;
             mesh.userData.completed = false;
-            mesh.userData.trail = useHeadOnlyProjectileVisuals
-              ? null
-              : createShootingRangeBulletTrailFx({
-                nineMm: isFinalCinematic && useServicePistolAmmo,
-                longGun: isFinalCinematic && isLongGunRound,
-                pumpShotgun: !isFinalCinematic,
-                distance: startPosition.distanceTo(targetPosition)
-              });
-            mesh.userData.wake = useHeadOnlyProjectileVisuals
-              ? null
-              : isFinalCinematic && (useServicePistolAmmo || isLongGunRound)
+            mesh.userData.trail = createShootingRangeBulletTrailFx({
+              nineMm: isFinalCinematic && useServicePistolAmmo,
+              longGun: isFinalCinematic && isLongGunRound,
+              pumpShotgun: !isFinalCinematic,
+              distance: startPosition.distanceTo(targetPosition)
+            });
+            mesh.userData.wake = isFinalCinematic && (useServicePistolAmmo || isLongGunRound)
               ? createShootingRangeBulletWakeFx()
               : null;
             mesh.userData.isShotgunPellet = isShotgunPellet;
             scene.add(mesh);
-            if (mesh.userData.trail) scene.add(mesh.userData.trail);
+            scene.add(mesh.userData.trail);
             if (mesh.userData.wake) scene.add(mesh.userData.wake);
             return mesh;
           });
