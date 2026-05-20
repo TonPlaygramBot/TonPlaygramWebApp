@@ -6732,10 +6732,10 @@ const HUMAN_PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 7.8;
 const PLAYER_HAND_VERTICAL_RAISE = DOMINO_WIDTH * 5.45;
 const PLAYER_HAND_OPPONENT_VERTICAL_EXTRA = DOMINO_WIDTH * 0.34;
 const PLAYER_HAND_CENTER_VERTICAL_DROP = DOMINO_WIDTH * 2.4;
-const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 6.35;
+const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 6.7;
 const HUMAN_HAND_VERTICAL_OFFSET = DOMINO_WIDTH * 0.0;
-const HUMAN_BOTTOM_EXTRA_OUTWARD = DOMINO_WIDTH * 1.18;
-const HUMAN_BOTTOM_EXTRA_RAISE = DOMINO_WIDTH * 5.18;
+const HUMAN_BOTTOM_EXTRA_OUTWARD = DOMINO_WIDTH * 1.45;
+const HUMAN_BOTTOM_EXTRA_RAISE = DOMINO_WIDTH * 5.7;
 // Keep the bottom player's upright tiles separated by a small visible gap.
 const HUMAN_BOTTOM_HAND_GAP_SCALE = 0.88;
 const DOMINO_DOUBLE_NEIGHBOR_EXTRA_GAP = 0;
@@ -7980,8 +7980,8 @@ const DOMINO_CHARACTER_THEMES = Object.freeze([
     skinTone: 0xe3b08b
   }
 ]);
-const DOMINO_CHARACTER_PROPORTION_SCALE = 2.9;
-const DOMINO_HUMAN_CHARACTER_SCALE_BOOST = 1.1;
+const DOMINO_CHARACTER_PROPORTION_SCALE = 2.55;
+const DOMINO_HUMAN_CHARACTER_SCALE_BOOST = 0.55;
 // Seat avatars from the chair footprint instead of adding a table-facing Z offset.
 // This keeps every human visually aligned with the chair that owns the seat.
 const DOMINO_CHARACTER_CHAIR_SEAT_OUTWARD_BIAS = 0.02;
@@ -7989,7 +7989,7 @@ const DOMINO_CHARACTER_CHAIR_SEAT_OUTWARD_BIAS = 0.02;
 const DOMINO_CHARACTER_INWARD_DOMINO_REACH_BIAS = 0.04;
 const DOMINO_HUMAN_CHARACTER_CHAIR_SEAT_OUTWARD_BIAS = 0;
 const DOMINO_CHARACTER_EXTRA_LOWER_OFFSET = 1.76;
-const DOMINO_HUMAN_CHARACTER_EXTRA_LOWER_OFFSET = -0.15;
+const DOMINO_HUMAN_CHARACTER_EXTRA_LOWER_OFFSET = -0.08;
 const ENABLE_DOMINO_CHARACTER_HELD_RACKS = false;
 const DOMINO_CHARACTER_CACHE = new Map();
 const DOMINO_CHARACTER_TEXTURE_CACHE = new Map();
@@ -8345,13 +8345,12 @@ function createDominoCharacterRig(instance, seatRoot, seatIndex, player) {
   addDominoBoneOffset(bones.hips, THREE.MathUtils.degToRad(-9), 0, 0);
   addDominoBoneOffset(bones.spine, THREE.MathUtils.degToRad(-3), 0, 0);
   addDominoBoneOffset(bones.head, THREE.MathUtils.degToRad(2), 0, 0);
-  // Push both forearms/hands lower so they sit close to tabletop height near the rack edge.
-  addDominoBoneOffset(bones.leftUpperArm, THREE.MathUtils.degToRad(-81), THREE.MathUtils.degToRad(-7), THREE.MathUtils.degToRad(-4));
-  addDominoBoneOffset(bones.leftForeArm, THREE.MathUtils.degToRad(61), THREE.MathUtils.degToRad(-2), THREE.MathUtils.degToRad(-1));
-  addDominoBoneOffset(bones.leftHand, THREE.MathUtils.degToRad(35), THREE.MathUtils.degToRad(-3), THREE.MathUtils.degToRad(-1));
-  addDominoBoneOffset(bones.rightUpperArm, THREE.MathUtils.degToRad(-86), THREE.MathUtils.degToRad(10), THREE.MathUtils.degToRad(6));
-  addDominoBoneOffset(bones.rightForeArm, THREE.MathUtils.degToRad(62), THREE.MathUtils.degToRad(5), THREE.MathUtils.degToRad(2));
-  addDominoBoneOffset(bones.rightHand, THREE.MathUtils.degToRad(37), THREE.MathUtils.degToRad(5), THREE.MathUtils.degToRad(2));
+  addDominoBoneOffset(bones.leftUpperArm, THREE.MathUtils.degToRad(-65), THREE.MathUtils.degToRad(-5), THREE.MathUtils.degToRad(-2));
+  addDominoBoneOffset(bones.leftForeArm, THREE.MathUtils.degToRad(39), THREE.MathUtils.degToRad(-2), THREE.MathUtils.degToRad(-1));
+  addDominoBoneOffset(bones.leftHand, THREE.MathUtils.degToRad(11), THREE.MathUtils.degToRad(-3), THREE.MathUtils.degToRad(-1));
+  addDominoBoneOffset(bones.rightUpperArm, THREE.MathUtils.degToRad(-72), THREE.MathUtils.degToRad(10), THREE.MathUtils.degToRad(5));
+  addDominoBoneOffset(bones.rightForeArm, THREE.MathUtils.degToRad(41), THREE.MathUtils.degToRad(5), THREE.MathUtils.degToRad(3));
+  addDominoBoneOffset(bones.rightHand, THREE.MathUtils.degToRad(12), THREE.MathUtils.degToRad(5), THREE.MathUtils.degToRad(3));
   addDominoBoneOffset(bones.leftThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(9.2), THREE.MathUtils.degToRad(2.9));
   addDominoBoneOffset(bones.rightThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(1.7), THREE.MathUtils.degToRad(-1.1));
   addDominoBoneOffset(bones.leftCalf, THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(1.1), THREE.MathUtils.degToRad(0.6));
@@ -8630,14 +8629,14 @@ function runDominoCharacterAction(seatIndex, type = 'PLAY') {
       z: THREE.MathUtils.degToRad(-17)
     },
     rightForeArm: {
-      x: THREE.MathUtils.degToRad(-46),
-      y: THREE.MathUtils.degToRad(16) + inwardElbowYaw,
-      z: THREE.MathUtils.degToRad(-2)
+      x: THREE.MathUtils.degToRad(-48),
+      y: THREE.MathUtils.degToRad(11) + inwardElbowYaw,
+      z: THREE.MathUtils.degToRad(-3)
     },
     rightHand: {
-      x: THREE.MathUtils.degToRad(-21),
-      y: THREE.MathUtils.degToRad(-13),
-      z: THREE.MathUtils.degToRad(-8)
+      x: THREE.MathUtils.degToRad(-24),
+      y: THREE.MathUtils.degToRad(-18),
+      z: THREE.MathUtils.degToRad(-12)
     },
     rightThumb: { x: playFingerOpen, y: THREE.MathUtils.degToRad(15), z: THREE.MathUtils.degToRad(12) },
     rightIndex: { x: playFingerOpen, y: THREE.MathUtils.degToRad(-13), z: THREE.MathUtils.degToRad(-6) },
@@ -8652,14 +8651,14 @@ function runDominoCharacterAction(seatIndex, type = 'PLAY') {
       z: THREE.MathUtils.degToRad(-18)
     },
     rightForeArm: {
-      x: THREE.MathUtils.degToRad(-36),
-      y: THREE.MathUtils.degToRad(18) + inwardElbowYaw,
-      z: THREE.MathUtils.degToRad(-3)
+      x: THREE.MathUtils.degToRad(-38),
+      y: THREE.MathUtils.degToRad(12) + inwardElbowYaw,
+      z: THREE.MathUtils.degToRad(-4)
     },
     rightHand: {
-      x: THREE.MathUtils.degToRad(-26),
-      y: THREE.MathUtils.degToRad(-13),
-      z: THREE.MathUtils.degToRad(-9)
+      x: THREE.MathUtils.degToRad(-30),
+      y: THREE.MathUtils.degToRad(-19),
+      z: THREE.MathUtils.degToRad(-13)
     },
     rightThumb: { x: THREE.MathUtils.degToRad(-4), y: THREE.MathUtils.degToRad(18), z: THREE.MathUtils.degToRad(14) },
     rightIndex: { x: THREE.MathUtils.degToRad(6), y: THREE.MathUtils.degToRad(-16), z: THREE.MathUtils.degToRad(-7) },
@@ -8690,17 +8689,6 @@ function runDominoCharacterAction(seatIndex, type = 'PLAY') {
     head: { x: THREE.MathUtils.degToRad(5) }
   });
   const release = makeDominoPose(carry, {
-    rightUpperArm: {
-      x: THREE.MathUtils.degToRad(92),
-      y: THREE.MathUtils.degToRad(-1) + inwardReachYaw * 0.38,
-      z: THREE.MathUtils.degToRad(2)
-    },
-    rightForeArm: {
-      x: THREE.MathUtils.degToRad(24),
-      y: THREE.MathUtils.degToRad(-3) + inwardElbowYaw * 0.2,
-      z: THREE.MathUtils.degToRad(0)
-    },
-    rightHand: { x: THREE.MathUtils.degToRad(4), y: THREE.MathUtils.degToRad(3), z: THREE.MathUtils.degToRad(1) },
     rightThumb: { x: THREE.MathUtils.degToRad(6), y: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(-9) },
     rightIndex: { x: THREE.MathUtils.degToRad(-14), y: THREE.MathUtils.degToRad(9), z: THREE.MathUtils.degToRad(4) },
     rightMiddle: { x: THREE.MathUtils.degToRad(-9), y: THREE.MathUtils.degToRad(4), z: THREE.MathUtils.degToRad(2) }
