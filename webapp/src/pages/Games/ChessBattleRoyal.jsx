@@ -564,7 +564,7 @@ const CAMERA_TABLE_SPAN_FACTOR = 2.6;
 
 const WALL_PROXIMITY_FACTOR = 0.5; // Bring arena walls 50% closer
 const WALL_HEIGHT_MULTIPLIER = 2; // Double wall height
-const CHAIR_SCALE = 0.98 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
+const CHAIR_SCALE = 0.94 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
 const CHAIR_WIDTH_SCALE = 1.22; // Make chairs a bit smaller for a cleaner board-facing framing.
 const CHAIR_VERTICAL_OFFSET = -0.065 * MODEL_SCALE;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
@@ -613,7 +613,7 @@ const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 3.2;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 2.72; // Make seated humans smaller so they match requested portrait framing.
 const FAILED_HUMAN_CHARACTER_IDS = new Set();
-const SEATED_HUMAN_SEAT_Y_OFFSET = -0.9 * MODEL_SCALE * STOOL_SCALE; // Lower the seated humans slightly.
+const SEATED_HUMAN_SEAT_Y_OFFSET = -0.98 * MODEL_SCALE * STOOL_SCALE; // Lower the seated humans a bit more for portrait framing.
 const SEATED_HUMAN_SEAT_Z_OFFSET = SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.16;
