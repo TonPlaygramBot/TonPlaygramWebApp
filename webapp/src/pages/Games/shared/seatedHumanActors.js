@@ -218,16 +218,16 @@ export function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip
   addBoneRot(rig, rig.rightLowerLeg, -1.2, -0.02, -0.01);
   addBoneRot(rig, rig.rightFoot, 0.14, -0.03, -0.02);
 
-  addBoneRot(rig, rig.leftUpperArm, -0.36, 0.1, 1.02);
-  addBoneRot(rig, rig.leftForeArm, -0.56, 0.06, -0.22);
-  addBoneRot(rig, rig.leftHand, -0.14, 0.02, 0.02);
-  let shoulderX = -0.36;
+  addBoneRot(rig, rig.leftUpperArm, -0.54, 0.03, 0.18);
+  addBoneRot(rig, rig.leftForeArm, -0.18, 0.02, -0.04);
+  addBoneRot(rig, rig.leftHand, -0.06, 0.01, 0.01);
+  let shoulderX = -0.54;
   let shoulderY = -0.03;
-  let shoulderZ = -1.02;
-  let forearmX = -0.56;
-  let forearmY = -0.06;
-  let forearmZ = 0.22;
-  let wristX = -0.14;
+  let shoulderZ = -0.18;
+  let forearmX = -0.18;
+  let forearmY = -0.02;
+  let forearmZ = 0.04;
+  let wristX = -0.06;
   let wristY = 0.02;
   let wristZ = 0.02;
   let chestX = 0.16;
@@ -245,7 +245,7 @@ export function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip
     wristX = THREE.MathUtils.lerp(wristX, -0.4, t);
     wristY = THREE.MathUtils.lerp(wristY, 0.2, t);
     wristZ = THREE.MathUtils.lerp(wristZ, -0.34, t);
-    chestX = THREE.MathUtils.lerp(chestX, 0.28, t);
+    chestX = THREE.MathUtils.lerp(chestX, 0.42, t);
     headX = THREE.MathUtils.lerp(headX, 0.07, t);
   } else if (mode === 'gripPiece') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -1.28, t);
@@ -257,7 +257,7 @@ export function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip
     wristX = THREE.MathUtils.lerp(wristX, -0.46, t);
     wristY = THREE.MathUtils.lerp(wristY, 0.2, t);
     wristZ = THREE.MathUtils.lerp(wristZ, -0.28, t);
-    chestX = THREE.MathUtils.lerp(chestX, 0.31, t);
+    chestX = THREE.MathUtils.lerp(chestX, 0.46, t);
     headX = THREE.MathUtils.lerp(headX, 0.09, t);
   } else if (mode === 'carryPiece') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.98, t);
@@ -269,7 +269,7 @@ export function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip
     wristX = THREE.MathUtils.lerp(wristX, -0.02, t);
     wristY = THREE.MathUtils.lerp(wristY, 0.2, t);
     wristZ = THREE.MathUtils.lerp(wristZ, -0.1, t);
-    chestX = THREE.MathUtils.lerp(chestX, 0.27, t);
+    chestX = THREE.MathUtils.lerp(chestX, 0.4, t);
     headX = THREE.MathUtils.lerp(headX, 0.05, t);
   } else if (mode === 'placePiece') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -1.2, t);
@@ -281,7 +281,7 @@ export function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip
     wristX = THREE.MathUtils.lerp(wristX, -0.48, t);
     wristY = THREE.MathUtils.lerp(wristY, 0.2, t);
     wristZ = THREE.MathUtils.lerp(wristZ, -0.32, t);
-    chestX = THREE.MathUtils.lerp(chestX, 0.3, t);
+    chestX = THREE.MathUtils.lerp(chestX, 0.44, t);
     headX = THREE.MathUtils.lerp(headX, 0.11, t);
   }
 
