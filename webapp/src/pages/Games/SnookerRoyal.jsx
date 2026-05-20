@@ -103,7 +103,6 @@ import {
   SPIN_STUN_RADIUS
 } from './snookerRoyalSpinUtils.js';
 import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
-import SnookerRoyalProvided from './SnookerRoyalProvided.jsx';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
@@ -29498,8 +29497,5 @@ const powerRef = useRef(hud.power);
 }
 
 export default function SnookerRoyal() {
-  // Snooker Royal now mounts the same scene implementation used by Snooker
-  // Champion so the human character and cue stick are rendered by the shared,
-  // unmodified Champion code path.
-  return <SnookerRoyalProvided gameTitle="Snooker Royal" />;
+  return <SnookerRoyalGame gameTitle="Snooker Royal" />;
 }
