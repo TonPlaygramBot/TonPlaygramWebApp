@@ -7580,7 +7580,7 @@ function Table3D(
   railMarkerStyle = null,
   baseVariant = null,
   renderer = null,
-  tableVisualModel = TABLE_MODEL_CLASSIC
+  tableVisualModel = TABLE_MODEL_OPENSOURCE
 ) {
   const tableSizeMeta =
     tableSpecMeta && typeof tableSpecMeta === 'object' ? tableSpecMeta : null;
@@ -12410,7 +12410,7 @@ function SnookerRoyalGame({
   variantKey,
   ballSetKey,
   tableSizeKey,
-  tableModel = TABLE_MODEL_CLASSIC,
+  tableModel = TABLE_MODEL_OPENSOURCE,
   playType = 'regular',
   mode = 'ai',
   trainingMode = 'solo',
