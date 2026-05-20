@@ -19,6 +19,7 @@ namespace Aiming.Pockets
         [SerializeField] private PocketMouth pocketMouth;
         [SerializeField] private PocketCaptureZone captureZone;
         [SerializeField] private List<BallBinding> balls = new List<BallBinding>();
+        [SerializeField, Range(1, 6)] private int collisionSubsteps = 3;
 
         [SerializeField] private PocketCollisionResolver collisionResolver = new PocketCollisionResolver();
         [SerializeField] private PocketCaptureResolver captureResolver = new PocketCaptureResolver();
@@ -39,7 +40,11 @@ namespace Aiming.Pockets
                 }
 
                 var adapter = new PoolBallBody2D(b.body, b.circle, b.id);
-                collisionResolver.Resolve(adapter, pocketMouth);
+                int substeps = Mathf.Max(1, collisionSubsteps);
+                for (int step = 0; step < substeps; step++)
+                {
+                    collisionResolver.Resolve(adapter, pocketMouth);
+                }
                 captureResolver.TryCapture(adapter, pocketMouth, captureZone, out _);
             }
         }
