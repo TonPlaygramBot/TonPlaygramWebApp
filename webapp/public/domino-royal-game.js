@@ -983,7 +983,8 @@ const CHAIR_RADIUS =
   TABLE_RADIUS + SEAT_DEPTH * 0.5 + CHAIR_GAP + CHAIR_OUTWARD_OFFSET;
 const CHAIR_GLOBAL_PUSHBACK = 0.68 * MODEL_SCALE;
 const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.82 * MODEL_SCALE;
-const CHAIR_VISUAL_SCALE = 1.3;
+const CHAIR_VISUAL_SCALE = 1.26;
+const CHAIR_VERTICAL_DROP = 0.035 * MODEL_SCALE;
 const CHAIR_BASE_HEIGHT = LEGACY_BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE * TABLE_HEIGHT_SCALE;
@@ -8792,7 +8793,7 @@ function placeChairsWithOption(option, chairData, token) {
 
     const chair = cloneChairWithTheme(chairData, option);
     chair.scale.multiplyScalar(CHAIR_VISUAL_SCALE);
-    chair.position.y = -seatBottomOffset;
+    chair.position.y = -seatBottomOffset - CHAIR_VERTICAL_DROP;
     wrapper.add(chair);
     wrapper.userData.dominoCharacterChair = chair;
     wrapper.userData.dominoCharacterSeatLift = TABLE_HEIGHT - 0.06 * MODEL_SCALE;
