@@ -8607,7 +8607,7 @@ function Chess3D({
   });
   const [moveMode, setMoveMode] = useState('click');
   const [seatAnchors, setSeatAnchors] = useState([]);
-  const [viewMode, setViewMode] = useState('3d');
+  const [viewMode, setViewMode] = useState('2d');
   const [canReplay, setCanReplay] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [showChat, setShowChat] = useState(false);
@@ -10606,11 +10606,11 @@ function Chess3D({
     };
 
     cameraViewRef.current = { setMode: setViewModeInternal };
-    // Start every match in 3D mode by default and preserve board state when customizations change.
+    // Start every match in 2D mode by default and preserve board state when customizations change.
     restoreAutoViewTo2dRef.current = false;
-    viewModeRef.current = '3d';
-    setViewMode('3d');
-    setViewModeInternal('3d');
+    viewModeRef.current = '2d';
+    setViewMode('2d');
+    setViewModeInternal('2d');
 
     const fit = () => {
       const w = host.clientWidth;
