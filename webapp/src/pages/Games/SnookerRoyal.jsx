@@ -26,7 +26,7 @@ import {
 } from './snookerTableModel.js';
 import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
 import '../../../../pool-royale-power-slider.css';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   isTelegramWebView,
   getTelegramUsername,
@@ -1178,14 +1178,6 @@ const BALL_SIZE_SCALE = 1.14; // bump ball scale slightly so shots read larger o
 const BALL_DIAMETER = BALL_D_REF * OBJECT_MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
-const OFFICIAL_SNOOKER_BALL_DIAMETER_M = 0.0525;
-const SNOOKER_PLAYFIELD_SCALE = BALL_R / (OFFICIAL_SNOOKER_BALL_DIAMETER_M / 2);
-const UP = new THREE.Vector3(0, 1, 0);
-const CFG = {
-  scale: SNOOKER_PLAYFIELD_SCALE,
-  ballR: BALL_R,
-  cueLength: 1.78 * SNOOKER_PLAYFIELD_SCALE
-};
 const ENABLE_BALL_FLOOR_SHADOWS = true;
 const BALL_SHADOW_RADIUS_MULTIPLIER = 0.92;
 const BALL_SHADOW_OPACITY = 0.25;
@@ -1579,15 +1571,6 @@ const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
-// Keep Snooker Royal's cue-ball launch identical to SnookerRoyalProvided.jsx:
-// the visible cue stroke waits until the tip reaches the cue ball, then applies
-// this same full-size snooker strike and spin transfer model.
-const SNOOKER_PROVIDED_SHOT_POWER_BOOST = 0.455;
-const SNOOKER_PROVIDED_SHOT_FULL_SPEED =
-  12 * SNOOKER_PLAYFIELD_SCALE * SNOOKER_PROVIDED_SHOT_POWER_BOOST;
-const SNOOKER_PROVIDED_SHOT_SPIN_SCALE = 0.25;
-const SNOOKER_PROVIDED_SPIN_GLOBAL_SCALE = 0.82;
-const SNOOKER_PROVIDED_CONTACT_GAP = 0.0012 * WORLD_SCALE;
 const SPIN_POWER_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.25;
 const SPIN_POWER_MIN_SCALE = 0.35;
 const SPIN_POWER_MAX_SCALE = 1.25;
@@ -1677,133 +1660,28 @@ const CUE_CUSHION_LIFT_BIAS = BALL_R * 0.06; // lift the cue slightly more as cu
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 
 
-const HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
-
-function enableShadow(obj) {
-  obj.traverse((child) => {
-    if (child.isMesh) {
-      child.castShadow = true;
-      child.receiveShadow = true;
-      child.frustumCulled = false;
-    }
-  });
-  return obj;
-}
-function createCue() {
-  const group = new THREE.Group();
-  const SCALE = CFG.ballR / (OFFICIAL_SNOOKER_BALL_DIAMETER_M / 2 * SNOOKER_PLAYFIELD_SCALE);
-  const shaftMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0xd8b17d,
-    roughness: 0.34,
-    metalness: 0,
-    clearcoat: 0.56,
-    clearcoatRoughness: 0.24
-  });
-  const ferruleMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0xf8fafc,
-    roughness: 0.22,
-    metalness: 0.04,
-    clearcoat: 0.5,
-    clearcoatRoughness: 0.18
-  });
-  const tipMaterial = new THREE.MeshStandardMaterial({ color: 0x1f3f73, roughness: 0.95, metalness: 0 });
-  const bandMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0x111827,
-    roughness: 0.32,
-    metalness: 0.08,
-    clearcoat: 0.18,
-    clearcoatRoughness: 0.2
-  });
-  const ringMaterial = new THREE.MeshPhysicalMaterial({ color: 0xc07a2d, roughness: 0.38, metalness: 0.62 });
-  const makeSegment = (name, material, radialSegments = 40) => {
-    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, radialSegments), material);
-    mesh.name = `snooker-royal-cue-${name}`;
-    enableShadow(mesh);
-    group.add(mesh);
-    return mesh;
-  };
-  const rearShaft = makeSegment('rear-tapered-shaft', shaftMaterial, 48);
-  const frontShaft = makeSegment('front-tapered-shaft', shaftMaterial, 48);
-  const butt = makeSegment('rounded-butt', shaftMaterial, 56);
-  const stripe = makeSegment('butt-stripe-wrap', bandMaterial, 64);
-  const ring = makeSegment('brass-ring', ringMaterial, 48);
-  const ferrule = makeSegment('ferrule', ferruleMaterial, 40);
-  const tip = makeSegment('blue-leather-tip', tipMaterial, 32);
-  const buttCap = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), shaftMaterial);
-  buttCap.name = 'snooker-royal-cue-rounded-butt-cap';
-  enableShadow(buttCap);
-  group.add(buttCap);
-  return { group, rearShaft, frontShaft, butt, stripe, ring, ferrule, tip, buttCap, scale: SCALE };
-}
-function setSegmentTaper(mesh, a, b, radiusTop, radiusBottom = radiusTop) {
-  const dir = b.clone().sub(a);
-  const len = Math.max(0.0001, dir.length());
-  const geomKey = `${radiusTop.toFixed(5)}:${radiusBottom.toFixed(5)}:${len.toFixed(5)}`;
-  if (mesh.userData?.geomKey !== geomKey) {
-    mesh.geometry?.dispose?.();
-    mesh.geometry = new THREE.CylinderGeometry(radiusTop, radiusBottom, len, 48);
-    mesh.userData = { ...(mesh.userData || {}), geomKey };
-  }
-  mesh.position.copy(a).addScaledVector(dir, 0.5);
-  mesh.quaternion.setFromUnitVectors(UP, dir.normalize());
-  mesh.scale.set(1, 1, 1);
-}
-function setCuePose(cue, back, tip) {
-  const dir = tip.clone().sub(back).normalize();
-  const totalLength = tip.distanceTo(back);
-  const rearLength = totalLength * 0.62;
-  const frontLength = totalLength - rearLength;
-  const tipRadius = 0.008 * CFG.scale;
-  const joinRadius = 0.0165 * CFG.scale;
-  const buttRadius = 0.026 * CFG.scale;
-  const buttLength = Math.min(rearLength * 0.36, 0.52 * CFG.scale);
-  const stripeLength = Math.min(rearLength * 0.34, 0.48 * CFG.scale);
-  const ferruleLength = 0.038 * CFG.scale;
-  const tipLength = 0.024 * CFG.scale;
-  const p0 = back.clone();
-  const buttEnd = p0.clone().addScaledVector(dir, buttLength);
-  const rearEnd = back.clone().addScaledVector(dir, rearLength);
-  const ferruleBack = tip.clone().addScaledVector(dir, -(ferruleLength + tipLength));
-  const tipBack = tip.clone().addScaledVector(dir, -tipLength);
-  setSegmentTaper(cue.butt, p0, buttEnd, buttRadius, buttRadius * 1.04);
-  setSegmentTaper(cue.rearShaft, buttEnd, rearEnd, joinRadius, buttRadius * 0.92);
-  setSegmentTaper(cue.frontShaft, rearEnd, ferruleBack, tipRadius, joinRadius);
-  setSegmentTaper(cue.ferrule, ferruleBack, tipBack, tipRadius * 1.08, tipRadius * 1.18);
-  setSegmentTaper(cue.tip, tipBack, tip, tipRadius * 1.05, tipRadius * 1.05);
-  const stripeStart = back.clone().addScaledVector(dir, Math.max(buttLength * 0.28, rearLength * 0.18));
-  const stripeEnd = stripeStart.clone().addScaledVector(dir, stripeLength);
-  setSegmentTaper(cue.stripe, stripeStart, stripeEnd, buttRadius * 1.012, buttRadius * 1.012);
-  const ringStart = rearEnd.clone().addScaledVector(dir, -0.022 * CFG.scale);
-  setSegmentTaper(cue.ring, ringStart, rearEnd, joinRadius * 1.08, joinRadius * 1.12);
-  cue.buttCap.position.copy(back);
-  cue.buttCap.scale.setScalar(buttRadius * 1.08);
-}
-function cuePoseFromGrip(grip, dir, gripFromBack, length = CFG.cueLength) {
-  const n = dir.clone().normalize();
-  return { back: grip.clone().addScaledVector(n, -gripFromBack), tip: grip.clone().addScaledVector(n, length - gripFromBack) };
-}
-
 const SNOOKER_HUMAN_CHARACTER_THEME =
   MURLAN_CHARACTER_THEMES.find((theme) => theme.id === 'rpm-current') ||
   MURLAN_CHARACTER_THEMES[0];
 const SNOOKER_HUMAN_UP = new THREE.Vector3(0, 1, 0);
 const SNOOKER_HUMAN_FORWARD_LOCAL = new THREE.Vector3(0, 0, 1);
-const SNOOKER_HUMAN_WORLD_SCALE = BALL_R / (0.0525 / 2);
+const SNOOKER_HUMAN_WORLD_SCALE = BALL_R / 0.0525;
 const SNOOKER_HUMAN_CFG = Object.freeze({
-  // Keep the Royal avatar dimensions and shot stance matched to SnookerRoyalProvided.jsx.
+  // Match the larger Snooker Champion character proportions exactly so the
+  // Royal avatar reads as a full-sized player beside the GLB snooker table.
   targetHeight: 1.2 * 1.78 * SNOOKER_HUMAN_WORLD_SCALE,
   floorY: FLOOR_Y - TABLE_Y,
   idleDistance: 0.82 * SNOOKER_HUMAN_WORLD_SCALE,
-  bridgeBackFromBall: 0.235 * SNOOKER_HUMAN_WORLD_SCALE,
-  bridgeSide: -0.115 * SNOOKER_HUMAN_WORLD_SCALE,
-  stanceSide: 0.52 * SNOOKER_HUMAN_WORLD_SCALE,
-  rightFootBack: 0.34 * SNOOKER_HUMAN_WORLD_SCALE,
-  leftFootForward: -0.34 * SNOOKER_HUMAN_WORLD_SCALE,
-  chinCueOffsetY: 0.11 * SNOOKER_HUMAN_WORLD_SCALE,
+  bridgeBackFromBall: 0.27 * SNOOKER_HUMAN_WORLD_SCALE,
+  bridgeSide: -0.025 * SNOOKER_HUMAN_WORLD_SCALE,
+  stanceSide: 0.25 * SNOOKER_HUMAN_WORLD_SCALE,
+  rightFootBack: 0.38 * SNOOKER_HUMAN_WORLD_SCALE,
+  leftFootForward: 0.30 * SNOOKER_HUMAN_WORLD_SCALE,
+  chinCueOffsetY: 0.12 * SNOOKER_HUMAN_WORLD_SCALE,
   chestCueOffsetY: 0.22 * SNOOKER_HUMAN_WORLD_SCALE,
-  rootLambda: 5.6,
-  poseLambda: 9,
-  yawFix: Math.PI
+  rootLambda: 7.5,
+  poseLambda: 10,
+  yawFix: 0
 });
 const cleanSnookerHumanBoneName = (name = '') => name.toLowerCase().replace(/[^a-z0-9]/g, '');
 const snookerHumanClamp01 = (value) => Math.max(0, Math.min(1, value));
@@ -2071,8 +1949,18 @@ function loadSnookerHumanModel(loader, url) {
   });
 }
 
-function buildSnookerHumanModelUrls(_theme = SNOOKER_HUMAN_CHARACTER_THEME) {
-  return [HUMAN_URL];
+function buildSnookerHumanModelUrls(theme = SNOOKER_HUMAN_CHARACTER_THEME) {
+  const urls = [
+    ...(theme?.modelUrls || []),
+    theme?.url,
+    ...MURLAN_CHARACTER_THEMES.flatMap((entry) => [
+      ...(entry?.modelUrls || []),
+      entry?.url
+    ]),
+    'https://threejs.org/examples/models/gltf/Xbot.glb',
+    'https://threejs.org/examples/models/gltf/Soldier.glb'
+  ].filter(Boolean);
+  return [...new Set(urls)];
 }
 
 async function loadSnookerHumanModelFromCatalog(loader, urls = buildSnookerHumanModelUrls()) {
@@ -2228,7 +2116,17 @@ function getSnookerCueEndpoints(cueStick, cueLen) {
 
 function updateSnookerRoyalHumanPlayer(human, dt, options) {
   if (!human?.root || human.disabled) return;
-  const { cue, cueStick, cueLen, aimDir, visible, power = 0, shooting = false, cueAnimating = false } = options || {};
+  const {
+    cue,
+    cueStick,
+    cueLen,
+    aimDir,
+    visible,
+    power = 0,
+    shooting = false,
+    cueAnimating = false,
+    tableCueVisible = true
+  } = options || {};
   const cuePos = cue?.pos;
   if (!cuePos || !cue?.active || !visible) {
     human.root.visible = false;
@@ -2240,20 +2138,8 @@ function updateSnookerRoyalHumanPlayer(human, dt, options) {
   dir.normalize();
   const side = new THREE.Vector3(-dir.z, 0, dir.x).normalize();
   const cueBall = new THREE.Vector3(cuePos.x, CUE_Y, cuePos.y);
-  const cueOnTable = Boolean(cueStick?.visible || shooting || cueAnimating);
-  human.poseT = snookerHumanDamp(
-    human.poseT,
-    cueOnTable ? 1 : 0,
-    SNOOKER_HUMAN_CFG.poseLambda,
-    dt
-  );
-  const poseT = snookerHumanClamp01(human.poseT);
   const cueEndpoints = resolveSnookerHumanCueEndpoints(cueStick, cueLen, cueBall, dir);
-  const pullPose = THREE.MathUtils.clamp(
-    ((power ?? 0) * 0.7 + (shooting || cueAnimating ? 0.35 : 0)) * poseT,
-    0,
-    1
-  );
+  const pullPose = THREE.MathUtils.clamp((power ?? 0) * 0.7 + (shooting || cueAnimating ? 0.35 : 0), 0, 1);
   // Orientation is driven from the actual shot line: the root stands behind
   // the cue ball on -dir, then faces +dir back through cue ball/object ball.
   // Keeping local +Z on the shot line prevents mirrored cue/hand placement.
@@ -2280,35 +2166,22 @@ function updateSnookerRoyalHumanPlayer(human, dt, options) {
   human.root.rotation.set(0, human.yaw, 0);
   human.modelRoot.position.copy(human.root.position);
   human.modelRoot.rotation.copy(human.root.rotation);
+  human.poseT = snookerHumanDamp(human.poseT, 1, SNOOKER_HUMAN_CFG.poseLambda, dt);
   const invRoot = new THREE.Matrix4().copy(human.root.matrixWorld).invert();
   const toRootLocal = (v) => v.clone().applyMatrix4(invRoot);
-  const bridgeShot = cueBall.clone()
+  const bridge = cueBall.clone()
     .addScaledVector(dir, -SNOOKER_HUMAN_CFG.bridgeBackFromBall)
     .addScaledVector(side, SNOOKER_HUMAN_CFG.bridgeSide)
     .setY(CUE_Y + BALL_R * 0.08);
-  const gripShot = cueEndpoints.butt.clone().lerp(cueEndpoints.tip, 0.37 + pullPose * 0.08);
-  const idleRightHand = rootTarget.clone()
-    .addScaledVector(side, 0.24 * SNOOKER_HUMAN_WORLD_SCALE)
-    .addScaledVector(dir, 0.12 * SNOOKER_HUMAN_WORLD_SCALE)
-    .setY(SNOOKER_HUMAN_CFG.floorY + 0.95 * SNOOKER_HUMAN_WORLD_SCALE);
-  const idleLeftHand = rootTarget.clone()
-    .addScaledVector(side, -0.18 * SNOOKER_HUMAN_WORLD_SCALE)
-    .addScaledVector(dir, 0.08 * SNOOKER_HUMAN_WORLD_SCALE)
-    .setY(SNOOKER_HUMAN_CFG.floorY + 1.08 * SNOOKER_HUMAN_WORLD_SCALE);
-  const bridge = idleLeftHand.clone().lerp(bridgeShot, poseT);
-  const grip = idleRightHand.clone().lerp(gripShot, poseT);
-  const idleCueTip = idleRightHand.clone()
-    .addScaledVector(dir, 0.7 * SNOOKER_HUMAN_WORLD_SCALE)
-    .addScaledVector(side, -0.08 * SNOOKER_HUMAN_WORLD_SCALE)
-    .add(new THREE.Vector3(0, -0.22 * SNOOKER_HUMAN_WORLD_SCALE, 0));
-  const cueTipForPose = idleCueTip.clone().lerp(cueEndpoints.tip, poseT);
+  const gripBlend = tableCueVisible ? (0.37 + pullPose * 0.08) : 0.62;
+  const grip = cueEndpoints.butt
+    .clone()
+    .lerp(cueEndpoints.tip, gripBlend)
+    .addScaledVector(side, tableCueVisible ? 0 : BALL_R * 0.18)
+    .setY(tableCueVisible ? cueEndpoints.butt.y : CUE_Y + BALL_R * 0.52);
   updateSnookerHumanOrientationHelpers(human, { rootTarget, cueBall, playfieldTarget, dir, bridge, grip });
-  const chestStand = rootTarget.clone().addScaledVector(dir, 0.16 * SNOOKER_HUMAN_WORLD_SCALE).setY(SNOOKER_HUMAN_CFG.floorY + 1.32 * SNOOKER_HUMAN_WORLD_SCALE);
-  const headStand = rootTarget.clone().addScaledVector(dir, 0.2 * SNOOKER_HUMAN_WORLD_SCALE).setY(SNOOKER_HUMAN_CFG.floorY + 1.72 * SNOOKER_HUMAN_WORLD_SCALE);
-  const chestShot = cueBall.clone().addScaledVector(dir, -0.44 * SNOOKER_HUMAN_WORLD_SCALE).setY(CUE_Y + SNOOKER_HUMAN_CFG.chestCueOffsetY);
-  const headShot = cueBall.clone().addScaledVector(dir, -0.34 * SNOOKER_HUMAN_WORLD_SCALE).setY(CUE_Y + SNOOKER_HUMAN_CFG.chinCueOffsetY + 0.08 * SNOOKER_HUMAN_WORLD_SCALE);
-  const chestWorld = chestStand.lerp(chestShot, poseT);
-  const headWorld = headStand.lerp(headShot, poseT);
+  const chestWorld = cueBall.clone().addScaledVector(dir, -0.44 * SNOOKER_HUMAN_WORLD_SCALE).setY(CUE_Y + SNOOKER_HUMAN_CFG.chestCueOffsetY);
+  const headWorld = cueBall.clone().addScaledVector(dir, -0.34 * SNOOKER_HUMAN_WORLD_SCALE).setY(CUE_Y + SNOOKER_HUMAN_CFG.chinCueOffsetY + 0.08 * SNOOKER_HUMAN_WORLD_SCALE);
   const torso = toRootLocal(chestWorld).add(new THREE.Vector3(0, 0.16 * SNOOKER_HUMAN_WORLD_SCALE, -0.08 * SNOOKER_HUMAN_WORLD_SCALE));
   const chest = toRootLocal(chestWorld);
   const head = toRootLocal(headWorld);
@@ -2358,7 +2231,7 @@ function updateSnookerRoyalHumanPlayer(human, dt, options) {
     rightElbowWorld: rightElbowTable,
     headWorld: headWorld,
     chestWorld: chestWorld,
-    cueTipWorld: cueTipForPose
+    cueTipWorld: cueEndpoints.tip
   });
 }
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
@@ -14599,10 +14472,6 @@ const showRuleToast = useCallback((message) => {
   }, 3000);
 }, []);
 const powerRef = useRef(hud.power);
-const shotVisualPowerRef = useRef(0);
-const committedShotPowerRef = useRef(0);
-const sliderDraggingRef = useRef(false);
-const sliderResetTimerRef = useRef(null);
   const applyPower = useCallback((nextPower) => {
     const clampedPower = THREE.MathUtils.clamp(nextPower ?? 0, 0, 1);
     powerRef.current = clampedPower;
@@ -14614,12 +14483,6 @@ const sliderResetTimerRef = useRef(null);
   useEffect(() => {
     powerRef.current = hud.power;
   }, [hud.power]);
-  useEffect(() => () => {
-    if (sliderResetTimerRef.current) {
-      clearTimeout(sliderResetTimerRef.current);
-      sliderResetTimerRef.current = null;
-    }
-  }, []);
   const hudRef = useRef(hud);
   useEffect(() => {
     hudRef.current = hud;
@@ -16214,7 +16077,6 @@ const sliderResetTimerRef = useRef(null);
           : Date.now();
       let shooting = false; // track when a shot is in progress
       let shotStartedAt = 0;
-      let shotImpulseApplied = false;
       let shotRecording = null;
       let replayPlayback = null;
       let pausedPocketDrops = null;
@@ -16232,7 +16094,6 @@ const sliderResetTimerRef = useRef(null);
         shotStartedAt = shooting ? getNow() : 0;
         if (!shooting) {
           maxPowerLiftTriggered = false;
-          shotImpulseApplied = false;
         }
         if (shotCameraHoldTimeoutRef.current) {
           clearTimeout(shotCameraHoldTimeoutRef.current);
@@ -21813,14 +21674,9 @@ const sliderResetTimerRef = useRef(null);
       const cueStick = new THREE.Group();
       const cueBody = new THREE.Group();
       cueStick.add(cueBody);
-      const providedCue = createCue();
-      providedCue.group.name = 'SnookerRoyalProvidedCueStick';
-      providedCue.group.visible = false;
-      cueStick.userData.providedCue = providedCue;
       cueStick.userData.body = cueBody;
       cueStick.userData.isCueStick = true;
       cueBodyRef.current = cueBody;
-      cueBody.visible = false;
       const buttLift = Math.min(CUE_BUTT_LIFT, cueLen);
       const buttTilt = Math.asin(
         Math.min(1, buttLift / Math.max(cueLen, 1e-4))
@@ -22123,7 +21979,6 @@ const sliderResetTimerRef = useRef(null);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
       table.add(cueStick);
-      table.add(providedCue.group);
       const snookerHumanPlayer = createSnookerRoyalHumanPlayer(table, renderer);
       applySelectedCueStyle(cueStyleIndexRef.current ?? cueStyleIndex);
 
@@ -22983,7 +22838,7 @@ const sliderResetTimerRef = useRef(null);
       };
 
       // Fire (slider triggers on release)
-      const fire = (powerOverride = null) => {
+      const fire = () => {
         const currentHud = hudRef.current;
         const frameSnapshot = frameRef.current ?? frameState;
         const fullTableHandPlacement =
@@ -22999,13 +22854,6 @@ const sliderResetTimerRef = useRef(null);
           replayPlaybackRef.current
         )
           return;
-        const committedPower = THREE.MathUtils.clamp(
-          Number.isFinite(powerOverride) ? powerOverride : powerRef.current,
-          0,
-          1
-        );
-        if (committedPower <= 0.02) return;
-        shotVisualPowerRef.current = committedPower;
         if (currentHud?.inHand && (fullTableHandPlacement || inHandPlacementActive)) {
           hudRef.current = { ...currentHud, inHand: false };
           setHud((prev) => ({ ...prev, inHand: false }));
@@ -23095,7 +22943,7 @@ const sliderResetTimerRef = useRef(null);
             pocketSwitchIntentRef.current = null;
           }
           lastPocketBallRef.current = null;
-          const clampedPower = committedPower;
+          const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
           lastShotPower = clampedPower;
           const isMaxPowerShot = clampedPower >= MAX_POWER_BOUNCE_THRESHOLD;
           const maxPowerHoldUntil = isMaxPowerShot
@@ -23122,9 +22970,10 @@ const sliderResetTimerRef = useRef(null);
           const preferZoomReplay =
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
           const frameStateCurrent = frameRef.current ?? null;
+          const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
           const isBreakCameraShot = Boolean(frameStateCurrent?.meta?.breakInProgress);
           const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
-          const speedBase = SNOOKER_PROVIDED_SHOT_FULL_SPEED;
+          const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
           const base = aimDir
             .clone()
             .multiplyScalar(speedBase * powerScale);
@@ -23264,117 +23113,73 @@ const sliderResetTimerRef = useRef(null);
           const appliedSpin = applySpinConstraints(aimDir, true);
           const liftAngle = resolveUserCueLift();
           const liftStrength = normalizeCueLift(liftAngle);
-          const physicsSpinRaw = mapSpinForPhysics(normalizeSpinInput(appliedSpin));
-          const physicsSpin = {
-            x: (physicsSpinRaw.x ?? 0) * SNOOKER_PROVIDED_SPIN_GLOBAL_SCALE,
-            y: (physicsSpinRaw.y ?? 0) * SNOOKER_PROVIDED_SPIN_GLOBAL_SCALE
-          };
+          const physicsSpin = mapSpinForPhysics(appliedSpin);
+          const ranges = spinRangeRef.current || {};
           const powerSpinScale = 0.55 + clampedPower * 0.45;
-          const rawTopSpin =
-            (physicsSpin.y ?? 0) * SNOOKER_PROVIDED_SHOT_SPIN_SCALE * powerSpinScale;
-          const spinSide =
-            (physicsSpin.x ?? 0) *
-            SNOOKER_PROVIDED_SHOT_SPIN_SCALE *
-            SIDE_SPIN_MULTIPLIER *
-            powerSpinScale;
-          const spinTop =
-            rawTopSpin < 0
-              ? rawTopSpin * BACKSPIN_MULTIPLIER
-              : rawTopSpin * TOPSPIN_MULTIPLIER;
-          let shotImpactApplied = false;
-          const applyShotImpactAtCueContact = () => {
-            if (shotImpactApplied) return false;
-            shotImpactApplied = true;
-            shotImpulseApplied = true;
-            const impactPower = THREE.MathUtils.clamp(
-              committedShotPowerRef.current || clampedPower,
+          const baseSide = physicsSpin.x * (ranges.side ?? 0);
+          let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
+          let spinTop = physicsSpin.y * (ranges.forward ?? 0) * powerSpinScale;
+          if (physicsSpin.y < 0) {
+            spinTop *= BACKSPIN_MULTIPLIER;
+          } else if (physicsSpin.y > 0) {
+            spinTop *= TOPSPIN_MULTIPLIER;
+          }
+          cue.vel.copy(base);
+          if (cue.spin) {
+            cue.spin.set(spinSide, spinTop);
+          }
+          if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
+          cue.spinMode = 'standard';
+          cue.swerveStrength = 0;
+          cue.swervePowerStrength = 0;
+          resetSpinRef.current?.();
+          cueLiftRef.current.lift = 0;
+          cueLiftRef.current.startLift = 0;
+          cue.impacted = false;
+          cue.launchDir = aimDir.clone().normalize();
+          maxPowerLiftTriggered = false;
+          cue.lift = 0;
+          cue.liftVel = 0;
+          const topSpinWeight = Math.max(0, physicsSpin.y || 0);
+          if (
+            clampedPower >= JUMP_SHOT_POWER_THRESHOLD &&
+            liftStrength >= JUMP_SHOT_LIFT_THRESHOLD &&
+            topSpinWeight >= JUMP_SHOT_TOPSPIN_THRESHOLD
+          ) {
+            const powerRatio = THREE.MathUtils.clamp(
+              (clampedPower - JUMP_SHOT_POWER_THRESHOLD) /
+                Math.max(1 - JUMP_SHOT_POWER_THRESHOLD, 1e-4),
               0,
               1
             );
-            const impactPowerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * impactPower;
-            const impactBase = aimDir
-              .clone()
-              .multiplyScalar(speedBase * impactPowerScale);
-            cue.vel.copy(impactBase);
-            const sideThrow = TMP_VEC2_A
-              .set(aimDir.y, -aimDir.x)
-              .normalize()
-              .multiplyScalar(
-                (spinSide ?? 0) *
-                  impactPower *
-                  1.05 *
-                  CFG.scale *
-                  SNOOKER_PROVIDED_SHOT_POWER_BOOST
-              );
-            cue.vel.add(sideThrow);
-            if (cue.spin) {
-              cue.spin.set(spinSide, spinTop);
-            }
-            if (cue.omega) {
-              cue.omega.set(0, 0, 0);
-              const launchSpeed = cue.vel.length();
-              if (launchSpeed > 1e-6) {
-                TMP_VEC3_CUE_DIR.set(cue.vel.y, 0, -cue.vel.x).normalize();
-                cue.omega.addScaledVector(TMP_VEC3_CUE_DIR, launchSpeed / BALL_R);
-                cue.omega.x += -(spinTop ?? 0) * impactPower * 18;
-                cue.omega.z += -(spinSide ?? 0) * impactPower * 18;
-              }
-            }
-            cue.lastShotSpin = { x: spinSide ?? 0, y: spinTop ?? 0 };
-            if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
-            cue.spinMode = 'standard';
-            cue.swerveStrength = 0;
-            cue.swervePowerStrength = 0;
-            resetSpinRef.current?.();
-            cueLiftRef.current.lift = 0;
-            cueLiftRef.current.startLift = 0;
-            cue.impacted = false;
-            cue.launchDir = cue.vel.lengthSq() > 1e-8 ? cue.vel.clone().normalize() : aimDir.clone().normalize();
-            maxPowerLiftTriggered = false;
-            cue.lift = 0;
-            cue.liftVel = 0;
-            const topSpinWeight = Math.max(0, physicsSpin.y || 0);
-            if (
-              impactPower >= JUMP_SHOT_POWER_THRESHOLD &&
-              liftStrength >= JUMP_SHOT_LIFT_THRESHOLD &&
-              topSpinWeight >= JUMP_SHOT_TOPSPIN_THRESHOLD
-            ) {
-              const powerRatio = THREE.MathUtils.clamp(
-                (impactPower - JUMP_SHOT_POWER_THRESHOLD) /
-                  Math.max(1 - JUMP_SHOT_POWER_THRESHOLD, 1e-4),
-                0,
-                1
-              );
-              const liftRatio = THREE.MathUtils.clamp(
-                (liftStrength - JUMP_SHOT_LIFT_THRESHOLD) /
-                  Math.max(1 - JUMP_SHOT_LIFT_THRESHOLD, 1e-4),
-                0,
-                1
-              );
-              const spinRatio = THREE.MathUtils.clamp(
-                (topSpinWeight - JUMP_SHOT_TOPSPIN_THRESHOLD) /
-                  Math.max(1 - JUMP_SHOT_TOPSPIN_THRESHOLD, 1e-4),
-                0,
-                1
-              );
-              const jumpStrength =
-                (0.25 + 0.75 * powerRatio) *
-                (0.4 + 0.6 * liftRatio) *
-                (0.55 + 0.45 * spinRatio);
-              const jumpVelocity = MAX_POWER_BOUNCE_IMPULSE * JUMP_SHOT_LAUNCH_SCALE * jumpStrength;
-              const physicsHeight =
-                (jumpVelocity * jumpVelocity) /
-                (2 * Math.max(MAX_POWER_BOUNCE_GRAVITY, 1e-6));
-              const jumpHeight = Math.min(
-                MAX_POWER_LIFT_HEIGHT * JUMP_SHOT_HEIGHT_SCALE,
-                physicsHeight
-              );
-              cue.lift = Math.max(cue.lift ?? 0, jumpHeight);
-              cue.liftVel = Math.max(cue.liftVel ?? 0, jumpVelocity);
-            }
-            playCueHit(impactPower * 0.6);
-            return true;
-          };
+            const liftRatio = THREE.MathUtils.clamp(
+              (liftStrength - JUMP_SHOT_LIFT_THRESHOLD) /
+                Math.max(1 - JUMP_SHOT_LIFT_THRESHOLD, 1e-4),
+              0,
+              1
+            );
+            const spinRatio = THREE.MathUtils.clamp(
+              (topSpinWeight - JUMP_SHOT_TOPSPIN_THRESHOLD) /
+                Math.max(1 - JUMP_SHOT_TOPSPIN_THRESHOLD, 1e-4),
+              0,
+              1
+            );
+            const jumpStrength =
+              (0.25 + 0.75 * powerRatio) *
+              (0.4 + 0.6 * liftRatio) *
+              (0.55 + 0.45 * spinRatio);
+            const jumpVelocity = MAX_POWER_BOUNCE_IMPULSE * JUMP_SHOT_LAUNCH_SCALE * jumpStrength;
+            const physicsHeight =
+              (jumpVelocity * jumpVelocity) /
+              (2 * Math.max(MAX_POWER_BOUNCE_GRAVITY, 1e-6));
+            const jumpHeight = Math.min(
+              MAX_POWER_LIFT_HEIGHT * JUMP_SHOT_HEIGHT_SCALE,
+              physicsHeight
+            );
+            cue.lift = Math.max(cue.lift ?? 0, jumpHeight);
+            cue.liftVel = Math.max(cue.liftVel ?? 0, jumpVelocity);
+          }
+          playCueHit(clampedPower * 0.6);
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -23461,15 +23266,15 @@ const sliderResetTimerRef = useRef(null);
           cueStick.position.copy(idlePos);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
-          const pullbackDuration = 0;
-          const strikeDuration = CUE_LOGIC_STRIKE_TIME_MS;
-          const holdDuration = CUE_LOGIC_HOLD_TIME_MS;
-          const returnDuration = 0;
+          const pullbackDuration = 115;
+          const strikeDuration = 110;
+          const holdDuration = 45;
+          const returnDuration = 95;
           // Keep the no-character cue stroke matching the old human-rig shot:
           // drive the tip forward from pullback into cue-ball contact instead
           // of stopping at the original address gap.
           const impactPush = THREE.MathUtils.clamp(
-            CUE_TIP_CLEARANCE - SNOOKER_PROVIDED_CONTACT_GAP,
+            CUE_TIP_CLEARANCE,
             BALL_R * 0.08,
             BALL_R * 0.3
           );
@@ -23484,7 +23289,16 @@ const sliderResetTimerRef = useRef(null);
           const settlePos = impactPos
             .clone()
             .addScaledVector(TMP_VEC3_FOLLOW_DIR, followExtra);
-          cueStick.visible = true;
+          const cameraForCueVisibility =
+            activeRenderCameraRef.current ?? cameraRef.current ?? camera;
+          const cueBallY = cue?.pos ? CUE_Y : BALL_CENTER_Y;
+          const cameraHeightAboveCue =
+            (cameraForCueVisibility?.position?.y ?? cueBallY) - cueBallY;
+          const isStandingCueView =
+            !shooting &&
+            !cueAnimating &&
+            cameraHeightAboveCue > BALL_R * 3.4;
+          cueStick.visible = !isStandingCueView;
           cueStick.position.copy(idlePos);
           const startTime = performance.now();
           const pullEndTime = startTime + pullbackDuration;
@@ -23551,7 +23365,6 @@ const sliderResetTimerRef = useRef(null);
             if (!ENABLE_CUE_STROKE_ANIMATION) {
               cueStick.visible = false;
               cueAnimating = false;
-              shotVisualPowerRef.current = 0;
               cuePullCurrentRef.current = 0;
               cuePullTargetRef.current = 0;
               return;
@@ -23564,11 +23377,8 @@ const sliderResetTimerRef = useRef(null);
               holdDuration,
               animationStyle: 'linear',
               strikeWindowRatio: 0.12,
-              hitArmRatio: 0.98
+              hitArmRatio: 0.88
             });
-            if (sample.hitArmed) {
-              applyShotImpactAtCueContact();
-            }
             if (sample.phase === 'pullback') {
               cueStick.position.lerpVectors(idlePos, pullPos, easeInOutQuad(sample.t));
             } else if (sample.phase === 'release' || sample.phase === 'strike') {
@@ -23585,9 +23395,14 @@ const sliderResetTimerRef = useRef(null);
               const t = THREE.MathUtils.clamp((now - holdEndTime) / returnDuration, 0, 1);
               cueStick.position.lerpVectors(settlePos, idlePos, easeInOutQuad(t));
             } else {
-              cueStick.visible = false;
+              const releaseCamera =
+                activeRenderCameraRef.current ?? cameraRef.current ?? camera;
+              const releaseCueBallY = cue?.pos ? CUE_Y : BALL_CENTER_Y;
+              const releaseHeightAboveCue =
+                (releaseCamera?.position?.y ?? releaseCueBallY) - releaseCueBallY;
+              const standingReleaseView = releaseHeightAboveCue > BALL_R * 3.4;
+              cueStick.visible = !standingReleaseView;
               cueAnimating = false;
-              shotVisualPowerRef.current = 0;
               cuePullCurrentRef.current = 0;
               cuePullTargetRef.current = 0;
               if (cameraRef.current && sphRef.current) {
@@ -23602,16 +23417,7 @@ const sliderResetTimerRef = useRef(null);
             }
             requestAnimationFrame(animateStroke);
           };
-          if (ENABLE_CUE_STROKE_ANIMATION) {
-            requestAnimationFrame(animateStroke);
-          } else {
-            applyShotImpactAtCueContact();
-            cueStick.visible = false;
-            cueAnimating = false;
-            shotVisualPowerRef.current = 0;
-            cuePullCurrentRef.current = 0;
-            cuePullTargetRef.current = 0;
-          }
+          requestAnimationFrame(animateStroke);
         };
         let aiThinkingHandle = null;
         const planKey = (plan) =>
@@ -26650,17 +26456,6 @@ const sliderResetTimerRef = useRef(null);
           updateChalkVisibility(null);
         }
 
-        const providedCueVisual = cueStick.userData?.providedCue;
-        if (providedCueVisual?.group) {
-          providedCueVisual.group.visible = cueStick.visible;
-          if (cueStick.visible) {
-            const endpoints = getSnookerCueEndpoints(cueStick, cueLen);
-            if (endpoints?.butt && endpoints?.tip) {
-              setCuePose(providedCueVisual, endpoints.butt, endpoints.tip);
-            }
-          }
-        }
-
         try {
           updateSnookerRoyalHumanPlayer(snookerHumanPlayer, deltaSeconds, {
             cue,
@@ -26669,10 +26464,11 @@ const sliderResetTimerRef = useRef(null);
             aimDir: showingRemoteAim
               ? new THREE.Vector2(remoteAimState?.dir?.x ?? 0, remoteAimState?.dir?.y ?? 1)
               : activeAiPlan?.aimDir || aimDir,
-            visible: cue?.active && !currentHud?.over,
-            power: Math.max(powerRef.current ?? 0, shotVisualPowerRef.current ?? 0, activeAiPlan?.power ?? 0),
+            visible: cueStick.visible || cueAnimating || shooting,
+            power: powerRef.current ?? activeAiPlan?.power ?? 0,
             shooting,
-            cueAnimating
+            cueAnimating,
+            tableCueVisible: cueStick.visible
           });
         } catch (error) {
           snookerHumanPlayer.disabled = true;
@@ -27392,10 +27188,7 @@ const sliderResetTimerRef = useRef(null);
             const any = balls.some(
               (b) => b.active && b.vel.length() * frameScale >= STOP_EPS
             );
-            if (!shotImpulseApplied) {
-              // The shot is committed, but the cue-ball impulse waits for the
-              // visible cue tip to reach contact, matching Snooker Champion.
-            } else if (!any) {
+            if (!any) {
               resolve();
             } else if (shotStartedAt > 0 && now - shotStartedAt >= STUCK_SHOT_TIMEOUT_MS) {
               console.warn('Shot timeout reached; forcing resolve to prevent a stuck frame.');
@@ -27593,7 +27386,6 @@ const sliderResetTimerRef = useRef(null);
         activeRenderCameraRef.current = null;
         snookerHumanPlayer?.root?.removeFromParent?.();
         snookerHumanPlayer?.modelRoot?.removeFromParent?.();
-        providedCue?.group?.removeFromParent?.();
         cueBodyRef.current = null;
         tipGroupRef.current = null;
         try {
@@ -27790,35 +27582,14 @@ const sliderResetTimerRef = useRef(null);
       labels: true,
       onChange: (v) => applyPower(v / 100),
       onStart: () => {
-        sliderDraggingRef.current = true;
-        if (sliderResetTimerRef.current) {
-          clearTimeout(sliderResetTimerRef.current);
-          sliderResetTimerRef.current = null;
-        }
         captureCueStickAnchor();
       },
-      onCommit: (value) => {
-        const normalized = THREE.MathUtils.clamp(value / 100, 0, 1);
-        sliderDraggingRef.current = false;
-        committedShotPowerRef.current = normalized;
-        shotVisualPowerRef.current = normalized;
-        applyPower(normalized);
-        if (normalized > 0.02) {
-          fireRef.current?.(normalized);
-        }
-        slider.animateToMin({ duration: 180 });
-        if (sliderResetTimerRef.current) {
-          clearTimeout(sliderResetTimerRef.current);
-          sliderResetTimerRef.current = null;
-        }
-        const resetDelay = normalized > 0.02
-          ? CUE_LOGIC_STRIKE_TIME_MS + CUE_LOGIC_HOLD_TIME_MS + 180
-          : 180;
-        sliderResetTimerRef.current = window.setTimeout(() => {
-          sliderResetTimerRef.current = null;
-          committedShotPowerRef.current = 0;
+      onCommit: () => {
+        fireRef.current?.();
+        requestAnimationFrame(() => {
+          slider.set(slider.min, { animate: true });
           applyPower(0);
-        }, resetDelay);
+        });
       }
     });
     sliderInstanceRef.current = slider;
@@ -29757,82 +29528,5 @@ const sliderResetTimerRef = useRef(null);
 }
 
 export default function SnookerRoyal() {
-  const location = useLocation();
-  const playType = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    const requested = params.get('type');
-    if (requested === 'training') return 'training';
-    if (requested === 'tournament') return 'tournament';
-    return 'regular';
-  }, [location.search]);
-  const variantKey = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    return resolvePoolVariant(params.get('variant') || 'snooker').id;
-  }, [location.search]);
-  const ballSetKey = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    const normalized = normalizeBallSetKey(params.get('ballSet'));
-    return normalized || null;
-  }, [location.search]);
-  const tableSizeKey = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    return resolveTableSize(params.get('tableSize')).id;
-  }, [location.search]);
-  const tableModel = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    return resolveSnookerTableModel(params.get('tableModel')).id;
-  }, [location.search]);
-  const mode = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    const requested = params.get('mode');
-    if (requested === 'online') return 'online';
-    if (requested === 'local') return 'local';
-    return 'ai';
-  }, [location.search]);
-  const trainingMode = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    return params.get('trainingMode') === 'ai' ? 'ai' : 'solo';
-  }, [location.search]);
-  const accountId = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    return params.get('accountId') || '';
-  }, [location.search]);
-  const tgId = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    return params.get('tgId') || '';
-  }, [location.search]);
-  const playerName = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    return params.get('name') || getTelegramUsername() || getTelegramId() || 'Player';
-  }, [location.search]);
-  const playerAvatar = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    return params.get('avatar') || getTelegramPhotoUrl() || '';
-  }, [location.search]);
-  const opponentName = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    return params.get('opponent') || '';
-  }, [location.search]);
-  const opponentAvatar = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    return params.get('opponentAvatar') || '';
-  }, [location.search]);
-
-  return (
-    <SnookerRoyalGame
-      variantKey={variantKey}
-      ballSetKey={ballSetKey}
-      tableSizeKey={tableSizeKey}
-      tableModel={tableModel}
-      playType={playType}
-      mode={mode}
-      trainingMode={trainingMode}
-      accountId={accountId}
-      tgId={tgId}
-      playerName={playerName}
-      playerAvatar={playerAvatar}
-      opponentName={opponentName}
-      opponentAvatar={opponentAvatar}
-    />
-  );
+  return <SnookerRoyalGame gameTitle="Snooker Royal" />;
 }
