@@ -14286,23 +14286,26 @@ function mountPoolRoyaleExternalTableModel({
   };
 
   const applyBaseVariant = (variant) => {
-    const requestedVariantId = resolveBaseVariantId(variant);
+    const variantId = resolveBaseVariantId(variant);
     const isShowoodExternalTable =
       usesExternalTableModel && resolvedTableOptions?.tableModel?.id === 'showood-seven-foot';
-    const variantId =
-      isShowoodExternalTable && requestedVariantId === SHOWOOD_ORIGINAL_TABLE_BASE_ID
-        ? DEFAULT_PROCEDURAL_TABLE_BASE_ID
-        : requestedVariantId;
-    const usesShowoodOriginalBase = false;
+    const usesShowoodOriginalBase =
+      isShowoodExternalTable && variantId === SHOWOOD_ORIGINAL_TABLE_BASE_ID;
 
     table.userData.showoodUsesOriginalBase = usesShowoodOriginalBase;
-    setExternalOriginalBaseVisible(!isShowoodExternalTable);
+    setExternalOriginalBaseVisible(usesShowoodOriginalBase || !isShowoodExternalTable);
     refreshGeneratedVisualVisibility();
 
     if (usesExternalTableModel && !isShowoodExternalTable) {
       clearBaseMeshes();
       finishParts.baseVariantId = 'externalModelOwnBase';
       table.userData.baseVariantId = 'externalModelOwnBase';
+      return;
+    }
+    if (usesShowoodOriginalBase) {
+      clearBaseMeshes();
+      finishParts.baseVariantId = SHOWOOD_ORIGINAL_TABLE_BASE_ID;
+      table.userData.baseVariantId = SHOWOOD_ORIGINAL_TABLE_BASE_ID;
       return;
     }
     const builder = baseBuilders[variantId] ?? baseBuilders[DEFAULT_PROCEDURAL_TABLE_BASE_ID];
