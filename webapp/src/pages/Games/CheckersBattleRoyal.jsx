@@ -125,6 +125,10 @@ const SEATED_HUMAN_PICKUP_PHASE_END = 0.34;
 const SEATED_HUMAN_CARRY_PHASE_END = 0.74;
 const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.16 * CHECKERS_ARENA_SCALE;
 const SEATED_HUMAN_HAND_DROP_CLEARANCE = 0.003 * CHECKERS_ARENA_SCALE;
+const SEATED_HUMAN_HAND_REACH_DOWN_OFFSET = 0.048 * CHECKERS_ARENA_SCALE;
+const SEATED_HUMAN_FORWARD_REACH_MIN = 0.7;
+const SEATED_HUMAN_FORWARD_REACH_MAX = 1.45;
+const SEATED_HUMAN_SIDE_REACH_SCALE = 1.28;
 const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
 const DEFAULT_HDRI_CAMERA_HEIGHT_M = 1.5;
 const HDRI_UNITS_PER_METER = 1;
@@ -2567,17 +2571,26 @@ export default function CheckersBattleRoyal() {
       }
       const rawT = clamp((now - action.startedAt) / Math.max(action.duration, 1), 0, 1);
       const liftedFrom = action.from.clone();
-      liftedFrom.y += SEATED_HUMAN_HAND_DROP_CLEARANCE;
+      liftedFrom.y += SEATED_HUMAN_HAND_DROP_CLEARANCE - SEATED_HUMAN_HAND_REACH_DOWN_OFFSET;
       const liftedTo = action.to.clone();
-      liftedTo.y += SEATED_HUMAN_HAND_DROP_CLEARANCE;
+      liftedTo.y += SEATED_HUMAN_HAND_DROP_CLEARANCE - SEATED_HUMAN_HAND_REACH_DOWN_OFFSET;
       const carryArc = Math.sin(Math.PI * rawT) * (SEATED_HUMAN_PICK_LIFT_HEIGHT + action.tile * 0.18);
       const target = new THREE.Vector3().lerpVectors(liftedFrom, liftedTo, smoothEase(rawT));
       target.y += carryArc;
       const fromLocal = entry.actor.worldToLocal(action.from.clone());
       const toLocal = entry.actor.worldToLocal(action.to.clone());
       const sideSpan = Math.max(action.tile * 3, 0.001);
-      const forwardReach = clamp01(Math.max(Math.abs(fromLocal.z), Math.abs(toLocal.z)) / sideSpan, 0.55);
-      const sideReach = clamp((fromLocal.x + toLocal.x) / (sideSpan * 2), -1, 1);
+      const reachDistanceRatio = Math.max(Math.abs(fromLocal.z), Math.abs(toLocal.z)) / sideSpan;
+      const forwardReach = clamp(
+        reachDistanceRatio * 1.18 + 0.22,
+        SEATED_HUMAN_FORWARD_REACH_MIN,
+        SEATED_HUMAN_FORWARD_REACH_MAX
+      );
+      const sideReach = clamp(
+        ((fromLocal.x + toLocal.x) / (sideSpan * 2)) * SEATED_HUMAN_SIDE_REACH_SCALE,
+        -1,
+        1
+      );
       let mode = 'reachPiece';
       let intensity = 1;
       let grip = 0;
