@@ -4703,14 +4703,14 @@ const SEATED_HELPER_AVATAR_BADGE_FORWARD = 0.048 * MODEL_SCALE;
 const AVATAR_ANCHOR_SCREEN_DEADBAND_PERCENT = 0.38;
 const AVATAR_ANCHOR_DEPTH_DEADBAND = 0.055;
 // Lift first-person camera anchor so viewpoint aligns at eye level on portrait screens.
-const SEATED_HELPER_FACE_CAMERA_UP = 0.11 * MODEL_SCALE;
+const SEATED_HELPER_FACE_CAMERA_UP = 0.146 * MODEL_SCALE;
 // Move camera anchor to the face-front side so the local player's head stays out of portrait framing.
-const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.038 * MODEL_SCALE;
+const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.072 * MODEL_SCALE;
 // The bottom-seat gameplay camera is intentionally raised and pushed farther toward the table so
 // portrait players see over the local avatar and closer into the Ludo board/action area.
-const SEATED_FACE_CAMERA_GAMEPLAY_FORWARD = 0.28 * MODEL_SCALE;
-const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.55 * MODEL_SCALE;
-const SEATED_FACE_CAMERA_GAMEPLAY_LOOK_DOWN = 0.34 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_FORWARD = 0.39 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.68 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_LOOK_DOWN = 0.44 * MODEL_SCALE;
 const SEATED_CONTACT_IK_ITERATIONS = 9;
 const SEATED_CONTACT_IK_MAX_STEP_RAD = 0.34;
 const SEATED_CONTACT_DICE_Y_OFFSET = 0.005;
@@ -4788,11 +4788,11 @@ const CAMERA_ZOOM_MAX_FACTOR = 1;
 const LUDO_CAMERA_PHI_MIN = 0.92;
 const LUDO_CAMERA_PHI_MAX = 1.22;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
-const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.32;
+const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.18;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.26;
-const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 2.02;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 2.38;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.98;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 0.94;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.2;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.84;
 const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_PORTRAIT = 0.42 * MODEL_SCALE;
 const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_LANDSCAPE = 0.2 * MODEL_SCALE;
@@ -4815,8 +4815,8 @@ const PORTRAIT_CAMERA_EXTRA_LIFT = 0.14;
 const CAMERA_PLAYER_CENTER_X_EPSILON = 0.0001;
 const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
 const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
-const CAMERA_LOOK_PITCH_LIMIT = 0;
-const CAMERA_LOOK_MIN_PITCH = 0;
+const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(7);
+const CAMERA_LOOK_MIN_PITCH = THREE.MathUtils.degToRad(-8);
 const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
 const CAMERA_LOOK_YAW_RECENTER_SPEED = 0.055;
 const LUDO_CAMERA_CUSTOM_LOOK_ENABLED = true;
@@ -11943,7 +11943,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           const tracers = Array.from({ length: 10 }, () => createCaptureBulletTracerFx('#ffe39a'));
           const shells = Array.from({ length: Math.max(16, Math.min(42, shots + 6)) }, () => createCaliberShellCasingFx(mergedBallistics, servicePistolAmmo));
           const pelletsPerShot = FIREARM_SCATTER_PROJECTILE_IDS.has(resolvedCaptureAnimationId) ? 14 : 1;
-          const useHeadOnlyProjectileVisuals = resolvedCaptureAnimationId === 'ak47VolleyAttack';
           const projectileCount = shots * pelletsPerShot;
           const finalProjectileStartIndex = Math.max(0, projectileCount - 1);
           const bullets = Array.from({ length: projectileCount }, (_, index) => {
@@ -11964,22 +11963,18 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             mesh.userData.prelaunchMs = useServicePistolAmmo && isFinalCinematic ? FIREARM_SERVICE_PISTOL_PRELAUNCH_MS : 0;
             mesh.userData.insideBarrelOffset = useServicePistolAmmo && isFinalCinematic ? FIREARM_SERVICE_PISTOL_INSIDE_BARREL_OFFSET : 0;
             mesh.userData.completed = false;
-            mesh.userData.trail = useHeadOnlyProjectileVisuals
-              ? null
-              : createShootingRangeBulletTrailFx({
-                nineMm: isFinalCinematic && useServicePistolAmmo,
-                longGun: isFinalCinematic && isLongGunRound,
-                pumpShotgun: !isFinalCinematic,
-                distance: startPosition.distanceTo(targetPosition)
-              });
-            mesh.userData.wake = useHeadOnlyProjectileVisuals
-              ? null
-              : isFinalCinematic && (useServicePistolAmmo || isLongGunRound)
+            mesh.userData.trail = createShootingRangeBulletTrailFx({
+              nineMm: isFinalCinematic && useServicePistolAmmo,
+              longGun: isFinalCinematic && isLongGunRound,
+              pumpShotgun: !isFinalCinematic,
+              distance: startPosition.distanceTo(targetPosition)
+            });
+            mesh.userData.wake = isFinalCinematic && (useServicePistolAmmo || isLongGunRound)
               ? createShootingRangeBulletWakeFx()
               : null;
             mesh.userData.isShotgunPellet = isShotgunPellet;
             scene.add(mesh);
-            if (mesh.userData.trail) scene.add(mesh.userData.trail);
+            scene.add(mesh.userData.trail);
             if (mesh.userData.wake) scene.add(mesh.userData.wake);
             return mesh;
           });
