@@ -618,6 +618,7 @@ const SEATED_HUMAN_SEAT_Z_OFFSET = SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.16;
 const SEATED_HUMAN_HAND_PIECE_FORWARD = 0.012;
+const SEATED_HUMAN_MOVE_LEAN_FORWARD_GAIN = 0.18;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.44;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.32;
@@ -659,6 +660,8 @@ const SEATED_HUMAN_FIREARM_HAND_SIDE = 0.01;
 const SEATED_HUMAN_FIREARM_SUPPORT_FORWARD = 0.072;
 const SEATED_HUMAN_FIREARM_SUPPORT_UP = 0.012;
 const SEATED_HUMAN_FIREARM_SUPPORT_SIDE = 0.018;
+const AI_TURN_DELAY_MS = 880;
+const AI_POST_SELECT_DELAY_MS = 520;
 
 
 function resolveChairDistanceForDirection(tableInfo, ...layoutArgs) {
@@ -1028,19 +1031,19 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, m
   addBoneRot(rig, rig.rightLowerLeg, -1.42, -0.01, -0.01);
   addBoneRot(rig, rig.rightFoot, 0.14, -0.03, -0.02);
 
-  addBoneRot(rig, rig.leftUpperArm, -0.36, 0.1, 1.02);
-  addBoneRot(rig, rig.leftForeArm, -0.56, 0.06, -0.22);
-  addBoneRot(rig, rig.leftHand, -0.14, 0.02, 0.02);
-  let shoulderX = -0.36;
-  let shoulderY = -0.03;
-  let shoulderZ = -1.02;
-  let forearmX = -0.56;
-  let forearmY = -0.06;
-  let forearmZ = 0.22;
-  let wristX = -0.14;
+  addBoneRot(rig, rig.leftUpperArm, -1.18, 0.04, 0.08);
+  addBoneRot(rig, rig.leftForeArm, -0.16, 0.02, -0.06);
+  addBoneRot(rig, rig.leftHand, -0.06, 0.01, 0.01);
+  let shoulderX = -1.18;
+  let shoulderY = 0.04;
+  let shoulderZ = -0.08;
+  let forearmX = -0.16;
+  let forearmY = -0.02;
+  let forearmZ = 0.06;
+  let wristX = -0.06;
   let wristY = 0.02;
   let wristZ = 0.02;
-  let chestX = 0.16;
+  let chestX = 0.14;
   let headX = -0.03;
   const forwardReach = clamp01(motionProfile?.forwardReach, 0);
   const sideReach = THREE.MathUtils.clamp(motionProfile?.sideReach ?? 0, -1, 1);
@@ -1115,6 +1118,8 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, m
 
   const reachForwardDelta = forwardReach * SEATED_HUMAN_REACH_FORWARD_GAIN;
   const reachSideDelta = sideReach * SEATED_HUMAN_REACH_SIDE_GAIN;
+  const moveLeanDelta =
+    (mode === 'idle' || mode === 'firearmAim' ? 0 : 1) * t * SEATED_HUMAN_MOVE_LEAN_FORWARD_GAIN;
   shoulderX = THREE.MathUtils.lerp(shoulderX, shoulderX - reachForwardDelta, t);
   shoulderY = THREE.MathUtils.lerp(shoulderY, shoulderY + reachSideDelta * 0.32, t);
   shoulderZ = THREE.MathUtils.lerp(shoulderZ, shoulderZ - reachSideDelta * 0.5, t);
@@ -1123,8 +1128,8 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, m
   forearmZ = THREE.MathUtils.lerp(forearmZ, forearmZ - reachSideDelta * 0.36, t);
   wristY = THREE.MathUtils.lerp(wristY, wristY + reachSideDelta * 0.2, t);
   wristZ = THREE.MathUtils.lerp(wristZ, wristZ - reachSideDelta * 0.16, t);
-  chestX = THREE.MathUtils.lerp(chestX, chestX + reachForwardDelta * 0.5, t);
-  headX = THREE.MathUtils.lerp(headX, headX + reachForwardDelta * 0.22, t);
+  chestX = THREE.MathUtils.lerp(chestX, chestX + reachForwardDelta * 0.5 + moveLeanDelta, t);
+  headX = THREE.MathUtils.lerp(headX, headX + reachForwardDelta * 0.22 + moveLeanDelta * 0.3, t);
 
   addBoneRot(rig, rig.chest, chestX, 0, 0);
   addBoneRot(rig, rig.head, headX, 0, 0);
@@ -13638,7 +13643,7 @@ function Chess3D({
       }
       startTimer(nextWhite);
       if (shouldTriggerAiMove(nextWhite)) {
-        const delay = Math.max(200, getMoveLockRemainingMs() + 30);
+        const delay = Math.max(AI_TURN_DELAY_MS, getMoveLockRemainingMs() + 30);
         setTimeout(aiMove, delay);
       }
     }
@@ -14393,7 +14398,7 @@ function Chess3D({
     function aiMove() {
       if (isReplayingRef.current) return;
       if (isMoveInteractionLocked()) {
-        setTimeout(aiMove, Math.max(180, getMoveLockRemainingMs() + 20));
+        setTimeout(aiMove, Math.max(AI_TURN_DELAY_MS, getMoveLockRemainingMs() + 20));
         return;
       }
       const activeTurnWhite = uiRef.current?.turnWhite ?? true;
@@ -14405,7 +14410,7 @@ function Chess3D({
         return;
       }
       selectAt(mv.fromR, mv.fromC, { force: true, selectionColor: paletteRef.current?.capture });
-      setTimeout(() => moveSelTo(mv.toR, mv.toC, { byAi: true }), 300);
+      setTimeout(() => moveSelTo(mv.toR, mv.toC, { byAi: true }), AI_POST_SELECT_DELAY_MS);
     }
 
     onClick = function onClick(e) {
@@ -15517,7 +15522,7 @@ function Chess3D({
     // Start timer for the human player
     startTimer(true);
     if (shouldTriggerAiMove(true)) {
-      setTimeout(aiMove, 220);
+      setTimeout(aiMove, AI_TURN_DELAY_MS);
     }
   };
 
