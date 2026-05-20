@@ -5,20 +5,6 @@ const POOLTOOL_RAW_BASE =
 
 export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
   {
-    id: 'procedural-showood-hybrid',
-    label: 'Procedural (Showood Shape)',
-    description:
-      'Native procedural Pool Royale table with restored procedural bases and Showood-matched jaw/cushion/frame geometry profile for faster startup.',
-    tableSizeId: '7ft',
-    baseId: 'classicCylinders',
-    icon: '🧩',
-    kind: 'procedural',
-    fitScale: 1,
-    fitFootprintScale: 1,
-    fitHeightScale: 1,
-    usePoolRoyaleFinish: true
-  },
-  {
     id: 'showood-seven-foot',
     label: 'Showood 7 ft GLB',
     description:
@@ -55,7 +41,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
 
 export const DEFAULT_POOL_ROYALE_TABLE_MODEL_ID =
   POOL_ROYALE_TABLE_MODEL_OPTIONS.find(
-    (option) => option.id === 'procedural-showood-hybrid'
+    (option) => option.id === 'showood-seven-foot'
   )?.id || POOL_ROYALE_TABLE_MODEL_OPTIONS[0].id;
 
 export function resolvePoolRoyaleTableModel(modelId) {
