@@ -564,8 +564,8 @@ const CAMERA_TABLE_SPAN_FACTOR = 2.6;
 
 const WALL_PROXIMITY_FACTOR = 0.5; // Bring arena walls 50% closer
 const WALL_HEIGHT_MULTIPLIER = 2; // Double wall height
-const CHAIR_SCALE = 1.02 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
-const CHAIR_WIDTH_SCALE = 1.28; // Make chairs a touch smaller while preserving presence.
+const CHAIR_SCALE = 0.98 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
+const CHAIR_WIDTH_SCALE = 1.22; // Make chairs a bit smaller for a cleaner board-facing framing.
 const CHAIR_VERTICAL_OFFSET = -0.065 * MODEL_SCALE;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
 const PLAYER_CHAIR_EXTRA_CLEARANCE = 0.22 * MODEL_SCALE; // push local bottom chair/human farther away from the table than the opponent.
@@ -611,9 +611,9 @@ const SAND_TIMER_SCALE = 0.36;
 const SEATED_HUMAN_DEFAULT_MODEL_URL = CHESS_HUMAN_CHARACTER_OPTIONS[0]?.modelUrls?.[0];
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 3.2;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 2.85; // Shrink seated human characters further.
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 2.72; // Make seated humans smaller so they match requested portrait framing.
 const FAILED_HUMAN_CHARACTER_IDS = new Set();
-const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -0.9 * MODEL_SCALE * STOOL_SCALE; // Lower the seated humans slightly.
 const SEATED_HUMAN_SEAT_Z_OFFSET = SEAT_DEPTH * 0.2;
 const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.16;
@@ -14315,8 +14315,16 @@ function Chess3D({
               : 0;
           locked.lastPointerX = Number.isFinite(clientX) ? clientX : locked.lastPointerX;
           locked.lastPointerY = Number.isFinite(clientY) ? clientY : locked.lastPointerY;
-          locked.targetYaw -= movementX * 0.0024;
-          locked.targetPitch = clamp(locked.targetPitch - movementY * 0.002, -0.86, 0.2);
+          locked.targetYaw = clamp(
+            locked.targetYaw - movementX * 0.0045,
+            -PLAYER_FACE_CAMERA_YAW_LIMIT,
+            PLAYER_FACE_CAMERA_YAW_LIMIT
+          );
+          locked.targetPitch = clamp(
+            locked.targetPitch - movementY * 0.0045,
+            -PLAYER_FACE_CAMERA_PITCH_LIMIT,
+            PLAYER_FACE_CAMERA_PITCH_LIMIT
+          );
         }
         return;
       }
