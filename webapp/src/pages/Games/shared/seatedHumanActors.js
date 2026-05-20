@@ -236,27 +236,27 @@ export function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip
   const sideReach = THREE.MathUtils.clamp(motionProfile?.sideReach ?? 0, -1, 1);
 
   if (mode === 'reachPiece') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.92, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, 0.06, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.18, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.74, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.2, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.28, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.18, t);
-    wristY = THREE.MathUtils.lerp(wristY, 0.16, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.22, t);
+    shoulderX = THREE.MathUtils.lerp(shoulderX, -1.22, t);
+    shoulderY = THREE.MathUtils.lerp(shoulderY, 0.14, t);
+    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.34, t);
+    forearmX = THREE.MathUtils.lerp(forearmX, -1.04, t);
+    forearmY = THREE.MathUtils.lerp(forearmY, -0.28, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.38, t);
+    wristX = THREE.MathUtils.lerp(wristX, -0.4, t);
+    wristY = THREE.MathUtils.lerp(wristY, 0.2, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, -0.34, t);
     chestX = THREE.MathUtils.lerp(chestX, 0.28, t);
     headX = THREE.MathUtils.lerp(headX, 0.07, t);
   } else if (mode === 'gripPiece') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.96, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, 0.06, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.12, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.82, t);
+    shoulderX = THREE.MathUtils.lerp(shoulderX, -1.28, t);
+    shoulderY = THREE.MathUtils.lerp(shoulderY, 0.14, t);
+    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.32, t);
+    forearmX = THREE.MathUtils.lerp(forearmX, -1.14, t);
     forearmY = THREE.MathUtils.lerp(forearmY, -0.18, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.2, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.26, t);
-    wristY = THREE.MathUtils.lerp(wristY, 0.16, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.16, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.3, t);
+    wristX = THREE.MathUtils.lerp(wristX, -0.46, t);
+    wristY = THREE.MathUtils.lerp(wristY, 0.2, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, -0.28, t);
     chestX = THREE.MathUtils.lerp(chestX, 0.31, t);
     headX = THREE.MathUtils.lerp(headX, 0.09, t);
   } else if (mode === 'carryPiece') {
@@ -267,20 +267,20 @@ export function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip
     forearmY = THREE.MathUtils.lerp(forearmY, -0.14, t);
     forearmZ = THREE.MathUtils.lerp(forearmZ, -0.09, t);
     wristX = THREE.MathUtils.lerp(wristX, -0.02, t);
-    wristY = THREE.MathUtils.lerp(wristY, 0.14, t);
+    wristY = THREE.MathUtils.lerp(wristY, 0.2, t);
     wristZ = THREE.MathUtils.lerp(wristZ, -0.1, t);
     chestX = THREE.MathUtils.lerp(chestX, 0.27, t);
     headX = THREE.MathUtils.lerp(headX, 0.05, t);
   } else if (mode === 'placePiece') {
-    shoulderX = THREE.MathUtils.lerp(shoulderX, -0.86, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, 0.02, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.02, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, -0.88, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.2, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.28, t);
-    wristX = THREE.MathUtils.lerp(wristX, -0.28, t);
-    wristY = THREE.MathUtils.lerp(wristY, 0.14, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.2, t);
+    shoulderX = THREE.MathUtils.lerp(shoulderX, -1.2, t);
+    shoulderY = THREE.MathUtils.lerp(shoulderY, 0.1, t);
+    shoulderZ = THREE.MathUtils.lerp(shoulderZ, -1.26, t);
+    forearmX = THREE.MathUtils.lerp(forearmX, -1.18, t);
+    forearmY = THREE.MathUtils.lerp(forearmY, -0.28, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.38, t);
+    wristX = THREE.MathUtils.lerp(wristX, -0.48, t);
+    wristY = THREE.MathUtils.lerp(wristY, 0.2, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, -0.32, t);
     chestX = THREE.MathUtils.lerp(chestX, 0.3, t);
     headX = THREE.MathUtils.lerp(headX, 0.11, t);
   }

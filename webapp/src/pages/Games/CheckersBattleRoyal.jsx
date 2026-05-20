@@ -121,10 +121,10 @@ const SEATED_HUMAN_TARGET_HEIGHT =
 const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = SEAT_DEPTH * 0.08;
 const SEATED_HUMAN_MOVE_DURATION_MS = 700;
-const SEATED_HUMAN_PICKUP_PHASE_END = 0.26;
-const SEATED_HUMAN_CARRY_PHASE_END = 0.78;
+const SEATED_HUMAN_PICKUP_PHASE_END = 0.34;
+const SEATED_HUMAN_CARRY_PHASE_END = 0.74;
 const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.16 * CHECKERS_ARENA_SCALE;
-const SEATED_HUMAN_HAND_DROP_CLEARANCE = 0.012 * CHECKERS_ARENA_SCALE;
+const SEATED_HUMAN_HAND_DROP_CLEARANCE = 0.003 * CHECKERS_ARENA_SCALE;
 const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
 const DEFAULT_HDRI_CAMERA_HEIGHT_M = 1.5;
 const HDRI_UNITS_PER_METER = 1;
@@ -2600,13 +2600,15 @@ export default function CheckersBattleRoyal() {
       applySeatedHumanRightArmIK(entry.rig, target, 0.98);
       entry.actor.updateMatrixWorld(true);
       const gripWorld = getSeatedHumanGripWorldPosition(entry.rig);
-      const isHandCarrying = rawT > SEATED_HUMAN_PICKUP_PHASE_END * 0.72 && rawT < 0.9;
+      const pickupContactStart = SEATED_HUMAN_PICKUP_PHASE_END * 0.56;
+      const placeContactEnd = Math.min(0.985, SEATED_HUMAN_CARRY_PHASE_END + (1 - SEATED_HUMAN_CARRY_PHASE_END) * 0.94);
+      const isHandCarrying = rawT >= pickupContactStart && rawT <= placeContactEnd;
       const linkedAnim = activeAnimationsRef.current.find((anim) => anim.object === action.object);
       if (linkedAnim) linkedAnim.handCarried = isHandCarrying;
       if (action.object) action.object.userData.handCarried = isHandCarrying;
       if (action.object && isHandCarrying) {
         action.object.position.copy(gripWorld || target);
-        action.object.position.y -= action.tile * 0.16;
+        action.object.position.y -= action.tile * 0.06;
         action.object.rotation.z = Math.sin(rawT * Math.PI * 2) * 0.05;
       }
       if (rawT >= 1) {
