@@ -1833,9 +1833,9 @@ const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // disable preview-only spin defle
 const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
-const SHOT_POWER_ADJUSTMENT = 0.62; // reduce overall Pool Royale power by an additional 20%
-const SHOT_POWER_BOOST = 1.32; // add stronger cue drive while preserving slider feel
-const SHOT_GLOBAL_POWER_SCALE = 0.78; // tone down Pool Royale strike speed so shots match the requested game power pacing
+const SHOT_POWER_ADJUSTMENT = 1; // restore legacy shot scaling used before the May 19 power retune
+const SHOT_POWER_BOOST = 0.455; // restore the pre-May-19 cue launch boost
+const SHOT_GLOBAL_POWER_SCALE = 1; // keep global strike scaling neutral to match the legacy feel
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -11944,7 +11944,7 @@ export function Table3D(
   const brandPlateWidth = Math.min(PLAY_W * 0.32, Math.max(BALL_R * 9.6, PLAY_W * 0.23));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 0.62;
+  const brandPlateOutwardShift = endRailW * 0.92;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
