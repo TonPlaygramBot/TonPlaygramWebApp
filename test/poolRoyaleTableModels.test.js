@@ -8,12 +8,12 @@ import {
 } from '../webapp/src/config/poolRoyaleTableModels.js';
 
 describe('Pool Royale table models', () => {
-  test('defaults to the Showood GLB table', () => {
-    assert.equal(DEFAULT_POOL_ROYALE_TABLE_MODEL_ID, 'showood-seven-foot');
-    assert.equal(resolvePoolRoyaleTableModel(null).id, 'showood-seven-foot');
+  test('defaults to the procedural Showood-shape table', () => {
+    assert.equal(DEFAULT_POOL_ROYALE_TABLE_MODEL_ID, 'procedural-showood-hybrid');
+    assert.equal(resolvePoolRoyaleTableModel(null).id, 'procedural-showood-hybrid');
     assert.equal(
       resolvePoolRoyaleTableModel('unknown').id,
-      'showood-seven-foot'
+      'procedural-showood-hybrid'
     );
   });
 
@@ -63,7 +63,7 @@ describe('Pool Royale table models', () => {
     );
     assert.equal(
       resolvePoolRoyaleTableModel('traditional-fizyman-eight-foot').id,
-      'showood-seven-foot'
+      'procedural-showood-hybrid'
     );
   });
 
@@ -74,7 +74,7 @@ describe('Pool Royale table models', () => {
     );
 
     assert.ok(
-      lobby.includes('Showood 7 ft GLB is now the fixed Pool Royale table.'),
+      lobby.includes('Procedural Showood-shape table is now the fixed Pool Royale table.'),
       'lobby should explain the fixed Showood table'
     );
     assert.equal(
