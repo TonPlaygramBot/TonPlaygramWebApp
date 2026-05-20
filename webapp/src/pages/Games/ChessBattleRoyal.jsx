@@ -3194,7 +3194,7 @@ const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
   diamondEdge: 0.024
 });
 const LOWER_PROFILE_TABLE_SHAPE_IDS = new Set(['classicOctagon', 'hexagonTable', 'grandOval', 'diamondEdge']);
-const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0;
+const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0.06;
 const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 20.5; // make parked jet/helicopter/drone read large beside the table
 const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -4.2; // push parked vehicles and parked weapons farther to the arena sides
 const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.26; // lift pad markers/parked units from floor to board/table level
