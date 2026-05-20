@@ -1269,8 +1269,7 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
 const DEFAULT_COMMENTARY_PRESET_ID = POOL_ROYALE_COMMENTARY_PRESETS[0]?.id || 'english';
 const SHOWOOD_ORIGINAL_TABLE_BASE_ID = 'showoodOriginal';
 const DEFAULT_PROCEDURAL_TABLE_BASE_ID = 'classicCylinders';
-const DEFAULT_TABLE_BASE_ID = DEFAULT_PROCEDURAL_TABLE_BASE_ID;
-const ENFORCE_SHOWOOD_PROCEDURAL_BASE_HYBRID = true; // keep Showood field+cushions+rails+pockets+jaws, but always use procedural table bases
+const DEFAULT_TABLE_BASE_ID = SHOWOOD_ORIGINAL_TABLE_BASE_ID;
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const ENABLE_CUE_STROKE_ANIMATION = true;
@@ -1307,7 +1306,7 @@ const REPLAY_CAMERA_START_DELAY_MS = 0;
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
 const FRAME_RAIL_OUTWARD_SCALE = 1.24; // shorten all 4 table sides by reducing outer frame overhang while keeping playfield dimensions stable
-const RAIL_HEIGHT = TABLE.THICK * 1.6; // procedural-era rail stack height used for gameplay/collision alignment against Showood visual rails
+const RAIL_HEIGHT = TABLE.THICK * 1.9; // lift all six cushions/rails a touch more so the top profile reads higher without changing playfield size
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.024; // push the corner jaws just a bit farther outward so the fascia follows the rounded rail and chrome cut
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
@@ -14256,15 +14255,9 @@ function mountPoolRoyaleExternalTableModel({
   };
 
   const applyBaseVariant = (variant) => {
-    const requestedVariantId = resolveBaseVariantId(variant);
+    const variantId = resolveBaseVariantId(variant);
     const isShowoodExternalTable =
       usesExternalTableModel && resolvedTableOptions?.tableModel?.id === 'showood-seven-foot';
-    const variantId =
-      ENFORCE_SHOWOOD_PROCEDURAL_BASE_HYBRID &&
-      isShowoodExternalTable &&
-      requestedVariantId === SHOWOOD_ORIGINAL_TABLE_BASE_ID
-        ? DEFAULT_PROCEDURAL_TABLE_BASE_ID
-        : requestedVariantId;
     const usesShowoodOriginalBase =
       isShowoodExternalTable && variantId === SHOWOOD_ORIGINAL_TABLE_BASE_ID;
 
@@ -15626,8 +15619,10 @@ function PoolRoyaleGame({
   );
   const availableTableBases = useMemo(
     () =>
-      POOL_ROYALE_BASE_VARIANTS.filter((variant) =>
-        isPoolOptionUnlocked('tableBase', variant.id, poolInventory)
+      POOL_ROYALE_BASE_VARIANTS.filter(
+        (variant) =>
+          variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID &&
+          isPoolOptionUnlocked('tableBase', variant.id, poolInventory)
       ),
     [poolInventory]
   );
@@ -15726,12 +15721,10 @@ function PoolRoyaleGame({
   );
   const activeTableBase = useMemo(
     () =>
-      availableTableBases.find((variant) => variant.id === tableBaseId) ??
-      availableTableBases.find((variant) => variant.id === DEFAULT_TABLE_BASE_ID) ??
-      POOL_ROYALE_BASE_VARIANTS.find((variant) => variant.id === DEFAULT_TABLE_BASE_ID) ??
-      availableTableBases[0] ??
+      availableTableBases.find((variant) => variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID) ??
+      POOL_ROYALE_BASE_VARIANTS.find((variant) => variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID) ??
       POOL_ROYALE_BASE_VARIANTS[0],
-    [availableTableBases, tableBaseId]
+    [availableTableBases]
   );
   const resolvedHdriResolution = useMemo(() => {
     return autoHdriResolutionFromGraphics;
@@ -15785,19 +15778,12 @@ function PoolRoyaleGame({
   }, []);
 
   useEffect(() => {
-    const usingShowoodModel = activeTableModelOption?.id === 'showood-seven-foot';
-    if (
-      ENFORCE_SHOWOOD_PROCEDURAL_BASE_HYBRID &&
-      usingShowoodModel &&
-      tableBaseId === SHOWOOD_ORIGINAL_TABLE_BASE_ID
-    ) {
-      setTableBaseId(DEFAULT_PROCEDURAL_TABLE_BASE_ID);
-      return;
-    }
     if (!isPoolOptionUnlocked('tableFinish', tableFinishId, poolInventory)) {
       setTableFinishId(DEFAULT_TABLE_FINISH_ID);
     }
-    if (!isPoolOptionUnlocked('tableBase', tableBaseId, poolInventory)) {
+    if (tableBaseId !== SHOWOOD_ORIGINAL_TABLE_BASE_ID) {
+      setTableBaseId(SHOWOOD_ORIGINAL_TABLE_BASE_ID);
+    } else if (!isPoolOptionUnlocked('tableBase', tableBaseId, poolInventory)) {
       setTableBaseId(DEFAULT_TABLE_BASE_ID);
     }
     if (!isPoolOptionUnlocked('clothColor', clothColorId, poolInventory)) {
@@ -15819,7 +15805,6 @@ function PoolRoyaleGame({
       setEnvironmentHdriId(POOL_ROYALE_DEFAULT_HDRI_ID);
     }
   }, [
-    activeTableModelOption,
     chromeColorId,
     chromePlateStyleId,
     clothColorId,
