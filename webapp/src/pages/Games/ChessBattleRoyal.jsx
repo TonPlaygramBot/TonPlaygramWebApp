@@ -525,7 +525,7 @@ const BOARD = { N: 8, tile: 4.2, rim: 3, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.24; // Lower tokens slightly so they stay grounded on the board after shrinking.
 const LAYOUT_SCALE_FACTOR = 0.7225;
-const TABLE_LAYOUT_SCALE_FACTOR = 0.66; // Slightly enlarge board/table/chairs so the chess arena reads bigger on screen.
+const TABLE_LAYOUT_SCALE_FACTOR = 0.78; // Slightly enlarge board/table/chairs so the chess arena reads bigger on screen.
 const PIECE_SCALE_FACTOR = 0.73 * LAYOUT_SCALE_FACTOR * 1.5 * 0.82 * 1.2; // Upsize pieces a bit so they stay proportional to the larger board.
 const PIECE_FOOTPRINT_RATIO = 0.86;
 const BOARD_GROUP_Y_OFFSET = -0.034; // sink the board slab so its visible playing surface rests on the table felt.
@@ -568,8 +568,8 @@ const CHAIR_SCALE = 1.02 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
 const CHAIR_WIDTH_SCALE = 1.4; // Make chairs a bit bigger so they read more prominently in portrait.
 const CHAIR_VERTICAL_OFFSET = -0.065 * MODEL_SCALE;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
-const PLAYER_CHAIR_EXTRA_CLEARANCE = 0.16 * MODEL_SCALE; // push local bottom chair/human farther away from the table than the opponent.
-const OPPONENT_CHAIR_EXTRA_CLEARANCE = 0.09 * MODEL_SCALE; // push opponent chair/human slightly outward from the table.
+const PLAYER_CHAIR_EXTRA_CLEARANCE = 0.22 * MODEL_SCALE; // push local bottom chair/human farther away from the table than the opponent.
+const OPPONENT_CHAIR_EXTRA_CLEARANCE = 0.14 * MODEL_SCALE; // push opponent chair/human slightly outward from the table.
 const CHAIR_TABLE_PUSHBACK = 0.04 * MODEL_SCALE;
 const CHAIR_TABLE_GAP_MIN = 0.08 * MODEL_SCALE;
 const CHAIR_TABLE_GAP_MAX = 0.42 * MODEL_SCALE;
@@ -1015,17 +1015,17 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, m
   // Baseline pose tuned to match the seated portrait reference:
   // upright torso, shoulders open, both arms spread and hovering over chair arms.
   addBonePos(rig, rig.hips, 0, -0.332, -0.052);
-  addBoneRot(rig, rig.hips, -0.08, 0, 0);
-  addBoneRot(rig, rig.spine, 0.18 + breathe, 0, 0);
-  addBoneRot(rig, rig.chest, 0.16 + breathe * 0.5, 0, 0);
+  addBoneRot(rig, rig.hips, -0.02, 0, 0);
+  addBoneRot(rig, rig.spine, 0.1 + breathe * 0.5, 0, 0);
+  addBoneRot(rig, rig.chest, 0.08 + breathe * 0.35, 0, 0);
   addBoneRot(rig, rig.neck, -0.02, 0, 0);
   addBoneRot(rig, rig.head, -0.03, 0, 0);
 
-  addBoneRot(rig, rig.leftUpperLeg, -1.18, 0.14, 0.04);
-  addBoneRot(rig, rig.leftLowerLeg, -1.2, 0.02, 0.01);
+  addBoneRot(rig, rig.leftUpperLeg, -1.42, 0.08, 0.02);
+  addBoneRot(rig, rig.leftLowerLeg, -1.42, 0.01, 0.01);
   addBoneRot(rig, rig.leftFoot, 0.14, 0.04, 0.02);
-  addBoneRot(rig, rig.rightUpperLeg, -1.18, 0.02, -0.03);
-  addBoneRot(rig, rig.rightLowerLeg, -1.2, -0.02, -0.01);
+  addBoneRot(rig, rig.rightUpperLeg, -1.42, 0.01, -0.02);
+  addBoneRot(rig, rig.rightLowerLeg, -1.42, -0.01, -0.01);
   addBoneRot(rig, rig.rightFoot, 0.14, -0.03, -0.02);
 
   addBoneRot(rig, rig.leftUpperArm, -0.36, 0.1, 1.02);
@@ -3196,7 +3196,7 @@ const BOARD_SURFACE_OFFSETS_BY_SHAPE = Object.freeze({
 const LOWER_PROFILE_TABLE_SHAPE_IDS = new Set(['classicOctagon', 'hexagonTable', 'grandOval', 'diamondEdge']);
 const LOWER_PROFILE_TABLE_HEIGHT_DELTA = 0;
 const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 20.5; // make parked jet/helicopter/drone read large beside the table
-const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -2.85; // push parked vehicles much farther to the sides
+const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -3.45; // push parked vehicles much farther to the sides
 const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.26; // lift pad markers/parked units from floor to board/table level
 const SIDE_PARKED_AIR_UNITS_LANE_SPREAD = 2.22; // increase spacing between parking slots
 const SIDE_PARKED_TRUCK_SCALE_MULTIPLIER = 1.22; // keep truck as prominent as the parked aircraft
@@ -14949,7 +14949,7 @@ function Chess3D({
             shooterPos = shooterPos.clone();
             shooterPos.y += 0.26;
             const aimDir = targetPos.clone().sub(shooterPos).normalize();
-            const muzzlePos = shooterPos.clone().addScaledVector(aimDir, LUDO_FIREARM_BROADCAST_PROFILE.aimLift ?? 0.064);
+            const muzzlePos = shooterPos.clone().addScaledVector(aimDir, (LUDO_FIREARM_BROADCAST_PROFILE.aimLift ?? 0.064) + 0.055);
             fx.missileFx.root.visible = true;
             fx.missileFx.root.position.copy(muzzlePos).addScaledVector(aimDir, 0.08);
             orientForwardKeepingUp(fx.missileFx.root, aimDir);
@@ -15109,7 +15109,7 @@ function Chess3D({
               if (isFatalBullet) activeBulletCameraFollow = null;
               const shell = createFirearmShellMesh(fx.bulletProfile);
               const ejectSide = new THREE.Vector3().crossVectors(aimDir, WORLD_UP).normalize();
-              shell.position.copy(muzzlePos).addScaledVector(ejectSide, 0.035);
+              shell.position.copy(muzzlePos).addScaledVector(ejectSide, 0.048).addScaledVector(aimDir, -0.012);
               shell.quaternion.setFromUnitVectors(WORLD_UP, ejectSide);
               captureFxGroup.add(shell);
               fx.liveShells.push({
