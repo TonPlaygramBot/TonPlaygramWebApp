@@ -366,6 +366,17 @@ const FIREARM_RACK_OPPOSITE_SEAT_TARGET_BY_PLAYER = Object.freeze({
   0: 2,
   2: 0
 });
+const KNOWN_LUDO_WEAPON_SOURCES = Object.freeze({
+  awp: 'https://cdn.jsdelivr.net/gh/GarbajYT/godot-sniper-rifle@master/AWP.glb',
+  awpRaw: 'https://raw.githubusercontent.com/GarbajYT/godot-sniper-rifle/master/AWP.glb',
+  mrtk: 'https://cdn.jsdelivr.net/gh/microsoft/MixedRealityToolkit@main/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb',
+  mrtkRaw: 'https://raw.githubusercontent.com/microsoft/MixedRealityToolkit/main/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb',
+  pistol: 'https://cdn.jsdelivr.net/gh/SAAAM-LLC/3D_model_bundle@main/SAM_ASSET-PISTOL-IN-HOLSTER.glb',
+  pistolRaw: 'https://raw.githubusercontent.com/SAAAM-LLC/3D_model_bundle/main/SAM_ASSET-PISTOL-IN-HOLSTER.glb',
+  fps: 'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@main/main/scene.gltf',
+  fpsRaw: 'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/main/main/scene.gltf'
+});
+const polyWeaponSource = (id) => `https://static.poly.pizza/${id}.glb`;
 const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   mrtkGunAttack: {
     label: 'MRTK Gun',
@@ -380,8 +391,11 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   pistolHolsterAttack: {
     label: 'Pistol Holster',
     urls: [
-      'https://raw.githubusercontent.com/SAAAM-LLC/3D_model_bundle/main/SAM_ASSET-PISTOL-IN-HOLSTER.glb',
-      'https://cdn.jsdelivr.net/gh/SAAAM-LLC/3D_model_bundle@main/SAM_ASSET-PISTOL-IN-HOLSTER.glb'
+      polyWeaponSource('3b53f0fe-f86e-451c-816d-6ab9bd265cdc'),
+      polyWeaponSource('9e728565-67a3-44db-9567-982320abff09'),
+      KNOWN_LUDO_WEAPON_SOURCES.pistol,
+      KNOWN_LUDO_WEAPON_SOURCES.pistolRaw,
+      KNOWN_LUDO_WEAPON_SOURCES.mrtk
     ],
     scale: 0.138
   },
@@ -398,31 +412,33 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   glockSidearmAttack: {
     label: 'Glock',
     urls: [
-      'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/glock.glb',
-      'https://raw.githubusercontent.com/webaverse/pistol/master/glock.glb'
+      polyWeaponSource('3b53f0fe-f86e-451c-816d-6ab9bd265cdc'),
+      KNOWN_LUDO_WEAPON_SOURCES.pistol,
+      KNOWN_LUDO_WEAPON_SOURCES.pistolRaw
     ],
     scale: 0.13
   },
   pistolSidearmAttack: {
     label: 'Pistol Sidearm',
     urls: [
-      'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/pistol.glb',
-      'https://raw.githubusercontent.com/webaverse/pistol/master/pistol.glb',
-      'https://cdn.statically.io/gh/webaverse/pistol/master/pistol.glb'
+      polyWeaponSource('3b53f0fe-f86e-451c-816d-6ab9bd265cdc'),
+      KNOWN_LUDO_WEAPON_SOURCES.pistol,
+      KNOWN_LUDO_WEAPON_SOURCES.pistolRaw,
+      KNOWN_LUDO_WEAPON_SOURCES.mrtk
     ],
     scale: 0.115
   },
   assaultRifleAttack: {
     label: 'Assault Rifle',
     urls: [
-      'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/military.glb',
-      'https://raw.githubusercontent.com/webaverse/pistol/master/military.glb',
-      'https://cdn.statically.io/gh/webaverse/pistol/master/military.glb'
+      polyWeaponSource('b3e6be61-0299-4866-a227-58f5f3fe610b'),
+      polyWeaponSource('032e6589-3188-41bc-b92b-e25528344275'),
+      KNOWN_LUDO_WEAPON_SOURCES.fps,
+      KNOWN_LUDO_WEAPON_SOURCES.fpsRaw,
+      KNOWN_LUDO_WEAPON_SOURCES.mrtk,
+      KNOWN_LUDO_WEAPON_SOURCES.awp
     ],
-    scale: 0.13,
-    textureOverrideUrls: [
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/AK47.jpeg'
-    ]
+    scale: 0.13
   },
   uziSprayAttack: {
     label: 'Uzi',
@@ -512,10 +528,13 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   shotgunBlastAttack: {
     label: 'Shotgun Blast',
     urls: [
-      'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/main/main/scene.gltf',
-      'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@main/main/scene.gltf',
-      'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/master/main/scene.gltf',
-      'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@master/main/scene.gltf'
+      polyWeaponSource('032e6589-3188-41bc-b92b-e25528344275'),
+      polyWeaponSource('9a6ee0ee-068b-4774-8b0f-679c3cef0b6e'),
+      polyWeaponSource('08f27141-8e64-425a-9161-1bbd6956dfca'),
+      KNOWN_LUDO_WEAPON_SOURCES.fps,
+      KNOWN_LUDO_WEAPON_SOURCES.fpsRaw,
+      KNOWN_LUDO_WEAPON_SOURCES.awp,
+      KNOWN_LUDO_WEAPON_SOURCES.awpRaw
     ],
     scale: 0.24
   },
@@ -530,8 +549,11 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   smgBurstAttack: {
     label: 'SMG',
     urls: [
-      'https://cdn.jsdelivr.net/gh/webaverse/uzi@main/uzi.glb',
-      'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/pistol.glb'
+      polyWeaponSource('fb8ae707-d5b9-4eb8-ab8c-1c78d3c1f710'),
+      KNOWN_LUDO_WEAPON_SOURCES.mrtk,
+      KNOWN_LUDO_WEAPON_SOURCES.fps,
+      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Uzi/scene.gltf',
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Uzi/scene.gltf'
     ],
     scale: 0.2,
     textureOverrideUrls: [

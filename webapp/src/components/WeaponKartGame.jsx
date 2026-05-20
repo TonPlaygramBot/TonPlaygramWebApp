@@ -49,21 +49,60 @@ const TRACK_PRESETS = {
   "storm-bend": { outerX: 45, outerZ: 27, innerX: 27.5, innerZ: 11.5, centerX: 36, centerZ: 19, wobble: 0.14, hue: 0x2b2d33 }
 };
 const WEAPON_PICKUPS = ["RIFLE", "FIREARM", "MISSILE", "DRONE", "HELICOPTER", "JET", "TRUCK"]
+const FALLBACK_TEX = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/l6m9WQAAAABJRU5ErkJggg==";
+const KNOWN_WEAPON_MODEL_URLS = Object.freeze({
+  awp: "https://cdn.jsdelivr.net/gh/GarbajYT/godot-sniper-rifle@master/AWP.glb",
+  awpRaw: "https://raw.githubusercontent.com/GarbajYT/godot-sniper-rifle/master/AWP.glb",
+  mrtk: "https://cdn.jsdelivr.net/gh/microsoft/MixedRealityToolkit@main/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb",
+  mrtkRaw: "https://raw.githubusercontent.com/microsoft/MixedRealityToolkit/main/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb",
+  pistol: "https://cdn.jsdelivr.net/gh/SAAAM-LLC/3D_model_bundle@main/SAM_ASSET-PISTOL-IN-HOLSTER.glb",
+  pistolRaw: "https://raw.githubusercontent.com/SAAAM-LLC/3D_model_bundle/main/SAM_ASSET-PISTOL-IN-HOLSTER.glb",
+  fps: "https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@main/main/scene.gltf",
+  fpsRaw: "https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/main/main/scene.gltf"
+});
+const polyWeapon = (id) => `https://static.poly.pizza/${id}.glb`;
 const WEAPON_MODEL_CANDIDATES = {
   FIREARM: [
-    "https://cdn.jsdelivr.net/gh/SAAAM-LLC/3D_model_bundle@main/SAM_ASSET-PISTOL-IN-HOLSTER.glb",
-    "https://raw.githubusercontent.com/SAAAM-LLC/3D_model_bundle/main/SAM_ASSET-PISTOL-IN-HOLSTER.glb"
+    polyWeapon("3b53f0fe-f86e-451c-816d-6ab9bd265cdc"),
+    polyWeapon("9e728565-67a3-44db-9567-982320abff09"),
+    KNOWN_WEAPON_MODEL_URLS.pistol,
+    KNOWN_WEAPON_MODEL_URLS.pistolRaw,
+    KNOWN_WEAPON_MODEL_URLS.mrtk,
+    KNOWN_WEAPON_MODEL_URLS.mrtkRaw
   ],
   RIFLE: [
-    "https://cdn.jsdelivr.net/gh/microsoft/MixedRealityToolkit@main/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb",
-    "https://raw.githubusercontent.com/microsoft/MixedRealityToolkit/main/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb",
-    "https://cdn.jsdelivr.net/gh/GarbajYT/godot-sniper-rifle@master/AWP.glb"
+    polyWeapon("b3e6be61-0299-4866-a227-58f5f3fe610b"),
+    polyWeapon("032e6589-3188-41bc-b92b-e25528344275"),
+    polyWeapon("f71d6771-f512-4374-bd23-ba00b564db68"),
+    KNOWN_WEAPON_MODEL_URLS.fps,
+    KNOWN_WEAPON_MODEL_URLS.fpsRaw,
+    KNOWN_WEAPON_MODEL_URLS.awp,
+    KNOWN_WEAPON_MODEL_URLS.awpRaw,
+    KNOWN_WEAPON_MODEL_URLS.mrtk,
+    KNOWN_WEAPON_MODEL_URLS.mrtkRaw
   ],
   MISSILE: ["https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/atlas_v.glb"],
   DRONE: ["https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/drone.glb"],
   HELICOPTER: ["https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/helicopter.glb"],
   JET: ["https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/f15.glb"]
 };
+
+function patchTextures() {
+  const orig = THREE.ImageLoader.prototype.load;
+  THREE.ImageLoader.prototype.load = function patched(url, onLoad, onProgress, onError) {
+    const fail = (e) => {
+      const img = document.createElement("img");
+      img.crossOrigin = "anonymous";
+      img.onload = () => onLoad?.(img);
+      img.onerror = () => onError?.(e);
+      img.src = FALLBACK_TEX;
+    };
+    return orig.call(this, url, onLoad, onProgress, fail);
+  };
+  return () => {
+    THREE.ImageLoader.prototype.load = orig;
+  };
+}
 const DEFENSE_PICKUPS = ["MISSILE_RADAR", "DRONE_RADAR", "ANTI_MISSILE_BATTERY", "AUTO_DRIVE", "BOOST", "DEFENSE_RADAR"];
 const WEAPON_ICON = { FIREARM: "🔫", RIFLE: "🪖", MISSILE: "🚀", DRONE: "🛸", HELICOPTER: "🚁", JET: "✈️", TRUCK: "🚒", TOWER: "📡", AUTO_DRIVE:"🤖", BOOST:"⚡", DEFENSE_RADAR:"🛡️" };
 const SUPPORT_PICKUP_TYPES = ["TRUCK", "DRONE", "HELICOPTER", "JET", "TOWER"];
@@ -1100,6 +1139,7 @@ export default function SuperTuxKartPlayablePreview() {
 
     let cancelled = false;
     let frameId = 0;
+    const restoreTexturePatch = patchTextures();
     const { dracoDecoderPath } = makeLoader();
     const input = { keys: {}, steer: 0, accel: 0, brake: false, pointerId: null, startX: 0, startY: 0, lookId: null, lastX: 0, camYaw: 0, firePressed: false, fireTarget: null, autoDriveToggle:false, boostToggle:false };
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
@@ -1620,6 +1660,7 @@ hudRef.current.crash = `${ai.name} fired`;
         canvas.removeEventListener("click", onTargetClick);
       }
       renderer.dispose();
+      restoreTexturePatch();
       disposeObject3D(scene);
     };
   }, []);
