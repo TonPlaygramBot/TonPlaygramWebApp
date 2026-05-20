@@ -2116,7 +2116,17 @@ function getSnookerCueEndpoints(cueStick, cueLen) {
 
 function updateSnookerRoyalHumanPlayer(human, dt, options) {
   if (!human?.root || human.disabled) return;
-  const { cue, cueStick, cueLen, aimDir, visible, power = 0, shooting = false, cueAnimating = false } = options || {};
+  const {
+    cue,
+    cueStick,
+    cueLen,
+    aimDir,
+    visible,
+    power = 0,
+    shooting = false,
+    cueAnimating = false,
+    tableCueVisible = true
+  } = options || {};
   const cuePos = cue?.pos;
   if (!cuePos || !cue?.active || !visible) {
     human.root.visible = false;
@@ -2163,7 +2173,12 @@ function updateSnookerRoyalHumanPlayer(human, dt, options) {
     .addScaledVector(dir, -SNOOKER_HUMAN_CFG.bridgeBackFromBall)
     .addScaledVector(side, SNOOKER_HUMAN_CFG.bridgeSide)
     .setY(CUE_Y + BALL_R * 0.08);
-  const grip = cueEndpoints.butt.clone().lerp(cueEndpoints.tip, 0.37 + pullPose * 0.08);
+  const gripBlend = tableCueVisible ? (0.37 + pullPose * 0.08) : 0.62;
+  const grip = cueEndpoints.butt
+    .clone()
+    .lerp(cueEndpoints.tip, gripBlend)
+    .addScaledVector(side, tableCueVisible ? 0 : BALL_R * 0.18)
+    .setY(tableCueVisible ? cueEndpoints.butt.y : CUE_Y + BALL_R * 0.52);
   updateSnookerHumanOrientationHelpers(human, { rootTarget, cueBall, playfieldTarget, dir, bridge, grip });
   const chestWorld = cueBall.clone().addScaledVector(dir, -0.44 * SNOOKER_HUMAN_WORLD_SCALE).setY(CUE_Y + SNOOKER_HUMAN_CFG.chestCueOffsetY);
   const headWorld = cueBall.clone().addScaledVector(dir, -0.34 * SNOOKER_HUMAN_WORLD_SCALE).setY(CUE_Y + SNOOKER_HUMAN_CFG.chinCueOffsetY + 0.08 * SNOOKER_HUMAN_WORLD_SCALE);
@@ -23274,7 +23289,16 @@ const powerRef = useRef(hud.power);
           const settlePos = impactPos
             .clone()
             .addScaledVector(TMP_VEC3_FOLLOW_DIR, followExtra);
-          cueStick.visible = true;
+          const cameraForCueVisibility =
+            activeRenderCameraRef.current ?? cameraRef.current ?? camera;
+          const cueBallY = cue?.pos ? CUE_Y : BALL_CENTER_Y;
+          const cameraHeightAboveCue =
+            (cameraForCueVisibility?.position?.y ?? cueBallY) - cueBallY;
+          const isStandingCueView =
+            !shooting &&
+            !cueAnimating &&
+            cameraHeightAboveCue > BALL_R * 3.4;
+          cueStick.visible = !isStandingCueView;
           cueStick.position.copy(idlePos);
           const startTime = performance.now();
           const pullEndTime = startTime + pullbackDuration;
@@ -25877,6 +25901,18 @@ const powerRef = useRef(hud.power);
           return strength;
         }
 
+        const resolveShouldShowTableCue = () => {
+          if (shooting || cueAnimating) return true;
+          const activeCam = activeRenderCameraRef.current ?? cameraRef.current ?? camera;
+          const cueBallY = cue?.pos ? CUE_Y : BALL_CENTER_Y;
+          const absoluteHeight = (activeCam?.position?.y ?? cueBallY) - cueBallY;
+          const sph = sphRef.current;
+          const phi = sph?.phi;
+          const standingPhiTarget = cameraBoundsRef.current?.standing?.phi ?? STANDING_VIEW_PHI;
+          const nearStandingPhi = Number.isFinite(phi) ? Math.abs(phi - standingPhiTarget) < 0.16 : false;
+          return !(absoluteHeight > BALL_R * 3.4 && nearStandingPhi);
+        };
+        const shouldShowTableCue = resolveShouldShowTableCue();
         sidePocketAimRef.current = false;
         if (canShowCue && (isPlayerTurn || previewingAiShot)) {
           const baseAimDir = new THREE.Vector3(aimDir.x, 0, aimDir.y);
@@ -26156,7 +26192,7 @@ const powerRef = useRef(hud.power);
             });
           }
           updateChalkVisibility(visibleChalkIndex);
-          cueStick.visible = true;
+          cueStick.visible = shouldShowTableCue;
           if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + powerStrength * 22);
             const tDir = new THREE.Vector3(targetDir.x, 0, targetDir.y);
@@ -26310,7 +26346,7 @@ const powerRef = useRef(hud.power);
           const tipTarget = resolveCueTipTarget(baseDir, visualPull, spinWorld);
           applyCueStickTransform(tipTarget);
           clampCueButtAboveCushion(tipTarget);
-          cueStick.visible = true;
+          cueStick.visible = shouldShowTableCue;
           updateChalkVisibility(null);
           if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + powerStrength * 22);
@@ -26410,7 +26446,7 @@ const powerRef = useRef(hud.power);
           const tipTarget = resolveCueTipTarget(dir, visualPull, spinWorld);
           applyCueStickTransform(tipTarget);
           clampCueButtAboveCushion(tipTarget);
-          cueStick.visible = true;
+          cueStick.visible = shouldShowTableCue;
         } else {
           aimFocusRef.current = null;
           aim.visible = false;
@@ -26437,7 +26473,8 @@ const powerRef = useRef(hud.power);
             visible: cueStick.visible || cueAnimating || shooting,
             power: powerRef.current ?? activeAiPlan?.power ?? 0,
             shooting,
-            cueAnimating
+            cueAnimating,
+            tableCueVisible: cueStick.visible
           });
         } catch (error) {
           snookerHumanPlayer.disabled = true;
