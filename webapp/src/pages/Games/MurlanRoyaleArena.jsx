@@ -433,7 +433,7 @@ const HUMAN_AVATAR_BOTTOM_OFFSET = 'calc(2.85rem + env(safe-area-inset-bottom, 0
 // Keep Murlan table/chairs at the exact shared Battle Royale baseline scale.
 const TABLE_AND_CHAIR_VISUAL_SHRINK = 1;
 const CARD_VISUAL_TRIM = TABLE_AND_CHAIR_VISUAL_SHRINK;
-const AVATAR_VISUAL_SCALE = 0.95;
+const AVATAR_VISUAL_SCALE = 0.98;
 
 const TABLE_RADIUS = 3.4 * MODEL_SCALE * 0.83 * TABLE_AND_CHAIR_VISUAL_SHRINK;
 const TABLE_HORIZONTAL_SHRINK = 1;
@@ -2606,7 +2606,7 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
   normalizeCharacterPivot(instance);
 
   const seatRoot = new THREE.Group();
-  const seatScale = (characterTheme.scale ?? 0.82) * CHARACTER_PROPORTION_SCALE;
+  const seatScale = (characterTheme.scale ?? 0.82) * CHARACTER_PROPORTION_SCALE * 1.06;
   const scaleDelta = Math.max(0, CHARACTER_PROPORTION_SCALE - 1);
   seatRoot.scale.multiplyScalar(seatScale);
   const baseSeatOffsetY = (characterTheme.normalizedSeatOffsetY ?? characterTheme.seatOffsetY ?? -0.92) - 0.2;
@@ -3209,7 +3209,7 @@ const CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH * 0.5 + CHAIR_GAP;
 const AI_CHAIR_GAP = CHAIR_GAP;
 const AI_CHAIR_RADIUS = CHAIR_RADIUS;
 const CHAIR_SEAT_INWARD_FACTOR = 1;
-const CHAIR_VISUAL_SCALE = 1.36;
+const CHAIR_VISUAL_SCALE = 1.28;
 const CAMERA_SEATED_LATERAL_OFFSETS = Object.freeze({ portrait: 0, landscape: 0 });
 const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({
   portrait: 0.82,
