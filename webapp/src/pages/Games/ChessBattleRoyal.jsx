@@ -525,8 +525,8 @@ const BOARD = { N: 8, tile: 4.2, rim: 3, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.24; // Lower tokens slightly so they stay grounded on the board after shrinking.
 const LAYOUT_SCALE_FACTOR = 0.7225;
-const TABLE_LAYOUT_SCALE_FACTOR = 0.9; // Enlarge the board/chair layout footprint for a more dominant arena.
-const PIECE_SCALE_FACTOR = 0.73 * LAYOUT_SCALE_FACTOR * 1.5 * 0.82 * 1.46; // Upsize pieces further so they stay clearly readable on the larger board.
+const TABLE_LAYOUT_SCALE_FACTOR = 0.84; // Enlarge the board/chair layout footprint for a more dominant arena.
+const PIECE_SCALE_FACTOR = 0.73 * LAYOUT_SCALE_FACTOR * 1.5 * 0.82 * 1.34; // Upsize pieces further so they stay clearly readable on the larger board.
 const PIECE_FOOTPRINT_RATIO = 0.86;
 const BOARD_GROUP_Y_OFFSET = -0.065; // lower the board slab so it sits flush on the table surface.
 const BOARD_MODEL_Y_OFFSET = -0.12;
@@ -564,12 +564,12 @@ const CAMERA_TABLE_SPAN_FACTOR = 2.6;
 
 const WALL_PROXIMITY_FACTOR = 0.5; // Bring arena walls 50% closer
 const WALL_HEIGHT_MULTIPLIER = 2; // Double wall height
-const CHAIR_SCALE = 0.9 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
-const CHAIR_WIDTH_SCALE = 1.16; // Make chairs a bit smaller for a cleaner board-facing framing.
+const CHAIR_SCALE = 0.94 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
+const CHAIR_WIDTH_SCALE = 1.22; // Make chairs a bit smaller for a cleaner board-facing framing.
 const CHAIR_VERTICAL_OFFSET = -0.065 * MODEL_SCALE;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
-const PLAYER_CHAIR_EXTRA_CLEARANCE = 0.1 * MODEL_SCALE; // push local bottom chair/human farther away from the table than the opponent.
-const OPPONENT_CHAIR_EXTRA_CLEARANCE = 0.07 * MODEL_SCALE; // push opponent chair/human slightly outward from the table.
+const PLAYER_CHAIR_EXTRA_CLEARANCE = 0.22 * MODEL_SCALE; // push local bottom chair/human farther away from the table than the opponent.
+const OPPONENT_CHAIR_EXTRA_CLEARANCE = 0.14 * MODEL_SCALE; // push opponent chair/human slightly outward from the table.
 const CHAIR_TABLE_PUSHBACK = 0.04 * MODEL_SCALE;
 const CHAIR_TABLE_GAP_MIN = 0.08 * MODEL_SCALE;
 const CHAIR_TABLE_GAP_MAX = 0.42 * MODEL_SCALE;
@@ -596,7 +596,7 @@ const CAMERA_PULL_FORWARD_MIN = THREE.MathUtils.degToRad(15);
 const CAMERA_CAPTURE_VIEW_UPWARD_BIAS = THREE.MathUtils.degToRad(21); // raise forced 3D animation camera for a stronger portrait top-down feel.
 const CAMERA_CAPTURE_VIEW_RADIUS_SCALE = 1.18; // keep forced 3D animation wider during capture so the board stays fully readable
 const CAMERA_CAPTURE_BOTTOM_AVATAR_SCREEN_OFFSET = 0; // keep projected avatars pinned to the seated character chest anchors
-const CAMERA_LOCKED_3D_PHI = THREE.MathUtils.degToRad(76); // raise the locked 3D angle a bit for a higher camera view over the board/table/chairs.
+const CAMERA_LOCKED_3D_PHI = THREE.MathUtils.degToRad(72); // raise the locked 3D angle a bit for a higher camera view over the board/table/chairs.
 const CAMERA_LOCKED_3D_RADIUS_SCALE = 0.6; // pull locked 3D camera back slightly for a small zoom-out in portrait play.
 const CHECKERS_CAMERA_FRAME_COMPENSATION = 1.06;
 const PLAYER_FACE_CAMERA_SEAT_ANGLE = Math.PI / 2;
@@ -623,11 +623,11 @@ const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.44;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.32;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 1.08;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.68;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.38; // raise player camera while keeping the perspective looking upward toward table/pieces.
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.24; // raise player camera while keeping the perspective looking upward toward table/pieces.
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.92;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 1.35;
 const PLAYER_VIEW_LOOK_TARGET_UP_BIAS = 0.6; // increase upward aim so the table/pieces/opponent sit higher in view.
-const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 12.1; // push table/chairs/humans further down in frame toward the bottom edge.
+const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 10.9; // push table/chairs/humans further down in frame toward the bottom edge.
 const FPV_FACE_FORWARD_OFFSET = 0.012; // keep the camera almost exactly at the eyes for a true first-person perspective.
 const FPV_FACE_UP_OFFSET = 0.0; // slight lift so the board edge does not clip while still feeling eye-level.
 const FPV_LOOK_AHEAD_DISTANCE = BOARD.tile * BOARD_SCALE * 5.8; // prioritize looking down the board journey toward the opponent side.
@@ -15510,12 +15510,6 @@ function Chess3D({
       fit();
     };
     window.addEventListener('resize', onResize);
-    window.addEventListener('orientationchange', onResize);
-
-    // Stabilize first-frame layout on mobile so the default table framing
-    // matches refresh behavior without requiring manual re-selection.
-    requestAnimationFrame(() => fit());
-    setTimeout(() => fit(), 180);
 
     // Start timer for the human player
     startTimer(true);
@@ -15537,7 +15531,6 @@ function Chess3D({
       stopCameraTween();
       if (onResize) {
         window.removeEventListener('resize', onResize);
-        window.removeEventListener('orientationchange', onResize);
       }
       clearInterval(timerRef.current);
       disposers.forEach((fn) => {
