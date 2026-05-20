@@ -813,7 +813,7 @@ const CHROME_CORNER_POCKET_EDGE_ROUND_SCALE = 0.9; // strongly round the outer c
 const CHROME_SIDE_POCKET_RADIUS_SCALE =
   CORNER_POCKET_INWARD_SCALE *
   CHROME_CORNER_POCKET_RADIUS_SCALE; // match the middle chrome arches to the corner pocket radius
-const WOOD_RAIL_CORNER_RADIUS_SCALE = 1.28; // match the native wooden rail outline more closely to the Showood pocket-jaw silhouette
+const WOOD_RAIL_CORNER_RADIUS_SCALE = 1.38; // round the wooden outer frame corners a bit more so the procedural frame follows the Showood silhouette
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0; // disable secondary throat so the side chrome uses a single arch
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profile
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
@@ -824,7 +824,7 @@ const CHROME_PLATE_ROUGHNESS_LIFT = 0.14; // smooth chrome/gold highlight rollof
 const CHROME_PLATE_THICKNESS_SCALE = 0.0306; // match diamond thickness on the wooden rails for fascia depth
 const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.18; // thicken the middle fascia so its depth now matches the corner plates
 const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0.06; // lift fascia slightly with the raised rail/cushion profile so chrome stays aligned on all six pockets
-const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0.22; // extend rail-sight chrome/gold farther downward on the rail face
+const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0.12; // reduce downward chrome coverage so more wooden rail face stays visible
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.34; // trim the side fascia reach so the middle chrome ends cleanly before the pocket curve
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.14; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
@@ -1305,19 +1305,19 @@ const REPLAY_CAMERA_START_DELAY_MS = 0;
     WALL: 2.6 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
-const FRAME_RAIL_OUTWARD_SCALE = 1.24; // shorten all 4 table sides by reducing outer frame overhang while keeping playfield dimensions stable
+const FRAME_RAIL_OUTWARD_SCALE = 1.36; // expose more of the wooden frame rail so it remains clearly visible around the Showood table in portrait view
 const RAIL_HEIGHT = TABLE.THICK * 1.48; // match Showood side top-wood rail height to the older procedural rail profile
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.024; // push the corner jaws just a bit farther outward so the fascia follows the rounded rail and chrome cut
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
 const POCKET_JAW_CORNER_INNER_SCALE = 1.62; // stretch the inner lip into a longer Showood-style rounded pocket jaw while keeping playable mouth size
 const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 1.03; // round and widen the middle jaws slightly more while keeping the corner match
-const POCKET_JAW_CORNER_OUTER_SCALE = 1.86; // broaden the outer jaw shoulder to mirror the Showood rounded pocket cup profile
+const POCKET_JAW_CORNER_OUTER_SCALE = 1.8; // keep the Showood-style jaw shoulder but make it just a bit slimmer
 const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.036; // nudge corner jaws a touch farther outward to keep the jaw shoulder aligned with the rail cut
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
-const POCKET_JAW_DEPTH_SCALE = 1.08; // deepen all jaw bodies so the default pockets carry the same Showood jaw depth
+const POCKET_JAW_DEPTH_SCALE = 1.04; // keep Showood depth while making jaws a touch smaller overall
 const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.094; // lower all six jaws a hair more so the mouths sit slightly deeper
 const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.036; // trim a little more from the jaw bottoms
 const POCKET_JAW_CORNER_BOTTOM_CLEARANCE = TABLE.THICK * 0.012; // keep corner jaw bottom trim aligned with the global bottom reduction
@@ -1331,7 +1331,7 @@ const POCKET_JAW_SIDE_CENTER_TAPER_HOLD = POCKET_JAW_CENTER_TAPER_HOLD; // keep 
 const POCKET_JAW_SIDE_EDGE_TAPER_SCALE = POCKET_JAW_EDGE_TAPER_SCALE; // reuse the corner taper scale so edge thickness matches exactly
 const POCKET_JAW_SIDE_EDGE_TAPER_PROFILE_POWER = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // maintain the identical taper curve across all six jaws
 const POCKET_JAW_CENTER_THICKNESS_MIN = 0.2; // make all six jaws a bit thinner from the inside while preserving outside profile and height
-const POCKET_JAW_CENTER_THICKNESS_MAX = 0.54; // keep the centre mass but slim it slightly so jaw interiors look cleaner
+const POCKET_JAW_CENTER_THICKNESS_MAX = 0.51; // trim center jaw mass a little more for a subtly smaller mouth surround
 const POCKET_JAW_OUTER_EXPONENT_MIN = 0.58; // controls arc falloff toward the chrome rim
 const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
 const POCKET_JAW_INNER_EXPONENT_MIN = 0.78; // controls inner lip easing toward the cushion
@@ -5728,12 +5728,43 @@ function updateClothTexturesForFinish (
   }
   finishInfo.parts?.underlayMeshes?.forEach((mesh) => {
     if (!mesh?.material) return;
-    mesh.material.map = null;
-    mesh.material.bumpMap = null;
-    if (mesh.material.color && finishInfo.clothMat?.color) {
-      mesh.material.color.copy(finishInfo.clothMat.color);
+    const underlayMat = mesh.material;
+    if (underlayMat.color && finishInfo.clothMat?.color) {
+      underlayMat.color.copy(finishInfo.clothMat.color);
     }
-    mesh.material.needsUpdate = true;
+    if (finishInfo.clothMat) {
+      underlayMat.map = finishInfo.clothMat.map ?? null;
+      underlayMat.normalMap = finishInfo.clothMat.normalMap ?? null;
+      underlayMat.roughnessMap = finishInfo.clothMat.roughnessMap ?? null;
+      underlayMat.bumpMap = finishInfo.clothMat.bumpMap ?? null;
+      if (underlayMat.map && finishInfo.clothMat.map?.repeat) {
+        underlayMat.map.repeat.copy(finishInfo.clothMat.map.repeat);
+        underlayMat.map.rotation = finishInfo.clothMat.map.rotation ?? underlayMat.map.rotation ?? 0;
+        underlayMat.map.needsUpdate = true;
+      }
+      if (underlayMat.normalMap && finishInfo.clothMat.normalMap?.repeat) {
+        underlayMat.normalMap.repeat.copy(finishInfo.clothMat.normalMap.repeat);
+        underlayMat.normalMap.rotation = finishInfo.clothMat.normalMap.rotation ?? underlayMat.normalMap.rotation ?? 0;
+        underlayMat.normalMap.needsUpdate = true;
+      }
+      if (underlayMat.roughnessMap && finishInfo.clothMat.roughnessMap?.repeat) {
+        underlayMat.roughnessMap.repeat.copy(finishInfo.clothMat.roughnessMap.repeat);
+        underlayMat.roughnessMap.rotation = finishInfo.clothMat.roughnessMap.rotation ?? underlayMat.roughnessMap.rotation ?? 0;
+        underlayMat.roughnessMap.needsUpdate = true;
+      }
+      if (underlayMat.bumpMap && finishInfo.clothMat.bumpMap?.repeat) {
+        underlayMat.bumpMap.repeat.copy(finishInfo.clothMat.bumpMap.repeat);
+        underlayMat.bumpMap.rotation = finishInfo.clothMat.bumpMap.rotation ?? underlayMat.bumpMap.rotation ?? 0;
+        underlayMat.bumpMap.needsUpdate = true;
+      }
+      if ('roughness' in underlayMat && Number.isFinite(finishInfo.clothMat.roughness)) {
+        underlayMat.roughness = finishInfo.clothMat.roughness;
+      }
+      if ('metalness' in underlayMat && Number.isFinite(finishInfo.clothMat.metalness)) {
+        underlayMat.metalness = finishInfo.clothMat.metalness;
+      }
+    }
+    underlayMat.needsUpdate = true;
   });
   finishInfo.clothTextureKey = textureKey;
   finishInfo.clothTextureSource = textureSource;
