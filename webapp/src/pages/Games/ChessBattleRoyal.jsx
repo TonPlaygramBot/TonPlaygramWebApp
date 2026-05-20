@@ -525,7 +525,7 @@ const BOARD = { N: 8, tile: 4.2, rim: 3, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.24; // Lower tokens slightly so they stay grounded on the board after shrinking.
 const LAYOUT_SCALE_FACTOR = 0.7225;
-const TABLE_LAYOUT_SCALE_FACTOR = 0.68; // Match Checkers Battle Royal board/table/chair presentation scale.
+const TABLE_LAYOUT_SCALE_FACTOR = 0.78; // Slightly enlarge board/table/chairs so the chess arena reads bigger on screen.
 const PIECE_SCALE_FACTOR = 0.73 * LAYOUT_SCALE_FACTOR * 1.5 * 0.82 * 1.2; // Upsize pieces a bit so they stay proportional to the larger board.
 const PIECE_FOOTPRINT_RATIO = 0.86;
 const BOARD_GROUP_Y_OFFSET = -0.034; // sink the board slab so its visible playing surface rests on the table felt.
@@ -600,19 +600,18 @@ const CAMERA_LOCKED_3D_PHI = THREE.MathUtils.degToRad(76); // tilt closer to hor
 const CAMERA_LOCKED_3D_RADIUS_SCALE = 0.52; // move locked 3D camera closer to the table for a tighter composition.
 const CHECKERS_CAMERA_FRAME_COMPENSATION = 1.06;
 const PLAYER_FACE_CAMERA_SEAT_ANGLE = Math.PI / 2;
-const PLAYER_FACE_CAMERA_RADIUS = TABLE_RADIUS * 0.98 * CHECKERS_CAMERA_FRAME_COMPENSATION;
+const PLAYER_FACE_CAMERA_RADIUS = TABLE_RADIUS * 0.9 * CHECKERS_CAMERA_FRAME_COMPENSATION;
 const PLAYER_FACE_CAMERA_EYE_HEIGHT = 2.05 * MODEL_SCALE;
 const PLAYER_FACE_CAMERA_TARGET_HEIGHT = 0.18 * MODEL_SCALE;
 const PLAYER_FACE_CAMERA_YAW_LIMIT = THREE.MathUtils.degToRad(18);
 const PLAYER_FACE_CAMERA_PITCH_LIMIT = THREE.MathUtils.degToRad(12);
-const PLAYER_FACE_CAMERA_LOOK_DRAG_SPEED = 0.0045;
 const SAND_TIMER_RADIUS_FACTOR = 0.68;
 const SAND_TIMER_SURFACE_OFFSET = 0.2;
 const SAND_TIMER_SCALE = 0.36;
 const SEATED_HUMAN_DEFAULT_MODEL_URL = CHESS_HUMAN_CHARACTER_OPTIONS[0]?.modelUrls?.[0];
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
-const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.95 * 2.496;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 2.496; // Match Checkers Battle Royal seated-human/chair proportion.
+const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 3.2;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 3.5; // Make seated human characters visibly smaller relative to the enlarged chairs.
 const FAILED_HUMAN_CHARACTER_IDS = new Set();
 const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
 const SEATED_HUMAN_SEAT_Z_OFFSET = SEAT_DEPTH * 0.2;
@@ -14316,16 +14315,8 @@ function Chess3D({
               : 0;
           locked.lastPointerX = Number.isFinite(clientX) ? clientX : locked.lastPointerX;
           locked.lastPointerY = Number.isFinite(clientY) ? clientY : locked.lastPointerY;
-          locked.targetYaw = clamp(
-            locked.targetYaw - movementX * PLAYER_FACE_CAMERA_LOOK_DRAG_SPEED,
-            -PLAYER_FACE_CAMERA_YAW_LIMIT,
-            PLAYER_FACE_CAMERA_YAW_LIMIT
-          );
-          locked.targetPitch = clamp(
-            locked.targetPitch - movementY * PLAYER_FACE_CAMERA_LOOK_DRAG_SPEED,
-            -PLAYER_FACE_CAMERA_PITCH_LIMIT,
-            PLAYER_FACE_CAMERA_PITCH_LIMIT
-          );
+          locked.targetYaw -= movementX * 0.0024;
+          locked.targetPitch = clamp(locked.targetPitch - movementY * 0.002, -0.86, 0.2);
         }
         return;
       }
