@@ -107,11 +107,12 @@ const MODEL_SCALE = 0.75;
 const CHARACTER_PROPORTION_SCALE = 1.82;
 const ENABLE_3D_HUMAN_CHARACTERS = true;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
-const CHAIR_SIZE_SCALE = 1.24;
+const CHAIR_SIZE_SCALE = 1.14;
 const CHAIR_HEIGHT_TRIM_SCALE = 0.96;
 const ARENA_PROP_SCALE = 1;
 const HUMAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.62; // nudge seated humans just a bit closer to the table on portrait mobile framing.
 const HUMAN_CHARACTER_EXTRA_LOWER_OFFSET = 0.18; // seat humans lower so hips/legs rest properly on the chair cushion.
+const SIDE_PLAYER_SEAT_INWARD_OFFSET = 0.16; // pull left/right players visually closer to the table on portrait framing.
 const SHOW_CHARACTER_HELD_CARD_HELPERS = false;
 const HUMAN_CARD_HAND_DEBUG_HELPERS =
   typeof window !== 'undefined' &&
@@ -6141,10 +6142,14 @@ export default function MurlanRoyaleArena({ search }) {
 
         const angle = CUSTOM_SEAT_ANGLES[i] ?? Math.PI / 2 - (i / CHAIR_COUNT) * Math.PI * 2;
         const isHumanSeat = Boolean(player?.isHuman);
-        const seatRadius =
+        const baseSeatRadius =
           (isHumanSeat
             ? AI_CHAIR_RADIUS + HUMAN_CHAIR_EXTRA_OUTWARD_OFFSET
             : AI_CHAIR_RADIUS) * CHAIR_SEAT_INWARD_FACTOR;
+        const isSideSeatOnScreen = !isHumanSeat && Math.abs(Math.cos(angle)) > 0.45;
+        const seatRadius = isSideSeatOnScreen
+          ? Math.max(baseSeatRadius - SIDE_PLAYER_SEAT_INWARD_OFFSET, 0.1)
+          : baseSeatRadius;
         const x = Math.cos(angle) * seatRadius * TABLE_HORIZONTAL_SHRINK;
         const z = Math.sin(angle) * seatRadius;
         const chairBaseHeight = CHAIR_BASE_HEIGHT - 0.04 * MODEL_SCALE;
@@ -6157,7 +6162,6 @@ export default function MurlanRoyaleArena({ search }) {
         const forward = new THREE.Vector3(x, 0, z).normalize();
         const right = new THREE.Vector3(-forward.z, 0, forward.x).normalize();
         const isTopSeatOnScreen = forward.z < -0.45;
-        const isSideSeatOnScreen = !isHumanSeat && Math.abs(forward.x) > 0.45;
         const aiSeatSpacingMultiplier = isSideSeatOnScreen
           ? SIDE_AI_HAND_CARD_SPACING_MULTIPLIER
           : isTopSeatOnScreen
