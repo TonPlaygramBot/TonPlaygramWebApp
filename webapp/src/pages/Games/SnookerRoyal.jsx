@@ -103,6 +103,7 @@ import {
   SPIN_STUN_RADIUS
 } from './snookerRoyalSpinUtils.js';
 import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
+import SnookerRoyalProvided from './SnookerRoyalProvided.jsx';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
@@ -29497,82 +29498,8 @@ const powerRef = useRef(hud.power);
 }
 
 export default function SnookerRoyal() {
-  const location = useLocation();
-  const playType = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    const requested = params.get('type');
-    if (requested === 'training') return 'training';
-    if (requested === 'tournament') return 'tournament';
-    return 'regular';
-  }, [location.search]);
-  const variantKey = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    return resolvePoolVariant(params.get('variant') || 'snooker').id;
-  }, [location.search]);
-  const ballSetKey = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    const normalized = normalizeBallSetKey(params.get('ballSet'));
-    return normalized || null;
-  }, [location.search]);
-  const tableSizeKey = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    return resolveTableSize(params.get('tableSize')).id;
-  }, [location.search]);
-  const tableModel = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    return resolveSnookerTableModel(params.get('tableModel')).id;
-  }, [location.search]);
-  const mode = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    const requested = params.get('mode');
-    if (requested === 'online') return 'online';
-    if (requested === 'local') return 'local';
-    return 'ai';
-  }, [location.search]);
-  const trainingMode = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    return params.get('trainingMode') === 'ai' ? 'ai' : 'solo';
-  }, [location.search]);
-  const accountId = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    return params.get('accountId') || '';
-  }, [location.search]);
-  const tgId = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    return params.get('tgId') || '';
-  }, [location.search]);
-  const playerName = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    return params.get('name') || getTelegramUsername() || getTelegramId() || 'Player';
-  }, [location.search]);
-  const playerAvatar = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    return params.get('avatar') || getTelegramPhotoUrl() || '';
-  }, [location.search]);
-  const opponentName = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    return params.get('opponent') || '';
-  }, [location.search]);
-  const opponentAvatar = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    return params.get('opponentAvatar') || '';
-  }, [location.search]);
-
-  return (
-    <SnookerRoyalGame
-      variantKey={variantKey}
-      ballSetKey={ballSetKey}
-      tableSizeKey={tableSizeKey}
-      tableModel={tableModel}
-      playType={playType}
-      mode={mode}
-      trainingMode={trainingMode}
-      accountId={accountId}
-      tgId={tgId}
-      playerName={playerName}
-      playerAvatar={playerAvatar}
-      opponentName={opponentName}
-      opponentAvatar={opponentAvatar}
-    />
-  );
+  // Snooker Royal now mounts the same scene implementation used by Snooker
+  // Champion so the human character and cue stick are rendered by the shared,
+  // unmodified Champion code path.
+  return <SnookerRoyalProvided gameTitle="Snooker Royal" />;
 }
