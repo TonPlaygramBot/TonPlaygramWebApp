@@ -1669,16 +1669,16 @@ const SNOOKER_HUMAN_WORLD_SCALE = BALL_R / 0.0525;
 const SNOOKER_HUMAN_CFG = Object.freeze({
   // Match the larger Snooker Champion character proportions exactly so the
   // Royal avatar reads as a full-sized player beside the GLB snooker table.
-  targetHeight: 1.2 * 1.78 * SNOOKER_HUMAN_WORLD_SCALE,
+  targetHeight: 1.35 * 1.78 * SNOOKER_HUMAN_WORLD_SCALE,
   floorY: FLOOR_Y - TABLE_Y,
-  idleDistance: 0.82 * SNOOKER_HUMAN_WORLD_SCALE,
+  idleDistance: 0.9 * SNOOKER_HUMAN_WORLD_SCALE,
   bridgeBackFromBall: 0.27 * SNOOKER_HUMAN_WORLD_SCALE,
-  bridgeSide: -0.025 * SNOOKER_HUMAN_WORLD_SCALE,
-  stanceSide: 0.25 * SNOOKER_HUMAN_WORLD_SCALE,
-  rightFootBack: 0.38 * SNOOKER_HUMAN_WORLD_SCALE,
-  leftFootForward: 0.30 * SNOOKER_HUMAN_WORLD_SCALE,
-  chinCueOffsetY: 0.12 * SNOOKER_HUMAN_WORLD_SCALE,
-  chestCueOffsetY: 0.22 * SNOOKER_HUMAN_WORLD_SCALE,
+  bridgeSide: -0.115 * SNOOKER_HUMAN_WORLD_SCALE,
+  stanceSide: 0.31 * SNOOKER_HUMAN_WORLD_SCALE,
+  rightFootBack: 0.34 * SNOOKER_HUMAN_WORLD_SCALE,
+  leftFootForward: 0.34 * SNOOKER_HUMAN_WORLD_SCALE,
+  chinCueOffsetY: 0.11 * SNOOKER_HUMAN_WORLD_SCALE,
+  chestCueOffsetY: 0.2 * SNOOKER_HUMAN_WORLD_SCALE,
   rootLambda: 7.5,
   poseLambda: 10,
   yawFix: 0
@@ -2114,6 +2114,38 @@ function getSnookerCueEndpoints(cueStick, cueLen) {
   return { tip, butt };
 }
 
+function chooseSnookerHumanPerimeterTarget(cueBall, aimDir) {
+  const desired = cueBall.clone().addScaledVector(aimDir, -SNOOKER_HUMAN_CFG.idleDistance);
+  const xEdge = TABLE_W / 2 + TABLE.THICK * 0.9;
+  const zEdge = TABLE_H / 2 + TABLE.THICK * 0.9;
+  const candidates = [
+    new THREE.Vector3(-xEdge, SNOOKER_HUMAN_CFG.floorY, clamp(desired.z, -zEdge, zEdge)),
+    new THREE.Vector3(xEdge, SNOOKER_HUMAN_CFG.floorY, clamp(desired.z, -zEdge, zEdge)),
+    new THREE.Vector3(clamp(desired.x, -xEdge, xEdge), SNOOKER_HUMAN_CFG.floorY, -zEdge),
+    new THREE.Vector3(clamp(desired.x, -xEdge, xEdge), SNOOKER_HUMAN_CFG.floorY, zEdge)
+  ];
+  return candidates.sort((a, b) => a.distanceToSquared(desired) - b.distanceToSquared(desired))[0].clone();
+}
+
+function constrainSnookerHumanPerimeterStep(current, target) {
+  const xEdge = TABLE_W / 2 + TABLE.THICK * 0.9;
+  const zEdge = TABLE_H / 2 + TABLE.THICK * 0.9;
+  const project = (point) => {
+    const dx = Math.abs(Math.abs(point.x) - xEdge);
+    const dz = Math.abs(Math.abs(point.z) - zEdge);
+    if (dx < dz) return new THREE.Vector3(Math.sign(point.x || target.x || 1) * xEdge, SNOOKER_HUMAN_CFG.floorY, clamp(point.z, -zEdge, zEdge));
+    return new THREE.Vector3(clamp(point.x, -xEdge, xEdge), SNOOKER_HUMAN_CFG.floorY, Math.sign(point.z || target.z || 1) * zEdge);
+  };
+  const cur = current.lengthSq() > 1e-6 ? project(current) : project(target);
+  const goal = project(target);
+  const curOnX = Math.abs(Math.abs(cur.x) - xEdge) < Math.abs(Math.abs(cur.z) - zEdge);
+  const goalOnX = Math.abs(Math.abs(goal.x) - xEdge) < Math.abs(Math.abs(goal.z) - zEdge);
+  if (curOnX === goalOnX && (curOnX ? Math.sign(cur.x) === Math.sign(goal.x) : Math.sign(cur.z) === Math.sign(goal.z))) return goal;
+  return curOnX
+    ? new THREE.Vector3(cur.x, SNOOKER_HUMAN_CFG.floorY, Math.sign(goal.z || cur.z || 1) * zEdge)
+    : new THREE.Vector3(Math.sign(goal.x || cur.x || 1) * xEdge, SNOOKER_HUMAN_CFG.floorY, cur.z);
+}
+
 function updateSnookerRoyalHumanPlayer(human, dt, options) {
   if (!human?.root || human.disabled) return;
   const {
@@ -2143,10 +2175,11 @@ function updateSnookerRoyalHumanPlayer(human, dt, options) {
   // Orientation is driven from the actual shot line: the root stands behind
   // the cue ball on -dir, then faces +dir back through cue ball/object ball.
   // Keeping local +Z on the shot line prevents mirrored cue/hand placement.
-  const rootTarget = cueBall.clone()
+  const rawRootTarget = cueBall.clone()
     .addScaledVector(dir, -SNOOKER_HUMAN_CFG.idleDistance - pullPose * BALL_R * 1.8)
-    .addScaledVector(side, -SNOOKER_HUMAN_CFG.stanceSide * 0.32);
-  rootTarget.y = SNOOKER_HUMAN_CFG.floorY;
+    .addScaledVector(side, -SNOOKER_HUMAN_CFG.stanceSide * 0.3);
+  const perimeterTarget = chooseSnookerHumanPerimeterTarget(cueBall, dir);
+  const rootTarget = constrainSnookerHumanPerimeterStep(human.root.position, perimeterTarget.clone().lerp(rawRootTarget, 0.35));
   const playfieldTarget = new THREE.Vector3(0, cueBall.y, 0);
   const cueFacing = cueBall.clone().sub(rootTarget).setY(0);
   const tableFacing = playfieldTarget.clone().sub(rootTarget).setY(0);
@@ -2173,7 +2206,7 @@ function updateSnookerRoyalHumanPlayer(human, dt, options) {
     .addScaledVector(dir, -SNOOKER_HUMAN_CFG.bridgeBackFromBall)
     .addScaledVector(side, SNOOKER_HUMAN_CFG.bridgeSide)
     .setY(CUE_Y + BALL_R * 0.08);
-  const gripBlend = tableCueVisible ? (0.37 + pullPose * 0.08) : 0.62;
+  const gripBlend = tableCueVisible ? (0.58 + pullPose * 0.06) : 0.62;
   const grip = cueEndpoints.butt
     .clone()
     .lerp(cueEndpoints.tip, gripBlend)
@@ -2187,11 +2220,13 @@ function updateSnookerRoyalHumanPlayer(human, dt, options) {
   const head = toRootLocal(headWorld);
   const neck = chest.clone().lerp(head, 0.68);
   const leftShoulder = chest.clone().add(new THREE.Vector3(-0.13 * SNOOKER_HUMAN_WORLD_SCALE, 0.05 * SNOOKER_HUMAN_WORLD_SCALE, -0.025 * SNOOKER_HUMAN_WORLD_SCALE));
-  const rightShoulder = chest.clone().add(new THREE.Vector3(0.13 * SNOOKER_HUMAN_WORLD_SCALE, 0.055 * SNOOKER_HUMAN_WORLD_SCALE, -0.08 * SNOOKER_HUMAN_WORLD_SCALE));
+  const rightShoulder = chest.clone().add(new THREE.Vector3(0.2 * SNOOKER_HUMAN_WORLD_SCALE, 0.05 * SNOOKER_HUMAN_WORLD_SCALE, -0.04 * SNOOKER_HUMAN_WORLD_SCALE));
   const leftHand = toRootLocal(bridge);
-  const rightHand = toRootLocal(grip);
+  const strokePush = (shooting || cueAnimating) ? Math.sin(Math.min(1, pullPose) * Math.PI) : 0;
+  const forearmStroke = -0.3 * SNOOKER_HUMAN_WORLD_SCALE * pullPose + 0.24 * SNOOKER_HUMAN_WORLD_SCALE * strokePush;
+  const rightHand = toRootLocal(grip.clone().addScaledVector(dir, forearmStroke));
   const leftElbow = leftShoulder.clone().lerp(leftHand, 0.58).add(new THREE.Vector3(-0.05 * SNOOKER_HUMAN_WORLD_SCALE, 0.05 * SNOOKER_HUMAN_WORLD_SCALE, 0.03 * SNOOKER_HUMAN_WORLD_SCALE));
-  const rightElbow = rightShoulder.clone().lerp(rightHand, 0.42).add(new THREE.Vector3(0.22 * SNOOKER_HUMAN_WORLD_SCALE, 0.20 * SNOOKER_HUMAN_WORLD_SCALE, -0.20 * SNOOKER_HUMAN_WORLD_SCALE));
+  const rightElbow = rightShoulder.clone().add(new THREE.Vector3(-0.46 * SNOOKER_HUMAN_WORLD_SCALE, 0.18 * SNOOKER_HUMAN_WORLD_SCALE, -0.78 * SNOOKER_HUMAN_WORLD_SCALE));
   const leftHip = new THREE.Vector3(-0.07 * SNOOKER_HUMAN_WORLD_SCALE, 0.43 * SNOOKER_HUMAN_WORLD_SCALE, -0.08 * SNOOKER_HUMAN_WORLD_SCALE);
   const rightHip = new THREE.Vector3(0.08 * SNOOKER_HUMAN_WORLD_SCALE, 0.43 * SNOOKER_HUMAN_WORLD_SCALE, -0.12 * SNOOKER_HUMAN_WORLD_SCALE);
   const walkLift = Math.sin(human.walkPhase) * 0.028 * SNOOKER_HUMAN_WORLD_SCALE * human.walkAmount;
