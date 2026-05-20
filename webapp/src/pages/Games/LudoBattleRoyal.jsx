@@ -430,7 +430,11 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Uzi/scene.gltf',
       'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Uzi/scene.gltf'
     ],
-    scale: 0.2
+    scale: 0.2,
+    textureOverrideUrls: [
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/Uzi.png',
+      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/images/Uzi.png'
+    ]
   },
   ak47VolleyAttack: {
     label: 'AK-47',
@@ -452,7 +456,11 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/KRSV/scene.gltf',
       'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/KRSV/scene.gltf'
     ],
-    scale: 0.24
+    scale: 0.24,
+    textureOverrideUrls: [
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/KRSV.jpg',
+      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/images/KRSV.jpg'
+    ]
   },
   smithSidearmAttack: {
     label: 'Smith',
@@ -460,7 +468,11 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/Smith/scene.gltf',
       'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/Smith/scene.gltf'
     ],
-    scale: 0.13
+    scale: 0.13,
+    textureOverrideUrls: [
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/Smith.jpeg',
+      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/images/Smith.jpeg'
+    ]
   },
   mosinMarksmanAttack: {
     label: 'Mosin',
@@ -468,7 +480,11 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Mosin/scene.gltf',
       'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Mosin/scene.gltf'
     ],
-    scale: 0.5125
+    scale: 0.5125,
+    textureOverrideUrls: [
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/Mosin.png',
+      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/images/Mosin.png'
+    ]
   },
   sigsauerTacticalAttack: {
     label: 'SigSauer Tactical',
@@ -517,7 +533,11 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://cdn.jsdelivr.net/gh/webaverse/uzi@main/uzi.glb',
       'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/pistol.glb'
     ],
-    scale: 0.2
+    scale: 0.2,
+    textureOverrideUrls: [
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/Uzi.png',
+      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/images/Uzi.png'
+    ]
   },
   compactCarbineAttack: {
     label: 'Compact Carbine',
@@ -598,7 +618,11 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   polyGrenadeLauncher01Attack: {
     label: 'CreativeTrio Grenade Launcher',
     urls: ['https://static.poly.pizza/503bb2c5-4a69-404b-9b82-13e85e8f8467.glb'],
-    scale: 0.2
+    scale: 0.2,
+    textureOverrideUrls: [
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/Uzi.png',
+      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/images/Uzi.png'
+    ]
   },
   polyDynamiteBomb01Attack: {
     label: 'CreativeTrio Dynamite Bomb',
