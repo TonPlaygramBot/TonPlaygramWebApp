@@ -13286,7 +13286,7 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
   if (low) return 'baseFoot';
   if ((brown || namedWood || black) && baseCornerZone) return 'baseCornerBlock';
   if (midBody && s.sideFace && !(s.longN > 0.64 && s.shortN > 0.64)) return 'leg';
-  if (veryTop && (s.upFace || topRailBand) && !green) return 'topWoodRail';
+  if (veryTop && (s.upFace || topRailBand)) return 'topWoodRail';
   if (high && s.sideFace && !green && !anyPocketZone) return 'sideWoodApron';
   return namedCushion ? 'cushion' : 'sideWoodApron';
 }
