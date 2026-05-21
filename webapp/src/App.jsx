@@ -109,7 +109,6 @@ const SnookerChampionLobby = React.lazy(
   () => import('./pages/Games/SnookerChampionLobby.jsx')
 );
 const Tennis = React.lazy(() => import('./pages/Games/Tennis.tsx'));
-const TableTennis = React.lazy(() => import('./pages/Games/TableTennis.tsx'));
 const TennisLobby = React.lazy(() => import('./pages/Games/TennisLobby.jsx'));
 const BowlingRealistic = React.lazy(
   () => import('./pages/Games/BowlingRealistic.tsx')
@@ -433,14 +432,6 @@ export default function App() {
                 element={
                   <GameLiveAvatarOverlay gameSlug="tennis">
                     <Tennis />
-                  </GameLiveAvatarOverlay>
-                }
-              />
-              <Route
-                path="/games/table-tennis"
-                element={
-                  <GameLiveAvatarOverlay gameSlug="table-tennis">
-                    <TableTennis />
                   </GameLiveAvatarOverlay>
                 }
               />
