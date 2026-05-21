@@ -129,7 +129,15 @@ export default function PoolRoyaleLobby() {
     playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
   const selectedAiFlag = aiFlagIndex != null ? FLAG_EMOJIS[aiFlagIndex] : '';
   const selectedTableModelReady = true;
+  const showTableModelSelector = POOL_ROYALE_TABLE_MODEL_OPTIONS.length > 1;
 
+
+
+  useEffect(() => {
+    if (tableModelId !== selectedTableModel.id) {
+      setTableModelId(selectedTableModel.id);
+    }
+  }, [tableModelId, selectedTableModel.id]);
 
   useEffect(() => {
     try {
@@ -873,7 +881,7 @@ export default function PoolRoyaleLobby() {
           </div>
         )}
 
-        {!hasActiveTournament && (
+        {!hasActiveTournament && showTableModelSelector && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold text-white">Pool Table</h3>
