@@ -23,9 +23,11 @@ namespace Aiming
         [Tooltip("Reverse impulse for back spin (draw).")]
         public float backSpinReverseImpulseScale = 0.10f;
         [Tooltip("Torque multiplier for side spin (left/right english).")]
-        public float sideSpinTorqueScale = 0.05f;
+        public float sideSpinTorqueScale = 0.02f;
         [Tooltip("Torque multiplier for top/back spin.")]
-        public float verticalSpinTorqueScale = 0.06f;
+        public float verticalSpinTorqueScale = 0.025f;
+        [Tooltip("Reduces cue-ball path deflection caused by off-center hit/spin while keeping visible spin.")]
+        [Range(0f, 1f)] public float spinDeflectionReduction = 0.8f;
 
         public void Apply(Rigidbody cueBallBody, Vector3 strikeDirection, float impulseMagnitude, Vector2 spinInput, float ballRadius)
         {
@@ -46,7 +48,8 @@ namespace Aiming
 
             Vector2 clampedSpin = Vector2.ClampMagnitude(spinInput, maxSpinInput);
             Vector3 right = Vector3.Cross(Vector3.up, planarDirection).normalized;
-            Vector3 contactOffset = ((right * clampedSpin.x) + (Vector3.up * clampedSpin.y)) * (ballRadius * contactRadiusFactor);
+            float deflectionCarry = 1f - Mathf.Clamp01(spinDeflectionReduction);
+            Vector3 contactOffset = ((right * clampedSpin.x) + (Vector3.up * clampedSpin.y)) * (ballRadius * contactRadiusFactor * deflectionCarry);
             Vector3 contactPoint = cueBallBody.worldCenterOfMass + contactOffset;
 
             cueBallBody.AddForceAtPosition(planarDirection * impulseMagnitude, contactPoint, ForceMode.Impulse);
@@ -64,8 +67,8 @@ namespace Aiming
                     straightTopSpinBoost = clampedSpin.y * straightTopSpinFollowBoost * straightFactor;
                 }
 
-                float follow = Mathf.Max(0f, clampedSpin.y) * topSpinForwardImpulseScale + straightTopSpinBoost;
-                float draw = Mathf.Max(0f, -clampedSpin.y) * backSpinReverseImpulseScale;
+                float follow = (Mathf.Max(0f, clampedSpin.y) * topSpinForwardImpulseScale + straightTopSpinBoost) * deflectionCarry;
+                float draw = (Mathf.Max(0f, -clampedSpin.y) * backSpinReverseImpulseScale) * deflectionCarry;
                 float spinLinearImpulse = (follow - draw) * impulseMagnitude;
                 if (Mathf.Abs(spinLinearImpulse) > Mathf.Epsilon)
                 {
