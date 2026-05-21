@@ -3,7 +3,8 @@ using UnityEngine;
 namespace Aiming.Gameplay.Environment
 {
     /// <summary>
-    /// Pushes human characters farther from the table and slightly enlarges chairs.
+    /// Pulls human characters and side props inward toward the table for portrait framing,
+    /// and scales humans/chairs up for better readability.
     /// Useful for portrait-camera readability tuning in Murlan Royal scenes.
     /// </summary>
     public class MurlanRoyalTableSeatingLayout : MonoBehaviour
@@ -14,8 +15,10 @@ namespace Aiming.Gameplay.Environment
         [SerializeField] private Transform[] chairs;
 
         [Header("Layout Tuning")]
-        [SerializeField, Min(0f)] private float humanOutwardOffset = 0.35f;
+        [SerializeField, Min(0f)] private float humanInwardOffset = 0.35f;
+        [SerializeField, Min(0.1f)] private float humanScaleMultiplier = 1.12f;
         [SerializeField, Min(0.1f)] private float chairScaleMultiplier = 1.08f;
+        [SerializeField] private Transform[] sidePropsToMoveInward;
         [SerializeField] private bool fixHumanFacingDirection = true;
         [SerializeField] private bool humansShouldFaceTableCenter = true;
         [SerializeField] private Vector3 humanFacingEulerOffset = new Vector3(0f, 180f, 0f);
@@ -33,12 +36,14 @@ namespace Aiming.Gameplay.Environment
         public void ApplyLayout()
         {
             Vector3 center = tableCenter != null ? tableCenter.position : transform.position;
-            PushHumansOutward(center);
+            MoveHumansInward(center);
+            MovePropsInward(center);
             FixHumanFacing(center);
+            ScaleHumans();
             ScaleChairs();
         }
 
-        private void PushHumansOutward(Vector3 center)
+        private void MoveHumansInward(Vector3 center)
         {
             if (humanCharacters == null)
             {
@@ -61,7 +66,54 @@ namespace Aiming.Gameplay.Environment
                     continue;
                 }
 
-                human.position += horizontalDirection.normalized * humanOutwardOffset;
+                human.position -= horizontalDirection.normalized * humanInwardOffset;
+            }
+        }
+
+
+        private void MovePropsInward(Vector3 center)
+        {
+            if (sidePropsToMoveInward == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < sidePropsToMoveInward.Length; i++)
+            {
+                Transform prop = sidePropsToMoveInward[i];
+                if (prop == null)
+                {
+                    continue;
+                }
+
+                Vector3 horizontalDirection = prop.position - center;
+                horizontalDirection.y = 0f;
+
+                if (horizontalDirection.sqrMagnitude <= 0.0001f)
+                {
+                    continue;
+                }
+
+                prop.position -= horizontalDirection.normalized * humanInwardOffset;
+            }
+        }
+
+        private void ScaleHumans()
+        {
+            if (humanCharacters == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < humanCharacters.Length; i++)
+            {
+                Transform human = humanCharacters[i];
+                if (human == null)
+                {
+                    continue;
+                }
+
+                human.localScale *= humanScaleMultiplier;
             }
         }
 
