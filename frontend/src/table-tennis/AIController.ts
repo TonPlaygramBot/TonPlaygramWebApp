@@ -13,10 +13,12 @@ export class AIController {
   private reactionTimer = 0;
   private committedLanding: THREE.Vector3 | null = null;
   private readonly shotCommand: ShotCommand = { aimX: 0, power: 0.76, lift: 0.42, curve: 0, spin: 0.34 };
+  private bounceReadyTimer = 0;
 
   constructor(private root: THREE.Group, private hand: THREE.Object3D, private paddle: THREE.Object3D) {}
 
   update(dt: number, ball: BallPhysics) {
+    this.bounceReadyTimer = Math.max(0, this.bounceReadyTimer - dt);
     const cfg = GAME_CONFIG.ai.difficulty;
     this.reactionTimer -= dt;
     if (this.reactionTimer <= 0) {
@@ -27,7 +29,11 @@ export class AIController {
         this.prepareShotCommand(ball);
       }
       const speedRead = THREE.MathUtils.clamp(ball.velocity.length() / 7, 0, 0.055);
-      this.reactionTimer = Math.max(0.075, cfg.reactionTime - speedRead);
+      this.reactionTimer = Math.max(0.045, cfg.reactionTime - speedRead);
+    }
+
+    if (ball.bounces.ai === 1 && ball.lastTouch !== 'ai' && ball.velocity.y > 0 && this.canReach(ball.position)) {
+      this.bounceReadyTimer = 0.085;
     }
 
     this.root.position.x = THREE.MathUtils.damp(this.root.position.x, this.targetX.value, cfg.moveSpeed, dt);
@@ -74,4 +80,13 @@ export class AIController {
     return new THREE.Vector3(0, 0, 1).applyQuaternion(this.paddle.getWorldQuaternion(new THREE.Quaternion())).normalize();
   }
 
+  shouldStrikeAfterBounce(ball: BallPhysics) {
+    if (ball.bounces.ai !== 1 || ball.lastTouch === 'ai') return false;
+    const risingAfterBounce = ball.velocity.y >= -0.08;
+    const headingToPlayerSide = ball.position.z < -0.02;
+    return this.bounceReadyTimer > 0 && risingAfterBounce && headingToPlayerSide && this.canReach(ball.position);
+  }
 }
+
+
+

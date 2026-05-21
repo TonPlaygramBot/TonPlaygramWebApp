@@ -30,7 +30,7 @@ export interface DifficultyConfig {
 const POOL_ROYALE_TABLE_WIDTH = 61.651044;
 const POOL_ROYALE_TABLE_LENGTH = 90.4215312;
 const POOL_ROYALE_TO_TABLE_TENNIS_BASE_SCALE = 0.045;
-const TABLE_TENNIS_SIZE_MULTIPLIER = 1.3;
+const TABLE_TENNIS_SIZE_MULTIPLIER = 1.58;
 const POOL_ROYALE_TO_TABLE_TENNIS_SCALE = POOL_ROYALE_TO_TABLE_TENNIS_BASE_SCALE * TABLE_TENNIS_SIZE_MULTIPLIER;
 const TABLE_WIDTH = POOL_ROYALE_TABLE_WIDTH * POOL_ROYALE_TO_TABLE_TENNIS_SCALE;
 const TABLE_LENGTH = POOL_ROYALE_TABLE_LENGTH * POOL_ROYALE_TO_TABLE_TENNIS_SCALE;
@@ -76,16 +76,16 @@ export const GAME_CONFIG = {
     maxReach: 0.58 * TABLE_WIDTH_SCALE,
     avatarScale: 1.62 * TABLE_TENNIS_SIZE_MULTIPLIER,
     difficulty: {
-      reactionTime: 0.14,
+      reactionTime: 0.1,
       moveSpeed: 3.05 * TABLE_WIDTH_SCALE,
-      accuracy: 0.84,
+      accuracy: 0.94,
       shotPower: 1.18,
-      mistakeChance: 0.1,
+      mistakeChance: 0.035,
     } satisfies DifficultyConfig,
   },
   paddle: {
     hitRadius: 0.18 * TABLE_WIDTH_SCALE,
-    timingWindow: 0.12,
+    timingWindow: 0.15,
     minFacingDot: 0.22,
     drivePower: 3.35 * TABLE_LENGTH_SCALE,
     pushPower: 2.55 * TABLE_LENGTH_SCALE,
@@ -93,7 +93,7 @@ export const GAME_CONFIG = {
     powerShotMultiplier: 1.18,
     spin: 3.6,
     sideSpin: 4.2,
-    accuracy: 0.96,
+    accuracy: 0.985,
   },
   camera: {
     position: new THREE.Vector3(0, 2.7 * TABLE_TENNIS_SIZE_MULTIPLIER, 6.1 * TABLE_TENNIS_SIZE_MULTIPLIER),
