@@ -67,21 +67,25 @@ describe('Pool Royale table models', () => {
     );
   });
 
-  test('Pool Royale lobby exposes Showood table model choices without the removed 8 ft table', async () => {
+  test('Pool Royale lobby uses the fixed Showood table without model choices', async () => {
     const lobby = await readFile(
       'webapp/src/pages/Games/PoolRoyaleLobby.jsx',
       'utf8'
     );
 
+    assert.ok(
+      lobby.includes('Showood 7 ft GLB is now the fixed Pool Royale table.'),
+      'lobby should explain the fixed Showood table'
+    );
     assert.equal(
       lobby.includes('POOL_ROYALE_TABLE_MODEL_OPTIONS.map'),
-      true,
-      'lobby should render table model option cards'
+      false,
+      'lobby should not render table model option cards'
     );
     assert.equal(
       lobby.includes('setTableModelId'),
-      true,
-      'lobby should allow switching table models'
+      false,
+      'lobby should not allow switching table models'
     );
     assert.equal(
       lobby.includes('traditional-fizyman-eight-foot'),
