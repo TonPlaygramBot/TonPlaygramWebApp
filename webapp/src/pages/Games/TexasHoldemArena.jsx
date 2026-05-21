@@ -397,8 +397,8 @@ const HEAD_PITCH_SENSITIVITY = 0.0032;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.05, landscape: 0.6 });
 const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.16, landscape: 1.38 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.32, landscape: 0.62 });
-const CAMERA_LANDSCAPE_LOOK_UP_LIFT = CARD_H * 0.48;
-const CAMERA_PORTRAIT_LOOK_UP_LIFT = CARD_H * 0.54;
+const CAMERA_LANDSCAPE_LOOK_UP_LIFT = CARD_H * 0.54;
+const CAMERA_PORTRAIT_LOOK_UP_LIFT = CARD_H * 0.6;
 const CAMERA_LANDSCAPE_LOOK_RIGHT_SHIFT = 0;
 const CAMERA_PORTRAIT_MIN_LOOK_UP = THREE.MathUtils.degToRad(17);
 const CAMERA_PORTRAIT_MAX_LOOK_DOWN = THREE.MathUtils.degToRad(23);
@@ -413,7 +413,7 @@ const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.48;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * -0.02;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.69;
 const HUMAN_CARD_INWARD_SHIFT = CARD_W * -2.22;
-const HUMAN_CHIP_INWARD_SHIFT = CARD_W * 0.72;
+const HUMAN_CHIP_INWARD_SHIFT = CARD_W * 0.58;
 const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.4;
 const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 0.34;
 const AI_CARD_INWARD_SHIFT = CARD_W * -1.88;
@@ -1434,11 +1434,11 @@ function createTexasCharacterRig(instance, seatRoot, seatIndex) {
   addTexasBoneOffset(bones.spine, THREE.MathUtils.degToRad(-3), 0, 0);
   addTexasBoneOffset(bones.head, THREE.MathUtils.degToRad(2), 0, 0);
   // Resting pose: keep both arms relaxed down the sides with hands laid on the chair arm rests.
-  addTexasBoneOffset(bones.leftUpperArm, THREE.MathUtils.degToRad(-48), THREE.MathUtils.degToRad(-18), THREE.MathUtils.degToRad(-10));
-  addTexasBoneOffset(bones.leftForeArm, THREE.MathUtils.degToRad(28), THREE.MathUtils.degToRad(-4), THREE.MathUtils.degToRad(7));
+  addTexasBoneOffset(bones.leftUpperArm, THREE.MathUtils.degToRad(-56), THREE.MathUtils.degToRad(-18), THREE.MathUtils.degToRad(-8));
+  addTexasBoneOffset(bones.leftForeArm, THREE.MathUtils.degToRad(4), THREE.MathUtils.degToRad(-2), THREE.MathUtils.degToRad(3));
   addTexasBoneOffset(bones.leftHand, THREE.MathUtils.degToRad(-8), THREE.MathUtils.degToRad(-7), THREE.MathUtils.degToRad(-8));
-  addTexasBoneOffset(bones.rightUpperArm, THREE.MathUtils.degToRad(-50), THREE.MathUtils.degToRad(18), THREE.MathUtils.degToRad(10));
-  addTexasBoneOffset(bones.rightForeArm, THREE.MathUtils.degToRad(28), THREE.MathUtils.degToRad(4), THREE.MathUtils.degToRad(-7));
+  addTexasBoneOffset(bones.rightUpperArm, THREE.MathUtils.degToRad(-58), THREE.MathUtils.degToRad(18), THREE.MathUtils.degToRad(8));
+  addTexasBoneOffset(bones.rightForeArm, THREE.MathUtils.degToRad(4), THREE.MathUtils.degToRad(2), THREE.MathUtils.degToRad(-3));
   addTexasBoneOffset(bones.rightHand, THREE.MathUtils.degToRad(-8), THREE.MathUtils.degToRad(7), THREE.MathUtils.degToRad(8));
   addTexasBoneOffset(bones.leftThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(9.2), THREE.MathUtils.degToRad(2.9));
   addTexasBoneOffset(bones.rightThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(1.7), THREE.MathUtils.degToRad(-1.1));
@@ -5367,15 +5367,7 @@ function TexasHoldemArena({ search }) {
       const targetForward = focus.clone().sub(position).normalize();
       const targetRight = new THREE.Vector3().crossVectors(targetForward, targetUp).normalize();
       const computedPitchLimits = computeCameraPitchLimits(position, targetForward, { seatTopPoint });
-      const pitchLimits = portrait
-        ? {
-          min: Math.min(computedPitchLimits.min, -CAMERA_PORTRAIT_MIN_LOOK_UP),
-          max: Math.max(computedPitchLimits.max, CAMERA_PORTRAIT_MAX_LOOK_DOWN)
-        }
-        : {
-          min: Math.min(computedPitchLimits.min, -CAMERA_LANDSCAPE_MIN_LOOK_UP),
-          max: Math.max(computedPitchLimits.max, CAMERA_LANDSCAPE_MAX_LOOK_DOWN)
-        };
+      const pitchLimits = { min: 0, max: 0 };
       cameraBasisRef.current = {
         position: position.clone(),
         baseForward: targetForward,
@@ -6039,12 +6031,7 @@ function TexasHoldemArena({ search }) {
           -CAMERA_HEAD_TURN_LIMIT,
           CAMERA_HEAD_TURN_LIMIT
         );
-        const pitchLimits = cameraBasisRef.current?.pitchLimits ?? DEFAULT_PITCH_LIMITS;
-        headAnglesRef.current.pitch = clampValue(
-          state.startPitch + dy * HEAD_PITCH_SENSITIVITY,
-          pitchLimits.min,
-          pitchLimits.max
-        );
+        headAnglesRef.current.pitch = 0;
         applyHeadOrientation();
         return;
       }
