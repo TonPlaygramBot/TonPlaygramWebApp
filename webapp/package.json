@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "vite",
+    "lint": "eslint --no-ignore --no-warn-ignored",
     "build": "node scripts/write-build-metadata.mjs && node scripts/run-vite-build.mjs",
     "preview": "vite preview",
     "generate:native-assets": "node scripts/generate-native-assets.mjs",

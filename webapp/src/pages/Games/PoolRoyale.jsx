@@ -13494,21 +13494,51 @@ async function loadPoolRoyaleExternalTableTemplate(tableModel, renderer = null) 
   }
   const promise = (async () => {
     const loader = createConfiguredGLTFLoader(renderer);
-    let lastError = null;
     const urls = [tableModel.assetUrl, tableModel.fallbackAssetUrl].filter(Boolean);
-    for (const url of urls) {
-      try {
-        // eslint-disable-next-line no-await-in-loop
-        const gltf = await loader.loadAsync(url);
-        const scene = gltf?.scene || gltf?.scenes?.[0];
-        if (!scene) throw new Error(`Missing GLTF scene for ${tableModel.id}`);
-        poolRoyaleExternalTableTemplates.set(tableModel.id, scene);
-        return scene;
-      } catch (error) {
-        lastError = error;
-      }
+    if (!urls.length) {
+      throw new Error(`Missing table model URLs for ${tableModel.id}`);
     }
-    throw lastError || new Error(`Failed to load Pool Royale table model: ${tableModel.id}`);
+
+    const LOAD_TIMEOUT_MS = 9000;
+    const withTimeout = (loadPromise, url) =>
+      new Promise((resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+          reject(new Error(`Timed out after ${LOAD_TIMEOUT_MS}ms while loading ${url}`));
+        }, LOAD_TIMEOUT_MS);
+        loadPromise
+          .then((value) => {
+            clearTimeout(timeoutId);
+            resolve(value);
+          })
+          .catch((error) => {
+            clearTimeout(timeoutId);
+            reject(error);
+          });
+      });
+
+    const loaders = urls.map((url) =>
+      withTimeout(loader.loadAsync(url), url).then((gltf) => ({ gltf, url }))
+    );
+    let result = null;
+    try {
+      result = await Promise.any(loaders);
+    } catch (error) {
+      const aggregate = error instanceof AggregateError ? error.errors : [error];
+      const messages = aggregate
+        .map((entry) => (entry instanceof Error ? entry.message : String(entry)))
+        .filter(Boolean)
+        .join(' | ');
+      throw new Error(
+        `Failed to load Pool Royale table model: ${tableModel.id}${messages ? ` | ${messages}` : ''}`
+      );
+    }
+
+    const scene = result?.gltf?.scene || result?.gltf?.scenes?.[0];
+    if (!scene) {
+      throw new Error(`Missing GLTF scene for ${tableModel.id}`);
+    }
+    poolRoyaleExternalTableTemplates.set(tableModel.id, scene);
+    return scene;
   })();
   poolRoyaleExternalTablePromises.set(tableModel.id, promise);
   promise.catch(() => poolRoyaleExternalTablePromises.delete(tableModel.id));
