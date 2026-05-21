@@ -13124,7 +13124,7 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
 }
 
 function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInfo = null) {
-  if (!model || tableModel?.id !== 'showood-seven-foot' || !finishInfo) return;
+  if (!model || !tableModel?.id?.startsWith('showood-seven-foot') || !finishInfo) return;
   model.updateMatrixWorld(true);
   const tableBox = new THREE.Box3().setFromObject(model);
   if (tableBox.isEmpty()) return;
@@ -13182,7 +13182,7 @@ function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInf
 
 function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tableModel = null, child = null) {
   if (!material || !finishInfo) return material;
-  if (tableModel?.id === 'showood-seven-foot') {
+  if (tableModel?.id?.startsWith('showood-seven-foot')) {
     return applyShowoodStyleToExternalMaterial(material, role, tableModel, finishInfo);
   }
   const canonicalRole = role === 'pocketCup' ? 'pocket' :
@@ -13488,7 +13488,7 @@ function stretchPoolRoyaleExternalLowerBase(model, tableModel, dims) {
 
 
 function adjustPoolRoyaleExternalShowoodBaseProportions(model, tableModel) {
-  if (!model || tableModel?.id !== 'showood-seven-foot') return;
+  if (!model || !tableModel?.id?.startsWith('showood-seven-foot')) return;
   const baseScale = Number(tableModel?.lowerBaseHeightScale);
   const legScale = Number(tableModel?.legLengthScale);
   const shouldScaleBase = Number.isFinite(baseScale) && baseScale > MICRO_EPS && Math.abs(baseScale - 1) > MICRO_EPS;
@@ -13645,7 +13645,7 @@ function mountPoolRoyaleExternalTableModel({
       remapPoolRoyaleShowoodExternalParts(model, tableModel, finishInfo);
       externalRoot.clear();
       externalRoot.add(model);
-      if (tableModel.id === 'showood-seven-foot') {
+      if (tableModel.id?.startsWith('showood-seven-foot')) {
         const showOriginalBase = table.userData.showoodUsesOriginalBase !== false;
         model.traverse((child) => {
           if (!child?.isMesh) return;
@@ -14120,7 +14120,7 @@ function mountPoolRoyaleExternalTableModel({
   const applyBaseVariant = (variant) => {
     const variantId = resolveBaseVariantId(variant);
     const isShowoodExternalTable =
-      usesExternalTableModel && resolvedTableOptions?.tableModel?.id === 'showood-seven-foot';
+      usesExternalTableModel && resolvedTableOptions?.tableModel?.id?.startsWith('showood-seven-foot');
     const usesShowoodOriginalBase =
       isShowoodExternalTable && variantId === SHOWOOD_ORIGINAL_TABLE_BASE_ID;
 
@@ -14168,7 +14168,7 @@ function mountPoolRoyaleExternalTableModel({
   };
 
   table.userData.applyExternalTableFallbackBase = () => {
-    if (usesExternalTableModel && resolvedTableOptions?.tableModel?.id === 'showood-seven-foot') {
+    if (usesExternalTableModel && resolvedTableOptions?.tableModel?.id?.startsWith('showood-seven-foot')) {
       applyBaseVariant(SHOWOOD_ORIGINAL_TABLE_BASE_ID);
     }
   };
@@ -14417,9 +14417,9 @@ function mountPoolRoyaleExternalTableModel({
         !visible &&
         (
           (!externalTableModelForMount?.useOriginalLayoutSurfaces && object.userData?.externalTableKeepVisible) ||
-          (externalTableModelForMount?.id === 'showood-seven-foot' && object.userData?.showoodGeneratedPocketSupport) ||
-          (externalTableModelForMount?.id === 'showood-seven-foot' && object.userData?.showoodGeneratedClothPocketSleeve) ||
-          (externalTableModelForMount?.id === 'showood-seven-foot' && !table.userData.showoodUsesOriginalBase && object.userData?.__basePart) ||
+          (externalTableModelForMount?.id?.startsWith('showood-seven-foot') && object.userData?.showoodGeneratedPocketSupport) ||
+          (externalTableModelForMount?.id?.startsWith('showood-seven-foot') && object.userData?.showoodGeneratedClothPocketSleeve) ||
+          (externalTableModelForMount?.id?.startsWith('showood-seven-foot') && !table.userData.showoodUsesOriginalBase && object.userData?.__basePart) ||
           (object.userData?.isChromePlate && forceGeneratedChrome)
         )
       ) {
