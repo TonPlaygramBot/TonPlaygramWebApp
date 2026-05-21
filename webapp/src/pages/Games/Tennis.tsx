@@ -1651,11 +1651,14 @@ function makeUserTargetFromSwipe(
   // upward swipe controls depth, and release distance/speed controls power.
   const lateral = clamp(dx / (shortAxis * 0.42), -1, 1);
   const forward = clamp((-dy) / (longAxis * 0.44), 0, 1);
-  const travelPower = clamp01(dist / (shortAxis * 0.58));
-  const speedPower = clamp01(((dist / duration) * 1000 - 180) / 1180);
-  const intentPower = clamp01(travelPower * 0.78 + speedPower * 0.22);
+  const travelPower = clamp01(dist / (shortAxis * 0.62));
+  const speedPower = clamp01(((dist / duration) * 1000 - 140) / 1280);
+  const intentPowerLinear = clamp01(travelPower * 0.7 + speedPower * 0.3);
+  // Slight easing gives better low/mid control while preserving max power at full swipes.
+  const intentPower = Math.pow(intentPowerLinear, 0.9);
+  const powerFloorBoost = isServe ? 0.03 : 0.05;
   const power = clamp(
-    lerp(isServe ? CFG.servePower.min : CFG.shotPower.min, isServe ? CFG.servePower.max : CFG.shotPower.max, intentPower),
+    lerp((isServe ? CFG.servePower.min : CFG.shotPower.min) + powerFloorBoost, isServe ? CFG.servePower.max : CFG.shotPower.max, intentPower),
     isServe ? CFG.servePower.min : CFG.shotPower.min,
     isServe ? CFG.servePower.max : CFG.shotPower.max
   );
@@ -1671,10 +1674,15 @@ function makeUserTargetFromSwipe(
     aimX = clamp(centerX + lateral * halfRange, minX, maxX);
     targetZ = lerp(-CFG.serviceLineZ + 0.72 * CFG.worldScale, -CFG.serviceBuffer - 0.48 * CFG.worldScale, forward);
   } else {
-    aimX = clamp(lateral * (CFG.courtW / 2 - 0.52 * CFG.worldScale), -CFG.courtW / 2 + 0.52 * CFG.worldScale, CFG.courtW / 2 - 0.52 * CFG.worldScale);
-    const minimumDepth = lerp(-0.9 * CFG.worldScale, -CFG.serviceLineZ * 0.55, intentPower);
+    const swipeAngle = Math.atan2(-dy, dx);
+    const directionalLateral = Math.cos(swipeAngle);
+    const directionalForward = Math.max(0, Math.sin(swipeAngle));
+    const lateralBlend = clamp(directionalLateral * 0.7 + lateral * 0.3, -1, 1);
+    const forwardBlend = clamp01(directionalForward * 0.75 + forward * 0.25);
+    aimX = clamp(lateralBlend * (CFG.courtW / 2 - 0.52 * CFG.worldScale), -CFG.courtW / 2 + 0.52 * CFG.worldScale, CFG.courtW / 2 - 0.52 * CFG.worldScale);
+    const minimumDepth = lerp(-0.95 * CFG.worldScale, -CFG.serviceLineZ * 0.52, intentPower);
     const maximumDepth = -CFG.courtL / 2 + 0.78 * CFG.worldScale;
-    targetZ = lerp(minimumDepth, maximumDepth, forward);
+    targetZ = lerp(minimumDepth, maximumDepth, forwardBlend);
   }
 
   return {
@@ -1727,11 +1735,11 @@ function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = 
     ball.vel.multiplyScalar(0.72);
     ball.spin = 0.25;
   } else if (technique === "topspin") {
-    ball.vel.y += (0.38 + hit.power * CFG.matchPowerMultiplier * 0.34) * CFG.worldScale;
-    ball.spin = 1.05 + hit.power * CFG.matchPowerMultiplier * 1.1;
+    ball.vel.y += (0.34 + hit.power * CFG.matchPowerMultiplier * 0.3) * CFG.worldScale;
+    ball.spin = 1.1 + hit.power * CFG.matchPowerMultiplier * 1.28;
   } else if (technique === "slice") {
-    ball.vel.y -= 0.12;
-    ball.spin = -1.15 - hit.power * CFG.matchPowerMultiplier * 0.62;
+    ball.vel.y -= 0.1;
+    ball.spin = -1.25 - hit.power * CFG.matchPowerMultiplier * 0.72;
   } else {
     ball.spin = serve ? 0.95 + hit.power * CFG.matchPowerMultiplier * 0.9 : 0.6 + hit.power * CFG.matchPowerMultiplier * 1.25;
   }
@@ -1844,7 +1852,7 @@ function predictLanding(ball: BallState) {
   return p;
 }
 
-type ReceiverPlayPrediction = { landing: THREE.Vector3; contact: THREE.Vector3; footTarget: THREE.Vector3; postBounce: boolean };
+type ReceiverPlayPrediction = { landing: THREE.Vector3; contact: THREE.Vector3; footTarget: THREE.Vector3; postBounce: boolean; contactOffsetX: number };
 
 function predictReceiverPlay(ball: BallState, side: PlayerSide): ReceiverPlayPrediction {
   const p = ball.pos.clone();
@@ -1890,8 +1898,14 @@ function predictReceiverPlay(ball: BallState, side: PlayerSide): ReceiverPlayPre
 
   const fallbackLanding = landing ?? predictLanding(ball);
   const contactPoint = contact ?? fallbackLanding.clone().setY(clamp(CFG.minContactHeight * 1.05, CFG.ballR, CFG.maxContactHeight));
+  const rawContactOffsetX = clamp(v.x * 0.22, -0.34 * CFG.worldScale, 0.34 * CFG.worldScale);
+  // Keep the hitter visually offset to the left/right of the ball (portrait screen),
+  // so the racket arm reaches out instead of getting jammed straight behind the ball.
+  const contactOffsetX = Math.abs(rawContactOffsetX) > 0.08 * CFG.worldScale
+    ? rawContactOffsetX
+    : (contactPoint.x >= 0 ? 1 : -1) * 0.14 * CFG.worldScale;
   const footTarget = new THREE.Vector3(
-    clamp(contactPoint.x, -CFG.courtW / 2 + 0.38 * CFG.worldScale, CFG.courtW / 2 - 0.38 * CFG.worldScale),
+    clamp(contactPoint.x - contactOffsetX, -CFG.courtW / 2 + 0.38 * CFG.worldScale, CFG.courtW / 2 - 0.38 * CFG.worldScale),
     0,
     clamp(
       contactPoint.z + backSign * 1.18 * CFG.worldScale,
@@ -1899,7 +1913,7 @@ function predictReceiverPlay(ball: BallState, side: PlayerSide): ReceiverPlayPre
       side === "near" ? CFG.courtL / 2 - 0.58 * CFG.worldScale : -0.82 * CFG.worldScale
     )
   );
-  return { landing: fallbackLanding, contact: contactPoint, footTarget, postBounce };
+  return { landing: fallbackLanding, contact: contactPoint, footTarget, postBounce, contactOffsetX };
 }
 
 export default function MobileThreeTennisPrototype() {
