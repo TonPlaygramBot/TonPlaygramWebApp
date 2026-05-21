@@ -4363,6 +4363,14 @@ const SHOWOOD_TABLE_PART_LABELS = Object.freeze({
   baseFoot: 'Feet'
 });
 const SHOWOOD_CHROME_LINKED_PARTS = new Set(['railSight', 'baseFoot']);
+const SHOWOOD_PERSONALIZATION_PARTS = Object.freeze([
+  'cloth',
+  'cushion',
+  'topWoodRail',
+  'railSight',
+  'pocketCup',
+  'baseFoot'
+]);
 const getShowoodTablePartOptions = (part, clothOptions = null, tableFinishOptions = null) => {
   if (part === 'cloth' || part === 'cushion') {
     const sourceOptions = Array.isArray(clothOptions) && clothOptions.length
@@ -4375,7 +4383,7 @@ const getShowoodTablePartOptions = (part, clothOptions = null, tableFinishOption
       material: { color: option.color, roughness: 1, metalness: 0, envMapIntensity: 0.16 }
     }));
   }
-  if (part === 'topWoodRail' || part === 'baseCornerBlock' || part === 'leg') {
+  if (part === 'topWoodRail') {
     const sourceOptions = Array.isArray(tableFinishOptions) && tableFinishOptions.length
       ? tableFinishOptions
       : TABLE_FINISH_OPTIONS;
@@ -4384,12 +4392,21 @@ const getShowoodTablePartOptions = (part, clothOptions = null, tableFinishOption
       const swatch = option.swatches?.[0] ?? finish?.colors?.rail ?? finish?.colors?.base ?? 0x5a2608;
       return {
         id: option.id,
-        label: `${option.label || finish?.label || option.id} ${part === 'topWoodRail' ? 'Rails' : part === 'baseCornerBlock' ? 'Base' : 'Legs'}`,
+        label: `${option.label || finish?.label || option.id} Rails`,
         color: toHexColor(swatch),
         thumbnail: option.thumbnail,
         useTableFinishTexture: true
       };
     });
+  }
+  if (part === 'baseCornerBlock' || part === 'leg') {
+    return POOL_ROYALE_BASE_VARIANTS.map((variant) => ({
+      id: variant.id,
+      label: part === 'baseCornerBlock' ? `${variant.name} Base` : `${variant.name} Legs`,
+      color: variant.color,
+      thumbnail: variant.thumbnail,
+      useTableBaseVariant: true
+    }));
   }
   return SHOWOOD_TABLE_PART_OPTIONS[part] || [];
 };
@@ -15705,7 +15722,7 @@ function PoolRoyaleGame({
   );
   const tablePersonalizationSections = useMemo(
     () =>
-      SHOWOOD_TABLE_PARTS.map((part) => ({
+      SHOWOOD_PERSONALIZATION_PARTS.map((part) => ({
         key: part,
         label: SHOWOOD_TABLE_PART_LABELS[part] || part,
         chromeLinked: SHOWOOD_CHROME_LINKED_PARTS.has(part),
@@ -36139,6 +36156,49 @@ const shotPowerRef = useRef(0);
               </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Table Base Type
+                </h3>
+                <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/55">
+                  Controls the base + leg geometry type.
+                </p>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {availableTableBases.map((variant) => {
+                    const active = variant.id === tableBaseId;
+                    const thumb = variant.thumbnail;
+                    return (
+                      <button
+                        key={variant.id}
+                        type="button"
+                        onClick={() => setTableBaseId(variant.id)}
+                        aria-pressed={active}
+                        className={`flex flex-col items-center justify-between gap-2 rounded-2xl border p-2 text-center text-[10px] font-semibold uppercase tracking-[0.16em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        {thumb ? (
+                          <img
+                            src={thumb}
+                            alt={variant.name}
+                            className="h-12 w-full rounded-xl border border-white/20 object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <span
+                            className="h-12 w-full rounded-xl border border-white/30"
+                            style={{ backgroundColor: variant.color ?? '#64748b' }}
+                            aria-hidden="true"
+                          />
+                        )}
+                        <span className="line-clamp-2">{variant.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Chrome Plates
                 </h3>
                 <div className="mt-2 flex flex-wrap gap-2">
@@ -36220,8 +36280,10 @@ const shotPowerRef = useRef(0);
                         const chromeLinked = activeTablePersonalizationSection.chromeLinked;
                         const selected = part === 'cloth'
                           ? clothColorId
-                          : part === 'topWoodRail' || part === 'leg'
+                          : part === 'topWoodRail'
                             ? tableFinishId
+                            : part === 'baseCornerBlock' || part === 'leg'
+                              ? tableBaseId
                             : chromeLinked
                               ? (chromeColorId === 'gold' ? 'gold' : 'chrome')
                               : normalizeShowoodTableStyle(showoodTableStyle)[part];
@@ -36233,8 +36295,13 @@ const shotPowerRef = useRef(0);
                             onClick={() => {
                               if (part === 'cloth') {
                                 setClothColorId(option.id);
-                              } else if (part === 'topWoodRail' || part === 'leg') {
+                              } else if (part === 'topWoodRail') {
                                 setTableFinishId(option.id);
+                                setShowoodTableStyle((current) =>
+                                  normalizeShowoodTableStyle({ ...current, [part]: option.id })
+                                );
+                              } else if (part === 'baseCornerBlock' || part === 'leg') {
+                                setTableBaseId(option.id);
                                 setShowoodTableStyle((current) =>
                                   normalizeShowoodTableStyle({ ...current, [part]: option.id })
                                 );
