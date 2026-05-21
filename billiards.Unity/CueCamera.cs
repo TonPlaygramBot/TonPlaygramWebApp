@@ -176,7 +176,7 @@ public class CueCamera : MonoBehaviour
     public float broadcastHeightPadding = 0.08f;
     // Extra inward push for the short-rail broadcast camera so it sits a bit
     // closer to the table action.
-    public float broadcastDistanceInset = 0.08f;
+    public float broadcastDistanceInset = 0.12f;
     // Additional downward look offset to tilt the broadcast camera a little more
     // toward the cloth.
     public float broadcastLookDownOffset = 0.06f;
@@ -199,7 +199,7 @@ public class CueCamera : MonoBehaviour
     // Height offset above the table focus, captured on start.
     public float standingCameraHeight = 0.48f;
     // Pull the standing camera inward so the framing matches the Pool Royale view.
-    public float standingCameraDistanceInset = 0.12f;
+    public float standingCameraDistanceInset = 0.16f;
     // Additional height offset applied after caching the standing camera pose.
     public float standingCameraHeightOffset = -0.06f;
 
