@@ -102,7 +102,6 @@ import {
   smoothDamp,
   SPIN_STUN_RADIUS
 } from './snookerRoyalSpinUtils.js';
-import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
@@ -14507,6 +14506,8 @@ const showRuleToast = useCallback((message) => {
   }, 3000);
 }, []);
 const powerRef = useRef(hud.power);
+const shotPowerRef = useRef(hud.power);
+const draggingSliderRef = useRef(false);
   const applyPower = useCallback((nextPower) => {
     const clampedPower = THREE.MathUtils.clamp(nextPower ?? 0, 0, 1);
     powerRef.current = clampedPower;
@@ -14517,6 +14518,9 @@ const powerRef = useRef(hud.power);
   }, [inHandPlacementMode]);
   useEffect(() => {
     powerRef.current = hud.power;
+    if (!draggingSliderRef.current) {
+      shotPowerRef.current = hud.power;
+    }
   }, [hud.power]);
   const hudRef = useRef(hud);
   useEffect(() => {
@@ -23256,7 +23260,7 @@ const powerRef = useRef(hud.power);
             0,
             Math.max(maxPull + CUE_PULL_VISUAL_FUDGE, CUE_PULL_MIN_VISUAL)
           );
-          const visualPull = applyVisualPullCompensation(startPull, dir);
+          const visualPull = applyVisualPullCompensation(startPull * 1.12, dir);
           cuePullCurrentRef.current = startPull;
           cuePullTargetRef.current = startPull;
           const cuePerp = new THREE.Vector3(-dir.z, 0, dir.x);
@@ -23302,21 +23306,21 @@ const powerRef = useRef(hud.power);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
           const pullbackDuration = 115;
-          const strikeDuration = 110;
+          const strikeDuration = 130;
           const holdDuration = 45;
           const returnDuration = 95;
           // Keep the no-character cue stroke matching the old human-rig shot:
           // drive the tip forward from pullback into cue-ball contact instead
           // of stopping at the original address gap.
           const impactPush = THREE.MathUtils.clamp(
-            CUE_TIP_CLEARANCE,
-            BALL_R * 0.08,
-            BALL_R * 0.3
+            CUE_TIP_CLEARANCE * 1.9,
+            BALL_R * 0.2,
+            BALL_R * 0.5
           );
           const impactPos = buildCuePosition(-impactPush);
           // Stop the visible cue at contact so it reads as a push without
           // chasing the moving cue ball after physics takes over.
-          const followExtra = 0;
+          const followExtra = BALL_R * 0.24;
           TMP_VEC3_FOLLOW_DIR.copy(impactPos).sub(pullPos);
           if (TMP_VEC3_FOLLOW_DIR.lengthSq() > 1e-8) {
             TMP_VEC3_FOLLOW_DIR.normalize();
@@ -23405,27 +23409,23 @@ const powerRef = useRef(hud.power);
               return;
             }
             const elapsed = Math.max(0, now - startTime);
-            const sample = sampleCueStrokeTimeline({
-              elapsed,
-              pullbackDuration,
-              strikeDuration,
-              holdDuration,
-              animationStyle: 'linear',
-              strikeWindowRatio: 0.12,
-              hitArmRatio: 0.88
-            });
-            if (sample.phase === 'pullback') {
-              cueStick.position.lerpVectors(idlePos, pullPos, easeInOutQuad(sample.t));
-            } else if (sample.phase === 'release' || sample.phase === 'strike') {
-              const strikeEase = easeOutCubic(sample.t);
+            if (elapsed <= pullbackDuration) {
+              const t = THREE.MathUtils.clamp(elapsed / pullbackDuration, 0, 1);
+              cueStick.position.lerpVectors(idlePos, pullPos, easeInOutQuad(t));
+            } else if (elapsed <= pullbackDuration + strikeDuration) {
+              const strikeElapsed = elapsed - pullbackDuration;
+              const t = THREE.MathUtils.clamp(strikeElapsed / strikeDuration, 0, 1);
+              const strikeEase = easeOutCubic(t);
               const dynamicFollow =
-                followExtra * (0.55 + 0.45 * Math.sin(sample.t * Math.PI));
+                followExtra * (0.55 + 0.45 * Math.sin(t * Math.PI));
               cueStick.position.lerpVectors(pullPos, impactPos, strikeEase);
               if (dynamicFollow > 1e-6) {
                 cueStick.position.addScaledVector(TMP_VEC3_FOLLOW_DIR, dynamicFollow);
               }
-            } else if (sample.phase === 'hold') {
-              cueStick.position.lerpVectors(impactPos, settlePos, easeInOutQuad(sample.t));
+            } else if (elapsed <= pullbackDuration + strikeDuration + holdDuration) {
+              const holdElapsed = elapsed - pullbackDuration - strikeDuration;
+              const t = THREE.MathUtils.clamp(holdElapsed / holdDuration, 0, 1);
+              cueStick.position.lerpVectors(impactPos, settlePos, easeInOutQuad(t));
             } else if (now <= returnTime && returnDuration > 0) {
               const t = THREE.MathUtils.clamp((now - holdEndTime) / returnDuration, 0, 1);
               cueStick.position.lerpVectors(settlePos, idlePos, easeInOutQuad(t));
@@ -27615,15 +27615,32 @@ const powerRef = useRef(hud.power);
       value: powerRef.current * 100,
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
-      onChange: (v) => applyPower(v / 100),
       onStart: () => {
+        draggingSliderRef.current = true;
         captureCueStickAnchor();
       },
+      onChange: (v) => {
+        const normalized = THREE.MathUtils.clamp((v ?? 0) / 100, 0, 1);
+        applyPower(normalized);
+        if (draggingSliderRef.current) {
+          shotPowerRef.current = normalized;
+        }
+      },
       onCommit: () => {
+        const committedPower = THREE.MathUtils.clamp(
+          shotPowerRef.current ?? powerRef.current ?? 0,
+          0,
+          1
+        );
+        shotPowerRef.current = committedPower;
+        powerRef.current = committedPower;
+        draggingSliderRef.current = false;
         fireRef.current?.();
         requestAnimationFrame(() => {
+          slider.animateToMin?.({ duration: 180 });
           slider.set(slider.min, { animate: true });
           applyPower(0);
+          shotPowerRef.current = 0;
         });
       }
     });
@@ -27640,6 +27657,8 @@ const powerRef = useRef(hud.power);
     if (slider) {
       slider.set(slider.min, { animate: true });
     }
+    draggingSliderRef.current = false;
+    shotPowerRef.current = 0;
     applyPower(0);
     cuePullCurrentRef.current = 0;
     cuePullTargetRef.current = 0;
