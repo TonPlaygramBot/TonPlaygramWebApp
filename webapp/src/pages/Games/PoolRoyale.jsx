@@ -15649,10 +15649,8 @@ function PoolRoyaleGame({
   );
   const availableTableBases = useMemo(
     () =>
-      POOL_ROYALE_BASE_VARIANTS.filter(
-        (variant) =>
-          variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID &&
-          isPoolOptionUnlocked('tableBase', variant.id, poolInventory)
+      POOL_ROYALE_BASE_VARIANTS.filter((variant) =>
+        isPoolOptionUnlocked('tableBase', variant.id, poolInventory)
       ),
     [poolInventory]
   );
@@ -15751,10 +15749,12 @@ function PoolRoyaleGame({
   );
   const activeTableBase = useMemo(
     () =>
+      availableTableBases.find((variant) => variant.id === tableBaseId) ??
       availableTableBases.find((variant) => variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID) ??
       POOL_ROYALE_BASE_VARIANTS.find((variant) => variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID) ??
+      availableTableBases[0] ??
       POOL_ROYALE_BASE_VARIANTS[0],
-    [availableTableBases]
+    [availableTableBases, tableBaseId]
   );
   const resolvedHdriResolution = useMemo(() => {
     return autoHdriResolutionFromGraphics;
@@ -15811,9 +15811,7 @@ function PoolRoyaleGame({
     if (!isPoolOptionUnlocked('tableFinish', tableFinishId, poolInventory)) {
       setTableFinishId(DEFAULT_TABLE_FINISH_ID);
     }
-    if (tableBaseId !== SHOWOOD_ORIGINAL_TABLE_BASE_ID) {
-      setTableBaseId(SHOWOOD_ORIGINAL_TABLE_BASE_ID);
-    } else if (!isPoolOptionUnlocked('tableBase', tableBaseId, poolInventory)) {
+    if (!isPoolOptionUnlocked('tableBase', tableBaseId, poolInventory)) {
       setTableBaseId(DEFAULT_TABLE_BASE_ID);
     }
     if (!isPoolOptionUnlocked('clothColor', clothColorId, poolInventory)) {
