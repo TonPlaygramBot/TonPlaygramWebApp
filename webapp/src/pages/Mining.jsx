@@ -4,10 +4,10 @@ import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import LoginOptions from '../components/LoginOptions.jsx';
 import { getTelegramId, getTelegramPhotoUrl, getPlayerId } from '../utils/telegram.js';
 import { FaCircle } from 'react-icons/fa';
-import DailyStreakShootingMini from '../components/DailyStreakShootingMini.jsx';
+import DailyCheckIn from '../components/DailyCheckIn.jsx';
 import SpinGame from '../components/SpinGame.jsx';
 import MiningCard from '../components/MiningCard.tsx';
-import MiningFreeKickChallenge from '../components/MiningFreeKickChallenge.jsx';
+import LuckyNumber from '../components/LuckyNumber.jsx';
 import RouletteMini from '../components/RouletteMini.jsx';
 import MiningTransactionsCard from '../components/MiningTransactionsCard.jsx';
 import {
@@ -199,9 +199,9 @@ export default function Mining() {
           <p className="text-xs text-subtext">
             These actions improve your consistency and help you compound mining rewards every day.
           </p>
-          <DailyStreakShootingMini />
+          <DailyCheckIn />
           <SpinGame />
-          <MiningFreeKickChallenge />
+          <LuckyNumber />
           <RouletteMini />
         </section>
 
