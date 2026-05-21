@@ -164,7 +164,7 @@ export class GameManager {
   }
 
   private tryAiHit() {
-    if (this.ball.lastTouch === 'ai' || this.ball.bounces.ai < 1 || this.ball.bounces.ai > 1 || !this.ai.canReach(this.ball.position) || this.ai.shouldMiss()) return;
+    if (!this.ai.shouldStrikeAfterBounce(this.ball) || this.ai.shouldMiss()) return;
     const shot = this.ai.currentShot as ShotType;
     const result = this.hitDetector.detect({
       side: 'ai',
@@ -191,16 +191,21 @@ export class GameManager {
     const dx = end.x - start.x;
     const dy = start.y - end.y;
     const distance = Math.hypot(dx, dy);
-    const horizontalIntent = THREE.MathUtils.clamp(dx / Math.max(distance, 0.001), -1, 1);
-    const verticalIntent = THREE.MathUtils.clamp(dy / Math.max(distance, 0.001), -1, 1);
-    const swipeSpeed = distance / Math.max(durationMs / 1000, 0.08);
-    const speedPower = THREE.MathUtils.clamp(swipeSpeed / 4.4, 0, 1);
-    const distancePower = THREE.MathUtils.clamp(distance / 1.35, 0, 1);
-    const aimX = THREE.MathUtils.clamp(end.x * 0.62 + horizontalIntent * 0.38 + dx * 0.18, -1, 1);
-    const power = THREE.MathUtils.clamp(distancePower * 0.58 + speedPower * 0.42, 0.14, 1);
-    const lift = THREE.MathUtils.clamp(0.22 + Math.max(verticalIntent, -0.25) * 0.44 + dy * 0.18, 0, 1);
-    const curve = THREE.MathUtils.clamp(dx * 0.62 + horizontalIntent * 0.22, -1, 1);
-    const spin = THREE.MathUtils.clamp(verticalIntent * 0.52 + dy * 0.28 + power * 0.24 - Math.abs(curve) * 0.08, -1, 1);
+    const safeDistance = Math.max(distance, 0.001);
+    const horizontalIntent = THREE.MathUtils.clamp(dx / safeDistance, -1, 1);
+    const verticalIntent = THREE.MathUtils.clamp(dy / safeDistance, -1, 1);
+    const swipeDuration = Math.max(durationMs / 1000, 0.05);
+    const swipeSpeed = distance / swipeDuration;
+    const speedPower = THREE.MathUtils.clamp(swipeSpeed / 3.4, 0, 1);
+    const distancePower = THREE.MathUtils.clamp(distance / 1.05, 0, 1);
+
+    // Keep portrait-screen intuition: swipe visually right => aim right, swipe left => aim left.
+    const aimX = THREE.MathUtils.clamp(horizontalIntent * 0.86 + end.x * 0.12 + dx * 0.18, -1, 1);
+    const power = THREE.MathUtils.clamp(distancePower * 0.52 + speedPower * 0.48, 0.16, 1);
+    const lift = THREE.MathUtils.clamp(0.18 + Math.max(verticalIntent, -0.3) * 0.62 + dy * 0.14, 0, 1);
+    const curve = THREE.MathUtils.clamp(horizontalIntent * 0.72 + dx * 0.22, -1, 1);
+    const spin = THREE.MathUtils.clamp(verticalIntent * 0.66 + dy * 0.22 + power * 0.18 - Math.abs(curve) * 0.05, -1, 1);
+
     return { aimX, power, lift, curve, spin };
   }
 
