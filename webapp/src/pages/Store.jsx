@@ -1077,17 +1077,6 @@ const storeMeta = {
     typeLabels: TYPE_LABELS,
     accountId: POOL_STORE_ACCOUNT_ID
   },
-  tabletennis: {
-    name: 'Table Tennis',
-    items: [
-      ...POOL_ROYALE_STORE_ITEMS.filter((item) => item.type === 'environmentHdri'),
-      ...LUDO_BATTLE_STORE_ITEMS.filter((item) => item.type === 'humanCharacter')
-    ],
-    defaults: LUDO_BATTLE_DEFAULT_LOADOUT,
-    labels: LUDO_BATTLE_OPTION_LABELS,
-    typeLabels: LUDO_TYPE_LABELS,
-    accountId: LUDO_STORE_ACCOUNT_ID
-  },
   poolroyale: {
     name: 'Pool Royale',
     items: POOL_ROYALE_STORE_ITEMS,
@@ -1848,14 +1837,6 @@ export default function Store() {
         ...item,
         key: createItemKey(item.type, item.optionId),
         slug: 'tennis'
-      })),
-      tabletennis: [
-        ...POOL_ROYALE_STORE_ITEMS.filter((item) => item.type === 'environmentHdri'),
-        ...LUDO_BATTLE_STORE_ITEMS.filter((item) => item.type === 'humanCharacter')
-      ].map((item) => ({
-        ...item,
-        key: createItemKey(item.type, item.optionId),
-        slug: 'tabletennis'
       })),
     }),
     []
