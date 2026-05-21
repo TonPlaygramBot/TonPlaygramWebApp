@@ -5,6 +5,15 @@ const POOLTOOL_RAW_BASE =
 
 export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
   {
+    id: 'classic-procedural',
+    label: 'Classic Procedural',
+    description:
+      'Original Pool Royale procedural table with dynamic finish materials.',
+    tableSizeId: '7ft',
+    icon: '🧩',
+    kind: 'procedural'
+  },
+  {
     id: 'showood-seven-foot',
     label: 'Showood 7 ft GLB',
     description:

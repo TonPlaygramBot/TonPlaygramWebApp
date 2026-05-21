@@ -13,6 +13,7 @@ import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import {
+  POOL_ROYALE_TABLE_MODEL_OPTIONS,
   POOL_ROYALE_TABLE_MODEL_STORAGE_KEY,
   resolvePoolRoyaleTableModel
 } from '../../config/poolRoyaleTableModels.js';
@@ -76,7 +77,21 @@ export default function PoolRoyaleLobby() {
   const [variant, setVariant] = useState('uk');
   const [ukBallSet, setUkBallSet] = useState('uk');
   const [playType, setPlayType] = useState(initialPlayType);
-  const selectedTableModel = useMemo(() => resolvePoolRoyaleTableModel(), []);
+  const [tableModelId, setTableModelId] = useState(() => {
+    const requested = (searchParams.get('tableModel') || '').trim();
+    if (requested) return resolvePoolRoyaleTableModel(requested).id;
+    try {
+      return resolvePoolRoyaleTableModel(
+        window.localStorage?.getItem(POOL_ROYALE_TABLE_MODEL_STORAGE_KEY) || ''
+      ).id;
+    } catch {
+      return resolvePoolRoyaleTableModel().id;
+    }
+  });
+  const selectedTableModel = useMemo(
+    () => resolvePoolRoyaleTableModel(tableModelId),
+    [tableModelId]
+  );
   const tableSize = resolveTableSize(
     selectedTableModel?.tableSizeId || searchParams.get('tableSize')
   ).id;
@@ -859,17 +874,39 @@ export default function PoolRoyaleLobby() {
         )}
 
         {!hasActiveTournament && (
-          <div className="rounded-2xl border border-emerald-300/20 bg-white/[0.04] p-4 text-xs text-white/60">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h3 className="font-semibold text-white">Pool Table</h3>
-                <p className="mt-1">
-                  Showood 7 ft GLB is now the fixed Pool Royale table.
-                </p>
-              </div>
-              <span className="rounded-full border border-emerald-300/35 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-100">
-                Default
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-white">Pool Table</h3>
+              <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
+                Layout
               </span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {POOL_ROYALE_TABLE_MODEL_OPTIONS.map((option) => {
+                const active = selectedTableModel.id === option.id;
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => setTableModelId(option.id)}
+                    className={`lobby-option-card ${
+                      active
+                        ? 'lobby-option-card-active'
+                        : 'lobby-option-card-inactive'
+                    }`}
+                  >
+                    <div className="lobby-option-thumb bg-gradient-to-br from-emerald-400/30 via-teal-500/10 to-transparent">
+                      <div className="lobby-option-thumb-inner text-2xl">
+                        {option.icon || '🎱'}
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <p className="lobby-option-label">{option.label}</p>
+                      <p className="lobby-option-subtitle">{option.description}</p>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
