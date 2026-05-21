@@ -830,12 +830,12 @@ const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.34; // trim the side fascia reach 
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.14; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.228; // trim the side opposite the rounded middle cut a touch more while staying stable
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.11; // widen the middle fascia slightly so both flanks expand toward the corner pockets
-const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1; // trim the outside body of middle-pocket chrome plates a little more while preserving the rounded cut
+const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 0.8; // trim the outside body of middle-pocket chrome plates a little more while preserving the rounded cut
 const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.22; // extend the plate ends a bit farther toward the corner pockets (green-marked areas)
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.9; // tighten the middle fascia slightly so both flanks gain a touch more trim
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.24; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0; // push middle chrome plates slightly outward away from table center while preserving the rounded cut
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.012; // push middle chrome plates slightly outward away from table center while preserving the rounded cut
 const CHROME_SIDE_APRON_COVER_THICKNESS_SCALE = 0.055; // cover the grey middle-pocket side apron with rail-sight chrome/gold
 const CHROME_SIDE_APRON_COVER_HEIGHT_SCALE = 0.82; // drop the side apron cover down the rail face behind the side-pocket jaw
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.022; // trim the outer fascia edge a hair more for a tighter outside finish
@@ -844,11 +844,11 @@ const CHROME_CORNER_POCKET_CUT_SCALE = 1.045; // open only the corner chrome rou
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.03; // open middle-pocket chrome rounded cuts a tiny bit more so the arc reads slightly larger
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // reduce inward pull so middle pocket chrome cuts sit a bit farther out
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1.045; // match the wooden rail pocket relief to the Showood jaw outside diameter
-const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.972; // shrink the wooden corner rounded cut a touch more so only the wood corner radius reads slightly tighter
+const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.958; // shrink the wooden corner rounded cut a touch more so only the wood corner radius reads slightly tighter
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
 const WOOD_CORNER_POCKET_CUT_CENTER_OUTSET_SCALE = -0.018; // push only the wooden corner rounded cut outward a touch without moving side-pocket cuts
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.02; // keep middle rail rounded cuts identical to the corner/showood-style pocket arcs
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.045; // keep middle rail rounded cuts identical to the corner/showood-style pocket arcs
 const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.068; // move middle wooden relief outward a bit more with the shifted side-pocket geometry
 
 function buildChromePlateGeometry({
@@ -1268,8 +1268,8 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
 ]);
 const DEFAULT_COMMENTARY_PRESET_ID = POOL_ROYALE_COMMENTARY_PRESETS[0]?.id || 'english';
 const SHOWOOD_ORIGINAL_TABLE_BASE_ID = 'showoodOriginal';
-const DEFAULT_PROCEDURAL_TABLE_BASE_ID = 'openPortal';
-const DEFAULT_TABLE_BASE_ID = DEFAULT_PROCEDURAL_TABLE_BASE_ID;
+const DEFAULT_PROCEDURAL_TABLE_BASE_ID = 'classicCylinders';
+const DEFAULT_TABLE_BASE_ID = SHOWOOD_ORIGINAL_TABLE_BASE_ID;
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const ENABLE_CUE_STROKE_ANIMATION = true;
