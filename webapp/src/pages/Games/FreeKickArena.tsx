@@ -212,6 +212,14 @@ const TEAM_KITS: Record<TeamKey, { primary: number; secondary: number; shorts: n
   blue: { primary: 0x1d69ff, secondary: 0xffffff, shorts: 0x102a6b, shoes: 0xffffff, name: 'Blue' },
   red: { primary: 0xdc2626, secondary: 0xfacc15, shorts: 0x7f1d1d, shoes: 0x111827, name: 'Red' }
 };
+const LUCKY_CARD_TARGETS = [
+  { label: 'TOP', tpc: 220, left: '16%', top: '24%' },
+  { label: 'TOP', tpc: 180, left: '84%', top: '24%' },
+  { label: 'MID', tpc: 150, left: '50%', top: '30%' },
+  { label: 'MID', tpc: 120, left: '28%', top: '42%' },
+  { label: 'MID', tpc: 90, left: '72%', top: '42%' },
+  { label: 'LOW', tpc: 70, left: '50%', top: '52%' }
+] as const;
 const POLYHAVEN_TEXTURES = {
   // Poly Haven CC0 texture files used as lightweight 1K maps for uniforms/shoes.
   fabricBlue: 'https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/terlenka/terlenka_diff_1k.png',
@@ -3897,6 +3905,39 @@ export default function FreeKickGame() {
           }}
         />
       </div>
+      {challengeMode === 'luckyCard' && hud.phase !== 'finished' && (
+        <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none' }}>
+          {LUCKY_CARD_TARGETS.map((target) => (
+            <div
+              key={`${target.left}-${target.top}`}
+              style={{
+                position: 'absolute',
+                left: target.left,
+                top: target.top,
+                transform: 'translate(-50%,-50%)',
+                width: 56,
+                height: 56,
+                borderRadius: 999,
+                border: '2px solid rgba(253,224,71,.95)',
+                background: 'radial-gradient(circle at 35% 35%, rgba(254,249,195,.9), rgba(245,158,11,.36))',
+                boxShadow: '0 0 20px rgba(251,191,36,.55)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#111827',
+                fontWeight: 900,
+                fontSize: 10,
+                textAlign: 'center',
+                lineHeight: 1.1
+              }}
+            >
+              {target.label}
+              <br />
+              {target.tpc} TPC
+            </div>
+          ))}
+        </div>
+      )}
       <div
         style={{
           position: 'fixed',
@@ -3952,7 +3993,9 @@ export default function FreeKickGame() {
           textShadow: '0 2px 8px #000'
         }}
       >
-        User takes 5 shots first, then AI takes 5. Swipe on the pitch in the exact visual shot direction and release to shoot. During AI shots, the camera starts on the goalkeeper face looking at the ball; swipe in the same screen direction to dive.
+        {challengeMode === 'luckyCard'
+          ? 'Lucky Card mode: you take only 5 shots total. Hit the goal targets shown on-screen; each target shows its own TPC value.'
+          : 'User takes 5 shots first, then AI takes 5. Swipe on the pitch in the exact visual shot direction and release to shoot. During AI shots, the camera starts on the goalkeeper face looking at the ball; swipe in the same screen direction to dive.'}
       </div>
 
       <div

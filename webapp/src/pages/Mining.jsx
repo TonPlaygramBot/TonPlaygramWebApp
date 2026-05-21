@@ -199,14 +199,14 @@ export default function Mining() {
           </p>
           <Link
             to="/games/shootingrange?challenge=dailyStreak"
-            className="block rounded-xl border border-yellow-400/40 bg-yellow-500/10 px-4 py-3 text-sm font-semibold text-yellow-100"
+            className="block rounded-2xl border border-yellow-300/70 bg-gradient-to-br from-yellow-400/30 via-amber-300/15 to-orange-500/20 px-4 py-3 text-sm font-semibold text-yellow-50 shadow-[0_0_0_1px_rgba(253,224,71,.24),0_14px_30px_rgba(245,158,11,.24)]"
           >
             Daily Streak Challenge · Open full screen Shooting Range (5 shots)
           </Link>
           <SpinGame />
           <Link
             to="/games/freekickarena?challenge=luckyCard"
-            className="block rounded-xl border border-emerald-400/40 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-100"
+            className="block rounded-2xl border border-emerald-300/70 bg-gradient-to-br from-emerald-400/30 via-teal-400/15 to-cyan-500/20 px-4 py-3 text-sm font-semibold text-emerald-50 shadow-[0_0_0_1px_rgba(52,211,153,.22),0_14px_30px_rgba(16,185,129,.24)]"
           >
             Lucky Card Challenge · Open full screen Free Kick (5 kicks)
           </Link>

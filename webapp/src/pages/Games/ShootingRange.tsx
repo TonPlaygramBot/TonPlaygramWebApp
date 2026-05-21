@@ -3410,44 +3410,29 @@ export default function ShootingRange() {
       startPickPhase();
     }
 
+    function pruneTableForWeapon(weaponIndex: number) {
+      tableWeaponsRef.current.forEach((tw) => {
+        if (tw.weaponIndex === weaponIndex) return;
+        scene.remove(tw.root);
+        disposeObject(tw.root);
+      });
+      tableWeaponsRef.current = tableWeaponsRef.current.filter(
+        (tw) => tw.weaponIndex === weaponIndex
+      );
+      pickTargetsRef.current = [];
+    }
+
     function startPickPhase() {
-      setPhaseSafe('pick');
-      setViewMode('tables');
-      setStatus('Pick a weapon from your lane table');
-      setPickTimer(PICK_SECONDS);
-
-      let left = PICK_SECONDS;
-
-      if (pickInterval) window.clearInterval(pickInterval);
-
-      pickInterval = window.setInterval(() => {
-        left -= 1;
-        setPickTimer(left);
-
-        if (left > 0) {
-          setStatus(`Pick a weapon from your lane table · ${left}s`);
-        } else {
-          if (pickInterval) window.clearInterval(pickInterval);
-          pickInterval = null;
-          startShootPhase();
-        }
-      }, 1000);
-
-      lanesRef.current
-        .filter((lane) => lane?.controller === 'AI')
-        .forEach((lane, idx) => {
-          window.setTimeout(
-            () => {
-              if (disposed || phaseRef.current !== 'pick') return;
-              const aiPick = pickAiWeaponIndex(
-                idx,
-                tableWeaponIndicesForLane(lane.laneIndex)
-              );
-              setHeldWeapon(lane.laneIndex, aiPick, true);
-            },
-            850 + idx * 650
-          );
-        });
+      const forcedWeapon = Math.floor(Math.random() * WEAPONS.length);
+      setHeldWeapon(userLaneRef.current, forcedWeapon, true);
+      pruneTableForWeapon(forcedWeapon);
+      setPhaseSafe('shoot');
+      setViewMode('range');
+      setStatus(`Random weapon ready: ${WEAPONS[forcedWeapon].name}`);
+      setPickTimer(0);
+      window.setTimeout(() => {
+        if (!disposed) startShootPhase();
+      }, 400);
     }
 
     function startShootPhase() {
