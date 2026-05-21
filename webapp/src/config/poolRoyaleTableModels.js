@@ -8,7 +8,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     id: 'classic-procedural',
     label: 'Classic Showood 7 ft',
     description:
-      'Procedural Classic Showood 7 ft tuned to the same GLB Showood cushion, pocket-jaw, and top wood-rail shapes while preserving Pool Royale fit.',
+      'Showood seven-foot table mapped to the original Pool Royale playfield size and height, using original-layout surface remapping.',
     tableSizeId: '7ft',
     icon: '🧩',
     kind: 'gltf',
