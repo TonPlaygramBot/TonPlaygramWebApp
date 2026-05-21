@@ -1089,7 +1089,7 @@ const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
 const FRAME_RAIL_OUTWARD_SCALE = 1.38; // expand wooden frame rails outward by 38% on all sides
 const RAIL_HEIGHT = TABLE.THICK * 1.9; // match Pool Royale rail/cushion top height
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.024; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
-const POCKET_JAW_MAPPING_RADIUS_SCALE = 1.02; // slightly expand jaw collision arcs so balls cannot slip past the GLB pocket lips
+const POCKET_JAW_MAPPING_RADIUS_SCALE = 1.08; // expand jaw collision arcs further to block escape paths around pocket lips
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
 const POCKET_JAW_CORNER_INNER_SCALE = 1.44; // pull the inner lip farther outward so the jaw profile runs longer and thins slightly while keeping the chrome-facing radius untouched
@@ -5674,21 +5674,21 @@ function applySnookerScaling({
 // Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
 const STANDING_VIEW_PHI = 1.04; // lower the standing camera a touch so the table sits slightly lower on screen
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
-const STANDING_VIEW_MARGIN = 0.001; // pull the standing frame closer so the table and balls fill more of the view
+const STANDING_VIEW_MARGIN = 0.0004; // pull the standing frame even closer so the table fills more of the portrait screen
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.08;
 const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.1; // match Pool Royale standing-view lower sweep
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.54);
 const CAMERA_MAX_PHI = CAMERA_LOWEST_PHI; // halt the downward sweep right above the cue while still enabling the lower AI cue height for players
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0132; // match Pool Royale standing/cue camera distance
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0118; // move standing/cue camera physically closer for tighter near-rail framing
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.96;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.94;
-const STANDING_VIEW_DISTANCE_SCALE = 0.28; // pull the standing camera slightly closer to the table for tighter portrait framing
+const STANDING_VIEW_DISTANCE_SCALE = 0.24; // tighten standing view distance so the playfield appears larger in portrait
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -5751,7 +5751,7 @@ const DEFAULT_RAIL_LIMIT_X = PLAY_W / 2 - BALL_R - CUSHION_FACE_INSET;
 const DEFAULT_RAIL_LIMIT_Y = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET;
 let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
-const RAIL_LIMIT_PADDING = BALL_R * 0.12; // mirror Pool Royale rail padding so balls cannot slip outside table limits
+const RAIL_LIMIT_PADDING = BALL_R * 0.2; // increase in-bounds clamp so balls stay inside the mapped playfield edge
 const RAIL_CONTACT_RADIUS = BALL_R;
 const CUSHION_CUT_CONTACT_RADIUS = RAIL_CONTACT_RADIUS * 1.12;
 const CUSHION_CUT_NEAR_POCKET_BUFFER = BALL_R * 0.9;
@@ -5797,7 +5797,7 @@ const RAIL_OVERHEAD_DISTANCE_BIAS = 1; // mirror Pool Royale rail-overhead dista
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
-const CUE_VIEW_RADIUS_RATIO = 0.0175; // pull the cue camera closer to the table for tighter address framing
+const CUE_VIEW_RADIUS_RATIO = 0.0152; // bring cue camera closer so cueing view sits tighter to the table
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.064; // allow a closer minimum cue-camera radius before rail safety clamps apply
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
