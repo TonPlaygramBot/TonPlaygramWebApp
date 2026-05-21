@@ -113,7 +113,7 @@ const SNOOKER_CUE_CAMERA_RAIL_SAFETY = 0.006;
 const SNOOKER_CUE_CAMERA_MIN_RADIUS = 18 * WORLD_SCALE * 0.0126 * 0.05;
 const SNOOKER_CUE_CAMERA_MAX_RADIUS = 260 * WORLD_SCALE * 1.14;
 const SNOOKER_CUE_VIEW_RADIUS_RATIO = POOL_ROYALE_CUE_VIEW_RADIUS_RATIO;
-const SNOOKER_CUE_CAMERA_DISTANCE_MULTIPLIER = 1.12;
+const SNOOKER_CUE_CAMERA_DISTANCE_MULTIPLIER = 1.2;
 const SNOOKER_CUE_VIEW_MIN_PHI = Math.min(
   SNOOKER_CUE_CAMERA_MAX_PHI - SNOOKER_CUE_CAMERA_RAIL_SAFETY,
   SNOOKER_CUE_CAMERA_STANDING_PHI + 0.26
@@ -132,7 +132,7 @@ const OFFICIAL_SNOOKER_D_RADIUS_M = 0.292;
 const OFFICIAL_SNOOKER_BLACK_FROM_TOP_CUSHION_M = 0.324;
 const OFFICIAL_SNOOKER_POCKET_CORNER_MOUTH_M = 0.086;
 const OFFICIAL_SNOOKER_POCKET_MIDDLE_MOUTH_M = 0.095;
-const SNOOKER_TABLE_VISUAL_LENGTH_TRIM = 1.08; // larger GLB cabinet framing so the imported snooker table wraps the official mapped cushion rectangle
+const SNOOKER_TABLE_VISUAL_LENGTH_TRIM = 1.14; // slightly larger GLB cabinet framing so the imported snooker table wraps the official mapped cushion rectangle
 const SNOOKER_PLAYFIELD_SCALE = (2.62 * WORLD_SCALE) / OFFICIAL_SNOOKER_PLAYFIELD_WIDTH_M;
 const SNOOKER_OFFICIAL_PLAYFIELD_W = OFFICIAL_SNOOKER_PLAYFIELD_WIDTH_M * SNOOKER_PLAYFIELD_SCALE;
 const SNOOKER_OFFICIAL_PLAYFIELD_L = OFFICIAL_SNOOKER_PLAYFIELD_LENGTH_M * SNOOKER_PLAYFIELD_SCALE;
@@ -1635,10 +1635,10 @@ function updateBalls(balls, dt, tmpA, tmpB, pocketPositions = [], rulesState = n
     for (const ball of balls) {
       if (ball.potted) continue;
       ball.mesh.position.copy(ball.pos).setY(ball.pos.y + CFG.ballR * BALL_VISUAL_LIFT);
-      const scaledSpeed = ball.vel.length() * stepScale;
-      if (scaledSpeed > 0) {
-        const axis = SNOOKER_TMP_VEC3_A.set(ball.vel.z, 0, -ball.vel.x).normalize();
-        ball.mesh.rotateOnWorldAxis(axis, scaledSpeed / CFG.ballR);
+      const angularStep = (ball.omega?.length() || 0) * stepScale;
+      if (angularStep > 1e-6) {
+        const axis = SNOOKER_TMP_VEC3_A.copy(ball.omega).normalize();
+        ball.mesh.rotateOnWorldAxis(axis, angularStep);
       }
     }
   }
