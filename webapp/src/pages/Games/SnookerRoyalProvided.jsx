@@ -96,8 +96,8 @@ const POOL_ROYALE_STANDING_VIEW_FOV = 66;
 const POOL_ROYALE_RAIL_OVERHEAD_PHI = Math.PI / 2 - 0.26 + 0.18;
 const POOL_ROYALE_STANDING_VIEW_PHI = 0.92;
 const POOL_ROYALE_STANDING_VIEW_MARGIN = 0.001;
-const POOL_ROYALE_STANDING_VIEW_DISTANCE_SCALE = 0.36;
-const POOL_ROYALE_CUE_VIEW_RADIUS_RATIO = 0.0088;
+const POOL_ROYALE_STANDING_VIEW_DISTANCE_SCALE = 0.46;
+const POOL_ROYALE_CUE_VIEW_RADIUS_RATIO = 0.0126;
 const POOL_ROYALE_CUE_VIEW_PHI_LIFT = 0.06;
 const SNOOKER_HDRI_CAMERA_HEIGHT_M = 1.5;
 const SNOOKER_HDRI_MIN_CAMERA_HEIGHT_M = 0.8;
@@ -113,7 +113,7 @@ const SNOOKER_CUE_CAMERA_RAIL_SAFETY = 0.006;
 const SNOOKER_CUE_CAMERA_MIN_RADIUS = 18 * WORLD_SCALE * 0.0126 * 0.05;
 const SNOOKER_CUE_CAMERA_MAX_RADIUS = 260 * WORLD_SCALE * 1.14;
 const SNOOKER_CUE_VIEW_RADIUS_RATIO = POOL_ROYALE_CUE_VIEW_RADIUS_RATIO;
-const SNOOKER_CUE_CAMERA_DISTANCE_MULTIPLIER = 1.2;
+const SNOOKER_CUE_CAMERA_DISTANCE_MULTIPLIER = 1.42;
 const SNOOKER_CUE_VIEW_MIN_PHI = Math.min(
   SNOOKER_CUE_CAMERA_MAX_PHI - SNOOKER_CUE_CAMERA_RAIL_SAFETY,
   SNOOKER_CUE_CAMERA_STANDING_PHI + 0.26
@@ -132,7 +132,7 @@ const OFFICIAL_SNOOKER_D_RADIUS_M = 0.292;
 const OFFICIAL_SNOOKER_BLACK_FROM_TOP_CUSHION_M = 0.324;
 const OFFICIAL_SNOOKER_POCKET_CORNER_MOUTH_M = 0.086;
 const OFFICIAL_SNOOKER_POCKET_MIDDLE_MOUTH_M = 0.095;
-const SNOOKER_TABLE_VISUAL_LENGTH_TRIM = 1.14; // slightly larger GLB cabinet framing so the imported snooker table wraps the official mapped cushion rectangle
+const SNOOKER_TABLE_VISUAL_LENGTH_TRIM = 1.24; // slightly larger GLB cabinet framing so the imported snooker table wraps the official mapped cushion rectangle
 const SNOOKER_PLAYFIELD_SCALE = (2.62 * WORLD_SCALE) / OFFICIAL_SNOOKER_PLAYFIELD_WIDTH_M;
 const SNOOKER_OFFICIAL_PLAYFIELD_W = OFFICIAL_SNOOKER_PLAYFIELD_WIDTH_M * SNOOKER_PLAYFIELD_SCALE;
 const SNOOKER_OFFICIAL_PLAYFIELD_L = OFFICIAL_SNOOKER_PLAYFIELD_LENGTH_M * SNOOKER_PLAYFIELD_SCALE;
@@ -2563,20 +2563,7 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
                 ))}
               </div>
               <div className="mt-4 space-y-4">
-                <div>
-                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">Replay broadcast</h3>
-                  <div className="mt-2 grid grid-cols-2 gap-2">
-                    <button type="button" disabled={!hasReplay} onClick={() => { if (hasReplay) { replayStartedAtRef.current = performance.now(); setReplayActive(true); } }} className={optionButtonClass(replayActive)}>
-                      <span className="font-black uppercase tracking-[0.2em]">Replay shot</span>
-                      <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] opacity-70">Uses cue, rail, and pocket broadcast cameras.</span>
-                    </button>
-                    <button type="button" onClick={() => { setReplaySkipAll((prev) => { const next = !prev; replaySkipAllRef.current = next; if (next) setReplayActive(false); return next; }); setConfigOpen(false); }} className={optionButtonClass(replaySkipAll)}>
-                      <span className="font-black uppercase tracking-[0.2em]">Replay off</span>
-                      <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] opacity-70">Turns off automatic Snooker Royal-style pot/foul replays.</span>
-                    </button>
-                  </div>
-                </div>
-                <div>
+                                <div>
                   <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">Graphics</h3>
                   <div className="mt-2 grid gap-2">
                     {FRAME_RATE_OPTIONS.map((option) => (
@@ -2692,12 +2679,6 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
           </div>
         </div>
 
-        <div className="absolute left-3 top-3 max-w-[min(76vw,28rem)] rounded-2xl border border-emerald-300/20 bg-black/45 p-2 text-[11px] leading-relaxed text-white/75 shadow-xl backdrop-blur">
-          <strong className="text-emerald-100">{gameTitle}</strong> • At table: <span className="font-black text-emerald-200">{activePlayer === 0 ? playerName : opponentName}</span> • Target: <span className="font-black text-emerald-200">{target}</span>
-          {foul ? <><br /><span className="font-bold text-red-200">{foul}</span></> : null}
-          <br />{tableStatus} • {humanStatus}
-        </div>
-
         <div
           className="pointer-events-auto absolute z-40 h-[320px] w-[70px] touch-none select-none"
           style={{
@@ -2743,10 +2724,11 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
             <button
               type="button"
               onClick={() => setReplayActive(false)}
-              className="pointer-events-auto rounded-l-xl border border-white/30 bg-black/70 px-3 py-2 text-[11px] font-black uppercase tracking-[0.12em] text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition hover:bg-black/60"
+              className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-l-xl border border-white/30 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition hover:bg-black/60"
               aria-label="Skip current replay"
+              title="Skip replay"
             >
-              Skip
+              <span aria-hidden="true" className="text-lg leading-none">⏭</span>
             </button>
           </div>
         ) : null}
