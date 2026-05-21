@@ -1,17 +1,41 @@
-export const POOL_ROYALE_TABLE_MODEL_STORAGE_KEY = 'poolRoyaleTableModel';
+export const POOL_ROYALE_TABLE_MODEL_STORAGE_KEY = 'poolRoyaleTableModel'
 
 const POOLTOOL_RAW_BASE =
-  'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table';
+  'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table'
 
 export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
   {
     id: 'classic-procedural',
-    label: 'Classic Procedural',
+    label: 'Classic Showood 7 ft',
     description:
-      'Original Pool Royale procedural table with dynamic finish materials.',
+      'Showood seven-foot table mapped to the original Pool Royale playfield size and height, using original-layout surface remapping.',
     tableSizeId: '7ft',
     icon: '🧩',
-    kind: 'procedural'
+    kind: 'gltf',
+    baseId: 'showoodOriginal',
+    assetUrl:
+      'https://cdn.jsdelivr.net/gh/ekiefl/pooltool@main/pooltool/models/table/seven_foot_showood/seven_foot_showood.glb',
+    fallbackAssetUrl: `${POOLTOOL_RAW_BASE}/seven_foot_showood/seven_foot_showood.glb`,
+    fitScale: 1,
+    fitFootprintScale: 1.105,
+    fitHeightScale: 1,
+    lowerBaseHeightScale: 1.38,
+    legLengthScale: 2.05,
+    clothRepeatScale: 7.5,
+    fitStrategy: 'exact',
+    fitReference: 'upperTabletop',
+    matchNativeHeight: true,
+    matchNativeUpperComponentHeight: true,
+    preserveOriginalFootprintAspect: true,
+    useOriginalLayoutSurfaces: true,
+    usePoolRoyaleFinish: true,
+    usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood', 'pocket', 'trim'],
+    preserveOriginalSurfaceRoles: [],
+    tintOriginalTrimGold: true,
+    chromeMaterialSurfaceNames: ['diamonds', 'railSight', 'sideApron', 'apronStrip', 'railSightLower', 'cornerRailSight'],
+    blackMaterialSurfaceNames: [],
+    forceGeneratedChromePlates: false,
+    hideSurfaceRoles: []
   },
   {
     id: 'showood-seven-foot',
@@ -46,20 +70,20 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     forceGeneratedChromePlates: false,
     hideSurfaceRoles: []
   }
-]);
+])
 
 export const DEFAULT_POOL_ROYALE_TABLE_MODEL_ID =
   POOL_ROYALE_TABLE_MODEL_OPTIONS.find(
     (option) => option.id === 'showood-seven-foot'
-  )?.id || POOL_ROYALE_TABLE_MODEL_OPTIONS[0].id;
+  )?.id || POOL_ROYALE_TABLE_MODEL_OPTIONS[0].id
 
-export function resolvePoolRoyaleTableModel(modelId) {
-  const key = typeof modelId === 'string' ? modelId.trim() : '';
+export function resolvePoolRoyaleTableModel (modelId) {
+  const key = typeof modelId === 'string' ? modelId.trim() : ''
   return (
     POOL_ROYALE_TABLE_MODEL_OPTIONS.find((option) => option.id === key) ||
     POOL_ROYALE_TABLE_MODEL_OPTIONS.find(
       (option) => option.id === DEFAULT_POOL_ROYALE_TABLE_MODEL_ID
     ) ||
     POOL_ROYALE_TABLE_MODEL_OPTIONS[0]
-  );
+  )
 }
