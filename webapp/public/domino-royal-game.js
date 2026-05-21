@@ -983,8 +983,8 @@ const CHAIR_RADIUS =
   TABLE_RADIUS + SEAT_DEPTH * 0.5 + CHAIR_GAP + CHAIR_OUTWARD_OFFSET;
 const CHAIR_GLOBAL_PUSHBACK = 0.28 * MODEL_SCALE;
 const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.36 * MODEL_SCALE;
-const CHAIR_VISUAL_SCALE = 0.72;
-const CHAIR_VERTICAL_DROP = 0.075 * MODEL_SCALE;
+const CHAIR_VISUAL_SCALE = 0.76;
+const CHAIR_VERTICAL_DROP = 0.035 * MODEL_SCALE;
 const CHAIR_BASE_HEIGHT = LEGACY_BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE * TABLE_HEIGHT_SCALE;
@@ -999,7 +999,7 @@ const CHAIR_SEAT_ANGLES = Object.freeze([
   THREE.MathUtils.degToRad(180)
 ]);
 const SIDE_TABLE_RADIUS_DELTA = TABLE_RADIUS * (1 - TABLE_LEFT_RIGHT_SHRINK_FACTOR);
-const SIDE_PLAYER_TABLE_PULL_IN = 0.7 * MODEL_SCALE;
+const SIDE_PLAYER_TABLE_PULL_IN = 0.56 * MODEL_SCALE;
 const CHAIR_SEAT_RADII = Object.freeze([
   CHAIR_RADIUS + CHAIR_GLOBAL_PUSHBACK + SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK,
   CHAIR_RADIUS -
@@ -7988,15 +7988,15 @@ const DOMINO_CHARACTER_THEMES = Object.freeze([
     skinTone: 0xe3b08b
   }
 ]);
-const DOMINO_CHARACTER_PROPORTION_SCALE = 3.25;
-const DOMINO_HUMAN_CHARACTER_SCALE_BOOST = 1.18;
+const DOMINO_CHARACTER_PROPORTION_SCALE = 3.15;
+const DOMINO_HUMAN_CHARACTER_SCALE_BOOST = 1.1;
 // Seat avatars from the chair footprint instead of adding a table-facing Z offset.
 // This keeps every human visually aligned with the chair that owns the seat.
 const DOMINO_CHARACTER_CHAIR_SEAT_OUTWARD_BIAS = -0.03;
 // Slide only the AI/upper-seat characters inward so their hands sit closer to their domino racks.
-const DOMINO_CHARACTER_INWARD_DOMINO_REACH_BIAS = 0.2;
+const DOMINO_CHARACTER_INWARD_DOMINO_REACH_BIAS = 0.14;
 const DOMINO_HUMAN_CHARACTER_CHAIR_SEAT_OUTWARD_BIAS = 0;
-const DOMINO_CHARACTER_EXTRA_LOWER_OFFSET = 1.68;
+const DOMINO_CHARACTER_EXTRA_LOWER_OFFSET = 1.76;
 const DOMINO_HUMAN_CHARACTER_EXTRA_LOWER_OFFSET = -0.08;
 const ENABLE_DOMINO_CHARACTER_HELD_RACKS = false;
 const DOMINO_CHARACTER_CACHE = new Map();
@@ -8465,8 +8465,7 @@ function resolveDominoCharacterSeatPosition(
   chairWrapper,
   theme,
   scaleDelta,
-  isHumanSeat,
-  seatIndex
+  isHumanSeat
 ) {
   const visibleSeatLift = Number.isFinite(
     chairWrapper?.userData?.dominoCharacterSeatLift
@@ -8479,15 +8478,11 @@ function resolveDominoCharacterSeatPosition(
     0.01,
     footprint.size.z || CHAIR_DIMENSIONS.seatDepth * CHAIR_VISUAL_SCALE
   );
-  const isSideSeat = seatIndex === 1 || seatIndex === 3;
-  const sideSeatInwardBias = isSideSeat
-    ? -DOMINO_CHARACTER_INWARD_DOMINO_REACH_BIAS
-    : 0;
   const outwardBias =
     DOMINO_CHARACTER_CHAIR_SEAT_OUTWARD_BIAS +
     (isHumanSeat
       ? DOMINO_HUMAN_CHARACTER_CHAIR_SEAT_OUTWARD_BIAS
-      : sideSeatInwardBias);
+      : -DOMINO_CHARACTER_INWARD_DOMINO_REACH_BIAS);
   const position = footprint.center
     .clone()
     .addScaledVector(outward, seatDepth * outwardBias);
@@ -8525,7 +8520,7 @@ function attachDominoCharacterToChair(template, chair, seatIndex, player) {
   const scaleDelta = Math.max(0, characterScale - 1);
   seatRoot.scale.setScalar(seatScale);
   seatRoot.position.copy(
-    resolveDominoCharacterSeatPosition(chair, theme, scaleDelta, isHumanSeat, seatIndex)
+    resolveDominoCharacterSeatPosition(chair, theme, scaleDelta, isHumanSeat)
   );
   seatRoot.add(instance);
   const rig = createDominoCharacterRig(instance, seatRoot, seatIndex, player);
