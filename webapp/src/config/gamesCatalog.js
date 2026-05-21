@@ -111,15 +111,6 @@ const gamesCatalog = [
   },
 
   {
-    name: 'Shooting Range',
-    route: '/games/shootingrange/lobby',
-    slug: 'shootingrange',
-    image: '/assets/icons/shooting-range.svg',
-    description:
-      'Pick a 3D weapon, take your lane, and outscore three AI shooters.'
-  },
-
-  {
     name: 'Free Kick Arena',
     route: '/games/freekickarena/lobby',
     slug: 'freekickarena',

@@ -6,6 +6,8 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { MURLAN_CHARACTER_THEMES } from '../../config/murlanCharacterThemes.js';
+import { addTransaction } from '../../utils/api.js';
+import { getTelegramId } from '../../utils/telegram.js';
 
 type AnimName = 'Idle' | 'Walk' | 'Run';
 type ShotState = 'aim' | 'runup' | 'keeperAim' | 'aiRunup' | 'flight' | 'var' | 'replay' | 'result';
@@ -3220,6 +3222,10 @@ function placeCameraForNextShot(
 }
 
 export default function FreeKickGame() {
+  const challengeMode =
+    typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('challenge')
+      : null;
   const hostRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const swipeRef = useRef<SwipeState>({
@@ -3246,6 +3252,7 @@ export default function FreeKickGame() {
     state: 'You shoot first: swipe precisely on the pitch and release to shoot',
     feedback: DEFAULT_FEEDBACK
   });
+  const [challengeReward, setChallengeReward] = useState<number | null>(null);
   useEffect(() => {
     const host = hostRef.current;
     const canvas = canvasRef.current;
@@ -3384,7 +3391,9 @@ export default function FreeKickGame() {
       if (activeShooter === 'user') {
         match.userShots += 1;
         if (decision === 'GOAL') match.userGoals += 1;
-        if (match.userShots >= 5) match.phase = 'aiShoot';
+        if (match.userShots >= 5) {
+          match.phase = challengeMode === 'luckyCard' ? 'finished' : 'aiShoot';
+        }
       } else {
         match.aiShots += 1;
         if (decision === 'GOAL') match.aiGoals += 1;
@@ -3402,6 +3411,9 @@ export default function FreeKickGame() {
     };
     const nextStatusText = () => {
       if (match.phase === 'finished') {
+        if (challengeMode === 'luckyCard') {
+          return `Challenge complete · ${match.userGoals}/5 goals`;
+        }
         const verdict = match.userGoals === match.aiGoals ? 'DRAW' : match.userGoals > match.aiGoals ? 'YOU WIN' : 'AI WINS';
         return `${verdict} · ${match.userGoals}-${match.aiGoals} after 5 shots each`;
       }
@@ -3737,6 +3749,16 @@ export default function FreeKickGame() {
           setReplaySkippable(false);
           skipReplayRef.current = false;
           if (match.phase === 'finished') {
+            if (challengeMode === 'luckyCard' && challengeReward === null) {
+              const payout = Math.max(80, Math.min(160, 80 + match.userGoals * 16));
+              setChallengeReward(payout);
+              void (async () => {
+                try {
+                  const telegramId = getTelegramId();
+                  await addTransaction(telegramId, payout, 'lucky');
+                } catch {}
+              })();
+            }
             state = 'result';
             resultTimer = 999;
             syncHudScore(nextStatusText());
@@ -3843,7 +3865,7 @@ export default function FreeKickGame() {
       audio.dispose();
       renderer.dispose();
     };
-  }, []);
+  }, [challengeMode, challengeReward]);
 
 
   const selectedHdri = POLYHAVEN_HDRI_OPTIONS.find((option) => option.id === selectedHdriId) ?? POLYHAVEN_HDRI_OPTIONS[0];
@@ -3892,7 +3914,9 @@ export default function FreeKickGame() {
         }}
       >
         <div style={{ fontWeight: 900, fontSize: 18 }}>
-          YOU {hud.goals}/{hud.userShots} · AI {hud.aiGoals}/{hud.aiShots}
+          {challengeMode === 'luckyCard'
+            ? `YOU ${hud.goals}/${hud.userShots}`
+            : `YOU ${hud.goals}/${hud.userShots} · AI ${hud.aiGoals}/${hud.aiShots}`}
         </div>
         <div
           style={{
@@ -3905,6 +3929,14 @@ export default function FreeKickGame() {
           {hud.state}
         </div>
       </div>
+      {challengeMode === 'luckyCard' && hud.phase === 'finished' && (
+        <button
+          onClick={() => window.location.assign('/mining')}
+          style={{ position: 'fixed', left: 14, right: 14, bottom: 20, padding: '12px 16px', borderRadius: 14, background: '#34d399', color: '#052e16', fontWeight: 900, border: 'none' }}
+        >
+          Return to Mining {challengeReward ? `· +${challengeReward} TPC` : ''}
+        </button>
+      )}
 
       <div
         style={{
