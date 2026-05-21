@@ -13,6 +13,7 @@ import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import {
+  POOL_ROYALE_TABLE_MODEL_OPTIONS,
   POOL_ROYALE_TABLE_MODEL_STORAGE_KEY,
   resolvePoolRoyaleTableModel
 } from '../../config/poolRoyaleTableModels.js';
@@ -76,16 +77,21 @@ export default function PoolRoyaleLobby() {
   const [variant, setVariant] = useState('uk');
   const [ukBallSet, setUkBallSet] = useState('uk');
   const [playType, setPlayType] = useState(initialPlayType);
-  const selectedTableModel = useMemo(() => {
+  const [tableModelId, setTableModelId] = useState(() => {
     const requested = (searchParams.get('tableModel') || '').trim();
-    if (requested) return resolvePoolRoyaleTableModel(requested);
+    if (requested) return resolvePoolRoyaleTableModel(requested).id;
     try {
-      const stored = window.localStorage?.getItem(POOL_ROYALE_TABLE_MODEL_STORAGE_KEY) || '';
-      return resolvePoolRoyaleTableModel(stored);
+      return resolvePoolRoyaleTableModel(
+        window.localStorage?.getItem(POOL_ROYALE_TABLE_MODEL_STORAGE_KEY) || ''
+      ).id;
     } catch {
-      return resolvePoolRoyaleTableModel();
+      return resolvePoolRoyaleTableModel().id;
     }
-  }, [searchParams]);
+  });
+  const selectedTableModel = useMemo(
+    () => resolvePoolRoyaleTableModel(tableModelId),
+    [tableModelId]
+  );
   const tableSize = resolveTableSize(
     selectedTableModel?.tableSizeId || searchParams.get('tableSize')
   ).id;
@@ -122,6 +128,8 @@ export default function PoolRoyaleLobby() {
   const selectedFlag =
     playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
   const selectedAiFlag = aiFlagIndex != null ? FLAG_EMOJIS[aiFlagIndex] : '';
+  const selectedTableModelReady = true;
+
 
   useEffect(() => {
     try {
@@ -865,6 +873,44 @@ export default function PoolRoyaleLobby() {
           </div>
         )}
 
+        {!hasActiveTournament && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-white">Pool Table</h3>
+              <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
+                Layout
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {POOL_ROYALE_TABLE_MODEL_OPTIONS.map((option) => {
+                const active = selectedTableModel.id === option.id;
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => setTableModelId(option.id)}
+                    className={`lobby-option-card ${
+                      active
+                        ? 'lobby-option-card-active'
+                        : 'lobby-option-card-inactive'
+                    }`}
+                  >
+                    <div className="lobby-option-thumb bg-gradient-to-br from-emerald-400/30 via-teal-500/10 to-transparent">
+                      <div className="lobby-option-thumb-inner text-2xl">
+                        {option.icon || '🎱'}
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <p className="lobby-option-label">{option.label}</p>
+                      <p className="lobby-option-subtitle">{option.description}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
 
         {playType === 'training' && (
           <div className="space-y-3 rounded-2xl border border-emerald-300/30 bg-gradient-to-br from-emerald-500/10 via-black/35 to-cyan-500/10 p-4">
@@ -1249,7 +1295,8 @@ export default function PoolRoyaleLobby() {
             onClick={startGame}
             className="w-full rounded-2xl bg-primary px-4 py-3 text-base font-semibold text-background transition hover:bg-primary-hover"
             disabled={
-              mode === 'online' && (isSearching || matching)
+              (mode === 'online' && (isSearching || matching)) ||
+              !selectedTableModelReady
             }
           >
             {mode === 'online'
