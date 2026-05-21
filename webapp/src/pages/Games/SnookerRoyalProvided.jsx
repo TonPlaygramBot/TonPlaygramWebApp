@@ -27,30 +27,27 @@ import {
   normalizeSpinInput,
   smoothDamp
 } from './snookerRoyalSpinUtils.js';
-import {
-  TABLE_MODEL_OPENSOURCE_GLB_URL,
-  resolveSnookerGlbFitTransform
-} from './snookerTableModel.js';
+import { resolveSnookerGlbFitTransform } from './snookerTableModel.js';
 
 const HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
 
-const SNOOKER_CHAMPION_TABLE_GLB_URL = TABLE_MODEL_OPENSOURCE_GLB_URL;
-const SNOOKER_CHAMPION_TABLE_FALLBACK_GLB_URL = 'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table/snooker.glb';
+const SNOOKER_CHAMPION_TABLE_GLB_URL = 'https://cdn.jsdelivr.net/gh/ekiefl/pooltool@main/pooltool/models/table/seven_foot_showood/seven_foot_showood.glb';
+const SNOOKER_CHAMPION_TABLE_FALLBACK_GLB_URL = 'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table/seven_foot_showood/seven_foot_showood.glb';
 const FRAME_RATE_OPTIONS = Object.freeze([
-  { id: 'fhd60', label: 'Performance (60 Hz)', fps: 60, pixelRatioCap: 1.4, resolution: '2K texture pack', description: 'Snooker Royal performance preset for stable battery-friendly play.' },
-  { id: 'qhd90', label: 'Smooth (90 Hz)', fps: 90, pixelRatioCap: 1.55, resolution: '4K texture pack', description: 'Snooker Royal smooth preset for sharper textures and 90 FPS timing.' },
-  { id: 'uhd120', label: 'Ultra (120 Hz)', fps: 120, pixelRatioCap: 1.85, resolution: 'Desktop 8K / Mobile 4K', description: 'Snooker Royal ultra preset with the highest pixel cap available on this device.' }
+  { id: 'fhd60', label: 'Performance (60 Hz)', fps: 60, pixelRatioCap: 1.4, resolution: '2K texture pack', description: 'Albanian Bilard Royal performance preset for stable battery-friendly play.' },
+  { id: 'qhd90', label: 'Smooth (90 Hz)', fps: 90, pixelRatioCap: 1.55, resolution: '4K texture pack', description: 'Albanian Bilard Royal smooth preset for sharper textures and 90 FPS timing.' },
+  { id: 'uhd120', label: 'Ultra (120 Hz)', fps: 120, pixelRatioCap: 1.85, resolution: 'Desktop 8K / Mobile 4K', description: 'Albanian Bilard Royal ultra preset with the highest pixel cap available on this device.' }
 ]);
 const CAMERA_MODE_OPTIONS = Object.freeze([
-  { id: 'rail-overhead', label: 'Rail Overhead', description: 'Snooker Royal locked broadcast rail camera.' },
-  { id: 'top-2d', label: '2D Overhead', description: 'Snooker Royal straight-down tactical camera.' },
+  { id: 'rail-overhead', label: 'Rail Overhead', description: 'Albanian Bilard Royal locked broadcast rail camera.' },
+  { id: 'top-2d', label: '2D Overhead', description: 'Albanian Bilard Royal straight-down tactical camera.' },
   { id: 'cue-follow', label: 'Cue Follow', description: 'Low cue-side player camera while lining up the shot.' },
   { id: 'tv-broadcast', label: 'TV Broadcast', description: 'Alternates cue view, rail overhead, and pocket-style action framing.' },
-  { id: 'corner-pocket-left', label: 'Left Pocket Cam', description: 'Snooker Royal corner-pocket broadcast camera on the left short rail.' },
-  { id: 'corner-pocket-right', label: 'Right Pocket Cam', description: 'Snooker Royal corner-pocket broadcast camera on the right short rail.' }
+  { id: 'corner-pocket-left', label: 'Left Pocket Cam', description: 'Albanian Bilard Royal corner-pocket broadcast camera on the left short rail.' },
+  { id: 'corner-pocket-right', label: 'Right Pocket Cam', description: 'Albanian Bilard Royal corner-pocket broadcast camera on the right short rail.' }
 ]);
 const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
-  { id: 'rail-overhead', label: 'Rail Overhead', method: 'Single rail-overhead mount', description: 'Same default broadcast technique used by Snooker Royal.' },
+  { id: 'rail-overhead', label: 'Rail Overhead', method: 'Single rail-overhead mount', description: 'Same default broadcast technique used by Albanian Bilard Royal.' },
   { id: 'pocket-cuts', label: 'Pocket Cuts', method: 'Corner pocket cutaways', description: 'Cuts to a pocket-side view when balls are close to a pocket.' },
   { id: 'cinematic', label: 'Cinematic Follow', method: 'Cue + action dolly blend', description: 'Smooth shot-following angle for replays and live pot attempts.' }
 ]);
@@ -84,9 +81,8 @@ const SNOOKER_TEXTURE_OPTIONS = Object.freeze([
 const DEFAULT_CLOTH_ID = 'snooker-green';
 const WORLD_SCALE = 3.5;
 const SNOOKER_CHAMPION_STORAGE_PREFIX = 'snookerChampion:';
-const SNOOKER_BALL_VALUES = Object.freeze({ red: 1, yellow: 2, green: 3, brown: 4, blue: 5, pink: 6, black: 7 });
-const SNOOKER_COLOR_LABELS = Object.freeze({ yellow: 'Yellow', green: 'Green', brown: 'Brown', blue: 'Blue', pink: 'Pink', black: 'Black' });
-const SNOOKER_COLOR_ORDER = Object.freeze(['yellow', 'green', 'brown', 'blue', 'pink', 'black']);
+const ALBANIAN_BILLIARD_WIN_SCORE = 61;
+const ROTATION_NUMBER_COLORS = Object.freeze({ 1: 0xfacc15, 2: 0x2563eb, 3: 0xdc2626, 4: 0x7c2d12, 5: 0xf97316, 6: 0x16a34a, 7: 0x7c3aed, 8: 0x111827, 9: 0xfacc15, 10: 0x2563eb, 11: 0xdc2626, 12: 0x7c2d12, 13: 0xf97316, 14: 0x16a34a, 15: 0x7c3aed });
 const SPIN_CONTROL_DIAMETER_PX = 124;
 const SPIN_DOT_DIAMETER_PX = 16;
 const POOL_ROYALE_BOTTOM_HUD_LEFT_INSET_PX = 150;
@@ -145,7 +141,7 @@ const SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS = (OFFICIAL_SNOOKER_POCKET_CORNER_MO
 const SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS = (OFFICIAL_SNOOKER_POCKET_MIDDLE_MOUTH_M * SNOOKER_PLAYFIELD_SCALE) / 2;
 const SNOOKER_CORNER_JAW_SETBACK = SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS * 0.72;
 const SNOOKER_MIDDLE_JAW_SETBACK = SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS * 0.68;
-const SNOOKER_SHOT_POWER_BOOST = 0.455; // Snooker Royal full-size strike output, shared by Champion through the common table/physics core
+const SNOOKER_SHOT_POWER_BOOST = 0.455; // Albanian Bilard Royal full-size strike output, shared by Champion through the common table/physics core
 const SNOOKER_SHOT_MIN_FACTOR = 0.25;
 const SNOOKER_SHOT_POWER_RANGE = 0.75;
 const SNOOKER_SHOT_FULL_SPEED = 12 * WORLD_SCALE * SNOOKER_SHOT_POWER_BOOST;
@@ -593,11 +589,11 @@ function cuePoseFromGrip(grip, dir, gripFromBack, length = CFG.cueLength) {
   const n = dir.clone().normalize();
   return { back: grip.clone().addScaledVector(n, -gripFromBack), tip: grip.clone().addScaledVector(n, length - gripFromBack) };
 }
-function createBall(number, color, isCue = false, kind = 'red', value = 1, spot = null) {
+function createBall(number, color, isCue = false, kind = 'object', value = 1, spot = null) {
   const material = getBilliardBallMaterial({
     color,
-    pattern: isCue ? 'cue' : 'solid',
-    number: null,
+    pattern: isCue ? 'cue' : (number >= 9 ? 'stripe' : 'solid'),
+    number: isCue ? null : number,
     variantKey: SNOOKER_BALL_MATERIAL_VARIANT
   });
   material.depthTest = true;
@@ -629,49 +625,23 @@ function createBall(number, color, isCue = false, kind = 'red', value = 1, spot 
 
 function getOfficialSnookerSpots(ballY = SNOOKER_BALL_CENTER_Y) {
   const halfL = CFG.tableL / 2;
-  const baulkZ = halfL - SNOOKER_OFFICIAL_BAULK_FROM_CUSHION;
-  const topCushionZ = -halfL;
-  const blueZ = 0;
-  const pinkZ = (blueZ + topCushionZ) / 2;
-  const blackZ = topCushionZ + SNOOKER_OFFICIAL_BLACK_FROM_TOP_CUSHION;
-  const redApexZ = pinkZ - CFG.ballR * 2.04;
-  return {
-    cue: new THREE.Vector3(-SNOOKER_OFFICIAL_D_RADIUS * 0.58, ballY, baulkZ),
-    yellow: new THREE.Vector3(-SNOOKER_OFFICIAL_D_RADIUS, ballY, baulkZ),
-    green: new THREE.Vector3(SNOOKER_OFFICIAL_D_RADIUS, ballY, baulkZ),
-    brown: new THREE.Vector3(0, ballY, baulkZ),
-    blue: new THREE.Vector3(0, ballY, blueZ),
-    pink: new THREE.Vector3(0, ballY, pinkZ),
-    black: new THREE.Vector3(0, ballY, blackZ),
-    redApex: new THREE.Vector3(0, ballY, redApexZ),
-    baulkZ
-  };
+  const baulkZ = halfL * 0.55;
+  return { cue: new THREE.Vector3(-CFG.tableW * 0.2, ballY, baulkZ), rackCenter: new THREE.Vector3(0, ballY, -halfL * 0.2), baulkZ, yellow: new THREE.Vector3(-SNOOKER_OFFICIAL_D_RADIUS, ballY, baulkZ), green: new THREE.Vector3(SNOOKER_OFFICIAL_D_RADIUS, ballY, baulkZ), brown: new THREE.Vector3(0, ballY, baulkZ), blue: new THREE.Vector3(0, ballY, 0), pink: new THREE.Vector3(0, ballY, -halfL * 0.25), black: new THREE.Vector3(0, ballY, -halfL * 0.7) };
 }
 
 function snookerRackPositions() {
   const ballY = SNOOKER_BALL_CENTER_Y;
   const spots = getOfficialSnookerSpots(ballY);
   const out = [{ n: 0, c: 0xf8fafc, p: spots.cue, cue: true, kind: 'cue', value: 0 }];
-  let idx = 1;
+  const spacingX = CFG.ballR * 2.08;
+  const spacingZ = CFG.ballR * 1.86;
+  let next = 1;
   for (let row = 0; row < 5; row += 1) {
-    for (let i = 0; i <= row; i += 1) {
-      out.push({
-        n: idx++,
-        c: 0xdc2626,
-        p: new THREE.Vector3((i - row / 2) * CFG.ballR * 2.04, ballY, spots.redApex.z - row * CFG.ballR * 1.78),
-        kind: 'red',
-        value: SNOOKER_BALL_VALUES.red
-      });
+    for (let i = 0; i <= row && next <= 15; i += 1) {
+      out.push({ n: next, c: ROTATION_NUMBER_COLORS[next] ?? 0xffffff, p: new THREE.Vector3((i - row / 2) * spacingX, ballY, spots.rackCenter.z - row * spacingZ), kind: String(next), value: next });
+      next += 1;
     }
   }
-  out.push(
-    { n: 16, c: 0xfacc15, p: spots.yellow, kind: 'yellow', value: SNOOKER_BALL_VALUES.yellow, spot: spots.yellow },
-    { n: 17, c: 0x16a34a, p: spots.green, kind: 'green', value: SNOOKER_BALL_VALUES.green, spot: spots.green },
-    { n: 18, c: 0x7c2d12, p: spots.brown, kind: 'brown', value: SNOOKER_BALL_VALUES.brown, spot: spots.brown },
-    { n: 19, c: 0x2563eb, p: spots.blue, kind: 'blue', value: SNOOKER_BALL_VALUES.blue, spot: spots.blue },
-    { n: 20, c: 0xf472b6, p: spots.pink, kind: 'pink', value: SNOOKER_BALL_VALUES.pink, spot: spots.pink },
-    { n: 21, c: 0x111827, p: spots.black, kind: 'black', value: SNOOKER_BALL_VALUES.black, spot: spots.black }
-  );
   return out;
 }
 function addBalls(tableGroup) {
@@ -813,7 +783,7 @@ function addTable(scene, renderer, options = {}) {
     const model = gltf?.scene || gltf?.scenes?.[0];
     if (!model) {
       if (typeof options.onStatus === 'function') {
-        options.onStatus('GLB snooker table failed to load; procedural table disabled');
+        options.onStatus('Albanian Bilard table GLB failed to load; procedural table disabled');
       }
       return;
     }
@@ -871,7 +841,7 @@ function addTable(scene, renderer, options = {}) {
     });
     tableGroup.add(model);
     if (typeof options.onStatus === 'function') {
-      options.onStatus('Snooker GLB table loaded; game playfield mapped directly to the GLB bed');
+      options.onStatus('Albanian Bilard table GLB loaded; game playfield mapped directly to the GLB bed');
     }
   })();
   if (options.shadowCatcher !== false) {
@@ -1218,153 +1188,39 @@ function applyCueShot(cueBall, power, yaw, out, spinInput = { x: 0, y: 0 }) {
   cueBall.impacted = false;
   cueBall.lastShotSpin = { x: spin.x ?? 0, y: spin.y ?? 0 };
 }
-function getSnookerRedsRemaining(balls) {
-  return balls.filter((item) => item.kind === 'red' && !item.potted).length;
+function getLowestUnpottedRotationBall(balls) {
+  let target = null;
+  for (const ball of balls) {
+    if (ball.isCue || ball.potted) continue;
+    if (!target || (ball.number ?? 99) < (target.number ?? 99)) target = ball;
+  }
+  return target;
 }
-function getSnookerFinalColourTargetKind(balls) {
-  return SNOOKER_COLOR_ORDER.find((kind) => balls.some((item) => item.kind === kind && !item.potted)) ?? null;
-}
-function getSnookerTargetValue(targetKind) {
-  if (targetKind === 'colour') return SNOOKER_BALL_VALUES.black;
-  return SNOOKER_BALL_VALUES[targetKind] ?? SNOOKER_BALL_VALUES.red;
-}
-function formatSnookerTarget(targetKind) {
-  if (targetKind === 'red') return 'Red';
-  if (targetKind === 'colour') return 'Colour';
-  if (!targetKind) return 'Frame complete';
-  return SNOOKER_COLOR_LABELS[targetKind] ?? targetKind;
-}
+function formatSnookerTarget(targetKind) { return targetKind ? `Ball ${targetKind}` : 'Game complete'; }
 function createSnookerRulesState() {
-  return {
-    scores: [0, 0],
-    score: 0,
-    activePlayer: 0,
-    targetKind: 'red',
-    target: 'Red',
-    foul: '',
-    shotActive: false,
-    shotPotCount: 0,
-    shotFoul: ''
-  };
+  return { scores: [0, 0], score: 0, activePlayer: 0, targetKind: 1, target: 'Ball 1 • First to 61', foul: '', shotActive: false, shotPotCount: 0, shotFoul: '' };
 }
 function beginSnookerShotRules(rulesState) {
   if (!rulesState) return;
-  rulesState.shotActive = true;
-  rulesState.startingTargetKind = rulesState.targetKind || 'red';
-  rulesState.firstContactKind = null;
-  rulesState.firstContactValue = 0;
-  rulesState.pottedBalls = [];
-  rulesState.shotPotCount = 0;
-  rulesState.shotFoul = '';
-  rulesState.foulReasons = [];
-  rulesState.foulValue = 0;
-  rulesState.railAfterContact = false;
-  rulesState.foul = '';
+  rulesState.shotActive = true; rulesState.startingTargetKind = rulesState.targetKind || 1; rulesState.firstContactKind = null; rulesState.firstContactValue = 0; rulesState.pottedBalls = []; rulesState.shotPotCount = 0; rulesState.shotFoul = ''; rulesState.foulValue = 0; rulesState.foul = '';
 }
-function registerSnookerFoul(rulesState, reason, value = 4) {
-  if (!rulesState) return;
-  const foulValue = Math.max(4, value || 0, rulesState.foulValue || 0);
-  rulesState.foulValue = foulValue;
-  if (reason && !rulesState.foulReasons?.includes(reason)) {
-    rulesState.foulReasons = [...(rulesState.foulReasons ?? []), reason];
-  }
-  rulesState.shotFoul = `${reason || 'Foul'} (${foulValue})`;
-}
-function isSnookerBallOn(kind, targetKind) {
-  if (targetKind === 'red') return kind === 'red';
-  if (targetKind === 'colour') return kind !== 'red' && kind !== 'cue';
-  return kind === targetKind;
-}
-function recordSnookerFirstContact(ball, rulesState) {
-  if (!rulesState?.shotActive || rulesState.firstContactKind || !ball || ball.isCue) return;
-  rulesState.firstContactKind = ball.kind;
-  rulesState.firstContactValue = ball.value ?? 0;
-}
-function respotColorBall(ball, balls) {
-  if (!ball?.spot) return;
-  const occupied = (spot) => balls.some((other) => !other.potted && other !== ball && other.pos.distanceToSquared(spot) < (CFG.ballR * 2.2) ** 2);
-  const candidate = ball.spot.clone();
-  if (occupied(candidate)) {
-    let found = false;
-    for (let ring = 1; ring <= 7 && !found; ring += 1) {
-      for (let i = 0; i < 16; i += 1) {
-        const a = (i / 16) * Math.PI * 2;
-        candidate.copy(ball.spot).add(new THREE.Vector3(Math.cos(a), 0, Math.sin(a)).multiplyScalar(CFG.ballR * 2.25 * ring));
-        if (!occupied(candidate)) { found = true; break; }
-      }
-    }
-  }
-  ball.pos.copy(candidate);
-  ball.vel.set(0, 0, 0);
-  ball.spin.set(0, 0);
-  ball.omega?.set(0, 0, 0);
-  ball.potted = false;
-  ball.mesh.visible = true;
-  ball.mesh.position.copy(ball.pos).setY(ball.pos.y + CFG.ballR * BALL_VISUAL_LIFT);
-}
-function recordSnookerPot(ball, rulesState) {
-  if (!rulesState || ball.isCue) return;
-  rulesState.shotPotCount = (rulesState.shotPotCount ?? 0) + 1;
-  rulesState.pottedBalls = [...(rulesState.pottedBalls ?? []), ball];
-  if (!isSnookerBallOn(ball.kind, rulesState.startingTargetKind || rulesState.targetKind)) {
-    registerSnookerFoul(rulesState, `${SNOOKER_COLOR_LABELS[ball.kind] ?? ball.kind} potted when ${formatSnookerTarget(rulesState.startingTargetKind || rulesState.targetKind)} was on`, ball.value ?? 4);
-  }
-}
+function registerSnookerFoul(rulesState, reason, value = 4) { if (!rulesState) return; rulesState.foulValue = Math.max(4, value || 0); rulesState.shotFoul = `${reason || 'Foul'} (${rulesState.foulValue})`; }
+function isSnookerBallOn(kind, targetKind) { return Number(kind) === Number(targetKind); }
+function recordSnookerFirstContact(ball, rulesState) { if (!rulesState?.shotActive || rulesState.firstContactKind || !ball || ball.isCue) return; rulesState.firstContactKind = ball.number; rulesState.firstContactValue = ball.number ?? 0; }
+function respotColorBall() {}
+function recordSnookerPot(ball, rulesState) { if (!rulesState || ball.isCue) return; rulesState.shotPotCount = (rulesState.shotPotCount ?? 0) + 1; rulesState.pottedBalls = [...(rulesState.pottedBalls ?? []), ball]; }
 function finalizeSnookerShotRules(balls, rulesState) {
   if (!rulesState?.shotActive) return false;
-  const targetKind = rulesState.startingTargetKind || rulesState.targetKind || 'red';
+  const targetKind = rulesState.startingTargetKind || rulesState.targetKind || 1;
   const pottedBalls = rulesState.pottedBalls ?? [];
-  const pottedColours = pottedBalls.filter((ball) => ball.kind !== 'red');
-  const pottedReds = pottedBalls.filter((ball) => ball.kind === 'red');
-  if (!rulesState.firstContactKind) {
-    registerSnookerFoul(rulesState, `No ball contacted; ${formatSnookerTarget(targetKind)} was on`, getSnookerTargetValue(targetKind));
-  } else if (!isSnookerBallOn(rulesState.firstContactKind, targetKind)) {
-    registerSnookerFoul(
-      rulesState,
-      `Wrong first contact: ${formatSnookerTarget(rulesState.firstContactKind)} hit before ${formatSnookerTarget(targetKind)}`,
-      Math.max(rulesState.firstContactValue ?? 0, getSnookerTargetValue(targetKind))
-    );
-  }
-  if (targetKind === 'red' && pottedColours.length) {
-    registerSnookerFoul(rulesState, 'Colour potted while reds were on', Math.max(...pottedColours.map((ball) => ball.value ?? 4), 4));
-  } else if (targetKind === 'colour') {
-    if (pottedReds.length) registerSnookerFoul(rulesState, 'Red potted while a colour was on', 4);
-    if (pottedColours.length > 1) registerSnookerFoul(rulesState, 'More than one colour potted on a colour turn', Math.max(...pottedColours.map((ball) => ball.value ?? 4), 4));
-  } else if (targetKind && targetKind !== 'red') {
-    const wrongPots = pottedBalls.filter((ball) => ball.kind !== targetKind);
-    if (wrongPots.length || pottedBalls.length > 1) {
-      registerSnookerFoul(rulesState, `${formatSnookerTarget(targetKind)} was the only ball on`, Math.max(...pottedBalls.map((ball) => ball.value ?? 4), getSnookerTargetValue(targetKind)));
-    }
-  }
+  if (!rulesState.firstContactKind || Number(rulesState.firstContactKind) !== Number(targetKind)) registerSnookerFoul(rulesState, `Wrong first contact, Ball ${targetKind} was on`, targetKind);
   const isFoul = Boolean(rulesState.foulValue);
-  const active = rulesState.activePlayer ?? 0;
-  const opponent = active === 0 ? 1 : 0;
-  if (isFoul) {
-    rulesState.scores[opponent] = (rulesState.scores[opponent] ?? 0) + Math.max(4, rulesState.foulValue || 4);
-    rulesState.activePlayer = opponent;
-    rulesState.foul = `${rulesState.foulReasons?.[0] || 'Foul'} — ${Math.max(4, rulesState.foulValue || 4)} points`;
-    pottedColours.forEach((ball) => respotColorBall(ball, balls));
-  } else {
-    const shotPoints = pottedBalls.reduce((sum, ball) => sum + (ball.value ?? 0), 0);
-    rulesState.scores[active] = (rulesState.scores[active] ?? 0) + shotPoints;
-    rulesState.foul = '';
-    if (!pottedBalls.length) rulesState.activePlayer = opponent;
-    if (targetKind === 'colour' && pottedColours.length && getSnookerRedsRemaining(balls) > 0) {
-      pottedColours.forEach((ball) => respotColorBall(ball, balls));
-    }
-  }
-  const redsRemaining = getSnookerRedsRemaining(balls);
-  if (redsRemaining > 0) {
-    const legalPot = !isFoul && pottedBalls.length > 0;
-    rulesState.targetKind = legalPot && targetKind === 'red' ? 'colour' : 'red';
-  } else {
-    rulesState.targetKind = getSnookerFinalColourTargetKind(balls);
-  }
-  rulesState.target = formatSnookerTarget(rulesState.targetKind);
-  rulesState.score = rulesState.scores[0] ?? 0;
-  rulesState.shotActive = false;
-  rulesState.shotPotCount = pottedBalls.length;
-  rulesState.shotFoul = isFoul ? rulesState.foul : '';
+  const active = rulesState.activePlayer ?? 0; const opponent = active === 0 ? 1 : 0;
+  if (isFoul) { rulesState.scores[opponent] = (rulesState.scores[opponent] ?? 0) + Math.max(4, rulesState.foulValue || 4); rulesState.activePlayer = opponent; rulesState.foul = rulesState.shotFoul; }
+  else { const shotPoints = pottedBalls.reduce((sum, ball) => sum + (ball.number ?? ball.value ?? 0), 0); rulesState.scores[active] = (rulesState.scores[active] ?? 0) + shotPoints; rulesState.foul = ''; if (!pottedBalls.length) rulesState.activePlayer = opponent; }
+  const nextBall = getLowestUnpottedRotationBall(balls);
+  rulesState.targetKind = nextBall ? nextBall.number : null; rulesState.target = formatSnookerTarget(rulesState.targetKind); rulesState.score = rulesState.scores[0] ?? 0; rulesState.shotActive = false; rulesState.shotPotCount = pottedBalls.length; rulesState.shotFoul = isFoul ? rulesState.foul : '';
+  if ((rulesState.scores[0] ?? 0) >= ALBANIAN_BILLIARD_WIN_SCORE || (rulesState.scores[1] ?? 0) >= ALBANIAN_BILLIARD_WIN_SCORE) { rulesState.target = `Winner: Player ${(rulesState.scores[0] ?? 0) >= ALBANIAN_BILLIARD_WIN_SCORE ? 1 : 2} (61+)`; }
   return true;
 }
 
@@ -1850,7 +1706,7 @@ function updateCamera(camera, mode, broadcastMode, cueBallWorld, aimForward, act
   camera.updateProjectionMatrix();
 }
 
-export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provided' } = {}) {
+export default function SnookerRoyalProvided({ gameTitle = 'Albanian Bilard Royal 61' } = {}) {
   const hostRef = useRef(null);
   const canvasRef = useRef(null);
   const sliderMountRef = useRef(null);
@@ -1858,7 +1714,7 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
   const spinDotRef = useRef(null);
   const [power, setPower] = useState(0);
   const [shotState, setShotState] = useState('idle');
-  const [tableStatus, setTableStatus] = useState('Loading Pooltool snooker table GLB…');
+  const [tableStatus, setTableStatus] = useState('Loading Albanian Bilard table (solids/stripes)…');
   const [humanStatus, setHumanStatus] = useState('Preparing ReadyPlayer human…');
   const [score, setScore] = useState(0);
   const [opponentScore, setOpponentScore] = useState(0);
@@ -1901,12 +1757,12 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
   const activeClothColor = resolveClothColor(activeCloth);
   const playerName = getTelegramUsername() || 'Player';
   const playerAvatar = getTelegramPhotoUrl() || '/assets/icons/profile.svg';
-  const opponentName = 'Snooker AI';
-  const opponentAvatar = '/assets/icons/snooker-regular.svg';
+  const opponentName = 'Bilard AI';
+  const opponentAvatar = '/assets/icons/Pool Royal game logo.png';
   const playerAccountId = getTelegramId?.() || 'snooker-champion-player';
   const giftPlayers = useMemo(() => [
     { id: playerAccountId, index: 0, name: playerName, avatar: playerAvatar },
-    { id: 'snooker-champion-ai', index: 1, name: opponentName, avatar: opponentAvatar }
+    { id: 'albanian-bilard-ai', index: 1, name: opponentName, avatar: opponentAvatar }
   ], [opponentAvatar, opponentName, playerAccountId, playerAvatar, playerName]);
   const [isPortraitHud, setIsPortraitHud] = useState(() => (typeof window !== 'undefined' ? window.innerHeight > window.innerWidth : false));
   const [railOverheadSide, setRailOverheadSide] = useState('back');
@@ -2143,12 +1999,12 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
     const host = hostRef.current;
     const canvas = canvasRef.current;
     if (!host || !canvas) return undefined;
-    setTableStatus('Loading Pooltool snooker table GLB…');
+    setTableStatus('Loading Albanian Bilard table (solids/stripes)…');
     rulesRef.current = createSnookerRulesState();
     setScore(0);
     setOpponentScore(0);
     setActivePlayer(0);
-    setTarget('Red');
+    setTarget('Ball 1 • First to 61');
     setFoul('');
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
     renderer.setClearColor(activeHdri?.swatches?.[0] ? new THREE.Color(activeHdri.swatches[0]) : new THREE.Color(0x0b0b0b), 1);
@@ -2549,9 +2405,9 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
                 <button type="button" onClick={() => setConfigOpen(false)} className="rounded-full p-1 text-white/70 transition hover:text-white" aria-label="Close setup">✕</button>
               </div>
               <div className="mt-3 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 px-3 py-2 text-[11px] font-semibold leading-relaxed text-emerald-50/85">
-                Mirrors the Snooker Royal match package: the same GLB table, cushion/jaw mapping, cloth finish, balls, cameras, broadcast style, power slider, and spin controller.
+                Mirrors the Albanian Bilard Royal match package: the same GLB table, cushion/jaw mapping, cloth finish, balls, cameras, broadcast style, power slider, and spin controller.
               </div>
-              <div className="mt-3 grid grid-cols-3 gap-2" aria-label="Snooker Royal parity thumbnails">
+              <div className="mt-3 grid grid-cols-3 gap-2" aria-label="Albanian Bilard Royal parity thumbnails">
                 {SNOOKER_ROYAL_PARITY_MENU_THUMBNAILS.map((item) => (
                   <div key={item.id} className="rounded-2xl border border-white/10 bg-white/[0.04] p-2 text-center">
                     <div className="mx-auto flex h-16 w-full items-center justify-center overflow-hidden rounded-xl border border-emerald-300/20 bg-gradient-to-br from-emerald-400/20 via-slate-900/70 to-black/80">
@@ -2704,7 +2560,7 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
             ref={spinPadRef}
             className="relative rounded-full border border-white/70 bg-white shadow-[0_18px_34px_rgba(0,0,0,0.45)] touch-none"
             style={{ width: `${SPIN_CONTROL_DIAMETER_PX}px`, height: `${SPIN_CONTROL_DIAMETER_PX}px` }}
-            aria-label="Snooker Royal style spin controller"
+            aria-label="Albanian Bilard Royal style spin controller"
           >
             <div
               id="spinDot"
