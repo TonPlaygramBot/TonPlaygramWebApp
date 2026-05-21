@@ -999,7 +999,7 @@ const CHAIR_SEAT_ANGLES = Object.freeze([
   THREE.MathUtils.degToRad(180)
 ]);
 const SIDE_TABLE_RADIUS_DELTA = TABLE_RADIUS * (1 - TABLE_LEFT_RIGHT_SHRINK_FACTOR);
-const SIDE_PLAYER_TABLE_PULL_IN = 0.3 * MODEL_SCALE;
+const SIDE_PLAYER_TABLE_PULL_IN = 0.42 * MODEL_SCALE;
 const CHAIR_SEAT_RADII = Object.freeze([
   CHAIR_RADIUS + CHAIR_GLOBAL_PUSHBACK + SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK,
   CHAIR_RADIUS -
@@ -7988,13 +7988,13 @@ const DOMINO_CHARACTER_THEMES = Object.freeze([
     skinTone: 0xe3b08b
   }
 ]);
-const DOMINO_CHARACTER_PROPORTION_SCALE = 2.55;
-const DOMINO_HUMAN_CHARACTER_SCALE_BOOST = 0.9;
+const DOMINO_CHARACTER_PROPORTION_SCALE = 2.95;
+const DOMINO_HUMAN_CHARACTER_SCALE_BOOST = 0.95;
 // Seat avatars from the chair footprint instead of adding a table-facing Z offset.
 // This keeps every human visually aligned with the chair that owns the seat.
 const DOMINO_CHARACTER_CHAIR_SEAT_OUTWARD_BIAS = 0.02;
 // Slide only the AI/upper-seat characters inward so their hands sit closer to their domino racks.
-const DOMINO_CHARACTER_INWARD_DOMINO_REACH_BIAS = 0.04;
+const DOMINO_CHARACTER_INWARD_DOMINO_REACH_BIAS = 0.08;
 const DOMINO_HUMAN_CHARACTER_CHAIR_SEAT_OUTWARD_BIAS = 0;
 const DOMINO_CHARACTER_EXTRA_LOWER_OFFSET = 1.76;
 const DOMINO_HUMAN_CHARACTER_EXTRA_LOWER_OFFSET = -0.08;
