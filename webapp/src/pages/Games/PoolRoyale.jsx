@@ -848,7 +848,7 @@ const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.958; // shrink the wooden corner round
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
 const WOOD_CORNER_POCKET_CUT_CENTER_OUTSET_SCALE = -0.018; // push only the wooden corner rounded cut outward a touch without moving side-pocket cuts
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.045; // keep middle rail rounded cuts identical to the corner/showood-style pocket arcs
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.01; // keep middle rail rounded cuts identical to the corner/showood-style pocket arcs
 const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.068; // move middle wooden relief outward a bit more with the shifted side-pocket geometry
 
 function buildChromePlateGeometry({
@@ -1268,8 +1268,8 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
 ]);
 const DEFAULT_COMMENTARY_PRESET_ID = POOL_ROYALE_COMMENTARY_PRESETS[0]?.id || 'english';
 const SHOWOOD_ORIGINAL_TABLE_BASE_ID = 'showoodOriginal';
-const DEFAULT_PROCEDURAL_TABLE_BASE_ID = 'classicCylinders';
-const DEFAULT_TABLE_BASE_ID = SHOWOOD_ORIGINAL_TABLE_BASE_ID;
+const DEFAULT_PROCEDURAL_TABLE_BASE_ID = 'openPortal';
+const DEFAULT_TABLE_BASE_ID = DEFAULT_PROCEDURAL_TABLE_BASE_ID;
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const ENABLE_CUE_STROKE_ANIMATION = true;
@@ -15767,8 +15767,8 @@ function PoolRoyaleGame({
   const activeTableBase = useMemo(
     () =>
       availableTableBases.find((variant) => variant.id === tableBaseId) ??
-      availableTableBases.find((variant) => variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID) ??
-      POOL_ROYALE_BASE_VARIANTS.find((variant) => variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID) ??
+      availableTableBases.find((variant) => variant.id === DEFAULT_PROCEDURAL_TABLE_BASE_ID) ??
+      POOL_ROYALE_BASE_VARIANTS.find((variant) => variant.id === DEFAULT_PROCEDURAL_TABLE_BASE_ID) ??
       POOL_ROYALE_BASE_VARIANTS[0],
     [availableTableBases, tableBaseId]
   );
