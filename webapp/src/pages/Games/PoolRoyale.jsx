@@ -789,67 +789,67 @@ function adjustSideNotchDepth(mp) {
 
 const POCKET_VISUAL_EXPANSION = 1;
 const CORNER_POCKET_INWARD_SCALE = 1; // keep corner cuts identical to middle pocket diameter
-const CORNER_POCKET_SCALE_BOOST = 0.998; // open the corner mouth fractionally to match the inner pocket radius
-const CORNER_POCKET_EXTRA_SCALE = 1.028; // further relax the corner mouth while leaving side pockets unchanged
+const CORNER_POCKET_SCALE_BOOST = 1; // open the corner mouth fractionally to match the inner pocket radius
+const CORNER_POCKET_EXTRA_SCALE = 1; // further relax the corner mouth while leaving side pockets unchanged
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1; // keep the corner chrome arch radius aligned with the middle pockets
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08; // pull the rounded corner cut a touch farther inward while keeping the notch aligned to the cloth
-const CHROME_CORNER_EXPANSION_SCALE = 1.034; // expand the corner chrome farther along the long-rail side so it reaches the marked edge
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.032; // mirror the corner expansion along the short-rail side for a balanced two-sided extension
-const CHROME_CORNER_FIELD_TRIM_SCALE = -0.03; // remove the base trim so the fascia rides the cushion edge without a gap
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 1; // pull the rounded corner cut a touch farther inward while keeping the notch aligned to the cloth
+const CHROME_CORNER_EXPANSION_SCALE = 1; // expand the corner chrome farther along the long-rail side so it reaches the marked edge
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1; // mirror the corner expansion along the short-rail side for a balanced two-sided extension
+const CHROME_CORNER_FIELD_TRIM_SCALE = 0; // remove the base trim so the fascia rides the cushion edge without a gap
 const CHROME_CORNER_NOTCH_WEDGE_SCALE = 0; // keep wedge trim disabled to avoid polygon instability while preserving corner-cut safety
-const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.5; // increase the inside jaw clip so roughly the inner quarter is removed from corner chrome plates
-const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 0.5; // match clip depth/width so the corner reduction follows the same diagonal amount on both axes
+const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0; // increase the inside jaw clip so roughly the inner quarter is removed from corner chrome plates
+const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 0; // match clip depth/width so the corner reduction follows the same diagonal amount on both axes
 const CHROME_CORNER_FIELD_FILLET_SCALE = 0; // force a straight diagonal trim on the inner corner pocket chrome instead of a rounded fillet
 const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1; // no scaling so the notch mirrors the pocket radius perfectly
 const CHROME_CORNER_DIMENSION_SCALE = 1; // keep the fascia dimensions identical to the cushion span so both surfaces meet cleanly
-const CHROME_CORNER_WIDTH_SCALE = 1.018; // broaden the corner plate footprint so each side gains more visible chrome length
-const CHROME_CORNER_HEIGHT_SCALE = 1.012; // extend the short-rail plate reach while keeping the corner chrome cut unchanged
-const CHROME_CORNER_CENTER_OUTSET_SCALE = 0.024; // push corner fascia a tiny bit farther outward while keeping the rounded corner-pocket cut unchanged
+const CHROME_CORNER_WIDTH_SCALE = 1; // broaden the corner plate footprint so each side gains more visible chrome length
+const CHROME_CORNER_HEIGHT_SCALE = 1; // extend the short-rail plate reach while keeping the corner chrome cut unchanged
+const CHROME_CORNER_CENTER_OUTSET_SCALE = 0; // push corner fascia a tiny bit farther outward while keeping the rounded corner-pocket cut unchanged
 const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0; // let the corner fascia terminate precisely where the cushion noses stop
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0; // stop pulling the chrome off the short-rail centreline so the jaws stay flush
-const CHROME_CORNER_EDGE_TRIM_SCALE = 0.06; // trim the corner chrome footprint so the outside strip near corner pockets is visibly shorter
-const CHROME_CORNER_POCKET_EDGE_ROUND_SCALE = 0.9; // strongly round the outer corner-pocket-adjacent edges so the red-marked trim is clearly visible on mobile
+const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // trim the corner chrome footprint so the outside strip near corner pockets is visibly shorter
+const CHROME_CORNER_POCKET_EDGE_ROUND_SCALE = 1; // strongly round the outer corner-pocket-adjacent edges so the red-marked trim is clearly visible on mobile
 const CHROME_SIDE_POCKET_RADIUS_SCALE =
   CORNER_POCKET_INWARD_SCALE *
   CHROME_CORNER_POCKET_RADIUS_SCALE; // match the middle chrome arches to the corner pocket radius
-const WOOD_RAIL_CORNER_RADIUS_SCALE = 1.28; // match the native wooden rail outline more closely to the Showood pocket-jaw silhouette
+const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match the native wooden rail outline more closely to the Showood pocket-jaw silhouette
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0; // disable secondary throat so the side chrome uses a single arch
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profile
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the notch depth identical to the pocket cylinder so the chrome kisses the jaw edge
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
-const CHROME_PLATE_REFLECTION_SCALE = 0.28; // kill pocket-cut reflections by damping env-map intensity on fascia cuts
-const CHROME_PLATE_ROUGHNESS_LIFT = 0.08; // lift roughness on fascia cuts so pocket arches stop casting hot spots on cloth
+const CHROME_PLATE_REFLECTION_SCALE = 1; // kill pocket-cut reflections by damping env-map intensity on fascia cuts
+const CHROME_PLATE_ROUGHNESS_LIFT = 0; // lift roughness on fascia cuts so pocket arches stop casting hot spots on cloth
 const CHROME_PLATE_THICKNESS_SCALE = 0.0306; // match diamond thickness on the wooden rails for fascia depth
-const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.18; // thicken the middle fascia so its depth now matches the corner plates
-const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0.06; // lift fascia slightly with the raised rail/cushion profile so chrome stays aligned on all six pockets
+const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1; // thicken the middle fascia so its depth now matches the corner plates
+const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0; // lift fascia slightly with the raised rail/cushion profile so chrome stays aligned on all six pockets
 const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.34; // trim the side fascia reach so the middle chrome ends cleanly before the pocket curve
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.14; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
-const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.228; // trim the side opposite the rounded middle cut a touch more while staying stable
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.11; // widen the middle fascia slightly so both flanks expand toward the corner pockets
-const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 0.8; // trim the outside body of middle-pocket chrome plates a little more while preserving the rounded cut
-const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.22; // extend the plate ends a bit farther toward the corner pockets (green-marked areas)
-const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.9; // tighten the middle fascia slightly so both flanks gain a touch more trim
-const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.24; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
-const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.012; // push middle chrome plates slightly outward away from table center while preserving the rounded cut
-const CHROME_SIDE_APRON_COVER_THICKNESS_SCALE = 0.055; // cover the grey middle-pocket side apron with rail-sight chrome/gold
-const CHROME_SIDE_APRON_COVER_HEIGHT_SCALE = 0.82; // drop the side apron cover down the rail face behind the side-pocket jaw
-const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.022; // trim the outer fascia edge a hair more for a tighter outside finish
-const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.078; // trim the middle-pocket outside chrome a touch more so the outer edge ends flush with the wooden rails
-const CHROME_CORNER_POCKET_CUT_SCALE = 1.045; // open only the corner chrome rounded cut a tiny bit more so the arc reads slightly larger
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.03; // open middle-pocket chrome rounded cuts a tiny bit more so the arc reads slightly larger
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // reduce inward pull so middle pocket chrome cuts sit a bit farther out
-const WOOD_RAIL_POCKET_RELIEF_SCALE = 1.045; // match the wooden rail pocket relief to the Showood jaw outside diameter
-const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.958; // shrink the wooden corner rounded cut a touch more so only the wood corner radius reads slightly tighter
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1; // trim the side fascia reach so the middle chrome ends cleanly before the pocket curve
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
+const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // trim the side opposite the rounded middle cut a touch more while staying stable
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1; // widen the middle fascia slightly so both flanks expand toward the corner pockets
+const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1; // trim the outside body of middle-pocket chrome plates a little more while preserving the rounded cut
+const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1; // extend the plate ends a bit farther toward the corner pockets (green-marked areas)
+const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 1; // tighten the middle fascia slightly so both flanks gain a touch more trim
+const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
+const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0;
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0; // push middle chrome plates slightly outward away from table center while preserving the rounded cut
+const CHROME_SIDE_APRON_COVER_THICKNESS_SCALE = 0; // cover the grey middle-pocket side apron with rail-sight chrome/gold
+const CHROME_SIDE_APRON_COVER_HEIGHT_SCALE = 1; // drop the side apron cover down the rail face behind the side-pocket jaw
+const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // trim the outer fascia edge a hair more for a tighter outside finish
+const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0; // trim the middle-pocket outside chrome a touch more so the outer edge ends flush with the wooden rails
+const CHROME_CORNER_POCKET_CUT_SCALE = 1; // open only the corner chrome rounded cut a tiny bit more so the arc reads slightly larger
+const CHROME_SIDE_POCKET_CUT_SCALE = 1; // open middle-pocket chrome rounded cuts a tiny bit more so the arc reads slightly larger
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0; // reduce inward pull so middle pocket chrome cuts sit a bit farther out
+const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // match the wooden rail pocket relief to the Showood jaw outside diameter
+const WOOD_CORNER_RELIEF_INWARD_SCALE = 1; // shrink the wooden corner rounded cut a touch more so only the wood corner radius reads slightly tighter
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_CORNER_POCKET_CUT_CENTER_OUTSET_SCALE = -0.018; // push only the wooden corner rounded cut outward a touch without moving side-pocket cuts
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.045; // keep middle rail rounded cuts identical to the corner/showood-style pocket arcs
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.068; // move middle wooden relief outward a bit more with the shifted side-pocket geometry
+const WOOD_CORNER_POCKET_CUT_CENTER_OUTSET_SCALE = 0; // push only the wooden corner rounded cut outward a touch without moving side-pocket cuts
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1; // keep middle rail rounded cuts identical to the corner/showood-style pocket arcs
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0; // move middle wooden relief outward a bit more with the shifted side-pocket geometry
 
 function buildChromePlateGeometry({
   width,
@@ -4375,7 +4375,7 @@ const getShowoodTablePartOptions = (part, clothOptions = null, tableFinishOption
       material: { color: option.color, roughness: 1, metalness: 0, envMapIntensity: 0.16 }
     }));
   }
-  if (part === 'topWoodRail' || part === 'baseCornerBlock' || part === 'leg') {
+  if (part === 'topWoodRail') {
     const sourceOptions = Array.isArray(tableFinishOptions) && tableFinishOptions.length
       ? tableFinishOptions
       : TABLE_FINISH_OPTIONS;
@@ -4384,12 +4384,21 @@ const getShowoodTablePartOptions = (part, clothOptions = null, tableFinishOption
       const swatch = option.swatches?.[0] ?? finish?.colors?.rail ?? finish?.colors?.base ?? 0x5a2608;
       return {
         id: option.id,
-        label: `${option.label || finish?.label || option.id} ${part === 'topWoodRail' ? 'Rails' : part === 'baseCornerBlock' ? 'Base' : 'Legs'}`,
+        label: `${option.label || finish?.label || option.id} Rails`,
         color: toHexColor(swatch),
         thumbnail: option.thumbnail,
         useTableFinishTexture: true
       };
     });
+  }
+  if (part === 'baseCornerBlock' || part === 'leg') {
+    return POOL_ROYALE_BASE_VARIANTS.map((variant) => ({
+      id: variant.id,
+      label: part === 'baseCornerBlock' ? `${variant.name} Base` : `${variant.name} Legs`,
+      color: variant.color,
+      thumbnail: variant.thumbnail,
+      useTableBaseVariant: true
+    }));
   }
   return SHOWOOD_TABLE_PART_OPTIONS[part] || [];
 };
@@ -36220,8 +36229,10 @@ const shotPowerRef = useRef(0);
                         const chromeLinked = activeTablePersonalizationSection.chromeLinked;
                         const selected = part === 'cloth'
                           ? clothColorId
-                          : part === 'topWoodRail' || part === 'leg'
+                          : part === 'topWoodRail'
                             ? tableFinishId
+                            : part === 'baseCornerBlock' || part === 'leg'
+                              ? tableBaseId
                             : chromeLinked
                               ? (chromeColorId === 'gold' ? 'gold' : 'chrome')
                               : normalizeShowoodTableStyle(showoodTableStyle)[part];
@@ -36233,8 +36244,13 @@ const shotPowerRef = useRef(0);
                             onClick={() => {
                               if (part === 'cloth') {
                                 setClothColorId(option.id);
-                              } else if (part === 'topWoodRail' || part === 'leg') {
+                              } else if (part === 'topWoodRail') {
                                 setTableFinishId(option.id);
+                                setShowoodTableStyle((current) =>
+                                  normalizeShowoodTableStyle({ ...current, [part]: option.id })
+                                );
+                              } else if (part === 'baseCornerBlock' || part === 'leg') {
+                                setTableBaseId(option.id);
                                 setShowoodTableStyle((current) =>
                                   normalizeShowoodTableStyle({ ...current, [part]: option.id })
                                 );
