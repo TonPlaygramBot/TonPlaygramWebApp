@@ -864,7 +864,7 @@ export default function PoolRoyaleLobby() {
               <div>
                 <h3 className="font-semibold text-white">Pool Table</h3>
                 <p className="mt-1">
-                  Showood 7 ft GLB is now the fixed Pool Royale table.
+                  Pool Royal Legacy Procedural is now the fixed Pool Royale table.
                 </p>
               </div>
               <span className="rounded-full border border-emerald-300/35 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-100">
