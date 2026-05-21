@@ -11,6 +11,8 @@ import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { clone as cloneScene } from 'three/examples/jsm/utils/SkeletonUtils.js';
+import { addTransaction } from '../../utils/api.js';
+import { getTelegramId } from '../../utils/telegram.js';
 
 type WeaponClass =
   | 'pistol'
@@ -2517,6 +2519,7 @@ export default function ShootingRange() {
       requestedDistance && requestedDistance in RANGE_DISTANCE_CONFIG
         ? requestedDistance
         : 'standard';
+    const challenge = params.get('challenge');
     return {
       mode:
         params.get('mode') === 'online'
@@ -2530,9 +2533,11 @@ export default function ShootingRange() {
       scenarioSeed:
         params.get('tableId') ||
         params.get('accountId') ||
-        `${distance}-${params.get('name') || 'Player'}`
+        `${distance}-${params.get('name') || 'Player'}`,
+      challenge
     };
   }, []);
+  const [challengeReward, setChallengeReward] = useState<number | null>(null);
 
   const phaseRef = useRef<GamePhase>('loading');
   const viewModeRef = useRef<ViewMode>('tables');
@@ -3538,6 +3543,17 @@ export default function ShootingRange() {
           `Lane ${i + 1} · ${target.score}`
         );
       });
+      if (queryConfig.challenge === 'dailyStreak') {
+        const userScore = scores[userLaneRef.current] || 0;
+        const payout = Math.max(70, Math.min(140, Math.round(userScore * 0.24)));
+        setChallengeReward(payout);
+        void (async () => {
+          try {
+            const telegramId = getTelegramId();
+            await addTransaction(telegramId, payout, 'daily');
+          } catch {}
+        })();
+      }
     }
 
     function addLaneScore(laneIndex: number, points: number) {
@@ -4678,12 +4694,25 @@ export default function ShootingRange() {
                 : 'Free vs AI'}
             </span>
             <span>{status}</span>
+            {queryConfig.challenge === 'dailyStreak' && (
+              <span style={{ color: '#fde68a' }}>Daily mode: 5 shots then return</span>
+            )}
             {lastHitText && (
               <span style={{ color: '#86efac' }}>{lastHitText}</span>
             )}
           </div>
         </div>
       </div>
+      {queryConfig.challenge === 'dailyStreak' && phase === 'results' && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 20, display: 'grid', placeItems: 'center', background: 'rgba(5,7,12,.72)' }}>
+          <button
+            onClick={() => window.location.assign('/mining')}
+            style={{ padding: '12px 18px', borderRadius: 12, background: '#facc15', color: '#111827', fontWeight: 900 }}
+          >
+            Return to Mining {challengeReward ? `· +${challengeReward} TPC` : ''}
+          </button>
+        </div>
+      )}
 
       {viewMode === 'range' && (
         <div
