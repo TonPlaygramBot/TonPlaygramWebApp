@@ -14507,8 +14507,6 @@ const showRuleToast = useCallback((message) => {
   }, 3000);
 }, []);
 const powerRef = useRef(hud.power);
-const shotPowerRef = useRef(hud.power);
-const draggingSliderRef = useRef(false);
   const applyPower = useCallback((nextPower) => {
     const clampedPower = THREE.MathUtils.clamp(nextPower ?? 0, 0, 1);
     powerRef.current = clampedPower;
@@ -14519,9 +14517,6 @@ const draggingSliderRef = useRef(false);
   }, [inHandPlacementMode]);
   useEffect(() => {
     powerRef.current = hud.power;
-    if (!draggingSliderRef.current) {
-      shotPowerRef.current = hud.power;
-    }
   }, [hud.power]);
   const hudRef = useRef(hud);
   useEffect(() => {
@@ -27620,32 +27615,15 @@ const draggingSliderRef = useRef(false);
       value: powerRef.current * 100,
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
+      onChange: (v) => applyPower(v / 100),
       onStart: () => {
-        draggingSliderRef.current = true;
         captureCueStickAnchor();
       },
-      onChange: (v) => {
-        const normalized = THREE.MathUtils.clamp((v ?? 0) / 100, 0, 1);
-        applyPower(normalized);
-        if (draggingSliderRef.current) {
-          shotPowerRef.current = normalized;
-        }
-      },
       onCommit: () => {
-        const committedPower = THREE.MathUtils.clamp(
-          shotPowerRef.current ?? powerRef.current ?? 0,
-          0,
-          1
-        );
-        shotPowerRef.current = committedPower;
-        powerRef.current = committedPower;
-        draggingSliderRef.current = false;
         fireRef.current?.();
         requestAnimationFrame(() => {
-          slider.animateToMin?.({ duration: 180 });
           slider.set(slider.min, { animate: true });
           applyPower(0);
-          shotPowerRef.current = 0;
         });
       }
     });
@@ -27662,8 +27640,6 @@ const draggingSliderRef = useRef(false);
     if (slider) {
       slider.set(slider.min, { animate: true });
     }
-    draggingSliderRef.current = false;
-    shotPowerRef.current = 0;
     applyPower(0);
     cuePullCurrentRef.current = 0;
     cuePullTargetRef.current = 0;
