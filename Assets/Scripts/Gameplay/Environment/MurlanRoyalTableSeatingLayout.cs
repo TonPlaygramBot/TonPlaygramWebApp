@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Aiming.Gameplay.Environment
 {
     /// <summary>
-    /// Pushes human characters farther from the table and slightly enlarges chairs.
+    /// Pulls chairs closer/smaller and makes human characters bigger for portrait readability.
     /// Useful for portrait-camera readability tuning in Murlan Royal scenes.
     /// </summary>
     public class MurlanRoyalTableSeatingLayout : MonoBehaviour
@@ -14,8 +14,9 @@ namespace Aiming.Gameplay.Environment
         [SerializeField] private Transform[] chairs;
 
         [Header("Layout Tuning")]
-        [SerializeField, Min(0f)] private float humanOutwardOffset = 0.35f;
-        [SerializeField, Min(0.1f)] private float chairScaleMultiplier = 1.08f;
+        [SerializeField, Min(0.1f)] private float humanScaleMultiplier = 1.15f;
+        [SerializeField, Min(0f)] private float chairInwardOffset = 0.2f;
+        [SerializeField, Min(0.01f)] private float chairScaleMultiplier = 0.88f;
         [SerializeField] private bool fixHumanFacingDirection = true;
         [SerializeField] private bool humansShouldFaceTableCenter = true;
         [SerializeField] private Vector3 humanFacingEulerOffset = new Vector3(0f, 180f, 0f);
@@ -33,12 +34,13 @@ namespace Aiming.Gameplay.Environment
         public void ApplyLayout()
         {
             Vector3 center = tableCenter != null ? tableCenter.position : transform.position;
-            PushHumansOutward(center);
+            ScaleHumans();
             FixHumanFacing(center);
+            PullChairsInward(center);
             ScaleChairs();
         }
 
-        private void PushHumansOutward(Vector3 center)
+        private void ScaleHumans()
         {
             if (humanCharacters == null)
             {
@@ -53,7 +55,26 @@ namespace Aiming.Gameplay.Environment
                     continue;
                 }
 
-                Vector3 horizontalDirection = human.position - center;
+                human.localScale *= humanScaleMultiplier;
+            }
+        }
+
+        private void PullChairsInward(Vector3 center)
+        {
+            if (chairs == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < chairs.Length; i++)
+            {
+                Transform chair = chairs[i];
+                if (chair == null)
+                {
+                    continue;
+                }
+
+                Vector3 horizontalDirection = center - chair.position;
                 horizontalDirection.y = 0f;
 
                 if (horizontalDirection.sqrMagnitude <= 0.0001f)
@@ -61,7 +82,7 @@ namespace Aiming.Gameplay.Environment
                     continue;
                 }
 
-                human.position += horizontalDirection.normalized * humanOutwardOffset;
+                chair.position += horizontalDirection.normalized * chairInwardOffset;
             }
         }
 
