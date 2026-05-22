@@ -958,9 +958,9 @@ const TABLE_RADIUS = 3.4 * MODEL_SCALE * TABLE_RADIUS_SCALE;
 const BASE_TABLE_HEIGHT = 0.94 * MODEL_SCALE * TABLE_HEIGHT_SCALE;
 const LEGACY_BASE_TABLE_HEIGHT = BASE_TABLE_HEIGHT;
 const STOOL_SCALE =
-  1.3 *
-  1.3 *
-  1.3 *
+  1.15 *
+  1.15 *
+  1.15 *
   LEGACY_TABLE_SIZE_REDUCTION_FACTOR;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
@@ -977,7 +977,7 @@ const COLUMN_RADIUS_BOTTOM = 0.26 * MODEL_SCALE;
 const BASE_RADIUS = 0.72 * MODEL_SCALE;
 const FOOT_RING_RADIUS = 0.52 * MODEL_SCALE;
 const FOOT_RING_TUBE = 0.04 * MODEL_SCALE;
-const CHAIR_GAP = -0.04 * MODEL_SCALE; // pull all chairs inward so they sit closer to the table edge
+const CHAIR_GAP = -0.12 * MODEL_SCALE; // pull all chairs further inward so they sit visibly closer to the table edge
 const CHAIR_OUTWARD_OFFSET = 0;
 const CHAIR_RADIUS =
   TABLE_RADIUS + SEAT_DEPTH * 0.5 + CHAIR_GAP + CHAIR_OUTWARD_OFFSET;
@@ -7989,7 +7989,7 @@ const DOMINO_CHARACTER_THEMES = Object.freeze([
   }
 ]);
 const DOMINO_CHARACTER_PROPORTION_SCALE = 3.3;
-const DOMINO_HUMAN_CHARACTER_SCALE_BOOST = 1.2;
+const DOMINO_HUMAN_CHARACTER_SCALE_BOOST = 1.45;
 // Seat avatars from the chair footprint instead of adding a table-facing Z offset.
 // This keeps every human visually aligned with the chair that owns the seat.
 const DOMINO_CHARACTER_CHAIR_SEAT_OUTWARD_BIAS = -0.03;
