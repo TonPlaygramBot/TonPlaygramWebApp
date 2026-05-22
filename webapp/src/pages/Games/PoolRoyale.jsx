@@ -13282,7 +13282,7 @@ function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInf
     const finalMaterials = [];
     const materialLookup = new Map();
     const getMaterialIndex = (sourceMaterialIndex, part) => {
-      const linkedPart = part === 'sideWoodApron' ? 'baseCornerBlock' : part === 'verticalCornerRim' ? 'baseFoot' : part;
+      const linkedPart = part === 'sideWoodApron' ? 'railSight' : part === 'verticalCornerRim' ? 'baseFoot' : part;
       const key = `${sourceMaterialIndex}:${linkedPart}`;
       if (materialLookup.has(key)) return materialLookup.get(key);
       const source = sourceMaterials[Math.max(0, Math.min(sourceMaterialIndex, sourceMaterials.length - 1))];
@@ -13659,6 +13659,32 @@ function adjustPoolRoyaleExternalShowoodBaseProportions(model, tableModel) {
   model.updateMatrixWorld(true);
 }
 
+
+function adjustPoolRoyaleExternalShowoodRailHeight(model, tableModel) {
+  if (!model || tableModel?.id !== 'showood-seven-foot') return;
+  const railScale = Number(tableModel?.railHeightScale);
+  if (!Number.isFinite(railScale) || railScale <= MICRO_EPS || Math.abs(railScale - 1) <= MICRO_EPS) return;
+
+  model.traverse((child) => {
+    if (!child?.isMesh || child.userData?.poolRoyaleShowoodRailHeightAdjusted) return;
+    const material = Array.isArray(child.material) ? child.material[0] : child.material;
+    const role = classifyPoolRoyaleExternalTableSurface(child, material);
+    if (!['topWoodRail', 'sideWoodApron'].includes(role)) return;
+    const childBox = new THREE.Box3().setFromObject(child);
+    if (childBox.isEmpty()) return;
+    const anchorWorldY = childBox.max.y;
+    const parent = child.parent || model;
+    const anchorLocalY = parent.worldToLocal(new THREE.Vector3(0, anchorWorldY, 0)).y;
+    child.scale.y *= railScale;
+    child.updateMatrixWorld(true);
+    const nextBox = new THREE.Box3().setFromObject(child);
+    const nextAnchorLocalY = parent.worldToLocal(new THREE.Vector3(0, nextBox.max.y, 0)).y;
+    child.position.y += anchorLocalY - nextAnchorLocalY;
+    child.userData.poolRoyaleShowoodRailHeightAdjusted = true;
+  });
+  model.updateMatrixWorld(true);
+}
+
 function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   if (!model || !dims) return;
   model.position.set(0, 0, 0);
@@ -13742,6 +13768,7 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   model.updateMatrixWorld(true);
   stretchPoolRoyaleExternalLowerBase(model, tableModel, dims);
   adjustPoolRoyaleExternalShowoodBaseProportions(model, tableModel);
+  adjustPoolRoyaleExternalShowoodRailHeight(model, tableModel);
   model.userData = {
     ...(model.userData || {}),
     poolRoyaleExternalTable: true,
