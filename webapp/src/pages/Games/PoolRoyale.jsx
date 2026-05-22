@@ -1306,7 +1306,7 @@ const REPLAY_CAMERA_START_DELAY_MS = 0;
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
 const FRAME_RAIL_OUTWARD_SCALE = 1.38; // expand wooden frame rails outward by 38% on all sides
-const RAIL_HEIGHT = TABLE.THICK * 1.9; // lift all six cushions/rails a touch more so the top profile reads higher without changing playfield size
+const RAIL_HEIGHT = TABLE.THICK * 1.62; // shorten all wooden rails so their visual height matches the procedural rail frame reference
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.024; // push the corner jaws just a bit farther outward so the fascia follows the rounded rail and chrome cut
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
@@ -1622,8 +1622,8 @@ const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.32; // overlap between cus
 const CUSHION_EXTRA_LIFT = TABLE.THICK * 0.225; // lift the cushion base higher so native and Showood cushions sit on the same raised field plane
 const CUSHION_HEIGHT_DROP = 0; // keep the cushion tops fully raised to match the Showood rail profile
 const CUSHION_FIELD_CLIP_RATIO = 0.152; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
-const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
-const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
+const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 0.74; // shorten the side apron drop so chrome/gold apron band sits tighter to the rail body
+const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // keep short-rail apron depth matched to the trimmed side aprons
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.085; // round exterior wooden rail edge profile to remove sharp octagon-like corners
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
