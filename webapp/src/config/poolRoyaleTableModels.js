@@ -8,6 +8,40 @@ const SNOOKER_LOCAL_ASSET_PATH = 'https://raw.githubusercontent.com/ekiefl/poolt
 
 export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
   {
+    id: 'procedural-legacy',
+    label: 'Legacy Procedural',
+    description:
+      'Legacy menu/mapping profile mounted on the Snooker Royal 9 ft GLB shell with full pockets, rails, and trim.',
+    tableSizeId: '9ft',
+    baseId: 'showoodOriginal',
+    assetUrl: SNOOKER_LOCAL_ASSET_PATH,
+    fallbackAssetUrls: [
+      'https://cdn.jsdelivr.net/gh/ekiefl/pooltool@main/pooltool/models/table/snooker.glb',
+      `${POOLTOOL_RAW_BASE}/snooker.glb`
+    ],
+    icon: '🧱',
+    kind: 'gltf',
+    fitScale: 1,
+    fitFootprintScale: 1.04,
+    fitHeightScale: 1,
+    clothRepeatScale: 7.2,
+    fitStrategy: 'exact',
+    fitReference: 'upperTabletop',
+    matchNativeHeight: true,
+    preserveOriginalFootprintAspect: true,
+    useOriginalLayoutSurfaces: true,
+    usePoolRoyaleFinish: true,
+    usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'pocket', 'trim'],
+    preserveOriginalSurfaceRoles: ['wood'],
+    tintOriginalTrimGold: true,
+    chromeMaterialSurfaceNames: ['diamonds', 'railSight', 'sideApron', 'apronStrip'],
+    blackMaterialSurfaceNames: [],
+    forceGeneratedChromePlates: false,
+    hideSurfaceRoles: [],
+    tableLogicProfile: 'showood7ft',
+    cueRigProfile: 'snookerRoyalProvided' 
+  },
+  {
     id: 'showood-seven-foot',
     label: 'Showood 7 ft GLB',
     description:
