@@ -85,6 +85,13 @@ export default function PoolRoyaleLobby() {
     }
   });
   const selectedTableModel = useMemo(() => resolvePoolRoyaleTableModel(tableModelId), [tableModelId]);
+  const lobbyTableModelOptions = useMemo(
+    () =>
+      POOL_ROYALE_TABLE_MODEL_OPTIONS.filter(
+        (model) => model.id !== 'procedural-legacy'
+      ),
+    []
+  );
   const tableSize = resolveTableSize(
     selectedTableModel?.tableSizeId || searchParams.get('tableSize')
   ).id;
@@ -902,7 +909,7 @@ export default function PoolRoyaleLobby() {
               <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Models</span>
             </div>
             <div className="grid grid-cols-1 gap-3">
-              {POOL_ROYALE_TABLE_MODEL_OPTIONS.map((model) => {
+              {lobbyTableModelOptions.map((model) => {
                 const active = selectedTableModel?.id === model.id;
                 return (
                   <button

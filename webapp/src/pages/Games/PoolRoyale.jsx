@@ -27173,7 +27173,10 @@ const shotPowerRef = useRef(0);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
       table.add(cueStick);
-      const humanRig = null; // Human character/rig disabled: cue stick now stays table-driven only.
+      const humanRig =
+        activeTableModel?.cueRigProfile === 'snookerRoyalProvided'
+          ? createPoolRoyaleHumanRig(table, renderer)
+          : null;
       const cueShadow = ENABLE_CUE_CLOTH_SHADOW
         ? (() => {
             const shadowWidth = Math.max(BALL_R * CUE_SHADOW_WIDTH_RATIO, BALL_R * 0.4);
