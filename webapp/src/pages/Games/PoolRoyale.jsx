@@ -13782,9 +13782,7 @@ function mountPoolRoyaleExternalTableModel({
       if (disposed || !template) return;
       const model = clonePoolRoyaleExternalTableTemplate(template, tableModel, finishInfo);
       fitPoolRoyaleExternalTableModel(model, tableModel, dims);
-      if (tableModel?.useLegacyShowoodRemap !== false) {
-        remapPoolRoyaleShowoodExternalParts(model, tableModel, finishInfo);
-      }
+      remapPoolRoyaleShowoodExternalParts(model, tableModel, finishInfo);
       externalRoot.clear();
       externalRoot.add(model);
       if (tableModel.id === 'showood-seven-foot') {
