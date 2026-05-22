@@ -1623,7 +1623,7 @@ const CUSHION_EXTRA_LIFT = TABLE.THICK * 0.225; // lift the cushion base higher 
 const CUSHION_HEIGHT_DROP = 0; // keep the cushion tops fully raised to match the Showood rail profile
 const CUSHION_FIELD_CLIP_RATIO = 0.152; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
-const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH * 0.62; // shorten the short/top rail drop further from the bottom while keeping side aprons unchanged
+const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH * 0.78; // shorten the short/top rail drop from the bottom while keeping side aprons unchanged
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.085; // round exterior wooden rail edge profile to remove sharp octagon-like corners
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
@@ -1876,10 +1876,10 @@ const TABLE_H = 0.75 * LEG_SCALE * TABLE_HEIGHT_REDUCTION * TABLE_HEIGHT_SCALE;
 const TABLE_LIFT =
   BASE_TABLE_LIFT + TABLE_H * (LEG_HEIGHT_FACTOR - 1);
 const BASE_LEG_HEIGHT = TABLE.THICK * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
-const LEG_RADIUS_SCALE = 1.34; // expand all legs so they read fuller while preserving playfield height
+const LEG_RADIUS_SCALE = 1.2; // 20% thicker cylindrical legs
 const BASE_LEG_LENGTH_SCALE = 0.72; // previous leg extension factor used for baseline stance
 const LEG_ELEVATION_SCALE = 0.96; // shorten the current leg extension to lower the playfield
-const LEG_LENGTH_SHRINK = 0.915; // keep leg vertical length unchanged so table height stays stable while widening leg bodies
+const LEG_LENGTH_SHRINK = 0.915; // extend legs downward so playfield height stays stable after shortening short-rail bottoms
 const BASE_HEIGHT_REDUCTION = 0.69; // trim table bases slightly more from the bottom to shorten the table stance
 const LEG_LENGTH_SCALE =
   BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE * LEG_LENGTH_SHRINK * BASE_HEIGHT_REDUCTION;
@@ -1910,7 +1910,7 @@ const BASE_HEIGHT_FILL = BASE_HEIGHT_REDUCTION; // keep custom bases aligned wit
 const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
 const TABLE_HEIGHT_DROP = (TABLE_H + TABLE.THICK) * 0.24; // lower the full table assembly a bit more so portal leg bottoms sit down onto their chrome levelers
 const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA - TABLE_HEIGHT_DROP;
-const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.39; // expand the leg-base depth so the broader legs still look grounded at the same table height
+const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.36; // deepen the leg base so the body trim change does not visually lift the playfield
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.07;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
@@ -11937,7 +11937,7 @@ export function Table3D(
   const brandPlateWidth = Math.min(PLAY_W * 0.32, Math.max(BALL_R * 9.6, PLAY_W * 0.23));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = 0; // keep branding plates in the same short-rail position as the procedural table
+  const brandPlateOutwardShift = endRailW * 0.62;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -12111,7 +12111,7 @@ export function Table3D(
     const logoWidth = Math.min(PLAY_W * 0.44, Math.max(BALL_R * 13.5, PLAY_W * 0.34));
     const logoHeight = Math.max(BALL_R * 1.4, railH * 0.18);
     const logoY = railsTopY - railH * 0.22;
-    const logoInset = Math.max(MICRO_EPS, endRailW * 0.52); // align logo plane with the procedural short-rail branding depth
+    const logoInset = Math.max(MICRO_EPS, endRailW * 0.16);
     const logoZ = halfH + endRailW - logoInset;
     const logoMat = new THREE.MeshBasicMaterial({
       color: 0xffffff,
@@ -12905,8 +12905,8 @@ function classifyPoolRoyaleExternalTableSurface(child, material) {
     : [];
   if (chromeSurfaceNames.some((name) => label.includes(`${name}`.toLowerCase()))) return 'railSight';
   if (blackSurfaceNames.some((name) => label.includes(`${name}`.toLowerCase()))) return 'railSight';
-  if (/rail[_\s-]*sight|railsight|rail[_\s-]*sight[_\s-]*lower|railsightlower|corner[_\s-]*rail[_\s-]*sight|cornerrailsight|diamond|sight|marker|inlay/.test(childName)) return 'railSight';
-  if (/side[_\s-]*wood[_\s-]*apron|sidewoodapron|side[_\s-]*apron|sideapron|apron[_\s-]*strip|apronstrip|apron/.test(childName)) return 'sideWoodApron';
+  if (/rail[_\s-]*sight|railsight|diamond|sight|marker|inlay/.test(childName)) return 'railSight';
+  if (/side[_\s-]*wood[_\s-]*apron|sidewoodapron|apron/.test(childName)) return 'sideWoodApron';
   if (/cushion|rubber|bumper|rail[_\s-]*nose/.test(childName)) return 'cushion';
   if (/pocket|liner|leather|net|basket|drop|holder|cup/.test(childName)) return 'pocketCup';
   if (/vertical.*(rim|plate|cap)|corner.*(rim|plate|cap)|rim|foot|feet|base[_\s-]*foot/.test(childName)) return 'verticalCornerRim';
@@ -12917,11 +12917,11 @@ function classifyPoolRoyaleExternalTableSurface(child, material) {
   if (/slate|cloth|felt|baize|bed|playfield|playing[_\s-]*surface/.test(childName)) return 'cloth';
   if (/cloth|felt|baize|slate|bed|playfield|playing[_\s-]*surface/.test(label)) return 'cloth';
   if (/pocket|liner|leather|net|basket|drop|cup/.test(label)) return 'pocketCup';
-  if (/metal|chrome|gold|diamond|sight|marker|plate|trim|screw|bolt|rail[_\s-]*sight[_\s-]*lower|corner[_\s-]*rail[_\s-]*sight/.test(label)) return 'railSight';
+  if (/metal|chrome|gold|diamond|sight|marker|plate|trim|screw|bolt/.test(label)) return 'railSight';
   if (/leg|support/.test(label)) return 'leg';
   if (/foot|rim/.test(label)) return 'verticalCornerRim';
   if (/base|cabinet/.test(label)) return 'baseCornerBlock';
-  if (/side[_\s-]*wood[_\s-]*apron|sidewoodapron|side[_\s-]*apron|sideapron|apron[_\s-]*strip|apronstrip|apron/.test(label)) return 'sideWoodApron';
+  if (/side[_\s-]*wood[_\s-]*apron|sidewoodapron|apron/.test(label)) return 'sideWoodApron';
   if (/frame|wood|rail|showood|bevel/.test(label)) return 'topWoodRail';
   return 'wood';
 }
