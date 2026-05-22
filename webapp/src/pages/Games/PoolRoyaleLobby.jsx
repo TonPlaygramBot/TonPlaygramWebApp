@@ -13,6 +13,8 @@ import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import {
+  POOL_ROYALE_TABLE_MODEL_OPTIONS,
+  POOL_ROYALE_TABLE_MODEL_STORAGE_KEY,
   resolvePoolRoyaleTableModel
 } from '../../config/poolRoyaleTableModels.js';
 import { socket } from '../../utils/socket.js';
@@ -75,7 +77,14 @@ export default function PoolRoyaleLobby() {
   const [variant, setVariant] = useState('uk');
   const [ukBallSet, setUkBallSet] = useState('uk');
   const [playType, setPlayType] = useState(initialPlayType);
-  const selectedTableModel = useMemo(() => resolvePoolRoyaleTableModel(), []);
+  const [tableModelId, setTableModelId] = useState(() => {
+    try {
+      return window.localStorage?.getItem(POOL_ROYALE_TABLE_MODEL_STORAGE_KEY) || '';
+    } catch {
+      return '';
+    }
+  });
+  const selectedTableModel = useMemo(() => resolvePoolRoyaleTableModel(tableModelId), [tableModelId]);
   const tableSize = resolveTableSize(
     selectedTableModel?.tableSizeId || searchParams.get('tableSize')
   ).id;
@@ -113,10 +122,37 @@ export default function PoolRoyaleLobby() {
     playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
   const selectedAiFlag = aiFlagIndex != null ? FLAG_EMOJIS[aiFlagIndex] : '';
   const selectedTableModelReady = true;
-  const showTableModelSelector = false;
+  const showTableModelSelector = true;
 
 
 
+
+
+  useEffect(() => {
+    try {
+      if (selectedTableModel?.id) {
+
+        window.localStorage?.setItem(POOL_ROYALE_TABLE_MODEL_STORAGE_KEY, selectedTableModel.id);
+      }
+    } catch {}
+  }, [selectedTableModel?.id]);
+
+
+  useEffect(() => {
+    const urls = [selectedTableModel?.assetUrl, ...(selectedTableModel?.fallbackAssetUrls || [])]
+      .filter((url) => typeof url === 'string' && url.length);
+    if (!urls.length || typeof window === 'undefined' || typeof window.fetch !== 'function') return;
+    const controller = new AbortController();
+    urls.slice(0, 1).forEach((url) => {
+      window.fetch(url, {
+        method: 'GET',
+        cache: 'force-cache',
+        mode: 'cors',
+        signal: controller.signal
+      }).catch(() => {});
+    });
+    return () => controller.abort();
+  }, [selectedTableModel?.id]);
   useEffect(() => {
     try {
       const saved = loadAvatar();
@@ -858,6 +894,33 @@ export default function PoolRoyaleLobby() {
           </div>
         )}
 
+
+        {!hasActiveTournament && showTableModelSelector && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-white">Pool Table</h3>
+              <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Models</span>
+            </div>
+            <div className="grid grid-cols-1 gap-3">
+              {POOL_ROYALE_TABLE_MODEL_OPTIONS.map((model) => {
+                const active = selectedTableModel?.id === model.id;
+                return (
+                  <button
+                    key={model.id}
+                    type="button"
+                    onClick={() => setTableModelId(model.id)}
+                    className={`lobby-option-card ${active ? 'lobby-option-card-active' : 'lobby-option-card-inactive'}`}
+                  >
+                    <div className="text-left">
+                      <p className="lobby-option-label">{model.icon || '🎱'} {model.label}</p>
+                      <p className="lobby-option-subtitle">{model.description}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {!hasActiveTournament && !showTableModelSelector && (
           <div className="space-y-2">

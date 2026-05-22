@@ -4,8 +4,43 @@ const POOLTOOL_RAW_BASE =
   'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table';
 
 const SHOWOOD_LOCAL_ASSET_PATH = '/assets/models/pool/showood-seven-foot.glb';
+const SNOOKER_LOCAL_ASSET_PATH = '/assets/models/snooker/snooker.glb';
 
 export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
+  {
+    id: 'procedural-legacy',
+    label: 'Legacy Procedural',
+    description:
+      'Legacy menu/mapping profile mounted on the Snooker Royal 9 ft GLB shell with full pockets, rails, and trim.',
+    tableSizeId: '9ft',
+    baseId: 'showoodOriginal',
+    assetUrl: SNOOKER_LOCAL_ASSET_PATH,
+    fallbackAssetUrls: [
+      'https://cdn.jsdelivr.net/gh/ekiefl/pooltool@main/pooltool/models/table/snooker.glb',
+      `${POOLTOOL_RAW_BASE}/snooker.glb`
+    ],
+    icon: '🧱',
+    kind: 'gltf',
+    fitScale: 1,
+    fitFootprintScale: 1.04,
+    fitHeightScale: 1,
+    clothRepeatScale: 7.2,
+    fitStrategy: 'exact',
+    fitReference: 'upperTabletop',
+    matchNativeHeight: true,
+    preserveOriginalFootprintAspect: true,
+    useOriginalLayoutSurfaces: true,
+    usePoolRoyaleFinish: true,
+    usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'pocket', 'trim'],
+    preserveOriginalSurfaceRoles: ['wood'],
+    tintOriginalTrimGold: true,
+    chromeMaterialSurfaceNames: ['diamonds', 'railSight', 'sideApron', 'apronStrip'],
+    blackMaterialSurfaceNames: [],
+    forceGeneratedChromePlates: false,
+    hideSurfaceRoles: [],
+    tableLogicProfile: 'legacyProcedural',
+    cueRigProfile: 'snookerRoyalProvided' 
+  },
   {
     id: 'showood-seven-foot',
     label: 'Showood 7 ft GLB',
@@ -39,7 +74,44 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     chromeMaterialSurfaceNames: ['diamonds', 'railSight', 'sideApron', 'sideWoodApron', 'apronStrip', 'railSightLower', 'cornerRailSight'],
     blackMaterialSurfaceNames: [],
     forceGeneratedChromePlates: false,
-    hideSurfaceRoles: []
+    hideSurfaceRoles: [],
+    useLegacyShowoodRemap: false,
+    tableLogicProfile: 'showood7ft',
+    cueRigProfile: 'poolRoyaleDefault'
+  },
+  {
+    id: 'chinese-8ball-snooker',
+    label: 'Chinese 8-Ball (9 ft)',
+    description:
+      'Snooker Royal GLB 9 ft table shell adapted for Pool Royale 8-ball mapping and physics.',
+    tableSizeId: '9ft',
+    baseId: 'showoodOriginal',
+    assetUrl: SNOOKER_LOCAL_ASSET_PATH,
+    fallbackAssetUrls: [
+      'https://cdn.jsdelivr.net/gh/ekiefl/pooltool@main/pooltool/models/table/snooker.glb',
+      `${POOLTOOL_RAW_BASE}/snooker.glb`
+    ],
+    icon: '🇨🇳',
+    kind: 'gltf',
+    fitScale: 1,
+    fitFootprintScale: 1.04,
+    fitHeightScale: 1,
+    clothRepeatScale: 7.2,
+    fitStrategy: 'exact',
+    fitReference: 'upperTabletop',
+    matchNativeHeight: true,
+    preserveOriginalFootprintAspect: true,
+    useOriginalLayoutSurfaces: true,
+    usePoolRoyaleFinish: true,
+    usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'pocket', 'trim'],
+    preserveOriginalSurfaceRoles: ['wood'],
+    tintOriginalTrimGold: true,
+    chromeMaterialSurfaceNames: ['diamonds', 'railSight', 'sideApron', 'apronStrip'],
+    blackMaterialSurfaceNames: [],
+    forceGeneratedChromePlates: false,
+    hideSurfaceRoles: [],
+    tableLogicProfile: 'chinese8Ball9ft',
+    cueRigProfile: 'snookerRoyalProvided'
   }
 ]);
 
