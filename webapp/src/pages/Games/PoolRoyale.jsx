@@ -824,7 +824,7 @@ const CHROME_PLATE_ROUGHNESS_LIFT = 0.08; // lift roughness on fascia cuts so po
 const CHROME_PLATE_THICKNESS_SCALE = 0.0306; // match diamond thickness on the wooden rails for fascia depth
 const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.18; // thicken the middle fascia so its depth now matches the corner plates
 const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0.06; // lift fascia slightly with the raised rail/cushion profile so chrome stays aligned on all six pockets
-const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0; // keep fascia depth identical to snooker
+const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0.28; // expand rail-sight fascia downward so it fully covers rail-sight faces and corner rims
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.34; // trim the side fascia reach so the middle chrome ends cleanly before the pocket curve
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.14; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
@@ -836,8 +836,8 @@ const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.9; // tighten the middle fasci
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.24; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.012; // push middle chrome plates slightly outward away from table center while preserving the rounded cut
-const CHROME_SIDE_APRON_COVER_THICKNESS_SCALE = 0.055; // cover the grey middle-pocket side apron with rail-sight chrome/gold
-const CHROME_SIDE_APRON_COVER_HEIGHT_SCALE = 1.08; // extend chrome/gold farther down so side aprons are fully covered on all sides
+const CHROME_SIDE_APRON_COVER_THICKNESS_SCALE = 0.038; // keep middle-pocket apron cover as a slim strip, not a full side panel overlay
+const CHROME_SIDE_APRON_COVER_HEIGHT_SCALE = 0.58; // limit middle-pocket apron cover to the small strip beside each jaw
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.022; // trim the outer fascia edge a hair more for a tighter outside finish
 const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.078; // trim the middle-pocket outside chrome a touch more so the outer edge ends flush with the wooden rails
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.045; // open only the corner chrome rounded cut a tiny bit more so the arc reads slightly larger
@@ -1623,7 +1623,7 @@ const CUSHION_EXTRA_LIFT = TABLE.THICK * 0.225; // lift the cushion base higher 
 const CUSHION_HEIGHT_DROP = 0; // keep the cushion tops fully raised to match the Showood rail profile
 const CUSHION_FIELD_CLIP_RATIO = 0.152; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
-const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
+const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH * 0.78; // shorten the short/top rail drop from the bottom while keeping side aprons unchanged
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.085; // round exterior wooden rail edge profile to remove sharp octagon-like corners
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
@@ -1879,7 +1879,7 @@ const BASE_LEG_HEIGHT = TABLE.THICK * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
 const LEG_RADIUS_SCALE = 1.2; // 20% thicker cylindrical legs
 const BASE_LEG_LENGTH_SCALE = 0.72; // previous leg extension factor used for baseline stance
 const LEG_ELEVATION_SCALE = 0.96; // shorten the current leg extension to lower the playfield
-const LEG_LENGTH_SHRINK = 0.867; // lengthen legs to extend the base downward with the taller table stance
+const LEG_LENGTH_SHRINK = 0.915; // extend legs downward so playfield height stays stable after shortening short-rail bottoms
 const BASE_HEIGHT_REDUCTION = 0.69; // trim table bases slightly more from the bottom to shorten the table stance
 const LEG_LENGTH_SCALE =
   BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE * LEG_LENGTH_SHRINK * BASE_HEIGHT_REDUCTION;
@@ -1910,7 +1910,7 @@ const BASE_HEIGHT_FILL = BASE_HEIGHT_REDUCTION; // keep custom bases aligned wit
 const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
 const TABLE_HEIGHT_DROP = (TABLE_H + TABLE.THICK) * 0.24; // lower the full table assembly a bit more so portal leg bottoms sit down onto their chrome levelers
 const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA - TABLE_HEIGHT_DROP;
-const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
+const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.36; // deepen the leg base so the body trim change does not visually lift the playfield
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.07;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
@@ -11205,7 +11205,7 @@ export function Table3D(
         MICRO_EPS,
         railH * CHROME_SIDE_APRON_COVER_HEIGHT_SCALE
       );
-      const apronLength = Math.max(MICRO_EPS, sideChromePlateHeight * 0.96);
+      const apronLength = Math.max(MICRO_EPS, sideChromePlateRadius * 1.32); // confine apron texture strip to the jaw-side zone around middle pockets
       const apron = new THREE.Mesh(
         new THREE.BoxGeometry(apronThickness, apronHeight, apronLength),
         chromePlateMat
