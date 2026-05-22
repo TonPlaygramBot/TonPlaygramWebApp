@@ -596,7 +596,7 @@ const CAMERA_PULL_FORWARD_MIN = THREE.MathUtils.degToRad(15);
 const CAMERA_CAPTURE_VIEW_UPWARD_BIAS = THREE.MathUtils.degToRad(21); // raise forced 3D animation camera for a stronger portrait top-down feel.
 const CAMERA_CAPTURE_VIEW_RADIUS_SCALE = 1.18; // keep forced 3D animation wider during capture so the board stays fully readable
 const CAMERA_CAPTURE_BOTTOM_AVATAR_SCREEN_OFFSET = 0; // keep projected avatars pinned to the seated character chest anchors
-const CAMERA_LOCKED_3D_PHI = THREE.MathUtils.degToRad(82); // lower the rendered board in 3D by tilting from a slightly lower portrait orbit angle.
+const CAMERA_LOCKED_3D_PHI = THREE.MathUtils.degToRad(76); // lift locked 3D camera more so the table sits visually higher on portrait screens.
 const CAMERA_LOCKED_3D_RADIUS_SCALE = 0.52; // move locked 3D camera closer so the table appears larger/nearer in portrait play.
 const CHECKERS_CAMERA_FRAME_COMPENSATION = 1.06;
 const PLAYER_FACE_CAMERA_SEAT_ANGLE = Math.PI / 2;
@@ -627,8 +627,6 @@ const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.24; // raise player camera w
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.92;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 1.35;
 const PLAYER_VIEW_LOOK_TARGET_UP_BIAS = 0.6; // increase upward aim so the table/pieces/opponent sit higher in view.
-const PLAYER_VIEW_LOOK_TARGET_UP_BIAS_2D = 0.02; // keep top-down board aim nearly centered on portrait screens.
-const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS_2D = 0; // keep board horizontally centered in 2D instead of skewed toward either edge.
 const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 10.9; // push table/chairs/humans further down in frame toward the bottom edge.
 const FPV_FACE_FORWARD_OFFSET = 0.012; // keep the camera almost exactly at the eyes for a true first-person perspective.
 const FPV_FACE_UP_OFFSET = 0.0; // slight lift so the board edge does not clip while still feeling eye-level.
@@ -10454,11 +10452,6 @@ function Chess3D({
       boardGroup.position.y + (BOARD.baseH + 0.045) * BOARD_SCALE + PLAYER_VIEW_LOOK_TARGET_UP_BIAS,
       tablePlacementOffset.z + PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS
     );
-    const boardLookTarget2d = new THREE.Vector3(
-      tablePlacementOffset.x,
-      boardGroup.position.y + (BOARD.baseH + 0.045) * BOARD_SCALE + PLAYER_VIEW_LOOK_TARGET_UP_BIAS_2D,
-      tablePlacementOffset.z + PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS_2D
-    );
     studioCamA.lookAt(boardLookTarget);
     studioCamB.lookAt(boardLookTarget);
 
@@ -10507,18 +10500,18 @@ function Chess3D({
       }
     };
 
-    const applyCameraSpherical = (spherical, lookTarget = boardLookTarget) => {
+    const applyCameraSpherical = (spherical) => {
       const pos = new THREE.Vector3().setFromSpherical(spherical);
-      camera.position.copy(lookTarget).add(pos);
-      camera.lookAt(lookTarget);
+      camera.position.copy(boardLookTarget).add(pos);
+      camera.lookAt(boardLookTarget);
       controls.update();
     };
 
-    const animateCameraTo = (targetSpherical, duration = 420, lookTarget = boardLookTarget) => {
+    const animateCameraTo = (targetSpherical, duration = 420) => {
       stopCameraTween();
       const start = performance.now();
       const from = new THREE.Spherical().setFromVector3(
-        camera.position.clone().sub(lookTarget)
+        camera.position.clone().sub(boardLookTarget)
       );
       const tick = (now) => {
         const t = clamp01((now - start) / duration);
@@ -10528,7 +10521,7 @@ function Chess3D({
           THREE.MathUtils.lerp(from.phi, targetSpherical.phi, eased),
           THREE.MathUtils.lerp(from.theta, targetSpherical.theta, eased)
         );
-        applyCameraSpherical(current, lookTarget);
+        applyCameraSpherical(current);
         if (t < 1) {
           cameraTweenRef.current = requestAnimationFrame(tick);
         } else {
@@ -10565,7 +10558,7 @@ function Chess3D({
         controls.maxDistance = CAMERA_3D_MAX_RADIUS;
       } else if (requestedMode === '2d') {
         cameraMemory.last3d = current;
-        controls.target.copy(boardLookTarget2d);
+        controls.target.copy(boardLookTarget);
         controls.enabled = true;
         controls.enableRotate = false;
         controls.enablePan = false;
@@ -10580,7 +10573,7 @@ function Chess3D({
         }
         const target = initial2dViewRef.current;
         locked3dViewRef.current.activeLook = false;
-        animateCameraTo(target, 360, boardLookTarget2d);
+        animateCameraTo(target, 360);
       } else {
         camera.near = CAM.near;
         camera.updateProjectionMatrix();
@@ -10644,7 +10637,7 @@ function Chess3D({
       const minDistance = viewModeRef.current === '2d' ? CAMERA_2D_MIN_RADIUS : CAMERA_3D_MIN_RADIUS;
       const maxDistance = viewModeRef.current === '2d' ? CAMERA_2D_MAX_RADIUS : CAMERA_3D_MAX_RADIUS;
       if (viewModeRef.current === '2d') {
-        controls.target.copy(boardLookTarget2d);
+        controls.target.copy(boardLookTarget);
       }
       if (viewModeRef.current !== 'fpv') {
         const currentRadius = camera.position.distanceTo(boardLookTarget);
