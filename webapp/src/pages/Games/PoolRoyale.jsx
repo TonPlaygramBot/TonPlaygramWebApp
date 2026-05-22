@@ -830,12 +830,12 @@ const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.34; // trim the side fascia reach 
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.14; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.228; // trim the side opposite the rounded middle cut a touch more while staying stable
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.11; // widen the middle fascia slightly so both flanks expand toward the corner pockets
-const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1; // trim the outside body of middle-pocket chrome plates a little more while preserving the rounded cut
+const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 0.8; // trim the outside body of middle-pocket chrome plates a little more while preserving the rounded cut
 const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.22; // extend the plate ends a bit farther toward the corner pockets (green-marked areas)
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.9; // tighten the middle fascia slightly so both flanks gain a touch more trim
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.24; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0; // push middle chrome plates slightly outward away from table center while preserving the rounded cut
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.012; // push middle chrome plates slightly outward away from table center while preserving the rounded cut
 const CHROME_SIDE_APRON_COVER_THICKNESS_SCALE = 0.055; // cover the grey middle-pocket side apron with rail-sight chrome/gold
 const CHROME_SIDE_APRON_COVER_HEIGHT_SCALE = 0.82; // drop the side apron cover down the rail face behind the side-pocket jaw
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.022; // trim the outer fascia edge a hair more for a tighter outside finish
@@ -844,11 +844,11 @@ const CHROME_CORNER_POCKET_CUT_SCALE = 1.045; // open only the corner chrome rou
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.03; // open middle-pocket chrome rounded cuts a tiny bit more so the arc reads slightly larger
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // reduce inward pull so middle pocket chrome cuts sit a bit farther out
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1.045; // match the wooden rail pocket relief to the Showood jaw outside diameter
-const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.972; // shrink the wooden corner rounded cut a touch more so only the wood corner radius reads slightly tighter
+const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.958; // shrink the wooden corner rounded cut a touch more so only the wood corner radius reads slightly tighter
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
 const WOOD_CORNER_POCKET_CUT_CENTER_OUTSET_SCALE = -0.018; // push only the wooden corner rounded cut outward a touch without moving side-pocket cuts
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.02; // keep middle rail rounded cuts identical to the corner/showood-style pocket arcs
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.045; // keep middle rail rounded cuts identical to the corner/showood-style pocket arcs
 const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.068; // move middle wooden relief outward a bit more with the shifted side-pocket geometry
 
 function buildChromePlateGeometry({
@@ -1268,8 +1268,8 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
 ]);
 const DEFAULT_COMMENTARY_PRESET_ID = POOL_ROYALE_COMMENTARY_PRESETS[0]?.id || 'english';
 const SHOWOOD_ORIGINAL_TABLE_BASE_ID = 'showoodOriginal';
-const DEFAULT_PROCEDURAL_TABLE_BASE_ID = 'openPortal';
-const DEFAULT_TABLE_BASE_ID = DEFAULT_PROCEDURAL_TABLE_BASE_ID;
+const DEFAULT_PROCEDURAL_TABLE_BASE_ID = 'classicCylinders';
+const DEFAULT_TABLE_BASE_ID = SHOWOOD_ORIGINAL_TABLE_BASE_ID;
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const ENABLE_CUE_STROKE_ANIMATION = true;
@@ -4363,14 +4363,6 @@ const SHOWOOD_TABLE_PART_LABELS = Object.freeze({
   baseFoot: 'Feet'
 });
 const SHOWOOD_CHROME_LINKED_PARTS = new Set(['railSight', 'baseFoot']);
-const SHOWOOD_PERSONALIZATION_PARTS = Object.freeze([
-  'cloth',
-  'cushion',
-  'topWoodRail',
-  'railSight',
-  'pocketCup',
-  'baseFoot'
-]);
 const getShowoodTablePartOptions = (part, clothOptions = null, tableFinishOptions = null) => {
   if (part === 'cloth' || part === 'cushion') {
     const sourceOptions = Array.isArray(clothOptions) && clothOptions.length
@@ -4383,7 +4375,7 @@ const getShowoodTablePartOptions = (part, clothOptions = null, tableFinishOption
       material: { color: option.color, roughness: 1, metalness: 0, envMapIntensity: 0.16 }
     }));
   }
-  if (part === 'topWoodRail') {
+  if (part === 'topWoodRail' || part === 'baseCornerBlock' || part === 'leg') {
     const sourceOptions = Array.isArray(tableFinishOptions) && tableFinishOptions.length
       ? tableFinishOptions
       : TABLE_FINISH_OPTIONS;
@@ -4392,21 +4384,12 @@ const getShowoodTablePartOptions = (part, clothOptions = null, tableFinishOption
       const swatch = option.swatches?.[0] ?? finish?.colors?.rail ?? finish?.colors?.base ?? 0x5a2608;
       return {
         id: option.id,
-        label: `${option.label || finish?.label || option.id} Rails`,
+        label: `${option.label || finish?.label || option.id} ${part === 'topWoodRail' ? 'Rails' : part === 'baseCornerBlock' ? 'Base' : 'Legs'}`,
         color: toHexColor(swatch),
         thumbnail: option.thumbnail,
         useTableFinishTexture: true
       };
     });
-  }
-  if (part === 'baseCornerBlock' || part === 'leg') {
-    return POOL_ROYALE_BASE_VARIANTS.map((variant) => ({
-      id: variant.id,
-      label: part === 'baseCornerBlock' ? `${variant.name} Base` : `${variant.name} Legs`,
-      color: variant.color,
-      thumbnail: variant.thumbnail,
-      useTableBaseVariant: true
-    }));
   }
   return SHOWOOD_TABLE_PART_OPTIONS[part] || [];
 };
@@ -13511,51 +13494,21 @@ async function loadPoolRoyaleExternalTableTemplate(tableModel, renderer = null) 
   }
   const promise = (async () => {
     const loader = createConfiguredGLTFLoader(renderer);
+    let lastError = null;
     const urls = [tableModel.assetUrl, tableModel.fallbackAssetUrl].filter(Boolean);
-    if (!urls.length) {
-      throw new Error(`Missing table model URLs for ${tableModel.id}`);
+    for (const url of urls) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        const gltf = await loader.loadAsync(url);
+        const scene = gltf?.scene || gltf?.scenes?.[0];
+        if (!scene) throw new Error(`Missing GLTF scene for ${tableModel.id}`);
+        poolRoyaleExternalTableTemplates.set(tableModel.id, scene);
+        return scene;
+      } catch (error) {
+        lastError = error;
+      }
     }
-
-    const LOAD_TIMEOUT_MS = 9000;
-    const withTimeout = (loadPromise, url) =>
-      new Promise((resolve, reject) => {
-        const timeoutId = setTimeout(() => {
-          reject(new Error(`Timed out after ${LOAD_TIMEOUT_MS}ms while loading ${url}`));
-        }, LOAD_TIMEOUT_MS);
-        loadPromise
-          .then((value) => {
-            clearTimeout(timeoutId);
-            resolve(value);
-          })
-          .catch((error) => {
-            clearTimeout(timeoutId);
-            reject(error);
-          });
-      });
-
-    const loaders = urls.map((url) =>
-      withTimeout(loader.loadAsync(url), url).then((gltf) => ({ gltf, url }))
-    );
-    let result = null;
-    try {
-      result = await Promise.any(loaders);
-    } catch (error) {
-      const aggregate = error instanceof AggregateError ? error.errors : [error];
-      const messages = aggregate
-        .map((entry) => (entry instanceof Error ? entry.message : String(entry)))
-        .filter(Boolean)
-        .join(' | ');
-      throw new Error(
-        `Failed to load Pool Royale table model: ${tableModel.id}${messages ? ` | ${messages}` : ''}`
-      );
-    }
-
-    const scene = result?.gltf?.scene || result?.gltf?.scenes?.[0];
-    if (!scene) {
-      throw new Error(`Missing GLTF scene for ${tableModel.id}`);
-    }
-    poolRoyaleExternalTableTemplates.set(tableModel.id, scene);
-    return scene;
+    throw lastError || new Error(`Failed to load Pool Royale table model: ${tableModel.id}`);
   })();
   poolRoyaleExternalTablePromises.set(tableModel.id, promise);
   promise.catch(() => poolRoyaleExternalTablePromises.delete(tableModel.id));
@@ -15666,8 +15619,10 @@ function PoolRoyaleGame({
   );
   const availableTableBases = useMemo(
     () =>
-      POOL_ROYALE_BASE_VARIANTS.filter((variant) =>
-        isPoolOptionUnlocked('tableBase', variant.id, poolInventory)
+      POOL_ROYALE_BASE_VARIANTS.filter(
+        (variant) =>
+          variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID &&
+          isPoolOptionUnlocked('tableBase', variant.id, poolInventory)
       ),
     [poolInventory]
   );
@@ -15722,7 +15677,7 @@ function PoolRoyaleGame({
   );
   const tablePersonalizationSections = useMemo(
     () =>
-      SHOWOOD_PERSONALIZATION_PARTS.map((part) => ({
+      SHOWOOD_TABLE_PARTS.map((part) => ({
         key: part,
         label: SHOWOOD_TABLE_PART_LABELS[part] || part,
         chromeLinked: SHOWOOD_CHROME_LINKED_PARTS.has(part),
@@ -15766,11 +15721,10 @@ function PoolRoyaleGame({
   );
   const activeTableBase = useMemo(
     () =>
-      availableTableBases.find((variant) => variant.id === tableBaseId) ??
       availableTableBases.find((variant) => variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID) ??
       POOL_ROYALE_BASE_VARIANTS.find((variant) => variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID) ??
       POOL_ROYALE_BASE_VARIANTS[0],
-    [availableTableBases, tableBaseId]
+    [availableTableBases]
   );
   const resolvedHdriResolution = useMemo(() => {
     return autoHdriResolutionFromGraphics;
@@ -15827,10 +15781,10 @@ function PoolRoyaleGame({
     if (!isPoolOptionUnlocked('tableFinish', tableFinishId, poolInventory)) {
       setTableFinishId(DEFAULT_TABLE_FINISH_ID);
     }
-    if (!isPoolOptionUnlocked('tableBase', tableBaseId, poolInventory)) {
-      const fallbackBaseId =
-        availableTableBases[0]?.id || DEFAULT_PROCEDURAL_TABLE_BASE_ID || DEFAULT_TABLE_BASE_ID;
-      setTableBaseId(fallbackBaseId);
+    if (tableBaseId !== SHOWOOD_ORIGINAL_TABLE_BASE_ID) {
+      setTableBaseId(SHOWOOD_ORIGINAL_TABLE_BASE_ID);
+    } else if (!isPoolOptionUnlocked('tableBase', tableBaseId, poolInventory)) {
+      setTableBaseId(DEFAULT_TABLE_BASE_ID);
     }
     if (!isPoolOptionUnlocked('clothColor', clothColorId, poolInventory)) {
       setClothColorId(DEFAULT_CLOTH_COLOR_ID);
@@ -15859,8 +15813,7 @@ function PoolRoyaleGame({
     poolInventory,
     railMarkerColorId,
     tableBaseId,
-    tableFinishId,
-    availableTableBases
+    tableFinishId
   ]);
   const isTraining = playType === 'training';
   const hasCareerTaskId = Boolean(careerStageId);
@@ -36156,49 +36109,6 @@ const shotPowerRef = useRef(0);
               </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Table Base Type
-                </h3>
-                <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/55">
-                  Controls the base + leg geometry type.
-                </p>
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  {availableTableBases.map((variant) => {
-                    const active = variant.id === tableBaseId;
-                    const thumb = variant.thumbnail;
-                    return (
-                      <button
-                        key={variant.id}
-                        type="button"
-                        onClick={() => setTableBaseId(variant.id)}
-                        aria-pressed={active}
-                        className={`flex flex-col items-center justify-between gap-2 rounded-2xl border p-2 text-center text-[10px] font-semibold uppercase tracking-[0.16em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        {thumb ? (
-                          <img
-                            src={thumb}
-                            alt={variant.name}
-                            className="h-12 w-full rounded-xl border border-white/20 object-cover"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <span
-                            className="h-12 w-full rounded-xl border border-white/30"
-                            style={{ backgroundColor: variant.color ?? '#64748b' }}
-                            aria-hidden="true"
-                          />
-                        )}
-                        <span className="line-clamp-2">{variant.name}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Chrome Plates
                 </h3>
                 <div className="mt-2 flex flex-wrap gap-2">
@@ -36280,10 +36190,8 @@ const shotPowerRef = useRef(0);
                         const chromeLinked = activeTablePersonalizationSection.chromeLinked;
                         const selected = part === 'cloth'
                           ? clothColorId
-                          : part === 'topWoodRail'
+                          : part === 'topWoodRail' || part === 'leg'
                             ? tableFinishId
-                            : part === 'baseCornerBlock' || part === 'leg'
-                              ? tableBaseId
                             : chromeLinked
                               ? (chromeColorId === 'gold' ? 'gold' : 'chrome')
                               : normalizeShowoodTableStyle(showoodTableStyle)[part];
@@ -36295,13 +36203,8 @@ const shotPowerRef = useRef(0);
                             onClick={() => {
                               if (part === 'cloth') {
                                 setClothColorId(option.id);
-                              } else if (part === 'topWoodRail') {
+                              } else if (part === 'topWoodRail' || part === 'leg') {
                                 setTableFinishId(option.id);
-                                setShowoodTableStyle((current) =>
-                                  normalizeShowoodTableStyle({ ...current, [part]: option.id })
-                                );
-                              } else if (part === 'baseCornerBlock' || part === 'leg') {
-                                setTableBaseId(option.id);
                                 setShowoodTableStyle((current) =>
                                   normalizeShowoodTableStyle({ ...current, [part]: option.id })
                                 );
