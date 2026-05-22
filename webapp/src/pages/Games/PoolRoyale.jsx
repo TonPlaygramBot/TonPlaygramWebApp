@@ -1623,7 +1623,7 @@ const CUSHION_EXTRA_LIFT = TABLE.THICK * 0.225; // lift the cushion base higher 
 const CUSHION_HEIGHT_DROP = 0; // keep the cushion tops fully raised to match the Showood rail profile
 const CUSHION_FIELD_CLIP_RATIO = 0.152; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
-const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH * 0.64; // shorten the short/top rail drop further from the bottom while keeping side aprons unchanged
+const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH * 0.48; // shorten the short/top rail drop from the lower side while keeping side aprons unchanged
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.085; // round exterior wooden rail edge profile to remove sharp octagon-like corners
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
@@ -1876,7 +1876,7 @@ const TABLE_H = 0.75 * LEG_SCALE * TABLE_HEIGHT_REDUCTION * TABLE_HEIGHT_SCALE;
 const TABLE_LIFT =
   BASE_TABLE_LIFT + TABLE_H * (LEG_HEIGHT_FACTOR - 1);
 const BASE_LEG_HEIGHT = TABLE.THICK * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
-const LEG_RADIUS_SCALE = 1.32; // expand leg thickness so the larger base and legs read sturdier from all sides
+const LEG_RADIUS_SCALE = 1.42; // expand leg thickness so the larger base and legs read sturdier from all sides
 const BASE_LEG_LENGTH_SCALE = 0.72; // previous leg extension factor used for baseline stance
 const LEG_ELEVATION_SCALE = 0.96; // shorten the current leg extension to lower the playfield
 const LEG_LENGTH_SHRINK = 0.96; // extend legs downward a bit more so playfield height stays stable after shortening short-rail bottoms
@@ -1910,7 +1910,7 @@ const BASE_HEIGHT_FILL = BASE_HEIGHT_REDUCTION; // keep custom bases aligned wit
 const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
 const TABLE_HEIGHT_DROP = (TABLE_H + TABLE.THICK) * 0.24; // lower the full table assembly a bit more so portal leg bottoms sit down onto their chrome levelers
 const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA - TABLE_HEIGHT_DROP;
-const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.42; // expand/deepen the leg base so the body trim change does not visually lift the playfield
+const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.5; // expand/deepen the leg base so the body trim change does not visually lift the playfield
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.07;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
@@ -11938,7 +11938,7 @@ export function Table3D(
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
   const brandPlateOutwardShift = endRailW * 0.62;
-  const externalLayoutBrandPlateYOffset = externalTableUsesOriginalLayout ? railH * 0.03 : 0;
+  const externalLayoutBrandPlateYOffset = 0; // keep TonPlaygram plates in the exact same vertical position used by the procedural table
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -13212,6 +13212,8 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
   const namedPocket = /pocket|hole|drop|net|liner|leather|cup/i.test(name);
   const namedHardware = /trim|bezel|ring|metal|chrome|brass|gold|plate|cap|rim|guard|insert|hardware|bolt|screw/i.test(name);
   const namedSight = /sight|diamond|marker|dot|inlay/i.test(name);
+  const namedRailSightLower = /rail[_\s-]*sight[_\s-]*lower|corner[_\s-]*rail[_\s-]*sight|apron[_\s-]*strip/.test(name);
+  const namedSideApron = /side[_\s-]*wood[_\s-]*apron|sidewoodapron|side[_\s-]*apron|apron(?![_\s-]*strip)/.test(name);
   const namedWood = /wood|walnut|rail|apron|leg|base|frame|cabinet|corner|showood|support/i.test(name);
   const metalish = (material?.metalness ?? 0) > 0.16 || (material?.clearcoat ?? 0) > 0.58 || gold;
   const high = s.relY > 0.54;
@@ -13240,7 +13242,7 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
   const hardwareCandidate = namedHardware || metalish || ((black || gold || light) && !green && !brown && !namedWood);
   if (namedPocket || (black && anyPocketZone && (s.downFace || s.sideFace || s.relY < 0.79) && !hardwareCandidate)) return 'pocketCup';
   if (hardwareCandidate && (sideMiddlePocketZone || cornerPocketZone) && !green && !brown) return 'railSight';
-  if (namedSight && high) return 'railSight';
+  if ((namedSight || namedRailSightLower) && high) return 'railSight';
   if ((namedCloth || green) && centralCloth) return 'cloth';
   if ((namedCushion || green) && cushionBand) return 'cushion';
   if ((outsideBaseCornerRimZone || outerMostVerticalCorner) && !green && !s.upFace) return 'verticalCornerRim';
@@ -13250,6 +13252,7 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
   if ((brown || namedWood || black) && baseCornerZone) return 'baseCornerBlock';
   if (midBody && s.sideFace && !(s.longN > 0.64 && s.shortN > 0.64)) return 'leg';
   if (veryTop && (s.upFace || topRailBand) && !green) return 'topWoodRail';
+  if (namedSideApron && s.sideFace) return 'sideWoodApron';
   if (high && s.sideFace && !green && !anyPocketZone) return 'sideWoodApron';
   return namedCushion ? 'cushion' : 'sideWoodApron';
 }
