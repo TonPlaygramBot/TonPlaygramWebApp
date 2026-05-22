@@ -42,7 +42,7 @@ describe('Pool Royale table models', () => {
       'cornerRailSight'
     ]);
     assert.deepEqual(showood.blackMaterialSurfaceNames, []);
-    assert.equal(showood.forceGeneratedChromePlates, true);
+    assert.equal(showood.forceGeneratedChromePlates, false);
     assert.deepEqual(showood.usePoolRoyaleFinishRoles, [
       'cloth',
       'cushion',

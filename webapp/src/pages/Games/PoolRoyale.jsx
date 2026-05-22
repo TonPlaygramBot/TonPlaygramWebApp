@@ -1341,12 +1341,12 @@ const POCKET_JAW_CORNER_EDGE_FACTOR = 0.36; // widen the chamfer so the corner j
 const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the middle pocket chamfer identical to the corners
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
-const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1; // pull both corner-jaw flanks inward a bit more while keeping current jaw height
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1; // expand both middle-jaw flanks slightly so all six jaws open up evenly
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // keep middle jaw arcs slightly tighter so side jaws look a bit smaller
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // add Showood-like extra depth so side jaws match the corner jaw type
-const SIDE_POCKET_JAW_VERTICAL_TWEAK = 0; // pull middle-pocket jaws a bit farther downward than corners
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = 0; // reduce the outward shift so middle-pocket jaws sit a bit more inward toward table center
+const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.74; // pull both corner-jaw flanks inward a bit more while keeping current jaw height
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.5; // expand both middle-jaw flanks slightly so all six jaws open up evenly
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.995; // keep middle jaw arcs slightly tighter so side jaws look a bit smaller
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.12; // add Showood-like extra depth so side jaws match the corner jaw type
+const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.01; // pull middle-pocket jaws a bit farther downward than corners
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.028; // reduce the outward shift so middle-pocket jaws sit a bit more inward toward table center
 const POCKET_JAW_INWARD_PULL = 0; // keep the jaw centers aligned with the snooker pocket layout
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.66; // shorten middle jaw side edges a bit more so all six jaws finish cleaner at the shoulders
@@ -1835,7 +1835,7 @@ const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.62; // reduce overall Pool Royale power by an additional 20%
 const SHOT_POWER_BOOST = 1.32; // add stronger cue drive while preserving slider feel
-const SHOT_GLOBAL_POWER_SCALE = 0.9; // raise strike speed a touch so shots carry slightly more power
+const SHOT_GLOBAL_POWER_SCALE = 0.82; // raise strike speed a touch so shots carry slightly more power
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -6745,10 +6745,18 @@ function applySnookerScaling({
     if (markings.dArc) {
       markings.dArc.position.set(center.x, markingY, baulkZ);
     }
-    if (Array.isArray(markings.spots) && markings.spots.length > 0) {
-      const penaltySpot = markings.spots[0];
-      const spotY = penaltySpot?.position?.y ?? markingY;
-      if (penaltySpot) penaltySpot.position.set(0, spotY, baulkZ);
+    if (Array.isArray(markings.spots) && markings.spots.length >= 6) {
+      const [yellow, brown, green, blue, pink, black] = markings.spots;
+      const spotY = yellow?.position?.y ?? markingY;
+      if (yellow) yellow.position.set(-D_RADIUS, spotY, baulkZ);
+      if (brown) brown.position.set(0, spotY, baulkZ);
+      if (green) green.position.set(D_RADIUS, spotY, baulkZ);
+      if (blue) blue.position.set(0, spotY, center.z);
+      const topCushion = halfWidth;
+      const pinkZ = (topCushion + center.z) / 2;
+      const blackZ = topCushion - BLACK_FROM_TOP_REF * mmToUnits;
+      if (pink) pink.position.set(0, spotY, pinkZ);
+      if (black) black.position.set(0, spotY, blackZ);
     }
   }
   if (Array.isArray(balls)) {
@@ -10019,7 +10027,6 @@ export function Table3D(
   const dArc = new THREE.Mesh(dGeom, markingMat.clone());
   dArc.rotation.x = -Math.PI / 2;
   dArc.position.set(0, markingHeight, baulkLineZ);
-  dArc.visible = false;
   markingsGroup.add(dArc);
 
   const spotRadius = BALL_R * 0.26;
@@ -10032,8 +10039,13 @@ export function Table3D(
     markingsGroup.add(spot);
     spotMeshes.push(spot);
   };
-  // Pool Royale markings: keep only the white baulk/head line + single penalty spot.
+  addSpot(-D_RADIUS, baulkLineZ);
   addSpot(0, baulkLineZ);
+  addSpot(D_RADIUS, baulkLineZ);
+  addSpot(0, 0);
+  const topCushionZ = PLAY_H / 2;
+  addSpot(0, (topCushionZ + 0) / 2);
+  addSpot(0, topCushionZ - BLACK_FROM_TOP);
   markingsGroup.traverse((child) => {
     if (child.isMesh) {
       child.renderOrder = cloth.renderOrder + 1;
