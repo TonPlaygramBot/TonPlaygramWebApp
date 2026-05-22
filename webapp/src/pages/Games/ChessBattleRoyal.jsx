@@ -626,8 +626,6 @@ const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.68;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.24; // raise player camera while keeping the perspective looking upward toward table/pieces.
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.92;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 1.35;
-const CAMERA_2D_LOOK_TARGET_FORWARD_BIAS = 0;
-const CAMERA_3D_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 2.15;
 const PLAYER_VIEW_LOOK_TARGET_UP_BIAS = 0.6; // increase upward aim so the table/pieces/opponent sit higher in view.
 const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 10.9; // push table/chairs/humans further down in frame toward the bottom edge.
 const FPV_FACE_FORWARD_OFFSET = 0.012; // keep the camera almost exactly at the eyes for a true first-person perspective.
@@ -10449,19 +10447,13 @@ function Chess3D({
     const boardVisualGroup = new THREE.Group();
     boardVisualGroup.position.y = BOARD_VISUAL_Y_OFFSET;
     boardGroup.add(boardVisualGroup);
-    const boardLookTarget3d = new THREE.Vector3(
+    const boardLookTarget = new THREE.Vector3(
       tablePlacementOffset.x,
       boardGroup.position.y + (BOARD.baseH + 0.045) * BOARD_SCALE + PLAYER_VIEW_LOOK_TARGET_UP_BIAS,
-      tablePlacementOffset.z + CAMERA_3D_LOOK_TARGET_FORWARD_BIAS
+      tablePlacementOffset.z + PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS
     );
-    const boardLookTarget2d = new THREE.Vector3(
-      tablePlacementOffset.x,
-      boardGroup.position.y + (BOARD.baseH + 0.045) * BOARD_SCALE,
-      tablePlacementOffset.z + CAMERA_2D_LOOK_TARGET_FORWARD_BIAS
-    );
-    const boardLookTarget = boardLookTarget3d;
-    studioCamA.lookAt(boardLookTarget3d);
-    studioCamB.lookAt(boardLookTarget3d);
+    studioCamA.lookAt(boardLookTarget);
+    studioCamB.lookAt(boardLookTarget);
 
     // Camera orbit via OrbitControls
     camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
@@ -10482,15 +10474,14 @@ function Chess3D({
     controls.rotateSpeed = 0.85;
     controls.zoomSpeed = 0.7;
     controls.panSpeed = 0.6;
-    controls.target.copy(boardLookTarget2d);
+    controls.target.copy(boardLookTarget);
     controls.update();
     controlsRef.current = controls;
     syncSkyboxToCamera = () => {
-      const activeTarget = viewModeRef.current === '2d' ? boardLookTarget2d : boardLookTarget3d;
-      if (!camera || !activeTarget) return;
+      if (!camera || !boardLookTarget) return;
       const skybox = envSkyboxRef.current;
       if (!skybox) return;
-      const radius = camera.position.distanceTo(activeTarget);
+      const radius = camera.position.distanceTo(boardLookTarget);
       const baseScale = baseSkyboxScaleRef.current || 1;
       // Keep the grounded HDRI fixed during wheel/pinch zoom. Uniformly scaling
       // GroundedSkybox moves its projected floor relative to the arena, which can
@@ -10545,8 +10536,9 @@ function Chess3D({
     const setViewModeInternal = (mode) => {
       if (!controls) return;
       const requestedMode = mode;
-      const requestedLookTarget = requestedMode === '2d' ? boardLookTarget2d : boardLookTarget3d;
-      const current = new THREE.Spherical().setFromVector3(camera.position.clone().sub(requestedLookTarget));
+      const current = new THREE.Spherical().setFromVector3(
+        camera.position.clone().sub(boardLookTarget)
+      );
       const currentRadius = Number.isFinite(current.radius) ? current.radius : CAMERA_3D_MAX_RADIUS;
       const theta = Number.isFinite(current.theta) ? current.theta : PLAYER_VIEW_SEAT_THETA;
       const isForcedCapture3dView = requestedMode === '3d' && restoreAutoViewTo2dRef.current;
@@ -10566,7 +10558,7 @@ function Chess3D({
         controls.maxDistance = CAMERA_3D_MAX_RADIUS;
       } else if (requestedMode === '2d') {
         cameraMemory.last3d = current;
-        controls.target.copy(boardLookTarget2d);
+        controls.target.copy(boardLookTarget);
         controls.enabled = true;
         controls.enableRotate = false;
         controls.enablePan = false;
@@ -10612,8 +10604,7 @@ function Chess3D({
           isForcedCapture3dView ? targetPhi : CAMERA_LOCKED_3D_PHI,
           Number.isFinite(restore.theta) ? restore.theta : default3d.theta
         );
-        controls.target.copy(boardLookTarget3d);
-        const lookDir = boardLookTarget3d.clone().sub(camera.position).normalize();
+        const lookDir = boardLookTarget.clone().sub(camera.position).normalize();
         const yaw = Math.atan2(lookDir.x, lookDir.z);
         const pitch = Math.asin(clamp(lookDir.y, -1, 1));
         locked3dViewRef.current.yaw = yaw;
@@ -10645,19 +10636,20 @@ function Chess3D({
       camera.updateProjectionMatrix();
       const minDistance = viewModeRef.current === '2d' ? CAMERA_2D_MIN_RADIUS : CAMERA_3D_MIN_RADIUS;
       const maxDistance = viewModeRef.current === '2d' ? CAMERA_2D_MAX_RADIUS : CAMERA_3D_MAX_RADIUS;
-      const activeTarget = viewModeRef.current === '2d' ? boardLookTarget2d : boardLookTarget3d;
-      controls.target.copy(activeTarget);
+      if (viewModeRef.current === '2d') {
+        controls.target.copy(boardLookTarget);
+      }
       if (viewModeRef.current !== 'fpv') {
-        const currentRadius = camera.position.distanceTo(activeTarget);
+        const currentRadius = camera.position.distanceTo(boardLookTarget);
         const radius = clamp(currentRadius || CAMERA_SAFE_MAX_RADIUS, minDistance, maxDistance);
-        const dir = camera.position.clone().sub(activeTarget).normalize();
-        camera.position.copy(activeTarget).addScaledVector(dir, radius);
+        const dir = camera.position.clone().sub(boardLookTarget).normalize();
+        camera.position.copy(boardLookTarget).addScaledVector(dir, radius);
         controls.update();
       }
     };
     fitRef.current = fit;
     fit();
-    baseCameraRadiusRef.current = camera.position.distanceTo(boardLookTarget2d);
+    baseCameraRadiusRef.current = camera.position.distanceTo(boardLookTarget);
     baseSkyboxScaleRef.current =
       envSkyboxRef.current?.scale?.x ?? baseSkyboxScaleRef.current ?? 1;
     syncSkyboxToCamera();
