@@ -17,7 +17,7 @@ describe('Pool Royale table models', () => {
     );
   });
 
-  test('Showood uses original GLB surface layout with Pool Royale finish textures', () => {
+  test('Showood keeps GLB wood textures while using Pool Royale procedural finish for non-wood surfaces', () => {
     const showood = POOL_ROYALE_TABLE_MODEL_OPTIONS.find(
       (option) => option.id === 'showood-seven-foot'
     );
@@ -31,12 +31,13 @@ describe('Pool Royale table models', () => {
     assert.equal(showood.legLengthScale, 2.05);
     assert.equal(showood.clothRepeatScale, 7.5);
     assert.deepEqual(showood.hideSurfaceRoles, []);
-    assert.deepEqual(showood.preserveOriginalSurfaceRoles, []);
+    assert.deepEqual(showood.preserveOriginalSurfaceRoles, ['wood']);
     assert.equal(showood.tintOriginalTrimGold, true);
     assert.deepEqual(showood.chromeMaterialSurfaceNames, [
       'diamonds',
       'railSight',
       'sideApron',
+      'sideWoodApron',
       'apronStrip',
       'railSightLower',
       'cornerRailSight'
@@ -46,7 +47,6 @@ describe('Pool Royale table models', () => {
     assert.deepEqual(showood.usePoolRoyaleFinishRoles, [
       'cloth',
       'cushion',
-      'wood',
       'pocket',
       'trim'
     ]);
