@@ -1623,7 +1623,7 @@ const CUSHION_EXTRA_LIFT = TABLE.THICK * 0.225; // lift the cushion base higher 
 const CUSHION_HEIGHT_DROP = 0; // keep the cushion tops fully raised to match the Showood rail profile
 const CUSHION_FIELD_CLIP_RATIO = 0.152; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
-const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH * 0.78; // shorten the short/top rail drop from the bottom while keeping side aprons unchanged
+const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH * 0.64; // shorten the short/top rail drop further from the bottom while keeping side aprons unchanged
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.085; // round exterior wooden rail edge profile to remove sharp octagon-like corners
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
@@ -1876,10 +1876,10 @@ const TABLE_H = 0.75 * LEG_SCALE * TABLE_HEIGHT_REDUCTION * TABLE_HEIGHT_SCALE;
 const TABLE_LIFT =
   BASE_TABLE_LIFT + TABLE_H * (LEG_HEIGHT_FACTOR - 1);
 const BASE_LEG_HEIGHT = TABLE.THICK * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
-const LEG_RADIUS_SCALE = 1.2; // 20% thicker cylindrical legs
+const LEG_RADIUS_SCALE = 1.32; // expand leg thickness so the larger base and legs read sturdier from all sides
 const BASE_LEG_LENGTH_SCALE = 0.72; // previous leg extension factor used for baseline stance
 const LEG_ELEVATION_SCALE = 0.96; // shorten the current leg extension to lower the playfield
-const LEG_LENGTH_SHRINK = 0.915; // extend legs downward so playfield height stays stable after shortening short-rail bottoms
+const LEG_LENGTH_SHRINK = 0.96; // extend legs downward a bit more so playfield height stays stable after shortening short-rail bottoms
 const BASE_HEIGHT_REDUCTION = 0.69; // trim table bases slightly more from the bottom to shorten the table stance
 const LEG_LENGTH_SCALE =
   BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE * LEG_LENGTH_SHRINK * BASE_HEIGHT_REDUCTION;
@@ -1910,7 +1910,7 @@ const BASE_HEIGHT_FILL = BASE_HEIGHT_REDUCTION; // keep custom bases aligned wit
 const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
 const TABLE_HEIGHT_DROP = (TABLE_H + TABLE.THICK) * 0.24; // lower the full table assembly a bit more so portal leg bottoms sit down onto their chrome levelers
 const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA - TABLE_HEIGHT_DROP;
-const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.36; // deepen the leg base so the body trim change does not visually lift the playfield
+const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.42; // expand/deepen the leg base so the body trim change does not visually lift the playfield
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.07;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
@@ -11938,6 +11938,7 @@ export function Table3D(
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
   const brandPlateOutwardShift = endRailW * 0.62;
+  const externalLayoutBrandPlateYOffset = externalTableUsesOriginalLayout ? railH * 0.03 : 0;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -11953,7 +11954,7 @@ export function Table3D(
       createBrandSideMaterial()
     ];
     const plate = new THREE.Mesh(brandPlateGeom, materials);
-    plate.position.set(0, brandPlateY, dirZ * (shortRailCenterZ + brandPlateOutwardShift));
+    plate.position.set(0, brandPlateY + externalLayoutBrandPlateYOffset, dirZ * (shortRailCenterZ + brandPlateOutwardShift));
     plate.rotation.y = dirZ > 0 ? 0 : Math.PI;
     plate.castShadow = true;
     plate.receiveShadow = true;
@@ -12905,8 +12906,8 @@ function classifyPoolRoyaleExternalTableSurface(child, material) {
     : [];
   if (chromeSurfaceNames.some((name) => label.includes(`${name}`.toLowerCase()))) return 'railSight';
   if (blackSurfaceNames.some((name) => label.includes(`${name}`.toLowerCase()))) return 'railSight';
-  if (/rail[_\s-]*sight|railsight|diamond|sight|marker|inlay/.test(childName)) return 'railSight';
-  if (/side[_\s-]*wood[_\s-]*apron|sidewoodapron|apron/.test(childName)) return 'sideWoodApron';
+  if (/rail[_\s-]*sight|railsight|rail[_\s-]*sight[_\s-]*lower|corner[_\s-]*rail[_\s-]*sight|diamond|sight|marker|inlay|apron[_\s-]*strip/.test(childName)) return 'railSight';
+  if (/side[_\s-]*wood[_\s-]*apron|sidewoodapron|side[_\s-]*apron|apron(?![_\s-]*strip)/.test(childName)) return 'sideWoodApron';
   if (/cushion|rubber|bumper|rail[_\s-]*nose/.test(childName)) return 'cushion';
   if (/pocket|liner|leather|net|basket|drop|holder|cup/.test(childName)) return 'pocketCup';
   if (/vertical.*(rim|plate|cap)|corner.*(rim|plate|cap)|rim|foot|feet|base[_\s-]*foot/.test(childName)) return 'verticalCornerRim';
@@ -12921,7 +12922,7 @@ function classifyPoolRoyaleExternalTableSurface(child, material) {
   if (/leg|support/.test(label)) return 'leg';
   if (/foot|rim/.test(label)) return 'verticalCornerRim';
   if (/base|cabinet/.test(label)) return 'baseCornerBlock';
-  if (/side[_\s-]*wood[_\s-]*apron|sidewoodapron|apron/.test(label)) return 'sideWoodApron';
+  if (/side[_\s-]*wood[_\s-]*apron|sidewoodapron|side[_\s-]*apron|apron(?![_\s-]*strip)/.test(label)) return 'sideWoodApron';
   if (/frame|wood|rail|showood|bevel/.test(label)) return 'topWoodRail';
   return 'wood';
 }
