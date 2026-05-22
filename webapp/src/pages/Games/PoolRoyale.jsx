@@ -4259,7 +4259,7 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
 ]);
 
 const DEFAULT_CHROME_PLATE_STYLE_ID =
-  POOL_ROYALE_DEFAULT_UNLOCKS.chromePlateStyle?.[0] ?? 'showood-rounded';
+  POOL_ROYALE_DEFAULT_UNLOCKS.chromePlateStyle?.[0] ?? 'royal-classic';
 const CHROME_PLATE_STYLE_OPTIONS = Object.freeze([
   {
     id: 'showood-rounded',
@@ -15681,20 +15681,38 @@ function PoolRoyaleGame({
     [isCueFinishUnlocked, poolInventory]
   );
   const tablePersonalizationSections = useMemo(
-    () =>
-      SHOWOOD_TABLE_PARTS.map((part) => ({
-        key: part,
-        label: SHOWOOD_TABLE_PART_LABELS[part] || part,
-        chromeLinked: SHOWOOD_CHROME_LINKED_PARTS.has(part),
-        options: getShowoodTablePartOptions(part, availableClothOptions, availableTableFinishes)
-      })).filter((section) => section.options.length > 0),
-    [availableClothOptions, availableTableFinishes]
+    () => {
+      const hideBasePart = activeTableModel?.id === 'showood-seven-foot';
+      return SHOWOOD_TABLE_PARTS
+        .filter((part) => !(hideBasePart && part === 'baseCornerBlock'))
+        .map((part) => ({
+          key: part,
+          label: SHOWOOD_TABLE_PART_LABELS[part] || part,
+          chromeLinked: SHOWOOD_CHROME_LINKED_PARTS.has(part),
+          options: getShowoodTablePartOptions(part, availableClothOptions, availableTableFinishes)
+        }))
+        .filter((section) => section.options.length > 0);
+    },
+    [activeTableModel?.id, availableClothOptions, availableTableFinishes]
   );
   useEffect(() => {
     if (!tablePersonalizationSections.some((section) => section.key === activeTablePersonalizationPart)) {
       setActiveTablePersonalizationPart(tablePersonalizationSections[0]?.key ?? 'topWoodRail');
     }
   }, [activeTablePersonalizationPart, tablePersonalizationSections]);
+
+  useEffect(() => {
+    if (activeTableModel?.id !== 'showood-seven-foot') return;
+    setShowoodTableStyle((prev) => {
+      const normalized = normalizeShowoodTableStyle(prev);
+      if (normalized.baseCornerBlock === normalized.topWoodRail) return prev;
+      return {
+        ...normalized,
+        baseCornerBlock: normalized.topWoodRail
+      };
+    });
+  }, [activeTableModel?.id]);
+
   const activeTablePersonalizationSection = useMemo(
     () =>
       tablePersonalizationSections.find((section) => section.key === activeTablePersonalizationPart) ??

@@ -4,7 +4,7 @@ const POOLTOOL_RAW_BASE =
   'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table';
 
 const SHOWOOD_LOCAL_ASSET_PATH = '/assets/models/pool/showood-seven-foot.glb';
-const SNOOKER_LOCAL_ASSET_PATH = '/assets/models/snooker/snooker.glb';
+const SNOOKER_LOCAL_ASSET_PATH = 'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table/snooker.glb';
 
 export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
   {
@@ -38,7 +38,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     blackMaterialSurfaceNames: [],
     forceGeneratedChromePlates: false,
     hideSurfaceRoles: [],
-    tableLogicProfile: 'legacyProcedural',
+    tableLogicProfile: 'showood7ft',
     cueRigProfile: 'snookerRoyalProvided' 
   },
   {
