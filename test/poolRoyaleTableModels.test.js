@@ -8,12 +8,12 @@ import {
 } from '../webapp/src/config/poolRoyaleTableModels.js';
 
 describe('Pool Royale table models', () => {
-  test('defaults to the legacy procedural table', () => {
-    assert.equal(DEFAULT_POOL_ROYALE_TABLE_MODEL_ID, 'legacy-procedural');
-    assert.equal(resolvePoolRoyaleTableModel(null).id, 'legacy-procedural');
+  test('defaults to the Showood GLB table', () => {
+    assert.equal(DEFAULT_POOL_ROYALE_TABLE_MODEL_ID, 'showood-seven-foot');
+    assert.equal(resolvePoolRoyaleTableModel(null).id, 'showood-seven-foot');
     assert.equal(
       resolvePoolRoyaleTableModel('unknown').id,
-      'legacy-procedural'
+      'showood-seven-foot'
     );
   });
 
@@ -63,26 +63,35 @@ describe('Pool Royale table models', () => {
     );
     assert.equal(
       resolvePoolRoyaleTableModel('traditional-fizyman-eight-foot').id,
-      'legacy-procedural'
+      'showood-seven-foot'
     );
   });
 
-  test('Pool Royale lobby renders selectable table model cards', async () => {
+  test('Pool Royale lobby uses the fixed Showood table without model choices', async () => {
     const lobby = await readFile(
       'webapp/src/pages/Games/PoolRoyaleLobby.jsx',
       'utf8'
     );
 
     assert.ok(
+      lobby.includes('Showood 7 ft GLB is now the fixed Pool Royale table.'),
+      'lobby should explain the fixed Showood table'
+    );
+    assert.equal(
       lobby.includes('POOL_ROYALE_TABLE_MODEL_OPTIONS.map'),
-      'lobby should render table model cards'
+      false,
+      'lobby should not render table model option cards'
     );
     assert.equal(
       lobby.includes('setTableModelId'),
-      true,
-      'lobby should allow switching table models'
+      false,
+      'lobby should not allow switching table models'
     );
-
+    assert.equal(
+      lobby.includes('traditional-fizyman-eight-foot'),
+      false,
+      'lobby should not reference the removed 8 ft glTF table'
+    );
   });
 
   test('Traditional table installer fetches and validates the authentic Sketchfab glTF', async () => {
