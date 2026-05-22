@@ -837,7 +837,7 @@ const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.24; // lean the added width furthe
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.012; // push middle chrome plates slightly outward away from table center while preserving the rounded cut
 const CHROME_SIDE_APRON_COVER_THICKNESS_SCALE = 0.055; // cover the grey middle-pocket side apron with rail-sight chrome/gold
-const CHROME_SIDE_APRON_COVER_HEIGHT_SCALE = 0.82; // drop the side apron cover down the rail face behind the side-pocket jaw
+const CHROME_SIDE_APRON_COVER_HEIGHT_SCALE = 1.08; // extend chrome/gold farther down so side aprons are fully covered on all sides
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.022; // trim the outer fascia edge a hair more for a tighter outside finish
 const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.078; // trim the middle-pocket outside chrome a touch more so the outer edge ends flush with the wooden rails
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.045; // open only the corner chrome rounded cut a tiny bit more so the arc reads slightly larger
@@ -1306,7 +1306,7 @@ const REPLAY_CAMERA_START_DELAY_MS = 0;
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
 const FRAME_RAIL_OUTWARD_SCALE = 1.38; // expand wooden frame rails outward by 38% on all sides
-const RAIL_HEIGHT = TABLE.THICK * 1.9; // lift all six cushions/rails a touch more so the top profile reads higher without changing playfield size
+const RAIL_HEIGHT = TABLE.THICK * 1.62; // shorten all four wooden rails back toward the original procedural frame height
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.024; // push the corner jaws just a bit farther outward so the fascia follows the rounded rail and chrome cut
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
@@ -13495,7 +13495,10 @@ async function loadPoolRoyaleExternalTableTemplate(tableModel, renderer = null) 
   const promise = (async () => {
     const loader = createConfiguredGLTFLoader(renderer);
     let lastError = null;
-    const urls = [tableModel.assetUrl, tableModel.fallbackAssetUrl].filter(Boolean);
+    const fallbackUrls = Array.isArray(tableModel.fallbackAssetUrls)
+      ? tableModel.fallbackAssetUrls
+      : [tableModel.fallbackAssetUrl].filter(Boolean);
+    const urls = [tableModel.assetUrl, ...fallbackUrls].filter(Boolean);
     for (const url of urls) {
       try {
         // eslint-disable-next-line no-await-in-loop
