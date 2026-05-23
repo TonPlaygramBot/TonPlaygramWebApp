@@ -13093,12 +13093,12 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
     cushion: 'cushion',
     topWoodRail: 'topWoodRail',
     wood: 'topWoodRail',
-    sideWoodApron: 'baseCornerBlock',
+    sideWoodApron: 'sideWoodApron',
     railSight: 'railSight',
     trim: 'railSight',
     pocket: 'pocketCup',
     pocketCup: 'pocketCup',
-    verticalCornerRim: 'baseFoot',
+    verticalCornerRim: 'verticalCornerRim',
     baseFoot: 'baseFoot',
     baseCornerBlock: 'baseCornerBlock',
     leg: 'leg'
@@ -13170,21 +13170,18 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
     copyMaterialLook(materials.pocketJaw ?? materials.pocketRim);
     applyShowoodTint();
   } else if (part === 'topWoodRail' || part === 'leg') {
-    const surface = part === 'topWoodRail'
-      ? finishInfo?.parts?.woodSurfaces?.rail
-      : finishInfo?.parts?.woodSurfaces?.frame || finishInfo?.parts?.woodSurfaces?.rail;
-    if (materials.rail?.color && mat.color) mat.color.copy(materials.rail.color);
-    applyWoodTextureToMaterial(mat, surface || { woodRepeatScale: finishInfo?.woodRepeatScale });
-    applyTableFinishDulling(mat);
-    applyTableWoodVisibilityTuning(mat);
-    if (finish?.surfaceStyle === 'matte') {
-      if (finish?.preserveFinishTintOnWood) applyMatteSurfacePropsOnly(mat);
-      else applyMonoMattePlasticSurface(mat);
-    }
     applyShowoodTint();
   } else {
     applyShowoodTint();
   }
+
+
+  mat.map = null;
+  mat.normalMap = null;
+  mat.roughnessMap = null;
+  mat.aoMap = null;
+  mat.metalnessMap = null;
+  mat.bumpMap = null;
 
   mat.transparent = false;
   mat.opacity = 1;
@@ -13319,7 +13316,7 @@ function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInf
     const finalMaterials = [];
     const materialLookup = new Map();
     const getMaterialIndex = (sourceMaterialIndex, part) => {
-      const linkedPart = part === 'sideWoodApron' ? 'baseCornerBlock' : part === 'verticalCornerRim' ? 'baseFoot' : part;
+      const linkedPart = part === 'sideWoodApron' ? 'railSight' : part === 'verticalCornerRim' ? 'verticalCornerRim' : part;
       const key = `${sourceMaterialIndex}:${linkedPart}`;
       if (materialLookup.has(key)) return materialLookup.get(key);
       const source = sourceMaterials[Math.max(0, Math.min(sourceMaterialIndex, sourceMaterials.length - 1))];
