@@ -4310,6 +4310,8 @@ const SHOWOOD_TABLE_PARTS = Object.freeze([
   'topWoodRail',
   'railSight',
   'pocketCup',
+  'verticalCornerRim',
+  'baseCornerBlock',
   'leg',
   'baseFoot'
 ]);
@@ -4319,6 +4321,8 @@ const DEFAULT_SHOWOOD_TABLE_STYLE = Object.freeze({
   topWoodRail: DEFAULT_TABLE_FINISH_ID,
   railSight: 'gold',
   pocketCup: 'black',
+  verticalCornerRim: 'gold',
+  baseCornerBlock: 'black',
   leg: DEFAULT_TABLE_FINISH_ID,
   baseFoot: 'gold'
 });
@@ -4333,17 +4337,25 @@ const SHOWOOD_TABLE_PART_OPTIONS = Object.freeze({
   ]),
   topWoodRail: Object.freeze([]),
   railSight: Object.freeze([
-    { id: 'chrome', label: 'Chrome Apron + Sights', color: '#d7dde7', material: { color: 0xd7dde7, roughness: 0.055, metalness: 1, envMapIntensity: 7.2, clearcoat: 1, clearcoatRoughness: 0.025 } },
-    { id: 'gold', label: 'Gold Apron + Sights', color: '#f5d978', material: { color: 0xf5d978, roughness: 0.065, metalness: 1, envMapIntensity: 6.7, clearcoat: 1, clearcoatRoughness: 0.035 } }
+    { id: 'gold', label: 'Gold Apron + Sights', color: '#f5d978', material: { color: 0xf5d978, roughness: 0.065, metalness: 1, envMapIntensity: 6.7, clearcoat: 1, clearcoatRoughness: 0.035 } },
+    { id: 'black', label: 'Black Apron + Sights', color: '#050505', material: { color: 0x050505, roughness: 0.16, metalness: 0.82, envMapIntensity: 3, clearcoat: 1, clearcoatRoughness: 0.07 } }
   ]),
   pocketCup: Object.freeze([
     { id: 'black', label: 'Black Cups', color: '#000000', keepSourceTexture: true, material: { color: 0x000000, roughness: 0.98, metalness: 0, envMapIntensity: 0.12 } },
     { id: 'leather', label: 'Dark Leather Cups', color: '#1b0c04', keepSourceTexture: true, material: { color: 0x1b0c04, roughness: 0.9, metalness: 0, envMapIntensity: 0.26 } }
   ]),
+  verticalCornerRim: Object.freeze([
+    { id: 'gold', label: 'Gold Rims + Feet', color: '#d8b23d', material: { color: 0xd8b23d, roughness: 0.06, metalness: 0.98, envMapIntensity: 6.8, clearcoat: 1, clearcoatRoughness: 0.03 } },
+    { id: 'chrome', label: 'Chrome Rims + Feet', color: '#d7dde7', material: { color: 0xd7dde7, roughness: 0.055, metalness: 1, envMapIntensity: 7.2, clearcoat: 1, clearcoatRoughness: 0.025 } }
+  ]),
+  baseCornerBlock: Object.freeze([
+    { id: 'walnut', label: 'Walnut Corners', color: '#7b2d11', material: { color: 0x7b2d11, roughness: 0.48, metalness: 0.02, envMapIntensity: 1.1, clearcoat: 0.22, clearcoatRoughness: 0.33 } },
+    { id: 'black', label: 'Black Corners', color: '#080605', material: { color: 0x080605, roughness: 0.38, metalness: 0.03, envMapIntensity: 1.34, clearcoat: 0.34, clearcoatRoughness: 0.22 } }
+  ]),
   leg: Object.freeze([]),
   baseFoot: Object.freeze([
-    { id: 'chrome', label: 'Chrome Feet', color: '#d7dde7', material: { color: 0xd7dde7, roughness: 0.055, metalness: 1, envMapIntensity: 7.2, clearcoat: 1, clearcoatRoughness: 0.025 } },
-    { id: 'gold', label: 'Gold Feet', color: '#f5d978', material: { color: 0xf5d978, roughness: 0.065, metalness: 1, envMapIntensity: 6.7, clearcoat: 1, clearcoatRoughness: 0.035 } }
+    { id: 'gold', label: 'Gold Rounded Feet', color: '#d8b23d', material: { color: 0xd8b23d, roughness: 0.065, metalness: 1, envMapIntensity: 6.8, clearcoat: 1, clearcoatRoughness: 0.03 } },
+    { id: 'chrome', label: 'Chrome Rounded Feet', color: '#d7dde7', material: { color: 0xd7dde7, roughness: 0.055, metalness: 1, envMapIntensity: 7.2, clearcoat: 1, clearcoatRoughness: 0.025 } }
   ])
 });
 const SHOWOOD_TABLE_PART_LABELS = Object.freeze({
@@ -4352,12 +4364,14 @@ const SHOWOOD_TABLE_PART_LABELS = Object.freeze({
   topWoodRail: 'Top Rails',
   railSight: 'Side Apron + Rail Sights',
   pocketCup: 'Pocket Cups',
+  verticalCornerRim: 'Corner Rims + Rounded Feet',
+  baseCornerBlock: 'Base Corners',
   leg: 'Legs',
-  baseFoot: 'Feet'
+  baseFoot: 'Rounded Feet'
 });
-const SHOWOOD_CHROME_LINKED_PARTS = new Set(['railSight', 'baseFoot']);
+const SHOWOOD_CHROME_LINKED_PARTS = new Set(['railSight', 'verticalCornerRim', 'baseFoot']);
 const getShowoodTablePartOptions = (part, clothOptions = null, tableFinishOptions = null) => {
-  if (part === 'cloth' || part === 'cushion') {
+  if (part === 'cloth') {
     const sourceOptions = Array.isArray(clothOptions) && clothOptions.length
       ? clothOptions
       : CLOTH_COLOR_OPTIONS;
@@ -4367,6 +4381,9 @@ const getShowoodTablePartOptions = (part, clothOptions = null, tableFinishOption
       color: toHexColor(option.color),
       material: { color: option.color, roughness: 1, metalness: 0, envMapIntensity: 0.16 }
     }));
+  }
+  if (part === 'cushion') {
+    return SHOWOOD_TABLE_PART_OPTIONS.cushion;
   }
   if (part === 'topWoodRail' || part === 'leg') {
     const sourceOptions = Array.isArray(tableFinishOptions) && tableFinishOptions.length
@@ -36128,143 +36145,77 @@ const shotPowerRef = useRef(0);
                   })}
                 </div>
               </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Chrome Plates
-                </h3>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {availableChromeOptions.map((option) => {
-                    const active = option.id === chromeColorId;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setChromeColorId(option.id)}
-                        aria-pressed={active}
-                        className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        <span className="flex items-center justify-center gap-2">
-                          <span
-                            className="h-3.5 w-3.5 rounded-full border border-white/40"
-                            style={{ backgroundColor: toHexColor(option.color) }}
-                            aria-hidden="true"
-                          />
-                          {option.label}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
               <div className="rounded-3xl border border-emerald-300/20 bg-white/[0.04] p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                      Table Personalisation
+                      Table Setup
                     </h3>
                     <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/55">
-                      Select a table part, then choose the unlocked finish for that part.
+                      Keep only cloth + cushions. Other table options are fixed to the new Showood mapping.
                     </p>
                   </div>
                   <span className="rounded-full border border-emerald-200/30 px-2 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-emerald-100/70">
                     Showood
                   </span>
                 </div>
-                <div className="mt-3 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-                  {tablePersonalizationSections.map((section) => {
-                    const selectedSection = section.key === activeTablePersonalizationPart;
-                    return (
-                      <button
-                        key={section.key}
-                        type="button"
-                        onClick={() => setActiveTablePersonalizationPart(section.key)}
-                        className={`whitespace-nowrap rounded-full border px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          selectedSection
-                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_14px_rgba(16,185,129,0.45)]'
-                            : 'border-white/15 bg-white/5 text-white/70 hover:border-white/30 hover:text-white'
-                        }`}
-                      >
-                        {section.label}
-                      </button>
-                    );
-                  })}
-                </div>
-                {activeTablePersonalizationSection ? (
-                  <div className="mt-3 max-h-64 overflow-y-auto pr-1">
-                    <div className="mb-2 flex items-center justify-between gap-3">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-white/60">
-                        {activeTablePersonalizationSection.label}
-                      </p>
-                      {activeTablePersonalizationSection.chromeLinked ? (
-                        <span className="text-[9px] uppercase tracking-[0.18em] text-emerald-100/55">
-                          linked to chrome plates
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {activeTablePersonalizationSection.options.map((option) => {
-                        const part = activeTablePersonalizationSection.key;
-                        const chromeLinked = activeTablePersonalizationSection.chromeLinked;
-                        const selected = part === 'cloth'
-                          ? clothColorId
-                          : part === 'topWoodRail' || part === 'leg'
-                            ? tableFinishId
-                            : chromeLinked
-                              ? (chromeColorId === 'gold' ? 'gold' : 'chrome')
-                              : normalizeShowoodTableStyle(showoodTableStyle)[part];
-                        const active = option.id === selected;
+
+                {availableClothOptions.length > 0 ? (
+                  <div className="mt-3">
+                    <h4 className="text-[10px] uppercase tracking-[0.28em] text-emerald-100/65">Cloth Color</h4>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {availableClothOptions.map((option) => {
+                        const active = option.id === clothColorId;
+                        const thumb = option.thumbnail;
                         return (
                           <button
-                            key={`${part}-${option.id}`}
+                            key={option.id}
                             type="button"
-                            onClick={() => {
-                              if (part === 'cloth') {
-                                setClothColorId(option.id);
-                              } else if (part === 'topWoodRail' || part === 'leg') {
-                                setTableFinishId(option.id);
-                                setShowoodTableStyle((current) =>
-                                  normalizeShowoodTableStyle({ ...current, [part]: option.id })
-                                );
-                              } else if (chromeLinked) {
-                                setChromeColorId(option.id === 'gold' ? 'gold' : 'chrome');
-                              } else {
-                                setShowoodTableStyle((current) =>
-                                  normalizeShowoodTableStyle({ ...current, [part]: option.id })
-                                );
-                              }
-                            }}
+                            onClick={() => setClothColorId(option.id)}
                             aria-pressed={active}
-                            className={`flex flex-col items-center justify-between gap-2 rounded-2xl border p-2 text-center text-[10px] font-semibold uppercase tracking-[0.16em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                            className={`flex min-w-[8.5rem] flex-1 items-center justify-between gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
                               active
                                 ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
                                 : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
                             }`}
                           >
-                            {option.thumbnail ? (
-                              <img
-                                src={option.thumbnail}
-                                alt={option.label}
-                                className="h-12 w-full rounded-xl border border-white/20 object-cover"
-                                loading="lazy"
-                              />
-                            ) : (
-                              <span
-                                className="h-12 w-full rounded-xl border border-white/30"
-                                style={{ backgroundColor: option.color }}
-                                aria-hidden="true"
-                              />
-                            )}
-                            <span className="line-clamp-2">{option.label}</span>
+                            <span className="flex items-center gap-2">
+                              <span className="h-3.5 w-3.5 rounded-full border border-white/40" style={{ backgroundColor: toHexColor(option.color) }} aria-hidden="true" />
+                              <span className="truncate">{option.label}</span>
+                            </span>
+                            {thumb ? <img src={thumb} alt={option.label} className="h-6 w-10 rounded-lg border border-white/20 object-cover" loading="lazy" /> : null}
                           </button>
                         );
                       })}
                     </div>
                   </div>
                 ) : null}
+
+                <div className="mt-3">
+                  <h4 className="text-[10px] uppercase tracking-[0.28em] text-emerald-100/65">Cushion Color</h4>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {SHOWOOD_TABLE_PART_OPTIONS.cushion.map((option) => {
+                      const current = normalizeShowoodTableStyle(showoodTableStyle).cushion;
+                      const active = option.id === current;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setShowoodTableStyle((prev) => normalizeShowoodTableStyle({ ...prev, cushion: option.id }))}
+                          aria-pressed={active}
+                          className={`flex min-w-[8.5rem] flex-1 items-center justify-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                            active
+                              ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                              : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                          }`}
+                        >
+                          <span className="h-3.5 w-3.5 rounded-full border border-white/40" style={{ backgroundColor: option.color }} aria-hidden="true" />
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
@@ -36300,94 +36251,6 @@ const shotPowerRef = useRef(0);
                   })}
                 </div>
               </div>
-              {availableClothOptions.length > 0 ? (
-                <div>
-                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                    Cloth Library
-                  </h3>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {availableClothOptions.map((option) => {
-                      const active = option.id === clothColorId;
-                      const thumb = option.thumbnail;
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          onClick={() => setClothColorId(option.id)}
-                          aria-pressed={active}
-                          className={`flex min-w-[8.5rem] flex-1 items-center justify-between gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                            active
-                              ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                              : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                          }`}
-                        >
-                          <span className="flex items-center gap-2">
-                            <span
-                              className="h-3.5 w-3.5 rounded-full border border-white/40"
-                              style={{ backgroundColor: toHexColor(option.color) }}
-                              aria-hidden="true"
-                            />
-                            <span className="truncate">{option.label}</span>
-                          </span>
-                          {thumb ? (
-                            <img
-                              src={thumb}
-                              alt={option.label}
-                              className="h-6 w-10 rounded-lg border border-white/20 object-cover"
-                              loading="lazy"
-                            />
-                          ) : null}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : null}
-              {availablePocketLiners.length > 0 ? (
-                <div>
-                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                    Pocket Jaws
-                  </h3>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {availablePocketLiners.map((option) => {
-                      const active = option.id === pocketLinerId;
-                      const swatchColor =
-                        option.jawColor ?? option.rimColor ?? option.sheenColor ?? option.color;
-                      const thumb = option.thumbnail;
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          onClick={() => setPocketLinerId(option.id)}
-                          aria-pressed={active}
-                          className={`flex min-w-[9rem] flex-1 items-center justify-between gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                            active
-                              ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                              : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                          }`}
-                        >
-                          <span className="flex items-center gap-2">
-                            <span
-                              className="h-3.5 w-3.5 rounded-full border border-white/40"
-                              style={{ backgroundColor: toHexColor(swatchColor) }}
-                              aria-hidden="true"
-                            />
-                            <span className="truncate">{option.label}</span>
-                          </span>
-                          {thumb ? (
-                            <img
-                              src={thumb}
-                              alt={option.label}
-                              className="h-6 w-10 rounded-lg border border-white/20 object-cover"
-                              loading="lazy"
-                            />
-                          ) : null}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : null}
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Graphics
