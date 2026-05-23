@@ -107,6 +107,19 @@ const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5
 const BASIS_TRANSCODER_PATH =
   'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 
+
+const CHINESE_8BALL_7FT_TABLE_SPEC = {
+  id: 'chinese8ball7ft',
+  componentPreset: 'showood7ft',
+  cushionCutAngleDeg: 34,
+  sideCushionCutAngleDeg: 37,
+  sidePocketCutAngleDeg: 7.5,
+  cushionRestitution: 0.92,
+  pocketMouthMm: 96,
+  pocketJawRadiusMm: 12,
+  notes: 'Precise 7ft mapping profile for cushions, pockets, and jaws.'
+};
+
 function safePolygonUnion(...parts) {
   const valid = parts.filter(Boolean);
   if (!valid.length) return [];
@@ -12496,7 +12509,15 @@ function SnookerRoyalGame({
     () => resolveTableSize(tableSizeKey),
     [tableSizeKey]
   );
+  const selectedTableProfile = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('tableProfile') === 'chinese8ball7ft' ? 'chinese8ball7ft' : 'snookerRoyal';
+  }, [location.search]);
   const responsiveTableSize = useResponsiveTableSize(activeTableSize);
+  const activeTableSpec = useMemo(() => {
+    if (selectedTableProfile !== 'chinese8ball7ft') return responsiveTableSize;
+    return { ...responsiveTableSize, ...CHINESE_8BALL_7FT_TABLE_SPEC };
+  }, [responsiveTableSize, selectedTableProfile]);
   const resolvedAccountId = useMemo(
     () => snookerRoyalAccountId(accountId),
     [accountId]
@@ -13761,14 +13782,14 @@ function SnookerRoyalGame({
     },
     [highlightChalks]
   );
-  const tableSizeRef = useRef(responsiveTableSize);
+  const tableSizeRef = useRef(activeTableSpec);
   useEffect(() => {
-    tableSizeRef.current = responsiveTableSize;
-  }, [responsiveTableSize]);
+    tableSizeRef.current = activeTableSpec;
+  }, [activeTableSpec]);
   const applyWorldScaleRef = useRef(() => {});
   useEffect(() => {
     applyWorldScaleRef.current?.();
-  }, [responsiveTableSize]);
+  }, [activeTableSpec]);
   useEffect(() => {
     railMarkerStyleRef.current = {
       shape: railMarkerShapeId,
