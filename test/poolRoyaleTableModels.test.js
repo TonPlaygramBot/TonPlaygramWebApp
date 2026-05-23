@@ -40,7 +40,12 @@ describe('Pool Royale table models', () => {
       'sideWoodApron',
       'apronStrip',
       'railSightLower',
-      'cornerRailSight'
+      'cornerRailSight',
+      'brandingPlate',
+      'brandingPlates',
+      'namePlate',
+      'railApron',
+      'stripApron'
     ]);
     assert.deepEqual(showood.blackMaterialSurfaceNames, []);
     assert.equal(showood.forceGeneratedChromePlates, false);
