@@ -49,7 +49,7 @@ describe('Pool Royale table models', () => {
     assert.equal(snookerGeneric.fitHeightScale, 1);
   });
 
-  test('Traditional Sketchfab 8 ft glTF table is no longer selectable', () => {
+  test('Traditional Sketchfab 8 ft glTF table remains non-selectable', () => {
     assert.equal(
       POOL_ROYALE_TABLE_MODEL_OPTIONS.some(
         (option) => option.id === 'traditional-fizyman-eight-foot'
@@ -62,7 +62,7 @@ describe('Pool Royale table models', () => {
     );
   });
 
-  test('Pool Royale lobby no longer references removed Showood/Traditional messaging', async () => {
+  test('Pool Royale lobby exposes both Snooker Generic and Showood table options', async () => {
     const lobby = await readFile(
       'webapp/src/pages/Games/PoolRoyaleLobby.jsx',
       'utf8'
@@ -70,8 +70,8 @@ describe('Pool Royale table models', () => {
 
     assert.equal(
       lobby.includes('showood-seven-foot'),
-      false,
-      'lobby should not reference the removed Showood model id'
+      true,
+      'lobby should include the Showood model id option'
     );
     assert.equal(
       lobby.includes('traditional-fizyman-eight-foot'),

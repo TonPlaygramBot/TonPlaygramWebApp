@@ -6,6 +6,10 @@ const POOLTOOL_RAW_BASE =
 const SNOOKER_GENERIC_GLB_URL =
   'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table/snooker_generic/snooker_generic.glb';
 
+
+const SHOWOOD_7FT_GLB_URL =
+  'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table/showood_7ft/showood_7ft.glb';
+
 export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
   {
     id: 'snooker-generic',
@@ -43,6 +47,44 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     hideSurfaceRoles: [],
     useLegacyShowoodRemap: false,
     tableLogicProfile: 'snookerGenericSnooker9ft',
+    cueRigProfile: 'poolRoyaleDefault'
+  },
+  {
+    id: 'showood-seven-foot',
+    label: 'Showood 7ft GLB',
+    description:
+      'Open-source Pooltool showood 7ft GLB matched to the compact 7ft gameplay footprint.',
+    tableSizeId: '7ft',
+    baseId: 'showood7ft',
+    assetUrl: SHOWOOD_7FT_GLB_URL,
+    fallbackAssetUrls: [
+      'https://cdn.jsdelivr.net/gh/ekiefl/pooltool@main/pooltool/models/table/showood_7ft/showood_7ft.glb',
+      `${POOLTOOL_RAW_BASE}/showood_7ft/showood_7ft.glb`
+    ],
+    icon: '🪵',
+    kind: 'gltf',
+    fitScale: 1,
+    fitFootprintScale: 1,
+    fitHeightScale: 1,
+    lowerBaseHeightScale: 1,
+    legLengthScale: 1,
+    clothRepeatScale: 1,
+    fitStrategy: 'exact',
+    fitReference: 'upperTabletop',
+    matchNativeHeight: true,
+    matchNativeUpperComponentHeight: true,
+    preserveOriginalFootprintAspect: true,
+    useOriginalLayoutSurfaces: true,
+    usePoolRoyaleFinish: true,
+    usePoolRoyaleFinishRoles: ['cushion', 'pocket', 'trim', 'wood', 'topWoodRail', 'sideWoodApron', 'railSight', 'verticalCornerRim', 'baseCornerBlock'],
+    preserveOriginalSurfaceRoles: ['cloth', 'leg', 'baseFoot'],
+    tintOriginalTrimGold: false,
+    chromeMaterialSurfaceNames: ['diamonds', 'railSight', 'namePlate', 'railApron', 'stripApron'],
+    blackMaterialSurfaceNames: [],
+    forceGeneratedChromePlates: false,
+    hideSurfaceRoles: [],
+    useLegacyShowoodRemap: false,
+    tableLogicProfile: 'showood7ft',
     cueRigProfile: 'poolRoyaleDefault'
   }
 ]);
