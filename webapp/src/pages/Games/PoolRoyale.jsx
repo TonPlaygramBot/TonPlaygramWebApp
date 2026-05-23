@@ -10012,20 +10012,7 @@ export function Table3D(
   baulkLine.position.set(0, markingHeight, baulkLineZ);
   markingsGroup.add(baulkLine);
 
-  const dRadius = D_RADIUS;
-  const dThickness = Math.max(lineThickness * 0.75, BALL_R * 0.07);
-  const dGeom = new THREE.RingGeometry(
-    Math.max(0.001, dRadius - dThickness),
-    dRadius,
-    64,
-    1,
-    0,
-    Math.PI
-  );
-  const dArc = new THREE.Mesh(dGeom, markingMat.clone());
-  dArc.rotation.x = -Math.PI / 2;
-  dArc.position.set(0, markingHeight, baulkLineZ);
-  markingsGroup.add(dArc);
+  const dArc = null;
 
   const spotRadius = BALL_R * 0.26;
   const spotMeshes = [];
@@ -10037,13 +10024,7 @@ export function Table3D(
     markingsGroup.add(spot);
     spotMeshes.push(spot);
   };
-  addSpot(-D_RADIUS, baulkLineZ);
   addSpot(0, baulkLineZ);
-  addSpot(D_RADIUS, baulkLineZ);
-  addSpot(0, 0);
-  const topCushionZ = PLAY_H / 2;
-  addSpot(0, (topCushionZ + 0) / 2);
-  addSpot(0, topCushionZ - BLACK_FROM_TOP);
   markingsGroup.traverse((child) => {
     if (child.isMesh) {
       child.renderOrder = cloth.renderOrder + 1;
@@ -13279,7 +13260,7 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
 }
 
 function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInfo = null) {
-  if (!model || tableModel?.id !== 'showood-seven-foot' || !finishInfo) return;
+  if (!model || tableModel?.id !== 'snooker-generic' || !finishInfo) return;
   model.updateMatrixWorld(true);
   const tableBox = new THREE.Box3().setFromObject(model);
   if (tableBox.isEmpty()) return;
@@ -13337,7 +13318,7 @@ function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInf
 
 function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tableModel = null, child = null) {
   if (!material || !finishInfo) return material;
-  if (tableModel?.id === 'showood-seven-foot') {
+  if (tableModel?.id === 'snooker-generic') {
     return applyShowoodStyleToExternalMaterial(material, role, tableModel, finishInfo);
   }
   const canonicalRole = role === 'pocketCup' ? 'pocket' :
@@ -13646,7 +13627,7 @@ function stretchPoolRoyaleExternalLowerBase(model, tableModel, dims) {
 
 
 function adjustPoolRoyaleExternalShowoodBaseProportions(model, tableModel) {
-  if (!model || tableModel?.id !== 'showood-seven-foot') return;
+  if (!model || tableModel?.id !== 'snooker-generic') return;
   const baseScale = Number(tableModel?.lowerBaseHeightScale);
   const legScale = Number(tableModel?.legLengthScale);
   const shouldScaleBase = Number.isFinite(baseScale) && baseScale > MICRO_EPS && Math.abs(baseScale - 1) > MICRO_EPS;
@@ -13805,7 +13786,7 @@ function mountPoolRoyaleExternalTableModel({
       }
       externalRoot.clear();
       externalRoot.add(model);
-      if (tableModel.id === 'showood-seven-foot') {
+      if (tableModel.id === 'snooker-generic') {
         const showOriginalBase = table.userData.showoodUsesOriginalBase !== false;
         model.traverse((child) => {
           if (!child?.isMesh) return;
@@ -14280,7 +14261,7 @@ function mountPoolRoyaleExternalTableModel({
   const applyBaseVariant = (variant) => {
     const variantId = resolveBaseVariantId(variant);
     const isShowoodExternalTable =
-      usesExternalTableModel && resolvedTableOptions?.tableModel?.id === 'showood-seven-foot';
+      usesExternalTableModel && resolvedTableOptions?.tableModel?.id === 'snooker-generic';
     const usesShowoodOriginalBase =
       isShowoodExternalTable && variantId === SHOWOOD_ORIGINAL_TABLE_BASE_ID;
 
@@ -14328,7 +14309,7 @@ function mountPoolRoyaleExternalTableModel({
   };
 
   table.userData.applyExternalTableFallbackBase = () => {
-    if (usesExternalTableModel && resolvedTableOptions?.tableModel?.id === 'showood-seven-foot') {
+    if (usesExternalTableModel && resolvedTableOptions?.tableModel?.id === 'snooker-generic') {
       applyBaseVariant(SHOWOOD_ORIGINAL_TABLE_BASE_ID);
     }
   };
@@ -14577,8 +14558,8 @@ function mountPoolRoyaleExternalTableModel({
         !visible &&
         (
           (!externalTableModelForMount?.useOriginalLayoutSurfaces && object.userData?.externalTableKeepVisible) ||
-          (externalTableModelForMount?.id === 'showood-seven-foot' && !table.userData.showoodUsesOriginalBase && object.userData?.showoodGeneratedPocketSupport) ||
-          (externalTableModelForMount?.id === 'showood-seven-foot' && !table.userData.showoodUsesOriginalBase && object.userData?.__basePart) ||
+          (externalTableModelForMount?.id === 'snooker-generic' && !table.userData.showoodUsesOriginalBase && object.userData?.showoodGeneratedPocketSupport) ||
+          (externalTableModelForMount?.id === 'snooker-generic' && !table.userData.showoodUsesOriginalBase && object.userData?.__basePart) ||
           (object.userData?.isChromePlate && forceGeneratedChrome)
         )
       ) {
@@ -15700,7 +15681,7 @@ function PoolRoyaleGame({
   );
   const tablePersonalizationSections = useMemo(
     () => {
-      const hideBasePart = activeTableModel?.id === 'showood-seven-foot';
+      const hideBasePart = activeTableModel?.id === 'snooker-generic';
       return SHOWOOD_CONTROL_PARTS
         .filter((part) => !(hideBasePart && part === 'baseCornerBlock'))
         .map((part) => ({
@@ -15720,7 +15701,7 @@ function PoolRoyaleGame({
   }, [activeTablePersonalizationPart, tablePersonalizationSections]);
 
   useEffect(() => {
-    if (activeTableModel?.id !== 'showood-seven-foot') return;
+    if (activeTableModel?.id !== 'snooker-generic') return;
     setShowoodTableStyle((prev) => {
       const normalized = normalizeShowoodTableStyle(prev);
       if (normalized.baseCornerBlock === normalized.topWoodRail) return prev;
