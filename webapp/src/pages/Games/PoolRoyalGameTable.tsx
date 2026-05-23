@@ -167,7 +167,7 @@ const PART_META: Record<TablePart, PartMeta> = {
   topWoodRail: {
     label: "Top rails",
     description: "Horizontal wood rail tops.",
-    keepSourceTexture: false,
+    keepSourceTexture: true,
   },
   sideWoodApron: {
     label: "Side apron",
@@ -177,7 +177,7 @@ const PART_META: Record<TablePart, PartMeta> = {
   pocketCup: {
     label: "Pocket cups",
     description: "Dark pocket holes and cup interiors.",
-    keepSourceTexture: false,
+    keepSourceTexture: true,
   },
   cornerPocketPlate: {
     label: "Corner plates",
@@ -202,7 +202,7 @@ const PART_META: Record<TablePart, PartMeta> = {
   leg: {
     label: "Legs",
     description: "Vertical wooden supports.",
-    keepSourceTexture: false,
+    keepSourceTexture: true,
   },
   baseFoot: {
     label: "Rounded feet",
@@ -222,7 +222,7 @@ const PART_META: Record<TablePart, PartMeta> = {
   underside: {
     label: "Underside",
     description: "Hidden option, internal default only.",
-    keepSourceTexture: false,
+    keepSourceTexture: true,
   },
 };
 
@@ -233,7 +233,7 @@ const PART_OPTIONS: Record<TablePart, Record<ChoiceKey, ColorOption>> = {
   },
   cushion: {
     a: { label: "Green cushions", color: "#064f23", metalness: 0, roughness: 0.94, envMapIntensity: 0.24 },
-    b: { label: "Black cushions", color: "#050505", metalness: 0, roughness: 0.88, envMapIntensity: 0.38 },
+    b: { label: "Blue cushions", color: "#0d4fb8", metalness: 0, roughness: 0.94, envMapIntensity: 0.24 },
   },
   topWoodRail: {
     a: { label: "Walnut rails", color: "#5a2608", metalness: 0.02, roughness: 0.38, envMapIntensity: 1.35, clearcoat: 0.42, clearcoatRoughness: 0.18 },
@@ -475,6 +475,17 @@ function triangleWorld(mesh: THREE.Mesh, geometry: THREE.BufferGeometry, aIndex:
   return { center, normal };
 }
 
+
+function inferPartFromNames(meshName: string, materialName: string, sourceSlot: string): TablePart | null {
+  const label = `${meshName} ${materialName} ${sourceSlot}`.toLowerCase();
+
+  if (/rail[_\s-]*sight|railsight|rail[_\s-]*sight[_\s-]*lower|corner[_\s-]*rail[_\s-]*sight|diamond|marker|inlay|dot/.test(label)) return "railSight";
+  if (/side[_\s-]*wood[_\s-]*apron|sidewoodapron|side[_\s-]*apron|rail[_\s-]*apron|strip[_\s-]*apron/.test(label)) return "sideWoodApron";
+  if (/rounded[_\s-]*metal[_\s-]*foot|rounded[_\s-]*foot/.test(label)) return "baseFoot";
+  if (/vertical.*(rim|plate|cap)|corner.*(rim|plate|cap)|rim|base[_\s-]*foot|feet/.test(label)) return "verticalCornerRim";
+
+  return null;
+}
 function classifyTriangle(
   mesh: THREE.Mesh,
   geometry: THREE.BufferGeometry,
@@ -744,7 +755,8 @@ function splitTableIntoMappedParts(root: THREE.Object3D, palette: Palette, bucke
       const sourceMaterialIndex = Math.min(materialIndexAtOffset(sourceGeometry, i), sourceMaterials.length - 1);
       const sourceMaterial = sourceMaterials[Math.max(0, sourceMaterialIndex)];
       const sourceSlot = makeSlotKey(mesh, sourceMaterialIndex, sourceMaterial);
-      const spatialPart = classifyTriangle(mesh, sourceGeometry, sourceMaterial, a, b, c, tableBox, tableCenter, tableSize);
+      const inferred = inferPartFromNames(mesh.name || "", sourceMaterial.name || "", sourceSlot);
+      const spatialPart = inferred ?? classifyTriangle(mesh, sourceGeometry, sourceMaterial, a, b, c, tableBox, tableCenter, tableSize);
 
       triangles.push({ a, b, c, sourceMaterialIndex, sourceSlot, spatialPart });
       updateSlotStat(slotStats, sourceSlot, spatialPart);
@@ -895,7 +907,7 @@ function createRoundedFootCaps(table: THREE.Object3D, palette: Palette, buckets:
   group.name = "rounded_gold_chrome_foot_caps";
 
   const anchors = collectBaseFootAnchorsFromMappedTable(table);
-  const material = createStandalonePartMaterial("baseFoot", palette, buckets, "rounded_metal_feet_material");
+  const material = createStandalonePartMaterial("baseFoot", palette, buckets, "rounded_foot_material");
   const geometry = new THREE.CylinderGeometry(0.13, 0.18, 0.055, 48, 1, false);
 
   anchors.forEach((anchor, index) => {
