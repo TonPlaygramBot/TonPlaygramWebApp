@@ -13093,12 +13093,12 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
     cushion: 'cushion',
     topWoodRail: 'topWoodRail',
     wood: 'topWoodRail',
-    sideWoodApron: 'sideWoodApron',
+    sideWoodApron: 'baseCornerBlock',
     railSight: 'railSight',
     trim: 'railSight',
     pocket: 'pocketCup',
     pocketCup: 'pocketCup',
-    verticalCornerRim: 'verticalCornerRim',
+    verticalCornerRim: 'baseFoot',
     baseFoot: 'baseFoot',
     baseCornerBlock: 'baseCornerBlock',
     leg: 'leg'
@@ -13162,12 +13162,6 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
       applyShowoodTint();
     }
     scalePoolRoyaleExternalClothTextureRepeats(mat, tableModel?.clothRepeatScale ?? 1);
-    mat.map = null;
-    mat.normalMap = null;
-    mat.roughnessMap = null;
-    mat.aoMap = null;
-    mat.metalnessMap = null;
-    mat.bumpMap = null;
     mat.userData = {
       ...(mat.userData || {}),
       poolRoyaleMatchProceduralClothRepeat: true
@@ -13176,17 +13170,20 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
     copyMaterialLook(materials.pocketJaw ?? materials.pocketRim);
     applyShowoodTint();
   } else if (part === 'topWoodRail' || part === 'leg') {
-    const sourceWood = part === 'topWoodRail' ? materials.rail : materials.leg || materials.rail;
-    copyMaterialLook(sourceWood);
+    const surface = part === 'topWoodRail'
+      ? finishInfo?.parts?.woodSurfaces?.rail
+      : finishInfo?.parts?.woodSurfaces?.frame || finishInfo?.parts?.woodSurfaces?.rail;
+    if (materials.rail?.color && mat.color) mat.color.copy(materials.rail.color);
+    applyWoodTextureToMaterial(mat, surface || { woodRepeatScale: finishInfo?.woodRepeatScale });
+    applyTableFinishDulling(mat);
+    applyTableWoodVisibilityTuning(mat);
+    if (finish?.surfaceStyle === 'matte') {
+      if (finish?.preserveFinishTintOnWood) applyMatteSurfacePropsOnly(mat);
+      else applyMonoMattePlasticSurface(mat);
+    }
     applyShowoodTint();
   } else {
     applyShowoodTint();
-    mat.map = null;
-    mat.normalMap = null;
-    mat.roughnessMap = null;
-    mat.aoMap = null;
-    mat.metalnessMap = null;
-    mat.bumpMap = null;
   }
 
   mat.transparent = false;
@@ -13322,7 +13319,7 @@ function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInf
     const finalMaterials = [];
     const materialLookup = new Map();
     const getMaterialIndex = (sourceMaterialIndex, part) => {
-      const linkedPart = part === 'sideWoodApron' ? 'railSight' : part === 'verticalCornerRim' ? 'verticalCornerRim' : part;
+      const linkedPart = part === 'sideWoodApron' ? 'baseCornerBlock' : part === 'verticalCornerRim' ? 'baseFoot' : part;
       const key = `${sourceMaterialIndex}:${linkedPart}`;
       if (materialLookup.has(key)) return materialLookup.get(key);
       const source = sourceMaterials[Math.max(0, Math.min(sourceMaterialIndex, sourceMaterials.length - 1))];
