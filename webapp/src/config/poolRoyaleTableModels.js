@@ -3,23 +3,23 @@ export const POOL_ROYALE_TABLE_MODEL_STORAGE_KEY = 'poolRoyaleTableModel';
 const POOLTOOL_RAW_BASE =
   'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table';
 
-const SHOWOOD_LOCAL_ASSET_PATH = '/assets/models/pool/showood-seven-foot.glb';
-const SNOOKER_LOCAL_ASSET_PATH = 'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table/snooker.glb';
+const SNOOKER_GENERIC_GLB_URL =
+  'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table/snooker_generic/snooker_generic.glb';
 
 export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
   {
-    id: 'showood-seven-foot',
-    label: 'Showood 7 ft GLB',
+    id: 'snooker-generic',
+    label: 'Snooker Generic GLB',
     description:
-      'Open-source Pooltool Showood showroom table matched to Pool Royale footprint. If the CDN GLB cannot load, Pool Royale retries the raw Showood GLB and keeps the Showood original base and legs.',
+      'Open-source Pooltool snooker table GLB matched to the current Pool Royale footprint and table height.',
     tableSizeId: '7ft',
-    baseId: 'showoodOriginal',
-    assetUrl: SHOWOOD_LOCAL_ASSET_PATH,
+    baseId: 'snookerGeneric',
+    assetUrl: SNOOKER_GENERIC_GLB_URL,
     fallbackAssetUrls: [
-      'https://cdn.jsdelivr.net/gh/ekiefl/pooltool@main/pooltool/models/table/seven_foot_showood/seven_foot_showood.glb',
-      `${POOLTOOL_RAW_BASE}/seven_foot_showood/seven_foot_showood.glb`
+      'https://cdn.jsdelivr.net/gh/ekiefl/pooltool@main/pooltool/models/table/snooker_generic/snooker_generic.glb',
+      `${POOLTOOL_RAW_BASE}/snooker_generic/snooker_generic.glb`
     ],
-    icon: '🟫',
+    icon: '🎱',
     kind: 'gltf',
     fitScale: 1,
     fitFootprintScale: 1.105,
@@ -42,14 +42,14 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     forceGeneratedChromePlates: false,
     hideSurfaceRoles: [],
     useLegacyShowoodRemap: false,
-    tableLogicProfile: 'showood7ft',
+    tableLogicProfile: 'snookerGenericPool8',
     cueRigProfile: 'poolRoyaleDefault'
   }
 ]);
 
 export const DEFAULT_POOL_ROYALE_TABLE_MODEL_ID =
   POOL_ROYALE_TABLE_MODEL_OPTIONS.find(
-    (option) => option.id === 'showood-seven-foot'
+    (option) => option.id === 'snooker-generic'
   )?.id || POOL_ROYALE_TABLE_MODEL_OPTIONS[0].id;
 
 export function resolvePoolRoyaleTableModel(modelId) {
