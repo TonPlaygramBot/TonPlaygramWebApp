@@ -197,7 +197,11 @@ namespace TonPlaygram.Gameplay.Weapons
             BuildProfileMap();
             CacheTokenPieces();
             CacheStaticAnchors();
-            if (!preserveOriginalWeaponMaterials)
+            if (preserveOriginalWeaponMaterials)
+            {
+                RemoveWeaponMaterialCompatibility();
+            }
+            else
             {
                 ApplyWeaponMaterialCompatibility();
             }
@@ -747,6 +751,22 @@ namespace TonPlaygram.Gameplay.Weapons
             return yaw * Quaternion.AngleAxis(-signedPitch, Vector3.right);
         }
 
+
+        private void RemoveWeaponMaterialCompatibility()
+        {
+            RemoveMaterialCompatibility(weaponRoot);
+
+            for (int i = 0; i < weaponProfiles.Count; i++)
+            {
+                WeaponBallisticsProfile profile = weaponProfiles[i];
+                Animator animator = profile != null && profile.gripPose != null ? profile.gripPose.animator : null;
+                if (animator != null)
+                {
+                    RemoveMaterialCompatibility(animator.transform);
+                }
+            }
+        }
+
         private void ApplyWeaponMaterialCompatibility()
         {
             ApplyMaterialCompatibility(weaponRoot);
@@ -758,6 +778,21 @@ namespace TonPlaygram.Gameplay.Weapons
                 if (animator != null)
                 {
                     ApplyMaterialCompatibility(animator.transform);
+                }
+            }
+        }
+
+        private static void RemoveMaterialCompatibility(Transform root)
+        {
+            if (root == null)
+                return;
+
+            GltfMaterialCompatibilityAdapter[] adapters = root.GetComponentsInChildren<GltfMaterialCompatibilityAdapter>(true);
+            for (int i = 0; i < adapters.Length; i++)
+            {
+                if (adapters[i] != null)
+                {
+                    Destroy(adapters[i]);
                 }
             }
         }
