@@ -13093,12 +13093,12 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
     cushion: 'cushion',
     topWoodRail: 'topWoodRail',
     wood: 'topWoodRail',
-    sideWoodApron: 'sideWoodApron',
+    sideWoodApron: 'baseCornerBlock',
     railSight: 'railSight',
     trim: 'railSight',
     pocket: 'pocketCup',
     pocketCup: 'pocketCup',
-    verticalCornerRim: 'verticalCornerRim',
+    verticalCornerRim: 'baseFoot',
     baseFoot: 'baseFoot',
     baseCornerBlock: 'baseCornerBlock',
     leg: 'leg'
@@ -13184,16 +13184,6 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
     applyShowoodTint();
   } else {
     applyShowoodTint();
-  }
-
-  const keepSourceTexture = part === 'topWoodRail' || part === 'leg';
-  if (!keepSourceTexture) {
-    mat.map = null;
-    mat.normalMap = null;
-    mat.roughnessMap = null;
-    mat.aoMap = null;
-    mat.metalnessMap = null;
-    mat.bumpMap = null;
   }
 
   mat.transparent = false;
@@ -13329,7 +13319,7 @@ function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInf
     const finalMaterials = [];
     const materialLookup = new Map();
     const getMaterialIndex = (sourceMaterialIndex, part) => {
-      const linkedPart = part === 'sideWoodApron' ? 'railSight' : part === 'verticalCornerRim' ? 'verticalCornerRim' : part;
+      const linkedPart = part === 'sideWoodApron' ? 'baseCornerBlock' : part === 'verticalCornerRim' ? 'baseFoot' : part;
       const key = `${sourceMaterialIndex}:${linkedPart}`;
       if (materialLookup.has(key)) return materialLookup.get(key);
       const source = sourceMaterials[Math.max(0, Math.min(sourceMaterialIndex, sourceMaterials.length - 1))];
