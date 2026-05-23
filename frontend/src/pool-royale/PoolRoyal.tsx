@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import SevenFootShowoodPreview, { TABLES } from './SevenFootShowoodPreview';
+import SevenFootShowoodPreview, { TABLES, type TableKey } from './SevenFootShowoodPreview';
 
 export default function PoolRoyal() {
-  const [selected, setSelected] = useState(null);
+  const [selected, setSelected] = useState<TableKey | null>(null);
 
   if (selected) {
     return <SevenFootShowoodPreview selectedTable={selected} onBack={() => setSelected(null)} />;
   }
 
-  const tableKeys = Object.keys(TABLES);
+  const tableKeys = Object.keys(TABLES) as TableKey[];
 
   return (
     <main style={{ minHeight: '100vh', background: '#020202', color: 'white', fontFamily: 'system-ui, sans-serif', padding: '14px 10px' }}>

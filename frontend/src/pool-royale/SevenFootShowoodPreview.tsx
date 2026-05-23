@@ -41,6 +41,7 @@ const CLOTH_PRESETS: Record<ClothKey, { label: string; color: string }> = { tour
 const FINISH_PRESETS: Record<FinishKey, { label: string; color: string; metalness: number; roughness: number }> = { cueWoodWalnut: { label: 'Cue Finish · Walnut', color: '#553118', metalness: 0.08, roughness: 0.43 }, cueWoodBlack: { label: 'Cue Finish · Piano Black', color: '#141414', metalness: 0.28, roughness: 0.22 } };
 
 function proceduralClothTexture(renderer: THREE.WebGLRenderer, tint: string) { const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 256; const ctx = canvas.getContext('2d'); if (!ctx) return null; ctx.fillStyle = tint; ctx.fillRect(0, 0, 256, 256); for (let y = 0; y < 256; y += 4) { const a = 0.03 + ((y / 256) % 1) * 0.02; ctx.fillStyle = `rgba(255,255,255,${a.toFixed(3)})`; ctx.fillRect(0, y, 256, 2); } const t = new THREE.CanvasTexture(canvas); t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.RepeatWrapping; t.repeat.set(4, 2); t.anisotropy = renderer.capabilities.getMaxAnisotropy(); return t; }
+function cueWoodTexture(renderer: THREE.WebGLRenderer, tint: string) { const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 128; const ctx = canvas.getContext('2d'); if (!ctx) return null; const g = ctx.createLinearGradient(0, 0, 512, 0); g.addColorStop(0, '#2b180d'); g.addColorStop(0.3, tint); g.addColorStop(0.6, '#6f3f21'); g.addColorStop(1, '#2b180d'); ctx.fillStyle = g; ctx.fillRect(0, 0, 512, 128); for (let x = 0; x < 512; x += 12) { ctx.fillStyle = `rgba(255,255,255,${(x % 24 === 0 ? 0.1 : 0.05).toFixed(2)})`; ctx.fillRect(x, 0, 2, 128); } const t = new THREE.CanvasTexture(canvas); t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.RepeatWrapping; t.repeat.set(2, 1); t.anisotropy = renderer.capabilities.getMaxAnisotropy(); return t; }
 
 export default function SevenFootShowoodPreview({ selectedTable, onBack }: { selectedTable: TableKey; onBack: () => void }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -56,15 +57,57 @@ export default function SevenFootShowoodPreview({ selectedTable, onBack }: { sel
     scene.add(new THREE.AmbientLight(0xffffff, 0.8)); const key = new THREE.DirectionalLight(0xffffff, 1.5); key.position.set(1.8, 3.2, 2); scene.add(key);
     const tableGroup = new THREE.Group(); scene.add(tableGroup);
     const scale = currentMapping.sizeFt === '9ft' ? 1.22 : 1;
-    const mat = new THREE.MeshStandardMaterial({ color: FINISH_PRESETS[finish].color, metalness: FINISH_PRESETS[finish].metalness, roughness: FINISH_PRESETS[finish].roughness });
-    const tableBody = new THREE.Mesh(new THREE.BoxGeometry(currentMapping.playfield.width * scale * 1.08, 0.28, currentMapping.playfield.length * scale * 1.12), mat); tableBody.position.y = -0.12; tableGroup.add(tableBody);
+
+    const woodTexture = cueWoodTexture(renderer, FINISH_PRESETS[finish].color);
+    const woodMat = new THREE.MeshStandardMaterial({ color: '#ffffff', map: woodTexture, metalness: FINISH_PRESETS[finish].metalness, roughness: FINISH_PRESETS[finish].roughness });
+    const railMat = new THREE.MeshStandardMaterial({ color: '#5e2f15', map: woodTexture, metalness: 0.1, roughness: 0.35 });
+    const cushionMat = new THREE.MeshStandardMaterial({ color: '#184d27', roughness: 0.86, metalness: 0.02 });
+    const chromeMat = new THREE.MeshStandardMaterial({ color: '#cfd6dd', metalness: 1, roughness: 0.16 });
+
+    const tableBody = new THREE.Mesh(new THREE.BoxGeometry(currentMapping.playfield.width * scale * 1.08, 0.24, currentMapping.playfield.length * scale * 1.12), woodMat); tableBody.position.y = -0.13; tableGroup.add(tableBody);
+    const railFrame = new THREE.Mesh(new THREE.BoxGeometry(currentMapping.playfield.width * scale * 1.16, 0.13, currentMapping.playfield.length * scale * 1.2), railMat); railFrame.position.y = 0.03; tableGroup.add(railFrame);
+
     const clothTexture = proceduralClothTexture(renderer, CLOTH_PRESETS[cloth].color);
-    const clothMesh = new THREE.Mesh(new THREE.PlaneGeometry(currentMapping.playfield.width * scale, currentMapping.playfield.length * scale), new THREE.MeshStandardMaterial({ color: '#ffffff', map: clothTexture, roughness: 0.96, metalness: 0 })); clothMesh.rotation.x = -Math.PI / 2; clothMesh.position.y = 0.03; tableGroup.add(clothMesh);
-    currentMapping.pockets.forEach((p) => { const hole = new THREE.Mesh(new THREE.CylinderGeometry(p.radius * scale, p.radius * scale, 0.04, 20), new THREE.MeshStandardMaterial({ color: '#040404' })); hole.rotation.x = -Math.PI / 2; hole.position.set(p.center.x * scale, 0.025, p.center.z * scale); tableGroup.add(hole); });
+    const clothMesh = new THREE.Mesh(new THREE.PlaneGeometry(currentMapping.playfield.width * scale, currentMapping.playfield.length * scale), new THREE.MeshStandardMaterial({ color: '#ffffff', map: clothTexture, roughness: 0.96, metalness: 0 })); clothMesh.rotation.x = -Math.PI / 2; clothMesh.position.y = 0.045; tableGroup.add(clothMesh);
+
+    currentMapping.cushions.forEach((c) => {
+      const dx = c.to.x - c.from.x; const dz = c.to.z - c.from.z;
+      const len = Math.hypot(dx, dz) * scale;
+      const angle = Math.atan2(dz, dx);
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(len, 0.055, 0.065), cushionMat);
+      mesh.position.set(((c.from.x + c.to.x) * 0.5) * scale, 0.075, ((c.from.z + c.to.z) * 0.5) * scale);
+      mesh.rotation.y = -angle;
+      tableGroup.add(mesh);
+    });
+
+    currentMapping.pockets.forEach((p) => {
+      const hole = new THREE.Mesh(new THREE.CylinderGeometry(p.radius * scale, p.radius * scale, 0.06, 20), new THREE.MeshStandardMaterial({ color: '#040404' }));
+      hole.rotation.x = -Math.PI / 2; hole.position.set(p.center.x * scale, 0.03, p.center.z * scale); tableGroup.add(hole);
+
+      const dir = new THREE.Vector3(-p.center.x, 0, -p.center.z).normalize();
+      const right = new THREE.Vector3(-dir.z, 0, dir.x);
+      for (const sign of [-1, 1]) {
+        const jaw = new THREE.Mesh(new THREE.CapsuleGeometry(0.012 * scale, 0.048 * scale, 4, 8), railMat);
+        jaw.rotation.z = Math.PI / 2;
+        jaw.position.set(
+          (p.center.x + dir.x * p.jawInset + right.x * sign * p.radius * 0.55) * scale,
+          0.074,
+          (p.center.z + dir.z * p.jawInset + right.z * sign * p.radius * 0.55) * scale,
+        );
+        jaw.rotation.y = Math.atan2(dir.z, dir.x);
+        tableGroup.add(jaw);
+      }
+
+      const chrome = new THREE.Mesh(new THREE.BoxGeometry(0.08 * scale, 0.007, 0.036 * scale), chromeMat);
+      chrome.position.set((p.center.x + dir.x * (p.radius * 1.4)) * scale, 0.102, (p.center.z + dir.z * (p.radius * 1.4)) * scale);
+      chrome.rotation.y = Math.atan2(dir.z, dir.x);
+      tableGroup.add(chrome);
+    });
+
     let frame = 0; const animate = () => { frame = requestAnimationFrame(animate); tableGroup.rotation.y += 0.002; renderer.render(scene, camera); }; animate();
     const onResize = () => { camera.aspect = host.clientWidth / host.clientHeight; camera.updateProjectionMatrix(); renderer.setSize(host.clientWidth, host.clientHeight); };
     window.addEventListener('resize', onResize);
-    return () => { window.removeEventListener('resize', onResize); cancelAnimationFrame(frame); clothTexture?.dispose(); renderer.dispose(); renderer.domElement.remove(); };
+    return () => { window.removeEventListener('resize', onResize); cancelAnimationFrame(frame); clothTexture?.dispose(); woodTexture?.dispose(); renderer.dispose(); renderer.domElement.remove(); };
   }, [cloth, finish, currentMapping]);
 
   return <main style={{ minHeight: '100vh', background: '#020202', color: 'white', fontFamily: 'system-ui,sans-serif' }}><div ref={hostRef} style={{ position: 'fixed', inset: 0 }} />
@@ -77,7 +120,7 @@ export default function SevenFootShowoodPreview({ selectedTable, onBack }: { sel
       <div style={{ fontWeight: 900, fontSize: 12 }}>Table Setup Menu ({currentMapping.sizeFt})</div>
       <div style={{ marginTop: 8, display: 'grid', gap: 8 }}>
         <label style={{ display: 'grid', gap: 3, fontSize: 11 }}>Table cloth (same on both)<select value={cloth} onChange={(e) => setCloth(e.target.value as ClothKey)}>{(Object.keys(CLOTH_PRESETS) as ClothKey[]).map((k) => <option value={k} key={k}>{CLOTH_PRESETS[k].label}</option>)}</select></label>
-        <label style={{ display: 'grid', gap: 3, fontSize: 11 }}>Cushion/table finish (same on both)<select value={finish} onChange={(e) => setFinish(e.target.value as FinishKey)}>{(Object.keys(FINISH_PRESETS) as FinishKey[]).map((k) => <option value={k} key={k}>{FINISH_PRESETS[k].label}</option>)}</select></label>
+        <label style={{ display: 'grid', gap: 3, fontSize: 11 }}>Cushion/table finish (cue-stick texture on all)<select value={finish} onChange={(e) => setFinish(e.target.value as FinishKey)}>{(Object.keys(FINISH_PRESETS) as FinishKey[]).map((k) => <option value={k} key={k}>{FINISH_PRESETS[k].label}</option>)}</select></label>
       </div>
     </section>
   </main>;
