@@ -985,8 +985,6 @@ const CHAIR_GLOBAL_PUSHBACK = 0.09 * MODEL_SCALE;
 const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.14 * MODEL_SCALE;
 const CHAIR_VISUAL_SCALE = 0.38;
 const CHAIR_VERTICAL_DROP = 0.085 * MODEL_SCALE;
-const HUMAN_BOTTOM_CHAIR_VISUAL_SCALE = 0.42;
-const HUMAN_BOTTOM_CHAIR_VERTICAL_DROP = 0.055 * MODEL_SCALE;
 const CHAIR_BASE_HEIGHT = LEGACY_BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.025 * MODEL_SCALE * TABLE_HEIGHT_SCALE;
@@ -7992,7 +7990,6 @@ const DOMINO_CHARACTER_THEMES = Object.freeze([
 ]);
 const DOMINO_CHARACTER_PROPORTION_SCALE = 3.8;
 const DOMINO_HUMAN_CHARACTER_SCALE_BOOST = 1.8;
-const DOMINO_BOTTOM_HUMAN_CHARACTER_SCALE_BOOST = 1.5;
 // Seat avatars from the chair footprint instead of adding a table-facing Z offset.
 // This keeps every human visually aligned with the chair that owns the seat.
 const DOMINO_CHARACTER_CHAIR_SEAT_OUTWARD_BIAS = -0.03;
@@ -8517,10 +8514,8 @@ function attachDominoCharacterToChair(template, chair, seatIndex, player) {
   normalizeDominoCharacterRoot(instance);
   const seatRoot = new THREE.Group();
   const isHumanSeat = seatIndex === HUMAN_SEAT_INDEX;
-  const humanScaleBoost = isHumanSeat
-    ? DOMINO_BOTTOM_HUMAN_CHARACTER_SCALE_BOOST
-    : 0;
-  const characterScale = DOMINO_CHARACTER_PROPORTION_SCALE + humanScaleBoost;
+  const characterScale = DOMINO_CHARACTER_PROPORTION_SCALE +
+    (isHumanSeat ? DOMINO_HUMAN_CHARACTER_SCALE_BOOST : 0);
   const seatScale = (theme.scale || 1) * characterScale;
   const scaleDelta = Math.max(0, characterScale - 1);
   seatRoot.scale.setScalar(seatScale);
@@ -8804,15 +8799,8 @@ function placeChairsWithOption(option, chairData, token) {
     wrapper.lookAt(new THREE.Vector3(0, wrapper.position.y, 0));
 
     const chair = cloneChairWithTheme(chairData, option);
-    const isHumanSeat = index === HUMAN_SEAT_INDEX;
-    const chairVisualScale = isHumanSeat
-      ? HUMAN_BOTTOM_CHAIR_VISUAL_SCALE
-      : CHAIR_VISUAL_SCALE;
-    const chairVerticalDrop = isHumanSeat
-      ? HUMAN_BOTTOM_CHAIR_VERTICAL_DROP
-      : CHAIR_VERTICAL_DROP;
-    chair.scale.multiplyScalar(chairVisualScale);
-    chair.position.y = -seatBottomOffset - chairVerticalDrop;
+    chair.scale.multiplyScalar(CHAIR_VISUAL_SCALE);
+    chair.position.y = -seatBottomOffset - CHAIR_VERTICAL_DROP;
     wrapper.add(chair);
     wrapper.userData.dominoCharacterChair = chair;
     wrapper.userData.dominoCharacterSeatLift = TABLE_HEIGHT - 0.06 * MODEL_SCALE;
