@@ -36128,143 +36128,77 @@ const shotPowerRef = useRef(0);
                   })}
                 </div>
               </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Chrome Plates
-                </h3>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {availableChromeOptions.map((option) => {
-                    const active = option.id === chromeColorId;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setChromeColorId(option.id)}
-                        aria-pressed={active}
-                        className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        <span className="flex items-center justify-center gap-2">
-                          <span
-                            className="h-3.5 w-3.5 rounded-full border border-white/40"
-                            style={{ backgroundColor: toHexColor(option.color) }}
-                            aria-hidden="true"
-                          />
-                          {option.label}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
               <div className="rounded-3xl border border-emerald-300/20 bg-white/[0.04] p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                      Table Personalisation
+                      Table Setup
                     </h3>
                     <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/55">
-                      Select a table part, then choose the unlocked finish for that part.
+                      Keep only cloth + cushions. Other table options are fixed to the new Showood mapping.
                     </p>
                   </div>
                   <span className="rounded-full border border-emerald-200/30 px-2 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-emerald-100/70">
                     Showood
                   </span>
                 </div>
-                <div className="mt-3 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-                  {tablePersonalizationSections.map((section) => {
-                    const selectedSection = section.key === activeTablePersonalizationPart;
-                    return (
-                      <button
-                        key={section.key}
-                        type="button"
-                        onClick={() => setActiveTablePersonalizationPart(section.key)}
-                        className={`whitespace-nowrap rounded-full border px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          selectedSection
-                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_14px_rgba(16,185,129,0.45)]'
-                            : 'border-white/15 bg-white/5 text-white/70 hover:border-white/30 hover:text-white'
-                        }`}
-                      >
-                        {section.label}
-                      </button>
-                    );
-                  })}
-                </div>
-                {activeTablePersonalizationSection ? (
-                  <div className="mt-3 max-h-64 overflow-y-auto pr-1">
-                    <div className="mb-2 flex items-center justify-between gap-3">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-white/60">
-                        {activeTablePersonalizationSection.label}
-                      </p>
-                      {activeTablePersonalizationSection.chromeLinked ? (
-                        <span className="text-[9px] uppercase tracking-[0.18em] text-emerald-100/55">
-                          linked to chrome plates
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {activeTablePersonalizationSection.options.map((option) => {
-                        const part = activeTablePersonalizationSection.key;
-                        const chromeLinked = activeTablePersonalizationSection.chromeLinked;
-                        const selected = part === 'cloth'
-                          ? clothColorId
-                          : part === 'topWoodRail' || part === 'leg'
-                            ? tableFinishId
-                            : chromeLinked
-                              ? (chromeColorId === 'gold' ? 'gold' : 'chrome')
-                              : normalizeShowoodTableStyle(showoodTableStyle)[part];
-                        const active = option.id === selected;
+
+                {availableClothOptions.length > 0 ? (
+                  <div className="mt-3">
+                    <h4 className="text-[10px] uppercase tracking-[0.28em] text-emerald-100/65">Cloth Color</h4>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {availableClothOptions.map((option) => {
+                        const active = option.id === clothColorId;
+                        const thumb = option.thumbnail;
                         return (
                           <button
-                            key={`${part}-${option.id}`}
+                            key={option.id}
                             type="button"
-                            onClick={() => {
-                              if (part === 'cloth') {
-                                setClothColorId(option.id);
-                              } else if (part === 'topWoodRail' || part === 'leg') {
-                                setTableFinishId(option.id);
-                                setShowoodTableStyle((current) =>
-                                  normalizeShowoodTableStyle({ ...current, [part]: option.id })
-                                );
-                              } else if (chromeLinked) {
-                                setChromeColorId(option.id === 'gold' ? 'gold' : 'chrome');
-                              } else {
-                                setShowoodTableStyle((current) =>
-                                  normalizeShowoodTableStyle({ ...current, [part]: option.id })
-                                );
-                              }
-                            }}
+                            onClick={() => setClothColorId(option.id)}
                             aria-pressed={active}
-                            className={`flex flex-col items-center justify-between gap-2 rounded-2xl border p-2 text-center text-[10px] font-semibold uppercase tracking-[0.16em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                            className={`flex min-w-[8.5rem] flex-1 items-center justify-between gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
                               active
                                 ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
                                 : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
                             }`}
                           >
-                            {option.thumbnail ? (
-                              <img
-                                src={option.thumbnail}
-                                alt={option.label}
-                                className="h-12 w-full rounded-xl border border-white/20 object-cover"
-                                loading="lazy"
-                              />
-                            ) : (
-                              <span
-                                className="h-12 w-full rounded-xl border border-white/30"
-                                style={{ backgroundColor: option.color }}
-                                aria-hidden="true"
-                              />
-                            )}
-                            <span className="line-clamp-2">{option.label}</span>
+                            <span className="flex items-center gap-2">
+                              <span className="h-3.5 w-3.5 rounded-full border border-white/40" style={{ backgroundColor: toHexColor(option.color) }} aria-hidden="true" />
+                              <span className="truncate">{option.label}</span>
+                            </span>
+                            {thumb ? <img src={thumb} alt={option.label} className="h-6 w-10 rounded-lg border border-white/20 object-cover" loading="lazy" /> : null}
                           </button>
                         );
                       })}
                     </div>
                   </div>
                 ) : null}
+
+                <div className="mt-3">
+                  <h4 className="text-[10px] uppercase tracking-[0.28em] text-emerald-100/65">Cushion Color</h4>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {SHOWOOD_TABLE_PART_OPTIONS.cushion.map((option) => {
+                      const current = normalizeShowoodTableStyle(showoodTableStyle).cushion;
+                      const active = option.id === current;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setShowoodTableStyle((prev) => normalizeShowoodTableStyle({ ...prev, cushion: option.id }))}
+                          aria-pressed={active}
+                          className={`flex min-w-[8.5rem] flex-1 items-center justify-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                            active
+                              ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                              : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                          }`}
+                        >
+                          <span className="h-3.5 w-3.5 rounded-full border border-white/40" style={{ backgroundColor: option.color }} aria-hidden="true" />
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
@@ -36300,94 +36234,6 @@ const shotPowerRef = useRef(0);
                   })}
                 </div>
               </div>
-              {availableClothOptions.length > 0 ? (
-                <div>
-                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                    Cloth Library
-                  </h3>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {availableClothOptions.map((option) => {
-                      const active = option.id === clothColorId;
-                      const thumb = option.thumbnail;
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          onClick={() => setClothColorId(option.id)}
-                          aria-pressed={active}
-                          className={`flex min-w-[8.5rem] flex-1 items-center justify-between gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                            active
-                              ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                              : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                          }`}
-                        >
-                          <span className="flex items-center gap-2">
-                            <span
-                              className="h-3.5 w-3.5 rounded-full border border-white/40"
-                              style={{ backgroundColor: toHexColor(option.color) }}
-                              aria-hidden="true"
-                            />
-                            <span className="truncate">{option.label}</span>
-                          </span>
-                          {thumb ? (
-                            <img
-                              src={thumb}
-                              alt={option.label}
-                              className="h-6 w-10 rounded-lg border border-white/20 object-cover"
-                              loading="lazy"
-                            />
-                          ) : null}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : null}
-              {availablePocketLiners.length > 0 ? (
-                <div>
-                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                    Pocket Jaws
-                  </h3>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {availablePocketLiners.map((option) => {
-                      const active = option.id === pocketLinerId;
-                      const swatchColor =
-                        option.jawColor ?? option.rimColor ?? option.sheenColor ?? option.color;
-                      const thumb = option.thumbnail;
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          onClick={() => setPocketLinerId(option.id)}
-                          aria-pressed={active}
-                          className={`flex min-w-[9rem] flex-1 items-center justify-between gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                            active
-                              ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                              : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                          }`}
-                        >
-                          <span className="flex items-center gap-2">
-                            <span
-                              className="h-3.5 w-3.5 rounded-full border border-white/40"
-                              style={{ backgroundColor: toHexColor(swatchColor) }}
-                              aria-hidden="true"
-                            />
-                            <span className="truncate">{option.label}</span>
-                          </span>
-                          {thumb ? (
-                            <img
-                              src={thumb}
-                              alt={option.label}
-                              className="h-6 w-10 rounded-lg border border-white/20 object-cover"
-                              loading="lazy"
-                            />
-                          ) : null}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : null}
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Graphics
