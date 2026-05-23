@@ -3,7 +3,7 @@ export const POOL_ROYALE_TABLE_MODEL_STORAGE_KEY = 'poolRoyaleTableModel';
 const POOLTOOL_RAW_BASE =
   'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table';
 
-const SHOWOOD_LOCAL_ASSET_PATH = 'https://cdn.jsdelivr.net/gh/ekiefl/pooltool@main/pooltool/models/table/seven_foot_showood/seven_foot_showood.glb';
+const SHOWOOD_LOCAL_ASSET_PATH = '/assets/models/pool/showood-seven-foot.glb';
 const SNOOKER_LOCAL_ASSET_PATH = 'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table/snooker.glb';
 
 export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
@@ -32,10 +32,10 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     matchNativeHeight: true,
     matchNativeUpperComponentHeight: true,
     preserveOriginalFootprintAspect: true,
-    useOriginalLayoutSurfaces: false,
+    useOriginalLayoutSurfaces: true,
     usePoolRoyaleFinish: true,
     usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'pocket', 'trim'],
-    preserveOriginalSurfaceRoles: [],
+    preserveOriginalSurfaceRoles: ['wood'],
     tintOriginalTrimGold: true,
     chromeMaterialSurfaceNames: ['diamonds', 'railSight', 'sideApron', 'sideWoodApron', 'apronStrip', 'railSightLower', 'cornerRailSight', 'brandingPlate', 'brandingPlates', 'namePlate', 'railApron', 'stripApron'],
     blackMaterialSurfaceNames: [],
