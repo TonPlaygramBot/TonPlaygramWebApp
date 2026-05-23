@@ -10,8 +10,8 @@ namespace Aiming.Gameplay.Rendering
     {
         [SerializeField] private Renderer[] targetRenderers;
         [SerializeField] private bool runOnAwake = true;
-        [SerializeField] private bool forceUrpLitShader = false;
-        [SerializeField] private bool upgradeGltfImportShaders = false;
+        [SerializeField] private bool forceUrpLitShader = true;
+        [SerializeField] private bool upgradeGltfImportShaders = true;
         [SerializeField] private Shader urpLitShader;
         [SerializeField] private Shader standardShader;
 
