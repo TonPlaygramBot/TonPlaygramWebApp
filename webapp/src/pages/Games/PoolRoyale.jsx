@@ -4308,19 +4308,43 @@ const SHOWOOD_TABLE_PARTS = Object.freeze([
   'cloth',
   'cushion',
   'topWoodRail',
+  'sideWoodApron',
+  'pocketCup',
+  'cornerPocketPlate',
+  'middlePocketPlate',
+  'verticalCornerRim',
+  'baseCornerBlock',
+  'leg',
+  'baseFoot',
+  'lowerTrim',
+  'railSight',
+  'underside'
+]);
+const SHOWOOD_CONTROL_PARTS = Object.freeze([
+  'cloth',
+  'cushion',
+  'topWoodRail',
   'railSight',
   'pocketCup',
-  'leg',
-  'baseFoot'
+  'verticalCornerRim',
+  'baseCornerBlock',
+  'leg'
 ]);
 const DEFAULT_SHOWOOD_TABLE_STYLE = Object.freeze({
   cloth: 'green',
   cushion: 'green',
   topWoodRail: DEFAULT_TABLE_FINISH_ID,
-  railSight: 'gold',
+  sideWoodApron: 'gold',
   pocketCup: 'black',
+  cornerPocketPlate: 'gold',
+  middlePocketPlate: 'black',
+  verticalCornerRim: 'gold',
+  baseCornerBlock: 'black',
   leg: DEFAULT_TABLE_FINISH_ID,
-  baseFoot: 'gold'
+  baseFoot: 'gold',
+  lowerTrim: 'gold',
+  railSight: 'gold',
+  underside: 'dark'
 });
 const SHOWOOD_TABLE_PART_OPTIONS = Object.freeze({
   cloth: Object.freeze([
@@ -4331,36 +4355,56 @@ const SHOWOOD_TABLE_PART_OPTIONS = Object.freeze({
     { id: 'green', label: 'Green Cushions', color: '#064f23', material: { color: 0x064f23, roughness: 0.94, metalness: 0, envMapIntensity: 0.24 } },
     { id: 'black', label: 'Black Cushions', color: '#050505', material: { color: 0x050505, roughness: 0.88, metalness: 0, envMapIntensity: 0.38 } }
   ]),
-  topWoodRail: Object.freeze([]),
-  railSight: Object.freeze([
-    { id: 'chrome', label: 'Chrome Apron + Sights', color: '#d7dde7', material: { color: 0xd7dde7, roughness: 0.055, metalness: 1, envMapIntensity: 7.2, clearcoat: 1, clearcoatRoughness: 0.025 } },
-    { id: 'gold', label: 'Gold Apron + Sights', color: '#f5d978', material: { color: 0xf5d978, roughness: 0.065, metalness: 1, envMapIntensity: 6.7, clearcoat: 1, clearcoatRoughness: 0.035 } }
+  sideWoodApron: Object.freeze([
+    { id: 'gold', label: 'Gold Side Apron', color: '#d8a928', material: { color: 0xd8a928, roughness: 0.11, metalness: 0.9, envMapIntensity: 5.9, clearcoat: 1, clearcoatRoughness: 0.045 } },
+    { id: 'black', label: 'Black Side Apron', color: '#050505', material: { color: 0x050505, roughness: 0.17, metalness: 0.82, envMapIntensity: 3.15, clearcoat: 1, clearcoatRoughness: 0.07 } }
   ]),
+  topWoodRail: Object.freeze([]),
   pocketCup: Object.freeze([
     { id: 'black', label: 'Black Cups', color: '#000000', keepSourceTexture: true, material: { color: 0x000000, roughness: 0.98, metalness: 0, envMapIntensity: 0.12 } },
     { id: 'leather', label: 'Dark Leather Cups', color: '#1b0c04', keepSourceTexture: true, material: { color: 0x1b0c04, roughness: 0.9, metalness: 0, envMapIntensity: 0.26 } }
   ]),
+  cornerPocketPlate: Object.freeze([
+    { id: 'gold', label: 'Gold Corners', color: '#f7c943', material: { color: 0xf7c943, roughness: 0.045, metalness: 1, envMapIntensity: 8.4, clearcoat: 1, clearcoatRoughness: 0.025 } },
+    { id: 'black', label: 'Black Corners', color: '#050505', material: { color: 0x050505, roughness: 0.11, metalness: 0.9, envMapIntensity: 4.2, clearcoat: 1, clearcoatRoughness: 0.045 } }
+  ]),
+  middlePocketPlate: Object.freeze([
+    { id: 'black', label: 'Black Side Plates', color: '#050505', material: { color: 0x050505, roughness: 0.12, metalness: 0.88, envMapIntensity: 4, clearcoat: 1, clearcoatRoughness: 0.05 } },
+    { id: 'gold', label: 'Gold Side Plates', color: '#f7c943', material: { color: 0xf7c943, roughness: 0.045, metalness: 1, envMapIntensity: 8.4, clearcoat: 1, clearcoatRoughness: 0.025 } }
+  ]),
+  verticalCornerRim: Object.freeze([
+    { id: 'gold', label: 'Gold Rims + Feet', color: '#d8b23d', material: { color: 0xd8b23d, roughness: 0.06, metalness: 0.98, envMapIntensity: 6.8, clearcoat: 1, clearcoatRoughness: 0.03 } },
+    { id: 'chrome', label: 'Chrome Rims + Feet', color: '#d7dde7', material: { color: 0xd7dde7, roughness: 0.055, metalness: 1, envMapIntensity: 7.2, clearcoat: 1, clearcoatRoughness: 0.025 } }
+  ]),
+  baseCornerBlock: Object.freeze([
+    { id: 'walnut', label: 'Walnut Corners', color: '#7b2d11' },
+    { id: 'black', label: 'Black Corners', color: '#080605' }
+  ]),
   leg: Object.freeze([]),
   baseFoot: Object.freeze([
-    { id: 'chrome', label: 'Chrome Feet', color: '#d7dde7', material: { color: 0xd7dde7, roughness: 0.055, metalness: 1, envMapIntensity: 7.2, clearcoat: 1, clearcoatRoughness: 0.025 } },
-    { id: 'gold', label: 'Gold Feet', color: '#f5d978', material: { color: 0xf5d978, roughness: 0.065, metalness: 1, envMapIntensity: 6.7, clearcoat: 1, clearcoatRoughness: 0.035 } }
+    { id: 'gold', label: 'Gold Rounded Feet', color: '#d8b23d', material: { color: 0xd8b23d, roughness: 0.065, metalness: 1, envMapIntensity: 6.8, clearcoat: 1, clearcoatRoughness: 0.03 } },
+    { id: 'chrome', label: 'Chrome Rounded Feet', color: '#d7dde7', material: { color: 0xd7dde7, roughness: 0.055, metalness: 1, envMapIntensity: 7.2, clearcoat: 1, clearcoatRoughness: 0.025 } }
+  ]),
+  lowerTrim: Object.freeze([
+    { id: 'gold', label: 'Gold Trim', color: '#d8b23d' },
+    { id: 'black', label: 'Black Trim', color: '#070707' }
+  ]),
+  railSight: Object.freeze([
+    { id: 'gold', label: 'Gold Apron + Gold Sights', color: '#f5d978', material: { color: 0xf5d978, roughness: 0.065, metalness: 1, envMapIntensity: 6.7, clearcoat: 1, clearcoatRoughness: 0.035 } },
+    { id: 'black', label: 'Black Apron + Black Sights', color: '#050505', material: { color: 0x050505, roughness: 0.16, metalness: 0.82, envMapIntensity: 3, clearcoat: 1, clearcoatRoughness: 0.07 } }
+  ]),
+  underside: Object.freeze([
+    { id: 'dark', label: 'Dark Underside', color: '#1e130b' },
+    { id: 'black', label: 'Black Underside', color: '#050505' }
   ])
 });
 const SHOWOOD_TABLE_PART_LABELS = Object.freeze({
-  cloth: 'Field Cloth',
-  cushion: 'Cushions',
-  topWoodRail: 'Top Rails',
-  railSight: 'Side Apron + Rail Sights',
-  pocketCup: 'Pocket Cups',
-  leg: 'Legs',
-  baseFoot: 'Feet'
+  cloth: 'Field Cloth', cushion: 'Cushions', topWoodRail: 'Top Rails', railSight: 'Side Apron + Rail Sights', pocketCup: 'Pocket Cups', verticalCornerRim: 'Corner Rims + Rounded Feet', baseCornerBlock: 'Base Corners', leg: 'Legs'
 });
-const SHOWOOD_CHROME_LINKED_PARTS = new Set(['railSight', 'baseFoot']);
+const SHOWOOD_CHROME_LINKED_PARTS = new Set(['railSight', 'verticalCornerRim']);
 const getShowoodTablePartOptions = (part, clothOptions = null, tableFinishOptions = null) => {
-  if (part === 'cloth' || part === 'cushion') {
-    const sourceOptions = Array.isArray(clothOptions) && clothOptions.length
-      ? clothOptions
-      : CLOTH_COLOR_OPTIONS;
+  if (part === 'cloth') {
+    const sourceOptions = Array.isArray(clothOptions) && clothOptions.length ? clothOptions : CLOTH_COLOR_OPTIONS;
     return sourceOptions.map((option) => ({
       id: option.id,
       label: option.label,
@@ -4368,10 +4412,9 @@ const getShowoodTablePartOptions = (part, clothOptions = null, tableFinishOption
       material: { color: option.color, roughness: 1, metalness: 0, envMapIntensity: 0.16 }
     }));
   }
+  if (part === 'cushion') return SHOWOOD_TABLE_PART_OPTIONS.cushion;
   if (part === 'topWoodRail' || part === 'leg') {
-    const sourceOptions = Array.isArray(tableFinishOptions) && tableFinishOptions.length
-      ? tableFinishOptions
-      : TABLE_FINISH_OPTIONS;
+    const sourceOptions = Array.isArray(tableFinishOptions) && tableFinishOptions.length ? tableFinishOptions : TABLE_FINISH_OPTIONS;
     return sourceOptions.map((option) => {
       const finish = TABLE_FINISHES[option.id] ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
       const swatch = option.swatches?.[0] ?? finish?.colors?.rail ?? finish?.colors?.base ?? 0x5a2608;
@@ -4402,14 +4445,11 @@ const normalizeShowoodTableStyle = (value = {}) => {
 };
 const getShowoodPartOption = (style, part) => {
   const normalized = normalizeShowoodTableStyle(style);
-  const optionPart = part === 'sideWoodApron' ? 'topWoodRail' : part === 'verticalCornerRim' ? 'baseFoot' : part;
+  const optionPart = part === 'verticalCornerRim' ? 'verticalCornerRim' : part;
   const optionId = normalized[optionPart];
   const options = getShowoodTablePartOptions(optionPart);
   return options.find((option) => option.id === optionId) || options[0] || null;
 };
-
-// Palettes derived from CC0 textile scans (ambientCG FabricWool series) and
-// popular tournament felts so every option mirrors a real pool cloth.
 const BASE_CLOTH_DETAIL = Object.freeze({
   bumpMultiplier: 1.18,
   sheen: 0.62,
@@ -13053,12 +13093,12 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
     cushion: 'cushion',
     topWoodRail: 'topWoodRail',
     wood: 'topWoodRail',
-    sideWoodApron: 'baseCornerBlock',
+    sideWoodApron: 'sideWoodApron',
     railSight: 'railSight',
     trim: 'railSight',
     pocket: 'pocketCup',
     pocketCup: 'pocketCup',
-    verticalCornerRim: 'baseFoot',
+    verticalCornerRim: 'verticalCornerRim',
     baseFoot: 'baseFoot',
     baseCornerBlock: 'baseCornerBlock',
     leg: 'leg'
@@ -13144,6 +13184,16 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
     applyShowoodTint();
   } else {
     applyShowoodTint();
+  }
+
+  const keepSourceTexture = part === 'topWoodRail' || part === 'leg';
+  if (!keepSourceTexture) {
+    mat.map = null;
+    mat.normalMap = null;
+    mat.roughnessMap = null;
+    mat.aoMap = null;
+    mat.metalnessMap = null;
+    mat.bumpMap = null;
   }
 
   mat.transparent = false;
@@ -13279,7 +13329,7 @@ function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInf
     const finalMaterials = [];
     const materialLookup = new Map();
     const getMaterialIndex = (sourceMaterialIndex, part) => {
-      const linkedPart = part === 'sideWoodApron' ? 'baseCornerBlock' : part === 'verticalCornerRim' ? 'baseFoot' : part;
+      const linkedPart = part === 'sideWoodApron' ? 'railSight' : part === 'verticalCornerRim' ? 'verticalCornerRim' : part;
       const key = `${sourceMaterialIndex}:${linkedPart}`;
       if (materialLookup.has(key)) return materialLookup.get(key);
       const source = sourceMaterials[Math.max(0, Math.min(sourceMaterialIndex, sourceMaterials.length - 1))];
@@ -15680,7 +15730,7 @@ function PoolRoyaleGame({
   const tablePersonalizationSections = useMemo(
     () => {
       const hideBasePart = activeTableModel?.id === 'showood-seven-foot';
-      return SHOWOOD_TABLE_PARTS
+      return SHOWOOD_CONTROL_PARTS
         .filter((part) => !(hideBasePart && part === 'baseCornerBlock'))
         .map((part) => ({
           key: part,
@@ -17281,12 +17331,12 @@ function PoolRoyaleGame({
   useEffect(() => {
     setShowoodTableStyle((current) => {
       const next = normalizeShowoodTableStyle(current);
-      const linkedRailSight = chromeColorId === 'gold' ? 'gold' : 'chrome';
-      return next.railSight === linkedRailSight
-        ? next
-        : { ...next, railSight: linkedRailSight };
+      const desiredSide = next.railSight;
+      const desiredFoot = next.verticalCornerRim;
+      if (next.sideWoodApron === desiredSide && next.baseFoot === desiredFoot) return current;
+      return { ...next, sideWoodApron: desiredSide, baseFoot: desiredFoot };
     });
-  }, [chromeColorId]);
+  }, [showoodTableStyle]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(FRAME_RATE_STORAGE_KEY, frameRateId);
@@ -36128,38 +36178,6 @@ const shotPowerRef = useRef(0);
                   })}
                 </div>
               </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Chrome Plates
-                </h3>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {availableChromeOptions.map((option) => {
-                    const active = option.id === chromeColorId;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setChromeColorId(option.id)}
-                        aria-pressed={active}
-                        className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        <span className="flex items-center justify-center gap-2">
-                          <span
-                            className="h-3.5 w-3.5 rounded-full border border-white/40"
-                            style={{ backgroundColor: toHexColor(option.color) }}
-                            aria-hidden="true"
-                          />
-                          {option.label}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
               <div className="rounded-3xl border border-emerald-300/20 bg-white/[0.04] p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -36167,7 +36185,7 @@ const shotPowerRef = useRef(0);
                       Table Personalisation
                     </h3>
                     <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/55">
-                      Select a table part, then choose the unlocked finish for that part.
+                      Same mapping as the new Showood code. Keep cushions and use linked apron + sights and rounded feet.
                     </p>
                   </div>
                   <span className="rounded-full border border-emerald-200/30 px-2 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-emerald-100/70">
@@ -36201,21 +36219,16 @@ const shotPowerRef = useRef(0);
                       </p>
                       {activeTablePersonalizationSection.chromeLinked ? (
                         <span className="text-[9px] uppercase tracking-[0.18em] text-emerald-100/55">
-                          linked to chrome plates
+                          linked mapping
                         </span>
                       ) : null}
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       {activeTablePersonalizationSection.options.map((option) => {
                         const part = activeTablePersonalizationSection.key;
-                        const chromeLinked = activeTablePersonalizationSection.chromeLinked;
                         const selected = part === 'cloth'
                           ? clothColorId
-                          : part === 'topWoodRail' || part === 'leg'
-                            ? tableFinishId
-                            : chromeLinked
-                              ? (chromeColorId === 'gold' ? 'gold' : 'chrome')
-                              : normalizeShowoodTableStyle(showoodTableStyle)[part];
+                          : normalizeShowoodTableStyle(showoodTableStyle)[part];
                         const active = option.id === selected;
                         return (
                           <button
@@ -36224,13 +36237,6 @@ const shotPowerRef = useRef(0);
                             onClick={() => {
                               if (part === 'cloth') {
                                 setClothColorId(option.id);
-                              } else if (part === 'topWoodRail' || part === 'leg') {
-                                setTableFinishId(option.id);
-                                setShowoodTableStyle((current) =>
-                                  normalizeShowoodTableStyle({ ...current, [part]: option.id })
-                                );
-                              } else if (chromeLinked) {
-                                setChromeColorId(option.id === 'gold' ? 'gold' : 'chrome');
                               } else {
                                 setShowoodTableStyle((current) =>
                                   normalizeShowoodTableStyle({ ...current, [part]: option.id })
@@ -36245,18 +36251,9 @@ const shotPowerRef = useRef(0);
                             }`}
                           >
                             {option.thumbnail ? (
-                              <img
-                                src={option.thumbnail}
-                                alt={option.label}
-                                className="h-12 w-full rounded-xl border border-white/20 object-cover"
-                                loading="lazy"
-                              />
+                              <img src={option.thumbnail} alt={option.label} className="h-12 w-full rounded-xl border border-white/20 object-cover" loading="lazy" />
                             ) : (
-                              <span
-                                className="h-12 w-full rounded-xl border border-white/30"
-                                style={{ backgroundColor: option.color }}
-                                aria-hidden="true"
-                              />
+                              <span className="h-12 w-full rounded-xl border border-white/30" style={{ backgroundColor: option.color }} aria-hidden="true" />
                             )}
                             <span className="line-clamp-2">{option.label}</span>
                           </button>
@@ -36300,94 +36297,6 @@ const shotPowerRef = useRef(0);
                   })}
                 </div>
               </div>
-              {availableClothOptions.length > 0 ? (
-                <div>
-                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                    Cloth Library
-                  </h3>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {availableClothOptions.map((option) => {
-                      const active = option.id === clothColorId;
-                      const thumb = option.thumbnail;
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          onClick={() => setClothColorId(option.id)}
-                          aria-pressed={active}
-                          className={`flex min-w-[8.5rem] flex-1 items-center justify-between gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                            active
-                              ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                              : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                          }`}
-                        >
-                          <span className="flex items-center gap-2">
-                            <span
-                              className="h-3.5 w-3.5 rounded-full border border-white/40"
-                              style={{ backgroundColor: toHexColor(option.color) }}
-                              aria-hidden="true"
-                            />
-                            <span className="truncate">{option.label}</span>
-                          </span>
-                          {thumb ? (
-                            <img
-                              src={thumb}
-                              alt={option.label}
-                              className="h-6 w-10 rounded-lg border border-white/20 object-cover"
-                              loading="lazy"
-                            />
-                          ) : null}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : null}
-              {availablePocketLiners.length > 0 ? (
-                <div>
-                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                    Pocket Jaws
-                  </h3>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {availablePocketLiners.map((option) => {
-                      const active = option.id === pocketLinerId;
-                      const swatchColor =
-                        option.jawColor ?? option.rimColor ?? option.sheenColor ?? option.color;
-                      const thumb = option.thumbnail;
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          onClick={() => setPocketLinerId(option.id)}
-                          aria-pressed={active}
-                          className={`flex min-w-[9rem] flex-1 items-center justify-between gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                            active
-                              ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                              : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                          }`}
-                        >
-                          <span className="flex items-center gap-2">
-                            <span
-                              className="h-3.5 w-3.5 rounded-full border border-white/40"
-                              style={{ backgroundColor: toHexColor(swatchColor) }}
-                              aria-hidden="true"
-                            />
-                            <span className="truncate">{option.label}</span>
-                          </span>
-                          {thumb ? (
-                            <img
-                              src={thumb}
-                              alt={option.label}
-                              className="h-6 w-10 rounded-lg border border-white/20 object-cover"
-                              loading="lazy"
-                            />
-                          ) : null}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : null}
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Graphics
