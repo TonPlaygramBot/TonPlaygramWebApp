@@ -1,5 +1,5 @@
-import { UIOverlay } from './table-tennis/UIOverlay';
+import PoolRoyal from './pool-royale/PoolRoyal';
 
 export function App() {
-  return <UIOverlay />;
+  return <PoolRoyal />;
 }
