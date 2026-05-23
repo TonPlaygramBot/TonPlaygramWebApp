@@ -31,7 +31,7 @@ type TablePart =
   | "railSight"
   | "underside";
 
-type ChoiceKey = "a" | "b";
+type ChoiceKey = "a" | "b" | "c";
 type Palette = Record<TablePart, ChoiceKey>;
 type WorkingMaterial = THREE.MeshPhysicalMaterial;
 type MaterialBuckets = Record<TablePart, WorkingMaterial[]>;
@@ -150,8 +150,8 @@ const ALWAYS_SPATIAL_PARTS = new Set<TablePart>([
   "underside",
 ]);
 
-const LINKED_TO_RAIL_SIGHT = new Set<TablePart>(["sideWoodApron", "railSight"]);
-const LINKED_TO_CORNER_RIM = new Set<TablePart>(["baseFoot", "verticalCornerRim"]);
+const LINKED_TO_RAIL_SIGHT = new Set<TablePart>(["sideWoodApron", "railSight", "verticalCornerRim", "baseFoot", "lowerTrim"]);
+const LINKED_TO_CORNER_RIM = new Set<TablePart>([]);
 
 const PART_META: Record<TablePart, PartMeta> = {
   cloth: {
@@ -172,7 +172,7 @@ const PART_META: Record<TablePart, PartMeta> = {
   sideWoodApron: {
     label: "Side apron",
     description: "Linked to the Side apron + rail sights option.",
-    keepSourceTexture: false,
+    keepSourceTexture: true,
   },
   pocketCup: {
     label: "Pocket cups",
@@ -191,8 +191,8 @@ const PART_META: Record<TablePart, PartMeta> = {
   },
   verticalCornerRim: {
     label: "Corner rims + rounded feet",
-    description: "Controls the original 4 outside vertical base-corner rim strips and the rounded feet below the actual feet.",
-    keepSourceTexture: false,
+    description: "Linked with side apron + rail sights. Applies one finish to corner rims and rounded feet.",
+    keepSourceTexture: true,
   },
   baseCornerBlock: {
     label: "Base corners",
@@ -206,7 +206,7 @@ const PART_META: Record<TablePart, PartMeta> = {
   },
   baseFoot: {
     label: "Rounded feet",
-    description: "Hidden row. Controlled by Corner rims + rounded feet.",
+    description: "Hidden row. Linked with the side apron + rail sights finish option.",
     keepSourceTexture: false,
   },
   lowerTrim: {
@@ -215,9 +215,9 @@ const PART_META: Record<TablePart, PartMeta> = {
     keepSourceTexture: false,
   },
   railSight: {
-    label: "Side apron + rail sights",
-    description: "Linked option for the side apron and rail sight dots.",
-    keepSourceTexture: false,
+    label: "Apron + rail sights + rounded feet",
+    description: "One linked option for side apron, rail sights, corner rims, and rounded feet.",
+    keepSourceTexture: true,
   },
   underside: {
     label: "Underside",
@@ -232,8 +232,8 @@ const PART_OPTIONS: Record<TablePart, Record<ChoiceKey, ColorOption>> = {
     b: { label: "Clean blue field", color: "#0d4fb8", metalness: 0, roughness: 1, envMapIntensity: 0.16 },
   },
   cushion: {
-    a: { label: "Green cushions", color: "#064f23", metalness: 0, roughness: 0.94, envMapIntensity: 0.24 },
-    b: { label: "Black cushions", color: "#050505", metalness: 0, roughness: 0.88, envMapIntensity: 0.38 },
+    a: { label: "Clean green cushions", color: "#0a7b33", metalness: 0, roughness: 1, envMapIntensity: 0.16 },
+    b: { label: "Clean blue cushions", color: "#0d4fb8", metalness: 0, roughness: 1, envMapIntensity: 0.16 },
   },
   topWoodRail: {
     a: { label: "Walnut rails", color: "#5a2608", metalness: 0.02, roughness: 0.38, envMapIntensity: 1.35, clearcoat: 0.42, clearcoatRoughness: 0.18 },
@@ -241,7 +241,8 @@ const PART_OPTIONS: Record<TablePart, Record<ChoiceKey, ColorOption>> = {
   },
   sideWoodApron: {
     a: { label: "Gold side apron", color: "#d8a928", metalness: 0.9, roughness: 0.11, envMapIntensity: 5.9, clearcoat: 1, clearcoatRoughness: 0.045 },
-    b: { label: "Black side apron", color: "#050505", metalness: 0.82, roughness: 0.17, envMapIntensity: 3.15, clearcoat: 1, clearcoatRoughness: 0.07 },
+    b: { label: "Chrome side apron", color: "#d7dde7", metalness: 1, roughness: 0.055, envMapIntensity: 7.2, clearcoat: 1, clearcoatRoughness: 0.025 },
+    c: { label: "Black side apron", color: "#050505", metalness: 0.82, roughness: 0.17, envMapIntensity: 3.15, clearcoat: 1, clearcoatRoughness: 0.07 },
   },
   pocketCup: {
     a: { label: "Black cups", color: "#000000", metalness: 0, roughness: 0.98, envMapIntensity: 0.12 },
@@ -258,6 +259,7 @@ const PART_OPTIONS: Record<TablePart, Record<ChoiceKey, ColorOption>> = {
   verticalCornerRim: {
     a: { label: "Gold rims + feet", color: "#d8b23d", metalness: 0.98, roughness: 0.06, envMapIntensity: 6.8, clearcoat: 1, clearcoatRoughness: 0.03 },
     b: { label: "Chrome rims + feet", color: "#d7dde7", metalness: 1, roughness: 0.055, envMapIntensity: 7.2, clearcoat: 1, clearcoatRoughness: 0.025 },
+    c: { label: "Black rims + feet", color: "#050505", metalness: 0.82, roughness: 0.16, envMapIntensity: 3, clearcoat: 1, clearcoatRoughness: 0.07 },
   },
   baseCornerBlock: {
     a: { label: "Walnut corners", color: "#7b2d11", metalness: 0.02, roughness: 0.48, envMapIntensity: 1.1, clearcoat: 0.22, clearcoatRoughness: 0.33 },
@@ -270,14 +272,16 @@ const PART_OPTIONS: Record<TablePart, Record<ChoiceKey, ColorOption>> = {
   baseFoot: {
     a: { label: "Gold rounded feet", color: "#d8b23d", metalness: 1, roughness: 0.065, envMapIntensity: 6.8, clearcoat: 1, clearcoatRoughness: 0.03 },
     b: { label: "Chrome rounded feet", color: "#d7dde7", metalness: 1, roughness: 0.055, envMapIntensity: 7.2, clearcoat: 1, clearcoatRoughness: 0.025 },
+    c: { label: "Black rounded feet", color: "#050505", metalness: 0.82, roughness: 0.16, envMapIntensity: 3, clearcoat: 1, clearcoatRoughness: 0.07 },
   },
   lowerTrim: {
     a: { label: "Gold trim", color: "#d8b23d", metalness: 0.94, roughness: 0.085, envMapIntensity: 5.8, clearcoat: 1, clearcoatRoughness: 0.04 },
     b: { label: "Black trim", color: "#070707", metalness: 0.82, roughness: 0.15, envMapIntensity: 3.2, clearcoat: 1, clearcoatRoughness: 0.07 },
   },
   railSight: {
-    a: { label: "Gold apron + gold sights", color: "#f5d978", metalness: 1, roughness: 0.065, envMapIntensity: 6.7, clearcoat: 1, clearcoatRoughness: 0.035 },
-    b: { label: "Black apron + black sights", color: "#050505", metalness: 0.82, roughness: 0.16, envMapIntensity: 3, clearcoat: 1, clearcoatRoughness: 0.07 },
+    a: { label: "Gold linked trim", color: "#f5d978", metalness: 1, roughness: 0.065, envMapIntensity: 6.7, clearcoat: 1, clearcoatRoughness: 0.035 },
+    b: { label: "Chrome linked trim", color: "#d7dde7", metalness: 1, roughness: 0.055, envMapIntensity: 7.2, clearcoat: 1, clearcoatRoughness: 0.025 },
+    c: { label: "Black linked trim", color: "#050505", metalness: 0.82, roughness: 0.16, envMapIntensity: 3, clearcoat: 1, clearcoatRoughness: 0.07 },
   },
   underside: {
     a: { label: "Dark underside", color: "#1e130b", metalness: 0.01, roughness: 0.72, envMapIntensity: 0.58 },
@@ -502,7 +506,9 @@ function classifyTriangle(
   const namedCushion = /cushion|rubber|bumper|railrubber/i.test(name);
   const namedPocket = /pocket|hole|drop|net|liner|leather|cup/i.test(name);
   const namedHardware = /trim|bezel|ring|metal|chrome|brass|gold|plate|cap|rim|guard|insert|hardware|bolt|screw/i.test(name);
-  const namedSight = /sight|diamond|marker|dot|inlay/i.test(name);
+  const namedSight = /rail[_\s-]*sight|railsight|diamond|marker|dot|inlay|apron[_\s-]*strip|rail[_\s-]*sight[_\s-]*lower|corner[_\s-]*rail[_\s-]*sight/i.test(name);
+  const namedSideApron = /side[_\s-]*wood[_\s-]*apron|sidewoodapron|side[_\s-]*apron|rail[_\s-]*apron|strip[_\s-]*apron/i.test(name);
+  const namedRimFoot = /vertical.*(rim|plate|cap)|corner.*(rim|plate|cap)|rim|foot|feet|base[_\s-]*foot/i.test(name);
   const namedWood = /wood|walnut|rail|apron|leg|base|frame|cabinet|corner|showood|support/i.test(name);
   const metalish = material.metalness > 0.16 || material.clearcoat > 0.58 || flags.gold;
 
@@ -510,6 +516,11 @@ function classifyTriangle(
   const veryTop = relY > 0.65;
   const midBody = relY > 0.16 && relY <= 0.62;
   const low = relY <= 0.16;
+
+  if (namedSight) return "railSight";
+  if (namedSideApron) return "sideWoodApron";
+  if (namedRimFoot && low) return "baseFoot";
+  if (namedRimFoot) return "verticalCornerRim";
 
   const sideMiddlePocketZone = high && longN < 0.255 && shortN > 0.69;
   const cornerPocketZone = high && longN > 0.68 && shortN > 0.66;
@@ -986,7 +997,7 @@ export default function PoolRoyalGameTable() {
       CONTROL_PARTS.map((part) => {
         const count =
           part === "railSight"
-            ? counts.sideWoodApron + counts.railSight
+            ? counts.sideWoodApron + counts.railSight + counts.lowerTrim
             : part === "verticalCornerRim"
               ? counts.verticalCornerRim + 4
               : counts[part];
@@ -1005,10 +1016,26 @@ export default function PoolRoyalGameTable() {
   const setPartChoice = (part: TablePart, choice: ChoiceKey) => {
     setPalette((current) => {
       const next = { ...current, [part]: choice };
-      if (part === "railSight") next.sideWoodApron = choice;
-      if (part === "sideWoodApron") next.railSight = choice;
-      if (part === "verticalCornerRim") next.baseFoot = choice;
-      if (part === "baseFoot") next.verticalCornerRim = choice;
+      if (part === "railSight") {
+        next.sideWoodApron = choice;
+        next.verticalCornerRim = choice;
+        next.baseFoot = choice;
+      }
+      if (part === "sideWoodApron") {
+        next.railSight = choice;
+        next.verticalCornerRim = choice;
+        next.baseFoot = choice;
+      }
+      if (part === "verticalCornerRim") {
+        next.baseFoot = choice;
+        next.railSight = choice;
+        next.sideWoodApron = choice;
+      }
+      if (part === "baseFoot") {
+        next.verticalCornerRim = choice;
+        next.railSight = choice;
+        next.sideWoodApron = choice;
+      }
       return next;
     });
   };
@@ -1272,7 +1299,7 @@ export default function PoolRoyalGameTable() {
                   <div style={{ fontSize: 9.4, color: "#94a3b8", lineHeight: 1.2 }}>{row.description}</div>
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
-                  {(["a", "b"] as ChoiceKey[]).map((choice) => (
+                  {(Object.keys(row.options) as ChoiceKey[]).map((choice) => (
                     <ColorButton
                       key={`${row.part}-${choice}`}
                       active={row.selected === choice}
