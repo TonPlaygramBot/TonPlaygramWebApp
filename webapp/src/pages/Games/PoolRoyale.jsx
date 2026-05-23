@@ -9303,6 +9303,8 @@ export function Table3D(
     CHROME_PLATE_STYLE_BY_ID[DEFAULT_CHROME_PLATE_STYLE_ID] ??
     CHROME_PLATE_STYLE_OPTIONS[0];
   const usesExternalTableModel = resolvedTableOptions?.tableModel?.kind === 'gltf';
+  const isSnookerGenericExternalTable =
+    usesExternalTableModel && resolvedTableOptions?.tableModel?.id === 'snooker-generic';
   const externalTableUsesOriginalLayout =
     usesExternalTableModel && resolvedTableOptions?.tableModel?.useOriginalLayoutSurfaces === true;
   const externalPlayfieldVisualLift =
@@ -12612,13 +12614,15 @@ export function Table3D(
   const leftX = -halfW;
   const rightX = halfW;
 
-  addCushion(0, bottomZ, horizontalCushionLength, true, false);
-  addCushion(0, topZ, horizontalCushionLength, true, true);
+  if (!isSnookerGenericExternalTable) {
+    addCushion(0, bottomZ, horizontalCushionLength, true, false);
+    addCushion(0, topZ, horizontalCushionLength, true, true);
 
-  addCushion(leftX, -verticalCushionCenter, verticalCushionLength, false, false);
-  addCushion(leftX, verticalCushionCenter, verticalCushionLength, false, false);
-  addCushion(rightX, -verticalCushionCenter, verticalCushionLength, false, true);
-  addCushion(rightX, verticalCushionCenter, verticalCushionLength, false, true);
+    addCushion(leftX, -verticalCushionCenter, verticalCushionLength, false, false);
+    addCushion(leftX, verticalCushionCenter, verticalCushionLength, false, false);
+    addCushion(rightX, -verticalCushionCenter, verticalCushionLength, false, true);
+    addCushion(rightX, verticalCushionCenter, verticalCushionLength, false, true);
+  }
 
   const shortRailCushionWordmarkTexture = createCushionWordmarkTexture({
     width: 2048,
@@ -14260,10 +14264,10 @@ function mountPoolRoyaleExternalTableModel({
 
   const applyBaseVariant = (variant) => {
     const variantId = resolveBaseVariantId(variant);
-    const isShowoodExternalTable =
-      usesExternalTableModel && resolvedTableOptions?.tableModel?.id === 'snooker-generic';
+    const isShowoodExternalTable = isSnookerGenericExternalTable;
     const usesShowoodOriginalBase =
-      isShowoodExternalTable && variantId === SHOWOOD_ORIGINAL_TABLE_BASE_ID;
+      isShowoodExternalTable &&
+      (variantId === SHOWOOD_ORIGINAL_TABLE_BASE_ID || variantId === DEFAULT_TABLE_BASE_ID);
 
     table.userData.showoodUsesOriginalBase = usesShowoodOriginalBase;
     setExternalOriginalBaseVisible(usesShowoodOriginalBase || !isShowoodExternalTable);
@@ -14309,7 +14313,7 @@ function mountPoolRoyaleExternalTableModel({
   };
 
   table.userData.applyExternalTableFallbackBase = () => {
-    if (usesExternalTableModel && resolvedTableOptions?.tableModel?.id === 'snooker-generic') {
+    if (isSnookerGenericExternalTable) {
       applyBaseVariant(SHOWOOD_ORIGINAL_TABLE_BASE_ID);
     }
   };
