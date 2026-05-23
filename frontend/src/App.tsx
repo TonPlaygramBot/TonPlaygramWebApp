@@ -1,5 +1,5 @@
-import SevenFootShowoodPreview from './pool-royale/SevenFootShowoodPreview';
+import { UIOverlay } from './table-tennis/UIOverlay';
 
 export function App() {
-  return <SevenFootShowoodPreview />;
+  return <UIOverlay />;
 }

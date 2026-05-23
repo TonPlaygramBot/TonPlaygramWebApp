@@ -4407,7 +4407,6 @@ const SHOWOOD_TABLE_PART_OPTIONS = Object.freeze({
 const SHOWOOD_TABLE_PART_LABELS = Object.freeze({
   cloth: 'Field Cloth', cushion: 'Cushions', topWoodRail: 'Top Rails', railSight: 'Side Apron + Rail Sights', pocketCup: 'Pocket Cups', verticalCornerRim: 'Corner Rims + Rounded Feet', baseCornerBlock: 'Base Corners', leg: 'Legs'
 });
-const CHINESE_8BALL_SHOWOOD_MODEL_ID = 'chinese-8ball-showood-7ft';
 const SHOWOOD_CHROME_LINKED_PARTS = new Set(['railSight', 'verticalCornerRim']);
 const getShowoodTablePartOptions = (part) => {
   return SHOWOOD_TABLE_PART_OPTIONS[part] || [];
@@ -15686,10 +15685,8 @@ function PoolRoyaleGame({
   );
   const tablePersonalizationSections = useMemo(
     () => {
-      const isChinese8BallShowood = activeTableModel?.id === CHINESE_8BALL_SHOWOOD_MODEL_ID;
-      const sections = isChinese8BallShowood ? ['cloth', 'topWoodRail'] : SHOWOOD_CONTROL_PARTS;
       const hideBasePart = activeTableModel?.id === 'snooker-generic';
-      return sections
+      return SHOWOOD_CONTROL_PARTS
         .filter((part) => !(hideBasePart && part === 'baseCornerBlock'))
         .map((part) => ({
           key: part,
@@ -15701,8 +15698,6 @@ function PoolRoyaleGame({
     },
     [activeTableModel?.id, availableClothOptions, availableTableFinishes]
   );
-  const showChinese8BallTableMenu =
-    activeTableModel?.id === CHINESE_8BALL_SHOWOOD_MODEL_ID;
   useEffect(() => {
     if (!tablePersonalizationSections.some((section) => section.key === activeTablePersonalizationPart)) {
       setActiveTablePersonalizationPart(tablePersonalizationSections[0]?.key ?? 'topWoodRail');
@@ -36139,7 +36134,6 @@ const shotPowerRef = useRef(0);
                   })}
                 </div>
               </div>
-              {showChinese8BallTableMenu ? (
               <div className="rounded-3xl border border-emerald-300/20 bg-white/[0.04] p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -36225,7 +36219,6 @@ const shotPowerRef = useRef(0);
                   </div>
                 ) : null}
               </div>
-              ) : null}
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Cue Styles
