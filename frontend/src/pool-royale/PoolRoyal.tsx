@@ -1,5 +1,5 @@
-import PoolRoyalLobbyPage from './PoolRoyalLobbyPage';
+import SevenFootShowoodPreview from './SevenFootShowoodPreview';
 
 export default function PoolRoyal() {
-  return <PoolRoyalLobbyPage />;
+  return <SevenFootShowoodPreview />;
 }
