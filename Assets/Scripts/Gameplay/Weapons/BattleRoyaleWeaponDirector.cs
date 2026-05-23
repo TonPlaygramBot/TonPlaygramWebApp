@@ -146,6 +146,10 @@ namespace TonPlaygram.Gameplay.Weapons
         [SerializeField] private float maxLookUpDegrees = 8f;
         [SerializeField] private float maxLookDownDegrees = 26f;
 
+        [Header("Material import behavior")]
+        [Tooltip("Keeps imported GLTF/GLB weapon materials untouched so original weapon textures stay exactly as authored.")]
+        [SerializeField] private bool preserveOriginalWeaponMaterials = true;
+
 
         private readonly Dictionary<LudoWeaponType, WeaponBallisticsProfile> _profiles = new Dictionary<LudoWeaponType, WeaponBallisticsProfile>();
         private readonly List<TokenPieceHealth> _tokenPieces = new List<TokenPieceHealth>();
@@ -193,7 +197,10 @@ namespace TonPlaygram.Gameplay.Weapons
             BuildProfileMap();
             CacheTokenPieces();
             CacheStaticAnchors();
-            ApplyWeaponMaterialCompatibility();
+            if (!preserveOriginalWeaponMaterials)
+            {
+                ApplyWeaponMaterialCompatibility();
+            }
             _eventListeners = GetComponentsInParent<ILudoWeaponEvents>(true);
             _projectileListeners = GetComponentsInParent<ILudoProjectileBroadcastEvents>(true);
             Equip(startingWeapon);
