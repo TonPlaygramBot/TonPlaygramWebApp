@@ -9304,7 +9304,7 @@ export function Table3D(
     CHROME_PLATE_STYLE_OPTIONS[0];
   const usesExternalTableModel = resolvedTableOptions?.tableModel?.kind === 'gltf';
   const isSnookerGenericExternalTable =
-    usesExternalTableModel && resolvedTableOptions?.tableModel?.id === 'chinese-8ball';
+    usesExternalTableModel && resolvedTableOptions?.tableModel?.id === 'snooker-generic';
   const externalTableUsesOriginalLayout =
     usesExternalTableModel && resolvedTableOptions?.tableModel?.useOriginalLayoutSurfaces === true;
   const externalPlayfieldVisualLift =
@@ -13264,7 +13264,7 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
 }
 
 function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInfo = null) {
-  if (!model || tableModel?.id !== 'chinese-8ball' || !finishInfo) return;
+  if (!model || tableModel?.id !== 'snooker-generic' || !finishInfo) return;
   model.updateMatrixWorld(true);
   const tableBox = new THREE.Box3().setFromObject(model);
   if (tableBox.isEmpty()) return;
@@ -13322,7 +13322,7 @@ function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInf
 
 function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tableModel = null, child = null) {
   if (!material || !finishInfo) return material;
-  if (tableModel?.id === 'chinese-8ball') {
+  if (tableModel?.id === 'snooker-generic') {
     return applyShowoodStyleToExternalMaterial(material, role, tableModel, finishInfo);
   }
   const canonicalRole = role === 'pocketCup' ? 'pocket' :
@@ -13631,7 +13631,7 @@ function stretchPoolRoyaleExternalLowerBase(model, tableModel, dims) {
 
 
 function adjustPoolRoyaleExternalShowoodBaseProportions(model, tableModel) {
-  if (!model || tableModel?.id !== 'chinese-8ball') return;
+  if (!model || tableModel?.id !== 'snooker-generic') return;
   const baseScale = Number(tableModel?.lowerBaseHeightScale);
   const legScale = Number(tableModel?.legLengthScale);
   const shouldScaleBase = Number.isFinite(baseScale) && baseScale > MICRO_EPS && Math.abs(baseScale - 1) > MICRO_EPS;
@@ -13790,7 +13790,7 @@ function mountPoolRoyaleExternalTableModel({
       }
       externalRoot.clear();
       externalRoot.add(model);
-      if (tableModel.id === 'chinese-8ball') {
+      if (tableModel.id === 'snooker-generic') {
         const showOriginalBase = table.userData.showoodUsesOriginalBase !== false;
         model.traverse((child) => {
           if (!child?.isMesh) return;
@@ -14562,8 +14562,8 @@ function mountPoolRoyaleExternalTableModel({
         !visible &&
         (
           (!externalTableModelForMount?.useOriginalLayoutSurfaces && object.userData?.externalTableKeepVisible) ||
-          (externalTableModelForMount?.id === 'chinese-8ball' && !table.userData.showoodUsesOriginalBase && object.userData?.showoodGeneratedPocketSupport) ||
-          (externalTableModelForMount?.id === 'chinese-8ball' && !table.userData.showoodUsesOriginalBase && object.userData?.__basePart) ||
+          (externalTableModelForMount?.id === 'snooker-generic' && !table.userData.showoodUsesOriginalBase && object.userData?.showoodGeneratedPocketSupport) ||
+          (externalTableModelForMount?.id === 'snooker-generic' && !table.userData.showoodUsesOriginalBase && object.userData?.__basePart) ||
           (object.userData?.isChromePlate && forceGeneratedChrome)
         )
       ) {
@@ -15685,7 +15685,7 @@ function PoolRoyaleGame({
   );
   const tablePersonalizationSections = useMemo(
     () => {
-      const hideBasePart = activeTableModel?.id === 'chinese-8ball';
+      const hideBasePart = activeTableModel?.id === 'snooker-generic';
       return SHOWOOD_CONTROL_PARTS
         .filter((part) => !(hideBasePart && part === 'baseCornerBlock'))
         .map((part) => ({
@@ -15705,7 +15705,7 @@ function PoolRoyaleGame({
   }, [activeTablePersonalizationPart, tablePersonalizationSections]);
 
   useEffect(() => {
-    if (activeTableModel?.id !== 'chinese-8ball') return;
+    if (activeTableModel?.id !== 'snooker-generic') return;
     setShowoodTableStyle((prev) => {
       const normalized = normalizeShowoodTableStyle(prev);
       if (normalized.baseCornerBlock === normalized.topWoodRail) return prev;
@@ -15715,8 +15715,6 @@ function PoolRoyaleGame({
       };
     });
   }, [activeTableModel?.id]);
-  const showShowoodTableCustomizer =
-    activeTableModel?.id === 'showood-7ft';
 
   const activeTablePersonalizationSection = useMemo(
     () =>
@@ -36136,7 +36134,6 @@ const shotPowerRef = useRef(0);
                   })}
                 </div>
               </div>
-              {showShowoodTableCustomizer ? (
               <div className="rounded-3xl border border-emerald-300/20 bg-white/[0.04] p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -36222,7 +36219,6 @@ const shotPowerRef = useRef(0);
                   </div>
                 ) : null}
               </div>
-              ) : null}
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Cue Styles
