@@ -7992,10 +7992,10 @@ const DOMINO_CHARACTER_PROPORTION_SCALE = 3.8;
 const DOMINO_HUMAN_CHARACTER_SCALE_BOOST = 1.35;
 // Seat avatars from the chair footprint instead of adding a table-facing Z offset.
 // This keeps every human visually aligned with the chair that owns the seat.
-const DOMINO_CHARACTER_CHAIR_SEAT_OUTWARD_BIAS = -0.03;
+const DOMINO_CHARACTER_CHAIR_SEAT_OUTWARD_BIAS = 0.14;
 // Slide only the AI/upper-seat characters inward so their hands sit closer to their domino racks.
-const DOMINO_CHARACTER_INWARD_DOMINO_REACH_BIAS = 0.14;
-const DOMINO_HUMAN_CHARACTER_CHAIR_SEAT_OUTWARD_BIAS = 0;
+const DOMINO_CHARACTER_INWARD_DOMINO_REACH_BIAS = 0.04;
+const DOMINO_HUMAN_CHARACTER_CHAIR_SEAT_OUTWARD_BIAS = 0.06;
 const DOMINO_CHARACTER_EXTRA_LOWER_OFFSET = 1.68;
 const DOMINO_HUMAN_CHARACTER_EXTRA_LOWER_OFFSET = -0.08;
 const ENABLE_DOMINO_CHARACTER_HELD_RACKS = false;
