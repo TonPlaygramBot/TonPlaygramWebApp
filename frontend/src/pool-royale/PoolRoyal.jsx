@@ -1,9 +1,8 @@
-import SevenFootShowoodPreview from './SevenFootShowoodPreview';
+import PoolRoyalLobbyPage from './PoolRoyalLobbyPage';
 
 /**
- * Pool Royal screen entry (JSX wrapper requested by product feedback).
- * Keeps PoolRoyal JSX integration point while rendering the full TSX Three.js implementation.
+ * Pool Royal JSX entry + lobby page wrapper.
  */
 export default function PoolRoyal() {
-  return <SevenFootShowoodPreview />;
+  return <PoolRoyalLobbyPage />;
 }
