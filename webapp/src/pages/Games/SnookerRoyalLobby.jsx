@@ -43,7 +43,6 @@ export default function SnookerRoyalLobby() {
   const [playType, setPlayType] = useState(initialPlayType);
   const [players, setPlayers] = useState(8);
   const tableSize = resolveTableSize(searchParams.get('tableSize')).id;
-  const selectedTableProfile = searchParams.get('tableProfile') === 'chinese8ball7ft' ? 'chinese8ball7ft' : 'snookerRoyal';
   const tableModel = TABLE_MODEL_OPENSOURCE;
   const [onlinePlayers, setOnlinePlayers] = useState([]);
   const [matching, setMatching] = useState(false);
@@ -64,25 +63,7 @@ export default function SnookerRoyalLobby() {
   const forcedVariant = 'snooker';
 
   const selectedFlag = playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
-  const isChinese8BallTable = selectedTableProfile === 'chinese8ball7ft';
   const selectedAiFlag = aiFlagIndex != null ? FLAG_EMOJIS[aiFlagIndex] : '';
-
-  const setLobbyTableProfile = (profileId) => {
-    const params = new URLSearchParams(search);
-    params.set('tableProfile', profileId);
-    navigate(`/games/snookerroyal-lobby?${params.toString()}`, { replace: true });
-  };
-
-  const tableProfileButtons = (
-    <div style={{ display: 'grid', gap: 8, margin: '10px 0 14px' }}>
-      <div style={{ fontSize: 12, fontWeight: 800, color: '#e5e7eb' }}>Table selection</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 8 }}>
-        <button type="button" onClick={() => setLobbyTableProfile('snookerRoyal')} style={{ padding: '10px 12px', borderRadius: 10, border: selectedTableProfile === 'snookerRoyal' ? '1px solid #93c5fd' : '1px solid rgba(255,255,255,0.2)', background: selectedTableProfile === 'snookerRoyal' ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.06)', color: '#fff', textAlign: 'left' }}>Snooker Royal table</button>
-        <button type="button" onClick={() => setLobbyTableProfile('chinese8ball7ft')} style={{ padding: '10px 12px', borderRadius: 10, border: selectedTableProfile === 'chinese8ball7ft' ? '1px solid #93c5fd' : '1px solid rgba(255,255,255,0.2)', background: selectedTableProfile === 'chinese8ball7ft' ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.06)', color: '#fff', textAlign: 'left' }}>Chinese 8-ball · 7ft Showood</button>
-      </div>
-      {isChinese8BallTable ? <div style={{ fontSize: 11, color: '#cbd5e1' }}>7ft menu enabled: procedural cloth + cue-style finish only.</div> : null}
-    </div>
-  );
 
   useEffect(() => {
     try {
@@ -221,7 +202,6 @@ export default function SnookerRoyalLobby() {
     const params = new URLSearchParams();
     params.set('variant', forcedVariant);
     params.set('tableSize', tableSize);
-    params.set('tableProfile', selectedTableProfile);
     applySnookerTableModelParam(params, tableModel);
     params.set('type', playType);
     params.set('mode', mode);
@@ -271,7 +251,7 @@ export default function SnookerRoyalLobby() {
     };
     loadOnline();
     const id = setInterval(loadOnline, 15000);
-  return () => {
+    return () => {
       active = false;
       clearInterval(id);
     };
@@ -353,8 +333,7 @@ export default function SnookerRoyalLobby() {
             {winnerParam === '1' ? 'You won!' : 'CPU won!'}
           </div>
         )}
-        {tableProfileButtons}
-      <GameLobbyHeader
+        <GameLobbyHeader
           slug="snookerroyale"
           title="Snooker Royal Lobby"
           badge={`${onlinePlayers.length} online`}
