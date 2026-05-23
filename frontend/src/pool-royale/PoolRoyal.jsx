@@ -22,7 +22,6 @@ export default function PoolRoyal() {
           <article key={key} style={{ border: '1px solid rgba(255,255,255,0.2)', borderRadius: 14, padding: 12, background: 'rgba(0,0,0,0.4)' }}>
             <div style={{ fontWeight: 900, fontSize: 14 }}>{TABLES[key].title}</div>
             <div style={{ marginTop: 4, fontSize: 11, color: '#cbd5e1' }}>{TABLES[key].subtitle}</div>
-            <div style={{ marginTop: 6, fontSize: 10, color: '#93c5fd' }}>Menu includes: cloth, table finish, top rail finish, base shape.</div>
             <button
               onClick={() => setSelected(key)}
               style={{ marginTop: 10, width: '100%', padding: '10px 12px', borderRadius: 12, border: '1px solid #93c5fd', background: 'rgba(59,130,246,0.24)', color: 'white', fontWeight: 800, fontSize: 12 }}
