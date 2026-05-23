@@ -36134,6 +36134,7 @@ const shotPowerRef = useRef(0);
                   })}
                 </div>
               </div>
+              {activeTableModel?.id === 'chinese-8ball-showood-7ft' ? (
               <div className="rounded-3xl border border-emerald-300/20 bg-white/[0.04] p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -36219,6 +36220,7 @@ const shotPowerRef = useRef(0);
                   </div>
                 ) : null}
               </div>
+              ) : null}
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Cue Styles
