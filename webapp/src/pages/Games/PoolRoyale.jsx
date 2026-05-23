@@ -1953,7 +1953,11 @@ const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear secti
 
 const POOL_HUMAN_UP = new THREE.Vector3(0, 1, 0);
 const POOL_HUMAN_Y_AXIS = POOL_HUMAN_UP;
-const POOL_HUMAN_URLS = Object.freeze([]);
+const POOL_HUMAN_URLS = Object.freeze([
+  'https://threejs.org/examples/models/gltf/Xbot.glb',
+  'https://threejs.org/examples/models/gltf/Soldier.glb',
+  'https://threejs.org/examples/models/gltf/readyplayer.me.glb'
+]);
 const POOL_HUMAN_CUE_REFERENCE_LENGTH = 1.5 * (BALL_R / 0.0525) * CUE_LENGTH_MULTIPLIER;
 const POOL_HUMAN_HEIGHT_TO_CUE_RATIO = 1.3;
 const POOL_HUMAN_TARGET_HEIGHT = POOL_HUMAN_CUE_REFERENCE_LENGTH * POOL_HUMAN_HEIGHT_TO_CUE_RATIO;
