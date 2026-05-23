@@ -85,13 +85,19 @@ export default function PoolRoyaleLobby() {
     }
   });
   const selectedTableModel = useMemo(() => resolvePoolRoyaleTableModel(tableModelId), [tableModelId]);
-  const lobbyTableModelOptions = useMemo(
-    () =>
-      POOL_ROYALE_TABLE_MODEL_OPTIONS.filter(
-        (model) => model.id !== 'procedural-legacy'
-      ),
-    []
-  );
+  const lobbyTableModelOptions = useMemo(() => {
+    const base = POOL_ROYALE_TABLE_MODEL_OPTIONS.filter(
+      (model) => model.id !== 'procedural-legacy'
+    );
+    const priority = ['snooker-generic', 'showood-seven-foot'];
+    const ordered = [
+      ...priority
+        .map((id) => base.find((model) => model.id === id))
+        .filter(Boolean),
+      ...base.filter((model) => !priority.includes(model.id))
+    ];
+    return ordered;
+  }, []);
   const tableSize = resolveTableSize(
     selectedTableModel?.tableSizeId || searchParams.get('tableSize')
   ).id;
@@ -905,9 +911,10 @@ export default function PoolRoyaleLobby() {
         {!hasActiveTournament && showTableModelSelector && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-white">Pool Table</h3>
+              <h3 className="font-semibold text-white">Pool Table (2 options)</h3>
               <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Models</span>
             </div>
+            <p className="text-xs text-white/60">Choose either 9ft Snooker Generic GLB or 7ft Showood GLB.</p>
             <div className="grid grid-cols-1 gap-3">
               {lobbyTableModelOptions.map((model) => {
                 const active = selectedTableModel?.id === model.id;
