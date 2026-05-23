@@ -44,6 +44,45 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     useLegacyShowoodRemap: false,
     tableLogicProfile: 'snookerGenericSnooker9ft',
     cueRigProfile: 'poolRoyaleDefault'
+  },
+  {
+    id: 'chinese-8ball-showood-7ft',
+    label: 'Chinese 8-Ball · Showood 7ft',
+    description:
+      'Seven-foot Showood table for Chinese 8-ball with dedicated pocket/jaw mapping and table-only setup menu.',
+    tableSizeId: '7ft',
+    baseId: 'snookerGeneric',
+    assetUrl:
+      'https://cdn.jsdelivr.net/gh/ekiefl/pooltool@main/pooltool/models/table/seven_foot_showood/seven_foot_showood.glb',
+    fallbackAssetUrls: [
+      'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table/seven_foot_showood/seven_foot_showood.glb',
+      `${POOLTOOL_RAW_BASE}/seven_foot_showood/seven_foot_showood.glb`
+    ],
+    icon: '🎱',
+    kind: 'gltf',
+    fitScale: 1,
+    fitFootprintScale: 1,
+    fitHeightScale: 1,
+    lowerBaseHeightScale: 1,
+    legLengthScale: 1,
+    clothRepeatScale: 1,
+    fitStrategy: 'exact',
+    fitReference: 'upperTabletop',
+    matchNativeHeight: true,
+    matchNativeUpperComponentHeight: true,
+    preserveOriginalFootprintAspect: true,
+    useOriginalLayoutSurfaces: true,
+    usePoolRoyaleFinish: true,
+    usePoolRoyaleFinishRoles: ['cushion', 'pocket', 'trim', 'wood', 'topWoodRail', 'sideWoodApron', 'railSight', 'verticalCornerRim', 'baseCornerBlock'],
+    preserveOriginalSurfaceRoles: ['cloth', 'leg', 'baseFoot'],
+    tintOriginalTrimGold: true,
+    chromeMaterialSurfaceNames: ['diamonds', 'railSight', 'sideApron', 'sideWoodApron', 'apronStrip', 'railSightLower', 'cornerRailSight', 'brandingPlate', 'brandingPlates', 'namePlate', 'railApron', 'stripApron'],
+    blackMaterialSurfaceNames: [],
+    forceGeneratedChromePlates: false,
+    hideSurfaceRoles: [],
+    useLegacyShowoodRemap: false,
+    tableLogicProfile: 'chinese8BallShowood7ft',
+    cueRigProfile: 'poolRoyaleDefault'
   }
 ]);
 
