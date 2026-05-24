@@ -50,6 +50,7 @@ export default function SevenFootShowoodPreview({ selectedTable, onBack }: { sel
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [cloth, setCloth] = useState<ClothKey>('tournamentGreen');
   const [finish, setFinish] = useState<FinishKey>('goldRail');
+  const [shotPower, setShotPower] = useState(0.74);
   const currentMapping = useMemo(() => TABLES[selectedTable].mapping, [selectedTable]);
 
   useEffect(() => {
@@ -57,9 +58,9 @@ export default function SevenFootShowoodPreview({ selectedTable, onBack }: { sel
     const scene = new THREE.Scene(); scene.background = new THREE.Color('#020202');
     const camera = new THREE.PerspectiveCamera(46, host.clientWidth / host.clientHeight, 0.1, 80); camera.position.set(0, 2.2, 2.2); camera.lookAt(0, 0.2, 0);
     const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(host.clientWidth, host.clientHeight); renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); host.appendChild(renderer.domElement);
-    scene.add(new THREE.AmbientLight(0xffffff, 0.8)); const key = new THREE.DirectionalLight(0xffffff, 1.5); key.position.set(1.8, 3.2, 2); scene.add(key);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.8)); const key = new THREE.DirectionalLight(0xffffff, 1.4 + shotPower * 0.35); key.position.set(1.8, 3.2, 2); scene.add(key);
     const tableGroup = new THREE.Group(); scene.add(tableGroup);
-    const scale = currentMapping.sizeFt === '9ft' ? 1.22 : 1;
+    const scale = currentMapping.sizeFt === '9ft' ? 1.18 : 0.97;
 
     const woodTexture = cueWoodTexture(renderer, FINISH_PRESETS[finish].color);
     const woodMat = new THREE.MeshStandardMaterial({ color: '#ffffff', map: woodTexture, metalness: FINISH_PRESETS[finish].metalness, roughness: FINISH_PRESETS[finish].roughness });
@@ -72,6 +73,7 @@ export default function SevenFootShowoodPreview({ selectedTable, onBack }: { sel
     const clothTexture = proceduralClothTexture(renderer, CLOTH_PRESETS[cloth].color);
     const clothMesh = new THREE.Mesh(new THREE.PlaneGeometry(currentMapping.playfield.width * scale, currentMapping.playfield.length * scale), new THREE.MeshStandardMaterial({ color: '#ffffff', map: clothTexture, roughness: 0.96, metalness: 0 })); clothMesh.rotation.x = -Math.PI / 2; clothMesh.position.y = 0.045; tableGroup.add(clothMesh);
     const edgeStripMat = new THREE.MeshStandardMaterial({ color: '#ffffff', map: clothTexture, roughness: 0.95, metalness: 0 });
+    const sidePanelMat = new THREE.MeshStandardMaterial({ color: '#ffffff', map: clothTexture, roughness: 0.9, metalness: 0 });
     const edgeInset = 0.02 * scale;
     const edgeWidth = 0.04 * scale;
     const halfW = (currentMapping.playfield.width * scale) / 2;
@@ -85,6 +87,13 @@ export default function SevenFootShowoodPreview({ selectedTable, onBack }: { sel
     const rightEdge = new THREE.Mesh(new THREE.PlaneGeometry(edgeWidth, currentMapping.playfield.length * scale - edgeInset * 2), edgeStripMat);
     rightEdge.rotation.x = -Math.PI / 2; rightEdge.position.set(halfW - edgeWidth * 0.5, 0.046, 0); tableGroup.add(rightEdge);
 
+    const sidePanelGeoLong = new THREE.PlaneGeometry(currentMapping.playfield.width * scale * 1.06, 0.07);
+    const sidePanelGeoShort = new THREE.PlaneGeometry(currentMapping.playfield.length * scale * 1.06, 0.07);
+    const topPanel = new THREE.Mesh(sidePanelGeoLong, sidePanelMat); topPanel.position.set(0, 0.033, -halfL - 0.04); tableGroup.add(topPanel);
+    const bottomPanel = new THREE.Mesh(sidePanelGeoLong, sidePanelMat); bottomPanel.position.set(0, 0.033, halfL + 0.04); bottomPanel.rotation.y = Math.PI; tableGroup.add(bottomPanel);
+    const leftPanel = new THREE.Mesh(sidePanelGeoShort, sidePanelMat); leftPanel.position.set(-halfW - 0.04, 0.033, 0); leftPanel.rotation.y = Math.PI / 2; tableGroup.add(leftPanel);
+    const rightPanel = new THREE.Mesh(sidePanelGeoShort, sidePanelMat); rightPanel.position.set(halfW + 0.04, 0.033, 0); rightPanel.rotation.y = -Math.PI / 2; tableGroup.add(rightPanel);
+
     currentMapping.cushions.forEach((c) => {
       const dx = c.to.x - c.from.x; const dz = c.to.z - c.from.z;
       const len = Math.hypot(dx, dz) * scale;
@@ -93,7 +102,8 @@ export default function SevenFootShowoodPreview({ selectedTable, onBack }: { sel
       if (cushionTex) {
         cushionTex.wrapS = THREE.RepeatWrapping;
         cushionTex.wrapT = THREE.RepeatWrapping;
-        cushionTex.repeat.set(Math.max(1, len * 3.2), 1.6);
+        const isSideCushion = Math.abs(dx) < Math.abs(dz);
+        cushionTex.repeat.set(Math.max(1, len * (isSideCushion ? 4.0 : 3.2)), isSideCushion ? 1.2 : 1.6);
         cushionTex.needsUpdate = true;
       }
       const cushionMat = new THREE.MeshStandardMaterial({ color: '#ffffff', map: cushionTex ?? clothTexture ?? undefined, roughness: 0.84, metalness: 0.01 });
@@ -147,7 +157,7 @@ export default function SevenFootShowoodPreview({ selectedTable, onBack }: { sel
     const onResize = () => { camera.aspect = host.clientWidth / host.clientHeight; camera.updateProjectionMatrix(); renderer.setSize(host.clientWidth, host.clientHeight); };
     window.addEventListener('resize', onResize);
     return () => { window.removeEventListener('resize', onResize); cancelAnimationFrame(frame); clothTexture?.dispose(); woodTexture?.dispose(); renderer.dispose(); renderer.domElement.remove(); };
-  }, [cloth, finish, currentMapping]);
+  }, [cloth, finish, currentMapping, shotPower]);
 
   return <main style={{ minHeight: '100vh', background: '#020202', color: 'white', fontFamily: 'system-ui,sans-serif' }}><div ref={hostRef} style={{ position: 'fixed', inset: 0 }} />
     <section style={{ position: 'fixed', top: 8, left: 8, right: 8, background: 'rgba(0,0,0,0.66)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 14, padding: 10 }}>
@@ -160,6 +170,10 @@ export default function SevenFootShowoodPreview({ selectedTable, onBack }: { sel
       <div style={{ marginTop: 8, display: 'grid', gap: 8 }}>
         <label style={{ display: 'grid', gap: 3, fontSize: 11 }}>Table cloth (same on both)<select value={cloth} onChange={(e) => setCloth(e.target.value as ClothKey)}>{(Object.keys(CLOTH_PRESETS) as ClothKey[]).map((k) => <option value={k} key={k}>{CLOTH_PRESETS[k].label}</option>)}</select></label>
         <label style={{ display: 'grid', gap: 3, fontSize: 11 }}>Cushion/table finish (cue-stick texture on all)<select value={finish} onChange={(e) => setFinish(e.target.value as FinishKey)}>{(Object.keys(FINISH_PRESETS) as FinishKey[]).map((k) => <option value={k} key={k}>{FINISH_PRESETS[k].label}</option>)}</select></label>
+        <label style={{ display: 'grid', gap: 4, fontSize: 11 }}>Shot power (+ bit more)
+          <input type="range" min={0.4} max={1} step={0.01} value={shotPower} onChange={(e) => setShotPower(Number(e.target.value))} style={{ width: '100%', height: 24 }} />
+          <div style={{ fontSize: 10, color: '#cbd5e1' }}>Power: {(shotPower * 110).toFixed(0)}%</div>
+        </label>
       </div>
     </section>
   </main>;
