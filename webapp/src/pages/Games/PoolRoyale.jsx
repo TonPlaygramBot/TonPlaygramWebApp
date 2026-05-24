@@ -1150,7 +1150,7 @@ const TABLE_FOOTPRINT_SCALE = 0.82; // reduce the table footprint ~18% while kee
 const BASE_FOOTPRINT_SHRINK = 0.82; // shrink the table base footprint by 18% without changing overall height
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
-const TABLE_DISPLAY_SCALE = 0.86; // make the table read just a bit larger in portrait while preserving proportions
+const TABLE_DISPLAY_SCALE = 0.84; // shrink the on-screen table a touch in portrait while preserving proportions
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
 const TOUCH_UI_SCALE = SIZE_REDUCTION;
 const POINTER_UI_SCALE = 1;
@@ -1833,7 +1833,7 @@ const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // disable preview-only spin defle
 const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
-const SHOT_POWER_ADJUSTMENT = 1; // restore legacy shot scaling used before the May 19 power retune
+const SHOT_POWER_ADJUSTMENT = 1.08; // add a small power boost so full pulls travel a bit stronger
 const SHOT_POWER_BOOST = 0.455; // restore the pre-May-19 cue launch boost
 const SHOT_GLOBAL_POWER_SCALE = 1; // keep global strike scaling neutral to match the legacy feel
 const SHOT_FORCE_BOOST =
@@ -4419,7 +4419,7 @@ const normalizeShowoodTableStyle = (value = {}) => {
 };
 const getShowoodPartOption = (style, part) => {
   const normalized = normalizeShowoodTableStyle(style);
-  const optionPart = part === 'sideWoodApron' ? 'railSight' : part === 'verticalCornerRim' ? 'baseFoot' : part;
+  const optionPart = part === 'sideWoodApron' ? 'topWoodRail' : part === 'verticalCornerRim' ? 'baseFoot' : part;
   const optionId = normalized[optionPart];
   const options = getShowoodTablePartOptions(optionPart);
   return options.find((option) => option.id === optionId) || options[0] || null;
@@ -13070,7 +13070,7 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
     cushion: 'cushion',
     topWoodRail: 'topWoodRail',
     wood: 'topWoodRail',
-    sideWoodApron: 'railSight',
+    sideWoodApron: 'topWoodRail',
     railSight: 'railSight',
     trim: 'railSight',
     pocket: 'pocketCup',
@@ -13238,17 +13238,30 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
   const sideMiddlePocketZone = high && s.longN < 0.255 && s.shortN > 0.69;
   const cornerPocketZone = high && s.longN > 0.68 && s.shortN > 0.66;
   const anyPocketZone = sideMiddlePocketZone || cornerPocketZone;
-  const centralCloth = high && s.upFace && !anyPocketZone && s.longN < 0.74 && s.shortN < 0.59;
+  const centralCloth = high && s.upFace && !anyPocketZone && s.longN < 0.69 && s.shortN < 0.54;
   const cushionBand = high && !anyPocketZone && (
-    (s.upFace && s.longN >= 0.70 && s.longN < 0.88 && s.shortN < 0.68) ||
-    (s.upFace && s.shortN >= 0.54 && s.shortN < 0.78 && s.longN < 0.88) ||
-    (s.sideFace && s.relY > 0.58 && (s.longN > 0.66 || s.shortN > 0.50)) ||
-    (s.downFace && s.relY > 0.46 && s.relY < 0.84 && ((s.longN > 0.62 && s.longN < 0.94) || (s.shortN > 0.44 && s.shortN < 0.86)))
+    (s.upFace && s.longN >= 0.63 && s.longN < 0.92 && s.shortN < 0.75) ||
+    (s.upFace && s.shortN >= 0.50 && s.shortN < 0.84 && s.longN < 0.92) ||
+    (s.sideFace && s.relY > 0.50 && s.relY < 0.90 && (s.longN > 0.60 || s.shortN > 0.42)) ||
+    (s.downFace && s.relY > 0.46 && s.relY < 0.86 && ((s.longN > 0.60 && s.longN < 0.96) || (s.shortN > 0.40 && s.shortN < 0.90)))
   );
   const topRailBand = high && (s.longN > 0.58 || s.shortN > 0.535);
+  const topRailNonPocket = topRailBand && !anyPocketZone;
+  const topRailSideVerticalRimZone =
+    s.sideFace && !s.upFace && s.relY > 0.46 && s.relY < 0.96 && s.longN > 0.6 && s.shortN > 0.58;
+  const underRailSightCornerRimZone =
+    s.sideFace && !s.upFace && s.relY > 0.36 && s.relY < 0.76 && s.longN > 0.67 && s.shortN > 0.52;
   const outsideBaseCornerRimZone = s.sideFace && s.relY > 0.08 && s.relY < 0.82 && s.longN > 0.70 && s.shortN > 0.50;
   const outerMostVerticalCorner = s.sideFace && s.relY > 0.10 && s.relY < 0.84 && s.longN > 0.78 && s.shortN > 0.64;
-  const sideLowerTrimZone = s.sideFace && s.relY > 0.18 && s.relY < 0.44 && (s.longN > 0.54 || s.shortN > 0.54) && !outsideBaseCornerRimZone;
+  const sideLowerTrimZone = s.sideFace && s.relY > 0.18 && s.relY < 0.44 && (s.longN > 0.54 || s.shortN > 0.54);
+  const railSightDownBand =
+    s.sideFace &&
+    !s.upFace &&
+    !anyPocketZone &&
+    s.relY > 0.44 &&
+    s.relY < 0.72 &&
+    (s.longN > 0.54 || s.shortN > 0.48) &&
+    !(topRailSideVerticalRimZone || underRailSightCornerRimZone || outsideBaseCornerRimZone || outerMostVerticalCorner);
   const baseCornerZone = s.sideFace && midBody && (
     (s.longN > 0.08 && s.longN < 0.58 && s.shortN < 0.42) ||
     (s.longN > 0.50 && s.shortN > 0.48) ||
@@ -13258,11 +13271,12 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
   if (namedPocket || (black && anyPocketZone && (s.downFace || s.sideFace || s.relY < 0.79) && !hardwareCandidate)) return 'pocketCup';
   if (hardwareCandidate && (sideMiddlePocketZone || cornerPocketZone) && !green && !brown) return 'railSight';
   if (namedSight && high) return 'railSight';
-  if ((namedCloth || green) && centralCloth) return 'cloth';
-  if ((namedCushion || green) && cushionBand) return 'cushion';
-  if ((outsideBaseCornerRimZone || outerMostVerticalCorner) && !green && !s.upFace) return 'verticalCornerRim';
-  if (hardwareCandidate && topRailBand && s.upFace && !brown && !green) return 'railSight';
+  if ((namedCloth || green || namedCushion) && centralCloth) return 'cloth';
+  if ((namedCushion || namedCloth || green) && cushionBand) return 'cushion';
+  if ((topRailSideVerticalRimZone || underRailSightCornerRimZone || outsideBaseCornerRimZone || outerMostVerticalCorner) && !green && !s.upFace) return 'verticalCornerRim';
+  if (hardwareCandidate && topRailNonPocket && s.upFace && !brown && !green) return 'railSight';
   if (hardwareCandidate && sideLowerTrimZone && !green) return 'railSight';
+  if (railSightDownBand && !green) return 'railSight';
   if (low) return 'baseFoot';
   if ((brown || namedWood || black) && baseCornerZone) return 'baseCornerBlock';
   if (midBody && s.sideFace && !(s.longN > 0.64 && s.shortN > 0.64)) return 'leg';
@@ -13293,7 +13307,7 @@ function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInf
     const finalMaterials = [];
     const materialLookup = new Map();
     const getMaterialIndex = (sourceMaterialIndex, part) => {
-      const linkedPart = part === 'sideWoodApron' ? 'railSight' : part === 'verticalCornerRim' ? 'baseFoot' : part;
+      const linkedPart = part === 'sideWoodApron' ? 'topWoodRail' : part === 'verticalCornerRim' ? 'baseFoot' : part;
       const key = `${sourceMaterialIndex}:${linkedPart}`;
       if (materialLookup.has(key)) return materialLookup.get(key);
       const source = sourceMaterials[Math.max(0, Math.min(sourceMaterialIndex, sourceMaterials.length - 1))];
