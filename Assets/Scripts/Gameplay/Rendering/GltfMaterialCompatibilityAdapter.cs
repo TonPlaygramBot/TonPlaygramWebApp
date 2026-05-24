@@ -27,10 +27,15 @@ namespace Aiming.Gameplay.Rendering
         private static readonly int MainTexStId = Shader.PropertyToID("_MainTex_ST");
         private static readonly int GltfBaseColorTextureId = Shader.PropertyToID("_BaseColorTexture");
         private static readonly int GltfBaseColorMapId = Shader.PropertyToID("baseColorTexture");
+        private static readonly int GltfBaseColorMapUpperId = Shader.PropertyToID("_BaseColorMap");
         private static readonly int GltfNormalTextureId = Shader.PropertyToID("_NormalTexture");
+        private static readonly int GltfNormalMapId = Shader.PropertyToID("normalTexture");
         private static readonly int GltfMetallicRoughnessTextureId = Shader.PropertyToID("_MetallicRoughnessTexture");
+        private static readonly int GltfMetallicRoughnessMapId = Shader.PropertyToID("metallicRoughnessTexture");
         private static readonly int GltfOcclusionTextureId = Shader.PropertyToID("_OcclusionTexture");
+        private static readonly int GltfOcclusionMapId = Shader.PropertyToID("occlusionTexture");
         private static readonly int GltfEmissiveTextureId = Shader.PropertyToID("_EmissiveTexture");
+        private static readonly int GltfEmissiveMapId = Shader.PropertyToID("emissiveTexture");
         private static readonly int GltfBaseColorFactorId = Shader.PropertyToID("_BaseColorFactor");
 
         void Awake()
@@ -121,7 +126,7 @@ namespace Aiming.Gameplay.Rendering
         private static void CopyPbrMaps(Material material, MaterialTextureSnapshot textureSnapshot)
         {
             int sourceUvPropertyId;
-            Texture baseTexture = FirstTexture(material, out sourceUvPropertyId, BaseMapId, MainTexId, GltfBaseColorTextureId, GltfBaseColorMapId);
+            Texture baseTexture = FirstTexture(material, out sourceUvPropertyId, BaseMapId, MainTexId, GltfBaseColorTextureId, GltfBaseColorMapId, GltfBaseColorMapUpperId);
             if (baseTexture == null)
             {
                 baseTexture = textureSnapshot.BaseTexture;
@@ -154,7 +159,7 @@ namespace Aiming.Gameplay.Rendering
                 material.SetColor(ColorId, resolvedBaseColor);
             }
 
-            Texture normal = FirstTexture(material, BumpMapId, GltfNormalTextureId);
+            Texture normal = FirstTexture(material, BumpMapId, GltfNormalTextureId, GltfNormalMapId);
             if (normal == null)
             {
                 normal = textureSnapshot.NormalTexture;
@@ -165,7 +170,7 @@ namespace Aiming.Gameplay.Rendering
                 material.EnableKeyword("_NORMALMAP");
             }
 
-            Texture metallic = FirstTexture(material, MetallicGlossMapId, GltfMetallicRoughnessTextureId);
+            Texture metallic = FirstTexture(material, MetallicGlossMapId, GltfMetallicRoughnessTextureId, GltfMetallicRoughnessMapId);
             if (metallic == null)
             {
                 metallic = textureSnapshot.MetallicTexture;
@@ -175,7 +180,7 @@ namespace Aiming.Gameplay.Rendering
                 TrySetTexture(material, MetallicGlossMapId, metallic);
             }
 
-            Texture occlusion = FirstTexture(material, OcclusionMapId, GltfOcclusionTextureId);
+            Texture occlusion = FirstTexture(material, OcclusionMapId, GltfOcclusionTextureId, GltfOcclusionMapId);
             if (occlusion == null)
             {
                 occlusion = textureSnapshot.OcclusionTexture;
@@ -185,7 +190,7 @@ namespace Aiming.Gameplay.Rendering
                 TrySetTexture(material, OcclusionMapId, occlusion);
             }
 
-            Texture emission = FirstTexture(material, EmissionMapId, GltfEmissiveTextureId);
+            Texture emission = FirstTexture(material, EmissionMapId, GltfEmissiveTextureId, GltfEmissiveMapId);
             if (emission == null)
             {
                 emission = textureSnapshot.EmissionTexture;
@@ -212,12 +217,12 @@ namespace Aiming.Gameplay.Rendering
             public static MaterialTextureSnapshot Capture(Material material)
             {
                 MaterialTextureSnapshot snapshot = new MaterialTextureSnapshot();
-                snapshot.BaseTexture = FirstTexture(material, out snapshot.BaseTexturePropertyId, BaseMapId, MainTexId, GltfBaseColorTextureId, GltfBaseColorMapId);
+                snapshot.BaseTexture = FirstTexture(material, out snapshot.BaseTexturePropertyId, BaseMapId, MainTexId, GltfBaseColorTextureId, GltfBaseColorMapId, GltfBaseColorMapUpperId);
                 snapshot.HasGltfOnlyBaseTexture = snapshot.BaseTexture != null && snapshot.BaseTexturePropertyId != BaseMapId && snapshot.BaseTexturePropertyId != MainTexId;
-                snapshot.NormalTexture = FirstTexture(material, BumpMapId, GltfNormalTextureId);
-                snapshot.MetallicTexture = FirstTexture(material, MetallicGlossMapId, GltfMetallicRoughnessTextureId);
-                snapshot.OcclusionTexture = FirstTexture(material, OcclusionMapId, GltfOcclusionTextureId);
-                snapshot.EmissionTexture = FirstTexture(material, EmissionMapId, GltfEmissiveTextureId);
+                snapshot.NormalTexture = FirstTexture(material, BumpMapId, GltfNormalTextureId, GltfNormalMapId);
+                snapshot.MetallicTexture = FirstTexture(material, MetallicGlossMapId, GltfMetallicRoughnessTextureId, GltfMetallicRoughnessMapId);
+                snapshot.OcclusionTexture = FirstTexture(material, OcclusionMapId, GltfOcclusionTextureId, GltfOcclusionMapId);
+                snapshot.EmissionTexture = FirstTexture(material, EmissionMapId, GltfEmissiveTextureId, GltfEmissiveMapId);
 
                 if (material.HasProperty(BaseColorId))
                 {
@@ -284,10 +289,10 @@ namespace Aiming.Gameplay.Rendering
                 return;
             }
 
-            int sourceProperty = sourceUvPropertyId == MainTexId ? MainTexId : BaseMapId;
+            int sourceProperty = sourceUvPropertyId;
             if (!material.HasProperty(sourceProperty))
             {
-                sourceProperty = BaseMapId;
+                sourceProperty = material.HasProperty(BaseMapId) ? BaseMapId : MainTexId;
             }
 
             Vector2 scale = material.GetTextureScale(sourceProperty);
