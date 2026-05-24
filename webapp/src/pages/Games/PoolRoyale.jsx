@@ -13259,7 +13259,7 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
   if (hardwareCandidate && (sideMiddlePocketZone || cornerPocketZone) && !green && !brown) return 'railSight';
   if (namedSight && high) return 'railSight';
   if ((namedCloth || green) && centralCloth) return 'cloth';
-  if ((namedCushion || green) && cushionBand) return 'cushion';
+  if ((namedCushion || namedCloth || green) && cushionBand) return 'cushion';
   if ((outsideBaseCornerRimZone || outerMostVerticalCorner) && !green && !s.upFace) return 'verticalCornerRim';
   if (hardwareCandidate && topRailBand && s.upFace && !brown && !green) return 'railSight';
   if (hardwareCandidate && sideLowerTrimZone && !green) return 'railSight';
@@ -13267,8 +13267,8 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
   if ((brown || namedWood || black) && baseCornerZone) return 'baseCornerBlock';
   if (midBody && s.sideFace && !(s.longN > 0.64 && s.shortN > 0.64)) return 'leg';
   if (veryTop && (s.upFace || topRailBand) && !green) return 'topWoodRail';
-  if (high && s.sideFace && !green && !anyPocketZone) return 'sideWoodApron';
-  return namedCushion ? 'cushion' : 'sideWoodApron';
+  if (high && s.sideFace && !green && !anyPocketZone) return 'topWoodRail';
+  return namedCushion ? 'cushion' : 'topWoodRail';
 }
 
 function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInfo = null) {
