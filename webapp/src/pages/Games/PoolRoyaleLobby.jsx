@@ -13,6 +13,7 @@ import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import {
+  POOL_ROYALE_TABLE_MODEL_OPTIONS,
   POOL_ROYALE_TABLE_MODEL_STORAGE_KEY,
   resolvePoolRoyaleTableModel
 } from '../../config/poolRoyaleTableModels.js';
@@ -76,7 +77,27 @@ export default function PoolRoyaleLobby() {
   const [variant, setVariant] = useState('uk');
   const [ukBallSet, setUkBallSet] = useState('uk');
   const [playType, setPlayType] = useState(initialPlayType);
-  const selectedTableModel = useMemo(() => resolvePoolRoyaleTableModel(), []);
+  const [tableModelId, setTableModelId] = useState(() => {
+    try {
+      return window.localStorage?.getItem(POOL_ROYALE_TABLE_MODEL_STORAGE_KEY) || '';
+    } catch {
+      return '';
+    }
+  });
+  const selectedTableModel = useMemo(() => resolvePoolRoyaleTableModel(tableModelId), [tableModelId]);
+  const lobbyTableModelOptions = useMemo(() => {
+    const base = POOL_ROYALE_TABLE_MODEL_OPTIONS.filter(
+      (model) => model.id !== 'procedural-legacy'
+    );
+    const priority = ['snooker-generic', 'showood-seven-foot'];
+    const ordered = [
+      ...priority
+        .map((id) => base.find((model) => model.id === id))
+        .filter(Boolean),
+      ...base.filter((model) => !priority.includes(model.id))
+    ];
+    return ordered;
+  }, []);
   const tableSize = resolveTableSize(
     selectedTableModel?.tableSizeId || searchParams.get('tableSize')
   ).id;
@@ -114,8 +135,37 @@ export default function PoolRoyaleLobby() {
     playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
   const selectedAiFlag = aiFlagIndex != null ? FLAG_EMOJIS[aiFlagIndex] : '';
   const selectedTableModelReady = true;
+  const showTableModelSelector = true;
 
 
+
+
+
+  useEffect(() => {
+    try {
+      if (selectedTableModel?.id) {
+
+        window.localStorage?.setItem(POOL_ROYALE_TABLE_MODEL_STORAGE_KEY, selectedTableModel.id);
+      }
+    } catch {}
+  }, [selectedTableModel?.id]);
+
+
+  useEffect(() => {
+    const urls = [selectedTableModel?.assetUrl, ...(selectedTableModel?.fallbackAssetUrls || [])]
+      .filter((url) => typeof url === 'string' && url.length);
+    if (!urls.length || typeof window === 'undefined' || typeof window.fetch !== 'function') return;
+    const controller = new AbortController();
+    urls.slice(0, 1).forEach((url) => {
+      window.fetch(url, {
+        method: 'GET',
+        cache: 'force-cache',
+        mode: 'cors',
+        signal: controller.signal
+      }).catch(() => {});
+    });
+    return () => controller.abort();
+  }, [selectedTableModel?.id]);
   useEffect(() => {
     try {
       const saved = loadAvatar();
@@ -232,8 +282,7 @@ export default function PoolRoyaleLobby() {
     setMatchingError('');
     try {
       window.localStorage?.setItem(
-        POOL_ROYALE_TABLE_MODEL_STORAGE_KEY,
-        selectedTableModel.id
+              selectedTableModel.id
       );
       if (selectedTableModel.finishId) {
         window.localStorage?.setItem(
@@ -858,22 +907,43 @@ export default function PoolRoyaleLobby() {
           </div>
         )}
 
-        {!hasActiveTournament && (
-          <div className="rounded-2xl border border-emerald-300/20 bg-white/[0.04] p-4 text-xs text-white/60">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h3 className="font-semibold text-white">Pool Table</h3>
-                <p className="mt-1">
-                  Showood 7 ft GLB is now the fixed Pool Royale table.
-                </p>
-              </div>
-              <span className="rounded-full border border-emerald-300/35 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-100">
-                Default
-              </span>
+
+        {!hasActiveTournament && showTableModelSelector && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-white">Pool Table (2 options)</h3>
+              <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Models</span>
+            </div>
+            <p className="text-xs text-white/60">Choose either 9ft Snooker Generic GLB or 7ft Showood GLB.</p>
+            <div className="grid grid-cols-1 gap-3">
+              {lobbyTableModelOptions.map((model) => {
+                const active = selectedTableModel?.id === model.id;
+                return (
+                  <button
+                    key={model.id}
+                    type="button"
+                    onClick={() => setTableModelId(model.id)}
+                    className={`lobby-option-card ${active ? 'lobby-option-card-active' : 'lobby-option-card-inactive'}`}
+                  >
+                    <div className="text-left">
+                      <p className="lobby-option-label">{model.icon || '🎱'} {model.label}</p>
+                      <p className="lobby-option-subtitle">{model.description}</p>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
 
+        {!hasActiveTournament && !showTableModelSelector && (
+          <div className="space-y-2">
+            <h3 className="font-semibold text-white">Pool Table</h3>
+            <p className="text-xs text-white/60">
+              Showood 7 ft GLB is now the fixed Pool Royale table.
+            </p>
+          </div>
+        )}
 
         {playType === 'training' && (
           <div className="space-y-3 rounded-2xl border border-emerald-300/30 bg-gradient-to-br from-emerald-500/10 via-black/35 to-cyan-500/10 p-4">
