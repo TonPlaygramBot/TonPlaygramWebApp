@@ -149,8 +149,6 @@ namespace TonPlaygram.Gameplay.Weapons
         [Header("Material import behavior")]
         [Tooltip("Keeps imported GLTF/GLB weapon materials untouched so original weapon textures stay exactly as authored.")]
         [SerializeField] private bool preserveOriginalWeaponMaterials = true;
-        [Tooltip("When enabled, runs a safe GLTF texture visibility pass even while preserving original materials, fixing unsupported/missing shader hookups.")]
-        [SerializeField] private bool alwaysRunWeaponTextureVisibilityPass = true;
 
 
         private readonly Dictionary<LudoWeaponType, WeaponBallisticsProfile> _profiles = new Dictionary<LudoWeaponType, WeaponBallisticsProfile>();
@@ -199,7 +197,7 @@ namespace TonPlaygram.Gameplay.Weapons
             BuildProfileMap();
             CacheTokenPieces();
             CacheStaticAnchors();
-            if (!preserveOriginalWeaponMaterials || alwaysRunWeaponTextureVisibilityPass)
+            if (!preserveOriginalWeaponMaterials)
             {
                 ApplyWeaponMaterialCompatibility();
             }
