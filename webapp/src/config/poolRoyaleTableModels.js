@@ -38,8 +38,8 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     preserveOriginalFootprintAspect: true,
     useOriginalLayoutSurfaces: true,
     usePoolRoyaleFinish: true,
-    usePoolRoyaleFinishRoles: ['cushion', 'pocket', 'trim', 'wood', 'topWoodRail', 'sideWoodApron', 'railSight', 'verticalCornerRim', 'baseCornerBlock'],
-    preserveOriginalSurfaceRoles: ['cloth', 'leg', 'baseFoot'],
+    usePoolRoyaleFinishRoles: ['cushion', 'pocket', 'trim', 'wood', 'topWoodRail', 'sideWoodApron', 'railSight', 'verticalCornerRim', 'baseCornerBlock', 'leg', 'baseFoot'],
+    preserveOriginalSurfaceRoles: ['cloth'],
     tintOriginalTrimGold: true,
     chromeMaterialSurfaceNames: ['diamonds', 'railSight', 'sideApron', 'sideWoodApron', 'apronStrip', 'railSightLower', 'cornerRailSight', 'brandingPlate', 'brandingPlates', 'namePlate', 'railApron', 'stripApron'],
     blackMaterialSurfaceNames: [],
@@ -75,9 +75,9 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     matchNativeUpperComponentHeight: true,
     preserveOriginalFootprintAspect: true,
     useOriginalLayoutSurfaces: true,
-    usePoolRoyaleFinish: true,
-    usePoolRoyaleFinishRoles: ['cushion', 'pocket', 'trim', 'wood', 'topWoodRail', 'sideWoodApron', 'railSight', 'verticalCornerRim', 'baseCornerBlock'],
-    preserveOriginalSurfaceRoles: ['cloth', 'leg', 'baseFoot'],
+    usePoolRoyaleFinish: false,
+    usePoolRoyaleFinishRoles: [],
+    preserveOriginalSurfaceRoles: ['cloth', 'cushion', 'pocket', 'trim', 'wood', 'topWoodRail', 'sideWoodApron', 'railSight', 'verticalCornerRim', 'baseCornerBlock', 'leg', 'baseFoot'],
     tintOriginalTrimGold: false,
     chromeMaterialSurfaceNames: ['diamonds', 'railSight', 'namePlate', 'railApron', 'stripApron'],
     blackMaterialSurfaceNames: [],
@@ -91,7 +91,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
 
 export const DEFAULT_POOL_ROYALE_TABLE_MODEL_ID =
   POOL_ROYALE_TABLE_MODEL_OPTIONS.find(
-    (option) => option.id === 'snooker-generic'
+    (option) => option.id === 'showood-seven-foot'
   )?.id || POOL_ROYALE_TABLE_MODEL_OPTIONS[0].id;
 
 export function resolvePoolRoyaleTableModel(modelId) {
