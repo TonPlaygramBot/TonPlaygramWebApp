@@ -14,7 +14,7 @@ const TABLE_MODEL_URL =
 
 const DRACO_DECODER_PATH = "https://www.gstatic.com/draco/versioned/decoders/1.5.7/";
 const BASIS_TRANSCODER_PATH = "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/basis/";
-const CUSHION_SHADOW_GREY = "#666a72";
+const CUSHION_SHADOW_GREY = "#2f353f";
 
 type TablePart =
   | "cloth"
@@ -163,8 +163,8 @@ const PART_META: Record<TablePart, PartMeta> = {
   },
   cushion: {
     label: "Cushions",
-    description: "Raised inner rail bands separated from the flat field cloth. Cushion underside shadows stay grey.",
-    keepSourceTexture: false,
+    description: "Raised inner rail bands using cloth texture continuity. Cushion underside shadows use a darker tone.",
+    keepSourceTexture: true,
   },
   topWoodRail: {
     label: "Top rails",
@@ -838,7 +838,7 @@ function createRoundedFootCaps(table: THREE.Object3D, palette: Palette, buckets:
     const cap = new THREE.Mesh(geometry.clone(), material);
     cap.name = `rounded_metal_foot_${index + 1}`;
     cap.position.set(anchor.x, anchor.y + 0.028, anchor.z);
-    cap.scale.set(1.1, 1, 1.1);
+    cap.scale.set(1.34, 1, 1.34);
     cap.castShadow = true;
     cap.receiveShadow = true;
     group.add(cap);
@@ -993,7 +993,7 @@ export default function PoolTableCustomOptionsPreview() {
         tableObject = displayGroup;
         scene.add(displayGroup);
         setCounts(resultCounts);
-        setStatus("ready: cushion shadows fixed grey; four side-panel vertical corner rims default gold");
+        setStatus("ready: cushions use cloth texture continuity, darker cushion shadow tone, and wider linked metal feet");
       },
       (event) => {
         if (!event.total) return;
@@ -1094,7 +1094,7 @@ export default function PoolTableCustomOptionsPreview() {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 10 }}>
             <div>
               <div style={{ fontSize: 12.5, fontWeight: 950 }}>Custom material options</div>
-              <div style={{ marginTop: 2, fontSize: 10.5, color: "#94a3b8" }}>Only cushion shadows and cushion colors were adjusted. Vertical rims on the four side-panel corners default to gold.</div>
+              <div style={{ marginTop: 2, fontSize: 10.5, color: "#94a3b8" }}>Cushions keep cloth texture continuity, cushion shadows are darker, and feet stay linked with Corner rims + rounded feet.</div>
             </div>
             <button onClick={() => setPalette(DEFAULT_PALETTE)} style={{ border: "1px solid rgba(255,255,255,0.25)", background: "rgba(255,255,255,0.08)", color: "white", borderRadius: 999, padding: "7px 10px", fontSize: 11, fontWeight: 900, cursor: "pointer", flex: "0 0 auto" }}>Reset</button>
           </div>
