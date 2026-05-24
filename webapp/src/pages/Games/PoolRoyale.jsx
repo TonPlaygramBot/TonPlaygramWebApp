@@ -3029,10 +3029,10 @@ const CLOTH_QUALITY = (() => {
   if (isMobileUA || isTouch || lowMemory || lowRefresh) {
     const highDensity = dpr >= 3;
     return {
-      textureSize: highDensity ? 3072 : 2048,
-      anisotropy: highDensity ? 28 : 24,
+      textureSize: highDensity ? 2048 : 1536,
+      anisotropy: highDensity ? 16 : 12,
       generateMipmaps: true,
-      bumpScaleMultiplier: highDensity ? 1.02 : 0.94,
+      bumpScaleMultiplier: highDensity ? 0.98 : 0.9,
       sheen: 0.78,
       sheenRoughness: 0.82
     };
@@ -3051,6 +3051,16 @@ const CLOTH_QUALITY = (() => {
 
   return defaults;
 })();
+
+function isMobilePerformanceTier() {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+  const dpr = window.devicePixelRatio ?? 1;
+  const ua = navigator.userAgent ?? '';
+  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+  const deviceMemory = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
+  const lowMemory = deviceMemory !== null && deviceMemory <= 4;
+  return isMobileUA || lowMemory || dpr >= 2.5;
+}
 
 const makeColorPalette = ({ cloth, rail, base, markings = 0xffffff, cushion }) => ({
   cloth,
@@ -20234,9 +20244,10 @@ const shotPowerRef = useRef(0);
       };
       updatePocketCameraState(false);
       screen.orientation?.lock?.('portrait').catch(() => {});
+      const mobilePerformanceTier = isMobilePerformanceTier();
       // Renderer
       const renderer = new THREE.WebGLRenderer({
-        antialias: true,
+        antialias: !mobilePerformanceTier,
         alpha: false,
         powerPreference: 'high-performance'
       });
@@ -20245,7 +20256,7 @@ const shotPowerRef = useRef(0);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
       renderer.sortObjects = true;
-      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.enabled = !mobilePerformanceTier;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       rendererRef.current = renderer;
       updateRendererAnisotropyCap(renderer);
