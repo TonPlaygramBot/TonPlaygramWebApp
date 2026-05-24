@@ -1405,17 +1405,17 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     'Pool table inner ratio must match the official 2:1 target after scaling.'
   );
 const MM_TO_UNITS = (innerLong / WIDTH_REF) / TABLE_SURFACE_COMPENSATION;
-const BALL_SIZE_SCALE = 0.96; // trim ball size slightly while keeping every helper tied to BALL_R/BALL_DIAMETER
+const BALL_SIZE_SCALE = 0.99; // enlarge balls slightly for a fuller on-cloth visual while preserving all BALL_R/BALL_DIAMETER-linked helpers
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
 const RACK_VERTICAL_SCREEN_LIFT = BALL_R * 0.86; // nudge the rack farther upward on screen so object balls sit visibly higher
-const ENABLE_BALL_FLOOR_SHADOWS = false;
+const ENABLE_BALL_FLOOR_SHADOWS = true;
 const ENABLE_CUE_CLOTH_SHADOW = true;
 const ENABLE_TABLE_FLOOR_SHADOW = false;
-const BALL_SHADOW_RADIUS_MULTIPLIER = 1;
-const BALL_SHADOW_OPACITY = 0.25;
-const BALL_SHADOW_LIFT = BALL_R * 0.02;
+const BALL_SHADOW_RADIUS_MULTIPLIER = 0.96;
+const BALL_SHADOW_OPACITY = 0.31;
+const BALL_SHADOW_LIFT = BALL_R * 0.012;
 const CUE_SHADOW_OPACITY = 0.18;
 const CUE_SHADOW_WIDTH_RATIO = 0.62;
 const TABLE_FLOOR_SHADOW_OPACITY = 0.2;
@@ -2654,8 +2654,8 @@ let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 let SIDE_POCKET_PHYSICS_CUT_ANGLE = DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
-const CUSHION_FACE_INSET_LONG = SIDE_RAIL_INNER_THICKNESS * 0.58; // pull long-rail cushions farther inward toward the table center
-const CUSHION_FACE_INSET_SHORT = SIDE_RAIL_INNER_THICKNESS * 0.44; // move short-rail cushions a touch outward while keeping pocket cuts stable
+const CUSHION_FACE_INSET_LONG = SIDE_RAIL_INNER_THICKNESS * 0.605; // tighten long-rail cushion mapping so gameplay rebounds align closer to the visual nose
+const CUSHION_FACE_INSET_SHORT = SIDE_RAIL_INNER_THICKNESS * 0.462; // tighten short-rail cushion mapping to better match the rendered table shape
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 
@@ -4311,8 +4311,7 @@ const SHOWOOD_TABLE_PARTS = Object.freeze([
   'railSight',
   'pocketCup',
   'baseCornerBlock',
-  'leg',
-  'baseFoot'
+  'leg'
 ]);
 const DEFAULT_SHOWOOD_TABLE_STYLE = Object.freeze({
   cloth: 'green',
@@ -4360,9 +4359,10 @@ const SHOWOOD_TABLE_PART_LABELS = Object.freeze({
   pocketCup: 'Pocket Cups',
   baseCornerBlock: 'Table Base',
   leg: 'Legs',
-  baseFoot: 'Feet'
+  baseFoot: 'Feet (linked to Side Apron + Rail Sights)'
 });
 const SHOWOOD_CHROME_LINKED_PARTS = new Set(['railSight', 'baseFoot']);
+const SHOWOOD_VISIBLE_PARTS = Object.freeze(SHOWOOD_TABLE_PARTS.filter((part) => part !== 'baseFoot'));
 const getShowoodTablePartOptions = (part, clothOptions = null, tableFinishOptions = null) => {
   if (part === 'cloth' || part === 'cushion') {
     const sourceOptions = Array.isArray(clothOptions) && clothOptions.length
@@ -15677,7 +15677,7 @@ function PoolRoyaleGame({
   );
   const tablePersonalizationSections = useMemo(
     () =>
-      SHOWOOD_TABLE_PARTS.map((part) => ({
+      SHOWOOD_VISIBLE_PARTS.map((part) => ({
         key: part,
         label: SHOWOOD_TABLE_PART_LABELS[part] || part,
         chromeLinked: SHOWOOD_CHROME_LINKED_PARTS.has(part),
