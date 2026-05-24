@@ -3029,13 +3029,12 @@ const CLOTH_QUALITY = (() => {
   if (isMobileUA || isTouch || lowMemory || lowRefresh) {
     const highDensity = dpr >= 3;
     return {
-      // Mobile-first profile: keep GPU upload + shader sampling lighter for faster table boot.
-      textureSize: highDensity ? 2048 : 1536,
-      anisotropy: highDensity ? 16 : 12,
+      textureSize: highDensity ? 3072 : 2048,
+      anisotropy: highDensity ? 28 : 24,
       generateMipmaps: true,
-      bumpScaleMultiplier: highDensity ? 0.96 : 0.88,
-      sheen: 0.72,
-      sheenRoughness: 0.86
+      bumpScaleMultiplier: highDensity ? 1.02 : 0.94,
+      sheen: 0.78,
+      sheenRoughness: 0.82
     };
   }
 
@@ -20236,14 +20235,8 @@ const shotPowerRef = useRef(0);
       updatePocketCameraState(false);
       screen.orientation?.lock?.('portrait').catch(() => {});
       // Renderer
-      const mobileTouchDevice =
-        typeof navigator !== 'undefined' &&
-        ((navigator.maxTouchPoints ?? 0) > 1 ||
-          /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-            navigator.userAgent ?? ''
-          ));
       const renderer = new THREE.WebGLRenderer({
-        antialias: !mobileTouchDevice,
+        antialias: true,
         alpha: false,
         powerPreference: 'high-performance'
       });
@@ -20253,9 +20246,7 @@ const shotPowerRef = useRef(0);
       renderer.toneMappingExposure = 1.2;
       renderer.sortObjects = true;
       renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = mobileTouchDevice
-        ? THREE.PCFShadowMap
-        : THREE.PCFSoftShadowMap;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       rendererRef.current = renderer;
       updateRendererAnisotropyCap(renderer);
       applyRendererQuality();
