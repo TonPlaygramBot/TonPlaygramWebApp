@@ -83,6 +83,11 @@ import {
   POOL_ROYALE_BASE_VARIANTS,
   POOL_ROYALE_OPTION_LABELS
 } from '../../config/poolRoyaleInventoryConfig.js';
+import {
+  SNOOKER_ROYALE_BASE_VARIANTS,
+  SNOOKER_ROYALE_HDRI_VARIANTS,
+  SNOOKER_ROYALE_HDRI_VARIANT_MAP
+} from '../../config/snookerRoyalInventoryConfig.js';
 import { BILARDO_MIN_RELEASE_POWER } from './shared/bilardoShotModel';
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../../config/poolRoyaleClothPresets.js';
 import {
@@ -1406,6 +1411,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
   );
 const MM_TO_UNITS = (innerLong / WIDTH_REF) / TABLE_SURFACE_COMPENSATION;
 const BALL_SIZE_SCALE = 0.96; // trim ball size slightly while keeping every helper tied to BALL_R/BALL_DIAMETER
+const SNOOKER_TABLE_BALL_RADIUS_SCALE = 0.9; // make balls visibly smaller only when the snooker table model is active
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -6758,7 +6764,7 @@ function applySnookerScaling({
     }
   }
   if (Array.isArray(balls)) {
-    const expectedRadius = BALL_D_REF * mmToUnits * BALL_SIZE_SCALE * 0.5;
+    const expectedRadius = BALL_D_REF * mmToUnits * BALL_SIZE_SCALE * 0.5 * SNOOKER_TABLE_BALL_RADIUS_SCALE;
     balls.forEach((ball) => {
       if (!ball) return;
       ball.colliderRadius = expectedRadius;
@@ -15633,15 +15639,18 @@ function PoolRoyaleGame({
       ),
     [poolInventory]
   );
-  const availableTableBases = useMemo(
-    () =>
-      POOL_ROYALE_BASE_VARIANTS.filter(
-        (variant) =>
-          variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID &&
-          isPoolOptionUnlocked('tableBase', variant.id, poolInventory)
-      ),
-    [poolInventory]
-  );
+  const availableTableBases = useMemo(() => {
+    if (activeTableModel?.id === 'snooker-generic') {
+      return SNOOKER_ROYALE_BASE_VARIANTS.filter((variant) =>
+        isPoolOptionUnlocked('tableBase', variant.id, poolInventory)
+      );
+    }
+    return POOL_ROYALE_BASE_VARIANTS.filter(
+      (variant) =>
+        variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID &&
+        isPoolOptionUnlocked('tableBase', variant.id, poolInventory)
+    );
+  }, [activeTableModel?.id, poolInventory]);
   const availableChromeOptions = useMemo(
     () =>
       CHROME_COLOR_OPTIONS.filter((option) =>
@@ -15670,13 +15679,14 @@ function PoolRoyaleGame({
       ),
     [poolInventory]
   );
-  const availableEnvironmentHdris = useMemo(
-    () =>
-      POOL_ROYALE_HDRI_VARIANTS.filter((variant) =>
-        isPoolOptionUnlocked('environmentHdri', variant.id, poolInventory)
-      ),
-    [poolInventory]
-  );
+  const availableEnvironmentHdris = useMemo(() => {
+    const source = activeTableModel?.id === 'snooker-generic'
+      ? SNOOKER_ROYALE_HDRI_VARIANTS
+      : POOL_ROYALE_HDRI_VARIANTS;
+    return source.filter((variant) =>
+      isPoolOptionUnlocked('environmentHdri', variant.id, poolInventory)
+    );
+  }, [activeTableModel?.id, poolInventory]);
   const availablePocketLiners = useMemo(
     () =>
       POCKET_LINER_OPTIONS.filter((option) =>
@@ -15753,13 +15763,20 @@ function PoolRoyaleGame({
       CLOTH_COLOR_OPTIONS[0],
     [availableClothOptions, clothColorId]
   );
-  const activeTableBase = useMemo(
-    () =>
+  const activeTableBase = useMemo(() => {
+    if (activeTableModel?.id === 'snooker-generic') {
+      return (
+        availableTableBases.find((variant) => variant.id === tableBaseId) ??
+        availableTableBases[0] ??
+        SNOOKER_ROYALE_BASE_VARIANTS[0]
+      );
+    }
+    return (
       availableTableBases.find((variant) => variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID) ??
       POOL_ROYALE_BASE_VARIANTS.find((variant) => variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID) ??
-      POOL_ROYALE_BASE_VARIANTS[0],
-    [availableTableBases]
-  );
+      POOL_ROYALE_BASE_VARIANTS[0]
+    );
+  }, [activeTableModel?.id, availableTableBases, tableBaseId]);
   const resolvedHdriResolution = useMemo(() => {
     return autoHdriResolutionFromGraphics;
   }, [autoHdriResolutionFromGraphics]);
@@ -15772,12 +15789,16 @@ function PoolRoyaleGame({
       const fromAvailable = availableEnvironmentHdris.find(
         (variant) => variant.id === environmentHdriId
       );
+      const usingSnookerMenu = activeTableModel?.id === 'snooker-generic';
+      const hdriVariantMap = usingSnookerMenu ? SNOOKER_ROYALE_HDRI_VARIANT_MAP : POOL_ROYALE_HDRI_VARIANT_MAP;
+      const hdriDefaultId = usingSnookerMenu ? (SNOOKER_ROYALE_HDRI_VARIANTS[0]?.id ?? POOL_ROYALE_DEFAULT_HDRI_ID) : POOL_ROYALE_DEFAULT_HDRI_ID;
+      const hdriVariants = usingSnookerMenu ? SNOOKER_ROYALE_HDRI_VARIANTS : POOL_ROYALE_HDRI_VARIANTS;
       const variant =
         fromAvailable ??
-        POOL_ROYALE_HDRI_VARIANT_MAP[environmentHdriId] ??
-        POOL_ROYALE_HDRI_VARIANT_MAP[POOL_ROYALE_DEFAULT_HDRI_ID] ??
+        hdriVariantMap[environmentHdriId] ??
+        hdriVariantMap[hdriDefaultId] ??
         availableEnvironmentHdris[0] ??
-        POOL_ROYALE_HDRI_VARIANTS[0];
+        hdriVariants[0];
       if (!variant) return null;
       const resolved = resolvedHdriResolution ?? DEFAULT_HDRI_RESOLUTIONS[0];
       if (!resolved) return variant;
@@ -15788,7 +15809,7 @@ function PoolRoyaleGame({
         fallbackResolution: activeHdriPolicy?.fallbackResolution ?? preferredResolutions[1] ?? resolved
       };
     },
-    [activeHdriPolicy, availableEnvironmentHdris, environmentHdriId, resolvedHdriResolution]
+    [activeHdriPolicy, activeTableModel?.id, availableEnvironmentHdris, environmentHdriId, resolvedHdriResolution]
   );
   const dualTablesEnabled = useMemo(() => false, []);
   const activePocketLinerOption = useMemo(
@@ -15815,7 +15836,11 @@ function PoolRoyaleGame({
     if (!isPoolOptionUnlocked('tableFinish', tableFinishId, poolInventory)) {
       setTableFinishId(DEFAULT_TABLE_FINISH_ID);
     }
-    if (tableBaseId !== SHOWOOD_ORIGINAL_TABLE_BASE_ID) {
+    if (activeTableModel?.id === 'snooker-generic') {
+      if (!isPoolOptionUnlocked('tableBase', tableBaseId, poolInventory)) {
+        setTableBaseId(SNOOKER_ROYALE_BASE_VARIANTS[0]?.id || DEFAULT_TABLE_BASE_ID);
+      }
+    } else if (tableBaseId !== SHOWOOD_ORIGINAL_TABLE_BASE_ID) {
       setTableBaseId(SHOWOOD_ORIGINAL_TABLE_BASE_ID);
     } else if (!isPoolOptionUnlocked('tableBase', tableBaseId, poolInventory)) {
       setTableBaseId(DEFAULT_TABLE_BASE_ID);
@@ -15836,7 +15861,7 @@ function PoolRoyaleGame({
       setPocketLinerId(DEFAULT_POCKET_LINER_OPTION_ID);
     }
     if (!isPoolOptionUnlocked('environmentHdri', environmentHdriId, poolInventory)) {
-      setEnvironmentHdriId(POOL_ROYALE_DEFAULT_HDRI_ID);
+      setEnvironmentHdriId(activeTableModel?.id === 'snooker-generic' ? (SNOOKER_ROYALE_HDRI_VARIANTS[0]?.id || POOL_ROYALE_DEFAULT_HDRI_ID) : POOL_ROYALE_DEFAULT_HDRI_ID);
     }
   }, [
     chromeColorId,
@@ -15847,7 +15872,8 @@ function PoolRoyaleGame({
     poolInventory,
     railMarkerColorId,
     tableBaseId,
-    tableFinishId
+    tableFinishId,
+    activeTableModel?.id
   ]);
   const isTraining = playType === 'training';
   const hasCareerTaskId = Boolean(careerStageId);
@@ -17138,7 +17164,7 @@ function PoolRoyaleGame({
     queue.forEach((variant) => {
       void prefetchHdriVariant(variant);
     });
-  }, [activeHdriPolicy, availableEnvironmentHdris, environmentHdriId, resolvedHdriResolution]);
+  }, [activeHdriPolicy, activeTableModel?.id, availableEnvironmentHdris, environmentHdriId, resolvedHdriResolution]);
   useEffect(() => {
     if (typeof updateEnvironmentRef.current === 'function') {
       updateEnvironmentRef.current(activeEnvironmentVariantRef.current);
