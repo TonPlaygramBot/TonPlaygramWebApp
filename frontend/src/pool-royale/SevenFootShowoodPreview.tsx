@@ -3,7 +3,7 @@ import * as THREE from 'three';
 
 export type TableKey = 'snooker9ft' | 'showood7ft';
 type ClothKey = 'tournamentGreen' | 'royalBlue';
-type FinishKey = 'cueWoodWalnut' | 'cueWoodBlack';
+type FinishKey = 'goldRail' | 'chromeRail';
 type PocketId = 'topLeft' | 'topMiddle' | 'topRight' | 'bottomLeft' | 'bottomMiddle' | 'bottomRight';
 type CushionId = 'topLeft' | 'topMiddle' | 'topRight' | 'leftTop' | 'leftBottom' | 'rightTop' | 'rightBottom' | 'bottomLeft' | 'bottomMiddle' | 'bottomRight';
 type PocketMap = { id: PocketId; center: { x: number; z: number }; radius: number; jawInset: number };
@@ -38,7 +38,10 @@ export const TABLES: Record<TableKey, { title: string; subtitle: string; mapping
 };
 
 const CLOTH_PRESETS: Record<ClothKey, { label: string; color: string }> = { tournamentGreen: { label: 'Procedural Cloth · Tournament Green', color: '#0f6f34' }, royalBlue: { label: 'Procedural Cloth · Royal Blue', color: '#0f4cb3' } };
-const FINISH_PRESETS: Record<FinishKey, { label: string; color: string; metalness: number; roughness: number }> = { cueWoodWalnut: { label: 'Cue Finish · Walnut', color: '#553118', metalness: 0.08, roughness: 0.43 }, cueWoodBlack: { label: 'Cue Finish · Piano Black', color: '#141414', metalness: 0.28, roughness: 0.22 } };
+const FINISH_PRESETS: Record<FinishKey, { label: string; color: string; metalness: number; roughness: number; railSightColor: string }> = {
+  goldRail: { label: 'RailSight + Apron · Gold', color: '#553118', metalness: 0.08, roughness: 0.43, railSightColor: '#d4af37' },
+  chromeRail: { label: 'RailSight + Apron · Chrome', color: '#141414', metalness: 0.28, roughness: 0.22, railSightColor: '#cfd6dd' },
+};
 
 function proceduralClothTexture(renderer: THREE.WebGLRenderer, tint: string) { const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 256; const ctx = canvas.getContext('2d'); if (!ctx) return null; ctx.fillStyle = tint; ctx.fillRect(0, 0, 256, 256); for (let y = 0; y < 256; y += 4) { const a = 0.03 + ((y / 256) % 1) * 0.02; ctx.fillStyle = `rgba(255,255,255,${a.toFixed(3)})`; ctx.fillRect(0, y, 256, 2); } const t = new THREE.CanvasTexture(canvas); t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.RepeatWrapping; t.repeat.set(4, 2); t.anisotropy = renderer.capabilities.getMaxAnisotropy(); return t; }
 function cueWoodTexture(renderer: THREE.WebGLRenderer, tint: string) { const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 128; const ctx = canvas.getContext('2d'); if (!ctx) return null; const g = ctx.createLinearGradient(0, 0, 512, 0); g.addColorStop(0, '#2b180d'); g.addColorStop(0.3, tint); g.addColorStop(0.6, '#6f3f21'); g.addColorStop(1, '#2b180d'); ctx.fillStyle = g; ctx.fillRect(0, 0, 512, 128); for (let x = 0; x < 512; x += 12) { ctx.fillStyle = `rgba(255,255,255,${(x % 24 === 0 ? 0.1 : 0.05).toFixed(2)})`; ctx.fillRect(x, 0, 2, 128); } const t = new THREE.CanvasTexture(canvas); t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.RepeatWrapping; t.repeat.set(2, 1); t.anisotropy = renderer.capabilities.getMaxAnisotropy(); return t; }
@@ -46,7 +49,7 @@ function cueWoodTexture(renderer: THREE.WebGLRenderer, tint: string) { const can
 export default function SevenFootShowoodPreview({ selectedTable, onBack }: { selectedTable: TableKey; onBack: () => void }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [cloth, setCloth] = useState<ClothKey>('tournamentGreen');
-  const [finish, setFinish] = useState<FinishKey>('cueWoodWalnut');
+  const [finish, setFinish] = useState<FinishKey>('goldRail');
   const currentMapping = useMemo(() => TABLES[selectedTable].mapping, [selectedTable]);
 
   useEffect(() => {
@@ -61,23 +64,52 @@ export default function SevenFootShowoodPreview({ selectedTable, onBack }: { sel
     const woodTexture = cueWoodTexture(renderer, FINISH_PRESETS[finish].color);
     const woodMat = new THREE.MeshStandardMaterial({ color: '#ffffff', map: woodTexture, metalness: FINISH_PRESETS[finish].metalness, roughness: FINISH_PRESETS[finish].roughness });
     const railMat = new THREE.MeshStandardMaterial({ color: '#5e2f15', map: woodTexture, metalness: 0.1, roughness: 0.35 });
-    const cushionMat = new THREE.MeshStandardMaterial({ color: '#184d27', roughness: 0.86, metalness: 0.02 });
-    const chromeMat = new THREE.MeshStandardMaterial({ color: '#cfd6dd', metalness: 1, roughness: 0.16 });
+    const railSightMat = new THREE.MeshStandardMaterial({ color: FINISH_PRESETS[finish].railSightColor, metalness: 1, roughness: finish === 'goldRail' ? 0.22 : 0.16 });
 
     const tableBody = new THREE.Mesh(new THREE.BoxGeometry(currentMapping.playfield.width * scale * 1.08, 0.24, currentMapping.playfield.length * scale * 1.12), woodMat); tableBody.position.y = -0.13; tableGroup.add(tableBody);
     const railFrame = new THREE.Mesh(new THREE.BoxGeometry(currentMapping.playfield.width * scale * 1.16, 0.13, currentMapping.playfield.length * scale * 1.2), railMat); railFrame.position.y = 0.03; tableGroup.add(railFrame);
 
     const clothTexture = proceduralClothTexture(renderer, CLOTH_PRESETS[cloth].color);
     const clothMesh = new THREE.Mesh(new THREE.PlaneGeometry(currentMapping.playfield.width * scale, currentMapping.playfield.length * scale), new THREE.MeshStandardMaterial({ color: '#ffffff', map: clothTexture, roughness: 0.96, metalness: 0 })); clothMesh.rotation.x = -Math.PI / 2; clothMesh.position.y = 0.045; tableGroup.add(clothMesh);
+    const edgeStripMat = new THREE.MeshStandardMaterial({ color: '#ffffff', map: clothTexture, roughness: 0.95, metalness: 0 });
+    const edgeInset = 0.02 * scale;
+    const edgeWidth = 0.04 * scale;
+    const halfW = (currentMapping.playfield.width * scale) / 2;
+    const halfL = (currentMapping.playfield.length * scale) / 2;
+    const topEdge = new THREE.Mesh(new THREE.PlaneGeometry(currentMapping.playfield.width * scale - edgeInset * 2, edgeWidth), edgeStripMat);
+    topEdge.rotation.x = -Math.PI / 2; topEdge.position.set(0, 0.046, -halfL + edgeWidth * 0.5); tableGroup.add(topEdge);
+    const bottomEdge = new THREE.Mesh(new THREE.PlaneGeometry(currentMapping.playfield.width * scale - edgeInset * 2, edgeWidth), edgeStripMat);
+    bottomEdge.rotation.x = -Math.PI / 2; bottomEdge.position.set(0, 0.046, halfL - edgeWidth * 0.5); tableGroup.add(bottomEdge);
+    const leftEdge = new THREE.Mesh(new THREE.PlaneGeometry(edgeWidth, currentMapping.playfield.length * scale - edgeInset * 2), edgeStripMat);
+    leftEdge.rotation.x = -Math.PI / 2; leftEdge.position.set(-halfW + edgeWidth * 0.5, 0.046, 0); tableGroup.add(leftEdge);
+    const rightEdge = new THREE.Mesh(new THREE.PlaneGeometry(edgeWidth, currentMapping.playfield.length * scale - edgeInset * 2), edgeStripMat);
+    rightEdge.rotation.x = -Math.PI / 2; rightEdge.position.set(halfW - edgeWidth * 0.5, 0.046, 0); tableGroup.add(rightEdge);
 
     currentMapping.cushions.forEach((c) => {
       const dx = c.to.x - c.from.x; const dz = c.to.z - c.from.z;
       const len = Math.hypot(dx, dz) * scale;
       const angle = Math.atan2(dz, dx);
+      const cushionTex = clothTexture?.clone();
+      if (cushionTex) {
+        cushionTex.wrapS = THREE.RepeatWrapping;
+        cushionTex.wrapT = THREE.RepeatWrapping;
+        cushionTex.repeat.set(Math.max(1, len * 3.2), 1.6);
+        cushionTex.needsUpdate = true;
+      }
+      const cushionMat = new THREE.MeshStandardMaterial({ color: '#ffffff', map: cushionTex ?? clothTexture ?? undefined, roughness: 0.84, metalness: 0.01 });
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(len, 0.055, 0.065), cushionMat);
       mesh.position.set(((c.from.x + c.to.x) * 0.5) * scale, 0.075, ((c.from.z + c.to.z) * 0.5) * scale);
       mesh.rotation.y = -angle;
       tableGroup.add(mesh);
+
+      const cushionShadow = new THREE.Mesh(
+        new THREE.PlaneGeometry(len * 0.98, 0.07),
+        new THREE.MeshBasicMaterial({ color: '#d3d6db', transparent: true, opacity: 0.38 }),
+      );
+      cushionShadow.rotation.x = -Math.PI / 2;
+      cushionShadow.rotation.z = -angle;
+      cushionShadow.position.set(mesh.position.x, 0.047, mesh.position.z);
+      tableGroup.add(cushionShadow);
     });
 
     currentMapping.pockets.forEach((p) => {
@@ -98,11 +130,18 @@ export default function SevenFootShowoodPreview({ selectedTable, onBack }: { sel
         tableGroup.add(jaw);
       }
 
-      const chrome = new THREE.Mesh(new THREE.BoxGeometry(0.08 * scale, 0.007, 0.036 * scale), chromeMat);
+      const chrome = new THREE.Mesh(new THREE.BoxGeometry(0.08 * scale, 0.007, 0.036 * scale), railSightMat);
       chrome.position.set((p.center.x + dir.x * (p.radius * 1.4)) * scale, 0.102, (p.center.z + dir.z * (p.radius * 1.4)) * scale);
       chrome.rotation.y = Math.atan2(dir.z, dir.x);
       tableGroup.add(chrome);
     });
+
+    const apronStripGeoLong = new THREE.BoxGeometry(currentMapping.playfield.width * scale * 1.05, 0.014, 0.028);
+    const apronStripGeoShort = new THREE.BoxGeometry(0.028, 0.014, currentMapping.playfield.length * scale * 1.05);
+    const topApron = new THREE.Mesh(apronStripGeoLong, railSightMat); topApron.position.set(0, 0.061, -halfL - 0.052); tableGroup.add(topApron);
+    const bottomApron = new THREE.Mesh(apronStripGeoLong, railSightMat); bottomApron.position.set(0, 0.061, halfL + 0.052); tableGroup.add(bottomApron);
+    const leftApron = new THREE.Mesh(apronStripGeoShort, railSightMat); leftApron.position.set(-halfW - 0.052, 0.061, 0); tableGroup.add(leftApron);
+    const rightApron = new THREE.Mesh(apronStripGeoShort, railSightMat); rightApron.position.set(halfW + 0.052, 0.061, 0); tableGroup.add(rightApron);
 
     let frame = 0; const animate = () => { frame = requestAnimationFrame(animate); tableGroup.rotation.y += 0.002; renderer.render(scene, camera); }; animate();
     const onResize = () => { camera.aspect = host.clientWidth / host.clientHeight; camera.updateProjectionMatrix(); renderer.setSize(host.clientWidth, host.clientHeight); };
