@@ -102,6 +102,7 @@ import {
   smoothDamp,
   SPIN_STUN_RADIUS
 } from './snookerRoyalSpinUtils.js';
+import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
@@ -1089,7 +1090,7 @@ const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
 const FRAME_RAIL_OUTWARD_SCALE = 1.38; // expand wooden frame rails outward by 38% on all sides
 const RAIL_HEIGHT = TABLE.THICK * 1.9; // match Pool Royale rail/cushion top height
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.024; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
-const POCKET_JAW_MAPPING_RADIUS_SCALE = 1.08; // expand jaw collision arcs further to block escape paths around pocket lips
+const POCKET_JAW_MAPPING_RADIUS_SCALE = 1.02; // slightly expand jaw collision arcs so balls cannot slip past the GLB pocket lips
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
 const POCKET_JAW_CORNER_INNER_SCALE = 1.44; // pull the inner lip farther outward so the jaw profile runs longer and thins slightly while keeping the chrome-facing radius untouched
@@ -1635,7 +1636,7 @@ const CUE_PULL_ALIGNMENT_BOOST = 0.32; // amplify visible pull when the camera l
 const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth slightly while keeping more of the stroke visible in cue view
 const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
-const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.42; // ensure every stroke pulls slightly farther back for readability at all angles
+const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.24; // ensure every stroke pulls slightly farther back for readability at all angles
 const CUE_STROKE_MIN_MS = 95;
 const CUE_STROKE_MAX_MS = 420;
 const CUE_STROKE_SPEED_MIN = BALL_R * 18;
@@ -1645,8 +1646,8 @@ const CUE_FOLLOW_MAX_MS = 420;
 const CUE_FOLLOW_SPEED_MIN = BALL_R * 12;
 const CUE_FOLLOW_SPEED_MAX = BALL_R * 24;
 const ENABLE_CUE_STROKE_ANIMATION = true;
-const CUE_FOLLOW_THROUGH_MIN = BALL_R * 0.34; // ensure the forward push is visible even on short strokes
-const CUE_FOLLOW_THROUGH_MAX = BALL_R * 2.3; // cap the forward travel so the cue never overshoots the ball too far
+const CUE_FOLLOW_THROUGH_MIN = BALL_R * 0.18; // ensure the forward push is visible even on short strokes
+const CUE_FOLLOW_THROUGH_MAX = BALL_R * 1.8; // cap the forward travel so the cue never overshoots the ball too far
 const PLAYER_CUE_FORWARD_MIN_MS = 450;
 const PLAYER_CUE_FORWARD_MAX_MS = 1025;
 const PLAYER_CUE_FORWARD_EASE = 0.65;
@@ -1668,16 +1669,16 @@ const SNOOKER_HUMAN_WORLD_SCALE = BALL_R / 0.0525;
 const SNOOKER_HUMAN_CFG = Object.freeze({
   // Match the larger Snooker Champion character proportions exactly so the
   // Royal avatar reads as a full-sized player beside the GLB snooker table.
-  targetHeight: 1.35 * 1.78 * SNOOKER_HUMAN_WORLD_SCALE,
+  targetHeight: 1.2 * 1.78 * SNOOKER_HUMAN_WORLD_SCALE,
   floorY: FLOOR_Y - TABLE_Y,
-  idleDistance: 0.9 * SNOOKER_HUMAN_WORLD_SCALE,
+  idleDistance: 0.82 * SNOOKER_HUMAN_WORLD_SCALE,
   bridgeBackFromBall: 0.27 * SNOOKER_HUMAN_WORLD_SCALE,
-  bridgeSide: -0.115 * SNOOKER_HUMAN_WORLD_SCALE,
-  stanceSide: 0.31 * SNOOKER_HUMAN_WORLD_SCALE,
-  rightFootBack: 0.34 * SNOOKER_HUMAN_WORLD_SCALE,
-  leftFootForward: 0.34 * SNOOKER_HUMAN_WORLD_SCALE,
-  chinCueOffsetY: 0.11 * SNOOKER_HUMAN_WORLD_SCALE,
-  chestCueOffsetY: 0.2 * SNOOKER_HUMAN_WORLD_SCALE,
+  bridgeSide: -0.025 * SNOOKER_HUMAN_WORLD_SCALE,
+  stanceSide: 0.25 * SNOOKER_HUMAN_WORLD_SCALE,
+  rightFootBack: 0.38 * SNOOKER_HUMAN_WORLD_SCALE,
+  leftFootForward: 0.30 * SNOOKER_HUMAN_WORLD_SCALE,
+  chinCueOffsetY: 0.12 * SNOOKER_HUMAN_WORLD_SCALE,
+  chestCueOffsetY: 0.22 * SNOOKER_HUMAN_WORLD_SCALE,
   rootLambda: 7.5,
   poseLambda: 10,
   yawFix: 0
@@ -2113,38 +2114,6 @@ function getSnookerCueEndpoints(cueStick, cueLen) {
   return { tip, butt };
 }
 
-function chooseSnookerHumanPerimeterTarget(cueBall, aimDir) {
-  const desired = cueBall.clone().addScaledVector(aimDir, -SNOOKER_HUMAN_CFG.idleDistance);
-  const xEdge = TABLE_W / 2 + TABLE.THICK * 0.9;
-  const zEdge = TABLE_H / 2 + TABLE.THICK * 0.9;
-  const candidates = [
-    new THREE.Vector3(-xEdge, SNOOKER_HUMAN_CFG.floorY, clamp(desired.z, -zEdge, zEdge)),
-    new THREE.Vector3(xEdge, SNOOKER_HUMAN_CFG.floorY, clamp(desired.z, -zEdge, zEdge)),
-    new THREE.Vector3(clamp(desired.x, -xEdge, xEdge), SNOOKER_HUMAN_CFG.floorY, -zEdge),
-    new THREE.Vector3(clamp(desired.x, -xEdge, xEdge), SNOOKER_HUMAN_CFG.floorY, zEdge)
-  ];
-  return candidates.sort((a, b) => a.distanceToSquared(desired) - b.distanceToSquared(desired))[0].clone();
-}
-
-function constrainSnookerHumanPerimeterStep(current, target) {
-  const xEdge = TABLE_W / 2 + TABLE.THICK * 0.9;
-  const zEdge = TABLE_H / 2 + TABLE.THICK * 0.9;
-  const project = (point) => {
-    const dx = Math.abs(Math.abs(point.x) - xEdge);
-    const dz = Math.abs(Math.abs(point.z) - zEdge);
-    if (dx < dz) return new THREE.Vector3(Math.sign(point.x || target.x || 1) * xEdge, SNOOKER_HUMAN_CFG.floorY, clamp(point.z, -zEdge, zEdge));
-    return new THREE.Vector3(clamp(point.x, -xEdge, xEdge), SNOOKER_HUMAN_CFG.floorY, Math.sign(point.z || target.z || 1) * zEdge);
-  };
-  const cur = current.lengthSq() > 1e-6 ? project(current) : project(target);
-  const goal = project(target);
-  const curOnX = Math.abs(Math.abs(cur.x) - xEdge) < Math.abs(Math.abs(cur.z) - zEdge);
-  const goalOnX = Math.abs(Math.abs(goal.x) - xEdge) < Math.abs(Math.abs(goal.z) - zEdge);
-  if (curOnX === goalOnX && (curOnX ? Math.sign(cur.x) === Math.sign(goal.x) : Math.sign(cur.z) === Math.sign(goal.z))) return goal;
-  return curOnX
-    ? new THREE.Vector3(cur.x, SNOOKER_HUMAN_CFG.floorY, Math.sign(goal.z || cur.z || 1) * zEdge)
-    : new THREE.Vector3(Math.sign(goal.x || cur.x || 1) * xEdge, SNOOKER_HUMAN_CFG.floorY, cur.z);
-}
-
 function updateSnookerRoyalHumanPlayer(human, dt, options) {
   if (!human?.root || human.disabled) return;
   const {
@@ -2174,11 +2143,10 @@ function updateSnookerRoyalHumanPlayer(human, dt, options) {
   // Orientation is driven from the actual shot line: the root stands behind
   // the cue ball on -dir, then faces +dir back through cue ball/object ball.
   // Keeping local +Z on the shot line prevents mirrored cue/hand placement.
-  const rawRootTarget = cueBall.clone()
+  const rootTarget = cueBall.clone()
     .addScaledVector(dir, -SNOOKER_HUMAN_CFG.idleDistance - pullPose * BALL_R * 1.8)
-    .addScaledVector(side, -SNOOKER_HUMAN_CFG.stanceSide * 0.3);
-  const perimeterTarget = chooseSnookerHumanPerimeterTarget(cueBall, dir);
-  const rootTarget = constrainSnookerHumanPerimeterStep(human.root.position, perimeterTarget.clone().lerp(rawRootTarget, 0.35));
+    .addScaledVector(side, -SNOOKER_HUMAN_CFG.stanceSide * 0.32);
+  rootTarget.y = SNOOKER_HUMAN_CFG.floorY;
   const playfieldTarget = new THREE.Vector3(0, cueBall.y, 0);
   const cueFacing = cueBall.clone().sub(rootTarget).setY(0);
   const tableFacing = playfieldTarget.clone().sub(rootTarget).setY(0);
@@ -2205,7 +2173,7 @@ function updateSnookerRoyalHumanPlayer(human, dt, options) {
     .addScaledVector(dir, -SNOOKER_HUMAN_CFG.bridgeBackFromBall)
     .addScaledVector(side, SNOOKER_HUMAN_CFG.bridgeSide)
     .setY(CUE_Y + BALL_R * 0.08);
-  const gripBlend = tableCueVisible ? (0.58 + pullPose * 0.06) : 0.62;
+  const gripBlend = tableCueVisible ? (0.37 + pullPose * 0.08) : 0.62;
   const grip = cueEndpoints.butt
     .clone()
     .lerp(cueEndpoints.tip, gripBlend)
@@ -2219,13 +2187,11 @@ function updateSnookerRoyalHumanPlayer(human, dt, options) {
   const head = toRootLocal(headWorld);
   const neck = chest.clone().lerp(head, 0.68);
   const leftShoulder = chest.clone().add(new THREE.Vector3(-0.13 * SNOOKER_HUMAN_WORLD_SCALE, 0.05 * SNOOKER_HUMAN_WORLD_SCALE, -0.025 * SNOOKER_HUMAN_WORLD_SCALE));
-  const rightShoulder = chest.clone().add(new THREE.Vector3(0.2 * SNOOKER_HUMAN_WORLD_SCALE, 0.05 * SNOOKER_HUMAN_WORLD_SCALE, -0.04 * SNOOKER_HUMAN_WORLD_SCALE));
+  const rightShoulder = chest.clone().add(new THREE.Vector3(0.13 * SNOOKER_HUMAN_WORLD_SCALE, 0.055 * SNOOKER_HUMAN_WORLD_SCALE, -0.08 * SNOOKER_HUMAN_WORLD_SCALE));
   const leftHand = toRootLocal(bridge);
-  const strokePush = (shooting || cueAnimating) ? Math.sin(Math.min(1, pullPose) * Math.PI) : 0;
-  const forearmStroke = -0.3 * SNOOKER_HUMAN_WORLD_SCALE * pullPose + 0.24 * SNOOKER_HUMAN_WORLD_SCALE * strokePush;
-  const rightHand = toRootLocal(grip.clone().addScaledVector(dir, forearmStroke));
+  const rightHand = toRootLocal(grip);
   const leftElbow = leftShoulder.clone().lerp(leftHand, 0.58).add(new THREE.Vector3(-0.05 * SNOOKER_HUMAN_WORLD_SCALE, 0.05 * SNOOKER_HUMAN_WORLD_SCALE, 0.03 * SNOOKER_HUMAN_WORLD_SCALE));
-  const rightElbow = rightShoulder.clone().add(new THREE.Vector3(-0.46 * SNOOKER_HUMAN_WORLD_SCALE, 0.18 * SNOOKER_HUMAN_WORLD_SCALE, -0.78 * SNOOKER_HUMAN_WORLD_SCALE));
+  const rightElbow = rightShoulder.clone().lerp(rightHand, 0.42).add(new THREE.Vector3(0.22 * SNOOKER_HUMAN_WORLD_SCALE, 0.20 * SNOOKER_HUMAN_WORLD_SCALE, -0.20 * SNOOKER_HUMAN_WORLD_SCALE));
   const leftHip = new THREE.Vector3(-0.07 * SNOOKER_HUMAN_WORLD_SCALE, 0.43 * SNOOKER_HUMAN_WORLD_SCALE, -0.08 * SNOOKER_HUMAN_WORLD_SCALE);
   const rightHip = new THREE.Vector3(0.08 * SNOOKER_HUMAN_WORLD_SCALE, 0.43 * SNOOKER_HUMAN_WORLD_SCALE, -0.12 * SNOOKER_HUMAN_WORLD_SCALE);
   const walkLift = Math.sin(human.walkPhase) * 0.028 * SNOOKER_HUMAN_WORLD_SCALE * human.walkAmount;
@@ -5674,21 +5640,21 @@ function applySnookerScaling({
 // Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
 const STANDING_VIEW_PHI = 1.04; // lower the standing camera a touch so the table sits slightly lower on screen
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
-const STANDING_VIEW_MARGIN = 0.00005; // pull the standing frame even closer so the table fills more of the portrait screen
+const STANDING_VIEW_MARGIN = 0.001; // pull the standing frame closer so the table and balls fill more of the view
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.08;
 const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.1; // match Pool Royale standing-view lower sweep
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.54);
 const CAMERA_MAX_PHI = CAMERA_LOWEST_PHI; // halt the downward sweep right above the cue while still enabling the lower AI cue height for players
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0102; // move standing/cue camera physically closer for tighter near-rail framing
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0132; // match Pool Royale standing/cue camera distance
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.96;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.94;
-const STANDING_VIEW_DISTANCE_SCALE = 0.24; // tighten standing view distance so the playfield appears larger in portrait
+const STANDING_VIEW_DISTANCE_SCALE = 0.28; // pull the standing camera slightly closer to the table for tighter portrait framing
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -5751,7 +5717,7 @@ const DEFAULT_RAIL_LIMIT_X = PLAY_W / 2 - BALL_R - CUSHION_FACE_INSET;
 const DEFAULT_RAIL_LIMIT_Y = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET;
 let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
-const RAIL_LIMIT_PADDING = BALL_R * 0.2; // increase in-bounds clamp so balls stay inside the mapped playfield edge
+const RAIL_LIMIT_PADDING = BALL_R * 0.12; // mirror Pool Royale rail padding so balls cannot slip outside table limits
 const RAIL_CONTACT_RADIUS = BALL_R;
 const CUSHION_CUT_CONTACT_RADIUS = RAIL_CONTACT_RADIUS * 1.12;
 const CUSHION_CUT_NEAR_POCKET_BUFFER = BALL_R * 0.9;
@@ -5797,7 +5763,7 @@ const RAIL_OVERHEAD_DISTANCE_BIAS = 1; // mirror Pool Royale rail-overhead dista
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
-const CUE_VIEW_RADIUS_RATIO = 0.0152; // bring cue camera closer so cueing view sits tighter to the table
+const CUE_VIEW_RADIUS_RATIO = 0.0175; // pull the cue camera closer to the table for tighter address framing
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.064; // allow a closer minimum cue-camera radius before rail safety clamps apply
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
@@ -5864,9 +5830,9 @@ const REPLAY_BANNER_VARIANTS = {
 };
 const REPLAY_TRAIL_HEIGHT = BALL_CENTER_Y + BALL_R * 0.3;
 const REPLAY_TRAIL_COLOR = 0xffffff;
-const REPLAY_CUE_STROKE_SLOWDOWN = 1.95;
-const REPLAY_CUE_STICK_HOLD_MS = 840;
-const REPLAY_CUE_RETURN_WINDOW_MS = 420;
+const REPLAY_CUE_STROKE_SLOWDOWN = 1.6;
+const REPLAY_CUE_STICK_HOLD_MS = 620;
+const REPLAY_CUE_RETURN_WINDOW_MS = 260;
 const RAIL_NEAR_BUFFER = BALL_R * 3.5;
 const SHORT_SHOT_CAMERA_DISTANCE = BALL_R * 12; // keep camera in standing view for close shots
 const SHORT_RAIL_POCKET_TRIGGER =
@@ -5895,8 +5861,8 @@ const AI_WARMUP_PULL_RATIO = 0.62;
 const PLAYER_CUE_PULL_VISIBILITY_BOOST = 1.32;
 const PLAYER_WARMUP_PULL_RATIO = 0.72;
 const PLAYER_STROKE_TIME_SCALE = 1.28;
-const PLAYER_FORWARD_SLOWDOWN = 1.05;
-const PLAYER_STROKE_PULLBACK_FACTOR = 0.95;
+const PLAYER_FORWARD_SLOWDOWN = 1.2;
+const PLAYER_STROKE_PULLBACK_FACTOR = 0.68;
 const PLAYER_PULLBACK_MIN_SCALE = 1.1;
 const MIN_PULLBACK_GAP = BALL_R * 0.5;
 const CAMERA_SWITCH_MIN_HOLD_MS = 220;
@@ -14506,8 +14472,6 @@ const showRuleToast = useCallback((message) => {
   }, 3000);
 }, []);
 const powerRef = useRef(hud.power);
-const shotPowerRef = useRef(hud.power);
-const draggingSliderRef = useRef(false);
   const applyPower = useCallback((nextPower) => {
     const clampedPower = THREE.MathUtils.clamp(nextPower ?? 0, 0, 1);
     powerRef.current = clampedPower;
@@ -14518,9 +14482,6 @@ const draggingSliderRef = useRef(false);
   }, [inHandPlacementMode]);
   useEffect(() => {
     powerRef.current = hud.power;
-    if (!draggingSliderRef.current) {
-      shotPowerRef.current = hud.power;
-    }
   }, [hud.power]);
   const hudRef = useRef(hud);
   useEffect(() => {
@@ -23260,7 +23221,7 @@ const draggingSliderRef = useRef(false);
             0,
             Math.max(maxPull + CUE_PULL_VISUAL_FUDGE, CUE_PULL_MIN_VISUAL)
           );
-          const visualPull = applyVisualPullCompensation(startPull * 1.12, dir);
+          const visualPull = applyVisualPullCompensation(startPull, dir);
           cuePullCurrentRef.current = startPull;
           cuePullTargetRef.current = startPull;
           const cuePerp = new THREE.Vector3(-dir.z, 0, dir.x);
@@ -23306,21 +23267,21 @@ const draggingSliderRef = useRef(false);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
           const pullbackDuration = 115;
-          const strikeDuration = 130;
+          const strikeDuration = 110;
           const holdDuration = 45;
           const returnDuration = 95;
           // Keep the no-character cue stroke matching the old human-rig shot:
           // drive the tip forward from pullback into cue-ball contact instead
           // of stopping at the original address gap.
           const impactPush = THREE.MathUtils.clamp(
-            CUE_TIP_CLEARANCE * 1.9,
-            BALL_R * 0.2,
-            BALL_R * 0.5
+            CUE_TIP_CLEARANCE,
+            BALL_R * 0.08,
+            BALL_R * 0.3
           );
           const impactPos = buildCuePosition(-impactPush);
           // Stop the visible cue at contact so it reads as a push without
           // chasing the moving cue ball after physics takes over.
-          const followExtra = BALL_R * 0.24;
+          const followExtra = 0;
           TMP_VEC3_FOLLOW_DIR.copy(impactPos).sub(pullPos);
           if (TMP_VEC3_FOLLOW_DIR.lengthSq() > 1e-8) {
             TMP_VEC3_FOLLOW_DIR.normalize();
@@ -23409,23 +23370,27 @@ const draggingSliderRef = useRef(false);
               return;
             }
             const elapsed = Math.max(0, now - startTime);
-            if (elapsed <= pullbackDuration) {
-              const t = THREE.MathUtils.clamp(elapsed / pullbackDuration, 0, 1);
-              cueStick.position.lerpVectors(idlePos, pullPos, easeInOutQuad(t));
-            } else if (elapsed <= pullbackDuration + strikeDuration) {
-              const strikeElapsed = elapsed - pullbackDuration;
-              const t = THREE.MathUtils.clamp(strikeElapsed / strikeDuration, 0, 1);
-              const strikeEase = easeOutCubic(t);
+            const sample = sampleCueStrokeTimeline({
+              elapsed,
+              pullbackDuration,
+              strikeDuration,
+              holdDuration,
+              animationStyle: 'linear',
+              strikeWindowRatio: 0.12,
+              hitArmRatio: 0.88
+            });
+            if (sample.phase === 'pullback') {
+              cueStick.position.lerpVectors(idlePos, pullPos, easeInOutQuad(sample.t));
+            } else if (sample.phase === 'release' || sample.phase === 'strike') {
+              const strikeEase = easeOutCubic(sample.t);
               const dynamicFollow =
-                followExtra * (0.55 + 0.45 * Math.sin(t * Math.PI));
+                followExtra * (0.55 + 0.45 * Math.sin(sample.t * Math.PI));
               cueStick.position.lerpVectors(pullPos, impactPos, strikeEase);
               if (dynamicFollow > 1e-6) {
                 cueStick.position.addScaledVector(TMP_VEC3_FOLLOW_DIR, dynamicFollow);
               }
-            } else if (elapsed <= pullbackDuration + strikeDuration + holdDuration) {
-              const holdElapsed = elapsed - pullbackDuration - strikeDuration;
-              const t = THREE.MathUtils.clamp(holdElapsed / holdDuration, 0, 1);
-              cueStick.position.lerpVectors(impactPos, settlePos, easeInOutQuad(t));
+            } else if (sample.phase === 'hold') {
+              cueStick.position.lerpVectors(impactPos, settlePos, easeInOutQuad(sample.t));
             } else if (now <= returnTime && returnDuration > 0) {
               const t = THREE.MathUtils.clamp((now - holdEndTime) / returnDuration, 0, 1);
               cueStick.position.lerpVectors(settlePos, idlePos, easeInOutQuad(t));
@@ -27615,32 +27580,15 @@ const draggingSliderRef = useRef(false);
       value: powerRef.current * 100,
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
+      onChange: (v) => applyPower(v / 100),
       onStart: () => {
-        draggingSliderRef.current = true;
         captureCueStickAnchor();
       },
-      onChange: (v) => {
-        const normalized = THREE.MathUtils.clamp((v ?? 0) / 100, 0, 1);
-        applyPower(normalized);
-        if (draggingSliderRef.current) {
-          shotPowerRef.current = normalized;
-        }
-      },
       onCommit: () => {
-        const committedPower = THREE.MathUtils.clamp(
-          shotPowerRef.current ?? powerRef.current ?? 0,
-          0,
-          1
-        );
-        shotPowerRef.current = committedPower;
-        powerRef.current = committedPower;
-        draggingSliderRef.current = false;
         fireRef.current?.();
         requestAnimationFrame(() => {
-          slider.animateToMin?.({ duration: 180 });
           slider.set(slider.min, { animate: true });
           applyPower(0);
-          shotPowerRef.current = 0;
         });
       }
     });
@@ -27657,8 +27605,6 @@ const draggingSliderRef = useRef(false);
     if (slider) {
       slider.set(slider.min, { animate: true });
     }
-    draggingSliderRef.current = false;
-    shotPowerRef.current = 0;
     applyPower(0);
     cuePullCurrentRef.current = 0;
     cuePullTargetRef.current = 0;
