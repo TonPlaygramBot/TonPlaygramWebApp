@@ -83,11 +83,6 @@ import {
   POOL_ROYALE_BASE_VARIANTS,
   POOL_ROYALE_OPTION_LABELS
 } from '../../config/poolRoyaleInventoryConfig.js';
-import {
-  SNOOKER_ROYALE_BASE_VARIANTS,
-  SNOOKER_ROYALE_HDRI_VARIANTS,
-  SNOOKER_ROYALE_HDRI_VARIANT_MAP
-} from '../../config/snookerRoyalInventoryConfig.js';
 import { BILARDO_MIN_RELEASE_POWER } from './shared/bilardoShotModel';
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../../config/poolRoyaleClothPresets.js';
 import {
@@ -825,11 +820,11 @@ const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the notch depth identical to the pocket cylinder so the chrome kisses the jaw edge
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
 const CHROME_PLATE_REFLECTION_SCALE = 0.28; // kill pocket-cut reflections by damping env-map intensity on fascia cuts
-const CHROME_PLATE_ROUGHNESS_LIFT = 0.08; // lift roughness on fascia cuts so pocket arches stop casting hot spots on cloth
+const CHROME_PLATE_ROUGHNESS_LIFT = 0.14; // smooth chrome/gold highlight rolloff on rail sights for a softer edge finish
 const CHROME_PLATE_THICKNESS_SCALE = 0.0306; // match diamond thickness on the wooden rails for fascia depth
 const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.18; // thicken the middle fascia so its depth now matches the corner plates
 const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0.06; // lift fascia slightly with the raised rail/cushion profile so chrome stays aligned on all six pockets
-const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0.28; // expand rail-sight fascia downward so it fully covers rail-sight faces and corner rims
+const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0.22; // extend rail-sight chrome/gold farther downward on the rail face
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.34; // trim the side fascia reach so the middle chrome ends cleanly before the pocket curve
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.14; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
@@ -841,14 +836,14 @@ const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.9; // tighten the middle fasci
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.24; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.012; // push middle chrome plates slightly outward away from table center while preserving the rounded cut
-const CHROME_SIDE_APRON_COVER_THICKNESS_SCALE = 0.038; // keep middle-pocket apron cover as a slim strip, not a full side panel overlay
-const CHROME_SIDE_APRON_COVER_HEIGHT_SCALE = 0.58; // limit middle-pocket apron cover to the small strip beside each jaw
+const CHROME_SIDE_APRON_COVER_THICKNESS_SCALE = 0.055; // cover the grey middle-pocket side apron with rail-sight chrome/gold
+const CHROME_SIDE_APRON_COVER_HEIGHT_SCALE = 1.08; // extend side rail-sight chrome/gold lower so the texture coverage continues further downward
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.022; // trim the outer fascia edge a hair more for a tighter outside finish
 const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.078; // trim the middle-pocket outside chrome a touch more so the outer edge ends flush with the wooden rails
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.045; // open only the corner chrome rounded cut a tiny bit more so the arc reads slightly larger
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.03; // open middle-pocket chrome rounded cuts a tiny bit more so the arc reads slightly larger
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // reduce inward pull so middle pocket chrome cuts sit a bit farther out
-const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // keep procedural wooden rail pocket relief identical to the GLB Showood profile
+const WOOD_RAIL_POCKET_RELIEF_SCALE = 1.045; // match the wooden rail pocket relief to the Showood jaw outside diameter
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.958; // shrink the wooden corner rounded cut a touch more so only the wood corner radius reads slightly tighter
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
@@ -1155,7 +1150,7 @@ const TABLE_FOOTPRINT_SCALE = 0.82; // reduce the table footprint ~18% while kee
 const BASE_FOOTPRINT_SHRINK = 0.82; // shrink the table base footprint by 18% without changing overall height
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
-const TABLE_DISPLAY_SCALE = 0.85; // shrink the table just a bit in portrait while preserving proportions
+const TABLE_DISPLAY_SCALE = 0.86; // make the table read just a bit larger in portrait while preserving proportions
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
 const TOUCH_UI_SCALE = SIZE_REDUCTION;
 const POINTER_UI_SCALE = 1;
@@ -1310,13 +1305,13 @@ const REPLAY_CAMERA_START_DELAY_MS = 0;
     WALL: 2.6 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
-const FRAME_RAIL_OUTWARD_SCALE = 1.38; // expand wooden frame rails outward by 38% on all sides
-const RAIL_HEIGHT = TABLE.THICK * 1.62; // shorten all four wooden rails back toward the original procedural frame height
+const FRAME_RAIL_OUTWARD_SCALE = 1.24; // shorten all 4 table sides by reducing outer frame overhang while keeping playfield dimensions stable
+const RAIL_HEIGHT = TABLE.THICK * 1.9; // lift all six cushions/rails a touch more so the top profile reads higher without changing playfield size
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.024; // push the corner jaws just a bit farther outward so the fascia follows the rounded rail and chrome cut
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
 const POCKET_JAW_CORNER_INNER_SCALE = 1.62; // stretch the inner lip into a longer Showood-style rounded pocket jaw while keeping playable mouth size
-const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE; // keep middle jaw inner profile identical to the GLB Showood corner-jaw family
+const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 1.03; // round and widen the middle jaws slightly more while keeping the corner match
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.86; // broaden the outer jaw shoulder to mirror the Showood rounded pocket cup profile
 const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
@@ -1348,10 +1343,10 @@ const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thi
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.74; // pull both corner-jaw flanks inward a bit more while keeping current jaw height
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.5; // expand both middle-jaw flanks slightly so all six jaws open up evenly
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // use the same arc radius as GLB Showood jaws so all six pockets match
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // keep middle jaw depth identical to GLB Showood pocket jaws
-const SIDE_POCKET_JAW_VERTICAL_TWEAK = 0; // align middle-pocket jaw vertical placement with the GLB Showood corner-jaw height
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = 0; // keep middle-pocket jaw lateral placement identical to the GLB Showood layout
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.995; // keep middle jaw arcs slightly tighter so side jaws look a bit smaller
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.12; // add Showood-like extra depth so side jaws match the corner jaw type
+const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.01; // pull middle-pocket jaws a bit farther downward than corners
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.028; // reduce the outward shift so middle-pocket jaws sit a bit more inward toward table center
 const POCKET_JAW_INWARD_PULL = 0; // keep the jaw centers aligned with the snooker pocket layout
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.66; // shorten middle jaw side edges a bit more so all six jaws finish cleaner at the shoulders
@@ -1359,7 +1354,7 @@ const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // 
 const CORNER_POCKET_JAW_EDGE_TRIM_START = SIDE_POCKET_JAW_EDGE_TRIM_START; // keep corner jaw taper start aligned with middle pockets
 const CORNER_POCKET_JAW_EDGE_TRIM_SCALE = SIDE_POCKET_JAW_EDGE_TRIM_SCALE; // match the middle pocket jaw thin/thick profile
 const CORNER_POCKET_JAW_EDGE_TRIM_CURVE = SIDE_POCKET_JAW_EDGE_TRIM_CURVE; // reuse the same taper curve for corner jaws
-const POCKET_JAW_MAPPING_RADIUS_SCALE = 1.01; // tighten jaw collision arcs so balls do not bounce early before reaching cushion noses
+const POCKET_JAW_MAPPING_RADIUS_SCALE = 1.08; // expand jaw collision mapping further so gameplay collisions match visible jaws and prevent pass-throughs
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
 const POCKET_RIM_DEPTH_RATIO = 0; // remove the separate pocket rims so the chrome fascias meet the jaws directly
@@ -1411,7 +1406,6 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
   );
 const MM_TO_UNITS = (innerLong / WIDTH_REF) / TABLE_SURFACE_COMPENSATION;
 const BALL_SIZE_SCALE = 0.96; // trim ball size slightly while keeping every helper tied to BALL_R/BALL_DIAMETER
-const SNOOKER_TABLE_BALL_RADIUS_SCALE = 0.9; // make balls visibly smaller only when the snooker table model is active
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -1551,12 +1545,12 @@ const BALL_INERTIA = (2 / 5) * BALL_MASS * BALL_R * BALL_R;
 const SPIN_FIXED_DT = 1 / 120;
 const SPIN_SLIDE_EPS = 0.02;
 const SPIN_KINETIC_FRICTION = 0.22;
-const SPIN_ROLL_DAMPING = 0.08;
+const SPIN_ROLL_DAMPING = 0.1;
 const SPIN_ANGULAR_DAMPING = 0.04;
 const SPIN_GRAVITY = 9.81;
-const ROLLING_RESISTANCE = 0.01;
+const ROLLING_RESISTANCE = 0.011;
 const BALL_BALL_FRICTION = 0.105;
-const BALL_CONTACT_EPS = BALL_R * 0.012; // broaden contact tolerance slightly so grazing touches resolve instead of tunneling
+const BALL_CONTACT_EPS = BALL_R * 0.016; // increase grazing-contact tolerance so fast shots cannot tunnel through cushion/jaw boundaries
 const BALL_COLLISION_SLOP = BALL_R * 0.001; // tighter tolerance so visible ball overlap is corrected faster
 const BALL_COLLISION_BAUMGARTE = 0.92; // stronger overlap correction so touching balls settle at true physical spacing
 const RAIL_FRICTION = 0.16;
@@ -1566,7 +1560,7 @@ const STOP_FINAL_EPS = STOP_EPS * 0.35;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3; // allow up to 3 frames of catch-up when recovering from slow frames
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
 const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
-const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
+const MAX_PHYSICS_SUBSTEPS = 8; // add extra substeps for higher cushion/pocket collision precision on slower frames
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
 const MAX_POWER_BOUNCE_THRESHOLD = 0.995; // treat slider max as the hard cap threshold
 const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 1.9; // push full-power launches higher so cue-ball jumps read stronger
@@ -1629,7 +1623,7 @@ const CUSHION_EXTRA_LIFT = TABLE.THICK * 0.225; // lift the cushion base higher 
 const CUSHION_HEIGHT_DROP = 0; // keep the cushion tops fully raised to match the Showood rail profile
 const CUSHION_FIELD_CLIP_RATIO = 0.152; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
-const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH * 0.48; // shorten the short/top rail drop from the lower side while keeping side aprons unchanged
+const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.085; // round exterior wooden rail edge profile to remove sharp octagon-like corners
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
@@ -1839,9 +1833,9 @@ const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // disable preview-only spin defle
 const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
-const SHOT_POWER_ADJUSTMENT = 0.62; // reduce overall Pool Royale power by an additional 20%
-const SHOT_POWER_BOOST = 1.32; // add stronger cue drive while preserving slider feel
-const SHOT_GLOBAL_POWER_SCALE = 0.9; // add a bit more carry so medium-power and break shots feel stronger
+const SHOT_POWER_ADJUSTMENT = 1; // restore legacy shot scaling used before the May 19 power retune
+const SHOT_POWER_BOOST = 0.455; // restore the pre-May-19 cue launch boost
+const SHOT_GLOBAL_POWER_SCALE = 1; // keep global strike scaling neutral to match the legacy feel
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -1882,10 +1876,10 @@ const TABLE_H = 0.75 * LEG_SCALE * TABLE_HEIGHT_REDUCTION * TABLE_HEIGHT_SCALE;
 const TABLE_LIFT =
   BASE_TABLE_LIFT + TABLE_H * (LEG_HEIGHT_FACTOR - 1);
 const BASE_LEG_HEIGHT = TABLE.THICK * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
-const LEG_RADIUS_SCALE = 1.42; // expand leg thickness so the larger base and legs read sturdier from all sides
+const LEG_RADIUS_SCALE = 1.2; // 20% thicker cylindrical legs
 const BASE_LEG_LENGTH_SCALE = 0.72; // previous leg extension factor used for baseline stance
 const LEG_ELEVATION_SCALE = 0.96; // shorten the current leg extension to lower the playfield
-const LEG_LENGTH_SHRINK = 0.96; // extend legs downward a bit more so playfield height stays stable after shortening short-rail bottoms
+const LEG_LENGTH_SHRINK = 0.867; // lengthen legs to extend the base downward with the taller table stance
 const BASE_HEIGHT_REDUCTION = 0.69; // trim table bases slightly more from the bottom to shorten the table stance
 const LEG_LENGTH_SCALE =
   BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE * LEG_LENGTH_SHRINK * BASE_HEIGHT_REDUCTION;
@@ -1916,7 +1910,7 @@ const BASE_HEIGHT_FILL = BASE_HEIGHT_REDUCTION; // keep custom bases aligned wit
 const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
 const TABLE_HEIGHT_DROP = (TABLE_H + TABLE.THICK) * 0.24; // lower the full table assembly a bit more so portal leg bottoms sit down onto their chrome levelers
 const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA - TABLE_HEIGHT_DROP;
-const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.5; // expand/deepen the leg base so the body trim change does not visually lift the playfield
+const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.07;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
@@ -4265,7 +4259,7 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
 ]);
 
 const DEFAULT_CHROME_PLATE_STYLE_ID =
-  POOL_ROYALE_DEFAULT_UNLOCKS.chromePlateStyle?.[0] ?? 'royal-classic';
+  POOL_ROYALE_DEFAULT_UNLOCKS.chromePlateStyle?.[0] ?? 'showood-rounded';
 const CHROME_PLATE_STYLE_OPTIONS = Object.freeze([
   {
     id: 'showood-rounded',
@@ -4314,43 +4308,21 @@ const SHOWOOD_TABLE_PARTS = Object.freeze([
   'cloth',
   'cushion',
   'topWoodRail',
-  'sideWoodApron',
+  'railSight',
   'pocketCup',
-  'cornerPocketPlate',
-  'middlePocketPlate',
-  'verticalCornerRim',
   'baseCornerBlock',
   'leg',
-  'baseFoot',
-  'lowerTrim',
-  'railSight',
-  'underside'
-]);
-const SHOWOOD_CONTROL_PARTS = Object.freeze([
-  'cloth',
-  'cushion',
-  'topWoodRail',
-  'railSight',
-  'pocketCup',
-  'verticalCornerRim',
-  'baseCornerBlock',
-  'leg'
+  'baseFoot'
 ]);
 const DEFAULT_SHOWOOD_TABLE_STYLE = Object.freeze({
   cloth: 'green',
   cushion: 'green',
-  topWoodRail: 'walnut',
-  sideWoodApron: 'gold',
-  pocketCup: 'black',
-  cornerPocketPlate: 'gold',
-  middlePocketPlate: 'black',
-  verticalCornerRim: 'gold',
-  baseCornerBlock: 'black',
-  leg: 'walnut',
-  baseFoot: 'gold',
-  lowerTrim: 'gold',
+  topWoodRail: DEFAULT_TABLE_FINISH_ID,
   railSight: 'gold',
-  underside: 'dark'
+  pocketCup: 'black',
+  baseCornerBlock: DEFAULT_TABLE_FINISH_ID,
+  leg: DEFAULT_TABLE_FINISH_ID,
+  baseFoot: 'gold'
 });
 const SHOWOOD_TABLE_PART_OPTIONS = Object.freeze({
   cloth: Object.freeze([
@@ -4361,60 +4333,64 @@ const SHOWOOD_TABLE_PART_OPTIONS = Object.freeze({
     { id: 'green', label: 'Green Cushions', color: '#064f23', material: { color: 0x064f23, roughness: 0.94, metalness: 0, envMapIntensity: 0.24 } },
     { id: 'black', label: 'Black Cushions', color: '#050505', material: { color: 0x050505, roughness: 0.88, metalness: 0, envMapIntensity: 0.38 } }
   ]),
-  sideWoodApron: Object.freeze([
-    { id: 'gold', label: 'Gold Side Apron', color: '#d8a928', material: { color: 0xd8a928, roughness: 0.11, metalness: 0.9, envMapIntensity: 5.9, clearcoat: 1, clearcoatRoughness: 0.045 } },
-    { id: 'black', label: 'Black Side Apron', color: '#050505', material: { color: 0x050505, roughness: 0.17, metalness: 0.82, envMapIntensity: 3.15, clearcoat: 1, clearcoatRoughness: 0.07 } }
-  ]),
-  topWoodRail: Object.freeze([
-    { id: 'walnut', label: 'Walnut Rails', color: '#5a2608', keepSourceTexture: true, material: { color: 0x5a2608, roughness: 0.38, metalness: 0.02, envMapIntensity: 1.35, clearcoat: 0.42, clearcoatRoughness: 0.18 } },
-    { id: 'black', label: 'Black Rails', color: '#070605', keepSourceTexture: true, material: { color: 0x070605, roughness: 0.28, metalness: 0.04, envMapIntensity: 1.75, clearcoat: 0.7, clearcoatRoughness: 0.1 } }
+  topWoodRail: Object.freeze([]),
+  railSight: Object.freeze([
+    { id: 'chrome', label: 'Chrome Apron + Sights', color: '#d7dde7', material: { color: 0xd7dde7, roughness: 0.055, metalness: 1, envMapIntensity: 7.2, clearcoat: 1, clearcoatRoughness: 0.025 } },
+    { id: 'gold', label: 'Gold Apron + Sights', color: '#f5d978', material: { color: 0xf5d978, roughness: 0.065, metalness: 1, envMapIntensity: 6.7, clearcoat: 1, clearcoatRoughness: 0.035 } }
   ]),
   pocketCup: Object.freeze([
     { id: 'black', label: 'Black Cups', color: '#000000', keepSourceTexture: true, material: { color: 0x000000, roughness: 0.98, metalness: 0, envMapIntensity: 0.12 } },
     { id: 'leather', label: 'Dark Leather Cups', color: '#1b0c04', keepSourceTexture: true, material: { color: 0x1b0c04, roughness: 0.9, metalness: 0, envMapIntensity: 0.26 } }
   ]),
-  cornerPocketPlate: Object.freeze([
-    { id: 'gold', label: 'Gold Corners', color: '#f7c943', material: { color: 0xf7c943, roughness: 0.045, metalness: 1, envMapIntensity: 8.4, clearcoat: 1, clearcoatRoughness: 0.025 } },
-    { id: 'black', label: 'Black Corners', color: '#050505', material: { color: 0x050505, roughness: 0.11, metalness: 0.9, envMapIntensity: 4.2, clearcoat: 1, clearcoatRoughness: 0.045 } }
-  ]),
-  middlePocketPlate: Object.freeze([
-    { id: 'black', label: 'Black Side Plates', color: '#050505', material: { color: 0x050505, roughness: 0.12, metalness: 0.88, envMapIntensity: 4, clearcoat: 1, clearcoatRoughness: 0.05 } },
-    { id: 'gold', label: 'Gold Side Plates', color: '#f7c943', material: { color: 0xf7c943, roughness: 0.045, metalness: 1, envMapIntensity: 8.4, clearcoat: 1, clearcoatRoughness: 0.025 } }
-  ]),
-  verticalCornerRim: Object.freeze([
-    { id: 'gold', label: 'Gold Rims + Feet', color: '#d8b23d', material: { color: 0xd8b23d, roughness: 0.06, metalness: 0.98, envMapIntensity: 6.8, clearcoat: 1, clearcoatRoughness: 0.03 } },
-    { id: 'chrome', label: 'Chrome Rims + Feet', color: '#d7dde7', material: { color: 0xd7dde7, roughness: 0.055, metalness: 1, envMapIntensity: 7.2, clearcoat: 1, clearcoatRoughness: 0.025 } }
-  ]),
   baseCornerBlock: Object.freeze([
-    { id: 'walnut', label: 'Walnut Corners', color: '#7b2d11' },
-    { id: 'black', label: 'Black Corners', color: '#080605' }
+    { id: 'brown', label: 'Brown Base', color: '#7b2d11', material: { color: 0x7b2d11, roughness: 0.48, metalness: 0.02, envMapIntensity: 1.1, clearcoat: 0.22, clearcoatRoughness: 0.33 } },
+    { id: 'black', label: 'Black Base', color: '#080605', material: { color: 0x080605, roughness: 0.38, metalness: 0.03, envMapIntensity: 1.34, clearcoat: 0.34, clearcoatRoughness: 0.22 } }
   ]),
-  leg: Object.freeze([
-    { id: 'walnut', label: 'Walnut Legs', color: '#3d1706', keepSourceTexture: true, material: { color: 0x3d1706, roughness: 0.52, metalness: 0.02, envMapIntensity: 1, clearcoat: 0.2, clearcoatRoughness: 0.36 } },
-    { id: 'black', label: 'Black Legs', color: '#070504', keepSourceTexture: true, material: { color: 0x070504, roughness: 0.4, metalness: 0.04, envMapIntensity: 1.22, clearcoat: 0.32, clearcoatRoughness: 0.26 } }
-  ]),
+  leg: Object.freeze([]),
   baseFoot: Object.freeze([
-    { id: 'gold', label: 'Gold Rounded Feet', color: '#d8b23d', material: { color: 0xd8b23d, roughness: 0.065, metalness: 1, envMapIntensity: 6.8, clearcoat: 1, clearcoatRoughness: 0.03 } },
-    { id: 'chrome', label: 'Chrome Rounded Feet', color: '#d7dde7', material: { color: 0xd7dde7, roughness: 0.055, metalness: 1, envMapIntensity: 7.2, clearcoat: 1, clearcoatRoughness: 0.025 } }
-  ]),
-  lowerTrim: Object.freeze([
-    { id: 'gold', label: 'Gold Trim', color: '#d8b23d' },
-    { id: 'black', label: 'Black Trim', color: '#070707' }
-  ]),
-  railSight: Object.freeze([
-    { id: 'gold', label: 'Gold Apron + Gold Sights', color: '#f5d978', material: { color: 0xf5d978, roughness: 0.065, metalness: 1, envMapIntensity: 6.7, clearcoat: 1, clearcoatRoughness: 0.035 } },
-    { id: 'black', label: 'Black Apron + Black Sights', color: '#050505', material: { color: 0x050505, roughness: 0.16, metalness: 0.82, envMapIntensity: 3, clearcoat: 1, clearcoatRoughness: 0.07 } }
-  ]),
-  underside: Object.freeze([
-    { id: 'dark', label: 'Dark Underside', color: '#1e130b', keepSourceTexture: true },
-    { id: 'black', label: 'Black Underside', color: '#050505', keepSourceTexture: true }
+    { id: 'chrome', label: 'Chrome Feet', color: '#d7dde7', material: { color: 0xd7dde7, roughness: 0.055, metalness: 1, envMapIntensity: 7.2, clearcoat: 1, clearcoatRoughness: 0.025 } },
+    { id: 'gold', label: 'Gold Feet', color: '#f5d978', material: { color: 0xf5d978, roughness: 0.065, metalness: 1, envMapIntensity: 6.7, clearcoat: 1, clearcoatRoughness: 0.035 } }
   ])
 });
 const SHOWOOD_TABLE_PART_LABELS = Object.freeze({
-  cloth: 'Field Cloth', cushion: 'Cushions', topWoodRail: 'Top Rails', railSight: 'Side Apron + Rail Sights', pocketCup: 'Pocket Cups', verticalCornerRim: 'Corner Rims + Rounded Feet', baseCornerBlock: 'Base Corners', leg: 'Legs'
+  cloth: 'Field Cloth',
+  cushion: 'Cushions',
+  topWoodRail: 'Top Rails',
+  railSight: 'Side Apron + Rail Sights',
+  pocketCup: 'Pocket Cups',
+  baseCornerBlock: 'Table Base',
+  leg: 'Legs',
+  baseFoot: 'Feet'
 });
-const SHOWOOD_CHROME_LINKED_PARTS = new Set(['railSight', 'verticalCornerRim']);
-const getShowoodTablePartOptions = (part) => {
+const SHOWOOD_CHROME_LINKED_PARTS = new Set(['railSight', 'baseFoot']);
+const getShowoodTablePartOptions = (part, clothOptions = null, tableFinishOptions = null) => {
+  if (part === 'cloth' || part === 'cushion') {
+    const sourceOptions = Array.isArray(clothOptions) && clothOptions.length
+      ? clothOptions
+      : CLOTH_COLOR_OPTIONS;
+    return sourceOptions.map((option) => ({
+      id: option.id,
+      label: option.label,
+      color: toHexColor(option.color),
+      material: { color: option.color, roughness: 1, metalness: 0, envMapIntensity: 0.16 }
+    }));
+  }
+  if (part === 'topWoodRail' || part === 'baseCornerBlock' || part === 'leg') {
+    const sourceOptions = Array.isArray(tableFinishOptions) && tableFinishOptions.length
+      ? tableFinishOptions
+      : TABLE_FINISH_OPTIONS;
+    return sourceOptions.map((option) => {
+      const finish = TABLE_FINISHES[option.id] ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
+      const swatch = option.swatches?.[0] ?? finish?.colors?.rail ?? finish?.colors?.base ?? 0x5a2608;
+      return {
+        id: option.id,
+        label: `${option.label || finish?.label || option.id} ${part === 'topWoodRail' ? 'Rails' : part === 'baseCornerBlock' ? 'Base' : 'Legs'}`,
+        color: toHexColor(swatch),
+        thumbnail: option.thumbnail,
+        useTableFinishTexture: true
+      };
+    });
+  }
   return SHOWOOD_TABLE_PART_OPTIONS[part] || [];
 };
 const normalizeShowoodTableStyle = (value = {}) => {
@@ -4433,11 +4409,14 @@ const normalizeShowoodTableStyle = (value = {}) => {
 };
 const getShowoodPartOption = (style, part) => {
   const normalized = normalizeShowoodTableStyle(style);
-  const optionPart = part === 'verticalCornerRim' ? 'verticalCornerRim' : part;
+  const optionPart = part === 'sideWoodApron' ? 'baseCornerBlock' : part === 'verticalCornerRim' ? 'baseFoot' : part;
   const optionId = normalized[optionPart];
   const options = getShowoodTablePartOptions(optionPart);
   return options.find((option) => option.id === optionId) || options[0] || null;
 };
+
+// Palettes derived from CC0 textile scans (ambientCG FabricWool series) and
+// popular tournament felts so every option mirrors a real pool cloth.
 const BASE_CLOTH_DETAIL = Object.freeze({
   bumpMultiplier: 1.18,
   sheen: 0.62,
@@ -4727,8 +4706,8 @@ const updateRuntimeTextureProfile = ({ fps } = {}) => {
     polyHavenPreferredResolutions: tier.preferredResolutions ?? Object.freeze([tier.key]),
     polyHavenFallbackResolution:
       tier.fallbackResolution ?? tier.preferredResolutions?.[tier.preferredResolutions.length - 1] ?? tier.key,
-    hdriPreferredResolutions: Object.freeze(['2k']),
-    hdriFallbackResolution: '2k',
+    hdriPreferredResolutions: Object.freeze(['4k']),
+    hdriFallbackResolution: '4k',
     enforceTableFinishTextureSize: textureSize,
     cueTextureSize: textureSize,
     pocketTextureSize: Math.max(512, Math.min(textureSize, 4096))
@@ -6764,7 +6743,7 @@ function applySnookerScaling({
     }
   }
   if (Array.isArray(balls)) {
-    const expectedRadius = BALL_D_REF * mmToUnits * BALL_SIZE_SCALE * 0.5 * SNOOKER_TABLE_BALL_RADIUS_SCALE;
+    const expectedRadius = BALL_D_REF * mmToUnits * BALL_SIZE_SCALE * 0.5;
     balls.forEach((ball) => {
       if (!ball) return;
       ball.colliderRadius = expectedRadius;
@@ -9309,8 +9288,6 @@ export function Table3D(
     CHROME_PLATE_STYLE_BY_ID[DEFAULT_CHROME_PLATE_STYLE_ID] ??
     CHROME_PLATE_STYLE_OPTIONS[0];
   const usesExternalTableModel = resolvedTableOptions?.tableModel?.kind === 'gltf';
-  const isSnookerGenericExternalTable =
-    usesExternalTableModel && resolvedTableOptions?.tableModel?.id === 'snooker-generic';
   const externalTableUsesOriginalLayout =
     usesExternalTableModel && resolvedTableOptions?.tableModel?.useOriginalLayoutSurfaces === true;
   const externalPlayfieldVisualLift =
@@ -10020,7 +9997,20 @@ export function Table3D(
   baulkLine.position.set(0, markingHeight, baulkLineZ);
   markingsGroup.add(baulkLine);
 
-  const dArc = null;
+  const dRadius = D_RADIUS;
+  const dThickness = Math.max(lineThickness * 0.75, BALL_R * 0.07);
+  const dGeom = new THREE.RingGeometry(
+    Math.max(0.001, dRadius - dThickness),
+    dRadius,
+    64,
+    1,
+    0,
+    Math.PI
+  );
+  const dArc = new THREE.Mesh(dGeom, markingMat.clone());
+  dArc.rotation.x = -Math.PI / 2;
+  dArc.position.set(0, markingHeight, baulkLineZ);
+  markingsGroup.add(dArc);
 
   const spotRadius = BALL_R * 0.26;
   const spotMeshes = [];
@@ -10032,7 +10022,13 @@ export function Table3D(
     markingsGroup.add(spot);
     spotMeshes.push(spot);
   };
+  addSpot(-D_RADIUS, baulkLineZ);
   addSpot(0, baulkLineZ);
+  addSpot(D_RADIUS, baulkLineZ);
+  addSpot(0, 0);
+  const topCushionZ = PLAY_H / 2;
+  addSpot(0, (topCushionZ + 0) / 2);
+  addSpot(0, topCushionZ - BLACK_FROM_TOP);
   markingsGroup.traverse((child) => {
     if (child.isMesh) {
       child.renderOrder = cloth.renderOrder + 1;
@@ -11209,7 +11205,7 @@ export function Table3D(
         MICRO_EPS,
         railH * CHROME_SIDE_APRON_COVER_HEIGHT_SCALE
       );
-      const apronLength = Math.max(MICRO_EPS, sideChromePlateRadius * 1.32); // confine apron texture strip to the jaw-side zone around middle pockets
+      const apronLength = Math.max(MICRO_EPS, sideChromePlateHeight * 0.96);
       const apron = new THREE.Mesh(
         new THREE.BoxGeometry(apronThickness, apronHeight, apronLength),
         chromePlateMat
@@ -11948,8 +11944,7 @@ export function Table3D(
   const brandPlateWidth = Math.min(PLAY_W * 0.32, Math.max(BALL_R * 9.6, PLAY_W * 0.23));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 0.62;
-  const externalLayoutBrandPlateYOffset = 0; // keep TonPlaygram plates in the exact same vertical position used by the procedural table
+  const brandPlateOutwardShift = endRailW * 0.92;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -11965,7 +11960,7 @@ export function Table3D(
       createBrandSideMaterial()
     ];
     const plate = new THREE.Mesh(brandPlateGeom, materials);
-    plate.position.set(0, brandPlateY + externalLayoutBrandPlateYOffset, dirZ * (shortRailCenterZ + brandPlateOutwardShift));
+    plate.position.set(0, brandPlateY, dirZ * (shortRailCenterZ + brandPlateOutwardShift));
     plate.rotation.y = dirZ > 0 ? 0 : Math.PI;
     plate.castShadow = true;
     plate.receiveShadow = true;
@@ -12620,15 +12615,13 @@ export function Table3D(
   const leftX = -halfW;
   const rightX = halfW;
 
-  if (!isSnookerGenericExternalTable) {
-    addCushion(0, bottomZ, horizontalCushionLength, true, false);
-    addCushion(0, topZ, horizontalCushionLength, true, true);
+  addCushion(0, bottomZ, horizontalCushionLength, true, false);
+  addCushion(0, topZ, horizontalCushionLength, true, true);
 
-    addCushion(leftX, -verticalCushionCenter, verticalCushionLength, false, false);
-    addCushion(leftX, verticalCushionCenter, verticalCushionLength, false, false);
-    addCushion(rightX, -verticalCushionCenter, verticalCushionLength, false, true);
-    addCushion(rightX, verticalCushionCenter, verticalCushionLength, false, true);
-  }
+  addCushion(leftX, -verticalCushionCenter, verticalCushionLength, false, false);
+  addCushion(leftX, verticalCushionCenter, verticalCushionLength, false, false);
+  addCushion(rightX, -verticalCushionCenter, verticalCushionLength, false, true);
+  addCushion(rightX, verticalCushionCenter, verticalCushionLength, false, true);
 
   const shortRailCushionWordmarkTexture = createCushionWordmarkTexture({
     width: 2048,
@@ -12919,8 +12912,8 @@ function classifyPoolRoyaleExternalTableSurface(child, material) {
     : [];
   if (chromeSurfaceNames.some((name) => label.includes(`${name}`.toLowerCase()))) return 'railSight';
   if (blackSurfaceNames.some((name) => label.includes(`${name}`.toLowerCase()))) return 'railSight';
-  if (/rail[_\s-]*sight|railsight|rail[_\s-]*sight[_\s-]*lower|corner[_\s-]*rail[_\s-]*sight|diamond|sight|marker|inlay|apron[_\s-]*strip/.test(childName)) return 'railSight';
-  if (/side[_\s-]*wood[_\s-]*apron|sidewoodapron|side[_\s-]*apron|apron(?![_\s-]*strip)/.test(childName)) return 'sideWoodApron';
+  if (/rail[_\s-]*sight|railsight|diamond|sight|marker|inlay/.test(childName)) return 'railSight';
+  if (/side[_\s-]*wood[_\s-]*apron|sidewoodapron|apron/.test(childName)) return 'sideWoodApron';
   if (/cushion|rubber|bumper|rail[_\s-]*nose/.test(childName)) return 'cushion';
   if (/pocket|liner|leather|net|basket|drop|holder|cup/.test(childName)) return 'pocketCup';
   if (/vertical.*(rim|plate|cap)|corner.*(rim|plate|cap)|rim|foot|feet|base[_\s-]*foot/.test(childName)) return 'verticalCornerRim';
@@ -12935,7 +12928,7 @@ function classifyPoolRoyaleExternalTableSurface(child, material) {
   if (/leg|support/.test(label)) return 'leg';
   if (/foot|rim/.test(label)) return 'verticalCornerRim';
   if (/base|cabinet/.test(label)) return 'baseCornerBlock';
-  if (/side[_\s-]*wood[_\s-]*apron|sidewoodapron|side[_\s-]*apron|apron(?![_\s-]*strip)/.test(label)) return 'sideWoodApron';
+  if (/side[_\s-]*wood[_\s-]*apron|sidewoodapron|apron/.test(label)) return 'sideWoodApron';
   if (/frame|wood|rail|showood|bevel/.test(label)) return 'topWoodRail';
   return 'wood';
 }
@@ -13066,12 +13059,12 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
     cushion: 'cushion',
     topWoodRail: 'topWoodRail',
     wood: 'topWoodRail',
-    sideWoodApron: 'sideWoodApron',
+    sideWoodApron: 'baseCornerBlock',
     railSight: 'railSight',
     trim: 'railSight',
     pocket: 'pocketCup',
     pocketCup: 'pocketCup',
-    verticalCornerRim: 'verticalCornerRim',
+    verticalCornerRim: 'baseFoot',
     baseFoot: 'baseFoot',
     baseCornerBlock: 'baseCornerBlock',
     leg: 'leg'
@@ -13142,28 +13135,21 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
   } else if (part === 'pocketCup') {
     copyMaterialLook(materials.pocketJaw ?? materials.pocketRim);
     applyShowoodTint();
-  } else if (part === 'topWoodRail' || part === 'leg') {
-    if (option.keepSourceTexture) {
-      mat.map = clonePoolRoyaleMaterialTexture(material.map, { isColor: true });
-      mat.normalMap = clonePoolRoyaleMaterialTexture(material.normalMap);
-      mat.roughnessMap = clonePoolRoyaleMaterialTexture(material.roughnessMap);
-      mat.aoMap = clonePoolRoyaleMaterialTexture(material.aoMap);
-      mat.metalnessMap = clonePoolRoyaleMaterialTexture(material.metalnessMap);
-      mat.bumpMap = clonePoolRoyaleMaterialTexture(material.bumpMap);
+  } else if (part === 'topWoodRail' || part === 'baseCornerBlock' || part === 'leg') {
+    const surface = part === 'topWoodRail'
+      ? finishInfo?.parts?.woodSurfaces?.rail
+      : finishInfo?.parts?.woodSurfaces?.frame || finishInfo?.parts?.woodSurfaces?.rail;
+    if (materials.rail?.color && mat.color) mat.color.copy(materials.rail.color);
+    applyWoodTextureToMaterial(mat, surface || { woodRepeatScale: finishInfo?.woodRepeatScale });
+    applyTableFinishDulling(mat);
+    applyTableWoodVisibilityTuning(mat);
+    if (finish?.surfaceStyle === 'matte') {
+      if (finish?.preserveFinishTintOnWood) applyMatteSurfacePropsOnly(mat);
+      else applyMonoMattePlasticSurface(mat);
     }
     applyShowoodTint();
   } else {
     applyShowoodTint();
-  }
-
-
-  if (!option?.keepSourceTexture) {
-    mat.map = null;
-    mat.normalMap = null;
-    mat.roughnessMap = null;
-    mat.aoMap = null;
-    mat.metalnessMap = null;
-    mat.bumpMap = null;
   }
 
   mat.transparent = false;
@@ -13232,8 +13218,6 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
   const namedPocket = /pocket|hole|drop|net|liner|leather|cup/i.test(name);
   const namedHardware = /trim|bezel|ring|metal|chrome|brass|gold|plate|cap|rim|guard|insert|hardware|bolt|screw/i.test(name);
   const namedSight = /sight|diamond|marker|dot|inlay/i.test(name);
-  const namedRailSightLower = /rail[_\s-]*sight[_\s-]*lower|corner[_\s-]*rail[_\s-]*sight|apron[_\s-]*strip/.test(name);
-  const namedSideApron = /side[_\s-]*wood[_\s-]*apron|sidewoodapron|side[_\s-]*apron|apron(?![_\s-]*strip)/.test(name);
   const namedWood = /wood|walnut|rail|apron|leg|base|frame|cabinet|corner|showood|support/i.test(name);
   const metalish = (material?.metalness ?? 0) > 0.16 || (material?.clearcoat ?? 0) > 0.58 || gold;
   const high = s.relY > 0.54;
@@ -13262,7 +13246,7 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
   const hardwareCandidate = namedHardware || metalish || ((black || gold || light) && !green && !brown && !namedWood);
   if (namedPocket || (black && anyPocketZone && (s.downFace || s.sideFace || s.relY < 0.79) && !hardwareCandidate)) return 'pocketCup';
   if (hardwareCandidate && (sideMiddlePocketZone || cornerPocketZone) && !green && !brown) return 'railSight';
-  if ((namedSight || namedRailSightLower) && high) return 'railSight';
+  if (namedSight && high) return 'railSight';
   if ((namedCloth || green) && centralCloth) return 'cloth';
   if ((namedCushion || green) && cushionBand) return 'cushion';
   if ((outsideBaseCornerRimZone || outerMostVerticalCorner) && !green && !s.upFace) return 'verticalCornerRim';
@@ -13272,13 +13256,12 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
   if ((brown || namedWood || black) && baseCornerZone) return 'baseCornerBlock';
   if (midBody && s.sideFace && !(s.longN > 0.64 && s.shortN > 0.64)) return 'leg';
   if (veryTop && (s.upFace || topRailBand) && !green) return 'topWoodRail';
-  if (namedSideApron && s.sideFace) return 'sideWoodApron';
   if (high && s.sideFace && !green && !anyPocketZone) return 'sideWoodApron';
   return namedCushion ? 'cushion' : 'sideWoodApron';
 }
 
 function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInfo = null) {
-  if (!model || tableModel?.id !== 'snooker-generic' || !finishInfo) return;
+  if (!model || tableModel?.id !== 'showood-seven-foot' || !finishInfo) return;
   model.updateMatrixWorld(true);
   const tableBox = new THREE.Box3().setFromObject(model);
   if (tableBox.isEmpty()) return;
@@ -13299,7 +13282,7 @@ function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInf
     const finalMaterials = [];
     const materialLookup = new Map();
     const getMaterialIndex = (sourceMaterialIndex, part) => {
-      const linkedPart = part === 'sideWoodApron' ? 'railSight' : part === 'verticalCornerRim' ? 'verticalCornerRim' : part;
+      const linkedPart = part === 'sideWoodApron' ? 'baseCornerBlock' : part === 'verticalCornerRim' ? 'baseFoot' : part;
       const key = `${sourceMaterialIndex}:${linkedPart}`;
       if (materialLookup.has(key)) return materialLookup.get(key);
       const source = sourceMaterials[Math.max(0, Math.min(sourceMaterialIndex, sourceMaterials.length - 1))];
@@ -13336,7 +13319,7 @@ function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInf
 
 function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tableModel = null, child = null) {
   if (!material || !finishInfo) return material;
-  if (tableModel?.id === 'snooker-generic') {
+  if (tableModel?.id === 'showood-seven-foot') {
     return applyShowoodStyleToExternalMaterial(material, role, tableModel, finishInfo);
   }
   const canonicalRole = role === 'pocketCup' ? 'pocket' :
@@ -13512,10 +13495,7 @@ async function loadPoolRoyaleExternalTableTemplate(tableModel, renderer = null) 
   const promise = (async () => {
     const loader = createConfiguredGLTFLoader(renderer);
     let lastError = null;
-    const fallbackUrls = Array.isArray(tableModel.fallbackAssetUrls)
-      ? tableModel.fallbackAssetUrls
-      : [tableModel.fallbackAssetUrl].filter(Boolean);
-    const urls = [tableModel.assetUrl, ...fallbackUrls].filter(Boolean);
+    const urls = [tableModel.assetUrl, tableModel.fallbackAssetUrl].filter(Boolean);
     for (const url of urls) {
       try {
         // eslint-disable-next-line no-await-in-loop
@@ -13645,7 +13625,7 @@ function stretchPoolRoyaleExternalLowerBase(model, tableModel, dims) {
 
 
 function adjustPoolRoyaleExternalShowoodBaseProportions(model, tableModel) {
-  if (!model || tableModel?.id !== 'snooker-generic') return;
+  if (!model || tableModel?.id !== 'showood-seven-foot') return;
   const baseScale = Number(tableModel?.lowerBaseHeightScale);
   const legScale = Number(tableModel?.legLengthScale);
   const shouldScaleBase = Number.isFinite(baseScale) && baseScale > MICRO_EPS && Math.abs(baseScale - 1) > MICRO_EPS;
@@ -13799,12 +13779,10 @@ function mountPoolRoyaleExternalTableModel({
       if (disposed || !template) return;
       const model = clonePoolRoyaleExternalTableTemplate(template, tableModel, finishInfo);
       fitPoolRoyaleExternalTableModel(model, tableModel, dims);
-      if (tableModel?.useLegacyShowoodRemap !== false) {
-        remapPoolRoyaleShowoodExternalParts(model, tableModel, finishInfo);
-      }
+      remapPoolRoyaleShowoodExternalParts(model, tableModel, finishInfo);
       externalRoot.clear();
       externalRoot.add(model);
-      if (tableModel.id === 'snooker-generic') {
+      if (tableModel.id === 'showood-seven-foot') {
         const showOriginalBase = table.userData.showoodUsesOriginalBase !== false;
         model.traverse((child) => {
           if (!child?.isMesh) return;
@@ -14278,10 +14256,10 @@ function mountPoolRoyaleExternalTableModel({
 
   const applyBaseVariant = (variant) => {
     const variantId = resolveBaseVariantId(variant);
-    const isShowoodExternalTable = isSnookerGenericExternalTable;
+    const isShowoodExternalTable =
+      usesExternalTableModel && resolvedTableOptions?.tableModel?.id === 'showood-seven-foot';
     const usesShowoodOriginalBase =
-      isShowoodExternalTable &&
-      (variantId === SHOWOOD_ORIGINAL_TABLE_BASE_ID || variantId === DEFAULT_TABLE_BASE_ID);
+      isShowoodExternalTable && variantId === SHOWOOD_ORIGINAL_TABLE_BASE_ID;
 
     table.userData.showoodUsesOriginalBase = usesShowoodOriginalBase;
     setExternalOriginalBaseVisible(usesShowoodOriginalBase || !isShowoodExternalTable);
@@ -14327,7 +14305,7 @@ function mountPoolRoyaleExternalTableModel({
   };
 
   table.userData.applyExternalTableFallbackBase = () => {
-    if (isSnookerGenericExternalTable) {
+    if (usesExternalTableModel && resolvedTableOptions?.tableModel?.id === 'showood-seven-foot') {
       applyBaseVariant(SHOWOOD_ORIGINAL_TABLE_BASE_ID);
     }
   };
@@ -14576,8 +14554,8 @@ function mountPoolRoyaleExternalTableModel({
         !visible &&
         (
           (!externalTableModelForMount?.useOriginalLayoutSurfaces && object.userData?.externalTableKeepVisible) ||
-          (externalTableModelForMount?.id === 'snooker-generic' && !table.userData.showoodUsesOriginalBase && object.userData?.showoodGeneratedPocketSupport) ||
-          (externalTableModelForMount?.id === 'snooker-generic' && !table.userData.showoodUsesOriginalBase && object.userData?.__basePart) ||
+          (externalTableModelForMount?.id === 'showood-seven-foot' && !table.userData.showoodUsesOriginalBase && object.userData?.showoodGeneratedPocketSupport) ||
+          (externalTableModelForMount?.id === 'showood-seven-foot' && !table.userData.showoodUsesOriginalBase && object.userData?.__basePart) ||
           (object.userData?.isChromePlate && forceGeneratedChrome)
         )
       ) {
@@ -15639,18 +15617,15 @@ function PoolRoyaleGame({
       ),
     [poolInventory]
   );
-  const availableTableBases = useMemo(() => {
-    if (activeTableModel?.id === 'snooker-generic') {
-      return SNOOKER_ROYALE_BASE_VARIANTS.filter((variant) =>
-        isPoolOptionUnlocked('tableBase', variant.id, poolInventory)
-      );
-    }
-    return POOL_ROYALE_BASE_VARIANTS.filter(
-      (variant) =>
-        variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID &&
-        isPoolOptionUnlocked('tableBase', variant.id, poolInventory)
-    );
-  }, [activeTableModel?.id, poolInventory]);
+  const availableTableBases = useMemo(
+    () =>
+      POOL_ROYALE_BASE_VARIANTS.filter(
+        (variant) =>
+          variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID &&
+          isPoolOptionUnlocked('tableBase', variant.id, poolInventory)
+      ),
+    [poolInventory]
+  );
   const availableChromeOptions = useMemo(
     () =>
       CHROME_COLOR_OPTIONS.filter((option) =>
@@ -15679,14 +15654,13 @@ function PoolRoyaleGame({
       ),
     [poolInventory]
   );
-  const availableEnvironmentHdris = useMemo(() => {
-    const source = activeTableModel?.id === 'snooker-generic'
-      ? SNOOKER_ROYALE_HDRI_VARIANTS
-      : POOL_ROYALE_HDRI_VARIANTS;
-    return source.filter((variant) =>
-      isPoolOptionUnlocked('environmentHdri', variant.id, poolInventory)
-    );
-  }, [activeTableModel?.id, poolInventory]);
+  const availableEnvironmentHdris = useMemo(
+    () =>
+      POOL_ROYALE_HDRI_VARIANTS.filter((variant) =>
+        isPoolOptionUnlocked('environmentHdri', variant.id, poolInventory)
+      ),
+    [poolInventory]
+  );
   const availablePocketLiners = useMemo(
     () =>
       POCKET_LINER_OPTIONS.filter((option) =>
@@ -15702,38 +15676,20 @@ function PoolRoyaleGame({
     [isCueFinishUnlocked, poolInventory]
   );
   const tablePersonalizationSections = useMemo(
-    () => {
-      const hideBasePart = activeTableModel?.id === 'snooker-generic';
-      return SHOWOOD_CONTROL_PARTS
-        .filter((part) => !(hideBasePart && part === 'baseCornerBlock'))
-        .map((part) => ({
-          key: part,
-          label: SHOWOOD_TABLE_PART_LABELS[part] || part,
-          chromeLinked: SHOWOOD_CHROME_LINKED_PARTS.has(part),
-          options: getShowoodTablePartOptions(part, availableClothOptions, availableTableFinishes)
-        }))
-        .filter((section) => section.options.length > 0);
-    },
-    [activeTableModel?.id, availableClothOptions, availableTableFinishes]
+    () =>
+      SHOWOOD_TABLE_PARTS.map((part) => ({
+        key: part,
+        label: SHOWOOD_TABLE_PART_LABELS[part] || part,
+        chromeLinked: SHOWOOD_CHROME_LINKED_PARTS.has(part),
+        options: getShowoodTablePartOptions(part, availableClothOptions, availableTableFinishes)
+      })).filter((section) => section.options.length > 0),
+    [availableClothOptions, availableTableFinishes]
   );
   useEffect(() => {
     if (!tablePersonalizationSections.some((section) => section.key === activeTablePersonalizationPart)) {
       setActiveTablePersonalizationPart(tablePersonalizationSections[0]?.key ?? 'topWoodRail');
     }
   }, [activeTablePersonalizationPart, tablePersonalizationSections]);
-
-  useEffect(() => {
-    if (activeTableModel?.id !== 'snooker-generic') return;
-    setShowoodTableStyle((prev) => {
-      const normalized = normalizeShowoodTableStyle(prev);
-      if (normalized.baseCornerBlock === normalized.topWoodRail) return prev;
-      return {
-        ...normalized,
-        baseCornerBlock: normalized.topWoodRail
-      };
-    });
-  }, [activeTableModel?.id]);
-
   const activeTablePersonalizationSection = useMemo(
     () =>
       tablePersonalizationSections.find((section) => section.key === activeTablePersonalizationPart) ??
@@ -15763,20 +15719,13 @@ function PoolRoyaleGame({
       CLOTH_COLOR_OPTIONS[0],
     [availableClothOptions, clothColorId]
   );
-  const activeTableBase = useMemo(() => {
-    if (activeTableModel?.id === 'snooker-generic') {
-      return (
-        availableTableBases.find((variant) => variant.id === tableBaseId) ??
-        availableTableBases[0] ??
-        SNOOKER_ROYALE_BASE_VARIANTS[0]
-      );
-    }
-    return (
+  const activeTableBase = useMemo(
+    () =>
       availableTableBases.find((variant) => variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID) ??
       POOL_ROYALE_BASE_VARIANTS.find((variant) => variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID) ??
-      POOL_ROYALE_BASE_VARIANTS[0]
-    );
-  }, [activeTableModel?.id, availableTableBases, tableBaseId]);
+      POOL_ROYALE_BASE_VARIANTS[0],
+    [availableTableBases]
+  );
   const resolvedHdriResolution = useMemo(() => {
     return autoHdriResolutionFromGraphics;
   }, [autoHdriResolutionFromGraphics]);
@@ -15789,16 +15738,12 @@ function PoolRoyaleGame({
       const fromAvailable = availableEnvironmentHdris.find(
         (variant) => variant.id === environmentHdriId
       );
-      const usingSnookerMenu = activeTableModel?.id === 'snooker-generic';
-      const hdriVariantMap = usingSnookerMenu ? SNOOKER_ROYALE_HDRI_VARIANT_MAP : POOL_ROYALE_HDRI_VARIANT_MAP;
-      const hdriDefaultId = usingSnookerMenu ? (SNOOKER_ROYALE_HDRI_VARIANTS[0]?.id ?? POOL_ROYALE_DEFAULT_HDRI_ID) : POOL_ROYALE_DEFAULT_HDRI_ID;
-      const hdriVariants = usingSnookerMenu ? SNOOKER_ROYALE_HDRI_VARIANTS : POOL_ROYALE_HDRI_VARIANTS;
       const variant =
         fromAvailable ??
-        hdriVariantMap[environmentHdriId] ??
-        hdriVariantMap[hdriDefaultId] ??
+        POOL_ROYALE_HDRI_VARIANT_MAP[environmentHdriId] ??
+        POOL_ROYALE_HDRI_VARIANT_MAP[POOL_ROYALE_DEFAULT_HDRI_ID] ??
         availableEnvironmentHdris[0] ??
-        hdriVariants[0];
+        POOL_ROYALE_HDRI_VARIANTS[0];
       if (!variant) return null;
       const resolved = resolvedHdriResolution ?? DEFAULT_HDRI_RESOLUTIONS[0];
       if (!resolved) return variant;
@@ -15809,7 +15754,7 @@ function PoolRoyaleGame({
         fallbackResolution: activeHdriPolicy?.fallbackResolution ?? preferredResolutions[1] ?? resolved
       };
     },
-    [activeHdriPolicy, activeTableModel?.id, availableEnvironmentHdris, environmentHdriId, resolvedHdriResolution]
+    [activeHdriPolicy, availableEnvironmentHdris, environmentHdriId, resolvedHdriResolution]
   );
   const dualTablesEnabled = useMemo(() => false, []);
   const activePocketLinerOption = useMemo(
@@ -15836,11 +15781,7 @@ function PoolRoyaleGame({
     if (!isPoolOptionUnlocked('tableFinish', tableFinishId, poolInventory)) {
       setTableFinishId(DEFAULT_TABLE_FINISH_ID);
     }
-    if (activeTableModel?.id === 'snooker-generic') {
-      if (!isPoolOptionUnlocked('tableBase', tableBaseId, poolInventory)) {
-        setTableBaseId(SNOOKER_ROYALE_BASE_VARIANTS[0]?.id || DEFAULT_TABLE_BASE_ID);
-      }
-    } else if (tableBaseId !== SHOWOOD_ORIGINAL_TABLE_BASE_ID) {
+    if (tableBaseId !== SHOWOOD_ORIGINAL_TABLE_BASE_ID) {
       setTableBaseId(SHOWOOD_ORIGINAL_TABLE_BASE_ID);
     } else if (!isPoolOptionUnlocked('tableBase', tableBaseId, poolInventory)) {
       setTableBaseId(DEFAULT_TABLE_BASE_ID);
@@ -15861,7 +15802,7 @@ function PoolRoyaleGame({
       setPocketLinerId(DEFAULT_POCKET_LINER_OPTION_ID);
     }
     if (!isPoolOptionUnlocked('environmentHdri', environmentHdriId, poolInventory)) {
-      setEnvironmentHdriId(activeTableModel?.id === 'snooker-generic' ? (SNOOKER_ROYALE_HDRI_VARIANTS[0]?.id || POOL_ROYALE_DEFAULT_HDRI_ID) : POOL_ROYALE_DEFAULT_HDRI_ID);
+      setEnvironmentHdriId(POOL_ROYALE_DEFAULT_HDRI_ID);
     }
   }, [
     chromeColorId,
@@ -15872,8 +15813,7 @@ function PoolRoyaleGame({
     poolInventory,
     railMarkerColorId,
     tableBaseId,
-    tableFinishId,
-    activeTableModel?.id
+    tableFinishId
   ]);
   const isTraining = playType === 'training';
   const hasCareerTaskId = Boolean(careerStageId);
@@ -17164,7 +17104,7 @@ function PoolRoyaleGame({
     queue.forEach((variant) => {
       void prefetchHdriVariant(variant);
     });
-  }, [activeHdriPolicy, activeTableModel?.id, availableEnvironmentHdris, environmentHdriId, resolvedHdriResolution]);
+  }, [activeHdriPolicy, availableEnvironmentHdris, environmentHdriId, resolvedHdriResolution]);
   useEffect(() => {
     if (typeof updateEnvironmentRef.current === 'function') {
       updateEnvironmentRef.current(activeEnvironmentVariantRef.current);
@@ -17252,7 +17192,7 @@ function PoolRoyaleGame({
           material.needsUpdate = true;
         };
         applyShowoodPartMaterial(materials.rail, 'topWoodRail');
-        applyShowoodPartMaterial(materials.frame, 'topWoodRail');
+        applyShowoodPartMaterial(materials.frame, 'baseCornerBlock');
         applyShowoodPartMaterial(materials.leg, 'leg');
         const liners = createPocketLinerMaterials(linerSelection);
         materials.pocketJaw = liners.jawMaterial;
@@ -17321,12 +17261,12 @@ function PoolRoyaleGame({
   useEffect(() => {
     setShowoodTableStyle((current) => {
       const next = normalizeShowoodTableStyle(current);
-      const desiredSide = next.railSight;
-      const desiredFoot = next.verticalCornerRim;
-      if (next.sideWoodApron === desiredSide && next.baseFoot === desiredFoot) return current;
-      return { ...next, sideWoodApron: desiredSide, baseFoot: desiredFoot };
+      const linkedRailSight = chromeColorId === 'gold' ? 'gold' : 'chrome';
+      return next.railSight === linkedRailSight
+        ? next
+        : { ...next, railSight: linkedRailSight };
     });
-  }, [showoodTableStyle]);
+  }, [chromeColorId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(FRAME_RATE_STORAGE_KEY, frameRateId);
@@ -27210,8 +27150,7 @@ const shotPowerRef = useRef(0);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
       table.add(cueStick);
-      const humanRig =
-        null;
+      const humanRig = null; // Human character/rig disabled: cue stick now stays table-driven only.
       const cueShadow = ENABLE_CUE_CLOTH_SHADOW
         ? (() => {
             const shadowWidth = Math.max(BALL_R * CUE_SHADOW_WIDTH_RATIO, BALL_R * 0.4);
@@ -36168,6 +36107,38 @@ const shotPowerRef = useRef(0);
                   })}
                 </div>
               </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Chrome Plates
+                </h3>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {availableChromeOptions.map((option) => {
+                    const active = option.id === chromeColorId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setChromeColorId(option.id)}
+                        aria-pressed={active}
+                        className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="flex items-center justify-center gap-2">
+                          <span
+                            className="h-3.5 w-3.5 rounded-full border border-white/40"
+                            style={{ backgroundColor: toHexColor(option.color) }}
+                            aria-hidden="true"
+                          />
+                          {option.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <div className="rounded-3xl border border-emerald-300/20 bg-white/[0.04] p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -36175,7 +36146,7 @@ const shotPowerRef = useRef(0);
                       Table Personalisation
                     </h3>
                     <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/55">
-                      Same mapping as the new Showood code. Keep cushions and use linked apron + sights and rounded feet.
+                      Select a table part, then choose the unlocked finish for that part.
                     </p>
                   </div>
                   <span className="rounded-full border border-emerald-200/30 px-2 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-emerald-100/70">
@@ -36209,16 +36180,21 @@ const shotPowerRef = useRef(0);
                       </p>
                       {activeTablePersonalizationSection.chromeLinked ? (
                         <span className="text-[9px] uppercase tracking-[0.18em] text-emerald-100/55">
-                          linked mapping
+                          linked to chrome plates
                         </span>
                       ) : null}
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       {activeTablePersonalizationSection.options.map((option) => {
                         const part = activeTablePersonalizationSection.key;
+                        const chromeLinked = activeTablePersonalizationSection.chromeLinked;
                         const selected = part === 'cloth'
                           ? clothColorId
-                          : normalizeShowoodTableStyle(showoodTableStyle)[part];
+                          : part === 'topWoodRail' || part === 'leg'
+                            ? tableFinishId
+                            : chromeLinked
+                              ? (chromeColorId === 'gold' ? 'gold' : 'chrome')
+                              : normalizeShowoodTableStyle(showoodTableStyle)[part];
                         const active = option.id === selected;
                         return (
                           <button
@@ -36227,6 +36203,13 @@ const shotPowerRef = useRef(0);
                             onClick={() => {
                               if (part === 'cloth') {
                                 setClothColorId(option.id);
+                              } else if (part === 'topWoodRail' || part === 'leg') {
+                                setTableFinishId(option.id);
+                                setShowoodTableStyle((current) =>
+                                  normalizeShowoodTableStyle({ ...current, [part]: option.id })
+                                );
+                              } else if (chromeLinked) {
+                                setChromeColorId(option.id === 'gold' ? 'gold' : 'chrome');
                               } else {
                                 setShowoodTableStyle((current) =>
                                   normalizeShowoodTableStyle({ ...current, [part]: option.id })
@@ -36241,9 +36224,18 @@ const shotPowerRef = useRef(0);
                             }`}
                           >
                             {option.thumbnail ? (
-                              <img src={option.thumbnail} alt={option.label} className="h-12 w-full rounded-xl border border-white/20 object-cover" loading="lazy" />
+                              <img
+                                src={option.thumbnail}
+                                alt={option.label}
+                                className="h-12 w-full rounded-xl border border-white/20 object-cover"
+                                loading="lazy"
+                              />
                             ) : (
-                              <span className="h-12 w-full rounded-xl border border-white/30" style={{ backgroundColor: option.color }} aria-hidden="true" />
+                              <span
+                                className="h-12 w-full rounded-xl border border-white/30"
+                                style={{ backgroundColor: option.color }}
+                                aria-hidden="true"
+                              />
                             )}
                             <span className="line-clamp-2">{option.label}</span>
                           </button>
@@ -36287,6 +36279,94 @@ const shotPowerRef = useRef(0);
                   })}
                 </div>
               </div>
+              {availableClothOptions.length > 0 ? (
+                <div>
+                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                    Cloth Library
+                  </h3>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {availableClothOptions.map((option) => {
+                      const active = option.id === clothColorId;
+                      const thumb = option.thumbnail;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setClothColorId(option.id)}
+                          aria-pressed={active}
+                          className={`flex min-w-[8.5rem] flex-1 items-center justify-between gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                            active
+                              ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                              : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                          }`}
+                        >
+                          <span className="flex items-center gap-2">
+                            <span
+                              className="h-3.5 w-3.5 rounded-full border border-white/40"
+                              style={{ backgroundColor: toHexColor(option.color) }}
+                              aria-hidden="true"
+                            />
+                            <span className="truncate">{option.label}</span>
+                          </span>
+                          {thumb ? (
+                            <img
+                              src={thumb}
+                              alt={option.label}
+                              className="h-6 w-10 rounded-lg border border-white/20 object-cover"
+                              loading="lazy"
+                            />
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+              {availablePocketLiners.length > 0 ? (
+                <div>
+                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                    Pocket Jaws
+                  </h3>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {availablePocketLiners.map((option) => {
+                      const active = option.id === pocketLinerId;
+                      const swatchColor =
+                        option.jawColor ?? option.rimColor ?? option.sheenColor ?? option.color;
+                      const thumb = option.thumbnail;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setPocketLinerId(option.id)}
+                          aria-pressed={active}
+                          className={`flex min-w-[9rem] flex-1 items-center justify-between gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                            active
+                              ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                              : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                          }`}
+                        >
+                          <span className="flex items-center gap-2">
+                            <span
+                              className="h-3.5 w-3.5 rounded-full border border-white/40"
+                              style={{ backgroundColor: toHexColor(swatchColor) }}
+                              aria-hidden="true"
+                            />
+                            <span className="truncate">{option.label}</span>
+                          </span>
+                          {thumb ? (
+                            <img
+                              src={thumb}
+                              alt={option.label}
+                              className="h-6 w-10 rounded-lg border border-white/20 object-cover"
+                              loading="lazy"
+                            />
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Graphics
