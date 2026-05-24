@@ -1427,17 +1427,6 @@ async function loadCaptureWeaponModel(captureAnimationId) {
   const promise = (async () => {
     const loader = createConfiguredGLTFLoader();
     loader.setCrossOrigin?.('anonymous');
-    const setLoaderPathsForUrl = (url = '') => {
-      if (!url) return;
-      try {
-        const resolved = new URL(url, typeof window !== 'undefined' ? window.location?.href : url);
-        const resourcePath = resolved.href.substring(0, resolved.href.lastIndexOf('/') + 1);
-        loader.setResourcePath(resourcePath);
-      } catch {
-        loader.setResourcePath('');
-      }
-      loader.setPath('');
-    };
     const imageCache = new Map();
     let loadedRoot = null;
     const isGltfAssetUrl = (url = '') => {
@@ -1455,7 +1444,6 @@ async function loadCaptureWeaponModel(captureAnimationId) {
     for (let i = 0; i < candidateUrls.length; i += 1) {
       const candidateUrl = candidateUrls[i];
       try {
-        setLoaderPathsForUrl(candidateUrl);
         if (isGltfAssetUrl(candidateUrl) || isPolyPizzaAssetUrl(candidateUrl)) {
           // Poly Pizza GLBs already ship with their own material/texture data. Load them
           // directly first so GLTFLoader can keep the exact embedded PBR texture bindings.
@@ -1482,7 +1470,6 @@ async function loadCaptureWeaponModel(captureAnimationId) {
       }
       if (loadedRoot) break;
       try {
-        setLoaderPathsForUrl(candidateUrl);
         // eslint-disable-next-line no-await-in-loop
         const gltf = await withLoadTimeout(loader.loadAsync(candidateUrl));
         loadedRoot = assignLoadedGltf(gltf);
