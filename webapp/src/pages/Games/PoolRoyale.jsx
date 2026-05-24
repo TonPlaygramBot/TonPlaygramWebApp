@@ -13246,21 +13246,9 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
     (s.downFace && s.relY > 0.46 && s.relY < 0.84 && ((s.longN > 0.62 && s.longN < 0.94) || (s.shortN > 0.44 && s.shortN < 0.86)))
   );
   const topRailBand = high && (s.longN > 0.58 || s.shortN > 0.535);
-  const topRailSideVerticalRimZone =
-    s.sideFace && !s.upFace && s.relY > 0.46 && s.relY < 0.96 && s.longN > 0.6 && s.shortN > 0.58;
-  const underRailSightCornerRimZone =
-    s.sideFace && !s.upFace && s.relY > 0.36 && s.relY < 0.76 && s.longN > 0.67 && s.shortN > 0.52;
-  const outsideBaseCornerRimZone = s.sideFace && s.relY > 0.08 && s.relY < 0.78 && s.longN > 0.72 && s.shortN > 0.54;
-  const outerMostVerticalCorner = s.sideFace && s.relY > 0.1 && s.relY < 0.8 && s.longN > 0.8 && s.shortN > 0.68;
-  const railSightDownBand =
-    s.sideFace &&
-    !s.upFace &&
-    !anyPocketZone &&
-    s.relY > 0.44 &&
-    s.relY < 0.72 &&
-    (s.longN > 0.54 || s.shortN > 0.48) &&
-    !(topRailSideVerticalRimZone || underRailSightCornerRimZone || outsideBaseCornerRimZone || outerMostVerticalCorner);
-  const sideLowerTrimZone = s.sideFace && s.relY > 0.18 && s.relY < 0.44 && (s.longN > 0.54 || s.shortN > 0.54);
+  const outsideBaseCornerRimZone = s.sideFace && s.relY > 0.08 && s.relY < 0.82 && s.longN > 0.70 && s.shortN > 0.50;
+  const outerMostVerticalCorner = s.sideFace && s.relY > 0.10 && s.relY < 0.84 && s.longN > 0.78 && s.shortN > 0.64;
+  const sideLowerTrimZone = s.sideFace && s.relY > 0.18 && s.relY < 0.44 && (s.longN > 0.54 || s.shortN > 0.54) && !outsideBaseCornerRimZone;
   const baseCornerZone = s.sideFace && midBody && (
     (s.longN > 0.08 && s.longN < 0.58 && s.shortN < 0.42) ||
     (s.longN > 0.50 && s.shortN > 0.48) ||
@@ -13272,17 +13260,14 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
   if (namedSight && high) return 'railSight';
   if ((namedCloth || green) && centralCloth) return 'cloth';
   if ((namedCushion || green) && cushionBand) return 'cushion';
-  if ((topRailSideVerticalRimZone || underRailSightCornerRimZone || outsideBaseCornerRimZone || outerMostVerticalCorner) && !green && !s.upFace) {
-    return 'verticalCornerRim';
-  }
+  if ((outsideBaseCornerRimZone || outerMostVerticalCorner) && !green && !s.upFace) return 'verticalCornerRim';
   if (hardwareCandidate && topRailBand && s.upFace && !brown && !green) return 'railSight';
   if (hardwareCandidate && sideLowerTrimZone && !green) return 'railSight';
-  if (railSightDownBand && !green) return 'sideWoodApron';
   if (low) return 'baseFoot';
   if ((brown || namedWood || black) && baseCornerZone) return 'baseCornerBlock';
   if (midBody && s.sideFace && !(s.longN > 0.64 && s.shortN > 0.64)) return 'leg';
   if (veryTop && (s.upFace || topRailBand) && !green) return 'topWoodRail';
-  if (high && s.sideFace && !green && !anyPocketZone && !namedCushion) return 'topWoodRail';
+  if (high && s.sideFace && !green && !anyPocketZone) return 'sideWoodApron';
   return namedCushion ? 'cushion' : 'sideWoodApron';
 }
 
