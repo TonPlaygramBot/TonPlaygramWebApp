@@ -600,9 +600,11 @@ const CAMERA_LOCKED_3D_PHI = THREE.MathUtils.degToRad(82); // tilt 3D view more 
 const CAMERA_LOCKED_3D_RADIUS_SCALE = 0.44; // move locked 3D camera closer so the table appears larger/nearer in portrait play.
 const CHECKERS_CAMERA_FRAME_COMPENSATION = 1.06;
 const PLAYER_FACE_CAMERA_SEAT_ANGLE = Math.PI / 2;
-const PLAYER_FACE_CAMERA_RADIUS = TABLE_RADIUS * 0.9 * CHECKERS_CAMERA_FRAME_COMPENSATION;
-const PLAYER_FACE_CAMERA_EYE_HEIGHT = 2.05 * MODEL_SCALE;
-const PLAYER_FACE_CAMERA_TARGET_HEIGHT = 0.18 * MODEL_SCALE;
+// Keep Chess Battle Royal bottom-player camera aligned with Checkers Battle Royal
+// so portrait framing and left/right/up/down look limits match exactly.
+const PLAYER_FACE_CAMERA_RADIUS = TABLE_RADIUS * 0.98 * CHECKERS_CAMERA_FRAME_COMPENSATION;
+const PLAYER_FACE_CAMERA_EYE_HEIGHT = 2.05 * LAYOUT_SCALE_FACTOR;
+const PLAYER_FACE_CAMERA_TARGET_HEIGHT = 0.18 * LAYOUT_SCALE_FACTOR;
 const PLAYER_FACE_CAMERA_YAW_LIMIT = THREE.MathUtils.degToRad(18);
 const PLAYER_FACE_CAMERA_PITCH_LIMIT = THREE.MathUtils.degToRad(12);
 const SAND_TIMER_RADIUS_FACTOR = 0.68;
