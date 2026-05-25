@@ -4419,7 +4419,7 @@ const normalizeShowoodTableStyle = (value = {}) => {
 };
 const getShowoodPartOption = (style, part) => {
   const normalized = normalizeShowoodTableStyle(style);
-  const optionPart = part === 'sideWoodApron' ? 'topWoodRail' : part === 'verticalCornerRim' ? 'baseFoot' : part;
+  const optionPart = part === 'verticalCornerRim' ? 'baseFoot' : part;
   const optionId = normalized[optionPart];
   const options = getShowoodTablePartOptions(optionPart);
   return options.find((option) => option.id === optionId) || options[0] || null;
@@ -13070,7 +13070,7 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
     cushion: 'cushion',
     topWoodRail: 'topWoodRail',
     wood: 'topWoodRail',
-    sideWoodApron: 'topWoodRail',
+    sideWoodApron: 'sideWoodApron',
     railSight: 'railSight',
     trim: 'railSight',
     pocket: 'pocketCup',
