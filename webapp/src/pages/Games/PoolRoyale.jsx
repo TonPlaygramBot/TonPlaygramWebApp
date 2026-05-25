@@ -813,18 +813,18 @@ const CHROME_CORNER_POCKET_EDGE_ROUND_SCALE = 0.9; // strongly round the outer c
 const CHROME_SIDE_POCKET_RADIUS_SCALE =
   CORNER_POCKET_INWARD_SCALE *
   CHROME_CORNER_POCKET_RADIUS_SCALE; // match the middle chrome arches to the corner pocket radius
-const WOOD_RAIL_CORNER_RADIUS_SCALE = 1.38; // round the wooden outer frame corners a bit more so the procedural frame follows the Showood silhouette
+const WOOD_RAIL_CORNER_RADIUS_SCALE = 1.28; // match the native wooden rail outline more closely to the Showood pocket-jaw silhouette
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0; // disable secondary throat so the side chrome uses a single arch
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profile
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the notch depth identical to the pocket cylinder so the chrome kisses the jaw edge
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
 const CHROME_PLATE_REFLECTION_SCALE = 0.28; // kill pocket-cut reflections by damping env-map intensity on fascia cuts
-const CHROME_PLATE_ROUGHNESS_LIFT = 0.14; // smooth chrome/gold highlight rolloff on rail sights for a softer edge finish
+const CHROME_PLATE_ROUGHNESS_LIFT = 0.08; // lift roughness on fascia cuts so pocket arches stop casting hot spots on cloth
 const CHROME_PLATE_THICKNESS_SCALE = 0.0306; // match diamond thickness on the wooden rails for fascia depth
 const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.18; // thicken the middle fascia so its depth now matches the corner plates
 const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0.06; // lift fascia slightly with the raised rail/cushion profile so chrome stays aligned on all six pockets
-const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0.12; // reduce downward chrome coverage so more wooden rail face stays visible
+const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.34; // trim the side fascia reach so the middle chrome ends cleanly before the pocket curve
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.14; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
@@ -837,7 +837,7 @@ const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.24; // lean the added width furthe
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.012; // push middle chrome plates slightly outward away from table center while preserving the rounded cut
 const CHROME_SIDE_APRON_COVER_THICKNESS_SCALE = 0.055; // cover the grey middle-pocket side apron with rail-sight chrome/gold
-const CHROME_SIDE_APRON_COVER_HEIGHT_SCALE = 1.08; // extend side rail-sight chrome/gold lower so the texture coverage continues further downward
+const CHROME_SIDE_APRON_COVER_HEIGHT_SCALE = 0.82; // drop the side apron cover down the rail face behind the side-pocket jaw
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.022; // trim the outer fascia edge a hair more for a tighter outside finish
 const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.078; // trim the middle-pocket outside chrome a touch more so the outer edge ends flush with the wooden rails
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.045; // open only the corner chrome rounded cut a tiny bit more so the arc reads slightly larger
@@ -1150,7 +1150,7 @@ const TABLE_FOOTPRINT_SCALE = 0.82; // reduce the table footprint ~18% while kee
 const BASE_FOOTPRINT_SHRINK = 0.82; // shrink the table base footprint by 18% without changing overall height
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
-const TABLE_DISPLAY_SCALE = 0.86; // make the table read just a bit larger in portrait while preserving proportions
+const TABLE_DISPLAY_SCALE = 0.84; // shrink the on-screen table a touch in portrait while preserving proportions
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
 const TOUCH_UI_SCALE = SIZE_REDUCTION;
 const POINTER_UI_SCALE = 1;
@@ -1269,7 +1269,7 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
 const DEFAULT_COMMENTARY_PRESET_ID = POOL_ROYALE_COMMENTARY_PRESETS[0]?.id || 'english';
 const SHOWOOD_ORIGINAL_TABLE_BASE_ID = 'showoodOriginal';
 const DEFAULT_PROCEDURAL_TABLE_BASE_ID = 'classicCylinders';
-const DEFAULT_TABLE_BASE_ID = DEFAULT_PROCEDURAL_TABLE_BASE_ID;
+const DEFAULT_TABLE_BASE_ID = SHOWOOD_ORIGINAL_TABLE_BASE_ID;
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const ENABLE_CUE_STROKE_ANIMATION = true;
@@ -1305,19 +1305,19 @@ const REPLAY_CAMERA_START_DELAY_MS = 0;
     WALL: 2.6 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
-const FRAME_RAIL_OUTWARD_SCALE = 1.36; // expose more of the wooden frame rail so it remains clearly visible around the Showood table in portrait view
-const RAIL_HEIGHT = TABLE.THICK * 1.48; // match Showood side top-wood rail height to the older procedural rail profile
+const FRAME_RAIL_OUTWARD_SCALE = 1.38; // expand wooden frame rails outward by 38% on all sides
+const RAIL_HEIGHT = TABLE.THICK * 1.9; // lift all six cushions/rails a touch more so the top profile reads higher without changing playfield size
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.024; // push the corner jaws just a bit farther outward so the fascia follows the rounded rail and chrome cut
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
 const POCKET_JAW_CORNER_INNER_SCALE = 1.62; // stretch the inner lip into a longer Showood-style rounded pocket jaw while keeping playable mouth size
 const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 1.03; // round and widen the middle jaws slightly more while keeping the corner match
-const POCKET_JAW_CORNER_OUTER_SCALE = 1.8; // keep the Showood-style jaw shoulder but make it just a bit slimmer
+const POCKET_JAW_CORNER_OUTER_SCALE = 1.86; // broaden the outer jaw shoulder to mirror the Showood rounded pocket cup profile
 const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.036; // nudge corner jaws a touch farther outward to keep the jaw shoulder aligned with the rail cut
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
-const POCKET_JAW_DEPTH_SCALE = 1.04; // keep Showood depth while making jaws a touch smaller overall
+const POCKET_JAW_DEPTH_SCALE = 1.08; // deepen all jaw bodies so the default pockets carry the same Showood jaw depth
 const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.094; // lower all six jaws a hair more so the mouths sit slightly deeper
 const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.036; // trim a little more from the jaw bottoms
 const POCKET_JAW_CORNER_BOTTOM_CLEARANCE = TABLE.THICK * 0.012; // keep corner jaw bottom trim aligned with the global bottom reduction
@@ -1331,7 +1331,7 @@ const POCKET_JAW_SIDE_CENTER_TAPER_HOLD = POCKET_JAW_CENTER_TAPER_HOLD; // keep 
 const POCKET_JAW_SIDE_EDGE_TAPER_SCALE = POCKET_JAW_EDGE_TAPER_SCALE; // reuse the corner taper scale so edge thickness matches exactly
 const POCKET_JAW_SIDE_EDGE_TAPER_PROFILE_POWER = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // maintain the identical taper curve across all six jaws
 const POCKET_JAW_CENTER_THICKNESS_MIN = 0.2; // make all six jaws a bit thinner from the inside while preserving outside profile and height
-const POCKET_JAW_CENTER_THICKNESS_MAX = 0.51; // trim center jaw mass a little more for a subtly smaller mouth surround
+const POCKET_JAW_CENTER_THICKNESS_MAX = 0.54; // keep the centre mass but slim it slightly so jaw interiors look cleaner
 const POCKET_JAW_OUTER_EXPONENT_MIN = 0.58; // controls arc falloff toward the chrome rim
 const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
 const POCKET_JAW_INNER_EXPONENT_MIN = 0.78; // controls inner lip easing toward the cushion
@@ -1354,7 +1354,7 @@ const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // 
 const CORNER_POCKET_JAW_EDGE_TRIM_START = SIDE_POCKET_JAW_EDGE_TRIM_START; // keep corner jaw taper start aligned with middle pockets
 const CORNER_POCKET_JAW_EDGE_TRIM_SCALE = SIDE_POCKET_JAW_EDGE_TRIM_SCALE; // match the middle pocket jaw thin/thick profile
 const CORNER_POCKET_JAW_EDGE_TRIM_CURVE = SIDE_POCKET_JAW_EDGE_TRIM_CURVE; // reuse the same taper curve for corner jaws
-const POCKET_JAW_MAPPING_RADIUS_SCALE = 1.08; // expand jaw collision mapping further so gameplay collisions match visible jaws and prevent pass-throughs
+const POCKET_JAW_MAPPING_RADIUS_SCALE = 1.035; // slightly expand jaw collision arcs so physics cannot slip through visible jaw/chrome edges
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
 const POCKET_RIM_DEPTH_RATIO = 0; // remove the separate pocket rims so the chrome fascias meet the jaws directly
@@ -1405,17 +1405,17 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     'Pool table inner ratio must match the official 2:1 target after scaling.'
   );
 const MM_TO_UNITS = (innerLong / WIDTH_REF) / TABLE_SURFACE_COMPENSATION;
-const BALL_SIZE_SCALE = 0.96; // trim ball size slightly while keeping every helper tied to BALL_R/BALL_DIAMETER
+const BALL_SIZE_SCALE = 0.99; // enlarge balls slightly for a fuller on-cloth visual while preserving all BALL_R/BALL_DIAMETER-linked helpers
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
 const RACK_VERTICAL_SCREEN_LIFT = BALL_R * 0.86; // nudge the rack farther upward on screen so object balls sit visibly higher
-const ENABLE_BALL_FLOOR_SHADOWS = false;
+const ENABLE_BALL_FLOOR_SHADOWS = true;
 const ENABLE_CUE_CLOTH_SHADOW = true;
 const ENABLE_TABLE_FLOOR_SHADOW = false;
-const BALL_SHADOW_RADIUS_MULTIPLIER = 1;
-const BALL_SHADOW_OPACITY = 0.25;
-const BALL_SHADOW_LIFT = BALL_R * 0.02;
+const BALL_SHADOW_RADIUS_MULTIPLIER = 0.96;
+const BALL_SHADOW_OPACITY = 0.31;
+const BALL_SHADOW_LIFT = BALL_R * 0.012;
 const CUE_SHADOW_OPACITY = 0.18;
 const CUE_SHADOW_WIDTH_RATIO = 0.62;
 const TABLE_FLOOR_SHADOW_OPACITY = 0.2;
@@ -1550,7 +1550,7 @@ const SPIN_ANGULAR_DAMPING = 0.04;
 const SPIN_GRAVITY = 9.81;
 const ROLLING_RESISTANCE = 0.011;
 const BALL_BALL_FRICTION = 0.105;
-const BALL_CONTACT_EPS = BALL_R * 0.016; // increase grazing-contact tolerance so fast shots cannot tunnel through cushion/jaw boundaries
+const BALL_CONTACT_EPS = BALL_R * 0.012; // broaden contact tolerance slightly so grazing touches resolve instead of tunneling
 const BALL_COLLISION_SLOP = BALL_R * 0.001; // tighter tolerance so visible ball overlap is corrected faster
 const BALL_COLLISION_BAUMGARTE = 0.92; // stronger overlap correction so touching balls settle at true physical spacing
 const RAIL_FRICTION = 0.16;
@@ -1560,7 +1560,7 @@ const STOP_FINAL_EPS = STOP_EPS * 0.35;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3; // allow up to 3 frames of catch-up when recovering from slow frames
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
 const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
-const MAX_PHYSICS_SUBSTEPS = 8; // add extra substeps for higher cushion/pocket collision precision on slower frames
+const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
 const MAX_POWER_BOUNCE_THRESHOLD = 0.995; // treat slider max as the hard cap threshold
 const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 1.9; // push full-power launches higher so cue-ball jumps read stronger
@@ -1615,7 +1615,7 @@ const CLOTH_EDGE_TOP_RADIUS_SCALE = 0.986; // pinch the cloth sleeve opening sli
 const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.04; // flare the lower sleeve so the wrap hugs the pocket throat before meeting the drop
 const CLOTH_EDGE_CURVE_INTENSITY = 0.012; // shallow easing that rounds the cloth sleeve as it transitions from lip to throat
 const CLOTH_EDGE_TEXTURE_HEIGHT_SCALE = 1.2; // boost vertical tiling so the wrapped cloth reads with tighter, more realistic fibres
-const CLOTH_EDGE_TINT = 0.18; // keep the pocket sleeves closer to the base felt tone so they don't glow around the cuts
+const CLOTH_EDGE_TINT = 0; // keep field-edge sleeves identical to the active cloth tone/texture
 const CLOTH_EDGE_EMISSIVE_MULTIPLIER = 0.02; // soften light spill on the sleeve walls while keeping reflections muted
 const CLOTH_EDGE_EMISSIVE_INTENSITY = 0.24; // further dim emissive brightness so the cutouts stay consistent with the cloth plane
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.32; // overlap between cushions and rails to hide seams
@@ -1833,7 +1833,7 @@ const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // disable preview-only spin defle
 const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
-const SHOT_POWER_ADJUSTMENT = 1; // restore legacy shot scaling used before the May 19 power retune
+const SHOT_POWER_ADJUSTMENT = 1.08; // add a small power boost so full pulls travel a bit stronger
 const SHOT_POWER_BOOST = 0.455; // restore the pre-May-19 cue launch boost
 const SHOT_GLOBAL_POWER_SCALE = 1; // keep global strike scaling neutral to match the legacy feel
 const SHOT_FORCE_BOOST =
@@ -2654,8 +2654,8 @@ let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 let SIDE_POCKET_PHYSICS_CUT_ANGLE = DEFAULT_SIDE_POCKET_PHYSICS_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
-const CUSHION_FACE_INSET_LONG = SIDE_RAIL_INNER_THICKNESS * 0.58; // pull long-rail cushions farther inward toward the table center
-const CUSHION_FACE_INSET_SHORT = SIDE_RAIL_INNER_THICKNESS * 0.44; // move short-rail cushions a touch outward while keeping pocket cuts stable
+const CUSHION_FACE_INSET_LONG = SIDE_RAIL_INNER_THICKNESS * 0.605; // tighten long-rail cushion mapping so gameplay rebounds align closer to the visual nose
+const CUSHION_FACE_INSET_SHORT = SIDE_RAIL_INNER_THICKNESS * 0.462; // tighten short-rail cushion mapping to better match the rendered table shape
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 
@@ -3029,10 +3029,10 @@ const CLOTH_QUALITY = (() => {
   if (isMobileUA || isTouch || lowMemory || lowRefresh) {
     const highDensity = dpr >= 3;
     return {
-      textureSize: highDensity ? 3072 : 2048,
-      anisotropy: highDensity ? 28 : 24,
+      textureSize: highDensity ? 2048 : 1536,
+      anisotropy: highDensity ? 16 : 12,
       generateMipmaps: true,
-      bumpScaleMultiplier: highDensity ? 1.02 : 0.94,
+      bumpScaleMultiplier: highDensity ? 0.98 : 0.9,
       sheen: 0.78,
       sheenRoughness: 0.82
     };
@@ -3051,6 +3051,16 @@ const CLOTH_QUALITY = (() => {
 
   return defaults;
 })();
+
+function isMobilePerformanceTier() {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+  const dpr = window.devicePixelRatio ?? 1;
+  const ua = navigator.userAgent ?? '';
+  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+  const deviceMemory = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
+  const lowMemory = deviceMemory !== null && deviceMemory <= 4;
+  return isMobileUA || lowMemory || dpr >= 2.5;
+}
 
 const makeColorPalette = ({ cloth, rail, base, markings = 0xffffff, cushion }) => ({
   cloth,
@@ -4311,8 +4321,7 @@ const SHOWOOD_TABLE_PARTS = Object.freeze([
   'railSight',
   'pocketCup',
   'baseCornerBlock',
-  'leg',
-  'baseFoot'
+  'leg'
 ]);
 const DEFAULT_SHOWOOD_TABLE_STYLE = Object.freeze({
   cloth: 'green',
@@ -4360,9 +4369,10 @@ const SHOWOOD_TABLE_PART_LABELS = Object.freeze({
   pocketCup: 'Pocket Cups',
   baseCornerBlock: 'Table Base',
   leg: 'Legs',
-  baseFoot: 'Feet'
+  baseFoot: 'Feet (linked to Side Apron + Rail Sights)'
 });
 const SHOWOOD_CHROME_LINKED_PARTS = new Set(['railSight', 'baseFoot']);
+const SHOWOOD_VISIBLE_PARTS = Object.freeze(SHOWOOD_TABLE_PARTS.filter((part) => part !== 'baseFoot'));
 const getShowoodTablePartOptions = (part, clothOptions = null, tableFinishOptions = null) => {
   if (part === 'cloth' || part === 'cushion') {
     const sourceOptions = Array.isArray(clothOptions) && clothOptions.length
@@ -4409,7 +4419,7 @@ const normalizeShowoodTableStyle = (value = {}) => {
 };
 const getShowoodPartOption = (style, part) => {
   const normalized = normalizeShowoodTableStyle(style);
-  const optionPart = part === 'sideWoodApron' ? 'baseCornerBlock' : part === 'verticalCornerRim' ? 'baseFoot' : part;
+  const optionPart = part === 'sideWoodApron' ? 'topWoodRail' : part === 'verticalCornerRim' ? 'baseFoot' : part;
   const optionId = normalized[optionPart];
   const options = getShowoodTablePartOptions(optionPart);
   return options.find((option) => option.id === optionId) || options[0] || null;
@@ -5222,7 +5232,8 @@ const createClothTextures = (() => {
     }
 
     const palette = preset.palette || CLOTH_TEXTURE_PRESETS[DEFAULT_CLOTH_TEXTURE_KEY].palette;
-    const shadow = toRgb(palette.shadow);
+    const isCushionPreset = /cushion/i.test(preset?.id || '') || preset?.target === 'cushion';
+    const shadow = isCushionPreset ? toRgb('#c3c7ce') : toRgb(palette.shadow);
     const base = toRgb(palette.base);
     const accent = toRgb(palette.accent);
     const highlight = toRgb(palette.highlight);
@@ -5728,43 +5739,12 @@ function updateClothTexturesForFinish (
   }
   finishInfo.parts?.underlayMeshes?.forEach((mesh) => {
     if (!mesh?.material) return;
-    const underlayMat = mesh.material;
-    if (underlayMat.color && finishInfo.clothMat?.color) {
-      underlayMat.color.copy(finishInfo.clothMat.color);
+    mesh.material.map = null;
+    mesh.material.bumpMap = null;
+    if (mesh.material.color && finishInfo.clothMat?.color) {
+      mesh.material.color.copy(finishInfo.clothMat.color);
     }
-    if (finishInfo.clothMat) {
-      underlayMat.map = finishInfo.clothMat.map ?? null;
-      underlayMat.normalMap = finishInfo.clothMat.normalMap ?? null;
-      underlayMat.roughnessMap = finishInfo.clothMat.roughnessMap ?? null;
-      underlayMat.bumpMap = finishInfo.clothMat.bumpMap ?? null;
-      if (underlayMat.map && finishInfo.clothMat.map?.repeat) {
-        underlayMat.map.repeat.copy(finishInfo.clothMat.map.repeat);
-        underlayMat.map.rotation = finishInfo.clothMat.map.rotation ?? underlayMat.map.rotation ?? 0;
-        underlayMat.map.needsUpdate = true;
-      }
-      if (underlayMat.normalMap && finishInfo.clothMat.normalMap?.repeat) {
-        underlayMat.normalMap.repeat.copy(finishInfo.clothMat.normalMap.repeat);
-        underlayMat.normalMap.rotation = finishInfo.clothMat.normalMap.rotation ?? underlayMat.normalMap.rotation ?? 0;
-        underlayMat.normalMap.needsUpdate = true;
-      }
-      if (underlayMat.roughnessMap && finishInfo.clothMat.roughnessMap?.repeat) {
-        underlayMat.roughnessMap.repeat.copy(finishInfo.clothMat.roughnessMap.repeat);
-        underlayMat.roughnessMap.rotation = finishInfo.clothMat.roughnessMap.rotation ?? underlayMat.roughnessMap.rotation ?? 0;
-        underlayMat.roughnessMap.needsUpdate = true;
-      }
-      if (underlayMat.bumpMap && finishInfo.clothMat.bumpMap?.repeat) {
-        underlayMat.bumpMap.repeat.copy(finishInfo.clothMat.bumpMap.repeat);
-        underlayMat.bumpMap.rotation = finishInfo.clothMat.bumpMap.rotation ?? underlayMat.bumpMap.rotation ?? 0;
-        underlayMat.bumpMap.needsUpdate = true;
-      }
-      if ('roughness' in underlayMat && Number.isFinite(finishInfo.clothMat.roughness)) {
-        underlayMat.roughness = finishInfo.clothMat.roughness;
-      }
-      if ('metalness' in underlayMat && Number.isFinite(finishInfo.clothMat.metalness)) {
-        underlayMat.metalness = finishInfo.clothMat.metalness;
-      }
-    }
-    underlayMat.needsUpdate = true;
+    mesh.material.needsUpdate = true;
   });
   finishInfo.clothTextureKey = textureKey;
   finishInfo.clothTextureSource = textureSource;
@@ -13090,7 +13070,7 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
     cushion: 'cushion',
     topWoodRail: 'topWoodRail',
     wood: 'topWoodRail',
-    sideWoodApron: 'baseCornerBlock',
+    sideWoodApron: 'topWoodRail',
     railSight: 'railSight',
     trim: 'railSight',
     pocket: 'pocketCup',
@@ -13266,6 +13246,9 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
     (s.downFace && s.relY > 0.46 && s.relY < 0.84 && ((s.longN > 0.62 && s.longN < 0.94) || (s.shortN > 0.44 && s.shortN < 0.86)))
   );
   const topRailBand = high && (s.longN > 0.58 || s.shortN > 0.535);
+  const topRailNonPocket = topRailBand && !anyPocketZone;
+  const topRailSideVerticalRimZone = s.sideFace && !s.upFace && s.relY > 0.46 && s.relY < 0.96 && s.longN > 0.6 && s.shortN > 0.58;
+  const underRailSightCornerRimZone = s.sideFace && !s.upFace && s.relY > 0.36 && s.relY < 0.76 && s.longN > 0.67 && s.shortN > 0.52;
   const outsideBaseCornerRimZone = s.sideFace && s.relY > 0.08 && s.relY < 0.82 && s.longN > 0.70 && s.shortN > 0.50;
   const outerMostVerticalCorner = s.sideFace && s.relY > 0.10 && s.relY < 0.84 && s.longN > 0.78 && s.shortN > 0.64;
   const sideLowerTrimZone = s.sideFace && s.relY > 0.18 && s.relY < 0.44 && (s.longN > 0.54 || s.shortN > 0.54) && !outsideBaseCornerRimZone;
@@ -13273,19 +13256,26 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
     (s.longN > 0.08 && s.longN < 0.58 && s.shortN < 0.42) ||
     (s.longN > 0.50 && s.shortN > 0.48) ||
     (s.longN > 0.64 && s.shortN > 0.64)
-  );
+  ) && !(underRailSightCornerRimZone || topRailSideVerticalRimZone);
+  const legZone = s.sideFace && s.relY > 0.14 && s.relY < 0.62 && s.longN < 0.62 && s.shortN < 0.58;
+  const railSightDownBand =
+    s.sideFace && !s.upFace && !anyPocketZone && s.relY > 0.44 && s.relY < 0.72 &&
+    (s.longN > 0.54 || s.shortN > 0.48) &&
+    !(topRailSideVerticalRimZone || underRailSightCornerRimZone || outsideBaseCornerRimZone || outerMostVerticalCorner || baseCornerZone || legZone);
   const hardwareCandidate = namedHardware || metalish || ((black || gold || light) && !green && !brown && !namedWood);
   if (namedPocket || (black && anyPocketZone && (s.downFace || s.sideFace || s.relY < 0.79) && !hardwareCandidate)) return 'pocketCup';
   if (hardwareCandidate && (sideMiddlePocketZone || cornerPocketZone) && !green && !brown) return 'railSight';
   if (namedSight && high) return 'railSight';
   if ((namedCloth || green) && centralCloth) return 'cloth';
   if ((namedCushion || green) && cushionBand) return 'cushion';
-  if ((outsideBaseCornerRimZone || outerMostVerticalCorner) && !green && !s.upFace) return 'verticalCornerRim';
-  if (hardwareCandidate && topRailBand && s.upFace && !brown && !green) return 'railSight';
-  if (hardwareCandidate && sideLowerTrimZone && !green) return 'railSight';
+  if ((topRailSideVerticalRimZone || underRailSightCornerRimZone || outsideBaseCornerRimZone || outerMostVerticalCorner) && !green && !s.upFace) return 'verticalCornerRim';
+  if (hardwareCandidate && topRailNonPocket && s.upFace && !brown && !green) return 'railSight';
   if (low) return 'baseFoot';
   if ((brown || namedWood || black) && baseCornerZone) return 'baseCornerBlock';
-  if (midBody && s.sideFace && !(s.longN > 0.64 && s.shortN > 0.64)) return 'leg';
+  if (baseCornerZone) return 'baseCornerBlock';
+  if (legZone && (brown || namedWood || !hardwareCandidate)) return 'leg';
+  if (hardwareCandidate && sideLowerTrimZone && !green) return 'railSight';
+  if (railSightDownBand && !green) return 'sideWoodApron';
   if (veryTop && (s.upFace || topRailBand) && !green) return 'topWoodRail';
   if (high && s.sideFace && !green && !anyPocketZone) return 'sideWoodApron';
   return namedCushion ? 'cushion' : 'sideWoodApron';
@@ -13313,7 +13303,7 @@ function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInf
     const finalMaterials = [];
     const materialLookup = new Map();
     const getMaterialIndex = (sourceMaterialIndex, part) => {
-      const linkedPart = part === 'sideWoodApron' ? 'baseCornerBlock' : part === 'verticalCornerRim' ? 'baseFoot' : part;
+      const linkedPart = part === 'sideWoodApron' ? 'topWoodRail' : part === 'verticalCornerRim' ? 'baseFoot' : part;
       const key = `${sourceMaterialIndex}:${linkedPart}`;
       if (materialLookup.has(key)) return materialLookup.get(key);
       const source = sourceMaterials[Math.max(0, Math.min(sourceMaterialIndex, sourceMaterials.length - 1))];
@@ -14337,7 +14327,7 @@ function mountPoolRoyaleExternalTableModel({
 
   table.userData.applyExternalTableFallbackBase = () => {
     if (usesExternalTableModel && resolvedTableOptions?.tableModel?.id === 'showood-seven-foot') {
-      applyBaseVariant(DEFAULT_PROCEDURAL_TABLE_BASE_ID);
+      applyBaseVariant(SHOWOOD_ORIGINAL_TABLE_BASE_ID);
     }
   };
 
@@ -15650,9 +15640,10 @@ function PoolRoyaleGame({
   );
   const availableTableBases = useMemo(
     () =>
-      POOL_ROYALE_BASE_VARIANTS.filter((variant) =>
-        variant.id !== SHOWOOD_ORIGINAL_TABLE_BASE_ID &&
-        isPoolOptionUnlocked('tableBase', variant.id, poolInventory)
+      POOL_ROYALE_BASE_VARIANTS.filter(
+        (variant) =>
+          variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID &&
+          isPoolOptionUnlocked('tableBase', variant.id, poolInventory)
       ),
     [poolInventory]
   );
@@ -15707,7 +15698,7 @@ function PoolRoyaleGame({
   );
   const tablePersonalizationSections = useMemo(
     () =>
-      SHOWOOD_TABLE_PARTS.map((part) => ({
+      SHOWOOD_VISIBLE_PARTS.map((part) => ({
         key: part,
         label: SHOWOOD_TABLE_PART_LABELS[part] || part,
         chromeLinked: SHOWOOD_CHROME_LINKED_PARTS.has(part),
@@ -15751,12 +15742,10 @@ function PoolRoyaleGame({
   );
   const activeTableBase = useMemo(
     () =>
-      availableTableBases.find((variant) => variant.id === tableBaseId) ??
-      availableTableBases.find((variant) => variant.id === DEFAULT_TABLE_BASE_ID) ??
-      POOL_ROYALE_BASE_VARIANTS.find((variant) => variant.id === DEFAULT_TABLE_BASE_ID) ??
-      availableTableBases[0] ??
+      availableTableBases.find((variant) => variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID) ??
+      POOL_ROYALE_BASE_VARIANTS.find((variant) => variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID) ??
       POOL_ROYALE_BASE_VARIANTS[0],
-    [availableTableBases, tableBaseId]
+    [availableTableBases]
   );
   const resolvedHdriResolution = useMemo(() => {
     return autoHdriResolutionFromGraphics;
@@ -15813,7 +15802,9 @@ function PoolRoyaleGame({
     if (!isPoolOptionUnlocked('tableFinish', tableFinishId, poolInventory)) {
       setTableFinishId(DEFAULT_TABLE_FINISH_ID);
     }
-    if (!isPoolOptionUnlocked('tableBase', tableBaseId, poolInventory)) {
+    if (tableBaseId !== SHOWOOD_ORIGINAL_TABLE_BASE_ID) {
+      setTableBaseId(SHOWOOD_ORIGINAL_TABLE_BASE_ID);
+    } else if (!isPoolOptionUnlocked('tableBase', tableBaseId, poolInventory)) {
       setTableBaseId(DEFAULT_TABLE_BASE_ID);
     }
     if (!isPoolOptionUnlocked('clothColor', clothColorId, poolInventory)) {
@@ -20264,9 +20255,10 @@ const shotPowerRef = useRef(0);
       };
       updatePocketCameraState(false);
       screen.orientation?.lock?.('portrait').catch(() => {});
+      const mobilePerformanceTier = isMobilePerformanceTier();
       // Renderer
       const renderer = new THREE.WebGLRenderer({
-        antialias: true,
+        antialias: !mobilePerformanceTier,
         alpha: false,
         powerPreference: 'high-performance'
       });
@@ -20275,7 +20267,7 @@ const shotPowerRef = useRef(0);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
       renderer.sortObjects = true;
-      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.enabled = !mobilePerformanceTier;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       rendererRef.current = renderer;
       updateRendererAnisotropyCap(renderer);
