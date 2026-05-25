@@ -149,6 +149,7 @@ const ALWAYS_SPATIAL_PARTS = new Set<TablePart>([
   "baseCornerBlock",
   "lowerTrim",
   "railSight",
+  "sideWoodApron",
   "underside",
 ]);
 
@@ -559,7 +560,7 @@ function classifyTriangle(
   if (outsideBaseCornerRimZone && (flags.brown || namedWood) && !outerMostVerticalCorner) return "baseCornerBlock";
   if (s.longN > 0.64 && s.shortN > 0.64 && midBody) return "baseCornerBlock";
   if (midBody && s.sideFace && !(s.longN > 0.64 && s.shortN > 0.64)) return "leg";
-  if (veryTop && (s.upFace || topRailBand) && !flags.green) return "topWoodRail";
+  if (veryTop && s.upFace && topRailBand && !flags.green) return "topWoodRail";
   if (high && s.sideFace && !flags.green && !anyPocketZone) return "sideWoodApron";
   return "sideWoodApron";
 }
