@@ -532,7 +532,6 @@ const BOARD_GROUP_Y_OFFSET = -0.065; // lower the board slab so it sits flush on
 const BOARD_MODEL_Y_OFFSET = -0.12;
 const BOARD_VISUAL_Y_OFFSET = -0.03;
 const BOARD_SURFACE_DROP = 0.05;
-const BOARD_TOWARD_PLAYER_Z_OFFSET = BOARD.tile * BOARD_SCALE * 0.42; // move board visually down (toward bottom player) on portrait framing.
 
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
 const BOARD_SCALE = 0.0359 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR * 0.69;
@@ -541,8 +540,8 @@ const BOARD_MODEL_SPAN_BIAS = 1.18;
 const HIGHLIGHT_VERTICAL_OFFSET = 0.18;
 const PIECE_SELECTION_LIFT = 0.18;
 
-const TABLE_SIZE_FACTOR = 0.79 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
-const CHAIR_SIZE_FACTOR = 0.84 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
+const TABLE_SIZE_FACTOR = 0.84 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
+const CHAIR_SIZE_FACTOR = 0.9 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
 const CHAIR_FOOTPRINT_SHRINK = 0.9; // Make chair bodies slightly bigger while preserving overall style.
 const TABLE_RADIUS = 2.74 * MODEL_SCALE * TABLE_SIZE_FACTOR;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE * CHAIR_SIZE_FACTOR * CHAIR_FOOTPRINT_SHRINK;
@@ -597,8 +596,8 @@ const CAMERA_PULL_FORWARD_MIN = THREE.MathUtils.degToRad(15);
 const CAMERA_CAPTURE_VIEW_UPWARD_BIAS = THREE.MathUtils.degToRad(21); // raise forced 3D animation camera for a stronger portrait top-down feel.
 const CAMERA_CAPTURE_VIEW_RADIUS_SCALE = 1.18; // keep forced 3D animation wider during capture so the board stays fully readable
 const CAMERA_CAPTURE_BOTTOM_AVATAR_SCREEN_OFFSET = 0; // keep projected avatars pinned to the seated character chest anchors
-const CAMERA_LOCKED_3D_PHI = THREE.MathUtils.degToRad(84); // tilt 3D view more top-down so the board sits visually lower (toward the bottom) on portrait screens.
-const CAMERA_LOCKED_3D_RADIUS_SCALE = 0.32; // move locked 3D camera even closer so the table appears larger/nearer in portrait play.
+const CAMERA_LOCKED_3D_PHI = THREE.MathUtils.degToRad(82); // tilt 3D view more top-down so the board sits visually lower (toward the bottom) on portrait screens.
+const CAMERA_LOCKED_3D_RADIUS_SCALE = 0.34; // move locked 3D camera even closer so the table appears larger/nearer in portrait play.
 const CHECKERS_CAMERA_FRAME_COMPENSATION = 1.06;
 const PLAYER_FACE_CAMERA_SEAT_ANGLE = Math.PI / 2;
 // Keep Chess Battle Royal bottom-player camera aligned with Checkers Battle Royal
@@ -614,7 +613,7 @@ const SAND_TIMER_SCALE = 0.36;
 const SEATED_HUMAN_DEFAULT_MODEL_URL = CHESS_HUMAN_CHARACTER_OPTIONS[0]?.modelUrls?.[0];
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 3.2;
-const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 2.5; // Make seated humans smaller so they match requested portrait framing.
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 2.72; // Make seated humans smaller so they match requested portrait framing.
 const FAILED_HUMAN_CHARACTER_IDS = new Set();
 const SEATED_HUMAN_SEAT_Y_OFFSET = -0.98 * MODEL_SCALE * STOOL_SCALE; // Lower the seated humans a bit more for portrait framing.
 const SEATED_HUMAN_SEAT_Z_OFFSET = SEAT_DEPTH * 0.2;
@@ -630,7 +629,7 @@ const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.24; // raise player camera w
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.92;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 1.35;
 const PLAYER_VIEW_LOOK_TARGET_UP_BIAS = 0.6; // increase upward aim so the table/pieces/opponent sit higher in view.
-const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 5.95; // shift arena contents lower on portrait screens so table/chairs/humans sit closer to the bottom.
+const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 5.6; // shift arena contents lower on portrait screens so table/chairs/humans sit closer to the bottom.
 const FPV_FACE_FORWARD_OFFSET = 0.012; // keep the camera almost exactly at the eyes for a true first-person perspective.
 const FPV_FACE_UP_OFFSET = 0.0; // slight lift so the board edge does not clip while still feeling eye-level.
 const FPV_LOOK_AHEAD_DISTANCE = BOARD.tile * BOARD_SCALE * 5.8; // prioritize looking down the board journey toward the opponent side.
@@ -3138,7 +3137,7 @@ const CAMERA_TOPDOWN_MIN_RADIUS = CAMERA_BASE_RADIUS * 1.05;
 const CAMERA_TOPDOWN_MAX_RADIUS = CAMERA_BASE_RADIUS * 1.9;
 const CAMERA_3D_MIN_RADIUS = CAMERA_SAFE_MAX_RADIUS * 0.65;
 const CAMERA_3D_MAX_RADIUS = CAMERA_SAFE_MAX_RADIUS * 1.35;
-const CAMERA_2D_RADIUS = CAMERA_TOPDOWN_MAX_RADIUS * 1.03;
+const CAMERA_2D_RADIUS = CAMERA_TOPDOWN_MAX_RADIUS * 1.14;
 const CAMERA_2D_MIN_RADIUS = CAMERA_2D_RADIUS * 0.8;
 const CAMERA_2D_MAX_RADIUS = CAMERA_2D_RADIUS * 1.4;
 const CAM = {
@@ -10447,7 +10446,6 @@ function Chess3D({
     boardGroup.scale.setScalar(BOARD_SCALE);
     tableInfo.group.add(boardGroup);
     alignBoardGroupToTableSurface(boardGroup, tableInfo);
-    boardGroup.position.z = BOARD_TOWARD_PLAYER_Z_OFFSET;
     const boardVisualGroup = new THREE.Group();
     boardVisualGroup.position.y = BOARD_VISUAL_Y_OFFSET;
     boardGroup.add(boardVisualGroup);
