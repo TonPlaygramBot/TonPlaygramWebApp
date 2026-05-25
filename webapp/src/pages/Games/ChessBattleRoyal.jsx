@@ -596,7 +596,7 @@ const CAMERA_PULL_FORWARD_MIN = THREE.MathUtils.degToRad(15);
 const CAMERA_CAPTURE_VIEW_UPWARD_BIAS = THREE.MathUtils.degToRad(21); // raise forced 3D animation camera for a stronger portrait top-down feel.
 const CAMERA_CAPTURE_VIEW_RADIUS_SCALE = 1.18; // keep forced 3D animation wider during capture so the board stays fully readable
 const CAMERA_CAPTURE_BOTTOM_AVATAR_SCREEN_OFFSET = 0; // keep projected avatars pinned to the seated character chest anchors
-const CAMERA_LOCKED_3D_PHI = THREE.MathUtils.degToRad(82); // tilt 3D view more top-down so the board sits visually lower (toward the bottom) on portrait screens.
+const CAMERA_LOCKED_3D_PHI = THREE.MathUtils.degToRad(86); // tilt 3D view farther downward so the table/chairs/humans sit closer to the phone-bottom edge in portrait screens.
 const CAMERA_LOCKED_3D_RADIUS_SCALE = 0.3; // move locked 3D camera closer so table/chairs/avatars feel nearer in portrait play.
 const CHECKERS_CAMERA_FRAME_COMPENSATION = 1.06;
 const PLAYER_FACE_CAMERA_SEAT_ANGLE = Math.PI / 2;
@@ -3204,7 +3204,7 @@ const SHORT_PEDESTAL_SCALE_BY_SHAPE = Object.freeze({
 });
 const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 20.5; // make parked jet/helicopter/drone read large beside the table
 const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -4.2; // push parked vehicles and parked weapons farther to the arena sides
-const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.26; // lift pad markers/parked units from floor to board/table level
+const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.12; // lower parked firearms/vehicles so the side lineup sits visually lower on the board area
 const SIDE_PARKED_AIR_UNITS_LANE_SPREAD = 2.22; // increase spacing between parking slots
 const SIDE_PARKED_TRUCK_SCALE_MULTIPLIER = 1.22; // keep truck as prominent as the parked aircraft
 const SIDE_PARKED_FIREARM_DISPLAY_SIZE_RATIO = 1.22; // scale parked firearm swaps to match the larger vehicles occupying each pad
