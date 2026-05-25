@@ -25907,6 +25907,18 @@ const powerRef = useRef(hud.power);
           return strength;
         }
 
+        const resolveShouldShowTableCue = () => {
+          if (shooting || cueAnimating) return true;
+          const activeCam = activeRenderCameraRef.current ?? cameraRef.current ?? camera;
+          const cueBallY = cue?.pos ? CUE_Y : BALL_CENTER_Y;
+          const absoluteHeight = (activeCam?.position?.y ?? cueBallY) - cueBallY;
+          const sph = sphRef.current;
+          const phi = sph?.phi;
+          const standingPhiTarget = cameraBoundsRef.current?.standing?.phi ?? STANDING_VIEW_PHI;
+          const nearStandingPhi = Number.isFinite(phi) ? Math.abs(phi - standingPhiTarget) < 0.16 : false;
+          return !(absoluteHeight > BALL_R * 3.4 && nearStandingPhi);
+        };
+        const shouldShowTableCue = resolveShouldShowTableCue();
         sidePocketAimRef.current = false;
         if (canShowCue && (isPlayerTurn || previewingAiShot)) {
           const baseAimDir = new THREE.Vector3(aimDir.x, 0, aimDir.y);
@@ -26186,7 +26198,7 @@ const powerRef = useRef(hud.power);
             });
           }
           updateChalkVisibility(visibleChalkIndex);
-          cueStick.visible = true;
+          cueStick.visible = shouldShowTableCue;
           if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + powerStrength * 22);
             const tDir = new THREE.Vector3(targetDir.x, 0, targetDir.y);
@@ -26340,7 +26352,7 @@ const powerRef = useRef(hud.power);
           const tipTarget = resolveCueTipTarget(baseDir, visualPull, spinWorld);
           applyCueStickTransform(tipTarget);
           clampCueButtAboveCushion(tipTarget);
-          cueStick.visible = true;
+          cueStick.visible = shouldShowTableCue;
           updateChalkVisibility(null);
           if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + powerStrength * 22);
@@ -26440,7 +26452,7 @@ const powerRef = useRef(hud.power);
           const tipTarget = resolveCueTipTarget(dir, visualPull, spinWorld);
           applyCueStickTransform(tipTarget);
           clampCueButtAboveCushion(tipTarget);
-          cueStick.visible = true;
+          cueStick.visible = shouldShowTableCue;
         } else {
           aimFocusRef.current = null;
           aim.visible = false;
