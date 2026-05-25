@@ -10562,28 +10562,59 @@ function Chess3D({
         controls.enabled = true;
         controls.enableRotate = false;
         controls.enablePan = false;
-        controls.enableZoom = false;
-        controls.minPolarAngle = 0;
-        controls.maxPolarAngle = 0;
+        controls.enableZoom = true;
+        controls.minPolarAngle = CAMERA_TOPDOWN_LOCK;
+        controls.maxPolarAngle = CAMERA_TOPDOWN_LOCK;
+        controls.minDistance = CAMERA_2D_MIN_RADIUS;
+        controls.maxDistance = CAMERA_2D_MAX_RADIUS;
+        const targetRadius = clamp(CAMERA_2D_MAX_RADIUS, CAMERA_2D_MIN_RADIUS, CAMERA_2D_MAX_RADIUS);
+        if (!initial2dViewRef.current) {
+          initial2dViewRef.current = new THREE.Spherical(targetRadius, CAMERA_TOPDOWN_LOCK, 0);
+        }
+        const target = initial2dViewRef.current;
         locked3dViewRef.current.activeLook = false;
-        camera.position.set(
-          0,
-          TABLE_HEIGHT + 9.2 * CHECKERS_ARENA_SCALE * CHECKERS_CAMERA_FRAME_COMPENSATION,
-          0.001
-        );
-        controls.update();
+        animateCameraTo(target, 360);
       } else {
         camera.near = CAM.near;
         camera.updateProjectionMatrix();
         controls.enabled = true;
-        controls.enableRotate = false;
+        controls.enableRotate = true;
         controls.enablePan = false;
-        controls.enableZoom = false;
-        controls.minPolarAngle = THREE.MathUtils.degToRad(28);
+        controls.enableZoom = true;
+        controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
         controls.maxPolarAngle = CAM.phiMax;
+        controls.minAzimuthAngle = -Infinity;
+        controls.maxAzimuthAngle = Infinity;
+        controls.minDistance = CAMERA_3D_MIN_RADIUS;
+        controls.maxDistance = CAMERA_3D_MAX_RADIUS;
+        const restore = cameraMemory.last3d || default3d;
+        const targetPhi = clamp(
+          restore.phi - (isForcedCapture3dView ? CAMERA_CAPTURE_VIEW_UPWARD_BIAS : 0),
+          CAMERA_PULL_FORWARD_MIN,
+          CAM.phiMax
+        );
+        const targetRadius = clamp(
+          restore.radius * (isForcedCapture3dView ? CAMERA_CAPTURE_VIEW_RADIUS_SCALE : 1),
+          CAMERA_3D_MIN_RADIUS,
+          CAMERA_3D_MAX_RADIUS
+        );
+        const lockedRadius = clamp(CAMERA_2D_MAX_RADIUS * CAMERA_LOCKED_3D_RADIUS_SCALE, CAMERA_3D_MIN_RADIUS, CAMERA_3D_MAX_RADIUS);
+        const target = new THREE.Spherical(
+          isForcedCapture3dView ? targetRadius : lockedRadius,
+          isForcedCapture3dView ? targetPhi : CAMERA_LOCKED_3D_PHI,
+          Number.isFinite(restore.theta) ? restore.theta : default3d.theta
+        );
+        const lookDir = boardLookTarget.clone().sub(camera.position).normalize();
+        const yaw = Math.atan2(lookDir.x, lookDir.z);
+        const pitch = Math.asin(clamp(lookDir.y, -1, 1));
+        locked3dViewRef.current.yaw = yaw;
+        locked3dViewRef.current.pitch = pitch;
+        locked3dViewRef.current.targetYaw = yaw;
+        locked3dViewRef.current.targetPitch = pitch;
+        // Let OrbitControls drive the normal 3D camera again so players can
+        // move forward/back with pinch or wheel and look left/right by dragging.
         locked3dViewRef.current.activeLook = false;
-        applyBottomPlayerFaceCamera(camera, playerFaceLookRef.current);
-        controls.update();
+        animateCameraTo(target, 420);
       }
     };
 
