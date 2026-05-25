@@ -38,9 +38,9 @@ export const TABLES: Record<TableKey, { title: string; subtitle: string; mapping
 };
 
 const CLOTH_PRESETS: Record<ClothKey, { label: string; color: string }> = { tournamentGreen: { label: 'Procedural Cloth · Tournament Green', color: '#0f6f34' }, royalBlue: { label: 'Procedural Cloth · Royal Blue', color: '#0f4cb3' } };
-const FINISH_PRESETS: Record<FinishKey, { label: string; color: string; metalness: number; roughness: number; railSightColor: string; railSightMetalness: number; railSightRoughness: number; railSightEnvMapIntensity: number; railSightClearcoat: number; railSightClearcoatRoughness: number }> = {
-  goldRail: { label: 'RailSight + Apron · Gold', color: '#553118', metalness: 0.08, roughness: 0.43, railSightColor: '#d8b23d', railSightMetalness: 0.98, railSightRoughness: 0.06, railSightEnvMapIntensity: 2.2, railSightClearcoat: 1, railSightClearcoatRoughness: 0.03 },
-  chromeRail: { label: 'RailSight + Apron · Chrome', color: '#141414', metalness: 0.28, roughness: 0.22, railSightColor: '#d7dde7', railSightMetalness: 1, railSightRoughness: 0.055, railSightEnvMapIntensity: 2.4, railSightClearcoat: 1, railSightClearcoatRoughness: 0.025 },
+const FINISH_PRESETS: Record<FinishKey, { label: string; color: string; metalness: number; roughness: number; railSightColor: string }> = {
+  goldRail: { label: 'RailSight + Apron · Gold', color: '#553118', metalness: 0.08, roughness: 0.43, railSightColor: '#d4af37' },
+  chromeRail: { label: 'RailSight + Apron · Chrome', color: '#141414', metalness: 0.28, roughness: 0.22, railSightColor: '#cfd6dd' },
 };
 
 function proceduralClothTexture(renderer: THREE.WebGLRenderer, tint: string) { const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 256; const ctx = canvas.getContext('2d'); if (!ctx) return null; ctx.fillStyle = tint; ctx.fillRect(0, 0, 256, 256); for (let y = 0; y < 256; y += 4) { const a = 0.03 + ((y / 256) % 1) * 0.02; ctx.fillStyle = `rgba(255,255,255,${a.toFixed(3)})`; ctx.fillRect(0, y, 256, 2); } const t = new THREE.CanvasTexture(canvas); t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.RepeatWrapping; t.repeat.set(4, 2); t.anisotropy = renderer.capabilities.getMaxAnisotropy(); return t; }
@@ -65,14 +65,7 @@ export default function SevenFootShowoodPreview({ selectedTable, onBack }: { sel
     const woodTexture = cueWoodTexture(renderer, FINISH_PRESETS[finish].color);
     const woodMat = new THREE.MeshStandardMaterial({ color: '#ffffff', map: woodTexture, metalness: FINISH_PRESETS[finish].metalness, roughness: FINISH_PRESETS[finish].roughness });
     const railMat = new THREE.MeshStandardMaterial({ color: '#5e2f15', map: woodTexture, metalness: 0.1, roughness: 0.35 });
-    const railSightMat = new THREE.MeshPhysicalMaterial({
-      color: FINISH_PRESETS[finish].railSightColor,
-      metalness: FINISH_PRESETS[finish].railSightMetalness,
-      roughness: FINISH_PRESETS[finish].railSightRoughness,
-      envMapIntensity: FINISH_PRESETS[finish].railSightEnvMapIntensity,
-      clearcoat: FINISH_PRESETS[finish].railSightClearcoat,
-      clearcoatRoughness: FINISH_PRESETS[finish].railSightClearcoatRoughness,
-    });
+    const railSightMat = new THREE.MeshStandardMaterial({ color: FINISH_PRESETS[finish].railSightColor, metalness: 1, roughness: finish === 'goldRail' ? 0.22 : 0.16 });
 
     const tableBody = new THREE.Mesh(new THREE.BoxGeometry(currentMapping.playfield.width * scale * 1.08, 0.24, currentMapping.playfield.length * scale * 1.12), woodMat); tableBody.position.y = -0.13; tableGroup.add(tableBody);
     const railFrame = new THREE.Mesh(new THREE.BoxGeometry(currentMapping.playfield.width * scale * 1.16, 0.13, currentMapping.playfield.length * scale * 1.2), railMat); railFrame.position.y = 0.03; tableGroup.add(railFrame);
