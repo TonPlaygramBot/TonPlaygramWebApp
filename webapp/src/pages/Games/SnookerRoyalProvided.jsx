@@ -152,6 +152,7 @@ const SNOOKER_SHOT_FULL_SPEED = 12 * WORLD_SCALE * SNOOKER_SHOT_POWER_BOOST;
 const SNOOKER_BALL_MASS = 0.17;
 const SNOOKER_SHOT_SPIN_SCALE = 0.25;
 const SNOOKER_SPIN_GLOBAL_SCALE = 0.68; // match Pool Royale's reduced cue-spin input so centre-ball shots do not over-rotate
+const SNOOKER_AIM_LOCKED_CUE_LAUNCH = true; // force cue-ball launch to follow the aiming line exactly (no power/spin side deflection at strike)
 const SNOOKER_SPIN_GLOBAL_BOOST_MULTIPLIER = 1.2;
 const SNOOKER_SIDE_SPIN_MULTIPLIER = 1.5 * SNOOKER_SPIN_GLOBAL_BOOST_MULTIPLIER;
 const SNOOKER_BACKSPIN_MULTIPLIER = 2.6 * SNOOKER_SPIN_GLOBAL_BOOST_MULTIPLIER;
@@ -170,6 +171,7 @@ const SNOOKER_STOP_EPS = 0.0074;
 const SNOOKER_STOP_SOFTENING = 0.96;
 const SNOOKER_STOP_FINAL_EPS = SNOOKER_STOP_EPS * 0.35;
 const SNOOKER_CUSHION_NOSE_CONTACT_INSET = Math.max(0, (SNOOKER_OFFICIAL_BALL_R * 2 - SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS) * 0.5);
+const SNOOKER_CUSHION_SHAPE_EXTRA_INSET = SNOOKER_OFFICIAL_BALL_R * 0.08; // keep balls inside the GLB cushion/jaw physical envelope
 const SNOOKER_PHYSICS_MAX_STEP = 1 / 240;
 const SNOOKER_AIMING_CAMERA_HEIGHT_THRESHOLD = -0.08;
 const SNOOKER_CAMERA_HEIGHT_STEP = 0.075;
@@ -1204,19 +1206,25 @@ function applyCueShot(cueBall, power, yaw, out, spinInput = { x: 0, y: 0 }) {
   const powerScale = SNOOKER_SHOT_MIN_FACTOR + SNOOKER_SHOT_POWER_RANGE * p;
   const speed = SNOOKER_SHOT_FULL_SPEED * powerScale;
   cueBall.vel.copy(dir.multiplyScalar(speed));
-  cueBall.vel.addScaledVector(side, (spin.x ?? 0) * p * 1.05 * CFG.scale * SNOOKER_SHOT_POWER_BOOST);
-  cueBall.spin.set(spin.x ?? 0, spin.y ?? 0);
+  if (SNOOKER_AIM_LOCKED_CUE_LAUNCH) {
+    cueBall.spin.set(0, 0);
+  } else {
+    cueBall.vel.addScaledVector(side, (spin.x ?? 0) * p * 1.05 * CFG.scale * SNOOKER_SHOT_POWER_BOOST);
+    cueBall.spin.set(spin.x ?? 0, spin.y ?? 0);
+  }
   cueBall.omega?.set(0, 0, 0);
   const launchSpeed = cueBall.vel.length();
   if (launchSpeed > 1e-6 && cueBall.omega) {
     const rollingAxis = new THREE.Vector3(cueBall.vel.z, 0, -cueBall.vel.x).normalize();
     cueBall.omega.addScaledVector(rollingAxis, launchSpeed / CFG.ballR);
-    cueBall.omega.x += -(spin.y ?? 0) * p * 11;
-    cueBall.omega.z += -(spin.x ?? 0) * p * 11;
+    if (!SNOOKER_AIM_LOCKED_CUE_LAUNCH) {
+      cueBall.omega.x += -(spin.y ?? 0) * p * 11;
+      cueBall.omega.z += -(spin.x ?? 0) * p * 11;
+    }
   }
   cueBall.launchDir = cueBall.vel.lengthSq() > 1e-8 ? cueBall.vel.clone().normalize() : null;
   cueBall.impacted = false;
-  cueBall.lastShotSpin = { x: spin.x ?? 0, y: spin.y ?? 0 };
+  cueBall.lastShotSpin = SNOOKER_AIM_LOCKED_CUE_LAUNCH ? { x: 0, y: 0 } : { x: spin.x ?? 0, y: spin.y ?? 0 };
 }
 function getSnookerRedsRemaining(balls) {
   return balls.filter((item) => item.kind === 'red' && !item.potted).length;
@@ -1397,7 +1405,7 @@ function isInsideSnookerPocketThroat(ball, axis, sign, pocketPositions = []) {
 
 function getSnookerCushionCenterLimit(axis) {
   const half = axis === 'x' ? CFG.tableW / 2 : CFG.tableL / 2;
-  return half - CFG.ballR - SNOOKER_CUSHION_NOSE_CONTACT_INSET;
+  return half - CFG.ballR - SNOOKER_CUSHION_NOSE_CONTACT_INSET - SNOOKER_CUSHION_SHAPE_EXTRA_INSET;
 }
 
 function clampSnookerAimImpactToPerimeter(point) {
@@ -1774,8 +1782,8 @@ function resolveSnookerCueCameraPose(cueBallWorld, aimForward, activePower, aspe
     playerRadiusBase * SNOOKER_CUE_VIEW_RADIUS_RATIO,
     CFG.tableL * (0.48 + clampedPower * 0.12),
     SNOOKER_CUE_CAMERA_MIN_RADIUS
-  ) * SNOOKER_CUE_CAMERA_DISTANCE_MULTIPLIER;
-  const radius = clamp(lerp(standingRadius, cueRadius, 0.22 + clampedPower * 0.52), SNOOKER_CUE_CAMERA_MIN_RADIUS, SNOOKER_CUE_CAMERA_MAX_RADIUS);
+  ) * SNOOKER_CUE_CAMERA_DISTANCE_MULTIPLIER * 0.88;
+  const radius = clamp(lerp(standingRadius * 0.9, cueRadius, 0.22 + clampedPower * 0.52), SNOOKER_CUE_CAMERA_MIN_RADIUS, SNOOKER_CUE_CAMERA_MAX_RADIUS);
   const heightLift = THREE.MathUtils.clamp(heightOffset, SNOOKER_CAMERA_HEIGHT_MIN, SNOOKER_CAMERA_HEIGHT_MAX);
   const cuePhi = THREE.MathUtils.clamp(
     SNOOKER_CUE_VIEW_MIN_PHI + SNOOKER_CUE_VIEW_PHI_LIFT * (0.5 + portraitT * 0.15) - heightLift * 0.24,
