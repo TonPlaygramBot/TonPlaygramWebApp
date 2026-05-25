@@ -5654,7 +5654,7 @@ const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.96;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.94;
-const STANDING_VIEW_DISTANCE_SCALE = 0.28; // pull the standing camera slightly closer to the table for tighter portrait framing
+const STANDING_VIEW_DISTANCE_SCALE = 0.22; // pull the standing camera closer to the table so players appear visibly nearer in standing view on portrait screens
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -5856,9 +5856,9 @@ const AI_CUE_VIEW_HOLD_MS = 180;
 const AI_CAMERA_DROP_BLEND = 0.65;
 const AI_STROKE_TIME_SCALE = 1.35;
 const AI_STROKE_PULLBACK_FACTOR = 1.05;
-const AI_CUE_PULL_VISIBILITY_BOOST = 1.34;
+const AI_CUE_PULL_VISIBILITY_BOOST = 1.48; // keep AI cue pull/push animation matched with the stronger Provided-style stroke range
 const AI_WARMUP_PULL_RATIO = 0.62;
-const PLAYER_CUE_PULL_VISIBILITY_BOOST = 1.32;
+const PLAYER_CUE_PULL_VISIBILITY_BOOST = 1.46; // match Provided cue pullback readability with a stronger visible draw before release
 const PLAYER_WARMUP_PULL_RATIO = 0.72;
 const PLAYER_STROKE_TIME_SCALE = 1.28;
 const PLAYER_FORWARD_SLOWDOWN = 1.2;
@@ -21979,7 +21979,9 @@ const powerRef = useRef(hud.power);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
       table.add(cueStick);
-      const snookerHumanPlayer = createSnookerRoyalHumanPlayer(table, renderer);
+      const snookerHumanPlayer = { disabled: true, root: new THREE.Group(), modelRoot: new THREE.Group() };
+      snookerHumanPlayer.root.visible = false;
+      snookerHumanPlayer.modelRoot.visible = false;
       applySelectedCueStyle(cueStyleIndexRef.current ?? cueStyleIndex);
 
       const closeCueGallery = () => {
@@ -26457,7 +26459,7 @@ const powerRef = useRef(hud.power);
         }
 
         try {
-          updateSnookerRoyalHumanPlayer(snookerHumanPlayer, deltaSeconds, {
+          if (!snookerHumanPlayer.disabled) updateSnookerRoyalHumanPlayer(snookerHumanPlayer, deltaSeconds, {
             cue,
             cueStick,
             cueLen,
