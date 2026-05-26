@@ -43,14 +43,8 @@ const FINISH_PRESETS: Record<FinishKey, { label: string; color: string; metalnes
   chromeRail: { label: 'RailSight + Apron · Chrome', color: '#141414', metalness: 0.28, roughness: 0.22, railSightColor: '#cfd6dd' },
 };
 
-const clothTextureCache = new Map<string, THREE.CanvasTexture>();
-const woodTextureCache = new Map<string, THREE.CanvasTexture>();
-
-function proceduralClothTexture(renderer: THREE.WebGLRenderer, tint: string) {
-  const cached = clothTextureCache.get(tint);
-  if (cached) return cached;
-  const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 128; const ctx = canvas.getContext('2d'); if (!ctx) return null; ctx.fillStyle = tint; ctx.fillRect(0, 0, 128, 128); for (let y = 0; y < 128; y += 4) { const a = 0.03 + ((y / 128) % 1) * 0.02; ctx.fillStyle = `rgba(255,255,255,${a.toFixed(3)})`; ctx.fillRect(0, y, 128, 2); } const t = new THREE.CanvasTexture(canvas); t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.RepeatWrapping; t.repeat.set(4, 2); t.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy()); clothTextureCache.set(tint, t); return t; }
-function cueWoodTexture(renderer: THREE.WebGLRenderer, tint: string) { const cached = woodTextureCache.get(tint); if (cached) return cached; const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 80; const ctx = canvas.getContext('2d'); if (!ctx) return null; const g = ctx.createLinearGradient(0, 0, 256, 0); g.addColorStop(0, '#2b180d'); g.addColorStop(0.3, tint); g.addColorStop(0.6, '#6f3f21'); g.addColorStop(1, '#2b180d'); ctx.fillStyle = g; ctx.fillRect(0, 0, 256, 80); for (let x = 0; x < 256; x += 10) { ctx.fillStyle = `rgba(255,255,255,${(x % 24 === 0 ? 0.1 : 0.05).toFixed(2)})`; ctx.fillRect(x, 0, 2, 80); } const t = new THREE.CanvasTexture(canvas); t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.RepeatWrapping; t.repeat.set(2, 1); t.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy()); woodTextureCache.set(tint, t); return t; }
+function proceduralClothTexture(renderer: THREE.WebGLRenderer, tint: string) { const canvas = document.createElement('canvas'); canvas.width = 192; canvas.height = 192; const ctx = canvas.getContext('2d'); if (!ctx) return null; ctx.fillStyle = tint; ctx.fillRect(0, 0, 192, 192); for (let y = 0; y < 192; y += 4) { const a = 0.03 + ((y / 192) % 1) * 0.02; ctx.fillStyle = `rgba(255,255,255,${a.toFixed(3)})`; ctx.fillRect(0, y, 192, 2); } const t = new THREE.CanvasTexture(canvas); t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.RepeatWrapping; t.repeat.set(4, 2); t.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy()); return t; }
+function cueWoodTexture(renderer: THREE.WebGLRenderer, tint: string) { const canvas = document.createElement('canvas'); canvas.width = 320; canvas.height = 96; const ctx = canvas.getContext('2d'); if (!ctx) return null; const g = ctx.createLinearGradient(0, 0, 320, 0); g.addColorStop(0, '#2b180d'); g.addColorStop(0.3, tint); g.addColorStop(0.6, '#6f3f21'); g.addColorStop(1, '#2b180d'); ctx.fillStyle = g; ctx.fillRect(0, 0, 320, 96); for (let x = 0; x < 320; x += 10) { ctx.fillStyle = `rgba(255,255,255,${(x % 24 === 0 ? 0.1 : 0.05).toFixed(2)})`; ctx.fillRect(x, 0, 2, 96); } const t = new THREE.CanvasTexture(canvas); t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.RepeatWrapping; t.repeat.set(2, 1); t.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy()); return t; }
 
 export default function SevenFootShowoodPreview({ selectedTable, onBack }: { selectedTable: TableKey; onBack: () => void }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -63,10 +57,10 @@ export default function SevenFootShowoodPreview({ selectedTable, onBack }: { sel
     const host = hostRef.current; if (!host) return;
     const scene = new THREE.Scene(); scene.background = new THREE.Color('#020202');
     const camera = new THREE.PerspectiveCamera(46, host.clientWidth / host.clientHeight, 0.1, 80); camera.position.set(0, 2.2, 2.2); camera.lookAt(0, 0.2, 0);
-    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' }); renderer.setSize(host.clientWidth, host.clientHeight); renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25)); host.appendChild(renderer.domElement);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' }); renderer.setSize(host.clientWidth, host.clientHeight); renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); host.appendChild(renderer.domElement);
     scene.add(new THREE.AmbientLight(0xffffff, 0.8)); const key = new THREE.DirectionalLight(0xffffff, 1.4 + shotPower * 0.35); key.position.set(1.8, 3.2, 2); scene.add(key);
     const tableGroup = new THREE.Group(); scene.add(tableGroup);
-    const scale = currentMapping.sizeFt === '9ft' ? 1.18 : 0.9;
+    const scale = currentMapping.sizeFt === '9ft' ? 1.18 : 0.97;
 
     const woodTexture = cueWoodTexture(renderer, FINISH_PRESETS[finish].color);
     const woodMat = new THREE.MeshStandardMaterial({ color: '#ffffff', map: woodTexture, metalness: FINISH_PRESETS[finish].metalness, roughness: FINISH_PRESETS[finish].roughness });
@@ -100,15 +94,12 @@ export default function SevenFootShowoodPreview({ selectedTable, onBack }: { sel
     const leftPanel = new THREE.Mesh(sidePanelGeoShort, sidePanelMat); leftPanel.position.set(-halfW - 0.04, 0.033, 0); leftPanel.rotation.y = Math.PI / 2; tableGroup.add(leftPanel);
     const rightPanel = new THREE.Mesh(sidePanelGeoShort, sidePanelMat); rightPanel.position.set(halfW + 0.04, 0.033, 0); rightPanel.rotation.y = -Math.PI / 2; tableGroup.add(rightPanel);
 
-    const cushionShortRailMat = new THREE.MeshStandardMaterial({ color: '#ffffff', map: clothTexture ?? undefined, roughness: 0.84, metalness: 0.01 });
-    const cushionSideRailMat = new THREE.MeshStandardMaterial({ color: '#ffffff', map: clothTexture ?? undefined, roughness: 0.84, metalness: 0.01 });
+    const cushionMat = new THREE.MeshStandardMaterial({ color: '#ffffff', map: clothTexture ?? undefined, roughness: 0.84, metalness: 0.01 });
     currentMapping.cushions.forEach((c) => {
       const dx = c.to.x - c.from.x; const dz = c.to.z - c.from.z;
       const len = Math.hypot(dx, dz) * scale;
       const angle = Math.atan2(dz, dx);
-      const isSideCushion = c.id.startsWith('left') || c.id.startsWith('right');
-      const mat = isSideCushion ? cushionSideRailMat : cushionShortRailMat;
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(len, 0.055, 0.065), mat);
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(len, 0.055, 0.065), cushionMat);
       mesh.position.set(((c.from.x + c.to.x) * 0.5) * scale, 0.075, ((c.from.z + c.to.z) * 0.5) * scale);
       mesh.rotation.y = -angle;
       tableGroup.add(mesh);
@@ -157,8 +148,8 @@ export default function SevenFootShowoodPreview({ selectedTable, onBack }: { sel
     let frame = 0; const animate = () => { frame = requestAnimationFrame(animate); tableGroup.rotation.y += 0.0016; renderer.render(scene, camera); }; animate();
     const onResize = () => { camera.aspect = host.clientWidth / host.clientHeight; camera.updateProjectionMatrix(); renderer.setSize(host.clientWidth, host.clientHeight); };
     window.addEventListener('resize', onResize);
-    return () => { window.removeEventListener('resize', onResize); cancelAnimationFrame(frame); renderer.dispose(); renderer.domElement.remove(); };
-  }, [cloth, finish, currentMapping]);
+    return () => { window.removeEventListener('resize', onResize); cancelAnimationFrame(frame); clothTexture?.dispose(); woodTexture?.dispose(); renderer.dispose(); renderer.domElement.remove(); };
+  }, [cloth, finish, currentMapping, shotPower]);
 
   return <main style={{ minHeight: '100vh', background: '#020202', color: 'white', fontFamily: 'system-ui,sans-serif' }}><div ref={hostRef} style={{ position: 'fixed', inset: 0 }} />
     <section style={{ position: 'fixed', top: 8, left: 8, right: 8, background: 'rgba(0,0,0,0.66)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 14, padding: 10 }}>
