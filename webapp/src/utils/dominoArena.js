@@ -9,7 +9,7 @@ const STOOL_SCALE = 1.5 * 1.3 * 0.8;
 
 const TABLE_RADIUS = 3.4 * MODEL_SCALE * TABLE_SCALE;
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE * TABLE_SCALE;
-const CHAIR_GAP = 0.12 * MODEL_SCALE;
+const CHAIR_GAP = 0.06 * MODEL_SCALE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
@@ -77,7 +77,7 @@ const CAMERA_CONFIG = Object.freeze({
   far: 120,
   minRadius: TABLE_DIMENSIONS.outerHalfWidth * 0.55,
   maxRadius: TABLE_DIMENSIONS.outerHalfWidth * 3,
-  targetY: TABLE_DIMENSIONS.baseY,
+  targetY: TABLE_DIMENSIONS.baseY + TABLE_DIMENSIONS.clothRise * 0.35,
   maxPolarAngle: Math.PI * 0.49
 });
 
