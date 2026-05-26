@@ -4321,8 +4321,8 @@ const DEFAULT_SHOWOOD_TABLE_STYLE = Object.freeze({
   topWoodRail: DEFAULT_TABLE_FINISH_ID,
   railSight: 'gold',
   pocketCup: 'black',
-  baseCornerBlock: DEFAULT_TABLE_FINISH_ID,
-  leg: DEFAULT_TABLE_FINISH_ID,
+  baseCornerBlock: 'black',
+  leg: 'black',
   baseFoot: 'gold'
 });
 const SHOWOOD_TABLE_PART_OPTIONS = Object.freeze({
@@ -4331,8 +4331,8 @@ const SHOWOOD_TABLE_PART_OPTIONS = Object.freeze({
     { id: 'blue', label: 'Clean Blue Field', color: '#0d4fb8', material: { color: 0x0d4fb8, roughness: 1, metalness: 0, envMapIntensity: 0.16 } }
   ]),
   cushion: Object.freeze([
-    { id: 'green', label: 'Green Cushions', color: '#064f23', material: { color: 0x064f23, roughness: 0.94, metalness: 0, envMapIntensity: 0.24 } },
-    { id: 'black', label: 'Black Cushions', color: '#050505', material: { color: 0x050505, roughness: 0.88, metalness: 0, envMapIntensity: 0.38 } }
+    { id: 'green', label: 'Green Cushions', color: '#0a7b33', material: { color: 0x0a7b33, roughness: 0.97, metalness: 0, envMapIntensity: 0.14 } },
+    { id: 'blue', label: 'Blue Cushions', color: '#0d4fb8', material: { color: 0x0d4fb8, roughness: 0.97, metalness: 0, envMapIntensity: 0.14 } }
   ]),
   topWoodRail: Object.freeze([]),
   railSight: Object.freeze([
@@ -4340,8 +4340,8 @@ const SHOWOOD_TABLE_PART_OPTIONS = Object.freeze({
     { id: 'gold', label: 'Gold Apron + Sights', color: '#f5d978', material: { color: 0xf5d978, roughness: 0.065, metalness: 1, envMapIntensity: 6.7, clearcoat: 1, clearcoatRoughness: 0.035 } }
   ]),
   pocketCup: Object.freeze([
-    { id: 'black', label: 'Black Cups', color: '#000000', keepSourceTexture: true, material: { color: 0x000000, roughness: 0.98, metalness: 0, envMapIntensity: 0.12 } },
-    { id: 'leather', label: 'Dark Leather Cups', color: '#1b0c04', keepSourceTexture: true, material: { color: 0x1b0c04, roughness: 0.9, metalness: 0, envMapIntensity: 0.26 } }
+    { id: 'black', label: 'Black Jaws', color: '#020202', keepSourceTexture: true, material: { color: 0x020202, roughness: 0.96, metalness: 0, envMapIntensity: 0.14 } },
+    { id: 'brown', label: 'Brown Jaws', color: '#2a1207', keepSourceTexture: true, material: { color: 0x2a1207, roughness: 0.88, metalness: 0, envMapIntensity: 0.26 } }
   ]),
   baseCornerBlock: Object.freeze([
     { id: 'brown', label: 'Brown Base', color: '#7b2d11', material: { color: 0x7b2d11, roughness: 0.48, metalness: 0.02, envMapIntensity: 1.1, clearcoat: 0.22, clearcoatRoughness: 0.33 } },
