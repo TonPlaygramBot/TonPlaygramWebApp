@@ -13848,7 +13848,8 @@ function mountPoolRoyaleExternalTableModel({
 
   const ensurePolyhavenBaseTemplate = (assetId, renderer = null) => {
     if (!assetId) {
-      return Promise.reject(new Error('Missing Poly Haven asset id'));
+      console.warn('Pool Royale base asset missing; falling back to default base.');
+      return Promise.resolve(null);
     }
     if (polyhavenBaseTemplates.has(assetId)) {
       return Promise.resolve(polyhavenBaseTemplates.get(assetId));
@@ -13872,10 +13873,12 @@ function mountPoolRoyaleExternalTableModel({
           lastError = error;
         }
       }
-      throw lastError || new Error(`Failed to load Poly Haven model: ${assetId}`);
+      console.warn('Failed to load Poly Haven base; using fallback.', lastError);
+      polyhavenBaseTemplates.set(assetId, null);
+      return null;
     })();
     polyhavenBasePromises.set(assetId, promise);
-    promise.catch(() => polyhavenBasePromises.delete(assetId));
+    promise.finally(() => polyhavenBasePromises.delete(assetId));
     return promise;
   };
 
