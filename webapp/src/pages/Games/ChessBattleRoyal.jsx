@@ -235,12 +235,7 @@ const CHESS_CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   },
   ak47VolleyAttack: {
     urls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/AK47/scene.gltf', 'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/AK47/scene.gltf'],
-    scale: 0.24,
-    textureOverrideUrls: [
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/AK47/textures/Material.001_baseColor.png',
-      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/AK47/textures/Material.001_baseColor.png',
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/AK47.jpeg'
-    ]
+    scale: 0.24
   },
   krsvBurstAttack: {
     urls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/KRSV/scene.gltf', 'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/KRSV/scene.gltf'],
@@ -629,7 +624,7 @@ const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.42; // lift camera a bit hig
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.98; // mirror the slight upward lift for landscape framing.
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 1.35;
 const PLAYER_VIEW_LOOK_TARGET_UP_BIAS = 0.6; // increase upward aim so the table/pieces/opponent sit higher in view.
-const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 7.05; // shift arena lower so chairs/avatars/table sit farther toward the phone-bottom edge.
+const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 7.48; // shift arena lower so chairs/avatars/table sit farther toward the phone-bottom edge.
 const FPV_FACE_FORWARD_OFFSET = 0.012; // keep the camera almost exactly at the eyes for a true first-person perspective.
 const FPV_FACE_UP_OFFSET = 0.0; // slight lift so the board edge does not clip while still feeling eye-level.
 const FPV_LOOK_AHEAD_DISTANCE = BOARD.tile * BOARD_SCALE * 5.8; // prioritize looking down the board journey toward the opponent side.
@@ -3203,7 +3198,7 @@ const SHORT_PEDESTAL_SCALE_BY_SHAPE = Object.freeze({
   diamondEdge: 0.7
 });
 const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 20.5; // make parked jet/helicopter/drone read large beside the table
-const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -4.2; // push parked vehicles and parked weapons farther to the arena sides
+const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -3.35; // pull parked vehicles/firearms inward so they sit closer to the board edges
 const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.12; // lower parked firearms/vehicles so the side lineup sits visually lower on the board area
 const SIDE_PARKED_AIR_UNITS_LANE_SPREAD = 2.22; // increase spacing between parking slots
 const SIDE_PARKED_TRUCK_SCALE_MULTIPLIER = 1.22; // keep truck as prominent as the parked aircraft
@@ -4303,7 +4298,16 @@ async function loadChessCaptureWeaponModel(captureAnimationId) {
     }
     loadedRoot.traverse((node) => {
       if (!node?.isMesh) return;
+      const nodeName = `${node.name || ''}`.toLowerCase();
       if (captureAnimationId === 'fpsGunAttack' && `${node.name || ''}`.toLowerCase().includes('armmesh')) {
+        node.visible = false;
+        return;
+      }
+      if (
+        captureAnimationId === 'ak47VolleyAttack' &&
+        /wood|stock|grip|handle/.test(nodeName) &&
+        /bottom|low|lower|under/.test(nodeName)
+      ) {
         node.visible = false;
         return;
       }
