@@ -2997,8 +2997,8 @@ const CLOTH_SOFT_BLEND = 0.34;
 
 const CLOTH_QUALITY = (() => {
   const defaults = {
-    textureSize: 4096,
-    anisotropy: 40,
+    textureSize: 6144,
+    anisotropy: 72,
     generateMipmaps: true,
     bumpScaleMultiplier: 1.16,
     sheen: 0.95,
@@ -3008,8 +3008,8 @@ const CLOTH_QUALITY = (() => {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
     return {
       ...defaults,
-      textureSize: 2048,
-      anisotropy: 12,
+      textureSize: 2560,
+      anisotropy: 20,
       bumpScaleMultiplier: 1,
       sheen: 0.9,
       sheenRoughness: 0.72
@@ -3029,8 +3029,8 @@ const CLOTH_QUALITY = (() => {
   if (isMobileUA || isTouch || lowMemory || lowRefresh) {
     const highDensity = dpr >= 3;
     return {
-      textureSize: highDensity ? 2048 : 1536,
-      anisotropy: highDensity ? 12 : 8,
+      textureSize: highDensity ? 3072 : 2048,
+      anisotropy: highDensity ? 28 : 24,
       generateMipmaps: true,
       bumpScaleMultiplier: highDensity ? 1.02 : 0.94,
       sheen: 0.78,
@@ -3040,8 +3040,8 @@ const CLOTH_QUALITY = (() => {
 
   if (hardwareConcurrency <= 6 || dpr < 1.75) {
     return {
-      textureSize: 3072,
-      anisotropy: 24,
+      textureSize: 5120,
+      anisotropy: 48,
       generateMipmaps: true,
       bumpScaleMultiplier: 1.12,
       sheen: 0.9,
@@ -10313,9 +10313,9 @@ export function Table3D(
     const shadowGeo = new THREE.PlaneGeometry(shadowWidth, shadowHeight);
     shadowGeo.rotateX(-Math.PI / 2);
     const shadowMat = new THREE.MeshBasicMaterial({
-      color: 0x6e737a,
+      color: 0x000000,
       transparent: true,
-      opacity: Math.min(0.22, TABLE_FLOOR_SHADOW_OPACITY),
+      opacity: TABLE_FLOOR_SHADOW_OPACITY,
       depthWrite: false,
       side: THREE.DoubleSide
     });
@@ -13237,9 +13237,7 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
   const cushionBand = high && !anyPocketZone && (
     (s.upFace && s.longN >= 0.70 && s.longN < 0.88 && s.shortN < 0.68) ||
     (s.upFace && s.shortN >= 0.54 && s.shortN < 0.78 && s.longN < 0.88) ||
-    // Include more of the vertical cushion walls so side faces inherit the same
-    // cloth/cushion texture as the top strip on Showood meshes.
-    (s.sideFace && s.relY > 0.44 && (s.longN > 0.62 || s.shortN > 0.46)) ||
+    (s.sideFace && s.relY > 0.58 && (s.longN > 0.66 || s.shortN > 0.50)) ||
     (s.downFace && s.relY > 0.46 && s.relY < 0.84 && ((s.longN > 0.62 && s.longN < 0.94) || (s.shortN > 0.44 && s.shortN < 0.86)))
   );
   const topRailBand = high && (s.longN > 0.58 || s.shortN > 0.535);
