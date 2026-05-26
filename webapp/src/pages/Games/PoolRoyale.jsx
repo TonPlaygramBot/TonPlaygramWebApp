@@ -1412,13 +1412,14 @@ const BALL_R = BALL_DIAMETER / 2;
 const RACK_VERTICAL_SCREEN_LIFT = BALL_R * 0.86; // nudge the rack farther upward on screen so object balls sit visibly higher
 const ENABLE_BALL_FLOOR_SHADOWS = false;
 const ENABLE_CUE_CLOTH_SHADOW = true;
-const ENABLE_TABLE_FLOOR_SHADOW = false;
+const ENABLE_TABLE_FLOOR_SHADOW = true;
 const BALL_SHADOW_RADIUS_MULTIPLIER = 1;
 const BALL_SHADOW_OPACITY = 0.25;
 const BALL_SHADOW_LIFT = BALL_R * 0.02;
 const CUE_SHADOW_OPACITY = 0.18;
 const CUE_SHADOW_WIDTH_RATIO = 0.62;
-const TABLE_FLOOR_SHADOW_OPACITY = 0.2;
+const TABLE_FLOOR_SHADOW_OPACITY = 0.22;
+const TABLE_FLOOR_SHADOW_COLOR = 0x626262; // natural neutral-grey cushion under-shadow
 const TABLE_FLOOR_SHADOW_MARGIN = TABLE.WALL * 1.1;
 const SIDE_POCKET_EXTRA_SHIFT = TABLE.THICK * 0.17; // push middle pocket centres a bit farther outside from table center
 const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.34; // keep chrome plate, wood cut, nets and holder alignment with the farther-out middle pockets
@@ -2997,8 +2998,8 @@ const CLOTH_SOFT_BLEND = 0.34;
 
 const CLOTH_QUALITY = (() => {
   const defaults = {
-    textureSize: 6144,
-    anisotropy: 72,
+    textureSize: 4096,
+    anisotropy: 24,
     generateMipmaps: true,
     bumpScaleMultiplier: 1.16,
     sheen: 0.95,
@@ -3029,8 +3030,8 @@ const CLOTH_QUALITY = (() => {
   if (isMobileUA || isTouch || lowMemory || lowRefresh) {
     const highDensity = dpr >= 3;
     return {
-      textureSize: highDensity ? 3072 : 2048,
-      anisotropy: highDensity ? 28 : 24,
+      textureSize: highDensity ? 2048 : 1536,
+      anisotropy: highDensity ? 14 : 10,
       generateMipmaps: true,
       bumpScaleMultiplier: highDensity ? 1.02 : 0.94,
       sheen: 0.78,
@@ -3040,8 +3041,8 @@ const CLOTH_QUALITY = (() => {
 
   if (hardwareConcurrency <= 6 || dpr < 1.75) {
     return {
-      textureSize: 5120,
-      anisotropy: 48,
+      textureSize: 3072,
+      anisotropy: 16,
       generateMipmaps: true,
       bumpScaleMultiplier: 1.12,
       sheen: 0.9,
@@ -5678,6 +5679,11 @@ function updateClothTexturesForFinish (
     }
     if (Number.isFinite(finishInfo.clothBase?.baseBumpScale)) {
       finishInfo.cushionMat.bumpScale = finishInfo.clothBase.baseBumpScale;
+    }
+    if (finishInfo.cushionMat.userData) {
+      // Keep native cushion UVs so side faces keep the same weave/texture family
+      // as the cushion top instead of being remapped like wood rails.
+      finishInfo.cushionMat.userData.preserveOriginalUvMapping = true;
     }
   }
   if (finishInfo.clothEdgeMat) {
@@ -9608,6 +9614,10 @@ export function Table3D(
   cushionMat.color.copy(cushionColor);
   cushionMat.emissive.copy(cushionColor.clone().multiplyScalar(0.045));
   cushionMat.side = THREE.DoubleSide;
+  cushionMat.userData = {
+    ...(cushionMat.userData || {}),
+    preserveOriginalUvMapping: true
+  };
   const clothEdgeMat = clothMat.clone();
   clothEdgeMat.color.copy(clothColor);
   clothEdgeMat.emissive.set(0x000000);
@@ -10313,7 +10323,7 @@ export function Table3D(
     const shadowGeo = new THREE.PlaneGeometry(shadowWidth, shadowHeight);
     shadowGeo.rotateX(-Math.PI / 2);
     const shadowMat = new THREE.MeshBasicMaterial({
-      color: 0x000000,
+      color: TABLE_FLOOR_SHADOW_COLOR,
       transparent: true,
       opacity: TABLE_FLOOR_SHADOW_OPACITY,
       depthWrite: false,
