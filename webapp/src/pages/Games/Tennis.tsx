@@ -1381,6 +1381,7 @@ function addHuman(scene: THREE.Scene, side: PlayerSide, start: THREE.Vector3, ac
       rig.rest = captureRestPose(rig.bones);
       captureTennisLocomotionDefaultPose(model);
       rig.fallback.visible = false;
+      model.position.y += 0.08 * CFG.worldScale;
       rig.modelRoot.add(model);
       rig.modelRoot.updateMatrixWorld(true);
       rig.rightArmChain = makeArmChain(rig.bones.rightShoulder, rig.bones.rightUpperArm, rig.bones.rightForeArm, rig.bones.rightHand);
