@@ -11,11 +11,11 @@ function readNumericConstant(source, name) {
   return Number(match[1]);
 }
 
-test('Domino Royal seated human characters stay large and readable', () => {
+test('Domino Royal seated human characters stay readable while appearing smaller on screen', () => {
   const source = fs.readFileSync(DOMINO_PUBLIC_SCRIPT, 'utf8');
   const baseScale = readNumericConstant(source, 'DOMINO_CHARACTER_PROPORTION_SCALE');
   const humanBoost = readNumericConstant(source, 'DOMINO_HUMAN_CHARACTER_SCALE_BOOST');
 
   expect(baseScale).toBeGreaterThanOrEqual(2.9);
-  expect(baseScale + humanBoost).toBeGreaterThanOrEqual(3.7);
+  expect(baseScale + humanBoost).toBeGreaterThanOrEqual(3.5);
 });
