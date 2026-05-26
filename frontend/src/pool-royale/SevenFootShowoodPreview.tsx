@@ -10,30 +10,50 @@ type PocketMap = { id: PocketId; center: { x: number; z: number }; radius: numbe
 type CushionMap = { id: CushionId; from: { x: number; z: number }; to: { x: number; z: number }; normal: { x: number; z: number }; restitution: number };
 type TableMapping = { name: string; sizeFt: '7ft' | '9ft'; playfield: { width: number; length: number; cornerCut: number }; pockets: PocketMap[]; cushions: CushionMap[] };
 
+function scaleMapping(base: TableMapping, sx: number, sz: number, name: string, sizeFt: '7ft' | '9ft'): TableMapping {
+  return {
+    name,
+    sizeFt,
+    playfield: {
+      width: base.playfield.width * sx,
+      length: base.playfield.length * sz,
+      cornerCut: base.playfield.cornerCut * ((sx + sz) * 0.5),
+    },
+    pockets: base.pockets.map((p) => ({
+      ...p,
+      center: { x: p.center.x * sx, z: p.center.z * sz },
+      radius: p.radius * ((sx + sz) * 0.5),
+      jawInset: p.jawInset * ((sx + sz) * 0.5),
+    })),
+    cushions: base.cushions.map((c) => ({
+      ...c,
+      from: { x: c.from.x * sx, z: c.from.z * sz },
+      to: { x: c.to.x * sx, z: c.to.z * sz },
+    })),
+  };
+}
+
+const SNOOKER_MAPPING: TableMapping = { name: 'Snooker 9ft precise mapping', sizeFt: '9ft', playfield: { width: 2.54, length: 1.27, cornerCut: 0.145 }, pockets: [
+  { id: 'topLeft', center: { x: -1.15, z: -0.58 }, radius: 0.069, jawInset: 0.04 }, { id: 'topMiddle', center: { x: 0, z: -0.62 }, radius: 0.056, jawInset: 0.03 }, { id: 'topRight', center: { x: 1.15, z: -0.58 }, radius: 0.069, jawInset: 0.04 },
+  { id: 'bottomLeft', center: { x: -1.15, z: 0.58 }, radius: 0.069, jawInset: 0.04 }, { id: 'bottomMiddle', center: { x: 0, z: 0.62 }, radius: 0.056, jawInset: 0.03 }, { id: 'bottomRight', center: { x: 1.15, z: 0.58 }, radius: 0.069, jawInset: 0.04 },
+], cushions: [
+  { id: 'topLeft', from: { x: -0.95, z: -0.605 }, to: { x: -0.18, z: -0.63 }, normal: { x: 0, z: 1 }, restitution: 0.92 }, { id: 'topMiddle', from: { x: -0.09, z: -0.635 }, to: { x: 0.09, z: -0.635 }, normal: { x: 0, z: 1 }, restitution: 0.91 }, { id: 'topRight', from: { x: 0.18, z: -0.63 }, to: { x: 0.95, z: -0.605 }, normal: { x: 0, z: 1 }, restitution: 0.92 },
+  { id: 'leftTop', from: { x: -1.21, z: -0.47 }, to: { x: -1.24, z: -0.08 }, normal: { x: 1, z: 0 }, restitution: 0.9 }, { id: 'leftBottom', from: { x: -1.24, z: 0.08 }, to: { x: -1.21, z: 0.47 }, normal: { x: 1, z: 0 }, restitution: 0.9 }, { id: 'rightTop', from: { x: 1.21, z: -0.47 }, to: { x: 1.24, z: -0.08 }, normal: { x: -1, z: 0 }, restitution: 0.9 },
+  { id: 'rightBottom', from: { x: 1.24, z: 0.08 }, to: { x: 1.21, z: 0.47 }, normal: { x: -1, z: 0 }, restitution: 0.9 }, { id: 'bottomLeft', from: { x: -0.95, z: 0.605 }, to: { x: -0.18, z: 0.63 }, normal: { x: 0, z: -1 }, restitution: 0.92 }, { id: 'bottomMiddle', from: { x: -0.09, z: 0.635 }, to: { x: 0.09, z: 0.635 }, normal: { x: 0, z: -1 }, restitution: 0.91 }, { id: 'bottomRight', from: { x: 0.18, z: 0.63 }, to: { x: 0.95, z: 0.605 }, normal: { x: 0, z: -1 }, restitution: 0.92 },
+] };
+
+const SHOWOOD_MAPPING = scaleMapping(SNOOKER_MAPPING, 0.78, 0.78, 'Showood 7ft snooker-derived mapping', '7ft');
+
 export const TABLES: Record<TableKey, { title: string; subtitle: string; mapping: TableMapping }> = {
   snooker9ft: {
     title: '9ft Snooker Table',
     subtitle: 'Full-size competitive table with its own 9ft mapping.',
-    mapping: { name: 'Snooker 9ft precise mapping', sizeFt: '9ft', playfield: { width: 2.54, length: 1.27, cornerCut: 0.145 }, pockets: [
-      { id: 'topLeft', center: { x: -1.15, z: -0.58 }, radius: 0.069, jawInset: 0.04 }, { id: 'topMiddle', center: { x: 0, z: -0.62 }, radius: 0.056, jawInset: 0.03 }, { id: 'topRight', center: { x: 1.15, z: -0.58 }, radius: 0.069, jawInset: 0.04 },
-      { id: 'bottomLeft', center: { x: -1.15, z: 0.58 }, radius: 0.069, jawInset: 0.04 }, { id: 'bottomMiddle', center: { x: 0, z: 0.62 }, radius: 0.056, jawInset: 0.03 }, { id: 'bottomRight', center: { x: 1.15, z: 0.58 }, radius: 0.069, jawInset: 0.04 },
-    ], cushions: [
-      { id: 'topLeft', from: { x: -0.95, z: -0.605 }, to: { x: -0.18, z: -0.63 }, normal: { x: 0, z: 1 }, restitution: 0.92 }, { id: 'topMiddle', from: { x: -0.09, z: -0.635 }, to: { x: 0.09, z: -0.635 }, normal: { x: 0, z: 1 }, restitution: 0.91 }, { id: 'topRight', from: { x: 0.18, z: -0.63 }, to: { x: 0.95, z: -0.605 }, normal: { x: 0, z: 1 }, restitution: 0.92 },
-      { id: 'leftTop', from: { x: -1.21, z: -0.47 }, to: { x: -1.24, z: -0.08 }, normal: { x: 1, z: 0 }, restitution: 0.9 }, { id: 'leftBottom', from: { x: -1.24, z: 0.08 }, to: { x: -1.21, z: 0.47 }, normal: { x: 1, z: 0 }, restitution: 0.9 }, { id: 'rightTop', from: { x: 1.21, z: -0.47 }, to: { x: 1.24, z: -0.08 }, normal: { x: -1, z: 0 }, restitution: 0.9 },
-      { id: 'rightBottom', from: { x: 1.24, z: 0.08 }, to: { x: 1.21, z: 0.47 }, normal: { x: -1, z: 0 }, restitution: 0.9 }, { id: 'bottomLeft', from: { x: -0.95, z: 0.605 }, to: { x: -0.18, z: 0.63 }, normal: { x: 0, z: -1 }, restitution: 0.92 }, { id: 'bottomMiddle', from: { x: -0.09, z: 0.635 }, to: { x: 0.09, z: 0.635 }, normal: { x: 0, z: -1 }, restitution: 0.91 }, { id: 'bottomRight', from: { x: 0.18, z: 0.63 }, to: { x: 0.95, z: 0.605 }, normal: { x: 0, z: -1 }, restitution: 0.92 },
-    ] },
+    mapping: SNOOKER_MAPPING,
   },
   showood7ft: {
     title: '7ft Showood Table',
     subtitle: 'Compact Showood table with independent 7ft geometry mapping.',
-    mapping: { name: 'Showood 7ft precise mapping', sizeFt: '7ft', playfield: { width: 1.98, length: 0.99, cornerCut: 0.12 }, pockets: [
-      { id: 'topLeft', center: { x: -0.9, z: -0.45 }, radius: 0.063, jawInset: 0.034 }, { id: 'topMiddle', center: { x: 0, z: -0.48 }, radius: 0.053, jawInset: 0.028 }, { id: 'topRight', center: { x: 0.9, z: -0.45 }, radius: 0.063, jawInset: 0.034 },
-      { id: 'bottomLeft', center: { x: -0.9, z: 0.45 }, radius: 0.063, jawInset: 0.034 }, { id: 'bottomMiddle', center: { x: 0, z: 0.48 }, radius: 0.053, jawInset: 0.028 }, { id: 'bottomRight', center: { x: 0.9, z: 0.45 }, radius: 0.063, jawInset: 0.034 },
-    ], cushions: [
-      { id: 'topLeft', from: { x: -0.72, z: -0.47 }, to: { x: -0.15, z: -0.49 }, normal: { x: 0, z: 1 }, restitution: 0.92 }, { id: 'topMiddle', from: { x: -0.08, z: -0.495 }, to: { x: 0.08, z: -0.495 }, normal: { x: 0, z: 1 }, restitution: 0.91 }, { id: 'topRight', from: { x: 0.15, z: -0.49 }, to: { x: 0.72, z: -0.47 }, normal: { x: 0, z: 1 }, restitution: 0.92 },
-      { id: 'leftTop', from: { x: -0.95, z: -0.36 }, to: { x: -0.975, z: -0.06 }, normal: { x: 1, z: 0 }, restitution: 0.9 }, { id: 'leftBottom', from: { x: -0.975, z: 0.06 }, to: { x: -0.95, z: 0.36 }, normal: { x: 1, z: 0 }, restitution: 0.9 }, { id: 'rightTop', from: { x: 0.95, z: -0.36 }, to: { x: 0.975, z: -0.06 }, normal: { x: -1, z: 0 }, restitution: 0.9 },
-      { id: 'rightBottom', from: { x: 0.975, z: 0.06 }, to: { x: 0.95, z: 0.36 }, normal: { x: -1, z: 0 }, restitution: 0.9 }, { id: 'bottomLeft', from: { x: -0.72, z: 0.47 }, to: { x: -0.15, z: 0.49 }, normal: { x: 0, z: -1 }, restitution: 0.92 }, { id: 'bottomMiddle', from: { x: -0.08, z: 0.495 }, to: { x: 0.08, z: 0.495 }, normal: { x: 0, z: -1 }, restitution: 0.91 }, { id: 'bottomRight', from: { x: 0.15, z: 0.49 }, to: { x: 0.72, z: 0.47 }, normal: { x: 0, z: -1 }, restitution: 0.92 },
-    ] },
+    mapping: SHOWOOD_MAPPING,
   },
 };
 
@@ -43,7 +63,7 @@ const FINISH_PRESETS: Record<FinishKey, { label: string; color: string; metalnes
   chromeRail: { label: 'RailSight + Apron · Chrome', color: '#141414', metalness: 0.28, roughness: 0.22, railSightColor: '#cfd6dd' },
 };
 
-function proceduralClothTexture(renderer: THREE.WebGLRenderer, tint: string) { const canvas = document.createElement('canvas'); canvas.width = 192; canvas.height = 192; const ctx = canvas.getContext('2d'); if (!ctx) return null; ctx.fillStyle = tint; ctx.fillRect(0, 0, 192, 192); for (let y = 0; y < 192; y += 4) { const a = 0.03 + ((y / 192) % 1) * 0.02; ctx.fillStyle = `rgba(255,255,255,${a.toFixed(3)})`; ctx.fillRect(0, y, 192, 2); } const t = new THREE.CanvasTexture(canvas); t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.RepeatWrapping; t.repeat.set(4, 2); t.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy()); return t; }
+function proceduralClothTexture(renderer: THREE.WebGLRenderer, tint: string) { const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 128; const ctx = canvas.getContext('2d'); if (!ctx) return null; ctx.fillStyle = tint; ctx.fillRect(0, 0, 192, 192); for (let y = 0; y < 192; y += 4) { const a = 0.03 + ((y / 192) % 1) * 0.02; ctx.fillStyle = `rgba(255,255,255,${a.toFixed(3)})`; ctx.fillRect(0, y, 192, 2); } const t = new THREE.CanvasTexture(canvas); t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.RepeatWrapping; t.repeat.set(4, 2); t.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy()); return t; }
 function cueWoodTexture(renderer: THREE.WebGLRenderer, tint: string) { const canvas = document.createElement('canvas'); canvas.width = 320; canvas.height = 96; const ctx = canvas.getContext('2d'); if (!ctx) return null; const g = ctx.createLinearGradient(0, 0, 320, 0); g.addColorStop(0, '#2b180d'); g.addColorStop(0.3, tint); g.addColorStop(0.6, '#6f3f21'); g.addColorStop(1, '#2b180d'); ctx.fillStyle = g; ctx.fillRect(0, 0, 320, 96); for (let x = 0; x < 320; x += 10) { ctx.fillStyle = `rgba(255,255,255,${(x % 24 === 0 ? 0.1 : 0.05).toFixed(2)})`; ctx.fillRect(x, 0, 2, 96); } const t = new THREE.CanvasTexture(canvas); t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.RepeatWrapping; t.repeat.set(2, 1); t.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy()); return t; }
 
 export default function SevenFootShowoodPreview({ selectedTable, onBack }: { selectedTable: TableKey; onBack: () => void }) {
@@ -57,10 +77,10 @@ export default function SevenFootShowoodPreview({ selectedTable, onBack }: { sel
     const host = hostRef.current; if (!host) return;
     const scene = new THREE.Scene(); scene.background = new THREE.Color('#020202');
     const camera = new THREE.PerspectiveCamera(46, host.clientWidth / host.clientHeight, 0.1, 80); camera.position.set(0, 2.2, 2.2); camera.lookAt(0, 0.2, 0);
-    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' }); renderer.setSize(host.clientWidth, host.clientHeight); renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); host.appendChild(renderer.domElement);
+    const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' }); renderer.setSize(host.clientWidth, host.clientHeight); renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); host.appendChild(renderer.domElement);
     scene.add(new THREE.AmbientLight(0xffffff, 0.8)); const key = new THREE.DirectionalLight(0xffffff, 1.4 + shotPower * 0.35); key.position.set(1.8, 3.2, 2); scene.add(key);
     const tableGroup = new THREE.Group(); scene.add(tableGroup);
-    const scale = currentMapping.sizeFt === '9ft' ? 1.18 : 0.97;
+    const scale = currentMapping.sizeFt === '9ft' ? 1.18 : 0.9;
 
     const woodTexture = cueWoodTexture(renderer, FINISH_PRESETS[finish].color);
     const woodMat = new THREE.MeshStandardMaterial({ color: '#ffffff', map: woodTexture, metalness: FINISH_PRESETS[finish].metalness, roughness: FINISH_PRESETS[finish].roughness });
@@ -94,12 +114,18 @@ export default function SevenFootShowoodPreview({ selectedTable, onBack }: { sel
     const leftPanel = new THREE.Mesh(sidePanelGeoShort, sidePanelMat); leftPanel.position.set(-halfW - 0.04, 0.033, 0); leftPanel.rotation.y = Math.PI / 2; tableGroup.add(leftPanel);
     const rightPanel = new THREE.Mesh(sidePanelGeoShort, sidePanelMat); rightPanel.position.set(halfW + 0.04, 0.033, 0); rightPanel.rotation.y = -Math.PI / 2; tableGroup.add(rightPanel);
 
-    const cushionMat = new THREE.MeshStandardMaterial({ color: '#ffffff', map: clothTexture ?? undefined, roughness: 0.84, metalness: 0.01 });
+    const shortRailTexture = clothTexture?.clone();
+    if (shortRailTexture) { shortRailTexture.repeat.set(4, 1.2); shortRailTexture.needsUpdate = true; }
+    const sideRailTexture = clothTexture?.clone();
+    if (sideRailTexture) { sideRailTexture.repeat.set(4, 1.2); sideRailTexture.needsUpdate = true; }
+    const shortRailMat = new THREE.MeshStandardMaterial({ color: '#ffffff', map: shortRailTexture ?? clothTexture ?? undefined, roughness: 0.84, metalness: 0.01 });
+    const sideRailMat = new THREE.MeshStandardMaterial({ color: '#ffffff', map: sideRailTexture ?? clothTexture ?? undefined, roughness: 0.84, metalness: 0.01 });
     currentMapping.cushions.forEach((c) => {
       const dx = c.to.x - c.from.x; const dz = c.to.z - c.from.z;
       const len = Math.hypot(dx, dz) * scale;
       const angle = Math.atan2(dz, dx);
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(len, 0.055, 0.065), cushionMat);
+      const isSideCushion = c.id.startsWith('left') || c.id.startsWith('right');
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(len, 0.055, 0.065), isSideCushion ? sideRailMat : shortRailMat);
       mesh.position.set(((c.from.x + c.to.x) * 0.5) * scale, 0.075, ((c.from.z + c.to.z) * 0.5) * scale);
       mesh.rotation.y = -angle;
       tableGroup.add(mesh);
@@ -148,7 +174,7 @@ export default function SevenFootShowoodPreview({ selectedTable, onBack }: { sel
     let frame = 0; const animate = () => { frame = requestAnimationFrame(animate); tableGroup.rotation.y += 0.0016; renderer.render(scene, camera); }; animate();
     const onResize = () => { camera.aspect = host.clientWidth / host.clientHeight; camera.updateProjectionMatrix(); renderer.setSize(host.clientWidth, host.clientHeight); };
     window.addEventListener('resize', onResize);
-    return () => { window.removeEventListener('resize', onResize); cancelAnimationFrame(frame); clothTexture?.dispose(); woodTexture?.dispose(); renderer.dispose(); renderer.domElement.remove(); };
+    return () => { window.removeEventListener('resize', onResize); cancelAnimationFrame(frame); clothTexture?.dispose(); shortRailTexture?.dispose(); sideRailTexture?.dispose(); woodTexture?.dispose(); renderer.dispose(); renderer.domElement.remove(); };
   }, [cloth, finish, currentMapping, shotPower]);
 
   return <main style={{ minHeight: '100vh', background: '#020202', color: 'white', fontFamily: 'system-ui,sans-serif' }}><div ref={hostRef} style={{ position: 'fixed', inset: 0 }} />
