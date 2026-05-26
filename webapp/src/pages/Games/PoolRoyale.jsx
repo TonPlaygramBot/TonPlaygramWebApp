@@ -122,7 +122,7 @@ import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
 import { computeCueDriveBoost } from './cueShotImpact.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
-const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
+const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 const BASIS_TRANSCODER_PATH =
   'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 
@@ -1150,7 +1150,7 @@ const TABLE_FOOTPRINT_SCALE = 0.82; // reduce the table footprint ~18% while kee
 const BASE_FOOTPRINT_SHRINK = 0.82; // shrink the table base footprint by 18% without changing overall height
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
-const TABLE_DISPLAY_SCALE = 0.8; // shrink the rendered table in portrait so gameplay mapping has more breathing room
+const TABLE_DISPLAY_SCALE = 0.86; // make the table read just a bit larger in portrait while preserving proportions
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
 const TOUCH_UI_SCALE = SIZE_REDUCTION;
 const POINTER_UI_SCALE = 1;
@@ -5681,8 +5681,9 @@ function updateClothTexturesForFinish (
       finishInfo.cushionMat.bumpScale = finishInfo.clothBase.baseBumpScale;
     }
     if (finishInfo.cushionMat.userData) {
-      // Align side-cushion mapping with short-rail cushion mapping so the same cloth texture reads consistently on all rails.
-      finishInfo.cushionMat.userData.preserveOriginalUvMapping = false;
+      // Keep native cushion UVs so side faces keep the same weave/texture family
+      // as the cushion top instead of being remapped like wood rails.
+      finishInfo.cushionMat.userData.preserveOriginalUvMapping = true;
     }
   }
   if (finishInfo.clothEdgeMat) {
