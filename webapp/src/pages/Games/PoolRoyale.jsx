@@ -1515,7 +1515,7 @@ const BALL_SHADOW_GEOMETRY = ENABLE_BALL_FLOOR_SHADOWS
 if (BALL_SHADOW_GEOMETRY) BALL_SHADOW_GEOMETRY.rotateX(-Math.PI / 2);
 const BALL_SHADOW_MATERIAL = ENABLE_BALL_FLOOR_SHADOWS
   ? new THREE.MeshBasicMaterial({
-      color: 0x6b6b6b,
+      color: 0x000000,
       transparent: true,
       opacity: BALL_SHADOW_OPACITY,
       depthWrite: false,
@@ -2997,8 +2997,8 @@ const CLOTH_SOFT_BLEND = 0.34;
 
 const CLOTH_QUALITY = (() => {
   const defaults = {
-    textureSize: 3072,
-    anisotropy: 24,
+    textureSize: 6144,
+    anisotropy: 72,
     generateMipmaps: true,
     bumpScaleMultiplier: 1.16,
     sheen: 0.95,
@@ -3029,8 +3029,8 @@ const CLOTH_QUALITY = (() => {
   if (isMobileUA || isTouch || lowMemory || lowRefresh) {
     const highDensity = dpr >= 3;
     return {
-      textureSize: highDensity ? 2048 : 1536,
-      anisotropy: highDensity ? 16 : 12,
+      textureSize: highDensity ? 3072 : 2048,
+      anisotropy: highDensity ? 28 : 24,
       generateMipmaps: true,
       bumpScaleMultiplier: highDensity ? 1.02 : 0.94,
       sheen: 0.78,
@@ -3040,8 +3040,8 @@ const CLOTH_QUALITY = (() => {
 
   if (hardwareConcurrency <= 6 || dpr < 1.75) {
     return {
-      textureSize: 2560,
-      anisotropy: 20,
+      textureSize: 5120,
+      anisotropy: 48,
       generateMipmaps: true,
       bumpScaleMultiplier: 1.12,
       sheen: 0.9,
@@ -10313,7 +10313,7 @@ export function Table3D(
     const shadowGeo = new THREE.PlaneGeometry(shadowWidth, shadowHeight);
     shadowGeo.rotateX(-Math.PI / 2);
     const shadowMat = new THREE.MeshBasicMaterial({
-      color: 0x6b6b6b,
+      color: 0x000000,
       transparent: true,
       opacity: TABLE_FLOOR_SHADOW_OPACITY,
       depthWrite: false,
@@ -12481,23 +12481,6 @@ export function Table3D(
         }
       }
     }
-
-    // Project a unified top-plane UV across all cushion faces so the visible sides
-    // keep the same cloth grain direction/scale as the cushion top.
-    const uvAttr = geo.attributes.uv;
-    if (uvAttr?.array) {
-      const uv = uvAttr.array;
-      const invLen = 1 / Math.max(len, MICRO_EPS);
-      const invSpan = 1 / Math.max(backY - frontY, MICRO_EPS);
-      for (let i = 0, j = 0; i < arr.length && j < uv.length; i += 3, j += 2) {
-        const px = arr[i];
-        const py = arr[i + 1];
-        uv[j] = (px + halfLen) * invLen;
-        uv[j + 1] = (py - frontY) * invSpan;
-      }
-      uvAttr.needsUpdate = true;
-    }
-
     pos.needsUpdate = true;
     geo.computeVertexNormals();
     return geo;
