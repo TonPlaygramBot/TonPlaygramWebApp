@@ -6730,20 +6730,20 @@ const HUMAN_PLAYER_HAND_TILE_SCALE = 0.74;
 const PLAYER_HAND_GAP_SCALE = 0.5;
 const PLAYER_HAND_MIN_GAP_SCALE = 0.76;
 const PLAYER_HAND_OPPONENT_MIN_GAP_SCALE = 0.8;
-const PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 5.95;
+const PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 5.62;
 const PLAYER_HAND_OPPONENT_OUTWARD_EXTRA = DOMINO_WIDTH * 0.44;
 const PLAYER_HAND_SIDE_OUTWARD_EXTRA = DOMINO_WIDTH * 0.3;
 // Only non-bottom racks move outward: keep the bottom player's dominoes untouched.
 const PLAYER_HAND_TOP_OUTWARD_EXTRA = DOMINO_WIDTH * 0.28;
 const PLAYER_HAND_SIDE_EDGE_OUTWARD_EXTRA = DOMINO_WIDTH * 0.18;
-const HUMAN_PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 6.1;
-const PLAYER_HAND_VERTICAL_RAISE = DOMINO_WIDTH * 4.82;
+const HUMAN_PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 5.72;
+const PLAYER_HAND_VERTICAL_RAISE = DOMINO_WIDTH * 4.58;
 const PLAYER_HAND_OPPONENT_VERTICAL_EXTRA = DOMINO_WIDTH * 0.34;
 const PLAYER_HAND_CENTER_VERTICAL_DROP = DOMINO_WIDTH * 2.4;
-const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 5.8;
+const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 5.5;
 const HUMAN_HAND_VERTICAL_OFFSET = DOMINO_WIDTH * 0.0;
 const HUMAN_BOTTOM_EXTRA_OUTWARD = DOMINO_WIDTH * 1.9;
-const HUMAN_BOTTOM_EXTRA_RAISE = DOMINO_WIDTH * 4.96;
+const HUMAN_BOTTOM_EXTRA_RAISE = DOMINO_WIDTH * 4.7;
 // Keep the bottom player's upright tiles separated by a small visible gap.
 const HUMAN_BOTTOM_HAND_GAP_SCALE = 0.88;
 const DOMINO_DOUBLE_NEIGHBOR_EXTRA_GAP = 0;
@@ -8363,6 +8363,12 @@ function createDominoCharacterRig(instance, seatRoot, seatIndex, player) {
   addDominoBoneOffset(bones.rightThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(1.7), THREE.MathUtils.degToRad(-1.1));
   addDominoBoneOffset(bones.leftCalf, THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(1.1), THREE.MathUtils.degToRad(0.6));
   addDominoBoneOffset(bones.rightCalf, THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(-1.1), THREE.MathUtils.degToRad(-0.6));
+  if (seatIndex === HUMAN_SEAT_INDEX) {
+    addDominoBoneOffset(bones.leftUpperArm, THREE.MathUtils.degToRad(8), THREE.MathUtils.degToRad(-1), THREE.MathUtils.degToRad(0));
+    addDominoBoneOffset(bones.leftForeArm, THREE.MathUtils.degToRad(10), THREE.MathUtils.degToRad(-1), THREE.MathUtils.degToRad(0));
+    addDominoBoneOffset(bones.rightUpperArm, THREE.MathUtils.degToRad(8), THREE.MathUtils.degToRad(1), THREE.MathUtils.degToRad(0));
+    addDominoBoneOffset(bones.rightForeArm, THREE.MathUtils.degToRad(10), THREE.MathUtils.degToRad(1), THREE.MathUtils.degToRad(0));
+  }
   rig.seatedPose = captureDominoPose(bones);
   instance.position.y -= 0.24 * MODEL_SCALE;
   refreshDominoRigRack(rig, player?.hand || []);
