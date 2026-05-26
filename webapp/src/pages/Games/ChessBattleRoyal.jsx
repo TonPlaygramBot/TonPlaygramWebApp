@@ -226,7 +226,8 @@ const CHESS_CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   },
   assaultRifleAttack: {
     urls: ['https://cdn.jsdelivr.net/gh/webaverse/pistol@master/military.glb', 'https://raw.githubusercontent.com/webaverse/pistol/master/military.glb'],
-    scale: 0.13
+    scale: 0.13,
+    textureOverrideUrls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/AK47.jpeg']
   },
   uziSprayAttack: {
     urls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Uzi/scene.gltf', 'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Uzi/scene.gltf'],
@@ -234,7 +235,12 @@ const CHESS_CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   },
   ak47VolleyAttack: {
     urls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/AK47/scene.gltf', 'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/AK47/scene.gltf'],
-    scale: 0.24
+    scale: 0.24,
+    textureOverrideUrls: [
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/AK47/textures/Material.001_baseColor.png',
+      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/AK47/textures/Material.001_baseColor.png',
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/AK47.jpeg'
+    ]
   },
   krsvBurstAttack: {
     urls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/KRSV/scene.gltf', 'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/KRSV/scene.gltf'],
@@ -623,7 +629,7 @@ const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.42; // lift camera a bit hig
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.98; // mirror the slight upward lift for landscape framing.
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 1.35;
 const PLAYER_VIEW_LOOK_TARGET_UP_BIAS = 0.6; // increase upward aim so the table/pieces/opponent sit higher in view.
-const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 7.55; // shift arena lower so chairs/avatars/table sit farther toward the phone-bottom edge.
+const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 7.05; // shift arena lower so chairs/avatars/table sit farther toward the phone-bottom edge.
 const FPV_FACE_FORWARD_OFFSET = 0.012; // keep the camera almost exactly at the eyes for a true first-person perspective.
 const FPV_FACE_UP_OFFSET = 0.0; // slight lift so the board edge does not clip while still feeling eye-level.
 const FPV_LOOK_AHEAD_DISTANCE = BOARD.tile * BOARD_SCALE * 5.8; // prioritize looking down the board journey toward the opponent side.
@@ -3197,7 +3203,7 @@ const SHORT_PEDESTAL_SCALE_BY_SHAPE = Object.freeze({
   diamondEdge: 0.7
 });
 const SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER = 20.5; // make parked jet/helicopter/drone read large beside the table
-const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -2.85; // pull parked vehicles and parked weapons closer to the board side edges
+const SIDE_PARKED_AIR_UNITS_INWARD_OFFSET = -4.2; // push parked vehicles and parked weapons farther to the arena sides
 const SIDE_PARKED_AIR_UNITS_BOARD_LEVEL_LIFT = 0.12; // lower parked firearms/vehicles so the side lineup sits visually lower on the board area
 const SIDE_PARKED_AIR_UNITS_LANE_SPREAD = 2.22; // increase spacing between parking slots
 const SIDE_PARKED_TRUCK_SCALE_MULTIPLIER = 1.22; // keep truck as prominent as the parked aircraft
@@ -4206,26 +4212,6 @@ function fitObjectToTargetSize(object, targetSize = 0.12) {
 
 function prepareChessCaptureWeaponClone(template, captureAnimationId, { flat = true, targetSize = null } = {}) {
   const clone = cloneSkinned(template);
-  if (captureAnimationId === 'ak47VolleyAttack') {
-    clone.updateMatrixWorld?.(true);
-    const bbox = getRenderableMeshBounds(clone) || new THREE.Box3().setFromObject(clone);
-    const yCutoff = bbox.min.y + (bbox.max.y - bbox.min.y) * 0.36;
-    const nodesToRemove = [];
-    clone.traverse((node) => {
-      if (!node?.isMesh) return;
-      const nodeName = String(node.name || '').toLowerCase();
-      const materials = Array.isArray(node.material) ? node.material : [node.material];
-      const hasWoodLabel =
-        /wood|stock|grip|handle/.test(nodeName) ||
-        materials.some((mat) => /wood|stock|grip|handle/.test(String(mat?.name || '').toLowerCase()));
-      if (!hasWoodLabel) return;
-      const nodeBox = new THREE.Box3().setFromObject(node);
-      if (Number.isFinite(nodeBox.max.y) && nodeBox.max.y <= yCutoff) {
-        nodesToRemove.push(node);
-      }
-    });
-    nodesToRemove.forEach((node) => node.parent?.remove(node));
-  }
   clone.traverse((node) => {
     if (!node?.isMesh) return;
     node.castShadow = true;
