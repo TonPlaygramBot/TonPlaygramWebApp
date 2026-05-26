@@ -4308,92 +4308,63 @@ const SHOWOOD_TABLE_STYLE_STORAGE_KEY = 'poolRoyaleShowoodTableStyle';
 const SHOWOOD_TABLE_PARTS = Object.freeze([
   'cloth',
   'cushion',
+  'metalAccent',
+  'jaws',
   'topWoodRail',
-  'railSight',
-  'pocketCup',
-  'baseCornerBlock',
-  'leg',
-  'baseFoot'
+  'legBase'
 ]);
+const SHOWOOD_TABLE_CONTROL_PARTS = Object.freeze({
+  cloth: ['cloth'],
+  cushion: ['cushion'],
+  metalAccent: ['railSight', 'sideWoodApron', 'verticalCornerRim', 'baseFoot', 'lowerTrim', 'cornerPocketPlate', 'middlePocketPlate'],
+  jaws: ['pocketCup'],
+  topWoodRail: ['topWoodRail'],
+  legBase: ['leg', 'baseCornerBlock', 'underside']
+});
 const DEFAULT_SHOWOOD_TABLE_STYLE = Object.freeze({
   cloth: 'green',
   cushion: 'green',
-  topWoodRail: DEFAULT_TABLE_FINISH_ID,
-  railSight: 'gold',
-  pocketCup: 'black',
-  baseCornerBlock: DEFAULT_TABLE_FINISH_ID,
-  leg: DEFAULT_TABLE_FINISH_ID,
-  baseFoot: 'gold'
+  metalAccent: 'gold',
+  jaws: 'black',
+  topWoodRail: 'brown',
+  legBase: 'black'
 });
 const SHOWOOD_TABLE_PART_OPTIONS = Object.freeze({
   cloth: Object.freeze([
-    { id: 'green', label: 'Clean Green Field', color: '#0a7b33', material: { color: 0x0a7b33, roughness: 1, metalness: 0, envMapIntensity: 0.16 } },
-    { id: 'blue', label: 'Clean Blue Field', color: '#0d4fb8', material: { color: 0x0d4fb8, roughness: 1, metalness: 0, envMapIntensity: 0.16 } }
+    { id: 'green', label: 'Green field', color: '#0a7b33', material: { color: 0x0a7b33, roughness: 1, metalness: 0, envMapIntensity: 0.16 } },
+    { id: 'blue', label: 'Blue field', color: '#0d4fb8', material: { color: 0x0d4fb8, roughness: 1, metalness: 0, envMapIntensity: 0.16 } }
   ]),
   cushion: Object.freeze([
-    { id: 'green', label: 'Green Cushions', color: '#064f23', material: { color: 0x064f23, roughness: 0.94, metalness: 0, envMapIntensity: 0.24 } },
-    { id: 'black', label: 'Black Cushions', color: '#050505', material: { color: 0x050505, roughness: 0.88, metalness: 0, envMapIntensity: 0.38 } }
+    { id: 'green', label: 'Green cushions', color: '#0a7b33', material: { color: 0x0a7b33, roughness: 0.97, metalness: 0, envMapIntensity: 0.14 } },
+    { id: 'blue', label: 'Blue cushions', color: '#0d4fb8', material: { color: 0x0d4fb8, roughness: 0.97, metalness: 0, envMapIntensity: 0.14 } }
   ]),
-  topWoodRail: Object.freeze([]),
-  railSight: Object.freeze([
-    { id: 'chrome', label: 'Chrome Apron + Sights', color: '#d7dde7', material: { color: 0xd7dde7, roughness: 0.055, metalness: 1, envMapIntensity: 7.2, clearcoat: 1, clearcoatRoughness: 0.025 } },
-    { id: 'gold', label: 'Gold Apron + Sights', color: '#f5d978', material: { color: 0xf5d978, roughness: 0.065, metalness: 1, envMapIntensity: 6.7, clearcoat: 1, clearcoatRoughness: 0.035 } }
+  metalAccent: Object.freeze([
+    { id: 'gold', label: 'Gold', color: '#d8b23d', material: { color: 0xd8b23d, roughness: 0.06, metalness: 0.98, envMapIntensity: 6.8, clearcoat: 1, clearcoatRoughness: 0.03 } },
+    { id: 'chrome', label: 'Chrome', color: '#d7dde7', material: { color: 0xd7dde7, roughness: 0.055, metalness: 1, envMapIntensity: 7.2, clearcoat: 1, clearcoatRoughness: 0.025 } }
   ]),
-  pocketCup: Object.freeze([
-    { id: 'black', label: 'Black Cups', color: '#000000', keepSourceTexture: true, material: { color: 0x000000, roughness: 0.98, metalness: 0, envMapIntensity: 0.12 } },
-    { id: 'leather', label: 'Dark Leather Cups', color: '#1b0c04', keepSourceTexture: true, material: { color: 0x1b0c04, roughness: 0.9, metalness: 0, envMapIntensity: 0.26 } }
+  jaws: Object.freeze([
+    { id: 'black', label: 'Black jaws', color: '#020202', material: { color: 0x020202, roughness: 0.96, metalness: 0, envMapIntensity: 0.14 } },
+    { id: 'brown', label: 'Brown jaws', color: '#2a1207', material: { color: 0x2a1207, roughness: 0.88, metalness: 0, envMapIntensity: 0.26 } }
   ]),
-  baseCornerBlock: Object.freeze([
-    { id: 'brown', label: 'Brown Base', color: '#7b2d11', material: { color: 0x7b2d11, roughness: 0.48, metalness: 0.02, envMapIntensity: 1.1, clearcoat: 0.22, clearcoatRoughness: 0.33 } },
-    { id: 'black', label: 'Black Base', color: '#080605', material: { color: 0x080605, roughness: 0.38, metalness: 0.03, envMapIntensity: 1.34, clearcoat: 0.34, clearcoatRoughness: 0.22 } }
+  topWoodRail: Object.freeze([
+    { id: 'brown', label: 'Walnut frame', color: '#5a2608', material: { color: 0x5a2608, roughness: 0.38, metalness: 0.02, envMapIntensity: 1.35, clearcoat: 0.42, clearcoatRoughness: 0.18 } },
+    { id: 'black', label: 'Black frame', color: '#070605', material: { color: 0x070605, roughness: 0.28, metalness: 0.04, envMapIntensity: 1.75, clearcoat: 0.7, clearcoatRoughness: 0.1 } }
   ]),
-  leg: Object.freeze([]),
-  baseFoot: Object.freeze([
-    { id: 'chrome', label: 'Chrome Feet', color: '#d7dde7', material: { color: 0xd7dde7, roughness: 0.055, metalness: 1, envMapIntensity: 7.2, clearcoat: 1, clearcoatRoughness: 0.025 } },
-    { id: 'gold', label: 'Gold Feet', color: '#f5d978', material: { color: 0xf5d978, roughness: 0.065, metalness: 1, envMapIntensity: 6.7, clearcoat: 1, clearcoatRoughness: 0.035 } }
+  legBase: Object.freeze([
+    { id: 'brown', label: 'Brown legs/base', color: '#3d1706', material: { color: 0x3d1706, roughness: 0.52, metalness: 0.02, envMapIntensity: 1, clearcoat: 0.2, clearcoatRoughness: 0.36 } },
+    { id: 'black', label: 'Black legs/base', color: '#070504', material: { color: 0x070504, roughness: 0.4, metalness: 0.04, envMapIntensity: 1.22, clearcoat: 0.32, clearcoatRoughness: 0.26 } }
   ])
 });
 const SHOWOOD_TABLE_PART_LABELS = Object.freeze({
-  cloth: 'Field Cloth',
+  cloth: 'Field cloth',
   cushion: 'Cushions',
-  topWoodRail: 'Top Rails',
-  railSight: 'Side Apron + Rail Sights',
-  pocketCup: 'Pocket Cups',
-  baseCornerBlock: 'Table Base',
-  leg: 'Legs',
-  baseFoot: 'Feet'
+  metalAccent: 'Rail sights + side strip + feet',
+  jaws: 'Jaws',
+  topWoodRail: 'Top rail frame',
+  legBase: 'Legs + base'
 });
-const SHOWOOD_CHROME_LINKED_PARTS = new Set(['railSight', 'baseFoot']);
-const getShowoodTablePartOptions = (part, clothOptions = null, tableFinishOptions = null) => {
-  if (part === 'cloth' || part === 'cushion') {
-    const sourceOptions = Array.isArray(clothOptions) && clothOptions.length
-      ? clothOptions
-      : CLOTH_COLOR_OPTIONS;
-    return sourceOptions.map((option) => ({
-      id: option.id,
-      label: option.label,
-      color: toHexColor(option.color),
-      material: { color: option.color, roughness: 1, metalness: 0, envMapIntensity: 0.16 }
-    }));
-  }
-  if (part === 'topWoodRail' || part === 'baseCornerBlock' || part === 'leg') {
-    const sourceOptions = Array.isArray(tableFinishOptions) && tableFinishOptions.length
-      ? tableFinishOptions
-      : TABLE_FINISH_OPTIONS;
-    return sourceOptions.map((option) => {
-      const finish = TABLE_FINISHES[option.id] ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
-      const swatch = option.swatches?.[0] ?? finish?.colors?.rail ?? finish?.colors?.base ?? 0x5a2608;
-      return {
-        id: option.id,
-        label: `${option.label || finish?.label || option.id} ${part === 'topWoodRail' ? 'Rails' : part === 'baseCornerBlock' ? 'Base' : 'Legs'}`,
-        color: toHexColor(swatch),
-        thumbnail: option.thumbnail,
-        useTableFinishTexture: true
-      };
-    });
-  }
-  return SHOWOOD_TABLE_PART_OPTIONS[part] || [];
-};
+const SHOWOOD_CHROME_LINKED_PARTS = new Set(['metalAccent']);
+const getShowoodTablePartOptions = (part) => SHOWOOD_TABLE_PART_OPTIONS[part] || [];
 const normalizeShowoodTableStyle = (value = {}) => {
   const source = value && typeof value === 'object' ? value : {};
   return SHOWOOD_TABLE_PARTS.reduce((acc, part) => {
@@ -4410,7 +4381,7 @@ const normalizeShowoodTableStyle = (value = {}) => {
 };
 const getShowoodPartOption = (style, part) => {
   const normalized = normalizeShowoodTableStyle(style);
-  const optionPart = part === 'sideWoodApron' ? 'baseCornerBlock' : part === 'verticalCornerRim' ? 'baseFoot' : part;
+  const optionPart = Object.entries(SHOWOOD_TABLE_CONTROL_PARTS).find(([, parts]) => parts.includes(part))?.[0] || part;
   const optionId = normalized[optionPart];
   const options = getShowoodTablePartOptions(optionPart);
   return options.find((option) => option.id === optionId) || options[0] || null;
@@ -13067,6 +13038,37 @@ function normalizePoolRoyaleExternalClothTextureScale(mesh, material, role) {
   material.needsUpdate = true;
 }
 
+
+const SHOWOOD_FAST_WOOD_TEXTURE_CACHE = new Map();
+function getShowoodFastWoodTexture(hexColor = '#5a2608') {
+  const key = String(hexColor || '#5a2608').toLowerCase();
+  const cached = SHOWOOD_FAST_WOOD_TEXTURE_CACHE.get(key);
+  if (cached) return cached.clone();
+  const canvas = document.createElement('canvas');
+  canvas.width = 256; canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  const grad = ctx.createLinearGradient(0, 0, canvas.width, 0);
+  grad.addColorStop(0, '#2b180d');
+  grad.addColorStop(0.35, key);
+  grad.addColorStop(0.7, '#6f3f21');
+  grad.addColorStop(1, '#2b180d');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  for (let x = 0; x < canvas.width; x += 8) {
+    ctx.fillStyle = `rgba(255,255,255,${x % 16 === 0 ? 0.07 : 0.035})`;
+    ctx.fillRect(x, 0, 2, canvas.height);
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(2, 1);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = resolveTextureAnisotropy(8);
+  tex.needsUpdate = true;
+  SHOWOOD_FAST_WOOD_TEXTURE_CACHE.set(key, tex);
+  return tex.clone();
+}
+
 function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, finishInfo = null) {
   if (!material) return material;
   const style = normalizeShowoodTableStyle(tableModel?.showoodStyle);
@@ -13075,15 +13077,19 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
     cushion: 'cushion',
     topWoodRail: 'topWoodRail',
     wood: 'topWoodRail',
-    sideWoodApron: 'baseCornerBlock',
-    railSight: 'railSight',
-    trim: 'railSight',
-    pocket: 'pocketCup',
-    pocketCup: 'pocketCup',
-    verticalCornerRim: 'baseFoot',
-    baseFoot: 'baseFoot',
-    baseCornerBlock: 'baseCornerBlock',
-    leg: 'leg'
+    sideWoodApron: 'metalAccent',
+    railSight: 'metalAccent',
+    trim: 'metalAccent',
+    lowerTrim: 'metalAccent',
+    cornerPocketPlate: 'metalAccent',
+    middlePocketPlate: 'metalAccent',
+    pocket: 'jaws',
+    pocketCup: 'jaws',
+    verticalCornerRim: 'metalAccent',
+    baseFoot: 'metalAccent',
+    baseCornerBlock: 'legBase',
+    leg: 'legBase',
+    underside: 'legBase'
   };
   const part = roleToPart[role] || 'topWoodRail';
   const option = getShowoodPartOption(style, part);
@@ -13124,7 +13130,7 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
     });
   };
 
-  if (part === 'railSight' || part === 'baseFoot') {
+  if (part === 'metalAccent') {
     copyMaterialLook(materials.trim);
     if (mat.color && Number.isFinite(materialProps.color)) mat.color.set(materialProps.color);
     ['roughness', 'metalness', 'clearcoat', 'clearcoatRoughness', 'envMapIntensity'].forEach((key) => {
@@ -13151,19 +13157,20 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
   } else if (part === 'pocketCup') {
     copyMaterialLook(materials.pocketJaw ?? materials.pocketRim);
     applyShowoodTint();
-  } else if (part === 'topWoodRail' || part === 'baseCornerBlock' || part === 'leg') {
-    const surface = part === 'topWoodRail'
-      ? finishInfo?.parts?.woodSurfaces?.rail
-      : finishInfo?.parts?.woodSurfaces?.frame || finishInfo?.parts?.woodSurfaces?.rail;
-    if (materials.rail?.color && mat.color) mat.color.copy(materials.rail.color);
-    applyWoodTextureToMaterial(mat, surface || { woodRepeatScale: finishInfo?.woodRepeatScale });
-    applyTableFinishDulling(mat);
-    applyTableWoodVisibilityTuning(mat);
-    if (finish?.surfaceStyle === 'matte') {
-      if (finish?.preserveFinishTintOnWood) applyMatteSurfacePropsOnly(mat);
-      else applyMonoMattePlasticSurface(mat);
+  } else if (part === 'topWoodRail' || part === 'legBase' || part === 'baseCornerBlock' || part === 'leg') {
+    const baseHex = option?.color || '#5a2608';
+    const woodTex = getShowoodFastWoodTexture(baseHex);
+    if (woodTex) {
+      mat.map = woodTex;
+      mat.normalMap = null;
+      mat.roughnessMap = null;
+      mat.aoMap = null;
+      mat.metalnessMap = null;
+      mat.bumpMap = null;
     }
     applyShowoodTint();
+    if ('clearcoat' in mat) mat.clearcoat = Math.max(mat.clearcoat ?? 0, 0.2);
+    if ('clearcoatRoughness' in mat) mat.clearcoatRoughness = Math.max(mat.clearcoatRoughness ?? 0, 0.2);
   } else {
     applyShowoodTint();
   }
@@ -13298,7 +13305,7 @@ function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInf
     const finalMaterials = [];
     const materialLookup = new Map();
     const getMaterialIndex = (sourceMaterialIndex, part) => {
-      const linkedPart = part === 'sideWoodApron' ? 'baseCornerBlock' : part === 'verticalCornerRim' ? 'baseFoot' : part;
+      const linkedPart = part;
       const key = `${sourceMaterialIndex}:${linkedPart}`;
       if (materialLookup.has(key)) return materialLookup.get(key);
       const source = sourceMaterials[Math.max(0, Math.min(sourceMaterialIndex, sourceMaterials.length - 1))];
@@ -17281,9 +17288,9 @@ function PoolRoyaleGame({
     setShowoodTableStyle((current) => {
       const next = normalizeShowoodTableStyle(current);
       const linkedRailSight = chromeColorId === 'gold' ? 'gold' : 'chrome';
-      return next.railSight === linkedRailSight
+      return next.metalAccent === linkedRailSight
         ? next
-        : { ...next, railSight: linkedRailSight };
+        : { ...next, metalAccent: linkedRailSight };
     });
   }, [chromeColorId]);
   useEffect(() => {
