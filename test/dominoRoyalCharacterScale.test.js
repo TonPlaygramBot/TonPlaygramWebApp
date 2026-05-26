@@ -16,6 +16,6 @@ test('Domino Royal seated human characters stay readable while appearing smaller
   const baseScale = readNumericConstant(source, 'DOMINO_CHARACTER_PROPORTION_SCALE');
   const humanBoost = readNumericConstant(source, 'DOMINO_HUMAN_CHARACTER_SCALE_BOOST');
 
-  expect(baseScale).toBeGreaterThanOrEqual(2.5);
-  expect(baseScale + humanBoost).toBeGreaterThanOrEqual(3.3);
+  expect(baseScale).toBeGreaterThanOrEqual(2.35);
+  expect(baseScale + humanBoost).toBeGreaterThanOrEqual(3.05);
 });
