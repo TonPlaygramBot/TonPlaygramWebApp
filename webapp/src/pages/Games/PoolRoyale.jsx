@@ -122,7 +122,7 @@ import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
 import { computeCueDriveBoost } from './cueShotImpact.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
-const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
+const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
   'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 
@@ -1386,7 +1386,7 @@ const END_RAIL_INNER_SCALE =
   (2 * TABLE.WALL);
 const END_RAIL_INNER_REDUCTION = 1 - END_RAIL_INNER_SCALE;
 const END_RAIL_INNER_THICKNESS = TABLE.WALL * END_RAIL_INNER_SCALE;
-const PLAYFIELD_SHRINK = 0.85; // shrink the playfield footprint by ~15% on all sides while keeping table height intact
+const PLAYFIELD_SHRINK = 0.83; // shrink the playfield footprint a bit more to better match gameplay mapping while keeping table height intact
 const PLAY_W = (TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS) * PLAYFIELD_SHRINK;
 const PLAY_H = (TABLE.H - 2 * END_RAIL_INNER_THICKNESS) * PLAYFIELD_SHRINK;
 export const POOL_ROYALE_TABLE_DIMENSIONS = Object.freeze({
@@ -5683,7 +5683,7 @@ function updateClothTexturesForFinish (
     if (finishInfo.cushionMat.userData) {
       // Keep native cushion UVs so side faces keep the same weave/texture family
       // as the cushion top instead of being remapped like wood rails.
-      finishInfo.cushionMat.userData.preserveOriginalUvMapping = true;
+      finishInfo.cushionMat.userData.preserveOriginalUvMapping = false;
     }
   }
   if (finishInfo.clothEdgeMat) {
@@ -9616,7 +9616,7 @@ export function Table3D(
   cushionMat.side = THREE.DoubleSide;
   cushionMat.userData = {
     ...(cushionMat.userData || {}),
-    preserveOriginalUvMapping: true
+    preserveOriginalUvMapping: false
   };
   const clothEdgeMat = clothMat.clone();
   clothEdgeMat.color.copy(clothColor);
