@@ -118,6 +118,7 @@ import {
   shouldApplyPoolSuggestion
 } from './poolRoyaleAimSuggestion.js';
 import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
+import PoolRoyaleShowoodPreview from './PoolRoyaleShowoodPreview.tsx';
 import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
 import { computeCueDriveBoost } from './cueShotImpact.js';
@@ -37515,6 +37516,7 @@ class PoolRoyaleErrorBoundary extends Component {
 }
 
 export default function PoolRoyale() {
+  return <PoolRoyaleShowoodPreview />;
   const navigate = useNavigate();
   const location = useLocation();
   const playType = useMemo(() => {
