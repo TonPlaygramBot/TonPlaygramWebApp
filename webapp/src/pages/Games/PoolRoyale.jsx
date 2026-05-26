@@ -4679,12 +4679,16 @@ let runtimeTextureProfile = Object.freeze({
   textureSize: resolveGraphicsResolutionTier(90).textureSize,
   anisotropy: CLOTH_QUALITY.anisotropy,
   generateMipmaps: CLOTH_QUALITY.generateMipmaps,
-  polyHavenResolution: '4k',
-  hdriResolution: '4k',
-  polyHavenPreferredResolutions: Object.freeze(['4k', '2k']),
-  polyHavenFallbackResolution: '2k',
-  hdriPreferredResolutions: Object.freeze(['4k']),
-  hdriFallbackResolution: '4k',
+  polyHavenResolution: isLikelyMobileDevice() ? '2k' : '4k',
+  hdriResolution: isLikelyMobileDevice() ? '2k' : '4k',
+  polyHavenPreferredResolutions: isLikelyMobileDevice()
+    ? Object.freeze(['2k', '1k'])
+    : Object.freeze(['4k', '2k']),
+  polyHavenFallbackResolution: isLikelyMobileDevice() ? '1k' : '2k',
+  hdriPreferredResolutions: isLikelyMobileDevice()
+    ? Object.freeze(['2k', '1k'])
+    : Object.freeze(['4k', '2k']),
+  hdriFallbackResolution: isLikelyMobileDevice() ? '1k' : '2k',
   enforceTableFinishTextureSize: 4096,
   cueTextureSize: 4096,
   pocketTextureSize: 2048
@@ -4702,12 +4706,14 @@ const updateRuntimeTextureProfile = ({ fps } = {}) => {
     anisotropy,
     generateMipmaps: CLOTH_QUALITY.generateMipmaps,
     polyHavenResolution: tier.key,
-    hdriResolution: '4k',
+    hdriResolution: isLikelyMobileDevice() ? '2k' : '4k',
     polyHavenPreferredResolutions: tier.preferredResolutions ?? Object.freeze([tier.key]),
     polyHavenFallbackResolution:
       tier.fallbackResolution ?? tier.preferredResolutions?.[tier.preferredResolutions.length - 1] ?? tier.key,
-    hdriPreferredResolutions: Object.freeze(['4k']),
-    hdriFallbackResolution: '4k',
+    hdriPreferredResolutions: isLikelyMobileDevice()
+      ? Object.freeze(['2k', '1k'])
+      : Object.freeze(['4k', '2k']),
+    hdriFallbackResolution: isLikelyMobileDevice() ? '1k' : '2k',
     enforceTableFinishTextureSize: textureSize,
     cueTextureSize: textureSize,
     pocketTextureSize: Math.max(512, Math.min(textureSize, 4096))
