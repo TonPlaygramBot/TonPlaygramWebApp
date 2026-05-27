@@ -797,8 +797,8 @@ export function buildDominoArena({ scene, renderer }) {
 
   const chairRadius =
     TABLE_DIMENSIONS.outerHalfWidth + CHAIR_DIMENSIONS.seatDepth / 2 + CHAIR_GAP;
-  const topSeatOutwardExtra = CHAIR_DIMENSIONS.seatDepth * 0.18;
-  const sideSeatInwardExtra = CHAIR_DIMENSIONS.seatDepth * 0.08;
+  const topSeatOutwardExtra = CHAIR_DIMENSIONS.seatDepth * 0.26;
+  const sideSeatInwardExtra = CHAIR_DIMENSIONS.seatDepth * 0.11;
   const chairHeight =
     CHAIR_DIMENSIONS.baseThickness + CHAIR_DIMENSIONS.columnHeight + CHAIR_DIMENSIONS.seatThickness;
   const lookTarget = new THREE.Vector3(0, chairHeight, 0);
