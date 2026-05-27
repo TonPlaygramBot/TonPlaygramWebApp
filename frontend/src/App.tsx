@@ -1,5 +1,7 @@
-import PoolRoyal from './pool-royale/PoolRoyal';
+import React from 'react';
 
-export function App() {
-  return <PoolRoyal />;
+function App() {
+  return <div />;
 }
+
+export default App;
