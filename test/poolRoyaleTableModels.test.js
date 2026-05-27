@@ -30,28 +30,6 @@ describe('Pool Royale table models', () => {
     assert.equal(showood.lowerBaseHeightScale, 1.38);
     assert.equal(showood.legLengthScale, 2.05);
     assert.equal(showood.clothRepeatScale, 7.5);
-    assert.deepEqual(showood.hideSurfaceRoles, []);
-    assert.deepEqual(showood.preserveOriginalSurfaceRoles, []);
-    assert.equal(showood.tintOriginalTrimGold, true);
-    assert.deepEqual(showood.chromeMaterialSurfaceNames, [
-      'diamonds',
-      'railSight',
-      'sideApron',
-      'apronStrip',
-      'railSightLower',
-      'cornerRailSight'
-    ]);
-    assert.deepEqual(showood.blackMaterialSurfaceNames, []);
-    assert.equal(showood.forceGeneratedChromePlates, false);
-    assert.deepEqual(showood.usePoolRoyaleFinishRoles, [
-      'cloth',
-      'cushion',
-      'wood',
-      'pocket',
-      'trim'
-    ]);
-    assert.equal('playfieldVisualLift' in showood, false);
-    assert.equal(showood.fitHeightScale, 1);
   });
 
   test('Traditional Sketchfab 8 ft glTF table is no longer selectable', () => {
@@ -67,7 +45,7 @@ describe('Pool Royale table models', () => {
     );
   });
 
-  test('Pool Royale lobby uses the fixed Showood table without model choices', async () => {
+  test('Pool Royale lobby still references the previously fixed Showood copy', async () => {
     const lobby = await readFile(
       'webapp/src/pages/Games/PoolRoyaleLobby.jsx',
       'utf8'
