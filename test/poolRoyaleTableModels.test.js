@@ -8,50 +8,25 @@ import {
 } from '../webapp/src/config/poolRoyaleTableModels.js';
 
 describe('Pool Royale table models', () => {
-  test('defaults to the Showood GLB table', () => {
-    assert.equal(DEFAULT_POOL_ROYALE_TABLE_MODEL_ID, 'showood-seven-foot');
-    assert.equal(resolvePoolRoyaleTableModel(null).id, 'showood-seven-foot');
+  test('defaults to the procedural Pool Royale table', () => {
+    assert.equal(DEFAULT_POOL_ROYALE_TABLE_MODEL_ID, 'royal-procedural');
+    assert.equal(resolvePoolRoyaleTableModel(null).id, 'royal-procedural');
     assert.equal(
       resolvePoolRoyaleTableModel('unknown').id,
-      'showood-seven-foot'
+      'royal-procedural'
     );
   });
 
-  test('Showood uses original GLB surface layout with Pool Royale finish textures', () => {
-    const showood = POOL_ROYALE_TABLE_MODEL_OPTIONS.find(
-      (option) => option.id === 'showood-seven-foot'
+  test('procedural model keeps the classic generated table configuration', () => {
+    const procedural = POOL_ROYALE_TABLE_MODEL_OPTIONS.find(
+      (option) => option.id === 'royal-procedural'
     );
 
-    assert.ok(showood, 'Showood table model must be configured');
-    assert.equal(showood.kind, 'gltf');
-    assert.equal(showood.useOriginalLayoutSurfaces, true);
-    assert.equal(showood.fitScale, 1);
-    assert.equal(showood.preserveOriginalFootprintAspect, true);
-    assert.equal(showood.lowerBaseHeightScale, 1.38);
-    assert.equal(showood.legLengthScale, 2.05);
-    assert.equal(showood.clothRepeatScale, 7.5);
-    assert.deepEqual(showood.hideSurfaceRoles, []);
-    assert.deepEqual(showood.preserveOriginalSurfaceRoles, []);
-    assert.equal(showood.tintOriginalTrimGold, true);
-    assert.deepEqual(showood.chromeMaterialSurfaceNames, [
-      'diamonds',
-      'railSight',
-      'sideApron',
-      'apronStrip',
-      'railSightLower',
-      'cornerRailSight'
-    ]);
-    assert.deepEqual(showood.blackMaterialSurfaceNames, []);
-    assert.equal(showood.forceGeneratedChromePlates, false);
-    assert.deepEqual(showood.usePoolRoyaleFinishRoles, [
-      'cloth',
-      'cushion',
-      'wood',
-      'pocket',
-      'trim'
-    ]);
-    assert.equal('playfieldVisualLift' in showood, false);
-    assert.equal(showood.fitHeightScale, 1);
+    assert.ok(procedural, 'procedural table model must be configured');
+    assert.equal(procedural.kind, 'procedural');
+    assert.equal(procedural.baseId, 'classicCylinders');
+    assert.equal(procedural.tableSizeId, '7ft');
+    assert.equal('assetUrl' in procedural, false);
   });
 
   test('Traditional Sketchfab 8 ft glTF table is no longer selectable', () => {
@@ -63,11 +38,11 @@ describe('Pool Royale table models', () => {
     );
     assert.equal(
       resolvePoolRoyaleTableModel('traditional-fizyman-eight-foot').id,
-      'showood-seven-foot'
+      'royal-procedural'
     );
   });
 
-  test('Pool Royale lobby uses the fixed Showood table without model choices', async () => {
+  test('Pool Royale lobby still references the previously fixed Showood copy', async () => {
     const lobby = await readFile(
       'webapp/src/pages/Games/PoolRoyaleLobby.jsx',
       'utf8'
