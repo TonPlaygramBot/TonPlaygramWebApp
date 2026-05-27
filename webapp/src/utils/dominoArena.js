@@ -10,8 +10,6 @@ const STOOL_SCALE = 1.5 * 1.3 * 0.8;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE * TABLE_SCALE;
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE * TABLE_SCALE;
 const CHAIR_GAP = 0.06 * MODEL_SCALE;
-const TOP_PLAYER_OUTWARD_EXTRA = 0.2 * MODEL_SCALE;
-const SIDE_PLAYERS_INWARD_OFFSET = 0.1 * MODEL_SCALE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
@@ -79,7 +77,7 @@ const CAMERA_CONFIG = Object.freeze({
   far: 120,
   minRadius: TABLE_DIMENSIONS.outerHalfWidth * 0.55,
   maxRadius: TABLE_DIMENSIONS.outerHalfWidth * 3,
-  targetY: TABLE_DIMENSIONS.baseY + TABLE_DIMENSIONS.clothRise * 0.42,
+  targetY: TABLE_DIMENSIONS.baseY + TABLE_DIMENSIONS.clothRise * 0.35,
   maxPolarAngle: Math.PI * 0.49
 });
 
@@ -803,13 +801,11 @@ export function buildDominoArena({ scene, renderer }) {
     CHAIR_DIMENSIONS.baseThickness + CHAIR_DIMENSIONS.columnHeight + CHAIR_DIMENSIONS.seatThickness;
   const lookTarget = new THREE.Vector3(0, chairHeight, 0);
   const dominoFacing = new THREE.Vector3(1, 0, 0);
-  const sideChairRadius = Math.max(chairRadius - SIDE_PLAYERS_INWARD_OFFSET, TABLE_DIMENSIONS.outerHalfWidth);
-  const topChairRadius = chairRadius + TOP_PLAYER_OUTWARD_EXTRA;
   const chairs = [
     { position: new THREE.Vector3(0, 0, chairRadius) },
-    { position: new THREE.Vector3(sideChairRadius, 0, 0), forward: dominoFacing },
-    { position: new THREE.Vector3(0, 0, -topChairRadius) },
-    { position: new THREE.Vector3(-sideChairRadius, 0, 0), forward: dominoFacing }
+    { position: new THREE.Vector3(chairRadius, 0, 0), forward: dominoFacing },
+    { position: new THREE.Vector3(0, 0, -chairRadius) },
+    { position: new THREE.Vector3(-chairRadius, 0, 0), forward: dominoFacing }
   ].map(({ position, forward }) => {
     const chair = createDominoChair(DEFAULT_CHAIR_OPTION, renderer, sharedChairMaterials);
     chair.position.copy(position);
