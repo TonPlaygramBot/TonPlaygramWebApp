@@ -6723,22 +6723,23 @@ const DOMINO_LENGTH = DOMINO_WORLD_SCALE * (0.016 / 0.22) * 2;
 const DOUBLE_END_SHIFT = Math.max(0, (DOMINO_LENGTH - DOMINO_WIDTH) / 2);
 const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.0025; // keep chain tiles touching without visible overlap
 const DOMINO_HAND_GAP = DOMINO_WIDTH + DOMINO_CHAIN_GAP;
-// Keep player-hand dominoes compact while nudging opponent hands slightly
-// higher and farther outward; the bottom player's hand anchor stays fixed.
+// Keep player-hand dominoes compact while nudging opponent hands
+// slightly higher and slightly inward (closer to the table center);
+// the bottom player's hand anchor stays fixed.
 const PLAYER_HAND_TILE_SCALE = 0.9;
 const HUMAN_PLAYER_HAND_TILE_SCALE = 0.74;
 const PLAYER_HAND_GAP_SCALE = 0.5;
 const PLAYER_HAND_MIN_GAP_SCALE = 0.76;
 const PLAYER_HAND_OPPONENT_MIN_GAP_SCALE = 0.8;
-const PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 4.28;
+const PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 4.16;
 const PLAYER_HAND_OPPONENT_OUTWARD_EXTRA = DOMINO_WIDTH * -0.04;
-const PLAYER_HAND_SIDE_OUTWARD_EXTRA = DOMINO_WIDTH * -0.02;
+const PLAYER_HAND_SIDE_OUTWARD_EXTRA = DOMINO_WIDTH * -0.05;
 // Only non-bottom racks move outward: keep the bottom player's dominoes untouched.
-const PLAYER_HAND_TOP_OUTWARD_EXTRA = DOMINO_WIDTH * -0.02;
+const PLAYER_HAND_TOP_OUTWARD_EXTRA = DOMINO_WIDTH * -0.06;
 const PLAYER_HAND_SIDE_EDGE_OUTWARD_EXTRA = DOMINO_WIDTH * -0.01;
 const HUMAN_PLAYER_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 4.34;
 const PLAYER_HAND_VERTICAL_RAISE = DOMINO_WIDTH * 3.84;
-const PLAYER_HAND_OPPONENT_VERTICAL_EXTRA = DOMINO_WIDTH * 0.28;
+const PLAYER_HAND_OPPONENT_VERTICAL_EXTRA = DOMINO_WIDTH * 0.4;
 const PLAYER_HAND_CENTER_VERTICAL_DROP = DOMINO_WIDTH * 2.7;
 const HUMAN_HAND_OUTWARD_OFFSET = DOMINO_WIDTH * 4.42;
 const HUMAN_HAND_VERTICAL_OFFSET = DOMINO_WIDTH * 0.0;
