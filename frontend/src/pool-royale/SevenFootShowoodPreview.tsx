@@ -419,34 +419,7 @@ function applyMaterial(material: WorkingMaterial, part: TablePart, option: Color
   if (part === "cushion" && cushionShadow) {
     material.color.set(CUSHION_SHADOW_GREY); material.metalness = 0; material.roughness = 0.96; material.envMapIntensity = 0.22; material.clearcoat = 0; material.clearcoatRoughness = 0; clearMaps(material);
   } else {
-    const tunedColor = new THREE.Color(option.color);
-    let tunedMetalness = option.metalness;
-    let tunedRoughness = option.roughness;
-    let tunedEnv = option.envMapIntensity;
-    let tunedClearcoat = option.clearcoat ?? 0;
-    let tunedClearcoatRoughness = option.clearcoatRoughness ?? 0;
-
-    if (part === "cushion") {
-      tunedColor.multiplyScalar(1.06);
-      tunedRoughness = Math.min(1, tunedRoughness + 0.02);
-      tunedEnv *= 0.86;
-    } else if (part === "railSight") {
-      tunedColor.offsetHSL(0, -0.02, 0.03);
-      tunedMetalness = Math.max(tunedMetalness, 0.98);
-      tunedRoughness = Math.max(0.035, tunedRoughness - 0.015);
-      tunedEnv *= 1.16;
-      tunedClearcoat = Math.max(tunedClearcoat, 1);
-      tunedClearcoatRoughness = Math.max(0.02, tunedClearcoatRoughness - 0.01);
-    } else if (part === "sideWoodApron") {
-      tunedColor.offsetHSL(0, -0.08, -0.06);
-      tunedMetalness = Math.max(0.78, tunedMetalness - 0.2);
-      tunedRoughness = Math.min(0.22, tunedRoughness + 0.06);
-      tunedEnv *= 0.74;
-      tunedClearcoat = Math.min(tunedClearcoat, 0.55);
-      tunedClearcoatRoughness = Math.max(0.08, tunedClearcoatRoughness);
-    }
-
-    material.color.copy(tunedColor); material.metalness = tunedMetalness; material.roughness = tunedRoughness; material.envMapIntensity = tunedEnv; material.clearcoat = tunedClearcoat; material.clearcoatRoughness = tunedClearcoatRoughness;
+    material.color.set(option.color); material.metalness = option.metalness; material.roughness = option.roughness; material.envMapIntensity = option.envMapIntensity; material.clearcoat = option.clearcoat ?? 0; material.clearcoatRoughness = option.clearcoatRoughness ?? 0;
     if (!KEEP_TEXTURE_PARTS.has(part)) clearMaps(material);
   }
   material.transparent = false; material.opacity = 1; material.depthWrite = true; material.userData.part = part; material.userData.cushionShadow = cushionShadow; patchMaterial(material);
