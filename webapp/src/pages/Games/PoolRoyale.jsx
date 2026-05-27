@@ -4322,9 +4322,9 @@ const SHOWOOD_TABLE_CONTROL_PARTS = Object.freeze({
   legBase: ['leg', 'baseCornerBlock', 'underside']
 });
 const DEFAULT_SHOWOOD_TABLE_STYLE = Object.freeze({
-  cloth: 'green',
-  cushion: 'green',
-  metalAccent: 'gold',
+  cloth: 'blue',
+  cushion: 'blue',
+  metalAccent: 'chrome',
   jaws: 'black',
   topWoodRail: 'brown',
   legBase: 'black'
