@@ -130,7 +130,7 @@ const CONTROL_META: Record<ControlPart, { label: string; description: string }> 
   cloth: { label: "Field cloth", description: "Only the flat playfield surface." },
   cushion: {
     label: "Cushions",
-    description: "All cushion faces use the same cloth-like finish. Underside shadow faces stay grey.",
+    description: "Uses the same cushion mapping/texture behavior as the reference code: Matched green or Black rubber, source cushion texture preserved.",
   },
   metalAccent: {
     label: "Rail sights + side strip + feet",
@@ -147,8 +147,8 @@ const CONTROL_OPTIONS: Record<ControlPart, Record<ChoiceKey, ColorOption>> = {
     b: { label: "Blue field", color: "#0d4fb8", metalness: 0, roughness: 1, envMapIntensity: 0.16 },
   },
   cushion: {
-    a: { label: "Green cushions", color: "#0a7b33", metalness: 0, roughness: 0.97, envMapIntensity: 0.14 },
-    b: { label: "Blue cushions", color: "#0d4fb8", metalness: 0, roughness: 0.97, envMapIntensity: 0.14 },
+    a: { label: "Matched green", color: "#064f22", metalness: 0, roughness: 0.88, envMapIntensity: 0.55 },
+    b: { label: "Black rubber", color: "#050505", metalness: 0, roughness: 0.86, envMapIntensity: 0.55 },
   },
   metalAccent: {
     a: { label: "Gold", color: "#d8b23d", metalness: 0.98, roughness: 0.06, envMapIntensity: 6.8, clearcoat: 1, clearcoatRoughness: 0.03 },
@@ -185,7 +185,7 @@ const PART_TO_CONTROL: Record<TablePart, ControlPart> = {
   underside: "legBase",
 };
 
-const KEEP_TEXTURE_PARTS = new Set<TablePart>(["topWoodRail", "leg", "baseCornerBlock", "underside"]);
+const KEEP_TEXTURE_PARTS = new Set<TablePart>(["cushion", "topWoodRail", "leg", "baseCornerBlock", "underside"]);
 const FINE_PARTS = new Set<TablePart>([
   "pocketCup",
   "cornerPocketPlate",
@@ -419,21 +419,18 @@ function classifyTriangle(
 
   const high = s.relY > 0.54;
   const veryTop = s.relY > 0.65;
+  const midBody = s.relY > 0.16 && s.relY <= 0.62;
   const low = s.relY <= 0.16;
 
   const sideMiddlePocketZone = high && s.longN < 0.255 && s.shortN > 0.69;
   const cornerPocketZone = high && s.longN > 0.68 && s.shortN > 0.66;
   const anyPocketZone = sideMiddlePocketZone || cornerPocketZone;
 
-  const centralCloth = high && s.upFace && !anyPocketZone && s.longN < 0.69 && s.shortN < 0.54;
+  const centralCloth = high && s.upFace && s.longN < 0.61 && s.shortN < 0.53;
 
-  const cushionBand =
-    high &&
-    !anyPocketZone &&
-    ((s.upFace && s.longN >= 0.63 && s.longN < 0.92 && s.shortN < 0.75) ||
-      (s.upFace && s.shortN >= 0.5 && s.shortN < 0.84 && s.longN < 0.92) ||
-      (s.sideFace && s.relY > 0.5 && s.relY < 0.9 && (s.longN > 0.6 || s.shortN > 0.42)) ||
-      (s.downFace && s.relY > 0.46 && s.relY < 0.86 && ((s.longN > 0.6 && s.longN < 0.96) || (s.shortN > 0.4 && s.shortN < 0.9))));
+  // Cushion mapping intentionally mirrors the reference code supplied by the user.
+  // Do not expand this into rail/apron/rim zones; all other parts keep the existing mapping below.
+  const cushionBand = high && (s.longN > 0.52 || s.shortN > 0.49) && (s.longN < 0.9 || s.shortN < 0.9);
 
   const topRailBand = high && (s.longN > 0.58 || s.shortN > 0.535);
   const topRailNonPocket = topRailBand && !anyPocketZone;
@@ -458,8 +455,7 @@ function classifyTriangle(
       (s.longN > 0.58 && s.shortN > 0.56)) &&
     !(underRailSightCornerRimZone || topRailSideVerticalRimZone);
 
-  const legZone =
-    s.sideFace && s.relY > 0.14 && s.relY < 0.62 && s.longN < 0.62 && s.shortN < 0.58;
+  const legZone = s.sideFace && s.relY > 0.14 && s.relY < 0.62 && s.longN < 0.62 && s.shortN < 0.58;
 
   const railSightDownBand =
     s.sideFace &&
@@ -482,20 +478,24 @@ function classifyTriangle(
     namedPocket ||
     (flags.black && anyPocketZone && (s.downFace || s.sideFace || s.relY < 0.79) && !hardwareCandidate);
 
+  // Reference cushion routes first.
+  if (namedCloth) return "cloth";
+  if (namedCushion) return "cushion";
+  if (namedSight && high) return "railSight";
+
   if (pocketInteriorCandidate) return "pocketCup";
   if (namedPocket && hardwareCandidate && sideMiddlePocketZone) return "middlePocketPlate";
   if (namedPocket && hardwareCandidate && cornerPocketZone) return "cornerPocketPlate";
   if (hardwareCandidate && sideMiddlePocketZone && !flags.green && !flags.brown) return "middlePocketPlate";
   if (hardwareCandidate && cornerPocketZone && !flags.green && !flags.brown) return "cornerPocketPlate";
 
-  if ((namedCloth || flags.green || namedCushion) && centralCloth) return "cloth";
-  if ((namedCushion || namedCloth || flags.green) && cushionBand) return "cushion";
+  if (flags.green && centralCloth) return "cloth";
+  if (flags.green && cushionBand) return "cushion";
 
   if (topRailSideVerticalRimZone || underRailSightCornerRimZone || outsideBaseCornerRimZone || outerMostVerticalCorner) {
     return "verticalCornerRim";
   }
 
-  if (namedSight && high) return "railSight";
   if (hardwareCandidate && topRailNonPocket && s.upFace && !flags.brown && !flags.green) return "railSight";
 
   if (low) return "baseFoot";
@@ -1092,7 +1092,7 @@ export default function PoolTableCustomOptionsPreview() {
         tableObject = displayGroup;
         scene.add(displayGroup);
         setCounts(resultCounts);
-        setStatus("ready: leg/base separated, cushions use green/blue cloth-style options");
+        setStatus("ready: cushions now use the reference mapping and texture only; everything else unchanged");
       },
       (event) => {
         if (!event.total) return;

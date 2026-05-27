@@ -13220,44 +13220,96 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
   const namedSight = /sight|diamond|marker|dot|inlay/i.test(name);
   const namedWood = /wood|walnut|rail|apron|leg|base|frame|cabinet|corner|showood|support/i.test(name);
   const metalish = (material?.metalness ?? 0) > 0.16 || (material?.clearcoat ?? 0) > 0.58 || gold;
+
   const high = s.relY > 0.54;
   const veryTop = s.relY > 0.65;
   const midBody = s.relY > 0.16 && s.relY <= 0.62;
   const low = s.relY <= 0.16;
+
   const sideMiddlePocketZone = high && s.longN < 0.255 && s.shortN > 0.69;
   const cornerPocketZone = high && s.longN > 0.68 && s.shortN > 0.66;
   const anyPocketZone = sideMiddlePocketZone || cornerPocketZone;
-  const centralCloth = high && s.upFace && !anyPocketZone && s.longN < 0.74 && s.shortN < 0.59;
-  const cushionBand = high && !anyPocketZone && (
-    (s.upFace && s.longN >= 0.70 && s.longN < 0.88 && s.shortN < 0.68) ||
-    (s.upFace && s.shortN >= 0.54 && s.shortN < 0.78 && s.longN < 0.88) ||
-    (s.sideFace && s.relY > 0.58 && (s.longN > 0.66 || s.shortN > 0.50)) ||
-    (s.downFace && s.relY > 0.46 && s.relY < 0.84 && ((s.longN > 0.62 && s.longN < 0.94) || (s.shortN > 0.44 && s.shortN < 0.86)))
-  );
+
+  const centralCloth = high && s.upFace && s.longN < 0.61 && s.shortN < 0.53;
+
+  const cushionBand = high && (s.longN > 0.52 || s.shortN > 0.49) && (s.longN < 0.9 || s.shortN < 0.9);
+
   const topRailBand = high && (s.longN > 0.58 || s.shortN > 0.535);
-  const outsideBaseCornerRimZone = s.sideFace && s.relY > 0.08 && s.relY < 0.82 && s.longN > 0.70 && s.shortN > 0.50;
-  const outerMostVerticalCorner = s.sideFace && s.relY > 0.10 && s.relY < 0.84 && s.longN > 0.78 && s.shortN > 0.64;
-  const sideLowerTrimZone = s.sideFace && s.relY > 0.18 && s.relY < 0.44 && (s.longN > 0.54 || s.shortN > 0.54) && !outsideBaseCornerRimZone;
-  const baseCornerZone = s.sideFace && midBody && (
-    (s.longN > 0.08 && s.longN < 0.58 && s.shortN < 0.42) ||
-    (s.longN > 0.50 && s.shortN > 0.48) ||
-    (s.longN > 0.64 && s.shortN > 0.64)
-  );
-  const hardwareCandidate = namedHardware || metalish || ((black || gold || light) && !green && !brown && !namedWood);
-  if (namedPocket || (black && anyPocketZone && (s.downFace || s.sideFace || s.relY < 0.79) && !hardwareCandidate)) return 'pocketCup';
-  if (hardwareCandidate && (sideMiddlePocketZone || cornerPocketZone) && !green && !brown) return 'railSight';
+  const topRailNonPocket = topRailBand && !anyPocketZone;
+
+  const topRailSideVerticalRimZone =
+    s.sideFace && !s.upFace && s.relY > 0.46 && s.relY < 0.96 && s.longN > 0.6 && s.shortN > 0.58;
+
+  const underRailSightCornerRimZone =
+    s.sideFace && !s.upFace && s.relY > 0.36 && s.relY < 0.76 && s.longN > 0.67 && s.shortN > 0.52;
+
+  const outsideBaseCornerRimZone =
+    s.sideFace && s.relY > 0.08 && s.relY < 0.78 && s.longN > 0.72 && s.shortN > 0.54;
+
+  const outerMostVerticalCorner =
+    s.sideFace && s.relY > 0.1 && s.relY < 0.8 && s.longN > 0.8 && s.shortN > 0.68;
+
+  const baseCornerZone =
+    s.sideFace &&
+    s.relY > 0.12 &&
+    s.relY < 0.64 &&
+    ((s.longN > 0.1 && s.longN < 0.56 && s.shortN < 0.36) ||
+      (s.longN > 0.58 && s.shortN > 0.56)) &&
+    !(underRailSightCornerRimZone || topRailSideVerticalRimZone);
+
+  const legZone = s.sideFace && s.relY > 0.14 && s.relY < 0.62 && s.longN < 0.62 && s.shortN < 0.58;
+
+  const railSightDownBand =
+    s.sideFace &&
+    !s.upFace &&
+    !anyPocketZone &&
+    s.relY > 0.44 &&
+    s.relY < 0.72 &&
+    (s.longN > 0.54 || s.shortN > 0.48) &&
+    !(topRailSideVerticalRimZone || underRailSightCornerRimZone || outsideBaseCornerRimZone || outerMostVerticalCorner || baseCornerZone || legZone);
+
+  const sideLowerTrimZone =
+    s.sideFace && s.relY > 0.18 && s.relY < 0.44 && (s.longN > 0.54 || s.shortN > 0.54);
+
+  const hardwareCandidate =
+    namedHardware ||
+    metalish ||
+    ((black || gold || light) && !green && !brown && !namedWood);
+
+  const pocketInteriorCandidate =
+    namedPocket ||
+    (black && anyPocketZone && (s.downFace || s.sideFace || s.relY < 0.79) && !hardwareCandidate);
+
+  if (namedCloth) return 'cloth';
+  if (namedCushion) return 'cushion';
   if (namedSight && high) return 'railSight';
-  if ((namedCloth || green) && centralCloth) return 'cloth';
-  if ((namedCushion || green) && cushionBand) return 'cushion';
-  if ((outsideBaseCornerRimZone || outerMostVerticalCorner) && !green && !s.upFace) return 'verticalCornerRim';
-  if (hardwareCandidate && topRailBand && s.upFace && !brown && !green) return 'railSight';
-  if (hardwareCandidate && sideLowerTrimZone && !green) return 'railSight';
+
+  if (pocketInteriorCandidate) return 'pocketCup';
+  if (namedPocket && hardwareCandidate && sideMiddlePocketZone) return 'middlePocketPlate';
+  if (namedPocket && hardwareCandidate && cornerPocketZone) return 'cornerPocketPlate';
+  if (hardwareCandidate && sideMiddlePocketZone && !green && !brown) return 'middlePocketPlate';
+  if (hardwareCandidate && cornerPocketZone && !green && !brown) return 'cornerPocketPlate';
+
+  if (green && centralCloth) return 'cloth';
+  if (green && cushionBand) return 'cushion';
+
+  if (topRailSideVerticalRimZone || underRailSightCornerRimZone || outsideBaseCornerRimZone || outerMostVerticalCorner) {
+    return 'verticalCornerRim';
+  }
+
+  if (hardwareCandidate && topRailNonPocket && s.upFace && !brown && !green) return 'railSight';
+
   if (low) return 'baseFoot';
-  if ((brown || namedWood || black) && baseCornerZone) return 'baseCornerBlock';
-  if (midBody && s.sideFace && !(s.longN > 0.64 && s.shortN > 0.64)) return 'leg';
+  if (s.downFace && s.relY < 0.5) return 'underside';
+  if ((brown || namedWood) && baseCornerZone) return 'baseCornerBlock';
+  if (baseCornerZone) return 'baseCornerBlock';
+  if (legZone && (brown || namedWood || !hardwareCandidate)) return 'leg';
+  if (hardwareCandidate && sideLowerTrimZone && !green) return 'lowerTrim';
+  if (railSightDownBand && !green) return 'sideWoodApron';
   if (veryTop && (s.upFace || topRailBand) && !green) return 'topWoodRail';
   if (high && s.sideFace && !green && !anyPocketZone) return 'sideWoodApron';
-  return namedCushion ? 'cushion' : 'sideWoodApron';
+
+  return 'sideWoodApron';
 }
 
 function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInfo = null) {
