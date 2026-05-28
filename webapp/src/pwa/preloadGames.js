@@ -136,14 +136,8 @@ export async function refreshGltfAssets({ baseUrl = '/', forceReload = false } =
   }
 }
 
-const isActiveGameRoute = () => {
-  const path = window.location?.pathname || '';
-  return /^\/games\/[^/]+$/i.test(path);
-};
-
 export function warmGameCaches() {
   if (!('caches' in window) || !('serviceWorker' in navigator)) return;
-  if (isActiveGameRoute()) return;
 
   runWhenIdle(async () => {
     try {

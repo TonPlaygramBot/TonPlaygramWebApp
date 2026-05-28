@@ -93,7 +93,7 @@ const TavullBattleRoyal = React.lazy(
 const TavullBattleRoyalLobby = React.lazy(
   () => import('./pages/Games/TavullBattleRoyalLobby.jsx')
 );
-const PoolRoyale = React.lazy(() => import('./pages/Games/PoolRoyaleFast.jsx'));
+const PoolRoyale = React.lazy(() => import('./pages/Games/PoolRoyale.jsx'));
 const PoolRoyaleLobby = React.lazy(
   () => import('./pages/Games/PoolRoyaleLobby.jsx')
 );
