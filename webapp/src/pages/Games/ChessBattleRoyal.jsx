@@ -4268,8 +4268,15 @@ async function loadChessCaptureWeaponModel(captureAnimationId) {
     for (let i = 0; i < candidateUrls.length; i += 1) {
       const candidateUrl = candidateUrls[i];
       try {
+        const resolvedUrl = new URL(
+          candidateUrl,
+          typeof window !== 'undefined' ? window.location?.href : candidateUrl
+        ).href;
+        const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
+        loader.setResourcePath?.(resourcePath);
+        loader.setPath?.('');
         // eslint-disable-next-line no-await-in-loop
-        loadedRoot = assignLoadedGltf(await withLoadTimeout(loader.loadAsync(candidateUrl)));
+        loadedRoot = assignLoadedGltf(await withLoadTimeout(loader.loadAsync(resolvedUrl)));
       } catch (error) {
         if (i === candidateUrls.length - 1) {
           console.warn('Chess capture weapon model load failed', captureAnimationId, candidateUrl, error);
