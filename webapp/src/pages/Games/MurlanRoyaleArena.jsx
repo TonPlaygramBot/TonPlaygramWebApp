@@ -2338,10 +2338,11 @@ function computeHeldCardsPose({ resolvedSeatIndex = 0 } = {}) {
   }
 
   if (resolvedSeatIndex === 1 || resolvedSeatIndex === 2) {
-    // Side opponent cards: pull inward toward the table while keeping their current height.
+    // Side opponent cards: keep same card size/height and move visually upward.
     return {
       ...basePose,
-      z: basePose.z + 0.95 * MODEL_SCALE
+      y: basePose.y + 0.72 * MODEL_SCALE,
+      z: basePose.z - 0.5 * MODEL_SCALE
     };
   }
 
