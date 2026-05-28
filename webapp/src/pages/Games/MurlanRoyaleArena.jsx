@@ -2320,16 +2320,33 @@ function applyRotationOffset(bone, x = 0, y = 0, z = 0) {
   bone.rotation.z += z;
 }
 
-function computeHeldCardsPose() {
-  // Keep every character-held helper deck in the same local hand pose as the
-  // bottom human player. Because the cards are parented to each character
-  // model, this preserves the existing fan layout while placing opponent cards
-  // between their hands instead of applying separate top/side offsets.
-  return {
+function computeHeldCardsPose({ resolvedSeatIndex = 0 } = {}) {
+  const basePose = {
     x: 0,
     y: 1.2 * MODEL_SCALE + 1.12 * MODEL_SCALE,
     z: 0.82 * MODEL_SCALE - 52.5 * MODEL_SCALE
   };
+
+  // Seat order: 0=bottom (human), 1=right, 2=left, 3=top.
+  // Keep seat 0 unchanged as requested.
+  if (resolvedSeatIndex === 3) {
+    // Top opponent cards: push outward so they sit farther from table center.
+    return {
+      ...basePose,
+      z: basePose.z - 1.22 * MODEL_SCALE
+    };
+  }
+
+  if (resolvedSeatIndex === 1 || resolvedSeatIndex === 2) {
+    // Side opponent cards: keep same card size/height and move visually upward.
+    return {
+      ...basePose,
+      y: basePose.y + 0.46 * MODEL_SCALE,
+      z: basePose.z - 0.5 * MODEL_SCALE
+    };
+  }
+
+  return basePose;
 }
 
 function createCharacterRig(instance, seatRoot, seatConfig, characterTheme, player, playerIndex, cardTheme, cardTextureSize = null) {
@@ -2643,16 +2660,16 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
 function resolveCharacterActionAnimationProfile(styleId) {
   switch (styleId) {
     case 'lowArcDeal':
-      return { reach: 0.9, pinch: 0.88, hold: 0.7, carry: 0.92, hover: 0.86, contact: 0.82, release: 0.76, recover: 0.86, pickupLift: 0.042, carryLift: 0.086, tableHover: 0.064, carryBlend: 0.54, wristFlip: 0.1, spring: 0 };
+      return { reach: 0.8, pinch: 0.82, hold: 0.46, carry: 0.88, hover: 0.7, place: 0.72, release: 0.62, recover: 0.84, pickupLift: 0.024, carryLift: 0.05, tableHover: 0.018, carryBlend: 0.56, wristFlip: 0.02, spring: 0 };
     case 'straightSlide':
-      return { reach: 0.82, pinch: 0.78, hold: 0.52, carry: 0.78, hover: 0.68, contact: 0.74, release: 0.66, recover: 0.78, pickupLift: 0.024, carryLift: 0.034, tableHover: 0.036, carryBlend: 0.5, wristFlip: 0.035, spring: 0 };
+      return { reach: 0.76, pinch: 0.76, hold: 0.42, carry: 0.78, hover: 0.62, place: 0.66, release: 0.58, recover: 0.74, pickupLift: 0.018, carryLift: 0.032, tableHover: 0.012, carryBlend: 0.52, wristFlip: 0, spring: 0 };
     case 'flipSettle':
-      return { reach: 1.06, pinch: 0.98, hold: 0.62, carry: 0.98, hover: 0.96, contact: 0.92, release: 0.84, recover: 0.92, pickupLift: 0.06, carryLift: 0.15, tableHover: 0.09, carryBlend: 0.45, wristFlip: 0.34, spring: 0 };
+      return { reach: 0.88, pinch: 0.84, hold: 0.46, carry: 0.92, hover: 0.74, place: 0.76, release: 0.64, recover: 0.86, pickupLift: 0.026, carryLift: 0.058, tableHover: 0.02, carryBlend: 0.5, wristFlip: 0.035, spring: 0 };
     case 'springSnap':
-      return { reach: 0.78, pinch: 0.68, hold: 0.42, carry: 0.66, hover: 0.56, contact: 0.58, release: 0.58, recover: 0.72, pickupLift: 0.048, carryLift: 0.11, tableHover: 0.074, carryBlend: 0.5, wristFlip: 0.16, spring: 0.048 };
+      return { reach: 0.72, pinch: 0.7, hold: 0.34, carry: 0.72, hover: 0.52, place: 0.54, release: 0.54, recover: 0.72, pickupLift: 0.02, carryLift: 0.04, tableHover: 0.014, carryBlend: 0.54, wristFlip: 0.01, spring: 0 };
     case 'precisionLift':
     default:
-      return { reach: 1.12, pinch: 1.08, hold: 0.78, carry: 1.14, hover: 1.02, contact: 0.96, release: 0.9, recover: 1.02, pickupLift: 0.064, carryLift: 0.135, tableHover: 0.09, carryBlend: 0.5, wristFlip: 0.18, spring: 0 };
+      return { reach: 0.9, pinch: 0.9, hold: 0.5, carry: 1, hover: 0.82, place: 0.82, release: 0.68, recover: 0.9, pickupLift: 0.03, carryLift: 0.064, tableHover: 0.022, carryBlend: 0.5, wristFlip: 0.015, spring: 0 };
   }
 }
 
@@ -2749,50 +2766,50 @@ function runCharacterAction(store, rig, action) {
       rightMiddleFinger: { x: THREE.MathUtils.degToRad(7), y: THREE.MathUtils.degToRad(1) }
     };
     const reachToCards = buildPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(-17), z: THREE.MathUtils.degToRad(-1) },
-      leftUpperArm: { x: THREE.MathUtils.degToRad(-12), y: THREE.MathUtils.degToRad(7), z: THREE.MathUtils.degToRad(3) },
-      leftForeArm: { x: THREE.MathUtils.degToRad(12), y: THREE.MathUtils.degToRad(2) },
-      leftHand: { x: THREE.MathUtils.degToRad(5), y: THREE.MathUtils.degToRad(3) },
+      spine: { x: THREE.MathUtils.degToRad(-2) },
+      leftUpperArm: { x: THREE.MathUtils.degToRad(0) },
+      leftForeArm: { x: THREE.MathUtils.degToRad(0) },
+      leftHand: { x: THREE.MathUtils.degToRad(0) },
       rightUpperArm: { x: THREE.MathUtils.degToRad(-74), y: THREE.MathUtils.degToRad(-20), z: THREE.MathUtils.degToRad(-24) },
       rightForeArm: { x: THREE.MathUtils.degToRad(-28), y: THREE.MathUtils.degToRad(-4) },
       rightHand: { x: THREE.MathUtils.degToRad(-11), y: THREE.MathUtils.degToRad(-20), z: THREE.MathUtils.degToRad(-14) },
-      head: { x: THREE.MathUtils.degToRad(-11), y: THREE.MathUtils.degToRad(-2) },
+      head: { x: THREE.MathUtils.degToRad(0) },
       ...openFingers
     });
     const pinchPickup = buildPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-1) },
-      leftUpperArm: { x: THREE.MathUtils.degToRad(-10), y: THREE.MathUtils.degToRad(6), z: THREE.MathUtils.degToRad(2) },
-      leftForeArm: { x: THREE.MathUtils.degToRad(10), y: THREE.MathUtils.degToRad(2) },
+      spine: { x: THREE.MathUtils.degToRad(-2) },
+      leftUpperArm: { x: THREE.MathUtils.degToRad(0) },
+      leftForeArm: { x: THREE.MathUtils.degToRad(0) },
       rightUpperArm: { x: THREE.MathUtils.degToRad(-76), y: THREE.MathUtils.degToRad(-21), z: THREE.MathUtils.degToRad(-24) },
       rightForeArm: { x: THREE.MathUtils.degToRad(-31), y: THREE.MathUtils.degToRad(-5) },
       rightHand: { x: THREE.MathUtils.degToRad(-14), y: THREE.MathUtils.degToRad(-22), z: THREE.MathUtils.degToRad(-16) },
-      head: { x: THREE.MathUtils.degToRad(-12), y: THREE.MathUtils.degToRad(-2) },
+      head: { x: THREE.MathUtils.degToRad(0) },
       ...pinchFingers
     });
     const controlledCarry = buildPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(-3) },
+      spine: { x: THREE.MathUtils.degToRad(0) },
       rightUpperArm: { x: THREE.MathUtils.degToRad(-16), y: THREE.MathUtils.degToRad(-24), z: THREE.MathUtils.degToRad(-22) },
       rightForeArm: { x: THREE.MathUtils.degToRad(22), y: THREE.MathUtils.degToRad(-2) },
       rightHand: { x: THREE.MathUtils.degToRad(7), y: THREE.MathUtils.degToRad(-15), z: THREE.MathUtils.degToRad(-9) },
       ...pinchFingers
     });
     const hoverAboveTable = buildPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(5), z: THREE.MathUtils.degToRad(1) },
-      leftUpperArm: { x: THREE.MathUtils.degToRad(-6), y: THREE.MathUtils.degToRad(5) },
+      spine: { x: THREE.MathUtils.degToRad(0) },
+      leftUpperArm: { x: THREE.MathUtils.degToRad(0) },
       rightUpperArm: { x: THREE.MathUtils.degToRad(20), y: THREE.MathUtils.degToRad(-25), z: THREE.MathUtils.degToRad(-22) },
       rightForeArm: { x: THREE.MathUtils.degToRad(46), y: THREE.MathUtils.degToRad(-2) },
       rightHand: { x: THREE.MathUtils.degToRad(15), y: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(-6) },
       ...pinchFingers
     });
     const tableContact = buildPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(9), z: THREE.MathUtils.degToRad(1) },
+      spine: { x: THREE.MathUtils.degToRad(0) },
       rightUpperArm: { x: THREE.MathUtils.degToRad(34), y: THREE.MathUtils.degToRad(-22), z: THREE.MathUtils.degToRad(-19) },
       rightForeArm: { x: THREE.MathUtils.degToRad(58), y: THREE.MathUtils.degToRad(-1) },
       rightHand: { x: THREE.MathUtils.degToRad(10), y: THREE.MathUtils.degToRad(-6), z: THREE.MathUtils.degToRad(-1) },
       ...pinchFingers
     });
     const releaseOnTable = buildPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(7) },
+      spine: { x: THREE.MathUtils.degToRad(0) },
       rightUpperArm: { x: THREE.MathUtils.degToRad(34), y: THREE.MathUtils.degToRad(-20), z: THREE.MathUtils.degToRad(-18) },
       rightForeArm: { x: THREE.MathUtils.degToRad(56) },
       rightHand: { x: THREE.MathUtils.degToRad(15), y: THREE.MathUtils.degToRad(-5) },
@@ -2836,7 +2853,7 @@ function runCharacterAction(store, rig, action) {
     const dHold = Math.round(180 * actionAnimationProfile.hold);
     const dCarry = Math.round(520 * actionAnimationProfile.carry);
     const dHover = Math.round(360 * actionAnimationProfile.hover);
-    const dContact = Math.round(420 * actionAnimationProfile.contact);
+    const dPlace = Math.round(420 * actionAnimationProfile.place);
     const dRelease = Math.round(280 * actionAnimationProfile.release);
     const dRecover = Math.round(560 * actionAnimationProfile.recover);
     let cursor = now;
@@ -2899,7 +2916,7 @@ function runCharacterAction(store, rig, action) {
     cursor += dHover;
     list.push({
       start: cursor,
-      duration: dContact,
+      duration: dPlace,
       update: (t) => {
         applyRigPoseLerp(rig, tableContact, t);
         const eased = easeInOutCubic(t);
@@ -2907,7 +2924,7 @@ function runCharacterAction(store, rig, action) {
         orientThrownActionCard(thrown, actionAnimationStyle, 0.76 + eased * 0.2, finalCardYaw);
       }
     });
-    cursor += dContact;
+    cursor += dPlace;
     list.push({
       start: cursor,
       duration: dRelease,
