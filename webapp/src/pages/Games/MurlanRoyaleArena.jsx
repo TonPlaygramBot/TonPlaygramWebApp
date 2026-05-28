@@ -2333,7 +2333,7 @@ function computeHeldCardsPose({ resolvedSeatIndex = 0 } = {}) {
     // Top opponent cards: push outward so they sit farther from table center.
     return {
       ...basePose,
-      z: basePose.z - 1.22 * MODEL_SCALE
+      z: basePose.z - 1.65 * MODEL_SCALE
     };
   }
 
@@ -2341,7 +2341,7 @@ function computeHeldCardsPose({ resolvedSeatIndex = 0 } = {}) {
     // Side opponent cards: keep same card size/height and move visually upward.
     return {
       ...basePose,
-      y: basePose.y + 0.46 * MODEL_SCALE,
+      y: basePose.y + 0.72 * MODEL_SCALE,
       z: basePose.z - 0.5 * MODEL_SCALE
     };
   }
@@ -2660,16 +2660,16 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
 function resolveCharacterActionAnimationProfile(styleId) {
   switch (styleId) {
     case 'lowArcDeal':
-      return { reach: 0.8, pinch: 0.82, hold: 0.46, carry: 0.88, hover: 0.7, place: 0.72, release: 0.62, recover: 0.84, pickupLift: 0.024, carryLift: 0.05, tableHover: 0.018, carryBlend: 0.56, wristFlip: 0.02, spring: 0 };
+      return { reach: 0.72, pinch: 0.72, hold: 0.34, carry: 0.78, hover: 0.56, place: 0.62, release: 0.52, recover: 0.72, pickupLift: 0.014, carryLift: 0.026, tableHover: 0.01, carryBlend: 0.58, wristFlip: 0.006, spring: 0 };
     case 'straightSlide':
-      return { reach: 0.76, pinch: 0.76, hold: 0.42, carry: 0.78, hover: 0.62, place: 0.66, release: 0.58, recover: 0.74, pickupLift: 0.018, carryLift: 0.032, tableHover: 0.012, carryBlend: 0.52, wristFlip: 0, spring: 0 };
+      return { reach: 0.66, pinch: 0.68, hold: 0.32, carry: 0.72, hover: 0.52, place: 0.58, release: 0.5, recover: 0.68, pickupLift: 0.012, carryLift: 0.022, tableHover: 0.008, carryBlend: 0.6, wristFlip: 0.003, spring: 0 };
     case 'flipSettle':
-      return { reach: 0.88, pinch: 0.84, hold: 0.46, carry: 0.92, hover: 0.74, place: 0.76, release: 0.64, recover: 0.86, pickupLift: 0.026, carryLift: 0.058, tableHover: 0.02, carryBlend: 0.5, wristFlip: 0.035, spring: 0 };
+      return { reach: 0.76, pinch: 0.76, hold: 0.36, carry: 0.82, hover: 0.6, place: 0.64, release: 0.54, recover: 0.74, pickupLift: 0.015, carryLift: 0.028, tableHover: 0.01, carryBlend: 0.56, wristFlip: 0.008, spring: 0 };
     case 'springSnap':
-      return { reach: 0.72, pinch: 0.7, hold: 0.34, carry: 0.72, hover: 0.52, place: 0.54, release: 0.54, recover: 0.72, pickupLift: 0.02, carryLift: 0.04, tableHover: 0.014, carryBlend: 0.54, wristFlip: 0.01, spring: 0 };
+      return { reach: 0.62, pinch: 0.64, hold: 0.3, carry: 0.68, hover: 0.48, place: 0.54, release: 0.48, recover: 0.66, pickupLift: 0.01, carryLift: 0.02, tableHover: 0.007, carryBlend: 0.62, wristFlip: 0.002, spring: 0 };
     case 'precisionLift':
     default:
-      return { reach: 0.9, pinch: 0.9, hold: 0.5, carry: 1, hover: 0.82, place: 0.82, release: 0.68, recover: 0.9, pickupLift: 0.03, carryLift: 0.064, tableHover: 0.022, carryBlend: 0.5, wristFlip: 0.015, spring: 0 };
+      return { reach: 0.8, pinch: 0.8, hold: 0.38, carry: 0.86, hover: 0.64, place: 0.68, release: 0.56, recover: 0.78, pickupLift: 0.016, carryLift: 0.03, tableHover: 0.011, carryBlend: 0.55, wristFlip: 0.004, spring: 0 };
   }
 }
 
@@ -2701,12 +2701,8 @@ function runCharacterAction(store, rig, action) {
       rightMiddleFinger: { x: THREE.MathUtils.degToRad(40), y: THREE.MathUtils.degToRad(-3), z: THREE.MathUtils.degToRad(-1) }
     };
     const armDownDiagonal = {
-      spine: { x: THREE.MathUtils.degToRad(-12), z: THREE.MathUtils.degToRad(2) },
-      head: { x: THREE.MathUtils.degToRad(6), y: THREE.MathUtils.degToRad(-1) },
-      leftUpperArm: { x: THREE.MathUtils.degToRad(-5), y: THREE.MathUtils.degToRad(3) },
-      leftForeArm: { x: THREE.MathUtils.degToRad(8) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-18), y: THREE.MathUtils.degToRad(-13), z: THREE.MathUtils.degToRad(-18) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(48), y: THREE.MathUtils.degToRad(-5), z: THREE.MathUtils.degToRad(-2) }
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-16), y: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(-14) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(42), y: THREE.MathUtils.degToRad(-4), z: THREE.MathUtils.degToRad(-2) }
     };
     const reachBeforeKnock = buildPoseVariant(basePose, {
       ...armDownDiagonal,
@@ -2731,13 +2727,11 @@ function runCharacterAction(store, rig, action) {
 
     let cursor = now;
     [
-      [reachBeforeKnock, 320],
-      [cockedKnuckles, 170],
+      [reachBeforeKnock, 260],
+      [cockedKnuckles, 150],
       [tableTap, 78],
-      [rebound, 110],
-      [tableTap, 70],
-      [rebound, 125],
-      [basePose, 460]
+      [rebound, 120],
+      [basePose, 420]
     ].forEach(([pose, duration]) => {
       list.push({
         start: cursor,
@@ -2766,50 +2760,36 @@ function runCharacterAction(store, rig, action) {
       rightMiddleFinger: { x: THREE.MathUtils.degToRad(7), y: THREE.MathUtils.degToRad(1) }
     };
     const reachToCards = buildPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(-2) },
-      leftUpperArm: { x: THREE.MathUtils.degToRad(0) },
-      leftForeArm: { x: THREE.MathUtils.degToRad(0) },
-      leftHand: { x: THREE.MathUtils.degToRad(0) },
       rightUpperArm: { x: THREE.MathUtils.degToRad(-74), y: THREE.MathUtils.degToRad(-20), z: THREE.MathUtils.degToRad(-24) },
       rightForeArm: { x: THREE.MathUtils.degToRad(-28), y: THREE.MathUtils.degToRad(-4) },
       rightHand: { x: THREE.MathUtils.degToRad(-11), y: THREE.MathUtils.degToRad(-20), z: THREE.MathUtils.degToRad(-14) },
-      head: { x: THREE.MathUtils.degToRad(0) },
       ...openFingers
     });
     const pinchPickup = buildPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(-2) },
-      leftUpperArm: { x: THREE.MathUtils.degToRad(0) },
-      leftForeArm: { x: THREE.MathUtils.degToRad(0) },
       rightUpperArm: { x: THREE.MathUtils.degToRad(-76), y: THREE.MathUtils.degToRad(-21), z: THREE.MathUtils.degToRad(-24) },
       rightForeArm: { x: THREE.MathUtils.degToRad(-31), y: THREE.MathUtils.degToRad(-5) },
       rightHand: { x: THREE.MathUtils.degToRad(-14), y: THREE.MathUtils.degToRad(-22), z: THREE.MathUtils.degToRad(-16) },
-      head: { x: THREE.MathUtils.degToRad(0) },
       ...pinchFingers
     });
     const controlledCarry = buildPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(0) },
       rightUpperArm: { x: THREE.MathUtils.degToRad(-16), y: THREE.MathUtils.degToRad(-24), z: THREE.MathUtils.degToRad(-22) },
       rightForeArm: { x: THREE.MathUtils.degToRad(22), y: THREE.MathUtils.degToRad(-2) },
       rightHand: { x: THREE.MathUtils.degToRad(7), y: THREE.MathUtils.degToRad(-15), z: THREE.MathUtils.degToRad(-9) },
       ...pinchFingers
     });
     const hoverAboveTable = buildPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(0) },
-      leftUpperArm: { x: THREE.MathUtils.degToRad(0) },
       rightUpperArm: { x: THREE.MathUtils.degToRad(20), y: THREE.MathUtils.degToRad(-25), z: THREE.MathUtils.degToRad(-22) },
       rightForeArm: { x: THREE.MathUtils.degToRad(46), y: THREE.MathUtils.degToRad(-2) },
       rightHand: { x: THREE.MathUtils.degToRad(15), y: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(-6) },
       ...pinchFingers
     });
     const tableContact = buildPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(0) },
       rightUpperArm: { x: THREE.MathUtils.degToRad(34), y: THREE.MathUtils.degToRad(-22), z: THREE.MathUtils.degToRad(-19) },
       rightForeArm: { x: THREE.MathUtils.degToRad(58), y: THREE.MathUtils.degToRad(-1) },
       rightHand: { x: THREE.MathUtils.degToRad(10), y: THREE.MathUtils.degToRad(-6), z: THREE.MathUtils.degToRad(-1) },
       ...pinchFingers
     });
     const releaseOnTable = buildPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(0) },
       rightUpperArm: { x: THREE.MathUtils.degToRad(34), y: THREE.MathUtils.degToRad(-20), z: THREE.MathUtils.degToRad(-18) },
       rightForeArm: { x: THREE.MathUtils.degToRad(56) },
       rightHand: { x: THREE.MathUtils.degToRad(15), y: THREE.MathUtils.degToRad(-5) },
