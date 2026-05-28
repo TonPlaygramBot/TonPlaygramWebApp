@@ -2333,7 +2333,7 @@ function computeHeldCardsPose({ resolvedSeatIndex = 0 } = {}) {
     // Top opponent cards: push outward so they sit farther from table center.
     return {
       ...basePose,
-      z: basePose.z - 1.65 * MODEL_SCALE
+      z: basePose.z - 2.15 * MODEL_SCALE
     };
   }
 
@@ -2341,8 +2341,8 @@ function computeHeldCardsPose({ resolvedSeatIndex = 0 } = {}) {
     // Side opponent cards: keep same card size/height and move visually upward.
     return {
       ...basePose,
-      y: basePose.y + 0.72 * MODEL_SCALE,
-      z: basePose.z - 0.5 * MODEL_SCALE
+      y: basePose.y + 0.9 * MODEL_SCALE,
+      z: basePose.z + 0.45 * MODEL_SCALE
     };
   }
 
