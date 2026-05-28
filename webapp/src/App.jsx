@@ -121,9 +121,6 @@ const ShootingRangeLobby = React.lazy(
 );
 const StoreThumbnailStudioPoolRoyale = React.lazy(
   () => import('./pages/Tools/StoreThumbnailStudioPoolRoyale.jsx')
-)
-const PoolTableCustomOptionsPreview = React.lazy(
-  () => import('./pages/Tools/PoolTableCustomOptionsPreview.tsx')
 );
 
 export default function App() {
@@ -502,10 +499,6 @@ export default function App() {
               <Route
                 path="/tools/store-thumb/poolroyale/table-finish/:finishId"
                 element={<StoreThumbnailStudioPoolRoyale />}
-              />
-              <Route
-                path="/tools/poolroyale/table-preview"
-                element={<PoolTableCustomOptionsPreview />}
               />
             </Routes>
           </Suspense>
