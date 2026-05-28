@@ -244,7 +244,6 @@ const optionForPart = (part: TablePart, palette: Palette) =>
 function patchTexture(texture?: THREE.Texture | null, isColorTexture = false) {
   if (!texture) return;
   if (isColorTexture) texture.colorSpace = THREE.SRGBColorSpace;
-  texture.flipY = false;
   texture.anisotropy = 16;
   texture.needsUpdate = true;
 }
@@ -252,17 +251,7 @@ function patchTexture(texture?: THREE.Texture | null, isColorTexture = false) {
 function patchMaterial(material: THREE.Material) {
   const mat = material as WorkingMaterial;
   [mat.map, mat.emissiveMap, mat.lightMap].forEach((texture) => patchTexture(texture, true));
-  [
-    mat.normalMap,
-    mat.bumpMap,
-    mat.roughnessMap,
-    mat.metalnessMap,
-    mat.aoMap,
-    mat.alphaMap,
-    mat.clearcoatMap,
-    mat.clearcoatRoughnessMap,
-    mat.clearcoatNormalMap,
-  ].forEach((texture) => patchTexture(texture));
+  [mat.normalMap, mat.bumpMap, mat.roughnessMap, mat.metalnessMap, mat.aoMap, mat.alphaMap].forEach((texture) => patchTexture(texture));
   mat.side = THREE.DoubleSide;
   mat.needsUpdate = true;
 }
@@ -326,38 +315,28 @@ function clearMaps(material: WorkingMaterial) {
   material.alphaMap = null;
 }
 
-function cloneTexture(texture?: THREE.Texture | null) {
-  return texture?.clone() ?? null;
-}
-
 function cloneWorking(raw: THREE.Material): WorkingMaterial {
   const source = raw as Partial<WorkingMaterial>;
   const material = new THREE.MeshPhysicalMaterial({
     name: raw.name || "source_material",
     color: source.color ? source.color.clone() : new THREE.Color("#ffffff"),
     emissive: source.emissive ? source.emissive.clone() : new THREE.Color("#000000"),
-    map: cloneTexture(source.map),
-    normalMap: cloneTexture(source.normalMap),
-    bumpMap: cloneTexture(source.bumpMap),
-    roughnessMap: cloneTexture(source.roughnessMap),
-    metalnessMap: cloneTexture(source.metalnessMap),
-    aoMap: cloneTexture(source.aoMap),
-    emissiveMap: cloneTexture(source.emissiveMap),
-    lightMap: cloneTexture(source.lightMap),
-    alphaMap: cloneTexture(source.alphaMap),
-    clearcoatMap: cloneTexture(source.clearcoatMap),
-    clearcoatNormalMap: cloneTexture(source.clearcoatNormalMap),
-    clearcoatRoughnessMap: cloneTexture(source.clearcoatRoughnessMap),
+    map: source.map ?? null,
+    normalMap: source.normalMap ?? null,
+    bumpMap: source.bumpMap ?? null,
+    roughnessMap: source.roughnessMap ?? null,
+    metalnessMap: source.metalnessMap ?? null,
+    aoMap: source.aoMap ?? null,
+    emissiveMap: source.emissiveMap ?? null,
+    lightMap: source.lightMap ?? null,
+    alphaMap: source.alphaMap ?? null,
     roughness: typeof source.roughness === "number" ? source.roughness : 0.55,
     metalness: typeof source.metalness === "number" ? source.metalness : 0,
     transparent: raw.transparent,
     opacity: raw.opacity,
-    alphaTest: raw.alphaTest,
   });
   material.clearcoat = typeof source.clearcoat === "number" ? source.clearcoat : 0;
   material.clearcoatRoughness = typeof source.clearcoatRoughness === "number" ? source.clearcoatRoughness : 0.18;
-  material.normalScale = source.normalScale?.clone?.() ?? new THREE.Vector2(1, 1);
-  material.bumpScale = typeof source.bumpScale === "number" ? source.bumpScale : 1;
   material.userData.originalSnapshot = snapshotMaterial(material);
   patchMaterial(material);
   return material;
