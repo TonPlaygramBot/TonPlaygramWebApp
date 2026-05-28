@@ -122,7 +122,7 @@ import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
 import { computeCueDriveBoost } from './cueShotImpact.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
-const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
+const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
   'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 
@@ -408,7 +408,7 @@ const updateRendererAnisotropyCap = (renderer) => {
   setBallMaterialAnisotropy(Math.min(12, rendererAnisotropyCap));
 };
 const resolveTextureAnisotropy = (fallback = 1) =>
-  Math.max(rendererAnisotropyCap, Number.isFinite(fallback) ? fallback : 1);
+  Math.max(1, Math.min(rendererAnisotropyCap, Number.isFinite(fallback) ? fallback : 1));
 
 const POCKET_NET_LINE_THICKNESS_SCALE = 4.8;
 
@@ -584,12 +584,12 @@ function detectPreferredFrameRateId() {
   const rendererTier = classifyRendererTier(readGraphicsRendererString());
 
   if (lowRefresh) {
-    return 'fhd60';
+    return 'hd50';
   }
 
   if (isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile') {
     if ((deviceMemory !== null && deviceMemory <= 4) || hardwareConcurrency <= 4) {
-      return 'fhd60';
+      return 'hd50';
     }
     if (
       (refreshBucket >= 120 || highRefresh) &&
@@ -603,7 +603,7 @@ function detectPreferredFrameRateId() {
       hardwareConcurrency >= 6 ||
       (deviceMemory != null && deviceMemory >= 6)
     ) {
-      return 'qhd90';
+      return 'fhd90';
     }
     return 'fhd60';
   }
@@ -611,10 +611,10 @@ function detectPreferredFrameRateId() {
   if (refreshBucket >= 120 && (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8)) {
     return 'uhd120';
   }
-  if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) return 'uhd120';
+  if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) return 'qhd90';
 
   if (rendererTier === 'desktopMid') {
-    return 'qhd90';
+    return 'fhd90';
   }
 
   return DEFAULT_FRAME_RATE_ID;
@@ -4594,38 +4594,56 @@ const LIGHTING_PRESET_MAP = Object.freeze(
   }, {})
 );
 
-const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
+const FRAME_RATE_STORAGE_KEY = 'poolRoyaleFrameRate';
 const AUTO_REPLAY_STORAGE_KEY = 'poolRoyaleAutoReplay';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
-    id: 'fhd60',
-    label: 'Performance (60 Hz)',
-    fps: 60,
+    id: 'hd50',
+    label: 'HD Performance (50 Hz)',
+    fps: 50,
     renderScale: 1,
-    pixelRatioCap: 1.4,
-    resolution: '2K texture pack • 60 FPS',
-    description: 'Balanced battery profile using Poly Haven 2K assets.'
+    pixelRatioCap: 1.35,
+    resolution: 'HD render • DPR 1.35 cap',
+    description: 'Low-power startup profile for battery saver, slower phones, and cooler loading.'
   },
   {
-    id: 'qhd90',
-    label: 'Smooth (90 Hz)',
+    id: 'fhd60',
+    label: 'Full HD (60 Hz)',
+    fps: 60,
+    renderScale: 1.1,
+    pixelRatioCap: 1.5,
+    resolution: 'Full HD render • DPR 1.5 cap',
+    description: 'Fast-loading 1080p-focused profile matched to Snooker Royal.'
+  },
+  {
+    id: 'fhd90',
+    label: 'Full HD (90 Hz)',
     fps: 90,
     renderScale: 1.12,
     pixelRatioCap: 1.55,
-    resolution: '4K texture pack • 90 FPS',
-    description: 'Sharper Poly Haven 4K assets at a 90 FPS target.'
+    resolution: 'Full HD render • DPR 1.55 cap',
+    description: '1080p-focused profile tuned for 90 Hz full-motion play.'
+  },
+  {
+    id: 'qhd90',
+    label: 'Quad HD (105 Hz)',
+    fps: 105,
+    renderScale: 1.22,
+    pixelRatioCap: 1.72,
+    resolution: 'QHD render • DPR 1.72 cap',
+    description: 'Sharper 1440p render for capable 105 Hz mobile and desktop GPUs.'
   },
   {
     id: 'uhd120',
-    label: 'Ultra (120 Hz)',
+    label: 'Ultra HD (120 Hz cap)',
     fps: 120,
-    renderScale: 1.3,
+    renderScale: 1.28,
     pixelRatioCap: 1.85,
-    resolution: 'Desktop: 8K / Mobile: 4K • 120 FPS',
-    description: 'Desktop uses Poly Haven 8K (4K fallback); mobile uses 4K (2K fallback) at 120 FPS target.'
+    resolution: 'Ultra HD render • DPR 1.85 cap',
+    description: '4K-oriented profile tuned for smooth play up to 120 Hz.'
   }
 ]);
-const DEFAULT_FRAME_RATE_ID = 'qhd90';
+const DEFAULT_FRAME_RATE_ID = 'fhd60';
 const GRAPHICS_RESOLUTION_BY_FPS = Object.freeze([
   {
     minFps: 120,
@@ -4636,30 +4654,21 @@ const GRAPHICS_RESOLUTION_BY_FPS = Object.freeze([
   },
   {
     minFps: 90,
-    key: '4k',
-    textureSize: 4096,
-    preferredResolutions: Object.freeze(['4k', '2k']),
-    fallbackResolution: '2k'
-  },
-  {
-    minFps: 0,
     key: '2k',
     textureSize: 2048,
     preferredResolutions: Object.freeze(['2k', '1k']),
+    fallbackResolution: '1k'
+  },
+  {
+    minFps: 0,
+    key: '1k',
+    textureSize: 1024,
+    preferredResolutions: Object.freeze(['1k', '2k']),
     fallbackResolution: '1k'
   }
 ]);
 const resolveGraphicsResolutionTier = (fps) => {
   const safeFps = Number.isFinite(fps) ? fps : 60;
-  if (safeFps >= 120 && !isLikelyMobileDevice()) {
-    return {
-      minFps: 120,
-      key: '8k',
-      textureSize: 8192,
-      preferredResolutions: Object.freeze(['8k', '4k', '2k']),
-      fallbackResolution: '2k'
-    };
-  }
   return (
     GRAPHICS_RESOLUTION_BY_FPS.find((tier) => safeFps >= tier.minFps) ??
     GRAPHICS_RESOLUTION_BY_FPS[GRAPHICS_RESOLUTION_BY_FPS.length - 1]
@@ -4672,38 +4681,38 @@ const resolveGraphicsUiScaleFactor = (fps) => {
   return 1;
 };
 let runtimeTextureProfile = Object.freeze({
-  textureSize: resolveGraphicsResolutionTier(90).textureSize,
-  anisotropy: CLOTH_QUALITY.anisotropy,
+  textureSize: resolveGraphicsResolutionTier(60).textureSize,
+  anisotropy: 8,
   generateMipmaps: CLOTH_QUALITY.generateMipmaps,
-  polyHavenResolution: '4k',
-  hdriResolution: '4k',
-  polyHavenPreferredResolutions: Object.freeze(['4k', '2k']),
-  polyHavenFallbackResolution: '2k',
-  hdriPreferredResolutions: Object.freeze(['4k']),
-  hdriFallbackResolution: '4k',
-  enforceTableFinishTextureSize: 4096,
-  cueTextureSize: 4096,
+  polyHavenResolution: '1k',
+  hdriResolution: '2k',
+  polyHavenPreferredResolutions: Object.freeze(['1k', '2k']),
+  polyHavenFallbackResolution: '1k',
+  hdriPreferredResolutions: Object.freeze(['2k', '1k']),
+  hdriFallbackResolution: '1k',
+  enforceTableFinishTextureSize: 1024,
+  cueTextureSize: 1024,
   pocketTextureSize: 2048
 });
 
 const updateRuntimeTextureProfile = ({ fps } = {}) => {
   const tier = resolveGraphicsResolutionTier(fps);
   const textureSize = tier.textureSize;
-  const anisotropyRatio = textureSize / 6144;
-  const anisotropy = Math.max(16, Math.round(CLOTH_QUALITY.anisotropy * anisotropyRatio));
-  const ballAnisotropy = Math.max(6, Math.min(12, Math.round(12 * (textureSize / 8192))));
+  const anisotropyRatio = textureSize / 4096;
+  const anisotropy = Math.max(4, Math.min(12, Math.round(CLOTH_QUALITY.anisotropy * anisotropyRatio)));
+  const ballAnisotropy = Math.max(4, Math.min(10, Math.round(10 * (textureSize / 4096))));
   setBallMaterialAnisotropy(ballAnisotropy);
   runtimeTextureProfile = Object.freeze({
     textureSize,
     anisotropy,
     generateMipmaps: CLOTH_QUALITY.generateMipmaps,
     polyHavenResolution: tier.key,
-    hdriResolution: '4k',
+    hdriResolution: tier.key === '4k' ? '4k' : '2k',
     polyHavenPreferredResolutions: tier.preferredResolutions ?? Object.freeze([tier.key]),
     polyHavenFallbackResolution:
       tier.fallbackResolution ?? tier.preferredResolutions?.[tier.preferredResolutions.length - 1] ?? tier.key,
-    hdriPreferredResolutions: Object.freeze(['4k']),
-    hdriFallbackResolution: '4k',
+    hdriPreferredResolutions: Object.freeze(tier.key === '4k' ? ['4k', '2k'] : ['2k', '1k']),
+    hdriFallbackResolution: tier.key === '4k' ? '2k' : '1k',
     enforceTableFinishTextureSize: textureSize,
     cueTextureSize: textureSize,
     pocketTextureSize: Math.max(512, Math.min(textureSize, 4096))
@@ -12841,7 +12850,8 @@ export function Table3D(
     texture.generateMipmaps = true;
     texture.minFilter = THREE.LinearMipmapLinearFilter;
     texture.magFilter = THREE.LinearFilter;
-    texture.anisotropy = resolveTextureAnisotropy(16);
+    const boostedAniso = resolveTextureAnisotropy((texture.anisotropy ?? 1) * 1.18);
+    texture.anisotropy = boostedAniso;
     texture.needsUpdate = true;
   };
 
@@ -12859,6 +12869,7 @@ export function Table3D(
   };
 
   let polyhavenKtx2Loader = null;
+  let hasDetectedPolyhavenKtx2Support = false;
   const polyhavenBaseTemplates = new Map();
   const polyhavenBasePromises = new Map();
 
@@ -12867,9 +12878,10 @@ export function Table3D(
       polyhavenKtx2Loader = new KTX2Loader();
       polyhavenKtx2Loader.setTranscoderPath(BASIS_TRANSCODER_PATH);
     }
-    if (renderer) {
+    if (renderer && !hasDetectedPolyhavenKtx2Support) {
       try {
         polyhavenKtx2Loader.detectSupport(renderer);
+        hasDetectedPolyhavenKtx2Support = true;
       } catch (error) {
         console.warn('Pool Royale KTX2 support detection failed', error);
       }
@@ -20328,7 +20340,7 @@ const shotPowerRef = useRef(0);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
       renderer.sortObjects = true;
-      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.enabled = false;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       rendererRef.current = renderer;
       updateRendererAnisotropyCap(renderer);
