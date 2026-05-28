@@ -837,7 +837,7 @@ const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.24; // lean the added width furthe
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.012; // push middle chrome plates slightly outward away from table center while preserving the rounded cut
 const CHROME_SIDE_APRON_COVER_THICKNESS_SCALE = 0.055; // cover the grey middle-pocket side apron with rail-sight chrome/gold
-const CHROME_SIDE_APRON_COVER_HEIGHT_SCALE = 0.82; // drop the side apron cover down the rail face behind the side-pocket jaw
+const CHROME_SIDE_APRON_COVER_HEIGHT_SCALE = 0.44; // keep only a narrow gold/chrome strip behind each side-pocket jaw (not a full apron panel)
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.022; // trim the outer fascia edge a hair more for a tighter outside finish
 const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.078; // trim the middle-pocket outside chrome a touch more so the outer edge ends flush with the wooden rails
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.045; // open only the corner chrome rounded cut a tiny bit more so the arc reads slightly larger
@@ -1144,13 +1144,13 @@ function addPocketCuts(
 const OFFICIAL_TABLE_LENGTH_IN = 78;
 const LEGACY_TABLE_LENGTH_IN = 100;
 const OFFICIAL_TABLE_SCALE = OFFICIAL_TABLE_LENGTH_IN / LEGACY_TABLE_LENGTH_IN;
-const TABLE_SIZE_SHRINK = 0.85; // tighten the table footprint by ~8% to add breathing room without altering proportions
-const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK; // apply the legacy trim plus the tighter shrink so the arena stays compact without distorting proportions
-const TABLE_FOOTPRINT_SCALE = 0.82; // reduce the table footprint ~18% while keeping the table height unchanged
+const TABLE_SIZE_SHRINK = 1; // keep full 7ft table footprint
+const TABLE_REDUCTION = 1 * TABLE_SIZE_SHRINK; // remove legacy trim so the table reads visibly bigger against the existing playfield mapping
+const TABLE_FOOTPRINT_SCALE = 1; // keep full-size 7ft table footprint
 const BASE_FOOTPRINT_SHRINK = 0.82; // shrink the table base footprint by 18% without changing overall height
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
-const TABLE_DISPLAY_SCALE = 0.86; // make the table read just a bit larger in portrait while preserving proportions
+const TABLE_DISPLAY_SCALE = 1.08; // push the rendered table slightly bigger on screen to better match playfield mapping in portrait
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
 const TOUCH_UI_SCALE = SIZE_REDUCTION;
 const POINTER_UI_SCALE = 1;
@@ -1386,7 +1386,7 @@ const END_RAIL_INNER_SCALE =
   (2 * TABLE.WALL);
 const END_RAIL_INNER_REDUCTION = 1 - END_RAIL_INNER_SCALE;
 const END_RAIL_INNER_THICKNESS = TABLE.WALL * END_RAIL_INNER_SCALE;
-const PLAYFIELD_SHRINK = 0.85; // shrink the playfield footprint by ~15% on all sides while keeping table height intact
+const PLAYFIELD_SHRINK = 1; // keep 7ft playfield mapping at full size
 const PLAY_W = (TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS) * PLAYFIELD_SHRINK;
 const PLAY_H = (TABLE.H - 2 * END_RAIL_INNER_THICKNESS) * PLAYFIELD_SHRINK;
 export const POOL_ROYALE_TABLE_DIMENSIONS = Object.freeze({
@@ -4309,8 +4309,7 @@ const SHOWOOD_TABLE_PARTS = Object.freeze([
   'cushion',
   'topWoodRail',
   'railSight',
-  'pocketCup',
-  'baseCornerBlock',
+    'baseCornerBlock',
   'leg',
   'baseFoot'
 ]);
@@ -4320,7 +4319,6 @@ const DEFAULT_SHOWOOD_TABLE_STYLE = Object.freeze({
   cushion: 'green',
   topWoodRail: 'walnut',
   railSight: 'gold',
-  pocketCup: 'black',
   baseCornerBlock: 'black',
   leg: 'black',
   baseFoot: 'gold'
@@ -4339,10 +4337,6 @@ const SHOWOOD_TABLE_PART_OPTIONS = Object.freeze({
     { id: 'chrome', label: 'Chrome Apron + Sights', color: '#d7dde7', material: { color: 0xd7dde7, roughness: 0.055, metalness: 1, envMapIntensity: 7.2, clearcoat: 1, clearcoatRoughness: 0.025 } },
     { id: 'gold', label: 'Gold Apron + Sights', color: '#f5d978', material: { color: 0xf5d978, roughness: 0.065, metalness: 1, envMapIntensity: 6.7, clearcoat: 1, clearcoatRoughness: 0.035 } }
   ]),
-  pocketCup: Object.freeze([
-    { id: 'black', label: 'Black Cups', color: '#000000', keepSourceTexture: true, material: { color: 0x000000, roughness: 0.98, metalness: 0, envMapIntensity: 0.12 } },
-    { id: 'leather', label: 'Dark Leather Cups', color: '#1b0c04', keepSourceTexture: true, material: { color: 0x1b0c04, roughness: 0.9, metalness: 0, envMapIntensity: 0.26 } }
-  ]),
   baseCornerBlock: Object.freeze([
     { id: 'brown', label: 'Brown Base', color: '#7b2d11', material: { color: 0x7b2d11, roughness: 0.48, metalness: 0.02, envMapIntensity: 1.1, clearcoat: 0.22, clearcoatRoughness: 0.33 } },
     { id: 'black', label: 'Black Base', color: '#080605', material: { color: 0x080605, roughness: 0.38, metalness: 0.03, envMapIntensity: 1.34, clearcoat: 0.34, clearcoatRoughness: 0.22 } }
@@ -4357,8 +4351,7 @@ const SHOWOOD_TABLE_PART_LABELS = Object.freeze({
   cloth: 'Field Cloth',
   cushion: 'Cushions',
   topWoodRail: 'Top Rails',
-  railSight: 'Side Apron + Rail Sights',
-  pocketCup: 'Pocket Cups',
+  railSight: 'Rail Sights + Jaw Strips',
   baseCornerBlock: 'Table Base',
   leg: 'Legs',
   baseFoot: 'Feet'
@@ -4377,13 +4370,18 @@ const getShowoodTablePartOptions = (part, clothOptions = null, tableFinishOption
       material: { color: option.color, roughness: 1, metalness: 0, envMapIntensity: 0.16 }
     }));
   }
-  if (part === 'topWoodRail') {
-    return [
-      { id: 'walnut', label: 'Walnut Frame', color: '#5a2608', material: { color: 0x5a2608, roughness: 0.38, metalness: 0.02, envMapIntensity: 1.35, clearcoat: 0.42, clearcoatRoughness: 0.18 }, keepSourceTexture: true },
-      { id: 'black', label: 'Black Frame', color: '#070605', material: { color: 0x070605, roughness: 0.28, metalness: 0.04, envMapIntensity: 1.75, clearcoat: 0.7, clearcoatRoughness: 0.1 }, keepSourceTexture: true }
-    ];
+  if (part === 'topWoodRail' || part === 'leg') {
+    const source = Array.isArray(tableFinishOptions) && tableFinishOptions.length
+      ? tableFinishOptions
+      : TABLE_FINISH_OPTIONS;
+    return source.map((option) => ({
+      id: option.id,
+      label: `${option.label} ${part === 'leg' ? 'Legs' : 'Rail'}`,
+      color: option.swatches?.[0] ?? '#5a2608',
+      keepSourceTexture: true
+    }));
   }
-  if (part === 'baseCornerBlock' || part === 'leg') {
+  if (part === 'baseCornerBlock') {
     return [
       { id: 'brown', label: part === 'leg' ? 'Brown Legs' : 'Brown Base', color: '#3d1706', material: { color: 0x3d1706, roughness: 0.52, metalness: 0.02, envMapIntensity: 1, clearcoat: 0.2, clearcoatRoughness: 0.36 }, keepSourceTexture: true },
       { id: 'black', label: part === 'leg' ? 'Black Legs' : 'Black Base', color: '#070504', material: { color: 0x070504, roughness: 0.4, metalness: 0.04, envMapIntensity: 1.22, clearcoat: 0.32, clearcoatRoughness: 0.26 }, keepSourceTexture: true }
@@ -13061,7 +13059,6 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
     railSight: 'railSight',
     trim: 'railSight',
     pocket: 'pocketCup',
-    pocketCup: 'pocketCup',
     verticalCornerRim: 'baseFoot',
     baseFoot: 'baseFoot',
     baseCornerBlock: 'baseCornerBlock',
@@ -36073,39 +36070,6 @@ const shotPowerRef = useRef(0);
               Change only the part you want. The Showood table stays loaded while cloth, rails, pockets, chrome, cue, and room options update live.
             </div>
             <div className="mt-4 max-h-[min(64vh,34rem)] space-y-4 overflow-y-auto pr-1">
-              <div className="rounded-3xl border border-amber-300/35 bg-amber-300/[0.08] p-3 shadow-[0_0_24px_rgba(251,191,36,0.12)]">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <h3 className="text-[11px] font-black uppercase tracking-[0.28em] text-amber-100">
-                      Shooting Logic
-                    </h3>
-                    <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/60">
-                      Classic cue stick • clear table view
-                    </p>
-                  </div>
-                  <span className="rounded-full border border-amber-200/40 bg-amber-200/15 px-2 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-amber-100">
-                    Auto
-                  </span>
-                </div>
-                <p className="mt-3 text-[11px] font-semibold leading-relaxed text-amber-50/75">
-                  Player avatars, side seating, and the extra Murlan side table have been removed so the original cue-stick aiming view stays clean around the Showood table.
-                </p>
-              </div>
-              <div className="rounded-3xl border border-emerald-300/30 bg-white/[0.05] p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <h3 className="text-[11px] font-black uppercase tracking-[0.28em] text-emerald-100">
-                      Table Customizer
-                    </h3>
-                    <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/55">
-                      Showood only • no side furniture
-                    </p>
-                  </div>
-                  <span className="rounded-full border border-emerald-200/40 bg-emerald-200/15 px-2 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-emerald-100">
-                    Live
-                  </span>
-                </div>
-              </div>
               {ENABLE_SHOT_REPLAY ? (
                 <div>
                   <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
