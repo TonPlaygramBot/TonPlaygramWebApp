@@ -4314,6 +4314,12 @@ const SHOWOOD_TABLE_PARTS = Object.freeze([
   'leg',
   'baseFoot'
 ]);
+const SHOWOOD_TABLE_SETUP_VISIBLE_PARTS = Object.freeze([
+  'topWoodRail',
+  'pocketCup',
+  'baseCornerBlock',
+  'leg'
+]);
 const DEFAULT_SHOWOOD_TABLE_STYLE = Object.freeze({
   cloth: 'green',
   cushion: 'green',
@@ -4392,7 +4398,7 @@ const getShowoodTablePartOptions = (part, clothOptions = null, tableFinishOption
 };
 const normalizeShowoodTableStyle = (value = {}) => {
   const source = value && typeof value === 'object' ? value : {};
-  return SHOWOOD_TABLE_PARTS.reduce((acc, part) => {
+  const normalized = SHOWOOD_TABLE_PARTS.reduce((acc, part) => {
     const options = getShowoodTablePartOptions(part);
     const requested = source[part];
     const defaultChoice = DEFAULT_SHOWOOD_TABLE_STYLE[part];
@@ -4403,6 +4409,16 @@ const normalizeShowoodTableStyle = (value = {}) => {
         : options[0]?.id || defaultChoice;
     return acc;
   }, {});
+  const clothChoice = normalized.cloth;
+  if (clothChoice && getShowoodTablePartOptions('cushion').some((option) => option.id === clothChoice)) {
+    normalized.cushion = clothChoice;
+  }
+  const linkedChrome = normalized.railSight === 'gold' ? 'gold' : 'chrome';
+  normalized.railSight = linkedChrome;
+  if (getShowoodTablePartOptions('baseFoot').some((option) => option.id === linkedChrome)) {
+    normalized.baseFoot = linkedChrome;
+  }
+  return normalized;
 };
 const getShowoodPartOption = (style, part) => {
   const normalized = normalizeShowoodTableStyle(style);
@@ -15753,7 +15769,7 @@ function PoolRoyaleGame({
   );
   const tablePersonalizationSections = useMemo(
     () =>
-      SHOWOOD_TABLE_PARTS.map((part) => ({
+      SHOWOOD_TABLE_SETUP_VISIBLE_PARTS.map((part) => ({
         key: part,
         label: SHOWOOD_TABLE_PART_LABELS[part] || part,
         chromeLinked: SHOWOOD_CHROME_LINKED_PARTS.has(part),
@@ -17337,12 +17353,14 @@ function PoolRoyaleGame({
   useEffect(() => {
     setShowoodTableStyle((current) => {
       const next = normalizeShowoodTableStyle(current);
-      const linkedRailSight = chromeColorId === 'gold' ? 'gold' : 'chrome';
-      return next.railSight === linkedRailSight
-        ? next
-        : { ...next, railSight: linkedRailSight };
+      const linkedChrome = chromeColorId === 'gold' ? 'gold' : 'chrome';
+      const updates = {};
+      if (next.railSight !== linkedChrome) updates.railSight = linkedChrome;
+      if (next.baseFoot !== linkedChrome) updates.baseFoot = linkedChrome;
+      if (next.cushion !== clothColorId) updates.cushion = clothColorId;
+      return Object.keys(updates).length ? normalizeShowoodTableStyle({ ...next, ...updates }) : next;
     });
-  }, [chromeColorId]);
+  }, [chromeColorId, clothColorId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(FRAME_RATE_STORAGE_KEY, frameRateId);
