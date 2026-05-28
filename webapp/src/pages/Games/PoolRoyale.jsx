@@ -4314,6 +4314,7 @@ const SHOWOOD_TABLE_PARTS = Object.freeze([
   'leg',
   'baseFoot'
 ]);
+const SHOWOOD_TABLE_SETUP_HIDDEN_PARTS = new Set(['cloth', 'cushion', 'railSight', 'baseFoot']);
 const DEFAULT_SHOWOOD_TABLE_STYLE = Object.freeze({
   cloth: 'green',
   cushion: 'green',
@@ -15758,7 +15759,7 @@ function PoolRoyaleGame({
         label: SHOWOOD_TABLE_PART_LABELS[part] || part,
         chromeLinked: SHOWOOD_CHROME_LINKED_PARTS.has(part),
         options: getShowoodTablePartOptions(part, availableClothOptions, availableTableFinishes)
-      })).filter((section) => section.options.length > 0),
+      })).filter((section) => !SHOWOOD_TABLE_SETUP_HIDDEN_PARTS.has(section.key) && section.options.length > 0),
     [availableClothOptions, availableTableFinishes]
   );
   useEffect(() => {
@@ -15802,6 +15803,15 @@ function PoolRoyaleGame({
       POOL_ROYALE_BASE_VARIANTS[0],
     [availableTableBases]
   );
+
+  useEffect(() => {
+    setShowoodTableStyle((current) => {
+      const normalized = normalizeShowoodTableStyle(current);
+      return normalized.cushion === clothColorId
+        ? normalized
+        : normalizeShowoodTableStyle({ ...normalized, cushion: clothColorId });
+    });
+  }, [clothColorId]);
   const resolvedHdriResolution = useMemo(() => {
     return autoHdriResolutionFromGraphics;
   }, [autoHdriResolutionFromGraphics]);
@@ -36279,6 +36289,9 @@ const shotPowerRef = useRef(0);
                             onClick={() => {
                               if (part === 'cloth') {
                                 setClothColorId(option.id);
+                                setShowoodTableStyle((current) =>
+                                  normalizeShowoodTableStyle({ ...current, cushion: option.id })
+                                );
                               } else if (part === 'topWoodRail' || part === 'leg') {
                                 setTableFinishId(option.id);
                                 setShowoodTableStyle((current) =>
