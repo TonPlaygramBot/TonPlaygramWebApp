@@ -2997,7 +2997,7 @@ const CLOTH_SOFT_BLEND = 0.34;
 
 const CLOTH_QUALITY = (() => {
   const defaults = {
-    textureSize: 4096,
+    textureSize: 6144,
     anisotropy: 72,
     generateMipmaps: true,
     bumpScaleMultiplier: 1.16,
@@ -3008,7 +3008,7 @@ const CLOTH_QUALITY = (() => {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
     return {
       ...defaults,
-      textureSize: 2048,
+      textureSize: 2560,
       anisotropy: 20,
       bumpScaleMultiplier: 1,
       sheen: 0.9,
@@ -3029,8 +3029,8 @@ const CLOTH_QUALITY = (() => {
   if (isMobileUA || isTouch || lowMemory || lowRefresh) {
     const highDensity = dpr >= 3;
     return {
-      textureSize: highDensity ? 2048 : 1024,
-      anisotropy: highDensity ? 22 : 18,
+      textureSize: highDensity ? 3072 : 2048,
+      anisotropy: highDensity ? 28 : 24,
       generateMipmaps: true,
       bumpScaleMultiplier: highDensity ? 1.02 : 0.94,
       sheen: 0.78,
@@ -3040,7 +3040,7 @@ const CLOTH_QUALITY = (() => {
 
   if (hardwareConcurrency <= 6 || dpr < 1.75) {
     return {
-      textureSize: 4096,
+      textureSize: 5120,
       anisotropy: 48,
       generateMipmaps: true,
       bumpScaleMultiplier: 1.12,
@@ -4598,52 +4598,34 @@ const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
 const AUTO_REPLAY_STORAGE_KEY = 'poolRoyaleAutoReplay';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
-    id: 'hd50',
-    label: 'HD Performance (50 Hz)',
-    fps: 50,
-    renderScale: 1,
-    pixelRatioCap: 1.35,
-    resolution: 'HD render • DPR 1.35 cap',
-    description: 'Low-power 50 Hz profile for battery saver and thermal relief.'
-  },
-  {
     id: 'fhd60',
-    label: 'Full HD (60 Hz)',
+    label: 'Performance (60 Hz)',
     fps: 60,
-    renderScale: 1.1,
-    pixelRatioCap: 1.5,
-    resolution: 'Full HD render • DPR 1.5 cap',
-    description: '1080p-focused profile that mirrors the Snooker frame pacing.'
-  },
-  {
-    id: 'fhd90',
-    label: 'Full HD (90 Hz)',
-    fps: 90,
-    renderScale: 1.12,
-    pixelRatioCap: 1.55,
-    resolution: 'Full HD render • DPR 1.55 cap',
-    description: '1080p-focused profile tuned for 90 Hz full-motion play.'
+    renderScale: 1,
+    pixelRatioCap: 1.4,
+    resolution: '2K texture pack • 60 FPS',
+    description: 'Balanced battery profile using Poly Haven 2K assets.'
   },
   {
     id: 'qhd90',
-    label: 'Quad HD (105 Hz)',
-    fps: 105,
-    renderScale: 1.22,
-    pixelRatioCap: 1.72,
-    resolution: 'QHD render • DPR 1.72 cap',
-    description: 'Sharper 1440p render for capable 105 Hz mobile and desktop GPUs.'
+    label: 'Smooth (90 Hz)',
+    fps: 90,
+    renderScale: 1.12,
+    pixelRatioCap: 1.55,
+    resolution: '4K texture pack • 90 FPS',
+    description: 'Sharper Poly Haven 4K assets at a 90 FPS target.'
   },
   {
     id: 'uhd120',
-    label: 'Ultra HD (120 Hz cap)',
+    label: 'Ultra (120 Hz)',
     fps: 120,
-    renderScale: 1.28,
+    renderScale: 1.3,
     pixelRatioCap: 1.85,
-    resolution: 'Ultra HD render • DPR 1.85 cap',
-    description: '4K-oriented profile tuned for smooth play up to 120 Hz.'
+    resolution: 'Desktop: 8K / Mobile: 4K • 120 FPS',
+    description: 'Desktop uses Poly Haven 8K (4K fallback); mobile uses 4K (2K fallback) at 120 FPS target.'
   }
 ]);
-const DEFAULT_FRAME_RATE_ID = 'fhd60';
+const DEFAULT_FRAME_RATE_ID = 'qhd90';
 const GRAPHICS_RESOLUTION_BY_FPS = Object.freeze([
   {
     minFps: 120,
@@ -4690,24 +4672,24 @@ const resolveGraphicsUiScaleFactor = (fps) => {
   return 1;
 };
 let runtimeTextureProfile = Object.freeze({
-  textureSize: resolveGraphicsResolutionTier(60).textureSize,
+  textureSize: resolveGraphicsResolutionTier(90).textureSize,
   anisotropy: CLOTH_QUALITY.anisotropy,
   generateMipmaps: CLOTH_QUALITY.generateMipmaps,
-  polyHavenResolution: '2k',
+  polyHavenResolution: '4k',
   hdriResolution: '4k',
-  polyHavenPreferredResolutions: Object.freeze(['2k', '1k']),
-  polyHavenFallbackResolution: '1k',
+  polyHavenPreferredResolutions: Object.freeze(['4k', '2k']),
+  polyHavenFallbackResolution: '2k',
   hdriPreferredResolutions: Object.freeze(['4k']),
   hdriFallbackResolution: '4k',
-  enforceTableFinishTextureSize: 2048,
-  cueTextureSize: 2048,
-  pocketTextureSize: 1024
+  enforceTableFinishTextureSize: 4096,
+  cueTextureSize: 4096,
+  pocketTextureSize: 2048
 });
 
 const updateRuntimeTextureProfile = ({ fps } = {}) => {
   const tier = resolveGraphicsResolutionTier(fps);
   const textureSize = tier.textureSize;
-  const anisotropyRatio = textureSize / 4096;
+  const anisotropyRatio = textureSize / 6144;
   const anisotropy = Math.max(16, Math.round(CLOTH_QUALITY.anisotropy * anisotropyRatio));
   const ballAnisotropy = Math.max(6, Math.min(12, Math.round(12 * (textureSize / 8192))));
   setBallMaterialAnisotropy(ballAnisotropy);
@@ -20346,7 +20328,7 @@ const shotPowerRef = useRef(0);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
       renderer.sortObjects = true;
-      renderer.shadowMap.enabled = false;
+      renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       rendererRef.current = renderer;
       updateRendererAnisotropyCap(renderer);
@@ -20370,9 +20352,12 @@ const shotPowerRef = useRef(0);
       const world = new THREE.Group();
       scene.add(world);
       worldRef.current = world;
-      const applyLoadedHdriEnvironment = (envResult, activeVariant) => {
+      const applyHdriEnvironment = async (variantConfig = activeEnvironmentVariantRef.current) => {
         const sceneInstance = sceneRef.current;
-        if (!renderer || !sceneInstance || !envResult) return;
+        if (!renderer || !sceneInstance) return;
+        const activeVariant = variantConfig || activeEnvironmentVariantRef.current;
+        const envResult = await loadPolyHavenHdriEnvironment(renderer, activeVariant);
+        if (!envResult) return;
         const { envMap, skyboxMap } = envResult;
         if (!envMap) return;
         if (disposed) {
@@ -20512,33 +20497,12 @@ const shotPowerRef = useRef(0);
           prevDispose();
         }
       };
-      const applyHdriEnvironment = async (variantConfig = activeEnvironmentVariantRef.current) => {
-        const sceneInstance = sceneRef.current;
-        if (!renderer || !sceneInstance) return;
-        const activeVariant = variantConfig || activeEnvironmentVariantRef.current;
-        try {
-          if (!envTextureRef.current && !disposed) {
-            const fallbackEnv = await createFallbackHdriEnvironment(renderer);
-            if (fallbackEnv?.envMap && !disposed) {
-              applyLoadedHdriEnvironment(fallbackEnv, activeVariant);
-            }
-            if (!disposed) {
-              markBreakRollLoadReady('hdri', true);
-            }
-          }
-          const envResult = await loadPolyHavenHdriEnvironment(renderer, activeVariant);
-          if (!envResult) return;
-          applyLoadedHdriEnvironment(envResult, activeVariant);
-        } catch (error) {
-          console.warn('Pool Royale HDRI environment load failed; keeping fallback.', error);
-        } finally {
-          if (!disposed) {
-            markBreakRollLoadReady('hdri', true);
-          }
-        }
-      };
       updateEnvironmentRef.current = applyHdriEnvironment;
-      void applyHdriEnvironment(activeEnvironmentVariantRef.current);
+      void applyHdriEnvironment(activeEnvironmentVariantRef.current).finally(() => {
+        if (!disposed) {
+          markBreakRollLoadReady('hdri', true);
+        }
+      });
       let worldScaleFactor = WORLD_SCALE * (tableSizeRef.current?.scale ?? 1);
       let cue;
       let clothMat;
