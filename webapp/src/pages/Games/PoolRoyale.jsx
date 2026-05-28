@@ -4317,11 +4317,11 @@ const SHOWOOD_TABLE_PARTS = Object.freeze([
 const DEFAULT_SHOWOOD_TABLE_STYLE = Object.freeze({
   cloth: 'green',
   cushion: 'green',
-  topWoodRail: 'walnut',
+  topWoodRail: DEFAULT_TABLE_FINISH_ID,
   railSight: 'gold',
   pocketCup: 'black',
-  baseCornerBlock: 'black',
-  leg: 'black',
+  baseCornerBlock: DEFAULT_TABLE_FINISH_ID,
+  leg: DEFAULT_TABLE_FINISH_ID,
   baseFoot: 'gold'
 });
 const SHOWOOD_TABLE_PART_OPTIONS = Object.freeze({
@@ -4330,8 +4330,8 @@ const SHOWOOD_TABLE_PART_OPTIONS = Object.freeze({
     { id: 'blue', label: 'Clean Blue Field', color: '#0d4fb8', material: { color: 0x0d4fb8, roughness: 1, metalness: 0, envMapIntensity: 0.16 } }
   ]),
   cushion: Object.freeze([
-    { id: 'green', label: 'Matched Green Cushions', color: '#064f22', keepSourceTexture: true, material: { color: 0x064f22, roughness: 0.88, metalness: 0, envMapIntensity: 0.55 } },
-    { id: 'black', label: 'Black Rubber Cushions', color: '#050505', keepSourceTexture: true, material: { color: 0x050505, roughness: 0.86, metalness: 0, envMapIntensity: 0.55 } }
+    { id: 'green', label: 'Green Cushions', color: '#064f23', material: { color: 0x064f23, roughness: 0.94, metalness: 0, envMapIntensity: 0.24 } },
+    { id: 'black', label: 'Black Cushions', color: '#050505', material: { color: 0x050505, roughness: 0.88, metalness: 0, envMapIntensity: 0.38 } }
   ]),
   topWoodRail: Object.freeze([]),
   railSight: Object.freeze([
@@ -4375,17 +4375,21 @@ const getShowoodTablePartOptions = (part, clothOptions = null, tableFinishOption
       material: { color: option.color, roughness: 1, metalness: 0, envMapIntensity: 0.16 }
     }));
   }
-  if (part === 'topWoodRail') {
-    return [
-      { id: 'walnut', label: 'Walnut Frame', color: '#5a2608', material: { color: 0x5a2608, roughness: 0.38, metalness: 0.02, envMapIntensity: 1.35, clearcoat: 0.42, clearcoatRoughness: 0.18 }, keepSourceTexture: true },
-      { id: 'black', label: 'Black Frame', color: '#070605', material: { color: 0x070605, roughness: 0.28, metalness: 0.04, envMapIntensity: 1.75, clearcoat: 0.7, clearcoatRoughness: 0.1 }, keepSourceTexture: true }
-    ];
-  }
-  if (part === 'baseCornerBlock' || part === 'leg') {
-    return [
-      { id: 'brown', label: part === 'leg' ? 'Brown Legs' : 'Brown Base', color: '#3d1706', material: { color: 0x3d1706, roughness: 0.52, metalness: 0.02, envMapIntensity: 1, clearcoat: 0.2, clearcoatRoughness: 0.36 }, keepSourceTexture: true },
-      { id: 'black', label: part === 'leg' ? 'Black Legs' : 'Black Base', color: '#070504', material: { color: 0x070504, roughness: 0.4, metalness: 0.04, envMapIntensity: 1.22, clearcoat: 0.32, clearcoatRoughness: 0.26 }, keepSourceTexture: true }
-    ];
+  if (part === 'topWoodRail' || part === 'baseCornerBlock' || part === 'leg') {
+    const sourceOptions = Array.isArray(tableFinishOptions) && tableFinishOptions.length
+      ? tableFinishOptions
+      : TABLE_FINISH_OPTIONS;
+    return sourceOptions.map((option) => {
+      const finish = TABLE_FINISHES[option.id] ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
+      const swatch = option.swatches?.[0] ?? finish?.colors?.rail ?? finish?.colors?.base ?? 0x5a2608;
+      return {
+        id: option.id,
+        label: `${option.label || finish?.label || option.id} ${part === 'topWoodRail' ? 'Rails' : part === 'baseCornerBlock' ? 'Base' : 'Legs'}`,
+        color: toHexColor(swatch),
+        thumbnail: option.thumbnail,
+        useTableFinishTexture: true
+      };
+    });
   }
   return SHOWOOD_TABLE_PART_OPTIONS[part] || [];
 };
