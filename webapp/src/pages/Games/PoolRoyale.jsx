@@ -1144,13 +1144,13 @@ function addPocketCuts(
 const OFFICIAL_TABLE_LENGTH_IN = 78;
 const LEGACY_TABLE_LENGTH_IN = 100;
 const OFFICIAL_TABLE_SCALE = OFFICIAL_TABLE_LENGTH_IN / LEGACY_TABLE_LENGTH_IN;
-const TABLE_SIZE_SHRINK = 1; // tighten the table footprint by ~8% to add breathing room without altering proportions
-const TABLE_REDUCTION = 1 * TABLE_SIZE_SHRINK; // apply the legacy trim plus the tighter shrink so the arena stays compact without distorting proportions
-const TABLE_FOOTPRINT_SCALE = 1; // reduce the table footprint ~18% while keeping the table height unchanged
+const TABLE_SIZE_SHRINK = 0.85; // tighten the table footprint by ~8% to add breathing room without altering proportions
+const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK; // apply the legacy trim plus the tighter shrink so the arena stays compact without distorting proportions
+const TABLE_FOOTPRINT_SCALE = 0.82; // reduce the table footprint ~18% while keeping the table height unchanged
 const BASE_FOOTPRINT_SHRINK = 0.82; // shrink the table base footprint by 18% without changing overall height
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
-const TABLE_DISPLAY_SCALE = 1; // make the table read just a bit larger in portrait while preserving proportions
+const TABLE_DISPLAY_SCALE = 0.86; // make the table read just a bit larger in portrait while preserving proportions
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
 const TOUCH_UI_SCALE = SIZE_REDUCTION;
 const POINTER_UI_SCALE = 1;
@@ -1288,9 +1288,9 @@ const REPLAY_CAMERA_START_DELAY_MS = 0;
   const TABLE_BASE_SCALE = 1.2;
   const TABLE_WIDTH_SCALE = 1.25;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
-  const TABLE_LENGTH_SCALE = 1;
-  const TABLE_SURFACE_REFERENCE = 1; // baseline expansion before the wider table adjustment
-  const TABLE_SURFACE_EXPANSION = 1; // widen/lengthen the table footprint by ~12% while keeping pockets/balls unchanged
+  const TABLE_LENGTH_SCALE = 0.8;
+  const TABLE_SURFACE_REFERENCE = 1.12; // baseline expansion before the wider table adjustment
+  const TABLE_SURFACE_EXPANSION = 1.25; // widen/lengthen the table footprint by ~12% while keeping pockets/balls unchanged
   const TABLE_SURFACE_COMPENSATION = TABLE_SURFACE_EXPANSION / TABLE_SURFACE_REFERENCE;
   const TABLE = {
     W: 72 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE * OFFICIAL_TABLE_SCALE * TABLE_SURFACE_EXPANSION,
@@ -1386,7 +1386,7 @@ const END_RAIL_INNER_SCALE =
   (2 * TABLE.WALL);
 const END_RAIL_INNER_REDUCTION = 1 - END_RAIL_INNER_SCALE;
 const END_RAIL_INNER_THICKNESS = TABLE.WALL * END_RAIL_INNER_SCALE;
-const PLAYFIELD_SHRINK = 1; // shrink the playfield footprint by ~15% on all sides while keeping table height intact
+const PLAYFIELD_SHRINK = 0.85; // shrink the playfield footprint by ~15% on all sides while keeping table height intact
 const PLAY_W = (TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS) * PLAYFIELD_SHRINK;
 const PLAY_H = (TABLE.H - 2 * END_RAIL_INNER_THICKNESS) * PLAYFIELD_SHRINK;
 export const POOL_ROYALE_TABLE_DIMENSIONS = Object.freeze({
@@ -4314,7 +4314,7 @@ const SHOWOOD_TABLE_PARTS = Object.freeze([
   'leg',
   'baseFoot'
 ]);
-const SHOWOOD_TABLE_SETUP_HIDDEN_PARTS = new Set(['cloth', 'cushion', 'railSight', 'baseFoot', 'pocketCup']);
+const SHOWOOD_TABLE_SETUP_HIDDEN_PARTS = new Set(['cloth', 'cushion', 'railSight', 'baseFoot']);
 const DEFAULT_SHOWOOD_TABLE_STYLE = Object.freeze({
   cloth: 'green',
   cushion: 'green',
@@ -36073,6 +36073,39 @@ const shotPowerRef = useRef(0);
               Change only the part you want. The Showood table stays loaded while cloth, rails, pockets, chrome, cue, and room options update live.
             </div>
             <div className="mt-4 max-h-[min(64vh,34rem)] space-y-4 overflow-y-auto pr-1">
+              <div className="rounded-3xl border border-amber-300/35 bg-amber-300/[0.08] p-3 shadow-[0_0_24px_rgba(251,191,36,0.12)]">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-[11px] font-black uppercase tracking-[0.28em] text-amber-100">
+                      Shooting Logic
+                    </h3>
+                    <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/60">
+                      Classic cue stick • clear table view
+                    </p>
+                  </div>
+                  <span className="rounded-full border border-amber-200/40 bg-amber-200/15 px-2 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-amber-100">
+                    Auto
+                  </span>
+                </div>
+                <p className="mt-3 text-[11px] font-semibold leading-relaxed text-amber-50/75">
+                  Player avatars, side seating, and the extra Murlan side table have been removed so the original cue-stick aiming view stays clean around the Showood table.
+                </p>
+              </div>
+              <div className="rounded-3xl border border-emerald-300/30 bg-white/[0.05] p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-[11px] font-black uppercase tracking-[0.28em] text-emerald-100">
+                      Table Customizer
+                    </h3>
+                    <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/55">
+                      Showood only • no side furniture
+                    </p>
+                  </div>
+                  <span className="rounded-full border border-emerald-200/40 bg-emerald-200/15 px-2 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-emerald-100">
+                    Live
+                  </span>
+                </div>
+              </div>
               {ENABLE_SHOT_REPLAY ? (
                 <div>
                   <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
