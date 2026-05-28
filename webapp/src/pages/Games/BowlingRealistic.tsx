@@ -287,7 +287,7 @@ const RESULT_COMPLIMENTS = {
 } as const;
 
 // Visually lower the entire bowling field so it sits on the HDRI ground line.
-const BOWLING_HDRI_GROUND_SNAP_DROP = 0.46;
+const BOWLING_HDRI_GROUND_SNAP_DROP = 0.82;
 
 const CFG = {
   laneY: -1.5 - BOWLING_HDRI_GROUND_SNAP_DROP,
