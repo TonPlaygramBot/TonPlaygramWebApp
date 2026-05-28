@@ -33,10 +33,7 @@ import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { PoolRoyaleRules } from '../../../../src/rules/PoolRoyaleRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
-import {
-  POOL_ROYALE_TABLE_MODEL_STORAGE_KEY,
-  resolvePoolRoyaleTableModel
-} from '../../config/poolRoyaleTableModels.js';
+import { resolvePoolRoyaleTableModel } from '../../config/poolRoyaleTableModels.js';
 import { resolveTableSize as resolveSnookerTableSize } from '../../config/snookerClubTables.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { chatBeep } from '../../assets/coreSoundData.js';
@@ -122,7 +119,7 @@ import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
 import { computeCueDriveBoost } from './cueShotImpact.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
-const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
+const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
   'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 
@@ -379,14 +376,29 @@ const wait = (ms = 0) =>
     window.setTimeout(resolve, ms);
   });
 
+const WEBGL_CONTEXT_IDS = ['webgl2', 'webgl', 'experimental-webgl'];
+
+const tryGetWebGLContext = (canvas, contextId) => {
+  try {
+    return canvas.getContext(contextId);
+  } catch (err) {
+    return null;
+  }
+};
+
+const resolveWebGLContext = (canvas) => {
+  for (const contextId of WEBGL_CONTEXT_IDS) {
+    const gl = tryGetWebGLContext(canvas, contextId);
+    if (gl) return gl;
+  }
+  return null;
+};
+
 function isWebGLAvailable() {
   if (typeof document === 'undefined') return false;
   try {
     const canvas = document.createElement('canvas');
-    const gl =
-      canvas.getContext('webgl2') ||
-      canvas.getContext('webgl') ||
-      canvas.getContext('experimental-webgl');
+    const gl = resolveWebGLContext(canvas);
     return Boolean(gl);
   } catch (err) {
     console.warn('WebGL availability check failed', err);
@@ -512,10 +524,7 @@ function readGraphicsRendererString() {
   }
   try {
     const canvas = document.createElement('canvas');
-    const gl =
-      canvas.getContext('webgl') ||
-      canvas.getContext('experimental-webgl') ||
-      canvas.getContext('webgl2');
+    const gl = resolveWebGLContext(canvas);
     if (!gl) {
       return null;
     }
@@ -584,12 +593,12 @@ function detectPreferredFrameRateId() {
   const rendererTier = classifyRendererTier(readGraphicsRendererString());
 
   if (lowRefresh) {
-    return 'fhd60';
+    return 'hd50';
   }
 
   if (isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile') {
     if ((deviceMemory !== null && deviceMemory <= 4) || hardwareConcurrency <= 4) {
-      return 'fhd60';
+      return 'hd50';
     }
     if (
       (refreshBucket >= 120 || highRefresh) &&
@@ -611,7 +620,9 @@ function detectPreferredFrameRateId() {
   if (refreshBucket >= 120 && (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8)) {
     return 'uhd120';
   }
-  if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) return 'uhd120';
+  if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) {
+    return 'uhd120';
+  }
 
   if (rendererTier === 'desktopMid') {
     return 'qhd90';
@@ -1273,7 +1284,7 @@ const DEFAULT_TABLE_BASE_ID = SHOWOOD_ORIGINAL_TABLE_BASE_ID;
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const ENABLE_CUE_STROKE_ANIMATION = true;
-const ENABLE_TABLE_MAPPING_LINES = true;
+const ENABLE_TABLE_MAPPING_LINES = false;
 const TABLE_MAPPING_VISUALS = Object.freeze({
   field: false,
   cushions: false,
@@ -2131,7 +2142,7 @@ function createPoolHumanGLTFLoader(renderer = null) {
     }
   }
   loader.setKTX2Loader(ktx2);
-  loader.setMeshoptDecoder?.(MeshoptDecoder);
+  loader.setMeshoptDecoder(MeshoptDecoder);
   loader.userData = { draco, ktx2 };
   return loader;
 }
@@ -2997,8 +3008,8 @@ const CLOTH_SOFT_BLEND = 0.34;
 
 const CLOTH_QUALITY = (() => {
   const defaults = {
-    textureSize: 6144,
-    anisotropy: 72,
+    textureSize: 2048,
+    anisotropy: 36,
     generateMipmaps: true,
     bumpScaleMultiplier: 1.16,
     sheen: 0.95,
@@ -3008,8 +3019,8 @@ const CLOTH_QUALITY = (() => {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
     return {
       ...defaults,
-      textureSize: 2560,
-      anisotropy: 20,
+      textureSize: 1024,
+      anisotropy: 16,
       bumpScaleMultiplier: 1,
       sheen: 0.9,
       sheenRoughness: 0.72
@@ -3029,8 +3040,8 @@ const CLOTH_QUALITY = (() => {
   if (isMobileUA || isTouch || lowMemory || lowRefresh) {
     const highDensity = dpr >= 3;
     return {
-      textureSize: highDensity ? 3072 : 2048,
-      anisotropy: highDensity ? 28 : 24,
+      textureSize: highDensity ? 1024 : 768,
+      anisotropy: highDensity ? 18 : 14,
       generateMipmaps: true,
       bumpScaleMultiplier: highDensity ? 1.02 : 0.94,
       sheen: 0.78,
@@ -3040,8 +3051,8 @@ const CLOTH_QUALITY = (() => {
 
   if (hardwareConcurrency <= 6 || dpr < 1.75) {
     return {
-      textureSize: 5120,
-      anisotropy: 48,
+      textureSize: 1536,
+      anisotropy: 24,
       generateMipmaps: true,
       bumpScaleMultiplier: 1.12,
       sheen: 0.9,
@@ -4594,38 +4605,57 @@ const LIGHTING_PRESET_MAP = Object.freeze(
   }, {})
 );
 
-const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
+const FRAME_RATE_STORAGE_KEY = 'poolRoyaleFrameRate';
+const LEGACY_FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
 const AUTO_REPLAY_STORAGE_KEY = 'poolRoyaleAutoReplay';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
-    id: 'fhd60',
-    label: 'Performance (60 Hz)',
-    fps: 60,
+    id: 'hd50',
+    label: 'HD Performance (50 Hz)',
+    fps: 50,
     renderScale: 1,
-    pixelRatioCap: 1.4,
-    resolution: '2K texture pack • 60 FPS',
-    description: 'Balanced battery profile using Poly Haven 2K assets.'
+    pixelRatioCap: 1.35,
+    resolution: 'HD render • DPR 1.35 cap',
+    description: 'Low-power profile for faster Pool Royal loading, battery saver, and thermal relief.'
   },
   {
-    id: 'qhd90',
-    label: 'Smooth (90 Hz)',
+    id: 'fhd60',
+    label: 'Full HD (60 Hz)',
+    fps: 60,
+    renderScale: 1.1,
+    pixelRatioCap: 1.5,
+    resolution: 'Full HD render • DPR 1.5 cap',
+    description: 'Fast default profile matching the Snooker Royal frame pacing.'
+  },
+  {
+    id: 'fhd90',
+    label: 'Full HD (90 Hz)',
     fps: 90,
     renderScale: 1.12,
     pixelRatioCap: 1.55,
-    resolution: '4K texture pack • 90 FPS',
-    description: 'Sharper Poly Haven 4K assets at a 90 FPS target.'
+    resolution: 'Full HD render • DPR 1.55 cap',
+    description: '1080p-focused profile tuned for 90 Hz full-motion play.'
+  },
+  {
+    id: 'qhd90',
+    label: 'Quad HD (105 Hz)',
+    fps: 105,
+    renderScale: 1.22,
+    pixelRatioCap: 1.72,
+    resolution: 'QHD render • DPR 1.72 cap',
+    description: 'Sharper 1440p render for capable 105 Hz mobile and desktop GPUs.'
   },
   {
     id: 'uhd120',
-    label: 'Ultra (120 Hz)',
+    label: 'Ultra HD (120 Hz cap)',
     fps: 120,
-    renderScale: 1.3,
+    renderScale: 1.28,
     pixelRatioCap: 1.85,
-    resolution: 'Desktop: 8K / Mobile: 4K • 120 FPS',
-    description: 'Desktop uses Poly Haven 8K (4K fallback); mobile uses 4K (2K fallback) at 120 FPS target.'
+    resolution: 'Ultra HD render • DPR 1.85 cap',
+    description: '4K-oriented profile tuned for smooth play up to 120 Hz.'
   }
 ]);
-const DEFAULT_FRAME_RATE_ID = 'qhd90';
+const DEFAULT_FRAME_RATE_ID = 'fhd60';
 const GRAPHICS_RESOLUTION_BY_FPS = Object.freeze([
   {
     minFps: 120,
@@ -4636,16 +4666,16 @@ const GRAPHICS_RESOLUTION_BY_FPS = Object.freeze([
   },
   {
     minFps: 90,
-    key: '4k',
-    textureSize: 4096,
-    preferredResolutions: Object.freeze(['4k', '2k']),
-    fallbackResolution: '2k'
-  },
-  {
-    minFps: 0,
     key: '2k',
     textureSize: 2048,
     preferredResolutions: Object.freeze(['2k', '1k']),
+    fallbackResolution: '1k'
+  },
+  {
+    minFps: 0,
+    key: '1k',
+    textureSize: 1024,
+    preferredResolutions: Object.freeze(['1k', '2k']),
     fallbackResolution: '1k'
   }
 ]);
@@ -4671,19 +4701,20 @@ const resolveGraphicsUiScaleFactor = (fps) => {
   if (safeFps >= 90) return 1.04;
   return 1;
 };
+const INITIAL_GRAPHICS_RESOLUTION_TIER = resolveGraphicsResolutionTier(60);
 let runtimeTextureProfile = Object.freeze({
-  textureSize: resolveGraphicsResolutionTier(90).textureSize,
+  textureSize: INITIAL_GRAPHICS_RESOLUTION_TIER.textureSize,
   anisotropy: CLOTH_QUALITY.anisotropy,
   generateMipmaps: CLOTH_QUALITY.generateMipmaps,
-  polyHavenResolution: '4k',
-  hdriResolution: '4k',
-  polyHavenPreferredResolutions: Object.freeze(['4k', '2k']),
-  polyHavenFallbackResolution: '2k',
-  hdriPreferredResolutions: Object.freeze(['4k']),
-  hdriFallbackResolution: '4k',
-  enforceTableFinishTextureSize: 4096,
-  cueTextureSize: 4096,
-  pocketTextureSize: 2048
+  polyHavenResolution: INITIAL_GRAPHICS_RESOLUTION_TIER.key,
+  hdriResolution: INITIAL_GRAPHICS_RESOLUTION_TIER.key,
+  polyHavenPreferredResolutions: INITIAL_GRAPHICS_RESOLUTION_TIER.preferredResolutions,
+  polyHavenFallbackResolution: INITIAL_GRAPHICS_RESOLUTION_TIER.fallbackResolution,
+  hdriPreferredResolutions: Object.freeze([INITIAL_GRAPHICS_RESOLUTION_TIER.key]),
+  hdriFallbackResolution: INITIAL_GRAPHICS_RESOLUTION_TIER.fallbackResolution,
+  enforceTableFinishTextureSize: INITIAL_GRAPHICS_RESOLUTION_TIER.textureSize,
+  cueTextureSize: INITIAL_GRAPHICS_RESOLUTION_TIER.textureSize,
+  pocketTextureSize: Math.min(2048, INITIAL_GRAPHICS_RESOLUTION_TIER.textureSize)
 });
 
 const updateRuntimeTextureProfile = ({ fps } = {}) => {
@@ -12859,6 +12890,7 @@ export function Table3D(
   };
 
   let polyhavenKtx2Loader = null;
+  let hasDetectedPolyhavenKtx2Support = false;
   const polyhavenBaseTemplates = new Map();
   const polyhavenBasePromises = new Map();
 
@@ -12867,9 +12899,10 @@ export function Table3D(
       polyhavenKtx2Loader = new KTX2Loader();
       polyhavenKtx2Loader.setTranscoderPath(BASIS_TRANSCODER_PATH);
     }
-    if (renderer) {
+    if (renderer && !hasDetectedPolyhavenKtx2Support) {
       try {
         polyhavenKtx2Loader.detectSupport(renderer);
+        hasDetectedPolyhavenKtx2Support = true;
       } catch (error) {
         console.warn('Pool Royale KTX2 support detection failed', error);
       }
@@ -12885,7 +12918,7 @@ export function Table3D(
     loader.setDRACOLoader(draco);
     const ktx2 = ensurePolyhavenKtx2Loader(renderer);
     loader.setKTX2Loader(ktx2);
-    loader.setMeshoptDecoder?.(MeshoptDecoder);
+    loader.setMeshoptDecoder(MeshoptDecoder);
     return loader;
   };
 
@@ -15596,7 +15629,9 @@ function PoolRoyaleGame({
   const [activeTablePersonalizationPart, setActiveTablePersonalizationPart] = useState('topWoodRail');
   const [frameRateId, setFrameRateId] = useState(() => {
     if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(FRAME_RATE_STORAGE_KEY);
+      const stored =
+        window.localStorage.getItem(FRAME_RATE_STORAGE_KEY) ||
+        window.localStorage.getItem(LEGACY_FRAME_RATE_STORAGE_KEY);
       if (stored && FRAME_RATE_OPTIONS.some((opt) => opt.id === stored)) {
         return stored;
       }
@@ -18211,6 +18246,12 @@ const shotPowerRef = useRef(0);
     const renderer = rendererRef.current;
     const host = mountRef.current;
     if (!renderer || !host) return;
+    const fallbackWidth =
+      typeof window !== 'undefined' ? window.innerWidth || document.documentElement?.clientWidth || 0 : 0;
+    const fallbackHeight =
+      typeof window !== 'undefined' ? window.innerHeight || document.documentElement?.clientHeight || 0 : 0;
+    const hostWidth = host.clientWidth || fallbackWidth;
+    const hostHeight = host.clientHeight || fallbackHeight;
     const quality = frameQualityRef.current;
     const timing = frameTimingRef.current;
     const targetMs =
@@ -18239,7 +18280,7 @@ const shotPowerRef = useRef(0);
       highFpsBias < 1 ? cappedDpr * (0.92 + highFpsBias * 0.08) : cappedDpr;
     const resolvedPixelRatio = Math.max(1, performanceDpr);
     renderer.setPixelRatio(resolvedPixelRatio);
-    renderer.setSize(host.clientWidth * renderScale, host.clientHeight * renderScale, false);
+    renderer.setSize(hostWidth * renderScale, hostHeight * renderScale, false);
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
   }, []);
@@ -20328,7 +20369,7 @@ const shotPowerRef = useRef(0);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
       renderer.sortObjects = true;
-      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.enabled = false;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       rendererRef.current = renderer;
       updateRendererAnisotropyCap(renderer);
@@ -26083,15 +26124,17 @@ const shotPowerRef = useRef(0);
         }
         return secondarySpacingBase;
       };
-      const secondaryTableEntry = Table3D(
-        world,
-        finishForScene,
-        tableSizeMeta,
-        railMarkerStyleRef.current,
-        activeTableBase,
-        rendererRef.current,
-        { tableModel: activeTableModel, chromePlateStyle: activeChromePlateStyle, showoodStyle: showoodTableStyle }
-      );
+      const secondaryTableEntry = dualTablesEnabled
+        ? Table3D(
+            world,
+            finishForScene,
+            tableSizeMeta,
+            railMarkerStyleRef.current,
+            activeTableBase,
+            rendererRef.current,
+            { tableModel: activeTableModel, chromePlateStyle: activeChromePlateStyle, showoodStyle: showoodTableStyle }
+          )
+        : null;
       secondaryTableRef.current = secondaryTableEntry?.group ?? null;
       secondaryBaseSetterRef.current = secondaryTableEntry?.setBaseVariant ?? null;
       const resolveSnookerScale = () => {
@@ -37581,11 +37624,6 @@ export default function PoolRoyale() {
     const params = new URLSearchParams(location.search);
     const requested = params.get('tableModel');
     if (requested) return resolvePoolRoyaleTableModel(requested).id;
-    try {
-      return resolvePoolRoyaleTableModel(
-        window.localStorage?.getItem(POOL_ROYALE_TABLE_MODEL_STORAGE_KEY)
-      ).id;
-    } catch {}
     return resolvePoolRoyaleTableModel().id;
   }, [location.search]);
   const mode = useMemo(() => {
