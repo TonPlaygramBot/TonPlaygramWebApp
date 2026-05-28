@@ -147,8 +147,8 @@ namespace TonPlaygram.Gameplay.Weapons
         [SerializeField] private float maxLookDownDegrees = 26f;
 
         [Header("Material import behavior")]
-        [Tooltip("Run a compatibility pass for imported GLTF/GLB weapon materials so base-color textures remain visible on all supported shaders.")]
-        [SerializeField] private bool preserveOriginalWeaponMaterials = false;
+        [Tooltip("Keeps imported GLTF/GLB weapon materials untouched so original weapon textures stay exactly as authored.")]
+        [SerializeField] private bool preserveOriginalWeaponMaterials = true;
 
 
         private readonly Dictionary<LudoWeaponType, WeaponBallisticsProfile> _profiles = new Dictionary<LudoWeaponType, WeaponBallisticsProfile>();
