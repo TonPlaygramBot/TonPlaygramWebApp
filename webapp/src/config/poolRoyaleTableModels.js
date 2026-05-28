@@ -5,15 +5,6 @@ const POOLTOOL_RAW_BASE =
 
 export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
   {
-    id: 'royal-original-fast',
-    label: 'Royal Original Fast',
-    description:
-      'Native Pool Royale table built locally with the same procedural setup as Snooker Royal so gameplay can start immediately without downloading the Showood GLB.',
-    tableSizeId: '7ft',
-    icon: '⚡',
-    kind: 'native'
-  },
-  {
     id: 'showood-seven-foot',
     label: 'Showood 7 ft GLB',
     description:
@@ -50,7 +41,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
 
 export const DEFAULT_POOL_ROYALE_TABLE_MODEL_ID =
   POOL_ROYALE_TABLE_MODEL_OPTIONS.find(
-    (option) => option.id === 'royal-original-fast'
+    (option) => option.id === 'showood-seven-foot'
   )?.id || POOL_ROYALE_TABLE_MODEL_OPTIONS[0].id;
 
 export function resolvePoolRoyaleTableModel(modelId) {
