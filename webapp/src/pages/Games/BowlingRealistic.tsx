@@ -286,8 +286,11 @@ const RESULT_COMPLIMENTS = {
   open: ['Nice try—adjust and fire again.', 'Good pace, keep rhythm.']
 } as const;
 
+// Visually lower the entire bowling field so it sits on the HDRI ground line.
+const BOWLING_HDRI_GROUND_SNAP_DROP = 0.46;
+
 const CFG = {
-  laneY: -1.5,
+  laneY: -1.5 - BOWLING_HDRI_GROUND_SNAP_DROP,
   laneHalfW: 1.36,
   gutterHalfW: 1.72,
   laneCenterOffset: 1.82,
