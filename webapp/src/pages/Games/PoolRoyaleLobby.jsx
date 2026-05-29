@@ -50,6 +50,53 @@ function resolveTpcAccountNumber(player) {
   ).trim();
 }
 
+
+const runPoolRoyaleIdleTask = (callback) => {
+  if (typeof window === 'undefined') return undefined;
+  if (typeof window.requestIdleCallback === 'function') {
+    const id = window.requestIdleCallback(callback, { timeout: 1200 });
+    return () => window.cancelIdleCallback?.(id);
+  }
+  const id = window.setTimeout(callback, 350);
+  return () => window.clearTimeout(id);
+};
+
+const prewarmPoolRoyaleShowoodModel = (tableModel) => {
+  if (typeof window === 'undefined' || !tableModel?.assetUrl) return undefined;
+  const urls = [tableModel.assetUrl, tableModel.fallbackAssetUrl].filter(Boolean);
+  if (!urls.length) return undefined;
+
+  const links = urls.map((url) => {
+    const link = document.createElement('link');
+    link.rel = 'prefetch';
+    link.as = 'fetch';
+    link.href = url;
+    link.crossOrigin = 'anonymous';
+    document.head?.appendChild(link);
+    return link;
+  });
+
+  let cancelled = false;
+  const cancelIdle = runPoolRoyaleIdleTask(async () => {
+    for (const url of urls) {
+      if (cancelled) return;
+      try {
+        const request = new Request(url, { mode: 'cors', cache: 'force-cache' });
+        const response = await fetch(request);
+        if (response?.ok) return;
+      } catch (err) {
+        // Keep the lobby responsive; the game loader will retry with its normal fallback path.
+      }
+    }
+  });
+
+  return () => {
+    cancelled = true;
+    cancelIdle?.();
+    links.forEach((link) => link.parentNode?.removeChild(link));
+  };
+};
+
 export default function PoolRoyaleLobby() {
   const navigate = useNavigate();
   const { search } = useLocation();
@@ -115,6 +162,7 @@ export default function PoolRoyaleLobby() {
   const selectedAiFlag = aiFlagIndex != null ? FLAG_EMOJIS[aiFlagIndex] : '';
   const selectedTableModelReady = true;
 
+  useEffect(() => prewarmPoolRoyaleShowoodModel(selectedTableModel), [selectedTableModel]);
 
   useEffect(() => {
     try {
@@ -864,7 +912,7 @@ export default function PoolRoyaleLobby() {
               <div>
                 <h3 className="font-semibold text-white">Pool Table</h3>
                 <p className="mt-1">
-                  Showood 7 ft GLB is now the fixed Pool Royale table.
+                  Showood 7 ft GLB is the fixed Pool Royale table and is preloaded from the lobby for faster starts.
                 </p>
               </div>
               <span className="rounded-full border border-emerald-300/35 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-100">
