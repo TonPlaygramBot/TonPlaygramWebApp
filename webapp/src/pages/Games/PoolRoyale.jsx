@@ -4323,7 +4323,7 @@ const SHOWOOD_TABLE_PARTS = Object.freeze([
   'cushion',
   'topWoodRail',
   'railSight',
-  'baseCornerBlock',
+    'baseCornerBlock',
   'leg',
   'baseFoot'
 ]);
@@ -4419,7 +4419,7 @@ const normalizeShowoodTableStyle = (value = {}) => {
 };
 const getShowoodPartOption = (style, part) => {
   const normalized = normalizeShowoodTableStyle(style);
-  const optionPart = part === 'sideWoodApron' ? 'railSight' : part === 'verticalCornerRim' ? 'baseFoot' : part;
+  const optionPart = part === 'sideWoodApron' ? 'baseCornerBlock' : part === 'verticalCornerRim' ? 'baseFoot' : part;
   const optionId = normalized[optionPart];
   const options = getShowoodTablePartOptions(optionPart);
   return options.find((option) => option.id === optionId) || options[0] || null;
@@ -12916,10 +12916,8 @@ export function Table3D(
   const createConfiguredGLTFLoader = (renderer = null, manager = null) => {
     const loader = new GLTFLoader(manager ?? undefined);
     loader.setCrossOrigin('anonymous');
-    const draco = new DRACOLoader(manager ?? undefined);
+    const draco = new DRACOLoader();
     draco.setDecoderPath(DRACO_DECODER_PATH);
-    draco.setDecoderConfig({ type: 'js' });
-    draco.preload();
     loader.setDRACOLoader(draco);
     const ktx2 = ensurePolyhavenKtx2Loader(renderer);
     loader.setKTX2Loader(ktx2);
@@ -13093,7 +13091,7 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
     cushion: 'cushion',
     topWoodRail: 'topWoodRail',
     wood: 'topWoodRail',
-    sideWoodApron: 'railSight',
+    sideWoodApron: 'baseCornerBlock',
     railSight: 'railSight',
     trim: 'railSight',
     pocket: 'pocketCup',
@@ -13375,7 +13373,7 @@ function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInf
     const finalMaterials = [];
     const materialLookup = new Map();
     const getMaterialIndex = (sourceMaterialIndex, part, cushionShadow = false) => {
-      const linkedPart = part === 'sideWoodApron' ? 'railSight' : part === 'verticalCornerRim' ? 'baseFoot' : part;
+      const linkedPart = part === 'sideWoodApron' ? 'baseCornerBlock' : part === 'verticalCornerRim' ? 'baseFoot' : part;
       const key = `${sourceMaterialIndex}:${linkedPart}:${cushionShadow ? 'shadow' : 'main'}`;
       if (materialLookup.has(key)) return materialLookup.get(key);
       const source = sourceMaterials[Math.max(0, Math.min(sourceMaterialIndex, sourceMaterials.length - 1))];
@@ -13399,11 +13397,6 @@ function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInf
         next.alphaMap = null;
       }
       next.name = `${source?.name || 'showood'}__${linkedPart}${cushionShadow ? '__shadow' : ''}`;
-      next.userData = {
-        ...(next.userData || {}),
-        poolRoyaleShowoodPart: linkedPart,
-        poolRoyaleShowoodCushionShadow: cushionShadow
-      };
       const index = finalMaterials.length;
       finalMaterials.push(next);
       materialLookup.set(key, index);
@@ -13599,40 +13592,6 @@ function clonePoolRoyaleExternalTableTemplate(template, tableModel = null, finis
   const clone = template.clone(true);
   preparePoolRoyaleExternalTableMaterials(clone, tableModel, finishInfo);
   return clone;
-}
-
-function refreshPoolRoyaleShowoodExternalMaterials(root, tableModel = null, finishInfo = null) {
-  if (!root || tableModel?.id !== 'showood-seven-foot' || !finishInfo) return;
-  root.traverse?.((mesh) => {
-    if (!mesh?.isMesh || !mesh.material) return;
-    const refreshMaterial = (material) => {
-      const part = material?.userData?.poolRoyaleShowoodPart;
-      if (!part) return material;
-      const next = applyShowoodStyleToExternalMaterial(material, part, tableModel, finishInfo);
-      const cushionShadow = Boolean(material.userData?.poolRoyaleShowoodCushionShadow);
-      if (cushionShadow && part === 'cushion') {
-        if (next.color) next.color.set(CUSHION_SHADOW_GREY);
-        if ('metalness' in next) next.metalness = 0;
-        if ('roughness' in next) next.roughness = 0.96;
-        if ('envMapIntensity' in next) next.envMapIntensity = 0.22;
-        if ('clearcoat' in next) next.clearcoat = 0;
-        if ('clearcoatRoughness' in next) next.clearcoatRoughness = 0;
-        ['map', 'normalMap', 'bumpMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap', 'lightMap', 'alphaMap'].forEach((key) => {
-          next[key] = null;
-        });
-      }
-      next.userData = {
-        ...(next.userData || {}),
-        poolRoyaleShowoodPart: part,
-        poolRoyaleShowoodCushionShadow: cushionShadow
-      };
-      next.needsUpdate = true;
-      return next;
-    };
-    mesh.material = Array.isArray(mesh.material)
-      ? mesh.material.map(refreshMaterial)
-      : refreshMaterial(mesh.material);
-  });
 }
 
 async function loadPoolRoyaleExternalTableTemplate(tableModel, renderer = null) {
@@ -14736,14 +14695,6 @@ function mountPoolRoyaleExternalTableModel({
                 )
         }
       : null;
-  table.userData.externalTableModel = externalTableModelForMount;
-  table.userData.refreshExternalShowoodMaterials = (nextTableModel = table.userData.externalTableModel, nextFinishInfo = table.userData.finish) => {
-    refreshPoolRoyaleShowoodExternalMaterials(
-      table.userData?.externalTable?.group,
-      nextTableModel,
-      nextFinishInfo
-    );
-  };
   const externalTable =
     externalTableModelForMount?.kind === 'gltf'
       ? mountPoolRoyaleExternalTableModel({
@@ -15200,16 +15151,6 @@ function applyTableFinishToTable(table, finish) {
     pocketRim: pocketRimMat,
     accent: accentConfig
   };
-  const externalTableModel = table.userData?.externalTableModel
-    ? {
-        ...table.userData.externalTableModel,
-        showoodStyle: resolvedFinish?.showoodStyle ?? table.userData.externalTableModel.showoodStyle
-      }
-    : null;
-  if (externalTableModel?.id === 'showood-seven-foot') {
-    table.userData.externalTableModel = externalTableModel;
-    table.userData.refreshExternalShowoodMaterials?.(externalTableModel, finishInfo);
-  }
   finishInfo.clothDetail = resolvedFinish?.clothDetail ?? null;
 }
 
@@ -17395,7 +17336,6 @@ function PoolRoyaleGame({
       woodTexture: baseFinish?.woodTexture ?? null,
       woodTextureEnabled: baseFinish?.woodTextureEnabled ?? WOOD_TEXTURES_ENABLED,
       woodTextureId: baseFinish?.woodTextureId ?? null,
-      showoodStyle: normalizeShowoodTableStyle(showoodTableStyle),
       woodRepeatScale: baseFinish?.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE,
       createMaterials: () => {
         const baseMaterials = baseCreateMaterials();
@@ -17488,10 +17428,6 @@ function PoolRoyaleGame({
     }
   }, [chromeColorId]);
   useEffect(() => {
-    const linkedRailMarker = chromeColorId === 'gold' ? 'gold' : 'chrome';
-    setRailMarkerColorId((current) => (current === linkedRailMarker ? current : linkedRailMarker));
-  }, [chromeColorId]);
-  useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem('poolChromePlateStyle', chromePlateStyleId);
     }
@@ -17510,9 +17446,9 @@ function PoolRoyaleGame({
     setShowoodTableStyle((current) => {
       const next = normalizeShowoodTableStyle(current);
       const linkedRailSight = chromeColorId === 'gold' ? 'gold' : 'chrome';
-      return next.railSight === linkedRailSight && next.baseFoot === linkedRailSight
+      return next.railSight === linkedRailSight
         ? next
-        : { ...next, railSight: linkedRailSight, baseFoot: linkedRailSight };
+        : { ...next, railSight: linkedRailSight };
     });
   }, [chromeColorId]);
   useEffect(() => {
