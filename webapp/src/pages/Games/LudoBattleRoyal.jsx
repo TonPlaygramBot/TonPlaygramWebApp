@@ -1458,10 +1458,11 @@ async function loadCaptureWeaponModel(captureAnimationId) {
         // eslint-disable-next-line no-await-in-loop
         const patchedBuffer = await patchGlbImagesToDataUris(
           rawBuffer,
-          'fighter',
+          'firearm',
           candidateUrl,
           candidateUrls,
-          imageCache
+          imageCache,
+          { allowPlaceholder: false }
         );
         // eslint-disable-next-line no-await-in-loop
         loadedRoot = await parseObjectFromBuffer(loader, patchedBuffer);
@@ -2169,12 +2170,20 @@ function makePlaceholderTextureDataUri(primary, secondary) {
   return canvas.toDataURL('image/png');
 }
 
-async function resolveExternalImageToDataUri(imageUri, kind, sourceUrl, modelUrls, cache) {
+async function resolveExternalImageToDataUri(
+  imageUri,
+  kind,
+  sourceUrl,
+  modelUrls,
+  cache,
+  { allowPlaceholder = true } = {}
+) {
   if (isDataUri(imageUri)) return imageUri;
   const placeholderColors = {
     drone: ['#7c8791', '#4f5861'],
     helicopter: ['#6f7763', '#4f5648'],
-    fighter: ['#98a1a9', '#646d76']
+    fighter: ['#98a1a9', '#646d76'],
+    firearm: ['#1f2933', '#111827']
   };
   const [primary, secondary] = placeholderColors[kind] ?? ['#6e7681', '#4f5861'];
   const placeholderDataUri = makePlaceholderTextureDataUri(primary, secondary);
@@ -2196,10 +2205,17 @@ async function resolveExternalImageToDataUri(imageUri, kind, sourceUrl, modelUrl
       // ignore candidate
     }
   }
-  return placeholderDataUri;
+  return allowPlaceholder ? placeholderDataUri : null;
 }
 
-async function patchGlbImagesToDataUris(buffer, kind, sourceUrl, modelUrls, cache) {
+async function patchGlbImagesToDataUris(
+  buffer,
+  kind,
+  sourceUrl,
+  modelUrls,
+  cache,
+  { allowPlaceholder = true } = {}
+) {
   const { json, binChunk } = decodeGlb(buffer);
   const cloned = JSON.parse(JSON.stringify(json));
   const images = Array.isArray(cloned.images) ? cloned.images : [];
@@ -2208,8 +2224,14 @@ async function patchGlbImagesToDataUris(buffer, kind, sourceUrl, modelUrls, cach
   for (let i = 0; i < images.length; i += 1) {
     const image = images[i];
     if (typeof image.uri === 'string') {
+      const originalImageUri = image.uri;
       // eslint-disable-next-line no-await-in-loop
-      image.uri = await resolveExternalImageToDataUri(image.uri, kind, sourceUrl, modelUrls, cache);
+      image.uri = await resolveExternalImageToDataUri(image.uri, kind, sourceUrl, modelUrls, cache, {
+        allowPlaceholder
+      });
+      if (!image.uri) {
+        throw new Error(`Unable to resolve external GLB texture: ${sourceUrl} -> ${originalImageUri}`);
+      }
       delete image.bufferView;
       image.mimeType = image.mimeType ?? 'image/png';
       continue;
