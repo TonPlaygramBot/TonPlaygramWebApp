@@ -1458,11 +1458,10 @@ async function loadCaptureWeaponModel(captureAnimationId) {
         // eslint-disable-next-line no-await-in-loop
         const patchedBuffer = await patchGlbImagesToDataUris(
           rawBuffer,
-          'firearm',
+          'fighter',
           candidateUrl,
           candidateUrls,
-          imageCache,
-          { allowPlaceholder: false }
+          imageCache
         );
         // eslint-disable-next-line no-await-in-loop
         loadedRoot = await parseObjectFromBuffer(loader, patchedBuffer);
@@ -2170,14 +2169,7 @@ function makePlaceholderTextureDataUri(primary, secondary) {
   return canvas.toDataURL('image/png');
 }
 
-async function resolveExternalImageToDataUri(
-  imageUri,
-  kind,
-  sourceUrl,
-  modelUrls,
-  cache,
-  { allowPlaceholder = true } = {}
-) {
+async function resolveExternalImageToDataUri(imageUri, kind, sourceUrl, modelUrls, cache) {
   if (isDataUri(imageUri)) return imageUri;
   const placeholderColors = {
     drone: ['#7c8791', '#4f5861'],
@@ -2204,17 +2196,10 @@ async function resolveExternalImageToDataUri(
       // ignore candidate
     }
   }
-  return allowPlaceholder ? placeholderDataUri : null;
+  return placeholderDataUri;
 }
 
-async function patchGlbImagesToDataUris(
-  buffer,
-  kind,
-  sourceUrl,
-  modelUrls,
-  cache,
-  { allowPlaceholder = true } = {}
-) {
+async function patchGlbImagesToDataUris(buffer, kind, sourceUrl, modelUrls, cache) {
   const { json, binChunk } = decodeGlb(buffer);
   const cloned = JSON.parse(JSON.stringify(json));
   const images = Array.isArray(cloned.images) ? cloned.images : [];
@@ -2224,12 +2209,7 @@ async function patchGlbImagesToDataUris(
     const image = images[i];
     if (typeof image.uri === 'string') {
       // eslint-disable-next-line no-await-in-loop
-      image.uri = await resolveExternalImageToDataUri(image.uri, kind, sourceUrl, modelUrls, cache, {
-        allowPlaceholder
-      });
-      if (!image.uri) {
-        throw new Error(`Unable to resolve external GLB texture: ${sourceUrl} -> ${image.uri}`);
-      }
+      image.uri = await resolveExternalImageToDataUri(image.uri, kind, sourceUrl, modelUrls, cache);
       delete image.bufferView;
       image.mimeType = image.mimeType ?? 'image/png';
       continue;
