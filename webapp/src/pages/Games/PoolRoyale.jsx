@@ -4253,22 +4253,22 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
   {
     id: 'chrome',
     label: 'Chrome',
-    color: 0xd6d8dc,
-    metalness: 0.95,
-    roughness: 0.12,
-    clearcoat: 0.5,
-    clearcoatRoughness: 0.06,
-    envMapIntensity: 0.72
+    color: 0xd7dde7,
+    metalness: 1,
+    roughness: 0.055,
+    clearcoat: 1,
+    clearcoatRoughness: 0.025,
+    envMapIntensity: 7.2
   },
   {
     id: 'gold',
     label: 'Gold',
-    color: 0xd4af37,
-    metalness: 0.92,
-    roughness: 0.16,
-    clearcoat: 0.5,
-    clearcoatRoughness: 0.06,
-    envMapIntensity: 0.72
+    color: 0xd8b23d,
+    metalness: 0.98,
+    roughness: 0.06,
+    clearcoat: 1,
+    clearcoatRoughness: 0.03,
+    envMapIntensity: 6.8
   }
 ]);
 
@@ -4419,7 +4419,7 @@ const normalizeShowoodTableStyle = (value = {}) => {
 };
 const getShowoodPartOption = (style, part) => {
   const normalized = normalizeShowoodTableStyle(style);
-  const optionPart = part === 'sideWoodApron' ? 'baseCornerBlock' : part === 'verticalCornerRim' ? 'baseFoot' : part;
+  const optionPart = ['sideWoodApron', 'cornerPocketPlate', 'middlePocketPlate', 'verticalCornerRim', 'lowerTrim'].includes(part) ? 'railSight' : part;
   const optionId = normalized[optionPart];
   const options = getShowoodTablePartOptions(optionPart);
   return options.find((option) => option.id === optionId) || options[0] || null;
@@ -12916,8 +12916,10 @@ export function Table3D(
   const createConfiguredGLTFLoader = (renderer = null, manager = null) => {
     const loader = new GLTFLoader(manager ?? undefined);
     loader.setCrossOrigin('anonymous');
-    const draco = new DRACOLoader();
+    const draco = new DRACOLoader(manager ?? undefined);
     draco.setDecoderPath(DRACO_DECODER_PATH);
+    draco.setDecoderConfig({ type: 'js' });
+    draco.preload();
     loader.setDRACOLoader(draco);
     const ktx2 = ensurePolyhavenKtx2Loader(renderer);
     loader.setKTX2Loader(ktx2);
@@ -13091,13 +13093,18 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
     cushion: 'cushion',
     topWoodRail: 'topWoodRail',
     wood: 'topWoodRail',
-    sideWoodApron: 'baseCornerBlock',
+    sideWoodApron: 'railSight',
     railSight: 'railSight',
     trim: 'railSight',
     pocket: 'pocketCup',
-    verticalCornerRim: 'baseFoot',
+    pocketCup: 'pocketCup',
+    cornerPocketPlate: 'railSight',
+    middlePocketPlate: 'railSight',
+    verticalCornerRim: 'railSight',
+    lowerTrim: 'railSight',
     baseFoot: 'baseFoot',
     baseCornerBlock: 'baseCornerBlock',
+    underside: 'baseCornerBlock',
     leg: 'leg'
   };
   const part = roleToPart[role] || 'topWoodRail';
@@ -13209,6 +13216,73 @@ function getPoolRoyaleGeometryMaterialIndexAt(geometry, offset) {
   if (!geometry?.groups?.length) return 0;
   const group = geometry.groups.find((entry) => offset >= entry.start && offset < entry.start + entry.count);
   return group?.materialIndex ?? 0;
+}
+
+
+const SHOWOOD_MAPPED_TABLE_PARTS = Object.freeze([
+  'cloth',
+  'cushion',
+  'topWoodRail',
+  'sideWoodApron',
+  'pocketCup',
+  'cornerPocketPlate',
+  'middlePocketPlate',
+  'verticalCornerRim',
+  'baseCornerBlock',
+  'leg',
+  'baseFoot',
+  'lowerTrim',
+  'railSight',
+  'underside'
+]);
+const SHOWOOD_FINE_TABLE_PARTS = new Set([
+  'pocketCup',
+  'cornerPocketPlate',
+  'middlePocketPlate',
+  'verticalCornerRim',
+  'baseCornerBlock',
+  'lowerTrim',
+  'railSight',
+  'underside'
+]);
+const getPoolRoyaleShowoodLinkedPart = (part) => (
+  ['sideWoodApron', 'cornerPocketPlate', 'middlePocketPlate', 'verticalCornerRim', 'lowerTrim'].includes(part)
+    ? 'railSight'
+    : part === 'underside'
+      ? 'baseCornerBlock'
+      : part
+);
+const cleanPoolRoyaleShowoodSlotName = (value) => (`${value || 'unnamed'}`).replace(/\s+/g, '_').toLowerCase();
+const makePoolRoyaleShowoodSlotKey = (mesh, sourceMaterialIndex, material) =>
+  `${cleanPoolRoyaleShowoodSlotName(mesh?.name)}::slot_${sourceMaterialIndex}::${cleanPoolRoyaleShowoodSlotName(material?.name)}`;
+const createPoolRoyaleShowoodSlotStat = () => ({
+  total: 0,
+  dominantPart: 'sideWoodApron',
+  dominantRatio: 1,
+  parts: SHOWOOD_MAPPED_TABLE_PARTS.reduce((acc, part) => {
+    acc[part] = 0;
+    return acc;
+  }, {})
+});
+function updatePoolRoyaleShowoodSlotStat(stats, sourceSlot, part) {
+  const stat = stats.get(sourceSlot) || createPoolRoyaleShowoodSlotStat();
+  stat.total += 1;
+  stat.parts[part] = (stat.parts[part] || 0) + 1;
+  stat.dominantPart = SHOWOOD_MAPPED_TABLE_PARTS.reduce(
+    (best, item) => ((stat.parts[item] || 0) > (stat.parts[best] || 0) ? item : best),
+    stat.dominantPart
+  );
+  stat.dominantRatio = stat.total > 0 ? (stat.parts[stat.dominantPart] || 0) / stat.total : 1;
+  stats.set(sourceSlot, stat);
+}
+function resolvePoolRoyaleShowoodPartFromSlot(part, sourceSlot, slotStats) {
+  const stat = slotStats.get(sourceSlot);
+  if (!stat) return part;
+  const mixedClothCushion = (stat.parts.cloth || 0) > 0 && (stat.parts.cushion || 0) > 0;
+  if (SHOWOOD_FINE_TABLE_PARTS.has(part) && part !== stat.dominantPart) return part;
+  if (mixedClothCushion && (part === 'cloth' || part === 'cushion')) return part;
+  if ((part === 'cloth' || part === 'cushion') && stat.dominantRatio >= 0.88) return stat.dominantPart;
+  return stat.dominantRatio >= 0.965 ? stat.dominantPart : part;
 }
 
 function resolvePoolRoyaleShowoodSpatialContext(mesh, geometry, aIndex, bIndex, cIndex, tableBox, tableCenter, tableSize) {
@@ -13358,6 +13432,26 @@ function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInf
   if (tableBox.isEmpty()) return;
   const tableCenter = tableBox.getCenter(new THREE.Vector3());
   const tableSize = tableBox.getSize(new THREE.Vector3());
+  const slotStats = new Map();
+  model.traverse((mesh) => {
+    if (!mesh?.isMesh || !mesh.geometry?.attributes?.position) return;
+    const sourceGeometry = mesh.geometry;
+    const position = sourceGeometry.attributes.position;
+    const oldIndex = sourceGeometry.index;
+    const totalIndices = oldIndex ? oldIndex.count : position.count;
+    const sourceMaterials = Array.isArray(mesh.material) ? mesh.material : [mesh.material].filter(Boolean);
+    if (!sourceMaterials.length) return;
+    for (let i = 0; i + 2 < totalIndices; i += 3) {
+      const a = oldIndex ? oldIndex.getX(i) : i;
+      const b = oldIndex ? oldIndex.getX(i + 1) : i + 1;
+      const c = oldIndex ? oldIndex.getX(i + 2) : i + 2;
+      const sourceMaterialIndex = Math.max(0, Math.min(getPoolRoyaleGeometryMaterialIndexAt(sourceGeometry, i), sourceMaterials.length - 1));
+      const sourceMaterial = sourceMaterials[sourceMaterialIndex];
+      const sourceSlot = makePoolRoyaleShowoodSlotKey(mesh, sourceMaterialIndex, sourceMaterial);
+      const part = resolvePoolRoyaleShowoodTrianglePart(mesh, sourceGeometry, sourceMaterial, a, b, c, tableBox, tableCenter, tableSize);
+      updatePoolRoyaleShowoodSlotStat(slotStats, sourceSlot, part);
+    }
+  });
   model.traverse((mesh) => {
     if (!mesh?.isMesh || !mesh.geometry?.attributes?.position) return;
     const sourceGeometry = mesh.geometry;
@@ -13373,7 +13467,7 @@ function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInf
     const finalMaterials = [];
     const materialLookup = new Map();
     const getMaterialIndex = (sourceMaterialIndex, part, cushionShadow = false) => {
-      const linkedPart = part === 'sideWoodApron' ? 'baseCornerBlock' : part === 'verticalCornerRim' ? 'baseFoot' : part;
+      const linkedPart = getPoolRoyaleShowoodLinkedPart(part);
       const key = `${sourceMaterialIndex}:${linkedPart}:${cushionShadow ? 'shadow' : 'main'}`;
       if (materialLookup.has(key)) return materialLookup.get(key);
       const source = sourceMaterials[Math.max(0, Math.min(sourceMaterialIndex, sourceMaterials.length - 1))];
@@ -13408,7 +13502,9 @@ function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInf
       const c = oldIndex ? oldIndex.getX(i + 2) : i + 2;
       const sourceMaterialIndex = Math.max(0, Math.min(getPoolRoyaleGeometryMaterialIndexAt(sourceGeometry, i), sourceMaterials.length - 1));
       const sourceMaterial = sourceMaterials[sourceMaterialIndex];
-      const part = resolvePoolRoyaleShowoodTrianglePart(mesh, sourceGeometry, sourceMaterial, a, b, c, tableBox, tableCenter, tableSize);
+      const sourceSlot = makePoolRoyaleShowoodSlotKey(mesh, sourceMaterialIndex, sourceMaterial);
+      const rawPart = resolvePoolRoyaleShowoodTrianglePart(mesh, sourceGeometry, sourceMaterial, a, b, c, tableBox, tableCenter, tableSize);
+      const part = resolvePoolRoyaleShowoodPartFromSlot(rawPart, sourceSlot, slotStats);
       const cushionShadow = part === 'cushion' && isPoolRoyaleShowoodCushionShadowTriangle(mesh, sourceGeometry, a, b, c, tableBox, tableCenter, tableSize);
       const materialIndex = getMaterialIndex(sourceMaterialIndex, part, cushionShadow);
       const start = finalIndex.length;
@@ -13603,7 +13699,10 @@ async function loadPoolRoyaleExternalTableTemplate(tableModel, renderer = null) 
     return poolRoyaleExternalTablePromises.get(tableModel.id);
   }
   const promise = (async () => {
-    const loader = createConfiguredGLTFLoader(renderer);
+    const manager = new THREE.LoadingManager();
+    manager.onStart = () => console.debug?.(`Pool Royale loading table model: ${tableModel.id}`);
+    manager.onError = (url) => console.warn('Pool Royale table asset failed', { tableModelId: tableModel.id, url });
+    const loader = createConfiguredGLTFLoader(renderer, manager);
     let lastError = null;
     const urls = [tableModel.assetUrl, tableModel.fallbackAssetUrl].filter(Boolean);
     for (const url of urls) {
@@ -17445,10 +17544,10 @@ function PoolRoyaleGame({
   useEffect(() => {
     setShowoodTableStyle((current) => {
       const next = normalizeShowoodTableStyle(current);
-      const linkedRailSight = chromeColorId === 'gold' ? 'gold' : 'chrome';
-      return next.railSight === linkedRailSight
+      const linkedMetal = chromeColorId === 'gold' ? 'gold' : 'chrome';
+      return next.railSight === linkedMetal && next.baseFoot === linkedMetal
         ? next
-        : { ...next, railSight: linkedRailSight };
+        : { ...next, railSight: linkedMetal, baseFoot: linkedMetal };
     });
   }, [chromeColorId]);
   useEffect(() => {
