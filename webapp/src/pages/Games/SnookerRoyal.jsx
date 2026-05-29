@@ -1090,7 +1090,7 @@ const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
 const FRAME_RAIL_OUTWARD_SCALE = 1.38; // expand wooden frame rails outward by 38% on all sides
 const RAIL_HEIGHT = TABLE.THICK * 1.9; // match Pool Royale rail/cushion top height
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.024; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
-const POCKET_JAW_MAPPING_RADIUS_SCALE = 1.02; // slightly expand jaw collision arcs so balls cannot slip past the GLB pocket lips
+const POCKET_JAW_MAPPING_RADIUS_SCALE = 1.04; // expand jaw collision arcs to match the visible GLB jaw lips and close corner escape seams
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
 const POCKET_JAW_CORNER_INNER_SCALE = 1.44; // pull the inner lip farther outward so the jaw profile runs longer and thins slightly while keeping the chrome-facing radius untouched
@@ -5654,7 +5654,7 @@ const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.96;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.94;
-const STANDING_VIEW_DISTANCE_SCALE = 0.22; // pull the standing camera closer to the table so players appear visibly nearer in standing view on portrait screens
+const STANDING_VIEW_DISTANCE_SCALE = 0.18; // pull the standing camera closer to the table so players appear visibly nearer in standing view on portrait screens
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -6654,11 +6654,58 @@ function reflectRails(ball) {
   const pocketGuard = POCKET_GUARD_RADIUS;
   const guardClearance = POCKET_GUARD_CLEARANCE;
   const cornerDepthLimit = CORNER_POCKET_DEPTH_LIMIT;
+  const centers = pocketCenters();
+  const resolveBoundaryFallback = () => {
+    const insideCapture = centers.some((center, index) => {
+      const captureRadius = index >= 4 ? SIDE_CAPTURE_R : CAPTURE_R;
+      return ball.pos.distanceTo(center) <= captureRadius;
+    });
+    if (insideCapture) return null;
+
+    let collided = null;
+    let collisionNormal = null;
+    if (ball.pos.x < -railLimitX) {
+      const overshoot = -railLimitX - ball.pos.x;
+      ball.pos.x = -railLimitX + overshoot;
+      if (ball.vel.x < 0) ball.vel.x = Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
+      collided = 'rail';
+      collisionNormal = new THREE.Vector2(1, 0);
+    } else if (ball.pos.x > railLimitX) {
+      const overshoot = ball.pos.x - railLimitX;
+      ball.pos.x = railLimitX - overshoot;
+      if (ball.vel.x > 0) ball.vel.x = -Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
+      collided = 'rail';
+      collisionNormal = new THREE.Vector2(-1, 0);
+    }
+
+    if (ball.pos.y < -railLimitY) {
+      const overshoot = -railLimitY - ball.pos.y;
+      ball.pos.y = -railLimitY + overshoot;
+      if (ball.vel.y < 0) ball.vel.y = Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
+      collided = 'rail';
+      collisionNormal = new THREE.Vector2(0, 1);
+    } else if (ball.pos.y > railLimitY) {
+      const overshoot = ball.pos.y - railLimitY;
+      ball.pos.y = railLimitY - overshoot;
+      if (ball.vel.y > 0) ball.vel.y = -Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
+      collided = 'rail';
+      collisionNormal = new THREE.Vector2(0, -1);
+    }
+
+    if (!collided) return null;
+    const stamp =
+      typeof performance !== 'undefined' && performance.now
+        ? performance.now()
+        : Date.now();
+    ball.lastRailHitAt = stamp;
+    ball.lastRailHitType = collided;
+    const normal = collisionNormal ?? new THREE.Vector2(0, 1);
+    return { type: collided, normal, tangent: new THREE.Vector2(-normal.y, normal.x) };
+  };
   const hasCushionSegments =
     Array.isArray(CUSHION_SEGMENTS) && CUSHION_SEGMENTS.length > 0;
   const jawContactRadius = railRadius;
   if (hasCushionSegments) {
-    const centers = pocketCenters();
     let nearestPocketDist = Infinity;
     let nearestCaptureRadius = CAPTURE_R;
     let nearestPocketIndex = 0;
@@ -6682,6 +6729,9 @@ function reflectRails(ball) {
       // bypass left small corridors between the physical GLB cushion nose and the
       // procedural capture zone, allowing the cue ball to escape the table.
       if (inCaptureZone && inGuardZone && segment.type === 'cut') continue;
+      if (segment.type === 'jaw' && segment.center && segment.captureRadius != null) {
+        if (ball.pos.distanceTo(segment.center) <= segment.captureRadius) continue;
+      }
       const velocityToward = ball.vel.dot(segment.normal);
       if (velocityToward >= 0) continue;
       TMP_VEC2_A.copy(segment.end).sub(segment.start);
@@ -6702,6 +6752,15 @@ function reflectRails(ball) {
       const dist = Math.sqrt(distSq);
       const penetration = contactRadius - dist;
       if (penetration <= 0) continue;
+      TMP_VEC2_LIMIT.copy(TMP_VEC2_D);
+      if (TMP_VEC2_LIMIT.lengthSq() > 1e-10) {
+        TMP_VEC2_LIMIT.normalize();
+        if (TMP_VEC2_LIMIT.dot(segment.normal) < 0) {
+          TMP_VEC2_LIMIT.multiplyScalar(-1);
+        }
+      } else {
+        TMP_VEC2_LIMIT.copy(segment.normal);
+      }
       if (penetration > bestPenetration) {
         bestPenetration = penetration;
         bestImpact = {
@@ -6711,8 +6770,8 @@ function reflectRails(ball) {
               : segment.type === 'jaw'
                 ? 'jaw'
                 : 'rail',
-          normal: segment.normal.clone(),
-          tangent: new THREE.Vector2(-segment.normal.y, segment.normal.x)
+          normal: TMP_VEC2_LIMIT.clone(),
+          tangent: new THREE.Vector2(-TMP_VEC2_LIMIT.y, TMP_VEC2_LIMIT.x)
         };
       }
     }
@@ -6751,6 +6810,41 @@ function reflectRails(ball) {
         tangent: bestImpact.tangent.clone()
       };
     }
+    for (let i = 0; i < centers.length; i += 1) {
+      const center = centers[i];
+      if (!center) continue;
+      const captureRadius = i >= 4 ? SIDE_CAPTURE_R : CAPTURE_R;
+      const jawBaseRadius = i >= 4 ? SIDE_POCKET_RADIUS : POCKET_VIS_R;
+      const jawRadius = jawBaseRadius * POCKET_VISUAL_EXPANSION;
+      TMP_VEC2_A.copy(ball.pos).sub(center);
+      const distSq = TMP_VEC2_A.lengthSq();
+      if (distSq <= 1e-10) continue;
+      const dist = Math.sqrt(distSq);
+      if (dist <= captureRadius || dist >= jawRadius + railRadius) continue;
+      TMP_VEC2_A.multiplyScalar(1 / dist);
+      const velocityToward = ball.vel.dot(TMP_VEC2_A);
+      if (velocityToward <= 0) continue;
+      const penetration = jawRadius + railRadius - dist;
+      if (penetration <= 0) continue;
+      ball.pos.addScaledVector(TMP_VEC2_A, penetration);
+      const vn = ball.vel.dot(TMP_VEC2_A);
+      if (vn < 0) {
+        ball.vel.addScaledVector(TMP_VEC2_A, -(1 + CUSHION_RESTITUTION * 0.55) * vn);
+      }
+      const stamp =
+        typeof performance !== 'undefined' && performance.now
+          ? performance.now()
+          : Date.now();
+      ball.lastRailHitAt = stamp;
+      ball.lastRailHitType = 'jaw';
+      return {
+        type: 'jaw',
+        normal: TMP_VEC2_A.clone(),
+        tangent: new THREE.Vector2(-TMP_VEC2_A.y, TMP_VEC2_A.x)
+      };
+    }
+    const boundaryFallback = resolveBoundaryFallback();
+    if (boundaryFallback) return boundaryFallback;
   }
   if (!hasCushionSegments) {
     for (const { sx, sy } of CORNER_SIGNS) {
@@ -6841,13 +6935,14 @@ function reflectRails(ball) {
       }
     }
 
-    // If the ball is entering a pocket capture zone, skip straight rail reflections
-    const nearPocketRadius =
-      Math.max(CAPTURE_R, SIDE_CAPTURE_R) + BALL_R * 0.22;
-    const nearPocket = pocketCenters().some(
-      (c) => ball.pos.distanceTo(c) < nearPocketRadius
-    );
-    if (nearPocket) return null;
+    // If the ball is already inside a real pocket capture zone, skip straight rail reflections.
+    // Near-jaw misses still use the final boundary clamp so they cannot leak out between
+    // a corner cushion and the pocket hardware.
+    const insideCapture = centers.some((center, index) => {
+      const captureRadius = index >= 4 ? SIDE_CAPTURE_R : CAPTURE_R;
+      return ball.pos.distanceTo(center) < captureRadius;
+    });
+    if (insideCapture) return null;
     let collided = null;
     let collisionNormal = null;
     if (ball.pos.x < -railLimitX && ball.vel.x < 0) {
