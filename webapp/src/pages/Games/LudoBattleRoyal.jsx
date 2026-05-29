@@ -419,10 +419,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/webaverse/pistol/master/military.glb',
       'https://cdn.statically.io/gh/webaverse/pistol/master/military.glb'
     ],
-    scale: 0.13,
-    textureOverrideUrls: [
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/AK47.jpeg'
-    ]
+    scale: 0.13
   },
   uziSprayAttack: {
     label: 'Uzi',
@@ -438,13 +435,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/AK47/scene.gltf',
       'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/AK47/scene.gltf'
     ],
-    scale: 0.24,
-    forceTextureOverride: true,
-    textureOverrideUrls: [
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/AK47/textures/Material.001_baseColor.png',
-      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/AK47/textures/Material.001_baseColor.png',
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/AK47.jpeg'
-    ]
+    scale: 0.24
   },
   krsvBurstAttack: {
     label: 'KRSV',
@@ -476,10 +467,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models3/SigSauer/scene.gltf',
       'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models3/SigSauer/scene.gltf'
     ],
-    scale: 0.13,
-    textureOverrideUrls: [
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/SigSauer.jpg'
-    ]
+    scale: 0.13
   },
   grenadeBlastAttack: {
     label: 'Grenade Blast',
@@ -488,10 +476,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/friuns2/bingextension/main/grenade.glb',
       'https://cdn.statically.io/gh/friuns2/bingextension/main/grenade.glb'
     ],
-    scale: 0.11,
-    textureOverrideUrls: [
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/SigSauer.jpg'
-    ]
+    scale: 0.11
   },
   shotgunBlastAttack: {
     label: 'Shotgun Blast',
@@ -1433,7 +1418,6 @@ async function loadCaptureWeaponModel(captureAnimationId) {
       const normalized = `${url}`.split('?')[0].split('#')[0].toLowerCase();
       return normalized.endsWith('.gltf');
     };
-    const isPolyPizzaAssetUrl = (url = '') => /^https?:\/\/static\.poly\.pizza\//i.test(`${url}`);
     const assignLoadedGltf = (gltf) => {
       const root = gltf?.scene || gltf?.scenes?.[0] || null;
       if (root && Array.isArray(gltf?.animations) && gltf.animations.length > 0) {
@@ -1444,37 +1428,36 @@ async function loadCaptureWeaponModel(captureAnimationId) {
     for (let i = 0; i < candidateUrls.length; i += 1) {
       const candidateUrl = candidateUrls[i];
       try {
-        if (isGltfAssetUrl(candidateUrl) || isPolyPizzaAssetUrl(candidateUrl)) {
-          // Poly Pizza GLBs already ship with their own material/texture data. Load them
-          // directly first so GLTFLoader can keep the exact embedded PBR texture bindings.
-          // eslint-disable-next-line no-await-in-loop
-          loadedRoot = assignLoadedGltf(await withLoadTimeout(loader.loadAsync(candidateUrl)));
-          if (loadedRoot) break;
-          if (isGltfAssetUrl(candidateUrl)) continue;
+        // Load source GLTF/GLB files directly first so GLTFLoader preserves the model's
+        // original material slots, UV mapping, embedded textures, and relative texture URIs.
+        // eslint-disable-next-line no-await-in-loop
+        loadedRoot = assignLoadedGltf(await withLoadTimeout(loader.loadAsync(candidateUrl)));
+      } catch (error) {
+        // If a GLB has externally referenced images that the browser cannot resolve,
+        // patch those images without placeholders as a last resort. Never replace firearm
+        // source textures with generated/vehicle textures.
+        if (!isGltfAssetUrl(candidateUrl)) {
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            const rawBuffer = await withLoadTimeout(fetchBuffer(candidateUrl));
+            if (rawBuffer) {
+              // eslint-disable-next-line no-await-in-loop
+              const patchedBuffer = await patchGlbImagesToDataUris(
+                rawBuffer,
+                'firearm',
+                candidateUrl,
+                candidateUrls,
+                imageCache,
+                { allowPlaceholder: false }
+              );
+              // eslint-disable-next-line no-await-in-loop
+              loadedRoot = await parseObjectFromBuffer(loader, patchedBuffer);
+            }
+          } catch {
+            // continue to the next original source URL
+          }
         }
-        // eslint-disable-next-line no-await-in-loop
-        const rawBuffer = await withLoadTimeout(fetchBuffer(candidateUrl));
-        if (!rawBuffer) continue;
-        // eslint-disable-next-line no-await-in-loop
-        const patchedBuffer = await patchGlbImagesToDataUris(
-          rawBuffer,
-          'fighter',
-          candidateUrl,
-          candidateUrls,
-          imageCache
-        );
-        // eslint-disable-next-line no-await-in-loop
-        loadedRoot = await parseObjectFromBuffer(loader, patchedBuffer);
-      } catch (error) {
-        // ignore patched path and try direct loader fallback below
-      }
-      if (loadedRoot) break;
-      try {
-        // eslint-disable-next-line no-await-in-loop
-        const gltf = await withLoadTimeout(loader.loadAsync(candidateUrl));
-        loadedRoot = assignLoadedGltf(gltf);
-      } catch (error) {
-        if (i === candidateUrls.length - 1) {
+        if (!loadedRoot && i === candidateUrls.length - 1) {
           console.warn('Capture weapon model load failed', normalizedCaptureAnimationId, candidateUrl, error);
         }
       }
@@ -1486,27 +1469,6 @@ async function loadCaptureWeaponModel(captureAnimationId) {
     try {
       const root = loadedRoot;
       if (!root) return null;
-      const textureOverrideUrls = Array.isArray(config?.textureOverrideUrls) ? config.textureOverrideUrls.filter(Boolean) : [];
-      const forceTextureOverride = config?.forceTextureOverride === true;
-      let textureOverride = null;
-      if (textureOverrideUrls.length) {
-        const textureLoader = new THREE.TextureLoader();
-        textureLoader.setCrossOrigin?.('anonymous');
-        for (let t = 0; t < textureOverrideUrls.length; t += 1) {
-          try {
-            // eslint-disable-next-line no-await-in-loop
-            textureOverride = await withLoadTimeout(textureLoader.loadAsync(textureOverrideUrls[t]));
-            if (textureOverride) {
-              textureOverride.flipY = false;
-              applySRGBColorSpace(textureOverride);
-              textureOverride.needsUpdate = true;
-              break;
-            }
-          } catch {
-            // keep trying next override
-          }
-        }
-      }
       root.traverse((node) => {
         if (!node?.isMesh) return;
         if (
@@ -1523,9 +1485,6 @@ async function loadCaptureWeaponModel(captureAnimationId) {
         const materials = Array.isArray(node.material) ? node.material : [node.material];
         materials.forEach((material) => {
           if (material?.map) applySRGBColorSpace(material.map);
-          if (textureOverride && (forceTextureOverride || !material?.map)) {
-            material.map = textureOverride;
-          }
           if (material?.emissiveMap) applySRGBColorSpace(material.emissiveMap);
           material.transparent = false;
           material.opacity = 1;
@@ -2169,12 +2128,20 @@ function makePlaceholderTextureDataUri(primary, secondary) {
   return canvas.toDataURL('image/png');
 }
 
-async function resolveExternalImageToDataUri(imageUri, kind, sourceUrl, modelUrls, cache) {
+async function resolveExternalImageToDataUri(
+  imageUri,
+  kind,
+  sourceUrl,
+  modelUrls,
+  cache,
+  { allowPlaceholder = true } = {}
+) {
   if (isDataUri(imageUri)) return imageUri;
   const placeholderColors = {
     drone: ['#7c8791', '#4f5861'],
     helicopter: ['#6f7763', '#4f5648'],
-    fighter: ['#98a1a9', '#646d76']
+    fighter: ['#98a1a9', '#646d76'],
+    firearm: ['#2d3340', '#111827']
   };
   const [primary, secondary] = placeholderColors[kind] ?? ['#6e7681', '#4f5861'];
   const placeholderDataUri = makePlaceholderTextureDataUri(primary, secondary);
@@ -2196,10 +2163,17 @@ async function resolveExternalImageToDataUri(imageUri, kind, sourceUrl, modelUrl
       // ignore candidate
     }
   }
-  return placeholderDataUri;
+  return allowPlaceholder ? placeholderDataUri : null;
 }
 
-async function patchGlbImagesToDataUris(buffer, kind, sourceUrl, modelUrls, cache) {
+async function patchGlbImagesToDataUris(
+  buffer,
+  kind,
+  sourceUrl,
+  modelUrls,
+  cache,
+  { allowPlaceholder = true } = {}
+) {
   const { json, binChunk } = decodeGlb(buffer);
   const cloned = JSON.parse(JSON.stringify(json));
   const images = Array.isArray(cloned.images) ? cloned.images : [];
@@ -2208,8 +2182,14 @@ async function patchGlbImagesToDataUris(buffer, kind, sourceUrl, modelUrls, cach
   for (let i = 0; i < images.length; i += 1) {
     const image = images[i];
     if (typeof image.uri === 'string') {
+      const originalImageUri = image.uri;
       // eslint-disable-next-line no-await-in-loop
-      image.uri = await resolveExternalImageToDataUri(image.uri, kind, sourceUrl, modelUrls, cache);
+      image.uri = await resolveExternalImageToDataUri(originalImageUri, kind, sourceUrl, modelUrls, cache, {
+        allowPlaceholder
+      });
+      if (!image.uri) {
+        throw new Error(`Unable to resolve external GLB texture: ${sourceUrl} -> ${originalImageUri}`);
+      }
       delete image.bufferView;
       image.mimeType = image.mimeType ?? 'image/png';
       continue;
