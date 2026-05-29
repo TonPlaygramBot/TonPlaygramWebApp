@@ -124,7 +124,7 @@ import { computeCueDriveBoost } from './cueShotImpact.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
-  'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/basis/';
+  'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 
 
 const TRAINING_MISS_ATTEMPT_COST = 1;
@@ -4322,18 +4322,16 @@ const SHOWOOD_TABLE_PARTS = Object.freeze([
   'cloth',
   'cushion',
   'topWoodRail',
-  'sideWoodApron',
   'railSight',
-  'baseCornerBlock',
+    'baseCornerBlock',
   'leg',
   'baseFoot'
 ]);
-const SHOWOOD_TABLE_SETUP_HIDDEN_PARTS = new Set(['cloth', 'cushion']);
+const SHOWOOD_TABLE_SETUP_HIDDEN_PARTS = new Set(['cloth', 'cushion', 'railSight', 'baseFoot']);
 const DEFAULT_SHOWOOD_TABLE_STYLE = Object.freeze({
   cloth: 'green',
   cushion: 'green',
   topWoodRail: 'walnut',
-  sideWoodApron: 'gold',
   railSight: 'gold',
   baseCornerBlock: 'black',
   leg: 'black',
@@ -4349,13 +4347,9 @@ const SHOWOOD_TABLE_PART_OPTIONS = Object.freeze({
     { id: 'black', label: 'Black Rubber Cushions', color: '#050505', keepSourceTexture: true, material: { color: 0x050505, roughness: 0.86, metalness: 0, envMapIntensity: 0.55 } }
   ]),
   topWoodRail: Object.freeze([]),
-  sideWoodApron: Object.freeze([
-    { id: 'chrome', label: 'Chrome Side Apron', color: '#d7dde7', material: { color: 0xd7dde7, roughness: 0.055, metalness: 1, envMapIntensity: 7.2, clearcoat: 1, clearcoatRoughness: 0.025 } },
-    { id: 'gold', label: 'Gold Side Apron', color: '#f5d978', material: { color: 0xf5d978, roughness: 0.065, metalness: 1, envMapIntensity: 6.7, clearcoat: 1, clearcoatRoughness: 0.035 } }
-  ]),
   railSight: Object.freeze([
-    { id: 'chrome', label: 'Chrome Rail Sights + Markings', color: '#d7dde7', material: { color: 0xd7dde7, roughness: 0.055, metalness: 1, envMapIntensity: 7.2, clearcoat: 1, clearcoatRoughness: 0.025 } },
-    { id: 'gold', label: 'Gold Rail Sights + Markings', color: '#f5d978', material: { color: 0xf5d978, roughness: 0.065, metalness: 1, envMapIntensity: 6.7, clearcoat: 1, clearcoatRoughness: 0.035 } }
+    { id: 'chrome', label: 'Chrome Apron + Sights', color: '#d7dde7', material: { color: 0xd7dde7, roughness: 0.055, metalness: 1, envMapIntensity: 7.2, clearcoat: 1, clearcoatRoughness: 0.025 } },
+    { id: 'gold', label: 'Gold Apron + Sights', color: '#f5d978', material: { color: 0xf5d978, roughness: 0.065, metalness: 1, envMapIntensity: 6.7, clearcoat: 1, clearcoatRoughness: 0.035 } }
   ]),
   baseCornerBlock: Object.freeze([
     { id: 'brown', label: 'Brown Base', color: '#7b2d11', material: { color: 0x7b2d11, roughness: 0.48, metalness: 0.02, envMapIntensity: 1.1, clearcoat: 0.22, clearcoatRoughness: 0.33 } },
@@ -4371,13 +4365,12 @@ const SHOWOOD_TABLE_PART_LABELS = Object.freeze({
   cloth: 'Field Cloth',
   cushion: 'Cushions',
   topWoodRail: 'Top Rails',
-  sideWoodApron: 'Side Apron',
-  railSight: 'Rail Sights + Markings',
+  railSight: 'Side Apron + Rail Sights',
   baseCornerBlock: 'Table Base',
   leg: 'Legs',
   baseFoot: 'Feet'
 });
-const SHOWOOD_CHROME_LINKED_PARTS = new Set(['sideWoodApron', 'railSight', 'baseFoot']);
+const SHOWOOD_CHROME_LINKED_PARTS = new Set(['railSight', 'baseFoot']);
 const CUSHION_SHADOW_GREY = '#666a72';
 const getShowoodTablePartOptions = (part, clothOptions = null, tableFinishOptions = null) => {
   if (part === 'cloth' || part === 'cushion') {
@@ -4426,7 +4419,7 @@ const normalizeShowoodTableStyle = (value = {}) => {
 };
 const getShowoodPartOption = (style, part) => {
   const normalized = normalizeShowoodTableStyle(style);
-  const optionPart = part === 'verticalCornerRim' ? 'baseFoot' : part;
+  const optionPart = part === 'sideWoodApron' ? 'baseCornerBlock' : part === 'verticalCornerRim' ? 'baseFoot' : part;
   const optionId = normalized[optionPart];
   const options = getShowoodTablePartOptions(optionPart);
   return options.find((option) => option.id === optionId) || options[0] || null;
@@ -12923,10 +12916,8 @@ export function Table3D(
   const createConfiguredGLTFLoader = (renderer = null, manager = null) => {
     const loader = new GLTFLoader(manager ?? undefined);
     loader.setCrossOrigin('anonymous');
-    const draco = new DRACOLoader(manager ?? undefined);
+    const draco = new DRACOLoader();
     draco.setDecoderPath(DRACO_DECODER_PATH);
-    draco.setDecoderConfig({ type: 'js' });
-    draco.preload();
     loader.setDRACOLoader(draco);
     const ktx2 = ensurePolyhavenKtx2Loader(renderer);
     loader.setKTX2Loader(ktx2);
@@ -13100,7 +13091,7 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
     cushion: 'cushion',
     topWoodRail: 'topWoodRail',
     wood: 'topWoodRail',
-    sideWoodApron: 'sideWoodApron',
+    sideWoodApron: 'baseCornerBlock',
     railSight: 'railSight',
     trim: 'railSight',
     pocket: 'pocketCup',
@@ -13148,7 +13139,7 @@ function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, 
     });
   };
 
-  if (part === 'sideWoodApron' || part === 'railSight' || part === 'baseFoot') {
+  if (part === 'railSight' || part === 'baseFoot') {
     copyMaterialLook(materials.trim);
     if (mat.color && Number.isFinite(materialProps.color)) mat.color.set(materialProps.color);
     ['roughness', 'metalness', 'clearcoat', 'clearcoatRoughness', 'envMapIntensity'].forEach((key) => {
@@ -13360,75 +13351,6 @@ function isPoolRoyaleShowoodCushionShadowTriangle(mesh, geometry, aIndex, bIndex
   );
 }
 
-
-const SHOWOOD_FINE_PARTS = new Set([
-  'pocketCup',
-  'cornerPocketPlate',
-  'middlePocketPlate',
-  'verticalCornerRim',
-  'baseCornerBlock',
-  'lowerTrim',
-  'railSight',
-  'underside'
-]);
-const SHOWOOD_TABLE_TRIANGLE_PARTS = Object.freeze([
-  'cloth',
-  'cushion',
-  'topWoodRail',
-  'sideWoodApron',
-  'pocketCup',
-  'cornerPocketPlate',
-  'middlePocketPlate',
-  'verticalCornerRim',
-  'baseCornerBlock',
-  'leg',
-  'baseFoot',
-  'lowerTrim',
-  'railSight',
-  'underside'
-]);
-
-function createPoolRoyaleShowoodSlotStat() {
-  return {
-    total: 0,
-    dominantPart: 'sideWoodApron',
-    dominantRatio: 1,
-    parts: SHOWOOD_TABLE_TRIANGLE_PARTS.reduce((acc, part) => {
-      acc[part] = 0;
-      return acc;
-    }, {})
-  };
-}
-
-function updatePoolRoyaleShowoodSlotStat(stats, sourceSlot, part) {
-  const stat = stats.get(sourceSlot) ?? createPoolRoyaleShowoodSlotStat();
-  stat.total += 1;
-  stat.parts[part] = (stat.parts[part] || 0) + 1;
-  stat.dominantPart = SHOWOOD_TABLE_TRIANGLE_PARTS.reduce(
-    (best, item) => ((stat.parts[item] || 0) > (stat.parts[best] || 0) ? item : best),
-    stat.dominantPart
-  );
-  stat.dominantRatio = stat.total > 0 ? (stat.parts[stat.dominantPart] || 0) / stat.total : 1;
-  stats.set(sourceSlot, stat);
-}
-
-function isPoolRoyaleShowoodMixedClothCushionSlot(stat) {
-  return Boolean(stat && (stat.parts.cloth || 0) > 0 && (stat.parts.cushion || 0) > 0);
-}
-
-function resolvePoolRoyaleShowoodMappedPart(triangle, slotStats) {
-  const stat = slotStats.get(triangle.sourceSlot);
-  if (!stat) return triangle.part;
-  if (SHOWOOD_FINE_PARTS.has(triangle.part) && triangle.part !== stat.dominantPart) return triangle.part;
-  if (isPoolRoyaleShowoodMixedClothCushionSlot(stat) && (triangle.part === 'cloth' || triangle.part === 'cushion')) {
-    return triangle.part;
-  }
-  if ((triangle.part === 'cloth' || triangle.part === 'cushion') && stat.dominantRatio >= 0.88) {
-    return stat.dominantPart;
-  }
-  return stat.dominantRatio >= 0.965 ? stat.dominantPart : triangle.part;
-}
-
 function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInfo = null) {
   if (!model || tableModel?.id !== 'showood-seven-foot' || !finishInfo) return;
   model.updateMatrixWorld(true);
@@ -13450,26 +13372,8 @@ function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInf
     const finalIndex = [];
     const finalMaterials = [];
     const materialLookup = new Map();
-    const slotStats = new Map();
-    const triangles = [];
-    const makeSourceSlot = (sourceMaterialIndex, sourceMaterial) =>
-      `${mesh.name || 'showood_mesh'}::slot_${sourceMaterialIndex}::${sourceMaterial?.name || 'showood_material'}`;
-
-    for (let i = 0; i + 2 < totalIndices; i += 3) {
-      const a = oldIndex ? oldIndex.getX(i) : i;
-      const b = oldIndex ? oldIndex.getX(i + 1) : i + 1;
-      const c = oldIndex ? oldIndex.getX(i + 2) : i + 2;
-      const sourceMaterialIndex = Math.max(0, Math.min(getPoolRoyaleGeometryMaterialIndexAt(sourceGeometry, i), sourceMaterials.length - 1));
-      const sourceMaterial = sourceMaterials[sourceMaterialIndex];
-      const sourceSlot = makeSourceSlot(sourceMaterialIndex, sourceMaterial);
-      const part = resolvePoolRoyaleShowoodTrianglePart(mesh, sourceGeometry, sourceMaterial, a, b, c, tableBox, tableCenter, tableSize);
-      const cushionShadow = part === 'cushion' && isPoolRoyaleShowoodCushionShadowTriangle(mesh, sourceGeometry, a, b, c, tableBox, tableCenter, tableSize);
-      triangles.push({ a, b, c, sourceMaterialIndex, sourceSlot, part, cushionShadow });
-      updatePoolRoyaleShowoodSlotStat(slotStats, sourceSlot, part);
-    }
-
     const getMaterialIndex = (sourceMaterialIndex, part, cushionShadow = false) => {
-      const linkedPart = part === 'verticalCornerRim' ? 'baseFoot' : part;
+      const linkedPart = part === 'sideWoodApron' ? 'baseCornerBlock' : part === 'verticalCornerRim' ? 'baseFoot' : part;
       const key = `${sourceMaterialIndex}:${linkedPart}:${cushionShadow ? 'shadow' : 'main'}`;
       if (materialLookup.has(key)) return materialLookup.get(key);
       const source = sourceMaterials[Math.max(0, Math.min(sourceMaterialIndex, sourceMaterials.length - 1))];
@@ -13498,15 +13402,19 @@ function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInf
       materialLookup.set(key, index);
       return index;
     };
-
-    triangles.forEach((triangle) => {
-      const part = resolvePoolRoyaleShowoodMappedPart(triangle, slotStats);
-      const cushionShadow = part === 'cushion' && triangle.cushionShadow;
-      const materialIndex = getMaterialIndex(triangle.sourceMaterialIndex, part, cushionShadow);
+    for (let i = 0; i + 2 < totalIndices; i += 3) {
+      const a = oldIndex ? oldIndex.getX(i) : i;
+      const b = oldIndex ? oldIndex.getX(i + 1) : i + 1;
+      const c = oldIndex ? oldIndex.getX(i + 2) : i + 2;
+      const sourceMaterialIndex = Math.max(0, Math.min(getPoolRoyaleGeometryMaterialIndexAt(sourceGeometry, i), sourceMaterials.length - 1));
+      const sourceMaterial = sourceMaterials[sourceMaterialIndex];
+      const part = resolvePoolRoyaleShowoodTrianglePart(mesh, sourceGeometry, sourceMaterial, a, b, c, tableBox, tableCenter, tableSize);
+      const cushionShadow = part === 'cushion' && isPoolRoyaleShowoodCushionShadowTriangle(mesh, sourceGeometry, a, b, c, tableBox, tableCenter, tableSize);
+      const materialIndex = getMaterialIndex(sourceMaterialIndex, part, cushionShadow);
       const start = finalIndex.length;
-      finalIndex.push(triangle.a, triangle.b, triangle.c);
+      finalIndex.push(a, b, c);
       finalGeometry.addGroup(start, 3, materialIndex);
-    });
+    }
     finalGeometry.setIndex(finalIndex);
     finalGeometry.computeBoundingBox();
     finalGeometry.computeBoundingSphere();
@@ -13695,8 +13603,7 @@ async function loadPoolRoyaleExternalTableTemplate(tableModel, renderer = null) 
     return poolRoyaleExternalTablePromises.get(tableModel.id);
   }
   const promise = (async () => {
-    const manager = new THREE.LoadingManager();
-    const loader = createConfiguredGLTFLoader(renderer, manager);
+    const loader = createConfiguredGLTFLoader(renderer);
     let lastError = null;
     const urls = [tableModel.assetUrl, tableModel.fallbackAssetUrl].filter(Boolean);
     for (const url of urls) {
@@ -15738,7 +15645,7 @@ function PoolRoyaleGame({
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem('poolRailMarkerShape');
       if (stored && RAIL_MARKER_SHAPE_OPTIONS.some((opt) => opt.id === stored)) {
-        return stored;
+        return stored === 'diamond' ? DEFAULT_RAIL_MARKER_SHAPE : stored;
       }
     }
     return DEFAULT_RAIL_MARKER_SHAPE;
@@ -15747,7 +15654,7 @@ function PoolRoyaleGame({
     return resolveStoredSelection(
       'railMarkerColor',
       'poolRailMarkerColor',
-      (id) => (id === 'gold' || id === 'chrome') && RAIL_MARKER_COLOR_OPTIONS.some((opt) => opt.id === id),
+      (id) => RAIL_MARKER_COLOR_OPTIONS.some((opt) => opt.id === id),
       DEFAULT_RAIL_MARKER_COLOR_ID
     );
   });
@@ -15911,7 +15818,6 @@ function PoolRoyaleGame({
   const availableRailMarkerColors = useMemo(
     () =>
       RAIL_MARKER_COLOR_OPTIONS.filter((option) =>
-        (option.id === 'gold' || option.id === 'chrome') &&
         isPoolOptionUnlocked('railMarkerColor', option.id, poolInventory)
       ),
     [poolInventory]
@@ -16073,10 +15979,7 @@ function PoolRoyaleGame({
     if (!isPoolOptionUnlocked('chromePlateStyle', chromePlateStyleId, poolInventory)) {
       setChromePlateStyleId(DEFAULT_CHROME_PLATE_STYLE_ID);
     }
-    if (
-      (railMarkerColorId !== 'gold' && railMarkerColorId !== 'chrome') ||
-      !isPoolOptionUnlocked('railMarkerColor', railMarkerColorId, poolInventory)
-    ) {
+    if (!isPoolOptionUnlocked('railMarkerColor', railMarkerColorId, poolInventory)) {
       setRailMarkerColorId(DEFAULT_RAIL_MARKER_COLOR_ID);
     }
     if (!isPoolOptionUnlocked('pocketLiner', pocketLinerId, poolInventory)) {
@@ -17542,17 +17445,10 @@ function PoolRoyaleGame({
   useEffect(() => {
     setShowoodTableStyle((current) => {
       const next = normalizeShowoodTableStyle(current);
-      const linkedAccent = chromeColorId === 'gold' ? 'gold' : 'chrome';
-      return next.sideWoodApron === linkedAccent &&
-        next.railSight === linkedAccent &&
-        next.baseFoot === linkedAccent
+      const linkedRailSight = chromeColorId === 'gold' ? 'gold' : 'chrome';
+      return next.railSight === linkedRailSight
         ? next
-        : {
-            ...next,
-            sideWoodApron: linkedAccent,
-            railSight: linkedAccent,
-            baseFoot: linkedAccent
-          };
+        : { ...next, railSight: linkedRailSight };
     });
   }, [chromeColorId]);
   useEffect(() => {
@@ -36380,58 +36276,6 @@ const shotPowerRef = useRef(0);
                         key={option.id}
                         type="button"
                         onClick={() => setChromeColorId(option.id)}
-                        aria-pressed={active}
-                        className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        <span className="flex items-center justify-center gap-2">
-                          <span
-                            className="h-3.5 w-3.5 rounded-full border border-white/40"
-                            style={{ backgroundColor: toHexColor(option.color) }}
-                            aria-hidden="true"
-                          />
-                          {option.label}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Rail Markings
-                </h3>
-                <div className="mt-2 grid grid-cols-3 gap-2">
-                  {RAIL_MARKER_SHAPE_OPTIONS.map((option) => {
-                    const active = option.id === railMarkerShapeId;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setRailMarkerShapeId(option.id)}
-                        aria-pressed={active}
-                        className={`rounded-full border px-2 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_14px_rgba(16,185,129,0.45)]'
-                            : 'border-white/20 bg-white/10 text-white/75 hover:bg-white/20'
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {availableRailMarkerColors.map((option) => {
-                    const active = option.id === railMarkerColorId;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setRailMarkerColorId(option.id)}
                         aria-pressed={active}
                         className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
                           active
