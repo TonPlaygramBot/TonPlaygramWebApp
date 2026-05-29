@@ -39,6 +39,44 @@ const AI_FLAG_STORAGE_KEY = 'poolRoyaleAiFlag';
 const TABLE_FINISH_STORAGE_KEY = 'poolRoyaleTableFinish';
 const TABLE_BASE_STORAGE_KEY = 'poolRoyaleTableBase';
 
+
+const warmedPoolRoyaleTableAssets = new Set();
+
+function scheduleIdleTask(callback, timeout = 800) {
+  if (typeof window === 'undefined') return undefined;
+  if (typeof window.requestIdleCallback === 'function') {
+    return window.requestIdleCallback(callback, { timeout });
+  }
+  return window.setTimeout(callback, 120);
+}
+
+function prewarmPoolRoyaleTableModel(tableModel) {
+  if (typeof window === 'undefined' || !tableModel?.assetUrl) return;
+  const urls = [tableModel.assetUrl, tableModel.fallbackAssetUrl].filter(Boolean);
+  if (!urls.length || warmedPoolRoyaleTableAssets.has(tableModel.id)) return;
+  warmedPoolRoyaleTableAssets.add(tableModel.id);
+
+  urls.slice(0, 1).forEach((url) => {
+    try {
+      const link = document.createElement('link');
+      link.rel = 'prefetch';
+      link.as = 'fetch';
+      link.href = url;
+      link.crossOrigin = 'anonymous';
+      document.head.appendChild(link);
+    } catch {}
+  });
+
+  scheduleIdleTask(async () => {
+    for (const url of urls) {
+      try {
+        const response = await fetch(url, { cache: 'force-cache', mode: 'cors' });
+        if (response?.ok) break;
+      } catch {}
+    }
+  });
+}
+
 function resolveTpcAccountNumber(player) {
   if (!player || typeof player !== 'object') return '';
   return String(
@@ -115,6 +153,9 @@ export default function PoolRoyaleLobby() {
   const selectedAiFlag = aiFlagIndex != null ? FLAG_EMOJIS[aiFlagIndex] : '';
   const selectedTableModelReady = true;
 
+  useEffect(() => {
+    prewarmPoolRoyaleTableModel(selectedTableModel);
+  }, [selectedTableModel]);
 
   useEffect(() => {
     try {
@@ -864,7 +905,7 @@ export default function PoolRoyaleLobby() {
               <div>
                 <h3 className="font-semibold text-white">Pool Table</h3>
                 <p className="mt-1">
-                  Showood 7 ft GLB is now the fixed Pool Royale table.
+                  Showood 7 ft GLB stays as the fixed Pool Royale table and starts preloading from the lobby.
                 </p>
               </div>
               <span className="rounded-full border border-emerald-300/35 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-100">
