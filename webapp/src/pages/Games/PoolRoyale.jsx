@@ -122,7 +122,7 @@ import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
 import { computeCueDriveBoost } from './cueShotImpact.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
-const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
+const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 const BASIS_TRANSCODER_PATH =
   'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 
@@ -379,29 +379,14 @@ const wait = (ms = 0) =>
     window.setTimeout(resolve, ms);
   });
 
-const WEBGL_CONTEXT_IDS = ['webgl2', 'webgl', 'experimental-webgl'];
-
-const tryGetWebGLContext = (canvas, contextId) => {
-  try {
-    return canvas.getContext(contextId);
-  } catch (err) {
-    return null;
-  }
-};
-
-const resolveWebGLContext = (canvas) => {
-  for (const contextId of WEBGL_CONTEXT_IDS) {
-    const gl = tryGetWebGLContext(canvas, contextId);
-    if (gl) return gl;
-  }
-  return null;
-};
-
 function isWebGLAvailable() {
   if (typeof document === 'undefined') return false;
   try {
     const canvas = document.createElement('canvas');
-    const gl = resolveWebGLContext(canvas);
+    const gl =
+      canvas.getContext('webgl2') ||
+      canvas.getContext('webgl') ||
+      canvas.getContext('experimental-webgl');
     return Boolean(gl);
   } catch (err) {
     console.warn('WebGL availability check failed', err);
@@ -527,7 +512,10 @@ function readGraphicsRendererString() {
   }
   try {
     const canvas = document.createElement('canvas');
-    const gl = resolveWebGLContext(canvas);
+    const gl =
+      canvas.getContext('webgl') ||
+      canvas.getContext('experimental-webgl') ||
+      canvas.getContext('webgl2');
     if (!gl) {
       return null;
     }
@@ -596,12 +584,12 @@ function detectPreferredFrameRateId() {
   const rendererTier = classifyRendererTier(readGraphicsRendererString());
 
   if (lowRefresh) {
-    return 'hd50';
+    return 'fhd60';
   }
 
   if (isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile') {
     if ((deviceMemory !== null && deviceMemory <= 4) || hardwareConcurrency <= 4) {
-      return 'hd50';
+      return 'fhd60';
     }
     if (
       (refreshBucket >= 120 || highRefresh) &&
@@ -623,9 +611,7 @@ function detectPreferredFrameRateId() {
   if (refreshBucket >= 120 && (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8)) {
     return 'uhd120';
   }
-  if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) {
-    return 'uhd120';
-  }
+  if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) return 'uhd120';
 
   if (rendererTier === 'desktopMid') {
     return 'qhd90';
@@ -2145,7 +2131,7 @@ function createPoolHumanGLTFLoader(renderer = null) {
     }
   }
   loader.setKTX2Loader(ktx2);
-  loader.setMeshoptDecoder(MeshoptDecoder);
+  loader.setMeshoptDecoder?.(MeshoptDecoder);
   loader.userData = { draco, ktx2 };
   return loader;
 }
@@ -4608,57 +4594,38 @@ const LIGHTING_PRESET_MAP = Object.freeze(
   }, {})
 );
 
-const FRAME_RATE_STORAGE_KEY = 'poolRoyaleFrameRate';
-const LEGACY_FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
+const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
 const AUTO_REPLAY_STORAGE_KEY = 'poolRoyaleAutoReplay';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
-    id: 'hd50',
-    label: 'HD Performance (50 Hz)',
-    fps: 50,
-    renderScale: 1,
-    pixelRatioCap: 1.35,
-    resolution: 'HD render • DPR 1.35 cap',
-    description: 'Low-power profile for faster Pool Royal loading, battery saver, and thermal relief.'
-  },
-  {
     id: 'fhd60',
-    label: 'Full HD (60 Hz)',
+    label: 'Performance (60 Hz)',
     fps: 60,
-    renderScale: 1.1,
-    pixelRatioCap: 1.5,
-    resolution: 'Full HD render • DPR 1.5 cap',
-    description: 'Fast default profile matching the Snooker Royal frame pacing.'
-  },
-  {
-    id: 'fhd90',
-    label: 'Full HD (90 Hz)',
-    fps: 90,
-    renderScale: 1.12,
-    pixelRatioCap: 1.55,
-    resolution: 'Full HD render • DPR 1.55 cap',
-    description: '1080p-focused profile tuned for 90 Hz full-motion play.'
+    renderScale: 1,
+    pixelRatioCap: 1.4,
+    resolution: '2K texture pack • 60 FPS',
+    description: 'Balanced battery profile using Poly Haven 2K assets.'
   },
   {
     id: 'qhd90',
-    label: 'Quad HD (105 Hz)',
-    fps: 105,
-    renderScale: 1.22,
-    pixelRatioCap: 1.72,
-    resolution: 'QHD render • DPR 1.72 cap',
-    description: 'Sharper 1440p render for capable 105 Hz mobile and desktop GPUs.'
+    label: 'Smooth (90 Hz)',
+    fps: 90,
+    renderScale: 1.12,
+    pixelRatioCap: 1.55,
+    resolution: '4K texture pack • 90 FPS',
+    description: 'Sharper Poly Haven 4K assets at a 90 FPS target.'
   },
   {
     id: 'uhd120',
-    label: 'Ultra HD (120 Hz cap)',
+    label: 'Ultra (120 Hz)',
     fps: 120,
-    renderScale: 1.28,
+    renderScale: 1.3,
     pixelRatioCap: 1.85,
-    resolution: 'Ultra HD render • DPR 1.85 cap',
-    description: '4K-oriented profile tuned for smooth play up to 120 Hz.'
+    resolution: 'Desktop: 8K / Mobile: 4K • 120 FPS',
+    description: 'Desktop uses Poly Haven 8K (4K fallback); mobile uses 4K (2K fallback) at 120 FPS target.'
   }
 ]);
-const DEFAULT_FRAME_RATE_ID = 'fhd60';
+const DEFAULT_FRAME_RATE_ID = 'qhd90';
 const GRAPHICS_RESOLUTION_BY_FPS = Object.freeze([
   {
     minFps: 120,
@@ -4704,20 +4671,19 @@ const resolveGraphicsUiScaleFactor = (fps) => {
   if (safeFps >= 90) return 1.04;
   return 1;
 };
-const INITIAL_GRAPHICS_RESOLUTION_TIER = resolveGraphicsResolutionTier(60);
 let runtimeTextureProfile = Object.freeze({
-  textureSize: INITIAL_GRAPHICS_RESOLUTION_TIER.textureSize,
+  textureSize: resolveGraphicsResolutionTier(90).textureSize,
   anisotropy: CLOTH_QUALITY.anisotropy,
   generateMipmaps: CLOTH_QUALITY.generateMipmaps,
-  polyHavenResolution: INITIAL_GRAPHICS_RESOLUTION_TIER.key,
-  hdriResolution: INITIAL_GRAPHICS_RESOLUTION_TIER.key,
-  polyHavenPreferredResolutions: INITIAL_GRAPHICS_RESOLUTION_TIER.preferredResolutions,
-  polyHavenFallbackResolution: INITIAL_GRAPHICS_RESOLUTION_TIER.fallbackResolution,
-  hdriPreferredResolutions: Object.freeze([INITIAL_GRAPHICS_RESOLUTION_TIER.key]),
-  hdriFallbackResolution: INITIAL_GRAPHICS_RESOLUTION_TIER.fallbackResolution,
-  enforceTableFinishTextureSize: INITIAL_GRAPHICS_RESOLUTION_TIER.textureSize,
-  cueTextureSize: INITIAL_GRAPHICS_RESOLUTION_TIER.textureSize,
-  pocketTextureSize: Math.min(2048, INITIAL_GRAPHICS_RESOLUTION_TIER.textureSize)
+  polyHavenResolution: '4k',
+  hdriResolution: '4k',
+  polyHavenPreferredResolutions: Object.freeze(['4k', '2k']),
+  polyHavenFallbackResolution: '2k',
+  hdriPreferredResolutions: Object.freeze(['4k']),
+  hdriFallbackResolution: '4k',
+  enforceTableFinishTextureSize: 4096,
+  cueTextureSize: 4096,
+  pocketTextureSize: 2048
 });
 
 const updateRuntimeTextureProfile = ({ fps } = {}) => {
@@ -12893,7 +12859,6 @@ export function Table3D(
   };
 
   let polyhavenKtx2Loader = null;
-  let hasDetectedPolyhavenKtx2Support = false;
   const polyhavenBaseTemplates = new Map();
   const polyhavenBasePromises = new Map();
 
@@ -12902,10 +12867,9 @@ export function Table3D(
       polyhavenKtx2Loader = new KTX2Loader();
       polyhavenKtx2Loader.setTranscoderPath(BASIS_TRANSCODER_PATH);
     }
-    if (renderer && !hasDetectedPolyhavenKtx2Support) {
+    if (renderer) {
       try {
         polyhavenKtx2Loader.detectSupport(renderer);
-        hasDetectedPolyhavenKtx2Support = true;
       } catch (error) {
         console.warn('Pool Royale KTX2 support detection failed', error);
       }
@@ -12913,15 +12877,15 @@ export function Table3D(
     return polyhavenKtx2Loader;
   };
 
-  const createConfiguredGLTFLoader = (renderer = null, manager = null) => {
-    const loader = new GLTFLoader(manager ?? undefined);
+  const createConfiguredGLTFLoader = (renderer = null) => {
+    const loader = new GLTFLoader();
     loader.setCrossOrigin('anonymous');
     const draco = new DRACOLoader();
     draco.setDecoderPath(DRACO_DECODER_PATH);
     loader.setDRACOLoader(draco);
     const ktx2 = ensurePolyhavenKtx2Loader(renderer);
     loader.setKTX2Loader(ktx2);
-    loader.setMeshoptDecoder(MeshoptDecoder);
+    loader.setMeshoptDecoder?.(MeshoptDecoder);
     return loader;
   };
 
@@ -13594,26 +13558,6 @@ function clonePoolRoyaleExternalTableTemplate(template, tableModel = null, finis
   return clone;
 }
 
-const waitForPoolRoyaleCosmeticLoadSlot = () =>
-  new Promise((resolve) => {
-    if (typeof window === 'undefined') {
-      resolve();
-      return;
-    }
-    const settleAfterPaint = () => {
-      if (typeof window.requestAnimationFrame === 'function') {
-        window.requestAnimationFrame(() => window.requestAnimationFrame(resolve));
-        return;
-      }
-      window.setTimeout(resolve, 0);
-    };
-    if (typeof window.requestIdleCallback === 'function') {
-      window.requestIdleCallback(settleAfterPaint, { timeout: 900 });
-      return;
-    }
-    window.setTimeout(settleAfterPaint, 180);
-  });
-
 async function loadPoolRoyaleExternalTableTemplate(tableModel, renderer = null) {
   if (!tableModel?.assetUrl) return null;
   if (poolRoyaleExternalTableTemplates.has(tableModel.id)) {
@@ -13623,9 +13567,7 @@ async function loadPoolRoyaleExternalTableTemplate(tableModel, renderer = null) 
     return poolRoyaleExternalTablePromises.get(tableModel.id);
   }
   const promise = (async () => {
-    await waitForPoolRoyaleCosmeticLoadSlot();
-    const cosmeticManager = new THREE.LoadingManager();
-    const loader = createConfiguredGLTFLoader(renderer, cosmeticManager);
+    const loader = createConfiguredGLTFLoader(renderer);
     let lastError = null;
     const urls = [tableModel.assetUrl, tableModel.fallbackAssetUrl].filter(Boolean);
     for (const url of urls) {
@@ -15197,8 +15139,6 @@ function PoolRoyaleGame({
   const navigate = useNavigate();
   const location = useLocation();
   const mountRef = useRef(null);
-  const [loadingProgress, setLoadingProgress] = useState(0);
-  const [loadingActive, setLoadingActive] = useState(true);
   const rafRef = useRef(null);
   const worldRef = useRef(null);
   const rules = useMemo(() => new PoolRoyaleRules(variantKey), [variantKey]);
@@ -15340,67 +15280,6 @@ function PoolRoyaleGame({
   const rematchIncomingTimerRef = useRef(null);
   const [rematchCountdown, setRematchCountdown] = useState(0);
   const [incomingCountdown, setIncomingCountdown] = useState(0);
-  useEffect(() => {
-    const manager = THREE.DefaultLoadingManager;
-    let cancelled = false;
-    const prev = {
-      onStart: manager.onStart,
-      onLoad: manager.onLoad,
-      onProgress: manager.onProgress,
-      onError: manager.onError
-    };
-    const updateProgress = (loaded, total) => {
-      const safeTotal = Number.isFinite(total) && total > 0 ? total : Math.max(1, loaded || 1);
-      const ratio = Number.isFinite(loaded) ? loaded / safeTotal : 0;
-      setLoadingProgress(Math.max(0, Math.min(1, ratio)));
-    };
-    const syncManagerState = () => {
-      const loaded = Number(manager.itemsLoaded || 0);
-      const total = Number(manager.itemsTotal || 0);
-      if (total > 0) {
-        updateProgress(loaded, total);
-        if (loaded >= total) {
-          setLoadingProgress(1);
-          setLoadingActive(false);
-        }
-      } else {
-        setLoadingProgress(0);
-        setLoadingActive(false);
-      }
-    };
-    manager.onStart = (url, loaded, total) => {
-      prev.onStart?.(url, loaded, total);
-      if (cancelled) return;
-      setLoadingActive(true);
-      updateProgress(loaded, total);
-    };
-    manager.onProgress = (url, loaded, total) => {
-      prev.onProgress?.(url, loaded, total);
-      if (cancelled) return;
-      updateProgress(loaded, total);
-    };
-    manager.onLoad = () => {
-      prev.onLoad?.();
-      if (cancelled) return;
-      setLoadingProgress(1);
-      window.setTimeout(() => {
-        if (!cancelled) setLoadingActive(false);
-      }, 200);
-    };
-    manager.onError = (url) => {
-      prev.onError?.(url);
-      if (cancelled) return;
-      setLoadingProgress((prevValue) => Math.max(prevValue, 0.9));
-    };
-    syncManagerState();
-    return () => {
-      cancelled = true;
-      manager.onStart = prev.onStart;
-      manager.onLoad = prev.onLoad;
-      manager.onProgress = prev.onProgress;
-      manager.onError = prev.onError;
-    };
-  }, []);
   const coinStyleInjectedRef = useRef(false);
   const ensureCoinBurstStyles = useCallback(() => {
     if (coinStyleInjectedRef.current || typeof document === 'undefined') return;
@@ -15717,9 +15596,7 @@ function PoolRoyaleGame({
   const [activeTablePersonalizationPart, setActiveTablePersonalizationPart] = useState('topWoodRail');
   const [frameRateId, setFrameRateId] = useState(() => {
     if (typeof window !== 'undefined') {
-      const stored =
-        window.localStorage.getItem(FRAME_RATE_STORAGE_KEY) ||
-        window.localStorage.getItem(LEGACY_FRAME_RATE_STORAGE_KEY);
+      const stored = window.localStorage.getItem(FRAME_RATE_STORAGE_KEY);
       if (stored && FRAME_RATE_OPTIONS.some((opt) => opt.id === stored)) {
         return stored;
       }
@@ -18334,12 +18211,6 @@ const shotPowerRef = useRef(0);
     const renderer = rendererRef.current;
     const host = mountRef.current;
     if (!renderer || !host) return;
-    const fallbackWidth =
-      typeof window !== 'undefined' ? window.innerWidth || document.documentElement?.clientWidth || 0 : 0;
-    const fallbackHeight =
-      typeof window !== 'undefined' ? window.innerHeight || document.documentElement?.clientHeight || 0 : 0;
-    const hostWidth = host.clientWidth || fallbackWidth;
-    const hostHeight = host.clientHeight || fallbackHeight;
     const quality = frameQualityRef.current;
     const timing = frameTimingRef.current;
     const targetMs =
@@ -18368,7 +18239,7 @@ const shotPowerRef = useRef(0);
       highFpsBias < 1 ? cappedDpr * (0.92 + highFpsBias * 0.08) : cappedDpr;
     const resolvedPixelRatio = Math.max(1, performanceDpr);
     renderer.setPixelRatio(resolvedPixelRatio);
-    renderer.setSize(hostWidth * renderScale, hostHeight * renderScale, false);
+    renderer.setSize(host.clientWidth * renderScale, host.clientHeight * renderScale, false);
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
   }, []);
@@ -20457,7 +20328,7 @@ const shotPowerRef = useRef(0);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
       renderer.sortObjects = true;
-      renderer.shadowMap.enabled = false;
+      renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       rendererRef.current = renderer;
       updateRendererAnisotropyCap(renderer);
@@ -37465,47 +37336,6 @@ const shotPowerRef = useRef(0);
             }
           }}
           />
-        </div>
-      )}
-
-      {loadingActive && !err && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 px-6 text-white">
-          <div className="flex w-full max-w-sm flex-col items-center gap-4 text-center">
-            <div className="w-full rounded-3xl border border-cyan-300/40 bg-slate-950/70 p-5 shadow-[0_24px_48px_rgba(0,0,0,0.6)]">
-              <svg
-                viewBox="0 0 320 200"
-                className="h-36 w-full"
-                role="img"
-                aria-label="Pool Royal loading"
-              >
-                <rect x="8" y="24" width="304" height="152" rx="18" fill="#0f766e" stroke="#67e8f9" strokeWidth="6" />
-                <rect x="34" y="50" width="252" height="100" rx="12" fill="#155e75" />
-                <circle cx="34" cy="50" r="10" fill="#020617" />
-                <circle cx="286" cy="50" r="10" fill="#020617" />
-                <circle cx="34" cy="150" r="10" fill="#020617" />
-                <circle cx="286" cy="150" r="10" fill="#020617" />
-                <circle cx="160" cy="50" r="10" fill="#020617" />
-                <circle cx="160" cy="150" r="10" fill="#020617" />
-                <circle cx="126" cy="100" r="9" fill="#f8fafc" />
-                <circle cx="166" cy="100" r="9" fill="#facc15" />
-                <circle cx="206" cy="100" r="9" fill="#ef4444" />
-              </svg>
-            </div>
-            <div className="w-full">
-              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-cyan-100">
-                Loading Pool Royal
-              </p>
-              <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/10">
-                <div
-                  className="h-full rounded-full bg-cyan-300 transition-[width] duration-200"
-                  style={{ width: `${Math.round(loadingProgress * 100)}%` }}
-                />
-              </div>
-              <p className="mt-2 text-sm text-white/80">
-                {Math.round(loadingProgress * 100)}%
-              </p>
-            </div>
-          </div>
         </div>
       )}
 
