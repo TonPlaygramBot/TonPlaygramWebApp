@@ -754,6 +754,8 @@ const WEAPON_PARKED_ROLL_BY_KIND = Object.freeze({
 const SNAKE_CAPTURE_WEAPON_KIND_MAP = Object.freeze({
   missileJavelin: 'javelin',
   droneAttack: 'drone',
+  ukrainianDroneAttack: 'drone',
+  ukrainiandroneattack: 'drone',
   fighterJetAttack: 'fighter',
   helicopterAttack: 'helicopter',
   fpsGunAttack: 'supportTruck',
@@ -5524,23 +5526,47 @@ const GLB_JSON_CHUNK = 0x4e4f534a;
 const GLB_BIN_CHUNK = 0x004e4942;
 
 function isAbsoluteUrl(uri) {
-  return /^https?:\/\//i.test(uri) || uri.startsWith('blob:');
+  return /^(https?:)?\/\//i.test(uri) || uri.startsWith('blob:');
 }
 
 function isDataUri(uri) {
   return typeof uri === 'string' && uri.startsWith('data:');
 }
 
+function normalizeResourcePath(resourceUrl) {
+  try {
+    return decodeURIComponent(resourceUrl).replace(/\\/g, '/').replace(/^\.\//, '');
+  } catch {
+    return resourceUrl.replace(/\\/g, '/').replace(/^\.\//, '');
+  }
+}
+
+function toJsDelivrFromRawUrl(url) {
+  const match = String(url).match(/^https:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/([^/]+)\/(.+)$/i);
+  if (!match) return null;
+  return `https://cdn.jsdelivr.net/gh/${match[1]}/${match[2]}@${match[3]}/${match[4]}`;
+}
+
+function toRawFromJsDelivrUrl(url) {
+  const match = String(url).match(/^https:\/\/cdn\.jsdelivr\.net\/gh\/([^/]+)\/([^@/]+)@([^/]+)\/(.+)$/i);
+  if (!match) return null;
+  return `https://raw.githubusercontent.com/${match[1]}/${match[2]}/${match[3]}/${match[4]}`;
+}
+
 function uniqueStrings(values) {
-  return Array.from(new Set(values));
+  return Array.from(new Set(values.filter(Boolean)));
+}
+
+function urlAlternates(url) {
+  return uniqueStrings([url, toRawFromJsDelivrUrl(url), toJsDelivrFromRawUrl(url)]);
 }
 
 function buildImageCandidates(imageUri, sourceUrl, modelUrls) {
-  if (isAbsoluteUrl(imageUri)) return uniqueStrings([imageUri]);
+  const normalizedUri = normalizeResourcePath(String(imageUri || ''));
+  if (isAbsoluteUrl(normalizedUri) || isDataUri(normalizedUri)) return urlAlternates(normalizedUri);
   return uniqueStrings([
-    imageUri,
-    new URL(imageUri, sourceUrl).href,
-    ...modelUrls.map((modelUrl) => new URL(imageUri, modelUrl).href)
+    ...urlAlternates(new URL(normalizedUri, sourceUrl).href),
+    ...modelUrls.flatMap((modelUrl) => urlAlternates(new URL(normalizedUri, modelUrl).href))
   ]);
 }
 
@@ -5650,7 +5676,11 @@ async function fetchBuffer(url) {
 async function fetchBlob(url) {
   const response = await fetch(url, { mode: 'cors' });
   if (!response.ok) throw new Error(`Fetch blob failed: ${response.status}`);
-  return response.blob();
+  const blob = await response.blob();
+  if (/text\/html|text\/plain/i.test(blob.type || '')) {
+    throw new Error(`Rejected non-asset response ${blob.type}: ${url}`);
+  }
+  return blob;
 }
 
 function parseObjectFromBuffer(loader, buffer) {
@@ -6019,14 +6049,15 @@ function createPolySeatWeaponMesh(weaponType) {
 function createSeatWeaponMesh(weaponType = 'fighter', options = {}) {
   const parkingPose = options?.parkingPose === 'vertical' ? 'vertical' : 'horizontal';
   const rawWeaponType = typeof weaponType === 'string' ? weaponType.trim() : '';
-  const catalogWeaponType = SNAKE_CAPTURE_WEAPON_OPTION_BY_ID[rawWeaponType] ? rawWeaponType : null;
-  const normalizedWeaponType = normalizeSnakeCaptureWeaponKind(rawWeaponType || weaponType);
+  const catalogOption = SNAKE_CAPTURE_WEAPON_OPTION_BY_ID[rawWeaponType] || null;
+  const catalogWeaponType = catalogOption ? rawWeaponType : null;
+  const normalizedWeaponType = catalogOption?.vehicleKind || normalizeSnakeCaptureWeaponKind(rawWeaponType || weaponType);
   const isVehicleWeapon = ['supportTruck', 'drone', 'helicopter', 'fighter', 'javelin'].includes(
     normalizedWeaponType
   );
   const firearmScale = isVehicleWeapon ? 1 : FIREARM_DISPLAY_SIZE_MULTIPLIER;
   const firearmModelScaleById = catalogWeaponType ? FIREARM_MODEL_SCALE_BY_ID[catalogWeaponType] ?? 1 : 1;
-  if (catalogWeaponType) {
+  if (catalogWeaponType && !catalogOption?.vehicleKind) {
     const holder = new THREE.Group();
     const fallback = createPolySeatWeaponMesh(normalizedWeaponType);
     fallback.scale.multiplyScalar(firearmScale);
