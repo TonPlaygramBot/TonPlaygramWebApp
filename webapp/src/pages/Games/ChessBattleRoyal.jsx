@@ -67,6 +67,11 @@ import GiftPopup from '../../components/GiftPopup.jsx';
 import InfoPopup from '../../components/InfoPopup.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import { socket } from '../../utils/socket.js';
+import {
+  findExactUkrainianDroneRotor,
+  isExactUkrainianDroneObject,
+  loadExactUkrainianDroneModel
+} from '../../utils/ukrainianDroneModel.js';
 import { giftSounds } from '../../utils/giftSounds.js';
 import { CAPTURE_ANIMATION_OPTIONS } from '../../config/ludoBattleOptions.js';
 import { LUDO_WEAPON_DIRECTOR_BRIDGE } from '../../config/ludoWeaponDirectorBridge.js';
@@ -8485,6 +8490,8 @@ function Chess3D({
   const QUICK_SWAP_WEAPON_IDS = useMemo(
     () =>
       [
+        'ukrainianDroneAttack',
+        'droneAttack',
         'polyShotgun01Attack',
         'polyAssaultRifle01Attack',
         'polyPistol01Attack',
@@ -8563,13 +8570,15 @@ function Chess3D({
     if (!weaponSwapTargetKind) return pool;
 
     // Parked pads (jet / drone / helicopter / truck) can now be swapped with any owned firearm.
-    // Keep full firearm inventory visible when player taps one of those parked vehicles.
+    // On portrait phones, keep the matching vehicle options first so Ukrainian Drone is visible
+    // immediately at the top of the drone quick-swap sheet instead of below the firearm list.
     if (['jet', 'drone', 'helicopter', 'truck'].includes(weaponSwapTargetKind)) {
-      const firearmAndOriginalVehicle = pool.filter((option) => {
-        if (FIREARM_CAPTURE_ANIMATION_IDS.has(option.id)) return true;
-        return isCaptureAnimationVisibleOnParkedKind(option.id, weaponSwapTargetKind);
-      });
-      if (firearmAndOriginalVehicle.length) return firearmAndOriginalVehicle;
+      const matchingVehicles = pool.filter(
+        (option) => !FIREARM_CAPTURE_ANIMATION_IDS.has(option.id) && isCaptureAnimationVisibleOnParkedKind(option.id, weaponSwapTargetKind)
+      );
+      const firearms = pool.filter((option) => FIREARM_CAPTURE_ANIMATION_IDS.has(option.id));
+      const ordered = [...matchingVehicles, ...firearms];
+      if (ordered.length) return ordered;
     }
 
     const filtered = pool.filter((option) => {
@@ -10716,6 +10725,16 @@ function Chess3D({
 
     const loadCaptureUnitTemplate = async (key, targetSize) => {
       if (captureUnitTemplates[key]) return captureUnitTemplates[key];
+      if (key === 'drone') {
+        if (!captureUnitLoads.exactUkrainianDrone) {
+          captureUnitLoads.exactUkrainianDrone = loadExactUkrainianDroneModel(renderer).then((model) => {
+            normalizeModel(model, targetSize);
+            captureUnitTemplates[key] = model;
+            return model;
+          });
+        }
+        return captureUnitLoads.exactUkrainianDrone;
+      }
       if (captureUnitLoads[key]) return captureUnitLoads[key];
       const urls = CAPTURE_MODEL_URLS[key] || [];
       const loader = createConfiguredGLTFLoader(renderer);
@@ -11047,7 +11066,7 @@ function Chess3D({
       return badge;
     };
     const setUkrainianDroneAccentsVisible = (root, visible = true) => {
-      if (!root) return null;
+      if (!root || isExactUkrainianDroneObject(root)) return null;
       if (!root.userData.ukrainianDroneAccentGroup) {
         const accentGroup = new THREE.Group();
         accentGroup.name = 'ukrainian-drone-blue-yellow-accents';
@@ -11100,8 +11119,9 @@ function Chess3D({
           model.getObjectByName('Propeller') ||
           model.getObjectByName('Rotor') ||
           model;
-        applyMilitaryDroneLook(model, propeller, getCaptureToneSeed('drone'));
-        return { root, propeller, exhaustClouds: [] };
+        const exactDronePropeller = isExactUkrainianDroneObject(model) ? findExactUkrainianDroneRotor(model) : null;
+        if (!isExactUkrainianDroneObject(model)) applyMilitaryDroneLook(model, propeller, getCaptureToneSeed('drone'));
+        return { root, propeller: exactDronePropeller || propeller, exhaustClouds: [] };
       }
       const root = new THREE.Group();
       root.scale.setScalar(0.3);
