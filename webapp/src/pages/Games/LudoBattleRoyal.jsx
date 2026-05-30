@@ -9077,8 +9077,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         CAPTURE_ANIMATION_OPTIONS[optionIndex]?.id ?? CAPTURE_ANIMATION_OPTIONS[0]?.id ?? 'missileJavelin';
       if (entry?.jet) entry.jet.visible = selectedCaptureAnimationId === 'fighterJetAttack';
       if (entry?.helicopter) entry.helicopter.visible = selectedCaptureAnimationId === 'helicopterAttack';
-      if (entry?.drone) entry.drone.visible = (selectedCaptureAnimationId === 'droneAttack' || selectedCaptureAnimationId === 'ukrainianDroneAttack');
-      if (entry?.droneTruck) entry.droneTruck.visible = false;
+      if (entry?.drone) entry.drone.visible = false;
+      if (entry?.droneTruck) entry.droneTruck.visible = (selectedCaptureAnimationId === 'droneAttack' || selectedCaptureAnimationId === 'ukrainianDroneAttack');
       if (entry?.missile) entry.missile.visible = selectedCaptureAnimationId === 'missileJavelin';
       if (entry?.weaponRack) {
         const showFirearm = FIREARM_CAPTURE_ANIMATION_IDS.has(selectedCaptureAnimationId);
@@ -11941,9 +11941,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         };
         const captureTuning = resolveCaptureAttackTuning(resolvedCaptureAnimationId);
         const isHelicopterAttack = resolvedCaptureAnimationId === 'helicopterAttack';
-        const isShahadDroneAttack = resolvedCaptureAnimationId === 'droneAttack';
-        const isUkrainianDroneAttack = resolvedCaptureAnimationId === 'ukrainianDroneAttack';
-        const isDroneAttack = isShahadDroneAttack || isUkrainianDroneAttack;
+        const isDroneAttack = (resolvedCaptureAnimationId === 'droneAttack' || resolvedCaptureAnimationId === 'ukrainianDroneAttack');
         const isFighterJetAttack = resolvedCaptureAnimationId === 'fighterJetAttack';
         const isFirearmAttack = FIREARM_CAPTURE_ANIMATION_IDS.has(resolvedCaptureAnimationId);
         if (isFirearmAttack) {
@@ -12494,7 +12492,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             : isHelicopterAttack
             ? parkedEntry?.helicopterPark?.clone?.()
             : isDroneAttack
-            ? parkedEntry?.dronePark?.clone?.()
+            ? parkedEntry?.droneTruckPark?.clone?.() ?? parkedEntry?.dronePark?.clone?.()
             : isMissileTruckAttack
             ? parkedEntry?.missilePark?.clone?.()
             : null;
@@ -12504,13 +12502,23 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             : resolvedCaptureAnimationId === 'helicopterAttack'
             ? parkedEntry?.helicopter
             : (resolvedCaptureAnimationId === 'droneAttack' || resolvedCaptureAnimationId === 'ukrainianDroneAttack')
-            ? parkedEntry?.drone
+            ? parkedEntry?.droneTruck ?? parkedEntry?.drone
             : resolvedCaptureAnimationId === 'missileJavelin'
             ? parkedEntry?.missile
             : null;
         parkedReloadMissile = parkedEntry?.reloadMissile ?? null;
         parkedReloadMissileLocalPosition = parkedEntry?.reloadMissileLocalPosition ?? null;
         parkedReloadMissileLocalRotation = parkedEntry?.reloadMissileLocalRotation ?? null;
+        if (isDroneAttack) {
+          const parkedPayloads = Array.isArray(parkedEntry?.droneTruckPayloads) ? parkedEntry.droneTruckPayloads : [];
+          if (parkedPayloads.length > 0) {
+            const nextPayloadIndex = Number.isFinite(parkedEntry?.nextDronePayloadIndex)
+              ? parkedEntry.nextDronePayloadIndex
+              : 0;
+            parkedDronePayload = parkedPayloads[((nextPayloadIndex % parkedPayloads.length) + parkedPayloads.length) % parkedPayloads.length];
+            parkedEntry.nextDronePayloadIndex = (nextPayloadIndex + 1) % parkedPayloads.length;
+          }
+        }
         stopCaptureVehicleSounds();
         if (isHelicopterAttack) {
           stopFighterJetSound();
@@ -12532,8 +12540,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const jetMissiles =
           resolvedCaptureAnimationId === 'fighterJetAttack' || resolvedCaptureAnimationId === 'helicopterAttack'
             ? [createCaptureMissileFx({ withTrail: true }), createCaptureMissileFx({ withTrail: true })]
-            : isUkrainianDroneAttack
-            ? [createCaptureMissileFx({ withTrail: false })]
             : [];
         const explosion = createCaptureExplosionFx();
         scene.add(primaryFx.root);
@@ -12580,7 +12586,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         if (jetMissiles.length) {
           const jetMissileScale =
             missileThicknessScale *
-            (isUkrainianDroneAttack ? 0.46 : isHelicopterAttack ? 0.68 : 0.78) *
+            (isHelicopterAttack ? 0.68 : 0.78) *
             CAPTURE_MISSILE_SIZE_MULTIPLIER;
           jetMissiles.forEach((entry) => {
             entry.root.scale.set(jetMissileScale, jetMissileScale, jetMissileScale);
@@ -12641,22 +12647,20 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const baseTravelTime =
           resolvedCaptureAnimationId === 'fighterJetAttack'
             ? 2860
-            : (resolvedCaptureAnimationId === 'helicopterAttack' || resolvedCaptureAnimationId === 'ukrainianDroneAttack')
+            : resolvedCaptureAnimationId === 'helicopterAttack'
             ? 3320
-            : resolvedCaptureAnimationId === 'droneAttack'
+            : (resolvedCaptureAnimationId === 'droneAttack' || resolvedCaptureAnimationId === 'ukrainianDroneAttack')
             ? 1780
             : 1780;
         const airAttackSlowFactor =
           resolvedCaptureAnimationId === 'fighterJetAttack' ||
           resolvedCaptureAnimationId === 'helicopterAttack' ||
-          resolvedCaptureAnimationId === 'droneAttack' ||
-          resolvedCaptureAnimationId === 'ukrainianDroneAttack'
+          (resolvedCaptureAnimationId === 'droneAttack' || resolvedCaptureAnimationId === 'ukrainianDroneAttack')
             ? CAPTURE_AIRCRAFT_SLOW_FACTOR
             : 1;
         const travelTime =
           resolvedCaptureAnimationId === 'fighterJetAttack' ||
-          resolvedCaptureAnimationId === 'helicopterAttack' ||
-          resolvedCaptureAnimationId === 'ukrainianDroneAttack'
+          resolvedCaptureAnimationId === 'helicopterAttack'
             ? baseTravelTime * 1.3 * airAttackSlowFactor
             : baseTravelTime * airAttackSlowFactor;
         const tunedTravelTime = travelTime * captureTuning.speed;
@@ -12664,7 +12668,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const flyAwayDuration =
           resolvedCaptureAnimationId === 'fighterJetAttack'
             ? 900
-            : (resolvedCaptureAnimationId === 'helicopterAttack' || resolvedCaptureAnimationId === 'ukrainianDroneAttack')
+            : resolvedCaptureAnimationId === 'helicopterAttack'
             ? 900
             : 0;
         const topStrikeHeight = Math.max(bishopHeight * 1.55, TILE_HALF_HEIGHT * 2.2);
@@ -12759,7 +12763,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           const apexHeight =
             selectedCaptureAnimationId === 'fighterJetAttack'
               ? liveTarget.y + topStrikeLift.y * 0.54 * CAPTURE_AIRCRAFT_ALTITUDE_FACTOR
-              : (selectedCaptureAnimationId === 'helicopterAttack' || selectedCaptureAnimationId === 'ukrainianDroneAttack')
+              : selectedCaptureAnimationId === 'helicopterAttack'
               ? liveTarget.y + topStrikeLift.y * 0.72 * CAPTURE_AIRCRAFT_ALTITUDE_FACTOR
               : liveTarget.y + topStrikeLift.y;
           const apex = new THREE.Vector3(
@@ -12811,9 +12815,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           const phaseSplit =
             selectedCaptureAnimationId === 'fighterJetAttack'
               ? 0.84
-            : (selectedCaptureAnimationId === 'helicopterAttack' || selectedCaptureAnimationId === 'ukrainianDroneAttack')
+            : selectedCaptureAnimationId === 'helicopterAttack'
               ? 0.84
-              : selectedCaptureAnimationId === 'droneAttack'
+              : (selectedCaptureAnimationId === 'droneAttack' || selectedCaptureAnimationId === 'ukrainianDroneAttack')
               ? 0.78
               : 0.84;
           if (elapsed < tunedTravelTime) {
@@ -12840,14 +12844,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   .add(new THREE.Vector3(0, topStrikeHeight * 0.2, 0));
                 return quadraticBezier(apex, apex.clone().lerp(flyByEnd, 0.5), flyByEnd, d);
               }
-              if (selectedCaptureAnimationId === 'helicopterAttack' || selectedCaptureAnimationId === 'ukrainianDroneAttack') {
+              if (selectedCaptureAnimationId === 'helicopterAttack') {
                 const flyByEnd = dynamicTo
                   .clone()
                   .add(dynamicTo.clone().sub(arenaCenter).setY(0).normalize().multiplyScalar(orbitalRadius * 0.85))
                   .add(new THREE.Vector3(0, topStrikeHeight * 0.2, 0));
                 return quadraticBezier(apex, apex.clone().lerp(flyByEnd, 0.5), flyByEnd, d);
               }
-              const isDroneStrike = selectedCaptureAnimationId === 'droneAttack';
+              const isDroneStrike = (selectedCaptureAnimationId === 'droneAttack' || selectedCaptureAnimationId === 'ukrainianDroneAttack');
               if (isDroneStrike) {
                 return quadraticBezier(apex, apex.clone().lerp(dynamicTo, 0.46), dynamicTo, d);
               }
@@ -12882,7 +12886,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             }
             const isVerticalImpactVehicle =
               selectedCaptureAnimationId === 'missileJavelin' ||
-              selectedCaptureAnimationId === 'droneAttack';
+              (selectedCaptureAnimationId === 'droneAttack' || selectedCaptureAnimationId === 'ukrainianDroneAttack');
             if (isVerticalImpactVehicle && u > phaseSplit) {
               primaryFx.root.quaternion.setFromUnitVectors(MISSILE_FORWARD, new THREE.Vector3(0, -1, 0));
             }
@@ -12947,7 +12951,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             let cameraFollowMissileObject = null;
             let cameraFollowMissilePosition = null;
             if (
-              (selectedCaptureAnimationId === 'fighterJetAttack' || selectedCaptureAnimationId === 'helicopterAttack' || selectedCaptureAnimationId === 'ukrainianDroneAttack') &&
+              (selectedCaptureAnimationId === 'fighterJetAttack' || selectedCaptureAnimationId === 'helicopterAttack') &&
               jetMissiles.length
             ) {
               const releaseStart = tunedTravelTime * 0.56;
@@ -12969,26 +12973,20 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   playMissileLaunchSound();
                 }
                 const sideOffset = missileIndex === 0 ? -0.045 : 0.045;
-                const launchPos = selectedCaptureAnimationId === 'ukrainianDroneAttack'
-                  ? new THREE.Vector3(dynamicTo.x, Math.max(pos.y - 0.02, dynamicTo.y + topStrikeHeight * 0.85), dynamicTo.z)
-                  : pos.clone().add(right.clone().multiplyScalar(sideOffset));
+                const launchPos = pos.clone().add(right.clone().multiplyScalar(sideOffset));
                 const missileEntry = launchPos.clone().lerp(hitTop, 0.72);
                 missileEntry.y += topStrikeHeight * 0.12;
                 const missilePos =
-                  selectedCaptureAnimationId === 'ukrainianDroneAttack'
-                    ? launchPos.clone().lerp(dynamicTo, missileU)
-                    : missileU < 0.74
+                  missileU < 0.74
                     ? launchPos.clone().lerp(missileEntry, missileU / 0.74)
                     : missileEntry.clone().lerp(dynamicTo, (missileU - 0.74) / 0.26);
-                const missileNext = selectedCaptureAnimationId === 'ukrainianDroneAttack'
-                  ? launchPos.clone().lerp(dynamicTo, clamp(missileU + 0.03, 0, 1))
-                  : quadraticBezier(
-                      missileU < 0.74 ? launchPos : missileEntry,
-                      missileU < 0.74 ? missileEntry : missileEntry,
-                      dynamicTo,
-                      clamp(missileU + 0.03, 0, 1)
-                    );
-                if (selectedCaptureAnimationId !== 'ukrainianDroneAttack' && missileU >= 0.74) {
+                const missileNext = quadraticBezier(
+                  missileU < 0.74 ? launchPos : missileEntry,
+                  missileU < 0.74 ? missileEntry : missileEntry,
+                  dynamicTo,
+                  clamp(missileU + 0.03, 0, 1)
+                );
+                if (missileU >= 0.74) {
                   missileNext.x = missilePos.x;
                   missileNext.z = missilePos.z;
                 }
@@ -13001,7 +12999,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   cameraFollowMissilePosition = missilePos.clone();
                 }
                 if (
-                  (selectedCaptureAnimationId === 'helicopterAttack' || selectedCaptureAnimationId === 'ukrainianDroneAttack') &&
+                  selectedCaptureAnimationId === 'helicopterAttack' &&
                   helicopterMissileImpactAt == null &&
                   missileU >= 0.96
                 ) {
@@ -13012,12 +13010,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   playCapture();
                 }
                 jetMissile.trail.forEach((puff, i) => {
-                  if (selectedCaptureAnimationId === 'ukrainianDroneAttack') {
-                    puff.visible = false;
-                    if (puff.material) puff.material.opacity = 0;
-                    return;
-                  }
-                  puff.visible = true;
                   puff.position.set(-0.5 - i * 0.14, Math.sin(elapsed * 0.024 + i + missileIndex) * 0.02, 0);
                   puff.scale.setScalar(0.85 + i * 0.12 + missileU * 0.5);
                 });
@@ -13026,11 +13018,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             if (cameraFollowMissileObject && cameraFollowMissilePosition) {
               trackAttackCamera(cameraFollowMissilePosition, dynamicTo, u, cameraFollowMissileObject, 10);
             }
-            if ((selectedCaptureAnimationId === 'fighterJetAttack' || selectedCaptureAnimationId === 'helicopterAttack' || selectedCaptureAnimationId === 'ukrainianDroneAttack') && u > 0.88) {
+            if ((selectedCaptureAnimationId === 'fighterJetAttack' || selectedCaptureAnimationId === 'helicopterAttack') && u > 0.88) {
               const retreatDir = pos.clone().sub(dynamicTo).setY(0).normalize();
               primaryFx.root.position.addScaledVector(retreatDir, (u - 0.88) * 1.5);
             }
-            if ((selectedCaptureAnimationId === 'helicopterAttack' || selectedCaptureAnimationId === 'ukrainianDroneAttack') && helicopterMissileImpactAt != null) {
+            if (selectedCaptureAnimationId === 'helicopterAttack' && helicopterMissileImpactAt != null) {
               const impactElapsed = (elapsed - helicopterMissileImpactAt) / 1000;
               updateExplosionRig(impactElapsed);
             } else {
@@ -13056,7 +13048,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             flyAwayDir.normalize();
             const flyAwayStart = liveExitFrom.clone().add(new THREE.Vector3(0, topStrikeHeight * 0.32, 0));
             const shouldLandAtPark =
-              (selectedCaptureAnimationId === 'fighterJetAttack' || selectedCaptureAnimationId === 'helicopterAttack' || selectedCaptureAnimationId === 'ukrainianDroneAttack') &&
+              (selectedCaptureAnimationId === 'fighterJetAttack' || selectedCaptureAnimationId === 'helicopterAttack') &&
               parkedLaunch?.isVector3;
             const parkedReturn =
               shouldLandAtPark
@@ -13101,8 +13093,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             entry.root.visible = false;
           });
           const useHelicopterMissileImpact =
-            (selectedCaptureAnimationId === 'helicopterAttack' || selectedCaptureAnimationId === 'ukrainianDroneAttack') &&
-            helicopterMissileImpactAt != null;
+            selectedCaptureAnimationId === 'helicopterAttack' && helicopterMissileImpactAt != null;
           const explosionElapsed = useHelicopterMissileImpact
             ? (elapsed - helicopterMissileImpactAt) / 1000
             : (elapsed - tunedTravelTime) / 1000;

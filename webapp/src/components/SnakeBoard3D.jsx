@@ -733,7 +733,6 @@ const LUDO_CAPTURE_ATTACK_TUNING_BY_WEAPON = Object.freeze({
   fighter: Object.freeze({ speed: 0.92, height: 0.92, inward: 0.94, takeoff: 0.22, landing: 0.26 }),
   helicopter: Object.freeze({ speed: 0.94, height: 0.92, inward: 0.94, takeoff: 0.22, landing: 0.26 }),
   drone: Object.freeze({ speed: 0.86, height: 0.92, inward: 0.94, takeoff: 0.22, landing: 0.26 }),
-  ukrainianDrone: Object.freeze({ speed: 0.94, height: 0.92, inward: 0.94, takeoff: 0.22, landing: 0.26 }),
   // Pawn javelin and support-truck rockets intentionally match drone speed/altitude profile.
   javelin: Object.freeze({ speed: 0.86, height: 0.92, inward: 0.94, takeoff: 0.22, landing: 0.26 }),
   supportTruck: Object.freeze({ speed: 0.86, height: 0.92, inward: 0.94, takeoff: 0.22, landing: 0.26 })
@@ -755,9 +754,8 @@ const WEAPON_PARKED_ROLL_BY_KIND = Object.freeze({
 const SNAKE_CAPTURE_WEAPON_KIND_MAP = Object.freeze({
   missileJavelin: 'javelin',
   droneAttack: 'drone',
-  ukrainianDroneAttack: 'ukrainianDrone',
-  ukrainiandroneattack: 'ukrainianDrone',
-  ukrainianDrone: 'ukrainianDrone',
+  ukrainianDroneAttack: 'drone',
+  ukrainiandroneattack: 'drone',
   fighterJetAttack: 'fighter',
   helicopterAttack: 'helicopter',
   fpsGunAttack: 'supportTruck',
@@ -870,10 +868,6 @@ function applyFlatTableWeaponParkingPose(object, parkingPose = 'horizontal') {
 
 function normalizeSnakeCaptureWeaponKind(weaponType = 'fighter') {
   return SNAKE_CAPTURE_WEAPON_KIND_MAP[weaponType] || weaponType || 'fighter';
-}
-
-function getSnakeCaptureVehicleModelKind(vehicleKind = 'fighter') {
-  return vehicleKind === 'ukrainianDrone' ? 'drone' : vehicleKind;
 }
 
 function pullPointTowardCenter(point, amount = TILE_EDGE_INSET) {
@@ -6058,7 +6052,7 @@ function createSeatWeaponMesh(weaponType = 'fighter', options = {}) {
   const catalogOption = SNAKE_CAPTURE_WEAPON_OPTION_BY_ID[rawWeaponType] || null;
   const catalogWeaponType = catalogOption ? rawWeaponType : null;
   const normalizedWeaponType = catalogOption?.vehicleKind || normalizeSnakeCaptureWeaponKind(rawWeaponType || weaponType);
-  const isVehicleWeapon = ['supportTruck', 'drone', 'ukrainianDrone', 'helicopter', 'fighter', 'javelin'].includes(
+  const isVehicleWeapon = ['supportTruck', 'drone', 'helicopter', 'fighter', 'javelin'].includes(
     normalizedWeaponType
   );
   const firearmScale = isVehicleWeapon ? 1 : FIREARM_DISPLAY_SIZE_MULTIPLIER;
@@ -6091,13 +6085,13 @@ function createSeatWeaponMesh(weaponType = 'fighter', options = {}) {
     applyFlatTableWeaponParkingPose(polyMesh, parkingPose);
     return polyMesh;
   }
-  const rig = createCaptureVehicleRig(getSnakeCaptureVehicleModelKind(normalizedWeaponType));
+  const rig = createCaptureVehicleRig(normalizedWeaponType);
   const group = rig.root;
   group.visible = true;
   const displayScale =
     normalizedWeaponType === 'supportTruck'
       ? TOKEN_HEIGHT * 0.8
-      : (normalizedWeaponType === 'drone' || normalizedWeaponType === 'ukrainianDrone')
+      : normalizedWeaponType === 'drone'
       ? TOKEN_HEIGHT * 0.75
       : TOKEN_HEIGHT * 0.85;
   group.scale.setScalar(displayScale * 1.5 * WEAPON_DISPLAY_SIZE_MULTIPLIER);
@@ -6581,7 +6575,6 @@ export default function SnakeBoard3D({
       fighter: createCaptureVehicleRig('fighter'),
       helicopter: createCaptureVehicleRig('helicopter'),
       drone: createCaptureVehicleRig('drone'),
-      ukrainianDrone: createCaptureVehicleRig('drone'),
       supportTruck: createCaptureVehicleRig('supportTruck'),
       javelin: createCaptureVehicleRig('javelin')
     };
@@ -7454,7 +7447,7 @@ export default function SnakeBoard3D({
     };
     const vehicleKind = normalizeSnakeCaptureWeaponKind(captureEvent.weaponType || 'fighter');
     const vehicleMap = board.captureFx?.vehicles || {};
-    const primaryVehicle = vehicleMap[vehicleKind] || vehicleMap[getSnakeCaptureVehicleModelKind(vehicleKind)] || vehicleMap.fighter || Object.values(vehicleMap)[0];
+    const primaryVehicle = vehicleMap[vehicleKind] || vehicleMap.fighter || Object.values(vehicleMap)[0];
     const missileProjectile = vehicleMap.javelin || vehicleMap.fighter || Object.values(vehicleMap)[0];
     const explosion = board.captureFx?.explosion;
     if (!primaryVehicle || !missileProjectile || !explosion) {
@@ -7504,19 +7497,14 @@ export default function SnakeBoard3D({
     const bbox = new THREE.Box3().setFromObject(attacker);
     const tokenHeight = Math.max(TOKEN_HEIGHT * 5, bbox.max.y - bbox.min.y);
     primaryVehicle.root.scale.set(tokenHeight, tokenHeight * 0.38, tokenHeight * 0.38);
-    const missileScale = vehicleKind === 'ukrainianDrone'
-      ? { length: tokenHeight * 0.52, thickness: tokenHeight * 0.13 }
-      : { length: tokenHeight * 0.85, thickness: tokenHeight * 0.22 };
-    missileProjectile.root.scale.set(missileScale.length, missileScale.thickness, missileScale.thickness);
+    missileProjectile.root.scale.set(tokenHeight * 0.85, tokenHeight * 0.22, tokenHeight * 0.22);
 
     const startTime = performance.now();
     const stageFlightDuration = CAPTURE_MISSILE_FLIGHT_MS / Math.max(0.58, captureTuning.speed || 1);
     const impactDuration = CAPTURE_EXPLOSION_MS;
     const advanceDuration = CAPTURE_TOKEN_ADVANCE_MS;
-    const isShahadDrone = vehicleKind === 'drone';
-    const isUkrainianDrone = vehicleKind === 'ukrainianDrone';
-    const isDroneLikeAircraft = isShahadDrone || isUkrainianDrone || vehicleKind === 'fighter' || vehicleKind === 'helicopter';
-    const isReturningAircraft = isUkrainianDrone || vehicleKind === 'fighter' || vehicleKind === 'helicopter';
+    const isDroneLikeAircraft = vehicleKind === 'drone' || vehicleKind === 'fighter' || vehicleKind === 'helicopter';
+    const isReturningAircraft = vehicleKind === 'fighter' || vehicleKind === 'helicopter';
     const volleyCount = vehicleKind === 'supportTruck' ? 1 : (isReturningAircraft ? 1 : CAPTURE_MULTI_SHOT_COUNT);
     const perMissileFlight = CAPTURE_MISSILE_FLIGHT_MS;
     const perMissileGap = 120;
@@ -7619,7 +7607,7 @@ export default function SnakeBoard3D({
           return false;
         }
         const attackElapsed = elapsed - stageFlightDuration;
-        if (isShahadDrone && attackElapsed <= droneAttackDuration) {
+        if (vehicleKind === 'drone' && attackElapsed <= droneAttackDuration) {
           const rawU = easeInOut(clamp01(attackElapsed / droneAttackDuration));
           const u = remapTakeoffLandingProgress(rawU, captureTuning.takeoff, captureTuning.landing);
           const nextU = clamp01(u + 0.02);
@@ -7662,22 +7650,12 @@ export default function SnakeBoard3D({
             const rawU = easeInOut(clamp01(missileElapsed / perMissileFlight));
             const u = remapTakeoffLandingProgress(rawU, captureTuning.takeoff, captureTuning.landing);
             const from = aircraftMissileLaunchFrom || centerStage;
-            const pos = isUkrainianDrone
-              ? from.clone().lerp(impact, u).setX(impact.x).setZ(impact.z)
-              : missilePathAt(u, from);
-            const next = isUkrainianDrone
-              ? from.clone().lerp(impact, clamp01(u + 0.02)).setX(impact.x).setZ(impact.z)
-              : missilePathAt(clamp01(u + 0.02), from);
+            const pos = missilePathAt(u, from);
+            const next = missilePathAt(clamp01(u + 0.02), from);
             const dir = next.clone().sub(pos).normalize();
             missileProjectile.root.visible = true;
             missileProjectile.root.position.copy(pos);
             missileProjectile.root.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), dir);
-            if (isUkrainianDrone) {
-              missileProjectile.trail?.forEach((puff) => {
-                puff.visible = false;
-                if (puff.material) puff.material.opacity = 0;
-              });
-            }
           } else {
             missileProjectile.root.visible = false;
           }
@@ -7734,12 +7712,8 @@ export default function SnakeBoard3D({
             const rawU = easeInOut(clamp01(cycleElapsed / perMissileFlight));
             const u = remapTakeoffLandingProgress(rawU, captureTuning.takeoff, captureTuning.landing);
             const from = vehicleKind === 'supportTruck' ? parkedTop : centerStage;
-            const pos = isUkrainianDrone
-              ? from.clone().lerp(impact, u).setX(impact.x).setZ(impact.z)
-              : missilePathAt(u, from);
-            const next = isUkrainianDrone
-              ? from.clone().lerp(impact, clamp01(u + 0.02)).setX(impact.x).setZ(impact.z)
-              : missilePathAt(clamp01(u + 0.02), from);
+            const pos = missilePathAt(u, from);
+            const next = missilePathAt(clamp01(u + 0.02), from);
             const dir = next.clone().sub(pos).normalize();
             missileProjectile.root.visible = true;
             missileProjectile.root.position.copy(pos);
@@ -7753,7 +7727,7 @@ export default function SnakeBoard3D({
           return false;
         }
         missileProjectile.root.visible = false;
-        const impactElapsed = attackElapsed - (isShahadDrone ? droneAttackDuration : volleyDuration);
+        const impactElapsed = attackElapsed - (vehicleKind === 'drone' ? droneAttackDuration : volleyDuration);
         if (impactElapsed <= impactDuration) {
           explosion.root.position.copy(impact);
           updateCaptureExplosionRig(explosion, impactElapsed / 1000);
