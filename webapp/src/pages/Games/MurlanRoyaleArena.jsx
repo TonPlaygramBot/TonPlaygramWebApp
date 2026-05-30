@@ -176,7 +176,11 @@ function hashMurlanCharacterRosterSeed(input) {
 }
 
 function hasMurlanCharacterModelSource(theme) {
-  return Boolean(theme && (theme.url || (Array.isArray(theme.modelUrls) && theme.modelUrls.length)));
+  return Boolean(
+    theme &&
+      !theme.retiredFromMurlanRoster &&
+      (theme.url || (Array.isArray(theme.modelUrls) && theme.modelUrls.length))
+  );
 }
 
 function buildSeatCharacterThemeRoster(baseTheme, players = [], humanSeatIndex = 0, rosterSeed = 0) {
@@ -1737,6 +1741,8 @@ const COMMENTARY_PRIMARY_SPEAKERS = Object.freeze({
   english: MURLAN_ROYALE_SPEAKERS.analyst,
   'latin-pulse': MURLAN_ROYALE_SPEAKERS.analyst
 });
+const MURLAN_SELECTABLE_CHARACTER_THEMES = MURLAN_CHARACTER_THEMES.filter((theme) => !theme?.retiredFromMurlanRoster);
+
 const CUSTOMIZATION_SECTIONS = [
   { key: 'tables', label: 'Table Model', options: TABLE_THEMES },
   { key: 'tableShape', label: 'Table Shape', options: TABLE_SHAPE_OPTIONS },
@@ -1746,7 +1752,7 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'cards', label: 'Cards', options: CARD_THEMES },
   { key: 'stools', label: 'Stools', options: STOOL_THEMES },
   ...(ENABLE_3D_HUMAN_CHARACTERS
-    ? [{ key: 'characters', label: '3D Players', options: MURLAN_CHARACTER_THEMES }]
+    ? [{ key: 'characters', label: '3D Players', options: MURLAN_SELECTABLE_CHARACTER_THEMES }]
     : [])
 ];
 
@@ -1780,7 +1786,7 @@ function normalizeAppearance(value = {}) {
     const raw = Number(value?.[key]);
     if (Number.isFinite(raw)) {
       const clamped = Math.min(Math.max(0, Math.round(raw)), max - 1);
-      normalized[key] = clamped;
+      normalized[key] = key === 'characters' && MURLAN_CHARACTER_THEMES[clamped]?.retiredFromMurlanRoster ? 0 : clamped;
     }
   });
   return normalized;
@@ -2158,14 +2164,55 @@ async function loadGltfChair(urls = CHAIR_MODEL_URLS, rotationY = 0, renderer = 
   };
 }
 
-const CHARACTER_MODEL_CACHE = new Map();
 
-async function loadCharacterModel(theme, renderer = null) {
-  const urls = Array.isArray(theme?.modelUrls) && theme.modelUrls.length
+const MURLAN_CHARACTER_EXCLUDED_ATTACHMENT_PATTERN = /(^|[\s_.:-])(skeleton|skel|soldier|solder)([\s_.:-]|$)/i;
+const MURLAN_SKETCHFAB_CHARACTER_FALLBACK_MODEL_URLS = Object.freeze([
+  'https://threejs.org/examples/models/gltf/readyplayer.me.glb',
+  'https://models.readyplayer.me/67d411b30787acbf58ce58ac.glb',
+  'https://models.readyplayer.me/67f433b69dc08cf26d2cf585.glb'
+]);
+
+function uniqueCharacterModelUrls(urls = []) {
+  return [...new Set(urls.filter((url) => typeof url === 'string' && url.trim()).map((url) => url.trim()))];
+}
+
+function resolveCharacterModelUrls(theme) {
+  const primaryUrls = Array.isArray(theme?.modelUrls) && theme.modelUrls.length
     ? theme.modelUrls
     : theme?.url
       ? [theme.url]
       : [];
+  const fallbackUrls = theme?.sourceFormat === 'sketchfab-converted-gltf'
+    ? MURLAN_SKETCHFAB_CHARACTER_FALLBACK_MODEL_URLS
+    : [];
+  return uniqueCharacterModelUrls([...primaryUrls, ...fallbackUrls]);
+}
+
+function shouldRemoveCharacterAttachment(obj) {
+  if (!obj || obj.isBone) return false;
+  if (!(obj.isMesh || obj.isLine || obj.isLineSegments || obj.isSprite || obj.isPoints)) return false;
+  const names = [obj.name, obj.userData?.name, obj.material?.name, obj.geometry?.name]
+    .filter(Boolean)
+    .join(' ');
+  return MURLAN_CHARACTER_EXCLUDED_ATTACHMENT_PATTERN.test(names);
+}
+
+function removeExcludedCharacterAttachments(root) {
+  if (!root) return;
+  const removable = [];
+  root.traverse((obj) => {
+    if (shouldRemoveCharacterAttachment(obj)) removable.push(obj);
+  });
+  removable.forEach((obj) => {
+    obj.visible = false;
+    obj.parent?.remove(obj);
+  });
+}
+
+const CHARACTER_MODEL_CACHE = new Map();
+
+async function loadCharacterModel(theme, renderer = null) {
+  const urls = resolveCharacterModelUrls(theme);
   if (!urls.length) throw new Error('Missing character model URL');
   const cacheKey = `${theme.id || urls[0]}::${urls.join('|')}`;
   if (CHARACTER_MODEL_CACHE.has(cacheKey)) {
@@ -2190,6 +2237,7 @@ async function loadCharacterModel(theme, renderer = null) {
     }
     const root = gltf.scene || gltf.scenes?.[0];
     if (!root) throw new Error(`Character scene missing for ${theme.id || 'unknown'}`);
+    removeExcludedCharacterAttachments(root);
     prepareLoadedModel(root, { preserveGltfTextureMapping: true, maxAnisotropy: 8 }); // keep original glTF UV/texture mapping intact
     return root;
   })();
