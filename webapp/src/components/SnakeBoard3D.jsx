@@ -5727,7 +5727,7 @@ async function resolveExternalImageToDataUri(imageUri, kind, sourceUrl, modelUrl
   if (isDataUri(imageUri)) return imageUri;
   const placeholderColors = {
     drone: ['#7c8791', '#4f5861'],
-    ukrainianDrone: ['#7c8791', '#4f5861'],
+    ukrainianDrone: ['#2f80ed', '#f2c94c'],
     helicopter: ['#6f7763', '#4f5648'],
     fighter: ['#98a1a9', '#646d76'],
     supportTruck: ['#6b7280', '#4b5563'],
@@ -5856,9 +5856,7 @@ function createCaptureVehicleRig(kind = 'fighter') {
     loadCaptureVehicleModel(kind)
       .then((model) => {
         if (!model) return;
-        if (kind !== 'ukrainianDrone') {
-          applyCaptureVehicleLook(model, visualKind);
-        }
+        applyCaptureVehicleLook(model, visualKind);
         while (root.children.length > 0) {
           const child = root.children[0];
           if (child?.userData?.trailPuff) break;
