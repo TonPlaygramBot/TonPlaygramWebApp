@@ -67,11 +67,6 @@ import GiftPopup from '../../components/GiftPopup.jsx';
 import InfoPopup from '../../components/InfoPopup.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import { socket } from '../../utils/socket.js';
-import {
-  findExactUkrainianDroneRotor,
-  isExactUkrainianDroneObject,
-  loadExactUkrainianDroneModel
-} from '../../utils/ukrainianDroneModel.js';
 import { giftSounds } from '../../utils/giftSounds.js';
 import { CAPTURE_ANIMATION_OPTIONS } from '../../config/ludoBattleOptions.js';
 import { LUDO_WEAPON_DIRECTOR_BRIDGE } from '../../config/ludoWeaponDirectorBridge.js';
@@ -10721,16 +10716,6 @@ function Chess3D({
 
     const loadCaptureUnitTemplate = async (key, targetSize) => {
       if (captureUnitTemplates[key]) return captureUnitTemplates[key];
-      if (key === 'drone') {
-        if (!captureUnitLoads.exactUkrainianDrone) {
-          captureUnitLoads.exactUkrainianDrone = loadExactUkrainianDroneModel(renderer).then((model) => {
-            normalizeModel(model, targetSize);
-            captureUnitTemplates[key] = model;
-            return model;
-          });
-        }
-        return captureUnitLoads.exactUkrainianDrone;
-      }
       if (captureUnitLoads[key]) return captureUnitLoads[key];
       const urls = CAPTURE_MODEL_URLS[key] || [];
       const loader = createConfiguredGLTFLoader(renderer);
@@ -11062,7 +11047,7 @@ function Chess3D({
       return badge;
     };
     const setUkrainianDroneAccentsVisible = (root, visible = true) => {
-      if (!root || isExactUkrainianDroneObject(root)) return null;
+      if (!root) return null;
       if (!root.userData.ukrainianDroneAccentGroup) {
         const accentGroup = new THREE.Group();
         accentGroup.name = 'ukrainian-drone-blue-yellow-accents';
@@ -11115,9 +11100,8 @@ function Chess3D({
           model.getObjectByName('Propeller') ||
           model.getObjectByName('Rotor') ||
           model;
-        const exactDronePropeller = isExactUkrainianDroneObject(model) ? findExactUkrainianDroneRotor(model) : null;
-        if (!isExactUkrainianDroneObject(model)) applyMilitaryDroneLook(model, propeller, getCaptureToneSeed('drone'));
-        return { root, propeller: exactDronePropeller || propeller, exhaustClouds: [] };
+        applyMilitaryDroneLook(model, propeller, getCaptureToneSeed('drone'));
+        return { root, propeller, exhaustClouds: [] };
       }
       const root = new THREE.Group();
       root.scale.setScalar(0.3);
