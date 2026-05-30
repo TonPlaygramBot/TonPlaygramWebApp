@@ -10,7 +10,6 @@ import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { loadUkrainianDroneModel } from '../utils/ukrainianDroneModel.js';
 
 import {
   createMurlanStyleTable,
@@ -5760,18 +5759,6 @@ async function loadCaptureVehicleModel(kind = 'fighter') {
     SNAKE_CAPTURE_VEHICLE_MODEL_CACHE.set(
       cacheKey,
       (async () => {
-        if (kind === 'drone') {
-          try {
-            const ukrainianDrone = await loadUkrainianDroneModel({ allowFallback: false });
-            if (ukrainianDrone) {
-              prepareLoadedModel(ukrainianDrone);
-              return normalizeCaptureVehicleModel(ukrainianDrone);
-            }
-          } catch (error) {
-            console.warn('Ukrainian drone loader failed for Snake capture model; falling back to legacy URLs', error);
-          }
-        }
-
         const loader = createConfiguredGLTFLoader();
         const imageCache = new Map();
 

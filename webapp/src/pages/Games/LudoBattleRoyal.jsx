@@ -63,7 +63,6 @@ import {
 import { giftSounds } from '../../utils/giftSounds.js';
 import { playLudoDiceRollSfx, playLudoTokenStepSfx } from '../../utils/ludoSfx.js';
 import { socket } from '../../utils/socket.js';
-import { loadUkrainianDroneModel } from '../../utils/ukrainianDroneModel.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
@@ -1989,18 +1988,6 @@ async function loadCaptureVehicleModel(kind) {
   if (!file) return null;
   if (CAPTURE_VEHICLE_MODEL_CACHE.has(kind)) return CAPTURE_VEHICLE_MODEL_CACHE.get(kind);
   const promise = (async () => {
-    if (kind === 'drone') {
-      try {
-        const ukrainianDrone = await loadUkrainianDroneModel({ allowFallback: false });
-        if (ukrainianDrone) {
-          prepareLoadedModel(ukrainianDrone, { preserveGltfTextureMapping: true });
-          return ukrainianDrone;
-        }
-      } catch (error) {
-        console.warn('Ukrainian drone loader failed for Ludo capture model; falling back to legacy URLs', error);
-      }
-    }
-
     const urls = CAPTURE_VEHICLE_MODEL_HOSTS.map((host) => `${host}/${file}`);
     const loader = new GLTFLoader();
     loader.setCrossOrigin('anonymous');
