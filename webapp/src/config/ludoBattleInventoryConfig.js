@@ -61,7 +61,69 @@ const HIDDEN_LUDO_STORE_CAPTURE_ANIMATION_IDS = new Set([
 ]);
 
 
-const shouldShowCaptureAnimationInStore = (optionId) => !HIDDEN_LUDO_STORE_CAPTURE_ANIMATION_IDS.has(optionId);
+const PREFERRED_CAPTURE_ANIMATION_BY_FAMILY = Object.freeze({
+  pistol: 'sigsauerTacticalAttack',
+  smg: 'polySmg01Attack',
+  assaultRifle: 'ak47VolleyAttack',
+  marksman: 'sniperShotAttack',
+  shotgun: 'shotgunBlastAttack',
+  revolver: 'polyRevolver02Attack',
+  explosive: 'grenadeBlastAttack',
+  bazooka: 'polyBazooka01Attack',
+  grenadeLauncher: 'polyGrenadeLauncher01Attack',
+  dynamite: 'polyDynamiteBomb01Attack',
+  gasTank: 'polyGasTank01Attack',
+  handGrenade: 'polyHandGrenade01Attack',
+  incendiary: 'polyMolotov01Attack',
+  armor: 'polyTank01Attack',
+  robotLargeGun: 'polyRobotLargeGunAttack',
+  robotFlyingGun: 'polyRobotFlyingGunAttack'
+});
+
+const CAPTURE_ANIMATION_FAMILY_BY_ID = Object.freeze({
+  glockSidearmAttack: 'pistol',
+  pistolSidearmAttack: 'pistol',
+  pistolHolsterAttack: 'pistol',
+  smithSidearmAttack: 'pistol',
+  sigsauerTacticalAttack: 'pistol',
+  polyPistol01Attack: 'pistol',
+  uziSprayAttack: 'smg',
+  smgBurstAttack: 'smg',
+  polySmg01Attack: 'smg',
+  fpsGunAttack: 'assaultRifle',
+  assaultRifleAttack: 'assaultRifle',
+  ak47VolleyAttack: 'assaultRifle',
+  krsvBurstAttack: 'assaultRifle',
+  compactCarbineAttack: 'assaultRifle',
+  polyAssaultRifle01Attack: 'assaultRifle',
+  mosinMarksmanAttack: 'marksman',
+  marksmanDmrAttack: 'marksman',
+  sniperShotAttack: 'marksman',
+  shotgunBlastAttack: 'shotgun',
+  polyShotgun01Attack: 'shotgun',
+  polyShotgun02Attack: 'shotgun',
+  polyShotgun03Attack: 'shotgun',
+  polySawedOff01Attack: 'shotgun',
+  polyRevolver01Attack: 'revolver',
+  polyRevolver02Attack: 'revolver',
+  grenadeBlastAttack: 'explosive',
+  polyHandGrenade01Attack: 'handGrenade',
+  polyGrenadeLauncher01Attack: 'grenadeLauncher',
+  polyBazooka01Attack: 'bazooka',
+  polyDynamiteBomb01Attack: 'dynamite',
+  polyGasTank01Attack: 'gasTank',
+  polyMolotov01Attack: 'incendiary',
+  polyTank01Attack: 'armor',
+  polyRobotLargeGunAttack: 'robotLargeGun',
+  polyRobotFlyingGunAttack: 'robotFlyingGun'
+});
+
+const shouldShowCaptureAnimationInStore = (optionId) => {
+  if (HIDDEN_LUDO_STORE_CAPTURE_ANIMATION_IDS.has(optionId)) return false;
+  const family = CAPTURE_ANIMATION_FAMILY_BY_ID[optionId];
+  if (!family) return true;
+  return PREFERRED_CAPTURE_ANIMATION_BY_FAMILY[family] === optionId;
+};
 
 const uniqueStoreItemsByName = (items) => {
   const seen = new Set();

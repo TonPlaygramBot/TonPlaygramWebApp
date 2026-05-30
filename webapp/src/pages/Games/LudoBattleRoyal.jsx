@@ -1444,15 +1444,22 @@ async function loadCaptureWeaponModel(captureAnimationId) {
     for (let i = 0; i < candidateUrls.length; i += 1) {
       const candidateUrl = candidateUrls[i];
       try {
-        if (isGltfAssetUrl(candidateUrl) || isPolyPizzaAssetUrl(candidateUrl)) {
-          // Poly Pizza GLBs and external GLTF weapon folders ship with their own
-          // material data. Load them directly first so GLTFLoader keeps their
-          // embedded PBR bindings and relative texture paths when the host allows it.
-          // eslint-disable-next-line no-await-in-loop
-          loadedRoot = assignLoadedGltf(await withLoadTimeout(loader.loadAsync(candidateUrl)));
-          if (loadedRoot) break;
-          if (isGltfAssetUrl(candidateUrl)) continue;
+        // Always ask GLTFLoader to load firearm weapons directly first. That keeps the
+        // source GLB/GLTF texture slots, UV transforms, sampler wrapping, and relative
+        // image paths exactly as authored instead of repacking maps into a patched GLB.
+        // eslint-disable-next-line no-await-in-loop
+        loadedRoot = assignLoadedGltf(await withLoadTimeout(loader.loadAsync(candidateUrl)));
+      } catch (error) {
+        if (i === candidateUrls.length - 1) {
+          console.warn('Capture weapon source model load failed', normalizedCaptureAnimationId, candidateUrl, error);
         }
+      }
+      if (loadedRoot) break;
+      if (isGltfAssetUrl(candidateUrl) || isPolyPizzaAssetUrl(candidateUrl)) continue;
+      try {
+        // The patched path is only a GLB fallback for older hosts whose external image
+        // references cannot be resolved by GLTFLoader. Placeholders stay disabled so
+        // firearm source textures are never replaced by synthetic vehicle-style maps.
         // eslint-disable-next-line no-await-in-loop
         const rawBuffer = await withLoadTimeout(fetchBuffer(candidateUrl));
         if (!rawBuffer) continue;
@@ -1462,22 +1469,13 @@ async function loadCaptureWeaponModel(captureAnimationId) {
           'firearm',
           candidateUrl,
           candidateUrls,
-          imageCache
+          imageCache,
+          { allowPlaceholder: false }
         );
         // eslint-disable-next-line no-await-in-loop
         loadedRoot = await parseObjectFromBuffer(loader, patchedBuffer);
       } catch (error) {
-        // Ignore patched path and try direct loader fallback below.
-      }
-      if (loadedRoot) break;
-      try {
-        // eslint-disable-next-line no-await-in-loop
-        const gltf = await withLoadTimeout(loader.loadAsync(candidateUrl));
-        loadedRoot = assignLoadedGltf(gltf);
-      } catch (error) {
-        if (i === candidateUrls.length - 1) {
-          console.warn('Capture weapon model load failed', normalizedCaptureAnimationId, candidateUrl, error);
-        }
+        // ignore patched fallback and try the next source URL
       }
       if (loadedRoot) break;
     }
@@ -1487,8 +1485,13 @@ async function loadCaptureWeaponModel(captureAnimationId) {
     try {
       const root = loadedRoot;
       if (!root) return null;
-      const textureOverrideUrls = Array.isArray(config?.textureOverrideUrls) ? config.textureOverrideUrls.filter(Boolean) : [];
-      const forceTextureOverride = config?.forceTextureOverride === true;
+      const preserveSourceTextures = config?.preserveSourceTextures !== false;
+      const textureOverrideUrls = preserveSourceTextures
+        ? []
+        : Array.isArray(config?.textureOverrideUrls)
+        ? config.textureOverrideUrls.filter(Boolean)
+        : [];
+      const forceTextureOverride = !preserveSourceTextures && config?.forceTextureOverride === true;
       let textureOverride = null;
       if (textureOverrideUrls.length) {
         const textureLoader = new THREE.TextureLoader();
