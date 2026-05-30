@@ -11,7 +11,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     id: 'showood-seven-foot',
     label: 'Showood 7 ft GLB',
     description:
-      'Fixed Pooltool Showood 7 ft GLB table scaled on both footprint axes so the original Showood tabletop mapping matches the Pool Royale playfield. Install the GLB at the local URL outside git; CDN/raw URLs remain runtime fallbacks only.',
+      'Fixed Pooltool Showood 7 ft GLB table mapped exactly to the 78" × 39" Pool Royale playfield. Install the GLB at the local URL outside git; CDN/raw URLs remain runtime fallbacks only.',
     tableSizeId: '7ft',
     baseId: 'showoodOriginal',
     assetUrl: SHOWOOD_LOCAL_ASSET_URL,
@@ -32,7 +32,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     fitReference: 'upperTabletop',
     matchNativeHeight: true,
     matchNativeUpperComponentHeight: true,
-    preserveOriginalFootprintAspect: false,
+    preserveOriginalFootprintAspect: true,
     useOriginalLayoutSurfaces: true,
     usePoolRoyaleFinish: true,
     usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood', 'pocket', 'trim'],

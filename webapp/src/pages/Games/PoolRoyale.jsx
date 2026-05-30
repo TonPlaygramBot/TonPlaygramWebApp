@@ -1543,14 +1543,14 @@ if (BALL_SHADOW_MATERIAL) {
 // Match the snooker build so pace and rebound energy stay consistent between modes.
 // Physics profile tuned to the open-source Billiards solver constants (see /billiards/PhysicsConstants.cs).
 const PHYSICS_PROFILE = Object.freeze({
-  restitution: 1.08,
+  restitution: 0.96,
   mu: 0.421,
   spinDecay: 2.0,
   airSpinDecay: 0.6,
   maxTipOffsetRatio: 0.9
 });
 const PHYSICS_BASE_STEP = 1 / 60;
-const FRICTION = 0.995;
+const FRICTION = 0.9951;
 const DEFAULT_CUSHION_RESTITUTION = PHYSICS_PROFILE.restitution;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const BALL_MASS = 0.17;
@@ -1561,13 +1561,13 @@ const SPIN_KINETIC_FRICTION = 0.22;
 const SPIN_ROLL_DAMPING = 0.085;
 const SPIN_ANGULAR_DAMPING = 0.04;
 const SPIN_GRAVITY = 9.81;
-const ROLLING_RESISTANCE = 0; // Snooker Royal pace: use frame-based rolling friction instead of extra linear drag.
+const ROLLING_RESISTANCE = 0.0092;
 const BALL_BALL_FRICTION = 0.105;
 const BALL_CONTACT_EPS = BALL_R * 0.012; // broaden contact tolerance slightly so grazing touches resolve instead of tunneling
 const BALL_COLLISION_SLOP = BALL_R * 0.001; // tighter tolerance so visible ball overlap is corrected faster
 const BALL_COLLISION_BAUMGARTE = 0.92; // stronger overlap correction so touching balls settle at true physical spacing
 const RAIL_FRICTION = 0.16;
-const STOP_EPS = 0.012;
+const STOP_EPS = 0.0074;
 const STOP_SOFTENING = 0.96; // ease balls into a stop instead of hard-braking at the speed threshold
 const STOP_FINAL_EPS = STOP_EPS * 0.35;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3; // allow up to 3 frames of catch-up when recovering from slow frames
@@ -13351,17 +13351,14 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
     (s.longN > 0.54 || s.shortN > 0.48) &&
     !(topRailSideVerticalRimZone || underRailSightCornerRimZone || outsideBaseCornerRimZone || outerMostVerticalCorner || baseCornerZone || legZone);
 
-  // Keep the metal side-apron accent limited to the two small strips that sit
-  // immediately beside the middle-pocket jaws. Wider side faces stay wood/base
-  // so a finish change cannot turn the full table side gold/chrome.
   const pocketApronStripZone =
     s.sideFace &&
     !s.upFace &&
-    sideMiddlePocketZone &&
-    s.relY > 0.5 &&
-    s.relY < 0.72 &&
-    s.shortN > 0.72 &&
-    s.longN < 0.255;
+    high &&
+    anyPocketZone &&
+    s.relY > 0.44 &&
+    s.relY < 0.78 &&
+    (s.longN > 0.5 || s.shortN > 0.5);
 
   const sideLowerTrimZone =
     s.sideFace && s.relY > 0.18 && s.relY < 0.44 && (s.longN > 0.54 || s.shortN > 0.54);
@@ -33711,7 +33708,6 @@ const shotPowerRef = useRef(0);
               }
             }
             b.pos.addScaledVector(b.vel, stepScale);
-            b.vel.multiplyScalar(Math.pow(FRICTION, stepScale));
             let speed = b.vel.length();
             let scaledSpeed = speed * stepScale;
             if (scaledSpeed < STOP_EPS) {
