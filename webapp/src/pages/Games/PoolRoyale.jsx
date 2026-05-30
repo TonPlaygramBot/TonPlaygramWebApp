@@ -1163,7 +1163,7 @@ const TABLE_FOOTPRINT_SCALE = 1; // keep full-size 7ft table footprint
 const BASE_FOOTPRINT_SHRINK = 0.82; // shrink the table base footprint by 18% without changing overall height
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
-const TABLE_DISPLAY_SCALE = 1.08; // slightly upscale render size so table appears bigger on portrait screens while keeping 7ft proportions
+const TABLE_DISPLAY_SCALE = 1.12; // upscale render size a bit more so the 7ft table reads closer to its real footprint on portrait screens
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
 const TOUCH_UI_SCALE = SIZE_REDUCTION;
 const POINTER_UI_SCALE = 1;
@@ -1303,7 +1303,7 @@ const REPLAY_CAMERA_START_DELAY_MS = 0;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
   const TABLE_LENGTH_SCALE = 0.8;
   const TABLE_SURFACE_REFERENCE = 1.12; // baseline expansion before the wider table adjustment
-  const TABLE_SURFACE_EXPANSION = 1.25; // widen/lengthen the table footprint by ~12% while keeping pockets/balls unchanged
+  const TABLE_SURFACE_EXPANSION = 1.32; // widen/lengthen the table footprint to better match the actual 7ft Showood table size
   const TABLE_SURFACE_COMPENSATION = TABLE_SURFACE_EXPANSION / TABLE_SURFACE_REFERENCE;
   const TABLE = {
     W: 72 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE * OFFICIAL_TABLE_SCALE * TABLE_SURFACE_EXPANSION,
@@ -1848,7 +1848,7 @@ const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 1; // restore legacy shot scaling used before the May 19 power retune
 const SHOT_POWER_BOOST = 0.455; // restore the pre-May-19 cue launch boost
-const SHOT_GLOBAL_POWER_SCALE = 1.18; // add more cue power so balls launch faster on mobile pulls
+const SHOT_GLOBAL_POWER_SCALE = 1.38; // stronger cue power so full portrait pulls have enough table-length drive
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
