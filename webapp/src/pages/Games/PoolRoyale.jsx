@@ -1303,7 +1303,7 @@ const REPLAY_CAMERA_START_DELAY_MS = 0;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
   const TABLE_LENGTH_SCALE = 0.8;
   const TABLE_SURFACE_REFERENCE = 1.12; // baseline expansion before the wider table adjustment
-  const TABLE_SURFACE_EXPANSION = 1.25; // widen/lengthen the table footprint by ~12% while keeping pockets/balls unchanged
+  const TABLE_SURFACE_EXPANSION = 1.3; // widen/lengthen the table footprint by ~16% so the visible table better matches the mapped player field while keeping pockets/balls unchanged
   const TABLE_SURFACE_COMPENSATION = TABLE_SURFACE_EXPANSION / TABLE_SURFACE_REFERENCE;
   const TABLE = {
     W: 72 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE * OFFICIAL_TABLE_SCALE * TABLE_SURFACE_EXPANSION,
