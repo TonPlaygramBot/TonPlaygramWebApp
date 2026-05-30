@@ -2309,7 +2309,7 @@ function computeHeldCardsPose({ resolvedSeatIndex = 0 } = {}) {
     // Top opponent cards: push outward so they sit farther from table center.
     return {
       ...basePose,
-      z: basePose.z - 2.15 * MODEL_SCALE
+      z: basePose.z - 2.32 * MODEL_SCALE
     };
   }
 
@@ -2317,8 +2317,8 @@ function computeHeldCardsPose({ resolvedSeatIndex = 0 } = {}) {
     // Side opponent cards: keep same card size/height and move visually upward.
     return {
       ...basePose,
-      y: basePose.y + 0.98 * MODEL_SCALE,
-      z: basePose.z + 0.28 * MODEL_SCALE
+      y: basePose.y + 1.06 * MODEL_SCALE,
+      z: basePose.z + 0.38 * MODEL_SCALE
     };
   }
 
@@ -2693,22 +2693,38 @@ function runCharacterAction(store, rig, action) {
       rightThumbFinger: { x: THREE.MathUtils.degToRad(-8), y: THREE.MathUtils.degToRad(3), z: THREE.MathUtils.degToRad(7) },
       rightMiddleFinger: { x: THREE.MathUtils.degToRad(16), y: THREE.MathUtils.degToRad(-1), z: THREE.MathUtils.degToRad(-1) }
     };
-    const singlePassGesture = buildPoseVariant(basePose, {
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-18), y: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(-13) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(38), y: THREE.MathUtils.degToRad(-3), z: THREE.MathUtils.degToRad(-2) },
-      rightHand: { x: THREE.MathUtils.degToRad(10), y: THREE.MathUtils.degToRad(-8), z: THREE.MathUtils.degToRad(-5) },
+    const passHandDownGesture = buildPoseVariant(basePose, {
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-24), y: THREE.MathUtils.degToRad(-6), z: THREE.MathUtils.degToRad(-7) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-38), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-1) },
+      rightHand: { x: THREE.MathUtils.degToRad(-18), y: THREE.MathUtils.degToRad(-4), z: THREE.MathUtils.degToRad(-3) },
+      ...loosePassFingers
+    });
+    const passTinyLiftGesture = buildPoseVariant(basePose, {
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-17), y: THREE.MathUtils.degToRad(-6), z: THREE.MathUtils.degToRad(-7) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-30), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-1) },
+      rightHand: { x: THREE.MathUtils.degToRad(-12), y: THREE.MathUtils.degToRad(-4), z: THREE.MathUtils.degToRad(-3) },
       ...loosePassFingers
     });
 
     queueCharacterActionAnimation(list, rig, {
       start: now,
-      duration: 360,
-      update: (t) => applyRigActionPoseLerp(rig, singlePassGesture, t)
+      duration: 240,
+      update: (t) => applyRigActionPoseLerp(rig, passHandDownGesture, t)
     });
     queueCharacterActionAnimation(list, rig, {
-      start: now + 360,
-      duration: 320,
-      update: (t) => applyRigActionPoseBetween(rig, singlePassGesture, basePose, t)
+      start: now + 240,
+      duration: 140,
+      update: (t) => applyRigActionPoseBetween(rig, passHandDownGesture, passTinyLiftGesture, t)
+    });
+    queueCharacterActionAnimation(list, rig, {
+      start: now + 380,
+      duration: 140,
+      update: (t) => applyRigActionPoseBetween(rig, passTinyLiftGesture, passHandDownGesture, t)
+    });
+    queueCharacterActionAnimation(list, rig, {
+      start: now + 520,
+      duration: 260,
+      update: (t) => applyRigActionPoseBetween(rig, passHandDownGesture, basePose, t)
     });
     return;
   }
@@ -2720,9 +2736,9 @@ function runCharacterAction(store, rig, action) {
       rightMiddleFinger: { x: THREE.MathUtils.degToRad(-4), y: THREE.MathUtils.degToRad(1) }
     };
     const singlePlaceGesture = buildPoseVariant(basePose, {
-      rightUpperArm: { x: THREE.MathUtils.degToRad(28), y: THREE.MathUtils.degToRad(-22), z: THREE.MathUtils.degToRad(-18) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(52), y: THREE.MathUtils.degToRad(-1) },
-      rightHand: { x: THREE.MathUtils.degToRad(12), y: THREE.MathUtils.degToRad(-5), z: THREE.MathUtils.degToRad(-1) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-20), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-14) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-24), y: THREE.MathUtils.degToRad(-1) },
+      rightHand: { x: THREE.MathUtils.degToRad(-14), y: THREE.MathUtils.degToRad(-5), z: THREE.MathUtils.degToRad(-1) },
       ...releaseFingers
     });
 
@@ -2749,15 +2765,15 @@ function runCharacterAction(store, rig, action) {
     target.y += 0.08 * MODEL_SCALE;
     target.add((rig.seatConfig?.right || new THREE.Vector3(1, 0, 0)).clone().multiplyScalar(0.04 * MODEL_SCALE));
     const tableContactPos = target.clone().add(new THREE.Vector3(0, 0.012 * MODEL_SCALE, 0));
-    const pickupHoverPos = pickupPos.clone().add(new THREE.Vector3(0, 0.018 * MODEL_SCALE, 0));
-    const travelArcLift = 0.036 * MODEL_SCALE;
+    const pickupHoverPos = pickupPos.clone();
+    const travelArcLift = 0.006 * MODEL_SCALE;
     thrown.position.copy(pickupPos);
     const finalCardYaw = Math.atan2(rig.seatConfig?.forward?.x ?? 0, rig.seatConfig?.forward?.z ?? 1);
     orientThrownActionCard(thrown, actionAnimationStyle, 0, finalCardYaw);
 
     queueCharacterActionAnimation(list, rig, {
       start: now,
-      duration: 620,
+      duration: 560,
       update: (t) => {
         applyRigActionPoseLerp(rig, singlePlaceGesture, t);
         const eased = easeInOutCubic(t);
@@ -2771,8 +2787,8 @@ function runCharacterAction(store, rig, action) {
       }
     });
     queueCharacterActionAnimation(list, rig, {
-      start: now + 620,
-      duration: 360,
+      start: now + 560,
+      duration: 300,
       update: (t) => applyRigActionPoseBetween(rig, singlePlaceGesture, basePose, t)
     });
   }
@@ -3108,14 +3124,14 @@ const AI_TOP_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(22);
 const AI_SIDE_HAND_FAN_MAX_YAW = THREE.MathUtils.degToRad(19);
 const AI_HAND_FAN_ARC_LIFT = 0.052 * MODEL_SCALE;
 const AI_HAND_CARD_SCALE = 0.84;
-const AI_SIDE_HAND_EXTRA_INWARD_PULL = 0.035 * MODEL_SCALE;
+const AI_SIDE_HAND_EXTRA_INWARD_PULL = 0.16 * MODEL_SCALE;
 const AI_TOP_HAND_EXTRA_INWARD_PULL = 0.07 * MODEL_SCALE;
-const AI_SIDE_HAND_EXTRA_OUTWARD_PUSH = 1.72 * MODEL_SCALE;
-const AI_TOP_HAND_EXTRA_OUTWARD_PUSH = 2.54 * MODEL_SCALE;
+const AI_SIDE_HAND_EXTRA_OUTWARD_PUSH = 1.58 * MODEL_SCALE;
+const AI_TOP_HAND_EXTRA_OUTWARD_PUSH = 2.72 * MODEL_SCALE;
 const AI_SIDE_HAND_UP_SHIFT_Y = -0.42 * MODEL_SCALE;
 const AI_TOP_HAND_UP_SHIFT_Y = -0.18 * MODEL_SCALE;
 const AI_SIDE_HAND_LATERAL_PALM_SHIFT = 0.12 * MODEL_SCALE;
-const AI_SIDE_HAND_TOPWARD_SHIFT = 2.08 * MODEL_SCALE;
+const AI_SIDE_HAND_TOPWARD_SHIFT = 2.18 * MODEL_SCALE;
 const AI_TOP_HAND_LATERAL_PALM_SHIFT = 0;
 const AI_SIDE_HAND_GRIP_PITCH_X = THREE.MathUtils.degToRad(-6);
 const AI_TOP_HAND_GRIP_PITCH_X = THREE.MathUtils.degToRad(-3);
