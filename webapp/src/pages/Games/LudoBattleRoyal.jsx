@@ -63,6 +63,11 @@ import {
 import { giftSounds } from '../../utils/giftSounds.js';
 import { playLudoDiceRollSfx, playLudoTokenStepSfx } from '../../utils/ludoSfx.js';
 import { socket } from '../../utils/socket.js';
+import {
+  findExactUkrainianDroneRotor,
+  isExactUkrainianDroneObject,
+  loadExactUkrainianDroneModel
+} from '../../utils/ukrainianDroneModel.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
@@ -1985,6 +1990,12 @@ function alignObjectBottomToY(root, targetY) {
 }
 
 async function loadCaptureVehicleModel(kind) {
+  if (kind === 'drone') {
+    if (!CAPTURE_VEHICLE_MODEL_CACHE.has('exactUkrainianDrone')) {
+      CAPTURE_VEHICLE_MODEL_CACHE.set('exactUkrainianDrone', loadExactUkrainianDroneModel());
+    }
+    return CAPTURE_VEHICLE_MODEL_CACHE.get('exactUkrainianDrone');
+  }
   const file = CAPTURE_VEHICLE_MODEL_FILES[kind];
   if (!file) return null;
   if (CAPTURE_VEHICLE_MODEL_CACHE.has(kind)) return CAPTURE_VEHICLE_MODEL_CACHE.get(kind);
@@ -2862,7 +2873,9 @@ async function createCaptureDroneFx() {
     const model = loadedDrone.clone(true);
     fitObjectToTargetSize(model, 3.85 * CAPTURE_DRONE_SIZE_MULTIPLIER);
     model.rotation.y = Math.PI;
-    const propeller = applyMilitaryDroneLook(model);
+    const propeller = isExactUkrainianDroneObject(model)
+      ? findExactUkrainianDroneRotor(model) || model
+      : applyMilitaryDroneLook(model);
     root.add(model);
     const trail = [];
     for (let i = 0; i < 5; i += 1) {
