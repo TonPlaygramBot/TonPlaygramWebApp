@@ -168,6 +168,7 @@ const CAPTURE_RELOAD_SHOW_TIME = 0.58;
 const CAPTURE_MISSILE_SCALE = 0.068;
 const CAPTURE_JAVELIN_MISSILE_SCALE = CAPTURE_MISSILE_SCALE * 1.48; // make javelin missile bigger
 const CAPTURE_AIR_JAVELIN_MISSILE_SCALE = CAPTURE_JAVELIN_MISSILE_SCALE * 0.82; // jet/helicopter missiles should read smaller than the aircraft
+const CAPTURE_UKRAINIAN_DRONE_MISSILE_SCALE = CAPTURE_AIR_JAVELIN_MISSILE_SCALE * 0.56; // compact no-smoke drone bomb
 const CAPTURE_PAWN_JAVELIN_SCALE = CAPTURE_JAVELIN_MISSILE_SCALE * 0.72;
 const CAPTURE_ROOK_JAVELIN_SCALE = CAPTURE_JAVELIN_MISSILE_SCALE * 1.12; // enlarge truck missile to match launcher missile presence
 const CAPTURE_PAWN_STRIKE_TARGET_LIFT = 0.14; // pawn strike lands slightly above target head
@@ -202,6 +203,7 @@ const CAPTURE_MODEL_URLS = Object.freeze({
 const GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID = Object.freeze({
   missileJavelin: 'truck',
   droneAttack: 'drone',
+  ukrainianDroneAttack: 'ukrainianDrone',
   fighterJetAttack: 'jet',
   helicopterAttack: 'helicopter'
 });
@@ -11404,6 +11406,15 @@ function Chess3D({
       }
       return { root, trail };
     };
+    const createFxNoSmokeDropMissile = () => {
+      const missile = createFxMissile();
+      missile.trail?.forEach((puff) => {
+        missile.root.remove(puff);
+        disposeObject3D(puff);
+      });
+      missile.trail = [];
+      return missile;
+    };
     const createFxGroundMissile = () => {
       const missileTone = getCaptureToneSeed('missile');
       const root = new THREE.Group();
@@ -11570,6 +11581,18 @@ function Chess3D({
       const missileTravel = Math.max(0.24, (releaseWindow - 0.1) / CAPTURE_AIR_MISSILE_SPEED_MULTIPLIER);
       const secondMissileOffset = 0.14;
       return releaseStart + secondMissileOffset + missileTravel;
+    };
+    const getStraightDownMissilePose = ({ launchPos, targetPos, progress }) => {
+      const u = smoothEase(clamp01(progress));
+      const pos = launchPos.clone();
+      const next = launchPos.clone();
+      pos.x = targetPos.x;
+      pos.z = targetPos.z;
+      next.x = targetPos.x;
+      next.z = targetPos.z;
+      pos.y = THREE.MathUtils.lerp(launchPos.y, targetPos.y, u);
+      next.y = THREE.MathUtils.lerp(launchPos.y, targetPos.y, clamp01(u + 0.08));
+      return { pos, next };
     };
     const constrainInsideBoardPerimeter = (vector, marginTiles = 0.62) => {
       const margin = BOARD.tile * marginTiles;
@@ -12428,6 +12451,56 @@ function Chess3D({
         return withAuto3d({
           moveDelayMs: CAPTURE_DRONE_ATTACK_TOTAL * 1000,
           captureResolveDelayMs: CAPTURE_DRONE_ATTACK_TOTAL * 1000
+        });
+      }
+      if (captureKind === 'ukrainianDrone') {
+        suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_HELICOPTER_TOTAL * 1000;
+        const isWhiteSide = Boolean(movingMesh?.userData?.w);
+        const parkedDrone = acquireParkedAirUnit(isWhiteSide, 'drone');
+        const droneFx = parkedDrone || createFxDrone({ forceProcedural: !parkedDrone });
+        if (!parkedDrone) {
+          droneFx.root.scale.setScalar(CAPTURE_DRONE_SCALE);
+          captureFxGroup.add(droneFx.root);
+        }
+        const launchBase = parkedDrone?.root?.position?.clone?.() || parkedDrone?.homePosition?.clone?.() || getAirPadAnchor(isWhiteSide, 'drone', 0);
+        const sideSkin = resolveSideVehicleSkin(isWhiteSide);
+        if (sideSkin) {
+          applyVehicleSkinToModel(droneFx.root, sideSkin, (node) =>
+            /rotor|propell|blade|fan|window|cockpit|glass|canopy/.test(`${node.name || ''}`.toLowerCase())
+          );
+        }
+        attachVehicleAvatarBadge(
+          droneFx.root,
+          isWhiteSide
+            ? avatar || username || playerFlag || '🙂'
+            : (onlineRef.current.enabled ? opponent?.avatar || opponent?.name : null) || opponent?.name || aiFlag || '🤖',
+          isWhiteSide ? 1 : -1
+        );
+        droneFx.root.position.copy(launchBase.clone());
+        const missileFx = createFxNoSmokeDropMissile();
+        missileFx.root.scale.setScalar(CAPTURE_UKRAINIAN_DRONE_MISSILE_SCALE);
+        missileFx.root.visible = false;
+        captureFxGroup.add(missileFx.root);
+        playAudio(droneSoundRef, { maxDurationMs: CAPTURE_HELICOPTER_TOTAL * 1000 });
+        activeCaptureFx.push({
+          type: 'ukrainianDrone',
+          t: 0,
+          duration: CAPTURE_HELICOPTER_TOTAL,
+          from: fromPos.clone(),
+          to: targetPos.clone(),
+          launchPos: launchBase.clone(),
+          movingMesh,
+          targetMesh,
+          returnToOrigin: true,
+          flightTarget: getAirStrikeCenterFlightTarget(fromPos, targetPos),
+          sourceUnit: parkedDrone,
+          droneFx,
+          missileFx
+        });
+        const ukrainianDroneImpactDelayMs = getAirMissileImpactTime(CAPTURE_HELICOPTER_TOTAL) * 1000;
+        return withAuto3d({
+          moveDelayMs: ukrainianDroneImpactDelayMs,
+          captureResolveDelayMs: ukrainianDroneImpactDelayMs
         });
       }
       if (captureKind === 'helicopter') {
@@ -14657,6 +14730,72 @@ function Chess3D({
                 }
                 activeCaptureFx.splice(i, 1);
               }
+            }
+          } else if (fx.type === 'ukrainianDrone') {
+            const droneTimelineU = clamp01(fx.t / CAPTURE_HELICOPTER_TOTAL);
+            const droneU = THREE.MathUtils.lerp(CAPTURE_JET_TRIMMED_START_RATIO, 1, droneTimelineU);
+            if (!fx.sourceUnit) fx.droneFx.root.scale.setScalar(CAPTURE_DRONE_SCALE);
+            const liveTargetPos = getLiveTargetPosition(fx.to, fx.targetMesh, 0);
+            fx.to.copy(liveTargetPos);
+            const launchPos = fx.returnToOrigin
+              ? fx.launchPos.clone()
+              : getLiveLaunchPosition(fx.launchPos, fx.movingMesh, 0);
+            if (!fx.returnToOrigin) fx.launchPos.copy(launchPos);
+            const { pos: dronePos, next: droneNext } = getCaptureAirRunPose({
+              from: launchPos,
+              to: fx.flightTarget || fx.to,
+              progress: droneU,
+              cruiseHeight: CAPTURE_AIRCRAFT_CRUISE_HEIGHT + CAPTURE_HELICOPTER_ALTITUDE_BOOST,
+              returnToOrigin: true,
+              constrainToBoard: false
+            });
+            fx.droneFx.root.position.copy(dronePos);
+            captureDir.copy(droneNext).sub(dronePos).normalize();
+            orientForwardKeepingUp(fx.droneFx.root, captureDir);
+            if (fx.droneFx.propeller) fx.droneFx.propeller.rotation.x += dt * 42;
+
+            const releaseStart = CAPTURE_HELICOPTER_TOTAL * CAPTURE_AIR_MISSILE_RELEASE_START_RATIO;
+            const releaseEnd = CAPTURE_HELICOPTER_TOTAL * CAPTURE_AIR_MISSILE_RELEASE_END_RATIO;
+            const missileTravel = Math.max(0.24, (releaseEnd - releaseStart - 0.1) / CAPTURE_AIR_MISSILE_SPEED_MULTIPLIER);
+            const missileImpactTime = getAirMissileImpactTime(CAPTURE_HELICOPTER_TOTAL);
+            const missile = fx.missileFx;
+            if (fx.t < releaseStart) {
+              missile.root.visible = false;
+              missile.launchPos = null;
+            } else {
+              if (!missile.launchPos) {
+                missile.launchPos = liveTargetPos.clone();
+                missile.launchPos.y = Math.max(dronePos.y - 0.04, liveTargetPos.y + CAPTURE_SHORT_STRIKE_ALTITUDE);
+              }
+              const missileU = clamp01((fx.t - releaseStart) / missileTravel);
+              if (missileU <= 0 || missileU >= 1) {
+                missile.root.visible = false;
+              } else {
+                if (!missile.didPlayLaunchSound) {
+                  missile.didPlayLaunchSound = true;
+                  playAudio(missileLaunchSoundRef);
+                }
+                const { pos: missilePos, next: missileNext } = getStraightDownMissilePose({
+                  launchPos: missile.launchPos.clone(),
+                  targetPos: liveTargetPos,
+                  progress: missileU
+                });
+                captureDir.copy(missileNext).sub(missilePos).normalize();
+                missile.root.visible = true;
+                missile.root.position.copy(missilePos);
+                orientForwardKeepingUp(missile.root, captureDir);
+              }
+            }
+            if (fx.t >= missileImpactTime && !fx.hasExploded) {
+              fx.hasExploded = true;
+              missile.root.visible = false;
+              launchExplosion(liveTargetPos, fx.targetMesh);
+            }
+            if (droneTimelineU >= 1) {
+              if (fx.sourceUnit) returnParkedAirUnit(fx.sourceUnit);
+              if (!fx.sourceUnit) captureFxGroup.remove(fx.droneFx.root);
+              captureFxGroup.remove(missile.root);
+              activeCaptureFx.splice(i, 1);
             }
           } else if (fx.type === 'jet') {
             const jetTimelineU = clamp01(fx.t / CAPTURE_JET_TOTAL);
