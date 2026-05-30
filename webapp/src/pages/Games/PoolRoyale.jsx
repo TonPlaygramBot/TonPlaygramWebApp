@@ -6863,8 +6863,11 @@ const STANDING_VIEW_COT = (() => {
   const sinPhi = Math.sin(STANDING_VIEW_PHI);
   return sinPhi > 1e-6 ? Math.cos(STANDING_VIEW_PHI) / sinPhi : 0;
 })();
-const DEFAULT_RAIL_LIMIT_X = PLAY_W / 2 - BALL_R - CUSHION_FACE_INSET_LONG;
-const DEFAULT_RAIL_LIMIT_Y = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET_SHORT;
+const CUSHION_COLLISION_INWARD_OFFSET = BALL_R * 0.34; // keep rail physics on the visible cushion nose so balls bounce before overlapping the rubber
+const DEFAULT_RAIL_LIMIT_X =
+  PLAY_W / 2 - BALL_R - CUSHION_FACE_INSET_LONG - CUSHION_COLLISION_INWARD_OFFSET;
+const DEFAULT_RAIL_LIMIT_Y =
+  PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET_SHORT - CUSHION_COLLISION_INWARD_OFFSET;
 let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = BALL_R * 0.12;
@@ -9071,13 +9074,19 @@ function updateRailLimitsFromTable(table) {
     }
   }
   if (minAbsX !== Infinity) {
-    const computedX = Math.max(0, minAbsX - BALL_R - RAIL_LIMIT_PADDING);
+    const computedX = Math.max(
+      0,
+      minAbsX - BALL_R - RAIL_LIMIT_PADDING - CUSHION_COLLISION_INWARD_OFFSET
+    );
     if (computedX > 0) {
       RAIL_LIMIT_X = Math.min(DEFAULT_RAIL_LIMIT_X, computedX);
     }
   }
   if (minAbsZ !== Infinity) {
-    const computedZ = Math.max(0, minAbsZ - BALL_R - RAIL_LIMIT_PADDING);
+    const computedZ = Math.max(
+      0,
+      minAbsZ - BALL_R - RAIL_LIMIT_PADDING - CUSHION_COLLISION_INWARD_OFFSET
+    );
     if (computedZ > 0) {
       RAIL_LIMIT_Y = Math.min(DEFAULT_RAIL_LIMIT_Y, computedZ);
     }
@@ -9224,6 +9233,11 @@ function updateCushionSegmentsFromTable(table) {
       normal.multiplyScalar(-1);
     }
     segment.normal = normal.clone();
+  });
+  segments.forEach((segment) => {
+    if (!segment?.normal || segment.type === 'jaw') return;
+    segment.start.addScaledVector(segment.normal, CUSHION_COLLISION_INWARD_OFFSET);
+    segment.end.addScaledVector(segment.normal, CUSHION_COLLISION_INWARD_OFFSET);
   });
   const updateRailLimitsFromSegments = (segmentList) => {
     let minAbsX = Infinity;
