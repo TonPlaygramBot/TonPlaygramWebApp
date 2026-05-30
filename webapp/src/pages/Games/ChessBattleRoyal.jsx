@@ -67,6 +67,7 @@ import GiftPopup from '../../components/GiftPopup.jsx';
 import InfoPopup from '../../components/InfoPopup.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import { socket } from '../../utils/socket.js';
+import { loadUkrainianDroneModel } from '../../utils/ukrainianDroneModel.js';
 import { giftSounds } from '../../utils/giftSounds.js';
 import { CAPTURE_ANIMATION_OPTIONS } from '../../config/ludoBattleOptions.js';
 import { LUDO_WEAPON_DIRECTOR_BRIDGE } from '../../config/ludoWeaponDirectorBridge.js';
@@ -10693,6 +10694,21 @@ function Chess3D({
       const loader = createConfiguredGLTFLoader(renderer);
       const imageCache = new Map();
       const task = (async () => {
+        if (key === 'drone') {
+          try {
+            let model = await loadUkrainianDroneModel({ renderer, allowFallback: false });
+            if (model) {
+              model = model.clone?.(true) ?? model;
+              prepareCaptureModel(model);
+              normalizeModel(model, targetSize);
+              captureUnitTemplates[key] = model;
+              return model;
+            }
+          } catch (error) {
+            console.warn('Ukrainian drone loader failed for Chess capture template; falling back to legacy URLs', error);
+          }
+        }
+
         for (const url of urls) {
           try {
             const resolvedUrl = new URL(url, window.location.href).href;
