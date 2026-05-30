@@ -6868,7 +6868,6 @@ const DEFAULT_RAIL_LIMIT_Y = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET_SHORT;
 let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = BALL_R * 0.12;
-const SHOWOOD_CUSHION_MAPPING_INWARD_SYNC = BALL_R * 0.42; // shrink gameplay mapping to the visible Showood cushion nose so balls rebound before visually entering the rubber
 const RAIL_CONTACT_RADIUS = BALL_R;
 const CUSHION_CUT_CONTACT_RADIUS = RAIL_CONTACT_RADIUS * 1.12;
 const CUSHION_CUT_NEAR_POCKET_BUFFER = BALL_R * 0.9;
@@ -9226,17 +9225,6 @@ function updateCushionSegmentsFromTable(table) {
     }
     segment.normal = normal.clone();
   });
-  const syncSegmentsToVisibleShowoodCushionNose = (segmentList) => {
-    const inwardSync = Math.max(0, SHOWOOD_CUSHION_MAPPING_INWARD_SYNC);
-    if (!(inwardSync > MICRO_EPS)) return;
-    segmentList.forEach((segment) => {
-      if (!segment?.normal || segment.type === 'jaw') return;
-      segment.start.addScaledVector(segment.normal, inwardSync);
-      segment.end.addScaledVector(segment.normal, inwardSync);
-      segment.showoodMappingInwardSync = inwardSync;
-    });
-  };
-  syncSegmentsToVisibleShowoodCushionNose(segments);
   const updateRailLimitsFromSegments = (segmentList) => {
     let minAbsX = Infinity;
     let minAbsY = Infinity;
