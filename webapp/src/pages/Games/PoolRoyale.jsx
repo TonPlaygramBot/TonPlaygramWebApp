@@ -1368,7 +1368,7 @@ const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // 
 const CORNER_POCKET_JAW_EDGE_TRIM_START = SIDE_POCKET_JAW_EDGE_TRIM_START; // keep corner jaw taper start aligned with middle pockets
 const CORNER_POCKET_JAW_EDGE_TRIM_SCALE = SIDE_POCKET_JAW_EDGE_TRIM_SCALE; // match the middle pocket jaw thin/thick profile
 const CORNER_POCKET_JAW_EDGE_TRIM_CURVE = SIDE_POCKET_JAW_EDGE_TRIM_CURVE; // reuse the same taper curve for corner jaws
-const POCKET_JAW_MAPPING_RADIUS_SCALE = 1.035; // slightly expand jaw collision arcs so physics cannot slip through visible jaw/chrome edges
+const POCKET_JAW_MAPPING_RADIUS_SCALE = 1; // keep jaw collision arcs exactly on the visible jaw/chrome edges
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
 const POCKET_RIM_DEPTH_RATIO = 0; // remove the separate pocket rims so the chrome fascias meet the jaws directly
@@ -1592,9 +1592,9 @@ const POCKET_INTERIOR_CAPTURE_R =
 const SIDE_POCKET_INTERIOR_CAPTURE_R =
   SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION; // keep middle-pocket capture identical to its bowl radius
 const CAPTURE_R =
-  POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.22; // match corner-pocket capture gain to middle pockets so both jaw types accept shots the same way
+  POCKET_INTERIOR_CAPTURE_R; // match pocket capture exactly to the visible corner-pocket bowl opening
 const SIDE_CAPTURE_R =
-  SIDE_POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.22; // give middle pockets a touch more capture so shots don't hang in the jaws
+  SIDE_POCKET_INTERIOR_CAPTURE_R; // match middle-pocket capture exactly to the visible bowl opening
 const POCKET_GUARD_RADIUS =
   CAPTURE_R - BALL_R * 0.12; // mirror the middle-pocket guard inset so corner jaws reject/accept on the same threshold
 const POCKET_GUARD_CLEARANCE = Math.max(
@@ -9110,6 +9110,18 @@ function updateCushionSegmentsFromTable(table) {
   table.userData.cushions.forEach((cushion) => {
     const data = cushion.userData || {};
     if (typeof data.horizontal !== 'boolean' || !data.side) return;
+    const contour = data.physicalContour;
+    if (
+      contour?.backLeft &&
+      contour?.backRight &&
+      contour?.frontLeft &&
+      contour?.frontRight
+    ) {
+      addSegment(contour.frontLeft.clone(), contour.frontRight.clone(), 'rail');
+      addSegment(contour.backLeft.clone(), contour.frontLeft.clone(), 'cut');
+      addSegment(contour.backRight.clone(), contour.frontRight.clone(), 'cut');
+      return;
+    }
     const box = new THREE.Box3().setFromObject(cushion);
     const cutEnds = data.cutEnds || {};
     const minCut = Math.max(0, cutEnds.min || 0);
@@ -12363,11 +12375,14 @@ export function Table3D(
   const gapStripePad = TABLE.THICK * 0.005;
   const gapStripeOutwardShift = TABLE.THICK * 0.03;
 
-  function computeCushionCutLengths(len, horizontal, cutAngles = {}) {
+  function resolveCushionProfileMetrics(len, horizontal, cutAngles = {}) {
+    const halfLen = len / 2;
     const thicknessScale = horizontal ? FACE_SHRINK_LONG : FACE_SHRINK_SHORT;
     const baseRailWidth = horizontal ? longRailW : endRailW;
     const baseThickness = baseRailWidth * thicknessScale;
+    const backY = baseRailWidth / 2;
     const noseThickness = baseThickness * NOSE_REDUCTION;
+    const frontY = backY - noseThickness;
     const defaultCutAngle =
       typeof cutAngles?.cutAngle === 'number' ? cutAngles.cutAngle : CUSHION_CUT_ANGLE;
     const leftCutAngle =
@@ -12401,49 +12416,29 @@ export function Table3D(
       leftCut *= scale;
       rightCut *= scale;
     }
+    const finalFrontY =
+      frontY -
+      baseThickness * CUSHION_NOSE_FRONT_PULL_SCALE -
+      CUSHION_FRONT_FIELD_EXPANSION;
+    return { halfLen, backY, frontY, finalFrontY, leftCut, rightCut };
+  }
+
+  function computeCushionCutLengths(len, horizontal, cutAngles = {}) {
+    const { leftCut, rightCut } = resolveCushionProfileMetrics(len, horizontal, cutAngles);
     return { leftCut, rightCut };
   }
 
   function cushionProfileAdvanced(len, horizontal, cutAngles = {}) {
-    const halfLen = len / 2;
+    const {
+      halfLen,
+      backY,
+      frontY,
+      leftCut,
+      rightCut
+    } = resolveCushionProfileMetrics(len, horizontal, cutAngles);
     const thicknessScale = horizontal ? FACE_SHRINK_LONG : FACE_SHRINK_SHORT;
     const baseRailWidth = horizontal ? longRailW : endRailW;
     const baseThickness = baseRailWidth * thicknessScale;
-    const backY = baseRailWidth / 2;
-    const noseThickness = baseThickness * NOSE_REDUCTION;
-    const frontY = backY - noseThickness;
-    const defaultCutAngle = typeof cutAngles?.cutAngle === 'number' ? cutAngles.cutAngle : CUSHION_CUT_ANGLE;
-    const leftCutAngle =
-      typeof cutAngles?.leftCutAngle === 'number' ? cutAngles.leftCutAngle : defaultCutAngle;
-    const rightCutAngle =
-      typeof cutAngles?.rightCutAngle === 'number' ? cutAngles.rightCutAngle : defaultCutAngle;
-    const minCutLength = baseThickness * 0.25;
-
-    const computeCut = (angleDeg) => {
-      const rad = THREE.MathUtils.degToRad(angleDeg);
-      const tan = Math.tan(rad);
-      const rawCut = tan > MICRO_EPS ? noseThickness / tan : minCutLength;
-      return Math.max(minCutLength, rawCut);
-    };
-
-    let leftCut = computeCut(leftCutAngle);
-    let rightCut = computeCut(rightCutAngle);
-    const straightEdgeCut = baseThickness * 0.12;
-    const leftStraightEdge = Boolean(cutAngles?.leftStraightEdge);
-    const rightStraightEdge = Boolean(cutAngles?.rightStraightEdge);
-    if (leftStraightEdge) {
-      leftCut = Math.min(leftCut, straightEdgeCut);
-    }
-    if (rightStraightEdge) {
-      rightCut = Math.min(rightCut, straightEdgeCut);
-    }
-    const maxTotalCut = Math.max(MICRO_EPS, len - MICRO_EPS);
-    const totalCut = leftCut + rightCut;
-    if (totalCut > maxTotalCut) {
-      const scale = maxTotalCut / totalCut;
-      leftCut *= scale;
-      rightCut *= scale;
-    }
 
     const shape = new THREE.Shape();
     const rightFrontX = halfLen - rightCut;
@@ -12637,6 +12632,28 @@ export function Table3D(
       min: leftIsMin ? resolvedCutAngles.leftCutAngle : resolvedCutAngles.rightCutAngle,
       max: leftIsMin ? resolvedCutAngles.rightCutAngle : resolvedCutAngles.leftCutAngle
     };
+    const profileMetrics = resolveCushionProfileMetrics(len, horizontal, resolvedCutAngles);
+    const contourLocal = {
+      backLeft: new THREE.Vector3(-halfLen, profileMetrics.backY, railH * 0.5),
+      backRight: new THREE.Vector3(halfLen, profileMetrics.backY, railH * 0.5),
+      frontLeft: new THREE.Vector3(
+        -halfLen + profileMetrics.leftCut,
+        profileMetrics.finalFrontY,
+        railH * 0.5
+      ),
+      frontRight: new THREE.Vector3(
+        halfLen - profileMetrics.rightCut,
+        profileMetrics.finalFrontY,
+        railH * 0.5
+      )
+    };
+    const contourWorld = Object.fromEntries(
+      Object.entries(contourLocal).map(([key, value]) => {
+        const world = value.clone().applyMatrix4(mesh.matrixWorld);
+        return [key, new THREE.Vector2(world.x, world.z)];
+      })
+    );
+    group.userData.physicalContour = contourWorld;
     table.add(group);
     table.userData.cushions.push(group);
   }
@@ -14648,6 +14665,24 @@ function mountPoolRoyaleExternalTableModel({
         if (!cushion) return;
         const data = cushion.userData || {};
         if (typeof data.horizontal !== 'boolean' || !data.side) return;
+        const contour = data.physicalContour;
+        if (
+          contour?.backLeft &&
+          contour?.backRight &&
+          contour?.frontLeft &&
+          contour?.frontRight
+        ) {
+          const points = [
+            new THREE.Vector3(contour.backLeft.x, mappingLineY, contour.backLeft.y),
+            new THREE.Vector3(contour.frontLeft.x, mappingLineY, contour.frontLeft.y),
+            new THREE.Vector3(contour.frontRight.x, mappingLineY, contour.frontRight.y),
+            new THREE.Vector3(contour.backRight.x, mappingLineY, contour.backRight.y)
+          ];
+          if (TABLE_MAPPING_VISUALS.cushions) {
+            registerMappingLine(makeLine(points, cushionLineMaterial));
+          }
+          return;
+        }
         const box = new THREE.Box3().setFromObject(cushion);
         const cutEnds = data.cutEnds || {};
         const minCut = Math.max(0, cutEnds.min || 0);
