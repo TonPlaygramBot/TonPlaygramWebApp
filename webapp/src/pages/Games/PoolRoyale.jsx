@@ -13829,36 +13829,7 @@ function resolvePoolRoyaleExternalTableFitBounds(model, tableModel = null) {
   const fullSize = fullBox.getSize(new THREE.Vector3());
   let footprintBox = fullBox.clone();
 
-  if (tableModel?.fitReference === 'showoodGameplaySurfaces' && !fullBox.isEmpty()) {
-    // Fit from the visible Showood gameplay shell only. The source GLB contains wide
-    // pocket-holder helper meshes that are not part of the playable rail/cushion
-    // outline; including them makes the rendered table smaller than the collision map.
-    const gameplayBox = new THREE.Box3();
-    const gameplaySurfaceRoles = new Set([
-      'cloth',
-      'cushion',
-      'topWoodRail',
-      'sideWoodApron',
-      'cornerPocketPlate',
-      'middlePocketPlate',
-      'railSight'
-    ]);
-    model.traverse((child) => {
-      if (!child?.isMesh) return;
-      const childMaterial = Array.isArray(child.material) ? child.material[0] : child.material;
-      const role = classifyPoolRoyaleExternalTableSurface(child, childMaterial);
-      if (!gameplaySurfaceRoles.has(role)) return;
-      const childName = `${child.name || ''}`.toLowerCase();
-      if (/pocket[_\s-]*(corner|side)?[_\s-]*holder|net|leg|base|support/.test(childName)) return;
-      const childBox = new THREE.Box3().setFromObject(child);
-      if (!childBox.isEmpty()) {
-        gameplayBox.union(childBox);
-      }
-    });
-    if (!gameplayBox.isEmpty()) {
-      footprintBox = gameplayBox;
-    }
-  } else if (tableModel?.fitReference === 'upperTabletop' && !fullBox.isEmpty()) {
+  if (tableModel?.fitReference === 'upperTabletop' && !fullBox.isEmpty()) {
     const upperY = fullBox.min.y + fullSize.y * 0.45;
     const tabletopBox = new THREE.Box3();
 
