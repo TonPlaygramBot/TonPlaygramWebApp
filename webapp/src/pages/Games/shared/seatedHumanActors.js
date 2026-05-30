@@ -17,6 +17,8 @@ const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.35;
 const SEATED_HUMAN_REACH_FORWARD_GAIN = 0.5;
 const SEATED_HUMAN_REACH_SIDE_GAIN = 0.3;
+const SEATED_HUMAN_BOARD_LEAN_GAIN = 0.38;
+const SEATED_HUMAN_BOARD_LEAN_HEAD_GAIN = 0.16;
 
 const seatedHumanTemplatePromiseById = new Map();
 const chessDominoCharacterTextureCache = new Map();
@@ -234,6 +236,7 @@ export function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip
   let headX = -0.03;
   const forwardReach = clamp01(motionProfile?.forwardReach, 0);
   const sideReach = THREE.MathUtils.clamp(motionProfile?.sideReach ?? 0, -1, 1);
+  const boardLean = clamp01(motionProfile?.boardLean, 0);
 
   if (mode === 'reachPiece') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -1.22, t);
@@ -287,6 +290,7 @@ export function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip
 
   const reachForwardDelta = forwardReach * SEATED_HUMAN_REACH_FORWARD_GAIN;
   const reachSideDelta = sideReach * SEATED_HUMAN_REACH_SIDE_GAIN;
+  const boardLeanDelta = boardLean * SEATED_HUMAN_BOARD_LEAN_GAIN;
   shoulderX = THREE.MathUtils.lerp(shoulderX, shoulderX - reachForwardDelta, t);
   shoulderY = THREE.MathUtils.lerp(shoulderY, shoulderY + reachSideDelta * 0.32, t);
   shoulderZ = THREE.MathUtils.lerp(shoulderZ, shoulderZ - reachSideDelta * 0.5, t);
@@ -295,9 +299,14 @@ export function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip
   forearmZ = THREE.MathUtils.lerp(forearmZ, forearmZ - reachSideDelta * 0.36, t);
   wristY = THREE.MathUtils.lerp(wristY, wristY + reachSideDelta * 0.2, t);
   wristZ = THREE.MathUtils.lerp(wristZ, wristZ - reachSideDelta * 0.16, t);
-  chestX = THREE.MathUtils.lerp(chestX, chestX + reachForwardDelta * 0.5, t);
-  headX = THREE.MathUtils.lerp(headX, headX + reachForwardDelta * 0.22, t);
+  chestX = THREE.MathUtils.lerp(chestX, chestX + reachForwardDelta * 0.5 + boardLeanDelta, t);
+  headX = THREE.MathUtils.lerp(
+    headX,
+    headX + reachForwardDelta * 0.22 + boardLean * SEATED_HUMAN_BOARD_LEAN_HEAD_GAIN,
+    t
+  );
 
+  addBoneRot(rig, rig.spine, 0.18 + breathe + boardLeanDelta * 0.42 * t, 0, 0);
   addBoneRot(rig, rig.chest, chestX, 0, 0);
   addBoneRot(rig, rig.head, headX, 0, 0);
   addBoneRot(rig, rig.rightUpperArm, shoulderX, shoulderY, shoulderZ);
