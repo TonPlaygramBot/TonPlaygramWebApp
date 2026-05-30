@@ -63,6 +63,10 @@ import {
 import { giftSounds } from '../../utils/giftSounds.js';
 import { playLudoDiceRollSfx, playLudoTokenStepSfx } from '../../utils/ludoSfx.js';
 import { socket } from '../../utils/socket.js';
+import {
+  findExactUkrainianDroneRotor,
+  loadExactUkrainianDroneModel
+} from '../../utils/ukrainianDroneModel.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
@@ -2854,6 +2858,23 @@ async function createCaptureDroneLauncherTruckFx() {
   };
 }
 
+
+function upgradeCaptureDroneRootToExactModel(root, currentModel, targetSize) {
+  if (!root?.isObject3D) return;
+  void loadExactUkrainianDroneModel()
+    .then((exactModel) => {
+      if (!root?.isObject3D || !exactModel) return;
+      fitObjectToTargetSize(exactModel, targetSize);
+      exactModel.rotation.y = Math.PI;
+      if (currentModel?.parent === root) root.remove(currentModel);
+      root.add(exactModel);
+      root.userData.exactUkrainianDroneVisual = exactModel;
+      root.userData.exactUkrainianDronePropeller = findExactUkrainianDroneRotor(exactModel) || exactModel;
+    })
+    .catch((error) => {
+      console.warn('Exact Ukrainian drone visual failed; keeping existing Ludo drone visible.', error);
+    });
+}
 async function createCaptureDroneFx() {
   const root = new THREE.Group();
   root.userData.lockCaptureTexture = true;
@@ -2864,6 +2885,7 @@ async function createCaptureDroneFx() {
     model.rotation.y = Math.PI;
     const propeller = applyMilitaryDroneLook(model);
     root.add(model);
+    upgradeCaptureDroneRootToExactModel(root, model, 3.85 * CAPTURE_DRONE_SIZE_MULTIPLIER);
     const trail = [];
     for (let i = 0; i < 5; i += 1) {
       trail.push(

@@ -10,6 +10,10 @@ import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
+import {
+  isExactUkrainianDroneObject,
+  loadExactUkrainianDroneModel
+} from '../utils/ukrainianDroneModel.js';
 
 import {
   createMurlanStyleTable,
@@ -5786,6 +5790,14 @@ async function patchGlbImagesToDataUris(buffer, kind, sourceUrl, modelUrls, cach
 }
 
 async function loadCaptureVehicleModel(kind = 'fighter') {
+  if (kind === 'drone' || kind === 'ukrainianDrone') {
+    const cacheKey = `${kind}:exactUkrainianDrone`;
+    if (!SNAKE_CAPTURE_VEHICLE_MODEL_CACHE.has(cacheKey)) {
+      SNAKE_CAPTURE_VEHICLE_MODEL_CACHE.set(cacheKey, loadExactUkrainianDroneModel().then((model) => normalizeCaptureVehicleModel(model)));
+    }
+    const model = await SNAKE_CAPTURE_VEHICLE_MODEL_CACHE.get(cacheKey);
+    return model?.clone?.(true) ?? null;
+  }
   const files = SNAKE_CAPTURE_VEHICLE_MODEL_FILES[kind] || SNAKE_CAPTURE_VEHICLE_MODEL_FILES.fighter;
   const fileList = Array.isArray(files) ? files : [files];
   const cacheKey = `${kind}:${fileList.join('|')}`;
@@ -5856,7 +5868,7 @@ function createCaptureVehicleRig(kind = 'fighter') {
     loadCaptureVehicleModel(kind)
       .then((model) => {
         if (!model) return;
-        applyCaptureVehicleLook(model, visualKind);
+        if (!isExactUkrainianDroneObject(model)) applyCaptureVehicleLook(model, visualKind);
         while (root.children.length > 0) {
           const child = root.children[0];
           if (child?.userData?.trailPuff) break;
