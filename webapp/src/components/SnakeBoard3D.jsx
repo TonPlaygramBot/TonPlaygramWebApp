@@ -209,6 +209,7 @@ const SNAKE_CAPTURE_VEHICLE_MODEL_HOSTS = [
 ];
 const SNAKE_CAPTURE_VEHICLE_MODEL_FILES = Object.freeze({
   drone: ['drone.glb'],
+  ukrainianDrone: ['drone.glb'],
   helicopter: ['helicopter.glb'],
   fighter: ['f15.glb'],
   supportTruck: ['fire_truck.glb'],
@@ -216,6 +217,7 @@ const SNAKE_CAPTURE_VEHICLE_MODEL_FILES = Object.freeze({
 });
 const SNAKE_CAPTURE_POLYHAVEN_TEXTURE_ASSETS = Object.freeze({
   drone: 'rusty_metal_sheet',
+  ukrainianDrone: 'rusty_metal_sheet',
   fighter: 'green_metal_rust',
   helicopter: 'green_metal_rust',
   missile: 'green_metal_rust',
@@ -733,6 +735,7 @@ const LUDO_CAPTURE_ATTACK_TUNING_BY_WEAPON = Object.freeze({
   fighter: Object.freeze({ speed: 0.92, height: 0.92, inward: 0.94, takeoff: 0.22, landing: 0.26 }),
   helicopter: Object.freeze({ speed: 0.94, height: 0.92, inward: 0.94, takeoff: 0.22, landing: 0.26 }),
   drone: Object.freeze({ speed: 0.86, height: 0.92, inward: 0.94, takeoff: 0.22, landing: 0.26 }),
+  ukrainianDrone: Object.freeze({ speed: 0.94, height: 0.92, inward: 0.94, takeoff: 0.22, landing: 0.26 }),
   // Pawn javelin and support-truck rockets intentionally match drone speed/altitude profile.
   javelin: Object.freeze({ speed: 0.86, height: 0.92, inward: 0.94, takeoff: 0.22, landing: 0.26 }),
   supportTruck: Object.freeze({ speed: 0.86, height: 0.92, inward: 0.94, takeoff: 0.22, landing: 0.26 })
@@ -754,8 +757,8 @@ const WEAPON_PARKED_ROLL_BY_KIND = Object.freeze({
 const SNAKE_CAPTURE_WEAPON_KIND_MAP = Object.freeze({
   missileJavelin: 'javelin',
   droneAttack: 'drone',
-  ukrainianDroneAttack: 'drone',
-  ukrainiandroneattack: 'drone',
+  ukrainianDroneAttack: 'ukrainianDrone',
+  ukrainiandroneattack: 'ukrainianDrone',
   fighterJetAttack: 'fighter',
   helicopterAttack: 'helicopter',
   fpsGunAttack: 'supportTruck',
@@ -5724,6 +5727,7 @@ async function resolveExternalImageToDataUri(imageUri, kind, sourceUrl, modelUrl
   if (isDataUri(imageUri)) return imageUri;
   const placeholderColors = {
     drone: ['#7c8791', '#4f5861'],
+    ukrainianDrone: ['#2f80ed', '#f2c94c'],
     helicopter: ['#6f7763', '#4f5648'],
     fighter: ['#98a1a9', '#646d76'],
     supportTruck: ['#6b7280', '#4b5563'],
@@ -5833,6 +5837,7 @@ async function loadCaptureVehicleModel(kind = 'fighter') {
 }
 
 function createCaptureVehicleRig(kind = 'fighter') {
+  const visualKind = kind === 'ukrainianDrone' ? 'drone' : kind;
   const root = new THREE.Group();
   const smokeMat = new THREE.MeshStandardMaterial({
     color: '#90989d',
@@ -5842,7 +5847,7 @@ function createCaptureVehicleRig(kind = 'fighter') {
     opacity: 0.2
   });
 
-  root.add(createCaptureVehicleFallbackMesh(kind));
+  root.add(createCaptureVehicleFallbackMesh(visualKind));
   if (kind === 'javelin') {
     root.userData.rotorNodes = [];
     root.userData.topRotor = null;
@@ -5851,14 +5856,14 @@ function createCaptureVehicleRig(kind = 'fighter') {
     loadCaptureVehicleModel(kind)
       .then((model) => {
         if (!model) return;
-        applyCaptureVehicleLook(model, kind);
+        applyCaptureVehicleLook(model, visualKind);
         while (root.children.length > 0) {
           const child = root.children[0];
           if (child?.userData?.trailPuff) break;
           root.remove(child);
         }
         root.add(model);
-        const rotors = collectRotorNodes(model, kind);
+        const rotors = collectRotorNodes(model, visualKind);
         root.userData.rotorNodes = rotors.all;
         root.userData.topRotor = rotors.topRotor;
         root.userData.tailRotor = rotors.tailRotor;
@@ -6052,7 +6057,7 @@ function createSeatWeaponMesh(weaponType = 'fighter', options = {}) {
   const catalogOption = SNAKE_CAPTURE_WEAPON_OPTION_BY_ID[rawWeaponType] || null;
   const catalogWeaponType = catalogOption ? rawWeaponType : null;
   const normalizedWeaponType = catalogOption?.vehicleKind || normalizeSnakeCaptureWeaponKind(rawWeaponType || weaponType);
-  const isVehicleWeapon = ['supportTruck', 'drone', 'helicopter', 'fighter', 'javelin'].includes(
+  const isVehicleWeapon = ['supportTruck', 'drone', 'ukrainianDrone', 'helicopter', 'fighter', 'javelin'].includes(
     normalizedWeaponType
   );
   const firearmScale = isVehicleWeapon ? 1 : FIREARM_DISPLAY_SIZE_MULTIPLIER;
@@ -6091,7 +6096,7 @@ function createSeatWeaponMesh(weaponType = 'fighter', options = {}) {
   const displayScale =
     normalizedWeaponType === 'supportTruck'
       ? TOKEN_HEIGHT * 0.8
-      : normalizedWeaponType === 'drone'
+      : normalizedWeaponType === 'drone' || normalizedWeaponType === 'ukrainianDrone'
       ? TOKEN_HEIGHT * 0.75
       : TOKEN_HEIGHT * 0.85;
   group.scale.setScalar(displayScale * 1.5 * WEAPON_DISPLAY_SIZE_MULTIPLIER);
@@ -6575,6 +6580,7 @@ export default function SnakeBoard3D({
       fighter: createCaptureVehicleRig('fighter'),
       helicopter: createCaptureVehicleRig('helicopter'),
       drone: createCaptureVehicleRig('drone'),
+      ukrainianDrone: createCaptureVehicleRig('ukrainianDrone'),
       supportTruck: createCaptureVehicleRig('supportTruck'),
       javelin: createCaptureVehicleRig('javelin')
     };
@@ -7496,15 +7502,23 @@ export default function SnakeBoard3D({
     explosion.root.visible = false;
     const bbox = new THREE.Box3().setFromObject(attacker);
     const tokenHeight = Math.max(TOKEN_HEIGHT * 5, bbox.max.y - bbox.min.y);
+    const isUkrainianDroneAircraft = vehicleKind === 'ukrainianDrone';
     primaryVehicle.root.scale.set(tokenHeight, tokenHeight * 0.38, tokenHeight * 0.38);
-    missileProjectile.root.scale.set(tokenHeight * 0.85, tokenHeight * 0.22, tokenHeight * 0.22);
+    missileProjectile.root.scale.set(
+      isUkrainianDroneAircraft ? tokenHeight * 0.42 : tokenHeight * 0.85,
+      isUkrainianDroneAircraft ? tokenHeight * 0.12 : tokenHeight * 0.22,
+      isUkrainianDroneAircraft ? tokenHeight * 0.12 : tokenHeight * 0.22
+    );
+    missileProjectile.trail?.forEach((puff) => {
+      puff.visible = !isUkrainianDroneAircraft;
+    });
 
     const startTime = performance.now();
     const stageFlightDuration = CAPTURE_MISSILE_FLIGHT_MS / Math.max(0.58, captureTuning.speed || 1);
     const impactDuration = CAPTURE_EXPLOSION_MS;
     const advanceDuration = CAPTURE_TOKEN_ADVANCE_MS;
-    const isDroneLikeAircraft = vehicleKind === 'drone' || vehicleKind === 'fighter' || vehicleKind === 'helicopter';
-    const isReturningAircraft = vehicleKind === 'fighter' || vehicleKind === 'helicopter';
+    const isDroneLikeAircraft = vehicleKind === 'drone' || isUkrainianDroneAircraft || vehicleKind === 'fighter' || vehicleKind === 'helicopter';
+    const isReturningAircraft = vehicleKind === 'fighter' || vehicleKind === 'helicopter' || isUkrainianDroneAircraft;
     const volleyCount = vehicleKind === 'supportTruck' ? 1 : (isReturningAircraft ? 1 : CAPTURE_MULTI_SHOT_COUNT);
     const perMissileFlight = CAPTURE_MISSILE_FLIGHT_MS;
     const perMissileGap = 120;
@@ -7650,8 +7664,13 @@ export default function SnakeBoard3D({
             const rawU = easeInOut(clamp01(missileElapsed / perMissileFlight));
             const u = remapTakeoffLandingProgress(rawU, captureTuning.takeoff, captureTuning.landing);
             const from = aircraftMissileLaunchFrom || centerStage;
-            const pos = missilePathAt(u, from);
-            const next = missilePathAt(clamp01(u + 0.02), from);
+            const ukrainianDropTop = new THREE.Vector3(impact.x, Math.max(from.y - TOKEN_HEIGHT * 0.4, impact.y + CAPTURE_VERTICAL_STRIKE_LIFT * 0.68), impact.z);
+            const pos = isUkrainianDroneAircraft
+              ? ukrainianDropTop.clone().lerp(impact, easeInOut(u))
+              : missilePathAt(u, from);
+            const next = isUkrainianDroneAircraft
+              ? ukrainianDropTop.clone().lerp(impact, easeInOut(clamp01(u + 0.02)))
+              : missilePathAt(clamp01(u + 0.02), from);
             const dir = next.clone().sub(pos).normalize();
             missileProjectile.root.visible = true;
             missileProjectile.root.position.copy(pos);
