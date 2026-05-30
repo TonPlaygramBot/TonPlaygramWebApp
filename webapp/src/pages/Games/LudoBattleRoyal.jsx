@@ -2854,7 +2854,7 @@ async function createCaptureDroneLauncherTruckFx() {
   };
 }
 
-async function createCaptureDroneFx({ preserveOriginalDrone = false } = {}) {
+async function createCaptureDroneFx() {
   const root = new THREE.Group();
   root.userData.lockCaptureTexture = true;
   const loadedDrone = await loadCaptureVehicleModel('drone');
@@ -2862,24 +2862,22 @@ async function createCaptureDroneFx({ preserveOriginalDrone = false } = {}) {
     const model = loadedDrone.clone(true);
     fitObjectToTargetSize(model, 3.85 * CAPTURE_DRONE_SIZE_MULTIPLIER);
     model.rotation.y = Math.PI;
-    const propeller = preserveOriginalDrone ? findDroneMotorMesh(model) : applyMilitaryDroneLook(model);
+    const propeller = applyMilitaryDroneLook(model);
     root.add(model);
     const trail = [];
-    if (!preserveOriginalDrone) {
-      for (let i = 0; i < 5; i += 1) {
-        trail.push(
-          addFxSphere(
-            root,
-            0.12 + i * 0.03,
-            [-0.84 - i * 0.19, 0, 0],
-            i < 2 ? '#f6af4b' : '#8f989d',
-            i < 2 ? 0.2 : 1,
-            0,
-            true,
-            i < 2 ? 0.8 - i * 0.15 : 0.26 - (i - 2) * 0.04
-          )
-        );
-      }
+    for (let i = 0; i < 5; i += 1) {
+      trail.push(
+        addFxSphere(
+          root,
+          0.12 + i * 0.03,
+          [-0.84 - i * 0.19, 0, 0],
+          i < 2 ? '#f6af4b' : '#8f989d',
+          i < 2 ? 0.2 : 1,
+          0,
+          true,
+          i < 2 ? 0.8 - i * 0.15 : 0.26 - (i - 2) * 0.04
+        )
+      );
     }
     root.visible = false;
     return { root, propeller, trail };
@@ -9151,7 +9149,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       // eslint-disable-next-line no-await-in-loop
       const helicopterFx = await createCaptureHelicopterFx();
       // eslint-disable-next-line no-await-in-loop
-      const droneFx = await createCaptureDroneFx({ preserveOriginalDrone: true });
+      const droneFx = await createCaptureDroneFx();
       // eslint-disable-next-line no-await-in-loop
       const missileFx = await createCaptureMissileTruckFx();
       // eslint-disable-next-line no-await-in-loop
@@ -12544,7 +12542,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         if (isFighterJetAttack) playFighterJetSound();
         const primaryFx =
           (resolvedCaptureAnimationId === 'droneAttack' || resolvedCaptureAnimationId === 'ukrainianDroneAttack')
-            ? await createCaptureDroneFx({ preserveOriginalDrone: resolvedCaptureAnimationId === 'ukrainianDroneAttack' })
+            ? await createCaptureDroneFx()
             : resolvedCaptureAnimationId === 'helicopterAttack'
             ? await createCaptureHelicopterFx()
             : resolvedCaptureAnimationId === 'fighterJetAttack'
