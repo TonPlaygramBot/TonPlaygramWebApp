@@ -207,6 +207,15 @@ const GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID = Object.freeze({
   fighterJetAttack: 'jet',
   helicopterAttack: 'helicopter'
 });
+const PARKED_WEAPON_KIND_BY_CAPTURE_KIND = Object.freeze({
+  ukrainianDrone: 'drone'
+});
+const getParkedWeaponKindForAnimationId = (animationId) => {
+  const captureKind = GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[animationId] || 'truck';
+  return PARKED_WEAPON_KIND_BY_CAPTURE_KIND[captureKind] || captureKind;
+};
+const isCaptureAnimationVisibleOnParkedKind = (animationId, parkedKind) =>
+  getParkedWeaponKindForAnimationId(animationId) === parkedKind;
 const FIREARM_CAPTURE_ANIMATION_IDS = new Set(
   CAPTURE_ANIMATION_OPTIONS.map((option) => option.id).filter((id) => !GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[id])
 );
@@ -8431,7 +8440,7 @@ function Chess3D({
     return GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[selectedCaptureAnimationId] || 'truck';
   }, [selectedCaptureAnimationId]);
   const selectedParkedWeaponKind = useMemo(
-    () => GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[selectedCaptureAnimationId] || 'truck',
+    () => getParkedWeaponKindForAnimationId(selectedCaptureAnimationId),
     [selectedCaptureAnimationId]
   );
   const selectedParkedWeaponKindRef = useRef(selectedParkedWeaponKind);
@@ -8530,14 +8539,14 @@ function Chess3D({
     if (['jet', 'drone', 'helicopter', 'truck'].includes(weaponSwapTargetKind)) {
       const firearmAndOriginalVehicle = pool.filter((option) => {
         if (FIREARM_CAPTURE_ANIMATION_IDS.has(option.id)) return true;
-        return GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[option.id] === weaponSwapTargetKind;
+        return isCaptureAnimationVisibleOnParkedKind(option.id, weaponSwapTargetKind);
       });
       if (firearmAndOriginalVehicle.length) return firearmAndOriginalVehicle;
     }
 
     const filtered = pool.filter((option) => {
       if (FIREARM_CAPTURE_ANIMATION_IDS.has(option.id)) return true;
-      return GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[option.id] === weaponSwapTargetKind;
+      return isCaptureAnimationVisibleOnParkedKind(option.id, weaponSwapTargetKind);
     });
     if (filtered.length) return filtered;
     return pool;
@@ -11009,6 +11018,50 @@ function Chess3D({
       root.add(badge);
       return badge;
     };
+    const setUkrainianDroneAccentsVisible = (root, visible = true) => {
+      if (!root) return null;
+      if (!root.userData.ukrainianDroneAccentGroup) {
+        const accentGroup = new THREE.Group();
+        accentGroup.name = 'ukrainian-drone-blue-yellow-accents';
+        const blueMaterial = new THREE.MeshStandardMaterial({
+          color: '#2563eb',
+          emissive: '#0f3aa8',
+          emissiveIntensity: 0.22,
+          roughness: 0.36,
+          metalness: 0.18
+        });
+        const yellowMaterial = new THREE.MeshStandardMaterial({
+          color: '#facc15',
+          emissive: '#854d0e',
+          emissiveIntensity: 0.2,
+          roughness: 0.38,
+          metalness: 0.12
+        });
+        const addPanel = (size, position, material) => {
+          const panel = new THREE.Mesh(new THREE.BoxGeometry(...size), material.clone());
+          panel.position.set(...position);
+          panel.castShadow = true;
+          panel.receiveShadow = true;
+          accentGroup.add(panel);
+          return panel;
+        };
+        addPanel([0.9, 0.045, 0.16], [0.03, 0.25, -0.18], blueMaterial);
+        addPanel([0.9, 0.045, 0.16], [0.03, 0.25, 0.18], yellowMaterial);
+        addPanel([0.34, 0.05, 1.18], [-0.38, 0.12, 0], blueMaterial);
+        addPanel([0.2, 0.06, 1.28], [0.22, 0.13, 0], yellowMaterial);
+        const marker = new THREE.Mesh(
+          new THREE.CircleGeometry(0.18, 24),
+          new THREE.MeshBasicMaterial({ color: '#f8fafc', side: THREE.DoubleSide })
+        );
+        marker.position.set(0.58, 0.17, 0);
+        marker.rotation.y = Math.PI / 2;
+        accentGroup.add(marker);
+        root.userData.ukrainianDroneAccentGroup = accentGroup;
+        root.add(accentGroup);
+      }
+      root.userData.ukrainianDroneAccentGroup.visible = Boolean(visible);
+      return root.userData.ukrainianDroneAccentGroup;
+    };
     const createFxDrone = ({ forceProcedural = false } = {}) => {
       const model = forceProcedural ? null : cloneCaptureUnitTemplate('drone');
       if (model) {
@@ -12469,6 +12522,7 @@ function Chess3D({
             /rotor|propell|blade|fan|window|cockpit|glass|canopy/.test(`${node.name || ''}`.toLowerCase())
           );
         }
+        setUkrainianDroneAccentsVisible(droneFx.root, true);
         attachVehicleAvatarBadge(
           droneFx.root,
           isWhiteSide
@@ -13133,11 +13187,16 @@ function Chess3D({
           unit.parkedFirearmDisplay = null;
           unit.parkedFirearmAnimationId = null;
         }
+        setUkrainianDroneAccentsVisible(
+          unit.root,
+          unit.kind === 'drone' && animationId === 'ukrainianDroneAttack'
+        );
         unit.root.position.y = unit.homePosition.y;
         unit.root.rotation.copy(unit.homeRotation);
         unit.root.quaternion.setFromEuler(unit.root.rotation);
         return;
       }
+      setUkrainianDroneAccentsVisible(unit.root, false);
       unit.root.position.y = unit.tableSurfacePosition?.y ?? unit.homePosition.y;
       unit.root.rotation.copy(unit.homeRotation);
       unit.root.rotateX(Math.PI * 0.5);
