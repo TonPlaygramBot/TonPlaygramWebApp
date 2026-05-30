@@ -12,10 +12,7 @@ import {
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
-import {
-  POOL_ROYALE_TABLE_MODEL_STORAGE_KEY,
-  resolvePoolRoyaleTableModel
-} from '../../config/poolRoyaleTableModels.js';
+import { resolvePoolRoyaleTableModel } from '../../config/poolRoyaleTableModels.js';
 import { socket } from '../../utils/socket.js';
 import { getOnlineUsers } from '../../utils/api.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
@@ -37,7 +34,6 @@ import {
 const PLAYER_FLAG_STORAGE_KEY = 'poolRoyalePlayerFlag';
 const AI_FLAG_STORAGE_KEY = 'poolRoyaleAiFlag';
 const TABLE_FINISH_STORAGE_KEY = 'poolRoyaleTableFinish';
-const TABLE_BASE_STORAGE_KEY = 'poolRoyaleTableBase';
 
 function resolveTpcAccountNumber(player) {
   if (!player || typeof player !== 'object') return '';
@@ -63,7 +59,12 @@ const runPoolRoyaleIdleTask = (callback) => {
 
 const prewarmPoolRoyaleShowoodModel = (tableModel) => {
   if (typeof window === 'undefined' || !tableModel?.assetUrl) return undefined;
-  const urls = [tableModel.assetUrl, tableModel.fallbackAssetUrl].filter(Boolean);
+  const urls = [
+    tableModel.assetUrl,
+    ...(Array.isArray(tableModel.fallbackAssetUrls)
+      ? tableModel.fallbackAssetUrls
+      : [tableModel.fallbackAssetUrl])
+  ].filter(Boolean);
   if (!urls.length) return undefined;
 
   const links = urls.map((url) => {
@@ -160,8 +161,6 @@ export default function PoolRoyaleLobby() {
   const selectedFlag =
     playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
   const selectedAiFlag = aiFlagIndex != null ? FLAG_EMOJIS[aiFlagIndex] : '';
-  const selectedTableModelReady = true;
-
   useEffect(() => prewarmPoolRoyaleShowoodModel(selectedTableModel), [selectedTableModel]);
 
   useEffect(() => {
@@ -279,20 +278,10 @@ export default function PoolRoyaleLobby() {
     setMatchStatus('');
     setMatchingError('');
     try {
-      window.localStorage?.setItem(
-        POOL_ROYALE_TABLE_MODEL_STORAGE_KEY,
-        selectedTableModel.id
-      );
       if (selectedTableModel.finishId) {
         window.localStorage?.setItem(
           TABLE_FINISH_STORAGE_KEY,
           selectedTableModel.finishId
-        );
-      }
-      if (selectedTableModel.baseId) {
-        window.localStorage?.setItem(
-          TABLE_BASE_STORAGE_KEY,
-          selectedTableModel.baseId
         );
       }
     } catch {}
@@ -912,7 +901,7 @@ export default function PoolRoyaleLobby() {
               <div>
                 <h3 className="font-semibold text-white">Pool Table</h3>
                 <p className="mt-1">
-                  Showood 7 ft GLB is the fixed Pool Royale table and is preloaded from the lobby for faster starts.
+                  Showood 7 ft GLB is now the fixed Pool Royale table.
                 </p>
               </div>
               <span className="rounded-full border border-emerald-300/35 bg-emerald-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-100">
@@ -1305,10 +1294,7 @@ export default function PoolRoyaleLobby() {
           <button
             onClick={startGame}
             className="w-full rounded-2xl bg-primary px-4 py-3 text-base font-semibold text-background transition hover:bg-primary-hover"
-            disabled={
-              (mode === 'online' && (isSearching || matching)) ||
-              !selectedTableModelReady
-            }
+            disabled={mode === 'online' && (isSearching || matching)}
           >
             {mode === 'online'
               ? matching
