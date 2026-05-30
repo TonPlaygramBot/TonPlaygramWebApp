@@ -15,8 +15,10 @@ const smooth01 = (v) => {
 const SEATED_HUMAN_DEFAULT_MODEL_URL = CHESS_HUMAN_CHARACTER_OPTIONS[0]?.modelUrls?.[0];
 const SEATED_HUMAN_BASE_HEIGHT = 1.74;
 const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 4.35;
-const SEATED_HUMAN_REACH_FORWARD_GAIN = 0.5;
-const SEATED_HUMAN_REACH_SIDE_GAIN = 0.3;
+const SEATED_HUMAN_REACH_FORWARD_GAIN = 0.62;
+const SEATED_HUMAN_REACH_SIDE_GAIN = 0.34;
+const SEATED_HUMAN_TORSO_REACH_GAIN = 0.16;
+const SEATED_HUMAN_HEAD_REACH_GAIN = 0.08;
 
 const seatedHumanTemplatePromiseById = new Map();
 const chessDominoCharacterTextureCache = new Map();
@@ -245,8 +247,8 @@ export function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip
     wristX = THREE.MathUtils.lerp(wristX, -0.4, t);
     wristY = THREE.MathUtils.lerp(wristY, 0.2, t);
     wristZ = THREE.MathUtils.lerp(wristZ, -0.34, t);
-    chestX = THREE.MathUtils.lerp(chestX, 0.42, t);
-    headX = THREE.MathUtils.lerp(headX, 0.07, t);
+    chestX = THREE.MathUtils.lerp(chestX, 0.28, t);
+    headX = THREE.MathUtils.lerp(headX, 0.04, t);
   } else if (mode === 'gripPiece') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -1.28, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, 0.14, t);
@@ -257,8 +259,8 @@ export function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip
     wristX = THREE.MathUtils.lerp(wristX, -0.46, t);
     wristY = THREE.MathUtils.lerp(wristY, 0.2, t);
     wristZ = THREE.MathUtils.lerp(wristZ, -0.28, t);
-    chestX = THREE.MathUtils.lerp(chestX, 0.46, t);
-    headX = THREE.MathUtils.lerp(headX, 0.09, t);
+    chestX = THREE.MathUtils.lerp(chestX, 0.3, t);
+    headX = THREE.MathUtils.lerp(headX, 0.05, t);
   } else if (mode === 'carryPiece') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.98, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, -0.02, t);
@@ -269,8 +271,8 @@ export function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip
     wristX = THREE.MathUtils.lerp(wristX, -0.02, t);
     wristY = THREE.MathUtils.lerp(wristY, 0.2, t);
     wristZ = THREE.MathUtils.lerp(wristZ, -0.1, t);
-    chestX = THREE.MathUtils.lerp(chestX, 0.4, t);
-    headX = THREE.MathUtils.lerp(headX, 0.05, t);
+    chestX = THREE.MathUtils.lerp(chestX, 0.24, t);
+    headX = THREE.MathUtils.lerp(headX, 0.03, t);
   } else if (mode === 'placePiece') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -1.2, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, 0.1, t);
@@ -281,8 +283,8 @@ export function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip
     wristX = THREE.MathUtils.lerp(wristX, -0.48, t);
     wristY = THREE.MathUtils.lerp(wristY, 0.2, t);
     wristZ = THREE.MathUtils.lerp(wristZ, -0.32, t);
-    chestX = THREE.MathUtils.lerp(chestX, 0.44, t);
-    headX = THREE.MathUtils.lerp(headX, 0.11, t);
+    chestX = THREE.MathUtils.lerp(chestX, 0.29, t);
+    headX = THREE.MathUtils.lerp(headX, 0.06, t);
   }
 
   const reachForwardDelta = forwardReach * SEATED_HUMAN_REACH_FORWARD_GAIN;
@@ -295,8 +297,16 @@ export function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip
   forearmZ = THREE.MathUtils.lerp(forearmZ, forearmZ - reachSideDelta * 0.36, t);
   wristY = THREE.MathUtils.lerp(wristY, wristY + reachSideDelta * 0.2, t);
   wristZ = THREE.MathUtils.lerp(wristZ, wristZ - reachSideDelta * 0.16, t);
-  chestX = THREE.MathUtils.lerp(chestX, chestX + reachForwardDelta * 0.5, t);
-  headX = THREE.MathUtils.lerp(headX, headX + reachForwardDelta * 0.22, t);
+  chestX = THREE.MathUtils.lerp(
+    chestX,
+    chestX + reachForwardDelta * SEATED_HUMAN_TORSO_REACH_GAIN,
+    t
+  );
+  headX = THREE.MathUtils.lerp(
+    headX,
+    headX + reachForwardDelta * SEATED_HUMAN_HEAD_REACH_GAIN,
+    t
+  );
 
   addBoneRot(rig, rig.chest, chestX, 0, 0);
   addBoneRot(rig, rig.head, headX, 0, 0);
