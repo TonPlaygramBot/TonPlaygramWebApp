@@ -1280,15 +1280,20 @@ function makeTexasCharacterPose(base = {}, offsets = {}) {
   return pose;
 }
 
-function applyTexasCharacterPose(rig, pose, alpha = 1) {
+function applyTexasCharacterPoseBetween(rig, fromPose, targetPose, alpha = 1) {
   Object.entries(rig?.bones || {}).forEach(([key, bone]) => {
-    const target = pose?.[key];
     const home = rig?.seatedPose?.[key] || rig?.defaultPose?.[key];
-    if (!bone || !target || !home) return;
-    bone.rotation.x = THREE.MathUtils.lerp(home.x, target.x, alpha);
-    bone.rotation.y = THREE.MathUtils.lerp(home.y, target.y, alpha);
-    bone.rotation.z = THREE.MathUtils.lerp(home.z, target.z, alpha);
+    const from = fromPose?.[key] || home;
+    const target = targetPose?.[key] || home;
+    if (!bone || !target || !from) return;
+    bone.rotation.x = THREE.MathUtils.lerp(from.x, target.x, alpha);
+    bone.rotation.y = THREE.MathUtils.lerp(from.y, target.y, alpha);
+    bone.rotation.z = THREE.MathUtils.lerp(from.z, target.z, alpha);
   });
+}
+
+function applyTexasCharacterPose(rig, pose, alpha = 1) {
+  applyTexasCharacterPoseBetween(rig, rig?.seatedPose, pose, alpha);
 }
 
 function normalizeTexasCharacterRoot(root) {
@@ -1421,6 +1426,9 @@ function createTexasCharacterRig(instance, seatRoot, seatIndex) {
     rightUpperArm: findTexasCharacterBone(instance, ['rightarm', 'arm.r', 'r_upperarm', 'rightshoulder']),
     rightForeArm: findTexasCharacterBone(instance, ['rightforearm', 'r_forearm', 'rightlowerarm', 'forearmr', 'elbowr']),
     rightHand: findTexasCharacterBone(instance, ['righthand', 'hand.r', 'r_hand']),
+    rightIndexFinger: findTexasCharacterBone(instance, ['rightindex', 'index.r', 'index_01_r', 'r_index']),
+    rightThumbFinger: findTexasCharacterBone(instance, ['rightthumb', 'thumb.r', 'thumb_01_r', 'r_thumb']),
+    rightMiddleFinger: findTexasCharacterBone(instance, ['rightmiddle', 'middle.r', 'middle_01_r', 'r_middle']),
     leftUpperArm: findTexasCharacterBone(instance, ['leftarm', 'arm.l', 'l_upperarm', 'leftshoulder']),
     leftForeArm: findTexasCharacterBone(instance, ['leftforearm', 'l_forearm', 'leftlowerarm', 'forearml', 'elbowl']),
     leftHand: findTexasCharacterBone(instance, ['lefthand', 'hand.l', 'l_hand']),
@@ -1440,6 +1448,9 @@ function createTexasCharacterRig(instance, seatRoot, seatIndex) {
   addTexasBoneOffset(bones.rightUpperArm, THREE.MathUtils.degToRad(-58), THREE.MathUtils.degToRad(18), THREE.MathUtils.degToRad(8));
   addTexasBoneOffset(bones.rightForeArm, THREE.MathUtils.degToRad(4), THREE.MathUtils.degToRad(2), THREE.MathUtils.degToRad(-3));
   addTexasBoneOffset(bones.rightHand, THREE.MathUtils.degToRad(-8), THREE.MathUtils.degToRad(7), THREE.MathUtils.degToRad(8));
+  addTexasBoneOffset(bones.rightIndexFinger, THREE.MathUtils.degToRad(18), THREE.MathUtils.degToRad(-3), THREE.MathUtils.degToRad(-2));
+  addTexasBoneOffset(bones.rightThumbFinger, THREE.MathUtils.degToRad(-12), THREE.MathUtils.degToRad(4), THREE.MathUtils.degToRad(9));
+  addTexasBoneOffset(bones.rightMiddleFinger, THREE.MathUtils.degToRad(16), THREE.MathUtils.degToRad(-2), THREE.MathUtils.degToRad(-1));
   addTexasBoneOffset(bones.leftThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(9.2), THREE.MathUtils.degToRad(2.9));
   addTexasBoneOffset(bones.rightThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(1.7), THREE.MathUtils.degToRad(-1.1));
   addTexasBoneOffset(bones.leftCalf, THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(1.1), THREE.MathUtils.degToRad(0.6));
@@ -1528,70 +1539,71 @@ function runTexasCharacterPoseAction(seatGroup, type = 'CARDS') {
       rightForeArm: { x: THREE.MathUtils.degToRad(-42), y: THREE.MathUtils.degToRad(-1), z: THREE.MathUtils.degToRad(2) },
       rightHand: { x: THREE.MathUtils.degToRad(-38), y: THREE.MathUtils.degToRad(2), z: THREE.MathUtils.degToRad(12) }
     }),
-    fold: makeTexasCharacterPose(base, {
-      spine: { x: THREE.MathUtils.degToRad(8) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(38), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-18) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(56) },
-      rightHand: { x: THREE.MathUtils.degToRad(18), y: THREE.MathUtils.degToRad(-10) },
-      head: { x: THREE.MathUtils.degToRad(-4) }
+    passDown: makeTexasCharacterPose(base, {
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-24), y: THREE.MathUtils.degToRad(-6), z: THREE.MathUtils.degToRad(-7) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-38), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-1) },
+      rightHand: { x: THREE.MathUtils.degToRad(-18), y: THREE.MathUtils.degToRad(-4), z: THREE.MathUtils.degToRad(-3) },
+      rightIndexFinger: { x: THREE.MathUtils.degToRad(18), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-1) },
+      rightThumbFinger: { x: THREE.MathUtils.degToRad(-8), y: THREE.MathUtils.degToRad(3), z: THREE.MathUtils.degToRad(7) },
+      rightMiddleFinger: { x: THREE.MathUtils.degToRad(16), y: THREE.MathUtils.degToRad(-1), z: THREE.MathUtils.degToRad(-1) }
     }),
-    chipGrab: makeTexasCharacterPose(base, {
-      spine: { x: THREE.MathUtils.degToRad(-16) },
-      leftUpperArm: { x: THREE.MathUtils.degToRad(-28), y: THREE.MathUtils.degToRad(8), z: THREE.MathUtils.degToRad(0) },
-      leftForeArm: { x: THREE.MathUtils.degToRad(-24), y: THREE.MathUtils.degToRad(1), z: THREE.MathUtils.degToRad(-2) },
-      leftHand: { x: THREE.MathUtils.degToRad(-20), y: THREE.MathUtils.degToRad(-5), z: THREE.MathUtils.degToRad(-8) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-42), y: THREE.MathUtils.degToRad(-12), z: THREE.MathUtils.degToRad(-8) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(-36), y: THREE.MathUtils.degToRad(-3), z: THREE.MathUtils.degToRad(2) },
-      rightHand: { x: THREE.MathUtils.degToRad(-24), y: THREE.MathUtils.degToRad(-12), z: THREE.MathUtils.degToRad(-10) },
-      head: { x: THREE.MathUtils.degToRad(-9) }
+    passTinyLift: makeTexasCharacterPose(base, {
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-17), y: THREE.MathUtils.degToRad(-6), z: THREE.MathUtils.degToRad(-7) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-30), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-1) },
+      rightHand: { x: THREE.MathUtils.degToRad(-12), y: THREE.MathUtils.degToRad(-4), z: THREE.MathUtils.degToRad(-3) },
+      rightIndexFinger: { x: THREE.MathUtils.degToRad(18), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-1) },
+      rightThumbFinger: { x: THREE.MathUtils.degToRad(-8), y: THREE.MathUtils.degToRad(3), z: THREE.MathUtils.degToRad(7) },
+      rightMiddleFinger: { x: THREE.MathUtils.degToRad(16), y: THREE.MathUtils.degToRad(-1), z: THREE.MathUtils.degToRad(-1) }
     }),
     chipPlace: makeTexasCharacterPose(base, {
-      spine: { x: THREE.MathUtils.degToRad(-20) },
-      leftUpperArm: { x: THREE.MathUtils.degToRad(-34), y: THREE.MathUtils.degToRad(6), z: THREE.MathUtils.degToRad(0) },
-      leftForeArm: { x: THREE.MathUtils.degToRad(-32), y: THREE.MathUtils.degToRad(0), z: THREE.MathUtils.degToRad(-2) },
-      leftHand: { x: THREE.MathUtils.degToRad(-24), y: THREE.MathUtils.degToRad(-3), z: THREE.MathUtils.degToRad(-8) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-52), y: THREE.MathUtils.degToRad(-8), z: THREE.MathUtils.degToRad(-4) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(-46), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(2) },
-      rightHand: { x: THREE.MathUtils.degToRad(-34), y: THREE.MathUtils.degToRad(-8), z: THREE.MathUtils.degToRad(-8) },
-      head: { x: THREE.MathUtils.degToRad(-11) }
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-20), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-14) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-24), y: THREE.MathUtils.degToRad(-1) },
+      rightHand: { x: THREE.MathUtils.degToRad(-14), y: THREE.MathUtils.degToRad(-5), z: THREE.MathUtils.degToRad(-1) },
+      rightIndexFinger: { x: THREE.MathUtils.degToRad(-5), y: THREE.MathUtils.degToRad(2) },
+      rightThumbFinger: { x: THREE.MathUtils.degToRad(8), z: THREE.MathUtils.degToRad(-6) },
+      rightMiddleFinger: { x: THREE.MathUtils.degToRad(-4), y: THREE.MathUtils.degToRad(1) }
     }),
     checkLift: makeTexasCharacterPose(base, {
-      spine: { x: THREE.MathUtils.degToRad(-10) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-62), y: THREE.MathUtils.degToRad(9), z: THREE.MathUtils.degToRad(8) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(-8), y: THREE.MathUtils.degToRad(6) },
-      rightHand: { x: THREE.MathUtils.degToRad(-24), y: THREE.MathUtils.degToRad(6), z: THREE.MathUtils.degToRad(12) },
-      head: { x: THREE.MathUtils.degToRad(-6) }
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-17), y: THREE.MathUtils.degToRad(-6), z: THREE.MathUtils.degToRad(-7) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-30), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-1) },
+      rightHand: { x: THREE.MathUtils.degToRad(-12), y: THREE.MathUtils.degToRad(-4), z: THREE.MathUtils.degToRad(-3) },
+      rightIndexFinger: { x: THREE.MathUtils.degToRad(18), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-1) },
+      rightThumbFinger: { x: THREE.MathUtils.degToRad(-8), y: THREE.MathUtils.degToRad(3), z: THREE.MathUtils.degToRad(7) },
+      rightMiddleFinger: { x: THREE.MathUtils.degToRad(16), y: THREE.MathUtils.degToRad(-1), z: THREE.MathUtils.degToRad(-1) }
     }),
     checkTap: makeTexasCharacterPose(base, {
-      spine: { x: THREE.MathUtils.degToRad(-12) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-78), y: THREE.MathUtils.degToRad(8), z: THREE.MathUtils.degToRad(6) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(-26), y: THREE.MathUtils.degToRad(5) },
-      rightHand: { x: THREE.MathUtils.degToRad(-42), y: THREE.MathUtils.degToRad(4), z: THREE.MathUtils.degToRad(10) },
-      head: { x: THREE.MathUtils.degToRad(-7) }
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-24), y: THREE.MathUtils.degToRad(-6), z: THREE.MathUtils.degToRad(-7) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-38), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-1) },
+      rightHand: { x: THREE.MathUtils.degToRad(-18), y: THREE.MathUtils.degToRad(-4), z: THREE.MathUtils.degToRad(-3) },
+      rightIndexFinger: { x: THREE.MathUtils.degToRad(18), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-1) },
+      rightThumbFinger: { x: THREE.MathUtils.degToRad(-8), y: THREE.MathUtils.degToRad(3), z: THREE.MathUtils.degToRad(7) },
+      rightMiddleFinger: { x: THREE.MathUtils.degToRad(16), y: THREE.MathUtils.degToRad(-1), z: THREE.MathUtils.degToRad(-1) }
     })
   };
   const sequence = type === 'FOLD'
-    ? [{ at: 0, duration: 220, pose: poses.fold }, { at: 220, duration: 320, pose: base }]
+    ? [
+        { at: 0, duration: 240, from: base, pose: poses.passDown },
+        { at: 240, duration: 140, from: poses.passDown, pose: poses.passTinyLift },
+        { at: 380, duration: 140, from: poses.passTinyLift, pose: poses.passDown },
+        { at: 520, duration: 260, from: poses.passDown, pose: base }
+      ]
     : type === 'CHIP'
       ? [
-        { at: 0, duration: 180, pose: poses.chipGrab },
-        { at: 180, duration: 220, pose: poses.chipPlace },
-        { at: 400, duration: 260, pose: poses.chipPlace },
-        { at: 660, duration: 320, pose: base }
+        { at: 0, duration: 560, from: base, pose: poses.chipPlace },
+        { at: 560, duration: 300, from: poses.chipPlace, pose: base }
       ]
       : type === 'CHECK'
         ? [
-          { at: 0, duration: 130, pose: poses.checkLift },
-          { at: 130, duration: 120, pose: poses.checkTap },
-          { at: 250, duration: 130, pose: poses.checkLift },
-          { at: 380, duration: 120, pose: poses.checkTap },
-          { at: 500, duration: 260, pose: base }
+          { at: 0, duration: 240, from: base, pose: poses.passDown },
+          { at: 240, duration: 140, from: poses.passDown, pose: poses.passTinyLift },
+          { at: 380, duration: 140, from: poses.passTinyLift, pose: poses.passDown },
+          { at: 520, duration: 260, from: poses.passDown, pose: base }
         ]
         : [
-          { at: 0, duration: 180, pose: poses.cardsReach },
-          { at: 180, duration: 360, pose: poses.cardsFlip },
-          { at: 540, duration: 520, pose: poses.cardsFlip },
-          { at: 1060, duration: 300, pose: base }
+          { at: 0, duration: 180, from: base, pose: poses.cardsReach },
+          { at: 180, duration: 360, from: poses.cardsReach, pose: poses.cardsFlip },
+          { at: 540, duration: 520, from: poses.cardsFlip, pose: poses.cardsFlip },
+          { at: 1060, duration: 300, from: poses.cardsFlip, pose: base }
         ];
   const tick = (time) => {
     const elapsed = time - now;
@@ -1600,9 +1612,9 @@ function runTexasCharacterPoseAction(seatGroup, type = 'CARDS') {
       if (elapsed < step.at || elapsed > step.at + step.duration) continue;
       const localT = Math.min(1, Math.max(0, (elapsed - step.at) / Math.max(1, step.duration)));
       const easedPose = 1 - Math.pow(1 - localT, 3);
-      applyTexasCharacterPose(rig, step.pose, easedPose);
+      applyTexasCharacterPoseBetween(rig, step.from, step.pose, easedPose);
       if (type === 'CHIP') {
-        const chipPhase = step.pose === poses.chipGrab ? localT * 0.35 : 0.35 + localT * 0.65;
+        const chipPhase = step.pose === poses.chipPlace ? Math.min(1, localT) : 1;
         updateTexasCharacterChipHands(seatGroup, chipPhase);
       }
       active = true;
