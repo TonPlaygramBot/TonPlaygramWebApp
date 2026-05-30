@@ -1422,9 +1422,6 @@ const BALL_SIZE_SCALE = 0.96; // trim ball size slightly while keeping every hel
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
-// Mesh scaling uses the expanded table surface; use the same radius for gameplay contacts
-// so balls bounce where they visually touch on portrait/mobile screens.
-const BALL_VISUAL_R = BALL_R * TABLE_SURFACE_COMPENSATION;
 const RACK_VERTICAL_SCREEN_LIFT = BALL_R * 0.86; // nudge the rack farther upward on screen so object balls sit visibly higher
 const ENABLE_BALL_FLOOR_SHADOWS = false;
 const ENABLE_CUE_CLOTH_SHADOW = true;
@@ -6871,9 +6868,7 @@ const DEFAULT_RAIL_LIMIT_Y = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET_SHORT;
 let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = BALL_R * 0.12;
-const RAIL_CONTACT_RADIUS = BALL_VISUAL_R;
-// Keep the collision line on the near/visible cushion nose, not inside the rail mesh.
-const CUSHION_VISUAL_CONTACT_CLEARANCE = BALL_VISUAL_R * 0.32;
+const RAIL_CONTACT_RADIUS = BALL_R;
 const CUSHION_CUT_CONTACT_RADIUS = RAIL_CONTACT_RADIUS * 1.12;
 const CUSHION_CUT_NEAR_POCKET_BUFFER = BALL_R * 0.9;
 let CUSHION_SEGMENTS = [];
@@ -8162,16 +8157,10 @@ function makeWoodTexture({
   texture.needsUpdate = true;
   return texture;
 }
-function getBallContactRadius(ball) {
-  return Number.isFinite(ball?.colliderRadius) && ball.colliderRadius > 0
-    ? ball.colliderRadius
-    : BALL_VISUAL_R;
-}
-
 function reflectRails(ball) {
   const limX = RAIL_LIMIT_X;
   const limY = RAIL_LIMIT_Y;
-  const railRadius = Math.max(RAIL_CONTACT_RADIUS, getBallContactRadius(ball));
+  const railRadius = RAIL_CONTACT_RADIUS;
   const cutRadius = Math.max(railRadius, CUSHION_CUT_CONTACT_RADIUS);
   const railLimitX = limX + (BALL_R - railRadius);
   const railLimitY = limY + (BALL_R - railRadius);
@@ -8256,24 +8245,18 @@ function reflectRails(ball) {
     const pocketGuardClearance =
       nearestPocketIndex >= 4 ? SIDE_POCKET_GUARD_CLEARANCE : POCKET_GUARD_CLEARANCE;
     const inGuardZone = nearestPocketDist < pocketGuardClearance;
-    const nearestPocketCenter = centers[nearestPocketIndex];
-    const movingIntoNearestPocket = Boolean(
-      nearestPocketCenter &&
-        ball.vel.dot(TMP_VEC2_A.copy(nearestPocketCenter).sub(ball.pos)) > 1e-6
-    );
-    const openPocketThroat = inCaptureZone && inGuardZone && movingIntoNearestPocket;
     let bestImpact = null;
     let bestPenetration = 0;
     for (const segment of CUSHION_SEGMENTS) {
       if (!segment?.normal || !segment?.start || !segment?.end) continue;
       // Keep rail segments active near pockets too; disabling these created
       // tiny escape corridors where balls could visually cross jaw/cut mapping.
-      if (openPocketThroat && segment.type === 'cut') continue;
+      if (inCaptureZone && inGuardZone && segment.type === 'cut') continue;
       if (segment.type === 'jaw' && segment.center && segment.captureRadius != null) {
-        if (openPocketThroat && ball.pos.distanceTo(segment.center) <= segment.captureRadius) continue;
+        if (ball.pos.distanceTo(segment.center) <= segment.captureRadius) continue;
       }
       const velocityToward = ball.vel.dot(segment.normal);
-      const movingIntoSegment = velocityToward < -1e-6;
+      if (velocityToward >= 0) continue;
       TMP_VEC2_A.copy(segment.end).sub(segment.start);
       const lenSq = TMP_VEC2_A.lengthSq();
       if (lenSq < 1e-8) continue;
@@ -8282,8 +8265,7 @@ function reflectRails(ball) {
       TMP_VEC2_C.copy(segment.start).addScaledVector(TMP_VEC2_A, t);
       TMP_VEC2_D.copy(ball.pos).sub(TMP_VEC2_C);
       const distSq = TMP_VEC2_D.lengthSq();
-      const contactRadius =
-        (segment.type === 'cut' ? cutRadius : railRadius) + CUSHION_VISUAL_CONTACT_CLEARANCE;
+      const contactRadius = segment.type === 'cut' ? cutRadius : railRadius;
       if (distSq >= contactRadius * contactRadius) continue;
       const dist = Math.sqrt(distSq);
       const penetration = contactRadius - dist;
@@ -8307,8 +8289,7 @@ function reflectRails(ball) {
                 ? 'jaw'
                 : 'rail',
           normal: TMP_VEC2_LIMIT.clone(),
-          tangent: new THREE.Vector2(-TMP_VEC2_LIMIT.y, TMP_VEC2_LIMIT.x),
-          correctiveOnly: !movingIntoSegment
+          tangent: new THREE.Vector2(-TMP_VEC2_LIMIT.y, TMP_VEC2_LIMIT.x)
         };
       }
     }
@@ -8319,10 +8300,8 @@ function reflectRails(ball) {
         typeof performance !== 'undefined' && performance.now
           ? performance.now()
           : Date.now();
-      if (!bestImpact.correctiveOnly) {
-        ball.lastRailHitAt = stamp;
-        ball.lastRailHitType = bestImpact.type;
-      }
+      ball.lastRailHitAt = stamp;
+      ball.lastRailHitType = bestImpact.type;
       return { ...bestImpact, preImpactVel };
     }
     for (let i = 0; i < centers.length; i++) {
@@ -8335,11 +8314,11 @@ function reflectRails(ball) {
       const distSq = TMP_VEC2_A.lengthSq();
       if (distSq <= 1e-10) continue;
       const dist = Math.sqrt(distSq);
-      if (dist <= captureRadius || dist >= jawRadius + railRadius + CUSHION_VISUAL_CONTACT_CLEARANCE) continue;
+      if (dist <= captureRadius || dist >= jawRadius + railRadius) continue;
       TMP_VEC2_A.multiplyScalar(1 / dist);
       const velocityToward = ball.vel.dot(TMP_VEC2_A);
-      const movingIntoJaw = velocityToward > 1e-6;
-      const penetration = jawRadius + railRadius + CUSHION_VISUAL_CONTACT_CLEARANCE - dist;
+      if (velocityToward <= 0) continue;
+      const penetration = jawRadius + railRadius - dist;
       if (penetration <= 0) continue;
       ball.pos.addScaledVector(TMP_VEC2_A, penetration);
       preImpactVel = ball.vel.clone();
@@ -8347,16 +8326,13 @@ function reflectRails(ball) {
         typeof performance !== 'undefined' && performance.now
           ? performance.now()
           : Date.now();
-      if (movingIntoJaw) {
-        ball.lastRailHitAt = stamp;
-        ball.lastRailHitType = 'jaw';
-      }
+      ball.lastRailHitAt = stamp;
+      ball.lastRailHitType = 'jaw';
       return {
         type: 'jaw',
         normal: TMP_VEC2_A.clone(),
         tangent: new THREE.Vector2(-TMP_VEC2_A.y, TMP_VEC2_A.x),
-        preImpactVel,
-        correctiveOnly: !movingIntoJaw
+        preImpactVel
       };
     }
     const boundaryFallback = resolveBoundaryFallback();
@@ -16559,8 +16535,8 @@ function PoolRoyaleGame({
 
     const cueBall = balls.find((ball) => ball?.id === 'cue');
     const objectBalls = balls.filter((ball) => ball?.id !== 'cue');
-    const limitX = PLAY_W / 2 - BALL_VISUAL_R * 2.5;
-    const limitZ = PLAY_H / 2 - BALL_VISUAL_R * 2.5;
+    const limitX = PLAY_W / 2 - BALL_R * 2.5;
+    const limitZ = PLAY_H / 2 - BALL_R * 2.5;
     const normalize = (value, limit) => Math.min(limit, Math.max(-limit, (value ?? 0) * limit));
     const safeY = -PLAY_H * 0.75;
 
@@ -26888,8 +26864,8 @@ const shotPowerRef = useRef(0);
 
       const placeTrainingLayout = (layout) => {
         if (!layout) return false;
-        const limitX = PLAY_W / 2 - BALL_VISUAL_R * 2.5;
-        const limitZ = PLAY_H / 2 - BALL_VISUAL_R * 2.5;
+        const limitX = PLAY_W / 2 - BALL_R * 2.5;
+        const limitZ = PLAY_H / 2 - BALL_R * 2.5;
         const normalize = (val, limit) => Math.min(limit, Math.max(-limit, (val ?? 0) * limit));
         const hideY = -PLAY_H * 0.75;
         if (layout.cue) {
@@ -27876,13 +27852,13 @@ const shotPowerRef = useRef(0);
       const clampInHandPosition = (point, { ignoreBaulk = false } = {}) => {
         if (!point) return null;
         const clamped = point.clone();
-        const limitX = PLAY_W / 2 - BALL_VISUAL_R;
+        const limitX = PLAY_W / 2 - BALL_R;
         clamped.x = THREE.MathUtils.clamp(clamped.x, -limitX, limitX);
         if (allowFullTableInHand() || ignoreBaulk) {
-          const limitZ = PLAY_H / 2 - BALL_VISUAL_R;
+          const limitZ = PLAY_H / 2 - BALL_R;
           clamped.y = THREE.MathUtils.clamp(clamped.y, -limitZ, limitZ);
         } else {
-          const limitZ = PLAY_H / 2 - BALL_VISUAL_R;
+          const limitZ = PLAY_H / 2 - BALL_R;
           clamped.y = THREE.MathUtils.clamp(clamped.y, -limitZ, baulkZ);
         }
         return clamped;
@@ -28048,8 +28024,8 @@ const shotPowerRef = useRef(0);
           );
           baseCandidates.push(candidate);
         }
-        const limitX = PLAY_W / 2 - BALL_VISUAL_R;
-        const step = BALL_VISUAL_R * 2.1;
+        const limitX = PLAY_W / 2 - BALL_R;
+        const step = BALL_R * 2.1;
         for (let x = step; x <= limitX; x += step) {
           baseCandidates.push(new THREE.Vector2(x, forwardBias));
           baseCandidates.push(new THREE.Vector2(-x, forwardBias));
@@ -28070,11 +28046,11 @@ const shotPowerRef = useRef(0);
           }
         }
         const gridCandidates = [];
-        const gridCols = Math.max(8, Math.round((limitX * 2) / (BALL_VISUAL_R * 1.25)));
+        const gridCols = Math.max(8, Math.round((limitX * 2) / (BALL_R * 1.25)));
         const fullTable = allowFullTableInHand();
         const gridRows = fullTable ? 8 : 5;
-        const gridStart = fullTable ? -PLAY_H / 2 + BALL_VISUAL_R : forwardBias;
-        const gridEnd = fullTable ? PLAY_H / 2 - BALL_VISUAL_R : baulkZ;
+        const gridStart = fullTable ? -PLAY_H / 2 + BALL_R : forwardBias;
+        const gridEnd = fullTable ? PLAY_H / 2 - BALL_R : baulkZ;
         for (let row = 0; row <= gridRows; row++) {
           const z = THREE.MathUtils.lerp(gridStart, gridEnd, row / gridRows);
           for (let col = 0; col <= gridCols; col++) {
@@ -29713,8 +29689,8 @@ const shotPowerRef = useRef(0);
           const cushionMargin = BALL_R * 1.4;
           const clampCueToPlay = (pos) =>
             new THREE.Vector2(
-              THREE.MathUtils.clamp(pos.x, -halfW + BALL_VISUAL_R, halfW - BALL_VISUAL_R),
-              THREE.MathUtils.clamp(pos.y, -halfH + BALL_VISUAL_R, halfH - BALL_VISUAL_R)
+              THREE.MathUtils.clamp(pos.x, -halfW + BALL_R, halfW - BALL_R),
+              THREE.MathUtils.clamp(pos.y, -halfH + BALL_R, halfH - BALL_R)
             );
           const estimateCueAfterPot = (plan) => {
             if (!plan?.aimDir || !plan?.targetBall?.pos) return null;
@@ -33754,9 +33730,8 @@ const shotPowerRef = useRef(0);
               b.launchDir = null;
             }
             const railImpact = reflectRails(b);
-            const railCollisionImpact = railImpact && !railImpact.correctiveOnly;
-            if (railCollisionImpact && b.id === 'cue') b.impacted = true;
-            if (railCollisionImpact && shotContextRef.current.contactMade) {
+            if (railImpact && b.id === 'cue') b.impacted = true;
+            if (railImpact && shotContextRef.current.contactMade) {
               shotContextRef.current.cushionAfterContact = true;
               shotContextRef.current.railContactCountAfterContact =
                 (shotContextRef.current.railContactCountAfterContact ?? 0) + 1;
@@ -33775,11 +33750,11 @@ const shotPowerRef = useRef(0);
                 enterTopView(true, { variant: 'rail' });
               }
             }
-            if (railCollisionImpact) {
+            if (railImpact) {
               applyRailImpulse(b, railImpact);
               applyRailSpinResponse(b, railImpact);
             }
-            if (railCollisionImpact) {
+            if (railImpact) {
               const nowRail = performance.now();
               const lastPlayed = railSoundTimeRef.current.get(b.id) ?? 0;
               if (nowRail - lastPlayed > RAIL_HIT_SOUND_COOLDOWN_MS) {
@@ -33814,7 +33789,7 @@ const shotPowerRef = useRef(0);
               const dx = b.pos.x - a.pos.x,
                 dy = b.pos.y - a.pos.y;
               const d2 = dx * dx + dy * dy;
-              const targetDist = getBallContactRadius(a) + getBallContactRadius(b);
+              const targetDist = BALL_R * 2;
               const minDist = targetDist + BALL_CONTACT_EPS;
               const min = minDist ** 2;
               if (d2 <= min) {
