@@ -6863,11 +6863,8 @@ const STANDING_VIEW_COT = (() => {
   const sinPhi = Math.sin(STANDING_VIEW_PHI);
   return sinPhi > 1e-6 ? Math.cos(STANDING_VIEW_PHI) / sinPhi : 0;
 })();
-const CUSHION_GAMEPLAY_CONTACT_INSET = BALL_R * 0.36; // keep the physics contact line visually inside the cushion nose so balls rebound before overlapping the rubber.
-const DEFAULT_RAIL_LIMIT_X =
-  PLAY_W / 2 - BALL_R - CUSHION_FACE_INSET_LONG - CUSHION_GAMEPLAY_CONTACT_INSET;
-const DEFAULT_RAIL_LIMIT_Y =
-  PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET_SHORT - CUSHION_GAMEPLAY_CONTACT_INSET;
+const DEFAULT_RAIL_LIMIT_X = PLAY_W / 2 - BALL_R - CUSHION_FACE_INSET_LONG;
+const DEFAULT_RAIL_LIMIT_Y = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET_SHORT;
 let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = BALL_R * 0.12;
@@ -8258,6 +8255,8 @@ function reflectRails(ball) {
       if (segment.type === 'jaw' && segment.center && segment.captureRadius != null) {
         if (ball.pos.distanceTo(segment.center) <= segment.captureRadius) continue;
       }
+      const velocityToward = ball.vel.dot(segment.normal);
+      if (velocityToward >= 0) continue;
       TMP_VEC2_A.copy(segment.end).sub(segment.start);
       const lenSq = TMP_VEC2_A.lengthSq();
       if (lenSq < 1e-8) continue;
@@ -9072,19 +9071,13 @@ function updateRailLimitsFromTable(table) {
     }
   }
   if (minAbsX !== Infinity) {
-    const computedX = Math.max(
-      0,
-      minAbsX - BALL_R - RAIL_LIMIT_PADDING - CUSHION_GAMEPLAY_CONTACT_INSET
-    );
+    const computedX = Math.max(0, minAbsX - BALL_R - RAIL_LIMIT_PADDING);
     if (computedX > 0) {
       RAIL_LIMIT_X = Math.min(DEFAULT_RAIL_LIMIT_X, computedX);
     }
   }
   if (minAbsZ !== Infinity) {
-    const computedZ = Math.max(
-      0,
-      minAbsZ - BALL_R - RAIL_LIMIT_PADDING - CUSHION_GAMEPLAY_CONTACT_INSET
-    );
+    const computedZ = Math.max(0, minAbsZ - BALL_R - RAIL_LIMIT_PADDING);
     if (computedZ > 0) {
       RAIL_LIMIT_Y = Math.min(DEFAULT_RAIL_LIMIT_Y, computedZ);
     }
@@ -9231,10 +9224,6 @@ function updateCushionSegmentsFromTable(table) {
       normal.multiplyScalar(-1);
     }
     segment.normal = normal.clone();
-    if (segment.type === 'rail' || segment.type === 'cut') {
-      segment.start.addScaledVector(segment.normal, CUSHION_GAMEPLAY_CONTACT_INSET);
-      segment.end.addScaledVector(segment.normal, CUSHION_GAMEPLAY_CONTACT_INSET);
-    }
   });
   const updateRailLimitsFromSegments = (segmentList) => {
     let minAbsX = Infinity;
