@@ -124,11 +124,13 @@ const SEATED_HUMAN_MOVE_DURATION_MS = 980;
 const SEATED_HUMAN_PICKUP_PHASE_END = 0.34;
 const SEATED_HUMAN_CARRY_PHASE_END = 0.74;
 const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.16 * CHECKERS_ARENA_SCALE;
-const SEATED_HUMAN_HAND_DROP_CLEARANCE = 0.003 * CHECKERS_ARENA_SCALE;
-const SEATED_HUMAN_HAND_REACH_DOWN_OFFSET = 0.048 * CHECKERS_ARENA_SCALE;
-const SEATED_HUMAN_FORWARD_REACH_MIN = 0.9;
-const SEATED_HUMAN_FORWARD_REACH_MAX = 1.68;
-const SEATED_HUMAN_SIDE_REACH_SCALE = 1.28;
+const SEATED_HUMAN_HAND_CONTACT_HEIGHT_MULTIPLIER = 0.19;
+const SEATED_HUMAN_FORWARD_REACH_MIN = 1.1;
+const SEATED_HUMAN_FORWARD_REACH_MAX = 2.04;
+const SEATED_HUMAN_SIDE_REACH_SCALE = 1.42;
+const SEATED_HUMAN_PICKUP_CONTACT_START_RATIO = 0.56;
+const SEATED_HUMAN_PLACE_CONTACT_END_RATIO = 0.94;
+const SEATED_HUMAN_HELD_PIECE_TOP_OFFSET_MULTIPLIER = 0.19;
 const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
 const DEFAULT_HDRI_CAMERA_HEIGHT_M = 1.5;
 const HDRI_UNITS_PER_METER = 1;
@@ -2532,7 +2534,7 @@ export default function CheckersBattleRoyal() {
           capture ? CAPTURE_JUMP_DURATION_MS : MOVE_JUMP_DURATION_MS,
           SEATED_HUMAN_MOVE_DURATION_MS
         );
-        activeAnimationsRef.current.push({
+        const moveAnimation = {
           type: 'move',
           object: moving,
           startedAt,
@@ -2540,13 +2542,23 @@ export default function CheckersBattleRoyal() {
           from: fromPos,
           to: toPos,
           arcHeight: tile * (capture ? 0.72 : 0.52),
-          handCarried: false
-        });
+          handCarried: false,
+          humanPickupT: null,
+          humanReleaseT: null
+        };
+        activeAnimationsRef.current.push(moveAnimation);
         const moverSeatIndex = side === 'light' ? 1 : 0;
         const moverActor = seatedHumanActorsRef.current.find(
           (entry) => entry?.playerIndex === moverSeatIndex
         );
         if (moverActor?.rig) {
+          moveAnimation.humanPickupT =
+            SEATED_HUMAN_PICKUP_PHASE_END * SEATED_HUMAN_PICKUP_CONTACT_START_RATIO;
+          moveAnimation.humanReleaseT = Math.min(
+            0.985,
+            SEATED_HUMAN_CARRY_PHASE_END +
+              (1 - SEATED_HUMAN_CARRY_PHASE_END) * SEATED_HUMAN_PLACE_CONTACT_END_RATIO
+          );
           seatedHumanMoveActionsRef.current.set(moverSeatIndex, {
             startedAt,
             duration,
@@ -2570,12 +2582,12 @@ export default function CheckersBattleRoyal() {
         return;
       }
       const rawT = clamp((now - action.startedAt) / Math.max(action.duration, 1), 0, 1);
-      const liftedFrom = action.from.clone();
-      liftedFrom.y += SEATED_HUMAN_HAND_DROP_CLEARANCE - SEATED_HUMAN_HAND_REACH_DOWN_OFFSET;
-      const liftedTo = action.to.clone();
-      liftedTo.y += SEATED_HUMAN_HAND_DROP_CLEARANCE - SEATED_HUMAN_HAND_REACH_DOWN_OFFSET;
+      const contactFrom = action.from.clone();
+      contactFrom.y += action.tile * SEATED_HUMAN_HAND_CONTACT_HEIGHT_MULTIPLIER;
+      const contactTo = action.to.clone();
+      contactTo.y += action.tile * SEATED_HUMAN_HAND_CONTACT_HEIGHT_MULTIPLIER;
       const carryArc = Math.sin(Math.PI * rawT) * (SEATED_HUMAN_PICK_LIFT_HEIGHT + action.tile * 0.18);
-      const target = new THREE.Vector3().lerpVectors(liftedFrom, liftedTo, smoothEase(rawT));
+      const target = new THREE.Vector3().lerpVectors(contactFrom, contactTo, smoothEase(rawT));
       target.y += carryArc;
       const fromLocal = entry.actor.worldToLocal(action.from.clone());
       const toLocal = entry.actor.worldToLocal(action.to.clone());
@@ -2609,19 +2621,27 @@ export default function CheckersBattleRoyal() {
         intensity = 1;
         grip = 1 - smoothEase(phase);
       }
-      applySeatedHumanPose(entry.rig, mode, intensity, grip, { forwardReach, sideReach });
+      applySeatedHumanPose(entry.rig, mode, intensity, grip, {
+        forwardReach,
+        sideReach
+      });
       applySeatedHumanRightArmIK(entry.rig, target, 0.98);
       entry.actor.updateMatrixWorld(true);
       const gripWorld = getSeatedHumanGripWorldPosition(entry.rig);
-      const pickupContactStart = SEATED_HUMAN_PICKUP_PHASE_END * 0.56;
-      const placeContactEnd = Math.min(0.985, SEATED_HUMAN_CARRY_PHASE_END + (1 - SEATED_HUMAN_CARRY_PHASE_END) * 0.94);
+      const pickupContactStart =
+        SEATED_HUMAN_PICKUP_PHASE_END * SEATED_HUMAN_PICKUP_CONTACT_START_RATIO;
+      const placeContactEnd = Math.min(
+        0.985,
+        SEATED_HUMAN_CARRY_PHASE_END +
+          (1 - SEATED_HUMAN_CARRY_PHASE_END) * SEATED_HUMAN_PLACE_CONTACT_END_RATIO
+      );
       const isHandCarrying = rawT >= pickupContactStart && rawT <= placeContactEnd;
       const linkedAnim = activeAnimationsRef.current.find((anim) => anim.object === action.object);
       if (linkedAnim) linkedAnim.handCarried = isHandCarrying;
       if (action.object) action.object.userData.handCarried = isHandCarrying;
       if (action.object && isHandCarrying) {
         action.object.position.copy(gripWorld || target);
-        action.object.position.y -= action.tile * 0.06;
+        action.object.position.y -= action.tile * SEATED_HUMAN_HELD_PIECE_TOP_OFFSET_MULTIPLIER;
         action.object.rotation.z = Math.sin(rawT * Math.PI * 2) * 0.05;
       }
       if (rawT >= 1) {
@@ -3297,9 +3317,27 @@ export default function CheckersBattleRoyal() {
           const t = Math.max(0, Math.min(1, elapsed / anim.duration));
           if (anim.type === 'move') {
             if (!anim.handCarried) {
-              anim.object.position.lerpVectors(anim.from, anim.to, t);
-              anim.object.position.y += Math.sin(Math.PI * t) * anim.arcHeight;
-              anim.object.rotation.z = Math.sin(t * Math.PI * 2.1) * 0.1;
+              const hasHumanCarryTiming =
+                Number.isFinite(anim.humanPickupT) && Number.isFinite(anim.humanReleaseT);
+              if (hasHumanCarryTiming && t < anim.humanPickupT) {
+                const pickupSettleT = smoothEase(t / Math.max(anim.humanPickupT, 0.001));
+                anim.object.position.copy(anim.from);
+                anim.object.position.y +=
+                  Math.sin(Math.PI * pickupSettleT) * anim.arcHeight * 0.08;
+                anim.object.rotation.z = Math.sin(pickupSettleT * Math.PI) * 0.035;
+              } else if (hasHumanCarryTiming && t > anim.humanReleaseT) {
+                const releaseT = smoothEase(
+                  (t - anim.humanReleaseT) / Math.max(1 - anim.humanReleaseT, 0.001)
+                );
+                anim.object.position.copy(anim.to);
+                anim.object.position.y +=
+                  Math.sin(Math.PI * releaseT) * anim.arcHeight * 0.05;
+                anim.object.rotation.z = Math.sin(releaseT * Math.PI * 1.5) * 0.025;
+              } else if (!hasHumanCarryTiming) {
+                anim.object.position.lerpVectors(anim.from, anim.to, t);
+                anim.object.position.y += Math.sin(Math.PI * t) * anim.arcHeight;
+                anim.object.rotation.z = Math.sin(t * Math.PI * 2.1) * 0.1;
+              }
             }
             if (t >= 1) {
               animateSmokePuff(
