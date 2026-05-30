@@ -8157,7 +8157,7 @@ function makeWoodTexture({
   texture.needsUpdate = true;
   return texture;
 }
-function reflectRails(ball, previousPos = null) {
+function reflectRails(ball) {
   const limX = RAIL_LIMIT_X;
   const limY = RAIL_LIMIT_Y;
   const railRadius = RAIL_CONTACT_RADIUS;
@@ -8303,63 +8303,6 @@ function reflectRails(ball, previousPos = null) {
       ball.lastRailHitAt = stamp;
       ball.lastRailHitType = bestImpact.type;
       return { ...bestImpact, preImpactVel };
-    }
-    if (previousPos instanceof THREE.Vector2) {
-      let sweptImpact = null;
-      let sweptTravel = Infinity;
-      for (const segment of CUSHION_SEGMENTS) {
-        if (!segment?.normal || !segment?.start || !segment?.end) continue;
-        if (segment.type === 'jaw' && segment.center && segment.captureRadius != null) {
-          if (ball.pos.distanceTo(segment.center) <= segment.captureRadius) continue;
-        }
-        const contactRadius = segment.type === 'cut' ? cutRadius : railRadius;
-        TMP_VEC2_A.copy(segment.end).sub(segment.start);
-        const lenSq = TMP_VEC2_A.lengthSq();
-        if (lenSq < 1e-8) continue;
-        TMP_VEC2_B.copy(previousPos).sub(segment.start);
-        TMP_VEC2_C.copy(ball.pos).sub(segment.start);
-        const prevSigned = TMP_VEC2_B.dot(segment.normal);
-        const currSigned = TMP_VEC2_C.dot(segment.normal);
-        if (prevSigned < contactRadius || currSigned >= contactRadius) continue;
-        const denom = prevSigned - currSigned;
-        if (denom <= 1e-8) continue;
-        const travel = THREE.MathUtils.clamp((prevSigned - contactRadius) / denom, 0, 1);
-        TMP_VEC2_D.copy(previousPos).lerp(ball.pos, travel).sub(segment.start);
-        const projection = TMP_VEC2_D.dot(TMP_VEC2_A) / lenSq;
-        const endpointPadding = contactRadius / Math.sqrt(lenSq);
-        if (projection < -endpointPadding || projection > 1 + endpointPadding) continue;
-        if (travel < sweptTravel) {
-          sweptTravel = travel;
-          const normal = segment.normal.clone().normalize();
-          sweptImpact = {
-            type:
-              segment.type === 'cut'
-                ? 'cut'
-                : segment.type === 'jaw'
-                  ? 'jaw'
-                  : 'rail',
-            normal,
-            tangent: new THREE.Vector2(-normal.y, normal.x),
-            push: contactRadius - currSigned
-          };
-        }
-      }
-      if (sweptImpact) {
-        ball.pos.addScaledVector(sweptImpact.normal, Math.max(0, sweptImpact.push));
-        preImpactVel = ball.vel.clone();
-        const stamp =
-          typeof performance !== 'undefined' && performance.now
-            ? performance.now()
-            : Date.now();
-        ball.lastRailHitAt = stamp;
-        ball.lastRailHitType = sweptImpact.type;
-        return {
-          type: sweptImpact.type,
-          normal: sweptImpact.normal,
-          tangent: sweptImpact.tangent,
-          preImpactVel
-        };
-      }
     }
     for (let i = 0; i < centers.length; i++) {
       const center = centers[i];
@@ -33764,7 +33707,6 @@ const shotPowerRef = useRef(0);
                 }
               }
             }
-            const previousRailPos = b.pos.clone();
             b.pos.addScaledVector(b.vel, stepScale);
             let speed = b.vel.length();
             let scaledSpeed = speed * stepScale;
@@ -33787,7 +33729,7 @@ const shotPowerRef = useRef(0);
               }
               b.launchDir = null;
             }
-            const railImpact = reflectRails(b, previousRailPos);
+            const railImpact = reflectRails(b);
             if (railImpact && b.id === 'cue') b.impacted = true;
             if (railImpact && shotContextRef.current.contactMade) {
               shotContextRef.current.cushionAfterContact = true;
