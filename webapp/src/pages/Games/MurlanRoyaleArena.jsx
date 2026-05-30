@@ -2160,105 +2160,6 @@ async function loadGltfChair(urls = CHAIR_MODEL_URLS, rotationY = 0, renderer = 
 
 const CHARACTER_MODEL_CACHE = new Map();
 
-function createProceduralMurlanHumanTemplate(theme = {}) {
-  const root = new THREE.Group();
-  root.name = `${theme.id || 'murlan'}-procedural-human-fallback`;
-  root.userData.isProceduralMurlanHumanFallback = true;
-  root.userData.sourceCharacterId = theme.id || null;
-
-  const skin = new THREE.Color(theme.skinTone ?? 0xc98f68);
-  const hair = new THREE.Color(theme.hairColor ?? 0x20130d);
-  const eye = new THREE.Color(theme.eyeColor ?? 0x334155);
-  const cloth = new THREE.Color(
-    theme.clothCombo === 'formalHitman' ? 0x16181d :
-      theme.clothCombo === 'leatherPortrait' ? 0x1f2937 :
-        theme.clothCombo === 'suedeGentleman' ? 0x7a5231 :
-          theme.clothCombo === 'hibiscusPortrait' ? 0x9d174d :
-            theme.clothCombo === 'casualConfidence' ? 0x2563eb :
-              0x334155
-  );
-  const pants = cloth.clone().multiplyScalar(0.62);
-  const shoe = new THREE.Color(0x111827);
-
-  const makeMat = (color, roughness = 0.74, metalness = 0.02) => new THREE.MeshStandardMaterial({
-    color,
-    roughness,
-    metalness
-  });
-  const skinMat = makeMat(skin, 0.68, 0.01);
-  const hairMat = makeMat(hair, 0.82, 0);
-  const clothMat = makeMat(cloth, 0.8, 0.02);
-  const pantsMat = makeMat(pants, 0.84, 0.01);
-  const shoeMat = makeMat(shoe, 0.72, 0.04);
-  const eyeMat = makeMat(eye, 0.42, 0.02);
-
-  const addMesh = (name, geometry, material, position, rotation = null, scale = null) => {
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.name = name;
-    mesh.position.copy(position);
-    if (rotation) mesh.rotation.set(rotation.x || 0, rotation.y || 0, rotation.z || 0);
-    if (scale) mesh.scale.copy(scale);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    root.add(mesh);
-    return mesh;
-  };
-
-  addMesh('fallback_human_torso', new THREE.CapsuleGeometry(0.26, 0.58, 8, 18), clothMat, new THREE.Vector3(0, 1.16, 0));
-  addMesh('fallback_human_head', new THREE.SphereGeometry(0.18, 22, 18), skinMat, new THREE.Vector3(0, 1.62, 0.02));
-  addMesh('fallback_human_hair', new THREE.SphereGeometry(0.185, 18, 10, 0, Math.PI * 2, 0, Math.PI * 0.53), hairMat, new THREE.Vector3(0, 1.71, 0.015));
-  addMesh('fallback_left_eye', new THREE.SphereGeometry(0.018, 10, 8), eyeMat, new THREE.Vector3(-0.055, 1.64, -0.155));
-  addMesh('fallback_right_eye', new THREE.SphereGeometry(0.018, 10, 8), eyeMat, new THREE.Vector3(0.055, 1.64, -0.155));
-
-  const armGeometry = new THREE.CapsuleGeometry(0.055, 0.42, 6, 12);
-  const forearmGeometry = new THREE.CapsuleGeometry(0.048, 0.34, 6, 12);
-  addMesh('fallback_left_upper_arm', armGeometry, clothMat, new THREE.Vector3(-0.32, 1.22, -0.03), { z: THREE.MathUtils.degToRad(18), x: THREE.MathUtils.degToRad(72) });
-  addMesh('fallback_right_upper_arm', armGeometry.clone(), clothMat, new THREE.Vector3(0.32, 1.22, -0.03), { z: THREE.MathUtils.degToRad(-18), x: THREE.MathUtils.degToRad(72) });
-  addMesh('fallback_left_forearm', forearmGeometry, skinMat, new THREE.Vector3(-0.24, 0.98, -0.28), { z: THREE.MathUtils.degToRad(-8), x: THREE.MathUtils.degToRad(78) });
-  addMesh('fallback_right_forearm', forearmGeometry.clone(), skinMat, new THREE.Vector3(0.24, 0.98, -0.28), { z: THREE.MathUtils.degToRad(8), x: THREE.MathUtils.degToRad(78) });
-  addMesh('fallback_left_hand', new THREE.SphereGeometry(0.06, 12, 10), skinMat, new THREE.Vector3(-0.19, 0.92, -0.47));
-  addMesh('fallback_right_hand', new THREE.SphereGeometry(0.06, 12, 10), skinMat, new THREE.Vector3(0.19, 0.92, -0.47));
-
-  const thighGeometry = new THREE.CapsuleGeometry(0.075, 0.48, 6, 12);
-  const calfGeometry = new THREE.CapsuleGeometry(0.066, 0.46, 6, 12);
-  addMesh('fallback_left_thigh', thighGeometry, pantsMat, new THREE.Vector3(-0.11, 0.68, -0.24), { x: THREE.MathUtils.degToRad(86) });
-  addMesh('fallback_right_thigh', thighGeometry.clone(), pantsMat, new THREE.Vector3(0.11, 0.68, -0.24), { x: THREE.MathUtils.degToRad(86) });
-  addMesh('fallback_left_calf', calfGeometry, pantsMat, new THREE.Vector3(-0.11, 0.43, -0.56), { x: THREE.MathUtils.degToRad(18) });
-  addMesh('fallback_right_calf', calfGeometry.clone(), pantsMat, new THREE.Vector3(0.11, 0.43, -0.56), { x: THREE.MathUtils.degToRad(18) });
-  addMesh('fallback_left_shoe', new THREE.BoxGeometry(0.14, 0.075, 0.24), shoeMat, new THREE.Vector3(-0.11, 0.17, -0.63));
-  addMesh('fallback_right_shoe', new THREE.BoxGeometry(0.14, 0.075, 0.24), shoeMat, new THREE.Vector3(0.11, 0.17, -0.63));
-
-  const addBone = (name, position, parent = root) => {
-    const bone = new THREE.Bone();
-    bone.name = name;
-    bone.position.copy(position);
-    parent.add(bone);
-    return bone;
-  };
-  const hips = addBone('hips', new THREE.Vector3(0, 0.82, 0));
-  const spine = addBone('spine', new THREE.Vector3(0, 0.32, 0), hips);
-  addBone('head', new THREE.Vector3(0, 0.48, 0), spine);
-  const leftUpperArm = addBone('leftarm', new THREE.Vector3(-0.27, 0.22, 0), spine);
-  const rightUpperArm = addBone('rightarm', new THREE.Vector3(0.27, 0.22, 0), spine);
-  const leftForeArm = addBone('leftforearm', new THREE.Vector3(-0.06, -0.25, -0.2), leftUpperArm);
-  const rightForeArm = addBone('rightforearm', new THREE.Vector3(0.06, -0.25, -0.2), rightUpperArm);
-  addBone('lefthand', new THREE.Vector3(-0.02, -0.12, -0.18), leftForeArm);
-  const rightHand = addBone('righthand', new THREE.Vector3(0.02, -0.12, -0.18), rightForeArm);
-  addBone('rightindex', new THREE.Vector3(0.015, -0.02, -0.04), rightHand);
-  addBone('rightthumb', new THREE.Vector3(-0.015, -0.02, -0.025), rightHand);
-  addBone('rightmiddle', new THREE.Vector3(0.005, -0.03, -0.045), rightHand);
-  addBone('leftthigh', new THREE.Vector3(-0.11, -0.1, -0.04), hips);
-  addBone('rightthigh', new THREE.Vector3(0.11, -0.1, -0.04), hips);
-  addBone('leftleg', new THREE.Vector3(0, -0.16, -0.34), hips);
-  addBone('rightleg', new THREE.Vector3(0, -0.16, -0.34), hips);
-
-  return root;
-}
-
-function shouldUseProceduralCharacterFallback(theme) {
-  return hasMurlanCharacterModelSource(theme);
-}
-
 async function loadCharacterModel(theme, renderer = null) {
   const urls = Array.isArray(theme?.modelUrls) && theme.modelUrls.length
     ? theme.modelUrls
@@ -2285,14 +2186,6 @@ async function loadCharacterModel(theme, renderer = null) {
       }
     }
     if (!gltf) {
-      if (shouldUseProceduralCharacterFallback(theme)) {
-        console.warn('Murlan character asset is missing or unavailable; using visible human fallback', {
-          characterId: theme.id,
-          modelUrls: urls,
-          error: lastError?.message || String(lastError || '')
-        });
-        return createProceduralMurlanHumanTemplate(theme);
-      }
       throw lastError || new Error(`Character load failed for ${theme.id || 'unknown'}`);
     }
     const root = gltf.scene || gltf.scenes?.[0];
