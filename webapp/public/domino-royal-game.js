@@ -8290,6 +8290,17 @@ function applyDominoRigPose(rig, pose, alpha = 1) {
   });
 }
 
+function applyDominoRigPoseBetween(rig, fromPose, targetPose, alpha = 1) {
+  Object.entries(rig?.bones || {}).forEach(([key, bone]) => {
+    const from = fromPose?.[key] || rig?.seatedPose?.[key] || rig?.defaultPose?.[key];
+    const target = targetPose?.[key] || rig?.seatedPose?.[key] || from;
+    if (!bone || !from || !target) return;
+    bone.rotation.x = THREE.MathUtils.lerp(from.x, target.x, alpha);
+    bone.rotation.y = THREE.MathUtils.lerp(from.y, target.y, alpha);
+    bone.rotation.z = THREE.MathUtils.lerp(from.z, target.z, alpha);
+  });
+}
+
 function normalizeDominoCharacterRoot(root) {
   const bounds = new THREE.Box3().setFromObject(root);
   if (!bounds.isEmpty()) root.position.y -= bounds.min.y;
@@ -8576,152 +8587,60 @@ function runDominoCharacterAction(seatIndex, type = 'PLAY') {
   if (!rig?.seatedPose) return;
   const now = performance.now();
   const base = rig.seatedPose;
-  const isPass = type === 'PASS';
-  const isBottomSeat = seatIndex === human;
-  const inwardReachYaw = isBottomSeat ? 0 : THREE.MathUtils.degToRad(-5);
-  const inwardElbowYaw = isBottomSeat ? 0 : THREE.MathUtils.degToRad(-4);
-  const playFingerCurl = THREE.MathUtils.degToRad(42);
-  const playThumbPinch = THREE.MathUtils.degToRad(-24);
-  const playFingerOpen = THREE.MathUtils.degToRad(-10);
+  const existingAnimations = dominoCharacterActions.filter((anim) => anim?.rig === rig);
+  existingAnimations.forEach((anim) => anim.complete?.());
+  for (let i = dominoCharacterActions.length - 1; i >= 0; i--) {
+    if (dominoCharacterActions[i]?.rig === rig) dominoCharacterActions.splice(i, 1);
+  }
 
-  if (isPass) {
-    const fistCurl = THREE.MathUtils.degToRad(50);
-    const fistThumb = THREE.MathUtils.degToRad(-22);
-    const passDown = makeDominoPose(base, {
-      spine: { x: THREE.MathUtils.degToRad(-6) },
-      rightUpperArm: {
-        x: THREE.MathUtils.degToRad(-14),
-        y: THREE.MathUtils.degToRad(-10) + inwardReachYaw,
-        z: THREE.MathUtils.degToRad(-10)
-      },
-      rightForeArm: {
-        x: THREE.MathUtils.degToRad(74),
-        y: THREE.MathUtils.degToRad(-3) + inwardElbowYaw,
-        z: THREE.MathUtils.degToRad(-2)
-      },
-      rightHand: {
-        x: THREE.MathUtils.degToRad(24),
-        y: THREE.MathUtils.degToRad(-8),
-        z: THREE.MathUtils.degToRad(1)
-      },
-      rightThumb: { x: fistThumb, y: THREE.MathUtils.degToRad(12), z: THREE.MathUtils.degToRad(9) },
-      rightIndex: { x: fistCurl, y: THREE.MathUtils.degToRad(-8), z: THREE.MathUtils.degToRad(-3) },
-      rightMiddle: { x: fistCurl * 0.9, y: THREE.MathUtils.degToRad(-5), z: THREE.MathUtils.degToRad(-2) },
-      head: { x: THREE.MathUtils.degToRad(-3) }
+  if (type === 'PASS') {
+    // Match Murlan Royale's exact right arm / hand pass gesture and timing.
+    const loosePassFingers = {
+      rightIndex: { x: THREE.MathUtils.degToRad(18), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-1) },
+      rightThumb: { x: THREE.MathUtils.degToRad(-8), y: THREE.MathUtils.degToRad(3), z: THREE.MathUtils.degToRad(7) },
+      rightMiddle: { x: THREE.MathUtils.degToRad(16), y: THREE.MathUtils.degToRad(-1), z: THREE.MathUtils.degToRad(-1) }
+    };
+    const passHandDownGesture = makeDominoPose(base, {
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-24), y: THREE.MathUtils.degToRad(-6), z: THREE.MathUtils.degToRad(-7) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-38), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-1) },
+      rightHand: { x: THREE.MathUtils.degToRad(-18), y: THREE.MathUtils.degToRad(-4), z: THREE.MathUtils.degToRad(-3) },
+      ...loosePassFingers
     });
-    const passLift = makeDominoPose(passDown, {
-      spine: { x: THREE.MathUtils.degToRad(-3) },
-      rightUpperArm: {
-        x: THREE.MathUtils.degToRad(-20),
-        y: THREE.MathUtils.degToRad(-12) + inwardReachYaw,
-        z: THREE.MathUtils.degToRad(-9)
-      },
-      rightForeArm: {
-        x: THREE.MathUtils.degToRad(58),
-        y: THREE.MathUtils.degToRad(-2) + inwardElbowYaw,
-        z: THREE.MathUtils.degToRad(0)
-      },
-      rightHand: {
-        x: THREE.MathUtils.degToRad(18),
-        y: THREE.MathUtils.degToRad(-7),
-        z: THREE.MathUtils.degToRad(0)
-      }
+    const passTinyLiftGesture = makeDominoPose(base, {
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-17), y: THREE.MathUtils.degToRad(-6), z: THREE.MathUtils.degToRad(-7) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-30), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-1) },
+      rightHand: { x: THREE.MathUtils.degToRad(-12), y: THREE.MathUtils.degToRad(-4), z: THREE.MathUtils.degToRad(-3) },
+      ...loosePassFingers
     });
-    const timings = [170, 135, 145, 230];
+
     dominoCharacterActions.push(
-      { start: now, duration: timings[0], update: (t) => applyDominoRigPose(rig, passDown, t) },
-      { start: now + timings[0], duration: timings[1], update: (t) => applyDominoRigPose(rig, passLift, t) },
-      { start: now + timings[0] + timings[1], duration: timings[2], update: (t) => applyDominoRigPose(rig, passDown, t) },
-      { start: now + timings[0] + timings[1] + timings[2], duration: timings[3], update: (t) => applyDominoRigPose(rig, base, t) }
+      { rig, start: now, duration: 240, update: (t) => applyDominoRigPose(rig, passHandDownGesture, t) },
+      { rig, start: now + 240, duration: 140, update: (t) => applyDominoRigPoseBetween(rig, passHandDownGesture, passTinyLiftGesture, t) },
+      { rig, start: now + 380, duration: 140, update: (t) => applyDominoRigPoseBetween(rig, passTinyLiftGesture, passHandDownGesture, t) },
+      { rig, start: now + 520, duration: 260, update: (t) => applyDominoRigPoseBetween(rig, passHandDownGesture, base, t) }
     );
     return;
   }
 
-  const approach = makeDominoPose(base, {
-    spine: { x: THREE.MathUtils.degToRad(-20) },
-    rightUpperArm: {
-      x: THREE.MathUtils.degToRad(-96),
-      y: THREE.MathUtils.degToRad(-17) + inwardReachYaw,
-      z: THREE.MathUtils.degToRad(-17)
-    },
-    rightForeArm: {
-      x: THREE.MathUtils.degToRad(-48),
-      y: THREE.MathUtils.degToRad(11) + inwardElbowYaw,
-      z: THREE.MathUtils.degToRad(-3)
-    },
-    rightHand: {
-      x: THREE.MathUtils.degToRad(-24),
-      y: THREE.MathUtils.degToRad(-18),
-      z: THREE.MathUtils.degToRad(-12)
-    },
-    rightThumb: { x: playFingerOpen, y: THREE.MathUtils.degToRad(15), z: THREE.MathUtils.degToRad(12) },
-    rightIndex: { x: playFingerOpen, y: THREE.MathUtils.degToRad(-13), z: THREE.MathUtils.degToRad(-6) },
-    rightMiddle: { x: playFingerOpen * 0.55, y: THREE.MathUtils.degToRad(-7), z: THREE.MathUtils.degToRad(-4) },
-    head: { x: THREE.MathUtils.degToRad(-10) }
-  });
-  const hover = makeDominoPose(approach, {
-    spine: { x: THREE.MathUtils.degToRad(-23) },
-    rightUpperArm: {
-      x: THREE.MathUtils.degToRad(-104),
-      y: THREE.MathUtils.degToRad(-19) + inwardReachYaw,
-      z: THREE.MathUtils.degToRad(-18)
-    },
-    rightForeArm: {
-      x: THREE.MathUtils.degToRad(-38),
-      y: THREE.MathUtils.degToRad(12) + inwardElbowYaw,
-      z: THREE.MathUtils.degToRad(-4)
-    },
-    rightHand: {
-      x: THREE.MathUtils.degToRad(-30),
-      y: THREE.MathUtils.degToRad(-19),
-      z: THREE.MathUtils.degToRad(-13)
-    },
-    rightThumb: { x: THREE.MathUtils.degToRad(-4), y: THREE.MathUtils.degToRad(18), z: THREE.MathUtils.degToRad(14) },
-    rightIndex: { x: THREE.MathUtils.degToRad(6), y: THREE.MathUtils.degToRad(-16), z: THREE.MathUtils.degToRad(-7) },
-    rightMiddle: { x: THREE.MathUtils.degToRad(2), y: THREE.MathUtils.degToRad(-9), z: THREE.MathUtils.degToRad(-4) }
-  });
-  const pinch = makeDominoPose(hover, {
-    rightHand: { x: THREE.MathUtils.degToRad(-12), y: THREE.MathUtils.degToRad(9), z: THREE.MathUtils.degToRad(-5) },
-    rightThumb: { x: playThumbPinch, y: THREE.MathUtils.degToRad(19), z: THREE.MathUtils.degToRad(15) },
-    rightIndex: { x: playFingerCurl, y: THREE.MathUtils.degToRad(-17), z: THREE.MathUtils.degToRad(-8) },
-    rightMiddle: { x: playFingerCurl * 0.82, y: THREE.MathUtils.degToRad(-8), z: THREE.MathUtils.degToRad(-4) }
-  });
-  const carry = makeDominoPose(pinch, {
-    spine: { x: THREE.MathUtils.degToRad(8) },
-    rightUpperArm: {
-      x: THREE.MathUtils.degToRad(86),
-      y: THREE.MathUtils.degToRad(-2) + inwardReachYaw * 0.45,
-      z: THREE.MathUtils.degToRad(3)
-    },
-    rightForeArm: {
-      x: THREE.MathUtils.degToRad(78),
-      y: THREE.MathUtils.degToRad(-8) + inwardElbowYaw * 0.4,
-      z: THREE.MathUtils.degToRad(1)
-    },
-    rightHand: { x: THREE.MathUtils.degToRad(13), y: THREE.MathUtils.degToRad(8), z: THREE.MathUtils.degToRad(3) },
-    rightThumb: { x: playThumbPinch * 0.82, y: THREE.MathUtils.degToRad(15), z: THREE.MathUtils.degToRad(12) },
-    rightIndex: { x: playFingerCurl * 0.88, y: THREE.MathUtils.degToRad(-13), z: THREE.MathUtils.degToRad(-6) },
-    rightMiddle: { x: playFingerCurl * 0.72, y: THREE.MathUtils.degToRad(-7), z: THREE.MathUtils.degToRad(-3) },
-    head: { x: THREE.MathUtils.degToRad(5) }
-  });
-  const release = makeDominoPose(carry, {
-    rightThumb: { x: THREE.MathUtils.degToRad(6), y: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(-9) },
-    rightIndex: { x: THREE.MathUtils.degToRad(-14), y: THREE.MathUtils.degToRad(9), z: THREE.MathUtils.degToRad(4) },
-    rightMiddle: { x: THREE.MathUtils.degToRad(-9), y: THREE.MathUtils.degToRad(4), z: THREE.MathUtils.degToRad(2) }
-  });
-  const timings = [220, 160, 180, 470, 240, 300];
-  let cursor = now;
-  dominoCharacterActions.push({ start: cursor, duration: timings[0], update: (t) => applyDominoRigPose(rig, approach, t) });
-  cursor += timings[0];
-  dominoCharacterActions.push({ start: cursor, duration: timings[1], update: (t) => applyDominoRigPose(rig, hover, t) });
-  cursor += timings[1];
-  dominoCharacterActions.push({ start: cursor, duration: timings[2], update: (t) => applyDominoRigPose(rig, pinch, t) });
-  cursor += timings[2];
-  dominoCharacterActions.push({ start: cursor, duration: timings[3], update: (t) => applyDominoRigPose(rig, carry, t) });
-  cursor += timings[3];
-  dominoCharacterActions.push({ start: cursor, duration: timings[4], update: (t) => applyDominoRigPose(rig, release, t) });
-  cursor += timings[4];
-  dominoCharacterActions.push({ start: cursor, duration: timings[5], update: (t) => applyDominoRigPose(rig, base, t) });
+  if (type === 'PLAY' || type === 'DRAW') {
+    // Match Murlan Royale's exact single-card/place gesture for domino table placements.
+    const releaseFingers = {
+      rightIndex: { x: THREE.MathUtils.degToRad(-5), y: THREE.MathUtils.degToRad(2) },
+      rightThumb: { x: THREE.MathUtils.degToRad(8), z: THREE.MathUtils.degToRad(-6) },
+      rightMiddle: { x: THREE.MathUtils.degToRad(-4), y: THREE.MathUtils.degToRad(1) }
+    };
+    const singlePlaceGesture = makeDominoPose(base, {
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-20), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-14) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-24), y: THREE.MathUtils.degToRad(-1) },
+      rightHand: { x: THREE.MathUtils.degToRad(-14), y: THREE.MathUtils.degToRad(-5), z: THREE.MathUtils.degToRad(-1) },
+      ...releaseFingers
+    });
+
+    dominoCharacterActions.push(
+      { rig, start: now, duration: 560, update: (t) => applyDominoRigPose(rig, singlePlaceGesture, t) },
+      { rig, start: now + 560, duration: 300, update: (t) => applyDominoRigPoseBetween(rig, singlePlaceGesture, base, t) }
+    );
+  }
 }
 
 function stepDominoCharacterActions(now = performance.now()) {
@@ -8730,7 +8649,7 @@ function stepDominoCharacterActions(now = performance.now()) {
     const elapsed = now - action.start;
     if (elapsed < 0) continue;
     const t = Math.min(1, elapsed / Math.max(1, action.duration || 1));
-    action.update?.(1 - Math.pow(1 - t, 3));
+    action.update?.(easeInOutCubic(t));
     if (t >= 1) dominoCharacterActions.splice(i, 1);
   }
 }
