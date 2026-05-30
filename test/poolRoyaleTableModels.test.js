@@ -35,7 +35,7 @@ describe('Pool Royale table models', () => {
     );
     assert.equal(showood.fitScale, 1);
     assert.equal(showood.fitFootprintScale, 1);
-    assert.equal(showood.preserveOriginalFootprintAspect, true);
+    assert.equal(showood.preserveOriginalFootprintAspect, false);
     assert.equal(showood.lowerBaseHeightScale, 1.38);
     assert.equal(showood.legLengthScale, 2.05);
     assert.equal(showood.clothRepeatScale, 7.5);
@@ -60,6 +60,7 @@ describe('Pool Royale table models', () => {
       'trim'
     ]);
     assert.equal('playfieldVisualLift' in showood, false);
+    assert.equal(showood.fitReference, 'showoodGameplaySurfaces');
     assert.equal(showood.fitHeightScale, 1);
   });
 
