@@ -6869,6 +6869,8 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = BALL_R * 0.12;
 const RAIL_CONTACT_RADIUS = BALL_R;
+// Make gameplay collision meet the visible cushion nose before balls visually sink into it.
+const CUSHION_VISUAL_CONTACT_CLEARANCE = BALL_R * 0.46;
 const CUSHION_CUT_CONTACT_RADIUS = RAIL_CONTACT_RADIUS * 1.12;
 const CUSHION_CUT_NEAR_POCKET_BUFFER = BALL_R * 0.9;
 let CUSHION_SEGMENTS = [];
@@ -7329,6 +7331,7 @@ const TMP_VEC2_LATERAL = new THREE.Vector2();
 const TMP_VEC2_LIMIT = new THREE.Vector2();
 const TMP_VEC2_AXIS = new THREE.Vector2();
 const TMP_VEC2_VIEW = new THREE.Vector2();
+const TMP_VEC2_SWEEP = new THREE.Vector2();
 const TMP_CUE_SHADOW_DIR = new THREE.Vector3();
 const TMP_VEC2_OBSTRUCTION_OFFSET = new THREE.Vector2();
 const TMP_VEC2_OBSTRUCTION_DELTA = new THREE.Vector2();
@@ -8157,7 +8160,7 @@ function makeWoodTexture({
   texture.needsUpdate = true;
   return texture;
 }
-function reflectRails(ball) {
+function reflectRails(ball, previousPos = null) {
   const limX = RAIL_LIMIT_X;
   const limY = RAIL_LIMIT_Y;
   const railRadius = RAIL_CONTACT_RADIUS;
@@ -8256,29 +8259,56 @@ function reflectRails(ball) {
         if (ball.pos.distanceTo(segment.center) <= segment.captureRadius) continue;
       }
       const velocityToward = ball.vel.dot(segment.normal);
-      if (velocityToward >= 0) continue;
+      const movingIntoSegment = velocityToward < -1e-6;
       TMP_VEC2_A.copy(segment.end).sub(segment.start);
       const lenSq = TMP_VEC2_A.lengthSq();
       if (lenSq < 1e-8) continue;
       TMP_VEC2_B.copy(ball.pos).sub(segment.start);
-      const t = THREE.MathUtils.clamp(TMP_VEC2_B.dot(TMP_VEC2_A) / lenSq, 0, 1);
+      const rawT = TMP_VEC2_B.dot(TMP_VEC2_A) / lenSq;
+      const t = THREE.MathUtils.clamp(rawT, 0, 1);
       TMP_VEC2_C.copy(segment.start).addScaledVector(TMP_VEC2_A, t);
       TMP_VEC2_D.copy(ball.pos).sub(TMP_VEC2_C);
       const distSq = TMP_VEC2_D.lengthSq();
-      const contactRadius = segment.type === 'cut' ? cutRadius : railRadius;
-      if (distSq >= contactRadius * contactRadius) continue;
-      const dist = Math.sqrt(distSq);
-      const penetration = contactRadius - dist;
-      if (penetration <= 0) continue;
-      TMP_VEC2_LIMIT.copy(TMP_VEC2_D);
-      if (TMP_VEC2_LIMIT.lengthSq() > 1e-10) {
-        TMP_VEC2_LIMIT.normalize();
-        if (TMP_VEC2_LIMIT.dot(segment.normal) < 0) {
-          TMP_VEC2_LIMIT.multiplyScalar(-1);
+      const contactRadius =
+        (segment.type === 'cut' ? cutRadius : railRadius) + CUSHION_VISUAL_CONTACT_CLEARANCE;
+      let penetration = 0;
+      let impactNormal = null;
+      let correctiveOnly = !movingIntoSegment;
+      if (distSq < contactRadius * contactRadius) {
+        const dist = Math.sqrt(distSq);
+        penetration = contactRadius - dist;
+        if (penetration > 0) {
+          TMP_VEC2_LIMIT.copy(TMP_VEC2_D);
+          if (TMP_VEC2_LIMIT.lengthSq() > 1e-10) {
+            TMP_VEC2_LIMIT.normalize();
+            if (TMP_VEC2_LIMIT.dot(segment.normal) < 0) {
+              TMP_VEC2_LIMIT.multiplyScalar(-1);
+            }
+          } else {
+            TMP_VEC2_LIMIT.copy(segment.normal);
+          }
+          impactNormal = TMP_VEC2_LIMIT.clone();
         }
-      } else {
-        TMP_VEC2_LIMIT.copy(segment.normal);
       }
+
+      if (!impactNormal && previousPos && movingIntoSegment) {
+        TMP_VEC2_LIMIT.copy(segment.normal).normalize();
+        TMP_VEC2_B.copy(segment.start).addScaledVector(TMP_VEC2_LIMIT, contactRadius);
+        const previousSigned = previousPos.clone().sub(TMP_VEC2_B).dot(TMP_VEC2_LIMIT);
+        const currentSigned = ball.pos.clone().sub(TMP_VEC2_B).dot(TMP_VEC2_LIMIT);
+        if (previousSigned >= 0 && currentSigned < 0) {
+          const alpha = previousSigned / Math.max(previousSigned - currentSigned, 1e-8);
+          TMP_VEC2_C.copy(previousPos).lerp(ball.pos, THREE.MathUtils.clamp(alpha, 0, 1));
+          const sweptT = TMP_VEC2_C.clone().sub(segment.start).dot(TMP_VEC2_A) / lenSq;
+          const endpointPad = contactRadius / Math.sqrt(lenSq);
+          if (sweptT >= -endpointPad && sweptT <= 1 + endpointPad) {
+            penetration = Math.max(penetration, -currentSigned + MICRO_EPS);
+            impactNormal = TMP_VEC2_LIMIT.clone();
+            correctiveOnly = false;
+          }
+        }
+      }
+      if (!impactNormal || penetration <= 0) continue;
       if (penetration > bestPenetration) {
         bestPenetration = penetration;
         bestImpact = {
@@ -8288,8 +8318,9 @@ function reflectRails(ball) {
               : segment.type === 'jaw'
                 ? 'jaw'
                 : 'rail',
-          normal: TMP_VEC2_LIMIT.clone(),
-          tangent: new THREE.Vector2(-TMP_VEC2_LIMIT.y, TMP_VEC2_LIMIT.x)
+          normal: impactNormal,
+          tangent: new THREE.Vector2(-impactNormal.y, impactNormal.x),
+          correctiveOnly
         };
       }
     }
@@ -8300,8 +8331,10 @@ function reflectRails(ball) {
         typeof performance !== 'undefined' && performance.now
           ? performance.now()
           : Date.now();
-      ball.lastRailHitAt = stamp;
-      ball.lastRailHitType = bestImpact.type;
+      if (!bestImpact.correctiveOnly) {
+        ball.lastRailHitAt = stamp;
+        ball.lastRailHitType = bestImpact.type;
+      }
       return { ...bestImpact, preImpactVel };
     }
     for (let i = 0; i < centers.length; i++) {
@@ -8314,11 +8347,11 @@ function reflectRails(ball) {
       const distSq = TMP_VEC2_A.lengthSq();
       if (distSq <= 1e-10) continue;
       const dist = Math.sqrt(distSq);
-      if (dist <= captureRadius || dist >= jawRadius + railRadius) continue;
+      if (dist <= captureRadius || dist >= jawRadius + railRadius + CUSHION_VISUAL_CONTACT_CLEARANCE) continue;
       TMP_VEC2_A.multiplyScalar(1 / dist);
       const velocityToward = ball.vel.dot(TMP_VEC2_A);
-      if (velocityToward <= 0) continue;
-      const penetration = jawRadius + railRadius - dist;
+      const movingIntoJaw = velocityToward > 1e-6;
+      const penetration = jawRadius + railRadius + CUSHION_VISUAL_CONTACT_CLEARANCE - dist;
       if (penetration <= 0) continue;
       ball.pos.addScaledVector(TMP_VEC2_A, penetration);
       preImpactVel = ball.vel.clone();
@@ -8326,13 +8359,16 @@ function reflectRails(ball) {
         typeof performance !== 'undefined' && performance.now
           ? performance.now()
           : Date.now();
-      ball.lastRailHitAt = stamp;
-      ball.lastRailHitType = 'jaw';
+      if (movingIntoJaw) {
+        ball.lastRailHitAt = stamp;
+        ball.lastRailHitType = 'jaw';
+      }
       return {
         type: 'jaw',
         normal: TMP_VEC2_A.clone(),
         tangent: new THREE.Vector2(-TMP_VEC2_A.y, TMP_VEC2_A.x),
-        preImpactVel
+        preImpactVel,
+        correctiveOnly: !movingIntoJaw
       };
     }
     const boundaryFallback = resolveBoundaryFallback();
@@ -33707,6 +33743,7 @@ const shotPowerRef = useRef(0);
                 }
               }
             }
+            const previousBallPos = TMP_VEC2_SWEEP.copy(b.pos);
             b.pos.addScaledVector(b.vel, stepScale);
             let speed = b.vel.length();
             let scaledSpeed = speed * stepScale;
@@ -33729,9 +33766,10 @@ const shotPowerRef = useRef(0);
               }
               b.launchDir = null;
             }
-            const railImpact = reflectRails(b);
-            if (railImpact && b.id === 'cue') b.impacted = true;
-            if (railImpact && shotContextRef.current.contactMade) {
+            const railImpact = reflectRails(b, previousBallPos);
+            const railCollisionImpact = railImpact && !railImpact.correctiveOnly;
+            if (railCollisionImpact && b.id === 'cue') b.impacted = true;
+            if (railCollisionImpact && shotContextRef.current.contactMade) {
               shotContextRef.current.cushionAfterContact = true;
               shotContextRef.current.railContactCountAfterContact =
                 (shotContextRef.current.railContactCountAfterContact ?? 0) + 1;
@@ -33750,11 +33788,11 @@ const shotPowerRef = useRef(0);
                 enterTopView(true, { variant: 'rail' });
               }
             }
-            if (railImpact) {
+            if (railCollisionImpact) {
               applyRailImpulse(b, railImpact);
               applyRailSpinResponse(b, railImpact);
             }
-            if (railImpact) {
+            if (railCollisionImpact) {
               const nowRail = performance.now();
               const lastPlayed = railSoundTimeRef.current.get(b.id) ?? 0;
               if (nowRail - lastPlayed > RAIL_HIT_SOUND_COOLDOWN_MS) {
