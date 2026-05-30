@@ -26,8 +26,11 @@ const DEFAULT_MURLAN_SHARED_IDS = Object.freeze({
 });
 
 
+const selectableMurlanCharacterThemes = (themes = MURLAN_CHARACTER_THEMES) =>
+  themes.filter((theme) => !theme?.retiredFromMurlanRoster);
+
 const DEFAULT_UNLOCKED_CHARACTER_IDS = Object.freeze(
-  MURLAN_CHARACTER_THEMES.filter((theme, index) => index === 0 || theme?.sourceUrl?.includes('sketchfab.com/3d-models/'))
+  selectableMurlanCharacterThemes().filter((theme, index) => index === 0 || theme?.sourceUrl?.includes('sketchfab.com/3d-models/'))
     .map((theme) => theme.id)
     .filter(Boolean)
 );
@@ -50,7 +53,7 @@ export const MURLAN_ROYALE_OPTION_LABELS = Object.freeze({
   tables: mapLabels(MURLAN_TABLE_THEMES),
   tableCloth: mapLabels(MURLAN_TABLE_CLOTH_OPTIONS),
   tableFinish: mapLabels(MURLAN_TABLE_FINISH_OPTIONS),
-  characters: mapLabels(MURLAN_CHARACTER_THEMES),
+  characters: mapLabels(selectableMurlanCharacterThemes()),
   environmentHdri: mapLabels(
     MURLAN_HDRI_OPTIONS.map((variant) => ({
       id: variant.id,
@@ -110,7 +113,7 @@ export const MURLAN_ROYALE_STORE_ITEMS = [
     description: theme.description || `Premium ${theme.label} seating with original finish.`,
     thumbnail: theme.thumbnail
   })),
-  MURLAN_CHARACTER_THEMES.filter((theme, idx) => idx > 0).map((theme, idx) => ({
+  selectableMurlanCharacterThemes().filter((theme, idx) => idx > 0).map((theme, idx) => ({
     id: `character-${theme.id}`,
     type: 'characters',
     optionId: theme.id,
