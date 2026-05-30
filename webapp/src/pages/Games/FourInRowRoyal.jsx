@@ -129,10 +129,8 @@ const CONNECT4_PANEL = '#efe9d5';
 const CONNECT4_RED = '#e3342f';
 const CONNECT4_BLUE = '#2d79d8';
 const DROP_PREVIEW_DELAY = 0.09;
-const DROP_FLICK_HANDOFF_DELAY = 0.74;
-const DROP_FLICK_DURATION = 0.18;
-const DROP_BASE_DURATION = 0.24;
-const DROP_ROW_DURATION_STEP = 0.035;
+const DROP_BASE_DURATION = 0.2;
+const DROP_ROW_DURATION_STEP = 0.03;
 const WIN_HIGHLIGHT_SCALE_BASE = 1.16;
 const WIN_HIGHLIGHT_SCALE_PULSE = 0.14;
 const WIN_HIGHLIGHT_BOUNCE = 0.032 * BOARD_AND_CHIPS_SCALE;
@@ -156,8 +154,6 @@ const FOUR_IN_ROW_CHARACTER_LOAD_TIMEOUT_MS = 8000;
 const FOUR_IN_ROW_CHAIR_LOAD_TIMEOUT_MS = 5000;
 const FOUR_IN_ROW_CHARACTER_CHIP_PICKUP_LIFT = 0.18 * MODEL_SCALE;
 const FOUR_IN_ROW_CHARACTER_CHIP_CARRY_LIFT = 0.32 * MODEL_SCALE;
-const FOUR_IN_ROW_CHARACTER_CHIP_FLICK_PULLBACK = 0.09 * MODEL_SCALE;
-const FOUR_IN_ROW_CHARACTER_CHIP_FLICK_AIR_LIFT = 0.18 * MODEL_SCALE;
 const FOUR_IN_ROW_MENU_TOP_CLASS = 'top-24';
 
 const GRAPHICS_PRESETS = Object.freeze([
@@ -1081,16 +1077,6 @@ function lerpFourInRowBone(bone, from, to, t) {
   bone.rotation.z = THREE.MathUtils.lerp(from.z, to.z, t);
 }
 
-function setQuadraticBezierVector(out, start, control, end, t) {
-  const inv = 1 - t;
-  out.set(
-    inv * inv * start.x + 2 * inv * t * control.x + t * t * end.x,
-    inv * inv * start.y + 2 * inv * t * control.y + t * t * end.y,
-    inv * inv * start.z + 2 * inv * t * control.z + t * t * end.z
-  );
-  return out;
-}
-
 function applyFourInRowRigPose(rig, targetPose, alpha = 1) {
   if (!rig || !targetPose) return;
   const seated = rig.seatedPose || {};
@@ -1781,53 +1767,33 @@ export default function FourInRowRoyal() {
     const pickupHover = pickup.clone().add(new THREE.Vector3(0, FOUR_IN_ROW_CHARACTER_CHIP_PICKUP_LIFT, 0));
     const release = columnTop.clone();
     release.y += 0.03 * BOARD_AND_CHIPS_SCALE;
-    const carry = pickupHover.clone().lerp(release, 0.52);
+    const carry = pickupHover.clone().lerp(release, 0.54);
     carry.y += FOUR_IN_ROW_CHARACTER_CHIP_CARRY_LIFT;
-    const flickWindup = release
-      .clone()
-      .add(forward.clone().multiplyScalar(FOUR_IN_ROW_CHARACTER_CHIP_FLICK_PULLBACK));
-    flickWindup.y += 0.025 * BOARD_AND_CHIPS_SCALE;
-    const flickApex = flickWindup.clone().lerp(release, 0.55);
-    flickApex.y += FOUR_IN_ROW_CHARACTER_CHIP_FLICK_AIR_LIFT;
 
     const basePose = rig.seatedPose;
-    const murlanPinchFingers = {
+    const reachPose = makeFourInRowPoseVariant(basePose, {
+      spine: { x: THREE.MathUtils.degToRad(5) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(27), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-17) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(45), y: THREE.MathUtils.degToRad(-2) },
+      rightHand: { x: THREE.MathUtils.degToRad(-12), y: THREE.MathUtils.degToRad(-12), z: THREE.MathUtils.degToRad(-8) },
       rightIndexFinger: { x: THREE.MathUtils.degToRad(15), y: THREE.MathUtils.degToRad(-3) },
       rightThumbFinger: { x: THREE.MathUtils.degToRad(18), y: THREE.MathUtils.degToRad(6) },
       rightMiddleFinger: { x: THREE.MathUtils.degToRad(12), y: THREE.MathUtils.degToRad(-2) }
-    };
-    const murlanReleaseFingers = {
-      rightIndexFinger: { x: THREE.MathUtils.degToRad(-10), y: THREE.MathUtils.degToRad(2) },
-      rightThumbFinger: { x: THREE.MathUtils.degToRad(-8), z: THREE.MathUtils.degToRad(-6) },
-      rightMiddleFinger: { x: THREE.MathUtils.degToRad(-8), y: THREE.MathUtils.degToRad(1) }
-    };
-    const reachPose = makeFourInRowPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(5) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(25), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-17) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(42), y: THREE.MathUtils.degToRad(-2) },
-      rightHand: { x: THREE.MathUtils.degToRad(-14), y: THREE.MathUtils.degToRad(-5), z: THREE.MathUtils.degToRad(-1) },
-      ...murlanPinchFingers
     });
     const carryPose = makeFourInRowPoseVariant(basePose, {
       spine: { x: THREE.MathUtils.degToRad(7), z: THREE.MathUtils.degToRad(token === 'player' ? -2 : 2) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(36), y: THREE.MathUtils.degToRad(-22), z: THREE.MathUtils.degToRad(-19) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(56), y: THREE.MathUtils.degToRad(-2) },
-      rightHand: { x: THREE.MathUtils.degToRad(-12), y: THREE.MathUtils.degToRad(-8), z: THREE.MathUtils.degToRad(-2) },
-      ...murlanPinchFingers
-    });
-    const windupPose = makeFourInRowPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(7) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(38), y: THREE.MathUtils.degToRad(-24), z: THREE.MathUtils.degToRad(-19) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(60), y: THREE.MathUtils.degToRad(-2) },
-      rightHand: { x: THREE.MathUtils.degToRad(-20), y: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(-5) },
-      ...murlanPinchFingers
+      rightUpperArm: { x: THREE.MathUtils.degToRad(42), y: THREE.MathUtils.degToRad(-24), z: THREE.MathUtils.degToRad(-22) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(62), y: THREE.MathUtils.degToRad(-2) },
+      rightHand: { x: THREE.MathUtils.degToRad(-5), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-14) }
     });
     const releasePose = makeFourInRowPoseVariant(basePose, {
       spine: { x: THREE.MathUtils.degToRad(8) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(44), y: THREE.MathUtils.degToRad(-24), z: THREE.MathUtils.degToRad(-18) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(66), y: THREE.MathUtils.degToRad(-2) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(50), y: THREE.MathUtils.degToRad(-27), z: THREE.MathUtils.degToRad(-24) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(70), y: THREE.MathUtils.degToRad(-3) },
       rightHand: { x: THREE.MathUtils.degToRad(9), y: THREE.MathUtils.degToRad(-8), z: THREE.MathUtils.degToRad(-5) },
-      ...murlanReleaseFingers
+      rightIndexFinger: { x: THREE.MathUtils.degToRad(-10) },
+      rightThumbFinger: { x: THREE.MathUtils.degToRad(-8) },
+      rightMiddleFinger: { x: THREE.MathUtils.degToRad(-8) }
     });
 
     characterChipActionsRef.current.push({
@@ -1839,12 +1805,9 @@ export default function FourInRowRoyal() {
       pickup,
       pickupHover,
       carry,
-      flickWindup,
-      flickApex,
       release,
       reachPose,
       carryPose,
-      windupPose,
       releasePose,
       released: false
     });
@@ -2402,15 +2365,12 @@ export default function FourInRowRoyal() {
         const ease = t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2;
         let pose = action.reachPose;
         let poseAlpha = Math.min(1, t / 0.22);
-        if (t >= 0.22 && t < 0.62) {
+        if (t >= 0.22 && t < 0.72) {
           pose = action.carryPose;
-          poseAlpha = Math.min(1, (t - 0.22) / 0.24);
-        } else if (t >= 0.62 && t < 0.74) {
-          pose = action.windupPose;
-          poseAlpha = Math.min(1, (t - 0.62) / 0.12);
-        } else if (t >= 0.74 && t < 0.86) {
+          poseAlpha = Math.min(1, (t - 0.22) / 0.26);
+        } else if (t >= 0.72 && t < 0.86) {
           pose = action.releasePose;
-          poseAlpha = Math.min(1, (t - 0.74) / 0.08);
+          poseAlpha = Math.min(1, (t - 0.72) / 0.14);
         } else if (t >= 0.86) {
           pose = action.rig.seatedPose;
           poseAlpha = Math.min(1, (t - 0.86) / 0.14);
@@ -2423,20 +2383,12 @@ export default function FourInRowRoyal() {
             chip.position.copy(action.handWorld).lerp(action.pickup, ease / 0.18);
           } else if (t < 0.32) {
             chip.position.copy(action.pickup).lerp(action.pickupHover, (t - 0.18) / 0.14);
-          } else if (t < 0.62) {
-            const carryT = (t - 0.32) / 0.3;
+          } else if (t < 0.74) {
+            const carryT = (t - 0.32) / 0.42;
             const a = action.pickupHover.clone().lerp(action.carry, carryT);
-            const b = action.carry.clone().lerp(action.flickWindup, carryT);
+            const b = action.carry.clone().lerp(action.release, carryT);
             chip.position.copy(a.lerp(b, carryT));
             chip.rotation.z += delta * 5.5;
-          } else if (t < 0.74) {
-            chip.position.copy(action.carry).lerp(action.flickWindup, (t - 0.62) / 0.12);
-            chip.rotation.z += delta * 7.5;
-          } else if (t < 0.86) {
-            const flickT = (t - 0.74) / 0.12;
-            setQuadraticBezierVector(chip.position, action.flickWindup, action.flickApex, action.release, flickT);
-            chip.rotation.z += delta * 16;
-            chip.rotation.x += delta * 11;
           } else {
             chip.position.copy(action.release);
             chip.visible = false;
@@ -2453,37 +2405,9 @@ export default function FourInRowRoyal() {
       for (let i = fallingPiecesRef.current.length - 1; i >= 0; i -= 1) {
         const entry = fallingPiecesRef.current[i];
         entry.elapsed += delta;
-        if (entry.phase === 'awaitFlick') {
-          entry.mesh.visible = false;
-          if (entry.elapsed >= entry.flickDelay) {
-            entry.phase = 'flick';
-            entry.elapsed = 0;
-            entry.mesh.visible = true;
-            entry.mesh.scale.setScalar(0.96);
-            entry.mesh.position.copy(entry.flickStart);
-          }
-          continue;
-        }
-
-        if (entry.phase === 'flick') {
-          const t = Math.min(1, entry.elapsed / entry.flickDuration);
-          const eased = 1 - (1 - t) ** 3;
-          setQuadraticBezierVector(entry.mesh.position, entry.flickStart, entry.flickApex, entry.columnTop, eased);
-          entry.mesh.rotation.z += delta * 18;
-          entry.mesh.rotation.x += delta * 12;
-          entry.mesh.scale.setScalar(0.96 + Math.sin(t * Math.PI) * 0.04);
-          if (t >= 1) {
-            entry.phase = 'preview';
-            entry.elapsed = 0;
-            entry.mesh.position.copy(entry.columnTop);
-            entry.mesh.scale.setScalar(1);
-          }
-          continue;
-        }
-
         if (entry.phase === 'preview') {
           const t = Math.min(1, entry.elapsed / entry.previewDuration);
-          const pulse = 1 + Math.sin(t * Math.PI) * 0.025;
+          const pulse = 1 + Math.sin(t * Math.PI) * 0.04;
           entry.mesh.scale.setScalar(pulse);
           if (t >= 1) {
             entry.phase = 'drop';
@@ -2500,9 +2424,8 @@ export default function FourInRowRoyal() {
           entry.target.y,
           eased
         );
-        entry.mesh.position.x = entry.target.x;
-        entry.mesh.position.z = entry.target.z;
-        entry.mesh.rotation.z += delta * 6 * (1 - t);
+        const wobble = Math.sin((1 - t) * Math.PI * 2.2) * 0.015 * (1 - t);
+        entry.mesh.position.z = entry.target.z + wobble;
         if (t >= 1) {
           entry.mesh.position.copy(entry.target);
           if (!entry.hasLandingSound) {
@@ -2726,28 +2649,17 @@ export default function FourInRowRoyal() {
           triggerCharacterChipAction(nextCell, columnTop);
           const mesh = createTokenMesh(nextCell);
           mesh.position.copy(columnTop);
-          mesh.visible = false;
           mesh.userData.baseY = targetY;
           group.add(mesh);
           piecesMapRef.current.set(`${r}-${c}`, mesh);
-          const flickDirection = nextCell === 'player' ? 1 : -1;
-          const flickStart = columnTop
-            .clone()
-            .add(new THREE.Vector3(0, 0.015 * BOARD_AND_CHIPS_SCALE, flickDirection * FOUR_IN_ROW_CHARACTER_CHIP_FLICK_PULLBACK));
-          const flickApex = flickStart.clone().lerp(columnTop, 0.58);
-          flickApex.y += FOUR_IN_ROW_CHARACTER_CHIP_FLICK_AIR_LIFT * 0.82;
           fallingPiecesRef.current.push({
             mesh,
             key: `${r}-${c}`,
             token: nextCell,
             columnTop,
             target,
-            flickStart,
-            flickApex,
-            flickDelay: DROP_FLICK_HANDOFF_DELAY * FOUR_IN_ROW_CHARACTER_ANIMATION_DURATION,
-            flickDuration: DROP_FLICK_DURATION,
             elapsed: 0,
-            phase: 'awaitFlick',
+            phase: 'preview',
             hasLandingSound: false,
             previewDuration: DROP_PREVIEW_DELAY,
             dropDuration:
