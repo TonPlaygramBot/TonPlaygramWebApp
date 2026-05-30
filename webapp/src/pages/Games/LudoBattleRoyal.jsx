@@ -419,10 +419,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/webaverse/pistol/master/military.glb',
       'https://cdn.statically.io/gh/webaverse/pistol/master/military.glb'
     ],
-    scale: 0.13,
-    textureOverrideUrls: [
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/AK47.jpeg'
-    ]
+    scale: 0.13
   },
   uziSprayAttack: {
     label: 'Uzi',
@@ -438,13 +435,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/AK47/scene.gltf',
       'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/AK47/scene.gltf'
     ],
-    scale: 0.24,
-    forceTextureOverride: true,
-    textureOverrideUrls: [
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/AK47/textures/Material.001_baseColor.png',
-      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/AK47/textures/Material.001_baseColor.png',
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/AK47.jpeg'
-    ]
+    scale: 0.24
   },
   krsvBurstAttack: {
     label: 'KRSV',
@@ -476,10 +467,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models3/SigSauer/scene.gltf',
       'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models3/SigSauer/scene.gltf'
     ],
-    scale: 0.13,
-    textureOverrideUrls: [
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/SigSauer.jpg'
-    ]
+    scale: 0.13
   },
   grenadeBlastAttack: {
     label: 'Grenade Blast',
@@ -488,10 +476,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/friuns2/bingextension/main/grenade.glb',
       'https://cdn.statically.io/gh/friuns2/bingextension/main/grenade.glb'
     ],
-    scale: 0.11,
-    textureOverrideUrls: [
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/SigSauer.jpg'
-    ]
+    scale: 0.11
   },
   shotgunBlastAttack: {
     label: 'Shotgun Blast',
@@ -626,6 +611,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
     scale: 0.125
   }
 });
+
 const CAPTURE_WEAPON_MODEL_CACHE = new Map();
 const CAPTURE_WEAPON_MODEL_REDIRECT = new Map();
 const CAPTURE_WEAPON_MODEL_FAILURE = new Set();
@@ -788,6 +774,39 @@ const FIREARM_CALIBER_BY_ID = Object.freeze({
   polyRobotLargeGunAttack: { caliberLabel: 'heavy robot rifle round', projectileKind: 'rifle-round', bulletRadius: 0.0042, bulletLength: 0.047, shellRadius: 0.0032, shellLength: 0.024, bulletSpeed: 0.255 },
   polyRobotFlyingGunAttack: { caliberLabel: 'drone SMG micro-round', projectileKind: 'smg-round', bulletRadius: 0.003, bulletLength: 0.026, shellRadius: 0.0021, shellLength: 0.012, bulletSpeed: 0.235 }
 });
+const CAPTURE_WEAPON_CONFIGURATION_AUDIT = Object.freeze(
+  CAPTURE_ANIMATION_OPTIONS.map((option) => {
+    const hasModelConfig = !FIREARM_CAPTURE_ANIMATION_IDS.has(option.id) || Boolean(CAPTURE_WEAPON_MODEL_CONFIG[option.id]);
+    const hasBallistics = !FIREARM_CAPTURE_ANIMATION_IDS.has(option.id) || Boolean(FIREARM_BALLISTICS_PROFILE_BY_ID[option.id]);
+    const hasMagazine = !FIREARM_CAPTURE_ANIMATION_IDS.has(option.id) || Number.isFinite(FIREARM_MAGAZINE_SHOTS[option.id]);
+    return Object.freeze({
+      id: option.id,
+      label: option.label,
+      sourceMapped: hasModelConfig && hasBallistics && hasMagazine,
+      reason: hasModelConfig
+        ? hasBallistics
+          ? hasMagazine
+            ? 'Source GLB/GLTF mapping confirmed'
+            : 'Missing magazine profile'
+          : 'Missing ballistics profile'
+        : 'Missing source model config'
+    });
+  })
+);
+const CAPTURE_WEAPON_CONFIGURATION_BY_ID = Object.freeze(
+  CAPTURE_WEAPON_CONFIGURATION_AUDIT.reduce((acc, entry) => {
+    acc[entry.id] = entry;
+    return acc;
+  }, {})
+);
+(() => {
+  const missing = CAPTURE_WEAPON_CONFIGURATION_AUDIT.filter((entry) => !entry.sourceMapped);
+  if (missing.length > 0 && typeof console !== 'undefined') {
+    console.warn('Ludo Battle Royal capture weapon configuration gaps', missing);
+  }
+  return true;
+})();
+
 const FIREARM_CAPTURE_SHOT_SOUND_URL_BY_ID = Object.freeze({
   glockSidearmAttack: 'https://cdn.freesound.org/previews/414/414888_5121236-lq.mp3',
   smithSidearmAttack: 'https://cdn.freesound.org/previews/414/414888_5121236-lq.mp3',
@@ -1447,35 +1466,37 @@ async function loadCaptureWeaponModel(captureAnimationId) {
     for (let i = 0; i < candidateUrls.length; i += 1) {
       const candidateUrl = candidateUrls[i];
       try {
+        // Always let GLTFLoader try the source asset first. This preserves the weapon author's
+        // material slots, UV sets, texture transforms, embedded KTX2/PNG/JPEG images, and glTF
+        // sampler settings exactly as the GLB/GLTF declares them.
+        // eslint-disable-next-line no-await-in-loop
+        loadedRoot = assignLoadedGltf(await withLoadTimeout(loader.loadAsync(candidateUrl)));
+      } catch (error) {
         if (isGltfAssetUrl(candidateUrl) || isPolyPizzaAssetUrl(candidateUrl)) {
-          // Poly Pizza GLBs already ship with their own material/texture data. Load them
-          // directly first so GLTFLoader can keep the exact embedded PBR texture bindings.
-          // eslint-disable-next-line no-await-in-loop
-          loadedRoot = assignLoadedGltf(await withLoadTimeout(loader.loadAsync(candidateUrl)));
-          if (loadedRoot) break;
-          if (isGltfAssetUrl(candidateUrl)) continue;
+          if (i === candidateUrls.length - 1) {
+            console.warn('Capture weapon source GLTF load failed', normalizedCaptureAnimationId, candidateUrl, error);
+          }
         }
+      }
+      if (loadedRoot) break;
+      if (isGltfAssetUrl(candidateUrl) || isPolyPizzaAssetUrl(candidateUrl)) continue;
+      try {
+        // Some remote GLBs reference images in a way mobile WebGL rejects because of CORS.
+        // Only then patch images into data URIs while keeping the original glTF material → texture
+        // index mapping untouched.
         // eslint-disable-next-line no-await-in-loop
         const rawBuffer = await withLoadTimeout(fetchBuffer(candidateUrl));
         if (!rawBuffer) continue;
         // eslint-disable-next-line no-await-in-loop
         const patchedBuffer = await patchGlbImagesToDataUris(
           rawBuffer,
-          'fighter',
+          'weapon',
           candidateUrl,
           candidateUrls,
           imageCache
         );
         // eslint-disable-next-line no-await-in-loop
         loadedRoot = await parseObjectFromBuffer(loader, patchedBuffer);
-      } catch (error) {
-        // ignore patched path and try direct loader fallback below
-      }
-      if (loadedRoot) break;
-      try {
-        // eslint-disable-next-line no-await-in-loop
-        const gltf = await withLoadTimeout(loader.loadAsync(candidateUrl));
-        loadedRoot = assignLoadedGltf(gltf);
       } catch (error) {
         if (i === candidateUrls.length - 1) {
           console.warn('Capture weapon model load failed', normalizedCaptureAnimationId, candidateUrl, error);
@@ -2177,7 +2198,8 @@ async function resolveExternalImageToDataUri(imageUri, kind, sourceUrl, modelUrl
   const placeholderColors = {
     drone: ['#7c8791', '#4f5861'],
     helicopter: ['#6f7763', '#4f5648'],
-    fighter: ['#98a1a9', '#646d76']
+    fighter: ['#98a1a9', '#646d76'],
+    weapon: ['#d8e2ee', '#475569']
   };
   const [primary, secondary] = placeholderColors[kind] ?? ['#6e7681', '#4f5861'];
   const placeholderDataUri = makePlaceholderTextureDataUri(primary, secondary);
@@ -8759,11 +8781,21 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const unlocked = CAPTURE_ANIMATION_OPTIONS.filter((option) =>
         isLudoOptionUnlocked('captureAnimation', option.id, ludoInventory)
       );
+      const allOptions = CAPTURE_ANIMATION_OPTIONS.filter(
+        (option) => !unlocked.some((unlockedOption) => unlockedOption.id === option.id)
+      );
       const firearm = [];
       const other = [];
-      unlocked.forEach((option) => {
-        if (FIREARM_CAPTURE_ANIMATION_IDS.has(option.id)) firearm.push(option);
-        else other.push(option);
+      [...unlocked, ...allOptions].forEach((option) => {
+        const config = CAPTURE_WEAPON_CONFIGURATION_BY_ID[option.id];
+        const enrichedOption = {
+          ...option,
+          quickSwapUnlocked: unlocked.some((unlockedOption) => unlockedOption.id === option.id),
+          quickSwapConfigured: config?.sourceMapped !== false,
+          quickSwapConfirmation: config?.reason || 'Capture option configured'
+        };
+        if (FIREARM_CAPTURE_ANIMATION_IDS.has(option.id)) firearm.push(enrichedOption);
+        else other.push(enrichedOption);
       });
       return [...firearm, ...other];
     },
@@ -14316,7 +14348,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             }}
           >
             <div className="mb-2 flex items-center justify-between gap-2 px-1">
-              <p className="text-[9px] uppercase tracking-[0.26em] text-sky-200/80">Quick Weapon Swap</p>
+              <div>
+                <p className="text-[9px] uppercase tracking-[0.26em] text-sky-200/80">Quick Weapon Swap</p>
+                <p className="mt-0.5 text-[8px] font-semibold uppercase tracking-[0.2em] text-emerald-200/75">
+                  All weapons • source GLB/GLTF checked
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => setWeaponSwapPopup(null)}
@@ -14325,7 +14362,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 Close
               </button>
             </div>
-            <div className="grid max-h-[54vh] grid-cols-3 gap-1.5 overflow-y-auto pr-1 touch-pan-y overscroll-contain">
+            <div className="grid max-h-[56vh] grid-cols-3 gap-1.5 overflow-y-auto overscroll-contain pr-1 touch-pan-y [scrollbar-width:thin]">
               {weaponSwapPopup.options.map((option) => {
                 const optionIndex = CAPTURE_ANIMATION_OPTIONS.findIndex((entry) => entry.id === option.id);
                 const selected = appearance.captureAnimation === optionIndex;
@@ -14334,17 +14371,29 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   <button
                     key={option.id}
                     type="button"
-                    className={`overflow-hidden rounded-xl border p-1.5 text-[8px] font-semibold ${
+                    className={`relative overflow-hidden rounded-xl border p-1.5 text-[8px] font-semibold ${
                       selected ? 'border-sky-300 bg-sky-400/25 text-white' : 'border-white/20 bg-white/5 text-white/80'
-                    }`}
+                    } ${option.quickSwapUnlocked ? '' : 'border-amber-300/30 bg-amber-950/20 text-amber-100/80'}`}
+                    title={`${displayName}: ${option.quickSwapConfirmation}`}
                     onClick={() => {
                       if (optionIndex >= 0) setAppearance((prev) => ({ ...prev, captureAnimation: optionIndex }));
                     }}
                   >
+                    <span
+                      className={`absolute right-1 top-1 rounded-full px-1 text-[7px] leading-3 ${
+                        option.quickSwapConfigured ? 'bg-emerald-400/25 text-emerald-100' : 'bg-red-400/25 text-red-100'
+                      }`}
+                      aria-label={option.quickSwapConfirmation}
+                    >
+                      {option.quickSwapConfigured ? '✓' : '!'}
+                    </span>
                     <div className="mx-auto mb-1 flex h-9 w-12 items-center justify-center rounded-lg border border-white/20 bg-gradient-to-br from-slate-950/85 to-slate-800/75">
                       <QuickSwapWeaponIcon id={option.id} selected={selected} />
                     </div>
-                    <div className="px-0.5 pb-0.5 leading-tight">{displayName}</div>
+                    <div className="px-0.5 leading-tight">{displayName}</div>
+                    <div className={`mt-0.5 text-[7px] uppercase leading-none ${option.quickSwapUnlocked ? 'text-emerald-200/80' : 'text-amber-200/80'}`}>
+                      {option.quickSwapUnlocked ? 'Ready' : 'Preview'}
+                    </div>
                   </button>
                 );
               })}
