@@ -107,7 +107,6 @@ const CAPTURE_JET_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_JET_TOTAL * (0.96 - 0.
 const CAPTURE_HELICOPTER_SPEED_FACTOR = 1; // keep helicopter pacing identical to jet so both share the same visible loop
 const CAPTURE_HELICOPTER_TOTAL = CAPTURE_JET_TOTAL; // helicopter mirrors jet timing for synchronized air-strike pacing
 const CAPTURE_HELICOPTER_MISSILE_TRAVEL = Math.max(0.28, CAPTURE_HELICOPTER_TOTAL * (0.96 - 0.56) - 0.1);
-const CAPTURE_UKRAINIAN_DRONE_TOTAL = CAPTURE_HELICOPTER_TOTAL; // Ukrainian drone shares the helicopter flypath timing
 const CAPTURE_JET_MISSILE_RELEASE_RATIO = 0.62;
 const CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO = 0.56; // release while entering the enemy-side U-turn
 const CAPTURE_JET_TRIMMED_START_RATIO = 0; // keep takeoff visible from the live piece location
@@ -122,7 +121,6 @@ const CAPTURE_VEHICLE_SCALE_MULTIPLIER = 1.48; // rebalance weapon units closer 
 const CAPTURE_DRONE_SCALE = 0.0432 * CAPTURE_VEHICLE_SCALE_MULTIPLIER * 1.58;
 const CAPTURE_JET_SCALE = CAPTURE_DRONE_SCALE * 1.22; // keep jet larger and more readable during the higher flyover pass
 const CAPTURE_HELICOPTER_SCALE = CAPTURE_DRONE_SCALE * 1.3; // keep helicopter larger and more readable during the higher flyover pass
-const CAPTURE_UKRAINIAN_DRONE_SCALE = CAPTURE_DRONE_SCALE * 1.12; // imported drone model, readable but smaller than helicopter
 const CAPTURE_DRONE_ALTITUDE = 3.28; // lift drone lane higher so it clearly flies above piece crowns on portrait screens
 const CAPTURE_FLIGHT_ALTITUDE = CAPTURE_DRONE_ALTITUDE;
 const CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE = CAPTURE_FLIGHT_ALTITUDE * 0.4; // keep cruise path tighter to board plane
@@ -204,7 +202,6 @@ const CAPTURE_MODEL_URLS = Object.freeze({
 const GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID = Object.freeze({
   missileJavelin: 'truck',
   droneAttack: 'drone',
-  ukrainianDroneAttack: 'ukrainianDrone',
   fighterJetAttack: 'jet',
   helicopterAttack: 'helicopter'
 });
@@ -3213,8 +3210,7 @@ function chooseRandomCaptureAnimationId(kind, fallbackId) {
     .filter((id) => {
       if (!id) return false;
       if (FIREARM_CAPTURE_ANIMATION_IDS.has(id)) return true;
-      const mappedKind = GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[id];
-      return mappedKind === kind || (kind === 'drone' && mappedKind === 'ukrainianDrone');
+      return GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[id] === kind;
     });
   if (!pool.length) return fallbackId;
   return pool[Math.floor(Math.random() * pool.length)] || fallbackId;
@@ -8532,16 +8528,14 @@ function Chess3D({
     if (['jet', 'drone', 'helicopter', 'truck'].includes(weaponSwapTargetKind)) {
       const firearmAndOriginalVehicle = pool.filter((option) => {
         if (FIREARM_CAPTURE_ANIMATION_IDS.has(option.id)) return true;
-        const mappedKind = GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[option.id];
-        return mappedKind === weaponSwapTargetKind || (weaponSwapTargetKind === 'drone' && mappedKind === 'ukrainianDrone');
+        return GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[option.id] === weaponSwapTargetKind;
       });
       if (firearmAndOriginalVehicle.length) return firearmAndOriginalVehicle;
     }
 
     const filtered = pool.filter((option) => {
       if (FIREARM_CAPTURE_ANIMATION_IDS.has(option.id)) return true;
-      const mappedKind = GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[option.id];
-      return mappedKind === weaponSwapTargetKind || (weaponSwapTargetKind === 'drone' && mappedKind === 'ukrainianDrone');
+      return GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[option.id] === weaponSwapTargetKind;
     });
     if (filtered.length) return filtered;
     return pool;
@@ -11450,36 +11444,6 @@ function Chess3D({
       }
       return { root, trail, rotor };
     };
-    const createFxDroneDropMissile = () => {
-      const missileTone = getCaptureToneSeed('ukrainianDrone');
-      const root = new THREE.Group();
-      const body = addFxCylinder(root, 0.05, 0.06, 0.72, [0, 0, 0], [0, 0, Math.PI / 2], '#d9dde2', 14, 0.2, 0.86);
-      body.material = createCaptureVehicleMaterial('missile', { toneSeed: missileTone, color: '#d9dde2', roughness: 0.2, metalness: 0.86 });
-      const nose = new THREE.Mesh(
-        new THREE.ConeGeometry(0.055, 0.18, 14),
-        createCaptureVehicleMaterial('missile', { toneSeed: missileTone, color: '#eef2f6', roughness: 0.16, metalness: 0.9 })
-      );
-      nose.position.set(0.45, 0, 0);
-      nose.rotation.z = -Math.PI / 2;
-      nose.castShadow = true;
-      root.add(nose);
-      addFxBox(root, [0.1, 0.018, 0.14], [-0.18, 0, 0], '#8f979e', 0.28, 0.72);
-      addFxBox(root, [0.1, 0.14, 0.018], [-0.18, 0, 0], '#8f979e', 0.28, 0.72);
-      addFxCylinder(root, 0.052, 0.052, 0.12, [-0.42, 0, 0], [0, 0, Math.PI / 2], '#12161b', 14, 0.34, 0.58);
-      return { root, trail: [] };
-    };
-    const getUkrainianDroneDropPose = ({ dronePos, targetPos, progress }) => {
-      const u = clamp01(progress);
-      const dropStart = targetPos.clone();
-      dropStart.y = Math.max(dronePos.y - tile * 0.12, targetPos.y + tile * 0.45);
-      const pos = dropStart.clone().lerp(targetPos, smoothEase(u));
-      const next = dropStart.clone().lerp(targetPos, smoothEase(clamp01(u + 0.08)));
-      pos.x = targetPos.x;
-      pos.z = targetPos.z;
-      next.x = targetPos.x;
-      next.z = targetPos.z;
-      return { pos, next };
-    };
     const createFxExplosion = (position) => {
       const root = new THREE.Group();
       root.position.copy(position);
@@ -12464,52 +12428,6 @@ function Chess3D({
         return withAuto3d({
           moveDelayMs: CAPTURE_DRONE_ATTACK_TOTAL * 1000,
           captureResolveDelayMs: CAPTURE_DRONE_ATTACK_TOTAL * 1000
-        });
-      }
-      if (captureKind === 'ukrainianDrone') {
-        suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_UKRAINIAN_DRONE_TOTAL * 1000;
-        const isWhiteSide = Boolean(movingMesh?.userData?.w);
-        const parkedDrone = acquireParkedAirUnit(isWhiteSide, 'drone');
-        const ukrainianDroneFx = parkedDrone || createFxDrone({ forceProcedural: !parkedDrone });
-        if (!parkedDrone) {
-          ukrainianDroneFx.root.scale.setScalar(CAPTURE_UKRAINIAN_DRONE_SCALE);
-          captureFxGroup.add(ukrainianDroneFx.root);
-        }
-        const launchBase = parkedDrone?.root?.position?.clone?.() || parkedDrone?.homePosition?.clone?.() || getAirPadAnchor(isWhiteSide, 'drone', 0);
-        const sideSkin = resolveSideVehicleSkin(isWhiteSide);
-        if (sideSkin) applyVehicleSkinToModel(ukrainianDroneFx.root, sideSkin);
-        attachVehicleAvatarBadge(
-          ukrainianDroneFx.root,
-          isWhiteSide
-            ? avatar || username || playerFlag || '🙂'
-            : (onlineRef.current.enabled ? opponent?.avatar || opponent?.name : null) || opponent?.name || aiFlag || '🤖',
-          isWhiteSide ? 1 : -1
-        );
-        ukrainianDroneFx.root.position.copy(launchBase.clone());
-        const missileFx = createFxDroneDropMissile();
-        missileFx.root.scale.setScalar(CAPTURE_AIR_JAVELIN_MISSILE_SCALE * 0.48);
-        missileFx.root.visible = false;
-        captureFxGroup.add(missileFx.root);
-        playAudio(droneSoundRef, { maxDurationMs: CAPTURE_UKRAINIAN_DRONE_TOTAL * 1000 });
-        activeCaptureFx.push({
-          type: 'ukrainianDrone',
-          t: 0,
-          duration: CAPTURE_UKRAINIAN_DRONE_TOTAL,
-          from: fromPos.clone(),
-          to: targetPos.clone(),
-          launchPos: launchBase.clone(),
-          movingMesh,
-          targetMesh,
-          returnToOrigin: true,
-          flightTarget: getAirStrikeCenterFlightTarget(fromPos, targetPos),
-          sourceUnit: parkedDrone,
-          droneFx: ukrainianDroneFx,
-          missileFx
-        });
-        const droneImpactDelayMs = getAirMissileImpactTime(CAPTURE_UKRAINIAN_DRONE_TOTAL) * 1000;
-        return withAuto3d({
-          moveDelayMs: droneImpactDelayMs,
-          captureResolveDelayMs: droneImpactDelayMs
         });
       }
       if (captureKind === 'helicopter') {
@@ -14739,73 +14657,6 @@ function Chess3D({
                 }
                 activeCaptureFx.splice(i, 1);
               }
-            }
-          } else if (fx.type === 'ukrainianDrone') {
-            const droneTimelineU = clamp01(fx.t / CAPTURE_UKRAINIAN_DRONE_TOTAL);
-            const droneU = THREE.MathUtils.lerp(CAPTURE_JET_TRIMMED_START_RATIO, 1, droneTimelineU);
-            if (!fx.sourceUnit) fx.droneFx.root.scale.setScalar(CAPTURE_UKRAINIAN_DRONE_SCALE);
-            const liveTargetPos = getLiveTargetPosition(fx.to, fx.targetMesh, 0);
-            fx.to.copy(liveTargetPos);
-            const launchPos = fx.returnToOrigin
-              ? fx.launchPos.clone()
-              : getLiveLaunchPosition(fx.launchPos, fx.movingMesh, 0);
-            if (!fx.returnToOrigin) fx.launchPos.copy(launchPos);
-            const { pos: dronePos, next: droneNext } = getCaptureAirRunPose({
-              from: launchPos,
-              to: fx.flightTarget || fx.to,
-              progress: droneU,
-              cruiseHeight: CAPTURE_AIRCRAFT_CRUISE_HEIGHT,
-              returnToOrigin: true,
-              constrainToBoard: false
-            });
-            fx.droneFx.root.position.copy(dronePos);
-            captureDir.copy(droneNext).sub(dronePos).normalize();
-            orientForwardKeepingUp(fx.droneFx.root, captureDir);
-            if (fx.droneFx.propeller) fx.droneFx.propeller.rotation.x += dt * 40;
-            fx.droneFx.exhaustClouds?.forEach((puff) => {
-              puff.visible = false;
-            });
-
-            const releaseStart = CAPTURE_UKRAINIAN_DRONE_TOTAL * CAPTURE_AIR_MISSILE_RELEASE_START_RATIO;
-            const releaseEnd = CAPTURE_UKRAINIAN_DRONE_TOTAL * CAPTURE_AIR_MISSILE_RELEASE_END_RATIO;
-            const missileTravel = Math.max(0.24, (releaseEnd - releaseStart - 0.1) / CAPTURE_AIR_MISSILE_SPEED_MULTIPLIER);
-            const missileImpactTime = getAirMissileImpactTime(CAPTURE_UKRAINIAN_DRONE_TOTAL);
-            if (fx.t < releaseStart) {
-              fx.missileFx.root.visible = false;
-            } else {
-              const missileU = clamp01((fx.t - releaseStart) / missileTravel);
-              if (missileU <= 0 || missileU >= 1) {
-                fx.missileFx.root.visible = false;
-              } else {
-                if (!fx.missileFx.didPlayLaunchSound) {
-                  fx.missileFx.didPlayLaunchSound = true;
-                  playAudio(missileLaunchSoundRef, { volume: 0.72 });
-                }
-                const { pos: missilePos, next: missileNext } = getUkrainianDroneDropPose({
-                  dronePos,
-                  targetPos: liveTargetPos,
-                  progress: missileU
-                });
-                captureDir.copy(missileNext).sub(missilePos).normalize();
-                fx.missileFx.root.visible = true;
-                fx.missileFx.root.position.copy(missilePos);
-                orientForwardKeepingUp(fx.missileFx.root, captureDir);
-              }
-            }
-            if (fx.t >= missileImpactTime && !fx.hasExploded) {
-              fx.hasExploded = true;
-              fx.missileFx.root.visible = false;
-              launchExplosion(liveTargetPos, fx.targetMesh);
-            }
-            if (droneTimelineU >= 1) {
-              if (fx.sourceUnit) {
-                returnParkedAirUnit(fx.sourceUnit);
-              }
-              if (!fx.sourceUnit) {
-                captureFxGroup.remove(fx.droneFx.root);
-              }
-              captureFxGroup.remove(fx.missileFx.root);
-              activeCaptureFx.splice(i, 1);
             }
           } else if (fx.type === 'jet') {
             const jetTimelineU = clamp01(fx.t / CAPTURE_JET_TOTAL);
