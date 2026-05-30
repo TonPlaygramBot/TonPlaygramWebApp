@@ -63,6 +63,11 @@ import {
 import { giftSounds } from '../../utils/giftSounds.js';
 import { playLudoDiceRollSfx, playLudoTokenStepSfx } from '../../utils/ludoSfx.js';
 import { socket } from '../../utils/socket.js';
+import {
+  findExactUkrainianDroneRotor,
+  isExactUkrainianDroneObject,
+  loadExactUkrainianDroneModel
+} from '../../utils/ukrainianDroneModel.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
@@ -1984,7 +1989,28 @@ function alignObjectBottomToY(root, targetY) {
   root.position.y += targetY - box.min.y;
 }
 
+async function resolvePromiseWithDeadline(promise, deadlineMs = 3200, fallback = null) {
+  if (!promise || typeof promise.then !== 'function') return promise ?? fallback;
+  let timer = null;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((resolve) => {
+        timer = window.setTimeout(() => resolve(fallback), deadlineMs);
+      })
+    ]);
+  } finally {
+    if (timer) window.clearTimeout(timer);
+  }
+}
+
 async function loadCaptureVehicleModel(kind) {
+  if (kind === 'drone') {
+    if (!CAPTURE_VEHICLE_MODEL_CACHE.has('exactUkrainianDrone')) {
+      CAPTURE_VEHICLE_MODEL_CACHE.set('exactUkrainianDrone', loadExactUkrainianDroneModel());
+    }
+    return CAPTURE_VEHICLE_MODEL_CACHE.get('exactUkrainianDrone');
+  }
   const file = CAPTURE_VEHICLE_MODEL_FILES[kind];
   if (!file) return null;
   if (CAPTURE_VEHICLE_MODEL_CACHE.has(kind)) return CAPTURE_VEHICLE_MODEL_CACHE.get(kind);
@@ -2857,12 +2883,21 @@ async function createCaptureDroneLauncherTruckFx() {
 async function createCaptureDroneFx() {
   const root = new THREE.Group();
   root.userData.lockCaptureTexture = true;
-  const loadedDrone = await loadCaptureVehicleModel('drone');
+  const loadedDrone = await resolvePromiseWithDeadline(
+    loadCaptureVehicleModel('drone').catch((error) => {
+      console.warn('Exact Ukrainian drone model timed out or failed; showing local drone fallback so weapons stay visible.', error);
+      return null;
+    }),
+    3200,
+    null
+  );
   if (loadedDrone) {
     const model = loadedDrone.clone(true);
     fitObjectToTargetSize(model, 3.85 * CAPTURE_DRONE_SIZE_MULTIPLIER);
     model.rotation.y = Math.PI;
-    const propeller = applyMilitaryDroneLook(model);
+    const propeller = isExactUkrainianDroneObject(model)
+      ? findExactUkrainianDroneRotor(model) || model
+      : applyMilitaryDroneLook(model);
     root.add(model);
     const trail = [];
     for (let i = 0; i < 5; i += 1) {
