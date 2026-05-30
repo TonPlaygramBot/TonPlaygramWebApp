@@ -14,6 +14,7 @@ const TABLE_MODEL_URL =
 const DRACO_DECODER_PATH = "https://www.gstatic.com/draco/versioned/decoders/1.5.7/";
 const BASIS_TRANSCODER_PATH = "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/basis/";
 const CUSHION_SHADOW_GREY = "#666a72";
+const TABLE_PREVIEW_TARGET_LONG_SIDE = 8.8;
 
 type TablePart =
   | "cloth"
@@ -895,7 +896,7 @@ function fitTable(table: THREE.Object3D) {
   table.rotation.y = Math.PI;
   const box = new THREE.Box3().setFromObject(table);
   const size = box.getSize(new THREE.Vector3());
-  table.scale.setScalar(8.4 / Math.max(size.x, size.z, 0.001));
+  table.scale.setScalar(TABLE_PREVIEW_TARGET_LONG_SIDE / Math.max(size.x, size.z, 0.001));
   table.updateMatrixWorld(true);
 
   const fitBox = new THREE.Box3().setFromObject(table);
