@@ -2,6 +2,12 @@ import { swatchThumbnail, weaponSilhouetteThumbnail } from './storeThumbnails.js
 
 const polyGlb = (uuid) => `https://static.poly.pizza/${uuid}.glb`;
 
+export const UKRAINIAN_DRONE_GLB_URLS = Object.freeze([
+  'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/drone.glb',
+  'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main/drone.glb',
+  'https://cdn.statically.io/gh/srcejon/sdrangel-3d-models/main/drone.glb'
+]);
+
 export const SNAKE_KNOWN_WORKING_GLB = Object.freeze({
   awp: 'https://cdn.jsdelivr.net/gh/GarbajYT/godot-sniper-rifle@master/AWP.glb',
   awpRaw: 'https://raw.githubusercontent.com/GarbajYT/godot-sniper-rifle/master/AWP.glb',
@@ -15,6 +21,13 @@ export const SNAKE_KNOWN_WORKING_GLB = Object.freeze({
 });
 
 export const SNAKE_CAPTURE_WEAPON_OPTIONS = Object.freeze([
+  {
+    id: 'ukrainianDroneAttack',
+    label: 'Ukrainian Drone',
+    thumbnail: swatchThumbnail(['#60a5fa', '#facc15', '#1d4ed8']),
+    urls: UKRAINIAN_DRONE_GLB_URLS,
+    vehicleKind: 'drone'
+  },
   { id: 'poly-shotgun-01', label: 'Quaternius Shotgun', thumbnail: weaponSilhouetteThumbnail(['#64748b','#1e293b','#f8fafc']), urls: [polyGlb('032e6589-3188-41bc-b92b-e25528344275')] },
   { id: 'poly-assault-rifle-01', label: 'Quaternius Assault Rifle', thumbnail: weaponSilhouetteThumbnail(['#334155','#0f172a','#94a3b8']), urls: [polyGlb('b3e6be61-0299-4866-a227-58f5f3fe610b')] },
   { id: 'poly-pistol-01', label: 'Quaternius Pistol', thumbnail: weaponSilhouetteThumbnail(['#6b7280','#111827','#e5e7eb']), urls: [polyGlb('3b53f0fe-f86e-451c-816d-6ab9bd265cdc')] },
@@ -39,7 +52,9 @@ export const SNAKE_CAPTURE_WEAPON_ALIAS_MAP = Object.freeze({
   fighter: 'poly-assault-rifle-01',
   helicopter: 'poly-shotgun-02',
   supporttruck: 'poly-smg-01',
-  drone: 'poly-shotgun-01'
+  drone: 'ukrainianDroneAttack',
+  ukrainiandrone: 'ukrainianDroneAttack',
+  ukrainiandroneattack: 'ukrainianDroneAttack'
 });
 
 export const normalizeSnakeWeaponId = (value) =>

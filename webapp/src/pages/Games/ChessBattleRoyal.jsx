@@ -4683,19 +4683,43 @@ function isDataUri(uri) {
 }
 
 function isAbsoluteUrl(uri) {
-  return /^https?:\/\//i.test(uri) || uri.startsWith('blob:');
+  return /^(https?:)?\/\//i.test(uri) || uri.startsWith('blob:');
+}
+
+function normalizeResourcePath(resourceUrl) {
+  try {
+    return decodeURIComponent(resourceUrl).replace(/\\/g, '/').replace(/^\.\//, '');
+  } catch {
+    return resourceUrl.replace(/\\/g, '/').replace(/^\.\//, '');
+  }
+}
+
+function toJsDelivrFromRawUrl(url) {
+  const match = String(url).match(/^https:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/([^/]+)\/(.+)$/i);
+  if (!match) return null;
+  return `https://cdn.jsdelivr.net/gh/${match[1]}/${match[2]}@${match[3]}/${match[4]}`;
+}
+
+function toRawFromJsDelivrUrl(url) {
+  const match = String(url).match(/^https:\/\/cdn\.jsdelivr\.net\/gh\/([^/]+)\/([^@/]+)@([^/]+)\/(.+)$/i);
+  if (!match) return null;
+  return `https://raw.githubusercontent.com/${match[1]}/${match[2]}/${match[3]}/${match[4]}`;
 }
 
 function uniqueStrings(values) {
-  return Array.from(new Set(values));
+  return Array.from(new Set(values.filter(Boolean)));
+}
+
+function urlAlternates(url) {
+  return uniqueStrings([url, toRawFromJsDelivrUrl(url), toJsDelivrFromRawUrl(url)]);
 }
 
 function buildImageCandidates(imageUri, sourceUrl, modelUrls) {
-  if (isAbsoluteUrl(imageUri)) return uniqueStrings([imageUri]);
+  const normalizedUri = normalizeResourcePath(String(imageUri || ''));
+  if (isAbsoluteUrl(normalizedUri) || isDataUri(normalizedUri)) return urlAlternates(normalizedUri);
   return uniqueStrings([
-    imageUri,
-    new URL(imageUri, sourceUrl).href,
-    ...modelUrls.map((modelUrl) => new URL(imageUri, modelUrl).href)
+    ...urlAlternates(new URL(normalizedUri, sourceUrl).href),
+    ...modelUrls.flatMap((modelUrl) => urlAlternates(new URL(normalizedUri, modelUrl).href))
   ]);
 }
 
@@ -4805,7 +4829,11 @@ async function fetchBuffer(url) {
 async function fetchBlob(url) {
   const response = await fetch(url, { mode: 'cors' });
   if (!response.ok) throw new Error(`Fetch blob failed: ${response.status}`);
-  return response.blob();
+  const blob = await response.blob();
+  if (/text\/html|text\/plain/i.test(blob.type || '')) {
+    throw new Error(`Rejected non-asset response ${blob.type}: ${url}`);
+  }
+  return blob;
 }
 
 function parseObjectFromBuffer(loader, buffer) {
