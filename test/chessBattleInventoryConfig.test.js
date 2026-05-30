@@ -41,6 +41,8 @@ describe('chess battle inventory config', () => {
     expect(labelsById.droneAttack).toBe('Shahad Drone');
     expect(labelsById.ukrainianDroneAttack).toBe('Ukrainian Drone');
     expect(CHESS_BATTLE_OPTION_LABELS.captureAnimation.ukrainianDroneAttack).toBe('Ukrainian Drone');
+    expect(CHESS_BATTLE_DEFAULT_UNLOCKS.captureAnimation).toContain('ukrainianDroneAttack');
+    expect(CHESS_BATTLE_ROYAL_DEFAULT_UNLOCKS.captureAnimation).toContain('ukrainianDroneAttack');
 
     const storeDroneIds = new Set(
       CHESS_BATTLE_ROYAL_STORE_ITEMS.filter((item) => item.type === 'captureAnimation').map((item) => item.optionId)
