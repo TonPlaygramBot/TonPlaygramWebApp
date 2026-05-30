@@ -6869,6 +6869,8 @@ let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = BALL_R * 0.12;
 const RAIL_CONTACT_RADIUS = BALL_R;
+// Make gameplay collision meet the visible cushion nose before balls visually sink into it.
+const CUSHION_VISUAL_CONTACT_CLEARANCE = BALL_R * 0.14;
 const CUSHION_CUT_CONTACT_RADIUS = RAIL_CONTACT_RADIUS * 1.12;
 const CUSHION_CUT_NEAR_POCKET_BUFFER = BALL_R * 0.9;
 let CUSHION_SEGMENTS = [];
@@ -8256,7 +8258,7 @@ function reflectRails(ball) {
         if (ball.pos.distanceTo(segment.center) <= segment.captureRadius) continue;
       }
       const velocityToward = ball.vel.dot(segment.normal);
-      if (velocityToward >= 0) continue;
+      const movingIntoSegment = velocityToward < -1e-6;
       TMP_VEC2_A.copy(segment.end).sub(segment.start);
       const lenSq = TMP_VEC2_A.lengthSq();
       if (lenSq < 1e-8) continue;
@@ -8265,7 +8267,8 @@ function reflectRails(ball) {
       TMP_VEC2_C.copy(segment.start).addScaledVector(TMP_VEC2_A, t);
       TMP_VEC2_D.copy(ball.pos).sub(TMP_VEC2_C);
       const distSq = TMP_VEC2_D.lengthSq();
-      const contactRadius = segment.type === 'cut' ? cutRadius : railRadius;
+      const contactRadius =
+        (segment.type === 'cut' ? cutRadius : railRadius) + CUSHION_VISUAL_CONTACT_CLEARANCE;
       if (distSq >= contactRadius * contactRadius) continue;
       const dist = Math.sqrt(distSq);
       const penetration = contactRadius - dist;
@@ -8289,7 +8292,8 @@ function reflectRails(ball) {
                 ? 'jaw'
                 : 'rail',
           normal: TMP_VEC2_LIMIT.clone(),
-          tangent: new THREE.Vector2(-TMP_VEC2_LIMIT.y, TMP_VEC2_LIMIT.x)
+          tangent: new THREE.Vector2(-TMP_VEC2_LIMIT.y, TMP_VEC2_LIMIT.x),
+          correctiveOnly: !movingIntoSegment
         };
       }
     }
@@ -8300,8 +8304,10 @@ function reflectRails(ball) {
         typeof performance !== 'undefined' && performance.now
           ? performance.now()
           : Date.now();
-      ball.lastRailHitAt = stamp;
-      ball.lastRailHitType = bestImpact.type;
+      if (!bestImpact.correctiveOnly) {
+        ball.lastRailHitAt = stamp;
+        ball.lastRailHitType = bestImpact.type;
+      }
       return { ...bestImpact, preImpactVel };
     }
     for (let i = 0; i < centers.length; i++) {
@@ -8314,11 +8320,11 @@ function reflectRails(ball) {
       const distSq = TMP_VEC2_A.lengthSq();
       if (distSq <= 1e-10) continue;
       const dist = Math.sqrt(distSq);
-      if (dist <= captureRadius || dist >= jawRadius + railRadius) continue;
+      if (dist <= captureRadius || dist >= jawRadius + railRadius + CUSHION_VISUAL_CONTACT_CLEARANCE) continue;
       TMP_VEC2_A.multiplyScalar(1 / dist);
       const velocityToward = ball.vel.dot(TMP_VEC2_A);
-      if (velocityToward <= 0) continue;
-      const penetration = jawRadius + railRadius - dist;
+      const movingIntoJaw = velocityToward > 1e-6;
+      const penetration = jawRadius + railRadius + CUSHION_VISUAL_CONTACT_CLEARANCE - dist;
       if (penetration <= 0) continue;
       ball.pos.addScaledVector(TMP_VEC2_A, penetration);
       preImpactVel = ball.vel.clone();
@@ -8326,13 +8332,16 @@ function reflectRails(ball) {
         typeof performance !== 'undefined' && performance.now
           ? performance.now()
           : Date.now();
-      ball.lastRailHitAt = stamp;
-      ball.lastRailHitType = 'jaw';
+      if (movingIntoJaw) {
+        ball.lastRailHitAt = stamp;
+        ball.lastRailHitType = 'jaw';
+      }
       return {
         type: 'jaw',
         normal: TMP_VEC2_A.clone(),
         tangent: new THREE.Vector2(-TMP_VEC2_A.y, TMP_VEC2_A.x),
-        preImpactVel
+        preImpactVel,
+        correctiveOnly: !movingIntoJaw
       };
     }
     const boundaryFallback = resolveBoundaryFallback();
@@ -33730,8 +33739,9 @@ const shotPowerRef = useRef(0);
               b.launchDir = null;
             }
             const railImpact = reflectRails(b);
-            if (railImpact && b.id === 'cue') b.impacted = true;
-            if (railImpact && shotContextRef.current.contactMade) {
+            const railCollisionImpact = railImpact && !railImpact.correctiveOnly;
+            if (railCollisionImpact && b.id === 'cue') b.impacted = true;
+            if (railCollisionImpact && shotContextRef.current.contactMade) {
               shotContextRef.current.cushionAfterContact = true;
               shotContextRef.current.railContactCountAfterContact =
                 (shotContextRef.current.railContactCountAfterContact ?? 0) + 1;
@@ -33750,11 +33760,11 @@ const shotPowerRef = useRef(0);
                 enterTopView(true, { variant: 'rail' });
               }
             }
-            if (railImpact) {
+            if (railCollisionImpact) {
               applyRailImpulse(b, railImpact);
               applyRailSpinResponse(b, railImpact);
             }
-            if (railImpact) {
+            if (railCollisionImpact) {
               const nowRail = performance.now();
               const lastPlayed = railSoundTimeRef.current.get(b.id) ?? 0;
               if (nowRail - lastPlayed > RAIL_HIT_SOUND_COOLDOWN_MS) {
