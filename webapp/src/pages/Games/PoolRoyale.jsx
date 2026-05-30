@@ -34,6 +34,7 @@ import { PoolRoyaleRules } from '../../../../src/rules/PoolRoyaleRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import {
+  POOL_ROYALE_TABLE_MODEL_STORAGE_KEY,
   resolvePoolRoyaleTableModel
 } from '../../config/poolRoyaleTableModels.js';
 import { resolveTableSize as resolveSnookerTableSize } from '../../config/snookerClubTables.js';
@@ -1558,10 +1559,10 @@ const BALL_INERTIA = (2 / 5) * BALL_MASS * BALL_R * BALL_R;
 const SPIN_FIXED_DT = 1 / 120;
 const SPIN_SLIDE_EPS = 0.02;
 const SPIN_KINETIC_FRICTION = 0.22;
-const SPIN_ROLL_DAMPING = 0.085;
+const SPIN_ROLL_DAMPING = 0.1;
 const SPIN_ANGULAR_DAMPING = 0.04;
 const SPIN_GRAVITY = 9.81;
-const ROLLING_RESISTANCE = 0.0092;
+const ROLLING_RESISTANCE = 0.011;
 const BALL_BALL_FRICTION = 0.105;
 const BALL_CONTACT_EPS = BALL_R * 0.012; // broaden contact tolerance slightly so grazing touches resolve instead of tunneling
 const BALL_COLLISION_SLOP = BALL_R * 0.001; // tighter tolerance so visible ball overlap is corrected faster
@@ -1848,7 +1849,7 @@ const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 1; // restore legacy shot scaling used before the May 19 power retune
 const SHOT_POWER_BOOST = 0.455; // restore the pre-May-19 cue launch boost
-const SHOT_GLOBAL_POWER_SCALE = 1.18; // add more cue power so balls launch faster on mobile pulls
+const SHOT_GLOBAL_POWER_SCALE = 1; // keep global strike scaling neutral to match the legacy feel
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -15342,6 +15343,8 @@ function PoolRoyaleGame({
   const navigate = useNavigate();
   const location = useLocation();
   const mountRef = useRef(null);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadingActive, setLoadingActive] = useState(true);
   const rafRef = useRef(null);
   const worldRef = useRef(null);
   const rules = useMemo(() => new PoolRoyaleRules(variantKey), [variantKey]);
@@ -15483,6 +15486,67 @@ function PoolRoyaleGame({
   const rematchIncomingTimerRef = useRef(null);
   const [rematchCountdown, setRematchCountdown] = useState(0);
   const [incomingCountdown, setIncomingCountdown] = useState(0);
+  useEffect(() => {
+    const manager = THREE.DefaultLoadingManager;
+    let cancelled = false;
+    const prev = {
+      onStart: manager.onStart,
+      onLoad: manager.onLoad,
+      onProgress: manager.onProgress,
+      onError: manager.onError
+    };
+    const updateProgress = (loaded, total) => {
+      const safeTotal = Number.isFinite(total) && total > 0 ? total : Math.max(1, loaded || 1);
+      const ratio = Number.isFinite(loaded) ? loaded / safeTotal : 0;
+      setLoadingProgress(Math.max(0, Math.min(1, ratio)));
+    };
+    const syncManagerState = () => {
+      const loaded = Number(manager.itemsLoaded || 0);
+      const total = Number(manager.itemsTotal || 0);
+      if (total > 0) {
+        updateProgress(loaded, total);
+        if (loaded >= total) {
+          setLoadingProgress(1);
+          setLoadingActive(false);
+        }
+      } else {
+        setLoadingProgress(0);
+        setLoadingActive(false);
+      }
+    };
+    manager.onStart = (url, loaded, total) => {
+      prev.onStart?.(url, loaded, total);
+      if (cancelled) return;
+      setLoadingActive(true);
+      updateProgress(loaded, total);
+    };
+    manager.onProgress = (url, loaded, total) => {
+      prev.onProgress?.(url, loaded, total);
+      if (cancelled) return;
+      updateProgress(loaded, total);
+    };
+    manager.onLoad = () => {
+      prev.onLoad?.();
+      if (cancelled) return;
+      setLoadingProgress(1);
+      window.setTimeout(() => {
+        if (!cancelled) setLoadingActive(false);
+      }, 200);
+    };
+    manager.onError = (url) => {
+      prev.onError?.(url);
+      if (cancelled) return;
+      setLoadingProgress((prevValue) => Math.max(prevValue, 0.9));
+    };
+    syncManagerState();
+    return () => {
+      cancelled = true;
+      manager.onStart = prev.onStart;
+      manager.onLoad = prev.onLoad;
+      manager.onProgress = prev.onProgress;
+      manager.onError = prev.onError;
+    };
+  }, []);
   const coinStyleInjectedRef = useRef(false);
   const ensureCoinBurstStyles = useCallback(() => {
     if (coinStyleInjectedRef.current || typeof document === 'undefined') return;
@@ -37613,6 +37677,46 @@ const shotPowerRef = useRef(0);
         </div>
       )}
 
+      {loadingActive && !err && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 px-6 text-white">
+          <div className="flex w-full max-w-sm flex-col items-center gap-4 text-center">
+            <div className="w-full rounded-3xl border border-cyan-300/40 bg-slate-950/70 p-5 shadow-[0_24px_48px_rgba(0,0,0,0.6)]">
+              <svg
+                viewBox="0 0 320 200"
+                className="h-36 w-full"
+                role="img"
+                aria-label="Pool Royal loading"
+              >
+                <rect x="8" y="24" width="304" height="152" rx="18" fill="#0f766e" stroke="#67e8f9" strokeWidth="6" />
+                <rect x="34" y="50" width="252" height="100" rx="12" fill="#155e75" />
+                <circle cx="34" cy="50" r="10" fill="#020617" />
+                <circle cx="286" cy="50" r="10" fill="#020617" />
+                <circle cx="34" cy="150" r="10" fill="#020617" />
+                <circle cx="286" cy="150" r="10" fill="#020617" />
+                <circle cx="160" cy="50" r="10" fill="#020617" />
+                <circle cx="160" cy="150" r="10" fill="#020617" />
+                <circle cx="126" cy="100" r="9" fill="#f8fafc" />
+                <circle cx="166" cy="100" r="9" fill="#facc15" />
+                <circle cx="206" cy="100" r="9" fill="#ef4444" />
+              </svg>
+            </div>
+            <div className="w-full">
+              <p className="text-xs font-semibold uppercase tracking-[0.32em] text-cyan-100">
+                Loading Pool Royal
+              </p>
+              <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full bg-cyan-300 transition-[width] duration-200"
+                  style={{ width: `${Math.round(loadingProgress * 100)}%` }}
+                />
+              </div>
+              <p className="mt-2 text-sm text-white/80">
+                {Math.round(loadingProgress * 100)}%
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {err && (
         <div className="pointer-events-none absolute left-1/2 top-4 z-50 -translate-x-1/2 px-4">
@@ -37856,6 +37960,11 @@ export default function PoolRoyale() {
     const params = new URLSearchParams(location.search);
     const requested = params.get('tableModel');
     if (requested) return resolvePoolRoyaleTableModel(requested).id;
+    try {
+      return resolvePoolRoyaleTableModel(
+        window.localStorage?.getItem(POOL_ROYALE_TABLE_MODEL_STORAGE_KEY)
+      ).id;
+    } catch {}
     return resolvePoolRoyaleTableModel().id;
   }, [location.search]);
   const mode = useMemo(() => {

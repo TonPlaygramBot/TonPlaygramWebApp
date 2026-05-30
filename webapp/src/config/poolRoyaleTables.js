@@ -18,9 +18,9 @@ const TABLE_PHYSICAL_SPECS = Object.freeze({
     cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 }),
     cushionRestitution: 0.925,
     scaleOverrides: Object.freeze({
-      scale: 1.46,
-      mobileScale: 1.62,
-      compactScale: 1.39
+      scale: 1.56,
+      mobileScale: 1.72,
+      compactScale: 1.48
     })
   },
   '9ft': {
@@ -37,9 +37,9 @@ const TABLE_PHYSICAL_SPECS = Object.freeze({
     cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 }),
     cushionRestitution: 0.925,
     scaleOverrides: Object.freeze({
-      scale: 1.46,
-      mobileScale: 1.62,
-      compactScale: 1.39
+      scale: 1.56,
+      mobileScale: 1.72,
+      compactScale: 1.48
     })
   },
   '8ft': {
