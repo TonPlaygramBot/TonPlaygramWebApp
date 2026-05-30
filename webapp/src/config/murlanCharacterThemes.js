@@ -1,4 +1,4 @@
-import { khronosThumb } from './storeThumbnails.js'
+import { khronosThumb } from './storeThumbnails.js';
 
 export const MURLAN_CHARACTER_THEMES = Object.freeze([
   {
@@ -177,7 +177,7 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     source: 'hmthanh/3d-human-model GitHub',
     license: 'Check repository license',
     price: 560,
-    description: 'Distinct full-body WebGL humanoid model adapted for Murlan Royale seating.',
+    description: 'Distinct full-body WebGL humanoid model used as a non-Soldier Pool Royale shooter option.',
     url: 'https://raw.githubusercontent.com/hmthanh/3d-human-model/main/Thanh.glb',
     thumbnail: khronosThumb('ThanhHuman'),
     scale: 1.0,
@@ -337,5 +337,27 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     hairColor: 0x21150f,
     eyeColor: 0x4a5d6a,
     skinTone: 0xc98f68
+  },
+  {
+    id: 'threejs-xbot-human',
+    label: 'Xbot Human',
+    source: 'three.js examples',
+    license: 'MIT',
+    price: 580,
+    description: 'Full-body Xbot humanoid from the three.js examples, used as a second new non-Soldier Pool Royale character.',
+    url: 'https://threejs.org/examples/models/gltf/Xbot.glb',
+    thumbnail: khronosThumb('XbotHuman'),
+    scale: 1.0,
+    seatOffsetY: -0.84,
+    seatOffsetZ: -0.22,
+    normalizedSeatOffsetY: -0.4,
+    normalizedSeatOffsetZ: 0.52,
+    seatPitch: 0,
+    seatYaw: 0,
+    handLift: 1.04,
+    clothCombo: 'casinoCheck',
+    hairColor: 0x111111,
+    eyeColor: 0x2f4b5f,
+    skinTone: 0xc9906e
   }
-])
+]);

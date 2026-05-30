@@ -1879,7 +1879,6 @@ function cloneModelWithLocalMaterials(source) {
   const clonedRoot = source.clone(true);
   const textureCache = new Map();
   const materialCache = new Map();
-  const geometryCache = new Map();
 
   const cloneTexture = (texture) => {
     if (!texture?.isTexture) return texture ?? null;
@@ -1903,10 +1902,6 @@ function cloneModelWithLocalMaterials(source) {
 
   clonedRoot.traverse((node) => {
     if (!node?.isMesh) return;
-    if (node.geometry) {
-      if (!geometryCache.has(node.geometry)) geometryCache.set(node.geometry, node.geometry.clone());
-      node.geometry = geometryCache.get(node.geometry);
-    }
     if (Array.isArray(node.material)) {
       node.material = node.material.map((mat) => cloneMaterial(mat));
     } else {
@@ -1915,32 +1910,6 @@ function cloneModelWithLocalMaterials(source) {
   });
 
   return clonedRoot;
-}
-
-function localizeCharacterInstanceResources(root) {
-  const geometryCache = new Map();
-  const materialCache = new Map();
-  root?.traverse((node) => {
-    if (!node?.isMesh) return;
-    if (node.geometry) {
-      if (!geometryCache.has(node.geometry)) geometryCache.set(node.geometry, node.geometry.clone());
-      node.geometry = geometryCache.get(node.geometry);
-    }
-    const cloneMaterial = (material) => {
-      if (!material) return material;
-      if (!materialCache.has(material)) materialCache.set(material, material.clone());
-      return materialCache.get(material);
-    };
-    node.material = Array.isArray(node.material)
-      ? node.material.map((material) => cloneMaterial(material))
-      : cloneMaterial(node.material);
-  });
-  return root;
-}
-
-function cloneCharacterTemplateInstance(template) {
-  if (!template) return null;
-  return localizeCharacterInstanceResources(cloneSkeleton(template));
 }
 
 function liftModelToGround(model, targetMinY = 0) {
@@ -2191,115 +2160,13 @@ async function loadGltfChair(urls = CHAIR_MODEL_URLS, rotationY = 0, renderer = 
 
 const CHARACTER_MODEL_CACHE = new Map();
 
-const CHARACTER_FALLBACK_TEMPLATE_CACHE = new Map();
-
-function createFallbackCharacterMaterial(color, roughness = 0.8) {
-  return new THREE.MeshStandardMaterial({
-    color: new THREE.Color(color),
-    roughness,
-    metalness: 0.02
-  });
-}
-
-function addNamedCharacterPart(root, name, mesh, position, rotation = null) {
-  mesh.name = name;
-  mesh.position.copy(position);
-  if (rotation) mesh.rotation.set(rotation.x, rotation.y, rotation.z);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  root.add(mesh);
-  return mesh;
-}
-
-function createProceduralMurlanHumanTemplate(theme = {}) {
-  const root = new THREE.Group();
-  root.name = `murlan-procedural-human-${theme?.id || 'fallback'}`;
-  root.userData.isMurlanProceduralFallback = true;
-
-  const skin = createFallbackCharacterMaterial(theme?.skinTone ?? 0xd19a76, 0.72);
-  const hair = createFallbackCharacterMaterial(theme?.hairColor ?? 0x24160f, 0.86);
-  const jacket = createFallbackCharacterMaterial(theme?.clothColor ?? 0x24324f, 0.82);
-  const shirt = createFallbackCharacterMaterial(0xf6f1e8, 0.74);
-  const pants = createFallbackCharacterMaterial(0x20283a, 0.84);
-  const shoe = createFallbackCharacterMaterial(0x111827, 0.78);
-
-  addNamedCharacterPart(
-    root,
-    'fallback-hips',
-    new THREE.Mesh(new THREE.CapsuleGeometry(0.27, 0.24, 8, 16), pants),
-    new THREE.Vector3(0, 0.74, 0.02),
-    new THREE.Euler(0, 0, Math.PI / 2)
-  );
-  addNamedCharacterPart(
-    root,
-    'fallback-torso',
-    new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.56, 10, 18), jacket),
-    new THREE.Vector3(0, 1.22, 0),
-    new THREE.Euler(0.08, 0, 0)
-  );
-  addNamedCharacterPart(
-    root,
-    'fallback-shirt-panel',
-    new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.5, 0.035), shirt),
-    new THREE.Vector3(0, 1.24, -0.27)
-  );
-  addNamedCharacterPart(
-    root,
-    'fallback-head',
-    new THREE.Mesh(new THREE.SphereGeometry(0.22, 22, 18), skin),
-    new THREE.Vector3(0, 1.68, -0.01)
-  );
-  addNamedCharacterPart(
-    root,
-    'fallback-hair',
-    new THREE.Mesh(new THREE.SphereGeometry(0.225, 22, 10, 0, Math.PI * 2, 0, Math.PI * 0.52), hair),
-    new THREE.Vector3(0, 1.74, -0.01)
-  );
-
-  const limbSpecs = [
-    ['fallback-left-upper-arm', -0.36, 1.28, -0.02, 0.13, 0.5, jacket, 0.18],
-    ['fallback-right-upper-arm', 0.36, 1.28, -0.02, 0.13, 0.5, jacket, -0.18],
-    ['fallback-left-forearm', -0.42, 0.95, -0.18, 0.105, 0.42, skin, 0.28],
-    ['fallback-right-forearm', 0.42, 0.95, -0.18, 0.105, 0.42, skin, -0.28],
-    ['fallback-left-thigh', -0.17, 0.48, -0.22, 0.15, 0.52, pants, 0.34],
-    ['fallback-right-thigh', 0.17, 0.48, -0.22, 0.15, 0.52, pants, -0.34],
-    ['fallback-left-calf', -0.2, 0.22, -0.52, 0.12, 0.5, pants, 0.16],
-    ['fallback-right-calf', 0.2, 0.22, -0.52, 0.12, 0.5, pants, -0.16]
-  ];
-
-  limbSpecs.forEach(([name, x, y, z, radius, length, material, zRot]) => {
-    addNamedCharacterPart(
-      root,
-      name,
-      new THREE.Mesh(new THREE.CapsuleGeometry(radius, length, 8, 14), material),
-      new THREE.Vector3(x, y, z),
-      new THREE.Euler(Math.PI / 2.8, 0, zRot)
-    );
-  });
-
-  addNamedCharacterPart(root, 'fallback-left-hand', new THREE.Mesh(new THREE.SphereGeometry(0.095, 16, 12), skin), new THREE.Vector3(-0.47, 0.76, -0.38));
-  addNamedCharacterPart(root, 'fallback-right-hand', new THREE.Mesh(new THREE.SphereGeometry(0.095, 16, 12), skin), new THREE.Vector3(0.47, 0.76, -0.38));
-  addNamedCharacterPart(root, 'fallback-left-shoe', new THREE.Mesh(new THREE.BoxGeometry(0.21, 0.11, 0.32), shoe), new THREE.Vector3(-0.22, 0.02, -0.78));
-  addNamedCharacterPart(root, 'fallback-right-shoe', new THREE.Mesh(new THREE.BoxGeometry(0.21, 0.11, 0.32), shoe), new THREE.Vector3(0.22, 0.02, -0.78));
-
-  return root;
-}
-
-function getProceduralMurlanHumanTemplate(theme = {}) {
-  const cacheKey = theme?.id || 'fallback';
-  if (!CHARACTER_FALLBACK_TEMPLATE_CACHE.has(cacheKey)) {
-    CHARACTER_FALLBACK_TEMPLATE_CACHE.set(cacheKey, createProceduralMurlanHumanTemplate(theme));
-  }
-  return CHARACTER_FALLBACK_TEMPLATE_CACHE.get(cacheKey);
-}
-
 async function loadCharacterModel(theme, renderer = null) {
   const urls = Array.isArray(theme?.modelUrls) && theme.modelUrls.length
     ? theme.modelUrls
     : theme?.url
       ? [theme.url]
       : [];
-  if (!urls.length) return getProceduralMurlanHumanTemplate(theme);
+  if (!urls.length) throw new Error('Missing character model URL');
   const cacheKey = `${theme.id || urls[0]}::${urls.join('|')}`;
   if (CHARACTER_MODEL_CACHE.has(cacheKey)) {
     return CHARACTER_MODEL_CACHE.get(cacheKey);
@@ -2319,21 +2186,10 @@ async function loadCharacterModel(theme, renderer = null) {
       }
     }
     if (!gltf) {
-      console.warn('Using procedural Murlan human fallback because character model failed to load', {
-        characterId: theme?.id,
-        urls,
-        error: lastError
-      });
-      return getProceduralMurlanHumanTemplate(theme);
+      throw lastError || new Error(`Character load failed for ${theme.id || 'unknown'}`);
     }
     const root = gltf.scene || gltf.scenes?.[0];
-    if (!root) {
-      console.warn('Using procedural Murlan human fallback because character scene is missing', {
-        characterId: theme?.id,
-        urls
-      });
-      return getProceduralMurlanHumanTemplate(theme);
-    }
+    if (!root) throw new Error(`Character scene missing for ${theme.id || 'unknown'}`);
     prepareLoadedModel(root, { preserveGltfTextureMapping: true, maxAnisotropy: 8 }); // keep original glTF UV/texture mapping intact
     return root;
   })();
@@ -2736,7 +2592,7 @@ function createThrownCardMesh(color = '#f8fafc') {
 
 function attachSeatedCharacter({ template, seatConfig, characterTheme, store, player = null, playerIndex = 0, cardTheme, cardTextureSize = null }) {
   if (!template || !seatConfig?.chair) return;
-  const instance = cloneCharacterTemplateInstance(template);
+  const instance = cloneSkeleton(template);
   instance.traverse((obj) => {
     if (!obj?.isMesh) return;
     obj.castShadow = true;
