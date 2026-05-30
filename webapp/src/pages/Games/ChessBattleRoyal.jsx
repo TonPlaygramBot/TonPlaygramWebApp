@@ -11090,7 +11090,7 @@ function Chess3D({
       root.userData.ukrainianDroneAccentGroup.visible = Boolean(visible);
       return root.userData.ukrainianDroneAccentGroup;
     };
-    const createFxDrone = ({ forceProcedural = false } = {}) => {
+    const createFxDrone = ({ forceProcedural = false, exactOriginal = false } = {}) => {
       const model = forceProcedural ? null : cloneCaptureUnitTemplate('drone');
       if (model) {
         const root = new THREE.Group();
@@ -11100,7 +11100,9 @@ function Chess3D({
           model.getObjectByName('Propeller') ||
           model.getObjectByName('Rotor') ||
           model;
-        applyMilitaryDroneLook(model, propeller, getCaptureToneSeed('drone'));
+        if (!exactOriginal) {
+          applyMilitaryDroneLook(model, propeller, getCaptureToneSeed('drone'));
+        }
         return { root, propeller, exhaustClouds: [] };
       }
       const root = new THREE.Group();
@@ -12538,26 +12540,14 @@ function Chess3D({
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_HELICOPTER_TOTAL * 1000;
         const isWhiteSide = Boolean(movingMesh?.userData?.w);
         const parkedDrone = acquireParkedAirUnit(isWhiteSide, 'drone');
-        const droneFx = parkedDrone || createFxDrone({ forceProcedural: !parkedDrone });
+        const droneFx = parkedDrone || createFxDrone({ forceProcedural: !parkedDrone, exactOriginal: true });
         if (!parkedDrone) {
           droneFx.root.scale.setScalar(CAPTURE_DRONE_SCALE);
           captureFxGroup.add(droneFx.root);
         }
         const launchBase = parkedDrone?.root?.position?.clone?.() || parkedDrone?.homePosition?.clone?.() || getAirPadAnchor(isWhiteSide, 'drone', 0);
-        const sideSkin = resolveSideVehicleSkin(isWhiteSide);
-        if (sideSkin) {
-          applyVehicleSkinToModel(droneFx.root, sideSkin, (node) =>
-            /rotor|propell|blade|fan|window|cockpit|glass|canopy/.test(`${node.name || ''}`.toLowerCase())
-          );
-        }
-        setUkrainianDroneAccentsVisible(droneFx.root, true);
-        attachVehicleAvatarBadge(
-          droneFx.root,
-          isWhiteSide
-            ? avatar || username || playerFlag || '🙂'
-            : (onlineRef.current.enabled ? opponent?.avatar || opponent?.name : null) || opponent?.name || aiFlag || '🤖',
-          isWhiteSide ? 1 : -1
-        );
+        // Keep the Ukrainian drone visually identical to the source drone.glb asset.
+        setUkrainianDroneAccentsVisible(droneFx.root, false);
         droneFx.root.position.copy(launchBase.clone());
         const missileFx = createFxNoSmokeDropMissile();
         missileFx.root.scale.setScalar(CAPTURE_UKRAINIAN_DRONE_MISSILE_SCALE);
@@ -13333,10 +13323,9 @@ function Chess3D({
             parkedIsWhite: isWhite
           };
         }
-        const sideDrone = createFxDrone();
+        const sideDrone = createFxDrone({ exactOriginal: true });
         sideDrone.root.scale.setScalar(CAPTURE_DRONE_SCALE * 1.15 * SIDE_PARKED_AIRCRAFT_SCALE_MULTIPLIER);
-        if (skin) applyVehicleSkinToModel(sideDrone.root, skin);
-        attachVehicleAvatarBadge(sideDrone.root, badge, isWhite ? 1 : -1);
+        // Do not reskin/badge the parked drone; it must match the original drone.glb asset.
         const dronePad = getAirPadAnchor(isWhite, 'drone', 0);
         sideDrone.root.position.copy(dronePad);
         sideDrone.root.rotation.y = isWhite ? -Math.PI * 0.13 : Math.PI * 1.13;
