@@ -5,16 +5,6 @@ const POOLTOOL_RAW_BASE =
 
 export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
   {
-    id: 'royal-local',
-    label: 'Pool Royal local table',
-    description:
-      'Fast built-in Pool Royal table rendered from local Three.js geometry so matches start instantly without downloading a remote GLB.',
-    tableSizeId: '7ft',
-    baseId: 'showoodOriginal',
-    icon: '🎱',
-    kind: 'native'
-  },
-  {
     id: 'showood-seven-foot',
     label: 'Showood 7 ft GLB',
     description:
@@ -51,7 +41,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
 
 export const DEFAULT_POOL_ROYALE_TABLE_MODEL_ID =
   POOL_ROYALE_TABLE_MODEL_OPTIONS.find(
-    (option) => option.id === 'royal-local'
+    (option) => option.id === 'showood-seven-foot'
   )?.id || POOL_ROYALE_TABLE_MODEL_OPTIONS[0].id
 
 export function resolvePoolRoyaleTableModel (modelId) {
