@@ -1400,7 +1400,7 @@ const END_RAIL_INNER_SCALE =
   (2 * TABLE.WALL);
 const END_RAIL_INNER_REDUCTION = 1 - END_RAIL_INNER_SCALE;
 const END_RAIL_INNER_THICKNESS = TABLE.WALL * END_RAIL_INNER_SCALE;
-const PLAYFIELD_SHRINK = 1; // keep 7ft playfield mapping at full size
+const PLAYFIELD_SHRINK = 0.85; // restore legacy ball-physics footprint so movement, rail timing, and shot travel match the old Pool Royale feel
 const PLAY_W = (TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS) * PLAYFIELD_SHRINK;
 const PLAY_H = (TABLE.H - 2 * END_RAIL_INNER_THICKNESS) * PLAYFIELD_SHRINK;
 export const POOL_ROYALE_TABLE_DIMENSIONS = Object.freeze({
@@ -1592,9 +1592,9 @@ const POCKET_INTERIOR_CAPTURE_R =
 const SIDE_POCKET_INTERIOR_CAPTURE_R =
   SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION; // keep middle-pocket capture identical to its bowl radius
 const CAPTURE_R =
-  POCKET_INTERIOR_CAPTURE_R; // match pocket capture exactly to the visible corner-pocket bowl opening
+  POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.22; // restore legacy corner-pocket capture so ball logic matches the old Pool Royale behavior
 const SIDE_CAPTURE_R =
-  SIDE_POCKET_INTERIOR_CAPTURE_R; // match middle-pocket capture exactly to the visible bowl opening
+  SIDE_POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.22; // restore legacy middle-pocket capture so shots roll and drop like the old Pool Royale behavior
 const POCKET_GUARD_RADIUS =
   CAPTURE_R - BALL_R * 0.12; // mirror the middle-pocket guard inset so corner jaws reject/accept on the same threshold
 const POCKET_GUARD_CLEARANCE = Math.max(
@@ -1847,9 +1847,9 @@ const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // disable preview-only spin defle
 const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
-const SHOT_POWER_ADJUSTMENT = 0.62; // reduce overall Pool Royale power by an additional 20%
-const SHOT_POWER_BOOST = 1.32; // add stronger cue drive while preserving slider feel
-const SHOT_GLOBAL_POWER_SCALE = 0.78; // tone down Pool Royale strike speed so shots match the requested game power pacing
+const SHOT_POWER_ADJUSTMENT = 1; // restore legacy shot scaling used before the May 19 power retune
+const SHOT_POWER_BOOST = 0.455; // restore the pre-May-19 cue launch boost
+const SHOT_GLOBAL_POWER_SCALE = 1; // keep global strike scaling neutral to match the legacy feel
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
