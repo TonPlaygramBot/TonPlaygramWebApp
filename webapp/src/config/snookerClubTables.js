@@ -8,11 +8,13 @@ const TABLE_PHYSICAL_SPECS = Object.freeze({
     id: '12ft',
     label: '12 ft (Championship)',
     playfield: Object.freeze({ widthMm: 3569, heightMm: 1778 }), // official 12ft snooker playfield (11ft 8.5in x 5ft 10in)
-    ballDiameterMm: 57.15,
+    ballDiameterMm: 52.5,
+    ballDiameterToleranceMm: 0.05,
     pocketMouthMm: Object.freeze({
-      corner: 114.3,
-      side: 127
+      corner: 83,
+      side: 87
     }),
+    pocketTemplate: 'WPBSA-authorised snooker cushion template',
     cushionCutAngleDeg: 27,
     sideCushionCutAngleDeg: 45,
     cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 }),
@@ -26,11 +28,13 @@ const TABLE_PHYSICAL_SPECS = Object.freeze({
     id: '10ft',
     label: '10 ft (Club)',
     playfield: Object.freeze({ widthMm: 3048, heightMm: 1524 }), // official 10ft snooker playfield
-    ballDiameterMm: 57.15,
+    ballDiameterMm: 52.5,
+    ballDiameterToleranceMm: 0.05,
     pocketMouthMm: Object.freeze({
-      corner: 114.3,
-      side: 127
+      corner: 83,
+      side: 87
     }),
+    pocketTemplate: 'WPBSA-authorised snooker cushion template',
     cushionCutAngleDeg: 27,
     sideCushionCutAngleDeg: 45,
     cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 })

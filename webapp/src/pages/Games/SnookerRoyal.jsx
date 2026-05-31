@@ -639,8 +639,8 @@ function adjustSideNotchDepth(mp) {
 
 const POCKET_VISUAL_EXPANSION = 1; // exact physical pocket aperture: no visual/physics over-expansion
 const CORNER_POCKET_INWARD_SCALE = 1; // keep corner cushion/jaw mapping on the real pocket mouth
-const CORNER_POCKET_SCALE_BOOST = 0.998; // open the corner mouth fractionally to match the inner pocket radius
-const CORNER_POCKET_EXTRA_SCALE = 1.028; // further relax the corner mouth while leaving side pockets unchanged
+const CORNER_POCKET_SCALE_BOOST = 1; // keep the corner mouth at the original snooker cushion-template size
+const CORNER_POCKET_EXTRA_SCALE = 1; // no extra relaxation: pockets stay at snooker size
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1; // match chrome jaw radius exactly to the physical pocket radius
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08; // match Pool Royale jaw notch depth for identical pocket/cushion mapping
 const CHROME_CORNER_EXPANSION_SCALE = 1.034; // match the physical jaw reach used by Pool Royale
@@ -1145,21 +1145,23 @@ const SIDE_POCKET_RIM_SURFACE_OFFSET_SCALE = POCKET_RIM_SURFACE_OFFSET_SCALE; //
 const SIDE_POCKET_RIM_SURFACE_ABSOLUTE_LIFT = POCKET_RIM_SURFACE_ABSOLUTE_LIFT; // keep the middle pocket rims aligned to the same vertical gap
 const FRAME_TOP_Y = -TABLE.THICK + 0.01; // mirror the snooker rail stackup so chrome + cushions line up identically
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
-  // Match the Pool Royale pocket layout and ball size for consistent sizing.
-  const WIDTH_REF = 2540;
-  const HEIGHT_REF = 1270;
-  const BALL_D_REF = 57.15;
-  const BAULK_FROM_BAULK_REF = WIDTH_REF * 0.25; // Head string at 1/4 table length (25")
+  // Official 12ft snooker playfield and ball references. Pocket mouths use the original snooker
+  // cushion-template proportions instead of the wider Pool Royale pocket layout.
+  const WIDTH_REF = 3569;
+  const HEIGHT_REF = 1778;
+  const BALL_D_REF = 52.5;
+  const BALL_D_TOLERANCE_REF = 0.05;
+  const BAULK_FROM_BAULK_REF = 737; // Baulk-line distance from the baulk cushion (29")
   const D_RADIUS_REF = 292;
   const PINK_FROM_TOP_REF = 737;
   const BLACK_FROM_TOP_REF = 324; // Black spot distance from the top cushion (12.75")
-  const CORNER_MOUTH_REF = 114.3; // Pool Royale corner pocket mouth (mm)
-  const SIDE_MOUTH_REF = 127; // Pool Royale side pocket mouth (mm)
+  const CORNER_MOUTH_REF = 83; // original snooker corner cushion-template mouth width (mm)
+  const SIDE_MOUTH_REF = 87; // original snooker side cushion-template mouth width (mm)
   const SIDE_RAIL_INNER_REDUCTION = 0.72; // nudge the rails further inward so the cloth footprint tightens slightly more
   const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
   const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
-  // Match the Pool Royale widened aspect ratio for identical pocket layout.
-  const TARGET_RATIO = 1.83;
+  // Match the official snooker playing-area proportions (3569mm x 1778mm).
+  const TARGET_RATIO = WIDTH_REF / HEIGHT_REF;
 const END_RAIL_INNER_SCALE =
   (TABLE.H - TARGET_RATIO * (TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS)) /
   (2 * TABLE.WALL);
@@ -1172,11 +1174,11 @@ const innerShort = Math.min(PLAY_W, PLAY_H);
 const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
   console.assert(
     Math.abs(CURRENT_RATIO - TARGET_RATIO) < 1e-4,
-    'Snooker table inner ratio must match the widened 1.83:1 target after scaling.'
+    'Snooker table inner ratio must match the official 3569mm x 1778mm target after scaling.'
   );
 const MARKINGS_MM_TO_UNITS = innerLong / WIDTH_REF;
-const OBJECT_MM_TO_UNITS = innerLong / (WIDTH_REF * TABLE_SIZE_MULTIPLIER);
-const BALL_SIZE_SCALE = 1.14; // bump ball scale slightly so shots read larger on portrait screens without changing table proportions
+const OBJECT_MM_TO_UNITS = innerLong / WIDTH_REF;
+const BALL_SIZE_SCALE = 1; // keep ball diameter inside the official 52.5mm +/-0.05mm snooker allowance
 const BALL_DIAMETER = BALL_D_REF * OBJECT_MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -1203,12 +1205,9 @@ const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MARKINGS_MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MARKINGS_MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MARKINGS_MM_TO_UNITS;
 const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE;
-const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.97; // match Pool Royale middle pocket mouth width
-const POCKET_SIDE_MOUTH_SCALE =
-  (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
-  POCKET_CORNER_MOUTH_SCALE *
-  SIDE_POCKET_MOUTH_REDUCTION_SCALE; // keep the middle pocket mouth width identical to the corner pockets
-const SIDE_POCKET_CUT_SCALE = 1; // match Pool Royale middle pocket cut size
+const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 1; // preserve the original snooker side-pocket mouth width
+const POCKET_SIDE_MOUTH_SCALE = POCKET_CORNER_MOUTH_SCALE * SIDE_POCKET_MOUTH_REDUCTION_SCALE;
+const SIDE_POCKET_CUT_SCALE = 1; // keep middle-pocket cut size on the snooker cushion template
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * OBJECT_MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * OBJECT_MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
@@ -1227,6 +1226,7 @@ const SIDE_CHROME_NOTCH_RADIUS = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
 const CORNER_RAIL_NOTCH_INSET =
   POCKET_VIS_R * 0.078 * POCKET_VISUAL_EXPANSION; // let the rail and chrome cutouts follow the outward corner pocket shift
 const POCKET_MOUTH_TOLERANCE = 0.5 * OBJECT_MM_TO_UNITS;
+const BALL_DIAMETER_TOLERANCE = BALL_D_TOLERANCE_REF * OBJECT_MM_TO_UNITS;
 console.assert(
   Math.abs(POCKET_CORNER_MOUTH - POCKET_VIS_R * 2) <= POCKET_MOUTH_TOLERANCE,
   'Corner pocket mouth width mismatch.'
@@ -1236,7 +1236,11 @@ console.assert(
   'Side pocket mouth width mismatch.'
 );
 console.assert(
-  Math.abs(BALL_DIAMETER - BALL_R * 2) <= 0.1 * OBJECT_MM_TO_UNITS,
+  Math.abs(BALL_DIAMETER - BALL_D_REF * OBJECT_MM_TO_UNITS) <= BALL_DIAMETER_TOLERANCE,
+  'Ball diameter must remain inside the official snooker tolerance.'
+);
+console.assert(
+  Math.abs(BALL_DIAMETER - BALL_R * 2) <= BALL_DIAMETER_TOLERANCE,
   'Ball diameter mismatch after scaling.'
 );
 const CLOTH_LIFT = (() => {
@@ -5592,7 +5596,7 @@ function applySnookerScaling({
   const ratio = width / Math.max(height, 1e-6);
   console.assert(
     Math.abs(ratio - TARGET_RATIO) < 1e-4,
-    'applySnookerScaling: table aspect ratio must remain 2:1.'
+    'applySnookerScaling: table aspect ratio must remain the official 3569mm x 1778mm.'
   );
   const expectedCornerMouth =
     CORNER_MOUTH_REF * OBJECT_MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
@@ -5640,7 +5644,7 @@ function applySnookerScaling({
     }
   }
   if (Array.isArray(balls)) {
-    const expectedRadius = BALL_D_REF * OBJECT_MM_TO_UNITS * BALL_SIZE_SCALE * 0.5;
+    const expectedRadius = BALL_D_REF * OBJECT_MM_TO_UNITS * 0.5;
     balls.forEach((ball) => {
       if (!ball) return;
       ball.colliderRadius = expectedRadius;
