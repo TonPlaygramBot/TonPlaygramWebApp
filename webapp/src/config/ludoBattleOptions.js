@@ -154,15 +154,9 @@ export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
   },
   {
     id: 'droneAttack',
-    label: 'Shahad Drone',
-    description: 'Shahad drone sweep adapted from Chess Battle Royal scale.',
+    label: 'Drone Attack',
+    description: 'Attack drone sweep adapted from Chess Battle Royal scale.',
     thumbnail: captureWeaponThumb('🛸', '#0ea5e9')
-  },
-  {
-    id: 'ukrainianDroneAttack',
-    label: 'Ukrainian Drone',
-    description: 'Ukrainian drone flyover that drops a smaller missile straight down without a smoke trail.',
-    thumbnail: captureWeaponThumb('🛩️', '#facc15')
   },
   {
     id: 'fighterJetAttack',
@@ -319,60 +313,6 @@ export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
     label: 'Quaternius Submachine Gun',
     description: 'Poly Pizza compact SMG variant with fast burst behavior.',
     thumbnail: captureWeaponGlyphThumb('▯', '#0f172a')
-  },
-  {
-    id: 'polyRobotLargeGunAttack',
-    label: 'Quaternius Robot Large Gun',
-    description: 'Animated CC0 Poly Pizza robot heavy-gun model for premium Ludo capture attacks.',
-    thumbnail: 'https://static.poly.pizza/78e23275-cb6a-4ba3-ae5e-48a9b4ee2e65.webp'
-  },
-  {
-    id: 'polyRobotFlyingGunAttack',
-    label: 'Quaternius Robot Flying Gun',
-    description: 'Animated CC0 Poly Pizza flying gun drone adapted as a compact capture weapon.',
-    thumbnail: 'https://static.poly.pizza/6d0889f1-0c3f-4f98-b011-fbcf6c79a93b.webp'
-  },
-  {
-    id: 'polyBazooka01Attack',
-    label: 'CreativeTrio Bazooka',
-    description: 'CC0 Poly Pizza bazooka/RPG launcher model added for explosive capture loadouts.',
-    thumbnail: 'https://static.poly.pizza/613e3b1b-d07c-496b-94a1-7c85b507bac4.webp'
-  },
-  {
-    id: 'polyGrenadeLauncher01Attack',
-    label: 'CreativeTrio Grenade Launcher',
-    description: 'CC0 Poly Pizza grenade launcher firearm with a heavy explosive ballistics profile.',
-    thumbnail: 'https://static.poly.pizza/503bb2c5-4a69-404b-9b82-13e85e8f8467.webp'
-  },
-  {
-    id: 'polyDynamiteBomb01Attack',
-    label: 'CreativeTrio Dynamite Bomb',
-    description: 'CC0 Poly Pizza bomb/dynamite bundle for high-impact table capture effects.',
-    thumbnail: 'https://static.poly.pizza/38e858db-325f-4dce-9680-da62c20c5c31.webp'
-  },
-  {
-    id: 'polyMolotov01Attack',
-    label: 'CreativeTrio Molotov',
-    description: 'CC0 Poly Pizza molotov bottle for incendiary capture loadouts.',
-    thumbnail: 'https://static.poly.pizza/d7bb0b50-09af-49f8-b1f9-dbdb0c707d40.webp'
-  },
-  {
-    id: 'polyGasTank01Attack',
-    label: 'Quaternius Gas Tank',
-    description: 'CC0 Poly Pizza explosive gas tank model for demolition-style captures.',
-    thumbnail: 'https://static.poly.pizza/9c4d2ac5-114b-4da2-a26a-8049e2b1ba04.webp'
-  },
-  {
-    id: 'polyHandGrenade01Attack',
-    label: 'CreativeTrio Hand Grenade',
-    description: 'CC0 Poly Pizza hand grenade model added alongside the existing grenade fallback.',
-    thumbnail: 'https://static.poly.pizza/03fa7f5b-4df5-45d6-86fb-87e8590f28d7.webp'
-  },
-  {
-    id: 'polyTank01Attack',
-    label: 'Quaternius Battle Tank',
-    description: 'CC0 Poly Pizza tank model for heavy battle-royal capture strike cosmetics.',
-    thumbnail: 'https://static.poly.pizza/58c387b2-636f-49dc-a900-13b0852717d6.webp'
   }
 
 ]);
@@ -382,7 +322,7 @@ export const HUMAN_CHARACTER_OPTIONS = Object.freeze([
   {
     id: 'rpm-current',
     label: 'Current Avatar',
-    description: 'Ready Player Me seated avatar enhanced with preserved face/skin maps and CC0 Poly Haven per-garment PBR textures.',
+    description: 'Ready Player Me seated avatar with full PBR texture maps.',
     modelUrls: ['https://threejs.org/examples/models/gltf/readyplayer.me.glb'],
     source: 'three.js examples',
     license: 'MIT examples bundle'
@@ -390,7 +330,7 @@ export const HUMAN_CHARACTER_OPTIONS = Object.freeze([
   {
     id: 'rpm-67d411',
     label: 'RPM 67d411',
-    description: 'Ready Player Me public avatar seated with Ludo rig logic plus CC0 Poly Haven shirt, denim, leather, hat and jewelry texture slots.',
+    description: 'Ready Player Me public avatar seated with the same Ludo rig logic and motion set.',
     modelUrls: [
       'https://models.readyplayer.me/67d411b30787acbf58ce58ac.glb',
       'https://api.readyplayer.me/v1/avatars/67d411b30787acbf58ce58ac.glb',
@@ -402,7 +342,7 @@ export const HUMAN_CHARACTER_OPTIONS = Object.freeze([
   {
     id: 'rpm-67f433',
     label: 'RPM 67f433',
-    description: 'Ready Player Me public avatar aligned to Ludo with individual jacket, dress, jeans, shoes and accessory PBR texture mapping.',
+    description: 'Ready Player Me public avatar aligned to default seated scale/orientation for Ludo.',
     modelUrls: [
       'https://models.readyplayer.me/67f433b69dc08cf26d2cf585.glb',
       'https://api.readyplayer.me/v1/avatars/67f433b69dc08cf26d2cf585.glb',
@@ -414,7 +354,7 @@ export const HUMAN_CHARACTER_OPTIONS = Object.freeze([
   {
     id: 'rpm-67e1b5',
     label: 'RPM 67e1b5',
-    description: 'Ready Player Me public avatar using the same seated helpers with separate realistic textile and leather PBR clothing materials.',
+    description: 'Ready Player Me public avatar using the same seated helper offsets and animation logic.',
     modelUrls: [
       'https://models.readyplayer.me/67e1b51ae11c93725e4395c9.glb',
       'https://api.readyplayer.me/v1/avatars/67e1b51ae11c93725e4395c9.glb',
@@ -426,7 +366,7 @@ export const HUMAN_CHARACTER_OPTIONS = Object.freeze([
   {
     id: 'webgl-vietnam-human',
     label: 'Vietnam Human',
-    description: 'Open WebGL GLB humanoid seated with Ludo scale and CC0 Poly Haven per-item clothing material mapping.',
+    description: 'Open WebGL GLB humanoid seated with the same Ludo scale/orientation/motion rig.',
     modelUrls: ['https://raw.githubusercontent.com/hmthanh/3d-human-model/main/TranThiNgocTham.glb'],
     source: 'hmthanh/3d-human-model GitHub',
     license: 'Check repository license'
@@ -434,7 +374,7 @@ export const HUMAN_CHARACTER_OPTIONS = Object.freeze([
   {
     id: 'webgl-ai-teacher',
     label: 'AI Teacher',
-    description: 'Open-source AI Teacher avatar adapted to the seated pose pipeline with separate realistic shirt, jacket, pants, tie, shoe and accessory textures.',
+    description: 'Open-source AI Teacher avatar adapted to the default seated pose pipeline.',
     modelUrls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar.glb'],
     source: 'Surbh77/AI-teacher GitHub',
     license: 'Check repository license'
@@ -442,7 +382,7 @@ export const HUMAN_CHARACTER_OPTIONS = Object.freeze([
   {
     id: 'webgl-ai-teacher-1',
     label: 'AI Teacher 1',
-    description: 'Second AI Teacher avatar using the same seated helpers and individual CC0 cloth, denim, leather and accessory texture roles.',
+    description: 'Second AI Teacher avatar using the same seated helpers and interaction logic.',
     modelUrls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb'],
     source: 'Surbh77/AI-teacher GitHub',
     license: 'Check repository license'
