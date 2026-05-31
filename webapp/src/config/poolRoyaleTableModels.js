@@ -1,10 +1,10 @@
-import { POOL_ROYALE_CLOTH_VARIANTS } from './poolRoyaleClothPresets.js'
-import { polyHavenThumb, swatchThumbnail } from './storeThumbnails.js'
+import { POOL_ROYALE_CLOTH_VARIANTS } from './poolRoyaleClothPresets.js';
+import { polyHavenThumb, swatchThumbnail } from './storeThumbnails.js';
 
-export const POOL_ROYALE_TABLE_MODEL_STORAGE_KEY = 'poolRoyaleTableModel'
+export const POOL_ROYALE_TABLE_MODEL_STORAGE_KEY = 'poolRoyaleTableModel';
 
 const POOLTOOL_RAW_BASE =
-  'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table'
+  'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table';
 
 export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
   {
@@ -48,8 +48,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     icon: '🟫',
     kind: 'gltf',
     fitScale: 1.055,
-    lowerBaseHeightScale: 1.28,
-    topRailFrameHeightScale: 0.88,
+    lowerBaseHeightScale: 1.16,
     clothRepeatScale: 5.25,
     fitStrategy: 'exact',
     fitReference: 'upperTabletop',
@@ -66,19 +65,20 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     hideSurfaceRoles: [],
     hideGeneratedRailMarkers: true
   }
-])
+]);
 
 export const DEFAULT_POOL_ROYALE_TABLE_MODEL_ID =
   POOL_ROYALE_TABLE_MODEL_OPTIONS.find((option) => option.id === 'royal-original')?.id ||
-  POOL_ROYALE_TABLE_MODEL_OPTIONS[0].id
+  POOL_ROYALE_TABLE_MODEL_OPTIONS[0].id;
 
-export function resolvePoolRoyaleTableModel (modelId) {
-  const key = typeof modelId === 'string' ? modelId.trim() : ''
+export function resolvePoolRoyaleTableModel(modelId) {
+  const key = typeof modelId === 'string' ? modelId.trim() : '';
   return (
     POOL_ROYALE_TABLE_MODEL_OPTIONS.find((option) => option.id === key) ||
     POOL_ROYALE_TABLE_MODEL_OPTIONS[0]
-  )
+  );
 }
+
 
 const SHOWOOD_TABLE_FINISH_TEXTURES = Object.freeze([
   { id: 'peelingPaintWeathered', label: 'Wood Peeling Paint Weathered', color: '#b8b3aa', textureId: 'wood_peeling_paint_weathered' },
@@ -101,7 +101,7 @@ const SHOWOOD_TABLE_FINISH_TEXTURES = Object.freeze([
   { id: 'carbonFiberAlligatorSand', label: 'LT Sand Fabric', color: '#8a7b5e', textureId: 'fabric_083' },
   { id: 'carbonFiberAlligatorMoss', label: 'LT Moss Fabric', color: '#4f6048', textureId: 'fabric_083' },
   { id: 'carbonFiberAlligatorNight', label: 'LT Night Fabric', color: '#2f3c32', textureId: 'fabric_083' }
-])
+]);
 
 const buildShowoodFinishOptions = () =>
   Object.freeze(
@@ -110,15 +110,15 @@ const buildShowoodFinishOptions = () =>
         ...option,
         finishId: option.id,
         thumbnail: option.textureId ? polyHavenThumb(option.textureId) : swatchThumbnail([option.color, '#ffffff'])
-      })
-      return acc
+      });
+      return acc;
     }, {})
-  )
+  );
 
 const buildShowoodClothOptions = () =>
   Object.freeze(
     POOL_ROYALE_CLOTH_VARIANTS.reduce((acc, variant) => {
-      const color = `#${variant.baseColor.toString(16).padStart(6, '0')}`
+      const color = `#${variant.baseColor.toString(16).padStart(6, '0')}`;
       acc[variant.id] = Object.freeze({
         label: variant.name,
         color,
@@ -128,10 +128,10 @@ const buildShowoodClothOptions = () =>
         metalness: 0,
         roughness: 1,
         envMapIntensity: 0.16
-      })
-      return acc
+      });
+      return acc;
     }, {})
-  )
+  );
 
 export const POOL_ROYALE_SHOWOOD_MATERIAL_CONTROL_PARTS = Object.freeze([
   'cloth',
@@ -140,7 +140,7 @@ export const POOL_ROYALE_SHOWOOD_MATERIAL_CONTROL_PARTS = Object.freeze([
   'pocketJaw',
   'topWoodRail',
   'legBase'
-])
+]);
 
 export const POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE = Object.freeze({
   cloth: 'cabanGreenClassic',
@@ -149,7 +149,7 @@ export const POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE = Object.freeze({
   pocketJaw: 'plastic-black',
   topWoodRail: 'woodTable001',
   legBase: 'darkWood'
-})
+});
 
 export const POOL_ROYALE_SHOWOOD_CONTROL_META = Object.freeze({
   cloth: { label: 'Field cloth', description: 'All cloth-library textures for only the flat playfield surface.' },
@@ -164,15 +164,15 @@ export const POOL_ROYALE_SHOWOOD_CONTROL_META = Object.freeze({
   pocketJaw: { label: 'Pockets + jaws', description: 'Uses the same pocket-jaw texture options as the main game menu.' },
   topWoodRail: { label: 'Top rail frame', description: 'All GLTF table-finish textures for the main top wood rail frame.' },
   legBase: { label: 'Legs + base', description: 'All GLTF table-finish textures for legs and lower base blocks only.' }
-})
+});
 
-const SHOWOOD_CLOTH_OPTIONS = buildShowoodClothOptions()
-const SHOWOOD_FINISH_OPTIONS = buildShowoodFinishOptions()
+const SHOWOOD_CLOTH_OPTIONS = buildShowoodClothOptions();
+const SHOWOOD_FINISH_OPTIONS = buildShowoodFinishOptions();
 const SHOWOOD_METAL_ACCENT_OPTIONS = Object.freeze({
   gold: Object.freeze({ label: 'Gold', color: '#d4af37', metalAccentId: 'gold' }),
   chrome: Object.freeze({ label: 'Chrome', color: '#d6d8dc', metalAccentId: 'chrome' }),
   black: Object.freeze({ label: 'Black', color: '#050505', metalAccentId: 'black' })
-})
+});
 const SHOWOOD_POCKET_JAW_OPTIONS = Object.freeze({
   'plastic-black': Object.freeze({ label: 'Plastic Black Jaws', color: '#151515', pocketLinerId: 'plastic-black' }),
   'plastic-dark-grey': Object.freeze({ label: 'Plastic Dark Grey Jaws', color: '#2c2f33', pocketLinerId: 'plastic-dark-grey' }),
@@ -180,7 +180,7 @@ const SHOWOOD_POCKET_JAW_OPTIONS = Object.freeze({
   'plastic-light-grey': Object.freeze({ label: 'Plastic Light Grey Jaws', color: '#b8bcc2', pocketLinerId: 'plastic-light-grey' }),
   'plastic-magnolia': Object.freeze({ label: 'Plastic Magnolia Jaws', color: '#f4f0e6', pocketLinerId: 'plastic-magnolia' }),
   'brown-showood': Object.freeze({ label: 'Brown Showood Jaws', color: '#2a1207', pocketLinerId: 'brown-showood' })
-})
+});
 
 export const POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS = Object.freeze({
   cloth: SHOWOOD_CLOTH_OPTIONS,
@@ -189,4 +189,4 @@ export const POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS = Object.freeze({
   pocketJaw: SHOWOOD_POCKET_JAW_OPTIONS,
   topWoodRail: SHOWOOD_FINISH_OPTIONS,
   legBase: SHOWOOD_FINISH_OPTIONS
-})
+});
