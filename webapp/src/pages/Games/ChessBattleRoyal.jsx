@@ -2226,11 +2226,9 @@ const CHECKMATE_SOUND_URL =
   'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/End.mp3';
 const LAUGH_SOUND_URL = '/assets/sounds/Haha.mp3';
 const DRONE_FLY_SOUND_URL = '/assets/sounds/kimsa-kimsa-big-motorcycle-sound-394700.mp3';
-const JET_FLY_SOUND_URL = '/assets/sounds/race-care-151963.mp3';
 const HELICOPTER_FLY_SOUND_URL = '/assets/sounds/dragon-studio-helicopter-sound-8d-372463.mp3';
-const MISSILE_LAUNCH_SOUND_URL = JET_FLY_SOUND_URL;
+const BAZOOKA_FIRE_SOUND_URL = '/assets/sounds/launch-85216.mp3';
 const MISSILE_IMPACT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
-const CHESS_MISSILE_JET_SOUND_MAX_MS = 1200;
 const LUDO_FIREARM_BROADCAST_PROFILE = LUDO_WEAPON_DIRECTOR_BRIDGE.firearmBroadcastProfile || {};
 const LUDO_WEAPON_TYPE_BY_ANIMATION_ID = LUDO_WEAPON_DIRECTOR_BRIDGE.weaponTypeByCaptureAnimationId || {};
 const CHESS_FIREARM_FATAL_BULLET_TRAVEL_MS = 1250; // match Ludo Battle Royal service-pistol final bullet travel.
@@ -8338,7 +8336,6 @@ function Chess3D({
   const laughSoundRef = useRef(null);
   const swordSoundRef = useRef(null);
   const droneSoundRef = useRef(null);
-  const jetSoundRef = useRef(null);
   const helicopterSoundRef = useRef(null);
   const missileLaunchSoundRef = useRef(null);
   const missileImpactSoundRef = useRef(null);
@@ -9493,7 +9490,7 @@ function Chess3D({
         } catch {}
       }
     }
-    [swordSoundRef, droneSoundRef, jetSoundRef, helicopterSoundRef, missileLaunchSoundRef, missileImpactSoundRef].forEach((ref) => {
+    [swordSoundRef, droneSoundRef, helicopterSoundRef, missileLaunchSoundRef, missileImpactSoundRef].forEach((ref) => {
       if (!ref.current) return;
       ref.current.volume = effectiveSoundEnabled ? volume : 0;
       if (!effectiveSoundEnabled) {
@@ -9530,7 +9527,7 @@ function Chess3D({
       if (laughSoundRef.current) {
         laughSoundRef.current.volume = settingsRef.current.soundEnabled ? volume : 0;
       }
-      [swordSoundRef, droneSoundRef, jetSoundRef, helicopterSoundRef, missileLaunchSoundRef, missileImpactSoundRef].forEach((ref) => {
+      [swordSoundRef, droneSoundRef, helicopterSoundRef, missileLaunchSoundRef, missileImpactSoundRef].forEach((ref) => {
         if (!ref.current) return;
         ref.current.volume = settingsRef.current.soundEnabled ? volume : 0;
       });
@@ -9958,12 +9955,9 @@ function Chess3D({
     swordSoundRef.current.volume = baseVolume;
     droneSoundRef.current = new Audio(DRONE_FLY_SOUND_URL);
     droneSoundRef.current.volume = baseVolume;
-    jetSoundRef.current = new Audio(JET_FLY_SOUND_URL);
-    jetSoundRef.current.loop = true;
-    jetSoundRef.current.volume = baseVolume;
     helicopterSoundRef.current = new Audio(HELICOPTER_FLY_SOUND_URL);
     helicopterSoundRef.current.volume = baseVolume;
-    missileLaunchSoundRef.current = new Audio(MISSILE_LAUNCH_SOUND_URL);
+    missileLaunchSoundRef.current = new Audio(BAZOOKA_FIRE_SOUND_URL);
     missileLaunchSoundRef.current.volume = baseVolume;
     missileImpactSoundRef.current = new Audio(MISSILE_IMPACT_SOUND_URL);
     missileImpactSoundRef.current.volume = baseVolume;
@@ -10058,8 +10052,6 @@ function Chess3D({
       const playCheckSound = () => playAudio(checkSoundRef);
       const playMateSound = () => playAudio(mateSoundRef);
       const playLaughSound = () => playAudio(laughSoundRef, { maxDurationMs: 6000 });
-      const playMissileLaunchSound = () =>
-        playAudio(missileLaunchSoundRef, { maxDurationMs: CHESS_MISSILE_JET_SOUND_MAX_MS });
       const chairTheme = mapChairOptionToTheme(chairOption);
       const chairBuild = await buildChessChairTemplate(chairTheme);
       if (cancelled) return;
@@ -12502,7 +12494,7 @@ function Chess3D({
         const launchBase = parkedTruck ? getSupportTruckMissileLaunchPosition(parkedTruck) : getAirPadAnchor(isWhiteSide, 'truck', 0);
         missileFx.root.position.copy(launchBase.clone());
         captureFxGroup.add(missileFx.root);
-        playMissileLaunchSound();
+        playAudio(missileLaunchSoundRef);
         activeCaptureFx.push({
           type: 'javelin',
           t: 0,
@@ -12695,7 +12687,6 @@ function Chess3D({
           missile.root.visible = false;
           captureFxGroup.add(missile.root);
         });
-        playAudio(jetSoundRef, { maxDurationMs: CAPTURE_JET_TOTAL * 1000 });
         activeCaptureFx.push({
           type: 'jet',
           t: 0,
@@ -12787,7 +12778,7 @@ function Chess3D({
         return withAuto3d({ moveDelayMs: 280 });
       }
       if (distance >= 2) {
-        playMissileLaunchSound();
+        playAudio(missileLaunchSoundRef);
         const missileFx = createFxMissile();
         missileFx.root.scale.setScalar(CAPTURE_MISSILE_SCALE);
         captureFxGroup.add(missileFx.root);
@@ -14892,7 +14883,7 @@ function Chess3D({
               } else {
                 if (!missile.didPlayLaunchSound) {
                   missile.didPlayLaunchSound = true;
-                  playMissileLaunchSound();
+                  playAudio(missileLaunchSoundRef);
                 }
                 const { pos: missilePos, next: missileNext } = getStraightDownMissilePose({
                   launchPos: missile.launchPos.clone(),
@@ -14983,7 +14974,7 @@ function Chess3D({
               anyMissileVisible = true;
               if (!missile.didPlayLaunchSound) {
                 missile.didPlayLaunchSound = true;
-                playMissileLaunchSound();
+                playAudio(missileLaunchSoundRef);
               }
               const { pos: missilePos, next: missileNext } = getCaptureAirJavelinPose({
                 launchPos: missile.launchPos.clone(),
@@ -15098,7 +15089,7 @@ function Chess3D({
               anyMissileVisible = true;
               if (!missile.didPlayLaunchSound) {
                 missile.didPlayLaunchSound = true;
-                playMissileLaunchSound();
+                playAudio(missileLaunchSoundRef);
               }
               const { pos: missilePos, next: missileNext } = getCaptureAirJavelinPose({
                 launchPos: missile.launchPos.clone(),
@@ -15858,7 +15849,6 @@ function Chess3D({
       laughSoundRef.current?.pause();
       swordSoundRef.current?.pause();
       droneSoundRef.current?.pause();
-      jetSoundRef.current?.pause();
       helicopterSoundRef.current?.pause();
       missileLaunchSoundRef.current?.pause();
       missileImpactSoundRef.current?.pause();
