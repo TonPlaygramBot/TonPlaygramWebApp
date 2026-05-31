@@ -85,6 +85,7 @@ import {
 } from '../../config/poolRoyaleInventoryConfig.js';
 import { BILARDO_MIN_RELEASE_POWER } from './shared/bilardoShotModel';
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../../config/poolRoyaleClothPresets.js';
+import { MURLAN_CHARACTER_THEMES } from '../../config/murlanCharacterThemes.js';
 import {
   getCachedPoolRoyalInventory,
   getPoolRoyalInventory,
@@ -123,6 +124,443 @@ import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
 import { computeCueDriveBoost } from './cueShotImpact.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
 import { createMurlanStyleTable } from '../../utils/murlanTable.js';
+import {
+  createBilardoHumanRig as sharedCreateBilardoHumanRig,
+  chooseHumanEdgePosition as sharedChooseBilardoHumanEdgePosition,
+  updateBilardoHumanPose as sharedUpdateBilardoHumanPose
+} from './shared/bilardoHumanRig.js';
+
+const bilardoRigLocal = (() => {
+const WORLD_SCALE = 3.5;
+const DIMENSION_KEYS = new Set([
+  'stanceWidth', 'bridgePalmTableLift', 'edgeMargin', 'desiredShootDistance', 'chinToCueHeight',
+  'tableTopY', 'bridgeHandBackFromBall', 'bridgeHandSide', 'bridgeCueLift', 'cueLength', 'bridgeDist',
+  'shootCueGripFromBack', 'rightHandShotExtraBack', 'rightHandShotLift', 'rightHandForwardClamp',
+  'rightHandOutward', 'idleRightHandY', 'idleRightHandX', 'idleRightHandZ', 'footGroundY',
+  'kneeBendShot', 'rightElbowShotRise', 'rightElbowShotSide', 'rightElbowShotBack'
+]);
+
+const CFG = {
+  scale: WORLD_SCALE,
+  poseLambda: 9,
+  moveLambda: 5.6,
+  rotLambda: 8.5,
+  walkRefSpeed: 1.0,
+  humanScale: 1.18,
+  humanVisualYawFix: Math.PI,
+  stanceWidth: 0.52,
+  bridgePalmTableLift: 0.006,
+  edgeMargin: 0.58,
+  desiredShootDistance: 1.06,
+  chinToCueHeight: 0.11,
+  cueArmElbowRise: 0.43,
+  strikeTime: 0.12,
+  holdTime: 0.05,
+  tableTopY: 0.84,
+  bridgeHandBackFromBall: 0.235,
+  bridgeHandSide: -0.012,
+  bridgeCueLift: 0.018,
+  cueLength: 1.46,
+  bridgeDist: 0.24,
+  shootCueGripFromBack: 0.58,
+  rightHandShotExtraBack: 0.18,
+  rightHandShotLift: 0.055,
+  rightHandForwardClamp: -0.08,
+  rightHandOutward: 0.14,
+  idleRightHandY: 0.8,
+  idleRightHandX: 0.31,
+  idleRightHandZ: -0.015,
+  rightHandRollIdle: -2.2,
+  rightHandRollShoot: -2.05,
+  rightHandCueSocketLocal: new THREE.Vector3(-0.004, -0.014, 0.092).multiplyScalar(WORLD_SCALE),
+  footGroundY: 0.035,
+  kneeBendShot: 0.16,
+  footLockStrength: 1.0,
+  rightElbowShotRise: 0.84,
+  rightElbowShotSide: -0.46,
+  rightElbowShotBack: -0.78,
+  rightForearmOutward: 0.36,
+  rightForearmBack: 0.44,
+  rightForearmDown: 0.48,
+  rightForearmLength: 0.34,
+  rightStrokePull: 0.30,
+  rightStrokePush: 0.24,
+  rightHandDownPose: 0.42
+};
+const scaleRigOptions = (opts = {}) => {
+  const scale = Number(opts.scale) > 0 ? Number(opts.scale) : WORLD_SCALE;
+  // Keep runtime rig size exactly as before (no auto-upscaling of caller values).
+  return { ...opts, scale };
+};
+
+const Y_AXIS = new THREE.Vector3(0, 1, 0);
+const UP = Y_AXIS;
+const BASIS_MAT = new THREE.Matrix4();
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const clamp01 = (v) => clamp(v, 0, 1);
+const lerp = (a, b, t) => a + (b - a) * t;
+const easeInOut = (t) => t * t * (3 - 2 * t);
+const dampScalar = (current, target, lambda, dt) =>
+  THREE.MathUtils.lerp(current, target, 1 - Math.exp(-lambda * dt));
+const dampVector = (current, target, lambda, dt) =>
+  current.lerp(target, 1 - Math.exp(-lambda * dt));
+const yawFromForward = (forward) => Math.atan2(-forward.x, -forward.z);
+const cleanName = (name) => String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+function makeBasisQuaternion(side, up, forward) {
+  BASIS_MAT.makeBasis(side.clone().normalize(), up.clone().normalize(), forward.clone().normalize());
+  return new THREE.Quaternion().setFromRotationMatrix(BASIS_MAT);
+}
+
+function createFallbackHuman() {
+  const group = new THREE.Group();
+  const gray = new THREE.MeshStandardMaterial({ color: 0x6b7280, roughness: 0.7, metalness: 0.05 });
+  const skin = new THREE.MeshStandardMaterial({ color: 0xf0c9a5, roughness: 0.8, metalness: 0 });
+  const addBox = (size, pos, mat) => {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(size[0], size[1], size[2]), mat);
+    mesh.position.set(pos[0], pos[1], pos[2]);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    group.add(mesh);
+  };
+  addBox([0.42, 0.72, 0.22], [0, 1.18, 0], gray);
+  addBox([0.14, 0.9, 0.14], [-0.09, 0.45, 0], gray);
+  addBox([0.14, 0.9, 0.14], [0.09, 0.45, 0], gray);
+  addBox([0.12, 0.72, 0.12], [-0.31, 1.18, 0], gray);
+  addBox([0.12, 0.72, 0.12], [0.31, 1.18, 0], gray);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 20, 20), skin);
+  head.position.set(0, 1.7, 0);
+  head.castShadow = true;
+  head.receiveShadow = true;
+  group.add(head);
+  return group;
+}
+
+function findBone(all, aliases) {
+  const list = all.map((bone) => ({ bone, name: cleanName(bone.name) }));
+  const names = aliases.map(cleanName);
+  for (const alias of names) {
+    const exact = list.find((x) => x.name === alias || x.name.endsWith(alias));
+    if (exact) return exact.bone;
+  }
+  for (const alias of names) {
+    const loose = list.find((x) => x.name.includes(alias));
+    if (loose) return loose.bone;
+  }
+  return undefined;
+}
+
+function buildAvatarBones(model) {
+  const all = [];
+  model.traverse((obj) => obj?.isBone && all.push(obj));
+  const f = (...names) => findBone(all, names);
+  return {
+    hips: f('hips', 'pelvis', 'mixamorigHips'), spine: f('spine', 'spine01', 'mixamorigSpine'), chest: f('spine2', 'chest', 'upperchest', 'mixamorigSpine2', 'mixamorigSpine1'), neck: f('neck', 'mixamorigNeck'), head: f('head', 'mixamorigHead'),
+    leftUpperArm: f('leftupperarm', 'leftarm', 'upperarml', 'mixamorigLeftArm'), leftLowerArm: f('leftforearm', 'leftlowerarm', 'forearml', 'mixamorigLeftForeArm'), leftHand: f('lefthand', 'handl', 'mixamorigLeftHand'),
+    rightUpperArm: f('rightupperarm', 'rightarm', 'upperarmr', 'mixamorigRightArm'), rightLowerArm: f('rightforearm', 'rightlowerarm', 'forearmr', 'mixamorigRightForeArm'), rightHand: f('righthand', 'handr', 'mixamorigRightHand'),
+    leftUpperLeg: f('leftupleg', 'leftupperleg', 'leftthigh', 'mixamorigLeftUpLeg'), leftLowerLeg: f('leftleg', 'leftlowerleg', 'leftcalf', 'mixamorigLeftLeg'), leftFoot: f('leftfoot', 'footl', 'mixamorigLeftFoot'),
+    rightUpperLeg: f('rightupleg', 'rightupperleg', 'rightthigh', 'mixamorigRightUpLeg'), rightLowerLeg: f('rightleg', 'rightlowerleg', 'rightcalf', 'mixamorigRightLeg'), rightFoot: f('rightfoot', 'footr', 'mixamorigRightFoot')
+  };
+}
+const collectFingerBones = (hand) => {
+  const out = [];
+  hand?.traverse((obj) => {
+    if (!obj?.isBone || obj === hand) return;
+    const n = cleanName(obj.name);
+    if (['thumb', 'index', 'middle', 'ring', 'pinky', 'little', 'finger'].some((s) => n.includes(s))) out.push(obj);
+  });
+  return out;
+};
+
+function normalizeHuman(model, opts = {}) {
+  model.scale.setScalar(opts.humanScale ?? CFG.humanScale);
+  model.rotation.set(0, opts.humanVisualYawFix ?? CFG.humanVisualYawFix, 0);
+  model.position.set(0, 0, 0);
+  model.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(model);
+  const center = box.getCenter(new THREE.Vector3());
+  model.position.set(-center.x, -box.min.y, -center.z);
+}
+
+function createBilardoHumanRig(scene, opts = {}) {
+  const scaledOpts = scaleRigOptions(opts);
+  const human = { root: new THREE.Group(), modelRoot: new THREE.Group(), model: null, fallback: createFallbackHuman(), bones: {}, leftFingers: [], rightFingers: [], restQuats: new Map(), loaded: false, activeGlb: false, poseT: 0, walkT: 0, yaw: 0, breathT: 0, settleT: 0, strikeRoot: new THREE.Vector3(), strikeYaw: 0, strikeClock: 0, vel: new THREE.Vector3(), dir: new THREE.Vector3(0,0,-1), targetDir: new THREE.Vector3(0,0,-1), speed: 0, cfg: { ...CFG, ...scaledOpts } };
+  human.root.visible = false;
+  human.modelRoot.visible = false;
+  human.fallback.visible = true;
+  scene.add(human.root, human.modelRoot, human.fallback);
+
+  const loader = scaledOpts.loader;
+  const modelUrl = scaledOpts.modelUrl;
+  if (!loader || !modelUrl) {
+    human.loaded = true;
+    human.fallback.visible = true;
+    return human;
+  }
+
+  loader.setCrossOrigin?.('anonymous');
+  loader.load(modelUrl, (gltf) => {
+    const model = gltf?.scene || null;
+    if (!model) {
+      human.loaded = true;
+      human.activeGlb = false;
+      human.modelRoot.visible = false;
+      human.fallback.visible = true;
+      return;
+    }
+    normalizeHuman(model, opts);
+    model.traverse((obj) => {
+      if (!obj?.isMesh) return;
+      obj.castShadow = true;
+      obj.receiveShadow = true;
+      obj.frustumCulled = false;
+      const materials = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
+      materials.forEach((m) => {
+        if (m.map) m.map.colorSpace = THREE.SRGBColorSpace;
+        m.needsUpdate = true;
+      });
+    });
+    human.bones = buildAvatarBones(model);
+    human.leftFingers = collectFingerBones(human.bones.leftHand);
+    human.rightFingers = collectFingerBones(human.bones.rightHand);
+    [...Object.values(human.bones), ...human.leftFingers, ...human.rightFingers].forEach((bone) => bone && human.restQuats.set(bone, bone.quaternion.clone()));
+    human.activeGlb = Boolean(human.bones.hips && human.bones.spine && human.bones.head && human.bones.leftUpperArm && human.bones.leftLowerArm && human.bones.leftHand && human.bones.rightUpperArm && human.bones.rightLowerArm && human.bones.rightHand && human.bones.leftUpperLeg && human.bones.leftLowerLeg && human.bones.rightUpperLeg && human.bones.rightLowerLeg);
+    human.model = model;
+    human.modelRoot.add(model);
+    human.modelRoot.visible = human.activeGlb;
+    human.fallback.visible = !human.activeGlb;
+    human.loaded = true;
+  }, undefined, (err) => {
+    console.warn('PoolRoyale human GLTF load failed', { modelUrl, err });
+    human.loaded = true;
+    human.activeGlb = false;
+    human.modelRoot.visible = false;
+    human.fallback.visible = true;
+  });
+
+  return human;
+}
+
+function setBoneWorldQuaternion(bone, q) { if (!bone || !q) return; const parentQ = new THREE.Quaternion(); bone.parent?.getWorldQuaternion(parentQ); bone.quaternion.copy(parentQ.invert().multiply(q)); bone.updateMatrixWorld(true); }
+function firstBoneChild(bone) { return bone?.children.find((c) => c?.isBone); }
+function rotateBoneToward(bone, target, strength = 1, fallbackDir = UP) {
+  if (!bone || strength <= 0) return;
+  const bonePos = bone.getWorldPosition(new THREE.Vector3());
+  const childPos = firstBoneChild(bone)?.getWorldPosition(new THREE.Vector3()) || bonePos.clone().addScaledVector(fallbackDir.clone().normalize(), 0.25);
+  const current = childPos.sub(bonePos).normalize();
+  const desired = target.clone().sub(bonePos);
+  if (desired.lengthSq() < 1e-6 || current.lengthSq() < 1e-6) return;
+  const delta = new THREE.Quaternion().slerpQuaternions(new THREE.Quaternion(), new THREE.Quaternion().setFromUnitVectors(current, desired.normalize()), clamp01(strength));
+  setBoneWorldQuaternion(bone, delta.multiply(bone.getWorldQuaternion(new THREE.Quaternion())));
+}
+function twistBone(bone, axis, amount) { if (!bone || Math.abs(amount) < 1e-5) return; setBoneWorldQuaternion(bone, new THREE.Quaternion().setFromAxisAngle(axis.clone().normalize(), amount).multiply(bone.getWorldQuaternion(new THREE.Quaternion()))); }
+function aimTwoBone(upper, lower, elbow, hand, pole, upperStrength = 0.96, lowerStrength = 0.98) { for (let i = 0; i < 4; i += 1) { rotateBoneToward(upper, elbow, upperStrength, pole); rotateBoneToward(lower, hand, lowerStrength, pole); } }
+function setHandBasis(bone, side, up, forward, roll = 0, strength = 1) { if (!bone || strength <= 0) return; const q = makeBasisQuaternion(side, up, forward); if (Math.abs(roll) > 1e-4) q.multiply(new THREE.Quaternion().setFromAxisAngle(forward.clone().normalize(), roll)); setBoneWorldQuaternion(bone, bone.getWorldQuaternion(new THREE.Quaternion()).slerp(q, clamp01(strength))); }
+
+function cueSocketOffsetWorld(side, up, forward, roll, socketLocal = CFG.rightHandCueSocketLocal) {
+  const q = makeBasisQuaternion(side, up, forward);
+  if (Math.abs(roll) > 1e-5) q.multiply(new THREE.Quaternion().setFromAxisAngle(forward.clone().normalize(), roll));
+  return socketLocal.clone().applyQuaternion(q);
+}
+
+function poseFingers(fingers, mode, weight) {
+  const w = clamp01(weight);
+  fingers.forEach((finger, i) => {
+    const n = cleanName(finger.name); const thumb = n.includes('thumb'); const index = n.includes('index'); const middle = n.includes('middle'); const ring = n.includes('ring'); const pinky = n.includes('pinky') || n.includes('little');
+    const base = !(n.includes('2') || n.includes('3') || n.includes('intermediate') || n.includes('distal')); const mid = n.includes('2') || n.includes('intermediate');
+    if (mode === 'idle') { finger.rotation.x += 0.018 * w; finger.rotation.z += 0.01 * w * (i % 2 ? -1 : 1); return; }
+    if (mode === 'grip') {
+      if (thumb) { finger.rotation.x += 0.48 * w; finger.rotation.y += -0.82 * w; finger.rotation.z += 0.54 * w; return; }
+      const curl = index ? (base ? 0.58 : mid ? 0.9 : 0.68) : middle ? (base ? 0.76 : mid ? 1.02 : 0.76) : ring ? (base ? 0.72 : mid ? 0.92 : 0.7) : pinky ? (base ? 0.62 : mid ? 0.82 : 0.62) : 0;
+      finger.rotation.x += curl * w; finger.rotation.y += (index ? -0.12 : middle ? -0.03 : ring ? 0.04 : pinky ? 0.08 : 0) * w; finger.rotation.z += (index ? -0.08 : middle ? -0.02 : ring ? 0.06 : pinky ? 0.12 : 0) * w; return;
+    }
+    if (thumb) { finger.rotation.x += -0.18 * w; finger.rotation.y += 0.95 * w; finger.rotation.z += -0.95 * w; }
+    else if (index) { finger.rotation.x += (base ? 0.26 : mid ? 0.42 : 0.28) * w; finger.rotation.y += -0.46 * w; finger.rotation.z += -0.42 * w; }
+    else if (middle) { finger.rotation.x += (base ? 0.18 : mid ? 0.32 : 0.22) * w; finger.rotation.y += -0.12 * w; finger.rotation.z += -0.14 * w; }
+    else if (ring || pinky) { finger.rotation.x += (base ? (ring ? 0.08 : 0.05) : mid ? (ring ? 0.18 : 0.16) : (ring ? 0.12 : 0.1)) * w; finger.rotation.y += (ring ? 0.18 : 0.34) * w; finger.rotation.z += (ring ? 0.28 : 0.46) * w; }
+  });
+}
+
+function driveHuman(human, frame) {
+  if (!human.activeGlb || !human.model) {
+    human.fallback.visible = true;
+    human.fallback.position.copy(frame.rootWorld);
+    human.fallback.rotation.y = human.yaw;
+    human.fallback.rotation.x = -0.16 * frame.t;
+    human.fallback.position.y -= 0.035 * frame.t;
+    return;
+  }
+  human.fallback.visible = false;
+  human.modelRoot.visible = true;
+  human.modelRoot.position.copy(frame.rootWorld);
+  human.modelRoot.rotation.y = human.yaw;
+  human.modelRoot.updateMatrixWorld(true);
+  human.restQuats.forEach((q, bone) => bone.quaternion.copy(q));
+  human.modelRoot.updateMatrixWorld(true);
+
+  const b = human.bones;
+  const ik = easeInOut(clamp01(frame.t));
+  const idle = 1 - ik;
+  const cueDir = frame.cueTipWorld.clone().sub(frame.cueBackWorld).normalize();
+  const shotQ = makeBasisQuaternion(frame.side, UP, frame.forward);
+
+  if (frame.walkAmount * idle > 0.001) {
+    const s = Math.sin(human.walkT * 6.2), c = Math.cos(human.walkT * 6.2), w = frame.walkAmount * idle;
+    const pace = THREE.MathUtils.clamp((human.speed || 0) / (human.cfg?.walkRefSpeed || 1), 0.7, 1.35);
+    if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += s * 0.22 * w * pace;
+    if (b.rightUpperLeg) b.rightUpperLeg.rotation.x -= s * 0.22 * w * pace;
+    if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += Math.max(0, -s) * 0.18 * w * pace;
+    if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += Math.max(0, s) * 0.18 * w * pace;
+    if (b.leftUpperArm) b.leftUpperArm.rotation.x -= s * 0.2 * w * pace;
+    if (b.rightUpperArm) b.rightUpperArm.rotation.x += s * 0.2 * w * pace;
+    if (b.spine) b.spine.rotation.z += c * 0.02 * w;
+    if (b.hips) b.hips.rotation.z -= c * 0.014 * w;
+  }
+
+  if (ik >= 0.025) {
+    rotateBoneToward(b.hips, frame.torsoCenterWorld, (0.12 + 0.35 * ik) * ik, frame.forward);
+    twistBone(b.hips, frame.side, -0.045 * ik);
+    twistBone(b.hips, frame.forward, -0.025 * ik);
+    rotateBoneToward(b.spine, frame.chestCenterWorld, (0.34 + 0.34 * ik) * ik, frame.forward);
+    twistBone(b.spine, frame.side, -0.2 * ik);
+    twistBone(b.spine, frame.forward, -0.04 * ik);
+    rotateBoneToward(b.chest, frame.neckWorld, (0.5 + 0.28 * ik) * ik, frame.forward);
+    twistBone(b.chest, frame.side, -0.32 * ik);
+    twistBone(b.chest, frame.forward, -0.025 * ik);
+    rotateBoneToward(b.neck, frame.headCenterWorld, 0.64 * ik, frame.forward);
+    twistBone(b.neck, frame.side, -0.12 * ik);
+    setBoneWorldQuaternion(b.head, b.head ? b.head.getWorldQuaternion(new THREE.Quaternion()).slerp(shotQ.clone().multiply(new THREE.Quaternion().setFromAxisAngle(frame.side, -0.12 * ik)).multiply(new THREE.Quaternion().setFromAxisAngle(frame.forward, -0.025 * ik)), 0.74 * ik) : shotQ);
+    human.modelRoot.updateMatrixWorld(true);
+  }
+
+  const rightGrip = frame.rightHandWorld.clone();
+  const rightIdleElbow = rightGrip.clone().addScaledVector(UP, 0.1 + 0.28 * ik).addScaledVector(frame.side, -0.22 - 0.04 * ik).addScaledVector(frame.forward, -0.03 * idle);
+  const rightElbow = frame.rightElbow.clone().lerp(rightIdleElbow, idle * 0.52);
+  const rightHold = 0.88 + 0.12 * ik;
+  const rightArmPole = UP.clone().multiplyScalar(1.32).addScaledVector(frame.side, -0.62).addScaledVector(frame.forward, -1.05).normalize();
+  aimTwoBone(b.rightUpperArm, b.rightLowerArm, rightElbow, rightGrip, rightArmPole, rightHold, rightHold);
+
+  const standingCueDir = human.cfg.idleCueDir.clone().applyAxisAngle(Y_AXIS, human.yaw).normalize();
+  const standingHandSide = frame.side.clone().multiplyScalar(-1).addScaledVector(UP, -0.55).addScaledVector(frame.forward, 0.16).normalize();
+  const standingHandUp = UP.clone().multiplyScalar(-1.0).addScaledVector(frame.side, -0.64).addScaledVector(frame.forward, 0.2).normalize();
+  const handForwardForOrientation = ik >= 0.025 ? standingCueDir : cueDir;
+  const rollForOrientation = ik >= 0.025 ? human.cfg.rightHandRollIdle : human.cfg.rightHandRollIdle + 0.02 * frame.stroke;
+  setHandBasis(b.rightHand, standingHandSide, standingHandUp, handForwardForOrientation, rollForOrientation, 1.0);
+  poseFingers(human.rightFingers, 'grip', 0.95);
+
+  if (ik < 0.025) { poseFingers(human.leftFingers, 'idle', 1); return; }
+
+  const leftHand = frame.leftHandWorld.clone().addScaledVector(frame.forward, 0.032 * ik).addScaledVector(frame.side, -0.018 * ik).addScaledVector(UP, -0.018 * ik);
+  const leftElbow = frame.leftElbow.clone().addScaledVector(frame.forward, 0.045 * ik).addScaledVector(frame.side, -0.05 * ik).addScaledVector(UP, -0.01 * ik);
+  aimTwoBone(b.leftUpperArm, b.leftLowerArm, leftElbow, leftHand, frame.side.clone().multiplyScalar(-1).addScaledVector(UP, 0.1).normalize(), 0.98 * ik, 1.0 * ik);
+  twistBone(b.leftUpperArm, frame.forward, -0.2 * ik);
+  twistBone(b.leftLowerArm, frame.forward, 0.025 * ik);
+  const bridgeSide = frame.side.clone().multiplyScalar(-1).addScaledVector(frame.forward, -0.52).normalize();
+  const bridgeUp = UP.clone().multiplyScalar(0.78).addScaledVector(frame.forward, -0.28).addScaledVector(frame.side, -0.16).normalize();
+  setHandBasis(b.leftHand, bridgeSide, bridgeUp, cueDir, -0.68 * ik, 1.0 * ik);
+  poseFingers(human.leftFingers, 'bridge', ik);
+
+  aimTwoBone(
+    b.leftUpperLeg,
+    b.leftLowerLeg,
+    frame.leftKnee,
+    frame.leftFootWorld,
+    frame.forward.clone().addScaledVector(UP, 0.18).normalize(),
+    0.9 * ik,
+    1.0 * ik
+  );
+  twistBone(b.leftUpperLeg, frame.forward, -0.035 * ik);
+  setHandBasis(b.leftFoot, frame.side, frame.up, frame.forward, -0.02 * ik, (human.cfg?.footLockStrength ?? CFG.footLockStrength) * ik);
+
+  aimTwoBone(
+    b.rightUpperLeg,
+    b.rightLowerLeg,
+    frame.rightKnee,
+    frame.rightFootWorld,
+    frame.forward.clone().multiplyScalar(-1).addScaledVector(UP, 0.18).normalize(),
+    0.9 * ik,
+    1.0 * ik
+  );
+  twistBone(b.rightUpperLeg, frame.forward, 0.03 * ik);
+  setHandBasis(b.rightFoot, frame.side, frame.up, frame.forward, 0.02 * ik, (human.cfg?.footLockStrength ?? CFG.footLockStrength) * ik);
+}
+
+function chooseHumanEdgePosition(cueBallWorld, aimForward, opts = {}) { const cfg = { ...CFG, ...opts }; const desired = cueBallWorld.clone().addScaledVector(aimForward, -cfg.desiredShootDistance); const xEdge = (opts.tableW ?? 2.0) / 2 + cfg.edgeMargin; const zEdge = (opts.tableL ?? 3.6) / 2 + cfg.edgeMargin; const candidates = [new THREE.Vector3(-xEdge, 0, clamp(desired.z, -zEdge, zEdge)), new THREE.Vector3(xEdge, 0, clamp(desired.z, -zEdge, zEdge)), new THREE.Vector3(clamp(desired.x, -xEdge, xEdge), 0, -zEdge), new THREE.Vector3(clamp(desired.x, -xEdge, xEdge), 0, zEdge)]; return candidates.sort((a, b) => a.distanceToSquared(desired) - b.distanceToSquared(desired))[0].clone(); }
+
+function updateBilardoHumanPose(human, dt, frameData) {
+  if (!human || !frameData || !Number.isFinite(dt) || dt < 0 || !frameData.rootTarget || !frameData.aimForward) return;
+  const cfg = { ...CFG, ...(human.cfg || {}) }; const state = frameData.state || 'idle';
+  human.poseT = dampScalar(human.poseT, state === 'idle' ? 0 : 1, cfg.poseLambda, dt); human.breathT += dt * (state === 'idle' ? 1.05 : 0.5); human.settleT = dampScalar(human.settleT, state === 'dragging' ? 1 : 0, 5.5, dt);
+  if (state === 'striking') { if (human.strikeClock === 0) { human.strikeRoot.copy(human.root.position.lengthSq() > 0.001 ? human.root.position : frameData.rootTarget); human.strikeYaw = human.yaw; } human.strikeClock += dt; } else human.strikeClock = 0;
+  const rootGoal = state === 'striking' ? human.strikeRoot : frameData.rootTarget;
+  const prevPos = human.root.position.clone();
+  dampVector(human.root.position, rootGoal, state === 'striking' ? 12 : cfg.moveLambda, dt);
+  const moveDelta = human.root.position.clone().sub(prevPos).setY(0);
+  if (dt > 0) {
+    human.vel.copy(moveDelta).multiplyScalar(1 / dt);
+    human.speed = human.vel.length();
+    if (human.speed > 0.001) human.targetDir.copy(human.vel).normalize();
+  } else {
+    human.speed = 0;
+  }
+  if (state !== 'striking' && human.targetDir.lengthSq() > 0.001) {
+    human.dir.lerp(human.targetDir, 1 - Math.pow(0.001, dt)).normalize();
+    human.yaw = Math.atan2(human.dir.x, human.dir.z);
+  } else {
+    human.yaw = dampScalar(human.yaw, state === 'striking' ? human.strikeYaw : yawFromForward(frameData.aimForward), cfg.rotLambda, dt);
+  }
+  const moveAmountRaw = human.root.position.distanceTo(rootGoal);
+  human.walkT += dt * (2 + Math.min(7, moveAmountRaw * 10));
+  const t = easeInOut(human.poseT), idle = 1 - t, breath = Math.sin(human.breathT * Math.PI * 2) * (0.006 + idle * 0.004), walk = Math.sin(human.walkT * 6.2) * Math.min(1, moveAmountRaw * 12), walkAmount = clamp01(moveAmountRaw * 18) * idle;
+  const power = frameData.power ?? 0; const stroke = state === 'dragging' ? Math.sin(performance.now() * 0.011) * (0.25 + power * 0.75) : 0; const follow = state === 'striking' ? Math.sin(clamp01(human.strikeClock / (cfg.strikeTime + cfg.holdTime)) * Math.PI) : 0;
+  const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(Y_AXIS, human.yaw).normalize(); const side = new THREE.Vector3(forward.z, 0, -forward.x).normalize(); const local = (v) => v.clone().applyAxisAngle(Y_AXIS, human.yaw).add(human.root.position); const powerLean = power * t;
+  const rootWorld = human.root.position.clone().addScaledVector(forward, 0.018 * powerLean + 0.026 * follow);
+  const torso = local(new THREE.Vector3(0, lerp(1.3, 1.12, t) + breath, lerp(0.02, -0.16, t) - 0.014 * powerLean));
+  const chest = local(new THREE.Vector3(0, lerp(1.52, 1.22, t) + breath, lerp(0.02, -0.42, t) - 0.024 * powerLean));
+  const neck = local(new THREE.Vector3(0, lerp(1.68, 1.25, t) + breath, lerp(0.02, -0.61, t) - 0.028 * powerLean));
+  const head = local(new THREE.Vector3(0, lerp(1.84, 1.34, t) + breath - cfg.chinToCueHeight * 0.16 * t, lerp(0.04, -0.72, t) - 0.028 * powerLean));
+  const leftShoulder = local(new THREE.Vector3(-0.23, lerp(1.58, 1.36, t) + breath, lerp(0, -0.46, t) - 0.018 * human.settleT));
+  const rightShoulder = local(new THREE.Vector3(0.23, lerp(1.58, 1.36, t) + breath, lerp(0, -0.34, t) - 0.018 * human.settleT));
+  const leftHip = local(new THREE.Vector3(-0.13, 0.92, 0.02)); const rightHip = local(new THREE.Vector3(0.13, 0.92, 0.02));
+  const leftFoot = local(new THREE.Vector3(-0.13, cfg.footGroundY, 0.03 + walk * 0.018).lerp(new THREE.Vector3(-cfg.stanceWidth * 0.42, cfg.footGroundY, -0.34), t));
+  const rightFoot = local(new THREE.Vector3(0.13, cfg.footGroundY, -0.03 - walk * 0.018).lerp(new THREE.Vector3(cfg.stanceWidth * 0.5, cfg.footGroundY, 0.34), t));
+  const bridgePalmTarget = frameData.bridgeTarget.clone().addScaledVector(forward, -0.006 * t).addScaledVector(side, -0.012 * t).setY(cfg.tableTopY + cfg.bridgePalmTableLift).addScaledVector(UP, -0.01 * human.settleT);
+  const leftHand = frameData.idleLeft.clone().lerp(bridgePalmTarget, t);
+  const cueDirForHand = frameData.cueTip.clone().sub(frameData.cueBack).normalize();
+  const handIk = easeInOut(clamp01(t));
+  const idleGripSide = side.clone().multiplyScalar(-1).addScaledVector(UP, -0.55).addScaledVector(forward, 0.16).normalize();
+  const idleGripUp = UP.clone().multiplyScalar(-1.0).addScaledVector(side, -0.64).addScaledVector(forward, 0.2).normalize();
+  const liveGripSide = side.clone().multiplyScalar(-1).addScaledVector(UP, lerp(-0.55, -0.62, handIk)).addScaledVector(side, 0.5 * handIk).addScaledVector(forward, lerp(0.16, -0.08, handIk)).normalize();
+  const liveGripUp = UP.clone().multiplyScalar(lerp(-1.0, 0.12, handIk)).addScaledVector(side, lerp(-0.64, -0.04, handIk)).addScaledVector(forward, lerp(0.2, -0.48, handIk)).normalize();
+  const lockedRightElbow = rightShoulder.clone().addScaledVector(UP, lerp(0.04, cfg.rightElbowShotRise, t)).addScaledVector(side, lerp(-0.18, cfg.rightElbowShotSide, t)).addScaledVector(forward, lerp(-0.04, cfg.rightElbowShotBack, t));
+  const pullBack = state === 'dragging' ? -cfg.rightStrokePull * easeOutCubic(power) : 0;
+  const pushForward = state === 'striking' ? cfg.rightStrokePush * follow : 0;
+  const smallPractice = state === 'dragging' ? stroke * 0.035 : 0;
+  const forearmStroke = pullBack + pushForward + smallPractice;
+  const forearmBase = lockedRightElbow.clone().addScaledVector(side, cfg.rightForearmOutward * t).addScaledVector(UP, -cfg.rightForearmDown * t).addScaledVector(UP, cfg.rightHandShotLift * t).addScaledVector(forward, -cfg.rightForearmBack * t).addScaledVector(cueDirForHand, cfg.rightForearmLength);
+  const liveCueGripPoint = forearmBase.clone().addScaledVector(cueDirForHand, forearmStroke);
+  const idleWristTarget = frameData.idleRight.clone().sub(cueSocketOffsetWorld(idleGripSide, idleGripUp, cueDirForHand, cfg.rightHandRollIdle, cfg.rightHandCueSocketLocal));
+  const liveWristTarget = liveCueGripPoint.clone().sub(cueSocketOffsetWorld(liveGripSide, liveGripUp, cueDirForHand, lerp(cfg.rightHandRollIdle, cfg.rightHandRollShoot - cfg.rightHandDownPose, handIk), cfg.rightHandCueSocketLocal));
+  const rightHand = idleWristTarget.clone().lerp(liveWristTarget, t);
+  const leftElbow = leftShoulder.clone().lerp(leftHand, 0.62).addScaledVector(UP, 0.006 * t).addScaledVector(side, -0.044 * t).addScaledVector(forward, 0.065 * t);
+  const rightElbow = lockedRightElbow;
+  const leftKnee = leftHip.clone().lerp(leftFoot, 0.53).addScaledVector(UP, lerp(0.2, cfg.kneeBendShot, t)).addScaledVector(forward, 0.04 * t).addScaledVector(side, -0.012 * t);
+  const rightKnee = rightHip.clone().lerp(rightFoot, 0.52).addScaledVector(UP, lerp(0.2, cfg.kneeBendShot * 0.88, t)).addScaledVector(forward, -0.03 * t).addScaledVector(side, 0.014 * t);
+  human.root.visible = true;
+  driveHuman(human, { t, breath, stroke, follow, walkAmount, forward, side, up: UP, rootWorld, torsoCenterWorld: torso, chestCenterWorld: chest, neckWorld: neck, headCenterWorld: head, leftElbow, rightElbow, leftHandWorld: leftHand, rightHandWorld: rightHand, leftKnee, rightKnee, leftFootWorld: leftFoot, rightFootWorld: rightFoot, cueBackWorld: frameData.cueBack || frameData.bridgeTarget || frameData.rootTarget, cueTipWorld: frameData.cueTip || frameData.gripTarget || frameData.rootTarget });
+}
+  return {
+    createBilardoHumanRig,
+    chooseBilardoHumanEdgePosition: chooseHumanEdgePosition,
+    updateBilardoHumanPose
+  };
+})();
+
+// Use stable shared GLTF rig pipeline (known-good loading), while keeping local rig code available for reference.
+const createBilardoHumanRig = sharedCreateBilardoHumanRig;
+const chooseBilardoHumanEdgePosition = sharedChooseBilardoHumanEdgePosition;
+const updateBilardoHumanPose = sharedUpdateBilardoHumanPose;
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 const BASIS_TRANSCODER_PATH =
@@ -1929,19 +2367,350 @@ const CUE_PULL_RETURN_PUSH = 1.22; // accelerate the forward cue drive so push-t
 const CUE_FOLLOW_THROUGH_MIN = BALL_R * 3.9; // keep low-power shots visibly pushing through the cue ball
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so powerful shots visibly punch forward
 const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER; // keep Pool Royale release gate identical to Bilardo Shqip
-// Pool Royale no longer exposes or spawns playable shooter rigs.
-const POOL_ROYALE_REMOVED_SHOOTER_OPTIONS = Object.freeze([]);
-const CUE_EYE_CAMERA_HEIGHT_OFFSET = 0.032;
-const CUE_EYE_CAMERA_FORWARD_OFFSET = BALL_R * 2.34;
-const CUE_EYE_CAMERA_SIDE_OFFSET = -BALL_R * 0.22;
-const CUE_EYE_CAMERA_MIN_BLEND = 0.06;
-const CUE_EYE_CAMERA_SMOOTH = 0.48;
+const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.96; // increase player size so body/table proportions match Bilardo-like framing
+const BILARDO_SHQIP_HUMAN_URL = 'https://threejs.org/examples/models/gltf/Soldier.glb';
+const POOL_ROYALE_VERIFIED_HUMAN_FALLBACK_URLS = Object.freeze([
+  'https://threejs.org/examples/models/gltf/readyplayer.me.glb',
+  'https://models.readyplayer.me/67d411b30787acbf58ce58ac.glb',
+  'https://models.readyplayer.me/67f433b69dc08cf26d2cf585.glb',
+  'https://models.readyplayer.me/67e1b51ae11c93725e4395c9.glb',
+  'https://raw.githubusercontent.com/hmthanh/3d-human-model/main/TranThiNgocTham.glb',
+  'https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar.glb',
+  'https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb',
+  'https://raw.githubusercontent.com/hmthanh/3d-human-model/main/Thanh.glb',
+  'https://threejs.org/examples/models/gltf/Xbot.glb'
+]);
+const POOL_ROYALE_PRIMARY_HUMAN_FALLBACKS_BY_ID = Object.freeze({
+  'rpm-current': ['https://threejs.org/examples/models/gltf/readyplayer.me.glb'],
+  'rpm-67d411': ['https://models.readyplayer.me/67d411b30787acbf58ce58ac.glb'],
+  'rpm-67f433': ['https://models.readyplayer.me/67f433b69dc08cf26d2cf585.glb'],
+  'rpm-67e1b5': ['https://models.readyplayer.me/67e1b51ae11c93725e4395c9.glb'],
+  'webgl-vietnam-human': ['https://raw.githubusercontent.com/hmthanh/3d-human-model/main/TranThiNgocTham.glb'],
+  'webgl-ai-teacher': ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar.glb'],
+  'webgl-ai-teacher-1': ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb'],
+  'webgl-thanh-human': ['https://raw.githubusercontent.com/hmthanh/3d-human-model/main/Thanh.glb'],
+  'threejs-xbot-human': ['https://threejs.org/examples/models/gltf/Xbot.glb']
+});
+const POOL_ROYALE_HUMAN_CHARACTER_STORAGE_KEY = 'poolRoyaleHumanCharacter';
+const POOL_ROYALE_HUMAN_CHARACTER_IDS = Object.freeze([
+  'rpm-current',
+  'rpm-67d411',
+  'rpm-67f433',
+  'rpm-67e1b5',
+  'webgl-vietnam-human',
+  'webgl-ai-teacher',
+  'webgl-ai-teacher-1',
+  'webgl-thanh-human',
+  'threejs-xbot-human'
+]);
+const POOL_ROYALE_HUMAN_LOGIC_PROFILES = Object.freeze({
+  'rpm-current': Object.freeze({
+    label: 'Classic Pro',
+    summary: 'Forward bend: balanced orthodox pool stance with a stable bridge and medium follow-through.',
+    bendMode: 'forward',
+    desiredShootDistance: 1.32,
+    edgeMargin: 0.68,
+    stanceWidth: 0.52,
+    bridgeBack: 0.072,
+    bridgeSide: -0.024,
+    bridgeLift: 0.006,
+    gripFromBack: 0.58,
+    rightElbowRise: 0.18,
+    rightElbowSide: -0.46,
+    rightElbowBack: -0.78,
+    forearmOutward: 0.36,
+    forearmBack: 0.44,
+    forearmDown: 0.48,
+    strokePull: 0.42,
+    strokePush: 0.18,
+    practiceStroke: 0.035,
+    cueGap: 0.012,
+    strikeMs: 120,
+    walkSpeed: 4.0,
+    shootForwardBendScale: 0.62,
+    shootUpperBodyCounterLean: 0.72
+  }),
+  'rpm-67d411': Object.freeze({
+    label: 'Sniper Rail',
+    summary: 'Forward bend: lower chin, longer bridge, slower feather strokes for precision aiming.',
+    bendMode: 'forward',
+    desiredShootDistance: 1.44,
+    edgeMargin: 0.74,
+    stanceWidth: 0.58,
+    bridgeBack: 0.092,
+    bridgeSide: -0.018,
+    bridgeLift: 0.004,
+    gripFromBack: 0.64,
+    rightElbowRise: 0.14,
+    rightElbowSide: -0.40,
+    rightElbowBack: -0.86,
+    forearmOutward: 0.31,
+    forearmBack: 0.5,
+    forearmDown: 0.52,
+    strokePull: 0.5,
+    strokePush: 0.14,
+    practiceStroke: 0.018,
+    cueGap: 0.009,
+    strikeMs: 150,
+    walkSpeed: 3.2,
+    shootForwardBendScale: 0.76,
+    shootUpperBodyCounterLean: 0.56
+  }),
+  'rpm-67f433': Object.freeze({
+    label: 'Power Breaker',
+    summary: 'Forward bend: wide planted feet, deeper backswing and strong forward punch.',
+    bendMode: 'forward',
+    desiredShootDistance: 1.5,
+    edgeMargin: 0.8,
+    stanceWidth: 0.68,
+    bridgeBack: 0.064,
+    bridgeSide: -0.03,
+    bridgeLift: 0.012,
+    gripFromBack: 0.52,
+    rightElbowRise: 0.28,
+    rightElbowSide: -0.54,
+    rightElbowBack: -0.92,
+    forearmOutward: 0.44,
+    forearmBack: 0.58,
+    forearmDown: 0.43,
+    strokePull: 0.62,
+    strokePush: 0.3,
+    practiceStroke: 0.044,
+    cueGap: 0.016,
+    strikeMs: 95,
+    walkSpeed: 4.8,
+    shootForwardBendScale: 0.52,
+    shootUpperBodyCounterLean: 0.9
+  }),
+  'rpm-67e1b5': Object.freeze({
+    label: 'Safety Artist',
+    summary: 'Forward upper-body bend: compact body shape, soft touch and reduced cue travel for defensive control.',
+    bendMode: 'forward',
+    desiredShootDistance: 1.24,
+    edgeMargin: 0.64,
+    stanceWidth: 0.46,
+    bridgeBack: 0.052,
+    bridgeSide: -0.016,
+    bridgeLift: 0.008,
+    gripFromBack: 0.7,
+    rightElbowRise: 0.11,
+    rightElbowSide: -0.34,
+    rightElbowBack: -0.62,
+    forearmOutward: 0.25,
+    forearmBack: 0.34,
+    forearmDown: 0.55,
+    strokePull: 0.28,
+    strokePush: 0.1,
+    practiceStroke: 0.012,
+    cueGap: 0.007,
+    strikeMs: 185,
+    walkSpeed: 2.8,
+    shootForwardBendScale: 0.68,
+    shootUpperBodyCounterLean: 0.42
+  }),
+  'webgl-vietnam-human': Object.freeze({
+    label: 'Natural Shooter',
+    summary: 'Forward upper-body bend: asymmetric bridge hand, quick walk-up and lifelike rehearsal strokes.',
+    bendMode: 'forward',
+    desiredShootDistance: 1.36,
+    edgeMargin: 0.7,
+    stanceWidth: 0.54,
+    bridgeBack: 0.08,
+    bridgeSide: -0.038,
+    bridgeLift: 0.01,
+    gripFromBack: 0.56,
+    rightElbowRise: 0.2,
+    rightElbowSide: -0.5,
+    rightElbowBack: -0.7,
+    forearmOutward: 0.39,
+    forearmBack: 0.42,
+    forearmDown: 0.46,
+    strokePull: 0.46,
+    strokePush: 0.22,
+    practiceStroke: 0.052,
+    cueGap: 0.013,
+    strikeMs: 125,
+    walkSpeed: 4.4,
+    visualYawFix: Math.PI,
+    shootForwardBendScale: 0.58,
+    shootUpperBodyCounterLean: 0.82
+  }),
+  'webgl-ai-teacher': Object.freeze({
+    label: 'Teacher Coach',
+    summary: 'Forward upper-body bend: upright coach stance with a measured cue pull and high elbow.',
+    bendMode: 'forward',
+    desiredShootDistance: 1.4,
+    edgeMargin: 0.72,
+    stanceWidth: 0.5,
+    bridgeBack: 0.075,
+    bridgeSide: -0.026,
+    bridgeLift: 0.009,
+    gripFromBack: 0.62,
+    rightElbowRise: 0.24,
+    rightElbowSide: -0.42,
+    rightElbowBack: -0.74,
+    forearmOutward: 0.34,
+    forearmBack: 0.46,
+    forearmDown: 0.44,
+    strokePull: 0.4,
+    strokePush: 0.16,
+    practiceStroke: 0.026,
+    cueGap: 0.011,
+    strikeMs: 145,
+    walkSpeed: 3.6,
+    visualYawFix: Math.PI,
+    shootForwardBendScale: 0.64,
+    shootUpperBodyCounterLean: 0.68
+  }),
+  'webgl-ai-teacher-1': Object.freeze({
+    label: 'Teacher Smooth',
+    summary: 'Forward upper-body bend: smooth coach stance with grounded feet and a soft bridge.',
+    bendMode: 'forward',
+    desiredShootDistance: 1.38,
+    edgeMargin: 0.72,
+    stanceWidth: 0.56,
+    bridgeBack: 0.085,
+    bridgeSide: -0.02,
+    bridgeLift: 0.007,
+    gripFromBack: 0.66,
+    rightElbowRise: 0.16,
+    rightElbowSide: -0.38,
+    rightElbowBack: -0.82,
+    forearmOutward: 0.3,
+    forearmBack: 0.5,
+    forearmDown: 0.5,
+    strokePull: 0.34,
+    strokePush: 0.12,
+    practiceStroke: 0.02,
+    cueGap: 0.01,
+    strikeMs: 165,
+    walkSpeed: 3.3,
+    visualYawFix: Math.PI,
+    shootForwardBendScale: 0.72,
+    shootUpperBodyCounterLean: 0.52
+  }),
+  'webgl-thanh-human': Object.freeze({
+    label: 'Thanh Precision',
+    summary: 'Forward upper-body bend: compact feet, lower head-over-cue stance and short controlled delivery.',
+    bendMode: 'forward',
+    desiredShootDistance: 1.28,
+    edgeMargin: 0.7,
+    stanceWidth: 0.5,
+    bridgeBack: 0.068,
+    bridgeSide: -0.018,
+    bridgeLift: 0.006,
+    gripFromBack: 0.6,
+    rightElbowRise: 0.18,
+    rightElbowSide: -0.36,
+    rightElbowBack: -0.72,
+    forearmOutward: 0.28,
+    forearmBack: 0.4,
+    forearmDown: 0.54,
+    strokePull: 0.32,
+    strokePush: 0.13,
+    practiceStroke: 0.018,
+    cueGap: 0.009,
+    strikeMs: 170,
+    walkSpeed: 3.15,
+    shootForwardBendScale: 0.8,
+    shootUpperBodyCounterLean: 0.48
+  }),
+  'threejs-xbot-human': Object.freeze({
+    label: 'Xbot Official',
+    summary: 'Forward upper-body bend: full-body Xbot official kept distinct from Soldier fallbacks.',
+    bendMode: 'forward',
+    desiredShootDistance: 1.42,
+    edgeMargin: 0.78,
+    stanceWidth: 0.54,
+    bridgeBack: 0.08,
+    bridgeSide: -0.02,
+    bridgeLift: 0.008,
+    gripFromBack: 0.62,
+    rightElbowRise: 0.2,
+    rightElbowSide: -0.4,
+    rightElbowBack: -0.76,
+    forearmOutward: 0.32,
+    forearmBack: 0.44,
+    forearmDown: 0.48,
+    strokePull: 0.38,
+    strokePush: 0.15,
+    practiceStroke: 0.02,
+    cueGap: 0.01,
+    strikeMs: 155,
+    walkSpeed: 2.25,
+    shootForwardBendScale: 0.6,
+    shootUpperBodyCounterLean: 0.62
+  })
+});
+const withPoolRoyaleHumanModelFallbacks = (theme = {}, id = theme.id) => {
+  const urls = Array.isArray(theme.modelUrls) && theme.modelUrls.length > 0
+    ? theme.modelUrls
+    : theme.url
+      ? [theme.url]
+      : [];
+  const primaryFallbacks = POOL_ROYALE_PRIMARY_HUMAN_FALLBACKS_BY_ID[id] || [];
+  const rotatedFallbacks = POOL_ROYALE_VERIFIED_HUMAN_FALLBACK_URLS.filter((url) => !primaryFallbacks.includes(url));
+  // Keep each menu option visually different: try its own Murlan/RPM/Xbot source first,
+  // then only use Soldier as the absolute last-resort skeleton.
+  return Array.from(new Set([...urls, ...primaryFallbacks, ...rotatedFallbacks, BILARDO_SHQIP_HUMAN_URL]));
+};
+const POOL_ROYALE_HUMAN_CHARACTER_OPTIONS = Object.freeze(
+  POOL_ROYALE_HUMAN_CHARACTER_IDS.map((id) => {
+    const theme = MURLAN_CHARACTER_THEMES.find((entry) => entry.id === id) || {};
+    const logic = POOL_ROYALE_HUMAN_LOGIC_PROFILES[id] || POOL_ROYALE_HUMAN_LOGIC_PROFILES['rpm-current'];
+    const modelUrls = withPoolRoyaleHumanModelFallbacks(theme, id);
+    return Object.freeze({
+      ...theme,
+      id,
+      label: theme.label || logic.label,
+      logicLabel: logic.label,
+      summary: logic.summary,
+      bendMode: logic.bendMode || 'forward',
+      modelUrl: modelUrls[0] || BILARDO_SHQIP_HUMAN_URL,
+      modelUrls,
+      logic
+    });
+  })
+);
+const resolvePoolRoyaleHumanCharacter = (id) =>
+  POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.find((option) => option.id === id) ||
+  POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0];
+const POOL_ROYALE_HUMAN_UNIT_SCALE = BALL_R / 0.0525;
+const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.85 * POOL_ROYALE_HUMAN_UNIT_SCALE; // make the shooter larger again without returning to the oversized direct scale
 const POOL_ROYALE_LOUNGE_TABLE_RADIUS = BALL_R * 24; // match Murlan Royale's default octagon table proportions at pool-side scale.
 const POOL_ROYALE_LOUNGE_TABLE_HEIGHT = BALL_R * 16.5;
 const POOL_ROYALE_LOUNGE_CHAIR_SPAN = BALL_R * 64; // oversized portrait-readable chairs matching Murlan's default dining-chair asset.
 const POOL_ROYALE_LOUNGE_DISTANCE = BALL_R * 38;
 const POOL_ROYALE_LOUNGE_CHAIR_OFFSET = BALL_R * 54;
+// Soldier.glb already faces the billiards rig forward axis; keep the child model unflipped so
+// the visible player faces inward toward the table instead of showing their back in portrait play.
+const POOL_ROYALE_HUMAN_VISUAL_YAW_FIX = Math.PI;
+const HUMAN_PLAYER_IDLE_SWAY_SPEED = 1.2;
+const HUMAN_PLAYER_IDLE_SWAY_ANGLE = 0.04;
+const HUMAN_PLAYER_AIM_LEAN = 0.2;
+const HUMAN_PLAYER_REACT_LEAN = 0.12;
+const HUMAN_POSE_LAMBDA = 9.0;
+const HUMAN_MOVE_LAMBDA = 5.6;
+const HUMAN_ROT_LAMBDA = 8.5;
+const HUMAN_EDGE_MARGIN = 1.86; // push the shooter farther outward so the avatar stays clear of the table edge in portrait
+const HUMAN_DESIRED_SHOOT_DISTANCE = 2.08; // keep the shooter much farther back on the cue-butt side like a real pool stance
+const HUMAN_SHOOT_BLEND_THRESHOLD = 0.96; // enter shooting pose immediately when the portrait cue camera starts lowering
+const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 4.55; // widen the perimeter walk ring so feet never step onto the table mesh
+const HUMAN_TABLE_BLOCKER_MARGIN = TABLE.WALL * 1.95; // collision helper margin so characters never cut through the table body
+const HUMAN_EYE_CAMERA_HEIGHT_OFFSET = 0.032; // lower the low cue camera close to cloth height for portrait aiming
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
+const HUMAN_EYE_CAMERA_FORWARD_OFFSET = BALL_R * 2.34; // move the low cue camera closer toward the table while staying behind the bridge hand
+const HUMAN_EYE_CAMERA_SIDE_OFFSET = -BALL_R * 0.22; // preserve subtle right-eye bias without exposing too much of the avatar body
+const HUMAN_EYE_CAMERA_MIN_BLEND = 0.06; // only engage eye camera when cue view is noticeably lowered
+const HUMAN_EYE_CAMERA_SMOOTH = 0.48; // smooth eye-camera blending into the cue camera for portrait stability
+const HUMAN_BRIDGE_HAND_BACK_FROM_BALL = 0.34; // set the bridge farther behind the cue ball to match real pool hand placement
+const HUMAN_BRIDGE_HAND_SIDE = -0.008; // match Bilardo Shqip bridge hand lateral placement
+const HUMAN_BRIDGE_CUE_LIFT = 0.018; // flatten the cue closer to the cloth like the reference shooting photos
+const HUMAN_GRIP_RATIO = 0.9; // anchor right-hand grip much closer to the cue butt so the hand no longer drifts toward the tip
+const HUMAN_CUE_LENGTH = 1.46; // match Bilardo Shqip cue length used for hand/cue alignment
+const HUMAN_BRIDGE_DIST = 0.24; // match Bilardo Shqip bridge-to-tip section used by cue placement
+const HUMAN_WALK_PERIMETER_SPEED = Math.max(TABLE.W * 0.95, TABLE.H * 0.7); // world units per second when traversing the walk ring
+const HUMAN_WALK_EPS = 1e-5;
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
 const PLAYER_CUE_STRIKE_MAX_MS = 1400;
@@ -3589,7 +4358,11 @@ const POOL_ROYALE_MURLAN_CHAIR_URLS = Object.freeze([
   'https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/dining_chair_02/dining_chair_02_2k.gltf',
   'https://dl.polyhaven.org/file/ph-assets/Models/gltf/4k/dining_chair_02/dining_chair_02_4k.gltf'
 ]);
-
+const POOL_ROYALE_REFEREE_HUMAN_URLS = Object.freeze([
+  'https://threejs.org/examples/models/gltf/Xbot.glb',
+  'https://threejs.org/examples/models/gltf/readyplayer.me.glb',
+  BILARDO_SHQIP_HUMAN_URL
+]);
 
 const DEFAULT_CHROME_COLOR_ID =
   POOL_ROYALE_DEFAULT_UNLOCKS.chromeColor?.[0] ?? 'gold';
@@ -4004,16 +4777,6 @@ const POCKET_LINER_PRESETS = Object.freeze([
     id: 'plastic-black',
     label: 'Plastic Black',
     baseColor: '#151515'
-  }),
-  Object.freeze({
-    id: 'plastic-brown',
-    label: 'Plastic Brown',
-    baseColor: '#2a1207',
-    roughness: 0.88,
-    metalness: 0,
-    clearcoat: 0.18,
-    clearcoatRoughness: 0.42,
-    envMapIntensity: 0.26
   }),
   Object.freeze({
     id: 'plastic-dark-grey',
@@ -12228,30 +12991,6 @@ function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tab
     originalMat.needsUpdate = true;
     return originalMat;
   }
-
-  if (tableModel?.useShowoodReferenceMaterialMapping && role === 'cushion') {
-    // Match the user-supplied Showood reference behavior: keep the GLB cushion UVs/maps,
-    // then tint the rubber so it follows the active Pool Royale cloth family.
-    const cushionMat = material.clone ? material.clone() : material;
-    if (finishInfo.cushionMat?.color && cushionMat.color) {
-      cushionMat.color.copy(finishInfo.cushionMat.color);
-    }
-    if ('metalness' in cushionMat) cushionMat.metalness = 0;
-    if ('roughness' in cushionMat) cushionMat.roughness = 0.88;
-    if ('envMapIntensity' in cushionMat) cushionMat.envMapIntensity = 0.55;
-    if ('clearcoat' in cushionMat) cushionMat.clearcoat = 0;
-    if ('clearcoatRoughness' in cushionMat) cushionMat.clearcoatRoughness = 0;
-    cushionMat.side = THREE.DoubleSide;
-    preparePoolRoyaleExternalTexture(cushionMat.map, true);
-    preparePoolRoyaleExternalTexture(cushionMat.emissiveMap, true);
-    preparePoolRoyaleExternalTexture(cushionMat.aoMap, false);
-    preparePoolRoyaleExternalTexture(cushionMat.normalMap, false);
-    preparePoolRoyaleExternalTexture(cushionMat.roughnessMap, false);
-    preparePoolRoyaleExternalTexture(cushionMat.metalnessMap, false);
-    preparePoolRoyaleExternalTexture(cushionMat.bumpMap, false);
-    cushionMat.needsUpdate = true;
-    return cushionMat;
-  }
   const mat = material.clone ? material.clone() : material;
   const materials = finishInfo.materials || {};
   const finish = TABLE_FINISHES[finishInfo.id] ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
@@ -12378,11 +13117,7 @@ async function loadPoolRoyaleExternalTableTemplate(tableModel, renderer = null) 
   const promise = (async () => {
     const loader = createConfiguredGLTFLoader(renderer);
     let lastError = null;
-    const urls = [
-      tableModel.assetUrl,
-      tableModel.fallbackAssetUrl,
-      ...(Array.isArray(tableModel.fallbackAssetUrls) ? tableModel.fallbackAssetUrls : [])
-    ].filter(Boolean);
+    const urls = [tableModel.assetUrl, tableModel.fallbackAssetUrl].filter(Boolean);
     for (const url of urls) {
       try {
         // eslint-disable-next-line no-await-in-loop
@@ -12611,9 +13346,7 @@ function mountPoolRoyaleExternalTableModel({
       fitPoolRoyaleExternalTableModel(model, tableModel, dims);
       externalRoot.clear();
       externalRoot.add(model);
-      if (!tableModel?.preserveGeneratedTableShell) {
-        setGeneratedVisualsVisible?.(false);
-      }
+      setGeneratedVisualsVisible?.(false);
     })
     .catch((error) => {
       console.warn('Pool Royale external table failed to load; keeping native table', {
@@ -14169,6 +14902,19 @@ function PoolRoyaleGame({
       DEFAULT_TABLE_BASE_ID
     );
   });
+  const [humanCharacterId, setHumanCharacterId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(POOL_ROYALE_HUMAN_CHARACTER_STORAGE_KEY);
+      if (stored && POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.some((option) => option.id === stored)) {
+        return stored;
+      }
+    }
+    return POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0]?.id || 'rpm-current';
+  });
+  const activeHumanCharacter = useMemo(
+    () => resolvePoolRoyaleHumanCharacter(humanCharacterId),
+    [humanCharacterId]
+  );
   const [clothColorId, setClothColorId] = useState(() => {
     return resolveStoredSelection(
       'clothColor',
@@ -15930,6 +16676,11 @@ function PoolRoyaleGame({
   }, [tableBaseId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      window.localStorage.setItem(POOL_ROYALE_HUMAN_CHARACTER_STORAGE_KEY, humanCharacterId);
+    }
+  }, [humanCharacterId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
       window.localStorage.setItem(CLOTH_COLOR_STORAGE_KEY, clothColorId);
     }
   }, [clothColorId]);
@@ -15995,12 +16746,23 @@ function PoolRoyaleGame({
   const clearHospitalityLayoutRef = useRef(() => {});
   const decorativeTablesRef = useRef([]);
   const hospitalityGroupsRef = useRef([]);
-  const removedShooterRigsRef = useRef([]);
-  const cueEyePoseRef = useRef(null);
+  const playerCharacterRigsRef = useRef([]);
+  const spawnPlayerCharactersRef = useRef(() => {});
+  const characterTurnFlowRef = useRef({
+    activeSeat: null,
+    pendingSeat: null,
+    seatedBySeat: { A: true, B: true }
+  });
+  const activeHumanCharacterRef = useRef(activeHumanCharacter);
+  const activeHumanCueViewRef = useRef(null);
+  const characterShotStartedAtRef = useRef(0);
+  const characterShotShooterRef = useRef('A');
   const hospitalityLayoutRunRef = useRef(null);
   const chessLoungeTemplateRef = useRef(null);
   const chessChairTemplateRef = useRef(null);
   const chessLoungeLoadRef = useRef(null);
+  const seatedHumanTemplateRef = useRef(null);
+  const seatedHumanLoadRef = useRef(null);
   const hospitalityLoaderRef = useRef(null);
   const refreshSecondaryTableDecorRef = useRef(() => {});
   const clearSecondaryTableDecorRef = useRef(() => {});
@@ -16008,6 +16770,10 @@ function PoolRoyaleGame({
   const secondaryTableRef = useRef(null);
   const secondaryBaseSetterRef = useRef(null);
   const activeTableSlotRef = useRef(initialTableSlot);
+  useEffect(() => {
+    activeHumanCharacterRef.current = activeHumanCharacter;
+    spawnPlayerCharactersRef.current?.();
+  }, [activeHumanCharacter]);
   const playerLabel = playerName || 'Player';
   const effectiveMode = isTraining ? trainingModeState : mode;
   const opponentLabel =
@@ -20375,6 +21141,55 @@ const shotPowerRef = useRef(0);
         return group;
       };
 
+      const ensureSeatedHumanTemplate = async () => {
+        if (seatedHumanTemplateRef.current) {
+          return seatedHumanTemplateRef.current;
+        }
+        if (seatedHumanLoadRef.current) {
+          return seatedHumanLoadRef.current;
+        }
+        seatedHumanLoadRef.current = loadFirstAvailableGltf([BILARDO_SHQIP_HUMAN_URL])
+          .then((gltf) => {
+            const model = gltf?.scene?.clone?.(true) ?? gltf?.scene ?? gltf?.scenes?.[0] ?? null;
+            if (!model) {
+              throw new Error('Missing seated human scene');
+            }
+            model.traverse((child) => {
+              if (!child?.isMesh) return;
+              child.castShadow = true;
+              child.receiveShadow = true;
+              const sourceMaterials = Array.isArray(child.material)
+                ? child.material
+                : [child.material];
+              const fixedMaterials = sourceMaterials.map((sourceMat) => {
+                if (!sourceMat) return sourceMat;
+                const mat = sourceMat.clone?.() ?? sourceMat;
+                applySRGBColorSpace(mat.map);
+                applySRGBColorSpace(mat.emissiveMap);
+                applySRGBColorSpace(mat.aoMap);
+                applySRGBColorSpace(mat.lightMap);
+                if (mat.map) sharpenTexture(mat.map);
+                if (mat.emissiveMap) sharpenTexture(mat.emissiveMap);
+                mat.needsUpdate = true;
+                return mat;
+              });
+              child.material = Array.isArray(child.material)
+                ? fixedMaterials
+                : fixedMaterials[0];
+            });
+            seatedHumanTemplateRef.current = model;
+            return model;
+          })
+          .catch((error) => {
+            console.warn('Failed to load seated human GLB for Pool Royale', error);
+            return null;
+          })
+          .finally(() => {
+            seatedHumanLoadRef.current = null;
+          });
+        return seatedHumanLoadRef.current;
+      };
+
       const createChessLoungeSet = async ({
         chairOffsets,
         position = [0, 0],
@@ -21035,23 +21850,23 @@ const shotPowerRef = useRef(0);
           return vec;
         };
 
-        const resolveCueEyePose = () => {
+        const resolveActiveHumanEyePose = () => {
           if (topViewRef.current || shootingRef.current || replayPlaybackRef.current) return null;
           const cueBlend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
           const cueBias = 1 - cueBlend;
-          if (cueBias <= CUE_EYE_CAMERA_MIN_BLEND) return null;
-          const cuePose = cueEyePoseRef.current;
+          if (cueBias <= HUMAN_EYE_CAMERA_MIN_BLEND) return null;
+          const cuePose = activeHumanCueViewRef.current;
           if (!cuePose?.cueBack || !cuePose?.bridgeTarget || !cuePose?.aimForward || !cuePose?.side) {
             return null;
           }
           const eyePos = cuePose.cueBack
             .clone()
-            .addScaledVector(cuePose.aimForward, CUE_EYE_CAMERA_FORWARD_OFFSET)
-            .addScaledVector(cuePose.side, CUE_EYE_CAMERA_SIDE_OFFSET)
-            .addScaledVector(WORLD_UP, CUE_EYE_CAMERA_HEIGHT_OFFSET);
+            .addScaledVector(cuePose.aimForward, HUMAN_EYE_CAMERA_FORWARD_OFFSET)
+            .addScaledVector(cuePose.side, HUMAN_EYE_CAMERA_SIDE_OFFSET)
+            .addScaledVector(WORLD_UP, HUMAN_EYE_CAMERA_HEIGHT_OFFSET);
           return {
             blend: THREE.MathUtils.clamp(
-              (cueBias - CUE_EYE_CAMERA_MIN_BLEND) / (1 - CUE_EYE_CAMERA_MIN_BLEND),
+              (cueBias - HUMAN_EYE_CAMERA_MIN_BLEND) / (1 - HUMAN_EYE_CAMERA_MIN_BLEND),
               0,
               1
             ),
@@ -22284,10 +23099,10 @@ const shotPowerRef = useRef(0);
               syncBlendToSpherical();
             }
           }
-          const cueEyePose = resolveCueEyePose();
-          if (cueEyePose) {
+          const humanEyePose = resolveActiveHumanEyePose();
+          if (humanEyePose) {
             const lerpT = THREE.MathUtils.clamp(
-              cueEyePose.blend * CUE_EYE_CAMERA_SMOOTH,
+              humanEyePose.blend * HUMAN_EYE_CAMERA_SMOOTH,
               0,
               1
             );
@@ -22295,7 +23110,7 @@ const shotPowerRef = useRef(0);
               const preservedViewDir = lookTarget
                 ? lookTarget.clone().sub(camera.position)
                 : null;
-              camera.position.lerp(cueEyePose.position, lerpT);
+              camera.position.lerp(humanEyePose.position, lerpT);
               if (preservedViewDir && preservedViewDir.lengthSq() > 1e-8) {
                 lookTarget = camera.position.clone().add(preservedViewDir);
               }
@@ -25088,7 +25903,934 @@ const shotPowerRef = useRef(0);
       updateHospitalityLayoutRef.current = layoutHospitalityGroups;
       clearHospitalityLayoutRef.current = disposeHospitalityGroups;
       layoutHospitalityGroups(environmentHdriRef.current);
-      // Playable shooter rigs were removed for Pool Royale.
+      const disposePlayerCharacters = () => {
+        playerCharacterRigsRef.current.forEach((rig) => {
+          if (rig?.group?.parent) {
+            rig.group.parent.remove(rig.group);
+          }
+          if (rig?.human) {
+            [rig.human.root, rig.human.modelRoot, rig.human.fallback].forEach((node) => {
+              if (node?.parent) node.parent.remove(node);
+            });
+          }
+          if (rig?.heldCue?.parent) {
+            rig.heldCue.parent.remove(rig.heldCue);
+          }
+        });
+        playerCharacterRigsRef.current = [];
+      };
+
+      const setHumanoidSegment = (mesh, from, to, radius) => {
+        if (!mesh || !from || !to) return;
+        const dir = new THREE.Vector3().subVectors(to, from);
+        const len = Math.max(1e-4, dir.length());
+        mesh.position.copy(from).addScaledVector(dir, 0.5);
+        dir.normalize();
+        mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+        mesh.scale.set(radius, len, radius);
+      };
+
+      const makeHumanoidBasis = (side, forward) => {
+        const basis = new THREE.Matrix4();
+        const up = new THREE.Vector3(0, 1, 0);
+        basis.makeBasis(side.clone().normalize(), up, forward.clone().normalize());
+        return new THREE.Quaternion().setFromRotationMatrix(basis);
+      };
+
+      const createBridgeHandGroup = (skinMat) => {
+        const group = new THREE.Group();
+        const palm = new THREE.Mesh(new THREE.BoxGeometry(0.165, 0.022, 0.115), skinMat);
+        palm.position.set(0, 0.012, 0.01);
+        group.add(palm);
+        [-0.058, -0.02, 0.018, 0.056].forEach((x, i) => {
+          const finger = new THREE.Mesh(new THREE.BoxGeometry(0.026, 0.018, i === 1 ? 0.18 : 0.16), skinMat);
+          finger.position.set(x, 0.018, 0.118);
+          finger.rotation.y = (i - 1.5) * 0.13;
+          group.add(finger);
+        });
+        const cueGuide = new THREE.Mesh(new THREE.BoxGeometry(0.032, 0.038, 0.17), skinMat);
+        cueGuide.position.set(-0.01, 0.043, 0.095);
+        cueGuide.rotation.z = -0.08;
+        group.add(cueGuide);
+        const thumb = new THREE.Mesh(new THREE.BoxGeometry(0.034, 0.02, 0.13), skinMat);
+        thumb.position.set(0.09, 0.026, 0.03);
+        thumb.rotation.y = -0.75;
+        group.add(thumb);
+        group.traverse((child) => {
+          if (!child?.isMesh) return;
+          child.castShadow = true;
+          child.receiveShadow = true;
+        });
+        return group;
+      };
+
+      const createGripHandGroup = (skinMat) => {
+        const group = new THREE.Group();
+        const palm = new THREE.Mesh(new THREE.SphereGeometry(0.047, 18, 18), skinMat);
+        palm.scale.set(1.15, 0.9, 0.85);
+        group.add(palm);
+        for (let i = 0; i < 4; i++) {
+          const finger = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.054, 0.018), skinMat);
+          finger.position.set(-0.032 + i * 0.021, -0.006, 0.045);
+          finger.rotation.x = 0.85;
+          group.add(finger);
+        }
+        group.traverse((child) => {
+          if (!child?.isMesh) return;
+          child.castShadow = true;
+          child.receiveShadow = true;
+        });
+        return group;
+      };
+
+      const fitPlayerHumanModelHeight = (model, targetHeight) => {
+        if (!model || !Number.isFinite(targetHeight) || targetHeight <= 0) return;
+        model.updateMatrixWorld(true);
+        const box = new THREE.Box3().setFromObject(model);
+        const size = box.getSize(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3());
+        const sourceHeight = Math.max(size.y, 1e-4);
+        const scale = targetHeight / sourceHeight;
+        model.scale.setScalar(scale);
+        model.rotation.set(0, Math.PI, 0);
+        model.position.set(-center.x * scale, -box.min.y * scale, -center.z * scale);
+        model.updateMatrixWorld(true);
+      };
+
+      const createPlayerCharacterRig = ({ seat = 'A', x = 0, z = 0, facingY = 0, template = null } = {}) => {
+        const rigGroup = new THREE.Group();
+        rigGroup.position.set(x, floorY, z);
+        rigGroup.rotation.y = facingY;
+
+        const humanHeight = TABLE.H * HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE;
+        const scale = (humanHeight / 1.82) * POOL_ROYALE_HUMAN_SCALE_MULTIPLIER;
+        const skinMat = new THREE.MeshStandardMaterial({ color: 0xe4bf9d, roughness: 0.82 });
+        const bridgeHand = createBridgeHandGroup(skinMat);
+        const gripHand = createGripHandGroup(skinMat);
+        bridgeHand.scale.setScalar(scale);
+        gripHand.scale.setScalar(scale);
+        rigGroup.add(bridgeHand);
+        rigGroup.add(gripHand);
+        if (template) {
+          const avatar = template.clone(true);
+          fitPlayerHumanModelHeight(avatar, humanHeight);
+          avatar.traverse((child) => {
+            if (!child?.isMesh) return;
+            child.castShadow = true;
+            child.receiveShadow = true;
+            child.frustumCulled = false;
+          });
+          rigGroup.add(avatar);
+          rigGroup.userData.anim = {
+            seat,
+            mode: 'idle',
+            intensity: 0,
+            humanHeight,
+            scale,
+            model: avatar,
+            poseT: 0,
+            walkT: 0,
+            yaw: facingY,
+            rootTarget: new THREE.Vector3(x, floorY, z),
+            bridgeHand,
+            gripHand,
+            usesFallbackRig: false
+          };
+          return rigGroup;
+        }
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0x374151, roughness: 0.78 });
+        const vestMat = new THREE.MeshStandardMaterial({ color: seat === 'A' ? 0x1f2d5a : 0x111827, roughness: 0.7 });
+        const shoeMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.64 });
+
+        const pelvis = new THREE.Mesh(new THREE.BoxGeometry(0.3 * scale, 0.2 * scale, 0.19 * scale), vestMat);
+        const torso = new THREE.Mesh(new THREE.BoxGeometry(0.34 * scale, 0.42 * scale, 0.22 * scale), bodyMat);
+        const chest = new THREE.Mesh(new THREE.BoxGeometry(0.4 * scale, 0.34 * scale, 0.23 * scale), vestMat);
+        const neck = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 16), skinMat);
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.12 * scale, 22, 22), skinMat);
+
+        const leftUpperArm = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 16), bodyMat);
+        const leftLowerArm = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 16), bodyMat);
+        const rightUpperArm = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 16), bodyMat);
+        const rightLowerArm = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 16), bodyMat);
+
+        const leftUpperLeg = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 16), vestMat);
+        const leftLowerLeg = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 16), vestMat);
+        const rightUpperLeg = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 16), vestMat);
+        const rightLowerLeg = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 16), vestMat);
+
+        const leftFoot = new THREE.Mesh(new THREE.BoxGeometry(0.1 * scale, 0.055 * scale, 0.22 * scale), shoeMat);
+        const rightFoot = new THREE.Mesh(new THREE.BoxGeometry(0.1 * scale, 0.055 * scale, 0.22 * scale), shoeMat);
+
+        [
+          pelvis,
+          torso,
+          chest,
+          neck,
+          head,
+          leftUpperArm,
+          leftLowerArm,
+          rightUpperArm,
+          rightLowerArm,
+          leftUpperLeg,
+          leftLowerLeg,
+          rightUpperLeg,
+          rightLowerLeg,
+          leftFoot,
+          rightFoot
+        ].forEach((mesh) => {
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+          rigGroup.add(mesh);
+        });
+
+        rigGroup.add(bridgeHand);
+        rigGroup.add(gripHand);
+
+        rigGroup.userData.anim = {
+          seat,
+          mode: 'idle',
+          intensity: 0,
+          pelvis,
+          torso,
+          chest,
+          neck,
+          head,
+          leftUpperArm,
+          leftLowerArm,
+          rightUpperArm,
+          rightLowerArm,
+          leftUpperLeg,
+          leftLowerLeg,
+          rightUpperLeg,
+          rightLowerLeg,
+          bridgeHand,
+          gripHand,
+          leftFoot,
+          rightFoot,
+          humanHeight,
+          scale,
+          poseT: 0,
+          walkT: 0,
+          yaw: facingY,
+          rootTarget: new THREE.Vector3(x, floorY, z),
+          usesFallbackRig: false
+        };
+        return rigGroup;
+      };
+
+      let setCueStickFromHumanCuePose = null;
+
+      const createHumanHeldCueMesh = () => {
+        const group = new THREE.Group();
+        const heldCueLen = 1.5 * (BALL_R / 0.0525) * CUE_LENGTH_MULTIPLIER;
+        const shaft = new THREE.Mesh(
+          new THREE.CylinderGeometry(BALL_R * 0.12, BALL_R * 0.18, heldCueLen, 16),
+          new THREE.MeshStandardMaterial({ color: 0xc89b62, roughness: 0.42, metalness: 0.04 })
+        );
+        shaft.rotation.x = Math.PI / 2;
+        shaft.castShadow = true;
+        shaft.receiveShadow = true;
+        group.add(shaft);
+        group.visible = false;
+        group.userData.setFromBackTip = (back, tip) => {
+          if (!back || !tip) return;
+          const dir = tip.clone().sub(back);
+          if (dir.lengthSq() < 1e-8) return;
+          dir.normalize();
+          group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
+          group.position.copy(back).add(tip).multiplyScalar(0.5);
+          group.visible = true;
+        };
+        return group;
+      };
+
+      const createWaterServiceProps = (tableTopY = BALL_R * 6.2) => {
+        const group = new THREE.Group();
+        const waterMat = new THREE.MeshPhysicalMaterial({ color: 0xbdeaff, transparent: true, opacity: 0.62, roughness: 0.08, metalness: 0, transmission: 0.35 });
+        const glassMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: 0.34, roughness: 0.04, metalness: 0, transmission: 0.55 });
+        const bottle = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 0.62, BALL_R * 0.74, BALL_R * 3.9, 20), waterMat);
+        bottle.position.set(-BALL_R * 2.15, tableTopY + BALL_R * 2.0, -BALL_R * 0.45);
+        const glass = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 0.82, BALL_R * 0.68, BALL_R * 1.85, 20), glassMat);
+        glass.position.set(BALL_R * 2.0, tableTopY + BALL_R * 0.9, BALL_R * 0.55);
+        const water = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 0.66, BALL_R * 0.56, BALL_R * 0.88, 20), waterMat);
+        water.position.set(0, -BALL_R * 0.18, 0);
+        glass.add(water);
+        [bottle, glass].forEach((mesh) => {
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+          group.add(mesh);
+        });
+        group.userData.glass = glass;
+        group.userData.glassBase = glass.position.clone();
+        return group;
+      };
+
+      const fitAssetToSpan = (asset, targetSpan, { ground = true } = {}) => {
+        if (!asset) return asset;
+        const box = new THREE.Box3().setFromObject(asset);
+        const size = box.getSize(new THREE.Vector3());
+        const span = Math.max(size.x || 0, size.z || 0, size.y || 0);
+        if (span > 1e-6 && Number.isFinite(targetSpan)) {
+          asset.scale.multiplyScalar(targetSpan / span);
+        }
+        if (ground) {
+          const groundedBox = new THREE.Box3().setFromObject(asset);
+          asset.position.y += -groundedBox.min.y;
+        }
+        return asset;
+      };
+
+      const createFallbackPoolSideFurniture = (seat, zSign, tableTopY) => {
+        const group = new THREE.Group();
+        const woodMat = new THREE.MeshStandardMaterial({ color: 0x5b351f, roughness: 0.62, metalness: 0.05 });
+        const seatMat = new THREE.MeshStandardMaterial({ color: seat === 'A' ? 0x0f766e : 0x7c2d12, roughness: 0.55, metalness: 0.08 });
+        const tableTop = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 18.4, BALL_R * 18.9, BALL_R * 1.45, 64), woodMat);
+        tableTop.position.set(0, tableTopY, 0);
+        const tablePedestal = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 2.05, BALL_R * 2.9, tableTopY, 32), woodMat);
+        tablePedestal.position.set(0, tableTopY * 0.5, 0);
+        const chairSeat = new THREE.Mesh(new THREE.BoxGeometry(BALL_R * 19.6, BALL_R * 2.05, BALL_R * 16.8), seatMat);
+        chairSeat.position.set(0, BALL_R * 4.4, zSign * BALL_R * 37.5);
+        const chairBack = new THREE.Mesh(new THREE.BoxGeometry(BALL_R * 19.6, BALL_R * 15.8, BALL_R * 2.05), seatMat);
+        chairBack.position.set(0, BALL_R * 11.2, zSign * BALL_R * 46.0);
+        [tableTop, tablePedestal, chairSeat, chairBack].forEach((mesh) => {
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+          group.add(mesh);
+        });
+        group.userData.tableMeshes = [tableTop, tablePedestal];
+        group.userData.chairMeshes = [chairSeat, chairBack];
+        return group;
+      };
+
+      const createPoolSideLounge = (seat, zSign) => {
+        const group = new THREE.Group();
+        group.userData.seat = seat;
+        const z = zSign * (TABLE.H / 2 + POOL_ROYALE_LOUNGE_DISTANCE);
+        const x = 0;
+        group.position.set(x, floorY, z);
+        group.rotation.y = 0;
+
+        const tableTopY = POOL_ROYALE_LOUNGE_TABLE_HEIGHT;
+        const chairLocalZ = zSign * POOL_ROYALE_LOUNGE_CHAIR_OFFSET;
+        const fallbackFurniture = createFallbackPoolSideFurniture(seat, zSign, tableTopY);
+        fallbackFurniture.name = `PoolRoyale_${seat}_VisibleLoungeFallback`;
+        group.add(fallbackFurniture);
+
+        const murlanDefaultTable = new THREE.Group();
+        murlanDefaultTable.name = `PoolRoyale_${seat}_MurlanDefaultOctagonTable`;
+        try {
+          createMurlanStyleTable({
+            THREE,
+            arena: murlanDefaultTable,
+            renderer,
+            tableRadius: POOL_ROYALE_LOUNGE_TABLE_RADIUS,
+            tableHeight: tableTopY,
+            includeBase: true
+          });
+          group.add(murlanDefaultTable);
+          fallbackFurniture.userData?.tableMeshes?.forEach((mesh) => {
+            mesh.visible = false;
+          });
+        } catch (error) {
+          console.warn('Failed to create Pool Royale Murlan default lounge table', error);
+        }
+
+        loadFirstAvailableGltf(POOL_ROYALE_MURLAN_CHAIR_URLS).then((chairGltf) => {
+          if (!group.parent) return;
+          const chairModel = chairGltf?.scene?.clone?.(true) ?? chairGltf?.scene ?? null;
+          if (!chairModel) return;
+          markHospitalityMaterials(chairModel);
+          fitAssetToSpan(chairModel, POOL_ROYALE_LOUNGE_CHAIR_SPAN);
+          chairModel.position.set(0, chairModel.position.y, chairLocalZ);
+          const toTable = new THREE.Vector2(-chairModel.position.x, -chairModel.position.z);
+          chairModel.rotation.y = Math.atan2(toTable.x, toTable.y);
+          group.add(chairModel);
+          fallbackFurniture.visible = false;
+        }).catch((error) => {
+          console.warn('Failed to upgrade Pool Royale lounge chair GLTF asset', error);
+        });
+
+        const serviceProps = createWaterServiceProps(tableTopY);
+        group.add(serviceProps);
+        group.userData.chairRoot = new THREE.Vector3(x, floorY, z + chairLocalZ);
+        group.userData.chairFacing = new THREE.Vector3(0, 0, -zSign).normalize();
+        group.userData.chairSeatWorld = new THREE.Vector3(x, floorY, z + chairLocalZ);
+        group.userData.glass = serviceProps.userData.glass;
+        group.userData.glassBase = serviceProps.userData.glassBase.clone();
+        return group;
+      };
+
+      const createFallbackRefereeOfficial = () => {
+        const group = new THREE.Group();
+        const black = new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 0.5, metalness: 0.04 });
+        const white = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.46, metalness: 0.02 });
+        const skin = new THREE.MeshStandardMaterial({ color: 0xc9906e, roughness: 0.6, metalness: 0.01 });
+        const torso = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 1.0, BALL_R * 1.15, BALL_R * 4.4, 16), white);
+        torso.position.y = BALL_R * 6.1;
+        const vest = new THREE.Mesh(new THREE.BoxGeometry(BALL_R * 1.9, BALL_R * 3.4, BALL_R * 0.28), black);
+        vest.position.set(0, BALL_R * 6.25, -BALL_R * 0.72);
+        const head = new THREE.Mesh(new THREE.SphereGeometry(BALL_R * 0.92, 18, 12), skin);
+        head.position.y = BALL_R * 8.9;
+        const leftLeg = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 0.34, BALL_R * 0.38, BALL_R * 3.8, 12), black);
+        leftLeg.position.set(-BALL_R * 0.55, BALL_R * 2.8, 0);
+        const rightLeg = leftLeg.clone();
+        rightLeg.position.x = BALL_R * 0.55;
+        const rightArm = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 0.22, BALL_R * 0.28, BALL_R * 3.2, 10), white);
+        rightArm.position.set(BALL_R * 1.35, BALL_R * 6.0, 0);
+        rightArm.rotation.z = THREE.MathUtils.degToRad(-10);
+        [torso, vest, head, leftLeg, rightLeg, rightArm].forEach((mesh) => {
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+          group.add(mesh);
+        });
+        return group;
+      };
+
+      const createRefereeOfficial = async () => {
+        const group = new THREE.Group();
+        const gltf = await loadFirstAvailableGltf(POOL_ROYALE_REFEREE_HUMAN_URLS).catch(() => null);
+        const model = gltf?.scene?.clone?.(true) ?? gltf?.scene ?? null;
+        if (model) {
+          model.traverse((child) => {
+            if (!child?.isMesh) return;
+            child.castShadow = true;
+            child.receiveShadow = true;
+            const materials = Array.isArray(child.material) ? child.material : [child.material];
+            const key = `${child.name || ''} ${materials.map((mat) => mat?.name || '').join(' ')}`.toLowerCase();
+            const cloned = materials.map((mat) => {
+              const next = mat?.clone?.() ?? new THREE.MeshStandardMaterial();
+              if (key.includes('shirt') || key.includes('top') || key.includes('torso') || key.includes('body')) {
+                next.color?.setHex?.(0xf8fafc);
+              }
+              if (key.includes('pant') || key.includes('leg') || key.includes('shoe') || key.includes('boot')) {
+                next.color?.setHex?.(0x050505);
+              }
+              next.roughness = Math.max(next.roughness ?? 0.5, 0.46);
+              next.needsUpdate = true;
+              return next;
+            });
+            child.material = Array.isArray(child.material) ? cloned : cloned[0];
+          });
+          fitAssetToSpan(model, BALL_R * 18.5);
+          group.add(model);
+        } else {
+          group.add(createFallbackRefereeOfficial());
+        }
+        group.position.set(TABLE.W / 2 + BALL_R * 16, floorY, 0);
+        group.userData.referee = true;
+        group.userData.walkT = 0;
+        group.userData.gltfReferee = Boolean(model);
+        return group;
+      };
+
+      const spawnPlayerCharacters = async () => {
+        disposePlayerCharacters();
+        // Pool Royale no longer renders human player/referee characters or
+        // Murlan lounge tables around the active table; keep the cue and game
+        // logic fully functional without spawning those decorative rigs.
+        playerCharacterRigsRef.current = [];
+        activeHumanCueViewRef.current = null;
+      };
+      spawnPlayerCharactersRef.current = spawnPlayerCharacters;
+
+      const updatePlayerCharacters = (nowMs, dtSeconds) => {
+        const rigs = playerCharacterRigsRef.current;
+        activeHumanCueViewRef.current = null;
+        if (!Array.isArray(rigs) || rigs.length === 0) return;
+        const hudState = hudRef.current;
+        const isReplay = Boolean(replayPlaybackRef.current);
+        const isShotActive = Boolean(shootingRef.current);
+        const rawActiveSeat = hudState?.turn === 1 ? 'B' : 'A';
+        const turnFlow = characterTurnFlowRef.current || {
+          activeSeat: null,
+          pendingSeat: null,
+          seatedBySeat: { A: true, B: true }
+        };
+        if (!turnFlow.activeSeat) turnFlow.activeSeat = rawActiveSeat;
+        if (rawActiveSeat !== turnFlow.activeSeat) {
+          turnFlow.pendingSeat = rawActiveSeat;
+        }
+        if (turnFlow.pendingSeat && turnFlow.seatedBySeat?.[turnFlow.activeSeat]) {
+          turnFlow.activeSeat = turnFlow.pendingSeat;
+          turnFlow.pendingSeat = null;
+        }
+        characterTurnFlowRef.current = turnFlow;
+        const activeSeat = turnFlow.activeSeat || rawActiveSeat;
+        const shotSeat = characterShotShooterRef.current === 'B' ? 'B' : 'A';
+        const shotAge = Math.max(0, nowMs - (characterShotStartedAtRef.current || nowMs));
+
+        const cueBall = cueRef.current;
+        const aimDir2 = aimDirRef.current;
+        const hasAim = cueBall?.pos && aimDir2 && Number.isFinite(aimDir2.x) && Number.isFinite(aimDir2.y) && aimDir2.lengthSq?.() > 1e-6;
+        const normalizedAim = hasAim ? aimDir2.clone().normalize() : new THREE.Vector2(0, -1);
+        const cueWorld = hasAim ? new THREE.Vector3(cueBall.pos.x, floorY, cueBall.pos.y) : new THREE.Vector3(0, floorY, 0);
+
+        const chooseEdgeTarget = (forward2) => {
+          const desired = cueWorld.clone().add(new THREE.Vector3(
+            -forward2.x * HUMAN_DESIRED_SHOOT_DISTANCE,
+            0,
+            -forward2.y * HUMAN_DESIRED_SHOOT_DISTANCE
+          ));
+          const xEdge = TABLE.W / 2 + HUMAN_EDGE_MARGIN;
+          const zEdge = TABLE.H / 2 + HUMAN_EDGE_MARGIN;
+          const candidates = [
+            new THREE.Vector3(-xEdge, floorY, THREE.MathUtils.clamp(desired.z, -zEdge, zEdge)),
+            new THREE.Vector3(xEdge, floorY, THREE.MathUtils.clamp(desired.z, -zEdge, zEdge)),
+            new THREE.Vector3(THREE.MathUtils.clamp(desired.x, -xEdge, xEdge), floorY, -zEdge),
+            new THREE.Vector3(THREE.MathUtils.clamp(desired.x, -xEdge, xEdge), floorY, zEdge)
+          ];
+          return candidates.reduce((best, candidate) =>
+            candidate.distanceToSquared(desired) < best.distanceToSquared(desired) ? candidate : best
+          );
+        };
+        const walkHalfX = TABLE.W / 2 + HUMAN_WALK_RING_MARGIN;
+        const walkHalfZ = TABLE.H / 2 + HUMAN_WALK_RING_MARGIN;
+        const blockerHalfX = TABLE.W / 2 + HUMAN_TABLE_BLOCKER_MARGIN;
+        const blockerHalfZ = TABLE.H / 2 + HUMAN_TABLE_BLOCKER_MARGIN;
+        const clampToWalkPerimeter = (point) => {
+          const px = Number.isFinite(point?.x) ? point.x : 0;
+          const pz = Number.isFinite(point?.z) ? point.z : 0;
+          const absX = Math.abs(px);
+          const absZ = Math.abs(pz);
+          const onX = absX / Math.max(HUMAN_WALK_EPS, walkHalfX);
+          const onZ = absZ / Math.max(HUMAN_WALK_EPS, walkHalfZ);
+          if (onX >= onZ) {
+            return new THREE.Vector3(
+              Math.sign(px || 1) * walkHalfX,
+              floorY,
+              THREE.MathUtils.clamp(pz, -walkHalfZ, walkHalfZ)
+            );
+          }
+          return new THREE.Vector3(
+            THREE.MathUtils.clamp(px, -walkHalfX, walkHalfX),
+            floorY,
+            Math.sign(pz || 1) * walkHalfZ
+          );
+        };
+        const pointToPerimeterT = (point) => {
+          const clamped = clampToWalkPerimeter(point);
+          const x = clamped.x;
+          const z = clamped.z;
+          const perim = 4 * (walkHalfX + walkHalfZ);
+          if (Math.abs(x + walkHalfX) < 1e-4) {
+            return THREE.MathUtils.clamp((z + walkHalfZ), 0, 2 * walkHalfZ) / perim;
+          }
+          if (Math.abs(z - walkHalfZ) < 1e-4) {
+            return (2 * walkHalfZ + THREE.MathUtils.clamp((x + walkHalfX), 0, 2 * walkHalfX)) / perim;
+          }
+          if (Math.abs(x - walkHalfX) < 1e-4) {
+            return (2 * walkHalfZ + 2 * walkHalfX + THREE.MathUtils.clamp((walkHalfZ - z), 0, 2 * walkHalfZ)) / perim;
+          }
+          return (
+            2 * walkHalfZ +
+            2 * walkHalfX +
+            2 * walkHalfZ +
+            THREE.MathUtils.clamp((walkHalfX - x), 0, 2 * walkHalfX)
+          ) / perim;
+        };
+        const perimeterTToPoint = (t) => {
+          const perim = 4 * (walkHalfX + walkHalfZ);
+          let dist = THREE.MathUtils.euclideanModulo(t, 1) * perim;
+          if (dist <= 2 * walkHalfZ) {
+            return new THREE.Vector3(-walkHalfX, floorY, -walkHalfZ + dist);
+          }
+          dist -= 2 * walkHalfZ;
+          if (dist <= 2 * walkHalfX) {
+            return new THREE.Vector3(-walkHalfX + dist, floorY, walkHalfZ);
+          }
+          dist -= 2 * walkHalfX;
+          if (dist <= 2 * walkHalfZ) {
+            return new THREE.Vector3(walkHalfX, floorY, walkHalfZ - dist);
+          }
+          dist -= 2 * walkHalfZ;
+          return new THREE.Vector3(walkHalfX - dist, floorY, -walkHalfZ);
+        };
+        const isInsideTableBlocker = (point) =>
+          Math.abs(point?.x ?? 0) < blockerHalfX && Math.abs(point?.z ?? 0) < blockerHalfZ;
+
+        const desiredRoot = chooseEdgeTarget(normalizedAim);
+        const loungeBySeat = new Map();
+        rigs.forEach((entry) => {
+          if (entry?.referee && entry.group) {
+            const halfX = TABLE.W / 2 + BALL_R * 18;
+            const halfZ = TABLE.H / 2 + BALL_R * 34;
+            const cueBallInHand = Boolean(hudState?.inHand);
+            const activeSeatSign = activeSeat === 'A' ? -1 : 1;
+            const oppositeSeatSign = -activeSeatSign;
+            const target = cueBallInHand && cueBall?.pos
+              ? new THREE.Vector3(cueBall.pos.x + BALL_R * 7, floorY, cueBall.pos.y + oppositeSeatSign * BALL_R * 10)
+              : new THREE.Vector3(TABLE.W / 2 + BALL_R * 15, floorY, oppositeSeatSign * (TABLE.H / 2 + BALL_R * 20));
+            entry.group.position.lerp(target, 1 - Math.exp(-1.6 * dtSeconds));
+            entry.group.position.x = THREE.MathUtils.clamp(entry.group.position.x, -halfX, halfX);
+            entry.group.position.z = THREE.MathUtils.clamp(entry.group.position.z, -halfZ, halfZ);
+            const lookTarget = cueBall?.pos
+              ? new THREE.Vector3(cueBall.pos.x, entry.group.position.y, cueBall.pos.y)
+              : new THREE.Vector3(0, entry.group.position.y, 0);
+            entry.group.lookAt(lookTarget);
+            return;
+          }
+          if (!entry?.lounge || !entry.group) return;
+          loungeBySeat.set(entry.seat, entry.group);
+          const glass = entry.group.userData?.glass;
+          const base = entry.group.userData?.glassBase;
+          if (glass && base) {
+            const sip = (Math.sin(nowMs * 0.00075 + (entry.seat === 'A' ? 0 : Math.PI)) + 1) * 0.5;
+            const lift = sip > 0.86 ? (sip - 0.86) / 0.14 : 0;
+            glass.position.copy(base);
+            glass.position.y += lift * BALL_R * 2.0;
+            glass.position.z += (entry.seat === 'A' ? -1 : 1) * lift * BALL_R * 1.6;
+          }
+        });
+
+        rigs.forEach((rig) => {
+          const anim = rig?.anim;
+          const human = rig?.human;
+          const seat = anim?.seat ?? rig?.seat;
+          if (!anim && !human) return;
+          const singleHumanMode = rigs.length === 1;
+          const isShooter = singleHumanMode ? true : anim?.seat === activeSeat;
+          const isHumanShooter = singleHumanMode ? true : seat === activeSeat;
+          const cameraBlend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
+          const loweredCueCamera = cameraBlend <= HUMAN_SHOOT_BLEND_THRESHOLD;
+          const draggingSlider = Boolean(sliderInstanceRef.current?.dragging);
+          const sliderPowerActive = (powerRef.current ?? 0) > 0.01;
+          let mode = 'idle';
+          if (isReplay) mode = 'idle';
+          else if (isShotActive && (singleHumanMode || seat === shotSeat) && shotAge < 420) mode = 'strike';
+          else if (isShotActive) mode = 'react';
+          else if (isHumanShooter && (loweredCueCamera || draggingSlider || sliderPowerActive)) mode = 'aim';
+          if (anim) anim.mode = mode;
+
+          if (human) {
+            const behavior = human.userData?.poolRoyaleLogic || activeHumanCharacterRef.current?.logic || POOL_ROYALE_HUMAN_LOGIC_PROFILES['rpm-current'];
+            const aimForward = new THREE.Vector3(normalizedAim.x, 0, normalizedAim.y).normalize();
+            const side = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
+            const desiredRoot = chooseBilardoHumanEdgePosition(cueWorld, aimForward, {
+              tableW: TABLE.W,
+              tableL: TABLE.H,
+              edgeMargin: (behavior.edgeMargin ?? 0.68) * POOL_ROYALE_HUMAN_UNIT_SCALE,
+              desiredShootDistance: (behavior.desiredShootDistance ?? 1.32) * POOL_ROYALE_HUMAN_UNIT_SCALE
+            }).setY(floorY);
+            const perimeterRoot = clampToWalkPerimeter(desiredRoot);
+            if (isInsideTableBlocker(perimeterRoot)) {
+              perimeterRoot.copy(clampToWalkPerimeter(perimeterRoot));
+            }
+            if (!Number.isFinite(human.walkPerimeterT)) {
+              human.walkPerimeterT = pointToPerimeterT(human.root?.position ?? perimeterRoot);
+            }
+            const humanTargetT = pointToPerimeterT(perimeterRoot);
+            const humanLoopDelta =
+              THREE.MathUtils.euclideanModulo(humanTargetT - human.walkPerimeterT + 0.5, 1) - 0.5;
+            const humanMaxStepT =
+              ((behavior.walkSpeed ?? 4.0) * POOL_ROYALE_HUMAN_UNIT_SCALE * Math.max(dtSeconds, 1 / 240)) /
+              (4 * (walkHalfX + walkHalfZ));
+            human.walkPerimeterT = THREE.MathUtils.euclideanModulo(
+              human.walkPerimeterT + THREE.MathUtils.clamp(humanLoopDelta, -humanMaxStepT, humanMaxStepT),
+              1
+            );
+            const walkRoot = perimeterTToPoint(human.walkPerimeterT);
+            const shouldRestAtChair = !isHumanShooter;
+            let walkingToChair = false;
+            let seatedAtChair = false;
+            let chairFacing = null;
+            if (shouldRestAtChair) {
+              const lounge = loungeBySeat.get(seat);
+              const chairRoot = lounge?.userData?.chairRoot;
+              if (chairRoot) {
+                walkRoot.copy(chairRoot);
+                chairFacing = lounge?.userData?.chairFacing?.clone?.() ?? new THREE.Vector3(-chairRoot.x, 0, -chairRoot.z).normalize();
+                walkingToChair = true;
+                seatedAtChair = (human.root?.position?.distanceTo?.(chairRoot) ?? Infinity) <= BALL_R * 5.5;
+              }
+            }
+            turnFlow.seatedBySeat = { ...(turnFlow.seatedBySeat || {}), [seat]: seatedAtChair };
+            characterTurnFlowRef.current = turnFlow;
+            const state = seatedAtChair
+              ? 'seated'
+              : mode === 'strike' ? 'striking' : mode === 'aim' ? 'dragging' : 'idle';
+            const draggingPower = Math.max(0, Math.min(1, powerRef.current ?? 0));
+            const strikingPower = Math.max(0, Math.min(1, shotPowerRef.current ?? draggingPower));
+            const activePower = state === 'dragging' ? draggingPower : strikingPower;
+            const humanUnitScale = POOL_ROYALE_HUMAN_UNIT_SCALE;
+            const pull = (behavior.strokePull ?? 0.42) * humanUnitScale * (1 - Math.pow(1 - activePower, 3));
+            const practiceStroke =
+              state === 'dragging'
+                ? Math.sin(nowMs * 0.012) * (behavior.practiceStroke ?? 0.035) * humanUnitScale * (0.25 + activePower * 0.75)
+                : 0;
+            const strikeNorm = state === 'striking' ? THREE.MathUtils.clamp(shotAge / (behavior.strikeMs ?? 120), 0, 1) : 0;
+            let cueBallGap = (behavior.cueGap ?? 0.012) * humanUnitScale;
+            if (state === 'dragging') cueBallGap += pull + practiceStroke;
+            else if (state === 'striking') {
+              cueBallGap = THREE.MathUtils.lerp(
+                (behavior.cueGap ?? 0.012) * humanUnitScale + pull,
+                Math.max(0.001, (behavior.cueGap ?? 0.012) * 0.1) * humanUnitScale,
+                1 - Math.pow(1 - strikeNorm, 3)
+              );
+            }
+            const bridgeBackFromBall = human?.cfg?.bridgeHandBackFromBall ?? (behavior.bridgeBack ?? 0.072) * humanUnitScale;
+            const bridgeSideOffset = human?.cfg?.bridgeHandSide ?? (behavior.bridgeSide ?? -0.024) * humanUnitScale;
+            const bridgeTarget = cueWorld
+              .clone()
+              // Put the left bridge hand on the cloth right beside the cue ball, like a real pool stance.
+              .addScaledVector(aimForward, -bridgeBackFromBall)
+              .addScaledVector(side, bridgeSideOffset)
+              .setY(TABLE_Y + TABLE.THICK + 0.006 * humanUnitScale);
+            const bridgeCuePoint = bridgeTarget
+              .clone()
+              .addScaledVector(aimForward, 0.014 * humanUnitScale)
+              .add(new THREE.Vector3(0, 0.018 * humanUnitScale, 0));
+            const cueTipShoot = cueWorld
+              .clone()
+              .addScaledVector(aimForward, -(BALL_R + cueBallGap));
+            const cueBackShoot = bridgeCuePoint
+              .clone()
+              .addScaledVector(aimForward, -(cueLen - 0.28 * humanUnitScale - BALL_R - cueBallGap))
+              .add(new THREE.Vector3(0, 0.024 * humanUnitScale, 0));
+            const cueShootDir = cueTipShoot.clone().sub(cueBackShoot).normalize();
+            const shootGripTarget = cueBackShoot
+              .clone()
+              .addScaledVector(cueShootDir, (behavior.gripFromBack ?? 0.58) * humanUnitScale);
+            if (isHumanShooter && state === 'dragging') {
+              activeHumanCueViewRef.current = {
+                cueBack: cueBackShoot.clone(),
+                bridgeTarget: bridgeTarget.clone(),
+                aimForward: aimForward.clone(),
+                side: side.clone()
+              };
+            }
+            const poseForward = chairFacing?.lengthSq?.() > 1e-6 ? chairFacing.normalize() : aimForward;
+            const standingYaw = Math.atan2(-poseForward.x, -poseForward.z);
+            const idleRight = walkRoot
+              .clone()
+              .add(new THREE.Vector3(0.31, 0.8, -0.015).multiplyScalar(humanUnitScale).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw));
+            const idleLeft = walkRoot
+              .clone()
+              .add(new THREE.Vector3(-0.18, 1.08, 0.03).multiplyScalar(humanUnitScale).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw));
+            const idleCueDir = new THREE.Vector3(0.055, 0.965, -0.13)
+              .applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw)
+              .normalize();
+            const idleCueBack = idleRight.clone().addScaledVector(idleCueDir, -0.24 * humanUnitScale);
+            const idleCueTip = idleRight.clone().addScaledVector(idleCueDir, cueLen - 0.24 * humanUnitScale);
+            const cueBack = state === 'idle' ? idleCueBack : cueBackShoot;
+            const cueTip = state === 'idle' ? idleCueTip : cueTipShoot;
+            const gripTarget = state === 'idle' ? idleRight : shootGripTarget;
+            const isFiniteVec3 = (v) =>
+              Number.isFinite(v?.x) && Number.isFinite(v?.y) && Number.isFinite(v?.z);
+            if (
+              !isFiniteVec3(walkRoot) ||
+              !isFiniteVec3(aimForward) ||
+              !isFiniteVec3(bridgeTarget) ||
+              !isFiniteVec3(gripTarget) ||
+              !isFiniteVec3(idleRight) ||
+              !isFiniteVec3(idleLeft) ||
+              !isFiniteVec3(cueBack) ||
+              !isFiniteVec3(cueTip)
+            ) {
+              return;
+            }
+            updateBilardoHumanPose(human, dtSeconds, {
+              state,
+              rootTarget: walkRoot,
+              aimForward: poseForward,
+              bridgeTarget,
+              gripTarget,
+              idleRight,
+              idleLeft,
+              cueBack,
+              cueTip,
+              power: activePower,
+              directRootTarget: walkingToChair
+            });
+            if (rig.heldCue) {
+              if (isHumanShooter) {
+                rig.heldCue.visible = false;
+              } else {
+                rig.heldCue.userData?.setFromBackTip?.(cueBack, cueTip);
+              }
+            }
+            if (!isReplay && isHumanShooter && typeof setCueStickFromHumanCuePose === 'function') {
+              setCueStickFromHumanCuePose(cueBack, cueTip);
+            }
+            return;
+          }
+
+          const targetPose = mode === 'idle' ? 0 : 1;
+          anim.poseT = THREE.MathUtils.lerp(anim.poseT ?? 0, targetPose, 1 - Math.exp(-HUMAN_POSE_LAMBDA * dtSeconds));
+
+          const seatBiasX = anim.seat === 'A' ? -TABLE.W * 0.19 : TABLE.W * 0.19;
+          const seatBiasZ = anim.seat === 'A' ? -TABLE.H * 0.72 : TABLE.H * 0.72;
+          const seatTarget = desiredRoot.clone().lerp(new THREE.Vector3(seatBiasX, floorY, seatBiasZ), 0.42);
+          const perimeterTarget = clampToWalkPerimeter(seatTarget);
+          if (!anim.rootTarget) anim.rootTarget = perimeterTarget.clone();
+          anim.rootTarget.copy(perimeterTarget);
+          if (!Number.isFinite(anim.walkPerimeterT)) {
+            anim.walkPerimeterT = pointToPerimeterT(rig.group.position);
+          }
+          const targetT = pointToPerimeterT(anim.rootTarget);
+          const loopDelta = THREE.MathUtils.euclideanModulo(targetT - anim.walkPerimeterT + 0.5, 1) - 0.5;
+          const maxStepT = (HUMAN_WALK_PERIMETER_SPEED * Math.max(dtSeconds, 1 / 240)) / (4 * (walkHalfX + walkHalfZ));
+          const stepT = THREE.MathUtils.clamp(loopDelta, -maxStepT, maxStepT);
+          anim.walkPerimeterT = THREE.MathUtils.euclideanModulo(anim.walkPerimeterT + stepT, 1);
+          const perimeterPos = perimeterTToPoint(anim.walkPerimeterT);
+          rig.group.position.copy(perimeterPos);
+          if (isInsideTableBlocker(rig.group.position)) {
+            rig.group.position.copy(clampToWalkPerimeter(rig.group.position));
+            anim.walkPerimeterT = pointToPerimeterT(rig.group.position);
+          }
+
+          const moveAmount = rig.group.position.distanceTo(anim.rootTarget);
+          anim.walkT = (anim.walkT ?? 0) + dtSeconds * (2 + Math.min(7, moveAmount * 10));
+
+          const aimForward = new THREE.Vector3(normalizedAim.x, 0, normalizedAim.y).normalize();
+          const desiredYaw = Math.atan2(-aimForward.x, -aimForward.z);
+          anim.yaw = THREE.MathUtils.lerp(anim.yaw ?? rig.group.rotation.y, desiredYaw, THREE.MathUtils.clamp(1 - Math.exp(-HUMAN_ROT_LAMBDA * dtSeconds), 0, 1));
+          rig.group.rotation.y = anim.yaw;
+
+          const side = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
+          const t = anim.poseT * anim.poseT * (3 - 2 * anim.poseT);
+          const walk = Math.sin((anim.walkT ?? 0) * 6.2) * Math.min(1, moveAmount * 12);
+          const localToWorld = (v) => v.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), anim.yaw).add(rig.group.position);
+          const scale = anim.scale || 1;
+
+          const hipCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.02, 0.98, t) * scale, THREE.MathUtils.lerp(0, 0.02, t) * scale));
+          const torsoCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.28, 1.13, t) * scale, THREE.MathUtils.lerp(0, -0.16, t) * scale));
+          const chestCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.5, 1.22, t) * scale, THREE.MathUtils.lerp(0.01, -0.38, t) * scale));
+          const neckWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.66, 1.22, t) * scale, THREE.MathUtils.lerp(0.02, -0.61, t) * scale));
+          const headCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.82, 1.27, t) * scale, THREE.MathUtils.lerp(0.04, -0.71, t) * scale));
+
+          const leftShoulderWorld = localToWorld(new THREE.Vector3(-0.22 * scale, THREE.MathUtils.lerp(1.57, 1.34, t) * scale, THREE.MathUtils.lerp(0, -0.42, t) * scale));
+          const rightShoulderWorld = localToWorld(new THREE.Vector3(0.22 * scale, THREE.MathUtils.lerp(1.57, 1.34, t) * scale, THREE.MathUtils.lerp(0, -0.35, t) * scale));
+          const leftHipWorld = localToWorld(new THREE.Vector3(-0.12 * scale, 0.93 * scale, 0.02 * scale));
+          const rightHipWorld = localToWorld(new THREE.Vector3(0.12 * scale, 0.93 * scale, 0.02 * scale));
+
+          const bridgeHandTarget = cueWorld
+            .clone()
+            .addScaledVector(aimForward, -HUMAN_BRIDGE_HAND_BACK_FROM_BALL)
+            .addScaledVector(side, HUMAN_BRIDGE_HAND_SIDE)
+            .setY(TABLE_Y + TABLE.THICK + BALL_R * 0.7);
+          const bridgeCuePoint = bridgeHandTarget
+            .clone()
+            .addScaledVector(aimForward, 0.01)
+            .add(new THREE.Vector3(0, HUMAN_BRIDGE_CUE_LIFT, 0));
+
+          const humanShotState =
+            mode === 'strike' ? 'striking' : mode === 'aim' ? 'dragging' : 'idle';
+          const draggingPower = Math.max(0, Math.min(1, powerRef.current ?? 0));
+          const strikingPower = Math.max(0, Math.min(1, shotPowerRef.current ?? draggingPower));
+          const activePower = humanShotState === 'dragging' ? draggingPower : strikingPower;
+          const pull = BALL_R * 7.6 * (1 - Math.pow(1 - activePower, 3));
+          const practiceStroke =
+            humanShotState === 'dragging'
+              ? Math.sin(nowMs * 0.012) * BALL_R * 0.65 * (0.25 + activePower * 0.75)
+              : 0;
+          const strikeNorm =
+            humanShotState === 'striking'
+              ? THREE.MathUtils.clamp(shotAge / 120, 0, 1)
+              : 0;
+          let cueBallGap = BALL_R * 1.22;
+          if (humanShotState === 'dragging') {
+            cueBallGap += pull + practiceStroke;
+          } else if (humanShotState === 'striking') {
+            cueBallGap = THREE.MathUtils.lerp(
+              BALL_R * (1.22 + (pull / BALL_R)),
+              BALL_R * 1.05,
+              1 - Math.pow(1 - strikeNorm, 3)
+            );
+          }
+          const cueTipShoot = cueWorld
+            .clone()
+            .addScaledVector(aimForward, -cueBallGap)
+            .setY(bridgeHandTarget.y + HUMAN_BRIDGE_CUE_LIFT - 0.004);
+          const cueBackShoot = bridgeCuePoint
+            .clone()
+            .addScaledVector(aimForward, -(HUMAN_CUE_LENGTH - HUMAN_BRIDGE_DIST - BALL_R - cueBallGap))
+            .add(new THREE.Vector3(0, 0.028 * scale, 0));
+          const gripHandTarget = cueTipShoot.clone().lerp(cueBackShoot, HUMAN_GRIP_RATIO);
+
+          const idleRightHandTarget = rig.group.position.clone().add(new THREE.Vector3(0.22 * scale, 1.18 * scale, 0.04 * scale).applyAxisAngle(new THREE.Vector3(0, 1, 0), anim.yaw));
+          const idleLeftHandTarget = rig.group.position.clone().add(new THREE.Vector3(-0.16 * scale, 1.1 * scale, -0.02 * scale).applyAxisAngle(new THREE.Vector3(0, 1, 0), anim.yaw));
+
+          const leftHandWorld = idleLeftHandTarget.clone().lerp(bridgeHandTarget, t);
+          const rightHandWorld = idleRightHandTarget.clone().lerp(gripHandTarget, t);
+
+          if (anim.model && !anim.pelvis) {
+            const idle = 1 - t;
+            const breath = Math.sin(nowMs * 0.0028 + (anim.seat === 'A' ? 0 : Math.PI * 0.5)) * (0.006 + idle * 0.004);
+            anim.model.position.set(0, 0.006 * breath - 0.02 * t, 0.01 * walk);
+            anim.model.rotation.set(
+              -0.11 * t - 0.024 * walk,
+              0,
+              (anim.seat === activeSeat ? -1 : 1) * 0.012 * idle
+            );
+            if (anim.bridgeHand) {
+              anim.bridgeHand.position.copy(leftHandWorld);
+              anim.bridgeHand.quaternion.copy(makeHumanoidBasis(side, aimForward));
+            }
+            if (anim.gripHand) {
+              anim.gripHand.position.copy(rightHandWorld);
+              anim.gripHand.quaternion.copy(makeHumanoidBasis(side, aimForward));
+              anim.gripHand.rotation.x += THREE.MathUtils.lerp(0.38, 1.28, t);
+            }
+            return;
+          }
+
+          const leftElbow = leftShoulderWorld.clone().lerp(leftHandWorld, 0.53).addScaledVector(new THREE.Vector3(0, 1, 0), 0.035 * t * scale).addScaledVector(side, -0.025 * t * scale);
+          const rightElbow = rightHandWorld.clone().addScaledVector(new THREE.Vector3(0, 1, 0), THREE.MathUtils.lerp(0.19, 0.49, t) * scale).addScaledVector(side, THREE.MathUtils.lerp(0.04, 0.08, t) * scale).addScaledVector(aimForward, THREE.MathUtils.lerp(-0.08, -0.02, t) * scale);
+
+          const leftFootStand = new THREE.Vector3(-0.13 * scale, 0.035 * scale, (0.03 + walk * 0.03) * scale);
+          const rightFootStand = new THREE.Vector3(0.13 * scale, 0.035 * scale, (-0.03 - walk * 0.03) * scale);
+          const frontFootShoot = new THREE.Vector3(-0.22 * scale, 0.035 * scale, -0.34 * scale);
+          const rearFootShoot = new THREE.Vector3(0.26 * scale, 0.035 * scale, 0.34 * scale);
+          const leftFootWorld = localToWorld(leftFootStand.lerp(frontFootShoot, t));
+          const rightFootWorld = localToWorld(rightFootStand.lerp(rearFootShoot, t));
+
+          const leftKnee = leftHipWorld.clone().lerp(leftFootWorld, 0.53).addScaledVector(new THREE.Vector3(0, 1, 0), THREE.MathUtils.lerp(0.18, 0.11, t) * scale).addScaledVector(aimForward, 0.04 * t * scale);
+          const rightKnee = rightHipWorld.clone().lerp(rightFootWorld, 0.52).addScaledVector(new THREE.Vector3(0, 1, 0), THREE.MathUtils.lerp(0.18, 0.08, t) * scale).addScaledVector(aimForward, -0.03 * t * scale);
+
+          const bodyQ = makeHumanoidBasis(side, aimForward);
+          anim.pelvis.position.copy(hipCenterWorld);
+          anim.pelvis.quaternion.copy(bodyQ);
+          anim.pelvis.rotation.x += THREE.MathUtils.lerp(0, -0.08, t);
+
+          anim.torso.position.copy(torsoCenterWorld);
+          anim.torso.quaternion.copy(bodyQ);
+          anim.torso.rotation.x += THREE.MathUtils.lerp(0, -0.28, t);
+
+          anim.chest.position.copy(chestCenterWorld);
+          anim.chest.quaternion.copy(bodyQ);
+          anim.chest.rotation.x += THREE.MathUtils.lerp(0, -0.62, t);
+
+          setHumanoidSegment(anim.neck, neckWorld.clone().addScaledVector(new THREE.Vector3(0, 1, 0), -0.06 * scale), neckWorld.clone().addScaledVector(new THREE.Vector3(0, 1, 0), 0.06 * scale), 0.045 * scale);
+          anim.head.position.copy(headCenterWorld);
+          anim.head.quaternion.copy(bodyQ);
+          anim.head.rotation.x += THREE.MathUtils.lerp(0, -0.2, t);
+
+          setHumanoidSegment(anim.leftUpperArm, leftShoulderWorld, leftElbow, 0.044 * scale);
+          setHumanoidSegment(anim.leftLowerArm, leftElbow, leftHandWorld, 0.036 * scale);
+          setHumanoidSegment(anim.rightUpperArm, rightShoulderWorld, rightElbow, 0.045 * scale);
+          setHumanoidSegment(anim.rightLowerArm, rightElbow, rightHandWorld, 0.037 * scale);
+
+          setHumanoidSegment(anim.leftUpperLeg, leftHipWorld, leftKnee, 0.058 * scale);
+          setHumanoidSegment(anim.leftLowerLeg, leftKnee, leftFootWorld, 0.052 * scale);
+          setHumanoidSegment(anim.rightUpperLeg, rightHipWorld, rightKnee, 0.058 * scale);
+          setHumanoidSegment(anim.rightLowerLeg, rightKnee, rightFootWorld, 0.052 * scale);
+
+          anim.bridgeHand.position.copy(leftHandWorld);
+          anim.bridgeHand.quaternion.copy(makeHumanoidBasis(side, aimForward));
+          anim.gripHand.position.copy(rightHandWorld);
+          anim.gripHand.quaternion.copy(makeHumanoidBasis(side, aimForward));
+          anim.gripHand.rotation.x += THREE.MathUtils.lerp(0.3, 1.2, t);
+
+          anim.leftFoot.position.copy(leftFootWorld).add(new THREE.Vector3(0, -0.02 * scale, 0));
+          anim.rightFoot.position.copy(rightFootWorld).add(new THREE.Vector3(0, -0.02 * scale, 0));
+          anim.leftFoot.quaternion.copy(bodyQ);
+          anim.rightFoot.quaternion.copy(bodyQ);
+          anim.leftFoot.rotation.y += -0.24 * t;
+          anim.rightFoot.rotation.y += 0.16 * t;
+
+        });
+      };
+      void spawnPlayerCharacters();
       setSecondaryTableReady(true);
       clothMat = tableCloth;
       cushionMat = tableCushion;
@@ -25533,7 +27275,7 @@ const shotPowerRef = useRef(0);
       };
       const cueTipLocal = new THREE.Vector3(0, 0, -cueLen / 2);
       const cueButtLocal = new THREE.Vector3(0, 0, cueLen / 2);
-      setCueStickFromCueEyePose = (back, tip) => {
+      setCueStickFromHumanCuePose = (back, tip) => {
         if (!cueStick || !back || !tip) return;
         const dir = tip.clone().sub(back);
         if (dir.lengthSq() < 1e-8) return;
@@ -27178,6 +28920,8 @@ const shotPowerRef = useRef(0);
         }
         shotPowerRef.current = clampedPower;
         powerRef.current = clampedPower;
+        characterShotStartedAtRef.current = shotStartTime;
+        characterShotShooterRef.current = currentHud?.turn === 1 ? 'B' : 'A';
         const strokeStyle = cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
         const strokeProfile = resolveCueStrokeProfile(strokeStyle, clampedPower);
         const rawSpin = applySpinConstraints(aimDir, true);
@@ -33166,6 +34910,7 @@ const shotPowerRef = useRef(0);
             fit(1 + edge * 0.08);
           }
           syncCueShadow();
+          updatePlayerCharacters(now, deltaSeconds);
           const frameCamera = updateCamera();
           const handIconEl = inHandIconRef.current;
           if (handIconEl) {
@@ -33383,7 +35128,10 @@ const shotPowerRef = useRef(0);
         clearDecorTablesRef.current = () => {};
         clearHospitalityLayoutRef.current?.();
         hospitalityGroupsRef.current = [];
-        removedShooterRigsRef.current = [];
+        playerCharacterRigsRef.current.forEach((rig) => {
+          if (rig?.group?.parent) rig.group.parent.remove(rig.group);
+        });
+        playerCharacterRigsRef.current = [];
         updateHospitalityLayoutRef.current = () => {};
         clearHospitalityLayoutRef.current = () => {};
         chessBoardTextureRef.current?.dispose?.();
@@ -34624,6 +36372,37 @@ const shotPowerRef = useRef(0);
               </button>
             </div>
             <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Human Pool Player
+                </h3>
+                <div className="mt-2 grid grid-cols-2 gap-1.5">
+                  {POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.map((option, index) => {
+                    const active = option.id === humanCharacterId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setHumanCharacterId(option.id)}
+                        aria-pressed={active}
+                        title={`${option.label} • ${option.summary}`}
+                        className={`min-h-[3.25rem] rounded-xl border px-2.5 py-1.5 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="block truncate text-[10px] font-black uppercase tracking-[0.18em]">
+                          {index + 1}. {option.logicLabel}
+                        </span>
+                        <span className={`mt-0.5 block text-[8px] font-bold uppercase tracking-[0.12em] ${active ? 'text-black/65' : 'text-white/58'}`}>
+                          feet planted • table-facing
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               {ENABLE_SHOT_REPLAY ? (
                 <div>
                   <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">

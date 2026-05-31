@@ -12,7 +12,11 @@ import {
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
-import { resolvePoolRoyaleTableModel } from '../../config/poolRoyaleTableModels.js';
+import {
+  POOL_ROYALE_TABLE_MODEL_OPTIONS,
+  POOL_ROYALE_TABLE_MODEL_STORAGE_KEY,
+  resolvePoolRoyaleTableModel
+} from '../../config/poolRoyaleTableModels.js';
 import { socket } from '../../utils/socket.js';
 import { getOnlineUsers } from '../../utils/api.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
@@ -73,7 +77,15 @@ export default function PoolRoyaleLobby() {
   const [variant, setVariant] = useState('uk');
   const [ukBallSet, setUkBallSet] = useState('uk');
   const [playType, setPlayType] = useState(initialPlayType);
-  const tableModelId = resolvePoolRoyaleTableModel().id;
+  const [tableModelId, setTableModelId] = useState(() => {
+    try {
+      const stored = window.localStorage?.getItem(
+        POOL_ROYALE_TABLE_MODEL_STORAGE_KEY
+      );
+      return resolvePoolRoyaleTableModel(stored).id;
+    } catch {}
+    return resolvePoolRoyaleTableModel().id;
+  });
   const [players, setPlayers] = useState(8);
   const selectedTableModel = resolvePoolRoyaleTableModel(tableModelId);
   const tableSize = resolveTableSize(
@@ -229,6 +241,10 @@ export default function PoolRoyaleLobby() {
     setMatchingError('');
 
     try {
+      window.localStorage?.setItem(
+        POOL_ROYALE_TABLE_MODEL_STORAGE_KEY,
+        selectedTableModel.id
+      );
       if (selectedTableModel.finishId) {
         window.localStorage?.setItem(
           TABLE_FINISH_STORAGE_KEY,
@@ -615,15 +631,43 @@ export default function PoolRoyaleLobby() {
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-white">Pool Table</h3>
             <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
-              Fixed Hybrid
+              GLB Arena
             </span>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/80">
-            <p className="font-semibold text-white">Showood 7 ft GLB is now the fixed Pool Royale table.</p>
-            <p className="mt-2 text-xs text-white/60">
-              The Royal Original wooden rails, table base, and chrome plates stay in place while the Showood GLB supplies the field, cushions, jaws, and pockets.
-            </p>
+          <div className="grid grid-cols-2 gap-3">
+            {POOL_ROYALE_TABLE_MODEL_OPTIONS.map((option) => {
+              const active = tableModelId === option.id;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => setTableModelId(option.id)}
+                  className={`lobby-option-card ${
+                    active
+                      ? 'lobby-option-card-active'
+                      : 'lobby-option-card-inactive'
+                  }`}
+                >
+                  <div className="lobby-option-thumb bg-gradient-to-br from-fuchsia-400/20 via-amber-500/10 to-transparent">
+                    <div className="lobby-option-thumb-inner text-2xl">
+                      {option.icon || '🎱'}
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <p className="lobby-option-label">{option.label}</p>
+                    <p className="lobby-option-subtitle">
+                      {option.kind === 'gltf'
+                        ? `${option.tableSizeId} · original textures`
+                        : 'Current table'}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
           </div>
+          <p className="text-xs text-white/60">
+            New GLB tables replace the in-game table visually while Pool Royale keeps the matched playfield, pockets, cushions, and ball physics.
+          </p>
         </div>
 
         <div className="space-y-3">
