@@ -7283,24 +7283,6 @@ function buildSwerveAimLinePoints(
   return points;
 }
 
-function resolvePreviewCueFollowDir(cueDir, aimDir, physicsSpin = null) {
-  const aim = aimDir?.clone?.() ?? new THREE.Vector2(0, 1);
-  if (aim.lengthSq() < 1e-8) aim.set(0, 1);
-  else aim.normalize();
-  const hasSpinDrivenCueFollow = Math.abs(physicsSpin?.y || 0) > 1e-4;
-  const follow = cueDir?.clone?.() ??
-    (hasSpinDrivenCueFollow && (physicsSpin?.y || 0) < 0 ? aim.clone().negate() : aim.clone());
-  if (follow.lengthSq() < 1e-8) follow.copy(aim);
-  else follow.normalize();
-  const backSpinWeight = Math.max(0, -(physicsSpin?.y || 0));
-  if (backSpinWeight > 1e-8) {
-    const drawLerp = Math.min(1, backSpinWeight * BACKSPIN_DIRECTION_PREVIEW);
-    follow.lerp(aim.clone().negate(), drawLerp);
-    if (follow.lengthSq() > 1e-8) follow.normalize();
-  }
-  return follow;
-}
-
 // calculate impact point and post-collision direction for aiming guide
 function calcTarget(cue, dir, balls) {
   if (!cue) {
@@ -23366,15 +23348,6 @@ const powerRef = useRef(hud.power);
           } else if (physicsSpin.y > 0) {
             spinTop *= TOPSPIN_MULTIPLIER;
           }
-          if (shotPrediction) {
-            shotPrediction.aimDir = aimDir.clone().normalize();
-            shotPrediction.cueDir = resolvePreviewCueFollowDir(
-              prediction.cueDir,
-              aimDir,
-              physicsSpin
-            );
-            shotPrediction.precisionResolved = false;
-          }
           cue.vel.copy(base);
           if (cue.spin) {
             cue.spin.set(spinSide, spinTop);
@@ -26273,9 +26246,20 @@ const powerRef = useRef(hud.power);
             aimFocusRef.current = null;
           }
           const hasSpinDrivenCueFollow = Math.abs(physicsSpin.y || 0) > 1e-4;
-          const cueFollowDir2D = resolvePreviewCueFollowDir(cueDir, aimDir2D, physicsSpin);
-          const cueFollowDirSpinAdjusted = new THREE.Vector3(cueFollowDir2D.x, 0, cueFollowDir2D.y);
+          const cueFollowDir = cueDir
+            ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
+            : (hasSpinDrivenCueFollow && (physicsSpin.y || 0) < 0 ? dir.clone().negate() : dir.clone());
+          const cueFollowDirSpinAdjusted = cueFollowDir.clone();
           const spinVerticalInfluence = (physicsSpin.y || 0) * 0.68;
+          const backSpinWeight = Math.max(0, -(physicsSpin.y || 0));
+          if (backSpinWeight > 1e-8) {
+            const drawLerp = Math.min(1, backSpinWeight * BACKSPIN_DIRECTION_PREVIEW);
+            const drawDir = dir.clone().negate();
+            cueFollowDirSpinAdjusted.lerp(drawDir, drawLerp);
+            if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
+              cueFollowDirSpinAdjusted.normalize();
+            }
+          }
           const cueFollowLength =
             BALL_R * (12 + powerStrength * 18) * (1 + spinVerticalInfluence * 0.4);
           const followEnd = guideEndAtTableEdge(end, cueFollowDirSpinAdjusted, cueFollowLength);
@@ -26788,71 +26772,7 @@ const powerRef = useRef(hud.power);
             if (hasSpin) {
               applySpinController(b, stepScale, hasLift);
             }
-            const previousPos =
-              isCue &&
-              shooting &&
-              shotPrediction?.ballId &&
-              !shotPrediction?.railNormal &&
-              !shotPrediction?.precisionResolved &&
-              !firstHit
-                ? b.pos.clone()
-                : null;
             b.pos.addScaledVector(b.vel, stepScale);
-            if (previousPos) {
-              const targetBall = balls.find(
-                (candidate) =>
-                  candidate?.active && String(candidate.id) === String(shotPrediction.ballId)
-              );
-              const predictedImpact = shotPrediction.impact?.clone?.() ?? null;
-              const predictedObjectDir = shotPrediction.dir?.clone?.() ?? null;
-              const predictedAimDir =
-                shotPrediction.aimDir?.clone?.() ?? b.launchDir?.clone?.() ?? null;
-              if (
-                targetBall &&
-                predictedImpact &&
-                predictedObjectDir &&
-                predictedObjectDir.lengthSq() > 1e-8 &&
-                predictedAimDir &&
-                predictedAimDir.lengthSq() > 1e-8
-              ) {
-                predictedObjectDir.normalize();
-                predictedAimDir.normalize();
-                const previousToImpact = predictedImpact.clone().sub(previousPos);
-                const currentFromImpact = b.pos.clone().sub(predictedImpact);
-                const reachedImpact =
-                  previousToImpact.dot(predictedAimDir) >= -BALL_R * 0.02 &&
-                  currentFromImpact.dot(predictedAimDir) >= -BALL_R * 0.02;
-                const segment = b.pos.clone().sub(previousPos);
-                const segmentLenSq = segment.lengthSq();
-                const closest = previousPos.clone();
-                if (segmentLenSq > 1e-10) {
-                  const t = THREE.MathUtils.clamp(
-                    predictedImpact.clone().sub(previousPos).dot(segment) / segmentLenSq,
-                    0,
-                    1
-                  );
-                  closest.addScaledVector(segment, t);
-                }
-                const lateralMiss = closest.distanceTo(predictedImpact);
-                const stillOnPredictedContact = targetBall.pos
-                  .clone()
-                  .sub(predictedImpact)
-                  .distanceTo(predictedObjectDir.clone().multiplyScalar(BALL_R * 2));
-                if (
-                  reachedImpact &&
-                  lateralMiss <= BALL_R * 0.08 &&
-                  stillOnPredictedContact <= BALL_R * 0.2
-                ) {
-                  b.pos.copy(
-                    targetBall.pos
-                      .clone()
-                      .addScaledVector(predictedObjectDir, -(BALL_R * 2 - MICRO_EPS))
-                  );
-                  const speed = Math.max(b.vel.length(), shotPrediction.speed ?? 0);
-                  if (speed > 1e-8) b.vel.copy(predictedAimDir.multiplyScalar(speed));
-                }
-              }
-            }
             b.vel.multiplyScalar(Math.pow(FRICTION, stepScale));
             let speed = b.vel.length();
             let scaledSpeed = speed * stepScale;
@@ -26987,7 +26907,6 @@ const powerRef = useRef(hud.power);
                   } else {
                     cueBallForPair.vel.set(0, 0);
                   }
-                  shotPrediction.precisionResolved = true;
                   impulse = normalSpeed;
                 } else {
                   a.pos.x -= nx * overlap;
