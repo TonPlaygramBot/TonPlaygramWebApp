@@ -637,32 +637,33 @@ function adjustSideNotchDepth(mp) {
   );
 }
 
-const POCKET_VISUAL_EXPANSION = 1.034;
-const CORNER_POCKET_INWARD_SCALE = 1.008; // ease the corner cuts back toward the rail so the mouth stays as wide as the bowl
+const POCKET_VISUAL_EXPANSION = 1; // exact physical pocket aperture: no visual/physics over-expansion
+const CORNER_POCKET_INWARD_SCALE = 1; // keep corner cushion/jaw mapping on the real pocket mouth
 const CORNER_POCKET_SCALE_BOOST = 0.998; // open the corner mouth fractionally to match the inner pocket radius
 const CORNER_POCKET_EXTRA_SCALE = 1.028; // further relax the corner mouth while leaving side pockets unchanged
-const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.012;
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.06; // mirror snooker notch depth so the rounded chrome cut hugs the cloth identically
-const CHROME_CORNER_EXPANSION_SCALE = 1.002; // trim back the fascia so it now finishes flush with the pocket jaw edge along the long rail
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.002; // mirror the lighter reach so the chrome stops exactly where the jaw shoulder begins
+const CHROME_CORNER_POCKET_RADIUS_SCALE = 1; // match chrome jaw radius exactly to the physical pocket radius
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08; // match Pool Royale jaw notch depth for identical pocket/cushion mapping
+const CHROME_CORNER_EXPANSION_SCALE = 1.034; // match the physical jaw reach used by Pool Royale
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.032; // mirror Pool Royale's jaw shoulder reach on the short rail
 const CHROME_CORNER_FIELD_TRIM_SCALE = -0.03; // remove the base trim so the fascia rides the cushion edge without a gap
 const CHROME_CORNER_NOTCH_WEDGE_SCALE = 0;
-const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.034; // extend the fascia slightly farther along the arc so the chrome starts flush with the pocket curve
-const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 0.034; // mirror the extension along the second axis so the rounded arc ends stay covered
+const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.5; // Pool Royale physical diagonal jaw clip
+const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 0.5; // Pool Royale physical diagonal jaw clip depth
 const CHROME_CORNER_FIELD_FILLET_SCALE = 0; // match the pocket radius exactly without additional rounding
 const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1; // no scaling so the notch mirrors the pocket radius perfectly
 const CHROME_CORNER_DIMENSION_SCALE = 1; // keep the fascia dimensions identical to the cushion span so both surfaces meet cleanly
-const CHROME_CORNER_WIDTH_SCALE = 0.984; // expand the chrome plate slightly so both flanks breathe while staying flush to the jaw line
-const CHROME_CORNER_HEIGHT_SCALE = 0.962; // mirror the trim on the short rail so the fascia meets the jaw corner without overlap
-const CHROME_CORNER_CENTER_OUTSET_SCALE = -0.055; // pull the corner fascia inward toward the table centre while keeping the chrome cut fixed
+const CHROME_CORNER_WIDTH_SCALE = 1.018; // match Pool Royale jaw plate footprint
+const CHROME_CORNER_HEIGHT_SCALE = 1.012; // match Pool Royale short-rail jaw reach
+const CHROME_CORNER_CENTER_OUTSET_SCALE = 0.024; // keep corner fascia aligned with physical jaw shoulder
 const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0; // let the corner fascia terminate precisely where the cushion noses stop
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0; // stop pulling the chrome off the short-rail centreline so the jaws stay flush
-const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker baseline
+const CHROME_CORNER_EDGE_TRIM_SCALE = 0.06; // trim the corner chrome footprint like Pool Royale
+const CHROME_CORNER_POCKET_EDGE_ROUND_SCALE = 0; // keep rail-side edges straight like Pool Royale
 const CHROME_SIDE_POCKET_RADIUS_SCALE =
   CORNER_POCKET_INWARD_SCALE *
   CHROME_CORNER_POCKET_RADIUS_SCALE; // match the middle chrome arches to the corner pocket radius
-const WOOD_RAIL_CORNER_RADIUS_SCALE = 0; // keep the wooden rail edges squared off for a straight outside angle
+const WOOD_RAIL_CORNER_RADIUS_SCALE = 1.28; // follow physical wooden rail pocket-jaw silhouette
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0; // disable secondary throat so the side chrome uses a single arch
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profile
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
@@ -672,30 +673,31 @@ const CHROME_PLATE_REFLECTION_SCALE = 0.28; // kill pocket-cut reflections by da
 const CHROME_PLATE_ROUGHNESS_LIFT = 0.08; // lift roughness on fascia cuts so pocket arches stop casting hot spots on cloth
 const CHROME_PLATE_THICKNESS_SCALE = 0.0306; // match diamond thickness on the wooden rails for fascia depth
 const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.18; // thicken the middle fascia so its depth now matches the corner plates
-const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0; // keep fascia placement identical to snooker
+const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0.06; // lift fascia to match raised cushion/jaw profile
 const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.58; // trim the side fascia reach so the middle chrome ends cleanly before the pocket curve
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.1; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
-const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.52; // trim fascia span so the middle plates finish at the side rail edge
-const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.01; // trim the outer fascia extension so the outside edge tucks in slightly
-const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 0.96; // extend the plate ends slightly toward the corner pockets
-const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.975; // expand the middle fascia slightly so both flanks gain a touch more presence
-const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.12; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.34; // Pool Royale side-pocket jaw span
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.14; // Pool Royale side-pocket fascia reach
+const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.228; // Pool Royale side-pocket center trim
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.11; // Pool Royale side fascia width
+const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 0.8; // Pool Royale side-pocket outside body trim
+const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.22; // Pool Royale side plate ends toward corner pockets
+const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.9; // Pool Royale side fascia tightening
+const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.24; // Pool Royale side fascia corner bias
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.19; // pull the middle-pocket chrome plates slightly further inward while preserving the existing rounded pocket cut placement
-const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.012; // trim the outer fascia edge a hair more for a tighter outside finish
-const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.012; // keep side flush trim aligned with the Pool Royale fascia edge
-const CHROME_CORNER_POCKET_CUT_SCALE = 1.14; // open the rounded chrome corner cut a touch more so the chrome reveal reads larger at each corner
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.06; // mirror the snooker middle pocket chrome cut sizing
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.012; // align middle-pocket chrome plates with Pool Royale jaw mapping
+const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.022; // Pool Royale outer fascia trim
+const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.078; // Pool Royale middle-pocket outside trim
+const CHROME_CORNER_POCKET_CUT_SCALE = 1.045; // Pool Royale corner chrome pocket cut
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.03; // Pool Royale middle-pocket chrome cut
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // pull the rounded chrome cutouts inward so they sit deeper into the fascia mass
-const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
-const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
+const WOOD_RAIL_POCKET_RELIEF_SCALE = 1.045; // match wooden rail pocket relief to the physical jaw diameter
+const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.958; // Pool Royale corner wood relief
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.032; // push the middle rail rounded cuts slightly farther outward so they sit farther from the table centre while keeping their slim profile
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.05; // offset the wood cutouts outward so the rounded relief tracks the shifted middle pocket line
+const WOOD_CORNER_POCKET_CUT_CENTER_OUTSET_SCALE = -0.018; // Pool Royale corner wood pocket cut center outset
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.045; // Pool Royale middle rail rounded cuts
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.068; // Pool Royale middle wooden relief offset
 
 function buildChromePlateGeometry({
   width,
@@ -1284,16 +1286,31 @@ if (BALL_SHADOW_MATERIAL) {
 }
 // Match the snooker build so pace and rebound energy stay consistent between modes.
 const PHYSICS_PROFILE = Object.freeze({
-  restitution: 1.08,
+  restitution: 0.96,
   mu: 0.421,
   spinDecay: 2.0,
   airSpinDecay: 0.6,
   maxTipOffsetRatio: 0.9
 });
-const FRICTION = 0.995;
+const PHYSICS_BASE_STEP = 1 / 60;
+const FRICTION = 0.9951;
+const BALL_MASS = 0.17;
+const BALL_INERTIA = (2 / 5) * BALL_MASS * BALL_R * BALL_R;
+const SPIN_FIXED_DT = 1 / 120;
+const SPIN_SLIDE_EPS = 0.02;
+const SPIN_KINETIC_FRICTION = 0.22;
+const SPIN_ROLL_DAMPING = 0.1;
+const SPIN_ANGULAR_DAMPING = 0.04;
+const SPIN_GRAVITY = 9.81;
+const ROLLING_RESISTANCE = 0.011;
+const BALL_BALL_FRICTION = 0.105;
+const BALL_CONTACT_EPS = BALL_R * 0.012;
+const BALL_COLLISION_SLOP = BALL_R * 0.001;
+const BALL_COLLISION_BAUMGARTE = 0.92;
+const RAIL_FRICTION = 0.16;
 const DEFAULT_CUSHION_RESTITUTION = PHYSICS_PROFILE.restitution;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
-const STOP_EPS = 0.012;
+const STOP_EPS = 0.0074;
 const STOP_SOFTENING = 0.96; // ease balls into a stop instead of hard-braking at the speed threshold
 const STOP_FINAL_EPS = STOP_EPS * 0.35;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3; // allow up to 3 frames of catch-up when recovering from slow frames
@@ -1301,7 +1318,7 @@ const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing phys
 const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
-const MAX_POWER_BOUNCE_THRESHOLD = 1.2; // match Pool Royale: disable max-power bounce lift path
+const MAX_POWER_BOUNCE_THRESHOLD = 0.995; // match Pool Royale hard cap threshold
 const MAX_POWER_BOUNCE_IMPULSE = BALL_R * 1.9; // push full-power launches higher so cue-ball jumps read stronger
 const MAX_POWER_BOUNCE_GRAVITY = BALL_R * 4.2;
 const MAX_POWER_BOUNCE_DAMPING = 0.86;
@@ -1546,7 +1563,7 @@ const SPIN_DECAY_RATE = PHYSICS_PROFILE.spinDecay;
 const SPIN_AIR_DECAY_RATE = PHYSICS_PROFILE.airSpinDecay;
 const BACKSPIN_ROLL_BOOST = 1.35;
 const CUE_BACKSPIN_ROLL_BOOST = 3.4;
-const RAIL_SPIN_THROW_SCALE = 0; // match Pool Royale rail spin throw behavior
+const RAIL_SPIN_THROW_SCALE = 0.09; // match Pool Royale rail spin response
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // invert spin along the impact normal to keep the cue ball rolling after rebounds
 const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // keep the cue follow line aligned with the aim line
@@ -1572,6 +1589,9 @@ const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
 const SPIN_POWER_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.25;
+const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.62; // Pool Royale straight-follow transfer
+const TOPSPIN_FOLLOW_DECAY_ASSIST = 0.84; // Pool Royale natural-roll topspin decay assist
+const TOPSPIN_ROLL_SPEED_FACTOR = 0.84; // Pool Royale natural rolling speed cap
 const SPIN_POWER_MIN_SCALE = 0.35;
 const SPIN_POWER_MAX_SCALE = 1.25;
 const BALL_COLLISION_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.8;
@@ -7057,12 +7077,20 @@ function decaySpin(ball, stepScale, airborne = false) {
 
 function applySpinController(ball, stepScale, airborne = false) {
   if (!ball?.spin || ball.spin.lengthSq() < 1e-6) return false;
+  if (airborne && ball.id === 'cue') {
+    ball.spin.set(0, 0);
+    if (ball.pendingSpin) ball.pendingSpin.set(0, 0);
+    ball.spinMode = 'standard';
+    ball.swerveStrength = 0;
+    ball.swervePowerStrength = 0;
+    return false;
+  }
+  if (ball.id === 'cue' && !ball.impacted) {
+    return decaySpin(ball, stepScale, airborne);
+  }
   const { forward, speed } = resolveSpinFrame(ball);
   if (!airborne && speed > 1e-6) {
     let forwardSpin = ball.spin.y || 0;
-    if (ball.id === 'cue' && !ball.impacted && forwardSpin < 0) {
-      forwardSpin = 0;
-    }
     const powerScale = resolveSpinPowerScale(speed);
     let rollAccel = SPIN_ROLL_ACCELERATION * powerScale * stepScale;
     if (forwardSpin < 0) {
@@ -7072,6 +7100,25 @@ function applySpinController(ball, stepScale, airborne = false) {
     }
     if (Math.abs(forwardSpin) > 1e-8) {
       ball.vel.addScaledVector(forward, forwardSpin * rollAccel);
+      if (forwardSpin > 0) {
+        const naturalRollSpeed = Math.max(BALL_R * 2.2, speed * TOPSPIN_ROLL_SPEED_FACTOR);
+        const settling = THREE.MathUtils.clamp(speed / Math.max(naturalRollSpeed, 1e-6), 0, 1);
+        const transfer =
+          Math.min(
+            forwardSpin,
+            rollAccel * TOPSPIN_FOLLOW_TRANSFER_RATE * (0.28 + settling * 0.72)
+          );
+        let remainingSpin = Math.max(0, forwardSpin - transfer);
+        // As the cue ball reaches natural rolling speed, any extra topspin
+        // should quickly collapse instead of continuously forcing acceleration.
+        if (speed >= naturalRollSpeed * 0.98) {
+          remainingSpin *= Math.exp(-TOPSPIN_FOLLOW_DECAY_ASSIST * stepScale * 1.25);
+        }
+        const assistedDecay = Math.exp(
+          -TOPSPIN_FOLLOW_DECAY_ASSIST * stepScale * (0.35 + 0.65 * settling)
+        );
+        ball.spin.y = remainingSpin * assistedDecay;
+      }
     }
   }
   return decaySpin(ball, stepScale, airborne);
@@ -7079,6 +7126,9 @@ function applySpinController(ball, stepScale, airborne = false) {
 
 function applyRailSpinResponse(ball, impact) {
   if (!ball?.spin || ball.spin.lengthSq() < 1e-6 || !impact?.normal) return;
+  if (ball.id === 'cue' && !ball.impacted) {
+    ball.impacted = true;
+  }
   const normal = impact.normal.clone().normalize();
   const tangent = impact.tangent?.clone() ?? new THREE.Vector2(-normal.y, normal.x);
   const speed = Math.max(ball.vel.length(), 0);
@@ -21668,10 +21718,10 @@ const powerRef = useRef(hud.power);
 
       // Aiming visuals
       const aimMat = new THREE.LineBasicMaterial({
-        color: 0x7ce7ff,
+        color: 0xe8f6ff,
         linewidth: AIM_LINE_WIDTH,
         transparent: true,
-        opacity: 0.9,
+        opacity: 0.58,
         depthTest: false,
         depthWrite: false
       });
@@ -21681,6 +21731,8 @@ const powerRef = useRef(hud.power);
       ]);
       const aim = new THREE.Line(aimGeom, aimMat);
       aim.visible = false;
+      aim.renderOrder = 8;
+      aim.frustumCulled = false;
       table.add(aim);
       const cueAfterGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -21688,18 +21740,18 @@ const powerRef = useRef(hud.power);
       ]);
       const cueAfter = new THREE.Line(
         cueAfterGeom,
-        new THREE.LineDashedMaterial({
+        new THREE.LineBasicMaterial({
           color: 0x7ce7ff,
           linewidth: AIM_LINE_WIDTH,
-          dashSize: AIM_DASH_SIZE * 0.9,
-          gapSize: AIM_GAP_SIZE,
           transparent: true,
-          opacity: 0.45,
+          opacity: 0.68,
           depthTest: false,
           depthWrite: false
         })
       );
       cueAfter.visible = false;
+      cueAfter.renderOrder = 8;
+      cueAfter.frustumCulled = false;
       table.add(cueAfter);
       const tickGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -21709,11 +21761,14 @@ const powerRef = useRef(hud.power);
         tickGeom,
         new THREE.LineBasicMaterial({
           color: 0xffffff,
+          linewidth: AIM_LINE_WIDTH,
           depthTest: false,
           depthWrite: false
         })
       );
       tick.visible = false;
+      tick.renderOrder = 8;
+      tick.frustumCulled = false;
       table.add(tick);
 
       const targetGeom = new THREE.BufferGeometry().setFromPoints([
@@ -21722,18 +21777,18 @@ const powerRef = useRef(hud.power);
       ]);
       const target = new THREE.Line(
         targetGeom,
-        new THREE.LineDashedMaterial({
-          color: 0xffd166,
+        new THREE.LineBasicMaterial({
+          color: 0xffe3a1,
           linewidth: AIM_LINE_WIDTH,
-          dashSize: AIM_DASH_SIZE,
-          gapSize: AIM_GAP_SIZE,
           transparent: true,
-          opacity: 0.65,
+          opacity: 0.72,
           depthTest: false,
           depthWrite: false
         })
       );
       target.visible = false;
+      target.renderOrder = 8;
+      target.frustumCulled = false;
       table.add(target);
       const replayTrailGeom = new THREE.BufferGeometry();
       replayTrail = new THREE.Line(
@@ -26329,7 +26384,14 @@ const powerRef = useRef(hud.power);
             target.visible = true;
             target.computeLineDistances();
           } else {
-            target.visible = false;
+            const fallbackLength = Math.max(BALL_R * 10, BALL_R * (7 + powerStrength * 8));
+            const fallbackEnd = end.clone().add(dir.clone().multiplyScalar(fallbackLength));
+            targetGeom.setFromPoints([end, fallbackEnd]);
+            targetGeom.computeBoundingSphere();
+            target.material.color.setHex(0x9fd8ff);
+            target.material.opacity = 0.35 + 0.22 * powerStrength;
+            target.visible = true;
+            target.computeLineDistances();
           }
         } else if (showingRemoteAim) {
           aimFocusRef.current = null;
@@ -26483,7 +26545,14 @@ const powerRef = useRef(hud.power);
             target.visible = true;
             target.computeLineDistances();
           } else {
-            target.visible = false;
+            const fallbackLength = Math.max(BALL_R * 10, BALL_R * (7 + powerStrength * 8));
+            const fallbackEnd = end.clone().add(baseDir.clone().multiplyScalar(fallbackLength));
+            targetGeom.setFromPoints([end, fallbackEnd]);
+            targetGeom.computeBoundingSphere();
+            target.material.color.setHex(0x9fd8ff);
+            target.material.opacity = 0.35 + 0.22 * powerStrength;
+            target.visible = true;
+            target.computeLineDistances();
           }
         } else if (canShowCue && activeAiPlan && !previewingAiShot) {
           aim.visible = false;
