@@ -800,9 +800,21 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     type: 'captureAnimation',
     optionId: option.id,
     name: option.label,
-    price: 900 + idx * 110,
-    description: option.description || 'Ludo Battle Royal weapon animation pack adapted for Chess Battle Royal.',
-    thumbnail: option.thumbnail
+    price: option.id === 'ukrainianDroneAttack' ? 0 : 900 + idx * 110,
+    description:
+      option.id === 'ukrainianDroneAttack'
+        ? 'Exact srcejon Ukrainian drone.glb inventory weapon with original texture preflight, direct-loader fallbacks, and a straight-down no-smoke missile drop.'
+        : option.description || 'Ludo Battle Royal weapon animation pack adapted for Chess Battle Royal.',
+    thumbnail: option.thumbnail,
+    swatches: option.id === 'ukrainianDroneAttack' ? ['#020617', '#2563eb', '#facc15'] : undefined,
+    previewShape: option.id === 'ukrainianDroneAttack' ? 'ukrainian-drone' : undefined,
+    modelUrls: option.id === 'ukrainianDroneAttack'
+      ? [
+          'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/drone.glb',
+          'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main/drone.glb',
+          'https://cdn.statically.io/gh/srcejon/sdrangel-3d-models/main/drone.glb'
+        ]
+      : undefined
   })),
   ...CHESS_HUMAN_CHARACTER_OPTIONS.filter((option) =>
     CHESS_STORE_HUMAN_CHARACTER_IDS.includes(option.id)

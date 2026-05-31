@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import * as THREE from 'three';
+import { loadExactUkrainianDroneModel } from '../utils/ukrainianDroneModel.js';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import {
   POOL_ROYALE_DEFAULT_LOADOUT,
@@ -169,6 +170,216 @@ import {
 import { DEV_INFO } from '../utils/constants.js';
 import { swatchThumbnail } from '../config/storeThumbnails.js';
 import { getCustomHdriCatalog, saveCustomHdriEntry } from '../utils/customHdriCatalog.js';
+
+const UKRAINIAN_DRONE_PREVIEW_STATUS = Object.freeze({
+  loading: 'LOADING',
+  ready: 'READY',
+  fallback: 'FALLBACK'
+});
+
+function fitUkrainianDronePreviewObject(model, targetLength = 4.2) {
+  model.updateMatrixWorld?.(true);
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const maxLength = Math.max(size.x, size.y, size.z);
+  if (!Number.isFinite(maxLength) || maxLength <= 0) return;
+  model.scale.setScalar(targetLength / maxLength);
+  model.updateMatrixWorld?.(true);
+  const fittedBox = new THREE.Box3().setFromObject(model);
+  const center = fittedBox.getCenter(new THREE.Vector3());
+  model.position.x -= center.x;
+  model.position.z -= center.z;
+  model.position.y += -fittedBox.min.y + 1.4;
+  model.updateMatrixWorld?.(true);
+}
+
+function createUkrainianDronePreviewFallback() {
+  const group = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color: '#7b8792', roughness: 0.65, metalness: 0.2 });
+  const darkMat = new THREE.MeshStandardMaterial({ color: '#374151', roughness: 0.7, metalness: 0.12 });
+
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 2.4, 24), bodyMat);
+  body.rotation.z = Math.PI / 2;
+  body.position.y = 1.8;
+  group.add(body);
+
+  const wing = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.06, 3.0), bodyMat);
+  wing.position.set(-0.1, 1.76, 0);
+  group.add(wing);
+
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.55, 24), bodyMat);
+  nose.rotation.z = -Math.PI / 2;
+  nose.position.set(1.45, 1.8, 0);
+  group.add(nose);
+
+  const prop = new THREE.Mesh(new THREE.BoxGeometry(0.04, 1.1, 0.08), darkMat);
+  prop.name = 'propeller';
+  prop.position.set(-1.45, 1.8, 0);
+  group.add(prop);
+
+  group.traverse((obj) => {
+    if (obj.isMesh) {
+      obj.castShadow = true;
+      obj.receiveShadow = true;
+    }
+  });
+
+  return group;
+}
+
+function disposeUkrainianDronePreviewObject(object) {
+  object?.traverse?.((child) => {
+    if (!child?.isMesh && !child?.isSkinnedMesh) return;
+    child.geometry?.dispose?.();
+    const materials = Array.isArray(child.material) ? child.material : child.material ? [child.material] : [];
+    materials.forEach((material) => {
+      ['map', 'emissiveMap', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'alphaMap'].forEach((key) => material?.[key]?.dispose?.());
+      material?.dispose?.();
+    });
+  });
+}
+
+function UkrainianDroneExactPreview({ showCaption = true, size = 'sm', containerClassName = '' }) {
+  const mountRef = useRef(null);
+  const runtimeRef = useRef(null);
+  const [status, setStatus] = useState(UKRAINIAN_DRONE_PREVIEW_STATUS.loading);
+  const sizeClasses = {
+    sm: 'h-16 w-24',
+    md: 'h-24 w-40',
+    lg: 'h-32 w-full'
+  };
+
+  useEffect(() => {
+    const mount = mountRef.current;
+    if (!mount) return undefined;
+
+    let disposed = false;
+    let frame = 0;
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color('#020617');
+    scene.fog = new THREE.Fog('#020617', 18, 48);
+
+    const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 120);
+    camera.position.set(5.2, 4.2, 7.5);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.6;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    mount.innerHTML = '';
+    mount.appendChild(renderer.domElement);
+
+    scene.add(new THREE.AmbientLight(0xffffff, 1.5));
+    scene.add(new THREE.HemisphereLight(0xdbeafe, 0x0f172a, 2.1));
+
+    const key = new THREE.DirectionalLight(0xffffff, 4.4);
+    key.position.set(5, 7, 6);
+    key.castShadow = true;
+    key.shadow.mapSize.set(2048, 2048);
+    scene.add(key);
+
+    const fill = new THREE.PointLight(0x9cc8ff, 11, 28, 1.4);
+    fill.position.set(-3, 3.8, 5.5);
+    scene.add(fill);
+
+    const floor = new THREE.Mesh(
+      new THREE.CircleGeometry(3.4, 72),
+      new THREE.MeshStandardMaterial({ color: '#111827', roughness: 0.88, metalness: 0.12 })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    const resize = () => {
+      const width = mount.clientWidth || 160;
+      const height = mount.clientHeight || 100;
+      camera.aspect = width / Math.max(1, height);
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height, false);
+    };
+
+    const start = async () => {
+      try {
+        setStatus(UKRAINIAN_DRONE_PREVIEW_STATUS.loading);
+        const drone = await loadExactUkrainianDroneModel(renderer);
+        if (disposed) {
+          disposeUkrainianDronePreviewObject(drone);
+          return;
+        }
+        fitUkrainianDronePreviewObject(drone, 4.2);
+        drone.rotation.y = 0.45;
+        scene.add(drone);
+        runtimeRef.current = { root: drone, baseY: drone.position.y };
+        setStatus(UKRAINIAN_DRONE_PREVIEW_STATUS.ready);
+      } catch (error) {
+        console.warn('Store Ukrainian drone exact preview failed, using fallback drone', error);
+        if (disposed) return;
+        const fallback = createUkrainianDronePreviewFallback();
+        scene.add(fallback);
+        runtimeRef.current = { root: fallback, baseY: fallback.position.y };
+        setStatus(UKRAINIAN_DRONE_PREVIEW_STATUS.fallback);
+      }
+    };
+
+    resize();
+    void start();
+    const clock = new THREE.Clock();
+    const animate = () => {
+      if (disposed) return;
+      frame = requestAnimationFrame(animate);
+      const time = clock.elapsedTime;
+      const runtime = runtimeRef.current;
+      if (runtime?.root) {
+        runtime.root.position.y = runtime.baseY + Math.sin(time * 1.5) * 0.08;
+        runtime.root.rotation.y += 0.004;
+        runtime.root.traverse((obj) => {
+          if (obj.name?.toLowerCase?.().includes('propeller') || obj.name?.toLowerCase?.().includes('rotor')) {
+            obj.rotation.x = time * 24;
+          }
+        });
+      }
+      renderer.render(scene, camera);
+    };
+    animate();
+
+    const observer = new ResizeObserver(resize);
+    observer.observe(mount);
+    window.addEventListener('resize', resize);
+
+    return () => {
+      disposed = true;
+      observer.disconnect();
+      window.removeEventListener('resize', resize);
+      cancelAnimationFrame(frame);
+      if (runtimeRef.current?.root) disposeUkrainianDronePreviewObject(runtimeRef.current.root);
+      floor.geometry.dispose();
+      floor.material.dispose();
+      renderer.dispose();
+      if (renderer.domElement.parentElement === mount) mount.removeChild(renderer.domElement);
+      runtimeRef.current = null;
+    };
+  }, []);
+
+  return (
+    <div className={`flex items-center gap-3 ${containerClassName}`}>
+      <div className={`relative overflow-hidden rounded-xl border border-white/10 bg-[#020617] shadow-[0_18px_45px_-26px_rgba(0,0,0,0.9)] ${sizeClasses[size] || sizeClasses.sm}`}>
+        <div ref={mountRef} className="absolute inset-0" />
+        <div className="pointer-events-none absolute left-1 top-1 rounded-full border border-white/10 bg-slate-950/70 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.18em] text-white/80">
+          {status}
+        </div>
+      </div>
+      {showCaption ? (
+        <div className="grid gap-0.5 text-xs text-white/70">
+          <span className="font-semibold text-white">Exact GLB Drone</span>
+          <span className="text-white/60">Original textures + fallbacks</span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 const TYPE_LABELS = {
   tableFinish: 'Table Finishes',
@@ -3560,6 +3771,16 @@ export default function Store() {
       md: 'h-24 w-40',
       lg: 'h-32 w-full'
     };
+
+    if (previewShape === 'ukrainian-drone') {
+      return (
+        <UkrainianDroneExactPreview
+          showCaption={showCaption}
+          size={size}
+          containerClassName={containerClassName}
+        />
+      );
+    }
 
     const shapeLayer = (shape) => {
       switch (shape) {
