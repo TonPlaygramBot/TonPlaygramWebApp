@@ -34,9 +34,12 @@ import { PoolRoyaleRules } from '../../../../src/rules/PoolRoyaleRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import {
+  POOL_ROYALE_TABLE_MODEL_OPTIONS,
   POOL_ROYALE_TABLE_MODEL_STORAGE_KEY,
+  POOL_ROYALE_SHOWOOD_CONTROL_META,
   POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS,
   POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE,
+  POOL_ROYALE_SHOWOOD_MATERIAL_CONTROL_PARTS,
   resolvePoolRoyaleTableModel
 } from '../../config/poolRoyaleTableModels.js';
 import { resolveTableSize as resolveSnookerTableSize } from '../../config/snookerClubTables.js';
@@ -14126,20 +14129,89 @@ function PoolRoyaleGame({
     () => resolveTableSize(tableSizeKey),
     [tableSizeKey]
   );
-  const activeTableModel = useMemo(() => {
-    const model = resolvePoolRoyaleTableModel(tableModelKey);
-    if (!model?.useReferenceShowoodMapping) return model;
-    let showoodPalette = null;
+  const resolveStoredShowoodPalette = useCallback(() => {
+    let storedPalette = null;
     try {
       const params = new URLSearchParams(location.search);
-      const raw = params.get('showoodPalette') || window.localStorage?.getItem('poolRoyaleShowoodMaterialPalette');
+      const raw =
+        params.get('showoodPalette') ||
+        window.localStorage?.getItem('poolRoyaleShowoodMaterialPalette');
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === 'object') showoodPalette = parsed;
+        if (parsed && typeof parsed === 'object') storedPalette = parsed;
       }
     } catch {}
-    return showoodPalette ? { ...model, showoodPalette } : model;
-  }, [location.search, tableModelKey]);
+    return {
+      ...POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE,
+      ...(storedPalette || {})
+    };
+  }, [location.search]);
+  const [showoodPalette, setShowoodPalette] = useState(resolveStoredShowoodPalette);
+  useEffect(() => {
+    setShowoodPalette(resolveStoredShowoodPalette());
+  }, [resolveStoredShowoodPalette]);
+  const activeTableModel = useMemo(() => {
+    const model = resolvePoolRoyaleTableModel(tableModelKey);
+    return model?.useReferenceShowoodMapping
+      ? { ...model, showoodPalette }
+      : model;
+  }, [showoodPalette, tableModelKey]);
+  const showShowoodTableSetup = Boolean(activeTableModel?.useReferenceShowoodMapping);
+  const updateGameSearchParams = useCallback(
+    (updates = {}) => {
+      const params = new URLSearchParams(location.search);
+      Object.entries(updates).forEach(([key, value]) => {
+        if (value === null || typeof value === 'undefined' || value === '') params.delete(key);
+        else params.set(key, String(value));
+      });
+      const nextSearch = params.toString();
+      navigate(
+        {
+          pathname: location.pathname,
+          search: nextSearch ? `?${nextSearch}` : ''
+        },
+        { replace: true }
+      );
+    },
+    [location.pathname, location.search, navigate]
+  );
+  const handleTableModelSelection = useCallback(
+    (modelId) => {
+      const model = resolvePoolRoyaleTableModel(modelId);
+      try {
+        window.localStorage?.setItem(POOL_ROYALE_TABLE_MODEL_STORAGE_KEY, model.id);
+      } catch {}
+      const updates = { tableModel: model.id };
+      if (model.useReferenceShowoodMapping) {
+        updates.showoodPalette = JSON.stringify(showoodPalette);
+      } else {
+        updates.showoodPalette = null;
+      }
+      updateGameSearchParams(updates);
+    },
+    [showoodPalette, updateGameSearchParams]
+  );
+  const handleShowoodPaletteSelection = useCallback(
+    (control, choice) => {
+      setShowoodPalette((current) => {
+        const next = { ...current, [control]: choice };
+        try {
+          window.localStorage?.setItem('poolRoyaleShowoodMaterialPalette', JSON.stringify(next));
+        } catch {}
+        updateGameSearchParams({ showoodPalette: JSON.stringify(next) });
+        return next;
+      });
+    },
+    [updateGameSearchParams]
+  );
+  const resetShowoodPalette = useCallback(() => {
+    const next = { ...POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE };
+    setShowoodPalette(next);
+    try {
+      window.localStorage?.setItem('poolRoyaleShowoodMaterialPalette', JSON.stringify(next));
+    } catch {}
+    updateGameSearchParams({ showoodPalette: JSON.stringify(next) });
+  }, [updateGameSearchParams]);
   const responsiveTableSize = useResponsiveTableSize(activeTableSize);
   const resolvedAccountId = useMemo(
     () => poolRoyalAccountId(accountId),
@@ -16955,6 +17027,18 @@ const shotPowerRef = useRef(0);
   }, [applyLightingPreset, lightingId]);
   const [err, setErr] = useState(null);
   const [renderResetKey, setRenderResetKey] = useState(0);
+  const tableModelRenderSignature = useMemo(() => {
+    const paletteSignature = activeTableModel?.useReferenceShowoodMapping
+      ? JSON.stringify(showoodPalette)
+      : '';
+    return `${activeTableModel?.id || 'default'}:${paletteSignature}`;
+  }, [activeTableModel?.id, activeTableModel?.useReferenceShowoodMapping, showoodPalette]);
+  const tableModelRenderSignatureRef = useRef(tableModelRenderSignature);
+  useEffect(() => {
+    if (tableModelRenderSignatureRef.current === tableModelRenderSignature) return;
+    tableModelRenderSignatureRef.current = tableModelRenderSignature;
+    setRenderResetKey((value) => value + 1);
+  }, [tableModelRenderSignature]);
   const fireRef = useRef(() => {}); // set from effect so slider can trigger fire()
   const sceneRef = useRef(null);
   const updateEnvironmentRef = useRef(() => {});
@@ -35709,6 +35793,109 @@ const shotPowerRef = useRef(0);
                       Replays keep live graphics quality and appear on potted/foul moments.
                     </span>
                   </button>
+                </div>
+              ) : null}
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Table Model
+                </h3>
+                <p className="mt-1 text-[0.7rem] text-white/60">
+                  Choose Royal Original or the full Showood GLB without leaving the match.
+                </p>
+                <div className="mt-2 grid grid-cols-1 gap-2">
+                  {POOL_ROYALE_TABLE_MODEL_OPTIONS.map((option) => {
+                    const active = option.id === activeTableModel.id;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => handleTableModelSelection(option.id)}
+                        aria-pressed={active}
+                        className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.24em]">
+                            {option.icon ? `${option.icon} ` : ''}{option.label}
+                          </span>
+                          <span className="text-[10px] font-semibold uppercase tracking-[0.18em] opacity-80">
+                            {option.tableSizeId}
+                          </span>
+                        </span>
+                        <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] opacity-70">
+                          {option.kind === 'gltf' ? 'GLB table' : 'Pool Royale table'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              {showShowoodTableSetup ? (
+                <div className="rounded-2xl border border-amber-300/25 bg-amber-950/20 p-3">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <div>
+                      <h3 className="text-[10px] uppercase tracking-[0.35em] text-amber-100/80">
+                        Showood Table Setup
+                      </h3>
+                      <p className="mt-1 text-[0.68rem] leading-snug text-white/60">
+                        These controls appear only for the Showood GLB table.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={resetShowoodPalette}
+                      className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white/80 transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                  <div className="space-y-3">
+                    {POOL_ROYALE_SHOWOOD_MATERIAL_CONTROL_PARTS.map((control) => {
+                      const meta = POOL_ROYALE_SHOWOOD_CONTROL_META[control];
+                      const options = POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS[control];
+                      return (
+                        <div key={control} className="rounded-xl border border-white/10 bg-white/5 p-2">
+                          <div className="mb-2">
+                            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-100">
+                              {meta.label}
+                            </p>
+                            <p className="text-[10px] leading-snug text-white/50">
+                              {meta.description}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {Object.keys(options).map((choice) => {
+                              const option = options[choice];
+                              const active = showoodPalette[control] === choice;
+                              return (
+                                <button
+                                  key={`${control}-${choice}`}
+                                  type="button"
+                                  onClick={() => handleShowoodPaletteSelection(control, choice)}
+                                  aria-pressed={active}
+                                  className={`flex flex-1 items-center justify-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-extrabold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                                    active
+                                      ? 'border-white/80 bg-white/20 text-white shadow-[0_0_14px_rgba(255,255,255,0.22)]'
+                                      : 'border-white/15 bg-white/5 text-white/70 hover:bg-white/10'
+                                  }`}
+                                >
+                                  <span
+                                    className="h-3.5 w-3.5 rounded-full border border-white/40"
+                                    style={{ backgroundColor: option.color }}
+                                    aria-hidden="true"
+                                  />
+                                  <span>{option.label}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               ) : null}
               <div>
