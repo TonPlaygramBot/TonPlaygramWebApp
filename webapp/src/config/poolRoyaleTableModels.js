@@ -1,7 +1,7 @@
-export const POOL_ROYALE_TABLE_MODEL_STORAGE_KEY = 'poolRoyaleTableModel';
+export const POOL_ROYALE_TABLE_MODEL_STORAGE_KEY = 'poolRoyaleTableModel'
 
 const POOLTOOL_RAW_BASE =
-  'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table';
+  'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table'
 
 export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
   {
@@ -16,7 +16,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     fallbackAssetUrl: `${POOLTOOL_RAW_BASE}/seven_foot_showood/seven_foot_showood_pbr.glb`,
     icon: '🎱',
     kind: 'gltf',
-    fitScale: 1.02,
+    fitScale: 1.055,
     clothRepeatScale: 5.25,
     fitStrategy: 'exact',
     fitReference: 'upperTabletop',
@@ -42,7 +42,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     fallbackAssetUrl: `${POOLTOOL_RAW_BASE}/seven_foot_showood/seven_foot_showood_pbr.glb`,
     icon: '🟫',
     kind: 'gltf',
-    fitScale: 1.02,
+    fitScale: 1.06,
     lowerBaseHeightScale: 1.16,
     clothRepeatScale: 5.25,
     fitStrategy: 'exact',
@@ -59,18 +59,18 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     forceGeneratedChromePlates: false,
     hideSurfaceRoles: []
   }
-]);
+])
 
 export const DEFAULT_POOL_ROYALE_TABLE_MODEL_ID =
   POOL_ROYALE_TABLE_MODEL_OPTIONS.find((option) => option.id === 'royal-original')?.id ||
-  POOL_ROYALE_TABLE_MODEL_OPTIONS[0].id;
+  POOL_ROYALE_TABLE_MODEL_OPTIONS[0].id
 
-export function resolvePoolRoyaleTableModel(modelId) {
-  const key = typeof modelId === 'string' ? modelId.trim() : '';
+export function resolvePoolRoyaleTableModel (modelId) {
+  const key = typeof modelId === 'string' ? modelId.trim() : ''
   return (
     POOL_ROYALE_TABLE_MODEL_OPTIONS.find((option) => option.id === key) ||
     POOL_ROYALE_TABLE_MODEL_OPTIONS[0]
-  );
+  )
 }
 
 export const POOL_ROYALE_SHOWOOD_MATERIAL_CONTROL_PARTS = Object.freeze([
@@ -80,7 +80,7 @@ export const POOL_ROYALE_SHOWOOD_MATERIAL_CONTROL_PARTS = Object.freeze([
   'jaws',
   'topWoodRail',
   'legBase'
-]);
+])
 
 export const POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE = Object.freeze({
   cloth: 'a',
@@ -89,7 +89,7 @@ export const POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE = Object.freeze({
   jaws: 'a',
   topWoodRail: 'a',
   legBase: 'b'
-});
+})
 
 export const POOL_ROYALE_SHOWOOD_CONTROL_META = Object.freeze({
   cloth: { label: 'Field cloth', description: 'Only the flat playfield surface.' },
@@ -104,7 +104,7 @@ export const POOL_ROYALE_SHOWOOD_CONTROL_META = Object.freeze({
   jaws: { label: 'Jaws', description: 'Pocket jaws / cups: black or brown.' },
   topWoodRail: { label: 'Top rail frame', description: 'Main top wood rail frame.' },
   legBase: { label: 'Legs + base', description: 'Legs and lower base blocks together, separate from metal accents.' }
-});
+})
 
 export const POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS = Object.freeze({
   cloth: Object.freeze({
@@ -131,4 +131,4 @@ export const POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS = Object.freeze({
     a: Object.freeze({ label: 'Brown legs/base', color: '#3d1706', metalness: 0.02, roughness: 0.52, envMapIntensity: 1, clearcoat: 0.2, clearcoatRoughness: 0.36 }),
     b: Object.freeze({ label: 'Black legs/base', color: '#070504', metalness: 0.04, roughness: 0.4, envMapIntensity: 1.22, clearcoat: 0.32, clearcoatRoughness: 0.26 })
   })
-});
+})

@@ -13,10 +13,6 @@ import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import {
-  POOL_ROYALE_SHOWOOD_CONTROL_META,
-  POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS,
-  POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE,
-  POOL_ROYALE_SHOWOOD_MATERIAL_CONTROL_PARTS,
   POOL_ROYALE_TABLE_MODEL_OPTIONS,
   POOL_ROYALE_TABLE_MODEL_STORAGE_KEY,
   resolvePoolRoyaleTableModel
@@ -43,7 +39,6 @@ const PLAYER_FLAG_STORAGE_KEY = 'poolRoyalePlayerFlag';
 const AI_FLAG_STORAGE_KEY = 'poolRoyaleAiFlag';
 const TABLE_FINISH_STORAGE_KEY = 'poolRoyaleTableFinish';
 const TABLE_BASE_STORAGE_KEY = 'poolRoyaleTableBase';
-const POOL_ROYALE_SHOWOOD_PALETTE_STORAGE_KEY = 'poolRoyaleShowoodMaterialPalette';
 
 function resolveTpcAccountNumber(player) {
   if (!player || typeof player !== 'object') return '';
@@ -91,24 +86,11 @@ export default function PoolRoyaleLobby() {
     } catch {}
     return resolvePoolRoyaleTableModel().id;
   });
-  const [showoodPalette, setShowoodPalette] = useState(() => {
-    try {
-      const stored = JSON.parse(
-        window.localStorage?.getItem(POOL_ROYALE_SHOWOOD_PALETTE_STORAGE_KEY) || 'null'
-      );
-      if (stored && typeof stored === 'object') {
-        return { ...POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE, ...stored };
-      }
-    } catch {}
-    return { ...POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE };
-  });
+  const selectedTableModel = useMemo(
+    () => resolvePoolRoyaleTableModel(tableModelId),
+    [tableModelId]
+  );
   const [players, setPlayers] = useState(8);
-  const selectedTableModel = useMemo(() => {
-    const model = resolvePoolRoyaleTableModel(tableModelId);
-    return model?.useReferenceShowoodMapping
-      ? { ...model, showoodPalette }
-      : model;
-  }, [showoodPalette, tableModelId]);
   const tableSize = resolveTableSize(
     selectedTableModel?.tableSizeId || searchParams.get('tableSize')
   ).id;
@@ -227,9 +209,6 @@ export default function PoolRoyaleLobby() {
       params.set('ballSet', 'american');
     }
     params.set('tableModel', selectedTableModel.id);
-    if (selectedTableModel.useReferenceShowoodMapping) {
-      params.set('showoodPalette', JSON.stringify(showoodPalette));
-    }
     params.set('type', playType);
     params.set('mode', 'online');
     params.set('tableId', startedId);
@@ -279,12 +258,6 @@ export default function PoolRoyaleLobby() {
         window.localStorage?.setItem(
           TABLE_BASE_STORAGE_KEY,
           selectedTableModel.baseId
-        );
-      }
-      if (selectedTableModel.useReferenceShowoodMapping) {
-        window.localStorage?.setItem(
-          POOL_ROYALE_SHOWOOD_PALETTE_STORAGE_KEY,
-          JSON.stringify(showoodPalette)
         );
       }
     } catch {}
@@ -358,9 +331,6 @@ export default function PoolRoyaleLobby() {
     }
     params.set('tableSize', tableSize);
     params.set('tableModel', selectedTableModel.id);
-    if (selectedTableModel.useReferenceShowoodMapping) {
-      params.set('showoodPalette', JSON.stringify(showoodPalette));
-    }
     params.set(
       'type',
       effectivePlayType === 'friendly' ? 'regular' : effectivePlayType
@@ -701,62 +671,6 @@ export default function PoolRoyaleLobby() {
           <p className="text-xs text-white/60">
             Royal Original now keeps TonPlaygram shell/chrome but uses GLB cushions and pocket jaws; Showood uses the reference texture mapping and option set.
           </p>
-          {selectedTableModel.useReferenceShowoodMapping ? (
-            <div className="rounded-2xl border border-amber-300/20 bg-black/25 p-3">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <div>
-                  <h4 className="text-sm font-semibold text-white">Showood table setup</h4>
-                  <p className="text-[11px] text-white/55">Same material options as the supplied reference preview.</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowoodPalette({ ...POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE })}
-                  className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-white/80"
-                >
-                  Reset
-                </button>
-              </div>
-              <div className="space-y-3">
-                {POOL_ROYALE_SHOWOOD_MATERIAL_CONTROL_PARTS.map((control) => {
-                  const meta = POOL_ROYALE_SHOWOOD_CONTROL_META[control];
-                  const options = POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS[control];
-                  return (
-                    <div key={control} className="rounded-xl border border-white/10 bg-white/5 p-2">
-                      <div className="mb-2">
-                        <p className="text-[11px] font-black uppercase tracking-[0.22em] text-emerald-100">{meta.label}</p>
-                        <p className="text-[10px] leading-snug text-white/50">{meta.description}</p>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {['a', 'b'].map((choice) => {
-                          const option = options[choice];
-                          const active = showoodPalette[control] === choice;
-                          return (
-                            <button
-                              key={`${control}-${choice}`}
-                              type="button"
-                              onClick={() => setShowoodPalette((current) => ({ ...current, [control]: choice }))}
-                              className={`flex flex-1 items-center justify-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-extrabold transition ${
-                                active
-                                  ? 'border-white/80 bg-white/20 text-white shadow-[0_0_14px_rgba(255,255,255,0.22)]'
-                                  : 'border-white/15 bg-white/5 text-white/70'
-                              }`}
-                            >
-                              <span
-                                className="h-3.5 w-3.5 rounded-full border border-white/40"
-                                style={{ backgroundColor: option.color }}
-                                aria-hidden="true"
-                              />
-                              <span>{option.label}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ) : null}
         </div>
 
         <div className="space-y-3">
