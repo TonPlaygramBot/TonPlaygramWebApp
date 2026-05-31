@@ -1249,7 +1249,7 @@ const CHROME_CORNER_CENTER_OUTSET_SCALE = 0.024; // push corner fascia a tiny bi
 const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0; // let the corner fascia terminate precisely where the cushion noses stop
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0; // stop pulling the chrome off the short-rail centreline so the jaws stay flush
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0.06; // trim the corner chrome footprint so the outside strip near corner pockets is visibly shorter
-const CHROME_CORNER_POCKET_EDGE_ROUND_SCALE = 0.9; // strongly round the outer corner-pocket-adjacent edges so the red-marked trim is clearly visible on mobile
+const CHROME_CORNER_POCKET_EDGE_ROUND_SCALE = 0; // keep rail-side edges of corner chrome plates straight like the short-rail sides
 const CHROME_SIDE_POCKET_RADIUS_SCALE =
   CORNER_POCKET_INWARD_SCALE *
   CHROME_CORNER_POCKET_RADIUS_SCALE; // match the middle chrome arches to the corner pocket radius
@@ -1777,9 +1777,9 @@ const POCKET_JAW_CORNER_EDGE_FACTOR = 0.36; // widen the chamfer so the corner j
 const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the middle pocket chamfer identical to the corners
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
-const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.74; // pull both corner-jaw flanks inward a bit more while keeping current jaw height
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.5; // expand both middle-jaw flanks slightly so all six jaws open up evenly
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.995; // keep middle jaw arcs slightly tighter so side jaws look a bit smaller
+const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.5; // match the Showood GLB half-round jaw span on all corner pockets
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = CORNER_POCKET_JAW_LATERAL_EXPANSION; // use the same Showood GLB jaw span for middle pockets
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // keep middle jaw arcs the same size as the Showood-style corner jaws
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.12; // add Showood-like extra depth so side jaws match the corner jaw type
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.01; // pull middle-pocket jaws a bit farther downward than corners
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.028; // reduce the outward shift so middle-pocket jaws sit a bit more inward toward table center
@@ -10352,9 +10352,9 @@ export function Table3D(
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.24; // keep native cushion noses closer to the Showood corner-jaw reach
   const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.00; // trim the cushion tips near middle pockets so they stop at the rail cut
   const LONG_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.42; // let native long cushions reach the Showood-style corner jaws
-  const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.02; // keep side cushion ends nearly flush with the Showood pocket-jaw layout
+  const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.16; // trim side cushion ends to match the Showood GLB jaw openings
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.062; // nudge side cushions a little farther outward so they sit closer to the side rails
-  const SIDE_CUSHION_CORNER_SHIFT = TABLE.THICK * 0.142; // trim the side-rail cushion ends near corner pockets just a tiny bit more; middle-pocket trims stay unchanged
+  const SIDE_CUSHION_CORNER_SHIFT = TABLE.THICK * 0.118; // align side-rail cushion breaks with the Showood GLB jaw layout
   const SHORT_RAIL_CUSHION_VERTICAL_LIFT = TABLE.THICK * 0.045; // lift all six cushions higher so Showood and Royal profiles share the same visual top line
   const LONG_RAIL_CUSHION_VERTICAL_LIFT = SHORT_RAIL_CUSHION_VERTICAL_LIFT; // keep long-rail cushions at the same height as the short rails
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
@@ -26325,98 +26325,11 @@ const shotPowerRef = useRef(0);
 
       const spawnPlayerCharacters = async () => {
         disposePlayerCharacters();
-        const zOffset = TABLE.H * 0.72;
-        const sideOffset = TABLE.W * 0.19;
-        const makeRig = (seat, x, z, yaw, characterOption = null) => {
-          const selectedCharacter = characterOption || activeHumanCharacterRef.current || POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0];
-          const behavior = selectedCharacter?.logic || POOL_ROYALE_HUMAN_LOGIC_PROFILES['rpm-current'];
-          const human = createBilardoHumanRig(world, {
-            loader: new GLTFLoader(),
-            modelUrl: selectedCharacter?.modelUrl || selectedCharacter?.modelUrls?.[0] || BILARDO_SHQIP_HUMAN_URL,
-            modelUrls: selectedCharacter?.modelUrls || [selectedCharacter?.modelUrl || BILARDO_SHQIP_HUMAN_URL],
-            unit: POOL_ROYALE_HUMAN_UNIT_SCALE,
-            humanScale: POOL_ROYALE_HUMAN_SCALE_MULTIPLIER * (selectedCharacter?.scale || 1),
-            humanVisualYawFix: behavior.visualYawFix ?? POOL_ROYALE_HUMAN_VISUAL_YAW_FIX,
-            // Drop the bridge hand to the cloth while keeping the cue aligned with the aim line
-            // as the portrait camera lowers into the ready-to-shoot view. Local -Z is the
-            // original rig forward axis, so the fallback bend sign folds belly/chest/head
-            // toward the cue ball instead of bending the whole body backward.
-            shootBendDirection: -1,
-            shootBendTowardCueStick: true,
-            shootBendMode: behavior.bendMode || 'forward',
-            shootCounterLeanSide: -1,
-            shootUpperBodyCounterLean: behavior.shootUpperBodyCounterLean,
-            shootForwardBendScale: behavior.shootForwardBendScale,
-            plantFeetDuringShot: true,
-            bridgeArmStraightDown: false,
-            forceTableFacingAim: true,
-            addFaceDetails: false,
-            poseLambda: HUMAN_POSE_LAMBDA,
-            moveLambda: HUMAN_MOVE_LAMBDA,
-            rotLambda: HUMAN_ROT_LAMBDA,
-            strikeTime: 0.11,
-            holdTime: 0.05,
-            tableTopY: TABLE_Y + TABLE.THICK,
-            groundY: floorY,
-            tableW: PLAY_W,
-            tableL: PLAY_H,
-            perimeterWalk: true,
-            perimeterWalkSpeed: behavior.walkSpeed * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            stanceWidth: behavior.stanceWidth * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            bridgePalmTableLift: behavior.bridgeLift * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            chinToCueHeight: 0.11 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            footGroundY: 0.02 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            footLockStrength: 1.25,
-            kneeBendShot: 0.16 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            desiredShootDistance: behavior.desiredShootDistance * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            edgeMargin: behavior.edgeMargin * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            bridgeHandBackFromBall: behavior.bridgeBack * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            bridgeHandSide: behavior.bridgeSide * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            bridgeCueLift: 0.018 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            shootCueGripFromBack: 0.58 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightElbowShotRise: behavior.rightElbowRise * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightElbowShotSide: behavior.rightElbowSide * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightElbowShotBack: behavior.rightElbowBack * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightForearmOutward: behavior.forearmOutward * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightForearmBack: behavior.forearmBack * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightForearmDown: behavior.forearmDown * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightForearmLength: 0.34 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightStrokePull: behavior.strokePull * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightStrokePush: behavior.strokePush * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightHandShotLift: -0.30 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            idleRightHandX: 0.31 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            idleRightHandY: 0.8 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            idleRightHandZ: -0.015 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            idleCueGripFromBack: 0.24 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightHandCueSocketLocal: new THREE.Vector3(-0.004, -0.014, 0.092).multiplyScalar(POOL_ROYALE_HUMAN_UNIT_SCALE),
-            textureAnisotropy: renderer?.capabilities?.getMaxAnisotropy?.() ?? 8
-          });
-          human.root.position.set(x, floorY, z);
-          human.yaw = yaw;
-          human.userData = {
-            ...(human.userData || {}),
-            poolRoyaleCharacterId: selectedCharacter?.id,
-            poolRoyaleCharacterLabel: selectedCharacter?.label,
-            poolRoyaleLogicLabel: selectedCharacter?.logicLabel,
-            poolRoyaleLogic: behavior
-          };
-          const heldCue = createHumanHeldCueMesh();
-          world.add(heldCue);
-          return { seat, human, heldCue };
-        };
-        const playerA = activeHumanCharacterRef.current || POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0];
-        const playerB = POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.find((option) => option.id !== playerA.id) || POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[1] || playerA;
-        const loungeA = createPoolSideLounge('A', -1);
-        const loungeB = createPoolSideLounge('B', 1);
-        const referee = await createRefereeOfficial();
-        world.add(loungeA, loungeB, referee);
-        playerCharacterRigsRef.current = [
-          makeRig('A', -sideOffset, -zOffset, 0, playerA),
-          makeRig('B', sideOffset, zOffset, Math.PI, playerB),
-          { group: loungeA, lounge: true, seat: 'A' },
-          { group: loungeB, lounge: true, seat: 'B' },
-          { group: referee, referee: true }
-        ];
+        // Pool Royale no longer renders human player/referee characters or
+        // Murlan lounge tables around the active table; keep the cue and game
+        // logic fully functional without spawning those decorative rigs.
+        playerCharacterRigsRef.current = [];
+        activeHumanCueViewRef.current = null;
       };
       spawnPlayerCharactersRef.current = spawnPlayerCharacters;
 
@@ -29405,11 +29318,7 @@ const shotPowerRef = useRef(0);
           const contactPos = impactPos
             .clone()
             .addScaledVector(dir, contactAdvance);
-          const followDistance = THREE.MathUtils.lerp(
-            CUE_FOLLOW_THROUGH_MIN,
-            CUE_FOLLOW_THROUGH_MAX,
-            clampedPower
-          );
+          const followDistance = 0; // stop at cue-ball contact instead of visually following the moving cue ball
           const followPos = contactPos
             .clone()
             .addScaledVector(dir, followDistance);
