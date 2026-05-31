@@ -819,7 +819,7 @@ const CHROME_CORNER_POCKET_EDGE_ROUND_SCALE = 0; // keep rail-side edges of corn
 const CHROME_SIDE_POCKET_RADIUS_SCALE =
   CORNER_POCKET_INWARD_SCALE *
   CHROME_CORNER_POCKET_RADIUS_SCALE; // match the middle chrome arches to the corner pocket radius
-const WOOD_RAIL_CORNER_RADIUS_SCALE = 1.52; // round all four wooden rail outside corners closer to the Showood pocket-jaw silhouette
+const WOOD_RAIL_CORNER_RADIUS_SCALE = 1.28; // match the native wooden rail outline more closely to the Showood pocket-jaw silhouette
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0; // disable secondary throat so the side chrome uses a single arch
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profile
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
@@ -847,13 +847,13 @@ const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.078; // trim the middle-pocket outs
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.045; // open only the corner chrome rounded cut a tiny bit more so the arc reads slightly larger
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.03; // open middle-pocket chrome rounded cuts a tiny bit more so the arc reads slightly larger
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // reduce inward pull so middle pocket chrome cuts sit a bit farther out
-const WOOD_RAIL_POCKET_RELIEF_SCALE = 1.075; // open the wooden rail pocket relief so the rounded cuts fit the Showood jaw outside diameter
-const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.992; // keep corner wood arches nearly flush with the Showood-style chrome/jaw radius
+const WOOD_RAIL_POCKET_RELIEF_SCALE = 1.045; // match the wooden rail pocket relief to the Showood jaw outside diameter
+const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.958; // shrink the wooden corner rounded cut a touch more so only the wood corner radius reads slightly tighter
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_CORNER_POCKET_CUT_CENTER_OUTSET_SCALE = -0.006; // keep the corner wooden rounded cuts aligned to the Showood jaw/chrome opening
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.075; // keep middle rail rounded cuts aligned with the wider Showood-style pocket arcs
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.036; // keep middle wooden relief rounded and closer to the Showood side-pocket geometry
+const WOOD_CORNER_POCKET_CUT_CENTER_OUTSET_SCALE = -0.018; // push only the wooden corner rounded cut outward a touch without moving side-pocket cuts
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.045; // keep middle rail rounded cuts identical to the corner/showood-style pocket arcs
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.068; // move middle wooden relief outward a bit more with the shifted side-pocket geometry
 
 function buildChromePlateGeometry({
   width,
@@ -1320,7 +1320,7 @@ const POCKET_JAW_SIDE_OUTER_SCALE =
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.036; // nudge corner jaws a touch farther outward to keep the jaw shoulder aligned with the rail cut
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
 const POCKET_JAW_DEPTH_SCALE = 1.08; // deepen all jaw bodies so the default pockets carry the same Showood jaw depth
-const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.16; // lift all six jaws visibly above the chrome plates like the Showood reference
+const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.094; // lower all six jaws a hair more so the mouths sit slightly deeper
 const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.036; // trim a little more from the jaw bottoms
 const POCKET_JAW_CORNER_BOTTOM_CLEARANCE = TABLE.THICK * 0.012; // keep corner jaw bottom trim aligned with the global bottom reduction
 const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.23; // keep the underside tight to the cloth depth instead of the deeper pocket floor
@@ -1347,7 +1347,7 @@ const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.5; // match the Showood GLB half-r
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = CORNER_POCKET_JAW_LATERAL_EXPANSION; // use the same Showood GLB jaw span for middle pockets
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // keep middle jaw arcs the same size as the Showood-style corner jaws
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.12; // add Showood-like extra depth so side jaws match the corner jaw type
-const SIDE_POCKET_JAW_VERTICAL_TWEAK = 0; // keep middle-pocket jaws lifted to the same height as the corner jaws
+const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.01; // pull middle-pocket jaws a bit farther downward than corners
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.028; // reduce the outward shift so middle-pocket jaws sit a bit more inward toward table center
 const POCKET_JAW_INWARD_PULL = 0; // keep the jaw centers aligned with the snooker pocket layout
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
@@ -8563,8 +8563,6 @@ export function Table3D(
   const resolvedTableOptions =
     tableOptions && typeof tableOptions === 'object' ? tableOptions : null;
   const enableSidePockets = resolvedTableOptions?.enableSidePockets !== false;
-  const useExternalCushionVisualsOnly =
-    resolvedTableOptions?.tableModel?.useExternalCushionVisualsOnly === true;
   const chromePlateStyle =
     CHROME_PLATE_STYLE_BY_ID[resolvedTableOptions?.chromePlateStyle?.id] ??
     CHROME_PLATE_STYLE_BY_ID[DEFAULT_CHROME_PLATE_STYLE_ID] ??
@@ -11852,16 +11850,7 @@ export function Table3D(
       min: leftIsMin ? resolvedCutAngles.leftCutAngle : resolvedCutAngles.rightCutAngle,
       max: leftIsMin ? resolvedCutAngles.rightCutAngle : resolvedCutAngles.leftCutAngle
     };
-    if (useExternalCushionVisualsOnly) {
-      group.visible = false;
-      group.userData = {
-        ...(group.userData || {}),
-        externalTablePhysicsOnly: true,
-        externalTableHideWhenMounted: true
-      };
-    } else {
-      table.add(group);
-    }
+    table.add(group);
     table.userData.cushions.push(group);
   }
 
@@ -11904,7 +11893,7 @@ export function Table3D(
     const wordmarkHeight = Math.max(BALL_R * 1.38, wordmarkWidth * 0.085);
     const cushionTilt = THREE.MathUtils.degToRad(18);
     table.userData.cushions
-      .filter((cushionGroup) => cushionGroup?.userData?.horizontal && !cushionGroup?.userData?.externalTablePhysicsOnly)
+      .filter((cushionGroup) => cushionGroup?.userData?.horizontal)
       .forEach((cushionGroup) => {
         const wordmark = new THREE.Mesh(
           new THREE.PlaneGeometry(wordmarkWidth, wordmarkHeight),
@@ -12158,14 +12147,14 @@ const POOL_ROYALE_SHOWOOD_PART_TO_CONTROL = Object.freeze({
   cloth: 'cloth',
   cushion: 'cushion',
   topWoodRail: 'topWoodRail',
-  sideWoodApron: 'topWoodRail',
+  sideWoodApron: 'metalAccent',
   pocketCup: 'jaws',
   cornerPocketPlate: 'metalAccent',
   middlePocketPlate: 'metalAccent',
   verticalCornerRim: 'metalAccent',
   baseCornerBlock: 'legBase',
   leg: 'legBase',
-  baseFoot: 'legBase',
+  baseFoot: 'metalAccent',
   lowerTrim: 'metalAccent',
   railSight: 'metalAccent',
   underside: 'legBase',
@@ -12178,11 +12167,7 @@ const POOL_ROYALE_SHOWOOD_KEEP_TEXTURE_PARTS = new Set([
   'topWoodRail',
   'leg',
   'baseCornerBlock',
-  'underside',
-  'sideWoodApron',
-  'wood',
-  'baseFoot',
-  'lowerTrim'
+  'underside'
 ]);
 
 function resolvePoolRoyaleShowoodPalette(tableModel = null) {
@@ -12219,10 +12204,7 @@ function classifyPoolRoyaleShowoodReferencePart(child, material) {
   const metalish = (material?.metalness ?? 0) > 0.16 || (material?.clearcoat ?? 0) > 0.58 || gold;
 
   if (/cloth|felt|fabric|surface|bed|slate|playfield|baize/.test(label) && !/cushion|rubber|bumper/.test(childName)) return 'cloth';
-  if (/cushion|rubber|bumper|railrubber|rail[_\s-]*nose/.test(childName)) {
-    if (/shadow/.test(label)) return 'cushionShadow';
-    return 'cushion';
-  }
+  if (/cushion|rubber|bumper|railrubber|rail[_\s-]*nose/.test(childName)) return 'cushion';
   if (/sight|diamond|marker|dot|inlay/.test(label)) return 'railSight';
   if (/pocket|hole|drop|net|liner|leather|cup|basket|holder/.test(label)) {
     return metalish && !black && !brown ? 'cornerPocketPlate' : 'pocketCup';
@@ -12237,26 +12219,6 @@ function classifyPoolRoyaleShowoodReferencePart(child, material) {
   return 'sideWoodApron';
 }
 
-
-function applyPoolRoyaleExternalCushionShadowMaterial(material) {
-  if (!material) return material;
-  const mat = material.clone ? material.clone() : material;
-  mat.color?.set?.('#8a8f98');
-  if ('metalness' in mat) mat.metalness = 0;
-  if ('roughness' in mat) mat.roughness = 1;
-  if ('envMapIntensity' in mat) mat.envMapIntensity = 0.06;
-  if ('opacity' in mat) mat.opacity = Math.min(0.62, mat.opacity ?? 0.55);
-  mat.transparent = true;
-  mat.depthWrite = false;
-  mat.side = THREE.DoubleSide;
-  mat.userData = {
-    ...(mat.userData || {}),
-    poolRoyaleCushionShadowGrey: true
-  };
-  mat.needsUpdate = true;
-  return mat;
-}
-
 function applyPoolRoyaleShowoodReferenceMaterial(material, part, tableModel = null) {
   if (!material) return material;
   const mat = material.clone ? material.clone() : material;
@@ -12265,16 +12227,6 @@ function applyPoolRoyaleShowoodReferenceMaterial(material, part, tableModel = nu
   const choice = palette[control] || POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE[control] || 'a';
   const option = POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS[control]?.[choice] || POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS[control]?.a;
   if (!option) return mat;
-  if (part === 'cushionShadow' || /shadow/i.test(`${material?.name || ''}`)) {
-    const shadowMat = applyPoolRoyaleExternalCushionShadowMaterial(mat);
-    shadowMat.userData = {
-      ...(shadowMat.userData || {}),
-      poolRoyaleShowoodReferencePart: part,
-      poolRoyaleShowoodReferenceControl: control,
-      poolRoyaleShowoodReferenceChoice: choice
-    };
-    return shadowMat;
-  }
   mat.color?.set?.(option.color);
   if ('metalness' in mat) mat.metalness = option.metalness;
   if ('roughness' in mat) mat.roughness = option.roughness;
@@ -12409,9 +12361,6 @@ function normalizePoolRoyaleExternalClothTextureScale(mesh, material, role) {
 
 function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tableModel = null) {
   if (!material || !finishInfo) return material;
-  if (/shadow/i.test(`${material?.name || ''}`)) {
-    return applyPoolRoyaleExternalCushionShadowMaterial(material);
-  }
   const finishRoles = Array.isArray(tableModel?.usePoolRoyaleFinishRoles)
     ? tableModel.usePoolRoyaleFinishRoles
     : null;
