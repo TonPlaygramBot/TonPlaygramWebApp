@@ -720,7 +720,7 @@ export const POOL_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   railMarkerColor: ['gold'],
   clothColor: [POOL_ROYALE_CLOTH_VARIANTS[0].id],
   cueStyle: ['birch-frost'],
-  pocketLiner: ['plastic-black'],
+  pocketLiner: ['plastic-black', 'brown-showood'],
   environmentHdri: [POOL_ROYALE_DEFAULT_HDRI_ID],
   tableBase: POOL_ROYALE_BASE_VARIANTS.map((variant) => variant.id)
 });
@@ -794,7 +794,8 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     'plastic-dark-grey': 'Plastic Dark Grey Pocket Jaws',
     'plastic-grey': 'Plastic Grey Pocket Jaws',
     'plastic-light-grey': 'Plastic Light Grey Pocket Jaws',
-    'plastic-magnolia': 'Plastic Magnolia Pocket Jaws'
+    'plastic-magnolia': 'Plastic Magnolia Pocket Jaws',
+    'brown-showood': 'Brown Showood Pocket Jaws'
   })
 });
 
@@ -1106,6 +1107,15 @@ export const POOL_ROYALE_STORE_ITEMS = [
     thumbnail: POCKET_LINER_THUMBNAILS['plastic-magnolia']
   },
   {
+    id: 'pocket-brown-showood',
+    type: 'pocketLiner',
+    optionId: 'brown-showood',
+    name: 'Brown Showood Pocket Jaws',
+    price: 260,
+    description: 'Dark brown pocket jaws matching the Showood GLB reference mapping option.',
+    thumbnail: swatchThumbnail(['#2a1207', '#5a2608', '#020202'])
+  },
+  {
     id: 'cue-redwood',
     type: 'cueStyle',
     optionId: 'redwood-ember',
@@ -1204,6 +1214,7 @@ export const POOL_ROYALE_DEFAULT_LOADOUT = [
   },
   { type: 'cueStyle', optionId: 'birch-frost', label: 'Birch Frost Cue' },
   { type: 'pocketLiner', optionId: 'plastic-black', label: 'Plastic Black Pocket Jaws' },
+  { type: 'pocketLiner', optionId: 'brown-showood', label: 'Brown Showood Pocket Jaws' },
   {
     type: 'tableBase',
     optionId: POOL_ROYALE_BASE_VARIANTS[0].id,
