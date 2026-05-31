@@ -24,8 +24,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     useOriginalLayoutSurfaces: false,
     usePoolRoyaleFinish: true,
     usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'pocket'],
-    preserveSourceTextureRoles: [],
-    matchCushionsToCloth: true,
+    preserveSourceTextureRoles: ['cushion'],
     preserveOriginalSurfaceRoles: ['trim', 'wood'],
     hideSurfaceRoles: ['trim', 'wood'],
     keepGeneratedShell: true,
@@ -50,11 +49,10 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     matchNativeUpperComponentHeight: true,
     useOriginalLayoutSurfaces: true,
     usePoolRoyaleFinish: true,
-    useReferenceShowoodMapping: true,
     usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood', 'pocket'],
     preserveSourceTextureRoles: ['cushion', 'wood'],
-    preserveOriginalSurfaceRoles: [],
-    tintOriginalTrimGold: false,
+    preserveOriginalSurfaceRoles: ['trim'],
+    tintOriginalTrimGold: true,
     forceGeneratedChromePlates: false,
     hideSurfaceRoles: []
   }
