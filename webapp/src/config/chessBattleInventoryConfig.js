@@ -802,7 +802,15 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     name: option.label,
     price: 900 + idx * 110,
     description: option.description || 'Ludo Battle Royal weapon animation pack adapted for Chess Battle Royal.',
-    thumbnail: option.thumbnail
+    thumbnail: option.thumbnail,
+    preview3d: option.id === 'ukrainianDroneAttack' ? 'exactUkrainianDrone' : undefined,
+    modelUrls: option.id === 'ukrainianDroneAttack'
+      ? Object.freeze([
+        'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/drone.glb',
+        'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main/drone.glb',
+        'https://cdn.statically.io/gh/srcejon/sdrangel-3d-models/main/drone.glb'
+      ])
+      : undefined
   })),
   ...CHESS_HUMAN_CHARACTER_OPTIONS.filter((option) =>
     CHESS_STORE_HUMAN_CHARACTER_IDS.includes(option.id)
