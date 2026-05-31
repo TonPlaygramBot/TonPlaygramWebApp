@@ -35,10 +35,8 @@ import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import {
   POOL_ROYALE_TABLE_MODEL_STORAGE_KEY,
-  POOL_ROYALE_SHOWOOD_CONTROL_META,
   POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS,
   POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE,
-  POOL_ROYALE_SHOWOOD_MATERIAL_CONTROL_PARTS,
   resolvePoolRoyaleTableModel
 } from '../../config/poolRoyaleTableModels.js';
 import { resolveTableSize as resolveSnookerTableSize } from '../../config/snookerClubTables.js';
@@ -130,7 +128,6 @@ import { createMurlanStyleTable } from '../../utils/murlanTable.js';
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 const BASIS_TRANSCODER_PATH =
   'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
-const POOL_ROYALE_SHOWOOD_PALETTE_STORAGE_KEY = 'poolRoyaleShowoodMaterialPalette';
 
 
 const TRAINING_MISS_ATTEMPT_COST = 1;
@@ -12498,11 +12495,6 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
         child.visible = false;
       }
       if (tableModel?.useReferenceShowoodMapping) {
-        child.userData = {
-          ...(child.userData || {}),
-          poolRoyaleExternalRole: role,
-          poolRoyaleShowoodReferencePart: referencePart || role
-        };
         const nextMaterial = applyPoolRoyaleShowoodReferenceMaterial(material, referencePart || role, tableModel);
         normalizePoolRoyaleExternalClothTextureScale(child, nextMaterial, role);
         return nextMaterial;
@@ -14134,48 +14126,20 @@ function PoolRoyaleGame({
     () => resolveTableSize(tableSizeKey),
     [tableSizeKey]
   );
-  const [showoodPalette, setShowoodPalette] = useState(() => {
-    try {
-      const params = new URLSearchParams(location.search);
-      const raw =
-        params.get('showoodPalette') ||
-        window.localStorage?.getItem(POOL_ROYALE_SHOWOOD_PALETTE_STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === 'object') {
-          return { ...POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE, ...parsed };
-        }
-      }
-    } catch {}
-    return { ...POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE };
-  });
   const activeTableModel = useMemo(() => {
     const model = resolvePoolRoyaleTableModel(tableModelKey);
-    return model?.useReferenceShowoodMapping ? { ...model, showoodPalette } : model;
-  }, [showoodPalette, tableModelKey]);
-  useEffect(() => {
+    if (!model?.useReferenceShowoodMapping) return model;
+    let showoodPalette = null;
     try {
-      window.localStorage?.setItem(
-        POOL_ROYALE_SHOWOOD_PALETTE_STORAGE_KEY,
-        JSON.stringify(showoodPalette)
-      );
+      const params = new URLSearchParams(location.search);
+      const raw = params.get('showoodPalette') || window.localStorage?.getItem('poolRoyaleShowoodMaterialPalette');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') showoodPalette = parsed;
+      }
     } catch {}
-    if (!activeTableModel?.useReferenceShowoodMapping) return;
-    const liveTableModel = { ...activeTableModel, showoodPalette };
-    worldRef.current?.traverse?.((child) => {
-      if (!child?.isMesh || !child.userData?.poolRoyaleShowoodReferencePart) return;
-      const role = child.userData.poolRoyaleExternalRole || 'cloth';
-      const part = child.userData.poolRoyaleShowoodReferencePart || role;
-      const updateMaterial = (material) => {
-        const nextMaterial = applyPoolRoyaleShowoodReferenceMaterial(material, part, liveTableModel);
-        normalizePoolRoyaleExternalClothTextureScale(child, nextMaterial, role);
-        return nextMaterial;
-      };
-      child.material = Array.isArray(child.material)
-        ? child.material.map(updateMaterial)
-        : updateMaterial(child.material);
-    });
-  }, [activeTableModel, showoodPalette]);
+    return showoodPalette ? { ...model, showoodPalette } : model;
+  }, [location.search, tableModelKey]);
   const responsiveTableSize = useResponsiveTableSize(activeTableSize);
   const resolvedAccountId = useMemo(
     () => poolRoyalAccountId(accountId),
@@ -35825,76 +35789,6 @@ const shotPowerRef = useRef(0);
                   })}
                 </div>
               </div>
-              {activeTableModel?.useReferenceShowoodMapping ? (
-                <div className="rounded-2xl border border-amber-300/20 bg-black/25 p-3">
-                  <div className="mb-2 flex items-center justify-between gap-2">
-                    <div>
-                      <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                        Showood Table Setup
-                      </h3>
-                      <p className="mt-1 text-[0.7rem] text-white/60">
-                        Visible only for the Showood GLB table. Changes apply live to the loaded GLB materials.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowoodPalette({ ...POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE })}
-                      className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white/80 transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
-                    >
-                      Reset
-                    </button>
-                  </div>
-                  <div className="space-y-3">
-                    {POOL_ROYALE_SHOWOOD_MATERIAL_CONTROL_PARTS.map((control) => {
-                      const meta = POOL_ROYALE_SHOWOOD_CONTROL_META[control];
-                      const options = POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS[control];
-                      return (
-                        <div key={control} className="rounded-xl border border-white/10 bg-white/5 p-2">
-                          <div className="mb-2">
-                            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-100">
-                              {meta.label}
-                            </p>
-                            <p className="text-[10px] leading-snug text-white/50">
-                              {meta.description}
-                            </p>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            {['a', 'b'].map((choice) => {
-                              const option = options[choice];
-                              const active = showoodPalette[control] === choice;
-                              return (
-                                <button
-                                  key={`${control}-${choice}`}
-                                  type="button"
-                                  onClick={() =>
-                                    setShowoodPalette((current) => ({
-                                      ...current,
-                                      [control]: choice
-                                    }))
-                                  }
-                                  aria-pressed={active}
-                                  className={`flex flex-1 items-center justify-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-extrabold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                                    active
-                                      ? 'border-white/80 bg-white/20 text-white shadow-[0_0_14px_rgba(255,255,255,0.22)]'
-                                      : 'border-white/15 bg-white/5 text-white/70 hover:bg-white/10'
-                                  }`}
-                                >
-                                  <span
-                                    className="h-3.5 w-3.5 rounded-full border border-white/40"
-                                    style={{ backgroundColor: option.color }}
-                                    aria-hidden="true"
-                                  />
-                                  <span>{option.label}</span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : null}
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   HDR Environment
