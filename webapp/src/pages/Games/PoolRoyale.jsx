@@ -3666,6 +3666,16 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
     clearcoat: 0.5,
     clearcoatRoughness: 0.06,
     envMapIntensity: 0.72
+  },
+  {
+    id: 'black',
+    label: 'Black',
+    color: 0x050505,
+    metalness: 0.72,
+    roughness: 0.2,
+    clearcoat: 0.52,
+    clearcoatRoughness: 0.08,
+    envMapIntensity: 0.62
   }
 ]);
 
@@ -12148,7 +12158,6 @@ const POOL_ROYALE_SHOWOOD_PART_TO_CONTROL = Object.freeze({
   cushion: 'cushion',
   topWoodRail: 'topWoodRail',
   sideWoodApron: 'metalAccent',
-  pocketCup: 'jaws',
   cornerPocketPlate: 'metalAccent',
   middlePocketPlate: 'metalAccent',
   verticalCornerRim: 'metalAccent',
@@ -12160,23 +12169,36 @@ const POOL_ROYALE_SHOWOOD_PART_TO_CONTROL = Object.freeze({
   underside: 'legBase',
   trim: 'metalAccent',
   wood: 'topWoodRail',
-  pocket: 'jaws'
+  pocketCup: 'pocketJaw',
+  pocket: 'pocketJaw'
 });
-const POOL_ROYALE_SHOWOOD_KEEP_TEXTURE_PARTS = new Set([
-  'cushion',
-  'topWoodRail',
-  'leg',
-  'baseCornerBlock',
-  'underside'
-]);
+const POOL_ROYALE_SHOWOOD_LEGACY_CHOICE_FALLBACKS = Object.freeze({
+  cloth: { a: 'cabanGreenClassic', b: 'cabanBlueRoyal' },
+  cushion: { a: 'cabanGreenForest', b: 'cabanDarkGreyCharcoal' },
+  metalAccent: { a: 'gold', b: 'chrome' },
+  pocketJaw: { a: 'plastic-black', b: 'brown-showood' },
+  topWoodRail: { a: 'woodTable001', b: 'darkWood' },
+  legBase: { a: 'rosewoodVeneer01', b: 'darkWood' }
+});
 
 function resolvePoolRoyaleShowoodPalette(tableModel = null) {
-  return {
+  const raw = {
     ...POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE,
     ...(tableModel?.showoodPalette && typeof tableModel.showoodPalette === 'object'
       ? tableModel.showoodPalette
       : {})
   };
+  POOL_ROYALE_SHOWOOD_MATERIAL_CONTROL_PARTS.forEach((control) => {
+    const options = POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS[control] || {};
+    const current = raw[control];
+    if (!options[current]) {
+      raw[control] =
+        POOL_ROYALE_SHOWOOD_LEGACY_CHOICE_FALLBACKS[control]?.[current] ||
+        POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE[control] ||
+        Object.keys(options)[0];
+    }
+  });
+  return raw;
 }
 
 function clearPoolRoyaleMaterialTextureMaps(material) {
@@ -12190,6 +12212,157 @@ function clearPoolRoyaleMaterialTextureMaps(material) {
   material.emissiveMap = null;
   material.lightMap = null;
   material.alphaMap = null;
+}
+
+
+function copyPoolRoyaleMaterialLook(target, source) {
+  if (!target || !source) return;
+  if (source.color && target.color) target.color.copy(source.color);
+  if (source.emissive && target.emissive) target.emissive.copy(source.emissive);
+  [
+    'roughness',
+    'metalness',
+    'clearcoat',
+    'clearcoatRoughness',
+    'sheen',
+    'sheenRoughness',
+    'reflectivity',
+    'envMapIntensity',
+    'emissiveIntensity',
+    'bumpScale'
+  ].forEach((key) => {
+    if (typeof source[key] === 'number' && key in target) target[key] = source[key];
+  });
+  target.map = clonePoolRoyaleMaterialTexture(source.map, { isColor: true });
+  target.normalMap = clonePoolRoyaleMaterialTexture(source.normalMap);
+  target.roughnessMap = clonePoolRoyaleMaterialTexture(source.roughnessMap);
+  target.aoMap = clonePoolRoyaleMaterialTexture(source.aoMap);
+  target.metalnessMap = clonePoolRoyaleMaterialTexture(source.metalnessMap);
+  target.bumpMap = clonePoolRoyaleMaterialTexture(source.bumpMap);
+}
+
+function getPoolRoyaleShowoodWoodSurfaceForFinish(finish, control, finishInfo = null) {
+  const defaultWoodOption = WOOD_GRAIN_OPTIONS_BY_ID[DEFAULT_WOOD_GRAIN_ID] ?? WOOD_GRAIN_OPTIONS[0];
+  const resolvedWoodOption =
+    finish?.woodTexture ||
+    (finish?.woodTextureId && WOOD_GRAIN_OPTIONS_BY_ID[finish.woodTextureId]) ||
+    defaultWoodOption;
+  const fallbackSurface =
+    control === 'topWoodRail'
+      ? finishInfo?.parts?.woodSurfaces?.rail
+      : finishInfo?.parts?.woodSurfaces?.frame;
+  const baseSurface = resolveWoodSurfaceConfig(
+    resolvedWoodOption?.frame,
+    resolvedWoodOption?.rail ?? defaultWoodOption.frame ?? defaultWoodOption.rail ?? fallbackSurface
+  );
+  const usesPolyHavenWoodMaps =
+    typeof baseSurface.mapUrl === 'string' && baseSurface.mapUrl.includes('polyhaven.org');
+  const textureSize = usesPolyHavenWoodMaps
+    ? (baseSurface.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE)
+    : enforceHighFpsTableTextureSize(baseSurface.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE);
+  const repeatScale = clampWoodRepeatScaleValue(finish?.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE);
+  const railMultiplier = control === 'topWoodRail' && usesPolyHavenWoodMaps
+    ? GLTF_RAIL_PATTERN_REPEAT_MULTIPLIER
+    : 1;
+  return {
+    repeat: new THREE.Vector2(
+      (baseSurface.repeat?.x ?? 1) * railMultiplier,
+      baseSurface.repeat?.y ?? 1
+    ),
+    rotation: baseSurface.rotation,
+    textureSize,
+    mapUrl: baseSurface.mapUrl,
+    roughnessMapUrl: baseSurface.roughnessMapUrl,
+    normalMapUrl: baseSurface.normalMapUrl,
+    woodRepeatScale: repeatScale
+  };
+}
+
+function applyPoolRoyaleShowoodWoodFinishMaterial(mat, control, option, finishInfo = null) {
+  const finish = TABLE_FINISHES[option?.finishId] ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
+  const rawMaterials = typeof finish?.createMaterials === 'function'
+    ? finish.createMaterials()
+    : TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID].createMaterials();
+  const source = control === 'topWoodRail'
+    ? rawMaterials.rail || rawMaterials.frame
+    : rawMaterials.leg || rawMaterials.frame || rawMaterials.rail;
+  copyPoolRoyaleMaterialLook(mat, source);
+  mat.userData = {
+    ...(mat.userData || {}),
+    baseTintHex: mat.color?.getHex?.()
+  };
+  if (finish?.disableWoodPattern) {
+    if (finish?.useBrandCarbonTexture) applyLtCarbonFiberTexture(mat);
+    else clearPoolRoyaleMaterialTextureMaps(mat);
+  } else {
+    applyWoodTextureToMaterial(
+      mat,
+      getPoolRoyaleShowoodWoodSurfaceForFinish(finish, control, finishInfo)
+    );
+  }
+  applyTableFinishDulling(mat);
+  applyTableWoodVisibilityTuning(mat);
+  if (finish?.surfaceStyle === 'matte') {
+    if (finish?.preserveFinishTintOnWood) applyMatteSurfacePropsOnly(mat);
+    else applyMonoMattePlasticSurface(mat);
+  }
+  applyFinishWoodTint(mat, finish);
+}
+
+function applyPoolRoyaleShowoodClothLibraryMaterial(mat, control, option, finishInfo = null) {
+  const source = control === 'cushion' ? finishInfo?.cushionMat : finishInfo?.clothMat;
+  copyPoolRoyaleMaterialLook(mat, source || finishInfo?.clothMat);
+  const textureKey = option?.textureKey;
+  const textureSource = option?.sourceId || option?.textureKey || DEFAULT_CLOTH_TEXTURE_SOURCE_ID;
+  if (textureKey) {
+    const textures = createClothTextures(textureKey, textureSource);
+    const assignTexture = (prop, texture, isColor = false) => {
+      mat[prop] = texture;
+      if (!texture) return;
+      if (isColor) texture.colorSpace = THREE.SRGBColorSpace;
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+      texture.anisotropy = resolveTextureAnisotropy(12);
+      texture.needsUpdate = true;
+    };
+    assignTexture('map', textures.map, true);
+    assignTexture('normalMap', textures.normal);
+    assignTexture('bumpMap', textures.normal ? null : textures.bump);
+    assignTexture('roughnessMap', textures.roughness);
+  }
+  if (mat.color && option?.color) mat.color.set(option.color);
+  if (mat.emissive && mat.color) mat.emissive.copy(mat.color).multiplyScalar(0.045);
+  if ('metalness' in mat) mat.metalness = option?.metalness ?? 0;
+  if ('roughness' in mat) mat.roughness = option?.roughness ?? mat.roughness ?? 1;
+  if ('envMapIntensity' in mat) mat.envMapIntensity = option?.envMapIntensity ?? 0;
+  mat.userData = {
+    ...(mat.userData || {}),
+    poolRoyaleMatchProceduralClothRepeat: true
+  };
+}
+
+function applyPoolRoyaleShowoodMetalAccentMaterial(mat, option) {
+  const preset = CHROME_COLOR_OPTIONS.find((entry) => entry.id === option?.metalAccentId || entry.id === option?.id) ||
+    CHROME_COLOR_OPTIONS.find((entry) => entry.id === 'gold') ||
+    CHROME_COLOR_OPTIONS[0];
+  if (!preset) return;
+  mat.color?.set?.(preset.color);
+  if ('metalness' in mat) mat.metalness = preset.metalness;
+  if ('roughness' in mat) mat.roughness = preset.roughness;
+  if ('clearcoat' in mat) mat.clearcoat = preset.clearcoat ?? 0;
+  if ('clearcoatRoughness' in mat) mat.clearcoatRoughness = preset.clearcoatRoughness ?? 0;
+  if ('envMapIntensity' in mat) mat.envMapIntensity = preset.envMapIntensity ?? mat.envMapIntensity ?? 1;
+  mat.needsUpdate = true;
+}
+
+function applyPoolRoyaleShowoodPocketJawMaterial(mat, option, finishInfo = null) {
+  const linerId = option?.pocketLinerId || DEFAULT_POCKET_LINER_OPTION_ID;
+  const linerOption = POCKET_LINER_OPTIONS.find((entry) => entry.id === linerId) ||
+    POCKET_LINER_OPTIONS[0];
+  const liners = createPocketLinerMaterials(linerOption);
+  const source = liners?.jawMaterial || finishInfo?.materials?.pocketJaw;
+  copyPoolRoyaleMaterialLook(mat, source);
+  mat.needsUpdate = true;
 }
 
 function classifyPoolRoyaleShowoodReferencePart(child, material) {
@@ -12214,27 +12387,42 @@ function classifyPoolRoyaleShowoodReferencePart(child, material) {
   }
   if (/leg/.test(label)) return 'leg';
   if (/base|block|support|underside/.test(label)) return 'baseCornerBlock';
-  if (/rail|frame|top|wood|walnut|showood|apron|cabinet|corner/.test(label)) return 'topWoodRail';
+  if (/apron|side[_\s-]*(strip|apron|panel)|cabinet/.test(label)) return 'sideWoodApron';
+  if (/rail|frame|top|wood|walnut|showood|corner/.test(label)) return 'topWoodRail';
   if (green) return 'cloth';
   return 'sideWoodApron';
 }
 
-function applyPoolRoyaleShowoodReferenceMaterial(material, part, tableModel = null) {
+function applyPoolRoyaleShowoodReferenceMaterial(material, part, tableModel = null, finishInfo = null) {
   if (!material) return material;
   const mat = material.clone ? material.clone() : material;
+  preparePoolRoyaleExternalTexture(mat.map, true);
+  preparePoolRoyaleExternalTexture(mat.emissiveMap, true);
+  preparePoolRoyaleExternalTexture(mat.aoMap, false);
+  preparePoolRoyaleExternalTexture(mat.normalMap, false);
+  preparePoolRoyaleExternalTexture(mat.roughnessMap, false);
+  preparePoolRoyaleExternalTexture(mat.metalnessMap, false);
+  preparePoolRoyaleExternalTexture(mat.bumpMap, false);
   const control = POOL_ROYALE_SHOWOOD_PART_TO_CONTROL[part] || POOL_ROYALE_SHOWOOD_PART_TO_CONTROL[classifyPoolRoyaleExternalTableSurface(null, mat)] || 'topWoodRail';
   const palette = resolvePoolRoyaleShowoodPalette(tableModel);
-  const choice = palette[control] || POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE[control] || 'a';
-  const option = POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS[control]?.[choice] || POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS[control]?.a;
+  const choice = palette[control] || POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE[control] || Object.keys(POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS[control] || {})[0];
+  const option = POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS[control]?.[choice];
   if (!option) return mat;
-  mat.color?.set?.(option.color);
-  if ('metalness' in mat) mat.metalness = option.metalness;
-  if ('roughness' in mat) mat.roughness = option.roughness;
-  if ('envMapIntensity' in mat) mat.envMapIntensity = option.envMapIntensity;
-  if ('clearcoat' in mat) mat.clearcoat = option.clearcoat ?? 0;
-  if ('clearcoatRoughness' in mat) mat.clearcoatRoughness = option.clearcoatRoughness ?? 0;
-  if (!POOL_ROYALE_SHOWOOD_KEEP_TEXTURE_PARTS.has(part)) {
-    clearPoolRoyaleMaterialTextureMaps(mat);
+  if (control === 'cloth' || control === 'cushion') {
+    applyPoolRoyaleShowoodClothLibraryMaterial(mat, control, option, finishInfo);
+  } else if (control === 'topWoodRail' || control === 'legBase') {
+    applyPoolRoyaleShowoodWoodFinishMaterial(mat, control, option, finishInfo);
+  } else if (control === 'metalAccent') {
+    applyPoolRoyaleShowoodMetalAccentMaterial(mat, option);
+  } else if (control === 'pocketJaw') {
+    applyPoolRoyaleShowoodPocketJawMaterial(mat, option, finishInfo);
+  } else {
+    mat.color?.set?.(option.color);
+    if ('metalness' in mat) mat.metalness = option.metalness;
+    if ('roughness' in mat) mat.roughness = option.roughness;
+    if ('envMapIntensity' in mat) mat.envMapIntensity = option.envMapIntensity;
+    if ('clearcoat' in mat) mat.clearcoat = option.clearcoat ?? 0;
+    if ('clearcoatRoughness' in mat) mat.clearcoatRoughness = option.clearcoatRoughness ?? 0;
   }
   mat.transparent = false;
   mat.opacity = 1;
@@ -12498,7 +12686,7 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
         child.visible = false;
       }
       if (tableModel?.useReferenceShowoodMapping) {
-        const nextMaterial = applyPoolRoyaleShowoodReferenceMaterial(material, referencePart || role, tableModel);
+        const nextMaterial = applyPoolRoyaleShowoodReferenceMaterial(material, referencePart || role, tableModel, finishInfo);
         normalizePoolRoyaleExternalClothTextureScale(child, nextMaterial, role);
         return nextMaterial;
       }
@@ -13486,6 +13674,12 @@ function mountPoolRoyaleExternalTableModel({
   if (resolvedTableOptions?.tableModel?.hideGeneratedCushionsAndJaws) {
     [
       ...(Array.isArray(table.userData.cushions) ? table.userData.cushions : []),
+      ...finishParts.pocketJawMeshes,
+      ...finishParts.pocketRimMeshes,
+      ...pocketMeshes
+    ].forEach(markGeneratedCushionsAndJawsHiddenByExternalTable);
+  } else if (resolvedTableOptions?.tableModel?.hideGeneratedPocketsAndJaws) {
+    [
       ...finishParts.pocketJawMeshes,
       ...finishParts.pocketRimMeshes,
       ...pocketMeshes
@@ -35887,6 +36081,15 @@ const shotPowerRef = useRef(0);
                                     style={{ backgroundColor: option.color }}
                                     aria-hidden="true"
                                   />
+                                  {option.thumbnail ? (
+                                    <img
+                                      src={option.thumbnail}
+                                      alt=""
+                                      className="h-5 w-8 rounded-md border border-white/20 object-cover"
+                                      loading="lazy"
+                                      aria-hidden="true"
+                                    />
+                                  ) : null}
                                   <span>{option.label}</span>
                                 </button>
                               );

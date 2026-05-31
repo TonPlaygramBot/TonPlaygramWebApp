@@ -715,7 +715,7 @@ export const POOL_ROYALE_DEFAULT_HDRI_ID = 'colorfulStudio';
 
 export const POOL_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   tableFinish: ['peelingPaintWeathered'],
-  chromeColor: ['gold'],
+  chromeColor: ['gold', 'black'],
   chromePlateStyle: ['showood-rounded', 'royal-classic'],
   railMarkerColor: ['gold'],
   clothColor: [POOL_ROYALE_CLOTH_VARIANTS[0].id],
@@ -756,7 +756,8 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
   }),
   chromeColor: Object.freeze({
     chrome: 'Chrome',
-    gold: 'Gold'
+    gold: 'Gold',
+    black: 'Black'
   }),
   chromePlateStyle: Object.freeze({
     'royal-classic': 'Royal Classic Plates',
@@ -990,6 +991,15 @@ export const POOL_ROYALE_STORE_ITEMS = [
     thumbnail: swatchThumbnail(['#e2e8f0', '#94a3b8', '#f8fafc'])
   },
   {
+    id: 'chrome-black',
+    type: 'chromeColor',
+    optionId: 'black',
+    name: 'Black Fascias',
+    price: 360,
+    description: 'Gloss black hardware for rail sights, apron accents, feet, rims, and fascia details.',
+    thumbnail: swatchThumbnail(['#050505', '#171717', '#3f3f46'])
+  },
+  {
     id: 'chromeStyle-showoodRounded',
     type: 'chromePlateStyle',
     optionId: 'showood-rounded',
@@ -1205,6 +1215,7 @@ export const POOL_ROYALE_DEFAULT_LOADOUT = [
     label: 'Wood Peeling Paint Weathered Finish'
   },
   { type: 'chromeColor', optionId: 'gold', label: 'Gold Chrome Plates' },
+  { type: 'chromeColor', optionId: 'black', label: 'Black Fascias' },
   { type: 'chromePlateStyle', optionId: 'showood-rounded', label: 'Showood Rounded Chrome Plates' },
   { type: 'railMarkerColor', optionId: 'gold', label: 'Gold Diamond Markers' },
   {
