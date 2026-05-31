@@ -103,6 +103,7 @@ import {
   SPIN_STUN_RADIUS
 } from './snookerRoyalSpinUtils.js';
 import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
+import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
@@ -639,8 +640,8 @@ function adjustSideNotchDepth(mp) {
 
 const POCKET_VISUAL_EXPANSION = 1; // exact physical pocket aperture: no visual/physics over-expansion
 const CORNER_POCKET_INWARD_SCALE = 1; // keep corner cushion/jaw mapping on the real pocket mouth
-const CORNER_POCKET_SCALE_BOOST = 1; // keep the corner mouth at the original snooker cushion-template size
-const CORNER_POCKET_EXTRA_SCALE = 1; // no extra relaxation: pockets stay at snooker size
+const CORNER_POCKET_SCALE_BOOST = 0.998; // match Pool Royale's procedural mouth bias so corner shots enter the visible jaw lane
+const CORNER_POCKET_EXTRA_SCALE = 1.028; // reuse Pool Royale's small corner-mouth relaxation so balls no longer hang on exact snooker-size sensors
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1; // match chrome jaw radius exactly to the physical pocket radius
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08; // match Pool Royale jaw notch depth for identical pocket/cushion mapping
 const CHROME_CORNER_EXPANSION_SCALE = 1.034; // match the physical jaw reach used by Pool Royale
@@ -1189,7 +1190,7 @@ const BALL_SHADOW_LIFT = BALL_R * 0.02;
 const SIDE_POCKET_EXTRA_SHIFT = TABLE.THICK * 0.17; // align middle pocket centres flush with the reference layout
 const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.34; // push the middle pocket centres and cloth cutouts slightly outward away from the table midpoint
 const SIDE_POCKET_FIELD_PULL = 0; // gently bias the middle pocket centres and cuts back toward the playfield
-const SIDE_POCKET_CLOTH_INWARD_PULL = -TABLE.THICK * 0.03; // pull only the middle pocket cloth cutouts slightly toward the playfield centre
+const SIDE_POCKET_CLOTH_INWARD_PULL = 0; // keep the middle cloth cutouts, pocket bowls, nets, and physics sensors on the same vertical line
 const CHALK_TOP_COLOR = 0xd9c489;
 const CHALK_SIDE_COLOR = 0x10141b;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1a2430;
@@ -1419,7 +1420,7 @@ const POCKET_NET_DEPTH = TABLE.THICK * 2.26;
 const POCKET_NET_SEGMENTS = 64;
 const POCKET_DROP_DEPTH = POCKET_NET_DEPTH * 1.05; // drop deeper so potted balls meet the chrome holders cleanly
 const POCKET_DROP_STRAP_DEPTH = POCKET_DROP_DEPTH * 0.74; // stop the fall slightly above the ring/strap junction
-const POCKET_NET_RING_RADIUS_SCALE = 0.88; // widen the ring so balls pass cleanly through before rolling onto the holder rails
+const POCKET_NET_RING_RADIUS_SCALE = POCKET_BOTTOM_R > MICRO_EPS ? POCKET_TOP_R / POCKET_BOTTOM_R : 1; // make the net/ring diameter match the pocket mouth directly underneath
 const POCKET_NET_RING_TUBE_RADIUS = BALL_R * 0.14; // thicker chrome to read as a connector between net and holder rails
 const POCKET_NET_RING_VERTICAL_OFFSET = BALL_R * 0.06; // lift the ring so the holder assembly sits higher
 const POCKET_NET_VERTICAL_LIFT = BALL_R * 0.16; // raise the net so the weave sits higher on screen
@@ -6338,9 +6339,16 @@ const cornerPocketCenter = (sx, sz) =>
     sz * (PLAY_H / 2 - CORNER_POCKET_CENTER_INSET)
   );
 let sidePocketShift = 0;
+let cachedPocketCenters = null;
+let cachedSidePocketCenters = null;
+let cachedPocketShift = null;
 const pocketCenters = () => {
+  if (cachedPocketCenters && cachedPocketShift === sidePocketShift) {
+    return cachedPocketCenters;
+  }
   const sidePocketCenterX = PLAY_W / 2 + sidePocketShift;
-  return [
+  cachedPocketShift = sidePocketShift;
+  cachedPocketCenters = [
     cornerPocketCenter(-1, -1),
     cornerPocketCenter(1, -1),
     cornerPocketCenter(-1, 1),
@@ -6348,6 +6356,14 @@ const pocketCenters = () => {
     new THREE.Vector2(-sidePocketCenterX, 0),
     new THREE.Vector2(sidePocketCenterX, 0)
   ];
+  cachedSidePocketCenters = cachedPocketCenters.slice(4);
+  return cachedPocketCenters;
+};
+const getSidePocketCenters = () => {
+  if (!cachedPocketCenters || cachedPocketShift !== sidePocketShift) {
+    pocketCenters();
+  }
+  return cachedSidePocketCenters ?? [];
 };
 const resolvePocketMappedCenter = (center, index, inwardScale) => {
   const mouthRadius = index >= 4 ? SIDE_POCKET_RADIUS : POCKET_VIS_R;
@@ -6360,6 +6376,25 @@ const resolvePocketMappedCenter = (center, index, inwardScale) => {
 };
 const pocketEntranceCenters = () =>
   pocketCenters().map((center, index) => resolvePocketMappedCenter(center, index, 0.6));
+const resolvePocketEntranceForTarget = (targetPos, pocketIndex) => {
+  const centers = pocketCenters();
+  const pocketCenter = centers[pocketIndex];
+  if (!pocketCenter) return null;
+
+  const baseRadius = pocketIndex >= 4 ? SIDE_POCKET_RADIUS : POCKET_VIS_R;
+  const mouthWidth = pocketIndex >= 4 ? POCKET_SIDE_MOUTH : POCKET_CORNER_MOUTH;
+  const entry = resolvePocketMouthAimPoint({
+    pocketCenter,
+    targetPos,
+    baseRadius,
+    mouthWidth,
+    pocketType: pocketIndex >= 4 ? 'side' : 'corner',
+    microEps: MICRO_EPS
+  });
+
+  if (!entry?.point) return resolvePocketMappedCenter(pocketCenter, pocketIndex, 0.6);
+  return new THREE.Vector2(entry.point.x, entry.point.y);
+};
 const POCKET_CAPTURE_CENTER_INWARD_SCALE = 0.38;
 const SIDE_POCKET_CAPTURE_CENTER_INWARD_SCALE = 0.46;
 const pocketCaptureCenters = () =>
@@ -24187,7 +24222,8 @@ const powerRef = useRef(hud.power);
             const ignore = new Set([cueBall.id, targetBall.id]);
             const directClear = isPathClear(cuePos, targetBall.pos, ignore);
             for (let i = 0; i < centers.length; i++) {
-              const pocketCenter = centers[i];
+              const pocketCenter =
+                resolvePocketEntranceForTarget(targetBall.pos, i) ?? centers[i];
               const toPocket = pocketCenter.clone().sub(targetBall.pos);
               const toPocketLenSq = toPocket.lengthSq();
               if (toPocketLenSq < ballDiameter * ballDiameter * 0.25) continue;
