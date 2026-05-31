@@ -6183,6 +6183,22 @@ function distanceToTableEdge(pos, dir) {
   return minT;
 }
 
+function guideEndAtTableEdge(start, dir, fallbackDistance = BALL_R * 2) {
+  const guideDir = dir.clone();
+  if (guideDir.lengthSq() < 1e-8) return start.clone();
+  guideDir.normalize();
+  const dir2 = new THREE.Vector2(guideDir.x, guideDir.z);
+  const start2 = new THREE.Vector2(start.x, start.z);
+  const edgeDistance = distanceToTableEdge(start2, dir2);
+  const travel = Number.isFinite(edgeDistance)
+    ? edgeDistance
+    : Math.max(fallbackDistance, 0);
+  const end = start.clone().add(guideDir.multiplyScalar(Math.max(travel, 0)));
+  end.x = THREE.MathUtils.clamp(end.x, -RAIL_LIMIT_X, RAIL_LIMIT_X);
+  end.z = THREE.MathUtils.clamp(end.z, -RAIL_LIMIT_Y, RAIL_LIMIT_Y);
+  return end;
+}
+
 function applyAxisClearance(
   limits,
   key,
@@ -7240,9 +7256,9 @@ function calcTarget(cue, dir, balls) {
     if (contactNormal.lengthSq() > 1e-8) contactNormal.normalize();
     else contactNormal.copy(dirNorm);
     targetDir = contactNormal.clone();
-    const projected = dirNorm.dot(targetDir);
+    const projected = Math.max(0, dirNorm.dot(targetDir));
     cueDir = dirNorm.clone().sub(targetDir.clone().multiplyScalar(projected));
-    if (cueDir.lengthSq() > 1e-8) cueDir.normalize();
+    if (cueDir.lengthSq() > 1e-6) cueDir.normalize();
     else cueDir = null;
   } else if (railNormal) {
     const n = railNormal.clone().normalize();
@@ -23013,6 +23029,7 @@ const powerRef = useRef(hud.power);
         shotPrediction = {
           ballId: prediction.targetBall?.id ?? null,
           dir: prediction.targetDir ? prediction.targetDir.clone() : null,
+          cueDir: prediction.cueDir ? prediction.cueDir.clone() : null,
           impact: prediction.impact
             ? new THREE.Vector2(prediction.impact.x, prediction.impact.y)
             : null,
@@ -26117,9 +26134,10 @@ const powerRef = useRef(hud.power);
           } else {
             aimFocusRef.current = null;
           }
+          const hasSpinDrivenCueFollow = Math.abs(physicsSpin.y || 0) > 1e-4;
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
-            : dir.clone();
+            : (hasSpinDrivenCueFollow && (physicsSpin.y || 0) < 0 ? dir.clone().negate() : dir.clone());
           const cueFollowDirSpinAdjusted = cueFollowDir.clone();
           const spinVerticalInfluence = (physicsSpin.y || 0) * 0.68;
           const backSpinWeight = Math.max(0, -(physicsSpin.y || 0));
@@ -26133,11 +26151,9 @@ const powerRef = useRef(hud.power);
           }
           const cueFollowLength =
             BALL_R * (12 + powerStrength * 18) * (1 + spinVerticalInfluence * 0.4);
-          const followEnd = end
-            .clone()
-            .add(cueFollowDirSpinAdjusted.clone().multiplyScalar(cueFollowLength));
+          const followEnd = guideEndAtTableEdge(end, cueFollowDirSpinAdjusted, cueFollowLength);
           cueAfterGeom.setFromPoints([end, followEnd]);
-          cueAfter.visible = true;
+          cueAfter.visible = Boolean(cueDir || hasSpinDrivenCueFollow);
           const cueBackwards = cueFollowDirSpinAdjusted.dot(dir) < 0;
           cueAfter.material.color.setHex(cueBackwards ? 0xff3b3b : 0x7ce7ff);
           cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
@@ -26297,10 +26313,7 @@ const powerRef = useRef(hud.power);
               BALL_CENTER_Y,
               targetBall.pos.y
             );
-            const distanceScale = travelScale;
-            const tEnd = targetStart
-              .clone()
-              .add(tDir.clone().multiplyScalar(distanceScale));
+            const tEnd = guideEndAtTableEdge(targetStart, tDir, travelScale);
             targetGeom.setFromPoints([targetStart, tEnd]);
             target.material.color.setHex(0xffd166);
             target.material.opacity = 0.65 + 0.3 * powerStrength;
@@ -26309,9 +26322,7 @@ const powerRef = useRef(hud.power);
           } else if (railNormal && cueDir) {
             const bounceDir = new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize();
             const bounceLength = BALL_R * (12 + powerStrength * 18);
-            const bounceEnd = end
-              .clone()
-              .add(bounceDir.clone().multiplyScalar(bounceLength));
+            const bounceEnd = guideEndAtTableEdge(end, bounceDir, bounceLength);
             targetGeom.setFromPoints([end, bounceEnd]);
             target.material.color.setHex(0x7ce7ff);
             target.material.opacity = 0.35 + 0.25 * powerStrength;
@@ -26374,9 +26385,10 @@ const powerRef = useRef(hud.power);
             end.clone().add(perp.clone().multiplyScalar(-AIM_TICK_HALF_LENGTH))
           ]);
           tick.visible = true;
+          const hasSpinDrivenCueFollow = Math.abs(remotePhysicsSpin.y || 0) > 1e-4;
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
-            : baseDir.clone();
+            : (hasSpinDrivenCueFollow && (remotePhysicsSpin.y || 0) < 0 ? baseDir.clone().negate() : baseDir.clone());
           const cueFollowDirSpinAdjusted = cueFollowDir.clone();
           const spinVerticalInfluence = (remotePhysicsSpin.y || 0) * 0.68;
           const backSpinWeight = Math.max(0, -(remotePhysicsSpin.y || 0));
@@ -26390,11 +26402,9 @@ const powerRef = useRef(hud.power);
           }
           const cueFollowLength =
             BALL_R * (12 + powerStrength * 18) * (1 + spinVerticalInfluence * 0.4);
-          const followEnd = end
-            .clone()
-            .add(cueFollowDirSpinAdjusted.clone().multiplyScalar(cueFollowLength));
+          const followEnd = guideEndAtTableEdge(end, cueFollowDirSpinAdjusted, cueFollowLength);
           cueAfterGeom.setFromPoints([end, followEnd]);
-          cueAfter.visible = true;
+          cueAfter.visible = Boolean(cueDir || hasSpinDrivenCueFollow);
           const cueBackwards = cueFollowDirSpinAdjusted.dot(baseDir) < 0;
           cueAfter.material.color.setHex(cueBackwards ? 0xff3b3b : 0x7ce7ff);
           cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
@@ -26731,21 +26741,64 @@ const powerRef = useRef(hud.power);
                 newCollisions.add(pairKey);
                 const wasColliding = prevCollisions.has(pairKey);
                 const isNewImpact = firstPairCollision && !wasColliding;
-                a.pos.x -= nx * overlap;
-                a.pos.y -= ny * overlap;
-                b.pos.x += nx * overlap;
-                b.pos.y += ny * overlap;
-                const avn = a.vel.x * nx + a.vel.y * ny;
-                const bvn = b.vel.x * nx + b.vel.y * ny;
-                const impulse = Math.abs(bvn - avn);
-                const at = a.vel
-                  .clone()
-                  .sub(new THREE.Vector2(nx, ny).multiplyScalar(avn));
-                const bt = b.vel
-                  .clone()
-                  .sub(new THREE.Vector2(nx, ny).multiplyScalar(bvn));
-                a.vel.copy(at.add(new THREE.Vector2(nx, ny).multiplyScalar(bvn)));
-                b.vel.copy(bt.add(new THREE.Vector2(nx, ny).multiplyScalar(avn)));
+                const cueBallForPair = a.id === 'cue' ? a : b.id === 'cue' ? b : null;
+                const objectBallForPair = cueBallForPair
+                  ? (cueBallForPair === a ? b : a)
+                  : null;
+                const predictedObjectDir = shotPrediction?.dir?.clone?.() ?? null;
+                const predictedCueDir = shotPrediction?.cueDir?.clone?.() ?? null;
+                const lockedAimCollision = Boolean(
+                  isNewImpact &&
+                  cueBallForPair &&
+                  objectBallForPair &&
+                  shotPrediction?.ballId &&
+                  String(objectBallForPair.id) === String(shotPrediction.ballId) &&
+                  predictedObjectDir &&
+                  predictedObjectDir.lengthSq() > 1e-8
+                );
+                let impulse = Math.abs(
+                  (b.vel.x * nx + b.vel.y * ny) -
+                  (a.vel.x * nx + a.vel.y * ny)
+                );
+                if (lockedAimCollision) {
+                  predictedObjectDir.normalize();
+                  const pairMid = a.pos.clone().add(b.pos).multiplyScalar(0.5);
+                  cueBallForPair.pos.copy(
+                    pairMid.clone().addScaledVector(predictedObjectDir, -BALL_R)
+                  );
+                  objectBallForPair.pos.copy(
+                    pairMid.clone().addScaledVector(predictedObjectDir, BALL_R)
+                  );
+                  const incomingCueVel = cueBallForPair.vel.clone();
+                  const normalSpeed = Math.max(0, incomingCueVel.dot(predictedObjectDir));
+                  const cueResidual = incomingCueVel.clone().addScaledVector(
+                    predictedObjectDir,
+                    -normalSpeed
+                  );
+                  const cueResidualSpeed = cueResidual.length();
+                  objectBallForPair.vel.copy(predictedObjectDir.clone().multiplyScalar(normalSpeed));
+                  if (predictedCueDir && predictedCueDir.lengthSq() > 1e-8 && cueResidualSpeed > 1e-8) {
+                    cueBallForPair.vel.copy(predictedCueDir.normalize().multiplyScalar(cueResidualSpeed));
+                  } else {
+                    cueBallForPair.vel.set(0, 0);
+                  }
+                  impulse = normalSpeed;
+                } else {
+                  a.pos.x -= nx * overlap;
+                  a.pos.y -= ny * overlap;
+                  b.pos.x += nx * overlap;
+                  b.pos.y += ny * overlap;
+                  const avn = a.vel.x * nx + a.vel.y * ny;
+                  const bvn = b.vel.x * nx + b.vel.y * ny;
+                  const at = a.vel
+                    .clone()
+                    .sub(new THREE.Vector2(nx, ny).multiplyScalar(avn));
+                  const bt = b.vel
+                    .clone()
+                    .sub(new THREE.Vector2(nx, ny).multiplyScalar(bvn));
+                  a.vel.copy(at.add(new THREE.Vector2(nx, ny).multiplyScalar(bvn)));
+                  b.vel.copy(bt.add(new THREE.Vector2(nx, ny).multiplyScalar(avn)));
+                }
                 if (isNewImpact) {
                   const shotScale = 0.4 + 0.6 * lastShotPower;
                   const volume = clamp(
@@ -26806,7 +26859,7 @@ const powerRef = useRef(hud.power);
                     cueBall.liftVel ?? 0,
                     launchCeiling
                   );
-                  if (spinEnergy > 1e-6) {
+                  if (spinEnergy > 1e-6 && !lockedAimCollision) {
                     const spinThrow = Math.min(
                       spinEnergy * MAX_POWER_SPIN_LATERAL_THROW,
                       MAX_POWER_BOUNCE_IMPULSE * 0.4
