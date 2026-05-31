@@ -48,7 +48,8 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     icon: '🟫',
     kind: 'gltf',
     fitScale: 1.055,
-    lowerBaseHeightScale: 1.16,
+    topRailHeightScale: 0.84,
+    lowerBaseHeightScale: 1.28,
     clothRepeatScale: 5.25,
     fitStrategy: 'exact',
     fitReference: 'upperTabletop',
@@ -63,7 +64,9 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     tintOriginalTrimGold: false,
     forceGeneratedChromePlates: false,
     hideSurfaceRoles: [],
-    hideGeneratedRailMarkers: true
+    hideGeneratedRailMarkers: true,
+    keepGeneratedMarkings: true,
+    forceGeneratedMarkingColor: '#ffffff'
   }
 ]);
 

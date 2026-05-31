@@ -1348,8 +1348,8 @@ const SIDE_POCKET_JAW_LATERAL_EXPANSION = CORNER_POCKET_JAW_LATERAL_EXPANSION; /
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // keep middle jaw arcs the same size as the Showood-style corner jaws
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.12; // add Showood-like extra depth so side jaws match the corner jaw type
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.01; // pull middle-pocket jaws a bit farther downward than corners
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.028; // reduce the outward shift so middle-pocket jaws sit a bit more inward toward table center
-const POCKET_JAW_INWARD_PULL = TABLE.THICK * 0.026; // pull procedural jaw centers slightly inward to match the Showood GLB pocket placement
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.018; // reduce the outward shift so middle-pocket jaws sit a bit more inward toward table center
+const POCKET_JAW_INWARD_PULL = TABLE.THICK * 0.038; // pull procedural jaw centers a bit more inward to match the requested Royal Original pocket placement
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.66; // shorten middle jaw side edges a bit more so all six jaws finish cleaner at the shoulders
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
@@ -1832,12 +1832,13 @@ const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // disable preview-only spin defle
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale pace now mirrors Snooker Royale to keep ball travel identical between modes.
 // Apply an extra 15% reduction to keep Pool Royale strokes slightly softer than Snooker Royal.
+// May 2026 tuning trims another 15% so the mobile slider no longer overpowers shots.
 const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
 const SHOT_POWER_BOOST = 1.5; // increase overall shot power by 25%
-const SHOT_GLOBAL_POWER_SCALE = 0.8; // trim Pool Royale shot pace a bit so cue-ball travel is slightly softer
+const SHOT_GLOBAL_POWER_SCALE = 0.68; // trim Pool Royale shot pace so cue-ball travel matches the softer requested power
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -9294,13 +9295,31 @@ export function Table3D(
   };
   const topCushionZ = PLAY_H / 2;
   addSpot(0, (topCushionZ + 0) / 2);
+  if (resolvedTableOptions?.tableModel?.forceGeneratedMarkingColor != null) {
+    markingMat.color.set(resolvedTableOptions.tableModel.forceGeneratedMarkingColor);
+  }
   markingsGroup.traverse((child) => {
     if (child.isMesh) {
       child.renderOrder = cloth.renderOrder + 1;
       child.castShadow = false;
       child.receiveShadow = false;
+      if (resolvedTableOptions?.tableModel?.forceGeneratedMarkingColor != null) {
+        child.material?.color?.set?.(resolvedTableOptions.tableModel.forceGeneratedMarkingColor);
+      }
+      if (resolvedTableOptions?.tableModel?.keepGeneratedMarkings) {
+        child.userData = {
+          ...(child.userData || {}),
+          externalTableKeepVisible: true
+        };
+      }
     }
   });
+  if (resolvedTableOptions?.tableModel?.keepGeneratedMarkings) {
+    markingsGroup.userData = {
+      ...(markingsGroup.userData || {}),
+      externalTableKeepVisible: true
+    };
+  }
   table.add(markingsGroup);
   table.userData.markings = {
     group: markingsGroup,
@@ -12806,6 +12825,35 @@ function resolvePoolRoyaleExternalTableFitBounds(model, tableModel = null) {
   return { fullBox, footprintBox };
 }
 
+function applyPoolRoyaleExternalUpperRailHeightTuning(model, tableModel) {
+  const scale = Number(tableModel?.topRailHeightScale);
+  if (!model || !Number.isFinite(scale) || scale <= MICRO_EPS || Math.abs(scale - 1) <= MICRO_EPS) return;
+  model.updateMatrixWorld(true);
+  model.traverse((child) => {
+    if (!child?.isMesh || child.userData?.poolRoyaleTopRailHeightTuned) return;
+    const material = Array.isArray(child.material) ? child.material[0] : child.material;
+    const referencePart = tableModel?.useReferenceShowoodMapping
+      ? classifyPoolRoyaleShowoodReferencePart(child, material)
+      : null;
+    const role = classifyPoolRoyaleExternalTableSurface(child, material);
+    const isTopRailFrame = ['topWoodRail', 'sideWoodApron'].includes(referencePart) ||
+      (role === 'wood' && /rail|frame|top|apron|cabinet|showood/i.test(`${child.name || ''} ${material?.name || ''}`));
+    if (!isTopRailFrame) return;
+    const childBox = new THREE.Box3().setFromObject(child);
+    if (childBox.isEmpty()) return;
+    const parent = child.parent || model;
+    const anchorWorldY = childBox.max.y;
+    const anchorLocalY = parent.worldToLocal(new THREE.Vector3(0, anchorWorldY, 0)).y;
+    child.scale.y *= scale;
+    child.updateMatrixWorld(true);
+    const nextBox = new THREE.Box3().setFromObject(child);
+    const nextAnchorLocalY = parent.worldToLocal(new THREE.Vector3(0, nextBox.max.y, 0)).y;
+    child.position.y += anchorLocalY - nextAnchorLocalY;
+    child.userData.poolRoyaleTopRailHeightTuned = true;
+  });
+  model.updateMatrixWorld(true);
+}
+
 function stretchPoolRoyaleExternalLowerBase(model, tableModel, dims) {
   const scale = Number(tableModel?.lowerBaseHeightScale);
   if (!model || !Number.isFinite(scale) || scale <= 1 + MICRO_EPS) return;
@@ -12893,6 +12941,7 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
     model.scale.multiplyScalar(baseFitScale * fitScaleMultiplier);
   }
   model.updateMatrixWorld(true);
+  applyPoolRoyaleExternalUpperRailHeightTuning(model, tableModel);
 
   ({ fullBox, footprintBox } = resolvePoolRoyaleExternalTableFitBounds(model, tableModel));
   const footprintCenter = footprintBox.getCenter(new THREE.Vector3());
@@ -13602,6 +13651,7 @@ function mountPoolRoyaleExternalTableModel({
   table.userData.clothPlaneLocal = clothPlaneLocal;
   table.userData.finish = finishInfo;
   table.userData.tableModelId = resolvedTableOptions?.tableModel?.id || 'royal-original';
+  table.userData.keepGeneratedMarkings = Boolean(resolvedTableOptions?.tableModel?.keepGeneratedMarkings);
 
   const generatedVisualObjects = [];
   const generatedStructuralObjects = [];
@@ -13694,7 +13744,7 @@ function mountPoolRoyaleExternalTableModel({
       if (
         !visible &&
         (
-          (!externalTableModelForMount?.useOriginalLayoutSurfaces && object.userData?.externalTableKeepVisible) ||
+          object.userData?.externalTableKeepVisible ||
           (object.userData?.isChromePlate && forceGeneratedChrome)
         )
       ) {
@@ -26476,7 +26526,7 @@ const shotPowerRef = useRef(0);
       const cueColor = variantConfig?.cueColor ?? finishPalette.cue;
       cue = add('cue', cueColor, -BALL_R * 2, baulkZ);
 
-      if (variantConfig?.disableSnookerMarkings && table?.userData?.markings) {
+      if (variantConfig?.disableSnookerMarkings && table?.userData?.markings && !table.userData?.keepGeneratedMarkings) {
         const { dArc, spots } = table.userData.markings;
         if (dArc) dArc.visible = false;
         if (Array.isArray(spots)) {
