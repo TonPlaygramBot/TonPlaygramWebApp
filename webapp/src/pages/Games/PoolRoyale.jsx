@@ -37,6 +37,7 @@ import {
   POOL_ROYALE_TABLE_MODEL_OPTIONS,
   POOL_ROYALE_TABLE_MODEL_STORAGE_KEY,
   POOL_ROYALE_SHOWOOD_CONTROL_META,
+  POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS,
   POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE,
   POOL_ROYALE_SHOWOOD_MATERIAL_CONTROL_PARTS,
   resolvePoolRoyaleTableModel
@@ -3770,105 +3771,6 @@ const CLOTH_COLOR_OPTIONS = Object.freeze(
     sourceId: cloth.sourceId
   }))
 );
-
-const SHOWOOD_LEGACY_CLOTH_CHOICES = Object.freeze({
-  a: DEFAULT_CLOTH_COLOR_ID,
-  b: CLOTH_COLOR_OPTIONS.find((option) => option.id === 'cabanBlueRoyal')?.id ?? DEFAULT_CLOTH_COLOR_ID
-});
-const SHOWOOD_LEGACY_WOOD_CHOICES = Object.freeze({
-  a: 'woodTable001',
-  b: 'darkWood'
-});
-
-function resolvePoolRoyaleShowoodControlChoice(control, choice) {
-  const rawChoice = typeof choice === 'string' ? choice : '';
-  if (control === 'cloth') {
-    const migrated = SHOWOOD_LEGACY_CLOTH_CHOICES[rawChoice] ?? rawChoice;
-    return CLOTH_TEXTURE_PRESETS[migrated] ? migrated : DEFAULT_CLOTH_COLOR_ID;
-  }
-  if (control === 'topWoodRail' || control === 'legBase') {
-    const migrated = SHOWOOD_LEGACY_WOOD_CHOICES[rawChoice] ?? rawChoice;
-    return TABLE_FINISHES[migrated] ? migrated : DEFAULT_TABLE_FINISH_ID;
-  }
-  return rawChoice || 'source';
-}
-
-function getPoolRoyaleShowoodControlOptions(control) {
-  if (control === 'cloth') {
-    return CLOTH_COLOR_OPTIONS.map((option) => ({
-      id: option.id,
-      label: option.label,
-      color: option.color,
-      thumbnail: option.thumbnail,
-      sourceId: option.sourceId
-    }));
-  }
-  if (control === 'topWoodRail' || control === 'legBase') {
-    return Object.values(TABLE_FINISHES).map((finish) => ({
-      id: finish.id,
-      label: finish.label,
-      color: finish.colors?.rail ?? finish.colors?.base ?? 0xffffff,
-      thumbnail: finish.thumbnail,
-      woodTextureId: finish.woodTextureId
-    }));
-  }
-  return [];
-}
-
-function applyPoolRoyaleShowoodClothChoice(material, choice) {
-  if (!material) return;
-  const option = CLOTH_COLOR_OPTIONS.find((item) => item.id === choice) ?? CLOTH_COLOR_OPTIONS[0];
-  const textures = createClothTextures(option?.textureKey ?? option?.id ?? DEFAULT_CLOTH_TEXTURE_KEY, 'polyhaven');
-  if (material.color && option?.color != null) material.color.set(option.color);
-  replaceMaterialTexture(material, 'map', textures.map, null);
-  replaceMaterialTexture(material, 'normalMap', textures.normal, null);
-  replaceMaterialTexture(material, 'roughnessMap', textures.roughness, null);
-  if (textures.normal) {
-    replaceMaterialTexture(material, 'bumpMap', null, null);
-    material.normalScale = POLYHAVEN_NORMAL_SCALE.clone();
-  } else {
-    replaceMaterialTexture(material, 'bumpMap', textures.bump, null);
-    material.bumpScale = CLOTH_BUMP_SCALE;
-  }
-  material.metalness = 0;
-  material.roughness = textures.roughness ? CLOTH_ROUGHNESS_TARGET : CLOTH_ROUGHNESS_BASE;
-  if ('sheen' in material) material.sheen = option?.detail?.sheen ?? BASE_CLOTH_DETAIL.sheen;
-  if ('sheenRoughness' in material) material.sheenRoughness = option?.detail?.sheenRoughness ?? BASE_CLOTH_DETAIL.sheenRoughness;
-  if ('envMapIntensity' in material) material.envMapIntensity = option?.detail?.envMapIntensity ?? BASE_CLOTH_DETAIL.envMapIntensity;
-  material.needsUpdate = true;
-}
-
-function applyPoolRoyaleShowoodWoodChoice(material, choice, control) {
-  if (!material) return;
-  const finish = TABLE_FINISHES[choice] ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
-  const finishMaterials = typeof finish?.createMaterials === 'function' ? finish.createMaterials() : {};
-  const sourceMaterial = control === 'topWoodRail' ? finishMaterials.rail : finishMaterials.frame ?? finishMaterials.leg;
-  if (sourceMaterial?.color && material.color) material.color.copy(sourceMaterial.color);
-  ['roughness', 'metalness', 'clearcoat', 'clearcoatRoughness', 'sheen', 'sheenRoughness', 'reflectivity', 'envMapIntensity'].forEach((key) => {
-    if (typeof sourceMaterial?.[key] === 'number' && key in material) material[key] = sourceMaterial[key];
-  });
-  const woodOption = finish?.woodTextureId ? WOOD_GRAIN_OPTIONS_BY_ID[finish.woodTextureId] : null;
-  const surface = control === 'topWoodRail'
-    ? woodOption?.rail ?? woodOption?.frame
-    : woodOption?.frame ?? woodOption?.rail;
-  if (surface && finish?.disableWoodPattern !== true) {
-    applyWoodTextureToMaterial(material, {
-      ...surface,
-      textureSize: enforceHighFpsTableTextureSize(surface.textureSize),
-      woodRepeatScale: finish.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE
-    });
-  } else {
-    clearPoolRoyaleMaterialTextureMaps(material);
-  }
-  applyTableFinishDulling(material);
-  applyTableWoodVisibilityTuning(material);
-  if (finish?.surfaceStyle === 'matte') {
-    if (finish?.preserveFinishTintOnWood) applyMatteSurfacePropsOnly(material);
-    else applyMonoMattePlasticSurface(material);
-  }
-  applyFinishWoodTint(material, finish);
-  material.needsUpdate = true;
-}
 
 const DEFAULT_RAIL_MARKER_SHAPE = 'diamond';
 const RAIL_MARKER_SHAPE_OPTIONS = Object.freeze([
@@ -12243,7 +12145,7 @@ const poolRoyaleExternalTablePromises = new Map();
 
 const POOL_ROYALE_SHOWOOD_PART_TO_CONTROL = Object.freeze({
   cloth: 'cloth',
-  cushion: 'cloth',
+  cushion: 'cushion',
   topWoodRail: 'topWoodRail',
   sideWoodApron: 'metalAccent',
   pocketCup: 'jaws',
@@ -12260,6 +12162,14 @@ const POOL_ROYALE_SHOWOOD_PART_TO_CONTROL = Object.freeze({
   wood: 'topWoodRail',
   pocket: 'jaws'
 });
+const POOL_ROYALE_SHOWOOD_KEEP_TEXTURE_PARTS = new Set([
+  'cushion',
+  'topWoodRail',
+  'leg',
+  'baseCornerBlock',
+  'underside'
+]);
+
 function resolvePoolRoyaleShowoodPalette(tableModel = null) {
   return {
     ...POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE,
@@ -12304,8 +12214,7 @@ function classifyPoolRoyaleShowoodReferencePart(child, material) {
   }
   if (/leg/.test(label)) return 'leg';
   if (/base|block|support|underside/.test(label)) return 'baseCornerBlock';
-  if (/apron|cabinet|side/.test(label) && !/top|rail[_\s-]*cap|upper/.test(label)) return 'sideWoodApron';
-  if (/rail|frame|top|wood|walnut|showood|corner/.test(label)) return 'topWoodRail';
+  if (/rail|frame|top|wood|walnut|showood|apron|cabinet|corner/.test(label)) return 'topWoodRail';
   if (green) return 'cloth';
   return 'sideWoodApron';
 }
@@ -12315,19 +12224,17 @@ function applyPoolRoyaleShowoodReferenceMaterial(material, part, tableModel = nu
   const mat = material.clone ? material.clone() : material;
   const control = POOL_ROYALE_SHOWOOD_PART_TO_CONTROL[part] || POOL_ROYALE_SHOWOOD_PART_TO_CONTROL[classifyPoolRoyaleExternalTableSurface(null, mat)] || 'topWoodRail';
   const palette = resolvePoolRoyaleShowoodPalette(tableModel);
-  const choice = resolvePoolRoyaleShowoodControlChoice(control, palette[control]);
-  if (control === 'cloth') {
-    applyPoolRoyaleShowoodClothChoice(mat, choice);
-  } else if (control === 'topWoodRail' || control === 'legBase') {
-    applyPoolRoyaleShowoodWoodChoice(mat, choice, control);
-  } else {
-    preparePoolRoyaleExternalTexture(mat.map, true);
-    preparePoolRoyaleExternalTexture(mat.emissiveMap, true);
-    preparePoolRoyaleExternalTexture(mat.aoMap, false);
-    preparePoolRoyaleExternalTexture(mat.normalMap, false);
-    preparePoolRoyaleExternalTexture(mat.roughnessMap, false);
-    preparePoolRoyaleExternalTexture(mat.metalnessMap, false);
-    preparePoolRoyaleExternalTexture(mat.bumpMap, false);
+  const choice = palette[control] || POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE[control] || 'a';
+  const option = POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS[control]?.[choice] || POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS[control]?.a;
+  if (!option) return mat;
+  mat.color?.set?.(option.color);
+  if ('metalness' in mat) mat.metalness = option.metalness;
+  if ('roughness' in mat) mat.roughness = option.roughness;
+  if ('envMapIntensity' in mat) mat.envMapIntensity = option.envMapIntensity;
+  if ('clearcoat' in mat) mat.clearcoat = option.clearcoat ?? 0;
+  if ('clearcoatRoughness' in mat) mat.clearcoatRoughness = option.clearcoatRoughness ?? 0;
+  if (!POOL_ROYALE_SHOWOOD_KEEP_TEXTURE_PARTS.has(part)) {
+    clearPoolRoyaleMaterialTextureMaps(mat);
   }
   mat.transparent = false;
   mat.opacity = 1;
@@ -35948,8 +35855,7 @@ const shotPowerRef = useRef(0);
                   <div className="space-y-3">
                     {POOL_ROYALE_SHOWOOD_MATERIAL_CONTROL_PARTS.map((control) => {
                       const meta = POOL_ROYALE_SHOWOOD_CONTROL_META[control];
-                      const options = getPoolRoyaleShowoodControlOptions(control);
-                      const activeChoice = resolvePoolRoyaleShowoodControlChoice(control, showoodPalette[control]);
+                      const options = POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS[control];
                       return (
                         <div key={control} className="rounded-xl border border-white/10 bg-white/5 p-2">
                           <div className="mb-2">
@@ -35961,12 +35867,9 @@ const shotPowerRef = useRef(0);
                             </p>
                           </div>
                           <div className="flex flex-wrap gap-2">
-                            {options.map((option) => {
-                              const choice = option.id;
-                              const active = activeChoice === choice;
-                              const swatchColor = typeof option.color === 'number'
-                                ? `#${option.color.toString(16).padStart(6, '0')}`
-                                : option.color;
+                            {Object.keys(options).map((choice) => {
+                              const option = options[choice];
+                              const active = showoodPalette[control] === choice;
                               return (
                                 <button
                                   key={`${control}-${choice}`}
@@ -35981,7 +35884,7 @@ const shotPowerRef = useRef(0);
                                 >
                                   <span
                                     className="h-3.5 w-3.5 rounded-full border border-white/40"
-                                    style={{ backgroundColor: swatchColor }}
+                                    style={{ backgroundColor: option.color }}
                                     aria-hidden="true"
                                   />
                                   <span>{option.label}</span>
