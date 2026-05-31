@@ -1,6 +1,6 @@
 import { createHumanRig, chooseHumanEdgePosition, updateHumanPose } from './humanRigCore';
 
-export function createBilardoHumanRig(scene, opts = {}) {
+export function createSnookerHumanRig(scene, opts = {}) {
   return createHumanRig(scene, opts);
 }
 
