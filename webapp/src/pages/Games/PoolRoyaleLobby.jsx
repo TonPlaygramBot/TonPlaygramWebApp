@@ -727,7 +727,7 @@ export default function PoolRoyaleLobby() {
                         <p className="text-[10px] leading-snug text-white/50">{meta.description}</p>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        {['a', 'b'].map((choice) => {
+                        {Object.keys(options).map((choice) => {
                           const option = options[choice];
                           const active = showoodPalette[control] === choice;
                           return (
@@ -746,6 +746,15 @@ export default function PoolRoyaleLobby() {
                                 style={{ backgroundColor: option.color }}
                                 aria-hidden="true"
                               />
+                              {option.thumbnail ? (
+                                <img
+                                  src={option.thumbnail}
+                                  alt=""
+                                  className="h-5 w-8 rounded-md border border-white/20 object-cover"
+                                  loading="lazy"
+                                  aria-hidden="true"
+                                />
+                              ) : null}
                               <span>{option.label}</span>
                             </button>
                           );
