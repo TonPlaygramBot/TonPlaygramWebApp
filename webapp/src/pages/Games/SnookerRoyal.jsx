@@ -1531,8 +1531,6 @@ const POCKET_VIEW_ACTIVE_EXTENSION_MS = 300;
 const POCKET_VIEW_POST_POT_HOLD_MS = 160;
 const POCKET_VIEW_MAX_HOLD_MS = 3200;
 const SPIN_GLOBAL_SCALE = 0.9; // match Pool Royale spin controller scaling
-const STRAIGHT_TOPSPIN_BONUS_SCALE = 1; // Pool Royale straight-topspin scaling
-const STRAIGHT_TOPSPIN_SIDE_THRESHOLD = 0.08; // Pool Royale mostly-straight topspin threshold
 const CUE_LOGIC_STRIKE_TIME_MS = 120;
 const CUE_LOGIC_HOLD_TIME_MS = 50;
 const CUE_LOGIC_PULL_EASE_RANGE = 0.34;
@@ -1548,7 +1546,7 @@ const SPIN_DECAY_RATE = PHYSICS_PROFILE.spinDecay;
 const SPIN_AIR_DECAY_RATE = PHYSICS_PROFILE.airSpinDecay;
 const BACKSPIN_ROLL_BOOST = 1.35;
 const CUE_BACKSPIN_ROLL_BOOST = 3.4;
-const RAIL_SPIN_THROW_SCALE = 0.09; // match Pool Royale rail spin throw behavior
+const RAIL_SPIN_THROW_SCALE = 0; // match Pool Royale rail spin throw behavior
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // invert spin along the impact normal to keep the cue ball rolling after rebounds
 const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // keep the cue follow line aligned with the aim line
@@ -6006,20 +6004,9 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
   minY: -1,
   maxY: 1
 });
-const MAX_TOPSPIN_INPUT = 0.85; // match Pool Royale topspin cap for identical controller feel
-const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.62; // Pool Royale rolling transfer
-const TOPSPIN_FOLLOW_DECAY_ASSIST = 0.84; // Pool Royale natural-roll spin bleed
-const TOPSPIN_ROLL_SPEED_FACTOR = 0.84; // Pool Royale natural rolling speed cap
-const TOPSPIN_POWER_SOFT_CAP = 0.985;
 const clampSpinValue = (value) => clamp(value, -1, 1);
-const SPIN_CUSHION_EPS = BALL_R * 0.42;
+const SPIN_CUSHION_EPS = BALL_R * 0.5;
 const SPIN_VIEW_BLOCK_THRESHOLD = 0.12;
-const resolveTopspinPowerScale = (power) => {
-  if (!Number.isFinite(power)) return 0.55 + TOPSPIN_POWER_SOFT_CAP * 0.45;
-  const cappedPower = THREE.MathUtils.clamp(power, 0, TOPSPIN_POWER_SOFT_CAP);
-  return 0.55 + cappedPower * 0.45;
-};
-
 const normalizeCueLift = (liftAngle = 0) => {
   if (!Number.isFinite(liftAngle) || CUE_LIFT_MAX_TILT <= 1e-6) return 0;
   return THREE.MathUtils.clamp(liftAngle / CUE_LIFT_MAX_TILT, 0, 1);
@@ -7070,20 +7057,12 @@ function decaySpin(ball, stepScale, airborne = false) {
 
 function applySpinController(ball, stepScale, airborne = false) {
   if (!ball?.spin || ball.spin.lengthSq() < 1e-6) return false;
-  if (airborne && ball.id === 'cue') {
-    ball.spin.set(0, 0);
-    if (ball.pendingSpin) ball.pendingSpin.set(0, 0);
-    ball.spinMode = 'standard';
-    ball.swerveStrength = 0;
-    ball.swervePowerStrength = 0;
-    return false;
-  }
-  if (ball.id === 'cue' && !ball.impacted) {
-    return decaySpin(ball, stepScale, airborne);
-  }
   const { forward, speed } = resolveSpinFrame(ball);
   if (!airborne && speed > 1e-6) {
     let forwardSpin = ball.spin.y || 0;
+    if (ball.id === 'cue' && !ball.impacted && forwardSpin < 0) {
+      forwardSpin = 0;
+    }
     const powerScale = resolveSpinPowerScale(speed);
     let rollAccel = SPIN_ROLL_ACCELERATION * powerScale * stepScale;
     if (forwardSpin < 0) {
@@ -7093,25 +7072,6 @@ function applySpinController(ball, stepScale, airborne = false) {
     }
     if (Math.abs(forwardSpin) > 1e-8) {
       ball.vel.addScaledVector(forward, forwardSpin * rollAccel);
-      if (forwardSpin > 0) {
-        const naturalRollSpeed = Math.max(BALL_R * 2.2, speed * TOPSPIN_ROLL_SPEED_FACTOR);
-        const settling = THREE.MathUtils.clamp(speed / Math.max(naturalRollSpeed, 1e-6), 0, 1);
-        const transfer =
-          Math.min(
-            forwardSpin,
-            rollAccel * TOPSPIN_FOLLOW_TRANSFER_RATE * (0.28 + settling * 0.72)
-          );
-        let remainingSpin = Math.max(0, forwardSpin - transfer);
-        // As the cue ball reaches natural rolling speed, any extra topspin
-        // should quickly collapse instead of continuously forcing acceleration.
-        if (speed >= naturalRollSpeed * 0.98) {
-          remainingSpin *= Math.exp(-TOPSPIN_FOLLOW_DECAY_ASSIST * stepScale * 1.25);
-        }
-        const assistedDecay = Math.exp(
-          -TOPSPIN_FOLLOW_DECAY_ASSIST * stepScale * (0.35 + 0.65 * settling)
-        );
-        ball.spin.y = remainingSpin * assistedDecay;
-      }
     }
   }
   return decaySpin(ball, stepScale, airborne);
@@ -7231,26 +7191,6 @@ function calcTarget(cue, dir, balls) {
     };
   }
   const cuePos = cue.pos.clone();
-  if (!Number.isFinite(cuePos.x) || !Number.isFinite(cuePos.y)) {
-    return {
-      impact: new THREE.Vector2(),
-      targetDir: null,
-      cueDir: null,
-      targetBall: null,
-      railNormal: null,
-      tHit: 0
-    };
-  }
-  if (!Number.isFinite(dir?.x) || !Number.isFinite(dir?.y)) {
-    return {
-      impact: cuePos.clone(),
-      targetDir: null,
-      cueDir: null,
-      targetBall: null,
-      railNormal: null,
-      tHit: 0
-    };
-  }
   if (!dir || dir.lengthSq() < 1e-8) {
     return {
       impact: cuePos.clone(),
@@ -7266,7 +7206,8 @@ function calcTarget(cue, dir, balls) {
   let targetBall = null;
   let railNormal = null;
 
-  const segmentList = Array.isArray(CUSHION_SEGMENTS) ? CUSHION_SEGMENTS : [];
+  const limX = RAIL_LIMIT_X;
+  const limY = RAIL_LIMIT_Y;
   const checkRail = (t, normal) => {
     if (t >= 0 && t < tHit) {
       tHit = t;
@@ -7274,45 +7215,14 @@ function calcTarget(cue, dir, balls) {
       targetBall = null;
     }
   };
-  const intersectRayWithSegment = (origin, direction, segmentStart, segmentEnd) => {
-    const v1x = origin.x - segmentStart.x;
-    const v1y = origin.y - segmentStart.y;
-    const v2x = segmentEnd.x - segmentStart.x;
-    const v2y = segmentEnd.y - segmentStart.y;
-    const cross = direction.x * v2y - direction.y * v2x;
-    if (Math.abs(cross) < 1e-8) return null;
-    const t = (v2x * v1y - v2y * v1x) / cross;
-    const u = (direction.x * v1y - direction.y * v1x) / cross;
-    if (t < 0 || u < 0 || u > 1) return null;
-    return t;
-  };
-
-  if (segmentList.length > 0) {
-    segmentList.forEach((segment) => {
-      if (!segment?.start || !segment?.end || !segment?.normal) return;
-      const segType = segment.type ?? 'rail';
-      if (segType !== 'rail' && segType !== 'cut' && segType !== 'jaw') return;
-      const normal = segment.normal.clone();
-      if (normal.lengthSq() < 1e-8) return;
-      normal.normalize();
-      const start = segment.start.clone().sub(normal.clone().multiplyScalar(BALL_R));
-      const end = segment.end.clone().sub(normal.clone().multiplyScalar(BALL_R));
-      const t = intersectRayWithSegment(cuePos, dirNorm, start, end);
-      if (t == null) return;
-      checkRail(t, normal);
-    });
-  } else {
-    const limX = RAIL_LIMIT_X;
-    const limY = RAIL_LIMIT_Y;
-    if (dirNorm.x < -1e-8)
-      checkRail((-limX - cuePos.x) / dirNorm.x, new THREE.Vector2(1, 0));
-    if (dirNorm.x > 1e-8)
-      checkRail((limX - cuePos.x) / dirNorm.x, new THREE.Vector2(-1, 0));
-    if (dirNorm.y < -1e-8)
-      checkRail((-limY - cuePos.y) / dirNorm.y, new THREE.Vector2(0, 1));
-    if (dirNorm.y > 1e-8)
-      checkRail((limY - cuePos.y) / dirNorm.y, new THREE.Vector2(0, -1));
-  }
+  if (dirNorm.x < -1e-8)
+    checkRail((-limX - cuePos.x) / dirNorm.x, new THREE.Vector2(1, 0));
+  if (dirNorm.x > 1e-8)
+    checkRail((limX - cuePos.x) / dirNorm.x, new THREE.Vector2(-1, 0));
+  if (dirNorm.y < -1e-8)
+    checkRail((-limY - cuePos.y) / dirNorm.y, new THREE.Vector2(0, 1));
+  if (dirNorm.y > 1e-8)
+    checkRail((limY - cuePos.y) / dirNorm.y, new THREE.Vector2(0, -1));
 
   const contactRadius = BALL_R * 2;
   const contactRadius2 = contactRadius * contactRadius;
@@ -7346,9 +7256,9 @@ function calcTarget(cue, dir, balls) {
     if (contactNormal.lengthSq() > 1e-8) contactNormal.normalize();
     else contactNormal.copy(dirNorm);
     targetDir = contactNormal.clone();
-    const projected = dirNorm.dot(targetDir);
+    const projected = Math.max(0, dirNorm.dot(targetDir));
     cueDir = dirNorm.clone().sub(targetDir.clone().multiplyScalar(projected));
-    if (cueDir.lengthSq() > 1e-8) cueDir.normalize();
+    if (cueDir.lengthSq() > 1e-6) cueDir.normalize();
     else cueDir = null;
   } else if (railNormal) {
     const n = railNormal.clone().normalize();
@@ -7667,7 +7577,7 @@ function updateCushionSegmentsFromTable(table) {
       MICRO_EPS,
       jaw.outerRadius * POCKET_JAW_MAPPING_RADIUS_SCALE
     );
-    const steps = Math.max(16, Math.ceil((jaw.jawAngle / Math.PI) * 48));
+    const steps = Math.max(10, Math.ceil((jaw.jawAngle / Math.PI) * 24));
     const startAngle = jaw.orientationAngle - jaw.jawAngle / 2;
     const endAngle = jaw.orientationAngle + jaw.jawAngle / 2;
     let prev = null;
@@ -7727,46 +7637,8 @@ function updateCushionSegmentsFromTable(table) {
     }
     segment.normal = normal.clone();
   });
-  const updateRailLimitsFromSegments = (segmentList) => {
-    let minAbsX = Infinity;
-    let minAbsY = Infinity;
-    segmentList.forEach((segment) => {
-      if (!segment || segment.type !== 'rail' || !segment.start || !segment.end) return;
-      TMP_VEC2_A.copy(segment.end).sub(segment.start);
-      if (TMP_VEC2_A.lengthSq() < 1e-8) return;
-      if (Math.abs(TMP_VEC2_A.x) >= Math.abs(TMP_VEC2_A.y)) {
-        const midY = (segment.start.y + segment.end.y) * 0.5;
-        minAbsY = Math.min(minAbsY, Math.abs(midY));
-      } else {
-        const midX = (segment.start.x + segment.end.x) * 0.5;
-        minAbsX = Math.min(minAbsX, Math.abs(midX));
-      }
-    });
-    if (minAbsX !== Infinity) {
-      const computedX = Math.max(0, minAbsX - BALL_R - RAIL_LIMIT_PADDING);
-      if (computedX > 0) {
-        RAIL_LIMIT_X = Math.min(DEFAULT_RAIL_LIMIT_X, computedX);
-      }
-    }
-    if (minAbsY !== Infinity) {
-      const computedY = Math.max(0, minAbsY - BALL_R - RAIL_LIMIT_PADDING);
-      if (computedY > 0) {
-        RAIL_LIMIT_Y = Math.min(DEFAULT_RAIL_LIMIT_Y, computedY);
-      }
-    }
-  };
-  updateRailLimitsFromSegments(segments);
   CUSHION_SEGMENTS = segments;
   table.userData.cushionSegments = segments;
-  const cushionBoxes = table.userData.cueObstructionBoxes ?? [];
-  cushionBoxes.length = 0;
-  table.userData.cushions.forEach((cushion) => {
-    if (!cushion) return;
-    const box = new THREE.Box3().setFromObject(cushion);
-    box.expandByScalar(CUE_OBSTRUCTION_POINT_RADIUS + CUE_CUSHION_HELPER_EXTRA_CLEARANCE);
-    cushionBoxes.push(box);
-  });
-  table.userData.cueObstructionBoxes = cushionBoxes;
 }
 
 // --------------------------------------------------
@@ -20698,10 +20570,9 @@ const powerRef = useRef(hud.power);
         const clampSpinToLimits = (input) => {
           const limits = spinLimitsRef.current || DEFAULT_SPIN_LIMITS;
           const current = input || spinRequestRef.current || spinRef.current || { x: 0, y: 0 };
-          const maxTopspin = Math.min(limits.maxY, MAX_TOPSPIN_INPUT);
           return {
             x: clamp(current.x ?? 0, limits.minX, limits.maxX),
-            y: clamp(current.y ?? 0, limits.minY, maxTopspin)
+            y: clamp(current.y ?? 0, limits.minY, limits.maxY)
           };
         };
         const applySpinConstraints = (aimVec, updateUi = false) => {
@@ -23359,25 +23230,13 @@ const powerRef = useRef(hud.power);
           const physicsSpin = mapSpinForPhysics(appliedSpin);
           const ranges = spinRangeRef.current || {};
           const powerSpinScale = 0.55 + clampedPower * 0.45;
-          const topspinPowerScale = resolveTopspinPowerScale(clampedPower);
-          const scaledSpin = {
-            x: (physicsSpin.x ?? 0) * SPIN_GLOBAL_SCALE,
-            y: (physicsSpin.y ?? 0) * SPIN_GLOBAL_SCALE
-          };
-          const baseSide = scaledSpin.x * (ranges.side ?? 0);
+          const baseSide = physicsSpin.x * (ranges.side ?? 0);
           let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
-          let spinTop = scaledSpin.y * (ranges.forward ?? 0) * powerSpinScale;
-          if (scaledSpin.y < 0) {
+          let spinTop = physicsSpin.y * (ranges.forward ?? 0) * powerSpinScale;
+          if (physicsSpin.y < 0) {
             spinTop *= BACKSPIN_MULTIPLIER;
-          } else if (scaledSpin.y > 0) {
-            spinTop = scaledSpin.y * (ranges.forward ?? 0) * topspinPowerScale;
+          } else if (physicsSpin.y > 0) {
             spinTop *= TOPSPIN_MULTIPLIER;
-            if (Math.abs(baseSide) <= STRAIGHT_TOPSPIN_SIDE_THRESHOLD) {
-              spinTop *= STRAIGHT_TOPSPIN_BONUS_SCALE;
-            }
-            if (Math.abs(baseSide) > 1e-6) {
-              spinSide = baseSide * SIDE_SPIN_MULTIPLIER * topspinPowerScale;
-            }
           }
           cue.vel.copy(base);
           if (cue.spin) {
