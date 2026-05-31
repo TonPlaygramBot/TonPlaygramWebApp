@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import * as THREE from 'three';
+import { loadExactUkrainianDroneModel } from '../utils/ukrainianDroneModel.js';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import {
   POOL_ROYALE_DEFAULT_LOADOUT,
@@ -630,6 +631,135 @@ function HdriEquirectangularPreview({ src, title }) {
       </div>
     </div>
   );
+}
+
+
+function normalizeDronePreviewObject(model, targetLength = 4.2) {
+  model.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const maxLength = Math.max(size.x, size.y, size.z);
+  if (!Number.isFinite(maxLength) || maxLength <= 0) return;
+  model.scale.setScalar(targetLength / maxLength);
+  model.updateMatrixWorld(true);
+  const fittedBox = new THREE.Box3().setFromObject(model);
+  const center = fittedBox.getCenter(new THREE.Vector3());
+  model.position.x -= center.x;
+  model.position.z -= center.z;
+  model.position.y += -fittedBox.min.y + 1.4;
+  model.updateMatrixWorld(true);
+}
+
+function UkrainianDroneStorePreview({ compact = false }) {
+  const mountRef = useRef(null);
+
+  useEffect(() => {
+    const mount = mountRef.current;
+    if (!mount) return undefined;
+
+    let disposed = false;
+    let frame = 0;
+    let runtime = null;
+
+    const width = Math.max(1, mount.clientWidth || (compact ? 120 : 480));
+    const height = Math.max(1, mount.clientHeight || (compact ? 96 : 224));
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color('#020617');
+    scene.fog = new THREE.Fog('#020617', 18, 48);
+
+    const camera = new THREE.PerspectiveCamera(48, width / height, 0.1, 120);
+    camera.position.set(5.2, 4.2, 7.5);
+    camera.lookAt(0, 1.85, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(width, height);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.6;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    mount.innerHTML = '';
+    mount.appendChild(renderer.domElement);
+
+    scene.add(new THREE.AmbientLight(0xffffff, 1.5));
+    scene.add(new THREE.HemisphereLight(0xdbeafe, 0x0f172a, 2.1));
+
+    const key = new THREE.DirectionalLight(0xffffff, 4.4);
+    key.position.set(5, 7, 6);
+    key.castShadow = true;
+    key.shadow.mapSize.set(2048, 2048);
+    scene.add(key);
+
+    const fill = new THREE.PointLight(0x9cc8ff, 11, 28, 1.4);
+    fill.position.set(-3, 3.8, 5.5);
+    scene.add(fill);
+
+    const floor = new THREE.Mesh(
+      new THREE.CircleGeometry(3.4, 72),
+      new THREE.MeshStandardMaterial({ color: '#111827', roughness: 0.88, metalness: 0.12 })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    const clock = new THREE.Clock();
+
+    loadExactUkrainianDroneModel(renderer)
+      .then((drone) => {
+        if (disposed) return;
+        normalizeDronePreviewObject(drone, 4.2);
+        drone.rotation.y = 0.45;
+        scene.add(drone);
+        runtime = { root: drone, baseY: drone.position.y };
+      })
+      .catch((error) => {
+        console.warn('Failed to load exact Ukrainian drone store preview', error);
+      });
+
+    const resize = () => {
+      if (disposed) return;
+      const nextWidth = Math.max(1, mount.clientWidth || width);
+      const nextHeight = Math.max(1, mount.clientHeight || height);
+      camera.aspect = nextWidth / nextHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(nextWidth, nextHeight);
+    };
+
+    const animate = () => {
+      if (disposed) return;
+      frame = requestAnimationFrame(animate);
+      const time = clock.elapsedTime;
+      if (runtime) {
+        runtime.root.position.y = runtime.baseY + Math.sin(time * 1.5) * 0.08;
+        runtime.root.rotation.y += 0.004;
+        runtime.root.traverse((obj) => {
+          if (`${obj.name || ''}`.toLowerCase().includes('propeller') || `${obj.name || ''}`.toLowerCase().includes('rotor')) {
+            obj.rotation.x = time * 24;
+          }
+        });
+      }
+      renderer.render(scene, camera);
+    };
+
+    window.addEventListener('resize', resize);
+    resize();
+    animate();
+
+    return () => {
+      disposed = true;
+      window.removeEventListener('resize', resize);
+      cancelAnimationFrame(frame);
+      if (runtime?.root) scene.remove(runtime.root);
+      floor.geometry.dispose?.();
+      floor.material.dispose?.();
+      renderer.dispose?.();
+      if (renderer.domElement.parentElement === mount) mount.removeChild(renderer.domElement);
+    };
+  }, [compact]);
+
+  return <div ref={mountRef} className="absolute inset-0" aria-label="Exact Ukrainian drone 3D preview" />;
 }
 
 const normalizePolyHavenImage = (url, size) => {
@@ -3290,7 +3420,15 @@ export default function Store() {
 
           <div className="grid gap-4 p-4">
             <div className="w-full">
-              {detailMedia.zoom ? (
+              {detailItem.preview3d === 'exactUkrainianDrone' ? (
+                <div className="relative h-56 w-full overflow-hidden rounded-2xl border border-white/10 bg-black/30">
+                  <UkrainianDroneStorePreview />
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-black/10 via-transparent to-black/60" />
+                  <div className="pointer-events-none absolute bottom-3 left-3 rounded-full bg-black/70 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/80">
+                    Exact GLB drone preview
+                  </div>
+                </div>
+              ) : detailMedia.zoom ? (
                 <button
                   type="button"
                   className="group relative w-full overflow-hidden rounded-2xl border border-white/10 bg-black/30"
@@ -4036,6 +4174,20 @@ export default function Store() {
     const imageClass = isCompact
       ? 'h-full w-full object-contain p-2'
       : 'h-full w-full object-contain p-3';
+
+    if (item.preview3d === 'exactUkrainianDrone') {
+      return (
+        <div className={wrapperClass}>
+          <UkrainianDroneStorePreview compact={isCompact} />
+          <div className="absolute inset-0 bg-gradient-to-br from-black/10 via-transparent to-black/60" />
+          <div
+            className={`absolute ${isCompact ? 'bottom-1 left-1' : 'bottom-2 left-2'} rounded-full bg-black/70 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white/80`}
+          >
+            {label}
+          </div>
+        </div>
+      );
+    }
 
     if (resolvedThumbnail) {
       return (
