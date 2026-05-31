@@ -2859,23 +2859,50 @@ async function createCaptureDroneLauncherTruckFx() {
 }
 
 
+function attachExactUkrainianDroneVisual(root, exactModel, targetSize) {
+  if (!root?.isObject3D || !exactModel?.isObject3D) return null;
+  fitObjectToTargetSize(exactModel, targetSize);
+  exactModel.rotation.y = Math.PI;
+  root.add(exactModel);
+  const propeller = findExactUkrainianDroneRotor(exactModel) || exactModel;
+  root.userData.exactUkrainianDroneVisual = exactModel;
+  root.userData.exactUkrainianDronePropeller = propeller;
+  root.userData.ukrainianDroneExactReference = true;
+  return propeller;
+}
+
 function upgradeCaptureDroneRootToExactModel(root, currentModel, targetSize) {
   if (!root?.isObject3D) return;
   void loadExactUkrainianDroneModel()
     .then((exactModel) => {
       if (!root?.isObject3D || !exactModel) return;
-      fitObjectToTargetSize(exactModel, targetSize);
-      exactModel.rotation.y = Math.PI;
       if (currentModel?.parent === root) root.remove(currentModel);
-      root.add(exactModel);
-      root.userData.exactUkrainianDroneVisual = exactModel;
-      root.userData.exactUkrainianDronePropeller = findExactUkrainianDroneRotor(exactModel) || exactModel;
+      attachExactUkrainianDroneVisual(root, exactModel, targetSize);
     })
     .catch((error) => {
       console.warn('Exact Ukrainian drone visual failed; keeping existing Ludo drone visible.', error);
     });
 }
-async function createCaptureDroneFx() {
+
+async function createExactUkrainianDroneFx() {
+  const root = new THREE.Group();
+  root.userData.lockCaptureTexture = true;
+  root.userData.ukrainianDroneExactReference = true;
+  const targetSize = 4.2 * CAPTURE_DRONE_SIZE_MULTIPLIER;
+  try {
+    const exactModel = await loadExactUkrainianDroneModel();
+    const propeller = attachExactUkrainianDroneVisual(root, exactModel, targetSize);
+    root.visible = false;
+    return { root, propeller, trail: [] };
+  } catch (error) {
+    console.warn('Exact Ukrainian drone visual failed; using procedural Ludo fallback.', error);
+    const fallbackFx = await createCaptureDroneFx({ skipExactUpgrade: true });
+    fallbackFx.root.userData.ukrainianDroneExactReference = false;
+    return fallbackFx;
+  }
+}
+
+async function createCaptureDroneFx({ skipExactUpgrade = false } = {}) {
   const root = new THREE.Group();
   root.userData.lockCaptureTexture = true;
   const loadedDrone = await loadCaptureVehicleModel('drone');
@@ -2885,7 +2912,9 @@ async function createCaptureDroneFx() {
     model.rotation.y = Math.PI;
     const propeller = applyMilitaryDroneLook(model);
     root.add(model);
-    upgradeCaptureDroneRootToExactModel(root, model, 3.85 * CAPTURE_DRONE_SIZE_MULTIPLIER);
+    if (!skipExactUpgrade) {
+      upgradeCaptureDroneRootToExactModel(root, model, 4.2 * CAPTURE_DRONE_SIZE_MULTIPLIER);
+    }
     const trail = [];
     for (let i = 0; i < 5; i += 1) {
       trail.push(
@@ -12564,7 +12593,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         if (isFighterJetAttack) playFighterJetSound();
         const primaryFx =
           (resolvedCaptureAnimationId === 'droneAttack' || resolvedCaptureAnimationId === 'ukrainianDroneAttack')
-            ? await createCaptureDroneFx()
+            ? isUkrainianDroneAttack
+              ? await createExactUkrainianDroneFx()
+              : await createCaptureDroneFx({ skipExactUpgrade: true })
             : resolvedCaptureAnimationId === 'helicopterAttack'
             ? await createCaptureHelicopterFx()
             : resolvedCaptureAnimationId === 'fighterJetAttack'
