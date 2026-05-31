@@ -7,16 +7,32 @@ import {
 } from '../webapp/src/config/poolRoyaleTableModels.js';
 
 describe('Pool Royale table models', () => {
-  test('defaults to the Showood GLB table', () => {
-    assert.equal(DEFAULT_POOL_ROYALE_TABLE_MODEL_ID, 'showood-seven-foot');
-    assert.equal(resolvePoolRoyaleTableModel(null).id, 'showood-seven-foot');
+  test('defaults to the Royal Original procedural table', () => {
+    assert.equal(DEFAULT_POOL_ROYALE_TABLE_MODEL_ID, 'royal-original');
+    assert.equal(resolvePoolRoyaleTableModel(null).id, 'royal-original');
     assert.equal(
       resolvePoolRoyaleTableModel('unknown').id,
-      'showood-seven-foot'
+      'royal-original'
     );
   });
 
-  test('Showood uses original GLB surface layout with Pool Royale finish textures', () => {
+  test('Royal Original keeps procedural pockets, jaws, and chrome over the Showood cloth', () => {
+    const royal = POOL_ROYALE_TABLE_MODEL_OPTIONS.find(
+      (option) => option.id === 'royal-original'
+    );
+
+    assert.ok(royal, 'Royal Original table model must be configured');
+    assert.equal(royal.kind, 'gltf');
+    assert.equal(royal.useOriginalLayoutSurfaces, false);
+    assert.equal(royal.keepGeneratedShell, true);
+    assert.equal(royal.keepGeneratedPocketsAndJaws, true);
+    assert.equal(royal.hideGeneratedPocketsAndJaws, false);
+    assert.equal(royal.forceGeneratedChromePlates, true);
+    assert.deepEqual(royal.usePoolRoyaleFinishRoles, ['cloth']);
+    assert.deepEqual(royal.hideSurfaceRoles, ['trim', 'wood', 'cushion', 'pocket']);
+  });
+
+  test('Showood uses original GLB surface layout without procedural rail diamonds', () => {
     const showood = POOL_ROYALE_TABLE_MODEL_OPTIONS.find(
       (option) => option.id === 'showood-seven-foot'
     );
@@ -24,75 +40,50 @@ describe('Pool Royale table models', () => {
     assert.ok(showood, 'Showood table model must be configured');
     assert.equal(showood.kind, 'gltf');
     assert.equal(showood.useOriginalLayoutSurfaces, true);
-    assert.equal(
-      showood.assetUrl,
-      '/models/pool-royale/showood-seven-foot/seven_foot_showood.glb'
-    );
-    assert.ok(
-      showood.fallbackAssetUrls.every((url) =>
-        url.endsWith('seven_foot_showood.glb')
-      )
-    );
-    assert.equal(showood.fitScale, 1);
-    assert.equal(showood.fitFootprintScale, 1);
-    assert.equal(showood.preserveOriginalFootprintAspect, true);
-    assert.equal(showood.lowerBaseHeightScale, 1.38);
-    assert.equal(showood.legLengthScale, 2.05);
-    assert.equal(showood.clothRepeatScale, 7.5);
+    assert.equal(showood.useReferenceShowoodMapping, true);
+    assert.equal(showood.hideGeneratedRailMarkers, true);
     assert.deepEqual(showood.hideSurfaceRoles, []);
-    assert.deepEqual(showood.preserveOriginalSurfaceRoles, []);
-    assert.equal(showood.tintOriginalTrimGold, true);
-    assert.deepEqual(showood.chromeMaterialSurfaceNames, [
-      'diamonds',
+    assert.deepEqual(showood.preserveSourceTextureRoles, [
       'railSight',
-      'sideApron',
-      'apronStrip',
-      'railSightLower',
-      'cornerRailSight'
+      'sideWoodApron',
+      'baseFoot',
+      'trim',
+      'pocket'
     ]);
-    assert.deepEqual(showood.blackMaterialSurfaceNames, []);
     assert.equal(showood.forceGeneratedChromePlates, false);
-    assert.deepEqual(showood.usePoolRoyaleFinishRoles, [
-      'cloth',
-      'cushion',
-      'wood',
-      'pocket',
-      'trim'
-    ]);
-    assert.equal('playfieldVisualLift' in showood, false);
-    assert.equal(showood.fitHeightScale, 1);
+    assert.deepEqual(showood.usePoolRoyaleFinishRoles, ['cloth', 'cushion', 'wood']);
   });
 
-  test('Only Showood 7 ft GLB table remains selectable', () => {
+  test('Royal Original and Showood tables remain selectable', () => {
     assert.deepEqual(
       POOL_ROYALE_TABLE_MODEL_OPTIONS.map((option) => option.id),
-      ['showood-seven-foot']
+      ['royal-original', 'showood-seven-foot']
     );
     assert.equal(
       resolvePoolRoyaleTableModel('traditional-fizyman-eight-foot').id,
-      'showood-seven-foot'
+      'royal-original'
     );
   });
 
-  test('Pool Royale lobby uses the fixed Showood table without model choices', async () => {
+  test('Pool Royale lobby exposes model choices with Royal Original guidance', async () => {
     const lobby = await readFile(
       'webapp/src/pages/Games/PoolRoyaleLobby.jsx',
       'utf8'
     );
 
     assert.ok(
-      lobby.includes('Showood 7 ft GLB is now the fixed Pool Royale table.'),
-      'lobby should explain the fixed Showood table'
+      lobby.includes('Royal Original keeps the clean procedural table'),
+      'lobby should explain the Royal Original table'
     );
     assert.equal(
       lobby.includes('POOL_ROYALE_TABLE_MODEL_OPTIONS.map'),
-      false,
-      'lobby should not render table model option cards'
+      true,
+      'lobby should render table model option cards'
     );
     assert.equal(
       lobby.includes('setTableModelId'),
-      false,
-      'lobby should not allow switching table models'
+      true,
+      'lobby should allow switching table models'
     );
     assert.equal(
       lobby.includes('traditional-fizyman-eight-foot'),
