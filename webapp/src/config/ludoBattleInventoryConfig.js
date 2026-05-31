@@ -4,13 +4,13 @@ import {
   TOKEN_PIECE_OPTIONS,
   TOKEN_STYLE_OPTIONS,
   HUMAN_CHARACTER_OPTIONS
-} from './ludoBattleOptions.js'
-import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js'
-import { MURLAN_TABLE_FINISHES } from './murlanTableFinishes.js'
-import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js'
-import { CHESS_BATTLE_OPTION_LABELS, CHESS_BATTLE_STORE_ITEMS } from './chessBattleInventoryConfig.js'
-import { swatchThumbnail } from './storeThumbnails.js'
-import { TABLE_CLOTH_OPTIONS } from '../utils/tableCustomizationOptions.js'
+} from './ludoBattleOptions.js';
+import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js';
+import { MURLAN_TABLE_FINISHES } from './murlanTableFinishes.js';
+import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
+import { CHESS_BATTLE_OPTION_LABELS, CHESS_BATTLE_STORE_ITEMS } from './chessBattleInventoryConfig.js';
+import { swatchThumbnail } from './storeThumbnails.js';
+import { TABLE_CLOTH_OPTIONS } from '../utils/tableCustomizationOptions.js';
 
 export const LUDO_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   tables: [MURLAN_TABLE_THEMES[0]?.id],
@@ -21,15 +21,15 @@ export const LUDO_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   tokenPalette: [TOKEN_PALETTE_OPTIONS[0]?.id],
   tokenStyle: [TOKEN_STYLE_OPTIONS[0]?.id],
   tokenPiece: [TOKEN_PIECE_OPTIONS[0]?.id],
-  captureAnimation: CAPTURE_ANIMATION_OPTIONS.map((option) => option.id),
+  captureAnimation: [CAPTURE_ANIMATION_OPTIONS[0]?.id],
   humanCharacter: [HUMAN_CHARACTER_OPTIONS[0]?.id]
-})
+});
 
 const reduceLabels = (options) =>
   options.reduce((acc, option) => {
-    acc[option.id] = option.label
-    return acc
-  }, {})
+    acc[option.id] = option.label;
+    return acc;
+  }, {});
 
 export const LUDO_BATTLE_OPTION_LABELS = Object.freeze({
   tables: Object.freeze(reduceLabels(MURLAN_TABLE_THEMES)),
@@ -51,19 +51,24 @@ export const LUDO_BATTLE_OPTION_LABELS = Object.freeze({
   humanCharacter: Object.freeze(reduceLabels(HUMAN_CHARACTER_OPTIONS)),
   sideColor: Object.freeze(CHESS_BATTLE_OPTION_LABELS.sideColor),
   headStyle: Object.freeze(CHESS_BATTLE_OPTION_LABELS.headStyle)
-})
+});
 
-const shouldShowCaptureAnimationInStore = (optionId) => Boolean(optionId)
+const HIDDEN_LUDO_STORE_CAPTURE_ANIMATION_IDS = new Set([
+  'mrtkGunAttack',
+  'pistolHolsterAttack',
+  'pistolSidearmAttack',
+  'assaultRifleAttack'
+]);
 
 const uniqueStoreItemsByName = (items) => {
-  const seen = new Set()
+  const seen = new Set();
   return items.filter((item) => {
-    const key = `${item?.type || ''}:${String(item?.name || '').trim().toLowerCase()}`
-    if (!key || seen.has(key)) return false
-    seen.add(key)
-    return true
-  })
-}
+    const key = `${item?.type || ''}:${String(item?.name || '').trim().toLowerCase()}`;
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
 
 export const LUDO_BATTLE_STORE_ITEMS = uniqueStoreItemsByName([
   ...MURLAN_TABLE_FINISHES.map((finish, idx) => ({
@@ -143,7 +148,7 @@ export const LUDO_BATTLE_STORE_ITEMS = uniqueStoreItemsByName([
     thumbnail: swatchThumbnail(['#f8fafc', '#0f172a', '#fbbf24'])
   })),
   ...CAPTURE_ANIMATION_OPTIONS.slice(1)
-    .filter((option) => shouldShowCaptureAnimationInStore(option.id))
+    .filter((option) => !HIDDEN_LUDO_STORE_CAPTURE_ANIMATION_IDS.has(option.id))
     .map((option, idx) => ({
       id: `ludo-capture-animation-${option.id}`,
       type: 'captureAnimation',
@@ -164,7 +169,7 @@ export const LUDO_BATTLE_STORE_ITEMS = uniqueStoreItemsByName([
     thumbnail: swatchThumbnail(['#334155', '#64748b', '#f59e0b'])
   })),
   ...CHESS_BATTLE_STORE_ITEMS.filter((item) => ['sideColor', 'headStyle'].includes(item.type))
-])
+]);
 
 export const LUDO_BATTLE_DEFAULT_LOADOUT = [
   { type: 'tables', optionId: MURLAN_TABLE_THEMES[0]?.id, label: MURLAN_TABLE_THEMES[0]?.label },
@@ -197,4 +202,4 @@ export const LUDO_BATTLE_DEFAULT_LOADOUT = [
     optionId: HUMAN_CHARACTER_OPTIONS[0]?.id,
     label: HUMAN_CHARACTER_OPTIONS[0]?.label
   }
-]
+];
