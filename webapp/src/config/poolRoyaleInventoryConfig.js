@@ -643,6 +643,7 @@ const TABLE_FINISH_THUMBNAILS = Object.freeze({
 
 const POCKET_LINER_THUMBNAILS = Object.freeze({
   'plastic-black': swatchThumbnail(['#0b0d10', '#1f2937', '#4b5563']),
+  'plastic-brown': swatchThumbnail(['#2a1207', '#5a2608', '#8b4513']),
   'plastic-dark-grey': swatchThumbnail(['#1f2328', '#374151', '#6b7280']),
   'plastic-grey': swatchThumbnail(['#4b5563', '#6b7280', '#9ca3af']),
   'plastic-light-grey': swatchThumbnail(['#9ca3af', '#d1d5db', '#f3f4f6']),
@@ -720,7 +721,7 @@ export const POOL_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   railMarkerColor: ['gold'],
   clothColor: [POOL_ROYALE_CLOTH_VARIANTS[0].id],
   cueStyle: ['birch-frost'],
-  pocketLiner: ['plastic-black'],
+  pocketLiner: ['plastic-black', 'plastic-brown'],
   environmentHdri: [POOL_ROYALE_DEFAULT_HDRI_ID],
   tableBase: POOL_ROYALE_BASE_VARIANTS.map((variant) => variant.id)
 });
@@ -791,6 +792,7 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
   ),
   pocketLiner: Object.freeze({
     'plastic-black': 'Plastic Black Pocket Jaws',
+    'plastic-brown': 'Plastic Brown Pocket Jaws',
     'plastic-dark-grey': 'Plastic Dark Grey Pocket Jaws',
     'plastic-grey': 'Plastic Grey Pocket Jaws',
     'plastic-light-grey': 'Plastic Light Grey Pocket Jaws',
@@ -1068,6 +1070,15 @@ export const POOL_ROYALE_STORE_ITEMS = [
     price: 520,
     description: 'Matte black monoblock plastic jaws with subtle molded sheen.',
     thumbnail: POCKET_LINER_THUMBNAILS['plastic-black']
+  },
+  {
+    id: 'pocket-plastic-brown',
+    type: 'pocketLiner',
+    optionId: 'plastic-brown',
+    name: 'Plastic Brown Pocket Jaws',
+    price: 525,
+    description: 'Dark brown plastic jaws matching the Showood reference jaw option.',
+    thumbnail: POCKET_LINER_THUMBNAILS['plastic-brown']
   },
   {
     id: 'pocket-plastic-dark-grey',
