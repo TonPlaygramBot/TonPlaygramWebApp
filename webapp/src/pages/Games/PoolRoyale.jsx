@@ -12247,6 +12247,479 @@ function normalizePoolRoyaleExternalClothTextureScale(mesh, material, role) {
   material.needsUpdate = true;
 }
 
+
+const SHOWOOD_REFERENCE_PARTS = Object.freeze([
+  'cloth',
+  'cushion',
+  'topWoodRail',
+  'sideWoodApron',
+  'pocketCup',
+  'cornerPocketPlate',
+  'middlePocketPlate',
+  'verticalCornerRim',
+  'baseCornerBlock',
+  'leg',
+  'baseFoot',
+  'lowerTrim',
+  'railSight',
+  'underside'
+]);
+
+const SHOWOOD_REFERENCE_PART_TO_CONTROL = Object.freeze({
+  cloth: 'cloth',
+  cushion: 'cushion',
+  topWoodRail: 'topWoodRail',
+  sideWoodApron: 'metalAccent',
+  pocketCup: 'jaws',
+  cornerPocketPlate: 'metalAccent',
+  middlePocketPlate: 'metalAccent',
+  verticalCornerRim: 'metalAccent',
+  baseCornerBlock: 'legBase',
+  leg: 'legBase',
+  baseFoot: 'metalAccent',
+  lowerTrim: 'metalAccent',
+  railSight: 'metalAccent',
+  underside: 'legBase'
+});
+
+const SHOWOOD_REFERENCE_OPTIONS = Object.freeze({
+  cloth: {
+    a: { label: 'Green field', color: '#0a7b33', metalness: 0, roughness: 1, envMapIntensity: 0.16 },
+    b: { label: 'Blue field', color: '#0d4fb8', metalness: 0, roughness: 1, envMapIntensity: 0.16 }
+  },
+  cushion: {
+    a: { label: 'Matched green', color: '#064f22', metalness: 0, roughness: 0.88, envMapIntensity: 0.55 },
+    b: { label: 'Black rubber', color: '#050505', metalness: 0, roughness: 0.86, envMapIntensity: 0.55 }
+  },
+  metalAccent: {
+    a: { label: 'Gold', color: '#d8b23d', metalness: 0.98, roughness: 0.06, envMapIntensity: 6.8, clearcoat: 1, clearcoatRoughness: 0.03 },
+    b: { label: 'Chrome', color: '#d7dde7', metalness: 1, roughness: 0.055, envMapIntensity: 7.2, clearcoat: 1, clearcoatRoughness: 0.025 }
+  },
+  jaws: {
+    a: { label: 'Black jaws', color: '#020202', metalness: 0, roughness: 0.96, envMapIntensity: 0.14 },
+    b: { label: 'Brown jaws', color: '#2a1207', metalness: 0, roughness: 0.88, envMapIntensity: 0.26 }
+  },
+  topWoodRail: {
+    a: { label: 'Walnut frame', color: '#5a2608', metalness: 0.02, roughness: 0.38, envMapIntensity: 1.35, clearcoat: 0.42, clearcoatRoughness: 0.18 },
+    b: { label: 'Black frame', color: '#070605', metalness: 0.04, roughness: 0.28, envMapIntensity: 1.75, clearcoat: 0.7, clearcoatRoughness: 0.1 }
+  },
+  legBase: {
+    a: { label: 'Brown legs/base', color: '#3d1706', metalness: 0.02, roughness: 0.52, envMapIntensity: 1, clearcoat: 0.2, clearcoatRoughness: 0.36 },
+    b: { label: 'Black legs/base', color: '#070504', metalness: 0.04, roughness: 0.4, envMapIntensity: 1.22, clearcoat: 0.32, clearcoatRoughness: 0.26 }
+  }
+});
+
+const SHOWOOD_REFERENCE_DEFAULT_PALETTE = Object.freeze({
+  cloth: 'a',
+  cushion: 'a',
+  metalAccent: 'a',
+  jaws: 'a',
+  topWoodRail: 'a',
+  legBase: 'b'
+});
+
+const SHOWOOD_REFERENCE_PALETTE_STORAGE_KEY = 'poolRoyaleShowoodReferencePalette';
+const SHOWOOD_REFERENCE_CONTROLS = Object.freeze([
+  { key: 'cloth', label: 'Field cloth', description: 'Only the flat playfield surface.' },
+  { key: 'cushion', label: 'Cushions', description: 'Matched green or black rubber while preserving source cushion texture.' },
+  { key: 'metalAccent', label: 'Rail sights + side strip + feet', description: 'One gold/chrome control for sights, side strip, rims, trims, plates, and feet.' },
+  { key: 'jaws', label: 'Jaws', description: 'Pocket jaws / cups: black or brown.' },
+  { key: 'topWoodRail', label: 'Top rail frame', description: 'Main top wood rail frame.' },
+  { key: 'legBase', label: 'Legs + base', description: 'Legs and lower base blocks together, separate from metal accents.' }
+]);
+
+const SHOWOOD_REFERENCE_KEEP_TEXTURE_PARTS = new Set([
+  'cushion',
+  'topWoodRail',
+  'leg',
+  'baseCornerBlock',
+  'underside'
+]);
+
+const SHOWOOD_REFERENCE_FINE_PARTS = new Set([
+  'pocketCup',
+  'cornerPocketPlate',
+  'middlePocketPlate',
+  'verticalCornerRim',
+  'baseCornerBlock',
+  'lowerTrim',
+  'railSight',
+  'underside'
+]);
+
+const resolveShowoodReferencePalette = (palette = null) => ({
+  ...SHOWOOD_REFERENCE_DEFAULT_PALETTE,
+  ...(palette && typeof palette === 'object' ? palette : {})
+});
+
+const showoodReferenceOptionForPart = (part, palette) => {
+  const control = SHOWOOD_REFERENCE_PART_TO_CONTROL[part] || 'metalAccent';
+  const choice = resolveShowoodReferencePalette(palette)[control] || SHOWOOD_REFERENCE_DEFAULT_PALETTE[control];
+  return SHOWOOD_REFERENCE_OPTIONS[control]?.[choice] || SHOWOOD_REFERENCE_OPTIONS[control]?.a;
+};
+
+function clearShowoodReferenceMaps(material) {
+  if (!material) return;
+  material.map = null;
+  material.normalMap = null;
+  material.bumpMap = null;
+  material.roughnessMap = null;
+  material.metalnessMap = null;
+  material.aoMap = null;
+  material.emissiveMap = null;
+  material.lightMap = null;
+  material.alphaMap = null;
+}
+
+function snapshotShowoodReferenceMaterial(material) {
+  return {
+    color: material.color?.clone?.() || new THREE.Color('#ffffff'),
+    emissive: material.emissive?.clone?.() || new THREE.Color('#000000'),
+    metalness: material.metalness ?? 0,
+    roughness: material.roughness ?? 0.55,
+    envMapIntensity: material.envMapIntensity ?? 1,
+    clearcoat: material.clearcoat ?? 0,
+    clearcoatRoughness: material.clearcoatRoughness ?? 0,
+    map: material.map ?? null,
+    normalMap: material.normalMap ?? null,
+    bumpMap: material.bumpMap ?? null,
+    roughnessMap: material.roughnessMap ?? null,
+    metalnessMap: material.metalnessMap ?? null,
+    aoMap: material.aoMap ?? null,
+    emissiveMap: material.emissiveMap ?? null,
+    lightMap: material.lightMap ?? null,
+    alphaMap: material.alphaMap ?? null,
+    transparent: material.transparent,
+    opacity: material.opacity
+  };
+}
+
+function restoreShowoodReferenceMaterial(material) {
+  const snap = material?.userData?.showoodReferenceOriginal;
+  if (!material || !snap) return;
+  if (material.color) material.color.copy(snap.color);
+  if (material.emissive) material.emissive.copy(snap.emissive);
+  material.metalness = snap.metalness;
+  material.roughness = snap.roughness;
+  material.envMapIntensity = snap.envMapIntensity;
+  if ('clearcoat' in material) material.clearcoat = snap.clearcoat;
+  if ('clearcoatRoughness' in material) material.clearcoatRoughness = snap.clearcoatRoughness;
+  material.map = snap.map;
+  material.normalMap = snap.normalMap;
+  material.bumpMap = snap.bumpMap;
+  material.roughnessMap = snap.roughnessMap;
+  material.metalnessMap = snap.metalnessMap;
+  material.aoMap = snap.aoMap;
+  material.emissiveMap = snap.emissiveMap;
+  material.lightMap = snap.lightMap;
+  material.alphaMap = snap.alphaMap;
+  material.transparent = snap.transparent;
+  material.opacity = snap.opacity;
+  material.depthWrite = true;
+}
+
+function patchShowoodReferenceMaterial(material) {
+  if (!material) return;
+  preparePoolRoyaleExternalTexture(material.map, true);
+  preparePoolRoyaleExternalTexture(material.emissiveMap, true);
+  preparePoolRoyaleExternalTexture(material.lightMap, true);
+  preparePoolRoyaleExternalTexture(material.normalMap, false);
+  preparePoolRoyaleExternalTexture(material.bumpMap, false);
+  preparePoolRoyaleExternalTexture(material.roughnessMap, false);
+  preparePoolRoyaleExternalTexture(material.metalnessMap, false);
+  preparePoolRoyaleExternalTexture(material.aoMap, false);
+  preparePoolRoyaleExternalTexture(material.alphaMap, false);
+  material.side = THREE.DoubleSide;
+  material.needsUpdate = true;
+}
+
+function cloneShowoodReferenceWorkingMaterial(raw) {
+  const mat = raw?.clone ? raw.clone() : new THREE.MeshPhysicalMaterial({ color: '#ffffff' });
+  if (!(mat instanceof THREE.MeshPhysicalMaterial)) {
+    const source = mat;
+    const converted = new THREE.MeshPhysicalMaterial({
+      name: source.name || 'source_material',
+      color: source.color?.clone?.() || new THREE.Color('#ffffff'),
+      emissive: source.emissive?.clone?.() || new THREE.Color('#000000'),
+      map: source.map ?? null,
+      normalMap: source.normalMap ?? null,
+      bumpMap: source.bumpMap ?? null,
+      roughnessMap: source.roughnessMap ?? null,
+      metalnessMap: source.metalnessMap ?? null,
+      aoMap: source.aoMap ?? null,
+      emissiveMap: source.emissiveMap ?? null,
+      lightMap: source.lightMap ?? null,
+      alphaMap: source.alphaMap ?? null,
+      roughness: source.roughness ?? 0.55,
+      metalness: source.metalness ?? 0,
+      transparent: source.transparent,
+      opacity: source.opacity
+    });
+    converted.clearcoat = source.clearcoat ?? 0;
+    converted.clearcoatRoughness = source.clearcoatRoughness ?? 0.18;
+    converted.userData.showoodReferenceOriginal = snapshotShowoodReferenceMaterial(converted);
+    patchShowoodReferenceMaterial(converted);
+    return converted;
+  }
+  mat.userData = { ...(mat.userData || {}), showoodReferenceOriginal: snapshotShowoodReferenceMaterial(mat) };
+  patchShowoodReferenceMaterial(mat);
+  return mat;
+}
+
+function applyShowoodReferenceMaterial(material, part, palette, cushionShadow = false) {
+  restoreShowoodReferenceMaterial(material);
+  if (part === 'cushion' && cushionShadow) {
+    material.color?.set?.('#666a72');
+    material.metalness = 0;
+    material.roughness = 0.96;
+    material.envMapIntensity = 0.22;
+    if ('clearcoat' in material) material.clearcoat = 0;
+    if ('clearcoatRoughness' in material) material.clearcoatRoughness = 0;
+    clearShowoodReferenceMaps(material);
+  } else {
+    const option = showoodReferenceOptionForPart(part, palette);
+    material.color?.set?.(option.color);
+    material.metalness = option.metalness;
+    material.roughness = option.roughness;
+    material.envMapIntensity = option.envMapIntensity;
+    if ('clearcoat' in material) material.clearcoat = option.clearcoat ?? 0;
+    if ('clearcoatRoughness' in material) material.clearcoatRoughness = option.clearcoatRoughness ?? 0;
+    if (!SHOWOOD_REFERENCE_KEEP_TEXTURE_PARTS.has(part)) clearShowoodReferenceMaps(material);
+  }
+  material.transparent = false;
+  material.opacity = 1;
+  material.depthWrite = true;
+  material.userData = {
+    ...(material.userData || {}),
+    showoodReferencePart: part,
+    showoodReferenceCushionShadow: cushionShadow
+  };
+  patchShowoodReferenceMaterial(material);
+}
+
+function showoodReferenceColorFlags(material) {
+  const color = material?.color instanceof THREE.Color ? material.color : new THREE.Color('#ffffff');
+  return {
+    green: color.g > color.r * 1.14 && color.g > color.b * 1.08 && color.g > 0.11,
+    black: color.r < 0.11 && color.g < 0.11 && color.b < 0.11,
+    brown: color.r > color.b * 1.12 && color.g > color.b * 0.48 && color.r > 0.07 && color.g < color.r * 0.9,
+    gold: color.r > 0.42 && color.g > 0.29 && color.b < 0.25 && color.r >= color.g * 0.88,
+    light: color.r > 0.72 && color.g > 0.72 && color.b > 0.62
+  };
+}
+
+function showoodReferenceMaterialIndexAtOffset(geometry, offset) {
+  if (!geometry.groups?.length) return 0;
+  return geometry.groups.find((item) => offset >= item.start && offset < item.start + item.count)?.materialIndex ?? 0;
+}
+
+function showoodReferenceSpatialContext(mesh, geometry, aIndex, bIndex, cIndex, tableBox, tableCenter, tableSize) {
+  const position = geometry.attributes.position;
+  const a = new THREE.Vector3().fromBufferAttribute(position, aIndex).applyMatrix4(mesh.matrixWorld);
+  const b = new THREE.Vector3().fromBufferAttribute(position, bIndex).applyMatrix4(mesh.matrixWorld);
+  const c = new THREE.Vector3().fromBufferAttribute(position, cIndex).applyMatrix4(mesh.matrixWorld);
+  const center = new THREE.Vector3().addVectors(a, b).add(c).multiplyScalar(1 / 3);
+  const normal = new THREE.Vector3()
+    .crossVectors(new THREE.Vector3().subVectors(b, a), new THREE.Vector3().subVectors(c, a))
+    .normalize()
+    .transformDirection(mesh.matrixWorld);
+  const relX = Math.abs(center.x - tableCenter.x) / Math.max(tableSize.x * 0.5, MICRO_EPS);
+  const relZ = Math.abs(center.z - tableCenter.z) / Math.max(tableSize.z * 0.5, MICRO_EPS);
+  const relY = (center.y - tableBox.min.y) / Math.max(tableSize.y, MICRO_EPS);
+  const xIsLongAxis = tableSize.x >= tableSize.z;
+  return {
+    relY,
+    longN: xIsLongAxis ? relX : relZ,
+    shortN: xIsLongAxis ? relZ : relX,
+    upFace: normal.y > 0.33,
+    sideFace: Math.abs(normal.x) > 0.25 || Math.abs(normal.z) > 0.25,
+    downFace: normal.y < -0.33
+  };
+}
+
+function classifyShowoodReferenceTriangle(mesh, geometry, material, aIndex, bIndex, cIndex, tableBox, tableCenter, tableSize) {
+  const name = `${mesh.name || ''} ${material.name || ''}`.toLowerCase();
+  const s = showoodReferenceSpatialContext(mesh, geometry, aIndex, bIndex, cIndex, tableBox, tableCenter, tableSize);
+  const flags = showoodReferenceColorFlags(material);
+  const namedCloth = /cloth|felt|fabric|surface|bed|slate/i.test(name);
+  const namedCushion = /cushion|rubber|bumper|railrubber/i.test(name);
+  const namedPocket = /pocket|hole|drop|net|liner|leather|cup/i.test(name);
+  const namedHardware = /trim|bezel|ring|metal|chrome|brass|gold|plate|cap|rim|guard|insert|hardware|bolt|screw/i.test(name);
+  const namedSight = /sight|diamond|marker|dot|inlay/i.test(name);
+  const namedWood = /wood|walnut|rail|apron|leg|base|frame|cabinet|corner|showood|support/i.test(name);
+  const metalish = material.metalness > 0.16 || material.clearcoat > 0.58 || flags.gold;
+  const high = s.relY > 0.54;
+  const veryTop = s.relY > 0.65;
+  const low = s.relY <= 0.16;
+  const sideMiddlePocketZone = high && s.longN < 0.255 && s.shortN > 0.69;
+  const cornerPocketZone = high && s.longN > 0.68 && s.shortN > 0.66;
+  const anyPocketZone = sideMiddlePocketZone || cornerPocketZone;
+  const centralCloth = high && s.upFace && s.longN < 0.61 && s.shortN < 0.53;
+  const cushionBand = high && (s.longN > 0.52 || s.shortN > 0.49) && (s.longN < 0.9 || s.shortN < 0.9);
+  const topRailBand = high && (s.longN > 0.58 || s.shortN > 0.535);
+  const topRailNonPocket = topRailBand && !anyPocketZone;
+  const topRailSideVerticalRimZone =
+    s.sideFace && !s.upFace && s.relY > 0.46 && s.relY < 0.96 && s.longN > 0.6 && s.shortN > 0.58;
+  const underRailSightCornerRimZone =
+    s.sideFace && !s.upFace && s.relY > 0.36 && s.relY < 0.76 && s.longN > 0.67 && s.shortN > 0.52;
+  const outsideBaseCornerRimZone =
+    s.sideFace && s.relY > 0.08 && s.relY < 0.78 && s.longN > 0.72 && s.shortN > 0.54;
+  const outerMostVerticalCorner =
+    s.sideFace && s.relY > 0.1 && s.relY < 0.8 && s.longN > 0.8 && s.shortN > 0.68;
+  const baseCornerZone =
+    s.sideFace && s.relY > 0.12 && s.relY < 0.64 &&
+    ((s.longN > 0.1 && s.longN < 0.56 && s.shortN < 0.36) || (s.longN > 0.58 && s.shortN > 0.56)) &&
+    !(underRailSightCornerRimZone || topRailSideVerticalRimZone);
+  const legZone = s.sideFace && s.relY > 0.14 && s.relY < 0.62 && s.longN < 0.62 && s.shortN < 0.58;
+  const railSightDownBand =
+    s.sideFace && !s.upFace && !anyPocketZone && s.relY > 0.44 && s.relY < 0.72 &&
+    (s.longN > 0.54 || s.shortN > 0.48) &&
+    !(topRailSideVerticalRimZone || underRailSightCornerRimZone || outsideBaseCornerRimZone || outerMostVerticalCorner || baseCornerZone || legZone);
+  const sideLowerTrimZone = s.sideFace && s.relY > 0.18 && s.relY < 0.44 && (s.longN > 0.54 || s.shortN > 0.54);
+  const hardwareCandidate = namedHardware || metalish || ((flags.black || flags.gold || flags.light) && !flags.green && !flags.brown && !namedWood);
+  const pocketInteriorCandidate = namedPocket || (flags.black && anyPocketZone && (s.downFace || s.sideFace || s.relY < 0.79) && !hardwareCandidate);
+
+  if (namedCloth) return 'cloth';
+  if (namedCushion) return 'cushion';
+  if (namedSight && high) return 'railSight';
+  if (pocketInteriorCandidate) return 'pocketCup';
+  if (namedPocket && hardwareCandidate && sideMiddlePocketZone) return 'middlePocketPlate';
+  if (namedPocket && hardwareCandidate && cornerPocketZone) return 'cornerPocketPlate';
+  if (hardwareCandidate && sideMiddlePocketZone && !flags.green && !flags.brown) return 'middlePocketPlate';
+  if (hardwareCandidate && cornerPocketZone && !flags.green && !flags.brown) return 'cornerPocketPlate';
+  if (flags.green && centralCloth) return 'cloth';
+  if (flags.green && cushionBand) return 'cushion';
+  if (topRailSideVerticalRimZone || underRailSightCornerRimZone || outsideBaseCornerRimZone || outerMostVerticalCorner) return 'verticalCornerRim';
+  if (hardwareCandidate && topRailNonPocket && s.upFace && !flags.brown && !flags.green) return 'railSight';
+  if (low) return 'baseFoot';
+  if (s.downFace && s.relY < 0.5) return 'underside';
+  if ((flags.brown || namedWood) && baseCornerZone) return 'baseCornerBlock';
+  if (baseCornerZone) return 'baseCornerBlock';
+  if (legZone && (flags.brown || namedWood || !hardwareCandidate)) return 'leg';
+  if (hardwareCandidate && sideLowerTrimZone && !flags.green) return 'lowerTrim';
+  if (railSightDownBand && !flags.green) return 'sideWoodApron';
+  if (veryTop && (s.upFace || topRailBand) && !flags.green) return 'topWoodRail';
+  if (high && s.sideFace && !flags.green && !anyPocketZone) return 'sideWoodApron';
+  return 'sideWoodApron';
+}
+
+function isShowoodReferenceCushionShadowTriangle(mesh, geometry, aIndex, bIndex, cIndex, tableBox, tableCenter, tableSize) {
+  const s = showoodReferenceSpatialContext(mesh, geometry, aIndex, bIndex, cIndex, tableBox, tableCenter, tableSize);
+  return s.downFace && s.relY > 0.46 && s.relY < 0.84 && ((s.longN > 0.6 && s.longN < 0.95) || (s.shortN > 0.42 && s.shortN < 0.88));
+}
+
+function createShowoodReferenceSlotStat() {
+  return {
+    total: 0,
+    dominantPart: 'sideWoodApron',
+    dominantRatio: 1,
+    parts: SHOWOOD_REFERENCE_PARTS.reduce((acc, part) => ({ ...acc, [part]: 0 }), {})
+  };
+}
+
+function updateShowoodReferenceSlotStat(stats, sourceSlot, part) {
+  const stat = stats.get(sourceSlot) || createShowoodReferenceSlotStat();
+  stat.total += 1;
+  stat.parts[part] = (stat.parts[part] || 0) + 1;
+  stat.dominantPart = SHOWOOD_REFERENCE_PARTS.reduce((best, item) => ((stat.parts[item] || 0) > (stat.parts[best] || 0) ? item : best), stat.dominantPart);
+  stat.dominantRatio = stat.total > 0 ? (stat.parts[stat.dominantPart] || 0) / stat.total : 1;
+  stats.set(sourceSlot, stat);
+}
+
+function resolveShowoodReferencePart(triangle, slotStats) {
+  const stat = slotStats.get(triangle.sourceSlot);
+  if (!stat) return triangle.part;
+  const mixedClothCushion = (stat.parts.cloth || 0) > 0 && (stat.parts.cushion || 0) > 0;
+  if (SHOWOOD_REFERENCE_FINE_PARTS.has(triangle.part) && triangle.part !== stat.dominantPart) return triangle.part;
+  if (mixedClothCushion && (triangle.part === 'cloth' || triangle.part === 'cushion')) return triangle.part;
+  if ((triangle.part === 'cloth' || triangle.part === 'cushion') && stat.dominantRatio >= 0.88) return stat.dominantPart;
+  return stat.dominantRatio >= 0.965 ? stat.dominantPart : triangle.part;
+}
+
+function makeShowoodReferenceSlotKey(mesh, sourceMaterialIndex, material) {
+  const clean = (value) => (value || 'unnamed').replace(/\s+/g, '_').toLowerCase();
+  return `${clean(mesh.name)}::slot_${sourceMaterialIndex}::${clean(material.name)}`;
+}
+
+function applyShowoodReferenceTableMapping(root, tableModel = null) {
+  if (!root) return;
+  const palette = resolveShowoodReferencePalette(tableModel?.showoodPalette);
+  root.updateMatrixWorld(true);
+  const tableBox = new THREE.Box3().setFromObject(root);
+  const tableCenter = tableBox.getCenter(new THREE.Vector3());
+  const tableSize = tableBox.getSize(new THREE.Vector3());
+  const slotStats = new Map();
+  const buildData = [];
+
+  root.traverse((child) => {
+    if (!child?.isMesh) return;
+    const sourceGeometry = child.geometry?.clone?.();
+    const position = sourceGeometry?.attributes?.position;
+    if (!sourceGeometry || !position) return;
+    const sourceMaterials = (Array.isArray(child.material) ? child.material : [child.material]).map((material) => cloneShowoodReferenceWorkingMaterial(material));
+    const oldIndex = sourceGeometry.index;
+    const totalIndices = oldIndex ? oldIndex.count : position.count;
+    const triangles = [];
+    child.castShadow = true;
+    child.receiveShadow = true;
+    child.frustumCulled = false;
+    for (let i = 0; i + 2 < totalIndices; i += 3) {
+      const a = oldIndex ? oldIndex.getX(i) : i;
+      const b = oldIndex ? oldIndex.getX(i + 1) : i + 1;
+      const c = oldIndex ? oldIndex.getX(i + 2) : i + 2;
+      const sourceMaterialIndex = Math.min(showoodReferenceMaterialIndexAtOffset(sourceGeometry, i), sourceMaterials.length - 1);
+      const sourceMaterial = sourceMaterials[Math.max(0, sourceMaterialIndex)];
+      const sourceSlot = makeShowoodReferenceSlotKey(child, sourceMaterialIndex, sourceMaterial);
+      const part = classifyShowoodReferenceTriangle(child, sourceGeometry, sourceMaterial, a, b, c, tableBox, tableCenter, tableSize);
+      const cushionShadow = part === 'cushion' && isShowoodReferenceCushionShadowTriangle(child, sourceGeometry, a, b, c, tableBox, tableCenter, tableSize);
+      triangles.push({ a, b, c, sourceMaterialIndex, sourceSlot, part, cushionShadow });
+      updateShowoodReferenceSlotStat(slotStats, sourceSlot, part);
+    }
+    buildData.push({ mesh: child, sourceGeometry, sourceMaterials, triangles });
+  });
+
+  buildData.forEach(({ mesh, sourceGeometry, sourceMaterials, triangles }) => {
+    const finalGeometry = sourceGeometry.clone();
+    const finalMaterials = [];
+    const materialLookup = new Map();
+    const finalIndex = [];
+    finalGeometry.clearGroups();
+    const getMaterialIndex = (sourceMaterialIndex, sourceSlot, part, cushionShadow = false) => {
+      const key = `${sourceSlot}::${part}::${cushionShadow ? 'shadow' : 'main'}`;
+      if (materialLookup.has(key)) return materialLookup.get(key);
+      const source = sourceMaterials[Math.max(0, Math.min(sourceMaterialIndex, sourceMaterials.length - 1))];
+      const material = source.clone();
+      material.name = `${source.name || 'source'}__${part}${cushionShadow ? '__shadow' : ''}`;
+      material.userData = {
+        ...(material.userData || {}),
+        showoodReferenceOriginal: snapshotShowoodReferenceMaterial(source),
+        sourceSlot,
+        meshName: mesh.name || 'unnamed mesh',
+        materialName: source.name || 'unnamed material'
+      };
+      applyShowoodReferenceMaterial(material, part, palette, cushionShadow);
+      const index = finalMaterials.length;
+      finalMaterials.push(material);
+      materialLookup.set(key, index);
+      return index;
+    };
+    triangles.forEach((triangle) => {
+      const part = resolveShowoodReferencePart(triangle, slotStats);
+      const cushionShadow = part === 'cushion' && triangle.cushionShadow;
+      const materialIndex = getMaterialIndex(triangle.sourceMaterialIndex, triangle.sourceSlot, part, cushionShadow);
+      const start = finalIndex.length;
+      finalIndex.push(triangle.a, triangle.b, triangle.c);
+      finalGeometry.addGroup(start, 3, materialIndex);
+    });
+    finalGeometry.setIndex(finalIndex);
+    finalGeometry.computeBoundingBox();
+    finalGeometry.computeBoundingSphere();
+    mesh.geometry?.dispose?.();
+    mesh.geometry = finalGeometry;
+    mesh.material = finalMaterials.length > 1 ? finalMaterials : finalMaterials[0];
+  });
+}
+
 function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tableModel = null) {
   if (!material || !finishInfo) return material;
   const finishRoles = Array.isArray(tableModel?.usePoolRoyaleFinishRoles)
@@ -12317,7 +12790,7 @@ function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tab
           aoMap: mat.aoMap
         }
       : null;
-    copyMaterialLook(role === 'cushion' ? finishInfo.cushionMat : finishInfo.clothMat);
+    copyMaterialLook(role === 'cushion' && !tableModel?.matchCushionsToCloth ? finishInfo.cushionMat : finishInfo.clothMat);
     if (sourceSnapshot) {
       Object.assign(mat, sourceSnapshot);
     }
@@ -12365,6 +12838,10 @@ function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tab
 }
 
 function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finishInfo = null) {
+  if (tableModel?.materialMapping === 'showoodReference') {
+    applyShowoodReferenceTableMapping(root, tableModel);
+    return;
+  }
   root?.traverse?.((child) => {
     if (!child?.isMesh) return;
     child.castShadow = true;
@@ -13985,10 +14462,14 @@ function PoolRoyaleGame({
     () => resolveTableSize(tableSizeKey),
     [tableSizeKey]
   );
-  const activeTableModel = useMemo(
-    () => resolvePoolRoyaleTableModel(tableModelKey),
-    [tableModelKey]
-  );
+  const activeTableModel = useMemo(() => {
+    const model = resolvePoolRoyaleTableModel(tableModelKey);
+    if (model?.materialMapping !== 'showoodReference') return model;
+    return {
+      ...model,
+      showoodPalette: resolveShowoodReferencePalette(showoodReferencePalette)
+    };
+  }, [showoodReferencePalette, tableModelKey]);
   const responsiveTableSize = useResponsiveTableSize(activeTableSize);
   const resolvedAccountId = useMemo(
     () => poolRoyalAccountId(accountId),
@@ -14314,6 +14795,19 @@ function PoolRoyaleGame({
       (id) => CHROME_PLATE_STYLE_OPTIONS.some((opt) => opt.id === id),
       DEFAULT_CHROME_PLATE_STYLE_ID
     );
+  });
+  const [showoodReferencePalette, setShowoodReferencePalette] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const parsed = JSON.parse(
+          window.localStorage.getItem(SHOWOOD_REFERENCE_PALETTE_STORAGE_KEY) || 'null'
+        );
+        return resolveShowoodReferencePalette(parsed);
+      } catch (error) {
+        console.warn('Pool Royale Showood palette selection could not be read', error);
+      }
+    }
+    return resolveShowoodReferencePalette();
   });
   const [frameRateId, setFrameRateId] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -16001,6 +16495,20 @@ function PoolRoyaleGame({
       window.localStorage.setItem('poolChromePlateStyle', chromePlateStyleId);
     }
   }, [chromePlateStyleId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(
+        SHOWOOD_REFERENCE_PALETTE_STORAGE_KEY,
+        JSON.stringify(resolveShowoodReferencePalette(showoodReferencePalette))
+      );
+    }
+  }, [showoodReferencePalette]);
+  const setShowoodReferenceControlChoice = useCallback((control, choice) => {
+    setShowoodReferencePalette((current) => ({
+      ...resolveShowoodReferencePalette(current),
+      [control]: choice === 'b' ? 'b' : 'a'
+    }));
+  }, []);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(FRAME_RATE_STORAGE_KEY, frameRateId);
@@ -34349,6 +34857,11 @@ const shotPowerRef = useRef(0);
     applyBaseRef.current?.(activeTableBase);
   }, [activeTableBase]);
   useEffect(() => {
+    if (activeTableModel?.materialMapping === 'showoodReference') {
+      setRenderResetKey((value) => value + 1);
+    }
+  }, [activeTableModel?.materialMapping, showoodReferencePalette]);
+  useEffect(() => {
     if (!secondaryTableReady) return;
     if (environmentHdriId === 'musicHall02') {
       refreshSecondaryTableDecorRef.current?.();
@@ -35560,6 +36073,69 @@ const shotPowerRef = useRef(0);
                   </button>
                 </div>
               ) : null}
+              {activeTableModel?.materialMapping === 'showoodReference' ? (
+                <div>
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                      Showood GLB Options
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => setShowoodReferencePalette(resolveShowoodReferencePalette())}
+                      className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/75 transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                  <p className="mt-1 text-[0.7rem] text-white/65">
+                    Uses the reference Showood code mapping: GLB cushions, jaws, wood, accents, and legs are split into the same six controls.
+                  </p>
+                  <div className="mt-3 grid gap-3">
+                    {SHOWOOD_REFERENCE_CONTROLS.map((control) => {
+                      const selected = resolveShowoodReferencePalette(showoodReferencePalette)[control.key];
+                      const options = SHOWOOD_REFERENCE_OPTIONS[control.key] || {};
+                      return (
+                        <div key={control.key} className="rounded-2xl border border-white/10 bg-white/[0.04] p-2">
+                          <div className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/80">
+                            {control.label}
+                          </div>
+                          <div className="mt-0.5 text-[9px] leading-snug text-white/45">
+                            {control.description}
+                          </div>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {(['a', 'b']).map((choice) => {
+                              const option = options[choice];
+                              const active = selected === choice;
+                              return option ? (
+                                <button
+                                  key={`${control.key}-${choice}`}
+                                  type="button"
+                                  onClick={() => setShowoodReferenceControlChoice(control.key, choice)}
+                                  aria-pressed={active}
+                                  className={`flex min-w-[8rem] flex-1 items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                                    active
+                                      ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                                      : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                                  }`}
+                                >
+                                  <span
+                                    className="h-3.5 w-3.5 rounded-full border border-white/40"
+                                    style={{ backgroundColor: option.color }}
+                                    aria-hidden="true"
+                                  />
+                                  <span className="truncate">{option.label}</span>
+                                </button>
+                              ) : null;
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+              {activeTableModel?.materialMapping !== 'showoodReference' ? (
+                <>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Table Finish
@@ -35927,6 +36503,8 @@ const shotPowerRef = useRef(0);
                   })}
                 </div>
               </div>
+                </>
+              ) : null}
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Graphics
