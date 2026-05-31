@@ -7,12 +7,28 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
   {
     id: 'royal-original',
     label: 'Royal Original',
-    description: 'Current TonPlaygram table with existing gameplay geometry.',
+    description:
+      'Current TonPlaygram rails, base, and chrome with Showood GLB playfield, cushions, pockets, and jaw layout overlaid.',
     tableSizeId: '9ft',
     finishId: 'peelingPaintWeathered',
     baseId: 'classicCylinders',
+    assetUrl: `${POOLTOOL_RAW_BASE}/seven_foot_showood/seven_foot_showood.glb`,
+    fallbackAssetUrl: `${POOLTOOL_RAW_BASE}/seven_foot_showood/seven_foot_showood_pbr.glb`,
     icon: '🎱',
-    kind: 'native'
+    kind: 'gltf',
+    fitScale: 1.02,
+    clothRepeatScale: 5.25,
+    fitStrategy: 'exact',
+    fitReference: 'upperTabletop',
+    matchNativeUpperComponentHeight: true,
+    useOriginalLayoutSurfaces: false,
+    usePoolRoyaleFinish: true,
+    usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'pocket'],
+    preserveSourceTextureRoles: ['cushion'],
+    preserveOriginalSurfaceRoles: ['trim', 'wood'],
+    hideSurfaceRoles: ['trim', 'wood'],
+    keepGeneratedShell: true,
+    forceGeneratedChromePlates: true
   },
   {
     id: 'showood-seven-foot',
@@ -34,6 +50,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     useOriginalLayoutSurfaces: true,
     usePoolRoyaleFinish: true,
     usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood', 'pocket'],
+    preserveSourceTextureRoles: ['cushion', 'wood'],
     preserveOriginalSurfaceRoles: ['trim'],
     tintOriginalTrimGold: true,
     forceGeneratedChromePlates: false,
@@ -42,7 +59,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
 ]);
 
 export const DEFAULT_POOL_ROYALE_TABLE_MODEL_ID =
-  POOL_ROYALE_TABLE_MODEL_OPTIONS.find((option) => option.id === 'showood-seven-foot')?.id ||
+  POOL_ROYALE_TABLE_MODEL_OPTIONS.find((option) => option.id === 'royal-original')?.id ||
   POOL_ROYALE_TABLE_MODEL_OPTIONS[0].id;
 
 export function resolvePoolRoyaleTableModel(modelId) {

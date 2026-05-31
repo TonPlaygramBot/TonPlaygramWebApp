@@ -85,7 +85,6 @@ import {
 } from '../../config/poolRoyaleInventoryConfig.js';
 import { BILARDO_MIN_RELEASE_POWER } from './shared/bilardoShotModel';
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../../config/poolRoyaleClothPresets.js';
-import { MURLAN_CHARACTER_THEMES } from '../../config/murlanCharacterThemes.js';
 import {
   getCachedPoolRoyalInventory,
   getPoolRoyalInventory,
@@ -124,444 +123,6 @@ import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
 import { computeCueDriveBoost } from './cueShotImpact.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
 import { createMurlanStyleTable } from '../../utils/murlanTable.js';
-import {
-  createBilardoHumanRig as sharedCreateBilardoHumanRig,
-  chooseHumanEdgePosition as sharedChooseBilardoHumanEdgePosition,
-  updateBilardoHumanPose as sharedUpdateBilardoHumanPose
-} from './shared/bilardoHumanRig.js';
-
-const bilardoRigLocal = (() => {
-const WORLD_SCALE = 3.5;
-const DIMENSION_KEYS = new Set([
-  'stanceWidth', 'bridgePalmTableLift', 'edgeMargin', 'desiredShootDistance', 'chinToCueHeight',
-  'tableTopY', 'bridgeHandBackFromBall', 'bridgeHandSide', 'bridgeCueLift', 'cueLength', 'bridgeDist',
-  'shootCueGripFromBack', 'rightHandShotExtraBack', 'rightHandShotLift', 'rightHandForwardClamp',
-  'rightHandOutward', 'idleRightHandY', 'idleRightHandX', 'idleRightHandZ', 'footGroundY',
-  'kneeBendShot', 'rightElbowShotRise', 'rightElbowShotSide', 'rightElbowShotBack'
-]);
-
-const CFG = {
-  scale: WORLD_SCALE,
-  poseLambda: 9,
-  moveLambda: 5.6,
-  rotLambda: 8.5,
-  walkRefSpeed: 1.0,
-  humanScale: 1.18,
-  humanVisualYawFix: Math.PI,
-  stanceWidth: 0.52,
-  bridgePalmTableLift: 0.006,
-  edgeMargin: 0.58,
-  desiredShootDistance: 1.06,
-  chinToCueHeight: 0.11,
-  cueArmElbowRise: 0.43,
-  strikeTime: 0.12,
-  holdTime: 0.05,
-  tableTopY: 0.84,
-  bridgeHandBackFromBall: 0.235,
-  bridgeHandSide: -0.012,
-  bridgeCueLift: 0.018,
-  cueLength: 1.46,
-  bridgeDist: 0.24,
-  shootCueGripFromBack: 0.58,
-  rightHandShotExtraBack: 0.18,
-  rightHandShotLift: 0.055,
-  rightHandForwardClamp: -0.08,
-  rightHandOutward: 0.14,
-  idleRightHandY: 0.8,
-  idleRightHandX: 0.31,
-  idleRightHandZ: -0.015,
-  rightHandRollIdle: -2.2,
-  rightHandRollShoot: -2.05,
-  rightHandCueSocketLocal: new THREE.Vector3(-0.004, -0.014, 0.092).multiplyScalar(WORLD_SCALE),
-  footGroundY: 0.035,
-  kneeBendShot: 0.16,
-  footLockStrength: 1.0,
-  rightElbowShotRise: 0.84,
-  rightElbowShotSide: -0.46,
-  rightElbowShotBack: -0.78,
-  rightForearmOutward: 0.36,
-  rightForearmBack: 0.44,
-  rightForearmDown: 0.48,
-  rightForearmLength: 0.34,
-  rightStrokePull: 0.30,
-  rightStrokePush: 0.24,
-  rightHandDownPose: 0.42
-};
-const scaleRigOptions = (opts = {}) => {
-  const scale = Number(opts.scale) > 0 ? Number(opts.scale) : WORLD_SCALE;
-  // Keep runtime rig size exactly as before (no auto-upscaling of caller values).
-  return { ...opts, scale };
-};
-
-const Y_AXIS = new THREE.Vector3(0, 1, 0);
-const UP = Y_AXIS;
-const BASIS_MAT = new THREE.Matrix4();
-
-const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-const clamp01 = (v) => clamp(v, 0, 1);
-const lerp = (a, b, t) => a + (b - a) * t;
-const easeInOut = (t) => t * t * (3 - 2 * t);
-const dampScalar = (current, target, lambda, dt) =>
-  THREE.MathUtils.lerp(current, target, 1 - Math.exp(-lambda * dt));
-const dampVector = (current, target, lambda, dt) =>
-  current.lerp(target, 1 - Math.exp(-lambda * dt));
-const yawFromForward = (forward) => Math.atan2(-forward.x, -forward.z);
-const cleanName = (name) => String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-
-function makeBasisQuaternion(side, up, forward) {
-  BASIS_MAT.makeBasis(side.clone().normalize(), up.clone().normalize(), forward.clone().normalize());
-  return new THREE.Quaternion().setFromRotationMatrix(BASIS_MAT);
-}
-
-function createFallbackHuman() {
-  const group = new THREE.Group();
-  const gray = new THREE.MeshStandardMaterial({ color: 0x6b7280, roughness: 0.7, metalness: 0.05 });
-  const skin = new THREE.MeshStandardMaterial({ color: 0xf0c9a5, roughness: 0.8, metalness: 0 });
-  const addBox = (size, pos, mat) => {
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(size[0], size[1], size[2]), mat);
-    mesh.position.set(pos[0], pos[1], pos[2]);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    group.add(mesh);
-  };
-  addBox([0.42, 0.72, 0.22], [0, 1.18, 0], gray);
-  addBox([0.14, 0.9, 0.14], [-0.09, 0.45, 0], gray);
-  addBox([0.14, 0.9, 0.14], [0.09, 0.45, 0], gray);
-  addBox([0.12, 0.72, 0.12], [-0.31, 1.18, 0], gray);
-  addBox([0.12, 0.72, 0.12], [0.31, 1.18, 0], gray);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 20, 20), skin);
-  head.position.set(0, 1.7, 0);
-  head.castShadow = true;
-  head.receiveShadow = true;
-  group.add(head);
-  return group;
-}
-
-function findBone(all, aliases) {
-  const list = all.map((bone) => ({ bone, name: cleanName(bone.name) }));
-  const names = aliases.map(cleanName);
-  for (const alias of names) {
-    const exact = list.find((x) => x.name === alias || x.name.endsWith(alias));
-    if (exact) return exact.bone;
-  }
-  for (const alias of names) {
-    const loose = list.find((x) => x.name.includes(alias));
-    if (loose) return loose.bone;
-  }
-  return undefined;
-}
-
-function buildAvatarBones(model) {
-  const all = [];
-  model.traverse((obj) => obj?.isBone && all.push(obj));
-  const f = (...names) => findBone(all, names);
-  return {
-    hips: f('hips', 'pelvis', 'mixamorigHips'), spine: f('spine', 'spine01', 'mixamorigSpine'), chest: f('spine2', 'chest', 'upperchest', 'mixamorigSpine2', 'mixamorigSpine1'), neck: f('neck', 'mixamorigNeck'), head: f('head', 'mixamorigHead'),
-    leftUpperArm: f('leftupperarm', 'leftarm', 'upperarml', 'mixamorigLeftArm'), leftLowerArm: f('leftforearm', 'leftlowerarm', 'forearml', 'mixamorigLeftForeArm'), leftHand: f('lefthand', 'handl', 'mixamorigLeftHand'),
-    rightUpperArm: f('rightupperarm', 'rightarm', 'upperarmr', 'mixamorigRightArm'), rightLowerArm: f('rightforearm', 'rightlowerarm', 'forearmr', 'mixamorigRightForeArm'), rightHand: f('righthand', 'handr', 'mixamorigRightHand'),
-    leftUpperLeg: f('leftupleg', 'leftupperleg', 'leftthigh', 'mixamorigLeftUpLeg'), leftLowerLeg: f('leftleg', 'leftlowerleg', 'leftcalf', 'mixamorigLeftLeg'), leftFoot: f('leftfoot', 'footl', 'mixamorigLeftFoot'),
-    rightUpperLeg: f('rightupleg', 'rightupperleg', 'rightthigh', 'mixamorigRightUpLeg'), rightLowerLeg: f('rightleg', 'rightlowerleg', 'rightcalf', 'mixamorigRightLeg'), rightFoot: f('rightfoot', 'footr', 'mixamorigRightFoot')
-  };
-}
-const collectFingerBones = (hand) => {
-  const out = [];
-  hand?.traverse((obj) => {
-    if (!obj?.isBone || obj === hand) return;
-    const n = cleanName(obj.name);
-    if (['thumb', 'index', 'middle', 'ring', 'pinky', 'little', 'finger'].some((s) => n.includes(s))) out.push(obj);
-  });
-  return out;
-};
-
-function normalizeHuman(model, opts = {}) {
-  model.scale.setScalar(opts.humanScale ?? CFG.humanScale);
-  model.rotation.set(0, opts.humanVisualYawFix ?? CFG.humanVisualYawFix, 0);
-  model.position.set(0, 0, 0);
-  model.updateMatrixWorld(true);
-  const box = new THREE.Box3().setFromObject(model);
-  const center = box.getCenter(new THREE.Vector3());
-  model.position.set(-center.x, -box.min.y, -center.z);
-}
-
-function createBilardoHumanRig(scene, opts = {}) {
-  const scaledOpts = scaleRigOptions(opts);
-  const human = { root: new THREE.Group(), modelRoot: new THREE.Group(), model: null, fallback: createFallbackHuman(), bones: {}, leftFingers: [], rightFingers: [], restQuats: new Map(), loaded: false, activeGlb: false, poseT: 0, walkT: 0, yaw: 0, breathT: 0, settleT: 0, strikeRoot: new THREE.Vector3(), strikeYaw: 0, strikeClock: 0, vel: new THREE.Vector3(), dir: new THREE.Vector3(0,0,-1), targetDir: new THREE.Vector3(0,0,-1), speed: 0, cfg: { ...CFG, ...scaledOpts } };
-  human.root.visible = false;
-  human.modelRoot.visible = false;
-  human.fallback.visible = true;
-  scene.add(human.root, human.modelRoot, human.fallback);
-
-  const loader = scaledOpts.loader;
-  const modelUrl = scaledOpts.modelUrl;
-  if (!loader || !modelUrl) {
-    human.loaded = true;
-    human.fallback.visible = true;
-    return human;
-  }
-
-  loader.setCrossOrigin?.('anonymous');
-  loader.load(modelUrl, (gltf) => {
-    const model = gltf?.scene || null;
-    if (!model) {
-      human.loaded = true;
-      human.activeGlb = false;
-      human.modelRoot.visible = false;
-      human.fallback.visible = true;
-      return;
-    }
-    normalizeHuman(model, opts);
-    model.traverse((obj) => {
-      if (!obj?.isMesh) return;
-      obj.castShadow = true;
-      obj.receiveShadow = true;
-      obj.frustumCulled = false;
-      const materials = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
-      materials.forEach((m) => {
-        if (m.map) m.map.colorSpace = THREE.SRGBColorSpace;
-        m.needsUpdate = true;
-      });
-    });
-    human.bones = buildAvatarBones(model);
-    human.leftFingers = collectFingerBones(human.bones.leftHand);
-    human.rightFingers = collectFingerBones(human.bones.rightHand);
-    [...Object.values(human.bones), ...human.leftFingers, ...human.rightFingers].forEach((bone) => bone && human.restQuats.set(bone, bone.quaternion.clone()));
-    human.activeGlb = Boolean(human.bones.hips && human.bones.spine && human.bones.head && human.bones.leftUpperArm && human.bones.leftLowerArm && human.bones.leftHand && human.bones.rightUpperArm && human.bones.rightLowerArm && human.bones.rightHand && human.bones.leftUpperLeg && human.bones.leftLowerLeg && human.bones.rightUpperLeg && human.bones.rightLowerLeg);
-    human.model = model;
-    human.modelRoot.add(model);
-    human.modelRoot.visible = human.activeGlb;
-    human.fallback.visible = !human.activeGlb;
-    human.loaded = true;
-  }, undefined, (err) => {
-    console.warn('PoolRoyale human GLTF load failed', { modelUrl, err });
-    human.loaded = true;
-    human.activeGlb = false;
-    human.modelRoot.visible = false;
-    human.fallback.visible = true;
-  });
-
-  return human;
-}
-
-function setBoneWorldQuaternion(bone, q) { if (!bone || !q) return; const parentQ = new THREE.Quaternion(); bone.parent?.getWorldQuaternion(parentQ); bone.quaternion.copy(parentQ.invert().multiply(q)); bone.updateMatrixWorld(true); }
-function firstBoneChild(bone) { return bone?.children.find((c) => c?.isBone); }
-function rotateBoneToward(bone, target, strength = 1, fallbackDir = UP) {
-  if (!bone || strength <= 0) return;
-  const bonePos = bone.getWorldPosition(new THREE.Vector3());
-  const childPos = firstBoneChild(bone)?.getWorldPosition(new THREE.Vector3()) || bonePos.clone().addScaledVector(fallbackDir.clone().normalize(), 0.25);
-  const current = childPos.sub(bonePos).normalize();
-  const desired = target.clone().sub(bonePos);
-  if (desired.lengthSq() < 1e-6 || current.lengthSq() < 1e-6) return;
-  const delta = new THREE.Quaternion().slerpQuaternions(new THREE.Quaternion(), new THREE.Quaternion().setFromUnitVectors(current, desired.normalize()), clamp01(strength));
-  setBoneWorldQuaternion(bone, delta.multiply(bone.getWorldQuaternion(new THREE.Quaternion())));
-}
-function twistBone(bone, axis, amount) { if (!bone || Math.abs(amount) < 1e-5) return; setBoneWorldQuaternion(bone, new THREE.Quaternion().setFromAxisAngle(axis.clone().normalize(), amount).multiply(bone.getWorldQuaternion(new THREE.Quaternion()))); }
-function aimTwoBone(upper, lower, elbow, hand, pole, upperStrength = 0.96, lowerStrength = 0.98) { for (let i = 0; i < 4; i += 1) { rotateBoneToward(upper, elbow, upperStrength, pole); rotateBoneToward(lower, hand, lowerStrength, pole); } }
-function setHandBasis(bone, side, up, forward, roll = 0, strength = 1) { if (!bone || strength <= 0) return; const q = makeBasisQuaternion(side, up, forward); if (Math.abs(roll) > 1e-4) q.multiply(new THREE.Quaternion().setFromAxisAngle(forward.clone().normalize(), roll)); setBoneWorldQuaternion(bone, bone.getWorldQuaternion(new THREE.Quaternion()).slerp(q, clamp01(strength))); }
-
-function cueSocketOffsetWorld(side, up, forward, roll, socketLocal = CFG.rightHandCueSocketLocal) {
-  const q = makeBasisQuaternion(side, up, forward);
-  if (Math.abs(roll) > 1e-5) q.multiply(new THREE.Quaternion().setFromAxisAngle(forward.clone().normalize(), roll));
-  return socketLocal.clone().applyQuaternion(q);
-}
-
-function poseFingers(fingers, mode, weight) {
-  const w = clamp01(weight);
-  fingers.forEach((finger, i) => {
-    const n = cleanName(finger.name); const thumb = n.includes('thumb'); const index = n.includes('index'); const middle = n.includes('middle'); const ring = n.includes('ring'); const pinky = n.includes('pinky') || n.includes('little');
-    const base = !(n.includes('2') || n.includes('3') || n.includes('intermediate') || n.includes('distal')); const mid = n.includes('2') || n.includes('intermediate');
-    if (mode === 'idle') { finger.rotation.x += 0.018 * w; finger.rotation.z += 0.01 * w * (i % 2 ? -1 : 1); return; }
-    if (mode === 'grip') {
-      if (thumb) { finger.rotation.x += 0.48 * w; finger.rotation.y += -0.82 * w; finger.rotation.z += 0.54 * w; return; }
-      const curl = index ? (base ? 0.58 : mid ? 0.9 : 0.68) : middle ? (base ? 0.76 : mid ? 1.02 : 0.76) : ring ? (base ? 0.72 : mid ? 0.92 : 0.7) : pinky ? (base ? 0.62 : mid ? 0.82 : 0.62) : 0;
-      finger.rotation.x += curl * w; finger.rotation.y += (index ? -0.12 : middle ? -0.03 : ring ? 0.04 : pinky ? 0.08 : 0) * w; finger.rotation.z += (index ? -0.08 : middle ? -0.02 : ring ? 0.06 : pinky ? 0.12 : 0) * w; return;
-    }
-    if (thumb) { finger.rotation.x += -0.18 * w; finger.rotation.y += 0.95 * w; finger.rotation.z += -0.95 * w; }
-    else if (index) { finger.rotation.x += (base ? 0.26 : mid ? 0.42 : 0.28) * w; finger.rotation.y += -0.46 * w; finger.rotation.z += -0.42 * w; }
-    else if (middle) { finger.rotation.x += (base ? 0.18 : mid ? 0.32 : 0.22) * w; finger.rotation.y += -0.12 * w; finger.rotation.z += -0.14 * w; }
-    else if (ring || pinky) { finger.rotation.x += (base ? (ring ? 0.08 : 0.05) : mid ? (ring ? 0.18 : 0.16) : (ring ? 0.12 : 0.1)) * w; finger.rotation.y += (ring ? 0.18 : 0.34) * w; finger.rotation.z += (ring ? 0.28 : 0.46) * w; }
-  });
-}
-
-function driveHuman(human, frame) {
-  if (!human.activeGlb || !human.model) {
-    human.fallback.visible = true;
-    human.fallback.position.copy(frame.rootWorld);
-    human.fallback.rotation.y = human.yaw;
-    human.fallback.rotation.x = -0.16 * frame.t;
-    human.fallback.position.y -= 0.035 * frame.t;
-    return;
-  }
-  human.fallback.visible = false;
-  human.modelRoot.visible = true;
-  human.modelRoot.position.copy(frame.rootWorld);
-  human.modelRoot.rotation.y = human.yaw;
-  human.modelRoot.updateMatrixWorld(true);
-  human.restQuats.forEach((q, bone) => bone.quaternion.copy(q));
-  human.modelRoot.updateMatrixWorld(true);
-
-  const b = human.bones;
-  const ik = easeInOut(clamp01(frame.t));
-  const idle = 1 - ik;
-  const cueDir = frame.cueTipWorld.clone().sub(frame.cueBackWorld).normalize();
-  const shotQ = makeBasisQuaternion(frame.side, UP, frame.forward);
-
-  if (frame.walkAmount * idle > 0.001) {
-    const s = Math.sin(human.walkT * 6.2), c = Math.cos(human.walkT * 6.2), w = frame.walkAmount * idle;
-    const pace = THREE.MathUtils.clamp((human.speed || 0) / (human.cfg?.walkRefSpeed || 1), 0.7, 1.35);
-    if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += s * 0.22 * w * pace;
-    if (b.rightUpperLeg) b.rightUpperLeg.rotation.x -= s * 0.22 * w * pace;
-    if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += Math.max(0, -s) * 0.18 * w * pace;
-    if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += Math.max(0, s) * 0.18 * w * pace;
-    if (b.leftUpperArm) b.leftUpperArm.rotation.x -= s * 0.2 * w * pace;
-    if (b.rightUpperArm) b.rightUpperArm.rotation.x += s * 0.2 * w * pace;
-    if (b.spine) b.spine.rotation.z += c * 0.02 * w;
-    if (b.hips) b.hips.rotation.z -= c * 0.014 * w;
-  }
-
-  if (ik >= 0.025) {
-    rotateBoneToward(b.hips, frame.torsoCenterWorld, (0.12 + 0.35 * ik) * ik, frame.forward);
-    twistBone(b.hips, frame.side, -0.045 * ik);
-    twistBone(b.hips, frame.forward, -0.025 * ik);
-    rotateBoneToward(b.spine, frame.chestCenterWorld, (0.34 + 0.34 * ik) * ik, frame.forward);
-    twistBone(b.spine, frame.side, -0.2 * ik);
-    twistBone(b.spine, frame.forward, -0.04 * ik);
-    rotateBoneToward(b.chest, frame.neckWorld, (0.5 + 0.28 * ik) * ik, frame.forward);
-    twistBone(b.chest, frame.side, -0.32 * ik);
-    twistBone(b.chest, frame.forward, -0.025 * ik);
-    rotateBoneToward(b.neck, frame.headCenterWorld, 0.64 * ik, frame.forward);
-    twistBone(b.neck, frame.side, -0.12 * ik);
-    setBoneWorldQuaternion(b.head, b.head ? b.head.getWorldQuaternion(new THREE.Quaternion()).slerp(shotQ.clone().multiply(new THREE.Quaternion().setFromAxisAngle(frame.side, -0.12 * ik)).multiply(new THREE.Quaternion().setFromAxisAngle(frame.forward, -0.025 * ik)), 0.74 * ik) : shotQ);
-    human.modelRoot.updateMatrixWorld(true);
-  }
-
-  const rightGrip = frame.rightHandWorld.clone();
-  const rightIdleElbow = rightGrip.clone().addScaledVector(UP, 0.1 + 0.28 * ik).addScaledVector(frame.side, -0.22 - 0.04 * ik).addScaledVector(frame.forward, -0.03 * idle);
-  const rightElbow = frame.rightElbow.clone().lerp(rightIdleElbow, idle * 0.52);
-  const rightHold = 0.88 + 0.12 * ik;
-  const rightArmPole = UP.clone().multiplyScalar(1.32).addScaledVector(frame.side, -0.62).addScaledVector(frame.forward, -1.05).normalize();
-  aimTwoBone(b.rightUpperArm, b.rightLowerArm, rightElbow, rightGrip, rightArmPole, rightHold, rightHold);
-
-  const standingCueDir = human.cfg.idleCueDir.clone().applyAxisAngle(Y_AXIS, human.yaw).normalize();
-  const standingHandSide = frame.side.clone().multiplyScalar(-1).addScaledVector(UP, -0.55).addScaledVector(frame.forward, 0.16).normalize();
-  const standingHandUp = UP.clone().multiplyScalar(-1.0).addScaledVector(frame.side, -0.64).addScaledVector(frame.forward, 0.2).normalize();
-  const handForwardForOrientation = ik >= 0.025 ? standingCueDir : cueDir;
-  const rollForOrientation = ik >= 0.025 ? human.cfg.rightHandRollIdle : human.cfg.rightHandRollIdle + 0.02 * frame.stroke;
-  setHandBasis(b.rightHand, standingHandSide, standingHandUp, handForwardForOrientation, rollForOrientation, 1.0);
-  poseFingers(human.rightFingers, 'grip', 0.95);
-
-  if (ik < 0.025) { poseFingers(human.leftFingers, 'idle', 1); return; }
-
-  const leftHand = frame.leftHandWorld.clone().addScaledVector(frame.forward, 0.032 * ik).addScaledVector(frame.side, -0.018 * ik).addScaledVector(UP, -0.018 * ik);
-  const leftElbow = frame.leftElbow.clone().addScaledVector(frame.forward, 0.045 * ik).addScaledVector(frame.side, -0.05 * ik).addScaledVector(UP, -0.01 * ik);
-  aimTwoBone(b.leftUpperArm, b.leftLowerArm, leftElbow, leftHand, frame.side.clone().multiplyScalar(-1).addScaledVector(UP, 0.1).normalize(), 0.98 * ik, 1.0 * ik);
-  twistBone(b.leftUpperArm, frame.forward, -0.2 * ik);
-  twistBone(b.leftLowerArm, frame.forward, 0.025 * ik);
-  const bridgeSide = frame.side.clone().multiplyScalar(-1).addScaledVector(frame.forward, -0.52).normalize();
-  const bridgeUp = UP.clone().multiplyScalar(0.78).addScaledVector(frame.forward, -0.28).addScaledVector(frame.side, -0.16).normalize();
-  setHandBasis(b.leftHand, bridgeSide, bridgeUp, cueDir, -0.68 * ik, 1.0 * ik);
-  poseFingers(human.leftFingers, 'bridge', ik);
-
-  aimTwoBone(
-    b.leftUpperLeg,
-    b.leftLowerLeg,
-    frame.leftKnee,
-    frame.leftFootWorld,
-    frame.forward.clone().addScaledVector(UP, 0.18).normalize(),
-    0.9 * ik,
-    1.0 * ik
-  );
-  twistBone(b.leftUpperLeg, frame.forward, -0.035 * ik);
-  setHandBasis(b.leftFoot, frame.side, frame.up, frame.forward, -0.02 * ik, (human.cfg?.footLockStrength ?? CFG.footLockStrength) * ik);
-
-  aimTwoBone(
-    b.rightUpperLeg,
-    b.rightLowerLeg,
-    frame.rightKnee,
-    frame.rightFootWorld,
-    frame.forward.clone().multiplyScalar(-1).addScaledVector(UP, 0.18).normalize(),
-    0.9 * ik,
-    1.0 * ik
-  );
-  twistBone(b.rightUpperLeg, frame.forward, 0.03 * ik);
-  setHandBasis(b.rightFoot, frame.side, frame.up, frame.forward, 0.02 * ik, (human.cfg?.footLockStrength ?? CFG.footLockStrength) * ik);
-}
-
-function chooseHumanEdgePosition(cueBallWorld, aimForward, opts = {}) { const cfg = { ...CFG, ...opts }; const desired = cueBallWorld.clone().addScaledVector(aimForward, -cfg.desiredShootDistance); const xEdge = (opts.tableW ?? 2.0) / 2 + cfg.edgeMargin; const zEdge = (opts.tableL ?? 3.6) / 2 + cfg.edgeMargin; const candidates = [new THREE.Vector3(-xEdge, 0, clamp(desired.z, -zEdge, zEdge)), new THREE.Vector3(xEdge, 0, clamp(desired.z, -zEdge, zEdge)), new THREE.Vector3(clamp(desired.x, -xEdge, xEdge), 0, -zEdge), new THREE.Vector3(clamp(desired.x, -xEdge, xEdge), 0, zEdge)]; return candidates.sort((a, b) => a.distanceToSquared(desired) - b.distanceToSquared(desired))[0].clone(); }
-
-function updateBilardoHumanPose(human, dt, frameData) {
-  if (!human || !frameData || !Number.isFinite(dt) || dt < 0 || !frameData.rootTarget || !frameData.aimForward) return;
-  const cfg = { ...CFG, ...(human.cfg || {}) }; const state = frameData.state || 'idle';
-  human.poseT = dampScalar(human.poseT, state === 'idle' ? 0 : 1, cfg.poseLambda, dt); human.breathT += dt * (state === 'idle' ? 1.05 : 0.5); human.settleT = dampScalar(human.settleT, state === 'dragging' ? 1 : 0, 5.5, dt);
-  if (state === 'striking') { if (human.strikeClock === 0) { human.strikeRoot.copy(human.root.position.lengthSq() > 0.001 ? human.root.position : frameData.rootTarget); human.strikeYaw = human.yaw; } human.strikeClock += dt; } else human.strikeClock = 0;
-  const rootGoal = state === 'striking' ? human.strikeRoot : frameData.rootTarget;
-  const prevPos = human.root.position.clone();
-  dampVector(human.root.position, rootGoal, state === 'striking' ? 12 : cfg.moveLambda, dt);
-  const moveDelta = human.root.position.clone().sub(prevPos).setY(0);
-  if (dt > 0) {
-    human.vel.copy(moveDelta).multiplyScalar(1 / dt);
-    human.speed = human.vel.length();
-    if (human.speed > 0.001) human.targetDir.copy(human.vel).normalize();
-  } else {
-    human.speed = 0;
-  }
-  if (state !== 'striking' && human.targetDir.lengthSq() > 0.001) {
-    human.dir.lerp(human.targetDir, 1 - Math.pow(0.001, dt)).normalize();
-    human.yaw = Math.atan2(human.dir.x, human.dir.z);
-  } else {
-    human.yaw = dampScalar(human.yaw, state === 'striking' ? human.strikeYaw : yawFromForward(frameData.aimForward), cfg.rotLambda, dt);
-  }
-  const moveAmountRaw = human.root.position.distanceTo(rootGoal);
-  human.walkT += dt * (2 + Math.min(7, moveAmountRaw * 10));
-  const t = easeInOut(human.poseT), idle = 1 - t, breath = Math.sin(human.breathT * Math.PI * 2) * (0.006 + idle * 0.004), walk = Math.sin(human.walkT * 6.2) * Math.min(1, moveAmountRaw * 12), walkAmount = clamp01(moveAmountRaw * 18) * idle;
-  const power = frameData.power ?? 0; const stroke = state === 'dragging' ? Math.sin(performance.now() * 0.011) * (0.25 + power * 0.75) : 0; const follow = state === 'striking' ? Math.sin(clamp01(human.strikeClock / (cfg.strikeTime + cfg.holdTime)) * Math.PI) : 0;
-  const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(Y_AXIS, human.yaw).normalize(); const side = new THREE.Vector3(forward.z, 0, -forward.x).normalize(); const local = (v) => v.clone().applyAxisAngle(Y_AXIS, human.yaw).add(human.root.position); const powerLean = power * t;
-  const rootWorld = human.root.position.clone().addScaledVector(forward, 0.018 * powerLean + 0.026 * follow);
-  const torso = local(new THREE.Vector3(0, lerp(1.3, 1.12, t) + breath, lerp(0.02, -0.16, t) - 0.014 * powerLean));
-  const chest = local(new THREE.Vector3(0, lerp(1.52, 1.22, t) + breath, lerp(0.02, -0.42, t) - 0.024 * powerLean));
-  const neck = local(new THREE.Vector3(0, lerp(1.68, 1.25, t) + breath, lerp(0.02, -0.61, t) - 0.028 * powerLean));
-  const head = local(new THREE.Vector3(0, lerp(1.84, 1.34, t) + breath - cfg.chinToCueHeight * 0.16 * t, lerp(0.04, -0.72, t) - 0.028 * powerLean));
-  const leftShoulder = local(new THREE.Vector3(-0.23, lerp(1.58, 1.36, t) + breath, lerp(0, -0.46, t) - 0.018 * human.settleT));
-  const rightShoulder = local(new THREE.Vector3(0.23, lerp(1.58, 1.36, t) + breath, lerp(0, -0.34, t) - 0.018 * human.settleT));
-  const leftHip = local(new THREE.Vector3(-0.13, 0.92, 0.02)); const rightHip = local(new THREE.Vector3(0.13, 0.92, 0.02));
-  const leftFoot = local(new THREE.Vector3(-0.13, cfg.footGroundY, 0.03 + walk * 0.018).lerp(new THREE.Vector3(-cfg.stanceWidth * 0.42, cfg.footGroundY, -0.34), t));
-  const rightFoot = local(new THREE.Vector3(0.13, cfg.footGroundY, -0.03 - walk * 0.018).lerp(new THREE.Vector3(cfg.stanceWidth * 0.5, cfg.footGroundY, 0.34), t));
-  const bridgePalmTarget = frameData.bridgeTarget.clone().addScaledVector(forward, -0.006 * t).addScaledVector(side, -0.012 * t).setY(cfg.tableTopY + cfg.bridgePalmTableLift).addScaledVector(UP, -0.01 * human.settleT);
-  const leftHand = frameData.idleLeft.clone().lerp(bridgePalmTarget, t);
-  const cueDirForHand = frameData.cueTip.clone().sub(frameData.cueBack).normalize();
-  const handIk = easeInOut(clamp01(t));
-  const idleGripSide = side.clone().multiplyScalar(-1).addScaledVector(UP, -0.55).addScaledVector(forward, 0.16).normalize();
-  const idleGripUp = UP.clone().multiplyScalar(-1.0).addScaledVector(side, -0.64).addScaledVector(forward, 0.2).normalize();
-  const liveGripSide = side.clone().multiplyScalar(-1).addScaledVector(UP, lerp(-0.55, -0.62, handIk)).addScaledVector(side, 0.5 * handIk).addScaledVector(forward, lerp(0.16, -0.08, handIk)).normalize();
-  const liveGripUp = UP.clone().multiplyScalar(lerp(-1.0, 0.12, handIk)).addScaledVector(side, lerp(-0.64, -0.04, handIk)).addScaledVector(forward, lerp(0.2, -0.48, handIk)).normalize();
-  const lockedRightElbow = rightShoulder.clone().addScaledVector(UP, lerp(0.04, cfg.rightElbowShotRise, t)).addScaledVector(side, lerp(-0.18, cfg.rightElbowShotSide, t)).addScaledVector(forward, lerp(-0.04, cfg.rightElbowShotBack, t));
-  const pullBack = state === 'dragging' ? -cfg.rightStrokePull * easeOutCubic(power) : 0;
-  const pushForward = state === 'striking' ? cfg.rightStrokePush * follow : 0;
-  const smallPractice = state === 'dragging' ? stroke * 0.035 : 0;
-  const forearmStroke = pullBack + pushForward + smallPractice;
-  const forearmBase = lockedRightElbow.clone().addScaledVector(side, cfg.rightForearmOutward * t).addScaledVector(UP, -cfg.rightForearmDown * t).addScaledVector(UP, cfg.rightHandShotLift * t).addScaledVector(forward, -cfg.rightForearmBack * t).addScaledVector(cueDirForHand, cfg.rightForearmLength);
-  const liveCueGripPoint = forearmBase.clone().addScaledVector(cueDirForHand, forearmStroke);
-  const idleWristTarget = frameData.idleRight.clone().sub(cueSocketOffsetWorld(idleGripSide, idleGripUp, cueDirForHand, cfg.rightHandRollIdle, cfg.rightHandCueSocketLocal));
-  const liveWristTarget = liveCueGripPoint.clone().sub(cueSocketOffsetWorld(liveGripSide, liveGripUp, cueDirForHand, lerp(cfg.rightHandRollIdle, cfg.rightHandRollShoot - cfg.rightHandDownPose, handIk), cfg.rightHandCueSocketLocal));
-  const rightHand = idleWristTarget.clone().lerp(liveWristTarget, t);
-  const leftElbow = leftShoulder.clone().lerp(leftHand, 0.62).addScaledVector(UP, 0.006 * t).addScaledVector(side, -0.044 * t).addScaledVector(forward, 0.065 * t);
-  const rightElbow = lockedRightElbow;
-  const leftKnee = leftHip.clone().lerp(leftFoot, 0.53).addScaledVector(UP, lerp(0.2, cfg.kneeBendShot, t)).addScaledVector(forward, 0.04 * t).addScaledVector(side, -0.012 * t);
-  const rightKnee = rightHip.clone().lerp(rightFoot, 0.52).addScaledVector(UP, lerp(0.2, cfg.kneeBendShot * 0.88, t)).addScaledVector(forward, -0.03 * t).addScaledVector(side, 0.014 * t);
-  human.root.visible = true;
-  driveHuman(human, { t, breath, stroke, follow, walkAmount, forward, side, up: UP, rootWorld, torsoCenterWorld: torso, chestCenterWorld: chest, neckWorld: neck, headCenterWorld: head, leftElbow, rightElbow, leftHandWorld: leftHand, rightHandWorld: rightHand, leftKnee, rightKnee, leftFootWorld: leftFoot, rightFootWorld: rightFoot, cueBackWorld: frameData.cueBack || frameData.bridgeTarget || frameData.rootTarget, cueTipWorld: frameData.cueTip || frameData.gripTarget || frameData.rootTarget });
-}
-  return {
-    createBilardoHumanRig,
-    chooseBilardoHumanEdgePosition: chooseHumanEdgePosition,
-    updateBilardoHumanPose
-  };
-})();
-
-// Use stable shared GLTF rig pipeline (known-good loading), while keeping local rig code available for reference.
-const createBilardoHumanRig = sharedCreateBilardoHumanRig;
-const chooseBilardoHumanEdgePosition = sharedChooseBilardoHumanEdgePosition;
-const updateBilardoHumanPose = sharedUpdateBilardoHumanPose;
-
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 const BASIS_TRANSCODER_PATH =
   'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
@@ -2391,292 +1952,6 @@ const POOL_ROYALE_PRIMARY_HUMAN_FALLBACKS_BY_ID = Object.freeze({
   'webgl-thanh-human': ['https://raw.githubusercontent.com/hmthanh/3d-human-model/main/Thanh.glb'],
   'threejs-xbot-human': ['https://threejs.org/examples/models/gltf/Xbot.glb']
 });
-const POOL_ROYALE_HUMAN_CHARACTER_STORAGE_KEY = 'poolRoyaleHumanCharacter';
-const POOL_ROYALE_HUMAN_CHARACTER_IDS = Object.freeze([
-  'rpm-current',
-  'rpm-67d411',
-  'rpm-67f433',
-  'rpm-67e1b5',
-  'webgl-vietnam-human',
-  'webgl-ai-teacher',
-  'webgl-ai-teacher-1',
-  'webgl-thanh-human',
-  'threejs-xbot-human'
-]);
-const POOL_ROYALE_HUMAN_LOGIC_PROFILES = Object.freeze({
-  'rpm-current': Object.freeze({
-    label: 'Classic Pro',
-    summary: 'Forward bend: balanced orthodox pool stance with a stable bridge and medium follow-through.',
-    bendMode: 'forward',
-    desiredShootDistance: 1.32,
-    edgeMargin: 0.68,
-    stanceWidth: 0.52,
-    bridgeBack: 0.072,
-    bridgeSide: -0.024,
-    bridgeLift: 0.006,
-    gripFromBack: 0.58,
-    rightElbowRise: 0.18,
-    rightElbowSide: -0.46,
-    rightElbowBack: -0.78,
-    forearmOutward: 0.36,
-    forearmBack: 0.44,
-    forearmDown: 0.48,
-    strokePull: 0.42,
-    strokePush: 0.18,
-    practiceStroke: 0.035,
-    cueGap: 0.012,
-    strikeMs: 120,
-    walkSpeed: 4.0,
-    shootForwardBendScale: 0.62,
-    shootUpperBodyCounterLean: 0.72
-  }),
-  'rpm-67d411': Object.freeze({
-    label: 'Sniper Rail',
-    summary: 'Forward bend: lower chin, longer bridge, slower feather strokes for precision aiming.',
-    bendMode: 'forward',
-    desiredShootDistance: 1.44,
-    edgeMargin: 0.74,
-    stanceWidth: 0.58,
-    bridgeBack: 0.092,
-    bridgeSide: -0.018,
-    bridgeLift: 0.004,
-    gripFromBack: 0.64,
-    rightElbowRise: 0.14,
-    rightElbowSide: -0.40,
-    rightElbowBack: -0.86,
-    forearmOutward: 0.31,
-    forearmBack: 0.5,
-    forearmDown: 0.52,
-    strokePull: 0.5,
-    strokePush: 0.14,
-    practiceStroke: 0.018,
-    cueGap: 0.009,
-    strikeMs: 150,
-    walkSpeed: 3.2,
-    shootForwardBendScale: 0.76,
-    shootUpperBodyCounterLean: 0.56
-  }),
-  'rpm-67f433': Object.freeze({
-    label: 'Power Breaker',
-    summary: 'Forward bend: wide planted feet, deeper backswing and strong forward punch.',
-    bendMode: 'forward',
-    desiredShootDistance: 1.5,
-    edgeMargin: 0.8,
-    stanceWidth: 0.68,
-    bridgeBack: 0.064,
-    bridgeSide: -0.03,
-    bridgeLift: 0.012,
-    gripFromBack: 0.52,
-    rightElbowRise: 0.28,
-    rightElbowSide: -0.54,
-    rightElbowBack: -0.92,
-    forearmOutward: 0.44,
-    forearmBack: 0.58,
-    forearmDown: 0.43,
-    strokePull: 0.62,
-    strokePush: 0.3,
-    practiceStroke: 0.044,
-    cueGap: 0.016,
-    strikeMs: 95,
-    walkSpeed: 4.8,
-    shootForwardBendScale: 0.52,
-    shootUpperBodyCounterLean: 0.9
-  }),
-  'rpm-67e1b5': Object.freeze({
-    label: 'Safety Artist',
-    summary: 'Forward upper-body bend: compact body shape, soft touch and reduced cue travel for defensive control.',
-    bendMode: 'forward',
-    desiredShootDistance: 1.24,
-    edgeMargin: 0.64,
-    stanceWidth: 0.46,
-    bridgeBack: 0.052,
-    bridgeSide: -0.016,
-    bridgeLift: 0.008,
-    gripFromBack: 0.7,
-    rightElbowRise: 0.11,
-    rightElbowSide: -0.34,
-    rightElbowBack: -0.62,
-    forearmOutward: 0.25,
-    forearmBack: 0.34,
-    forearmDown: 0.55,
-    strokePull: 0.28,
-    strokePush: 0.1,
-    practiceStroke: 0.012,
-    cueGap: 0.007,
-    strikeMs: 185,
-    walkSpeed: 2.8,
-    shootForwardBendScale: 0.68,
-    shootUpperBodyCounterLean: 0.42
-  }),
-  'webgl-vietnam-human': Object.freeze({
-    label: 'Natural Shooter',
-    summary: 'Forward upper-body bend: asymmetric bridge hand, quick walk-up and lifelike rehearsal strokes.',
-    bendMode: 'forward',
-    desiredShootDistance: 1.36,
-    edgeMargin: 0.7,
-    stanceWidth: 0.54,
-    bridgeBack: 0.08,
-    bridgeSide: -0.038,
-    bridgeLift: 0.01,
-    gripFromBack: 0.56,
-    rightElbowRise: 0.2,
-    rightElbowSide: -0.5,
-    rightElbowBack: -0.7,
-    forearmOutward: 0.39,
-    forearmBack: 0.42,
-    forearmDown: 0.46,
-    strokePull: 0.46,
-    strokePush: 0.22,
-    practiceStroke: 0.052,
-    cueGap: 0.013,
-    strikeMs: 125,
-    walkSpeed: 4.4,
-    visualYawFix: Math.PI,
-    shootForwardBendScale: 0.58,
-    shootUpperBodyCounterLean: 0.82
-  }),
-  'webgl-ai-teacher': Object.freeze({
-    label: 'Teacher Coach',
-    summary: 'Forward upper-body bend: upright coach stance with a measured cue pull and high elbow.',
-    bendMode: 'forward',
-    desiredShootDistance: 1.4,
-    edgeMargin: 0.72,
-    stanceWidth: 0.5,
-    bridgeBack: 0.075,
-    bridgeSide: -0.026,
-    bridgeLift: 0.009,
-    gripFromBack: 0.62,
-    rightElbowRise: 0.24,
-    rightElbowSide: -0.42,
-    rightElbowBack: -0.74,
-    forearmOutward: 0.34,
-    forearmBack: 0.46,
-    forearmDown: 0.44,
-    strokePull: 0.4,
-    strokePush: 0.16,
-    practiceStroke: 0.026,
-    cueGap: 0.011,
-    strikeMs: 145,
-    walkSpeed: 3.6,
-    visualYawFix: Math.PI,
-    shootForwardBendScale: 0.64,
-    shootUpperBodyCounterLean: 0.68
-  }),
-  'webgl-ai-teacher-1': Object.freeze({
-    label: 'Teacher Smooth',
-    summary: 'Forward upper-body bend: smooth coach stance with grounded feet and a soft bridge.',
-    bendMode: 'forward',
-    desiredShootDistance: 1.38,
-    edgeMargin: 0.72,
-    stanceWidth: 0.56,
-    bridgeBack: 0.085,
-    bridgeSide: -0.02,
-    bridgeLift: 0.007,
-    gripFromBack: 0.66,
-    rightElbowRise: 0.16,
-    rightElbowSide: -0.38,
-    rightElbowBack: -0.82,
-    forearmOutward: 0.3,
-    forearmBack: 0.5,
-    forearmDown: 0.5,
-    strokePull: 0.34,
-    strokePush: 0.12,
-    practiceStroke: 0.02,
-    cueGap: 0.01,
-    strikeMs: 165,
-    walkSpeed: 3.3,
-    visualYawFix: Math.PI,
-    shootForwardBendScale: 0.72,
-    shootUpperBodyCounterLean: 0.52
-  }),
-  'webgl-thanh-human': Object.freeze({
-    label: 'Thanh Precision',
-    summary: 'Forward upper-body bend: compact feet, lower head-over-cue stance and short controlled delivery.',
-    bendMode: 'forward',
-    desiredShootDistance: 1.28,
-    edgeMargin: 0.7,
-    stanceWidth: 0.5,
-    bridgeBack: 0.068,
-    bridgeSide: -0.018,
-    bridgeLift: 0.006,
-    gripFromBack: 0.6,
-    rightElbowRise: 0.18,
-    rightElbowSide: -0.36,
-    rightElbowBack: -0.72,
-    forearmOutward: 0.28,
-    forearmBack: 0.4,
-    forearmDown: 0.54,
-    strokePull: 0.32,
-    strokePush: 0.13,
-    practiceStroke: 0.018,
-    cueGap: 0.009,
-    strikeMs: 170,
-    walkSpeed: 3.15,
-    shootForwardBendScale: 0.8,
-    shootUpperBodyCounterLean: 0.48
-  }),
-  'threejs-xbot-human': Object.freeze({
-    label: 'Xbot Official',
-    summary: 'Forward upper-body bend: full-body Xbot official kept distinct from Soldier fallbacks.',
-    bendMode: 'forward',
-    desiredShootDistance: 1.42,
-    edgeMargin: 0.78,
-    stanceWidth: 0.54,
-    bridgeBack: 0.08,
-    bridgeSide: -0.02,
-    bridgeLift: 0.008,
-    gripFromBack: 0.62,
-    rightElbowRise: 0.2,
-    rightElbowSide: -0.4,
-    rightElbowBack: -0.76,
-    forearmOutward: 0.32,
-    forearmBack: 0.44,
-    forearmDown: 0.48,
-    strokePull: 0.38,
-    strokePush: 0.15,
-    practiceStroke: 0.02,
-    cueGap: 0.01,
-    strikeMs: 155,
-    walkSpeed: 2.25,
-    shootForwardBendScale: 0.6,
-    shootUpperBodyCounterLean: 0.62
-  })
-});
-const withPoolRoyaleHumanModelFallbacks = (theme = {}, id = theme.id) => {
-  const urls = Array.isArray(theme.modelUrls) && theme.modelUrls.length > 0
-    ? theme.modelUrls
-    : theme.url
-      ? [theme.url]
-      : [];
-  const primaryFallbacks = POOL_ROYALE_PRIMARY_HUMAN_FALLBACKS_BY_ID[id] || [];
-  const rotatedFallbacks = POOL_ROYALE_VERIFIED_HUMAN_FALLBACK_URLS.filter((url) => !primaryFallbacks.includes(url));
-  // Keep each menu option visually different: try its own Murlan/RPM/Xbot source first,
-  // then only use Soldier as the absolute last-resort skeleton.
-  return Array.from(new Set([...urls, ...primaryFallbacks, ...rotatedFallbacks, BILARDO_SHQIP_HUMAN_URL]));
-};
-const POOL_ROYALE_HUMAN_CHARACTER_OPTIONS = Object.freeze(
-  POOL_ROYALE_HUMAN_CHARACTER_IDS.map((id) => {
-    const theme = MURLAN_CHARACTER_THEMES.find((entry) => entry.id === id) || {};
-    const logic = POOL_ROYALE_HUMAN_LOGIC_PROFILES[id] || POOL_ROYALE_HUMAN_LOGIC_PROFILES['rpm-current'];
-    const modelUrls = withPoolRoyaleHumanModelFallbacks(theme, id);
-    return Object.freeze({
-      ...theme,
-      id,
-      label: theme.label || logic.label,
-      logicLabel: logic.label,
-      summary: logic.summary,
-      bendMode: logic.bendMode || 'forward',
-      modelUrl: modelUrls[0] || BILARDO_SHQIP_HUMAN_URL,
-      modelUrls,
-      logic
-    });
-  })
-);
-const resolvePoolRoyaleHumanCharacter = (id) =>
-  POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.find((option) => option.id === id) ||
-  POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0];
-const POOL_ROYALE_HUMAN_UNIT_SCALE = BALL_R / 0.0525;
-const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.85 * POOL_ROYALE_HUMAN_UNIT_SCALE; // make the shooter larger again without returning to the oversized direct scale
 const POOL_ROYALE_LOUNGE_TABLE_RADIUS = BALL_R * 24; // match Murlan Royale's default octagon table proportions at pool-side scale.
 const POOL_ROYALE_LOUNGE_TABLE_HEIGHT = BALL_R * 16.5;
 const POOL_ROYALE_LOUNGE_CHAIR_SPAN = BALL_R * 64; // oversized portrait-readable chairs matching Murlan's default dining-chair asset.
@@ -4797,6 +4072,16 @@ const POCKET_LINER_PRESETS = Object.freeze([
     id: 'plastic-magnolia',
     label: 'Plastic Magnolia',
     baseColor: '#f4f0e6'
+  }),
+  Object.freeze({
+    id: 'brown-showood',
+    label: 'Brown Showood',
+    baseColor: '#2a1207',
+    roughness: 0.88,
+    metalness: 0,
+    clearcoat: 0.08,
+    clearcoatRoughness: 0.5,
+    envMapIntensity: 0.26
   })
 ]);
 
@@ -13020,12 +12305,28 @@ function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tab
   };
 
   if (role === 'cloth' || role === 'cushion') {
+    const preserveSourceTexture = Array.isArray(tableModel?.preserveSourceTextureRoles) &&
+      tableModel.preserveSourceTextureRoles.includes(role);
+    const sourceSnapshot = preserveSourceTexture
+      ? {
+          map: mat.map,
+          normalMap: mat.normalMap,
+          bumpMap: mat.bumpMap,
+          roughnessMap: mat.roughnessMap,
+          metalnessMap: mat.metalnessMap,
+          aoMap: mat.aoMap
+        }
+      : null;
     copyMaterialLook(role === 'cushion' ? finishInfo.cushionMat : finishInfo.clothMat);
+    if (sourceSnapshot) {
+      Object.assign(mat, sourceSnapshot);
+    }
     scalePoolRoyaleExternalClothTextureRepeats(mat, tableModel?.clothRepeatScale ?? 1);
     mat.side = THREE.DoubleSide;
     mat.userData = {
       ...(mat.userData || {}),
-      poolRoyaleMatchProceduralClothRepeat: true
+      poolRoyaleMatchProceduralClothRepeat: true,
+      poolRoyalePreserveSourceTexture: preserveSourceTexture
     };
   } else if (role === 'trim') {
     copyMaterialLook(materials.trim);
@@ -14036,9 +13337,28 @@ function mountPoolRoyaleExternalTableModel({
   const generatedUpperComponentSize = generatedUpperComponentBounds.isEmpty()
     ? new THREE.Vector3(TABLE.W, TABLE.THICK, TABLE.H)
     : generatedUpperComponentBounds.getSize(new THREE.Vector3());
+  const markReplaceableGeneratedSurface = (object) => {
+    if (!object) return;
+    object.userData = {
+      ...(object.userData || {}),
+      externalTableReplaceableSurface: true
+    };
+  };
+  [
+    cloth,
+    ...(Array.isArray(table.userData.cushions) ? table.userData.cushions : []),
+    ...finishParts.pocketJawMeshes,
+    ...finishParts.pocketRimMeshes,
+    ...pocketMeshes
+  ].forEach(markReplaceableGeneratedSurface);
   const setGeneratedVisualsVisible = (visible) => {
     generatedVisualObjects.forEach((object) => {
       const forceGeneratedChrome = Boolean(externalTableModelForMount?.forceGeneratedChromePlates);
+      if (!visible && externalTableModelForMount?.keepGeneratedShell) {
+        object.visible = !object.userData?.externalTableReplaceableSurface;
+        if (object.userData?.isChromePlate && forceGeneratedChrome) object.visible = true;
+        return;
+      }
       if (
         !visible &&
         (
@@ -14902,19 +14222,6 @@ function PoolRoyaleGame({
       DEFAULT_TABLE_BASE_ID
     );
   });
-  const [humanCharacterId, setHumanCharacterId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(POOL_ROYALE_HUMAN_CHARACTER_STORAGE_KEY);
-      if (stored && POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.some((option) => option.id === stored)) {
-        return stored;
-      }
-    }
-    return POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0]?.id || 'rpm-current';
-  });
-  const activeHumanCharacter = useMemo(
-    () => resolvePoolRoyaleHumanCharacter(humanCharacterId),
-    [humanCharacterId]
-  );
   const [clothColorId, setClothColorId] = useState(() => {
     return resolveStoredSelection(
       'clothColor',
@@ -16676,11 +15983,6 @@ function PoolRoyaleGame({
   }, [tableBaseId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(POOL_ROYALE_HUMAN_CHARACTER_STORAGE_KEY, humanCharacterId);
-    }
-  }, [humanCharacterId]);
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
       window.localStorage.setItem(CLOTH_COLOR_STORAGE_KEY, clothColorId);
     }
   }, [clothColorId]);
@@ -16753,7 +16055,6 @@ function PoolRoyaleGame({
     pendingSeat: null,
     seatedBySeat: { A: true, B: true }
   });
-  const activeHumanCharacterRef = useRef(activeHumanCharacter);
   const activeHumanCueViewRef = useRef(null);
   const characterShotStartedAtRef = useRef(0);
   const characterShotShooterRef = useRef('A');
@@ -16770,10 +16071,6 @@ function PoolRoyaleGame({
   const secondaryTableRef = useRef(null);
   const secondaryBaseSetterRef = useRef(null);
   const activeTableSlotRef = useRef(initialTableSlot);
-  useEffect(() => {
-    activeHumanCharacterRef.current = activeHumanCharacter;
-    spawnPlayerCharactersRef.current?.();
-  }, [activeHumanCharacter]);
   const playerLabel = playerName || 'Player';
   const effectiveMode = isTraining ? trainingModeState : mode;
   const opponentLabel =
@@ -26501,159 +25798,7 @@ const shotPowerRef = useRef(0);
           else if (isHumanShooter && (loweredCueCamera || draggingSlider || sliderPowerActive)) mode = 'aim';
           if (anim) anim.mode = mode;
 
-          if (human) {
-            const behavior = human.userData?.poolRoyaleLogic || activeHumanCharacterRef.current?.logic || POOL_ROYALE_HUMAN_LOGIC_PROFILES['rpm-current'];
-            const aimForward = new THREE.Vector3(normalizedAim.x, 0, normalizedAim.y).normalize();
-            const side = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
-            const desiredRoot = chooseBilardoHumanEdgePosition(cueWorld, aimForward, {
-              tableW: TABLE.W,
-              tableL: TABLE.H,
-              edgeMargin: (behavior.edgeMargin ?? 0.68) * POOL_ROYALE_HUMAN_UNIT_SCALE,
-              desiredShootDistance: (behavior.desiredShootDistance ?? 1.32) * POOL_ROYALE_HUMAN_UNIT_SCALE
-            }).setY(floorY);
-            const perimeterRoot = clampToWalkPerimeter(desiredRoot);
-            if (isInsideTableBlocker(perimeterRoot)) {
-              perimeterRoot.copy(clampToWalkPerimeter(perimeterRoot));
-            }
-            if (!Number.isFinite(human.walkPerimeterT)) {
-              human.walkPerimeterT = pointToPerimeterT(human.root?.position ?? perimeterRoot);
-            }
-            const humanTargetT = pointToPerimeterT(perimeterRoot);
-            const humanLoopDelta =
-              THREE.MathUtils.euclideanModulo(humanTargetT - human.walkPerimeterT + 0.5, 1) - 0.5;
-            const humanMaxStepT =
-              ((behavior.walkSpeed ?? 4.0) * POOL_ROYALE_HUMAN_UNIT_SCALE * Math.max(dtSeconds, 1 / 240)) /
-              (4 * (walkHalfX + walkHalfZ));
-            human.walkPerimeterT = THREE.MathUtils.euclideanModulo(
-              human.walkPerimeterT + THREE.MathUtils.clamp(humanLoopDelta, -humanMaxStepT, humanMaxStepT),
-              1
-            );
-            const walkRoot = perimeterTToPoint(human.walkPerimeterT);
-            const shouldRestAtChair = !isHumanShooter;
-            let walkingToChair = false;
-            let seatedAtChair = false;
-            let chairFacing = null;
-            if (shouldRestAtChair) {
-              const lounge = loungeBySeat.get(seat);
-              const chairRoot = lounge?.userData?.chairRoot;
-              if (chairRoot) {
-                walkRoot.copy(chairRoot);
-                chairFacing = lounge?.userData?.chairFacing?.clone?.() ?? new THREE.Vector3(-chairRoot.x, 0, -chairRoot.z).normalize();
-                walkingToChair = true;
-                seatedAtChair = (human.root?.position?.distanceTo?.(chairRoot) ?? Infinity) <= BALL_R * 5.5;
-              }
-            }
-            turnFlow.seatedBySeat = { ...(turnFlow.seatedBySeat || {}), [seat]: seatedAtChair };
-            characterTurnFlowRef.current = turnFlow;
-            const state = seatedAtChair
-              ? 'seated'
-              : mode === 'strike' ? 'striking' : mode === 'aim' ? 'dragging' : 'idle';
-            const draggingPower = Math.max(0, Math.min(1, powerRef.current ?? 0));
-            const strikingPower = Math.max(0, Math.min(1, shotPowerRef.current ?? draggingPower));
-            const activePower = state === 'dragging' ? draggingPower : strikingPower;
-            const humanUnitScale = POOL_ROYALE_HUMAN_UNIT_SCALE;
-            const pull = (behavior.strokePull ?? 0.42) * humanUnitScale * (1 - Math.pow(1 - activePower, 3));
-            const practiceStroke =
-              state === 'dragging'
-                ? Math.sin(nowMs * 0.012) * (behavior.practiceStroke ?? 0.035) * humanUnitScale * (0.25 + activePower * 0.75)
-                : 0;
-            const strikeNorm = state === 'striking' ? THREE.MathUtils.clamp(shotAge / (behavior.strikeMs ?? 120), 0, 1) : 0;
-            let cueBallGap = (behavior.cueGap ?? 0.012) * humanUnitScale;
-            if (state === 'dragging') cueBallGap += pull + practiceStroke;
-            else if (state === 'striking') {
-              cueBallGap = THREE.MathUtils.lerp(
-                (behavior.cueGap ?? 0.012) * humanUnitScale + pull,
-                Math.max(0.001, (behavior.cueGap ?? 0.012) * 0.1) * humanUnitScale,
-                1 - Math.pow(1 - strikeNorm, 3)
-              );
-            }
-            const bridgeBackFromBall = human?.cfg?.bridgeHandBackFromBall ?? (behavior.bridgeBack ?? 0.072) * humanUnitScale;
-            const bridgeSideOffset = human?.cfg?.bridgeHandSide ?? (behavior.bridgeSide ?? -0.024) * humanUnitScale;
-            const bridgeTarget = cueWorld
-              .clone()
-              // Put the left bridge hand on the cloth right beside the cue ball, like a real pool stance.
-              .addScaledVector(aimForward, -bridgeBackFromBall)
-              .addScaledVector(side, bridgeSideOffset)
-              .setY(TABLE_Y + TABLE.THICK + 0.006 * humanUnitScale);
-            const bridgeCuePoint = bridgeTarget
-              .clone()
-              .addScaledVector(aimForward, 0.014 * humanUnitScale)
-              .add(new THREE.Vector3(0, 0.018 * humanUnitScale, 0));
-            const cueTipShoot = cueWorld
-              .clone()
-              .addScaledVector(aimForward, -(BALL_R + cueBallGap));
-            const cueBackShoot = bridgeCuePoint
-              .clone()
-              .addScaledVector(aimForward, -(cueLen - 0.28 * humanUnitScale - BALL_R - cueBallGap))
-              .add(new THREE.Vector3(0, 0.024 * humanUnitScale, 0));
-            const cueShootDir = cueTipShoot.clone().sub(cueBackShoot).normalize();
-            const shootGripTarget = cueBackShoot
-              .clone()
-              .addScaledVector(cueShootDir, (behavior.gripFromBack ?? 0.58) * humanUnitScale);
-            if (isHumanShooter && state === 'dragging') {
-              activeHumanCueViewRef.current = {
-                cueBack: cueBackShoot.clone(),
-                bridgeTarget: bridgeTarget.clone(),
-                aimForward: aimForward.clone(),
-                side: side.clone()
-              };
-            }
-            const poseForward = chairFacing?.lengthSq?.() > 1e-6 ? chairFacing.normalize() : aimForward;
-            const standingYaw = Math.atan2(-poseForward.x, -poseForward.z);
-            const idleRight = walkRoot
-              .clone()
-              .add(new THREE.Vector3(0.31, 0.8, -0.015).multiplyScalar(humanUnitScale).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw));
-            const idleLeft = walkRoot
-              .clone()
-              .add(new THREE.Vector3(-0.18, 1.08, 0.03).multiplyScalar(humanUnitScale).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw));
-            const idleCueDir = new THREE.Vector3(0.055, 0.965, -0.13)
-              .applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw)
-              .normalize();
-            const idleCueBack = idleRight.clone().addScaledVector(idleCueDir, -0.24 * humanUnitScale);
-            const idleCueTip = idleRight.clone().addScaledVector(idleCueDir, cueLen - 0.24 * humanUnitScale);
-            const cueBack = state === 'idle' ? idleCueBack : cueBackShoot;
-            const cueTip = state === 'idle' ? idleCueTip : cueTipShoot;
-            const gripTarget = state === 'idle' ? idleRight : shootGripTarget;
-            const isFiniteVec3 = (v) =>
-              Number.isFinite(v?.x) && Number.isFinite(v?.y) && Number.isFinite(v?.z);
-            if (
-              !isFiniteVec3(walkRoot) ||
-              !isFiniteVec3(aimForward) ||
-              !isFiniteVec3(bridgeTarget) ||
-              !isFiniteVec3(gripTarget) ||
-              !isFiniteVec3(idleRight) ||
-              !isFiniteVec3(idleLeft) ||
-              !isFiniteVec3(cueBack) ||
-              !isFiniteVec3(cueTip)
-            ) {
-              return;
-            }
-            updateBilardoHumanPose(human, dtSeconds, {
-              state,
-              rootTarget: walkRoot,
-              aimForward: poseForward,
-              bridgeTarget,
-              gripTarget,
-              idleRight,
-              idleLeft,
-              cueBack,
-              cueTip,
-              power: activePower,
-              directRootTarget: walkingToChair
-            });
-            if (rig.heldCue) {
-              if (isHumanShooter) {
-                rig.heldCue.visible = false;
-              } else {
-                rig.heldCue.userData?.setFromBackTip?.(cueBack, cueTip);
-              }
-            }
-            if (!isReplay && isHumanShooter && typeof setCueStickFromHumanCuePose === 'function') {
-              setCueStickFromHumanCuePose(cueBack, cueTip);
-            }
-            return;
-          }
-
+          // Human rig updates were removed from Pool Royale; keep only non-human fallback animations if any legacy rig data exists.
           const targetPose = mode === 'idle' ? 0 : 1;
           anim.poseT = THREE.MathUtils.lerp(anim.poseT ?? 0, targetPose, 1 - Math.exp(-HUMAN_POSE_LAMBDA * dtSeconds));
 
@@ -36372,37 +35517,6 @@ const shotPowerRef = useRef(0);
               </button>
             </div>
             <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Human Pool Player
-                </h3>
-                <div className="mt-2 grid grid-cols-2 gap-1.5">
-                  {POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.map((option, index) => {
-                    const active = option.id === humanCharacterId;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setHumanCharacterId(option.id)}
-                        aria-pressed={active}
-                        title={`${option.label} • ${option.summary}`}
-                        className={`min-h-[3.25rem] rounded-xl border px-2.5 py-1.5 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        <span className="block truncate text-[10px] font-black uppercase tracking-[0.18em]">
-                          {index + 1}. {option.logicLabel}
-                        </span>
-                        <span className={`mt-0.5 block text-[8px] font-bold uppercase tracking-[0.12em] ${active ? 'text-black/65' : 'text-white/58'}`}>
-                          feet planted • table-facing
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
               {ENABLE_SHOT_REPLAY ? (
                 <div>
                   <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
