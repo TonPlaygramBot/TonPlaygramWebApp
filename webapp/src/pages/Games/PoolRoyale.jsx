@@ -1348,8 +1348,8 @@ const SIDE_POCKET_JAW_LATERAL_EXPANSION = CORNER_POCKET_JAW_LATERAL_EXPANSION; /
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // keep middle jaw arcs the same size as the Showood-style corner jaws
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.12; // add Showood-like extra depth so side jaws match the corner jaw type
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.01; // pull middle-pocket jaws a bit farther downward than corners
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.028; // reduce the outward shift so middle-pocket jaws sit a bit more inward toward table center
-const POCKET_JAW_INWARD_PULL = TABLE.THICK * 0.026; // pull procedural jaw centers slightly inward to match the Showood GLB pocket placement
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.02; // reduce the outward shift so middle-pocket jaws sit a bit more inward toward table center
+const POCKET_JAW_INWARD_PULL = TABLE.THICK * 0.04; // pull procedural jaw centers a bit more inward to match the Royal Original pocket placement
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.66; // shorten middle jaw side edges a bit more so all six jaws finish cleaner at the shoulders
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
@@ -1837,7 +1837,7 @@ const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
 const SHOT_POWER_BOOST = 1.5; // increase overall shot power by 25%
-const SHOT_GLOBAL_POWER_SCALE = 0.8; // trim Pool Royale shot pace a bit so cue-ball travel is slightly softer
+const SHOT_GLOBAL_POWER_SCALE = 0.72; // trim Pool Royale shot pace further so cue-ball travel matches the softer target power
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -9279,6 +9279,7 @@ export function Table3D(
   const baulkLine = new THREE.Mesh(baulkLineGeom, markingMat);
   baulkLine.rotation.x = -Math.PI / 2;
   baulkLine.position.set(0, markingHeight, baulkLineZ);
+  baulkLine.userData.externalTableKeepVisible = true;
   markingsGroup.add(baulkLine);
 
   const dArc = null;
@@ -9289,6 +9290,7 @@ export function Table3D(
     const spot = new THREE.Mesh(spotGeo, markingMat.clone());
     spot.rotation.x = -Math.PI / 2;
     spot.position.set(x, markingHeight, z);
+    spot.userData.externalTableKeepVisible = true;
     markingsGroup.add(spot);
     spotMeshes.push(spot);
   };
@@ -9301,6 +9303,7 @@ export function Table3D(
       child.receiveShadow = false;
     }
   });
+  markingsGroup.userData.externalTableKeepVisible = true;
   table.add(markingsGroup);
   table.userData.markings = {
     group: markingsGroup,
@@ -12806,6 +12809,44 @@ function resolvePoolRoyaleExternalTableFitBounds(model, tableModel = null) {
   return { fullBox, footprintBox };
 }
 
+function shrinkPoolRoyaleExternalUpperFrame(model, tableModel, dims) {
+  const scale = Number(tableModel?.upperFrameHeightScale);
+  if (!model || !Number.isFinite(scale) || scale <= MICRO_EPS || scale >= 1 - MICRO_EPS) return;
+  const fullBox = new THREE.Box3().setFromObject(model);
+  if (fullBox.isEmpty()) return;
+  const targetTop = Number.isFinite(dims?.targetTopLocal)
+    ? dims.targetTopLocal
+    : Number.isFinite(dims?.cushionTopLocal)
+      ? dims.cushionTopLocal
+      : fullBox.max.y;
+  const upperHeight = Number.isFinite(dims?.targetUpperComponentHeight)
+    ? Math.max(MICRO_EPS, dims.targetUpperComponentHeight)
+    : Math.max(MICRO_EPS, fullBox.getSize(new THREE.Vector3()).y * 0.28);
+  const upperCutoff = targetTop - upperHeight * 1.18;
+  model.traverse((child) => {
+    if (!child?.isMesh || child.userData?.poolRoyaleUpperFrameShrunk) return;
+    const material = Array.isArray(child.material) ? child.material[0] : child.material;
+    const role = classifyPoolRoyaleExternalTableSurface(child, material);
+    const referencePart = tableModel?.useReferenceShowoodMapping
+      ? classifyPoolRoyaleShowoodReferencePart(child, material)
+      : null;
+    const isTopFrame = referencePart === 'topWoodRail' || (referencePart == null && role === 'wood');
+    if (!isTopFrame) return;
+    const childBox = new THREE.Box3().setFromObject(child);
+    if (childBox.isEmpty() || childBox.max.y < upperCutoff) return;
+    const anchorWorldY = Math.min(childBox.max.y, targetTop);
+    const parent = child.parent || model;
+    const anchorLocal = parent.worldToLocal(new THREE.Vector3(0, anchorWorldY, 0)).y;
+    child.scale.y *= scale;
+    child.updateMatrixWorld(true);
+    const nextBox = new THREE.Box3().setFromObject(child);
+    const nextAnchorLocal = parent.worldToLocal(new THREE.Vector3(0, nextBox.max.y, 0)).y;
+    child.position.y += anchorLocal - nextAnchorLocal;
+    child.userData.poolRoyaleUpperFrameShrunk = true;
+  });
+  model.updateMatrixWorld(true);
+}
+
 function stretchPoolRoyaleExternalLowerBase(model, tableModel, dims) {
   const scale = Number(tableModel?.lowerBaseHeightScale);
   if (!model || !Number.isFinite(scale) || scale <= 1 + MICRO_EPS) return;
@@ -12901,6 +12942,7 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   const targetTopLocal = dims.targetTopLocal ?? dims.cushionTopLocal;
   model.position.y += targetTopLocal - fullBox.max.y + (tableModel?.verticalOffset ?? 0);
   model.updateMatrixWorld(true);
+  shrinkPoolRoyaleExternalUpperFrame(model, tableModel, dims);
   stretchPoolRoyaleExternalLowerBase(model, tableModel, dims);
   model.userData = {
     ...(model.userData || {}),
