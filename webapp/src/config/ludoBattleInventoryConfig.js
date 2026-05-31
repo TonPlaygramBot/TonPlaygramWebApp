@@ -4,13 +4,13 @@ import {
   TOKEN_PIECE_OPTIONS,
   TOKEN_STYLE_OPTIONS,
   HUMAN_CHARACTER_OPTIONS
-} from './ludoBattleOptions.js'
-import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js'
-import { MURLAN_TABLE_FINISHES } from './murlanTableFinishes.js'
-import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js'
-import { CHESS_BATTLE_OPTION_LABELS, CHESS_BATTLE_STORE_ITEMS } from './chessBattleInventoryConfig.js'
-import { swatchThumbnail } from './storeThumbnails.js'
-import { TABLE_CLOTH_OPTIONS } from '../utils/tableCustomizationOptions.js'
+} from './ludoBattleOptions.js';
+import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js';
+import { MURLAN_TABLE_FINISHES } from './murlanTableFinishes.js';
+import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
+import { CHESS_BATTLE_OPTION_LABELS, CHESS_BATTLE_STORE_ITEMS } from './chessBattleInventoryConfig.js';
+import { swatchThumbnail } from './storeThumbnails.js';
+import { TABLE_CLOTH_OPTIONS } from '../utils/tableCustomizationOptions.js';
 
 export const LUDO_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   tables: [MURLAN_TABLE_THEMES[0]?.id],
@@ -21,15 +21,15 @@ export const LUDO_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   tokenPalette: [TOKEN_PALETTE_OPTIONS[0]?.id],
   tokenStyle: [TOKEN_STYLE_OPTIONS[0]?.id],
   tokenPiece: [TOKEN_PIECE_OPTIONS[0]?.id],
-  captureAnimation: CAPTURE_ANIMATION_OPTIONS.map((option) => option.id),
+  captureAnimation: [CAPTURE_ANIMATION_OPTIONS[0]?.id],
   humanCharacter: [HUMAN_CHARACTER_OPTIONS[0]?.id]
-})
+});
 
 const reduceLabels = (options) =>
   options.reduce((acc, option) => {
-    acc[option.id] = option.label
-    return acc
-  }, {})
+    acc[option.id] = option.label;
+    return acc;
+  }, {});
 
 export const LUDO_BATTLE_OPTION_LABELS = Object.freeze({
   tables: Object.freeze(reduceLabels(MURLAN_TABLE_THEMES)),
@@ -51,19 +51,89 @@ export const LUDO_BATTLE_OPTION_LABELS = Object.freeze({
   humanCharacter: Object.freeze(reduceLabels(HUMAN_CHARACTER_OPTIONS)),
   sideColor: Object.freeze(CHESS_BATTLE_OPTION_LABELS.sideColor),
   headStyle: Object.freeze(CHESS_BATTLE_OPTION_LABELS.headStyle)
-})
+});
 
-const shouldShowCaptureAnimationInStore = (optionId) => Boolean(optionId)
+const HIDDEN_LUDO_STORE_CAPTURE_ANIMATION_IDS = new Set([
+  'mrtkGunAttack',
+  'pistolHolsterAttack',
+  'pistolSidearmAttack',
+  'assaultRifleAttack'
+]);
+
+
+const PREFERRED_CAPTURE_ANIMATION_BY_FAMILY = Object.freeze({
+  pistol: 'sigsauerTacticalAttack',
+  smg: 'polySmg01Attack',
+  assaultRifle: 'ak47VolleyAttack',
+  marksman: 'sniperShotAttack',
+  shotgun: 'shotgunBlastAttack',
+  revolver: 'polyRevolver02Attack',
+  explosive: 'grenadeBlastAttack',
+  bazooka: 'polyBazooka01Attack',
+  grenadeLauncher: 'polyGrenadeLauncher01Attack',
+  dynamite: 'polyDynamiteBomb01Attack',
+  gasTank: 'polyGasTank01Attack',
+  handGrenade: 'polyHandGrenade01Attack',
+  incendiary: 'polyMolotov01Attack',
+  armor: 'polyTank01Attack',
+  robotLargeGun: 'polyRobotLargeGunAttack',
+  robotFlyingGun: 'polyRobotFlyingGunAttack'
+});
+
+const CAPTURE_ANIMATION_FAMILY_BY_ID = Object.freeze({
+  glockSidearmAttack: 'pistol',
+  pistolSidearmAttack: 'pistol',
+  pistolHolsterAttack: 'pistol',
+  smithSidearmAttack: 'pistol',
+  sigsauerTacticalAttack: 'pistol',
+  polyPistol01Attack: 'pistol',
+  uziSprayAttack: 'smg',
+  smgBurstAttack: 'smg',
+  polySmg01Attack: 'smg',
+  fpsGunAttack: 'assaultRifle',
+  assaultRifleAttack: 'assaultRifle',
+  ak47VolleyAttack: 'assaultRifle',
+  krsvBurstAttack: 'assaultRifle',
+  compactCarbineAttack: 'assaultRifle',
+  polyAssaultRifle01Attack: 'assaultRifle',
+  mosinMarksmanAttack: 'marksman',
+  marksmanDmrAttack: 'marksman',
+  sniperShotAttack: 'marksman',
+  shotgunBlastAttack: 'shotgun',
+  polyShotgun01Attack: 'shotgun',
+  polyShotgun02Attack: 'shotgun',
+  polyShotgun03Attack: 'shotgun',
+  polySawedOff01Attack: 'shotgun',
+  polyRevolver01Attack: 'revolver',
+  polyRevolver02Attack: 'revolver',
+  grenadeBlastAttack: 'explosive',
+  polyHandGrenade01Attack: 'handGrenade',
+  polyGrenadeLauncher01Attack: 'grenadeLauncher',
+  polyBazooka01Attack: 'bazooka',
+  polyDynamiteBomb01Attack: 'dynamite',
+  polyGasTank01Attack: 'gasTank',
+  polyMolotov01Attack: 'incendiary',
+  polyTank01Attack: 'armor',
+  polyRobotLargeGunAttack: 'robotLargeGun',
+  polyRobotFlyingGunAttack: 'robotFlyingGun'
+});
+
+const shouldShowCaptureAnimationInStore = (optionId) => {
+  if (HIDDEN_LUDO_STORE_CAPTURE_ANIMATION_IDS.has(optionId)) return false;
+  const family = CAPTURE_ANIMATION_FAMILY_BY_ID[optionId];
+  if (!family) return true;
+  return PREFERRED_CAPTURE_ANIMATION_BY_FAMILY[family] === optionId;
+};
 
 const uniqueStoreItemsByName = (items) => {
-  const seen = new Set()
+  const seen = new Set();
   return items.filter((item) => {
-    const key = `${item?.type || ''}:${String(item?.name || '').trim().toLowerCase()}`
-    if (!key || seen.has(key)) return false
-    seen.add(key)
-    return true
-  })
-}
+    const key = `${item?.type || ''}:${String(item?.name || '').trim().toLowerCase()}`;
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
 
 export const LUDO_BATTLE_STORE_ITEMS = uniqueStoreItemsByName([
   ...MURLAN_TABLE_FINISHES.map((finish, idx) => ({
@@ -164,7 +234,7 @@ export const LUDO_BATTLE_STORE_ITEMS = uniqueStoreItemsByName([
     thumbnail: swatchThumbnail(['#334155', '#64748b', '#f59e0b'])
   })),
   ...CHESS_BATTLE_STORE_ITEMS.filter((item) => ['sideColor', 'headStyle'].includes(item.type))
-])
+]);
 
 export const LUDO_BATTLE_DEFAULT_LOADOUT = [
   { type: 'tables', optionId: MURLAN_TABLE_THEMES[0]?.id, label: MURLAN_TABLE_THEMES[0]?.label },
@@ -197,4 +267,4 @@ export const LUDO_BATTLE_DEFAULT_LOADOUT = [
     optionId: HUMAN_CHARACTER_OPTIONS[0]?.id,
     label: HUMAN_CHARACTER_OPTIONS[0]?.label
   }
-]
+];
