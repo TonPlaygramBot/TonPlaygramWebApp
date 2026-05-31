@@ -1335,10 +1335,12 @@ const POCKET_INTERIOR_CAPTURE_R =
   POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION; // match capture radius directly to the pocket bowl opening
 const SIDE_POCKET_INTERIOR_CAPTURE_R =
   SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION; // keep middle-pocket capture identical to its bowl radius
+const POCKET_CAPTURE_ASSIST = BALL_R * 0.42; // make pocket sensors reach the visual mouth so mobile shots pot reliably
+const SIDE_POCKET_CAPTURE_ASSIST = BALL_R * 0.48; // middle pockets need a slightly wider sensor because their centres sit outside the rail
 const CAPTURE_R =
-  POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.22; // mirror Pool Royale corner-pocket capture gain for identical pocket acceptance
+  POCKET_INTERIOR_CAPTURE_R + POCKET_CAPTURE_ASSIST; // mirror Pool Royale corner-pocket capture gain for identical pocket acceptance
 const SIDE_CAPTURE_R =
-  SIDE_POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.22; // give middle pockets a touch more capture so shots don't hang in the jaws
+  SIDE_POCKET_INTERIOR_CAPTURE_R + SIDE_POCKET_CAPTURE_ASSIST; // give middle pockets a touch more capture so shots don't hang in the jaws
 const POCKET_GUARD_RADIUS =
   CAPTURE_R - BALL_R * 0.12; // mirror Pool Royale guard inset so corner jaw collision acceptance matches
 const POCKET_GUARD_CLEARANCE = Math.max(
@@ -6343,17 +6345,29 @@ const pocketCenters = () => {
     new THREE.Vector2(sidePocketCenterX, 0)
   ];
 };
+const resolvePocketMappedCenter = (center, index, inwardScale) => {
+  const mouthRadius = index >= 4 ? SIDE_POCKET_RADIUS : POCKET_VIS_R;
+  const towardField = center.clone().multiplyScalar(-1);
+  if (towardField.lengthSq() < MICRO_EPS * MICRO_EPS) {
+    return center.clone();
+  }
+  towardField.normalize();
+  return center.clone().add(towardField.multiplyScalar(mouthRadius * inwardScale));
+};
 const pocketEntranceCenters = () =>
-  pocketCenters().map((center, index) => {
-    const mouthRadius = index >= 4 ? SIDE_POCKET_RADIUS : POCKET_VIS_R;
-    const towardField = center.clone().multiplyScalar(-1);
-    if (towardField.lengthSq() < MICRO_EPS * MICRO_EPS) {
-      return center.clone();
-    }
-    towardField.normalize();
-    const entranceOffset = mouthRadius * 0.6;
-    return center.clone().add(towardField.multiplyScalar(entranceOffset));
-  });
+  pocketCenters().map((center, index) => resolvePocketMappedCenter(center, index, 0.6));
+const POCKET_CAPTURE_CENTER_INWARD_SCALE = 0.38;
+const SIDE_POCKET_CAPTURE_CENTER_INWARD_SCALE = 0.46;
+const pocketCaptureCenters = () =>
+  pocketCenters().map((center, index) =>
+    resolvePocketMappedCenter(
+      center,
+      index,
+      index >= 4
+        ? SIDE_POCKET_CAPTURE_CENTER_INWARD_SCALE
+        : POCKET_CAPTURE_CENTER_INWARD_SCALE
+    )
+  );
 const resolvePocketHolderDirection = (center, pocketId = null) => {
   const absX = Math.abs(center?.x ?? 0);
   const absZ = Math.abs(center?.y ?? 0);
@@ -6691,8 +6705,9 @@ function reflectRails(ball) {
   const guardClearance = POCKET_GUARD_CLEARANCE;
   const cornerDepthLimit = CORNER_POCKET_DEPTH_LIMIT;
   const centers = pocketCenters();
+  const captureCenters = pocketCaptureCenters();
   const resolveBoundaryFallback = () => {
-    const insideCapture = centers.some((center, index) => {
+    const insideCapture = captureCenters.some((center, index) => {
       const captureRadius = index >= 4 ? SIDE_CAPTURE_R : CAPTURE_R;
       return ball.pos.distanceTo(center) <= captureRadius;
     });
@@ -6745,7 +6760,7 @@ function reflectRails(ball) {
     let nearestPocketDist = Infinity;
     let nearestCaptureRadius = CAPTURE_R;
     let nearestPocketIndex = 0;
-    centers.forEach((center, index) => {
+    captureCenters.forEach((center, index) => {
       const dist = ball.pos.distanceTo(center);
       if (dist < nearestPocketDist) {
         nearestPocketDist = dist;
@@ -6765,6 +6780,7 @@ function reflectRails(ball) {
       // bypass left small corridors between the physical GLB cushion nose and the
       // procedural capture zone, allowing the cue ball to escape the table.
       if (inCaptureZone && inGuardZone && segment.type === 'cut') continue;
+      if (inCaptureZone && segment.type === 'jaw') continue;
       if (segment.type === 'jaw' && segment.center && segment.captureRadius != null) {
         if (ball.pos.distanceTo(segment.center) <= segment.captureRadius) continue;
       }
@@ -6846,8 +6862,8 @@ function reflectRails(ball) {
         tangent: bestImpact.tangent.clone()
       };
     }
-    for (let i = 0; i < centers.length; i += 1) {
-      const center = centers[i];
+    for (let i = 0; i < captureCenters.length; i += 1) {
+      const center = captureCenters[i];
       if (!center) continue;
       const captureRadius = i >= 4 ? SIDE_CAPTURE_R : CAPTURE_R;
       const jawBaseRadius = i >= 4 ? SIDE_POCKET_RADIUS : POCKET_VIS_R;
@@ -6974,7 +6990,7 @@ function reflectRails(ball) {
     // If the ball is already inside a real pocket capture zone, skip straight rail reflections.
     // Near-jaw misses still use the final boundary clamp so they cannot leak out between
     // a corner cushion and the pocket hardware.
-    const insideCapture = centers.some((center, index) => {
+    const insideCapture = captureCenters.some((center, index) => {
       const captureRadius = index >= 4 ? SIDE_CAPTURE_R : CAPTURE_R;
       return ball.pos.distanceTo(center) < captureRadius;
     });
@@ -12069,7 +12085,7 @@ function Table3D(
   const clothPlaneWorld = cloth.position.y;
 
   table.userData.pockets = [];
-  pocketCenters().forEach((p, index) => {
+  pocketCaptureCenters().forEach((p, index) => {
     const marker = new THREE.Object3D();
     marker.position.set(p.x, clothPlaneWorld - POCKET_VIS_R, p.y);
     marker.userData.captureRadius = index >= 4 ? SIDE_CAPTURE_R : CAPTURE_R;
