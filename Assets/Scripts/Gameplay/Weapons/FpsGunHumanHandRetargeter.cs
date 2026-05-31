@@ -87,8 +87,18 @@ namespace TonPlaygram.Gameplay.Weapons
         [SerializeField] private Vector3 weaponGripPositionOffset;
         [SerializeField] private Vector3 weaponGripEulerOffset;
 
+        [Header("FPS screen presentation")]
+        [SerializeField] private Camera presentationCamera;
+        [SerializeField] private Transform fpsPresentationRoot;
+        [SerializeField] private bool keepWeaponVisibleInFpsView = true;
+        [SerializeField] private Vector3 cameraSpaceWeaponOffset = new Vector3(0.18f, -0.2f, 0.55f);
+        [SerializeField] private Vector3 cameraSpaceWeaponEuler = new Vector3(-4f, 2f, 0f);
+        [SerializeField] private Vector2 minWeaponViewport = new Vector2(0.12f, 0.06f);
+        [SerializeField] private Vector2 maxWeaponViewport = new Vector2(0.88f, 0.42f);
+
         private readonly List<Renderer> _hiddenOriginalHandRenderers = new List<Renderer>();
         private Quaternion _weaponGripRotationOffset;
+        private Quaternion _cameraSpaceWeaponRotationOffset;
         private Quaternion _originalGripToWeaponRotation = Quaternion.identity;
         private Vector3 _originalGripToWeaponPosition;
         private bool _hasOriginalGripToWeapon;
@@ -161,6 +171,11 @@ namespace TonPlaygram.Gameplay.Weapons
         private void CacheRuntimeOffsets()
         {
             _weaponGripRotationOffset = Quaternion.Euler(weaponGripEulerOffset);
+            _cameraSpaceWeaponRotationOffset = Quaternion.Euler(cameraSpaceWeaponEuler);
+            if (presentationCamera == null)
+            {
+                presentationCamera = Camera.main;
+            }
             if (weaponRoot != null && originalFpsRightGrip != null)
             {
                 _originalGripToWeaponRotation = Quaternion.Inverse(originalFpsRightGrip.rotation) * weaponRoot.rotation;
@@ -187,11 +202,30 @@ namespace TonPlaygram.Gameplay.Weapons
             {
                 weaponRoot.rotation = humanRightGrip.rotation * _originalGripToWeaponRotation * _weaponGripRotationOffset;
                 weaponRoot.position = humanRightGrip.position + (humanRightGrip.rotation * (_originalGripToWeaponPosition + weaponGripPositionOffset));
+                KeepWeaponVisibleInFpsView();
                 return;
             }
 
             weaponRoot.position = humanRightGrip.TransformPoint(weaponGripPositionOffset);
             weaponRoot.rotation = humanRightGrip.rotation * _weaponGripRotationOffset;
+            KeepWeaponVisibleInFpsView();
+        }
+
+        private void KeepWeaponVisibleInFpsView()
+        {
+            Transform presentationRoot = fpsPresentationRoot != null ? fpsPresentationRoot : weaponRoot;
+            if (!keepWeaponVisibleInFpsView || presentationCamera == null || presentationRoot == null)
+                return;
+
+            Vector3 viewportPoint = presentationCamera.WorldToViewportPoint(presentationRoot.position);
+            bool behindCamera = viewportPoint.z <= presentationCamera.nearClipPlane;
+            bool outsideSafeBottomFrame = viewportPoint.x < minWeaponViewport.x || viewportPoint.x > maxWeaponViewport.x || viewportPoint.y < minWeaponViewport.y || viewportPoint.y > maxWeaponViewport.y;
+            if (!behindCamera && !outsideSafeBottomFrame)
+                return;
+
+            Transform cameraTransform = presentationCamera.transform;
+            presentationRoot.position = cameraTransform.TransformPoint(cameraSpaceWeaponOffset);
+            presentationRoot.rotation = cameraTransform.rotation * _cameraSpaceWeaponRotationOffset;
         }
 
         private void AddExtraOriginalHandRenderers()
