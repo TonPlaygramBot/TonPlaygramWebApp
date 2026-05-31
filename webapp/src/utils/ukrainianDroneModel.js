@@ -91,6 +91,34 @@ function resourceCandidates(resourceUri, sourceUrl) {
   return urlAlternates(resolved);
 }
 
+function installUkrainianDroneImageFallback() {
+  const originalLoad = THREE.ImageLoader.prototype.load;
+  THREE.ImageLoader.prototype.load = function patchedUkrainianDroneImageLoad(url, onLoad, onProgress, onError) {
+    const candidates = urlAlternates(String(url));
+    let index = 0;
+    const tryLoad = () => {
+      const candidate = candidates[index] ?? FALLBACK_PIXEL;
+      return originalLoad.call(this, candidate, onLoad, onProgress, (event) => {
+        index += 1;
+        if (index < candidates.length) {
+          window.setTimeout(tryLoad, 250);
+          return;
+        }
+        console.warn('Ukrainian drone ImageLoader failed all original candidates, using fallback pixel:', candidates, event);
+        const img = document.createElement('img');
+        img.crossOrigin = 'anonymous';
+        img.onload = () => onLoad?.(img);
+        img.onerror = () => onError?.(event);
+        img.src = FALLBACK_PIXEL;
+      });
+    };
+    return tryLoad();
+  };
+  return () => {
+    THREE.ImageLoader.prototype.load = originalLoad;
+  };
+}
+
 async function fetchWithTimeout(input, init = {}, timeoutMs = TEXTURE_FETCH_TIMEOUT_MS) {
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), timeoutMs);
@@ -310,26 +338,31 @@ async function loadSharedUkrainianDrone(renderer = null) {
   if (!sharedDronePromise) {
     sharedDronePromise = (async () => {
       let lastError = null;
-      for (const source of UKRAINIAN_DRONE_SOURCES) {
-        try {
-          const patched = await inlineExternalGlbTextures(source.url);
-          const loader = createTextureAwareLoader(source.url, renderer);
-          const gltf = await parseGlbBuffer(loader, patched);
-          return configureUkrainianDroneModel(gltf.scene, renderer);
-        } catch (error) {
-          lastError = error;
-          console.warn('Ukrainian drone preflight parse failed:', source, error);
+      const restoreImageLoader = installUkrainianDroneImageFallback();
+      try {
+        for (const source of UKRAINIAN_DRONE_SOURCES) {
+          try {
+            const patched = await inlineExternalGlbTextures(source.url);
+            const loader = createTextureAwareLoader(source.url, renderer);
+            const gltf = await parseGlbBuffer(loader, patched);
+            return configureUkrainianDroneModel(gltf.scene, renderer);
+          } catch (error) {
+            lastError = error;
+            console.warn('Ukrainian drone preflight parse failed:', source, error);
+          }
+          try {
+            const loader = createTextureAwareLoader(source.url, renderer);
+            const gltf = await loadUrlDirect(loader, source.url);
+            return configureUkrainianDroneModel(gltf.scene, renderer);
+          } catch (error) {
+            lastError = error;
+            console.warn('Ukrainian drone direct load failed:', source, error);
+          }
         }
-        try {
-          const loader = createTextureAwareLoader(source.url, renderer);
-          const gltf = await loadUrlDirect(loader, source.url);
-          return configureUkrainianDroneModel(gltf.scene, renderer);
-        } catch (error) {
-          lastError = error;
-          console.warn('Ukrainian drone direct load failed:', source, error);
-        }
+        throw lastError ?? new Error('Ukrainian drone failed from all sources');
+      } finally {
+        restoreImageLoader();
       }
-      throw lastError ?? new Error('Ukrainian drone failed from all sources');
     })();
   }
   return sharedDronePromise;
