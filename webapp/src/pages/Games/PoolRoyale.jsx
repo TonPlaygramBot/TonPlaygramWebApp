@@ -1349,7 +1349,7 @@ const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // keep middle jaw arcs the same siz
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.12; // add Showood-like extra depth so side jaws match the corner jaw type
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.01; // pull middle-pocket jaws a bit farther downward than corners
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.028; // reduce the outward shift so middle-pocket jaws sit a bit more inward toward table center
-const POCKET_JAW_INWARD_PULL = TABLE.THICK * 0.026; // pull procedural jaw centers slightly inward to match the Showood GLB pocket placement
+const POCKET_JAW_INWARD_PULL = TABLE.THICK * 0.034; // pull procedural jaw centers a bit more inward to match the Royal Original pocket placement
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.66; // shorten middle jaw side edges a bit more so all six jaws finish cleaner at the shoulders
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
@@ -1837,7 +1837,7 @@ const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
 const SHOT_POWER_BOOST = 1.5; // increase overall shot power by 25%
-const SHOT_GLOBAL_POWER_SCALE = 0.8; // trim Pool Royale shot pace a bit so cue-ball travel is slightly softer
+const SHOT_GLOBAL_POWER_SCALE = 0.72; // trim Pool Royale shot pace further so current Pool Royal power matches the softer target
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -9266,6 +9266,8 @@ export function Table3D(
   }
 
   const markingsGroup = new THREE.Group();
+  markingsGroup.userData.externalTableKeepVisible = true;
+  markingsGroup.userData.externalTableKeepVisibleWithOriginalSurfaces = true;
   const markingMat = new THREE.MeshBasicMaterial({
     color: palette.markings,
     transparent: true,
@@ -9295,6 +9297,12 @@ export function Table3D(
   const topCushionZ = PLAY_H / 2;
   addSpot(0, (topCushionZ + 0) / 2);
   markingsGroup.traverse((child) => {
+    child.userData = {
+      ...(child.userData || {}),
+      externalTableKeepVisible: true,
+      externalTableKeepVisibleWithOriginalSurfaces: true,
+      externalTableReplaceableSurface: false
+    };
     if (child.isMesh) {
       child.renderOrder = cloth.renderOrder + 1;
       child.castShadow = false;
@@ -12840,6 +12848,30 @@ function stretchPoolRoyaleExternalLowerBase(model, tableModel, dims) {
   model.updateMatrixWorld(true);
 }
 
+function compressPoolRoyaleExternalTopRailFrame(model, tableModel) {
+  const scale = Number(tableModel?.topRailFrameHeightScale);
+  if (!model || !Number.isFinite(scale) || scale >= 1 - MICRO_EPS || scale <= MICRO_EPS) return;
+  model.traverse((child) => {
+    if (!child?.isMesh || child.userData?.poolRoyaleTopRailFrameCompressed) return;
+    const material = Array.isArray(child.material) ? child.material[0] : child.material;
+    const referencePart = material?.userData?.poolRoyaleShowoodReferencePart ||
+      classifyPoolRoyaleShowoodReferencePart(child, material);
+    if (!['topWoodRail', 'sideWoodApron'].includes(referencePart)) return;
+    const childBox = new THREE.Box3().setFromObject(child);
+    if (childBox.isEmpty()) return;
+    const anchorWorldY = childBox.max.y;
+    const parent = child.parent || model;
+    const anchorLocal = parent.worldToLocal(new THREE.Vector3(0, anchorWorldY, 0)).y;
+    child.scale.y *= scale;
+    child.updateMatrixWorld(true);
+    const nextBox = new THREE.Box3().setFromObject(child);
+    const nextAnchorLocal = parent.worldToLocal(new THREE.Vector3(0, nextBox.max.y, 0)).y;
+    child.position.y += anchorLocal - nextAnchorLocal;
+    child.userData.poolRoyaleTopRailFrameCompressed = true;
+  });
+  model.updateMatrixWorld(true);
+}
+
 function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   if (!model || !dims) return;
   model.position.set(0, 0, 0);
@@ -12901,6 +12933,7 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   const targetTopLocal = dims.targetTopLocal ?? dims.cushionTopLocal;
   model.position.y += targetTopLocal - fullBox.max.y + (tableModel?.verticalOffset ?? 0);
   model.updateMatrixWorld(true);
+  compressPoolRoyaleExternalTopRailFrame(model, tableModel);
   stretchPoolRoyaleExternalLowerBase(model, tableModel, dims);
   model.userData = {
     ...(model.userData || {}),
@@ -13694,6 +13727,7 @@ function mountPoolRoyaleExternalTableModel({
       if (
         !visible &&
         (
+          object.userData?.externalTableKeepVisibleWithOriginalSurfaces ||
           (!externalTableModelForMount?.useOriginalLayoutSurfaces && object.userData?.externalTableKeepVisible) ||
           (object.userData?.isChromePlate && forceGeneratedChrome)
         )
