@@ -34,6 +34,10 @@ const FALLBACK_PIXEL =
 let sharedDronePromise = null;
 let sharedKtx2Loader = null;
 
+function assert(condition, message) {
+  if (!condition) throw new Error(message);
+}
+
 function isAbsoluteOrDataUrl(url) {
   return /^(https?:)?\/\//i.test(url) || url.startsWith('data:') || url.startsWith('blob:');
 }
@@ -90,6 +94,25 @@ function resourceCandidates(resourceUri, sourceUrl) {
   const resolved = resolveRelativeUrl(resourceUri, parentFolder(sourceUrl));
   return urlAlternates(resolved);
 }
+
+
+function runSelfTests() {
+  assert(UKRAINIAN_DRONE_SOURCES.length === 3, 'Ukrainian drone must have 3 source fallbacks');
+  assert(
+    UKRAINIAN_DRONE_SOURCES.every((source) => /drone\.glb(\?|#|$)/i.test(source.url)),
+    'Every Ukrainian drone source must point to drone.glb'
+  );
+  assert(
+    urlAlternates('https://cdn.jsdelivr.net/gh/a/b@main/c.png').some((url) => url.includes('raw.githubusercontent.com/a/b/main/c.png')),
+    'jsDelivr alternate must include raw GitHub URL'
+  );
+  assert(
+    resourceCandidates('textures/a.png', UKRAINIAN_DRONE_SOURCES[0].url).some((url) => url.includes('textures/a.png')),
+    'Relative texture candidate must preserve original texture path'
+  );
+}
+
+runSelfTests();
 
 async function fetchWithTimeout(input, init = {}, timeoutMs = TEXTURE_FETCH_TIMEOUT_MS) {
   const controller = new AbortController();

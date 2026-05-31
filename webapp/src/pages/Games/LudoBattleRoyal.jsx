@@ -2859,17 +2859,23 @@ async function createCaptureDroneLauncherTruckFx() {
 }
 
 
+function installExactUkrainianDroneVisual(root, exactModel, targetSize, currentModel = null) {
+  if (!root?.isObject3D || !exactModel?.isObject3D) return null;
+  fitObjectToTargetSize(exactModel, targetSize);
+  exactModel.rotation.y = Math.PI;
+  if (currentModel?.parent === root) root.remove(currentModel);
+  root.add(exactModel);
+  const propeller = findExactUkrainianDroneRotor(exactModel) || exactModel;
+  root.userData.exactUkrainianDroneVisual = exactModel;
+  root.userData.exactUkrainianDronePropeller = propeller;
+  return propeller;
+}
+
 function upgradeCaptureDroneRootToExactModel(root, currentModel, targetSize) {
   if (!root?.isObject3D) return;
   void loadExactUkrainianDroneModel()
     .then((exactModel) => {
-      if (!root?.isObject3D || !exactModel) return;
-      fitObjectToTargetSize(exactModel, targetSize);
-      exactModel.rotation.y = Math.PI;
-      if (currentModel?.parent === root) root.remove(currentModel);
-      root.add(exactModel);
-      root.userData.exactUkrainianDroneVisual = exactModel;
-      root.userData.exactUkrainianDronePropeller = findExactUkrainianDroneRotor(exactModel) || exactModel;
+      installExactUkrainianDroneVisual(root, exactModel, targetSize, currentModel);
     })
     .catch((error) => {
       console.warn('Exact Ukrainian drone visual failed; keeping existing Ludo drone visible.', error);
@@ -2878,14 +2884,23 @@ function upgradeCaptureDroneRootToExactModel(root, currentModel, targetSize) {
 async function createCaptureDroneFx() {
   const root = new THREE.Group();
   root.userData.lockCaptureTexture = true;
+  const exactDroneTargetSize = 4.2 * CAPTURE_DRONE_SIZE_MULTIPLIER;
+  try {
+    const exactModel = await loadExactUkrainianDroneModel();
+    const propeller = installExactUkrainianDroneVisual(root, exactModel, exactDroneTargetSize);
+    root.visible = false;
+    return { root, propeller, trail: [] };
+  } catch (error) {
+    console.warn('Exact Ukrainian drone visual failed; falling back to the legacy Ludo drone.', error);
+  }
   const loadedDrone = await loadCaptureVehicleModel('drone');
   if (loadedDrone) {
     const model = loadedDrone.clone(true);
-    fitObjectToTargetSize(model, 3.85 * CAPTURE_DRONE_SIZE_MULTIPLIER);
+    fitObjectToTargetSize(model, exactDroneTargetSize);
     model.rotation.y = Math.PI;
     const propeller = applyMilitaryDroneLook(model);
     root.add(model);
-    upgradeCaptureDroneRootToExactModel(root, model, 3.85 * CAPTURE_DRONE_SIZE_MULTIPLIER);
+    upgradeCaptureDroneRootToExactModel(root, model, exactDroneTargetSize);
     const trail = [];
     for (let i = 0; i < 5; i += 1) {
       trail.push(
