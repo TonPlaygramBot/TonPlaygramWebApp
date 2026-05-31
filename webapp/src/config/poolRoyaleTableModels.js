@@ -26,6 +26,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'pocket'],
     cushionUsesClothFinish: true,
     hideGeneratedCushionsAndJaws: true,
+    useExternalCushionVisualsOnly: true,
     preserveSourceTextureRoles: [],
     preserveOriginalSurfaceRoles: ['trim', 'wood'],
     hideSurfaceRoles: ['trim', 'wood'],
@@ -95,7 +96,7 @@ export const POOL_ROYALE_SHOWOOD_CONTROL_META = Object.freeze({
   cloth: { label: 'Field cloth', description: 'Only the flat playfield surface.' },
   cushion: {
     label: 'Cushions',
-    description: 'Matched green or Black rubber; source cushion texture is preserved like the reference preview.'
+    description: 'Cushions reuse the same GLB cloth texture choices as the field cloth; cushion shadows stay grey.'
   },
   metalAccent: {
     label: 'Rail sights + side strip + feet',
@@ -112,8 +113,8 @@ export const POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS = Object.freeze({
     b: Object.freeze({ label: 'Blue field', color: '#0d4fb8', metalness: 0, roughness: 1, envMapIntensity: 0.16 })
   }),
   cushion: Object.freeze({
-    a: Object.freeze({ label: 'Matched green', color: '#064f22', metalness: 0, roughness: 0.88, envMapIntensity: 0.55 }),
-    b: Object.freeze({ label: 'Black rubber', color: '#050505', metalness: 0, roughness: 0.86, envMapIntensity: 0.55 })
+    a: Object.freeze({ label: 'Green cloth cushion', color: '#0a7b33', metalness: 0, roughness: 0.92, envMapIntensity: 0.32 }),
+    b: Object.freeze({ label: 'Blue cloth cushion', color: '#0d4fb8', metalness: 0, roughness: 0.92, envMapIntensity: 0.32 })
   }),
   metalAccent: Object.freeze({
     a: Object.freeze({ label: 'Gold', color: '#d8b23d', metalness: 0.98, roughness: 0.06, envMapIntensity: 6.8, clearcoat: 1, clearcoatRoughness: 0.03 }),
