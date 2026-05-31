@@ -5,44 +5,53 @@ const POOLTOOL_RAW_BASE =
 
 export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
   {
-    id: 'royal-original',
-    label: 'Royal Original',
-    description: 'Current TonPlaygram table with existing gameplay geometry.',
-    tableSizeId: '9ft',
-    finishId: 'peelingPaintWeathered',
-    baseId: 'classicCylinders',
-    icon: '🎱',
-    kind: 'native'
-  },
-  {
     id: 'showood-seven-foot',
-    label: 'Showood 7 ft GLB',
+    label: 'Royal Original / Showood Surface Hybrid',
     description:
-      'Open-source Pooltool Showood showroom table matched to Pool Royale footprint while keeping the original GLB layout for cloth, cushions, pockets, and preserved Showood chrome plates.',
+      'Pool Royale keeps the Royal Original wooden rails, base, chrome plates, and decorative shell while using the Showood GLB field, cushion, jaw, and pocket layout.',
     tableSizeId: '9ft',
-    assetUrl: `${POOLTOOL_RAW_BASE}/seven_foot_showood/seven_foot_showood_pbr.glb`,
+    assetUrl: '/models/pool-royale/showood-seven-foot/seven_foot_showood.glb',
     fallbackAssetUrl: `${POOLTOOL_RAW_BASE}/seven_foot_showood/seven_foot_showood.glb`,
-    icon: '🟫',
+    fallbackAssetUrls: Object.freeze([
+      `${POOLTOOL_RAW_BASE}/seven_foot_showood/seven_foot_showood.glb`,
+      'https://cdn.jsdelivr.net/gh/ekiefl/pooltool@main/pooltool/models/table/seven_foot_showood/seven_foot_showood.glb'
+    ]),
+    icon: '🎱',
     kind: 'gltf',
-    fitScale: 1.02,
-    lowerBaseHeightScale: 1.16,
-    clothRepeatScale: 5.25,
+    fitScale: 1,
+    fitFootprintScale: 1,
+    preserveOriginalFootprintAspect: true,
+    lowerBaseHeightScale: 1.38,
+    legLengthScale: 2.05,
+    clothRepeatScale: 7.5,
     fitStrategy: 'exact',
     fitReference: 'upperTabletop',
     matchNativeHeight: true,
     matchNativeUpperComponentHeight: true,
     useOriginalLayoutSurfaces: true,
     usePoolRoyaleFinish: true,
-    usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood', 'pocket'],
-    preserveOriginalSurfaceRoles: ['trim'],
+    // Only the Showood playfield/cushion/jaw/pocket geometry is shown; the native Royal shell stays visible.
+    usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'pocket'],
+    preserveOriginalSurfaceRoles: [],
+    hideSurfaceRoles: ['wood', 'trim'],
+    preserveGeneratedTableShell: true,
     tintOriginalTrimGold: true,
+    chromeMaterialSurfaceNames: [
+      'diamonds',
+      'railSight',
+      'sideApron',
+      'apronStrip',
+      'railSightLower',
+      'cornerRailSight'
+    ],
+    blackMaterialSurfaceNames: [],
     forceGeneratedChromePlates: false,
-    hideSurfaceRoles: []
+    fitHeightScale: 1,
+    useShowoodReferenceMaterialMapping: true
   }
 ]);
 
 export const DEFAULT_POOL_ROYALE_TABLE_MODEL_ID =
-  POOL_ROYALE_TABLE_MODEL_OPTIONS.find((option) => option.id === 'showood-seven-foot')?.id ||
   POOL_ROYALE_TABLE_MODEL_OPTIONS[0].id;
 
 export function resolvePoolRoyaleTableModel(modelId) {
