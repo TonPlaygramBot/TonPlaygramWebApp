@@ -268,9 +268,6 @@ export const CHESS_HUMAN_CHARACTER_OPTIONS = Object.freeze([
 ]);
 
 const CHESS_STORE_HUMAN_CHARACTER_IDS = Object.freeze([
-  'rpm-67d411-domino',
-  'rpm-67f433-domino',
-  'rpm-67e1b5-domino',
   'webgl-vietnam-human',
   'webgl-human-body-a',
   'webgl-human-body-b',
@@ -420,10 +417,28 @@ const POOL_ROYALE_LT_TABLE_FINISH_IDS = new Set([
   'carbonFiberAlligatorNight'
 ]);
 
-const CHESS_LT_TABLE_FINISHES = Object.freeze(
-  POOL_ROYALE_STORE_ITEMS.filter(
+const CHESS_LT_TABLE_FINISH_FALLBACKS = Object.freeze([
+  {
+    optionId: 'carbonFiberSnakeChalk',
+    name: 'Carbon Fiber Snake Chalk Finish',
+    description: 'Snake-scale carbon fiber LT finish adapted for the chess battle table.',
+    price: 1630,
+    swatches: ['#050816', '#14532d', '#94a3b8'],
+    thumbnail: swatchThumbnail(['#050816', '#14532d', '#94a3b8'])
+  }
+]);
+
+const CHESS_LT_TABLE_FINISH_SOURCE_ITEMS = Object.freeze([
+  ...POOL_ROYALE_STORE_ITEMS.filter(
     (item) => item.type === 'tableFinish' && POOL_ROYALE_LT_TABLE_FINISH_IDS.has(item.optionId)
-  ).map((item) => ({
+  ),
+  ...CHESS_LT_TABLE_FINISH_FALLBACKS.filter(
+    (fallback) => !POOL_ROYALE_STORE_ITEMS.some((item) => item.type === 'tableFinish' && item.optionId === fallback.optionId)
+  )
+]);
+
+const CHESS_LT_TABLE_FINISHES = Object.freeze(
+  CHESS_LT_TABLE_FINISH_SOURCE_ITEMS.map((item) => ({
     id: item.optionId,
     label: item.name.replace(/\s*Finish$/i, ''),
     description: item.description,

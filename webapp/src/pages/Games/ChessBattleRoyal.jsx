@@ -12564,20 +12564,23 @@ function Chess3D({
           captureFxGroup.add(droneFx.root);
         }
         const launchBase = parkedDrone?.root?.position?.clone?.() || parkedDrone?.homePosition?.clone?.() || getAirPadAnchor(isWhiteSide, 'drone', 0);
-        const sideSkin = resolveSideVehicleSkin(isWhiteSide);
-        if (sideSkin) {
-          applyVehicleSkinToModel(droneFx.root, sideSkin, (node) =>
-            /rotor|propell|blade|fan|window|cockpit|glass|canopy/.test(`${node.name || ''}`.toLowerCase())
+        const exactUkrainianDroneVisual = isExactUkrainianDroneObject(droneFx.root);
+        if (!exactUkrainianDroneVisual) {
+          const sideSkin = resolveSideVehicleSkin(isWhiteSide);
+          if (sideSkin) {
+            applyVehicleSkinToModel(droneFx.root, sideSkin, (node) =>
+              /rotor|propell|blade|fan|window|cockpit|glass|canopy/.test(`${node.name || ''}`.toLowerCase())
+            );
+          }
+          setUkrainianDroneAccentsVisible(droneFx.root, true);
+          attachVehicleAvatarBadge(
+            droneFx.root,
+            isWhiteSide
+              ? avatar || username || playerFlag || '🙂'
+              : (onlineRef.current.enabled ? opponent?.avatar || opponent?.name : null) || opponent?.name || aiFlag || '🤖',
+            isWhiteSide ? 1 : -1
           );
         }
-        setUkrainianDroneAccentsVisible(droneFx.root, true);
-        attachVehicleAvatarBadge(
-          droneFx.root,
-          isWhiteSide
-            ? avatar || username || playerFlag || '🙂'
-            : (onlineRef.current.enabled ? opponent?.avatar || opponent?.name : null) || opponent?.name || aiFlag || '🤖',
-          isWhiteSide ? 1 : -1
-        );
         droneFx.root.position.copy(launchBase.clone());
         const missileFx = createFxNoSmokeDropMissile();
         missileFx.root.scale.setScalar(CAPTURE_UKRAINIAN_DRONE_MISSILE_SCALE);
