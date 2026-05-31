@@ -1303,7 +1303,7 @@ const REPLAY_CAMERA_START_DELAY_MS = 0;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
   const TABLE_LENGTH_SCALE = 0.8;
   const TABLE_SURFACE_REFERENCE = 1.12; // baseline expansion before the wider table adjustment
-  const TABLE_SURFACE_EXPANSION = 1.32; // widen/lengthen the table footprint to better match the actual 7ft Showood table size
+  const TABLE_SURFACE_EXPANSION = 1.36; // widen/lengthen the table footprint a bit more on all four sides while preserving table height
   const TABLE_SURFACE_COMPENSATION = TABLE_SURFACE_EXPANSION / TABLE_SURFACE_REFERENCE;
   const TABLE = {
     W: 72 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE * OFFICIAL_TABLE_SCALE * TABLE_SURFACE_EXPANSION,
