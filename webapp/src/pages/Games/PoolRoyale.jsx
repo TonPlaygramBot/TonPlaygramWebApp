@@ -1307,7 +1307,7 @@ const REPLAY_CAMERA_START_DELAY_MS = 0;
     WALL: 2.6 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
-const FRAME_RAIL_OUTWARD_SCALE = 1.38; // expand wooden frame rails outward by 38% on all sides
+const FRAME_RAIL_OUTWARD_SCALE = 1; // keep the Royal Original wooden frame rail width matched to the Showood GLB top rail
 const RAIL_HEIGHT = TABLE.THICK * 1.9; // lift all six cushions/rails a touch more so the top profile reads higher without changing playfield size
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.024; // push the corner jaws just a bit farther outward so the fascia follows the rounded rail and chrome cut
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
@@ -1348,8 +1348,8 @@ const SIDE_POCKET_JAW_LATERAL_EXPANSION = CORNER_POCKET_JAW_LATERAL_EXPANSION; /
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // keep middle jaw arcs the same size as the Showood-style corner jaws
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.12; // add Showood-like extra depth so side jaws match the corner jaw type
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.01; // pull middle-pocket jaws a bit farther downward than corners
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.028; // reduce the outward shift so middle-pocket jaws sit a bit more inward toward table center
-const POCKET_JAW_INWARD_PULL = 0; // keep the jaw centers aligned with the snooker pocket layout
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = 0; // align middle-pocket jaws to the Showood GLB pocket centerline
+const POCKET_JAW_INWARD_PULL = TABLE.THICK * 0.045; // pull all generated jaws slightly inward toward the playfield like the Showood GLB
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.66; // shorten middle jaw side edges a bit more so all six jaws finish cleaner at the shoulders
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
@@ -1407,7 +1407,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     'Pool table inner ratio must match the official 2:1 target after scaling.'
   );
 const MM_TO_UNITS = (innerLong / WIDTH_REF) / TABLE_SURFACE_COMPENSATION;
-const BALL_SIZE_SCALE = 0.96; // trim ball size slightly while keeping every helper tied to BALL_R/BALL_DIAMETER
+const BALL_SIZE_SCALE = 1; // official 57.15 mm pool balls; every helper stays tied to BALL_R/BALL_DIAMETER
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -2069,6 +2069,8 @@ const WOOD_REPEAT_SCALE_MAX = 2;
 const DEFAULT_WOOD_REPEAT_SCALE = FIXED_WOOD_REPEAT_SCALE;
 const GLTF_RAIL_PATTERN_REPEAT_MULTIPLIER = 2.275; // shrink GLTF rail grain by ~30% (smaller pattern tiles) while keeping leg density aligned.
 const DEFAULT_POOL_VARIANT = 'uk';
+
+const chooseRandomBreakSeat = () => (Math.random() < 0.5 ? 'A' : 'B');
 const UK_POOL_RED = 0xd12c2c;
 const UK_POOL_YELLOW = 0xffd700;
 const UK_POOL_BLACK = 0x000000;
@@ -5960,13 +5962,15 @@ function spotPositions(baulkZ) {
   const topCushion = halfH;
   const pinkZ = (topCushion + 0) / 2;
   const blackZ = topCushion - BLACK_FROM_TOP;
+  const footSpotZ = pinkZ + BALL_R * 2 + RACK_VERTICAL_SCREEN_LIFT;
   return {
     yellow: [-D_RADIUS, baulkZ],
     green: [D_RADIUS, baulkZ],
     brown: [0, baulkZ],
     blue: [0, 0],
     pink: [0, pinkZ],
-    black: [0, blackZ]
+    black: [0, blackZ],
+    foot: [0, footSpotZ]
   };
 }
 
@@ -6015,21 +6019,11 @@ function applySnookerScaling({
     const baulkZ = -halfWidth + BAULK_FROM_BAULK_REF * mmToUnits;
     const markingY = markings.baulkLine.position.y;
     markings.baulkLine.position.set(center.x, markingY, baulkZ);
-    if (markings.dArc) {
-      markings.dArc.position.set(center.x, markingY, baulkZ);
-    }
-    if (Array.isArray(markings.spots) && markings.spots.length >= 6) {
-      const [yellow, brown, green, blue, pink, black] = markings.spots;
-      const spotY = yellow?.position?.y ?? markingY;
-      if (yellow) yellow.position.set(-D_RADIUS, spotY, baulkZ);
-      if (brown) brown.position.set(0, spotY, baulkZ);
-      if (green) green.position.set(D_RADIUS, spotY, baulkZ);
-      if (blue) blue.position.set(0, spotY, center.z);
+    if (markings.footSpot) {
+      const spotY = markings.footSpot.position.y ?? markingY;
       const topCushion = halfWidth;
-      const pinkZ = (topCushion + center.z) / 2;
-      const blackZ = topCushion - BLACK_FROM_TOP_REF * mmToUnits;
-      if (pink) pink.position.set(0, spotY, pinkZ);
-      if (black) black.position.set(0, spotY, blackZ);
+      const footSpotZ = (topCushion + center.z) / 2 + BALL_D_REF * mmToUnits + RACK_VERTICAL_SCREEN_LIFT;
+      markings.footSpot.position.set(center.x, spotY, footSpotZ);
     }
   }
   if (Array.isArray(balls)) {
@@ -6313,9 +6307,6 @@ const REPLAY_CUE_STROKE_SLOWDOWN = 1.35;
 const REPLAY_CUE_STROKE_LEAD_IN_MS = 240; // include visible cue pullback before impact in replay
 const REPLAY_CUE_RELEASE_VISIBILITY_MULTIPLIER = 1; // keep replay release timing unscaled to match Snooker Royal
 const REPLAY_CUE_STARTS_ON_STROKE = false; // replay starts before impact so pullback + push motion are visible
-const BREAK_DICE_ROLL_DELAY_MS = 560;
-const BREAK_DICE_RESULT_PAUSE_MS = 720;
-const BREAK_DICE_ROLL_SOUND_URL = '/assets/sounds/u_qpfzpydtro-dice-142528.mp3';
 const REPLAY_CUE_MIN_PULLBACK_MS = 220; // guarantee a readable pullback in replay/broadcast clips
 const REPLAY_CUE_MIN_RELEASE_MS = 180; // keep forward stroke visible while still feeling fast
 const MIN_VISIBLE_CUE_PUSH_DISTANCE = BALL_R * 0.12;
@@ -6365,123 +6356,6 @@ const ensureCueStrokeForwardMotion = ({
   const adjustedPull = pullPos.clone().addScaledVector(direction, -Math.max(0, minDistance));
   return { pullPos: adjustedPull, impactPos, direction };
 };
-const BREAK_DIE_SIZE = BALL_R * 2.25;
-const BREAK_DIE_CORNER_RADIUS = BREAK_DIE_SIZE * 0.17;
-const BREAK_DIE_PIP_RADIUS = BREAK_DIE_SIZE * 0.095;
-const BREAK_DIE_PIP_SPREAD = BREAK_DIE_SIZE * 0.3;
-const BREAK_DIE_FACE_INSET = BREAK_DIE_SIZE * 0.065;
-const BREAK_DIE_BASE_HEIGHT = BALL_CENTER_Y + BALL_R * 2.4;
-
-function setBreakDieOrientation(die, value) {
-  const q = new THREE.Quaternion();
-  const eulers = {
-    1: new THREE.Euler(0, 0, 0),
-    2: new THREE.Euler(-Math.PI / 2, 0, 0),
-    3: new THREE.Euler(0, 0, Math.PI / 2),
-    4: new THREE.Euler(0, 0, -Math.PI / 2),
-    5: new THREE.Euler(Math.PI / 2, 0, 0),
-    6: new THREE.Euler(Math.PI, 0, 0)
-  };
-  q.setFromEuler(eulers[value] || eulers[1]);
-  die.setRotationFromQuaternion(q);
-}
-
-function makeBreakDie() {
-  const die = new THREE.Group();
-  const dieMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0xffffff,
-    metalness: 0.25,
-    roughness: 0.35,
-    clearcoat: 1,
-    clearcoatRoughness: 0.15,
-    envMapIntensity: 1.3
-  });
-  const pipMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0x0a0a0a,
-    roughness: 0.06,
-    metalness: 0.52,
-    clearcoat: 0.82,
-    clearcoatRoughness: 0.05
-  });
-  const body = new THREE.Mesh(
-    new RoundedBoxGeometry(BREAK_DIE_SIZE, BREAK_DIE_SIZE, BREAK_DIE_SIZE, 6, BREAK_DIE_CORNER_RADIUS),
-    dieMaterial
-  );
-  body.castShadow = true;
-  body.receiveShadow = true;
-  die.add(body);
-
-  const pipGeo = new THREE.SphereGeometry(BREAK_DIE_PIP_RADIUS, 24, 16, 0, Math.PI * 2, 0, Math.PI);
-  pipGeo.rotateX(Math.PI);
-  const faceDepth = BREAK_DIE_SIZE / 2 - BREAK_DIE_FACE_INSET * 0.6;
-  const spread = BREAK_DIE_PIP_SPREAD;
-  const faces = [
-    { normal: new THREE.Vector3(0, 1, 0), points: [[0, 0]] },
-    { normal: new THREE.Vector3(0, 0, 1), points: [[-spread, -spread], [spread, spread]] },
-    { normal: new THREE.Vector3(1, 0, 0), points: [[-spread, -spread], [0, 0], [spread, spread]] },
-    { normal: new THREE.Vector3(-1, 0, 0), points: [[-spread, -spread], [-spread, spread], [spread, -spread], [spread, spread]] },
-    { normal: new THREE.Vector3(0, 0, -1), points: [[-spread, -spread], [-spread, spread], [0, 0], [spread, -spread], [spread, spread]] },
-    { normal: new THREE.Vector3(0, -1, 0), points: [[-spread, -spread], [-spread, 0], [-spread, spread], [spread, -spread], [spread, 0], [spread, spread]] }
-  ];
-  faces.forEach(({ normal, points }) => {
-    const n = normal.clone().normalize();
-    const helper = Math.abs(n.y) > 0.9 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 1, 0);
-    const xAxis = new THREE.Vector3().crossVectors(helper, n).normalize();
-    const yAxis = new THREE.Vector3().crossVectors(n, xAxis).normalize();
-    points.forEach(([gx, gy]) => {
-      const base = new THREE.Vector3()
-        .addScaledVector(xAxis, gx)
-        .addScaledVector(yAxis, gy)
-        .addScaledVector(n, faceDepth);
-      const pip = new THREE.Mesh(pipGeo, pipMaterial);
-      pip.castShadow = true;
-      pip.receiveShadow = true;
-      pip.position.copy(base);
-      pip.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), n));
-      die.add(pip);
-    });
-  });
-
-  die.userData.setValue = (value) => {
-    die.userData.currentValue = value;
-    setBreakDieOrientation(die, value);
-  };
-  die.userData.currentValue = 1;
-  return die;
-}
-
-function spinBreakDie(die, { startPos, targetPos, duration = 920, bounceHeight = BREAK_DIE_SIZE * 0.65, forcedValue } = {}) {
-  return new Promise((resolve) => {
-    const spinStart = performance.now();
-    const from = startPos?.clone?.() ?? die.position.clone();
-    const to = targetPos?.clone?.() ?? die.position.clone();
-    const spinVec = new THREE.Vector3(1.2 + Math.random() * 0.7, 1.35 + Math.random() * 0.65, 1.05 + Math.random() * 0.75);
-    const wobble = new THREE.Vector3((Math.random() - 0.5) * BREAK_DIE_SIZE, 0, (Math.random() - 0.5) * BREAK_DIE_SIZE);
-    const targetValue = Number.isFinite(forcedValue) ? forcedValue : 1 + Math.floor(Math.random() * 6);
-    const step = () => {
-      const t = Math.min(1, (performance.now() - spinStart) / Math.max(1, duration));
-      const eased = 1 - Math.pow(1 - t, 3);
-      const next = from.clone().lerp(to, eased);
-      const wobbleStrength = Math.sin(eased * Math.PI);
-      next.addScaledVector(wobble, wobbleStrength * 0.45);
-      const bounce = Math.sin(Math.min(1, eased * 1.25) * Math.PI) * bounceHeight * (1 - eased * 0.45);
-      next.y = THREE.MathUtils.lerp(from.y, to.y, eased) + bounce;
-      die.position.copy(next);
-      const spinFactor = 1 - eased * 0.28;
-      die.rotation.x += spinVec.x * spinFactor * 0.22;
-      die.rotation.y += spinVec.y * spinFactor * 0.22;
-      die.rotation.z += spinVec.z * spinFactor * 0.22;
-      if (t < 1) {
-        requestAnimationFrame(step);
-        return;
-      }
-      if (typeof die.userData?.setValue === 'function') die.userData.setValue(targetValue);
-      die.position.copy(to);
-      resolve(targetValue);
-    };
-    requestAnimationFrame(step);
-  });
-}
 const signed = (value, fallback = 1) =>
   value > 0 ? 1 : value < 0 ? -1 : fallback;
 const resolveShortRailBroadcastDirection = ({
@@ -9286,38 +9160,12 @@ export function Table3D(
   baulkLine.position.set(0, markingHeight, baulkLineZ);
   markingsGroup.add(baulkLine);
 
-  const dRadius = D_RADIUS;
-  const dThickness = Math.max(lineThickness * 0.75, BALL_R * 0.07);
-  const dGeom = new THREE.RingGeometry(
-    Math.max(0.001, dRadius - dThickness),
-    dRadius,
-    64,
-    1,
-    0,
-    Math.PI
-  );
-  const dArc = new THREE.Mesh(dGeom, markingMat.clone());
-  dArc.rotation.x = -Math.PI / 2;
-  dArc.position.set(0, markingHeight, baulkLineZ);
-  markingsGroup.add(dArc);
-
   const spotRadius = BALL_R * 0.26;
-  const spotMeshes = [];
-  const addSpot = (x, z) => {
-    const spotGeo = new THREE.CircleGeometry(spotRadius, 32);
-    const spot = new THREE.Mesh(spotGeo, markingMat.clone());
-    spot.rotation.x = -Math.PI / 2;
-    spot.position.set(x, markingHeight, z);
-    markingsGroup.add(spot);
-    spotMeshes.push(spot);
-  };
-  addSpot(-D_RADIUS, baulkLineZ);
-  addSpot(0, baulkLineZ);
-  addSpot(D_RADIUS, baulkLineZ);
-  addSpot(0, 0);
-  const topCushionZ = PLAY_H / 2;
-  addSpot(0, (topCushionZ + 0) / 2);
-  addSpot(0, topCushionZ - BLACK_FROM_TOP);
+  const spotGeo = new THREE.CircleGeometry(spotRadius, 32);
+  const footSpot = new THREE.Mesh(spotGeo, markingMat.clone());
+  footSpot.rotation.x = -Math.PI / 2;
+  footSpot.position.set(0, markingHeight, spotPositions(baulkLineZ).foot[1]);
+  markingsGroup.add(footSpot);
   markingsGroup.traverse((child) => {
     if (child.isMesh) {
       child.renderOrder = cloth.renderOrder + 1;
@@ -9329,8 +9177,8 @@ export function Table3D(
   table.userData.markings = {
     group: markingsGroup,
     baulkLine,
-    dArc,
-    spots: spotMeshes
+    footSpot,
+    spots: [footSpot]
   };
   const pocketGeo = new THREE.CylinderGeometry(
     POCKET_TOP_R,
@@ -16656,23 +16504,10 @@ function PoolRoyaleGame({
   const aiTelemetryRef = useRef({ key: null, countdown: 0 });
   const inHandCameraRestoreRef = useRef(null);
   const openingShotViewSuppressedRef = useRef(true);
-  const [breakRollState, setBreakRollState] = useState('user');
-  const breakRollStateRef = useRef('user');
-  const [breakDiceValues, setBreakDiceValues] = useState({ ai: null, user: null });
-  const [breakRollMessage, setBreakRollMessage] = useState('You roll first for the break.');
-  const [breakRollLoadReady, setBreakRollLoadReady] = useState(false);
+  const [breakRollState, setBreakRollState] = useState('done');
+  const breakRollStateRef = useRef('done');
   const breakRollBusyRef = useRef(false);
   const breakWinnerSeatRef = useRef(null);
-  const breakRollLoadStateRef = useRef({ table: false, hdri: false });
-  const markBreakRollLoadReady = useCallback((part, ready = true) => {
-    const current = breakRollLoadStateRef.current || { table: false, hdri: false };
-    const next = {
-      ...current,
-      [part]: Boolean(ready)
-    };
-    breakRollLoadStateRef.current = next;
-    setBreakRollLoadReady(Boolean(next.table && next.hdri));
-  }, []);
 const initialHudInHand = useMemo(
   () => deriveInHandFromFrame(initialFrame),
   [initialFrame]
@@ -16746,86 +16581,11 @@ const shotPowerRef = useRef(0);
   useEffect(() => {
     hudRef.current = hud;
   }, [hud]);
-  const breakDiceValuesRef = useRef({ ai: null, user: null });
-  useEffect(() => {
-    breakDiceValuesRef.current = breakDiceValues;
-  }, [breakDiceValues]);
-
   useEffect(() => {
     breakRollStateRef.current = breakRollState;
   }, [breakRollState]);
 
   const breakRollPending = breakRollState !== 'done';
-  const playBreakDiceRollSfx = useCallback(() => {
-    if (isGameMuted()) return;
-    try {
-      const audio = new Audio(BREAK_DICE_ROLL_SOUND_URL);
-      audio.volume = 1;
-      void audio.play().catch(() => {});
-    } catch {}
-  }, []);
-  const rollBreakDie = useCallback(
-    async (seat = 'ai') => {
-      if (breakRollBusyRef.current || breakRollState === 'done') return;
-      breakRollBusyRef.current = true;
-      const seatLabel = seat === 'ai' ? 'AI' : 'You';
-      setBreakRollMessage(`${seatLabel} rolling from behind the line...`);
-      await new Promise((resolve) => window.setTimeout(resolve, BREAK_DICE_ROLL_DELAY_MS));
-      playBreakDiceRollSfx();
-      let value = await rollBreakDie3DRef.current(seat);
-      setBreakDiceValues((prev) => ({ ...prev, [seat]: value }));
-      await new Promise((resolve) => window.setTimeout(resolve, BREAK_DICE_RESULT_PAUSE_MS));
-      if (seat === 'user') {
-        setBreakRollState('ai');
-        setBreakRollMessage(`You rolled ${value}. AI rolling now...`);
-        breakRollBusyRef.current = false;
-        return;
-      }
-
-      const userValue = breakDiceValuesRef.current?.user;
-      if (!Number.isFinite(userValue)) {
-        setBreakRollState('user');
-        setBreakRollMessage('Your value is missing. Restarting break roll.');
-        setBreakDiceValues({ ai: null, user: null });
-        breakRollBusyRef.current = false;
-        return;
-      }
-
-      if (userValue === value) {
-        const rerollValue = await rollBreakDie3DRef.current(seat);
-        setBreakDiceValues((prev) => ({ ...prev, [seat]: rerollValue }));
-        await new Promise((resolve) => window.setTimeout(resolve, BREAK_DICE_RESULT_PAUSE_MS));
-        value = rerollValue === userValue ? ((rerollValue % 6) + 1) : rerollValue;
-        setBreakDiceValues((prev) => ({ ...prev, [seat]: value }));
-      }
-
-      const breakerSeat = userValue > value ? 'A' : 'B';
-      const breakerLabel = breakerSeat === 'A' ? 'You' : 'AI';
-      breakWinnerSeatRef.current = breakerSeat;
-      setBreakRollState('done');
-      setBreakRollMessage(`${breakerLabel} wins (${userValue}-${value}). Highest result breaks.`);
-      setHud((prev) => ({ ...prev, turn: breakerSeat === 'A' ? 0 : 1 }));
-      setFrameState((prev) => ({ ...prev, activePlayer: breakerSeat }));
-      breakRollBusyRef.current = false;
-    },
-    [breakRollState, playBreakDiceRollSfx]
-  );
-
-  useEffect(() => {
-    if (isTraining) return;
-    if (breakRollState !== 'ai' || breakRollBusyRef.current || !breakRollLoadReady) return;
-    rollBreakDie('ai');
-  }, [isTraining, breakRollLoadReady, breakRollState, rollBreakDie]);
-
-
-  useEffect(() => {
-    const meshes = breakDiceMeshesRef.current;
-    const shouldShow = !isTraining && breakRollState !== 'done' && !hud.over;
-    [meshes?.ai, meshes?.user].forEach((die) => {
-      if (!die) return;
-      die.visible = shouldShow;
-    });
-  }, [isTraining, breakRollState, hud.over]);
 
   useEffect(
     () => () => {
@@ -16858,26 +16618,15 @@ const shotPowerRef = useRef(0);
     setTurnCycle(0);
     setRuleToast(null);
     breakRollBusyRef.current = false;
-    breakWinnerSeatRef.current = null;
-    setBreakDiceValues({ ai: null, user: null });
-    setBreakRollState(isTraining ? 'done' : 'user');
-    setBreakRollMessage(isTraining ? '' : 'You roll first for the break.');
-    const anchors = breakDiceAnchorsRef.current;
-    const meshes = breakDiceMeshesRef.current;
-    if (anchors && meshes?.ai && meshes?.user) {
-      meshes.ai.position.copy(anchors.aiStart);
-      meshes.user.position.copy(anchors.userStart);
-      setBreakDieOrientation(meshes.ai, 1);
-      setBreakDieOrientation(meshes.user, 1);
-      const showBreakDice = !isTraining;
-      meshes.ai.visible = showBreakDice;
-      meshes.user.visible = showBreakDice;
-    }
+    const breakerSeat = isTraining ? 'A' : chooseRandomBreakSeat();
+    breakWinnerSeatRef.current = isTraining ? null : breakerSeat;
+    setBreakRollState('done');
+    setFrameState((prev) => ({ ...prev, activePlayer: breakerSeat }));
     setHud((prev) => ({
       ...prev,
       A: 0,
       B: 0,
-      turn: 0,
+      turn: breakerSeat === 'A' ? 0 : 1,
       phase: 'reds',
       next: 'red',
       inHand: nextInHand,
@@ -17430,9 +17179,6 @@ const shotPowerRef = useRef(0);
   }, []);
   const cueRef = useRef(null);
   const ballsRef = useRef([]);
-  const breakDiceMeshesRef = useRef({ ai: null, user: null });
-  const breakDiceAnchorsRef = useRef(null);
-  const rollBreakDie3DRef = useRef(async () => 1);
   const pocketDropRef = useRef(new Map());
   const pocketRestIndexRef = useRef(new Map());
   const pocketPopupRef = useRef([]);
@@ -19392,8 +19138,6 @@ const shotPowerRef = useRef(0);
   useEffect(() => {
     const host = mountRef.current;
     if (!host) return;
-    breakRollLoadStateRef.current = { table: false, hdri: false };
-    setBreakRollLoadReady(false);
     setErr(null);
     if (!isWebGLAvailable()) {
       setErr('WebGL is not available on this device. Enable hardware acceleration to play.');
@@ -19576,7 +19320,6 @@ const shotPowerRef = useRef(0);
       updateEnvironmentRef.current = applyHdriEnvironment;
       void applyHdriEnvironment(activeEnvironmentVariantRef.current).finally(() => {
         if (!disposed) {
-          markBreakRollLoadReady('hdri', true);
         }
       });
       let worldScaleFactor = WORLD_SCALE * (tableSizeRef.current?.scale ?? 1);
@@ -25188,41 +24931,6 @@ const shotPowerRef = useRef(0);
       );
       const SPOTS = spotPositions(baulkZ);
 
-      const breakDiceGroup = new THREE.Group();
-      table.add(breakDiceGroup);
-      const aiBreakDie = makeBreakDie();
-      const userBreakDie = makeBreakDie();
-      breakDiceGroup.add(aiBreakDie);
-      breakDiceGroup.add(userBreakDie);
-      breakDiceMeshesRef.current = { ai: aiBreakDie, user: userBreakDie };
-      const breakLineDepth = PLAY_H * 0.37;
-      const breakCenterOffset = BALL_R * 3.1;
-      const makeBreakAnchors = () => ({
-        aiStart: new THREE.Vector3(0, BREAK_DIE_BASE_HEIGHT, breakLineDepth),
-        aiEnd: new THREE.Vector3(-breakCenterOffset, BREAK_DIE_BASE_HEIGHT, 0),
-        userStart: new THREE.Vector3(0, BREAK_DIE_BASE_HEIGHT, -breakLineDepth),
-        userEnd: new THREE.Vector3(breakCenterOffset, BREAK_DIE_BASE_HEIGHT, 0)
-      });
-      breakDiceAnchorsRef.current = makeBreakAnchors();
-      aiBreakDie.position.copy(breakDiceAnchorsRef.current.aiStart);
-      userBreakDie.position.copy(breakDiceAnchorsRef.current.userStart);
-      setBreakDieOrientation(aiBreakDie, 1);
-      setBreakDieOrientation(userBreakDie, 1);
-      rollBreakDie3DRef.current = async (seat = 'ai') => {
-        const anchors = breakDiceAnchorsRef.current || makeBreakAnchors();
-        breakDiceAnchorsRef.current = anchors;
-        const die = seat === 'ai' ? breakDiceMeshesRef.current.ai : breakDiceMeshesRef.current.user;
-        if (!die) return 1;
-        const startPos = seat === 'ai' ? anchors.aiStart : anchors.userStart;
-        const targetPos = seat === 'ai' ? anchors.aiEnd : anchors.userEnd;
-        return spinBreakDie(die, {
-          startPos,
-          targetPos,
-          duration: seat === 'ai' ? 980 : 930,
-          bounceHeight: BREAK_DIE_SIZE * 0.78
-        });
-      };
-      markBreakRollLoadReady('table', true);
       const longestSide = Math.max(PLAY_W, PLAY_H);
       const secondarySpacingBase =
         Math.max(longestSide * 2.4, Math.max(TABLE.W, TABLE.H) * 2.6) * TABLE_DISPLAY_SCALE;
@@ -26549,16 +26257,6 @@ const shotPowerRef = useRef(0);
       };
       const cueColor = variantConfig?.cueColor ?? finishPalette.cue;
       cue = add('cue', cueColor, -BALL_R * 2, baulkZ);
-
-      if (variantConfig?.disableSnookerMarkings && table?.userData?.markings) {
-        const { dArc, spots } = table.userData.markings;
-        if (dArc) dArc.visible = false;
-        if (Array.isArray(spots)) {
-          spots.forEach((spot) => {
-            if (spot) spot.visible = false;
-          });
-        }
-      }
 
       const placeTrainingLayout = (layout) => {
         if (!layout) return false;
@@ -31239,7 +30937,6 @@ const shotPowerRef = useRef(0);
                   spin: { x: 0, y: 0 },
                   target: 'rack'
                 };
-                setBreakRollMessage('AI won the roll and is taking a maximum-power break.');
               } else {
                 plan = {
                   ...plan,
@@ -34779,9 +34476,6 @@ const shotPowerRef = useRef(0);
         cueGalleryStateRef.current.prev = null;
         cueGalleryStateRef.current.position?.set(0, 0, 0);
         cueGalleryStateRef.current.target?.set(0, 0, 0);
-        breakDiceMeshesRef.current = { ai: null, user: null };
-        breakDiceAnchorsRef.current = null;
-        rollBreakDie3DRef.current = async () => 1;
         sceneRef.current = null;
       };
       } catch (e) {
@@ -35539,25 +35233,6 @@ const shotPowerRef = useRef(0);
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
-
-      {!isTraining && breakRollState !== 'done' && !hud.over && (
-        <div className="pointer-events-none absolute inset-0 z-[95] flex items-center justify-center">
-          <div className="pointer-events-auto w-[min(18rem,84vw)] text-center">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-100">Highest result breaks</p>
-            <p className="mt-3 text-xs font-semibold text-white/90">{breakRollMessage}</p>
-            {breakRollState === 'user' && (
-              <button
-                type="button"
-                onClick={() => rollBreakDie('user')}
-                disabled={breakRollBusyRef.current}
-                className="mt-4 rounded-full border border-cyan-200/75 bg-cyan-200/95 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-slate-950 transition hover:bg-cyan-100 disabled:cursor-not-allowed disabled:opacity-55"
-              >
-                Roll your die
-              </button>
-            )}
-          </div>
-        </div>
-      )}
 
       {replayBanner && (
         <div className="pointer-events-none absolute top-4 right-4 z-50" aria-live="polite">
