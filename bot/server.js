@@ -1041,7 +1041,10 @@ function maybeStartGame(table) {
     if (table.startTimeout) return;
     table.startTimeout = setTimeout(() => {
       console.log(`Table ${table.id} confirmed by all players. Starting game.`);
-      if (table.gameType === 'chess') {
+      if (table.gameType === 'poolroyale') {
+        const randomStarter = table.players[Math.floor(Math.random() * table.players.length)];
+        if (randomStarter) table.currentTurn = randomStarter.id;
+      } else if (table.gameType === 'chess') {
         table.players = assignChessSides(table.players);
         const whitePlayer = table.players.find((p) => p.side === 'white');
         if (whitePlayer) table.currentTurn = whitePlayer.id;

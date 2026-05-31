@@ -1307,7 +1307,7 @@ const REPLAY_CAMERA_START_DELAY_MS = 0;
     WALL: 2.6 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
-const FRAME_RAIL_OUTWARD_SCALE = 1.38; // expand wooden frame rails outward by 38% on all sides
+const FRAME_RAIL_OUTWARD_SCALE = 1.3; // match the procedural wood frame width closer to the Showood GLB top rail
 const RAIL_HEIGHT = TABLE.THICK * 1.9; // lift all six cushions/rails a touch more so the top profile reads higher without changing playfield size
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.024; // push the corner jaws just a bit farther outward so the fascia follows the rounded rail and chrome cut
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
@@ -1349,7 +1349,7 @@ const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // keep middle jaw arcs the same siz
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.12; // add Showood-like extra depth so side jaws match the corner jaw type
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.01; // pull middle-pocket jaws a bit farther downward than corners
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.028; // reduce the outward shift so middle-pocket jaws sit a bit more inward toward table center
-const POCKET_JAW_INWARD_PULL = 0; // keep the jaw centers aligned with the snooker pocket layout
+const POCKET_JAW_INWARD_PULL = TABLE.THICK * 0.026; // pull procedural jaw centers slightly inward to match the Showood GLB pocket placement
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.66; // shorten middle jaw side edges a bit more so all six jaws finish cleaner at the shoulders
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
@@ -1407,7 +1407,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     'Pool table inner ratio must match the official 2:1 target after scaling.'
   );
 const MM_TO_UNITS = (innerLong / WIDTH_REF) / TABLE_SURFACE_COMPENSATION;
-const BALL_SIZE_SCALE = 0.96; // trim ball size slightly while keeping every helper tied to BALL_R/BALL_DIAMETER
+const BALL_SIZE_SCALE = 1; // official WPA/WEPF 57.15 mm balls; every helper stays tied to BALL_R/BALL_DIAMETER
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -5958,14 +5958,16 @@ const createTripodBroadcastCamera = (() => {
 function spotPositions(baulkZ) {
   const halfH = PLAY_H / 2;
   const topCushion = halfH;
-  const pinkZ = (topCushion + 0) / 2;
+  const footSpotZ = (topCushion + 0) / 2;
   const blackZ = topCushion - BLACK_FROM_TOP;
   return {
+    headString: [0, baulkZ],
+    penalty: [0, footSpotZ],
     yellow: [-D_RADIUS, baulkZ],
     green: [D_RADIUS, baulkZ],
     brown: [0, baulkZ],
     blue: [0, 0],
-    pink: [0, pinkZ],
+    pink: [0, footSpotZ],
     black: [0, blackZ]
   };
 }
@@ -6016,20 +6018,14 @@ function applySnookerScaling({
     const markingY = markings.baulkLine.position.y;
     markings.baulkLine.position.set(center.x, markingY, baulkZ);
     if (markings.dArc) {
-      markings.dArc.position.set(center.x, markingY, baulkZ);
+      markings.dArc.visible = false;
     }
-    if (Array.isArray(markings.spots) && markings.spots.length >= 6) {
-      const [yellow, brown, green, blue, pink, black] = markings.spots;
-      const spotY = yellow?.position?.y ?? markingY;
-      if (yellow) yellow.position.set(-D_RADIUS, spotY, baulkZ);
-      if (brown) brown.position.set(0, spotY, baulkZ);
-      if (green) green.position.set(D_RADIUS, spotY, baulkZ);
-      if (blue) blue.position.set(0, spotY, center.z);
+    if (Array.isArray(markings.spots) && markings.spots.length) {
+      const [penaltySpot] = markings.spots;
+      const spotY = penaltySpot?.position?.y ?? markingY;
       const topCushion = halfWidth;
-      const pinkZ = (topCushion + center.z) / 2;
-      const blackZ = topCushion - BLACK_FROM_TOP_REF * mmToUnits;
-      if (pink) pink.position.set(0, spotY, pinkZ);
-      if (black) black.position.set(0, spotY, blackZ);
+      const penaltyZ = (topCushion + center.z) / 2;
+      if (penaltySpot) penaltySpot.position.set(center.x, spotY, penaltyZ);
     }
   }
   if (Array.isArray(balls)) {
@@ -6313,9 +6309,8 @@ const REPLAY_CUE_STROKE_SLOWDOWN = 1.35;
 const REPLAY_CUE_STROKE_LEAD_IN_MS = 240; // include visible cue pullback before impact in replay
 const REPLAY_CUE_RELEASE_VISIBILITY_MULTIPLIER = 1; // keep replay release timing unscaled to match Snooker Royal
 const REPLAY_CUE_STARTS_ON_STROKE = false; // replay starts before impact so pullback + push motion are visible
-const BREAK_DICE_ROLL_DELAY_MS = 560;
-const BREAK_DICE_RESULT_PAUSE_MS = 720;
-const BREAK_DICE_ROLL_SOUND_URL = '/assets/sounds/u_qpfzpydtro-dice-142528.mp3';
+const RANDOM_BREAK_REVEAL_DELAY_MS = 360;
+const RANDOM_BREAK_RESULT_PAUSE_MS = 480;
 const REPLAY_CUE_MIN_PULLBACK_MS = 220; // guarantee a readable pullback in replay/broadcast clips
 const REPLAY_CUE_MIN_RELEASE_MS = 180; // keep forward stroke visible while still feeling fast
 const MIN_VISIBLE_CUE_PUSH_DISTANCE = BALL_R * 0.12;
@@ -9274,7 +9269,7 @@ export function Table3D(
   const markingMat = new THREE.MeshBasicMaterial({
     color: palette.markings,
     transparent: true,
-    opacity: 0.9,
+    opacity: 0.94,
     side: THREE.DoubleSide
   });
   const markingHeight = clothPlaneLocal - CLOTH_DROP + MICRO_EPS * 2;
@@ -9286,38 +9281,19 @@ export function Table3D(
   baulkLine.position.set(0, markingHeight, baulkLineZ);
   markingsGroup.add(baulkLine);
 
-  const dRadius = D_RADIUS;
-  const dThickness = Math.max(lineThickness * 0.75, BALL_R * 0.07);
-  const dGeom = new THREE.RingGeometry(
-    Math.max(0.001, dRadius - dThickness),
-    dRadius,
-    64,
-    1,
-    0,
-    Math.PI
-  );
-  const dArc = new THREE.Mesh(dGeom, markingMat.clone());
-  dArc.rotation.x = -Math.PI / 2;
-  dArc.position.set(0, markingHeight, baulkLineZ);
-  markingsGroup.add(dArc);
-
-  const spotRadius = BALL_R * 0.26;
+  const dArc = null;
+  const spotRadius = BALL_R * 0.28;
   const spotMeshes = [];
   const addSpot = (x, z) => {
-    const spotGeo = new THREE.CircleGeometry(spotRadius, 32);
+    const spotGeo = new THREE.CircleGeometry(spotRadius, 40);
     const spot = new THREE.Mesh(spotGeo, markingMat.clone());
     spot.rotation.x = -Math.PI / 2;
     spot.position.set(x, markingHeight, z);
     markingsGroup.add(spot);
     spotMeshes.push(spot);
   };
-  addSpot(-D_RADIUS, baulkLineZ);
-  addSpot(0, baulkLineZ);
-  addSpot(D_RADIUS, baulkLineZ);
-  addSpot(0, 0);
   const topCushionZ = PLAY_H / 2;
   addSpot(0, (topCushionZ + 0) / 2);
-  addSpot(0, topCushionZ - BLACK_FROM_TOP);
   markingsGroup.traverse((child) => {
     if (child.isMesh) {
       child.renderOrder = cloth.renderOrder + 1;
@@ -16520,10 +16496,13 @@ function PoolRoyaleGame({
     const params = new URLSearchParams(location.search);
     return params.get('seat') === 'B' ? 'B' : 'A';
   }, [location.search]);
+  const randomStarterSeatRef = useRef(Math.random() < 0.5 ? 'A' : 'B');
   const starterSeat = useMemo(() => {
     const params = new URLSearchParams(location.search);
-    return params.get('starter') === 'B' ? 'B' : 'A';
-  }, [location.search]);
+    const explicitStarter = params.get('starter');
+    if (explicitStarter === 'B' || explicitStarter === 'A') return explicitStarter;
+    return mode === 'online' || playType === 'training' ? 'A' : randomStarterSeatRef.current;
+  }, [location.search, mode, playType]);
   const isOnlineMatch = mode === 'online';
   const aiOpponentEnabled = !isOnlineMatch && !isTraining;
   const framePlayerAName = localSeat === 'A' ? playerLabel : opponentLabel;
@@ -16656,10 +16635,10 @@ function PoolRoyaleGame({
   const aiTelemetryRef = useRef({ key: null, countdown: 0 });
   const inHandCameraRestoreRef = useRef(null);
   const openingShotViewSuppressedRef = useRef(true);
-  const [breakRollState, setBreakRollState] = useState('user');
-  const breakRollStateRef = useRef('user');
+  const [breakRollState, setBreakRollState] = useState('done');
+  const breakRollStateRef = useRef('done');
   const [breakDiceValues, setBreakDiceValues] = useState({ ai: null, user: null });
-  const [breakRollMessage, setBreakRollMessage] = useState('You roll first for the break.');
+  const [breakRollMessage, setBreakRollMessage] = useState('Random break selected.');
   const [breakRollLoadReady, setBreakRollLoadReady] = useState(false);
   const breakRollBusyRef = useRef(false);
   const breakWinnerSeatRef = useRef(null);
@@ -16756,71 +16735,38 @@ const shotPowerRef = useRef(0);
   }, [breakRollState]);
 
   const breakRollPending = breakRollState !== 'done';
-  const playBreakDiceRollSfx = useCallback(() => {
-    if (isGameMuted()) return;
-    try {
-      const audio = new Audio(BREAK_DICE_ROLL_SOUND_URL);
-      audio.volume = 1;
-      void audio.play().catch(() => {});
-    } catch {}
-  }, []);
-  const rollBreakDie = useCallback(
-    async (seat = 'ai') => {
-      if (breakRollBusyRef.current || breakRollState === 'done') return;
+  const chooseRandomBreakerSeat = useCallback(() => (Math.random() < 0.5 ? 'A' : 'B'), []);
+  const applyRandomBreaker = useCallback(
+    async ({ announce = true } = {}) => {
+      if (isTraining || breakRollBusyRef.current) return null;
       breakRollBusyRef.current = true;
-      const seatLabel = seat === 'ai' ? 'AI' : 'You';
-      setBreakRollMessage(`${seatLabel} rolling from behind the line...`);
-      await new Promise((resolve) => window.setTimeout(resolve, BREAK_DICE_ROLL_DELAY_MS));
-      playBreakDiceRollSfx();
-      let value = await rollBreakDie3DRef.current(seat);
-      setBreakDiceValues((prev) => ({ ...prev, [seat]: value }));
-      await new Promise((resolve) => window.setTimeout(resolve, BREAK_DICE_RESULT_PAUSE_MS));
-      if (seat === 'user') {
-        setBreakRollState('ai');
-        setBreakRollMessage(`You rolled ${value}. AI rolling now...`);
-        breakRollBusyRef.current = false;
-        return;
-      }
-
-      const userValue = breakDiceValuesRef.current?.user;
-      if (!Number.isFinite(userValue)) {
-        setBreakRollState('user');
-        setBreakRollMessage('Your value is missing. Restarting break roll.');
-        setBreakDiceValues({ ai: null, user: null });
-        breakRollBusyRef.current = false;
-        return;
-      }
-
-      if (userValue === value) {
-        const rerollValue = await rollBreakDie3DRef.current(seat);
-        setBreakDiceValues((prev) => ({ ...prev, [seat]: rerollValue }));
-        await new Promise((resolve) => window.setTimeout(resolve, BREAK_DICE_RESULT_PAUSE_MS));
-        value = rerollValue === userValue ? ((rerollValue % 6) + 1) : rerollValue;
-        setBreakDiceValues((prev) => ({ ...prev, [seat]: value }));
-      }
-
-      const breakerSeat = userValue > value ? 'A' : 'B';
+      setBreakRollState('randomizing');
+      setBreakRollMessage('Randomly selecting the breaker...');
+      await new Promise((resolve) => window.setTimeout(resolve, RANDOM_BREAK_REVEAL_DELAY_MS));
+      const breakerSeat = chooseRandomBreakerSeat();
       const breakerLabel = breakerSeat === 'A' ? 'You' : 'AI';
       breakWinnerSeatRef.current = breakerSeat;
       setBreakRollState('done');
-      setBreakRollMessage(`${breakerLabel} wins (${userValue}-${value}). Highest result breaks.`);
+      setBreakRollMessage(`${breakerLabel} breaks first. Random selection complete.`);
       setHud((prev) => ({ ...prev, turn: breakerSeat === 'A' ? 0 : 1 }));
       setFrameState((prev) => ({ ...prev, activePlayer: breakerSeat }));
+      await new Promise((resolve) => window.setTimeout(resolve, RANDOM_BREAK_RESULT_PAUSE_MS));
+      if (announce) showRuleToast(`${breakerLabel} breaks first`);
       breakRollBusyRef.current = false;
+      return breakerSeat;
     },
-    [breakRollState, playBreakDiceRollSfx]
+    [chooseRandomBreakerSeat, isTraining, showRuleToast]
   );
 
   useEffect(() => {
-    if (isTraining) return;
-    if (breakRollState !== 'ai' || breakRollBusyRef.current || !breakRollLoadReady) return;
-    rollBreakDie('ai');
-  }, [isTraining, breakRollLoadReady, breakRollState, rollBreakDie]);
+    if (isTraining || !breakRollLoadReady || breakRollState !== 'pending-random') return;
+    applyRandomBreaker();
+  }, [applyRandomBreaker, breakRollLoadReady, breakRollState, isTraining]);
 
 
   useEffect(() => {
     const meshes = breakDiceMeshesRef.current;
-    const shouldShow = !isTraining && breakRollState !== 'done' && !hud.over;
+    const shouldShow = false;
     [meshes?.ai, meshes?.user].forEach((die) => {
       if (!die) return;
       die.visible = shouldShow;
@@ -16860,8 +16806,8 @@ const shotPowerRef = useRef(0);
     breakRollBusyRef.current = false;
     breakWinnerSeatRef.current = null;
     setBreakDiceValues({ ai: null, user: null });
-    setBreakRollState(isTraining ? 'done' : 'user');
-    setBreakRollMessage(isTraining ? '' : 'You roll first for the break.');
+    setBreakRollState(isTraining ? 'done' : 'pending-random');
+    setBreakRollMessage(isTraining ? '' : 'Randomly selecting the breaker...');
     const anchors = breakDiceAnchorsRef.current;
     const meshes = breakDiceMeshesRef.current;
     if (anchors && meshes?.ai && meshes?.user) {
@@ -16869,9 +16815,8 @@ const shotPowerRef = useRef(0);
       meshes.user.position.copy(anchors.userStart);
       setBreakDieOrientation(meshes.ai, 1);
       setBreakDieOrientation(meshes.user, 1);
-      const showBreakDice = !isTraining;
-      meshes.ai.visible = showBreakDice;
-      meshes.user.visible = showBreakDice;
+      meshes.ai.visible = false;
+      meshes.user.visible = false;
     }
     setHud((prev) => ({
       ...prev,
@@ -17559,7 +17504,8 @@ const shotPowerRef = useRef(0);
   }, []);
   const resetMatchState = useCallback(
     ({ broadcast = false } = {}) => {
-      const nextFrame = initialFrame;
+      const randomStarter = !isTraining && !isOnlineMatch ? chooseRandomBreakerSeat() : null;
+      const nextFrame = randomStarter ? { ...initialFrame, activePlayer: randomStarter } : initialFrame;
       const nextInHand = deriveInHandFromFrame(nextFrame);
       openingShotViewSuppressedRef.current = true;
       frameRef.current = nextFrame;
@@ -17570,6 +17516,7 @@ const shotPowerRef = useRef(0);
         power: 0,
         A: nextFrame.players.A.score ?? 0,
         B: nextFrame.players.B.score ?? 0,
+        turn: nextFrame.activePlayer === 'B' ? 1 : 0,
         inHand: nextInHand,
         over: false
       }));
@@ -17589,6 +17536,12 @@ const shotPowerRef = useRef(0);
       setIncomingRematch(null);
       setIncomingCountdown(0);
       gameOverHandledRef.current = false;
+      if (randomStarter) {
+        const breakerLabel = randomStarter === 'A' ? 'You' : 'AI';
+        breakWinnerSeatRef.current = randomStarter;
+        setBreakRollMessage(`${breakerLabel} breaks first. Random selection complete.`);
+        showRuleToast(`${breakerLabel} breaks first`);
+      }
       resetTableLayoutForRematch();
       if (broadcast && isOnlineMatch && tableId) {
         const layout = captureBallSnapshotRef.current
@@ -17605,9 +17558,12 @@ const shotPowerRef = useRef(0);
     },
     [
       aiOpponentEnabled,
+      chooseRandomBreakerSeat,
       initialFrame,
       isOnlineMatch,
+      isTraining,
       resetTableLayoutForRematch,
+      showRuleToast,
       tableId
     ]
   );
@@ -25188,40 +25144,10 @@ const shotPowerRef = useRef(0);
       );
       const SPOTS = spotPositions(baulkZ);
 
-      const breakDiceGroup = new THREE.Group();
-      table.add(breakDiceGroup);
-      const aiBreakDie = makeBreakDie();
-      const userBreakDie = makeBreakDie();
-      breakDiceGroup.add(aiBreakDie);
-      breakDiceGroup.add(userBreakDie);
-      breakDiceMeshesRef.current = { ai: aiBreakDie, user: userBreakDie };
-      const breakLineDepth = PLAY_H * 0.37;
-      const breakCenterOffset = BALL_R * 3.1;
-      const makeBreakAnchors = () => ({
-        aiStart: new THREE.Vector3(0, BREAK_DIE_BASE_HEIGHT, breakLineDepth),
-        aiEnd: new THREE.Vector3(-breakCenterOffset, BREAK_DIE_BASE_HEIGHT, 0),
-        userStart: new THREE.Vector3(0, BREAK_DIE_BASE_HEIGHT, -breakLineDepth),
-        userEnd: new THREE.Vector3(breakCenterOffset, BREAK_DIE_BASE_HEIGHT, 0)
-      });
-      breakDiceAnchorsRef.current = makeBreakAnchors();
-      aiBreakDie.position.copy(breakDiceAnchorsRef.current.aiStart);
-      userBreakDie.position.copy(breakDiceAnchorsRef.current.userStart);
-      setBreakDieOrientation(aiBreakDie, 1);
-      setBreakDieOrientation(userBreakDie, 1);
-      rollBreakDie3DRef.current = async (seat = 'ai') => {
-        const anchors = breakDiceAnchorsRef.current || makeBreakAnchors();
-        breakDiceAnchorsRef.current = anchors;
-        const die = seat === 'ai' ? breakDiceMeshesRef.current.ai : breakDiceMeshesRef.current.user;
-        if (!die) return 1;
-        const startPos = seat === 'ai' ? anchors.aiStart : anchors.userStart;
-        const targetPos = seat === 'ai' ? anchors.aiEnd : anchors.userEnd;
-        return spinBreakDie(die, {
-          startPos,
-          targetPos,
-          duration: seat === 'ai' ? 980 : 930,
-          bounceHeight: BREAK_DIE_SIZE * 0.78
-        });
-      };
+      // Break order is now randomized directly; no dice meshes or dice roll animation are added to the table.
+      breakDiceMeshesRef.current = { ai: null, user: null };
+      breakDiceAnchorsRef.current = null;
+      rollBreakDie3DRef.current = async () => 1;
       markBreakRollLoadReady('table', true);
       const longestSide = Math.max(PLAY_W, PLAY_H);
       const secondarySpacingBase =
@@ -35542,19 +35468,9 @@ const shotPowerRef = useRef(0);
 
       {!isTraining && breakRollState !== 'done' && !hud.over && (
         <div className="pointer-events-none absolute inset-0 z-[95] flex items-center justify-center">
-          <div className="pointer-events-auto w-[min(18rem,84vw)] text-center">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-100">Highest result breaks</p>
+          <div className="pointer-events-auto w-[min(18rem,84vw)] rounded-3xl border border-cyan-200/35 bg-slate-950/70 px-5 py-4 text-center shadow-[0_18px_42px_rgba(0,0,0,0.48)] backdrop-blur">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan-100">Random break</p>
             <p className="mt-3 text-xs font-semibold text-white/90">{breakRollMessage}</p>
-            {breakRollState === 'user' && (
-              <button
-                type="button"
-                onClick={() => rollBreakDie('user')}
-                disabled={breakRollBusyRef.current}
-                className="mt-4 rounded-full border border-cyan-200/75 bg-cyan-200/95 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-slate-950 transition hover:bg-cyan-100 disabled:cursor-not-allowed disabled:opacity-55"
-              >
-                Roll your die
-              </button>
-            )}
           </div>
         </div>
       )}
