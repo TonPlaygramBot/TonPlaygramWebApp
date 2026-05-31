@@ -848,12 +848,12 @@ const CHROME_CORNER_POCKET_CUT_SCALE = 1.045; // open only the corner chrome rou
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.03; // open middle-pocket chrome rounded cuts a tiny bit more so the arc reads slightly larger
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // reduce inward pull so middle pocket chrome cuts sit a bit farther out
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1.045; // match the wooden rail pocket relief to the Showood jaw outside diameter
-const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.958; // shrink the wooden corner rounded cut a touch more so only the wood corner radius reads slightly tighter
+const WOOD_CORNER_RELIEF_INWARD_SCALE = 1; // keep wooden corner pocket cuts matched to the Showood/chrome rounded cuts
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
-  (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_CORNER_POCKET_CUT_CENTER_OUTSET_SCALE = -0.018; // push only the wooden corner rounded cut outward a touch without moving side-pocket cuts
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.045; // keep middle rail rounded cuts identical to the corner/showood-style pocket arcs
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.068; // move middle wooden relief outward a bit more with the shifted side-pocket geometry
+  (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // cancel the global relief so corner wood arches use the same radius as Showood
+const WOOD_CORNER_POCKET_CUT_CENTER_OUTSET_SCALE = 0; // keep wooden corner cut centers exactly on the Showood/chrome pocket centers
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1 / WOOD_RAIL_POCKET_RELIEF_SCALE; // cancel the global relief so middle wood cuts match the Showood side arcs
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0; // keep middle wooden relief centered on the Showood side-pocket cut
 
 function buildChromePlateGeometry({
   width,
@@ -12160,7 +12160,8 @@ const POOL_ROYALE_SHOWOOD_PART_TO_CONTROL = Object.freeze({
   underside: 'legBase',
   trim: 'metalAccent',
   wood: 'topWoodRail',
-  pocket: 'jaws'
+  pocket: 'jaws',
+  cushionShadow: 'cushion'
 });
 const POOL_ROYALE_SHOWOOD_KEEP_TEXTURE_PARTS = new Set([
   'cushion',
@@ -12203,15 +12204,17 @@ function classifyPoolRoyaleShowoodReferencePart(child, material) {
   const gold = color.r > 0.42 && color.g > 0.29 && color.b < 0.25 && color.r >= color.g * 0.88;
   const metalish = (material?.metalness ?? 0) > 0.16 || (material?.clearcoat ?? 0) > 0.58 || gold;
 
+  if (/shadow/.test(label) && /cushion|rail/.test(label)) return 'cushionShadow';
   if (/cloth|felt|fabric|surface|bed|slate|playfield|baize/.test(label) && !/cushion|rubber|bumper/.test(childName)) return 'cloth';
   if (/cushion|rubber|bumper|railrubber|rail[_\s-]*nose/.test(childName)) return 'cushion';
   if (/sight|diamond|marker|dot|inlay/.test(label)) return 'railSight';
-  if (/pocket|hole|drop|net|liner|leather|cup|basket|holder/.test(label)) {
+  if (/pocket|hole|drop|net|liner|leather|cup|basket|holder|bevel/.test(label)) {
     return metalish && !black && !brown ? 'cornerPocketPlate' : 'pocketCup';
   }
   if (/trim|bezel|ring|metal|chrome|brass|gold|plate|cap|rim|guard|insert|hardware|bolt|screw/.test(label) || metalish) {
     return /foot|feet/.test(label) ? 'baseFoot' : 'lowerTrim';
   }
+  if (black && /plastic|material|bevel/.test(label)) return 'pocketCup';
   if (/leg/.test(label)) return 'leg';
   if (/base|block|support|underside/.test(label)) return 'baseCornerBlock';
   if (/rail|frame|top|wood|walnut|showood|apron|cabinet|corner/.test(label)) return 'topWoodRail';
@@ -12227,6 +12230,25 @@ function applyPoolRoyaleShowoodReferenceMaterial(material, part, tableModel = nu
   const choice = palette[control] || POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE[control] || 'a';
   const option = POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS[control]?.[choice] || POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS[control]?.a;
   if (!option) return mat;
+  if (part === 'cushionShadow') {
+    mat.color?.set?.('#8a8f98');
+    if ('metalness' in mat) mat.metalness = 0;
+    if ('roughness' in mat) mat.roughness = 1;
+    if ('envMapIntensity' in mat) mat.envMapIntensity = 0.08;
+    mat.transparent = true;
+    mat.opacity = 0.58;
+    mat.depthWrite = false;
+    mat.side = THREE.DoubleSide;
+    mat.userData = {
+      ...(mat.userData || {}),
+      poolRoyaleShowoodReferencePart: part,
+      poolRoyaleShowoodReferenceControl: control,
+      poolRoyaleShowoodReferenceChoice: choice,
+      poolRoyaleCushionShadowGrey: true
+    };
+    mat.needsUpdate = true;
+    return mat;
+  }
   mat.color?.set?.(option.color);
   if ('metalness' in mat) mat.metalness = option.metalness;
   if ('roughness' in mat) mat.roughness = option.roughness;
@@ -12256,11 +12278,11 @@ function classifyPoolRoyaleExternalTableSurface(child, material) {
   // Showood uses a shared "cloth" material on the cushion meshes, so mesh names
   // must win over material names for physics mapping and finish assignment.
   if (/cushion|rubber|bumper|rail[_\s-]*nose/.test(childName)) return 'cushion';
-  if (/pocket|liner|leather|net|basket|drop|holder/.test(childName)) return 'pocket';
+  if (/pocket|liner|leather|net|basket|drop|holder|bevel/.test(childName)) return 'pocket';
   if (/diamond|gold|metal|chrome|sight|marker|plate|trim|screw|bolt/.test(childName)) return 'trim';
   if (/slate|cloth|felt|baize|bed|playfield|playing[_\s-]*surface/.test(childName)) return 'cloth';
   if (/cloth|felt|baize|slate|bed|playfield|playing[_\s-]*surface/.test(label)) return 'cloth';
-  if (/pocket|liner|leather|net|basket|drop/.test(label)) return 'pocket';
+  if (/pocket|liner|leather|net|basket|drop|bevel/.test(label)) return 'pocket';
   if (/metal|chrome|gold|diamond|sight|marker|plate|trim|screw|bolt/.test(label)) return 'trim';
   if (/leg|foot|base|support|frame|wood|rail|apron|cabinet|showood|bevel/.test(label)) return 'wood';
   return 'wood';
@@ -12637,6 +12659,31 @@ function resolvePoolRoyaleExternalTableFitBounds(model, tableModel = null) {
   return { fullBox, footprintBox };
 }
 
+
+function applyPoolRoyaleExternalTablePartAdjustments(model, tableModel = null) {
+  if (!model || !tableModel) return;
+  const jawLift = tableModel.liftExternalJawsAboveChrome ? TABLE.THICK * 0.07 : 0;
+  if (!Number.isFinite(jawLift) || Math.abs(jawLift) <= MICRO_EPS) return;
+  const inverseScaleY = 1 / Math.max(MICRO_EPS, Math.abs(model.scale?.y || 1));
+  model.traverse((child) => {
+    if (!child?.isMesh) return;
+    const material = Array.isArray(child.material) ? child.material[0] : child.material;
+    const referencePart = classifyPoolRoyaleShowoodReferencePart(child, material);
+    const role = classifyPoolRoyaleExternalTableSurface(child, material);
+    const shouldLiftJaw =
+      role === 'pocket' ||
+      referencePart === 'pocketCup' ||
+      /bevel|pocket|holder|liner|cup/i.test(`${child.name || ''} ${material?.name || ''}`);
+    if (!shouldLiftJaw) return;
+    child.position.y += jawLift * inverseScaleY;
+    child.userData = {
+      ...(child.userData || {}),
+      poolRoyaleExternalJawLift: jawLift
+    };
+  });
+  model.updateMatrixWorld(true);
+}
+
 function stretchPoolRoyaleExternalLowerBase(model, tableModel, dims) {
   const scale = Number(tableModel?.lowerBaseHeightScale);
   if (!model || !Number.isFinite(scale) || scale <= 1 + MICRO_EPS) return;
@@ -12733,6 +12780,7 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   model.position.y += targetTopLocal - fullBox.max.y + (tableModel?.verticalOffset ?? 0);
   model.updateMatrixWorld(true);
   stretchPoolRoyaleExternalLowerBase(model, tableModel, dims);
+  applyPoolRoyaleExternalTablePartAdjustments(model, tableModel);
   model.userData = {
     ...(model.userData || {}),
     poolRoyaleExternalTable: true,
@@ -13491,10 +13539,27 @@ function mountPoolRoyaleExternalTableModel({
       ...pocketMeshes
     ].forEach(markGeneratedCushionsAndJawsHiddenByExternalTable);
   }
+  const detachGeneratedObjectForExternalTable = (object) => {
+    if (!object?.parent || object.userData?.externalTableDetachedFromParent) return;
+    object.userData = {
+      ...(object.userData || {}),
+      externalTableDetachedFromParent: object.parent
+    };
+    table.userData.detachedGeneratedExternalSurfaces = table.userData.detachedGeneratedExternalSurfaces || [];
+    table.userData.detachedGeneratedExternalSurfaces.push(object);
+    object.parent.remove(object);
+  };
   const setGeneratedVisualsVisible = (visible) => {
     generatedVisualObjects.forEach((object) => {
       const forceGeneratedChrome = Boolean(externalTableModelForMount?.forceGeneratedChromePlates);
       if (!visible && externalTableModelForMount?.keepGeneratedShell) {
+        if (
+          externalTableModelForMount?.removeGeneratedCushionsAndJaws &&
+          object.userData?.externalTableHideWhenMounted
+        ) {
+          detachGeneratedObjectForExternalTable(object);
+          return;
+        }
         object.visible = object.userData?.externalTableHideWhenMounted
           ? false
           : !object.userData?.externalTableReplaceableSurface;
