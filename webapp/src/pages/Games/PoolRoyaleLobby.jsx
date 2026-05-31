@@ -699,14 +699,14 @@ export default function PoolRoyaleLobby() {
             })}
           </div>
           <p className="text-xs text-white/60">
-            Royal Original keeps the procedural cushions, wooden rail frame, chrome plates, and pocket jaws; Showood exposes cloth-library and GLTF table-finish texture choices.
+            Royal Original now keeps TonPlaygram shell/chrome but uses GLB cushions and pocket jaws; Showood uses the reference texture mapping and option set.
           </p>
           {selectedTableModel.useReferenceShowoodMapping ? (
             <div className="rounded-2xl border border-amber-300/20 bg-black/25 p-3">
               <div className="mb-2 flex items-center justify-between gap-2">
                 <div>
                   <h4 className="text-sm font-semibold text-white">Showood table setup</h4>
-                  <p className="text-[11px] text-white/55">Cloth and cushions use the cloth library; rail frame and legs/base use GLTF table-finish textures.</p>
+                  <p className="text-[11px] text-white/55">Same material options as the supplied reference preview.</p>
                 </div>
                 <button
                   type="button"
@@ -726,37 +726,27 @@ export default function PoolRoyaleLobby() {
                         <p className="text-[11px] font-black uppercase tracking-[0.22em] text-emerald-100">{meta.label}</p>
                         <p className="text-[10px] leading-snug text-white/50">{meta.description}</p>
                       </div>
-                      <div className="flex max-h-36 flex-wrap gap-2 overflow-y-auto pr-1">
-                        {options.map((option) => {
-                          const choice = option.id;
+                      <div className="flex flex-wrap gap-2">
+                        {['a', 'b'].map((choice) => {
+                          const option = options[choice];
                           const active = showoodPalette[control] === choice;
                           return (
                             <button
                               key={`${control}-${choice}`}
                               type="button"
                               onClick={() => setShowoodPalette((current) => ({ ...current, [control]: choice }))}
-                              className={`flex min-w-[8.5rem] flex-1 items-center justify-between gap-2 rounded-full border px-3 py-1.5 text-[11px] font-extrabold transition ${
+                              className={`flex flex-1 items-center justify-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-extrabold transition ${
                                 active
                                   ? 'border-white/80 bg-white/20 text-white shadow-[0_0_14px_rgba(255,255,255,0.22)]'
                                   : 'border-white/15 bg-white/5 text-white/70'
                               }`}
                             >
-                              <span className="flex min-w-0 items-center gap-2">
-                                <span
-                                  className="h-3.5 w-3.5 shrink-0 rounded-full border border-white/40"
-                                  style={{ backgroundColor: option.color }}
-                                  aria-hidden="true"
-                                />
-                                <span className="truncate">{option.label}</span>
-                              </span>
-                              {option.thumbnail ? (
-                                <img
-                                  src={option.thumbnail}
-                                  alt={option.label}
-                                  className="h-6 w-10 shrink-0 rounded-lg border border-white/20 object-cover"
-                                  loading="lazy"
-                                />
-                              ) : null}
+                              <span
+                                className="h-3.5 w-3.5 rounded-full border border-white/40"
+                                style={{ backgroundColor: option.color }}
+                                aria-hidden="true"
+                              />
+                              <span>{option.label}</span>
                             </button>
                           );
                         })}
