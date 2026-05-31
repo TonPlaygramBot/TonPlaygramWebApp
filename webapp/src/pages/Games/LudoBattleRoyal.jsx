@@ -2859,70 +2859,48 @@ async function createCaptureDroneLauncherTruckFx() {
 }
 
 
-function createCaptureDroneTrail(root) {
-  const trail = [];
-  for (let i = 0; i < 5; i += 1) {
-    trail.push(
-      addFxSphere(
-        root,
-        0.12 + i * 0.03,
-        [-0.84 - i * 0.19, 0, 0],
-        i < 2 ? '#f6af4b' : '#8f989d',
-        i < 2 ? 0.2 : 1,
-        0,
-        true,
-        i < 2 ? 0.8 - i * 0.15 : 0.26 - (i - 2) * 0.04
-      )
-    );
-  }
-  return trail;
-}
-
-function attachExactUkrainianDroneModel(root, exactModel, targetSize) {
-  if (!root?.isObject3D || !exactModel) return null;
-  fitObjectToTargetSize(exactModel, targetSize);
-  exactModel.rotation.y = Math.PI;
-  root.add(exactModel);
-  root.userData.exactUkrainianDroneVisual = exactModel;
-  root.userData.exactUkrainianDronePropeller = findExactUkrainianDroneRotor(exactModel);
-  return root.userData.exactUkrainianDronePropeller;
-}
-
 function upgradeCaptureDroneRootToExactModel(root, currentModel, targetSize) {
   if (!root?.isObject3D) return;
   void loadExactUkrainianDroneModel()
     .then((exactModel) => {
       if (!root?.isObject3D || !exactModel) return;
+      fitObjectToTargetSize(exactModel, targetSize);
+      exactModel.rotation.y = Math.PI;
       if (currentModel?.parent === root) root.remove(currentModel);
-      attachExactUkrainianDroneModel(root, exactModel, targetSize);
+      root.add(exactModel);
+      root.userData.exactUkrainianDroneVisual = exactModel;
+      root.userData.exactUkrainianDronePropeller = findExactUkrainianDroneRotor(exactModel) || exactModel;
     })
     .catch((error) => {
       console.warn('Exact Ukrainian drone visual failed; keeping existing Ludo drone visible.', error);
     });
 }
-async function createCaptureDroneFx({ exactUkrainian = false } = {}) {
+async function createCaptureDroneFx() {
   const root = new THREE.Group();
   root.userData.lockCaptureTexture = true;
-  const targetSize = 3.85 * CAPTURE_DRONE_SIZE_MULTIPLIER;
-  if (exactUkrainian) {
-    try {
-      const exactModel = await loadExactUkrainianDroneModel();
-      const propeller = attachExactUkrainianDroneModel(root, exactModel, targetSize);
-      root.visible = false;
-      return { root, propeller, trail: [], exactUkrainian: true };
-    } catch (error) {
-      console.warn('Exact Ukrainian drone visual failed; falling back to Ludo drone.', error);
-    }
-  }
   const loadedDrone = await loadCaptureVehicleModel('drone');
   if (loadedDrone) {
     const model = loadedDrone.clone(true);
-    fitObjectToTargetSize(model, targetSize);
+    fitObjectToTargetSize(model, 3.85 * CAPTURE_DRONE_SIZE_MULTIPLIER);
     model.rotation.y = Math.PI;
     const propeller = applyMilitaryDroneLook(model);
     root.add(model);
-    if (!exactUkrainian) upgradeCaptureDroneRootToExactModel(root, model, targetSize);
-    const trail = exactUkrainian ? [] : createCaptureDroneTrail(root);
+    upgradeCaptureDroneRootToExactModel(root, model, 3.85 * CAPTURE_DRONE_SIZE_MULTIPLIER);
+    const trail = [];
+    for (let i = 0; i < 5; i += 1) {
+      trail.push(
+        addFxSphere(
+          root,
+          0.12 + i * 0.03,
+          [-0.84 - i * 0.19, 0, 0],
+          i < 2 ? '#f6af4b' : '#8f989d',
+          i < 2 ? 0.2 : 1,
+          0,
+          true,
+          i < 2 ? 0.8 - i * 0.15 : 0.26 - (i - 2) * 0.04
+        )
+      );
+    }
     root.visible = false;
     return { root, propeller, trail };
   }
@@ -2994,7 +2972,21 @@ async function createCaptureDroneFx({ exactUkrainian = false } = {}) {
   propeller.add(blade2);
   addFxSphere(propeller, 0.07, [0, 0, 0], '#41484d', 0.45, 0.25);
   root.add(propeller);
-  const trail = createCaptureDroneTrail(root);
+  const trail = [];
+  for (let i = 0; i < 5; i += 1) {
+    trail.push(
+      addFxSphere(
+        root,
+        0.12 + i * 0.03,
+        [-0.84 - i * 0.19, 0, 0],
+        i < 2 ? '#f6af4b' : '#8f989d',
+        i < 2 ? 0.2 : 1,
+        0,
+        true,
+        i < 2 ? 0.8 - i * 0.15 : 0.26 - (i - 2) * 0.04
+      )
+    );
+  }
   applyMilitaryDroneLook(root, propeller);
   root.visible = false;
   return { root, propeller, trail };
@@ -9179,7 +9171,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       // eslint-disable-next-line no-await-in-loop
       const helicopterFx = await createCaptureHelicopterFx();
       // eslint-disable-next-line no-await-in-loop
-      const droneFx = await createCaptureDroneFx({ exactUkrainian: true });
+      const droneFx = await createCaptureDroneFx();
       // eslint-disable-next-line no-await-in-loop
       const missileFx = await createCaptureMissileTruckFx();
       // eslint-disable-next-line no-await-in-loop
@@ -12572,7 +12564,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         if (isFighterJetAttack) playFighterJetSound();
         const primaryFx =
           (resolvedCaptureAnimationId === 'droneAttack' || resolvedCaptureAnimationId === 'ukrainianDroneAttack')
-            ? await createCaptureDroneFx({ exactUkrainian: resolvedCaptureAnimationId === 'ukrainianDroneAttack' })
+            ? await createCaptureDroneFx()
             : resolvedCaptureAnimationId === 'helicopterAttack'
             ? await createCaptureHelicopterFx()
             : resolvedCaptureAnimationId === 'fighterJetAttack'
