@@ -1249,7 +1249,7 @@ const CHROME_CORNER_CENTER_OUTSET_SCALE = 0.024; // push corner fascia a tiny bi
 const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0; // let the corner fascia terminate precisely where the cushion noses stop
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0; // stop pulling the chrome off the short-rail centreline so the jaws stay flush
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0.06; // trim the corner chrome footprint so the outside strip near corner pockets is visibly shorter
-const CHROME_CORNER_POCKET_EDGE_ROUND_SCALE = 0.9; // strongly round the outer corner-pocket-adjacent edges so the red-marked trim is clearly visible on mobile
+const CHROME_CORNER_POCKET_EDGE_ROUND_SCALE = 0; // keep the corner plate rail-side edges straight so they line up with the short rails
 const CHROME_SIDE_POCKET_RADIUS_SCALE =
   CORNER_POCKET_INWARD_SCALE *
   CHROME_CORNER_POCKET_RADIUS_SCALE; // match the middle chrome arches to the corner pocket radius
@@ -1598,6 +1598,8 @@ const CLOTH_COLOR_STORAGE_KEY = 'poolRoyaleClothColor';
 const TABLE_BASE_STORAGE_KEY = 'poolRoyaleTableBase';
 const POCKET_LINER_STORAGE_KEY = 'poolPocketLiner';
 const POOL_ROYALE_REPLAY_ENABLED = true;
+const ENABLE_POOL_ROYALE_HUMAN_CHARACTERS = false;
+const ENABLE_POOL_ROYALE_LOUNGE_TABLES = false;
 const POOL_ROYALE_VOICE_COMMENTARY_ENABLED = false;
 const COMMENTARY_PRESET_STORAGE_KEY = 'poolRoyaleCommentaryPreset';
 const COMMENTARY_MUTE_STORAGE_KEY = 'poolRoyaleCommentaryMute';
@@ -1746,14 +1748,14 @@ const RAIL_HEIGHT = TABLE.THICK * 1.9; // lift all six cushions/rails a touch mo
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.024; // push the corner jaws just a bit farther outward so the fascia follows the rounded rail and chrome cut
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
-const POCKET_JAW_CORNER_INNER_SCALE = 1.62; // stretch the inner lip into a longer Showood-style rounded pocket jaw while keeping playable mouth size
-const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 1.03; // round and widen the middle jaws slightly more while keeping the corner match
-const POCKET_JAW_CORNER_OUTER_SCALE = 1.86; // broaden the outer jaw shoulder to mirror the Showood rounded pocket cup profile
+const POCKET_JAW_CORNER_INNER_SCALE = 1.68; // stretch the inner lip into the longer Showood GLB pocket-jaw layout while keeping playable mouth size
+const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 1.01; // keep middle jaws on the same Showood GLB jaw layout as the corner pockets
+const POCKET_JAW_CORNER_OUTER_SCALE = 1.92; // broaden the outer jaw shoulder to mirror the Showood GLB rounded pocket cup profile
 const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.036; // nudge corner jaws a touch farther outward to keep the jaw shoulder aligned with the rail cut
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
-const POCKET_JAW_DEPTH_SCALE = 1.08; // deepen all jaw bodies so the default pockets carry the same Showood jaw depth
+const POCKET_JAW_DEPTH_SCALE = 1.16; // deepen all jaw bodies so Royal Original uses the Showood GLB jaw depth
 const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.094; // lower all six jaws a hair more so the mouths sit slightly deeper
 const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.036; // trim a little more from the jaw bottoms
 const POCKET_JAW_CORNER_BOTTOM_CLEARANCE = TABLE.THICK * 0.012; // keep corner jaw bottom trim aligned with the global bottom reduction
@@ -1777,8 +1779,8 @@ const POCKET_JAW_CORNER_EDGE_FACTOR = 0.36; // widen the chamfer so the corner j
 const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the middle pocket chamfer identical to the corners
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
-const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.74; // pull both corner-jaw flanks inward a bit more while keeping current jaw height
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.5; // expand both middle-jaw flanks slightly so all six jaws open up evenly
+const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.88; // widen both corner-jaw flanks to match the Showood GLB jaw spread while keeping current jaw height
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.62; // expand both middle-jaw flanks so all six Royal jaws follow the Showood GLB layout
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.995; // keep middle jaw arcs slightly tighter so side jaws look a bit smaller
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.12; // add Showood-like extra depth so side jaws match the corner jaw type
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.01; // pull middle-pocket jaws a bit farther downward than corners
@@ -10349,12 +10351,12 @@ export function Table3D(
   const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.012; // keep cushions closer to center to avoid overlap with rails
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = TABLE.THICK * 0.016; // push short-rail cushions farther outward so they sit flush against the short rails without visible gap
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.064; // push long side-rail cushions a tiny bit farther outward toward the rail edge
-  const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.24; // keep native cushion noses closer to the Showood corner-jaw reach
+  const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.16; // stop cushion noses at the Showood GLB jaw openings instead of overreaching into the pockets
   const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.00; // trim the cushion tips near middle pockets so they stop at the rail cut
-  const LONG_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.42; // let native long cushions reach the Showood-style corner jaws
-  const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.02; // keep side cushion ends nearly flush with the Showood pocket-jaw layout
+  const LONG_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.62; // trim native long cushions to the Showood GLB jaw-to-cushion break points
+  const SHORT_RAIL_CUSHION_LENGTH_TRIM = BALL_R * 0.18; // trim short-rail cushion ends to the same Showood GLB jaw-to-cushion break points
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.062; // nudge side cushions a little farther outward so they sit closer to the side rails
-  const SIDE_CUSHION_CORNER_SHIFT = TABLE.THICK * 0.142; // trim the side-rail cushion ends near corner pockets just a tiny bit more; middle-pocket trims stay unchanged
+  const SIDE_CUSHION_CORNER_SHIFT = TABLE.THICK * 0.108; // align side-rail cushion runs with the Showood GLB middle/corner jaw layout
   const SHORT_RAIL_CUSHION_VERTICAL_LIFT = TABLE.THICK * 0.045; // lift all six cushions higher so Showood and Royal profiles share the same visual top line
   const LONG_RAIL_CUSHION_VERTICAL_LIFT = SHORT_RAIL_CUSHION_VERTICAL_LIFT; // keep long-rail cushions at the same height as the short rails
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
@@ -26325,6 +26327,16 @@ const shotPowerRef = useRef(0);
 
       const spawnPlayerCharacters = async () => {
         disposePlayerCharacters();
+        if (!ENABLE_POOL_ROYALE_HUMAN_CHARACTERS && !ENABLE_POOL_ROYALE_LOUNGE_TABLES) {
+          activeHumanCueViewRef.current = null;
+          characterTurnFlowRef.current = {
+            activeSeat: null,
+            pendingSeat: null,
+            seatedBySeat: { A: true, B: true }
+          };
+          playerCharacterRigsRef.current = [];
+          return;
+        }
         const zOffset = TABLE.H * 0.72;
         const sideOffset = TABLE.W * 0.19;
         const makeRig = (seat, x, z, yaw, characterOption = null) => {
@@ -26406,17 +26418,26 @@ const shotPowerRef = useRef(0);
         };
         const playerA = activeHumanCharacterRef.current || POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0];
         const playerB = POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.find((option) => option.id !== playerA.id) || POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[1] || playerA;
-        const loungeA = createPoolSideLounge('A', -1);
-        const loungeB = createPoolSideLounge('B', 1);
-        const referee = await createRefereeOfficial();
-        world.add(loungeA, loungeB, referee);
-        playerCharacterRigsRef.current = [
-          makeRig('A', -sideOffset, -zOffset, 0, playerA),
-          makeRig('B', sideOffset, zOffset, Math.PI, playerB),
-          { group: loungeA, lounge: true, seat: 'A' },
-          { group: loungeB, lounge: true, seat: 'B' },
-          { group: referee, referee: true }
-        ];
+        const nextRigs = [];
+        if (ENABLE_POOL_ROYALE_HUMAN_CHARACTERS) {
+          nextRigs.push(
+            makeRig('A', -sideOffset, -zOffset, 0, playerA),
+            makeRig('B', sideOffset, zOffset, Math.PI, playerB)
+          );
+          const referee = await createRefereeOfficial();
+          world.add(referee);
+          nextRigs.push({ group: referee, referee: true });
+        }
+        if (ENABLE_POOL_ROYALE_LOUNGE_TABLES) {
+          const loungeA = createPoolSideLounge('A', -1);
+          const loungeB = createPoolSideLounge('B', 1);
+          world.add(loungeA, loungeB);
+          nextRigs.push(
+            { group: loungeA, lounge: true, seat: 'A' },
+            { group: loungeB, lounge: true, seat: 'B' }
+          );
+        }
+        playerCharacterRigsRef.current = nextRigs;
       };
       spawnPlayerCharactersRef.current = spawnPlayerCharacters;
 
@@ -29405,14 +29426,10 @@ const shotPowerRef = useRef(0);
           const contactPos = impactPos
             .clone()
             .addScaledVector(dir, contactAdvance);
-          const followDistance = THREE.MathUtils.lerp(
-            CUE_FOLLOW_THROUGH_MIN,
-            CUE_FOLLOW_THROUGH_MAX,
-            clampedPower
-          );
-          const followPos = contactPos
-            .clone()
-            .addScaledVector(dir, followDistance);
+          // Stop the visible cue at cue-ball contact. The physics impulse still fires at
+          // impact, but the stick no longer follows the moving cue ball after the hit.
+          const followDistance = 0;
+          const followPos = contactPos.clone().addScaledVector(dir, followDistance);
           const followDurationResolved = strikeHoldDuration;
           const recoverDuration = strokeProfile.recoverDuration ?? 0;
           const forwardPreviewHold =
@@ -36463,37 +36480,39 @@ const shotPowerRef = useRef(0);
               </button>
             </div>
             <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Human Pool Player
-                </h3>
-                <div className="mt-2 grid grid-cols-2 gap-1.5">
-                  {POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.map((option, index) => {
-                    const active = option.id === humanCharacterId;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setHumanCharacterId(option.id)}
-                        aria-pressed={active}
-                        title={`${option.label} • ${option.summary}`}
-                        className={`min-h-[3.25rem] rounded-xl border px-2.5 py-1.5 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        <span className="block truncate text-[10px] font-black uppercase tracking-[0.18em]">
-                          {index + 1}. {option.logicLabel}
-                        </span>
-                        <span className={`mt-0.5 block text-[8px] font-bold uppercase tracking-[0.12em] ${active ? 'text-black/65' : 'text-white/58'}`}>
-                          feet planted • table-facing
-                        </span>
-                      </button>
-                    );
-                  })}
+              {ENABLE_POOL_ROYALE_HUMAN_CHARACTERS && (
+                <div>
+                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                    Human Pool Player
+                  </h3>
+                  <div className="mt-2 grid grid-cols-2 gap-1.5">
+                    {POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.map((option, index) => {
+                      const active = option.id === humanCharacterId;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setHumanCharacterId(option.id)}
+                          aria-pressed={active}
+                          title={`${option.label} • ${option.summary}`}
+                          className={`min-h-[3.25rem] rounded-xl border px-2.5 py-1.5 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                            active
+                              ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                              : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                          }`}
+                        >
+                          <span className="block truncate text-[10px] font-black uppercase tracking-[0.18em]">
+                            {index + 1}. {option.logicLabel}
+                          </span>
+                          <span className={`mt-0.5 block text-[8px] font-bold uppercase tracking-[0.12em] ${active ? 'text-black/65' : 'text-white/58'}`}>
+                            feet planted • table-facing
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              )}
               {ENABLE_SHOT_REPLAY ? (
                 <div>
                   <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
