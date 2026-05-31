@@ -1870,8 +1870,7 @@ async function loadCaptureVehicleModel(kind) {
   if (CAPTURE_VEHICLE_MODEL_CACHE.has(kind)) return CAPTURE_VEHICLE_MODEL_CACHE.get(kind);
   const promise = (async () => {
     const urls = CAPTURE_VEHICLE_MODEL_HOSTS.map((host) => `${host}/${file}`);
-    const loader = new GLTFLoader();
-    loader.setCrossOrigin('anonymous');
+    const loader = createConfiguredGLTFLoader();
     const imageCache = new Map();
     for (const url of urls) {
       try {
@@ -4445,11 +4444,7 @@ let abgAssetPromise = null;
 async function getAbgAssets() {
   if (abgAssetPromise) return abgAssetPromise;
   abgAssetPromise = (async () => {
-    const loader = new GLTFLoader();
-    loader.setCrossOrigin('anonymous');
-    const draco = new DRACOLoader();
-    draco.setDecoderPath(DRACO_DECODER_PATH);
-    loader.setDRACOLoader(draco);
+    const loader = createConfiguredGLTFLoader();
 
     let root = null;
     for (const url of ABG_MODEL_URLS) {
@@ -5097,10 +5092,7 @@ function applyChairThemeMaterials(three, theme) {
 }
 
 async function loadGltfChair() {
-  const loader = new GLTFLoader();
-  const draco = new DRACOLoader();
-  draco.setDecoderPath(DRACO_DECODER_PATH);
-  loader.setDRACOLoader(draco);
+  const loader = createConfiguredGLTFLoader();
 
   let gltf = null;
   let lastError = null;
