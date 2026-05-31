@@ -37,14 +37,6 @@ import {
   POOL_ROYALE_TABLE_MODEL_STORAGE_KEY,
   resolvePoolRoyaleTableModel
 } from '../../config/poolRoyaleTableModels.js';
-import {
-  POOL_ROYALE_SHOWOOD_CONTROL_META,
-  POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS,
-  POOL_ROYALE_SHOWOOD_CONTROL_PARTS,
-  POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE,
-  applyPoolRoyaleShowoodReferenceMapping,
-  normalizePoolRoyaleShowoodPalette
-} from '../../utils/poolRoyaleShowoodMapping.js';
 import { resolveTableSize as resolveSnookerTableSize } from '../../config/snookerClubTables.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { chatBeep } from '../../assets/coreSoundData.js';
@@ -1166,7 +1158,6 @@ const TABLE_FINISH_STORAGE_KEY = 'poolRoyaleTableFinish';
 const CLOTH_COLOR_STORAGE_KEY = 'poolRoyaleClothColor';
 const TABLE_BASE_STORAGE_KEY = 'poolRoyaleTableBase';
 const POCKET_LINER_STORAGE_KEY = 'poolPocketLiner';
-const SHOWOOD_PALETTE_STORAGE_KEY = 'poolRoyaleShowoodPalette';
 const POOL_ROYALE_REPLAY_ENABLED = true;
 const POOL_ROYALE_VOICE_COMMENTARY_ENABLED = false;
 const COMMENTARY_PRESET_STORAGE_KEY = 'poolRoyaleCommentaryPreset';
@@ -12316,7 +12307,6 @@ function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tab
   if (role === 'cloth' || role === 'cushion') {
     const preserveSourceTexture = Array.isArray(tableModel?.preserveSourceTextureRoles) &&
       tableModel.preserveSourceTextureRoles.includes(role);
-    const matchCushionToCloth = role === 'cushion' && tableModel?.matchCushionsToCloth;
     const sourceSnapshot = preserveSourceTexture
       ? {
           map: mat.map,
@@ -12327,7 +12317,7 @@ function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tab
           aoMap: mat.aoMap
         }
       : null;
-    copyMaterialLook(matchCushionToCloth ? finishInfo.clothMat : (role === 'cushion' ? finishInfo.cushionMat : finishInfo.clothMat));
+    copyMaterialLook(role === 'cushion' ? finishInfo.cushionMat : finishInfo.clothMat);
     if (sourceSnapshot) {
       Object.assign(mat, sourceSnapshot);
     }
@@ -12375,10 +12365,6 @@ function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tab
 }
 
 function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finishInfo = null) {
-  if (tableModel?.useReferenceShowoodMapping) {
-    applyPoolRoyaleShowoodReferenceMapping(root, tableModel.showoodPalette);
-    return;
-  }
   root?.traverse?.((child) => {
     if (!child?.isMesh) return;
     child.castShadow = true;
@@ -14003,23 +13989,6 @@ function PoolRoyaleGame({
     () => resolvePoolRoyaleTableModel(tableModelKey),
     [tableModelKey]
   );
-  const [showoodPalette, setShowoodPalette] = useState(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = window.localStorage.getItem(SHOWOOD_PALETTE_STORAGE_KEY);
-        if (stored) return normalizePoolRoyaleShowoodPalette(JSON.parse(stored));
-      } catch {}
-    }
-    return normalizePoolRoyaleShowoodPalette(POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE);
-  });
-  const activeTableModelWithPalette = useMemo(
-    () =>
-      activeTableModel?.useReferenceShowoodMapping
-        ? { ...activeTableModel, showoodPalette }
-        : activeTableModel,
-    [activeTableModel, showoodPalette]
-  );
-  const showoodTableSetupActive = activeTableModel?.useReferenceShowoodMapping === true;
   const responsiveTableSize = useResponsiveTableSize(activeTableSize);
   const resolvedAccountId = useMemo(
     () => poolRoyalAccountId(accountId),
@@ -14566,24 +14535,6 @@ function PoolRoyaleGame({
       POCKET_LINER_OPTIONS[0],
     [availablePocketLiners, pocketLinerId]
   );
-  const showoodOptionRows = useMemo(
-    () =>
-      POOL_ROYALE_SHOWOOD_CONTROL_PARTS.map((control) => ({
-        control,
-        ...POOL_ROYALE_SHOWOOD_CONTROL_META[control],
-        selected: showoodPalette[control],
-        options: POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS[control]
-      })),
-    [showoodPalette]
-  );
-  const setShowoodControlChoice = useCallback((control, choice) => {
-    setShowoodPalette((current) =>
-      normalizePoolRoyaleShowoodPalette({
-        ...current,
-        [control]: choice === 'b' ? 'b' : 'a'
-      })
-    );
-  }, []);
   useEffect(() => {
     if (!POOL_ROYALE_VOICE_COMMENTARY_ENABLED) {
       setCommentarySupported(false);
@@ -16020,11 +15971,6 @@ function PoolRoyaleGame({
   useEffect(() => {
     activeVariantRef.current = activeVariant;
   }, [activeVariant]);
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(SHOWOOD_PALETTE_STORAGE_KEY, JSON.stringify(showoodPalette));
-    }
-  }, [showoodPalette]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(TABLE_FINISH_STORAGE_KEY, tableFinishId);
@@ -24789,7 +24735,7 @@ const shotPowerRef = useRef(0);
         railMarkerStyleRef.current,
         activeTableBase,
         rendererRef.current,
-        { tableModel: activeTableModelWithPalette, chromePlateStyle: activeChromePlateStyle }
+        { tableModel: activeTableModel, chromePlateStyle: activeChromePlateStyle }
       );
       const SPOTS = spotPositions(baulkZ);
 
@@ -24844,7 +24790,7 @@ const shotPowerRef = useRef(0);
         railMarkerStyleRef.current,
         activeTableBase,
         rendererRef.current,
-        { tableModel: activeTableModelWithPalette, chromePlateStyle: activeChromePlateStyle }
+        { tableModel: activeTableModel, chromePlateStyle: activeChromePlateStyle }
       );
       secondaryTableRef.current = secondaryTableEntry?.group ?? null;
       secondaryBaseSetterRef.current = secondaryTableEntry?.setBaseVariant ?? null;
@@ -35614,68 +35560,10 @@ const shotPowerRef = useRef(0);
                   </button>
                 </div>
               ) : null}
-              {showoodTableSetupActive ? (
-                <div className="rounded-3xl border border-emerald-300/25 bg-black/20 p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                        Showood Table Setup
-                      </h3>
-                      <p className="mt-1 text-[0.68rem] text-white/60">
-                        Uses the pasted Showood GLB texture mapping and identical two-choice controls.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowoodPalette(normalizePoolRoyaleShowoodPalette(POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE))}
-                      className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-white/80"
-                    >
-                      Reset
-                    </button>
-                  </div>
-                  <div className="mt-3 grid gap-3">
-                    {showoodOptionRows.map((row) => (
-                      <div key={row.control} className="grid gap-2 rounded-2xl bg-white/5 p-2">
-                        <div>
-                          <p className="text-[11px] font-black uppercase tracking-[0.2em] text-white">{row.label}</p>
-                          <p className="mt-0.5 text-[0.65rem] leading-snug text-white/55">{row.description}</p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {(['a', 'b']).map((choice) => {
-                            const option = row.options[choice];
-                            const active = row.selected === choice;
-                            return (
-                              <button
-                                key={`${row.control}-${choice}`}
-                                type="button"
-                                onClick={() => setShowoodControlChoice(row.control, choice)}
-                                aria-pressed={active}
-                                className={`flex min-w-[8.5rem] flex-1 items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                                  active
-                                    ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                                    : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                                }`}
-                              >
-                                <span
-                                  className="h-3.5 w-3.5 rounded-full border border-white/40"
-                                  style={{ backgroundColor: option.color }}
-                                  aria-hidden="true"
-                                />
-                                <span className="truncate">{option.label}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-              {!showoodTableSetupActive ? (
-                <div>
-                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                    Table Finish
-                  </h3>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Table Finish
+                </h3>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {availableTableFinishes.map((option) => {
                     const active = option.id === tableFinishId;
@@ -35704,13 +35592,11 @@ const shotPowerRef = useRef(0);
                       </button>
                     );
                   })}
-                  </div>
                 </div>
-              ) : null}
-              {!showoodTableSetupActive ? (
-                <div>
-                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                    Table Base
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Table Base
                 </h3>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {availableTableBases.map((option) => {
@@ -35750,9 +35636,8 @@ const shotPowerRef = useRef(0);
                       </button>
                     );
                   })}
-                  </div>
                 </div>
-              ) : null}
+              </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   HDR Environment
