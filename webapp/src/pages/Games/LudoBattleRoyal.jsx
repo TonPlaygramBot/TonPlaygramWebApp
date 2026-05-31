@@ -398,10 +398,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/webaverse/pistol/master/military.glb',
       'https://cdn.statically.io/gh/webaverse/pistol/master/military.glb'
     ],
-    scale: 0.13,
-    textureOverrideUrls: [
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/AK47.jpeg'
-    ]
+    scale: 0.13
   },
   uziSprayAttack: {
     label: 'Uzi',
@@ -449,10 +446,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models3/SigSauer/scene.gltf',
       'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models3/SigSauer/scene.gltf'
     ],
-    scale: 0.13,
-    textureOverrideUrls: [
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/SigSauer.jpg'
-    ]
+    scale: 0.13
   },
   grenadeBlastAttack: {
     label: 'Grenade Blast',
@@ -461,10 +455,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/friuns2/bingextension/main/grenade.glb',
       'https://cdn.statically.io/gh/friuns2/bingextension/main/grenade.glb'
     ],
-    scale: 0.11,
-    textureOverrideUrls: [
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/SigSauer.jpg'
-    ]
+    scale: 0.11
   },
   shotgunBlastAttack: {
     label: 'Shotgun Blast',
@@ -1360,35 +1351,37 @@ async function loadCaptureWeaponModel(captureAnimationId) {
     for (let i = 0; i < candidateUrls.length; i += 1) {
       const candidateUrl = candidateUrls[i];
       try {
+        // Match the May 11 morning GLB/GLTF path: let GLTFLoader consume the
+        // source asset first so its WebGL texture transforms, samplers, UVs,
+        // embedded images, and KTX2/PNG/JPEG color-space metadata stay intact.
+        // eslint-disable-next-line no-await-in-loop
+        loadedRoot = assignLoadedGltf(await withLoadTimeout(loader.loadAsync(candidateUrl)));
+      } catch (error) {
         if (isGltfAssetUrl(candidateUrl) || isPolyPizzaAssetUrl(candidateUrl)) {
-          // Poly Pizza GLBs already ship with their own material/texture data. Load them
-          // directly first so GLTFLoader can keep the exact embedded PBR texture bindings.
-          // eslint-disable-next-line no-await-in-loop
-          loadedRoot = assignLoadedGltf(await withLoadTimeout(loader.loadAsync(candidateUrl)));
-          if (loadedRoot) break;
-          if (isGltfAssetUrl(candidateUrl)) continue;
+          if (i === candidateUrls.length - 1) {
+            console.warn('Capture weapon model load failed', normalizedCaptureAnimationId, candidateUrl, error);
+          }
+          continue;
         }
+      }
+      if (loadedRoot) break;
+      try {
+        // Binary GLB patching is only a fallback for legacy hosts that reject
+        // referenced textures. It must not run before GLTFLoader because it
+        // flattens image references and can break authored material mapping.
         // eslint-disable-next-line no-await-in-loop
         const rawBuffer = await withLoadTimeout(fetchBuffer(candidateUrl));
         if (!rawBuffer) continue;
         // eslint-disable-next-line no-await-in-loop
         const patchedBuffer = await patchGlbImagesToDataUris(
           rawBuffer,
-          'fighter',
+          'weapon',
           candidateUrl,
           candidateUrls,
           imageCache
         );
         // eslint-disable-next-line no-await-in-loop
         loadedRoot = await parseObjectFromBuffer(loader, patchedBuffer);
-      } catch (error) {
-        // ignore patched path and try direct loader fallback below
-      }
-      if (loadedRoot) break;
-      try {
-        // eslint-disable-next-line no-await-in-loop
-        const gltf = await withLoadTimeout(loader.loadAsync(candidateUrl));
-        loadedRoot = assignLoadedGltf(gltf);
       } catch (error) {
         if (i === candidateUrls.length - 1) {
           console.warn('Capture weapon model load failed', normalizedCaptureAnimationId, candidateUrl, error);
@@ -2079,7 +2072,9 @@ async function resolveExternalImageToDataUri(imageUri, kind, sourceUrl, modelUrl
   const placeholderColors = {
     drone: ['#7c8791', '#4f5861'],
     helicopter: ['#6f7763', '#4f5648'],
-    fighter: ['#98a1a9', '#646d76']
+    fighter: ['#98a1a9', '#646d76'],
+    weapon: ['#d8e2ee', '#475569'],
+    human: ['#d8c0a6', '#2c3f54']
   };
   const [primary, secondary] = placeholderColors[kind] ?? ['#6e7681', '#4f5861'];
   const placeholderDataUri = makePlaceholderTextureDataUri(primary, secondary);
@@ -7407,10 +7402,22 @@ async function loadSeatedHumanTemplate(renderer = null, humanOption = HUMAN_CHAR
             // Give remote GLB/GLTF + textures a little extra time before switching to fallback URL.
             // eslint-disable-next-line no-await-in-loop
             await new Promise((resolve) => globalThis.setTimeout(resolve, 120));
+            // The May 11 texture-safe path loads the authored GLB/GLTF first.
+            // That keeps ReadyPlayer/Poly Haven material slots, UV transforms,
+            // texture color spaces, and WebGL sampler settings unchanged.
+            // eslint-disable-next-line no-await-in-loop
+            gltf = await loader.loadAsync(url);
+            if (gltf) break;
+          } catch (error) {
+            lastError = error;
+          }
+          try {
+            // Fallback only: patch remote image references if a host blocks
+            // GLTFLoader from resolving them directly.
             // eslint-disable-next-line no-await-in-loop
             const rawBuffer = await fetchBuffer(url);
             // eslint-disable-next-line no-await-in-loop
-            const patchedBuffer = await patchGlbImagesToDataUris(rawBuffer, 'fighter', url, urls, imageCache);
+            const patchedBuffer = await patchGlbImagesToDataUris(rawBuffer, 'human', url, urls, imageCache);
             // eslint-disable-next-line no-await-in-loop
             const patchedRoot = await parseObjectFromBuffer(patchedLoader, patchedBuffer);
             if (patchedRoot) {
@@ -7418,14 +7425,7 @@ async function loadSeatedHumanTemplate(renderer = null, humanOption = HUMAN_CHAR
             }
             if (gltf) break;
           } catch (error) {
-            // ignore patched path and retry with default loader
-          }
-          try {
-            // eslint-disable-next-line no-await-in-loop
-            gltf = await loader.loadAsync(url);
-            if (gltf) break;
-          } catch (error) {
-            lastError = error;
+            lastError = lastError || error;
           }
         }
         if (!gltf) throw lastError || new Error(`Unable to load seated human model for ${optionId}`);
