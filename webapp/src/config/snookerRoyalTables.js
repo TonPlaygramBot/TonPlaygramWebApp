@@ -1,18 +1,20 @@
 const BASE_TABLE_SCALE = 1.44;
 const BASE_TABLE_MOBILE_SCALE = 1.44;
 const BASE_TABLE_COMPACT_SCALE = 1.44;
-const BASE_PLAYFIELD_WIDTH_MM = 2540; // keep Snooker Royal chassis matched to Pool Royale 9ft playfield width
+const BASE_PLAYFIELD_WIDTH_MM = 3569; // official 12ft snooker playfield width
 
 const TABLE_PHYSICAL_SPECS = Object.freeze({
   '12ft': {
     id: '12ft',
-    label: '12 ft (Pool Royale Match)',
-    playfield: Object.freeze({ widthMm: 2540, heightMm: 1270 }), // Pool Royale 9ft chassis dimensions for parity
-    ballDiameterMm: 57.15,
+    label: '12 ft (Official Snooker)',
+    playfield: Object.freeze({ widthMm: 3569, heightMm: 1778 }), // official 12ft snooker playfield (11ft 8.5in x 5ft 10in)
+    ballDiameterMm: 52.5,
+    ballDiameterToleranceMm: 0.05,
     pocketMouthMm: Object.freeze({
-      corner: 114.3,
-      side: 127
+      corner: 83,
+      side: 87
     }),
+    pocketTemplate: 'WPBSA-authorised snooker cushion template',
     cushionCutAngleDeg: 32,
     sideCushionCutAngleDeg: 32,
     cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 }),
@@ -24,13 +26,15 @@ const TABLE_PHYSICAL_SPECS = Object.freeze({
   },
   '10ft': {
     id: '10ft',
-    label: '10 ft (Pool Royale Compact)',
-    playfield: Object.freeze({ widthMm: 2235, heightMm: 1118 }), // Pool Royale 8ft chassis dimensions for parity
-    ballDiameterMm: 57.15,
+    label: '10 ft (Club Snooker)',
+    playfield: Object.freeze({ widthMm: 3048, heightMm: 1524 }), // 10ft snooker playfield option
+    ballDiameterMm: 52.5,
+    ballDiameterToleranceMm: 0.05,
     pocketMouthMm: Object.freeze({
-      corner: 171.45,
-      side: 152.4
+      corner: 83,
+      side: 87
     }),
+    pocketTemplate: 'WPBSA-authorised snooker cushion template',
     cushionCutAngleDeg: 32,
     sideCushionCutAngleDeg: 32,
     cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 })
