@@ -1,3 +1,6 @@
+import { POOL_ROYALE_CLOTH_VARIANTS } from './poolRoyaleClothPresets.js';
+import { WOOD_GRAIN_OPTIONS } from '../utils/woodMaterials.js';
+
 export const POOL_ROYALE_TABLE_MODEL_STORAGE_KEY = 'poolRoyaleTableModel';
 
 const POOLTOOL_RAW_BASE =
@@ -8,7 +11,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     id: 'royal-original',
     label: 'Royal Original',
     description:
-      'Current TonPlaygram rails, base, and chrome with Showood GLB playfield, GLB cushions, pockets, and jaw layout overlaid.',
+      'Current TonPlaygram procedural cushions, wooden rail frame, base, chrome plates, and pocket jaws with the Showood GLB playfield aligned underneath.',
     tableSizeId: '9ft',
     finishId: 'peelingPaintWeathered',
     baseId: 'classicCylinders',
@@ -23,9 +26,9 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     matchNativeUpperComponentHeight: true,
     useOriginalLayoutSurfaces: false,
     usePoolRoyaleFinish: true,
-    usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'pocket'],
-    cushionUsesClothFinish: true,
-    hideGeneratedCushionsAndJaws: true,
+    usePoolRoyaleFinishRoles: ['cloth'],
+    cushionUsesClothFinish: false,
+    hideGeneratedCushionsAndJaws: false,
     preserveSourceTextureRoles: [],
     preserveOriginalSurfaceRoles: ['trim', 'wood'],
     hideSurfaceRoles: ['trim', 'wood'],
@@ -73,62 +76,99 @@ export function resolvePoolRoyaleTableModel(modelId) {
   );
 }
 
+const SHOWOOD_WOOD_SWATCHES = Object.freeze({
+  acg_walnut_quarter: '#6b3f24',
+  wood_peeling_paint_weathered: '#b8b3aa',
+  oak_veneer_01: '#c89a64',
+  wood_table_001: '#a4724f',
+  dark_wood: '#3d2f2a',
+  rosewood_veneer_01: '#6f3a2f',
+  kitchen_wood: '#a6784a',
+  japanese_sycamore: '#d1b07d',
+  oak_veneer_01_amber: '#c88d3f',
+  oak_veneer_01_cocoa: '#72513e',
+  oak_veneer_01_walnut: '#4f3224',
+  oak_veneer_01_mahogany_red: '#74322d',
+  oak_veneer_01_matte_black: '#11100f',
+  carbon_fiber_chalk: '#2a313d'
+});
+
+const swatchFromWoodId = (id) => {
+  if (SHOWOOD_WOOD_SWATCHES[id]) return SHOWOOD_WOOD_SWATCHES[id];
+  if (/black|night|dark/.test(id)) return '#15181d';
+  if (/grey|gray/.test(id)) return '#717b86';
+  if (/burgundy|red|mahogany/.test(id)) return '#74323a';
+  if (/green|olive|moss|swamp/.test(id)) return '#43573d';
+  if (/cream|sand|yellow|birch/.test(id)) return '#c7ad7d';
+  if (/fabric/.test(id)) return '#7f8790';
+  return '#8a5a36';
+};
+
+const createShowoodWoodOptions = () =>
+  Object.freeze(
+    WOOD_GRAIN_OPTIONS.reduce((acc, option) => {
+      acc[option.id] = Object.freeze({
+        label: option.label,
+        color: swatchFromWoodId(option.id),
+        woodTextureId: option.id,
+        metalness: /plastic|carbon/.test(option.id) ? 0.04 : 0.02,
+        roughness: /matte|fabric/.test(option.id) ? 0.72 : 0.42,
+        envMapIntensity: /plastic|carbon/.test(option.id) ? 1.1 : 1.35,
+        clearcoat: /matte|fabric/.test(option.id) ? 0.08 : 0.36,
+        clearcoatRoughness: /matte|fabric/.test(option.id) ? 0.5 : 0.2
+      });
+      return acc;
+    }, {})
+  );
+
+const createShowoodClothOptions = () =>
+  Object.freeze(
+    POOL_ROYALE_CLOTH_VARIANTS.reduce((acc, variant) => {
+      acc[variant.id] = Object.freeze({
+        label: variant.name,
+        color: `#${variant.baseColor.toString(16).padStart(6, '0')}`,
+        clothTextureKey: variant.id,
+        clothTextureSource: 'procedural',
+        metalness: 0,
+        roughness: 0.9,
+        envMapIntensity: 0.18,
+        sheen: 0.62,
+        sheenRoughness: 0.46
+      });
+      return acc;
+    }, {})
+  );
+
+const SHOWOOD_CLOTH_OPTIONS = createShowoodClothOptions();
+const SHOWOOD_WOOD_OPTIONS = createShowoodWoodOptions();
+
 export const POOL_ROYALE_SHOWOOD_MATERIAL_CONTROL_PARTS = Object.freeze([
   'cloth',
   'cushion',
-  'metalAccent',
-  'jaws',
   'topWoodRail',
   'legBase'
 ]);
 
 export const POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE = Object.freeze({
-  cloth: 'a',
-  cushion: 'a',
-  metalAccent: 'a',
-  jaws: 'a',
-  topWoodRail: 'a',
-  legBase: 'b'
+  cloth: POOL_ROYALE_CLOTH_VARIANTS[0]?.id || 'cabanBlueSky',
+  cushion: POOL_ROYALE_CLOTH_VARIANTS[0]?.id || 'cabanBlueSky',
+  topWoodRail: 'acg_walnut_quarter',
+  legBase: 'dark_wood'
 });
 
 export const POOL_ROYALE_SHOWOOD_CONTROL_META = Object.freeze({
-  cloth: { label: 'Field cloth', description: 'Only the flat playfield surface.' },
+  cloth: { label: 'Field cloth', description: 'Flat playfield surface using every cloth-library texture.' },
   cushion: {
     label: 'Cushions',
-    description: 'Matched green or Black rubber; source cushion texture is preserved like the reference preview.'
+    description: 'Cushion rubber uses the same full cloth-library texture list as the field.'
   },
-  metalAccent: {
-    label: 'Rail sights + side strip + feet',
-    description: 'One gold/chrome control for rail sights, side apron strip, rims, trims, plates, and feet.'
-  },
-  jaws: { label: 'Jaws', description: 'Pocket jaws / cups: black or brown.' },
-  topWoodRail: { label: 'Top rail frame', description: 'Main top wood rail frame.' },
-  legBase: { label: 'Legs + base', description: 'Legs and lower base blocks together, separate from metal accents.' }
+  topWoodRail: { label: 'Top rail frame', description: 'Main top rail frame using every GLTF table-finish texture.' },
+  legBase: { label: 'Legs + base', description: 'Legs and lower base blocks using every GLTF table-finish texture.' }
 });
 
 export const POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS = Object.freeze({
-  cloth: Object.freeze({
-    a: Object.freeze({ label: 'Green field', color: '#0a7b33', metalness: 0, roughness: 1, envMapIntensity: 0.16 }),
-    b: Object.freeze({ label: 'Blue field', color: '#0d4fb8', metalness: 0, roughness: 1, envMapIntensity: 0.16 })
-  }),
-  cushion: Object.freeze({
-    a: Object.freeze({ label: 'Matched green', color: '#064f22', metalness: 0, roughness: 0.88, envMapIntensity: 0.55 }),
-    b: Object.freeze({ label: 'Black rubber', color: '#050505', metalness: 0, roughness: 0.86, envMapIntensity: 0.55 })
-  }),
-  metalAccent: Object.freeze({
-    a: Object.freeze({ label: 'Gold', color: '#d8b23d', metalness: 0.98, roughness: 0.06, envMapIntensity: 6.8, clearcoat: 1, clearcoatRoughness: 0.03 }),
-    b: Object.freeze({ label: 'Chrome', color: '#d7dde7', metalness: 1, roughness: 0.055, envMapIntensity: 7.2, clearcoat: 1, clearcoatRoughness: 0.025 })
-  }),
-  jaws: Object.freeze({
-    a: Object.freeze({ label: 'Black jaws', color: '#020202', metalness: 0, roughness: 0.96, envMapIntensity: 0.14 }),
-    b: Object.freeze({ label: 'Brown jaws', color: '#2a1207', metalness: 0, roughness: 0.88, envMapIntensity: 0.26 })
-  }),
-  topWoodRail: Object.freeze({
-    a: Object.freeze({ label: 'Walnut frame', color: '#5a2608', metalness: 0.02, roughness: 0.38, envMapIntensity: 1.35, clearcoat: 0.42, clearcoatRoughness: 0.18 }),
-    b: Object.freeze({ label: 'Black frame', color: '#070605', metalness: 0.04, roughness: 0.28, envMapIntensity: 1.75, clearcoat: 0.7, clearcoatRoughness: 0.1 })
-  }),
-  legBase: Object.freeze({
-    a: Object.freeze({ label: 'Brown legs/base', color: '#3d1706', metalness: 0.02, roughness: 0.52, envMapIntensity: 1, clearcoat: 0.2, clearcoatRoughness: 0.36 }),
-    b: Object.freeze({ label: 'Black legs/base', color: '#070504', metalness: 0.04, roughness: 0.4, envMapIntensity: 1.22, clearcoat: 0.32, clearcoatRoughness: 0.26 })
-  })
+  cloth: SHOWOOD_CLOTH_OPTIONS,
+  cushion: SHOWOOD_CLOTH_OPTIONS,
+  topWoodRail: SHOWOOD_WOOD_OPTIONS,
+  legBase: SHOWOOD_WOOD_OPTIONS
 });
