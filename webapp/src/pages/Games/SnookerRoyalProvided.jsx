@@ -1417,13 +1417,29 @@ function clampSnookerAimImpactToPerimeter(point) {
   );
 }
 
-function snookerGuideEndFrom(start, dir, distance, y) {
-  const bounded = clampSnookerAimImpactToPerimeter(new THREE.Vector2(
-    start.x + dir.x * distance,
-    start.z + dir.z * distance
-  ));
+function calcSnookerGuideRayEnd(start, dir, y, pocketPositions = [], maxDistance = Infinity) {
+  const start2 = new THREE.Vector2(start.x, start.z);
+  const rayDir = new THREE.Vector2(dir.x, dir.z);
+  if (rayDir.lengthSq() < 1e-8) return start.clone().setY(y);
+  rayDir.normalize();
+  const railX = getSnookerCushionCenterLimit('x');
+  const railZ = getSnookerCushionCenterLimit('z');
+  let tHit = Number.isFinite(maxDistance) ? Math.max(maxDistance, 0) : Infinity;
+  const checkRail = (t, axis, sign) => {
+    if (t < 0 || t >= tHit) return;
+    const impact = start2.clone().add(rayDir.clone().multiplyScalar(t));
+    const probe = { pos: new THREE.Vector3(impact.x, CFG.ballR, impact.y) };
+    if (!isInsideSnookerPocketThroat(probe, axis, sign, pocketPositions)) tHit = t;
+  };
+  if (rayDir.x < -1e-8) checkRail((-railX - start2.x) / rayDir.x, 'x', -1);
+  if (rayDir.x > 1e-8) checkRail((railX - start2.x) / rayDir.x, 'x', 1);
+  if (rayDir.y < -1e-8) checkRail((-railZ - start2.y) / rayDir.y, 'z', -1);
+  if (rayDir.y > 1e-8) checkRail((railZ - start2.y) / rayDir.y, 'z', 1);
+  const travel = Number.isFinite(tHit) ? tHit : Math.sqrt(CFG.tableW * CFG.tableW + CFG.tableL * CFG.tableL);
+  const bounded = clampSnookerAimImpactToPerimeter(start2.add(rayDir.multiplyScalar(Math.max(0, travel))));
   return new THREE.Vector3(bounded.x, y, bounded.y);
 }
+
 
 function decaySnookerSpin(ball, stepScale) {
   if (!ball?.spin || ball.spin.lengthSq() < 1e-6) return false;
@@ -1599,43 +1615,71 @@ function updateBalls(balls, dt, tmpA, tmpB, pocketPositions = [], rulesState = n
       const overlap = minDist - dist;
       a.pos.addScaledVector(n, -overlap * 0.5);
       b.pos.addScaledVector(n, overlap * 0.5);
-      const normal = SNOOKER_TMP_VEC3_A.copy(n).setY(0).normalize();
-      const ra = SNOOKER_TMP_VEC3_B.copy(normal).multiplyScalar(CFG.ballR);
-      const rb = SNOOKER_TMP_VEC3_C.copy(normal).multiplyScalar(-CFG.ballR);
-      const va = SNOOKER_TMP_VEC3_D.set(a.vel.x, 0, a.vel.z);
-      const vb = SNOOKER_TMP_VEC3_E.set(b.vel.x, 0, b.vel.z);
-      const omegaA = a.omega ?? new THREE.Vector3();
-      const omegaB = b.omega ?? new THREE.Vector3();
-      const contactA = omegaA.clone().cross(ra).add(va);
-      const contactB = omegaB.clone().cross(rb).add(vb);
-      const relative = contactB.sub(contactA);
-      const relNormal = relative.dot(normal);
-      if (relNormal < 0) {
-        const normalImpulseMag = (-(1 + CFG.restitution) * relNormal * SNOOKER_BALL_MASS) / 2;
-        const impulse = normal.clone().multiplyScalar(normalImpulseMag);
-        va.addScaledVector(impulse, -1 / SNOOKER_BALL_MASS);
-        vb.addScaledVector(impulse, 1 / SNOOKER_BALL_MASS);
-        const tangentVel = relative.addScaledVector(normal, -relNormal);
-        const tangentSpeed = tangentVel.length();
-        if (tangentSpeed > 1e-8) {
-          tangentVel.multiplyScalar(1 / tangentSpeed);
-          const raCrossT = ra.clone().cross(tangentVel).lengthSq();
-          const rbCrossT = rb.clone().cross(tangentVel).lengthSq();
-          const denom = 2 / SNOOKER_BALL_MASS + (raCrossT + rbCrossT) / SNOOKER_BALL_INERTIA;
-          const jt = -tangentSpeed / Math.max(denom, 1e-6);
-          const tangentImpulse = tangentVel.multiplyScalar(clamp(jt, -SNOOKER_BALL_BALL_FRICTION * Math.abs(normalImpulseMag), SNOOKER_BALL_BALL_FRICTION * Math.abs(normalImpulseMag)));
-          va.addScaledVector(tangentImpulse, -1 / SNOOKER_BALL_MASS);
-          vb.addScaledVector(tangentImpulse, 1 / SNOOKER_BALL_MASS);
-          a.omega?.addScaledVector(ra.clone().cross(tangentImpulse), -1 / SNOOKER_BALL_INERTIA);
-          b.omega?.addScaledVector(rb.clone().cross(tangentImpulse), 1 / SNOOKER_BALL_INERTIA);
+      const cueBallForPair = a.isCue ? a : b.isCue ? b : null;
+      const objectBallForPair = cueBallForPair ? (cueBallForPair === a ? b : a) : null;
+      const guidePrediction = cueBallForPair?.aimGuidePrediction;
+      const lockedObjectDir = guidePrediction?.targetBall === objectBallForPair
+        ? guidePrediction.targetDir?.clone?.() ?? null
+        : null;
+      if (lockedObjectDir && lockedObjectDir.lengthSq() > 1e-8) {
+        lockedObjectDir.normalize();
+        const pairMid = a.pos.clone().add(b.pos).multiplyScalar(0.5);
+        cueBallForPair.pos.copy(pairMid.clone().addScaledVector(new THREE.Vector3(lockedObjectDir.x, 0, lockedObjectDir.y), -CFG.ballR));
+        objectBallForPair.pos.copy(pairMid.clone().addScaledVector(new THREE.Vector3(lockedObjectDir.x, 0, lockedObjectDir.y), CFG.ballR));
+        const objectDir3 = new THREE.Vector3(lockedObjectDir.x, 0, lockedObjectDir.y).normalize();
+        const incomingCueVel = new THREE.Vector3(cueBallForPair.vel.x, 0, cueBallForPair.vel.z);
+        const normalSpeed = Math.max(0, incomingCueVel.dot(objectDir3));
+        const cueResidual = incomingCueVel.clone().addScaledVector(objectDir3, -normalSpeed);
+        const cueResidualSpeed = cueResidual.length();
+        objectBallForPair.vel.copy(objectDir3.multiplyScalar(normalSpeed));
+        const lockedCueDir = guidePrediction.cueDir?.clone?.() ?? null;
+        if (lockedCueDir && lockedCueDir.lengthSq() > 1e-8 && cueResidualSpeed > 1e-8) {
+          lockedCueDir.normalize();
+          cueBallForPair.vel.set(lockedCueDir.x * cueResidualSpeed, 0, lockedCueDir.y * cueResidualSpeed);
+        } else {
+          cueBallForPair.vel.set(0, 0, 0);
         }
-        a.vel.set(va.x, 0, va.z);
-        b.vel.set(vb.x, 0, vb.z);
-        if (a.isCue || b.isCue) {
-          const objectBall = a.isCue ? b : a;
-          recordSnookerFirstContact(objectBall, rulesState);
-          a.impacted = a.impacted || a.isCue;
-          b.impacted = b.impacted || b.isCue;
+        recordSnookerFirstContact(objectBallForPair, rulesState);
+        cueBallForPair.impacted = true;
+      } else {
+        const normal = SNOOKER_TMP_VEC3_A.copy(n).setY(0).normalize();
+        const ra = SNOOKER_TMP_VEC3_B.copy(normal).multiplyScalar(CFG.ballR);
+        const rb = SNOOKER_TMP_VEC3_C.copy(normal).multiplyScalar(-CFG.ballR);
+        const va = SNOOKER_TMP_VEC3_D.set(a.vel.x, 0, a.vel.z);
+        const vb = SNOOKER_TMP_VEC3_E.set(b.vel.x, 0, b.vel.z);
+        const omegaA = a.omega ?? new THREE.Vector3();
+        const omegaB = b.omega ?? new THREE.Vector3();
+        const contactA = omegaA.clone().cross(ra).add(va);
+        const contactB = omegaB.clone().cross(rb).add(vb);
+        const relative = contactB.sub(contactA);
+        const relNormal = relative.dot(normal);
+        if (relNormal < 0) {
+          const normalImpulseMag = (-(1 + CFG.restitution) * relNormal * SNOOKER_BALL_MASS) / 2;
+          const impulse = normal.clone().multiplyScalar(normalImpulseMag);
+          va.addScaledVector(impulse, -1 / SNOOKER_BALL_MASS);
+          vb.addScaledVector(impulse, 1 / SNOOKER_BALL_MASS);
+          const tangentVel = relative.addScaledVector(normal, -relNormal);
+          const tangentSpeed = tangentVel.length();
+          if (tangentSpeed > 1e-8) {
+            tangentVel.multiplyScalar(1 / tangentSpeed);
+            const raCrossT = ra.clone().cross(tangentVel).lengthSq();
+            const rbCrossT = rb.clone().cross(tangentVel).lengthSq();
+            const denom = 2 / SNOOKER_BALL_MASS + (raCrossT + rbCrossT) / SNOOKER_BALL_INERTIA;
+            const jt = -tangentSpeed / Math.max(denom, 1e-6);
+            const tangentImpulse = tangentVel.multiplyScalar(clamp(jt, -SNOOKER_BALL_BALL_FRICTION * Math.abs(normalImpulseMag), SNOOKER_BALL_BALL_FRICTION * Math.abs(normalImpulseMag)));
+            va.addScaledVector(tangentImpulse, -1 / SNOOKER_BALL_MASS);
+            vb.addScaledVector(tangentImpulse, 1 / SNOOKER_BALL_MASS);
+            a.omega?.addScaledVector(ra.clone().cross(tangentImpulse), -1 / SNOOKER_BALL_INERTIA);
+            b.omega?.addScaledVector(rb.clone().cross(tangentImpulse), 1 / SNOOKER_BALL_INERTIA);
+          }
+          a.vel.set(va.x, 0, va.z);
+          b.vel.set(vb.x, 0, vb.z);
+          if (a.isCue || b.isCue) {
+            const objectBall = a.isCue ? b : a;
+            recordSnookerFirstContact(objectBall, rulesState);
+            a.impacted = a.impacted || a.isCue;
+            b.impacted = b.impacted || b.isCue;
+          }
         }
       }
     }
@@ -1667,8 +1711,8 @@ function calcSnookerAimTarget(cueBall, aimDir, balls, pocketPositions = []) {
       targetBall = null;
     }
   };
-  const railX = CFG.tableW / 2 - CFG.ballR;
-  const railZ = CFG.tableL / 2 - CFG.ballR;
+  const railX = getSnookerCushionCenterLimit('x');
+  const railZ = getSnookerCushionCenterLimit('z');
   const mouthClear = (axis, sign, impact) => {
     const probe = { pos: new THREE.Vector3(impact.x, CFG.ballR, impact.y) };
     return isInsideSnookerPocketThroat(probe, axis, sign, pocketPositions);
@@ -1718,9 +1762,9 @@ function calcSnookerAimTarget(cueBall, aimDir, balls, pocketPositions = []) {
     targetDir = new THREE.Vector2(targetBall.pos.x - impact.x, targetBall.pos.z - impact.y);
     if (targetDir.lengthSq() > 1e-8) targetDir.normalize();
     else targetDir.copy(dir);
-    const projected = dir.dot(targetDir);
+    const projected = Math.max(0, dir.dot(targetDir));
     cueDir = dir.clone().sub(targetDir.clone().multiplyScalar(projected));
-    if (cueDir.lengthSq() > 1e-8) cueDir.normalize();
+    if (cueDir.lengthSq() > 1e-6) cueDir.normalize();
     else cueDir = null;
   } else if (railNormal) {
     cueDir = dir.clone().sub(railNormal.clone().multiplyScalar(2 * dir.dot(railNormal))).normalize();
@@ -2395,6 +2439,13 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
       updateHumanPose(human, dt, visualState, humanRootTarget, aimForward, bridgeHandTarget, idleRightHandTarget, idleLeftHandTarget, activeCueBack, activeCueTip, activePower);
       setGuideLine(cueLine, activeCueBack, cueBallWorld, true);
       const prediction = calcSnookerAimTarget(cueBall, aimForward, balls, pocketPositions);
+      cueBall.aimGuidePrediction = prediction?.targetBall
+        ? {
+            targetBall: prediction.targetBall,
+            targetDir: prediction.targetDir?.clone?.() ?? null,
+            cueDir: prediction.cueDir?.clone?.() ?? null
+          }
+        : null;
       const aimY = cueBallWorld.y;
       const aimStart = cueBallWorld.clone().setY(aimY);
       const boundedImpact = clampSnookerAimImpactToPerimeter(prediction.impact);
@@ -2403,19 +2454,23 @@ export default function SnookerRoyalProvided({ gameTitle = 'Snooker Royal Provid
       const guideDir = aimEnd.clone().sub(aimStart).setY(0).normalize();
       const tickPerp = new THREE.Vector3(-guideDir.z, 0, guideDir.x).normalize();
       setGuideLine(impactTick, aimEnd.clone().addScaledVector(tickPerp, SNOOKER_AIM_TICK_HALF_LENGTH), aimEnd.clone().addScaledVector(tickPerp, -SNOOKER_AIM_TICK_HALF_LENGTH), true);
-      const followDir2 = prediction.cueDir ?? new THREE.Vector2(aimForward.x, aimForward.z);
-      const followDir3 = new THREE.Vector3(followDir2.x, 0, followDir2.y).normalize();
-      setGuideLine(cueAfterLine, aimEnd, snookerGuideEndFrom(aimEnd, followDir3, CFG.ballR * (7 + activePower * 12), aimY), true);
+      if (prediction.cueDir) {
+        const followDir3 = new THREE.Vector3(prediction.cueDir.x, 0, prediction.cueDir.y).normalize();
+        setGuideLine(cueAfterLine, aimEnd, calcSnookerGuideRayEnd(aimEnd, followDir3, aimY, pocketPositions), true);
+      } else {
+        cueAfterLine.visible = false;
+      }
       if (prediction.targetBall && prediction.targetDir) {
         const targetStart = prediction.targetBall.mesh.getWorldPosition(new THREE.Vector3()).setY(aimY);
         const targetDir3 = new THREE.Vector3(prediction.targetDir.x, 0, prediction.targetDir.y).normalize();
-        setGuideLine(targetLine, targetStart, snookerGuideEndFrom(targetStart, targetDir3, CFG.ballR * 2, aimY), true);
+        setGuideLine(targetLine, targetStart, calcSnookerGuideRayEnd(targetStart, targetDir3, aimY, pocketPositions), true);
         targetLine.material.color.setHex(0xffd166);
       } else if (prediction.railNormal && prediction.cueDir) {
-        setGuideLine(targetLine, aimEnd, snookerGuideEndFrom(aimEnd, followDir3, CFG.ballR * 2, aimY), true);
+        const followDir3 = new THREE.Vector3(prediction.cueDir.x, 0, prediction.cueDir.y).normalize();
+        setGuideLine(targetLine, aimEnd, calcSnookerGuideRayEnd(aimEnd, followDir3, aimY, pocketPositions), true);
         targetLine.material.color.setHex(0x7ce7ff);
       } else {
-        setGuideLine(targetLine, aimEnd, snookerGuideEndFrom(aimEnd, guideDir, CFG.ballR * 2, aimY), true);
+        setGuideLine(targetLine, aimEnd, calcSnookerGuideRayEnd(aimEnd, guideDir, aimY, pocketPositions), true);
         targetLine.material.color.setHex(0x9fd8ff);
       }
       const liveCameraMode = ballsMoving && cameraModeRef.current === 'rail-overhead' ? 'tv-broadcast' : cameraModeRef.current;
