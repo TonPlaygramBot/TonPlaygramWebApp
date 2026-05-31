@@ -248,9 +248,18 @@ const BASE_CFG = {
   shootUpperBodyCounterLean: 1,
   shootForwardBendScale: 1,
   plantFeetDuringShot: true,
+  standingShotStance: false,
   bridgeArmStraightDown: false,
   forceTableFacingAim: true,
-  addFaceDetails: true
+  showDebugArrows: true,
+  debugArrowLength: 0.72,
+  railShotDistance: 0.34,
+  longReachDistance: 0.78,
+  closeCueBallDistance: 0.28,
+  powerShotThreshold: 0.74,
+  softShotThreshold: 0.26,
+  addFaceDetails: true,
+  originalSkeletonLogic: false
 };
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -324,8 +333,135 @@ function ensureHumanFacingTable(human, frameData, cfg) {
   const visualYaw = human.yaw + (cfg.humanVisualYawFix || 0);
   const liveForward = new THREE.Vector3(0, 0, -1).applyAxisAngle(Y_AXIS, visualYaw).normalize();
   if (liveForward.dot(rootToTable) < -0.05) {
-    human.yaw = yawFromForward(rootToTable) - (cfg.humanVisualYawFix || 0);
+    const targetYaw = yawFromForward(rootToTable) - (cfg.humanVisualYawFix || 0);
+    human.yaw = dampAngle(human.yaw, targetYaw, cfg.rotLambda * 1.6, 1 / 60);
   }
+}
+
+function dampAngle(current, target, lambda, dt) {
+  const delta = THREE.MathUtils.euclideanModulo(target - current + Math.PI, Math.PI * 2) - Math.PI;
+  return current + delta * (1 - Math.exp(-lambda * dt));
+}
+
+function resolveShotType(frameData, cfg) {
+  if (frameData?.shotType) return frameData.shotType;
+  const reach = Number(frameData?.bridgeReach ?? 0);
+  const power = Number(frameData?.power ?? 0);
+  const railDistance = Number(frameData?.railDistance ?? Infinity);
+  const cutAngle = Math.abs(Number(frameData?.cutAngle ?? 0));
+  const cueTargetDistance = Number(frameData?.cueTargetDistance ?? Infinity);
+  if (railDistance <= cfg.railShotDistance) return 'rail';
+  if (reach >= cfg.longReachDistance) return 'longReach';
+  if (cueTargetDistance <= cfg.closeCueBallDistance) return 'closeCueBall';
+  if (power >= cfg.powerShotThreshold) return 'power';
+  if (power > 0 && power <= cfg.softShotThreshold) return 'softPrecision';
+  if (cutAngle >= Math.PI * 0.28) return 'difficultAngle';
+  return 'standard';
+}
+
+function shotTypePoseProfile(shotType) {
+  switch (shotType) {
+    case 'rail':
+      return { bridgeLift: 0.035, cueLift: 0.028, lean: 0.72, bridgeReach: -0.03, gripBack: -0.04, stanceBack: 0.02, stanceWide: 0.02, hipSide: 0.01, followScale: 0.82 };
+    case 'longReach':
+      return { bridgeLift: -0.002, cueLift: 0.01, lean: 1.18, bridgeReach: 0.16, gripBack: 0.07, stanceBack: 0.16, stanceWide: 0.07, hipSide: -0.01, followScale: 0.9 };
+    case 'closeCueBall':
+      return { bridgeLift: 0.006, cueLift: 0.014, lean: 0.82, bridgeReach: -0.12, gripBack: -0.16, stanceBack: -0.05, stanceWide: -0.04, hipSide: 0, followScale: 0.56 };
+    case 'power':
+      return { bridgeLift: 0.002, cueLift: 0.016, lean: 1.04, bridgeReach: 0.04, gripBack: 0.16, stanceBack: 0.12, stanceWide: 0.09, hipSide: 0.018, followScale: 1.32, recoil: 0.045 };
+    case 'softPrecision':
+      return { bridgeLift: 0.004, cueLift: 0.012, lean: 0.94, bridgeReach: 0.02, gripBack: -0.08, stanceBack: 0.01, stanceWide: -0.02, hipSide: -0.006, followScale: 0.44, headStill: 0.75 };
+    case 'difficultAngle':
+      return { bridgeLift: 0.006, cueLift: 0.018, lean: 1.0, bridgeReach: 0.04, bridgeSide: 0.055, gripBack: 0.02, stanceBack: 0.08, stanceWide: 0.04, hipSide: 0.055, followScale: 0.78 };
+    default:
+      return { bridgeLift: 0.004, cueLift: 0.014, lean: 1.0, bridgeReach: 0, gripBack: 0, stanceBack: 0, stanceWide: 0, hipSide: 0, followScale: 1.0 };
+  }
+}
+
+function updateDebugArrow(arrow, origin, dir, color, length) {
+  if (!arrow || !origin || !dir) return;
+  const safeDir = dir.clone();
+  safeDir.y = Number.isFinite(safeDir.y) ? safeDir.y : 0;
+  if (safeDir.lengthSq() < 1e-8) safeDir.set(0, 0, -1);
+  safeDir.normalize();
+  arrow.position.copy(origin);
+  arrow.setDirection(safeDir);
+  arrow.setLength(length, length * 0.24, length * 0.12);
+  arrow.setColor(new THREE.Color(color));
+  arrow.visible = true;
+}
+
+function updateHumanDebugArrows(human, frameData, forward, cueDir, cfg) {
+  const group = human?.debugArrows;
+  if (!group) return;
+  const enabled = cfg.showDebugArrows !== false;
+  group.visible = enabled;
+  if (!enabled) return;
+  const length = Math.max(0.1, cfg.debugArrowLength || 0.72);
+  const origin = human.root.position.clone().add(new THREE.Vector3(0, cfg.tableTopY + 0.1 * cfg.unit, 0));
+  const tableCenter = frameData.tableCenter || new THREE.Vector3(0, origin.y, 0);
+  const tableDir = tableCenter.clone().sub(origin).setY(0);
+  const shotDir = frameData.aimForward?.clone?.() || forward.clone();
+  const cueOrigin = frameData.cueBack?.clone?.() || origin.clone();
+  updateDebugArrow(group.userData.tableCenterArrow, origin, tableDir, 0x38bdf8, length);
+  updateDebugArrow(group.userData.shotDirectionArrow, frameData.cueTip || origin, shotDir, 0xfacc15, length);
+  updateDebugArrow(group.userData.characterForwardArrow, origin.clone().add(new THREE.Vector3(0, 0.08 * cfg.unit, 0)), forward, 0x22c55e, length * 0.9);
+  updateDebugArrow(group.userData.cueDirectionArrow, cueOrigin, cueDir, 0xf97316, length * 1.15);
+
+  const setMarker = (marker, position, labelY = 0) => {
+    if (!marker || !position) return;
+    marker.visible = true;
+    marker.position.copy(position).add(new THREE.Vector3(0, labelY, 0));
+  };
+  const rootToBridge = frameData.bridgeTarget?.clone?.().sub(human.root.position).setY(0);
+  const localSide = new THREE.Vector3(forward.z, 0, -forward.x).normalize();
+  const leftFoot = human.root.position.clone()
+    .addScaledVector(localSide, -cfg.stanceWidth * 0.56)
+    .addScaledVector(forward, -0.41 * cfg.unit)
+    .setY(cfg.groundY + cfg.footGroundY + 0.006 * cfg.unit);
+  const rightFoot = human.root.position.clone()
+    .addScaledVector(localSide, cfg.stanceWidth * 0.58)
+    .addScaledVector(forward, 0.39 * cfg.unit)
+    .setY(cfg.groundY + cfg.footGroundY + 0.006 * cfg.unit);
+  setMarker(group.userData.bridgePalmMarker, frameData.bridgeTarget, 0.012 * cfg.unit);
+  setMarker(group.userData.leftFootGroundMarker, leftFoot);
+  setMarker(group.userData.rightFootGroundMarker, rightFoot);
+  if (group.userData.bridgeToRootArrow && rootToBridge?.lengthSq?.() > 1e-8) {
+    updateDebugArrow(group.userData.bridgeToRootArrow, human.root.position.clone().setY(frameData.bridgeTarget.y), rootToBridge, 0xa78bfa, length * 0.8);
+  }
+}
+
+function createHumanDebugArrows() {
+  const group = new THREE.Group();
+  group.name = 'PoolRoyale_HumanDebugArrows';
+  group.renderOrder = 20;
+  const make = (name, color) => {
+    const arrow = new THREE.ArrowHelper(new THREE.Vector3(0, 0, -1), new THREE.Vector3(), 1, color, 0.18, 0.08);
+    arrow.name = name;
+    arrow.visible = false;
+    group.add(arrow);
+    return arrow;
+  };
+  const makeMarker = (name, color, radius = 0.035) => {
+    const marker = new THREE.Mesh(
+      new THREE.SphereGeometry(radius, 16, 10),
+      new THREE.MeshBasicMaterial({ color, depthTest: false, transparent: true, opacity: 0.86 })
+    );
+    marker.name = name;
+    marker.visible = false;
+    marker.renderOrder = 30;
+    group.add(marker);
+    return marker;
+  };
+  group.userData.tableCenterArrow = make('TableCenterDirection_DebugArrow_Blue', 0x38bdf8);
+  group.userData.shotDirectionArrow = make('ShotDirection_DebugArrow_Yellow', 0xfacc15);
+  group.userData.characterForwardArrow = make('CharacterForward_DebugArrow_Green', 0x22c55e);
+  group.userData.cueDirectionArrow = make('CueDirection_DebugArrow_Orange', 0xf97316);
+  group.userData.bridgeToRootArrow = make('BridgePalmToStance_DebugArrow_Purple', 0xa78bfa);
+  group.userData.bridgePalmMarker = makeMarker('BridgePalm_TableContact_Helper', 0xfacc15, 0.032);
+  group.userData.leftFootGroundMarker = makeMarker('LeftFoot_GroundLock_Helper', 0x22c55e, 0.03);
+  group.userData.rightFootGroundMarker = makeMarker('RightFoot_GroundLock_Helper', 0x22c55e, 0.03);
+  return group;
 }
 
 function scaleVectorConfig(cfg) {
@@ -500,17 +636,23 @@ export function createHumanRig(scene, opts = {}) {
     yaw: 0,
     breathT: 0,
     settleT: 0,
+    seatedBlend: 0,
+    standTransitionT: 1,
+    lastSeated: false,
     strikeRoot: new THREE.Vector3(),
     strikeYaw: 0,
     strikeClock: 0,
     mixer: null,
     actions: {},
     currentAction: 'Idle',
+    poolPlayerState: 'IdleWaiting',
+    lastShotType: 'standard',
+    debugArrows: createHumanDebugArrows(),
     cfg
   };
   human.root.visible = false;
   human.modelRoot.visible = false;
-  scene.add(human.root, human.modelRoot);
+  scene.add(human.root, human.modelRoot, human.debugArrows);
 
   const { loader, modelUrl = HUMAN_URL, onStatus } = opts;
   const modelUrls = Array.isArray(opts.modelUrls) && opts.modelUrls.length > 0
@@ -727,7 +869,8 @@ function updateGoalRushWalkAnimation(human, dt, frame) {
   if (walk) {
     const ref = human.cfg?.perimeterWalkSpeed || human.cfg?.unit || 1;
     const normalizedSpeed = Math.max(0, Math.min(2, (human.lastMoveAmountRaw || 0) * 60 / Math.max(0.001, ref)));
-    walk.timeScale = THREE.MathUtils.clamp(normalizedSpeed || walkWeight, 0.7, 1.35);
+    // Match the slower Soldier-style cadence: less skating, fuller leg/body motion.
+    walk.timeScale = THREE.MathUtils.clamp((normalizedSpeed || walkWeight) * 0.72, 0.48, 0.95);
   }
   human.mixer.update(dt);
   return walkWeight > 0.05 && frame.t < 0.025;
@@ -751,39 +894,95 @@ function driveHuman(human, frame) {
   const standingCueDir = cfg.idleCueDir.clone().applyAxisAngle(Y_AXIS, human.yaw).normalize();
   const shotQ = makeBasisQuaternion(frame.side, UP, frame.forward);
 
-  if (frame.seated) {
-    // Murlan Royale seated baseline: hips fold down into the cushion, legs stay
-    // grounded in front of the chair and only light upper-body breathing remains.
-    if (b.hips) b.hips.rotation.x += THREE.MathUtils.degToRad(-9);
-    if (b.spine) b.spine.rotation.x += THREE.MathUtils.degToRad(-3);
-    if (b.chest) b.chest.rotation.x += THREE.MathUtils.degToRad(-2);
-    if (b.head) b.head.rotation.x += THREE.MathUtils.degToRad(3);
-    if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += THREE.MathUtils.degToRad(-64);
-    if (b.rightUpperLeg) b.rightUpperLeg.rotation.x += THREE.MathUtils.degToRad(-64);
-    if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += THREE.MathUtils.degToRad(72);
-    if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += THREE.MathUtils.degToRad(72);
-    if (b.leftUpperArm) b.leftUpperArm.rotation.x += THREE.MathUtils.degToRad(-42);
-    if (b.rightUpperArm) b.rightUpperArm.rotation.x += THREE.MathUtils.degToRad(-38);
-    if (b.leftLowerArm) b.leftLowerArm.rotation.x += THREE.MathUtils.degToRad(38);
-    if (b.rightLowerArm) b.rightLowerArm.rotation.x += THREE.MathUtils.degToRad(34);
+  const seatedBlend = clamp01(frame.seatedBlend ?? (frame.seated ? 1 : 0));
+  if (seatedBlend > 0.015) {
+    // Lounge waiting pose: the pelvis stays settled in the cushion while the
+    // torso and head remain oriented toward the table.  The blend is reused as a
+    // sit-to-stand layer so the player transfers weight before walking instead
+    // of popping directly into the locomotion pose.
+    const sitW = easeInOut(seatedBlend);
+    const standW = 1 - sitW;
+    const breathe = Math.sin(human.breathT * Math.PI * 2) * sitW;
+    const idleShift = Math.sin(human.breathT * Math.PI * 0.74 + 0.8) * sitW;
+    if (b.hips) {
+      b.hips.rotation.x += THREE.MathUtils.degToRad(-18 + 9 * standW) * sitW;
+      b.hips.rotation.y += THREE.MathUtils.degToRad(4.8 * idleShift + 3.5 * frame.side.x) * sitW;
+      b.hips.rotation.z += THREE.MathUtils.degToRad(1.8 * idleShift) * sitW;
+    }
+    if (b.spine) {
+      b.spine.rotation.x += THREE.MathUtils.degToRad(-6.5 - 0.9 * breathe) * sitW;
+      b.spine.rotation.y += THREE.MathUtils.degToRad(8.5 + 2.2 * idleShift) * sitW;
+      b.spine.rotation.z += THREE.MathUtils.degToRad(-2.2) * sitW;
+    }
+    if (b.chest) {
+      b.chest.rotation.x += THREE.MathUtils.degToRad(-4.5 - 0.8 * breathe) * sitW;
+      b.chest.rotation.y += THREE.MathUtils.degToRad(10.5 + 1.8 * idleShift) * sitW;
+      b.chest.rotation.z += THREE.MathUtils.degToRad(1.4 * idleShift) * sitW;
+    }
+    if (b.neck) {
+      b.neck.rotation.x += THREE.MathUtils.degToRad(3.5 - 0.8 * breathe) * sitW;
+      b.neck.rotation.y += THREE.MathUtils.degToRad(-7.5 - 1.2 * idleShift) * sitW;
+    }
+    if (b.head) {
+      b.head.rotation.x += THREE.MathUtils.degToRad(2.8 - 0.5 * breathe) * sitW;
+      b.head.rotation.y += THREE.MathUtils.degToRad(-5.5 - 1.4 * idleShift) * sitW;
+      rotateBoneToward(b.head, frame.cueTipWorld, 0.42 * sitW, frame.forward);
+    }
+    if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += THREE.MathUtils.degToRad(-89.5) * sitW;
+    if (b.rightUpperLeg) b.rightUpperLeg.rotation.x += THREE.MathUtils.degToRad(-84.5) * sitW;
+    if (b.leftUpperLeg) b.leftUpperLeg.rotation.z += THREE.MathUtils.degToRad(-4.5) * sitW;
+    if (b.rightUpperLeg) b.rightUpperLeg.rotation.z += THREE.MathUtils.degToRad(6.5) * sitW;
+    if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += THREE.MathUtils.degToRad(-93.5) * sitW;
+    if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += THREE.MathUtils.degToRad(-99.0) * sitW;
+    if (b.leftFoot) b.leftFoot.rotation.x += THREE.MathUtils.degToRad(8.0) * sitW;
+    if (b.rightFoot) b.rightFoot.rotation.x += THREE.MathUtils.degToRad(5.0) * sitW;
+    if (b.leftUpperArm) b.leftUpperArm.rotation.x += THREE.MathUtils.degToRad(-36 - 2 * breathe) * sitW;
+    if (b.rightUpperArm) b.rightUpperArm.rotation.x += THREE.MathUtils.degToRad(-31 + 1.5 * idleShift) * sitW;
+    if (b.leftUpperArm) b.leftUpperArm.rotation.z += THREE.MathUtils.degToRad(8) * sitW;
+    if (b.rightUpperArm) b.rightUpperArm.rotation.z += THREE.MathUtils.degToRad(-7) * sitW;
+    if (b.leftLowerArm) b.leftLowerArm.rotation.x += THREE.MathUtils.degToRad(35) * sitW;
+    if (b.rightLowerArm) b.rightLowerArm.rotation.x += THREE.MathUtils.degToRad(31) * sitW;
+    human.modelRoot.position.y -= 0.1 * cfg.unit * sitW;
     human.modelRoot.updateMatrixWorld(true);
-    poseFingers(human.leftFingers, 'idle', 1);
-    poseFingers(human.rightFingers, 'grip', 0.7);
-    return;
+    if (frame.seated || seatedBlend > 0.55) {
+      poseFingers(human.leftFingers, 'idle', 1);
+      poseFingers(human.rightFingers, 'grip', 0.7);
+      return;
+    }
   }
 
   if (frame.walkAmount * idle > 0.001) {
-    const s = Math.sin(human.walkT * 6.2);
-    const c = Math.cos(human.walkT * 6.2);
+    const s = Math.sin(human.walkT * 5.15);
+    const c = Math.cos(human.walkT * 5.15);
     const w = frame.walkAmount * idle;
-    if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += s * 0.22 * w;
-    if (b.rightUpperLeg) b.rightUpperLeg.rotation.x -= s * 0.22 * w;
-    if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += Math.max(0, -s) * 0.18 * w;
-    if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += Math.max(0, s) * 0.18 * w;
-    if (b.leftUpperArm) b.leftUpperArm.rotation.x -= s * 0.2 * w;
-    if (b.rightUpperArm) b.rightUpperArm.rotation.x += s * 0.2 * w;
-    if (b.spine) b.spine.rotation.z += c * 0.02 * w;
-    if (b.hips) b.hips.rotation.z -= c * 0.014 * w;
+    const liftL = Math.max(0, s);
+    const liftR = Math.max(0, -s);
+    const plantL = Math.max(0, -s);
+    const plantR = Math.max(0, s);
+    // Relaxed billiards-room walk: planted foot pressure, opposite arm swing,
+    // hip rotation and shoulder counter-sway keep the avatar from sliding like a
+    // mannequin while moving around the table perimeter.
+    if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += (s * 0.32 - plantL * 0.035) * w;
+    if (b.rightUpperLeg) b.rightUpperLeg.rotation.x += (-s * 0.32 - plantR * 0.035) * w;
+    if (b.leftUpperLeg) b.leftUpperLeg.rotation.z += c * 0.035 * w;
+    if (b.rightUpperLeg) b.rightUpperLeg.rotation.z += c * 0.035 * w;
+    if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += (liftR * 0.38 + plantL * 0.055) * w;
+    if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += (liftL * 0.38 + plantR * 0.055) * w;
+    if (b.leftFoot) b.leftFoot.rotation.x += (liftR * 0.18 - plantL * 0.045) * w;
+    if (b.rightFoot) b.rightFoot.rotation.x += (liftL * 0.18 - plantR * 0.045) * w;
+    if (b.leftUpperArm) b.leftUpperArm.rotation.x += (-s * 0.27 - 0.025) * w;
+    if (b.rightUpperArm) b.rightUpperArm.rotation.x += (s * 0.27 - 0.025) * w;
+    if (b.leftLowerArm) b.leftLowerArm.rotation.x += (0.06 + liftL * 0.05) * w;
+    if (b.rightLowerArm) b.rightLowerArm.rotation.x += (0.06 + liftR * 0.05) * w;
+    if (b.spine) b.spine.rotation.z += c * 0.032 * w;
+    if (b.chest) {
+      b.chest.rotation.z -= c * 0.028 * w;
+      b.chest.rotation.y += s * 0.026 * w;
+    }
+    if (b.hips) {
+      b.hips.rotation.z -= c * 0.032 * w;
+      b.hips.rotation.y -= s * 0.034 * w;
+    }
   }
 
   if (ik >= 0.025) {
@@ -859,12 +1058,175 @@ function driveHuman(human, frame) {
   setHandBasis(b.rightFoot, frame.side, frame.up, frame.forward, 0.02 * ik, cfg.footLockStrength * ik);
 }
 
-export function updateHumanPose(human, dt, frameData) {
-  if (!human || !frameData || !Number.isFinite(dt) || dt < 0 || !frameData.rootTarget || !frameData.aimForward) return;
+
+function updateOriginalSkeletonHumanPose(human, dt, frameData) {
   const cfg = human.cfg;
   const state = frameData.state || 'idle';
   const activeState = state === 'rolling' || state === 'turnEnd' || state === 'gameOver' ? 'idle' : state;
+  human.poolPlayerState = activeState === 'idle'
+    ? 'ReturnToIdle'
+    : activeState === 'dragging'
+      ? 'AimAdjust'
+      : activeState === 'striking'
+        ? (human.strikeClock < cfg.strikeTime * 0.42 ? 'CuePullBack' : human.strikeClock < cfg.strikeTime ? 'CueStrike' : 'FollowThrough')
+        : 'WatchBalls';
+  human.poseT = dampScalar(human.poseT, activeState === 'idle' ? 0 : 1, cfg.poseLambda, dt);
+  human.breathT += dt * (activeState === 'idle' ? 1.05 : 0.5);
+  human.settleT = dampScalar(human.settleT, activeState === 'dragging' ? 1 : 0, 5.5, dt);
+  if (activeState === 'striking') {
+    if (human.strikeClock === 0) {
+      human.strikeRoot.copy(human.root.position.lengthSq() > 0.001 ? human.root.position : frameData.rootTarget);
+      human.strikeYaw = human.yaw;
+    }
+    human.strikeClock += dt;
+  } else {
+    human.strikeClock = 0;
+  }
+
+  const rootGoal = activeState === 'striking' ? human.strikeRoot : frameData.rootTarget;
+  const moveAmountRaw = (() => {
+    dampVector(human.root.position, rootGoal, activeState === 'striking' ? 12 : cfg.moveLambda, dt);
+    human.root.position.y = cfg.groundY;
+    return human.root.position.distanceTo(rootGoal);
+  })();
+  human.walkT += dt * (2 + Math.min(7, (moveAmountRaw * 10) / cfg.unit));
+
+  const rootToTableForward = resolveRootToTableForward(human.root.position, frameData) ||
+    frameData.aimForward.clone().setY(0).normalize();
+  const shootingPoseActive = activeState === 'dragging' || activeState === 'striking';
+  const targetYaw = yawFromForward(shootingPoseActive ? rootToTableForward : frameData.aimForward);
+  human.yaw = shootingPoseActive
+    ? targetYaw
+    : dampAngle(human.yaw, targetYaw, cfg.rotLambda, dt);
+
+  const t = easeInOut(human.poseT);
+  const handPoseT = t;
+  const idle = 1 - t;
+  const breath = Math.sin(human.breathT * Math.PI * 2) * ((0.006 + idle * 0.004) * cfg.unit);
+  const walk = Math.sin(human.walkT * 6.2) * Math.min(1, (moveAmountRaw * 12) / cfg.unit);
+  const walkAmount = clamp01((moveAmountRaw * 18) / cfg.unit) * idle;
+  const dragStroke = activeState === 'dragging'
+    ? Math.sin(performance.now() * 0.011) * (0.25 + (frameData.power || 0) * 0.75)
+    : 0;
+  const strikeFollow = activeState === 'striking'
+    ? Math.sin(clamp01(human.strikeClock / (cfg.strikeTime + cfg.holdTime)) * Math.PI)
+    : 0;
+  // The original ReadyPlayer pose places its chest/head targets on local -Z.
+  // Use the direct stance-to-table vector so local negative-Z bends over the cloth;
+  // reversing this vector makes the player turn away from the table during shots.
+  const forward = rootToTableForward.clone().normalize();
+  const side = new THREE.Vector3(forward.z, 0, -forward.x).normalize();
+  const poseYaw = yawFromForward(forward);
+  const local = (v) => v.clone().applyAxisAngle(Y_AXIS, poseYaw).add(human.root.position);
+  const powerLean = (frameData.power || 0) * t;
+  const rootWorld = human.root.position.clone().addScaledVector(rootToTableForward, (0.018 * powerLean + 0.026 * strikeFollow) * cfg.unit);
+  rootWorld.y = cfg.groundY;
+  const torso = local(new THREE.Vector3(0, lerp(1.3, 1.14, t) * cfg.unit + breath, (lerp(0.02, -0.16, t) - 0.014 * powerLean) * cfg.unit));
+  const chest = local(new THREE.Vector3(0, lerp(1.52, 1.24, t) * cfg.unit + breath, (lerp(0.02, -0.42, t) - 0.024 * powerLean) * cfg.unit));
+  const neck = local(new THREE.Vector3(0, lerp(1.68, 1.28, t) * cfg.unit + breath, (lerp(0.02, -0.61, t) - 0.028 * powerLean) * cfg.unit));
+  const head = local(new THREE.Vector3(0, lerp(1.84, 1.37, t) * cfg.unit + breath - cfg.chinToCueHeight * 0.16 * t, (lerp(0.04, -0.72, t) - 0.028 * powerLean) * cfg.unit));
+  const leftShoulder = local(new THREE.Vector3(-0.23 * cfg.unit, lerp(1.58, 1.36, t) * cfg.unit + breath, (lerp(0, -0.46, t) - 0.018 * human.settleT) * cfg.unit));
+  const rightShoulder = local(new THREE.Vector3(0.23 * cfg.unit, lerp(1.58, 1.36, t) * cfg.unit + breath, (lerp(0, -0.34, t) - 0.018 * human.settleT) * cfg.unit));
+  const leftHip = local(new THREE.Vector3(-0.13 * cfg.unit, 0.92 * cfg.unit, 0.02 * cfg.unit));
+  const rightHip = local(new THREE.Vector3(0.13 * cfg.unit, 0.92 * cfg.unit, 0.02 * cfg.unit));
+  const leftFoot = local(new THREE.Vector3(-0.13 * cfg.unit, cfg.footGroundY, 0.03 * cfg.unit + walk * 0.018 * cfg.unit).lerp(new THREE.Vector3(-cfg.stanceWidth * 0.42, cfg.footGroundY, -0.34 * cfg.unit), t));
+  const rightFoot = local(new THREE.Vector3(0.13 * cfg.unit, cfg.footGroundY, -0.03 * cfg.unit - walk * 0.018 * cfg.unit).lerp(new THREE.Vector3(cfg.stanceWidth * 0.5, cfg.footGroundY, 0.34 * cfg.unit), t));
+  const bridgePalmTarget = frameData.bridgeTarget.clone()
+    .addScaledVector(forward, -0.006 * cfg.unit * t)
+    .addScaledVector(side, -0.012 * cfg.unit * t)
+    .setY(cfg.tableTopY + cfg.bridgePalmTableLift)
+    .addScaledVector(UP, -0.01 * cfg.unit * human.settleT);
+  const leftHand = frameData.idleLeft.clone().lerp(bridgePalmTarget, handPoseT);
+  const cueDirForHand = frameData.cueTip.clone().sub(frameData.cueBack).normalize();
+  const handIk = easeInOut(clamp01(handPoseT));
+  const idleGripSide = side.clone().multiplyScalar(-1).addScaledVector(UP, -0.55).addScaledVector(forward, 0.16).normalize();
+  const idleGripUp = UP.clone().multiplyScalar(-1.0).addScaledVector(side, -0.64).addScaledVector(forward, 0.2).normalize();
+  const liveGripSide = side.clone().multiplyScalar(-1).addScaledVector(UP, lerp(-0.55, -0.62, handIk)).addScaledVector(side, 0.5 * handIk).addScaledVector(forward, lerp(0.16, -0.08, handIk)).normalize();
+  const liveGripUp = UP.clone().multiplyScalar(lerp(-1.0, 0.12, handIk)).addScaledVector(side, lerp(-0.64, -0.04, handIk)).addScaledVector(forward, lerp(0.2, -0.48, handIk)).normalize();
+  const lockedRightElbow = rightShoulder.clone()
+    .addScaledVector(UP, lerp(0.04 * cfg.unit, cfg.rightElbowShotRise, handPoseT))
+    .addScaledVector(side, lerp(-0.18 * cfg.unit, cfg.rightElbowShotSide, handPoseT))
+    .addScaledVector(forward, lerp(-0.04 * cfg.unit, cfg.rightElbowShotBack, handPoseT));
+  const pullBack = activeState === 'dragging' ? -cfg.rightStrokePull * easeOutCubic(frameData.power || 0) : 0;
+  const pushForward = activeState === 'striking' ? cfg.rightStrokePush * strikeFollow : 0;
+  const smallPractice = activeState === 'dragging' ? dragStroke * 0.035 * cfg.unit : 0;
+  const forearmStroke = pullBack + pushForward + smallPractice;
+  const forearmBase = lockedRightElbow.clone()
+    .addScaledVector(side, cfg.rightForearmOutward * handPoseT)
+    .addScaledVector(UP, -cfg.rightForearmDown * handPoseT)
+    .addScaledVector(UP, cfg.rightHandShotLift * handPoseT)
+    .addScaledVector(forward, -cfg.rightForearmBack * handPoseT)
+    .addScaledVector(cueDirForHand, cfg.rightForearmLength);
+  const liveCueGripPoint = forearmBase.clone().addScaledVector(cueDirForHand, forearmStroke);
+  const idleWristTarget = frameData.idleRight.clone().sub(cueSocketOffsetWorld(idleGripSide, idleGripUp, cueDirForHand, cfg.rightHandRollIdle, cfg.rightHandCueSocketLocal));
+  const liveWristTarget = liveCueGripPoint.clone().sub(cueSocketOffsetWorld(liveGripSide, liveGripUp, cueDirForHand, lerp(cfg.rightHandRollIdle, cfg.rightHandRollShoot - cfg.rightHandDownPose, handIk), cfg.rightHandCueSocketLocal));
+  const rightHand = idleWristTarget.clone().lerp(liveWristTarget, handPoseT);
+  const leftElbow = leftShoulder.clone().lerp(leftHand, 0.62).addScaledVector(UP, 0.006 * cfg.unit * t).addScaledVector(side, -0.044 * cfg.unit * t).addScaledVector(forward, 0.065 * cfg.unit * t);
+  const leftKnee = leftHip.clone().lerp(leftFoot, 0.53).addScaledVector(UP, lerp(0.2 * cfg.unit, cfg.kneeBendShot, t)).addScaledVector(forward, 0.04 * cfg.unit * t).addScaledVector(side, -0.012 * cfg.unit * t);
+  const rightKnee = rightHip.clone().lerp(rightFoot, 0.52).addScaledVector(UP, lerp(0.2 * cfg.unit, cfg.kneeBendShot * 0.88, t)).addScaledVector(forward, -0.03 * cfg.unit * t).addScaledVector(side, 0.014 * cfg.unit * t);
+
+  human.root.visible = true;
+  human.lastMoveAmountRaw = moveAmountRaw;
+  driveHuman(human, {
+    t,
+    dt,
+    stroke: forearmStroke / cfg.unit,
+    follow: strikeFollow,
+    walkAmount,
+    forward,
+    side,
+    up: UP,
+    rootWorld,
+    torsoCenterWorld: torso,
+    chestCenterWorld: chest,
+    neckWorld: neck,
+    headCenterWorld: head,
+    leftElbow,
+    rightElbow: lockedRightElbow,
+    leftHandWorld: leftHand,
+    rightHandWorld: rightHand,
+    leftKnee,
+    rightKnee,
+    leftFootWorld: leftFoot,
+    rightFootWorld: rightFoot,
+    cueBackWorld: frameData.cueBack,
+    cueTipWorld: frameData.cueTip,
+    seated: false,
+    seatedBlend: 0,
+    standTransition: 1
+  });
+  updateHumanDebugArrows(human, frameData, forward, cueDirForHand, cfg);
+}
+
+export function updateHumanPose(human, dt, frameData) {
+  if (!human || !frameData || !Number.isFinite(dt) || dt < 0 || !frameData.rootTarget || !frameData.aimForward) return;
+  if (human.cfg?.originalSkeletonLogic && (frameData.state || 'idle') !== 'seated') {
+    updateOriginalSkeletonHumanPose(human, dt, frameData);
+    return;
+  }
+  const cfg = human.cfg;
+  const state = frameData.state || 'idle';
+  const activeState = state === 'rolling' || state === 'turnEnd' || state === 'gameOver' ? 'idle' : state;
+  const shotType = resolveShotType(frameData, cfg);
+  const poseProfile = shotTypePoseProfile(shotType);
+  human.lastShotType = shotType;
+  const movingToShot = activeState !== 'seated' && activeState !== 'striking' && human.root.position.distanceTo(frameData.rootTarget) > 0.08 * cfg.unit;
+  human.poolPlayerState = activeState === 'seated'
+    ? 'IdleWaiting'
+    : movingToShot
+      ? 'WalkToShotPosition'
+      : activeState === 'idle'
+        ? 'ReturnToIdle'
+        : activeState === 'dragging'
+          ? 'AimAdjust'
+          : activeState === 'striking'
+            ? (human.strikeClock < cfg.strikeTime * 0.42 ? 'CuePullBack' : human.strikeClock < cfg.strikeTime ? 'CueStrike' : 'FollowThrough')
+            : 'WatchBalls';
   human.poseT = dampScalar(human.poseT, activeState === 'idle' || activeState === 'seated' ? 0 : 1, cfg.poseLambda, dt);
+  human.seatedBlend = dampScalar(human.seatedBlend || 0, activeState === 'seated' ? 1 : 0, activeState === 'seated' ? 7.5 : 3.2, dt);
+  if (human.lastSeated && activeState !== 'seated') human.standTransitionT = 0;
+  human.lastSeated = activeState === 'seated';
+  human.standTransitionT = clamp01((human.standTransitionT ?? 1) + dt * 1.85);
   human.breathT += dt * (activeState === 'idle' || activeState === 'seated' ? 1.05 : 0.5);
   human.settleT = dampScalar(human.settleT, activeState === 'dragging' ? 1 : 0, 5.5, dt);
   if (activeState === 'striking') {
@@ -878,27 +1240,31 @@ export function updateHumanPose(human, dt, frameData) {
   }
 
   const rootGoal = activeState === 'striking' ? human.strikeRoot : frameData.rootTarget;
-  const directRootTarget = frameData.directRootTarget || activeState === 'seated';
+  const standingUpFromChair = activeState !== 'seated' && (human.seatedBlend || 0) > 0.08;
+  const directRootTarget = frameData.directRootTarget || activeState === 'seated' || standingUpFromChair;
   const moveAmountRaw = activeState === 'striking' || directRootTarget
     ? (() => {
-        dampVector(human.root.position, rootGoal, directRootTarget ? cfg.moveLambda : 12, dt);
+        dampVector(human.root.position, rootGoal, standingUpFromChair ? cfg.moveLambda * 0.42 : directRootTarget ? cfg.moveLambda : 12, dt);
         human.root.position.y = cfg.groundY;
         return human.root.position.distanceTo(rootGoal);
       })()
     : moveRootAroundPerimeter(human, rootGoal, cfg, dt);
-  human.walkT += dt * (2 + Math.min(7, (moveAmountRaw * 10) / cfg.unit));
+  const standGate = easeInOut(clamp01(human.standTransitionT ?? 1));
+  human.walkT += dt * (1.45 + Math.min(5.2, (moveAmountRaw * 8.2) / cfg.unit)) * Math.max(0.35, standGate);
   const shootingPoseActive = activeState === 'dragging' || activeState === 'striking';
   const tableForward = resolveRootToTableForward(human.root.position, frameData);
   const facingForward = shootingPoseActive && tableForward
     ? tableForward
     : resolveTableFacingForward(frameData.aimForward, rootGoal, frameData, cfg);
-  // When the low cue camera/shot pose is active, lock yaw directly toward the
-  // cue-ball/table reference. Damped yaw could leave the upper body bending toward
-  // the previous direction for a few frames, which made the pose look backwards.
   const targetRootYaw = yawFromForward(facingForward) - (cfg.humanVisualYawFix || 0);
-  human.yaw = shootingPoseActive
-    ? targetRootYaw
-    : dampScalar(human.yaw, targetRootYaw, cfg.rotLambda, dt);
+  if (shootingPoseActive) {
+    // Lock aiming/striking frames exactly onto the table-facing shot line. A slow
+    // damp here can leave the avatar visibly aimed at the opposite rail for a few
+    // frames after the cue camera drops.
+    human.yaw = targetRootYaw;
+  } else {
+    human.yaw = dampAngle(human.yaw, targetRootYaw, cfg.rotLambda, dt);
+  }
   ensureHumanFacingTable(human, frameData, cfg);
 
   const t = easeInOut(human.poseT);
@@ -906,7 +1272,7 @@ export function updateHumanPose(human, dt, frameData) {
   const breath = Math.sin(human.breathT * Math.PI * 2) * ((0.006 + idle * 0.004) * cfg.unit);
   const walk = Math.sin(human.walkT * 6.2) * Math.min(1, (moveAmountRaw * 12) / cfg.unit);
   human.lastMoveAmountRaw = moveAmountRaw;
-  const walkAmount = clamp01((moveAmountRaw * 18) / cfg.unit) * idle;
+  const walkAmount = clamp01((moveAmountRaw * 18) / cfg.unit) * idle * standGate;
   const dragStroke = activeState === 'dragging' ? Math.sin(performance.now() * 0.011) * (0.25 + (frameData.power || 0) * 0.75) : 0;
   const strikeFollow = activeState === 'striking' ? Math.sin(clamp01(human.strikeClock / (cfg.strikeTime + cfg.holdTime)) * Math.PI) : 0;
   const visualYaw = human.yaw + (cfg.humanVisualYawFix || 0);
@@ -923,90 +1289,98 @@ export function updateHumanPose(human, dt, frameData) {
     ? Math.max(0, cfg.shootForwardBendScale)
     : 1;
   const plantFeetDuringShot = cfg.plantFeetDuringShot !== false;
-  const shotBendZ = (value) => Math.abs(value) * bendDirection * forwardBendScale;
-  const shotCounterLeanX = (value) => value * counterLeanSide * upperBodyCounterLean;
+  const standingShotStance = cfg.standingShotStance === true;
+  const bodyPoseT = standingShotStance ? 0 : t;
+  const footPoseT = standingShotStance ? 0 : t;
+  const handPoseT = t;
+  const shotBendZ = (value) => Math.abs(value) * bendDirection * forwardBendScale * poseProfile.lean;
+  const shotCounterLeanX = (value) => (value + (poseProfile.hipSide || 0) * t) * counterLeanSide * upperBodyCounterLean;
   const rootWorld = human.root.position.clone();
   rootWorld.y = cfg.groundY;
+  if (activeState === 'striking' && poseProfile.recoil) rootWorld.addScaledVector(forward, -poseProfile.recoil * cfg.unit * strikeFollow);
 
   // Real pool stance: feet/hips stay grounded and carry the weight; the fold is
   // from the belly upward, lowering the head toward the cue line without pushing
   // the entire body backward or off the floor.
-  const torso = local(new THREE.Vector3(shotCounterLeanX(0.012 * t) * cfg.unit, lerp(1.3, 1.2, t) * cfg.unit + breath, shotBendZ(lerp(0.01, -0.08, t) - 0.008 * powerLean) * cfg.unit));
-  const chest = local(new THREE.Vector3(shotCounterLeanX(0.038 * t + 0.006 * powerLean) * cfg.unit, lerp(1.52, 1.32, t) * cfg.unit + breath, shotBendZ(lerp(0.015, -0.26, t) - 0.014 * powerLean) * cfg.unit));
-  const neck = local(new THREE.Vector3(shotCounterLeanX(0.055 * t + 0.008 * powerLean) * cfg.unit, lerp(1.68, 1.42, t) * cfg.unit + breath, shotBendZ(lerp(0.02, -0.38, t) - 0.016 * powerLean) * cfg.unit));
-  const head = local(new THREE.Vector3(shotCounterLeanX(0.066 * t + 0.01 * powerLean) * cfg.unit, lerp(1.84, 1.5, t) * cfg.unit + breath - cfg.chinToCueHeight * 0.22 * t, shotBendZ(lerp(0.03, -0.44, t) - 0.018 * powerLean) * cfg.unit));
-  const leftShoulder = local(new THREE.Vector3((-0.23 + shotCounterLeanX(0.048 * t)) * cfg.unit, lerp(1.58, 1.42, t) * cfg.unit + breath, shotBendZ(lerp(0, -0.31, t) - 0.012 * human.settleT) * cfg.unit));
-  const rightShoulder = local(new THREE.Vector3((0.23 + shotCounterLeanX(0.034 * t)) * cfg.unit, lerp(1.58, 1.42, t) * cfg.unit + breath, shotBendZ(lerp(0, -0.25, t) - 0.012 * human.settleT) * cfg.unit));
+  const torso = local(new THREE.Vector3(shotCounterLeanX(0.012 * bodyPoseT) * cfg.unit, lerp(1.3, 1.16, bodyPoseT) * cfg.unit + breath, shotBendZ(lerp(0.01, -0.12, bodyPoseT) - 0.008 * powerLean) * cfg.unit));
+  const chest = local(new THREE.Vector3(shotCounterLeanX(0.038 * bodyPoseT + 0.006 * powerLean) * cfg.unit, lerp(1.52, 1.25, bodyPoseT) * cfg.unit + breath, shotBendZ(lerp(0.015, -0.36, bodyPoseT) - 0.014 * powerLean) * cfg.unit));
+  const neck = local(new THREE.Vector3(shotCounterLeanX(0.055 * bodyPoseT + 0.008 * powerLean) * cfg.unit, lerp(1.68, 1.32, bodyPoseT) * cfg.unit + breath, shotBendZ(lerp(0.02, -0.52, bodyPoseT) - 0.016 * powerLean) * cfg.unit));
+  const head = local(new THREE.Vector3(shotCounterLeanX(0.066 * bodyPoseT + 0.01 * powerLean) * cfg.unit, lerp(1.84, 1.39, bodyPoseT) * cfg.unit + breath - cfg.chinToCueHeight * 0.42 * bodyPoseT, shotBendZ(lerp(0.03, -0.62, bodyPoseT) - 0.018 * powerLean) * cfg.unit));
+  const leftShoulder = local(new THREE.Vector3((-0.23 + shotCounterLeanX(0.048 * bodyPoseT)) * cfg.unit, lerp(1.58, 1.34, bodyPoseT) * cfg.unit + breath, shotBendZ(lerp(0, -0.43, bodyPoseT) - 0.012 * human.settleT) * cfg.unit));
+  const rightShoulder = local(new THREE.Vector3((0.23 + shotCounterLeanX(0.034 * bodyPoseT)) * cfg.unit, lerp(1.58, 1.34, bodyPoseT) * cfg.unit + breath, shotBendZ(lerp(0, -0.36, bodyPoseT) - 0.012 * human.settleT) * cfg.unit));
   const leftHip = local(new THREE.Vector3(-0.13 * cfg.unit, 0.92 * cfg.unit, 0.02 * cfg.unit));
   const rightHip = local(new THREE.Vector3(0.13 * cfg.unit, 0.92 * cfg.unit, 0.02 * cfg.unit));
   const footWalkBlend = plantFeetDuringShot ? idle : 1;
+  const stanceExtra = poseProfile.stanceWide * cfg.unit;
   const plantedLeftFootLocal = new THREE.Vector3(
-    -cfg.stanceWidth * 0.42,
+    -cfg.stanceWidth * 0.56 - stanceExtra,
     cfg.footGroundY,
-    -0.34 * cfg.unit
+    (-0.41 - poseProfile.stanceBack) * cfg.unit
   );
   const plantedRightFootLocal = new THREE.Vector3(
-    cfg.stanceWidth * 0.5,
+    cfg.stanceWidth * 0.58 + stanceExtra,
     cfg.footGroundY,
-    0.34 * cfg.unit
+    (0.39 + poseProfile.stanceBack * 0.72) * cfg.unit
   );
   const leftFoot = local(new THREE.Vector3(
     -0.13 * cfg.unit,
     cfg.footGroundY,
     0.03 * cfg.unit + walk * 0.018 * cfg.unit * footWalkBlend
-  ).lerp(plantedLeftFootLocal, t));
+  ).lerp(plantedLeftFootLocal, footPoseT));
   const rightFoot = local(new THREE.Vector3(
     0.13 * cfg.unit,
     cfg.footGroundY,
     -0.03 * cfg.unit - walk * 0.018 * cfg.unit * footWalkBlend
-  ).lerp(plantedRightFootLocal, t));
+  ).lerp(plantedRightFootLocal, footPoseT));
 
-  const bridgePalmSide = cfg.bridgePoseUsesConfiguredSide
+  const bridgePalmSide = (cfg.bridgePoseUsesConfiguredSide
     ? cfg.bridgeHandSide
-    : -0.012 * cfg.unit;
+    : -0.012 * cfg.unit) + (poseProfile.bridgeSide || 0) * cfg.unit;
   const bridgePalmTarget = frameData.bridgeTarget.clone()
-    .addScaledVector(forward, -0.006 * cfg.unit * t)
-    .addScaledVector(side, bridgePalmSide * t)
-    .setY(cfg.tableTopY + cfg.bridgePalmTableLift)
+    .addScaledVector(forward, (-0.006 + poseProfile.bridgeReach) * cfg.unit * handPoseT)
+    .addScaledVector(side, bridgePalmSide * handPoseT)
+    .setY(cfg.tableTopY + cfg.bridgePalmTableLift + poseProfile.bridgeLift * cfg.unit)
     .addScaledVector(UP, -0.01 * cfg.unit * human.settleT);
-  const leftHand = frameData.idleLeft.clone().lerp(bridgePalmTarget, t);
+  const leftHand = frameData.idleLeft.clone().lerp(bridgePalmTarget, handPoseT);
   const cueDirForHand = frameData.cueTip.clone().sub(frameData.cueBack).normalize();
-  const handIk = easeInOut(clamp01(t));
+  const handIk = easeInOut(clamp01(handPoseT));
   const idleGripSide = side.clone().multiplyScalar(-1).addScaledVector(UP, -0.55).addScaledVector(forward, 0.16).normalize();
   const idleGripUp = UP.clone().multiplyScalar(-1.0).addScaledVector(side, -0.64).addScaledVector(forward, 0.2).normalize();
   const liveGripSide = side.clone().multiplyScalar(-1).addScaledVector(UP, lerp(-0.55, -0.62, handIk)).addScaledVector(side, 0.5 * handIk).addScaledVector(forward, lerp(0.16, -0.08, handIk)).normalize();
   const liveGripUp = UP.clone().multiplyScalar(lerp(-1.0, 0.12, handIk)).addScaledVector(side, lerp(-0.64, -0.04, handIk)).addScaledVector(forward, lerp(0.2, -0.48, handIk)).normalize();
   const lockedRightElbow = rightShoulder.clone()
-    .addScaledVector(UP, lerp(0.04 * cfg.unit, cfg.rightElbowShotRise, t))
-    .addScaledVector(side, lerp(-0.18 * cfg.unit, cfg.rightElbowShotSide, t))
-    .addScaledVector(forward, lerp(-0.04 * cfg.unit, cfg.rightElbowShotBack, t));
-  const pullBack = activeState === 'dragging' ? -cfg.rightStrokePull * easeOutCubic(frameData.power || 0) : 0;
-  const pushForward = activeState === 'striking' ? cfg.rightStrokePush * strikeFollow : 0;
+    .addScaledVector(UP, lerp(0.04 * cfg.unit, cfg.rightElbowShotRise, handPoseT))
+    .addScaledVector(side, lerp(-0.18 * cfg.unit, cfg.rightElbowShotSide, handPoseT))
+    .addScaledVector(forward, lerp(-0.04 * cfg.unit, cfg.rightElbowShotBack, handPoseT));
+  const pullBack = activeState === 'dragging' ? -(cfg.rightStrokePull + poseProfile.gripBack * cfg.unit) * easeOutCubic(frameData.power || 0) : 0;
+  const pushForward = activeState === 'striking' ? cfg.rightStrokePush * poseProfile.followScale * strikeFollow : 0;
   const smallPractice = activeState === 'dragging' ? dragStroke * 0.035 * cfg.unit : 0;
   const forearmStroke = pullBack + pushForward + smallPractice;
   const forearmBase = lockedRightElbow.clone()
-    .addScaledVector(side, cfg.rightForearmOutward * t)
-    .addScaledVector(UP, -cfg.rightForearmDown * t)
-    .addScaledVector(UP, cfg.rightHandShotLift * t)
-    .addScaledVector(forward, -cfg.rightForearmBack * t)
+    .addScaledVector(side, cfg.rightForearmOutward * handPoseT)
+    .addScaledVector(UP, -cfg.rightForearmDown * handPoseT)
+    .addScaledVector(UP, cfg.rightHandShotLift * handPoseT)
+    .addScaledVector(forward, -cfg.rightForearmBack * handPoseT)
     .addScaledVector(cueDirForHand, cfg.rightForearmLength);
-  const liveCueGripPoint = forearmBase.clone().addScaledVector(cueDirForHand, forearmStroke);
-  if (frameData.gripTarget) liveCueGripPoint.lerp(frameData.gripTarget, 0.72 * t);
+  const liveCueGripPoint = forearmBase.clone()
+    .addScaledVector(cueDirForHand, forearmStroke + poseProfile.gripBack * cfg.unit * handPoseT)
+    .addScaledVector(UP, poseProfile.cueLift * cfg.unit * handPoseT);
+  if (frameData.gripTarget) liveCueGripPoint.lerp(frameData.gripTarget, 0.72 * handPoseT);
   const idleWristTarget = frameData.idleRight.clone().sub(cueSocketOffsetWorld(idleGripSide, idleGripUp, cueDirForHand, cfg.rightHandRollIdle, cfg.rightHandCueSocketLocal));
   const liveWristTarget = liveCueGripPoint.clone().sub(cueSocketOffsetWorld(liveGripSide, liveGripUp, cueDirForHand, lerp(cfg.rightHandRollIdle, cfg.rightHandRollShoot - cfg.rightHandDownPose, handIk), cfg.rightHandCueSocketLocal));
-  const rightHand = idleWristTarget.clone().lerp(liveWristTarget, t);
+  const rightHand = idleWristTarget.clone().lerp(liveWristTarget, handPoseT);
   const bridgeArmDownElbow = leftHand.clone()
-    .addScaledVector(UP, 0.34 * cfg.unit)
+    .addScaledVector(UP, 0.39 * cfg.unit)
     .addScaledVector(side, -0.01 * cfg.unit)
     .addScaledVector(forward, 0.012 * cfg.unit);
   const extendedBridgeElbow = leftShoulder.clone()
     .lerp(leftHand, 0.58)
-    .addScaledVector(UP, -0.035 * cfg.unit * t)
-    .addScaledVector(side, -0.028 * cfg.unit * t)
-    .addScaledVector(forward, -0.055 * cfg.unit * t);
-  const leftElbow = extendedBridgeElbow.lerp(bridgeArmDownElbow, cfg.bridgeArmStraightDown ? t : 0);
-  const leftKnee = leftHip.clone().lerp(leftFoot, 0.53).addScaledVector(UP, lerp(0.2 * cfg.unit, cfg.kneeBendShot, t)).addScaledVector(forward, 0.04 * cfg.unit * t).addScaledVector(side, -0.012 * cfg.unit * t);
-  const rightKnee = rightHip.clone().lerp(rightFoot, 0.52).addScaledVector(UP, lerp(0.2 * cfg.unit, cfg.kneeBendShot * 0.88, t)).addScaledVector(forward, -0.03 * cfg.unit * t).addScaledVector(side, 0.014 * cfg.unit * t);
+    .addScaledVector(UP, -0.035 * cfg.unit * handPoseT)
+    .addScaledVector(side, -0.028 * cfg.unit * handPoseT)
+    .addScaledVector(forward, -0.055 * cfg.unit * handPoseT);
+  const leftElbow = extendedBridgeElbow.lerp(bridgeArmDownElbow, cfg.bridgeArmStraightDown ? handPoseT : 0);
+  const leftKnee = leftHip.clone().lerp(leftFoot, 0.53).addScaledVector(UP, lerp(0.2 * cfg.unit, cfg.kneeBendShot, footPoseT)).addScaledVector(forward, 0.04 * cfg.unit * footPoseT).addScaledVector(side, -0.012 * cfg.unit * footPoseT);
+  const rightKnee = rightHip.clone().lerp(rightFoot, 0.52).addScaledVector(UP, lerp(0.2 * cfg.unit, cfg.kneeBendShot * 1.02, footPoseT)).addScaledVector(forward, -0.03 * cfg.unit * footPoseT).addScaledVector(side, 0.014 * cfg.unit * footPoseT);
 
   human.root.visible = true;
   driveHuman(human, {
@@ -1033,21 +1407,92 @@ export function updateHumanPose(human, dt, frameData) {
     rightFootWorld: rightFoot,
     cueBackWorld: frameData.cueBack,
     cueTipWorld: frameData.cueTip,
-    seated: activeState === 'seated'
+    seated: activeState === 'seated',
+    seatedBlend: human.seatedBlend || 0,
+    standTransition: standGate
   });
+  updateHumanDebugArrows(human, frameData, forward, cueDirForHand, cfg);
+}
+
+function isBlockedStandingPoint(point, opts, cfg) {
+  const tableW = opts.tableW ?? 2.0;
+  const tableL = opts.tableL ?? 3.6;
+  const clearance = Math.max(cfg.edgeMargin * 0.72, opts.bodyClearance ?? 0.34 * cfg.unit);
+  if (Math.abs(point.x) < tableW / 2 + clearance && Math.abs(point.z) < tableL / 2 + clearance) return true;
+  const blockers = Array.isArray(opts.blockers) ? opts.blockers : [];
+  for (const blocker of blockers) {
+    const center = blocker.center || blocker.position || blocker;
+    const radius = Number(blocker.radius ?? blocker.clearance ?? 0);
+    if (!center || !Number.isFinite(radius) || radius <= 0) continue;
+    if (point.distanceToSquared(new THREE.Vector3(center.x, point.y, center.z)) <= radius * radius) return true;
+  }
+  if (typeof opts.isWalkable === 'function' && !opts.isWalkable(point.clone())) return true;
+  return false;
 }
 
 export function chooseHumanEdgePosition(cueBallWorld, aimForward, opts = {}) {
   const cfg = scaleVectorConfig(opts);
-  const desired = cueBallWorld.clone().addScaledVector(aimForward, -cfg.desiredShootDistance);
-  const xEdge = (opts.tableW ?? 2.0) / 2 + cfg.edgeMargin;
-  const zEdge = (opts.tableL ?? 3.6) / 2 + cfg.edgeMargin;
+  const shotDir = aimForward.clone().setY(0);
+  if (shotDir.lengthSq() < 1e-8) shotDir.set(0, 0, -1);
+  shotDir.normalize();
+  const desired = cueBallWorld.clone().addScaledVector(shotDir, -cfg.desiredShootDistance);
+  const tableW = opts.tableW ?? 2.0;
+  const tableL = opts.tableL ?? 3.6;
+  const xEdge = tableW / 2 + cfg.edgeMargin;
+  const zEdge = tableL / 2 + cfg.edgeMargin;
   const groundY = cfg.groundY || 0;
+  const behind = shotDir.clone().multiplyScalar(-1);
+  const normalizePreferredSide = (side) => {
+    const value = String(side || '').toLowerCase();
+    if (['west', 'left', '-x'].includes(value)) return 'west';
+    if (['east', 'right', '+x'].includes(value)) return 'east';
+    if (['north', 'top', '-z'].includes(value)) return 'north';
+    if (['south', 'bottom', '+z'].includes(value)) return 'south';
+    return null;
+  };
+  const preferredTableSide = normalizePreferredSide(opts.preferredTableSide || opts.stanceSide);
+  const candidate = (x, z, sideName = null) => ({
+    point: new THREE.Vector3(clamp(x, -xEdge, xEdge), groundY, clamp(z, -zEdge, zEdge)),
+    sideName
+  });
   const candidates = [
-    new THREE.Vector3(-xEdge, groundY, clamp(desired.z, -zEdge, zEdge)),
-    new THREE.Vector3(xEdge, groundY, clamp(desired.z, -zEdge, zEdge)),
-    new THREE.Vector3(clamp(desired.x, -xEdge, xEdge), groundY, -zEdge),
-    new THREE.Vector3(clamp(desired.x, -xEdge, xEdge), groundY, zEdge)
+    candidate(-xEdge, desired.z, 'west'),
+    candidate(xEdge, desired.z, 'east'),
+    candidate(desired.x, -zEdge, 'north'),
+    candidate(desired.x, zEdge, 'south'),
+    candidate(cueBallWorld.x + behind.x * cfg.desiredShootDistance, cueBallWorld.z + behind.z * cfg.desiredShootDistance),
+    candidate(cueBallWorld.x + behind.x * (cfg.desiredShootDistance + cfg.edgeMargin * 0.5), cueBallWorld.z + behind.z * (cfg.desiredShootDistance + cfg.edgeMargin * 0.5))
   ];
-  return candidates.sort((a, b) => a.distanceToSquared(desired) - b.distanceToSquared(desired))[0].clone();
+
+  for (let i = -3; i <= 3; i += 1) {
+    const lateral = i * cfg.edgeMargin * 0.42;
+    candidates.push(candidate(desired.x + shotDir.z * lateral, desired.z - shotDir.x * lateral));
+  }
+
+  const unique = [];
+  const seen = new Set();
+  for (const entry of candidates) {
+    const point = entry.point || entry;
+    const key = `${point.x.toFixed(3)}:${point.z.toFixed(3)}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push({ point, sideName: entry.sideName || null });
+    }
+  }
+
+  const score = (entry) => {
+    const point = entry.point || entry;
+    const cueToPoint = point.clone().sub(cueBallWorld).setY(0);
+    const behindScore = cueToPoint.lengthSq() > 1e-8 ? Math.max(0, cueToPoint.normalize().dot(behind)) : 0;
+    const sidePenalty = Math.abs(point.clone().sub(desired).dot(new THREE.Vector3(shotDir.z, 0, -shotDir.x)));
+    const blockedPenalty = isBlockedStandingPoint(point, opts, cfg) ? 100000 : 0;
+    const behindPenalty = (1 - behindScore) * cfg.desiredShootDistance * cfg.desiredShootDistance * 18;
+    const sidePreferencePenalty = preferredTableSide && entry.sideName && entry.sideName !== preferredTableSide
+      ? cfg.desiredShootDistance * cfg.desiredShootDistance * 28
+      : 0;
+    return blockedPenalty + behindPenalty + sidePreferencePenalty + point.distanceToSquared(desired) + sidePenalty * 0.35;
+  };
+
+  const sorted = unique.sort((a, b) => score(a) - score(b));
+  return ((sorted[0] && sorted[0].point) || desired).clone().setY(groundY);
 }

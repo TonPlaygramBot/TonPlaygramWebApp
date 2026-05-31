@@ -34,7 +34,6 @@ import { PoolRoyaleRules } from '../../../../src/rules/PoolRoyaleRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import {
-  POOL_ROYALE_TABLE_MODEL_STORAGE_KEY,
   resolvePoolRoyaleTableModel
 } from '../../config/poolRoyaleTableModels.js';
 import { resolveTableSize as resolveSnookerTableSize } from '../../config/snookerClubTables.js';
@@ -85,7 +84,6 @@ import {
 } from '../../config/poolRoyaleInventoryConfig.js';
 import { BILARDO_MIN_RELEASE_POWER } from './shared/bilardoShotModel';
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../../config/poolRoyaleClothPresets.js';
-import { MURLAN_CHARACTER_THEMES } from '../../config/murlanCharacterThemes.js';
 import {
   getCachedPoolRoyalInventory,
   getPoolRoyalInventory,
@@ -123,448 +121,9 @@ import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
 import { computeCueDriveBoost } from './cueShotImpact.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
-import { createMurlanStyleTable } from '../../utils/murlanTable.js';
-import {
-  createBilardoHumanRig as sharedCreateBilardoHumanRig,
-  chooseHumanEdgePosition as sharedChooseBilardoHumanEdgePosition,
-  updateBilardoHumanPose as sharedUpdateBilardoHumanPose
-} from './shared/bilardoHumanRig.js';
-
-const bilardoRigLocal = (() => {
-const WORLD_SCALE = 3.5;
-const DIMENSION_KEYS = new Set([
-  'stanceWidth', 'bridgePalmTableLift', 'edgeMargin', 'desiredShootDistance', 'chinToCueHeight',
-  'tableTopY', 'bridgeHandBackFromBall', 'bridgeHandSide', 'bridgeCueLift', 'cueLength', 'bridgeDist',
-  'shootCueGripFromBack', 'rightHandShotExtraBack', 'rightHandShotLift', 'rightHandForwardClamp',
-  'rightHandOutward', 'idleRightHandY', 'idleRightHandX', 'idleRightHandZ', 'footGroundY',
-  'kneeBendShot', 'rightElbowShotRise', 'rightElbowShotSide', 'rightElbowShotBack'
-]);
-
-const CFG = {
-  scale: WORLD_SCALE,
-  poseLambda: 9,
-  moveLambda: 5.6,
-  rotLambda: 8.5,
-  walkRefSpeed: 1.0,
-  humanScale: 1.18,
-  humanVisualYawFix: Math.PI,
-  stanceWidth: 0.52,
-  bridgePalmTableLift: 0.006,
-  edgeMargin: 0.58,
-  desiredShootDistance: 1.06,
-  chinToCueHeight: 0.11,
-  cueArmElbowRise: 0.43,
-  strikeTime: 0.12,
-  holdTime: 0.05,
-  tableTopY: 0.84,
-  bridgeHandBackFromBall: 0.235,
-  bridgeHandSide: -0.012,
-  bridgeCueLift: 0.018,
-  cueLength: 1.46,
-  bridgeDist: 0.24,
-  shootCueGripFromBack: 0.58,
-  rightHandShotExtraBack: 0.18,
-  rightHandShotLift: 0.055,
-  rightHandForwardClamp: -0.08,
-  rightHandOutward: 0.14,
-  idleRightHandY: 0.8,
-  idleRightHandX: 0.31,
-  idleRightHandZ: -0.015,
-  rightHandRollIdle: -2.2,
-  rightHandRollShoot: -2.05,
-  rightHandCueSocketLocal: new THREE.Vector3(-0.004, -0.014, 0.092).multiplyScalar(WORLD_SCALE),
-  footGroundY: 0.035,
-  kneeBendShot: 0.16,
-  footLockStrength: 1.0,
-  rightElbowShotRise: 0.84,
-  rightElbowShotSide: -0.46,
-  rightElbowShotBack: -0.78,
-  rightForearmOutward: 0.36,
-  rightForearmBack: 0.44,
-  rightForearmDown: 0.48,
-  rightForearmLength: 0.34,
-  rightStrokePull: 0.30,
-  rightStrokePush: 0.24,
-  rightHandDownPose: 0.42
-};
-const scaleRigOptions = (opts = {}) => {
-  const scale = Number(opts.scale) > 0 ? Number(opts.scale) : WORLD_SCALE;
-  // Keep runtime rig size exactly as before (no auto-upscaling of caller values).
-  return { ...opts, scale };
-};
-
-const Y_AXIS = new THREE.Vector3(0, 1, 0);
-const UP = Y_AXIS;
-const BASIS_MAT = new THREE.Matrix4();
-
-const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-const clamp01 = (v) => clamp(v, 0, 1);
-const lerp = (a, b, t) => a + (b - a) * t;
-const easeInOut = (t) => t * t * (3 - 2 * t);
-const dampScalar = (current, target, lambda, dt) =>
-  THREE.MathUtils.lerp(current, target, 1 - Math.exp(-lambda * dt));
-const dampVector = (current, target, lambda, dt) =>
-  current.lerp(target, 1 - Math.exp(-lambda * dt));
-const yawFromForward = (forward) => Math.atan2(-forward.x, -forward.z);
-const cleanName = (name) => String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-
-function makeBasisQuaternion(side, up, forward) {
-  BASIS_MAT.makeBasis(side.clone().normalize(), up.clone().normalize(), forward.clone().normalize());
-  return new THREE.Quaternion().setFromRotationMatrix(BASIS_MAT);
-}
-
-function createFallbackHuman() {
-  const group = new THREE.Group();
-  const gray = new THREE.MeshStandardMaterial({ color: 0x6b7280, roughness: 0.7, metalness: 0.05 });
-  const skin = new THREE.MeshStandardMaterial({ color: 0xf0c9a5, roughness: 0.8, metalness: 0 });
-  const addBox = (size, pos, mat) => {
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(size[0], size[1], size[2]), mat);
-    mesh.position.set(pos[0], pos[1], pos[2]);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    group.add(mesh);
-  };
-  addBox([0.42, 0.72, 0.22], [0, 1.18, 0], gray);
-  addBox([0.14, 0.9, 0.14], [-0.09, 0.45, 0], gray);
-  addBox([0.14, 0.9, 0.14], [0.09, 0.45, 0], gray);
-  addBox([0.12, 0.72, 0.12], [-0.31, 1.18, 0], gray);
-  addBox([0.12, 0.72, 0.12], [0.31, 1.18, 0], gray);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 20, 20), skin);
-  head.position.set(0, 1.7, 0);
-  head.castShadow = true;
-  head.receiveShadow = true;
-  group.add(head);
-  return group;
-}
-
-function findBone(all, aliases) {
-  const list = all.map((bone) => ({ bone, name: cleanName(bone.name) }));
-  const names = aliases.map(cleanName);
-  for (const alias of names) {
-    const exact = list.find((x) => x.name === alias || x.name.endsWith(alias));
-    if (exact) return exact.bone;
-  }
-  for (const alias of names) {
-    const loose = list.find((x) => x.name.includes(alias));
-    if (loose) return loose.bone;
-  }
-  return undefined;
-}
-
-function buildAvatarBones(model) {
-  const all = [];
-  model.traverse((obj) => obj?.isBone && all.push(obj));
-  const f = (...names) => findBone(all, names);
-  return {
-    hips: f('hips', 'pelvis', 'mixamorigHips'), spine: f('spine', 'spine01', 'mixamorigSpine'), chest: f('spine2', 'chest', 'upperchest', 'mixamorigSpine2', 'mixamorigSpine1'), neck: f('neck', 'mixamorigNeck'), head: f('head', 'mixamorigHead'),
-    leftUpperArm: f('leftupperarm', 'leftarm', 'upperarml', 'mixamorigLeftArm'), leftLowerArm: f('leftforearm', 'leftlowerarm', 'forearml', 'mixamorigLeftForeArm'), leftHand: f('lefthand', 'handl', 'mixamorigLeftHand'),
-    rightUpperArm: f('rightupperarm', 'rightarm', 'upperarmr', 'mixamorigRightArm'), rightLowerArm: f('rightforearm', 'rightlowerarm', 'forearmr', 'mixamorigRightForeArm'), rightHand: f('righthand', 'handr', 'mixamorigRightHand'),
-    leftUpperLeg: f('leftupleg', 'leftupperleg', 'leftthigh', 'mixamorigLeftUpLeg'), leftLowerLeg: f('leftleg', 'leftlowerleg', 'leftcalf', 'mixamorigLeftLeg'), leftFoot: f('leftfoot', 'footl', 'mixamorigLeftFoot'),
-    rightUpperLeg: f('rightupleg', 'rightupperleg', 'rightthigh', 'mixamorigRightUpLeg'), rightLowerLeg: f('rightleg', 'rightlowerleg', 'rightcalf', 'mixamorigRightLeg'), rightFoot: f('rightfoot', 'footr', 'mixamorigRightFoot')
-  };
-}
-const collectFingerBones = (hand) => {
-  const out = [];
-  hand?.traverse((obj) => {
-    if (!obj?.isBone || obj === hand) return;
-    const n = cleanName(obj.name);
-    if (['thumb', 'index', 'middle', 'ring', 'pinky', 'little', 'finger'].some((s) => n.includes(s))) out.push(obj);
-  });
-  return out;
-};
-
-function normalizeHuman(model, opts = {}) {
-  model.scale.setScalar(opts.humanScale ?? CFG.humanScale);
-  model.rotation.set(0, opts.humanVisualYawFix ?? CFG.humanVisualYawFix, 0);
-  model.position.set(0, 0, 0);
-  model.updateMatrixWorld(true);
-  const box = new THREE.Box3().setFromObject(model);
-  const center = box.getCenter(new THREE.Vector3());
-  model.position.set(-center.x, -box.min.y, -center.z);
-}
-
-function createBilardoHumanRig(scene, opts = {}) {
-  const scaledOpts = scaleRigOptions(opts);
-  const human = { root: new THREE.Group(), modelRoot: new THREE.Group(), model: null, fallback: createFallbackHuman(), bones: {}, leftFingers: [], rightFingers: [], restQuats: new Map(), loaded: false, activeGlb: false, poseT: 0, walkT: 0, yaw: 0, breathT: 0, settleT: 0, strikeRoot: new THREE.Vector3(), strikeYaw: 0, strikeClock: 0, vel: new THREE.Vector3(), dir: new THREE.Vector3(0,0,-1), targetDir: new THREE.Vector3(0,0,-1), speed: 0, cfg: { ...CFG, ...scaledOpts } };
-  human.root.visible = false;
-  human.modelRoot.visible = false;
-  human.fallback.visible = true;
-  scene.add(human.root, human.modelRoot, human.fallback);
-
-  const loader = scaledOpts.loader;
-  const modelUrl = scaledOpts.modelUrl;
-  if (!loader || !modelUrl) {
-    human.loaded = true;
-    human.fallback.visible = true;
-    return human;
-  }
-
-  loader.setCrossOrigin?.('anonymous');
-  loader.load(modelUrl, (gltf) => {
-    const model = gltf?.scene || null;
-    if (!model) {
-      human.loaded = true;
-      human.activeGlb = false;
-      human.modelRoot.visible = false;
-      human.fallback.visible = true;
-      return;
-    }
-    normalizeHuman(model, opts);
-    model.traverse((obj) => {
-      if (!obj?.isMesh) return;
-      obj.castShadow = true;
-      obj.receiveShadow = true;
-      obj.frustumCulled = false;
-      const materials = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
-      materials.forEach((m) => {
-        if (m.map) m.map.colorSpace = THREE.SRGBColorSpace;
-        m.needsUpdate = true;
-      });
-    });
-    human.bones = buildAvatarBones(model);
-    human.leftFingers = collectFingerBones(human.bones.leftHand);
-    human.rightFingers = collectFingerBones(human.bones.rightHand);
-    [...Object.values(human.bones), ...human.leftFingers, ...human.rightFingers].forEach((bone) => bone && human.restQuats.set(bone, bone.quaternion.clone()));
-    human.activeGlb = Boolean(human.bones.hips && human.bones.spine && human.bones.head && human.bones.leftUpperArm && human.bones.leftLowerArm && human.bones.leftHand && human.bones.rightUpperArm && human.bones.rightLowerArm && human.bones.rightHand && human.bones.leftUpperLeg && human.bones.leftLowerLeg && human.bones.rightUpperLeg && human.bones.rightLowerLeg);
-    human.model = model;
-    human.modelRoot.add(model);
-    human.modelRoot.visible = human.activeGlb;
-    human.fallback.visible = !human.activeGlb;
-    human.loaded = true;
-  }, undefined, (err) => {
-    console.warn('PoolRoyale human GLTF load failed', { modelUrl, err });
-    human.loaded = true;
-    human.activeGlb = false;
-    human.modelRoot.visible = false;
-    human.fallback.visible = true;
-  });
-
-  return human;
-}
-
-function setBoneWorldQuaternion(bone, q) { if (!bone || !q) return; const parentQ = new THREE.Quaternion(); bone.parent?.getWorldQuaternion(parentQ); bone.quaternion.copy(parentQ.invert().multiply(q)); bone.updateMatrixWorld(true); }
-function firstBoneChild(bone) { return bone?.children.find((c) => c?.isBone); }
-function rotateBoneToward(bone, target, strength = 1, fallbackDir = UP) {
-  if (!bone || strength <= 0) return;
-  const bonePos = bone.getWorldPosition(new THREE.Vector3());
-  const childPos = firstBoneChild(bone)?.getWorldPosition(new THREE.Vector3()) || bonePos.clone().addScaledVector(fallbackDir.clone().normalize(), 0.25);
-  const current = childPos.sub(bonePos).normalize();
-  const desired = target.clone().sub(bonePos);
-  if (desired.lengthSq() < 1e-6 || current.lengthSq() < 1e-6) return;
-  const delta = new THREE.Quaternion().slerpQuaternions(new THREE.Quaternion(), new THREE.Quaternion().setFromUnitVectors(current, desired.normalize()), clamp01(strength));
-  setBoneWorldQuaternion(bone, delta.multiply(bone.getWorldQuaternion(new THREE.Quaternion())));
-}
-function twistBone(bone, axis, amount) { if (!bone || Math.abs(amount) < 1e-5) return; setBoneWorldQuaternion(bone, new THREE.Quaternion().setFromAxisAngle(axis.clone().normalize(), amount).multiply(bone.getWorldQuaternion(new THREE.Quaternion()))); }
-function aimTwoBone(upper, lower, elbow, hand, pole, upperStrength = 0.96, lowerStrength = 0.98) { for (let i = 0; i < 4; i += 1) { rotateBoneToward(upper, elbow, upperStrength, pole); rotateBoneToward(lower, hand, lowerStrength, pole); } }
-function setHandBasis(bone, side, up, forward, roll = 0, strength = 1) { if (!bone || strength <= 0) return; const q = makeBasisQuaternion(side, up, forward); if (Math.abs(roll) > 1e-4) q.multiply(new THREE.Quaternion().setFromAxisAngle(forward.clone().normalize(), roll)); setBoneWorldQuaternion(bone, bone.getWorldQuaternion(new THREE.Quaternion()).slerp(q, clamp01(strength))); }
-
-function cueSocketOffsetWorld(side, up, forward, roll, socketLocal = CFG.rightHandCueSocketLocal) {
-  const q = makeBasisQuaternion(side, up, forward);
-  if (Math.abs(roll) > 1e-5) q.multiply(new THREE.Quaternion().setFromAxisAngle(forward.clone().normalize(), roll));
-  return socketLocal.clone().applyQuaternion(q);
-}
-
-function poseFingers(fingers, mode, weight) {
-  const w = clamp01(weight);
-  fingers.forEach((finger, i) => {
-    const n = cleanName(finger.name); const thumb = n.includes('thumb'); const index = n.includes('index'); const middle = n.includes('middle'); const ring = n.includes('ring'); const pinky = n.includes('pinky') || n.includes('little');
-    const base = !(n.includes('2') || n.includes('3') || n.includes('intermediate') || n.includes('distal')); const mid = n.includes('2') || n.includes('intermediate');
-    if (mode === 'idle') { finger.rotation.x += 0.018 * w; finger.rotation.z += 0.01 * w * (i % 2 ? -1 : 1); return; }
-    if (mode === 'grip') {
-      if (thumb) { finger.rotation.x += 0.48 * w; finger.rotation.y += -0.82 * w; finger.rotation.z += 0.54 * w; return; }
-      const curl = index ? (base ? 0.58 : mid ? 0.9 : 0.68) : middle ? (base ? 0.76 : mid ? 1.02 : 0.76) : ring ? (base ? 0.72 : mid ? 0.92 : 0.7) : pinky ? (base ? 0.62 : mid ? 0.82 : 0.62) : 0;
-      finger.rotation.x += curl * w; finger.rotation.y += (index ? -0.12 : middle ? -0.03 : ring ? 0.04 : pinky ? 0.08 : 0) * w; finger.rotation.z += (index ? -0.08 : middle ? -0.02 : ring ? 0.06 : pinky ? 0.12 : 0) * w; return;
-    }
-    if (thumb) { finger.rotation.x += -0.18 * w; finger.rotation.y += 0.95 * w; finger.rotation.z += -0.95 * w; }
-    else if (index) { finger.rotation.x += (base ? 0.26 : mid ? 0.42 : 0.28) * w; finger.rotation.y += -0.46 * w; finger.rotation.z += -0.42 * w; }
-    else if (middle) { finger.rotation.x += (base ? 0.18 : mid ? 0.32 : 0.22) * w; finger.rotation.y += -0.12 * w; finger.rotation.z += -0.14 * w; }
-    else if (ring || pinky) { finger.rotation.x += (base ? (ring ? 0.08 : 0.05) : mid ? (ring ? 0.18 : 0.16) : (ring ? 0.12 : 0.1)) * w; finger.rotation.y += (ring ? 0.18 : 0.34) * w; finger.rotation.z += (ring ? 0.28 : 0.46) * w; }
-  });
-}
-
-function driveHuman(human, frame) {
-  if (!human.activeGlb || !human.model) {
-    human.fallback.visible = true;
-    human.fallback.position.copy(frame.rootWorld);
-    human.fallback.rotation.y = human.yaw;
-    human.fallback.rotation.x = -0.16 * frame.t;
-    human.fallback.position.y -= 0.035 * frame.t;
-    return;
-  }
-  human.fallback.visible = false;
-  human.modelRoot.visible = true;
-  human.modelRoot.position.copy(frame.rootWorld);
-  human.modelRoot.rotation.y = human.yaw;
-  human.modelRoot.updateMatrixWorld(true);
-  human.restQuats.forEach((q, bone) => bone.quaternion.copy(q));
-  human.modelRoot.updateMatrixWorld(true);
-
-  const b = human.bones;
-  const ik = easeInOut(clamp01(frame.t));
-  const idle = 1 - ik;
-  const cueDir = frame.cueTipWorld.clone().sub(frame.cueBackWorld).normalize();
-  const shotQ = makeBasisQuaternion(frame.side, UP, frame.forward);
-
-  if (frame.walkAmount * idle > 0.001) {
-    const s = Math.sin(human.walkT * 6.2), c = Math.cos(human.walkT * 6.2), w = frame.walkAmount * idle;
-    const pace = THREE.MathUtils.clamp((human.speed || 0) / (human.cfg?.walkRefSpeed || 1), 0.7, 1.35);
-    if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += s * 0.22 * w * pace;
-    if (b.rightUpperLeg) b.rightUpperLeg.rotation.x -= s * 0.22 * w * pace;
-    if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += Math.max(0, -s) * 0.18 * w * pace;
-    if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += Math.max(0, s) * 0.18 * w * pace;
-    if (b.leftUpperArm) b.leftUpperArm.rotation.x -= s * 0.2 * w * pace;
-    if (b.rightUpperArm) b.rightUpperArm.rotation.x += s * 0.2 * w * pace;
-    if (b.spine) b.spine.rotation.z += c * 0.02 * w;
-    if (b.hips) b.hips.rotation.z -= c * 0.014 * w;
-  }
-
-  if (ik >= 0.025) {
-    rotateBoneToward(b.hips, frame.torsoCenterWorld, (0.12 + 0.35 * ik) * ik, frame.forward);
-    twistBone(b.hips, frame.side, -0.045 * ik);
-    twistBone(b.hips, frame.forward, -0.025 * ik);
-    rotateBoneToward(b.spine, frame.chestCenterWorld, (0.34 + 0.34 * ik) * ik, frame.forward);
-    twistBone(b.spine, frame.side, -0.2 * ik);
-    twistBone(b.spine, frame.forward, -0.04 * ik);
-    rotateBoneToward(b.chest, frame.neckWorld, (0.5 + 0.28 * ik) * ik, frame.forward);
-    twistBone(b.chest, frame.side, -0.32 * ik);
-    twistBone(b.chest, frame.forward, -0.025 * ik);
-    rotateBoneToward(b.neck, frame.headCenterWorld, 0.64 * ik, frame.forward);
-    twistBone(b.neck, frame.side, -0.12 * ik);
-    setBoneWorldQuaternion(b.head, b.head ? b.head.getWorldQuaternion(new THREE.Quaternion()).slerp(shotQ.clone().multiply(new THREE.Quaternion().setFromAxisAngle(frame.side, -0.12 * ik)).multiply(new THREE.Quaternion().setFromAxisAngle(frame.forward, -0.025 * ik)), 0.74 * ik) : shotQ);
-    human.modelRoot.updateMatrixWorld(true);
-  }
-
-  const rightGrip = frame.rightHandWorld.clone();
-  const rightIdleElbow = rightGrip.clone().addScaledVector(UP, 0.1 + 0.28 * ik).addScaledVector(frame.side, -0.22 - 0.04 * ik).addScaledVector(frame.forward, -0.03 * idle);
-  const rightElbow = frame.rightElbow.clone().lerp(rightIdleElbow, idle * 0.52);
-  const rightHold = 0.88 + 0.12 * ik;
-  const rightArmPole = UP.clone().multiplyScalar(1.32).addScaledVector(frame.side, -0.62).addScaledVector(frame.forward, -1.05).normalize();
-  aimTwoBone(b.rightUpperArm, b.rightLowerArm, rightElbow, rightGrip, rightArmPole, rightHold, rightHold);
-
-  const standingCueDir = human.cfg.idleCueDir.clone().applyAxisAngle(Y_AXIS, human.yaw).normalize();
-  const standingHandSide = frame.side.clone().multiplyScalar(-1).addScaledVector(UP, -0.55).addScaledVector(frame.forward, 0.16).normalize();
-  const standingHandUp = UP.clone().multiplyScalar(-1.0).addScaledVector(frame.side, -0.64).addScaledVector(frame.forward, 0.2).normalize();
-  const handForwardForOrientation = ik >= 0.025 ? standingCueDir : cueDir;
-  const rollForOrientation = ik >= 0.025 ? human.cfg.rightHandRollIdle : human.cfg.rightHandRollIdle + 0.02 * frame.stroke;
-  setHandBasis(b.rightHand, standingHandSide, standingHandUp, handForwardForOrientation, rollForOrientation, 1.0);
-  poseFingers(human.rightFingers, 'grip', 0.95);
-
-  if (ik < 0.025) { poseFingers(human.leftFingers, 'idle', 1); return; }
-
-  const leftHand = frame.leftHandWorld.clone().addScaledVector(frame.forward, 0.032 * ik).addScaledVector(frame.side, -0.018 * ik).addScaledVector(UP, -0.018 * ik);
-  const leftElbow = frame.leftElbow.clone().addScaledVector(frame.forward, 0.045 * ik).addScaledVector(frame.side, -0.05 * ik).addScaledVector(UP, -0.01 * ik);
-  aimTwoBone(b.leftUpperArm, b.leftLowerArm, leftElbow, leftHand, frame.side.clone().multiplyScalar(-1).addScaledVector(UP, 0.1).normalize(), 0.98 * ik, 1.0 * ik);
-  twistBone(b.leftUpperArm, frame.forward, -0.2 * ik);
-  twistBone(b.leftLowerArm, frame.forward, 0.025 * ik);
-  const bridgeSide = frame.side.clone().multiplyScalar(-1).addScaledVector(frame.forward, -0.52).normalize();
-  const bridgeUp = UP.clone().multiplyScalar(0.78).addScaledVector(frame.forward, -0.28).addScaledVector(frame.side, -0.16).normalize();
-  setHandBasis(b.leftHand, bridgeSide, bridgeUp, cueDir, -0.68 * ik, 1.0 * ik);
-  poseFingers(human.leftFingers, 'bridge', ik);
-
-  aimTwoBone(
-    b.leftUpperLeg,
-    b.leftLowerLeg,
-    frame.leftKnee,
-    frame.leftFootWorld,
-    frame.forward.clone().addScaledVector(UP, 0.18).normalize(),
-    0.9 * ik,
-    1.0 * ik
-  );
-  twistBone(b.leftUpperLeg, frame.forward, -0.035 * ik);
-  setHandBasis(b.leftFoot, frame.side, frame.up, frame.forward, -0.02 * ik, (human.cfg?.footLockStrength ?? CFG.footLockStrength) * ik);
-
-  aimTwoBone(
-    b.rightUpperLeg,
-    b.rightLowerLeg,
-    frame.rightKnee,
-    frame.rightFootWorld,
-    frame.forward.clone().multiplyScalar(-1).addScaledVector(UP, 0.18).normalize(),
-    0.9 * ik,
-    1.0 * ik
-  );
-  twistBone(b.rightUpperLeg, frame.forward, 0.03 * ik);
-  setHandBasis(b.rightFoot, frame.side, frame.up, frame.forward, 0.02 * ik, (human.cfg?.footLockStrength ?? CFG.footLockStrength) * ik);
-}
-
-function chooseHumanEdgePosition(cueBallWorld, aimForward, opts = {}) { const cfg = { ...CFG, ...opts }; const desired = cueBallWorld.clone().addScaledVector(aimForward, -cfg.desiredShootDistance); const xEdge = (opts.tableW ?? 2.0) / 2 + cfg.edgeMargin; const zEdge = (opts.tableL ?? 3.6) / 2 + cfg.edgeMargin; const candidates = [new THREE.Vector3(-xEdge, 0, clamp(desired.z, -zEdge, zEdge)), new THREE.Vector3(xEdge, 0, clamp(desired.z, -zEdge, zEdge)), new THREE.Vector3(clamp(desired.x, -xEdge, xEdge), 0, -zEdge), new THREE.Vector3(clamp(desired.x, -xEdge, xEdge), 0, zEdge)]; return candidates.sort((a, b) => a.distanceToSquared(desired) - b.distanceToSquared(desired))[0].clone(); }
-
-function updateBilardoHumanPose(human, dt, frameData) {
-  if (!human || !frameData || !Number.isFinite(dt) || dt < 0 || !frameData.rootTarget || !frameData.aimForward) return;
-  const cfg = { ...CFG, ...(human.cfg || {}) }; const state = frameData.state || 'idle';
-  human.poseT = dampScalar(human.poseT, state === 'idle' ? 0 : 1, cfg.poseLambda, dt); human.breathT += dt * (state === 'idle' ? 1.05 : 0.5); human.settleT = dampScalar(human.settleT, state === 'dragging' ? 1 : 0, 5.5, dt);
-  if (state === 'striking') { if (human.strikeClock === 0) { human.strikeRoot.copy(human.root.position.lengthSq() > 0.001 ? human.root.position : frameData.rootTarget); human.strikeYaw = human.yaw; } human.strikeClock += dt; } else human.strikeClock = 0;
-  const rootGoal = state === 'striking' ? human.strikeRoot : frameData.rootTarget;
-  const prevPos = human.root.position.clone();
-  dampVector(human.root.position, rootGoal, state === 'striking' ? 12 : cfg.moveLambda, dt);
-  const moveDelta = human.root.position.clone().sub(prevPos).setY(0);
-  if (dt > 0) {
-    human.vel.copy(moveDelta).multiplyScalar(1 / dt);
-    human.speed = human.vel.length();
-    if (human.speed > 0.001) human.targetDir.copy(human.vel).normalize();
-  } else {
-    human.speed = 0;
-  }
-  if (state !== 'striking' && human.targetDir.lengthSq() > 0.001) {
-    human.dir.lerp(human.targetDir, 1 - Math.pow(0.001, dt)).normalize();
-    human.yaw = Math.atan2(human.dir.x, human.dir.z);
-  } else {
-    human.yaw = dampScalar(human.yaw, state === 'striking' ? human.strikeYaw : yawFromForward(frameData.aimForward), cfg.rotLambda, dt);
-  }
-  const moveAmountRaw = human.root.position.distanceTo(rootGoal);
-  human.walkT += dt * (2 + Math.min(7, moveAmountRaw * 10));
-  const t = easeInOut(human.poseT), idle = 1 - t, breath = Math.sin(human.breathT * Math.PI * 2) * (0.006 + idle * 0.004), walk = Math.sin(human.walkT * 6.2) * Math.min(1, moveAmountRaw * 12), walkAmount = clamp01(moveAmountRaw * 18) * idle;
-  const power = frameData.power ?? 0; const stroke = state === 'dragging' ? Math.sin(performance.now() * 0.011) * (0.25 + power * 0.75) : 0; const follow = state === 'striking' ? Math.sin(clamp01(human.strikeClock / (cfg.strikeTime + cfg.holdTime)) * Math.PI) : 0;
-  const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(Y_AXIS, human.yaw).normalize(); const side = new THREE.Vector3(forward.z, 0, -forward.x).normalize(); const local = (v) => v.clone().applyAxisAngle(Y_AXIS, human.yaw).add(human.root.position); const powerLean = power * t;
-  const rootWorld = human.root.position.clone().addScaledVector(forward, 0.018 * powerLean + 0.026 * follow);
-  const torso = local(new THREE.Vector3(0, lerp(1.3, 1.12, t) + breath, lerp(0.02, -0.16, t) - 0.014 * powerLean));
-  const chest = local(new THREE.Vector3(0, lerp(1.52, 1.22, t) + breath, lerp(0.02, -0.42, t) - 0.024 * powerLean));
-  const neck = local(new THREE.Vector3(0, lerp(1.68, 1.25, t) + breath, lerp(0.02, -0.61, t) - 0.028 * powerLean));
-  const head = local(new THREE.Vector3(0, lerp(1.84, 1.34, t) + breath - cfg.chinToCueHeight * 0.16 * t, lerp(0.04, -0.72, t) - 0.028 * powerLean));
-  const leftShoulder = local(new THREE.Vector3(-0.23, lerp(1.58, 1.36, t) + breath, lerp(0, -0.46, t) - 0.018 * human.settleT));
-  const rightShoulder = local(new THREE.Vector3(0.23, lerp(1.58, 1.36, t) + breath, lerp(0, -0.34, t) - 0.018 * human.settleT));
-  const leftHip = local(new THREE.Vector3(-0.13, 0.92, 0.02)); const rightHip = local(new THREE.Vector3(0.13, 0.92, 0.02));
-  const leftFoot = local(new THREE.Vector3(-0.13, cfg.footGroundY, 0.03 + walk * 0.018).lerp(new THREE.Vector3(-cfg.stanceWidth * 0.42, cfg.footGroundY, -0.34), t));
-  const rightFoot = local(new THREE.Vector3(0.13, cfg.footGroundY, -0.03 - walk * 0.018).lerp(new THREE.Vector3(cfg.stanceWidth * 0.5, cfg.footGroundY, 0.34), t));
-  const bridgePalmTarget = frameData.bridgeTarget.clone().addScaledVector(forward, -0.006 * t).addScaledVector(side, -0.012 * t).setY(cfg.tableTopY + cfg.bridgePalmTableLift).addScaledVector(UP, -0.01 * human.settleT);
-  const leftHand = frameData.idleLeft.clone().lerp(bridgePalmTarget, t);
-  const cueDirForHand = frameData.cueTip.clone().sub(frameData.cueBack).normalize();
-  const handIk = easeInOut(clamp01(t));
-  const idleGripSide = side.clone().multiplyScalar(-1).addScaledVector(UP, -0.55).addScaledVector(forward, 0.16).normalize();
-  const idleGripUp = UP.clone().multiplyScalar(-1.0).addScaledVector(side, -0.64).addScaledVector(forward, 0.2).normalize();
-  const liveGripSide = side.clone().multiplyScalar(-1).addScaledVector(UP, lerp(-0.55, -0.62, handIk)).addScaledVector(side, 0.5 * handIk).addScaledVector(forward, lerp(0.16, -0.08, handIk)).normalize();
-  const liveGripUp = UP.clone().multiplyScalar(lerp(-1.0, 0.12, handIk)).addScaledVector(side, lerp(-0.64, -0.04, handIk)).addScaledVector(forward, lerp(0.2, -0.48, handIk)).normalize();
-  const lockedRightElbow = rightShoulder.clone().addScaledVector(UP, lerp(0.04, cfg.rightElbowShotRise, t)).addScaledVector(side, lerp(-0.18, cfg.rightElbowShotSide, t)).addScaledVector(forward, lerp(-0.04, cfg.rightElbowShotBack, t));
-  const pullBack = state === 'dragging' ? -cfg.rightStrokePull * easeOutCubic(power) : 0;
-  const pushForward = state === 'striking' ? cfg.rightStrokePush * follow : 0;
-  const smallPractice = state === 'dragging' ? stroke * 0.035 : 0;
-  const forearmStroke = pullBack + pushForward + smallPractice;
-  const forearmBase = lockedRightElbow.clone().addScaledVector(side, cfg.rightForearmOutward * t).addScaledVector(UP, -cfg.rightForearmDown * t).addScaledVector(UP, cfg.rightHandShotLift * t).addScaledVector(forward, -cfg.rightForearmBack * t).addScaledVector(cueDirForHand, cfg.rightForearmLength);
-  const liveCueGripPoint = forearmBase.clone().addScaledVector(cueDirForHand, forearmStroke);
-  const idleWristTarget = frameData.idleRight.clone().sub(cueSocketOffsetWorld(idleGripSide, idleGripUp, cueDirForHand, cfg.rightHandRollIdle, cfg.rightHandCueSocketLocal));
-  const liveWristTarget = liveCueGripPoint.clone().sub(cueSocketOffsetWorld(liveGripSide, liveGripUp, cueDirForHand, lerp(cfg.rightHandRollIdle, cfg.rightHandRollShoot - cfg.rightHandDownPose, handIk), cfg.rightHandCueSocketLocal));
-  const rightHand = idleWristTarget.clone().lerp(liveWristTarget, t);
-  const leftElbow = leftShoulder.clone().lerp(leftHand, 0.62).addScaledVector(UP, 0.006 * t).addScaledVector(side, -0.044 * t).addScaledVector(forward, 0.065 * t);
-  const rightElbow = lockedRightElbow;
-  const leftKnee = leftHip.clone().lerp(leftFoot, 0.53).addScaledVector(UP, lerp(0.2, cfg.kneeBendShot, t)).addScaledVector(forward, 0.04 * t).addScaledVector(side, -0.012 * t);
-  const rightKnee = rightHip.clone().lerp(rightFoot, 0.52).addScaledVector(UP, lerp(0.2, cfg.kneeBendShot * 0.88, t)).addScaledVector(forward, -0.03 * t).addScaledVector(side, 0.014 * t);
-  human.root.visible = true;
-  driveHuman(human, { t, breath, stroke, follow, walkAmount, forward, side, up: UP, rootWorld, torsoCenterWorld: torso, chestCenterWorld: chest, neckWorld: neck, headCenterWorld: head, leftElbow, rightElbow, leftHandWorld: leftHand, rightHandWorld: rightHand, leftKnee, rightKnee, leftFootWorld: leftFoot, rightFootWorld: rightFoot, cueBackWorld: frameData.cueBack || frameData.bridgeTarget || frameData.rootTarget, cueTipWorld: frameData.cueTip || frameData.gripTarget || frameData.rootTarget });
-}
-  return {
-    createBilardoHumanRig,
-    chooseBilardoHumanEdgePosition: chooseHumanEdgePosition,
-    updateBilardoHumanPose
-  };
-})();
-
-// Use stable shared GLTF rig pipeline (known-good loading), while keeping local rig code available for reference.
-const createBilardoHumanRig = sharedCreateBilardoHumanRig;
-const chooseBilardoHumanEdgePosition = sharedChooseBilardoHumanEdgePosition;
-const updateBilardoHumanPose = sharedUpdateBilardoHumanPose;
-
-const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
+const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
-  'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+  'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/basis/';
 
 
 const TRAINING_MISS_ATTEMPT_COST = 1;
@@ -819,14 +378,29 @@ const wait = (ms = 0) =>
     window.setTimeout(resolve, ms);
   });
 
+const WEBGL_CONTEXT_IDS = ['webgl2', 'webgl', 'experimental-webgl'];
+
+const tryGetWebGLContext = (canvas, contextId) => {
+  try {
+    return canvas.getContext(contextId);
+  } catch (err) {
+    return null;
+  }
+};
+
+const resolveWebGLContext = (canvas) => {
+  for (const contextId of WEBGL_CONTEXT_IDS) {
+    const gl = tryGetWebGLContext(canvas, contextId);
+    if (gl) return gl;
+  }
+  return null;
+};
+
 function isWebGLAvailable() {
   if (typeof document === 'undefined') return false;
   try {
     const canvas = document.createElement('canvas');
-    const gl =
-      canvas.getContext('webgl2') ||
-      canvas.getContext('webgl') ||
-      canvas.getContext('experimental-webgl');
+    const gl = resolveWebGLContext(canvas);
     return Boolean(gl);
   } catch (err) {
     console.warn('WebGL availability check failed', err);
@@ -952,10 +526,7 @@ function readGraphicsRendererString() {
   }
   try {
     const canvas = document.createElement('canvas');
-    const gl =
-      canvas.getContext('webgl') ||
-      canvas.getContext('experimental-webgl') ||
-      canvas.getContext('webgl2');
+    const gl = resolveWebGLContext(canvas);
     if (!gl) {
       return null;
     }
@@ -1024,12 +595,12 @@ function detectPreferredFrameRateId() {
   const rendererTier = classifyRendererTier(readGraphicsRendererString());
 
   if (lowRefresh) {
-    return 'fhd60';
+    return 'hd50';
   }
 
   if (isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile') {
     if ((deviceMemory !== null && deviceMemory <= 4) || hardwareConcurrency <= 4) {
-      return 'fhd60';
+      return 'hd50';
     }
     if (
       (refreshBucket >= 120 || highRefresh) &&
@@ -1051,7 +622,9 @@ function detectPreferredFrameRateId() {
   if (refreshBucket >= 120 && (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8)) {
     return 'uhd120';
   }
-  if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) return 'uhd120';
+  if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) {
+    return 'uhd120';
+  }
 
   if (rendererTier === 'desktopMid') {
     return 'qhd90';
@@ -1276,6 +849,8 @@ const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.9; // tighten the middle fasci
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.24; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.012; // push middle chrome plates slightly outward away from table center while preserving the rounded cut
+const CHROME_SIDE_APRON_COVER_THICKNESS_SCALE = 0.1; // thicken the middle-pocket side-apron strip so chrome/gold is clearly visible behind each jaw
+const CHROME_SIDE_APRON_COVER_HEIGHT_SCALE = 0.95; // extend the strip lower so the gold/chrome band reads clearly behind each side-pocket jaw
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.022; // trim the outer fascia edge a hair more for a tighter outside finish
 const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.078; // trim the middle-pocket outside chrome a touch more so the outer edge ends flush with the wooden rails
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.045; // open only the corner chrome rounded cut a tiny bit more so the arc reads slightly larger
@@ -1582,13 +1157,13 @@ function addPocketCuts(
 const OFFICIAL_TABLE_LENGTH_IN = 78;
 const LEGACY_TABLE_LENGTH_IN = 100;
 const OFFICIAL_TABLE_SCALE = OFFICIAL_TABLE_LENGTH_IN / LEGACY_TABLE_LENGTH_IN;
-const TABLE_SIZE_SHRINK = 0.85; // tighten the table footprint by ~8% to add breathing room without altering proportions
-const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK; // apply the legacy trim plus the tighter shrink so the arena stays compact without distorting proportions
-const TABLE_FOOTPRINT_SCALE = 0.82; // reduce the table footprint ~18% while keeping the table height unchanged
+const TABLE_SIZE_SHRINK = 1; // keep full 7ft table footprint
+const TABLE_REDUCTION = 1 * TABLE_SIZE_SHRINK; // remove legacy trim so the visual table expands to the full 7ft mapping footprint
+const TABLE_FOOTPRINT_SCALE = 1; // keep full-size 7ft table footprint
 const BASE_FOOTPRINT_SHRINK = 0.82; // shrink the table base footprint by 18% without changing overall height
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
-const TABLE_DISPLAY_SCALE = 0.86; // make the table read just a bit larger in portrait while preserving proportions
+const TABLE_DISPLAY_SCALE = 1.12; // upscale render size a bit more so the 7ft table reads closer to its real footprint on portrait screens
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
 const TOUCH_UI_SCALE = SIZE_REDUCTION;
 const POINTER_UI_SCALE = 1;
@@ -1705,7 +1280,9 @@ const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
   }
 ]);
 const DEFAULT_COMMENTARY_PRESET_ID = POOL_ROYALE_COMMENTARY_PRESETS[0]?.id || 'english';
-const DEFAULT_TABLE_BASE_ID = POOL_ROYALE_BASE_VARIANTS[0]?.id || 'classicCylinders';
+const SHOWOOD_ORIGINAL_TABLE_BASE_ID = 'showoodOriginal';
+const DEFAULT_PROCEDURAL_TABLE_BASE_ID = 'classicCylinders';
+const DEFAULT_TABLE_BASE_ID = SHOWOOD_ORIGINAL_TABLE_BASE_ID;
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const ENABLE_CUE_STROKE_ANIMATION = true;
@@ -1726,7 +1303,7 @@ const REPLAY_CAMERA_START_DELAY_MS = 0;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
   const TABLE_LENGTH_SCALE = 0.8;
   const TABLE_SURFACE_REFERENCE = 1.12; // baseline expansion before the wider table adjustment
-  const TABLE_SURFACE_EXPANSION = 1.25; // widen/lengthen the table footprint by ~12% while keeping pockets/balls unchanged
+  const TABLE_SURFACE_EXPANSION = 1.36; // widen/lengthen the table footprint a bit more on all four sides while preserving table height
   const TABLE_SURFACE_COMPENSATION = TABLE_SURFACE_EXPANSION / TABLE_SURFACE_REFERENCE;
   const TABLE = {
     W: 72 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE * OFFICIAL_TABLE_SCALE * TABLE_SURFACE_EXPANSION,
@@ -1790,7 +1367,7 @@ const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // 
 const CORNER_POCKET_JAW_EDGE_TRIM_START = SIDE_POCKET_JAW_EDGE_TRIM_START; // keep corner jaw taper start aligned with middle pockets
 const CORNER_POCKET_JAW_EDGE_TRIM_SCALE = SIDE_POCKET_JAW_EDGE_TRIM_SCALE; // match the middle pocket jaw thin/thick profile
 const CORNER_POCKET_JAW_EDGE_TRIM_CURVE = SIDE_POCKET_JAW_EDGE_TRIM_CURVE; // reuse the same taper curve for corner jaws
-const POCKET_JAW_MAPPING_RADIUS_SCALE = 1.035; // slightly expand jaw collision arcs so physics cannot slip through visible jaw/chrome edges
+const POCKET_JAW_MAPPING_RADIUS_SCALE = 1; // keep jaw collision arcs exactly on the visible jaw/chrome edges
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
 const POCKET_RIM_DEPTH_RATIO = 0; // remove the separate pocket rims so the chrome fascias meet the jaws directly
@@ -1822,7 +1399,7 @@ const END_RAIL_INNER_SCALE =
   (2 * TABLE.WALL);
 const END_RAIL_INNER_REDUCTION = 1 - END_RAIL_INNER_SCALE;
 const END_RAIL_INNER_THICKNESS = TABLE.WALL * END_RAIL_INNER_SCALE;
-const PLAYFIELD_SHRINK = 0.85; // shrink the playfield footprint by ~15% on all sides while keeping table height intact
+const PLAYFIELD_SHRINK = 0.85; // restore legacy ball-physics footprint so movement, rail timing, and shot travel match the old Pool Royale feel
 const PLAY_W = (TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS) * PLAYFIELD_SHRINK;
 const PLAY_H = (TABLE.H - 2 * END_RAIL_INNER_THICKNESS) * PLAYFIELD_SHRINK;
 export const POOL_ROYALE_TABLE_DIMENSIONS = Object.freeze({
@@ -1846,7 +1423,7 @@ const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
 const RACK_VERTICAL_SCREEN_LIFT = BALL_R * 0.86; // nudge the rack farther upward on screen so object balls sit visibly higher
-const ENABLE_BALL_FLOOR_SHADOWS = true;
+const ENABLE_BALL_FLOOR_SHADOWS = false;
 const ENABLE_CUE_CLOTH_SHADOW = true;
 const ENABLE_TABLE_FLOOR_SHADOW = false;
 const BALL_SHADOW_RADIUS_MULTIPLIER = 1;
@@ -1981,10 +1558,10 @@ const BALL_INERTIA = (2 / 5) * BALL_MASS * BALL_R * BALL_R;
 const SPIN_FIXED_DT = 1 / 120;
 const SPIN_SLIDE_EPS = 0.02;
 const SPIN_KINETIC_FRICTION = 0.22;
-const SPIN_ROLL_DAMPING = 0.1;
+const SPIN_ROLL_DAMPING = 0.085;
 const SPIN_ANGULAR_DAMPING = 0.04;
 const SPIN_GRAVITY = 9.81;
-const ROLLING_RESISTANCE = 0.011;
+const ROLLING_RESISTANCE = 0.0092;
 const BALL_BALL_FRICTION = 0.105;
 const BALL_CONTACT_EPS = BALL_R * 0.012; // broaden contact tolerance slightly so grazing touches resolve instead of tunneling
 const BALL_COLLISION_SLOP = BALL_R * 0.001; // tighter tolerance so visible ball overlap is corrected faster
@@ -2014,9 +1591,9 @@ const POCKET_INTERIOR_CAPTURE_R =
 const SIDE_POCKET_INTERIOR_CAPTURE_R =
   SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION; // keep middle-pocket capture identical to its bowl radius
 const CAPTURE_R =
-  POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.22; // match corner-pocket capture gain to middle pockets so both jaw types accept shots the same way
+  POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.22; // restore legacy corner-pocket capture so ball logic matches the old Pool Royale behavior
 const SIDE_CAPTURE_R =
-  SIDE_POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.22; // give middle pockets a touch more capture so shots don't hang in the jaws
+  SIDE_POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.22; // restore legacy middle-pocket capture so shots roll and drop like the old Pool Royale behavior
 const POCKET_GUARD_RADIUS =
   CAPTURE_R - BALL_R * 0.12; // mirror the middle-pocket guard inset so corner jaws reject/accept on the same threshold
 const POCKET_GUARD_CLEARANCE = Math.max(
@@ -2122,7 +1699,7 @@ const POCKET_HOLDER_L_SPAN = Math.max(POCKET_GUIDE_LENGTH * 0.42, BALL_DIAMETER 
 const POCKET_HOLDER_L_THICKNESS = POCKET_GUIDE_RADIUS * 3; // thickness shared by both L segments for a sturdy chrome look
 const POCKET_STRAP_VERTICAL_LIFT = BALL_R * 0.24; // shorten the leather strap height to keep the holder assembly visually straight
 const POCKET_BOARD_TOUCH_OFFSET = -CLOTH_EXTENDED_DEPTH + MICRO_EPS * 2; // raise the pocket bowls until they meet the cloth underside without leaving a gap
-const POCKET_EDGE_SLEEVES_ENABLED = false; // remove the extra cloth sleeve around the pocket cuts
+const POCKET_EDGE_SLEEVES_ENABLED = true; // wrap pocket cutout walls with the selected cloth texture instead of exposing rail/wood material
 const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_EDGE_SCALE = 0.28;
 const POCKET_CAM_OUTWARD_MULTIPLIER = 1.45;
@@ -2243,7 +1820,7 @@ const POCKET_VIEW_POST_POT_HOLD_MS =
   POCKET_DROP_RING_HOLD_MS + POCKET_DROP_REST_HOLD_MS;
 const POCKET_VIEW_MAX_HOLD_MS = 2200;
 const POCKET_VIEW_EARLY_HOLD_MS = 320;
-const SPIN_GLOBAL_SCALE = 0.9; // match Snooker Royal spin controller scaling
+const SPIN_GLOBAL_SCALE = 0.82; // reduce Pool Royale cue spin slightly for a more natural roll
 const STRAIGHT_TOPSPIN_BONUS_SCALE = 1; // keep straight top spin matched to Snooker Royal without extra follow boost
 const STRAIGHT_TOPSPIN_SIDE_THRESHOLD = 0.08; // treat this as "mostly straight" topspin
 // Spin controller adapted from the open-source Billiards solver physics (MIT License).
@@ -2269,9 +1846,9 @@ const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // disable preview-only spin defle
 const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
-const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
-const SHOT_POWER_BOOST = 1.5; // increase overall shot power by 25%
-const SHOT_GLOBAL_POWER_SCALE = 0.84; // restore softer shot pace so cue-ball travel matches the previous tuning window
+const SHOT_POWER_ADJUSTMENT = 1; // restore legacy shot scaling used before the May 19 power retune
+const SHOT_POWER_BOOST = 0.455; // restore the pre-May-19 cue launch boost
+const SHOT_GLOBAL_POWER_SCALE = 1.38; // stronger cue power so full portrait pulls have enough table-length drive
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -2363,354 +1940,10 @@ const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth slightly while 
 const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
 const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 0.86; // trim global pullback so charge-up stays readable without over-drawing the cue
-const CUE_PULL_RETURN_PUSH = 1.22; // accelerate the forward cue drive so push-through feels snappier
-const CUE_FOLLOW_THROUGH_MIN = BALL_R * 3.9; // keep low-power shots visibly pushing through the cue ball
-const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so powerful shots visibly punch forward
+const CUE_PULL_RETURN_PUSH = 1.0; // accelerate the forward cue drive so push-through feels snappier
+const CUE_FOLLOW_THROUGH_MIN = 0; // stop the cue at impact so the forward stroke ends exactly at contact
+const CUE_FOLLOW_THROUGH_MAX = 0; // stop at impact: cue pushes forward to strike, then returns to its pull-start line
 const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER; // keep Pool Royale release gate identical to Bilardo Shqip
-const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.96; // increase player size so body/table proportions match Bilardo-like framing
-const BILARDO_SHQIP_HUMAN_URL = 'https://threejs.org/examples/models/gltf/Soldier.glb';
-const POOL_ROYALE_VERIFIED_HUMAN_FALLBACK_URLS = Object.freeze([
-  'https://threejs.org/examples/models/gltf/readyplayer.me.glb',
-  'https://models.readyplayer.me/67d411b30787acbf58ce58ac.glb',
-  'https://models.readyplayer.me/67f433b69dc08cf26d2cf585.glb',
-  'https://models.readyplayer.me/67e1b51ae11c93725e4395c9.glb',
-  'https://raw.githubusercontent.com/hmthanh/3d-human-model/main/TranThiNgocTham.glb',
-  'https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar.glb',
-  'https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb',
-  'https://raw.githubusercontent.com/hmthanh/3d-human-model/main/Thanh.glb',
-  'https://threejs.org/examples/models/gltf/Xbot.glb'
-]);
-const POOL_ROYALE_PRIMARY_HUMAN_FALLBACKS_BY_ID = Object.freeze({
-  'rpm-current': ['https://threejs.org/examples/models/gltf/readyplayer.me.glb'],
-  'rpm-67d411': ['https://models.readyplayer.me/67d411b30787acbf58ce58ac.glb'],
-  'rpm-67f433': ['https://models.readyplayer.me/67f433b69dc08cf26d2cf585.glb'],
-  'rpm-67e1b5': ['https://models.readyplayer.me/67e1b51ae11c93725e4395c9.glb'],
-  'webgl-vietnam-human': ['https://raw.githubusercontent.com/hmthanh/3d-human-model/main/TranThiNgocTham.glb'],
-  'webgl-ai-teacher': ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar.glb'],
-  'webgl-ai-teacher-1': ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb'],
-  'webgl-thanh-human': ['https://raw.githubusercontent.com/hmthanh/3d-human-model/main/Thanh.glb'],
-  'threejs-xbot-human': ['https://threejs.org/examples/models/gltf/Xbot.glb']
-});
-const POOL_ROYALE_HUMAN_CHARACTER_STORAGE_KEY = 'poolRoyaleHumanCharacter';
-const POOL_ROYALE_HUMAN_CHARACTER_IDS = Object.freeze([
-  'rpm-current',
-  'rpm-67d411',
-  'rpm-67f433',
-  'rpm-67e1b5',
-  'webgl-vietnam-human',
-  'webgl-ai-teacher',
-  'webgl-ai-teacher-1',
-  'webgl-thanh-human',
-  'threejs-xbot-human'
-]);
-const POOL_ROYALE_HUMAN_LOGIC_PROFILES = Object.freeze({
-  'rpm-current': Object.freeze({
-    label: 'Classic Pro',
-    summary: 'Forward bend: balanced orthodox pool stance with a stable bridge and medium follow-through.',
-    bendMode: 'forward',
-    desiredShootDistance: 1.32,
-    edgeMargin: 0.68,
-    stanceWidth: 0.52,
-    bridgeBack: 0.072,
-    bridgeSide: -0.024,
-    bridgeLift: 0.006,
-    gripFromBack: 0.58,
-    rightElbowRise: 0.18,
-    rightElbowSide: -0.46,
-    rightElbowBack: -0.78,
-    forearmOutward: 0.36,
-    forearmBack: 0.44,
-    forearmDown: 0.48,
-    strokePull: 0.42,
-    strokePush: 0.18,
-    practiceStroke: 0.035,
-    cueGap: 0.012,
-    strikeMs: 120,
-    walkSpeed: 4.0,
-    shootForwardBendScale: 0.62,
-    shootUpperBodyCounterLean: 0.72
-  }),
-  'rpm-67d411': Object.freeze({
-    label: 'Sniper Rail',
-    summary: 'Forward bend: lower chin, longer bridge, slower feather strokes for precision aiming.',
-    bendMode: 'forward',
-    desiredShootDistance: 1.44,
-    edgeMargin: 0.74,
-    stanceWidth: 0.58,
-    bridgeBack: 0.092,
-    bridgeSide: -0.018,
-    bridgeLift: 0.004,
-    gripFromBack: 0.64,
-    rightElbowRise: 0.14,
-    rightElbowSide: -0.40,
-    rightElbowBack: -0.86,
-    forearmOutward: 0.31,
-    forearmBack: 0.5,
-    forearmDown: 0.52,
-    strokePull: 0.5,
-    strokePush: 0.14,
-    practiceStroke: 0.018,
-    cueGap: 0.009,
-    strikeMs: 150,
-    walkSpeed: 3.2,
-    shootForwardBendScale: 0.76,
-    shootUpperBodyCounterLean: 0.56
-  }),
-  'rpm-67f433': Object.freeze({
-    label: 'Power Breaker',
-    summary: 'Forward bend: wide planted feet, deeper backswing and strong forward punch.',
-    bendMode: 'forward',
-    desiredShootDistance: 1.5,
-    edgeMargin: 0.8,
-    stanceWidth: 0.68,
-    bridgeBack: 0.064,
-    bridgeSide: -0.03,
-    bridgeLift: 0.012,
-    gripFromBack: 0.52,
-    rightElbowRise: 0.28,
-    rightElbowSide: -0.54,
-    rightElbowBack: -0.92,
-    forearmOutward: 0.44,
-    forearmBack: 0.58,
-    forearmDown: 0.43,
-    strokePull: 0.62,
-    strokePush: 0.3,
-    practiceStroke: 0.044,
-    cueGap: 0.016,
-    strikeMs: 95,
-    walkSpeed: 4.8,
-    shootForwardBendScale: 0.52,
-    shootUpperBodyCounterLean: 0.9
-  }),
-  'rpm-67e1b5': Object.freeze({
-    label: 'Safety Artist',
-    summary: 'Forward upper-body bend: compact body shape, soft touch and reduced cue travel for defensive control.',
-    bendMode: 'forward',
-    desiredShootDistance: 1.24,
-    edgeMargin: 0.64,
-    stanceWidth: 0.46,
-    bridgeBack: 0.052,
-    bridgeSide: -0.016,
-    bridgeLift: 0.008,
-    gripFromBack: 0.7,
-    rightElbowRise: 0.11,
-    rightElbowSide: -0.34,
-    rightElbowBack: -0.62,
-    forearmOutward: 0.25,
-    forearmBack: 0.34,
-    forearmDown: 0.55,
-    strokePull: 0.28,
-    strokePush: 0.1,
-    practiceStroke: 0.012,
-    cueGap: 0.007,
-    strikeMs: 185,
-    walkSpeed: 2.8,
-    shootForwardBendScale: 0.68,
-    shootUpperBodyCounterLean: 0.42
-  }),
-  'webgl-vietnam-human': Object.freeze({
-    label: 'Natural Shooter',
-    summary: 'Forward upper-body bend: asymmetric bridge hand, quick walk-up and lifelike rehearsal strokes.',
-    bendMode: 'forward',
-    desiredShootDistance: 1.36,
-    edgeMargin: 0.7,
-    stanceWidth: 0.54,
-    bridgeBack: 0.08,
-    bridgeSide: -0.038,
-    bridgeLift: 0.01,
-    gripFromBack: 0.56,
-    rightElbowRise: 0.2,
-    rightElbowSide: -0.5,
-    rightElbowBack: -0.7,
-    forearmOutward: 0.39,
-    forearmBack: 0.42,
-    forearmDown: 0.46,
-    strokePull: 0.46,
-    strokePush: 0.22,
-    practiceStroke: 0.052,
-    cueGap: 0.013,
-    strikeMs: 125,
-    walkSpeed: 4.4,
-    visualYawFix: Math.PI,
-    shootForwardBendScale: 0.58,
-    shootUpperBodyCounterLean: 0.82
-  }),
-  'webgl-ai-teacher': Object.freeze({
-    label: 'Teacher Coach',
-    summary: 'Forward upper-body bend: upright coach stance with a measured cue pull and high elbow.',
-    bendMode: 'forward',
-    desiredShootDistance: 1.4,
-    edgeMargin: 0.72,
-    stanceWidth: 0.5,
-    bridgeBack: 0.075,
-    bridgeSide: -0.026,
-    bridgeLift: 0.009,
-    gripFromBack: 0.62,
-    rightElbowRise: 0.24,
-    rightElbowSide: -0.42,
-    rightElbowBack: -0.74,
-    forearmOutward: 0.34,
-    forearmBack: 0.46,
-    forearmDown: 0.44,
-    strokePull: 0.4,
-    strokePush: 0.16,
-    practiceStroke: 0.026,
-    cueGap: 0.011,
-    strikeMs: 145,
-    walkSpeed: 3.6,
-    visualYawFix: Math.PI,
-    shootForwardBendScale: 0.64,
-    shootUpperBodyCounterLean: 0.68
-  }),
-  'webgl-ai-teacher-1': Object.freeze({
-    label: 'Teacher Smooth',
-    summary: 'Forward upper-body bend: smooth coach stance with grounded feet and a soft bridge.',
-    bendMode: 'forward',
-    desiredShootDistance: 1.38,
-    edgeMargin: 0.72,
-    stanceWidth: 0.56,
-    bridgeBack: 0.085,
-    bridgeSide: -0.02,
-    bridgeLift: 0.007,
-    gripFromBack: 0.66,
-    rightElbowRise: 0.16,
-    rightElbowSide: -0.38,
-    rightElbowBack: -0.82,
-    forearmOutward: 0.3,
-    forearmBack: 0.5,
-    forearmDown: 0.5,
-    strokePull: 0.34,
-    strokePush: 0.12,
-    practiceStroke: 0.02,
-    cueGap: 0.01,
-    strikeMs: 165,
-    walkSpeed: 3.3,
-    visualYawFix: Math.PI,
-    shootForwardBendScale: 0.72,
-    shootUpperBodyCounterLean: 0.52
-  }),
-  'webgl-thanh-human': Object.freeze({
-    label: 'Thanh Precision',
-    summary: 'Forward upper-body bend: compact feet, lower head-over-cue stance and short controlled delivery.',
-    bendMode: 'forward',
-    desiredShootDistance: 1.28,
-    edgeMargin: 0.7,
-    stanceWidth: 0.5,
-    bridgeBack: 0.068,
-    bridgeSide: -0.018,
-    bridgeLift: 0.006,
-    gripFromBack: 0.6,
-    rightElbowRise: 0.18,
-    rightElbowSide: -0.36,
-    rightElbowBack: -0.72,
-    forearmOutward: 0.28,
-    forearmBack: 0.4,
-    forearmDown: 0.54,
-    strokePull: 0.32,
-    strokePush: 0.13,
-    practiceStroke: 0.018,
-    cueGap: 0.009,
-    strikeMs: 170,
-    walkSpeed: 3.15,
-    shootForwardBendScale: 0.8,
-    shootUpperBodyCounterLean: 0.48
-  }),
-  'threejs-xbot-human': Object.freeze({
-    label: 'Xbot Official',
-    summary: 'Forward upper-body bend: full-body Xbot official kept distinct from Soldier fallbacks.',
-    bendMode: 'forward',
-    desiredShootDistance: 1.42,
-    edgeMargin: 0.78,
-    stanceWidth: 0.54,
-    bridgeBack: 0.08,
-    bridgeSide: -0.02,
-    bridgeLift: 0.008,
-    gripFromBack: 0.62,
-    rightElbowRise: 0.2,
-    rightElbowSide: -0.4,
-    rightElbowBack: -0.76,
-    forearmOutward: 0.32,
-    forearmBack: 0.44,
-    forearmDown: 0.48,
-    strokePull: 0.38,
-    strokePush: 0.15,
-    practiceStroke: 0.02,
-    cueGap: 0.01,
-    strikeMs: 155,
-    walkSpeed: 2.25,
-    shootForwardBendScale: 0.6,
-    shootUpperBodyCounterLean: 0.62
-  })
-});
-const withPoolRoyaleHumanModelFallbacks = (theme = {}, id = theme.id) => {
-  const urls = Array.isArray(theme.modelUrls) && theme.modelUrls.length > 0
-    ? theme.modelUrls
-    : theme.url
-      ? [theme.url]
-      : [];
-  const primaryFallbacks = POOL_ROYALE_PRIMARY_HUMAN_FALLBACKS_BY_ID[id] || [];
-  const rotatedFallbacks = POOL_ROYALE_VERIFIED_HUMAN_FALLBACK_URLS.filter((url) => !primaryFallbacks.includes(url));
-  // Keep each menu option visually different: try its own Murlan/RPM/Xbot source first,
-  // then only use Soldier as the absolute last-resort skeleton.
-  return Array.from(new Set([...urls, ...primaryFallbacks, ...rotatedFallbacks, BILARDO_SHQIP_HUMAN_URL]));
-};
-const POOL_ROYALE_HUMAN_CHARACTER_OPTIONS = Object.freeze(
-  POOL_ROYALE_HUMAN_CHARACTER_IDS.map((id) => {
-    const theme = MURLAN_CHARACTER_THEMES.find((entry) => entry.id === id) || {};
-    const logic = POOL_ROYALE_HUMAN_LOGIC_PROFILES[id] || POOL_ROYALE_HUMAN_LOGIC_PROFILES['rpm-current'];
-    const modelUrls = withPoolRoyaleHumanModelFallbacks(theme, id);
-    return Object.freeze({
-      ...theme,
-      id,
-      label: theme.label || logic.label,
-      logicLabel: logic.label,
-      summary: logic.summary,
-      bendMode: logic.bendMode || 'forward',
-      modelUrl: modelUrls[0] || BILARDO_SHQIP_HUMAN_URL,
-      modelUrls,
-      logic
-    });
-  })
-);
-const resolvePoolRoyaleHumanCharacter = (id) =>
-  POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.find((option) => option.id === id) ||
-  POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0];
-const POOL_ROYALE_HUMAN_UNIT_SCALE = BALL_R / 0.0525;
-const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.85 * POOL_ROYALE_HUMAN_UNIT_SCALE; // make the shooter larger again without returning to the oversized direct scale
-const POOL_ROYALE_LOUNGE_TABLE_RADIUS = BALL_R * 24; // match Murlan Royale's default octagon table proportions at pool-side scale.
-const POOL_ROYALE_LOUNGE_TABLE_HEIGHT = BALL_R * 16.5;
-const POOL_ROYALE_LOUNGE_CHAIR_SPAN = BALL_R * 64; // oversized portrait-readable chairs matching Murlan's default dining-chair asset.
-const POOL_ROYALE_LOUNGE_DISTANCE = BALL_R * 38;
-const POOL_ROYALE_LOUNGE_CHAIR_OFFSET = BALL_R * 54;
-// Soldier.glb already faces the billiards rig forward axis; keep the child model unflipped so
-// the visible player faces inward toward the table instead of showing their back in portrait play.
-const POOL_ROYALE_HUMAN_VISUAL_YAW_FIX = Math.PI;
-const HUMAN_PLAYER_IDLE_SWAY_SPEED = 1.2;
-const HUMAN_PLAYER_IDLE_SWAY_ANGLE = 0.04;
-const HUMAN_PLAYER_AIM_LEAN = 0.2;
-const HUMAN_PLAYER_REACT_LEAN = 0.12;
-const HUMAN_POSE_LAMBDA = 9.0;
-const HUMAN_MOVE_LAMBDA = 5.6;
-const HUMAN_ROT_LAMBDA = 8.5;
-const HUMAN_EDGE_MARGIN = 1.86; // push the shooter farther outward so the avatar stays clear of the table edge in portrait
-const HUMAN_DESIRED_SHOOT_DISTANCE = 2.08; // keep the shooter much farther back on the cue-butt side like a real pool stance
-const HUMAN_SHOOT_BLEND_THRESHOLD = 0.96; // enter shooting pose immediately when the portrait cue camera starts lowering
-const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 4.55; // widen the perimeter walk ring so feet never step onto the table mesh
-const HUMAN_TABLE_BLOCKER_MARGIN = TABLE.WALL * 1.95; // collision helper margin so characters never cut through the table body
-const HUMAN_EYE_CAMERA_HEIGHT_OFFSET = 0.032; // lower the low cue camera close to cloth height for portrait aiming
-const WORLD_UP = new THREE.Vector3(0, 1, 0);
-const HUMAN_EYE_CAMERA_FORWARD_OFFSET = BALL_R * 2.34; // move the low cue camera closer toward the table while staying behind the bridge hand
-const HUMAN_EYE_CAMERA_SIDE_OFFSET = -BALL_R * 0.22; // preserve subtle right-eye bias without exposing too much of the avatar body
-const HUMAN_EYE_CAMERA_MIN_BLEND = 0.06; // only engage eye camera when cue view is noticeably lowered
-const HUMAN_EYE_CAMERA_SMOOTH = 0.48; // smooth eye-camera blending into the cue camera for portrait stability
-const HUMAN_BRIDGE_HAND_BACK_FROM_BALL = 0.34; // set the bridge farther behind the cue ball to match real pool hand placement
-const HUMAN_BRIDGE_HAND_SIDE = -0.008; // match Bilardo Shqip bridge hand lateral placement
-const HUMAN_BRIDGE_CUE_LIFT = 0.018; // flatten the cue closer to the cloth like the reference shooting photos
-const HUMAN_GRIP_RATIO = 0.9; // anchor right-hand grip much closer to the cue butt so the hand no longer drifts toward the tip
-const HUMAN_CUE_LENGTH = 1.46; // match Bilardo Shqip cue length used for hand/cue alignment
-const HUMAN_BRIDGE_DIST = 0.24; // match Bilardo Shqip bridge-to-tip section used by cue placement
-const HUMAN_WALK_PERIMETER_SPEED = Math.max(TABLE.W * 0.95, TABLE.H * 0.7); // world units per second when traversing the walk ring
-const HUMAN_WALK_EPS = 1e-5;
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
 const PLAYER_CUE_STRIKE_MAX_MS = 1400;
@@ -2723,13 +1956,673 @@ const CUE_FOLLOW_MIN_MS = 250;
 const CUE_FOLLOW_MAX_MS = 560;
 const CUE_FOLLOW_SPEED_MIN = BALL_R * 7.6;
 const CUE_FOLLOW_SPEED_MAX = BALL_R * 16.4;
-const CUE_Y = BALL_CENTER_Y - BALL_R * 0.34; // lift the full cue line slightly to match the updated rail/cushion height
+const CUE_Y = BALL_CENTER_Y - BALL_R * 0.52; // keep the cue stick visually down on the table during the shot
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
-const CUE_BUTT_LIFT = BALL_R * 0.46; // lower the butt slightly while keeping the tip level with the cue-ball centre
+const CUE_BUTT_LIFT = BALL_R * 0.18; // flatter table-level cue orientation so the stick stays visible on the cloth
 const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.38; // keep extra vertical headroom so cue helpers clear cushion lips more reliably
 const CUE_CUSHION_LIFT_BIAS = BALL_R * 0.35; // raise cue helper path a bit more to avoid cushion/ball clipping on tight angles
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
+
+const POOL_HUMAN_UP = new THREE.Vector3(0, 1, 0);
+const POOL_HUMAN_Y_AXIS = POOL_HUMAN_UP;
+const POOL_HUMAN_URLS = Object.freeze([
+  'https://threejs.org/examples/models/gltf/Xbot.glb',
+  'https://threejs.org/examples/models/gltf/Soldier.glb',
+  'https://threejs.org/examples/models/gltf/readyplayer.me.glb'
+]);
+const POOL_HUMAN_CUE_REFERENCE_LENGTH = 1.5 * (BALL_R / 0.0525) * CUE_LENGTH_MULTIPLIER;
+const POOL_HUMAN_HEIGHT_TO_CUE_RATIO = 1.3;
+const POOL_HUMAN_TARGET_HEIGHT = POOL_HUMAN_CUE_REFERENCE_LENGTH * POOL_HUMAN_HEIGHT_TO_CUE_RATIO;
+const POOL_HUMAN_WORLD_SCALE = BALL_R / 0.052;
+const POOL_HUMAN_CUE_BUTT_STANCE_INSET = 0.28 * POOL_HUMAN_WORLD_SCALE;
+const POOL_HUMAN_CFG = Object.freeze({
+  scale: POOL_HUMAN_WORLD_SCALE,
+  cueLength: POOL_HUMAN_CUE_REFERENCE_LENGTH,
+  targetHeight: POOL_HUMAN_TARGET_HEIGHT,
+  tableTopY: CUE_Y,
+  floorLocalY: FLOOR_Y - TABLE_Y,
+  tableW: PLAY_W,
+  tableL: PLAY_H,
+  idleGap: CUE_TIP_GAP,
+  contactGap: BALL_R * 0.08,
+  pullRange: CUE_PULL_BASE,
+  strikeTime: CUE_STRIKE_DURATION_MS / 1000,
+  holdTime: CUE_STRIKE_HOLD_MS / 1000,
+  bridgeDist: 0.28 * POOL_HUMAN_WORLD_SCALE,
+  edgeMargin: 0.68 * POOL_HUMAN_WORLD_SCALE,
+  desiredShootDistance: 1.25 * POOL_HUMAN_WORLD_SCALE,
+  poseLambda: 9,
+  moveLambda: 5.6,
+  rotLambda: 8.5,
+  humanScale: POOL_HUMAN_TARGET_HEIGHT,
+  shotPoseAmount: 1.0,
+  humanVisualYawFix: Math.PI,
+  stanceWidth: 0.52 * POOL_HUMAN_WORLD_SCALE,
+  bridgePalmTableLift: 0.006 * POOL_HUMAN_WORLD_SCALE,
+  bridgeCueLift: 0.018 * POOL_HUMAN_WORLD_SCALE,
+  bridgeHandBackFromBall: 0.235 * POOL_HUMAN_WORLD_SCALE,
+  bridgeHandSide: -0.012 * POOL_HUMAN_WORLD_SCALE,
+  chinToCueHeight: 0.11 * POOL_HUMAN_WORLD_SCALE,
+  upperBodyCueBallLean: 0.18 * POOL_HUMAN_WORLD_SCALE,
+  chestCueBallLean: 0.24 * POOL_HUMAN_WORLD_SCALE,
+  headCueBallLean: 0.28 * POOL_HUMAN_WORLD_SCALE,
+  footGroundY: 0,
+  footLockStrength: 1.0,
+  kneeBendShot: 0.16 * POOL_HUMAN_WORLD_SCALE,
+  rightElbowShotRise: 0.18 * POOL_HUMAN_WORLD_SCALE,
+  rightElbowShotSide: -0.46 * POOL_HUMAN_WORLD_SCALE,
+  rightElbowShotBack: -0.78 * POOL_HUMAN_WORLD_SCALE,
+  rightForearmOutward: 0.36 * POOL_HUMAN_WORLD_SCALE,
+  rightForearmBack: 0.44 * POOL_HUMAN_WORLD_SCALE,
+  rightForearmDown: 0.48 * POOL_HUMAN_WORLD_SCALE,
+  rightForearmLength: 0.34 * POOL_HUMAN_WORLD_SCALE,
+  rightStrokePull: 0.30 * POOL_HUMAN_WORLD_SCALE,
+  rightStrokePush: 0.24 * POOL_HUMAN_WORLD_SCALE,
+  rightHandShotLift: -0.30 * POOL_HUMAN_WORLD_SCALE,
+  shootCueGripFromBack: 0.58 * POOL_HUMAN_WORLD_SCALE,
+  idleRightHandY: 0.8 * POOL_HUMAN_WORLD_SCALE,
+  idleRightHandX: 0.31 * POOL_HUMAN_WORLD_SCALE,
+  idleRightHandZ: -0.015 * POOL_HUMAN_WORLD_SCALE,
+  idleCueGripFromBack: 0.24 * POOL_HUMAN_WORLD_SCALE,
+  idleCueDir: new THREE.Vector3(0.055, 0.965, -0.13),
+  rightHandRollIdle: -2.2,
+  rightHandRollShoot: -2.05,
+  rightHandDownPose: 0.42,
+  rightHandCueSocketLocal: new THREE.Vector3(-0.004, -0.014, 0.092).multiplyScalar(POOL_HUMAN_WORLD_SCALE)
+});
+const POOL_HUMAN_CUE_CAMERA_POSE_BLEND_MAX = 0.72;
+const POOL_HUMAN_BASIS_MAT = new THREE.Matrix4();
+const cleanPoolHumanBoneName = (name = '') => name.toLowerCase().replace(/[^a-z0-9]/g, '');
+const poolHumanClamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const poolHumanClamp01 = (v) => poolHumanClamp(v, 0, 1);
+const poolHumanLerp = (a, b, t) => a + (b - a) * t;
+const poolHumanEaseOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+const poolHumanEaseInOut = (t) => t * t * (3 - 2 * t);
+const poolHumanDampScalar = (current, target, lambda, dt) =>
+  THREE.MathUtils.lerp(current, target, 1 - Math.exp(-lambda * dt));
+const poolHumanDampVector = (current, target, lambda, dt) =>
+  current.lerp(target, 1 - Math.exp(-lambda * dt));
+const poolHumanYawFromForward = (forward) => Math.atan2(-forward.x, -forward.z);
+const poolHumanDampAngle = (current, target, lambda, dt) => {
+  const delta = THREE.MathUtils.euclideanModulo(target - current + Math.PI, Math.PI * 2) - Math.PI;
+  return current + delta * (1 - Math.exp(-lambda * dt));
+};
+
+function poolHumanSafePlanarForward(forward, fallback = new THREE.Vector3(0, 0, -1)) {
+  const out = forward?.clone?.() || fallback.clone();
+  out.y = 0;
+  if (out.lengthSq() < 1e-8) out.copy(fallback).setY(0);
+  if (out.lengthSq() < 1e-8) out.set(0, 0, -1);
+  return out.normalize();
+}
+
+function makePoolHumanBasisQuaternion(side, up, forward) {
+  POOL_HUMAN_BASIS_MAT.makeBasis(side.clone().normalize(), up.clone().normalize(), forward.clone().normalize());
+  return new THREE.Quaternion().setFromRotationMatrix(POOL_HUMAN_BASIS_MAT);
+}
+
+function findPoolHumanBone(all, aliases) {
+  const list = all.map((bone) => ({ bone, name: cleanPoolHumanBoneName(bone.name) }));
+  const names = aliases.map(cleanPoolHumanBoneName);
+  for (const alias of names) {
+    const exact = list.find((entry) => entry.name === alias || entry.name.endsWith(alias));
+    if (exact) return exact.bone;
+  }
+  for (const alias of names) {
+    const loose = list.find((entry) => entry.name.includes(alias));
+    if (loose) return loose.bone;
+  }
+  return undefined;
+}
+
+function buildPoolHumanBones(model) {
+  const all = [];
+  model.traverse((obj) => {
+    if (obj?.isBone) all.push(obj);
+  });
+  const f = (...names) => findPoolHumanBone(all, names);
+  return {
+    hips: f('hips', 'pelvis', 'mixamorigHips'),
+    spine: f('spine', 'spine01', 'mixamorigSpine'),
+    chest: f('spine2', 'chest', 'upperchest', 'mixamorigSpine2', 'mixamorigSpine1'),
+    neck: f('neck', 'mixamorigNeck'),
+    head: f('head', 'mixamorigHead'),
+    leftUpperArm: f('leftupperarm', 'leftarm', 'upperarml', 'mixamorigLeftArm'),
+    leftLowerArm: f('leftforearm', 'leftlowerarm', 'forearml', 'mixamorigLeftForeArm'),
+    leftHand: f('lefthand', 'handl', 'mixamorigLeftHand'),
+    rightUpperArm: f('rightupperarm', 'rightarm', 'upperarmr', 'mixamorigRightArm'),
+    rightLowerArm: f('rightforearm', 'rightlowerarm', 'forearmr', 'mixamorigRightForeArm'),
+    rightHand: f('righthand', 'handr', 'mixamorigRightHand'),
+    leftUpperLeg: f('leftupleg', 'leftupperleg', 'leftthigh', 'mixamorigLeftUpLeg'),
+    leftLowerLeg: f('leftleg', 'leftlowerleg', 'leftcalf', 'mixamorigLeftLeg'),
+    leftFoot: f('leftfoot', 'footl', 'mixamorigLeftFoot'),
+    rightUpperLeg: f('rightupleg', 'rightupperleg', 'rightthigh', 'mixamorigRightUpLeg'),
+    rightLowerLeg: f('rightleg', 'rightlowerleg', 'rightcalf', 'mixamorigRightLeg'),
+    rightFoot: f('rightfoot', 'footr', 'mixamorigRightFoot')
+  };
+}
+
+function collectPoolHumanFingerBones(hand) {
+  const out = [];
+  hand?.traverse((obj) => {
+    if (!obj?.isBone || obj === hand) return;
+    const n = cleanPoolHumanBoneName(obj.name);
+    if (['thumb', 'index', 'middle', 'ring', 'pinky', 'little', 'finger'].some((s) => n.includes(s))) out.push(obj);
+  });
+  return out;
+}
+
+function normalizePoolHumanModel(model) {
+  model.scale.setScalar(1);
+  model.rotation.set(0, POOL_HUMAN_CFG.humanVisualYawFix, 0);
+  model.position.set(0, 0, 0);
+  model.updateMatrixWorld(true);
+  let box = new THREE.Box3().setFromObject(model);
+  const unscaledHeight = Math.max(box.getSize(new THREE.Vector3()).y, 1e-4);
+  const targetHeight = POOL_HUMAN_CFG.targetHeight || POOL_HUMAN_CFG.humanScale;
+  model.scale.setScalar(targetHeight / unscaledHeight);
+  model.updateMatrixWorld(true);
+  box = new THREE.Box3().setFromObject(model);
+  const center = box.getCenter(new THREE.Vector3());
+  model.position.set(-center.x, -box.min.y, -center.z);
+}
+
+function createPoolHumanGLTFLoader(renderer = null) {
+  const loader = new GLTFLoader();
+  loader.setCrossOrigin('anonymous');
+  const draco = new DRACOLoader();
+  draco.setDecoderPath(DRACO_DECODER_PATH);
+  loader.setDRACOLoader(draco);
+  const ktx2 = new KTX2Loader();
+  ktx2.setTranscoderPath(BASIS_TRANSCODER_PATH);
+  if (renderer) {
+    try {
+      ktx2.detectSupport(renderer);
+    } catch (error) {
+      console.warn('Pool Royale human KTX2 support detection failed', error);
+    }
+  }
+  loader.setKTX2Loader(ktx2);
+  loader.setMeshoptDecoder(MeshoptDecoder);
+  loader.userData = { draco, ktx2 };
+  return loader;
+}
+
+function disposePoolHumanGLTFLoader(loader) {
+  loader?.userData?.draco?.dispose?.();
+  loader?.userData?.ktx2?.dispose?.();
+}
+
+function loadPoolHumanModel(loader, url) {
+  return new Promise((resolve, reject) => {
+    loader.load(
+      url,
+      (gltf) => resolve(gltf.scene),
+      undefined,
+      async (loaderError) => {
+        try {
+          const response = await fetch(url, { mode: 'cors', cache: 'reload' });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const buffer = await response.arrayBuffer();
+          const basePath = url.slice(0, url.lastIndexOf('/') + 1);
+          loader.parse(buffer, basePath, (gltf) => resolve(gltf.scene), reject);
+        } catch (fetchError) {
+          reject(fetchError || loaderError);
+        }
+      }
+    );
+  });
+}
+
+async function loadPoolHumanModelFromCatalog(loader, urls = POOL_HUMAN_URLS) {
+  let lastError = null;
+  for (const url of urls) {
+    try {
+      const model = await loadPoolHumanModel(loader, url);
+      return { model, url };
+    } catch (error) {
+      lastError = error;
+      console.warn('Pool Royale human model failed, trying fallback', url, error);
+    }
+  }
+  throw lastError || new Error('No Pool Royale human models configured');
+}
+
+function createPoolRoyaleHumanRig(parent, renderer) {
+  const human = {
+    root: new THREE.Group(),
+    modelRoot: new THREE.Group(),
+    model: null,
+    bones: {},
+    leftFingers: [],
+    rightFingers: [],
+    restQuats: new Map(),
+    activeGlb: false,
+    poseT: 0,
+    walkT: 0,
+    yaw: 0,
+    breathT: 0,
+    settleT: 0,
+    strikeRoot: new THREE.Vector3(),
+    strikeYaw: 0,
+    strikeClock: 0,
+    idleCuePose: null
+  };
+  human.root.visible = false;
+  human.modelRoot.visible = false;
+  parent.add(human.root, human.modelRoot);
+  const loader = createPoolHumanGLTFLoader(renderer);
+  loadPoolHumanModelFromCatalog(loader)
+    .then(({ model, url }) => {
+      human.modelUrl = url;
+      normalizePoolHumanModel(model);
+      model.traverse((obj) => {
+        if (!obj?.isMesh) return;
+        obj.castShadow = true;
+        obj.receiveShadow = true;
+        obj.frustumCulled = false;
+        const mats = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
+        mats.forEach((mat) => {
+          if (mat?.map) {
+            applySRGBColorSpace(mat.map);
+            mat.map.flipY = false;
+            mat.map.needsUpdate = true;
+          }
+          if (mat) {
+            mat.depthWrite = true;
+            mat.depthTest = true;
+            mat.needsUpdate = true;
+          }
+        });
+      });
+      human.bones = buildPoolHumanBones(model);
+      human.leftFingers = collectPoolHumanFingerBones(human.bones.leftHand);
+      human.rightFingers = collectPoolHumanFingerBones(human.bones.rightHand);
+      [...Object.values(human.bones), ...human.leftFingers, ...human.rightFingers].forEach((bone) => {
+        if (bone) human.restQuats.set(bone, bone.quaternion.clone());
+      });
+      human.activeGlb = Boolean(
+        human.bones.hips && human.bones.spine && human.bones.head &&
+        human.bones.rightUpperArm && human.bones.rightLowerArm && human.bones.rightHand &&
+        human.bones.leftUpperLeg && human.bones.leftLowerLeg && human.bones.leftFoot &&
+        human.bones.rightUpperLeg && human.bones.rightLowerLeg && human.bones.rightFoot
+      );
+      human.model = model;
+      human.modelRoot.add(model);
+      human.modelRoot.visible = human.activeGlb;
+    })
+    .catch((error) => console.warn('Pool Royale human rig failed', error))
+    .finally(() => disposePoolHumanGLTFLoader(loader));
+  return human;
+}
+
+function setPoolHumanBoneWorldQuaternion(bone, q) {
+  if (!bone || !q) return;
+  const parentQ = new THREE.Quaternion();
+  bone.parent?.getWorldQuaternion(parentQ);
+  bone.quaternion.copy(parentQ.invert().multiply(q));
+  bone.updateMatrixWorld(true);
+}
+
+function firstPoolHumanBoneChild(bone) {
+  return bone?.children.find((child) => child?.isBone);
+}
+
+function rotatePoolHumanBoneToward(bone, target, strength = 1, fallbackDir = POOL_HUMAN_UP) {
+  if (!bone || strength <= 0) return;
+  const bonePos = bone.getWorldPosition(new THREE.Vector3());
+  const childPos = firstPoolHumanBoneChild(bone)?.getWorldPosition(new THREE.Vector3()) ||
+    bonePos.clone().addScaledVector(fallbackDir.clone().normalize(), 0.25 * POOL_HUMAN_CFG.scale);
+  const current = childPos.sub(bonePos).normalize();
+  const desired = target.clone().sub(bonePos);
+  if (desired.lengthSq() < 1e-6 || current.lengthSq() < 1e-6) return;
+  const delta = new THREE.Quaternion().slerpQuaternions(
+    new THREE.Quaternion(),
+    new THREE.Quaternion().setFromUnitVectors(current, desired.normalize()),
+    poolHumanClamp01(strength)
+  );
+  setPoolHumanBoneWorldQuaternion(bone, delta.multiply(bone.getWorldQuaternion(new THREE.Quaternion())));
+}
+
+function twistPoolHumanBone(bone, axis, amount) {
+  if (!bone || Math.abs(amount) < 1e-5) return;
+  setPoolHumanBoneWorldQuaternion(
+    bone,
+    new THREE.Quaternion().setFromAxisAngle(axis.clone().normalize(), amount)
+      .multiply(bone.getWorldQuaternion(new THREE.Quaternion()))
+  );
+}
+
+function aimPoolHumanTwoBone(upper, lower, elbow, hand, pole, upperStrength = 0.96, lowerStrength = 0.98) {
+  for (let i = 0; i < 4; i++) {
+    rotatePoolHumanBoneToward(upper, elbow, upperStrength, pole);
+    rotatePoolHumanBoneToward(lower, hand, lowerStrength, pole);
+  }
+}
+
+function setPoolHumanHandBasis(bone, side, up, forward, roll = 0, strength = 1) {
+  if (!bone || strength <= 0) return;
+  const q = makePoolHumanBasisQuaternion(side, up, forward);
+  if (Math.abs(roll) > 1e-4) q.multiply(new THREE.Quaternion().setFromAxisAngle(forward.clone().normalize(), roll));
+  setPoolHumanBoneWorldQuaternion(bone, bone.getWorldQuaternion(new THREE.Quaternion()).slerp(q, poolHumanClamp01(strength)));
+}
+
+function poolHumanCueSocketOffsetWorld(side, up, forward, roll, socketLocal = POOL_HUMAN_CFG.rightHandCueSocketLocal) {
+  const q = makePoolHumanBasisQuaternion(side, up, forward);
+  if (Math.abs(roll) > 1e-5) q.multiply(new THREE.Quaternion().setFromAxisAngle(forward.clone().normalize(), roll));
+  return socketLocal.clone().applyQuaternion(q);
+}
+
+function posePoolHumanFingers(fingers, mode, weight) {
+  const w = poolHumanClamp01(weight);
+  fingers.forEach((finger, i) => {
+    const n = cleanPoolHumanBoneName(finger.name);
+    const thumb = n.includes('thumb');
+    const index = n.includes('index');
+    const middle = n.includes('middle');
+    const ring = n.includes('ring');
+    const pinky = n.includes('pinky') || n.includes('little');
+    const base = !(n.includes('2') || n.includes('3') || n.includes('intermediate') || n.includes('distal'));
+    const mid = n.includes('2') || n.includes('intermediate');
+    const tip = n.includes('3') || n.includes('distal');
+    if (mode === 'idle') {
+      finger.rotation.x += 0.018 * w;
+      finger.rotation.z += 0.01 * w * (i % 2 ? -1 : 1);
+      return;
+    }
+    if (mode === 'grip') {
+      if (thumb) {
+        finger.rotation.x += 0.48 * w;
+        finger.rotation.y += -0.82 * w;
+        finger.rotation.z += 0.54 * w;
+        return;
+      }
+      const curl = index ? (base ? 0.58 : mid ? 0.9 : 0.68) : middle ? (base ? 0.76 : mid ? 1.02 : 0.76) : ring ? (base ? 0.72 : mid ? 0.92 : 0.7) : pinky ? (base ? 0.62 : mid ? 0.82 : 0.62) : 0;
+      finger.rotation.x += curl * w;
+      finger.rotation.y += (index ? -0.12 : middle ? -0.03 : ring ? 0.04 : pinky ? 0.08 : 0) * w;
+      finger.rotation.z += (index ? -0.08 : middle ? -0.02 : ring ? 0.06 : pinky ? 0.12 : 0) * w;
+      return;
+    }
+    if (thumb) {
+      finger.rotation.x += -0.18 * w;
+      finger.rotation.y += 0.95 * w;
+      finger.rotation.z += -0.95 * w;
+    } else if (index) {
+      finger.rotation.x += (base ? 0.26 : mid ? 0.42 : 0.28) * w;
+      finger.rotation.y += -0.46 * w;
+      finger.rotation.z += -0.42 * w;
+    } else if (middle) {
+      finger.rotation.x += (base ? 0.18 : mid ? 0.32 : 0.22) * w;
+      finger.rotation.y += -0.12 * w;
+      finger.rotation.z += -0.14 * w;
+    } else if (ring || pinky) {
+      finger.rotation.x += (base ? (ring ? 0.08 : 0.05) : mid ? (ring ? 0.18 : 0.16) : tip ? (ring ? 0.12 : 0.1) : 0.1) * w;
+      finger.rotation.y += (ring ? 0.18 : 0.34) * w;
+      finger.rotation.z += (ring ? 0.28 : 0.46) * w;
+    }
+  });
+}
+
+function choosePoolHumanEdgePosition(cueBallWorld, aimForward, cueBackWorld = null) {
+  const shotDir = poolHumanSafePlanarForward(aimForward, new THREE.Vector3(0, 0, -1));
+  const cueBackValid = cueBackWorld && Number.isFinite(cueBackWorld.x) && Number.isFinite(cueBackWorld.z);
+  const desired = cueBackValid
+    // Active aiming/striking stands at the butt end of the real cue, nudged
+    // toward the table so the right hand stays close to the cue butt like the
+    // provided Snooker human instead of floating too far behind it.
+    ? cueBackWorld.clone().addScaledVector(shotDir, POOL_HUMAN_CUE_BUTT_STANCE_INSET)
+    : cueBallWorld.clone().addScaledVector(shotDir, -POOL_HUMAN_CFG.desiredShootDistance);
+  desired.y = 0;
+  const xEdge = POOL_HUMAN_CFG.tableW / 2 + POOL_HUMAN_CFG.edgeMargin;
+  const zEdge = POOL_HUMAN_CFG.tableL / 2 + POOL_HUMAN_CFG.edgeMargin;
+  const candidates = [
+    new THREE.Vector3(-xEdge, 0, poolHumanClamp(desired.z, -zEdge, zEdge)),
+    new THREE.Vector3(xEdge, 0, poolHumanClamp(desired.z, -zEdge, zEdge)),
+    new THREE.Vector3(poolHumanClamp(desired.x, -xEdge, xEdge), 0, -zEdge),
+    new THREE.Vector3(poolHumanClamp(desired.x, -xEdge, xEdge), 0, zEdge)
+  ];
+  return candidates.sort((a, b) => a.distanceToSquared(desired) - b.distanceToSquared(desired))[0].clone();
+}
+
+function drivePoolRoyaleHuman(human, frame) {
+  if (!human.activeGlb || !human.model) return;
+  human.modelRoot.visible = true;
+  human.modelRoot.position.copy(frame.rootWorld);
+  human.modelRoot.rotation.y = human.yaw;
+  human.modelRoot.updateMatrixWorld(true);
+  human.restQuats.forEach((q, bone) => bone.quaternion.copy(q));
+  human.modelRoot.updateMatrixWorld(true);
+  const b = human.bones;
+  const ik = poolHumanEaseInOut(poolHumanClamp01(frame.t));
+  const idle = 1 - ik;
+  const cueDir = frame.cueTipWorld.clone().sub(frame.cueBackWorld).normalize();
+  const standingCueDir = POOL_HUMAN_CFG.idleCueDir.clone().applyAxisAngle(POOL_HUMAN_Y_AXIS, human.yaw).normalize();
+  const shotQ = makePoolHumanBasisQuaternion(frame.side, POOL_HUMAN_UP, frame.forward);
+  if (frame.walkAmount * idle > 0.001) {
+    const s = Math.sin(human.walkT * 6.2);
+    const c = Math.cos(human.walkT * 6.2);
+    const w = frame.walkAmount * idle;
+    if (b.leftUpperLeg) b.leftUpperLeg.rotation.x += s * 0.22 * w;
+    if (b.rightUpperLeg) b.rightUpperLeg.rotation.x -= s * 0.22 * w;
+    if (b.leftLowerLeg) b.leftLowerLeg.rotation.x += Math.max(0, -s) * 0.18 * w;
+    if (b.rightLowerLeg) b.rightLowerLeg.rotation.x += Math.max(0, s) * 0.18 * w;
+    if (b.leftUpperArm) b.leftUpperArm.rotation.x -= s * 0.2 * w;
+    if (b.rightUpperArm) b.rightUpperArm.rotation.x += s * 0.2 * w;
+    if (b.spine) b.spine.rotation.z += c * 0.02 * w;
+    if (b.hips) b.hips.rotation.z -= c * 0.014 * w;
+  }
+  if (ik >= 0.025) {
+    rotatePoolHumanBoneToward(b.hips, frame.torsoCenterWorld, (0.12 + 0.35 * ik) * ik, frame.forward);
+    twistPoolHumanBone(b.hips, frame.side, -0.045 * ik);
+    twistPoolHumanBone(b.spine, frame.side, -0.2 * ik);
+    rotatePoolHumanBoneToward(b.spine, frame.chestCenterWorld, (0.34 + 0.34 * ik) * ik, frame.forward);
+    rotatePoolHumanBoneToward(b.chest, frame.neckWorld, (0.5 + 0.28 * ik) * ik, frame.forward);
+    twistPoolHumanBone(b.chest, frame.side, -0.32 * ik);
+    rotatePoolHumanBoneToward(b.neck, frame.headCenterWorld, 0.64 * ik, frame.forward);
+    setPoolHumanBoneWorldQuaternion(
+      b.head,
+      b.head
+        ? b.head.getWorldQuaternion(new THREE.Quaternion()).slerp(
+            shotQ.clone().multiply(new THREE.Quaternion().setFromAxisAngle(frame.side, -0.12 * ik)),
+            0.74 * ik
+          )
+        : shotQ
+    );
+    human.modelRoot.updateMatrixWorld(true);
+  }
+  const rightGrip = frame.rightHandWorld.clone();
+  const rightIdleElbow = rightGrip.clone()
+    .addScaledVector(POOL_HUMAN_UP, 0.04 * POOL_HUMAN_CFG.scale + 0.14 * POOL_HUMAN_CFG.scale * ik)
+    .addScaledVector(frame.side, -0.2 * POOL_HUMAN_CFG.scale)
+    .addScaledVector(frame.forward, -0.03 * POOL_HUMAN_CFG.scale * idle);
+  const rightElbow = frame.rightElbow.clone().lerp(rightIdleElbow, idle * 0.5);
+  aimPoolHumanTwoBone(
+    b.rightUpperArm,
+    b.rightLowerArm,
+    rightElbow,
+    rightGrip,
+    frame.side.clone().multiplyScalar(-1).addScaledVector(POOL_HUMAN_UP, 0.32).addScaledVector(frame.forward, -0.55).normalize(),
+    0.9 + 0.1 * ik,
+    1
+  );
+  const standingHandSide = frame.side.clone().multiplyScalar(-1).addScaledVector(POOL_HUMAN_UP, -0.55).addScaledVector(frame.forward, 0.16).normalize();
+  const standingHandUp = POOL_HUMAN_UP.clone().multiplyScalar(-1).addScaledVector(frame.side, -0.64).addScaledVector(frame.forward, 0.2).normalize();
+  setPoolHumanHandBasis(
+    b.rightHand,
+    standingHandSide,
+    standingHandUp,
+    ik >= 0.025 ? cueDir : standingCueDir,
+    ik >= 0.025 ? POOL_HUMAN_CFG.rightHandRollShoot : POOL_HUMAN_CFG.rightHandRollIdle,
+    1
+  );
+  posePoolHumanFingers(human.rightFingers, 'grip', 0.95);
+  if (ik < 0.025) {
+    posePoolHumanFingers(human.leftFingers, 'idle', 1);
+    return;
+  }
+  aimPoolHumanTwoBone(
+    b.leftUpperArm,
+    b.leftLowerArm,
+    frame.leftElbow,
+    frame.leftHandWorld,
+    frame.side.clone().multiplyScalar(-1).addScaledVector(POOL_HUMAN_UP, 0.1).normalize(),
+    0.98 * ik,
+    ik
+  );
+  setPoolHumanHandBasis(
+    b.leftHand,
+    frame.side.clone().multiplyScalar(-1).addScaledVector(frame.forward, -0.52).normalize(),
+    POOL_HUMAN_UP.clone().multiplyScalar(0.78).addScaledVector(frame.forward, -0.28).addScaledVector(frame.side, -0.16).normalize(),
+    cueDir,
+    -0.68 * ik,
+    ik
+  );
+  posePoolHumanFingers(human.leftFingers, 'bridge', ik);
+  aimPoolHumanTwoBone(b.leftUpperLeg, b.leftLowerLeg, frame.leftKnee, frame.leftFootWorld, frame.forward.clone().addScaledVector(POOL_HUMAN_UP, 0.18).normalize(), 0.9 * ik, ik);
+  aimPoolHumanTwoBone(b.rightUpperLeg, b.rightLowerLeg, frame.rightKnee, frame.rightFootWorld, frame.forward.clone().multiplyScalar(-1).addScaledVector(POOL_HUMAN_UP, 0.18).normalize(), 0.9 * ik, ik);
+}
+
+function cuePoseFromPoolHumanGrip(grip, dir, gripFromBack, length = POOL_HUMAN_CFG.cueLength) {
+  const n = dir.clone().normalize();
+  return {
+    back: grip.clone().addScaledVector(n, -gripFromBack),
+    tip: grip.clone().addScaledVector(n, length - gripFromBack)
+  };
+}
+
+function getPoolHumanCueEndpoints(cueStick, cueLen) {
+  const backWorld = cueStick.localToWorld(new THREE.Vector3(0, 0, cueLen / 2));
+  const tipWorld = cueStick.localToWorld(new THREE.Vector3(0, 0, -cueLen / 2));
+  return cueStick.parent
+    ? {
+        back: cueStick.parent.worldToLocal(backWorld),
+        tip: cueStick.parent.worldToLocal(tipWorld)
+      }
+    : { back: backWorld, tip: tipWorld };
+}
+
+function updatePoolRoyaleHumanPose(human, dt, state, rootTarget, aimForward, bridgeTarget, idleRight, idleLeft, cueBack, cueTip, power) {
+  // This mirrors SnookerRoyalProvided.jsx's updateHumanPose solver so Pool
+  // Royale uses the same walk, right-hand cue grip, bridge hand and shooting
+  // orientation logic while keeping Pool Royale's existing avatar size.
+  human.poseT = poolHumanDampScalar(human.poseT, state === 'idle' ? 0 : 1, POOL_HUMAN_CFG.poseLambda, dt);
+  human.breathT += dt * (state === 'idle' ? 1.05 : 0.5);
+  human.settleT = poolHumanDampScalar(human.settleT, state === 'dragging' ? 1 : 0, 5.5, dt);
+  if (state === 'striking') {
+    if (human.strikeClock === 0) {
+      human.strikeRoot.copy(human.root.position.lengthSq() > 0.001 ? human.root.position : rootTarget);
+      human.strikeYaw = human.yaw;
+    }
+    human.strikeClock += dt;
+  } else {
+    human.strikeClock = 0;
+  }
+  const rootGoal = state === 'striking' ? human.strikeRoot : rootTarget;
+  poolHumanDampVector(human.root.position, rootGoal, state === 'striking' ? 12 : POOL_HUMAN_CFG.moveLambda, dt);
+  const moveAmountRaw = human.root.position.distanceTo(rootGoal);
+  human.walkT += dt * (2 + Math.min(7, moveAmountRaw * 10 / POOL_HUMAN_CFG.scale));
+  human.yaw = poolHumanDampAngle(human.yaw, state === 'striking' ? human.strikeYaw : poolHumanYawFromForward(aimForward), POOL_HUMAN_CFG.rotLambda, dt);
+  const t = poolHumanEaseInOut(human.poseT);
+  const idle = 1 - t;
+  const breath = Math.sin(human.breathT * Math.PI * 2) * ((0.006 + idle * 0.004) * POOL_HUMAN_CFG.scale);
+  const walk = Math.sin(human.walkT * 6.2) * Math.min(1, moveAmountRaw * 12 / POOL_HUMAN_CFG.scale);
+  const walkAmount = poolHumanClamp01(moveAmountRaw * 18 / POOL_HUMAN_CFG.scale) * idle;
+  const dragStroke = state === 'dragging' ? Math.sin(performance.now() * 0.011) * (0.25 + power * 0.75) : 0;
+  const strikeFollow = state === 'striking' ? Math.sin(poolHumanClamp01(human.strikeClock / (POOL_HUMAN_CFG.strikeTime + POOL_HUMAN_CFG.holdTime)) * Math.PI) : 0;
+  const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(POOL_HUMAN_Y_AXIS, human.yaw).normalize();
+  const side = new THREE.Vector3(forward.z, 0, -forward.x).normalize();
+  const local = (v) => v.clone().applyAxisAngle(POOL_HUMAN_Y_AXIS, human.yaw).add(human.root.position);
+  const powerLean = power * t;
+  const rootWorld = human.root.position.clone().addScaledVector(forward, (0.018 * powerLean + 0.026 * strikeFollow) * POOL_HUMAN_CFG.scale);
+  rootWorld.y = 0;
+  const torso = local(new THREE.Vector3(0, poolHumanLerp(1.3, 1.14, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0.02, -0.16, t) - 0.014 * powerLean) * POOL_HUMAN_CFG.scale));
+  const chest = local(new THREE.Vector3(0, poolHumanLerp(1.52, 1.24, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0.02, -0.42, t) - 0.024 * powerLean) * POOL_HUMAN_CFG.scale));
+  const neck = local(new THREE.Vector3(0, poolHumanLerp(1.68, 1.28, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0.02, -0.61, t) - 0.028 * powerLean) * POOL_HUMAN_CFG.scale));
+  const head = local(new THREE.Vector3(0, poolHumanLerp(1.84, 1.37, t) * POOL_HUMAN_CFG.scale + breath - POOL_HUMAN_CFG.chinToCueHeight * 0.16 * t, (poolHumanLerp(0.04, -0.72, t) - 0.028 * powerLean) * POOL_HUMAN_CFG.scale));
+  const leftShoulder = local(new THREE.Vector3(-0.23 * POOL_HUMAN_CFG.scale, poolHumanLerp(1.58, 1.36, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0, -0.46, t) - 0.018 * human.settleT) * POOL_HUMAN_CFG.scale));
+  const rightShoulder = local(new THREE.Vector3(0.23 * POOL_HUMAN_CFG.scale, poolHumanLerp(1.58, 1.36, t) * POOL_HUMAN_CFG.scale + breath, (poolHumanLerp(0, -0.34, t) - 0.018 * human.settleT) * POOL_HUMAN_CFG.scale));
+  const leftHip = local(new THREE.Vector3(-0.13 * POOL_HUMAN_CFG.scale, 0.92 * POOL_HUMAN_CFG.scale, 0.02 * POOL_HUMAN_CFG.scale));
+  const rightHip = local(new THREE.Vector3(0.13 * POOL_HUMAN_CFG.scale, 0.92 * POOL_HUMAN_CFG.scale, 0.02 * POOL_HUMAN_CFG.scale));
+  const leftFoot = local(new THREE.Vector3(-0.13 * POOL_HUMAN_CFG.scale, POOL_HUMAN_CFG.footGroundY, 0.03 * POOL_HUMAN_CFG.scale + walk * 0.018 * POOL_HUMAN_CFG.scale).lerp(new THREE.Vector3(-POOL_HUMAN_CFG.stanceWidth * 0.42, POOL_HUMAN_CFG.footGroundY, -0.34 * POOL_HUMAN_CFG.scale), t));
+  const rightFoot = local(new THREE.Vector3(0.13 * POOL_HUMAN_CFG.scale, POOL_HUMAN_CFG.footGroundY, -0.03 * POOL_HUMAN_CFG.scale - walk * 0.018 * POOL_HUMAN_CFG.scale).lerp(new THREE.Vector3(POOL_HUMAN_CFG.stanceWidth * 0.5, POOL_HUMAN_CFG.footGroundY, 0.34 * POOL_HUMAN_CFG.scale), t));
+  const bridgePalmTarget = bridgeTarget.clone().addScaledVector(forward, -0.006 * POOL_HUMAN_CFG.scale * t).addScaledVector(side, -0.012 * POOL_HUMAN_CFG.scale * t).setY(POOL_HUMAN_CFG.tableTopY + POOL_HUMAN_CFG.bridgePalmTableLift).addScaledVector(POOL_HUMAN_UP, -0.01 * POOL_HUMAN_CFG.scale * human.settleT);
+  const leftHand = idleLeft.clone().lerp(bridgePalmTarget, t);
+  const cueDirForHand = cueTip.clone().sub(cueBack).normalize();
+  const handIk = poolHumanEaseInOut(poolHumanClamp01(t));
+  const idleGripSide = side.clone().multiplyScalar(-1).addScaledVector(POOL_HUMAN_UP, -0.55).addScaledVector(forward, 0.16).normalize();
+  const idleGripUp = POOL_HUMAN_UP.clone().multiplyScalar(-1).addScaledVector(side, -0.64).addScaledVector(forward, 0.2).normalize();
+  const liveGripSide = side.clone().multiplyScalar(-1).addScaledVector(POOL_HUMAN_UP, poolHumanLerp(-0.55, -0.62, handIk)).addScaledVector(side, 0.5 * handIk).addScaledVector(forward, poolHumanLerp(0.16, -0.08, handIk)).normalize();
+  const liveGripUp = POOL_HUMAN_UP.clone().multiplyScalar(poolHumanLerp(-1, 0.12, handIk)).addScaledVector(side, poolHumanLerp(-0.64, -0.04, handIk)).addScaledVector(forward, poolHumanLerp(0.2, -0.48, handIk)).normalize();
+  const lockedRightElbow = rightShoulder.clone().addScaledVector(POOL_HUMAN_UP, poolHumanLerp(0.04 * POOL_HUMAN_CFG.scale, POOL_HUMAN_CFG.rightElbowShotRise, t)).addScaledVector(side, poolHumanLerp(-0.18 * POOL_HUMAN_CFG.scale, POOL_HUMAN_CFG.rightElbowShotSide, t)).addScaledVector(forward, poolHumanLerp(-0.04 * POOL_HUMAN_CFG.scale, POOL_HUMAN_CFG.rightElbowShotBack, t));
+  const forearmStroke = (state === 'dragging' ? -POOL_HUMAN_CFG.rightStrokePull * poolHumanEaseOutCubic(power) : 0) + (state === 'striking' ? POOL_HUMAN_CFG.rightStrokePush * strikeFollow : 0) + (state === 'dragging' ? dragStroke * 0.035 * POOL_HUMAN_CFG.scale : 0);
+  const forearmBase = lockedRightElbow.clone().addScaledVector(side, POOL_HUMAN_CFG.rightForearmOutward * t).addScaledVector(POOL_HUMAN_UP, -POOL_HUMAN_CFG.rightForearmDown * t).addScaledVector(POOL_HUMAN_UP, POOL_HUMAN_CFG.rightHandShotLift * t).addScaledVector(forward, -POOL_HUMAN_CFG.rightForearmBack * t).addScaledVector(cueDirForHand, POOL_HUMAN_CFG.rightForearmLength);
+  const liveCueGripPoint = forearmBase.clone().addScaledVector(cueDirForHand, forearmStroke);
+  const idleWristTarget = idleRight.clone().sub(poolHumanCueSocketOffsetWorld(idleGripSide, idleGripUp, cueDirForHand, POOL_HUMAN_CFG.rightHandRollIdle));
+  const liveWristTarget = liveCueGripPoint.clone().sub(poolHumanCueSocketOffsetWorld(liveGripSide, liveGripUp, cueDirForHand, poolHumanLerp(POOL_HUMAN_CFG.rightHandRollIdle, POOL_HUMAN_CFG.rightHandRollShoot - POOL_HUMAN_CFG.rightHandDownPose, handIk)));
+  const rightHand = idleWristTarget.clone().lerp(liveWristTarget, t);
+  const leftElbow = leftShoulder.clone().lerp(leftHand, 0.62).addScaledVector(POOL_HUMAN_UP, 0.006 * POOL_HUMAN_CFG.scale * t).addScaledVector(side, -0.044 * POOL_HUMAN_CFG.scale * t).addScaledVector(forward, 0.065 * POOL_HUMAN_CFG.scale * t);
+  const leftKnee = leftHip.clone().lerp(leftFoot, 0.53).addScaledVector(POOL_HUMAN_UP, poolHumanLerp(0.2 * POOL_HUMAN_CFG.scale, POOL_HUMAN_CFG.kneeBendShot, t)).addScaledVector(forward, 0.04 * POOL_HUMAN_CFG.scale * t).addScaledVector(side, -0.012 * POOL_HUMAN_CFG.scale * t);
+  const rightKnee = rightHip.clone().lerp(rightFoot, 0.52).addScaledVector(POOL_HUMAN_UP, poolHumanLerp(0.2 * POOL_HUMAN_CFG.scale, POOL_HUMAN_CFG.kneeBendShot * 0.88, t)).addScaledVector(forward, -0.03 * POOL_HUMAN_CFG.scale * t).addScaledVector(side, 0.014 * POOL_HUMAN_CFG.scale * t);
+  drivePoolRoyaleHuman(human, { t, stroke: forearmStroke / POOL_HUMAN_CFG.scale, follow: strikeFollow, walkAmount, forward, side, up: POOL_HUMAN_UP, rootWorld, torsoCenterWorld: torso, chestCenterWorld: chest, neckWorld: neck, headCenterWorld: head, leftElbow, rightElbow: lockedRightElbow, leftHandWorld: leftHand, rightHandWorld: rightHand, leftKnee, rightKnee, leftFootWorld: leftFoot, rightFootWorld: rightFoot, cueBackWorld: cueBack, cueTipWorld: cueTip });
+}
+
+function updatePoolRoyaleHumanFrame(human, dt, shotState, cueBallWorld, aimForward, cueStick, cueLen, power) {
+  if (!human) return null;
+  const poseForward = poolHumanSafePlanarForward(aimForward, new THREE.Vector3(0, 0, 1));
+  const activeHumanState = shotState === 'rolling' ? 'idle' : shotState;
+  const tableCue = getPoolHumanCueEndpoints(cueStick, cueLen);
+  const cueBackForStance = activeHumanState === 'dragging' || activeHumanState === 'striking' ? tableCue.back : null;
+  const rootTarget = choosePoolHumanEdgePosition(cueBallWorld, poseForward, cueBackForStance);
+  rootTarget.y = POOL_HUMAN_CFG.floorLocalY;
+  const standingYaw = poolHumanYawFromForward(poseForward);
+  const aimSide = new THREE.Vector3(poseForward.z, 0, -poseForward.x).normalize();
+  const bridgeHandTarget = cueBallWorld.clone()
+    .addScaledVector(poseForward, -POOL_HUMAN_CFG.bridgeHandBackFromBall)
+    .addScaledVector(aimSide, POOL_HUMAN_CFG.bridgeHandSide)
+    .setY(POOL_HUMAN_CFG.tableTopY + POOL_HUMAN_CFG.bridgePalmTableLift);
+  const idleRightHandTarget = rootTarget.clone().add(new THREE.Vector3(
+    POOL_HUMAN_CFG.idleRightHandX,
+    POOL_HUMAN_CFG.idleRightHandY,
+    POOL_HUMAN_CFG.idleRightHandZ
+  ).applyAxisAngle(POOL_HUMAN_Y_AXIS, standingYaw));
+  const idleLeftHandTarget = rootTarget.clone().add(new THREE.Vector3(
+    -0.18 * POOL_HUMAN_CFG.scale,
+    1.08 * POOL_HUMAN_CFG.scale,
+    0.03 * POOL_HUMAN_CFG.scale
+  ).applyAxisAngle(POOL_HUMAN_Y_AXIS, standingYaw));
+  const idleDir = POOL_HUMAN_CFG.idleCueDir.clone().applyAxisAngle(POOL_HUMAN_Y_AXIS, standingYaw).normalize();
+  const idleCue = cuePoseFromPoolHumanGrip(idleRightHandTarget, idleDir, POOL_HUMAN_CFG.idleCueGripFromBack, cueLen);
+  const activeCueBack = activeHumanState === 'idle' ? idleCue.back : tableCue.back;
+  const activeCueTip = activeHumanState === 'idle' ? idleCue.tip : tableCue.tip;
+  human.idleCuePose = idleCue;
+  updatePoolRoyaleHumanPose(
+    human,
+    dt,
+    activeHumanState,
+    rootTarget,
+    poseForward,
+    bridgeHandTarget,
+    idleRightHandTarget,
+    idleLeftHandTarget,
+    activeCueBack,
+    activeCueTip,
+    power
+  );
+  return { idleCue, rootTarget, bridgeHandTarget };
+}
+
+function movePoolRoyaleCueToHumanHand(human, cueStick) {
+  const pose = human?.idleCuePose;
+  if (!pose || !cueStick) return false;
+  const dir = pose.tip.clone().sub(pose.back).normalize();
+  const center = pose.back.clone().add(pose.tip).multiplyScalar(0.5);
+  cueStick.position.copy(center);
+  cueStick.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), dir);
+  cueStick.visible = true;
+  return true;
+}
+
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_LIFT_DRAG_SCALE = 0.0048;
 const CUE_LIFT_MAX_TILT = THREE.MathUtils.degToRad(12.5);
@@ -4353,17 +4246,6 @@ const CHESS_BATTLE_DEFAULT_SET_URLS = Object.freeze([
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
 ]);
-const POOL_ROYALE_MURLAN_CHAIR_URLS = Object.freeze([
-  'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/dining_chair_02/dining_chair_02_1k.gltf',
-  'https://dl.polyhaven.org/file/ph-assets/Models/gltf/2k/dining_chair_02/dining_chair_02_2k.gltf',
-  'https://dl.polyhaven.org/file/ph-assets/Models/gltf/4k/dining_chair_02/dining_chair_02_4k.gltf'
-]);
-const POOL_ROYALE_REFEREE_HUMAN_URLS = Object.freeze([
-  'https://threejs.org/examples/models/gltf/Xbot.glb',
-  'https://threejs.org/examples/models/gltf/readyplayer.me.glb',
-  BILARDO_SHQIP_HUMAN_URL
-]);
-
 const DEFAULT_CHROME_COLOR_ID =
   POOL_ROYALE_DEFAULT_UNLOCKS.chromeColor?.[0] ?? 'gold';
 const CHROME_COLOR_OPTIONS = Object.freeze([
@@ -4433,6 +4315,116 @@ const CHROME_PLATE_STYLE_BY_ID = Object.freeze(
   }, {})
 );
 
+
+const SHOWOOD_TABLE_STYLE_STORAGE_KEY = 'poolRoyaleShowoodTableStyle';
+const SHOWOOD_TABLE_PARTS = Object.freeze([
+  'cloth',
+  'cushion',
+  'topWoodRail',
+  'sideWoodApron',
+  'railSight',
+  'baseCornerBlock',
+  'leg',
+  'baseFoot'
+]);
+const SHOWOOD_TABLE_SETUP_HIDDEN_PARTS = new Set(['cloth', 'cushion']);
+const DEFAULT_SHOWOOD_TABLE_STYLE = Object.freeze({
+  cloth: 'green',
+  cushion: 'green',
+  topWoodRail: 'walnut',
+  sideWoodApron: 'gold',
+  railSight: 'gold',
+  baseCornerBlock: DEFAULT_TABLE_FINISH_ID,
+  leg: 'black',
+  baseFoot: 'gold'
+});
+const SHOWOOD_TABLE_PART_OPTIONS = Object.freeze({
+  cloth: Object.freeze([
+    { id: 'green', label: 'Clean Green Field', color: '#0a7b33', material: { color: 0x0a7b33, roughness: 1, metalness: 0, envMapIntensity: 0.16 } },
+    { id: 'blue', label: 'Clean Blue Field', color: '#0d4fb8', material: { color: 0x0d4fb8, roughness: 1, metalness: 0, envMapIntensity: 0.16 } }
+  ]),
+  cushion: Object.freeze([
+    { id: 'green', label: 'Matched Green Cushions', color: '#064f22', keepSourceTexture: true, material: { color: 0x064f22, roughness: 0.88, metalness: 0, envMapIntensity: 0.55 } },
+    { id: 'black', label: 'Black Rubber Cushions', color: '#050505', keepSourceTexture: true, material: { color: 0x050505, roughness: 0.86, metalness: 0, envMapIntensity: 0.55 } }
+  ]),
+  topWoodRail: Object.freeze([]),
+  sideWoodApron: Object.freeze([
+    { id: 'chrome', label: 'Chrome Side Apron', color: '#d7dde7', material: { color: 0xd7dde7, roughness: 0.055, metalness: 1, envMapIntensity: 7.2, clearcoat: 1, clearcoatRoughness: 0.025 } },
+    { id: 'gold', label: 'Gold Side Apron', color: '#f5d978', material: { color: 0xf5d978, roughness: 0.065, metalness: 1, envMapIntensity: 6.7, clearcoat: 1, clearcoatRoughness: 0.035 } }
+  ]),
+  railSight: Object.freeze([
+    { id: 'chrome', label: 'Chrome Rail Sights + Markings', color: '#d7dde7', material: { color: 0xd7dde7, roughness: 0.055, metalness: 1, envMapIntensity: 7.2, clearcoat: 1, clearcoatRoughness: 0.025 } },
+    { id: 'gold', label: 'Gold Rail Sights + Markings', color: '#f5d978', material: { color: 0xf5d978, roughness: 0.065, metalness: 1, envMapIntensity: 6.7, clearcoat: 1, clearcoatRoughness: 0.035 } }
+  ]),
+  baseCornerBlock: Object.freeze([
+    { id: 'brown', label: 'Brown Base', color: '#7b2d11', material: { color: 0x7b2d11, roughness: 0.48, metalness: 0.02, envMapIntensity: 1.1, clearcoat: 0.22, clearcoatRoughness: 0.33 } },
+    { id: 'black', label: 'Black Base', color: '#080605', material: { color: 0x080605, roughness: 0.38, metalness: 0.03, envMapIntensity: 1.34, clearcoat: 0.34, clearcoatRoughness: 0.22 } }
+  ]),
+  leg: Object.freeze([]),
+  baseFoot: Object.freeze([
+    { id: 'chrome', label: 'Chrome Feet', color: '#d7dde7', material: { color: 0xd7dde7, roughness: 0.055, metalness: 1, envMapIntensity: 7.2, clearcoat: 1, clearcoatRoughness: 0.025 } },
+    { id: 'gold', label: 'Gold Feet', color: '#f5d978', material: { color: 0xf5d978, roughness: 0.065, metalness: 1, envMapIntensity: 6.7, clearcoat: 1, clearcoatRoughness: 0.035 } }
+  ])
+});
+const SHOWOOD_TABLE_PART_LABELS = Object.freeze({
+  cloth: 'Field Cloth',
+  cushion: 'Cushions',
+  topWoodRail: 'Top Rails',
+  sideWoodApron: 'Pocket Apron Strip',
+  railSight: 'Rail Sights + Markings',
+  baseCornerBlock: 'Table Base',
+  leg: 'Legs',
+  baseFoot: 'Feet'
+});
+const SHOWOOD_CHROME_LINKED_PARTS = new Set(['sideWoodApron', 'railSight', 'baseFoot']);
+const CUSHION_SHADOW_GREY = '#666a72';
+const getShowoodTablePartOptions = (part, clothOptions = null, tableFinishOptions = null) => {
+  if (part === 'cloth' || part === 'cushion') {
+    const sourceOptions = Array.isArray(clothOptions) && clothOptions.length
+      ? clothOptions
+      : CLOTH_COLOR_OPTIONS;
+    return sourceOptions.map((option) => ({
+      id: option.id,
+      label: option.label,
+      color: toHexColor(option.color),
+      material: { color: option.color, roughness: 1, metalness: 0, envMapIntensity: 0.16 }
+    }));
+  }
+  if (part === 'topWoodRail' || part === 'leg' || part === 'baseCornerBlock') {
+    const source = Array.isArray(tableFinishOptions) && tableFinishOptions.length
+      ? tableFinishOptions
+      : TABLE_FINISH_OPTIONS;
+    return source.map((option) => ({
+      id: option.id,
+      label: `${option.label} ${part === 'leg' ? 'Legs' : part === 'baseCornerBlock' ? 'Base' : 'Rail'}`,
+      color: option.swatches?.[0] ?? '#5a2608',
+      keepSourceTexture: true
+    }));
+  }
+  return SHOWOOD_TABLE_PART_OPTIONS[part] || [];
+};
+const normalizeShowoodTableStyle = (value = {}) => {
+  const source = value && typeof value === 'object' ? value : {};
+  return SHOWOOD_TABLE_PARTS.reduce((acc, part) => {
+    const options = getShowoodTablePartOptions(part);
+    const requested = source[part];
+    const defaultChoice = DEFAULT_SHOWOOD_TABLE_STYLE[part];
+    acc[part] = options.some((option) => option.id === requested)
+      ? requested
+      : options.some((option) => option.id === defaultChoice)
+        ? defaultChoice
+        : options[0]?.id || defaultChoice;
+    return acc;
+  }, {});
+};
+const getShowoodPartOption = (style, part) => {
+  const normalized = normalizeShowoodTableStyle(style);
+  const optionPart = part === 'verticalCornerRim' ? 'baseFoot' : part;
+  const optionId = normalized[optionPart];
+  const options = getShowoodTablePartOptions(optionPart);
+  return options.find((option) => option.id === optionId) || options[0] || null;
+};
+
 // Palettes derived from CC0 textile scans (ambientCG FabricWool series) and
 // popular tournament felts so every option mirrors a real pool cloth.
 const BASE_CLOTH_DETAIL = Object.freeze({
@@ -4492,8 +4484,9 @@ const CLOTH_COLOR_OPTIONS = Object.freeze(
   }))
 );
 
-const DEFAULT_RAIL_MARKER_SHAPE = 'diamond';
+const DEFAULT_RAIL_MARKER_SHAPE = 'none';
 const RAIL_MARKER_SHAPE_OPTIONS = Object.freeze([
+  { id: 'none', label: 'No rail markings' },
   { id: 'diamond', label: 'Diamonds' },
   { id: 'circle', label: 'Circles' }
 ]);
@@ -4615,38 +4608,57 @@ const LIGHTING_PRESET_MAP = Object.freeze(
   }, {})
 );
 
-const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
+const FRAME_RATE_STORAGE_KEY = 'poolRoyaleFrameRate';
+const LEGACY_FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
 const AUTO_REPLAY_STORAGE_KEY = 'poolRoyaleAutoReplay';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
-    id: 'fhd60',
-    label: 'Performance (60 Hz)',
-    fps: 60,
+    id: 'hd50',
+    label: 'HD Performance (50 Hz)',
+    fps: 50,
     renderScale: 1,
-    pixelRatioCap: 1.4,
-    resolution: '2K texture pack • 60 FPS',
-    description: 'Balanced battery profile using Poly Haven 2K assets.'
+    pixelRatioCap: 1.35,
+    resolution: 'HD render • DPR 1.35 cap',
+    description: 'Low-power profile for faster Pool Royal loading, battery saver, and thermal relief.'
   },
   {
-    id: 'qhd90',
-    label: 'Smooth (90 Hz)',
+    id: 'fhd60',
+    label: 'Full HD (60 Hz)',
+    fps: 60,
+    renderScale: 1.1,
+    pixelRatioCap: 1.5,
+    resolution: 'Full HD render • DPR 1.5 cap',
+    description: 'Fast default profile matching the Snooker Royal frame pacing.'
+  },
+  {
+    id: 'fhd90',
+    label: 'Full HD (90 Hz)',
     fps: 90,
     renderScale: 1.12,
     pixelRatioCap: 1.55,
-    resolution: '4K texture pack • 90 FPS',
-    description: 'Sharper Poly Haven 4K assets at a 90 FPS target.'
+    resolution: 'Full HD render • DPR 1.55 cap',
+    description: '1080p-focused profile tuned for 90 Hz full-motion play.'
+  },
+  {
+    id: 'qhd90',
+    label: 'Quad HD (105 Hz)',
+    fps: 105,
+    renderScale: 1.22,
+    pixelRatioCap: 1.72,
+    resolution: 'QHD render • DPR 1.72 cap',
+    description: 'Sharper 1440p render for capable 105 Hz mobile and desktop GPUs.'
   },
   {
     id: 'uhd120',
-    label: 'Ultra (120 Hz)',
+    label: 'Ultra HD (120 Hz cap)',
     fps: 120,
-    renderScale: 1.3,
+    renderScale: 1.28,
     pixelRatioCap: 1.85,
-    resolution: 'Desktop: 8K / Mobile: 4K • 120 FPS',
-    description: 'Desktop uses Poly Haven 8K (4K fallback); mobile uses 4K (2K fallback) at 120 FPS target.'
+    resolution: 'Ultra HD render • DPR 1.85 cap',
+    description: '4K-oriented profile tuned for smooth play up to 120 Hz.'
   }
 ]);
-const DEFAULT_FRAME_RATE_ID = 'qhd90';
+const DEFAULT_FRAME_RATE_ID = 'fhd60';
 const GRAPHICS_RESOLUTION_BY_FPS = Object.freeze([
   {
     minFps: 120,
@@ -4692,19 +4704,20 @@ const resolveGraphicsUiScaleFactor = (fps) => {
   if (safeFps >= 90) return 1.04;
   return 1;
 };
+const INITIAL_GRAPHICS_RESOLUTION_TIER = resolveGraphicsResolutionTier(60);
 let runtimeTextureProfile = Object.freeze({
-  textureSize: resolveGraphicsResolutionTier(90).textureSize,
+  textureSize: INITIAL_GRAPHICS_RESOLUTION_TIER.textureSize,
   anisotropy: CLOTH_QUALITY.anisotropy,
   generateMipmaps: CLOTH_QUALITY.generateMipmaps,
-  polyHavenResolution: '4k',
-  hdriResolution: '4k',
-  polyHavenPreferredResolutions: Object.freeze(['4k', '2k']),
-  polyHavenFallbackResolution: '2k',
-  hdriPreferredResolutions: Object.freeze(['4k']),
-  hdriFallbackResolution: '4k',
-  enforceTableFinishTextureSize: 4096,
-  cueTextureSize: 4096,
-  pocketTextureSize: 2048
+  polyHavenResolution: INITIAL_GRAPHICS_RESOLUTION_TIER.key,
+  hdriResolution: INITIAL_GRAPHICS_RESOLUTION_TIER.key,
+  polyHavenPreferredResolutions: INITIAL_GRAPHICS_RESOLUTION_TIER.preferredResolutions,
+  polyHavenFallbackResolution: INITIAL_GRAPHICS_RESOLUTION_TIER.fallbackResolution,
+  hdriPreferredResolutions: Object.freeze([INITIAL_GRAPHICS_RESOLUTION_TIER.key]),
+  hdriFallbackResolution: INITIAL_GRAPHICS_RESOLUTION_TIER.fallbackResolution,
+  enforceTableFinishTextureSize: INITIAL_GRAPHICS_RESOLUTION_TIER.textureSize,
+  cueTextureSize: INITIAL_GRAPHICS_RESOLUTION_TIER.textureSize,
+  pocketTextureSize: Math.min(2048, INITIAL_GRAPHICS_RESOLUTION_TIER.textureSize)
 });
 
 const updateRuntimeTextureProfile = ({ fps } = {}) => {
@@ -4885,10 +4898,10 @@ const ORIGINAL_OUTER_HALF_H =
 const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
 const CLOTH_THREAD_PITCH = 12 * 1.48; // slightly denser thread spacing for a sharper weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
-const CLOTH_PATTERN_SCALE = 0.76; // match Snooker Royal's single tighter cloth weave so Pool Royal no longer shows mixed pattern sizes
-const CLOTH_TEXTURE_REPEAT_HINT = 1.52;
-const POLYHAVEN_PATTERN_REPEAT_SCALE = 1;
-const EXTERNAL_TABLE_CLOTH_REPEAT_SCALE = 2.35; // base normalization for external GLB cloth UV spans
+const CLOTH_PATTERN_SCALE = 1.18; // smaller, denser Pool Royale cloth weave for close-up Showood table views
+const CLOTH_TEXTURE_REPEAT_HINT = 2.24;
+const POLYHAVEN_PATTERN_REPEAT_SCALE = 1.42;
+const EXTERNAL_TABLE_CLOTH_REPEAT_SCALE = 3.45; // denser normalization for external GLB cloth UV spans
 const POLYHAVEN_ANISOTROPY_BOOST = 9;
 const POLYHAVEN_TEXTURE_RESOLUTION =
   CLOTH_QUALITY.textureSize >= 4096 ? '8k' : '4k';
@@ -5701,12 +5714,39 @@ function updateClothTexturesForFinish (
         edgeColor.clone().multiplyScalar(CLOTH_EDGE_EMISSIVE_MULTIPLIER)
       );
     }
-    finishInfo.clothEdgeMat.map = null;
-    finishInfo.clothEdgeMat.bumpMap = null;
-    finishInfo.clothEdgeMat.normalMap = null;
-    finishInfo.clothEdgeMat.roughnessMap = null;
-    finishInfo.clothEdgeMat.bumpScale = 0;
-    finishInfo.clothEdgeMat.roughness = 1;
+    replaceMaterialTexture(finishInfo.clothEdgeMat, 'map', textures.map, fallbackRepeat, {
+      preserveExisting: true
+    });
+    replaceMaterialTexture(
+      finishInfo.clothEdgeMat,
+      'normalMap',
+      textures.normal,
+      fallbackRepeat,
+      { preserveExisting: true }
+    );
+    replaceMaterialTexture(
+      finishInfo.clothEdgeMat,
+      'roughnessMap',
+      textures.roughness,
+      fallbackRepeat,
+      { preserveExisting: true }
+    );
+    if (textures.normal) {
+      finishInfo.clothEdgeMat.normalScale = targetNormalScale.clone();
+      replaceMaterialTexture(finishInfo.clothEdgeMat, 'bumpMap', null, fallbackRepeat);
+    } else {
+      replaceMaterialTexture(
+        finishInfo.clothEdgeMat,
+        'bumpMap',
+        textures.bump,
+        fallbackRepeat,
+        { preserveExisting: true }
+      );
+    }
+    finishInfo.clothEdgeMat.bumpScale = Number.isFinite(finishInfo.clothBase?.baseBumpScale)
+      ? finishInfo.clothBase.baseBumpScale
+      : finishInfo.clothMat.bumpScale;
+    finishInfo.clothEdgeMat.roughness = Math.max(finishInfo.clothMat.roughness ?? roughnessBase, 0.9);
     finishInfo.clothEdgeMat.clearcoat = 0;
     finishInfo.clothEdgeMat.clearcoatRoughness = 1;
     finishInfo.clothEdgeMat.envMapIntensity = 0;
@@ -6823,8 +6863,12 @@ const STANDING_VIEW_COT = (() => {
   const sinPhi = Math.sin(STANDING_VIEW_PHI);
   return sinPhi > 1e-6 ? Math.cos(STANDING_VIEW_PHI) / sinPhi : 0;
 })();
-const DEFAULT_RAIL_LIMIT_X = PLAY_W / 2 - BALL_R - CUSHION_FACE_INSET_LONG;
-const DEFAULT_RAIL_LIMIT_Y = PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET_SHORT;
+// Make gameplay collision meet the visible cushion nose before balls visually sink into it.
+const CUSHION_VISUAL_CONTACT_CLEARANCE = BALL_R * 0.55;
+const DEFAULT_RAIL_LIMIT_X =
+  PLAY_W / 2 - BALL_R - CUSHION_FACE_INSET_LONG - CUSHION_VISUAL_CONTACT_CLEARANCE;
+const DEFAULT_RAIL_LIMIT_Y =
+  PLAY_H / 2 - BALL_R - CUSHION_FACE_INSET_SHORT - CUSHION_VISUAL_CONTACT_CLEARANCE;
 let RAIL_LIMIT_X = DEFAULT_RAIL_LIMIT_X;
 let RAIL_LIMIT_Y = DEFAULT_RAIL_LIMIT_Y;
 const RAIL_LIMIT_PADDING = BALL_R * 0.12;
@@ -6896,7 +6940,7 @@ const RAIL_OVERHEAD_DISTANCE_BIAS = 0.94; // pull broadcast rail camera inward f
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
-const CUE_VIEW_RADIUS_RATIO = 0.0112; // move cue camera closer for a tighter portrait aiming view
+const CUE_VIEW_RADIUS_RATIO = 0.0088; // move cue camera closer for a tighter portrait aiming view
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.05;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
@@ -8134,7 +8178,7 @@ function reflectRails(ball) {
   const resolveBoundaryFallback = () => {
     const isNearPocketMouth = pocketCenters().some((center, index) => {
       const captureRadius = index >= 4 ? SIDE_CAPTURE_R : CAPTURE_R;
-      return ball.pos.distanceTo(center) <= captureRadius + BALL_R * 1.3;
+      return ball.pos.distanceTo(center) <= captureRadius + BALL_R * 0.2;
     });
     if (isNearPocketMouth) return null;
 
@@ -8216,7 +8260,7 @@ function reflectRails(ball) {
         if (ball.pos.distanceTo(segment.center) <= segment.captureRadius) continue;
       }
       const velocityToward = ball.vel.dot(segment.normal);
-      if (velocityToward >= 0) continue;
+      const movingIntoSegment = velocityToward < -1e-6;
       TMP_VEC2_A.copy(segment.end).sub(segment.start);
       const lenSq = TMP_VEC2_A.lengthSq();
       if (lenSq < 1e-8) continue;
@@ -8225,7 +8269,8 @@ function reflectRails(ball) {
       TMP_VEC2_C.copy(segment.start).addScaledVector(TMP_VEC2_A, t);
       TMP_VEC2_D.copy(ball.pos).sub(TMP_VEC2_C);
       const distSq = TMP_VEC2_D.lengthSq();
-      const contactRadius = segment.type === 'cut' ? cutRadius : railRadius;
+      const contactRadius =
+        (segment.type === 'cut' ? cutRadius : railRadius) + CUSHION_VISUAL_CONTACT_CLEARANCE;
       if (distSq >= contactRadius * contactRadius) continue;
       const dist = Math.sqrt(distSq);
       const penetration = contactRadius - dist;
@@ -8249,7 +8294,8 @@ function reflectRails(ball) {
                 ? 'jaw'
                 : 'rail',
           normal: TMP_VEC2_LIMIT.clone(),
-          tangent: new THREE.Vector2(-TMP_VEC2_LIMIT.y, TMP_VEC2_LIMIT.x)
+          tangent: new THREE.Vector2(-TMP_VEC2_LIMIT.y, TMP_VEC2_LIMIT.x),
+          correctiveOnly: !movingIntoSegment
         };
       }
     }
@@ -8260,8 +8306,10 @@ function reflectRails(ball) {
         typeof performance !== 'undefined' && performance.now
           ? performance.now()
           : Date.now();
-      ball.lastRailHitAt = stamp;
-      ball.lastRailHitType = bestImpact.type;
+      if (!bestImpact.correctiveOnly) {
+        ball.lastRailHitAt = stamp;
+        ball.lastRailHitType = bestImpact.type;
+      }
       return { ...bestImpact, preImpactVel };
     }
     for (let i = 0; i < centers.length; i++) {
@@ -8274,11 +8322,16 @@ function reflectRails(ball) {
       const distSq = TMP_VEC2_A.lengthSq();
       if (distSq <= 1e-10) continue;
       const dist = Math.sqrt(distSq);
-      if (dist <= captureRadius || dist >= jawRadius + railRadius) continue;
+      if (
+        dist <= captureRadius ||
+        dist >= jawRadius + railRadius + CUSHION_VISUAL_CONTACT_CLEARANCE
+      ) {
+        continue;
+      }
       TMP_VEC2_A.multiplyScalar(1 / dist);
       const velocityToward = ball.vel.dot(TMP_VEC2_A);
-      if (velocityToward <= 0) continue;
-      const penetration = jawRadius + railRadius - dist;
+      const movingIntoJaw = velocityToward > 1e-6;
+      const penetration = jawRadius + railRadius + CUSHION_VISUAL_CONTACT_CLEARANCE - dist;
       if (penetration <= 0) continue;
       ball.pos.addScaledVector(TMP_VEC2_A, penetration);
       preImpactVel = ball.vel.clone();
@@ -8286,13 +8339,16 @@ function reflectRails(ball) {
         typeof performance !== 'undefined' && performance.now
           ? performance.now()
           : Date.now();
-      ball.lastRailHitAt = stamp;
-      ball.lastRailHitType = 'jaw';
+      if (movingIntoJaw) {
+        ball.lastRailHitAt = stamp;
+        ball.lastRailHitType = 'jaw';
+      }
       return {
         type: 'jaw',
         normal: TMP_VEC2_A.clone(),
         tangent: new THREE.Vector2(-TMP_VEC2_A.y, TMP_VEC2_A.x),
-        preImpactVel
+        preImpactVel,
+        correctiveOnly: !movingIntoJaw
       };
     }
     const boundaryFallback = resolveBoundaryFallback();
@@ -8924,7 +8980,7 @@ function Guret(parent, id, color, x, y, options = {}) {
   });
   const mesh = new THREE.Mesh(BALL_GEOMETRY, material);
   mesh.position.set(x, BALL_CENTER_Y, y);
-  mesh.castShadow = false;
+  mesh.castShadow = true;
   mesh.receiveShadow = true;
   const shadow =
     ENABLE_BALL_FLOOR_SHADOWS && BALL_SHADOW_GEOMETRY && BALL_SHADOW_MATERIAL
@@ -9069,6 +9125,18 @@ function updateCushionSegmentsFromTable(table) {
   table.userData.cushions.forEach((cushion) => {
     const data = cushion.userData || {};
     if (typeof data.horizontal !== 'boolean' || !data.side) return;
+    const contour = data.physicalContour;
+    if (
+      contour?.backLeft &&
+      contour?.backRight &&
+      contour?.frontLeft &&
+      contour?.frontRight
+    ) {
+      addSegment(contour.frontLeft.clone(), contour.frontRight.clone(), 'rail');
+      addSegment(contour.backLeft.clone(), contour.frontLeft.clone(), 'cut');
+      addSegment(contour.backRight.clone(), contour.frontRight.clone(), 'cut');
+      return;
+    }
     const box = new THREE.Box3().setFromObject(cushion);
     const cutEnds = data.cutEnds || {};
     const minCut = Math.max(0, cutEnds.min || 0);
@@ -9520,7 +9588,7 @@ export function Table3D(
   clothMat.side = THREE.DoubleSide;
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
-  const threadsPerBallTarget = 12; // base density before global scaling adjustments
+  const threadsPerBallTarget = 16; // denser cloth: more weave crossings per ball for smaller texture pattern
   const clothPatternUpscale = isPolyHavenCloth
     ? 1
     : (1 / 1.3) * 0.5 * 1.25 * 1.5 * CLOTH_PATTERN_SCALE; // double the thread pattern size for a looser, woollier weave
@@ -9595,11 +9663,7 @@ export function Table3D(
   const clothEdgeMat = clothMat.clone();
   clothEdgeMat.color.copy(clothColor);
   clothEdgeMat.emissive.set(0x000000);
-  clothEdgeMat.map = null;
-  clothEdgeMat.bumpMap = null;
-  clothEdgeMat.normalMap = null;
-  clothEdgeMat.roughnessMap = null;
-  clothEdgeMat.bumpScale = 0;
+  clothEdgeMat.bumpScale = clothMat.bumpScale;
   clothEdgeMat.side = THREE.DoubleSide;
   clothEdgeMat.envMapIntensity = 0;
   clothEdgeMat.emissiveIntensity = CLOTH_EDGE_EMISSIVE_INTENSITY;
@@ -9700,10 +9764,8 @@ export function Table3D(
     }
   };
   applyClothDetail(resolvedFinish?.clothDetail);
-  clothEdgeMat.map = null;
-  clothEdgeMat.bumpMap = null;
-  clothEdgeMat.bumpScale = 0;
-  clothEdgeMat.roughness = 1;
+  clothEdgeMat.bumpScale = clothMat.bumpScale;
+  clothEdgeMat.roughness = Math.max(clothMat.roughness ?? 0.82, 0.9);
   clothEdgeMat.clearcoat = 0;
   clothEdgeMat.clearcoatRoughness = 1;
   clothEdgeMat.envMapIntensity = 0;
@@ -9967,6 +10029,13 @@ export function Table3D(
       clothEdgeMat.bumpMap.rotation = clothEdgeMat.map?.rotation ?? clothEdgeMat.bumpMap.rotation ?? 0;
       clothEdgeMat.bumpMap.needsUpdate = true;
     }
+    [clothEdgeMat.normalMap, clothEdgeMat.roughnessMap].forEach((texture) => {
+      if (!texture) return;
+      texture.repeat.set(Math.max(repeatAround, 1), Math.max(repeatHeight, 0.5));
+      texture.center.set(0.5, 0.5);
+      texture.rotation = clothEdgeMat.map?.rotation ?? texture.rotation ?? 0;
+      texture.needsUpdate = true;
+    });
     clothEdgeMat.needsUpdate = true;
   }
 
@@ -10153,6 +10222,7 @@ export function Table3D(
     net.receiveShadow = true;
     net.renderOrder = pocket.renderOrder - 0.25;
     net.userData.externalTableKeepVisible = true;
+    net.userData.showoodGeneratedPocketSupport = true;
     table.add(net);
     finishParts.pocketNetMeshes.push(net);
 
@@ -10169,6 +10239,7 @@ export function Table3D(
     ring.castShadow = true;
     ring.receiveShadow = true;
     ring.userData.externalTableKeepVisible = true;
+    ring.userData.showoodGeneratedPocketSupport = true;
     table.add(ring);
     finishParts.pocketBaseMeshes.push(ring);
     table.userData.pocketHolderAnchors[index] = {
@@ -10203,6 +10274,7 @@ export function Table3D(
       guide.castShadow = true;
       guide.receiveShadow = true;
       guide.userData.externalTableKeepVisible = true;
+      guide.userData.showoodGeneratedPocketSupport = true;
       table.add(guide);
       finishParts.pocketBaseMeshes.push(guide);
       return guide;
@@ -11182,6 +11254,32 @@ export function Table3D(
       plate.renderOrder = CHROME_PLATE_RENDER_ORDER;
       chromePlates.add(plate);
       finishParts.trimMeshes.push(plate);
+
+      const apronThickness = Math.max(
+        MICRO_EPS,
+        TABLE.THICK * CHROME_SIDE_APRON_COVER_THICKNESS_SCALE
+      );
+      const apronHeight = Math.max(
+        MICRO_EPS,
+        railH * CHROME_SIDE_APRON_COVER_HEIGHT_SCALE
+      );
+      const apronLength = Math.max(MICRO_EPS, sideChromePlateHeight * 0.96);
+      const apron = new THREE.Mesh(
+        new THREE.BoxGeometry(apronThickness, apronHeight, apronLength),
+        chromePlateMat
+      );
+      apron.userData.isChromePlate = true;
+      apron.userData.isSidePocketApronCover = true;
+      apron.position.set(
+        sx * (outerHalfW + apronThickness * 0.5 - MICRO_EPS),
+        frameTopY + railH * 0.5,
+        centerZ
+      );
+      apron.castShadow = false;
+      apron.receiveShadow = false;
+      apron.renderOrder = CHROME_PLATE_RENDER_ORDER + 0.05;
+      chromePlates.add(apron);
+      finishParts.trimMeshes.push(apron);
     });
   }
   if (!chromePlateStyle.hideGeneratedPlates) {
@@ -11904,7 +12002,7 @@ export function Table3D(
   const brandPlateWidth = Math.min(PLAY_W * 0.32, Math.max(BALL_R * 9.6, PLAY_W * 0.23));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 0.92;
+  const brandPlateOutwardShift = endRailW * 0.62;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -12001,13 +12099,13 @@ export function Table3D(
     }
   };
   const applyRailMarkerStyleFn = (style = activeRailMarkerStyle, overrides = {}) => {
-    const shapeId =
-      railMarkerGeometries[style?.shape] && typeof style?.shape === 'string'
-        ? style.shape
-        : DEFAULT_RAIL_MARKER_SHAPE;
-    const geometry =
-      railMarkerGeometries[shapeId] ??
-      railMarkerGeometries[DEFAULT_RAIL_MARKER_SHAPE];
+    const requestedShape = typeof style?.shape === 'string' ? style.shape : DEFAULT_RAIL_MARKER_SHAPE;
+    const shapeId = requestedShape === 'none'
+      ? 'none'
+      : railMarkerGeometries[requestedShape]
+        ? requestedShape
+        : 'none';
+    const geometry = shapeId === 'none' ? null : railMarkerGeometries[shapeId];
     const colorOpt = resolveRailMarkerColorOption(style?.colorId);
     const baseTrim = overrides.trimMaterial ?? trimMat;
     railMarkerMat.copy(baseTrim);
@@ -12035,6 +12133,10 @@ export function Table3D(
     }
     railMarkerMat.needsUpdate = true;
     clearRailMarkerMeshes();
+    if (!geometry) {
+      activeRailMarkerStyle = { shape: 'none', colorId: colorOpt.id };
+      return;
+    }
     const longDiamondSpacing = PLAY_H / 8;
     const shortDiamondSpacing = PLAY_W / 4;
     const longRailX = halfW + longRailW + railMarkerOutset - railMarkerInwardShift;
@@ -12060,8 +12162,10 @@ export function Table3D(
     });
     activeRailMarkerStyle = { shape: shapeId, colorId: colorOpt.id };
   };
-  applyRailMarkerStyleFn(activeRailMarkerStyle);
-  railsGroup.add(railMarkerGroup);
+  if (!externalTableUsesOriginalLayout) {
+    applyRailMarkerStyleFn(activeRailMarkerStyle);
+    railsGroup.add(railMarkerGroup);
+  }
 
   const shortRailWordmarkTexture = createBrandPlateLabelTexture({
     width: 2048,
@@ -12071,8 +12175,8 @@ export function Table3D(
   if (shortRailWordmarkTexture) {
     const logoWidth = Math.min(PLAY_W * 0.44, Math.max(BALL_R * 13.5, PLAY_W * 0.34));
     const logoHeight = Math.max(BALL_R * 1.4, railH * 0.18);
-    const logoY = railsTopY - railH * 0.34;
-    const logoInset = Math.max(MICRO_EPS, endRailW * 0.07);
+    const logoY = railsTopY - railH * 0.22;
+    const logoInset = Math.max(MICRO_EPS, endRailW * 0.16);
     const logoZ = halfH + endRailW - logoInset;
     const logoMat = new THREE.MeshBasicMaterial({
       color: 0xffffff,
@@ -12286,11 +12390,14 @@ export function Table3D(
   const gapStripePad = TABLE.THICK * 0.005;
   const gapStripeOutwardShift = TABLE.THICK * 0.03;
 
-  function computeCushionCutLengths(len, horizontal, cutAngles = {}) {
+  function resolveCushionProfileMetrics(len, horizontal, cutAngles = {}) {
+    const halfLen = len / 2;
     const thicknessScale = horizontal ? FACE_SHRINK_LONG : FACE_SHRINK_SHORT;
     const baseRailWidth = horizontal ? longRailW : endRailW;
     const baseThickness = baseRailWidth * thicknessScale;
+    const backY = baseRailWidth / 2;
     const noseThickness = baseThickness * NOSE_REDUCTION;
+    const frontY = backY - noseThickness;
     const defaultCutAngle =
       typeof cutAngles?.cutAngle === 'number' ? cutAngles.cutAngle : CUSHION_CUT_ANGLE;
     const leftCutAngle =
@@ -12324,49 +12431,29 @@ export function Table3D(
       leftCut *= scale;
       rightCut *= scale;
     }
+    const finalFrontY =
+      frontY -
+      baseThickness * CUSHION_NOSE_FRONT_PULL_SCALE -
+      CUSHION_FRONT_FIELD_EXPANSION;
+    return { halfLen, backY, frontY, finalFrontY, leftCut, rightCut };
+  }
+
+  function computeCushionCutLengths(len, horizontal, cutAngles = {}) {
+    const { leftCut, rightCut } = resolveCushionProfileMetrics(len, horizontal, cutAngles);
     return { leftCut, rightCut };
   }
 
   function cushionProfileAdvanced(len, horizontal, cutAngles = {}) {
-    const halfLen = len / 2;
+    const {
+      halfLen,
+      backY,
+      frontY,
+      leftCut,
+      rightCut
+    } = resolveCushionProfileMetrics(len, horizontal, cutAngles);
     const thicknessScale = horizontal ? FACE_SHRINK_LONG : FACE_SHRINK_SHORT;
     const baseRailWidth = horizontal ? longRailW : endRailW;
     const baseThickness = baseRailWidth * thicknessScale;
-    const backY = baseRailWidth / 2;
-    const noseThickness = baseThickness * NOSE_REDUCTION;
-    const frontY = backY - noseThickness;
-    const defaultCutAngle = typeof cutAngles?.cutAngle === 'number' ? cutAngles.cutAngle : CUSHION_CUT_ANGLE;
-    const leftCutAngle =
-      typeof cutAngles?.leftCutAngle === 'number' ? cutAngles.leftCutAngle : defaultCutAngle;
-    const rightCutAngle =
-      typeof cutAngles?.rightCutAngle === 'number' ? cutAngles.rightCutAngle : defaultCutAngle;
-    const minCutLength = baseThickness * 0.25;
-
-    const computeCut = (angleDeg) => {
-      const rad = THREE.MathUtils.degToRad(angleDeg);
-      const tan = Math.tan(rad);
-      const rawCut = tan > MICRO_EPS ? noseThickness / tan : minCutLength;
-      return Math.max(minCutLength, rawCut);
-    };
-
-    let leftCut = computeCut(leftCutAngle);
-    let rightCut = computeCut(rightCutAngle);
-    const straightEdgeCut = baseThickness * 0.12;
-    const leftStraightEdge = Boolean(cutAngles?.leftStraightEdge);
-    const rightStraightEdge = Boolean(cutAngles?.rightStraightEdge);
-    if (leftStraightEdge) {
-      leftCut = Math.min(leftCut, straightEdgeCut);
-    }
-    if (rightStraightEdge) {
-      rightCut = Math.min(rightCut, straightEdgeCut);
-    }
-    const maxTotalCut = Math.max(MICRO_EPS, len - MICRO_EPS);
-    const totalCut = leftCut + rightCut;
-    if (totalCut > maxTotalCut) {
-      const scale = maxTotalCut / totalCut;
-      leftCut *= scale;
-      rightCut *= scale;
-    }
 
     const shape = new THREE.Shape();
     const rightFrontX = halfLen - rightCut;
@@ -12560,6 +12647,28 @@ export function Table3D(
       min: leftIsMin ? resolvedCutAngles.leftCutAngle : resolvedCutAngles.rightCutAngle,
       max: leftIsMin ? resolvedCutAngles.rightCutAngle : resolvedCutAngles.leftCutAngle
     };
+    const profileMetrics = resolveCushionProfileMetrics(len, horizontal, resolvedCutAngles);
+    const contourLocal = {
+      backLeft: new THREE.Vector3(-halfLen, profileMetrics.backY, railH * 0.5),
+      backRight: new THREE.Vector3(halfLen, profileMetrics.backY, railH * 0.5),
+      frontLeft: new THREE.Vector3(
+        -halfLen + profileMetrics.leftCut,
+        profileMetrics.finalFrontY,
+        railH * 0.5
+      ),
+      frontRight: new THREE.Vector3(
+        halfLen - profileMetrics.rightCut,
+        profileMetrics.finalFrontY,
+        railH * 0.5
+      )
+    };
+    const contourWorld = Object.fromEntries(
+      Object.entries(contourLocal).map(([key, value]) => {
+        const world = value.clone().applyMatrix4(mesh.matrixWorld);
+        return [key, new THREE.Vector2(world.x, world.z)];
+      })
+    );
+    group.userData.physicalContour = contourWorld;
     table.add(group);
     table.userData.cushions.push(group);
   }
@@ -12817,6 +12926,7 @@ export function Table3D(
   };
 
   let polyhavenKtx2Loader = null;
+  let hasDetectedPolyhavenKtx2Support = false;
   const polyhavenBaseTemplates = new Map();
   const polyhavenBasePromises = new Map();
 
@@ -12825,9 +12935,10 @@ export function Table3D(
       polyhavenKtx2Loader = new KTX2Loader();
       polyhavenKtx2Loader.setTranscoderPath(BASIS_TRANSCODER_PATH);
     }
-    if (renderer) {
+    if (renderer && !hasDetectedPolyhavenKtx2Support) {
       try {
         polyhavenKtx2Loader.detectSupport(renderer);
+        hasDetectedPolyhavenKtx2Support = true;
       } catch (error) {
         console.warn('Pool Royale KTX2 support detection failed', error);
       }
@@ -12835,15 +12946,17 @@ export function Table3D(
     return polyhavenKtx2Loader;
   };
 
-  const createConfiguredGLTFLoader = (renderer = null) => {
-    const loader = new GLTFLoader();
+  const createConfiguredGLTFLoader = (renderer = null, manager = null) => {
+    const loader = new GLTFLoader(manager ?? undefined);
     loader.setCrossOrigin('anonymous');
-    const draco = new DRACOLoader();
+    const draco = new DRACOLoader(manager ?? undefined);
     draco.setDecoderPath(DRACO_DECODER_PATH);
+    draco.setDecoderConfig({ type: 'js' });
+    draco.preload();
     loader.setDRACOLoader(draco);
     const ktx2 = ensurePolyhavenKtx2Loader(renderer);
     loader.setKTX2Loader(ktx2);
-    loader.setMeshoptDecoder?.(MeshoptDecoder);
+    loader.setMeshoptDecoder(MeshoptDecoder);
     return loader;
   };
 
@@ -12858,15 +12971,58 @@ function classifyPoolRoyaleExternalTableSurface(child, material) {
   const label = `${childName} ${materialName}`;
   // Showood uses a shared "cloth" material on the cushion meshes, so mesh names
   // must win over material names for physics mapping and finish assignment.
+  const chromeSurfaceNames = Array.isArray(child?.userData?.poolRoyaleChromeSurfaceNames)
+    ? child.userData.poolRoyaleChromeSurfaceNames
+    : [];
+  const blackSurfaceNames = Array.isArray(child?.userData?.poolRoyaleBlackSurfaceNames)
+    ? child.userData.poolRoyaleBlackSurfaceNames
+    : [];
+  if (chromeSurfaceNames.some((name) => label.includes(`${name}`.toLowerCase()))) return 'railSight';
+  if (blackSurfaceNames.some((name) => label.includes(`${name}`.toLowerCase()))) return 'railSight';
+  if (/rail[_\s-]*sight|railsight|diamond|sight|marker|inlay/.test(childName)) return 'railSight';
+  if (/side[_\s-]*wood[_\s-]*apron|sidewoodapron|apron/.test(childName)) return 'sideWoodApron';
   if (/cushion|rubber|bumper|rail[_\s-]*nose/.test(childName)) return 'cushion';
-  if (/pocket|liner|leather|net|basket|drop|holder/.test(childName)) return 'pocket';
-  if (/diamond|gold|metal|chrome|sight|marker|plate|trim|screw|bolt/.test(childName)) return 'trim';
+  if (/pocket|liner|leather|net|basket|drop|holder|cup/.test(childName)) return 'pocketCup';
+  if (/vertical.*(rim|plate|cap)|corner.*(rim|plate|cap)|rim|foot|feet|base[_\s-]*foot/.test(childName)) return 'verticalCornerRim';
+  if (/base|corner[_\s-]*block|cabinet|lower[_\s-]*trim|underside/.test(childName)) return 'baseCornerBlock';
+  if (/leg|support/.test(childName)) return 'leg';
+  if (/rail|wood|showood|bevel/.test(childName)) return 'topWoodRail';
+  if (/gold|metal|chrome|plate|trim|screw|bolt/.test(childName)) return 'railSight';
   if (/slate|cloth|felt|baize|bed|playfield|playing[_\s-]*surface/.test(childName)) return 'cloth';
   if (/cloth|felt|baize|slate|bed|playfield|playing[_\s-]*surface/.test(label)) return 'cloth';
-  if (/pocket|liner|leather|net|basket|drop/.test(label)) return 'pocket';
-  if (/metal|chrome|gold|diamond|sight|marker|plate|trim|screw|bolt/.test(label)) return 'trim';
-  if (/leg|foot|base|support|frame|wood|rail|apron|cabinet|showood|bevel/.test(label)) return 'wood';
+  if (/pocket|liner|leather|net|basket|drop|cup/.test(label)) return 'pocketCup';
+  if (/metal|chrome|gold|diamond|sight|marker|plate|trim|screw|bolt/.test(label)) return 'railSight';
+  if (/leg|support/.test(label)) return 'leg';
+  if (/foot|rim/.test(label)) return 'verticalCornerRim';
+  if (/base|cabinet/.test(label)) return 'baseCornerBlock';
+  if (/side[_\s-]*wood[_\s-]*apron|sidewoodapron|apron/.test(label)) return 'sideWoodApron';
+  if (/frame|wood|rail|showood|bevel/.test(label)) return 'topWoodRail';
   return 'wood';
+}
+
+function isPoolRoyaleExternalBlackSurface(child) {
+  const childName = `${child?.name || ''}`.toLowerCase();
+  const blackSurfaceNames = Array.isArray(child?.userData?.poolRoyaleBlackSurfaceNames)
+    ? child.userData.poolRoyaleBlackSurfaceNames
+    : [];
+  return blackSurfaceNames.some((name) => childName.includes(`${name}`.toLowerCase()));
+}
+
+function applyPoolRoyaleBlackExternalSurfaceMaterial(material) {
+  if (!material) return;
+  if (material.color) material.color.set(0x020202);
+  if (material.emissive) material.emissive.set(0x000000);
+  material.map = null;
+  material.emissiveMap = null;
+  if ('metalness' in material) material.metalness = Math.max(material.metalness ?? 0, 0.35);
+  if ('roughness' in material) material.roughness = Math.max(material.roughness ?? 0, 0.58);
+  if ('envMapIntensity' in material) material.envMapIntensity = Math.min(material.envMapIntensity ?? 0.75, 0.75);
+  if ('clearcoat' in material) material.clearcoat = Math.max(material.clearcoat ?? 0, 0.25);
+  if ('clearcoatRoughness' in material) material.clearcoatRoughness = Math.max(material.clearcoatRoughness ?? 0, 0.35);
+  material.userData = {
+    ...(material.userData || {}),
+    poolRoyaleForcedBlackSurface: true
+  };
 }
 
 function clonePoolRoyaleMaterialTexture(texture, { isColor = false } = {}) {
@@ -12962,8 +13118,488 @@ function normalizePoolRoyaleExternalClothTextureScale(mesh, material, role) {
   material.needsUpdate = true;
 }
 
-function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tableModel = null) {
+function applyShowoodStyleToExternalMaterial(material, role, tableModel = null, finishInfo = null) {
+  if (!material) return material;
+  const style = normalizeShowoodTableStyle(tableModel?.showoodStyle);
+  const roleToPart = {
+    cloth: 'cloth',
+    cushion: 'cushion',
+    topWoodRail: 'topWoodRail',
+    wood: 'topWoodRail',
+    sideWoodApron: 'sideWoodApron',
+    railSight: 'railSight',
+    trim: 'railSight',
+    cornerPocketPlate: 'railSight',
+    middlePocketPlate: 'railSight',
+    lowerTrim: 'railSight',
+    pocket: 'pocketCup',
+    verticalCornerRim: 'baseFoot',
+    baseFoot: 'baseFoot',
+    baseCornerBlock: 'baseCornerBlock',
+    leg: 'leg'
+  };
+  const part = roleToPart[role] || 'topWoodRail';
+  const option = getShowoodPartOption(style, part);
+  if (!option && part !== 'pocketCup') return material;
+  const mat = material.clone ? material.clone() : material;
+  const materialProps = option?.material || {};
+  const materials = finishInfo?.materials || {};
+  const finish = TABLE_FINISHES[finishInfo?.id] ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
+
+  const copyMaterialLook = (source) => {
+    if (!source) return;
+    if (source.color && mat.color) mat.color.copy(source.color);
+    [
+      'roughness',
+      'metalness',
+      'clearcoat',
+      'clearcoatRoughness',
+      'sheen',
+      'sheenRoughness',
+      'reflectivity',
+      'envMapIntensity',
+      'bumpScale'
+    ].forEach((key) => {
+      if (typeof source[key] === 'number' && key in mat) mat[key] = source[key];
+    });
+    mat.map = clonePoolRoyaleMaterialTexture(source.map, { isColor: true });
+    mat.normalMap = clonePoolRoyaleMaterialTexture(source.normalMap);
+    mat.roughnessMap = clonePoolRoyaleMaterialTexture(source.roughnessMap);
+    mat.aoMap = clonePoolRoyaleMaterialTexture(source.aoMap);
+    mat.metalnessMap = clonePoolRoyaleMaterialTexture(source.metalnessMap);
+    mat.bumpMap = clonePoolRoyaleMaterialTexture(source.bumpMap);
+  };
+
+  const applyShowoodTint = () => {
+    if (mat.color && Number.isFinite(materialProps.color)) mat.color.set(materialProps.color);
+    ['roughness', 'metalness', 'clearcoat', 'clearcoatRoughness', 'envMapIntensity'].forEach((key) => {
+      if (typeof materialProps[key] === 'number' && key in mat) mat[key] = materialProps[key];
+    });
+  };
+
+  if (part === 'sideWoodApron' || part === 'railSight' || part === 'baseFoot') {
+    copyMaterialLook(materials.trim);
+    if (mat.color && Number.isFinite(materialProps.color)) mat.color.set(materialProps.color);
+    ['roughness', 'metalness', 'clearcoat', 'clearcoatRoughness', 'envMapIntensity'].forEach((key) => {
+      const value = materialProps[key];
+      if (typeof value === 'number' && key in mat) mat[key] = value;
+    });
+    mat.map = null;
+    mat.normalMap = null;
+    mat.roughnessMap = null;
+    mat.aoMap = null;
+    mat.metalnessMap = null;
+    mat.bumpMap = null;
+    enhanceChromeMaterial(mat);
+  } else if (part === 'cloth' || part === 'cushion') {
+    copyMaterialLook(part === 'cushion' ? finishInfo?.cushionMat : finishInfo?.clothMat);
+    if (part === 'cushion') {
+      applyShowoodTint();
+    }
+    scalePoolRoyaleExternalClothTextureRepeats(mat, tableModel?.clothRepeatScale ?? 1);
+    mat.userData = {
+      ...(mat.userData || {}),
+      poolRoyaleMatchProceduralClothRepeat: true
+    };
+  } else if (part === 'pocketCup') {
+    copyMaterialLook(materials.pocketJaw ?? materials.pocketRim);
+    applyShowoodTint();
+  } else if (part === 'topWoodRail' || part === 'baseCornerBlock' || part === 'leg') {
+    const selectedFinish = TABLE_FINISHES[option?.id] ?? finish;
+    const preferRailSurface = part === 'topWoodRail';
+    const defaultWoodOption =
+      WOOD_GRAIN_OPTIONS_BY_ID[DEFAULT_WOOD_GRAIN_ID] ?? WOOD_GRAIN_OPTIONS[0];
+    const selectedWoodOption =
+      selectedFinish?.woodTexture ||
+      (selectedFinish?.woodTextureId && WOOD_GRAIN_OPTIONS_BY_ID[selectedFinish.woodTextureId]) ||
+      defaultWoodOption;
+    const fallbackSurface = preferRailSurface
+      ? finishInfo?.parts?.woodSurfaces?.rail
+      : finishInfo?.parts?.woodSurfaces?.frame || finishInfo?.parts?.woodSurfaces?.rail;
+    const selectedSurface = resolveWoodSurfaceConfig(
+      preferRailSurface ? selectedWoodOption?.rail : selectedWoodOption?.frame,
+      fallbackSurface || selectedWoodOption?.frame || selectedWoodOption?.rail || {
+        repeat: { x: 1, y: 1 },
+        rotation: 0
+      }
+    );
+    const surfaceConfig = {
+      repeat: selectedSurface.repeat,
+      rotation: selectedSurface.rotation + (part === 'leg' ? Math.PI / 2 : 0),
+      textureSize: enforceHighFpsTableTextureSize(selectedSurface.textureSize),
+      mapUrl: selectedSurface.mapUrl,
+      roughnessMapUrl: selectedSurface.roughnessMapUrl,
+      normalMapUrl: selectedSurface.normalMapUrl,
+      woodRepeatScale: selectedFinish?.woodRepeatScale ?? finishInfo?.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE
+    };
+    const colorHex = preferRailSurface
+      ? selectedFinish?.colors?.rail
+      : selectedFinish?.colors?.base ?? selectedFinish?.colors?.rail;
+    if (mat.color && Number.isFinite(colorHex)) {
+      mat.color.setHex(colorHex);
+      mat.userData = mat.userData || {};
+      mat.userData.baseTintHex = colorHex;
+    }
+    applyWoodTextureToMaterial(mat, surfaceConfig);
+    applyTableFinishDulling(mat);
+    applyTableWoodVisibilityTuning(mat);
+    if (selectedFinish?.surfaceStyle === 'matte') {
+      if (selectedFinish?.preserveFinishTintOnWood) applyMatteSurfacePropsOnly(mat);
+      else applyMonoMattePlasticSurface(mat);
+    }
+    applyFinishWoodTint(mat, selectedFinish);
+    applyShowoodTint();
+  } else {
+    applyShowoodTint();
+  }
+
+  mat.transparent = false;
+  mat.opacity = 1;
+  mat.depthWrite = true;
+  mat.side = THREE.DoubleSide;
+  preparePoolRoyaleExternalTexture(mat.map, true);
+  preparePoolRoyaleExternalTexture(mat.emissiveMap, true);
+  preparePoolRoyaleExternalTexture(mat.aoMap, false);
+  preparePoolRoyaleExternalTexture(mat.normalMap, false);
+  preparePoolRoyaleExternalTexture(mat.roughnessMap, false);
+  preparePoolRoyaleExternalTexture(mat.metalnessMap, false);
+  preparePoolRoyaleExternalTexture(mat.bumpMap, false);
+  mat.userData = {
+    ...(mat.userData || {}),
+    poolRoyaleShowoodPart: part,
+    poolRoyaleShowoodOption: option?.id ?? part,
+    poolRoyaleUsesOwnTextureSet: true
+  };
+  mat.needsUpdate = true;
+  return mat;
+}
+
+
+function getPoolRoyaleGeometryMaterialIndexAt(geometry, offset) {
+  if (!geometry?.groups?.length) return 0;
+  const group = geometry.groups.find((entry) => offset >= entry.start && offset < entry.start + entry.count);
+  return group?.materialIndex ?? 0;
+}
+
+function resolvePoolRoyaleShowoodSpatialContext(mesh, geometry, aIndex, bIndex, cIndex, tableBox, tableCenter, tableSize) {
+  const position = geometry.attributes.position;
+  const a = new THREE.Vector3().fromBufferAttribute(position, aIndex).applyMatrix4(mesh.matrixWorld);
+  const b = new THREE.Vector3().fromBufferAttribute(position, bIndex).applyMatrix4(mesh.matrixWorld);
+  const c = new THREE.Vector3().fromBufferAttribute(position, cIndex).applyMatrix4(mesh.matrixWorld);
+  const center = new THREE.Vector3().addVectors(a, b).add(c).multiplyScalar(1 / 3);
+  const normal = new THREE.Vector3()
+    .crossVectors(new THREE.Vector3().subVectors(b, a), new THREE.Vector3().subVectors(c, a))
+    .normalize()
+    .transformDirection(mesh.matrixWorld);
+  const relX = Math.abs(center.x - tableCenter.x) / Math.max(tableSize.x * 0.5, MICRO_EPS);
+  const relZ = Math.abs(center.z - tableCenter.z) / Math.max(tableSize.z * 0.5, MICRO_EPS);
+  const relY = (center.y - tableBox.min.y) / Math.max(tableSize.y, MICRO_EPS);
+  const xIsLongAxis = tableSize.x >= tableSize.z;
+  return {
+    relY,
+    longN: xIsLongAxis ? relX : relZ,
+    shortN: xIsLongAxis ? relZ : relX,
+    upFace: normal.y > 0.33,
+    sideFace: Math.abs(normal.x) > 0.25 || Math.abs(normal.z) > 0.25,
+    downFace: normal.y < -0.33
+  };
+}
+
+function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, bIndex, cIndex, tableBox, tableCenter, tableSize) {
+  const name = `${mesh?.name || ''} ${material?.name || ''}`.toLowerCase();
+  const s = resolvePoolRoyaleShowoodSpatialContext(mesh, geometry, aIndex, bIndex, cIndex, tableBox, tableCenter, tableSize);
+  const color = material?.color?.isColor ? material.color : null;
+  const green = color ? color.g > color.r * 1.14 && color.g > color.b * 1.08 && color.g > 0.11 : false;
+  const black = color ? color.r < 0.11 && color.g < 0.11 && color.b < 0.11 : false;
+  const brown = color ? color.r > color.b * 1.12 && color.g > color.b * 0.48 && color.r > 0.07 && color.g < color.r * 0.9 : false;
+  const gold = color ? color.r > 0.42 && color.g > 0.29 && color.b < 0.25 && color.r >= color.g * 0.88 : false;
+  const light = color ? color.r > 0.72 && color.g > 0.72 && color.b > 0.62 : false;
+
+  const namedCloth = /cloth|felt|fabric|surface|bed|slate/i.test(name);
+  const namedCushion = /cushion|rubber|bumper|railrubber/i.test(name);
+  const namedPocket = /pocket|hole|drop|net|liner|leather|cup/i.test(name);
+  const namedHardware = /trim|bezel|ring|metal|chrome|brass|gold|plate|cap|rim|guard|insert|hardware|bolt|screw/i.test(name);
+  const namedSight = /sight|diamond|marker|dot|inlay/i.test(name);
+  const namedWood = /wood|walnut|rail|apron|leg|base|frame|cabinet|corner|showood|support/i.test(name);
+  const metalish = (material?.metalness ?? 0) > 0.16 || (material?.clearcoat ?? 0) > 0.58 || gold;
+
+  const high = s.relY > 0.54;
+  const veryTop = s.relY > 0.65;
+  const low = s.relY <= 0.16;
+
+  const sideMiddlePocketZone = high && s.longN < 0.255 && s.shortN > 0.69;
+  const cornerPocketZone = high && s.longN > 0.68 && s.shortN > 0.66;
+  const anyPocketZone = sideMiddlePocketZone || cornerPocketZone;
+
+  const centralCloth = high && s.upFace && s.longN < 0.61 && s.shortN < 0.53;
+  const cushionBand = high && (s.longN > 0.52 || s.shortN > 0.49) && (s.longN < 0.9 || s.shortN < 0.9);
+  const topRailBand = high && (s.longN > 0.58 || s.shortN > 0.535);
+  const topRailNonPocket = topRailBand && !anyPocketZone;
+
+  const topRailSideVerticalRimZone =
+    s.sideFace && !s.upFace && s.relY > 0.46 && s.relY < 0.96 && s.longN > 0.6 && s.shortN > 0.58;
+
+  const underRailSightCornerRimZone =
+    s.sideFace && !s.upFace && s.relY > 0.36 && s.relY < 0.76 && s.longN > 0.67 && s.shortN > 0.52;
+
+  const outsideBaseCornerRimZone =
+    s.sideFace && s.relY > 0.08 && s.relY < 0.78 && s.longN > 0.72 && s.shortN > 0.54;
+
+  const outerMostVerticalCorner =
+    s.sideFace && s.relY > 0.1 && s.relY < 0.8 && s.longN > 0.8 && s.shortN > 0.68;
+
+  const baseCornerZone =
+    s.sideFace &&
+    s.relY > 0.12 &&
+    s.relY < 0.64 &&
+    ((s.longN > 0.1 && s.longN < 0.56 && s.shortN < 0.36) ||
+      (s.longN > 0.58 && s.shortN > 0.56)) &&
+    !(underRailSightCornerRimZone || topRailSideVerticalRimZone);
+
+  const legZone = s.sideFace && s.relY > 0.14 && s.relY < 0.62 && s.longN < 0.62 && s.shortN < 0.58;
+
+  const railSightDownBand =
+    s.sideFace &&
+    !s.upFace &&
+    !anyPocketZone &&
+    s.relY > 0.44 &&
+    s.relY < 0.72 &&
+    (s.longN > 0.54 || s.shortN > 0.48) &&
+    !(topRailSideVerticalRimZone || underRailSightCornerRimZone || outsideBaseCornerRimZone || outerMostVerticalCorner || baseCornerZone || legZone);
+
+  const pocketApronStripZone =
+    s.sideFace &&
+    !s.upFace &&
+    high &&
+    anyPocketZone &&
+    s.relY > 0.44 &&
+    s.relY < 0.78 &&
+    (s.longN > 0.5 || s.shortN > 0.5);
+
+  const sideLowerTrimZone =
+    s.sideFace && s.relY > 0.18 && s.relY < 0.44 && (s.longN > 0.54 || s.shortN > 0.54);
+
+  const hardwareCandidate =
+    namedHardware ||
+    metalish ||
+    ((black || gold || light) && !green && !brown && !namedWood);
+
+  const pocketInteriorCandidate =
+    namedPocket ||
+    (black && anyPocketZone && (s.downFace || s.sideFace || s.relY < 0.79) && !hardwareCandidate);
+
+  if (namedCloth) return 'cloth';
+  if (namedCushion) return 'cushion';
+  if (namedSight && high) return 'railSight';
+
+  if (pocketInteriorCandidate) return 'pocketCup';
+  if (namedPocket && hardwareCandidate && sideMiddlePocketZone) return 'middlePocketPlate';
+  if (namedPocket && hardwareCandidate && cornerPocketZone) return 'cornerPocketPlate';
+  if (hardwareCandidate && sideMiddlePocketZone && !green && !brown) return 'middlePocketPlate';
+  if (hardwareCandidate && cornerPocketZone && !green && !brown) return 'cornerPocketPlate';
+  if (pocketApronStripZone && !green) return 'sideWoodApron';
+
+  if (green && centralCloth) return 'cloth';
+  if (green && cushionBand) return 'cushion';
+
+  if (topRailSideVerticalRimZone || underRailSightCornerRimZone || outsideBaseCornerRimZone || outerMostVerticalCorner) {
+    return 'verticalCornerRim';
+  }
+
+  if (hardwareCandidate && topRailNonPocket && s.upFace && !brown && !green) return 'railSight';
+
+  if (low) return 'baseFoot';
+  if (s.downFace && s.relY < 0.5) return 'underside';
+  if ((brown || namedWood) && baseCornerZone) return 'baseCornerBlock';
+  if (baseCornerZone) return 'baseCornerBlock';
+  if (legZone && (brown || namedWood || !hardwareCandidate)) return 'leg';
+  if (hardwareCandidate && sideLowerTrimZone && !green) return 'lowerTrim';
+  if (railSightDownBand && !green) return 'baseCornerBlock';
+  if (veryTop && (s.upFace || topRailBand) && !green) return 'topWoodRail';
+  if (high && s.sideFace && !green && !anyPocketZone) return 'baseCornerBlock';
+
+  return 'baseCornerBlock';
+}
+
+function isPoolRoyaleShowoodCushionShadowTriangle(mesh, geometry, aIndex, bIndex, cIndex, tableBox, tableCenter, tableSize) {
+  const s = resolvePoolRoyaleShowoodSpatialContext(mesh, geometry, aIndex, bIndex, cIndex, tableBox, tableCenter, tableSize);
+  return (
+    s.downFace &&
+    s.relY > 0.46 &&
+    s.relY < 0.84 &&
+    ((s.longN > 0.6 && s.longN < 0.95) || (s.shortN > 0.42 && s.shortN < 0.88))
+  );
+}
+
+
+const SHOWOOD_FINE_PARTS = new Set([
+  'pocketCup',
+  'sideWoodApron',
+  'cornerPocketPlate',
+  'middlePocketPlate',
+  'verticalCornerRim',
+  'baseCornerBlock',
+  'lowerTrim',
+  'railSight',
+  'underside'
+]);
+const SHOWOOD_TABLE_TRIANGLE_PARTS = Object.freeze([
+  'cloth',
+  'cushion',
+  'topWoodRail',
+  'sideWoodApron',
+  'pocketCup',
+  'cornerPocketPlate',
+  'middlePocketPlate',
+  'verticalCornerRim',
+  'baseCornerBlock',
+  'leg',
+  'baseFoot',
+  'lowerTrim',
+  'railSight',
+  'underside'
+]);
+
+function createPoolRoyaleShowoodSlotStat() {
+  return {
+    total: 0,
+    dominantPart: 'sideWoodApron',
+    dominantRatio: 1,
+    parts: SHOWOOD_TABLE_TRIANGLE_PARTS.reduce((acc, part) => {
+      acc[part] = 0;
+      return acc;
+    }, {})
+  };
+}
+
+function updatePoolRoyaleShowoodSlotStat(stats, sourceSlot, part) {
+  const stat = stats.get(sourceSlot) ?? createPoolRoyaleShowoodSlotStat();
+  stat.total += 1;
+  stat.parts[part] = (stat.parts[part] || 0) + 1;
+  stat.dominantPart = SHOWOOD_TABLE_TRIANGLE_PARTS.reduce(
+    (best, item) => ((stat.parts[item] || 0) > (stat.parts[best] || 0) ? item : best),
+    stat.dominantPart
+  );
+  stat.dominantRatio = stat.total > 0 ? (stat.parts[stat.dominantPart] || 0) / stat.total : 1;
+  stats.set(sourceSlot, stat);
+}
+
+function isPoolRoyaleShowoodMixedClothCushionSlot(stat) {
+  return Boolean(stat && (stat.parts.cloth || 0) > 0 && (stat.parts.cushion || 0) > 0);
+}
+
+function resolvePoolRoyaleShowoodMappedPart(triangle, slotStats) {
+  const stat = slotStats.get(triangle.sourceSlot);
+  if (!stat) return triangle.part;
+  if (SHOWOOD_FINE_PARTS.has(triangle.part) && triangle.part !== stat.dominantPart) return triangle.part;
+  if (isPoolRoyaleShowoodMixedClothCushionSlot(stat) && (triangle.part === 'cloth' || triangle.part === 'cushion')) {
+    return triangle.part;
+  }
+  if ((triangle.part === 'cloth' || triangle.part === 'cushion') && stat.dominantRatio >= 0.88) {
+    return stat.dominantPart;
+  }
+  return stat.dominantRatio >= 0.965 ? stat.dominantPart : triangle.part;
+}
+
+function remapPoolRoyaleShowoodExternalParts(model, tableModel = null, finishInfo = null) {
+  if (!model || tableModel?.id !== 'showood-seven-foot' || !finishInfo) return;
+  model.updateMatrixWorld(true);
+  const tableBox = new THREE.Box3().setFromObject(model);
+  if (tableBox.isEmpty()) return;
+  const tableCenter = tableBox.getCenter(new THREE.Vector3());
+  const tableSize = tableBox.getSize(new THREE.Vector3());
+  model.traverse((mesh) => {
+    if (!mesh?.isMesh || !mesh.geometry?.attributes?.position) return;
+    const sourceGeometry = mesh.geometry;
+    const position = sourceGeometry.attributes.position;
+    const oldIndex = sourceGeometry.index;
+    const totalIndices = oldIndex ? oldIndex.count : position.count;
+    if (totalIndices < 3) return;
+    const sourceMaterials = Array.isArray(mesh.material) ? mesh.material : [mesh.material].filter(Boolean);
+    if (!sourceMaterials.length) return;
+    const finalGeometry = sourceGeometry.clone();
+    finalGeometry.clearGroups();
+    const finalIndex = [];
+    const finalMaterials = [];
+    const materialLookup = new Map();
+    const slotStats = new Map();
+    const triangles = [];
+    const makeSourceSlot = (sourceMaterialIndex, sourceMaterial) =>
+      `${mesh.name || 'showood_mesh'}::slot_${sourceMaterialIndex}::${sourceMaterial?.name || 'showood_material'}`;
+
+    for (let i = 0; i + 2 < totalIndices; i += 3) {
+      const a = oldIndex ? oldIndex.getX(i) : i;
+      const b = oldIndex ? oldIndex.getX(i + 1) : i + 1;
+      const c = oldIndex ? oldIndex.getX(i + 2) : i + 2;
+      const sourceMaterialIndex = Math.max(0, Math.min(getPoolRoyaleGeometryMaterialIndexAt(sourceGeometry, i), sourceMaterials.length - 1));
+      const sourceMaterial = sourceMaterials[sourceMaterialIndex];
+      const sourceSlot = makeSourceSlot(sourceMaterialIndex, sourceMaterial);
+      const part = resolvePoolRoyaleShowoodTrianglePart(mesh, sourceGeometry, sourceMaterial, a, b, c, tableBox, tableCenter, tableSize);
+      const cushionShadow = part === 'cushion' && isPoolRoyaleShowoodCushionShadowTriangle(mesh, sourceGeometry, a, b, c, tableBox, tableCenter, tableSize);
+      triangles.push({ a, b, c, sourceMaterialIndex, sourceSlot, part, cushionShadow });
+      updatePoolRoyaleShowoodSlotStat(slotStats, sourceSlot, part);
+    }
+
+    const getMaterialIndex = (sourceMaterialIndex, part, cushionShadow = false) => {
+      const linkedPart = part === 'verticalCornerRim' ? 'baseFoot' : part;
+      const key = `${sourceMaterialIndex}:${linkedPart}:${cushionShadow ? 'shadow' : 'main'}`;
+      if (materialLookup.has(key)) return materialLookup.get(key);
+      const source = sourceMaterials[Math.max(0, Math.min(sourceMaterialIndex, sourceMaterials.length - 1))];
+      const next = applyShowoodStyleToExternalMaterial(source, linkedPart, tableModel, finishInfo);
+
+      if (cushionShadow && linkedPart === 'cushion') {
+        if (next.color) next.color.set(CUSHION_SHADOW_GREY);
+        if ('metalness' in next) next.metalness = 0;
+        if ('roughness' in next) next.roughness = 0.96;
+        if ('envMapIntensity' in next) next.envMapIntensity = 0.22;
+        if ('clearcoat' in next) next.clearcoat = 0;
+        if ('clearcoatRoughness' in next) next.clearcoatRoughness = 0;
+        next.map = null;
+        next.normalMap = null;
+        next.bumpMap = null;
+        next.roughnessMap = null;
+        next.metalnessMap = null;
+        next.aoMap = null;
+        next.emissiveMap = null;
+        next.lightMap = null;
+        next.alphaMap = null;
+      }
+      next.name = `${source?.name || 'showood'}__${linkedPart}${cushionShadow ? '__shadow' : ''}`;
+      const index = finalMaterials.length;
+      finalMaterials.push(next);
+      materialLookup.set(key, index);
+      return index;
+    };
+
+    triangles.forEach((triangle) => {
+      const part = resolvePoolRoyaleShowoodMappedPart(triangle, slotStats);
+      const cushionShadow = part === 'cushion' && triangle.cushionShadow;
+      const materialIndex = getMaterialIndex(triangle.sourceMaterialIndex, part, cushionShadow);
+      const start = finalIndex.length;
+      finalIndex.push(triangle.a, triangle.b, triangle.c);
+      finalGeometry.addGroup(start, 3, materialIndex);
+    });
+    finalGeometry.setIndex(finalIndex);
+    finalGeometry.computeBoundingBox();
+    finalGeometry.computeBoundingSphere();
+    mesh.geometry = finalGeometry;
+    mesh.material = finalMaterials.length === 1 ? finalMaterials[0] : finalMaterials;
+    mesh.userData = {
+      ...(mesh.userData || {}),
+      poolRoyaleShowoodSpatialPartsRemapped: true
+    };
+  });
+}
+
+function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tableModel = null, child = null) {
   if (!material || !finishInfo) return material;
+  if (tableModel?.id === 'showood-seven-foot') {
+    return applyShowoodStyleToExternalMaterial(material, role, tableModel, finishInfo);
+  }
+  const canonicalRole = role === 'pocketCup' ? 'pocket' :
+    (role === 'topWoodRail' || role === 'sideWoodApron' || role === 'leg' || role === 'baseCornerBlock' || role === 'verticalCornerRim' ? 'wood' :
+      (role === 'railSight' ? 'trim' : role));
+  role = canonicalRole;
   const finishRoles = Array.isArray(tableModel?.usePoolRoyaleFinishRoles)
     ? tableModel.usePoolRoyaleFinishRoles
     : null;
@@ -12973,13 +13609,17 @@ function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tab
   const shouldUsePoolRoyaleFinish = !finishRoles || finishRoles.includes(role);
   if (!shouldUsePoolRoyaleFinish || preserveRoles.includes(role)) {
     const originalMat = material.clone ? material.clone() : material;
-    if (role === 'trim' && tableModel?.tintOriginalTrimGold) {
-      if (originalMat.color) originalMat.color.set(0xd8b45a);
-      if ('metalness' in originalMat) originalMat.metalness = Math.max(0.88, originalMat.metalness ?? 0.88);
-      if ('roughness' in originalMat) originalMat.roughness = Math.min(0.24, originalMat.roughness ?? 0.18);
-      if ('envMapIntensity' in originalMat) originalMat.envMapIntensity = Math.max(1.15, originalMat.envMapIntensity ?? 1.15);
-      if ('clearcoat' in originalMat) originalMat.clearcoat = Math.max(0.55, originalMat.clearcoat ?? 0.55);
-      if ('clearcoatRoughness' in originalMat) originalMat.clearcoatRoughness = Math.min(0.18, originalMat.clearcoatRoughness ?? 0.12);
+    if (isPoolRoyaleExternalBlackSurface(child)) {
+      applyPoolRoyaleBlackExternalSurfaceMaterial(originalMat);
+    } else if (role === 'trim' && tableModel?.tintOriginalTrimGold) {
+      const chromeMat = finishInfo.materials?.trim;
+      if (chromeMat?.color && originalMat.color) originalMat.color.copy(chromeMat.color);
+      else if (originalMat.color) originalMat.color.set(0xd8b45a);
+      if ('metalness' in originalMat) originalMat.metalness = Math.max(chromeMat?.metalness ?? 0.88, originalMat.metalness ?? 0.88);
+      if ('roughness' in originalMat) originalMat.roughness = Math.min(chromeMat?.roughness ?? 0.24, originalMat.roughness ?? 0.18);
+      if ('envMapIntensity' in originalMat) originalMat.envMapIntensity = Math.max(chromeMat?.envMapIntensity ?? 1.15, originalMat.envMapIntensity ?? 1.15);
+      if ('clearcoat' in originalMat) originalMat.clearcoat = Math.max(chromeMat?.clearcoat ?? 0.55, originalMat.clearcoat ?? 0.55);
+      if ('clearcoatRoughness' in originalMat) originalMat.clearcoatRoughness = Math.min(chromeMat?.clearcoatRoughness ?? 0.18, originalMat.clearcoatRoughness ?? 0.12);
     }
     preparePoolRoyaleExternalTexture(originalMat.map, true);
     preparePoolRoyaleExternalTexture(originalMat.emissiveMap, true);
@@ -13070,6 +13710,18 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
     child.receiveShadow = true;
     child.frustumCulled = false;
 
+    const chromeSurfaceNames = Array.isArray(tableModel?.chromeMaterialSurfaceNames)
+      ? tableModel.chromeMaterialSurfaceNames
+      : [];
+    const blackSurfaceNames = Array.isArray(tableModel?.blackMaterialSurfaceNames)
+      ? tableModel.blackMaterialSurfaceNames
+      : [];
+    child.userData = {
+      ...(child.userData || {}),
+      poolRoyaleChromeSurfaceNames: chromeSurfaceNames,
+      poolRoyaleBlackSurfaceNames: blackSurfaceNames
+    };
+
     const prepareMaterial = (material) => {
       if (!material) return material;
       const role = classifyPoolRoyaleExternalTableSurface(child, material);
@@ -13077,7 +13729,7 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
         child.visible = false;
       }
       if (tableModel?.usePoolRoyaleFinish && finishInfo) {
-        const nextMaterial = applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tableModel);
+        const nextMaterial = applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tableModel, child);
         normalizePoolRoyaleExternalClothTextureScale(child, nextMaterial, role);
         return nextMaterial;
       }
@@ -13115,9 +13767,15 @@ async function loadPoolRoyaleExternalTableTemplate(tableModel, renderer = null) 
     return poolRoyaleExternalTablePromises.get(tableModel.id);
   }
   const promise = (async () => {
-    const loader = createConfiguredGLTFLoader(renderer);
+    const manager = new THREE.LoadingManager();
+    const loader = createConfiguredGLTFLoader(renderer, manager);
     let lastError = null;
-    const urls = [tableModel.assetUrl, tableModel.fallbackAssetUrl].filter(Boolean);
+    const urls = [
+      tableModel.assetUrl,
+      ...(Array.isArray(tableModel.fallbackAssetUrls)
+        ? tableModel.fallbackAssetUrls
+        : [tableModel.fallbackAssetUrl])
+    ].filter(Boolean);
     for (const url of urls) {
       try {
         // eslint-disable-next-line no-await-in-loop
@@ -13229,7 +13887,7 @@ function stretchPoolRoyaleExternalLowerBase(model, tableModel, dims) {
     if (!child?.isMesh || child.userData?.poolRoyaleLowerBaseStretched) return;
     const material = Array.isArray(child.material) ? child.material[0] : child.material;
     const role = classifyPoolRoyaleExternalTableSurface(child, material);
-    if (role !== 'wood') return;
+    if (!['wood', 'baseCornerBlock', 'leg'].includes(role)) return;
     const childBox = new THREE.Box3().setFromObject(child);
     if (childBox.isEmpty() || childBox.max.y > lowerCutoff) return;
     const anchorWorldY = childBox.max.y;
@@ -13241,6 +13899,42 @@ function stretchPoolRoyaleExternalLowerBase(model, tableModel, dims) {
     const nextAnchorLocal = parent.worldToLocal(new THREE.Vector3(0, nextBox.max.y, 0)).y;
     child.position.y += anchorLocal - nextAnchorLocal;
     child.userData.poolRoyaleLowerBaseStretched = true;
+  });
+  model.updateMatrixWorld(true);
+}
+
+
+function adjustPoolRoyaleExternalShowoodBaseProportions(model, tableModel) {
+  if (!model || tableModel?.id !== 'showood-seven-foot') return;
+  const baseScale = Number(tableModel?.lowerBaseHeightScale);
+  const legScale = Number(tableModel?.legLengthScale);
+  const shouldScaleBase = Number.isFinite(baseScale) && baseScale > MICRO_EPS && Math.abs(baseScale - 1) > MICRO_EPS;
+  const shouldScaleLegs = Number.isFinite(legScale) && legScale > MICRO_EPS && Math.abs(legScale - 1) > MICRO_EPS;
+  if (!shouldScaleBase && !shouldScaleLegs) return;
+
+  model.traverse((child) => {
+    if (!child?.isMesh || child.userData?.poolRoyaleShowoodBaseProportionsAdjusted) return;
+    const material = Array.isArray(child.material) ? child.material[0] : child.material;
+    const role = classifyPoolRoyaleExternalTableSurface(child, material);
+    const childName = `${child.name || ''}`.toLowerCase();
+    const scaleY =
+      shouldScaleLegs && (role === 'leg' || /leg|support/.test(childName))
+        ? legScale
+        : shouldScaleBase && (role === 'baseCornerBlock' || /base|cabinet|corner[_\s-]*block/.test(childName))
+          ? baseScale
+          : null;
+    if (!scaleY) return;
+    const childBox = new THREE.Box3().setFromObject(child);
+    if (childBox.isEmpty()) return;
+    const anchorWorldY = childBox.max.y;
+    const parent = child.parent || model;
+    const anchorLocalY = parent.worldToLocal(new THREE.Vector3(0, anchorWorldY, 0)).y;
+    child.scale.y *= scaleY;
+    child.updateMatrixWorld(true);
+    const nextBox = new THREE.Box3().setFromObject(child);
+    const nextAnchorLocalY = parent.worldToLocal(new THREE.Vector3(0, nextBox.max.y, 0)).y;
+    child.position.y += anchorLocalY - nextAnchorLocalY;
+    child.userData.poolRoyaleShowoodBaseProportionsAdjusted = true;
   });
   model.updateMatrixWorld(true);
 }
@@ -13266,7 +13960,13 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   const widthScale = dims.targetWidth / modelWidth;
   const lengthScale = dims.targetLength / modelLength;
   const fitScaleMultiplier = tableModel?.fitScale ?? 1;
-  if (tableModel?.fitStrategy === 'exact') {
+  const footprintScaleMultiplier = Number.isFinite(tableModel?.fitFootprintScale)
+    ? Math.max(MICRO_EPS, tableModel.fitFootprintScale)
+    : fitScaleMultiplier;
+  const heightScaleMultiplier = Number.isFinite(tableModel?.fitFootprintScale)
+    ? 1
+    : fitScaleMultiplier;
+  if (tableModel?.fitStrategy === 'exact' || tableModel?.fitStrategy === 'showoodPreview') {
     const exactXScale = Math.max(MICRO_EPS, dims.targetWidth / Math.max(MICRO_EPS, footprintSize.x));
     const exactZScale = Math.max(MICRO_EPS, dims.targetLength / Math.max(MICRO_EPS, footprintSize.z));
     const targetHeight = dims.targetHeight ?? dims.nativeVisualHeight;
@@ -13285,17 +13985,31 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
       ? Math.max(MICRO_EPS, heightMatchSource.target / Math.max(MICRO_EPS, heightMatchSource.source)) *
         (tableModel?.fitHeightScale ?? 1)
       : Math.sqrt(exactXScale * exactZScale);
-    model.scale.set(
-      model.scale.x * exactXScale * fitScaleMultiplier,
-      model.scale.y * exactYScale * fitScaleMultiplier,
-      model.scale.z * exactZScale * fitScaleMultiplier
-    );
+
+    if (tableModel?.fitStrategy === 'showoodPreview' || tableModel?.preserveOriginalFootprintAspect) {
+      const uniformFootprintScale = Math.min(exactXScale, exactZScale);
+      model.scale.set(
+        model.scale.x * uniformFootprintScale * footprintScaleMultiplier,
+        model.scale.y * exactYScale * heightScaleMultiplier,
+        model.scale.z * uniformFootprintScale * footprintScaleMultiplier
+      );
+    } else {
+      model.scale.set(
+        model.scale.x * exactXScale * footprintScaleMultiplier,
+        model.scale.y * exactYScale * heightScaleMultiplier,
+        model.scale.z * exactZScale * footprintScaleMultiplier
+      );
+    }
   } else {
     const baseFitScale =
       tableModel?.fitStrategy === 'contain'
         ? Math.min(widthScale, lengthScale)
         : Math.max(widthScale, lengthScale);
-    model.scale.multiplyScalar(baseFitScale * fitScaleMultiplier);
+    model.scale.set(
+      model.scale.x * baseFitScale * footprintScaleMultiplier,
+      model.scale.y * baseFitScale * heightScaleMultiplier,
+      model.scale.z * baseFitScale * footprintScaleMultiplier
+    );
   }
   model.updateMatrixWorld(true);
 
@@ -13307,6 +14021,7 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   model.position.y += targetTopLocal - fullBox.max.y + (tableModel?.verticalOffset ?? 0);
   model.updateMatrixWorld(true);
   stretchPoolRoyaleExternalLowerBase(model, tableModel, dims);
+  adjustPoolRoyaleExternalShowoodBaseProportions(model, tableModel);
   model.userData = {
     ...(model.userData || {}),
     poolRoyaleExternalTable: true,
@@ -13344,8 +14059,20 @@ function mountPoolRoyaleExternalTableModel({
       if (disposed || !template) return;
       const model = clonePoolRoyaleExternalTableTemplate(template, tableModel, finishInfo);
       fitPoolRoyaleExternalTableModel(model, tableModel, dims);
+      remapPoolRoyaleShowoodExternalParts(model, tableModel, finishInfo);
       externalRoot.clear();
       externalRoot.add(model);
+      if (tableModel.id === 'showood-seven-foot') {
+        const showOriginalBase = table.userData.showoodUsesOriginalBase !== false;
+        model.traverse((child) => {
+          if (!child?.isMesh) return;
+          const material = Array.isArray(child.material) ? child.material[0] : child.material;
+          const role = classifyPoolRoyaleExternalTableSurface(child, material);
+          if (role === 'baseCornerBlock' || role === 'leg' || role === 'verticalCornerRim') {
+            child.visible = showOriginalBase;
+          }
+        });
+      }
       setGeneratedVisualsVisible?.(false);
     })
     .catch((error) => {
@@ -13353,7 +14080,10 @@ function mountPoolRoyaleExternalTableModel({
         tableModelId: tableModel.id,
         error
       });
-      if (!disposed) setGeneratedVisualsVisible?.(true);
+      if (!disposed) {
+        table.userData.applyExternalTableFallbackBase?.();
+        setGeneratedVisualsVisible?.(true);
+      }
     });
 
   return {
@@ -13484,7 +14214,9 @@ function mountPoolRoyaleExternalTableModel({
             ? ctx.railMat
             : materialKey === 'trim'
               ? ctx.trimMat
-              : null;
+              : materialKey === 'frame'
+                ? ctx.frameMat
+                : null;
         if (material) {
           applyBaseMaterialToObject(base, material, materialKey);
         } else if (materialKey) {
@@ -13696,6 +14428,26 @@ function mountPoolRoyaleExternalTableModel({
         { x: ctx.frameOuterX - insetX, z: ctx.frameOuterZ - insetZ }
       ];
       return attachLegLevelers(ctx, built, centers);
+    },
+    finishGltfTextureBase: (ctx) => {
+      const build = createPolyhavenTableBaseBuilder('wooden_table_02', {
+        footprintScale: 1.02,
+        footprintDepthScale: 1.0,
+        heightFill: 0.92,
+        topInsetScale: 0.94,
+        materialKey: 'frame',
+        matchTableFootprint: true
+      });
+      const built = build(ctx);
+      const insetX = Math.min(ctx.frameOuterX, ctx.legInset + LEG_POCKET_CLEARANCE * 0.9);
+      const insetZ = Math.min(ctx.frameOuterZ, ctx.legInset + LEG_POCKET_CLEARANCE * 0.7);
+      const centers = [
+        { x: -ctx.frameOuterX + insetX, z: -ctx.frameOuterZ + insetZ },
+        { x: ctx.frameOuterX - insetX, z: -ctx.frameOuterZ + insetZ },
+        { x: -ctx.frameOuterX + insetX, z: ctx.frameOuterZ - insetZ },
+        { x: ctx.frameOuterX - insetX, z: ctx.frameOuterZ - insetZ }
+      ];
+      return attachLegLevelers(ctx, built, centers);
     }
   };
 
@@ -13764,15 +14516,48 @@ function mountPoolRoyaleExternalTableModel({
     return DEFAULT_TABLE_BASE_ID;
   };
 
+  const setExternalOriginalBaseVisible = (visible) => {
+    table.userData.showoodOriginalBaseVisible = visible;
+    const externalRoot = table.userData.externalTable?.group;
+    if (!externalRoot?.traverse) return;
+    externalRoot.traverse((child) => {
+      if (!child?.isMesh) return;
+      const material = Array.isArray(child.material) ? child.material[0] : child.material;
+      const role = classifyPoolRoyaleExternalTableSurface(child, material);
+      if (role === 'baseCornerBlock' || role === 'leg' || role === 'verticalCornerRim') {
+        child.visible = visible;
+      }
+    });
+  };
+
+  const refreshGeneratedVisualVisibility = () => {
+    table.userData.refreshGeneratedVisualVisibility?.();
+  };
+
   const applyBaseVariant = (variant) => {
-    if (usesExternalTableModel) {
+    const variantId = resolveBaseVariantId(variant);
+    const isShowoodExternalTable =
+      usesExternalTableModel && resolvedTableOptions?.tableModel?.id === 'showood-seven-foot';
+    const usesShowoodOriginalBase =
+      isShowoodExternalTable && variantId === SHOWOOD_ORIGINAL_TABLE_BASE_ID;
+
+    table.userData.showoodUsesOriginalBase = usesShowoodOriginalBase;
+    setExternalOriginalBaseVisible(usesShowoodOriginalBase || !isShowoodExternalTable);
+    refreshGeneratedVisualVisibility();
+
+    if (usesExternalTableModel && !isShowoodExternalTable) {
       clearBaseMeshes();
       finishParts.baseVariantId = 'externalModelOwnBase';
       table.userData.baseVariantId = 'externalModelOwnBase';
       return;
     }
-    const variantId = resolveBaseVariantId(variant);
-    const builder = baseBuilders[variantId] ?? baseBuilders[DEFAULT_TABLE_BASE_ID];
+    if (usesShowoodOriginalBase) {
+      clearBaseMeshes();
+      finishParts.baseVariantId = SHOWOOD_ORIGINAL_TABLE_BASE_ID;
+      table.userData.baseVariantId = SHOWOOD_ORIGINAL_TABLE_BASE_ID;
+      return;
+    }
+    const builder = baseBuilders[variantId] ?? baseBuilders[DEFAULT_PROCEDURAL_TABLE_BASE_ID];
     clearBaseMeshes();
     const finishMaterials = table.userData?.finish?.materials || {};
     const built = builder({
@@ -13797,6 +14582,12 @@ function mountPoolRoyaleExternalTableModel({
     }
     finishParts.baseVariantId = variantId;
     table.userData.baseVariantId = variantId;
+  };
+
+  table.userData.applyExternalTableFallbackBase = () => {
+    if (usesExternalTableModel && resolvedTableOptions?.tableModel?.id === 'showood-seven-foot') {
+      applyBaseVariant(SHOWOOD_ORIGINAL_TABLE_BASE_ID);
+    }
   };
 
   if (externalPlayfieldVisualLift > 0) {
@@ -13894,6 +14685,24 @@ function mountPoolRoyaleExternalTableModel({
         if (!cushion) return;
         const data = cushion.userData || {};
         if (typeof data.horizontal !== 'boolean' || !data.side) return;
+        const contour = data.physicalContour;
+        if (
+          contour?.backLeft &&
+          contour?.backRight &&
+          contour?.frontLeft &&
+          contour?.frontRight
+        ) {
+          const points = [
+            new THREE.Vector3(contour.backLeft.x, mappingLineY, contour.backLeft.y),
+            new THREE.Vector3(contour.frontLeft.x, mappingLineY, contour.frontLeft.y),
+            new THREE.Vector3(contour.frontRight.x, mappingLineY, contour.frontRight.y),
+            new THREE.Vector3(contour.backRight.x, mappingLineY, contour.backRight.y)
+          ];
+          if (TABLE_MAPPING_VISUALS.cushions) {
+            registerMappingLine(makeLine(points, cushionLineMaterial));
+          }
+          return;
+        }
         const box = new THREE.Box3().setFromObject(cushion);
         const cutEnds = data.cutEnds || {};
         const minCut = Math.max(0, cutEnds.min || 0);
@@ -14043,6 +14852,8 @@ function mountPoolRoyaleExternalTableModel({
         !visible &&
         (
           (!externalTableModelForMount?.useOriginalLayoutSurfaces && object.userData?.externalTableKeepVisible) ||
+          (externalTableModelForMount?.id === 'showood-seven-foot' && !table.userData.showoodUsesOriginalBase && object.userData?.showoodGeneratedPocketSupport) ||
+          (externalTableModelForMount?.id === 'showood-seven-foot' && !table.userData.showoodUsesOriginalBase && object.userData?.__basePart) ||
           (object.userData?.isChromePlate && forceGeneratedChrome)
         )
       ) {
@@ -14052,10 +14863,14 @@ function mountPoolRoyaleExternalTableModel({
       object.visible = visible;
     });
   };
+  table.userData.refreshGeneratedVisualVisibility = () => setGeneratedVisualsVisible(false);
+
   const externalTableModelForMount =
     resolvedTableOptions?.tableModel?.kind === 'gltf'
       ? {
           ...resolvedTableOptions.tableModel,
+          showoodStyle: resolvedTableOptions.showoodStyle,
+          baseVariantId: table.userData.baseVariantId,
           preserveOriginalSurfaceRoles: resolvedTableOptions.tableModel.useOriginalLayoutSurfaces
             ? Array.from(new Set([
                 ...(resolvedTableOptions.tableModel.preserveOriginalSurfaceRoles || []),
@@ -14481,10 +15296,8 @@ function applyTableFinishToTable(table, finish) {
   if (finishInfo.clothEdgeMat) {
     const clothEdgeColor = clothColor.clone().lerp(new THREE.Color(0x000000), CLOTH_EDGE_TINT);
     finishInfo.clothEdgeMat.color.copy(clothEdgeColor);
-    finishInfo.clothEdgeMat.map = null;
-    finishInfo.clothEdgeMat.bumpMap = null;
-    finishInfo.clothEdgeMat.bumpScale = 0;
-    finishInfo.clothEdgeMat.roughness = 1;
+    finishInfo.clothEdgeMat.bumpScale = finishInfo.clothMat?.bumpScale ?? finishInfo.clothEdgeMat.bumpScale;
+    finishInfo.clothEdgeMat.roughness = Math.max(finishInfo.clothMat?.roughness ?? 0.82, 0.9);
     finishInfo.clothEdgeMat.clearcoat = 0;
     finishInfo.clothEdgeMat.clearcoatRoughness = 1;
     finishInfo.clothEdgeMat.envMapIntensity = 0;
@@ -14902,19 +15715,6 @@ function PoolRoyaleGame({
       DEFAULT_TABLE_BASE_ID
     );
   });
-  const [humanCharacterId, setHumanCharacterId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(POOL_ROYALE_HUMAN_CHARACTER_STORAGE_KEY);
-      if (stored && POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.some((option) => option.id === stored)) {
-        return stored;
-      }
-    }
-    return POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0]?.id || 'rpm-current';
-  });
-  const activeHumanCharacter = useMemo(
-    () => resolvePoolRoyaleHumanCharacter(humanCharacterId),
-    [humanCharacterId]
-  );
   const [clothColorId, setClothColorId] = useState(() => {
     return resolveStoredSelection(
       'clothColor',
@@ -14979,7 +15779,7 @@ function PoolRoyaleGame({
     return resolveStoredSelection(
       'railMarkerColor',
       'poolRailMarkerColor',
-      (id) => RAIL_MARKER_COLOR_OPTIONS.some((opt) => opt.id === id),
+      (id) => (id === 'gold' || id === 'chrome') && RAIL_MARKER_COLOR_OPTIONS.some((opt) => opt.id === id),
       DEFAULT_RAIL_MARKER_COLOR_ID
     );
   });
@@ -15008,9 +15808,21 @@ function PoolRoyaleGame({
       DEFAULT_CHROME_PLATE_STYLE_ID
     );
   });
+  const [showoodTableStyle, setShowoodTableStyle] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = window.localStorage.getItem(SHOWOOD_TABLE_STYLE_STORAGE_KEY);
+        if (stored) return normalizeShowoodTableStyle(JSON.parse(stored));
+      } catch {}
+    }
+    return normalizeShowoodTableStyle(DEFAULT_SHOWOOD_TABLE_STYLE);
+  });
+  const [activeTablePersonalizationPart, setActiveTablePersonalizationPart] = useState('topWoodRail');
   const [frameRateId, setFrameRateId] = useState(() => {
     if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(FRAME_RATE_STORAGE_KEY);
+      const stored =
+        window.localStorage.getItem(FRAME_RATE_STORAGE_KEY) ||
+        window.localStorage.getItem(LEGACY_FRAME_RATE_STORAGE_KEY);
       if (stored && FRAME_RATE_OPTIONS.some((opt) => opt.id === stored)) {
         return stored;
       }
@@ -15107,8 +15919,10 @@ function PoolRoyaleGame({
   );
   const availableTableBases = useMemo(
     () =>
-      POOL_ROYALE_BASE_VARIANTS.filter((variant) =>
-        isPoolOptionUnlocked('tableBase', variant.id, poolInventory)
+      POOL_ROYALE_BASE_VARIANTS.filter(
+        (variant) =>
+          variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID &&
+          isPoolOptionUnlocked('tableBase', variant.id, poolInventory)
       ),
     [poolInventory]
   );
@@ -15129,6 +15943,7 @@ function PoolRoyaleGame({
   const availableRailMarkerColors = useMemo(
     () =>
       RAIL_MARKER_COLOR_OPTIONS.filter((option) =>
+        (option.id === 'gold' || option.id === 'chrome') &&
         isPoolOptionUnlocked('railMarkerColor', option.id, poolInventory)
       ),
     [poolInventory]
@@ -15161,6 +15976,28 @@ function PoolRoyaleGame({
       ),
     [isCueFinishUnlocked, poolInventory]
   );
+  const tablePersonalizationSections = useMemo(
+    () =>
+      SHOWOOD_TABLE_PARTS.map((part) => ({
+        key: part,
+        label: SHOWOOD_TABLE_PART_LABELS[part] || part,
+        chromeLinked: SHOWOOD_CHROME_LINKED_PARTS.has(part),
+        options: getShowoodTablePartOptions(part, availableClothOptions, availableTableFinishes)
+      })).filter((section) => !SHOWOOD_TABLE_SETUP_HIDDEN_PARTS.has(section.key) && section.options.length > 0),
+    [availableClothOptions, availableTableFinishes]
+  );
+  useEffect(() => {
+    if (!tablePersonalizationSections.some((section) => section.key === activeTablePersonalizationPart)) {
+      setActiveTablePersonalizationPart(tablePersonalizationSections[0]?.key ?? 'topWoodRail');
+    }
+  }, [activeTablePersonalizationPart, tablePersonalizationSections]);
+  const activeTablePersonalizationSection = useMemo(
+    () =>
+      tablePersonalizationSections.find((section) => section.key === activeTablePersonalizationPart) ??
+      tablePersonalizationSections[0] ??
+      null,
+    [activeTablePersonalizationPart, tablePersonalizationSections]
+  );
   const activeChromeOption = useMemo(
     () =>
       availableChromeOptions.find((opt) => opt.id === chromeColorId) ??
@@ -15185,11 +16022,20 @@ function PoolRoyaleGame({
   );
   const activeTableBase = useMemo(
     () =>
-      availableTableBases.find((variant) => variant.id === tableBaseId) ??
-      availableTableBases[0] ??
+      availableTableBases.find((variant) => variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID) ??
+      POOL_ROYALE_BASE_VARIANTS.find((variant) => variant.id === SHOWOOD_ORIGINAL_TABLE_BASE_ID) ??
       POOL_ROYALE_BASE_VARIANTS[0],
-    [availableTableBases, tableBaseId]
+    [availableTableBases]
   );
+
+  useEffect(() => {
+    setShowoodTableStyle((current) => {
+      const normalized = normalizeShowoodTableStyle(current);
+      return normalized.cushion === clothColorId
+        ? normalized
+        : normalizeShowoodTableStyle({ ...normalized, cushion: clothColorId });
+    });
+  }, [clothColorId]);
   const resolvedHdriResolution = useMemo(() => {
     return autoHdriResolutionFromGraphics;
   }, [autoHdriResolutionFromGraphics]);
@@ -15245,7 +16091,9 @@ function PoolRoyaleGame({
     if (!isPoolOptionUnlocked('tableFinish', tableFinishId, poolInventory)) {
       setTableFinishId(DEFAULT_TABLE_FINISH_ID);
     }
-    if (!isPoolOptionUnlocked('tableBase', tableBaseId, poolInventory)) {
+    if (tableBaseId !== SHOWOOD_ORIGINAL_TABLE_BASE_ID) {
+      setTableBaseId(SHOWOOD_ORIGINAL_TABLE_BASE_ID);
+    } else if (!isPoolOptionUnlocked('tableBase', tableBaseId, poolInventory)) {
       setTableBaseId(DEFAULT_TABLE_BASE_ID);
     }
     if (!isPoolOptionUnlocked('clothColor', clothColorId, poolInventory)) {
@@ -15257,7 +16105,10 @@ function PoolRoyaleGame({
     if (!isPoolOptionUnlocked('chromePlateStyle', chromePlateStyleId, poolInventory)) {
       setChromePlateStyleId(DEFAULT_CHROME_PLATE_STYLE_ID);
     }
-    if (!isPoolOptionUnlocked('railMarkerColor', railMarkerColorId, poolInventory)) {
+    if (
+      (railMarkerColorId !== 'gold' && railMarkerColorId !== 'chrome') ||
+      !isPoolOptionUnlocked('railMarkerColor', railMarkerColorId, poolInventory)
+    ) {
       setRailMarkerColorId(DEFAULT_RAIL_MARKER_COLOR_ID);
     }
     if (!isPoolOptionUnlocked('pocketLiner', pocketLinerId, poolInventory)) {
@@ -16643,9 +17494,24 @@ function PoolRoyaleGame({
             material: materials.accent.material.clone()
           };
         }
+        const applyShowoodPartMaterial = (material, part) => {
+          const option = getShowoodPartOption(showoodTableStyle, part);
+          const props = option?.material;
+          if (!material || !props) return;
+          if (material.color && Number.isFinite(props.color)) material.color.set(props.color);
+          ['roughness', 'metalness', 'clearcoat', 'clearcoatRoughness', 'envMapIntensity'].forEach((key) => {
+            if (typeof props[key] === 'number' && key in material) material[key] = props[key];
+          });
+          material.needsUpdate = true;
+        };
+        applyShowoodPartMaterial(materials.rail, 'topWoodRail');
+        applyShowoodPartMaterial(materials.frame, 'baseCornerBlock');
+        applyShowoodPartMaterial(materials.leg, 'leg');
         const liners = createPocketLinerMaterials(linerSelection);
         materials.pocketJaw = liners.jawMaterial;
         materials.pocketRim = liners.rimMaterial;
+        applyShowoodPartMaterial(materials.pocketJaw, 'pocketCup');
+        applyShowoodPartMaterial(materials.pocketRim, 'pocketCup');
         return materials;
       }
     };
@@ -16654,7 +17520,8 @@ function PoolRoyaleGame({
     activeChromeOption,
     activeClothOption,
     activePocketLinerOption,
-    clothTextureSourceId
+    clothTextureSourceId,
+    showoodTableStyle
   ]);
   const tableFinishRef = useRef(tableFinish);
   useEffect(() => {
@@ -16676,11 +17543,6 @@ function PoolRoyaleGame({
   }, [tableBaseId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(POOL_ROYALE_HUMAN_CHARACTER_STORAGE_KEY, humanCharacterId);
-    }
-  }, [humanCharacterId]);
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
       window.localStorage.setItem(CLOTH_COLOR_STORAGE_KEY, clothColorId);
     }
   }, [clothColorId]);
@@ -16699,6 +17561,32 @@ function PoolRoyaleGame({
       window.localStorage.setItem('poolChromePlateStyle', chromePlateStyleId);
     }
   }, [chromePlateStyleId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem(
+          SHOWOOD_TABLE_STYLE_STORAGE_KEY,
+          JSON.stringify(normalizeShowoodTableStyle(showoodTableStyle))
+        );
+      } catch {}
+    }
+  }, [showoodTableStyle]);
+  useEffect(() => {
+    setShowoodTableStyle((current) => {
+      const next = normalizeShowoodTableStyle(current);
+      const linkedAccent = chromeColorId === 'gold' ? 'gold' : 'chrome';
+      return next.sideWoodApron === linkedAccent &&
+        next.railSight === linkedAccent &&
+        next.baseFoot === linkedAccent
+        ? next
+        : {
+            ...next,
+            sideWoodApron: linkedAccent,
+            railSight: linkedAccent,
+            baseFoot: linkedAccent
+          };
+    });
+  }, [chromeColorId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(FRAME_RATE_STORAGE_KEY, frameRateId);
@@ -16746,23 +17634,10 @@ function PoolRoyaleGame({
   const clearHospitalityLayoutRef = useRef(() => {});
   const decorativeTablesRef = useRef([]);
   const hospitalityGroupsRef = useRef([]);
-  const playerCharacterRigsRef = useRef([]);
-  const spawnPlayerCharactersRef = useRef(() => {});
-  const characterTurnFlowRef = useRef({
-    activeSeat: null,
-    pendingSeat: null,
-    seatedBySeat: { A: true, B: true }
-  });
-  const activeHumanCharacterRef = useRef(activeHumanCharacter);
-  const activeHumanCueViewRef = useRef(null);
-  const characterShotStartedAtRef = useRef(0);
-  const characterShotShooterRef = useRef('A');
   const hospitalityLayoutRunRef = useRef(null);
   const chessLoungeTemplateRef = useRef(null);
   const chessChairTemplateRef = useRef(null);
   const chessLoungeLoadRef = useRef(null);
-  const seatedHumanTemplateRef = useRef(null);
-  const seatedHumanLoadRef = useRef(null);
   const hospitalityLoaderRef = useRef(null);
   const refreshSecondaryTableDecorRef = useRef(() => {});
   const clearSecondaryTableDecorRef = useRef(() => {});
@@ -16770,10 +17645,6 @@ function PoolRoyaleGame({
   const secondaryTableRef = useRef(null);
   const secondaryBaseSetterRef = useRef(null);
   const activeTableSlotRef = useRef(initialTableSlot);
-  useEffect(() => {
-    activeHumanCharacterRef.current = activeHumanCharacter;
-    spawnPlayerCharactersRef.current?.();
-  }, [activeHumanCharacter]);
   const playerLabel = playerName || 'Player';
   const effectiveMode = isTraining ? trainingModeState : mode;
   const opponentLabel =
@@ -17507,7 +18378,17 @@ const shotPowerRef = useRef(0);
   }, [applyLightingPreset, lightingId]);
   const [err, setErr] = useState(null);
   const [renderResetKey, setRenderResetKey] = useState(0);
+  const showoodTableVisualResetReadyRef = useRef(false);
   const fireRef = useRef(() => {}); // set from effect so slider can trigger fire()
+  useEffect(() => {
+    if (!showoodTableVisualResetReadyRef.current) {
+      showoodTableVisualResetReadyRef.current = true;
+      return;
+    }
+    if (activeTableModel?.kind === 'gltf') {
+      setRenderResetKey((value) => value + 1);
+    }
+  }, [activeTableModel?.id]);
   const sceneRef = useRef(null);
   const updateEnvironmentRef = useRef(() => {});
   const disposeEnvironmentRef = useRef(null);
@@ -17516,6 +18397,7 @@ const shotPowerRef = useRef(0);
   const envSkyboxTextureRef = useRef(null);
   const envSkyboxSettingsRef = useRef(null);
   const envSkyboxScaleRef = useRef(1);
+  const floorShadowCatcherRef = useRef(null);
   const environmentHdriRef = useRef(environmentHdriId);
   const activeEnvironmentVariantRef = useRef(activeEnvironmentHdri);
   const cameraRef = useRef(null);
@@ -17566,6 +18448,12 @@ const shotPowerRef = useRef(0);
     const renderer = rendererRef.current;
     const host = mountRef.current;
     if (!renderer || !host) return;
+    const fallbackWidth =
+      typeof window !== 'undefined' ? window.innerWidth || document.documentElement?.clientWidth || 0 : 0;
+    const fallbackHeight =
+      typeof window !== 'undefined' ? window.innerHeight || document.documentElement?.clientHeight || 0 : 0;
+    const hostWidth = host.clientWidth || fallbackWidth;
+    const hostHeight = host.clientHeight || fallbackHeight;
     const quality = frameQualityRef.current;
     const timing = frameTimingRef.current;
     const targetMs =
@@ -17594,7 +18482,7 @@ const shotPowerRef = useRef(0);
       highFpsBias < 1 ? cappedDpr * (0.92 + highFpsBias * 0.08) : cappedDpr;
     const resolvedPixelRatio = Math.max(1, performanceDpr);
     renderer.setPixelRatio(resolvedPixelRatio);
-    renderer.setSize(host.clientWidth * renderScale, host.clientHeight * renderScale, false);
+    renderer.setSize(hostWidth * renderScale, hostHeight * renderScale, false);
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
   }, []);
@@ -19790,6 +20678,25 @@ const shotPowerRef = useRef(0);
             sceneInstance.backgroundIntensity = activeVariant.backgroundIntensity;
           }
         }
+        if (floorShadowCatcherRef.current) {
+          floorShadowCatcherRef.current.parent?.remove(floorShadowCatcherRef.current);
+          floorShadowCatcherRef.current.geometry?.dispose?.();
+          floorShadowCatcherRef.current.material?.dispose?.();
+          floorShadowCatcherRef.current = null;
+        }
+        const shadowCatcherSize = Math.max(skyboxRadius * 1.85, Math.max(roomWidth, roomDepth) * resolvedWorldScale * 1.35);
+        const shadowCatcher = new THREE.Mesh(
+          new THREE.PlaneGeometry(shadowCatcherSize, shadowCatcherSize),
+          new THREE.ShadowMaterial({ color: 0x000000, opacity: 0.28, transparent: true, depthWrite: false })
+        );
+        shadowCatcher.name = 'PoolRoyale_HdriFloorShadowCatcher';
+        shadowCatcher.rotation.x = -Math.PI / 2;
+        shadowCatcher.position.y = floorWorldY + MICRO_EPS * resolvedWorldScale;
+        shadowCatcher.receiveShadow = true;
+        shadowCatcher.castShadow = false;
+        shadowCatcher.renderOrder = -4;
+        sceneInstance.add(shadowCatcher);
+        floorShadowCatcherRef.current = shadowCatcher;
         if (
           'environmentIntensity' in sceneInstance &&
           typeof activeVariant?.environmentIntensity === 'number'
@@ -19815,6 +20722,12 @@ const shotPowerRef = useRef(0);
             }
             envSkyboxSettingsRef.current = null;
             envSkyboxScaleRef.current = 1;
+          }
+          if (floorShadowCatcherRef.current) {
+            floorShadowCatcherRef.current.parent?.remove(floorShadowCatcherRef.current);
+            floorShadowCatcherRef.current.geometry?.dispose?.();
+            floorShadowCatcherRef.current.material?.dispose?.();
+            floorShadowCatcherRef.current = null;
           }
           if (skyboxMap) {
             skyboxMap.dispose?.();
@@ -21141,55 +22054,6 @@ const shotPowerRef = useRef(0);
         return group;
       };
 
-      const ensureSeatedHumanTemplate = async () => {
-        if (seatedHumanTemplateRef.current) {
-          return seatedHumanTemplateRef.current;
-        }
-        if (seatedHumanLoadRef.current) {
-          return seatedHumanLoadRef.current;
-        }
-        seatedHumanLoadRef.current = loadFirstAvailableGltf([BILARDO_SHQIP_HUMAN_URL])
-          .then((gltf) => {
-            const model = gltf?.scene?.clone?.(true) ?? gltf?.scene ?? gltf?.scenes?.[0] ?? null;
-            if (!model) {
-              throw new Error('Missing seated human scene');
-            }
-            model.traverse((child) => {
-              if (!child?.isMesh) return;
-              child.castShadow = true;
-              child.receiveShadow = true;
-              const sourceMaterials = Array.isArray(child.material)
-                ? child.material
-                : [child.material];
-              const fixedMaterials = sourceMaterials.map((sourceMat) => {
-                if (!sourceMat) return sourceMat;
-                const mat = sourceMat.clone?.() ?? sourceMat;
-                applySRGBColorSpace(mat.map);
-                applySRGBColorSpace(mat.emissiveMap);
-                applySRGBColorSpace(mat.aoMap);
-                applySRGBColorSpace(mat.lightMap);
-                if (mat.map) sharpenTexture(mat.map);
-                if (mat.emissiveMap) sharpenTexture(mat.emissiveMap);
-                mat.needsUpdate = true;
-                return mat;
-              });
-              child.material = Array.isArray(child.material)
-                ? fixedMaterials
-                : fixedMaterials[0];
-            });
-            seatedHumanTemplateRef.current = model;
-            return model;
-          })
-          .catch((error) => {
-            console.warn('Failed to load seated human GLB for Pool Royale', error);
-            return null;
-          })
-          .finally(() => {
-            seatedHumanLoadRef.current = null;
-          });
-        return seatedHumanLoadRef.current;
-      };
-
       const createChessLoungeSet = async ({
         chairOffsets,
         position = [0, 0],
@@ -21849,31 +22713,6 @@ const shotPowerRef = useRef(0);
           }
           return vec;
         };
-
-        const resolveActiveHumanEyePose = () => {
-          if (topViewRef.current || shootingRef.current || replayPlaybackRef.current) return null;
-          const cueBlend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
-          const cueBias = 1 - cueBlend;
-          if (cueBias <= HUMAN_EYE_CAMERA_MIN_BLEND) return null;
-          const cuePose = activeHumanCueViewRef.current;
-          if (!cuePose?.cueBack || !cuePose?.bridgeTarget || !cuePose?.aimForward || !cuePose?.side) {
-            return null;
-          }
-          const eyePos = cuePose.cueBack
-            .clone()
-            .addScaledVector(cuePose.aimForward, HUMAN_EYE_CAMERA_FORWARD_OFFSET)
-            .addScaledVector(cuePose.side, HUMAN_EYE_CAMERA_SIDE_OFFSET)
-            .addScaledVector(WORLD_UP, HUMAN_EYE_CAMERA_HEIGHT_OFFSET);
-          return {
-            blend: THREE.MathUtils.clamp(
-              (cueBias - HUMAN_EYE_CAMERA_MIN_BLEND) / (1 - HUMAN_EYE_CAMERA_MIN_BLEND),
-              0,
-              1
-            ),
-            position: eyePos
-          };
-        };
-
 
         const updateBroadcastCameras = ({
           railDir = 1,
@@ -23097,23 +23936,6 @@ const shotPowerRef = useRef(0);
               TMP_SPH.radius = sph.radius;
               TMP_SPH.phi = sph.phi;
               syncBlendToSpherical();
-            }
-          }
-          const humanEyePose = resolveActiveHumanEyePose();
-          if (humanEyePose) {
-            const lerpT = THREE.MathUtils.clamp(
-              humanEyePose.blend * HUMAN_EYE_CAMERA_SMOOTH,
-              0,
-              1
-            );
-            if (lerpT > 1e-4) {
-              const preservedViewDir = lookTarget
-                ? lookTarget.clone().sub(camera.position)
-                : null;
-              camera.position.lerp(humanEyePose.position, lerpT);
-              if (preservedViewDir && preservedViewDir.lengthSq() > 1e-8) {
-                lookTarget = camera.position.clone().add(preservedViewDir);
-              }
             }
           }
           camera.lookAt(lookTarget);
@@ -25330,7 +26152,25 @@ const shotPowerRef = useRef(0);
       const addMobileLighting = () => {
         const useHdriOnly = true;
         if (useHdriOnly) {
-          lightingRigRef.current = null;
+          const shadowRig = new THREE.Group();
+          world.add(shadowRig);
+          const hdriShadowKey = new THREE.DirectionalLight(0xffffff, 0.22);
+          hdriShadowKey.position.set(-roomWidth * 0.22, tableSurfaceY + TABLE.THICK * 9, roomDepth * 0.18);
+          hdriShadowKey.target.position.set(0, floorY, 0);
+          hdriShadowKey.castShadow = true;
+          const shadowSpan = Math.max(roomWidth, roomDepth) * 0.72 + TABLE.THICK * 4;
+          hdriShadowKey.shadow.mapSize.set(2048, 2048);
+          hdriShadowKey.shadow.camera.near = 0.1;
+          hdriShadowKey.shadow.camera.far = TABLE.THICK * 42;
+          hdriShadowKey.shadow.camera.left = -shadowSpan;
+          hdriShadowKey.shadow.camera.right = shadowSpan;
+          hdriShadowKey.shadow.camera.top = shadowSpan;
+          hdriShadowKey.shadow.camera.bottom = -shadowSpan;
+          hdriShadowKey.shadow.bias = -0.00005;
+          hdriShadowKey.shadow.normalBias = 0.0008;
+          hdriShadowKey.shadow.camera.updateProjectionMatrix();
+          shadowRig.add(hdriShadowKey, hdriShadowKey.target);
+          lightingRigRef.current = { group: shadowRig, key: hdriShadowKey };
           return;
         }
         const lightingRig = new THREE.Group();
@@ -25438,7 +26278,7 @@ const shotPowerRef = useRef(0);
         railMarkerStyleRef.current,
         activeTableBase,
         rendererRef.current,
-        { tableModel: activeTableModel, chromePlateStyle: activeChromePlateStyle }
+        { tableModel: activeTableModel, chromePlateStyle: activeChromePlateStyle, showoodStyle: showoodTableStyle }
       );
       const SPOTS = spotPositions(baulkZ);
 
@@ -25493,7 +26333,7 @@ const shotPowerRef = useRef(0);
         railMarkerStyleRef.current,
         activeTableBase,
         rendererRef.current,
-        { tableModel: activeTableModel, chromePlateStyle: activeChromePlateStyle }
+        { tableModel: activeTableModel, chromePlateStyle: activeChromePlateStyle, showoodStyle: showoodTableStyle }
       );
       secondaryTableRef.current = secondaryTableEntry?.group ?? null;
       secondaryBaseSetterRef.current = secondaryTableEntry?.setBaseVariant ?? null;
@@ -25903,1021 +26743,6 @@ const shotPowerRef = useRef(0);
       updateHospitalityLayoutRef.current = layoutHospitalityGroups;
       clearHospitalityLayoutRef.current = disposeHospitalityGroups;
       layoutHospitalityGroups(environmentHdriRef.current);
-      const disposePlayerCharacters = () => {
-        playerCharacterRigsRef.current.forEach((rig) => {
-          if (rig?.group?.parent) {
-            rig.group.parent.remove(rig.group);
-          }
-          if (rig?.human) {
-            [rig.human.root, rig.human.modelRoot, rig.human.fallback].forEach((node) => {
-              if (node?.parent) node.parent.remove(node);
-            });
-          }
-          if (rig?.heldCue?.parent) {
-            rig.heldCue.parent.remove(rig.heldCue);
-          }
-        });
-        playerCharacterRigsRef.current = [];
-      };
-
-      const setHumanoidSegment = (mesh, from, to, radius) => {
-        if (!mesh || !from || !to) return;
-        const dir = new THREE.Vector3().subVectors(to, from);
-        const len = Math.max(1e-4, dir.length());
-        mesh.position.copy(from).addScaledVector(dir, 0.5);
-        dir.normalize();
-        mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
-        mesh.scale.set(radius, len, radius);
-      };
-
-      const makeHumanoidBasis = (side, forward) => {
-        const basis = new THREE.Matrix4();
-        const up = new THREE.Vector3(0, 1, 0);
-        basis.makeBasis(side.clone().normalize(), up, forward.clone().normalize());
-        return new THREE.Quaternion().setFromRotationMatrix(basis);
-      };
-
-      const createBridgeHandGroup = (skinMat) => {
-        const group = new THREE.Group();
-        const palm = new THREE.Mesh(new THREE.BoxGeometry(0.165, 0.022, 0.115), skinMat);
-        palm.position.set(0, 0.012, 0.01);
-        group.add(palm);
-        [-0.058, -0.02, 0.018, 0.056].forEach((x, i) => {
-          const finger = new THREE.Mesh(new THREE.BoxGeometry(0.026, 0.018, i === 1 ? 0.18 : 0.16), skinMat);
-          finger.position.set(x, 0.018, 0.118);
-          finger.rotation.y = (i - 1.5) * 0.13;
-          group.add(finger);
-        });
-        const cueGuide = new THREE.Mesh(new THREE.BoxGeometry(0.032, 0.038, 0.17), skinMat);
-        cueGuide.position.set(-0.01, 0.043, 0.095);
-        cueGuide.rotation.z = -0.08;
-        group.add(cueGuide);
-        const thumb = new THREE.Mesh(new THREE.BoxGeometry(0.034, 0.02, 0.13), skinMat);
-        thumb.position.set(0.09, 0.026, 0.03);
-        thumb.rotation.y = -0.75;
-        group.add(thumb);
-        group.traverse((child) => {
-          if (!child?.isMesh) return;
-          child.castShadow = true;
-          child.receiveShadow = true;
-        });
-        return group;
-      };
-
-      const createGripHandGroup = (skinMat) => {
-        const group = new THREE.Group();
-        const palm = new THREE.Mesh(new THREE.SphereGeometry(0.047, 18, 18), skinMat);
-        palm.scale.set(1.15, 0.9, 0.85);
-        group.add(palm);
-        for (let i = 0; i < 4; i++) {
-          const finger = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.054, 0.018), skinMat);
-          finger.position.set(-0.032 + i * 0.021, -0.006, 0.045);
-          finger.rotation.x = 0.85;
-          group.add(finger);
-        }
-        group.traverse((child) => {
-          if (!child?.isMesh) return;
-          child.castShadow = true;
-          child.receiveShadow = true;
-        });
-        return group;
-      };
-
-      const fitPlayerHumanModelHeight = (model, targetHeight) => {
-        if (!model || !Number.isFinite(targetHeight) || targetHeight <= 0) return;
-        model.updateMatrixWorld(true);
-        const box = new THREE.Box3().setFromObject(model);
-        const size = box.getSize(new THREE.Vector3());
-        const center = box.getCenter(new THREE.Vector3());
-        const sourceHeight = Math.max(size.y, 1e-4);
-        const scale = targetHeight / sourceHeight;
-        model.scale.setScalar(scale);
-        model.rotation.set(0, Math.PI, 0);
-        model.position.set(-center.x * scale, -box.min.y * scale, -center.z * scale);
-        model.updateMatrixWorld(true);
-      };
-
-      const createPlayerCharacterRig = ({ seat = 'A', x = 0, z = 0, facingY = 0, template = null } = {}) => {
-        const rigGroup = new THREE.Group();
-        rigGroup.position.set(x, floorY, z);
-        rigGroup.rotation.y = facingY;
-
-        const humanHeight = TABLE.H * HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE;
-        const scale = (humanHeight / 1.82) * POOL_ROYALE_HUMAN_SCALE_MULTIPLIER;
-        const skinMat = new THREE.MeshStandardMaterial({ color: 0xe4bf9d, roughness: 0.82 });
-        const bridgeHand = createBridgeHandGroup(skinMat);
-        const gripHand = createGripHandGroup(skinMat);
-        bridgeHand.scale.setScalar(scale);
-        gripHand.scale.setScalar(scale);
-        rigGroup.add(bridgeHand);
-        rigGroup.add(gripHand);
-        if (template) {
-          const avatar = template.clone(true);
-          fitPlayerHumanModelHeight(avatar, humanHeight);
-          avatar.traverse((child) => {
-            if (!child?.isMesh) return;
-            child.castShadow = true;
-            child.receiveShadow = true;
-            child.frustumCulled = false;
-          });
-          rigGroup.add(avatar);
-          rigGroup.userData.anim = {
-            seat,
-            mode: 'idle',
-            intensity: 0,
-            humanHeight,
-            scale,
-            model: avatar,
-            poseT: 0,
-            walkT: 0,
-            yaw: facingY,
-            rootTarget: new THREE.Vector3(x, floorY, z),
-            bridgeHand,
-            gripHand,
-            usesFallbackRig: false
-          };
-          return rigGroup;
-        }
-        const bodyMat = new THREE.MeshStandardMaterial({ color: 0x374151, roughness: 0.78 });
-        const vestMat = new THREE.MeshStandardMaterial({ color: seat === 'A' ? 0x1f2d5a : 0x111827, roughness: 0.7 });
-        const shoeMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.64 });
-
-        const pelvis = new THREE.Mesh(new THREE.BoxGeometry(0.3 * scale, 0.2 * scale, 0.19 * scale), vestMat);
-        const torso = new THREE.Mesh(new THREE.BoxGeometry(0.34 * scale, 0.42 * scale, 0.22 * scale), bodyMat);
-        const chest = new THREE.Mesh(new THREE.BoxGeometry(0.4 * scale, 0.34 * scale, 0.23 * scale), vestMat);
-        const neck = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 16), skinMat);
-        const head = new THREE.Mesh(new THREE.SphereGeometry(0.12 * scale, 22, 22), skinMat);
-
-        const leftUpperArm = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 16), bodyMat);
-        const leftLowerArm = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 16), bodyMat);
-        const rightUpperArm = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 16), bodyMat);
-        const rightLowerArm = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 16), bodyMat);
-
-        const leftUpperLeg = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 16), vestMat);
-        const leftLowerLeg = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 16), vestMat);
-        const rightUpperLeg = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 16), vestMat);
-        const rightLowerLeg = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 16), vestMat);
-
-        const leftFoot = new THREE.Mesh(new THREE.BoxGeometry(0.1 * scale, 0.055 * scale, 0.22 * scale), shoeMat);
-        const rightFoot = new THREE.Mesh(new THREE.BoxGeometry(0.1 * scale, 0.055 * scale, 0.22 * scale), shoeMat);
-
-        [
-          pelvis,
-          torso,
-          chest,
-          neck,
-          head,
-          leftUpperArm,
-          leftLowerArm,
-          rightUpperArm,
-          rightLowerArm,
-          leftUpperLeg,
-          leftLowerLeg,
-          rightUpperLeg,
-          rightLowerLeg,
-          leftFoot,
-          rightFoot
-        ].forEach((mesh) => {
-          mesh.castShadow = true;
-          mesh.receiveShadow = true;
-          rigGroup.add(mesh);
-        });
-
-        rigGroup.add(bridgeHand);
-        rigGroup.add(gripHand);
-
-        rigGroup.userData.anim = {
-          seat,
-          mode: 'idle',
-          intensity: 0,
-          pelvis,
-          torso,
-          chest,
-          neck,
-          head,
-          leftUpperArm,
-          leftLowerArm,
-          rightUpperArm,
-          rightLowerArm,
-          leftUpperLeg,
-          leftLowerLeg,
-          rightUpperLeg,
-          rightLowerLeg,
-          bridgeHand,
-          gripHand,
-          leftFoot,
-          rightFoot,
-          humanHeight,
-          scale,
-          poseT: 0,
-          walkT: 0,
-          yaw: facingY,
-          rootTarget: new THREE.Vector3(x, floorY, z),
-          usesFallbackRig: false
-        };
-        return rigGroup;
-      };
-
-      let setCueStickFromHumanCuePose = null;
-
-      const createHumanHeldCueMesh = () => {
-        const group = new THREE.Group();
-        const heldCueLen = 1.5 * (BALL_R / 0.0525) * CUE_LENGTH_MULTIPLIER;
-        const shaft = new THREE.Mesh(
-          new THREE.CylinderGeometry(BALL_R * 0.12, BALL_R * 0.18, heldCueLen, 16),
-          new THREE.MeshStandardMaterial({ color: 0xc89b62, roughness: 0.42, metalness: 0.04 })
-        );
-        shaft.rotation.x = Math.PI / 2;
-        shaft.castShadow = true;
-        shaft.receiveShadow = true;
-        group.add(shaft);
-        group.visible = false;
-        group.userData.setFromBackTip = (back, tip) => {
-          if (!back || !tip) return;
-          const dir = tip.clone().sub(back);
-          if (dir.lengthSq() < 1e-8) return;
-          dir.normalize();
-          group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
-          group.position.copy(back).add(tip).multiplyScalar(0.5);
-          group.visible = true;
-        };
-        return group;
-      };
-
-      const createWaterServiceProps = (tableTopY = BALL_R * 6.2) => {
-        const group = new THREE.Group();
-        const waterMat = new THREE.MeshPhysicalMaterial({ color: 0xbdeaff, transparent: true, opacity: 0.62, roughness: 0.08, metalness: 0, transmission: 0.35 });
-        const glassMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: 0.34, roughness: 0.04, metalness: 0, transmission: 0.55 });
-        const bottle = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 0.62, BALL_R * 0.74, BALL_R * 3.9, 20), waterMat);
-        bottle.position.set(-BALL_R * 2.15, tableTopY + BALL_R * 2.0, -BALL_R * 0.45);
-        const glass = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 0.82, BALL_R * 0.68, BALL_R * 1.85, 20), glassMat);
-        glass.position.set(BALL_R * 2.0, tableTopY + BALL_R * 0.9, BALL_R * 0.55);
-        const water = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 0.66, BALL_R * 0.56, BALL_R * 0.88, 20), waterMat);
-        water.position.set(0, -BALL_R * 0.18, 0);
-        glass.add(water);
-        [bottle, glass].forEach((mesh) => {
-          mesh.castShadow = true;
-          mesh.receiveShadow = true;
-          group.add(mesh);
-        });
-        group.userData.glass = glass;
-        group.userData.glassBase = glass.position.clone();
-        return group;
-      };
-
-      const fitAssetToSpan = (asset, targetSpan, { ground = true } = {}) => {
-        if (!asset) return asset;
-        const box = new THREE.Box3().setFromObject(asset);
-        const size = box.getSize(new THREE.Vector3());
-        const span = Math.max(size.x || 0, size.z || 0, size.y || 0);
-        if (span > 1e-6 && Number.isFinite(targetSpan)) {
-          asset.scale.multiplyScalar(targetSpan / span);
-        }
-        if (ground) {
-          const groundedBox = new THREE.Box3().setFromObject(asset);
-          asset.position.y += -groundedBox.min.y;
-        }
-        return asset;
-      };
-
-      const createFallbackPoolSideFurniture = (seat, zSign, tableTopY) => {
-        const group = new THREE.Group();
-        const woodMat = new THREE.MeshStandardMaterial({ color: 0x5b351f, roughness: 0.62, metalness: 0.05 });
-        const seatMat = new THREE.MeshStandardMaterial({ color: seat === 'A' ? 0x0f766e : 0x7c2d12, roughness: 0.55, metalness: 0.08 });
-        const tableTop = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 18.4, BALL_R * 18.9, BALL_R * 1.45, 64), woodMat);
-        tableTop.position.set(0, tableTopY, 0);
-        const tablePedestal = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 2.05, BALL_R * 2.9, tableTopY, 32), woodMat);
-        tablePedestal.position.set(0, tableTopY * 0.5, 0);
-        const chairSeat = new THREE.Mesh(new THREE.BoxGeometry(BALL_R * 19.6, BALL_R * 2.05, BALL_R * 16.8), seatMat);
-        chairSeat.position.set(0, BALL_R * 4.4, zSign * BALL_R * 37.5);
-        const chairBack = new THREE.Mesh(new THREE.BoxGeometry(BALL_R * 19.6, BALL_R * 15.8, BALL_R * 2.05), seatMat);
-        chairBack.position.set(0, BALL_R * 11.2, zSign * BALL_R * 46.0);
-        [tableTop, tablePedestal, chairSeat, chairBack].forEach((mesh) => {
-          mesh.castShadow = true;
-          mesh.receiveShadow = true;
-          group.add(mesh);
-        });
-        group.userData.tableMeshes = [tableTop, tablePedestal];
-        group.userData.chairMeshes = [chairSeat, chairBack];
-        return group;
-      };
-
-      const createPoolSideLounge = (seat, zSign) => {
-        const group = new THREE.Group();
-        group.userData.seat = seat;
-        const z = zSign * (TABLE.H / 2 + POOL_ROYALE_LOUNGE_DISTANCE);
-        const x = 0;
-        group.position.set(x, floorY, z);
-        group.rotation.y = 0;
-
-        const tableTopY = POOL_ROYALE_LOUNGE_TABLE_HEIGHT;
-        const chairLocalZ = zSign * POOL_ROYALE_LOUNGE_CHAIR_OFFSET;
-        const fallbackFurniture = createFallbackPoolSideFurniture(seat, zSign, tableTopY);
-        fallbackFurniture.name = `PoolRoyale_${seat}_VisibleLoungeFallback`;
-        group.add(fallbackFurniture);
-
-        const murlanDefaultTable = new THREE.Group();
-        murlanDefaultTable.name = `PoolRoyale_${seat}_MurlanDefaultOctagonTable`;
-        try {
-          createMurlanStyleTable({
-            THREE,
-            arena: murlanDefaultTable,
-            renderer,
-            tableRadius: POOL_ROYALE_LOUNGE_TABLE_RADIUS,
-            tableHeight: tableTopY,
-            includeBase: true
-          });
-          group.add(murlanDefaultTable);
-          fallbackFurniture.userData?.tableMeshes?.forEach((mesh) => {
-            mesh.visible = false;
-          });
-        } catch (error) {
-          console.warn('Failed to create Pool Royale Murlan default lounge table', error);
-        }
-
-        loadFirstAvailableGltf(POOL_ROYALE_MURLAN_CHAIR_URLS).then((chairGltf) => {
-          if (!group.parent) return;
-          const chairModel = chairGltf?.scene?.clone?.(true) ?? chairGltf?.scene ?? null;
-          if (!chairModel) return;
-          markHospitalityMaterials(chairModel);
-          fitAssetToSpan(chairModel, POOL_ROYALE_LOUNGE_CHAIR_SPAN);
-          chairModel.position.set(0, chairModel.position.y, chairLocalZ);
-          const toTable = new THREE.Vector2(-chairModel.position.x, -chairModel.position.z);
-          chairModel.rotation.y = Math.atan2(toTable.x, toTable.y);
-          group.add(chairModel);
-          fallbackFurniture.visible = false;
-        }).catch((error) => {
-          console.warn('Failed to upgrade Pool Royale lounge chair GLTF asset', error);
-        });
-
-        const serviceProps = createWaterServiceProps(tableTopY);
-        group.add(serviceProps);
-        group.userData.chairRoot = new THREE.Vector3(x, floorY, z + chairLocalZ);
-        group.userData.chairFacing = new THREE.Vector3(0, 0, -zSign).normalize();
-        group.userData.chairSeatWorld = new THREE.Vector3(x, floorY, z + chairLocalZ);
-        group.userData.glass = serviceProps.userData.glass;
-        group.userData.glassBase = serviceProps.userData.glassBase.clone();
-        return group;
-      };
-
-      const createFallbackRefereeOfficial = () => {
-        const group = new THREE.Group();
-        const black = new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 0.5, metalness: 0.04 });
-        const white = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.46, metalness: 0.02 });
-        const skin = new THREE.MeshStandardMaterial({ color: 0xc9906e, roughness: 0.6, metalness: 0.01 });
-        const torso = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 1.0, BALL_R * 1.15, BALL_R * 4.4, 16), white);
-        torso.position.y = BALL_R * 6.1;
-        const vest = new THREE.Mesh(new THREE.BoxGeometry(BALL_R * 1.9, BALL_R * 3.4, BALL_R * 0.28), black);
-        vest.position.set(0, BALL_R * 6.25, -BALL_R * 0.72);
-        const head = new THREE.Mesh(new THREE.SphereGeometry(BALL_R * 0.92, 18, 12), skin);
-        head.position.y = BALL_R * 8.9;
-        const leftLeg = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 0.34, BALL_R * 0.38, BALL_R * 3.8, 12), black);
-        leftLeg.position.set(-BALL_R * 0.55, BALL_R * 2.8, 0);
-        const rightLeg = leftLeg.clone();
-        rightLeg.position.x = BALL_R * 0.55;
-        const rightArm = new THREE.Mesh(new THREE.CylinderGeometry(BALL_R * 0.22, BALL_R * 0.28, BALL_R * 3.2, 10), white);
-        rightArm.position.set(BALL_R * 1.35, BALL_R * 6.0, 0);
-        rightArm.rotation.z = THREE.MathUtils.degToRad(-10);
-        [torso, vest, head, leftLeg, rightLeg, rightArm].forEach((mesh) => {
-          mesh.castShadow = true;
-          mesh.receiveShadow = true;
-          group.add(mesh);
-        });
-        return group;
-      };
-
-      const createRefereeOfficial = async () => {
-        const group = new THREE.Group();
-        const gltf = await loadFirstAvailableGltf(POOL_ROYALE_REFEREE_HUMAN_URLS).catch(() => null);
-        const model = gltf?.scene?.clone?.(true) ?? gltf?.scene ?? null;
-        if (model) {
-          model.traverse((child) => {
-            if (!child?.isMesh) return;
-            child.castShadow = true;
-            child.receiveShadow = true;
-            const materials = Array.isArray(child.material) ? child.material : [child.material];
-            const key = `${child.name || ''} ${materials.map((mat) => mat?.name || '').join(' ')}`.toLowerCase();
-            const cloned = materials.map((mat) => {
-              const next = mat?.clone?.() ?? new THREE.MeshStandardMaterial();
-              if (key.includes('shirt') || key.includes('top') || key.includes('torso') || key.includes('body')) {
-                next.color?.setHex?.(0xf8fafc);
-              }
-              if (key.includes('pant') || key.includes('leg') || key.includes('shoe') || key.includes('boot')) {
-                next.color?.setHex?.(0x050505);
-              }
-              next.roughness = Math.max(next.roughness ?? 0.5, 0.46);
-              next.needsUpdate = true;
-              return next;
-            });
-            child.material = Array.isArray(child.material) ? cloned : cloned[0];
-          });
-          fitAssetToSpan(model, BALL_R * 18.5);
-          group.add(model);
-        } else {
-          group.add(createFallbackRefereeOfficial());
-        }
-        group.position.set(TABLE.W / 2 + BALL_R * 16, floorY, 0);
-        group.userData.referee = true;
-        group.userData.walkT = 0;
-        group.userData.gltfReferee = Boolean(model);
-        return group;
-      };
-
-      const spawnPlayerCharacters = async () => {
-        disposePlayerCharacters();
-        const zOffset = TABLE.H * 0.72;
-        const sideOffset = TABLE.W * 0.19;
-        const makeRig = (seat, x, z, yaw, characterOption = null) => {
-          const selectedCharacter = characterOption || activeHumanCharacterRef.current || POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0];
-          const behavior = selectedCharacter?.logic || POOL_ROYALE_HUMAN_LOGIC_PROFILES['rpm-current'];
-          const human = createBilardoHumanRig(world, {
-            loader: new GLTFLoader(),
-            modelUrl: selectedCharacter?.modelUrl || selectedCharacter?.modelUrls?.[0] || BILARDO_SHQIP_HUMAN_URL,
-            modelUrls: selectedCharacter?.modelUrls || [selectedCharacter?.modelUrl || BILARDO_SHQIP_HUMAN_URL],
-            unit: POOL_ROYALE_HUMAN_UNIT_SCALE,
-            humanScale: POOL_ROYALE_HUMAN_SCALE_MULTIPLIER * (selectedCharacter?.scale || 1),
-            humanVisualYawFix: behavior.visualYawFix ?? POOL_ROYALE_HUMAN_VISUAL_YAW_FIX,
-            // Drop the bridge hand to the cloth while keeping the cue aligned with the aim line
-            // as the portrait camera lowers into the ready-to-shoot view. Local -Z is the
-            // original rig forward axis, so the fallback bend sign folds belly/chest/head
-            // toward the cue ball instead of bending the whole body backward.
-            shootBendDirection: -1,
-            shootBendTowardCueStick: true,
-            shootBendMode: behavior.bendMode || 'forward',
-            shootCounterLeanSide: -1,
-            shootUpperBodyCounterLean: behavior.shootUpperBodyCounterLean,
-            shootForwardBendScale: behavior.shootForwardBendScale,
-            plantFeetDuringShot: true,
-            bridgeArmStraightDown: false,
-            forceTableFacingAim: true,
-            addFaceDetails: false,
-            poseLambda: HUMAN_POSE_LAMBDA,
-            moveLambda: HUMAN_MOVE_LAMBDA,
-            rotLambda: HUMAN_ROT_LAMBDA,
-            strikeTime: 0.11,
-            holdTime: 0.05,
-            tableTopY: TABLE_Y + TABLE.THICK,
-            groundY: floorY,
-            tableW: PLAY_W,
-            tableL: PLAY_H,
-            perimeterWalk: true,
-            perimeterWalkSpeed: behavior.walkSpeed * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            stanceWidth: behavior.stanceWidth * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            bridgePalmTableLift: behavior.bridgeLift * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            chinToCueHeight: 0.11 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            footGroundY: 0.02 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            footLockStrength: 1.25,
-            kneeBendShot: 0.16 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            desiredShootDistance: behavior.desiredShootDistance * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            edgeMargin: behavior.edgeMargin * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            bridgeHandBackFromBall: behavior.bridgeBack * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            bridgeHandSide: behavior.bridgeSide * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            bridgeCueLift: 0.018 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            shootCueGripFromBack: 0.58 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightElbowShotRise: behavior.rightElbowRise * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightElbowShotSide: behavior.rightElbowSide * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightElbowShotBack: behavior.rightElbowBack * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightForearmOutward: behavior.forearmOutward * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightForearmBack: behavior.forearmBack * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightForearmDown: behavior.forearmDown * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightForearmLength: 0.34 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightStrokePull: behavior.strokePull * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightStrokePush: behavior.strokePush * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightHandShotLift: -0.30 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            idleRightHandX: 0.31 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            idleRightHandY: 0.8 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            idleRightHandZ: -0.015 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            idleCueGripFromBack: 0.24 * POOL_ROYALE_HUMAN_UNIT_SCALE,
-            rightHandCueSocketLocal: new THREE.Vector3(-0.004, -0.014, 0.092).multiplyScalar(POOL_ROYALE_HUMAN_UNIT_SCALE),
-            textureAnisotropy: renderer?.capabilities?.getMaxAnisotropy?.() ?? 8
-          });
-          human.root.position.set(x, floorY, z);
-          human.yaw = yaw;
-          human.userData = {
-            ...(human.userData || {}),
-            poolRoyaleCharacterId: selectedCharacter?.id,
-            poolRoyaleCharacterLabel: selectedCharacter?.label,
-            poolRoyaleLogicLabel: selectedCharacter?.logicLabel,
-            poolRoyaleLogic: behavior
-          };
-          const heldCue = createHumanHeldCueMesh();
-          world.add(heldCue);
-          return { seat, human, heldCue };
-        };
-        const playerA = activeHumanCharacterRef.current || POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0];
-        const playerB = POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.find((option) => option.id !== playerA.id) || POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[1] || playerA;
-        const loungeA = createPoolSideLounge('A', -1);
-        const loungeB = createPoolSideLounge('B', 1);
-        const referee = await createRefereeOfficial();
-        world.add(loungeA, loungeB, referee);
-        playerCharacterRigsRef.current = [
-          makeRig('A', -sideOffset, -zOffset, 0, playerA),
-          makeRig('B', sideOffset, zOffset, Math.PI, playerB),
-          { group: loungeA, lounge: true, seat: 'A' },
-          { group: loungeB, lounge: true, seat: 'B' },
-          { group: referee, referee: true }
-        ];
-      };
-      spawnPlayerCharactersRef.current = spawnPlayerCharacters;
-
-      const updatePlayerCharacters = (nowMs, dtSeconds) => {
-        const rigs = playerCharacterRigsRef.current;
-        activeHumanCueViewRef.current = null;
-        if (!Array.isArray(rigs) || rigs.length === 0) return;
-        const hudState = hudRef.current;
-        const isReplay = Boolean(replayPlaybackRef.current);
-        const isShotActive = Boolean(shootingRef.current);
-        const rawActiveSeat = hudState?.turn === 1 ? 'B' : 'A';
-        const turnFlow = characterTurnFlowRef.current || {
-          activeSeat: null,
-          pendingSeat: null,
-          seatedBySeat: { A: true, B: true }
-        };
-        if (!turnFlow.activeSeat) turnFlow.activeSeat = rawActiveSeat;
-        if (rawActiveSeat !== turnFlow.activeSeat) {
-          turnFlow.pendingSeat = rawActiveSeat;
-        }
-        if (turnFlow.pendingSeat && turnFlow.seatedBySeat?.[turnFlow.activeSeat]) {
-          turnFlow.activeSeat = turnFlow.pendingSeat;
-          turnFlow.pendingSeat = null;
-        }
-        characterTurnFlowRef.current = turnFlow;
-        const activeSeat = turnFlow.activeSeat || rawActiveSeat;
-        const shotSeat = characterShotShooterRef.current === 'B' ? 'B' : 'A';
-        const shotAge = Math.max(0, nowMs - (characterShotStartedAtRef.current || nowMs));
-
-        const cueBall = cueRef.current;
-        const aimDir2 = aimDirRef.current;
-        const hasAim = cueBall?.pos && aimDir2 && Number.isFinite(aimDir2.x) && Number.isFinite(aimDir2.y) && aimDir2.lengthSq?.() > 1e-6;
-        const normalizedAim = hasAim ? aimDir2.clone().normalize() : new THREE.Vector2(0, -1);
-        const cueWorld = hasAim ? new THREE.Vector3(cueBall.pos.x, floorY, cueBall.pos.y) : new THREE.Vector3(0, floorY, 0);
-
-        const chooseEdgeTarget = (forward2) => {
-          const desired = cueWorld.clone().add(new THREE.Vector3(
-            -forward2.x * HUMAN_DESIRED_SHOOT_DISTANCE,
-            0,
-            -forward2.y * HUMAN_DESIRED_SHOOT_DISTANCE
-          ));
-          const xEdge = TABLE.W / 2 + HUMAN_EDGE_MARGIN;
-          const zEdge = TABLE.H / 2 + HUMAN_EDGE_MARGIN;
-          const candidates = [
-            new THREE.Vector3(-xEdge, floorY, THREE.MathUtils.clamp(desired.z, -zEdge, zEdge)),
-            new THREE.Vector3(xEdge, floorY, THREE.MathUtils.clamp(desired.z, -zEdge, zEdge)),
-            new THREE.Vector3(THREE.MathUtils.clamp(desired.x, -xEdge, xEdge), floorY, -zEdge),
-            new THREE.Vector3(THREE.MathUtils.clamp(desired.x, -xEdge, xEdge), floorY, zEdge)
-          ];
-          return candidates.reduce((best, candidate) =>
-            candidate.distanceToSquared(desired) < best.distanceToSquared(desired) ? candidate : best
-          );
-        };
-        const walkHalfX = TABLE.W / 2 + HUMAN_WALK_RING_MARGIN;
-        const walkHalfZ = TABLE.H / 2 + HUMAN_WALK_RING_MARGIN;
-        const blockerHalfX = TABLE.W / 2 + HUMAN_TABLE_BLOCKER_MARGIN;
-        const blockerHalfZ = TABLE.H / 2 + HUMAN_TABLE_BLOCKER_MARGIN;
-        const clampToWalkPerimeter = (point) => {
-          const px = Number.isFinite(point?.x) ? point.x : 0;
-          const pz = Number.isFinite(point?.z) ? point.z : 0;
-          const absX = Math.abs(px);
-          const absZ = Math.abs(pz);
-          const onX = absX / Math.max(HUMAN_WALK_EPS, walkHalfX);
-          const onZ = absZ / Math.max(HUMAN_WALK_EPS, walkHalfZ);
-          if (onX >= onZ) {
-            return new THREE.Vector3(
-              Math.sign(px || 1) * walkHalfX,
-              floorY,
-              THREE.MathUtils.clamp(pz, -walkHalfZ, walkHalfZ)
-            );
-          }
-          return new THREE.Vector3(
-            THREE.MathUtils.clamp(px, -walkHalfX, walkHalfX),
-            floorY,
-            Math.sign(pz || 1) * walkHalfZ
-          );
-        };
-        const pointToPerimeterT = (point) => {
-          const clamped = clampToWalkPerimeter(point);
-          const x = clamped.x;
-          const z = clamped.z;
-          const perim = 4 * (walkHalfX + walkHalfZ);
-          if (Math.abs(x + walkHalfX) < 1e-4) {
-            return THREE.MathUtils.clamp((z + walkHalfZ), 0, 2 * walkHalfZ) / perim;
-          }
-          if (Math.abs(z - walkHalfZ) < 1e-4) {
-            return (2 * walkHalfZ + THREE.MathUtils.clamp((x + walkHalfX), 0, 2 * walkHalfX)) / perim;
-          }
-          if (Math.abs(x - walkHalfX) < 1e-4) {
-            return (2 * walkHalfZ + 2 * walkHalfX + THREE.MathUtils.clamp((walkHalfZ - z), 0, 2 * walkHalfZ)) / perim;
-          }
-          return (
-            2 * walkHalfZ +
-            2 * walkHalfX +
-            2 * walkHalfZ +
-            THREE.MathUtils.clamp((walkHalfX - x), 0, 2 * walkHalfX)
-          ) / perim;
-        };
-        const perimeterTToPoint = (t) => {
-          const perim = 4 * (walkHalfX + walkHalfZ);
-          let dist = THREE.MathUtils.euclideanModulo(t, 1) * perim;
-          if (dist <= 2 * walkHalfZ) {
-            return new THREE.Vector3(-walkHalfX, floorY, -walkHalfZ + dist);
-          }
-          dist -= 2 * walkHalfZ;
-          if (dist <= 2 * walkHalfX) {
-            return new THREE.Vector3(-walkHalfX + dist, floorY, walkHalfZ);
-          }
-          dist -= 2 * walkHalfX;
-          if (dist <= 2 * walkHalfZ) {
-            return new THREE.Vector3(walkHalfX, floorY, walkHalfZ - dist);
-          }
-          dist -= 2 * walkHalfZ;
-          return new THREE.Vector3(walkHalfX - dist, floorY, -walkHalfZ);
-        };
-        const isInsideTableBlocker = (point) =>
-          Math.abs(point?.x ?? 0) < blockerHalfX && Math.abs(point?.z ?? 0) < blockerHalfZ;
-
-        const desiredRoot = chooseEdgeTarget(normalizedAim);
-        const loungeBySeat = new Map();
-        rigs.forEach((entry) => {
-          if (entry?.referee && entry.group) {
-            const halfX = TABLE.W / 2 + BALL_R * 18;
-            const halfZ = TABLE.H / 2 + BALL_R * 34;
-            const cueBallInHand = Boolean(hudState?.inHand);
-            const activeSeatSign = activeSeat === 'A' ? -1 : 1;
-            const oppositeSeatSign = -activeSeatSign;
-            const target = cueBallInHand && cueBall?.pos
-              ? new THREE.Vector3(cueBall.pos.x + BALL_R * 7, floorY, cueBall.pos.y + oppositeSeatSign * BALL_R * 10)
-              : new THREE.Vector3(TABLE.W / 2 + BALL_R * 15, floorY, oppositeSeatSign * (TABLE.H / 2 + BALL_R * 20));
-            entry.group.position.lerp(target, 1 - Math.exp(-1.6 * dtSeconds));
-            entry.group.position.x = THREE.MathUtils.clamp(entry.group.position.x, -halfX, halfX);
-            entry.group.position.z = THREE.MathUtils.clamp(entry.group.position.z, -halfZ, halfZ);
-            const lookTarget = cueBall?.pos
-              ? new THREE.Vector3(cueBall.pos.x, entry.group.position.y, cueBall.pos.y)
-              : new THREE.Vector3(0, entry.group.position.y, 0);
-            entry.group.lookAt(lookTarget);
-            return;
-          }
-          if (!entry?.lounge || !entry.group) return;
-          loungeBySeat.set(entry.seat, entry.group);
-          const glass = entry.group.userData?.glass;
-          const base = entry.group.userData?.glassBase;
-          if (glass && base) {
-            const sip = (Math.sin(nowMs * 0.00075 + (entry.seat === 'A' ? 0 : Math.PI)) + 1) * 0.5;
-            const lift = sip > 0.86 ? (sip - 0.86) / 0.14 : 0;
-            glass.position.copy(base);
-            glass.position.y += lift * BALL_R * 2.0;
-            glass.position.z += (entry.seat === 'A' ? -1 : 1) * lift * BALL_R * 1.6;
-          }
-        });
-
-        rigs.forEach((rig) => {
-          const anim = rig?.anim;
-          const human = rig?.human;
-          const seat = anim?.seat ?? rig?.seat;
-          if (!anim && !human) return;
-          const singleHumanMode = rigs.length === 1;
-          const isShooter = singleHumanMode ? true : anim?.seat === activeSeat;
-          const isHumanShooter = singleHumanMode ? true : seat === activeSeat;
-          const cameraBlend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
-          const loweredCueCamera = cameraBlend <= HUMAN_SHOOT_BLEND_THRESHOLD;
-          const draggingSlider = Boolean(sliderInstanceRef.current?.dragging);
-          const sliderPowerActive = (powerRef.current ?? 0) > 0.01;
-          let mode = 'idle';
-          if (isReplay) mode = 'idle';
-          else if (isShotActive && (singleHumanMode || seat === shotSeat) && shotAge < 420) mode = 'strike';
-          else if (isShotActive) mode = 'react';
-          else if (isHumanShooter && (loweredCueCamera || draggingSlider || sliderPowerActive)) mode = 'aim';
-          if (anim) anim.mode = mode;
-
-          if (human) {
-            const behavior = human.userData?.poolRoyaleLogic || activeHumanCharacterRef.current?.logic || POOL_ROYALE_HUMAN_LOGIC_PROFILES['rpm-current'];
-            const aimForward = new THREE.Vector3(normalizedAim.x, 0, normalizedAim.y).normalize();
-            const side = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
-            const desiredRoot = chooseBilardoHumanEdgePosition(cueWorld, aimForward, {
-              tableW: TABLE.W,
-              tableL: TABLE.H,
-              edgeMargin: (behavior.edgeMargin ?? 0.68) * POOL_ROYALE_HUMAN_UNIT_SCALE,
-              desiredShootDistance: (behavior.desiredShootDistance ?? 1.32) * POOL_ROYALE_HUMAN_UNIT_SCALE
-            }).setY(floorY);
-            const perimeterRoot = clampToWalkPerimeter(desiredRoot);
-            if (isInsideTableBlocker(perimeterRoot)) {
-              perimeterRoot.copy(clampToWalkPerimeter(perimeterRoot));
-            }
-            if (!Number.isFinite(human.walkPerimeterT)) {
-              human.walkPerimeterT = pointToPerimeterT(human.root?.position ?? perimeterRoot);
-            }
-            const humanTargetT = pointToPerimeterT(perimeterRoot);
-            const humanLoopDelta =
-              THREE.MathUtils.euclideanModulo(humanTargetT - human.walkPerimeterT + 0.5, 1) - 0.5;
-            const humanMaxStepT =
-              ((behavior.walkSpeed ?? 4.0) * POOL_ROYALE_HUMAN_UNIT_SCALE * Math.max(dtSeconds, 1 / 240)) /
-              (4 * (walkHalfX + walkHalfZ));
-            human.walkPerimeterT = THREE.MathUtils.euclideanModulo(
-              human.walkPerimeterT + THREE.MathUtils.clamp(humanLoopDelta, -humanMaxStepT, humanMaxStepT),
-              1
-            );
-            const walkRoot = perimeterTToPoint(human.walkPerimeterT);
-            const shouldRestAtChair = !isHumanShooter;
-            let walkingToChair = false;
-            let seatedAtChair = false;
-            let chairFacing = null;
-            if (shouldRestAtChair) {
-              const lounge = loungeBySeat.get(seat);
-              const chairRoot = lounge?.userData?.chairRoot;
-              if (chairRoot) {
-                walkRoot.copy(chairRoot);
-                chairFacing = lounge?.userData?.chairFacing?.clone?.() ?? new THREE.Vector3(-chairRoot.x, 0, -chairRoot.z).normalize();
-                walkingToChair = true;
-                seatedAtChair = (human.root?.position?.distanceTo?.(chairRoot) ?? Infinity) <= BALL_R * 5.5;
-              }
-            }
-            turnFlow.seatedBySeat = { ...(turnFlow.seatedBySeat || {}), [seat]: seatedAtChair };
-            characterTurnFlowRef.current = turnFlow;
-            const state = seatedAtChair
-              ? 'seated'
-              : mode === 'strike' ? 'striking' : mode === 'aim' ? 'dragging' : 'idle';
-            const draggingPower = Math.max(0, Math.min(1, powerRef.current ?? 0));
-            const strikingPower = Math.max(0, Math.min(1, shotPowerRef.current ?? draggingPower));
-            const activePower = state === 'dragging' ? draggingPower : strikingPower;
-            const humanUnitScale = POOL_ROYALE_HUMAN_UNIT_SCALE;
-            const pull = (behavior.strokePull ?? 0.42) * humanUnitScale * (1 - Math.pow(1 - activePower, 3));
-            const practiceStroke =
-              state === 'dragging'
-                ? Math.sin(nowMs * 0.012) * (behavior.practiceStroke ?? 0.035) * humanUnitScale * (0.25 + activePower * 0.75)
-                : 0;
-            const strikeNorm = state === 'striking' ? THREE.MathUtils.clamp(shotAge / (behavior.strikeMs ?? 120), 0, 1) : 0;
-            let cueBallGap = (behavior.cueGap ?? 0.012) * humanUnitScale;
-            if (state === 'dragging') cueBallGap += pull + practiceStroke;
-            else if (state === 'striking') {
-              cueBallGap = THREE.MathUtils.lerp(
-                (behavior.cueGap ?? 0.012) * humanUnitScale + pull,
-                Math.max(0.001, (behavior.cueGap ?? 0.012) * 0.1) * humanUnitScale,
-                1 - Math.pow(1 - strikeNorm, 3)
-              );
-            }
-            const bridgeBackFromBall = human?.cfg?.bridgeHandBackFromBall ?? (behavior.bridgeBack ?? 0.072) * humanUnitScale;
-            const bridgeSideOffset = human?.cfg?.bridgeHandSide ?? (behavior.bridgeSide ?? -0.024) * humanUnitScale;
-            const bridgeTarget = cueWorld
-              .clone()
-              // Put the left bridge hand on the cloth right beside the cue ball, like a real pool stance.
-              .addScaledVector(aimForward, -bridgeBackFromBall)
-              .addScaledVector(side, bridgeSideOffset)
-              .setY(TABLE_Y + TABLE.THICK + 0.006 * humanUnitScale);
-            const bridgeCuePoint = bridgeTarget
-              .clone()
-              .addScaledVector(aimForward, 0.014 * humanUnitScale)
-              .add(new THREE.Vector3(0, 0.018 * humanUnitScale, 0));
-            const cueTipShoot = cueWorld
-              .clone()
-              .addScaledVector(aimForward, -(BALL_R + cueBallGap));
-            const cueBackShoot = bridgeCuePoint
-              .clone()
-              .addScaledVector(aimForward, -(cueLen - 0.28 * humanUnitScale - BALL_R - cueBallGap))
-              .add(new THREE.Vector3(0, 0.024 * humanUnitScale, 0));
-            const cueShootDir = cueTipShoot.clone().sub(cueBackShoot).normalize();
-            const shootGripTarget = cueBackShoot
-              .clone()
-              .addScaledVector(cueShootDir, (behavior.gripFromBack ?? 0.58) * humanUnitScale);
-            if (isHumanShooter && state === 'dragging') {
-              activeHumanCueViewRef.current = {
-                cueBack: cueBackShoot.clone(),
-                bridgeTarget: bridgeTarget.clone(),
-                aimForward: aimForward.clone(),
-                side: side.clone()
-              };
-            }
-            const poseForward = chairFacing?.lengthSq?.() > 1e-6 ? chairFacing.normalize() : aimForward;
-            const standingYaw = Math.atan2(-poseForward.x, -poseForward.z);
-            const idleRight = walkRoot
-              .clone()
-              .add(new THREE.Vector3(0.31, 0.8, -0.015).multiplyScalar(humanUnitScale).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw));
-            const idleLeft = walkRoot
-              .clone()
-              .add(new THREE.Vector3(-0.18, 1.08, 0.03).multiplyScalar(humanUnitScale).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw));
-            const idleCueDir = new THREE.Vector3(0.055, 0.965, -0.13)
-              .applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw)
-              .normalize();
-            const idleCueBack = idleRight.clone().addScaledVector(idleCueDir, -0.24 * humanUnitScale);
-            const idleCueTip = idleRight.clone().addScaledVector(idleCueDir, cueLen - 0.24 * humanUnitScale);
-            const cueBack = state === 'idle' ? idleCueBack : cueBackShoot;
-            const cueTip = state === 'idle' ? idleCueTip : cueTipShoot;
-            const gripTarget = state === 'idle' ? idleRight : shootGripTarget;
-            const isFiniteVec3 = (v) =>
-              Number.isFinite(v?.x) && Number.isFinite(v?.y) && Number.isFinite(v?.z);
-            if (
-              !isFiniteVec3(walkRoot) ||
-              !isFiniteVec3(aimForward) ||
-              !isFiniteVec3(bridgeTarget) ||
-              !isFiniteVec3(gripTarget) ||
-              !isFiniteVec3(idleRight) ||
-              !isFiniteVec3(idleLeft) ||
-              !isFiniteVec3(cueBack) ||
-              !isFiniteVec3(cueTip)
-            ) {
-              return;
-            }
-            updateBilardoHumanPose(human, dtSeconds, {
-              state,
-              rootTarget: walkRoot,
-              aimForward: poseForward,
-              bridgeTarget,
-              gripTarget,
-              idleRight,
-              idleLeft,
-              cueBack,
-              cueTip,
-              power: activePower,
-              directRootTarget: walkingToChair
-            });
-            if (rig.heldCue) {
-              if (isHumanShooter) {
-                rig.heldCue.visible = false;
-              } else {
-                rig.heldCue.userData?.setFromBackTip?.(cueBack, cueTip);
-              }
-            }
-            if (!isReplay && isHumanShooter && typeof setCueStickFromHumanCuePose === 'function') {
-              setCueStickFromHumanCuePose(cueBack, cueTip);
-            }
-            return;
-          }
-
-          const targetPose = mode === 'idle' ? 0 : 1;
-          anim.poseT = THREE.MathUtils.lerp(anim.poseT ?? 0, targetPose, 1 - Math.exp(-HUMAN_POSE_LAMBDA * dtSeconds));
-
-          const seatBiasX = anim.seat === 'A' ? -TABLE.W * 0.19 : TABLE.W * 0.19;
-          const seatBiasZ = anim.seat === 'A' ? -TABLE.H * 0.72 : TABLE.H * 0.72;
-          const seatTarget = desiredRoot.clone().lerp(new THREE.Vector3(seatBiasX, floorY, seatBiasZ), 0.42);
-          const perimeterTarget = clampToWalkPerimeter(seatTarget);
-          if (!anim.rootTarget) anim.rootTarget = perimeterTarget.clone();
-          anim.rootTarget.copy(perimeterTarget);
-          if (!Number.isFinite(anim.walkPerimeterT)) {
-            anim.walkPerimeterT = pointToPerimeterT(rig.group.position);
-          }
-          const targetT = pointToPerimeterT(anim.rootTarget);
-          const loopDelta = THREE.MathUtils.euclideanModulo(targetT - anim.walkPerimeterT + 0.5, 1) - 0.5;
-          const maxStepT = (HUMAN_WALK_PERIMETER_SPEED * Math.max(dtSeconds, 1 / 240)) / (4 * (walkHalfX + walkHalfZ));
-          const stepT = THREE.MathUtils.clamp(loopDelta, -maxStepT, maxStepT);
-          anim.walkPerimeterT = THREE.MathUtils.euclideanModulo(anim.walkPerimeterT + stepT, 1);
-          const perimeterPos = perimeterTToPoint(anim.walkPerimeterT);
-          rig.group.position.copy(perimeterPos);
-          if (isInsideTableBlocker(rig.group.position)) {
-            rig.group.position.copy(clampToWalkPerimeter(rig.group.position));
-            anim.walkPerimeterT = pointToPerimeterT(rig.group.position);
-          }
-
-          const moveAmount = rig.group.position.distanceTo(anim.rootTarget);
-          anim.walkT = (anim.walkT ?? 0) + dtSeconds * (2 + Math.min(7, moveAmount * 10));
-
-          const aimForward = new THREE.Vector3(normalizedAim.x, 0, normalizedAim.y).normalize();
-          const desiredYaw = Math.atan2(-aimForward.x, -aimForward.z);
-          anim.yaw = THREE.MathUtils.lerp(anim.yaw ?? rig.group.rotation.y, desiredYaw, THREE.MathUtils.clamp(1 - Math.exp(-HUMAN_ROT_LAMBDA * dtSeconds), 0, 1));
-          rig.group.rotation.y = anim.yaw;
-
-          const side = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
-          const t = anim.poseT * anim.poseT * (3 - 2 * anim.poseT);
-          const walk = Math.sin((anim.walkT ?? 0) * 6.2) * Math.min(1, moveAmount * 12);
-          const localToWorld = (v) => v.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), anim.yaw).add(rig.group.position);
-          const scale = anim.scale || 1;
-
-          const hipCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.02, 0.98, t) * scale, THREE.MathUtils.lerp(0, 0.02, t) * scale));
-          const torsoCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.28, 1.13, t) * scale, THREE.MathUtils.lerp(0, -0.16, t) * scale));
-          const chestCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.5, 1.22, t) * scale, THREE.MathUtils.lerp(0.01, -0.38, t) * scale));
-          const neckWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.66, 1.22, t) * scale, THREE.MathUtils.lerp(0.02, -0.61, t) * scale));
-          const headCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.82, 1.27, t) * scale, THREE.MathUtils.lerp(0.04, -0.71, t) * scale));
-
-          const leftShoulderWorld = localToWorld(new THREE.Vector3(-0.22 * scale, THREE.MathUtils.lerp(1.57, 1.34, t) * scale, THREE.MathUtils.lerp(0, -0.42, t) * scale));
-          const rightShoulderWorld = localToWorld(new THREE.Vector3(0.22 * scale, THREE.MathUtils.lerp(1.57, 1.34, t) * scale, THREE.MathUtils.lerp(0, -0.35, t) * scale));
-          const leftHipWorld = localToWorld(new THREE.Vector3(-0.12 * scale, 0.93 * scale, 0.02 * scale));
-          const rightHipWorld = localToWorld(new THREE.Vector3(0.12 * scale, 0.93 * scale, 0.02 * scale));
-
-          const bridgeHandTarget = cueWorld
-            .clone()
-            .addScaledVector(aimForward, -HUMAN_BRIDGE_HAND_BACK_FROM_BALL)
-            .addScaledVector(side, HUMAN_BRIDGE_HAND_SIDE)
-            .setY(TABLE_Y + TABLE.THICK + BALL_R * 0.7);
-          const bridgeCuePoint = bridgeHandTarget
-            .clone()
-            .addScaledVector(aimForward, 0.01)
-            .add(new THREE.Vector3(0, HUMAN_BRIDGE_CUE_LIFT, 0));
-
-          const humanShotState =
-            mode === 'strike' ? 'striking' : mode === 'aim' ? 'dragging' : 'idle';
-          const draggingPower = Math.max(0, Math.min(1, powerRef.current ?? 0));
-          const strikingPower = Math.max(0, Math.min(1, shotPowerRef.current ?? draggingPower));
-          const activePower = humanShotState === 'dragging' ? draggingPower : strikingPower;
-          const pull = BALL_R * 7.6 * (1 - Math.pow(1 - activePower, 3));
-          const practiceStroke =
-            humanShotState === 'dragging'
-              ? Math.sin(nowMs * 0.012) * BALL_R * 0.65 * (0.25 + activePower * 0.75)
-              : 0;
-          const strikeNorm =
-            humanShotState === 'striking'
-              ? THREE.MathUtils.clamp(shotAge / 120, 0, 1)
-              : 0;
-          let cueBallGap = BALL_R * 1.22;
-          if (humanShotState === 'dragging') {
-            cueBallGap += pull + practiceStroke;
-          } else if (humanShotState === 'striking') {
-            cueBallGap = THREE.MathUtils.lerp(
-              BALL_R * (1.22 + (pull / BALL_R)),
-              BALL_R * 1.05,
-              1 - Math.pow(1 - strikeNorm, 3)
-            );
-          }
-          const cueTipShoot = cueWorld
-            .clone()
-            .addScaledVector(aimForward, -cueBallGap)
-            .setY(bridgeHandTarget.y + HUMAN_BRIDGE_CUE_LIFT - 0.004);
-          const cueBackShoot = bridgeCuePoint
-            .clone()
-            .addScaledVector(aimForward, -(HUMAN_CUE_LENGTH - HUMAN_BRIDGE_DIST - BALL_R - cueBallGap))
-            .add(new THREE.Vector3(0, 0.028 * scale, 0));
-          const gripHandTarget = cueTipShoot.clone().lerp(cueBackShoot, HUMAN_GRIP_RATIO);
-
-          const idleRightHandTarget = rig.group.position.clone().add(new THREE.Vector3(0.22 * scale, 1.18 * scale, 0.04 * scale).applyAxisAngle(new THREE.Vector3(0, 1, 0), anim.yaw));
-          const idleLeftHandTarget = rig.group.position.clone().add(new THREE.Vector3(-0.16 * scale, 1.1 * scale, -0.02 * scale).applyAxisAngle(new THREE.Vector3(0, 1, 0), anim.yaw));
-
-          const leftHandWorld = idleLeftHandTarget.clone().lerp(bridgeHandTarget, t);
-          const rightHandWorld = idleRightHandTarget.clone().lerp(gripHandTarget, t);
-
-          if (anim.model && !anim.pelvis) {
-            const idle = 1 - t;
-            const breath = Math.sin(nowMs * 0.0028 + (anim.seat === 'A' ? 0 : Math.PI * 0.5)) * (0.006 + idle * 0.004);
-            anim.model.position.set(0, 0.006 * breath - 0.02 * t, 0.01 * walk);
-            anim.model.rotation.set(
-              -0.11 * t - 0.024 * walk,
-              0,
-              (anim.seat === activeSeat ? -1 : 1) * 0.012 * idle
-            );
-            if (anim.bridgeHand) {
-              anim.bridgeHand.position.copy(leftHandWorld);
-              anim.bridgeHand.quaternion.copy(makeHumanoidBasis(side, aimForward));
-            }
-            if (anim.gripHand) {
-              anim.gripHand.position.copy(rightHandWorld);
-              anim.gripHand.quaternion.copy(makeHumanoidBasis(side, aimForward));
-              anim.gripHand.rotation.x += THREE.MathUtils.lerp(0.38, 1.28, t);
-            }
-            return;
-          }
-
-          const leftElbow = leftShoulderWorld.clone().lerp(leftHandWorld, 0.53).addScaledVector(new THREE.Vector3(0, 1, 0), 0.035 * t * scale).addScaledVector(side, -0.025 * t * scale);
-          const rightElbow = rightHandWorld.clone().addScaledVector(new THREE.Vector3(0, 1, 0), THREE.MathUtils.lerp(0.19, 0.49, t) * scale).addScaledVector(side, THREE.MathUtils.lerp(0.04, 0.08, t) * scale).addScaledVector(aimForward, THREE.MathUtils.lerp(-0.08, -0.02, t) * scale);
-
-          const leftFootStand = new THREE.Vector3(-0.13 * scale, 0.035 * scale, (0.03 + walk * 0.03) * scale);
-          const rightFootStand = new THREE.Vector3(0.13 * scale, 0.035 * scale, (-0.03 - walk * 0.03) * scale);
-          const frontFootShoot = new THREE.Vector3(-0.22 * scale, 0.035 * scale, -0.34 * scale);
-          const rearFootShoot = new THREE.Vector3(0.26 * scale, 0.035 * scale, 0.34 * scale);
-          const leftFootWorld = localToWorld(leftFootStand.lerp(frontFootShoot, t));
-          const rightFootWorld = localToWorld(rightFootStand.lerp(rearFootShoot, t));
-
-          const leftKnee = leftHipWorld.clone().lerp(leftFootWorld, 0.53).addScaledVector(new THREE.Vector3(0, 1, 0), THREE.MathUtils.lerp(0.18, 0.11, t) * scale).addScaledVector(aimForward, 0.04 * t * scale);
-          const rightKnee = rightHipWorld.clone().lerp(rightFootWorld, 0.52).addScaledVector(new THREE.Vector3(0, 1, 0), THREE.MathUtils.lerp(0.18, 0.08, t) * scale).addScaledVector(aimForward, -0.03 * t * scale);
-
-          const bodyQ = makeHumanoidBasis(side, aimForward);
-          anim.pelvis.position.copy(hipCenterWorld);
-          anim.pelvis.quaternion.copy(bodyQ);
-          anim.pelvis.rotation.x += THREE.MathUtils.lerp(0, -0.08, t);
-
-          anim.torso.position.copy(torsoCenterWorld);
-          anim.torso.quaternion.copy(bodyQ);
-          anim.torso.rotation.x += THREE.MathUtils.lerp(0, -0.28, t);
-
-          anim.chest.position.copy(chestCenterWorld);
-          anim.chest.quaternion.copy(bodyQ);
-          anim.chest.rotation.x += THREE.MathUtils.lerp(0, -0.62, t);
-
-          setHumanoidSegment(anim.neck, neckWorld.clone().addScaledVector(new THREE.Vector3(0, 1, 0), -0.06 * scale), neckWorld.clone().addScaledVector(new THREE.Vector3(0, 1, 0), 0.06 * scale), 0.045 * scale);
-          anim.head.position.copy(headCenterWorld);
-          anim.head.quaternion.copy(bodyQ);
-          anim.head.rotation.x += THREE.MathUtils.lerp(0, -0.2, t);
-
-          setHumanoidSegment(anim.leftUpperArm, leftShoulderWorld, leftElbow, 0.044 * scale);
-          setHumanoidSegment(anim.leftLowerArm, leftElbow, leftHandWorld, 0.036 * scale);
-          setHumanoidSegment(anim.rightUpperArm, rightShoulderWorld, rightElbow, 0.045 * scale);
-          setHumanoidSegment(anim.rightLowerArm, rightElbow, rightHandWorld, 0.037 * scale);
-
-          setHumanoidSegment(anim.leftUpperLeg, leftHipWorld, leftKnee, 0.058 * scale);
-          setHumanoidSegment(anim.leftLowerLeg, leftKnee, leftFootWorld, 0.052 * scale);
-          setHumanoidSegment(anim.rightUpperLeg, rightHipWorld, rightKnee, 0.058 * scale);
-          setHumanoidSegment(anim.rightLowerLeg, rightKnee, rightFootWorld, 0.052 * scale);
-
-          anim.bridgeHand.position.copy(leftHandWorld);
-          anim.bridgeHand.quaternion.copy(makeHumanoidBasis(side, aimForward));
-          anim.gripHand.position.copy(rightHandWorld);
-          anim.gripHand.quaternion.copy(makeHumanoidBasis(side, aimForward));
-          anim.gripHand.rotation.x += THREE.MathUtils.lerp(0.3, 1.2, t);
-
-          anim.leftFoot.position.copy(leftFootWorld).add(new THREE.Vector3(0, -0.02 * scale, 0));
-          anim.rightFoot.position.copy(rightFootWorld).add(new THREE.Vector3(0, -0.02 * scale, 0));
-          anim.leftFoot.quaternion.copy(bodyQ);
-          anim.rightFoot.quaternion.copy(bodyQ);
-          anim.leftFoot.rotation.y += -0.24 * t;
-          anim.rightFoot.rotation.y += 0.16 * t;
-
-        });
-      };
-      void spawnPlayerCharacters();
       setSecondaryTableReady(true);
       clothMat = tableCloth;
       cushionMat = tableCushion;
@@ -27362,22 +27187,6 @@ const shotPowerRef = useRef(0);
       };
       const cueTipLocal = new THREE.Vector3(0, 0, -cueLen / 2);
       const cueButtLocal = new THREE.Vector3(0, 0, cueLen / 2);
-      setCueStickFromHumanCuePose = (back, tip) => {
-        if (!cueStick || !back || !tip) return;
-        const dir = tip.clone().sub(back);
-        if (dir.lengthSq() < 1e-8) return;
-        const n = dir.normalize();
-        cueStick.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), n);
-        cueStick.position.copy(back).add(tip).multiplyScalar(0.5);
-        cueStick.visible = true;
-        cueAnimating = true;
-        const info = cueStick.userData?.buttTilt;
-        if (info) {
-          info.current = cueStick.rotation.x;
-          info.extra = cueStick.rotation.x - (info.angle ?? 0);
-          info.buttHeightOffset = Math.max(0, back.y - tip.y);
-        }
-      };
       const resolveCueButtTiltSign = (group, tilt) => {
         if (!group || !Number.isFinite(tilt) || tilt === 0) return 1;
         const rotY = group.rotation.y;
@@ -27667,6 +27476,7 @@ const shotPowerRef = useRef(0);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
       table.add(cueStick);
+      const humanRig = null; // Human character/rig disabled: cue stick now stays table-driven only.
       const cueShadow = ENABLE_CUE_CLOTH_SHADOW
         ? (() => {
             const shadowWidth = Math.max(BALL_R * CUE_SHADOW_WIDTH_RATIO, BALL_R * 0.4);
@@ -28058,13 +27868,13 @@ const shotPowerRef = useRef(0);
       const clampInHandPosition = (point, { ignoreBaulk = false } = {}) => {
         if (!point) return null;
         const clamped = point.clone();
-        const limitX = PLAY_W / 2 - BALL_R;
+        const limitX = RAIL_LIMIT_X;
         clamped.x = THREE.MathUtils.clamp(clamped.x, -limitX, limitX);
         if (allowFullTableInHand() || ignoreBaulk) {
-          const limitZ = PLAY_H / 2 - BALL_R;
+          const limitZ = RAIL_LIMIT_Y;
           clamped.y = THREE.MathUtils.clamp(clamped.y, -limitZ, limitZ);
         } else {
-          const limitZ = PLAY_H / 2 - BALL_R;
+          const limitZ = RAIL_LIMIT_Y;
           clamped.y = THREE.MathUtils.clamp(clamped.y, -limitZ, baulkZ);
         }
         return clamped;
@@ -28230,7 +28040,7 @@ const shotPowerRef = useRef(0);
           );
           baseCandidates.push(candidate);
         }
-        const limitX = PLAY_W / 2 - BALL_R;
+        const limitX = RAIL_LIMIT_X;
         const step = BALL_R * 2.1;
         for (let x = step; x <= limitX; x += step) {
           baseCandidates.push(new THREE.Vector2(x, forwardBias));
@@ -28255,8 +28065,8 @@ const shotPowerRef = useRef(0);
         const gridCols = Math.max(8, Math.round((limitX * 2) / (BALL_R * 1.25)));
         const fullTable = allowFullTableInHand();
         const gridRows = fullTable ? 8 : 5;
-        const gridStart = fullTable ? -PLAY_H / 2 + BALL_R : forwardBias;
-        const gridEnd = fullTable ? PLAY_H / 2 - BALL_R : baulkZ;
+        const gridStart = fullTable ? -RAIL_LIMIT_Y : forwardBias;
+        const gridEnd = fullTable ? RAIL_LIMIT_Y : baulkZ;
         for (let row = 0; row <= gridRows; row++) {
           const z = THREE.MathUtils.lerp(gridStart, gridEnd, row / gridRows);
           for (let col = 0; col <= gridCols; col++) {
@@ -29007,8 +28817,6 @@ const shotPowerRef = useRef(0);
         }
         shotPowerRef.current = clampedPower;
         powerRef.current = clampedPower;
-        characterShotStartedAtRef.current = shotStartTime;
-        characterShotShooterRef.current = currentHud?.turn === 1 ? 'B' : 'A';
         const strokeStyle = cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
         const strokeProfile = resolveCueStrokeProfile(strokeStyle, clampedPower);
         const rawSpin = applySpinConstraints(aimDir, true);
@@ -33763,6 +33571,44 @@ const shotPowerRef = useRef(0);
           updateChalkVisibility(null);
         }
 
+        const cueBallWorldForHuman = cue?.pos
+          ? new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y)
+          : cueStickAnchorRef.current.clone();
+        const aimForwardForHuman = new THREE.Vector3(aimDir.x, 0, aimDir.y);
+        if (aimForwardForHuman.lengthSq() < 1e-8) {
+          aimForwardForHuman.set(0, 0, 1);
+        } else {
+          aimForwardForHuman.normalize();
+        }
+        const cueCameraLoweredForHuman = THREE.MathUtils.clamp(
+          cameraBlendRef.current ?? 1,
+          0,
+          1
+        ) <= POOL_HUMAN_CUE_CAMERA_POSE_BLEND_MAX;
+        const humanShotState = sliderInstanceRef.current?.dragging && cueCameraLoweredForHuman
+          ? 'dragging'
+          : shooting || cueAnimating || aiTakingShot || (ENABLE_CUE_STROKE_ANIMATION && cueStrokeStateRef.current)
+            ? 'striking'
+            : replayActive
+              ? 'rolling'
+              : 'idle';
+        if (humanRig) {
+          updatePoolRoyaleHumanFrame(
+            humanRig,
+            Math.min(0.033, Math.max(0.001, deltaSeconds || 1 / 60)),
+            humanShotState,
+            cueBallWorldForHuman,
+            aimForwardForHuman,
+            cueStick,
+            cueLen,
+            THREE.MathUtils.clamp(powerRef.current ?? 0, 0, 1)
+          );
+          if (humanShotState === 'idle' || humanShotState === 'rolling') {
+            movePoolRoyaleCueToHumanHand(humanRig, cueStick);
+          }
+        }
+        syncCueShadow();
+
         if (!shouldSlowAim) {
           const precisionArea = chalkAreaRef.current;
           if (precisionArea) precisionArea.visible = false;
@@ -33900,8 +33746,9 @@ const shotPowerRef = useRef(0);
               b.launchDir = null;
             }
             const railImpact = reflectRails(b);
-            if (railImpact && b.id === 'cue') b.impacted = true;
-            if (railImpact && shotContextRef.current.contactMade) {
+            const railCollisionImpact = railImpact && !railImpact.correctiveOnly;
+            if (railCollisionImpact && b.id === 'cue') b.impacted = true;
+            if (railCollisionImpact && shotContextRef.current.contactMade) {
               shotContextRef.current.cushionAfterContact = true;
               shotContextRef.current.railContactCountAfterContact =
                 (shotContextRef.current.railContactCountAfterContact ?? 0) + 1;
@@ -33920,11 +33767,11 @@ const shotPowerRef = useRef(0);
                 enterTopView(true, { variant: 'rail' });
               }
             }
-            if (railImpact) {
+            if (railCollisionImpact) {
               applyRailImpulse(b, railImpact);
               applyRailSpinResponse(b, railImpact);
             }
-            if (railImpact) {
+            if (railCollisionImpact) {
               const nowRail = performance.now();
               const lastPlayed = railSoundTimeRef.current.get(b.id) ?? 0;
               if (nowRail - lastPlayed > RAIL_HIT_SOUND_COOLDOWN_MS) {
@@ -34991,17 +34838,14 @@ const shotPowerRef = useRef(0);
           prevCollisions = newCollisions;
           const fit = fitRef.current;
           if (fit && cue?.active && !shooting) {
-            const limX =
-              PLAY_W / 2 - BALL_R - SIDE_RAIL_INNER_THICKNESS;
-            const limY =
-              PLAY_H / 2 - BALL_R - SIDE_RAIL_INNER_THICKNESS;
+            const limX = RAIL_LIMIT_X;
+            const limY = RAIL_LIMIT_Y;
             const edgeX = Math.max(0, Math.abs(cue.pos.x) - (limX - 5));
             const edgeY = Math.max(0, Math.abs(cue.pos.y) - (limY - 5));
             const edge = Math.min(1, Math.max(edgeX, edgeY) / 5);
             fit(1 + edge * 0.08);
           }
           syncCueShadow();
-          updatePlayerCharacters(now, deltaSeconds);
           const frameCamera = updateCamera();
           const handIconEl = inHandIconRef.current;
           if (handIconEl) {
@@ -35219,10 +35063,6 @@ const shotPowerRef = useRef(0);
         clearDecorTablesRef.current = () => {};
         clearHospitalityLayoutRef.current?.();
         hospitalityGroupsRef.current = [];
-        playerCharacterRigsRef.current.forEach((rig) => {
-          if (rig?.group?.parent) rig.group.parent.remove(rig.group);
-        });
-        playerCharacterRigsRef.current = [];
         updateHospitalityLayoutRef.current = () => {};
         clearHospitalityLayoutRef.current = () => {};
         chessBoardTextureRef.current?.dispose?.();
@@ -35270,6 +35110,12 @@ const shotPowerRef = useRef(0);
         disposeEnvironmentRef.current = null;
         envTextureRef.current = null;
         envSkyboxRef.current = null;
+        if (floorShadowCatcherRef.current) {
+          floorShadowCatcherRef.current.parent?.remove(floorShadowCatcherRef.current);
+          floorShadowCatcherRef.current.geometry?.dispose?.();
+          floorShadowCatcherRef.current.material?.dispose?.();
+          floorShadowCatcherRef.current = null;
+        }
         envSkyboxTextureRef.current = null;
         cueGalleryStateRef.current.active = false;
         cueGalleryStateRef.current.rackId = null;
@@ -36419,7 +36265,7 @@ const shotPowerRef = useRef(0);
           type="button"
           onClick={() => setConfigOpen((prev) => !prev)}
           aria-expanded={configOpen}
-          aria-controls="snooker-config-panel"
+          aria-controls="pool-royale-config-panel"
           style={{
             transform: `scale(${uiScale * 1.08})`,
             transformOrigin: isPortrait ? 'bottom left' : 'top left'
@@ -36434,15 +36280,15 @@ const shotPowerRef = useRef(0);
         </button>
         {configOpen && (
           <div
-            id="snooker-config-panel"
+            id="pool-royale-config-panel"
             ref={configPanelRef}
-            className={`pointer-events-auto w-72 max-w-[80vw] rounded-2xl border border-emerald-400/40 bg-black/85 p-4 text-xs text-white shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur ${
+            className={`pointer-events-auto w-[min(92vw,26rem)] rounded-3xl border border-emerald-400/45 bg-slate-950/90 p-4 text-xs text-white shadow-[0_24px_58px_rgba(0,0,0,0.68)] backdrop-blur ${
               isPortrait ? 'mt-2 max-h-[56vh] overflow-y-auto' : 'mt-2'
             }`}
           >
             <div className="flex items-center justify-between gap-4">
-              <span className="text-[10px] uppercase tracking-[0.45em] text-emerald-200/70">
-                Table Setup
+              <span className="text-[10px] uppercase tracking-[0.45em] text-emerald-200/80">
+                Pool Royale Menu
               </span>
               <button
                 type="button"
@@ -36462,38 +36308,10 @@ const shotPowerRef = useRef(0);
                 </svg>
               </button>
             </div>
-            <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Human Pool Player
-                </h3>
-                <div className="mt-2 grid grid-cols-2 gap-1.5">
-                  {POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.map((option, index) => {
-                    const active = option.id === humanCharacterId;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setHumanCharacterId(option.id)}
-                        aria-pressed={active}
-                        title={`${option.label} • ${option.summary}`}
-                        className={`min-h-[3.25rem] rounded-xl border px-2.5 py-1.5 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        <span className="block truncate text-[10px] font-black uppercase tracking-[0.18em]">
-                          {index + 1}. {option.logicLabel}
-                        </span>
-                        <span className={`mt-0.5 block text-[8px] font-bold uppercase tracking-[0.12em] ${active ? 'text-black/65' : 'text-white/58'}`}>
-                          feet planted • table-facing
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+            <div className="mt-3 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 px-3 py-2 text-[11px] font-semibold leading-relaxed text-emerald-50/85">
+              Change only the part you want. The Showood table stays loaded while cloth, rails, pockets, chrome, cue, and room options update live.
+            </div>
+            <div className="mt-4 max-h-[min(64vh,34rem)] space-y-4 overflow-y-auto pr-1">
               {ENABLE_SHOT_REPLAY ? (
                 <div>
                   <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
@@ -36537,84 +36355,6 @@ const shotPowerRef = useRef(0);
                   </button>
                 </div>
               ) : null}
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Table Finish
-                </h3>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {availableTableFinishes.map((option) => {
-                    const active = option.id === tableFinishId;
-                    const thumb = option.thumbnail;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setTableFinishId(option.id)}
-                        aria-pressed={active}
-                        className={`flex min-w-[9rem] flex-1 items-center justify-between gap-3 rounded-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
-                            : 'bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        <span className="truncate">{option.label}</span>
-                        {thumb ? (
-                          <img
-                            src={thumb}
-                            alt={option.label}
-                            className="h-6 w-10 rounded-lg border border-white/20 object-cover"
-                            loading="lazy"
-                          />
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Table Base
-                </h3>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {availableTableBases.map((option) => {
-                    const active = option.id === tableBaseId;
-                    const swatchA = option.swatches?.[0] ?? '#0f172a';
-                    const swatchB = option.swatches?.[1] ?? '#1f2937';
-                    const thumb = option.thumbnail;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setTableBaseId(option.id)}
-                        aria-pressed={active}
-                        className={`flex min-w-[9rem] flex-1 items-center justify-between gap-3 rounded-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
-                            : 'bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        <span className="truncate">{option.name}</span>
-                        {thumb ? (
-                          <img
-                            src={thumb}
-                            alt={option.name}
-                            className="h-6 w-10 rounded-lg border border-white/25 object-cover"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <span
-                            className="h-5 w-8 rounded-lg border border-white/25"
-                            aria-hidden="true"
-                            style={{
-                              background: `linear-gradient(135deg, ${swatchA}, ${swatchB})`
-                            }}
-                          />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   HDR Environment
@@ -36693,42 +36433,164 @@ const shotPowerRef = useRef(0);
               </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Chrome Plate Shape
+                  Rail Markings
                 </h3>
-                <div className="mt-2 grid grid-cols-1 gap-2">
-                  {availableChromePlateStyles.map((option) => {
-                    const active = option.id === chromePlateStyleId;
-                    const swatchA = option.swatches?.[0] ?? '#d6d8dc';
-                    const swatchB = option.swatches?.[1] ?? '#d4af37';
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  {RAIL_MARKER_SHAPE_OPTIONS.map((option) => {
+                    const active = option.id === railMarkerShapeId;
                     return (
                       <button
                         key={option.id}
                         type="button"
-                        onClick={() => setChromePlateStyleId(option.id)}
+                        onClick={() => setRailMarkerShapeId(option.id)}
                         aria-pressed={active}
-                        className={`flex items-center justify-between gap-3 rounded-2xl border px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                        className={`rounded-full border px-2 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
                           active
-                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_18px_rgba(16,185,129,0.55)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_14px_rgba(16,185,129,0.45)]'
+                            : 'border-white/20 bg-white/10 text-white/75 hover:bg-white/20'
                         }`}
                       >
-                        <span className="flex flex-col gap-0.5">
-                          <span>{option.label}</span>
-                          <span className="text-[9px] font-medium normal-case tracking-normal opacity-75">
-                            {option.description}
-                          </span>
-                        </span>
-                        <span
-                          className="h-6 w-10 rounded-lg border border-white/30"
-                          aria-hidden="true"
-                          style={{
-                            background: `linear-gradient(135deg, ${swatchA}, ${swatchB})`
-                          }}
-                        />
+                        {option.label}
                       </button>
                     );
                   })}
                 </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {availableRailMarkerColors.map((option) => {
+                    const active = option.id === railMarkerColorId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setRailMarkerColorId(option.id)}
+                        aria-pressed={active}
+                        className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="flex items-center justify-center gap-2">
+                          <span
+                            className="h-3.5 w-3.5 rounded-full border border-white/40"
+                            style={{ backgroundColor: toHexColor(option.color) }}
+                            aria-hidden="true"
+                          />
+                          {option.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="rounded-3xl border border-emerald-300/20 bg-white/[0.04] p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                      Table Personalisation
+                    </h3>
+                    <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/55">
+                      Select a table part, then choose the unlocked finish for that part.
+                    </p>
+                  </div>
+                  <span className="rounded-full border border-emerald-200/30 px-2 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-emerald-100/70">
+                    Showood
+                  </span>
+                </div>
+                <div className="mt-3 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+                  {tablePersonalizationSections.map((section) => {
+                    const selectedSection = section.key === activeTablePersonalizationPart;
+                    return (
+                      <button
+                        key={section.key}
+                        type="button"
+                        onClick={() => setActiveTablePersonalizationPart(section.key)}
+                        className={`whitespace-nowrap rounded-full border px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          selectedSection
+                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_14px_rgba(16,185,129,0.45)]'
+                            : 'border-white/15 bg-white/5 text-white/70 hover:border-white/30 hover:text-white'
+                        }`}
+                      >
+                        {section.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {activeTablePersonalizationSection ? (
+                  <div className="mt-3 max-h-64 overflow-y-auto pr-1">
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-white/60">
+                        {activeTablePersonalizationSection.label}
+                      </p>
+                      {activeTablePersonalizationSection.chromeLinked ? (
+                        <span className="text-[9px] uppercase tracking-[0.18em] text-emerald-100/55">
+                          linked to chrome plates
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {activeTablePersonalizationSection.options.map((option) => {
+                        const part = activeTablePersonalizationSection.key;
+                        const chromeLinked = activeTablePersonalizationSection.chromeLinked;
+                        const selected = part === 'cloth'
+                          ? clothColorId
+                          : part === 'topWoodRail' || part === 'leg' || part === 'baseCornerBlock'
+                            ? tableFinishId
+                            : chromeLinked
+                              ? (chromeColorId === 'gold' ? 'gold' : 'chrome')
+                              : normalizeShowoodTableStyle(showoodTableStyle)[part];
+                        const active = option.id === selected;
+                        return (
+                          <button
+                            key={`${part}-${option.id}`}
+                            type="button"
+                            onClick={() => {
+                              if (part === 'cloth') {
+                                setClothColorId(option.id);
+                                setShowoodTableStyle((current) =>
+                                  normalizeShowoodTableStyle({ ...current, cushion: option.id })
+                                );
+                              } else if (part === 'topWoodRail' || part === 'leg' || part === 'baseCornerBlock') {
+                                setTableFinishId(option.id);
+                                setShowoodTableStyle((current) =>
+                                  normalizeShowoodTableStyle({ ...current, [part]: option.id })
+                                );
+                              } else if (chromeLinked) {
+                                setChromeColorId(option.id === 'gold' ? 'gold' : 'chrome');
+                              } else {
+                                setShowoodTableStyle((current) =>
+                                  normalizeShowoodTableStyle({ ...current, [part]: option.id })
+                                );
+                              }
+                            }}
+                            aria-pressed={active}
+                            className={`flex flex-col items-center justify-between gap-2 rounded-2xl border p-2 text-center text-[10px] font-semibold uppercase tracking-[0.16em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                              active
+                                ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                                : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                            }`}
+                          >
+                            {option.thumbnail ? (
+                              <img
+                                src={option.thumbnail}
+                                alt={option.label}
+                                className="h-12 w-full rounded-xl border border-white/20 object-cover"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <span
+                                className="h-12 w-full rounded-xl border border-white/30"
+                                style={{ backgroundColor: option.color }}
+                                aria-hidden="true"
+                              />
+                            )}
+                            <span className="line-clamp-2">{option.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
               </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
@@ -36767,7 +36629,7 @@ const shotPowerRef = useRef(0);
               {availableClothOptions.length > 0 ? (
                 <div>
                   <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                    Cloth Color
+                    Cloth Library
                   </h3>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {availableClothOptions.map((option) => {
@@ -36852,58 +36714,6 @@ const shotPowerRef = useRef(0);
                   </div>
                 </div>
               ) : null}
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Rail Markers
-                </h3>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {RAIL_MARKER_SHAPE_OPTIONS.map((option) => {
-                    const active = option.id === railMarkerShapeId;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setRailMarkerShapeId(option.id)}
-                        aria-pressed={active}
-                        className={`flex-1 min-w-[7rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {availableRailMarkerColors.map((option) => {
-                    const active = option.id === railMarkerColorId;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setRailMarkerColorId(option.id)}
-                        aria-pressed={active}
-                        className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        <span className="flex items-center justify-center gap-2">
-                          <span
-                            className="h-3.5 w-3.5 rounded-full border border-white/40"
-                            style={{ backgroundColor: toHexColor(option.color) }}
-                            aria-hidden="true"
-                          />
-                          {option.label}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Graphics
@@ -37513,7 +37323,7 @@ const shotPowerRef = useRef(0);
             type="button"
             onClick={() => setConfigOpen((prev) => !prev)}
             aria-expanded={configOpen}
-            aria-controls="snooker-config-panel"
+            aria-controls="pool-royale-config-panel"
             className="pointer-events-auto flex h-[3.15rem] w-[3.15rem] items-center justify-center rounded-[14px] border-none bg-transparent p-0 text-[1.5rem] text-white shadow-none"
             aria-label={configOpen ? 'Close game settings menu' : 'Open game settings menu'}
           >
@@ -37823,6 +37633,7 @@ const shotPowerRef = useRef(0);
         </div>
       )}
 
+
       {err && (
         <div className="pointer-events-none absolute left-1/2 top-4 z-50 -translate-x-1/2 px-4">
           <div className="pointer-events-auto flex max-w-xl items-center gap-2 rounded-2xl border border-red-400/50 bg-red-900/85 px-4 py-3 text-xs font-semibold text-white shadow-[0_16px_34px_rgba(0,0,0,0.5)] backdrop-blur">
@@ -38065,11 +37876,6 @@ export default function PoolRoyale() {
     const params = new URLSearchParams(location.search);
     const requested = params.get('tableModel');
     if (requested) return resolvePoolRoyaleTableModel(requested).id;
-    try {
-      return resolvePoolRoyaleTableModel(
-        window.localStorage?.getItem(POOL_ROYALE_TABLE_MODEL_STORAGE_KEY)
-      ).id;
-    } catch {}
     return resolvePoolRoyaleTableModel().id;
   }, [location.search]);
   const mode = useMemo(() => {
