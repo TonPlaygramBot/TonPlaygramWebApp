@@ -1837,7 +1837,7 @@ const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
 const SHOT_POWER_BOOST = 1.5; // increase overall shot power by 25%
-const SHOT_GLOBAL_POWER_SCALE = 0.84; // restore softer shot pace so cue-ball travel matches the previous tuning window
+const SHOT_GLOBAL_POWER_SCALE = 0.8; // trim Pool Royale shot pace a bit so cue-ball travel is slightly softer
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -11236,6 +11236,9 @@ export function Table3D(
     });
   });
 
+  const hideGeneratedRailMarkers = Boolean(
+    resolvedTableOptions?.tableModel?.hideGeneratedRailMarkers
+  );
   let activeRailMarkerStyle =
     railMarkerStyle && typeof railMarkerStyle === 'object'
       ? {
@@ -11360,8 +11363,10 @@ export function Table3D(
     });
     activeRailMarkerStyle = { shape: shapeId, colorId: colorOpt.id };
   };
-  applyRailMarkerStyleFn(activeRailMarkerStyle);
-  railsGroup.add(railMarkerGroup);
+  if (!hideGeneratedRailMarkers) {
+    applyRailMarkerStyleFn(activeRailMarkerStyle);
+    railsGroup.add(railMarkerGroup);
+  }
 
   const shortRailWordmarkTexture = createBrandPlateLabelTexture({
     width: 2048,
@@ -13684,6 +13689,21 @@ function mountPoolRoyaleExternalTableModel({
       ...finishParts.pocketRimMeshes,
       ...pocketMeshes
     ].forEach(markGeneratedCushionsAndJawsHiddenByExternalTable);
+  }
+  const shouldKeepGeneratedPocketsAndJaws = Boolean(
+    resolvedTableOptions?.tableModel?.keepGeneratedPocketsAndJaws
+  );
+  if (shouldKeepGeneratedPocketsAndJaws) {
+    [
+      ...finishParts.pocketJawMeshes,
+      ...finishParts.pocketRimMeshes,
+      ...pocketMeshes
+    ].forEach((object) => {
+      if (!object?.userData) return;
+      object.userData.externalTableReplaceableSurface = false;
+      object.userData.externalTableKeepVisible = true;
+      delete object.userData.externalTableHideWhenMounted;
+    });
   }
   const setGeneratedVisualsVisible = (visible) => {
     generatedVisualObjects.forEach((object) => {

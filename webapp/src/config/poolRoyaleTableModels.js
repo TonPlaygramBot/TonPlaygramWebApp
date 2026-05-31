@@ -30,6 +30,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     cushionUsesClothFinish: false,
     hideGeneratedCushionsAndJaws: false,
     hideGeneratedPocketsAndJaws: false,
+    keepGeneratedPocketsAndJaws: true,
     preserveSourceTextureRoles: [],
     preserveOriginalSurfaceRoles: ['trim', 'wood'],
     hideSurfaceRoles: ['trim', 'wood', 'cushion', 'pocket'],
@@ -61,7 +62,8 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     preserveOriginalSurfaceRoles: [],
     tintOriginalTrimGold: false,
     forceGeneratedChromePlates: false,
-    hideSurfaceRoles: []
+    hideSurfaceRoles: [],
+    hideGeneratedRailMarkers: true
   }
 ]);
 
