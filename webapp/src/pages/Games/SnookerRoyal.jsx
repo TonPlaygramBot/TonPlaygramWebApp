@@ -6183,22 +6183,6 @@ function distanceToTableEdge(pos, dir) {
   return minT;
 }
 
-function guideEndAtTableEdge(start, dir, fallbackDistance = BALL_R * 2) {
-  const guideDir = dir.clone();
-  if (guideDir.lengthSq() < 1e-8) return start.clone();
-  guideDir.normalize();
-  const dir2 = new THREE.Vector2(guideDir.x, guideDir.z);
-  const start2 = new THREE.Vector2(start.x, start.z);
-  const edgeDistance = distanceToTableEdge(start2, dir2);
-  const travel = Number.isFinite(edgeDistance)
-    ? edgeDistance
-    : Math.max(fallbackDistance, 0);
-  const end = start.clone().add(guideDir.multiplyScalar(Math.max(travel, 0)));
-  end.x = THREE.MathUtils.clamp(end.x, -RAIL_LIMIT_X, RAIL_LIMIT_X);
-  end.z = THREE.MathUtils.clamp(end.z, -RAIL_LIMIT_Y, RAIL_LIMIT_Y);
-  return end;
-}
-
 function applyAxisClearance(
   limits,
   key,
@@ -7256,9 +7240,9 @@ function calcTarget(cue, dir, balls) {
     if (contactNormal.lengthSq() > 1e-8) contactNormal.normalize();
     else contactNormal.copy(dirNorm);
     targetDir = contactNormal.clone();
-    const projected = Math.max(0, dirNorm.dot(targetDir));
+    const projected = dirNorm.dot(targetDir);
     cueDir = dirNorm.clone().sub(targetDir.clone().multiplyScalar(projected));
-    if (cueDir.lengthSq() > 1e-6) cueDir.normalize();
+    if (cueDir.lengthSq() > 1e-8) cueDir.normalize();
     else cueDir = null;
   } else if (railNormal) {
     const n = railNormal.clone().normalize();
@@ -26133,10 +26117,9 @@ const powerRef = useRef(hud.power);
           } else {
             aimFocusRef.current = null;
           }
-          const hasSpinDrivenCueFollow = Math.abs(physicsSpin.y || 0) > 1e-4;
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
-            : (hasSpinDrivenCueFollow && (physicsSpin.y || 0) < 0 ? dir.clone().negate() : dir.clone());
+            : dir.clone();
           const cueFollowDirSpinAdjusted = cueFollowDir.clone();
           const spinVerticalInfluence = (physicsSpin.y || 0) * 0.68;
           const backSpinWeight = Math.max(0, -(physicsSpin.y || 0));
@@ -26150,9 +26133,11 @@ const powerRef = useRef(hud.power);
           }
           const cueFollowLength =
             BALL_R * (12 + powerStrength * 18) * (1 + spinVerticalInfluence * 0.4);
-          const followEnd = guideEndAtTableEdge(end, cueFollowDirSpinAdjusted, cueFollowLength);
+          const followEnd = end
+            .clone()
+            .add(cueFollowDirSpinAdjusted.clone().multiplyScalar(cueFollowLength));
           cueAfterGeom.setFromPoints([end, followEnd]);
-          cueAfter.visible = Boolean(cueDir || hasSpinDrivenCueFollow);
+          cueAfter.visible = true;
           const cueBackwards = cueFollowDirSpinAdjusted.dot(dir) < 0;
           cueAfter.material.color.setHex(cueBackwards ? 0xff3b3b : 0x7ce7ff);
           cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
@@ -26312,7 +26297,10 @@ const powerRef = useRef(hud.power);
               BALL_CENTER_Y,
               targetBall.pos.y
             );
-            const tEnd = guideEndAtTableEdge(targetStart, tDir, travelScale);
+            const distanceScale = travelScale;
+            const tEnd = targetStart
+              .clone()
+              .add(tDir.clone().multiplyScalar(distanceScale));
             targetGeom.setFromPoints([targetStart, tEnd]);
             target.material.color.setHex(0xffd166);
             target.material.opacity = 0.65 + 0.3 * powerStrength;
@@ -26321,7 +26309,9 @@ const powerRef = useRef(hud.power);
           } else if (railNormal && cueDir) {
             const bounceDir = new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize();
             const bounceLength = BALL_R * (12 + powerStrength * 18);
-            const bounceEnd = guideEndAtTableEdge(end, bounceDir, bounceLength);
+            const bounceEnd = end
+              .clone()
+              .add(bounceDir.clone().multiplyScalar(bounceLength));
             targetGeom.setFromPoints([end, bounceEnd]);
             target.material.color.setHex(0x7ce7ff);
             target.material.opacity = 0.35 + 0.25 * powerStrength;
@@ -26384,10 +26374,9 @@ const powerRef = useRef(hud.power);
             end.clone().add(perp.clone().multiplyScalar(-AIM_TICK_HALF_LENGTH))
           ]);
           tick.visible = true;
-          const hasSpinDrivenCueFollow = Math.abs(remotePhysicsSpin.y || 0) > 1e-4;
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
-            : (hasSpinDrivenCueFollow && (remotePhysicsSpin.y || 0) < 0 ? baseDir.clone().negate() : baseDir.clone());
+            : baseDir.clone();
           const cueFollowDirSpinAdjusted = cueFollowDir.clone();
           const spinVerticalInfluence = (remotePhysicsSpin.y || 0) * 0.68;
           const backSpinWeight = Math.max(0, -(remotePhysicsSpin.y || 0));
@@ -26401,9 +26390,11 @@ const powerRef = useRef(hud.power);
           }
           const cueFollowLength =
             BALL_R * (12 + powerStrength * 18) * (1 + spinVerticalInfluence * 0.4);
-          const followEnd = guideEndAtTableEdge(end, cueFollowDirSpinAdjusted, cueFollowLength);
+          const followEnd = end
+            .clone()
+            .add(cueFollowDirSpinAdjusted.clone().multiplyScalar(cueFollowLength));
           cueAfterGeom.setFromPoints([end, followEnd]);
-          cueAfter.visible = Boolean(cueDir || hasSpinDrivenCueFollow);
+          cueAfter.visible = true;
           const cueBackwards = cueFollowDirSpinAdjusted.dot(baseDir) < 0;
           cueAfter.material.color.setHex(cueBackwards ? 0xff3b3b : 0x7ce7ff);
           cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
