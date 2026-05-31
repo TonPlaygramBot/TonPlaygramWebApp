@@ -35,6 +35,8 @@ import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import {
   POOL_ROYALE_TABLE_MODEL_STORAGE_KEY,
+  POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS,
+  POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE,
   resolvePoolRoyaleTableModel
 } from '../../config/poolRoyaleTableModels.js';
 import { resolveTableSize as resolveSnookerTableSize } from '../../config/snookerClubTables.js';
@@ -12137,6 +12139,113 @@ export function Table3D(
 const poolRoyaleExternalTableTemplates = new Map();
 const poolRoyaleExternalTablePromises = new Map();
 
+
+const POOL_ROYALE_SHOWOOD_PART_TO_CONTROL = Object.freeze({
+  cloth: 'cloth',
+  cushion: 'cushion',
+  topWoodRail: 'topWoodRail',
+  sideWoodApron: 'metalAccent',
+  pocketCup: 'jaws',
+  cornerPocketPlate: 'metalAccent',
+  middlePocketPlate: 'metalAccent',
+  verticalCornerRim: 'metalAccent',
+  baseCornerBlock: 'legBase',
+  leg: 'legBase',
+  baseFoot: 'metalAccent',
+  lowerTrim: 'metalAccent',
+  railSight: 'metalAccent',
+  underside: 'legBase',
+  trim: 'metalAccent',
+  wood: 'topWoodRail',
+  pocket: 'jaws'
+});
+const POOL_ROYALE_SHOWOOD_KEEP_TEXTURE_PARTS = new Set([
+  'cushion',
+  'topWoodRail',
+  'leg',
+  'baseCornerBlock',
+  'underside'
+]);
+
+function resolvePoolRoyaleShowoodPalette(tableModel = null) {
+  return {
+    ...POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE,
+    ...(tableModel?.showoodPalette && typeof tableModel.showoodPalette === 'object'
+      ? tableModel.showoodPalette
+      : {})
+  };
+}
+
+function clearPoolRoyaleMaterialTextureMaps(material) {
+  if (!material) return;
+  material.map = null;
+  material.normalMap = null;
+  material.bumpMap = null;
+  material.roughnessMap = null;
+  material.metalnessMap = null;
+  material.aoMap = null;
+  material.emissiveMap = null;
+  material.lightMap = null;
+  material.alphaMap = null;
+}
+
+function classifyPoolRoyaleShowoodReferencePart(child, material) {
+  const childName = `${child?.name || ''}`.toLowerCase();
+  const materialName = `${material?.name || ''}`.toLowerCase();
+  const label = `${childName} ${materialName}`;
+  const color = material?.color instanceof THREE.Color ? material.color : new THREE.Color('#ffffff');
+  const green = color.g > color.r * 1.14 && color.g > color.b * 1.08 && color.g > 0.11;
+  const black = color.r < 0.11 && color.g < 0.11 && color.b < 0.11;
+  const brown = color.r > color.b * 1.12 && color.g > color.b * 0.48 && color.r > 0.07 && color.g < color.r * 0.9;
+  const gold = color.r > 0.42 && color.g > 0.29 && color.b < 0.25 && color.r >= color.g * 0.88;
+  const metalish = (material?.metalness ?? 0) > 0.16 || (material?.clearcoat ?? 0) > 0.58 || gold;
+
+  if (/cloth|felt|fabric|surface|bed|slate|playfield|baize/.test(label) && !/cushion|rubber|bumper/.test(childName)) return 'cloth';
+  if (/cushion|rubber|bumper|railrubber|rail[_\s-]*nose/.test(childName)) return 'cushion';
+  if (/sight|diamond|marker|dot|inlay/.test(label)) return 'railSight';
+  if (/pocket|hole|drop|net|liner|leather|cup|basket|holder/.test(label)) {
+    return metalish && !black && !brown ? 'cornerPocketPlate' : 'pocketCup';
+  }
+  if (/trim|bezel|ring|metal|chrome|brass|gold|plate|cap|rim|guard|insert|hardware|bolt|screw/.test(label) || metalish) {
+    return /foot|feet/.test(label) ? 'baseFoot' : 'lowerTrim';
+  }
+  if (/leg/.test(label)) return 'leg';
+  if (/base|block|support|underside/.test(label)) return 'baseCornerBlock';
+  if (/rail|frame|top|wood|walnut|showood|apron|cabinet|corner/.test(label)) return 'topWoodRail';
+  if (green) return 'cloth';
+  return 'sideWoodApron';
+}
+
+function applyPoolRoyaleShowoodReferenceMaterial(material, part, tableModel = null) {
+  if (!material) return material;
+  const mat = material.clone ? material.clone() : material;
+  const control = POOL_ROYALE_SHOWOOD_PART_TO_CONTROL[part] || POOL_ROYALE_SHOWOOD_PART_TO_CONTROL[classifyPoolRoyaleExternalTableSurface(null, mat)] || 'topWoodRail';
+  const palette = resolvePoolRoyaleShowoodPalette(tableModel);
+  const choice = palette[control] || POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE[control] || 'a';
+  const option = POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS[control]?.[choice] || POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS[control]?.a;
+  if (!option) return mat;
+  mat.color?.set?.(option.color);
+  if ('metalness' in mat) mat.metalness = option.metalness;
+  if ('roughness' in mat) mat.roughness = option.roughness;
+  if ('envMapIntensity' in mat) mat.envMapIntensity = option.envMapIntensity;
+  if ('clearcoat' in mat) mat.clearcoat = option.clearcoat ?? 0;
+  if ('clearcoatRoughness' in mat) mat.clearcoatRoughness = option.clearcoatRoughness ?? 0;
+  if (!POOL_ROYALE_SHOWOOD_KEEP_TEXTURE_PARTS.has(part)) {
+    clearPoolRoyaleMaterialTextureMaps(mat);
+  }
+  mat.transparent = false;
+  mat.opacity = 1;
+  mat.depthWrite = true;
+  mat.side = THREE.DoubleSide;
+  mat.userData = {
+    ...(mat.userData || {}),
+    poolRoyaleShowoodReferencePart: part,
+    poolRoyaleShowoodReferenceControl: control,
+    poolRoyaleShowoodReferenceChoice: choice
+  };
+  return mat;
+}
+
 function classifyPoolRoyaleExternalTableSurface(child, material) {
   const childName = `${child?.name || ''}`.toLowerCase();
   const materialName = `${material?.name || ''}`.toLowerCase();
@@ -12305,6 +12414,11 @@ function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tab
   };
 
   if (role === 'cloth' || role === 'cushion') {
+    const finishSource = role === 'cushion' && tableModel?.cushionUsesClothFinish
+      ? finishInfo.clothMat
+      : role === 'cushion'
+        ? finishInfo.cushionMat
+        : finishInfo.clothMat;
     const preserveSourceTexture = Array.isArray(tableModel?.preserveSourceTextureRoles) &&
       tableModel.preserveSourceTextureRoles.includes(role);
     const sourceSnapshot = preserveSourceTexture
@@ -12317,7 +12431,7 @@ function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tab
           aoMap: mat.aoMap
         }
       : null;
-    copyMaterialLook(role === 'cushion' ? finishInfo.cushionMat : finishInfo.clothMat);
+    copyMaterialLook(finishSource);
     if (sourceSnapshot) {
       Object.assign(mat, sourceSnapshot);
     }
@@ -12374,8 +12488,16 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
     const prepareMaterial = (material) => {
       if (!material) return material;
       const role = classifyPoolRoyaleExternalTableSurface(child, material);
+      const referencePart = tableModel?.useReferenceShowoodMapping
+        ? classifyPoolRoyaleShowoodReferencePart(child, material)
+        : null;
       if (Array.isArray(tableModel?.hideSurfaceRoles) && tableModel.hideSurfaceRoles.includes(role)) {
         child.visible = false;
+      }
+      if (tableModel?.useReferenceShowoodMapping) {
+        const nextMaterial = applyPoolRoyaleShowoodReferenceMaterial(material, referencePart || role, tableModel);
+        normalizePoolRoyaleExternalClothTextureScale(child, nextMaterial, role);
+        return nextMaterial;
       }
       if (tableModel?.usePoolRoyaleFinish && finishInfo) {
         const nextMaterial = applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tableModel);
@@ -13327,9 +13449,9 @@ function mountPoolRoyaleExternalTableModel({
     : generatedVisualBounds.getSize(new THREE.Vector3());
   const generatedUpperComponentObjects = [
     ...finishParts.railMeshes,
+    ...(Array.isArray(table.userData.cushions) ? table.userData.cushions : []),
     ...finishParts.pocketJawMeshes,
-    ...finishParts.pocketRimMeshes,
-    ...(Array.isArray(table.userData.cushions) ? table.userData.cushions : [])
+    ...finishParts.pocketRimMeshes
   ].filter(Boolean);
   const generatedUpperComponentBounds = expandPoolRoyaleBoundsByObjects(
     generatedUpperComponentObjects.length ? generatedUpperComponentObjects : generatedStructuralObjects
@@ -13351,11 +13473,28 @@ function mountPoolRoyaleExternalTableModel({
     ...finishParts.pocketRimMeshes,
     ...pocketMeshes
   ].forEach(markReplaceableGeneratedSurface);
+  const markGeneratedCushionsAndJawsHiddenByExternalTable = (object) => {
+    if (!object) return;
+    object.userData = {
+      ...(object.userData || {}),
+      externalTableHideWhenMounted: true
+    };
+  };
+  if (resolvedTableOptions?.tableModel?.hideGeneratedCushionsAndJaws) {
+    [
+      ...(Array.isArray(table.userData.cushions) ? table.userData.cushions : []),
+      ...finishParts.pocketJawMeshes,
+      ...finishParts.pocketRimMeshes,
+      ...pocketMeshes
+    ].forEach(markGeneratedCushionsAndJawsHiddenByExternalTable);
+  }
   const setGeneratedVisualsVisible = (visible) => {
     generatedVisualObjects.forEach((object) => {
       const forceGeneratedChrome = Boolean(externalTableModelForMount?.forceGeneratedChromePlates);
       if (!visible && externalTableModelForMount?.keepGeneratedShell) {
-        object.visible = !object.userData?.externalTableReplaceableSurface;
+        object.visible = object.userData?.externalTableHideWhenMounted
+          ? false
+          : !object.userData?.externalTableReplaceableSurface;
         if (object.userData?.isChromePlate && forceGeneratedChrome) object.visible = true;
         return;
       }
@@ -13376,12 +13515,14 @@ function mountPoolRoyaleExternalTableModel({
     resolvedTableOptions?.tableModel?.kind === 'gltf'
       ? {
           ...resolvedTableOptions.tableModel,
-          preserveOriginalSurfaceRoles: resolvedTableOptions.tableModel.useOriginalLayoutSurfaces
-            ? Array.from(new Set([
-                ...(resolvedTableOptions.tableModel.preserveOriginalSurfaceRoles || []),
-                'trim'
-              ]))
-            : chromePlateStyle.preserveExternalTrim
+          preserveOriginalSurfaceRoles: resolvedTableOptions.tableModel.useReferenceShowoodMapping
+            ? (resolvedTableOptions.tableModel.preserveOriginalSurfaceRoles || [])
+            : resolvedTableOptions.tableModel.useOriginalLayoutSurfaces
+              ? Array.from(new Set([
+                  ...(resolvedTableOptions.tableModel.preserveOriginalSurfaceRoles || []),
+                  'trim'
+                ]))
+              : chromePlateStyle.preserveExternalTrim
               ? resolvedTableOptions.tableModel.preserveOriginalSurfaceRoles
               : resolvedTableOptions.tableModel.preserveOriginalSurfaceRoles?.filter(
                   (role) => role !== 'trim'
@@ -13985,10 +14126,20 @@ function PoolRoyaleGame({
     () => resolveTableSize(tableSizeKey),
     [tableSizeKey]
   );
-  const activeTableModel = useMemo(
-    () => resolvePoolRoyaleTableModel(tableModelKey),
-    [tableModelKey]
-  );
+  const activeTableModel = useMemo(() => {
+    const model = resolvePoolRoyaleTableModel(tableModelKey);
+    if (!model?.useReferenceShowoodMapping) return model;
+    let showoodPalette = null;
+    try {
+      const params = new URLSearchParams(location.search);
+      const raw = params.get('showoodPalette') || window.localStorage?.getItem('poolRoyaleShowoodMaterialPalette');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') showoodPalette = parsed;
+      }
+    } catch {}
+    return showoodPalette ? { ...model, showoodPalette } : model;
+  }, [location.search, tableModelKey]);
   const responsiveTableSize = useResponsiveTableSize(activeTableSize);
   const resolvedAccountId = useMemo(
     () => poolRoyalAccountId(accountId),
