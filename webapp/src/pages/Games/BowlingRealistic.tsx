@@ -286,11 +286,11 @@ const RESULT_COMPLIMENTS = {
   open: ['Nice try—adjust and fire again.', 'Good pace, keep rhythm.']
 } as const;
 
-// Keep the full bowling field snapped down onto the visible HDRI ground plane in portrait view.
-const BOWLING_HDRI_GROUND_Y = -1.5;
+// Raise the full bowling field above the HDRI ground plane in portrait view.
+const BOWLING_HDRI_GROUND_SNAP_DROP = -0.62;
 
 const CFG = {
-  laneY: BOWLING_HDRI_GROUND_Y,
+  laneY: -1.5 - BOWLING_HDRI_GROUND_SNAP_DROP,
   laneHalfW: 1.36,
   gutterHalfW: 1.72,
   laneCenterOffset: 1.82,
@@ -2284,8 +2284,7 @@ function createEnvironment(
     resetMachine: new THREE.Group()
   };
   scene.add(group);
-  // Do not add a secondary lift/drop here: CFG.laneY is the single ground datum for lane, players, tables, and chairs.
-  group.position.y = 0;
+  group.position.y = -0.32;
   let laneMat: THREE.Material;
   let woodMat: THREE.Material;
   try {
