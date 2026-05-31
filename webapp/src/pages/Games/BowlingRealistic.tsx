@@ -286,8 +286,8 @@ const RESULT_COMPLIMENTS = {
   open: ['Nice try—adjust and fire again.', 'Good pace, keep rhythm.']
 } as const;
 
-// Raise the full bowling field above the HDRI ground plane in portrait view.
-const BOWLING_HDRI_GROUND_SNAP_DROP = -0.62;
+// Keep the full bowling field grounded on the HDRI floor in portrait view.
+const BOWLING_HDRI_GROUND_SNAP_DROP = 0;
 
 const CFG = {
   laneY: -1.5 - BOWLING_HDRI_GROUND_SNAP_DROP,
