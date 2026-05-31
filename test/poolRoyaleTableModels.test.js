@@ -34,7 +34,7 @@ describe('Pool Royale table models', () => {
       )
     );
     assert.equal(showood.fitScale, 1);
-    assert.equal(showood.fitFootprintScale, 1.04);
+    assert.equal(showood.fitFootprintScale, 1);
     assert.equal(showood.preserveOriginalFootprintAspect, true);
     assert.equal(showood.lowerBaseHeightScale, 1.38);
     assert.equal(showood.legLengthScale, 2.05);
