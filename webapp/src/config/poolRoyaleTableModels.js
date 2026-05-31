@@ -25,6 +25,8 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     fitScale: 1,
     fitFootprintScale: 1,
     fitHeightScale: 1,
+    fitToPoolRoyalePlayfieldMapping: true,
+    playfieldMappingRailPaddingScale: 2.2,
     lowerBaseHeightScale: 1.38,
     legLengthScale: 2.05,
     clothRepeatScale: 7.5,

@@ -1561,7 +1561,9 @@ const SPIN_KINETIC_FRICTION = 0.22;
 const SPIN_ROLL_DAMPING = 0.085;
 const SPIN_ANGULAR_DAMPING = 0.04;
 const SPIN_GRAVITY = 9.81;
-const ROLLING_RESISTANCE = 0.0092;
+// Keep Pool Royale ball roll pace locked to Snooker Royal so both games feel identical.
+const SNOOKER_ROYAL_MATCHED_ROLLING_RESISTANCE = 0.0092;
+const ROLLING_RESISTANCE = SNOOKER_ROYAL_MATCHED_ROLLING_RESISTANCE;
 const BALL_BALL_FRICTION = 0.105;
 const BALL_CONTACT_EPS = BALL_R * 0.012; // broaden contact tolerance slightly so grazing touches resolve instead of tunneling
 const BALL_COLLISION_SLOP = BALL_R * 0.001; // tighter tolerance so visible ball overlap is corrected faster
@@ -13367,14 +13369,16 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
     (s.longN > 0.54 || s.shortN > 0.48) &&
     !(topRailSideVerticalRimZone || underRailSightCornerRimZone || outsideBaseCornerRimZone || outerMostVerticalCorner || baseCornerZone || legZone);
 
-  const pocketApronStripZone =
+  // Tiny Showood metal strips beside the middle-pocket jaws: keep this
+  // pocket-local so the whole side apron cannot turn gold/chrome.
+  const sidePocketJawStripZone =
     s.sideFace &&
     !s.upFace &&
-    high &&
-    anyPocketZone &&
+    sideMiddlePocketZone &&
     s.relY > 0.44 &&
     s.relY < 0.78 &&
-    (s.longN > 0.5 || s.shortN > 0.5);
+    s.longN < 0.32 &&
+    s.shortN > 0.69;
 
   const sideLowerTrimZone =
     s.sideFace && s.relY > 0.18 && s.relY < 0.44 && (s.longN > 0.54 || s.shortN > 0.54);
@@ -13397,7 +13401,7 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
   if (namedPocket && hardwareCandidate && cornerPocketZone) return 'cornerPocketPlate';
   if (hardwareCandidate && sideMiddlePocketZone && !green && !brown) return 'middlePocketPlate';
   if (hardwareCandidate && cornerPocketZone && !green && !brown) return 'cornerPocketPlate';
-  if (pocketApronStripZone && !green) return 'sideWoodApron';
+  if (sidePocketJawStripZone && !green) return 'sideWoodApron';
 
   if (green && centralCloth) return 'cloth';
   if (green && cushionBand) return 'cushion';
@@ -13414,7 +13418,7 @@ function resolvePoolRoyaleShowoodTrianglePart(mesh, geometry, material, aIndex, 
   if (baseCornerZone) return 'baseCornerBlock';
   if (legZone && (brown || namedWood || !hardwareCandidate)) return 'leg';
   if (hardwareCandidate && sideLowerTrimZone && !green) return 'lowerTrim';
-  if (railSightDownBand && !green) return 'baseCornerBlock';
+  if (railSightDownBand && !green) return 'sideWoodApron';
   if (veryTop && (s.upFace || topRailBand) && !green) return 'topWoodRail';
   if (high && s.sideFace && !green && !anyPocketZone) return 'baseCornerBlock';
 
@@ -13939,8 +13943,25 @@ function adjustPoolRoyaleExternalShowoodBaseProportions(model, tableModel) {
   model.updateMatrixWorld(true);
 }
 
+function resolvePoolRoyaleExternalTableFitDims(tableModel, dims) {
+  if (!dims || tableModel?.id !== 'showood-seven-foot' || !tableModel?.fitToPoolRoyalePlayfieldMapping) {
+    return dims;
+  }
+  const railPaddingScale = Number.isFinite(tableModel.playfieldMappingRailPaddingScale)
+    ? Math.max(0, tableModel.playfieldMappingRailPaddingScale)
+    : 2;
+  const mappingWidth = PLAY_W + Math.abs(SIDE_RAIL_INNER_THICKNESS) * railPaddingScale;
+  const mappingLength = PLAY_H + Math.abs(END_RAIL_INNER_THICKNESS) * railPaddingScale;
+  return {
+    ...dims,
+    targetWidth: Math.max(dims.targetWidth ?? 0, mappingWidth),
+    targetLength: Math.max(dims.targetLength ?? 0, mappingLength)
+  };
+}
+
 function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   if (!model || !dims) return;
+  dims = resolvePoolRoyaleExternalTableFitDims(tableModel, dims);
   model.position.set(0, 0, 0);
   model.rotation.set(0, 0, 0);
   model.scale.setScalar(1);
