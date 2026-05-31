@@ -699,14 +699,14 @@ export default function PoolRoyaleLobby() {
             })}
           </div>
           <p className="text-xs text-white/60">
-            Royal Original keeps the procedural wooden rails, procedural cushions, chrome plates, and pocket jaws; Showood keeps rail sights, side apron, feet, chrome, and jaws unchanged while exposing cloth and GLTF finish texture choices.
+            Royal Original now keeps TonPlaygram shell/chrome but uses GLB cushions and pocket jaws; Showood uses the reference texture mapping and option set.
           </p>
           {selectedTableModel.useReferenceShowoodMapping ? (
             <div className="rounded-2xl border border-amber-300/20 bg-black/25 p-3">
               <div className="mb-2 flex items-center justify-between gap-2">
                 <div>
                   <h4 className="text-sm font-semibold text-white">Showood table setup</h4>
-                  <p className="text-[11px] text-white/55">Field/cushions use the cloth library; rail frame and legs/base use every GLTF table-finish texture.</p>
+                  <p className="text-[11px] text-white/55">Same material options as the supplied reference preview.</p>
                 </div>
                 <button
                   type="button"
@@ -727,7 +727,7 @@ export default function PoolRoyaleLobby() {
                         <p className="text-[10px] leading-snug text-white/50">{meta.description}</p>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        {Object.keys(options).map((choice) => {
+                        {['a', 'b'].map((choice) => {
                           const option = options[choice];
                           const active = showoodPalette[control] === choice;
                           return (
