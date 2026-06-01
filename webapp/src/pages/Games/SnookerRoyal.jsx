@@ -71,7 +71,6 @@ import {
   SNOOKER_ROYALE_OPTION_LABELS
 } from '../../config/snookerRoyalInventoryConfig.js';
 import { SNOOKER_ROYALE_CLOTH_VARIANTS } from '../../config/snookerRoyalClothPresets.js';
-import { MURLAN_CHARACTER_THEMES } from '../../config/murlanCharacterThemes.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
 import {
   getCachedSnookerRoyalInventory,
@@ -104,11 +103,6 @@ import {
 } from './snookerRoyalSpinUtils.js';
 import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
 import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
-import {
-  createSnookerHumanRig,
-  chooseHumanEdgePosition as chooseProvidedSnookerHumanEdgePosition,
-  updateBilardoHumanPose as updateProvidedSnookerHumanPose
-} from './shared/snookerHumanRig.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
@@ -1692,489 +1686,39 @@ const CUE_CUSHION_LIFT_BIAS = BALL_R * 0.06; // lift the cue slightly more as cu
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 
 
-const SNOOKER_HUMAN_CHARACTER_THEME =
-  MURLAN_CHARACTER_THEMES.find((theme) => theme.id === 'rpm-current') ||
-  MURLAN_CHARACTER_THEMES[0];
-const SNOOKER_HUMAN_UP = new THREE.Vector3(0, 1, 0);
-const SNOOKER_HUMAN_FORWARD_LOCAL = new THREE.Vector3(0, 0, 1);
-const SNOOKER_HUMAN_WORLD_SCALE = BALL_R / 0.0525;
-const SNOOKER_PROVIDED_HUMAN_SIZE_BOOST = 1.72;
-const SNOOKER_PROVIDED_HUMAN_SCALE = 1.2 * SNOOKER_PROVIDED_HUMAN_SIZE_BOOST * SNOOKER_HUMAN_WORLD_SCALE;
-const SNOOKER_PROVIDED_CUE_IDLE_GAP = 0.012 * SNOOKER_HUMAN_WORLD_SCALE;
-const SNOOKER_PROVIDED_CUE_CONTACT_GAP = SNOOKER_PROVIDED_CUE_IDLE_GAP;
-const SNOOKER_PROVIDED_CUE_PULL_RANGE = 0.42 * SNOOKER_HUMAN_WORLD_SCALE;
-const SNOOKER_PROVIDED_CUE_BRIDGE_DIST = 0.28 * SNOOKER_HUMAN_WORLD_SCALE;
-const SNOOKER_PROVIDED_BRIDGE_HAND_SIDE = -0.115 * SNOOKER_HUMAN_WORLD_SCALE;
-const SNOOKER_PROVIDED_BRIDGE_PALM_UNDER_DROP = 0.052 * SNOOKER_HUMAN_WORLD_SCALE;
-const SNOOKER_HUMAN_CFG = Object.freeze({
-  // Match the larger Snooker Champion character proportions exactly so the
-  // Royal avatar reads as a full-sized player beside the GLB snooker table.
-  targetHeight: 1.78 * SNOOKER_PROVIDED_HUMAN_SCALE,
-  floorY: FLOOR_Y - TABLE_Y,
-  idleDistance: 0.82 * SNOOKER_HUMAN_WORLD_SCALE,
-  bridgeBackFromBall: 0.27 * SNOOKER_HUMAN_WORLD_SCALE,
-  bridgeSide: -0.025 * SNOOKER_HUMAN_WORLD_SCALE,
-  stanceSide: 0.25 * SNOOKER_HUMAN_WORLD_SCALE,
-  rightFootBack: 0.38 * SNOOKER_HUMAN_WORLD_SCALE,
-  leftFootForward: 0.30 * SNOOKER_HUMAN_WORLD_SCALE,
-  chinCueOffsetY: 0.12 * SNOOKER_HUMAN_WORLD_SCALE,
-  chestCueOffsetY: 0.22 * SNOOKER_HUMAN_WORLD_SCALE,
-  rootLambda: 7.5,
-  poseLambda: 10,
-  yawFix: 0
-});
-const cleanSnookerHumanBoneName = (name = '') => name.toLowerCase().replace(/[^a-z0-9]/g, '');
-const snookerHumanClamp01 = (value) => Math.max(0, Math.min(1, value));
-const snookerHumanDamp = (current, target, lambda, dt) =>
-  THREE.MathUtils.lerp(current, target, 1 - Math.exp(-lambda * dt));
-const snookerHumanDampAngle = (current, target, lambda, dt) => {
-  const delta = THREE.MathUtils.euclideanModulo(target - current + Math.PI, Math.PI * 2) - Math.PI;
-  return current + delta * (1 - Math.exp(-lambda * dt));
-};
+const SNOOKER_CUE_POSE_SCALE = BALL_R / 0.0525;
+const SNOOKER_CUE_IDLE_GAP = 0.012 * SNOOKER_CUE_POSE_SCALE;
+const SNOOKER_CUE_CONTACT_GAP = SNOOKER_CUE_IDLE_GAP;
+const SNOOKER_CUE_PULL_RANGE = 0.42 * SNOOKER_CUE_POSE_SCALE;
+const SNOOKER_CUE_BRIDGE_DIST = 0.28 * SNOOKER_CUE_POSE_SCALE;
 
-function makeSnookerHumanSegment(radius, color, metalness = 0.02) {
-  return new THREE.Mesh(
-    new THREE.CylinderGeometry(radius, radius, 1, 14),
-    new THREE.MeshStandardMaterial({ color, roughness: 0.72, metalness })
-  );
-}
-
-function createSnookerHumanFallbackRig() {
-  const rig = new THREE.Group();
-  rig.name = 'SnookerRoyalFallbackHumanPoseRig';
-  const skin = new THREE.MeshStandardMaterial({ color: 0xd9a27d, roughness: 0.68 });
-  const vest = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.64 });
-  const shirt = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.7 });
-  const trouser = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.75 });
-  const shoe = new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 0.6 });
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.135, 0.34, 5, 12), vest);
-  const chest = new THREE.Mesh(new THREE.CapsuleGeometry(0.105, 0.22, 5, 12), shirt);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.078, 18, 14), skin);
-  const neck = makeSnookerHumanSegment(0.032, 0xd9a27d);
-  const leftHand = new THREE.Mesh(new THREE.SphereGeometry(0.036, 14, 10), skin);
-  const rightHand = new THREE.Mesh(new THREE.SphereGeometry(0.034, 14, 10), skin);
-  const leftFoot = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.045, 0.25), shoe);
-  const rightFoot = leftFoot.clone();
-  const segments = {
-    leftUpperArm: makeSnookerHumanSegment(0.032, 0xf8fafc),
-    leftForearm: makeSnookerHumanSegment(0.027, 0xd9a27d),
-    rightUpperArm: makeSnookerHumanSegment(0.033, 0xf8fafc),
-    rightForearm: makeSnookerHumanSegment(0.027, 0xd9a27d),
-    leftThigh: makeSnookerHumanSegment(0.043, 0x1f2937),
-    leftShin: makeSnookerHumanSegment(0.036, 0x1f2937),
-    rightThigh: makeSnookerHumanSegment(0.043, 0x1f2937),
-    rightShin: makeSnookerHumanSegment(0.036, 0x1f2937)
-  };
-  rig.add(torso, chest, head, neck, leftHand, rightHand, leftFoot, rightFoot, ...Object.values(segments));
-  rig.userData.parts = { torso, chest, head, neck, leftHand, rightHand, leftFoot, rightFoot, ...segments };
-  rig.traverse((obj) => {
-    if (obj?.isMesh) {
-      obj.castShadow = true;
-      obj.receiveShadow = true;
-    }
-  });
-  return rig;
-}
-
-function placeSnookerHumanSegment(segment, a, b) {
-  if (!segment || !a || !b) return;
-  const mid = a.clone().add(b).multiplyScalar(0.5);
-  const delta = b.clone().sub(a);
-  const len = delta.length();
-  segment.position.copy(mid);
-  segment.scale.set(1, Math.max(len, 1e-4), 1);
-  if (len > 1e-5) {
-    segment.quaternion.setFromUnitVectors(SNOOKER_HUMAN_UP, delta.normalize());
-  }
-}
-
-function poseSnookerHumanFallback(human, points) {
-  const parts = human?.fallback?.userData?.parts;
-  if (!parts) return;
-  const {
-    root, torso, chest, head, neck, leftShoulder, rightShoulder,
-    leftElbow, rightElbow, leftHand, rightHand, leftHip, rightHip,
-    leftKnee, rightKnee, leftFoot, rightFoot
-  } = points;
-  parts.torso.position.copy(torso);
-  parts.torso.rotation.set(THREE.MathUtils.degToRad(71), 0, 0);
-  parts.chest.position.copy(chest);
-  parts.chest.rotation.copy(parts.torso.rotation);
-  parts.head.position.copy(head);
-  parts.neck.position.copy(neck);
-  parts.leftHand.position.copy(leftHand);
-  parts.rightHand.position.copy(rightHand);
-  parts.leftFoot.position.copy(leftFoot);
-  parts.rightFoot.position.copy(rightFoot);
-  parts.leftFoot.rotation.y = 0.15;
-  parts.rightFoot.rotation.y = -0.12;
-  placeSnookerHumanSegment(parts.leftUpperArm, leftShoulder, leftElbow);
-  placeSnookerHumanSegment(parts.leftForearm, leftElbow, leftHand);
-  placeSnookerHumanSegment(parts.rightUpperArm, rightShoulder, rightElbow);
-  placeSnookerHumanSegment(parts.rightForearm, rightElbow, rightHand);
-  placeSnookerHumanSegment(parts.leftThigh, leftHip, leftKnee);
-  placeSnookerHumanSegment(parts.leftShin, leftKnee, leftFoot);
-  placeSnookerHumanSegment(parts.rightThigh, rightHip, rightKnee);
-  placeSnookerHumanSegment(parts.rightShin, rightKnee, rightFoot);
-  root.updateMatrixWorld(true);
-}
-
-function normalizeSnookerHumanModel(model, targetHeight = SNOOKER_HUMAN_CFG.targetHeight) {
-  model.updateMatrixWorld(true);
-  const box = new THREE.Box3().setFromObject(model);
-  const size = box.getSize(new THREE.Vector3());
-  const height = Math.max(size.y, 1e-4);
-  const scale = targetHeight / height;
-  model.scale.multiplyScalar(scale);
-  model.updateMatrixWorld(true);
-  const scaledBox = new THREE.Box3().setFromObject(model);
-  const center = scaledBox.getCenter(new THREE.Vector3());
-  model.position.sub(center);
-  model.position.y -= scaledBox.min.y - center.y;
-  model.rotation.y += SNOOKER_HUMAN_CFG.yawFix;
-}
-
-function tuneSnookerHumanOriginalGlbMaterial(mat) {
-  if (!mat) return;
-  // Keep the imported GLB's own texture slots intact; only normalize color
-  // management and physically based response so ReadyPlayer/Murlan skins read
-  // consistently under the Snooker Royal HDRI lights.
-  ['map', 'emissiveMap', 'roughnessMap', 'metalnessMap', 'normalMap', 'aoMap'].forEach((slot) => {
-    const tex = mat[slot];
-    if (!tex) return;
-    if (slot === 'map' || slot === 'emissiveMap') applySRGBColorSpace(tex);
-    tex.flipY = false;
-    tex.needsUpdate = true;
-  });
-  if (mat.map && mat.color?.isColor) mat.color.convertSRGBToLinear?.();
-  mat.roughness = THREE.MathUtils.clamp(mat.roughness ?? 0.72, 0.42, 0.92);
-  mat.metalness = THREE.MathUtils.clamp(mat.metalness ?? 0.02, 0, 0.18);
-  mat.envMapIntensity = Math.max(mat.envMapIntensity ?? 0.45, 0.7);
-  mat.needsUpdate = true;
-}
-
-function createSnookerHumanOrientationHelpers() {
-  const group = new THREE.Group();
-  group.name = 'SnookerRoyalHumanChampionOrientationHelpers';
-  group.visible = false;
-  const makeHelper = (name) => {
-    const helper = new THREE.Object3D();
-    helper.name = name;
-    group.add(helper);
-    return helper;
-  };
+function createSnookerRoyalCuePoseController() {
   return {
-    group,
-    root: makeHelper('BodyRoot_ChampionMatch'),
-    bodyForward: makeHelper('BodyForward_ToPlayfield'),
-    cueLine: makeHelper('CueLine_ToCueBall'),
-    bridge: makeHelper('BridgeHand_ChampionMatch'),
-    grip: makeHelper('GripHand_ChampionMatch')
+    disabled: false,
+    strikeClock: 0,
+    strikeLock: null
   };
-}
-
-function updateSnookerHumanOrientationHelpers(human, points = {}) {
-  const helpers = human?.orientationHelpers;
-  if (!helpers?.group) return;
-  const apply = (helper, pos, lookAt) => {
-    if (!helper || !pos) return;
-    helper.position.copy(pos);
-    if (lookAt && pos.distanceToSquared(lookAt) > 1e-8) helper.lookAt(lookAt);
-  };
-  apply(helpers.root, points.rootTarget, points.cueBall);
-  apply(helpers.bodyForward, points.rootTarget, points.playfieldTarget || points.cueBall);
-  apply(helpers.cueLine, points.cueBall, points.cueBall?.clone?.().add(points.dir || new THREE.Vector3(0, 0, 1)));
-  apply(helpers.bridge, points.bridge, points.cueBall);
-  apply(helpers.grip, points.grip, points.cueBall);
-}
-
-function resolveSnookerHumanCueEndpoints(cueStick, cueLen, cueBall, shotDir) {
-  const endpoints = getSnookerCueEndpoints(cueStick, cueLen) || {
-    tip: cueBall.clone().addScaledVector(shotDir, -CUE_TIP_GAP),
-    butt: cueBall.clone().addScaledVector(shotDir, -(cueLen + CUE_TIP_GAP))
-  };
-  const tipProjection = endpoints.tip.clone().sub(cueBall).dot(shotDir);
-  const buttProjection = endpoints.butt.clone().sub(cueBall).dot(shotDir);
-  // Snooker Champion's pose logic always treats the tip as the forward point
-  // nearest the cue ball and the butt as the player's rear grip. Some legacy
-  // Royal cue transforms are rotated by PI for rendering, so normalize the
-  // semantic endpoints before driving hands/body orientation.
-  if (tipProjection > buttProjection) {
-    return { tip: endpoints.butt.clone(), butt: endpoints.tip.clone() };
-  }
-  return endpoints;
-}
-
-function findSnookerHumanBone(root, ...names) {
-  const wanted = names.map(cleanSnookerHumanBoneName);
-  let found = null;
-  root.traverse((obj) => {
-    if (found || !obj?.isBone) return;
-    const n = cleanSnookerHumanBoneName(obj.name);
-    if (wanted.some((needle) => n === needle || n.includes(needle))) found = obj;
-  });
-  return found;
-}
-
-function buildSnookerHumanBones(model) {
-  return {
-    hips: findSnookerHumanBone(model, 'hips', 'pelvis'),
-    spine: findSnookerHumanBone(model, 'spine'),
-    chest: findSnookerHumanBone(model, 'spine2', 'chest', 'upperchest'),
-    neck: findSnookerHumanBone(model, 'neck'),
-    head: findSnookerHumanBone(model, 'head'),
-    leftUpperArm: findSnookerHumanBone(model, 'leftarm', 'leftupperarm', 'mixamorigleftarm'),
-    leftLowerArm: findSnookerHumanBone(model, 'leftforearm', 'leftlowerarm'),
-    leftHand: findSnookerHumanBone(model, 'lefthand'),
-    rightUpperArm: findSnookerHumanBone(model, 'rightarm', 'rightupperarm', 'mixamorigrightarm'),
-    rightLowerArm: findSnookerHumanBone(model, 'rightforearm', 'rightlowerarm'),
-    rightHand: findSnookerHumanBone(model, 'righthand'),
-    leftUpperLeg: findSnookerHumanBone(model, 'leftupleg', 'leftupperleg'),
-    leftLowerLeg: findSnookerHumanBone(model, 'leftleg', 'leftlowerleg'),
-    rightUpperLeg: findSnookerHumanBone(model, 'rightupleg', 'rightupperleg'),
-    rightLowerLeg: findSnookerHumanBone(model, 'rightleg', 'rightlowerleg')
-  };
-}
-
-
-function disposeSnookerHumanGLTFLoader(loader) {
-  loader?.userData?.draco?.dispose?.();
-  loader?.userData?.ktx2?.dispose?.();
-}
-
-function createSnookerHumanGLTFLoader(renderer = null) {
-  const loader = new GLTFLoader();
-  loader.setCrossOrigin('anonymous');
-  const draco = new DRACOLoader();
-  draco.setDecoderPath(DRACO_DECODER_PATH);
-  loader.setDRACOLoader(draco);
-  const ktx2 = new KTX2Loader();
-  ktx2.setTranscoderPath(BASIS_TRANSCODER_PATH);
-  if (renderer) {
-    try {
-      ktx2.detectSupport(renderer);
-    } catch (error) {
-      console.warn('Snooker Royal human KTX2 support detection failed', error);
-    }
-  }
-  loader.setKTX2Loader(ktx2);
-  loader.setMeshoptDecoder?.(MeshoptDecoder);
-  loader.userData = { draco, ktx2 };
-  return loader;
-}
-
-function loadSnookerHumanModel(loader, url) {
-  return new Promise((resolve, reject) => {
-    loader.load(
-      url,
-      (gltf) => resolve(gltf?.scene || gltf?.scenes?.[0] || null),
-      undefined,
-      async (loaderError) => {
-        try {
-          const response = await fetch(url, { mode: 'cors', cache: 'reload' });
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          const buffer = await response.arrayBuffer();
-          const basePath = url.slice(0, url.lastIndexOf('/') + 1);
-          loader.parse(
-            buffer,
-            basePath,
-            (gltf) => resolve(gltf?.scene || gltf?.scenes?.[0] || null),
-            reject
-          );
-        } catch (fetchError) {
-          reject(fetchError || loaderError);
-        }
-      }
-    );
-  });
-}
-
-function buildSnookerHumanModelUrls(theme = SNOOKER_HUMAN_CHARACTER_THEME) {
-  const urls = [
-    ...(theme?.modelUrls || []),
-    theme?.url,
-    ...MURLAN_CHARACTER_THEMES.flatMap((entry) => [
-      ...(entry?.modelUrls || []),
-      entry?.url
-    ]),
-    'https://threejs.org/examples/models/gltf/Xbot.glb',
-    'https://threejs.org/examples/models/gltf/Soldier.glb'
-  ].filter(Boolean);
-  return [...new Set(urls)];
-}
-
-async function loadSnookerHumanModelFromCatalog(loader, urls = buildSnookerHumanModelUrls()) {
-  let lastError = null;
-  for (const url of urls) {
-    try {
-      // eslint-disable-next-line no-await-in-loop
-      const model = await loadSnookerHumanModel(loader, url);
-      if (model) return { model, url };
-    } catch (error) {
-      lastError = error;
-      console.warn('Snooker Royal human model failed, trying fallback', url, error);
-    }
-  }
-  throw lastError || new Error('No Snooker Royal human models configured');
-}
-
-function resetSnookerHumanRestPose(human) {
-  if (!human?.restQuats) return;
-  human.restQuats.forEach((quat, bone) => {
-    if (bone?.quaternion) bone.quaternion.copy(quat);
-  });
-}
-
-function setSnookerHumanBoneWorldQuaternion(bone, q) {
-  if (!bone || !q) return;
-  const parentQ = new THREE.Quaternion();
-  bone.parent?.getWorldQuaternion(parentQ);
-  bone.quaternion.copy(parentQ.invert().multiply(q));
-  bone.updateMatrixWorld(true);
-}
-
-function firstSnookerHumanBoneChild(bone) {
-  return bone?.children.find((child) => child?.isBone);
-}
-
-function rotateSnookerHumanBoneToward(bone, targetWorld, strength = 0.72, fallbackDir = SNOOKER_HUMAN_UP) {
-  if (!bone || !targetWorld || strength <= 0) return;
-  const bonePos = bone.getWorldPosition(new THREE.Vector3());
-  const child = firstSnookerHumanBoneChild(bone);
-  const childPos = child?.getWorldPosition(new THREE.Vector3()) || bonePos.clone().addScaledVector(fallbackDir, 0.2);
-  const current = childPos.sub(bonePos).normalize();
-  const desired = targetWorld.clone().sub(bonePos);
-  if (current.lengthSq() < 1e-8 || desired.lengthSq() < 1e-8) return;
-  const delta = new THREE.Quaternion().setFromUnitVectors(current, desired.normalize());
-  const blended = new THREE.Quaternion().slerpQuaternions(new THREE.Quaternion(), delta, snookerHumanClamp01(strength));
-  setSnookerHumanBoneWorldQuaternion(bone, blended.multiply(bone.getWorldQuaternion(new THREE.Quaternion())));
-}
-
-function poseSnookerHumanGlb(human, targetsLocal) {
-  if (!human?.activeGlb || !human.modelRoot?.parent) return;
-  const tableGroup = human.modelRoot.parent;
-  if (!tableGroup) return;
-  resetSnookerHumanRestPose(human);
-  const toWorld = (local) => tableGroup.localToWorld(local.clone());
-  const bones = human.bones || {};
-  human.modelRoot.updateMatrixWorld(true);
-  const leftHand = toWorld(targetsLocal.leftHandWorld);
-  const rightHand = toWorld(targetsLocal.rightHandWorld);
-  const leftElbow = toWorld(targetsLocal.leftElbowWorld);
-  const rightElbow = toWorld(targetsLocal.rightElbowWorld);
-  const head = toWorld(targetsLocal.headWorld);
-  const chest = toWorld(targetsLocal.chestWorld);
-  rotateSnookerHumanBoneToward(bones.spine, chest, 0.4, SNOOKER_HUMAN_UP);
-  rotateSnookerHumanBoneToward(bones.chest, head, 0.45, SNOOKER_HUMAN_UP);
-  rotateSnookerHumanBoneToward(bones.neck, head, 0.55, SNOOKER_HUMAN_UP);
-  rotateSnookerHumanBoneToward(bones.head, toWorld(targetsLocal.cueTipWorld), 0.32, SNOOKER_HUMAN_FORWARD_LOCAL);
-  for (let i = 0; i < 3; i += 1) {
-    rotateSnookerHumanBoneToward(bones.leftUpperArm, leftElbow, 0.75, SNOOKER_HUMAN_UP);
-    rotateSnookerHumanBoneToward(bones.leftLowerArm, leftHand, 0.78, SNOOKER_HUMAN_UP);
-    rotateSnookerHumanBoneToward(bones.rightUpperArm, rightElbow, 0.76, SNOOKER_HUMAN_UP);
-    rotateSnookerHumanBoneToward(bones.rightLowerArm, rightHand, 0.8, SNOOKER_HUMAN_UP);
-  }
-}
-
-function createSnookerRoyalHumanPlayer(parent, renderer) {
-  const loader = createSnookerHumanGLTFLoader(renderer);
-  const human = createSnookerHumanRig(parent, {
-    loader,
-    modelUrls: buildSnookerHumanModelUrls(SNOOKER_HUMAN_CHARACTER_THEME),
-    unit: SNOOKER_HUMAN_WORLD_SCALE,
-    tableW: PLAY_W,
-    tableL: PLAY_H,
-    tableTopY: BALL_CENTER_Y - BALL_R,
-    groundY: SNOOKER_HUMAN_CFG.floorY,
-    humanScale: SNOOKER_PROVIDED_HUMAN_SCALE,
-    humanVisualYawFix: Math.PI,
-    stanceWidth: 0.52 * SNOOKER_HUMAN_WORLD_SCALE,
-    edgeMargin: 0.5 * SNOOKER_HUMAN_WORLD_SCALE,
-    desiredShootDistance: 0.82 * SNOOKER_HUMAN_WORLD_SCALE,
-    bridgePalmTableLift: 0.006 * SNOOKER_HUMAN_WORLD_SCALE,
-    bridgePalmUnderCueDrop: SNOOKER_PROVIDED_BRIDGE_PALM_UNDER_DROP,
-    bridgeVGrooveForward: 0.026 * SNOOKER_HUMAN_WORLD_SCALE,
-    bridgeVGrooveSide: -0.032 * SNOOKER_HUMAN_WORLD_SCALE,
-    bridgeCueLift: 0.018 * SNOOKER_HUMAN_WORLD_SCALE,
-    bridgeHandBackFromBall: 0.235 * SNOOKER_HUMAN_WORLD_SCALE,
-    bridgeHandSide: SNOOKER_PROVIDED_BRIDGE_HAND_SIDE,
-    bridgePoseUsesConfiguredSide: false,
-    chinToCueHeight: 0.11 * SNOOKER_HUMAN_WORLD_SCALE,
-    footGroundY: 0,
-    footLockStrength: 1.25,
-    kneeBendShot: 0.16 * SNOOKER_HUMAN_WORLD_SCALE,
-    rightElbowShotRise: 0.18 * SNOOKER_HUMAN_WORLD_SCALE,
-    rightElbowShotSide: -0.46 * SNOOKER_HUMAN_WORLD_SCALE,
-    rightElbowShotBack: -0.78 * SNOOKER_HUMAN_WORLD_SCALE,
-    rightForearmOutward: 0.46 * SNOOKER_HUMAN_WORLD_SCALE,
-    rightForearmBack: 0.34 * SNOOKER_HUMAN_WORLD_SCALE,
-    rightForearmDown: 0.42 * SNOOKER_HUMAN_WORLD_SCALE,
-    rightForearmLength: 0.34 * SNOOKER_HUMAN_WORLD_SCALE,
-    rightStrokePull: 0.30 * SNOOKER_HUMAN_WORLD_SCALE,
-    rightStrokePush: 0.30 * SNOOKER_HUMAN_WORLD_SCALE,
-    strikeTime: 0.12,
-    holdTime: 0.05,
-    rightHandShotLift: -0.30 * SNOOKER_HUMAN_WORLD_SCALE,
-    shootCueGripFromBack: 0.58 * SNOOKER_HUMAN_WORLD_SCALE,
-    shootBendTowardCueStick: false,
-    shootBendMode: 'forward',
-    shootBendDirection: -1,
-    shootCounterLeanSide: -1,
-    shootUpperBodyCounterLean: 1,
-    shootForwardBendScale: 1,
-    forceTableFacingAim: true,
-    plantFeetDuringShot: true,
-    onStatus: (message) => console.info(`Snooker Royal human: ${message}`)
-  });
-  human.disabled = false;
-  human.usesProvidedCueLogic = true;
-  human.loader = loader;
-  return human;
-}
-function getSnookerCueEndpoints(cueStick, cueLen) {
-  if (!cueStick) return null;
-  cueStick.updateMatrixWorld(true);
-  const tip = new THREE.Vector3(0, 0, -cueLen / 2).applyMatrix4(cueStick.matrixWorld);
-  const butt = new THREE.Vector3(0, 0, cueLen / 2).applyMatrix4(cueStick.matrixWorld);
-  const parent = cueStick.parent;
-  if (parent) {
-    parent.worldToLocal(tip);
-    parent.worldToLocal(butt);
-  }
-  return { tip, butt };
 }
 
 function applyProvidedCueEndpointPose(cueStick, cueBack, cueTip) {
   if (!cueStick || !cueBack || !cueTip) return;
   const cueDir = cueTip.clone().sub(cueBack);
   if (cueDir.lengthSq() < 1e-8) return;
-  cueDir.normalize();
   const buttDir = cueBack.clone().sub(cueTip).normalize();
   cueStick.position.copy(cueBack).add(cueTip).multiplyScalar(0.5);
   cueStick.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), buttDir);
 }
 
-function providedSnookerHumanEaseOutCubic(t) {
+function cuePoseEaseOutCubic(t) {
   return 1 - Math.pow(1 - t, 3);
 }
 
-function providedSnookerHumanLerp(a, b, t) {
+function cuePoseLerp(a, b, t) {
   return a + (b - a) * t;
 }
 
-function resolveProvidedSnookerIdleCuePose(grip, yaw, cueLen) {
-  const idleDir = new THREE.Vector3(0.055, 0.965, -0.13)
-    .applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw)
-    .normalize();
-  const gripFromBack = 0.24 * SNOOKER_HUMAN_WORLD_SCALE;
-  return {
-    butt: grip.clone().addScaledVector(idleDir, -gripFromBack),
-    tip: grip.clone().addScaledVector(idleDir, cueLen - gripFromBack)
-  };
-}
-
-function updateSnookerRoyalHumanPlayer(human, dt, options) {
-  if (!human?.root || human.disabled) return;
+function updateSnookerRoyalCuePose(controller, dt, options) {
+  if (!controller || controller.disabled) return;
   const {
     cue,
     cueStick,
@@ -2187,11 +1731,11 @@ function updateSnookerRoyalHumanPlayer(human, dt, options) {
     tableCueVisible = false
   } = options || {};
   const cuePos = cue?.pos;
-  if (!cuePos || !cue?.active || !visible) {
-    human.root.visible = false;
-    human.modelRoot.visible = false;
-    return;
-  }
+  if (!cueStick || !cueLen || !cuePos || !cue?.active || !visible) return;
+
+  controller.strikeClock = shooting || cueAnimating
+    ? (controller.strikeClock || 0) + Math.max(0, dt || 0)
+    : 0;
 
   const aimForward = new THREE.Vector3(aimDir?.x ?? 0, 0, aimDir?.y ?? 1);
   if (aimForward.lengthSq() < 1e-8) aimForward.set(0, 0, 1);
@@ -2199,92 +1743,44 @@ function updateSnookerRoyalHumanPlayer(human, dt, options) {
   const activePower = THREE.MathUtils.clamp(power ?? 0, 0, 1);
   const liveCueBallWorld = new THREE.Vector3(cuePos.x, CUE_Y, cuePos.y);
   const strikeActive = Boolean(shooting || cueAnimating);
-  if (strikeActive && !human.providedStrikeLock) {
-    human.providedStrikeLock = {
+  if (strikeActive && !controller.strikeLock) {
+    controller.strikeLock = {
       cueBallWorld: liveCueBallWorld.clone(),
       aimForward: aimForward.clone(),
       power: activePower
     };
   } else if (!strikeActive) {
-    human.providedStrikeLock = null;
+    controller.strikeLock = null;
   }
-  const lockedStrike = strikeActive ? human.providedStrikeLock : null;
+  const lockedStrike = strikeActive ? controller.strikeLock : null;
   const cueBallWorld = lockedStrike?.cueBallWorld?.clone?.() ?? liveCueBallWorld;
   if (lockedStrike?.aimForward?.lengthSq?.() > 1e-8) {
     aimForward.copy(lockedStrike.aimForward).normalize();
   }
-  const aimSide = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
-  const humanRootTarget = chooseProvidedSnookerHumanEdgePosition(cueBallWorld, aimForward, {
-    unit: SNOOKER_HUMAN_WORLD_SCALE,
-    tableW: PLAY_W,
-    tableL: PLAY_H,
-    edgeMargin: 0.5 * SNOOKER_HUMAN_WORLD_SCALE,
-    desiredShootDistance: 0.82 * SNOOKER_HUMAN_WORLD_SCALE,
-    groundY: SNOOKER_HUMAN_CFG.floorY
-  });
-  const bridgeHandTarget = cueBallWorld.clone()
-    .addScaledVector(aimForward, -0.235 * SNOOKER_HUMAN_WORLD_SCALE)
-    .addScaledVector(aimSide, SNOOKER_PROVIDED_BRIDGE_HAND_SIDE)
-    .setY(BALL_CENTER_Y - BALL_R + 0.006 * SNOOKER_HUMAN_WORLD_SCALE);
+
   const bridgeCuePoint = cueBallWorld.clone()
-    .addScaledVector(aimForward, -(SNOOKER_PROVIDED_CUE_BRIDGE_DIST + BALL_R))
-    .setY(BALL_CENTER_Y + 0.018 * SNOOKER_HUMAN_WORLD_SCALE);
-  const pull = SNOOKER_PROVIDED_CUE_PULL_RANGE * providedSnookerHumanEaseOutCubic(activePower);
+    .addScaledVector(aimForward, -(SNOOKER_CUE_BRIDGE_DIST + BALL_R))
+    .setY(BALL_CENTER_Y + 0.018 * SNOOKER_CUE_POSE_SCALE);
+  const pull = SNOOKER_CUE_PULL_RANGE * cuePoseEaseOutCubic(activePower);
   const practiceStroke = !shooting && !cueAnimating && activePower > 0.02
-    ? Math.sin(performance.now() * 0.012) * 0.035 * SNOOKER_HUMAN_WORLD_SCALE * (0.25 + activePower * 0.75)
+    ? Math.sin(performance.now() * 0.012) * 0.035 * SNOOKER_CUE_POSE_SCALE * (0.25 + activePower * 0.75)
     : 0;
-  const strikeNorm = THREE.MathUtils.clamp((human.strikeClock || 0) / 0.12, 0, 1);
-  let providedGap = SNOOKER_PROVIDED_CUE_IDLE_GAP;
+  const strikeNorm = THREE.MathUtils.clamp((controller.strikeClock || 0) / 0.12, 0, 1);
+  let providedGap = SNOOKER_CUE_IDLE_GAP;
   if (activePower > 0.02 && !shooting && !cueAnimating) providedGap += pull + practiceStroke;
   if (shooting || cueAnimating) {
-    providedGap = providedSnookerHumanLerp(
-      SNOOKER_PROVIDED_CUE_IDLE_GAP + pull,
-      SNOOKER_PROVIDED_CUE_CONTACT_GAP,
-      providedSnookerHumanEaseOutCubic(strikeNorm)
+    providedGap = cuePoseLerp(
+      SNOOKER_CUE_IDLE_GAP + pull,
+      SNOOKER_CUE_CONTACT_GAP,
+      cuePoseEaseOutCubic(strikeNorm)
     );
   }
   const providedCueTip = cueBallWorld.clone().addScaledVector(aimForward, -(BALL_R + providedGap));
   const providedCueBack = providedCueTip.clone()
     .addScaledVector(aimForward, -cueLen)
-    .setY(bridgeCuePoint.y + 0.006 * SNOOKER_HUMAN_WORLD_SCALE);
-  const standingYaw = Math.atan2(-aimForward.x, -aimForward.z);
-  const idleRightHandTarget = humanRootTarget.clone().add(new THREE.Vector3(
-    0.31 * SNOOKER_HUMAN_WORLD_SCALE,
-    0.8 * SNOOKER_HUMAN_WORLD_SCALE,
-    -0.015 * SNOOKER_HUMAN_WORLD_SCALE
-  ).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw));
-  const idleLeftHandTarget = humanRootTarget.clone().add(new THREE.Vector3(
-    -0.18 * SNOOKER_HUMAN_WORLD_SCALE,
-    1.08 * SNOOKER_HUMAN_WORLD_SCALE,
-    0.03 * SNOOKER_HUMAN_WORLD_SCALE
-  ).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw));
-  const humanCueState = strikeActive
-    ? 'striking'
-    : activePower > 0.02
-      ? 'dragging'
-      : tableCueVisible
-        ? 'aiming'
-        : 'idle';
-  const idleCuePose = resolveProvidedSnookerIdleCuePose(idleRightHandTarget, standingYaw, cueLen);
-  const cueEndpoints = humanCueState === 'idle'
-    ? idleCuePose
-    : { tip: providedCueTip, butt: providedCueBack };
-  applyProvidedCueEndpointPose(cueStick, cueEndpoints.butt, cueEndpoints.tip);
-  cueStick.visible = true;
-
-  updateProvidedSnookerHumanPose(human, dt, {
-    exactProvidedPose: true,
-    state: humanCueState,
-    rootTarget: humanRootTarget,
-    aimForward,
-    bridgeTarget: bridgeHandTarget,
-    idleRight: idleRightHandTarget,
-    idleLeft: idleLeftHandTarget,
-    cueBack: cueEndpoints.butt,
-    cueTip: cueEndpoints.tip,
-    gripTarget: cueEndpoints.butt.clone().addScaledVector(aimForward, 0.58 * SNOOKER_HUMAN_WORLD_SCALE),
-    power: activePower
-  });
+    .setY(bridgeCuePoint.y + 0.006 * SNOOKER_CUE_POSE_SCALE);
+  applyProvidedCueEndpointPose(cueStick, providedCueBack, providedCueTip);
+  cueStick.visible = Boolean(tableCueVisible || activePower > 0.02 || shooting || cueAnimating);
 }
 
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
@@ -5918,7 +5414,8 @@ const PLAYER_FORWARD_SLOWDOWN = 1.2;
 const PLAYER_STROKE_PULLBACK_FACTOR = 0.68;
 const PLAYER_PULLBACK_MIN_SCALE = 1.1;
 const MIN_PULLBACK_GAP = BALL_R * 0.5;
-const CAMERA_SWITCH_MIN_HOLD_MS = 220;
+const CAMERA_SWITCH_MIN_HOLD_MS = 420;
+const CUE_IMPACT_CAMERA_HOLD_MS = 320;
 const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 76;
 const PORTRAIT_HUD_CHAT_BUTTON_SHIFT_PX = 50.4;
 const REPLAY_CAMERA_SWITCH_THRESHOLD = BALL_R * 0.35;
@@ -22250,7 +21747,7 @@ const powerRef = useRef(hud.power);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
       table.add(cueStick);
-      const snookerHumanPlayer = createSnookerRoyalHumanPlayer(table, renderer);
+      const snookerCuePoseController = createSnookerRoyalCuePoseController();
       applySelectedCueStyle(cueStyleIndexRef.current ?? cueStyleIndex);
 
       const closeCueGallery = () => {
@@ -23586,12 +23083,7 @@ const powerRef = useRef(hud.power);
           const impactTime = pullEndTime + strikeDuration;
           const holdEndTime = impactTime + holdDuration;
           const returnTime = holdEndTime + returnDuration;
-          const forwardPreviewHold =
-            impactTime +
-            Math.min(
-              holdDuration,
-              Math.max(180, strikeDuration * 0.9)
-            );
+          const forwardPreviewHold = impactTime + CUE_IMPACT_CAMERA_HOLD_MS;
           powerImpactHoldRef.current = Math.max(
             powerImpactHoldRef.current || 0,
             forwardPreviewHold
@@ -26740,7 +26232,7 @@ const powerRef = useRef(hud.power);
         }
 
         try {
-          if (!snookerHumanPlayer.disabled) updateSnookerRoyalHumanPlayer(snookerHumanPlayer, deltaSeconds, {
+          if (!snookerCuePoseController.disabled) updateSnookerRoyalCuePose(snookerCuePoseController, deltaSeconds, {
             cue,
             cueStick,
             cueLen,
@@ -26754,10 +26246,8 @@ const powerRef = useRef(hud.power);
             tableCueVisible: Boolean(cueStick.visible && (cameraBlendRef.current ?? 1) <= 0.55)
           });
         } catch (error) {
-          snookerHumanPlayer.disabled = true;
-          snookerHumanPlayer.root.visible = false;
-          snookerHumanPlayer.modelRoot.visible = false;
-          console.warn('Snooker Royal human player disabled after pose error', error);
+          snookerCuePoseController.disabled = true;
+          console.warn('Snooker Royal cue pose disabled after update error', error);
         }
 
         if (!shouldSlowAim) {
@@ -27197,19 +26687,35 @@ const powerRef = useRef(hud.power);
           if (!pocketHoldActive && queuedPocketView) {
             const view = queuedPocketView;
             queuedPocketView = null;
-            view.pendingActivation = false;
-            view.activationDelay = null;
-            view.lastUpdate = performance.now();
-            if (cameraRef.current) {
-              const cam = cameraRef.current;
-              view.smoothedPos = cam.position.clone();
-              const storedTarget = lastCameraTargetRef.current?.clone();
-              if (storedTarget) {
-                view.smoothedTarget = storedTarget;
+            const resumeAction = view?.resumeAction?.mode === 'action' ? view.resumeAction : null;
+            if (resumeAction) {
+              resumeAction.pendingActivation = false;
+              resumeAction.activationDelay = null;
+              resumeAction.activationTravel = 0;
+              resumeAction.lastUpdate = performance.now();
+              if (cameraRef.current) {
+                resumeAction.smoothedPos = cameraRef.current.position.clone();
+                const storedTarget = lastCameraTargetRef.current?.clone();
+                if (storedTarget) resumeAction.smoothedTarget = storedTarget;
               }
+              updatePocketCameraState(false);
+              activeShotView = resumeAction;
+              suspendedActionView = null;
+            } else {
+              view.pendingActivation = false;
+              view.activationDelay = null;
+              view.lastUpdate = performance.now();
+              if (cameraRef.current) {
+                const cam = cameraRef.current;
+                view.smoothedPos = cam.position.clone();
+                const storedTarget = lastCameraTargetRef.current?.clone();
+                if (storedTarget) {
+                  view.smoothedTarget = storedTarget;
+                }
+              }
+              updatePocketCameraState(true);
+              activeShotView = view;
             }
-            updatePocketCameraState(true);
-            activeShotView = view;
           } else if (!pocketHoldActive && (activeShotView?.mode !== 'pocket' || !activeShotView)) {
             const ballsList = ballsRef.current?.length > 0 ? ballsRef.current : balls;
             const sph = sphRef.current;
@@ -27731,9 +27237,6 @@ const powerRef = useRef(hud.power);
         lightingRigRef.current = null;
         worldRef.current = null;
         activeRenderCameraRef.current = null;
-        snookerHumanPlayer?.root?.removeFromParent?.();
-        snookerHumanPlayer?.modelRoot?.removeFromParent?.();
-        disposeSnookerHumanGLTFLoader(snookerHumanPlayer?.loader);
         cueBodyRef.current = null;
         tipGroupRef.current = null;
         try {
