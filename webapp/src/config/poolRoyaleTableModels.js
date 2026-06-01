@@ -71,7 +71,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     usePoolRoyaleFinish: true,
     useReferenceShowoodMapping: true,
     usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood'],
-    preserveSourceTextureRoles: ['railSight', 'sideWoodApron', 'trim', 'pocket'],
+    preserveSourceTextureRoles: ['railSight', 'sideWoodApron', 'baseFoot', 'trim', 'pocket'],
     preserveOriginalSurfaceRoles: [],
     tintOriginalTrimGold: false,
     forceGeneratedChromePlates: false,

@@ -12422,85 +12422,11 @@ function isPoolRoyaleShowoodOriginalBaseOrLeg(child, material, referencePart = n
   const childName = `${child?.name || ''}`.toLowerCase();
   const materialName = `${material?.name || ''}`.toLowerCase();
   const label = `${childName} ${materialName}`;
-  if (/pocket|hole|drop|net|liner|leather|cup|basket|holder|plate|chrome|cushion|cloth|felt|slate|bed|playfield/.test(label)) {
+  if (/pocket|hole|drop|net|liner|leather|cup|basket|holder|plate|chrome|rail|cushion|cloth|felt|slate|bed|playfield/.test(label)) {
     return false;
   }
   if (['leg', 'baseFoot', 'baseCornerBlock'].includes(referencePart)) return true;
   return /leg|foot|feet|base|support|underside|pedestal|stretcher|plinth/.test(label);
-}
-
-function hidePoolRoyaleShowoodOriginalBaseAndLegMeshes(model, tableModel, dims = null) {
-  if (
-    !model ||
-    !tableModel?.hideOriginalBaseAndLegsForProceduralBase ||
-    !tableModel?.useProceduralBaseWithExternal ||
-    !tableModel?.useReferenceShowoodMapping
-  ) {
-    return;
-  }
-
-  model.updateMatrixWorld(true);
-  const fullBox = new THREE.Box3().setFromObject(model);
-  if (fullBox.isEmpty()) return;
-
-  const fullSize = fullBox.getSize(new THREE.Vector3());
-  const fullCenter = fullBox.getCenter(new THREE.Vector3());
-  const targetTop = Number.isFinite(dims?.targetTopLocal)
-    ? dims.targetTopLocal
-    : Number.isFinite(dims?.cushionTopLocal)
-      ? dims.cushionTopLocal
-      : fullBox.max.y;
-  const upperHeight = Number.isFinite(dims?.targetUpperComponentHeight)
-    ? Math.max(MICRO_EPS, dims.targetUpperComponentHeight)
-    : Math.max(MICRO_EPS, fullSize.y * 0.28);
-  const lowerHardwareTop = targetTop - upperHeight * 0.82;
-  const footZoneTop = fullBox.min.y + fullSize.y * 0.28;
-
-  model.traverse((child) => {
-    if (!child?.isMesh || child.userData?.poolRoyaleShowoodOriginalBaseHidden) return;
-    const materials = (Array.isArray(child.material) ? child.material : [child.material]).filter(Boolean);
-    const label = `${child.name || ''} ${materials.map((material) => material?.name || '').join(' ')}`.toLowerCase();
-    if (/pocket|hole|drop|net|liner|leather|cup|basket|holder|plate|chrome|cushion|cloth|felt|slate|bed|playfield/.test(label)) {
-      return;
-    }
-
-    const referenceParts = materials.map((material) => classifyPoolRoyaleShowoodReferencePart(child, material));
-    const explicitlyOriginalBase = referenceParts.some((part) =>
-      isPoolRoyaleShowoodOriginalBaseOrLeg(child, null, part)
-    );
-
-    const childBox = new THREE.Box3().setFromObject(child);
-    if (childBox.isEmpty()) return;
-    const childSize = childBox.getSize(new THREE.Vector3());
-    const childCenter = childBox.getCenter(new THREE.Vector3());
-    const maxFlatSpan = Math.max(childSize.x, childSize.z);
-    const nearCorner =
-      Math.abs(childCenter.x - fullCenter.x) > fullSize.x * 0.18 &&
-      Math.abs(childCenter.z - fullCenter.z) > fullSize.z * 0.18;
-    const belowUpperRails = childBox.max.y < lowerHardwareTop;
-    const lowFootZone = childBox.max.y < footZoneTop;
-    const lowerVerticalSupport =
-      belowUpperRails &&
-      childSize.y >= fullSize.y * 0.12 &&
-      childSize.y >= maxFlatSpan * 0.68 &&
-      maxFlatSpan <= Math.max(fullSize.x, fullSize.z) * 0.34;
-    const lowerFootOrPlinth =
-      lowFootZone &&
-      childSize.y <= fullSize.y * 0.22 &&
-      maxFlatSpan >= Math.max(MICRO_EPS, childSize.y) * 1.25 &&
-      maxFlatSpan <= Math.max(fullSize.x, fullSize.z) * 0.42;
-    const namedLowerSupport =
-      /leg|foot|feet|base|support|underside|pedestal|stretcher|plinth/.test(label) &&
-      childBox.max.y < targetTop - upperHeight * 0.18;
-
-    if (!(explicitlyOriginalBase || namedLowerSupport || (nearCorner && (lowerVerticalSupport || lowerFootOrPlinth)))) return;
-
-    child.visible = false;
-    child.userData = {
-      ...(child.userData || {}),
-      poolRoyaleShowoodOriginalBaseHidden: true
-    };
-  });
 }
 
 function applyPoolRoyaleShowoodReferenceMaterial(material, part, tableModel = null, finishInfo = null) {
@@ -13312,7 +13238,6 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   stretchPoolRoyaleExternalLowerBase(model, tableModel, dims);
   stretchPoolRoyaleShowoodLegsToFeet(model, tableModel);
   subtlyWidenPoolRoyaleShowoodFeet(model, tableModel);
-  hidePoolRoyaleShowoodOriginalBaseAndLegMeshes(model, tableModel, dims);
   model.userData = {
     ...(model.userData || {}),
     poolRoyaleExternalTable: true,
