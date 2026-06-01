@@ -12880,6 +12880,84 @@ function stretchPoolRoyaleExternalLowerBase(model, tableModel, dims) {
   model.updateMatrixWorld(true);
 }
 
+function shortenPoolRoyaleShowoodCornerRims(model, tableModel, dims) {
+  const scale = Number(tableModel?.cornerRimHeightScale ?? tableModel?.upperFrameHeightScale);
+  if (!model || !tableModel?.useReferenceShowoodMapping || !Number.isFinite(scale) || scale <= MICRO_EPS || scale >= 1 - MICRO_EPS) return;
+  const fullBox = new THREE.Box3().setFromObject(model);
+  if (fullBox.isEmpty()) return;
+  const fullSize = fullBox.getSize(new THREE.Vector3());
+  const targetTop = Number.isFinite(dims?.targetTopLocal)
+    ? dims.targetTopLocal
+    : Number.isFinite(dims?.cushionTopLocal)
+      ? dims.cushionTopLocal
+      : fullBox.max.y;
+  const upperHeight = Number.isFinite(dims?.targetUpperComponentHeight)
+    ? Math.max(MICRO_EPS, dims.targetUpperComponentHeight)
+    : Math.max(MICRO_EPS, fullSize.y * 0.28);
+  const upperCutoff = targetTop - upperHeight * 1.18;
+  const center = fullBox.getCenter(new THREE.Vector3());
+  model.traverse((child) => {
+    if (!child?.isMesh || child.userData?.poolRoyaleCornerRimShortened) return;
+    const material = Array.isArray(child.material) ? child.material[0] : child.material;
+    const role = classifyPoolRoyaleExternalTableSurface(child, material);
+    const referencePart = classifyPoolRoyaleShowoodReferencePart(child, material);
+    const label = `${child.name || ''} ${material?.name || ''}`.toLowerCase();
+    const isRimLike =
+      role === 'trim' &&
+      ['cornerPocketPlate', 'middlePocketPlate', 'lowerTrim'].includes(referencePart) &&
+      /corner|rim|plate|cap|guard|trim|bezel|chrome|gold|metal/.test(label);
+    if (!isRimLike) return;
+    const childBox = new THREE.Box3().setFromObject(child);
+    if (childBox.isEmpty() || childBox.max.y < upperCutoff) return;
+    const childCenter = childBox.getCenter(new THREE.Vector3());
+    const nearCorner =
+      Math.abs(childCenter.x - center.x) > fullSize.x * 0.26 &&
+      Math.abs(childCenter.z - center.z) > fullSize.z * 0.22;
+    if (!nearCorner && !/corner/.test(label)) return;
+    const anchorWorldY = Math.min(childBox.max.y, targetTop);
+    const parent = child.parent || model;
+    const anchorLocal = parent.worldToLocal(new THREE.Vector3(0, anchorWorldY, 0)).y;
+    child.scale.y *= scale;
+    child.updateMatrixWorld(true);
+    const nextBox = new THREE.Box3().setFromObject(child);
+    const nextAnchorLocal = parent.worldToLocal(new THREE.Vector3(0, nextBox.max.y, 0)).y;
+    child.position.y += anchorLocal - nextAnchorLocal;
+    child.userData.poolRoyaleCornerRimShortened = true;
+  });
+  model.updateMatrixWorld(true);
+}
+
+function subtlyWidenPoolRoyaleShowoodFeet(model, tableModel) {
+  const widthScale = Number(tableModel?.footWidthScale);
+  const heightScale = Number(tableModel?.footHeightScale);
+  if (!model || !tableModel?.useReferenceShowoodMapping || !Number.isFinite(widthScale) || widthScale <= 1 + MICRO_EPS) return;
+  if (model.userData?.poolRoyaleShowoodFeetWidened) return;
+
+  const safeWidthScale = THREE.MathUtils.clamp(widthScale, 1, 1.12);
+  const safeHeightScale = Number.isFinite(heightScale)
+    ? THREE.MathUtils.clamp(heightScale, 0.9, 1.08)
+    : 1;
+
+  model.traverse((child) => {
+    if (!child?.isMesh || child.userData?.poolRoyaleShowoodFootWidened) return;
+    const materials = Array.isArray(child.material) ? child.material : [child.material];
+    const label = `${child.name || ''} ${materials.map((material) => material?.name || '').join(' ')}`.toLowerCase();
+    const isFoot =
+      /foot|feet/.test(label) ||
+      materials.some((material) => classifyPoolRoyaleShowoodReferencePart(child, material) === 'baseFoot');
+    if (!isFoot) return;
+
+    child.scale.x *= safeWidthScale;
+    child.scale.z *= safeWidthScale;
+    child.scale.y *= safeHeightScale;
+    child.userData.poolRoyaleShowoodFootWidened = true;
+  });
+
+  model.userData.poolRoyaleShowoodFeetWidened = true;
+  model.updateMatrixWorld(true);
+}
+
+
 function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   if (!model || !dims) return;
   model.position.set(0, 0, 0);
@@ -12942,7 +13020,9 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   model.position.y += targetTopLocal - fullBox.max.y + (tableModel?.verticalOffset ?? 0);
   model.updateMatrixWorld(true);
   shrinkPoolRoyaleExternalUpperFrame(model, tableModel, dims);
+  shortenPoolRoyaleShowoodCornerRims(model, tableModel, dims);
   stretchPoolRoyaleExternalLowerBase(model, tableModel, dims);
+  subtlyWidenPoolRoyaleShowoodFeet(model, tableModel);
   model.userData = {
     ...(model.userData || {}),
     poolRoyaleExternalTable: true,
