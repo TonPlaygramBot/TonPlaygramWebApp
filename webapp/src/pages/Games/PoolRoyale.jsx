@@ -1828,16 +1828,14 @@ const RAIL_SPIN_THROW_SCALE = 0.09; // re-enable a mild rail throw so cue-ball s
 const RAIL_SPIN_THROW_REF_SPEED = BALL_R * 18;
 const RAIL_SPIN_NORMAL_FLIP = 0.65; // align spin inversion with Snooker Royal rebound behavior
 const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // disable preview-only spin deflection so lines match the true impact geometry
-// Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power softer than before.
-// Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
-// Pool Royale pace now mirrors Snooker Royale to keep ball travel identical between modes.
-// Apply an extra 15% reduction to keep Pool Royale strokes slightly softer than Snooker Royal.
+// Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power soft for portrait mobile play.
+// Keep the slider range unchanged, but trim the global pace so released shots travel less aggressively.
 const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
-const SHOT_POWER_BOOST = 1.5; // increase overall shot power by 25%
-const SHOT_GLOBAL_POWER_SCALE = 0.64; // trim Pool Royale shot pace further so cue-ball travel matches the softer target power
+const SHOT_POWER_BOOST = 1.5; // preserve legacy cue response before the final mobile comfort trim
+const SHOT_GLOBAL_POWER_SCALE = 0.48; // reduce Pool Royale shot pace by 25% so ball travel better matches the selected shot power
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
