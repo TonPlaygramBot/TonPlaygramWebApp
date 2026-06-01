@@ -403,8 +403,8 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   uziSprayAttack: {
     label: 'Uzi',
     urls: [
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Uzi/scene.gltf',
-      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Uzi/scene.gltf'
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/Uzi/scene.gltf',
+      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/Uzi/scene.gltf'
     ],
     scale: 0.2
   },
@@ -435,16 +435,16 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   mosinMarksmanAttack: {
     label: 'Mosin',
     urls: [
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Mosin/scene.gltf',
-      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Mosin/scene.gltf'
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/Mosin/scene.gltf',
+      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/Mosin/scene.gltf'
     ],
     scale: 0.5125
   },
   sigsauerTacticalAttack: {
     label: 'SigSauer Tactical',
     urls: [
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models3/SigSauer/scene.gltf',
-      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models3/SigSauer/scene.gltf'
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/SigSauer/scene.gltf',
+      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/SigSauer/scene.gltf'
     ],
     scale: 0.13
   },
@@ -470,8 +470,8 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   sniperShotAttack: {
     label: 'Sniper Shot',
     urls: [
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Mosin/scene.gltf',
-      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Mosin/scene.gltf'
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/Mosin/scene.gltf',
+      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/Mosin/scene.gltf'
     ],
     scale: 0.504
   },
