@@ -12494,6 +12494,7 @@ function shouldRemovePoolRoyaleShowoodOriginalBaseTriangle({
   const materialName = `${material?.name || ''}`.toLowerCase();
   const label = `${childName} ${materialName}`;
   if (isPoolRoyaleShowoodProtectedUpperLabel(label)) return false;
+  if (referencePart === 'sideWoodApron') return false;
   if (isPoolRoyaleShowoodOriginalBaseOrLeg(mesh, material, referencePart)) return true;
   if (POOL_ROYALE_SHOWOOD_ORIGINAL_BASE_PARTS.has(referencePart)) return true;
   return role === 'wood' && centerY <= lowerCutoffY;
@@ -12602,34 +12603,6 @@ function removePoolRoyaleShowoodOriginalBaseAndLegGeometry(root, tableModel = nu
   root.updateMatrixWorld?.(true);
   return removedTriangles;
 }
-
-const POOL_ROYALE_RAIL_SIGHT_RENDER_ORDER = CHROME_PLATE_RENDER_ORDER + 4;
-
-function prioritizePoolRoyaleRailSightVisibility(mesh, material = null) {
-  if (mesh) {
-    mesh.renderOrder = Math.max(mesh.renderOrder ?? 0, POOL_ROYALE_RAIL_SIGHT_RENDER_ORDER);
-    mesh.frustumCulled = false;
-    mesh.userData = {
-      ...(mesh.userData || {}),
-      poolRoyaleRailSightVisibilityPriority: true
-    };
-  }
-  const materials = Array.isArray(material) ? material : [material].filter(Boolean);
-  materials.forEach((mat) => {
-    if (!mat) return;
-    mat.depthTest = false;
-    mat.depthWrite = false;
-    mat.polygonOffset = true;
-    mat.polygonOffsetFactor = -4;
-    mat.polygonOffsetUnits = -4;
-    mat.userData = {
-      ...(mat.userData || {}),
-      poolRoyaleRailSightVisibilityPriority: true
-    };
-    mat.needsUpdate = true;
-  });
-}
-
 function applyPoolRoyaleShowoodReferenceMaterial(material, part, tableModel = null, finishInfo = null) {
   if (!material) return material;
   const mat = material.clone ? material.clone() : material;
@@ -12671,9 +12644,6 @@ function applyPoolRoyaleShowoodReferenceMaterial(material, part, tableModel = nu
     poolRoyaleShowoodReferenceControl: control,
     poolRoyaleShowoodReferenceChoice: choice
   };
-  if (part === 'railSight') {
-    prioritizePoolRoyaleRailSightVisibility(null, mat);
-  }
   return mat;
 }
 
@@ -12922,9 +12892,6 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
       const referencePart = tableModel?.useReferenceShowoodMapping
         ? classifyPoolRoyaleShowoodReferencePart(child, material)
         : null;
-      if (referencePart === 'railSight') {
-        prioritizePoolRoyaleRailSightVisibility(child, material);
-      }
       if (Array.isArray(tableModel?.hideSurfaceRoles) && tableModel.hideSurfaceRoles.includes(role)) {
         child.visible = false;
       }
@@ -12942,9 +12909,6 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
       }
       if (tableModel?.useReferenceShowoodMapping) {
         const nextMaterial = applyPoolRoyaleShowoodReferenceMaterial(material, referencePart || role, tableModel, finishInfo);
-        if (referencePart === 'railSight') {
-          prioritizePoolRoyaleRailSightVisibility(child, nextMaterial);
-        }
         normalizePoolRoyaleExternalClothTextureScale(child, nextMaterial, role);
         return nextMaterial;
       }
@@ -13199,7 +13163,7 @@ function trimPoolRoyaleShowoodLowerAccentTriangles(model, tableModel, dims) {
     ? tableModel.accentBottomTrimOffset
     : 0;
   const trimBelowY = railBottomY + bottomTrimOffset;
-  const removableParts = new Set(['railSight', 'verticalCornerRim', 'lowerTrim', 'cornerPocketPlate', 'middlePocketPlate']);
+  const removableParts = new Set(['verticalCornerRim', 'lowerTrim', 'cornerPocketPlate', 'middlePocketPlate']);
   const removableMeshes = [];
   let trimmedTriangles = 0;
   const tmpA = new THREE.Vector3();
