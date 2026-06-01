@@ -669,7 +669,7 @@ export default function PoolRoyaleLobby() {
             })}
           </div>
           <p className="text-xs text-white/60">
-            Royal Original and Showood share the same in-game table finish and base menus, so one setup controls both table styles.
+            Royal Original keeps the clean procedural table; Showood material setup is available inside the in-game menu only.
           </p>
         </div>
 
