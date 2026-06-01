@@ -11200,6 +11200,10 @@ export function Table3D(
     const plate = new THREE.Mesh(brandPlateGeom, materials);
     plate.position.set(0, brandPlateY, dirZ * (shortRailCenterZ + brandPlateOutwardShift));
     plate.rotation.y = dirZ > 0 ? 0 : Math.PI;
+    plate.userData = {
+      ...(plate.userData || {}),
+      externalTableBrandPlateKeepVisible: true
+    };
     plate.castShadow = true;
     plate.receiveShadow = true;
     plate.renderOrder = CHROME_PLATE_RENDER_ORDER + 0.2;
@@ -12922,8 +12926,68 @@ function shortenPoolRoyaleShowoodCornerRims(model, tableModel, dims) {
     const nextBox = new THREE.Box3().setFromObject(child);
     const nextAnchorLocal = parent.worldToLocal(new THREE.Vector3(0, nextBox.max.y, 0)).y;
     child.position.y += anchorLocal - nextAnchorLocal;
+    const lift = Number(tableModel?.cornerRimLift);
+    if (Number.isFinite(lift) && Math.abs(lift) > MICRO_EPS) {
+      child.position.y += lift;
+    }
     child.userData.poolRoyaleCornerRimShortened = true;
   });
+  model.updateMatrixWorld(true);
+}
+
+function stretchPoolRoyaleShowoodLegsToFeet(model, tableModel) {
+  const reachScale = Number(tableModel?.lowerLegFootReachScale);
+  if (!model || !tableModel?.useReferenceShowoodMapping || !Number.isFinite(reachScale) || reachScale <= 1 + MICRO_EPS) return;
+  if (model.userData?.poolRoyaleShowoodLegsReachedFeet) return;
+
+  const feet = [];
+  const legs = [];
+  model.updateMatrixWorld(true);
+  model.traverse((child) => {
+    if (!child?.isMesh) return;
+    const materials = Array.isArray(child.material) ? child.material : [child.material];
+    const label = `${child.name || ''} ${materials.map((material) => material?.name || '').join(' ')}`.toLowerCase();
+    const referenceParts = materials.map((material) => classifyPoolRoyaleShowoodReferencePart(child, material));
+    const childBox = new THREE.Box3().setFromObject(child);
+    if (childBox.isEmpty()) return;
+    if (/foot|feet/.test(label) || referenceParts.includes('baseFoot')) {
+      feet.push({ mesh: child, box: childBox });
+    } else if (/leg/.test(label) || referenceParts.includes('leg')) {
+      legs.push({ mesh: child, box: childBox });
+    }
+  });
+  if (!feet.length || !legs.length) return;
+
+  legs.forEach(({ mesh, box }) => {
+    if (!mesh || mesh.userData?.poolRoyaleShowoodLegReachedFoot) return;
+    const center = box.getCenter(new THREE.Vector3());
+    let nearestFoot = null;
+    let nearestScore = Infinity;
+    feet.forEach((foot) => {
+      const footCenter = foot.box.getCenter(new THREE.Vector3());
+      const score = Math.hypot(center.x - footCenter.x, center.z - footCenter.z);
+      if (score < nearestScore) {
+        nearestScore = score;
+        nearestFoot = foot;
+      }
+    });
+    if (!nearestFoot) return;
+    const gap = box.min.y - nearestFoot.box.max.y;
+    if (!Number.isFinite(gap) || gap <= MICRO_EPS) return;
+    const legHeight = Math.max(MICRO_EPS, box.max.y - box.min.y);
+    const scale = THREE.MathUtils.clamp((legHeight + gap * reachScale) / legHeight, 1, 1.38);
+    const anchorWorldY = box.max.y;
+    const parent = mesh.parent || model;
+    const anchorLocal = parent.worldToLocal(new THREE.Vector3(0, anchorWorldY, 0)).y;
+    mesh.scale.y *= scale;
+    mesh.updateMatrixWorld(true);
+    const nextBox = new THREE.Box3().setFromObject(mesh);
+    const nextAnchorLocal = parent.worldToLocal(new THREE.Vector3(0, nextBox.max.y, 0)).y;
+    mesh.position.y += anchorLocal - nextAnchorLocal;
+    mesh.userData.poolRoyaleShowoodLegReachedFoot = true;
+  });
+
+  model.userData.poolRoyaleShowoodLegsReachedFeet = true;
   model.updateMatrixWorld(true);
 }
 
@@ -13022,6 +13086,7 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   shrinkPoolRoyaleExternalUpperFrame(model, tableModel, dims);
   shortenPoolRoyaleShowoodCornerRims(model, tableModel, dims);
   stretchPoolRoyaleExternalLowerBase(model, tableModel, dims);
+  stretchPoolRoyaleShowoodLegsToFeet(model, tableModel);
   subtlyWidenPoolRoyaleShowoodFeet(model, tableModel);
   model.userData = {
     ...(model.userData || {}),
@@ -13815,6 +13880,7 @@ function mountPoolRoyaleExternalTableModel({
       if (
         !visible &&
         (
+          object.userData?.externalTableBrandPlateKeepVisible ||
           (!externalTableModelForMount?.useOriginalLayoutSurfaces && object.userData?.externalTableKeepVisible) ||
           (object.userData?.isChromePlate && forceGeneratedChrome)
         )
