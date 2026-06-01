@@ -180,6 +180,31 @@ describe('cross-game inventory alignment', () => {
       });
   });
 
+
+  test('Gunify weapon URLs use original source model folders for texture resolution', async () => {
+    const sourceFiles = await Promise.all([
+      readFile('webapp/src/pages/Games/LudoBattleRoyal.jsx', 'utf8'),
+      readFile('webapp/src/pages/Games/ChessBattleRoyal.jsx', 'utf8'),
+      readFile('webapp/src/pages/Games/ShootingRange.tsx', 'utf8'),
+      readFile('webapp/src/config/snakeWeaponCatalog.js', 'utf8')
+    ]);
+    const combinedSource = sourceFiles.join('\n');
+
+    expect(combinedSource).not.toContain('Gunify/main/models2/');
+    expect(combinedSource).not.toContain('Gunify@main/models2/');
+    expect(combinedSource).not.toContain('Gunify/main/models3/');
+    expect(combinedSource).not.toContain('Gunify@main/models3/');
+
+    ['AK47', 'KRSV', 'Smith', 'Mosin', 'SigSauer', 'Uzi'].forEach((modelName) => {
+      expect(combinedSource).toContain(
+        `https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/${modelName}/scene.gltf`
+      );
+      expect(combinedSource).toContain(
+        `https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/${modelName}/scene.gltf`
+      );
+    });
+  });
+
   test('snake store mirrors ludo battle royal capture weapons', () => {
     const snakeCaptureStoreIds = new Set(
       SNAKE_STORE_ITEMS.filter((item) => item.type === 'captureWeapon').map((item) => item.optionId)

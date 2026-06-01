@@ -246,7 +246,7 @@ const CHESS_CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
     textureOverrideUrls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/AK47.jpeg']
   },
   uziSprayAttack: {
-    urls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Uzi/scene.gltf', 'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Uzi/scene.gltf'],
+    urls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/Uzi/scene.gltf', 'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/Uzi/scene.gltf'],
     scale: 0.2
   },
   ak47VolleyAttack: {
@@ -262,11 +262,11 @@ const CHESS_CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
     scale: 0.13
   },
   mosinMarksmanAttack: {
-    urls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Mosin/scene.gltf', 'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Mosin/scene.gltf'],
+    urls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/Mosin/scene.gltf', 'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/Mosin/scene.gltf'],
     scale: 0.5125
   },
   sigsauerTacticalAttack: {
-    urls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models3/SigSauer/scene.gltf', 'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models3/SigSauer/scene.gltf'],
+    urls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/SigSauer/scene.gltf', 'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/SigSauer/scene.gltf'],
     scale: 0.13,
     textureOverrideUrls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/SigSauer.jpg']
   },
@@ -275,7 +275,7 @@ const CHESS_CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
     scale: 0.24
   },
   sniperShotAttack: {
-    urls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Mosin/scene.gltf', 'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Mosin/scene.gltf'],
+    urls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/Mosin/scene.gltf', 'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/Mosin/scene.gltf'],
     scale: 0.504
   },
   smgBurstAttack: {

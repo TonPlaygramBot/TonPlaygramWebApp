@@ -416,8 +416,8 @@ const WEAPONS: WeaponEntry[] = [
     shortName: 'Mosin',
     weaponClass: 'sniper',
     urls: [
-      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Mosin/scene.gltf',
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Mosin/scene.gltf',
+      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/Mosin/scene.gltf',
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/Mosin/scene.gltf',
       KNOWN.awp,
       KNOWN.awpRaw
     ]
@@ -428,8 +428,8 @@ const WEAPONS: WeaponEntry[] = [
     shortName: 'Uzi',
     weaponClass: 'smg',
     urls: [
-      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models2/Uzi/scene.gltf',
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models2/Uzi/scene.gltf',
+      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/Uzi/scene.gltf',
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/Uzi/scene.gltf',
       KNOWN.mrtk,
       KNOWN.mrtkMaster
     ]
@@ -440,8 +440,8 @@ const WEAPONS: WeaponEntry[] = [
     shortName: 'SigSauer',
     weaponClass: 'pistol',
     urls: [
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models3/SigSauer/scene.gltf',
-      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models3/SigSauer/scene.gltf',
+      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/SigSauer/scene.gltf',
+      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/SigSauer/scene.gltf',
       KNOWN.pistolHolster,
       KNOWN.pistolHolsterRaw
     ]
