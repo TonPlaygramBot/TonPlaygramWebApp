@@ -22,11 +22,11 @@ describe('Pool Royale shot state commit flow', () => {
     expect(high.state).toBe(SHOT_STATE.STRIKING);
   });
 
-  it('boosts physical shot power above 60% without changing low/mid percentages', () => {
-    expect(resolvePoolRoyaleShotPowerScale(0.25)).toBeCloseTo(0.25, 6);
-    expect(resolvePoolRoyaleShotPowerScale(0.6)).toBeCloseTo(0.6, 6);
-    expect(resolvePoolRoyaleShotPowerScale(0.8)).toBeGreaterThan(0.8);
-    expect(resolvePoolRoyaleShotPowerScale(1)).toBeCloseTo(1.55, 6);
+  it('adds 30% more physical shot power while keeping the high-end boost curve', () => {
+    expect(resolvePoolRoyaleShotPowerScale(0.25)).toBeCloseTo(0.325, 6);
+    expect(resolvePoolRoyaleShotPowerScale(0.6)).toBeCloseTo(0.78, 6);
+    expect(resolvePoolRoyaleShotPowerScale(0.8)).toBeGreaterThan(1.04);
+    expect(resolvePoolRoyaleShotPowerScale(1)).toBeCloseTo(2.015, 6);
   });
 
   it('uses cubic ease-out for slider reset curve', () => {
