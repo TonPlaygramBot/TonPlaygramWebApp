@@ -12985,16 +12985,12 @@ function stretchPoolRoyaleShowoodLegsToFeet(model, tableModel) {
     const gap = box.min.y - nearestFoot.box.max.y;
     if (!Number.isFinite(gap) || gap <= MICRO_EPS) return;
     const legHeight = Math.max(MICRO_EPS, box.max.y - box.min.y);
-    const overlapScale = Number(tableModel?.lowerLegFootOverlapScale);
-    const contactOverlap = Number.isFinite(overlapScale)
-      ? THREE.MathUtils.clamp(overlapScale, 0, 0.18) * legHeight
-      : 0;
     // Keep the top of the leg fixed and extend the bottom visually downward until it
-    // reaches/slightly overlaps the nearest foot, matching the portrait-phone view
-    // where short hanging legs must visibly touch the yellow foot blocks.
-    const exactTouchScale = (legHeight + gap + contactOverlap) / legHeight;
-    const requestedScale = (legHeight + gap * reachScale + contactOverlap) / legHeight;
-    const scale = THREE.MathUtils.clamp(Math.max(exactTouchScale, requestedScale), 1, 4);
+    // overlaps the nearest foot, matching the portrait-phone view where short
+    // hanging legs should reach the yellow foot blocks.
+    const exactTouchScale = (legHeight + gap) / legHeight;
+    const requestedScale = (legHeight + gap * reachScale) / legHeight;
+    const scale = THREE.MathUtils.clamp(Math.max(exactTouchScale, requestedScale), 1, 2.15);
     const anchorWorldY = box.max.y;
     const parent = mesh.parent || model;
     const anchorLocal = parent.worldToLocal(new THREE.Vector3(0, anchorWorldY, 0)).y;
