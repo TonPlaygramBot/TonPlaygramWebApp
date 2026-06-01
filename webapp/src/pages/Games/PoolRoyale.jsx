@@ -12906,17 +12906,27 @@ function shortenPoolRoyaleShowoodCornerRims(model, tableModel, dims) {
     const role = classifyPoolRoyaleExternalTableSurface(child, material);
     const referencePart = classifyPoolRoyaleShowoodReferencePart(child, material);
     const label = `${child.name || ''} ${material?.name || ''}`.toLowerCase();
-    const isRimLike =
-      role === 'trim' &&
-      ['cornerPocketPlate', 'middlePocketPlate', 'lowerTrim'].includes(referencePart) &&
-      /corner|rim|plate|cap|guard|trim|bezel|chrome|gold|metal/.test(label);
-    if (!isRimLike) return;
     const childBox = new THREE.Box3().setFromObject(child);
     if (childBox.isEmpty() || childBox.max.y < upperCutoff) return;
+    const childSize = childBox.getSize(new THREE.Vector3());
     const childCenter = childBox.getCenter(new THREE.Vector3());
     const nearCorner =
       Math.abs(childCenter.x - center.x) > fullSize.x * 0.26 &&
       Math.abs(childCenter.z - center.z) > fullSize.z * 0.22;
+    const compactCornerPart =
+      childSize.x < fullSize.x * 0.28 &&
+      childSize.z < fullSize.z * 0.28 &&
+      childSize.y < fullSize.y * 0.32;
+    const explicitRimPart = ['cornerPocketPlate', 'middlePocketPlate', 'lowerTrim'].includes(referencePart);
+    const cornerCapPart =
+      nearCorner &&
+      compactCornerPart &&
+      ['topWoodRail', 'baseCornerBlock', 'sideWoodApron'].includes(referencePart) &&
+      /corner|rim|plate|cap|guard|trim|bezel|chrome|gold|metal|block|apron/.test(label);
+    const isRimLike =
+      (role === 'trim' && explicitRimPart && /corner|rim|plate|cap|guard|trim|bezel|chrome|gold|metal/.test(label)) ||
+      cornerCapPart;
+    if (!isRimLike) return;
     if (!nearCorner && !/corner/.test(label)) return;
     const anchorWorldY = Math.min(childBox.max.y, targetTop);
     const parent = child.parent || model;
@@ -12975,7 +12985,12 @@ function stretchPoolRoyaleShowoodLegsToFeet(model, tableModel) {
     const gap = box.min.y - nearestFoot.box.max.y;
     if (!Number.isFinite(gap) || gap <= MICRO_EPS) return;
     const legHeight = Math.max(MICRO_EPS, box.max.y - box.min.y);
-    const scale = THREE.MathUtils.clamp((legHeight + gap * reachScale) / legHeight, 1, 1.38);
+    // Keep the top of the leg fixed and extend the bottom visually downward until it
+    // overlaps the nearest foot, matching the portrait-phone view where short
+    // hanging legs should reach the yellow foot blocks.
+    const exactTouchScale = (legHeight + gap) / legHeight;
+    const requestedScale = (legHeight + gap * reachScale) / legHeight;
+    const scale = THREE.MathUtils.clamp(Math.max(exactTouchScale, requestedScale), 1, 2.15);
     const anchorWorldY = box.max.y;
     const parent = mesh.parent || model;
     const anchorLocal = parent.worldToLocal(new THREE.Vector3(0, anchorWorldY, 0)).y;
