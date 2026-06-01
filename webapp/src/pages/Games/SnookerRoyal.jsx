@@ -2191,20 +2191,12 @@ function updateSnookerRoyalHumanPlayer(human, dt, options) {
     human.modelRoot.visible = false;
     return;
   }
-  const cueAnchor = options?.cueAnchor;
-  const lockCueToShotAnchor = Boolean(
-    (shooting || cueAnimating || options?.sliderDragging) &&
-      Number.isFinite(cueAnchor?.x) &&
-      Number.isFinite(cueAnchor?.z)
-  );
-  const cueWorldX = lockCueToShotAnchor ? cueAnchor.x : cuePos.x;
-  const cueWorldZ = lockCueToShotAnchor ? cueAnchor.z : cuePos.y;
 
   const aimForward = new THREE.Vector3(aimDir?.x ?? 0, 0, aimDir?.y ?? 1);
   if (aimForward.lengthSq() < 1e-8) aimForward.set(0, 0, 1);
   aimForward.normalize();
   const aimSide = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
-  const cueBallWorld = new THREE.Vector3(cueWorldX, CUE_Y, cueWorldZ);
+  const cueBallWorld = new THREE.Vector3(cuePos.x, CUE_Y, cuePos.y);
   const humanRootTarget = chooseProvidedSnookerHumanEdgePosition(cueBallWorld, aimForward, {
     unit: SNOOKER_HUMAN_WORLD_SCALE,
     tableW: PLAY_W,
@@ -2251,20 +2243,21 @@ function updateSnookerRoyalHumanPlayer(human, dt, options) {
     1.08 * SNOOKER_HUMAN_WORLD_SCALE,
     0.03 * SNOOKER_HUMAN_WORLD_SCALE
   ).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw));
-  const cameraStanding = options?.cameraStanding ?? !tableCueVisible;
   const humanCueState = shooting || cueAnimating
     ? 'striking'
     : activePower > 0.02
       ? 'dragging'
-      : cameraStanding
-        ? 'idle'
-        : 'aiming';
+      : tableCueVisible
+        ? 'aiming'
+        : 'idle';
   const idleCuePose = resolveProvidedSnookerIdleCuePose(idleRightHandTarget, standingYaw, cueLen);
   const cueEndpoints = humanCueState === 'idle'
     ? idleCuePose
     : { tip: providedCueTip, butt: providedCueBack };
-  applyProvidedCueEndpointPose(cueStick, cueEndpoints.butt, cueEndpoints.tip);
-  cueStick.visible = true;
+  if (humanCueState !== 'idle') {
+    applyProvidedCueEndpointPose(cueStick, providedCueBack, providedCueTip);
+    cueStick.visible = true;
+  }
 
   updateProvidedSnookerHumanPose(human, dt, {
     exactProvidedPose: true,
@@ -26744,14 +26737,7 @@ const powerRef = useRef(hud.power);
             power: (shooting || cueAnimating) ? lastShotPower : (powerRef.current ?? activeAiPlan?.power ?? 0),
             shooting,
             cueAnimating,
-            tableCueVisible: cueStick.visible,
-            cameraStanding: (() => {
-              const renderCamera = activeRenderCameraRef.current ?? cameraRef.current ?? camera;
-              const cueBallY = cue?.pos ? CUE_Y : BALL_CENTER_Y;
-              return ((renderCamera?.position?.y ?? cueBallY) - cueBallY) > BALL_R * 3.4;
-            })(),
-            sliderDragging: Boolean(sliderInstanceRef.current?.dragging),
-            cueAnchor: cueStickAnchorRef.current
+            tableCueVisible: cueStick.visible
           });
         } catch (error) {
           snookerHumanPlayer.disabled = true;
