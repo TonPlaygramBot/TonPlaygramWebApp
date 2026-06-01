@@ -7631,37 +7631,6 @@ function cloneBoard(b) {
   return b.map((r) => r.map((c) => (c ? { t: c.t, w: c.w, hasMoved: Boolean(c.hasMoved) } : null)));
 }
 
-function boardToWireBoard(board) {
-  if (!Array.isArray(board)) return null;
-  return board.map((row) =>
-    Array.isArray(row)
-      ? row.map((piece) =>
-          piece
-            ? {
-                t: piece.t,
-                w: Boolean(piece.w),
-                hasMoved: Boolean(piece.hasMoved)
-              }
-            : null
-        )
-      : Array(8).fill(null)
-  );
-}
-
-function parseWireBoard(wireBoard) {
-  if (!Array.isArray(wireBoard) || wireBoard.length !== 8) return null;
-  const next = wireBoard.map((row) => {
-    if (!Array.isArray(row) || row.length !== 8) return null;
-    return row.map((piece) => {
-      if (!piece) return null;
-      const type = String(piece.t || '').toUpperCase();
-      if (!['P', 'N', 'B', 'R', 'Q', 'K'].includes(type)) return null;
-      return { t: type, w: Boolean(piece.w), hasMoved: Boolean(piece.hasMoved) };
-    });
-  });
-  return next.every(Boolean) ? next : null;
-}
-
 // Offsets
 const DIRS = {
   N: [-1, 0],
@@ -8812,21 +8781,7 @@ function Chess3D({
     onlineRef.current.emitMove = ({ tableId: tid, move }) => {
       const target = tid || onlineRef.current.tableId;
       if (!target || !move) return;
-      const emitter = typeof socket.timeout === 'function' ? socket.timeout(5000) : socket;
-      emitter.emit('chessMove', { tableId: target, move }, (errorOrResponse, maybeResponse) => {
-        if (!active) return;
-        const hasTimeoutSignature = maybeResponse !== undefined || errorOrResponse instanceof Error;
-        const error = hasTimeoutSignature ? errorOrResponse : null;
-        const response = hasTimeoutSignature ? maybeResponse || {} : errorOrResponse || {};
-        if (error || response?.success === false) {
-          onlineRef.current.requestSync?.();
-          return;
-        }
-        if (response?.state) {
-          onlineRef.current.synced = true;
-          onlineRef.current.applyRemoteMove?.(response.state);
-        }
-      });
+      socket.emit('chessMove', { tableId: target, move });
     };
     onlineRef.current.requestSync = () => {
       const target = onlineRef.current.tableId;
@@ -13492,28 +13447,12 @@ function Chess3D({
     };
 
     const syncBoardFromState = (payload = {}) => {
-      const { fen, turnWhite = true, lastMove, board: syncedBoard, players = [] } = payload;
-      if (!fen && !syncedBoard) return;
+      const { fen, turnWhite = true, lastMove } = payload;
+      if (!fen) return;
       try {
-        const parsedBoard = parseWireBoard(syncedBoard);
-        board = parsedBoard || parseFEN(String(fen || START_FEN).split(' ')[0]);
-        if (Array.isArray(players) && players.length) {
-          const me = players.find((p) => String(p.id) === String(accountId));
-          const opp = players.find((p) => String(p.id) !== String(accountId));
-          if (me?.side === 'white' || me?.side === 'black') {
-            onlineRef.current.side = me.side;
-          }
-          if (opp) setOpponent(opp);
-        }
+        board = parseFEN(fen.split(' ')[0]);
         paintPiecesFromPrototypes(currentPiecePrototypes);
-        const statusText = payload.winner
-          ? `${payload.winner === 'white' ? 'White' : 'Black'} wins`
-          : payload.draw === 'stalemate'
-            ? 'Stalemate'
-            : turnWhite
-              ? 'White to move'
-              : 'Black to move';
-        applyStatus(turnWhite, statusText, payload.winner || null);
+        applyStatus(turnWhite, turnWhite ? 'White to move' : 'Black to move', null);
         if (lastMove?.from && lastMove?.to) {
           const { from, to } = lastMove;
           lastMoveRef.current = {
@@ -14363,7 +14302,6 @@ function Chess3D({
         const movePayload = {
           lastMove: { from: { r: sel.r, c: sel.c }, to: { r: rr, c: cc } },
           fen: boardToFEN(board, nextWhite),
-          board: boardToWireBoard(board),
           turnWhite: nextWhite
         };
         onlineRef.current.emitMove?.({ tableId: onlineRef.current.tableId, move: movePayload });
