@@ -26,7 +26,7 @@ describe('Pool Royale shot state commit flow', () => {
     expect(resolvePoolRoyaleShotPowerScale(0.25)).toBeCloseTo(0.25, 6);
     expect(resolvePoolRoyaleShotPowerScale(0.6)).toBeCloseTo(0.6, 6);
     expect(resolvePoolRoyaleShotPowerScale(0.8)).toBeGreaterThan(0.8);
-    expect(resolvePoolRoyaleShotPowerScale(1)).toBeCloseTo(1.35, 6);
+    expect(resolvePoolRoyaleShotPowerScale(1)).toBeCloseTo(1.55, 6);
   });
 
   it('uses cubic ease-out for slider reset curve', () => {
