@@ -28,6 +28,8 @@ const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
 const DEV_ACCOUNT_2 = import.meta.env.VITE_DEV_ACCOUNT_ID_2;
 const AI_FLAG_STORAGE_KEY = 'chessBattleRoyalAiFlag';
+const CHESS_HOST_CODE_STORAGE_KEY = 'chessBattleRoyalHostCode';
+const CHESS_ONLINE_TABLE_PREFIX = 'chess-2-host';
 
 const SOCKET_CONNECT_TIMEOUT_MS = 6000;
 const SOCKET_REGISTER_TIMEOUT_MS = 6000;
@@ -38,6 +40,164 @@ const MATCHMAKING_RECOVERABLE_ERRORS = new Set([
   'rate_limited',
   'identity_mismatch'
 ]);
+
+function normalizeHostCode(code = '') {
+  return String(code || '')
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]/g, '')
+    .toUpperCase()
+    .slice(0, 48);
+}
+
+function buildHostedTableId(code = '') {
+  const safeCode = normalizeHostCode(code);
+  if (!safeCode) return '';
+  return `${CHESS_ONLINE_TABLE_PREFIX}-${safeCode}`;
+}
+
+function isChessHostedTableId(tableId = '') {
+  return String(tableId || '').startsWith(`${CHESS_ONLINE_TABLE_PREFIX}-`);
+}
+
+function extractHostCodeFromTableId(tableId = '') {
+  const value = String(tableId || '');
+  return isChessHostedTableId(value)
+    ? value.slice(`${CHESS_ONLINE_TABLE_PREFIX}-`.length)
+    : '';
+}
+
+function resolvePlayerName(player) {
+  if (!player || typeof player !== 'object') return '';
+  return String(
+    player.name ||
+      player.username ||
+      player.telegramName ||
+      player.firstName ||
+      resolveTpcAccountNumber(player) ||
+      ''
+  ).trim();
+}
+
+function formatLobbyError(error) {
+  if (!error) return '';
+  return String(error).replace(/_/g, ' ');
+}
+
+function resolveSeatErrorMessage(error) {
+  const clean = formatLobbyError(error);
+  if (error === 'table_full') return 'That private chess table is already full.';
+  if (error === 'table_not_found') return 'That private chess table was not found.';
+  if (error === 'table_unavailable') return 'That private chess table is no longer available.';
+  if (error === 'stake_mismatch') return 'That chess table uses a different stake.';
+  if (error === 'game_type_mismatch') return 'That table is for another game.';
+  return `Could not join the online lobby. Please try again${clean ? ` (${clean})` : ''}.`;
+}
+
+function resolveSeatAccountId(primary, secondary) {
+  return String(getTpcAccountId() || primary || secondary || '').trim();
+}
+
+function resolveLobbyStatus(players = [], ready = [], seatAccountId = '') {
+  const list = Array.isArray(players) ? players : [];
+  const readyIds = new Set((Array.isArray(ready) ? ready : []).map((id) => String(id)));
+  const others = list.filter((p) => resolveTpcAccountNumber(p) !== String(seatAccountId));
+  if (others.length <= 0) return 'Waiting for another player…';
+  const everyoneReady = list.length >= 2 && list.every((p) => readyIds.has(resolveTpcAccountNumber(p)));
+  return everyoneReady ? 'Both players ready. Starting match…' : 'Opponent joined. Locking seats…';
+}
+
+function resolveChessSide(players = [], seatAccountId = '') {
+  const list = Array.isArray(players) ? players : [];
+  const meIndex = list.findIndex((p) => resolveTpcAccountNumber(p) === String(seatAccountId));
+  const me = list[meIndex];
+  return me?.side || (meIndex === 0 ? 'white' : 'black');
+}
+
+function resolveChessOpponent(players = [], seatAccountId = '') {
+  return (Array.isArray(players) ? players : []).find(
+    (p) => resolveTpcAccountNumber(p) !== String(seatAccountId)
+  );
+}
+
+function resolveChessTableMode(tableId = '') {
+  if (!tableId) return 'quick';
+  return isChessHostedTableId(tableId) ? 'private' : 'quick';
+}
+
+function resolvePrivateMatchStatus(tableId = '', hostCode = '') {
+  const code = normalizeHostCode(hostCode) || extractHostCodeFromTableId(tableId);
+  return code
+    ? `Private table ${code} ready. Waiting for your opponent…`
+    : 'Private table ready. Waiting for your opponent…';
+}
+
+function buildChessGameParams({
+  mode,
+  stake,
+  avatar,
+  tgId,
+  trackedAccountId,
+  accountId,
+  selectedFlag,
+  selectedAiFlag,
+  preferredSide,
+  extraParams = {}
+}) {
+  const params = new URLSearchParams();
+  const initData = window.Telegram?.WebApp?.initData;
+  const isOnline = mode === 'online';
+
+  if (isOnline && stake.token) params.set('token', stake.token);
+  if (isOnline && stake.amount) params.set('amount', stake.amount);
+  if (avatar) params.set('avatar', avatar);
+  if (tgId) params.set('tgId', tgId);
+  if (isOnline && (trackedAccountId || accountId)) {
+    params.set('accountId', trackedAccountId || accountId);
+  }
+  if (selectedFlag) params.set('flag', selectedFlag);
+  if (!isOnline && selectedAiFlag) params.set('aiFlag', selectedAiFlag);
+  if (preferredSide) params.set('preferredSide', preferredSide);
+  if (DEV_ACCOUNT) params.set('dev', DEV_ACCOUNT);
+  if (DEV_ACCOUNT_1) params.set('dev1', DEV_ACCOUNT_1);
+  if (DEV_ACCOUNT_2) params.set('dev2', DEV_ACCOUNT_2);
+  if (isOnline && initData) params.set('init', encodeURIComponent(initData));
+  params.set('mode', mode);
+
+  Object.entries(extraParams).forEach(([key, value]) => {
+    if (value != null && key !== 'tgId' && key !== 'trackedAccountId') {
+      params.set(key, value);
+    }
+  });
+
+  return params;
+}
+
+function resolveInitialOnlineQueue(searchParams) {
+  const requestedTableId = (searchParams.get('tableId') || '').trim();
+  const requestedHostCode =
+    normalizeHostCode(searchParams.get('hostCode') || extractHostCodeFromTableId(requestedTableId));
+  const requestedMode = searchParams.get('queue') === 'private' || requestedHostCode
+    ? 'private'
+    : 'quick';
+  return { requestedTableId, requestedHostCode, requestedMode };
+}
+
+export {
+  buildChessGameParams,
+  buildHostedTableId,
+  extractHostCodeFromTableId,
+  formatLobbyError,
+  isChessHostedTableId,
+  normalizeHostCode,
+  resolveChessOpponent,
+  resolveChessSide,
+  resolveChessTableMode,
+  resolveInitialOnlineQueue,
+  resolveLobbyStatus,
+  resolvePlayerName,
+  resolveSeatAccountId,
+  resolveSeatErrorMessage
+};
 
 function resolveTpcAccountNumber(player) {
   if (!player || typeof player !== 'object') return '';
@@ -122,11 +282,14 @@ export default function ChessBattleRoyalLobby() {
   const { search } = useLocation();
   useTelegramBackButton();
   const searchParams = new URLSearchParams(search);
-  const requestedOnlineTableId = (searchParams.get('tableId') || '').trim();
+  const { requestedTableId, requestedHostCode, requestedMode } =
+    resolveInitialOnlineQueue(searchParams);
 
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [avatar, setAvatar] = useState('');
-  const [mode, setMode] = useState('ai');
+  const [mode, setMode] = useState(requestedTableId ? 'online' : 'ai');
+  const [onlineQueueMode, setOnlineQueueMode] = useState(requestedMode);
+  const [hostCodeInput, setHostCodeInput] = useState(requestedHostCode);
   const [showFlagPicker, setShowFlagPicker] = useState(false);
   const [showAiFlagPicker, setShowAiFlagPicker] = useState(false);
   const [playerFlagIndex, setPlayerFlagIndex] = useState(null);
@@ -142,6 +305,7 @@ export default function ChessBattleRoyalLobby() {
   const [matchError, setMatchError] = useState('');
   const preferredSide = 'auto';
   const pendingTableRef = useRef('');
+  const lobbyHandlersRef = useRef({ gameStart: null, lobbyUpdate: null });
   const cleanupRef = useRef(() => {});
   const matchmakingTimeoutRef = useRef(null);
   const spinIntervalRef = useRef(null);
@@ -176,6 +340,24 @@ export default function ChessBattleRoyalLobby() {
       if (idx >= 0) setAiFlagIndex(idx);
     } catch {}
   }, []);
+
+  useEffect(() => {
+    if (requestedTableId) {
+      setMode('online');
+      setOnlineQueueMode(resolveChessTableMode(requestedTableId));
+      const requestedCode = extractHostCodeFromTableId(requestedTableId);
+      if (requestedCode) setHostCodeInput(requestedCode);
+    }
+  }, [requestedTableId]);
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage?.getItem(CHESS_HOST_CODE_STORAGE_KEY);
+      if (stored && !hostCodeInput && !requestedHostCode) {
+        setHostCodeInput(normalizeHostCode(stored));
+      }
+    } catch {}
+  }, [hostCodeInput, requestedHostCode]);
 
   useEffect(() => {
     let cancelled = false;
@@ -278,29 +460,17 @@ export default function ChessBattleRoyalLobby() {
   );
 
   const navigateToGame = (extraParams = {}) => {
-    const params = new URLSearchParams();
-    const initData = window.Telegram?.WebApp?.initData;
-    const isOnline = mode === 'online';
-
-    if (isOnline && stake.token) params.set('token', stake.token);
-    if (isOnline && stake.amount) params.set('amount', stake.amount);
-    if (avatar) params.set('avatar', avatar);
-    if (extraParams.tgId) params.set('tgId', extraParams.tgId);
-    if (isOnline && (extraParams.trackedAccountId || accountId))
-      params.set('accountId', extraParams.trackedAccountId || accountId);
-    if (selectedFlag) params.set('flag', selectedFlag);
-    if (!isOnline && selectedAiFlag) params.set('aiFlag', selectedAiFlag);
-    if (preferredSide) params.set('preferredSide', preferredSide);
-    if (DEV_ACCOUNT) params.set('dev', DEV_ACCOUNT);
-    if (DEV_ACCOUNT_1) params.set('dev1', DEV_ACCOUNT_1);
-    if (DEV_ACCOUNT_2) params.set('dev2', DEV_ACCOUNT_2);
-    if (isOnline && initData) params.set('init', encodeURIComponent(initData));
-    params.set('mode', mode);
-
-    Object.entries(extraParams).forEach(([key, value]) => {
-      if (value != null && key !== 'tgId' && key !== 'trackedAccountId') {
-        params.set(key, value);
-      }
+    const params = buildChessGameParams({
+      mode,
+      stake,
+      avatar,
+      tgId: extraParams.tgId,
+      trackedAccountId: extraParams.trackedAccountId,
+      accountId,
+      selectedFlag,
+      selectedAiFlag,
+      preferredSide,
+      extraParams
     });
 
     navigate(`/games/chessbattleroyal?${params.toString()}`);
@@ -311,9 +481,13 @@ export default function ChessBattleRoyalLobby() {
       clearTimeout(matchmakingTimeoutRef.current);
       matchmakingTimeoutRef.current = null;
     }
-    socket.off('gameStart');
-    socket.off('gameStarted');
-    socket.off('lobbyUpdate');
+    const { gameStart, lobbyUpdate } = lobbyHandlersRef.current;
+    if (gameStart) {
+      socket.off('gameStart', gameStart);
+      socket.off('gameStarted', gameStart);
+    }
+    if (lobbyUpdate) socket.off('lobbyUpdate', lobbyUpdate);
+    lobbyHandlersRef.current = { gameStart: null, lobbyUpdate: null };
     if (!skipLeave && pendingTableRef.current && (account || accountId)) {
       socket.emit('leaveLobby', {
         accountId: account || accountId,
@@ -336,6 +510,19 @@ export default function ChessBattleRoyalLobby() {
     if (matching) return;
     let tgId;
     let trackedAccountId;
+    let stakeCharged = false;
+    const refundStakeIfNeeded = async (reason = 'matchmaking_cleanup') => {
+      if (!stakeCharged || !trackedAccountId) return;
+      try {
+        await addTransaction(tgId || getTelegramId(), stake.amount, 'stake_refund', {
+          game: 'chessbattle',
+          players: 2,
+          accountId: trackedAccountId,
+          reason
+        });
+        stakeCharged = false;
+      } catch {}
+    };
     if (isOnline) {
       try {
         trackedAccountId = await ensureAccountId();
@@ -352,6 +539,7 @@ export default function ChessBattleRoyalLobby() {
           players: 2,
           accountId: trackedAccountId
         });
+        stakeCharged = true;
       } catch {}
 
       if (!trackedAccountId) {
@@ -369,6 +557,26 @@ export default function ChessBattleRoyalLobby() {
       return;
     }
 
+    const hostedTableId =
+      onlineQueueMode === 'private'
+        ? requestedTableId || buildHostedTableId(hostCodeInput)
+        : '';
+    if (onlineQueueMode === 'private' && !hostedTableId) {
+      await refundStakeIfNeeded('missing_private_code');
+      setMatchError('Enter a private code to create or join a chess table.');
+      setMatching(false);
+      setMatchStatus('');
+      return;
+    }
+    if (onlineQueueMode === 'private') {
+      try {
+        window.localStorage?.setItem(
+          CHESS_HOST_CODE_STORAGE_KEY,
+          normalizeHostCode(hostCodeInput || extractHostCodeFromTableId(hostedTableId))
+        );
+      } catch {}
+    }
+
     setMatchError('');
     setMatching(true);
     setMatchStatus('Connecting to lobby…');
@@ -382,6 +590,7 @@ export default function ChessBattleRoyalLobby() {
 
     const socketReady = await ensureSocketConnected();
     if (!socketReady) {
+      await refundStakeIfNeeded('socket_connect_failed');
       setMatchError(
         'Lobby connection failed. Check your network and try again.'
       );
@@ -390,9 +599,10 @@ export default function ChessBattleRoyalLobby() {
       return;
     }
 
-    const seatAccountId = getTpcAccountId() || trackedAccountId || accountId;
+    const seatAccountId = resolveSeatAccountId(trackedAccountId, accountId);
     const socketRegistered = await ensureSocketRegistered(seatAccountId);
     if (!socketRegistered) {
+      await refundStakeIfNeeded('socket_register_failed');
       setMatchError('Unable to sync your online session. Please retry.');
       setMatching(false);
       setMatchStatus('');
@@ -405,37 +615,25 @@ export default function ChessBattleRoyalLobby() {
       ready = []
     } = {}) => {
       if (!tid || String(tid) !== String(pendingTableRef.current)) return;
-      setMatchPlayers(Array.isArray(list) ? list : []);
-      setReadyList(Array.isArray(ready) ? ready.map((id) => String(id)) : []);
-      const others = list.filter(
-        (p) => resolveTpcAccountNumber(p) !== String(seatAccountId)
-      );
-      if (others.length > 0) {
-        setMatchStatus('Opponent joined. Locking seats…');
-      } else {
-        setMatchStatus('Waiting for another player…');
-      }
+      const playersList = Array.isArray(list) ? list : [];
+      const readyIds = Array.isArray(ready) ? ready.map((id) => String(id)) : [];
+      setMatchPlayers(playersList);
+      setReadyList(readyIds);
+      setMatchStatus(resolveLobbyStatus(playersList, readyIds, seatAccountId));
     };
 
     const handleGameStart = ({ tableId: startedId, players = [] } = {}) => {
       if (!startedId || String(startedId) !== String(pendingTableRef.current)) return;
-      const meIndex = players.findIndex(
-        (p) => resolveTpcAccountNumber(p) === String(seatAccountId)
-      );
-      const opp = players.find(
-        (p) => resolveTpcAccountNumber(p) !== String(seatAccountId)
-      );
-      const mySide =
-        players.find(
-          (p) => resolveTpcAccountNumber(p) === String(seatAccountId)
-        )?.side || (meIndex === 0 ? 'white' : 'black');
+      stakeCharged = false;
+      const mySide = resolveChessSide(players, seatAccountId);
+      const opp = resolveChessOpponent(players, seatAccountId);
       cleanupLobby({ account: trackedAccountId, skipLeave: true });
       navigateToGame({
         tgId,
         trackedAccountId,
         tableId: startedId,
         side: mySide,
-        opponentName: opp?.name,
+        opponentName: resolvePlayerName(opp),
         opponentAvatar: opp?.avatar
       });
     };
@@ -446,12 +644,16 @@ export default function ChessBattleRoyalLobby() {
     socket.on('gameStart', handleGameStart);
     socket.on('gameStarted', handleGameStart);
     socket.on('lobbyUpdate', handleLobbyUpdate);
+    lobbyHandlersRef.current = {
+      gameStart: handleGameStart,
+      lobbyUpdate: handleLobbyUpdate
+    };
 
-    const matchTimeout = window.setTimeout(() => {
+    const matchTimeout = window.setTimeout(async () => {
       if (!pendingTableRef.current) return;
       cleanupLobby({ account: trackedAccountId });
-      setMatchError('No opponent joined in time. Please try again.');
-      setMatchStatus('');
+      await refundStakeIfNeeded('matchmaking_timeout');
+      setMatchError('No opponent joined in time. Your stake was refunded.');
     }, MATCHMAKING_TIMEOUT_MS);
     matchmakingTimeoutRef.current = matchTimeout;
 
@@ -469,7 +671,7 @@ export default function ChessBattleRoyalLobby() {
           tpcAccountId: seatAccountId,
           gameType: 'chess',
           stake: stake.amount ?? 0,
-          tableId: requestedOnlineTableId || undefined,
+          tableId: hostedTableId || undefined,
           maxPlayers: 2,
           mode: 'online',
           playerName: friendlyName,
@@ -498,8 +700,9 @@ export default function ChessBattleRoyalLobby() {
                 const restored = await ensureSocketConnected();
                 if (!restored) {
                   cleanupLobby({ account: trackedAccountId });
+                  await refundStakeIfNeeded('socket_retry_failed');
                   setMatchError(
-                    'Lobby connection dropped while retrying. Please try again.'
+                    'Lobby connection dropped while retrying. Your stake was refunded.'
                   );
                   setMatchStatus('');
                   return;
@@ -509,8 +712,9 @@ export default function ChessBattleRoyalLobby() {
                     await ensureSocketRegistered(seatAccountId);
                   if (!reRegistered) {
                     cleanupLobby({ account: trackedAccountId });
+                    await refundStakeIfNeeded('socket_reregister_failed');
                     setMatchError(
-                      'Could not restore your online identity. Please try again.'
+                      'Could not restore your online identity. Your stake was refunded.'
                     );
                     setMatchStatus('');
                     return;
@@ -520,8 +724,10 @@ export default function ChessBattleRoyalLobby() {
               }, retryDelay);
               return;
             }
-            setMatchError('Could not join the online lobby. Please try again.');
+            await refundStakeIfNeeded('seat_table_failed');
+            const errorMessage = resolveSeatErrorMessage(res?.error);
             cleanupLobby({ account: trackedAccountId });
+            setMatchError(errorMessage);
             return;
           }
           pendingTableRef.current = res.tableId;
@@ -529,7 +735,11 @@ export default function ChessBattleRoyalLobby() {
           setReadyList(
             Array.isArray(res.ready) ? res.ready.map((id) => String(id)) : []
           );
-          setMatchStatus('Waiting for another player…');
+          setMatchStatus(
+            onlineQueueMode === 'private'
+              ? resolvePrivateMatchStatus(res.tableId, hostCodeInput)
+              : resolveLobbyStatus(res.players, res.ready, seatAccountId)
+          );
           socket.emit('confirmReady', {
             accountId: seatAccountId,
             tpcAccountNumber: seatAccountId,
@@ -708,6 +918,45 @@ export default function ChessBattleRoyalLobby() {
                 tokens={['TPC']}
               />
             </div>
+            <div className="mt-4 space-y-3 rounded-2xl border border-white/10 bg-black/20 p-3">
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { key: 'quick', label: 'Quick Match', desc: 'Any same-stake player' },
+                  { key: 'private', label: 'Private Code', desc: 'Share table code' }
+                ].map((option) => {
+                  const active = onlineQueueMode === option.key;
+                  return (
+                    <button
+                      key={option.key}
+                      type="button"
+                      onClick={() => setOnlineQueueMode(option.key)}
+                      className={`rounded-xl border px-3 py-2 text-left transition ${
+                        active
+                          ? 'border-primary bg-primary/15 text-primary'
+                          : 'border-white/10 bg-white/5 text-white/70 hover:border-white/30'
+                      }`}
+                    >
+                      <p className="text-sm font-semibold">{option.label}</p>
+                      <p className="text-[11px] text-white/50">{option.desc}</p>
+                    </button>
+                  );
+                })}
+              </div>
+              {onlineQueueMode === 'private' && (
+                <label className="block text-xs text-white/60">
+                  Private table code
+                  <input
+                    value={hostCodeInput}
+                    onChange={(event) => setHostCodeInput(normalizeHostCode(event.target.value))}
+                    placeholder="FRIEND123"
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-[#050914] px-3 py-2 text-sm text-white outline-none focus:border-primary"
+                  />
+                  <span className="mt-1 block text-[11px] text-white/45">
+                    Both phones must use the same code and stake to enter the same chess table.
+                  </span>
+                </label>
+              )}
+            </div>
             <p className="text-center text-white/60 text-xs">
               Staking uses your TPC account{accountId ? ` #${accountId}` : ''}{' '}
               as escrow for every online round.
@@ -724,7 +973,9 @@ export default function ChessBattleRoyalLobby() {
             <div className="lobby-tile w-full flex items-center justify-between">
               <span>🎯 {spinningPlayer || 'Searching…'}</span>
               <span className="text-xs text-white/60">
-                Stake {stake.amount} {stake.token}
+                {onlineQueueMode === 'private'
+                  ? `Code ${normalizeHostCode(hostCodeInput) || extractHostCodeFromTableId(pendingTableRef.current) || '—'}`
+                  : `Stake ${stake.amount} ${stake.token}`}
               </span>
             </div>
             {matchPlayers.length > 0 && (
