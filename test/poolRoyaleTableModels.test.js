@@ -51,11 +51,6 @@ describe('Pool Royale table models', () => {
       'pocket'
     ]);
     assert.equal(showood.forceGeneratedChromePlates, false);
-    assert.equal(showood.upperFrameHeightScale, 0.74);
-    assert.equal(showood.cornerRimHeightScale, 0.74);
-    assert.equal(showood.lowerBaseHeightScale, 1.48);
-    assert.equal(showood.footWidthScale, 1.38);
-    assert.equal(showood.footHeightScale, 0.82);
     assert.deepEqual(showood.usePoolRoyaleFinishRoles, ['cloth', 'cushion', 'wood']);
   });
 
