@@ -12909,6 +12909,58 @@ function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tab
   return mat;
 }
 
+const POOL_ROYALE_SHOWOOD_OUTWARD_ACCENT_PARTS = new Set(['railSight', 'sideWoodApron']);
+
+function offsetPoolRoyaleShowoodMetalAccentParts(root, tableModel = null) {
+  const offset = Number(tableModel?.metalAccentOutwardOffset);
+  if (
+    !root ||
+    !tableModel?.useReferenceShowoodMapping ||
+    !Number.isFinite(offset) ||
+    Math.abs(offset) <= MICRO_EPS
+  ) return;
+
+  root.updateMatrixWorld?.(true);
+  const fullBox = new THREE.Box3().setFromObject(root);
+  if (fullBox.isEmpty()) return;
+  const tableCenter = fullBox.getCenter(new THREE.Vector3());
+  const childCenter = new THREE.Vector3();
+  const direction = new THREE.Vector3();
+
+  root.traverse((child) => {
+    if (!child?.isMesh || child.userData?.poolRoyaleShowoodMetalAccentOutwardOffset) return;
+    const materials = Array.isArray(child.material) ? child.material : [child.material].filter(Boolean);
+    const accentParts = materials
+      .map((material) => (
+        material?.userData?.poolRoyaleShowoodReferencePart ||
+        classifyPoolRoyaleShowoodReferencePart(child, material)
+      ))
+      .filter((part) => POOL_ROYALE_SHOWOOD_OUTWARD_ACCENT_PARTS.has(part));
+    if (!accentParts.length) return;
+    const usesMetalAccent = materials.some(
+      (material) => material?.userData?.poolRoyaleShowoodReferenceControl === 'metalAccent'
+    );
+    if (!usesMetalAccent) return;
+
+    const childBox = new THREE.Box3().setFromObject(child);
+    if (childBox.isEmpty()) return;
+    childBox.getCenter(childCenter);
+    direction.set(childCenter.x - tableCenter.x, 0, childCenter.z - tableCenter.z);
+    if (direction.lengthSq() <= MICRO_EPS) return;
+    direction.normalize().multiplyScalar(offset);
+    const parent = child.parent || root;
+    const currentLocalCenter = parent.worldToLocal(childCenter.clone());
+    const outwardLocalCenter = parent.worldToLocal(childCenter.clone().add(direction));
+    child.position.add(outwardLocalCenter.sub(currentLocalCenter));
+    child.userData = {
+      ...(child.userData || {}),
+      poolRoyaleShowoodMetalAccentOutwardOffset: offset,
+      poolRoyaleShowoodMetalAccentOutwardParts: Array.from(new Set(accentParts))
+    };
+  });
+  root.updateMatrixWorld?.(true);
+}
+
 function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finishInfo = null) {
   root?.traverse?.((child) => {
     if (!child?.isMesh) return;
@@ -12975,6 +13027,7 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
 function clonePoolRoyaleExternalTableTemplate(template, tableModel = null, finishInfo = null) {
   const clone = template.clone(true);
   preparePoolRoyaleExternalTableMaterials(clone, tableModel, finishInfo);
+  offsetPoolRoyaleShowoodMetalAccentParts(clone, tableModel);
   removePoolRoyaleShowoodOriginalBaseAndLegGeometry(clone, tableModel);
   return clone;
 }
