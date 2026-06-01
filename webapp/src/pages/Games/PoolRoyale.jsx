@@ -8572,6 +8572,12 @@ export function Table3D(
     CHROME_PLATE_STYLE_BY_ID[DEFAULT_CHROME_PLATE_STYLE_ID] ??
     CHROME_PLATE_STYLE_OPTIONS[0];
   const usesExternalTableModel = resolvedTableOptions?.tableModel?.kind === 'gltf';
+  const externalTableUsesProceduralBase = Boolean(
+    usesExternalTableModel && resolvedTableOptions?.tableModel?.useProceduralBaseWithExternal
+  );
+  const externalTableKeepsGeneratedPocketHardware = Boolean(
+    usesExternalTableModel && resolvedTableOptions?.tableModel?.keepGeneratedPocketDropHardware
+  );
   const externalTableUsesOriginalLayout =
     usesExternalTableModel && resolvedTableOptions?.tableModel?.useOriginalLayoutSurfaces === true;
   const externalPlayfieldVisualLift =
@@ -9427,6 +9433,8 @@ export function Table3D(
     pocket.castShadow = false;
     pocket.receiveShadow = true;
     pocket.userData.verticalLift = pocketLift;
+    pocket.userData.externalTableKeepVisible = true;
+    pocket.userData.externalTablePocketDropHardware = true;
     table.add(pocket);
     pocketMeshes.push(pocket);
     const net = new THREE.Mesh(pocketNetGeo, pocketNetMaterial);
@@ -9439,6 +9447,7 @@ export function Table3D(
     net.receiveShadow = true;
     net.renderOrder = pocket.renderOrder - 0.25;
     net.userData.externalTableKeepVisible = true;
+    net.userData.externalTablePocketDropHardware = true;
     table.add(net);
     finishParts.pocketNetMeshes.push(net);
 
@@ -9455,6 +9464,7 @@ export function Table3D(
     ring.castShadow = true;
     ring.receiveShadow = true;
     ring.userData.externalTableKeepVisible = true;
+    ring.userData.externalTablePocketDropHardware = true;
     table.add(ring);
     finishParts.pocketBaseMeshes.push(ring);
     table.userData.pocketHolderAnchors[index] = {
@@ -9489,6 +9499,7 @@ export function Table3D(
       guide.castShadow = true;
       guide.receiveShadow = true;
       guide.userData.externalTableKeepVisible = true;
+      guide.userData.externalTablePocketDropHardware = true;
       table.add(guide);
       finishParts.pocketBaseMeshes.push(guide);
       return guide;
@@ -9553,6 +9564,7 @@ export function Table3D(
       strap.castShadow = true;
       strap.receiveShadow = true;
       strap.userData.externalTableKeepVisible = true;
+      strap.userData.externalTablePocketDropHardware = true;
       table.add(strap);
       finishParts.pocketJawMeshes.push(strap);
     }
@@ -12059,7 +12071,23 @@ export function Table3D(
     finishParts.frameMeshes = finishParts.frameMeshes
       .filter((mesh) => !mesh?.userData?.__basePart)
       .concat(frameMeshes);
-    meshes.forEach((mesh) => table.add(mesh));
+    meshes.forEach((mesh) => {
+      if (externalTableUsesProceduralBase) {
+        mesh.userData = {
+          ...(mesh.userData || {}),
+          externalTableAlwaysKeepVisible: true,
+          externalTableProceduralBase: true
+        };
+        mesh.traverse?.((child) => {
+          child.userData = {
+            ...(child.userData || {}),
+            externalTableAlwaysKeepVisible: true,
+            externalTableProceduralBase: true
+          };
+        });
+      }
+      table.add(mesh);
+    });
   };
 
   const tagBasePart = (mesh, baseMaterialKey = null) => {
@@ -12390,6 +12418,17 @@ function classifyPoolRoyaleShowoodReferencePart(child, material) {
   return 'sideWoodApron';
 }
 
+function isPoolRoyaleShowoodOriginalBaseOrLeg(child, material, referencePart = null) {
+  const childName = `${child?.name || ''}`.toLowerCase();
+  const materialName = `${material?.name || ''}`.toLowerCase();
+  const label = `${childName} ${materialName}`;
+  if (/pocket|hole|drop|net|liner|leather|cup|basket|holder|plate|chrome|rail|cushion|cloth|felt|slate|bed|playfield/.test(label)) {
+    return false;
+  }
+  if (['leg', 'baseFoot', 'baseCornerBlock'].includes(referencePart)) return true;
+  return /leg|foot|feet|base|support|underside|pedestal|stretcher|plinth/.test(label);
+}
+
 function applyPoolRoyaleShowoodReferenceMaterial(material, part, tableModel = null, finishInfo = null) {
   if (!material) return material;
   const mat = material.clone ? material.clone() : material;
@@ -12681,6 +12720,18 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
         : null;
       if (Array.isArray(tableModel?.hideSurfaceRoles) && tableModel.hideSurfaceRoles.includes(role)) {
         child.visible = false;
+      }
+      if (
+        tableModel?.hideOriginalBaseAndLegsForProceduralBase &&
+        tableModel?.useProceduralBaseWithExternal &&
+        tableModel?.useReferenceShowoodMapping &&
+        isPoolRoyaleShowoodOriginalBaseOrLeg(child, material, referencePart)
+      ) {
+        child.visible = false;
+        child.userData = {
+          ...(child.userData || {}),
+          poolRoyaleShowoodOriginalBaseHidden: true
+        };
       }
       if (tableModel?.useReferenceShowoodMapping) {
         const nextMaterial = applyPoolRoyaleShowoodReferenceMaterial(material, referencePart || role, tableModel, finishInfo);
@@ -13645,7 +13696,7 @@ function mountPoolRoyaleExternalTableModel({
   };
 
   const applyBaseVariant = (variant) => {
-    if (usesExternalTableModel) {
+    if (usesExternalTableModel && !externalTableUsesProceduralBase) {
       clearBaseMeshes();
       finishParts.baseVariantId = 'externalModelOwnBase';
       table.userData.baseVariantId = 'externalModelOwnBase';
@@ -13979,9 +14030,22 @@ function mountPoolRoyaleExternalTableModel({
       if (
         !visible &&
         (
-          object.userData?.externalTableBrandPlateKeepVisible ||
-          object.userData?.externalTableAlwaysKeepVisible ||
-          (!externalTableModelForMount?.useOriginalLayoutSurfaces && object.userData?.externalTableKeepVisible) ||
+          (
+            object.userData?.externalTableBrandPlateKeepVisible &&
+            !externalTableModelForMount?.useOriginalLayoutSurfaces
+          ) ||
+          (
+            object.userData?.externalTableAlwaysKeepVisible &&
+            (!externalTableModelForMount?.useOriginalLayoutSurfaces || object.userData?.externalTableProceduralBase)
+          ) ||
+          (
+            object.userData?.externalTableKeepVisible &&
+            !externalTableModelForMount?.useOriginalLayoutSurfaces
+          ) ||
+          (
+            externalTableKeepsGeneratedPocketHardware &&
+            object.userData?.externalTablePocketDropHardware
+          ) ||
           (object.userData?.isChromePlate && forceGeneratedChrome)
         )
       ) {
