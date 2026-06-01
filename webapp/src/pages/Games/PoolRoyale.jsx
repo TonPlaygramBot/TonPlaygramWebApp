@@ -12378,7 +12378,9 @@ function classifyPoolRoyaleShowoodReferencePart(child, material) {
     return metalish && !black && !brown ? 'cornerPocketPlate' : 'pocketCup';
   }
   if (/trim|bezel|ring|metal|chrome|brass|gold|plate|cap|rim|guard|insert|hardware|bolt|screw/.test(label) || metalish) {
-    return /foot|feet/.test(label) ? 'baseFoot' : 'lowerTrim';
+    if (/foot|feet/.test(label)) return 'baseFoot';
+    if (/vertical|upright|corner|post|pillar|rim|guard|cap/.test(label)) return 'verticalCornerRim';
+    return 'lowerTrim';
   }
   if (/leg/.test(label)) return 'leg';
   if (/base|block|support|underside/.test(label)) return 'baseCornerBlock';
@@ -12892,6 +12894,38 @@ function stretchPoolRoyaleExternalLowerBase(model, tableModel, dims) {
   model.updateMatrixWorld(true);
 }
 
+function resolvePoolRoyaleShowoodTopRailBottomY(model, fullBox, dims) {
+  if (!model || fullBox?.isEmpty?.()) return null;
+  const fullSize = fullBox.getSize(new THREE.Vector3());
+  const targetTop = Number.isFinite(dims?.targetTopLocal)
+    ? dims.targetTopLocal
+    : Number.isFinite(dims?.cushionTopLocal)
+      ? dims.cushionTopLocal
+      : fullBox.max.y;
+  const upperHeight = Number.isFinite(dims?.targetUpperComponentHeight)
+    ? Math.max(MICRO_EPS, dims.targetUpperComponentHeight)
+    : Math.max(MICRO_EPS, fullSize.y * 0.28);
+  const upperCutoff = targetTop - upperHeight * 1.18;
+  const railBottoms = [];
+
+  model.traverse((child) => {
+    if (!child?.isMesh) return;
+    const materials = Array.isArray(child.material) ? child.material : [child.material];
+    const referenceParts = materials.map((material) => classifyPoolRoyaleShowoodReferencePart(child, material));
+    if (!referenceParts.includes('topWoodRail')) return;
+    const childBox = new THREE.Box3().setFromObject(child);
+    if (childBox.isEmpty() || childBox.max.y < upperCutoff) return;
+    const childSize = childBox.getSize(new THREE.Vector3());
+    if (childSize.y > fullSize.y * 0.4) return;
+    railBottoms.push(childBox.min.y);
+  });
+
+  if (!railBottoms.length) return null;
+  railBottoms.sort((a, b) => a - b);
+  const index = THREE.MathUtils.clamp(Math.floor(railBottoms.length * 0.35), 0, railBottoms.length - 1);
+  return railBottoms[index];
+}
+
 function shortenPoolRoyaleShowoodCornerRims(model, tableModel, dims) {
   const scale = Number(tableModel?.cornerRimHeightScale ?? tableModel?.upperFrameHeightScale);
   if (!model || !tableModel?.useReferenceShowoodMapping || !Number.isFinite(scale) || scale <= MICRO_EPS || scale >= 1 - MICRO_EPS) return;
@@ -12907,13 +12941,17 @@ function shortenPoolRoyaleShowoodCornerRims(model, tableModel, dims) {
     ? Math.max(MICRO_EPS, dims.targetUpperComponentHeight)
     : Math.max(MICRO_EPS, fullSize.y * 0.28);
   const upperCutoff = targetTop - upperHeight * 1.18;
+  const railBottomY = tableModel?.trimCornerRimsToTopRailBottom === false
+    ? null
+    : resolvePoolRoyaleShowoodTopRailBottomY(model, fullBox, dims);
   const center = fullBox.getCenter(new THREE.Vector3());
   model.traverse((child) => {
     if (!child?.isMesh || child.userData?.poolRoyaleCornerRimShortened) return;
-    const material = Array.isArray(child.material) ? child.material[0] : child.material;
+    const materials = Array.isArray(child.material) ? child.material : [child.material];
+    const material = materials[0];
     const role = classifyPoolRoyaleExternalTableSurface(child, material);
-    const referencePart = classifyPoolRoyaleShowoodReferencePart(child, material);
-    const label = `${child.name || ''} ${material?.name || ''}`.toLowerCase();
+    const referenceParts = materials.map((entry) => classifyPoolRoyaleShowoodReferencePart(child, entry));
+    const label = `${child.name || ''} ${materials.map((entry) => entry?.name || '').join(' ')}`.toLowerCase();
     const childBox = new THREE.Box3().setFromObject(child);
     if (childBox.isEmpty() || childBox.max.y < upperCutoff) return;
     const childSize = childBox.getSize(new THREE.Vector3());
@@ -12924,28 +12962,35 @@ function shortenPoolRoyaleShowoodCornerRims(model, tableModel, dims) {
     const compactCornerPart =
       childSize.x < fullSize.x * 0.28 &&
       childSize.z < fullSize.z * 0.28 &&
-      childSize.y < fullSize.y * 0.32;
-    const explicitRimPart = ['cornerPocketPlate', 'middlePocketPlate', 'lowerTrim'].includes(referencePart);
+      childSize.y < fullSize.y * 0.38;
+    const explicitRimPart = referenceParts.some((part) =>
+      ['cornerPocketPlate', 'middlePocketPlate', 'verticalCornerRim', 'lowerTrim'].includes(part)
+    );
     const cornerCapPart =
       nearCorner &&
       compactCornerPart &&
-      ['topWoodRail', 'baseCornerBlock', 'sideWoodApron'].includes(referencePart) &&
+      referenceParts.some((part) => ['topWoodRail', 'baseCornerBlock', 'sideWoodApron'].includes(part)) &&
       /corner|rim|plate|cap|guard|trim|bezel|chrome|gold|metal|block|apron/.test(label);
     const isRimLike =
       (role === 'trim' && explicitRimPart && /corner|rim|plate|cap|guard|trim|bezel|chrome|gold|metal/.test(label)) ||
+      (explicitRimPart && nearCorner && compactCornerPart) ||
       cornerCapPart;
     if (!isRimLike) return;
     if (!nearCorner && !/corner/.test(label)) return;
-    const anchorWorldY = Math.min(childBox.max.y, targetTop);
     const parent = child.parent || model;
+    const anchorWorldY = Math.min(childBox.max.y, targetTop);
     const anchorLocal = parent.worldToLocal(new THREE.Vector3(0, anchorWorldY, 0)).y;
-    child.scale.y *= scale;
+    const hasRailBottomTarget = Number.isFinite(railBottomY) && railBottomY > childBox.min.y + MICRO_EPS && railBottomY < anchorWorldY - MICRO_EPS;
+    const nextScale = hasRailBottomTarget
+      ? THREE.MathUtils.clamp((anchorWorldY - railBottomY) / Math.max(MICRO_EPS, childBox.max.y - childBox.min.y), 0.05, 1)
+      : scale;
+    child.scale.y *= nextScale;
     child.updateMatrixWorld(true);
     const nextBox = new THREE.Box3().setFromObject(child);
     const nextAnchorLocal = parent.worldToLocal(new THREE.Vector3(0, nextBox.max.y, 0)).y;
     child.position.y += anchorLocal - nextAnchorLocal;
     const lift = Number(tableModel?.cornerRimLift);
-    if (Number.isFinite(lift) && Math.abs(lift) > MICRO_EPS) {
+    if (!hasRailBottomTarget && Number.isFinite(lift) && Math.abs(lift) > MICRO_EPS) {
       child.position.y += lift;
     }
     child.userData.poolRoyaleCornerRimShortened = true;
@@ -13016,14 +13061,20 @@ function stretchPoolRoyaleShowoodLegsToFeet(model, tableModel) {
       }
     });
     if (!nearestFoot) return;
-    const gap = box.min.y - nearestFoot.box.max.y;
+    const reachTarget = tableModel?.lowerLegReachTarget === 'footBottom'
+      ? nearestFoot.box.min.y
+      : nearestFoot.box.max.y;
+    const gap = box.min.y - reachTarget;
     if (!Number.isFinite(gap) || gap <= MICRO_EPS) return;
     const legHeight = Math.max(MICRO_EPS, box.max.y - box.min.y);
-    // Keep the top of the leg fixed and expand the visible bottom downward until
-    // it reaches the nearest foot in the portrait view, with only a tiny seam
-    // overlap so no short gap remains visible.
-    const seamOverlap = Math.min(gap * Math.max(0, reachScale - 1), legHeight * 0.035);
-    const scale = THREE.MathUtils.clamp((legHeight + gap + seamOverlap) / legHeight, 1, 2.35);
+    // Keep the top of the leg fixed and expand the visible bottom downward so
+    // the GLB Showood legs become taller from the bottom without lifting the
+    // table height or moving the playfield.
+    const seamOverlap = Math.min(gap * Math.max(0, reachScale - 1), legHeight * 0.08);
+    const maxLegHeightScale = Number.isFinite(tableModel?.lowerLegMaxHeightScale)
+      ? Math.max(1, tableModel.lowerLegMaxHeightScale)
+      : 2.35;
+    const scale = THREE.MathUtils.clamp((legHeight + gap + seamOverlap) / legHeight, 1, maxLegHeightScale);
     const anchorWorldY = box.max.y;
     const parent = mesh.parent || model;
     const anchorLocal = parent.worldToLocal(new THREE.Vector3(0, anchorWorldY, 0)).y;
