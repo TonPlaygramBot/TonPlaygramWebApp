@@ -363,11 +363,6 @@ const CHESS_FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
 const CHESS_FIREARM_FLAT_ROTATION = Object.freeze([-Math.PI * 0.5, -Math.PI * 0.02, 0]);
 const CHESS_FIREARM_AIM_ROTATION = Object.freeze([0, Math.PI * 0.5, 0]); // flip handheld weapons so their muzzles face the target.
 const CHESS_FIREARM_HANDHELD_SCALE_MULTIPLIER = 1.9;
-const CHESS_FIREARM_PIECE_MOUNT_FORWARD = 0.44;
-const CHESS_FIREARM_PIECE_MUZZLE_FORWARD = 0.32;
-const CHESS_FIREARM_PIECE_MOUNT_LIFT = 0.74;
-const CHESS_FIREARM_PIECE_MUZZLE_LIFT = 0.08;
-const CHESS_FIREARM_PIECE_RECOIL_DISTANCE = 0.018;
 const CHESS_FIREARM_MUZZLE_YAW_CORRECTION_BY_ID = Object.freeze({
   ak47VolleyAttack: Math.PI,
   krsvBurstAttack: Math.PI
@@ -11681,48 +11676,6 @@ function Chess3D({
       const rotationBasis = new THREE.Matrix4().makeBasis(forward, up, side);
       object.quaternion.setFromRotationMatrix(rotationBasis);
     };
-
-    const resolvePieceFirearmAttackPose = ({ movingMesh, fromPos, targetPos, bulletProfile = null }) => {
-      const attackerBox = new THREE.Box3();
-      const attackerCenter = new THREE.Vector3();
-      const attackerSize = new THREE.Vector3();
-      let hasAttackerBounds = false;
-      if (movingMesh?.isObject3D) {
-        attackerBox.setFromObject(movingMesh);
-        hasAttackerBounds = Number.isFinite(attackerBox.min.x) && Number.isFinite(attackerBox.max.x) && !attackerBox.isEmpty();
-      }
-      if (hasAttackerBounds) {
-        attackerBox.getCenter(attackerCenter);
-        attackerBox.getSize(attackerSize);
-      } else {
-        attackerCenter.copy(fromPos || new THREE.Vector3());
-        attackerSize.set(currentTileSize * 0.45, currentTileSize * 0.78, currentTileSize * 0.45);
-      }
-      const targetAim = targetPos.clone();
-      targetAim.y += Math.max(0.12, attackerSize.y * 0.38);
-      const aimDir = targetAim.clone().sub(attackerCenter);
-      aimDir.y *= 0.72;
-      if (aimDir.lengthSq() < 1e-8) aimDir.set(0, 0, 1);
-      aimDir.normalize();
-      const side = new THREE.Vector3().crossVectors(WORLD_UP, aimDir);
-      if (side.lengthSq() < 1e-8) side.set(1, 0, 0);
-      else side.normalize();
-
-      const pieceRadius = Math.max(attackerSize.x, attackerSize.z, currentTileSize * 0.36) * 0.5;
-      const pieceHeight = Math.max(attackerSize.y, currentTileSize * 0.52);
-      const mountLift = pieceHeight * CHESS_FIREARM_PIECE_MOUNT_LIFT;
-      const mountForward = pieceRadius * CHESS_FIREARM_PIECE_MOUNT_FORWARD;
-      const muzzleForward = pieceRadius * CHESS_FIREARM_PIECE_MUZZLE_FORWARD + (bulletProfile?.bulletLength ?? 0.05) * 0.8;
-      const shooterPos = attackerCenter
-        .clone()
-        .addScaledVector(aimDir, mountForward)
-        .addScaledVector(WORLD_UP, mountLift);
-      const muzzlePos = shooterPos
-        .clone()
-        .addScaledVector(aimDir, muzzleForward)
-        .addScaledVector(WORLD_UP, Math.max(0.012, pieceHeight * CHESS_FIREARM_PIECE_MUZZLE_LIFT));
-      return { shooterPos, muzzlePos, targetAim, aimDir, side, pieceRadius, pieceHeight };
-    };
     const getAirMissileImpactTime = (totalDuration) => {
       const releaseStart = totalDuration * CAPTURE_AIR_MISSILE_RELEASE_START_RATIO;
       const releaseWindow = totalDuration * (CAPTURE_AIR_MISSILE_RELEASE_END_RATIO - CAPTURE_AIR_MISSILE_RELEASE_START_RATIO);
@@ -12809,7 +12762,6 @@ function Chess3D({
           liveShells: [],
           shooterSeatIndex: movingMesh?.userData?.w ? 0 : 1,
           movingMesh,
-          movingType,
           muzzleOffset: new THREE.Vector3(0.24, 0.14, 0)
         });
         const finalBulletTravelMs = CHESS_FIREARM_FATAL_BULLET_TRAVEL_MS;
@@ -15267,30 +15219,29 @@ function Chess3D({
           } else if (fx.type === 'firearm') {
             const targetPos = getLiveTargetPosition(fx.to, fx.targetMesh, 0);
             fx.to.copy(targetPos);
-            const pieceFirearmPose = resolvePieceFirearmAttackPose({
-              movingMesh: fx.movingMesh,
-              fromPos: fx.from,
-              targetPos,
-              bulletProfile: fx.bulletProfile
-            });
-            const { shooterPos, muzzlePos, targetAim, aimDir, side } = pieceFirearmPose;
-            const recoilPulse = Math.sin(Math.min(1, u * Math.max(1, fx.bulletCount || 1)) * Math.PI);
+            const pieceWorld = new THREE.Vector3();
+            fx.movingMesh?.getWorldPosition?.(pieceWorld);
+            let shooterPos = pieceWorld.lengthSq() ? pieceWorld : fx.from.clone().lerp(targetPos, 0.24);
+            shooterPos = shooterPos.clone();
+            shooterPos.y += 0.26;
+            const aimDir = targetPos.clone().sub(shooterPos).normalize();
+            const muzzlePos = shooterPos.clone().addScaledVector(aimDir, (LUDO_FIREARM_BROADCAST_PROFILE.aimLift ?? 0.064) + 0.055);
             fx.missileFx.root.visible = true;
-            fx.missileFx.root.position.copy(muzzlePos).addScaledVector(aimDir, 0.045);
+            fx.missileFx.root.position.copy(muzzlePos).addScaledVector(aimDir, 0.08);
             orientForwardKeepingUp(fx.missileFx.root, aimDir);
             if (fx.firearmFx) {
               fx.firearmFx.visible = true;
-              fx.firearmFx.position
-                .copy(shooterPos)
-                .addScaledVector(aimDir, -CHESS_FIREARM_PIECE_RECOIL_DISTANCE * recoilPulse)
-                .addScaledVector(side, fx.bulletProfile?.singleShot ? 0.002 : 0.006);
-              fx.firearmFx.position.y += Math.sin(u * Math.PI * 8) * 0.004;
+              fx.firearmFx.position.copy(shooterPos).addScaledVector(aimDir, -(LUDO_FIREARM_BROADCAST_PROFILE.aimRearPullback ?? 0.124));
+              fx.firearmFx.position.y += 0.02 + Math.sin(u * Math.PI * 8) * 0.006;
               orientForwardKeepingUp(fx.firearmFx, aimDir);
+              const recoil = Math.sin(Math.min(1, u * Math.max(1, fx.bulletCount || 1)) * Math.PI) * 0.025;
+              fx.firearmFx.position.addScaledVector(aimDir, -recoil);
             }
             if (fx.fpsArmsFx) {
-              // Arms are kept hidden for chess-piece firearms: the board piece itself is
-              // the visible shooter, so every round reads as a direct attack from the piece.
-              fx.fpsArmsFx.visible = false;
+              fx.fpsArmsFx.visible = true;
+              fx.fpsArmsFx.position.copy(shooterPos).addScaledVector(aimDir, -(LUDO_FIREARM_BROADCAST_PROFILE.aimRearPullback ?? 0.124));
+              fx.fpsArmsFx.position.y += 0.02 + Math.sin(u * Math.PI * 8) * 0.006;
+              orientForwardKeepingUp(fx.fpsArmsFx, aimDir);
             }
 
             (fx.liveBullets || []).forEach((bullet) => {
@@ -15402,8 +15353,8 @@ function Chess3D({
               fx.firedBullets += 1;
               const shotIndex = fx.firedBullets - 1;
               const spread = (shotIndex - (bulletsToFire - 1) * 0.5) * (fx.bulletProfile?.pelletCount ? 0.012 : 0.004);
-              const bulletSide = side.clone();
-              const bulletTo = targetAim.clone().addScaledVector(bulletSide, spread);
+              const side = new THREE.Vector3().crossVectors(WORLD_UP, aimDir).normalize();
+              const bulletTo = targetPos.clone().addScaledVector(side, spread);
               const bullet = createFirearmBulletMesh(fx.bulletProfile);
               bullet.position.copy(muzzlePos);
               bullet.quaternion.setFromUnitVectors(WORLD_UP, aimDir);
@@ -15433,7 +15384,7 @@ function Chess3D({
               // camera control to it; players should keep their current view.
               if (isFatalBullet) activeBulletCameraFollow = null;
               const shell = createFirearmShellMesh(fx.bulletProfile);
-              const ejectSide = side.clone().multiplyScalar(-1);
+              const ejectSide = new THREE.Vector3().crossVectors(aimDir, WORLD_UP).normalize();
               shell.position.copy(muzzlePos).addScaledVector(ejectSide, 0.048).addScaledVector(aimDir, -0.012);
               shell.quaternion.setFromUnitVectors(WORLD_UP, ejectSide);
               captureFxGroup.add(shell);
