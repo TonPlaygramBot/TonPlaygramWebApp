@@ -1688,7 +1688,8 @@ const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear secti
 
 const SNOOKER_CUE_POSE_SCALE = BALL_R / 0.0525;
 const SNOOKER_CUE_IDLE_GAP = 0.012 * SNOOKER_CUE_POSE_SCALE;
-const SNOOKER_CUE_CONTACT_GAP = SNOOKER_CUE_IDLE_GAP;
+const SNOOKER_CUE_CONTACT_GAP = -CUE_TIP_RADIUS * 0.28; // let the leather tip visibly meet the cue ball instead of stopping with an air gap
+const SNOOKER_CUE_FOLLOW_GAP = -CUE_TIP_RADIUS * 0.62; // tiny post-impact compression that sells the forward push without spearing through the ball
 const SNOOKER_CUE_PULL_RANGE = 0.42 * SNOOKER_CUE_POSE_SCALE;
 const SNOOKER_CUE_BRIDGE_DIST = 0.28 * SNOOKER_CUE_POSE_SCALE;
 
@@ -1769,9 +1770,15 @@ function updateSnookerRoyalCuePose(controller, dt, options) {
   let providedGap = SNOOKER_CUE_IDLE_GAP;
   if (activePower > 0.02 && !shooting && !cueAnimating) providedGap += pull + practiceStroke;
   if (shooting || cueAnimating) {
+    const contactPushT = THREE.MathUtils.clamp((strikeNorm - 0.86) / 0.14, 0, 1);
+    const contactGap = cuePoseLerp(
+      SNOOKER_CUE_CONTACT_GAP,
+      SNOOKER_CUE_FOLLOW_GAP,
+      cuePoseEaseOutCubic(contactPushT)
+    );
     providedGap = cuePoseLerp(
       SNOOKER_CUE_IDLE_GAP + pull,
-      SNOOKER_CUE_CONTACT_GAP,
+      contactGap,
       cuePoseEaseOutCubic(strikeNorm)
     );
   }
@@ -5415,7 +5422,12 @@ const PLAYER_STROKE_PULLBACK_FACTOR = 0.68;
 const PLAYER_PULLBACK_MIN_SCALE = 1.1;
 const MIN_PULLBACK_GAP = BALL_R * 0.5;
 const CAMERA_SWITCH_MIN_HOLD_MS = 420;
-const CUE_IMPACT_CAMERA_HOLD_MS = 320;
+const CUE_IMPACT_CAMERA_HOLD_MS = 520;
+const CUE_IMPACT_CAMERA_FOV = 42;
+const CUE_IMPACT_CAMERA_DISTANCE = BALL_R * 15.5;
+const CUE_IMPACT_CAMERA_HEIGHT = BALL_R * 3.7;
+const CUE_IMPACT_CAMERA_SIDE_OFFSET = BALL_R * 3.8;
+const CUE_IMPACT_CAMERA_TARGET_LEAD = BALL_R * 0.4;
 const PORTRAIT_HUD_HORIZONTAL_NUDGE_PX = 76;
 const PORTRAIT_HUD_CHAT_BUTTON_SHIFT_PX = 50.4;
 const REPLAY_CAMERA_SWITCH_THRESHOLD = BALL_R * 0.35;
@@ -14663,6 +14675,7 @@ const powerRef = useRef(hud.power);
   const railSoundTimeRef = useRef(new Map());
   const liftLandingTimeRef = useRef(new Map());
   const powerImpactHoldRef = useRef(0);
+  const cueImpactCameraRef = useRef(null);
   const [player, setPlayer] = useState({ name: '', avatar: '' });
   const [showInfo, setShowInfo] = useState(false);
   const [showChat, setShowChat] = useState(false);
@@ -15857,6 +15870,7 @@ const powerRef = useRef(hud.power);
         shotStartedAt = shooting ? getNow() : 0;
         if (!shooting) {
           maxPowerLiftTriggered = false;
+          cueImpactCameraRef.current = null;
         }
         if (shotCameraHoldTimeoutRef.current) {
           clearTimeout(shotCameraHoldTimeoutRef.current);
@@ -18045,6 +18059,94 @@ const powerRef = useRef(hud.power);
             broadcastArgs.focusWorld = resolvedTarget.clone();
             broadcastArgs.targetWorld = resolvedTarget.clone();
             broadcastArgs.lerp = 0.08;
+          } else if (cameraHoldActive && cueImpactCameraRef.current) {
+            const impactState = cueImpactCameraRef.current;
+            const cueBall = (ballsRef.current || []).find((b) => b.id === impactState.cueBallId);
+            if (!cueBall?.active && !impactState.cueStick) {
+              cueImpactCameraRef.current = null;
+            } else {
+              const now = performance.now();
+              const impactTime = Math.max(
+                impactState.impactTime ?? now,
+                (impactState.startTime ?? now) + 1
+              );
+              const impactT = THREE.MathUtils.clamp(
+                (now - (impactState.startTime ?? now)) /
+                  Math.max(impactTime - (impactState.startTime ?? now), 1),
+                0,
+                1
+              );
+              const easedImpactT = 1 - Math.pow(1 - impactT, 3);
+              const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
+              const cueBallWorld = new THREE.Vector3(
+                (cueBall?.pos?.x ?? impactState.cueBallPos?.x ?? 0) * scale,
+                (BALL_CENTER_Y + (cueBall?.lift ?? 0)) * scale,
+                (cueBall?.pos?.y ?? impactState.cueBallPos?.y ?? 0) * scale
+              );
+              if (cueBall?.mesh?.getWorldPosition) {
+                cueBall.mesh.getWorldPosition(cueBallWorld);
+              }
+              const cueTipWorld = new THREE.Vector3();
+              if (tipGroupRef.current?.getWorldPosition) {
+                tipGroupRef.current.getWorldPosition(cueTipWorld);
+              } else if (impactState.cueStick?.getWorldPosition) {
+                impactState.cueStick.getWorldPosition(cueTipWorld);
+              } else {
+                cueTipWorld.copy(cueBallWorld);
+              }
+              const aimForward = new THREE.Vector3(
+                impactState.aimDir?.x ?? 0,
+                0,
+                impactState.aimDir?.y ?? 1
+              );
+              if (aimForward.lengthSq() < 1e-8) aimForward.set(0, 0, 1);
+              aimForward.normalize();
+              const side = new THREE.Vector3(-aimForward.z, 0, aimForward.x).normalize();
+              const cameraDistance = THREE.MathUtils.lerp(
+                CUE_IMPACT_CAMERA_DISTANCE * 1.12,
+                CUE_IMPACT_CAMERA_DISTANCE,
+                easedImpactT
+              ) * scale;
+              const desiredPosition = cueBallWorld
+                .clone()
+                .addScaledVector(aimForward, -cameraDistance)
+                .addScaledVector(side, CUE_IMPACT_CAMERA_SIDE_OFFSET * scale)
+                .add(new THREE.Vector3(0, CUE_IMPACT_CAMERA_HEIGHT * scale, 0));
+              const desiredTarget = cueBallWorld
+                .clone()
+                .lerp(cueTipWorld, 0.28)
+                .addScaledVector(aimForward, CUE_IMPACT_CAMERA_TARGET_LEAD * scale);
+              desiredTarget.y = Math.max(
+                desiredTarget.y,
+                baseSurfaceWorldY + CAMERA_CUE_SURFACE_MARGIN * scale
+              );
+              if (!impactState.smoothedPos) {
+                impactState.smoothedPos = camera.position.clone();
+              }
+              if (!impactState.smoothedTarget) {
+                impactState.smoothedTarget = lastCameraTargetRef.current?.clone?.() ?? desiredTarget.clone();
+              }
+              const lerpT = THREE.MathUtils.clamp(
+                0.34 + easedImpactT * 0.18,
+                0,
+                1
+              );
+              impactState.smoothedPos.lerp(desiredPosition, lerpT);
+              impactState.smoothedTarget.lerp(desiredTarget, lerpT);
+              camera.up.set(0, 1, 0);
+              camera.position.copy(impactState.smoothedPos);
+              if (camera.fov !== CUE_IMPACT_CAMERA_FOV) {
+                camera.fov = CUE_IMPACT_CAMERA_FOV;
+                camera.updateProjectionMatrix();
+              }
+              camera.lookAt(impactState.smoothedTarget);
+              renderCamera = camera;
+              lookTarget = impactState.smoothedTarget;
+              broadcastArgs.focusWorld = impactState.smoothedTarget.clone();
+              broadcastArgs.targetWorld = impactState.smoothedTarget.clone();
+              broadcastArgs.orbitWorld = impactState.smoothedPos.clone();
+              broadcastArgs.lerp = 0.08;
+            }
           } else if (!cameraHoldActive && activeShotView?.mode === 'action') {
             const ballsList = ballsRef.current || [];
             const cueBall = ballsList.find((b) => b.id === activeShotView.cueId);
@@ -18444,6 +18546,10 @@ const powerRef = useRef(hud.power);
                 } else {
                   activeShotView.smoothedTarget.lerp(focusTargetVec3, lerpT);
                 }
+                if (camera.fov !== STANDING_VIEW_FOV) {
+                  camera.fov = STANDING_VIEW_FOV;
+                  camera.updateProjectionMatrix();
+                }
                 camera.position.copy(activeShotView.smoothedPos);
                 camera.lookAt(activeShotView.smoothedTarget);
                 lookTarget = activeShotView.smoothedTarget;
@@ -18839,6 +18945,10 @@ const powerRef = useRef(hud.power);
                 syncBlendToSpherical();
               }
             }
+          }
+          if (camera.fov !== STANDING_VIEW_FOV) {
+            camera.fov = STANDING_VIEW_FOV;
+            camera.updateProjectionMatrix();
           }
           camera.position.setFromSpherical(TMP_SPH).add(lookTarget);
           if (camera.position.y < surfaceClampY) {
@@ -23052,14 +23162,18 @@ const powerRef = useRef(hud.power);
           // drive the tip forward from pullback into cue-ball contact instead
           // of stopping at the original address gap.
           const impactPush = THREE.MathUtils.clamp(
-            CUE_TIP_CLEARANCE,
-            BALL_R * 0.08,
-            BALL_R * 0.3
+            CUE_TIP_GAP - BALL_R * 0.9,
+            BALL_R * 0.16,
+            BALL_R * 0.38
           );
           const impactPos = buildCuePosition(-impactPush);
           // Stop the visible cue at contact so it reads as a push without
           // chasing the moving cue ball after physics takes over.
-          const followExtra = 0;
+          const followExtra = THREE.MathUtils.lerp(
+            BALL_R * 0.26,
+            BALL_R * 0.72,
+            clampedPower
+          );
           TMP_VEC3_FOLLOW_DIR.copy(impactPos).sub(pullPos);
           if (TMP_VEC3_FOLLOW_DIR.lengthSq() > 1e-8) {
             TMP_VEC3_FOLLOW_DIR.normalize();
@@ -23088,6 +23202,17 @@ const powerRef = useRef(hud.power);
             powerImpactHoldRef.current || 0,
             forwardPreviewHold
           );
+          cueImpactCameraRef.current = {
+            cueBallId: cue?.id ?? 'cue',
+            cueBallPos: cue?.pos ? new THREE.Vector2(cue.pos.x, cue.pos.y) : null,
+            cueStick,
+            aimDir: new THREE.Vector2(dir.x, dir.z),
+            startTime,
+            impactTime,
+            holdUntil: forwardPreviewHold,
+            smoothedPos: cameraRef.current?.position?.clone?.() ?? null,
+            smoothedTarget: lastCameraTargetRef.current?.clone?.() ?? null
+          };
           const holdUntil = powerImpactHoldRef.current || 0;
           const holdActive = holdUntil > performance.now();
           if (holdActive) {
@@ -25319,6 +25444,7 @@ const powerRef = useRef(hud.power);
           spinAppliedRef.current = { x: 0, y: 0, magnitude: 0, mode: 'standard' };
           resetSpinRef.current?.();
           powerImpactHoldRef.current = 0;
+          cueImpactCameraRef.current = null;
           shotPrediction = null;
           activeShotView = null;
           suspendedActionView = null;
