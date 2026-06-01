@@ -12184,12 +12184,12 @@ const POOL_ROYALE_SHOWOOD_PART_TO_CONTROL = Object.freeze({
   cornerPocketPlate: 'metalAccent',
   middlePocketPlate: 'metalAccent',
   verticalCornerRim: 'metalAccent',
-  baseCornerBlock: 'topWoodRail',
-  leg: 'topWoodRail',
+  baseCornerBlock: 'legBase',
+  leg: 'legBase',
   baseFoot: 'metalAccent',
   lowerTrim: 'metalAccent',
   railSight: 'metalAccent',
-  underside: 'topWoodRail',
+  underside: 'legBase',
   trim: 'metalAccent',
   wood: 'topWoodRail',
   pocketCup: 'pocketJaw',
@@ -12201,7 +12201,7 @@ const POOL_ROYALE_SHOWOOD_LEGACY_CHOICE_FALLBACKS = Object.freeze({
   metalAccent: { a: 'gold', b: 'chrome' },
   pocketJaw: { a: 'plastic-black', b: 'brown-showood' },
   topWoodRail: { a: 'woodTable001', b: 'darkWood' },
-  legBase: { a: 'woodTable001', b: 'darkWood' }
+  legBase: { a: 'rosewoodVeneer01', b: 'darkWood' }
 });
 
 function resolvePoolRoyaleShowoodPalette(tableModel = null) {
@@ -12427,142 +12427,6 @@ function isPoolRoyaleShowoodOriginalBaseOrLeg(child, material, referencePart = n
   }
   if (['leg', 'baseFoot', 'baseCornerBlock'].includes(referencePart)) return true;
   return /leg|foot|feet|base|support|underside|pedestal|stretcher|plinth/.test(label);
-}
-
-
-const POOL_ROYALE_SHOWOOD_ORIGINAL_BASE_PARTS = new Set(['leg', 'baseFoot', 'baseCornerBlock', 'underside']);
-
-function isPoolRoyaleShowoodProtectedUpperLabel(label = '') {
-  return /pocket|hole|drop|net|liner|leather|cup|basket|holder|cushion|rubber|bumper|cloth|felt|slate|bed|playfield|baize|sight|diamond|marker|dot|inlay/.test(label);
-}
-
-function materialIndexAtPoolRoyaleGeometryOffset(geometry, offset) {
-  const groups = geometry?.groups || [];
-  for (let i = 0; i < groups.length; i += 1) {
-    const group = groups[i];
-    if (offset >= group.start && offset < group.start + group.count) {
-      return group.materialIndex ?? 0;
-    }
-  }
-  return 0;
-}
-
-function shouldRemovePoolRoyaleShowoodOriginalBaseTriangle({
-  mesh,
-  material,
-  referencePart,
-  role,
-  centerY,
-  lowerCutoffY
-}) {
-  const childName = `${mesh?.name || ''}`.toLowerCase();
-  const materialName = `${material?.name || ''}`.toLowerCase();
-  const label = `${childName} ${materialName}`;
-  if (isPoolRoyaleShowoodProtectedUpperLabel(label)) return false;
-  if (isPoolRoyaleShowoodOriginalBaseOrLeg(mesh, material, referencePart)) return true;
-  if (POOL_ROYALE_SHOWOOD_ORIGINAL_BASE_PARTS.has(referencePart)) return true;
-  return ['wood', 'trim'].includes(role) && centerY <= lowerCutoffY;
-}
-
-function removePoolRoyaleShowoodOriginalBaseAndLegGeometry(root, tableModel = null) {
-  if (
-    !root ||
-    !tableModel?.hideOriginalBaseAndLegsForProceduralBase ||
-    !tableModel?.useProceduralBaseWithExternal ||
-    !tableModel?.useReferenceShowoodMapping
-  ) return 0;
-
-  root.updateMatrixWorld?.(true);
-  const fullBox = new THREE.Box3().setFromObject(root);
-  if (fullBox.isEmpty()) return 0;
-  const fullSize = fullBox.getSize(new THREE.Vector3());
-  const lowerCutoffY = fullBox.min.y + fullSize.y * 0.46;
-  const removableMeshes = [];
-  let removedTriangles = 0;
-  const tmpA = new THREE.Vector3();
-  const tmpB = new THREE.Vector3();
-  const tmpC = new THREE.Vector3();
-  const tmpCenter = new THREE.Vector3();
-
-  root.traverse((child) => {
-    if (!child?.isMesh || !child.geometry?.attributes?.position) return;
-    const mesh = child;
-    const geometry = mesh.geometry;
-    const position = geometry.attributes.position;
-    const index = geometry.index;
-    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material].filter(Boolean);
-    if (!materials.length) return;
-
-    const total = index ? index.count : position.count;
-    const keptByMaterial = new Map();
-    let keptTriangles = 0;
-    let localRemovedTriangles = 0;
-
-    for (let i = 0; i + 2 < total; i += 3) {
-      const materialIndex = Math.max(
-        0,
-        Math.min(materialIndexAtPoolRoyaleGeometryOffset(geometry, i), materials.length - 1)
-      );
-      const material = materials[materialIndex];
-      const ai = index ? index.getX(i) : i;
-      const bi = index ? index.getX(i + 1) : i + 1;
-      const ci = index ? index.getX(i + 2) : i + 2;
-      tmpA.fromBufferAttribute(position, ai).applyMatrix4(mesh.matrixWorld);
-      tmpB.fromBufferAttribute(position, bi).applyMatrix4(mesh.matrixWorld);
-      tmpC.fromBufferAttribute(position, ci).applyMatrix4(mesh.matrixWorld);
-      tmpCenter.addVectors(tmpA, tmpB).add(tmpC).multiplyScalar(1 / 3);
-      const referencePart = classifyPoolRoyaleShowoodReferencePart(mesh, material);
-      const role = classifyPoolRoyaleExternalTableSurface(mesh, material);
-      const removeTriangle = shouldRemovePoolRoyaleShowoodOriginalBaseTriangle({
-        mesh,
-        material,
-        referencePart,
-        role,
-        centerY: tmpCenter.y,
-        lowerCutoffY
-      });
-      if (removeTriangle) {
-        localRemovedTriangles += 1;
-        continue;
-      }
-      if (!keptByMaterial.has(materialIndex)) keptByMaterial.set(materialIndex, []);
-      keptByMaterial.get(materialIndex).push(ai, bi, ci);
-      keptTriangles += 1;
-    }
-
-    if (!localRemovedTriangles) return;
-    removedTriangles += localRemovedTriangles;
-    if (!keptTriangles) {
-      removableMeshes.push(mesh);
-      return;
-    }
-
-    const nextIndex = [];
-    geometry.clearGroups();
-    Array.from(keptByMaterial.keys()).sort((a, b) => a - b).forEach((materialIndex) => {
-      const indices = keptByMaterial.get(materialIndex) || [];
-      const start = nextIndex.length;
-      nextIndex.push(...indices);
-      geometry.addGroup(start, indices.length, materialIndex);
-    });
-    geometry.setIndex(nextIndex);
-    geometry.computeBoundingBox?.();
-    geometry.computeBoundingSphere?.();
-    geometry.attributes.position.needsUpdate = true;
-    mesh.visible = true;
-    mesh.userData = {
-      ...(mesh.userData || {}),
-      poolRoyaleShowoodOriginalBasePruned: true
-    };
-    delete mesh.userData.poolRoyaleShowoodOriginalBaseHidden;
-  });
-
-  removableMeshes.forEach((mesh) => {
-    mesh.parent?.remove(mesh);
-    mesh.geometry?.dispose?.();
-  });
-  root.updateMatrixWorld?.(true);
-  return removedTriangles;
 }
 
 function applyPoolRoyaleShowoodReferenceMaterial(material, part, tableModel = null, finishInfo = null) {
@@ -12901,7 +12765,6 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
 function clonePoolRoyaleExternalTableTemplate(template, tableModel = null, finishInfo = null) {
   const clone = template.clone(true);
   preparePoolRoyaleExternalTableMaterials(clone, tableModel, finishInfo);
-  removePoolRoyaleShowoodOriginalBaseAndLegGeometry(clone, tableModel);
   return clone;
 }
 
@@ -13186,57 +13049,6 @@ function shortenPoolRoyaleShowoodCornerRims(model, tableModel, dims) {
   model.updateMatrixWorld(true);
 }
 
-
-function trimPoolRoyaleShowoodRailSightsAndCornerRimsToSideRails(model, tableModel, dims) {
-  if (!model || !tableModel?.useReferenceShowoodMapping || tableModel?.railSightBottomTrimToRail === false) return;
-  const fullBox = new THREE.Box3().setFromObject(model);
-  if (fullBox.isEmpty()) return;
-  const railBottomY = resolvePoolRoyaleShowoodTopRailBottomY(model, fullBox, dims);
-  if (!Number.isFinite(railBottomY)) return;
-  const fullSize = fullBox.getSize(new THREE.Vector3());
-  const targetTop = Number.isFinite(dims?.targetTopLocal)
-    ? dims.targetTopLocal
-    : Number.isFinite(dims?.cushionTopLocal)
-      ? dims.cushionTopLocal
-      : fullBox.max.y;
-  const upperHeight = Number.isFinite(dims?.targetUpperComponentHeight)
-    ? Math.max(MICRO_EPS, dims.targetUpperComponentHeight)
-    : Math.max(MICRO_EPS, fullSize.y * 0.28);
-  const upperCutoff = targetTop - upperHeight * 1.22;
-
-  model.traverse((child) => {
-    if (!child?.isMesh || child.userData?.poolRoyaleRailSightBottomTrimmed) return;
-    const materials = Array.isArray(child.material) ? child.material : [child.material];
-    const referenceParts = materials.map((entry) => classifyPoolRoyaleShowoodReferencePart(child, entry));
-    const shouldTrim = referenceParts.some((part) =>
-      ['railSight', 'verticalCornerRim', 'lowerTrim'].includes(part)
-    );
-    if (!shouldTrim) return;
-    const childBox = new THREE.Box3().setFromObject(child);
-    if (
-      childBox.isEmpty() ||
-      childBox.max.y < upperCutoff ||
-      childBox.min.y >= railBottomY - MICRO_EPS ||
-      childBox.max.y <= railBottomY + MICRO_EPS
-    ) return;
-    const parent = child.parent || model;
-    const anchorWorldY = Math.min(childBox.max.y, targetTop);
-    const anchorLocal = parent.worldToLocal(new THREE.Vector3(0, anchorWorldY, 0)).y;
-    const nextScale = THREE.MathUtils.clamp(
-      (anchorWorldY - railBottomY) / Math.max(MICRO_EPS, childBox.max.y - childBox.min.y),
-      0.04,
-      1
-    );
-    child.scale.y *= nextScale;
-    child.updateMatrixWorld(true);
-    const nextBox = new THREE.Box3().setFromObject(child);
-    const nextAnchorLocal = parent.worldToLocal(new THREE.Vector3(0, nextBox.max.y, 0)).y;
-    child.position.y += anchorLocal - nextAnchorLocal;
-    child.userData.poolRoyaleRailSightBottomTrimmed = true;
-  });
-  model.updateMatrixWorld(true);
-}
-
 function stretchPoolRoyaleShowoodLegsToFeet(model, tableModel) {
   const reachScale = Number(tableModel?.lowerLegFootReachScale);
   if (!model || !tableModel?.useReferenceShowoodMapping || !Number.isFinite(reachScale) || reachScale <= 1 + MICRO_EPS) return;
@@ -13423,13 +13235,9 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   model.updateMatrixWorld(true);
   shrinkPoolRoyaleExternalUpperFrame(model, tableModel, dims);
   shortenPoolRoyaleShowoodCornerRims(model, tableModel, dims);
-  trimPoolRoyaleShowoodRailSightsAndCornerRimsToSideRails(model, tableModel, dims);
-  if (!tableModel?.useProceduralBaseWithExternal) {
-    stretchPoolRoyaleExternalLowerBase(model, tableModel, dims);
-    stretchPoolRoyaleShowoodLegsToFeet(model, tableModel);
-    subtlyWidenPoolRoyaleShowoodFeet(model, tableModel);
-  }
-  removePoolRoyaleShowoodOriginalBaseAndLegGeometry(model, tableModel);
+  stretchPoolRoyaleExternalLowerBase(model, tableModel, dims);
+  stretchPoolRoyaleShowoodLegsToFeet(model, tableModel);
+  subtlyWidenPoolRoyaleShowoodFeet(model, tableModel);
   model.userData = {
     ...(model.userData || {}),
     poolRoyaleExternalTable: true,
@@ -36585,10 +36393,9 @@ const shotPowerRef = useRef(0);
                   </div>
                 </div>
               ) : null}
-              {!showShowoodTableSetup ? (
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Royal Table Finish
+                  Table Finish
                 </h3>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {availableTableFinishes.map((option) => {
@@ -36620,11 +36427,9 @@ const shotPowerRef = useRef(0);
                   })}
                 </div>
               </div>
-              ) : null}
-              {!showShowoodTableSetup ? (
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Royal Procedural Base
+                  Table Base
                 </h3>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {availableTableBases.map((option) => {
@@ -36666,7 +36471,6 @@ const shotPowerRef = useRef(0);
                   })}
                 </div>
               </div>
-              ) : null}
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   HDR Environment
@@ -36711,10 +36515,9 @@ const shotPowerRef = useRef(0);
                   })}
                 </div>
               </div>
-              {!showShowoodTableSetup ? (
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Royal Chrome Plates
+                  Chrome Plates
                 </h3>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {availableChromeOptions.map((option) => {
@@ -36744,11 +36547,9 @@ const shotPowerRef = useRef(0);
                   })}
                 </div>
               </div>
-              ) : null}
-              {!showShowoodTableSetup ? (
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Royal Chrome Plate Shape
+                  Chrome Plate Shape
                 </h3>
                 <div className="mt-2 grid grid-cols-1 gap-2">
                   {availableChromePlateStyles.map((option) => {
@@ -36785,7 +36586,6 @@ const shotPowerRef = useRef(0);
                   })}
                 </div>
               </div>
-              ) : null}
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Cue Styles
@@ -36820,10 +36620,10 @@ const shotPowerRef = useRef(0);
                   })}
                 </div>
               </div>
-              {!showShowoodTableSetup && availableClothOptions.length > 0 ? (
+              {availableClothOptions.length > 0 ? (
                 <div>
                   <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                    Royal Cloth Color
+                    Cloth Color
                   </h3>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {availableClothOptions.map((option) => {
@@ -36908,10 +36708,9 @@ const shotPowerRef = useRef(0);
                   </div>
                 </div>
               ) : null}
-              {!showShowoodTableSetup ? (
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Royal Rail Markers
+                  Rail Markers
                 </h3>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {RAIL_MARKER_SHAPE_OPTIONS.map((option) => {
@@ -36961,7 +36760,6 @@ const shotPowerRef = useRef(0);
                   })}
                 </div>
               </div>
-              ) : null}
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Graphics
