@@ -1698,10 +1698,10 @@ const SNOOKER_HUMAN_CHARACTER_THEME =
 const SNOOKER_HUMAN_UP = new THREE.Vector3(0, 1, 0);
 const SNOOKER_HUMAN_FORWARD_LOCAL = new THREE.Vector3(0, 0, 1);
 const SNOOKER_HUMAN_WORLD_SCALE = BALL_R / 0.0525;
-const SNOOKER_PROVIDED_HUMAN_SIZE_BOOST = 1.5;
+const SNOOKER_PROVIDED_HUMAN_SIZE_BOOST = 1.72;
 const SNOOKER_PROVIDED_HUMAN_SCALE = 1.2 * SNOOKER_PROVIDED_HUMAN_SIZE_BOOST * SNOOKER_HUMAN_WORLD_SCALE;
 const SNOOKER_PROVIDED_CUE_IDLE_GAP = 0.012 * SNOOKER_HUMAN_WORLD_SCALE;
-const SNOOKER_PROVIDED_CUE_CONTACT_GAP = 0.0012 * SNOOKER_HUMAN_WORLD_SCALE;
+const SNOOKER_PROVIDED_CUE_CONTACT_GAP = SNOOKER_PROVIDED_CUE_IDLE_GAP;
 const SNOOKER_PROVIDED_CUE_PULL_RANGE = 0.42 * SNOOKER_HUMAN_WORLD_SCALE;
 const SNOOKER_PROVIDED_CUE_BRIDGE_DIST = 0.28 * SNOOKER_HUMAN_WORLD_SCALE;
 const SNOOKER_PROVIDED_BRIDGE_HAND_SIDE = -0.115 * SNOOKER_HUMAN_WORLD_SCALE;
@@ -2100,17 +2100,18 @@ function createSnookerRoyalHumanPlayer(parent, renderer) {
     bridgeHandSide: SNOOKER_PROVIDED_BRIDGE_HAND_SIDE,
     bridgePoseUsesConfiguredSide: false,
     chinToCueHeight: 0.11 * SNOOKER_HUMAN_WORLD_SCALE,
-    footGroundY: 0.035 * SNOOKER_HUMAN_WORLD_SCALE,
+    footGroundY: 0,
+    footLockStrength: 1.25,
     kneeBendShot: 0.16 * SNOOKER_HUMAN_WORLD_SCALE,
     rightElbowShotRise: 0.18 * SNOOKER_HUMAN_WORLD_SCALE,
     rightElbowShotSide: -0.46 * SNOOKER_HUMAN_WORLD_SCALE,
     rightElbowShotBack: -0.78 * SNOOKER_HUMAN_WORLD_SCALE,
-    rightForearmOutward: 0.36 * SNOOKER_HUMAN_WORLD_SCALE,
-    rightForearmBack: 0.44 * SNOOKER_HUMAN_WORLD_SCALE,
-    rightForearmDown: 0.48 * SNOOKER_HUMAN_WORLD_SCALE,
+    rightForearmOutward: 0.46 * SNOOKER_HUMAN_WORLD_SCALE,
+    rightForearmBack: 0.34 * SNOOKER_HUMAN_WORLD_SCALE,
+    rightForearmDown: 0.42 * SNOOKER_HUMAN_WORLD_SCALE,
     rightForearmLength: 0.34 * SNOOKER_HUMAN_WORLD_SCALE,
     rightStrokePull: 0.30 * SNOOKER_HUMAN_WORLD_SCALE,
-    rightStrokePush: 0.24 * SNOOKER_HUMAN_WORLD_SCALE,
+    rightStrokePush: 0.30 * SNOOKER_HUMAN_WORLD_SCALE,
     strikeTime: 0.12,
     holdTime: 0.05,
     rightHandShotLift: -0.30 * SNOOKER_HUMAN_WORLD_SCALE,
@@ -2121,7 +2122,7 @@ function createSnookerRoyalHumanPlayer(parent, renderer) {
     shootCounterLeanSide: -1,
     shootUpperBodyCounterLean: 1,
     shootForwardBendScale: 1,
-    forceTableFacingAim: false,
+    forceTableFacingAim: true,
     plantFeetDuringShot: true,
     onStatus: (message) => console.info(`Snooker Royal human: ${message}`)
   });
@@ -2225,10 +2226,9 @@ function updateSnookerRoyalHumanPlayer(human, dt, options) {
     .addScaledVector(aimForward, -0.235 * SNOOKER_HUMAN_WORLD_SCALE)
     .addScaledVector(aimSide, SNOOKER_PROVIDED_BRIDGE_HAND_SIDE)
     .setY(BALL_CENTER_Y - BALL_R + 0.006 * SNOOKER_HUMAN_WORLD_SCALE);
-  const bridgeCuePoint = bridgeHandTarget.clone()
-    .addScaledVector(aimForward, 0.026 * SNOOKER_HUMAN_WORLD_SCALE)
-    .addScaledVector(aimSide, -0.032 * SNOOKER_HUMAN_WORLD_SCALE)
-    .add(new THREE.Vector3(0, 0.018 * SNOOKER_HUMAN_WORLD_SCALE, 0));
+  const bridgeCuePoint = cueBallWorld.clone()
+    .addScaledVector(aimForward, -(SNOOKER_PROVIDED_CUE_BRIDGE_DIST + BALL_R))
+    .setY(BALL_CENTER_Y + 0.018 * SNOOKER_HUMAN_WORLD_SCALE);
   const pull = SNOOKER_PROVIDED_CUE_PULL_RANGE * providedSnookerHumanEaseOutCubic(activePower);
   const practiceStroke = !shooting && !cueAnimating && activePower > 0.02
     ? Math.sin(performance.now() * 0.012) * 0.035 * SNOOKER_HUMAN_WORLD_SCALE * (0.25 + activePower * 0.75)
@@ -2244,9 +2244,9 @@ function updateSnookerRoyalHumanPlayer(human, dt, options) {
     );
   }
   const providedCueTip = cueBallWorld.clone().addScaledVector(aimForward, -(BALL_R + providedGap));
-  const providedCueBack = bridgeCuePoint.clone()
-    .addScaledVector(aimForward, -(cueLen - SNOOKER_PROVIDED_CUE_BRIDGE_DIST - BALL_R - providedGap))
-    .add(new THREE.Vector3(0, 0.024 * SNOOKER_HUMAN_WORLD_SCALE, 0));
+  const providedCueBack = providedCueTip.clone()
+    .addScaledVector(aimForward, -cueLen)
+    .setY(bridgeCuePoint.y + 0.006 * SNOOKER_HUMAN_WORLD_SCALE);
   const standingYaw = Math.atan2(-aimForward.x, -aimForward.z);
   const idleRightHandTarget = humanRootTarget.clone().add(new THREE.Vector3(
     0.31 * SNOOKER_HUMAN_WORLD_SCALE,
@@ -2282,6 +2282,7 @@ function updateSnookerRoyalHumanPlayer(human, dt, options) {
     idleLeft: idleLeftHandTarget,
     cueBack: cueEndpoints.butt,
     cueTip: cueEndpoints.tip,
+    gripTarget: cueEndpoints.butt.clone().addScaledVector(aimForward, 0.58 * SNOOKER_HUMAN_WORLD_SCALE),
     power: activePower
   });
 }
