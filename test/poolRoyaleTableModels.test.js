@@ -28,6 +28,9 @@ describe('Pool Royale table models', () => {
     assert.equal(royal.keepGeneratedPocketsAndJaws, true);
     assert.equal(royal.hideGeneratedPocketsAndJaws, false);
     assert.equal(royal.forceGeneratedChromePlates, true);
+    assert.equal(royal.fitScale, 1.055);
+    assert.equal(royal.sharedSetupMenu, true);
+    assert.equal(royal.matchShowoodProceduralLayout, true);
     assert.deepEqual(royal.usePoolRoyaleFinishRoles, ['cloth']);
     assert.deepEqual(royal.hideSurfaceRoles, ['trim', 'wood', 'cushion', 'pocket']);
   });
@@ -54,10 +57,14 @@ describe('Pool Royale table models', () => {
     assert.equal(showood.upperFrameHeightScale, 0.58);
     assert.equal(showood.cornerRimHeightScale, 0.28);
     assert.equal(showood.markingVisualLift, 0.024);
-    assert.equal(showood.lowerBaseHeightScale, 1.62);
-    assert.equal(showood.lowerLegFootReachScale, 1.02);
+    assert.equal(showood.railSightVisualScale, 1.08);
+    assert.equal(showood.sideApronVisualHeightScale, 1.08);
+    assert.equal(showood.sideApronVisualDepthScale, 1.05);
+    assert.equal(showood.lowerBaseHeightScale, 1.72);
+    assert.equal(showood.lowerLegFootReachScale, 1.28);
     assert.equal(showood.footWidthScale, 1.08);
     assert.equal(showood.footHeightScale, 1);
+    assert.equal(showood.sharedSetupMenu, true);
     assert.deepEqual(showood.usePoolRoyaleFinishRoles, ['cloth', 'cushion', 'wood']);
   });
 
@@ -79,7 +86,7 @@ describe('Pool Royale table models', () => {
     );
 
     assert.ok(
-      lobby.includes('Royal Original keeps the clean procedural table'),
+      lobby.includes('Royal Original and Showood share the same in-game table finish and base menus'),
       'lobby should explain the Royal Original table'
     );
     assert.equal(
