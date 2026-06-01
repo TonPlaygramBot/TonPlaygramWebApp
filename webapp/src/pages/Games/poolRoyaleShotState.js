@@ -19,4 +19,11 @@ export const resolveCommittedShot = ({
   };
 };
 
+export const resolvePoolRoyaleShotPowerScale = (power) => {
+  const clampedPower = THREE.MathUtils.clamp(Number.isFinite(power) ? power : 0, 0, 1);
+  const highEndT = THREE.MathUtils.clamp((clampedPower - 0.6) / 0.4, 0, 1);
+  const highEndBoost = highEndT * highEndT * 0.35;
+  return clampedPower * (1 + highEndBoost);
+};
+
 export const easeOut = (t) => 1 - Math.pow(1 - THREE.MathUtils.clamp(t, 0, 1), 3);
