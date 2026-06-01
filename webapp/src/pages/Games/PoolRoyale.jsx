@@ -1836,7 +1836,7 @@ const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
 const SHOT_POWER_BOOST = 1.5; // preserve legacy cue response before the final mobile comfort trim
-const SHOT_GLOBAL_POWER_SCALE = 0.48; // reduce Pool Royale shot pace by 25% so ball travel better matches the selected shot power
+const SHOT_GLOBAL_POWER_SCALE = 0.62; // boost Pool Royale shot pace so portrait players get stronger power at the same slider position
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -12365,6 +12365,7 @@ function classifyPoolRoyaleShowoodReferencePart(child, material) {
   if (/pocket|hole|drop|net|liner|leather|cup|basket|holder/.test(label)) {
     return metalish && !black && !brown ? 'cornerPocketPlate' : 'pocketCup';
   }
+  if (/corner.*rim|rim.*corner|vertical[_\s-]*rim/.test(label)) return 'verticalCornerRim';
   if (/trim|bezel|ring|metal|chrome|brass|gold|plate|cap|rim|guard|insert|hardware|bolt|screw/.test(label) || metalish) {
     return /foot|feet/.test(label) ? 'baseFoot' : 'lowerTrim';
   }
@@ -12808,9 +12809,30 @@ function resolvePoolRoyaleExternalTableFitBounds(model, tableModel = null) {
   return { fullBox, footprintBox };
 }
 
+function scalePoolRoyaleExternalMeshHeightFromTop(child, scale, flag) {
+  if (!child?.isMesh || child.userData?.[flag]) return false;
+  if (!Number.isFinite(scale) || scale <= MICRO_EPS || Math.abs(scale - 1) <= MICRO_EPS) return false;
+  const childBox = new THREE.Box3().setFromObject(child);
+  if (childBox.isEmpty()) return false;
+  const anchorWorldY = childBox.max.y;
+  const parent = child.parent || child;
+  const anchorLocal = parent.worldToLocal(new THREE.Vector3(0, anchorWorldY, 0)).y;
+  child.scale.y *= scale;
+  child.updateMatrixWorld(true);
+  const nextBox = new THREE.Box3().setFromObject(child);
+  const nextAnchorLocal = parent.worldToLocal(new THREE.Vector3(0, nextBox.max.y, 0)).y;
+  child.position.y += anchorLocal - nextAnchorLocal;
+  child.userData[flag] = true;
+  return true;
+}
+
 function shrinkPoolRoyaleExternalUpperFrame(model, tableModel, dims) {
-  const scale = Number(tableModel?.upperFrameHeightScale);
-  if (!model || !Number.isFinite(scale) || scale <= MICRO_EPS || scale >= 1 - MICRO_EPS) return;
+  const railScale = Number(tableModel?.upperFrameHeightScale);
+  const cornerRimScale = Number(tableModel?.cornerRimHeightScale ?? railScale);
+  if (!model) return;
+  const hasRailScale = Number.isFinite(railScale) && railScale > MICRO_EPS && railScale < 1 - MICRO_EPS;
+  const hasCornerRimScale = Number.isFinite(cornerRimScale) && cornerRimScale > MICRO_EPS && cornerRimScale < 1 - MICRO_EPS;
+  if (!hasRailScale && !hasCornerRimScale) return;
   const fullBox = new THREE.Box3().setFromObject(model);
   if (fullBox.isEmpty()) return;
   const targetTop = Number.isFinite(dims?.targetTopLocal)
@@ -12830,18 +12852,12 @@ function shrinkPoolRoyaleExternalUpperFrame(model, tableModel, dims) {
       ? classifyPoolRoyaleShowoodReferencePart(child, material)
       : null;
     const isTopFrame = referencePart === 'topWoodRail' || (referencePart == null && role === 'wood');
-    if (!isTopFrame) return;
+    const isCornerRim = referencePart === 'verticalCornerRim';
+    if ((!isTopFrame || !hasRailScale) && (!isCornerRim || !hasCornerRimScale)) return;
     const childBox = new THREE.Box3().setFromObject(child);
     if (childBox.isEmpty() || childBox.max.y < upperCutoff) return;
-    const anchorWorldY = Math.min(childBox.max.y, targetTop);
-    const parent = child.parent || model;
-    const anchorLocal = parent.worldToLocal(new THREE.Vector3(0, anchorWorldY, 0)).y;
-    child.scale.y *= scale;
-    child.updateMatrixWorld(true);
-    const nextBox = new THREE.Box3().setFromObject(child);
-    const nextAnchorLocal = parent.worldToLocal(new THREE.Vector3(0, nextBox.max.y, 0)).y;
-    child.position.y += anchorLocal - nextAnchorLocal;
-    child.userData.poolRoyaleUpperFrameShrunk = true;
+    const scale = isCornerRim ? cornerRimScale : railScale;
+    scalePoolRoyaleExternalMeshHeightFromTop(child, scale, 'poolRoyaleUpperFrameShrunk');
   });
   model.updateMatrixWorld(true);
 }
@@ -12860,22 +12876,57 @@ function stretchPoolRoyaleExternalLowerBase(model, tableModel, dims) {
     ? Math.max(MICRO_EPS, dims.targetUpperComponentHeight)
     : Math.max(MICRO_EPS, fullBox.getSize(new THREE.Vector3()).y * 0.28);
   const lowerCutoff = targetTop - upperHeight * 1.05;
+  const lowerShowoodParts = new Set(['sideWoodApron', 'baseCornerBlock', 'leg', 'baseFoot', 'underside']);
   model.traverse((child) => {
     if (!child?.isMesh || child.userData?.poolRoyaleLowerBaseStretched) return;
     const material = Array.isArray(child.material) ? child.material[0] : child.material;
     const role = classifyPoolRoyaleExternalTableSurface(child, material);
-    if (role !== 'wood') return;
+    const referencePart = tableModel?.useReferenceShowoodMapping
+      ? classifyPoolRoyaleShowoodReferencePart(child, material)
+      : null;
+    const isLowerBody = lowerShowoodParts.has(referencePart) || (referencePart == null && role === 'wood');
+    if (!isLowerBody) return;
     const childBox = new THREE.Box3().setFromObject(child);
     if (childBox.isEmpty() || childBox.max.y > lowerCutoff) return;
-    const anchorWorldY = childBox.max.y;
-    const parent = child.parent || model;
-    const anchorLocal = parent.worldToLocal(new THREE.Vector3(0, anchorWorldY, 0)).y;
-    child.scale.y *= scale;
-    child.updateMatrixWorld(true);
-    const nextBox = new THREE.Box3().setFromObject(child);
-    const nextAnchorLocal = parent.worldToLocal(new THREE.Vector3(0, nextBox.max.y, 0)).y;
-    child.position.y += anchorLocal - nextAnchorLocal;
-    child.userData.poolRoyaleLowerBaseStretched = true;
+    scalePoolRoyaleExternalMeshHeightFromTop(child, scale, 'poolRoyaleLowerBaseStretched');
+  });
+  model.updateMatrixWorld(true);
+}
+
+function widenPoolRoyaleExternalFeet(model, tableModel, dims) {
+  const widthScale = Number(tableModel?.footWidthScale);
+  const heightScale = Number(tableModel?.footHeightScale ?? 1);
+  const hasWidthScale = Number.isFinite(widthScale) && widthScale > 1 + MICRO_EPS;
+  const hasHeightScale = Number.isFinite(heightScale) && heightScale > MICRO_EPS && Math.abs(heightScale - 1) > MICRO_EPS;
+  if (!model || (!hasWidthScale && !hasHeightScale)) return;
+  const fullBox = new THREE.Box3().setFromObject(model);
+  if (fullBox.isEmpty()) return;
+  const targetTop = Number.isFinite(dims?.targetTopLocal)
+    ? dims.targetTopLocal
+    : Number.isFinite(dims?.cushionTopLocal)
+      ? dims.cushionTopLocal
+      : fullBox.max.y;
+  const upperHeight = Number.isFinite(dims?.targetUpperComponentHeight)
+    ? Math.max(MICRO_EPS, dims.targetUpperComponentHeight)
+    : Math.max(MICRO_EPS, fullBox.getSize(new THREE.Vector3()).y * 0.28);
+  const lowerCutoff = targetTop - upperHeight * 1.05;
+  model.traverse((child) => {
+    if (!child?.isMesh || child.userData?.poolRoyaleFeetWidened) return;
+    const material = Array.isArray(child.material) ? child.material[0] : child.material;
+    const referencePart = tableModel?.useReferenceShowoodMapping
+      ? classifyPoolRoyaleShowoodReferencePart(child, material)
+      : null;
+    if (referencePart !== 'baseFoot') return;
+    const childBox = new THREE.Box3().setFromObject(child);
+    if (childBox.isEmpty() || childBox.max.y > lowerCutoff) return;
+    if (hasWidthScale) {
+      child.scale.x *= widthScale;
+      child.scale.z *= widthScale;
+    }
+    if (hasHeightScale) {
+      scalePoolRoyaleExternalMeshHeightFromTop(child, heightScale, 'poolRoyaleFootHeightScaled');
+    }
+    child.userData.poolRoyaleFeetWidened = true;
   });
   model.updateMatrixWorld(true);
 }
@@ -12943,6 +12994,7 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   model.updateMatrixWorld(true);
   shrinkPoolRoyaleExternalUpperFrame(model, tableModel, dims);
   stretchPoolRoyaleExternalLowerBase(model, tableModel, dims);
+  widenPoolRoyaleExternalFeet(model, tableModel, dims);
   model.userData = {
     ...(model.userData || {}),
     poolRoyaleExternalTable: true,
