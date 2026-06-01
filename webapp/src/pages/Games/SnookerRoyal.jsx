@@ -1179,7 +1179,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
   );
 const MARKINGS_MM_TO_UNITS = innerLong / WIDTH_REF;
 const OBJECT_MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_SIZE_SCALE = 1; // keep ball diameter inside the official 52.5mm +/-0.05mm snooker allowance
+const BALL_SIZE_SCALE = 0.96; // make Snooker Royal balls a little smaller while preserving table scale and collision proportions
 const BALL_DIAMETER = BALL_D_REF * OBJECT_MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -1237,8 +1237,8 @@ console.assert(
   'Side pocket mouth width mismatch.'
 );
 console.assert(
-  Math.abs(BALL_DIAMETER - BALL_D_REF * OBJECT_MM_TO_UNITS) <= BALL_DIAMETER_TOLERANCE,
-  'Ball diameter must remain inside the official snooker tolerance.'
+  Math.abs(BALL_DIAMETER - BALL_D_REF * OBJECT_MM_TO_UNITS * BALL_SIZE_SCALE) <= BALL_DIAMETER_TOLERANCE,
+  'Ball diameter must match the configured Snooker Royal ball size scale.'
 );
 console.assert(
   Math.abs(BALL_DIAMETER - BALL_R * 2) <= BALL_DIAMETER_TOLERANCE,
@@ -1340,12 +1340,12 @@ const POCKET_INTERIOR_CAPTURE_R =
   POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION; // match capture radius directly to the pocket bowl opening
 const SIDE_POCKET_INTERIOR_CAPTURE_R =
   SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION; // keep middle-pocket capture identical to its bowl radius
-const POCKET_CAPTURE_ASSIST = BALL_R * 0.42; // make pocket sensors reach the visual mouth so mobile shots pot reliably
-const SIDE_POCKET_CAPTURE_ASSIST = BALL_R * 0.48; // middle pockets need a slightly wider sensor because their centres sit outside the rail
+const POCKET_CAPTURE_ASSIST = 0; // keep capture sensors matched to the visible corner pocket mouth
+const SIDE_POCKET_CAPTURE_ASSIST = 0; // keep middle-pocket capture matched to the actual visible pocket size
 const CAPTURE_R =
-  POCKET_INTERIOR_CAPTURE_R + POCKET_CAPTURE_ASSIST; // mirror Pool Royale corner-pocket capture gain for identical pocket acceptance
+  POCKET_INTERIOR_CAPTURE_R + POCKET_CAPTURE_ASSIST; // corner captures now use the physical pocket bowl instead of an oversized helper zone
 const SIDE_CAPTURE_R =
-  SIDE_POCKET_INTERIOR_CAPTURE_R + SIDE_POCKET_CAPTURE_ASSIST; // give middle pockets a touch more capture so shots don't hang in the jaws
+  SIDE_POCKET_INTERIOR_CAPTURE_R + SIDE_POCKET_CAPTURE_ASSIST; // middle-pocket captures now follow the actual side-pocket bowl
 const POCKET_GUARD_RADIUS =
   CAPTURE_R - BALL_R * 0.12; // mirror Pool Royale guard inset so corner jaw collision acceptance matches
 const POCKET_GUARD_CLEARANCE = Math.max(
@@ -5645,7 +5645,7 @@ function applySnookerScaling({
     }
   }
   if (Array.isArray(balls)) {
-    const expectedRadius = BALL_D_REF * OBJECT_MM_TO_UNITS * 0.5;
+    const expectedRadius = BALL_D_REF * OBJECT_MM_TO_UNITS * BALL_SIZE_SCALE * 0.5;
     balls.forEach((ball) => {
       if (!ball) return;
       ball.colliderRadius = expectedRadius;
@@ -5674,14 +5674,14 @@ const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.1; // match Pool Royale standing-view
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.54);
 const CAMERA_MAX_PHI = CAMERA_LOWEST_PHI; // halt the downward sweep right above the cue while still enabling the lower AI cue height for players
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0132; // match Pool Royale standing/cue camera distance
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0119; // bring the player's standing/cue camera closer to the table
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.96;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.94;
-const STANDING_VIEW_DISTANCE_SCALE = 0.18; // pull the standing camera closer to the table so players appear visibly nearer in standing view on portrait screens
+const STANDING_VIEW_DISTANCE_SCALE = 0.16; // pull the standing camera closer so the table fills more of portrait screens
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
