@@ -12958,6 +12958,18 @@ function stretchPoolRoyaleShowoodLegsToFeet(model, tableModel) {
   });
   if (!feet.length || !legs.length) return;
 
+  const scaleLegDownFromTop = (mesh, anchorWorldY, scale) => {
+    const parent = mesh.parent || model;
+    const anchorLocal = parent.worldToLocal(new THREE.Vector3(0, anchorWorldY, 0)).y;
+    mesh.scale.y *= scale;
+    mesh.updateMatrixWorld(true);
+    const nextBox = new THREE.Box3().setFromObject(mesh);
+    const nextAnchorLocal = parent.worldToLocal(new THREE.Vector3(0, nextBox.max.y, 0)).y;
+    mesh.position.y += anchorLocal - nextAnchorLocal;
+    mesh.updateMatrixWorld(true);
+    return new THREE.Box3().setFromObject(mesh);
+  };
+
   legs.forEach(({ mesh, box }) => {
     if (!mesh || mesh.userData?.poolRoyaleShowoodLegReachedFoot) return;
     const center = box.getCenter(new THREE.Vector3());
@@ -12974,16 +12986,33 @@ function stretchPoolRoyaleShowoodLegsToFeet(model, tableModel) {
     if (!nearestFoot) return;
     const gap = box.min.y - nearestFoot.box.max.y;
     if (!Number.isFinite(gap) || gap <= MICRO_EPS) return;
-    const legHeight = Math.max(MICRO_EPS, box.max.y - box.min.y);
-    const scale = THREE.MathUtils.clamp((legHeight + gap * reachScale) / legHeight, 1, 1.38);
     const anchorWorldY = box.max.y;
-    const parent = mesh.parent || model;
-    const anchorLocal = parent.worldToLocal(new THREE.Vector3(0, anchorWorldY, 0)).y;
-    mesh.scale.y *= scale;
-    mesh.updateMatrixWorld(true);
-    const nextBox = new THREE.Box3().setFromObject(mesh);
-    const nextAnchorLocal = parent.worldToLocal(new THREE.Vector3(0, nextBox.max.y, 0)).y;
-    mesh.position.y += anchorLocal - nextAnchorLocal;
+    const legHeight = Math.max(MICRO_EPS, box.max.y - box.min.y);
+    const scale = THREE.MathUtils.clamp((legHeight + gap * reachScale) / legHeight, 1, 1.72);
+    let nextBox = scaleLegDownFromTop(mesh, anchorWorldY, scale);
+
+    const remainingGap = nextBox.min.y - nearestFoot.box.max.y;
+    if (Number.isFinite(remainingGap) && remainingGap > MICRO_EPS) {
+      const reachedHeight = Math.max(MICRO_EPS, nextBox.max.y - nextBox.min.y);
+      const touchScale = THREE.MathUtils.clamp(
+        (reachedHeight + remainingGap + MICRO_EPS) / reachedHeight,
+        1,
+        1.18
+      );
+      nextBox = scaleLegDownFromTop(mesh, anchorWorldY, touchScale);
+    }
+
+    const overreach = nearestFoot.box.max.y - nextBox.min.y;
+    if (Number.isFinite(overreach) && overreach > MICRO_EPS * 4) {
+      const reachedHeight = Math.max(MICRO_EPS, nextBox.max.y - nextBox.min.y);
+      const settleScale = THREE.MathUtils.clamp(
+        (reachedHeight - overreach + MICRO_EPS * 2) / reachedHeight,
+        0.94,
+        1
+      );
+      scaleLegDownFromTop(mesh, anchorWorldY, settleScale);
+    }
+
     mesh.userData.poolRoyaleShowoodLegReachedFoot = true;
   });
 
