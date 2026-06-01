@@ -49,10 +49,10 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     kind: 'gltf',
     fitScale: 1.055,
     upperFrameHeightScale: 0.58,
-    cornerRimHeightScale: 0.42,
-    cornerRimLift: 0.018,
+    cornerRimHeightScale: 0.28,
+    cornerRimLift: 0,
     lowerBaseHeightScale: 1.62,
-    lowerLegFootReachScale: 1.18,
+    lowerLegFootReachScale: 1.8,
     footWidthScale: 1.08,
     footHeightScale: 1,
     clothRepeatScale: 5.25,
@@ -69,6 +69,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     tintOriginalTrimGold: false,
     forceGeneratedChromePlates: false,
     hideSurfaceRoles: [],
+    keepGeneratedMarkings: true,
     hideGeneratedRailMarkers: true
   }
 ]);
