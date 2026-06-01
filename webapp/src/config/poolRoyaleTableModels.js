@@ -52,6 +52,8 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     cornerRimHeightScale: 0.28,
     trimCornerRimsToTopRailBottom: true,
     cornerRimLift: 0.018,
+    originalBaseRemovalCutoffRatio: 0.66,
+    accentBottomTrimOffset: 0.012,
     markingVisualLift: 0.024,
     lowerBaseHeightScale: 1.72,
     lowerLegFootReachScale: 1.28,
@@ -151,8 +153,7 @@ export const POOL_ROYALE_SHOWOOD_MATERIAL_CONTROL_PARTS = Object.freeze([
   'cushion',
   'metalAccent',
   'pocketJaw',
-  'topWoodRail',
-  'legBase'
+  'topWoodRail'
 ]);
 
 export const POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE = Object.freeze({
@@ -171,12 +172,12 @@ export const POOL_ROYALE_SHOWOOD_CONTROL_META = Object.freeze({
     description: 'All cloth-library textures for the cushion faces, separate from the field.'
   },
   metalAccent: {
-    label: 'Rail sights + apron + feet + rims',
-    description: 'Gold, chrome, or black for Showood rail sights, side apron, feet, and Rooney/corner rims.'
+    label: 'Rail sights + apron + rims',
+    description: 'Gold, chrome, or black for Showood rail sights, side apron, and shorter side/corner rims.'
   },
   pocketJaw: { label: 'Pockets + jaws', description: 'Uses the same pocket-jaw texture options as the main game menu.' },
   topWoodRail: { label: 'Top rail frame', description: 'All GLTF table-finish textures for the main top wood rail frame.' },
-  legBase: { label: 'Legs + base', description: 'All GLTF table-finish textures for legs and lower base blocks only.' }
+  legBase: { label: 'Legacy GLB legs + base', description: 'Hidden for the Showood table because Pool Royale uses the procedural base and table-finish texture instead.' }
 });
 
 const SHOWOOD_CLOTH_OPTIONS = buildShowoodClothOptions();
