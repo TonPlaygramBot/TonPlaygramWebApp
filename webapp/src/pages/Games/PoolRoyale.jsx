@@ -19,6 +19,7 @@ import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
+import { resolvePoolRoyaleShotPowerScale } from './poolRoyaleShotState.js';
 import '../../../../pool-royale-power-slider.css';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -28561,7 +28562,8 @@ const shotPowerRef = useRef(0);
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
           const frameStateCurrent = frameRef.current ?? null;
           const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
-          const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
+          const shotPowerScale = resolvePoolRoyaleShotPowerScale(clampedPower);
+          const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * shotPowerScale;
           const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
           const base = shotAimDir
             .clone()
@@ -34850,8 +34852,11 @@ const shotPowerRef = useRef(0);
       onStart: () => {
         captureCueStickAnchor();
       },
-      onCommit: () => {
-        fireRef.current?.();
+      onCommit: (value) => {
+        const committedPower = clampPower(value / 100, 0);
+        shotPowerRef.current = committedPower;
+        powerRef.current = committedPower;
+        fireRef.current?.(committedPower);
         requestAnimationFrame(() => {
           slider.set(slider.min, { animate: true });
           applyPower(0);
@@ -34864,7 +34869,7 @@ const shotPowerRef = useRef(0);
       sliderInstanceRef.current = null;
       slider.destroy();
     };
-  }, [applySliderLock, applyPower, captureCueStickAnchor, showPowerSlider]);
+  }, [applySliderLock, applyPower, captureCueStickAnchor, clampPower, showPowerSlider]);
   useEffect(() => {
     if (shotActive || hud.over || hud.turn !== 0) return;
     const slider = sliderInstanceRef.current;
@@ -34872,6 +34877,7 @@ const shotPowerRef = useRef(0);
       slider.set(slider.min, { animate: true });
     }
     applyPower(0);
+    shotPowerRef.current = 0;
     cuePullCurrentRef.current = 0;
     cuePullTargetRef.current = 0;
   }, [applyPower, hud.over, hud.turn, shotActive]);

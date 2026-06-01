@@ -1,4 +1,4 @@
-import { SHOT_STATE, resolveCommittedShot, easeOut } from '../webapp/src/pages/Games/poolRoyaleShotState.js';
+import { SHOT_STATE, resolveCommittedShot, resolvePoolRoyaleShotPowerScale, easeOut } from '../webapp/src/pages/Games/poolRoyaleShotState.js';
 
 describe('Pool Royale shot state commit flow', () => {
   it('stays idle for low/zero captured power', () => {
@@ -20,6 +20,13 @@ describe('Pool Royale shot state commit flow', () => {
     expect(low.state).toBe(SHOT_STATE.IDLE);
     expect(high.shotPower).toBe(1);
     expect(high.state).toBe(SHOT_STATE.STRIKING);
+  });
+
+  it('boosts physical shot power above 60% without changing low/mid percentages', () => {
+    expect(resolvePoolRoyaleShotPowerScale(0.25)).toBeCloseTo(0.25, 6);
+    expect(resolvePoolRoyaleShotPowerScale(0.6)).toBeCloseTo(0.6, 6);
+    expect(resolvePoolRoyaleShotPowerScale(0.8)).toBeGreaterThan(0.8);
+    expect(resolvePoolRoyaleShotPowerScale(1)).toBeCloseTo(1.35, 6);
   });
 
   it('uses cubic ease-out for slider reset curve', () => {
