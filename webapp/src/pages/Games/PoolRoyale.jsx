@@ -1836,7 +1836,7 @@ const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
 const SHOT_POWER_BOOST = 1.5; // preserve legacy cue response before the final mobile comfort trim
-const SHOT_GLOBAL_POWER_SCALE = 0.72; // increase Pool Royale shot pace by 50% while keeping the slider range unchanged
+const SHOT_GLOBAL_POWER_SCALE = 0.48; // reduce Pool Royale shot pace by 25% so ball travel better matches the selected shot power
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -9279,7 +9279,6 @@ export function Table3D(
   baulkLine.rotation.x = -Math.PI / 2;
   baulkLine.position.set(0, markingHeight, baulkLineZ);
   baulkLine.userData.externalTableKeepVisible = true;
-  baulkLine.userData.externalTableMarkingKeepVisible = true;
   markingsGroup.add(baulkLine);
 
   const dArc = null;
@@ -9291,7 +9290,6 @@ export function Table3D(
     spot.rotation.x = -Math.PI / 2;
     spot.position.set(x, markingHeight, z);
     spot.userData.externalTableKeepVisible = true;
-    spot.userData.externalTableMarkingKeepVisible = true;
     markingsGroup.add(spot);
     spotMeshes.push(spot);
   };
@@ -9305,7 +9303,6 @@ export function Table3D(
     }
   });
   markingsGroup.userData.externalTableKeepVisible = true;
-  markingsGroup.userData.externalTableMarkingKeepVisible = true;
   table.add(markingsGroup);
   table.userData.markings = {
     group: markingsGroup,
@@ -12954,9 +12951,7 @@ function stretchPoolRoyaleShowoodLegsToFeet(model, tableModel) {
   if (model.userData?.poolRoyaleShowoodLegsReachedFeet) return;
 
   const feet = [];
-  const legCandidates = [];
-  const fullBox = new THREE.Box3().setFromObject(model);
-  const fullCenterY = fullBox.isEmpty() ? 0 : fullBox.getCenter(new THREE.Vector3()).y;
+  const legs = [];
   model.updateMatrixWorld(true);
   model.traverse((child) => {
     if (!child?.isMesh) return;
@@ -12965,36 +12960,12 @@ function stretchPoolRoyaleShowoodLegsToFeet(model, tableModel) {
     const referenceParts = materials.map((material) => classifyPoolRoyaleShowoodReferencePart(child, material));
     const childBox = new THREE.Box3().setFromObject(child);
     if (childBox.isEmpty()) return;
-    const childSize = childBox.getSize(new THREE.Vector3());
-    const isFoot = /foot|feet/.test(label) || referenceParts.includes('baseFoot');
-    const hasVerticalSupportName = /leg|post|pillar|support|column|pedestal|upright|stand/.test(label);
-    const mappedLeg = referenceParts.includes('leg');
-    const lowerShowoodBlock =
-      tableModel?.useReferenceShowoodMapping &&
-      referenceParts.includes('baseCornerBlock') &&
-      childBox.max.y < fullCenterY &&
-      childSize.y > Math.max(childSize.x, childSize.z) * 0.35;
-    if (isFoot) {
+    if (/foot|feet/.test(label) || referenceParts.includes('baseFoot')) {
       feet.push({ mesh: child, box: childBox });
-    } else if (mappedLeg || hasVerticalSupportName || lowerShowoodBlock) {
-      legCandidates.push({ mesh: child, box: childBox });
+    } else if (/leg/.test(label) || referenceParts.includes('leg')) {
+      legs.push({ mesh: child, box: childBox });
     }
   });
-  const legs = legCandidates.filter(({ box }) =>
-    feet.some((foot) => {
-      const horizontalGap = Math.hypot(
-        box.getCenter(new THREE.Vector3()).x - foot.box.getCenter(new THREE.Vector3()).x,
-        box.getCenter(new THREE.Vector3()).z - foot.box.getCenter(new THREE.Vector3()).z
-      );
-      const reachLimit = Math.max(
-        foot.box.getSize(new THREE.Vector3()).x,
-        foot.box.getSize(new THREE.Vector3()).z,
-        box.getSize(new THREE.Vector3()).x,
-        box.getSize(new THREE.Vector3()).z
-      ) * Math.max(1.4, reachScale);
-      return horizontalGap <= reachLimit;
-    })
-  );
   if (!feet.length || !legs.length) return;
 
   legs.forEach(({ mesh, box }) => {
@@ -13014,12 +12985,12 @@ function stretchPoolRoyaleShowoodLegsToFeet(model, tableModel) {
     const gap = box.min.y - nearestFoot.box.max.y;
     if (!Number.isFinite(gap) || gap <= MICRO_EPS) return;
     const legHeight = Math.max(MICRO_EPS, box.max.y - box.min.y);
-    // Keep the top of the leg fixed and extend the bottom visually downward
-    // exactly to the nearest foot. This fixes the portrait view where the
-    // Showood legs looked too short while avoiding a visible overlap through
-    // the foot blocks.
+    // Keep the top of the leg fixed and extend the bottom visually downward until it
+    // overlaps the nearest foot, matching the portrait-phone view where short
+    // hanging legs should reach the yellow foot blocks.
     const exactTouchScale = (legHeight + gap) / legHeight;
-    const scale = THREE.MathUtils.clamp(exactTouchScale, 1, 3.25);
+    const requestedScale = (legHeight + gap * reachScale) / legHeight;
+    const scale = THREE.MathUtils.clamp(Math.max(exactTouchScale, requestedScale), 1, 2.15);
     const anchorWorldY = box.max.y;
     const parent = mesh.parent || model;
     const anchorLocal = parent.worldToLocal(new THREE.Vector3(0, anchorWorldY, 0)).y;
@@ -13919,16 +13890,12 @@ function mountPoolRoyaleExternalTableModel({
           ? false
           : !object.userData?.externalTableReplaceableSurface;
         if (object.userData?.isChromePlate && forceGeneratedChrome) object.visible = true;
-        if (externalTableModelForMount?.keepGeneratedMarkings && object.userData?.externalTableMarkingKeepVisible) {
-          object.visible = true;
-        }
         return;
       }
       if (
         !visible &&
         (
           object.userData?.externalTableBrandPlateKeepVisible ||
-          (externalTableModelForMount?.keepGeneratedMarkings && object.userData?.externalTableMarkingKeepVisible) ||
           (!externalTableModelForMount?.useOriginalLayoutSurfaces && object.userData?.externalTableKeepVisible) ||
           (object.userData?.isChromePlate && forceGeneratedChrome)
         )
