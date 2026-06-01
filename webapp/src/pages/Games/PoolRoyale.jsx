@@ -9402,28 +9402,61 @@ export function Table3D(
     }
     pocketDropRef.current.delete(ballId);
   };
-  const pocketGuideRingRadius = POCKET_BOTTOM_R * POCKET_NET_RING_RADIUS_SCALE;
-  const pocketNetProfile = [
-    new THREE.Vector2(pocketGuideRingRadius, 0),
-    new THREE.Vector2(POCKET_BOTTOM_R * 0.94, -POCKET_NET_DEPTH * 0.16),
-    new THREE.Vector2(POCKET_BOTTOM_R * 0.82, -POCKET_NET_DEPTH * 0.45),
-    new THREE.Vector2(POCKET_BOTTOM_R * 0.7, -POCKET_NET_DEPTH * 0.74),
-    new THREE.Vector2(pocketGuideRingRadius, -POCKET_NET_DEPTH * 1.06)
-  ];
-  const pocketNetGeo = new THREE.LatheGeometry(pocketNetProfile, POCKET_NET_SEGMENTS);
+  const resolvePocketFieldCutRadius = (index) =>
+    Math.max(
+      MICRO_EPS,
+      index >= 4
+        ? POCKET_HOLE_R * sideRadiusScale
+        : POCKET_HOLE_R * CORNER_POCKET_CLOTH_CUT_SCALE
+    );
+  const pocketNetGeometryCache = new Map();
+  const resolvePocketNetGeometry = (index) => {
+    const fieldCutRadius = resolvePocketFieldCutRadius(index);
+    const cacheKey = fieldCutRadius.toFixed(6);
+    if (pocketNetGeometryCache.has(cacheKey)) {
+      return pocketNetGeometryCache.get(cacheKey);
+    }
+    const throatRadius = Math.max(MICRO_EPS, POCKET_BOTTOM_R * 0.7);
+    const pocketNetProfile = [
+      new THREE.Vector2(fieldCutRadius, 0),
+      new THREE.Vector2(
+        THREE.MathUtils.lerp(fieldCutRadius, throatRadius, 0.24),
+        -POCKET_NET_DEPTH * 0.16
+      ),
+      new THREE.Vector2(
+        THREE.MathUtils.lerp(fieldCutRadius, throatRadius, 0.58),
+        -POCKET_NET_DEPTH * 0.45
+      ),
+      new THREE.Vector2(throatRadius, -POCKET_NET_DEPTH * 0.74),
+      new THREE.Vector2(fieldCutRadius, -POCKET_NET_DEPTH * 1.06)
+    ];
+    const geometry = new THREE.LatheGeometry(pocketNetProfile, POCKET_NET_SEGMENTS);
+    pocketNetGeometryCache.set(cacheKey, geometry);
+    return geometry;
+  };
   const pocketGuideMaterial = trimMat;
   const pocketStrapLength = Math.max(POCKET_GUIDE_LENGTH * 0.62, BALL_DIAMETER * 5.4);
   const pocketStrapWidth = BALL_R * 1.8;
   const pocketStrapThickness = BALL_R * 0.12;
-  const pocketRingGeometry = new THREE.TorusGeometry(
-    pocketGuideRingRadius,
-    POCKET_NET_RING_TUBE_RADIUS,
-    12,
-    28
-  );
+  const pocketRingGeometryCache = new Map();
+  const resolvePocketRingGeometry = (index) => {
+    const fieldCutRadius = resolvePocketFieldCutRadius(index);
+    const cacheKey = fieldCutRadius.toFixed(6);
+    if (pocketRingGeometryCache.has(cacheKey)) {
+      return pocketRingGeometryCache.get(cacheKey);
+    }
+    const geometry = new THREE.TorusGeometry(
+      fieldCutRadius,
+      POCKET_NET_RING_TUBE_RADIUS,
+      12,
+      28
+    );
+    pocketRingGeometryCache.set(cacheKey, geometry);
+    return geometry;
+  };
   const pocketMeshes = [];
   table.userData.pocketHolderAnchors = [];
-  resolveTablePocketCenters().forEach((p, index) => {
+  clothPocketPositions.forEach((p, index) => {
     const pocketId = POCKET_IDS[index] ?? null;
     const isMiddlePocket = index >= 4;
     const pocketLift = isMiddlePocket ? SIDE_POCKET_PLYWOOD_LIFT : 0;
@@ -9437,7 +9470,9 @@ export function Table3D(
     pocket.userData.externalTablePocketDropHardware = true;
     table.add(pocket);
     pocketMeshes.push(pocket);
-    const net = new THREE.Mesh(pocketNetGeo, pocketNetMaterial);
+    const fieldCutRadius = resolvePocketFieldCutRadius(index);
+    const pocketGuideRingRadius = fieldCutRadius;
+    const net = new THREE.Mesh(resolvePocketNetGeometry(index), pocketNetMaterial);
     net.position.set(
       p.x,
       pocketTopY - POCKET_WALL_HEIGHT - POCKET_WALL_OPEN_TRIM + pocketLift + POCKET_NET_VERTICAL_LIFT,
@@ -9458,7 +9493,7 @@ export function Table3D(
       netBottomY + POCKET_NET_RING_VERTICAL_OFFSET,
       p.y
     );
-    const ring = new THREE.Mesh(pocketRingGeometry, pocketGuideMaterial);
+    const ring = new THREE.Mesh(resolvePocketRingGeometry(index), pocketGuideMaterial);
     ring.position.copy(ringAnchor);
     ring.rotation.x = Math.PI / 2;
     ring.castShadow = true;
@@ -12568,6 +12603,33 @@ function removePoolRoyaleShowoodOriginalBaseAndLegGeometry(root, tableModel = nu
   return removedTriangles;
 }
 
+const POOL_ROYALE_RAIL_SIGHT_RENDER_ORDER = CHROME_PLATE_RENDER_ORDER + 4;
+
+function prioritizePoolRoyaleRailSightVisibility(mesh, material = null) {
+  if (mesh) {
+    mesh.renderOrder = Math.max(mesh.renderOrder ?? 0, POOL_ROYALE_RAIL_SIGHT_RENDER_ORDER);
+    mesh.frustumCulled = false;
+    mesh.userData = {
+      ...(mesh.userData || {}),
+      poolRoyaleRailSightVisibilityPriority: true
+    };
+  }
+  const materials = Array.isArray(material) ? material : [material].filter(Boolean);
+  materials.forEach((mat) => {
+    if (!mat) return;
+    mat.depthTest = false;
+    mat.depthWrite = false;
+    mat.polygonOffset = true;
+    mat.polygonOffsetFactor = -4;
+    mat.polygonOffsetUnits = -4;
+    mat.userData = {
+      ...(mat.userData || {}),
+      poolRoyaleRailSightVisibilityPriority: true
+    };
+    mat.needsUpdate = true;
+  });
+}
+
 function applyPoolRoyaleShowoodReferenceMaterial(material, part, tableModel = null, finishInfo = null) {
   if (!material) return material;
   const mat = material.clone ? material.clone() : material;
@@ -12609,6 +12671,9 @@ function applyPoolRoyaleShowoodReferenceMaterial(material, part, tableModel = nu
     poolRoyaleShowoodReferenceControl: control,
     poolRoyaleShowoodReferenceChoice: choice
   };
+  if (part === 'railSight') {
+    prioritizePoolRoyaleRailSightVisibility(null, mat);
+  }
   return mat;
 }
 
@@ -12857,6 +12922,9 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
       const referencePart = tableModel?.useReferenceShowoodMapping
         ? classifyPoolRoyaleShowoodReferencePart(child, material)
         : null;
+      if (referencePart === 'railSight') {
+        prioritizePoolRoyaleRailSightVisibility(child, material);
+      }
       if (Array.isArray(tableModel?.hideSurfaceRoles) && tableModel.hideSurfaceRoles.includes(role)) {
         child.visible = false;
       }
@@ -12874,6 +12942,9 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
       }
       if (tableModel?.useReferenceShowoodMapping) {
         const nextMaterial = applyPoolRoyaleShowoodReferenceMaterial(material, referencePart || role, tableModel, finishInfo);
+        if (referencePart === 'railSight') {
+          prioritizePoolRoyaleRailSightVisibility(child, nextMaterial);
+        }
         normalizePoolRoyaleExternalClothTextureScale(child, nextMaterial, role);
         return nextMaterial;
       }
