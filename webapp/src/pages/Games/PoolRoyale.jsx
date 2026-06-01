@@ -37,6 +37,7 @@ import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import {
   POOL_ROYALE_TABLE_MODEL_OPTIONS,
   POOL_ROYALE_TABLE_MODEL_STORAGE_KEY,
+  POOL_ROYALE_SHOWOOD_CONTROL_META,
   POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS,
   POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE,
   POOL_ROYALE_SHOWOOD_MATERIAL_CONTROL_PARTS,
@@ -13311,94 +13312,6 @@ function shortenPoolRoyaleShowoodCornerRims(model, tableModel, dims) {
   model.updateMatrixWorld(true);
 }
 
-function expandPoolRoyaleShowoodRailSightAndApron(model, tableModel) {
-  if (!model || !tableModel?.useReferenceShowoodMapping) return;
-  if (model.userData?.poolRoyaleShowoodRailSightAndApronExpanded) return;
-
-  const railSightScale = Number(tableModel?.railSightVisualScale);
-  const railSightLift = Number(tableModel?.railSightVisualLift);
-  const apronHeightScale = Number(tableModel?.sideApronVisualHeightScale);
-  const apronDepthScale = Number(tableModel?.sideApronVisualDepthScale);
-  const apronOutset = Number(tableModel?.sideApronVisualOutset);
-  const safeRailSightScale = Number.isFinite(railSightScale)
-    ? THREE.MathUtils.clamp(railSightScale, 1, 1.16)
-    : 1;
-  const safeRailSightLift = Number.isFinite(railSightLift) ? railSightLift : 0;
-  const safeApronHeightScale = Number.isFinite(apronHeightScale)
-    ? THREE.MathUtils.clamp(apronHeightScale, 1, 1.18)
-    : 1;
-  const safeApronDepthScale = Number.isFinite(apronDepthScale)
-    ? THREE.MathUtils.clamp(apronDepthScale, 1, 1.12)
-    : 1;
-  const safeApronOutset = Number.isFinite(apronOutset) ? Math.max(0, apronOutset) : 0;
-  if (
-    safeRailSightScale <= 1 + MICRO_EPS &&
-    Math.abs(safeRailSightLift) <= MICRO_EPS &&
-    safeApronHeightScale <= 1 + MICRO_EPS &&
-    safeApronDepthScale <= 1 + MICRO_EPS &&
-    safeApronOutset <= MICRO_EPS
-  ) return;
-
-  model.updateMatrixWorld(true);
-  const modelBox = new THREE.Box3().setFromObject(model);
-  if (modelBox.isEmpty()) return;
-  const modelCenter = modelBox.getCenter(new THREE.Vector3());
-
-  model.traverse((child) => {
-    if (!child?.isMesh || child.userData?.poolRoyaleShowoodAccentExpanded) return;
-    const materials = Array.isArray(child.material) ? child.material : [child.material];
-    const referenceParts = materials.map((material) => classifyPoolRoyaleShowoodReferencePart(child, material));
-    const childBox = new THREE.Box3().setFromObject(child);
-    if (childBox.isEmpty()) return;
-
-    if (referenceParts.includes('railSight')) {
-      if (safeRailSightScale > 1 + MICRO_EPS) {
-        child.scale.x *= safeRailSightScale;
-        child.scale.z *= safeRailSightScale;
-      }
-      if (Math.abs(safeRailSightLift) > MICRO_EPS) {
-        child.position.y += safeRailSightLift;
-      }
-      child.userData.poolRoyaleShowoodAccentExpanded = true;
-      return;
-    }
-
-    if (!referenceParts.includes('sideWoodApron')) return;
-
-    if (safeApronHeightScale > 1 + MICRO_EPS) {
-      const parent = child.parent || model;
-      const anchorWorldY = childBox.max.y;
-      const anchorLocal = parent.worldToLocal(new THREE.Vector3(0, anchorWorldY, 0)).y;
-      child.scale.y *= safeApronHeightScale;
-      child.updateMatrixWorld(true);
-      const nextBox = new THREE.Box3().setFromObject(child);
-      const nextAnchorLocal = parent.worldToLocal(new THREE.Vector3(0, nextBox.max.y, 0)).y;
-      child.position.y += anchorLocal - nextAnchorLocal;
-    }
-    if (safeApronDepthScale > 1 + MICRO_EPS) {
-      const apronCenter = childBox.getCenter(new THREE.Vector3());
-      const offsetX = Math.abs(apronCenter.x - modelCenter.x);
-      const offsetZ = Math.abs(apronCenter.z - modelCenter.z);
-      if (offsetX >= offsetZ) child.scale.x *= safeApronDepthScale;
-      else child.scale.z *= safeApronDepthScale;
-    }
-    if (safeApronOutset > MICRO_EPS) {
-      const apronCenter = childBox.getCenter(new THREE.Vector3());
-      const dx = apronCenter.x - modelCenter.x;
-      const dz = apronCenter.z - modelCenter.z;
-      if (Math.abs(dx) >= Math.abs(dz)) {
-        child.position.x += Math.sign(dx || 1) * safeApronOutset;
-      } else {
-        child.position.z += Math.sign(dz || 1) * safeApronOutset;
-      }
-    }
-    child.userData.poolRoyaleShowoodAccentExpanded = true;
-  });
-
-  model.userData.poolRoyaleShowoodRailSightAndApronExpanded = true;
-  model.updateMatrixWorld(true);
-}
-
 function stretchPoolRoyaleShowoodLegsToFeet(model, tableModel) {
   const reachScale = Number(tableModel?.lowerLegFootReachScale);
   if (!model || !tableModel?.useReferenceShowoodMapping || !Number.isFinite(reachScale) || reachScale <= 1 + MICRO_EPS) return;
@@ -13586,7 +13499,6 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   shrinkPoolRoyaleExternalUpperFrame(model, tableModel, dims);
   shortenPoolRoyaleShowoodCornerRims(model, tableModel, dims);
   trimPoolRoyaleShowoodLowerAccentTriangles(model, tableModel, dims);
-  expandPoolRoyaleShowoodRailSightAndApron(model, tableModel);
   stretchPoolRoyaleExternalLowerBase(model, tableModel, dims);
   stretchPoolRoyaleShowoodLegsToFeet(model, tableModel);
   subtlyWidenPoolRoyaleShowoodFeet(model, tableModel);
@@ -15049,6 +14961,7 @@ function PoolRoyaleGame({
       ? { ...model, showoodPalette }
       : model;
   }, [showoodPalette, tableModelKey]);
+  const showShowoodTableSetup = Boolean(activeTableModel?.useReferenceShowoodMapping);
   const updateGameSearchParams = useCallback(
     (updates = {}) => {
       const params = new URLSearchParams(location.search);
@@ -15073,10 +14986,37 @@ function PoolRoyaleGame({
       try {
         window.localStorage?.setItem(POOL_ROYALE_TABLE_MODEL_STORAGE_KEY, model.id);
       } catch {}
-      updateGameSearchParams({ tableModel: model.id, showoodPalette: null });
+      const updates = { tableModel: model.id };
+      if (model.useReferenceShowoodMapping) {
+        updates.showoodPalette = JSON.stringify(showoodPalette);
+      } else {
+        updates.showoodPalette = null;
+      }
+      updateGameSearchParams(updates);
+    },
+    [showoodPalette, updateGameSearchParams]
+  );
+  const handleShowoodPaletteSelection = useCallback(
+    (control, choice) => {
+      setShowoodPalette((current) => {
+        const next = { ...current, [control]: choice };
+        try {
+          window.localStorage?.setItem('poolRoyaleShowoodMaterialPalette', JSON.stringify(next));
+        } catch {}
+        updateGameSearchParams({ showoodPalette: JSON.stringify(next) });
+        return next;
+      });
     },
     [updateGameSearchParams]
   );
+  const resetShowoodPalette = useCallback(() => {
+    const next = { ...POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE };
+    setShowoodPalette(next);
+    try {
+      window.localStorage?.setItem('poolRoyaleShowoodMaterialPalette', JSON.stringify(next));
+    } catch {}
+    updateGameSearchParams({ showoodPalette: JSON.stringify(next) });
+  }, [updateGameSearchParams]);
   const responsiveTableSize = useResponsiveTableSize(activeTableSize);
   const resolvedAccountId = useMemo(
     () => poolRoyalAccountId(accountId),
@@ -15623,44 +15563,6 @@ function PoolRoyaleGame({
       POCKET_LINER_OPTIONS[0],
     [availablePocketLiners, pocketLinerId]
   );
-  useEffect(() => {
-    const nextPalette = {
-      ...POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE,
-      cloth:
-        POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS.cloth?.[activeClothOption?.id]
-          ? activeClothOption.id
-          : POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE.cloth,
-      cushion:
-        POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS.cushion?.[activeClothOption?.id]
-          ? activeClothOption.id
-          : POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE.cushion,
-      metalAccent:
-        POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS.metalAccent?.[activeChromeOption?.id]
-          ? activeChromeOption.id
-          : POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE.metalAccent,
-      pocketJaw:
-        POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS.pocketJaw?.[activePocketLinerOption?.id]
-          ? activePocketLinerOption.id
-          : POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE.pocketJaw,
-      topWoodRail:
-        POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS.topWoodRail?.[tableFinishId]
-          ? tableFinishId
-          : POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE.topWoodRail,
-      legBase:
-        POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS.legBase?.[tableFinishId]
-          ? tableFinishId
-          : POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE.legBase
-    };
-    setShowoodPalette((current) => {
-      const currentSignature = JSON.stringify(current);
-      const nextSignature = JSON.stringify(nextPalette);
-      if (currentSignature === nextSignature) return current;
-      try {
-        window.localStorage?.setItem('poolRoyaleShowoodMaterialPalette', nextSignature);
-      } catch {}
-      return nextPalette;
-    });
-  }, [activeChromeOption?.id, activeClothOption?.id, activePocketLinerOption?.id, tableFinishId]);
   useEffect(() => {
     if (!POOL_ROYALE_VOICE_COMMENTARY_ENABLED) {
       setCommentarySupported(false);
@@ -36681,12 +36583,88 @@ const shotPowerRef = useRef(0);
                   })}
                 </div>
               </div>
+              {showShowoodTableSetup ? (
+                <div className="rounded-2xl border border-amber-300/25 bg-amber-950/20 p-3">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <div>
+                      <h3 className="text-[10px] uppercase tracking-[0.35em] text-amber-100/80">
+                        Showood Table Setup
+                      </h3>
+                      <p className="mt-1 text-[0.68rem] leading-snug text-white/60">
+                        These controls appear only for the Showood GLB table. The GLB base/legs are removed, so base texture comes from Table Finish below.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={resetShowoodPalette}
+                      className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white/80 transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                  <div className="space-y-3">
+                    {POOL_ROYALE_SHOWOOD_MATERIAL_CONTROL_PARTS.map((control) => {
+                      const meta = POOL_ROYALE_SHOWOOD_CONTROL_META[control];
+                      const options = POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS[control];
+                      return (
+                        <div key={control} className="rounded-xl border border-white/10 bg-white/5 p-2">
+                          <div className="mb-2">
+                            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-100">
+                              {meta.label}
+                            </p>
+                            <p className="text-[10px] leading-snug text-white/50">
+                              {meta.description}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {Object.keys(options).map((choice) => {
+                              const option = options[choice];
+                              const active = showoodPalette[control] === choice;
+                              return (
+                                <button
+                                  key={`${control}-${choice}`}
+                                  type="button"
+                                  onClick={() => handleShowoodPaletteSelection(control, choice)}
+                                  aria-pressed={active}
+                                  className={`flex flex-1 items-center justify-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-extrabold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                                    active
+                                      ? 'border-white/80 bg-white/20 text-white shadow-[0_0_14px_rgba(255,255,255,0.22)]'
+                                      : 'border-white/15 bg-white/5 text-white/70 hover:bg-white/10'
+                                  }`}
+                                >
+                                  <span
+                                    className="h-3.5 w-3.5 rounded-full border border-white/40"
+                                    style={{ backgroundColor: option.color }}
+                                    aria-hidden="true"
+                                  />
+                                  {option.thumbnail ? (
+                                    <img
+                                      src={option.thumbnail}
+                                      alt=""
+                                      className="h-5 w-8 rounded-md border border-white/20 object-cover"
+                                      loading="lazy"
+                                      aria-hidden="true"
+                                    />
+                                  ) : null}
+                                  <span>{option.label}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Shared Table Finish
+                  {showShowoodTableSetup ? 'Showood / Procedural Base Finish' : 'Royal Original Table Finish'}
                 </h3>
                 <p className="mt-1 text-[0.68rem] leading-snug text-white/60">
-                  One finish menu controls Royal Original and Showood GLB wood, rails, legs, and procedural base finish.
+                  {showShowoodTableSetup
+                    ? 'Changes the procedural base texture and the shared Showood wood finish without showing any GLB base/leg controls.'
+                    : 'Changes the current Royal Original table wood, rails, legs, and base finish.'}
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {availableTableFinishes.map((option) => {
@@ -36718,15 +36696,16 @@ const shotPowerRef = useRef(0);
                   })}
                 </div>
               </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Shared Table Base
-                </h3>
-                <p className="mt-1 text-[0.68rem] leading-snug text-white/60">
-                  Shape options for the same procedural base and legs used by Royal Original and Showood GLB.
-                </p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {availableTableBases.map((option) => {
+              {!showShowoodTableSetup ? (
+                <div>
+                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                    Royal Original Table Base
+                  </h3>
+                  <p className="mt-1 text-[0.68rem] leading-snug text-white/60">
+                    Shape options for the current procedural Royal Original base and legs.
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {availableTableBases.map((option) => {
                     const active = option.id === tableBaseId;
                     const swatchA = option.swatches?.[0] ?? '#0f172a';
                     const swatchB = option.swatches?.[1] ?? '#1f2937';
@@ -36762,9 +36741,10 @@ const shotPowerRef = useRef(0);
                         )}
                       </button>
                     );
-                  })}
+                    })}
+                  </div>
                 </div>
-              </div>
+              ) : null}
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   HDR Environment
