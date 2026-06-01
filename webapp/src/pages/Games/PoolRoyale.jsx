@@ -833,6 +833,8 @@ const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.18; // thicken the middle fascia so 
 const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0.06; // lift fascia slightly with the raised rail/cushion profile so chrome stays aligned on all six pockets
 const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
+const SHOWOOD_RAIL_SIGHT_RENDER_ORDER = CHROME_PLATE_RENDER_ORDER + 0.45; // draw rail sights after top rails so diamonds stay visible on mobile
+const SHOWOOD_RAIL_SIGHT_POLYGON_OFFSET = Object.freeze({ factor: -2.5, units: -10 }); // pull coplanar sight inlays visually above wood without disabling depth testing
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.34; // trim the side fascia reach so the middle chrome ends cleanly before the pocket curve
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.14; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.228; // trim the side opposite the rounded middle cut a touch more while staying stable
@@ -9080,6 +9082,12 @@ export function Table3D(
     BASE_CORNER_POCKET_VIS_R > MICRO_EPS
       ? (SIDE_POCKET_RADIUS / BASE_CORNER_POCKET_VIS_R) * SIDE_POCKET_CUT_SCALE
       : 1;
+  const resolvePocketCutRadius = (index, holeRadius = POCKET_HOLE_R) =>
+    index >= 4
+      ? holeRadius * sideRadiusScale
+      : holeRadius * CORNER_POCKET_CLOTH_CUT_SCALE;
+  const pocketCutRadii = pocketPositions.map((_, index) => resolvePocketCutRadius(index));
+  const proceduralPocketDropPositions = clothPocketPositions.map((center) => center.clone());
   const buildSurfaceShape = (holeRadius, edgeInset = 0, centers = pocketPositions) => {
     const insetHalfW = Math.max(MICRO_EPS, halfWext - edgeInset);
     const insetHalfH = Math.max(MICRO_EPS, halfHext - edgeInset);
@@ -9324,14 +9332,17 @@ export function Table3D(
     dArc,
     spots: spotMeshes
   };
-  const pocketGeo = new THREE.CylinderGeometry(
-    POCKET_TOP_R,
-    POCKET_BOTTOM_R,
-    POCKET_WALL_HEIGHT,
-    48,
-    1,
-    true
-  );
+  const createPocketWallGeometry = (cutRadius) => {
+    const safeTopRadius = Math.max(MICRO_EPS, cutRadius);
+    return new THREE.CylinderGeometry(
+      safeTopRadius,
+      safeTopRadius * 0.7,
+      POCKET_WALL_HEIGHT,
+      48,
+      1,
+      true
+    );
+  };
   const pocketMat = new THREE.MeshStandardMaterial({
     color: 0x000000,
     metalness: 0.45,
@@ -9402,32 +9413,46 @@ export function Table3D(
     }
     pocketDropRef.current.delete(ballId);
   };
-  const pocketGuideRingRadius = POCKET_BOTTOM_R * POCKET_NET_RING_RADIUS_SCALE;
-  const pocketNetProfile = [
-    new THREE.Vector2(pocketGuideRingRadius, 0),
-    new THREE.Vector2(POCKET_BOTTOM_R * 0.94, -POCKET_NET_DEPTH * 0.16),
-    new THREE.Vector2(POCKET_BOTTOM_R * 0.82, -POCKET_NET_DEPTH * 0.45),
-    new THREE.Vector2(POCKET_BOTTOM_R * 0.7, -POCKET_NET_DEPTH * 0.74),
-    new THREE.Vector2(pocketGuideRingRadius, -POCKET_NET_DEPTH * 1.06)
-  ];
-  const pocketNetGeo = new THREE.LatheGeometry(pocketNetProfile, POCKET_NET_SEGMENTS);
+  const resolvePocketNetRadii = (cutRadius) => {
+    const safeTopRadius = Math.max(MICRO_EPS, cutRadius);
+    const lowerRadius = safeTopRadius * 0.7;
+    return {
+      topRadius: safeTopRadius,
+      lowerRadius,
+      guideRingRadius: lowerRadius * POCKET_NET_RING_RADIUS_SCALE
+    };
+  };
+  const createPocketNetGeometry = (cutRadius) => {
+    const { topRadius, lowerRadius, guideRingRadius } = resolvePocketNetRadii(cutRadius);
+    const pocketNetProfile = [
+      new THREE.Vector2(topRadius, 0),
+      new THREE.Vector2(THREE.MathUtils.lerp(topRadius, lowerRadius, 0.18), -POCKET_NET_DEPTH * 0.16),
+      new THREE.Vector2(THREE.MathUtils.lerp(topRadius, lowerRadius, 0.48), -POCKET_NET_DEPTH * 0.45),
+      new THREE.Vector2(lowerRadius, -POCKET_NET_DEPTH * 0.74),
+      new THREE.Vector2(guideRingRadius, -POCKET_NET_DEPTH * 1.06)
+    ];
+    return new THREE.LatheGeometry(pocketNetProfile, POCKET_NET_SEGMENTS);
+  };
   const pocketGuideMaterial = trimMat;
   const pocketStrapLength = Math.max(POCKET_GUIDE_LENGTH * 0.62, BALL_DIAMETER * 5.4);
   const pocketStrapWidth = BALL_R * 1.8;
   const pocketStrapThickness = BALL_R * 0.12;
-  const pocketRingGeometry = new THREE.TorusGeometry(
-    pocketGuideRingRadius,
-    POCKET_NET_RING_TUBE_RADIUS,
-    12,
-    28
-  );
+  const createPocketRingGeometry = (guideRingRadius) =>
+    new THREE.TorusGeometry(
+      guideRingRadius,
+      POCKET_NET_RING_TUBE_RADIUS,
+      12,
+      28
+    );
   const pocketMeshes = [];
   table.userData.pocketHolderAnchors = [];
-  resolveTablePocketCenters().forEach((p, index) => {
+  proceduralPocketDropPositions.forEach((p, index) => {
     const pocketId = POCKET_IDS[index] ?? null;
     const isMiddlePocket = index >= 4;
     const pocketLift = isMiddlePocket ? SIDE_POCKET_PLYWOOD_LIFT : 0;
-    const pocket = new THREE.Mesh(pocketGeo, pocketMat);
+    const pocketCutRadius = pocketCutRadii[index] ?? POCKET_TOP_R;
+    const { guideRingRadius: pocketGuideRingRadius } = resolvePocketNetRadii(pocketCutRadius);
+    const pocket = new THREE.Mesh(createPocketWallGeometry(pocketCutRadius), pocketMat);
     pocket.position.set(p.x, pocketTopY - POCKET_WALL_HEIGHT / 2 + pocketLift, p.y);
     pocket.renderOrder = cloth.renderOrder - 0.5; // render beneath the cloth to avoid z-fighting
     pocket.castShadow = false;
@@ -9437,7 +9462,7 @@ export function Table3D(
     pocket.userData.externalTablePocketDropHardware = true;
     table.add(pocket);
     pocketMeshes.push(pocket);
-    const net = new THREE.Mesh(pocketNetGeo, pocketNetMaterial);
+    const net = new THREE.Mesh(createPocketNetGeometry(pocketCutRadius), pocketNetMaterial);
     net.position.set(
       p.x,
       pocketTopY - POCKET_WALL_HEIGHT - POCKET_WALL_OPEN_TRIM + pocketLift + POCKET_NET_VERTICAL_LIFT,
@@ -9458,7 +9483,7 @@ export function Table3D(
       netBottomY + POCKET_NET_RING_VERTICAL_OFFSET,
       p.y
     );
-    const ring = new THREE.Mesh(pocketRingGeometry, pocketGuideMaterial);
+    const ring = new THREE.Mesh(createPocketRingGeometry(pocketGuideRingRadius), pocketGuideMaterial);
     ring.position.copy(ringAnchor);
     ring.rotation.x = Math.PI / 2;
     ring.castShadow = true;
@@ -12388,6 +12413,27 @@ function applyPoolRoyaleShowoodPocketJawMaterial(mat, option, finishInfo = null)
   mat.needsUpdate = true;
 }
 
+function applyPoolRoyaleShowoodReferenceVisibilityPriority(child, material, referencePart) {
+  if (!child || !material) return;
+  if (referencePart !== 'railSight') return;
+  material.polygonOffset = true;
+  material.polygonOffsetFactor = SHOWOOD_RAIL_SIGHT_POLYGON_OFFSET.factor;
+  material.polygonOffsetUnits = SHOWOOD_RAIL_SIGHT_POLYGON_OFFSET.units;
+  material.depthTest = true;
+  material.depthWrite = false;
+  material.side = THREE.DoubleSide;
+  material.userData = {
+    ...(material.userData || {}),
+    poolRoyaleShowoodRailSightVisibilityPriority: true
+  };
+  material.needsUpdate = true;
+  child.renderOrder = Math.max(child.renderOrder || 0, SHOWOOD_RAIL_SIGHT_RENDER_ORDER);
+  child.userData = {
+    ...(child.userData || {}),
+    poolRoyaleShowoodRailSightVisibilityPriority: true
+  };
+}
+
 function classifyPoolRoyaleShowoodReferencePart(child, material) {
   const childName = `${child?.name || ''}`.toLowerCase();
   const materialName = `${material?.name || ''}`.toLowerCase();
@@ -12874,6 +12920,7 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
       }
       if (tableModel?.useReferenceShowoodMapping) {
         const nextMaterial = applyPoolRoyaleShowoodReferenceMaterial(material, referencePart || role, tableModel, finishInfo);
+        applyPoolRoyaleShowoodReferenceVisibilityPriority(child, nextMaterial, referencePart);
         normalizePoolRoyaleExternalClothTextureScale(child, nextMaterial, role);
         return nextMaterial;
       }
@@ -13977,10 +14024,13 @@ function mountPoolRoyaleExternalTableModel({
   const clothPlaneWorld = cloth.position.y;
 
   table.userData.pockets = [];
-  resolveTablePocketCenters().forEach((p, index) => {
+  proceduralPocketDropPositions.forEach((p, index) => {
     const marker = new THREE.Object3D();
-    marker.position.set(p.x, clothPlaneWorld - POCKET_VIS_R, p.y);
+    const visualCutRadius = pocketCutRadii[index] ?? POCKET_VIS_R;
+    marker.position.set(p.x, clothPlaneWorld - visualCutRadius, p.y);
     marker.userData.captureRadius = index >= 4 ? SIDE_CAPTURE_R : CAPTURE_R;
+    marker.userData.visualCutRadius = visualCutRadius;
+    marker.userData.proceduralPocketDropCenter = true;
     table.add(marker);
     table.userData.pockets.push(marker);
   });
@@ -14128,7 +14178,7 @@ function mountPoolRoyaleExternalTableModel({
     }
     table.userData.pockets.forEach((marker) => {
       if (!marker) return;
-      const radius = marker.userData?.captureRadius ?? CAPTURE_R;
+      const radius = marker.userData?.visualCutRadius ?? marker.userData?.captureRadius ?? CAPTURE_R;
       const points = [];
       const segments = 72;
       for (let i = 0; i < segments; i += 1) {
