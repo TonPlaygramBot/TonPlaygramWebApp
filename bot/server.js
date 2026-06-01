@@ -65,6 +65,11 @@ import {
 } from './config/onlineGamePolicy.js';
 import { createCheckersRealtimeStore } from './utils/checkersRealtimeState.js';
 import { applyAuthoritativeMove, SIDES } from './utils/checkersAuthoritativeEngine.js';
+import {
+  applyDominoRoyalAction,
+  createDominoRoyalState,
+  publicDominoRoyalState
+} from './utils/dominoRoyalRealtimeEngine.js';
 
 validateEnv();
 
@@ -481,11 +486,13 @@ const lobbyTables = {};
 const tableMap = new Map();
 const poolStates = new Map();
 const snookerStates = new Map();
+const dominoRoyalStates = new Map();
 const lastActionBySocket = new Map();
 const rollRateLimitMs = Number(process.env.SOCKET_ROLL_COOLDOWN_MS) || 800;
 const seatTableRateLimitMs = Number(process.env.SEAT_TABLE_RATE_LIMIT_MS) || 500;
 const checkersMoveRateLimitMs =
   Number(process.env.CHECKERS_MOVE_RATE_LIMIT_MS) || 120;
+const dominoMoveRateLimitMs = Number(process.env.DOMINO_MOVE_RATE_LIMIT_MS) || 180;
 
 const MATCH_META_KEYS = ['mode', 'playType', 'variant', 'tableSize', 'ballSet', 'token'];
 
@@ -946,6 +953,41 @@ async function settleCheckersMatch({
   return { ok: true, status: 'settled', settlement };
 }
 
+
+function emitDominoRoyalState(tableId, state = dominoRoyalStates.get(tableId), eventName = 'dominoState') {
+  if (!tableId || !state) return;
+  const table = tableMap.get(tableId);
+  const players = table?.players?.length ? table.players : state.players;
+  players.forEach((player) => {
+    const payload = publicDominoRoyalState(state, player.id);
+    const socketIds = new Set();
+    if (player.socketId) socketIds.add(player.socketId);
+    const registeredSockets = userSockets.get(String(player.id));
+    registeredSockets?.forEach((socketId) => socketIds.add(socketId));
+    if (!socketIds.size) {
+      io.to(tableId).emit(eventName, payload);
+      return;
+    }
+    socketIds.forEach((socketId) => io.to(socketId).emit(eventName, payload));
+  });
+}
+
+function ensureDominoRoyalState(tableId, table = tableMap.get(tableId)) {
+  if (!tableId || !table || table.gameType !== 'domino-royal') return null;
+  let state = dominoRoyalStates.get(tableId);
+  if (!state) {
+    state = createDominoRoyalState({
+      tableId,
+      players: table.players,
+      seed: `${tableId}:${table.players.map((player) => player.id).join('|')}:${Date.now()}`
+    });
+    dominoRoyalStates.set(tableId, state);
+    const activePlayer = state.players[state.currentSeat];
+    if (activePlayer) table.currentTurn = activePlayer.id;
+  }
+  return state;
+}
+
 async function seatTableSocket(
   accountId,
   gameType,
@@ -1064,6 +1106,12 @@ function maybeStartGame(table) {
         });
         ensureCheckersSession(table.id, table);
         io.to(table.id).emit('checkersState', { tableId: table.id, ...initial });
+      } else if (table.gameType === 'domino-royal') {
+        const initial = ensureDominoRoyalState(table.id, table);
+        if (initial) {
+          const activePlayer = initial.players[initial.currentSeat];
+          if (activePlayer) table.currentTurn = activePlayer.id;
+        }
       }
       io.to(table.id).emit('gameStart', {
         tableId: table.id,
@@ -1079,6 +1127,9 @@ function maybeStartGame(table) {
       );
       if (table.gameType === 'poolroyale') {
         poolStates.set(table.id, { state: null, hud: null, layout: null, ts: Date.now() });
+      }
+      if (table.gameType === 'domino-royal') {
+        emitDominoRoyalState(table.id, dominoRoyalStates.get(table.id), 'dominoState');
       }
       table.startTimeout = null;
     }, 1000);
@@ -1115,6 +1166,9 @@ function unseatTableSocket(accountId, tableId, socketId) {
       if (table.gameType === 'checkers') {
         checkersRealtimeStore.clearState(tableId);
         checkersMatchSessions.delete(tableId);
+      }
+      if (table.gameType === 'domino-royal') {
+        dominoRoyalStates.delete(tableId);
       }
       tableMap.delete(tableId);
       const key = `${table.gameType}-${table.maxPlayers}`;
@@ -1984,6 +2038,75 @@ io.on('connection', (socket) => {
     if (!tableId) return;
     const state = getChessState(tableId);
     socket.emit('chessState', { tableId, ...state });
+  });
+
+  socket.on('joinDominoTable', async (payload = {}) => {
+    const { tableId } = payload;
+    const accountId = resolveTpcIdentity(payload);
+    if (!tableId) return;
+    if (!ensureRegistered(socket, accountId)) return;
+    const table = tableMap.get(tableId);
+    if (!table || table.gameType !== 'domino-royal') {
+      socket.emit('dominoActionRejected', { tableId, error: 'table_not_found' });
+      return;
+    }
+    socket.join(tableId);
+    const tablePlayer = table.players.find((player) => String(player.id) === String(accountId));
+    if (tablePlayer) tablePlayer.socketId = socket.id;
+    await registerConnection({
+      userId: String(accountId),
+      roomId: tableId,
+      socketId: socket.id
+    });
+    const state = ensureDominoRoyalState(tableId, table);
+    socket.emit('dominoState', publicDominoRoyalState(state, accountId));
+  });
+
+  socket.on('dominoSyncRequest', (payload = {}) => {
+    const { tableId } = payload;
+    const accountId = resolveTpcIdentity(payload) || socket.data?.playerId;
+    if (!tableId || !accountId) return;
+    const state = ensureDominoRoyalState(tableId);
+    if (state) socket.emit('dominoState', publicDominoRoyalState(state, accountId));
+  });
+
+  socket.on('dominoAction', (payload = {}) => {
+    const { tableId, action = {}, clientActionId = null } = payload;
+    const accountId = resolveTpcIdentity(payload) || socket.data?.playerId;
+    if (!tableId || !accountId) return;
+    if (!ensureRegistered(socket, accountId)) return;
+    if (isRateLimited(socket, 'dominoAction', dominoMoveRateLimitMs)) {
+      socket.emit('dominoActionRejected', { tableId, clientActionId, error: 'action_rate_limited' });
+      return;
+    }
+    const table = tableMap.get(tableId);
+    if (!table || table.gameType !== 'domino-royal') {
+      socket.emit('dominoActionRejected', { tableId, clientActionId, error: 'table_not_found' });
+      return;
+    }
+    const state = ensureDominoRoyalState(tableId, table);
+    const result = applyDominoRoyalAction(state, action, accountId);
+    if (!result.ok) {
+      socket.emit('dominoActionRejected', { tableId, clientActionId, error: result.error });
+      return;
+    }
+    const activePlayer = state.players[state.currentSeat];
+    table.currentTurn = activePlayer?.id || null;
+    socket.emit('dominoActionAccepted', {
+      tableId,
+      clientActionId,
+      moveSeq: state.moveSeq,
+      action: result.action
+    });
+    emitDominoRoyalState(tableId, state, 'dominoState');
+    if (state.status === 'finished') {
+      io.to(tableId).emit('matchEnded', {
+        tableId,
+        winnerId: state.players[state.winnerSeat]?.id || null,
+        winnerSeat: state.winnerSeat,
+        reason: state.reason || 'domino_match_end'
+      });
+    }
   });
 
   socket.on('joinPoolTable', async ({ tableId, accountId }) => {
