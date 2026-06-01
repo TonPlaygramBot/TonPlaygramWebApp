@@ -829,6 +829,7 @@ const CHROME_SIDE_FIELD_PULL_SCALE = 0;
 const CHROME_PLATE_REFLECTION_SCALE = 0.28; // kill pocket-cut reflections by damping env-map intensity on fascia cuts
 const CHROME_PLATE_ROUGHNESS_LIFT = 0.08; // lift roughness on fascia cuts so pocket arches stop casting hot spots on cloth
 const CHROME_PLATE_THICKNESS_SCALE = 0.0306; // match diamond thickness on the wooden rails for fascia depth
+const CHROME_CORNER_BOTTOM_TRIM_SCALE = 0.72; // trim the visible lower corner-rim drop while keeping the top aligned to the rails
 const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.18; // thicken the middle fascia so its depth now matches the corner plates
 const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0.06; // lift fascia slightly with the raised rail/cushion profile so chrome stays aligned on all six pockets
 const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0; // keep fascia depth identical to snooker
@@ -1833,7 +1834,7 @@ const SPIN_AFTER_IMPACT_DEFLECTION_SCALE = 0; // disable preview-only spin defle
 // Keep the slider range unchanged, but trim the global pace so released shots travel less aggressively.
 const SHOT_POWER_REDUCTION = 0.425;
 const SHOT_POWER_MULTIPLIER = 2.109375;
-const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
+const SHOT_POWER_INCREASE = 1.95; // add 30% more Pool Royale shot strength over the previous tuning
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
 const SHOT_POWER_BOOST = 1.5; // preserve legacy cue response before the final mobile comfort trim
 const SHOT_GLOBAL_POWER_SCALE = 0.48; // reduce Pool Royale shot pace by 25% so ball travel better matches the selected shot power
@@ -9711,8 +9712,9 @@ export function Table3D(
     SIDE_POCKET_SPAN = Math.max(MICRO_EPS, resolvedSpan);
   }
 
-  const chromePlateThickness = railH * CHROME_PLATE_THICKNESS_SCALE; // mirror snooker fascia thickness using rail height as the driver
-  const sideChromePlateThickness = chromePlateThickness * CHROME_SIDE_PLATE_THICKNESS_BOOST; // match middle-pocket fascia depth to snooker
+  const baseChromePlateThickness = railH * CHROME_PLATE_THICKNESS_SCALE; // mirror snooker fascia thickness using rail height as the driver
+  const chromePlateThickness = baseChromePlateThickness * CHROME_CORNER_BOTTOM_TRIM_SCALE; // trim only the lower corner rims; keep top surfaces flush
+  const sideChromePlateThickness = baseChromePlateThickness * CHROME_SIDE_PLATE_THICKNESS_BOOST; // keep middle-pocket fascia depth unchanged
   const chromePlateInset = TABLE.THICK * 0.02;
   const chromeCornerPlateTrim =
     TABLE.THICK * (0.03 + CHROME_CORNER_FIELD_TRIM_SCALE);
