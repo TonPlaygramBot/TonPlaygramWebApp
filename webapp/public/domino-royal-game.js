@@ -1107,6 +1107,12 @@ function normalizeAvatarSource(src = '') {
 const entryMode = (urlParams.get('entry') || '').toLowerCase();
 const gameMode = (urlParams.get('mode') || 'local').toLowerCase();
 const isVsAiMatch = gameMode === 'local';
+const isOnlineMatch = gameMode === 'online';
+const onlineTableId = (urlParams.get('tableId') || urlParams.get('table') || '').trim();
+const onlineAccountId = accountId;
+let onlineSocket = typeof window !== 'undefined' ? window.__TONPLAYGRAM_SOCKET__ : null;
+let latestOnlineMoveSeq = -1;
+let detachOnlineDominoSync = null;
 const shouldRunHallwayEntry = !USE_MINIMAL_STAGE && entryMode === 'hallway';
 const shouldShowSeatLabel = shouldRunHallwayEntry;
 
@@ -10108,6 +10114,159 @@ function startGame({ resetRace = true } = {}) {
   if (current !== human) {
     scheduleCpuPlay();
   }
+
+}
+
+function placeOpeningTileFromOnline(firstTile) {
+  const tile = canonTile(firstTile) || firstTile;
+  if (!isValidTile(tile)) return false;
+  const firstRot = tile.a === tile.b ? Math.PI / 2 : 0;
+  chain.push({
+    tile,
+    x: 0,
+    z: 0,
+    rot: firstRot,
+    double: tile.a === tile.b
+  });
+  usedTileKeys.add(tileKey(tile));
+  const isDoubleStart = tile.a === tile.b;
+  if (!flipDir) {
+    ends = isDoubleStart
+      ? {
+          L: { v: tile.a, x: DOUBLE_END_SHIFT, z: 0, dir: [-1, 0], orient: Math.PI, span: getTileSpanAlongChain(true), fromStartDouble: true, hasInitialNeighbor: false },
+          R: { v: tile.b, x: -DOUBLE_END_SHIFT, z: 0, dir: [1, 0], orient: 0, span: getTileSpanAlongChain(true), fromStartDouble: true, hasInitialNeighbor: false }
+        }
+      : {
+          L: { v: tile.a, x: 0, z: 0, dir: [-1, 0], orient: Math.PI, span: getTileSpanAlongChain(false) },
+          R: { v: tile.b, x: 0, z: 0, dir: [1, 0], orient: 0, span: getTileSpanAlongChain(false) }
+        };
+  } else {
+    ends = isDoubleStart
+      ? {
+          L: { v: tile.a, x: -DOUBLE_END_SHIFT, z: 0, dir: [1, 0], orient: 0, span: getTileSpanAlongChain(true), fromStartDouble: true, hasInitialNeighbor: false },
+          R: { v: tile.b, x: DOUBLE_END_SHIFT, z: 0, dir: [-1, 0], orient: Math.PI, span: getTileSpanAlongChain(true), fromStartDouble: true, hasInitialNeighbor: false }
+        }
+      : {
+          L: { v: tile.a, x: 0, z: 0, dir: [1, 0], orient: 0, span: getTileSpanAlongChain(false) },
+          R: { v: tile.b, x: 0, z: 0, dir: [-1, 0], orient: Math.PI, span: getTileSpanAlongChain(false) }
+        };
+  }
+  return true;
+}
+
+function rebuildOnlineChain(serverChain = []) {
+  clearExistingDominoMeshes();
+  chain = [];
+  ends = null;
+  usedTileKeys.clear();
+  const opening = serverChain[0]?.tile;
+  if (!placeOpeningTileFromOnline(opening)) return;
+  serverChain.slice(1).forEach((entry) => {
+    const side = entry.side === 'L' ? -1 : 1;
+    placeOnBoard(entry.tile, side, { animate: false });
+  });
+}
+
+function emitDominoOnlineAction(action) {
+  if (!isOnlineMatch || !onlineSocket || !onlineTableId || !onlineAccountId) return false;
+  const clientActionId = `${onlineAccountId}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+  onlineSocket.emit('dominoAction', {
+    tableId: onlineTableId,
+    accountId: onlineAccountId,
+    clientActionId,
+    action
+  });
+  return true;
+}
+
+function applyOnlineDominoState(state = {}) {
+  if (!isOnlineMatch || !state || state.tableId !== onlineTableId) return;
+  const moveSeq = Number(state.moveSeq ?? -1);
+  if (moveSeq < latestOnlineMoveSeq) return;
+  latestOnlineMoveSeq = moveSeq;
+
+  if (cpuMoveTimeout) {
+    clearTimeout(cpuMoveTimeout);
+    cpuMoveTimeout = null;
+  }
+  if (pendingTurnAdvanceTimeout) {
+    clearTimeout(pendingTurnAdvanceTimeout);
+    pendingTurnAdvanceTimeout = null;
+  }
+
+  const incomingPlayers = Array.isArray(state.players) ? state.players : [];
+  N = Math.max(2, Math.min(4, incomingPlayers.length || N || 2));
+  human = Number.isInteger(state.viewerSeat) && state.viewerSeat >= 0 ? state.viewerSeat : human;
+  players = Array.from({ length: N }, (_, seat) => {
+    const source = incomingPlayers[seat] || {};
+    const hand = Array.isArray(source.hand) && source.hand.length
+      ? source.hand.map((tile) => canonTile(tile)).filter(Boolean)
+      : Array.from({ length: Number(source.handCount || 0) }, () => ({ a: 0, b: 0, hidden: true }));
+    return {
+      id: source.id || seat,
+      name: source.name || `Player ${seat + 1}`,
+      avatar: source.avatar || '',
+      hand
+    };
+  });
+  current = Number.isInteger(state.currentSeat) ? state.currentSeat : current;
+  gameFinished = state.status === 'finished';
+  winnerIndex = Number.isInteger(state.winnerSeat) ? state.winnerSeat : null;
+  revealAllHands = gameFinished;
+  selectedTile = null;
+  clearMarkers();
+  clearSelectedHighlight();
+  boneyard = Array.from({ length: Math.max(0, Number(state.boneyardCount || 0)) }, () => ({ a: 0, b: 0 }));
+  renderBoneyardStack();
+  rebuildDominoCharactersForChairs();
+  rebuildOnlineChain(Array.isArray(state.chain) ? state.chain : []);
+  renderHands();
+  renderChain();
+  updateLeaderboardCard();
+
+  const currentName = players[current]?.name || `Player ${current + 1}`;
+  if (gameFinished) {
+    if (winnerIndex !== null) showWinnerHighlight(winnerIndex);
+    setStatus(state.reason || (winnerIndex === human ? 'You won!' : `${players[winnerIndex]?.name || 'Player'} won!`));
+    showWinnerOverlay({ winner: winnerIndex, reason: state.reason || '' });
+  } else {
+    setStatus(current === human ? 'Your turn' : `Turn: ${currentName}`);
+  }
+  setControlEnabled(!gameFinished && current === human);
+}
+
+function setupOnlineDominoSync() {
+  if (!onlineSocket && typeof window !== 'undefined') {
+    onlineSocket = window.__TONPLAYGRAM_SOCKET__ || null;
+  }
+  if (!isOnlineMatch || !onlineSocket || !onlineTableId || !onlineAccountId) {
+    if (isOnlineMatch) setStatus('Online socket unavailable. Return to lobby and retry.');
+    return;
+  }
+  detachOnlineDominoSync?.();
+  const registerAndJoin = () => {
+    onlineSocket.emit('register', { playerId: onlineAccountId });
+    onlineSocket.emit('joinDominoTable', {
+      tableId: onlineTableId,
+      accountId: onlineAccountId,
+      name: seatAvatarUsername || 'Player'
+    });
+    onlineSocket.emit('dominoSyncRequest', { tableId: onlineTableId, accountId: onlineAccountId });
+  };
+  const handleRejected = ({ tableId, error } = {}) => {
+    if (tableId === onlineTableId && error) setStatus(`Move rejected: ${error}`);
+    onlineSocket.emit('dominoSyncRequest', { tableId: onlineTableId, accountId: onlineAccountId });
+  };
+  onlineSocket.on('dominoState', applyOnlineDominoState);
+  onlineSocket.on('dominoActionRejected', handleRejected);
+  onlineSocket.on('connect', registerAndJoin);
+  detachOnlineDominoSync = () => {
+    onlineSocket.off('dominoState', applyOnlineDominoState);
+    onlineSocket.off('dominoActionRejected', handleRejected);
+    onlineSocket.off('connect', registerAndJoin);
+    detachOnlineDominoSync = null;
+  };
+  registerAndJoin();
 }
 
 /* ---------- Placement & Snake ---------- */
@@ -10645,6 +10804,17 @@ renderer.domElement.addEventListener('pointerdown', (ev) => {
   }
   if (obj.userData && obj.userData.marker && selectedTile) {
     const side = obj.userData.side;
+    if (isOnlineMatch) {
+      emitDominoOnlineAction({
+        type: 'play',
+        tile: selectedTile,
+        side: side < 0 ? 'L' : 'R'
+      });
+      selectedTile = null;
+      clearMarkers();
+      clearSelectedHighlight();
+      return;
+    }
     const idx = players[human].hand.indexOf(selectedTile);
     let playedPlacement = null;
     if (idx >= 0) {
@@ -10776,6 +10946,10 @@ renderer.domElement.addEventListener('pointerleave', (ev) => {
 if (btnDraw) {
   btnDraw.addEventListener('click', () => {
   if (current !== human || gameFinished) return;
+  if (isOnlineMatch) {
+    emitDominoOnlineAction({ type: 'draw' });
+    return;
+  }
   let drewTile = false;
   while (boneyard.length) {
     const startWorld = getBoneyardTopWorld();
@@ -10800,6 +10974,12 @@ if (btnDraw) {
 if (btnPass) {
   btnPass.addEventListener('click', () => {
   if (current === human && !gameFinished) {
+    if (isOnlineMatch) {
+      clearMarkers();
+      selectedTile = null;
+      emitDominoOnlineAction({ type: 'pass' });
+      return;
+    }
     clearMarkers();
     selectedTile = null;
     SFX.pass();
@@ -10811,6 +10991,12 @@ if (btnPass) {
 async function bootstrapDominoRoyal() {
   try {
     await loadHumanProfileFromApi();
+    if (isOnlineMatch) {
+      setStatus('Connecting Domino Royal online table…');
+      setupOnlineDominoSync();
+      setControlEnabled(false);
+      return;
+    }
     startGame();
     setControlEnabled(true);
   } catch (error) {
@@ -11824,6 +12010,7 @@ function detachRuntimeListeners() {
   window.removeEventListener('beforeunload', onLifecycleShutdown);
   window.removeEventListener('unload', onLifecycleShutdown);
   window.removeEventListener('message', runtimeMessageHandler);
+  detachOnlineDominoSync?.();
 }
 
 function shutdownDominoRoyal(reason = 'unknown') {

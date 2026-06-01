@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import RoomSelector from '../../components/RoomSelector.jsx';
@@ -48,6 +48,64 @@ const GAME_TYPE_OPTIONS = [
 ];
 const TARGET_POINTS_OPTIONS = [51, 101];
 
+const SOCKET_CONNECT_TIMEOUT_MS = 12000;
+const SOCKET_ACK_TIMEOUT_MS = 7000;
+
+function waitForSocketConnection(socketInstance, timeoutMs = SOCKET_CONNECT_TIMEOUT_MS) {
+  if (!socketInstance) return Promise.resolve(false);
+  if (socketInstance.connected) return Promise.resolve(true);
+  try {
+    socketInstance.connect?.();
+  } catch {}
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (ok) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      socketInstance.off?.('connect', onConnect);
+      socketInstance.off?.('connect_error', onError);
+      resolve(ok);
+    };
+    const onConnect = () => finish(true);
+    const onError = () => {};
+    const timer = setTimeout(() => finish(socketInstance.connected), timeoutMs);
+    socketInstance.once?.('connect', onConnect);
+    socketInstance.once?.('connect_error', onError);
+  });
+}
+
+function emitWithAck(socketInstance, eventName, payload, timeoutMs = SOCKET_ACK_TIMEOUT_MS) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      resolve({ success: false, error: 'timeout' });
+    }, timeoutMs);
+    try {
+      socketInstance.emit(eventName, payload, (response = {}) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(response || {});
+      });
+    } catch (error) {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+        resolve({ success: false, error: error?.message || 'emit_failed' });
+      }
+    }
+  });
+}
+
+function buildDominoVariant(gameType, targetPoints) {
+  return gameType === 'points'
+    ? `points-${Number(targetPoints) || TARGET_POINTS_OPTIONS[0]}`
+    : 'single';
+}
+
 export default function DominoRoyalLobby() {
   const navigate = useNavigate();
   useTelegramBackButton();
@@ -64,6 +122,10 @@ export default function DominoRoyalLobby() {
   const [flagsManuallySelected, setFlagsManuallySelected] = useState(false);
   const [dominoPlayerFlag, setDominoPlayerFlag] = useState(null);
   const [dominoAiFlag, setDominoAiFlag] = useState(null);
+  const [matching, setMatching] = useState(false);
+  const [matchStatus, setMatchStatus] = useState('');
+  const [matchingError, setMatchingError] = useState('');
+  const pendingOnlineRef = useRef({ tableId: '', accountId: '', launched: false });
   const startBet = stake.amount / 100;
   const readiness = getOnlineReadiness('domino-royal');
 
@@ -195,28 +257,70 @@ export default function DominoRoyalLobby() {
     } catch {}
 
     if (mode === 'online' && accountId) {
-      socket.emit('register', { playerId: accountId });
-      socket.emit(
-        'seatTable',
-        {
-          accountId,
-          gameType: 'domino-royal',
-          stake: Number(stake.amount) || 0,
-          maxPlayers: totalPlayers,
-          playerName: getTelegramUsername() || 'Player',
-          avatar,
+      const variant = buildDominoVariant(gameType, targetPoints);
+      setMatching(true);
+      setMatchingError('');
+      setMatchStatus('Connecting to Domino Royal online lobby…');
+      pendingOnlineRef.current = { tableId: '', accountId, launched: false };
+
+      const connected = await waitForSocketConnection(socket);
+      if (!connected) {
+        setMatching(false);
+        setMatchingError('Could not connect to the online lobby. Check your network and try again.');
+        return;
+      }
+
+      setMatchStatus('Registering your TPC seat…');
+      const registered = await emitWithAck(socket, 'register', {
+        playerId: accountId,
+        accountId,
+        tpcAccountNumber: accountId
+      });
+      if (registered?.success === false) {
+        setMatching(false);
+        setMatchingError('Unable to register this account for online Domino. Please retry.');
+        return;
+      }
+
+      setMatchStatus(`Finding a ${totalPlayers}-player Domino table…`);
+      const res = await emitWithAck(socket, 'seatTable', {
+        accountId,
+        tpcAccountNumber: accountId,
+        gameType: 'domino-royal',
+        stake: Number(stake.amount) || 0,
+        maxPlayers: totalPlayers,
+        playerName: getTelegramUsername() || 'Player',
+        avatar,
+        mode: 'online',
+        token: stake.token,
+        variant,
+        matchMeta: {
           mode: 'online',
           token: stake.token,
-          game: gameType,
-          points: gameType === 'points' ? Number(targetPoints) : 0
-        },
-        (res = {}) => {
-          if (!res.success || !res.tableId) {
-            alert('Unable to join Domino online table. Please try again.');
-            return;
-          }
-          socket.emit('confirmReady', { accountId, tableId: res.tableId });
+          variant
         }
+      });
+      if (!res.success || !res.tableId) {
+        setMatching(false);
+        setMatchingError('Unable to join Domino online table. Please try again.');
+        return;
+      }
+
+      pendingOnlineRef.current = { tableId: res.tableId, accountId, launched: false };
+      const readyCount = Array.isArray(res.ready) ? res.ready.length : 0;
+      const playerTotal = Array.isArray(res.players) ? res.players.length : 1;
+      setMatchStatus(
+        `Table found (${playerTotal}/${totalPlayers}). Confirming ready…`
+      );
+      socket.emit('confirmReady', {
+        accountId,
+        tpcAccountNumber: accountId,
+        tableId: res.tableId
+      });
+      setMatchStatus(
+        readyCount + 1 >= totalPlayers
+          ? 'All Domino players ready. Starting match…'
+          : `Waiting for players (${playerTotal}/${totalPlayers})…`
       );
       return;
     }
@@ -234,32 +338,58 @@ export default function DominoRoyalLobby() {
   useEffect(() => {
     if (mode !== 'online') return undefined;
 
-    const handleGameStart = ({ tableId, players, stake: onlineStake }) => {
-      const accountId = ensureAccountId().catch(() => '');
-      Promise.resolve(accountId).then((resolvedAccountId) => {
-        const seat = Array.isArray(players)
-          ? players.find(
-              (player) =>
-                String(player?.id || '') === String(resolvedAccountId || '')
-            )
-          : null;
-        const token = stake.token || onlineStake?.token || 'TPC';
-        const amount = Number(onlineStake?.amount || stake.amount || 0);
-        launchGame({
-          accountId: resolvedAccountId,
-          tgId: getTelegramId(),
-          tableId,
-          token,
-          amount,
-          flagOverride: flags
-        });
-        if (seat?.avatar && !avatar) setAvatar(seat.avatar);
-      });
+    const handleLobbyUpdate = ({ tableId, players = [], ready = [] } = {}) => {
+      const pending = pendingOnlineRef.current;
+      if (!pending.tableId || String(tableId) !== String(pending.tableId)) return;
+      const seated = players.some(
+        (player) => String(player?.id || '') === String(pending.accountId || '')
+      );
+      if (!seated) return;
+      setMatchStatus(
+        ready.length >= totalPlayers
+          ? 'All Domino players ready. Starting match…'
+          : `Waiting for players (${players.length}/${totalPlayers}) • Ready ${ready.length}/${totalPlayers}`
+      );
     };
 
+    const handleGameStart = ({ tableId, players, stake: onlineStake, meta } = {}) => {
+      const pending = pendingOnlineRef.current;
+      if (!pending.accountId) return;
+      if (pending.tableId && String(tableId) !== String(pending.tableId)) return;
+      const seat = Array.isArray(players)
+        ? players.find(
+            (player) => String(player?.id || '') === String(pending.accountId)
+          )
+        : null;
+      if (!seat || pending.launched) return;
+      pendingOnlineRef.current = { ...pending, tableId, launched: true };
+      setMatchStatus('Starting Domino Royal synced match…');
+      const token = meta?.token || stake.token || onlineStake?.token || 'TPC';
+      const amount = Number(onlineStake?.amount || stake.amount || 0);
+      launchGame({
+        accountId: pending.accountId,
+        tgId: getTelegramId(),
+        tableId,
+        token,
+        amount,
+        flagOverride: flags
+      });
+      if (seat?.avatar && !avatar) setAvatar(seat.avatar);
+    };
+
+    socket.on('lobbyUpdate', handleLobbyUpdate);
     socket.on('gameStart', handleGameStart);
     return () => {
+      socket.off('lobbyUpdate', handleLobbyUpdate);
       socket.off('gameStart', handleGameStart);
+      const pending = pendingOnlineRef.current;
+      if (pending.tableId && pending.accountId && !pending.launched) {
+        socket.emit('leaveLobby', {
+          accountId: pending.accountId,
+          tpcAccountNumber: pending.accountId,
+          tableId: pending.tableId
+        });
+      }
     };
   }, [mode, stake.token, stake.amount, totalPlayers, avatar, flags, gameType, targetPoints]);
 
@@ -439,6 +569,25 @@ export default function DominoRoyalLobby() {
           </p>
         </div>
 
+
+        {mode === 'online' && (matching || matchStatus || matchingError) && (
+          <div className="rounded-2xl border border-cyan-300/20 bg-cyan-500/10 p-4 text-sm text-cyan-50 shadow-[0_16px_30px_rgba(8,145,178,0.18)]">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.28em] text-cyan-100/70">
+                  Online Table
+                </p>
+                <p className="mt-1 font-semibold">
+                  {matchingError || matchStatus || 'Ready to matchmake'}
+                </p>
+              </div>
+              {matching && !matchingError && (
+                <span className="h-3 w-3 animate-pulse rounded-full bg-cyan-300" />
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-white">Game Type</h3>
@@ -553,10 +702,10 @@ export default function DominoRoyalLobby() {
 
         <button
           onClick={startGame}
-          disabled={mode === 'local' && flags.length !== flagPickerCount}
+          disabled={(mode === 'local' && flags.length !== flagPickerCount) || matching}
           className="w-full rounded-2xl bg-primary px-4 py-3 text-base font-semibold text-background shadow-[0_16px_30px_rgba(14,165,233,0.35)] transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
         >
-          START
+          {matching ? 'MATCHING…' : 'START'}
         </button>
 
         <FlagPickerModal

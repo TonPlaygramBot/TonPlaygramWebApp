@@ -4,7 +4,7 @@ import { DOMINO_ROYAL_INLINE_STYLE } from './dominoRoyalTemplate.js';
 
 const INLINE_STYLE_ID = 'domino-royal-inline-style';
 const GAME_SCRIPT_SELECTOR = 'script[data-domino-royal-script="true"]';
-const DOMINO_ROYAL_SCRIPT_VERSION = '2026-05-30-murlan-arm-hand-gesture-v65';
+const DOMINO_ROYAL_SCRIPT_VERSION = '2026-06-01-online-lobby-sync-v66';
 const DOMINO_CHARACTER_PRECONNECT_URLS = Object.freeze([
   'https://threejs.org',
   'https://models.readyplayer.me',
