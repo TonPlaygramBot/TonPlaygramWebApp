@@ -12882,6 +12882,7 @@ function stretchPoolRoyaleExternalLowerBase(model, tableModel, dims) {
 
 function shortenPoolRoyaleShowoodCornerRims(model, tableModel, dims) {
   const scale = Number(tableModel?.cornerRimHeightScale ?? tableModel?.upperFrameHeightScale);
+  const liftScale = Number(tableModel?.cornerRimVerticalLiftScale);
   if (!model || !tableModel?.useReferenceShowoodMapping || !Number.isFinite(scale) || scale <= MICRO_EPS || scale >= 1 - MICRO_EPS) return;
   const fullBox = new THREE.Box3().setFromObject(model);
   if (fullBox.isEmpty()) return;
@@ -12922,6 +12923,9 @@ function shortenPoolRoyaleShowoodCornerRims(model, tableModel, dims) {
     const nextBox = new THREE.Box3().setFromObject(child);
     const nextAnchorLocal = parent.worldToLocal(new THREE.Vector3(0, nextBox.max.y, 0)).y;
     child.position.y += anchorLocal - nextAnchorLocal;
+    if (Number.isFinite(liftScale) && Math.abs(liftScale) > MICRO_EPS) {
+      child.position.y += upperHeight * liftScale;
+    }
     child.userData.poolRoyaleCornerRimShortened = true;
   });
   model.updateMatrixWorld(true);
@@ -12954,6 +12958,85 @@ function subtlyWidenPoolRoyaleShowoodFeet(model, tableModel) {
   });
 
   model.userData.poolRoyaleShowoodFeetWidened = true;
+  model.updateMatrixWorld(true);
+}
+
+
+function addPoolRoyaleShowoodBrandingPlates(model, tableModel, dims) {
+  if (!model || !tableModel?.useReferenceShowoodMapping || !tableModel?.generatedBrandPlatesOnExternal) return;
+  if (model.userData?.poolRoyaleShowoodBrandingPlatesAdded) return;
+
+  model.updateMatrixWorld(true);
+  const fullBox = new THREE.Box3().setFromObject(model);
+  if (fullBox.isEmpty()) return;
+
+  const fullSize = fullBox.getSize(new THREE.Vector3());
+  const targetTop = Number.isFinite(dims?.targetTopLocal)
+    ? dims.targetTopLocal
+    : Number.isFinite(dims?.cushionTopLocal)
+      ? dims.cushionTopLocal
+      : fullBox.max.y;
+  const upperHeight = Number.isFinite(dims?.targetUpperComponentHeight)
+    ? Math.max(MICRO_EPS, dims.targetUpperComponentHeight)
+    : Math.max(MICRO_EPS, fullSize.y * 0.28);
+
+  const plateWidth = Math.max(fullSize.x * 0.22, upperHeight * 2.7);
+  const plateHeight = Math.max(upperHeight * 0.045, fullSize.y * 0.008);
+  const plateDepth = Math.max(fullSize.z * 0.055, upperHeight * 0.48);
+  const y = targetTop + plateHeight * 0.72;
+  const z = fullBox.max.z + plateDepth * 0.34;
+  const texture = createCarbonLabelTexture({
+    width: 2048,
+    height: 512,
+    lines: [{ text: 'TonPlaygram', size: 0.34, weight: '800' }],
+    borderWidth: 22,
+    padding: 140,
+    studScale: 0.28
+  });
+  const topMaterial = texture
+    ? new THREE.MeshPhysicalMaterial({
+        color: 0xffffff,
+        map: texture,
+        metalness: 0.52,
+        roughness: 0.3,
+        clearcoat: 0.48,
+        clearcoatRoughness: 0.2,
+        sheen: 0.28,
+        sheenRoughness: 0.5,
+        emissive: new THREE.Color(CHALK_EMISSIVE_COLOR),
+        emissiveIntensity: 0.14
+      })
+    : new THREE.MeshPhysicalMaterial({
+        color: CHALK_TOP_COLOR,
+        metalness: 0.42,
+        roughness: 0.32,
+        clearcoat: 0.32
+      });
+  const sideMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0xd4af37,
+    metalness: 0.94,
+    roughness: 0.13,
+    clearcoat: 0.48,
+    clearcoatRoughness: 0.08,
+    envMapIntensity: 0.72
+  });
+  enhanceChromeMaterial(sideMaterial);
+
+  const geometry = new THREE.BoxGeometry(plateWidth, plateHeight, plateDepth);
+  const materialSet = [sideMaterial, sideMaterial, topMaterial, sideMaterial, sideMaterial, sideMaterial];
+  [-1, 1].forEach((dirZ) => {
+    const plate = new THREE.Mesh(geometry, materialSet);
+    plate.name = `pool-royale-showood-branding-plate-${dirZ > 0 ? 'bottom' : 'top'}`;
+    plate.position.set(0, y, dirZ * z);
+    plate.rotation.y = dirZ > 0 ? 0 : Math.PI;
+    plate.castShadow = true;
+    plate.receiveShadow = true;
+    plate.renderOrder = CHROME_PLATE_RENDER_ORDER + 0.2;
+    plate.userData.poolRoyaleShowoodGeneratedBrandPlate = true;
+    model.add(plate);
+  });
+
+  model.userData.poolRoyaleShowoodBrandingPlatesAdded = true;
   model.updateMatrixWorld(true);
 }
 
@@ -13023,6 +13106,7 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   shortenPoolRoyaleShowoodCornerRims(model, tableModel, dims);
   stretchPoolRoyaleExternalLowerBase(model, tableModel, dims);
   subtlyWidenPoolRoyaleShowoodFeet(model, tableModel);
+  addPoolRoyaleShowoodBrandingPlates(model, tableModel, dims);
   model.userData = {
     ...(model.userData || {}),
     poolRoyaleExternalTable: true,
