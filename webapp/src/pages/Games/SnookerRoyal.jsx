@@ -1698,10 +1698,18 @@ const SNOOKER_HUMAN_CHARACTER_THEME =
 const SNOOKER_HUMAN_UP = new THREE.Vector3(0, 1, 0);
 const SNOOKER_HUMAN_FORWARD_LOCAL = new THREE.Vector3(0, 0, 1);
 const SNOOKER_HUMAN_WORLD_SCALE = BALL_R / 0.0525;
+const SNOOKER_PROVIDED_HUMAN_SIZE_BOOST = 1.5;
+const SNOOKER_PROVIDED_HUMAN_SCALE = 1.2 * SNOOKER_PROVIDED_HUMAN_SIZE_BOOST * SNOOKER_HUMAN_WORLD_SCALE;
+const SNOOKER_PROVIDED_CUE_IDLE_GAP = 0.012 * SNOOKER_HUMAN_WORLD_SCALE;
+const SNOOKER_PROVIDED_CUE_CONTACT_GAP = 0.0012 * SNOOKER_HUMAN_WORLD_SCALE;
+const SNOOKER_PROVIDED_CUE_PULL_RANGE = 0.42 * SNOOKER_HUMAN_WORLD_SCALE;
+const SNOOKER_PROVIDED_CUE_BRIDGE_DIST = 0.28 * SNOOKER_HUMAN_WORLD_SCALE;
+const SNOOKER_PROVIDED_BRIDGE_HAND_SIDE = -0.115 * SNOOKER_HUMAN_WORLD_SCALE;
+const SNOOKER_PROVIDED_BRIDGE_PALM_UNDER_DROP = 0.052 * SNOOKER_HUMAN_WORLD_SCALE;
 const SNOOKER_HUMAN_CFG = Object.freeze({
   // Match the larger Snooker Champion character proportions exactly so the
   // Royal avatar reads as a full-sized player beside the GLB snooker table.
-  targetHeight: 1.2 * 1.78 * SNOOKER_HUMAN_WORLD_SCALE,
+  targetHeight: 1.78 * SNOOKER_PROVIDED_HUMAN_SCALE,
   floorY: FLOOR_Y - TABLE_Y,
   idleDistance: 0.82 * SNOOKER_HUMAN_WORLD_SCALE,
   bridgeBackFromBall: 0.27 * SNOOKER_HUMAN_WORLD_SCALE,
@@ -2078,18 +2086,18 @@ function createSnookerRoyalHumanPlayer(parent, renderer) {
     tableL: PLAY_H,
     tableTopY: BALL_CENTER_Y - BALL_R,
     groundY: SNOOKER_HUMAN_CFG.floorY,
-    humanScale: 1.2 * SNOOKER_HUMAN_WORLD_SCALE,
+    humanScale: SNOOKER_PROVIDED_HUMAN_SCALE,
     humanVisualYawFix: Math.PI,
     stanceWidth: 0.52 * SNOOKER_HUMAN_WORLD_SCALE,
     edgeMargin: 0.5 * SNOOKER_HUMAN_WORLD_SCALE,
     desiredShootDistance: 0.82 * SNOOKER_HUMAN_WORLD_SCALE,
     bridgePalmTableLift: 0.006 * SNOOKER_HUMAN_WORLD_SCALE,
-    bridgePalmUnderCueDrop: 0,
+    bridgePalmUnderCueDrop: SNOOKER_PROVIDED_BRIDGE_PALM_UNDER_DROP,
     bridgeVGrooveForward: 0.026 * SNOOKER_HUMAN_WORLD_SCALE,
     bridgeVGrooveSide: -0.032 * SNOOKER_HUMAN_WORLD_SCALE,
     bridgeCueLift: 0.018 * SNOOKER_HUMAN_WORLD_SCALE,
     bridgeHandBackFromBall: 0.235 * SNOOKER_HUMAN_WORLD_SCALE,
-    bridgeHandSide: -0.012 * SNOOKER_HUMAN_WORLD_SCALE,
+    bridgeHandSide: SNOOKER_PROVIDED_BRIDGE_HAND_SIDE,
     bridgePoseUsesConfiguredSide: false,
     chinToCueHeight: 0.11 * SNOOKER_HUMAN_WORLD_SCALE,
     footGroundY: 0.035 * SNOOKER_HUMAN_WORLD_SCALE,
@@ -2106,7 +2114,7 @@ function createSnookerRoyalHumanPlayer(parent, renderer) {
     strikeTime: 0.12,
     holdTime: 0.05,
     rightHandShotLift: -0.30 * SNOOKER_HUMAN_WORLD_SCALE,
-    shootCueGripFromBack: 0.58,
+    shootCueGripFromBack: 0.58 * SNOOKER_HUMAN_WORLD_SCALE,
     shootBendTowardCueStick: false,
     shootBendMode: 'forward',
     shootBendDirection: -1,
@@ -2145,6 +2153,25 @@ function applyProvidedCueEndpointPose(cueStick, cueBack, cueTip) {
   cueStick.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), buttDir);
 }
 
+function providedSnookerHumanEaseOutCubic(t) {
+  return 1 - Math.pow(1 - t, 3);
+}
+
+function providedSnookerHumanLerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
+function resolveProvidedSnookerIdleCuePose(grip, yaw, cueLen) {
+  const idleDir = new THREE.Vector3(0.055, 0.965, -0.13)
+    .applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw)
+    .normalize();
+  const gripFromBack = 0.24 * SNOOKER_HUMAN_WORLD_SCALE;
+  return {
+    butt: grip.clone().addScaledVector(idleDir, -gripFromBack),
+    tip: grip.clone().addScaledVector(idleDir, cueLen - gripFromBack)
+  };
+}
+
 function updateSnookerRoyalHumanPlayer(human, dt, options) {
   if (!human?.root || human.disabled) return;
   const {
@@ -2155,7 +2182,8 @@ function updateSnookerRoyalHumanPlayer(human, dt, options) {
     visible,
     power = 0,
     shooting = false,
-    cueAnimating = false
+    cueAnimating = false,
+    tableCueVisible = false
   } = options || {};
   const cuePos = cue?.pos;
   if (!cuePos || !cue?.active || !visible) {
@@ -2179,29 +2207,31 @@ function updateSnookerRoyalHumanPlayer(human, dt, options) {
   });
   const bridgeHandTarget = cueBallWorld.clone()
     .addScaledVector(aimForward, -0.235 * SNOOKER_HUMAN_WORLD_SCALE)
-    .addScaledVector(aimSide, -0.012 * SNOOKER_HUMAN_WORLD_SCALE)
+    .addScaledVector(aimSide, SNOOKER_PROVIDED_BRIDGE_HAND_SIDE)
     .setY(BALL_CENTER_Y - BALL_R + 0.006 * SNOOKER_HUMAN_WORLD_SCALE);
   const bridgeCuePoint = bridgeHandTarget.clone()
     .addScaledVector(aimForward, 0.026 * SNOOKER_HUMAN_WORLD_SCALE)
     .addScaledVector(aimSide, -0.032 * SNOOKER_HUMAN_WORLD_SCALE)
     .add(new THREE.Vector3(0, 0.018 * SNOOKER_HUMAN_WORLD_SCALE, 0));
   const activePower = THREE.MathUtils.clamp(power ?? 0, 0, 1);
-  const pull = (CUE_PULL_BASE || BALL_R * 4) * easeOutCubic(activePower);
+  const pull = SNOOKER_PROVIDED_CUE_PULL_RANGE * providedSnookerHumanEaseOutCubic(activePower);
   const practiceStroke = !shooting && !cueAnimating && activePower > 0.02
     ? Math.sin(performance.now() * 0.012) * 0.035 * SNOOKER_HUMAN_WORLD_SCALE * (0.25 + activePower * 0.75)
     : 0;
-  const providedGap = CUE_TIP_GAP + (activePower > 0.02 && !shooting && !cueAnimating ? pull + practiceStroke : 0);
+  const strikeNorm = THREE.MathUtils.clamp((human.strikeClock || 0) / 0.12, 0, 1);
+  let providedGap = SNOOKER_PROVIDED_CUE_IDLE_GAP;
+  if (activePower > 0.02 && !shooting && !cueAnimating) providedGap += pull + practiceStroke;
+  if (shooting || cueAnimating) {
+    providedGap = providedSnookerHumanLerp(
+      SNOOKER_PROVIDED_CUE_IDLE_GAP + pull,
+      SNOOKER_PROVIDED_CUE_CONTACT_GAP,
+      providedSnookerHumanEaseOutCubic(strikeNorm)
+    );
+  }
   const providedCueTip = cueBallWorld.clone().addScaledVector(aimForward, -(BALL_R + providedGap));
   const providedCueBack = bridgeCuePoint.clone()
-    .addScaledVector(aimForward, -(cueLen - 0.28 * SNOOKER_HUMAN_WORLD_SCALE - BALL_R - providedGap))
+    .addScaledVector(aimForward, -(cueLen - SNOOKER_PROVIDED_CUE_BRIDGE_DIST - BALL_R - providedGap))
     .add(new THREE.Vector3(0, 0.024 * SNOOKER_HUMAN_WORLD_SCALE, 0));
-  const cueEndpoints = shooting || cueAnimating
-    ? resolveSnookerHumanCueEndpoints(cueStick, cueLen, cueBallWorld, aimForward)
-    : { tip: providedCueTip, butt: providedCueBack };
-  if (!shooting && !cueAnimating) {
-    applyProvidedCueEndpointPose(cueStick, providedCueBack, providedCueTip);
-  }
-
   const standingYaw = Math.atan2(-aimForward.x, -aimForward.z);
   const idleRightHandTarget = humanRootTarget.clone().add(new THREE.Vector3(
     0.31 * SNOOKER_HUMAN_WORLD_SCALE,
@@ -2213,11 +2243,25 @@ function updateSnookerRoyalHumanPlayer(human, dt, options) {
     1.08 * SNOOKER_HUMAN_WORLD_SCALE,
     0.03 * SNOOKER_HUMAN_WORLD_SCALE
   ).applyAxisAngle(new THREE.Vector3(0, 1, 0), standingYaw));
-  const state = shooting || cueAnimating ? 'striking' : activePower > 0.02 ? 'dragging' : 'aiming';
+  const humanCueState = shooting || cueAnimating
+    ? 'striking'
+    : activePower > 0.02
+      ? 'dragging'
+      : tableCueVisible
+        ? 'aiming'
+        : 'idle';
+  const idleCuePose = resolveProvidedSnookerIdleCuePose(idleRightHandTarget, standingYaw, cueLen);
+  const cueEndpoints = humanCueState === 'idle'
+    ? idleCuePose
+    : { tip: providedCueTip, butt: providedCueBack };
+  if (humanCueState !== 'idle') {
+    applyProvidedCueEndpointPose(cueStick, providedCueBack, providedCueTip);
+    cueStick.visible = true;
+  }
 
   updateProvidedSnookerHumanPose(human, dt, {
     exactProvidedPose: true,
-    state,
+    state: humanCueState,
     rootTarget: humanRootTarget,
     aimForward,
     bridgeTarget: bridgeHandTarget,
@@ -26689,8 +26733,8 @@ const powerRef = useRef(hud.power);
             aimDir: showingRemoteAim
               ? new THREE.Vector2(remoteAimState?.dir?.x ?? 0, remoteAimState?.dir?.y ?? 1)
               : activeAiPlan?.aimDir || aimDir,
-            visible: cueStick.visible || cueAnimating || shooting,
-            power: powerRef.current ?? activeAiPlan?.power ?? 0,
+            visible: Boolean(cue?.active),
+            power: (shooting || cueAnimating) ? lastShotPower : (powerRef.current ?? activeAiPlan?.power ?? 0),
             shooting,
             cueAnimating,
             tableCueVisible: cueStick.visible
