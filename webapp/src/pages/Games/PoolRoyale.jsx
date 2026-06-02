@@ -12503,8 +12503,7 @@ function removePoolRoyaleShowoodOriginalBaseAndLegGeometry(root, tableModel = nu
   if (
     !root ||
     !tableModel?.hideOriginalBaseAndLegsForProceduralBase ||
-    !tableModel?.useProceduralBaseWithExternal ||
-    !tableModel?.useReferenceShowoodMapping
+    !tableModel?.useProceduralBaseWithExternal
   ) return 0;
 
   root.updateMatrixWorld?.(true);
@@ -12897,7 +12896,6 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
       if (
         tableModel?.hideOriginalBaseAndLegsForProceduralBase &&
         tableModel?.useProceduralBaseWithExternal &&
-        tableModel?.useReferenceShowoodMapping &&
         isPoolRoyaleShowoodOriginalBaseOrLeg(child, material, referencePart)
       ) {
         child.visible = false;
