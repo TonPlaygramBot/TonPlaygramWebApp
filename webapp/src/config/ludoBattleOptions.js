@@ -131,18 +131,22 @@ const captureWeaponGlyphThumb = (glyph = '▭', accent = '#334155') =>
     </svg>`
   )}`;
 
+const GUNIFY_RAW_BASE = 'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main';
+const gunifyImage = (fileName) => `${GUNIFY_RAW_BASE}/images/${fileName}`;
+
 const CAPTURE_WEAPON_SOURCE_THUMBNAILS = Object.freeze({
-  glockSidearmAttack: 'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/SigSauer.jpg',
-  pistolSidearmAttack: 'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/Smith.jpeg',
-  assaultRifleAttack: 'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/AK47.jpeg',
-  ak47VolleyAttack:
-    'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/AK47.jpeg',
-  smithSidearmAttack:
-    'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/Smith.jpeg',
+  glockSidearmAttack: gunifyImage('SigSauer.jpg'),
+  pistolSidearmAttack: gunifyImage('Smith.jpeg'),
+  assaultRifleAttack: gunifyImage('AK47.jpeg'),
+  ak47VolleyAttack: gunifyImage('AK47.jpeg'),
+  krsvBurstAttack: gunifyImage('KRSV.jpg'),
+  mosinMarksmanAttack: gunifyImage('Mosin.png'),
+  sigsauerTacticalAttack: gunifyImage('SigSauer.jpg'),
+  smithSidearmAttack: gunifyImage('Smith.jpeg'),
+  uziSprayAttack: gunifyImage('Uzi.png'),
   shotgunBlastAttack:
     'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/main/main/textures/shotgun_baseColor.png',
-  sniperShotAttack:
-    'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/Mosin.png'
+  sniperShotAttack: gunifyImage('Mosin.png')
 });
 
 export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
@@ -190,9 +194,9 @@ export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
   },
   {
     id: 'uziSprayAttack',
-    label: 'Uzi Spray',
-    description: 'Fast SMG capture variation inspired by Tirana 2040 Uzi loadout.',
-    thumbnail: captureWeaponThumb('🔫', '#1e293b')
+    label: 'Gunify Uzi Spray',
+    description: 'Fast SMG capture using Gunify Uzi GLTF textures, metallic maps, and original preview art.',
+    thumbnail: CAPTURE_WEAPON_SOURCE_THUMBNAILS.uziSprayAttack
   },
   {
     id: 'ak47VolleyAttack',
@@ -202,9 +206,9 @@ export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
   },
   {
     id: 'krsvBurstAttack',
-    label: 'KRSV Burst',
-    description: 'KRSV firearm burst using Gunify GLTF textures/material mapping.',
-    thumbnail: captureWeaponThumb('🎖️', '#6d28d9')
+    label: 'Gunify KRSV Burst',
+    description: 'KRSV firearm burst using Gunify steel base-color, normal, metallic-roughness, and emissive texture maps.',
+    thumbnail: CAPTURE_WEAPON_SOURCE_THUMBNAILS.krsvBurstAttack
   },
   {
     id: 'smithSidearmAttack',
@@ -214,15 +218,15 @@ export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
   },
   {
     id: 'mosinMarksmanAttack',
-    label: 'Mosin Marksman',
-    description: 'Mosin long-range strike using Gunify GLTF textures and preserved materials.',
-    thumbnail: captureWeaponThumb('🎯', '#0f172a')
+    label: 'Gunify Mosin Marksman',
+    description: 'Mosin long-range strike using Gunify wood/metal PBR textures with original material mapping.',
+    thumbnail: CAPTURE_WEAPON_SOURCE_THUMBNAILS.mosinMarksmanAttack
   },
   {
     id: 'sigsauerTacticalAttack',
-    label: 'SigSauer Tactical',
-    description: 'SigSauer tactical burst using Gunify GLTF texture/material files.',
-    thumbnail: captureWeaponThumb('🔫', '#1d4ed8')
+    label: 'Gunify SigSauer Tactical',
+    description: 'SigSauer tactical burst using Gunify diffuse, normal, occlusion, emissive, and specular-gloss textures.',
+    thumbnail: CAPTURE_WEAPON_SOURCE_THUMBNAILS.sigsauerTacticalAttack
   },
   {
     id: 'grenadeBlastAttack',

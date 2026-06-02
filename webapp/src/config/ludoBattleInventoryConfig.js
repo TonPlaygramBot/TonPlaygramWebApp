@@ -60,6 +60,14 @@ const HIDDEN_LUDO_STORE_CAPTURE_ANIMATION_IDS = new Set([
   'assaultRifleAttack'
 ]);
 
+const GUNIFY_CAPTURE_ANIMATION_IDS = new Set([
+  'ak47VolleyAttack',
+  'krsvBurstAttack',
+  'mosinMarksmanAttack',
+  'sigsauerTacticalAttack',
+  'smithSidearmAttack',
+  'uziSprayAttack'
+]);
 
 const PREFERRED_CAPTURE_ANIMATION_BY_FAMILY = Object.freeze({
   pistol: 'sigsauerTacticalAttack',
@@ -120,6 +128,7 @@ const CAPTURE_ANIMATION_FAMILY_BY_ID = Object.freeze({
 
 const shouldShowCaptureAnimationInStore = (optionId) => {
   if (HIDDEN_LUDO_STORE_CAPTURE_ANIMATION_IDS.has(optionId)) return false;
+  if (GUNIFY_CAPTURE_ANIMATION_IDS.has(optionId)) return true;
   const family = CAPTURE_ANIMATION_FAMILY_BY_ID[optionId];
   if (!family) return true;
   return PREFERRED_CAPTURE_ANIMATION_BY_FAMILY[family] === optionId;
