@@ -1109,6 +1109,7 @@ const gameMode = (urlParams.get('mode') || 'local').toLowerCase();
 const isVsAiMatch = gameMode === 'local';
 const isOnlineMatch = gameMode === 'online';
 const onlineTableId = (urlParams.get('tableId') || urlParams.get('table') || '').trim();
+const onlineAccountId = accountId;
 let onlineSocket = typeof window !== 'undefined' ? window.__TONPLAYGRAM_SOCKET__ : null;
 let latestOnlineMoveSeq = -1;
 let detachOnlineDominoSync = null;
@@ -1116,7 +1117,6 @@ const shouldRunHallwayEntry = !USE_MINIMAL_STAGE && entryMode === 'hallway';
 const shouldShowSeatLabel = shouldRunHallwayEntry;
 
 const accountId = (urlParams.get('accountId') || '').trim();
-const onlineAccountId = accountId;
 const telegramId = (
   urlParams.get('tgId') ||
   urlParams.get('telegramId') ||
