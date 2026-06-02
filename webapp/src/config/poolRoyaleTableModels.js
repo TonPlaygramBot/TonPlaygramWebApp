@@ -6,7 +6,7 @@ export const POOL_ROYALE_TABLE_MODEL_STORAGE_KEY = 'poolRoyaleTableModel';
 const POOLTOOL_RAW_BASE =
   'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table';
 
-export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
+const ROYAL_ORIGINAL_PROCEDURAL_TABLE_MODEL = Object.freeze(
   {
     id: 'royal-original',
     label: 'Royal Original',
@@ -18,13 +18,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     assetUrl: `${POOLTOOL_RAW_BASE}/seven_foot_showood/seven_foot_showood.glb`,
     fallbackAssetUrl: `${POOLTOOL_RAW_BASE}/seven_foot_showood/seven_foot_showood_pbr.glb`,
     icon: '🎱',
-    kind: 'gltf',
-    fitScale: 1.055,
-    clothRepeatScale: 5.25,
-    fitStrategy: 'exact',
-    fitReference: 'upperTabletop',
-    matchNativeUpperComponentHeight: true,
-    useOriginalLayoutSurfaces: false,
+    kind: 'procedural',
     usePoolRoyaleFinish: true,
     usePoolRoyaleFinishRoles: ['cloth'],
     cushionUsesClothFinish: false,
@@ -36,7 +30,12 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     hideSurfaceRoles: ['trim', 'wood', 'cushion', 'pocket'],
     keepGeneratedShell: true,
     forceGeneratedChromePlates: true
-  },
+  }
+);
+
+export const POOL_ROYALE_FALLBACK_TABLE_MODEL_ID = ROYAL_ORIGINAL_PROCEDURAL_TABLE_MODEL.id;
+
+export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
   {
     id: 'showood-seven-foot',
     label: 'Showood 7 ft GLB',
@@ -61,10 +60,11 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     lowerLegMaxHeightScale: 3.4,
     footWidthScale: 1.08,
     footHeightScale: 1,
-    railSightApronVisualScale: 1.045,
-    railSightVisualHeightScale: 1.065,
-    sideApronVisualHeightScale: 1.095,
-    sideApronOutwardOffset: 0.024,
+    railSightApronVisualScale: 1.035,
+    railSightVisualHeightScale: 1.045,
+    sideApronVisualHeightScale: 1.055,
+    railSightOutwardOffset: 0.035,
+    sideApronOutwardOffset: 0.05,
     clothRepeatScale: 5.25,
     fitStrategy: 'exact',
     fitReference: 'upperTabletop',
@@ -81,6 +81,9 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     preserveOriginalSurfaceRoles: [],
     forceHideExternalReferenceParts: ['railSight'],
     keepGeneratedBrandPlates: true,
+    brandPlateVisualScale: 1.08,
+    brandPlateOutwardOffset: 0.14,
+    railMarkerOutwardOffset: 0.1,
     keepGeneratedRailMarkersOnExternal: true,
     railMarkerReferenceLayout: 'showood-original',
     tintOriginalTrimGold: false,
@@ -91,13 +94,15 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
 ]);
 
 export const DEFAULT_POOL_ROYALE_TABLE_MODEL_ID =
-  POOL_ROYALE_TABLE_MODEL_OPTIONS.find((option) => option.id === 'royal-original')?.id ||
+  POOL_ROYALE_TABLE_MODEL_OPTIONS.find((option) => option.id === 'showood-seven-foot')?.id ||
   POOL_ROYALE_TABLE_MODEL_OPTIONS[0].id;
 
 export function resolvePoolRoyaleTableModel(modelId) {
   const key = typeof modelId === 'string' ? modelId.trim() : '';
   return (
     POOL_ROYALE_TABLE_MODEL_OPTIONS.find((option) => option.id === key) ||
+    (key === POOL_ROYALE_FALLBACK_TABLE_MODEL_ID ? ROYAL_ORIGINAL_PROCEDURAL_TABLE_MODEL : null) ||
+    POOL_ROYALE_TABLE_MODEL_OPTIONS.find((option) => option.id === DEFAULT_POOL_ROYALE_TABLE_MODEL_ID) ||
     POOL_ROYALE_TABLE_MODEL_OPTIONS[0]
   );
 }
