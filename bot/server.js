@@ -638,6 +638,45 @@ function ensureRegistered(socket, tpcAccountNumber) {
   return true;
 }
 
+function isReservedHostedTableId(tableId, gameType, maxPlayers) {
+  const raw = String(tableId || '').trim();
+  if (!raw) return false;
+  const [prefix, capStr, kind] = raw.split('-');
+  if (kind !== 'host') return false;
+  const normalizedPrefix = normalizeOnlineGameType(prefix);
+  return (
+    normalizedPrefix === normalizeOnlineGameType(gameType) &&
+    Number(capStr) === Number(maxPlayers)
+  );
+}
+
+function createLobbyTable({
+  id = randomUUID(),
+  gameType,
+  stake = 0,
+  maxPlayers = 4,
+  meta = {}
+}) {
+  const key = `${gameType}-${maxPlayers}`;
+  if (!lobbyTables[key]) lobbyTables[key] = [];
+  const table = {
+    id,
+    gameType,
+    stake,
+    maxPlayers,
+    players: [],
+    currentTurn: null,
+    ready: new Set(),
+    meta
+  };
+  lobbyTables[key].push(table);
+  tableMap.set(table.id, table);
+  console.log(
+    `Created new table: ${table.id} (${gameType}, cap ${maxPlayers}, stake: ${stake})`
+  );
+  return table;
+}
+
 function getAvailableTable(
   gameType,
   stake = 0,
@@ -649,6 +688,7 @@ function getAvailableTable(
   const key = `${gameType}-${maxPlayers}`;
   if (!lobbyTables[key]) lobbyTables[key] = [];
   if (forcedTableId) {
+    const isHostedTable = isReservedHostedTableId(forcedTableId, gameType, maxPlayers);
     const existing = tableMap.get(forcedTableId);
     if (existing) {
       const normalizedStake = Number(stake) || 0;
@@ -658,6 +698,17 @@ function getAvailableTable(
         existing.players.length < existing.maxPlayers &&
         isMatchMetaCompatible(existing.meta, normalizedMeta, gameType);
       if (canJoinForced) return existing;
+      if (isHostedTable) return null;
+    }
+
+    if (isHostedTable) {
+      return createLobbyTable({
+        id: String(forcedTableId),
+        gameType,
+        stake,
+        maxPlayers,
+        meta: normalizedMeta
+      });
     }
     // Ignore stale/non-existent forced ids so quick matchmaking can still pair
     // users by game type + stake instead of trapping them in a private table.
@@ -669,22 +720,7 @@ function getAvailableTable(
       isMatchMetaCompatible(t.meta, normalizedMeta, gameType)
   );
   if (open) return open;
-  const table = {
-    id: randomUUID(),
-    gameType,
-    stake,
-    maxPlayers,
-    players: [],
-    currentTurn: null,
-    ready: new Set(),
-    meta: normalizedMeta
-  };
-  lobbyTables[key].push(table);
-  tableMap.set(table.id, table);
-  console.log(
-    `Created new table: ${table.id} (${gameType}, cap ${maxPlayers}, stake: ${stake})`
-  );
-  return table;
+  return createLobbyTable({ gameType, stake, maxPlayers, meta: normalizedMeta });
 }
 
 function resolveSeatIdentityFromTableId(tableId, fallbackGameType, fallbackMaxPlayers) {
@@ -1252,6 +1288,7 @@ async function seatTableSocket(
     matchMeta,
     forcedTableId
   );
+  if (!table) return null;
   const tableId = table.id;
   cleanupSeats();
   // Ensure this user is not seated at any other table
