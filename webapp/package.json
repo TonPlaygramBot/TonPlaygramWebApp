@@ -13,7 +13,8 @@
     "postinstall": "node scripts/postinstall.mjs",
     "fetch:murlan-agent47": "node scripts/fetch-murlan-agent47.mjs --asset agent-47",
     "fetch:murlan-characters": "node scripts/fetch-murlan-agent47.mjs --asset all",
-    "fetch:pool-royale-showood-table": "node scripts/fetch-pool-royale-showood-table.mjs"
+    "fetch:pool-royale-showood-table": "node scripts/fetch-pool-royale-showood-table.mjs",
+    "fetch:gunify-weapons": "node scripts/fetch-gunify-weapons.mjs"
   },
   "type": "module",
   "dependencies": {
