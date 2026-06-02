@@ -347,65 +347,14 @@ const FIREARM_RACK_OPPOSITE_SEAT_TARGET_BY_PLAYER = Object.freeze({
 });
 const GUNIFY_RAW_BASE = 'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main';
 const GUNIFY_JSDELIVR_BASE = 'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main';
-const GUNIFY_LOCAL_BASE = '/models/gunify';
 const gunifyModelUrls = (modelName) => [
-  `${GUNIFY_LOCAL_BASE}/${modelName}/scene.gltf`,
   `${GUNIFY_RAW_BASE}/models/${modelName}/scene.gltf`,
   `${GUNIFY_JSDELIVR_BASE}/models/${modelName}/scene.gltf`
 ];
-
-const GUNIFY_ORIGINAL_TEXTURE_MANIFEST = Object.freeze({
-  AK47: Object.freeze({
-    'Material.001': Object.freeze({
-      map: 'Material.001_baseColor.png',
-      metalnessMap: 'Material.001_metallicRoughness.png',
-      roughnessMap: 'Material.001_metallicRoughness.png',
-      aoMap: 'Material.001_metallicRoughness.png',
-      normalMap: 'Material.001_normal.png'
-    })
-  }),
-  Uzi: Object.freeze({
-    Material__90: Object.freeze({
-      map: 'Material__90_baseColor.png',
-      metalnessMap: 'Material__90_metallicRoughness.png',
-      roughnessMap: 'Material__90_metallicRoughness.png',
-      aoMap: 'Material__90_metallicRoughness.png',
-      specularMap: 'Material__90_specularf0.png'
-    })
-  }),
-  KRSV: Object.freeze({
-    Steel: Object.freeze({
-      map: 'Steel_baseColor.png',
-      metalnessMap: 'Steel_metallicRoughness.png',
-      roughnessMap: 'Steel_metallicRoughness.png',
-      aoMap: 'Steel_metallicRoughness.png',
-      emissiveMap: 'Steel_emissive.jpeg',
-      normalMap: 'Steel_normal.png'
-    })
-  }),
-  Mosin: Object.freeze({
-    Mosin: Object.freeze({
-      map: 'Mosin_baseColor.png',
-      metalnessMap: 'Mosin_metallicRoughness.png',
-      roughnessMap: 'Mosin_metallicRoughness.png',
-      aoMap: 'Mosin_metallicRoughness.png',
-      normalMap: 'Mosin_normal.png'
-    })
-  }),
-  Smith: Object.freeze({
-    Wood: Object.freeze({ map: 'Wood_baseColor.jpeg', metalnessMap: 'Wood_metallicRoughness.png', roughnessMap: 'Wood_metallicRoughness.png', normalMap: 'Wood_normal.png' }),
-    Metal: Object.freeze({ map: 'Metal_baseColor.png', metalnessMap: 'Metal_metallicRoughness.png', roughnessMap: 'Metal_metallicRoughness.png', aoMap: 'Metal_metallicRoughness.png', normalMap: 'Metal_normal.png' }),
-    Metal_2: Object.freeze({ map: 'Metal_2_baseColor.png', metalnessMap: 'Metal_2_metallicRoughness.png', roughnessMap: 'Metal_2_metallicRoughness.png', aoMap: 'Metal_2_metallicRoughness.png', normalMap: 'Metal_2_normal.png' }),
-    Metal_3: Object.freeze({ map: 'Metal_3_baseColor.png', metalnessMap: 'Metal_3_metallicRoughness.png', roughnessMap: 'Metal_3_metallicRoughness.png', aoMap: 'Metal_3_metallicRoughness.png', normalMap: 'Metal_3_normal.png' }),
-    Plastic: Object.freeze({ map: 'Plastic_baseColor.png', metalnessMap: 'Plastic_metallicRoughness.png', roughnessMap: 'Plastic_metallicRoughness.png', normalMap: 'Plastic_normal.png' })
-  }),
-  SigSauer: Object.freeze({
-    'Material.003': Object.freeze({ map: 'Material.003_diffuse.png', roughnessMap: 'Material.003_specularGlossiness.png', specularMap: 'Material.003_specularGlossiness.png', normalMap: 'Material.003_normal.png', aoMap: 'Material.003_occlusion.png' }),
-    'Glass.001': Object.freeze({ map: 'Glass.001_diffuse.png', roughnessMap: 'Glass.001_specularGlossiness.png', specularMap: 'Glass.001_specularGlossiness.png', emissiveMap: 'Glass.001_emissive.png' }),
-    Material: Object.freeze({ map: 'Material_diffuse.png', roughnessMap: 'Material_specularGlossiness.png', specularMap: 'Material_specularGlossiness.png', normalMap: 'Material_normal.png', aoMap: 'Material_occlusion.png' })
-  })
-});
-const GUNIFY_ORIGINAL_TEXTURE_CACHE = new Map();
+const gunifyTextureUrls = (modelName, textureFileName) => [
+  `${GUNIFY_RAW_BASE}/models/${modelName}/textures/${textureFileName}`,
+  `${GUNIFY_JSDELIVR_BASE}/models/${modelName}/textures/${textureFileName}`
+];
 
 const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   mrtkGunAttack: {
@@ -465,7 +414,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   uziSprayAttack: {
     label: 'Gunify Uzi',
     urls: gunifyModelUrls('Uzi'),
-    modelName: 'Uzi',
+    textureOverrideUrls: gunifyTextureUrls('Uzi', 'Material__90_baseColor.png'),
     source: 'Gunify',
     texturePolicy: 'gunifyPbr',
     scale: 0.2
@@ -473,7 +422,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   ak47VolleyAttack: {
     label: 'Gunify AK-47',
     urls: gunifyModelUrls('AK47'),
-    modelName: 'AK47',
+    textureOverrideUrls: gunifyTextureUrls('AK47', 'Material.001_baseColor.png'),
     source: 'Gunify',
     texturePolicy: 'gunifyPbr',
     scale: 0.24
@@ -481,7 +430,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   krsvBurstAttack: {
     label: 'Gunify KRSV',
     urls: gunifyModelUrls('KRSV'),
-    modelName: 'KRSV',
+    textureOverrideUrls: gunifyTextureUrls('KRSV', 'Steel_baseColor.png'),
     source: 'Gunify',
     texturePolicy: 'gunifyPbr',
     scale: 0.24
@@ -489,7 +438,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   smithSidearmAttack: {
     label: 'Gunify Smith',
     urls: gunifyModelUrls('Smith'),
-    modelName: 'Smith',
+    textureOverrideUrls: gunifyTextureUrls('Smith', 'Metal_baseColor.png'),
     source: 'Gunify',
     texturePolicy: 'gunifyPbr',
     scale: 0.13
@@ -497,7 +446,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   mosinMarksmanAttack: {
     label: 'Gunify Mosin',
     urls: gunifyModelUrls('Mosin'),
-    modelName: 'Mosin',
+    textureOverrideUrls: gunifyTextureUrls('Mosin', 'Mosin_baseColor.png'),
     source: 'Gunify',
     texturePolicy: 'gunifyPbr',
     scale: 0.5125
@@ -505,7 +454,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   sigsauerTacticalAttack: {
     label: 'Gunify SigSauer Tactical',
     urls: gunifyModelUrls('SigSauer'),
-    modelName: 'SigSauer',
+    textureOverrideUrls: gunifyTextureUrls('SigSauer', 'Material_diffuse.png'),
     source: 'Gunify',
     texturePolicy: 'gunifyPbr',
     scale: 0.13
@@ -532,7 +481,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   sniperShotAttack: {
     label: 'Gunify Mosin Sniper Shot',
     urls: gunifyModelUrls('Mosin'),
-    modelName: 'Mosin',
+    textureOverrideUrls: gunifyTextureUrls('Mosin', 'Mosin_baseColor.png'),
     source: 'Gunify',
     texturePolicy: 'gunifyPbr',
     scale: 0.504
@@ -696,70 +645,8 @@ function applyGunifyWeaponTexturePolicy(material) {
     texture.anisotropy = Math.max(texture.anisotropy || 1, activeModelTextureAnisotropy);
     texture.needsUpdate = true;
   });
-  material.needsUpdate = true;
-}
-
-function resolveGunifyTextureUrl(modelUrl, textureFileName) {
-  if (!modelUrl || !textureFileName) return null;
-  try {
-    return new URL(`textures/${textureFileName}`, modelUrl).href;
-  } catch {
-    const base = `${modelUrl}`.replace(/scene\.gltf(?:[?#].*)?$/i, '');
-    return `${base}textures/${textureFileName}`;
-  }
-}
-
-async function loadGunifyOriginalTexture(url, textureKey) {
-  if (!url) return null;
-  const cacheKey = `${textureKey}:${url}`;
-  if (GUNIFY_ORIGINAL_TEXTURE_CACHE.has(cacheKey)) return GUNIFY_ORIGINAL_TEXTURE_CACHE.get(cacheKey);
-  const promise = (async () => {
-    const textureLoader = new THREE.TextureLoader();
-    textureLoader.setCrossOrigin?.('anonymous');
-    const texture = await textureLoader.loadAsync(url);
-    if (textureKey === 'map' || textureKey === 'emissiveMap') applySRGBColorSpace(texture);
-    texture.flipY = false;
-    texture.anisotropy = Math.max(texture.anisotropy || 1, activeModelTextureAnisotropy);
-    texture.needsUpdate = true;
-    return texture;
-  })();
-  GUNIFY_ORIGINAL_TEXTURE_CACHE.set(cacheKey, promise);
-  return promise;
-}
-
-async function loadGunifyOriginalMaterialTextures(modelName, modelUrl) {
-  const manifest = GUNIFY_ORIGINAL_TEXTURE_MANIFEST[modelName];
-  if (!manifest || !modelUrl) return null;
-  const materialTextureSets = new Map();
-  await Promise.all(
-    Object.entries(manifest).map(async ([materialName, textureMap]) => {
-      const loadedTextures = {};
-      await Promise.all(
-        Object.entries(textureMap).map(async ([textureKey, fileName]) => {
-          const textureUrl = resolveGunifyTextureUrl(modelUrl, fileName);
-          try {
-            loadedTextures[textureKey] = await loadGunifyOriginalTexture(textureUrl, textureKey);
-          } catch (error) {
-            console.warn('Gunify original texture load failed', modelName, materialName, fileName, error);
-          }
-        })
-      );
-      materialTextureSets.set(materialName, loadedTextures);
-    })
-  );
-  return materialTextureSets;
-}
-
-function applyGunifyOriginalMaterialTextures(material, textureSets) {
-  if (!material || !textureSets?.size) return;
-  const textureSet = textureSets.get(material.name) || textureSets.get(`${material.name || ''}`.replace(/_\d+$/u, ''));
-  if (!textureSet) return;
-  Object.entries(textureSet).forEach(([textureKey, texture]) => {
-    if (texture) material[textureKey] = texture;
-  });
-  if (textureSet.aoMap) material.aoMapIntensity = Math.max(material.aoMapIntensity ?? 1, 1);
-  if (textureSet.emissiveMap && material.emissive?.isColor) material.emissive.setHex(0xffffff);
-  if (textureSet.specularMap && typeof material.roughness === 'number') material.roughness = Math.min(material.roughness, 0.42);
+  if (typeof material.roughness === 'number') material.roughness = Math.min(0.9, Math.max(0.34, material.roughness));
+  if (typeof material.metalness === 'number') material.metalness = Math.min(1, Math.max(0.18, material.metalness));
   material.needsUpdate = true;
 }
 
@@ -1475,7 +1362,6 @@ async function loadCaptureWeaponModel(captureAnimationId) {
     loader.setCrossOrigin?.('anonymous');
     const imageCache = new Map();
     let loadedRoot = null;
-    let loadedModelUrl = null;
     const isGltfAssetUrl = (url = '') => {
       const normalized = `${url}`.split('?')[0].split('#')[0].toLowerCase();
       return normalized.endsWith('.gltf');
@@ -1495,13 +1381,7 @@ async function loadCaptureWeaponModel(captureAnimationId) {
         // source asset first so its WebGL texture transforms, samplers, UVs,
         // embedded images, and KTX2/PNG/JPEG color-space metadata stay intact.
         // eslint-disable-next-line no-await-in-loop
-        try {
-          loader.setResourcePath?.(new URL('.', candidateUrl).href);
-        } catch {
-          loader.setResourcePath?.(candidateUrl.replace(/scene\.gltf(?:[?#].*)?$/i, ''));
-        }
         loadedRoot = assignLoadedGltf(await withLoadTimeout(loader.loadAsync(candidateUrl)));
-        if (loadedRoot) loadedModelUrl = candidateUrl;
       } catch (error) {
         if (isGltfAssetUrl(candidateUrl) || isPolyPizzaAssetUrl(candidateUrl)) {
           if (i === candidateUrls.length - 1) {
@@ -1528,7 +1408,6 @@ async function loadCaptureWeaponModel(captureAnimationId) {
         );
         // eslint-disable-next-line no-await-in-loop
         loadedRoot = await parseObjectFromBuffer(loader, patchedBuffer);
-        if (loadedRoot) loadedModelUrl = candidateUrl;
       } catch (error) {
         if (i === candidateUrls.length - 1) {
           console.warn('Capture weapon model load failed', normalizedCaptureAnimationId, candidateUrl, error);
@@ -1542,9 +1421,26 @@ async function loadCaptureWeaponModel(captureAnimationId) {
     try {
       const root = loadedRoot;
       if (!root) return null;
-      const gunifyTextureSets = config?.source === 'Gunify'
-        ? await loadGunifyOriginalMaterialTextures(config.modelName, loadedModelUrl)
-        : null;
+      const textureOverrideUrls = Array.isArray(config?.textureOverrideUrls) ? config.textureOverrideUrls.filter(Boolean) : [];
+      let textureOverride = null;
+      if (textureOverrideUrls.length) {
+        const textureLoader = new THREE.TextureLoader();
+        textureLoader.setCrossOrigin?.('anonymous');
+        for (let t = 0; t < textureOverrideUrls.length; t += 1) {
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            textureOverride = await withLoadTimeout(textureLoader.loadAsync(textureOverrideUrls[t]));
+            if (textureOverride) {
+              textureOverride.flipY = false;
+              applySRGBColorSpace(textureOverride);
+              textureOverride.needsUpdate = true;
+              break;
+            }
+          } catch {
+            // keep trying next override
+          }
+        }
+      }
       root.traverse((node) => {
         if (!node?.isMesh) return;
         if (
@@ -1561,8 +1457,8 @@ async function loadCaptureWeaponModel(captureAnimationId) {
         const materials = Array.isArray(node.material) ? node.material : [node.material];
         materials.forEach((material) => {
           if (material?.map) applySRGBColorSpace(material.map);
+          if (!material?.map && textureOverride) material.map = textureOverride;
           if (material?.emissiveMap) applySRGBColorSpace(material.emissiveMap);
-          if (gunifyTextureSets) applyGunifyOriginalMaterialTextures(material, gunifyTextureSets);
           if (config?.texturePolicy === 'gunifyPbr') applyGunifyWeaponTexturePolicy(material);
           material.transparent = false;
           material.opacity = 1;
