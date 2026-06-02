@@ -35,7 +35,6 @@ import { PoolRoyaleRules } from '../../../../src/rules/PoolRoyaleRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import {
-  FALLBACK_POOL_ROYALE_TABLE_MODEL_ID,
   POOL_ROYALE_TABLE_MODEL_OPTIONS,
   POOL_ROYALE_TABLE_MODEL_STORAGE_KEY,
   POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS,
@@ -11235,11 +11234,11 @@ export function Table3D(
     return mat;
   };
   const brandPlateThickness = chromePlateThickness;
-  const brandPlateDepth = Math.min(endRailW * 0.72, TABLE.THICK * 1.04);
-  const brandPlateWidth = Math.min(PLAY_W * 0.36, Math.max(BALL_R * 10.8, PLAY_W * 0.255));
+  const brandPlateDepth = Math.min(endRailW * 0.66, TABLE.THICK * 0.96);
+  const brandPlateWidth = Math.min(PLAY_W * 0.32, Math.max(BALL_R * 9.6, PLAY_W * 0.23));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 1.04;
+  const brandPlateOutwardShift = endRailW * 0.92;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -11286,9 +11285,7 @@ export function Table3D(
         }
       : { shape: DEFAULT_RAIL_MARKER_SHAPE, colorId: DEFAULT_RAIL_MARKER_COLOR_ID };
   const railMarkerOutset = longRailW * 0.08;
-  const railMarkerInwardShift = resolvedTableOptions?.tableModel?.useReferenceShowoodMapping
-    ? -Math.max(BALL_R * 0.18, longRailW * 0.045)
-    : Math.max(BALL_R * 0.35, longRailW * 0.08);
+  const railMarkerInwardShift = Math.max(BALL_R * 0.35, longRailW * 0.08);
   const railMarkerGroup = new THREE.Group();
   const railMarkerThickness = RAIL_MARKER_THICKNESS;
   const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
@@ -13517,14 +13514,12 @@ function subtlyExpandPoolRoyaleShowoodRailSightsAndAprons(model, tableModel) {
   const visualScale = Number(tableModel?.railSightApronVisualScale);
   const railSightHeightScale = Number(tableModel?.railSightVisualHeightScale);
   const sideApronHeightScale = Number(tableModel?.sideApronVisualHeightScale);
-  const railSightOutwardOffset = Number(tableModel?.railSightOutwardOffset);
   const sideApronOutwardOffset = Number(tableModel?.sideApronOutwardOffset);
   const hasScale = Number.isFinite(visualScale) && visualScale > 1 + MICRO_EPS;
   const hasRailSightHeight = Number.isFinite(railSightHeightScale) && railSightHeightScale > 1 + MICRO_EPS;
   const hasSideApronHeight = Number.isFinite(sideApronHeightScale) && sideApronHeightScale > 1 + MICRO_EPS;
-  const hasRailSightOffset = Number.isFinite(railSightOutwardOffset) && Math.abs(railSightOutwardOffset) > MICRO_EPS;
   const hasSideApronOffset = Number.isFinite(sideApronOutwardOffset) && Math.abs(sideApronOutwardOffset) > MICRO_EPS;
-  if (!hasScale && !hasRailSightHeight && !hasSideApronHeight && !hasRailSightOffset && !hasSideApronOffset) return;
+  if (!hasScale && !hasRailSightHeight && !hasSideApronHeight && !hasSideApronOffset) return;
   if (model.userData?.poolRoyaleShowoodRailSightApronExpanded) return;
 
   const fullBox = new THREE.Box3().setFromObject(model);
@@ -13550,21 +13545,16 @@ function subtlyExpandPoolRoyaleShowoodRailSightsAndAprons(model, tableModel) {
     const heightScale = isSideApron ? safeSideApronHeightScale : safeRailSightHeightScale;
     if (heightScale > 1) child.scale.y *= heightScale;
 
-    const outwardOffset = isRailSight && hasRailSightOffset
-      ? railSightOutwardOffset
-      : isSideApron && hasSideApronOffset
-        ? sideApronOutwardOffset
-        : 0;
-    if (Math.abs(outwardOffset) > MICRO_EPS) {
+    if (isSideApron && hasSideApronOffset) {
       const childBox = new THREE.Box3().setFromObject(child);
       if (!childBox.isEmpty()) {
         const childCenter = childBox.getCenter(new THREE.Vector3());
         const awayX = childCenter.x - fullCenter.x;
         const awayZ = childCenter.z - fullCenter.z;
         if (Math.abs(awayX) >= Math.abs(awayZ) && Math.abs(awayX) > MICRO_EPS) {
-          child.position.x += Math.sign(awayX) * outwardOffset;
+          child.position.x += Math.sign(awayX) * sideApronOutwardOffset;
         } else if (Math.abs(awayZ) > MICRO_EPS) {
-          child.position.z += Math.sign(awayZ) * outwardOffset;
+          child.position.z += Math.sign(awayZ) * sideApronOutwardOffset;
         }
       }
     }
@@ -13687,29 +13677,11 @@ function mountPoolRoyaleExternalTableModel({
       setGeneratedVisualsVisible?.(false);
     })
     .catch((error) => {
-      console.warn('Pool Royale external table failed to load; mounting fallback table', {
+      console.warn('Pool Royale external table failed to load; keeping native table', {
         tableModelId: tableModel.id,
-        fallbackTableModelId: FALLBACK_POOL_ROYALE_TABLE_MODEL_ID,
         error
       });
-      if (!disposed) {
-        setGeneratedVisualsVisible?.(true);
-        if (tableModel.id !== FALLBACK_POOL_ROYALE_TABLE_MODEL_ID) {
-          const fallbackModel = resolvePoolRoyaleTableModel(FALLBACK_POOL_ROYALE_TABLE_MODEL_ID);
-          mountPoolRoyaleExternalTableModel({
-            table,
-            tableModel: {
-              ...fallbackModel,
-              forceGeneratedChromePlates: true,
-              keepGeneratedShell: true
-            },
-            renderer,
-            dims,
-            finishInfo,
-            setGeneratedVisualsVisible
-          });
-        }
-      }
+      if (!disposed) setGeneratedVisualsVisible?.(true);
     });
 
   return {
