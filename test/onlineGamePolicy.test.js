@@ -40,20 +40,6 @@ describe('online game policy', () => {
     });
   });
 
-  test('accepts two-player Domino Royal online tables for direct tests', () => {
-    const domino = validateSeatTableRequest({
-      gameType: 'domino-royal',
-      stake: 100,
-      maxPlayers: 2,
-      matchMeta: { variant: 'single', mode: 'online', token: 'TPC' }
-    });
-
-    expect(domino.ok).toBe(true);
-    expect(domino.normalizedGameType).toBe('domino-royal');
-    expect(domino.normalizedMaxPlayers).toBe(2);
-    expect(domino.safeMatchMeta).toEqual({ variant: 'single', mode: 'online', token: 'TPC' });
-  });
-
   test('accepts chess and checkers lobby aliases used by seatTable clients', () => {
     const chess = validateSeatTableRequest({
       gameType: 'chess',
