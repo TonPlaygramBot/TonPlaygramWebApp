@@ -644,62 +644,10 @@ const FACE_SCAN_DETAIL_PRESETS = [
   { label: 'Real scan', detail: 'High detail', lighting: 'Even daylight', expression: 'Relaxed' }
 ];
 const FACE_SCAN_BODY_OPTIONS = Object.freeze([
-  {
-    id: 'human-warrior',
-    label: 'Royal Warrior',
-    tagline: 'Tall upright hero body',
-    tone: '#38bdf8',
-    outfit: '#1e3a8a',
-    skin: '#f0b887',
-    bodyScale: [1.02, 1.08, 0.98],
-    shoulderWidth: 0.72,
-    stance: 0.42,
-    texturePattern: 'armor',
-    orientationPreset: 'upright-y-forward-z',
-    mapping: 'UV torso armor + SRGB face texture'
-  },
-  {
-    id: 'human-striker',
-    label: 'Arena Striker',
-    tagline: 'Athletic match-ready body',
-    tone: '#f97316',
-    outfit: '#7c2d12',
-    skin: '#d99a6c',
-    bodyScale: [0.98, 1.0, 1.04],
-    shoulderWidth: 0.8,
-    stance: 0.5,
-    texturePattern: 'jersey',
-    orientationPreset: 'upright-y-forward-z',
-    mapping: 'UV jersey stripes + SRGB face texture'
-  },
-  {
-    id: 'human-casual',
-    label: 'Casual Player',
-    tagline: 'Friendly everyday body',
-    tone: '#22c55e',
-    outfit: '#14532d',
-    skin: '#f3c7a6',
-    bodyScale: [0.94, 0.96, 0.96],
-    shoulderWidth: 0.64,
-    stance: 0.36,
-    texturePattern: 'hoodie',
-    orientationPreset: 'upright-y-forward-z',
-    mapping: 'UV hoodie fabric + SRGB face texture'
-  },
-  {
-    id: 'human-champion',
-    label: 'Gold Champion',
-    tagline: 'Premium champion body',
-    tone: '#facc15',
-    outfit: '#713f12',
-    skin: '#c98555',
-    bodyScale: [1.0, 1.04, 1.0],
-    shoulderWidth: 0.76,
-    stance: 0.46,
-    texturePattern: 'champion',
-    orientationPreset: 'upright-y-forward-z',
-    mapping: 'UV gold trim + SRGB face texture'
-  }
+  { id: 'human-warrior', label: 'Royal Warrior', tone: '#38bdf8', outfit: '#1e3a8a' },
+  { id: 'human-striker', label: 'Arena Striker', tone: '#f97316', outfit: '#7c2d12' },
+  { id: 'human-casual', label: 'Casual Player', tone: '#22c55e', outfit: '#14532d' },
+  { id: 'human-champion', label: 'Gold Champion', tone: '#facc15', outfit: '#713f12' }
 ]);
 
 const createItemKey = (type, optionId) => `${type}:${optionId}`;
@@ -731,308 +679,8 @@ const GAME_HDRI_SELECTION_STORAGE_KEYS = Object.freeze({
   snookerroyale: 'snookerHdriEnvironment'
 });
 
-function createFaceScanTexture(scanEntries = [], bodyOption = {}) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 512;
-  const ctx = canvas.getContext('2d');
-  const skin = bodyOption.skin || '#f0b887';
-  const accent = bodyOption.tone || '#38bdf8';
-  const gradient = ctx.createRadialGradient(256, 190, 35, 256, 240, 260);
-  gradient.addColorStop(0, '#ffe0bd');
-  gradient.addColorStop(0.55, skin);
-  gradient.addColorStop(1, '#8b5e4b');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, 512, 512);
-
-  const frontEntry = scanEntries.find((entry) => entry.poseId === 'front') || scanEntries[0];
-  if (frontEntry?.previewUrl) {
-    const image = new Image();
-    image.crossOrigin = 'anonymous';
-    image.onload = () => {
-      try {
-        ctx.save();
-        ctx.beginPath();
-        ctx.ellipse(256, 230, 178, 218, 0, 0, Math.PI * 2);
-        ctx.clip();
-        ctx.globalAlpha = 0.52;
-        ctx.drawImage(image, 84, 16, 344, 432);
-        ctx.restore();
-        texture.needsUpdate = true;
-      } catch (error) {
-        console.warn('Could not map face scan image onto preview texture', error);
-      }
-    };
-    image.src = frontEntry.previewUrl;
-  }
-
-  ctx.fillStyle = 'rgba(15, 23, 42, 0.82)';
-  ctx.beginPath();
-  ctx.ellipse(196, 220, 22, 12, 0, 0, Math.PI * 2);
-  ctx.ellipse(316, 220, 22, 12, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = accent;
-  ctx.lineWidth = 6;
-  ctx.globalAlpha = 0.72;
-  ctx.beginPath();
-  ctx.arc(256, 310, 58, 0.12 * Math.PI, 0.88 * Math.PI);
-  ctx.stroke();
-  ctx.globalAlpha = 1;
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.wrapS = THREE.ClampToEdgeWrapping;
-  texture.wrapT = THREE.ClampToEdgeWrapping;
-  texture.anisotropy = 8;
-  texture.userData.faceScanMapped = true;
-  return texture;
-}
-
-function createOutfitTexture(bodyOption = {}) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 512;
-  const ctx = canvas.getContext('2d');
-  const outfit = bodyOption.outfit || '#1e3a8a';
-  const accent = bodyOption.tone || '#38bdf8';
-  ctx.fillStyle = outfit;
-  ctx.fillRect(0, 0, 512, 512);
-  ctx.fillStyle = 'rgba(255,255,255,0.08)';
-  for (let y = 0; y < 512; y += 26) ctx.fillRect(0, y, 512, 7);
-  ctx.strokeStyle = accent;
-  ctx.lineWidth = bodyOption.texturePattern === 'champion' ? 18 : 12;
-  ctx.beginPath();
-  ctx.moveTo(150, 0);
-  ctx.lineTo(236, 512);
-  ctx.moveTo(362, 0);
-  ctx.lineTo(276, 512);
-  ctx.stroke();
-  if (bodyOption.texturePattern === 'jersey') {
-    ctx.fillStyle = accent;
-    ctx.fillRect(232, 40, 48, 430);
-  }
-  if (bodyOption.texturePattern === 'hoodie') {
-    ctx.strokeStyle = 'rgba(255,255,255,0.42)';
-    ctx.lineWidth = 8;
-    ctx.beginPath();
-    ctx.arc(256, 118, 96, 0.12 * Math.PI, 0.88 * Math.PI);
-    ctx.stroke();
-  }
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(1, 1);
-  texture.anisotropy = 8;
-  texture.userData.preciseUvOutfit = true;
-  return texture;
-}
-
-function disposeThreeObject(object) {
-  object?.traverse?.((child) => {
-    if (!child.isMesh && !child.isLine) return;
-    child.geometry?.dispose?.();
-    const materials = Array.isArray(child.material) ? child.material : child.material ? [child.material] : [];
-    materials.forEach((material) => {
-      ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'alphaMap'].forEach((key) => material?.[key]?.dispose?.());
-      material?.dispose?.();
-    });
-  });
-}
-
-function createFaceScanHumanObject({ scanEntries = [], bodyOption = {}, compact = false } = {}) {
-  const bodyScale = bodyOption.bodyScale || [1, 1, 1];
-  const shoulderWidth = bodyOption.shoulderWidth || 0.72;
-  const stance = bodyOption.stance || 0.42;
-  const outfitTexture = createOutfitTexture(bodyOption);
-  const faceTexture = createFaceScanTexture(scanEntries, bodyOption);
-  const skinMat = new THREE.MeshStandardMaterial({
-    color: bodyOption.skin || '#f0b887',
-    map: faceTexture,
-    roughness: 0.54,
-    metalness: 0.02
-  });
-  const neckMat = new THREE.MeshStandardMaterial({ color: bodyOption.skin || '#f0b887', roughness: 0.58, metalness: 0.02 });
-  const bodyMat = new THREE.MeshStandardMaterial({ color: '#ffffff', map: outfitTexture, roughness: 0.5, metalness: 0.08 });
-  const accentColor = new THREE.Color(bodyOption.tone || '#38bdf8');
-  const accentMat = new THREE.MeshStandardMaterial({ color: accentColor, roughness: 0.34, metalness: 0.18, emissive: accentColor, emissiveIntensity: 0.08 });
-  const darkMat = new THREE.MeshStandardMaterial({ color: '#111827', roughness: 0.76, metalness: 0.04 });
-  const shoeMat = new THREE.MeshStandardMaterial({ color: '#030712', roughness: 0.62, metalness: 0.12 });
-  const lineMat = new THREE.LineBasicMaterial({ color: accentColor, transparent: true, opacity: 0.7 });
-
-  const group = new THREE.Group();
-  group.name = `face-scan-${bodyOption.id || 'human'}-upright-y-forward-z`;
-  group.userData.avatarConfiguration = {
-    bodyId: bodyOption.id,
-    orientation: bodyOption.orientationPreset || 'upright-y-forward-z',
-    forwardAxis: '+Z visually facing phone screen',
-    upAxis: '+Y visually higher on portrait phone',
-    textureMapping: bodyOption.mapping || 'UV mapped SRGB canvas textures'
-  };
-  group.scale.set(bodyScale[0], bodyScale[1], bodyScale[2]);
-
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.52, compact ? 0.94 : 1.12, 10, 28), bodyMat);
-  torso.position.y = compact ? 0.86 : 0.95;
-  torso.scale.x = shoulderWidth / 0.72;
-  torso.castShadow = true;
-  torso.receiveShadow = true;
-  group.add(torso);
-
-  const chest = new THREE.Mesh(new THREE.TorusGeometry(0.48, 0.026, 8, 72), accentMat);
-  chest.position.set(0, compact ? 1.12 : 1.25, 0.32);
-  chest.rotation.x = Math.PI / 2;
-  chest.scale.x = shoulderWidth / 0.72;
-  group.add(chest);
-
-  [-1, 1].forEach((side) => {
-    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.115, compact ? 0.78 : 0.92, 8, 18), bodyMat);
-    arm.position.set(side * shoulderWidth, compact ? 0.88 : 0.95, 0.02);
-    arm.rotation.z = side > 0 ? -0.22 : 0.22;
-    arm.castShadow = true;
-    group.add(arm);
-
-    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.12, 20, 14), neckMat);
-    hand.position.set(side * (shoulderWidth + 0.08), compact ? 0.37 : 0.43, 0.06);
-    hand.scale.set(0.8, 1, 0.72);
-    group.add(hand);
-
-    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.15, compact ? 0.78 : 1.0, 8, 18), darkMat);
-    leg.position.set(side * stance * 0.5, compact ? 0.05 : 0.02, 0);
-    leg.castShadow = true;
-    group.add(leg);
-
-    const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.11, 0.5), shoeMat);
-    shoe.position.set(side * stance * 0.5, compact ? -0.38 : -0.5, 0.12);
-    shoe.castShadow = true;
-    group.add(shoe);
-  });
-
-  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.26, 28), neckMat);
-  neck.position.y = compact ? 1.54 : 1.72;
-  group.add(neck);
-
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.43, 56, 36), skinMat);
-  head.name = 'scanned-head-uv-srgb';
-  head.scale.set(0.82, 1.08, 0.72);
-  head.position.y = compact ? 1.94 : 2.16;
-  head.castShadow = true;
-  group.add(head);
-
-  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.18, 18), neckMat);
-  nose.rotation.x = Math.PI / 2;
-  nose.position.set(0, compact ? 1.95 : 2.17, 0.33);
-  group.add(nose);
-
-  [-0.14, 0.14].forEach((x) => {
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.035, 18, 12), darkMat);
-    eye.position.set(x, compact ? 2.01 : 2.23, 0.32);
-    eye.scale.set(1, 0.7, 0.45);
-    group.add(eye);
-  });
-
-  const scanRing = new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.012, 8, 96), accentMat);
-  scanRing.name = 'scan-alignment-ring';
-  scanRing.position.y = compact ? 1.94 : 2.16;
-  scanRing.rotation.x = Math.PI / 2;
-  group.add(scanRing);
-
-  const poseCount = Math.max(1, scanEntries.length);
-  const points = [];
-  for (let i = 0; i < poseCount; i += 1) {
-    const angle = (i / poseCount) * Math.PI * 2;
-    points.push(new THREE.Vector3(Math.cos(angle) * 0.58, (compact ? 1.94 : 2.16) + Math.sin(i * 1.7) * 0.12, Math.sin(angle) * 0.58));
-  }
-  if (points.length > 1) {
-    points.push(points[0].clone());
-    group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), lineMat));
-  }
-
-  group.position.y = compact ? -0.06 : -0.28;
-  return { group, scanRing };
-}
-
-function HumanBodyOptionPreview({ option, selected, onSelect }) {
+function FaceScanCharacterPreview({ scanEntries = [], bodyOption, title }) {
   const mountRef = useRef(null);
-
-  useEffect(() => {
-    const mount = mountRef.current;
-    if (!mount) return undefined;
-    let disposed = false;
-    let frame = 0;
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.8));
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.15;
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 40);
-    camera.position.set(0, 1.55, 5.6);
-    camera.lookAt(0, 1.25, 0);
-    scene.add(new THREE.HemisphereLight(0xe0f2fe, 0x111827, 2.4));
-    const key = new THREE.DirectionalLight(0xffffff, 3.2);
-    key.position.set(3, 5, 4);
-    scene.add(key);
-    const { group, scanRing } = createFaceScanHumanObject({ bodyOption: option, compact: true });
-    group.rotation.y = 0.24;
-    scene.add(group);
-    const resize = () => {
-      if (disposed) return;
-      const width = Math.max(1, mount.clientWidth || 180);
-      const height = Math.max(1, mount.clientHeight || 160);
-      renderer.setSize(width, height, false);
-      camera.aspect = width / height;
-      camera.updateProjectionMatrix();
-    };
-    mount.innerHTML = '';
-    mount.appendChild(renderer.domElement);
-    resize();
-    const observer = new ResizeObserver(resize);
-    observer.observe(mount);
-    const animate = () => {
-      if (disposed) return;
-      frame = requestAnimationFrame(animate);
-      const t = performance.now() * 0.001;
-      group.rotation.y = 0.24 + Math.sin(t * 0.8) * 0.16;
-      scanRing.rotation.z = t * 1.2;
-      renderer.render(scene, camera);
-    };
-    animate();
-    return () => {
-      disposed = true;
-      cancelAnimationFrame(frame);
-      observer.disconnect();
-      disposeThreeObject(group);
-      renderer.dispose();
-      if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement);
-    };
-  }, [option]);
-
-  return (
-    <button
-      type="button"
-      onClick={() => onSelect(option.id)}
-      className={`group overflow-hidden rounded-2xl border text-left transition ${selected ? 'border-cyan-200 bg-cyan-300/15 shadow-[0_0_28px_rgba(34,211,238,0.18)]' : 'border-white/10 bg-black/25 hover:border-cyan-200/45 hover:bg-white/10'}`}
-      aria-pressed={selected}
-    >
-      <div className="relative h-44 bg-gradient-to-b from-slate-950 to-black">
-        <div ref={mountRef} className="absolute inset-0" />
-        <div className="pointer-events-none absolute left-2 top-2 rounded-full border border-white/10 bg-black/55 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.16em] text-cyan-50">
-          GLB/GLTF ready
-        </div>
-      </div>
-      <div className="grid gap-1 px-3 py-2">
-        <span className="text-sm font-bold text-white">{option.label}</span>
-        <span className="text-[11px] text-white/65">{option.tagline}</span>
-        <span className="text-[10px] text-cyan-100/80">{option.orientationPreset} · {option.mapping}</span>
-      </div>
-    </button>
-  );
-}
-
-function FaceScanCharacterPreview({ scanEntries = [], bodyOption, title, quality = 80 }) {
-  const mountRef = useRef(null);
-  const runtimeRef = useRef({ yaw: 0.35, pitch: 0, zoom: 1, dragging: false, lastX: 0, lastY: 0 });
-  const [viewState, setViewState] = useState({ yaw: 20, zoom: 100 });
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -1040,98 +688,121 @@ function FaceScanCharacterPreview({ scanEntries = [], bodyOption, title, quality
     let disposed = false;
     let frame = 0;
     const width = Math.max(1, mount.clientWidth || 360);
-    const height = Math.max(1, mount.clientHeight || 420);
+    const height = Math.max(1, mount.clientHeight || 320);
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(width, height, false);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.25;
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
-    camera.position.set(0, 1.65, 6.2);
-    camera.lookAt(0, 1.45, 0);
+    const camera = new THREE.PerspectiveCamera(42, width / height, 0.1, 100);
+    camera.position.set(0, 1.7, 6.2);
+    camera.lookAt(0, 1.55, 0);
 
     scene.add(new THREE.HemisphereLight(0xe0f2fe, 0x111827, 2.7));
     const key = new THREE.DirectionalLight(0xffffff, 4.8);
     key.position.set(3.8, 5.2, 5.5);
-    key.castShadow = true;
     scene.add(key);
     const rim = new THREE.PointLight(0x67e8f9, 12, 16, 1.4);
     rim.position.set(-3, 2.6, 3.8);
     scene.add(rim);
 
-    const { group, scanRing } = createFaceScanHumanObject({ scanEntries, bodyOption });
-    group.rotation.y = runtimeRef.current.yaw;
+    const bodyColor = new THREE.Color(bodyOption?.outfit || '#1e3a8a');
+    const accentColor = new THREE.Color(bodyOption?.tone || '#38bdf8');
+    const skinMat = new THREE.MeshStandardMaterial({ color: '#f0b887', roughness: 0.58, metalness: 0.02 });
+    const bodyMat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.48, metalness: 0.08 });
+    const accentMat = new THREE.MeshStandardMaterial({ color: accentColor, roughness: 0.35, metalness: 0.18, emissive: accentColor, emissiveIntensity: 0.08 });
+    const darkMat = new THREE.MeshStandardMaterial({ color: '#111827', roughness: 0.75, metalness: 0.04 });
+    const lineMat = new THREE.LineBasicMaterial({ color: 0x93c5fd, transparent: true, opacity: 0.65 });
+
+    const group = new THREE.Group();
+    const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.52, 1.12, 8, 24), bodyMat);
+    torso.position.y = 0.95;
+    group.add(torso);
+
+    const chest = new THREE.Mesh(new THREE.TorusGeometry(0.48, 0.025, 8, 64), accentMat);
+    chest.position.set(0, 1.25, 0.32);
+    chest.rotation.x = Math.PI / 2;
+    group.add(chest);
+
+    [-0.62, 0.62].forEach((x) => {
+      const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.12, 0.92, 8, 16), bodyMat);
+      arm.position.set(x, 0.95, 0);
+      arm.rotation.z = x > 0 ? -0.2 : 0.2;
+      group.add(arm);
+      const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.15, 1.0, 8, 16), darkMat);
+      leg.position.set(x * 0.35, 0.02, 0);
+      group.add(leg);
+    });
+
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.26, 24), skinMat);
+    neck.position.y = 1.72;
+    group.add(neck);
+
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.43, 48, 32), skinMat);
+    head.scale.set(0.82, 1.08, 0.72);
+    head.position.y = 2.16;
+    group.add(head);
+
+    const nose = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.18, 16), skinMat);
+    nose.rotation.x = Math.PI / 2;
+    nose.position.set(0, 2.17, 0.33);
+    group.add(nose);
+
+    [-0.14, 0.14].forEach((x) => {
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.035, 16, 12), darkMat);
+      eye.position.set(x, 2.23, 0.32);
+      eye.scale.set(1, 0.7, 0.45);
+      group.add(eye);
+    });
+
+    const scanRing = new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.012, 8, 96), accentMat);
+    scanRing.position.y = 2.16;
+    scanRing.rotation.x = Math.PI / 2;
+    group.add(scanRing);
+
+    const points = [];
+    const poseCount = Math.max(1, scanEntries.length);
+    for (let i = 0; i < poseCount; i += 1) {
+      const angle = (i / poseCount) * Math.PI * 2;
+      points.push(new THREE.Vector3(Math.cos(angle) * 0.58, 2.16 + Math.sin(i * 1.7) * 0.12, Math.sin(angle) * 0.58));
+    }
+    if (points.length > 1) {
+      points.push(points[0].clone());
+      group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), lineMat));
+    }
+
+    group.position.y = -0.28;
     scene.add(group);
 
     const floor = new THREE.Mesh(
-      new THREE.CircleGeometry(1.95, 96),
+      new THREE.CircleGeometry(1.75, 72),
       new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.9, metalness: 0.05, transparent: true, opacity: 0.82 })
     );
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = -0.86;
-    floor.receiveShadow = true;
     scene.add(floor);
 
     const onResize = () => {
       if (disposed) return;
       const nextWidth = Math.max(1, mount.clientWidth || 360);
-      const nextHeight = Math.max(1, mount.clientHeight || 420);
+      const nextHeight = Math.max(1, mount.clientHeight || 320);
       renderer.setSize(nextWidth, nextHeight, false);
       camera.aspect = nextWidth / nextHeight;
       camera.updateProjectionMatrix();
     };
-    const setFromPointer = (event) => {
-      const state = runtimeRef.current;
-      const pointer = event.touches?.[0] || event;
-      if (!pointer) return;
-      if (!state.dragging) return;
-      const dx = pointer.clientX - state.lastX;
-      const dy = pointer.clientY - state.lastY;
-      state.lastX = pointer.clientX;
-      state.lastY = pointer.clientY;
-      state.yaw += dx * 0.012;
-      state.pitch = Math.max(-0.22, Math.min(0.22, state.pitch + dy * 0.004));
-      setViewState({ yaw: Math.round(THREE.MathUtils.radToDeg(state.yaw)), zoom: Math.round(state.zoom * 100) });
-    };
-    const startDrag = (event) => {
-      const pointer = event.touches?.[0] || event;
-      runtimeRef.current.dragging = true;
-      runtimeRef.current.lastX = pointer.clientX;
-      runtimeRef.current.lastY = pointer.clientY;
-    };
-    const stopDrag = () => {
-      runtimeRef.current.dragging = false;
-    };
-    const onWheel = (event) => {
-      event.preventDefault();
-      runtimeRef.current.zoom = Math.max(0.78, Math.min(1.35, runtimeRef.current.zoom - event.deltaY * 0.001));
-      setViewState({ yaw: Math.round(THREE.MathUtils.radToDeg(runtimeRef.current.yaw)), zoom: Math.round(runtimeRef.current.zoom * 100) });
-    };
 
     mount.innerHTML = '';
     mount.appendChild(renderer.domElement);
-    renderer.domElement.style.touchAction = 'none';
-    renderer.domElement.addEventListener('pointerdown', startDrag);
-    window.addEventListener('pointermove', setFromPointer);
-    window.addEventListener('pointerup', stopDrag);
-    renderer.domElement.addEventListener('touchstart', startDrag, { passive: true });
-    renderer.domElement.addEventListener('touchmove', setFromPointer, { passive: true });
-    window.addEventListener('touchend', stopDrag);
-    renderer.domElement.addEventListener('wheel', onWheel, { passive: false });
     window.addEventListener('resize', onResize);
 
     const animate = () => {
       if (disposed) return;
       frame = requestAnimationFrame(animate);
       const t = performance.now() * 0.001;
-      group.rotation.y = runtimeRef.current.yaw;
-      group.rotation.x = runtimeRef.current.pitch;
-      group.scale.setScalar(runtimeRef.current.zoom);
+      group.rotation.y = Math.sin(t * 0.7) * 0.28;
       scanRing.rotation.z = t * 1.4;
       scanRing.scale.setScalar(1 + Math.sin(t * 2.4) * 0.035);
       renderer.render(scene, camera);
@@ -1142,48 +813,26 @@ function FaceScanCharacterPreview({ scanEntries = [], bodyOption, title, quality
       disposed = true;
       cancelAnimationFrame(frame);
       window.removeEventListener('resize', onResize);
-      window.removeEventListener('pointermove', setFromPointer);
-      window.removeEventListener('pointerup', stopDrag);
-      window.removeEventListener('touchend', stopDrag);
-      renderer.domElement.removeEventListener('pointerdown', startDrag);
-      renderer.domElement.removeEventListener('touchstart', startDrag);
-      renderer.domElement.removeEventListener('touchmove', setFromPointer);
-      renderer.domElement.removeEventListener('wheel', onWheel);
-      disposeThreeObject(group);
-      floor.geometry.dispose();
-      floor.material.dispose();
+      scene.traverse((child) => {
+        if (!child.isMesh && !child.isLine) return;
+        child.geometry?.dispose?.();
+        const materials = Array.isArray(child.material) ? child.material : child.material ? [child.material] : [];
+        materials.forEach((material) => material.dispose?.());
+      });
       renderer.dispose?.();
       if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement);
     };
-  }, [bodyOption, quality, scanEntries]);
-
-  const resetView = () => {
-    runtimeRef.current.yaw = 0.35;
-    runtimeRef.current.pitch = 0;
-    runtimeRef.current.zoom = 1;
-    setViewState({ yaw: 20, zoom: 100 });
-  };
+  }, [bodyOption, scanEntries.length]);
 
   return (
     <div className="relative overflow-hidden rounded-2xl border border-cyan-200/35 bg-slate-950/70">
-      <div className="flex items-center justify-between gap-2 border-b border-white/10 px-3 py-2 text-[11px] text-cyan-50/90">
-        <span className="font-semibold">Rotate preview before saving</span>
-        <button type="button" onClick={resetView} className="rounded-full border border-white/10 bg-white/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white/80">
-          Reset
-        </button>
-      </div>
-      <div ref={mountRef} className="h-96 w-full cursor-grab active:cursor-grabbing" />
-      <div className="pointer-events-none absolute left-3 top-12 rounded-2xl border border-white/10 bg-black/45 px-3 py-2 text-[10px] text-white/75 backdrop-blur">
-        Drag left/right to rotate · drag up/down to inspect fit · wheel/pinch area for closer view
-      </div>
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-3 py-3 text-[11px] text-cyan-50/90">
-        <div className="font-semibold">3D face scan preview · {bodyOption?.label || 'human body'} · {title}</div>
-        <div className="text-white/70">Yaw {viewState.yaw}° · Zoom {viewState.zoom}% · {bodyOption?.orientationPreset || 'upright-y-forward-z'} · quality {quality}%</div>
+      <div ref={mountRef} className="h-72 w-full" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-3 py-2 text-[11px] text-cyan-50/90">
+        3D face scan preview · head attached to {bodyOption?.label || 'human body'} · {title}
       </div>
     </div>
   );
 }
-
 
 const normalizePolyHavenImage = (url, size) => {
   if (typeof url !== 'string' || !url.startsWith(POLYHAVEN_THUMBNAIL_BASE))
@@ -2186,9 +1835,6 @@ export default function Store() {
         name: faceScanDraft.name.trim(),
         bodyId: faceScanDraft.bodyId,
         bodyLabel: selectedFaceScanBody?.label || 'Human body',
-        orientationPreset: selectedFaceScanBody?.orientationPreset || 'upright-y-forward-z',
-        textureMapping: selectedFaceScanBody?.mapping || 'UV mapped SRGB canvas textures',
-        gltfReady: true,
         poseCount: capturedPoseCount,
         detail: faceScanDraft.detail,
         lighting: faceScanDraft.lighting,
@@ -4832,29 +4478,21 @@ export default function Store() {
             </div>
 
             <div className="grid gap-2">
-              <div className="rounded-2xl border border-cyan-200/20 bg-cyan-400/10 p-2">
-                <div className="mb-2 flex items-center justify-between gap-2 px-1">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-100">Pick actual body</p>
-                    <p className="text-[11px] text-white/65">Tap a physical WebGL character, not a text list. Every option stays upright and forward-facing for GLB/GLTF export.</p>
-                  </div>
-                  <span className="rounded-full border border-white/10 bg-black/30 px-2 py-1 text-[10px] font-semibold text-white/70">
-                    {selectedFaceScanBody?.label}
-                  </span>
-                </div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {FACE_SCAN_BODY_OPTIONS.map((option) => (
-                    <HumanBodyOptionPreview
-                      key={option.id}
-                      option={option}
-                      selected={faceScanDraft.bodyId === option.id}
-                      onSelect={(bodyId) => handleFaceScanDraftChange('bodyId', bodyId)}
-                    />
-                  ))}
-                </div>
-              </div>
-
               <div className="grid grid-cols-2 gap-2">
+                <label className="text-xs text-white/80">
+                  Human body
+                  <select
+                    value={faceScanDraft.bodyId}
+                    onChange={(e) => handleFaceScanDraftChange('bodyId', e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300/60"
+                  >
+                    {FACE_SCAN_BODY_OPTIONS.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <label className="text-xs text-white/80">
                   Face detail
                   <select
@@ -4867,11 +4505,6 @@ export default function Store() {
                     <option>High detail</option>
                   </select>
                 </label>
-                <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-[11px] text-white/70">
-                  <p className="font-semibold text-white">Configuration</p>
-                  <p>{selectedFaceScanBody?.orientationPreset}</p>
-                  <p>{selectedFaceScanBody?.mapping}</p>
-                </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <label className="text-xs text-white/80">
@@ -4946,7 +4579,6 @@ export default function Store() {
                 scanEntries={faceScanUploads}
                 bodyOption={selectedFaceScanBody}
                 title={faceScanDraft.name.trim() || 'Untitled character'}
-                quality={faceScanDraft.scanQuality}
               />
             </div>
           ) : null}
