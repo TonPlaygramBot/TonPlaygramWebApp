@@ -61,10 +61,11 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     lowerLegMaxHeightScale: 3.4,
     footWidthScale: 1.08,
     footHeightScale: 1,
-    railSightApronVisualScale: 1.045,
-    railSightVisualHeightScale: 1.065,
-    sideApronVisualHeightScale: 1.095,
-    sideApronOutwardOffset: 0.024,
+    railSightApronVisualScale: 1.028,
+    railSightOutwardOffset: 0.018,
+    railSightVisualHeightScale: 1.035,
+    sideApronVisualHeightScale: 1.055,
+    sideApronOutwardOffset: 0.034,
     clothRepeatScale: 5.25,
     fitStrategy: 'exact',
     fitReference: 'upperTabletop',
@@ -91,13 +92,18 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
 ]);
 
 export const DEFAULT_POOL_ROYALE_TABLE_MODEL_ID =
-  POOL_ROYALE_TABLE_MODEL_OPTIONS.find((option) => option.id === 'royal-original')?.id ||
+  POOL_ROYALE_TABLE_MODEL_OPTIONS.find((option) => option.id === 'showood-seven-foot')?.id ||
   POOL_ROYALE_TABLE_MODEL_OPTIONS[0].id;
+
+export const FALLBACK_POOL_ROYALE_TABLE_MODEL_ID =
+  POOL_ROYALE_TABLE_MODEL_OPTIONS.find((option) => option.id === 'royal-original')?.id ||
+  DEFAULT_POOL_ROYALE_TABLE_MODEL_ID;
 
 export function resolvePoolRoyaleTableModel(modelId) {
   const key = typeof modelId === 'string' ? modelId.trim() : '';
   return (
     POOL_ROYALE_TABLE_MODEL_OPTIONS.find((option) => option.id === key) ||
+    POOL_ROYALE_TABLE_MODEL_OPTIONS.find((option) => option.id === DEFAULT_POOL_ROYALE_TABLE_MODEL_ID) ||
     POOL_ROYALE_TABLE_MODEL_OPTIONS[0]
   );
 }
