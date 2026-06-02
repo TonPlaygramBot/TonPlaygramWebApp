@@ -3687,6 +3687,7 @@ const CHROME_PLATE_STYLE_OPTIONS = Object.freeze([
     swatches: ['#f6d56f', '#d6d8dc'],
     showGeneratedOnExternal: false,
     preserveExternalTrim: true,
+    preserveExternalReferenceParts: ['railSight', 'sideWoodApron'],
     cornerWidthScale: 1.1,
     cornerHeightScale: 1.08,
     cornerRadiusScale: 1.9,
@@ -3704,6 +3705,7 @@ const CHROME_PLATE_STYLE_OPTIONS = Object.freeze([
     swatches: ['#d6d8dc', '#d4af37'],
     showGeneratedOnExternal: true,
     preserveExternalTrim: false,
+    hideExternalReferenceParts: ['railSight', 'sideWoodApron'],
     cornerWidthScale: 1,
     cornerHeightScale: 1,
     cornerRadiusScale: 1,
@@ -12756,6 +12758,37 @@ function normalizePoolRoyaleExternalClothTextureScale(mesh, material, role) {
   material.needsUpdate = true;
 }
 
+function resolvePoolRoyaleExternalReferencePartsForStyle(tableModel, chromePlateStyle, propertyName) {
+  const parts = new Set();
+  if (Array.isArray(tableModel?.[propertyName])) {
+    tableModel[propertyName].forEach((part) => {
+      if (typeof part === 'string' && part.trim()) parts.add(part.trim());
+    });
+  }
+  if (Array.isArray(chromePlateStyle?.[propertyName])) {
+    chromePlateStyle[propertyName].forEach((part) => {
+      if (typeof part === 'string' && part.trim()) parts.add(part.trim());
+    });
+  }
+  return parts;
+}
+
+function shouldHidePoolRoyaleExternalTableSurface({ tableModel, role, referencePart, referenceParts }) {
+  if (!tableModel) return false;
+  const allReferenceParts = Array.isArray(referenceParts) && referenceParts.length
+    ? referenceParts
+    : [referencePart].filter(Boolean);
+  const preserveReferenceParts = Array.isArray(tableModel.preserveExternalReferenceParts)
+    ? tableModel.preserveExternalReferenceParts
+    : [];
+  if (allReferenceParts.some((part) => preserveReferenceParts.includes(part))) return false;
+  const hideReferenceParts = Array.isArray(tableModel.hideExternalReferenceParts)
+    ? tableModel.hideExternalReferenceParts
+    : [];
+  if (allReferenceParts.some((part) => hideReferenceParts.includes(part))) return true;
+  return Array.isArray(tableModel.hideSurfaceRoles) && tableModel.hideSurfaceRoles.includes(role);
+}
+
 function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tableModel = null) {
   if (!material || !finishInfo) return material;
   const finishRoles = Array.isArray(tableModel?.usePoolRoyaleFinishRoles)
@@ -12885,14 +12918,33 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
     child.receiveShadow = true;
     child.frustumCulled = false;
 
+    const needsReferencePartVisibility = tableModel?.useReferenceShowoodMapping ||
+      Array.isArray(tableModel?.preserveExternalReferenceParts) ||
+      Array.isArray(tableModel?.hideExternalReferenceParts);
+    const childMaterials = Array.isArray(child.material) ? child.material : [child.material].filter(Boolean);
+    const childReferenceParts = needsReferencePartVisibility
+      ? childMaterials.map((entry) => classifyPoolRoyaleShowoodReferencePart(child, entry))
+      : [];
+
     const prepareMaterial = (material) => {
       if (!material) return material;
       const role = classifyPoolRoyaleExternalTableSurface(child, material);
-      const referencePart = tableModel?.useReferenceShowoodMapping
+      const referencePart = needsReferencePartVisibility
         ? classifyPoolRoyaleShowoodReferencePart(child, material)
         : null;
-      if (Array.isArray(tableModel?.hideSurfaceRoles) && tableModel.hideSurfaceRoles.includes(role)) {
+      if (shouldHidePoolRoyaleExternalTableSurface({
+        tableModel,
+        role,
+        referencePart,
+        referenceParts: childReferenceParts
+      })) {
         child.visible = false;
+        child.userData = {
+          ...(child.userData || {}),
+          poolRoyaleExternalSurfaceHidden: true,
+          poolRoyaleExternalSurfaceHiddenRole: role,
+          poolRoyaleExternalSurfaceHiddenReferencePart: referencePart
+        };
       }
       if (
         tableModel?.hideOriginalBaseAndLegsForProceduralBase &&
@@ -14380,6 +14432,23 @@ function mountPoolRoyaleExternalTableModel({
     resolvedTableOptions?.tableModel?.kind === 'gltf'
       ? {
           ...resolvedTableOptions.tableModel,
+          forceGeneratedChromePlates: Boolean(
+            resolvedTableOptions.tableModel.forceGeneratedChromePlates || chromePlateStyle.showGeneratedOnExternal
+          ),
+          preserveExternalReferenceParts: Array.from(
+            resolvePoolRoyaleExternalReferencePartsForStyle(
+              resolvedTableOptions.tableModel,
+              chromePlateStyle,
+              'preserveExternalReferenceParts'
+            )
+          ),
+          hideExternalReferenceParts: Array.from(
+            resolvePoolRoyaleExternalReferencePartsForStyle(
+              resolvedTableOptions.tableModel,
+              chromePlateStyle,
+              'hideExternalReferenceParts'
+            )
+          ),
           preserveOriginalSurfaceRoles: resolvedTableOptions.tableModel.useReferenceShowoodMapping
             ? (resolvedTableOptions.tableModel.preserveOriginalSurfaceRoles || [])
             : resolvedTableOptions.tableModel.useOriginalLayoutSurfaces
