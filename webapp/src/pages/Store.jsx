@@ -170,7 +170,6 @@ import {
 import { DEV_INFO } from '../utils/constants.js';
 import { swatchThumbnail } from '../config/storeThumbnails.js';
 import { getCustomHdriCatalog, saveCustomHdriEntry } from '../utils/customHdriCatalog.js';
-import FaceScanAvatarPreview from '../components/FaceScanAvatarPreview';
 
 const UKRAINIAN_DRONE_PREVIEW_STATUS = Object.freeze({
   loading: 'LOADING',
@@ -669,40 +668,6 @@ const HDRI_LIGHTING_SOURCE_OPTIONS = Object.freeze(
     []
   )
 );
-
-const FACE_SCAN_CREATOR_STEPS = [
-  {
-    id: 'body',
-    title: '1) Choose body',
-    description: 'Pick one of the current human character bodies already sold in the store.'
-  },
-  {
-    id: 'scan',
-    title: '2) Scan face',
-    description: 'Use the phone camera to capture front, left, right, high, and low face angles.'
-  },
-  {
-    id: 'attach',
-    title: '3) Attach head',
-    description: 'Preview the reconstructed 3D head blended onto the selected body.'
-  },
-  {
-    id: 'create',
-    title: '4) Save avatar',
-    description: 'Create the custom human character for private use or store listing.'
-  }
-];
-const FACE_SCAN_CAPTURE_ANGLES = Object.freeze([
-  'Front',
-  'Left side',
-  'Right side',
-  'Higher angle',
-  'Lower angle'
-]);
-const FACE_SCAN_BODY_SWATCHES = ['#7c3aed', '#0ea5e9', '#f97316', '#22c55e', '#e11d48'];
-const FACE_SCAN_STORAGE_KEY = 'tonplaygram_custom_face_scan_avatars';
-const FACE_SCAN_BUILD_TARIFF_TPC = 1800;
-
 const HDRI_TARGET_GAMES = Object.freeze([
   { slug: 'bilardoshqip', label: 'Bilardo Shqip' },
   { slug: 'snookerroyale', label: 'Snooker Royal' },
@@ -1463,7 +1428,6 @@ export default function Store() {
   useTelegramBackButton();
   const navigate = useNavigate();
   const { gameSlug } = useParams();
-  const faceScanVideoRef = useRef(null);
   const [accountId, setAccountId] = useState(() => poolRoyalAccountId());
   const [poolOwned, setPoolOwned] = useState(() =>
     getCachedPoolRoyalInventory(accountId)
@@ -1541,19 +1505,6 @@ export default function Store() {
   const [hdriPublished, setHdriPublished] = useState(false);
   const [hdriPublishing, setHdriPublishing] = useState(false);
   const [hdriSelectedGames, setHdriSelectedGames] = useState(() => ['snookerroyale']);
-  const [faceScanStep, setFaceScanStep] = useState(0);
-  const [faceScanDraft, setFaceScanDraft] = useState({
-    name: '',
-    bodyId: '',
-    meshDetail: 'High detail',
-    fitMode: 'Auto neck blend',
-    privacy: 'private',
-    storePrice: 900
-  });
-  const [faceScanCaptures, setFaceScanCaptures] = useState([]);
-  const [faceScanCameraActive, setFaceScanCameraActive] = useState(false);
-  const [faceScanAssembled, setFaceScanAssembled] = useState(false);
-  const [faceScanSaving, setFaceScanSaving] = useState(false);
 
   const resolvedGameSlug = useMemo(() => {
     if (!gameSlug) return 'all';
@@ -2008,199 +1959,6 @@ export default function Store() {
     selectedHdriLighting,
     hdriSelectedGames,
     hdriUploadFiles
-  ]);
-
-  const faceScanBodyOptions = useMemo(() => {
-    const ludoBodies = LUDO_BATTLE_STORE_ITEMS.filter((item) => item.type === 'humanCharacter');
-    const murlanBodies = MURLAN_ROYALE_STORE_ITEMS.filter((item) => item.type === 'characters').map((item) => ({
-      ...item,
-      type: 'humanCharacter',
-      name: `${item.name} Body`
-    }));
-    return [...ludoBodies, ...murlanBodies]
-      .filter((item) => item?.optionId)
-      .map((item, index) => ({
-        ...item,
-        bodyAccent: FACE_SCAN_BODY_SWATCHES[index % FACE_SCAN_BODY_SWATCHES.length]
-      }));
-  }, []);
-
-  const selectedFaceScanBody = useMemo(() => {
-    if (!faceScanBodyOptions.length) return null;
-    return (
-      faceScanBodyOptions.find((item) => item.optionId === faceScanDraft.bodyId) ||
-      faceScanBodyOptions[0]
-    );
-  }, [faceScanBodyOptions, faceScanDraft.bodyId]);
-
-  const faceScanProgress = useMemo(() => {
-    const angleProgress = Math.min(100, (faceScanCaptures.length / FACE_SCAN_CAPTURE_ANGLES.length) * 100);
-    return faceScanAssembled ? 100 : angleProgress;
-  }, [faceScanAssembled, faceScanCaptures.length]);
-
-  const canAssembleFaceScan =
-    (faceScanDraft.name.trim().length >= 3 || selectedFaceScanBody?.name) &&
-    selectedFaceScanBody &&
-    faceScanCaptures.length >= 3;
-  const canSaveFaceScan = canAssembleFaceScan && faceScanAssembled && !faceScanSaving;
-  const faceScanShortfall =
-    typeof accountBalance === 'number'
-      ? Math.max(0, FACE_SCAN_BUILD_TARIFF_TPC - accountBalance)
-      : 0;
-
-  useEffect(() => {
-    if (!faceScanDraft.bodyId && faceScanBodyOptions[0]?.optionId) {
-      setFaceScanDraft((prev) => ({ ...prev, bodyId: faceScanBodyOptions[0].optionId }));
-    }
-  }, [faceScanBodyOptions, faceScanDraft.bodyId]);
-
-  useEffect(() => {
-    const video = faceScanVideoRef.current;
-    if (!video || !faceScanCameraActive) return undefined;
-    let currentStream;
-    let cancelled = false;
-    const startCamera = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 1280 } },
-          audio: false
-        });
-        if (cancelled) {
-          stream.getTracks().forEach((track) => track.stop());
-          return;
-        }
-        currentStream = stream;
-        video.srcObject = stream;
-        await video.play();
-      } catch (error) {
-        console.warn('Face scan camera failed', error);
-        setFaceScanCameraActive(false);
-        setTransactionState('error');
-        setTransactionStatus('Camera could not start. Allow camera access or upload face angle photos instead.');
-      }
-    };
-    void startCamera();
-    return () => {
-      cancelled = true;
-      if (currentStream) currentStream.getTracks().forEach((track) => track.stop());
-      if (video.srcObject) video.srcObject = null;
-    };
-  }, [faceScanCameraActive]);
-
-  const handleFaceScanDraftChange = useCallback((field, value) => {
-    setFaceScanDraft((prev) => ({ ...prev, [field]: value }));
-    setFaceScanAssembled(false);
-  }, []);
-
-  const addFaceScanCapture = useCallback((dataUrl, label) => {
-    setFaceScanCaptures((prev) => [
-      ...prev,
-      {
-        id: `${Date.now()}-${prev.length}`,
-        label: label || FACE_SCAN_CAPTURE_ANGLES[prev.length] || `Angle ${prev.length + 1}`,
-        previewUrl: dataUrl
-      }
-    ].slice(0, FACE_SCAN_CAPTURE_ANGLES.length));
-    setFaceScanAssembled(false);
-    setFaceScanStep(1);
-  }, []);
-
-  const handleFaceScanPhotoUploads = useCallback(
-    async (event) => {
-      const files = Array.from(event.target.files || []).slice(0, FACE_SCAN_CAPTURE_ANGLES.length);
-      const uploaded = await Promise.all(
-        files.map(async (file, index) => ({
-          id: `${Date.now()}-${file.name}-${index}`,
-          label: FACE_SCAN_CAPTURE_ANGLES[index] || `Angle ${index + 1}`,
-          previewUrl: await fileToDataUrl(file)
-        }))
-      );
-      setFaceScanCaptures(uploaded);
-      setFaceScanAssembled(false);
-      setFaceScanStep(1);
-      event.target.value = '';
-    },
-    [fileToDataUrl]
-  );
-
-  const handleFaceScanCameraCapture = useCallback(() => {
-    const video = faceScanVideoRef.current;
-    if (!video || !video.videoWidth || !video.videoHeight) {
-      setTransactionState('error');
-      setTransactionStatus('Camera preview is not ready yet. Hold the phone steady and try again.');
-      return;
-    }
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const context = canvas.getContext('2d');
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    addFaceScanCapture(canvas.toDataURL('image/jpeg', 0.86));
-  }, [addFaceScanCapture]);
-
-  const handleFaceScanAssemble = useCallback(() => {
-    if (!canAssembleFaceScan) {
-      setTransactionState('error');
-      setTransactionStatus('Capture at least 3 face angles and choose a human body before attaching the head.');
-      return;
-    }
-    setFaceScanAssembled(true);
-    setFaceScanStep(2);
-    setTransactionState('success');
-    setTransactionStatus('3D face head assembled and attached to the selected human body preview.');
-  }, [canAssembleFaceScan]);
-
-  const handleFaceScanSave = useCallback(() => {
-    if (!canSaveFaceScan) return;
-    if (typeof accountBalance === 'number' && accountBalance < FACE_SCAN_BUILD_TARIFF_TPC) {
-      setTransactionState('error');
-      setTransactionStatus(
-        `Not enough TPC. Add ${formatTpcAmount(FACE_SCAN_BUILD_TARIFF_TPC - accountBalance)} more to create this face-scan avatar.`
-      );
-      return;
-    }
-    try {
-      setFaceScanSaving(true);
-      const createdAt = Date.now();
-      const avatarName = faceScanDraft.name.trim() || `${selectedFaceScanBody?.name || 'Human'} Face Scan`;
-      const entry = {
-        id: `face-scan-avatar-${createdAt}`,
-        name: avatarName,
-        bodyOptionId: selectedFaceScanBody?.optionId,
-        bodyName: selectedFaceScanBody?.name,
-        meshDetail: faceScanDraft.meshDetail,
-        fitMode: faceScanDraft.fitMode,
-        privacy: faceScanDraft.privacy,
-        storePrice: Number(faceScanDraft.storePrice || 0),
-        thumbnailUrl: faceScanCaptures[0]?.previewUrl || '',
-        captureCount: faceScanCaptures.length,
-        createdBy: accountId || 'guest',
-        createdAt
-      };
-      if (typeof window !== 'undefined') {
-        const current = JSON.parse(window.localStorage.getItem(FACE_SCAN_STORAGE_KEY) || '[]');
-        window.localStorage.setItem(FACE_SCAN_STORAGE_KEY, JSON.stringify([entry, ...current].slice(0, 20)));
-      }
-      setFaceScanStep(3);
-      setTransactionState('success');
-      setTransactionStatus(`${avatarName} created. Your scanned head is attached to the ${entry.bodyName} body.`);
-      if (typeof accountBalance === 'number') {
-        setAccountBalance((prev) => Math.max(0, (prev || 0) - FACE_SCAN_BUILD_TARIFF_TPC));
-      }
-    } catch (error) {
-      console.warn('Face scan avatar save failed', error);
-      setTransactionState('error');
-      setTransactionStatus('Could not save this face-scan avatar on this device. Clear storage or try again.');
-    } finally {
-      setFaceScanSaving(false);
-    }
-  }, [
-    accountBalance,
-    accountId,
-    canSaveFaceScan,
-    faceScanCaptures,
-    faceScanDraft,
-    selectedFaceScanBody
   ]);
 
   const storeItemsBySlug = useMemo(
@@ -4708,34 +4466,34 @@ export default function Store() {
       <main
         className={`mx-auto w-full max-w-6xl px-4 pt-4 ${mainPaddingClass}`}
       >
-        <section className="mb-4 rounded-3xl border border-cyan-300/30 bg-gradient-to-br from-cyan-500/20 via-violet-500/10 to-zinc-950 p-4 shadow-[0_18px_45px_-30px_rgba(34,211,238,0.95)] md:p-5">
+        <section className="mb-4 rounded-3xl border border-fuchsia-300/30 bg-gradient-to-br from-fuchsia-500/20 via-violet-500/10 to-zinc-950 p-4 shadow-[0_18px_45px_-30px_rgba(217,70,239,0.95)] md:p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <p className="inline-flex items-center gap-2 rounded-full border border-cyan-200/40 bg-cyan-400/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-cyan-100">
-                New Premium Feature
+              <p className="inline-flex items-center gap-2 rounded-full border border-fuchsia-200/40 bg-fuchsia-400/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-fuchsia-100">
+                Premium Feature
               </p>
               <h2 className="mt-2 text-lg font-semibold text-white md:text-xl">
-                3D phone face scan + human character body
+                Upload your own 360° environment HDRI
               </h2>
-              <p className="mt-1 max-w-3xl text-sm text-cyan-100/80">
-                Scan your face from different sides with the phone camera, choose a human body from the current store, and attach your 3D head to create a custom human character.
+              <p className="mt-1 max-w-3xl text-sm text-fuchsia-100/80">
+                Upload 360 photos, pick lighting style, and publish as private or public listing.
               </p>
             </div>
-            <div className="rounded-2xl border border-cyan-200/40 bg-black/35 px-3 py-2 text-xs text-cyan-100">
-              Step {faceScanStep + 1} / {FACE_SCAN_CREATOR_STEPS.length}
+            <div className="rounded-2xl border border-fuchsia-200/40 bg-black/35 px-3 py-2 text-xs text-fuchsia-100">
+              Step {hdriStepProgress} / {HDRI_CREATOR_STEPS.length}
             </div>
           </div>
 
           <div className="mt-3 grid gap-2 md:grid-cols-4">
-            {FACE_SCAN_CREATOR_STEPS.map((step, idx) => (
+            {HDRI_CREATOR_STEPS.map((step, idx) => (
               <button
                 key={step.id}
                 type="button"
-                onClick={() => setFaceScanStep(idx)}
+                onClick={() => setHdriCreatorStep(idx)}
                 className={`rounded-2xl border px-3 py-2 text-left transition ${
-                  faceScanStep === idx
-                    ? 'border-cyan-100/60 bg-cyan-500/20 text-white'
-                    : 'border-white/10 bg-black/25 text-white/75 hover:border-cyan-200/30 hover:text-white'
+                  hdriCreatorStep === idx
+                    ? 'border-fuchsia-100/60 bg-fuchsia-500/20 text-white'
+                    : 'border-white/10 bg-black/25 text-white/75 hover:border-fuchsia-200/30 hover:text-white'
                 }`}
               >
                 <p className="text-xs font-semibold">{step.title}</p>
@@ -4744,224 +4502,276 @@ export default function Store() {
             ))}
           </div>
 
-          <div className="mt-3 grid gap-3 rounded-2xl border border-white/10 bg-black/25 p-3 md:grid-cols-[1.05fr_0.95fr]">
-            <div className="grid gap-3">
-              <div className="grid gap-2 rounded-2xl border border-white/10 bg-black/20 p-3">
+          <div className="mt-3 grid gap-3 rounded-2xl border border-white/10 bg-black/25 p-3 md:grid-cols-2">
+            <div className="grid gap-2">
+              <label className="text-xs text-white/80">
+                HDRI name
+                <input
+                  value={hdriDraft.name}
+                  onChange={(e) => handleHdriDraftChange('name', e.target.value)}
+                  placeholder="e.g. Skyline Neon Dome"
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-300/60"
+                />
+              </label>
+              <label className="text-xs text-white/80">
+                Upload 360° photos
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleHdriUploads}
+                  className="mt-1 w-full rounded-xl border border-dashed border-fuchsia-200/40 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none file:mr-3 file:rounded-lg file:border-0 file:bg-fuchsia-400/25 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-fuchsia-100"
+                />
+              </label>
+              <p className="text-[11px] text-white/60">
+                {hdriUploadFiles.length
+                  ? `${hdriUploadFiles.length} photo${hdriUploadFiles.length === 1 ? '' : 's'} uploaded`
+                  : 'No 360 photos uploaded yet'}
+              </p>
+              <label className="text-xs text-white/80">
+                Lighting type
+                <select
+                  value={hdriDraft.sourceHdriId}
+                  onChange={(e) =>
+                    handleHdriDraftChange('sourceHdriId', e.target.value)
+                  }
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-300/60"
+                >
+                  {HDRI_LIGHTING_SOURCE_OPTIONS.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-xs text-white/80">
+                Mood
+                <select
+                  value={hdriDraft.mood}
+                  onChange={(e) => handleHdriDraftChange('mood', e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-300/60"
+                >
+                  <option>Competitive</option>
+                  <option>Cinematic</option>
+                  <option>Sci-fi</option>
+                  <option>Minimal</option>
+                </select>
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {HDRI_CREATOR_PRESETS.map((preset) => (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    onClick={() => applyHdriPreset(preset)}
+                    className="rounded-xl border border-white/10 bg-black/35 px-2 py-2 text-[11px] font-semibold text-white/80 hover:border-fuchsia-200/30 hover:text-white"
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-white/65">
+                {selectedHdriLighting?.description ||
+                  'Pick lighting from current store HDRIs.'}
+              </p>
+            </div>
+
+            <div className="grid gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <label className="text-xs text-white/80">
-                  Character name
+                  Lighting
+                  <select
+                    value={hdriDraft.lighting}
+                    onChange={(e) => handleHdriDraftChange('lighting', e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-300/60"
+                  >
+                    <option>Natural</option>
+                    <option>Neon</option>
+                    <option>Softbox</option>
+                    <option>Contrast</option>
+                  </select>
+                </label>
+                <label className="text-xs text-white/80">
+                  Time
+                  <select
+                    value={hdriDraft.timeOfDay}
+                    onChange={(e) => handleHdriDraftChange('timeOfDay', e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-300/60"
+                  >
+                    <option>Day</option>
+                    <option>Sunset</option>
+                    <option>Night</option>
+                  </select>
+                </label>
+              </div>
+              <label className="text-xs text-white/80">
+                Light intensity ({hdriDraft.intensity}%)
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value={hdriDraft.intensity}
+                  onChange={(e) => handleHdriDraftChange('intensity', Number(e.target.value))}
+                  className="mt-1 w-full accent-fuchsia-400"
+                />
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="text-xs text-white/80">
+                  Tone mapping
+                  <select
+                    value={hdriDraft.tone}
+                    onChange={(e) => handleHdriDraftChange('tone', e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-300/60"
+                  >
+                    <option>Balanced</option>
+                    <option>Filmic</option>
+                    <option>ACES</option>
+                    <option>Vivid</option>
+                  </select>
+                </label>
+                <label className="text-xs text-white/80">
+                  Output
+                  <select
+                    value={hdriDraft.resolution}
+                    onChange={(e) => handleHdriDraftChange('resolution', e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-300/60"
+                  >
+                    <option>1K</option>
+                    <option>2K</option>
+                    <option>4K</option>
+                  </select>
+                </label>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="text-xs text-white/80">
+                  Visibility
+                  <select
+                    value={hdriDraft.visibility}
+                    onChange={(e) => handleHdriDraftChange('visibility', e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-300/60"
+                  >
+                    <option value="private">Private (only me)</option>
+                    <option value="public">Public marketplace</option>
+                  </select>
+                </label>
+                <label className="text-xs text-white/80">
+                  Store price (TPC)
                   <input
-                    value={faceScanDraft.name}
-                    onChange={(e) => handleFaceScanDraftChange('name', e.target.value)}
-                    placeholder="e.g. My scanned striker"
-                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300/60"
+                    type="number"
+                    min={TON_PRICE_MIN}
+                    max={TON_PRICE_MAX}
+                    value={hdriDraft.storePrice}
+                    onChange={(e) =>
+                      handleHdriDraftChange('storePrice', Number(e.target.value || 0))
+                    }
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-300/60"
+                    disabled={hdriDraft.visibility !== 'public'}
                   />
                 </label>
-                <div>
-                  <p className="text-xs text-white/80">Choose human character body</p>
-                  <div className="mt-2 grid max-h-48 grid-cols-2 gap-2 overflow-y-auto pr-1">
-                    {faceScanBodyOptions.map((body) => {
-                      const active = selectedFaceScanBody?.optionId === body.optionId;
-                      return (
-                        <button
-                          key={`${body.type}-${body.optionId}`}
-                          type="button"
-                          onClick={() => handleFaceScanDraftChange('bodyId', body.optionId)}
-                          className={`rounded-xl border p-2 text-left transition ${
-                            active
-                              ? 'border-cyan-200/70 bg-cyan-400/20 text-white'
-                              : 'border-white/10 bg-black/30 text-white/75 hover:border-cyan-200/35'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <span
-                              className="h-8 w-8 rounded-full border border-white/10"
-                              style={{ background: `linear-gradient(135deg, ${body.bodyAccent}, #020617)` }}
-                            />
-                            <span className="text-xs font-semibold">{body.name}</span>
-                          </div>
-                          <p className="mt-1 line-clamp-2 text-[10px] text-white/55">
-                            {body.description || 'Current store human character body.'}
-                          </p>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <label className="text-xs text-white/80">
-                    Mesh detail
-                    <select
-                      value={faceScanDraft.meshDetail}
-                      onChange={(e) => handleFaceScanDraftChange('meshDetail', e.target.value)}
-                      className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300/60"
-                    >
-                      <option>High detail</option>
-                      <option>Game optimized</option>
-                      <option>Ultra close-up</option>
-                    </select>
-                  </label>
-                  <label className="text-xs text-white/80">
-                    Neck attach
-                    <select
-                      value={faceScanDraft.fitMode}
-                      onChange={(e) => handleFaceScanDraftChange('fitMode', e.target.value)}
-                      className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300/60"
-                    >
-                      <option>Auto neck blend</option>
-                      <option>Soft skin seam</option>
-                      <option>Helmet-safe fit</option>
-                    </select>
-                  </label>
-                </div>
               </div>
-
-              <div className="grid gap-2 rounded-2xl border border-cyan-200/20 bg-cyan-400/10 p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100/90">Phone face scanner</p>
-                    <p className="mt-1 text-[11px] text-cyan-50/70">
-                      Capture front, left, right, higher, and lower angles so the scanned head has full 3D detail.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setFaceScanCameraActive((active) => !active)}
-                    className="rounded-xl border border-cyan-200/50 bg-black/35 px-3 py-2 text-xs font-semibold text-cyan-50 hover:bg-cyan-400/20"
-                  >
-                    {faceScanCameraActive ? 'Stop camera' : 'Start camera'}
-                  </button>
-                </div>
-                <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/40">
-                  {faceScanCameraActive ? (
-                    <video
-                      ref={faceScanVideoRef}
-                      playsInline
-                      muted
-                      className="aspect-[9/16] max-h-72 w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex aspect-[9/16] max-h-72 w-full flex-col items-center justify-center gap-2 bg-slate-950 px-5 text-center text-xs text-white/60">
-                      <span className="text-3xl">📱</span>
-                      Start the front camera or upload angle photos below.
-                    </div>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={handleFaceScanCameraCapture}
-                    disabled={!faceScanCameraActive || faceScanCaptures.length >= FACE_SCAN_CAPTURE_ANGLES.length}
-                    className="rounded-xl bg-cyan-300 px-3 py-2 text-xs font-bold text-slate-950 hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-45"
-                  >
-                    Capture angle
-                  </button>
-                  <label className="rounded-xl border border-dashed border-cyan-200/40 bg-zinc-950/80 px-3 py-2 text-center text-xs font-semibold text-cyan-50 hover:border-cyan-200/70">
-                    Upload photos
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={handleFaceScanPhotoUploads}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
-                <div className="grid grid-cols-5 gap-1.5">
-                  {FACE_SCAN_CAPTURE_ANGLES.map((angle, index) => {
-                    const capture = faceScanCaptures[index];
+              <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2">
+                <p className="text-xs text-white/80">Use this HDRI in games (multi-select)</p>
+                <p className="mt-1 text-[11px] text-white/60">
+                  +{formatTpcAmount(HDRI_PUBLISH_TARIFF_PER_GAME_TPC)} TPC per selected game
+                </p>
+                <div className="mt-2 grid grid-cols-2 gap-1.5">
+                  {HDRI_TARGET_GAMES.map((game) => {
+                    const active = hdriSelectedGames.includes(game.slug);
                     return (
-                      <div
-                        key={angle}
-                        className={`overflow-hidden rounded-xl border text-center text-[10px] ${
-                          capture
-                            ? 'border-cyan-200/50 bg-cyan-300/10 text-cyan-50'
-                            : 'border-white/10 bg-black/30 text-white/45'
+                      <button
+                        key={game.slug}
+                        type="button"
+                        onClick={() => handleHdriGameToggle(game.slug)}
+                        className={`rounded-lg border px-2 py-1.5 text-left text-[11px] ${
+                          active
+                            ? 'border-fuchsia-300/70 bg-fuchsia-400/20 text-fuchsia-50'
+                            : 'border-white/10 bg-black/35 text-white/70'
                         }`}
                       >
-                        {capture ? (
-                          <img src={capture.previewUrl} alt={angle} className="h-12 w-full object-cover" />
-                        ) : (
-                          <div className="flex h-12 items-center justify-center">{index + 1}</div>
-                        )}
-                        <div className="px-1 py-1">{angle}</div>
-                      </div>
+                        {game.label}
+                      </button>
                     );
                   })}
                 </div>
               </div>
-            </div>
-
-            <div className="grid gap-3">
-              <FaceScanAvatarPreview
-                bodyLabel={selectedFaceScanBody?.name || 'Human Body'}
-                bodyAccent={selectedFaceScanBody?.bodyAccent || '#7c3aed'}
-                scanProgress={faceScanProgress}
-                headTextureUrl={faceScanCaptures[0]?.previewUrl}
-                captureCount={faceScanCaptures.length}
-              />
-              <div className="grid gap-2 rounded-2xl border border-white/10 bg-black/25 p-3">
-                <div className="flex items-center justify-between text-xs text-white/75">
-                  <span>Scan progress</span>
-                  <span>{Math.round(faceScanProgress)}%</span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-white/10">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-cyan-300 to-fuchsia-300"
-                    style={{ width: `${faceScanProgress}%` }}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <label className="text-xs text-white/80">
-                    Visibility
-                    <select
-                      value={faceScanDraft.privacy}
-                      onChange={(e) => handleFaceScanDraftChange('privacy', e.target.value)}
-                      className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300/60"
-                    >
-                      <option value="private">Private (only me)</option>
-                      <option value="public">Public store listing</option>
-                    </select>
-                  </label>
-                  <label className="text-xs text-white/80">
-                    Store price (TPC)
-                    <input
-                      type="number"
-                      min={TON_PRICE_MIN}
-                      max={TON_PRICE_MAX}
-                      value={faceScanDraft.storePrice}
-                      onChange={(e) => handleFaceScanDraftChange('storePrice', Number(e.target.value || 0))}
-                      disabled={faceScanDraft.privacy !== 'public'}
-                      className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300/60 disabled:opacity-50"
-                    />
-                  </label>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleFaceScanAssemble}
-                    disabled={!canAssembleFaceScan}
-                    className="rounded-2xl border border-cyan-200/50 bg-cyan-400/20 px-4 py-2 text-sm font-semibold text-cyan-50 hover:bg-cyan-400/30 disabled:cursor-not-allowed disabled:opacity-45"
-                  >
-                    Attach scanned head
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleFaceScanSave}
-                    disabled={!canSaveFaceScan}
-                    className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-45"
-                  >
-                    {faceScanSaving ? 'Creating avatar…' : `Create avatar (${formatTpcAmount(FACE_SCAN_BUILD_TARIFF_TPC)} TPC)`}
-                  </button>
-                </div>
-                <p className="text-xs text-cyan-50/75">
-                  {faceScanShortfall
-                    ? `Balance alert: you need ${formatTpcAmount(faceScanShortfall)} more TPC to create this avatar.`
-                    : faceScanAssembled
-                      ? 'Head is attached. Save to create your custom human character.'
-                      : 'Capture at least 3 angles, then attach the scanned head to the selected body.'}
-                </p>
+              <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-[11px] text-white/70">
+                {hdriDraft.visibility === 'public'
+                  ? 'Creator payout: 100% of each sale goes to your creator wallet.'
+                  : 'Private mode: this HDRI is available only to your account.'}
               </div>
             </div>
+          </div>
+
+          {hdriUploadFiles.length ? (
+            <div className="mt-3 grid grid-cols-3 gap-2 md:grid-cols-6">
+              {hdriUploadFiles.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="overflow-hidden rounded-xl border border-white/10 bg-black/30"
+                >
+                  <img
+                    src={entry.previewUrl}
+                    alt={entry.file?.name || 'HDRI upload'}
+                    className="h-20 w-full object-cover"
+                  />
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {hdriPreviewUnlocked && hdriUploadFiles[0]?.previewUrl ? (
+            <div className="mt-3 overflow-hidden rounded-2xl border border-fuchsia-200/40 bg-black/35">
+              <div className="flex items-center justify-between border-b border-fuchsia-200/20 px-3 py-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fuchsia-100/90">
+                  HDRI Preview
+                </p>
+                <span className="text-[11px] text-fuchsia-100/70">
+                  {hdriDraft.name.trim() || 'Untitled HDRI'}
+                </span>
+              </div>
+              <HdriEquirectangularPreview
+                src={hdriUploadFiles[0].previewUrl}
+                title={hdriDraft.name.trim() || 'Untitled HDRI'}
+              />
+              <p className="px-3 py-2 text-[11px] text-fuchsia-100/75">
+                This is your live 360° skybox preview before minting/publishing.
+              </p>
+            </div>
+          ) : null}
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleHdriPreview}
+              className="rounded-2xl border border-fuchsia-200/50 bg-fuchsia-400/20 px-4 py-2 text-sm font-semibold text-fuchsia-50 hover:bg-fuchsia-400/30"
+            >
+              Free preview
+            </button>
+            <button
+              type="button"
+              onClick={handleHdriPublish}
+              disabled={!canPublishHdri || hdriPublishing}
+              className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              {hdriPublishing
+                ? 'Minting HDRI…'
+                : `Publish in-game (${formatTpcAmount(hdriPublishTotalTariff)} TPC)`}
+            </button>
+            <span className="text-xs text-fuchsia-100/85">
+              {hdriPublished
+                ? hdriDraft.visibility === 'public'
+                  ? `Live now: ${hdriDraft.name || 'Custom HDRI'} is listed in Store and earns revenue to you.`
+                  : `Live now: ${hdriDraft.name || 'Custom HDRI'} is private and active on your account.`
+                : hdriPreviewUnlocked
+                  ? 'Preview enabled. If you like it, publish to use it in game.'
+                  : 'Try every configuration for free before paying tariff.'}
+            </span>
+          </div>
+
+          <div className="mt-2 text-xs text-white/70">
+            {hdriPublishShortfall
+              ? `Balance alert: you need ${formatTpcAmount(hdriPublishShortfall)} more TPC to publish.`
+              : `Creation tariff: ${formatTpcAmount(HDRI_PUBLISH_TARIFF_TPC)} TPC + ${formatTpcAmount(HDRI_PUBLISH_TARIFF_PER_GAME_TPC)} TPC per selected game.`}
           </div>
         </section>
 
