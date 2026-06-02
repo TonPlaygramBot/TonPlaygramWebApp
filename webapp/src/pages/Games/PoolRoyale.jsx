@@ -1834,7 +1834,7 @@ const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
 const SHOT_POWER_BOOST = 1.5; // preserve legacy cue response before the final mobile comfort trim
-const SHOT_GLOBAL_POWER_SCALE = 0.72; // increase Pool Royale shot pace by 50% while keeping the selected shot-power curve
+const SHOT_GLOBAL_POWER_SCALE = 0.78; // add a small Pool Royale shot pace bump while keeping the selected shot-power curve
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
