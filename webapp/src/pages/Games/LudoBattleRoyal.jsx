@@ -345,6 +345,17 @@ const FIREARM_RACK_OPPOSITE_SEAT_TARGET_BY_PLAYER = Object.freeze({
   0: 2,
   2: 0
 });
+const GUNIFY_RAW_BASE = 'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main';
+const GUNIFY_JSDELIVR_BASE = 'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main';
+const gunifyModelUrls = (modelName) => [
+  `${GUNIFY_RAW_BASE}/models/${modelName}/scene.gltf`,
+  `${GUNIFY_JSDELIVR_BASE}/models/${modelName}/scene.gltf`
+];
+const gunifyTextureUrls = (modelName, textureFileName) => [
+  `${GUNIFY_RAW_BASE}/models/${modelName}/textures/${textureFileName}`,
+  `${GUNIFY_JSDELIVR_BASE}/models/${modelName}/textures/${textureFileName}`
+];
+
 const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   mrtkGunAttack: {
     label: 'MRTK Gun',
@@ -401,51 +412,51 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
     scale: 0.13
   },
   uziSprayAttack: {
-    label: 'Uzi',
-    urls: [
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/Uzi/scene.gltf',
-      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/Uzi/scene.gltf'
-    ],
+    label: 'Gunify Uzi',
+    urls: gunifyModelUrls('Uzi'),
+    textureOverrideUrls: gunifyTextureUrls('Uzi', 'Material__90_baseColor.png'),
+    source: 'Gunify',
+    texturePolicy: 'gunifyPbr',
     scale: 0.2
   },
   ak47VolleyAttack: {
-    label: 'AK-47',
-    urls: [
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/AK47/scene.gltf',
-      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/AK47/scene.gltf'
-    ],
+    label: 'Gunify AK-47',
+    urls: gunifyModelUrls('AK47'),
+    textureOverrideUrls: gunifyTextureUrls('AK47', 'Material.001_baseColor.png'),
+    source: 'Gunify',
+    texturePolicy: 'gunifyPbr',
     scale: 0.24
   },
   krsvBurstAttack: {
-    label: 'KRSV',
-    urls: [
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/KRSV/scene.gltf',
-      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/KRSV/scene.gltf'
-    ],
+    label: 'Gunify KRSV',
+    urls: gunifyModelUrls('KRSV'),
+    textureOverrideUrls: gunifyTextureUrls('KRSV', 'Steel_baseColor.png'),
+    source: 'Gunify',
+    texturePolicy: 'gunifyPbr',
     scale: 0.24
   },
   smithSidearmAttack: {
-    label: 'Smith',
-    urls: [
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/Smith/scene.gltf',
-      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/Smith/scene.gltf'
-    ],
+    label: 'Gunify Smith',
+    urls: gunifyModelUrls('Smith'),
+    textureOverrideUrls: gunifyTextureUrls('Smith', 'Metal_baseColor.png'),
+    source: 'Gunify',
+    texturePolicy: 'gunifyPbr',
     scale: 0.13
   },
   mosinMarksmanAttack: {
-    label: 'Mosin',
-    urls: [
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/Mosin/scene.gltf',
-      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/Mosin/scene.gltf'
-    ],
+    label: 'Gunify Mosin',
+    urls: gunifyModelUrls('Mosin'),
+    textureOverrideUrls: gunifyTextureUrls('Mosin', 'Mosin_baseColor.png'),
+    source: 'Gunify',
+    texturePolicy: 'gunifyPbr',
     scale: 0.5125
   },
   sigsauerTacticalAttack: {
-    label: 'SigSauer Tactical',
-    urls: [
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/SigSauer/scene.gltf',
-      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/SigSauer/scene.gltf'
-    ],
+    label: 'Gunify SigSauer Tactical',
+    urls: gunifyModelUrls('SigSauer'),
+    textureOverrideUrls: gunifyTextureUrls('SigSauer', 'Material_diffuse.png'),
+    source: 'Gunify',
+    texturePolicy: 'gunifyPbr',
     scale: 0.13
   },
   grenadeBlastAttack: {
@@ -468,11 +479,11 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
     scale: 0.24
   },
   sniperShotAttack: {
-    label: 'Sniper Shot',
-    urls: [
-      'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/Mosin/scene.gltf',
-      'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/Mosin/scene.gltf'
-    ],
+    label: 'Gunify Mosin Sniper Shot',
+    urls: gunifyModelUrls('Mosin'),
+    textureOverrideUrls: gunifyTextureUrls('Mosin', 'Mosin_baseColor.png'),
+    source: 'Gunify',
+    texturePolicy: 'gunifyPbr',
     scale: 0.504
   },
   smgBurstAttack: {
@@ -622,6 +633,21 @@ function applyModelQualityToObject(root) {
       material.needsUpdate = true;
     });
   });
+}
+
+function applyGunifyWeaponTexturePolicy(material) {
+  if (!material) return;
+  ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap', 'specularMap'].forEach((textureKey) => {
+    const texture = material[textureKey];
+    if (!texture) return;
+    if (textureKey === 'map' || textureKey === 'emissiveMap') applySRGBColorSpace(texture);
+    texture.flipY = false;
+    texture.anisotropy = Math.max(texture.anisotropy || 1, activeModelTextureAnisotropy);
+    texture.needsUpdate = true;
+  });
+  if (typeof material.roughness === 'number') material.roughness = Math.min(0.9, Math.max(0.34, material.roughness));
+  if (typeof material.metalness === 'number') material.metalness = Math.min(1, Math.max(0.18, material.metalness));
+  material.needsUpdate = true;
 }
 
 const FIREARM_SHOTGUN_IDS = new Set([
@@ -1433,6 +1459,7 @@ async function loadCaptureWeaponModel(captureAnimationId) {
           if (material?.map) applySRGBColorSpace(material.map);
           if (!material?.map && textureOverride) material.map = textureOverride;
           if (material?.emissiveMap) applySRGBColorSpace(material.emissiveMap);
+          if (config?.texturePolicy === 'gunifyPbr') applyGunifyWeaponTexturePolicy(material);
           material.transparent = false;
           material.opacity = 1;
           material.needsUpdate = true;
