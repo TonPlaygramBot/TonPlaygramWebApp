@@ -26,8 +26,6 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     matchNativeUpperComponentHeight: true,
     useOriginalLayoutSurfaces: false,
     usePoolRoyaleFinish: true,
-    useReferenceShowoodPartVisibility: true,
-    referencePartsForExternalTrimStyle: ['railSight', 'sideWoodApron'],
     usePoolRoyaleFinishRoles: ['cloth'],
     cushionUsesClothFinish: false,
     hideGeneratedCushionsAndJaws: false,
@@ -82,7 +80,6 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     preserveSourceTextureRoles: ['railSight', 'sideWoodApron', 'baseFoot', 'trim', 'pocket'],
     preserveOriginalSurfaceRoles: [],
     tintOriginalTrimGold: false,
-    hideReferencePartsWithGeneratedChrome: ['railSight', 'sideWoodApron'],
     forceGeneratedChromePlates: false,
     hideSurfaceRoles: [],
     hideGeneratedRailMarkers: true

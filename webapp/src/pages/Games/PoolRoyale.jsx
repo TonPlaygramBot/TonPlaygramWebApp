@@ -12888,28 +12888,10 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
     const prepareMaterial = (material) => {
       if (!material) return material;
       const role = classifyPoolRoyaleExternalTableSurface(child, material);
-      const referencePart = (tableModel?.useReferenceShowoodMapping || tableModel?.useReferenceShowoodPartVisibility)
+      const referencePart = tableModel?.useReferenceShowoodMapping
         ? classifyPoolRoyaleShowoodReferencePart(child, material)
         : null;
-      const shownReferenceParts = Array.isArray(tableModel?.showReferenceParts)
-        ? tableModel.showReferenceParts
-        : [];
-      const hiddenReferenceParts = Array.isArray(tableModel?.hideReferenceParts)
-        ? tableModel.hideReferenceParts
-        : [];
-      const keepReferencePartVisible = Boolean(referencePart && shownReferenceParts.includes(referencePart));
-      if (referencePart && hiddenReferenceParts.includes(referencePart)) {
-        child.visible = false;
-        child.userData = {
-          ...(child.userData || {}),
-          poolRoyaleExternalReferencePartHidden: referencePart
-        };
-      }
-      if (
-        !keepReferencePartVisible &&
-        Array.isArray(tableModel?.hideSurfaceRoles) &&
-        tableModel.hideSurfaceRoles.includes(role)
-      ) {
+      if (Array.isArray(tableModel?.hideSurfaceRoles) && tableModel.hideSurfaceRoles.includes(role)) {
         child.visible = false;
       }
       if (
@@ -14396,46 +14378,21 @@ function mountPoolRoyaleExternalTableModel({
   };
   const externalTableModelForMount =
     resolvedTableOptions?.tableModel?.kind === 'gltf'
-      ? (() => {
-          const tableModel = resolvedTableOptions.tableModel;
-          const showReferenceParts = new Set(
-            Array.isArray(tableModel.showReferenceParts) ? tableModel.showReferenceParts : []
-          );
-          const hideReferenceParts = new Set(
-            Array.isArray(tableModel.hideReferenceParts) ? tableModel.hideReferenceParts : []
-          );
-          if (chromePlateStyle.preserveExternalTrim) {
-            (Array.isArray(tableModel.referencePartsForExternalTrimStyle)
-              ? tableModel.referencePartsForExternalTrimStyle
-              : []
-            ).forEach((part) => showReferenceParts.add(part));
-          }
-          if (chromePlateStyle.showGeneratedOnExternal) {
-            (Array.isArray(tableModel.hideReferencePartsWithGeneratedChrome)
-              ? tableModel.hideReferencePartsWithGeneratedChrome
-              : []
-            ).forEach((part) => hideReferenceParts.add(part));
-          }
-          return {
-            ...tableModel,
-            forceGeneratedChromePlates:
-              Boolean(tableModel.forceGeneratedChromePlates) || Boolean(chromePlateStyle.showGeneratedOnExternal),
-            showReferenceParts: Array.from(showReferenceParts),
-            hideReferenceParts: Array.from(hideReferenceParts),
-            preserveOriginalSurfaceRoles: tableModel.useReferenceShowoodMapping
-              ? (tableModel.preserveOriginalSurfaceRoles || [])
-              : tableModel.useOriginalLayoutSurfaces
-                ? Array.from(new Set([
-                    ...(tableModel.preserveOriginalSurfaceRoles || []),
-                    'trim'
-                  ]))
-                : chromePlateStyle.preserveExternalTrim
-                ? tableModel.preserveOriginalSurfaceRoles
-                : tableModel.preserveOriginalSurfaceRoles?.filter(
-                    (role) => role !== 'trim'
-                  )
-          };
-        })()
+      ? {
+          ...resolvedTableOptions.tableModel,
+          preserveOriginalSurfaceRoles: resolvedTableOptions.tableModel.useReferenceShowoodMapping
+            ? (resolvedTableOptions.tableModel.preserveOriginalSurfaceRoles || [])
+            : resolvedTableOptions.tableModel.useOriginalLayoutSurfaces
+              ? Array.from(new Set([
+                  ...(resolvedTableOptions.tableModel.preserveOriginalSurfaceRoles || []),
+                  'trim'
+                ]))
+              : chromePlateStyle.preserveExternalTrim
+              ? resolvedTableOptions.tableModel.preserveOriginalSurfaceRoles
+              : resolvedTableOptions.tableModel.preserveOriginalSurfaceRoles?.filter(
+                  (role) => role !== 'trim'
+                )
+        }
       : null;
   const externalTable =
     externalTableModelForMount?.kind === 'gltf'
