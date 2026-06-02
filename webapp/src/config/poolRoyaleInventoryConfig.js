@@ -1005,7 +1005,7 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'showood-rounded',
     name: 'Showood Rounded Chrome Plates',
     price: 420,
-    description: 'Rounded showroom-style chrome plates that can be used on both Royal Original and Showood tables.',
+    description: 'Rounded showroom-style chrome plates for the Showood GLB table.',
     thumbnail: swatchThumbnail(['#f6d56f', '#d6d8dc', '#2f2418'])
   },
   {

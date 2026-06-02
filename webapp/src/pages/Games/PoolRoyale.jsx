@@ -35,7 +35,6 @@ import { PoolRoyaleRules } from '../../../../src/rules/PoolRoyaleRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import {
-  POOL_ROYALE_TABLE_MODEL_OPTIONS,
   POOL_ROYALE_TABLE_MODEL_STORAGE_KEY,
   POOL_ROYALE_SHOWOOD_CONTROL_OPTIONS,
   POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE,
@@ -1349,7 +1348,7 @@ const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // keep middle jaw arcs the same siz
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.16; // add Showood-like extra depth so side jaws match the corner jaw type
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.01; // pull middle-pocket jaws a bit farther downward than corners
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.02; // reduce the outward shift so middle-pocket jaws sit a bit more inward toward table center
-const POCKET_JAW_INWARD_PULL = TABLE.THICK * 0.052; // pull procedural jaw centers just a bit more inward to match the Royal Original pocket placement
+const POCKET_JAW_INWARD_PULL = TABLE.THICK * 0.052; // pull procedural jaw centers just a bit more inward to match the Showood pocket placement
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.66; // shorten middle jaw side edges a bit more so all six jaws finish cleaner at the shoulders
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
@@ -3683,7 +3682,7 @@ const CHROME_PLATE_STYLE_OPTIONS = Object.freeze([
   {
     id: 'showood-rounded',
     label: 'Showood Rounded',
-    description: 'Rounded showroom pocket plates shared by Showood and Royal Original tables.',
+    description: 'Rounded showroom pocket plates for the Showood GLB table.',
     swatches: ['#f6d56f', '#d6d8dc'],
     showGeneratedOnExternal: false,
     preserveExternalTrim: true,
@@ -11234,11 +11233,11 @@ export function Table3D(
     return mat;
   };
   const brandPlateThickness = chromePlateThickness;
-  const brandPlateDepth = Math.min(endRailW * 0.66, TABLE.THICK * 0.96);
-  const brandPlateWidth = Math.min(PLAY_W * 0.32, Math.max(BALL_R * 9.6, PLAY_W * 0.23));
+  const brandPlateDepth = Math.min(endRailW * 0.72, TABLE.THICK * 1.04);
+  const brandPlateWidth = Math.min(PLAY_W * 0.36, Math.max(BALL_R * 10.8, PLAY_W * 0.255));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 0.92;
+  const brandPlateOutwardShift = endRailW * 1.04;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -11285,7 +11284,9 @@ export function Table3D(
         }
       : { shape: DEFAULT_RAIL_MARKER_SHAPE, colorId: DEFAULT_RAIL_MARKER_COLOR_ID };
   const railMarkerOutset = longRailW * 0.08;
-  const railMarkerInwardShift = Math.max(BALL_R * 0.35, longRailW * 0.08);
+  const railMarkerInwardShift = resolvedTableOptions?.tableModel?.useReferenceShowoodMapping
+    ? -Math.max(BALL_R * 0.18, longRailW * 0.045)
+    : Math.max(BALL_R * 0.35, longRailW * 0.08);
   const railMarkerGroup = new THREE.Group();
   const railMarkerThickness = RAIL_MARKER_THICKNESS;
   const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
@@ -13029,7 +13030,11 @@ async function loadPoolRoyaleExternalTableTemplate(tableModel, renderer = null) 
   const promise = (async () => {
     const loader = createConfiguredGLTFLoader(renderer);
     let lastError = null;
-    const urls = [tableModel.assetUrl, tableModel.fallbackAssetUrl].filter(Boolean);
+    const urls = Array.from(new Set([
+      ...(Array.isArray(tableModel.assetUrls) ? tableModel.assetUrls : []),
+      tableModel.assetUrl,
+      tableModel.fallbackAssetUrl
+    ].filter(Boolean)));
     for (const url of urls) {
       try {
         // eslint-disable-next-line no-await-in-loop
@@ -13514,12 +13519,14 @@ function subtlyExpandPoolRoyaleShowoodRailSightsAndAprons(model, tableModel) {
   const visualScale = Number(tableModel?.railSightApronVisualScale);
   const railSightHeightScale = Number(tableModel?.railSightVisualHeightScale);
   const sideApronHeightScale = Number(tableModel?.sideApronVisualHeightScale);
+  const railSightOutwardOffset = Number(tableModel?.railSightOutwardOffset);
   const sideApronOutwardOffset = Number(tableModel?.sideApronOutwardOffset);
   const hasScale = Number.isFinite(visualScale) && visualScale > 1 + MICRO_EPS;
   const hasRailSightHeight = Number.isFinite(railSightHeightScale) && railSightHeightScale > 1 + MICRO_EPS;
   const hasSideApronHeight = Number.isFinite(sideApronHeightScale) && sideApronHeightScale > 1 + MICRO_EPS;
+  const hasRailSightOffset = Number.isFinite(railSightOutwardOffset) && Math.abs(railSightOutwardOffset) > MICRO_EPS;
   const hasSideApronOffset = Number.isFinite(sideApronOutwardOffset) && Math.abs(sideApronOutwardOffset) > MICRO_EPS;
-  if (!hasScale && !hasRailSightHeight && !hasSideApronHeight && !hasSideApronOffset) return;
+  if (!hasScale && !hasRailSightHeight && !hasSideApronHeight && !hasRailSightOffset && !hasSideApronOffset) return;
   if (model.userData?.poolRoyaleShowoodRailSightApronExpanded) return;
 
   const fullBox = new THREE.Box3().setFromObject(model);
@@ -13545,16 +13552,21 @@ function subtlyExpandPoolRoyaleShowoodRailSightsAndAprons(model, tableModel) {
     const heightScale = isSideApron ? safeSideApronHeightScale : safeRailSightHeightScale;
     if (heightScale > 1) child.scale.y *= heightScale;
 
-    if (isSideApron && hasSideApronOffset) {
+    const outwardOffset = isRailSight && hasRailSightOffset
+      ? railSightOutwardOffset
+      : isSideApron && hasSideApronOffset
+        ? sideApronOutwardOffset
+        : 0;
+    if (Math.abs(outwardOffset) > MICRO_EPS) {
       const childBox = new THREE.Box3().setFromObject(child);
       if (!childBox.isEmpty()) {
         const childCenter = childBox.getCenter(new THREE.Vector3());
         const awayX = childCenter.x - fullCenter.x;
         const awayZ = childCenter.z - fullCenter.z;
         if (Math.abs(awayX) >= Math.abs(awayZ) && Math.abs(awayX) > MICRO_EPS) {
-          child.position.x += Math.sign(awayX) * sideApronOutwardOffset;
+          child.position.x += Math.sign(awayX) * outwardOffset;
         } else if (Math.abs(awayZ) > MICRO_EPS) {
-          child.position.z += Math.sign(awayZ) * sideApronOutwardOffset;
+          child.position.z += Math.sign(awayZ) * outwardOffset;
         }
       }
     }
@@ -13665,6 +13677,7 @@ function mountPoolRoyaleExternalTableModel({
     tableModelId: tableModel.id
   };
   table.add(externalRoot);
+  setGeneratedVisualsVisible?.(false);
   let disposed = false;
 
   loadPoolRoyaleExternalTableTemplate(tableModel, renderer)
@@ -13677,11 +13690,11 @@ function mountPoolRoyaleExternalTableModel({
       setGeneratedVisualsVisible?.(false);
     })
     .catch((error) => {
-      console.warn('Pool Royale external table failed to load; keeping native table', {
+      console.warn('Pool Royale Showood GLB table failed to load; generated placeholder table remains hidden', {
         tableModelId: tableModel.id,
         error
       });
-      if (!disposed) setGeneratedVisualsVisible?.(true);
+      if (!disposed) setGeneratedVisualsVisible?.(false);
     });
 
   return {
@@ -14334,7 +14347,7 @@ function mountPoolRoyaleExternalTableModel({
   table.userData.cushionLipClearance = clothPlaneWorld;
   table.userData.clothPlaneLocal = clothPlaneLocal;
   table.userData.finish = finishInfo;
-  table.userData.tableModelId = resolvedTableOptions?.tableModel?.id || 'royal-original';
+  table.userData.tableModelId = resolvedTableOptions?.tableModel?.id || 'showood-seven-foot';
 
   const generatedVisualObjects = [];
   const generatedStructuralObjects = [];
@@ -15088,34 +15101,6 @@ function PoolRoyaleGame({
   const activeTableSize = useMemo(
     () => resolveTableSize(tableSizeKey),
     [tableSizeKey]
-  );
-  const updateGameSearchParams = useCallback(
-    (updates = {}) => {
-      const params = new URLSearchParams(location.search);
-      Object.entries(updates).forEach(([key, value]) => {
-        if (value === null || typeof value === 'undefined' || value === '') params.delete(key);
-        else params.set(key, String(value));
-      });
-      const nextSearch = params.toString();
-      navigate(
-        {
-          pathname: location.pathname,
-          search: nextSearch ? `?${nextSearch}` : ''
-        },
-        { replace: true }
-      );
-    },
-    [location.pathname, location.search, navigate]
-  );
-  const handleTableModelSelection = useCallback(
-    (modelId) => {
-      const model = resolvePoolRoyaleTableModel(modelId);
-      try {
-        window.localStorage?.setItem(POOL_ROYALE_TABLE_MODEL_STORAGE_KEY, model.id);
-      } catch {}
-      updateGameSearchParams({ tableModel: model.id, showoodPalette: null });
-    },
-    [updateGameSearchParams]
   );
   const responsiveTableSize = useResponsiveTableSize(activeTableSize);
   const resolvedAccountId = useMemo(
@@ -36663,50 +36648,13 @@ const shotPowerRef = useRef(0);
                   </button>
                 </div>
               ) : null}
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Table Model
-                </h3>
-                <p className="mt-1 text-[0.7rem] text-white/60">
-                  Choose Royal Original or the full Showood GLB without leaving the match.
-                </p>
-                <div className="mt-2 grid grid-cols-1 gap-2">
-                  {POOL_ROYALE_TABLE_MODEL_OPTIONS.map((option) => {
-                    const active = option.id === activeTableModel.id;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => handleTableModelSelection(option.id)}
-                        aria-pressed={active}
-                        className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        <span className="flex items-center justify-between gap-2">
-                          <span className="text-[11px] font-semibold uppercase tracking-[0.24em]">
-                            {option.icon ? `${option.icon} ` : ''}{option.label}
-                          </span>
-                          <span className="text-[10px] font-semibold uppercase tracking-[0.18em] opacity-80">
-                            {option.tableSizeId}
-                          </span>
-                        </span>
-                        <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] opacity-70">
-                          {option.kind === 'gltf' ? 'GLB table' : 'Pool Royale table'}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Shared Table Finish
                 </h3>
                 <p className="mt-1 text-[0.68rem] leading-snug text-white/60">
-                  Changes the wood, rail, leg, and procedural base finish for both Royal Original and Showood GLB tables.
+                  Changes the wood, rail, leg, and procedural base finish for the Showood GLB table.
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {availableTableFinishes.map((option) => {
@@ -36743,7 +36691,7 @@ const shotPowerRef = useRef(0);
                   Shared Table Base
                 </h3>
                 <p className="mt-1 text-[0.68rem] leading-snug text-white/60">
-                  Shape options for the shared procedural base and legs used by both Royal Original and Showood GLB tables.
+                  Shape options for the procedural support base and legs under the Showood GLB table.
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {availableTableBases.map((option) => {
