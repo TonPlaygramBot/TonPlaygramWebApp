@@ -638,39 +638,35 @@ function ensureRegistered(socket, tpcAccountNumber) {
   return true;
 }
 
-function getAvailableTable(
-  gameType,
-  stake = 0,
-  maxPlayers = 4,
-  matchMeta = {},
-  forcedTableId = null
-) {
-  const normalizedMeta = normalizeMatchMeta(matchMeta);
+function parseStructuredLobbyTableId(tableId) {
+  if (!tableId) return null;
+  const [prefix, capStr] = String(tableId).split('-');
+  const parsedCap = Number(capStr);
+  if (
+    !GAME_ONLINE_POLICY[prefix] ||
+    !Number.isFinite(parsedCap) ||
+    parsedCap <= 0
+  ) {
+    return null;
+  }
+  return { gameType: normalizeOnlineGameType(prefix), maxPlayers: parsedCap };
+}
+
+function getForcedTableJoinError(existing, gameType, stake, maxPlayers, normalizedMeta) {
+  if (!existing) return '';
+  if (existing.gameType !== gameType) return 'game_type_mismatch';
+  if (Number(existing.stake || 0) !== Number(stake || 0)) return 'stake_mismatch';
+  if (existing.maxPlayers !== maxPlayers) return 'table_unavailable';
+  if (existing.players.length >= existing.maxPlayers) return 'table_full';
+  if (!isMatchMetaCompatible(existing.meta, normalizedMeta, gameType)) return 'table_unavailable';
+  return '';
+}
+
+function createLobbyTable(gameType, stake, maxPlayers, normalizedMeta, tableId = randomUUID()) {
   const key = `${gameType}-${maxPlayers}`;
   if (!lobbyTables[key]) lobbyTables[key] = [];
-  if (forcedTableId) {
-    const existing = tableMap.get(forcedTableId);
-    if (existing) {
-      const normalizedStake = Number(stake) || 0;
-      const canJoinForced =
-        existing.gameType === gameType &&
-        Number(existing.stake || 0) === normalizedStake &&
-        existing.players.length < existing.maxPlayers &&
-        isMatchMetaCompatible(existing.meta, normalizedMeta, gameType);
-      if (canJoinForced) return existing;
-    }
-    // Ignore stale/non-existent forced ids so quick matchmaking can still pair
-    // users by game type + stake instead of trapping them in a private table.
-  }
-  const open = lobbyTables[key].find(
-    (t) =>
-      t.stake === stake &&
-      t.players.length < t.maxPlayers &&
-      isMatchMetaCompatible(t.meta, normalizedMeta, gameType)
-  );
-  if (open) return open;
   const table = {
-    id: randomUUID(),
+    id: tableId,
     gameType,
     stake,
     maxPlayers,
@@ -685,6 +681,53 @@ function getAvailableTable(
     `Created new table: ${table.id} (${gameType}, cap ${maxPlayers}, stake: ${stake})`
   );
   return table;
+}
+
+function getAvailableTable(
+  gameType,
+  stake = 0,
+  maxPlayers = 4,
+  matchMeta = {},
+  forcedTableId = null
+) {
+  const normalizedMeta = normalizeMatchMeta(matchMeta);
+  const key = `${gameType}-${maxPlayers}`;
+  if (!lobbyTables[key]) lobbyTables[key] = [];
+  const structuredForcedTable = parseStructuredLobbyTableId(forcedTableId);
+  const shouldReserveForcedTable =
+    structuredForcedTable &&
+    structuredForcedTable.gameType === gameType &&
+    structuredForcedTable.maxPlayers === maxPlayers;
+
+  if (forcedTableId) {
+    const existing = tableMap.get(forcedTableId);
+    if (existing) {
+      const forcedJoinError = getForcedTableJoinError(
+        existing,
+        gameType,
+        stake,
+        maxPlayers,
+        normalizedMeta
+      );
+      if (!forcedJoinError) return existing;
+      if (shouldReserveForcedTable) return { joinError: forcedJoinError };
+    }
+
+    if (shouldReserveForcedTable) {
+      return createLobbyTable(gameType, stake, maxPlayers, normalizedMeta, forcedTableId);
+    }
+
+    // Ignore stale/non-existent forced ids so quick matchmaking can still pair
+    // users by game type + stake instead of trapping them in a private table.
+  }
+  const open = lobbyTables[key].find(
+    (t) =>
+      t.stake === stake &&
+      t.players.length < t.maxPlayers &&
+      isMatchMetaCompatible(t.meta, normalizedMeta, gameType)
+  );
+  if (open) return open;
+  return createLobbyTable(gameType, stake, maxPlayers, normalizedMeta);
 }
 
 function resolveSeatIdentityFromTableId(tableId, fallbackGameType, fallbackMaxPlayers) {
@@ -1252,6 +1295,7 @@ async function seatTableSocket(
     matchMeta,
     forcedTableId
   );
+  if (!table || table.joinError) return table;
   const tableId = table.id;
   cleanupSeats();
   // Ensure this user is not seated at any other table
@@ -2148,7 +2192,7 @@ io.on('connection', (socket) => {
           safeMeta
         );
       }
-      if (table && cb) {
+      if (table && !table.joinError && cb) {
         cb({
           success: true,
           tableId: table.id,
@@ -2158,7 +2202,7 @@ io.on('connection', (socket) => {
           meta: table.meta
         });
       } else if (cb) {
-        cb({ success: false, error: 'table_join_failed' });
+        cb({ success: false, error: table?.joinError || 'table_join_failed' });
       }
     }
   );
