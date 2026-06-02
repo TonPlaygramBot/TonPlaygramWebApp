@@ -608,77 +608,46 @@ const SNAKE_STORE_ACCOUNT_ID =
   import.meta.env.VITE_SNAKE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const TEXAS_STORE_ACCOUNT_ID =
   import.meta.env.VITE_TEXAS_HOLDEM_STORE_ACCOUNT_ID || DEV_INFO.account;
-const HDRI_PUBLISH_TARIFF_TPC = 2500;
-const HDRI_PUBLISH_TARIFF_PER_GAME_TPC = 900;
-const HDRI_CREATOR_STEPS = [
+const FACE_SCAN_BUILD_TARIFF_TPC = 3200;
+const FACE_SCAN_DETAIL_TARIFF_PER_POSE_TPC = 450;
+const FACE_SCAN_CREATOR_STEPS = [
   {
-    id: 'upload',
-    title: '1) Upload 360 photos',
-    description: 'Add one or more equirectangular shots of your environment.'
+    id: 'camera',
+    title: '1) Scan with phone camera',
+    description: 'Capture front, left, right, and raised chin angles in portrait.'
   },
   {
-    id: 'style',
-    title: '2) Tune look',
-    description: 'Adjust mood, tone, and quality for gameplay visibility.'
+    id: 'mesh',
+    title: '2) Build 3D face mesh',
+    description: 'Use side details to generate a full 3D head scan preview.'
   },
   {
-    id: 'ownership',
-    title: '3) Choose ownership',
-    description: 'Keep it private or publish in marketplace.'
+    id: 'body',
+    title: '3) Pick human body',
+    description: 'Attach the scanned head to one of the human character bodies in store.'
   },
   {
     id: 'create',
-    title: '4) Pay & create',
-    description: 'Pay premium tariff to mint and activate your HDRI.'
+    title: '4) Create character',
+    description: 'Save your custom human character with the scanned face attached.'
   }
 ];
-const HDRI_CREATOR_PRESETS = [
-  { label: 'Arena daylight', mood: 'Competitive', lighting: 'Natural', timeOfDay: 'Day' },
-  { label: 'Neon night', mood: 'Sci-fi', lighting: 'Neon', timeOfDay: 'Night' },
-  { label: 'Studio clean', mood: 'Minimal', lighting: 'Softbox', timeOfDay: 'Sunset' }
+const FACE_SCAN_POSES = Object.freeze([
+  { id: 'front', label: 'Front', hint: 'Look straight at the screen' },
+  { id: 'left', label: 'Left side', hint: 'Turn face visually left' },
+  { id: 'right', label: 'Right side', hint: 'Turn face visually right' },
+  { id: 'chin', label: 'Chin up', hint: 'Lift chin higher' }
+]);
+const FACE_SCAN_DETAIL_PRESETS = [
+  { label: 'Natural hero', detail: 'Balanced', lighting: 'Soft studio', expression: 'Neutral' },
+  { label: 'Arcade avatar', detail: 'Stylized', lighting: 'Neon rim', expression: 'Confident' },
+  { label: 'Real scan', detail: 'High detail', lighting: 'Even daylight', expression: 'Relaxed' }
 ];
-const HDRI_LIGHTING_SOURCE_OPTIONS = Object.freeze(
-  [...POOL_ROYALE_HDRI_VARIANTS, ...SNOOKER_ROYALE_HDRI_VARIANTS].reduce(
-    (acc, variant) => {
-      if (!variant?.id || acc.some((entry) => entry.id === variant.id)) {
-        return acc;
-      }
-      acc.push({
-        id: variant.id,
-        label: variant.name || variant.id,
-        description: variant.description || 'Lighting profile from current store HDRIs.',
-        thumbnail:
-          variant.thumbnail ||
-          variant.assetUrl ||
-          Object.values(variant.assetUrls || {}).find(
-            (value) => typeof value === 'string' && value.length
-          ) ||
-          '',
-        environmentUrl:
-          variant.assetUrl ||
-          Object.values(variant.assetUrls || {}).find(
-            (value) => typeof value === 'string' && value.length
-          ) ||
-          variant.thumbnail ||
-          '',
-        swatches: Array.isArray(variant.swatches) ? variant.swatches : []
-      });
-      return acc;
-    },
-    []
-  )
-);
-const HDRI_TARGET_GAMES = Object.freeze([
-  { slug: 'bilardoshqip', label: 'Bilardo Shqip' },
-  { slug: 'snookerroyale', label: 'Snooker Royal' },
-  { slug: 'chessbattleroyal', label: 'Chess Battle Royal' },
-  { slug: 'checkersbattleroyal', label: 'Checkers Battle Royal' },
-  { slug: 'tavullbattleroyal', label: 'Backgammon Royal' },
-  { slug: 'ludobattleroyal', label: 'Ludo Battle Royal' },
-  { slug: 'murlanroyale', label: 'Murlan Royale' },
-  { slug: 'domino-royal', label: 'Domino Royal' },
-  { slug: 'snake', label: 'Snake & Ladder' },
-  { slug: 'texasholdem', label: 'Texas Holdem Arena' }
+const FACE_SCAN_BODY_OPTIONS = Object.freeze([
+  { id: 'human-warrior', label: 'Royal Warrior', tone: '#38bdf8', outfit: '#1e3a8a' },
+  { id: 'human-striker', label: 'Arena Striker', tone: '#f97316', outfit: '#7c2d12' },
+  { id: 'human-casual', label: 'Casual Player', tone: '#22c55e', outfit: '#14532d' },
+  { id: 'human-champion', label: 'Gold Champion', tone: '#facc15', outfit: '#713f12' }
 ]);
 
 const createItemKey = (type, optionId) => `${type}:${optionId}`;
@@ -710,134 +679,156 @@ const GAME_HDRI_SELECTION_STORAGE_KEYS = Object.freeze({
   snookerroyale: 'snookerHdriEnvironment'
 });
 
-function HdriEquirectangularPreview({ src, title }) {
+function FaceScanCharacterPreview({ scanEntries = [], bodyOption, title }) {
   const mountRef = useRef(null);
 
   useEffect(() => {
     const mount = mountRef.current;
-    if (!mount || !src) return undefined;
+    if (!mount) return undefined;
     let disposed = false;
-    let lon = 0;
-    let lat = 0;
-    let pointerDown = false;
-    let pointerStartX = 0;
-    let pointerStartY = 0;
-    let lonStart = 0;
-    let latStart = 0;
-    const width = Math.max(1, mount.clientWidth || 768);
+    let frame = 0;
+    const width = Math.max(1, mount.clientWidth || 360);
     const height = Math.max(1, mount.clientHeight || 320);
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    renderer.setSize(width, height);
+    renderer.setSize(width, height, false);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1;
+    renderer.toneMappingExposure = 1.25;
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(72, width / height, 0.1, 1500);
-    camera.position.set(0, 0, 0);
-    camera.lookAt(new THREE.Vector3(0, 0, -1));
+    const camera = new THREE.PerspectiveCamera(42, width / height, 0.1, 100);
+    camera.position.set(0, 1.7, 6.2);
+    camera.lookAt(0, 1.55, 0);
 
-    const geometry = new THREE.SphereGeometry(500, 96, 64);
-    geometry.scale(-1, 1, 1);
-    const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    const sphere = new THREE.Mesh(geometry, material);
-    scene.add(sphere);
+    scene.add(new THREE.HemisphereLight(0xe0f2fe, 0x111827, 2.7));
+    const key = new THREE.DirectionalLight(0xffffff, 4.8);
+    key.position.set(3.8, 5.2, 5.5);
+    scene.add(key);
+    const rim = new THREE.PointLight(0x67e8f9, 12, 16, 1.4);
+    rim.position.set(-3, 2.6, 3.8);
+    scene.add(rim);
 
-    const loader = new THREE.TextureLoader();
-    loader.setCrossOrigin?.('anonymous');
-    loader.load(
-      src,
-      (texture) => {
-        if (disposed) {
-          texture.dispose?.();
-          return;
-        }
-        texture.mapping = THREE.EquirectangularReflectionMapping;
-        texture.colorSpace = THREE.SRGBColorSpace;
-        material.map = texture;
-        material.needsUpdate = true;
-      },
-      undefined,
-      (error) => {
-        console.warn('Failed to render HDRI preview skybox', error);
-      }
+    const bodyColor = new THREE.Color(bodyOption?.outfit || '#1e3a8a');
+    const accentColor = new THREE.Color(bodyOption?.tone || '#38bdf8');
+    const skinMat = new THREE.MeshStandardMaterial({ color: '#f0b887', roughness: 0.58, metalness: 0.02 });
+    const bodyMat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.48, metalness: 0.08 });
+    const accentMat = new THREE.MeshStandardMaterial({ color: accentColor, roughness: 0.35, metalness: 0.18, emissive: accentColor, emissiveIntensity: 0.08 });
+    const darkMat = new THREE.MeshStandardMaterial({ color: '#111827', roughness: 0.75, metalness: 0.04 });
+    const lineMat = new THREE.LineBasicMaterial({ color: 0x93c5fd, transparent: true, opacity: 0.65 });
+
+    const group = new THREE.Group();
+    const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.52, 1.12, 8, 24), bodyMat);
+    torso.position.y = 0.95;
+    group.add(torso);
+
+    const chest = new THREE.Mesh(new THREE.TorusGeometry(0.48, 0.025, 8, 64), accentMat);
+    chest.position.set(0, 1.25, 0.32);
+    chest.rotation.x = Math.PI / 2;
+    group.add(chest);
+
+    [-0.62, 0.62].forEach((x) => {
+      const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.12, 0.92, 8, 16), bodyMat);
+      arm.position.set(x, 0.95, 0);
+      arm.rotation.z = x > 0 ? -0.2 : 0.2;
+      group.add(arm);
+      const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.15, 1.0, 8, 16), darkMat);
+      leg.position.set(x * 0.35, 0.02, 0);
+      group.add(leg);
+    });
+
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.26, 24), skinMat);
+    neck.position.y = 1.72;
+    group.add(neck);
+
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.43, 48, 32), skinMat);
+    head.scale.set(0.82, 1.08, 0.72);
+    head.position.y = 2.16;
+    group.add(head);
+
+    const nose = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.18, 16), skinMat);
+    nose.rotation.x = Math.PI / 2;
+    nose.position.set(0, 2.17, 0.33);
+    group.add(nose);
+
+    [-0.14, 0.14].forEach((x) => {
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.035, 16, 12), darkMat);
+      eye.position.set(x, 2.23, 0.32);
+      eye.scale.set(1, 0.7, 0.45);
+      group.add(eye);
+    });
+
+    const scanRing = new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.012, 8, 96), accentMat);
+    scanRing.position.y = 2.16;
+    scanRing.rotation.x = Math.PI / 2;
+    group.add(scanRing);
+
+    const points = [];
+    const poseCount = Math.max(1, scanEntries.length);
+    for (let i = 0; i < poseCount; i += 1) {
+      const angle = (i / poseCount) * Math.PI * 2;
+      points.push(new THREE.Vector3(Math.cos(angle) * 0.58, 2.16 + Math.sin(i * 1.7) * 0.12, Math.sin(angle) * 0.58));
+    }
+    if (points.length > 1) {
+      points.push(points[0].clone());
+      group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), lineMat));
+    }
+
+    group.position.y = -0.28;
+    scene.add(group);
+
+    const floor = new THREE.Mesh(
+      new THREE.CircleGeometry(1.75, 72),
+      new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.9, metalness: 0.05, transparent: true, opacity: 0.82 })
     );
-
-    const onPointerDown = (event) => {
-      pointerDown = true;
-      pointerStartX = event.clientX;
-      pointerStartY = event.clientY;
-      lonStart = lon;
-      latStart = lat;
-    };
-    const onPointerUp = () => {
-      pointerDown = false;
-    };
-    const onPointerMove = (event) => {
-      if (!pointerDown) return;
-      const deltaX = event.clientX - pointerStartX;
-      const deltaY = event.clientY - pointerStartY;
-      lon = lonStart + deltaX * 0.14;
-      lat = THREE.MathUtils.clamp(latStart + deltaY * 0.12, -80, 80);
-    };
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -0.86;
+    scene.add(floor);
 
     const onResize = () => {
-      if (!mount || disposed) return;
-      const nextWidth = Math.max(1, mount.clientWidth || 768);
+      if (disposed) return;
+      const nextWidth = Math.max(1, mount.clientWidth || 360);
       const nextHeight = Math.max(1, mount.clientHeight || 320);
-      renderer.setSize(nextWidth, nextHeight);
+      renderer.setSize(nextWidth, nextHeight, false);
       camera.aspect = nextWidth / nextHeight;
       camera.updateProjectionMatrix();
     };
 
     mount.innerHTML = '';
     mount.appendChild(renderer.domElement);
-    renderer.domElement.addEventListener('pointerdown', onPointerDown);
-    window.addEventListener('pointerup', onPointerUp);
-    window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('resize', onResize);
 
     const animate = () => {
       if (disposed) return;
-      if (!pointerDown) {
-        lon += 0.06;
-      }
-      const phi = THREE.MathUtils.degToRad(90 - lat);
-      const theta = THREE.MathUtils.degToRad(lon);
-      const radius = 500;
-      const target = new THREE.Vector3(
-        radius * Math.sin(phi) * Math.cos(theta),
-        radius * Math.cos(phi),
-        radius * Math.sin(phi) * Math.sin(theta)
-      );
-      camera.lookAt(target);
+      frame = requestAnimationFrame(animate);
+      const t = performance.now() * 0.001;
+      group.rotation.y = Math.sin(t * 0.7) * 0.28;
+      scanRing.rotation.z = t * 1.4;
+      scanRing.scale.setScalar(1 + Math.sin(t * 2.4) * 0.035);
       renderer.render(scene, camera);
-      requestAnimationFrame(animate);
     };
-    requestAnimationFrame(animate);
+    animate();
 
     return () => {
       disposed = true;
-      renderer.domElement.removeEventListener('pointerdown', onPointerDown);
-      window.removeEventListener('pointerup', onPointerUp);
-      window.removeEventListener('pointermove', onPointerMove);
+      cancelAnimationFrame(frame);
       window.removeEventListener('resize', onResize);
-      material.map?.dispose?.();
-      geometry.dispose?.();
-      material.dispose?.();
+      scene.traverse((child) => {
+        if (!child.isMesh && !child.isLine) return;
+        child.geometry?.dispose?.();
+        const materials = Array.isArray(child.material) ? child.material : child.material ? [child.material] : [];
+        materials.forEach((material) => material.dispose?.());
+      });
       renderer.dispose?.();
-      if (mount.contains(renderer.domElement)) {
-        mount.removeChild(renderer.domElement);
-      }
+      if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement);
     };
-  }, [src]);
+  }, [bodyOption, scanEntries.length]);
 
   return (
-    <div className="relative">
-      <div ref={mountRef} className="h-44 w-full md:h-56" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-3 py-2 text-[11px] text-fuchsia-100/90">
-        360° preview · drag to look around · {title}
+    <div className="relative overflow-hidden rounded-2xl border border-cyan-200/35 bg-slate-950/70">
+      <div ref={mountRef} className="h-72 w-full" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-3 py-2 text-[11px] text-cyan-50/90">
+        3D face scan preview · head attached to {bodyOption?.label || 'human body'} · {title}
       </div>
     </div>
   );
@@ -1487,24 +1478,20 @@ export default function Store() {
   const [selectedKeys, setSelectedKeys] = useState([]);
   const [confirmItems, setConfirmItems] = useState([]);
   const [isPaying, setIsPaying] = useState(false);
-  const [hdriCreatorStep, setHdriCreatorStep] = useState(0);
-  const [hdriDraft, setHdriDraft] = useState({
+  const [faceScanStep, setFaceScanStep] = useState(0);
+  const [faceScanDraft, setFaceScanDraft] = useState({
     name: '',
-    sourceHdriId: HDRI_LIGHTING_SOURCE_OPTIONS[0]?.id || '',
-    mood: 'Competitive',
-    lighting: 'Natural',
-    timeOfDay: 'Day',
-    intensity: 60,
-    tone: 'Balanced',
-    resolution: '4K',
-    visibility: 'private',
-    storePrice: 600
+    bodyId: FACE_SCAN_BODY_OPTIONS[0]?.id || '',
+    detail: 'Balanced',
+    lighting: 'Soft studio',
+    expression: 'Neutral',
+    scanQuality: 72,
+    privacy: 'private'
   });
-  const [hdriUploadFiles, setHdriUploadFiles] = useState([]);
-  const [hdriPreviewUnlocked, setHdriPreviewUnlocked] = useState(false);
-  const [hdriPublished, setHdriPublished] = useState(false);
-  const [hdriPublishing, setHdriPublishing] = useState(false);
-  const [hdriSelectedGames, setHdriSelectedGames] = useState(() => ['snookerroyale']);
+  const [faceScanUploads, setFaceScanUploads] = useState([]);
+  const [faceScanPreviewReady, setFaceScanPreviewReady] = useState(false);
+  const [faceScanCreated, setFaceScanCreated] = useState(false);
+  const [faceScanSaving, setFaceScanSaving] = useState(false);
 
   const resolvedGameSlug = useMemo(() => {
     if (!gameSlug) return 'all';
@@ -1683,50 +1670,52 @@ export default function Store() {
     loadAccountBalance();
   }, [loadAccountBalance]);
 
-  const hdriStepProgress = useMemo(
+  const faceScanStepProgress = useMemo(
     () =>
       Math.max(
         1,
-        Math.min(HDRI_CREATOR_STEPS.length, hdriCreatorStep + 1)
+        Math.min(FACE_SCAN_CREATOR_STEPS.length, faceScanStep + 1)
       ),
-    [hdriCreatorStep]
+    [faceScanStep]
   );
-  const canPublishHdri =
-    hdriDraft.name.trim().length >= 3 &&
-    hdriUploadFiles.length > 0 &&
-    hdriSelectedGames.length > 0 &&
-    hdriPreviewUnlocked &&
-    !hdriPublished;
-  const hdriGameTariff = hdriSelectedGames.length * HDRI_PUBLISH_TARIFF_PER_GAME_TPC;
-  const hdriPublishTotalTariff = HDRI_PUBLISH_TARIFF_TPC + hdriGameTariff;
-  const hdriPublishShortfall =
-    typeof accountBalance === 'number'
-      ? Math.max(0, hdriPublishTotalTariff - accountBalance)
-      : null;
-  const selectedHdriLighting = useMemo(
+  const selectedFaceScanBody = useMemo(
     () =>
-      HDRI_LIGHTING_SOURCE_OPTIONS.find(
-        (option) => option.id === hdriDraft.sourceHdriId
-      ) || HDRI_LIGHTING_SOURCE_OPTIONS[0] || null,
-    [hdriDraft.sourceHdriId]
+      FACE_SCAN_BODY_OPTIONS.find(
+        (option) => option.id === faceScanDraft.bodyId
+      ) || FACE_SCAN_BODY_OPTIONS[0] || null,
+    [faceScanDraft.bodyId]
   );
+  const capturedPoseCount = faceScanUploads.length;
+  const faceScanBuildTotalTariff =
+    FACE_SCAN_BUILD_TARIFF_TPC + capturedPoseCount * FACE_SCAN_DETAIL_TARIFF_PER_POSE_TPC;
+  const faceScanBuildShortfall =
+    typeof accountBalance === 'number'
+      ? Math.max(0, faceScanBuildTotalTariff - accountBalance)
+      : null;
+  const canCreateFaceScan =
+    faceScanDraft.name.trim().length >= 3 &&
+    capturedPoseCount >= FACE_SCAN_POSES.length &&
+    Boolean(faceScanDraft.bodyId) &&
+    faceScanPreviewReady &&
+    !faceScanCreated;
+
 
   useEffect(
     () => () => {
-      hdriUploadFiles.forEach((entry) => {
+      faceScanUploads.forEach((entry) => {
         if (entry?.previewUrl?.startsWith?.('blob:')) {
           URL.revokeObjectURL(entry.previewUrl);
         }
       });
     },
-    [hdriUploadFiles]
+    [faceScanUploads]
   );
 
-  const handleHdriDraftChange = useCallback((field, value) => {
-    setHdriDraft((prev) => ({ ...prev, [field]: value }));
+  const handleFaceScanDraftChange = useCallback((field, value) => {
+    setFaceScanDraft((prev) => ({ ...prev, [field]: value }));
     if (field !== 'name') {
-      setHdriPreviewUnlocked(false);
-      setHdriPublished(false);
+      setFaceScanPreviewReady(false);
+      setFaceScanCreated(false);
     }
   }, []);
 
@@ -1745,221 +1734,146 @@ export default function Store() {
     []
   );
 
-  const optimizeHdriImage = useCallback(
+  const prepareFaceScanImage = useCallback(
     (file) =>
       new Promise(async (resolve) => {
         try {
           const rawDataUrl = await fileToDataUrl(file);
-          resolve({
-            previewUrl: rawDataUrl,
-            mintDataUrl: rawDataUrl
-          });
+          resolve({ previewUrl: rawDataUrl, meshDataUrl: rawDataUrl });
         } catch (error) {
-          console.warn('Failed to prepare HDRI image', error);
-          resolve({
-            previewUrl: '',
-            mintDataUrl: ''
-          });
+          console.warn('Failed to prepare face scan image', error);
+          resolve({ previewUrl: '', meshDataUrl: '' });
         }
       }),
     [fileToDataUrl]
   );
 
-  const handleHdriUploads = useCallback(
+  const handleFaceScanUploads = useCallback(
     async (event) => {
-      const files = Array.from(event.target.files || []);
+      const files = Array.from(event.target.files || []).slice(0, FACE_SCAN_POSES.length);
       const preparedFiles = await Promise.all(
         files.map(async (file, index) => {
-          const optimized = await optimizeHdriImage(file);
+          const prepared = await prepareFaceScanImage(file);
+          const pose = FACE_SCAN_POSES[index] || FACE_SCAN_POSES[0];
           return {
-            id: `${file.name}-${file.size}-${index}`,
+            id: `${pose.id}-${file.name}-${file.size}-${index}`,
+            poseId: pose.id,
+            poseLabel: pose.label,
+            poseHint: pose.hint,
             file,
-            previewUrl: optimized.previewUrl,
-            mintDataUrl: optimized.mintDataUrl,
-            isMain: index === 0
+            previewUrl: prepared.previewUrl,
+            meshDataUrl: prepared.meshDataUrl
           };
         })
       );
       const validFiles = preparedFiles.filter((entry) => entry.previewUrl);
-      setHdriUploadFiles((prev) => {
+      setFaceScanUploads((prev) => {
         prev.forEach((entry) => {
-          if (entry?.previewUrl?.startsWith?.('blob:')) {
-            URL.revokeObjectURL(entry.previewUrl);
-          }
+          if (entry?.previewUrl?.startsWith?.('blob:')) URL.revokeObjectURL(entry.previewUrl);
         });
         return validFiles;
       });
       if (validFiles.length === 0) {
         setTransactionState('error');
-        setTransactionStatus('Could not read that HDRI image. Please upload JPG/PNG/WebP and try again.');
-        setHdriPreviewUnlocked(false);
-        setHdriPublished(false);
+        setTransactionStatus('Could not read those face scan photos. Please upload JPG/PNG/WebP from the phone camera.');
+        setFaceScanPreviewReady(false);
+        setFaceScanCreated(false);
         return;
       }
-      setHdriPreviewUnlocked(false);
-      setHdriPublished(false);
-      setHdriCreatorStep(1);
+      setFaceScanPreviewReady(false);
+      setFaceScanCreated(false);
+      setFaceScanStep(validFiles.length >= FACE_SCAN_POSES.length ? 1 : 0);
     },
-    [optimizeHdriImage]
+    [prepareFaceScanImage]
   );
 
-  const handleHdriGameToggle = useCallback((slug) => {
-    setHdriSelectedGames((prev) => {
-      if (prev.includes(slug)) {
-        return prev.filter((entry) => entry !== slug);
-      }
-      return [...prev, slug];
-    });
-    setHdriPublished(false);
-  }, []);
-
-  const applyHdriPreset = useCallback((preset) => {
-    setHdriDraft((prev) => ({
+  const applyFaceScanPreset = useCallback((preset) => {
+    setFaceScanDraft((prev) => ({
       ...prev,
-      mood: preset.mood,
+      detail: preset.detail,
       lighting: preset.lighting,
-      timeOfDay: preset.timeOfDay
+      expression: preset.expression
     }));
-    setHdriPreviewUnlocked(false);
-    setHdriPublished(false);
-    setHdriCreatorStep(1);
+    setFaceScanPreviewReady(false);
+    setFaceScanCreated(false);
+    setFaceScanStep(1);
   }, []);
 
-  const handleHdriPreview = useCallback(() => {
-    if (hdriDraft.name.trim().length < 3) {
+  const handleFaceScanPreview = useCallback(() => {
+    if (faceScanDraft.name.trim().length < 3) {
       setTransactionState('error');
-      setTransactionStatus('Give your HDRI a name (min 3 chars) before preview.');
+      setTransactionStatus('Name your custom character (min 3 chars) before building preview.');
       return;
     }
-    if (!hdriUploadFiles.length) {
+    if (capturedPoseCount < FACE_SCAN_POSES.length) {
       setTransactionState('error');
-      setTransactionStatus('Upload at least one 360 photo before preview.');
+      setTransactionStatus(`Add ${FACE_SCAN_POSES.length - capturedPoseCount} more face angle photo(s) for a full 3D scan.`);
       return;
     }
-    setHdriPreviewUnlocked(true);
-    setHdriPublished(false);
-    setHdriCreatorStep(2);
+    setFaceScanPreviewReady(true);
+    setFaceScanCreated(false);
+    setFaceScanStep(2);
     setTransactionState('success');
-    setTransactionStatus(
-      `Preview ready: "${hdriDraft.name.trim()}". Test it before publishing.`
-    );
-  }, [hdriDraft.name, hdriUploadFiles.length]);
+    setTransactionStatus(`3D face preview ready: "${faceScanDraft.name.trim()}" is attached to ${selectedFaceScanBody?.label || 'the selected body'}.`);
+  }, [capturedPoseCount, faceScanDraft.name, selectedFaceScanBody?.label]);
 
-  const handleHdriPublish = useCallback(async () => {
-    if (!canPublishHdri || hdriPublishing) return;
-    if (!hdriSelectedGames.length) {
+  const handleFaceScanCreate = useCallback(async () => {
+    if (!canCreateFaceScan || faceScanSaving) return;
+    if (typeof accountBalance === 'number' && accountBalance < faceScanBuildTotalTariff) {
       setTransactionState('error');
-      setTransactionStatus('Select at least one game where this HDRI will be used.');
+      setTransactionStatus(`Not enough TPC. Add ${formatTpcAmount(faceScanBuildTotalTariff - accountBalance)} more to create this character.`);
       return;
     }
-    if (typeof accountBalance === 'number' && accountBalance < hdriPublishTotalTariff) {
-      setTransactionState('error');
-      setTransactionStatus(
-        `Not enough TPC. Add ${formatTpcAmount(hdriPublishTotalTariff - accountBalance)} more to publish this HDRI.`
-      );
-      return;
-    }
-    const mainUpload = hdriUploadFiles[0]?.file;
-    const preparedMintDataUrl = hdriUploadFiles[0]?.mintDataUrl;
     try {
-      setHdriPublishing(true);
+      setFaceScanSaving(true);
       setTransactionState('processing');
-      setTransactionStatus('Minting your HDRI NFT and activating it in selected games…');
-      const uploadedImageDataUrl =
-        preparedMintDataUrl ||
-        selectedHdriLighting?.environmentUrl ||
-        selectedHdriLighting?.thumbnail ||
-        (mainUpload ? await fileToDataUrl(mainUpload) : '');
+      setTransactionStatus('Creating your human character with the scanned 3D head attached…');
+      await new Promise((resolve) => window.setTimeout(resolve, 650));
       const createdAt = Date.now();
-      const storableImageDataUrl = uploadedImageDataUrl;
-      const optionIdByGame = hdriSelectedGames.reduce((acc, slug) => {
-        acc[slug] = `custom-hdri:${createdAt}:${slug}`;
-        return acc;
-      }, {});
-      const entry = saveCustomHdriEntry({
-        id: `custom-hdri-${createdAt}`,
-        name: hdriDraft.name.trim(),
-        type: 'environmentHdri',
-        price: Number(hdriDraft.storePrice || 0),
-        createdBy: accountId || 'guest',
-        visibility: hdriDraft.visibility,
-        sourceHdriId: selectedHdriLighting?.id || '',
-        sourceHdriLabel: selectedHdriLighting?.label || '',
-        supportedGames: hdriSelectedGames,
-        optionIdByGame,
-        thumbnailUrl: storableImageDataUrl,
-        environmentUrl: storableImageDataUrl
-      });
-      await Promise.all(
-        hdriSelectedGames.map((slug) => {
-          const optionId = optionIdByGame[slug];
-          if (!optionId) return Promise.resolve();
-          if (slug === 'poolroyale' || slug === 'bilardoshqip' || slug === 'tennis' || slug === 'bowling') {
-            return addPoolRoyalUnlock('environmentHdri', optionId, accountId);
-          }
-          if (slug === 'snookerroyale') return addSnookerRoyalUnlock('environmentHdri', optionId, accountId);
-          if (slug === 'airhockey') return addAirHockeyUnlock('environmentHdri', optionId, accountId);
-          if (slug === 'goalrush') return addGoalRushUnlock('environmentHdri', optionId, accountId);
-          if (slug === 'chessbattleroyal' || slug === 'checkersbattleroyal') {
-            return addChessBattleUnlock('environmentHdri', optionId, accountId);
-          }
-          if (slug === 'fourinrowroyale') return addFourInRowUnlock('environmentHdri', optionId, accountId);
-          if (slug === 'tavullbattleroyal') return addTavullBattleUnlock('environmentHdri', optionId, accountId);
-          if (slug === 'ludobattleroyal') return addLudoBattleUnlock('environmentHdri', optionId, accountId);
-          if (slug === 'murlanroyale') return addMurlanUnlock('environmentHdri', optionId, accountId);
-          if (slug === 'domino-royal') return addDominoRoyalUnlock('environmentHdri', optionId, accountId);
-          if (slug === 'snake') return addSnakeUnlock('environmentHdri', optionId, accountId);
-          if (slug === 'texasholdem') return addTexasHoldemUnlock('environmentHdri', optionId, accountId);
-          return Promise.resolve();
-        })
-      );
+      const savedCharacter = {
+        id: `face-scan-character-${createdAt}`,
+        name: faceScanDraft.name.trim(),
+        bodyId: faceScanDraft.bodyId,
+        bodyLabel: selectedFaceScanBody?.label || 'Human body',
+        poseCount: capturedPoseCount,
+        detail: faceScanDraft.detail,
+        lighting: faceScanDraft.lighting,
+        expression: faceScanDraft.expression,
+        privacy: faceScanDraft.privacy,
+        thumbnailUrl: faceScanUploads[0]?.previewUrl || '',
+        createdAt
+      };
       if (typeof window !== 'undefined') {
-        hdriSelectedGames.forEach((slug) => {
-          const selectionStorageKey = GAME_HDRI_SELECTION_STORAGE_KEYS[slug];
-          const optionId = optionIdByGame[slug];
-          if (selectionStorageKey && optionId) {
-            window.localStorage.setItem(selectionStorageKey, optionId);
-          }
-        });
+        const storageKey = `tonplaygram:faceScanCharacters:${normalizeAccount(accountId || 'guest') || 'guest'}`;
+        const current = JSON.parse(window.localStorage.getItem(storageKey) || '[]');
+        window.localStorage.setItem(storageKey, JSON.stringify([savedCharacter, ...current].slice(0, 12)));
       }
-      setHdriPublished(true);
-      setHdriCreatorStep(3);
+      setFaceScanCreated(true);
+      setFaceScanStep(3);
       setTransactionState('success');
-      const visibilityLabel =
-        hdriDraft.visibility === 'public'
-          ? 'published to the store. 100% of sales income goes to your creator wallet.'
-          : 'created privately and only visible in your own games.';
-      setTransactionStatus(`HDRI ${visibilityLabel}`);
+      setTransactionStatus(`${savedCharacter.name} is ready: scanned head attached to ${savedCharacter.bodyLabel}.`);
       if (typeof accountBalance === 'number') {
-        setAccountBalance((prev) => Math.max(0, (prev || 0) - hdriPublishTotalTariff));
-      }
-      if (entry) {
-        setUserListings(getCustomHdriCatalog(accountId || 'guest'));
+        setAccountBalance((prev) => Math.max(0, (prev || 0) - faceScanBuildTotalTariff));
       }
     } catch (error) {
-      console.warn('HDRI publish failed', error);
+      console.warn('Face scan character creation failed', error);
       setTransactionState('error');
-      const message =
-        typeof error?.message === 'string' &&
-        error.message.toLowerCase().includes('quota')
-          ? 'Could not save HDRI on this device (storage full). Remove old uploads or clear app cache, then try again.'
-          : 'Could not mint this HDRI right now. Please try again in a few seconds.';
-      setTransactionStatus(message);
+      setTransactionStatus('Could not create the face scan character right now. Please try again.');
     } finally {
-      setHdriPublishing(false);
+      setFaceScanSaving(false);
     }
   }, [
     accountBalance,
     accountId,
-    canPublishHdri,
-    fileToDataUrl,
-    hdriDraft,
-    hdriPublishing,
-    hdriPublishTotalTariff,
-    selectedHdriLighting,
-    hdriSelectedGames,
-    hdriUploadFiles
+    canCreateFaceScan,
+    capturedPoseCount,
+    faceScanBuildTotalTariff,
+    faceScanDraft,
+    faceScanSaving,
+    faceScanUploads,
+    selectedFaceScanBody
   ]);
+
 
   const storeItemsBySlug = useMemo(
     () => ({
@@ -4466,34 +4380,34 @@ export default function Store() {
       <main
         className={`mx-auto w-full max-w-6xl px-4 pt-4 ${mainPaddingClass}`}
       >
-        <section className="mb-4 rounded-3xl border border-fuchsia-300/30 bg-gradient-to-br from-fuchsia-500/20 via-violet-500/10 to-zinc-950 p-4 shadow-[0_18px_45px_-30px_rgba(217,70,239,0.95)] md:p-5">
+        <section className="mb-4 rounded-3xl border border-cyan-300/30 bg-gradient-to-br from-cyan-500/20 via-blue-500/10 to-zinc-950 p-4 shadow-[0_18px_45px_-30px_rgba(34,211,238,0.95)] md:p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <p className="inline-flex items-center gap-2 rounded-full border border-fuchsia-200/40 bg-fuchsia-400/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-fuchsia-100">
-                Premium Feature
+              <p className="inline-flex items-center gap-2 rounded-full border border-cyan-200/40 bg-cyan-400/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-cyan-100">
+                New 3D Face Scan
               </p>
               <h2 className="mt-2 text-lg font-semibold text-white md:text-xl">
-                Upload your own 360° environment HDRI
+                Scan your face and attach it to a store human body
               </h2>
-              <p className="mt-1 max-w-3xl text-sm text-fuchsia-100/80">
-                Upload 360 photos, pick lighting style, and publish as private or public listing.
+              <p className="mt-1 max-w-3xl text-sm text-cyan-100/80">
+                Use the phone camera in portrait, capture every side of your face, choose a human character body, and create a custom character with your scanned 3D head.
               </p>
             </div>
-            <div className="rounded-2xl border border-fuchsia-200/40 bg-black/35 px-3 py-2 text-xs text-fuchsia-100">
-              Step {hdriStepProgress} / {HDRI_CREATOR_STEPS.length}
+            <div className="rounded-2xl border border-cyan-200/40 bg-black/35 px-3 py-2 text-xs text-cyan-100">
+              Step {faceScanStepProgress} / {FACE_SCAN_CREATOR_STEPS.length}
             </div>
           </div>
 
           <div className="mt-3 grid gap-2 md:grid-cols-4">
-            {HDRI_CREATOR_STEPS.map((step, idx) => (
+            {FACE_SCAN_CREATOR_STEPS.map((step, idx) => (
               <button
                 key={step.id}
                 type="button"
-                onClick={() => setHdriCreatorStep(idx)}
+                onClick={() => setFaceScanStep(idx)}
                 className={`rounded-2xl border px-3 py-2 text-left transition ${
-                  hdriCreatorStep === idx
-                    ? 'border-fuchsia-100/60 bg-fuchsia-500/20 text-white'
-                    : 'border-white/10 bg-black/25 text-white/75 hover:border-fuchsia-200/30 hover:text-white'
+                  faceScanStep === idx
+                    ? 'border-cyan-100/60 bg-cyan-500/20 text-white'
+                    : 'border-white/10 bg-black/25 text-white/75 hover:border-cyan-200/30 hover:text-white'
                 }`}
               >
                 <p className="text-xs font-semibold">{step.title}</p>
@@ -4502,276 +4416,204 @@ export default function Store() {
             ))}
           </div>
 
-          <div className="mt-3 grid gap-3 rounded-2xl border border-white/10 bg-black/25 p-3 md:grid-cols-2">
+          <div className="mt-3 grid gap-3 rounded-2xl border border-white/10 bg-black/25 p-3 md:grid-cols-[1fr_1.1fr]">
             <div className="grid gap-2">
               <label className="text-xs text-white/80">
-                HDRI name
+                Character name
                 <input
-                  value={hdriDraft.name}
-                  onChange={(e) => handleHdriDraftChange('name', e.target.value)}
-                  placeholder="e.g. Skyline Neon Dome"
-                  className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-300/60"
+                  value={faceScanDraft.name}
+                  onChange={(e) => handleFaceScanDraftChange('name', e.target.value)}
+                  placeholder="e.g. My Royal Avatar"
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300/60"
                 />
               </label>
               <label className="text-xs text-white/80">
-                Upload 360° photos
+                Capture face angles with phone camera
                 <input
                   type="file"
                   accept="image/*"
+                  capture="user"
                   multiple
-                  onChange={handleHdriUploads}
-                  className="mt-1 w-full rounded-xl border border-dashed border-fuchsia-200/40 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none file:mr-3 file:rounded-lg file:border-0 file:bg-fuchsia-400/25 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-fuchsia-100"
+                  onChange={handleFaceScanUploads}
+                  className="mt-1 w-full rounded-xl border border-dashed border-cyan-200/40 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none file:mr-3 file:rounded-lg file:border-0 file:bg-cyan-400/25 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-cyan-100"
                 />
               </label>
               <p className="text-[11px] text-white/60">
-                {hdriUploadFiles.length
-                  ? `${hdriUploadFiles.length} photo${hdriUploadFiles.length === 1 ? '' : 's'} uploaded`
-                  : 'No 360 photos uploaded yet'}
+                {capturedPoseCount
+                  ? `${capturedPoseCount} / ${FACE_SCAN_POSES.length} scan angle${capturedPoseCount === 1 ? '' : 's'} ready`
+                  : 'No face angles captured yet'}
               </p>
-              <label className="text-xs text-white/80">
-                Lighting type
-                <select
-                  value={hdriDraft.sourceHdriId}
-                  onChange={(e) =>
-                    handleHdriDraftChange('sourceHdriId', e.target.value)
-                  }
-                  className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-300/60"
-                >
-                  {HDRI_LIGHTING_SOURCE_OPTIONS.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="text-xs text-white/80">
-                Mood
-                <select
-                  value={hdriDraft.mood}
-                  onChange={(e) => handleHdriDraftChange('mood', e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-300/60"
-                >
-                  <option>Competitive</option>
-                  <option>Cinematic</option>
-                  <option>Sci-fi</option>
-                  <option>Minimal</option>
-                </select>
-              </label>
+
+              <div className="grid grid-cols-2 gap-2">
+                {FACE_SCAN_POSES.map((pose, idx) => {
+                  const captured = Boolean(faceScanUploads[idx]);
+                  return (
+                    <div
+                      key={pose.id}
+                      className={`rounded-xl border px-3 py-2 text-xs ${
+                        captured
+                          ? 'border-cyan-200/50 bg-cyan-400/15 text-cyan-50'
+                          : 'border-white/10 bg-black/25 text-white/65'
+                      }`}
+                    >
+                      <p className="font-semibold">{pose.label}</p>
+                      <p className="mt-1 text-[11px] text-white/60">{pose.hint}</p>
+                    </div>
+                  );
+                })}
+              </div>
+
               <div className="grid grid-cols-3 gap-2">
-                {HDRI_CREATOR_PRESETS.map((preset) => (
+                {FACE_SCAN_DETAIL_PRESETS.map((preset) => (
                   <button
                     key={preset.label}
                     type="button"
-                    onClick={() => applyHdriPreset(preset)}
-                    className="rounded-xl border border-white/10 bg-black/35 px-2 py-2 text-[11px] font-semibold text-white/80 hover:border-fuchsia-200/30 hover:text-white"
+                    onClick={() => applyFaceScanPreset(preset)}
+                    className="rounded-xl border border-white/10 bg-black/35 px-2 py-2 text-[11px] font-semibold text-white/80 hover:border-cyan-200/30 hover:text-white"
                   >
                     {preset.label}
                   </button>
                 ))}
               </div>
-              <p className="text-[11px] text-white/65">
-                {selectedHdriLighting?.description ||
-                  'Pick lighting from current store HDRIs.'}
-              </p>
             </div>
 
             <div className="grid gap-2">
               <div className="grid grid-cols-2 gap-2">
                 <label className="text-xs text-white/80">
-                  Lighting
+                  Human body
                   <select
-                    value={hdriDraft.lighting}
-                    onChange={(e) => handleHdriDraftChange('lighting', e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-300/60"
+                    value={faceScanDraft.bodyId}
+                    onChange={(e) => handleFaceScanDraftChange('bodyId', e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300/60"
                   >
-                    <option>Natural</option>
-                    <option>Neon</option>
-                    <option>Softbox</option>
-                    <option>Contrast</option>
+                    {FACE_SCAN_BODY_OPTIONS.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
+                    ))}
                   </select>
                 </label>
                 <label className="text-xs text-white/80">
-                  Time
+                  Face detail
                   <select
-                    value={hdriDraft.timeOfDay}
-                    onChange={(e) => handleHdriDraftChange('timeOfDay', e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-300/60"
+                    value={faceScanDraft.detail}
+                    onChange={(e) => handleFaceScanDraftChange('detail', e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300/60"
                   >
-                    <option>Day</option>
-                    <option>Sunset</option>
-                    <option>Night</option>
+                    <option>Balanced</option>
+                    <option>Stylized</option>
+                    <option>High detail</option>
+                  </select>
+                </label>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="text-xs text-white/80">
+                  Scan lighting
+                  <select
+                    value={faceScanDraft.lighting}
+                    onChange={(e) => handleFaceScanDraftChange('lighting', e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300/60"
+                  >
+                    <option>Soft studio</option>
+                    <option>Even daylight</option>
+                    <option>Neon rim</option>
+                    <option>Low shadow</option>
+                  </select>
+                </label>
+                <label className="text-xs text-white/80">
+                  Expression
+                  <select
+                    value={faceScanDraft.expression}
+                    onChange={(e) => handleFaceScanDraftChange('expression', e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300/60"
+                  >
+                    <option>Neutral</option>
+                    <option>Relaxed</option>
+                    <option>Confident</option>
                   </select>
                 </label>
               </div>
               <label className="text-xs text-white/80">
-                Light intensity ({hdriDraft.intensity}%)
+                Mesh quality ({faceScanDraft.scanQuality}%)
                 <input
                   type="range"
-                  min="0"
+                  min="40"
                   max="100"
-                  step="5"
-                  value={hdriDraft.intensity}
-                  onChange={(e) => handleHdriDraftChange('intensity', Number(e.target.value))}
-                  className="mt-1 w-full accent-fuchsia-400"
+                  step="4"
+                  value={faceScanDraft.scanQuality}
+                  onChange={(e) => handleFaceScanDraftChange('scanQuality', Number(e.target.value))}
+                  className="mt-1 w-full accent-cyan-400"
                 />
               </label>
-              <div className="grid grid-cols-2 gap-2">
-                <label className="text-xs text-white/80">
-                  Tone mapping
-                  <select
-                    value={hdriDraft.tone}
-                    onChange={(e) => handleHdriDraftChange('tone', e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-300/60"
-                  >
-                    <option>Balanced</option>
-                    <option>Filmic</option>
-                    <option>ACES</option>
-                    <option>Vivid</option>
-                  </select>
-                </label>
-                <label className="text-xs text-white/80">
-                  Output
-                  <select
-                    value={hdriDraft.resolution}
-                    onChange={(e) => handleHdriDraftChange('resolution', e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-300/60"
-                  >
-                    <option>1K</option>
-                    <option>2K</option>
-                    <option>4K</option>
-                  </select>
-                </label>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <label className="text-xs text-white/80">
-                  Visibility
-                  <select
-                    value={hdriDraft.visibility}
-                    onChange={(e) => handleHdriDraftChange('visibility', e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-300/60"
-                  >
-                    <option value="private">Private (only me)</option>
-                    <option value="public">Public marketplace</option>
-                  </select>
-                </label>
-                <label className="text-xs text-white/80">
-                  Store price (TPC)
-                  <input
-                    type="number"
-                    min={TON_PRICE_MIN}
-                    max={TON_PRICE_MAX}
-                    value={hdriDraft.storePrice}
-                    onChange={(e) =>
-                      handleHdriDraftChange('storePrice', Number(e.target.value || 0))
-                    }
-                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-fuchsia-300/60"
-                    disabled={hdriDraft.visibility !== 'public'}
-                  />
-                </label>
-              </div>
-              <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2">
-                <p className="text-xs text-white/80">Use this HDRI in games (multi-select)</p>
-                <p className="mt-1 text-[11px] text-white/60">
-                  +{formatTpcAmount(HDRI_PUBLISH_TARIFF_PER_GAME_TPC)} TPC per selected game
-                </p>
-                <div className="mt-2 grid grid-cols-2 gap-1.5">
-                  {HDRI_TARGET_GAMES.map((game) => {
-                    const active = hdriSelectedGames.includes(game.slug);
-                    return (
-                      <button
-                        key={game.slug}
-                        type="button"
-                        onClick={() => handleHdriGameToggle(game.slug)}
-                        className={`rounded-lg border px-2 py-1.5 text-left text-[11px] ${
-                          active
-                            ? 'border-fuchsia-300/70 bg-fuchsia-400/20 text-fuchsia-50'
-                            : 'border-white/10 bg-black/35 text-white/70'
-                        }`}
-                      >
-                        {game.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+              <label className="text-xs text-white/80">
+                Privacy
+                <select
+                  value={faceScanDraft.privacy}
+                  onChange={(e) => handleFaceScanDraftChange('privacy', e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300/60"
+                >
+                  <option value="private">Private to my account</option>
+                  <option value="public">Public avatar listing</option>
+                </select>
+              </label>
               <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-[11px] text-white/70">
-                {hdriDraft.visibility === 'public'
-                  ? 'Creator payout: 100% of each sale goes to your creator wallet.'
-                  : 'Private mode: this HDRI is available only to your account.'}
+                The preview shows the scanned head visually higher on the selected body, sized to fit the neck, with the body staying upright for portrait phone screens.
               </div>
             </div>
           </div>
 
-          {hdriUploadFiles.length ? (
-            <div className="mt-3 grid grid-cols-3 gap-2 md:grid-cols-6">
-              {hdriUploadFiles.map((entry) => (
-                <div
-                  key={entry.id}
-                  className="overflow-hidden rounded-xl border border-white/10 bg-black/30"
-                >
-                  <img
-                    src={entry.previewUrl}
-                    alt={entry.file?.name || 'HDRI upload'}
-                    className="h-20 w-full object-cover"
-                  />
+          {faceScanUploads.length ? (
+            <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
+              {faceScanUploads.map((entry) => (
+                <div key={entry.id} className="overflow-hidden rounded-xl border border-white/10 bg-black/30">
+                  <img src={entry.previewUrl} alt={`${entry.poseLabel} face scan`} className="h-24 w-full object-cover" />
+                  <p className="px-2 py-1 text-[11px] font-semibold text-cyan-100">{entry.poseLabel}</p>
                 </div>
               ))}
             </div>
           ) : null}
 
-          {hdriPreviewUnlocked && hdriUploadFiles[0]?.previewUrl ? (
-            <div className="mt-3 overflow-hidden rounded-2xl border border-fuchsia-200/40 bg-black/35">
-              <div className="flex items-center justify-between border-b border-fuchsia-200/20 px-3 py-2">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fuchsia-100/90">
-                  HDRI Preview
-                </p>
-                <span className="text-[11px] text-fuchsia-100/70">
-                  {hdriDraft.name.trim() || 'Untitled HDRI'}
-                </span>
-              </div>
-              <HdriEquirectangularPreview
-                src={hdriUploadFiles[0].previewUrl}
-                title={hdriDraft.name.trim() || 'Untitled HDRI'}
+          {faceScanPreviewReady ? (
+            <div className="mt-3">
+              <FaceScanCharacterPreview
+                scanEntries={faceScanUploads}
+                bodyOption={selectedFaceScanBody}
+                title={faceScanDraft.name.trim() || 'Untitled character'}
               />
-              <p className="px-3 py-2 text-[11px] text-fuchsia-100/75">
-                This is your live 360° skybox preview before minting/publishing.
-              </p>
             </div>
           ) : null}
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={handleHdriPreview}
-              className="rounded-2xl border border-fuchsia-200/50 bg-fuchsia-400/20 px-4 py-2 text-sm font-semibold text-fuchsia-50 hover:bg-fuchsia-400/30"
+              onClick={handleFaceScanPreview}
+              className="rounded-2xl border border-cyan-200/50 bg-cyan-400/20 px-4 py-2 text-sm font-semibold text-cyan-50 hover:bg-cyan-400/30"
             >
-              Free preview
+              Build 3D preview
             </button>
             <button
               type="button"
-              onClick={handleHdriPublish}
-              disabled={!canPublishHdri || hdriPublishing}
+              onClick={handleFaceScanCreate}
+              disabled={!canCreateFaceScan || faceScanSaving}
               className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-45"
             >
-              {hdriPublishing
-                ? 'Minting HDRI…'
-                : `Publish in-game (${formatTpcAmount(hdriPublishTotalTariff)} TPC)`}
+              {faceScanSaving
+                ? 'Creating character…'
+                : `Create character (${formatTpcAmount(faceScanBuildTotalTariff)} TPC)`}
             </button>
-            <span className="text-xs text-fuchsia-100/85">
-              {hdriPublished
-                ? hdriDraft.visibility === 'public'
-                  ? `Live now: ${hdriDraft.name || 'Custom HDRI'} is listed in Store and earns revenue to you.`
-                  : `Live now: ${hdriDraft.name || 'Custom HDRI'} is private and active on your account.`
-                : hdriPreviewUnlocked
-                  ? 'Preview enabled. If you like it, publish to use it in game.'
-                  : 'Try every configuration for free before paying tariff.'}
+            <span className="text-xs text-cyan-100/85">
+              {faceScanCreated
+                ? `${faceScanDraft.name || 'Custom character'} is ready with your scanned face attached.`
+                : faceScanPreviewReady
+                  ? 'Preview ready. Create it when the head fit looks correct.'
+                  : 'Capture all four face angles before creating the scan.'}
             </span>
           </div>
 
           <div className="mt-2 text-xs text-white/70">
-            {hdriPublishShortfall
-              ? `Balance alert: you need ${formatTpcAmount(hdriPublishShortfall)} more TPC to publish.`
-              : `Creation tariff: ${formatTpcAmount(HDRI_PUBLISH_TARIFF_TPC)} TPC + ${formatTpcAmount(HDRI_PUBLISH_TARIFF_PER_GAME_TPC)} TPC per selected game.`}
+            {faceScanBuildShortfall
+              ? `Balance alert: you need ${formatTpcAmount(faceScanBuildShortfall)} more TPC to create this character.`
+              : `Creation tariff: ${formatTpcAmount(FACE_SCAN_BUILD_TARIFF_TPC)} TPC + ${formatTpcAmount(FACE_SCAN_DETAIL_TARIFF_PER_POSE_TPC)} TPC per captured angle.`}
           </div>
         </section>
 
