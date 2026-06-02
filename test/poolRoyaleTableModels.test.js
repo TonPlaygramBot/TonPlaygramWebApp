@@ -28,6 +28,8 @@ describe('Pool Royale table models', () => {
     assert.equal(royal.keepGeneratedPocketsAndJaws, true);
     assert.equal(royal.hideGeneratedPocketsAndJaws, false);
     assert.equal(royal.forceGeneratedChromePlates, true);
+    assert.equal(royal.useReferenceShowoodPartVisibility, true);
+    assert.deepEqual(royal.referencePartsForExternalTrimStyle, ['railSight', 'sideWoodApron']);
     assert.equal(royal.fitScale, 1.055);
     assert.deepEqual(royal.usePoolRoyaleFinishRoles, ['cloth']);
     assert.deepEqual(royal.hideSurfaceRoles, ['trim', 'wood', 'cushion', 'pocket']);
@@ -52,6 +54,7 @@ describe('Pool Royale table models', () => {
       'pocket'
     ]);
     assert.equal(showood.forceGeneratedChromePlates, false);
+    assert.deepEqual(showood.hideReferencePartsWithGeneratedChrome, ['railSight', 'sideWoodApron']);
     assert.equal(showood.upperFrameHeightScale, 0.58);
     assert.equal(showood.cornerRimHeightScale, 0.28);
     assert.equal(showood.markingVisualLift, 0.024);
@@ -63,6 +66,23 @@ describe('Pool Royale table models', () => {
     assert.equal(showood.sideApronVisualHeightScale, 1.07);
     assert.equal(showood.sideApronOutwardOffset, 0.018);
     assert.deepEqual(showood.usePoolRoyaleFinishRoles, ['cloth', 'cushion', 'wood']);
+  });
+
+  test('Pool Royale chrome plate styles swap Showood reference apron parts with procedural plates', async () => {
+    const game = await readFile('webapp/src/pages/Games/PoolRoyale.jsx', 'utf8');
+
+    assert.ok(
+      game.includes('chromePlateStyle.showGeneratedOnExternal'),
+      'game should show generated procedural chrome plates when the Royal Classic style is selected on external tables'
+    );
+    assert.ok(
+      game.includes('hideReferencePartsWithGeneratedChrome'),
+      'game should hide Showood rail sights and side aprons when generated chrome plates are selected'
+    );
+    assert.ok(
+      game.includes('referencePartsForExternalTrimStyle'),
+      'game should expose Showood rail sights and side aprons on Royal Original when the Showood rounded style preserves external trim'
+    );
   });
 
   test('Pool Royale game uses one shared table finish/base menu for Royal and Showood', async () => {
