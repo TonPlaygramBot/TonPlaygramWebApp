@@ -11,8 +11,9 @@ import {
 } from '../../utils/telegram.js';
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
+import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import {
-  DEFAULT_POOL_ROYALE_TABLE_MODEL_ID,
+  POOL_ROYALE_TABLE_MODEL_OPTIONS,
   POOL_ROYALE_TABLE_MODEL_STORAGE_KEY,
   resolvePoolRoyaleTableModel
 } from '../../config/poolRoyaleTableModels.js';
@@ -76,22 +77,25 @@ export default function PoolRoyaleLobby() {
   const [variant, setVariant] = useState('uk');
   const [ukBallSet, setUkBallSet] = useState('uk');
   const [playType, setPlayType] = useState(initialPlayType);
-  const [tableModelId] = useState(() => {
+  const [tableModelId, setTableModelId] = useState(() => {
     try {
-      window.localStorage?.setItem(
-        POOL_ROYALE_TABLE_MODEL_STORAGE_KEY,
-        DEFAULT_POOL_ROYALE_TABLE_MODEL_ID
+      const stored = window.localStorage?.getItem(
+        POOL_ROYALE_TABLE_MODEL_STORAGE_KEY
       );
+      return resolvePoolRoyaleTableModel(stored).id;
     } catch {}
-    return DEFAULT_POOL_ROYALE_TABLE_MODEL_ID;
+    return resolvePoolRoyaleTableModel().id;
   });
   const [players, setPlayers] = useState(8);
   const selectedTableModel = useMemo(
     () => resolvePoolRoyaleTableModel(tableModelId),
     [tableModelId]
   );
-  const onlineTableSize =
-    selectedTableModel?.tableSizeId || searchParams.get('tableSize') || '9ft';
+  const tableSize = resolveTableSize(
+    selectedTableModel?.tableSizeId || searchParams.get('tableSize')
+  ).id;
+  const defaultTableSize = resolveTableSize().id;
+  const onlineTableSize = tableSize || defaultTableSize;
   const [onlinePlayers, setOnlinePlayers] = useState([]);
   const [matching, setMatching] = useState(false);
   const [spinningPlayer, setSpinningPlayer] = useState('');
@@ -626,6 +630,48 @@ export default function PoolRoyaleLobby() {
           </p>
         </div>
 
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-white">Pool Table</h3>
+            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
+              GLB Arena
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {POOL_ROYALE_TABLE_MODEL_OPTIONS.map((option) => {
+              const active = tableModelId === option.id;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => setTableModelId(option.id)}
+                  className={`lobby-option-card ${
+                    active
+                      ? 'lobby-option-card-active'
+                      : 'lobby-option-card-inactive'
+                  }`}
+                >
+                  <div className="lobby-option-thumb bg-gradient-to-br from-fuchsia-400/20 via-amber-500/10 to-transparent">
+                    <div className="lobby-option-thumb-inner text-2xl">
+                      {option.icon || '🎱'}
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <p className="lobby-option-label">{option.label}</p>
+                    <p className="lobby-option-subtitle">
+                      {option.kind === 'gltf'
+                        ? `${option.tableSizeId} · original textures`
+                        : 'Current table'}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-white/60">
+            Royal Original keeps the clean procedural table; Showood material setup is available inside the in-game menu only.
+          </p>
+        </div>
 
         <div className="space-y-3">
           <div className="flex items-center justify-between">
