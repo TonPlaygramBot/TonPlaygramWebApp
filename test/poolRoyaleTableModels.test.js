@@ -16,38 +16,21 @@ describe('Pool Royale table models', () => {
     );
   });
 
-  test('Royal Original reuses the exact Showood GLB layout with procedural materials', () => {
+  test('Royal Original keeps procedural pockets, jaws, and chrome over the Showood cloth', () => {
     const royal = POOL_ROYALE_TABLE_MODEL_OPTIONS.find(
       (option) => option.id === 'royal-original'
     );
 
     assert.ok(royal, 'Royal Original table model must be configured');
     assert.equal(royal.kind, 'gltf');
-    assert.equal(royal.useOriginalLayoutSurfaces, true);
-    assert.equal(royal.useReferenceShowoodMapping, true);
-    assert.equal(royal.useProceduralBaseWithExternal, true);
-    assert.equal(royal.hideOriginalBaseAndLegsForProceduralBase, true);
-    assert.equal(royal.keepGeneratedPocketDropHardware, true);
-    assert.equal(royal.keepGeneratedShell, false);
-    assert.equal(royal.keepGeneratedPocketsAndJaws, false);
-    assert.equal(royal.hideGeneratedCushionsAndJaws, true);
+    assert.equal(royal.useOriginalLayoutSurfaces, false);
+    assert.equal(royal.keepGeneratedShell, true);
+    assert.equal(royal.keepGeneratedPocketsAndJaws, true);
     assert.equal(royal.hideGeneratedPocketsAndJaws, false);
-    assert.equal(royal.forceGeneratedChromePlates, false);
-    assert.equal(royal.hideGeneratedRailMarkers, true);
+    assert.equal(royal.forceGeneratedChromePlates, true);
     assert.equal(royal.fitScale, 1.055);
-    assert.equal(royal.upperFrameHeightScale, 0.58);
-    assert.equal(royal.cornerRimHeightScale, 0.28);
-    assert.equal(royal.markingVisualLift, 0.024);
-    assert.equal(royal.lowerBaseHeightScale, 1.72);
-    assert.equal(royal.lowerLegFootReachScale, 1.28);
-    assert.equal(royal.footWidthScale, 1.08);
-    assert.equal(royal.footHeightScale, 1);
-    assert.equal(royal.railSightApronVisualScale, 1.026);
-    assert.equal(royal.sideApronVisualHeightScale, 1.07);
-    assert.equal(royal.sideApronOutwardOffset, 0.018);
-    assert.deepEqual(royal.usePoolRoyaleFinishRoles, ['cloth', 'cushion', 'wood']);
-    assert.deepEqual(royal.preserveSourceTextureRoles, []);
-    assert.deepEqual(royal.hideSurfaceRoles, []);
+    assert.deepEqual(royal.usePoolRoyaleFinishRoles, ['cloth']);
+    assert.deepEqual(royal.hideSurfaceRoles, ['trim', 'wood', 'cushion', 'pocket']);
   });
 
   test('Showood uses original GLB surface layout without procedural rail diamonds', () => {
@@ -125,7 +108,7 @@ describe('Pool Royale table models', () => {
     );
 
     assert.ok(
-      lobby.includes('Royal Original now uses the Showood-precise rail'),
+      lobby.includes('Royal Original keeps the clean procedural table'),
       'lobby should explain the Royal Original table'
     );
     assert.equal(

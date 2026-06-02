@@ -669,7 +669,7 @@ export default function PoolRoyaleLobby() {
             })}
           </div>
           <p className="text-xs text-white/60">
-            Royal Original now uses the Showood-precise rail, pocket, and playfield shape while keeping Royal procedural materials; Showood material setup remains available inside the in-game menu only.
+            Royal Original keeps the clean procedural table; Showood material setup is available inside the in-game menu only.
           </p>
         </div>
 
