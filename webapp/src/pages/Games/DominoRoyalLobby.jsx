@@ -16,7 +16,7 @@ import { loadAvatar } from '../../utils/avatarUtils.js';
 import OptionIcon from '../../components/OptionIcon.jsx';
 import { getLobbyIcon } from '../../config/gameAssets.js';
 import GameLobbyHeader from '../../components/GameLobbyHeader.jsx';
-import { socket } from '../../utils/socket.js';
+import { refreshSocketAuthIdentity, socket } from '../../utils/socket.js';
 import { getOnlineReadiness } from '../../config/onlineContract.js';
 
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
@@ -113,7 +113,7 @@ export default function DominoRoyalLobby() {
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [mode, setMode] = useState('local');
   const [avatar, setAvatar] = useState('');
-  const [playerCount, setPlayerCount] = useState(4);
+  const [playerCount, setPlayerCount] = useState(2);
   const [gameType, setGameType] = useState('single');
   const [targetPoints, setTargetPoints] = useState(51);
   const [frameRateId, setFrameRateId] = useState(DEFAULT_FRAME_RATE_ID);
@@ -263,10 +263,17 @@ export default function DominoRoyalLobby() {
       setMatchStatus('Connecting to Domino Royal online lobby…');
       pendingOnlineRef.current = { tableId: '', accountId, launched: false };
 
+      refreshSocketAuthIdentity(
+        { accountId: String(accountId) },
+        { reconnect: true }
+      );
+
       const connected = await waitForSocketConnection(socket);
       if (!connected) {
         setMatching(false);
-        setMatchingError('Could not connect to the online lobby. Check your network and try again.');
+        setMatchingError(
+          'Could not connect to the online lobby. Check your network and try again.'
+        );
         return;
       }
 
@@ -278,7 +285,9 @@ export default function DominoRoyalLobby() {
       });
       if (registered?.success === false) {
         setMatching(false);
-        setMatchingError('Unable to register this account for online Domino. Please retry.');
+        setMatchingError(
+          'Unable to register this account for online Domino. Please retry from a fresh lobby connection.'
+        );
         return;
       }
 
@@ -302,7 +311,9 @@ export default function DominoRoyalLobby() {
       });
       if (!res.success || !res.tableId) {
         setMatching(false);
-        setMatchingError('Unable to join Domino online table. Please try again.');
+        setMatchingError(
+          'Unable to join Domino online table. Check that both phones use different accounts, the same player count, stake, and game type.'
+        );
         return;
       }
 
@@ -692,7 +703,9 @@ export default function DominoRoyalLobby() {
                   </div>
                   <div className="text-center">
                     <p className="lobby-option-label">{value} Players</p>
-                    <p className="lobby-option-subtitle">Local table seats</p>
+                    <p className="lobby-option-subtitle">
+                      {mode === 'online' ? 'Online seats' : 'Local table seats'}
+                    </p>
                   </div>
                 </button>
               ))}
