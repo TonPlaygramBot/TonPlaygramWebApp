@@ -809,8 +809,8 @@ const CHROME_CORNER_FIELD_FILLET_SCALE = 0; // force a straight diagonal trim on
 const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1; // no scaling so the notch mirrors the pocket radius perfectly
 const CHROME_CORNER_DIMENSION_SCALE = 1; // keep the fascia dimensions identical to the cushion span so both surfaces meet cleanly
-const CHROME_CORNER_WIDTH_SCALE = 1.018; // broaden the corner plate footprint so each side gains more visible chrome length
-const CHROME_CORNER_HEIGHT_SCALE = 1.012; // extend the short-rail plate reach while keeping the corner chrome cut unchanged
+const CHROME_CORNER_WIDTH_SCALE = 1.08; // broaden the corner plate footprint so each side gains more visible chrome length and matches the widened Royal wood rails
+const CHROME_CORNER_HEIGHT_SCALE = 1.07; // extend the short-rail plate reach while keeping the corner chrome cut aligned to the wider Royal rails
 const CHROME_CORNER_CENTER_OUTSET_SCALE = 0.024; // push corner fascia a tiny bit farther outward while keeping the rounded corner-pocket cut unchanged
 const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0; // let the corner fascia terminate precisely where the cushion noses stop
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0; // stop pulling the chrome off the short-rail centreline so the jaws stay flush
@@ -833,9 +833,9 @@ const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0.06; // lift fascia slightly with the 
 const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.34; // trim the side fascia reach so the middle chrome ends cleanly before the pocket curve
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.14; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.28; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.228; // trim the side opposite the rounded middle cut a touch more while staying stable
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.11; // widen the middle fascia slightly so both flanks expand toward the corner pockets
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.18; // widen the middle fascia so both flanks expand toward the corner pockets with the wider rails
 const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 0.8; // trim the outside body of middle-pocket chrome plates a little more while preserving the rounded cut
 const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.22; // extend the plate ends a bit farther toward the corner pockets (green-marked areas)
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.9; // tighten the middle fascia slightly so both flanks gain a touch more trim
@@ -1307,7 +1307,7 @@ const REPLAY_CAMERA_START_DELAY_MS = 0;
     WALL: 2.6 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
-const FRAME_RAIL_OUTWARD_SCALE = 1.3; // match the procedural wood frame width closer to the Showood GLB top rail
+const FRAME_RAIL_OUTWARD_SCALE = 1.36; // match the procedural wood frame width closer to the Showood GLB top rail
 const RAIL_HEIGHT = TABLE.THICK * 1.9; // lift all six cushions/rails a touch more so the top profile reads higher without changing playfield size
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.024; // push the corner jaws just a bit farther outward so the fascia follows the rounded rail and chrome cut
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
@@ -1349,14 +1349,14 @@ const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // keep middle jaw arcs the same siz
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.12; // add Showood-like extra depth so side jaws match the corner jaw type
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.01; // pull middle-pocket jaws a bit farther downward than corners
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.02; // reduce the outward shift so middle-pocket jaws sit a bit more inward toward table center
-const POCKET_JAW_INWARD_PULL = TABLE.THICK * 0.052; // pull procedural jaw centers just a bit more inward to match the Royal Original pocket placement
+const POCKET_JAW_INWARD_PULL = TABLE.THICK * 0.064; // pull procedural jaw centers farther inward to match the Showood GLB jaw placement
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.66; // shorten middle jaw side edges a bit more so all six jaws finish cleaner at the shoulders
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
 const CORNER_POCKET_JAW_EDGE_TRIM_START = SIDE_POCKET_JAW_EDGE_TRIM_START; // keep corner jaw taper start aligned with middle pockets
 const CORNER_POCKET_JAW_EDGE_TRIM_SCALE = SIDE_POCKET_JAW_EDGE_TRIM_SCALE; // match the middle pocket jaw thin/thick profile
 const CORNER_POCKET_JAW_EDGE_TRIM_CURVE = SIDE_POCKET_JAW_EDGE_TRIM_CURVE; // reuse the same taper curve for corner jaws
-const POCKET_JAW_MAPPING_RADIUS_SCALE = 1.035; // slightly expand jaw collision arcs so physics cannot slip through visible jaw/chrome edges
+const POCKET_JAW_MAPPING_RADIUS_SCALE = 1.052; // expand jaw collision arcs so pocket mapping tracks the visible Showood-aligned cutouts
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
 const POCKET_RIM_DEPTH_RATIO = 0; // remove the separate pocket rims so the chrome fascias meet the jaws directly
@@ -4175,7 +4175,7 @@ const toHexColor = (value) => {
   return value ?? '#ffffff';
 };
 
-const ORIGINAL_RAIL_WIDTH = TABLE.WALL * 0.7;
+const ORIGINAL_RAIL_WIDTH = TABLE.WALL * 0.78;
 const ORIGINAL_FRAME_WIDTH = ORIGINAL_RAIL_WIDTH * 2.5;
 const ORIGINAL_PLAY_H = TABLE.H - 2 * TABLE.WALL;
 const ORIGINAL_HALF_H = ORIGINAL_PLAY_H / 2;
@@ -9608,8 +9608,11 @@ export function Table3D(
 
   const railH = RAIL_HEIGHT;
   const railsTopY = frameTopY + railH;
-  const longRailW = ORIGINAL_RAIL_WIDTH; // keep the long rail caps as wide as the end rails so side pockets match visually
-  const endRailW = ORIGINAL_RAIL_WIDTH;
+  const generatedRailWidthScale = Number.isFinite(resolvedTableOptions?.tableModel?.generatedRailWidthScale)
+    ? THREE.MathUtils.clamp(resolvedTableOptions.tableModel.generatedRailWidthScale, 0.75, 1.24)
+    : 1;
+  const longRailW = ORIGINAL_RAIL_WIDTH * generatedRailWidthScale; // keep the long rail caps as wide as the end rails so side pockets match visually
+  const endRailW = ORIGINAL_RAIL_WIDTH * generatedRailWidthScale;
   const frameExpansion = TABLE.WALL * 0.12 + TABLE_OUTER_EXPANSION;
   const frameWidthEndBase =
     Math.max(0, ORIGINAL_OUTER_HALF_H - halfH - 2 * endRailW) + frameExpansion;
@@ -9800,12 +9803,16 @@ export function Table3D(
   const chromeCornerEdgeTrim = TABLE.THICK * CHROME_CORNER_EDGE_TRIM_SCALE;
   const chromeOuterFlushTrim = TABLE.THICK * CHROME_OUTER_FLUSH_TRIM_SCALE;
   const chromeSideOuterFlushTrim = TABLE.THICK * CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE;
+  const generatedChromePlateScale = Number.isFinite(resolvedTableOptions?.tableModel?.generatedChromePlateScale)
+    ? THREE.MathUtils.clamp(resolvedTableOptions.tableModel.generatedChromePlateScale, 0.75, 1.24)
+    : 1;
   const chromePlateWidth = Math.max(
     MICRO_EPS,
     (chromePlateBaseWidth * CHROME_CORNER_WIDTH_SCALE -
       chromeCornerEdgeTrim -
       chromeOuterFlushTrim * 2) *
-      (chromePlateStyle.cornerWidthScale ?? 1)
+      (chromePlateStyle.cornerWidthScale ?? 1) *
+      generatedChromePlateScale
   );
   const chromeCornerFieldExtension =
     POCKET_VIS_R * CHROME_CORNER_FIELD_EXTENSION_SCALE * POCKET_VISUAL_EXPANSION;
@@ -9815,7 +9822,8 @@ export function Table3D(
       chromeCornerEdgeTrim +
       chromeCornerFieldExtension -
       chromeOuterFlushTrim * 2) *
-      (chromePlateStyle.cornerHeightScale ?? 1)
+      (chromePlateStyle.cornerHeightScale ?? 1) *
+      generatedChromePlateScale
   );
   const chromePlateRadius = Math.min(
     Math.max(outerCornerRadius * 0.95, Math.min(chromePlateWidth, chromePlateHeight) * 0.18) *
@@ -9850,7 +9858,8 @@ export function Table3D(
   sideChromePlateWidth = Math.max(
     MICRO_EPS,
     sideChromePlateWidth * CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE *
-      (chromePlateStyle.sideWidthScale ?? 1)
+      (chromePlateStyle.sideWidthScale ?? 1) *
+      generatedChromePlateScale
   );
   const sideChromeOuterExtension =
     TABLE.THICK * CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE;
@@ -9868,7 +9877,8 @@ export function Table3D(
     Math.max(
       MICRO_EPS,
       (chromePlateHeight * CHROME_SIDE_PLATE_HEIGHT_SCALE - chromeSideOuterFlushTrim * 2) *
-        (chromePlateStyle.sideHeightScale ?? 1)
+        (chromePlateStyle.sideHeightScale ?? 1) *
+        generatedChromePlateScale
     ),
     Math.max(MICRO_EPS, sidePlateHeightByCushion)
   );
@@ -11288,7 +11298,7 @@ export function Table3D(
   const railMarkerInwardShift = Math.max(BALL_R * 0.35, longRailW * 0.08);
   const railMarkerGroup = new THREE.Group();
   const railMarkerThickness = RAIL_MARKER_THICKNESS;
-  const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
+  const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.58;
   const railMarkerLength = railMarkerWidth * 0.62;
   const railMarkerShape = new THREE.Shape();
   railMarkerShape.moveTo(0, railMarkerLength / 2);
@@ -11378,8 +11388,12 @@ export function Table3D(
     clearRailMarkerMeshes();
     const longDiamondSpacing = PLAY_H / 8;
     const shortDiamondSpacing = PLAY_W / 4;
-    const longRailX = halfW + longRailW + railMarkerOutset - railMarkerInwardShift;
-    const shortRailZ = halfH + endRailW + railMarkerOutset - railMarkerInwardShift;
+    const markerReplaceOriginal = Boolean(
+      resolvedTableOptions?.tableModel?.proceduralRailMarkersReplaceOriginal
+    );
+    const markerOutsetBias = markerReplaceOriginal ? ORIGINAL_RAIL_WIDTH * 0.08 : 0;
+    const longRailX = halfW + longRailW + railMarkerOutset - railMarkerInwardShift + markerOutsetBias;
+    const shortRailZ = halfH + endRailW + railMarkerOutset - railMarkerInwardShift + markerOutsetBias;
     const addMarker = (x, z, rotation = 0) => {
       const mesh = new THREE.Mesh(geometry, railMarkerMat);
       mesh.position.set(x, railMarkerLift, z);
@@ -12778,13 +12792,20 @@ function shouldHidePoolRoyaleExternalTableSurface({ tableModel, role, referenceP
   const allReferenceParts = Array.isArray(referenceParts) && referenceParts.length
     ? referenceParts
     : [referencePart].filter(Boolean);
+  const hideReferenceParts = Array.isArray(tableModel.hideExternalReferenceParts)
+    ? tableModel.hideExternalReferenceParts
+    : [];
+  const replacesOriginalRailMarkers = Boolean(tableModel.proceduralRailMarkersReplaceOriginal);
+  if (
+    replacesOriginalRailMarkers &&
+    allReferenceParts.some((part) => hideReferenceParts.includes(part))
+  ) {
+    return true;
+  }
   const preserveReferenceParts = Array.isArray(tableModel.preserveExternalReferenceParts)
     ? tableModel.preserveExternalReferenceParts
     : [];
   if (allReferenceParts.some((part) => preserveReferenceParts.includes(part))) return false;
-  const hideReferenceParts = Array.isArray(tableModel.hideExternalReferenceParts)
-    ? tableModel.hideExternalReferenceParts
-    : [];
   if (allReferenceParts.some((part) => hideReferenceParts.includes(part))) return true;
   return Array.isArray(tableModel.hideSurfaceRoles) && tableModel.hideSurfaceRoles.includes(role);
 }
@@ -14405,7 +14426,8 @@ function mountPoolRoyaleExternalTableModel({
         (
           (
             object.userData?.externalTableBrandPlateKeepVisible &&
-            !externalTableModelForMount?.useOriginalLayoutSurfaces
+            (!externalTableModelForMount?.useOriginalLayoutSurfaces ||
+              externalTableModelForMount?.keepGeneratedBrandPlates)
           ) ||
           (
             object.userData?.externalTableAlwaysKeepVisible &&
