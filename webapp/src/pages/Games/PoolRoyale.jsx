@@ -9077,10 +9077,15 @@ export function Table3D(
     const pull = Math.min(Math.abs(center.x), SIDE_POCKET_CLOTH_INWARD_PULL) * direction;
     return center.clone().add(new THREE.Vector2(-pull, 0));
   });
+  const proceduralPocketCutoutScale = THREE.MathUtils.clamp(
+    Number(resolvedTableOptions?.tableModel?.proceduralPocketCutoutScale) || 1,
+    0.92,
+    1.08
+  );
   const sideRadiusScale =
     BASE_CORNER_POCKET_VIS_R > MICRO_EPS
-      ? (SIDE_POCKET_RADIUS / BASE_CORNER_POCKET_VIS_R) * SIDE_POCKET_CUT_SCALE
-      : 1;
+      ? (SIDE_POCKET_RADIUS / BASE_CORNER_POCKET_VIS_R) * SIDE_POCKET_CUT_SCALE * proceduralPocketCutoutScale
+      : proceduralPocketCutoutScale;
   const buildSurfaceShape = (holeRadius, edgeInset = 0, centers = pocketPositions) => {
     const insetHalfW = Math.max(MICRO_EPS, halfWext - edgeInset);
     const insetHalfH = Math.max(MICRO_EPS, halfHext - edgeInset);
@@ -9163,7 +9168,7 @@ export function Table3D(
         const isSidePocket = index >= 4;
         const radius = isSidePocket
           ? holeRadius * sideRadiusScale
-          : holeRadius * CORNER_POCKET_CLOTH_CUT_SCALE;
+          : holeRadius * CORNER_POCKET_CLOTH_CUT_SCALE * proceduralPocketCutoutScale;
         const sweep = Math.PI * 2;
         const baseSegments = isSidePocket ? 96 : 64;
         return createPocketSector(center, sweep, radius, baseSegments, false);
@@ -9172,7 +9177,7 @@ export function Table3D(
 
     let shapeMP = baseMP;
     if (pocketSectors.length) {
-    shapeMP = safePolygonDifference(baseMP, ...pocketSectors);
+      shapeMP = safePolygonDifference(baseMP, ...pocketSectors);
     }
     const shapes = multiPolygonToShapes(shapeMP);
     if (shapes.length === 1) {
@@ -9193,7 +9198,7 @@ export function Table3D(
       const isSidePocket = index >= 4;
       const radius = isSidePocket
         ? holeRadius * sideRadiusScale
-        : holeRadius * CORNER_POCKET_CLOTH_CUT_SCALE;
+        : holeRadius * CORNER_POCKET_CLOTH_CUT_SCALE * proceduralPocketCutoutScale;
       hole.absellipse(p.x, p.y, radius, radius, 0, Math.PI * 2, true);
       hole.autoClose = true;
       fallback.holes.push(hole);
@@ -9408,7 +9413,7 @@ export function Table3D(
       MICRO_EPS,
       index >= 4
         ? POCKET_HOLE_R * sideRadiusScale
-        : POCKET_HOLE_R * CORNER_POCKET_CLOTH_CUT_SCALE
+        : POCKET_HOLE_R * CORNER_POCKET_CLOTH_CUT_SCALE * proceduralPocketCutoutScale
     );
   const pocketNetGeometryCache = new Map();
   const resolvePocketNetGeometry = (index) => {
@@ -9608,8 +9613,13 @@ export function Table3D(
 
   const railH = RAIL_HEIGHT;
   const railsTopY = frameTopY + railH;
-  const longRailW = ORIGINAL_RAIL_WIDTH; // keep the long rail caps as wide as the end rails so side pockets match visually
-  const endRailW = ORIGINAL_RAIL_WIDTH;
+  const railWidthScale = THREE.MathUtils.clamp(
+    Number(resolvedTableOptions?.tableModel?.railWidthScale) || 1,
+    0.8,
+    1.22
+  );
+  const longRailW = ORIGINAL_RAIL_WIDTH * railWidthScale; // keep the long rail caps as wide as the end rails so side pockets match visually
+  const endRailW = ORIGINAL_RAIL_WIDTH * railWidthScale;
   const frameExpansion = TABLE.WALL * 0.12 + TABLE_OUTER_EXPANSION;
   const frameWidthEndBase =
     Math.max(0, ORIGINAL_OUTER_HALF_H - halfH - 2 * endRailW) + frameExpansion;
@@ -9617,8 +9627,13 @@ export function Table3D(
   const frameWidthLong = frameWidthEnd; // force side rails to carry the same exterior thickness as the short rails
   const outerHalfW = halfW + 2 * longRailW + frameWidthLong;
   const outerHalfH = halfH + 2 * endRailW + frameWidthEnd;
-  const chromeOuterHalfW = halfW + 2 * longRailW + frameWidthEndBase;
-  const chromeOuterHalfH = halfH + 2 * endRailW + frameWidthEndBase;
+  const chromeRailMatchScale = THREE.MathUtils.clamp(
+    Number(resolvedTableOptions?.tableModel?.chromePlateWidthMatchRailScale) || 1,
+    0.86,
+    1.24
+  );
+  const chromeOuterHalfW = halfW + 2 * longRailW + frameWidthEndBase * chromeRailMatchScale;
+  const chromeOuterHalfH = halfH + 2 * endRailW + frameWidthEndBase * chromeRailMatchScale;
   finishParts.dimensions = { outerHalfW, outerHalfH, railH, frameTopY };
 
   if (ENABLE_TABLE_FLOOR_SHADOW) {
@@ -10954,16 +10969,23 @@ export function Table3D(
 
   // Each pocket jaw must match 100% to the rounded chrome plate cuts—never the wooden rail arches.
   // Repeat: each pocket jaw must match 100% to the size of the rounded cuts on the chrome plates.
+  const pocketJawShowoodAlignmentScale = THREE.MathUtils.clamp(
+    Number(resolvedTableOptions?.tableModel?.pocketJawShowoodAlignmentScale) || 1,
+    0.94,
+    1.08
+  );
   const cornerJawOuterLimit =
     cornerPocketRadius *
     CHROME_CORNER_POCKET_RADIUS_SCALE *
     CHROME_CORNER_POCKET_CUT_SCALE *
-    POCKET_JAW_CORNER_OUTER_LIMIT_SCALE;
+    POCKET_JAW_CORNER_OUTER_LIMIT_SCALE *
+    pocketJawShowoodAlignmentScale;
   const sideJawOuterLimit =
     sidePocketRadius *
     CHROME_SIDE_POCKET_RADIUS_SCALE *
     CHROME_SIDE_POCKET_CUT_SCALE *
-    POCKET_JAW_SIDE_OUTER_LIMIT_SCALE;
+    POCKET_JAW_SIDE_OUTER_LIMIT_SCALE *
+    pocketJawShowoodAlignmentScale;
 
   const resolveBaseRadius = (outerLimit, outerScale) => {
     if (!Number.isFinite(outerLimit) || outerLimit <= MICRO_EPS) {
@@ -11284,11 +11306,30 @@ export function Table3D(
           colorId: railMarkerStyle.colorId ?? DEFAULT_RAIL_MARKER_COLOR_ID
         }
       : { shape: DEFAULT_RAIL_MARKER_SHAPE, colorId: DEFAULT_RAIL_MARKER_COLOR_ID };
-  const railMarkerOutset = longRailW * 0.08;
-  const railMarkerInwardShift = Math.max(BALL_R * 0.35, longRailW * 0.08);
+  const showoodSourceRailMarkers = resolvedTableOptions?.tableModel?.railMarkerLayout === 'showood-source';
+  const railMarkerLongOutwardScale = THREE.MathUtils.clamp(
+    Number(resolvedTableOptions?.tableModel?.railMarkerLongRailOutwardScale) || 1,
+    0.82,
+    1.24
+  );
+  const railMarkerShortOutwardScale = THREE.MathUtils.clamp(
+    Number(resolvedTableOptions?.tableModel?.railMarkerShortRailOutwardScale) || 1,
+    0.82,
+    1.24
+  );
+  const railMarkerSizeScale = THREE.MathUtils.clamp(
+    Number(resolvedTableOptions?.tableModel?.railMarkerSizeScale) || 1,
+    0.72,
+    1.18
+  );
+  const railMarkerOutset = longRailW * (showoodSourceRailMarkers ? 0.045 : 0.08);
+  const railMarkerInwardShift = Math.max(
+    BALL_R * (showoodSourceRailMarkers ? 0.22 : 0.35),
+    longRailW * (showoodSourceRailMarkers ? 0.052 : 0.08)
+  );
   const railMarkerGroup = new THREE.Group();
   const railMarkerThickness = RAIL_MARKER_THICKNESS;
-  const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
+  const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64 * railMarkerSizeScale;
   const railMarkerLength = railMarkerWidth * 0.62;
   const railMarkerShape = new THREE.Shape();
   railMarkerShape.moveTo(0, railMarkerLength / 2);
@@ -11378,14 +11419,20 @@ export function Table3D(
     clearRailMarkerMeshes();
     const longDiamondSpacing = PLAY_H / 8;
     const shortDiamondSpacing = PLAY_W / 4;
-    const longRailX = halfW + longRailW + railMarkerOutset - railMarkerInwardShift;
-    const shortRailZ = halfH + endRailW + railMarkerOutset - railMarkerInwardShift;
+    const baseLongRailX = halfW + longRailW + railMarkerOutset - railMarkerInwardShift;
+    const baseShortRailZ = halfH + endRailW + railMarkerOutset - railMarkerInwardShift;
+    const longRailX = halfW + (baseLongRailX - halfW) * railMarkerLongOutwardScale;
+    const shortRailZ = halfH + (baseShortRailZ - halfH) * railMarkerShortOutwardScale;
     const addMarker = (x, z, rotation = 0) => {
       const mesh = new THREE.Mesh(geometry, railMarkerMat);
       mesh.position.set(x, railMarkerLift, z);
       mesh.rotation.y = rotation;
       mesh.castShadow = false;
       mesh.receiveShadow = false;
+      mesh.userData = {
+        ...(mesh.userData || {}),
+        externalTableRailMarkerKeepVisible: true
+      };
       mesh.renderOrder = CHROME_PLATE_RENDER_ORDER + 0.1;
       registerRailMarkerMesh(mesh);
     };
@@ -12225,6 +12272,7 @@ const POOL_ROYALE_SHOWOOD_PART_TO_CONTROL = Object.freeze({
   baseFoot: 'metalAccent',
   lowerTrim: 'metalAccent',
   railSight: 'metalAccent',
+  railDiamondMarking: 'metalAccent',
   underside: 'legBase',
   trim: 'metalAccent',
   wood: 'topWoodRail',
@@ -12437,7 +12485,8 @@ function classifyPoolRoyaleShowoodReferencePart(child, material) {
 
   if (/cloth|felt|fabric|surface|bed|slate|playfield|baize/.test(label) && !/cushion|rubber|bumper/.test(childName)) return 'cloth';
   if (/cushion|rubber|bumper|railrubber|rail[_\s-]*nose/.test(childName)) return 'cushion';
-  if (/sight|diamond|marker|dot|inlay/.test(label)) return 'railSight';
+  if (/diamond|marker|dot|inlay/.test(label)) return 'railDiamondMarking';
+  if (/sight/.test(label)) return 'railSight';
   if (/pocket|hole|drop|net|liner|leather|cup|basket|holder/.test(label)) {
     return metalish && !black && !brown ? 'cornerPocketPlate' : 'pocketCup';
   }
@@ -12778,13 +12827,15 @@ function shouldHidePoolRoyaleExternalTableSurface({ tableModel, role, referenceP
   const allReferenceParts = Array.isArray(referenceParts) && referenceParts.length
     ? referenceParts
     : [referencePart].filter(Boolean);
-  const preserveReferenceParts = Array.isArray(tableModel.preserveExternalReferenceParts)
-    ? tableModel.preserveExternalReferenceParts
-    : [];
-  if (allReferenceParts.some((part) => preserveReferenceParts.includes(part))) return false;
   const hideReferenceParts = Array.isArray(tableModel.hideExternalReferenceParts)
     ? tableModel.hideExternalReferenceParts
     : [];
+  if (referencePart && hideReferenceParts.includes(referencePart)) return true;
+  const preserveReferenceParts = Array.isArray(tableModel.preserveExternalReferenceParts)
+    ? tableModel.preserveExternalReferenceParts
+    : [];
+  if (referencePart && preserveReferenceParts.includes(referencePart)) return false;
+  if (allReferenceParts.some((part) => preserveReferenceParts.includes(part))) return false;
   if (allReferenceParts.some((part) => hideReferenceParts.includes(part))) return true;
   return Array.isArray(tableModel.hideSurfaceRoles) && tableModel.hideSurfaceRoles.includes(role);
 }
@@ -14405,7 +14456,10 @@ function mountPoolRoyaleExternalTableModel({
         (
           (
             object.userData?.externalTableBrandPlateKeepVisible &&
-            !externalTableModelForMount?.useOriginalLayoutSurfaces
+            (
+              !externalTableModelForMount?.useOriginalLayoutSurfaces ||
+              externalTableModelForMount?.keepGeneratedBrandPlatesOnExternal
+            )
           ) ||
           (
             object.userData?.externalTableAlwaysKeepVisible &&
@@ -14418,6 +14472,10 @@ function mountPoolRoyaleExternalTableModel({
           (
             externalTableKeepsGeneratedPocketHardware &&
             object.userData?.externalTablePocketDropHardware
+          ) ||
+          (
+            object.userData?.externalTableRailMarkerKeepVisible &&
+            externalTableModelForMount?.hideGeneratedRailMarkers === false
           ) ||
           (object.userData?.isChromePlate && forceGeneratedChrome)
         )
