@@ -11234,11 +11234,20 @@ export function Table3D(
     return mat;
   };
   const brandPlateThickness = chromePlateThickness;
-  const brandPlateDepth = Math.min(endRailW * 0.66, TABLE.THICK * 0.96);
-  const brandPlateWidth = Math.min(PLAY_W * 0.32, Math.max(BALL_R * 9.6, PLAY_W * 0.23));
+  const brandPlateVisualScale = THREE.MathUtils.clamp(
+    Number(resolvedTableOptions?.tableModel?.brandPlateVisualScale) || 1,
+    0.85,
+    1.16
+  );
+  const brandPlateDepth = Math.min(endRailW * 0.66, TABLE.THICK * 0.96) * brandPlateVisualScale;
+  const brandPlateWidth = Math.min(PLAY_W * 0.32, Math.max(BALL_R * 9.6, PLAY_W * 0.23)) * brandPlateVisualScale;
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 0.92;
+  const brandPlateOutwardShift = endRailW * 0.92 * THREE.MathUtils.clamp(
+    Number(resolvedTableOptions?.tableModel?.brandPlateOutwardOffsetScale) || 1,
+    0.8,
+    1.22
+  );
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -11378,8 +11387,12 @@ export function Table3D(
     clearRailMarkerMeshes();
     const longDiamondSpacing = PLAY_H / 8;
     const shortDiamondSpacing = PLAY_W / 4;
-    const longRailX = halfW + longRailW + railMarkerOutset - railMarkerInwardShift;
-    const shortRailZ = halfH + endRailW + railMarkerOutset - railMarkerInwardShift;
+    const externalRailMarkerOutwardOffset = Number(resolvedTableOptions?.tableModel?.railMarkerOutwardOffset);
+    const railMarkerExternalOutset = Number.isFinite(externalRailMarkerOutwardOffset)
+      ? Math.max(0, externalRailMarkerOutwardOffset)
+      : 0;
+    const longRailX = halfW + longRailW + railMarkerOutset - railMarkerInwardShift + railMarkerExternalOutset;
+    const shortRailZ = halfH + endRailW + railMarkerOutset - railMarkerInwardShift + railMarkerExternalOutset;
     const addMarker = (x, z, rotation = 0) => {
       const mesh = new THREE.Mesh(geometry, railMarkerMat);
       mesh.position.set(x, railMarkerLift, z);
@@ -12224,7 +12237,7 @@ const POOL_ROYALE_SHOWOOD_PART_TO_CONTROL = Object.freeze({
   cloth: 'cloth',
   cushion: 'cushion',
   topWoodRail: 'topWoodRail',
-  sideWoodApron: 'metalAccent',
+  sideWoodApron: 'topWoodRail',
   cornerPocketPlate: 'metalAccent',
   middlePocketPlate: 'metalAccent',
   verticalCornerRim: 'metalAccent',
@@ -12642,6 +12655,12 @@ function applyPoolRoyaleShowoodReferenceMaterial(material, part, tableModel = nu
     if ('envMapIntensity' in mat) mat.envMapIntensity = option.envMapIntensity;
     if ('clearcoat' in mat) mat.clearcoat = option.clearcoat ?? 0;
     if ('clearcoatRoughness' in mat) mat.clearcoatRoughness = option.clearcoatRoughness ?? 0;
+  }
+  if (part === 'railSight' || part === 'sideWoodApron') {
+    if ('roughness' in mat) mat.roughness = Math.min(mat.roughness ?? 0.42, part === 'railSight' ? 0.24 : 0.36);
+    if ('clearcoat' in mat) mat.clearcoat = Math.max(mat.clearcoat ?? 0, part === 'railSight' ? 0.56 : 0.28);
+    if ('clearcoatRoughness' in mat) mat.clearcoatRoughness = Math.min(mat.clearcoatRoughness ?? 0.28, 0.22);
+    if ('envMapIntensity' in mat) mat.envMapIntensity = Math.max(mat.envMapIntensity ?? 0, part === 'railSight' ? 0.9 : 0.55);
   }
   mat.transparent = false;
   mat.opacity = 1;
@@ -13514,12 +13533,14 @@ function subtlyExpandPoolRoyaleShowoodRailSightsAndAprons(model, tableModel) {
   const visualScale = Number(tableModel?.railSightApronVisualScale);
   const railSightHeightScale = Number(tableModel?.railSightVisualHeightScale);
   const sideApronHeightScale = Number(tableModel?.sideApronVisualHeightScale);
+  const railSightOutwardOffset = Number(tableModel?.railSightOutwardOffset);
   const sideApronOutwardOffset = Number(tableModel?.sideApronOutwardOffset);
   const hasScale = Number.isFinite(visualScale) && visualScale > 1 + MICRO_EPS;
   const hasRailSightHeight = Number.isFinite(railSightHeightScale) && railSightHeightScale > 1 + MICRO_EPS;
   const hasSideApronHeight = Number.isFinite(sideApronHeightScale) && sideApronHeightScale > 1 + MICRO_EPS;
+  const hasRailSightOffset = Number.isFinite(railSightOutwardOffset) && Math.abs(railSightOutwardOffset) > MICRO_EPS;
   const hasSideApronOffset = Number.isFinite(sideApronOutwardOffset) && Math.abs(sideApronOutwardOffset) > MICRO_EPS;
-  if (!hasScale && !hasRailSightHeight && !hasSideApronHeight && !hasSideApronOffset) return;
+  if (!hasScale && !hasRailSightHeight && !hasSideApronHeight && !hasRailSightOffset && !hasSideApronOffset) return;
   if (model.userData?.poolRoyaleShowoodRailSightApronExpanded) return;
 
   const fullBox = new THREE.Box3().setFromObject(model);
@@ -13545,16 +13566,19 @@ function subtlyExpandPoolRoyaleShowoodRailSightsAndAprons(model, tableModel) {
     const heightScale = isSideApron ? safeSideApronHeightScale : safeRailSightHeightScale;
     if (heightScale > 1) child.scale.y *= heightScale;
 
-    if (isSideApron && hasSideApronOffset) {
+    const outwardOffset = isSideApron
+      ? (hasSideApronOffset ? sideApronOutwardOffset : 0)
+      : (hasRailSightOffset ? railSightOutwardOffset : 0);
+    if (Math.abs(outwardOffset) > MICRO_EPS) {
       const childBox = new THREE.Box3().setFromObject(child);
       if (!childBox.isEmpty()) {
         const childCenter = childBox.getCenter(new THREE.Vector3());
         const awayX = childCenter.x - fullCenter.x;
         const awayZ = childCenter.z - fullCenter.z;
         if (Math.abs(awayX) >= Math.abs(awayZ) && Math.abs(awayX) > MICRO_EPS) {
-          child.position.x += Math.sign(awayX) * sideApronOutwardOffset;
+          child.position.x += Math.sign(awayX) * outwardOffset;
         } else if (Math.abs(awayZ) > MICRO_EPS) {
-          child.position.z += Math.sign(awayZ) * sideApronOutwardOffset;
+          child.position.z += Math.sign(awayZ) * outwardOffset;
         }
       }
     }
