@@ -7,16 +7,12 @@ import {
 } from '../webapp/src/config/poolRoyaleTableModels.js';
 
 describe('Pool Royale table models', () => {
-  test('defaults to the Showood GLB table while keeping Royal Original available as procedural fallback', () => {
-    assert.equal(DEFAULT_POOL_ROYALE_TABLE_MODEL_ID, 'showood-seven-foot');
-    assert.equal(resolvePoolRoyaleTableModel(null).id, 'showood-seven-foot');
+  test('defaults to the Royal Original procedural table', () => {
+    assert.equal(DEFAULT_POOL_ROYALE_TABLE_MODEL_ID, 'royal-original');
+    assert.equal(resolvePoolRoyaleTableModel(null).id, 'royal-original');
     assert.equal(
       resolvePoolRoyaleTableModel('unknown').id,
-      'showood-seven-foot'
-    );
-    assert.ok(
-      POOL_ROYALE_TABLE_MODEL_OPTIONS.some((option) => option.id === 'royal-original'),
-      'Royal Original remains configured for the generated-table fallback path'
+      'royal-original'
     );
   });
 
@@ -37,7 +33,7 @@ describe('Pool Royale table models', () => {
     assert.deepEqual(royal.hideSurfaceRoles, ['trim', 'wood', 'cushion', 'pocket']);
   });
 
-  test('Showood uses original GLB surface layout with outward generated branding and rail diamonds', () => {
+  test('Showood uses original GLB surface layout without procedural rail diamonds', () => {
     const showood = POOL_ROYALE_TABLE_MODEL_OPTIONS.find(
       (option) => option.id === 'showood-seven-foot'
     );
@@ -46,9 +42,10 @@ describe('Pool Royale table models', () => {
     assert.equal(showood.kind, 'gltf');
     assert.equal(showood.useOriginalLayoutSurfaces, true);
     assert.equal(showood.useReferenceShowoodMapping, true);
-    assert.equal(showood.hideGeneratedRailMarkers, false);
+    assert.equal(showood.hideGeneratedRailMarkers, true);
     assert.deepEqual(showood.hideSurfaceRoles, []);
     assert.deepEqual(showood.preserveSourceTextureRoles, [
+      'railSight',
       'sideWoodApron',
       'baseFoot',
       'trim',
@@ -62,13 +59,9 @@ describe('Pool Royale table models', () => {
     assert.equal(showood.lowerLegFootReachScale, 1.28);
     assert.equal(showood.footWidthScale, 1.08);
     assert.equal(showood.footHeightScale, 1);
-    assert.equal(showood.brandPlateVisualScale, 1.08);
-    assert.equal(showood.brandPlateOutwardOffsetScale, 1.08);
-    assert.equal(showood.railMarkerOutwardOffset, 0.046);
-    assert.equal(showood.railSightApronVisualScale, 1.035);
-    assert.equal(showood.railSightOutwardOffset, 0.018);
+    assert.equal(showood.railSightApronVisualScale, 1.026);
     assert.equal(showood.sideApronVisualHeightScale, 1.07);
-    assert.equal(showood.sideApronOutwardOffset, 0.038);
+    assert.equal(showood.sideApronOutwardOffset, 0.018);
     assert.deepEqual(showood.usePoolRoyaleFinishRoles, ['cloth', 'cushion', 'wood']);
   });
 
@@ -104,35 +97,29 @@ describe('Pool Royale table models', () => {
     );
     assert.equal(
       resolvePoolRoyaleTableModel('traditional-fizyman-eight-foot').id,
-      'showood-seven-foot'
+      'royal-original'
     );
   });
 
-  test('Pool Royale lobby hides table choices and starts with the default GLB table', async () => {
+  test('Pool Royale lobby exposes model choices with Royal Original guidance', async () => {
     const lobby = await readFile(
       'webapp/src/pages/Games/PoolRoyaleLobby.jsx',
       'utf8'
     );
 
-    assert.equal(
+    assert.ok(
       lobby.includes('Royal Original keeps the clean procedural table'),
-      false,
-      'lobby should not mention table model choices'
+      'lobby should explain the Royal Original table'
     );
     assert.equal(
       lobby.includes('POOL_ROYALE_TABLE_MODEL_OPTIONS.map'),
-      false,
-      'lobby should not render table model option cards'
+      true,
+      'lobby should render table model option cards'
     );
     assert.equal(
       lobby.includes('setTableModelId'),
-      false,
-      'lobby should not allow switching table models'
-    );
-    assert.equal(
-      lobby.includes('const tableModelId = resolvePoolRoyaleTableModel().id'),
       true,
-      'lobby should use the configured default table model'
+      'lobby should allow switching table models'
     );
     assert.equal(
       lobby.includes('traditional-fizyman-eight-foot'),
