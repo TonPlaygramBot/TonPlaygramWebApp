@@ -16,7 +16,7 @@ import { loadAvatar } from '../../utils/avatarUtils.js';
 import OptionIcon from '../../components/OptionIcon.jsx';
 import { getLobbyIcon } from '../../config/gameAssets.js';
 import GameLobbyHeader from '../../components/GameLobbyHeader.jsx';
-import { socket } from '../../utils/socket.js';
+import { refreshSocketAuthIdentity, socket } from '../../utils/socket.js';
 import { getOnlineReadiness } from '../../config/onlineContract.js';
 
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
@@ -50,6 +50,14 @@ const TARGET_POINTS_OPTIONS = [51, 101];
 
 const SOCKET_CONNECT_TIMEOUT_MS = 12000;
 const SOCKET_ACK_TIMEOUT_MS = 7000;
+const MATCHMAKING_TIMEOUT_MS = 45000;
+
+const MATCHMAKING_RECOVERABLE_ERRORS = new Set([
+  'identity_mismatch',
+  'register_required',
+  'rate_limited',
+  'timeout'
+]);
 
 function waitForSocketConnection(socketInstance, timeoutMs = SOCKET_CONNECT_TIMEOUT_MS) {
   if (!socketInstance) return Promise.resolve(false);
@@ -126,8 +134,42 @@ export default function DominoRoyalLobby() {
   const [matchStatus, setMatchStatus] = useState('');
   const [matchingError, setMatchingError] = useState('');
   const pendingOnlineRef = useRef({ tableId: '', accountId: '', launched: false });
+  const matchmakingTimeoutRef = useRef(null);
+  const stakeDebitedRef = useRef(false);
+  const stakeRefundedRef = useRef(false);
   const startBet = stake.amount / 100;
   const readiness = getOnlineReadiness('domino-royal');
+
+  const clearMatchmakingTimeout = () => {
+    if (matchmakingTimeoutRef.current) {
+      clearTimeout(matchmakingTimeoutRef.current);
+      matchmakingTimeoutRef.current = null;
+    }
+  };
+
+  const refundOnlineStake = async (reason, accountId, tgId) => {
+    if (!accountId || !stakeDebitedRef.current || stakeRefundedRef.current) return;
+    stakeRefundedRef.current = true;
+    await addTransaction(tgId || getTelegramId(), stake.amount, 'stake_refund', {
+      game: 'domino-online',
+      players: totalPlayers,
+      accountId,
+      reason
+    }).catch(() => {});
+  };
+
+  const resetPendingOnlineSeat = ({ leave = false } = {}) => {
+    const pending = pendingOnlineRef.current;
+    clearMatchmakingTimeout();
+    if (leave && pending.tableId && pending.accountId && !pending.launched) {
+      socket.emit('leaveLobby', {
+        accountId: pending.accountId,
+        tpcAccountNumber: pending.accountId,
+        tableId: pending.tableId
+      });
+    }
+    pendingOnlineRef.current = { tableId: '', accountId: '', launched: false };
+  };
 
   const maxPlayers = PLAYER_OPTIONS[PLAYER_OPTIONS.length - 1];
   const totalPlayers = Math.max(2, Math.min(maxPlayers, playerCount));
@@ -244,15 +286,18 @@ export default function DominoRoyalLobby() {
       accountId = await ensureAccountId();
       tgId = getTelegramId();
       if (mode !== 'local') {
+        stakeDebitedRef.current = false;
+        stakeRefundedRef.current = false;
         const balRes = await getAccountBalance(accountId);
         if ((balRes.balance || 0) < stake.amount) {
           alert('Insufficient balance');
           return;
         }
         await addTransaction(tgId, -stake.amount, 'stake', {
-          game: 'domino',
+          game: 'domino-online',
           accountId
         });
+        stakeDebitedRef.current = true;
       }
     } catch {}
 
@@ -261,12 +306,16 @@ export default function DominoRoyalLobby() {
       setMatching(true);
       setMatchingError('');
       setMatchStatus('Connecting to Domino Royal online lobby…');
+      resetPendingOnlineSeat({ leave: true });
       pendingOnlineRef.current = { tableId: '', accountId, launched: false };
+      refreshSocketAuthIdentity({ accountId: String(accountId) }, { reconnect: true });
 
       const connected = await waitForSocketConnection(socket);
       if (!connected) {
         setMatching(false);
-        setMatchingError('Could not connect to the online lobby. Check your network and try again.');
+        setMatchingError('Could not connect to the online lobby. Your stake was refunded.');
+        await refundOnlineStake('socket_connect_failed', accountId, tgId);
+        resetPendingOnlineSeat();
         return;
       }
 
@@ -278,14 +327,17 @@ export default function DominoRoyalLobby() {
       });
       if (registered?.success === false) {
         setMatching(false);
-        setMatchingError('Unable to register this account for online Domino. Please retry.');
+        setMatchingError('Unable to register this account for online Domino. Your stake was refunded.');
+        await refundOnlineStake('register_failed', accountId, tgId);
+        resetPendingOnlineSeat();
         return;
       }
 
       setMatchStatus(`Finding a ${totalPlayers}-player Domino table…`);
-      const res = await emitWithAck(socket, 'seatTable', {
+      const buildSeatPayload = () => ({
         accountId,
         tpcAccountNumber: accountId,
+        tpcAccountId: accountId,
         gameType: 'domino-royal',
         stake: Number(stake.amount) || 0,
         maxPlayers: totalPlayers,
@@ -300,13 +352,38 @@ export default function DominoRoyalLobby() {
           variant
         }
       });
+      let res = await emitWithAck(socket, 'seatTable', buildSeatPayload());
+      if ((!res.success || !res.tableId) && MATCHMAKING_RECOVERABLE_ERRORS.has(res.error)) {
+        setMatchStatus('Retrying Domino Royal matchmaking…');
+        if (res.error === 'identity_mismatch' || res.error === 'register_required') {
+          refreshSocketAuthIdentity({ accountId: String(accountId) }, { reconnect: true });
+          await waitForSocketConnection(socket, 5000);
+          await emitWithAck(socket, 'register', {
+            playerId: accountId,
+            accountId,
+            tpcAccountNumber: accountId
+          });
+        } else {
+          await new Promise((resolve) => setTimeout(resolve, 750));
+        }
+        res = await emitWithAck(socket, 'seatTable', buildSeatPayload());
+      }
       if (!res.success || !res.tableId) {
         setMatching(false);
-        setMatchingError('Unable to join Domino online table. Please try again.');
+        setMatchingError('Unable to join Domino online table. Your stake was refunded.');
+        await refundOnlineStake(`seat_failed:${res.error || 'unknown'}`, accountId, tgId);
+        resetPendingOnlineSeat({ leave: true });
         return;
       }
 
       pendingOnlineRef.current = { tableId: res.tableId, accountId, launched: false };
+      clearMatchmakingTimeout();
+      matchmakingTimeoutRef.current = setTimeout(() => {
+        setMatching(false);
+        setMatchingError('No Domino players joined in time. Your stake was refunded.');
+        refundOnlineStake('matchmaking_timeout', accountId, tgId);
+        resetPendingOnlineSeat({ leave: true });
+      }, MATCHMAKING_TIMEOUT_MS);
       const readyCount = Array.isArray(res.ready) ? res.ready.length : 0;
       const playerTotal = Array.isArray(res.players) ? res.players.length : 1;
       setMatchStatus(
@@ -363,6 +440,10 @@ export default function DominoRoyalLobby() {
         : null;
       if (!seat || pending.launched) return;
       pendingOnlineRef.current = { ...pending, tableId, launched: true };
+      clearMatchmakingTimeout();
+      setMatching(false);
+      stakeDebitedRef.current = false;
+      stakeRefundedRef.current = false;
       setMatchStatus('Starting Domino Royal synced match…');
       const token = meta?.token || stake.token || onlineStake?.token || 'TPC';
       const amount = Number(onlineStake?.amount || stake.amount || 0);
@@ -379,9 +460,12 @@ export default function DominoRoyalLobby() {
 
     socket.on('lobbyUpdate', handleLobbyUpdate);
     socket.on('gameStart', handleGameStart);
+    socket.on('gameStarted', handleGameStart);
     return () => {
       socket.off('lobbyUpdate', handleLobbyUpdate);
       socket.off('gameStart', handleGameStart);
+      socket.off('gameStarted', handleGameStart);
+      clearMatchmakingTimeout();
       const pending = pendingOnlineRef.current;
       if (pending.tableId && pending.accountId && !pending.launched) {
         socket.emit('leaveLobby', {
