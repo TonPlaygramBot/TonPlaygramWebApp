@@ -20,9 +20,6 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     icon: '🎱',
     kind: 'gltf',
     fitScale: 1.055,
-    generatedRailWidthScale: 1.12,
-    generatedChromePlateScale: 1.09,
-    generatedPocketJawProfile: 'showood-aligned',
     clothRepeatScale: 5.25,
     fitStrategy: 'exact',
     fitReference: 'upperTabletop',
@@ -64,13 +61,10 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     lowerLegMaxHeightScale: 3.4,
     footWidthScale: 1.08,
     footHeightScale: 1,
-    railSightApronVisualScale: 1.038,
-    railSightVisualHeightScale: 1.058,
-    sideApronVisualHeightScale: 1.088,
-    sideApronOutwardOffset: 0.024,
-    keepGeneratedBrandPlates: true,
-    proceduralRailMarkersReplaceOriginal: true,
-    proceduralPocketCutoutAlignment: 'field-pocket-mapping',
+    railSightApronVisualScale: 1.026,
+    railSightVisualHeightScale: 1.045,
+    sideApronVisualHeightScale: 1.07,
+    sideApronOutwardOffset: 0.018,
     clothRepeatScale: 5.25,
     fitStrategy: 'exact',
     fitReference: 'upperTabletop',
@@ -88,8 +82,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     tintOriginalTrimGold: false,
     forceGeneratedChromePlates: false,
     hideSurfaceRoles: [],
-    hideExternalReferenceParts: ['railSight'],
-    hideGeneratedRailMarkers: false
+    hideGeneratedRailMarkers: true
   }
 ]);
 
