@@ -61,10 +61,10 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     lowerLegMaxHeightScale: 3.4,
     footWidthScale: 1.08,
     footHeightScale: 1,
-    railSightApronVisualScale: 1.026,
-    railSightVisualHeightScale: 1.045,
-    sideApronVisualHeightScale: 1.07,
-    sideApronOutwardOffset: 0.018,
+    railSightApronVisualScale: 1.045,
+    railSightVisualHeightScale: 1.065,
+    sideApronVisualHeightScale: 1.095,
+    sideApronOutwardOffset: 0.024,
     clothRepeatScale: 5.25,
     fitStrategy: 'exact',
     fitReference: 'upperTabletop',
@@ -77,12 +77,16 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     usePoolRoyaleFinish: true,
     useReferenceShowoodMapping: true,
     usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood'],
-    preserveSourceTextureRoles: ['railSight', 'sideWoodApron', 'baseFoot', 'trim', 'pocket'],
+    preserveSourceTextureRoles: ['sideWoodApron', 'baseFoot', 'trim', 'pocket'],
     preserveOriginalSurfaceRoles: [],
+    forceHideExternalReferenceParts: ['railSight'],
+    keepGeneratedBrandPlates: true,
+    keepGeneratedRailMarkersOnExternal: true,
+    railMarkerReferenceLayout: 'showood-original',
     tintOriginalTrimGold: false,
     forceGeneratedChromePlates: false,
     hideSurfaceRoles: [],
-    hideGeneratedRailMarkers: true
+    hideGeneratedRailMarkers: false
   }
 ]);
 

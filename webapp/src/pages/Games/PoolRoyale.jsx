@@ -799,8 +799,8 @@ const CORNER_POCKET_SCALE_BOOST = 0.998; // open the corner mouth fractionally t
 const CORNER_POCKET_EXTRA_SCALE = 1.028; // further relax the corner mouth while leaving side pockets unchanged
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1; // keep the corner chrome arch radius aligned with the middle pockets
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08; // pull the rounded corner cut a touch farther inward while keeping the notch aligned to the cloth
-const CHROME_CORNER_EXPANSION_SCALE = 1.034; // expand the corner chrome farther along the long-rail side so it reaches the marked edge
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.032; // mirror the corner expansion along the short-rail side for a balanced two-sided extension
+const CHROME_CORNER_EXPANSION_SCALE = 1.082; // expand the corner chrome farther along the long-rail side so it reaches the marked edge
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.078; // mirror the corner expansion along the short-rail side for a balanced two-sided extension
 const CHROME_CORNER_FIELD_TRIM_SCALE = -0.03; // remove the base trim so the fascia rides the cushion edge without a gap
 const CHROME_CORNER_NOTCH_WEDGE_SCALE = 0; // keep wedge trim disabled to avoid polygon instability while preserving corner-cut safety
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.5; // increase the inside jaw clip so roughly the inner quarter is removed from corner chrome plates
@@ -809,8 +809,8 @@ const CHROME_CORNER_FIELD_FILLET_SCALE = 0; // force a straight diagonal trim on
 const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1; // no scaling so the notch mirrors the pocket radius perfectly
 const CHROME_CORNER_DIMENSION_SCALE = 1; // keep the fascia dimensions identical to the cushion span so both surfaces meet cleanly
-const CHROME_CORNER_WIDTH_SCALE = 1.018; // broaden the corner plate footprint so each side gains more visible chrome length
-const CHROME_CORNER_HEIGHT_SCALE = 1.012; // extend the short-rail plate reach while keeping the corner chrome cut unchanged
+const CHROME_CORNER_WIDTH_SCALE = 1.058; // broaden the corner plate footprint so each side gains more visible chrome length
+const CHROME_CORNER_HEIGHT_SCALE = 1.052; // extend the short-rail plate reach while keeping the corner chrome cut unchanged
 const CHROME_CORNER_CENTER_OUTSET_SCALE = 0.024; // push corner fascia a tiny bit farther outward while keeping the rounded corner-pocket cut unchanged
 const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0; // let the corner fascia terminate precisely where the cushion noses stop
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0; // stop pulling the chrome off the short-rail centreline so the jaws stay flush
@@ -833,11 +833,11 @@ const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0.06; // lift fascia slightly with the 
 const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.34; // trim the side fascia reach so the middle chrome ends cleanly before the pocket curve
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.14; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.32; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.228; // trim the side opposite the rounded middle cut a touch more while staying stable
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.11; // widen the middle fascia slightly so both flanks expand toward the corner pockets
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.22; // widen the middle fascia slightly so both flanks expand toward the corner pockets
 const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 0.8; // trim the outside body of middle-pocket chrome plates a little more while preserving the rounded cut
-const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.22; // extend the plate ends a bit farther toward the corner pockets (green-marked areas)
+const CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE = 1.32; // extend the plate ends a bit farther toward the corner pockets (green-marked areas)
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.9; // tighten the middle fascia slightly so both flanks gain a touch more trim
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.24; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
@@ -847,12 +847,12 @@ const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.078; // trim the middle-pocket outs
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.062; // open the corner chrome rounded cut a little more so the visible chrome plate arc reads larger
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.045; // open middle-pocket chrome rounded cuts a little more so their plate arcs match the larger corner cut
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // reduce inward pull so middle pocket chrome cuts sit a bit farther out
-const WOOD_RAIL_POCKET_RELIEF_SCALE = 1.045; // match the wooden rail pocket relief to the Showood jaw outside diameter
+const WOOD_RAIL_POCKET_RELIEF_SCALE = 1.075; // match the wooden rail pocket relief to the Showood jaw outside diameter
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.958; // shrink the wooden corner rounded cut a touch more so only the wood corner radius reads slightly tighter
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
 const WOOD_CORNER_POCKET_CUT_CENTER_OUTSET_SCALE = -0.018; // push only the wooden corner rounded cut outward a touch without moving side-pocket cuts
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.045; // keep middle rail rounded cuts identical to the corner/showood-style pocket arcs
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.075; // keep middle rail rounded cuts identical to the corner/showood-style pocket arcs
 const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.068; // move middle wooden relief outward a bit more with the shifted side-pocket geometry
 
 function buildChromePlateGeometry({
@@ -1307,19 +1307,19 @@ const REPLAY_CAMERA_START_DELAY_MS = 0;
     WALL: 2.6 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE
   };
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
-const FRAME_RAIL_OUTWARD_SCALE = 1.3; // match the procedural wood frame width closer to the Showood GLB top rail
+const FRAME_RAIL_OUTWARD_SCALE = 1.42; // match the procedural wood frame width closer to the Showood GLB top rail
 const RAIL_HEIGHT = TABLE.THICK * 1.9; // lift all six cushions/rails a touch more so the top profile reads higher without changing playfield size
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.024; // push the corner jaws just a bit farther outward so the fascia follows the rounded rail and chrome cut
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.052; // push the corner jaws just a bit farther outward so the fascia follows the rounded rail and chrome cut
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
-const POCKET_JAW_CORNER_INNER_SCALE = 1.62; // stretch the inner lip into a longer Showood-style rounded pocket jaw while keeping playable mouth size
+const POCKET_JAW_CORNER_INNER_SCALE = 1.7; // stretch the inner lip into a longer Showood-style rounded pocket jaw while keeping playable mouth size
 const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 1.03; // round and widen the middle jaws slightly more while keeping the corner match
-const POCKET_JAW_CORNER_OUTER_SCALE = 1.86; // broaden the outer jaw shoulder to mirror the Showood rounded pocket cup profile
+const POCKET_JAW_CORNER_OUTER_SCALE = 1.94; // broaden the outer jaw shoulder to mirror the Showood rounded pocket cup profile
 const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
-const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.036; // nudge corner jaws a touch farther outward to keep the jaw shoulder aligned with the rail cut
+const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.052; // nudge corner jaws a touch farther outward to keep the jaw shoulder aligned with the rail cut
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
-const POCKET_JAW_DEPTH_SCALE = 1.08; // deepen all jaw bodies so the default pockets carry the same Showood jaw depth
+const POCKET_JAW_DEPTH_SCALE = 1.14; // deepen all jaw bodies so the default pockets carry the same Showood jaw depth
 const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.094; // lower all six jaws a hair more so the mouths sit slightly deeper
 const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.036; // trim a little more from the jaw bottoms
 const POCKET_JAW_CORNER_BOTTOM_CLEARANCE = TABLE.THICK * 0.012; // keep corner jaw bottom trim aligned with the global bottom reduction
@@ -1343,10 +1343,10 @@ const POCKET_JAW_CORNER_EDGE_FACTOR = 0.36; // widen the chamfer so the corner j
 const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the middle pocket chamfer identical to the corners
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
-const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.5; // match the Showood GLB half-round jaw span on all corner pockets
+const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.58; // match the Showood GLB half-round jaw span on all corner pockets
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = CORNER_POCKET_JAW_LATERAL_EXPANSION; // use the same Showood GLB jaw span for middle pockets
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // keep middle jaw arcs the same size as the Showood-style corner jaws
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.12; // add Showood-like extra depth so side jaws match the corner jaw type
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.16; // add Showood-like extra depth so side jaws match the corner jaw type
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.01; // pull middle-pocket jaws a bit farther downward than corners
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.02; // reduce the outward shift so middle-pocket jaws sit a bit more inward toward table center
 const POCKET_JAW_INWARD_PULL = TABLE.THICK * 0.052; // pull procedural jaw centers just a bit more inward to match the Royal Original pocket placement
@@ -1356,7 +1356,7 @@ const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // 
 const CORNER_POCKET_JAW_EDGE_TRIM_START = SIDE_POCKET_JAW_EDGE_TRIM_START; // keep corner jaw taper start aligned with middle pockets
 const CORNER_POCKET_JAW_EDGE_TRIM_SCALE = SIDE_POCKET_JAW_EDGE_TRIM_SCALE; // match the middle pocket jaw thin/thick profile
 const CORNER_POCKET_JAW_EDGE_TRIM_CURVE = SIDE_POCKET_JAW_EDGE_TRIM_CURVE; // reuse the same taper curve for corner jaws
-const POCKET_JAW_MAPPING_RADIUS_SCALE = 1.035; // slightly expand jaw collision arcs so physics cannot slip through visible jaw/chrome edges
+const POCKET_JAW_MAPPING_RADIUS_SCALE = 1.055; // slightly expand jaw collision arcs so physics cannot slip through visible jaw/chrome edges
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
 const POCKET_RIM_DEPTH_RATIO = 0; // remove the separate pocket rims so the chrome fascias meet the jaws directly
@@ -11384,6 +11384,14 @@ export function Table3D(
       const mesh = new THREE.Mesh(geometry, railMarkerMat);
       mesh.position.set(x, railMarkerLift, z);
       mesh.rotation.y = rotation;
+      mesh.userData = {
+        ...(mesh.userData || {}),
+        externalTableRailMarkerKeepVisible: Boolean(
+          resolvedTableOptions?.tableModel?.keepGeneratedRailMarkersOnExternal
+        ),
+        railMarkerReferenceLayout:
+          resolvedTableOptions?.tableModel?.railMarkerReferenceLayout || 'procedural-standard'
+      };
       mesh.castShadow = false;
       mesh.receiveShadow = false;
       mesh.renderOrder = CHROME_PLATE_RENDER_ORDER + 0.1;
@@ -12932,6 +12940,22 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
       const referencePart = needsReferencePartVisibility
         ? classifyPoolRoyaleShowoodReferencePart(child, material)
         : null;
+      const forceHideReferenceParts = Array.isArray(tableModel?.forceHideExternalReferenceParts)
+        ? tableModel.forceHideExternalReferenceParts
+        : [];
+      if (referencePart && forceHideReferenceParts.includes(referencePart)) {
+        const hiddenMaterial = material.clone ? material.clone() : material;
+        hiddenMaterial.transparent = true;
+        hiddenMaterial.opacity = 0;
+        hiddenMaterial.depthWrite = false;
+        hiddenMaterial.colorWrite = false;
+        hiddenMaterial.userData = {
+          ...(hiddenMaterial.userData || {}),
+          poolRoyaleExternalReferencePartHidden: referencePart
+        };
+        hiddenMaterial.needsUpdate = true;
+        return hiddenMaterial;
+      }
       if (shouldHidePoolRoyaleExternalTableSurface({
         tableModel,
         role,
@@ -14405,7 +14429,12 @@ function mountPoolRoyaleExternalTableModel({
         (
           (
             object.userData?.externalTableBrandPlateKeepVisible &&
-            !externalTableModelForMount?.useOriginalLayoutSurfaces
+            (!externalTableModelForMount?.useOriginalLayoutSurfaces ||
+              externalTableModelForMount?.keepGeneratedBrandPlates)
+          ) ||
+          (
+            object.userData?.externalTableRailMarkerKeepVisible &&
+            externalTableModelForMount?.keepGeneratedRailMarkersOnExternal
           ) ||
           (
             object.userData?.externalTableAlwaysKeepVisible &&
