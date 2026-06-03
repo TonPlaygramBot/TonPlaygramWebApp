@@ -54,7 +54,7 @@ import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from '../../config/murlanThemes.js';
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from '../../config/poolRoyaleInventoryConfig.js';
 import { LUDO_WEAPON_DIRECTOR_BRIDGE } from '../../config/ludoWeaponDirectorBridge.js';
-import { SNAKE_CAPTURE_WEAPON_OPTIONS, SNAKE_FPS_GUN_MODEL_CONFIG } from '../../config/snakeWeaponCatalog.js';
+import { SNAKE_FPS_GUN_MODEL_CONFIG } from '../../config/snakeWeaponCatalog.js';
 import { TOKEN_TYPE_SEQUENCE } from '../../utils/ludoTokenConstants.js';
 import {
   getLudoBattleInventory,
@@ -382,51 +382,6 @@ const gunifyModelUrls = (modelName) => {
   ];
 };
 
-const SNAKE_CAPTURE_WEAPON_OPTION_BY_ID = Object.freeze(
-  SNAKE_CAPTURE_WEAPON_OPTIONS.reduce((acc, option) => {
-    acc[option.id] = option;
-    return acc;
-  }, {})
-);
-const LUDO_POLYPIZZA_TARGET_SIZE_BASE = 0.205;
-const LUDO_POLYPIZZA_ATTACK_TO_SNAKE_WEAPON_ID = Object.freeze({
-  polyShotgun01Attack: 'poly-shotgun-01',
-  polyAssaultRifle01Attack: 'poly-assault-rifle-01',
-  polyPistol01Attack: 'poly-pistol-01',
-  polyRevolver01Attack: 'poly-revolver-01',
-  polySawedOff01Attack: 'poly-sawed-off-01',
-  polyRevolver02Attack: 'poly-revolver-02',
-  polyShotgun02Attack: 'poly-shotgun-02',
-  polyShotgun03Attack: 'poly-shotgun-03',
-  polySmg01Attack: 'poly-smg-01',
-  polyRobotLargeGunAttack: 'poly-robot-large-gun-01',
-  polyRobotFlyingGunAttack: 'poly-robot-flying-gun-01',
-  polyBazooka01Attack: 'poly-bazooka-01',
-  polyGrenadeLauncher01Attack: 'poly-grenade-launcher-01',
-  polyDynamiteBomb01Attack: 'poly-dynamite-bomb-01',
-  polyMolotov01Attack: 'poly-molotov-01',
-  polyGasTank01Attack: 'poly-gas-tank-01',
-  polyHandGrenade01Attack: 'poly-hand-grenade-01',
-  polyTank01Attack: 'poly-tank-01'
-});
-const snakePolyPizzaCaptureWeaponConfig = (attackId) => {
-  const snakeWeaponId = LUDO_POLYPIZZA_ATTACK_TO_SNAKE_WEAPON_ID[attackId];
-  const option = SNAKE_CAPTURE_WEAPON_OPTION_BY_ID[snakeWeaponId];
-  const modelScale = Number.isFinite(option?.modelScale) ? option.modelScale : 1;
-  return {
-    label: option?.label || attackId,
-    urls: Array.isArray(option?.urls) ? [...option.urls] : [],
-    source: option?.source || 'Poly Pizza',
-    creator: option?.creator,
-    license: option?.license,
-    texturePolicy: 'preserveOriginalGlbTextures',
-    preserveOriginalGlbTextures: true,
-    snakeWeaponId,
-    snakeModelScale: modelScale,
-    scale: LUDO_POLYPIZZA_TARGET_SIZE_BASE * modelScale
-  };
-};
-
 const GUNIFY_SPECULAR_GLOSSINESS_EXTENSION = 'KHR_materials_pbrSpecularGlossiness';
 
 function cloneGltfJsonValue(value) {
@@ -630,24 +585,96 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
     ],
     scale: 0.23
   },
-  polyShotgun01Attack: snakePolyPizzaCaptureWeaponConfig('polyShotgun01Attack'),
-  polyAssaultRifle01Attack: snakePolyPizzaCaptureWeaponConfig('polyAssaultRifle01Attack'),
-  polyPistol01Attack: snakePolyPizzaCaptureWeaponConfig('polyPistol01Attack'),
-  polyRevolver01Attack: snakePolyPizzaCaptureWeaponConfig('polyRevolver01Attack'),
-  polySawedOff01Attack: snakePolyPizzaCaptureWeaponConfig('polySawedOff01Attack'),
-  polyRevolver02Attack: snakePolyPizzaCaptureWeaponConfig('polyRevolver02Attack'),
-  polyShotgun02Attack: snakePolyPizzaCaptureWeaponConfig('polyShotgun02Attack'),
-  polyShotgun03Attack: snakePolyPizzaCaptureWeaponConfig('polyShotgun03Attack'),
-  polySmg01Attack: snakePolyPizzaCaptureWeaponConfig('polySmg01Attack'),
-  polyRobotLargeGunAttack: snakePolyPizzaCaptureWeaponConfig('polyRobotLargeGunAttack'),
-  polyRobotFlyingGunAttack: snakePolyPizzaCaptureWeaponConfig('polyRobotFlyingGunAttack'),
-  polyBazooka01Attack: snakePolyPizzaCaptureWeaponConfig('polyBazooka01Attack'),
-  polyGrenadeLauncher01Attack: snakePolyPizzaCaptureWeaponConfig('polyGrenadeLauncher01Attack'),
-  polyDynamiteBomb01Attack: snakePolyPizzaCaptureWeaponConfig('polyDynamiteBomb01Attack'),
-  polyMolotov01Attack: snakePolyPizzaCaptureWeaponConfig('polyMolotov01Attack'),
-  polyGasTank01Attack: snakePolyPizzaCaptureWeaponConfig('polyGasTank01Attack'),
-  polyHandGrenade01Attack: snakePolyPizzaCaptureWeaponConfig('polyHandGrenade01Attack'),
-  polyTank01Attack: snakePolyPizzaCaptureWeaponConfig('polyTank01Attack')
+  polyShotgun01Attack: {
+    label: 'Quaternius Shotgun',
+    urls: ['https://static.poly.pizza/032e6589-3188-41bc-b92b-e25528344275.glb'],
+    scale: 0.205
+  },
+  polyAssaultRifle01Attack: {
+    label: 'Quaternius Assault Rifle',
+    urls: ['https://static.poly.pizza/b3e6be61-0299-4866-a227-58f5f3fe610b.glb'],
+    scale: 0.208
+  },
+  polyPistol01Attack: {
+    label: 'Quaternius Pistol',
+    urls: ['https://static.poly.pizza/3b53f0fe-f86e-451c-816d-6ab9bd265cdc.glb'],
+    scale: 0.122
+  },
+  polyRevolver01Attack: {
+    label: 'Quaternius Heavy Revolver',
+    urls: ['https://static.poly.pizza/9e728565-67a3-44db-9567-982320abff09.glb'],
+    scale: 0.13
+  },
+  polySawedOff01Attack: {
+    label: 'Quaternius Sawed-Off Shotgun',
+    urls: ['https://static.poly.pizza/9a6ee0ee-068b-4774-8b0f-679c3cef0b6e.glb'],
+    scale: 0.175
+  },
+  polyRevolver02Attack: {
+    label: 'Quaternius Revolver Silver',
+    urls: ['https://static.poly.pizza/7951b3b9-d3a5-4ec8-81b7-11111f1c8e88.glb'],
+    scale: 0.13
+  },
+  polyShotgun02Attack: {
+    label: 'Quaternius Long Shotgun',
+    urls: ['https://static.poly.pizza/f71d6771-f512-4374-bd23-ba00b564db68.glb'],
+    scale: 0.215
+  },
+  polyShotgun03Attack: {
+    label: 'Quaternius Pump Shotgun',
+    urls: ['https://static.poly.pizza/08f27141-8e64-425a-9161-1bbd6956dfca.glb'],
+    scale: 0.21
+  },
+  polySmg01Attack: {
+    label: 'Quaternius Submachine Gun',
+    urls: ['https://static.poly.pizza/fb8ae707-d5b9-4eb8-ab8c-1c78d3c1f710.glb'],
+    scale: 0.17
+  },
+  polyRobotLargeGunAttack: {
+    label: 'Quaternius Robot Large Gun',
+    urls: ['https://static.poly.pizza/78e23275-cb6a-4ba3-ae5e-48a9b4ee2e65.glb'],
+    scale: 0.17
+  },
+  polyRobotFlyingGunAttack: {
+    label: 'Quaternius Robot Flying Gun',
+    urls: ['https://static.poly.pizza/6d0889f1-0c3f-4f98-b011-fbcf6c79a93b.glb'],
+    scale: 0.16
+  },
+  polyBazooka01Attack: {
+    label: 'CreativeTrio Bazooka',
+    urls: ['https://static.poly.pizza/613e3b1b-d07c-496b-94a1-7c85b507bac4.glb'],
+    scale: 0.22
+  },
+  polyGrenadeLauncher01Attack: {
+    label: 'CreativeTrio Grenade Launcher',
+    urls: ['https://static.poly.pizza/503bb2c5-4a69-404b-9b82-13e85e8f8467.glb'],
+    scale: 0.2
+  },
+  polyDynamiteBomb01Attack: {
+    label: 'CreativeTrio Dynamite Bomb',
+    urls: ['https://static.poly.pizza/38e858db-325f-4dce-9680-da62c20c5c31.glb'],
+    scale: 0.12
+  },
+  polyMolotov01Attack: {
+    label: 'CreativeTrio Molotov',
+    urls: ['https://static.poly.pizza/d7bb0b50-09af-49f8-b1f9-dbdb0c707d40.glb'],
+    scale: 0.095
+  },
+  polyGasTank01Attack: {
+    label: 'Quaternius Gas Tank',
+    urls: ['https://static.poly.pizza/9c4d2ac5-114b-4da2-a26a-8049e2b1ba04.glb'],
+    scale: 0.12
+  },
+  polyHandGrenade01Attack: {
+    label: 'CreativeTrio Hand Grenade',
+    urls: ['https://static.poly.pizza/03fa7f5b-4df5-45d6-86fb-87e8590f28d7.glb'],
+    scale: 0.075
+  },
+  polyTank01Attack: {
+    label: 'Quaternius Battle Tank',
+    urls: ['https://static.poly.pizza/58c387b2-636f-49dc-a900-13b0852717d6.glb'],
+    scale: 0.125
+  }
 });
 const CAPTURE_WEAPON_MODEL_CACHE = new Map();
 const CAPTURE_WEAPON_MODEL_REDIRECT = new Map();
@@ -670,18 +697,14 @@ function setModelTextureQualityProfile(profile = null) {
   activeModelTextureAnisotropy = resolveModelTextureAnisotropy(profile);
 }
 
-function applyModelQualityToObject(root, { preserveOriginalGlbTextures = false } = {}) {
+function applyModelQualityToObject(root) {
   if (!root?.isObject3D) return;
   root.traverse((node) => {
     if (!node?.isMesh) return;
     const materials = Array.isArray(node.material) ? node.material : [node.material];
     materials.forEach((material) => {
       if (!material) return;
-      if (preserveOriginalGlbTextures) {
-        preserveOriginalGlbTextureSampling(material);
-      } else {
-        normalizeMaterialTextures(material, activeModelTextureAnisotropy, { preserveGltfTextureMapping: true });
-      }
+      normalizeMaterialTextures(material, activeModelTextureAnisotropy, { preserveGltfTextureMapping: true });
       material.needsUpdate = true;
     });
   });
@@ -702,29 +725,16 @@ function applyGunifyWeaponTexturePolicy(material) {
   material.needsUpdate = true;
 }
 
-function preserveOriginalGlbTextureSampling(material) {
-  if (!material) return;
-  ['map', 'emissiveMap', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'alphaMap'].forEach((textureKey) => {
-    const texture = material[textureKey];
-    if (!texture) return;
-    texture.anisotropy = Math.max(texture.anisotropy || 1, activeModelTextureAnisotropy);
-    texture.needsUpdate = true;
-  });
-}
-
 function preserveCaptureWeaponSourceMaterial(material, texturePolicy = 'preserveSource') {
   if (!material) return;
   // Every non-procedural weapon should keep the exact material state authored in
-  // its source GLB/GLTF. That includes alpha modes, opacity, color factors,
-  // PBR factors, UV transforms and every image map. We only tag the material
-  // for diagnostics and let the texture-quality pass raise sampling.
+  // its source GLB/GLTF.  That includes alpha modes, opacity, color factors,
+  // PBR factors, UV transforms and every image map.  We only tag the material
+  // for diagnostics and let the generic texture-quality pass raise sampling.
   material.userData = {
     ...(material.userData || {}),
     sourceTexturePolicy: texturePolicy
   };
-  if (texturePolicy === 'preserveOriginalGlbTextures') {
-    preserveOriginalGlbTextureSampling(material);
-  }
   material.needsUpdate = true;
 }
 
@@ -1545,11 +1555,9 @@ async function loadCaptureWeaponModel(captureAnimationId) {
         const materials = Array.isArray(node.material) ? node.material : [node.material];
         materials.forEach((material) => {
           if (!material) return;
-          if (textureOverride && !config?.preserveOriginalGlbTextures && !material.map) material.map = textureOverride;
-          if (!config?.preserveOriginalGlbTextures) {
-            if (material.map) applySRGBColorSpace(material.map);
-            if (material.emissiveMap) applySRGBColorSpace(material.emissiveMap);
-          }
+          if (textureOverride && !material.map) material.map = textureOverride;
+          if (material.map) applySRGBColorSpace(material.map);
+          if (material.emissiveMap) applySRGBColorSpace(material.emissiveMap);
           if (config?.texturePolicy === 'gunifyPbr') {
             applyGunifyWeaponTexturePolicy(material);
           } else {
@@ -1557,7 +1565,7 @@ async function loadCaptureWeaponModel(captureAnimationId) {
           }
         });
       });
-      applyModelQualityToObject(root, { preserveOriginalGlbTextures: Boolean(config?.preserveOriginalGlbTextures) });
+      applyModelQualityToObject(root);
       fitObjectToTargetSize(root, config.scale ?? 0.12);
       if (normalizedCaptureAnimationId === 'ak47VolleyAttack') {
         removeAk47RearWoodStock(root);
