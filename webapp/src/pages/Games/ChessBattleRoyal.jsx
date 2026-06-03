@@ -75,6 +75,7 @@ import {
 import { giftSounds } from '../../utils/giftSounds.js';
 import { CAPTURE_ANIMATION_OPTIONS } from '../../config/ludoBattleOptions.js';
 import { LUDO_WEAPON_DIRECTOR_BRIDGE } from '../../config/ludoWeaponDirectorBridge.js';
+import { resolveChessFirearmSoundProfile } from '../../config/chessBattleFirearmSounds.js';
 
 /**
  * CHESS 3D — Procedural, Modern Look (no external models)
@@ -716,8 +717,8 @@ const CAMERA_PULL_FORWARD_MIN = THREE.MathUtils.degToRad(15);
 const CAMERA_CAPTURE_VIEW_UPWARD_BIAS = THREE.MathUtils.degToRad(21); // raise forced 3D animation camera for a stronger portrait top-down feel.
 const CAMERA_CAPTURE_VIEW_RADIUS_SCALE = 1.18; // keep forced 3D animation wider during capture so the board stays fully readable
 const CAMERA_CAPTURE_BOTTOM_AVATAR_SCREEN_OFFSET = 0; // keep projected avatars pinned to the seated character chest anchors
-const CAMERA_LOCKED_3D_PHI = THREE.MathUtils.degToRad(86.5); // match the portrait reference: visible seated opponent up top while the board stays low and large.
-const CAMERA_LOCKED_3D_RADIUS_SCALE = 0.285; // reference-frame distance keeps the full board visible above lowered chat/gift controls.
+const CAMERA_LOCKED_3D_PHI = THREE.MathUtils.degToRad(86.5); // portrait reference: keep the opponent visible while the board sits lower on the phone screen.
+const CAMERA_LOCKED_3D_RADIUS_SCALE = 0.285; // leave room for lowered chat/gift controls without cropping the board.
 const CHECKERS_CAMERA_FRAME_COMPENSATION = 1.06;
 const PLAYER_FACE_CAMERA_SEAT_ANGLE = Math.PI / 2;
 // Keep Chess Battle Royal bottom-player camera aligned with Checkers Battle Royal
@@ -748,8 +749,8 @@ const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.68;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.42; // lift camera a bit higher while preserving table focus in portrait.
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.98; // mirror the slight upward lift for landscape framing.
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 1.35;
-const PLAYER_VIEW_LOOK_TARGET_UP_BIAS = 0.62; // aim slightly higher so the 3D scene visually drops toward the phone bottom like the reference.
-const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 11.65; // push the full 3D gameplay stack lower in portrait framing to match the provided reference.
+const PLAYER_VIEW_LOOK_TARGET_UP_BIAS = 0.62; // looking slightly higher makes the 3D gameplay appear lower in portrait framing.
+const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 11.65; // push the 3D table/chairs/avatars visually down toward the phone bottom.
 const FPV_FACE_FORWARD_OFFSET = 0.012; // keep the camera almost exactly at the eyes for a true first-person perspective.
 const FPV_FACE_UP_OFFSET = 0.0; // slight lift so the board edge does not clip while still feeling eye-level.
 const FPV_LOOK_AHEAD_DISTANCE = BOARD.tile * BOARD_SCALE * 5.8; // prioritize looking down the board journey toward the opponent side.
@@ -2346,35 +2347,6 @@ const DRONE_FLY_SOUND_URL = '/assets/sounds/kimsa-kimsa-big-motorcycle-sound-394
 const HELICOPTER_FLY_SOUND_URL = '/assets/sounds/dragon-studio-helicopter-sound-8d-372463.mp3';
 const BAZOOKA_FIRE_SOUND_URL = '/assets/sounds/launch-85216.mp3';
 const MISSILE_IMPACT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
-// The imported GLTF weapon sources (Gunify/Webaverse/Poly Pizza) do not ship audio tracks,
-// so Chess Battle Royal maps every firearm family to locally bundled CC-BY 4.0 firearm SFX.
-const CHESS_FIREARM_SOUND_ATTRIBUTION = Object.freeze({
-  source: 'Orange Free Sounds',
-  license: 'Creative Commons Attribution 4.0 International',
-  sounds: Object.freeze({
-    gunshot: 'https://orangefreesounds.com/gunshot-sound-effect/',
-    shotgun: 'https://orangefreesounds.com/shotgun-sound/',
-    cannon: 'https://orangefreesounds.com/cannon-sound-effect/'
-  })
-});
-const CHESS_FIREARM_SOUND_URLS = Object.freeze({
-  gunshot: 'https://www.orangefreesounds.com/wp-content/uploads/2015/01/Gunshot-sound-effect.mp3',
-  shotgun: 'https://www.orangefreesounds.com/wp-content/uploads/2016/12/Shotgun-sound.mp3',
-  cannon: 'https://www.orangefreesounds.com/wp-content/uploads/2017/03/Cannon-sound-effect.mp3'
-});
-const CHESS_FIREARM_SOUND_PROFILE_BY_TYPE = Object.freeze({
-  Pistol: { soundKey: 'gunshot', volume: 0.92, playbackRate: 1.18, maxDurationMs: 620 },
-  Revolver: { soundKey: 'gunshot', volume: 0.98, playbackRate: 0.92, maxDurationMs: 760 },
-  SMG: { soundKey: 'gunshot', volume: 0.56, playbackRate: 1.34, maxDurationMs: 360 },
-  Rifle: { soundKey: 'gunshot', volume: 0.82, playbackRate: 0.86, maxDurationMs: 760 },
-  AssaultRifle: { soundKey: 'gunshot', volume: 0.82, playbackRate: 0.84, maxDurationMs: 760 },
-  Sniper: { soundKey: 'gunshot', volume: 1, playbackRate: 0.72, maxDurationMs: 980 },
-  SniperRifle: { soundKey: 'gunshot', volume: 1, playbackRate: 0.72, maxDurationMs: 980 },
-  DMR: { soundKey: 'gunshot', volume: 0.94, playbackRate: 0.78, maxDurationMs: 900 },
-  Shotgun: { soundKey: 'shotgun', volume: 1, playbackRate: 0.98, maxDurationMs: 950 },
-  GrenadeLauncher: { soundKey: 'cannon', volume: 1, playbackRate: 1.08, maxDurationMs: 900 },
-  Launcher: { soundKey: 'cannon', volume: 1, playbackRate: 0.94, maxDurationMs: 1050 }
-});
 const LUDO_FIREARM_BROADCAST_PROFILE = LUDO_WEAPON_DIRECTOR_BRIDGE.firearmBroadcastProfile || {};
 const LUDO_WEAPON_TYPE_BY_ANIMATION_ID = LUDO_WEAPON_DIRECTOR_BRIDGE.weaponTypeByCaptureAnimationId || {};
 const CHESS_FIREARM_FATAL_BULLET_TRAVEL_MS = 1250; // match Ludo Battle Royal service-pistol final bullet travel.
@@ -8525,7 +8497,7 @@ function Chess3D({
   const helicopterSoundRef = useRef(null);
   const missileLaunchSoundRef = useRef(null);
   const missileImpactSoundRef = useRef(null);
-  const firearmSoundPoolRef = useRef(new Map());
+  const firearmAudioPoolsRef = useRef(new Map());
   const audioStopTimeoutsRef = useRef(new Map());
   const lastBeepRef = useRef({ white: null, black: null });
   const suppressTimerBeepUntilRef = useRef(0);
@@ -9701,7 +9673,7 @@ function Chess3D({
         } catch {}
       }
     });
-    firearmSoundPoolRef.current.forEach((pool) => {
+    firearmAudioPoolsRef.current.forEach((pool) => {
       pool.forEach((audio) => {
         audio.volume = effectiveSoundEnabled ? volume : 0;
         if (!effectiveSoundEnabled) {
@@ -9743,7 +9715,7 @@ function Chess3D({
         if (!ref.current) return;
         ref.current.volume = settingsRef.current.soundEnabled ? volume : 0;
       });
-      firearmSoundPoolRef.current.forEach((pool) => {
+      firearmAudioPoolsRef.current.forEach((pool) => {
         pool.forEach((audio) => {
           audio.volume = settingsRef.current.soundEnabled ? volume : 0;
         });
@@ -10178,18 +10150,6 @@ function Chess3D({
     missileLaunchSoundRef.current.volume = baseVolume;
     missileImpactSoundRef.current = new Audio(MISSILE_IMPACT_SOUND_URL);
     missileImpactSoundRef.current.volume = baseVolume;
-    firearmSoundPoolRef.current = new Map(
-      Object.entries(CHESS_FIREARM_SOUND_URLS).map(([soundKey, soundUrl]) => [
-        soundKey,
-        Array.from({ length: 5 }, () => {
-          const audio = new Audio(soundUrl);
-          audio.volume = baseVolume;
-          audio.preload = 'auto';
-          return audio;
-        })
-      ])
-    );
-    firearmSoundPoolRef.current.attribution = CHESS_FIREARM_SOUND_ATTRIBUTION;
 
     let stopCameraTween = () => {};
     let onResize = null;
@@ -10279,14 +10239,22 @@ function Chess3D({
           playPromise?.catch(() => {});
         } catch {}
       };
-      const playFirearmSound = (profile = {}) => {
+      const playFirearmSound = (firearmProfile = {}) => {
         if (!settingsRef.current.soundEnabled) return;
-        const ludoType = profile.ludoType || 'Rifle';
-        const soundProfile =
-          CHESS_FIREARM_SOUND_PROFILE_BY_TYPE[ludoType] || CHESS_FIREARM_SOUND_PROFILE_BY_TYPE.Rifle;
-        const pool = firearmSoundPoolRef.current.get(soundProfile.soundKey) || [];
+        const soundProfile = resolveChessFirearmSoundProfile(firearmProfile.ludoType || 'Rifle');
+        let pool = firearmAudioPoolsRef.current.get(soundProfile.sourceKey);
+        if (!pool) {
+          pool = Array.from({ length: 4 }, () => {
+            const audio = new Audio(soundProfile.audioUrl);
+            audio.preload = 'auto';
+            return audio;
+          });
+          firearmAudioPoolsRef.current.set(soundProfile.sourceKey, pool);
+        }
         const audio = pool.find((candidate) => candidate.paused || candidate.ended) || pool[0];
         if (!audio) return;
+        const existingTimeoutId = audioStopTimeoutsRef.current.get(audio);
+        if (existingTimeoutId) clearTimeout(existingTimeoutId);
         try {
           audio.pause();
           audio.currentTime = 0;
@@ -10294,8 +10262,6 @@ function Chess3D({
           audio.playbackRate = soundProfile.playbackRate ?? 1;
           const playPromise = audio.play();
           if (soundProfile.maxDurationMs && Number.isFinite(soundProfile.maxDurationMs)) {
-            const existingTimeoutId = audioStopTimeoutsRef.current.get(audio);
-            if (existingTimeoutId) clearTimeout(existingTimeoutId);
             const timeoutId = setTimeout(() => {
               try {
                 audio.pause();
@@ -16174,13 +16140,13 @@ function Chess3D({
       helicopterSoundRef.current?.pause();
       missileLaunchSoundRef.current?.pause();
       missileImpactSoundRef.current?.pause();
-      firearmSoundPoolRef.current.forEach((pool) => {
+      firearmAudioPoolsRef.current.forEach((pool) => {
         pool.forEach((audio) => {
           audio.pause();
           audio.currentTime = 0;
         });
       });
-      firearmSoundPoolRef.current.clear();
+      firearmAudioPoolsRef.current.clear();
       activeCaptureFx.splice(0, activeCaptureFx.length);
       activeBulletCameraFollow = null;
       captureFxGroup?.clear?.();

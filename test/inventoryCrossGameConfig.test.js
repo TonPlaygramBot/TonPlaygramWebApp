@@ -42,6 +42,11 @@ import {
 } from '../webapp/src/config/snakeInventoryConfig.js';
 import { CAPTURE_ANIMATION_OPTIONS } from '../webapp/src/config/ludoBattleOptions.js';
 import { SNAKE_CAPTURE_WEAPON_OPTIONS } from '../webapp/src/config/snakeWeaponCatalog.js';
+import {
+  CHESS_FIREARM_SOUND_PROFILE_BY_TYPE,
+  CHESS_FIREARM_SOUND_SOURCES,
+  resolveChessFirearmSoundProfile
+} from '../webapp/src/config/chessBattleFirearmSounds.js';
 
 describe('cross-game inventory alignment', () => {
   test('domino default table follows chess default murlan table', () => {
@@ -245,24 +250,22 @@ describe('cross-game inventory alignment', () => {
   });
 
 
-  test('chess battle royal maps firearm families to attributed open source sound effects', async () => {
+  test('chess battle royal streams attributed firearm sounds without binary assets', async () => {
     const source = await readFile('webapp/src/pages/Games/ChessBattleRoyal.jsx', 'utf8');
-    const attribution = await readFile('webapp/public/assets/sounds/chess-firearms/ATTRIBUTION.md', 'utf8');
+    const sfxDoc = await readFile('docs/chess-battle-firearm-sfx.md', 'utf8');
 
-    expect(source).toContain('CHESS_FIREARM_SOUND_ATTRIBUTION');
-    expect(source).toContain('CHESS_FIREARM_SOUND_PROFILE_BY_TYPE');
-    expect(source).toContain('playFirearmSound(fx.bulletProfile)');
-    ['gunshot', 'shotgun', 'cannon'].forEach((soundKey) => {
-      expect(source).toContain(`soundKey: '${soundKey}'`);
-      expect(attribution).toContain('Creative Commons Attribution 4.0 International');
+    Object.values(CHESS_FIREARM_SOUND_SOURCES).forEach((entry) => {
+      expect(entry.audioUrl).toMatch(/^https:\/\/www\.orangefreesounds\.com\//);
+      expect(entry.license).toContain('Creative Commons Attribution 4.0 International');
+      expect(sfxDoc).toContain(entry.audioUrl);
     });
-    expect(source).toContain('https://www.orangefreesounds.com/wp-content/uploads/2015/01/Gunshot-sound-effect.mp3');
-    expect(source).toContain('https://www.orangefreesounds.com/wp-content/uploads/2016/12/Shotgun-sound.mp3');
-    expect(source).toContain('https://www.orangefreesounds.com/wp-content/uploads/2017/03/Cannon-sound-effect.mp3');
-    expect(source).not.toContain('/assets/sounds/chess-firearms/orangefreesounds-gunshot-cc-by-4.mp3');
-    expect(attribution).toContain('keep binary audio files out of this repository');
+    expect(source).toContain('resolveChessFirearmSoundProfile(firearmProfile.ludoType');
+    expect(source).toContain('playFirearmSound(fx.bulletProfile)');
+    expect(source).not.toContain('/assets/sounds/chess-firearms/');
+    expect(sfxDoc).toContain('keep binary MP3 files out of the repository');
     ['Pistol', 'Revolver', 'SMG', 'Rifle', 'AssaultRifle', 'SniperRifle', 'DMR', 'Shotgun', 'GrenadeLauncher', 'Launcher'].forEach((weaponType) => {
-      expect(source).toContain(`${weaponType}: { soundKey:`);
+      expect(CHESS_FIREARM_SOUND_PROFILE_BY_TYPE[weaponType]).toBeTruthy();
+      expect(resolveChessFirearmSoundProfile(weaponType).audioUrl).toMatch(/^https:\/\//);
     });
   });
 
