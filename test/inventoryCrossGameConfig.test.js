@@ -245,16 +245,15 @@ describe('cross-game inventory alignment', () => {
   });
 
 
-  test('ludo fps gun mirrors snake and ladder May 9 fps gun config only', async () => {
+  test('ludo non-Gunify FPS gun uses the 05:00 standalone configuration', async () => {
     const source = await readFile('webapp/src/pages/Games/LudoBattleRoyal.jsx', 'utf8');
-    const snakeSource = await readFile('webapp/src/config/snakeWeaponCatalog.js', 'utf8');
 
-    expect(snakeSource).toContain('export const SNAKE_FPS_GUN_MODEL_CONFIG = Object.freeze({');
-    expect(source).toContain("import { SNAKE_FPS_GUN_MODEL_CONFIG } from '../../config/snakeWeaponCatalog.js';");
-    expect(source).toContain('urls: [...SNAKE_FPS_GUN_MODEL_CONFIG.urls]');
-    expect(source).toContain('scale: SNAKE_FPS_GUN_MODEL_CONFIG.ludoModelScale');
-    expect(source).toContain('fpsGunAttack: SNAKE_FPS_GUN_MODEL_CONFIG.ludoRackSizeMultiplier');
-    expect(source).toContain('fpsGunAttack: SNAKE_FPS_GUN_MODEL_CONFIG.ludoHandScaleMultiplier');
+    expect(source).not.toContain("import { SNAKE_FPS_GUN_MODEL_CONFIG } from '../../config/snakeWeaponCatalog.js';");
+    expect(source).toContain("'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@main/main/scene.gltf'");
+    expect(source).toContain("'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/main/main/scene.gltf'");
+    expect(source).toContain('scale: 0.24');
+    expect(source).toContain('fpsGunAttack: 2.2');
+    expect(source).toContain('fpsGunAttack: 1.18');
   });
 
   test('ludo camera holds each dice result focus for at least 1.5 seconds', async () => {
@@ -266,18 +265,17 @@ describe('cross-game inventory alignment', () => {
     expect(source).toContain('}, DICE_RESULT_CAMERA_HOLD_MS);');
   });
 
-  test('ludo battle royal preserves source-authored materials for non-Gunify weapons', async () => {
+  test('ludo battle royal restores 05:00 opaque material setup for non-Gunify weapons', async () => {
     const source = await readFile('webapp/src/pages/Games/LudoBattleRoyal.jsx', 'utf8');
-
-    expect(source).toContain('function preserveCaptureWeaponSourceMaterial');
-    expect(source).toContain("sourceTexturePolicy: texturePolicy");
-    expect(source).toContain("preserveCaptureWeaponSourceMaterial(material, config?.texturePolicy || 'preserveSource')");
 
     const setupStart = source.indexOf('root.traverse((node) => {', source.indexOf('async function loadCaptureWeaponModel'));
     const setupEnd = source.indexOf('applyModelQualityToObject(root);', setupStart);
     const materialSetup = source.slice(setupStart, setupEnd);
-    expect(materialSetup).not.toContain('material.transparent = false');
-    expect(materialSetup).not.toContain('material.opacity = 1');
+    expect(materialSetup).toContain("config?.texturePolicy === 'gunifyPbr'");
+    expect(materialSetup).toContain('applyGunifyWeaponTexturePolicy(material)');
+    expect(materialSetup).toContain('material.transparent = false');
+    expect(materialSetup).toContain('material.opacity = 1');
+    expect(materialSetup).toContain('material.depthWrite = true');
   });
 
   test('snake store mirrors ludo battle royal capture weapons', () => {
@@ -287,7 +285,15 @@ describe('cross-game inventory alignment', () => {
     const snakeCatalogIds = new Set(SNAKE_CAPTURE_WEAPON_OPTIONS.slice(1).map((option) => option.id));
 
     expect(snakeCaptureStoreIds).toEqual(snakeCatalogIds);
-    expect(new Set(SNAKE_DEFAULT_UNLOCKS.captureWeapon)).toEqual(new Set([SNAKE_CAPTURE_WEAPON_OPTIONS[0]?.id]));
+    expect(new Set(SNAKE_DEFAULT_UNLOCKS.captureWeapon)).toEqual(
+      new Set([
+        SNAKE_CAPTURE_WEAPON_OPTIONS[0]?.id,
+        'fighterJetAttack',
+        'helicopterAttack',
+        'droneAttack',
+        'supportTruckAttack'
+      ])
+    );
 
     [
       'poly-robot-large-gun-01',
