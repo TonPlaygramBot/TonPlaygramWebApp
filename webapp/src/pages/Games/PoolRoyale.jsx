@@ -1445,7 +1445,7 @@ const TABLE_FLOOR_SHADOW_MARGIN = TABLE.WALL * 1.1;
 const SIDE_POCKET_EXTRA_SHIFT = TABLE.THICK * 0.17; // push middle pocket centres a bit farther outside from table center
 const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.34; // keep chrome plate, wood cut, nets and holder alignment with the farther-out middle pockets
 const SIDE_POCKET_FIELD_PULL = 0; // keep the middle pocket centres perfectly centered to match the chrome cut symmetry
-const SIDE_POCKET_CLOTH_INWARD_PULL = -TABLE.THICK * 0.03; // nudge middle cloth cutouts outward with the shifted side-pocket centreline
+const SIDE_POCKET_CLOTH_INWARD_PULL = 0; // keep middle cloth cutouts centered on the actual pocket bowls
 const CHALK_TOP_COLOR = 0xd9c489;
 const CHALK_SIDE_COLOR = 0x10141b;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1a2430;
@@ -1467,7 +1467,7 @@ const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
   SIDE_POCKET_MOUTH_REDUCTION_SCALE; // keep the middle pocket mouth width identical to the corner pockets
-const SIDE_POCKET_CUT_SCALE = 1.02; // enlarge middle pocket cutouts a touch so the visual jaw opening matches the widened mouth
+const SIDE_POCKET_CUT_SCALE = 1; // keep middle field cutouts matched to the actual pocket radius
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
@@ -1520,7 +1520,7 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
 const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
-const CORNER_POCKET_CLOTH_CUT_SCALE = 0.958; // shrink only the corner cloth cutouts so corner sleeve apertures read tighter
+const CORNER_POCKET_CLOTH_CUT_SCALE = 1; // keep corner field cutouts matched to the actual pocket radius
 const BALL_CENTER_LIFT = BALL_R * 0.045; // lift balls a touch more so they sit exactly on top of the cloth surface
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP + BALL_CENTER_LIFT; // rest balls directly on the lowered cloth plane
@@ -11258,7 +11258,10 @@ export function Table3D(
   const brandPlateWidth = Math.min(PLAY_W * 0.36, Math.max(BALL_R * 10.8, PLAY_W * 0.255));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 1.04;
+  const configuredBrandPlateOutwardOffset = Number(resolvedTableOptions?.tableModel?.brandPlateOutwardOffset);
+  const brandPlateOutwardShift =
+    endRailW * 1.04 +
+    (Number.isFinite(configuredBrandPlateOutwardOffset) ? configuredBrandPlateOutwardOffset : 0);
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -11401,8 +11404,14 @@ export function Table3D(
     clearRailMarkerMeshes();
     const longDiamondSpacing = PLAY_H / 8;
     const shortDiamondSpacing = PLAY_W / 4;
+    const shortRailMarkerOutwardOffset = Number(resolvedTableOptions?.tableModel?.shortRailMarkerOutwardOffset);
     const longRailX = halfW + longRailW + railMarkerOutset - railMarkerInwardShift;
-    const shortRailZ = halfH + endRailW + railMarkerOutset - railMarkerInwardShift;
+    const shortRailZ =
+      halfH +
+      endRailW +
+      railMarkerOutset -
+      railMarkerInwardShift +
+      (Number.isFinite(shortRailMarkerOutwardOffset) ? shortRailMarkerOutwardOffset : 0);
     const addMarker = (x, z, rotation = 0) => {
       const mesh = new THREE.Mesh(geometry, railMarkerMat);
       mesh.position.set(x, railMarkerLift, z);
@@ -13992,11 +14001,11 @@ function mountPoolRoyaleExternalTableModel({
     openPortal: (ctx) => {
       const meshes = [];
       const legMeshes = [];
-      const frameWidth = ctx.frameOuterX * 0.9;
-      const frameDepth = ctx.frameOuterZ * 0.26;
+      const frameWidth = ctx.frameOuterX * 0.96;
+      const frameDepth = ctx.frameOuterZ * 0.29;
       const thickness = ctx.legR;
-      const legWidth = thickness * 1.35;
-      const legHeight = ctx.legH * 0.94;
+      const legWidth = thickness * 1.48;
+      const legHeight = ctx.legH * 0.98;
       const portalLegRadius = Math.max(
         0.005,
         Math.min(legWidth, frameDepth) * 0.22
@@ -14038,52 +14047,12 @@ function mountPoolRoyaleExternalTableModel({
       return attachLegLevelers(ctx, { meshes, legMeshes }, levelerCenters);
     },
     coffeeTableRound01: createPolyhavenTableBaseBuilder('coffee_table_round_01', {
-      footprintScale: 0.98,
-      footprintDepthScale: 1.06,
-      heightFill: 0.8,
-      topInsetScale: 0.96,
+      footprintScale: 1.06,
+      footprintDepthScale: 1.12,
+      heightFill: 0.84,
+      topInsetScale: 0.92,
       materialKey: 'trim'
-    }),
-    gothicCoffeeTable: (ctx) => {
-      const build = createPolyhavenTableBaseBuilder('gothic_coffee_table', {
-        footprintScale: 1,
-        footprintDepthScale: 1,
-        heightFill: 0.94,
-        topInsetScale: 0.98,
-        materialKey: 'rail',
-        matchTableFootprint: true
-      });
-      const built = build(ctx);
-      const insetX = Math.min(ctx.frameOuterX, ctx.legInset + LEG_POCKET_CLEARANCE * 0.92);
-      const insetZ = Math.min(ctx.frameOuterZ, ctx.legInset + LEG_POCKET_CLEARANCE * 0.72);
-      const centers = [
-        { x: -ctx.frameOuterX + insetX, z: -ctx.frameOuterZ + insetZ },
-        { x: ctx.frameOuterX - insetX, z: -ctx.frameOuterZ + insetZ },
-        { x: -ctx.frameOuterX + insetX, z: ctx.frameOuterZ - insetZ },
-        { x: ctx.frameOuterX - insetX, z: ctx.frameOuterZ - insetZ }
-      ];
-      return attachLegLevelers(ctx, built, centers);
-    },
-    woodenTable02Alt: (ctx) => {
-      const build = createPolyhavenTableBaseBuilder('wooden_table_02', {
-        footprintScale: 0.94,
-        footprintDepthScale: 0.96,
-        heightFill: 0.9,
-        topInsetScale: 0.95,
-        materialKey: 'rail',
-        matchTableFootprint: true
-      });
-      const built = build(ctx);
-      const insetX = Math.min(ctx.frameOuterX, ctx.legInset + LEG_POCKET_CLEARANCE * 0.88);
-      const insetZ = Math.min(ctx.frameOuterZ, ctx.legInset + LEG_POCKET_CLEARANCE * 0.68);
-      const centers = [
-        { x: -ctx.frameOuterX + insetX, z: -ctx.frameOuterZ + insetZ },
-        { x: ctx.frameOuterX - insetX, z: -ctx.frameOuterZ + insetZ },
-        { x: -ctx.frameOuterX + insetX, z: ctx.frameOuterZ - insetZ },
-        { x: ctx.frameOuterX - insetX, z: ctx.frameOuterZ - insetZ }
-      ];
-      return attachLegLevelers(ctx, built, centers);
-    }
+    })
   };
 
   const normalizeBasePlacement = (meshes = [], options = {}) => {
@@ -15729,7 +15698,10 @@ function PoolRoyaleGame({
     if (!isPoolOptionUnlocked('tableFinish', tableFinishId, poolInventory)) {
       setTableFinishId(DEFAULT_TABLE_FINISH_ID);
     }
-    if (!isPoolOptionUnlocked('tableBase', tableBaseId, poolInventory)) {
+    if (
+      !POOL_ROYALE_BASE_VARIANTS.some((variant) => variant.id === tableBaseId) ||
+      !isPoolOptionUnlocked('tableBase', tableBaseId, poolInventory)
+    ) {
       setTableBaseId(DEFAULT_TABLE_BASE_ID);
     }
     if (!isPoolOptionUnlocked('clothColor', clothColorId, poolInventory)) {
