@@ -102,23 +102,6 @@ export const SNAKE_FPS_GUN_MODEL_CONFIG = Object.freeze({
   ludoHandScaleMultiplier: 3.2
 })
 
-
-const SNAKE_POLY_PIZZA_ATTACK_ID_BY_CATALOG_ID = Object.freeze({
-  'poly-shotgun-01': 'polyShotgun01Attack',
-  'poly-assault-rifle-01': 'polyAssaultRifle01Attack',
-  'poly-pistol-01': 'polyPistol01Attack',
-  'poly-revolver-01': 'polyRevolver01Attack',
-  'poly-sawed-off-01': 'polySawedOff01Attack',
-  'poly-revolver-02': 'polyRevolver02Attack',
-  'poly-shotgun-02': 'polyShotgun02Attack',
-  'poly-shotgun-03': 'polyShotgun03Attack',
-  'poly-smg-01': 'polySmg01Attack',
-  'poly-robot-large-gun-01': 'polyRobotLargeGunAttack',
-  'poly-robot-flying-gun-01': 'polyRobotFlyingGunAttack',
-  'poly-gas-tank-01': 'polyGasTank01Attack',
-  'poly-tank-01': 'polyTank01Attack'
-})
-
 export const SNAKE_CAPTURE_WEAPON_OPTIONS = Object.freeze([
   {
     id: 'ukrainianDroneAttack',
@@ -180,22 +163,6 @@ export const SNAKE_CAPTURE_WEAPON_OPTIONS = Object.freeze([
   { id: 'slot-16-awp-glb', label: 'AWP Sniper GLB', thumbnail: weaponSilhouetteThumbnail(['#1e293b', '#0f172a', '#f8fafc']), urls: [SNAKE_KNOWN_WORKING_GLB.awp, SNAKE_KNOWN_WORKING_GLB.awpRaw] },
   SNAKE_FPS_GUN_MODEL_CONFIG
 ])
-
-export const SNAKE_POLY_PIZZA_CAPTURE_WEAPON_CONFIG_BY_LUDO_ID = Object.freeze(
-  SNAKE_CAPTURE_WEAPON_OPTIONS.reduce((acc, option) => {
-    const ludoId = SNAKE_POLY_PIZZA_ATTACK_ID_BY_CATALOG_ID[option?.id]
-    if (!ludoId) return acc
-    acc[ludoId] = Object.freeze({
-      label: option.label,
-      urls: Object.freeze([...(Array.isArray(option.urls) ? option.urls : [])]),
-      source: option.source,
-      creator: option.creator,
-      modelScale: option.modelScale ?? 1,
-      texturePolicy: 'preservePolyPizzaOriginal'
-    })
-    return acc
-  }, {})
-)
 
 export const SNAKE_CAPTURE_WEAPON_ALIAS_MAP = Object.freeze({
   fighter: 'fighterJetAttack',
