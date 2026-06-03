@@ -339,12 +339,15 @@ const FIREARM_RACK_PARKING_TUNING = Object.freeze({
   })
 });
 const MAY_9_TABLE_FIREARM_DISPLAY_TUNING_BY_ID = Object.freeze({
+  // Keep only the legacy FPS Gun on the Snake & Ladder / May 9 table pose without changing other weapons.
+  fpsGunAttack: FIREARM_RACK_DISPLAY_TUNING.default,
   assaultRifleAttack: FIREARM_RACK_DISPLAY_TUNING.default,
   uziSprayAttack: FIREARM_RACK_DISPLAY_TUNING.default,
   sigsauerTacticalAttack: FIREARM_RACK_DISPLAY_TUNING.default,
   mosinMarksmanAttack: FIREARM_RACK_DISPLAY_TUNING.large
 });
 const MAY_9_TABLE_FIREARM_PARKING_TUNING_BY_ID = Object.freeze({
+  fpsGunAttack: FIREARM_RACK_PARKING_TUNING.small,
   assaultRifleAttack: FIREARM_RACK_PARKING_TUNING.small,
   uziSprayAttack: FIREARM_RACK_PARKING_TUNING.small,
   sigsauerTacticalAttack: FIREARM_RACK_PARKING_TUNING.small,
@@ -454,11 +457,12 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   },
   fpsGunAttack: {
     label: 'FPS Gun',
+    // Match Snake & Ladder's FPS Shotgun source chain exactly; only the Ludo FPS gun uses this legacy setup.
     urls: [
       'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@main/main/scene.gltf',
       'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/main/main/scene.gltf',
-      'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@master/main/scene.gltf',
-      'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/master/main/scene.gltf'
+      'https://cdn.jsdelivr.net/gh/GarbajYT/godot-sniper-rifle@master/AWP.glb',
+      'https://raw.githubusercontent.com/GarbajYT/godot-sniper-rifle/master/AWP.glb'
     ],
     scale: 0.24
   },
@@ -3999,7 +4003,7 @@ const AI_EXTRA_TURN_DELAY_MS = 1600;
 const HUMAN_ROLL_DELAY_MS = 1880;
 const AUTO_ROLL_DURATION_MS = 1100;
 const DICE_RESULT_EXTRA_HOLD_MS = 4500;
-const DICE_RESULT_CAMERA_HOLD_MS = 950;
+const DICE_RESULT_CAMERA_HOLD_MS = 1500;
 const ANIMATION_BASE_FPS = 60;
 const MIN_ANIMATION_SPEED_MULTIPLIER = 0.62;
 const MAX_ANIMATION_SPEED_MULTIPLIER = 1.2;
@@ -13474,7 +13478,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
     beginDiceThrowPose(player, { lateral: throwLateral, forward: throwForward });
     await syncDiceToThrowHand(player, dice, { duration: 12 });
-    const landingFocus = baseTarget.clone();
     const value = await spinDice(dice, {
       duration: resolveFrameSyncedDuration(AUTO_ROLL_DURATION_MS, { min: 620, max: 1800 }),
       targetPosition: baseTarget,
@@ -13496,15 +13499,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const hasBoardTokenBeforeRoll = hasAnyTokenOnBoard(player);
     const options = getMovableTokens(player, value);
     scheduleDiceClear();
-    if (!isHumanTurn || !lockUserTurnSeatViewRef.current) {
-      setCameraFocus({
-        target: landingFocus,
-        follow: false,
-        priority: 7,
-        offset: CAMERA_TARGET_LIFT + 0.03,
-        force: true
-      });
-    }
+    setCameraFocus({
+      object: dice,
+      follow: false,
+      priority: 7,
+      offset: CAMERA_TARGET_LIFT + 0.03,
+      force: true
+    });
     if (!options.length) {
       clearTurnAdvanceTimeout();
       turnAdvanceTimeoutRef.current = window.setTimeout(() => {
