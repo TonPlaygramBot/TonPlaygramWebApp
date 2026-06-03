@@ -42,13 +42,13 @@ describe('Pool Royale table models', () => {
     assert.equal(showood.lowerLegFootReachScale, 1.28);
     assert.equal(showood.footWidthScale, 1.08);
     assert.equal(showood.footHeightScale, 1);
-    assert.equal(showood.railSightApronVisualScale, 1.092);
-    assert.equal(showood.railSightOutwardOffset, 0.052);
-    assert.equal(showood.railSightVisualHeightScale, 1.108);
-    assert.equal(showood.sideApronVisualHeightScale, 1.14);
-    assert.equal(showood.sideApronOutwardOffset, 0.076);
-    assert.equal(showood.shortRailMarkerOutwardOffset, 0.064);
-    assert.equal(showood.brandPlateOutwardOffset, 0.089);
+    assert.equal(showood.railSightApronVisualScale, 1.108);
+    assert.equal(showood.railSightOutwardOffset, 0.064);
+    assert.equal(showood.railSightVisualHeightScale, 1.132);
+    assert.equal(showood.sideApronVisualHeightScale, 1.156);
+    assert.equal(showood.sideApronOutwardOffset, 0.09);
+    assert.equal(showood.shortRailMarkerOutwardOffset, 0.082);
+    assert.equal(showood.brandPlateOutwardOffset, 0.106);
     assert.deepEqual(showood.usePoolRoyaleFinishRoles, ['cloth', 'cushion', 'wood']);
   });
 
