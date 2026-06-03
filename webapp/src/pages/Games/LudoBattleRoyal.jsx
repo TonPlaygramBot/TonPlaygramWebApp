@@ -460,7 +460,8 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://raw.githubusercontent.com/webaverse/pistol/master/military.glb',
       'https://cdn.statically.io/gh/webaverse/pistol/master/military.glb'
     ],
-    scale: 0.13
+    scale: 0.13,
+    textureOverrideUrls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/AK47.jpeg']
   },
   uziSprayAttack: {
     label: 'Gunify Uzi',
@@ -1497,6 +1498,24 @@ async function loadCaptureWeaponModel(captureAnimationId) {
     try {
       const root = loadedRoot;
       if (!root) return null;
+      const textureOverrideUrls = Array.isArray(config?.textureOverrideUrls) ? config.textureOverrideUrls.filter(Boolean) : [];
+      let textureOverride = null;
+      if (textureOverrideUrls.length) {
+        const textureLoader = new THREE.TextureLoader();
+        textureLoader.setCrossOrigin?.('anonymous');
+        for (let t = 0; t < textureOverrideUrls.length; t += 1) {
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            textureOverride = await withLoadTimeout(textureLoader.loadAsync(textureOverrideUrls[t]));
+            if (textureOverride) {
+              textureOverride.flipY = false;
+              applySRGBColorSpace(textureOverride);
+              textureOverride.needsUpdate = true;
+              break;
+            }
+          } catch {}
+        }
+      }
       root.traverse((node) => {
         if (!node?.isMesh) return;
         if (
@@ -1513,6 +1532,7 @@ async function loadCaptureWeaponModel(captureAnimationId) {
         const materials = Array.isArray(node.material) ? node.material : [node.material];
         materials.forEach((material) => {
           if (!material) return;
+          if (textureOverride && !material.map) material.map = textureOverride;
           if (material.map) applySRGBColorSpace(material.map);
           if (material.emissiveMap) applySRGBColorSpace(material.emissiveMap);
           if (config?.texturePolicy === 'gunifyPbr') {
@@ -11396,17 +11416,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             if (cinematicSide.lengthSq() < 1e-7) cinematicSide.set(1, 0, 0);
             cinematicSide.normalize();
             const shoulderCameraBlend = clamp(elapsed / Math.max(1, preFireLeadMs), 0, 1);
-            // FPS-style shoulder aiming view: stay just behind the hand and barrel, with the
-            // muzzle, supporting hand and target reticle all aligned in the same sight picture.
+            // Stable attacker-side aiming view: no dolly/zoom during the volley, just a wider
+            // over-weapon angle so the hand, weapon and target line stay readable without table shrink.
             cinematicPosition
               .copy(muzzleOrigin)
-              .addScaledVector(cinematicAimDir, -(singleShotFirearm ? 0.18 : 0.22))
-              .addScaledVector(cinematicSide, singleShotFirearm ? 0.022 : 0.032)
-              .addScaledVector(cameraWorldUp, THREE.MathUtils.lerp(0.048, singleShotFirearm ? 0.076 : 0.088, shoulderCameraBlend));
+              .addScaledVector(cinematicAimDir, -(singleShotFirearm ? 0.36 : 0.46))
+              .addScaledVector(cinematicSide, singleShotFirearm ? 0.09 : 0.13)
+              .addScaledVector(cameraWorldUp, THREE.MathUtils.lerp(0.12, singleShotFirearm ? 0.16 : 0.18, shoulderCameraBlend));
             cinematicTarget
               .copy(muzzleOrigin)
-              .lerp(muzzleTarget, THREE.MathUtils.lerp(0.62, 0.86, shoulderCameraBlend))
-              .addScaledVector(cameraWorldUp, 0.012);
+              .lerp(muzzleTarget, THREE.MathUtils.lerp(0.42, 0.72, shoulderCameraBlend))
+              .addScaledVector(cameraWorldUp, 0.018);
             setFirearmCinematicPose(cinematicPosition, cinematicTarget, elapsed < pickupLeadMs ? 0.1 : 0.18);
             muzzleFx.root.position.copy(muzzleOrigin);
             muzzleFx.root.visible = elapsed >= preFireLeadMs && elapsedShooting >= 0 && elapsedShooting < shots * cadenceMs;
@@ -11525,14 +11545,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               cinematicSide.copy(cameraWorldUp).cross(bulletDir);
               if (cinematicSide.lengthSq() < 1e-7) cinematicSide.set(1, 0, 0);
               cinematicSide.normalize();
-              const followingFinalBullet = leadBulletMesh && Number(leadBulletMesh.userData?.shotIndex ?? -1) >= shots - 1;
               cinematicPosition
                 .copy(leadBulletPos)
-                .addScaledVector(bulletDir, followingFinalBullet ? -0.052 : -0.15)
-                .addScaledVector(cinematicSide, followingFinalBullet ? 0.01 : singleShotFirearm ? 0.018 : 0.03);
-              cinematicPosition.addScaledVector(cameraWorldUp, followingFinalBullet ? 0.034 : singleShotFirearm ? 0.07 : 0.082);
-              cinematicTarget.copy(leadBulletPos).addScaledVector(bulletDir, followingFinalBullet ? 0.13 : 0.34);
-              setFirearmCinematicPose(cinematicPosition, cinematicTarget, followingFinalBullet ? 0.9 : 0.72);
+                .addScaledVector(bulletDir, -0.15)
+                .addScaledVector(cinematicSide, singleShotFirearm ? 0.018 : 0.03);
+              cinematicPosition.addScaledVector(cameraWorldUp, singleShotFirearm ? 0.07 : 0.082);
+              cinematicTarget.copy(leadBulletPos).addScaledVector(bulletDir, 0.34);
+              setFirearmCinematicPose(cinematicPosition, cinematicTarget, 0.72);
               if (leadBulletMesh && Number(leadBulletMesh.userData?.shotIndex ?? -1) >= shots - 1) {
                 aerodynamicRings.visible = true;
                 aerodynamicRings.position.copy(leadBulletPos);
@@ -13555,8 +13574,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                       if (optionIndex >= 0) setAppearance((prev) => ({ ...prev, captureAnimation: optionIndex }));
                     }}
                   >
-                    <div className="mx-auto mb-1 flex h-9 w-12 items-center justify-center rounded-lg border border-white/20 bg-gradient-to-br from-slate-950/85 to-slate-800/75">
-                      <QuickSwapWeaponIcon id={option.id} selected={selected} />
+                    <div className="mx-auto mb-1 flex h-9 w-12 items-center justify-center overflow-hidden rounded-lg border border-white/20 bg-gradient-to-br from-slate-950/85 to-slate-800/75">
+                      {option.thumbnail ? (
+                        <img
+                          src={option.thumbnail}
+                          alt={option.label}
+                          className="h-full w-full object-cover p-[1px]"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <QuickSwapWeaponIcon id={option.id} selected={selected} />
+                      )}
                     </div>
                     <div className="px-0.5 pb-0.5 leading-tight">{displayName}</div>
                   </button>
