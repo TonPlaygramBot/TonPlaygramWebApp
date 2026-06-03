@@ -54,7 +54,10 @@ import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from '../../config/murlanThemes.js';
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from '../../config/poolRoyaleInventoryConfig.js';
 import { LUDO_WEAPON_DIRECTOR_BRIDGE } from '../../config/ludoWeaponDirectorBridge.js';
-import { SNAKE_FPS_GUN_MODEL_CONFIG } from '../../config/snakeWeaponCatalog.js';
+import {
+  SNAKE_FPS_GUN_MODEL_CONFIG,
+  SNAKE_POLY_PIZZA_CAPTURE_WEAPON_CONFIG_BY_LUDO_ID
+} from '../../config/snakeWeaponCatalog.js';
 import { TOKEN_TYPE_SEQUENCE } from '../../utils/ludoTokenConstants.js';
 import {
   getLudoBattleInventory,
@@ -434,6 +437,23 @@ async function loadGunifyOriginalGltf(loader, candidateUrl) {
   return loader.parseAsync(JSON.stringify(gltfJson), basePath);
 }
 
+
+const LUDO_POLY_PIZZA_CAPTURE_TARGET_SIZE = 0.205;
+const polyPizzaCaptureWeaponConfig = (captureAnimationId) => {
+  const snakeConfig = SNAKE_POLY_PIZZA_CAPTURE_WEAPON_CONFIG_BY_LUDO_ID[captureAnimationId];
+  if (!snakeConfig) return null;
+  return {
+    label: snakeConfig.label,
+    urls: [...snakeConfig.urls],
+    source: snakeConfig.source,
+    creator: snakeConfig.creator,
+    texturePolicy: snakeConfig.texturePolicy,
+    // Ludo uses fitted target-size units; multiply by the exact Snake & Ladder
+    // modelScale so Quaternius/Poly Pizza weapons share one catalog calibration.
+    scale: LUDO_POLY_PIZZA_CAPTURE_TARGET_SIZE * (snakeConfig.modelScale ?? 1)
+  };
+};
+
 const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   mrtkGunAttack: {
     label: 'MRTK Gun',
@@ -585,96 +605,49 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
     ],
     scale: 0.23
   },
-  polyShotgun01Attack: {
-    label: 'Quaternius Shotgun',
-    urls: ['https://static.poly.pizza/032e6589-3188-41bc-b92b-e25528344275.glb'],
-    scale: 0.205
-  },
-  polyAssaultRifle01Attack: {
-    label: 'Quaternius Assault Rifle',
-    urls: ['https://static.poly.pizza/b3e6be61-0299-4866-a227-58f5f3fe610b.glb'],
-    scale: 0.208
-  },
-  polyPistol01Attack: {
-    label: 'Quaternius Pistol',
-    urls: ['https://static.poly.pizza/3b53f0fe-f86e-451c-816d-6ab9bd265cdc.glb'],
-    scale: 0.122
-  },
-  polyRevolver01Attack: {
-    label: 'Quaternius Heavy Revolver',
-    urls: ['https://static.poly.pizza/9e728565-67a3-44db-9567-982320abff09.glb'],
-    scale: 0.13
-  },
-  polySawedOff01Attack: {
-    label: 'Quaternius Sawed-Off Shotgun',
-    urls: ['https://static.poly.pizza/9a6ee0ee-068b-4774-8b0f-679c3cef0b6e.glb'],
-    scale: 0.175
-  },
-  polyRevolver02Attack: {
-    label: 'Quaternius Revolver Silver',
-    urls: ['https://static.poly.pizza/7951b3b9-d3a5-4ec8-81b7-11111f1c8e88.glb'],
-    scale: 0.13
-  },
-  polyShotgun02Attack: {
-    label: 'Quaternius Long Shotgun',
-    urls: ['https://static.poly.pizza/f71d6771-f512-4374-bd23-ba00b564db68.glb'],
-    scale: 0.215
-  },
-  polyShotgun03Attack: {
-    label: 'Quaternius Pump Shotgun',
-    urls: ['https://static.poly.pizza/08f27141-8e64-425a-9161-1bbd6956dfca.glb'],
-    scale: 0.21
-  },
-  polySmg01Attack: {
-    label: 'Quaternius Submachine Gun',
-    urls: ['https://static.poly.pizza/fb8ae707-d5b9-4eb8-ab8c-1c78d3c1f710.glb'],
-    scale: 0.17
-  },
-  polyRobotLargeGunAttack: {
-    label: 'Quaternius Robot Large Gun',
-    urls: ['https://static.poly.pizza/78e23275-cb6a-4ba3-ae5e-48a9b4ee2e65.glb'],
-    scale: 0.17
-  },
-  polyRobotFlyingGunAttack: {
-    label: 'Quaternius Robot Flying Gun',
-    urls: ['https://static.poly.pizza/6d0889f1-0c3f-4f98-b011-fbcf6c79a93b.glb'],
-    scale: 0.16
-  },
+  polyShotgun01Attack: polyPizzaCaptureWeaponConfig('polyShotgun01Attack'),
+  polyAssaultRifle01Attack: polyPizzaCaptureWeaponConfig('polyAssaultRifle01Attack'),
+  polyPistol01Attack: polyPizzaCaptureWeaponConfig('polyPistol01Attack'),
+  polyRevolver01Attack: polyPizzaCaptureWeaponConfig('polyRevolver01Attack'),
+  polySawedOff01Attack: polyPizzaCaptureWeaponConfig('polySawedOff01Attack'),
+  polyRevolver02Attack: polyPizzaCaptureWeaponConfig('polyRevolver02Attack'),
+  polyShotgun02Attack: polyPizzaCaptureWeaponConfig('polyShotgun02Attack'),
+  polyShotgun03Attack: polyPizzaCaptureWeaponConfig('polyShotgun03Attack'),
+  polySmg01Attack: polyPizzaCaptureWeaponConfig('polySmg01Attack'),
+  polyRobotLargeGunAttack: polyPizzaCaptureWeaponConfig('polyRobotLargeGunAttack'),
+  polyRobotFlyingGunAttack: polyPizzaCaptureWeaponConfig('polyRobotFlyingGunAttack'),
   polyBazooka01Attack: {
     label: 'CreativeTrio Bazooka',
+    texturePolicy: 'preservePolyPizzaOriginal',
     urls: ['https://static.poly.pizza/613e3b1b-d07c-496b-94a1-7c85b507bac4.glb'],
     scale: 0.22
   },
   polyGrenadeLauncher01Attack: {
     label: 'CreativeTrio Grenade Launcher',
+    texturePolicy: 'preservePolyPizzaOriginal',
     urls: ['https://static.poly.pizza/503bb2c5-4a69-404b-9b82-13e85e8f8467.glb'],
     scale: 0.2
   },
   polyDynamiteBomb01Attack: {
     label: 'CreativeTrio Dynamite Bomb',
+    texturePolicy: 'preservePolyPizzaOriginal',
     urls: ['https://static.poly.pizza/38e858db-325f-4dce-9680-da62c20c5c31.glb'],
     scale: 0.12
   },
   polyMolotov01Attack: {
     label: 'CreativeTrio Molotov',
+    texturePolicy: 'preservePolyPizzaOriginal',
     urls: ['https://static.poly.pizza/d7bb0b50-09af-49f8-b1f9-dbdb0c707d40.glb'],
     scale: 0.095
   },
-  polyGasTank01Attack: {
-    label: 'Quaternius Gas Tank',
-    urls: ['https://static.poly.pizza/9c4d2ac5-114b-4da2-a26a-8049e2b1ba04.glb'],
-    scale: 0.12
-  },
+  polyGasTank01Attack: polyPizzaCaptureWeaponConfig('polyGasTank01Attack'),
   polyHandGrenade01Attack: {
     label: 'CreativeTrio Hand Grenade',
+    texturePolicy: 'preservePolyPizzaOriginal',
     urls: ['https://static.poly.pizza/03fa7f5b-4df5-45d6-86fb-87e8590f28d7.glb'],
     scale: 0.075
   },
-  polyTank01Attack: {
-    label: 'Quaternius Battle Tank',
-    urls: ['https://static.poly.pizza/58c387b2-636f-49dc-a900-13b0852717d6.glb'],
-    scale: 0.125
-  }
+  polyTank01Attack: polyPizzaCaptureWeaponConfig('polyTank01Attack')
 });
 const CAPTURE_WEAPON_MODEL_CACHE = new Map();
 const CAPTURE_WEAPON_MODEL_REDIRECT = new Map();
@@ -1555,6 +1528,10 @@ async function loadCaptureWeaponModel(captureAnimationId) {
         const materials = Array.isArray(node.material) ? node.material : [node.material];
         materials.forEach((material) => {
           if (!material) return;
+          if (config?.texturePolicy === 'preservePolyPizzaOriginal') {
+            preserveCaptureWeaponSourceMaterial(material, config.texturePolicy);
+            return;
+          }
           if (textureOverride && !material.map) material.map = textureOverride;
           if (material.map) applySRGBColorSpace(material.map);
           if (material.emissiveMap) applySRGBColorSpace(material.emissiveMap);
@@ -1565,7 +1542,9 @@ async function loadCaptureWeaponModel(captureAnimationId) {
           }
         });
       });
-      applyModelQualityToObject(root);
+      if (config?.texturePolicy !== 'preservePolyPizzaOriginal') {
+        applyModelQualityToObject(root);
+      }
       fitObjectToTargetSize(root, config.scale ?? 0.12);
       if (normalizedCaptureAnimationId === 'ak47VolleyAttack') {
         removeAk47RearWoodStock(root);
