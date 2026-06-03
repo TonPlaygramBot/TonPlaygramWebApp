@@ -1467,7 +1467,7 @@ const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
   SIDE_POCKET_MOUTH_REDUCTION_SCALE; // keep the middle pocket mouth width identical to the corner pockets
-const SIDE_POCKET_CUT_SCALE = 1; // match middle field cutouts to the side pocket radius so the rounded cloth cuts align with pockets
+const SIDE_POCKET_CUT_SCALE = 1.02; // enlarge middle pocket cutouts a touch so the visual jaw opening matches the widened mouth
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
@@ -1520,7 +1520,7 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
 const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
-const CORNER_POCKET_CLOTH_CUT_SCALE = 1; // match corner field cutouts to the pocket rim radius so the rounded cloth cuts align with pockets
+const CORNER_POCKET_CLOTH_CUT_SCALE = 0.958; // shrink only the corner cloth cutouts so corner sleeve apertures read tighter
 const BALL_CENTER_LIFT = BALL_R * 0.045; // lift balls a touch more so they sit exactly on top of the cloth surface
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP + BALL_CENTER_LIFT; // rest balls directly on the lowered cloth plane
@@ -11258,7 +11258,7 @@ export function Table3D(
   const brandPlateWidth = Math.min(PLAY_W * 0.36, Math.max(BALL_R * 10.8, PLAY_W * 0.255));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 1.1;
+  const brandPlateOutwardShift = endRailW * 1.04;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -11306,11 +11306,8 @@ export function Table3D(
       : { shape: DEFAULT_RAIL_MARKER_SHAPE, colorId: DEFAULT_RAIL_MARKER_COLOR_ID };
   const railMarkerOutset = longRailW * 0.08;
   const railMarkerInwardShift = resolvedTableOptions?.tableModel?.useReferenceShowoodMapping
-    ? -Math.max(BALL_R * 0.2, longRailW * 0.052)
+    ? -Math.max(BALL_R * 0.18, longRailW * 0.045)
     : Math.max(BALL_R * 0.35, longRailW * 0.08);
-  const shortRailMarkerOutwardBoost = resolvedTableOptions?.tableModel?.useReferenceShowoodMapping
-    ? Math.max(BALL_R * 0.08, endRailW * 0.025)
-    : 0;
   const railMarkerGroup = new THREE.Group();
   const railMarkerThickness = RAIL_MARKER_THICKNESS;
   const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
@@ -11405,7 +11402,7 @@ export function Table3D(
     const longDiamondSpacing = PLAY_H / 8;
     const shortDiamondSpacing = PLAY_W / 4;
     const longRailX = halfW + longRailW + railMarkerOutset - railMarkerInwardShift;
-    const shortRailZ = halfH + endRailW + railMarkerOutset - railMarkerInwardShift + shortRailMarkerOutwardBoost;
+    const shortRailZ = halfH + endRailW + railMarkerOutset - railMarkerInwardShift;
     const addMarker = (x, z, rotation = 0) => {
       const mesh = new THREE.Mesh(geometry, railMarkerMat);
       mesh.position.set(x, railMarkerLift, z);
@@ -13995,11 +13992,11 @@ function mountPoolRoyaleExternalTableModel({
     openPortal: (ctx) => {
       const meshes = [];
       const legMeshes = [];
-      const frameWidth = ctx.frameOuterX * 0.94;
-      const frameDepth = ctx.frameOuterZ * 0.28;
+      const frameWidth = ctx.frameOuterX * 0.9;
+      const frameDepth = ctx.frameOuterZ * 0.26;
       const thickness = ctx.legR;
-      const legWidth = thickness * 1.43;
-      const legHeight = ctx.legH * 0.97;
+      const legWidth = thickness * 1.35;
+      const legHeight = ctx.legH * 0.94;
       const portalLegRadius = Math.max(
         0.005,
         Math.min(legWidth, frameDepth) * 0.22
@@ -14041,12 +14038,52 @@ function mountPoolRoyaleExternalTableModel({
       return attachLegLevelers(ctx, { meshes, legMeshes }, levelerCenters);
     },
     coffeeTableRound01: createPolyhavenTableBaseBuilder('coffee_table_round_01', {
-      footprintScale: 1.04,
-      footprintDepthScale: 1.12,
-      heightFill: 0.84,
-      topInsetScale: 0.94,
+      footprintScale: 0.98,
+      footprintDepthScale: 1.06,
+      heightFill: 0.8,
+      topInsetScale: 0.96,
       materialKey: 'trim'
-    })
+    }),
+    gothicCoffeeTable: (ctx) => {
+      const build = createPolyhavenTableBaseBuilder('gothic_coffee_table', {
+        footprintScale: 1,
+        footprintDepthScale: 1,
+        heightFill: 0.94,
+        topInsetScale: 0.98,
+        materialKey: 'rail',
+        matchTableFootprint: true
+      });
+      const built = build(ctx);
+      const insetX = Math.min(ctx.frameOuterX, ctx.legInset + LEG_POCKET_CLEARANCE * 0.92);
+      const insetZ = Math.min(ctx.frameOuterZ, ctx.legInset + LEG_POCKET_CLEARANCE * 0.72);
+      const centers = [
+        { x: -ctx.frameOuterX + insetX, z: -ctx.frameOuterZ + insetZ },
+        { x: ctx.frameOuterX - insetX, z: -ctx.frameOuterZ + insetZ },
+        { x: -ctx.frameOuterX + insetX, z: ctx.frameOuterZ - insetZ },
+        { x: ctx.frameOuterX - insetX, z: ctx.frameOuterZ - insetZ }
+      ];
+      return attachLegLevelers(ctx, built, centers);
+    },
+    woodenTable02Alt: (ctx) => {
+      const build = createPolyhavenTableBaseBuilder('wooden_table_02', {
+        footprintScale: 0.94,
+        footprintDepthScale: 0.96,
+        heightFill: 0.9,
+        topInsetScale: 0.95,
+        materialKey: 'rail',
+        matchTableFootprint: true
+      });
+      const built = build(ctx);
+      const insetX = Math.min(ctx.frameOuterX, ctx.legInset + LEG_POCKET_CLEARANCE * 0.88);
+      const insetZ = Math.min(ctx.frameOuterZ, ctx.legInset + LEG_POCKET_CLEARANCE * 0.68);
+      const centers = [
+        { x: -ctx.frameOuterX + insetX, z: -ctx.frameOuterZ + insetZ },
+        { x: ctx.frameOuterX - insetX, z: -ctx.frameOuterZ + insetZ },
+        { x: -ctx.frameOuterX + insetX, z: ctx.frameOuterZ - insetZ },
+        { x: ctx.frameOuterX - insetX, z: ctx.frameOuterZ - insetZ }
+      ];
+      return attachLegLevelers(ctx, built, centers);
+    }
   };
 
   const normalizeBasePlacement = (meshes = [], options = {}) => {

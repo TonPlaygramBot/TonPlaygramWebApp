@@ -37,17 +37,16 @@ describe('Pool Royale table models', () => {
     assert.equal(showood.upperFrameHeightScale, 0.58);
     assert.equal(showood.cornerRimHeightScale, 0.28);
     assert.equal(showood.accentBottomTrimOffset, 0);
-    assert.equal(showood.originalBaseRemovalCutoffRatio, 0.74);
-    assert.equal(showood.markingVisualLift, 0.028);
+    assert.equal(showood.markingVisualLift, 0.024);
     assert.equal(showood.lowerBaseHeightScale, 1.72);
     assert.equal(showood.lowerLegFootReachScale, 1.28);
     assert.equal(showood.footWidthScale, 1.08);
     assert.equal(showood.footHeightScale, 1);
-    assert.equal(showood.railSightApronVisualScale, 1.066);
-    assert.equal(showood.railSightOutwardOffset, 0.034);
-    assert.equal(showood.railSightVisualHeightScale, 1.082);
-    assert.equal(showood.sideApronVisualHeightScale, 1.11);
-    assert.equal(showood.sideApronOutwardOffset, 0.056);
+    assert.equal(showood.railSightApronVisualScale, 1.058);
+    assert.equal(showood.railSightOutwardOffset, 0.028);
+    assert.equal(showood.railSightVisualHeightScale, 1.07);
+    assert.equal(showood.sideApronVisualHeightScale, 1.096);
+    assert.equal(showood.sideApronOutwardOffset, 0.048);
     assert.deepEqual(showood.usePoolRoyaleFinishRoles, ['cloth', 'cushion', 'wood']);
   });
 
@@ -73,35 +72,6 @@ describe('Pool Royale table models', () => {
       game.includes('!showShowoodTableSetup'),
       false,
       'base options should not be hidden when Showood is selected'
-    );
-  });
-
-  test('Pool Royale shared table base menu excludes removed decorative bases', async () => {
-    const inventory = await readFile(
-      'webapp/src/config/poolRoyaleInventoryConfig.js',
-      'utf8'
-    );
-    const game = await readFile('webapp/src/pages/Games/PoolRoyale.jsx', 'utf8');
-
-    assert.equal(
-      inventory.includes("id: 'gothicCoffeeTable'"),
-      false,
-      'inventory should not expose the Gothic Coffee Table base'
-    );
-    assert.equal(
-      inventory.includes("id: 'woodenTable02Alt'"),
-      false,
-      'inventory should not expose the Wooden Table 02 Alt base'
-    );
-    assert.equal(
-      game.includes('gothicCoffeeTable:'),
-      false,
-      'game should not build the Gothic Coffee Table base'
-    );
-    assert.equal(
-      game.includes('woodenTable02Alt:'),
-      false,
-      'game should not build the Wooden Table 02 Alt base'
     );
   });
 
