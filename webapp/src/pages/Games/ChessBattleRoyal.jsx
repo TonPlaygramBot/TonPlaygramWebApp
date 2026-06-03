@@ -420,6 +420,7 @@ const CHESS_CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   polyRobotFlyingGunAttack: { urls: ['https://static.poly.pizza/6d0889f1-0c3f-4f98-b011-fbcf6c79a93b.glb'], scale: 0.16 },
   polyBazooka01Attack: { urls: ['https://static.poly.pizza/613e3b1b-d07c-496b-94a1-7c85b507bac4.glb'], scale: 0.22 },
   polyGrenadeLauncher01Attack: { urls: ['https://static.poly.pizza/503bb2c5-4a69-404b-9b82-13e85e8f8467.glb'], scale: 0.2 },
+  grenadeBlastAttack: { urls: ['https://static.poly.pizza/03fa7f5b-4df5-45d6-86fb-87e8590f28d7.glb'], scale: 0.075 },
   polyDynamiteBomb01Attack: { urls: ['https://static.poly.pizza/38e858db-325f-4dce-9680-da62c20c5c31.glb'], scale: 0.12 },
   polyMolotov01Attack: { urls: ['https://static.poly.pizza/d7bb0b50-09af-49f8-b1f9-dbdb0c707d40.glb'], scale: 0.095 },
   polyGasTank01Attack: { urls: ['https://static.poly.pizza/9c4d2ac5-114b-4da2-a26a-8049e2b1ba04.glb'], scale: 0.12 },
@@ -447,6 +448,53 @@ const CHESS_LARGE_FIREARM_IDS = new Set([
   'polyGrenadeLauncher01Attack',
   'polyTank01Attack'
 ]);
+const CHESS_FIREARM_MAGAZINE_SHOTS_BY_ID = Object.freeze({
+  fpsGunAttack: 24,
+  glockSidearmAttack: 17,
+  pistolSidearmAttack: 16,
+  assaultRifleAttack: 30,
+  uziSprayAttack: 32,
+  ak47VolleyAttack: 30,
+  krsvBurstAttack: 30,
+  smithSidearmAttack: 16,
+  mosinMarksmanAttack: 1,
+  sigsauerTacticalAttack: 20,
+  grenadeBlastAttack: 1,
+  shotgunBlastAttack: 1,
+  sniperShotAttack: 1,
+  smgBurstAttack: 28,
+  compactCarbineAttack: 30,
+  marksmanDmrAttack: 1,
+  polyShotgun01Attack: 1,
+  polyAssaultRifle01Attack: 30,
+  polyPistol01Attack: 16,
+  polyRevolver01Attack: 8,
+  polySawedOff01Attack: 1,
+  polyRevolver02Attack: 8,
+  polyShotgun02Attack: 1,
+  polyShotgun03Attack: 1,
+  polySmg01Attack: 28,
+  polyRobotLargeGunAttack: 18,
+  polyRobotFlyingGunAttack: 16,
+  polyBazooka01Attack: 1,
+  polyGrenadeLauncher01Attack: 1,
+  polyDynamiteBomb01Attack: 1,
+  polyMolotov01Attack: 1,
+  polyGasTank01Attack: 1,
+  polyHandGrenade01Attack: 1,
+  polyTank01Attack: 1
+});
+const CHESS_GRENADE_SHORT_MISSILE_IDS = new Set([
+  'grenadeBlastAttack',
+  'polyBazooka01Attack',
+  'polyGrenadeLauncher01Attack',
+  'polyDynamiteBomb01Attack',
+  'polyMolotov01Attack',
+  'polyGasTank01Attack',
+  'polyHandGrenade01Attack',
+  'polyTank01Attack'
+]);
+
 const CHESS_FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
   fpsGunAttack: SNAKE_FPS_GUN_MODEL_CONFIG.ludoRackSizeMultiplier,
   glockSidearmAttack: 1,
@@ -503,7 +551,15 @@ const CHESS_FIREARM_HANDHELD_SCALE_MULTIPLIER_BY_ID = Object.freeze({
   polyRevolver02Attack: 1.17,
   polyShotgun02Attack: 1.34,
   polyShotgun03Attack: 1.28,
-  polySmg01Attack: 1.22
+  polySmg01Attack: 1.22,
+  grenadeBlastAttack: 0.95,
+  polyBazooka01Attack: 1.55,
+  polyGrenadeLauncher01Attack: 1.42,
+  polyDynamiteBomb01Attack: 0.95,
+  polyMolotov01Attack: 0.9,
+  polyGasTank01Attack: 1.0,
+  polyHandGrenade01Attack: 0.95,
+  polyTank01Attack: 1.2
 });
 const CHESS_FIREARM_MUZZLE_YAW_CORRECTION_BY_ID = Object.freeze({
   ak47VolleyAttack: Math.PI,
@@ -545,7 +601,15 @@ const CHESS_FIREARM_HAND_ATTACH_TUNING = Object.freeze({
   polyShotgun03Attack: { muzzleOffset: [0, 0.014, 0.253] },
   polySmg01Attack: { muzzleOffset: [0, 0.014, 0.223] },
   shotgunBlastAttack: { muzzleOffset: [0, 0.014, 0.255] },
-  sniperShotAttack: { muzzleOffset: [0, 0.015, 0.278] }
+  sniperShotAttack: { muzzleOffset: [0, 0.015, 0.278] },
+  grenadeBlastAttack: { muzzleOffset: [0, 0.016, 0.17] },
+  polyBazooka01Attack: { muzzleOffset: [0, 0.016, 0.285] },
+  polyGrenadeLauncher01Attack: { muzzleOffset: [0, 0.016, 0.24] },
+  polyDynamiteBomb01Attack: { muzzleOffset: [0, 0.014, 0.16] },
+  polyMolotov01Attack: { muzzleOffset: [0, 0.014, 0.15] },
+  polyGasTank01Attack: { muzzleOffset: [0, 0.014, 0.18] },
+  polyHandGrenade01Attack: { muzzleOffset: [0, 0.012, 0.13] },
+  polyTank01Attack: { muzzleOffset: [0, 0.016, 0.2] }
 });
 
 const CAPTURE_VEHICLE_TEXTURE_CACHE = new Map();
@@ -2482,7 +2546,15 @@ const CHESS_FIREARM_CALIBER_BY_ANIMATION_ID = Object.freeze({
   mosinMarksmanAttack: Object.freeze({ caliberLabel: '7.62×54mmR marksman round', projectileKind: 'marksman-round', bulletRadius: 0.0044, bulletLength: 0.055, shellRadius: 0.0033, shellLength: 0.026, bulletSpeed: 0.3 }),
   marksmanDmrAttack: Object.freeze({ caliberLabel: '7.62×51mm DMR round', projectileKind: 'marksman-round', bulletRadius: 0.0042, bulletLength: 0.052, shellRadius: 0.0032, shellLength: 0.024, bulletSpeed: 0.292 }),
   polyRobotLargeGunAttack: Object.freeze({ caliberLabel: 'heavy robot rifle round', projectileKind: 'rifle-round', bulletRadius: 0.0042, bulletLength: 0.047, shellRadius: 0.0032, shellLength: 0.024, bulletSpeed: 0.255 }),
-  polyRobotFlyingGunAttack: Object.freeze({ caliberLabel: 'drone SMG micro-round', projectileKind: 'smg-round', bulletRadius: 0.003, bulletLength: 0.026, shellRadius: 0.0021, shellLength: 0.012, bulletSpeed: 0.235 })
+  polyRobotFlyingGunAttack: Object.freeze({ caliberLabel: 'drone SMG micro-round', projectileKind: 'smg-round', bulletRadius: 0.003, bulletLength: 0.026, shellRadius: 0.0021, shellLength: 0.012, bulletSpeed: 0.235 }),
+  grenadeBlastAttack: Object.freeze({ caliberLabel: 'hand grenade blast', projectileKind: 'explosive-warhead', bulletRadius: 0.0064, bulletLength: 0.046, shellRadius: 0.0046, shellLength: 0.03, bulletSpeed: 0.14 }),
+  polyBazooka01Attack: Object.freeze({ caliberLabel: 'RPG rocket', projectileKind: 'explosive-warhead', bulletRadius: 0.0075, bulletLength: 0.068, shellRadius: 0.0054, shellLength: 0.036, bulletSpeed: 0.12 }),
+  polyGrenadeLauncher01Attack: Object.freeze({ caliberLabel: '40mm launcher grenade', projectileKind: 'explosive-warhead', bulletRadius: 0.0068, bulletLength: 0.049, shellRadius: 0.005, shellLength: 0.032, bulletSpeed: 0.135 }),
+  polyDynamiteBomb01Attack: Object.freeze({ caliberLabel: 'dynamite bundle', projectileKind: 'explosive-warhead', bulletRadius: 0.007, bulletLength: 0.055, shellRadius: 0.0048, shellLength: 0.032, bulletSpeed: 0.11 }),
+  polyMolotov01Attack: Object.freeze({ caliberLabel: 'molotov bottle', projectileKind: 'explosive-warhead', bulletRadius: 0.0062, bulletLength: 0.052, shellRadius: 0.0045, shellLength: 0.03, bulletSpeed: 0.115 }),
+  polyGasTank01Attack: Object.freeze({ caliberLabel: 'gas tank rocket', projectileKind: 'explosive-warhead', bulletRadius: 0.0072, bulletLength: 0.06, shellRadius: 0.005, shellLength: 0.034, bulletSpeed: 0.105 }),
+  polyHandGrenade01Attack: Object.freeze({ caliberLabel: 'fragmentation grenade', projectileKind: 'explosive-warhead', bulletRadius: 0.006, bulletLength: 0.04, shellRadius: 0.0042, shellLength: 0.028, bulletSpeed: 0.13 }),
+  polyTank01Attack: Object.freeze({ caliberLabel: 'tank shell', projectileKind: 'explosive-warhead', bulletRadius: 0.007, bulletLength: 0.058, shellRadius: 0.005, shellLength: 0.034, bulletSpeed: 0.13 })
 });
 const CHESS_SMALL_9MM_PROJECTILE_KINDS = new Set(['pistol-round', 'smg-round', 'revolver-round']);
 
@@ -12548,10 +12620,11 @@ function Chess3D({
         ...projectileProfile,
         ...(animationCaliberProfile || {}),
         ludoType,
-        bulletCount: bridgeProfile.bulletCount ?? (singleShot ? 1 : 7),
-        duration: bridgeProfile.duration ?? (singleShot ? 0.62 : 1.15),
+        bulletCount: CHESS_FIREARM_MAGAZINE_SHOTS_BY_ID[captureAnimationId] ?? bridgeProfile.bulletCount ?? (singleShot ? 1 : 7),
+        duration: Math.max(bridgeProfile.duration ?? (singleShot ? 0.62 : 1.15), ((CHESS_FIREARM_MAGAZINE_SHOTS_BY_ID[captureAnimationId] ?? bridgeProfile.bulletCount ?? 1) > 1 ? 1.35 : 0.82)),
         impactAt: bridgeProfile.impactAt ?? (singleShot ? 1 : 0.92),
-        singleShot
+        singleShot,
+        shortMissile: CHESS_GRENADE_SHORT_MISSILE_IDS.has(captureAnimationId)
       };
     };
 
@@ -13079,7 +13152,16 @@ function Chess3D({
           firearmFx.userData.muzzleHelper = muzzleHelper;
           firearmFx.add(weaponClone);
         });
-        // The FPS/shotgun model is intentionally rendered as the gun only; no fallback arms/hands are loaded here.
+        let fpsArmsFx = null;
+        void loadChessFpsArmsTemplate().then((template) => {
+          if (!template || !firearmFx.parent) return;
+          fpsArmsFx = template.clone(true);
+          fpsArmsFx.visible = false;
+          fpsArmsFx.scale.multiplyScalar(1.18);
+          captureFxGroup.add(fpsArmsFx);
+          const activeFx = activeCaptureFx.find((fx) => fx.firearmFx === firearmFx);
+          if (activeFx) activeFx.fpsArmsFx = fpsArmsFx;
+        });
         activeCaptureFx.push({
           type: 'firearm',
           t: 0,
@@ -13089,12 +13171,13 @@ function Chess3D({
           targetMesh,
           missileFx,
           firearmFx,
-          fpsArmsFx: null,
+          fpsArmsFx,
           aerodynamicRings,
           bulletCount: firearmProfile.bulletCount,
           impactAt: firearmProfile.impactAt,
           singleShot: firearmProfile.singleShot,
           bulletProfile: firearmProfile,
+          shortMissile: Boolean(firearmProfile.shortMissile),
           firedBullets: 0,
           hitTriggered: false,
           liveBullets: [],
@@ -15580,13 +15663,20 @@ function Chess3D({
             fx.to.copy(targetPos);
             const pieceWorld = new THREE.Vector3();
             fx.movingMesh?.getWorldPosition?.(pieceWorld);
+            const pieceBounds = fx.movingMesh?.parent ? new THREE.Box3().setFromObject(fx.movingMesh) : null;
             let shooterPos = pieceWorld.lengthSq() ? pieceWorld : fx.from.clone().lerp(targetPos, 0.24);
             shooterPos = shooterPos.clone();
-            shooterPos.y += 0.26;
-            const humanFirearmPose = getSeatedHumanFirearmPose(fx.shooterSeatIndex, targetPos, shooterPos);
-            const aimOrigin = humanFirearmPose?.gripWorld || shooterPos;
-            const aimDir = (humanFirearmPose?.aimDir || targetPos.clone().sub(aimOrigin)).normalize();
-            const muzzlePos = humanFirearmPose?.muzzleWorld || aimOrigin.clone().addScaledVector(aimDir, (LUDO_FIREARM_BROADCAST_PROFILE.aimLift ?? 0.064) + 0.055);
+            if (pieceBounds && !pieceBounds.isEmpty()) {
+              shooterPos.x = (pieceBounds.min.x + pieceBounds.max.x) * 0.5;
+              shooterPos.z = (pieceBounds.min.z + pieceBounds.max.z) * 0.5;
+              shooterPos.y = THREE.MathUtils.lerp(pieceBounds.min.y, pieceBounds.max.y, 0.68);
+            } else {
+              shooterPos.y += 0.26;
+            }
+            const aimOrigin = shooterPos;
+            const aimDir = targetPos.clone().sub(aimOrigin).normalize();
+            const muzzlePos = aimOrigin.clone().addScaledVector(aimDir, (fx.shortMissile ? 0.18 : (LUDO_FIREARM_BROADCAST_PROFILE.aimLift ?? 0.064) + 0.055));
+            muzzlePos.y += fx.shortMissile ? 0.05 : 0.015;
             fx.missileFx.root.visible = true;
             fx.missileFx.root.position.copy(muzzlePos).addScaledVector(aimDir, 0.08);
             orientForwardKeepingUp(fx.missileFx.root, aimDir);
@@ -15598,8 +15688,7 @@ function Chess3D({
               if (liveAimDir.lengthSq() > 1e-8) liveAimDir.normalize();
               else liveAimDir.copy(aimDir);
               fx.firearmFx.position.copy(
-                humanFirearmPose?.weaponWorld ||
-                  aimOrigin.clone().addScaledVector(liveAimDir, -(LUDO_FIREARM_BROADCAST_PROFILE.aimRearPullback ?? 0.124))
+                aimOrigin.clone().addScaledVector(liveAimDir, -(fx.shortMissile ? 0.04 : (LUDO_FIREARM_BROADCAST_PROFILE.aimRearPullback ?? 0.124)))
               );
               fx.firearmFx.position.y += 0.02 + Math.sin(u * Math.PI * 8) * 0.006;
               orientForwardKeepingUp(fx.firearmFx, liveAimDir);
@@ -15607,7 +15696,7 @@ function Chess3D({
               const muzzleHelper = fx.firearmFx.userData?.muzzleHelper;
               if (muzzleHelper?.isObject3D) {
                 const currentMuzzleWorld = muzzleHelper.getWorldPosition(new THREE.Vector3());
-                const desiredMuzzleWorld = humanFirearmPose?.muzzleWorld || aimOrigin.clone().addScaledVector(liveAimDir, SEATED_HUMAN_FIREARM_MUZZLE_FORWARD);
+                const desiredMuzzleWorld = muzzlePos.clone().addScaledVector(liveAimDir, fx.shortMissile ? 0.08 : 0.02);
                 fx.firearmFx.position.add(desiredMuzzleWorld.sub(currentMuzzleWorld));
                 fx.firearmFx.updateMatrixWorld?.(true);
               }
@@ -15616,12 +15705,10 @@ function Chess3D({
               aimDir.copy(liveAimDir);
             }
             if (fx.fpsArmsFx) {
-              fx.fpsArmsFx.visible = !humanFirearmPose;
-              if (!humanFirearmPose) {
-                fx.fpsArmsFx.position.copy(aimOrigin).addScaledVector(aimDir, -(LUDO_FIREARM_BROADCAST_PROFILE.aimRearPullback ?? 0.124));
-                fx.fpsArmsFx.position.y += 0.02 + Math.sin(u * Math.PI * 8) * 0.006;
-                orientForwardKeepingUp(fx.fpsArmsFx, aimDir);
-              }
+              fx.fpsArmsFx.visible = true;
+              fx.fpsArmsFx.position.copy(aimOrigin).addScaledVector(aimDir, -(fx.shortMissile ? 0.095 : (LUDO_FIREARM_BROADCAST_PROFILE.aimRearPullback ?? 0.124) + 0.035));
+              fx.fpsArmsFx.position.y += 0.004 + Math.sin(u * Math.PI * Math.max(4, fx.bulletCount || 1)) * 0.004;
+              orientForwardKeepingUp(fx.fpsArmsFx, aimDir);
             }
 
             (fx.liveBullets || []).forEach((bullet) => {
@@ -15629,10 +15716,28 @@ function Chess3D({
               const bulletAge = clamp01(bulletAgeRaw);
               const cinematicEase = bullet.cinematic ? Math.pow(bulletAge, 0.68) : smoothEase(bulletAge);
               const bt = bullet.cinematic ? cinematicEase : smoothEase(bulletAge);
-              const pos = bullet.from.clone().lerp(bullet.to, bt);
-              pos.y += Math.sin(bt * Math.PI) * (LUDO_FIREARM_BROADCAST_PROFILE.bulletFollowLift ?? 0.092);
+              let pos = bullet.from.clone().lerp(bullet.to, bt);
+              let projectileDir = bullet.dir;
+              if (bullet.shortMissile) {
+                const missilePose = getCaptureLongJavelinPose({
+                  launchPos: bullet.from,
+                  targetPos: bullet.to,
+                  progress: bt,
+                  strikeAltitude: CAPTURE_SHORT_STRIKE_ALTITUDE * 0.58
+                });
+                pos = missilePose.pos;
+                projectileDir = missilePose.next.clone().sub(missilePose.pos).normalize();
+                bullet.missileProjectile?.trail?.forEach((puff, idx) => {
+                  const pulse = 0.72 + idx * 0.12 + Math.sin(now * 0.014 + idx) * 0.08;
+                  puff.scale.setScalar(pulse);
+                  puff.material.opacity = Math.max(0.12, (0.72 - idx * 0.1) * (1 - bulletAge * 0.35));
+                });
+                if (bullet.missileProjectile?.rotor) bullet.missileProjectile.rotor.rotation.x += dt * 52;
+              } else {
+                pos.y += Math.sin(bt * Math.PI) * (LUDO_FIREARM_BROADCAST_PROFILE.bulletFollowLift ?? 0.092);
+              }
               bullet.mesh.position.copy(pos);
-              bullet.mesh.quaternion.setFromUnitVectors(WORLD_UP, bullet.dir);
+              bullet.mesh.quaternion.setFromUnitVectors(WORLD_UP, projectileDir);
               bullet.mesh.rotateY(bulletAge * 0.118);
               bullet.mesh.rotateX(bullet.cinematic ? 0.18 : 0.1);
               bullet.mesh.visible = bulletAge < 1;
@@ -15671,7 +15776,8 @@ function Chess3D({
             fx.liveBullets = (fx.liveBullets || []).filter((bullet) => {
               if ((now - bullet.startMs) / Math.max(1, bullet.durationMs) < 1.05) return true;
               if (activeBulletCameraFollow === bullet) activeBulletCameraFollow = null;
-              bullet.mesh.userData?.dispose?.();
+              if (bullet.missileProjectile) disposeObject3D(bullet.missileProjectile.root);
+              else bullet.mesh.userData?.dispose?.();
               bullet.trail?.geometry?.dispose?.();
               bullet.trail?.material?.dispose?.();
               bullet.wake?.traverse?.((node) => {
@@ -15735,7 +15841,9 @@ function Chess3D({
               const spread = (shotIndex - (bulletsToFire - 1) * 0.5) * (fx.bulletProfile?.pelletCount ? 0.012 : 0.004);
               const side = new THREE.Vector3().crossVectors(WORLD_UP, aimDir).normalize();
               const bulletTo = targetPos.clone().addScaledVector(side, spread);
-              const bullet = createFirearmBulletMesh(fx.bulletProfile);
+              const missileProjectile = fx.shortMissile ? createFxGroundMissile() : null;
+              const bullet = missileProjectile?.root || createFirearmBulletMesh(fx.bulletProfile);
+              if (missileProjectile) bullet.scale.setScalar(CAPTURE_MISSILE_SCALE * 0.78);
               bullet.position.copy(muzzlePos);
               bullet.quaternion.setFromUnitVectors(WORLD_UP, aimDir);
               captureFxGroup.add(bullet);
@@ -15757,7 +15865,9 @@ function Chess3D({
                 cinematic: isFatalBullet,
                 impactTriggered: false,
                 trail: bulletTrail,
-                wake: bulletWake
+                wake: bulletWake,
+                missileProjectile,
+                shortMissile: Boolean(fx.shortMissile)
               };
               fx.liveBullets.push(bulletState);
               // Keep the final bullet's cinematic trail/easing, but never hand
