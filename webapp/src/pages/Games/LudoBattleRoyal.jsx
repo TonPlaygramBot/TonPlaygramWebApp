@@ -228,7 +228,11 @@ const FIREARM_SINGLE_HAND_ONLY_IDS = new Set([
 const FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
   fpsGunAttack: 2.2,
   glockSidearmAttack: 1,
+  // May 9 05:00 table snapshot: keep these four legacy firearms at the exact
+  // rack sizing used before the Gunify source/Poly Pizza additions.
+  assaultRifleAttack: 1,
   uziSprayAttack: 1.65,
+  sigsauerTacticalAttack: 1,
   smgBurstAttack: 1.65,
   ak47VolleyAttack: 2.2,
   krsvBurstAttack: 2.2,
@@ -334,6 +338,19 @@ const FIREARM_RACK_PARKING_TUNING = Object.freeze({
     outward: 0.188
   })
 });
+const MAY_9_TABLE_FIREARM_DISPLAY_TUNING_BY_ID = Object.freeze({
+  assaultRifleAttack: FIREARM_RACK_DISPLAY_TUNING.default,
+  uziSprayAttack: FIREARM_RACK_DISPLAY_TUNING.default,
+  sigsauerTacticalAttack: FIREARM_RACK_DISPLAY_TUNING.default,
+  mosinMarksmanAttack: FIREARM_RACK_DISPLAY_TUNING.large
+});
+const MAY_9_TABLE_FIREARM_PARKING_TUNING_BY_ID = Object.freeze({
+  assaultRifleAttack: FIREARM_RACK_PARKING_TUNING.small,
+  uziSprayAttack: FIREARM_RACK_PARKING_TUNING.small,
+  sigsauerTacticalAttack: FIREARM_RACK_PARKING_TUNING.small,
+  mosinMarksmanAttack: FIREARM_RACK_PARKING_TUNING.large
+});
+
 const FIREARM_RACK_PARKING_SEAT_ADJUSTMENTS = Object.freeze([
   // Portrait top/bottom players need their firearms tucked closer to the tabletop/board
   // edge while pointing straight across to the opposite side.
@@ -351,10 +368,18 @@ const FIREARM_RACK_OPPOSITE_SEAT_TARGET_BY_PLAYER = Object.freeze({
 const GUNIFY_MAY_9_REF = '27232cf389a2be3f8f476c667cb293e978aaf5f9';
 const GUNIFY_RAW_BASE = `https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/${GUNIFY_MAY_9_REF}`;
 const GUNIFY_JSDELIVR_BASE = `https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@${GUNIFY_MAY_9_REF}`;
-const gunifyModelUrls = (modelName) => [
-  `${GUNIFY_RAW_BASE}/models/${modelName}/scene.gltf`,
-  `${GUNIFY_JSDELIVR_BASE}/models/${modelName}/scene.gltf`
-];
+const GUNIFY_MAY_9_MODEL_FOLDER_BY_NAME = Object.freeze({
+  Uzi: 'models2',
+  Mosin: 'models2',
+  SigSauer: 'models3'
+});
+const gunifyModelUrls = (modelName) => {
+  const modelFolder = GUNIFY_MAY_9_MODEL_FOLDER_BY_NAME[modelName] || 'models';
+  return [
+    `${GUNIFY_RAW_BASE}/${modelFolder}/${modelName}/scene.gltf`,
+    `${GUNIFY_JSDELIVR_BASE}/${modelFolder}/${modelName}/scene.gltf`
+  ];
+};
 
 const GUNIFY_SPECULAR_GLOSSINESS_EXTENSION = 'KHR_materials_pbrSpecularGlossiness';
 
@@ -462,7 +487,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
       'https://cdn.statically.io/gh/webaverse/pistol/master/military.glb'
     ],
     scale: 0.13,
-    textureOverrideUrls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/AK47.jpeg']
+    textureOverrideUrls: [`${GUNIFY_RAW_BASE}/images/AK47.jpeg`]
   },
   uziSprayAttack: {
     label: 'Gunify Uzi',
@@ -1825,9 +1850,11 @@ async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
   entry.weaponHolder.clear();
   const clone = weaponModel.clone(true);
   alignObjectBottomToY(clone, 0);
-  const displayTuning = LARGE_RACK_FIREARM_IDS.has(captureAnimationId)
-    ? FIREARM_RACK_DISPLAY_TUNING.large
-    : FIREARM_RACK_DISPLAY_TUNING.default;
+  const displayTuning =
+    MAY_9_TABLE_FIREARM_DISPLAY_TUNING_BY_ID[captureAnimationId] ||
+    (LARGE_RACK_FIREARM_IDS.has(captureAnimationId)
+      ? FIREARM_RACK_DISPLAY_TUNING.large
+      : FIREARM_RACK_DISPLAY_TUNING.default);
   const displayPosition = UNIFORM_FIREARM_RACK_DISPLAY_TUNING.position;
   const displayRotation = UNIFORM_FIREARM_RACK_DISPLAY_TUNING.rotation;
   const weaponRackScaleMultiplier = FIREARM_RACK_SIZE_MULTIPLIER_BY_ID[captureAnimationId] ?? 1;
@@ -8345,9 +8372,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       inward.normalize();
       const rightSide = new THREE.Vector3().crossVectors(inward, MISSILE_WORLD_UP).normalize();
       const isLargeFirearm = LARGE_RACK_FIREARM_IDS.has(captureAnimationId);
-      const rackTuning = isLargeFirearm
-        ? FIREARM_RACK_PARKING_TUNING.large
-        : FIREARM_RACK_PARKING_TUNING.small;
+      const rackTuning =
+        MAY_9_TABLE_FIREARM_PARKING_TUNING_BY_ID[captureAnimationId] ||
+        (isLargeFirearm
+          ? FIREARM_RACK_PARKING_TUNING.large
+          : FIREARM_RACK_PARKING_TUNING.small);
       const seatAdjustment = FIREARM_RACK_PARKING_SEAT_ADJUSTMENTS[playerIndex] || FIREARM_RACK_PARKING_SEAT_ADJUSTMENTS[0];
       const basePosition = kingPos
         .clone()
