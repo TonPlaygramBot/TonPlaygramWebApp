@@ -158,9 +158,15 @@ export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
   },
   {
     id: 'droneAttack',
-    label: 'Drone Attack',
-    description: 'Attack drone sweep adapted from Chess Battle Royal scale.',
+    label: 'Shahad Drone',
+    description: 'Shahad-style attack drone sweep adapted from Chess Battle Royal scale.',
     thumbnail: captureWeaponThumb('🛸', '#0ea5e9')
+  },
+  {
+    id: 'ukrainianDroneAttack',
+    label: 'Ukrainian Drone',
+    description: 'Ukrainian FPV drone strike with compact no-smoke precision impact.',
+    thumbnail: captureWeaponThumb('🇺🇦', '#2563eb')
   },
   {
     id: 'fighterJetAttack',

@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import {
   CHESS_BATTLE_DEFAULT_UNLOCKS,
@@ -241,6 +241,26 @@ describe('cross-game inventory alignment', () => {
       expect(source).toContain('https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/${GUNIFY_MAY_9_REF}');
       expect(source).toContain('https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@${GUNIFY_MAY_9_REF}');
       expect(source).toContain(`modelName: '${modelName}'`);
+    });
+  });
+
+
+  test('chess battle royal maps firearm families to attributed open source sound effects', async () => {
+    const source = await readFile('webapp/src/pages/Games/ChessBattleRoyal.jsx', 'utf8');
+    const attribution = await readFile('webapp/public/assets/sounds/chess-firearms/ATTRIBUTION.md', 'utf8');
+    const soundDirFiles = await readdir('webapp/public/assets/sounds/chess-firearms');
+
+    expect(soundDirFiles.filter((fileName) => /\.(mp3|wav|ogg|m4a)$/i.test(fileName))).toEqual([]);
+    expect(source).toContain('CHESS_FIREARM_SOUND_ATTRIBUTION');
+    expect(source).toContain('CHESS_FIREARM_SOUND_PROFILE_BY_TYPE');
+    expect(source).toContain('playFirearmSound(fx.bulletProfile)');
+    ['gunshot', 'shotgun', 'cannon'].forEach((soundKey) => {
+      expect(source).toContain(`soundKey: '${soundKey}'`);
+      expect(source).toContain('https://www.orangefreesounds.com/wp-content/uploads/');
+      expect(attribution).toContain('Creative Commons Attribution 4.0 International');
+    });
+    ['Pistol', 'Revolver', 'SMG', 'Rifle', 'AssaultRifle', 'SniperRifle', 'DMR', 'Shotgun', 'GrenadeLauncher', 'Launcher'].forEach((weaponType) => {
+      expect(source).toContain(`${weaponType}: { soundKey:`);
     });
   });
 
