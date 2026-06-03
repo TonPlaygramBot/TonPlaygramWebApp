@@ -471,7 +471,25 @@ const FIREARM_MODEL_SCALE_BY_ID = Object.freeze({
   'slot-18-fps-gun-gltf': 0.03,
   // Enlarge long rifles for clearer sniper identity in portrait view.
   'slot-16-awp-glb': 3,
-  'slot-13-mosin-gltf': 3
+  'slot-13-mosin-gltf': 3,
+  'poly-shotgun-01': 1,
+  'poly-assault-rifle-01': 1.02,
+  'poly-pistol-01': 0.6,
+  'poly-revolver-01': 0.64,
+  'poly-sawed-off-01': 0.85,
+  'poly-revolver-02': 0.64,
+  'poly-shotgun-02': 1.05,
+  'poly-shotgun-03': 1.03,
+  'poly-smg-01': 0.84,
+  'poly-robot-large-gun-01': 0.83,
+  'poly-robot-flying-gun-01': 0.78,
+  'poly-bazooka-01': 1.08,
+  'poly-grenade-launcher-01': 0.98,
+  'poly-dynamite-bomb-01': 0.58,
+  'poly-molotov-01': 0.46,
+  'poly-gas-tank-01': 0.62,
+  'poly-hand-grenade-01': 0.36,
+  'poly-tank-01': 0.7
 });
 const WEAPON_PARKING_OUTWARD_OFFSET = TILE_SIZE * 0.52;
 const WEAPON_FROM_TOKEN_CENTER_OFFSET = TOKEN_RADIUS * 0.58;
@@ -798,6 +816,15 @@ const SNAKE_CAPTURE_WEAPON_KIND_MAP = Object.freeze({
   'poly-shotgun-02': 'polyShotgun02Attack',
   'poly-shotgun-03': 'polyShotgun03Attack',
   'poly-smg-01': 'polySmg01Attack',
+  'poly-robot-large-gun-01': 'polyRobotLargeGunAttack',
+  'poly-robot-flying-gun-01': 'polyRobotFlyingGunAttack',
+  'poly-bazooka-01': 'polyBazooka01Attack',
+  'poly-grenade-launcher-01': 'polyGrenadeLauncher01Attack',
+  'poly-dynamite-bomb-01': 'polyDynamiteBomb01Attack',
+  'poly-molotov-01': 'polyMolotov01Attack',
+  'poly-gas-tank-01': 'polyGasTank01Attack',
+  'poly-hand-grenade-01': 'polyHandGrenade01Attack',
+  'poly-tank-01': 'polyTank01Attack',
   'slot-10-ak47-gltf': 'ak47VolleyAttack',
   'slot-11-krsv-gltf': 'krsvBurstAttack',
   'slot-12-smith-gltf': 'smithSidearmAttack',
@@ -6162,7 +6189,9 @@ function createSeatWeaponMesh(weaponType = 'fighter', options = {}) {
     normalizedWeaponType
   );
   const firearmScale = isVehicleWeapon ? 1 : FIREARM_DISPLAY_SIZE_MULTIPLIER;
-  const firearmModelScaleById = catalogWeaponType ? FIREARM_MODEL_SCALE_BY_ID[catalogWeaponType] ?? 1 : 1;
+  const firearmModelScaleById = catalogWeaponType
+    ? catalogOption?.modelScale ?? FIREARM_MODEL_SCALE_BY_ID[catalogWeaponType] ?? 1
+    : 1;
   if (catalogWeaponType && !catalogOption?.vehicleKind) {
     const holder = new THREE.Group();
     const fallback = createPolySeatWeaponMesh(normalizedWeaponType);

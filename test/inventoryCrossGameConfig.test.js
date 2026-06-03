@@ -310,5 +310,20 @@ describe('cross-game inventory alignment', () => {
 
     expect(snakeCaptureStoreIds).toEqual(snakeCatalogIds);
     expect(new Set(SNAKE_DEFAULT_UNLOCKS.captureWeapon)).toEqual(new Set([SNAKE_CAPTURE_WEAPON_OPTIONS[0]?.id]));
+
+    [
+      'poly-robot-large-gun-01',
+      'poly-robot-flying-gun-01',
+      'poly-bazooka-01',
+      'poly-grenade-launcher-01',
+      'poly-dynamite-bomb-01',
+      'poly-molotov-01',
+      'poly-gas-tank-01',
+      'poly-hand-grenade-01',
+      'poly-tank-01'
+    ].forEach((weaponId) => {
+      expect(snakeCatalogIds.has(weaponId)).toBe(true);
+      expect(snakeCaptureStoreIds.has(weaponId)).toBe(true);
+    });
   });
 });
