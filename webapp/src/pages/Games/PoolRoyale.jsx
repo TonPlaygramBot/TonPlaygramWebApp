@@ -13595,9 +13595,9 @@ function subtlyExpandPoolRoyaleShowoodRailSightsAndAprons(model, tableModel) {
   const fullBox = new THREE.Box3().setFromObject(model);
   if (fullBox.isEmpty()) return;
   const fullCenter = fullBox.getCenter(new THREE.Vector3());
-  const safeVisualScale = hasScale ? THREE.MathUtils.clamp(visualScale, 1, 1.1) : 1;
-  const safeRailSightHeightScale = hasRailSightHeight ? THREE.MathUtils.clamp(railSightHeightScale, 1, 1.14) : 1;
-  const safeSideApronHeightScale = hasSideApronHeight ? THREE.MathUtils.clamp(sideApronHeightScale, 1, 1.16) : 1;
+  const safeVisualScale = hasScale ? THREE.MathUtils.clamp(visualScale, 1, 1.12) : 1;
+  const safeRailSightHeightScale = hasRailSightHeight ? THREE.MathUtils.clamp(railSightHeightScale, 1, 1.15) : 1;
+  const safeSideApronHeightScale = hasSideApronHeight ? THREE.MathUtils.clamp(sideApronHeightScale, 1, 1.18) : 1;
 
   model.traverse((child) => {
     if (!child?.isMesh || child.userData?.poolRoyaleShowoodRailSightApronExpanded) return;
