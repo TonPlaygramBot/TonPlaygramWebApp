@@ -65,6 +65,7 @@ import {
 import { giftSounds } from '../../utils/giftSounds.js';
 import { playLudoDiceRollSfx, playLudoTokenStepSfx } from '../../utils/ludoSfx.js';
 import { socket } from '../../utils/socket.js';
+import { loadExactUkrainianDroneModel } from '../../utils/ukrainianDroneModel.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
@@ -487,13 +488,152 @@ function patchGunifySpecularGlossinessMaterials(gltfJson) {
   return patched;
 }
 
+function isAbsoluteOrDataUrl(url = '') {
+  return /^(https?:)?\/\//i.test(url) || `${url}`.startsWith('data:') || `${url}`.startsWith('blob:');
+}
+
+function parentFolder(url = '') {
+  return `${url}`.slice(0, `${url}`.lastIndexOf('/') + 1);
+}
+
+function normalizeResourcePath(resourceUrl = '') {
+  try {
+    return decodeURIComponent(resourceUrl).replace(/\\/g, '/').replace(/^\.\//, '');
+  } catch {
+    return `${resourceUrl}`.replace(/\\/g, '/').replace(/^\.\//, '');
+  }
+}
+
+function resolveRelativeUrl(url, baseFolder) {
+  if (isAbsoluteOrDataUrl(url)) return url;
+  return new URL(normalizeResourcePath(url), baseFolder).toString();
+}
+
+function mimeFromUri(uri = '') {
+  const clean = `${uri}`.split('?')[0].split('#')[0].toLowerCase();
+  if (clean.endsWith('.jpg') || clean.endsWith('.jpeg')) return 'image/jpeg';
+  if (clean.endsWith('.webp')) return 'image/webp';
+  if (clean.endsWith('.ktx2') || clean.endsWith('.basis')) return 'image/ktx2';
+  if (clean.endsWith('.bin')) return 'application/octet-stream';
+  return 'image/png';
+}
+
+function toGitHubRawFromBlobUrl(url) {
+  const match = `${url}`.match(/^https:\/\/github\.com\/([^/]+)\/([^/]+)\/blob\/([^/]+)\/(.+)$/i);
+  if (!match) return null;
+  return `https://raw.githubusercontent.com/${match[1]}/${match[2]}/${match[3]}/${match[4]}`;
+}
+
+function toJsDelivrFromRawUrl(url) {
+  const match = `${url}`.match(/^https:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/([^/]+)\/(.+)$/i);
+  if (!match) return null;
+  return `https://cdn.jsdelivr.net/gh/${match[1]}/${match[2]}@${match[3]}/${match[4]}`;
+}
+
+function toRawFromJsDelivrUrl(url) {
+  const match = `${url}`.match(/^https:\/\/cdn\.jsdelivr\.net\/gh\/([^/]+)\/([^@/]+)@([^/]+)\/(.+)$/i);
+  if (!match) return null;
+  return `https://raw.githubusercontent.com/${match[1]}/${match[2]}/${match[3]}/${match[4]}`;
+}
+
+function urlAlternates(url) {
+  const values = [url];
+  const rawFromBlob = toGitHubRawFromBlobUrl(url);
+  const rawFromJsDelivr = toRawFromJsDelivrUrl(url);
+  const jsFromRaw = toJsDelivrFromRawUrl(url);
+  if (rawFromBlob) values.push(rawFromBlob);
+  if (rawFromJsDelivr) values.push(rawFromJsDelivr);
+  if (jsFromRaw) values.push(jsFromRaw);
+  return uniqueStrings(values);
+}
+
+function alternateBaseFolders(sourceUrl) {
+  const base = parentFolder(sourceUrl);
+  const bases = [base];
+  if (`${sourceUrl}`.startsWith(GUNIFY_JSDELIVR_BASE)) bases.push(parentFolder(sourceUrl.replace(GUNIFY_JSDELIVR_BASE, GUNIFY_RAW_BASE)));
+  if (`${sourceUrl}`.startsWith(GUNIFY_RAW_BASE)) bases.push(parentFolder(sourceUrl.replace(GUNIFY_RAW_BASE, GUNIFY_JSDELIVR_BASE)));
+  return uniqueStrings(bases);
+}
+
+async function fetchWithTimeout(input, init = {}, timeoutMs = TEXTURE_FETCH_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = globalThis.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    globalThis.clearTimeout(timer);
+  }
+}
+
+async function fetchAsDataUri(url, fallbackMime) {
+  const response = await fetchWithTimeout(url, { mode: 'cors' }, TEXTURE_FETCH_TIMEOUT_MS);
+  if (!response.ok) throw new Error(`Fetch failed ${response.status}: ${url}`);
+  const blob = await response.blob();
+  if (blob.type || !fallbackMime) return blobToDataUri(blob);
+  const typedBlob = new Blob([await blob.arrayBuffer()], { type: fallbackMime });
+  return blobToDataUri(typedBlob);
+}
+
+async function fetchFirstDataUri(candidates, fallbackMime) {
+  let lastError = null;
+  for (const candidate of candidates) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      return await fetchAsDataUri(candidate, fallbackMime || mimeFromUri(candidate));
+    } catch (error) {
+      lastError = error;
+      console.warn('Original weapon texture candidate failed; trying next candidate:', candidate, error);
+    }
+  }
+  throw lastError ?? new Error('No original weapon texture candidate loaded');
+}
+
+function gltfResourceCandidatesSync(resourceUri, sourceUrl) {
+  if (isAbsoluteOrDataUrl(resourceUri)) return urlAlternates(resourceUri);
+  const direct = alternateBaseFolders(sourceUrl).map((base) => resolveRelativeUrl(resourceUri, base));
+  return uniqueStrings(direct.flatMap(urlAlternates));
+}
+
+async function inlineExternalGltfAssets(sourceUrl) {
+  if (!/\.gltf(\?|#|$)/i.test(sourceUrl)) return null;
+  const response = await fetchWithTimeout(sourceUrl, { mode: 'cors' }, GLTF_JSON_TIMEOUT_MS);
+  if (!response.ok) throw new Error(`GLTF JSON fetch failed ${response.status}: ${sourceUrl}`);
+  const json = patchGunifySpecularGlossinessMaterials(await response.json());
+
+  const buffers = Array.isArray(json.buffers) ? json.buffers : [];
+  for (const buffer of buffers) {
+    if (typeof buffer.uri !== 'string' || buffer.uri.startsWith('data:')) continue;
+    // eslint-disable-next-line no-await-in-loop
+    buffer.uri = await fetchFirstDataUri(gltfResourceCandidatesSync(buffer.uri, sourceUrl), 'application/octet-stream');
+  }
+
+  const images = Array.isArray(json.images) ? json.images : [];
+  for (const image of images) {
+    if (typeof image.uri !== 'string' || image.uri.startsWith('data:')) continue;
+    const candidates = gltfResourceCandidatesSync(image.uri, sourceUrl);
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      image.uri = await fetchFirstDataUri(candidates, image.mimeType || mimeFromUri(candidates[0]));
+      image.mimeType = image.mimeType || mimeFromUri(candidates[0]);
+    } catch (error) {
+      console.warn('Every original weapon texture URL failed; using final 1px fallback only for this texture:', image.uri, error);
+      image.uri = ORIGINAL_TEXTURE_FALLBACK_PIXEL;
+      image.mimeType = 'image/png';
+    }
+  }
+
+  return JSON.stringify(json);
+}
+
 async function loadGunifyOriginalGltf(loader, candidateUrl) {
-  const response = await fetch(candidateUrl, { mode: 'cors' });
-  if (!response.ok) throw new Error(`Gunify GLTF fetch failed: ${response.status}`);
-  const gltfJson = patchGunifySpecularGlossinessMaterials(await response.json());
   const basePath = new URL('.', candidateUrl).href;
   loader.setPath?.(basePath);
   loader.setResourcePath?.(basePath);
+  const inlinedJson = await inlineExternalGltfAssets(candidateUrl);
+  if (inlinedJson) return loader.parseAsync(inlinedJson, basePath);
+  const response = await fetchWithTimeout(candidateUrl, { mode: 'cors' }, GLTF_JSON_TIMEOUT_MS);
+  if (!response.ok) throw new Error(`Gunify GLTF fetch failed: ${response.status}`);
+  const gltfJson = patchGunifySpecularGlossinessMaterials(await response.json());
   return loader.parseAsync(JSON.stringify(gltfJson), basePath);
 }
 
@@ -670,8 +810,13 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
 const CAPTURE_WEAPON_MODEL_CACHE = new Map();
 const CAPTURE_WEAPON_MODEL_REDIRECT = new Map();
 const CAPTURE_WEAPON_MODEL_FAILURE = new Set();
-const CAPTURE_WEAPON_LOAD_TIMEOUT_MS = 22000;
+const CAPTURE_WEAPON_LOAD_TIMEOUT_MS = 120000;
 const GLTF_FALLBACK_GRACE_MS = 2200;
+// Last-resort 1px fallback only after every original model texture URL has failed.
+// This avoids painting Quaternius/Poly Pizza weapons with generated placeholder patterns.
+const ORIGINAL_TEXTURE_FALLBACK_PIXEL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
+const TEXTURE_FETCH_TIMEOUT_MS = 75000;
+const GLTF_JSON_TIMEOUT_MS = 45000;
 let activeModelTextureAnisotropy = 8;
 
 function resolveModelTextureAnisotropy(profile = null) {
@@ -1978,6 +2123,17 @@ async function loadCaptureVehicleModel(kind) {
   if (!file) return null;
   if (CAPTURE_VEHICLE_MODEL_CACHE.has(kind)) return CAPTURE_VEHICLE_MODEL_CACHE.get(kind);
   const promise = (async () => {
+    if (kind === 'drone') {
+      try {
+        const droneModel = await loadExactUkrainianDroneModel();
+        if (droneModel?.isObject3D) {
+          prepareLoadedModel(droneModel, { preserveGltfTextureMapping: true });
+          return droneModel;
+        }
+      } catch (error) {
+        console.warn('Exact Ukrainian drone helper failed; falling back to vehicle loader', error);
+      }
+    }
     const urls = CAPTURE_VEHICLE_MODEL_HOSTS.map((host) => `${host}/${file}`);
     const loader = new GLTFLoader();
     loader.setCrossOrigin('anonymous');
@@ -2029,12 +2185,12 @@ function uniqueStrings(values) {
 }
 
 function buildImageCandidates(imageUri, sourceUrl, modelUrls) {
-  if (isAbsoluteUrl(imageUri)) return uniqueStrings([imageUri]);
+  if (isAbsoluteUrl(imageUri)) return uniqueStrings(urlAlternates(imageUri));
   return uniqueStrings([
     imageUri,
     new URL(imageUri, sourceUrl).href,
     ...modelUrls.map((modelUrl) => new URL(imageUri, modelUrl).href)
-  ]);
+  ].flatMap((candidate) => (isAbsoluteUrl(candidate) ? urlAlternates(candidate) : [candidate])));
 }
 
 function decodeGlb(buffer) {
@@ -2193,7 +2349,9 @@ async function resolveExternalImageToDataUri(imageUri, kind, sourceUrl, modelUrl
     human: ['#d8c0a6', '#2c3f54']
   };
   const [primary, secondary] = placeholderColors[kind] ?? ['#6e7681', '#4f5861'];
-  const placeholderDataUri = makePlaceholderTextureDataUri(primary, secondary);
+  const placeholderDataUri = kind === 'weapon'
+    ? ORIGINAL_TEXTURE_FALLBACK_PIXEL
+    : makePlaceholderTextureDataUri(primary, secondary);
   const candidates = buildImageCandidates(imageUri, sourceUrl, modelUrls);
   for (const candidate of candidates) {
     if (!isAbsoluteUrl(candidate)) continue;
