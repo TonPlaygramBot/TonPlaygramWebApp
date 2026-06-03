@@ -223,6 +223,27 @@ describe('cross-game inventory alignment', () => {
     });
   });
 
+  test('chess battle royal mirrors ludo Gunify texture loading and firearm grip/aim tuning', async () => {
+    const source = await readFile('webapp/src/pages/Games/ChessBattleRoyal.jsx', 'utf8');
+    const may9Ref = '27232cf389a2be3f8f476c667cb293e978aaf5f9';
+
+    expect(source).toContain(`const GUNIFY_MAY_9_REF = '${may9Ref}'`);
+    expect(source).toContain('loadGunifyOriginalGltf');
+    expect(source).toContain('patchGunifySpecularGlossinessMaterials');
+    expect(source).toContain('applyGunifyWeaponTexturePolicy(material)');
+    expect(source).toContain("config?.texturePolicy === 'gunifyPbr'");
+    expect(source).toContain('CHESS_FIREARM_AIM_ROTATION = Object.freeze([0, -Math.PI * 0.5, 0])');
+    expect(source).toContain('rightHandGrip = Math.max(handGrip, holdProfile.triggerGrip ?? 0.98)');
+    expect(source).not.toContain('Gunify/main/images/AK47.jpeg');
+    expect(source).not.toContain('Gunify/main/images/SigSauer.jpg');
+
+    ['AK47', 'KRSV', 'Smith', 'Mosin', 'SigSauer', 'Uzi'].forEach((modelName) => {
+      expect(source).toContain('https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/${GUNIFY_MAY_9_REF}');
+      expect(source).toContain('https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@${GUNIFY_MAY_9_REF}');
+      expect(source).toContain(`modelName: '${modelName}'`);
+    });
+  });
+
   test('ludo battle royal preserves source-authored materials for non-Gunify weapons', async () => {
     const source = await readFile('webapp/src/pages/Games/LudoBattleRoyal.jsx', 'utf8');
 

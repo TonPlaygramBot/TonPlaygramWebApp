@@ -228,6 +228,92 @@ const FIREARM_CAPTURE_ANIMATION_IDS = new Set(
 const resolveFirearmTypeForAnimationId = (captureAnimationId) =>
   LUDO_WEAPON_TYPE_BY_ANIMATION_ID[captureAnimationId] || 'Rifle';
 
+// Match Ludo Battle Royal's pinned Gunify baseline so the source-authored
+// GLTF material JSON and image folders keep stable texture mapping in Chess.
+const GUNIFY_MAY_9_REF = '27232cf389a2be3f8f476c667cb293e978aaf5f9';
+const GUNIFY_RAW_BASE = `https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/${GUNIFY_MAY_9_REF}`;
+const GUNIFY_JSDELIVR_BASE = `https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@${GUNIFY_MAY_9_REF}`;
+const gunifyModelUrls = (modelName) => [
+  `${GUNIFY_RAW_BASE}/models/${modelName}/scene.gltf`,
+  `${GUNIFY_JSDELIVR_BASE}/models/${modelName}/scene.gltf`
+];
+
+const GUNIFY_SPECULAR_GLOSSINESS_EXTENSION = 'KHR_materials_pbrSpecularGlossiness';
+
+function cloneGltfJsonValue(value) {
+  if (value == null) return value;
+  return JSON.parse(JSON.stringify(value));
+}
+
+function patchGunifySpecularGlossinessMaterials(gltfJson) {
+  if (!gltfJson?.materials?.length) return gltfJson;
+  let patchedAny = false;
+  const patched = {
+    ...gltfJson,
+    materials: gltfJson.materials.map((material) => {
+      const specGloss = material?.extensions?.[GUNIFY_SPECULAR_GLOSSINESS_EXTENSION];
+      if (!specGloss) return material;
+      patchedAny = true;
+      const metallicRoughness = {
+        ...(material.pbrMetallicRoughness || {}),
+        metallicFactor: 0,
+        roughnessFactor: Math.max(0.08, Math.min(1, 1 - (specGloss.glossinessFactor ?? 0.82)))
+      };
+      if (specGloss.diffuseFactor) metallicRoughness.baseColorFactor = cloneGltfJsonValue(specGloss.diffuseFactor);
+      if (specGloss.diffuseTexture) metallicRoughness.baseColorTexture = cloneGltfJsonValue(specGloss.diffuseTexture);
+      return {
+        ...material,
+        pbrMetallicRoughness: metallicRoughness,
+        extensions: Object.fromEntries(
+          Object.entries(material.extensions || {}).filter(
+            ([extensionName]) => extensionName !== GUNIFY_SPECULAR_GLOSSINESS_EXTENSION
+          )
+        )
+      };
+    })
+  };
+  if (patchedAny && Array.isArray(patched.extensionsUsed)) {
+    patched.extensionsUsed = patched.extensionsUsed.filter(
+      (extensionName) => extensionName !== GUNIFY_SPECULAR_GLOSSINESS_EXTENSION
+    );
+  }
+  return patched;
+}
+
+async function loadGunifyOriginalGltf(loader, candidateUrl) {
+  const response = await fetch(candidateUrl, { mode: 'cors' });
+  if (!response.ok) throw new Error(`Gunify GLTF fetch failed: ${response.status}`);
+  const gltfJson = patchGunifySpecularGlossinessMaterials(await response.json());
+  const basePath = new URL('.', candidateUrl).href;
+  loader.setPath?.(basePath);
+  loader.setResourcePath?.(basePath);
+  return loader.parseAsync(JSON.stringify(gltfJson), basePath);
+}
+
+function applyGunifyWeaponTexturePolicy(material) {
+  if (!material) return;
+  ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap', 'specularMap'].forEach((textureKey) => {
+    const texture = material[textureKey];
+    if (!texture) return;
+    if (textureKey === 'map' || textureKey === 'emissiveMap') applySRGBColorSpace(texture);
+    texture.flipY = false;
+    texture.anisotropy = Math.max(texture.anisotropy || 1, 8);
+    texture.needsUpdate = true;
+  });
+  if (typeof material.roughness === 'number') material.roughness = Math.min(0.9, Math.max(0.34, material.roughness));
+  if (typeof material.metalness === 'number') material.metalness = Math.min(1, Math.max(0.18, material.metalness));
+  material.needsUpdate = true;
+}
+
+function preserveChessCaptureWeaponSourceMaterial(material, texturePolicy = 'preserveSource') {
+  if (!material) return;
+  material.userData = {
+    ...(material.userData || {}),
+    sourceTexturePolicy: texturePolicy
+  };
+  material.needsUpdate = true;
+}
+
 const CHESS_CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   fpsGunAttack: {
     urls: [
@@ -242,40 +328,66 @@ const CHESS_CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   },
   assaultRifleAttack: {
     urls: ['https://cdn.jsdelivr.net/gh/webaverse/pistol@master/military.glb', 'https://raw.githubusercontent.com/webaverse/pistol/master/military.glb'],
-    scale: 0.13,
-    textureOverrideUrls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/AK47.jpeg']
+    scale: 0.13
   },
   uziSprayAttack: {
-    urls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/Uzi/scene.gltf', 'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/Uzi/scene.gltf'],
+    label: 'Gunify Uzi',
+    urls: gunifyModelUrls('Uzi'),
+    modelName: 'Uzi',
+    source: 'Gunify',
+    texturePolicy: 'gunifyPbr',
     scale: 0.2
   },
   ak47VolleyAttack: {
-    urls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/AK47/scene.gltf', 'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/AK47/scene.gltf'],
+    label: 'Gunify AK-47',
+    urls: gunifyModelUrls('AK47'),
+    modelName: 'AK47',
+    source: 'Gunify',
+    texturePolicy: 'gunifyPbr',
     scale: 0.24
   },
   krsvBurstAttack: {
-    urls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/KRSV/scene.gltf', 'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/KRSV/scene.gltf'],
+    label: 'Gunify KRSV',
+    urls: gunifyModelUrls('KRSV'),
+    modelName: 'KRSV',
+    source: 'Gunify',
+    texturePolicy: 'gunifyPbr',
     scale: 0.24
   },
   smithSidearmAttack: {
-    urls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/Smith/scene.gltf', 'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/Smith/scene.gltf'],
+    label: 'Gunify Smith',
+    urls: gunifyModelUrls('Smith'),
+    modelName: 'Smith',
+    source: 'Gunify',
+    texturePolicy: 'gunifyPbr',
     scale: 0.13
   },
   mosinMarksmanAttack: {
-    urls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/Mosin/scene.gltf', 'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/Mosin/scene.gltf'],
+    label: 'Gunify Mosin',
+    urls: gunifyModelUrls('Mosin'),
+    modelName: 'Mosin',
+    source: 'Gunify',
+    texturePolicy: 'gunifyPbr',
     scale: 0.5125
   },
   sigsauerTacticalAttack: {
-    urls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/SigSauer/scene.gltf', 'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/SigSauer/scene.gltf'],
-    scale: 0.13,
-    textureOverrideUrls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/images/SigSauer.jpg']
+    label: 'Gunify SigSauer Tactical',
+    urls: gunifyModelUrls('SigSauer'),
+    modelName: 'SigSauer',
+    source: 'Gunify',
+    texturePolicy: 'gunifyPbr',
+    scale: 0.13
   },
   shotgunBlastAttack: {
     urls: ['https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/main/main/scene.gltf', 'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@main/main/scene.gltf'],
     scale: 0.24
   },
   sniperShotAttack: {
-    urls: ['https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/Mosin/scene.gltf', 'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/Mosin/scene.gltf'],
+    label: 'Gunify Mosin Sniper Shot',
+    urls: gunifyModelUrls('Mosin'),
+    modelName: 'Mosin',
+    source: 'Gunify',
+    texturePolicy: 'gunifyPbr',
     scale: 0.504
   },
   smgBurstAttack: {
@@ -361,12 +473,9 @@ const CHESS_FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
   polyTank01Attack: 2.3
 });
 const CHESS_FIREARM_FLAT_ROTATION = Object.freeze([-Math.PI * 0.5, -Math.PI * 0.02, 0]);
-const CHESS_FIREARM_AIM_ROTATION = Object.freeze([0, Math.PI * 0.5, 0]); // flip handheld weapons so their muzzles face the target.
+const CHESS_FIREARM_AIM_ROTATION = Object.freeze([0, -Math.PI * 0.5, 0]); // keep weapon front/muzzle pointed visually toward the board target.
 const CHESS_FIREARM_HANDHELD_SCALE_MULTIPLIER = 1.9;
-const CHESS_FIREARM_MUZZLE_YAW_CORRECTION_BY_ID = Object.freeze({
-  ak47VolleyAttack: Math.PI,
-  krsvBurstAttack: Math.PI
-});
+const CHESS_FIREARM_MUZZLE_YAW_CORRECTION_BY_ID = Object.freeze({});
 
 const CHESS_FIREARM_HOLD_PROFILE_BY_TYPE = Object.freeze({
   Rifle: { supportGrip: 0.94, shoulderX: -1.14, shoulderZ: -1.34, forearmX: -0.52, wristX: 0.02 },
@@ -923,8 +1032,11 @@ function smooth01(v) {
 
 function curlFingerChain(rig, chain = [], amount = 0, sideSpread = 0) {
   const grip = clamp(amount, 0, 1);
+  const weaponFist = smooth01(Math.max(0, grip - 0.78) / 0.22);
   chain.forEach((bone, index) => {
-    const curl = index === 0 ? -0.38 : -0.72;
+    const curl = index === 0
+      ? THREE.MathUtils.lerp(-0.38, -0.52, weaponFist)
+      : THREE.MathUtils.lerp(-0.72, -0.96, weaponFist);
     const side = index === 0 ? sideSpread : sideSpread * 0.25;
     addBoneRot(rig, bone, curl * grip, 0.03 * grip, side * grip);
   });
@@ -1058,6 +1170,7 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, m
   let wristZ = 0.02;
   let chestX = 0.16;
   let headX = -0.03;
+  let rightHandGrip = handGrip;
   const forwardReach = clamp01(motionProfile?.forwardReach, 0);
   const sideReach = THREE.MathUtils.clamp(motionProfile?.sideReach ?? 0, -1, 1);
 
@@ -1099,6 +1212,7 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, m
     wristZ = THREE.MathUtils.lerp(wristZ, -0.06, t);
     chestX = THREE.MathUtils.lerp(chestX, 0.34, t);
     headX = THREE.MathUtils.lerp(headX, 0.09, t);
+    rightHandGrip = Math.max(handGrip, holdProfile.triggerGrip ?? 0.98);
     addBoneRot(rig, rig.leftUpperArm, -0.92, -0.08, 0.92);
     addBoneRot(rig, rig.leftForeArm, -0.66, 0.12, -0.28);
     addBoneRot(rig, rig.leftHand, -0.04, -0.12, 0.08);
@@ -1147,7 +1261,7 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, m
   addBoneRot(rig, rig.rightUpperArm, shoulderX, shoulderY, shoulderZ);
   addBoneRot(rig, rig.rightForeArm, forearmX, forearmY, forearmZ);
   addBoneRot(rig, rig.rightHand, wristX, wristY, wristZ);
-  applyRightHandGrip(rig, handGrip);
+  applyRightHandGrip(rig, rightHandGrip);
 }
 
 const seatedHumanTemplatePromiseById = new Map();
@@ -4288,7 +4402,11 @@ async function loadChessCaptureWeaponModel(captureAnimationId) {
       const candidateUrl = candidateUrls[i];
       try {
         // eslint-disable-next-line no-await-in-loop
-        loadedRoot = assignLoadedGltf(await withLoadTimeout(loader.loadAsync(candidateUrl)));
+        loadedRoot = assignLoadedGltf(
+          config?.texturePolicy === 'gunifyPbr'
+            ? await withLoadTimeout(loadGunifyOriginalGltf(loader, candidateUrl))
+            : await withLoadTimeout(loader.loadAsync(candidateUrl))
+        );
       } catch (error) {
         if (i === candidateUrls.length - 1) {
           console.warn('Chess capture weapon model load failed', captureAnimationId, candidateUrl, error);
@@ -4339,6 +4457,11 @@ async function loadChessCaptureWeaponModel(captureAnimationId) {
         if (textureOverride && !material.map) material.map = textureOverride;
         if (material.map) applySRGBColorSpace(material.map);
         if (material.emissiveMap) applySRGBColorSpace(material.emissiveMap);
+        if (config?.texturePolicy === 'gunifyPbr') {
+          applyGunifyWeaponTexturePolicy(material);
+        } else {
+          preserveChessCaptureWeaponSourceMaterial(material, config?.texturePolicy || 'preserveSource');
+        }
         material.transparent = false;
         material.opacity = 1;
         material.needsUpdate = true;
