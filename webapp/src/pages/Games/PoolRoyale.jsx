@@ -13261,6 +13261,7 @@ function trimPoolRoyaleShowoodLowerAccentTriangles(model, tableModel, dims) {
     if (!materials.length) return;
     const total = index ? index.count : position.count;
     const keptByMaterial = new Map();
+    const clampVertexIndices = new Set();
     let localTrimmed = 0;
     let keptTriangles = 0;
 
@@ -13283,16 +13284,38 @@ function trimPoolRoyaleShowoodLowerAccentTriangles(model, tableModel, dims) {
         localTrimmed += 1;
         continue;
       }
+      if (removableParts.has(referencePart)) {
+        if (tmpA.y < trimBelowY) clampVertexIndices.add(ai);
+        if (tmpB.y < trimBelowY) clampVertexIndices.add(bi);
+        if (tmpC.y < trimBelowY) clampVertexIndices.add(ci);
+      }
       if (!keptByMaterial.has(materialIndex)) keptByMaterial.set(materialIndex, []);
       keptByMaterial.get(materialIndex).push(ai, bi, ci);
       keptTriangles += 1;
     }
 
-    if (!localTrimmed) return;
+    if (!localTrimmed && !clampVertexIndices.size) return;
     trimmedTriangles += localTrimmed;
     if (!keptTriangles) {
       removableMeshes.push(mesh);
       return;
+    }
+    if (clampVertexIndices.size) {
+      const parent = mesh.parent || model;
+      const trimLocalY = parent.worldToLocal(new THREE.Vector3(0, trimBelowY, 0)).y;
+      clampVertexIndices.forEach((vertexIndex) => {
+        const vertexWorld = tmpA.fromBufferAttribute(position, vertexIndex).applyMatrix4(mesh.matrixWorld);
+        if (vertexWorld.y >= trimBelowY) return;
+        vertexWorld.y = trimBelowY;
+        const vertexLocal = mesh.worldToLocal(vertexWorld);
+        position.setXYZ(vertexIndex, vertexLocal.x, vertexLocal.y, vertexLocal.z);
+      });
+      if (Number.isFinite(trimLocalY)) {
+        mesh.userData = {
+          ...(mesh.userData || {}),
+          poolRoyaleShowoodAccentBottomTrimY: trimLocalY
+        };
+      }
     }
     const nextIndex = [];
     geometry.clearGroups();
