@@ -267,7 +267,8 @@ const DICE_FACE_INSET = DICE_SIZE * 0.064;
 const DICE_ROLL_DURATION = 900;
 const DICE_SETTLE_DURATION = 220;
 const DICE_RESULT_HOLD_DURATION = 720;
-const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.78;
+// Match Ludo Battle Royale spinDice default bounceHeight exactly.
+const DICE_BOUNCE_HEIGHT = 0.06;
 const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.8;
 const DICE_THROW_START_EXTRA = TILE_SIZE * 3.6;
 const DICE_THROW_HEIGHT = DICE_SIZE * 0.78;
@@ -5680,6 +5681,73 @@ async function fetchBuffer(url) {
   return response.arrayBuffer();
 }
 
+const GUNIFY_SPECULAR_GLOSSINESS_EXTENSION = 'KHR_materials_pbrSpecularGlossiness';
+
+function cloneGltfJsonValue(value) {
+  if (value == null) return value;
+  return JSON.parse(JSON.stringify(value));
+}
+
+function patchSnakeGunifySpecularGlossinessMaterials(gltfJson) {
+  if (!gltfJson?.materials?.length) return gltfJson;
+  let patchedAny = false;
+  const patched = {
+    ...gltfJson,
+    materials: gltfJson.materials.map((material) => {
+      const specGloss = material?.extensions?.[GUNIFY_SPECULAR_GLOSSINESS_EXTENSION];
+      if (!specGloss) return material;
+      patchedAny = true;
+      const metallicRoughness = {
+        ...(material.pbrMetallicRoughness || {}),
+        metallicFactor: 0,
+        roughnessFactor: Math.max(0.08, Math.min(1, 1 - (specGloss.glossinessFactor ?? 0.82)))
+      };
+      if (specGloss.diffuseFactor) metallicRoughness.baseColorFactor = cloneGltfJsonValue(specGloss.diffuseFactor);
+      if (specGloss.diffuseTexture) metallicRoughness.baseColorTexture = cloneGltfJsonValue(specGloss.diffuseTexture);
+      return {
+        ...material,
+        pbrMetallicRoughness: metallicRoughness,
+        extensions: Object.fromEntries(
+          Object.entries(material.extensions || {}).filter(
+            ([extensionName]) => extensionName !== GUNIFY_SPECULAR_GLOSSINESS_EXTENSION
+          )
+        )
+      };
+    })
+  };
+  if (patchedAny && Array.isArray(patched.extensionsUsed)) {
+    patched.extensionsUsed = patched.extensionsUsed.filter(
+      (extensionName) => extensionName !== GUNIFY_SPECULAR_GLOSSINESS_EXTENSION
+    );
+  }
+  return patched;
+}
+
+async function loadSnakeGunifyOriginalGltf(loader, candidateUrl) {
+  const response = await fetch(candidateUrl, { mode: 'cors' });
+  if (!response.ok) throw new Error(`Snake Gunify GLTF fetch failed: ${response.status}`);
+  const gltfJson = patchSnakeGunifySpecularGlossinessMaterials(await response.json());
+  const basePath = new URL('.', candidateUrl).href;
+  loader.setPath?.(basePath);
+  loader.setResourcePath?.(basePath);
+  return loader.parseAsync(JSON.stringify(gltfJson), basePath);
+}
+
+function applySnakeGunifyWeaponTexturePolicy(material) {
+  if (!material) return;
+  ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap', 'specularMap'].forEach((textureKey) => {
+    const texture = material[textureKey];
+    if (!texture) return;
+    if (textureKey === 'map' || textureKey === 'emissiveMap') applySRGBColorSpace(texture);
+    texture.flipY = false;
+    texture.anisotropy = Math.max(texture.anisotropy || 1, 8);
+    texture.needsUpdate = true;
+  });
+  if (typeof material.roughness === 'number') material.roughness = Math.min(0.9, Math.max(0.34, material.roughness));
+  if (typeof material.metalness === 'number') material.metalness = Math.min(1, Math.max(0.18, material.metalness));
+  material.needsUpdate = true;
+}
+
 async function fetchBlob(url) {
   const response = await fetch(url, { mode: 'cors' });
   if (!response.ok) throw new Error(`Fetch blob failed: ${response.status}`);
@@ -6015,11 +6083,36 @@ async function loadCaptureWeaponCatalogModel(weaponId) {
         const loader = createConfiguredGLTFLoader();
         for (const url of urls) {
           try {
-            // eslint-disable-next-line no-await-in-loop
-            const gltf = await loader.loadAsync(url);
+            let gltf = null;
+            if (option?.source === 'Gunify' && /\.gltf(?:[?#].*)?$/i.test(url)) {
+              // Match Ludo Battle Royale: load the pinned original Gunify GLTF
+              // with the same spec/gloss -> PBR patch and without flattening
+              // authored texture mapping, samplers, UVs, or image references.
+              // eslint-disable-next-line no-await-in-loop
+              gltf = await loadSnakeGunifyOriginalGltf(loader, url);
+            } else {
+              try {
+                const basePath = new URL('.', url).href;
+                loader.setPath?.(basePath);
+                loader.setResourcePath?.(basePath);
+              } catch {
+                const basePath = url.replace(/scene\.gltf(?:[?#].*)?$/i, '');
+                loader.setPath?.(basePath);
+                loader.setResourcePath?.(basePath);
+              }
+              // eslint-disable-next-line no-await-in-loop
+              gltf = await loader.loadAsync(url);
+            }
             const root = gltf?.scene || gltf?.scenes?.[0] || null;
             if (!root) continue;
             prepareLoadedModel(root);
+            if (option?.texturePolicy === 'gunifyPbr') {
+              root.traverse((node) => {
+                if (!node?.isMesh) return;
+                const materials = Array.isArray(node.material) ? node.material : [node.material];
+                materials.forEach((material) => applySnakeGunifyWeaponTexturePolicy(material));
+              });
+            }
             const normalized = normalizeCaptureVehicleModel(root);
             if (weaponId === 'slot-10-ak47-gltf') stripAk47RearWoodStock(normalized);
             return normalized;
