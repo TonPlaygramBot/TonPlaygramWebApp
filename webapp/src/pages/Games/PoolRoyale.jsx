@@ -3786,7 +3786,7 @@ const RAIL_MARKER_SHAPE_OPTIONS = Object.freeze([
   { id: 'diamond', label: 'Diamonds' },
   { id: 'circle', label: 'Circles' }
 ]);
-const RAIL_MARKER_THICKNESS = TABLE.THICK * 0.07;
+const RAIL_MARKER_THICKNESS = TABLE.THICK * 0.06;
 
 const DEFAULT_RAIL_MARKER_COLOR_ID =
   POOL_ROYALE_DEFAULT_UNLOCKS.railMarkerColor?.[0] ?? 'gold';
@@ -11289,7 +11289,7 @@ export function Table3D(
     : Math.max(BALL_R * 0.35, longRailW * 0.08);
   const railMarkerGroup = new THREE.Group();
   const railMarkerThickness = RAIL_MARKER_THICKNESS;
-  const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.68;
+  const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
   const railMarkerLength = railMarkerWidth * 0.62;
   const railMarkerShape = new THREE.Shape();
   railMarkerShape.moveTo(0, railMarkerLength / 2);
@@ -11325,7 +11325,7 @@ export function Table3D(
   enhanceChromeMaterial(railMarkerMat);
   railMarkerMat.color.copy(trimMat.color);
   railMarkerMat.needsUpdate = true;
-  const railMarkerLift = railsTopY + railMarkerThickness * 0.08;
+  const railMarkerLift = railsTopY + MICRO_EPS * 6;
   const railMarkerMeshes = [];
   const registerRailMarkerMesh = (mesh) => {
     railMarkerMeshes.push(mesh);
@@ -11354,7 +11354,6 @@ export function Table3D(
     const baseTrim = overrides.trimMaterial ?? trimMat;
     railMarkerMat.copy(baseTrim);
     enhanceChromeMaterial(railMarkerMat);
-    clearPoolRoyaleMaterialTextureMaps(railMarkerMat);
     if (colorOpt?.color != null) {
       railMarkerMat.color.setHex(colorOpt.color);
     }
@@ -11370,12 +11369,6 @@ export function Table3D(
     if (typeof colorOpt?.clearcoatRoughness === 'number') {
       railMarkerMat.clearcoatRoughness = colorOpt.clearcoatRoughness;
     }
-    if ('envMapIntensity' in railMarkerMat) {
-      railMarkerMat.envMapIntensity = Math.max(railMarkerMat.envMapIntensity ?? 0, 0.9);
-    }
-    railMarkerMat.side = THREE.DoubleSide;
-    railMarkerMat.transparent = false;
-    railMarkerMat.depthWrite = true;
     if (typeof colorOpt?.sheen === 'number') {
       railMarkerMat.sheen = colorOpt.sheen;
     }
@@ -12421,18 +12414,12 @@ function applyPoolRoyaleShowoodMetalAccentMaterial(mat, option) {
     CHROME_COLOR_OPTIONS.find((entry) => entry.id === 'gold') ||
     CHROME_COLOR_OPTIONS[0];
   if (!preset) return;
-  clearPoolRoyaleMaterialTextureMaps(mat);
   mat.color?.set?.(preset.color);
-  if (mat.emissive && mat.color) mat.emissive.copy(mat.color).multiplyScalar(preset.id === 'black' ? 0.02 : 0.035);
-  if ('metalness' in mat) mat.metalness = Math.max(preset.metalness ?? 0, preset.id === 'black' ? 0.78 : 0.94);
-  if ('roughness' in mat) mat.roughness = THREE.MathUtils.clamp(preset.roughness ?? 0.12, 0.08, 0.18);
-  if ('clearcoat' in mat) mat.clearcoat = Math.max(preset.clearcoat ?? 0, 0.62);
-  if ('clearcoatRoughness' in mat) mat.clearcoatRoughness = THREE.MathUtils.clamp(preset.clearcoatRoughness ?? 0.05, 0.035, 0.08);
-  if ('envMapIntensity' in mat) mat.envMapIntensity = Math.max(preset.envMapIntensity ?? 1, preset.id === 'black' ? 0.82 : 0.95);
-  mat.transparent = false;
-  mat.opacity = 1;
-  mat.depthWrite = true;
-  mat.side = THREE.DoubleSide;
+  if ('metalness' in mat) mat.metalness = preset.metalness;
+  if ('roughness' in mat) mat.roughness = preset.roughness;
+  if ('clearcoat' in mat) mat.clearcoat = preset.clearcoat ?? 0;
+  if ('clearcoatRoughness' in mat) mat.clearcoatRoughness = preset.clearcoatRoughness ?? 0;
+  if ('envMapIntensity' in mat) mat.envMapIntensity = preset.envMapIntensity ?? mat.envMapIntensity ?? 1;
   mat.needsUpdate = true;
 }
 
