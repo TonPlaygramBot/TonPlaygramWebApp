@@ -13338,12 +13338,6 @@ function shortenPoolRoyaleShowoodCornerRims(model, tableModel, dims) {
   const railBottomY = tableModel?.trimCornerRimsToTopRailBottom === false
     ? null
     : resolvePoolRoyaleShowoodTopRailBottomY(model, fullBox, dims);
-  const rimBottomTrimOffset = Number.isFinite(tableModel?.accentBottomTrimOffset)
-    ? tableModel.accentBottomTrimOffset
-    : 0;
-  const targetRimBottomY = Number.isFinite(railBottomY)
-    ? railBottomY + rimBottomTrimOffset
-    : null;
   const center = fullBox.getCenter(new THREE.Vector3());
   model.traverse((child) => {
     if (!child?.isMesh || child.userData?.poolRoyaleCornerRimShortened) return;
@@ -13380,12 +13374,9 @@ function shortenPoolRoyaleShowoodCornerRims(model, tableModel, dims) {
     const parent = child.parent || model;
     const anchorWorldY = Math.min(childBox.max.y, targetTop);
     const anchorLocal = parent.worldToLocal(new THREE.Vector3(0, anchorWorldY, 0)).y;
-    const hasRailBottomTarget =
-      Number.isFinite(targetRimBottomY) &&
-      targetRimBottomY > childBox.min.y + MICRO_EPS &&
-      targetRimBottomY < anchorWorldY - MICRO_EPS;
+    const hasRailBottomTarget = Number.isFinite(railBottomY) && railBottomY > childBox.min.y + MICRO_EPS && railBottomY < anchorWorldY - MICRO_EPS;
     const nextScale = hasRailBottomTarget
-      ? THREE.MathUtils.clamp((anchorWorldY - targetRimBottomY) / Math.max(MICRO_EPS, childBox.max.y - childBox.min.y), 0.05, 1)
+      ? THREE.MathUtils.clamp((anchorWorldY - railBottomY) / Math.max(MICRO_EPS, childBox.max.y - childBox.min.y), 0.05, 1)
       : scale;
     child.scale.y *= nextScale;
     child.updateMatrixWorld(true);
