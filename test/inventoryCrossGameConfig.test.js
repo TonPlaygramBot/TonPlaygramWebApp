@@ -244,6 +244,50 @@ describe('cross-game inventory alignment', () => {
     });
   });
 
+
+  test('ludo battle royal matches chess Poly Pizza weapon rack multipliers', async () => {
+    const [ludoSource, chessSource] = await Promise.all([
+      readFile('webapp/src/pages/Games/LudoBattleRoyal.jsx', 'utf8'),
+      readFile('webapp/src/pages/Games/ChessBattleRoyal.jsx', 'utf8')
+    ]);
+    const extractMultiplier = (source, id) => {
+      const match = source.match(new RegExp(`${id}:\\s*([0-9.]+)`));
+      return match ? Number(match[1]) : null;
+    };
+    const polyPizzaWeaponIds = [
+      'polyShotgun01Attack',
+      'polyAssaultRifle01Attack',
+      'polyPistol01Attack',
+      'polyRevolver01Attack',
+      'polySawedOff01Attack',
+      'polyRevolver02Attack',
+      'polyShotgun02Attack',
+      'polyShotgun03Attack',
+      'polySmg01Attack',
+      'polyRobotLargeGunAttack',
+      'polyRobotFlyingGunAttack',
+      'polyBazooka01Attack',
+      'polyGrenadeLauncher01Attack',
+      'polyDynamiteBomb01Attack',
+      'polyMolotov01Attack',
+      'polyGasTank01Attack',
+      'polyHandGrenade01Attack',
+      'polyTank01Attack'
+    ];
+
+    polyPizzaWeaponIds.forEach((id) => {
+      expect(extractMultiplier(ludoSource, id)).toBe(extractMultiplier(chessSource, id));
+    });
+  });
+
+  test('ludo grounded HDRI stays fixed during automatic camera look changes', async () => {
+    const source = await readFile('webapp/src/pages/Games/LudoBattleRoyal.jsx', 'utf8');
+
+    expect(source).toContain('const LUDO_HDRI_LOCK_GROUNDED_SKYBOX_SCALE = true');
+    expect(source).toContain('const scale = LUDO_HDRI_LOCK_GROUNDED_SKYBOX_SCALE ? 1');
+    expect(source).toContain('cameraSeatLockPositionRef.current?.isVector3');
+  });
+
   test('ludo battle royal preserves source-authored materials for non-Gunify weapons', async () => {
     const source = await readFile('webapp/src/pages/Games/LudoBattleRoyal.jsx', 'utf8');
 
