@@ -244,6 +244,28 @@ describe('cross-game inventory alignment', () => {
     });
   });
 
+
+  test('ludo fps gun mirrors snake and ladder May 9 fps gun config only', async () => {
+    const source = await readFile('webapp/src/pages/Games/LudoBattleRoyal.jsx', 'utf8');
+    const snakeSource = await readFile('webapp/src/config/snakeWeaponCatalog.js', 'utf8');
+
+    expect(snakeSource).toContain('export const SNAKE_FPS_GUN_MODEL_CONFIG = Object.freeze({');
+    expect(source).toContain("import { SNAKE_FPS_GUN_MODEL_CONFIG } from '../../config/snakeWeaponCatalog.js';");
+    expect(source).toContain('urls: [...SNAKE_FPS_GUN_MODEL_CONFIG.urls]');
+    expect(source).toContain('scale: SNAKE_FPS_GUN_MODEL_CONFIG.ludoModelScale');
+    expect(source).toContain('fpsGunAttack: SNAKE_FPS_GUN_MODEL_CONFIG.ludoRackSizeMultiplier');
+    expect(source).toContain('fpsGunAttack: SNAKE_FPS_GUN_MODEL_CONFIG.ludoHandScaleMultiplier');
+  });
+
+  test('ludo camera holds each dice result focus for at least 1.5 seconds', async () => {
+    const source = await readFile('webapp/src/pages/Games/LudoBattleRoyal.jsx', 'utf8');
+
+    expect(source).toContain('const DICE_RESULT_CAMERA_HOLD_MS = 1500');
+    expect(source).toContain('ttl: DICE_RESULT_CAMERA_HOLD_MS / 1000');
+    expect(source).toContain('beginHumanSelection(value, options, { skipCameraFollow: !hasBoardTokenBeforeRoll });');
+    expect(source).toContain('}, DICE_RESULT_CAMERA_HOLD_MS);');
+  });
+
   test('ludo battle royal preserves source-authored materials for non-Gunify weapons', async () => {
     const source = await readFile('webapp/src/pages/Games/LudoBattleRoyal.jsx', 'utf8');
 
