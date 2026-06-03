@@ -245,6 +245,28 @@ describe('cross-game inventory alignment', () => {
   });
 
 
+  test('chess battle royal maps firearm families to attributed open source sound effects', async () => {
+    const source = await readFile('webapp/src/pages/Games/ChessBattleRoyal.jsx', 'utf8');
+    const attribution = await readFile('webapp/public/assets/sounds/chess-firearms/ATTRIBUTION.md', 'utf8');
+
+    expect(source).toContain('CHESS_FIREARM_SOUND_ATTRIBUTION');
+    expect(source).toContain('CHESS_FIREARM_SOUND_PROFILE_BY_TYPE');
+    expect(source).toContain('playFirearmSound(fx.bulletProfile)');
+    ['gunshot', 'shotgun', 'cannon'].forEach((soundKey) => {
+      expect(source).toContain(`soundKey: '${soundKey}'`);
+      expect(attribution).toContain('Creative Commons Attribution 4.0 International');
+    });
+    expect(source).toContain('https://www.orangefreesounds.com/wp-content/uploads/2015/01/Gunshot-sound-effect.mp3');
+    expect(source).toContain('https://www.orangefreesounds.com/wp-content/uploads/2016/12/Shotgun-sound.mp3');
+    expect(source).toContain('https://www.orangefreesounds.com/wp-content/uploads/2017/03/Cannon-sound-effect.mp3');
+    expect(source).not.toContain('/assets/sounds/chess-firearms/orangefreesounds-gunshot-cc-by-4.mp3');
+    expect(attribution).toContain('keep binary audio files out of this repository');
+    ['Pistol', 'Revolver', 'SMG', 'Rifle', 'AssaultRifle', 'SniperRifle', 'DMR', 'Shotgun', 'GrenadeLauncher', 'Launcher'].forEach((weaponType) => {
+      expect(source).toContain(`${weaponType}: { soundKey:`);
+    });
+  });
+
+
   test('ludo battle royal matches chess Poly Pizza weapon rack multipliers', async () => {
     const [ludoSource, chessSource] = await Promise.all([
       readFile('webapp/src/pages/Games/LudoBattleRoyal.jsx', 'utf8'),
