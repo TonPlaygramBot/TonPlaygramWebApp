@@ -716,8 +716,8 @@ const CAMERA_PULL_FORWARD_MIN = THREE.MathUtils.degToRad(15);
 const CAMERA_CAPTURE_VIEW_UPWARD_BIAS = THREE.MathUtils.degToRad(21); // raise forced 3D animation camera for a stronger portrait top-down feel.
 const CAMERA_CAPTURE_VIEW_RADIUS_SCALE = 1.18; // keep forced 3D animation wider during capture so the board stays fully readable
 const CAMERA_CAPTURE_BOTTOM_AVATAR_SCREEN_OFFSET = 0; // keep projected avatars pinned to the seated character chest anchors
-const CAMERA_LOCKED_3D_PHI = THREE.MathUtils.degToRad(88); // tilt 3D view farther downward so the table/chairs/humans sit closer to the phone-bottom edge in portrait screens.
-const CAMERA_LOCKED_3D_RADIUS_SCALE = 0.25; // move locked 3D camera closer so table/chairs/avatars feel nearer and lower in portrait play.
+const CAMERA_LOCKED_3D_PHI = THREE.MathUtils.degToRad(72); // portrait 3D: elevated over-the-board framing like the provided phone screenshot.
+const CAMERA_LOCKED_3D_RADIUS_SCALE = 0.31; // keep the full board, chair, and avatar stack visible while sitting lower on screen.
 const CHECKERS_CAMERA_FRAME_COMPENSATION = 1.06;
 const PLAYER_FACE_CAMERA_SEAT_ANGLE = Math.PI / 2;
 // Keep Chess Battle Royal bottom-player camera aligned with Checkers Battle Royal
@@ -748,7 +748,7 @@ const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.68;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.42; // lift camera a bit higher while preserving table focus in portrait.
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.98; // mirror the slight upward lift for landscape framing.
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 1.35;
-const PLAYER_VIEW_LOOK_TARGET_UP_BIAS = 0.48; // lower look target slightly so the whole table/chair/human stack lands visually lower on portrait screens.
+const PLAYER_VIEW_LOOK_TARGET_UP_BIAS = 0.62; // raise the 3D aim point so the board/chair/avatar stack lands visually lower on portrait screens.
 const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 10.7; // shift arena lower so table, weapons, chairs, and seated avatars sit closer to the phone-bottom edge in portrait.
 const FPV_FACE_FORWARD_OFFSET = 0.012; // keep the camera almost exactly at the eyes for a true first-person perspective.
 const FPV_FACE_UP_OFFSET = 0.0; // slight lift so the board edge does not clip while still feeling eye-level.
@@ -2346,6 +2346,49 @@ const DRONE_FLY_SOUND_URL = '/assets/sounds/kimsa-kimsa-big-motorcycle-sound-394
 const HELICOPTER_FLY_SOUND_URL = '/assets/sounds/dragon-studio-helicopter-sound-8d-372463.mp3';
 const BAZOOKA_FIRE_SOUND_URL = '/assets/sounds/launch-85216.mp3';
 const MISSILE_IMPACT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
+// Firearm SFX: prefer each weapon model source repository's own sounds when present.
+// Gunify provides per-weapon shots in /sounds; lando19's FPS gun pack provides
+// shotgun sounds next to its model. Webaverse and Poly Pizza models used here do
+// not ship firearm audio, so they fall back to open/free source effects from the
+// same lando19/Freesound-derived pack, tuned per class for lightweight playback.
+const LANDO_FPS_GUN_BASE = 'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@main';
+const CHESS_FIREARM_SOURCE_SOUND_BY_ID = Object.freeze({
+  uziSprayAttack: { url: `${GUNIFY_JSDELIVR_BASE}/sounds/Uzi.mp3`, source: 'Gunify original Uzi shot', volume: 0.92, maxDurationMs: 540 },
+  ak47VolleyAttack: { url: `${GUNIFY_JSDELIVR_BASE}/sounds/AK47.mp3`, source: 'Gunify original AK-47 shot', volume: 0.96, maxDurationMs: 560 },
+  krsvBurstAttack: { url: `${GUNIFY_JSDELIVR_BASE}/sounds/KRSV.mp3`, source: 'Gunify original KRSV shot', volume: 0.94, maxDurationMs: 560 },
+  smithSidearmAttack: { url: `${GUNIFY_JSDELIVR_BASE}/sounds/Smith.mp3`, source: 'Gunify original Smith shot', volume: 0.9, maxDurationMs: 520 },
+  mosinMarksmanAttack: { url: `${GUNIFY_JSDELIVR_BASE}/sounds/Mosin.mp3`, source: 'Gunify original Mosin shot', volume: 1, maxDurationMs: 720 },
+  sigsauerTacticalAttack: { url: `${GUNIFY_JSDELIVR_BASE}/sounds/SigSauer.mp3`, source: 'Gunify original Sig Sauer shot', volume: 0.9, maxDurationMs: 520 },
+  shotgunBlastAttack: {
+    url: `${LANDO_FPS_GUN_BASE}/main/12-Gauge-Pump-Action-Shotgun-Close-Gunshot-A-www.fesliyanstudios.com.mp3`,
+    source: 'lando19 FPS gun pack original shotgun shot',
+    volume: 1,
+    maxDurationMs: 900,
+    minIntervalMs: 520
+  }
+});
+const CHESS_FIREARM_OPEN_SOUND_BY_TYPE = Object.freeze({
+  Pistol: { url: `${LANDO_FPS_GUN_BASE}/mainer/276962__gfl7__mp7-reload-sound.mp3`, source: 'open fallback compact firearm click', volume: 0.62, playbackRate: 1.24, maxDurationMs: 320 },
+  Revolver: { url: `${LANDO_FPS_GUN_BASE}/mainer/276962__gfl7__mp7-reload-sound.mp3`, source: 'open fallback revolver click', volume: 0.7, playbackRate: 1.05, maxDurationMs: 340 },
+  SMG: { url: `${LANDO_FPS_GUN_BASE}/mainer/258198__wadaltmon__thompson-smg-shot.wav`, source: 'open fallback SMG shot', volume: 0.74, playbackRate: 1.18, maxDurationMs: 360 },
+  Rifle: { url: `${LANDO_FPS_GUN_BASE}/mainer/258198__wadaltmon__thompson-smg-shot.wav`, source: 'open fallback rifle shot', volume: 0.82, playbackRate: 0.95, maxDurationMs: 410 },
+  AssaultRifle: { url: `${LANDO_FPS_GUN_BASE}/mainer/258198__wadaltmon__thompson-smg-shot.wav`, source: 'open fallback assault rifle shot', volume: 0.86, playbackRate: 0.98, maxDurationMs: 410 },
+  Sniper: { url: `${GUNIFY_JSDELIVR_BASE}/sounds/Mosin.mp3`, source: 'open/original marksman fallback shot', volume: 1, playbackRate: 0.9, maxDurationMs: 760 },
+  SniperRifle: { url: `${GUNIFY_JSDELIVR_BASE}/sounds/Mosin.mp3`, source: 'open/original sniper fallback shot', volume: 1, playbackRate: 0.86, maxDurationMs: 780 },
+  DMR: { url: `${GUNIFY_JSDELIVR_BASE}/sounds/Mosin.mp3`, source: 'open/original DMR fallback shot', volume: 0.94, playbackRate: 1.02, maxDurationMs: 680 },
+  Shotgun: {
+    url: `${LANDO_FPS_GUN_BASE}/main/12-Gauge-Pump-Action-Shotgun-Close-Gunshot-A-www.fesliyanstudios.com.mp3`,
+    source: 'open fallback shotgun shot',
+    volume: 1,
+    maxDurationMs: 900,
+    minIntervalMs: 520
+  },
+  GrenadeLauncher: { url: BAZOOKA_FIRE_SOUND_URL, source: 'local open launch fallback', volume: 0.95, playbackRate: 0.86, maxDurationMs: 700 }
+});
+const getChessFirearmSoundConfig = (captureAnimationId, firearmType = 'Rifle') =>
+  CHESS_FIREARM_SOURCE_SOUND_BY_ID[captureAnimationId] ||
+  CHESS_FIREARM_OPEN_SOUND_BY_TYPE[firearmType] ||
+  CHESS_FIREARM_OPEN_SOUND_BY_TYPE.Rifle;
 const LUDO_FIREARM_BROADCAST_PROFILE = LUDO_WEAPON_DIRECTOR_BRIDGE.firearmBroadcastProfile || {};
 const LUDO_WEAPON_TYPE_BY_ANIMATION_ID = LUDO_WEAPON_DIRECTOR_BRIDGE.weaponTypeByCaptureAnimationId || {};
 const CHESS_FIREARM_FATAL_BULLET_TRAVEL_MS = 1250; // match Ludo Battle Royal service-pistol final bullet travel.
@@ -8496,6 +8539,7 @@ function Chess3D({
   const helicopterSoundRef = useRef(null);
   const missileLaunchSoundRef = useRef(null);
   const missileImpactSoundRef = useRef(null);
+  const firearmShotSoundRefs = useRef(new Map());
   const audioStopTimeoutsRef = useRef(new Map());
   const lastBeepRef = useRef({ white: null, black: null });
   const suppressTimerBeepUntilRef = useRef(0);
@@ -9671,6 +9715,15 @@ function Chess3D({
         } catch {}
       }
     });
+    firearmShotSoundRefs.current.forEach((audio) => {
+      audio.volume = effectiveSoundEnabled ? volume : 0;
+      if (!effectiveSoundEnabled) {
+        try {
+          audio.pause();
+          audio.currentTime = 0;
+        } catch {}
+      }
+    });
     if (!effectiveSoundEnabled) {
       audioStopTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
       audioStopTimeoutsRef.current.clear();
@@ -9701,6 +9754,9 @@ function Chess3D({
       [swordSoundRef, droneSoundRef, helicopterSoundRef, missileLaunchSoundRef, missileImpactSoundRef].forEach((ref) => {
         if (!ref.current) return;
         ref.current.volume = settingsRef.current.soundEnabled ? volume : 0;
+      });
+      firearmShotSoundRefs.current.forEach((audio) => {
+        audio.volume = settingsRef.current.soundEnabled ? volume : 0;
       });
     };
     window.addEventListener('gameVolumeChanged', handleVolumeChange);
@@ -10201,8 +10257,13 @@ function Chess3D({
       const pieceSetPromise = loadPieceSet(RAW_BOARD_SIZE);
       const playAudio = (audioRef, options = {}) => {
         if (!audioRef?.current || !settingsRef.current.soundEnabled) return;
-        const { maxDurationMs = null } = options;
+        const { maxDurationMs = null, volume = null, playbackRate = null } = options;
         try {
+          const baseAudioVolume = getGameVolume();
+          audioRef.current.volume = Number.isFinite(volume)
+            ? clamp(baseAudioVolume * volume, 0, 1)
+            : baseAudioVolume;
+          if (Number.isFinite(playbackRate)) audioRef.current.playbackRate = clamp(playbackRate, 0.5, 2);
           audioRef.current.currentTime = 0;
           const playPromise = audioRef.current.play();
           if (maxDurationMs && Number.isFinite(maxDurationMs)) {
@@ -10218,6 +10279,30 @@ function Chess3D({
           }
           playPromise?.catch(() => {});
         } catch {}
+      };
+      const getFirearmShotAudio = (config) => {
+        if (!config?.url) return null;
+        let audio = firearmShotSoundRefs.current.get(config.url);
+        if (!audio) {
+          audio = new Audio(config.url);
+          audio.preload = 'auto';
+          audio.volume = settingsRef.current.soundEnabled ? getGameVolume() : 0;
+          firearmShotSoundRefs.current.set(config.url, audio);
+        }
+        return audio;
+      };
+      const playFirearmShotSound = (fx, nowMs = performance.now()) => {
+        const config = getChessFirearmSoundConfig(fx?.firearmAnimationId, fx?.firearmType || fx?.ludoType || 'Rifle');
+        const minIntervalMs = config?.minIntervalMs ?? (fx?.singleShot ? 0 : 72);
+        if (fx && minIntervalMs > 0 && nowMs - (fx.lastShotSoundAtMs ?? -Infinity) < minIntervalMs) return;
+        const audio = getFirearmShotAudio(config);
+        if (!audio) return;
+        if (fx) fx.lastShotSoundAtMs = nowMs;
+        playAudio({ current: audio }, {
+          volume: config?.volume ?? 0.82,
+          playbackRate: config?.playbackRate ?? 1,
+          maxDurationMs: config?.maxDurationMs ?? 520
+        });
       };
       const playMoveSound = () => playAudio(moveSoundRef);
       const playCheckSound = () => playAudio(checkSoundRef);
@@ -12948,11 +13033,14 @@ function Chess3D({
           firearmFx,
           fpsArmsFx,
           aerodynamicRings,
+          firearmAnimationId,
+          firearmType: firearmProfile.ludoType,
           bulletCount: firearmProfile.bulletCount,
           impactAt: firearmProfile.impactAt,
           singleShot: firearmProfile.singleShot,
           bulletProfile: firearmProfile,
           firedBullets: 0,
+          lastShotSoundAtMs: -Infinity,
           hitTriggered: false,
           liveBullets: [],
           liveShells: [],
@@ -15614,8 +15702,9 @@ function Chess3D({
                 velocity: ejectSide.multiplyScalar(0.16).add(new THREE.Vector3(0, 0.11, 0)).addScaledVector(aimDir, -0.025),
                 startMs: now
               });
+              playFirearmShotSound(fx, now);
               if (!fx.singleShot && fx.firedBullets < bulletsToFire) {
-                playAudio(missileImpactSoundRef, { volume: 0.25 });
+                playAudio(missileImpactSoundRef, { volume: 0.18, maxDurationMs: 180 });
               }
             }
 
@@ -16087,6 +16176,13 @@ function Chess3D({
       helicopterSoundRef.current?.pause();
       missileLaunchSoundRef.current?.pause();
       missileImpactSoundRef.current?.pause();
+      firearmShotSoundRefs.current.forEach((audio) => {
+        try {
+          audio.pause();
+          audio.currentTime = 0;
+        } catch {}
+      });
+      firearmShotSoundRefs.current.clear();
       activeCaptureFx.splice(0, activeCaptureFx.length);
       activeBulletCameraFollow = null;
       captureFxGroup?.clear?.();
@@ -16615,7 +16711,7 @@ function Chess3D({
             showInfo={false}
             showChat={false}
             showMute={false}
-            className="fixed right-3 bottom-28 z-50 flex flex-col gap-4"
+            className="fixed right-3 bottom-[calc(env(safe-area-inset-bottom)+3.75rem)] z-50 flex flex-col gap-4"
             buttonClassName="icon-only-button pointer-events-auto flex h-11 w-11 items-center justify-center text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
             iconClassName="text-[1.65rem] leading-none"
             labelClassName="sr-only"
@@ -16627,7 +16723,7 @@ function Chess3D({
             showInfo={false}
             showGift={false}
             showMute={false}
-            className="fixed left-3 bottom-28 z-50 flex flex-col"
+            className="fixed left-3 bottom-[calc(env(safe-area-inset-bottom)+3.75rem)] z-50 flex flex-col"
             buttonClassName="icon-only-button pointer-events-auto flex h-11 w-11 items-center justify-center text-white/90 transition-opacity duration-200 hover:text-white focus:outline-none"
             iconClassName="text-[1.65rem] leading-none"
             labelClassName="sr-only"
