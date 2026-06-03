@@ -11258,7 +11258,14 @@ export function Table3D(
   const brandPlateWidth = Math.min(PLAY_W * 0.36, Math.max(BALL_R * 10.8, PLAY_W * 0.255));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 1.1;
+  const brandPlateOutwardOffset = Number(
+    resolvedTableOptions?.tableModel?.brandPlateOutwardOffset
+  );
+  const brandPlateOutwardShift =
+    endRailW * 1.1 +
+    (Number.isFinite(brandPlateOutwardOffset)
+      ? Math.max(0, brandPlateOutwardOffset)
+      : 0);
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -11402,7 +11409,17 @@ export function Table3D(
     const longDiamondSpacing = PLAY_H / 8;
     const shortDiamondSpacing = PLAY_W / 4;
     const longRailX = halfW + longRailW + railMarkerOutset - railMarkerInwardShift;
-    const shortRailZ = halfH + endRailW + railMarkerOutset - railMarkerInwardShift;
+    const shortRailMarkerOutwardOffset = Number(
+      resolvedTableOptions?.tableModel?.shortRailMarkerOutwardOffset
+    );
+    const shortRailZ =
+      halfH +
+      endRailW +
+      railMarkerOutset -
+      railMarkerInwardShift +
+      (Number.isFinite(shortRailMarkerOutwardOffset)
+        ? Math.max(0, shortRailMarkerOutwardOffset)
+        : 0);
     const addMarker = (x, z, rotation = 0) => {
       const mesh = new THREE.Mesh(geometry, railMarkerMat);
       mesh.position.set(x, railMarkerLift, z);
