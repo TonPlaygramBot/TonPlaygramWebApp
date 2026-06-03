@@ -48,14 +48,25 @@ describe('Pool Royale table models', () => {
     assert.equal(showood.lowerLegFootReachScale, 1.28);
     assert.equal(showood.footWidthScale, 1.08);
     assert.equal(showood.footHeightScale, 1);
-    assert.equal(showood.railSightApronVisualScale, 1.128);
-    assert.equal(showood.railSightOutwardOffset, 0.078);
-    assert.equal(showood.railSightVisualHeightScale, 1.15);
-    assert.equal(showood.sideApronVisualHeightScale, 1.19);
-    assert.equal(showood.sideApronOutwardOffset, 0.106);
+    assert.equal(showood.railSightApronVisualScale, 1.112);
+    assert.equal(showood.railSightOutwardOffset, 0.066);
+    assert.equal(showood.railSightVisualHeightScale, 1.14);
+    assert.equal(showood.sideApronVisualHeightScale, 1.18);
+    assert.equal(showood.sideApronOutwardOffset, 0.092);
     assert.equal(showood.shortRailMarkerOutwardOffset, 0.064);
     assert.equal(showood.brandPlateOutwardOffset, 0.089);
     assert.deepEqual(showood.usePoolRoyaleFinishRoles, ['cloth', 'cushion', 'wood']);
+  });
+
+  test('Royal Classic chrome plates sit farther outward with larger centered pocket cuts', async () => {
+    const game = await readFile('webapp/src/pages/Games/PoolRoyale.jsx', 'utf8');
+    const royalClassicBlock = game.match(/id: 'royal-classic',[\s\S]*?sideCutCenterPullScale: 0\.18/);
+
+    assert.ok(royalClassicBlock, 'Royal Classic chrome plate style must be configured');
+    assert.match(royalClassicBlock[0], /cornerCutScale: 1\.04/);
+    assert.match(royalClassicBlock[0], /cornerOutsetScale: 1\.55/);
+    assert.match(royalClassicBlock[0], /sideCutScale: 1\.055/);
+    assert.match(royalClassicBlock[0], /sideOutwardShiftScale: 2\.05/);
   });
 
 
