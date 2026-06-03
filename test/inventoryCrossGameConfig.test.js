@@ -223,6 +223,60 @@ describe('cross-game inventory alignment', () => {
     });
   });
 
+  test('ludo battle royal keeps non-Gunify weapons on original source texture assets', async () => {
+    const source = await readFile('webapp/src/pages/Games/LudoBattleRoyal.jsx', 'utf8');
+
+    [
+      'gunsForBjsFpsGame',
+      'webaversePistol',
+      'webaverseUzi',
+      'friunsBingExtension',
+      'saaam3dModelBundle',
+      'mixedRealityToolkitGun'
+    ].forEach((sourceRefKey) => {
+      expect(source).toContain(sourceRefKey);
+    });
+    expect(source).toContain("texturePolicy: 'sourceOriginal'");
+    expect(source).toContain("'lando19/Guns-for-BJS-FPS-Game'");
+    expect(source).toContain('GITHUB_SOURCE_REFS.gunsForBjsFpsGame');
+    expect(source).toContain("'webaverse/pistol'");
+    expect(source).toContain('GITHUB_SOURCE_REFS.webaversePistol');
+    expect(source).toContain("'webaverse/uzi'");
+    expect(source).toContain('GITHUB_SOURCE_REFS.webaverseUzi');
+    expect(source).not.toContain('lando19/Guns-for-BJS-FPS-Game@main/main/scene.gltf');
+    expect(source).not.toContain('webaverse/pistol@master');
+    expect(source).not.toContain('webaverse/uzi@main');
+  });
+
+  test('ludo battle royal Poly Pizza weapon thumbnails use source renders instead of glyph placeholders', () => {
+    const polyPizzaWeaponIds = [
+      'polyShotgun01Attack',
+      'polyAssaultRifle01Attack',
+      'polyPistol01Attack',
+      'polyRevolver01Attack',
+      'polySawedOff01Attack',
+      'polyRevolver02Attack',
+      'polyShotgun02Attack',
+      'polyShotgun03Attack',
+      'polySmg01Attack',
+      'polyRobotLargeGunAttack',
+      'polyRobotFlyingGunAttack',
+      'polyBazooka01Attack',
+      'polyGrenadeLauncher01Attack',
+      'polyDynamiteBomb01Attack',
+      'polyMolotov01Attack',
+      'polyGasTank01Attack',
+      'polyHandGrenade01Attack',
+      'polyTank01Attack'
+    ];
+
+    polyPizzaWeaponIds.forEach((weaponId) => {
+      const option = CAPTURE_ANIMATION_OPTIONS.find((entry) => entry.id === weaponId);
+      expect(option?.thumbnail).toMatch(/^https:\/\/static\.poly\.pizza\/.+\.webp$/);
+      expect(option?.thumbnail).not.toContain('data:image/svg+xml');
+    });
+  });
+
   test('snake store mirrors ludo battle royal capture weapons', () => {
     const snakeCaptureStoreIds = new Set(
       SNAKE_STORE_ITEMS.filter((item) => item.type === 'captureWeapon').map((item) => item.optionId)
