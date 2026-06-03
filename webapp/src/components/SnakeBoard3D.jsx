@@ -9,6 +9,12 @@ import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import {
+  createLudoDiceSpinVector,
+  createLudoDiceWobbleVector,
+  getLudoDiceOrientationQuaternion,
+  setLudoDiceOrientation
+} from '../utils/ludoDiceRollLogic.js';
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import {
   isExactUkrainianDroneObject,
@@ -3284,22 +3290,11 @@ function captureCameraState(camera, controls) {
 }
 
 function getDiceOrientationQuaternion(val) {
-  const orientations = {
-    1: new THREE.Euler(0, 0, 0),
-    2: new THREE.Euler(-Math.PI / 2, 0, 0),
-    3: new THREE.Euler(0, 0, Math.PI / 2),
-    4: new THREE.Euler(0, 0, -Math.PI / 2),
-    5: new THREE.Euler(Math.PI / 2, 0, 0),
-    6: new THREE.Euler(Math.PI, 0, 0)
-  };
-  const euler = orientations[val] || orientations[1];
-  return new THREE.Quaternion().setFromEuler(euler);
+  return getLudoDiceOrientationQuaternion(THREE, val);
 }
 
 function setDiceOrientation(dice, val, quaternion) {
-  const q = quaternion ?? getDiceOrientationQuaternion(val);
-  dice.setRotationFromQuaternion(q);
-  return q;
+  return setLudoDiceOrientation(THREE, dice, val, quaternion);
 }
 
 function makeDice(theme = {}) {
@@ -3591,16 +3586,8 @@ function createDiceRollAnimation(
   }
 ) {
   const start = performance.now();
-  const spinVectors = diceArray.map(() =>
-    new THREE.Vector3(
-      1.2 + Math.random() * 0.7,
-      1.35 + Math.random() * 0.65,
-      1.05 + Math.random() * 0.75
-    )
-  );
-  const wobbleVectors = diceArray.map(
-    () => new THREE.Vector3((Math.random() - 0.5) * 0.16, 0, (Math.random() - 0.5) * 0.16)
-  );
+  const spinVectors = diceArray.map(() => createLudoDiceSpinVector(THREE));
+  const wobbleVectors = diceArray.map(() => createLudoDiceWobbleVector(THREE));
 
   return {
     type: 'diceRoll',

@@ -22,6 +22,12 @@ import {
 } from '../../utils/murlanTable.js';
 import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
+import {
+  createLudoDiceSpinVector,
+  createLudoDiceWobbleVector,
+  rollLudoDieValue,
+  setLudoDiceOrientation
+} from '../../utils/ludoDiceRollLogic.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import {
   ensureAccountId,
@@ -6251,18 +6257,7 @@ function addBoardMarkers(scene, cellToWorld, playerColors = DEFAULT_PLAYER_COLOR
 }
 
 function setDiceOrientation(dice, val) {
-  const q = new THREE.Quaternion();
-  const eulers = {
-    1: new THREE.Euler(0, 0, 0),
-    2: new THREE.Euler(-Math.PI / 2, 0, 0),
-    3: new THREE.Euler(0, 0, Math.PI / 2),
-    4: new THREE.Euler(0, 0, -Math.PI / 2),
-    5: new THREE.Euler(Math.PI / 2, 0, 0),
-    6: new THREE.Euler(Math.PI, 0, 0)
-  };
-  const e = eulers[val] || eulers[1];
-  q.setFromEuler(e);
-  dice.setRotationFromQuaternion(q);
+  setLudoDiceOrientation(THREE, dice, val);
 }
 
 function normalizeBoneName(name = '') {
@@ -7574,13 +7569,9 @@ function spinDice(
     const start = performance.now();
     const startPos = dice.position.clone();
     const endPos = targetPosition.clone();
-    const spinVec = new THREE.Vector3(
-      1.2 + Math.random() * 0.7,
-      1.35 + Math.random() * 0.65,
-      1.05 + Math.random() * 0.75
-    );
-    const wobble = new THREE.Vector3((Math.random() - 0.5) * 0.16, 0, (Math.random() - 0.5) * 0.16);
-    const targetValue = 1 + Math.floor(Math.random() * 6);
+    const spinVec = createLudoDiceSpinVector(THREE);
+    const wobble = createLudoDiceWobbleVector(THREE);
+    const targetValue = rollLudoDieValue();
 
     const step = () => {
       const now = performance.now();
