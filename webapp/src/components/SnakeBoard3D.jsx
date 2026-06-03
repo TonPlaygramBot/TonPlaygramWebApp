@@ -284,9 +284,9 @@ const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 // Portrait framing calibration: aim the camera at the physical board surface center,
 // not above the table, so the Snake board center projects to the exact phone center.
 const BOARD_SURFACE_CENTER_LIFT = BOARD_SCALE * (((0.07 + 0.26) * RAW_BOARD_SIZE) / 10.2) - 0.01;
-const CAMERA_TARGET_EXTRA = 0;
-const CAMERA_SIDE_LOOK_EXTRA = 0.6 * MODEL_SCALE;
-const CAMERA_TURN_PLAYER_LERP = 0.44;
+const CAMERA_TARGET_EXTRA = 0.055 * MODEL_SCALE;
+const CAMERA_SIDE_LOOK_EXTRA = 0.82 * MODEL_SCALE;
+const CAMERA_TURN_PLAYER_LERP = 0.5;
 const CAMERA_BROADCAST_TARGET_BLEND = 0.5;
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
 const CAM = {
@@ -469,8 +469,9 @@ const FIREARM_MODEL_SCALE_BY_ID = Object.freeze({
   'slot-15-sigsauer-gltf': 0.12,
   // Keep FPS Gun GLTF smaller than the shared firearm baseline.
   'slot-18-fps-gun-gltf': 0.03,
-  // Enlarge long rifles for clearer sniper identity in portrait view.
-  'slot-16-awp-glb': 3,
+  // Keep the GLB sniper close to AK-47 visual size, only slightly bigger.
+  'slot-16-awp-glb': 0.018,
+  // Keep Gunify Mosin using the larger Ludo marksman silhouette.
   'slot-13-mosin-gltf': 3,
   'poly-shotgun-01': 1,
   'poly-assault-rifle-01': 1.02,
@@ -598,7 +599,7 @@ const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(42);
 const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
 const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(16);
 const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
-const CAMERA_EXTRA_LIFT = -0.1;
+const CAMERA_EXTRA_LIFT = 0.08;
 const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.54;
 const LANDSCAPE_INITIAL_CAMERA_DISTANCE_FACTOR = 0.65;
 const POINTER_TAP_MAX_DISTANCE = 14;

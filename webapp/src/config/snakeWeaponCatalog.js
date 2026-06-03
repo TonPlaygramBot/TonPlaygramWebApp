@@ -22,18 +22,27 @@ const polyPizzaWeapon = (id, label, uuid, colors, extra = {}) => ({
 export const SNAKE_GUNIFY_MAY_9_REF = '27232cf389a2be3f8f476c667cb293e978aaf5f9'
 const SNAKE_GUNIFY_RAW_BASE = `https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/${SNAKE_GUNIFY_MAY_9_REF}`
 const SNAKE_GUNIFY_JSDELIVR_BASE = `https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@${SNAKE_GUNIFY_MAY_9_REF}`
-const gunifyModelUrls = (modelName) => [
-  `${SNAKE_GUNIFY_RAW_BASE}/models/${modelName}/scene.gltf`,
-  `${SNAKE_GUNIFY_JSDELIVR_BASE}/models/${modelName}/scene.gltf`
-]
-const gunifyWeapon = (id, label, modelName, colors) => ({
+const SNAKE_GUNIFY_MODEL_FOLDER_BY_NAME = Object.freeze({
+  Uzi: 'models2',
+  Mosin: 'models2',
+  SigSauer: 'models3'
+})
+const gunifyModelUrls = (modelName) => {
+  const modelFolder = SNAKE_GUNIFY_MODEL_FOLDER_BY_NAME[modelName] || 'models'
+  return [
+    `${SNAKE_GUNIFY_RAW_BASE}/${modelFolder}/${modelName}/scene.gltf`,
+    `${SNAKE_GUNIFY_JSDELIVR_BASE}/${modelFolder}/${modelName}/scene.gltf`
+  ]
+}
+const gunifyWeapon = (id, label, modelName, colors, extra = {}) => ({
   id,
   label,
   thumbnail: weaponSilhouetteThumbnail(colors),
   urls: gunifyModelUrls(modelName),
   modelName,
   source: 'Gunify',
-  texturePolicy: 'gunifyPbr'
+  texturePolicy: 'gunifyPbr',
+  ...extra
 })
 
 
@@ -129,12 +138,12 @@ export const SNAKE_CAPTURE_WEAPON_OPTIONS = Object.freeze([
   polyPizzaWeapon('poly-gas-tank-01', 'Quaternius Gas Tank', '9c4d2ac5-114b-4da2-a26a-8049e2b1ba04', ['#b91c1c', '#111827', '#e5e7eb'], { creator: 'Quaternius', modelScale: 0.62 }),
   polyPizzaWeapon('poly-hand-grenade-01', 'CreativeTrio Hand Grenade', '03fa7f5b-4df5-45d6-86fb-87e8590f28d7', ['#3f6212', '#111827', '#a3e635'], { creator: 'CreativeTrio', modelScale: 0.36 }),
   polyPizzaWeapon('poly-tank-01', 'Quaternius Battle Tank', '58c387b2-636f-49dc-a900-13b0852717d6', ['#334155', '#111827', '#94a3b8'], { creator: 'Quaternius', modelScale: 0.7 }),
-  gunifyWeapon('slot-10-ak47-gltf', 'AK47 GLTF', 'AK47', ['#7f1d1d', '#111827', '#f59e0b']),
-  gunifyWeapon('slot-11-krsv-gltf', 'KRSV GLTF', 'KRSV', ['#1d4ed8', '#0f172a', '#bfdbfe']),
-  gunifyWeapon('slot-12-smith-gltf', 'Smith GLTF', 'Smith', ['#6b7280', '#0f172a', '#f8fafc']),
-  gunifyWeapon('slot-13-mosin-gltf', 'Mosin GLTF', 'Mosin', ['#92400e', '#1f2937', '#fcd34d']),
-  gunifyWeapon('slot-14-uzi-gltf', 'Uzi GLTF', 'Uzi', ['#0f766e', '#111827', '#99f6e4']),
-  gunifyWeapon('slot-15-sigsauer-gltf', 'SigSauer GLTF', 'SigSauer', ['#334155', '#020617', '#f1f5f9']),
+  gunifyWeapon('slot-10-ak47-gltf', 'AK47 GLTF', 'AK47', ['#7f1d1d', '#111827', '#f59e0b'], { ludoCaptureScale: 0.24 }),
+  gunifyWeapon('slot-11-krsv-gltf', 'KRSV GLTF', 'KRSV', ['#1d4ed8', '#0f172a', '#bfdbfe'], { ludoCaptureScale: 0.24 }),
+  gunifyWeapon('slot-12-smith-gltf', 'Smith GLTF', 'Smith', ['#6b7280', '#0f172a', '#f8fafc'], { ludoCaptureScale: 0.13 }),
+  gunifyWeapon('slot-13-mosin-gltf', 'Mosin GLTF', 'Mosin', ['#92400e', '#1f2937', '#fcd34d'], { ludoCaptureScale: 0.5125 }),
+  gunifyWeapon('slot-14-uzi-gltf', 'Uzi GLTF', 'Uzi', ['#0f766e', '#111827', '#99f6e4'], { ludoCaptureScale: 0.2 }),
+  gunifyWeapon('slot-15-sigsauer-gltf', 'SigSauer GLTF', 'SigSauer', ['#334155', '#020617', '#f1f5f9'], { ludoCaptureScale: 0.13 }),
   { id: 'slot-16-awp-glb', label: 'AWP Sniper GLB', thumbnail: weaponSilhouetteThumbnail(['#1e293b', '#0f172a', '#f8fafc']), urls: [SNAKE_KNOWN_WORKING_GLB.awp, SNAKE_KNOWN_WORKING_GLB.awpRaw] },
   { id: 'slot-18-fps-gun-gltf', label: 'FPS Shotgun', thumbnail: weaponSilhouetteThumbnail(['#f59e0b', '#111827', '#fde68a']), urls: [SNAKE_KNOWN_WORKING_GLB.fps, SNAKE_KNOWN_WORKING_GLB.fpsRaw, SNAKE_KNOWN_WORKING_GLB.awp, SNAKE_KNOWN_WORKING_GLB.awpRaw] }
 ])
