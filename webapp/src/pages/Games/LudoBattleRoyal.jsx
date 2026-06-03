@@ -347,66 +347,14 @@ const FIREARM_RACK_OPPOSITE_SEAT_TARGET_BY_PLAYER = Object.freeze({
 });
 const GUNIFY_RAW_BASE = 'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main';
 const GUNIFY_JSDELIVR_BASE = 'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main';
-const GUNIFY_LOCAL_BASE = '/models/gunify';
 const gunifyModelUrls = (modelName) => [
   `${GUNIFY_RAW_BASE}/models/${modelName}/scene.gltf`,
-  `${GUNIFY_JSDELIVR_BASE}/models/${modelName}/scene.gltf`,
-  `${GUNIFY_LOCAL_BASE}/${modelName}/scene.gltf`
+  `${GUNIFY_JSDELIVR_BASE}/models/${modelName}/scene.gltf`
 ];
-
-const GUNIFY_SPECULAR_GLOSSINESS_EXTENSION = 'KHR_materials_pbrSpecularGlossiness';
-
-function cloneJsonValue(value) {
-  if (value == null) return value;
-  return JSON.parse(JSON.stringify(value));
-}
-
-function patchGunifySpecularGlossinessMaterials(gltfJson) {
-  if (!gltfJson?.materials?.length) return gltfJson;
-  const patched = { ...gltfJson, materials: gltfJson.materials.map((material) => ({ ...material })) };
-  let patchedAny = false;
-  patched.materials = patched.materials.map((material) => {
-    const specGloss = material?.extensions?.[GUNIFY_SPECULAR_GLOSSINESS_EXTENSION];
-    if (!specGloss) return material;
-    patchedAny = true;
-    const metallicRoughness = {
-      ...(material.pbrMetallicRoughness || {}),
-      metallicFactor: 0,
-      roughnessFactor: Math.max(0.08, Math.min(1, 1 - (specGloss.glossinessFactor ?? 0.82)))
-    };
-    if (specGloss.diffuseFactor) metallicRoughness.baseColorFactor = cloneJsonValue(specGloss.diffuseFactor);
-    if (specGloss.diffuseTexture) metallicRoughness.baseColorTexture = cloneJsonValue(specGloss.diffuseTexture);
-    return {
-      ...material,
-      pbrMetallicRoughness: metallicRoughness,
-      extensions: Object.fromEntries(
-        Object.entries(material.extensions || {}).filter(([extensionName]) => extensionName !== GUNIFY_SPECULAR_GLOSSINESS_EXTENSION)
-      )
-    };
-  });
-  if (patchedAny && Array.isArray(patched.extensionsUsed)) {
-    patched.extensionsUsed = patched.extensionsUsed.filter((extensionName) => extensionName !== GUNIFY_SPECULAR_GLOSSINESS_EXTENSION);
-  }
-  return patched;
-}
-
-function resolveGltfBasePath(candidateUrl) {
-  try {
-    return new URL('.', candidateUrl).href;
-  } catch {
-    return candidateUrl.replace(/[^/]*(?:[?#].*)?$/, '');
-  }
-}
-
-async function loadGunifyOriginalGltf(loader, candidateUrl) {
-  const response = await fetch(candidateUrl, { mode: 'cors' });
-  if (!response.ok) throw new Error(`Gunify GLTF fetch failed: ${response.status}`);
-  const gltfJson = patchGunifySpecularGlossinessMaterials(await response.json());
-  const basePath = resolveGltfBasePath(candidateUrl);
-  loader.setPath?.(basePath);
-  loader.setResourcePath?.(basePath);
-  return loader.parseAsync(JSON.stringify(gltfJson), basePath);
-}
+const gunifyTextureUrls = (modelName, textureFileName) => [
+  `${GUNIFY_RAW_BASE}/models/${modelName}/textures/${textureFileName}`,
+  `${GUNIFY_JSDELIVR_BASE}/models/${modelName}/textures/${textureFileName}`
+];
 
 const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   mrtkGunAttack: {
@@ -466,7 +414,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   uziSprayAttack: {
     label: 'Gunify Uzi',
     urls: gunifyModelUrls('Uzi'),
-    modelName: 'Uzi',
+    textureOverrideUrls: gunifyTextureUrls('Uzi', 'Material__90_baseColor.png'),
     source: 'Gunify',
     texturePolicy: 'gunifyPbr',
     scale: 0.2
@@ -474,7 +422,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   ak47VolleyAttack: {
     label: 'Gunify AK-47',
     urls: gunifyModelUrls('AK47'),
-    modelName: 'AK47',
+    textureOverrideUrls: gunifyTextureUrls('AK47', 'Material.001_baseColor.png'),
     source: 'Gunify',
     texturePolicy: 'gunifyPbr',
     scale: 0.24
@@ -482,7 +430,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   krsvBurstAttack: {
     label: 'Gunify KRSV',
     urls: gunifyModelUrls('KRSV'),
-    modelName: 'KRSV',
+    textureOverrideUrls: gunifyTextureUrls('KRSV', 'Steel_baseColor.png'),
     source: 'Gunify',
     texturePolicy: 'gunifyPbr',
     scale: 0.24
@@ -490,7 +438,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   smithSidearmAttack: {
     label: 'Gunify Smith',
     urls: gunifyModelUrls('Smith'),
-    modelName: 'Smith',
+    textureOverrideUrls: gunifyTextureUrls('Smith', 'Metal_baseColor.png'),
     source: 'Gunify',
     texturePolicy: 'gunifyPbr',
     scale: 0.13
@@ -498,7 +446,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   mosinMarksmanAttack: {
     label: 'Gunify Mosin',
     urls: gunifyModelUrls('Mosin'),
-    modelName: 'Mosin',
+    textureOverrideUrls: gunifyTextureUrls('Mosin', 'Mosin_baseColor.png'),
     source: 'Gunify',
     texturePolicy: 'gunifyPbr',
     scale: 0.5125
@@ -506,7 +454,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   sigsauerTacticalAttack: {
     label: 'Gunify SigSauer Tactical',
     urls: gunifyModelUrls('SigSauer'),
-    modelName: 'SigSauer',
+    textureOverrideUrls: gunifyTextureUrls('SigSauer', 'Material_diffuse.png'),
     source: 'Gunify',
     texturePolicy: 'gunifyPbr',
     scale: 0.13
@@ -533,7 +481,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   sniperShotAttack: {
     label: 'Gunify Mosin Sniper Shot',
     urls: gunifyModelUrls('Mosin'),
-    modelName: 'Mosin',
+    textureOverrideUrls: gunifyTextureUrls('Mosin', 'Mosin_baseColor.png'),
     source: 'Gunify',
     texturePolicy: 'gunifyPbr',
     scale: 0.504
@@ -1433,13 +1381,7 @@ async function loadCaptureWeaponModel(captureAnimationId) {
         // source asset first so its WebGL texture transforms, samplers, UVs,
         // embedded images, and KTX2/PNG/JPEG color-space metadata stay intact.
         // eslint-disable-next-line no-await-in-loop
-        const basePath = resolveGltfBasePath(candidateUrl);
-        loader.setPath?.(basePath);
-        loader.setResourcePath?.(basePath);
-        const loadedGltf = config?.source === 'Gunify' && isGltfAssetUrl(candidateUrl)
-          ? await withLoadTimeout(loadGunifyOriginalGltf(loader, candidateUrl))
-          : await withLoadTimeout(loader.loadAsync(candidateUrl));
-        loadedRoot = assignLoadedGltf(loadedGltf);
+        loadedRoot = assignLoadedGltf(await withLoadTimeout(loader.loadAsync(candidateUrl)));
       } catch (error) {
         if (isGltfAssetUrl(candidateUrl) || isPolyPizzaAssetUrl(candidateUrl)) {
           if (i === candidateUrls.length - 1) {
@@ -1515,7 +1457,7 @@ async function loadCaptureWeaponModel(captureAnimationId) {
         const materials = Array.isArray(node.material) ? node.material : [node.material];
         materials.forEach((material) => {
           if (material?.map) applySRGBColorSpace(material.map);
-          if (!material?.map && textureOverride && config?.source !== 'Gunify') material.map = textureOverride;
+          if (!material?.map && textureOverride) material.map = textureOverride;
           if (material?.emissiveMap) applySRGBColorSpace(material.emissiveMap);
           if (config?.texturePolicy === 'gunifyPbr') applyGunifyWeaponTexturePolicy(material);
           material.transparent = false;
