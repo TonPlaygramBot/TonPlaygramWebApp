@@ -824,10 +824,10 @@ const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profi
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the notch depth identical to the pocket cylinder so the chrome kisses the jaw edge
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
-const CHROME_PLATE_REFLECTION_SCALE = 0.28; // kill pocket-cut reflections by damping env-map intensity on fascia cuts
-const CHROME_PLATE_ROUGHNESS_LIFT = 0.08; // lift roughness on fascia cuts so pocket arches stop casting hot spots on cloth
-const CHROME_PLATE_THICKNESS_SCALE = 0.0306; // match diamond thickness on the wooden rails for fascia depth
-const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.18; // thicken the middle fascia so its depth now matches the corner plates
+const CHROME_PLATE_REFLECTION_SCALE = 0.34; // preserve more gold/chrome sparkle on tiny fascia edges while still damping pocket-cut hot spots
+const CHROME_PLATE_ROUGHNESS_LIFT = 0.055; // keep small metal edge lines crisper by adding less roughness to fascia cuts
+const CHROME_PLATE_THICKNESS_SCALE = 0.033; // make the thin chrome/gold fascia read a tiny bit thicker on portrait mobile screens
+const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.22; // add a slight extra side-plate thickness boost so the apron trim edge does not disappear
 const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0.06; // lift fascia slightly with the raised rail/cushion profile so chrome stays aligned on all six pockets
 const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
@@ -1059,6 +1059,26 @@ function buildChromePlateGeometry({
   return geo;
 }
 
+function tunePoolRoyaleSmallMetalMaterial(mat) {
+  if (!mat) return mat;
+  mat.precision = 'highp';
+  mat.polygonOffset = true;
+  mat.polygonOffsetFactor = -0.35;
+  mat.polygonOffsetUnits = -0.35;
+  mat.toneMapped = true;
+  if (typeof mat.metalness === 'number') {
+    mat.metalness = THREE.MathUtils.clamp(Math.max(mat.metalness, 0.9), 0, 1);
+  }
+  if (typeof mat.roughness === 'number') {
+    mat.roughness = THREE.MathUtils.clamp(mat.roughness * 0.88, 0.045, 0.22);
+  }
+  if ('clearcoat' in mat) mat.clearcoat = Math.max(mat.clearcoat ?? 0, 0.62);
+  if ('clearcoatRoughness' in mat) mat.clearcoatRoughness = Math.min(mat.clearcoatRoughness ?? 0.08, 0.08);
+  if ('envMapIntensity' in mat) mat.envMapIntensity = Math.max(mat.envMapIntensity ?? 1, 0.86);
+  mat.needsUpdate = true;
+  return mat;
+}
+
 function applyChromePlateDamping(material) {
   if (!material) return null;
   const mat = material.clone();
@@ -1077,6 +1097,7 @@ function applyChromePlateDamping(material) {
       1
     );
   }
+  tunePoolRoyaleSmallMetalMaterial(mat);
   mat.needsUpdate = true;
   return mat;
 }
@@ -11375,6 +11396,7 @@ export function Table3D(
     if (typeof colorOpt?.sheenRoughness === 'number') {
       railMarkerMat.sheenRoughness = colorOpt.sheenRoughness;
     }
+    tunePoolRoyaleSmallMetalMaterial(railMarkerMat);
     railMarkerMat.needsUpdate = true;
     clearRailMarkerMeshes();
     const longDiamondSpacing = PLAY_H / 8;
@@ -12420,6 +12442,7 @@ function applyPoolRoyaleShowoodMetalAccentMaterial(mat, option) {
   if ('clearcoat' in mat) mat.clearcoat = preset.clearcoat ?? 0;
   if ('clearcoatRoughness' in mat) mat.clearcoatRoughness = preset.clearcoatRoughness ?? 0;
   if ('envMapIntensity' in mat) mat.envMapIntensity = preset.envMapIntensity ?? mat.envMapIntensity ?? 1;
+  tunePoolRoyaleSmallMetalMaterial(mat);
   mat.needsUpdate = true;
 }
 
@@ -13555,9 +13578,9 @@ function subtlyExpandPoolRoyaleShowoodRailSightsAndAprons(model, tableModel) {
   const fullBox = new THREE.Box3().setFromObject(model);
   if (fullBox.isEmpty()) return;
   const fullCenter = fullBox.getCenter(new THREE.Vector3());
-  const safeVisualScale = hasScale ? THREE.MathUtils.clamp(visualScale, 1, 1.08) : 1;
-  const safeRailSightHeightScale = hasRailSightHeight ? THREE.MathUtils.clamp(railSightHeightScale, 1, 1.12) : 1;
-  const safeSideApronHeightScale = hasSideApronHeight ? THREE.MathUtils.clamp(sideApronHeightScale, 1, 1.14) : 1;
+  const safeVisualScale = hasScale ? THREE.MathUtils.clamp(visualScale, 1, 1.1) : 1;
+  const safeRailSightHeightScale = hasRailSightHeight ? THREE.MathUtils.clamp(railSightHeightScale, 1, 1.14) : 1;
+  const safeSideApronHeightScale = hasSideApronHeight ? THREE.MathUtils.clamp(sideApronHeightScale, 1, 1.16) : 1;
 
   model.traverse((child) => {
     if (!child?.isMesh || child.userData?.poolRoyaleShowoodRailSightApronExpanded) return;
