@@ -134,6 +134,28 @@ const captureWeaponGlyphThumb = (glyph = '▭', accent = '#334155') =>
 const GUNIFY_RAW_BASE = 'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main';
 const gunifyImage = (fileName) => `${GUNIFY_RAW_BASE}/images/${fileName}`;
 
+const polyPizzaThumb = (assetId) => `https://static.poly.pizza/${assetId}.webp`;
+const CAPTURE_POLY_PIZZA_SOURCE_THUMBNAILS = Object.freeze({
+  polyShotgun01Attack: polyPizzaThumb('032e6589-3188-41bc-b92b-e25528344275'),
+  polyAssaultRifle01Attack: polyPizzaThumb('b3e6be61-0299-4866-a227-58f5f3fe610b'),
+  polyPistol01Attack: polyPizzaThumb('3b53f0fe-f86e-451c-816d-6ab9bd265cdc'),
+  polyRevolver01Attack: polyPizzaThumb('9e728565-67a3-44db-9567-982320abff09'),
+  polySawedOff01Attack: polyPizzaThumb('9a6ee0ee-068b-4774-8b0f-679c3cef0b6e'),
+  polyRevolver02Attack: polyPizzaThumb('7951b3b9-d3a5-4ec8-81b7-11111f1c8e88'),
+  polyShotgun02Attack: polyPizzaThumb('f71d6771-f512-4374-bd23-ba00b564db68'),
+  polyShotgun03Attack: polyPizzaThumb('08f27141-8e64-425a-9161-1bbd6956dfca'),
+  polySmg01Attack: polyPizzaThumb('fb8ae707-d5b9-4eb8-ab8c-1c78d3c1f710'),
+  polyRobotLargeGunAttack: polyPizzaThumb('78e23275-cb6a-4ba3-ae5e-48a9b4ee2e65'),
+  polyRobotFlyingGunAttack: polyPizzaThumb('6d0889f1-0c3f-4f98-b011-fbcf6c79a93b'),
+  polyBazooka01Attack: polyPizzaThumb('613e3b1b-d07c-496b-94a1-7c85b507bac4'),
+  polyGrenadeLauncher01Attack: polyPizzaThumb('503bb2c5-4a69-404b-9b82-13e85e8f8467'),
+  polyDynamiteBomb01Attack: polyPizzaThumb('38e858db-325f-4dce-9680-da62c20c5c31'),
+  polyMolotov01Attack: polyPizzaThumb('d7bb0b50-09af-49f8-b1f9-dbdb0c707d40'),
+  polyGasTank01Attack: polyPizzaThumb('9c4d2ac5-114b-4da2-a26a-8049e2b1ba04'),
+  polyHandGrenade01Attack: polyPizzaThumb('03fa7f5b-4df5-45d6-86fb-87e8590f28d7'),
+  polyTank01Attack: polyPizzaThumb('58c387b2-636f-49dc-a900-13b0852717d6')
+});
+
 const CAPTURE_WEAPON_SOURCE_THUMBNAILS = Object.freeze({
   glockSidearmAttack: gunifyImage('SigSauer.jpg'),
   pistolSidearmAttack: gunifyImage('Smith.jpeg'),
@@ -268,109 +290,109 @@ export const CAPTURE_ANIMATION_OPTIONS = Object.freeze([
     id: 'polyShotgun01Attack',
     label: 'Quaternius Shotgun',
     description: 'Poly Pizza Quaternius shotgun model with preserved GLB materials.',
-    thumbnail: captureWeaponGlyphThumb('▬', '#0f766e')
+    thumbnail: CAPTURE_POLY_PIZZA_SOURCE_THUMBNAILS.polyShotgun01Attack
   },
   {
     id: 'polyAssaultRifle01Attack',
     label: 'Quaternius Assault Rifle',
     description: 'Poly Pizza Quaternius assault rifle model adapted for Ludo capture attacks.',
-    thumbnail: captureWeaponGlyphThumb('▰', '#1e3a8a')
+    thumbnail: CAPTURE_POLY_PIZZA_SOURCE_THUMBNAILS.polyAssaultRifle01Attack
   },
   {
     id: 'polyPistol01Attack',
     label: 'Quaternius Pistol',
     description: 'Poly Pizza Quaternius pistol sidearm capture animation.',
-    thumbnail: captureWeaponGlyphThumb('▮', '#1d4ed8')
+    thumbnail: CAPTURE_POLY_PIZZA_SOURCE_THUMBNAILS.polyPistol01Attack
   },
   {
     id: 'polyRevolver01Attack',
     label: 'Quaternius Heavy Revolver',
     description: 'Poly Pizza heavy revolver with compact one-hand pickup timing.',
-    thumbnail: captureWeaponGlyphThumb('◖', '#7c2d12')
+    thumbnail: CAPTURE_POLY_PIZZA_SOURCE_THUMBNAILS.polyRevolver01Attack
   },
   {
     id: 'polySawedOff01Attack',
     label: 'Quaternius Sawed-Off Shotgun',
     description: 'Poly Pizza sawed-off shotgun with short-range burst pacing.',
-    thumbnail: captureWeaponGlyphThumb('▭', '#b45309')
+    thumbnail: CAPTURE_POLY_PIZZA_SOURCE_THUMBNAILS.polySawedOff01Attack
   },
   {
     id: 'polyRevolver02Attack',
     label: 'Quaternius Revolver Silver',
     description: 'Poly Pizza silver revolver variant with single-hand recoil profile.',
-    thumbnail: captureWeaponGlyphThumb('◗', '#475569')
+    thumbnail: CAPTURE_POLY_PIZZA_SOURCE_THUMBNAILS.polyRevolver02Attack
   },
   {
     id: 'polyShotgun02Attack',
     label: 'Quaternius Long Shotgun',
     description: 'Poly Pizza long shotgun with a larger rack silhouette.',
-    thumbnail: captureWeaponGlyphThumb('▤', '#166534')
+    thumbnail: CAPTURE_POLY_PIZZA_SOURCE_THUMBNAILS.polyShotgun02Attack
   },
   {
     id: 'polyShotgun03Attack',
     label: 'Quaternius Pump Shotgun',
     description: 'Poly Pizza pump shotgun tuned to match existing firearm proportions.',
-    thumbnail: captureWeaponGlyphThumb('▥', '#0f766e')
+    thumbnail: CAPTURE_POLY_PIZZA_SOURCE_THUMBNAILS.polyShotgun03Attack
   },
   {
     id: 'polySmg01Attack',
     label: 'Quaternius Submachine Gun',
     description: 'Poly Pizza compact SMG variant with fast burst behavior.',
-    thumbnail: captureWeaponGlyphThumb('▯', '#0f172a')
+    thumbnail: CAPTURE_POLY_PIZZA_SOURCE_THUMBNAILS.polySmg01Attack
   },
   {
     id: 'polyRobotLargeGunAttack',
     label: 'Quaternius Robot Large Gun',
     description: 'Animated CC0 Poly Pizza robot heavy-gun model for premium Ludo capture attacks.',
-    thumbnail: 'https://static.poly.pizza/78e23275-cb6a-4ba3-ae5e-48a9b4ee2e65.webp'
+    thumbnail: CAPTURE_POLY_PIZZA_SOURCE_THUMBNAILS.polyRobotLargeGunAttack
   },
   {
     id: 'polyRobotFlyingGunAttack',
     label: 'Quaternius Robot Flying Gun',
     description: 'Animated CC0 Poly Pizza flying gun drone adapted as a compact capture weapon.',
-    thumbnail: 'https://static.poly.pizza/6d0889f1-0c3f-4f98-b011-fbcf6c79a93b.webp'
+    thumbnail: CAPTURE_POLY_PIZZA_SOURCE_THUMBNAILS.polyRobotFlyingGunAttack
   },
   {
     id: 'polyBazooka01Attack',
     label: 'CreativeTrio Bazooka',
     description: 'CC0 Poly Pizza bazooka/RPG launcher model added for explosive capture loadouts.',
-    thumbnail: 'https://static.poly.pizza/613e3b1b-d07c-496b-94a1-7c85b507bac4.webp'
+    thumbnail: CAPTURE_POLY_PIZZA_SOURCE_THUMBNAILS.polyBazooka01Attack
   },
   {
     id: 'polyGrenadeLauncher01Attack',
     label: 'CreativeTrio Grenade Launcher',
     description: 'CC0 Poly Pizza grenade launcher firearm with a heavy explosive ballistics profile.',
-    thumbnail: 'https://static.poly.pizza/503bb2c5-4a69-404b-9b82-13e85e8f8467.webp'
+    thumbnail: CAPTURE_POLY_PIZZA_SOURCE_THUMBNAILS.polyGrenadeLauncher01Attack
   },
   {
     id: 'polyDynamiteBomb01Attack',
     label: 'CreativeTrio Dynamite Bomb',
     description: 'CC0 Poly Pizza bomb/dynamite bundle for high-impact table capture effects.',
-    thumbnail: 'https://static.poly.pizza/38e858db-325f-4dce-9680-da62c20c5c31.webp'
+    thumbnail: CAPTURE_POLY_PIZZA_SOURCE_THUMBNAILS.polyDynamiteBomb01Attack
   },
   {
     id: 'polyMolotov01Attack',
     label: 'CreativeTrio Molotov',
     description: 'CC0 Poly Pizza molotov bottle for incendiary capture loadouts.',
-    thumbnail: 'https://static.poly.pizza/d7bb0b50-09af-49f8-b1f9-dbdb0c707d40.webp'
+    thumbnail: CAPTURE_POLY_PIZZA_SOURCE_THUMBNAILS.polyMolotov01Attack
   },
   {
     id: 'polyGasTank01Attack',
     label: 'Quaternius Gas Tank',
     description: 'CC0 Poly Pizza explosive gas tank model for demolition-style captures.',
-    thumbnail: 'https://static.poly.pizza/9c4d2ac5-114b-4da2-a26a-8049e2b1ba04.webp'
+    thumbnail: CAPTURE_POLY_PIZZA_SOURCE_THUMBNAILS.polyGasTank01Attack
   },
   {
     id: 'polyHandGrenade01Attack',
     label: 'CreativeTrio Hand Grenade',
     description: 'CC0 Poly Pizza hand grenade model added alongside the existing grenade fallback.',
-    thumbnail: 'https://static.poly.pizza/03fa7f5b-4df5-45d6-86fb-87e8590f28d7.webp'
+    thumbnail: CAPTURE_POLY_PIZZA_SOURCE_THUMBNAILS.polyHandGrenade01Attack
   },
   {
     id: 'polyTank01Attack',
     label: 'Quaternius Battle Tank',
     description: 'CC0 Poly Pizza tank model for heavy battle-royal capture strike cosmetics.',
-    thumbnail: 'https://static.poly.pizza/58c387b2-636f-49dc-a900-13b0852717d6.webp'
+    thumbnail: CAPTURE_POLY_PIZZA_SOURCE_THUMBNAILS.polyTank01Attack
   }
 
 ]);
