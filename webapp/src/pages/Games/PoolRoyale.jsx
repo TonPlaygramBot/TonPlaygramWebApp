@@ -824,8 +824,8 @@ const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profi
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the notch depth identical to the pocket cylinder so the chrome kisses the jaw edge
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
-const CHROME_PLATE_REFLECTION_SCALE = 0.34; // preserve more gold/chrome sparkle on tiny fascia edges while still damping pocket-cut hot spots
-const CHROME_PLATE_ROUGHNESS_LIFT = 0.055; // keep small metal edge lines crisper by adding less roughness to fascia cuts
+const CHROME_PLATE_REFLECTION_SCALE = 0.52; // keep the procedural chrome/gold plates smoother and more mirror-like on portrait screens
+const CHROME_PLATE_ROUGHNESS_LIFT = 0.018; // preserve a polished fascia finish instead of the previously grainier chrome damping
 const CHROME_PLATE_THICKNESS_SCALE = 0.033; // make the thin chrome/gold fascia read a tiny bit thicker on portrait mobile screens
 const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.22; // add a slight extra side-plate thickness boost so the apron trim edge does not disappear
 const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0.06; // lift fascia slightly with the raised rail/cushion profile so chrome stays aligned on all six pockets
@@ -1070,11 +1070,11 @@ function tunePoolRoyaleSmallMetalMaterial(mat) {
     mat.metalness = THREE.MathUtils.clamp(Math.max(mat.metalness, 0.9), 0, 1);
   }
   if (typeof mat.roughness === 'number') {
-    mat.roughness = THREE.MathUtils.clamp(mat.roughness * 0.88, 0.045, 0.22);
+    mat.roughness = THREE.MathUtils.clamp(mat.roughness * 0.76, 0.028, 0.18);
   }
-  if ('clearcoat' in mat) mat.clearcoat = Math.max(mat.clearcoat ?? 0, 0.62);
-  if ('clearcoatRoughness' in mat) mat.clearcoatRoughness = Math.min(mat.clearcoatRoughness ?? 0.08, 0.08);
-  if ('envMapIntensity' in mat) mat.envMapIntensity = Math.max(mat.envMapIntensity ?? 1, 0.86);
+  if ('clearcoat' in mat) mat.clearcoat = Math.max(mat.clearcoat ?? 0, 0.74);
+  if ('clearcoatRoughness' in mat) mat.clearcoatRoughness = Math.min(mat.clearcoatRoughness ?? 0.055, 0.055);
+  if ('envMapIntensity' in mat) mat.envMapIntensity = Math.max(mat.envMapIntensity ?? 1, 1.02);
   mat.needsUpdate = true;
   return mat;
 }
@@ -3734,6 +3734,28 @@ const CHROME_PLATE_STYLE_OPTIONS = Object.freeze([
     sideHeightScale: 1,
     sideRadiusScale: 1,
     sideCutScale: 1
+  },
+  {
+    id: 'showood-procedural',
+    label: 'Showood Procedural',
+    description: 'Original Royal procedural plates fitted wider to the Showood rails, jaws, and side apron.',
+    swatches: ['#fff1a8', '#d8dde6'],
+    showGeneratedOnExternal: true,
+    preserveExternalTrim: false,
+    hideExternalReferenceParts: ['railSight', 'sideWoodApron'],
+    cornerWidthScale: 1.18,
+    cornerHeightScale: 1.15,
+    cornerRadiusScale: 2.05,
+    cornerCutScale: 1.02,
+    cornerOutsetScale: 1.28,
+    sideWidthScale: 1.22,
+    sideHeightScale: 1.02,
+    sideRadiusScale: 4.2,
+    sideCutScale: 1.035,
+    sideOuterExtensionScale: 1.18,
+    sideCornerExtensionScale: 1.14,
+    sideOutwardShiftScale: 1.6,
+    sideCutCenterPullScale: 0
   }
 ]);
 const CHROME_PLATE_STYLE_BY_ID = Object.freeze(
@@ -9848,7 +9870,7 @@ export function Table3D(
   const sideChromePlateY =
     railsTopY - sideChromePlateThickness + MICRO_EPS * 2;
   const chromeCornerCenterOutset =
-    TABLE.THICK * CHROME_CORNER_CENTER_OUTSET_SCALE;
+    TABLE.THICK * CHROME_CORNER_CENTER_OUTSET_SCALE * (chromePlateStyle.cornerOutsetScale ?? 1);
   const chromeCornerShortRailShift =
     TABLE.THICK * CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE;
   const chromeCornerShortRailCenterPull =
@@ -9873,7 +9895,7 @@ export function Table3D(
       (chromePlateStyle.sideWidthScale ?? 1)
   );
   const sideChromeOuterExtension =
-    TABLE.THICK * CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE;
+    TABLE.THICK * CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE * (chromePlateStyle.sideOuterExtensionScale ?? 1);
   const sidePlateHalfHeightLimit = Math.max(
     0,
     chromePlateInnerLimitZ - TABLE.THICK * 0.08
@@ -9882,7 +9904,7 @@ export function Table3D(
     MICRO_EPS,
     Math.min(sidePlateHalfHeightLimit, sideChromeMeetZ) *
       2 *
-      CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE
+      CHROME_SIDE_PLATE_CORNER_EXTENSION_SCALE * (chromePlateStyle.sideCornerExtensionScale ?? 1)
   );
   const sideChromePlateHeight = Math.min(
     Math.max(
@@ -10481,7 +10503,7 @@ export function Table3D(
   });
 
   const sideChromePlateOutwardShift =
-    TABLE.THICK * CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE;
+    TABLE.THICK * CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE * (chromePlateStyle.sideOutwardShiftScale ?? 1);
   const sideChromeOuterEdgeLimit = Math.max(
     MICRO_EPS,
     outerHalfW - chromePlateInset + sideChromeOuterExtension
@@ -10507,7 +10529,7 @@ export function Table3D(
       const centerZ = 0;
       const notchMP = scaleChromeSidePocketCut(sideNotchMP(sx));
       const sidePocketCutCenterPull =
-        TABLE.THICK * CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE;
+        TABLE.THICK * CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE * (chromePlateStyle.sideCutCenterPullScale ?? 1);
       const notchLocalMP = notchMP.map((poly) =>
         poly.map((ring) =>
           ring.map(([x, z]) => [x - centerX - sx * sidePocketCutCenterPull, -(z - centerZ)])
@@ -13595,9 +13617,9 @@ function subtlyExpandPoolRoyaleShowoodRailSightsAndAprons(model, tableModel) {
   const fullBox = new THREE.Box3().setFromObject(model);
   if (fullBox.isEmpty()) return;
   const fullCenter = fullBox.getCenter(new THREE.Vector3());
-  const safeVisualScale = hasScale ? THREE.MathUtils.clamp(visualScale, 1, 1.1) : 1;
-  const safeRailSightHeightScale = hasRailSightHeight ? THREE.MathUtils.clamp(railSightHeightScale, 1, 1.14) : 1;
-  const safeSideApronHeightScale = hasSideApronHeight ? THREE.MathUtils.clamp(sideApronHeightScale, 1, 1.16) : 1;
+  const safeVisualScale = hasScale ? THREE.MathUtils.clamp(visualScale, 1, 1.14) : 1;
+  const safeRailSightHeightScale = hasRailSightHeight ? THREE.MathUtils.clamp(railSightHeightScale, 1, 1.18) : 1;
+  const safeSideApronHeightScale = hasSideApronHeight ? THREE.MathUtils.clamp(sideApronHeightScale, 1, 1.2) : 1;
 
   model.traverse((child) => {
     if (!child?.isMesh || child.userData?.poolRoyaleShowoodRailSightApronExpanded) return;
