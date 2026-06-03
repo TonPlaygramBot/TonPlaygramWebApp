@@ -446,9 +446,6 @@ const chessMatchedPolyPizzaCaptureConfig = (ludoId) => {
 };
 
 const GUNIFY_SPECULAR_GLOSSINESS_EXTENSION = 'KHR_materials_pbrSpecularGlossiness';
-const ORIGINAL_ASSET_FALLBACK_PIXEL =
-  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
-const ORIGINAL_GLTF_JSON_TIMEOUT_MS = 45000;
 
 function cloneGltfJsonValue(value) {
   if (value == null) return value;
@@ -490,99 +487,14 @@ function patchGunifySpecularGlossinessMaterials(gltfJson) {
   return patched;
 }
 
-function sourceUrlAlternates(url = '') {
-  const values = [`${url}`].filter(Boolean);
-  const jsDelivrMatch = `${url}`.match(/^https:\/\/cdn\.jsdelivr\.net\/gh\/([^/]+)\/([^@/]+)@([^/]+)\/(.+)$/i);
-  const rawMatch = `${url}`.match(/^https:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/([^/]+)\/(.+)$/i);
-  const blobMatch = `${url}`.match(/^https:\/\/github\.com\/([^/]+)\/([^/]+)\/blob\/([^/]+)\/(.+)$/i);
-  if (jsDelivrMatch) {
-    values.push(`https://raw.githubusercontent.com/${jsDelivrMatch[1]}/${jsDelivrMatch[2]}/${jsDelivrMatch[3]}/${jsDelivrMatch[4]}`);
-  }
-  if (rawMatch) {
-    values.push(`https://cdn.jsdelivr.net/gh/${rawMatch[1]}/${rawMatch[2]}@${rawMatch[3]}/${rawMatch[4]}`);
-  }
-  if (blobMatch) {
-    values.push(`https://raw.githubusercontent.com/${blobMatch[1]}/${blobMatch[2]}/${blobMatch[3]}/${blobMatch[4]}`);
-  }
-  return Array.from(new Set(values));
-}
-
-function originalAssetMimeFromUri(uri = '') {
-  const clean = `${uri}`.split('?')[0].split('#')[0].toLowerCase();
-  if (clean.endsWith('.jpg') || clean.endsWith('.jpeg')) return 'image/jpeg';
-  if (clean.endsWith('.webp')) return 'image/webp';
-  if (clean.endsWith('.ktx2') || clean.endsWith('.basis')) return 'image/ktx2';
-  if (clean.endsWith('.bin')) return 'application/octet-stream';
-  return 'image/png';
-}
-
-function resolveOriginalResourceCandidates(resourceUri, sourceUrl) {
-  if (isDataUri(resourceUri)) return [resourceUri];
-  if (isAbsoluteUrl(resourceUri)) return sourceUrlAlternates(resourceUri);
-  const base = new URL('.', sourceUrl).href;
-  const normalized = `${resourceUri}`.replace(/\\/g, '/').replace(/^\.\//, '');
-  return sourceUrlAlternates(new URL(normalized, base).href);
-}
-
-async function fetchOriginalAssetAsDataUri(candidates, fallbackMime = 'application/octet-stream') {
-  let lastError = null;
-  for (const candidate of candidates) {
-    try {
-      // eslint-disable-next-line no-await-in-loop
-      const blob = await fetchBlob(candidate);
-      const mime = blob.type || fallbackMime || originalAssetMimeFromUri(candidate);
-      // eslint-disable-next-line no-await-in-loop
-      return await blobToDataUri(blob.type ? blob : new Blob([await blob.arrayBuffer()], { type: mime }));
-    } catch (error) {
-      lastError = error;
-      console.warn('Original GLTF asset candidate failed; trying next original URL:', candidate, error);
-    }
-  }
-  throw lastError ?? new Error('No original GLTF asset candidate loaded');
-}
-
-async function loadOriginalGltfWithInlinedAssets(loader, candidateUrl, { patchGunify = false } = {}) {
-  const controller = new AbortController();
-  const timer = globalThis.setTimeout(() => controller.abort(), ORIGINAL_GLTF_JSON_TIMEOUT_MS);
-  try {
-    const response = await fetch(candidateUrl, { mode: 'cors', signal: controller.signal });
-    if (!response.ok) throw new Error(`GLTF JSON fetch failed: ${response.status}`);
-    let gltfJson = await response.json();
-    if (patchGunify) gltfJson = patchGunifySpecularGlossinessMaterials(gltfJson);
-    const buffers = Array.isArray(gltfJson.buffers) ? gltfJson.buffers : [];
-    for (let i = 0; i < buffers.length; i += 1) {
-      const buffer = buffers[i];
-      if (typeof buffer?.uri !== 'string' || isDataUri(buffer.uri)) continue;
-      const candidates = resolveOriginalResourceCandidates(buffer.uri, candidateUrl);
-      // eslint-disable-next-line no-await-in-loop
-      buffer.uri = await fetchOriginalAssetAsDataUri(candidates, 'application/octet-stream');
-    }
-    const images = Array.isArray(gltfJson.images) ? gltfJson.images : [];
-    for (let i = 0; i < images.length; i += 1) {
-      const image = images[i];
-      if (typeof image?.uri !== 'string' || isDataUri(image.uri)) continue;
-      const candidates = resolveOriginalResourceCandidates(image.uri, candidateUrl);
-      try {
-        // eslint-disable-next-line no-await-in-loop
-        image.uri = await fetchOriginalAssetAsDataUri(candidates, image.mimeType || originalAssetMimeFromUri(candidates[0]));
-        image.mimeType = image.mimeType || originalAssetMimeFromUri(candidates[0]);
-      } catch (error) {
-        console.warn('Every original GLTF texture URL failed; using fallback pixel for this texture only:', image.uri, error);
-        image.uri = ORIGINAL_ASSET_FALLBACK_PIXEL;
-        image.mimeType = 'image/png';
-      }
-    }
-    const basePath = new URL('.', candidateUrl).href;
-    loader.setPath?.(basePath);
-    loader.setResourcePath?.(basePath);
-    return loader.parseAsync(JSON.stringify(gltfJson), basePath);
-  } finally {
-    globalThis.clearTimeout(timer);
-  }
-}
-
 async function loadGunifyOriginalGltf(loader, candidateUrl) {
-  return loadOriginalGltfWithInlinedAssets(loader, candidateUrl, { patchGunify: true });
+  const response = await fetch(candidateUrl, { mode: 'cors' });
+  if (!response.ok) throw new Error(`Gunify GLTF fetch failed: ${response.status}`);
+  const gltfJson = patchGunifySpecularGlossinessMaterials(await response.json());
+  const basePath = new URL('.', candidateUrl).href;
+  loader.setPath?.(basePath);
+  loader.setResourcePath?.(basePath);
+  return loader.parseAsync(JSON.stringify(gltfJson), basePath);
 }
 
 const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
@@ -758,7 +670,7 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
 const CAPTURE_WEAPON_MODEL_CACHE = new Map();
 const CAPTURE_WEAPON_MODEL_REDIRECT = new Map();
 const CAPTURE_WEAPON_MODEL_FAILURE = new Set();
-const CAPTURE_WEAPON_LOAD_TIMEOUT_MS = 120000;
+const CAPTURE_WEAPON_LOAD_TIMEOUT_MS = 22000;
 const GLTF_FALLBACK_GRACE_MS = 2200;
 let activeModelTextureAnisotropy = 8;
 
@@ -1555,12 +1467,8 @@ async function loadCaptureWeaponModel(captureAnimationId) {
           loader.setPath?.(basePath);
           loader.setResourcePath?.(basePath);
         }
-        const loadedGltf = isGltfAssetUrl(candidateUrl)
-          ? await withLoadTimeout(
-              config?.source === 'Gunify'
-                ? loadGunifyOriginalGltf(loader, candidateUrl)
-                : loadOriginalGltfWithInlinedAssets(loader, candidateUrl)
-            )
+        const loadedGltf = config?.source === 'Gunify' && isGltfAssetUrl(candidateUrl)
+          ? await withLoadTimeout(loadGunifyOriginalGltf(loader, candidateUrl))
           : await withLoadTimeout(loader.loadAsync(candidateUrl));
         loadedRoot = assignLoadedGltf(loadedGltf);
       } catch (error) {
@@ -2121,12 +2029,11 @@ function uniqueStrings(values) {
 }
 
 function buildImageCandidates(imageUri, sourceUrl, modelUrls) {
-  if (isDataUri(imageUri)) return [imageUri];
-  if (isAbsoluteUrl(imageUri)) return uniqueStrings(sourceUrlAlternates(imageUri));
-  const normalized = `${imageUri}`.replace(/\\/g, '/').replace(/^\.\//, '');
+  if (isAbsoluteUrl(imageUri)) return uniqueStrings([imageUri]);
   return uniqueStrings([
-    ...sourceUrlAlternates(new URL(normalized, sourceUrl).href),
-    ...modelUrls.flatMap((modelUrl) => sourceUrlAlternates(new URL(normalized, modelUrl).href))
+    imageUri,
+    new URL(imageUri, sourceUrl).href,
+    ...modelUrls.map((modelUrl) => new URL(imageUri, modelUrl).href)
   ]);
 }
 
@@ -2286,7 +2193,7 @@ async function resolveExternalImageToDataUri(imageUri, kind, sourceUrl, modelUrl
     human: ['#d8c0a6', '#2c3f54']
   };
   const [primary, secondary] = placeholderColors[kind] ?? ['#6e7681', '#4f5861'];
-  const placeholderDataUri = kind === 'weapon' ? ORIGINAL_ASSET_FALLBACK_PIXEL : makePlaceholderTextureDataUri(primary, secondary);
+  const placeholderDataUri = makePlaceholderTextureDataUri(primary, secondary);
   const candidates = buildImageCandidates(imageUri, sourceUrl, modelUrls);
   for (const candidate of candidates) {
     if (!isAbsoluteUrl(candidate)) continue;
@@ -2564,33 +2471,29 @@ function findDroneMotorMesh(root) {
 
 function applyMilitaryDroneLook(root, propeller = null) {
   if (!root) return null;
-  // Preserve the Ukrainian/Shahed drone GLB's authored WebGL textures.  The
-  // pasted reference loader keeps original GLB/GLTF images intact, so this
-  // styling pass only tweaks untextured helper/fallback materials instead of
-  // replacing maps with procedural metal.
+  applyCaptureTextureToOpaqueMeshes(root, 'drone');
   const motor = propeller ?? findDroneMotorMesh(root);
   root.traverse((node) => {
     if (!node?.isMesh) return;
     const name = `${node.name || ''}`.toLowerCase();
     const isMotor = node === motor || /propell|rotor|blade|fan|motor/.test(name);
     paintMeshMaterials(node, (mat) => {
-      const hasAuthoredTexture = Boolean(mat.map || mat.normalMap || mat.roughnessMap || mat.metalnessMap || mat.emissiveMap);
       if (/window|windshield|glass|cockpit|canopy/.test(name)) {
-        if (!hasAuthoredTexture) mat.color.setHex(0x000000);
-        if ('metalness' in mat) mat.metalness = Math.max(mat.metalness ?? 0, 0.58);
-        if ('roughness' in mat) mat.roughness = Math.min(mat.roughness ?? 1, 0.2);
+        mat.color.setHex(0x000000);
+        if ('metalness' in mat) mat.metalness = 0.58;
+        if ('roughness' in mat) mat.roughness = 0.2;
         if ('transparent' in mat) mat.transparent = true;
-        if ('opacity' in mat) mat.opacity = Math.min(mat.opacity ?? 1, 0.95);
+        if ('opacity' in mat) mat.opacity = 0.95;
         return;
       }
       if (isMotor || /engine|exhaust|rear|tail/.test(name)) {
-        if (!hasAuthoredTexture) mat.color.setHex(0x11151a);
-        if ('metalness' in mat) mat.metalness = Math.max(mat.metalness ?? 0, 0.72);
-        if ('roughness' in mat) mat.roughness = Math.min(mat.roughness ?? 1, 0.28);
+        mat.color.setHex(0x11151a);
+        if ('metalness' in mat) mat.metalness = 0.72;
+        if ('roughness' in mat) mat.roughness = 0.28;
         return;
       }
-      if ('metalness' in mat) mat.metalness = Math.max(mat.metalness ?? 0, 0.42);
-      if ('roughness' in mat) mat.roughness = Math.min(Math.max(mat.roughness ?? 0.52, 0.36), 0.72);
+      if ('metalness' in mat) mat.metalness = 0.42;
+      if ('roughness' in mat) mat.roughness = 0.52;
     });
   });
   return motor;
