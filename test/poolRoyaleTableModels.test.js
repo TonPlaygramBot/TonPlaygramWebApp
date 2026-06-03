@@ -5,6 +5,12 @@ import {
   POOL_ROYALE_TABLE_MODEL_OPTIONS,
   resolvePoolRoyaleTableModel
 } from '../webapp/src/config/poolRoyaleTableModels.js';
+import {
+  POOL_ROYALE_DEFAULT_LOADOUT,
+  POOL_ROYALE_DEFAULT_UNLOCKS,
+  POOL_ROYALE_OPTION_LABELS,
+  POOL_ROYALE_STORE_ITEMS
+} from '../webapp/src/config/poolRoyaleInventoryConfig.js';
 
 describe('Pool Royale table models', () => {
   test('defaults to the Showood seven-foot GLB table', () => {
@@ -42,14 +48,37 @@ describe('Pool Royale table models', () => {
     assert.equal(showood.lowerLegFootReachScale, 1.28);
     assert.equal(showood.footWidthScale, 1.08);
     assert.equal(showood.footHeightScale, 1);
-    assert.equal(showood.railSightApronVisualScale, 1.092);
-    assert.equal(showood.railSightOutwardOffset, 0.052);
-    assert.equal(showood.railSightVisualHeightScale, 1.108);
-    assert.equal(showood.sideApronVisualHeightScale, 1.14);
-    assert.equal(showood.sideApronOutwardOffset, 0.076);
+    assert.equal(showood.railSightApronVisualScale, 1.128);
+    assert.equal(showood.railSightOutwardOffset, 0.078);
+    assert.equal(showood.railSightVisualHeightScale, 1.15);
+    assert.equal(showood.sideApronVisualHeightScale, 1.19);
+    assert.equal(showood.sideApronOutwardOffset, 0.106);
     assert.equal(showood.shortRailMarkerOutwardOffset, 0.064);
     assert.equal(showood.brandPlateOutwardOffset, 0.089);
     assert.deepEqual(showood.usePoolRoyaleFinishRoles, ['cloth', 'cushion', 'wood']);
+  });
+
+
+  test('Showood procedural chrome plate style is removed from Pool Royale inventory', () => {
+    assert.deepEqual(POOL_ROYALE_DEFAULT_UNLOCKS.chromePlateStyle, [
+      'showood-rounded',
+      'royal-classic'
+    ]);
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(
+        POOL_ROYALE_OPTION_LABELS.chromePlateStyle,
+        'showood-procedural'
+      ),
+      false
+    );
+    assert.equal(
+      POOL_ROYALE_STORE_ITEMS.some((item) => item.optionId === 'showood-procedural'),
+      false
+    );
+    assert.equal(
+      POOL_ROYALE_DEFAULT_LOADOUT.some((item) => item.optionId === 'showood-procedural'),
+      false
+    );
   });
 
   test('Pool Royale game uses one shared table finish/base menu for Royal and Showood', async () => {
