@@ -237,15 +237,15 @@ const FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
   sniperShotAttack: 2.8,
   shotgunBlastAttack: 2.2,
   grenadeBlastAttack: 0.45,
-  polyShotgun01Attack: 2.2,
-  polyAssaultRifle01Attack: 2.2,
-  polyPistol01Attack: 2.2,
-  polyRevolver01Attack: 2.2,
-  polySawedOff01Attack: 2.2,
-  polyRevolver02Attack: 2.2,
-  polyShotgun02Attack: 2.2,
-  polyShotgun03Attack: 2.2,
-  polySmg01Attack: 2.2,
+  polyShotgun01Attack: 2.05,
+  polyAssaultRifle01Attack: 2.15,
+  polyPistol01Attack: 1.02,
+  polyRevolver01Attack: 1.08,
+  polySawedOff01Attack: 1.56,
+  polyRevolver02Attack: 1.08,
+  polyShotgun02Attack: 2.22,
+  polyShotgun03Attack: 2.1,
+  polySmg01Attack: 1.68,
   polyRobotLargeGunAttack: 1.95,
   polyRobotFlyingGunAttack: 1.45,
   polyBazooka01Attack: 2.6,
@@ -4121,7 +4121,6 @@ const LUDO_CAMERA_AUTO_LOOK_ENABLED = true;
 const LUDO_CAMERA_BROADCAST_LOCKED_POSITION = true;
 const LUDO_CAMERA_SEAT_LOCK_ENABLED = true;
 const LUDO_CAMERA_ANIMATION_BOTTOM_TURN_VIEW = false;
-const LUDO_HDRI_LOCK_GROUNDED_SKYBOX_SCALE = true;
 const CAPTURE_ATTACK_CAMERA_FRAME = Object.freeze({
   fighterJetAttack: { focusWeight: 0.52, targetLift: 0.014, followPullback: 0.082, followLift: 0.022 },
   helicopterAttack: { focusWeight: 0.56, targetLift: 0.02, followPullback: 0.068, followLift: 0.026 },
@@ -10182,12 +10181,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const measuredRadius = camera.position.distanceTo(boardLookTarget);
       const baseRadius = baseCameraRadiusRef.current || measuredRadius || 1;
       const baseScale = baseSkyboxScaleRef.current || 1;
-      // Keep grounded HDRIs visually pinned while the camera auto-looks at the
-      // next player, dice result, or cinematic target. Scaling the skybox by
-      // the active look radius makes the environment feel like it is moving or
-      // zooming on portrait screens.
-      const radius = LUDO_HDRI_LOCK_GROUNDED_SKYBOX_SCALE ? baseRadius : measuredRadius;
-      const scale = LUDO_HDRI_LOCK_GROUNDED_SKYBOX_SCALE ? 1 : clamp(radius / baseRadius, 0.35, 3.5);
+      // Do not rescale the grounded HDRI during cinematic firearm camera moves;
+      // the camera intentionally changes position, but the environment must remain stable.
+      const radius = dynamicFirearmCameraRef.current ? baseRadius : measuredRadius;
+      const scale = clamp(radius / baseRadius, 0.35, 3.5);
       skybox.scale.setScalar(baseScale * scale);
       lastCameraRadiusRef.current = radius;
       const floorY = environmentFloorRef.current ?? 0;
@@ -10885,12 +10882,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           ? boardLookTargetRef.current.clone()
           : null;
         const liveFacePose = resolveSeatedFaceCameraPose(bottomActorEntry, gameplayTarget);
-        const hardLockedPosition = cameraLookStateRef.current.lockedPosition?.isVector3
-          ? cameraLookStateRef.current.lockedPosition
-          : cameraSeatLockPositionRef.current?.isVector3
-            ? cameraSeatLockPositionRef.current
-            : liveFacePose?.position?.isVector3
-              ? liveFacePose.position
+        const hardLockedPosition = liveFacePose?.position?.isVector3
+          ? liveFacePose.position
+          : cameraLookStateRef.current.lockedPosition?.isVector3
+            ? cameraLookStateRef.current.lockedPosition
+            : cameraSeatLockPositionRef.current?.isVector3
+              ? cameraSeatLockPositionRef.current
               : null;
         if (hardLockedPosition) {
           camera.position.copy(hardLockedPosition);
@@ -12663,14 +12660,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const bottomActorEntry = seatedHumanActorsRef.current?.find((entry) => entry?.playerIndex === 0);
       const facePose = resolveSeatedFaceCameraPose(bottomActorEntry, resolveBottomPlayerGameplayTarget());
       if (facePose?.position?.isVector3 && facePose?.target?.isVector3) {
-        const lockedPosition = cameraSeatLockPositionRef.current?.isVector3
-          ? cameraSeatLockPositionRef.current.clone()
-          : facePose.position.clone();
         cameraTurnStateRef.current.baseTurnView = {
-          position: lockedPosition,
+          position: facePose.position.clone(),
           target: facePose.target.clone()
         };
-        animateCameraPose(facePose.target, lockedPosition, duration);
+        animateCameraPose(facePose.target, facePose.position, duration);
         return;
       }
       const initialBottomView = initialBottomCameraViewRef.current;
