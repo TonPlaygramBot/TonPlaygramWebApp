@@ -1520,7 +1520,7 @@ const CLOTH_REFLECTION_LIMITS = Object.freeze({
 const CLOTH_REFLECTIONS_DISABLED = true;
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
-const CORNER_POCKET_CLOTH_CUT_SCALE = 0.958; // shrink only the corner cloth cutouts so corner sleeve apertures read tighter
+const CORNER_POCKET_CLOTH_CUT_SCALE = 1; // keep corner field cutouts matched to the visible pocket rim
 const BALL_CENTER_LIFT = BALL_R * 0.045; // lift balls a touch more so they sit exactly on top of the cloth surface
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP + BALL_CENTER_LIFT; // rest balls directly on the lowered cloth plane
@@ -11258,7 +11258,7 @@ export function Table3D(
   const brandPlateWidth = Math.min(PLAY_W * 0.36, Math.max(BALL_R * 10.8, PLAY_W * 0.255));
   const brandPlateY = railsTopY + brandPlateThickness * 0.5 + MICRO_EPS * 8;
   const shortRailCenterZ = halfH + endRailW * 0.5;
-  const brandPlateOutwardShift = endRailW * 1.04;
+  const brandPlateOutwardShift = endRailW * 1.1;
   const brandPlateGeom = new THREE.BoxGeometry(
     brandPlateWidth,
     brandPlateThickness,
@@ -11304,7 +11304,7 @@ export function Table3D(
           colorId: railMarkerStyle.colorId ?? DEFAULT_RAIL_MARKER_COLOR_ID
         }
       : { shape: DEFAULT_RAIL_MARKER_SHAPE, colorId: DEFAULT_RAIL_MARKER_COLOR_ID };
-  const railMarkerOutset = longRailW * 0.08;
+  const railMarkerOutset = longRailW * 0.105;
   const railMarkerInwardShift = resolvedTableOptions?.tableModel?.useReferenceShowoodMapping
     ? -Math.max(BALL_R * 0.18, longRailW * 0.045)
     : Math.max(BALL_R * 0.35, longRailW * 0.08);
@@ -13992,11 +13992,11 @@ function mountPoolRoyaleExternalTableModel({
     openPortal: (ctx) => {
       const meshes = [];
       const legMeshes = [];
-      const frameWidth = ctx.frameOuterX * 0.9;
-      const frameDepth = ctx.frameOuterZ * 0.26;
+      const frameWidth = ctx.frameOuterX * 0.93;
+      const frameDepth = ctx.frameOuterZ * 0.285;
       const thickness = ctx.legR;
-      const legWidth = thickness * 1.35;
-      const legHeight = ctx.legH * 0.94;
+      const legWidth = thickness * 1.44;
+      const legHeight = ctx.legH * 0.98;
       const portalLegRadius = Math.max(
         0.005,
         Math.min(legWidth, frameDepth) * 0.22
@@ -14015,7 +14015,7 @@ function mountPoolRoyaleExternalTableModel({
       const legBaseY = ctx.floorY;
       const legY = legBaseY + legHeight / 2;
       const portalDepth = Math.max(0, ctx.frameOuterZ - (ctx.legInset + PORTAL_POCKET_CLEARANCE));
-      const portalZ = Math.max(0, portalDepth * 0.88 - PORTAL_SHORT_RAIL_CENTER_PULL);
+      const portalZ = Math.max(0, portalDepth * 0.91 - PORTAL_SHORT_RAIL_CENTER_PULL);
       const levelerCenters = [];
       const buildPortal = (signZ) => {
         const portal = new THREE.Group();
@@ -14038,52 +14038,12 @@ function mountPoolRoyaleExternalTableModel({
       return attachLegLevelers(ctx, { meshes, legMeshes }, levelerCenters);
     },
     coffeeTableRound01: createPolyhavenTableBaseBuilder('coffee_table_round_01', {
-      footprintScale: 0.98,
-      footprintDepthScale: 1.06,
-      heightFill: 0.8,
-      topInsetScale: 0.96,
+      footprintScale: 1.04,
+      footprintDepthScale: 1.12,
+      heightFill: 0.84,
+      topInsetScale: 0.98,
       materialKey: 'trim'
     }),
-    gothicCoffeeTable: (ctx) => {
-      const build = createPolyhavenTableBaseBuilder('gothic_coffee_table', {
-        footprintScale: 1,
-        footprintDepthScale: 1,
-        heightFill: 0.94,
-        topInsetScale: 0.98,
-        materialKey: 'rail',
-        matchTableFootprint: true
-      });
-      const built = build(ctx);
-      const insetX = Math.min(ctx.frameOuterX, ctx.legInset + LEG_POCKET_CLEARANCE * 0.92);
-      const insetZ = Math.min(ctx.frameOuterZ, ctx.legInset + LEG_POCKET_CLEARANCE * 0.72);
-      const centers = [
-        { x: -ctx.frameOuterX + insetX, z: -ctx.frameOuterZ + insetZ },
-        { x: ctx.frameOuterX - insetX, z: -ctx.frameOuterZ + insetZ },
-        { x: -ctx.frameOuterX + insetX, z: ctx.frameOuterZ - insetZ },
-        { x: ctx.frameOuterX - insetX, z: ctx.frameOuterZ - insetZ }
-      ];
-      return attachLegLevelers(ctx, built, centers);
-    },
-    woodenTable02Alt: (ctx) => {
-      const build = createPolyhavenTableBaseBuilder('wooden_table_02', {
-        footprintScale: 0.94,
-        footprintDepthScale: 0.96,
-        heightFill: 0.9,
-        topInsetScale: 0.95,
-        materialKey: 'rail',
-        matchTableFootprint: true
-      });
-      const built = build(ctx);
-      const insetX = Math.min(ctx.frameOuterX, ctx.legInset + LEG_POCKET_CLEARANCE * 0.88);
-      const insetZ = Math.min(ctx.frameOuterZ, ctx.legInset + LEG_POCKET_CLEARANCE * 0.68);
-      const centers = [
-        { x: -ctx.frameOuterX + insetX, z: -ctx.frameOuterZ + insetZ },
-        { x: ctx.frameOuterX - insetX, z: -ctx.frameOuterZ + insetZ },
-        { x: -ctx.frameOuterX + insetX, z: ctx.frameOuterZ - insetZ },
-        { x: ctx.frameOuterX - insetX, z: ctx.frameOuterZ - insetZ }
-      ];
-      return attachLegLevelers(ctx, built, centers);
-    }
   };
 
   const normalizeBasePlacement = (meshes = [], options = {}) => {
@@ -14158,7 +14118,8 @@ function mountPoolRoyaleExternalTableModel({
       table.userData.baseVariantId = 'externalModelOwnBase';
       return;
     }
-    const variantId = resolveBaseVariantId(variant);
+    const requestedVariantId = resolveBaseVariantId(variant);
+    const variantId = baseBuilders[requestedVariantId] ? requestedVariantId : DEFAULT_TABLE_BASE_ID;
     const builder = baseBuilders[variantId] ?? baseBuilders[DEFAULT_TABLE_BASE_ID];
     clearBaseMeshes();
     const finishMaterials = table.userData?.finish?.materials || {};
