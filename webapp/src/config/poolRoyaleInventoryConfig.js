@@ -663,7 +663,9 @@ const CUE_STYLE_THUMBNAILS = Object.freeze({
 const BASE_VARIANT_THUMBNAILS = Object.freeze({
   classicCylinders: swatchThumbnail(['#8f6243', '#6f3a2f', '#fef3c7']),
   openPortal: swatchThumbnail(['#f8fafc', '#e5e7eb', '#93c5fd']),
-  coffeeTableRound01: polyHavenThumb('coffee_table_round_01')
+  coffeeTableRound01: polyHavenThumb('coffee_table_round_01'),
+  gothicCoffeeTable: polyHavenThumb('gothic_coffee_table'),
+  woodenTable02Alt: polyHavenThumb('wooden_table_02')
 });
 
 export const POOL_ROYALE_HDRI_VARIANT_MAP = Object.freeze(
@@ -691,6 +693,18 @@ export const POOL_ROYALE_BASE_VARIANTS = Object.freeze([
     name: 'Coffee Table Round 01 Base',
     description: 'Rounded Poly Haven coffee table legs tucked beneath the pool table.',
     swatches: ['#c5a47e', '#7a5534']
+  },
+  {
+    id: 'gothicCoffeeTable',
+    name: 'Gothic Coffee Table Base',
+    description: 'Gothic coffee table from Murlan Royale re-used as a sculpted support base.',
+    swatches: ['#8f4a2b', '#3b2a1f']
+  },
+  {
+    id: 'woodenTable02Alt',
+    name: 'Wooden Table 02 Alt Base',
+    description: 'Alternate Wooden Table 02 variant resized to cradle the pool playfield.',
+    swatches: ['#6f5140', '#caa07a']
   }
 ].map((variant) => ({
   ...variant,
