@@ -363,10 +363,6 @@ const CHESS_FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
 const CHESS_FIREARM_FLAT_ROTATION = Object.freeze([-Math.PI * 0.5, -Math.PI * 0.02, 0]);
 const CHESS_FIREARM_AIM_ROTATION = Object.freeze([0, Math.PI * 0.5, 0]); // flip handheld weapons so their muzzles face the target.
 const CHESS_FIREARM_HANDHELD_SCALE_MULTIPLIER = 1.9;
-const CHESS_FIREARM_HAND_MUZZLE_FORWARD = 0.22;
-const CHESS_FIREARM_HAND_GRIP_REAR_PULLBACK = 0.035;
-const CHESS_FIREARM_HAND_GRIP_UP_LIFT = 0.018;
-const CHESS_FIREARM_HAND_MUZZLE_UP_LIFT = 0.018;
 const CHESS_FIREARM_MUZZLE_YAW_CORRECTION_BY_ID = Object.freeze({
   ak47VolleyAttack: Math.PI,
   krsvBurstAttack: Math.PI
@@ -378,9 +374,7 @@ const CHESS_FIREARM_HOLD_PROFILE_BY_TYPE = Object.freeze({
   SMG: { supportGrip: 0.92, shoulderX: -1.12, shoulderZ: -1.31, forearmX: -0.46, wristX: 0.05 },
   Shotgun: { supportGrip: 0.98, shoulderX: -1.18, shoulderZ: -1.4, forearmX: -0.58, wristX: -0.01 },
   SniperRifle: { supportGrip: 0.9, shoulderX: -1.22, shoulderZ: -1.42, forearmX: -0.6, wristX: -0.03 },
-  Sniper: { supportGrip: 0.9, shoulderX: -1.22, shoulderZ: -1.42, forearmX: -0.6, wristX: -0.03 },
   DMR: { supportGrip: 0.92, shoulderX: -1.2, shoulderZ: -1.38, forearmX: -0.56, wristX: -0.01 },
-  GrenadeLauncher: { supportGrip: 0.88, shoulderX: -1.18, shoulderZ: -1.34, forearmX: -0.54, wristX: 0.01 },
   Pistol: { supportGrip: 0.86, shoulderX: -1.02, shoulderZ: -1.2, forearmX: -0.36, wristX: 0.07 },
   Revolver: { supportGrip: 0.84, shoulderX: -1.0, shoulderZ: -1.18, forearmX: -0.34, wristX: 0.08 }
 });
@@ -645,8 +639,7 @@ const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.68;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.42; // lift camera a bit higher while preserving table focus in portrait.
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.98; // mirror the slight upward lift for landscape framing.
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 1.35;
-const PLAYER_VIEW_LOOK_TARGET_UP_BIAS = 0.48; // baseline look height for 2D/portrait player framing.
-const CAMERA_3D_VISUAL_DOWN_TARGET_UP_BIAS = 0.22; // aim the 3D camera slightly higher so the table/chairs/avatars appear lower on portrait screens.
+const PLAYER_VIEW_LOOK_TARGET_UP_BIAS = 0.48; // lower look target slightly so the whole table/chair/human stack lands visually lower on portrait screens.
 const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 9.1; // shift arena lower so table, weapons, chairs, and seated avatars sit closer to the phone-bottom edge in portrait.
 const FPV_FACE_FORWARD_OFFSET = 0.012; // keep the camera almost exactly at the eyes for a true first-person perspective.
 const FPV_FACE_UP_OFFSET = 0.0; // slight lift so the board edge does not clip while still feeling eye-level.
@@ -719,50 +712,6 @@ function averageBoneWorldPosition(bones = []) {
   });
   if (!count) return null;
   return sum.multiplyScalar(1 / count);
-}
-
-function resolveSeatedFirearmWorldPose(actorEntry, targetPos, fallbackShooterPos = null, firearmType = 'Rifle') {
-  if (!actorEntry?.rig || !targetPos?.isVector3) return null;
-  const rig = actorEntry.rig;
-  const rightGrip =
-    averageBoneWorldPosition([
-      rig.rightHand,
-      rig.rightThumb?.[rig.rightThumb.length - 1],
-      rig.rightIndex?.[rig.rightIndex.length - 1],
-      rig.rightMiddle?.[rig.rightMiddle.length - 1]
-    ].filter(Boolean)) ||
-    rig.rightHand?.getWorldPosition?.(new THREE.Vector3()) ||
-    fallbackShooterPos?.clone?.() ||
-    null;
-  if (!rightGrip) return null;
-  const leftSupport =
-    averageBoneWorldPosition([
-      rig.leftHand,
-      rig.leftIndex?.[rig.leftIndex.length - 1],
-      rig.leftMiddle?.[rig.leftMiddle.length - 1]
-    ].filter(Boolean)) || null;
-  const shoulderLine = averageBoneWorldPosition([rig.rightUpperArm, rig.leftUpperArm].filter(Boolean));
-  const weaponTypeScale = firearmType === 'Pistol' ? 0.72 : firearmType === 'SMG' ? 0.86 : firearmType === 'Shotgun' ? 1.08 : 1;
-  const aimDir = targetPos.clone().sub(rightGrip);
-  if (aimDir.lengthSq() < 1e-8) return null;
-  aimDir.normalize();
-  const side = new THREE.Vector3().crossVectors(WORLD_UP, aimDir);
-  if (side.lengthSq() < 1e-8) side.set(1, 0, 0);
-  else side.normalize();
-  const up = new THREE.Vector3().crossVectors(aimDir, side).normalize();
-  const shoulderStability = shoulderLine ? clamp01(rightGrip.distanceTo(shoulderLine) / 0.38, 0.55) : 0.55;
-  const supportBlend = leftSupport ? clamp01(leftSupport.distanceTo(rightGrip) / 0.32, 0.35) : 0.35;
-  const gripLift = CHESS_FIREARM_HAND_GRIP_UP_LIFT * (0.82 + shoulderStability * 0.28);
-  const rootPos = rightGrip
-    .clone()
-    .addScaledVector(aimDir, -CHESS_FIREARM_HAND_GRIP_REAR_PULLBACK * weaponTypeScale)
-    .addScaledVector(up, gripLift)
-    .addScaledVector(side, (actorEntry.playerIndex === 0 ? -1 : 1) * 0.008 * supportBlend);
-  const muzzlePos = rootPos
-    .clone()
-    .addScaledVector(aimDir, CHESS_FIREARM_HAND_MUZZLE_FORWARD * weaponTypeScale)
-    .addScaledVector(up, CHESS_FIREARM_HAND_MUZZLE_UP_LIFT);
-  return { rootPos, muzzlePos, aimDir };
 }
 
 function getThreeFingerGripWorldPosition(rig) {
@@ -10602,8 +10551,6 @@ function Chess3D({
       boardGroup.position.y + (BOARD.baseH + 0.045) * BOARD_SCALE + PLAYER_VIEW_LOOK_TARGET_UP_BIAS,
       tablePlacementOffset.z + PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS
     );
-    const board3dLookTarget = boardLookTarget.clone().add(new THREE.Vector3(0, CAMERA_3D_VISUAL_DOWN_TARGET_UP_BIAS, 0));
-    let cameraOrbitTarget = boardLookTarget;
     studioCamA.lookAt(boardLookTarget);
     studioCamB.lookAt(boardLookTarget);
 
@@ -10654,9 +10601,8 @@ function Chess3D({
 
     const applyCameraSpherical = (spherical) => {
       const pos = new THREE.Vector3().setFromSpherical(spherical);
-      camera.position.copy(cameraOrbitTarget).add(pos);
-      camera.lookAt(cameraOrbitTarget);
-      controls.target.copy(cameraOrbitTarget);
+      camera.position.copy(boardLookTarget).add(pos);
+      camera.lookAt(boardLookTarget);
       controls.update();
     };
 
@@ -10664,7 +10610,7 @@ function Chess3D({
       stopCameraTween();
       const start = performance.now();
       const from = new THREE.Spherical().setFromVector3(
-        camera.position.clone().sub(cameraOrbitTarget)
+        camera.position.clone().sub(boardLookTarget)
       );
       const tick = (now) => {
         const t = clamp01((now - start) / duration);
@@ -10689,13 +10635,12 @@ function Chess3D({
     const setViewModeInternal = (mode) => {
       if (!controls) return;
       const requestedMode = mode;
-      const isForcedCapture3dView = requestedMode === '3d' && restoreAutoViewTo2dRef.current;
-      cameraOrbitTarget = requestedMode === '3d' && !isForcedCapture3dView ? board3dLookTarget : boardLookTarget;
       const current = new THREE.Spherical().setFromVector3(
-        camera.position.clone().sub(cameraOrbitTarget)
+        camera.position.clone().sub(boardLookTarget)
       );
       const currentRadius = Number.isFinite(current.radius) ? current.radius : CAMERA_3D_MAX_RADIUS;
       const theta = Number.isFinite(current.theta) ? current.theta : PLAYER_VIEW_SEAT_THETA;
+      const isForcedCapture3dView = requestedMode === '3d' && restoreAutoViewTo2dRef.current;
 
       const initialRadius = currentRadius;
       const default3d = new THREE.Spherical(initialRadius, CAMERA_DEFAULT_PHI, theta);
@@ -10712,7 +10657,7 @@ function Chess3D({
         controls.maxDistance = CAMERA_3D_MAX_RADIUS;
       } else if (requestedMode === '2d') {
         cameraMemory.last3d = current;
-        controls.target.copy(cameraOrbitTarget);
+        controls.target.copy(boardLookTarget);
         controls.enabled = true;
         controls.enableRotate = false;
         controls.enablePan = false;
@@ -10741,7 +10686,6 @@ function Chess3D({
         controls.maxAzimuthAngle = Infinity;
         controls.minDistance = CAMERA_3D_MIN_RADIUS;
         controls.maxDistance = CAMERA_3D_MAX_RADIUS;
-        controls.target.copy(cameraOrbitTarget);
         const restore = cameraMemory.last3d || default3d;
         const targetPhi = clamp(
           restore.phi - (isForcedCapture3dView ? CAMERA_CAPTURE_VIEW_UPWARD_BIAS : 0),
@@ -10791,15 +10735,14 @@ function Chess3D({
       camera.updateProjectionMatrix();
       const minDistance = viewModeRef.current === '2d' ? CAMERA_2D_MIN_RADIUS : CAMERA_3D_MIN_RADIUS;
       const maxDistance = viewModeRef.current === '2d' ? CAMERA_2D_MAX_RADIUS : CAMERA_3D_MAX_RADIUS;
-      cameraOrbitTarget = viewModeRef.current === '3d' ? board3dLookTarget : boardLookTarget;
       if (viewModeRef.current === '2d') {
-        controls.target.copy(cameraOrbitTarget);
+        controls.target.copy(boardLookTarget);
       }
       if (viewModeRef.current !== 'fpv') {
-        const currentRadius = camera.position.distanceTo(cameraOrbitTarget);
+        const currentRadius = camera.position.distanceTo(boardLookTarget);
         const radius = clamp(currentRadius || CAMERA_SAFE_MAX_RADIUS, minDistance, maxDistance);
-        const dir = camera.position.clone().sub(cameraOrbitTarget).normalize();
-        camera.position.copy(cameraOrbitTarget).addScaledVector(dir, radius);
+        const dir = camera.position.clone().sub(boardLookTarget).normalize();
+        camera.position.copy(boardLookTarget).addScaledVector(dir, radius);
         controls.update();
       }
     };
@@ -12858,7 +12801,6 @@ function Chess3D({
           impactAt: firearmProfile.impactAt,
           singleShot: firearmProfile.singleShot,
           bulletProfile: firearmProfile,
-          firearmType: resolveFirearmTypeForAnimationId(firearmAnimationId),
           firedBullets: 0,
           hitTriggered: false,
           liveBullets: [],
@@ -15344,30 +15286,24 @@ function Chess3D({
             let shooterPos = pieceWorld.lengthSq() ? pieceWorld : fx.from.clone().lerp(targetPos, 0.24);
             shooterPos = shooterPos.clone();
             shooterPos.y += 0.26;
-            const shooterActor = seatedHumanActorsRef.current.find((entry) => entry?.playerIndex === fx.shooterSeatIndex);
-            const seatedFirearmPose = resolveSeatedFirearmWorldPose(
-              shooterActor,
-              targetPos,
-              shooterPos,
-              fx.firearmType || 'Rifle'
-            );
-            if (seatedFirearmPose?.rootPos) shooterPos.copy(seatedFirearmPose.rootPos);
-            const aimDir = (seatedFirearmPose?.aimDir || targetPos.clone().sub(shooterPos)).normalize();
-            const muzzlePos = seatedFirearmPose?.muzzlePos?.clone?.() ||
-              shooterPos.clone().addScaledVector(aimDir, (LUDO_FIREARM_BROADCAST_PROFILE.aimLift ?? 0.064) + 0.055);
+            const aimDir = targetPos.clone().sub(shooterPos).normalize();
+            const muzzlePos = shooterPos.clone().addScaledVector(aimDir, (LUDO_FIREARM_BROADCAST_PROFILE.aimLift ?? 0.064) + 0.055);
             fx.missileFx.root.visible = true;
             fx.missileFx.root.position.copy(muzzlePos).addScaledVector(aimDir, 0.08);
             orientForwardKeepingUp(fx.missileFx.root, aimDir);
             if (fx.firearmFx) {
               fx.firearmFx.visible = true;
-              fx.firearmFx.position.copy(shooterPos);
-              fx.firearmFx.position.y += Math.sin(u * Math.PI * 8) * 0.006;
+              fx.firearmFx.position.copy(shooterPos).addScaledVector(aimDir, -(LUDO_FIREARM_BROADCAST_PROFILE.aimRearPullback ?? 0.124));
+              fx.firearmFx.position.y += 0.02 + Math.sin(u * Math.PI * 8) * 0.006;
               orientForwardKeepingUp(fx.firearmFx, aimDir);
               const recoil = Math.sin(Math.min(1, u * Math.max(1, fx.bulletCount || 1)) * Math.PI) * 0.025;
               fx.firearmFx.position.addScaledVector(aimDir, -recoil);
             }
             if (fx.fpsArmsFx) {
-              fx.fpsArmsFx.visible = false;
+              fx.fpsArmsFx.visible = true;
+              fx.fpsArmsFx.position.copy(shooterPos).addScaledVector(aimDir, -(LUDO_FIREARM_BROADCAST_PROFILE.aimRearPullback ?? 0.124));
+              fx.fpsArmsFx.position.y += 0.02 + Math.sin(u * Math.PI * 8) * 0.006;
+              orientForwardKeepingUp(fx.fpsArmsFx, aimDir);
             }
 
             (fx.liveBullets || []).forEach((bullet) => {
