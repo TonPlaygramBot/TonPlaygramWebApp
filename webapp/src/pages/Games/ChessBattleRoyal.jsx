@@ -362,6 +362,7 @@ const CHESS_FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
 });
 const CHESS_FIREARM_FLAT_ROTATION = Object.freeze([-Math.PI * 0.5, -Math.PI * 0.02, 0]);
 const CHESS_FIREARM_AIM_ROTATION = Object.freeze([0, Math.PI * 0.5, 0]); // flip handheld weapons so their muzzles face the target.
+const CHESS_FIREARM_HANDHELD_POSITION_Y_OFFSET = -0.012;
 const CHESS_FIREARM_HANDHELD_SCALE_MULTIPLIER = 1.9;
 const CHESS_FIREARM_MUZZLE_YAW_CORRECTION_BY_ID = Object.freeze({
   ak47VolleyAttack: Math.PI,
@@ -639,8 +640,8 @@ const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.68;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.42; // lift camera a bit higher while preserving table focus in portrait.
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.98; // mirror the slight upward lift for landscape framing.
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 1.35;
-const PLAYER_VIEW_LOOK_TARGET_UP_BIAS = 0.48; // lower look target slightly so the whole table/chair/human stack lands visually lower on portrait screens.
-const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 9.1; // shift arena lower so table, weapons, chairs, and seated avatars sit closer to the phone-bottom edge in portrait.
+const PLAYER_VIEW_LOOK_TARGET_UP_BIAS = 0.64; // raise the 3D look target so the table/chair/human stack sits visually lower on portrait screens.
+const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 11.2; // shift arena lower so table, weapons, chairs, and seated avatars sit closer to the phone-bottom edge in portrait.
 const FPV_FACE_FORWARD_OFFSET = 0.012; // keep the camera almost exactly at the eyes for a true first-person perspective.
 const FPV_FACE_UP_OFFSET = 0.0; // slight lift so the board edge does not clip while still feeling eye-level.
 const FPV_LOOK_AHEAD_DISTANCE = BOARD.tile * BOARD_SCALE * 5.8; // prioritize looking down the board journey toward the opponent side.
@@ -672,6 +673,10 @@ const SEATED_HUMAN_FIREARM_HAND_SIDE = 0.01;
 const SEATED_HUMAN_FIREARM_SUPPORT_FORWARD = 0.072;
 const SEATED_HUMAN_FIREARM_SUPPORT_UP = 0.012;
 const SEATED_HUMAN_FIREARM_SUPPORT_SIDE = 0.018;
+const SEATED_HUMAN_FIREARM_AIM_READY_PHASE = 0.18;
+const CHESS_FIREARM_TARGET_LIVE_AIM_LIFT = 0.22;
+const CHESS_FIREARM_HAND_MUZZLE_DISTANCE = 0.32;
+const CHESS_FIREARM_HAND_REAR_PULLBACK = 0.08;
 
 
 function resolveChairDistanceForDirection(tableInfo, ...layoutArgs) {
@@ -14195,6 +14200,10 @@ function Chess3D({
         }
         const captureAnimationIdForAction = selectedCaptureAnimationIdRef.current;
         const isFirearmCaptureAction = Boolean(capturedPiece) && FIREARM_CAPTURE_ANIMATION_IDS.has(captureAnimationIdForAction);
+        const humanActionDelayMs = isFirearmCaptureAction ? 0 : Math.max(0, moveDelayMs);
+        const humanActionDurationMs = isFirearmCaptureAction
+          ? Math.max(SEATED_HUMAN_MOVE_DURATION_MS, Math.max(0, moveDelayMs) + 220)
+          : SEATED_HUMAN_MOVE_DURATION_MS;
         seatedHumanMoveActionsRef.current.set(moverSeatIndex, {
           playerIndex: moverSeatIndex,
           mesh: m,
@@ -14206,11 +14215,12 @@ function Chess3D({
           firearmType: isFirearmCaptureAction
             ? resolveFirearmTypeForAnimationId(captureAnimationIdForAction)
             : null,
+          firearmTargetWorld: isFirearmCaptureAction ? toWorldPos.clone() : null,
           forwardReach,
           sideReach,
           gripOffset: null,
-          startMs: nowMs + Math.max(0, moveDelayMs),
-          durationMs: SEATED_HUMAN_MOVE_DURATION_MS,
+          startMs: nowMs + humanActionDelayMs,
+          durationMs: humanActionDurationMs,
           handHelper: null,
           pieceHelper: null
         });
@@ -15279,30 +15289,53 @@ function Chess3D({
               activeCaptureFx.splice(i, 1);
             }
           } else if (fx.type === 'firearm') {
-            const targetPos = getLiveTargetPosition(fx.to, fx.targetMesh, 0);
+            const targetPos = getLiveTargetPosition(fx.to, fx.targetMesh, CHESS_FIREARM_TARGET_LIVE_AIM_LIFT);
             fx.to.copy(targetPos);
+            const matchingAction = seatedHumanMoveActionsRef.current.get(fx.shooterSeatIndex);
+            if (matchingAction?.isFirearmCapture) {
+              matchingAction.firearmTargetWorld = targetPos.clone();
+            }
+            const shooterActor = seatedHumanActorsRef.current.find((entry) => entry?.playerIndex === fx.shooterSeatIndex);
+            const rightGripWorld = shooterActor?.rig
+              ? getThreeFingerGripWorldPosition(shooterActor.rig) || shooterActor.rig.rightHand?.getWorldPosition?.(new THREE.Vector3())
+              : null;
+            const leftGripWorld = shooterActor?.rig?.leftHand?.getWorldPosition?.(new THREE.Vector3()) ?? null;
             const pieceWorld = new THREE.Vector3();
             fx.movingMesh?.getWorldPosition?.(pieceWorld);
-            let shooterPos = pieceWorld.lengthSq() ? pieceWorld : fx.from.clone().lerp(targetPos, 0.24);
-            shooterPos = shooterPos.clone();
-            shooterPos.y += 0.26;
-            const aimDir = targetPos.clone().sub(shooterPos).normalize();
-            const muzzlePos = shooterPos.clone().addScaledVector(aimDir, (LUDO_FIREARM_BROADCAST_PROFILE.aimLift ?? 0.064) + 0.055);
+            let shooterPos = rightGripWorld?.isVector3
+              ? rightGripWorld.clone()
+              : pieceWorld.lengthSq()
+              ? pieceWorld.clone()
+              : fx.from.clone().lerp(targetPos, 0.24);
+            shooterPos.y += rightGripWorld?.isVector3 ? CHESS_FIREARM_HANDHELD_POSITION_Y_OFFSET : 0.26;
+            let aimDir = targetPos.clone().sub(shooterPos).normalize();
+            if (!Number.isFinite(aimDir.lengthSq()) || aimDir.lengthSq() <= 1e-6) {
+              aimDir = new THREE.Vector3(0, 0, fx.shooterSeatIndex === 0 ? -1 : 1);
+            }
+            const sideDir = new THREE.Vector3().crossVectors(WORLD_UP, aimDir).normalize();
+            if (!Number.isFinite(sideDir.lengthSq()) || sideDir.lengthSq() <= 1e-6) sideDir.set(1, 0, 0);
+            const supportBlend = leftGripWorld?.isVector3
+              ? shooterPos.clone().lerp(leftGripWorld, 0.32)
+              : shooterPos.clone();
+            const weaponBasePos = supportBlend
+              .clone()
+              .addScaledVector(aimDir, -CHESS_FIREARM_HAND_REAR_PULLBACK)
+              .addScaledVector(sideDir, fx.shooterSeatIndex === 0 ? SEATED_HUMAN_FIREARM_HAND_SIDE : -SEATED_HUMAN_FIREARM_HAND_SIDE);
+            weaponBasePos.y += 0.02 + Math.sin(u * Math.PI * 8) * 0.006;
+            const muzzlePos = weaponBasePos.clone().addScaledVector(aimDir, CHESS_FIREARM_HAND_MUZZLE_DISTANCE);
             fx.missileFx.root.visible = true;
             fx.missileFx.root.position.copy(muzzlePos).addScaledVector(aimDir, 0.08);
             orientForwardKeepingUp(fx.missileFx.root, aimDir);
             if (fx.firearmFx) {
               fx.firearmFx.visible = true;
-              fx.firearmFx.position.copy(shooterPos).addScaledVector(aimDir, -(LUDO_FIREARM_BROADCAST_PROFILE.aimRearPullback ?? 0.124));
-              fx.firearmFx.position.y += 0.02 + Math.sin(u * Math.PI * 8) * 0.006;
+              fx.firearmFx.position.copy(weaponBasePos);
               orientForwardKeepingUp(fx.firearmFx, aimDir);
               const recoil = Math.sin(Math.min(1, u * Math.max(1, fx.bulletCount || 1)) * Math.PI) * 0.025;
               fx.firearmFx.position.addScaledVector(aimDir, -recoil);
             }
             if (fx.fpsArmsFx) {
               fx.fpsArmsFx.visible = true;
-              fx.fpsArmsFx.position.copy(shooterPos).addScaledVector(aimDir, -(LUDO_FIREARM_BROADCAST_PROFILE.aimRearPullback ?? 0.124));
-              fx.fpsArmsFx.position.y += 0.02 + Math.sin(u * Math.PI * 8) * 0.006;
+              fx.fpsArmsFx.position.copy(weaponBasePos).addScaledVector(aimDir, -0.035);
               orientForwardKeepingUp(fx.fpsArmsFx, aimDir);
             }
 
@@ -15613,7 +15646,11 @@ function Chess3D({
           let mode = 'carryPiece';
           let intensity = 1;
           let grip = 1;
-          if (u < SEATED_HUMAN_PICKUP_PHASE_END) {
+          if (action.isFirearmCapture) {
+            mode = 'firearmAim';
+            intensity = smoothEase(clamp01(u / SEATED_HUMAN_FIREARM_AIM_READY_PHASE));
+            grip = 1;
+          } else if (u < SEATED_HUMAN_PICKUP_PHASE_END) {
             mode = 'reachPiece';
             intensity = clamp01(u / SEATED_HUMAN_PICKUP_PHASE_END);
             grip = 0.05;
@@ -15622,7 +15659,7 @@ function Chess3D({
             intensity = clamp01((u - SEATED_HUMAN_PICKUP_PHASE_END) / (0.44 - SEATED_HUMAN_PICKUP_PHASE_END));
             grip = intensity;
           } else if (u < carryPhaseEnd) {
-            mode = action.isFirearmCapture ? 'firearmAim' : 'carryPiece';
+            mode = 'carryPiece';
             intensity = clamp01((u - 0.44) / (carryPhaseEnd - 0.44));
             grip = 1;
           } else {
@@ -15655,6 +15692,41 @@ function Chess3D({
                 helpers.indexHelper.visible = true;
                 helpers.middleHelper.visible = true;
               }
+            }
+            if (action.isFirearmCapture) {
+              const rightHandWorld =
+                getThreeFingerGripWorldPosition(entry.rig) ||
+                entry.rig.rightHand?.getWorldPosition?.(new THREE.Vector3()) ||
+                action.from.clone();
+              const targetWorld = action.firearmTargetWorld?.isVector3
+                ? action.firearmTargetWorld.clone()
+                : action.to.clone();
+              targetWorld.y += action.firearmTargetWorld?.isVector3 ? 0 : CHESS_FIREARM_TARGET_LIVE_AIM_LIFT;
+              const aimDir = targetWorld.clone().sub(rightHandWorld).normalize();
+              const sideDir = new THREE.Vector3().crossVectors(WORLD_UP, aimDir).normalize();
+              if (!Number.isFinite(sideDir.lengthSq()) || sideDir.lengthSq() <= 1e-6) sideDir.set(1, 0, 0);
+              const rightAimTarget = rightHandWorld
+                .clone()
+                .addScaledVector(aimDir, CHESS_FIREARM_HAND_MUZZLE_DISTANCE)
+                .addScaledVector(sideDir, entry.playerIndex === 0 ? SEATED_HUMAN_FIREARM_HAND_SIDE : -SEATED_HUMAN_FIREARM_HAND_SIDE)
+                .add(new THREE.Vector3(0, SEATED_HUMAN_FIREARM_HAND_UP, 0));
+              const leftAimTarget = rightHandWorld
+                .clone()
+                .addScaledVector(aimDir, SEATED_HUMAN_FIREARM_SUPPORT_FORWARD + CHESS_FIREARM_HAND_MUZZLE_DISTANCE * 0.42)
+                .addScaledVector(sideDir, entry.playerIndex === 0 ? -SEATED_HUMAN_FIREARM_SUPPORT_SIDE : SEATED_HUMAN_FIREARM_SUPPORT_SIDE)
+                .add(new THREE.Vector3(0, SEATED_HUMAN_FIREARM_SUPPORT_UP, 0));
+              applyRightArmContactIK(entry.rig, rightAimTarget, SEATED_HUMAN_FIREARM_IK_STRENGTH);
+              applyLeftArmContactIK(entry.rig, leftAimTarget, SEATED_HUMAN_FIREARM_IK_STRENGTH * 0.92);
+              if (action.handHelper) action.handHelper.position.copy(rightAimTarget);
+              if (action.pieceHelper) action.pieceHelper.position.copy(targetWorld);
+              if (action.thumbHelper) action.thumbHelper.position.copy(rightHandWorld);
+              if (action.indexHelper) action.indexHelper.position.copy(rightAimTarget);
+              if (action.middleHelper) action.middleHelper.position.copy(leftAimTarget);
+              if (u >= 1) {
+                disposeSeatedHumanMoveAction(action);
+                seatedHumanMoveActionsRef.current.delete(entry.playerIndex);
+              }
+              return;
             }
             const thumbTip = entry.rig.rightThumb?.[entry.rig.rightThumb.length - 1] ?? null;
             const indexTip = entry.rig.rightIndex?.[entry.rig.rightIndex.length - 1] ?? null;
