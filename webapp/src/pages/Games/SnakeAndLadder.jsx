@@ -94,6 +94,7 @@ import { giftSounds } from "../../utils/giftSounds.js";
 import { moveSeq, flashHighlight, applyEffect as applyEffectHelper } from "../../utils/moveHelpers.js";
 import { getSnakeInventory, isSnakeOptionUnlocked, snakeAccountId } from "../../utils/snakeInventory.js";
 import { playLudoDiceRollSfx, playLudoTokenStepSfx } from "../../utils/ludoSfx.js";
+import { hasLudoSix, rollLudoDieValue, sumLudoDiceValues } from "../../utils/ludoDiceRollLogic.js";
 import {
   buildSnakeCommentaryLine,
   createSnakeMatchCommentaryScript,
@@ -2570,7 +2571,7 @@ export default function SnakeAndLadder() {
     );
     let over = state.gameOver ?? false;
     while (elapsed > 0 && !over) {
-      const roll = Math.floor(Math.random() * 6) + 1;
+      const roll = rollLudoDieValue();
       if (turn === 0) {
         if (p === 0) {
           if (roll === 6) p = 1;
@@ -2701,12 +2702,8 @@ export default function SnakeAndLadder() {
     setMoving(true);
     setTurnMessage("");
     setRollCooldown(1);
-    const value = Array.isArray(values)
-      ? values.reduce((a, b) => a + b, 0)
-      : values;
-    const rolledSix = Array.isArray(values)
-      ? values.some((v) => Number(v) === 6)
-      : Number(value) === 6;
+    const value = sumLudoDiceValues(values);
+    const rolledSix = hasLudoSix(values);
     const playerLabel = getPlayerName(0);
 
     setRollColor(playerColors[0] || '#fff');
@@ -2969,12 +2966,9 @@ export default function SnakeAndLadder() {
 
   const handleAIRoll = (index, vals) => {
     setMoving(true);
-    const value = Array.isArray(vals)
-      ? vals.reduce((a, b) => a + b, 0)
-      : vals ?? Math.floor(Math.random() * 6) + 1;
-    const rolledSix = Array.isArray(vals)
-      ? vals.some((v) => Number(v) === 6)
-      : Number(value) === 6;
+    const resolvedVals = vals ?? rollLudoDieValue();
+    const value = sumLudoDiceValues(resolvedVals);
+    const rolledSix = hasLudoSix(resolvedVals);
     const playerLabel = getPlayerName(index);
     setRollColor(playerColors[index] || '#fff');
     enqueueSnakeCommentaryEvent('roll', { player: playerLabel, roll: value });
@@ -3219,7 +3213,7 @@ export default function SnakeAndLadder() {
         return;
       }
       const idxPlayer = rollOrder[idx];
-      const roll = Math.floor(Math.random() * 6) + 1;
+      const roll = rollLudoDieValue();
       results.push({ index: idxPlayer, roll });
       setTurnMessage(<>{playerName(idxPlayer)} rolled {roll}</>);
       setTimeout(() => rollNext(idx + 1), 1000);
