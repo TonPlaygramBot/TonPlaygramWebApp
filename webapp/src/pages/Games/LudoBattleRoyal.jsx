@@ -355,25 +355,6 @@ const gunifyModelUrls = (modelName) => [
   `${GUNIFY_JSDELIVR_BASE}/models/${modelName}/scene.gltf`
 ];
 
-const GITHUB_SOURCE_REFS = Object.freeze({
-  gunsForBjsFpsGame: '4b03f692a7159bcbb729fe9a7d9631b395be3bfa',
-  webaversePistol: '1b88663f4b501658990f1568ccec389cdaa6bf45',
-  webaverseUzi: '19abaa9455f6bc7edd416e203a8798d9cde1fc0b',
-  friunsBingExtension: '898ad2b55c78611e2f6e2d662d6502985bd16a15',
-  saaam3dModelBundle: 'd0652d386d91ecd8a4463a311ce884f6539813ad',
-  mixedRealityToolkitGun: '617f50508cc031385922812db8638f611f6bab31'
-});
-const githubRawUrl = (repo, ref, path) => `https://raw.githubusercontent.com/${repo}/${ref}/${path}`;
-const githubCdnUrl = (repo, ref, path) => `https://cdn.jsdelivr.net/gh/${repo}@${ref}/${path}`;
-const gunsForBjsFpsGameUrls = () => [
-  githubRawUrl('lando19/Guns-for-BJS-FPS-Game', GITHUB_SOURCE_REFS.gunsForBjsFpsGame, 'main/scene.gltf'),
-  githubCdnUrl('lando19/Guns-for-BJS-FPS-Game', GITHUB_SOURCE_REFS.gunsForBjsFpsGame, 'main/scene.gltf')
-];
-const webaversePistolUrls = (fileName) => [
-  githubCdnUrl('webaverse/pistol', GITHUB_SOURCE_REFS.webaversePistol, fileName),
-  githubRawUrl('webaverse/pistol', GITHUB_SOURCE_REFS.webaversePistol, fileName)
-];
-
 const GUNIFY_SPECULAR_GLOSSINESS_EXTENSION = 'KHR_materials_pbrSpecularGlossiness';
 
 function cloneGltfJsonValue(value) {
@@ -429,50 +410,56 @@ async function loadGunifyOriginalGltf(loader, candidateUrl) {
 const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   mrtkGunAttack: {
     label: 'MRTK Gun',
-    source: 'Original',
-    texturePolicy: 'sourceOriginal',
     urls: [
-      githubRawUrl('microsoft/MixedRealityToolkit', GITHUB_SOURCE_REFS.mixedRealityToolkitGun, 'SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb'),
-      githubCdnUrl('microsoft/MixedRealityToolkit', GITHUB_SOURCE_REFS.mixedRealityToolkitGun, 'SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb')
+      'https://raw.githubusercontent.com/microsoft/MixedRealityToolkit/main/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb',
+      'https://cdn.jsdelivr.net/gh/microsoft/MixedRealityToolkit@main/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb',
+      'https://raw.githubusercontent.com/Microsoft/MixedRealityToolkit/master/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb',
+      'https://cdn.jsdelivr.net/gh/Microsoft/MixedRealityToolkit@master/SpatialInput/Samples/DemoRoom/Media/Models/Gun.glb'
     ],
     scale: 0.132
   },
   pistolHolsterAttack: {
     label: 'Pistol Holster',
-    source: 'Original',
-    texturePolicy: 'sourceOriginal',
     urls: [
-      githubRawUrl('SAAAM-LLC/3D_model_bundle', GITHUB_SOURCE_REFS.saaam3dModelBundle, 'SAM_ASSET-PISTOL-IN-HOLSTER.glb'),
-      githubCdnUrl('SAAAM-LLC/3D_model_bundle', GITHUB_SOURCE_REFS.saaam3dModelBundle, 'SAM_ASSET-PISTOL-IN-HOLSTER.glb')
+      'https://raw.githubusercontent.com/SAAAM-LLC/3D_model_bundle/main/SAM_ASSET-PISTOL-IN-HOLSTER.glb',
+      'https://cdn.jsdelivr.net/gh/SAAAM-LLC/3D_model_bundle@main/SAM_ASSET-PISTOL-IN-HOLSTER.glb'
     ],
     scale: 0.138
   },
   fpsGunAttack: {
     label: 'FPS Gun',
-    source: 'Original',
-    texturePolicy: 'sourceOriginal',
-    urls: gunsForBjsFpsGameUrls(),
+    urls: [
+      'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@main/main/scene.gltf',
+      'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/main/main/scene.gltf',
+      'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@master/main/scene.gltf',
+      'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/master/main/scene.gltf'
+    ],
     scale: 0.24
   },
   glockSidearmAttack: {
     label: 'Glock',
-    source: 'Original',
-    texturePolicy: 'sourceOriginal',
-    urls: webaversePistolUrls('glock.glb'),
+    urls: [
+      'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/glock.glb',
+      'https://raw.githubusercontent.com/webaverse/pistol/master/glock.glb'
+    ],
     scale: 0.13
   },
   pistolSidearmAttack: {
     label: 'Pistol Sidearm',
-    source: 'Original',
-    texturePolicy: 'sourceOriginal',
-    urls: webaversePistolUrls('pistol.glb'),
+    urls: [
+      'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/pistol.glb',
+      'https://raw.githubusercontent.com/webaverse/pistol/master/pistol.glb',
+      'https://cdn.statically.io/gh/webaverse/pistol/master/pistol.glb'
+    ],
     scale: 0.115
   },
   assaultRifleAttack: {
     label: 'Assault Rifle',
-    source: 'Original',
-    texturePolicy: 'sourceOriginal',
-    urls: webaversePistolUrls('military.glb'),
+    urls: [
+      'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/military.glb',
+      'https://raw.githubusercontent.com/webaverse/pistol/master/military.glb',
+      'https://cdn.statically.io/gh/webaverse/pistol/master/military.glb'
+    ],
     scale: 0.13
   },
   uziSprayAttack: {
@@ -525,19 +512,21 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   },
   grenadeBlastAttack: {
     label: 'Grenade Blast',
-    source: 'Original',
-    texturePolicy: 'sourceOriginal',
     urls: [
-      githubCdnUrl('friuns2/bingextension', GITHUB_SOURCE_REFS.friunsBingExtension, 'grenade.glb'),
-      githubRawUrl('friuns2/bingextension', GITHUB_SOURCE_REFS.friunsBingExtension, 'grenade.glb')
+      'https://cdn.jsdelivr.net/gh/friuns2/bingextension@main/grenade.glb',
+      'https://raw.githubusercontent.com/friuns2/bingextension/main/grenade.glb',
+      'https://cdn.statically.io/gh/friuns2/bingextension/main/grenade.glb'
     ],
     scale: 0.11
   },
   shotgunBlastAttack: {
     label: 'Shotgun Blast',
-    source: 'Original',
-    texturePolicy: 'sourceOriginal',
-    urls: gunsForBjsFpsGameUrls(),
+    urls: [
+      'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/main/main/scene.gltf',
+      'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@main/main/scene.gltf',
+      'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/master/main/scene.gltf',
+      'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@master/main/scene.gltf'
+    ],
     scale: 0.24
   },
   sniperShotAttack: {
@@ -550,151 +539,115 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   },
   smgBurstAttack: {
     label: 'SMG',
-    source: 'Original',
-    texturePolicy: 'sourceOriginal',
     urls: [
-      githubCdnUrl('webaverse/uzi', GITHUB_SOURCE_REFS.webaverseUzi, 'uzi.glb'),
-      ...webaversePistolUrls('pistol.glb')
+      'https://cdn.jsdelivr.net/gh/webaverse/uzi@main/uzi.glb',
+      'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/pistol.glb'
     ],
     scale: 0.2
   },
   compactCarbineAttack: {
     label: 'Compact Carbine',
-    source: 'Original',
-    texturePolicy: 'sourceOriginal',
-    urls: webaversePistolUrls('military.glb'),
+    urls: [
+      'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/military.glb',
+      'https://raw.githubusercontent.com/webaverse/pistol/master/military.glb'
+    ],
     scale: 0.21
   },
   marksmanDmrAttack: {
     label: 'Marksman DMR',
-    source: 'Original',
-    texturePolicy: 'sourceOriginal',
-    urls: webaversePistolUrls('military.glb'),
+    urls: [
+      'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/military.glb',
+      'https://cdn.jsdelivr.net/gh/LazerMaker/gun-models-ak47-and-supprest-pistol-@master/ak47.glb'
+    ],
     scale: 0.23
   },
   polyShotgun01Attack: {
     label: 'Quaternius Shotgun',
-    source: 'Poly Pizza',
-    texturePolicy: 'sourceOriginal',
     urls: ['https://static.poly.pizza/032e6589-3188-41bc-b92b-e25528344275.glb'],
     scale: 0.205
   },
   polyAssaultRifle01Attack: {
     label: 'Quaternius Assault Rifle',
-    source: 'Poly Pizza',
-    texturePolicy: 'sourceOriginal',
     urls: ['https://static.poly.pizza/b3e6be61-0299-4866-a227-58f5f3fe610b.glb'],
     scale: 0.208
   },
   polyPistol01Attack: {
     label: 'Quaternius Pistol',
-    source: 'Poly Pizza',
-    texturePolicy: 'sourceOriginal',
     urls: ['https://static.poly.pizza/3b53f0fe-f86e-451c-816d-6ab9bd265cdc.glb'],
     scale: 0.122
   },
   polyRevolver01Attack: {
     label: 'Quaternius Heavy Revolver',
-    source: 'Poly Pizza',
-    texturePolicy: 'sourceOriginal',
     urls: ['https://static.poly.pizza/9e728565-67a3-44db-9567-982320abff09.glb'],
     scale: 0.13
   },
   polySawedOff01Attack: {
     label: 'Quaternius Sawed-Off Shotgun',
-    source: 'Poly Pizza',
-    texturePolicy: 'sourceOriginal',
     urls: ['https://static.poly.pizza/9a6ee0ee-068b-4774-8b0f-679c3cef0b6e.glb'],
     scale: 0.175
   },
   polyRevolver02Attack: {
     label: 'Quaternius Revolver Silver',
-    source: 'Poly Pizza',
-    texturePolicy: 'sourceOriginal',
     urls: ['https://static.poly.pizza/7951b3b9-d3a5-4ec8-81b7-11111f1c8e88.glb'],
     scale: 0.13
   },
   polyShotgun02Attack: {
     label: 'Quaternius Long Shotgun',
-    source: 'Poly Pizza',
-    texturePolicy: 'sourceOriginal',
     urls: ['https://static.poly.pizza/f71d6771-f512-4374-bd23-ba00b564db68.glb'],
     scale: 0.215
   },
   polyShotgun03Attack: {
     label: 'Quaternius Pump Shotgun',
-    source: 'Poly Pizza',
-    texturePolicy: 'sourceOriginal',
     urls: ['https://static.poly.pizza/08f27141-8e64-425a-9161-1bbd6956dfca.glb'],
     scale: 0.21
   },
   polySmg01Attack: {
     label: 'Quaternius Submachine Gun',
-    source: 'Poly Pizza',
-    texturePolicy: 'sourceOriginal',
     urls: ['https://static.poly.pizza/fb8ae707-d5b9-4eb8-ab8c-1c78d3c1f710.glb'],
     scale: 0.17
   },
   polyRobotLargeGunAttack: {
     label: 'Quaternius Robot Large Gun',
-    source: 'Poly Pizza',
-    texturePolicy: 'sourceOriginal',
     urls: ['https://static.poly.pizza/78e23275-cb6a-4ba3-ae5e-48a9b4ee2e65.glb'],
     scale: 0.17
   },
   polyRobotFlyingGunAttack: {
     label: 'Quaternius Robot Flying Gun',
-    source: 'Poly Pizza',
-    texturePolicy: 'sourceOriginal',
     urls: ['https://static.poly.pizza/6d0889f1-0c3f-4f98-b011-fbcf6c79a93b.glb'],
     scale: 0.16
   },
   polyBazooka01Attack: {
     label: 'CreativeTrio Bazooka',
-    source: 'Poly Pizza',
-    texturePolicy: 'sourceOriginal',
     urls: ['https://static.poly.pizza/613e3b1b-d07c-496b-94a1-7c85b507bac4.glb'],
     scale: 0.22
   },
   polyGrenadeLauncher01Attack: {
     label: 'CreativeTrio Grenade Launcher',
-    source: 'Poly Pizza',
-    texturePolicy: 'sourceOriginal',
     urls: ['https://static.poly.pizza/503bb2c5-4a69-404b-9b82-13e85e8f8467.glb'],
     scale: 0.2
   },
   polyDynamiteBomb01Attack: {
     label: 'CreativeTrio Dynamite Bomb',
-    source: 'Poly Pizza',
-    texturePolicy: 'sourceOriginal',
     urls: ['https://static.poly.pizza/38e858db-325f-4dce-9680-da62c20c5c31.glb'],
     scale: 0.12
   },
   polyMolotov01Attack: {
     label: 'CreativeTrio Molotov',
-    source: 'Poly Pizza',
-    texturePolicy: 'sourceOriginal',
     urls: ['https://static.poly.pizza/d7bb0b50-09af-49f8-b1f9-dbdb0c707d40.glb'],
     scale: 0.095
   },
   polyGasTank01Attack: {
     label: 'Quaternius Gas Tank',
-    source: 'Poly Pizza',
-    texturePolicy: 'sourceOriginal',
     urls: ['https://static.poly.pizza/9c4d2ac5-114b-4da2-a26a-8049e2b1ba04.glb'],
     scale: 0.12
   },
   polyHandGrenade01Attack: {
     label: 'CreativeTrio Hand Grenade',
-    source: 'Poly Pizza',
-    texturePolicy: 'sourceOriginal',
     urls: ['https://static.poly.pizza/03fa7f5b-4df5-45d6-86fb-87e8590f28d7.glb'],
     scale: 0.075
   },
   polyTank01Attack: {
     label: 'Quaternius Battle Tank',
-    source: 'Poly Pizza',
-    texturePolicy: 'sourceOriginal',
     urls: ['https://static.poly.pizza/58c387b2-636f-49dc-a900-13b0852717d6.glb'],
     scale: 0.125
   }
