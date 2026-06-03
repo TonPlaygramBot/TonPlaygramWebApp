@@ -746,7 +746,7 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
     black: 'Black'
   }),
   chromePlateStyle: Object.freeze({
-    'royal-classic': 'Royal Original Procedural Plates',
+    'royal-classic': 'Royal Classic Plates',
     'showood-rounded': 'Showood Rounded Plates'
   }),
   railMarkerColor: Object.freeze({
@@ -991,7 +991,7 @@ export const POOL_ROYALE_STORE_ITEMS = [
     optionId: 'showood-rounded',
     name: 'Showood Rounded Chrome Plates',
     price: 420,
-    description: 'Rounded showroom-style chrome plates for the Showood GLB table, with the original rail sights and side apron still visible.',
+    description: 'Rounded showroom-style chrome plates for the Showood GLB table.',
     thumbnail: swatchThumbnail(['#f6d56f', '#d6d8dc', '#2f2418'])
   },
   {
@@ -1203,7 +1203,6 @@ export const POOL_ROYALE_DEFAULT_LOADOUT = [
   { type: 'chromeColor', optionId: 'gold', label: 'Gold Chrome Plates' },
   { type: 'chromeColor', optionId: 'black', label: 'Black Fascias' },
   { type: 'chromePlateStyle', optionId: 'showood-rounded', label: 'Showood Rounded Chrome Plates' },
-  { type: 'chromePlateStyle', optionId: 'royal-classic', label: 'Royal Original Procedural Plates' },
   { type: 'railMarkerColor', optionId: 'gold', label: 'Gold Diamond Markers' },
   {
     type: 'clothColor',

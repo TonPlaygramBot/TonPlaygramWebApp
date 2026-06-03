@@ -824,8 +824,8 @@ const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profi
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the notch depth identical to the pocket cylinder so the chrome kisses the jaw edge
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
-const CHROME_PLATE_REFLECTION_SCALE = 0.46; // keep a smoother showroom chrome/gold reflection on the pocket fascias while damping cut hot spots
-const CHROME_PLATE_ROUGHNESS_LIFT = 0.025; // reduce plate roughness lift so chrome and gold read polished instead of grainy
+const CHROME_PLATE_REFLECTION_SCALE = 0.34; // preserve more gold/chrome sparkle on tiny fascia edges while still damping pocket-cut hot spots
+const CHROME_PLATE_ROUGHNESS_LIFT = 0.055; // keep small metal edge lines crisper by adding less roughness to fascia cuts
 const CHROME_PLATE_THICKNESS_SCALE = 0.033; // make the thin chrome/gold fascia read a tiny bit thicker on portrait mobile screens
 const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.22; // add a slight extra side-plate thickness boost so the apron trim edge does not disappear
 const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0.06; // lift fascia slightly with the raised rail/cushion profile so chrome stays aligned on all six pockets
@@ -1070,11 +1070,11 @@ function tunePoolRoyaleSmallMetalMaterial(mat) {
     mat.metalness = THREE.MathUtils.clamp(Math.max(mat.metalness, 0.9), 0, 1);
   }
   if (typeof mat.roughness === 'number') {
-    mat.roughness = THREE.MathUtils.clamp(mat.roughness * 0.82, 0.035, 0.18);
+    mat.roughness = THREE.MathUtils.clamp(mat.roughness * 0.88, 0.045, 0.22);
   }
-  if ('clearcoat' in mat) mat.clearcoat = Math.max(mat.clearcoat ?? 0, 0.72);
-  if ('clearcoatRoughness' in mat) mat.clearcoatRoughness = Math.min(mat.clearcoatRoughness ?? 0.06, 0.06);
-  if ('envMapIntensity' in mat) mat.envMapIntensity = Math.max(mat.envMapIntensity ?? 1, 1.04);
+  if ('clearcoat' in mat) mat.clearcoat = Math.max(mat.clearcoat ?? 0, 0.62);
+  if ('clearcoatRoughness' in mat) mat.clearcoatRoughness = Math.min(mat.clearcoatRoughness ?? 0.08, 0.08);
+  if ('envMapIntensity' in mat) mat.envMapIntensity = Math.max(mat.envMapIntensity ?? 1, 0.86);
   mat.needsUpdate = true;
   return mat;
 }
@@ -3670,20 +3670,20 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
     label: 'Chrome',
     color: 0xd6d8dc,
     metalness: 0.95,
-    roughness: 0.075,
-    clearcoat: 0.68,
-    clearcoatRoughness: 0.04,
-    envMapIntensity: 0.88
+    roughness: 0.12,
+    clearcoat: 0.5,
+    clearcoatRoughness: 0.06,
+    envMapIntensity: 0.72
   },
   {
     id: 'gold',
     label: 'Gold',
     color: 0xd4af37,
     metalness: 0.92,
-    roughness: 0.095,
-    clearcoat: 0.66,
-    clearcoatRoughness: 0.045,
-    envMapIntensity: 0.86
+    roughness: 0.16,
+    clearcoat: 0.5,
+    clearcoatRoughness: 0.06,
+    envMapIntensity: 0.72
   },
   {
     id: 'black',
@@ -3720,20 +3720,20 @@ const CHROME_PLATE_STYLE_OPTIONS = Object.freeze([
   },
   {
     id: 'royal-classic',
-    label: 'Royal Original Procedural',
-    description: 'Procedural Pool Royale chrome plates replace the Showood rail sights and side apron.',
+    label: 'Royal Classic',
+    description: 'Default Pool Royale fascia plates, available as an overlay on the Showood table.',
     swatches: ['#d6d8dc', '#d4af37'],
     showGeneratedOnExternal: true,
     preserveExternalTrim: false,
     hideExternalReferenceParts: ['railSight', 'sideWoodApron'],
-    cornerWidthScale: 1.08,
-    cornerHeightScale: 1.06,
-    cornerRadiusScale: 1.16,
-    cornerCutScale: 0.942,
-    sideWidthScale: 1.12,
-    sideHeightScale: 1.08,
-    sideRadiusScale: 1.25,
-    sideCutScale: 0.957
+    cornerWidthScale: 1,
+    cornerHeightScale: 1,
+    cornerRadiusScale: 1,
+    cornerCutScale: 1,
+    sideWidthScale: 1,
+    sideHeightScale: 1,
+    sideRadiusScale: 1,
+    sideCutScale: 1
   }
 ]);
 const CHROME_PLATE_STYLE_BY_ID = Object.freeze(
@@ -5403,11 +5403,11 @@ function enhanceChromeMaterial(material) {
     }
   };
   ensure('metalness', 0.9, (current, target) => Math.max(current, target));
-  ensure('roughness', 0.075, (current, target) => Math.min(current, target));
-  ensure('clearcoat', 0.78, (current, target) => Math.max(current, target));
-  ensure('clearcoatRoughness', 0.08, (current, target) => Math.min(current, target));
-  ensure('envMapIntensity', 1.12, (current, target) =>
-    THREE.MathUtils.clamp(Math.max(current, 1.02), 1.02, target)
+  ensure('roughness', 0.1, (current, target) => Math.min(current, target));
+  ensure('clearcoat', 0.72, (current, target) => Math.max(current, target));
+  ensure('clearcoatRoughness', 0.16, (current, target) => Math.max(current, target));
+  ensure('envMapIntensity', 1.02, (current, target) =>
+    THREE.MathUtils.clamp(current, 0.92, target)
   );
   if (material.side !== THREE.DoubleSide) {
     material.side = THREE.DoubleSide;
@@ -36805,9 +36805,6 @@ const shotPowerRef = useRef(0);
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Chrome Plates
                 </h3>
-                <p className="mt-1 text-[0.68rem] leading-snug text-white/60">
-                  Color applies to rail sights, side apron, and procedural pocket plates.
-                </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {availableChromeOptions.map((option) => {
                     const active = option.id === chromeColorId;
@@ -36840,9 +36837,6 @@ const shotPowerRef = useRef(0);
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Chrome Plate Shape
                 </h3>
-                <p className="mt-1 text-[0.68rem] leading-snug text-white/60">
-                  Choose Showood rounded hardware or swap the rail-sight/side-apron area to the wider Royal procedural plate layout.
-                </p>
                 <div className="mt-2 grid grid-cols-1 gap-2">
                   {availableChromePlateStyles.map((option) => {
                     const active = option.id === chromePlateStyleId;
