@@ -702,7 +702,7 @@ export const POOL_ROYALE_DEFAULT_HDRI_ID = 'colorfulStudio';
 export const POOL_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   tableFinish: ['peelingPaintWeathered'],
   chromeColor: ['gold', 'black'],
-  chromePlateStyle: ['showood-rounded', 'royal-classic', 'showood-procedural'],
+  chromePlateStyle: ['showood-rounded', 'royal-classic'],
   railMarkerColor: ['gold'],
   clothColor: [POOL_ROYALE_CLOTH_VARIANTS[0].id],
   cueStyle: ['birch-frost'],
@@ -747,8 +747,7 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
   }),
   chromePlateStyle: Object.freeze({
     'royal-classic': 'Royal Classic Plates',
-    'showood-rounded': 'Showood Rounded Plates',
-    'showood-procedural': 'Showood Procedural Plates'
+    'showood-rounded': 'Showood Rounded Plates'
   }),
   railMarkerColor: Object.freeze({
     chrome: 'Chrome',
@@ -996,15 +995,6 @@ export const POOL_ROYALE_STORE_ITEMS = [
     thumbnail: swatchThumbnail(['#f6d56f', '#d6d8dc', '#2f2418'])
   },
   {
-    id: 'chromeStyle-showoodProcedural',
-    type: 'chromePlateStyle',
-    optionId: 'showood-procedural',
-    name: 'Showood Procedural Chrome Plates',
-    price: 460,
-    description: 'Original Royal procedural plates widened and aligned to the Showood rails and pocket jaws.',
-    thumbnail: swatchThumbnail(['#fff1a8', '#d8dde6', '#2f2418'])
-  },
-  {
     id: 'railMarkers-pearl',
     type: 'railMarkerColor',
     optionId: 'pearl',
@@ -1213,7 +1203,6 @@ export const POOL_ROYALE_DEFAULT_LOADOUT = [
   { type: 'chromeColor', optionId: 'gold', label: 'Gold Chrome Plates' },
   { type: 'chromeColor', optionId: 'black', label: 'Black Fascias' },
   { type: 'chromePlateStyle', optionId: 'showood-rounded', label: 'Showood Rounded Chrome Plates' },
-  { type: 'chromePlateStyle', optionId: 'showood-procedural', label: 'Showood Procedural Chrome Plates' },
   { type: 'railMarkerColor', optionId: 'gold', label: 'Gold Diamond Markers' },
   {
     type: 'clothColor',
