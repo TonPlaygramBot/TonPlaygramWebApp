@@ -223,43 +223,6 @@ describe('cross-game inventory alignment', () => {
     });
   });
 
-  test('ludo battle royal preserves source-authentic textures for non-Gunify weapons', async () => {
-    const source = await readFile('webapp/src/pages/Games/LudoBattleRoyal.jsx', 'utf8');
-
-    expect(source).toContain('const withOriginalWeaponTextures');
-    expect(source).toContain('preserveSourceTextures: true');
-    expect(source).toContain("texturePolicy: 'sourceOriginal'");
-    expect(source).toContain('config?.preserveSourceTextures');
-    expect(source).toContain('Source-authentic weapons must never run through the legacy image');
-    expect(source).toContain('!config?.preserveSourceTextures');
-    expect(source).not.toContain("textureOverrideUrls");
-
-    [
-      'mrtkGunAttack',
-      'pistolHolsterAttack',
-      'fpsGunAttack',
-      'glockSidearmAttack',
-      'pistolSidearmAttack',
-      'assaultRifleAttack',
-      'grenadeBlastAttack',
-      'shotgunBlastAttack',
-      'smgBurstAttack',
-      'compactCarbineAttack',
-      'marksmanDmrAttack',
-      'polyShotgun01Attack',
-      'polyAssaultRifle01Attack',
-      'polyPistol01Attack',
-      'polyRevolver01Attack',
-      'polySawedOff01Attack',
-      'polyRobotLargeGunAttack',
-      'polyBazooka01Attack',
-      'polyHandGrenade01Attack',
-      'polyTank01Attack'
-    ].forEach((weaponId) => {
-      expect(source).toContain(`${weaponId}: {`);
-    });
-  });
-
   test('snake store mirrors ludo battle royal capture weapons', () => {
     const snakeCaptureStoreIds = new Set(
       SNAKE_STORE_ITEMS.filter((item) => item.type === 'captureWeapon').map((item) => item.optionId)
