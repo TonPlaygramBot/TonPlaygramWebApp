@@ -75,6 +75,7 @@ import {
 import { giftSounds } from '../../utils/giftSounds.js';
 import { CAPTURE_ANIMATION_OPTIONS } from '../../config/ludoBattleOptions.js';
 import { LUDO_WEAPON_DIRECTOR_BRIDGE } from '../../config/ludoWeaponDirectorBridge.js';
+import { SNAKE_FPS_GUN_MODEL_CONFIG } from '../../config/snakeWeaponCatalog.js';
 
 /**
  * CHESS 3D — Procedural, Modern Look (no external models)
@@ -316,11 +317,9 @@ function preserveChessCaptureWeaponSourceMaterial(material, texturePolicy = 'pre
 
 const CHESS_CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   fpsGunAttack: {
-    urls: [
-      'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@main/main/scene.gltf',
-      'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/main/main/scene.gltf'
-    ],
-    scale: 0.24
+    label: 'FPS Gun',
+    urls: [...SNAKE_FPS_GUN_MODEL_CONFIG.urls],
+    scale: SNAKE_FPS_GUN_MODEL_CONFIG.ludoModelScale
   },
   glockSidearmAttack: {
     urls: ['https://cdn.jsdelivr.net/gh/webaverse/pistol@master/glock.glb', 'https://raw.githubusercontent.com/webaverse/pistol/master/glock.glb'],
@@ -379,7 +378,13 @@ const CHESS_CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
     scale: 0.13
   },
   shotgunBlastAttack: {
-    urls: ['https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/main/main/scene.gltf', 'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@main/main/scene.gltf'],
+    label: 'Shotgun Blast',
+    urls: [
+      'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/main/main/scene.gltf',
+      'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@main/main/scene.gltf',
+      'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/master/main/scene.gltf',
+      'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@master/main/scene.gltf'
+    ],
     scale: 0.24
   },
   sniperShotAttack: {
@@ -443,15 +448,15 @@ const CHESS_LARGE_FIREARM_IDS = new Set([
   'polyTank01Attack'
 ]);
 const CHESS_FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
-  fpsGunAttack: 2.2,
-  glockSidearmAttack: 2.2,
-  uziSprayAttack: 2.2,
-  smgBurstAttack: 2.2,
+  fpsGunAttack: SNAKE_FPS_GUN_MODEL_CONFIG.ludoRackSizeMultiplier,
+  glockSidearmAttack: 1,
+  uziSprayAttack: 1.65,
+  smgBurstAttack: 1.65,
   ak47VolleyAttack: 2.2,
   krsvBurstAttack: 2.2,
-  smithSidearmAttack: 2.2,
-  mosinMarksmanAttack: 2.2,
-  sniperShotAttack: 2.2,
+  smithSidearmAttack: 1,
+  mosinMarksmanAttack: 3.5,
+  sniperShotAttack: 2.8,
   shotgunBlastAttack: 2.2,
   polyShotgun01Attack: 2.2,
   polyAssaultRifle01Attack: 2.2,
@@ -475,7 +480,35 @@ const CHESS_FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
 const CHESS_FIREARM_FLAT_ROTATION = Object.freeze([-Math.PI * 0.5, -Math.PI * 0.02, 0]);
 const CHESS_FIREARM_AIM_ROTATION = Object.freeze([0, -Math.PI * 0.5, 0]); // keep weapon front/muzzle pointed visually toward the board target.
 const CHESS_FIREARM_HANDHELD_SCALE_MULTIPLIER = 1.9;
-const CHESS_FIREARM_MUZZLE_YAW_CORRECTION_BY_ID = Object.freeze({});
+const CHESS_FIREARM_HANDHELD_SCALE_MULTIPLIER_BY_ID = Object.freeze({
+  fpsGunAttack: SNAKE_FPS_GUN_MODEL_CONFIG.ludoHandScaleMultiplier,
+  glockSidearmAttack: 1.2,
+  uziSprayAttack: 1.85,
+  smgBurstAttack: 1.85,
+  compactCarbineAttack: 1.34,
+  assaultRifleAttack: 1.2,
+  ak47VolleyAttack: 3.2,
+  krsvBurstAttack: 3.2,
+  smithSidearmAttack: 1.2,
+  mosinMarksmanAttack: 6,
+  sigsauerTacticalAttack: 1.2,
+  shotgunBlastAttack: 3.2,
+  marksmanDmrAttack: 1.48,
+  sniperShotAttack: 5.2,
+  polyShotgun01Attack: 1.26,
+  polyAssaultRifle01Attack: 1.28,
+  polyPistol01Attack: 1.15,
+  polyRevolver01Attack: 1.17,
+  polySawedOff01Attack: 1.2,
+  polyRevolver02Attack: 1.17,
+  polyShotgun02Attack: 1.34,
+  polyShotgun03Attack: 1.28,
+  polySmg01Attack: 1.22
+});
+const CHESS_FIREARM_MUZZLE_YAW_CORRECTION_BY_ID = Object.freeze({
+  ak47VolleyAttack: Math.PI,
+  krsvBurstAttack: Math.PI
+});
 
 const CHESS_FIREARM_HOLD_PROFILE_BY_TYPE = Object.freeze({
   Rifle: { supportGrip: 0.94, shoulderX: -1.14, shoulderZ: -1.34, forearmX: -0.52, wristX: 0.02 },
@@ -486,6 +519,33 @@ const CHESS_FIREARM_HOLD_PROFILE_BY_TYPE = Object.freeze({
   DMR: { supportGrip: 0.92, shoulderX: -1.2, shoulderZ: -1.38, forearmX: -0.56, wristX: -0.01 },
   Pistol: { supportGrip: 0.86, shoulderX: -1.02, shoulderZ: -1.2, forearmX: -0.36, wristX: 0.07 },
   Revolver: { supportGrip: 0.84, shoulderX: -1.0, shoulderZ: -1.18, forearmX: -0.34, wristX: 0.08 }
+});
+
+const CHESS_FIREARM_HAND_ATTACH_TUNING = Object.freeze({
+  default: { muzzleOffset: [0.0, 0.012, 0.2] },
+  fpsGunAttack: { muzzleOffset: [0, 0.014, 0.248] },
+  glockSidearmAttack: { muzzleOffset: [0, 0.012, 0.19] },
+  uziSprayAttack: { muzzleOffset: [0, 0.014, 0.215] },
+  smgBurstAttack: { muzzleOffset: [0, 0.014, 0.22] },
+  assaultRifleAttack: { muzzleOffset: [0, 0.014, 0.244] },
+  ak47VolleyAttack: { muzzleOffset: [0, 0.014, 0.256] },
+  krsvBurstAttack: { muzzleOffset: [0, 0.014, 0.249] },
+  smithSidearmAttack: { muzzleOffset: [0, 0.012, 0.194] },
+  mosinMarksmanAttack: { muzzleOffset: [0, 0.015, 0.274] },
+  sigsauerTacticalAttack: { muzzleOffset: [0, 0.013, 0.208] },
+  compactCarbineAttack: { muzzleOffset: [0, 0.014, 0.228] },
+  marksmanDmrAttack: { muzzleOffset: [0, 0.015, 0.25] },
+  polyShotgun01Attack: { muzzleOffset: [0, 0.014, 0.247] },
+  polyAssaultRifle01Attack: { muzzleOffset: [0, 0.014, 0.246] },
+  polyPistol01Attack: { muzzleOffset: [0, 0.012, 0.198] },
+  polyRevolver01Attack: { muzzleOffset: [0, 0.012, 0.2] },
+  polySawedOff01Attack: { muzzleOffset: [0, 0.013, 0.218] },
+  polyRevolver02Attack: { muzzleOffset: [0, 0.012, 0.2] },
+  polyShotgun02Attack: { muzzleOffset: [0, 0.014, 0.26] },
+  polyShotgun03Attack: { muzzleOffset: [0, 0.014, 0.253] },
+  polySmg01Attack: { muzzleOffset: [0, 0.014, 0.223] },
+  shotgunBlastAttack: { muzzleOffset: [0, 0.014, 0.255] },
+  sniperShotAttack: { muzzleOffset: [0, 0.015, 0.278] }
 });
 
 const CAPTURE_VEHICLE_TEXTURE_CACHE = new Map();
@@ -688,10 +748,10 @@ const CHAIR_SCALE = 0.94 * LAYOUT_SCALE_FACTOR * TABLE_LAYOUT_SCALE_FACTOR;
 const CHAIR_WIDTH_SCALE = 1.14; // Shrink chair width a bit more to match tighter portrait framing.
 const CHAIR_VERTICAL_OFFSET = -0.065 * MODEL_SCALE;
 const CHAIR_CLEARANCE = AI_CHAIR_GAP;
-const PLAYER_CHAIR_EXTRA_CLEARANCE = 0.18 * MODEL_SCALE; // keep the local bottom chair/human closer to the table in portrait framing.
-const OPPONENT_CHAIR_EXTRA_CLEARANCE = 0.12 * MODEL_SCALE; // keep the opponent chair/human closer to the table while preserving top visibility.
-const CHAIR_TABLE_PUSHBACK = 0.02 * MODEL_SCALE;
-const CHAIR_TABLE_GAP_MIN = 0.08 * MODEL_SCALE;
+const PLAYER_CHAIR_EXTRA_CLEARANCE = 0.1 * MODEL_SCALE; // keep the local bottom chair/human closer to the table in portrait framing.
+const OPPONENT_CHAIR_EXTRA_CLEARANCE = 0.06 * MODEL_SCALE; // keep the opponent chair/human closer to the table while preserving top visibility.
+const CHAIR_TABLE_PUSHBACK = -0.015 * MODEL_SCALE;
+const CHAIR_TABLE_GAP_MIN = 0.055 * MODEL_SCALE;
 const CHAIR_TABLE_GAP_MAX = 0.42 * MODEL_SCALE;
 const CHAIR_HUMAN_LEG_GAP = 0.02 * MODEL_SCALE;
 const CAMERA_PHI_OFFSET = 0;
@@ -717,7 +777,7 @@ const CAMERA_CAPTURE_VIEW_UPWARD_BIAS = THREE.MathUtils.degToRad(21); // raise f
 const CAMERA_CAPTURE_VIEW_RADIUS_SCALE = 1.18; // keep forced 3D animation wider during capture so the board stays fully readable
 const CAMERA_CAPTURE_BOTTOM_AVATAR_SCREEN_OFFSET = 0; // keep projected avatars pinned to the seated character chest anchors
 const CAMERA_LOCKED_3D_PHI = THREE.MathUtils.degToRad(86.5); // portrait reference: opponent remains visible while board/gameplay sits lower on the phone.
-const CAMERA_LOCKED_3D_RADIUS_SCALE = 0.285; // keep the full board readable above the lowered chat/gift buttons.
+const CAMERA_LOCKED_3D_RADIUS_SCALE = 0.272; // keep the full board readable above the lowered chat/gift buttons.
 const CHECKERS_CAMERA_FRAME_COMPENSATION = 1.06;
 const PLAYER_FACE_CAMERA_SEAT_ANGLE = Math.PI / 2;
 // Keep Chess Battle Royal bottom-player camera aligned with Checkers Battle Royal
@@ -741,15 +801,15 @@ const SEATED_HUMAN_FACING_Y = 0;
 const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.16;
 const SEATED_HUMAN_HAND_PIECE_FORWARD = 0.012;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
-const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.32; // move camera a bit closer to the table for portrait play.
-const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.24; // keep a similar closer framing in landscape.
+const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.24; // move camera a bit closer to the table for portrait play.
+const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.18; // keep a similar closer framing in landscape.
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 1.08;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.68;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.42; // lift camera a bit higher while preserving table focus in portrait.
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.98; // mirror the slight upward lift for landscape framing.
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 1.35;
-const PLAYER_VIEW_LOOK_TARGET_UP_BIAS = 0.76; // looking higher makes the 3D gameplay land lower on portrait screens.
-const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 11.65; // push gameplay lower toward the phone bottom, matching the reference framing.
+const PLAYER_VIEW_LOOK_TARGET_UP_BIAS = 0.82; // looking higher makes the 3D gameplay land lower on portrait screens.
+const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 12.8; // push gameplay lower toward the phone bottom, matching the reference framing.
 const FPV_FACE_FORWARD_OFFSET = 0.012; // keep the camera almost exactly at the eyes for a true first-person perspective.
 const FPV_FACE_UP_OFFSET = 0.0; // slight lift so the board edge does not clip while still feeling eye-level.
 const FPV_LOOK_AHEAD_DISTANCE = BOARD.tile * BOARD_SCALE * 5.8; // prioritize looking down the board journey toward the opponent side.
@@ -13001,9 +13061,6 @@ function Chess3D({
         const firearmFx = new THREE.Group();
         firearmFx.visible = false;
         captureFxGroup.add(firearmFx);
-        const fpsArmsFx = new THREE.Group();
-        fpsArmsFx.visible = false;
-        captureFxGroup.add(fpsArmsFx);
         const aerodynamicRings = createLudoBulletAerodynamicRingsFx();
         captureFxGroup.add(aerodynamicRings);
         void loadChessCaptureWeaponModel(firearmAnimationId).then((template) => {
@@ -13011,17 +13068,18 @@ function Chess3D({
           firearmFx.clear();
           const weaponClone = prepareChessCaptureWeaponClone(template, firearmAnimationId, {
             flat: false,
-            targetSize: (CHESS_CAPTURE_WEAPON_MODEL_CONFIG[firearmAnimationId]?.scale ?? 0.18) * CHESS_FIREARM_HANDHELD_SCALE_MULTIPLIER
+            targetSize: (CHESS_CAPTURE_WEAPON_MODEL_CONFIG[firearmAnimationId]?.scale ?? 0.18) *
+              (CHESS_FIREARM_HANDHELD_SCALE_MULTIPLIER_BY_ID[firearmAnimationId] ?? CHESS_FIREARM_HANDHELD_SCALE_MULTIPLIER)
           });
           weaponClone.position.y = -0.04;
+          const muzzleHelper = new THREE.Object3D();
+          const tuning = CHESS_FIREARM_HAND_ATTACH_TUNING[firearmAnimationId] || CHESS_FIREARM_HAND_ATTACH_TUNING.default;
+          muzzleHelper.position.set(...(tuning.muzzleOffset || CHESS_FIREARM_HAND_ATTACH_TUNING.default.muzzleOffset));
+          weaponClone.add(muzzleHelper);
+          firearmFx.userData.muzzleHelper = muzzleHelper;
           firearmFx.add(weaponClone);
         });
-        void loadChessFpsArmsTemplate().then((armsTemplate) => {
-          if (!armsTemplate || !fpsArmsFx.parent) return;
-          fpsArmsFx.clear();
-          const armsClone = armsTemplate.clone(true);
-          fpsArmsFx.add(armsClone);
-        });
+        // The FPS/shotgun model is intentionally rendered as the gun only; no fallback arms/hands are loaded here.
         activeCaptureFx.push({
           type: 'firearm',
           t: 0,
@@ -13031,7 +13089,7 @@ function Chess3D({
           targetMesh,
           missileFx,
           firearmFx,
-          fpsArmsFx,
+          fpsArmsFx: null,
           aerodynamicRings,
           bulletCount: firearmProfile.bulletCount,
           impactAt: firearmProfile.impactAt,
@@ -15534,11 +15592,28 @@ function Chess3D({
             orientForwardKeepingUp(fx.missileFx.root, aimDir);
             if (fx.firearmFx) {
               fx.firearmFx.visible = true;
-              fx.firearmFx.position.copy(humanFirearmPose?.weaponWorld || aimOrigin.clone().addScaledVector(aimDir, -(LUDO_FIREARM_BROADCAST_PROFILE.aimRearPullback ?? 0.124)));
+              const liveAimTarget = targetPos.clone();
+              liveAimTarget.y += Math.max(0.035, LUDO_FIREARM_BROADCAST_PROFILE.aimLift ?? 0.064);
+              const liveAimDir = liveAimTarget.clone().sub(aimOrigin);
+              if (liveAimDir.lengthSq() > 1e-8) liveAimDir.normalize();
+              else liveAimDir.copy(aimDir);
+              fx.firearmFx.position.copy(
+                humanFirearmPose?.weaponWorld ||
+                  aimOrigin.clone().addScaledVector(liveAimDir, -(LUDO_FIREARM_BROADCAST_PROFILE.aimRearPullback ?? 0.124))
+              );
               fx.firearmFx.position.y += 0.02 + Math.sin(u * Math.PI * 8) * 0.006;
-              orientForwardKeepingUp(fx.firearmFx, aimDir);
+              orientForwardKeepingUp(fx.firearmFx, liveAimDir);
+              fx.firearmFx.updateMatrixWorld?.(true);
+              const muzzleHelper = fx.firearmFx.userData?.muzzleHelper;
+              if (muzzleHelper?.isObject3D) {
+                const currentMuzzleWorld = muzzleHelper.getWorldPosition(new THREE.Vector3());
+                const desiredMuzzleWorld = humanFirearmPose?.muzzleWorld || aimOrigin.clone().addScaledVector(liveAimDir, SEATED_HUMAN_FIREARM_MUZZLE_FORWARD);
+                fx.firearmFx.position.add(desiredMuzzleWorld.sub(currentMuzzleWorld));
+                fx.firearmFx.updateMatrixWorld?.(true);
+              }
               const recoil = Math.sin(Math.min(1, u * Math.max(1, fx.bulletCount || 1)) * Math.PI) * 0.025;
-              fx.firearmFx.position.addScaledVector(aimDir, -recoil);
+              fx.firearmFx.position.addScaledVector(liveAimDir, -recoil);
+              aimDir.copy(liveAimDir);
             }
             if (fx.fpsArmsFx) {
               fx.fpsArmsFx.visible = !humanFirearmPose;
