@@ -345,17 +345,13 @@ const FIREARM_RACK_OPPOSITE_SEAT_TARGET_BY_PLAYER = Object.freeze({
   0: 2,
   2: 0
 });
-const GUNIFY_RAW_BASE = 'https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main';
-const GUNIFY_JSDELIVR_BASE = 'https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main';
-const gunifyModelUrls = (modelName) => [
-  `${GUNIFY_RAW_BASE}/models/${modelName}/scene.gltf`,
-  `${GUNIFY_JSDELIVR_BASE}/models/${modelName}/scene.gltf`
+const GUNIFY_MAY_9_COMMIT = 'e8507fd6dcd2ad3a74369feb2ef66fb5b1ef254e';
+const GUNIFY_RAW_BASE = `https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/${GUNIFY_MAY_9_COMMIT}`;
+const GUNIFY_JSDELIVR_BASE = `https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@${GUNIFY_MAY_9_COMMIT}`;
+const gunifyModelUrls = (modelFolder, modelName) => [
+  `${GUNIFY_RAW_BASE}/${modelFolder}/${modelName}/scene.gltf`,
+  `${GUNIFY_JSDELIVR_BASE}/${modelFolder}/${modelName}/scene.gltf`
 ];
-const gunifyTextureUrls = (modelName, textureFileName) => [
-  `${GUNIFY_RAW_BASE}/models/${modelName}/textures/${textureFileName}`,
-  `${GUNIFY_JSDELIVR_BASE}/models/${modelName}/textures/${textureFileName}`
-];
-
 const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   mrtkGunAttack: {
     label: 'MRTK Gun',
@@ -413,50 +409,38 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   },
   uziSprayAttack: {
     label: 'Gunify Uzi',
-    urls: gunifyModelUrls('Uzi'),
-    textureOverrideUrls: gunifyTextureUrls('Uzi', 'Material__90_baseColor.png'),
+    urls: gunifyModelUrls('models2', 'Uzi'),
     source: 'Gunify',
-    texturePolicy: 'gunifyPbr',
     scale: 0.2
   },
   ak47VolleyAttack: {
     label: 'Gunify AK-47',
-    urls: gunifyModelUrls('AK47'),
-    textureOverrideUrls: gunifyTextureUrls('AK47', 'Material.001_baseColor.png'),
+    urls: gunifyModelUrls('models', 'AK47'),
     source: 'Gunify',
-    texturePolicy: 'gunifyPbr',
     scale: 0.24
   },
   krsvBurstAttack: {
     label: 'Gunify KRSV',
-    urls: gunifyModelUrls('KRSV'),
-    textureOverrideUrls: gunifyTextureUrls('KRSV', 'Steel_baseColor.png'),
+    urls: gunifyModelUrls('models', 'KRSV'),
     source: 'Gunify',
-    texturePolicy: 'gunifyPbr',
     scale: 0.24
   },
   smithSidearmAttack: {
     label: 'Gunify Smith',
-    urls: gunifyModelUrls('Smith'),
-    textureOverrideUrls: gunifyTextureUrls('Smith', 'Metal_baseColor.png'),
+    urls: gunifyModelUrls('models', 'Smith'),
     source: 'Gunify',
-    texturePolicy: 'gunifyPbr',
     scale: 0.13
   },
   mosinMarksmanAttack: {
     label: 'Gunify Mosin',
-    urls: gunifyModelUrls('Mosin'),
-    textureOverrideUrls: gunifyTextureUrls('Mosin', 'Mosin_baseColor.png'),
+    urls: gunifyModelUrls('models2', 'Mosin'),
     source: 'Gunify',
-    texturePolicy: 'gunifyPbr',
     scale: 0.5125
   },
   sigsauerTacticalAttack: {
     label: 'Gunify SigSauer Tactical',
-    urls: gunifyModelUrls('SigSauer'),
-    textureOverrideUrls: gunifyTextureUrls('SigSauer', 'Material_diffuse.png'),
+    urls: gunifyModelUrls('models3', 'SigSauer'),
     source: 'Gunify',
-    texturePolicy: 'gunifyPbr',
     scale: 0.13
   },
   grenadeBlastAttack: {
@@ -480,10 +464,8 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   },
   sniperShotAttack: {
     label: 'Gunify Mosin Sniper Shot',
-    urls: gunifyModelUrls('Mosin'),
-    textureOverrideUrls: gunifyTextureUrls('Mosin', 'Mosin_baseColor.png'),
+    urls: gunifyModelUrls('models2', 'Mosin'),
     source: 'Gunify',
-    texturePolicy: 'gunifyPbr',
     scale: 0.504
   },
   smgBurstAttack: {
@@ -635,20 +617,6 @@ function applyModelQualityToObject(root) {
   });
 }
 
-function applyGunifyWeaponTexturePolicy(material) {
-  if (!material) return;
-  ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap', 'specularMap'].forEach((textureKey) => {
-    const texture = material[textureKey];
-    if (!texture) return;
-    if (textureKey === 'map' || textureKey === 'emissiveMap') applySRGBColorSpace(texture);
-    texture.flipY = false;
-    texture.anisotropy = Math.max(texture.anisotropy || 1, activeModelTextureAnisotropy);
-    texture.needsUpdate = true;
-  });
-  if (typeof material.roughness === 'number') material.roughness = Math.min(0.9, Math.max(0.34, material.roughness));
-  if (typeof material.metalness === 'number') material.metalness = Math.min(1, Math.max(0.18, material.metalness));
-  material.needsUpdate = true;
-}
 
 const FIREARM_SHOTGUN_IDS = new Set([
   'shotgunBlastAttack',
@@ -1377,7 +1345,7 @@ async function loadCaptureWeaponModel(captureAnimationId) {
     for (let i = 0; i < candidateUrls.length; i += 1) {
       const candidateUrl = candidateUrls[i];
       try {
-        // Match the May 11 morning GLB/GLTF path: let GLTFLoader consume the
+        // Match the May 9 GLB/GLTF path: let GLTFLoader consume the
         // source asset first so its WebGL texture transforms, samplers, UVs,
         // embedded images, and KTX2/PNG/JPEG color-space metadata stay intact.
         // eslint-disable-next-line no-await-in-loop
@@ -1459,7 +1427,6 @@ async function loadCaptureWeaponModel(captureAnimationId) {
           if (material?.map) applySRGBColorSpace(material.map);
           if (!material?.map && textureOverride) material.map = textureOverride;
           if (material?.emissiveMap) applySRGBColorSpace(material.emissiveMap);
-          if (config?.texturePolicy === 'gunifyPbr') applyGunifyWeaponTexturePolicy(material);
           material.transparent = false;
           material.opacity = 1;
           material.needsUpdate = true;

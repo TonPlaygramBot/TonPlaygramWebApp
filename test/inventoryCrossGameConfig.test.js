@@ -181,28 +181,28 @@ describe('cross-game inventory alignment', () => {
   });
 
 
-  test('Gunify weapon URLs use original source model folders for texture resolution', async () => {
-    const sourceFiles = await Promise.all([
-      readFile('webapp/src/pages/Games/LudoBattleRoyal.jsx', 'utf8'),
-      readFile('webapp/src/pages/Games/ChessBattleRoyal.jsx', 'utf8'),
-      readFile('webapp/src/pages/Games/ShootingRange.tsx', 'utf8'),
-      readFile('webapp/src/config/snakeWeaponCatalog.js', 'utf8')
-    ]);
-    const combinedSource = sourceFiles.join('\n');
+  test('Ludo Battle Royal Gunify weapons use the May 9 source folders for texture resolution', async () => {
+    const ludoSource = await readFile('webapp/src/pages/Games/LudoBattleRoyal.jsx', 'utf8');
+    const may9Commit = 'e8507fd6dcd2ad3a74369feb2ef66fb5b1ef254e';
+    const expectedLudoFolders = {
+      Uzi: 'models2',
+      AK47: 'models',
+      KRSV: 'models',
+      Smith: 'models',
+      Mosin: 'models2',
+      SigSauer: 'models3'
+    };
 
-    expect(combinedSource).not.toContain('Gunify/main/models2/');
-    expect(combinedSource).not.toContain('Gunify@main/models2/');
-    expect(combinedSource).not.toContain('Gunify/main/models3/');
-    expect(combinedSource).not.toContain('Gunify@main/models3/');
+    expect(ludoSource).toContain(`const GUNIFY_MAY_9_COMMIT = '${may9Commit}';`);
+    expect(ludoSource).toContain('raw.githubusercontent.com/KrishBharadwaj5678/Gunify/${GUNIFY_MAY_9_COMMIT}');
+    expect(ludoSource).toContain('cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@${GUNIFY_MAY_9_COMMIT}');
 
-    ['AK47', 'KRSV', 'Smith', 'Mosin', 'SigSauer', 'Uzi'].forEach((modelName) => {
-      expect(combinedSource).toContain(
-        `https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/main/models/${modelName}/scene.gltf`
-      );
-      expect(combinedSource).toContain(
-        `https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@main/models/${modelName}/scene.gltf`
-      );
+    Object.entries(expectedLudoFolders).forEach(([modelName, folder]) => {
+      expect(ludoSource).toContain(`gunifyModelUrls('${folder}', '${modelName}')`);
     });
+
+    expect(ludoSource).not.toContain('texturePolicy:');
+    expect(ludoSource).not.toContain('applyGunifyWeaponTexturePolicy');
   });
 
   test('snake store mirrors ludo battle royal capture weapons', () => {
