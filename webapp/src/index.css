@@ -2011,7 +2011,7 @@ input:focus {
 }
 
 .chess-battle-chat-bubble {
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 4.55rem);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 2.2rem);
 }
 
 
