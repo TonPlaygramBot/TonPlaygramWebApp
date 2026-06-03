@@ -13519,14 +13519,12 @@ function subtlyExpandPoolRoyaleShowoodRailSightsAndAprons(model, tableModel) {
   const visualScale = Number(tableModel?.railSightApronVisualScale);
   const railSightHeightScale = Number(tableModel?.railSightVisualHeightScale);
   const sideApronHeightScale = Number(tableModel?.sideApronVisualHeightScale);
-  const railSightOutwardOffset = Number(tableModel?.railSightOutwardOffset);
   const sideApronOutwardOffset = Number(tableModel?.sideApronOutwardOffset);
   const hasScale = Number.isFinite(visualScale) && visualScale > 1 + MICRO_EPS;
   const hasRailSightHeight = Number.isFinite(railSightHeightScale) && railSightHeightScale > 1 + MICRO_EPS;
   const hasSideApronHeight = Number.isFinite(sideApronHeightScale) && sideApronHeightScale > 1 + MICRO_EPS;
-  const hasRailSightOffset = Number.isFinite(railSightOutwardOffset) && Math.abs(railSightOutwardOffset) > MICRO_EPS;
   const hasSideApronOffset = Number.isFinite(sideApronOutwardOffset) && Math.abs(sideApronOutwardOffset) > MICRO_EPS;
-  if (!hasScale && !hasRailSightHeight && !hasSideApronHeight && !hasRailSightOffset && !hasSideApronOffset) return;
+  if (!hasScale && !hasRailSightHeight && !hasSideApronHeight && !hasSideApronOffset) return;
   if (model.userData?.poolRoyaleShowoodRailSightApronExpanded) return;
 
   const fullBox = new THREE.Box3().setFromObject(model);
@@ -13552,21 +13550,16 @@ function subtlyExpandPoolRoyaleShowoodRailSightsAndAprons(model, tableModel) {
     const heightScale = isSideApron ? safeSideApronHeightScale : safeRailSightHeightScale;
     if (heightScale > 1) child.scale.y *= heightScale;
 
-    const outwardOffset = isRailSight && hasRailSightOffset
-      ? railSightOutwardOffset
-      : isSideApron && hasSideApronOffset
-        ? sideApronOutwardOffset
-        : 0;
-    if (Math.abs(outwardOffset) > MICRO_EPS) {
+    if (isSideApron && hasSideApronOffset) {
       const childBox = new THREE.Box3().setFromObject(child);
       if (!childBox.isEmpty()) {
         const childCenter = childBox.getCenter(new THREE.Vector3());
         const awayX = childCenter.x - fullCenter.x;
         const awayZ = childCenter.z - fullCenter.z;
         if (Math.abs(awayX) >= Math.abs(awayZ) && Math.abs(awayX) > MICRO_EPS) {
-          child.position.x += Math.sign(awayX) * outwardOffset;
+          child.position.x += Math.sign(awayX) * sideApronOutwardOffset;
         } else if (Math.abs(awayZ) > MICRO_EPS) {
-          child.position.z += Math.sign(awayZ) * outwardOffset;
+          child.position.z += Math.sign(awayZ) * sideApronOutwardOffset;
         }
       }
     }
