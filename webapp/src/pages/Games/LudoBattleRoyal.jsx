@@ -226,7 +226,8 @@ const FIREARM_SINGLE_HAND_ONLY_IDS = new Set([
   'polyHandGrenade01Attack'
 ]);
 const FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
-  fpsGunAttack: 2.2,
+  // Match Snake & Ladder's compact FPS Shotgun display instead of the large-rifle rack size.
+  fpsGunAttack: 1,
   glockSidearmAttack: 1,
   // May 9 05:00 table snapshot: keep these four legacy firearms at the exact
   // rack sizing used before the Gunify source/Poly Pizza additions.
@@ -381,6 +382,14 @@ const gunifyModelUrls = (modelName) => {
   ];
 };
 
+const SNAKE_FPS_GUN_URLS = Object.freeze([
+  'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@main/main/scene.gltf',
+  'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/main/main/scene.gltf',
+  'https://cdn.jsdelivr.net/gh/GarbajYT/godot-sniper-rifle@master/AWP.glb',
+  'https://raw.githubusercontent.com/GarbajYT/godot-sniper-rifle/master/AWP.glb'
+]);
+const SNAKE_FPS_GUN_MODEL_SCALE = 0.03;
+
 const GUNIFY_SPECULAR_GLOSSINESS_EXTENSION = 'KHR_materials_pbrSpecularGlossiness';
 
 function cloneGltfJsonValue(value) {
@@ -454,13 +463,9 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   },
   fpsGunAttack: {
     label: 'FPS Gun',
-    urls: [
-      'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@main/main/scene.gltf',
-      'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/main/main/scene.gltf',
-      'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@master/main/scene.gltf',
-      'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/master/main/scene.gltf'
-    ],
-    scale: 0.24
+    // Keep this FPS gun aligned with Snake & Ladder's FPS Shotgun source/fallback list.
+    urls: SNAKE_FPS_GUN_URLS,
+    scale: SNAKE_FPS_GUN_MODEL_SCALE
   },
   glockSidearmAttack: {
     label: 'Glock',
@@ -3999,7 +4004,7 @@ const AI_EXTRA_TURN_DELAY_MS = 1600;
 const HUMAN_ROLL_DELAY_MS = 1880;
 const AUTO_ROLL_DURATION_MS = 1100;
 const DICE_RESULT_EXTRA_HOLD_MS = 4500;
-const DICE_RESULT_CAMERA_HOLD_MS = 950;
+const DICE_RESULT_CAMERA_HOLD_MS = 1500;
 const ANIMATION_BASE_FPS = 60;
 const MIN_ANIMATION_SPEED_MULTIPLIER = 0.62;
 const MAX_ANIMATION_SPEED_MULTIPLIER = 1.2;
@@ -13496,15 +13501,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const hasBoardTokenBeforeRoll = hasAnyTokenOnBoard(player);
     const options = getMovableTokens(player, value);
     scheduleDiceClear();
-    if (!isHumanTurn || !lockUserTurnSeatViewRef.current) {
-      setCameraFocus({
-        target: landingFocus,
-        follow: false,
-        priority: 7,
-        offset: CAMERA_TARGET_LIFT + 0.03,
-        force: true
-      });
-    }
+    setCameraFocus({
+      target: landingFocus,
+      follow: false,
+      ttl: DICE_RESULT_CAMERA_HOLD_MS / 1000,
+      priority: 7,
+      offset: CAMERA_TARGET_LIFT + 0.03,
+      force: true
+    });
     if (!options.length) {
       clearTurnAdvanceTimeout();
       turnAdvanceTimeoutRef.current = window.setTimeout(() => {
