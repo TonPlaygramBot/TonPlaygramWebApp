@@ -86,6 +86,22 @@ export const SNAKE_KNOWN_WORKING_GLB = Object.freeze({
   fpsRaw: 'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/main/main/scene.gltf'
 })
 
+export const SNAKE_FPS_GUN_MODEL_CONFIG = Object.freeze({
+  id: 'slot-18-fps-gun-gltf',
+  label: 'FPS Shotgun',
+  thumbnail: weaponSilhouetteThumbnail(['#f59e0b', '#111827', '#fde68a']),
+  urls: Object.freeze([
+    SNAKE_KNOWN_WORKING_GLB.fps,
+    SNAKE_KNOWN_WORKING_GLB.fpsRaw,
+    SNAKE_KNOWN_WORKING_GLB.awp,
+    SNAKE_KNOWN_WORKING_GLB.awpRaw
+  ]),
+  // May 9 05:00 baseline used by Ludo Battle Royal for the same FPS gun asset.
+  ludoModelScale: 0.24,
+  ludoRackSizeMultiplier: 2.2,
+  ludoHandScaleMultiplier: 3.2
+})
+
 export const SNAKE_CAPTURE_WEAPON_OPTIONS = Object.freeze([
   {
     id: 'ukrainianDroneAttack',
@@ -145,7 +161,7 @@ export const SNAKE_CAPTURE_WEAPON_OPTIONS = Object.freeze([
   gunifyWeapon('slot-14-uzi-gltf', 'Uzi GLTF', 'Uzi', ['#0f766e', '#111827', '#99f6e4'], { ludoCaptureScale: 0.2 }),
   gunifyWeapon('slot-15-sigsauer-gltf', 'SigSauer GLTF', 'SigSauer', ['#334155', '#020617', '#f1f5f9'], { ludoCaptureScale: 0.13 }),
   { id: 'slot-16-awp-glb', label: 'AWP Sniper GLB', thumbnail: weaponSilhouetteThumbnail(['#1e293b', '#0f172a', '#f8fafc']), urls: [SNAKE_KNOWN_WORKING_GLB.awp, SNAKE_KNOWN_WORKING_GLB.awpRaw] },
-  { id: 'slot-18-fps-gun-gltf', label: 'FPS Shotgun', thumbnail: weaponSilhouetteThumbnail(['#f59e0b', '#111827', '#fde68a']), urls: [SNAKE_KNOWN_WORKING_GLB.fps, SNAKE_KNOWN_WORKING_GLB.fpsRaw, SNAKE_KNOWN_WORKING_GLB.awp, SNAKE_KNOWN_WORKING_GLB.awpRaw] }
+  SNAKE_FPS_GUN_MODEL_CONFIG
 ])
 
 export const SNAKE_CAPTURE_WEAPON_ALIAS_MAP = Object.freeze({

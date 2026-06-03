@@ -54,6 +54,7 @@ import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from '../../config/murlanThemes.js';
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from '../../config/poolRoyaleInventoryConfig.js';
 import { LUDO_WEAPON_DIRECTOR_BRIDGE } from '../../config/ludoWeaponDirectorBridge.js';
+import { SNAKE_FPS_GUN_MODEL_CONFIG } from '../../config/snakeWeaponCatalog.js';
 import { TOKEN_TYPE_SEQUENCE } from '../../utils/ludoTokenConstants.js';
 import {
   getLudoBattleInventory,
@@ -226,7 +227,7 @@ const FIREARM_SINGLE_HAND_ONLY_IDS = new Set([
   'polyHandGrenade01Attack'
 ]);
 const FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
-  fpsGunAttack: 2.2,
+  fpsGunAttack: SNAKE_FPS_GUN_MODEL_CONFIG.ludoRackSizeMultiplier,
   glockSidearmAttack: 1,
   // May 9 05:00 table snapshot: keep these four legacy firearms at the exact
   // rack sizing used before the Gunify source/Poly Pizza additions.
@@ -454,13 +455,9 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   },
   fpsGunAttack: {
     label: 'FPS Gun',
-    urls: [
-      'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@main/main/scene.gltf',
-      'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/main/main/scene.gltf',
-      'https://cdn.jsdelivr.net/gh/lando19/Guns-for-BJS-FPS-Game@master/main/scene.gltf',
-      'https://raw.githubusercontent.com/lando19/Guns-for-BJS-FPS-Game/master/main/scene.gltf'
-    ],
-    scale: 0.24
+    // Keep only the FPS gun matched to Snake & Ladder's May 9 05:00 asset order/size.
+    urls: [...SNAKE_FPS_GUN_MODEL_CONFIG.urls],
+    scale: SNAKE_FPS_GUN_MODEL_CONFIG.ludoModelScale
   },
   glockSidearmAttack: {
     label: 'Glock',
@@ -1036,7 +1033,7 @@ const FIREARM_ATTACH_SCALE_MULTIPLIER = Object.freeze({
   // seated humans keep a consistent hand fit around the trigger/handle zone.
   mrtkGunAttack: 1.16,
   pistolHolsterAttack: 1.14,
-  fpsGunAttack: 3.2,
+  fpsGunAttack: SNAKE_FPS_GUN_MODEL_CONFIG.ludoHandScaleMultiplier,
   glockSidearmAttack: 1.2,
   pistolSidearmAttack: 1.16,
   uziSprayAttack: 1.85,
@@ -3999,7 +3996,7 @@ const AI_EXTRA_TURN_DELAY_MS = 1600;
 const HUMAN_ROLL_DELAY_MS = 1880;
 const AUTO_ROLL_DURATION_MS = 1100;
 const DICE_RESULT_EXTRA_HOLD_MS = 4500;
-const DICE_RESULT_CAMERA_HOLD_MS = 950;
+const DICE_RESULT_CAMERA_HOLD_MS = 1500;
 const ANIMATION_BASE_FPS = 60;
 const MIN_ANIMATION_SPEED_MULTIPLIER = 0.62;
 const MAX_ANIMATION_SPEED_MULTIPLIER = 1.2;
@@ -13496,15 +13493,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const hasBoardTokenBeforeRoll = hasAnyTokenOnBoard(player);
     const options = getMovableTokens(player, value);
     scheduleDiceClear();
-    if (!isHumanTurn || !lockUserTurnSeatViewRef.current) {
-      setCameraFocus({
-        target: landingFocus,
-        follow: false,
-        priority: 7,
-        offset: CAMERA_TARGET_LIFT + 0.03,
-        force: true
-      });
-    }
+    setCameraFocus({
+      target: landingFocus,
+      follow: false,
+      ttl: DICE_RESULT_CAMERA_HOLD_MS / 1000,
+      priority: 7,
+      offset: CAMERA_TARGET_LIFT + 0.03,
+      force: true
+    });
     if (!options.length) {
       clearTurnAdvanceTimeout();
       turnAdvanceTimeoutRef.current = window.setTimeout(() => {
@@ -13516,7 +13512,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     if (player === 0) {
       preserveUserTurnCameraRef.current = true;
       lockUserTurnSeatViewRef.current = true;
-      beginHumanSelection(value, options, { skipCameraFollow: !hasBoardTokenBeforeRoll });
+      clearTurnAdvanceTimeout();
+      turnAdvanceTimeoutRef.current = window.setTimeout(() => {
+        turnAdvanceTimeoutRef.current = null;
+        beginHumanSelection(value, options, { skipCameraFollow: !hasBoardTokenBeforeRoll });
+      }, DICE_RESULT_CAMERA_HOLD_MS);
       return;
     }
     const choice = chooseMoveOption(state, player, value, options);
