@@ -223,6 +223,20 @@ describe('cross-game inventory alignment', () => {
     });
   });
 
+  test('ludo battle royal preserves source-authored materials for non-Gunify weapons', async () => {
+    const source = await readFile('webapp/src/pages/Games/LudoBattleRoyal.jsx', 'utf8');
+
+    expect(source).toContain('function preserveCaptureWeaponSourceMaterial');
+    expect(source).toContain("sourceTexturePolicy: texturePolicy");
+    expect(source).toContain("preserveCaptureWeaponSourceMaterial(material, config?.texturePolicy || 'preserveSource')");
+
+    const setupStart = source.indexOf('root.traverse((node) => {', source.indexOf('async function loadCaptureWeaponModel'));
+    const setupEnd = source.indexOf('applyModelQualityToObject(root);', setupStart);
+    const materialSetup = source.slice(setupStart, setupEnd);
+    expect(materialSetup).not.toContain('material.transparent = false');
+    expect(materialSetup).not.toContain('material.opacity = 1');
+  });
+
   test('snake store mirrors ludo battle royal capture weapons', () => {
     const snakeCaptureStoreIds = new Set(
       SNAKE_STORE_ITEMS.filter((item) => item.type === 'captureWeapon').map((item) => item.optionId)

@@ -701,6 +701,19 @@ function applyGunifyWeaponTexturePolicy(material) {
   material.needsUpdate = true;
 }
 
+function preserveCaptureWeaponSourceMaterial(material, texturePolicy = 'preserveSource') {
+  if (!material) return;
+  // Every non-procedural weapon should keep the exact material state authored in
+  // its source GLB/GLTF.  That includes alpha modes, opacity, color factors,
+  // PBR factors, UV transforms and every image map.  We only tag the material
+  // for diagnostics and let the generic texture-quality pass raise sampling.
+  material.userData = {
+    ...(material.userData || {}),
+    sourceTexturePolicy: texturePolicy
+  };
+  material.needsUpdate = true;
+}
+
 const FIREARM_SHOTGUN_IDS = new Set([
   'shotgunBlastAttack',
   'polyShotgun01Attack',
@@ -1499,12 +1512,14 @@ async function loadCaptureWeaponModel(captureAnimationId) {
         node.visible = true;
         const materials = Array.isArray(node.material) ? node.material : [node.material];
         materials.forEach((material) => {
-          if (material?.map) applySRGBColorSpace(material.map);
-          if (material?.emissiveMap) applySRGBColorSpace(material.emissiveMap);
-          if (config?.texturePolicy === 'gunifyPbr') applyGunifyWeaponTexturePolicy(material);
-          material.transparent = false;
-          material.opacity = 1;
-          material.needsUpdate = true;
+          if (!material) return;
+          if (material.map) applySRGBColorSpace(material.map);
+          if (material.emissiveMap) applySRGBColorSpace(material.emissiveMap);
+          if (config?.texturePolicy === 'gunifyPbr') {
+            applyGunifyWeaponTexturePolicy(material);
+          } else {
+            preserveCaptureWeaponSourceMaterial(material, config?.texturePolicy || 'preserveSource');
+          }
         });
       });
       applyModelQualityToObject(root);
