@@ -407,21 +407,7 @@ async function loadGunifyOriginalGltf(loader, candidateUrl) {
   return loader.parseAsync(JSON.stringify(gltfJson), basePath);
 }
 
-const withOriginalWeaponTextures = (configs) =>
-  Object.freeze(
-    Object.fromEntries(
-      Object.entries(configs).map(([id, config]) => [
-        id,
-        Object.freeze({
-          preserveSourceTextures: true,
-          texturePolicy: 'sourceOriginal',
-          ...config
-        })
-      ])
-    )
-  );
-
-const CAPTURE_WEAPON_MODEL_CONFIG = withOriginalWeaponTextures({
+const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   mrtkGunAttack: {
     label: 'MRTK Gun',
     urls: [
@@ -1460,7 +1446,7 @@ async function loadCaptureWeaponModel(captureAnimationId) {
           : await withLoadTimeout(loader.loadAsync(candidateUrl));
         loadedRoot = assignLoadedGltf(loadedGltf);
       } catch (error) {
-        if (isGltfAssetUrl(candidateUrl) || isPolyPizzaAssetUrl(candidateUrl) || config?.preserveSourceTextures) {
+        if (isGltfAssetUrl(candidateUrl) || isPolyPizzaAssetUrl(candidateUrl)) {
           if (i === candidateUrls.length - 1) {
             console.warn('Capture weapon model load failed', normalizedCaptureAnimationId, candidateUrl, error);
           }
@@ -1468,12 +1454,6 @@ async function loadCaptureWeaponModel(captureAnimationId) {
         }
       }
       if (loadedRoot) break;
-      if (config?.preserveSourceTextures) {
-        // Source-authentic weapons must never run through the legacy image
-        // data-URI fallback because that path can replace missing maps with
-        // checker placeholders. Prefer the next original host instead.
-        continue;
-      }
       try {
         // Binary GLB patching is only a fallback for legacy hosts that reject
         // referenced textures. It must not run before GLTFLoader because it
@@ -1522,10 +1502,8 @@ async function loadCaptureWeaponModel(captureAnimationId) {
           if (material?.map) applySRGBColorSpace(material.map);
           if (material?.emissiveMap) applySRGBColorSpace(material.emissiveMap);
           if (config?.texturePolicy === 'gunifyPbr') applyGunifyWeaponTexturePolicy(material);
-          if (!config?.preserveSourceTextures) {
-            material.transparent = false;
-            material.opacity = 1;
-          }
+          material.transparent = false;
+          material.opacity = 1;
           material.needsUpdate = true;
         });
       });
