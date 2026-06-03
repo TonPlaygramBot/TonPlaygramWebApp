@@ -205,6 +205,24 @@ describe('cross-game inventory alignment', () => {
     });
   });
 
+
+  test('ludo battle royal pins Gunify weapon loading to the May 9 texture baseline', async () => {
+    const source = await readFile('webapp/src/pages/Games/LudoBattleRoyal.jsx', 'utf8');
+    const may9Ref = '27232cf389a2be3f8f476c667cb293e978aaf5f9';
+
+    expect(source).toContain(`const GUNIFY_MAY_9_REF = '${may9Ref}'`);
+    expect(source).toContain('loadGunifyOriginalGltf');
+    expect(source).toContain('patchGunifySpecularGlossinessMaterials');
+    expect(source).toContain('KHR_materials_pbrSpecularGlossiness');
+    expect(source).not.toContain('textureOverrideUrls: gunifyTextureUrls');
+
+    ['AK47', 'KRSV', 'Smith', 'Mosin', 'SigSauer', 'Uzi'].forEach((modelName) => {
+      expect(source).toContain('https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/${GUNIFY_MAY_9_REF}');
+      expect(source).toContain('https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@${GUNIFY_MAY_9_REF}');
+      expect(source).toContain(`modelName: '${modelName}'`);
+    });
+  });
+
   test('snake store mirrors ludo battle royal capture weapons', () => {
     const snakeCaptureStoreIds = new Set(
       SNAKE_STORE_ITEMS.filter((item) => item.type === 'captureWeapon').map((item) => item.optionId)
