@@ -409,22 +409,39 @@ const LUDO_POLY_PIZZA_WEAPON_SOURCE_ID_BY_ID = Object.freeze({
   polyHandGrenade01Attack: 'poly-hand-grenade-01',
   polyTank01Attack: 'poly-tank-01'
 });
-const LUDO_POLY_PIZZA_MODEL_SCALE_FACTOR = 0.205;
-const snakePolyPizzaCaptureConfig = (ludoId, fallbackScale) => {
+const CHESS_MATCHED_POLY_PIZZA_CAPTURE_CONFIG = Object.freeze({
+  polyShotgun01Attack: { urls: ['https://static.poly.pizza/032e6589-3188-41bc-b92b-e25528344275.glb'], scale: 0.205 },
+  polyAssaultRifle01Attack: { urls: ['https://static.poly.pizza/b3e6be61-0299-4866-a227-58f5f3fe610b.glb'], scale: 0.208 },
+  polyPistol01Attack: { urls: ['https://static.poly.pizza/3b53f0fe-f86e-451c-816d-6ab9bd265cdc.glb'], scale: 0.122 },
+  polyRevolver01Attack: { urls: ['https://static.poly.pizza/9e728565-67a3-44db-9567-982320abff09.glb'], scale: 0.13 },
+  polySawedOff01Attack: { urls: ['https://static.poly.pizza/9a6ee0ee-068b-4774-8b0f-679c3cef0b6e.glb'], scale: 0.175 },
+  polyRevolver02Attack: { urls: ['https://static.poly.pizza/7951b3b9-d3a5-4ec8-81b7-11111f1c8e88.glb'], scale: 0.13 },
+  polyShotgun02Attack: { urls: ['https://static.poly.pizza/f71d6771-f512-4374-bd23-ba00b564db68.glb'], scale: 0.215 },
+  polyShotgun03Attack: { urls: ['https://static.poly.pizza/08f27141-8e64-425a-9161-1bbd6956dfca.glb'], scale: 0.21 },
+  polySmg01Attack: { urls: ['https://static.poly.pizza/fb8ae707-d5b9-4eb8-ab8c-1c78d3c1f710.glb'], scale: 0.17 },
+  polyRobotLargeGunAttack: { urls: ['https://static.poly.pizza/78e23275-cb6a-4ba3-ae5e-48a9b4ee2e65.glb'], scale: 0.17 },
+  polyRobotFlyingGunAttack: { urls: ['https://static.poly.pizza/6d0889f1-0c3f-4f98-b011-fbcf6c79a93b.glb'], scale: 0.16 },
+  polyBazooka01Attack: { urls: ['https://static.poly.pizza/613e3b1b-d07c-496b-94a1-7c85b507bac4.glb'], scale: 0.22 },
+  polyGrenadeLauncher01Attack: { urls: ['https://static.poly.pizza/503bb2c5-4a69-404b-9b82-13e85e8f8467.glb'], scale: 0.2 },
+  polyDynamiteBomb01Attack: { urls: ['https://static.poly.pizza/38e858db-325f-4dce-9680-da62c20c5c31.glb'], scale: 0.12 },
+  polyMolotov01Attack: { urls: ['https://static.poly.pizza/d7bb0b50-09af-49f8-b1f9-dbdb0c707d40.glb'], scale: 0.095 },
+  polyGasTank01Attack: { urls: ['https://static.poly.pizza/9c4d2ac5-114b-4da2-a26a-8049e2b1ba04.glb'], scale: 0.12 },
+  polyHandGrenade01Attack: { urls: ['https://static.poly.pizza/03fa7f5b-4df5-45d6-86fb-87e8590f28d7.glb'], scale: 0.075 },
+  polyTank01Attack: { urls: ['https://static.poly.pizza/58c387b2-636f-49dc-a900-13b0852717d6.glb'], scale: 0.125 }
+});
+const chessMatchedPolyPizzaCaptureConfig = (ludoId) => {
   const snakeId = LUDO_POLY_PIZZA_WEAPON_SOURCE_ID_BY_ID[ludoId];
   const sourceOption = SNAKE_CAPTURE_WEAPON_OPTION_BY_ID[snakeId] || {};
-  const modelScale = Number.isFinite(sourceOption.modelScale)
-    ? Number((sourceOption.modelScale * LUDO_POLY_PIZZA_MODEL_SCALE_FACTOR).toFixed(4))
-    : fallbackScale;
+  const chessConfig = CHESS_MATCHED_POLY_PIZZA_CAPTURE_CONFIG[ludoId] || {};
   return {
     label: sourceOption.label,
-    urls: Array.isArray(sourceOption.urls) ? [...sourceOption.urls] : [],
+    urls: Array.isArray(chessConfig.urls) ? [...chessConfig.urls] : [],
     source: sourceOption.source || 'Poly Pizza',
     creator: sourceOption.creator,
     license: sourceOption.license,
     texturePolicy: 'polyPizzaOriginalGlb',
     snakeCaptureWeaponId: snakeId,
-    scale: modelScale
+    scale: chessConfig.scale
   };
 };
 
@@ -500,8 +517,8 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
     scale: 0.138
   },
   fpsGunAttack: {
-    label: SNAKE_FPS_GUN_MODEL_CONFIG.label,
-    // Keep only the FPS gun matched to Snake & Ladder's May 9 05:00 asset order/size.
+    label: 'FPS Gun',
+    // Match the exact Chess Battle Royal FPS gun asset order/size.
     urls: [...SNAKE_FPS_GUN_MODEL_CONFIG.urls],
     scale: SNAKE_FPS_GUN_MODEL_CONFIG.ludoModelScale
   },
@@ -631,24 +648,24 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
     ],
     scale: 0.23
   },
-  polyShotgun01Attack: snakePolyPizzaCaptureConfig('polyShotgun01Attack', 0.205),
-  polyAssaultRifle01Attack: snakePolyPizzaCaptureConfig('polyAssaultRifle01Attack', 0.208),
-  polyPistol01Attack: snakePolyPizzaCaptureConfig('polyPistol01Attack', 0.122),
-  polyRevolver01Attack: snakePolyPizzaCaptureConfig('polyRevolver01Attack', 0.13),
-  polySawedOff01Attack: snakePolyPizzaCaptureConfig('polySawedOff01Attack', 0.175),
-  polyRevolver02Attack: snakePolyPizzaCaptureConfig('polyRevolver02Attack', 0.13),
-  polyShotgun02Attack: snakePolyPizzaCaptureConfig('polyShotgun02Attack', 0.215),
-  polyShotgun03Attack: snakePolyPizzaCaptureConfig('polyShotgun03Attack', 0.21),
-  polySmg01Attack: snakePolyPizzaCaptureConfig('polySmg01Attack', 0.17),
-  polyRobotLargeGunAttack: snakePolyPizzaCaptureConfig('polyRobotLargeGunAttack', 0.17),
-  polyRobotFlyingGunAttack: snakePolyPizzaCaptureConfig('polyRobotFlyingGunAttack', 0.16),
-  polyBazooka01Attack: snakePolyPizzaCaptureConfig('polyBazooka01Attack', 0.22),
-  polyGrenadeLauncher01Attack: snakePolyPizzaCaptureConfig('polyGrenadeLauncher01Attack', 0.2),
-  polyDynamiteBomb01Attack: snakePolyPizzaCaptureConfig('polyDynamiteBomb01Attack', 0.12),
-  polyMolotov01Attack: snakePolyPizzaCaptureConfig('polyMolotov01Attack', 0.095),
-  polyGasTank01Attack: snakePolyPizzaCaptureConfig('polyGasTank01Attack', 0.12),
-  polyHandGrenade01Attack: snakePolyPizzaCaptureConfig('polyHandGrenade01Attack', 0.075),
-  polyTank01Attack: snakePolyPizzaCaptureConfig('polyTank01Attack', 0.125)
+  polyShotgun01Attack: chessMatchedPolyPizzaCaptureConfig('polyShotgun01Attack'),
+  polyAssaultRifle01Attack: chessMatchedPolyPizzaCaptureConfig('polyAssaultRifle01Attack'),
+  polyPistol01Attack: chessMatchedPolyPizzaCaptureConfig('polyPistol01Attack'),
+  polyRevolver01Attack: chessMatchedPolyPizzaCaptureConfig('polyRevolver01Attack'),
+  polySawedOff01Attack: chessMatchedPolyPizzaCaptureConfig('polySawedOff01Attack'),
+  polyRevolver02Attack: chessMatchedPolyPizzaCaptureConfig('polyRevolver02Attack'),
+  polyShotgun02Attack: chessMatchedPolyPizzaCaptureConfig('polyShotgun02Attack'),
+  polyShotgun03Attack: chessMatchedPolyPizzaCaptureConfig('polyShotgun03Attack'),
+  polySmg01Attack: chessMatchedPolyPizzaCaptureConfig('polySmg01Attack'),
+  polyRobotLargeGunAttack: chessMatchedPolyPizzaCaptureConfig('polyRobotLargeGunAttack'),
+  polyRobotFlyingGunAttack: chessMatchedPolyPizzaCaptureConfig('polyRobotFlyingGunAttack'),
+  polyBazooka01Attack: chessMatchedPolyPizzaCaptureConfig('polyBazooka01Attack'),
+  polyGrenadeLauncher01Attack: chessMatchedPolyPizzaCaptureConfig('polyGrenadeLauncher01Attack'),
+  polyDynamiteBomb01Attack: chessMatchedPolyPizzaCaptureConfig('polyDynamiteBomb01Attack'),
+  polyMolotov01Attack: chessMatchedPolyPizzaCaptureConfig('polyMolotov01Attack'),
+  polyGasTank01Attack: chessMatchedPolyPizzaCaptureConfig('polyGasTank01Attack'),
+  polyHandGrenade01Attack: chessMatchedPolyPizzaCaptureConfig('polyHandGrenade01Attack'),
+  polyTank01Attack: chessMatchedPolyPizzaCaptureConfig('polyTank01Attack')
 });
 const CAPTURE_WEAPON_MODEL_CACHE = new Map();
 const CAPTURE_WEAPON_MODEL_REDIRECT = new Map();
@@ -1033,8 +1050,6 @@ const FIREARM_ATTACH_SCALE_MULTIPLIER = Object.freeze({
   polyShotgun03Attack: 1.28,
   polySmg01Attack: 1.22
 });
-// Keep FPS gun and Shotgun Blast visually matched in hand.
-const SHOTGUN_HAND_SCALE = FIREARM_ATTACH_SCALE_MULTIPLIER.shotgunBlastAttack;
 const FIREARM_VOLLEY_SLOW_FACTOR = 2.08;
 const FIREARM_CAMERA_FOCUS_BLEND = 0.58;
 const FIREARM_CAMERA_SIDE_PULLBACK = 0.16;
@@ -1690,9 +1705,7 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
   const weapon = modelTemplate.clone(true);
   weapon.position.set(...(tuning.position || FIREARM_HAND_ATTACH_TUNING.default.position));
   weapon.rotation.set(...FIREARM_UNIFIED_DIRECTION_ROTATION);
-  const attachScaleMultiplier = captureAnimationId === 'fpsGunAttack'
-    ? SHOTGUN_HAND_SCALE
-    : (FIREARM_ATTACH_SCALE_MULTIPLIER[captureAnimationId] ?? 1);
+  const attachScaleMultiplier = FIREARM_ATTACH_SCALE_MULTIPLIER[captureAnimationId] ?? 1;
   const scaleBoost =
     FIREARM_ATTACH_WORLD_SCALE_BOOST * attachScaleMultiplier;
   weapon.scale.multiplyScalar(scaleBoost);
