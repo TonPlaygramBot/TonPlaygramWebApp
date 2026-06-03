@@ -767,6 +767,7 @@ const WEAPON_PARKED_PITCH_BY_KIND = Object.freeze({
   helicopter: 0,
   drone: 0,
   supportTruck: 0,
+  ukrainianDrone: 0,
   javelin: 0
 });
 const WEAPON_PARKED_ROLL_BY_KIND = Object.freeze({
@@ -774,6 +775,7 @@ const WEAPON_PARKED_ROLL_BY_KIND = Object.freeze({
   helicopter: 0,
   drone: 0,
   supportTruck: 0,
+  ukrainianDrone: 0,
   javelin: 0
 });
 const SNAKE_CAPTURE_WEAPON_KIND_MAP = Object.freeze({
@@ -783,6 +785,9 @@ const SNAKE_CAPTURE_WEAPON_KIND_MAP = Object.freeze({
   ukrainiandroneattack: 'ukrainianDrone',
   fighterJetAttack: 'fighter',
   helicopterAttack: 'helicopter',
+  supportTruckAttack: 'supportTruck',
+  supporttruckattack: 'supportTruck',
+  truck: 'supportTruck',
   fpsGunAttack: 'supportTruck',
   glockSidearmAttack: 'supportTruck',
   assaultRifleAttack: 'supportTruck',
