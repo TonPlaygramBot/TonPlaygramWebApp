@@ -237,15 +237,16 @@ const FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
   sniperShotAttack: 2.8,
   shotgunBlastAttack: 2.2,
   grenadeBlastAttack: 0.45,
-  polyShotgun01Attack: 2.05,
-  polyAssaultRifle01Attack: 2.15,
-  polyPistol01Attack: 1.02,
-  polyRevolver01Attack: 1.08,
-  polySawedOff01Attack: 1.56,
-  polyRevolver02Attack: 1.08,
-  polyShotgun02Attack: 2.22,
-  polyShotgun03Attack: 2.1,
-  polySmg01Attack: 1.68,
+  // Match the Poly Pizza / Quaternius + CreativeTrio weapon rack sizes used by Chess Battle Royal.
+  polyShotgun01Attack: 2.2,
+  polyAssaultRifle01Attack: 2.2,
+  polyPistol01Attack: 2.2,
+  polyRevolver01Attack: 2.2,
+  polySawedOff01Attack: 2.2,
+  polyRevolver02Attack: 2.2,
+  polyShotgun02Attack: 2.2,
+  polyShotgun03Attack: 2.2,
+  polySmg01Attack: 2.2,
   polyRobotLargeGunAttack: 1.95,
   polyRobotFlyingGunAttack: 1.45,
   polyBazooka01Attack: 2.6,
@@ -10178,15 +10179,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (!camera || !boardLookTarget) return;
       const skybox = envSkyboxRef.current;
       if (!skybox) return;
-      const measuredRadius = camera.position.distanceTo(boardLookTarget);
-      const baseRadius = baseCameraRadiusRef.current || measuredRadius || 1;
       const baseScale = baseSkyboxScaleRef.current || 1;
-      // Do not rescale the grounded HDRI during cinematic firearm camera moves;
-      // the camera intentionally changes position, but the environment must remain stable.
-      const radius = dynamicFirearmCameraRef.current ? baseRadius : measuredRadius;
-      const scale = clamp(radius / baseRadius, 0.35, 3.5);
-      skybox.scale.setScalar(baseScale * scale);
-      lastCameraRadiusRef.current = radius;
+      // Keep the grounded HDRI locked in world space while the camera auto-looks
+      // toward the next player, dice, or result. Rescaling/recentering it during
+      // those look-only moves makes the environment appear to slide or zoom on
+      // portrait screens even though the camera position stays locked.
+      skybox.scale.setScalar(baseScale);
+      lastCameraRadiusRef.current = baseCameraRadiusRef.current || camera.position.distanceTo(boardLookTarget);
       const floorY = environmentFloorRef.current ?? 0;
       if (Number.isFinite(skybox.userData?.cameraHeight)) {
         skybox.position.y = floorY + skybox.userData.cameraHeight;
