@@ -1,3 +1,4 @@
+import { CAPTURE_ANIMATION_OPTIONS } from './ludoBattleOptions.js'
 import { swatchThumbnail, weaponSilhouetteThumbnail } from './storeThumbnails.js'
 
 const polyGlb = (uuid) => `https://static.poly.pizza/${uuid}.glb`
@@ -35,6 +36,29 @@ const gunifyWeapon = (id, label, modelName, colors) => ({
   texturePolicy: 'gunifyPbr'
 })
 
+
+const LUDO_CAPTURE_WEAPON_IDS = Object.freeze([
+  'fighterJetAttack',
+  'helicopterAttack',
+  'droneAttack'
+])
+const LUDO_CAPTURE_OPTION_BY_ID = Object.freeze(
+  CAPTURE_ANIMATION_OPTIONS.filter((option) => LUDO_CAPTURE_WEAPON_IDS.includes(option.id)).reduce((acc, option) => {
+    acc[option.id] = option
+    return acc
+  }, {})
+)
+
+const ludoVehicleWeapon = (id, vehicleKind, fallbackLabel, fallbackThumbnail, extra = {}) => ({
+  id,
+  label: LUDO_CAPTURE_OPTION_BY_ID[id]?.label || fallbackLabel,
+  description: LUDO_CAPTURE_OPTION_BY_ID[id]?.description,
+  thumbnail: LUDO_CAPTURE_OPTION_BY_ID[id]?.thumbnail || fallbackThumbnail,
+  source: 'Ludo Battle Royal',
+  vehicleKind,
+  ...extra
+})
+
 export const UKRAINIAN_DRONE_GLB_URLS = Object.freeze([
   'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/drone.glb',
   'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main/drone.glb',
@@ -60,6 +84,32 @@ export const SNAKE_CAPTURE_WEAPON_OPTIONS = Object.freeze([
     thumbnail: swatchThumbnail(['#60a5fa', '#facc15', '#1d4ed8']),
     urls: UKRAINIAN_DRONE_GLB_URLS,
     vehicleKind: 'ukrainianDrone'
+  },
+  ludoVehicleWeapon(
+    'fighterJetAttack',
+    'fighter',
+    'Fighter Jet Attack',
+    swatchThumbnail(['#9ca3af', '#475569', '#cbd5e1'])
+  ),
+  ludoVehicleWeapon(
+    'helicopterAttack',
+    'helicopter',
+    'Helicopter Strike',
+    swatchThumbnail(['#84cc16', '#3f6212', '#bef264'])
+  ),
+  ludoVehicleWeapon(
+    'droneAttack',
+    'drone',
+    'Shahad Drone',
+    swatchThumbnail(['#60a5fa', '#1d4ed8', '#bfdbfe'])
+  ),
+  {
+    id: 'supportTruckAttack',
+    label: 'Support Truck',
+    description: 'Ludo Battle Royal support truck parked with the same capture-vehicle inventory set.',
+    thumbnail: swatchThumbnail(['#f97316', '#7c2d12', '#fdba74']),
+    source: 'Ludo Battle Royal',
+    vehicleKind: 'supportTruck'
   },
   polyPizzaWeapon('poly-shotgun-01', 'Quaternius Shotgun', '032e6589-3188-41bc-b92b-e25528344275', ['#64748b', '#1e293b', '#f8fafc'], { creator: 'Quaternius', modelScale: 1 }),
   polyPizzaWeapon('poly-assault-rifle-01', 'Quaternius Assault Rifle', 'b3e6be61-0299-4866-a227-58f5f3fe610b', ['#334155', '#0f172a', '#94a3b8'], { creator: 'Quaternius', modelScale: 1.02 }),
@@ -90,9 +140,19 @@ export const SNAKE_CAPTURE_WEAPON_OPTIONS = Object.freeze([
 ])
 
 export const SNAKE_CAPTURE_WEAPON_ALIAS_MAP = Object.freeze({
-  fighter: 'poly-assault-rifle-01',
-  helicopter: 'poly-shotgun-02',
-  supporttruck: 'poly-smg-01',
+  fighter: 'fighterJetAttack',
+  fighterjet: 'fighterJetAttack',
+  fighterjetattack: 'fighterJetAttack',
+  jet: 'fighterJetAttack',
+  helicopter: 'helicopterAttack',
+  helicopterattack: 'helicopterAttack',
+  shahad: 'droneAttack',
+  shahaddrone: 'droneAttack',
+  drone: 'droneAttack',
+  droneattack: 'droneAttack',
+  supporttruck: 'supportTruckAttack',
+  supporttruckattack: 'supportTruckAttack',
+  truck: 'supportTruckAttack',
   polyrobotlargegunattack: 'poly-robot-large-gun-01',
   polyrobotflyinggunattack: 'poly-robot-flying-gun-01',
   polybazooka01attack: 'poly-bazooka-01',
@@ -102,7 +162,6 @@ export const SNAKE_CAPTURE_WEAPON_ALIAS_MAP = Object.freeze({
   polygastank01attack: 'poly-gas-tank-01',
   polyhandgrenade01attack: 'poly-hand-grenade-01',
   polytank01attack: 'poly-tank-01',
-  drone: 'ukrainianDroneAttack',
   ukrainiandrone: 'ukrainianDroneAttack',
   ukrainiandroneattack: 'ukrainianDroneAttack'
 })
