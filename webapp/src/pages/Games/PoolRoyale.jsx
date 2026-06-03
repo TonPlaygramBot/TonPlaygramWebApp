@@ -3729,15 +3729,15 @@ const CHROME_PLATE_STYLE_OPTIONS = Object.freeze([
     cornerWidthScale: 1.22,
     cornerHeightScale: 1.18,
     cornerRadiusScale: 1.55,
-    cornerCutScale: 1.04,
-    cornerOutsetScale: 1.55,
+    cornerCutScale: 0.99,
+    cornerOutsetScale: 1.22,
     sideWidthScale: 1.3,
     sideHeightScale: 1.16,
     sideRadiusScale: 2.65,
-    sideCutScale: 1.055,
+    sideCutScale: 1,
     sideOuterExtensionScale: 1.1,
     sideCornerExtensionScale: 1.22,
-    sideOutwardShiftScale: 2.05,
+    sideOutwardShiftScale: 1.45,
     sideCutCenterPullScale: 0.18
   }
 ]);
@@ -13600,9 +13600,9 @@ function subtlyExpandPoolRoyaleShowoodRailSightsAndAprons(model, tableModel) {
   const fullBox = new THREE.Box3().setFromObject(model);
   if (fullBox.isEmpty()) return;
   const fullCenter = fullBox.getCenter(new THREE.Vector3());
-  const safeVisualScale = hasScale ? THREE.MathUtils.clamp(visualScale, 1, 1.16) : 1;
-  const safeRailSightHeightScale = hasRailSightHeight ? THREE.MathUtils.clamp(railSightHeightScale, 1, 1.2) : 1;
-  const safeSideApronHeightScale = hasSideApronHeight ? THREE.MathUtils.clamp(sideApronHeightScale, 1, 1.22) : 1;
+  const safeVisualScale = hasScale ? THREE.MathUtils.clamp(visualScale, 1, 1.14) : 1;
+  const safeRailSightHeightScale = hasRailSightHeight ? THREE.MathUtils.clamp(railSightHeightScale, 1, 1.18) : 1;
+  const safeSideApronHeightScale = hasSideApronHeight ? THREE.MathUtils.clamp(sideApronHeightScale, 1, 1.2) : 1;
 
   model.traverse((child) => {
     if (!child?.isMesh || child.userData?.poolRoyaleShowoodRailSightApronExpanded) return;
