@@ -284,8 +284,8 @@ const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
 // Portrait framing calibration: aim the camera at the physical board surface center,
 // not above the table, so the Snake board center projects to the exact phone center.
 const BOARD_SURFACE_CENTER_LIFT = BOARD_SCALE * (((0.07 + 0.26) * RAW_BOARD_SIZE) / 10.2) - 0.01;
-const CAMERA_TARGET_EXTRA = 0;
-const CAMERA_SIDE_LOOK_EXTRA = 0.6 * MODEL_SCALE;
+const CAMERA_TARGET_EXTRA = 0.055 * MODEL_SCALE;
+const CAMERA_SIDE_LOOK_EXTRA = 0.76 * MODEL_SCALE;
 const CAMERA_TURN_PLAYER_LERP = 0.44;
 const CAMERA_BROADCAST_TARGET_BLEND = 0.5;
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
@@ -463,15 +463,15 @@ const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
 const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.72;
 const FIREARM_DISPLAY_SIZE_MULTIPLIER = 0.86;
 const FIREARM_MODEL_SCALE_BY_ID = Object.freeze({
-  // Keep AK47 GLTF smaller than the shared firearm baseline.
-  'slot-10-ak47-gltf': 0.014,
+  // Match Ludo Battle Royal's Gunify rack scale baselines.
+  'slot-10-ak47-gltf': 0.24,
   // Match SigSauer GLTF visual size with Glock-sized sidearms.
-  'slot-15-sigsauer-gltf': 0.12,
+  'slot-15-sigsauer-gltf': 0.13,
   // Keep FPS Gun GLTF smaller than the shared firearm baseline.
   'slot-18-fps-gun-gltf': 0.03,
-  // Enlarge long rifles for clearer sniper identity in portrait view.
-  'slot-16-awp-glb': 3,
-  'slot-13-mosin-gltf': 3,
+  // Keep long sniper rifles near AK47's portrait footprint; AWP is just slightly bigger.
+  'slot-16-awp-glb': 0.27,
+  'slot-13-mosin-gltf': 0.504,
   'poly-shotgun-01': 1,
   'poly-assault-rifle-01': 1.02,
   'poly-pistol-01': 0.6,
@@ -594,11 +594,11 @@ const CAMERA_TOPDOWN_MAX_POLAR = THREE.MathUtils.degToRad(18);
 const CAMERA_TOPDOWN_RADIUS_FACTOR = 2.56;
 const CAMERA_TOPDOWN_MIN_RADIUS_FACTOR = 1.2;
 const CAMERA_TOPDOWN_MAX_RADIUS_FACTOR = 4.7;
-const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(42);
-const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
-const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(16);
+const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(48);
+const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0062;
+const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(18);
 const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
-const CAMERA_EXTRA_LIFT = -0.1;
+const CAMERA_EXTRA_LIFT = 0.06;
 const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.54;
 const LANDSCAPE_INITIAL_CAMERA_DISTANCE_FACTOR = 0.65;
 const POINTER_TAP_MAX_DISTANCE = 14;
@@ -606,8 +606,8 @@ const POINTER_TAP_MAX_DURATION_MS = 420;
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
   backOffset: 1.72,
   forwardOffset: 0.34,
-  heightOffset: 2.46,
-  targetLift: BOARD_SURFACE_CENTER_LIFT
+  heightOffset: 2.58,
+  targetLift: BOARD_SURFACE_CENTER_LIFT + 0.045 * MODEL_SCALE
 });
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
   backOffset: 0.9,
@@ -7157,8 +7157,8 @@ export default function SnakeBoard3D({
                 const up = new THREE.Vector3().crossVectors(right, forward).normalize();
                 const lookTarget = baseTarget
                   .clone()
-                  .addScaledVector(right, look.yaw * focusDistance * 0.52)
-                  .addScaledVector(up, look.pitch * focusDistance * 0.4);
+                  .addScaledVector(right, look.yaw * focusDistance * 0.6)
+                  .addScaledVector(up, (look.pitch + 0.035) * focusDistance * 0.44);
                 camera.lookAt(lookTarget);
               }
             }
