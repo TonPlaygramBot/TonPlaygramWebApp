@@ -22,18 +22,36 @@ const polyPizzaWeapon = (id, label, uuid, colors, extra = {}) => ({
 export const SNAKE_GUNIFY_MAY_9_REF = '27232cf389a2be3f8f476c667cb293e978aaf5f9'
 const SNAKE_GUNIFY_RAW_BASE = `https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/${SNAKE_GUNIFY_MAY_9_REF}`
 const SNAKE_GUNIFY_JSDELIVR_BASE = `https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@${SNAKE_GUNIFY_MAY_9_REF}`
-const gunifyModelUrls = (modelName) => [
-  `${SNAKE_GUNIFY_RAW_BASE}/models/${modelName}/scene.gltf`,
-  `${SNAKE_GUNIFY_JSDELIVR_BASE}/models/${modelName}/scene.gltf`
-]
-const gunifyWeapon = (id, label, modelName, colors) => ({
+const SNAKE_GUNIFY_MODEL_FOLDER_BY_NAME = Object.freeze({
+  Uzi: 'models2',
+  Mosin: 'models2',
+  SigSauer: 'models3'
+})
+const SNAKE_GUNIFY_MODEL_SCALE_BY_NAME = Object.freeze({
+  Uzi: 0.2,
+  AK47: 0.24,
+  KRSV: 0.24,
+  Smith: 0.13,
+  Mosin: 0.504,
+  SigSauer: 0.13
+})
+const gunifyModelUrls = (modelName) => {
+  const modelFolder = SNAKE_GUNIFY_MODEL_FOLDER_BY_NAME[modelName] || 'models'
+  return [
+    `${SNAKE_GUNIFY_RAW_BASE}/${modelFolder}/${modelName}/scene.gltf`,
+    `${SNAKE_GUNIFY_JSDELIVR_BASE}/${modelFolder}/${modelName}/scene.gltf`
+  ]
+}
+const gunifyWeapon = (id, label, modelName, colors, extra = {}) => ({
   id,
   label,
   thumbnail: weaponSilhouetteThumbnail(colors),
   urls: gunifyModelUrls(modelName),
   modelName,
   source: 'Gunify',
-  texturePolicy: 'gunifyPbr'
+  texturePolicy: 'gunifyPbr',
+  modelScale: SNAKE_GUNIFY_MODEL_SCALE_BY_NAME[modelName] ?? 1,
+  ...extra
 })
 
 
@@ -135,7 +153,7 @@ export const SNAKE_CAPTURE_WEAPON_OPTIONS = Object.freeze([
   gunifyWeapon('slot-13-mosin-gltf', 'Mosin GLTF', 'Mosin', ['#92400e', '#1f2937', '#fcd34d']),
   gunifyWeapon('slot-14-uzi-gltf', 'Uzi GLTF', 'Uzi', ['#0f766e', '#111827', '#99f6e4']),
   gunifyWeapon('slot-15-sigsauer-gltf', 'SigSauer GLTF', 'SigSauer', ['#334155', '#020617', '#f1f5f9']),
-  { id: 'slot-16-awp-glb', label: 'AWP Sniper GLB', thumbnail: weaponSilhouetteThumbnail(['#1e293b', '#0f172a', '#f8fafc']), urls: [SNAKE_KNOWN_WORKING_GLB.awp, SNAKE_KNOWN_WORKING_GLB.awpRaw] },
+  { id: 'slot-16-awp-glb', label: 'AWP Sniper GLB', thumbnail: weaponSilhouetteThumbnail(['#1e293b', '#0f172a', '#f8fafc']), urls: [SNAKE_KNOWN_WORKING_GLB.awp, SNAKE_KNOWN_WORKING_GLB.awpRaw], modelScale: 0.28 },
   { id: 'slot-18-fps-gun-gltf', label: 'FPS Shotgun', thumbnail: weaponSilhouetteThumbnail(['#f59e0b', '#111827', '#fde68a']), urls: [SNAKE_KNOWN_WORKING_GLB.fps, SNAKE_KNOWN_WORKING_GLB.fpsRaw, SNAKE_KNOWN_WORKING_GLB.awp, SNAKE_KNOWN_WORKING_GLB.awpRaw] }
 ])
 

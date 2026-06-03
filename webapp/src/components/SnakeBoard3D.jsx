@@ -280,12 +280,12 @@ const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const CAMERA_FOV = ARENA_CAMERA_DEFAULTS.fov;
 const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
 const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
-const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
+const CAMERA_TARGET_LIFT = 0.12 * MODEL_SCALE;
 // Portrait framing calibration: aim the camera at the physical board surface center,
 // not above the table, so the Snake board center projects to the exact phone center.
 const BOARD_SURFACE_CENTER_LIFT = BOARD_SCALE * (((0.07 + 0.26) * RAW_BOARD_SIZE) / 10.2) - 0.01;
 const CAMERA_TARGET_EXTRA = 0;
-const CAMERA_SIDE_LOOK_EXTRA = 0.6 * MODEL_SCALE;
+const CAMERA_SIDE_LOOK_EXTRA = 0.82 * MODEL_SCALE;
 const CAMERA_TURN_PLAYER_LERP = 0.44;
 const CAMERA_BROADCAST_TARGET_BLEND = 0.5;
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
@@ -463,15 +463,17 @@ const WEAPON_SLOT_LATERAL_NUDGE_BY_SEAT = Object.freeze([
 const WEAPON_DISPLAY_SIZE_MULTIPLIER = 1.72;
 const FIREARM_DISPLAY_SIZE_MULTIPLIER = 0.86;
 const FIREARM_MODEL_SCALE_BY_ID = Object.freeze({
-  // Keep AK47 GLTF smaller than the shared firearm baseline.
-  'slot-10-ak47-gltf': 0.014,
-  // Match SigSauer GLTF visual size with Glock-sized sidearms.
-  'slot-15-sigsauer-gltf': 0.12,
+  // Gunify weapons mirror Ludo Battle Royal's May 9 display scale tuning.
+  'slot-10-ak47-gltf': 0.24,
+  'slot-11-krsv-gltf': 0.24,
+  'slot-12-smith-gltf': 0.13,
+  'slot-13-mosin-gltf': 0.504,
+  'slot-14-uzi-gltf': 0.2,
+  'slot-15-sigsauer-gltf': 0.13,
+  // Keep the standalone GLB sniper close to AK47 size, only a little larger.
+  'slot-16-awp-glb': 0.28,
   // Keep FPS Gun GLTF smaller than the shared firearm baseline.
   'slot-18-fps-gun-gltf': 0.03,
-  // Enlarge long rifles for clearer sniper identity in portrait view.
-  'slot-16-awp-glb': 3,
-  'slot-13-mosin-gltf': 3,
   'poly-shotgun-01': 1,
   'poly-assault-rifle-01': 1.02,
   'poly-pistol-01': 0.6,
@@ -598,7 +600,7 @@ const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(42);
 const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
 const CAMERA_LOOK_PITCH_LIMIT = THREE.MathUtils.degToRad(16);
 const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0038;
-const CAMERA_EXTRA_LIFT = -0.1;
+const CAMERA_EXTRA_LIFT = 0.14;
 const PORTRAIT_INITIAL_CAMERA_DISTANCE_FACTOR = 0.54;
 const LANDSCAPE_INITIAL_CAMERA_DISTANCE_FACTOR = 0.65;
 const POINTER_TAP_MAX_DISTANCE = 14;
@@ -607,7 +609,7 @@ const PORTRAIT_CAMERA_TUNING = Object.freeze({
   backOffset: 1.72,
   forwardOffset: 0.34,
   heightOffset: 2.46,
-  targetLift: BOARD_SURFACE_CENTER_LIFT
+  targetLift: BOARD_SURFACE_CENTER_LIFT + 0.08
 });
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
   backOffset: 0.9,
@@ -3205,11 +3207,11 @@ function computeTurnCameraFocusState(board, camera, turnIndex, players = []) {
   }
   if (seatIndex === 1) {
     target.x += CAMERA_SIDE_LOOK_EXTRA;
-    target.z += TILE_SIZE * 0.18;
+    target.z += TILE_SIZE * 0.24;
   }
   if (seatIndex === 3) {
     target.x -= CAMERA_SIDE_LOOK_EXTRA;
-    target.z += TILE_SIZE * 0.18;
+    target.z += TILE_SIZE * 0.24;
   }
   const boardToCamera = camera.position.clone().sub(boardLookTarget).setY(0);
   if (boardToCamera.lengthSq() > 1e-6) {
