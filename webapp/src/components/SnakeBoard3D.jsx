@@ -263,8 +263,8 @@ const DICE_PIP_RIM_OUTER = DICE_PIP_RADIUS * 1.08;
 const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
-// Keep Snake dice motion aligned with Ludo Battle Royal's single-arc spinDice roll.
-const DICE_ROLL_DURATION = 900;
+// Keep Snake dice motion aligned with Ludo Battle Royal's frame-synced single-arc spinDice roll.
+const DICE_ROLL_DURATION = 1100;
 const DICE_SETTLE_DURATION = 220;
 const DICE_RESULT_HOLD_DURATION = 720;
 const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.78;
@@ -1822,6 +1822,92 @@ function createConfiguredGLTFLoader(renderer = null) {
   }
   loader.setKTX2Loader(sharedKtx2Loader);
   return loader;
+}
+
+
+const GUNIFY_SPECULAR_GLOSSINESS_EXTENSION = 'KHR_materials_pbrSpecularGlossiness';
+const isGltfAssetUrl = (url) => /\.gltf(?:[?#].*)?$/i.test(String(url || ''));
+
+function cloneGltfJsonValue(value) {
+  if (value == null) return value;
+  return JSON.parse(JSON.stringify(value));
+}
+
+function patchGunifySpecularGlossinessMaterials(gltfJson) {
+  if (!gltfJson?.materials?.length) return gltfJson;
+  let patchedAny = false;
+  const patched = {
+    ...gltfJson,
+    materials: gltfJson.materials.map((material) => {
+      const specGloss = material?.extensions?.[GUNIFY_SPECULAR_GLOSSINESS_EXTENSION];
+      if (!specGloss) return material;
+      patchedAny = true;
+      const metallicRoughness = {
+        ...(material.pbrMetallicRoughness || {}),
+        metallicFactor: 0,
+        roughnessFactor: Math.max(0.08, Math.min(1, 1 - (specGloss.glossinessFactor ?? 0.82)))
+      };
+      if (specGloss.diffuseFactor) metallicRoughness.baseColorFactor = cloneGltfJsonValue(specGloss.diffuseFactor);
+      if (specGloss.diffuseTexture) metallicRoughness.baseColorTexture = cloneGltfJsonValue(specGloss.diffuseTexture);
+      return {
+        ...material,
+        pbrMetallicRoughness: metallicRoughness,
+        extensions: Object.fromEntries(
+          Object.entries(material.extensions || {}).filter(
+            ([extensionName]) => extensionName !== GUNIFY_SPECULAR_GLOSSINESS_EXTENSION
+          )
+        )
+      };
+    })
+  };
+  if (patchedAny && Array.isArray(patched.extensionsUsed)) {
+    patched.extensionsUsed = patched.extensionsUsed.filter(
+      (extensionName) => extensionName !== GUNIFY_SPECULAR_GLOSSINESS_EXTENSION
+    );
+  }
+  return patched;
+}
+
+async function loadGunifyOriginalGltf(loader, candidateUrl) {
+  const response = await fetch(candidateUrl, { mode: 'cors' });
+  if (!response.ok) throw new Error(`Gunify GLTF fetch failed: ${response.status}`);
+  const gltfJson = patchGunifySpecularGlossinessMaterials(await response.json());
+  const basePath = new URL('.', candidateUrl).href;
+  loader.setPath?.(basePath);
+  loader.setResourcePath?.(basePath);
+  return loader.parseAsync(JSON.stringify(gltfJson), basePath);
+}
+
+function applyGunifyWeaponTexturePolicy(material) {
+  if (!material) return;
+  ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap', 'specularMap'].forEach((textureKey) => {
+    const texture = material[textureKey];
+    if (!texture) return;
+    if (textureKey === 'map' || textureKey === 'emissiveMap') applySRGBColorSpace(texture);
+    texture.flipY = false;
+    texture.anisotropy = Math.max(texture.anisotropy || 1, 8);
+    texture.needsUpdate = true;
+  });
+  if (typeof material.roughness === 'number') material.roughness = Math.min(0.9, Math.max(0.34, material.roughness));
+  if (typeof material.metalness === 'number') material.metalness = Math.min(1, Math.max(0.18, material.metalness));
+  material.needsUpdate = true;
+}
+
+function applyCaptureWeaponTexturePolicy(root, texturePolicy = 'preserveSource') {
+  if (!root) return;
+  root.traverse((node) => {
+    if (!node?.isMesh) return;
+    const materials = Array.isArray(node.material) ? node.material : node.material ? [node.material] : [];
+    materials.forEach((material) => {
+      if (!material) return;
+      if (texturePolicy === 'gunifyPbr') {
+        applyGunifyWeaponTexturePolicy(material);
+      } else {
+        material.userData = { ...(material.userData || {}), sourceTexturePolicy: texturePolicy };
+        material.needsUpdate = true;
+      }
+    });
+  });
 }
 
 function applyOriginalTextureMapping(root) {
@@ -5790,7 +5876,7 @@ async function patchGlbImagesToDataUris(buffer, kind, sourceUrl, modelUrls, cach
 }
 
 async function loadCaptureVehicleModel(kind = 'fighter') {
-  if (kind === 'drone' || kind === 'ukrainianDrone') {
+  if (kind === 'ukrainianDrone') {
     const cacheKey = `${kind}:exactUkrainianDrone`;
     if (!SNAKE_CAPTURE_VEHICLE_MODEL_CACHE.has(cacheKey)) {
       SNAKE_CAPTURE_VEHICLE_MODEL_CACHE.set(cacheKey, loadExactUkrainianDroneModel().then((model) => normalizeCaptureVehicleModel(model)));
@@ -6016,10 +6102,13 @@ async function loadCaptureWeaponCatalogModel(weaponId) {
         for (const url of urls) {
           try {
             // eslint-disable-next-line no-await-in-loop
-            const gltf = await loader.loadAsync(url);
+            const gltf = option?.source === 'Gunify' && isGltfAssetUrl(url)
+              ? await loadGunifyOriginalGltf(loader, url)
+              : await loader.loadAsync(url);
             const root = gltf?.scene || gltf?.scenes?.[0] || null;
             if (!root) continue;
             prepareLoadedModel(root);
+            applyCaptureWeaponTexturePolicy(root, option?.texturePolicy || 'preserveSource');
             const normalized = normalizeCaptureVehicleModel(root);
             if (weaponId === 'slot-10-ak47-gltf') stripAk47RearWoodStock(normalized);
             return normalized;
