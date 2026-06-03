@@ -65,10 +65,6 @@ import {
 import { giftSounds } from '../../utils/giftSounds.js';
 import { playLudoDiceRollSfx, playLudoTokenStepSfx } from '../../utils/ludoSfx.js';
 import { socket } from '../../utils/socket.js';
-import {
-  findExactUkrainianDroneRotor,
-  loadExactUkrainianDroneModel
-} from '../../utils/ukrainianDroneModel.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
@@ -142,7 +138,7 @@ const CAPTURE_PARK_SCALE_BY_TYPE = Object.freeze({
   missile: 1.2,
   drone: 1.2
 });
-const CAPTURE_AIR_ATTACK_ID_SET = new Set(['fighterJetAttack', 'helicopterAttack', 'droneAttack', 'ukrainianDroneAttack', 'missileJavelin']);
+const CAPTURE_AIR_ATTACK_ID_SET = new Set(['fighterJetAttack', 'helicopterAttack', 'droneAttack', 'missileJavelin']);
 const FIREARM_CAPTURE_ANIMATION_IDS = new Set([
   'assaultRifleAttack',
   'fpsGunAttack',
@@ -386,178 +382,6 @@ const gunifyModelUrls = (modelName) => {
     `${GUNIFY_JSDELIVR_BASE}/${modelFolder}/${modelName}/scene.gltf`
   ];
 };
-
-
-// Weapon assets must keep their authored GLB/GLTF WebGL texture references.  The
-// original-source loader below mirrors the stand-alone Three.js reference viewer:
-// it resolves relative buffers/images against the asset folder, tries GitHub raw
-// and jsDelivr alternates, and only falls back after every original candidate
-// has been attempted.
-const ORIGINAL_TEXTURE_FALLBACK_PIXEL =
-  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
-const ORIGINAL_TEXTURE_FETCH_TIMEOUT_MS = 75000;
-const ORIGINAL_GLTF_JSON_TIMEOUT_MS = 45000;
-
-function isAbsoluteOrDataModelUrl(url = '') {
-  return /^(https?:)?\/\//i.test(url) || `${url}`.startsWith('data:') || `${url}`.startsWith('blob:');
-}
-
-function parentModelFolder(url = '') {
-  return `${url}`.slice(0, `${url}`.lastIndexOf('/') + 1);
-}
-
-function normalizeModelResourcePath(resourceUrl = '') {
-  try {
-    return decodeURIComponent(resourceUrl).replace(/\\/g, '/').replace(/^\.\//, '');
-  } catch {
-    return `${resourceUrl}`.replace(/\\/g, '/').replace(/^\.\//, '');
-  }
-}
-
-function resolveModelResourceUrl(url, baseFolder) {
-  if (isAbsoluteOrDataModelUrl(url)) return url;
-  return new URL(normalizeModelResourcePath(url), baseFolder).toString();
-}
-
-function toJsDelivrFromRawModelUrl(url = '') {
-  const match = `${url}`.match(/^https:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/([^/]+)\/(.+)$/i);
-  if (!match) return null;
-  return `https://cdn.jsdelivr.net/gh/${match[1]}/${match[2]}@${match[3]}/${match[4]}`;
-}
-
-function toRawFromJsDelivrModelUrl(url = '') {
-  const match = `${url}`.match(/^https:\/\/cdn\.jsdelivr\.net\/gh\/([^/]+)\/([^@/]+)@([^/]+)\/(.+)$/i);
-  if (!match) return null;
-  return `https://raw.githubusercontent.com/${match[1]}/${match[2]}/${match[3]}/${match[4]}`;
-}
-
-function originalUrlAlternates(url = '') {
-  const values = [url];
-  const raw = toRawFromJsDelivrModelUrl(url);
-  const jsdelivr = toJsDelivrFromRawModelUrl(url);
-  if (raw) values.push(raw);
-  if (jsdelivr) values.push(jsdelivr);
-  return uniqueStrings(values.filter(Boolean));
-}
-
-function originalResourceCandidates(resourceUri, sourceUrl) {
-  if (isAbsoluteOrDataModelUrl(resourceUri)) return originalUrlAlternates(resourceUri);
-  const sourceBase = parentModelFolder(sourceUrl);
-  const alternateBases = uniqueStrings([
-    sourceBase,
-    sourceUrl.startsWith(GUNIFY_RAW_BASE) ? parentModelFolder(sourceUrl.replace(GUNIFY_RAW_BASE, GUNIFY_JSDELIVR_BASE)) : null,
-    sourceUrl.startsWith(GUNIFY_JSDELIVR_BASE) ? parentModelFolder(sourceUrl.replace(GUNIFY_JSDELIVR_BASE, GUNIFY_RAW_BASE)) : null
-  ].filter(Boolean));
-  return uniqueStrings(alternateBases.flatMap((base) => originalUrlAlternates(resolveModelResourceUrl(resourceUri, base))));
-}
-
-function mimeFromModelResource(uri = '') {
-  const clean = `${uri}`.split('?')[0].split('#')[0].toLowerCase();
-  if (clean.endsWith('.jpg') || clean.endsWith('.jpeg')) return 'image/jpeg';
-  if (clean.endsWith('.webp')) return 'image/webp';
-  if (clean.endsWith('.ktx2') || clean.endsWith('.basis')) return 'image/ktx2';
-  if (clean.endsWith('.bin')) return 'application/octet-stream';
-  return 'image/png';
-}
-
-async function fetchWithModelTimeout(input, init = {}, timeoutMs = ORIGINAL_TEXTURE_FETCH_TIMEOUT_MS) {
-  const controller = new AbortController();
-  const timer = globalThis.setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(input, { ...init, signal: controller.signal });
-  } finally {
-    globalThis.clearTimeout(timer);
-  }
-}
-
-async function blobToOriginalDataUri(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
-    reader.onerror = () => reject(new Error('Failed converting original texture blob to data URI'));
-    reader.readAsDataURL(blob);
-  });
-}
-
-async function fetchOriginalCandidateAsDataUri(url, fallbackMime) {
-  const response = await fetchWithModelTimeout(url, { mode: 'cors' });
-  if (!response.ok) throw new Error(`Original resource fetch failed ${response.status}: ${url}`);
-  const blob = await response.blob();
-  if (blob.type || !fallbackMime) return blobToOriginalDataUri(blob);
-  return blobToOriginalDataUri(new Blob([await blob.arrayBuffer()], { type: fallbackMime }));
-}
-
-async function fetchFirstOriginalDataUri(candidates, fallbackMime) {
-  let lastError = null;
-  for (const candidate of candidates) {
-    try {
-      // eslint-disable-next-line no-await-in-loop
-      return await fetchOriginalCandidateAsDataUri(candidate, fallbackMime || mimeFromModelResource(candidate));
-    } catch (error) {
-      lastError = error;
-      console.warn('Original weapon texture candidate failed; trying next source URL', candidate, error);
-    }
-  }
-  throw lastError ?? new Error('No original weapon texture candidate loaded');
-}
-
-async function inlineOriginalExternalGltfAssets(sourceUrl) {
-  if (!/\.gltf(?:[?#].*)?$/i.test(sourceUrl)) return null;
-  const response = await fetchWithModelTimeout(sourceUrl, { mode: 'cors' }, ORIGINAL_GLTF_JSON_TIMEOUT_MS);
-  if (!response.ok) throw new Error(`Original GLTF JSON fetch failed ${response.status}: ${sourceUrl}`);
-  const json = await response.json();
-
-  const buffers = Array.isArray(json.buffers) ? json.buffers : [];
-  for (const buffer of buffers) {
-    if (typeof buffer.uri !== 'string' || buffer.uri.startsWith('data:')) continue;
-    // eslint-disable-next-line no-await-in-loop
-    buffer.uri = await fetchFirstOriginalDataUri(originalResourceCandidates(buffer.uri, sourceUrl), 'application/octet-stream');
-  }
-
-  const images = Array.isArray(json.images) ? json.images : [];
-  for (const image of images) {
-    if (typeof image.uri !== 'string' || image.uri.startsWith('data:')) continue;
-    const candidates = originalResourceCandidates(image.uri, sourceUrl);
-    try {
-      // eslint-disable-next-line no-await-in-loop
-      image.uri = await fetchFirstOriginalDataUri(candidates, image.mimeType || mimeFromModelResource(candidates[0]));
-      image.mimeType = image.mimeType || mimeFromModelResource(candidates[0]);
-    } catch (error) {
-      console.warn('Every original weapon texture URL failed; using transparent fallback pixel for this image only', image.uri, error);
-      image.uri = ORIGINAL_TEXTURE_FALLBACK_PIXEL;
-      image.mimeType = 'image/png';
-    }
-  }
-
-  return JSON.stringify(json);
-}
-
-function createOriginalTextureAwareLoader(modelUrl) {
-  const baseFolder = parentModelFolder(modelUrl);
-  const manager = new THREE.LoadingManager();
-  manager.setURLModifier((resourceUrl = '') => {
-    if (!resourceUrl || `${resourceUrl}`.startsWith('data:') || `${resourceUrl}`.startsWith('blob:') || `${resourceUrl}`.startsWith('#')) {
-      return resourceUrl;
-    }
-    if (isAbsoluteOrDataModelUrl(resourceUrl)) return resourceUrl;
-    return resolveModelResourceUrl(resourceUrl, baseFolder);
-  });
-  manager.onError = (url) => console.warn('Original weapon texture/bin resource failed:', url, 'for model', modelUrl);
-  const loader = createConfiguredGLTFLoader(null, manager);
-  loader.setPath?.(baseFolder);
-  loader.setResourcePath?.(baseFolder);
-  return loader;
-}
-
-async function loadOriginalSourceWeaponGltf(candidateUrl, { patchGunify = false } = {}) {
-  const loader = createOriginalTextureAwareLoader(candidateUrl);
-  if (/\.gltf(?:[?#].*)?$/i.test(candidateUrl)) {
-    const json = await inlineOriginalExternalGltfAssets(candidateUrl);
-    const finalJson = patchGunify ? JSON.stringify(patchGunifySpecularGlossinessMaterials(JSON.parse(json))) : json;
-    return loader.parseAsync(finalJson, parentModelFolder(candidateUrl));
-  }
-  return loader.loadAsync(candidateUrl);
-}
 
 const SNAKE_CAPTURE_WEAPON_OPTION_BY_ID = Object.freeze(
   SNAKE_CAPTURE_WEAPON_OPTIONS.reduce((acc, option) => {
@@ -892,52 +716,12 @@ function applyGunifyWeaponTexturePolicy(material) {
   material.needsUpdate = true;
 }
 
-const SOURCE_COLOR_TEXTURE_SLOTS = new Set([
-  'map',
-  'emissiveMap',
-  'sheenColorMap',
-  'specularColorMap',
-  'clearcoatMap'
-]);
-const SOURCE_TEXTURE_SLOTS = [
-  'map',
-  'emissiveMap',
-  'normalMap',
-  'roughnessMap',
-  'metalnessMap',
-  'aoMap',
-  'alphaMap',
-  'bumpMap',
-  'displacementMap',
-  'clearcoatMap',
-  'clearcoatNormalMap',
-  'clearcoatRoughnessMap',
-  'sheenColorMap',
-  'sheenRoughnessMap',
-  'specularMap',
-  'specularColorMap',
-  'transmissionMap',
-  'thicknessMap',
-  'iridescenceMap',
-  'iridescenceThicknessMap'
-];
-
 function preserveCaptureWeaponSourceMaterial(material, texturePolicy = 'preserveSource') {
   if (!material) return;
-  // Every non-procedural weapon keeps the exact material state authored in its
-  // source GLB/GLTF: alpha modes, opacity, color/PBR factors, UV transforms,
-  // and every image map.  This pass only makes those original texture objects
-  // WebGL-ready by setting color space and anisotropy on the existing maps.
-  SOURCE_TEXTURE_SLOTS.forEach((textureKey) => {
-    const texture = material[textureKey];
-    if (!texture?.isTexture) return;
-    if (SOURCE_COLOR_TEXTURE_SLOTS.has(textureKey)) applySRGBColorSpace(texture);
-    texture.anisotropy = Math.max(texture.anisotropy || 1, activeModelTextureAnisotropy);
-    texture.needsUpdate = true;
-  });
-  if ('envMapIntensity' in material && typeof material.envMapIntensity === 'number') {
-    material.envMapIntensity = Math.max(material.envMapIntensity, 1.0);
-  }
+  // Every non-procedural weapon should keep the exact material state authored in
+  // its source GLB/GLTF.  That includes alpha modes, opacity, color factors,
+  // PBR factors, UV transforms and every image map.  We only tag the material
+  // for diagnostics and let the generic texture-quality pass raise sampling.
   material.userData = {
     ...(material.userData || {}),
     sourceTexturePolicy: texturePolicy
@@ -1290,7 +1074,6 @@ const CAPTURE_ATTACK_TUNING = Object.freeze({
   fighterJetAttack: { speed: 1.2, height: 0.92, inward: 0.94, takeoff: 0.2, landing: 0.24 },
   helicopterAttack: { speed: 1.26, height: 0.84, inward: 0.88, takeoff: 0.24, landing: 0.28 },
   droneAttack: { speed: 1.14, height: 0.9, inward: 0.94, takeoff: 0.22, landing: 0.26 },
-  ukrainianDroneAttack: { speed: 1.14, height: 0.9, inward: 0.94, takeoff: 0.22, landing: 0.26 },
   missileJavelin: { speed: 1.12, height: 0.88, inward: 0.92, takeoff: 0.18, landing: 0.24 }
 });
 const CAPTURE_CAMERA_ZOOM_OUT_FACTOR = 1.08;
@@ -1300,7 +1083,6 @@ const HELICOPTER_AUX_ROTOR_SPIN_SPEED = 24;
 const QUICK_SWAP_WEAPON_ICON_KIND_BY_ID = Object.freeze({
   missileJavelin: 'rocket',
   droneAttack: 'drone',
-  ukrainianDroneAttack: 'drone',
   fighterJetAttack: 'jet',
   helicopterAttack: 'helicopter',
   fpsGunAttack: 'rifle',
@@ -1342,7 +1124,6 @@ const QUICK_SWAP_WEAPON_ICON_KIND_BY_ID = Object.freeze({
 
 const QUICK_SWAP_WEAPON_DISPLAY_NAME_OVERRIDES = Object.freeze({
   droneAttack: 'Drone',
-  ukrainianDroneAttack: 'Ukrainian Drone',
   fighterJetAttack: 'Fighter Jet',
   helicopterAttack: 'Helicopter',
   polyRevolver02Attack: 'Silver Revolver',
@@ -1686,14 +1467,8 @@ async function loadCaptureWeaponModel(captureAnimationId) {
           loader.setPath?.(basePath);
           loader.setResourcePath?.(basePath);
         }
-        const shouldPreserveOriginalWeaponTextures =
-          config?.source === 'Gunify' || config?.texturePolicy === 'polyPizzaOriginalGlb' || isPolyPizzaAssetUrl(candidateUrl);
-        const loadedGltf = shouldPreserveOriginalWeaponTextures
-          ? await withLoadTimeout(
-              loadOriginalSourceWeaponGltf(candidateUrl, {
-                patchGunify: config?.source === 'Gunify' && isGltfAssetUrl(candidateUrl)
-              })
-            )
+        const loadedGltf = config?.source === 'Gunify' && isGltfAssetUrl(candidateUrl)
+          ? await withLoadTimeout(loadGunifyOriginalGltf(loader, candidateUrl))
           : await withLoadTimeout(loader.loadAsync(candidateUrl));
         loadedRoot = assignLoadedGltf(loadedGltf);
       } catch (error) {
@@ -3228,23 +3003,6 @@ async function createCaptureJetFx() {
     exhaustNodes: [engineLeft, engineRight],
     exhaustAnchors: [engineLeft.position.clone(), engineRight.position.clone()]
   };
-}
-
-
-async function createCaptureUkrainianDroneFx() {
-  const root = new THREE.Group();
-  root.userData.lockCaptureTexture = true;
-  try {
-    const model = await loadExactUkrainianDroneModel();
-    fitObjectToTargetSize(model, 3.85 * CAPTURE_DRONE_SIZE_MULTIPLIER);
-    model.rotation.y = Math.PI;
-    root.add(model);
-    root.visible = false;
-    return { root, propeller: findExactUkrainianDroneRotor(model) || model, trail: [] };
-  } catch (error) {
-    console.warn('Exact Ukrainian drone model load failed; falling back to Shahad drone visual', error);
-    return createCaptureDroneFx();
-  }
 }
 
 async function createCaptureHelicopterFx() {
@@ -8627,8 +8385,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         CAPTURE_ANIMATION_OPTIONS[optionIndex]?.id ?? CAPTURE_ANIMATION_OPTIONS[0]?.id ?? 'missileJavelin';
       if (entry?.jet) entry.jet.visible = selectedCaptureAnimationId === 'fighterJetAttack';
       if (entry?.helicopter) entry.helicopter.visible = selectedCaptureAnimationId === 'helicopterAttack';
-      const selectedDroneAttack = selectedCaptureAnimationId === 'droneAttack' || selectedCaptureAnimationId === 'ukrainianDroneAttack';
-      if (entry?.drone) entry.drone.visible = selectedCaptureAnimationId === 'ukrainianDroneAttack';
+      if (entry?.drone) entry.drone.visible = false;
       if (entry?.droneTruck) entry.droneTruck.visible = selectedCaptureAnimationId === 'droneAttack';
       if (entry?.missile) entry.missile.visible = selectedCaptureAnimationId === 'missileJavelin';
       if (entry?.weaponRack) {
@@ -8636,7 +8393,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const showActionButton =
           selectedCaptureAnimationId === 'fighterJetAttack' ||
           selectedCaptureAnimationId === 'helicopterAttack' ||
-          selectedDroneAttack;
+          selectedCaptureAnimationId === 'droneAttack';
         entry.weaponRack.visible = showFirearm || showActionButton;
         if (entry.actionButton?.isObject3D) {
           entry.actionButton.visible = showActionButton;
@@ -11481,8 +11238,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         };
         const captureTuning = resolveCaptureAttackTuning(resolvedCaptureAnimationId);
         const isHelicopterAttack = resolvedCaptureAnimationId === 'helicopterAttack';
-        const isUkrainianDroneAttack = resolvedCaptureAnimationId === 'ukrainianDroneAttack';
-        const isDroneAttack = resolvedCaptureAnimationId === 'droneAttack' || isUkrainianDroneAttack;
+        const isDroneAttack = resolvedCaptureAnimationId === 'droneAttack';
         const isFighterJetAttack = resolvedCaptureAnimationId === 'fighterJetAttack';
         const isFirearmAttack = FIREARM_CAPTURE_ANIMATION_IDS.has(resolvedCaptureAnimationId);
         if (isFirearmAttack) {
@@ -11928,7 +11684,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             ? parkedEntry?.jet
             : resolvedCaptureAnimationId === 'helicopterAttack'
             ? parkedEntry?.helicopter
-            : isDroneAttack
+            : resolvedCaptureAnimationId === 'droneAttack'
             ? parkedEntry?.droneTruck ?? parkedEntry?.drone
             : resolvedCaptureAnimationId === 'missileJavelin'
             ? parkedEntry?.missile
@@ -11954,9 +11710,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         if (isDroneAttack) playDroneSound();
         if (isFighterJetAttack) playFighterJetSound();
         const primaryFx =
-          isUkrainianDroneAttack
-            ? await createCaptureUkrainianDroneFx()
-            : resolvedCaptureAnimationId === 'droneAttack'
+          resolvedCaptureAnimationId === 'droneAttack'
             ? await createCaptureDroneFx()
             : resolvedCaptureAnimationId === 'helicopterAttack'
             ? await createCaptureHelicopterFx()
@@ -11992,7 +11746,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             ? 0.34
             : resolvedCaptureAnimationId === 'helicopterAttack'
             ? 0.24
-            : isDroneAttack
+            : resolvedCaptureAnimationId === 'droneAttack'
             ? 0.26
             : 1;
         const parkedScale =
@@ -12000,7 +11754,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             ? parkedEntry?.jet?.scale
             : resolvedCaptureAnimationId === 'helicopterAttack'
             ? parkedEntry?.helicopter?.scale
-            : isDroneAttack
+            : resolvedCaptureAnimationId === 'droneAttack'
             ? parkedEntry?.drone?.scale
             : parkedEntry?.missile?.scale;
         if (parkedScale?.isVector3) {
@@ -12080,13 +11834,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             ? 2860
             : resolvedCaptureAnimationId === 'helicopterAttack'
             ? 3320
-            : isDroneAttack
+            : resolvedCaptureAnimationId === 'droneAttack'
             ? 1780
             : 1780;
         const airAttackSlowFactor =
           resolvedCaptureAnimationId === 'fighterJetAttack' ||
           resolvedCaptureAnimationId === 'helicopterAttack' ||
-          isDroneAttack
+          resolvedCaptureAnimationId === 'droneAttack'
             ? CAPTURE_AIRCRAFT_SLOW_FACTOR
             : 1;
         const travelTime =
@@ -12250,7 +12004,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               ? 0.84
             : selectedCaptureAnimationId === 'helicopterAttack'
               ? 0.84
-              : selectedCaptureAnimationId === 'droneAttack' || selectedCaptureAnimationId === 'ukrainianDroneAttack'
+              : selectedCaptureAnimationId === 'droneAttack'
               ? 0.78
               : 0.84;
           if (elapsed < tunedTravelTime) {
@@ -12284,7 +12038,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   .add(new THREE.Vector3(0, topStrikeHeight * 0.2, 0));
                 return quadraticBezier(apex, apex.clone().lerp(flyByEnd, 0.5), flyByEnd, d);
               }
-              const isDroneStrike = selectedCaptureAnimationId === 'droneAttack' || selectedCaptureAnimationId === 'ukrainianDroneAttack';
+              const isDroneStrike = selectedCaptureAnimationId === 'droneAttack';
               if (isDroneStrike) {
                 return quadraticBezier(apex, apex.clone().lerp(dynamicTo, 0.46), dynamicTo, d);
               }
@@ -12319,8 +12073,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             }
             const isVerticalImpactVehicle =
               selectedCaptureAnimationId === 'missileJavelin' ||
-              selectedCaptureAnimationId === 'droneAttack' ||
-              selectedCaptureAnimationId === 'ukrainianDroneAttack';
+              selectedCaptureAnimationId === 'droneAttack';
             if (isVerticalImpactVehicle && u > phaseSplit) {
               primaryFx.root.quaternion.setFromUnitVectors(MISSILE_FORWARD, new THREE.Vector3(0, -1, 0));
             }
