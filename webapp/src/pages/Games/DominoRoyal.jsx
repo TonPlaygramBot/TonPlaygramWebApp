@@ -9,19 +9,6 @@ export default function DominoRoyal() {
   useTelegramBackButton();
   const { search } = useLocation();
 
-  if (typeof window !== 'undefined') {
-    window.__TONPLAYGRAM_SOCKET__ = socket;
-  }
-
-  useEffect(() => {
-    window.__TONPLAYGRAM_SOCKET__ = socket;
-    return () => {
-      if (window.__TONPLAYGRAM_SOCKET__ === socket) {
-        delete window.__TONPLAYGRAM_SOCKET__;
-      }
-    };
-  }, []);
-
   useEffect(() => {
     const params = new URLSearchParams(search);
     const mode = params.get('mode');
@@ -37,12 +24,12 @@ export default function DominoRoyal() {
       }
       if (cancelled || !resolvedAccountId) return;
       socket.emit('register', { playerId: resolvedAccountId });
-      socket.emit('confirmReady', { accountId: resolvedAccountId, tableId });
-      socket.emit('joinDominoTable', {
-        tableId,
+      socket.emit('joinRoom', {
+        roomId: tableId,
         accountId: resolvedAccountId,
         name: getTelegramUsername() || 'Player'
       });
+      socket.emit('confirmReady', { accountId: resolvedAccountId, tableId });
     };
 
     syncRuntime().catch(() => {});
