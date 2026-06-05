@@ -851,6 +851,7 @@ const PLAYER_FACE_CAMERA_EYE_HEIGHT = 2.05 * LAYOUT_SCALE_FACTOR;
 const PLAYER_FACE_CAMERA_TARGET_HEIGHT = 0.18 * LAYOUT_SCALE_FACTOR;
 const PLAYER_FACE_CAMERA_YAW_LIMIT = THREE.MathUtils.degToRad(18);
 const PLAYER_FACE_CAMERA_PITCH_LIMIT = THREE.MathUtils.degToRad(12);
+const PLAYER_FACE_CAMERA_LOOK_DRAG_SPEED = 0.0045;
 const SAND_TIMER_RADIUS_FACTOR = 0.68;
 const SAND_TIMER_SURFACE_OFFSET = 0.2;
 const SAND_TIMER_SCALE = 0.36;
@@ -8970,6 +8971,7 @@ function Chess3D({
     targetPitch: 0,
     bobTime: 0
   });
+  const playerFaceLookRef = useRef({ yaw: 0, pitch: 0 });
   const locked3dViewRef = useRef({
     activeLook: false,
     yaw: 0,
@@ -10981,13 +10983,6 @@ function Chess3D({
       const current = new THREE.Spherical().setFromVector3(
         camera.position.clone().sub(boardLookTarget)
       );
-      const currentRadius = Number.isFinite(current.radius) ? current.radius : CAMERA_3D_MAX_RADIUS;
-      const theta = Number.isFinite(current.theta) ? current.theta : PLAYER_VIEW_SEAT_THETA;
-      const isForcedCapture3dView = requestedMode === '3d' && restoreAutoViewTo2dRef.current;
-
-      const initialRadius = currentRadius;
-      const default3d = new THREE.Spherical(initialRadius, CAMERA_DEFAULT_PHI, theta);
-
       if (requestedMode === 'fpv') {
         cameraMemory.last3d = current;
         controls.enabled = false;
@@ -11019,44 +11014,26 @@ function Chess3D({
       } else {
         camera.near = CAM.near;
         camera.updateProjectionMatrix();
-        controls.enabled = true;
-        controls.enableRotate = true;
+        controls.target.copy(boardLookTarget);
+        controls.enabled = false;
+        controls.enableRotate = false;
         controls.enablePan = false;
-        controls.enableZoom = true;
-        controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
+        controls.enableZoom = false;
+        controls.screenSpacePanning = false;
+        controls.minPolarAngle = THREE.MathUtils.degToRad(28);
         controls.maxPolarAngle = CAM.phiMax;
         controls.minAzimuthAngle = -Infinity;
         controls.maxAzimuthAngle = Infinity;
-        controls.minDistance = CAMERA_3D_MIN_RADIUS;
-        controls.maxDistance = CAMERA_3D_MAX_RADIUS;
-        const restore = cameraMemory.last3d || default3d;
-        const targetPhi = clamp(
-          restore.phi - (isForcedCapture3dView ? CAMERA_CAPTURE_VIEW_UPWARD_BIAS : 0),
-          CAMERA_PULL_FORWARD_MIN,
-          CAM.phiMax
-        );
-        const targetRadius = clamp(
-          restore.radius * (isForcedCapture3dView ? CAMERA_CAPTURE_VIEW_RADIUS_SCALE : 1),
-          CAMERA_3D_MIN_RADIUS,
-          CAMERA_3D_MAX_RADIUS
-        );
-        const lockedRadius = clamp(CAMERA_2D_MAX_RADIUS * CAMERA_LOCKED_3D_RADIUS_SCALE, CAMERA_3D_MIN_RADIUS, CAMERA_3D_MAX_RADIUS);
-        const target = new THREE.Spherical(
-          isForcedCapture3dView ? targetRadius : lockedRadius,
-          isForcedCapture3dView ? targetPhi : CAMERA_LOCKED_3D_PHI,
-          Number.isFinite(restore.theta) ? restore.theta : default3d.theta
-        );
-        const lookDir = boardLookTarget.clone().sub(camera.position).normalize();
-        const yaw = Math.atan2(lookDir.x, lookDir.z);
-        const pitch = Math.asin(clamp(lookDir.y, -1, 1));
-        locked3dViewRef.current.yaw = yaw;
-        locked3dViewRef.current.pitch = pitch;
-        locked3dViewRef.current.targetYaw = yaw;
-        locked3dViewRef.current.targetPitch = pitch;
-        // Let OrbitControls drive the normal 3D camera again so players can
-        // move forward/back with pinch or wheel and look left/right by dragging.
-        locked3dViewRef.current.activeLook = false;
-        animateCameraTo(target, 420);
+        controls.minDistance = TABLE_RADIUS * 1.85;
+        controls.maxDistance = TABLE_RADIUS * 4.9;
+        playerFaceLookRef.current = { yaw: 0, pitch: 0 };
+        locked3dViewRef.current.yaw = 0;
+        locked3dViewRef.current.pitch = 0;
+        locked3dViewRef.current.targetYaw = 0;
+        locked3dViewRef.current.targetPitch = 0;
+        locked3dViewRef.current.fixedPosition = null;
+        locked3dViewRef.current.activeLook = true;
+        applyBottomPlayerFaceCamera(camera, playerFaceLookRef.current);
       }
     };
 
@@ -11081,7 +11058,9 @@ function Chess3D({
       if (viewModeRef.current === '2d') {
         controls.target.copy(boardLookTarget);
       }
-      if (viewModeRef.current !== 'fpv') {
+      if (viewModeRef.current === '3d') {
+        applyBottomPlayerFaceCamera(camera, playerFaceLookRef.current);
+      } else if (viewModeRef.current !== 'fpv') {
         const currentRadius = camera.position.distanceTo(boardLookTarget);
         const radius = clamp(currentRadius || CAMERA_SAFE_MAX_RADIUS, minDistance, maxDistance);
         const dir = camera.position.clone().sub(boardLookTarget).normalize();
@@ -14944,31 +14923,33 @@ function Chess3D({
       }
       if (viewModeRef.current === '3d' && locked3dViewRef.current.activeLook) {
         const locked = locked3dViewRef.current;
-        if (locked.activeLook) {
-          const clientX = event.clientX ?? event.touches?.[0]?.clientX ?? locked.lastPointerX;
-          const clientY = event.clientY ?? event.touches?.[0]?.clientY ?? locked.lastPointerY;
-          const movementX = Number.isFinite(event.movementX) && event.movementX !== 0
-            ? event.movementX
-            : Number.isFinite(clientX) && Number.isFinite(locked.lastPointerX)
-              ? clientX - locked.lastPointerX
-              : 0;
-          const movementY = Number.isFinite(event.movementY) && event.movementY !== 0
-            ? event.movementY
-            : Number.isFinite(clientY) && Number.isFinite(locked.lastPointerY)
-              ? clientY - locked.lastPointerY
-              : 0;
-          locked.lastPointerX = Number.isFinite(clientX) ? clientX : locked.lastPointerX;
-          locked.lastPointerY = Number.isFinite(clientY) ? clientY : locked.lastPointerY;
-          locked.targetYaw = clamp(
-            locked.targetYaw - movementX * 0.0045,
+        const clientX = event.clientX ?? event.touches?.[0]?.clientX ?? locked.lastPointerX;
+        const clientY = event.clientY ?? event.touches?.[0]?.clientY ?? locked.lastPointerY;
+        const movementX = Number.isFinite(event.movementX) && event.movementX !== 0
+          ? event.movementX
+          : Number.isFinite(clientX) && Number.isFinite(locked.lastPointerX)
+            ? clientX - locked.lastPointerX
+            : 0;
+        const movementY = Number.isFinite(event.movementY) && event.movementY !== 0
+          ? event.movementY
+          : Number.isFinite(clientY) && Number.isFinite(locked.lastPointerY)
+            ? clientY - locked.lastPointerY
+            : 0;
+        locked.lastPointerX = Number.isFinite(clientX) ? clientX : locked.lastPointerX;
+        locked.lastPointerY = Number.isFinite(clientY) ? clientY : locked.lastPointerY;
+        if (movementX || movementY) {
+          const look = playerFaceLookRef.current;
+          look.yaw = clamp(
+            look.yaw + movementX * PLAYER_FACE_CAMERA_LOOK_DRAG_SPEED,
             -PLAYER_FACE_CAMERA_YAW_LIMIT,
             PLAYER_FACE_CAMERA_YAW_LIMIT
           );
-          locked.targetPitch = clamp(
-            locked.targetPitch - movementY * 0.0045,
+          look.pitch = clamp(
+            look.pitch - movementY * PLAYER_FACE_CAMERA_LOOK_DRAG_SPEED,
             -PLAYER_FACE_CAMERA_PITCH_LIMIT,
             PLAYER_FACE_CAMERA_PITCH_LIMIT
           );
+          applyBottomPlayerFaceCamera(camera, look);
         }
         return;
       }
@@ -14983,10 +14964,11 @@ function Chess3D({
 
     const onPointerUp = (event) => {
       firstPersonViewRef.current.activeLook = false;
-      locked3dViewRef.current.activeLook = viewModeRef.current === '3d' && Boolean(locked3dViewRef.current.fixedPosition);
+      const isFaceCamera3d = viewModeRef.current === '3d';
+      locked3dViewRef.current.activeLook = isFaceCamera3d;
       locked3dViewRef.current.lastPointerX = null;
       locked3dViewRef.current.lastPointerY = null;
-      if (viewModeRef.current === 'fpv' || (viewModeRef.current === '3d' && locked3dViewRef.current.activeLook)) return;
+      if (viewModeRef.current === 'fpv' || isFaceCamera3d) return;
       if (isReplayingRef.current) return;
       if (isMoveInteractionLocked()) return;
       if (!dragState.active) return;
@@ -15016,6 +14998,10 @@ function Chess3D({
       const isMatchedSession = onlineRef.current.enabled && ['matched', 'in-game'].includes(onlineStatus);
       if (isMatchedSession || viewModeRef.current === 'fpv') return;
       event.preventDefault();
+      if (viewModeRef.current === '3d') {
+        applyBottomPlayerFaceCamera(camera, playerFaceLookRef.current);
+        return;
+      }
       const minRadius = viewModeRef.current === '2d' ? CAMERA_2D_MIN_RADIUS : CAMERA_3D_MIN_RADIUS;
       const maxRadius = viewModeRef.current === '2d' ? CAMERA_2D_MAX_RADIUS : CAMERA_3D_MAX_RADIUS;
       const direction = camera.position.clone().sub(boardLookTarget).normalize();
@@ -16198,19 +16184,7 @@ function Chess3D({
       }
       const locked3dEnabled = viewModeRef.current === '3d' && locked3dViewRef.current.activeLook;
       if (locked3dEnabled) {
-        const locked = locked3dViewRef.current;
-        if (!locked.fixedPosition) {
-          locked.fixedPosition = camera.position.clone();
-        }
-        locked.yaw = THREE.MathUtils.lerp(locked.yaw, locked.targetYaw, 0.2);
-        locked.pitch = THREE.MathUtils.lerp(locked.pitch, locked.targetPitch, 0.2);
-        camera.position.copy(locked.fixedPosition);
-        const dir = new THREE.Vector3(
-          Math.sin(locked.yaw) * Math.cos(locked.pitch),
-          Math.sin(locked.pitch),
-          Math.cos(locked.yaw) * Math.cos(locked.pitch)
-        );
-        camera.lookAt(camera.position.clone().add(dir.multiplyScalar(8)));
+        applyBottomPlayerFaceCamera(camera, playerFaceLookRef.current);
         controls.enabled = false;
       } else if (controls && !fpvEnabled) {
         locked3dViewRef.current.fixedPosition = null;
@@ -16266,7 +16240,9 @@ function Chess3D({
         camera.lookAt(lookTarget);
       }
 
-      controls?.update();
+      if (!locked3dEnabled) {
+        controls?.update();
+      }
       const targetInterval = renderSettingsRef.current.targetFrameIntervalMs || targetFrameIntervalMs;
       if (now - lastRender >= targetInterval) {
         renderer.render(scene, camera);
