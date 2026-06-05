@@ -5203,14 +5203,14 @@ const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.1; // match Pool Royale standing-view
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.54);
 const CAMERA_MAX_PHI = CAMERA_LOWEST_PHI; // halt the downward sweep right above the cue while still enabling the lower AI cue height for players
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0119; // bring the player's standing/cue camera closer to the table
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0108; // bring the player's standing/cue camera closer to the table
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.96;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.94;
-const STANDING_VIEW_DISTANCE_SCALE = 0.16; // pull the standing camera closer so the table fills more of portrait screens
+const STANDING_VIEW_DISTANCE_SCALE = 0.145; // pull the standing camera closer so the table fills more of portrait screens
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -5218,8 +5218,8 @@ const CAMERA_ZOOM_PROFILES = Object.freeze({
   default: Object.freeze({ cue: 0.86, broadcast: 0.9, margin: 0.97 }),
   nearLandscape: Object.freeze({ cue: 0.84, broadcast: 0.88, margin: 0.97 }),
   landscape: Object.freeze({ cue: 0.82, broadcast: 0.86, margin: 0.965 }),
-  portrait: Object.freeze({ cue: 0.82, broadcast: 1, margin: 0.96 }),
-  ultraPortrait: Object.freeze({ cue: 0.8, broadcast: 1, margin: 0.955 })
+  portrait: Object.freeze({ cue: 0.78, broadcast: 0.96, margin: 0.955 }),
+  ultraPortrait: Object.freeze({ cue: 0.76, broadcast: 0.95, margin: 0.95 })
 });
 const resolveCameraZoomProfile = (aspect) => {
   if (!Number.isFinite(aspect)) {
@@ -5261,6 +5261,7 @@ const AIM_LINE_WIDTH = Math.max(1, BALL_R * 0.12); // keep the aiming guide prop
 const AIM_TICK_HALF_LENGTH = Math.max(0.6, BALL_R * 0.975); // keep the impact tick proportional to the cue ball
 const AIM_DASH_SIZE = Math.max(0.45, BALL_R * 0.75);
 const AIM_GAP_SIZE = Math.max(0.45, BALL_R * 0.5);
+const AIM_PRECISION_EPS = 1e-8; // keep launch, prediction, and collision lock on the same normalized vector
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
@@ -22778,7 +22779,13 @@ const powerRef = useRef(hud.power);
         firstHit = null;
         clearInterval(timerRef.current);
         const aimDir = aimDirRef.current.clone();
-        const prediction = calcTarget(cue, aimDir.clone(), balls);
+        if (aimDir.lengthSq() < AIM_PRECISION_EPS) {
+          aimDir.set(0, 1);
+        } else {
+          aimDir.normalize();
+        }
+        aimDirRef.current.copy(aimDir);
+        const prediction = calcTarget(cue, aimDir, balls);
         const predictedTravelRaw = prediction.targetBall
           ? cue.pos.distanceTo(prediction.targetBall.pos)
           : prediction.tHit;
@@ -22805,7 +22812,8 @@ const powerRef = useRef(hud.power);
           longShot: isLongShot,
           targetInitialPos: prediction.targetBall
             ? prediction.targetBall.pos.clone()
-            : null
+            : null,
+          aimDir: aimDir.clone()
         };
         if (shotPrediction.railNormal) replayTags.add('bank');
           const intentTimestamp = performance.now();
@@ -26580,6 +26588,12 @@ const powerRef = useRef(hud.power);
                     );
                   }
                   const incomingCueVel = cueBallForPair.vel.clone();
+                  const lockedAimDir = shotPrediction?.aimDir?.clone?.() ?? null;
+                  if (lockedAimDir && lockedAimDir.lengthSq() > AIM_PRECISION_EPS) {
+                    lockedAimDir.normalize();
+                    const launchSpeed = Math.max(0, incomingCueVel.dot(lockedAimDir));
+                    incomingCueVel.copy(lockedAimDir.multiplyScalar(launchSpeed));
+                  }
                   const normalSpeed = Math.max(0, incomingCueVel.dot(predictedObjectDir));
                   const cueResidual = incomingCueVel.clone().addScaledVector(
                     predictedObjectDir,
