@@ -13600,7 +13600,7 @@ function subtlyExpandPoolRoyaleShowoodRailSightsAndAprons(model, tableModel) {
   const fullBox = new THREE.Box3().setFromObject(model);
   if (fullBox.isEmpty()) return;
   const fullCenter = fullBox.getCenter(new THREE.Vector3());
-  const safeVisualScale = hasScale ? THREE.MathUtils.clamp(visualScale, 1, 1.2) : 1;
+  const safeVisualScale = hasScale ? THREE.MathUtils.clamp(visualScale, 1, 1.16) : 1;
   const safeRailSightHeightScale = hasRailSightHeight ? THREE.MathUtils.clamp(railSightHeightScale, 1, 1.2) : 1;
   const safeSideApronHeightScale = hasSideApronHeight ? THREE.MathUtils.clamp(sideApronHeightScale, 1, 1.22) : 1;
 
@@ -13612,18 +13612,6 @@ function subtlyExpandPoolRoyaleShowoodRailSightsAndAprons(model, tableModel) {
     const isRailSight = referenceParts.includes('railSight');
     const isSideApron = referenceParts.includes('sideWoodApron');
     if (!isRailSight && !isSideApron) return;
-
-    const beforeBox = new THREE.Box3().setFromObject(child);
-    if (beforeBox.isEmpty()) return;
-    const beforeCenter = beforeBox.getCenter(new THREE.Vector3());
-    const awayX = beforeCenter.x - fullCenter.x;
-    const awayZ = beforeCenter.z - fullCenter.z;
-    const outwardAxis = Math.abs(awayX) >= Math.abs(awayZ) && Math.abs(awayX) > MICRO_EPS
-      ? 'x'
-      : Math.abs(awayZ) > MICRO_EPS
-        ? 'z'
-        : null;
-    const outwardSign = outwardAxis === 'x' ? Math.sign(awayX) : outwardAxis === 'z' ? Math.sign(awayZ) : 0;
 
     if (safeVisualScale > 1) {
       child.scale.x *= safeVisualScale;
@@ -13637,18 +13625,16 @@ function subtlyExpandPoolRoyaleShowoodRailSightsAndAprons(model, tableModel) {
       : isSideApron && hasSideApronOffset
         ? sideApronOutwardOffset
         : 0;
-    if (outwardAxis && Math.abs(outwardSign) > MICRO_EPS) {
-      child.updateMatrixWorld(true);
-      const afterBox = new THREE.Box3().setFromObject(child);
-      if (!afterBox.isEmpty()) {
-        const beforeSize = beforeBox.getSize(new THREE.Vector3());
-        const afterSize = afterBox.getSize(new THREE.Vector3());
-        const scaledOutwardGain = safeVisualScale > 1
-          ? Math.max(0, (afterSize[outwardAxis] - beforeSize[outwardAxis]) * 0.5)
-          : 0;
-        const totalOutwardShift = outwardOffset + scaledOutwardGain;
-        if (Math.abs(totalOutwardShift) > MICRO_EPS) {
-          child.position[outwardAxis] += outwardSign * totalOutwardShift;
+    if (Math.abs(outwardOffset) > MICRO_EPS) {
+      const childBox = new THREE.Box3().setFromObject(child);
+      if (!childBox.isEmpty()) {
+        const childCenter = childBox.getCenter(new THREE.Vector3());
+        const awayX = childCenter.x - fullCenter.x;
+        const awayZ = childCenter.z - fullCenter.z;
+        if (Math.abs(awayX) >= Math.abs(awayZ) && Math.abs(awayX) > MICRO_EPS) {
+          child.position.x += Math.sign(awayX) * outwardOffset;
+        } else if (Math.abs(awayZ) > MICRO_EPS) {
+          child.position.z += Math.sign(awayZ) * outwardOffset;
         }
       }
     }
