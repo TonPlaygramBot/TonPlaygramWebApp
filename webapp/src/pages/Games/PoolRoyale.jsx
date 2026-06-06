@@ -68,11 +68,6 @@ import {
 } from '../../utils/ballMaterialFactory.js';
 import { selectShot as selectUkAiShot } from '../../../../lib/poolUkAdvancedAi.js';
 import { createCueRackDisplay } from '../../utils/createCueRackDisplay.js';
-import {
-  createHumanPoolPlayer,
-  chooseHumanEdgePosition,
-  updateHumanPose as updateStandaloneHumanPose
-} from './shared/HumanPoolPlayer.js';
 import { socket } from '../../utils/socket.js';
 import {
   WOOD_FINISH_PRESETS,
@@ -26749,40 +26744,10 @@ const shotPowerRef = useRef(0);
 
       const spawnPlayerCharacters = async () => {
         disposePlayerCharacters();
-        const humanCueLength = 1.5 * (BALL_R / 0.0525) * CUE_LENGTH_MULTIPLIER;
-        const humanScale = humanCueLength * 1.3;
-        const loader = createConfiguredGLTFLoader(renderer);
-        const human = createHumanPoolPlayer(world, {
-          loader,
-          modelUrls: POOL_ROYALE_VERIFIED_HUMAN_FALLBACK_URLS,
-          unit: humanScale / 1.84,
-          scale: humanScale / 1.84,
-          humanScale,
-          humanVisualYawFix: POOL_ROYALE_HUMAN_VISUAL_YAW_FIX,
-          tableW: TABLE.W,
-          tableL: TABLE.H,
-          tableTopY: CUE_Y - BALL_R * 0.22,
-          groundY: floorY,
-          footGroundY: 0.035 * (humanScale / 1.84),
-          edgeMargin: HUMAN_EDGE_MARGIN,
-          desiredShootDistance: HUMAN_DESIRED_SHOOT_DISTANCE,
-          perimeterWalk: true,
-          perimeterWalkSpeed: HUMAN_WALK_PERIMETER_SPEED,
-          bridgeHandBackFromBall: HUMAN_BRIDGE_HAND_BACK_FROM_BALL,
-          bridgeHandSide: HUMAN_BRIDGE_HAND_SIDE,
-          bridgeCueLift: HUMAN_BRIDGE_CUE_LIFT,
-          bridgePalmTableLift: 0.004 * (humanScale / 1.84),
-          bridgePalmUnderCueDrop: 0.038 * (humanScale / 1.84),
-          shootCueGripFromBack: humanCueLength * 0.36,
-          rightStrokePull: humanCueLength * 0.18,
-          rightStrokePush: humanCueLength * 0.15,
-          rightHandShotLift: -0.18 * (humanScale / 1.84),
-          shootForwardBendScale: 0.82,
-          shootBendTowardCueStick: true,
-          plantFeetDuringShot: true,
-          forceTableFacingAim: true
-        });
-        playerCharacterRigsRef.current = [{ kind: 'standaloneHuman', human }];
+        // Pool Royale no longer renders human player/referee characters or
+        // Murlan lounge tables around the active table; keep the cue and game
+        // logic fully functional without spawning those decorative rigs.
+        playerCharacterRigsRef.current = [];
         activeHumanCueViewRef.current = null;
       };
       spawnPlayerCharactersRef.current = spawnPlayerCharacters;
@@ -26818,102 +26783,6 @@ const shotPowerRef = useRef(0);
         const hasAim = cueBall?.pos && aimDir2 && Number.isFinite(aimDir2.x) && Number.isFinite(aimDir2.y) && aimDir2.lengthSq?.() > 1e-6;
         const normalizedAim = hasAim ? aimDir2.clone().normalize() : new THREE.Vector2(0, -1);
         const cueWorld = hasAim ? new THREE.Vector3(cueBall.pos.x, floorY, cueBall.pos.y) : new THREE.Vector3(0, floorY, 0);
-
-        const standaloneHumanRigs = rigs.filter((rig) => rig?.kind === 'standaloneHuman' && rig.human);
-        if (standaloneHumanRigs.length > 0) {
-          const cueBallWorld = hasAim
-            ? new THREE.Vector3(cueBall.pos.x, CUE_Y, cueBall.pos.y)
-            : new THREE.Vector3(0, CUE_Y, 0);
-          const aimForward = new THREE.Vector3(normalizedAim.x, 0, normalizedAim.y);
-          if (aimForward.lengthSq() < 1e-8) aimForward.set(0, 0, -1);
-          aimForward.normalize();
-          const side = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
-          const rootTarget = chooseHumanEdgePosition(cueBallWorld, aimForward, {
-            tableW: TABLE.W,
-            tableL: TABLE.H,
-            edgeMargin: HUMAN_EDGE_MARGIN,
-            desiredShootDistance: HUMAN_DESIRED_SHOOT_DISTANCE,
-            groundY: floorY,
-            perimeterWalk: true
-          });
-          rootTarget.y = floorY;
-          const bridgeTarget = cueBallWorld
-            .clone()
-            .addScaledVector(aimForward, -HUMAN_BRIDGE_HAND_BACK_FROM_BALL)
-            .addScaledVector(side, HUMAN_BRIDGE_HAND_SIDE)
-            .setY(CUE_Y - BALL_R * 0.36);
-          const bridgeCuePoint = bridgeTarget
-            .clone()
-            .addScaledVector(aimForward, BALL_R * 0.42)
-            .addScaledVector(side, -BALL_R * 0.18)
-            .add(new THREE.Vector3(0, HUMAN_BRIDGE_CUE_LIFT, 0));
-          const cameraBlend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
-          const loweredCueCamera = cameraBlend <= HUMAN_SHOOT_BLEND_THRESHOLD;
-          const sliderDragging = Boolean(sliderInstanceRef.current?.dragging);
-          const activePower = sliderDragging
-            ? THREE.MathUtils.clamp(powerRef.current ?? 0, 0, 1)
-            : THREE.MathUtils.clamp(shotPowerRef.current ?? powerRef.current ?? 0, 0, 1);
-          const visualState = isReplay
-            ? 'idle'
-            : isShotActive || cueStrokeStateRef.current
-              ? 'striking'
-              : sliderDragging
-                ? 'dragging'
-                : loweredCueCamera
-                  ? 'aiming'
-                  : 'idle';
-          const livePull = Math.max(
-            cuePullCurrentRef.current ?? 0,
-            CUE_PULL_BASE * 0.52 * (1 - Math.pow(1 - activePower, 3))
-          );
-          const pullForState = visualState === 'dragging'
-            ? livePull
-            : visualState === 'striking'
-              ? THREE.MathUtils.lerp(livePull, 0, THREE.MathUtils.clamp(shotAge / 120, 0, 1))
-              : 0;
-          const cueGap = CUE_TIP_GAP + pullForState;
-          const cueTipShoot = cueBallWorld
-            .clone()
-            .addScaledVector(aimForward, -cueGap)
-            .setY(CUE_Y + HUMAN_BRIDGE_CUE_LIFT * 0.35);
-          const cueBackShoot = bridgeCuePoint
-            .clone()
-            .addScaledVector(aimForward, -(HUMAN_CUE_LENGTH - HUMAN_BRIDGE_DIST - BALL_R - cueGap))
-            .add(new THREE.Vector3(0, HUMAN_BRIDGE_CUE_LIFT * 1.2, 0));
-          const standingYaw = Math.atan2(-aimForward.x, -aimForward.z);
-          const humanUnit = Math.max(0.01, standaloneHumanRigs[0]?.human?.cfg?.unit ?? 1);
-          const idleRight = rootTarget.clone().add(
-            new THREE.Vector3(0.31 * humanUnit, 0.8 * humanUnit, -0.015 * humanUnit).applyAxisAngle(WORLD_UP, standingYaw)
-          );
-          const idleLeft = rootTarget.clone().add(
-            new THREE.Vector3(-0.18 * humanUnit, 1.08 * humanUnit, 0.03 * humanUnit).applyAxisAngle(WORLD_UP, standingYaw)
-          );
-          const cueGripTarget = cueBackShoot.clone().lerp(cueTipShoot, 0.24);
-          standaloneHumanRigs.forEach((rig) => {
-            updateStandaloneHumanPose(rig.human, dtSeconds, {
-              state: visualState,
-              rootTarget,
-              aimForward,
-              bridgeTarget,
-              idleRight,
-              idleLeft,
-              cueBack: cueBackShoot,
-              cueTip: cueTipShoot,
-              gripTarget: cueGripTarget,
-              power: activePower,
-              tableCenter: new THREE.Vector3(0, CUE_Y, 0),
-              cueBallWorld,
-              directRootTarget: false
-            });
-          });
-          activeHumanCueViewRef.current = {
-            cueBack: cueBackShoot.clone(),
-            bridgeTarget: bridgeTarget.clone(),
-            aimForward: aimForward.clone(),
-            side: side.clone()
-          };
-          if (standaloneHumanRigs.length === rigs.length) return;
-        }
 
         const chooseEdgeTarget = (forward2) => {
           const desired = cueWorld.clone().add(new THREE.Vector3(
@@ -29708,10 +29577,11 @@ const shotPowerRef = useRef(0);
           const pullbackDuration = strokeProfile.pullbackDuration ?? 0;
           const startTime = performance.now();
           const impactPos = idlePos.clone();
-          // Match SnookerRoyalProvided: release pushes the cue forward only
-          // back to the original starting/contact pose instead of overshooting
-          // past where the slider pull began.
-          const contactAdvance = 0;
+          const contactAdvance = THREE.MathUtils.lerp(
+            BALL_R * 0.28,
+            BALL_R * 0.62,
+            clampedPower
+          );
           shotImpactPayload.contactAdvance = contactAdvance;
           const contactPos = impactPos
             .clone()
@@ -29848,7 +29718,7 @@ const shotPowerRef = useRef(0);
               onImpact: () => applyShotImpactOnce(),
               animationStyle: strokeStyle,
               motionTechnique: strokeProfile.motion ?? strokeStyle,
-              releaseStartsFromCurrentPull: true
+              releaseStartsFromCurrentPull: false
             };
           } else {
             applyShotImpactOnce();
@@ -35528,11 +35398,6 @@ const shotPowerRef = useRef(0);
         hospitalityGroupsRef.current = [];
         playerCharacterRigsRef.current.forEach((rig) => {
           if (rig?.group?.parent) rig.group.parent.remove(rig.group);
-          if (rig?.human) {
-            [rig.human.root, rig.human.modelRoot, rig.human.fallback].forEach((node) => {
-              if (node?.parent) node.parent.remove(node);
-            });
-          }
         });
         playerCharacterRigsRef.current = [];
         updateHospitalityLayoutRef.current = () => {};
