@@ -112,7 +112,6 @@ const CHAIR_HEIGHT_TRIM_SCALE = 0.96;
 const ARENA_PROP_SCALE = 1;
 const HUMAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.62; // nudge seated humans just a bit closer to the table on portrait mobile framing.
 const HUMAN_CHARACTER_EXTRA_LOWER_OFFSET = 0.18; // seat humans lower so hips/legs rest properly on the chair cushion.
-const HUMAN_CHARACTER_TARGET_SEATED_HEIGHT = 1.08; // normalize arbitrary Sketchfab scene scales so imported humans stay visible on seats.
 const SIDE_PLAYER_SEAT_INWARD_OFFSET = 0.16; // pull left/right players visually closer to the table on portrait framing.
 const SHOW_CHARACTER_HELD_CARD_HELPERS = false;
 const HUMAN_CARD_HAND_DEBUG_HELPERS =
@@ -2187,23 +2186,10 @@ async function loadCharacterModel(theme, renderer = null) {
       }
     }
     if (!gltf) {
-      if (theme?.sourceFormat === 'sketchfab-converted-gltf') {
-        console.warn('Sketchfab Murlan character package is unavailable; using visible fallback character', {
-          characterId: theme.id,
-          modelUrls: urls,
-          error: lastError
-        });
-        return createMurlanFallbackCharacterModel(theme);
-      }
       throw lastError || new Error(`Character load failed for ${theme.id || 'unknown'}`);
     }
     const root = gltf.scene || gltf.scenes?.[0];
-    if (!root) {
-      if (theme?.sourceFormat === 'sketchfab-converted-gltf') {
-        return createMurlanFallbackCharacterModel(theme);
-      }
-      throw new Error(`Character scene missing for ${theme.id || 'unknown'}`);
-    }
+    if (!root) throw new Error(`Character scene missing for ${theme.id || 'unknown'}`);
     prepareLoadedModel(root, { preserveGltfTextureMapping: true, maxAnisotropy: 8 }); // keep original glTF UV/texture mapping intact
     return root;
   })();
@@ -2283,110 +2269,6 @@ function normalizeCharacterPivot(characterRoot) {
   const bounds = new THREE.Box3().setFromObject(characterRoot);
   if (bounds.isEmpty()) return;
   characterRoot.position.y -= bounds.min.y;
-}
-
-
-function fitCharacterModelForSeat(characterRoot, characterTheme = null) {
-  if (!characterRoot) return;
-  characterRoot.updateMatrixWorld?.(true);
-  const bounds = new THREE.Box3().setFromObject(characterRoot);
-  if (bounds.isEmpty()) return;
-  const size = bounds.getSize(new THREE.Vector3());
-  const currentHeight = size.y;
-  const shouldNormalize = Boolean(
-    characterTheme?.sourceFormat === 'sketchfab-converted-gltf' ||
-    characterTheme?.normalizeForSeat ||
-    currentHeight < 0.35 ||
-    currentHeight > 2.4
-  );
-  if (!shouldNormalize || currentHeight <= 0) return;
-
-  const targetHeight = Number.isFinite(characterTheme?.normalizedSeatHeight)
-    ? characterTheme.normalizedSeatHeight
-    : HUMAN_CHARACTER_TARGET_SEATED_HEIGHT;
-  characterRoot.scale.multiplyScalar(targetHeight / currentHeight);
-  characterRoot.updateMatrixWorld?.(true);
-}
-
-function makeCharacterMaterial(color, { roughness = 0.66, metalness = 0.02 } = {}) {
-  return new THREE.MeshStandardMaterial({
-    color,
-    roughness,
-    metalness,
-    envMapIntensity: 0.7
-  });
-}
-
-function makeRoundedLimb({ radius = 0.055, length = 0.45, color = 0xffffff, rotation = [0, 0, 0], position = [0, 0, 0] } = {}) {
-  const limb = new THREE.Mesh(
-    new THREE.CapsuleGeometry(radius, length, 8, 16),
-    makeCharacterMaterial(color)
-  );
-  limb.rotation.set(rotation[0], rotation[1], rotation[2]);
-  limb.position.set(position[0], position[1], position[2]);
-  limb.castShadow = true;
-  limb.receiveShadow = true;
-  return limb;
-}
-
-function createMurlanFallbackCharacterModel(theme = {}) {
-  const root = new THREE.Group();
-  root.name = `${theme.id || 'murlan'}-visible-fallback-human`;
-  root.userData.isMurlanFallbackCharacter = true;
-
-  const skin = theme.skinTone ?? 0xd39a72;
-  const outfit = theme.seatColor ?? theme.outfitColor ?? 0x1f3a8a;
-  const accent = theme.accentColor ?? 0xf8fafc;
-  const hair = theme.hairColor ?? 0x21150f;
-
-  const hips = new THREE.Mesh(new THREE.SphereGeometry(0.16, 20, 14), makeCharacterMaterial(outfit, { roughness: 0.72 }));
-  hips.name = 'visibleFallbackHips';
-  hips.scale.set(1.25, 0.72, 1.0);
-  hips.position.set(0, 0.56, 0.02);
-
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.19, 0.34, 10, 20), makeCharacterMaterial(outfit, { roughness: 0.7 }));
-  torso.name = 'visibleFallbackTorso';
-  torso.rotation.x = THREE.MathUtils.degToRad(-5);
-  torso.position.set(0, 0.94, -0.02);
-
-  const collar = new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.016, 8, 28), makeCharacterMaterial(accent, { roughness: 0.55 }));
-  collar.name = 'visibleFallbackCollar';
-  collar.rotation.x = Math.PI / 2;
-  collar.position.set(0, 1.14, -0.015);
-
-  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.06, 0.1, 18), makeCharacterMaterial(skin));
-  neck.name = 'visibleFallbackNeck';
-  neck.position.set(0, 1.2, 0);
-
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.15, 24, 18), makeCharacterMaterial(skin, { roughness: 0.58 }));
-  head.name = 'visibleFallbackHead';
-  head.scale.set(1, 1.08, 0.94);
-  head.position.set(0, 1.36, 0.01);
-
-  const hairCap = new THREE.Mesh(new THREE.SphereGeometry(0.154, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.52), makeCharacterMaterial(hair, { roughness: 0.82 }));
-  hairCap.name = 'visibleFallbackHair';
-  hairCap.rotation.x = THREE.MathUtils.degToRad(-7);
-  hairCap.position.set(0, 1.42, 0.005);
-
-  const face = new THREE.Mesh(new THREE.SphereGeometry(0.018, 10, 8), makeCharacterMaterial(0x111827, { roughness: 0.4 }));
-  face.name = 'visibleFallbackFaceDot';
-  face.scale.set(2.8, 0.55, 0.28);
-  face.position.set(0, 1.38, 0.145);
-
-  const leftArm = makeRoundedLimb({ radius: 0.045, length: 0.36, color: skin, rotation: [THREE.MathUtils.degToRad(58), 0, THREE.MathUtils.degToRad(-32)], position: [-0.23, 0.86, 0.15] });
-  const rightArm = makeRoundedLimb({ radius: 0.045, length: 0.36, color: skin, rotation: [THREE.MathUtils.degToRad(58), 0, THREE.MathUtils.degToRad(32)], position: [0.23, 0.86, 0.15] });
-  const leftLeg = makeRoundedLimb({ radius: 0.06, length: 0.52, color: outfit, rotation: [THREE.MathUtils.degToRad(88), 0, THREE.MathUtils.degToRad(-6)], position: [-0.11, 0.48, 0.32] });
-  const rightLeg = makeRoundedLimb({ radius: 0.06, length: 0.52, color: outfit, rotation: [THREE.MathUtils.degToRad(88), 0, THREE.MathUtils.degToRad(6)], position: [0.11, 0.48, 0.32] });
-  const leftShoe = makeRoundedLimb({ radius: 0.045, length: 0.15, color: 0x111827, rotation: [THREE.MathUtils.degToRad(88), 0, THREE.MathUtils.degToRad(-4)], position: [-0.11, 0.46, 0.62] });
-  const rightShoe = makeRoundedLimb({ radius: 0.045, length: 0.15, color: 0x111827, rotation: [THREE.MathUtils.degToRad(88), 0, THREE.MathUtils.degToRad(4)], position: [0.11, 0.46, 0.62] });
-
-  root.add(hips, torso, collar, neck, head, hairCap, face, leftArm, rightArm, leftLeg, rightLeg, leftShoe, rightShoe);
-  root.traverse((obj) => {
-    if (!obj?.isMesh) return;
-    obj.castShadow = true;
-    obj.receiveShadow = true;
-  });
-  return root;
 }
 
 function findBoneByHints(root, hints = []) {
@@ -2733,7 +2615,6 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
     });
   });
   enhanceMurlanCharacterMaterials(instance, characterTheme, playerIndex, store?.renderer);
-  fitCharacterModelForSeat(instance, characterTheme);
   normalizeCharacterPivot(instance);
 
   const seatRoot = new THREE.Group();
