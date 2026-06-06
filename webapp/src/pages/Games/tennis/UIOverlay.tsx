@@ -7,6 +7,9 @@ export type TennisHud = {
   farLabel?: string;
   nearGames?: number;
   farGames?: number;
+  nearSets?: number;
+  farSets?: number;
+  inTiebreak?: boolean;
   status: string;
   power: number;
   server?: "near" | "far";
@@ -29,7 +32,7 @@ export function UIOverlay({ hud, playerName, rivalName, playerAvatar, onMenu }: 
         </div>
         <div style={{ textAlign: "center" }}>
           <div style={{ fontWeight: 950, fontSize: 18, letterSpacing: 1 }}>{hud.nearLabel ?? pointLabel(hud.nearScore)} : {hud.farLabel ?? pointLabel(hud.farScore)}</div>
-          <div style={{ fontSize: 10, opacity: .78 }}>Games {hud.nearGames ?? 0}-{hud.farGames ?? 0} · {hud.server === "far" ? rivalName : playerName} serves {hud.serveSide ?? "deuce"}</div>
+          <div style={{ fontSize: 10, opacity: .78 }}>Sets {hud.nearSets ?? 0}-{hud.farSets ?? 0} · Games {hud.nearGames ?? 0}-{hud.farGames ?? 0}{hud.inTiebreak ? " · TB" : ""} · {hud.server === "far" ? rivalName : playerName} serves {hud.serveSide ?? "deuce"}</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, minWidth: 0 }}>
           <div style={{ textAlign: "right", minWidth: 0 }}><div style={{ fontSize: 11, opacity: .78 }}>Opponent</div><div style={{ fontWeight: 900, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{rivalName}</div></div>

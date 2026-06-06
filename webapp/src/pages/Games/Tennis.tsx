@@ -111,7 +111,7 @@ type HumanRig = {
   yawVelocity: number;
 };
 
-type HudState = { nearScore: number; farScore: number; nearLabel?: string; farLabel?: string; nearGames?: number; farGames?: number; status: string; power: number; server?: PlayerSide; serveSide?: "deuce" | "ad"; firstServe?: boolean; debug?: string };
+type HudState = { nearScore: number; farScore: number; nearLabel?: string; farLabel?: string; nearGames?: number; farGames?: number; nearSets?: number; farSets?: number; inTiebreak?: boolean; status: string; power: number; server?: PlayerSide; serveSide?: "deuce" | "ad"; firstServe?: boolean; debug?: string };
 
 type ControlState = {
   active: boolean;
@@ -1696,14 +1696,36 @@ function makeUserTargetFromSwipe(
 
 function makeAiTarget(near: HumanRig, ball: BallState): DesiredHit {
   const pressure = clamp01((Math.abs(ball.pos.z) - 1.0 * CFG.worldScale) / (CFG.courtL / 2 - 1.0 * CFG.worldScale));
+  const stretched = clamp01((Math.abs(ball.pos.x) - CFG.courtW * 0.18) / (CFG.courtW * 0.28));
+  const nearDeep = near.pos.z > CFG.serviceLineZ * 0.72;
+  const openCourtSign = near.pos.x >= 0 ? -1 : 1;
+  const attackable = pressure > 0.48 && stretched < 0.68 && ball.pos.y > CFG.minContactHeight * 1.08;
+  const targetWide = openCourtSign * CFG.courtW * (attackable ? 0.38 : 0.28);
+  const recoveryPunish = Math.abs(near.pos.x) > CFG.courtW * 0.25 ? -Math.sign(near.pos.x) * CFG.courtW * 0.4 : targetWide;
   const x = clamp(
-    near.pos.x * 0.62 + (Math.random() - 0.5) * 1.15 * CFG.worldScale,
-    -CFG.courtW / 2 + 0.45 * CFG.worldScale,
-    CFG.courtW / 2 - 0.45 * CFG.worldScale
+    recoveryPunish + clamp(ball.vel.x * 0.065, -0.22 * CFG.worldScale, 0.22 * CFG.worldScale) + (Math.random() - 0.5) * (1 - CFG.aiDifficulty.accuracy) * CFG.worldScale,
+    -CFG.courtW / 2 + 0.48 * CFG.worldScale,
+    CFG.courtW / 2 - 0.48 * CFG.worldScale
   );
-  const z = lerp(1.35 * CFG.worldScale, CFG.courtL / 2 - 1.0 * CFG.worldScale, 0.35 + pressure * 0.55);
-  const power = clamp(0.48 + pressure * 0.38 + Math.random() * 0.12, CFG.shotPower.min, CFG.shotPower.max);
-  return { target: new THREE.Vector3(x, CFG.ballR, z), power, technique: "flat" };
+  const shortReply = stretched > 0.72 || (nearDeep && Math.random() > 0.58);
+  const z = shortReply
+    ? lerp(1.2 * CFG.worldScale, CFG.serviceLineZ * 0.72, Math.random())
+    : lerp(CFG.serviceLineZ * 0.52, CFG.courtL / 2 - 0.92 * CFG.worldScale, 0.38 + pressure * 0.54);
+  const roll = Math.random();
+  const technique: ShotTechnique = shortReply
+    ? (stretched > 0.74 ? "block" : "drop")
+    : stretched > 0.72
+      ? "slice"
+      : attackable && roll > 0.18
+        ? "topspin"
+        : near.pos.z < CFG.serviceLineZ * 0.22 && roll > 0.68
+          ? "lob"
+          : roll > 0.78
+            ? "slice"
+            : "flat";
+  const powerBase = shortReply ? 0.38 : attackable ? 0.66 : 0.54;
+  const power = clamp(powerBase + pressure * 0.14 + CFG.aiDifficulty.power * 0.08, CFG.shotPower.min, CFG.shotPower.max);
+  return { target: new THREE.Vector3(x, CFG.ballR, z), power, technique };
 }
 
 function performHit(player: HumanRig, ball: BallState, hit: DesiredHit, serve = false) {
@@ -1925,7 +1947,7 @@ export default function MobileThreeTennisPrototype() {
   const rivalName = query.get("mode") === "online" ? "Opponent" : "AI";
   const hostRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [hud, setHud] = useState<HudState>({ nearScore: 0, farScore: 0, status: "Swipe up to serve", power: 0 });
+  const [hud, setHud] = useState<HudState>({ nearScore: 0, farScore: 0, nearSets: 0, farSets: 0, status: "Swipe up to serve", power: 0 });
   const [menuOpen, setMenuOpen] = useState(false);
   const [selectedHumanCharacterId, setSelectedHumanCharacterId] = useState(() => localStorage.getItem("tennisSelectedHumanCharacter") || MURLAN_CHARACTER_THEMES[0]?.id || "rpm-current");
   const tennisPoint = (score: number) => ["0", "15", "30", "40", "Ad"][Math.min(score, 4)];
@@ -2005,7 +2027,7 @@ export default function MobileThreeTennisPrototype() {
     let replayT = 0;
 
     const setHudSafe = (patch: Partial<HudState>) => setHud((prev) => ({ ...prev, ...patch }));
-    setHudSafe({ nearLabel: "0", farLabel: "0", nearGames: 0, farGames: 0, server: "near", serveSide: currentServeSide, firstServe: true });
+    setHudSafe({ nearLabel: "0", farLabel: "0", nearGames: 0, farGames: 0, nearSets: 0, farSets: 0, inTiebreak: false, server: "near", serveSide: currentServeSide, firstServe: true });
 
     const awardPoint = (winner: PlayerSide, reason: PointReason) => {
       if (pointLock) return;
@@ -2019,7 +2041,8 @@ export default function MobileThreeTennisPrototype() {
       serveController.start(score.server, currentServeSide);
       const reasonText = reason === "doubleFault" ? "Double Fault" : reason === "serviceFault" ? "Service fault" : reason === "out" ? "Out" : reason === "doubleBounce" ? "Double bounce" : reason === "net" ? "Net" : "Point";
       const gameText = score.gameWonBy ? ` · Game ${score.gameWonBy === "near" ? "You" : "AI"}` : "";
-      replayText = `Replay: ${reasonText} — ${winner === "near" ? "You" : "AI"} scores${gameText}`;
+      const setText = score.setWonBy ? ` · Set ${score.setWonBy === "near" ? "You" : "AI"}` : "";
+      replayText = `Replay: ${reasonText} — ${winner === "near" ? "You" : "AI"} scores${gameText}${setText}`;
       replayT = 1.7;
       audioVfx.play("point");
       setHud({
@@ -2030,10 +2053,13 @@ export default function MobileThreeTennisPrototype() {
         farLabel: score.label.far,
         nearGames: score.games.near,
         farGames: score.games.far,
+        nearSets: score.sets.near,
+        farSets: score.sets.far,
+        inTiebreak: score.inTiebreak,
         server: score.server,
         serveSide: score.serveSide,
         firstServe: true,
-        status: `${reasonText}: ${winner === "near" ? "You" : "AI"} scores${gameText}`,
+        status: `${reasonText}: ${winner === "near" ? "You" : "AI"} scores${gameText}${setText}`,
         power: 0,
       });
     };
@@ -2317,7 +2343,7 @@ export default function MobileThreeTennisPrototype() {
           const serverPlayer = scoreManager.snapshot().server === "near" ? nearPlayer : farPlayer;
           resetBallForServe(ball, serverPlayer, currentServeSide);
           serveController.start(scoreManager.snapshot().server, currentServeSide);
-          setHudSafe({ status: scoreManager.snapshot().server === "near" ? (firstServeAttempt ? "Swipe up to serve from behind the baseline" : "Second serve") : "AI preparing serve", power: 0, serveSide: currentServeSide, firstServe: firstServeAttempt, server: scoreManager.snapshot().server });
+          setHudSafe({ status: scoreManager.snapshot().server === "near" ? (firstServeAttempt ? "Swipe up to serve from behind the baseline" : "Second serve") : "AI preparing serve", power: 0, serveSide: currentServeSide, firstServe: firstServeAttempt, server: scoreManager.snapshot().server, inTiebreak: scoreManager.snapshot().inTiebreak });
         }
       } else {
         ballController.accumulator = Math.min(ballController.accumulator + dt, CFG.fixedTimeStep * CFG.maxPhysicsSteps);

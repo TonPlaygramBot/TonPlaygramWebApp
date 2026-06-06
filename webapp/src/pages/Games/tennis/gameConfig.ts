@@ -29,12 +29,12 @@ export enum TennisBallState {
 }
 
 const BASE_WORLD_SCALE = 1.72;
-const COURT_AND_CHARACTER_SIZE_MULTIPLIER = 3.52;
-const COURT_WIDTH_MULTIPLIER = 1.18;
+const COURT_AND_CHARACTER_SIZE_MULTIPLIER = 4.08;
+const COURT_WIDTH_MULTIPLIER = 1.22;
 const WORLD_SCALE = BASE_WORLD_SCALE * COURT_AND_CHARACTER_SIZE_MULTIPLIER;
 // Keep camera scaling independent from world scale so camera framing can be
 // tuned precisely while the enlarged court keeps its regulation proportions.
-const CAMERA_VIEW_SCALE = BASE_WORLD_SCALE * 1.42;
+const CAMERA_VIEW_SCALE = BASE_WORLD_SCALE * 1.5;
 // Extra character scale keeps human avatars visibly bigger than the court uplift.
 const PLAYER_CHARACTER_SCALE = 1.42;
 const PLAYER_SCALE = WORLD_SCALE * PLAYER_CHARACTER_SCALE;
@@ -92,16 +92,16 @@ export const gameConfig = {
     anticipation: 0.74,
     maxBlendPerSecond: 5.8,
   },
-  scoring: { gamesPerSet: 6, winByTwoGames: true },
+  scoring: { gamesPerSet: 6, winByTwoGames: true, tiebreakAtGamesAll: 6, tiebreakPoints: 7 },
   aiDifficulty: {
-    reactionTime: 0.07,
-    moveSpeed: 13.5 * PLAYER_SCALE,
-    reachRadius: 1.95 * PLAYER_SCALE,
-    accuracy: 0.94,
-    power: 0.62,
-    spin: 0.88,
-    mistakeChance: 0.018,
-    serveQuality: 0.84,
+    reactionTime: 0.045,
+    moveSpeed: 15.2 * PLAYER_SCALE,
+    reachRadius: 2.16 * PLAYER_SCALE,
+    accuracy: 0.975,
+    power: 0.72,
+    spin: 0.94,
+    mistakeChance: 0.008,
+    serveQuality: 0.93,
   },
 } as const;
 
