@@ -112,6 +112,7 @@ const CHAIR_HEIGHT_TRIM_SCALE = 0.96;
 const ARENA_PROP_SCALE = 1;
 const HUMAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.62; // nudge seated humans just a bit closer to the table on portrait mobile framing.
 const HUMAN_CHARACTER_EXTRA_LOWER_OFFSET = 0.18; // seat humans lower so hips/legs rest properly on the chair cushion.
+const HUMAN_CHARACTER_TARGET_SEATED_HEIGHT = 1.08; // normalize arbitrary Sketchfab scene scales so imported humans stay visible on seats.
 const SIDE_PLAYER_SEAT_INWARD_OFFSET = 0.16; // pull left/right players visually closer to the table on portrait framing.
 const SHOW_CHARACTER_HELD_CARD_HELPERS = false;
 const HUMAN_CARD_HAND_DEBUG_HELPERS =
@@ -2271,6 +2272,67 @@ function normalizeCharacterPivot(characterRoot) {
   characterRoot.position.y -= bounds.min.y;
 }
 
+
+function fitCharacterModelForSeat(characterRoot, characterTheme = null) {
+  if (!characterRoot) return;
+  characterRoot.updateMatrixWorld?.(true);
+  const bounds = new THREE.Box3().setFromObject(characterRoot);
+  if (bounds.isEmpty()) return;
+  const size = bounds.getSize(new THREE.Vector3());
+  const currentHeight = size.y;
+  const shouldNormalize = Boolean(
+    characterTheme?.sourceFormat === 'sketchfab-converted-gltf' ||
+    characterTheme?.normalizeForSeat ||
+    currentHeight < 0.35 ||
+    currentHeight > 2.4
+  );
+  if (!shouldNormalize || currentHeight <= 0) return;
+
+  const targetHeight = Number.isFinite(characterTheme?.normalizedSeatHeight)
+    ? characterTheme.normalizedSeatHeight
+    : HUMAN_CHARACTER_TARGET_SEATED_HEIGHT;
+  characterRoot.scale.multiplyScalar(targetHeight / currentHeight);
+  characterRoot.updateMatrixWorld?.(true);
+}
+
+function shouldPreserveOriginalCharacterMaterials(characterTheme) {
+  return Boolean(characterTheme?.sourceFormat === 'sketchfab-converted-gltf' || characterTheme?.preserveOriginalMaterials);
+}
+
+function normalizeOriginalCharacterTexture(texture, { isColor = false, maxAnisotropy = 8 } = {}) {
+  if (!texture) return;
+  if (isColor) applySRGBColorSpace(texture);
+  texture.anisotropy = Math.max(texture.anisotropy || 1, maxAnisotropy);
+  texture.matrixAutoUpdate = true;
+  texture.needsUpdate = true;
+}
+
+function preserveOriginalCharacterMaterials(instance, characterTheme = null, renderer = null) {
+  const maxAnisotropy = getMurlanCharacterAnisotropyCap(renderer);
+  instance.traverse((obj) => {
+    if (!obj?.isMesh) return;
+    const sourceMaterials = Array.isArray(obj.material) ? obj.material : [obj.material];
+    const preservedMaterials = sourceMaterials.map((sourceMat) => {
+      if (!sourceMat) return sourceMat;
+      const mat = sourceMat.clone ? sourceMat.clone() : sourceMat;
+      normalizeOriginalCharacterTexture(mat.map, { isColor: true, maxAnisotropy });
+      normalizeOriginalCharacterTexture(mat.emissiveMap, { isColor: true, maxAnisotropy });
+      [mat.normalMap, mat.roughnessMap, mat.metalnessMap, mat.aoMap, mat.alphaMap]
+        .filter(Boolean)
+        .forEach((texture) => normalizeOriginalCharacterTexture(texture, { maxAnisotropy }));
+      mat.envMapIntensity = Math.max(mat.envMapIntensity ?? 0.45, characterTheme?.sourceFormat === 'sketchfab-converted-gltf' ? 0.62 : 0.45);
+      mat.roughness = Math.min(Math.max(mat.roughness ?? 0.68, 0.28), 0.92);
+      if (mat.opacity <= 0.02 && !mat.alphaMap) {
+        mat.opacity = 1;
+        mat.transparent = false;
+      }
+      mat.needsUpdate = true;
+      return mat;
+    });
+    obj.material = Array.isArray(obj.material) ? preservedMaterials : preservedMaterials[0];
+  });
+}
+
 function findBoneByHints(root, hints = []) {
   if (!root || !hints.length) return null;
   let matched = null;
@@ -2614,7 +2676,12 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
       mat.needsUpdate = true;
     });
   });
-  enhanceMurlanCharacterMaterials(instance, characterTheme, playerIndex, store?.renderer);
+  if (shouldPreserveOriginalCharacterMaterials(characterTheme)) {
+    preserveOriginalCharacterMaterials(instance, characterTheme, store?.renderer);
+  } else {
+    enhanceMurlanCharacterMaterials(instance, characterTheme, playerIndex, store?.renderer);
+  }
+  fitCharacterModelForSeat(instance, characterTheme);
   normalizeCharacterPivot(instance);
 
   const seatRoot = new THREE.Group();
