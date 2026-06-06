@@ -1951,7 +1951,8 @@ const CUE_PULL_RETURN_PUSH = 1.22; // accelerate the forward cue drive so push-t
 const CUE_FOLLOW_THROUGH_MIN = BALL_R * 3.9; // keep low-power shots visibly pushing through the cue ball
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so powerful shots visibly punch forward
 const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER; // keep Pool Royale release gate identical to Bilardo Shqip
-const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.96; // increase player size so body/table proportions match Bilardo-like framing
+const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.96; // fallback body/table proportion when cue dimensions are unavailable
+const HUMAN_PLAYER_HEIGHT_RATIO_TO_CUE = 1.3; // keep the shooter 30% taller than the live cue stick
 const BILARDO_SHQIP_HUMAN_URL = 'https://threejs.org/examples/models/gltf/Soldier.glb';
 const POOL_ROYALE_VERIFIED_HUMAN_FALLBACK_URLS = Object.freeze([
   'https://threejs.org/examples/models/gltf/readyplayer.me.glb',
@@ -26421,7 +26422,10 @@ const shotPowerRef = useRef(0);
         rigGroup.position.set(x, floorY, z);
         rigGroup.rotation.y = facingY;
 
-        const humanHeight = TABLE.H * HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE;
+        const liveCueLength = 1.5 * (BALL_R / 0.0525) * CUE_LENGTH_MULTIPLIER;
+        const humanHeight = Number.isFinite(liveCueLength) && liveCueLength > 0
+          ? liveCueLength * HUMAN_PLAYER_HEIGHT_RATIO_TO_CUE
+          : TABLE.H * HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE;
         const scale = (humanHeight / 1.82) * POOL_ROYALE_HUMAN_SCALE_MULTIPLIER;
         const skinMat = new THREE.MeshStandardMaterial({ color: 0xe4bf9d, roughness: 0.82 });
         const bridgeHand = createBridgeHandGroup(skinMat);
@@ -26744,11 +26748,43 @@ const shotPowerRef = useRef(0);
 
       const spawnPlayerCharacters = async () => {
         disposePlayerCharacters();
-        // Pool Royale no longer renders human player/referee characters or
-        // Murlan lounge tables around the active table; keep the cue and game
-        // logic fully functional without spawning those decorative rigs.
-        playerCharacterRigsRef.current = [];
         activeHumanCueViewRef.current = null;
+
+        const startAim = aimDirRef.current?.clone?.() ?? new THREE.Vector2(0, -1);
+        if (startAim.lengthSq?.() > 1e-6) startAim.normalize();
+        const startCue = cueRef.current?.pos
+          ? new THREE.Vector3(cueRef.current.pos.x, floorY, cueRef.current.pos.y)
+          : new THREE.Vector3(0, floorY, 0);
+        const startRoot = startCue.clone().add(new THREE.Vector3(
+          -startAim.x * HUMAN_DESIRED_SHOOT_DISTANCE,
+          0,
+          -startAim.y * HUMAN_DESIRED_SHOOT_DISTANCE
+        ));
+        startRoot.x = THREE.MathUtils.clamp(
+          startRoot.x,
+          -(TABLE.W / 2 + HUMAN_WALK_RING_MARGIN),
+          TABLE.W / 2 + HUMAN_WALK_RING_MARGIN
+        );
+        startRoot.z = THREE.MathUtils.clamp(
+          startRoot.z,
+          -(TABLE.H / 2 + HUMAN_WALK_RING_MARGIN),
+          TABLE.H / 2 + HUMAN_WALK_RING_MARGIN
+        );
+        const facingY = Math.atan2(-startAim.x, -startAim.y);
+        const group = createPlayerCharacterRig({
+          seat: 'A',
+          x: startRoot.x,
+          z: startRoot.z,
+          facingY,
+          template: null
+        });
+        group.position.y = floorY;
+        scene.add(group);
+        playerCharacterRigsRef.current = [{
+          seat: 'A',
+          group,
+          anim: group.userData.anim
+        }];
       };
       spawnPlayerCharactersRef.current = spawnPlayerCharacters;
 
@@ -26915,12 +26951,12 @@ const shotPowerRef = useRef(0);
           const sliderPowerActive = (powerRef.current ?? 0) > 0.01;
           let mode = 'idle';
           if (isReplay) mode = 'idle';
-          else if (isShotActive && (singleHumanMode || seat === shotSeat) && shotAge < 420) mode = 'strike';
+          else if (isShotActive && (singleHumanMode || seat === shotSeat) && shotAge < PLAYER_CUE_FORWARD_MAX_MS + 220) mode = 'strike';
           else if (isShotActive) mode = 'react';
           else if (isHumanShooter && (loweredCueCamera || draggingSlider || sliderPowerActive)) mode = 'aim';
           if (anim) anim.mode = mode;
 
-          // Human rig updates were removed from Pool Royale; keep only non-human fallback animations if any legacy rig data exists.
+          // Drive the grounded shooter around the HDRI floor ring and blend into the Snooker-style aiming stance.
           const targetPose = mode === 'idle' ? 0 : 1;
           anim.poseT = THREE.MathUtils.lerp(anim.poseT ?? 0, targetPose, 1 - Math.exp(-HUMAN_POSE_LAMBDA * dtSeconds));
 
@@ -26990,18 +27026,29 @@ const shotPowerRef = useRef(0);
             humanShotState === 'dragging'
               ? Math.sin(nowMs * 0.012) * BALL_R * 0.65 * (0.25 + activePower * 0.75)
               : 0;
+          const strikeTotalMs = Math.max(
+            1,
+            (cueStrokeStateRef.current?.strikeDuration ?? PLAYER_CUE_FORWARD_MIN_MS) +
+              (cueStrokeStateRef.current?.holdDuration ?? 0)
+          );
           const strikeNorm =
             humanShotState === 'striking'
-              ? THREE.MathUtils.clamp(shotAge / 120, 0, 1)
+              ? THREE.MathUtils.clamp(shotAge / strikeTotalMs, 0, 1)
               : 0;
+          const strikePush = humanShotState === 'striking'
+            ? Math.sin(strikeNorm * Math.PI) * BALL_R * 1.25 * (0.35 + activePower * 0.65)
+            : 0;
           let cueBallGap = BALL_R * 1.22;
           if (humanShotState === 'dragging') {
             cueBallGap += pull + practiceStroke;
           } else if (humanShotState === 'striking') {
-            cueBallGap = THREE.MathUtils.lerp(
-              BALL_R * (1.22 + (pull / BALL_R)),
+            cueBallGap = Math.max(
               BALL_R * 1.05,
-              1 - Math.pow(1 - strikeNorm, 3)
+              THREE.MathUtils.lerp(
+                BALL_R * (1.22 + (pull / BALL_R)),
+                BALL_R * 1.22,
+                1 - Math.pow(1 - strikeNorm, 3)
+              ) - strikePush
             );
           }
           const cueTipShoot = cueWorld
@@ -27012,6 +27059,18 @@ const shotPowerRef = useRef(0);
             .clone()
             .addScaledVector(aimForward, -(HUMAN_CUE_LENGTH - HUMAN_BRIDGE_DIST - BALL_R - cueBallGap))
             .add(new THREE.Vector3(0, 0.028 * scale, 0));
+          if (isShooter && (mode === 'aim' || mode === 'strike')) {
+            setCueStickFromHumanCuePose?.(cueBackShoot, cueTipShoot);
+            activeHumanCueViewRef.current = {
+              eye: headCenterWorld.clone().addScaledVector(WORLD_UP, 0.02 * scale),
+              aimForward: aimForward.clone(),
+              side: side.clone(),
+              cueBack: cueBackShoot.clone(),
+              cueTip: cueTipShoot.clone(),
+              bridgeTarget: bridgeHandTarget.clone(),
+              blend: cameraBlend <= HUMAN_SHOOT_BLEND_THRESHOLD ? 1 : 0
+            };
+          }
           const gripHandTarget = cueTipShoot.clone().lerp(cueBackShoot, HUMAN_GRIP_RATIO);
 
           const idleRightHandTarget = rig.group.position.clone().add(new THREE.Vector3(0.22 * scale, 1.18 * scale, 0.04 * scale).applyAxisAngle(new THREE.Vector3(0, 1, 0), anim.yaw));
@@ -29577,11 +29636,7 @@ const shotPowerRef = useRef(0);
           const pullbackDuration = strokeProfile.pullbackDuration ?? 0;
           const startTime = performance.now();
           const impactPos = idlePos.clone();
-          const contactAdvance = THREE.MathUtils.lerp(
-            BALL_R * 0.28,
-            BALL_R * 0.62,
-            clampedPower
-          );
+          const contactAdvance = 0; // stop the cue exactly where the slider pull started, matching Snooker Royal
           shotImpactPayload.contactAdvance = contactAdvance;
           const contactPos = impactPos
             .clone()
@@ -29718,7 +29773,7 @@ const shotPowerRef = useRef(0);
               onImpact: () => applyShotImpactOnce(),
               animationStyle: strokeStyle,
               motionTechnique: strokeProfile.motion ?? strokeStyle,
-              releaseStartsFromCurrentPull: false
+              releaseStartsFromCurrentPull: true
             };
           } else {
             applyShotImpactOnce();
