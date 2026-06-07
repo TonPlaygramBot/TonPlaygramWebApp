@@ -13590,24 +13590,12 @@ function subtlyExpandPoolRoyaleShowoodRailSightsAndAprons(model, tableModel) {
   const sideApronHeightScale = Number(tableModel?.sideApronVisualHeightScale);
   const railSightOutwardOffset = Number(tableModel?.railSightOutwardOffset);
   const sideApronOutwardOffset = Number(tableModel?.sideApronOutwardOffset);
-  const railSightEdgeLift = Number(tableModel?.railSightEdgeLift);
-  const sideApronEdgeLift = Number(tableModel?.sideApronEdgeLift);
   const hasScale = Number.isFinite(visualScale) && visualScale > 1 + MICRO_EPS;
   const hasRailSightHeight = Number.isFinite(railSightHeightScale) && railSightHeightScale > 1 + MICRO_EPS;
   const hasSideApronHeight = Number.isFinite(sideApronHeightScale) && sideApronHeightScale > 1 + MICRO_EPS;
   const hasRailSightOffset = Number.isFinite(railSightOutwardOffset) && Math.abs(railSightOutwardOffset) > MICRO_EPS;
   const hasSideApronOffset = Number.isFinite(sideApronOutwardOffset) && Math.abs(sideApronOutwardOffset) > MICRO_EPS;
-  const hasRailSightLift = Number.isFinite(railSightEdgeLift) && Math.abs(railSightEdgeLift) > MICRO_EPS;
-  const hasSideApronLift = Number.isFinite(sideApronEdgeLift) && Math.abs(sideApronEdgeLift) > MICRO_EPS;
-  if (
-    !hasScale &&
-    !hasRailSightHeight &&
-    !hasSideApronHeight &&
-    !hasRailSightOffset &&
-    !hasSideApronOffset &&
-    !hasRailSightLift &&
-    !hasSideApronLift
-  ) return;
+  if (!hasScale && !hasRailSightHeight && !hasSideApronHeight && !hasRailSightOffset && !hasSideApronOffset) return;
   if (model.userData?.poolRoyaleShowoodRailSightApronExpanded) return;
 
   const fullBox = new THREE.Box3().setFromObject(model);
@@ -13616,11 +13604,6 @@ function subtlyExpandPoolRoyaleShowoodRailSightsAndAprons(model, tableModel) {
   const safeVisualScale = hasScale ? THREE.MathUtils.clamp(visualScale, 1, 1.18) : 1;
   const safeRailSightHeightScale = hasRailSightHeight ? THREE.MathUtils.clamp(railSightHeightScale, 1, 1.22) : 1;
   const safeSideApronHeightScale = hasSideApronHeight ? THREE.MathUtils.clamp(sideApronHeightScale, 1, 1.24) : 1;
-  const safeRailSightLift = hasRailSightLift ? THREE.MathUtils.clamp(railSightEdgeLift, -0.04, 0.04) : 0;
-  const safeSideApronLift = hasSideApronLift ? THREE.MathUtils.clamp(sideApronEdgeLift, -0.04, 0.04) : 0;
-  const edgeRenderOrder = Number.isFinite(tableModel?.railSightApronRenderOrder)
-    ? tableModel.railSightApronRenderOrder
-    : CHROME_PLATE_RENDER_ORDER + 0.4;
 
   model.traverse((child) => {
     if (!child?.isMesh || child.userData?.poolRoyaleShowoodRailSightApronExpanded) return;
@@ -13631,26 +13614,12 @@ function subtlyExpandPoolRoyaleShowoodRailSightsAndAprons(model, tableModel) {
     const isSideApron = referenceParts.includes('sideWoodApron');
     if (!isRailSight && !isSideApron) return;
 
-    child.renderOrder = Math.max(child.renderOrder ?? 0, edgeRenderOrder);
-    materials.forEach((material) => {
-      if (!material) return;
-      material.side = THREE.DoubleSide;
-      material.polygonOffset = true;
-      material.polygonOffsetFactor = Math.min(material.polygonOffsetFactor ?? 0, -0.8);
-      material.polygonOffsetUnits = Math.min(material.polygonOffsetUnits ?? 0, -0.8);
-      material.depthWrite = true;
-      material.needsUpdate = true;
-    });
-
     if (safeVisualScale > 1) {
       child.scale.x *= safeVisualScale;
       child.scale.z *= safeVisualScale;
     }
     const heightScale = isSideApron ? safeSideApronHeightScale : safeRailSightHeightScale;
     if (heightScale > 1) child.scale.y *= heightScale;
-
-    const lift = isSideApron ? safeSideApronLift : safeRailSightLift;
-    if (Math.abs(lift) > MICRO_EPS) child.position.y += lift;
 
     const outwardOffset = isRailSight && hasRailSightOffset
       ? railSightOutwardOffset
