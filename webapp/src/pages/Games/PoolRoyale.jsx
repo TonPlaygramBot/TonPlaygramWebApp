@@ -2029,29 +2029,25 @@ const CUE_Y = BALL_CENTER_Y - BALL_R * 0.34; // lift the full cue line slightly 
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
 const CUE_BUTT_LIFT = 0; // keep the live cue stick flat on the cloth/table line for Pool Royal aiming
+const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.38; // keep extra vertical headroom so cue helpers clear cushion lips more reliably
+const CUE_CUSHION_LIFT_BIAS = BALL_R * 0.35; // raise cue helper path a bit more to avoid cushion/ball clipping on tight angles
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const CUE_FORCE_STRAIGHT_TABLE_STROKE = true; // lock the cue visually straight with the aiming line while it pulls/pushes
-const CUE_BUTT_CUSHION_CLEARANCE = CUE_FORCE_STRAIGHT_TABLE_STROKE
-  ? 0
-  : BALL_R * 0.38; // straight-table mode must not tilt the butt up near cushions
-const CUE_CUSHION_LIFT_BIAS = CUE_FORCE_STRAIGHT_TABLE_STROKE
-  ? 0
-  : BALL_R * 0.35; // straight-table mode must not add extra cushion lift
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_LIFT_DRAG_SCALE = 0.0048;
 const CUE_LIFT_MAX_TILT = THREE.MathUtils.degToRad(12.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
 const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 4.9;
 const CUE_OBSTRUCTION_RANGE = BALL_R * 11.2;
-const CUE_OBSTRUCTION_LIFT = CUE_FORCE_STRAIGHT_TABLE_STROKE ? 0 : BALL_R * 1.18;
-const CUE_OBSTRUCTION_TILT = CUE_FORCE_STRAIGHT_TABLE_STROKE ? 0 : THREE.MathUtils.degToRad(7.4);
+const CUE_OBSTRUCTION_LIFT = BALL_R * 1.18;
+const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(7.4);
 const CUE_OBSTRUCTION_RAIL_CLEARANCE = CUE_OBSTRUCTION_CLEARANCE * 0.82;
 const CUE_OBSTRUCTION_RAIL_INFLUENCE = 0.58;
 const CUE_OBSTRUCTION_SAMPLE_STEP = BALL_R * 0.32;
 const CUE_OBSTRUCTION_SAMPLE_MIN = 6;
 const CUE_OBSTRUCTION_SAMPLE_MAX = 32;
 const CUE_OBSTRUCTION_POINT_RADIUS = Math.max(BALL_R * 0.46, CUE_TIP_RADIUS * 2.6);
-const CUE_CUSHION_HELPER_EXTRA_CLEARANCE = CUE_FORCE_STRAIGHT_TABLE_STROKE ? 0 : BALL_R * 0.44;
+const CUE_CUSHION_HELPER_EXTRA_CLEARANCE = BALL_R * 0.44;
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
 const MAX_SPIN_CONTACT_OFFSET = BALL_R * PHYSICS_PROFILE.maxTipOffsetRatio;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
@@ -27669,23 +27665,18 @@ const shotPowerRef = useRef(0);
       const cueButtLocal = new THREE.Vector3(0, 0, cueLen / 2);
       setCueStickFromHumanCuePose = (back, tip) => {
         if (!cueStick || !back || !tip) return;
-        const flatBack = CUE_FORCE_STRAIGHT_TABLE_STROKE
-          ? back.clone().setY(tip.y)
-          : back;
-        const dir = tip.clone().sub(flatBack);
+        const dir = tip.clone().sub(back);
         if (dir.lengthSq() < 1e-8) return;
         const n = dir.normalize();
         cueStick.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), n);
-        cueStick.position.copy(flatBack).add(tip).multiplyScalar(0.5);
+        cueStick.position.copy(back).add(tip).multiplyScalar(0.5);
         cueStick.visible = true;
         cueAnimating = true;
         const info = cueStick.userData?.buttTilt;
         if (info) {
           info.current = cueStick.rotation.x;
           info.extra = cueStick.rotation.x - (info.angle ?? 0);
-          info.buttHeightOffset = CUE_FORCE_STRAIGHT_TABLE_STROKE
-            ? 0
-            : Math.max(0, flatBack.y - tip.y);
+          info.buttHeightOffset = Math.max(0, back.y - tip.y);
         }
       };
       const resolveCueButtTiltSign = (group, tilt) => {
@@ -27700,17 +27691,6 @@ const shotPowerRef = useRef(0);
       };
       const applyCueButtTilt = (group, extraTilt = 0) => {
         if (!group) return;
-        if (CUE_FORCE_STRAIGHT_TABLE_STROKE) {
-          group.rotation.x = 0;
-          const info = group.userData?.buttTilt;
-          if (info) {
-            info.tipCompensation = 0;
-            info.current = 0;
-            info.extra = 0;
-            info.buttHeightOffset = 0;
-          }
-          return;
-        }
         const info = group.userData?.buttTilt;
         const baseTilt = info?.angle ?? buttTilt;
         const len = info?.length ?? cueLen;
@@ -27747,7 +27727,6 @@ const shotPowerRef = useRef(0);
         TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
       };
       const clampCueButtAboveCushion = (tipTarget) => {
-        if (CUE_FORCE_STRAIGHT_TABLE_STROKE) return;
         if (!tipTarget) return;
         const cushionTop = table?.userData?.cushionTopLocal;
         if (!Number.isFinite(cushionTop)) return;
@@ -33921,23 +33900,16 @@ const shotPowerRef = useRef(0);
           );
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           clampCueTipOffset(spinWorld);
-          const cueVisualSpinWorld = CUE_FORCE_STRAIGHT_TABLE_STROKE
-            ? new THREE.Vector3(0, 0, 0)
-            : spinWorld;
-          const obstructionStrength = CUE_FORCE_STRAIGHT_TABLE_STROKE
-            ? 0
-            : resolveCueObstruction(
-                remoteGuideDir,
-                pull,
-                activeRenderCameraRef.current ?? cameraRef.current ?? camera,
-                spinWorld
-              );
+          const obstructionStrength = resolveCueObstruction(
+            remoteGuideDir,
+            pull,
+            activeRenderCameraRef.current ?? cameraRef.current ?? camera,
+            spinWorld
+          );
           const { obstructionTilt, obstructionLift, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
           const tiltAmount = hasSpin ? Math.abs(spinY) : 0;
-          const extraTilt = CUE_FORCE_STRAIGHT_TABLE_STROKE
-            ? 0
-            : MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
+          const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
           cueStick.rotation.y = Math.atan2(remoteGuideDir.x, remoteGuideDir.z) + Math.PI;
           applyCueButtTilt(
             cueStick,
@@ -33946,18 +33918,10 @@ const shotPowerRef = useRef(0);
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
-          const tipTarget = resolveCueTipTarget(
-            remoteGuideDir,
-            visualPull,
-            cueVisualSpinWorld
-          );
-          if (!CUE_FORCE_STRAIGHT_TABLE_STROKE) {
-            applyCueObstructionLift(tipTarget, obstructionLift);
-          }
+          const tipTarget = resolveCueTipTarget(remoteGuideDir, visualPull, spinWorld);
+          applyCueObstructionLift(tipTarget, obstructionLift);
           applyCueStickTransform(tipTarget);
-          if (!CUE_FORCE_STRAIGHT_TABLE_STROKE) {
-            clampCueButtAboveCushion(tipTarget);
-          }
+          clampCueButtAboveCushion(tipTarget);
           cueStick.visible = true;
           updateChalkVisibility(null);
           if (targetDir && targetBall) {
