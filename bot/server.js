@@ -64,6 +64,11 @@ import {
   normalizeOnlineGameType
 } from './config/onlineGamePolicy.js';
 import { createCheckersRealtimeStore } from './utils/checkersRealtimeState.js';
+import {
+  buildLobbyMatchKey,
+  isMatchMetaCompatible,
+  normalizeMatchMeta
+} from './utils/lobbyMatchmaking.js';
 import { applyAuthoritativeMove, SIDES } from './utils/checkersAuthoritativeEngine.js';
 
 validateEnv();
@@ -475,91 +480,6 @@ const seatTableRateLimitMs = Number(process.env.SEAT_TABLE_RATE_LIMIT_MS) || 500
 const checkersMoveRateLimitMs =
   Number(process.env.CHECKERS_MOVE_RATE_LIMIT_MS) || 120;
 
-const MATCH_META_KEYS = ['mode', 'playType', 'variant', 'targetPoints', 'tableSize', 'ballSet', 'token'];
-
-function normalizeTableSizeMeta(value = '') {
-  const normalized = String(value || '').trim().toLowerCase();
-  if (!normalized) return '';
-  if (normalized === 'pro') return '9ft';
-  if (normalized.includes('9') && normalized.includes('ft')) return '9ft';
-  if (normalized.includes('8') && normalized.includes('ft')) return '8ft';
-  if (normalized.includes('tournament')) return '9ft';
-  return normalized;
-}
-
-function normalizeBallSetMeta(value = '') {
-  const normalized = String(value || '').trim().toLowerCase();
-  if (!normalized) return '';
-  if (normalized === 'us' || normalized === 'usa') return 'american';
-  if (normalized === 'english') return 'uk';
-  return normalized;
-}
-
-function normalizeVariantMeta(value = '') {
-  const normalized = String(value || '').trim().toLowerCase();
-  if (!normalized) return '';
-  const compact = normalized.replace(/[\s_-]+/g, '');
-  if (normalized === 'us' || normalized === 'usa') return 'american';
-  if (normalized === 'english') return 'uk';
-  if (compact === 'eightball' || compact === '8ball') return '8ball';
-  if (compact === 'nineball' || compact === '9ball') return '9ball';
-  return normalized;
-}
-
-function normalizeMatchMetaValue(key, value) {
-  const normalized = String(value || '').trim().toLowerCase();
-  if (!normalized) return '';
-  if (key === 'tableSize') return normalizeTableSizeMeta(normalized);
-  if (key === 'ballSet') return normalizeBallSetMeta(normalized);
-  if (key === 'variant') return normalizeVariantMeta(normalized);
-  return normalized;
-}
-
-function normalizeMatchMeta(rawMeta = {}) {
-  const normalized = {};
-  MATCH_META_KEYS.forEach((key) => {
-    const value = rawMeta[key];
-    if (typeof value === 'string' && value.trim()) {
-      const normalizedValue = normalizeMatchMetaValue(key, value);
-      if (normalizedValue) normalized[key] = normalizedValue;
-    }
-  });
-  return normalized;
-}
-
-function isMatchMetaCompatible(existing = {}, requested = {}, gameType = '') {
-  const normalizedGameType = String(gameType || '').trim().toLowerCase();
-
-  if (normalizedGameType === 'poolroyale') {
-    const existingVariant = existing?.variant || '';
-    const requestedVariant = requested?.variant || '';
-    // Pool Royale quick matchmaking now only partitions by stake + variant.
-    // Stake is checked outside this helper (see getAvailableTable).
-    // Keep missing variants as wildcards for backward compatibility.
-    if (!existingVariant || !requestedVariant) return true;
-    return existingVariant === requestedVariant;
-  }
-
-  const allKeys = new Set([
-    ...Object.keys(existing || {}),
-    ...Object.keys(requested || {})
-  ]);
-  for (const key of allKeys) {
-    if (key === 'preferredSide') {
-      // Side is a seat preference, not a matchmaking partition. Keep players
-      // in the same queue even when they pick opposite colors.
-      continue;
-    }
-    const existingValue = existing?.[key];
-    const requestedValue = requested?.[key];
-    // Treat missing keys as wildcards so players can still pair when one client
-    // sends less detailed lobby metadata (for example missing tableSize).
-    if (!existingValue || !requestedValue) continue;
-    if (existingValue !== requestedValue) return false;
-  }
-  return true;
-}
-
 function isRateLimited(socket, key, cooldownMs) {
   const now = Date.now();
   const last = lastActionBySocket.get(socket.id)?.[key] || 0;
@@ -636,7 +556,8 @@ function createLobbyTable({
   gameType,
   stake = 0,
   maxPlayers = 4,
-  meta = {}
+  meta = {},
+  matchKey = ''
 }) {
   const key = `${gameType}-${maxPlayers}`;
   if (!lobbyTables[key]) lobbyTables[key] = [];
@@ -648,7 +569,8 @@ function createLobbyTable({
     players: [],
     currentTurn: null,
     ready: new Set(),
-    meta
+    meta,
+    matchKey
   };
   lobbyTables[key].push(table);
   tableMap.set(table.id, table);
@@ -666,6 +588,13 @@ function getAvailableTable(
   forcedTableId = null
 ) {
   const normalizedMeta = normalizeMatchMeta(matchMeta);
+  const requestedMatchKey = buildLobbyMatchKey({
+    gameType,
+    stake,
+    maxPlayers,
+    matchMeta: normalizedMeta,
+    forcedTableId: forcedTableId || ''
+  });
   const key = `${gameType}-${maxPlayers}`;
   if (!lobbyTables[key]) lobbyTables[key] = [];
   if (forcedTableId) {
@@ -688,20 +617,27 @@ function getAvailableTable(
         gameType,
         stake,
         maxPlayers,
-        meta: normalizedMeta
+        meta: normalizedMeta,
+        matchKey: requestedMatchKey
       });
     }
     // Ignore stale/non-existent forced ids so quick matchmaking can still pair
     // users by game type + stake instead of trapping them in a private table.
   }
-  const open = lobbyTables[key].find(
-    (t) =>
-      t.stake === stake &&
-      t.players.length < t.maxPlayers &&
-      isMatchMetaCompatible(t.meta, normalizedMeta, gameType)
-  );
+  const open = lobbyTables[key].find((t) => {
+    if (isReservedHostedTableId(t.id, gameType, maxPlayers)) return false;
+    if (t.stake !== stake || t.players.length >= t.maxPlayers) return false;
+    if (t.matchKey) return t.matchKey === requestedMatchKey;
+    return isMatchMetaCompatible(t.meta, normalizedMeta, gameType);
+  });
   if (open) return open;
-  return createLobbyTable({ gameType, stake, maxPlayers, meta: normalizedMeta });
+  return createLobbyTable({
+    gameType,
+    stake,
+    maxPlayers,
+    meta: normalizedMeta,
+    matchKey: requestedMatchKey
+  });
 }
 
 function resolveSeatIdentityFromTableId(tableId, fallbackGameType, fallbackMaxPlayers) {
