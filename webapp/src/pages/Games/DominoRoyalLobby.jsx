@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import RoomSelector from '../../components/RoomSelector.jsx';
@@ -64,6 +64,11 @@ export default function DominoRoyalLobby() {
   const [flagsManuallySelected, setFlagsManuallySelected] = useState(false);
   const [dominoPlayerFlag, setDominoPlayerFlag] = useState(null);
   const [dominoAiFlag, setDominoAiFlag] = useState(null);
+  const [queuedTableId, setQueuedTableId] = useState('');
+  const [queueStatus, setQueueStatus] = useState('');
+  const [queueError, setQueueError] = useState('');
+  const queuedTableIdRef = useRef('');
+  const onlineStakeDebitedRef = useRef(false);
   const startBet = stake.amount / 100;
   const readiness = getOnlineReadiness('domino-royal');
 
@@ -187,14 +192,13 @@ export default function DominoRoyalLobby() {
           alert('Insufficient balance');
           return;
         }
-        await addTransaction(tgId, -stake.amount, 'stake', {
-          game: 'domino',
-          accountId
-        });
       }
     } catch {}
 
     if (mode === 'online' && accountId) {
+      setQueueError('');
+      setQueueStatus('Connecting to Domino Royal lobby…');
+      onlineStakeDebitedRef.current = false;
       socket.emit('register', { playerId: accountId });
       socket.emit(
         'seatTable',
@@ -207,14 +211,26 @@ export default function DominoRoyalLobby() {
           avatar,
           mode: 'online',
           token: stake.token,
-          game: gameType,
-          points: gameType === 'points' ? Number(targetPoints) : 0
+          variant: gameType,
+          targetPoints: gameType === 'points' ? Number(targetPoints) : 0,
+          matchMeta: {
+            mode: 'online',
+            variant: gameType,
+            targetPoints: gameType === 'points' ? String(targetPoints) : '',
+            token: stake.token
+          }
         },
         (res = {}) => {
           if (!res.success || !res.tableId) {
-            alert('Unable to join Domino online table. Please try again.');
+            const message = `Unable to join Domino online table (${res.error || 'try_again'}).`;
+            setQueueError(message);
+            setQueueStatus('');
             return;
           }
+          queuedTableIdRef.current = res.tableId;
+          setQueuedTableId(res.tableId);
+          const seated = Array.isArray(res.players) ? res.players.length : 1;
+          setQueueStatus(`Table ${res.tableId.slice(0, 8)} • ${seated}/${totalPlayers} players ready`);
           socket.emit('confirmReady', { accountId, tableId: res.tableId });
         }
       );
@@ -234,7 +250,15 @@ export default function DominoRoyalLobby() {
   useEffect(() => {
     if (mode !== 'online') return undefined;
 
-    const handleGameStart = ({ tableId, players, stake: onlineStake }) => {
+    const handleLobbyUpdate = ({ tableId, players: lobbyPlayers = [], ready = [] } = {}) => {
+      if (!tableId || tableId !== queuedTableIdRef.current) return;
+      setQueueStatus(
+        `Table ${String(tableId).slice(0, 8)} • ${lobbyPlayers.length}/${totalPlayers} players connected • ${ready.length}/${totalPlayers} ready`
+      );
+    };
+
+    const handleGameStart = ({ tableId, players, stake: onlineStake, meta }) => {
+      if (!tableId || tableId !== queuedTableIdRef.current) return;
       const accountId = ensureAccountId().catch(() => '');
       Promise.resolve(accountId).then((resolvedAccountId) => {
         const seat = Array.isArray(players)
@@ -245,6 +269,29 @@ export default function DominoRoyalLobby() {
           : null;
         const token = stake.token || onlineStake?.token || 'TPC';
         const amount = Number(onlineStake?.amount || stake.amount || 0);
+        if (!onlineStakeDebitedRef.current && amount > 0) {
+          onlineStakeDebitedRef.current = true;
+          addTransaction(getTelegramId(), -amount, 'stake', {
+            game: 'domino',
+            accountId: resolvedAccountId,
+            tableId
+          }).catch(() => {});
+        }
+        try {
+          window.sessionStorage?.setItem(
+            'dominoRoyalOnlineMatch',
+            JSON.stringify({
+              tableId,
+              accountId: resolvedAccountId,
+              players: Array.isArray(players) ? players : [],
+              meta: meta || {},
+              startedAt: Date.now()
+            })
+          );
+        } catch {}
+        queuedTableIdRef.current = '';
+        setQueuedTableId('');
+        setQueueStatus('Starting online match…');
         launchGame({
           accountId: resolvedAccountId,
           tgId: getTelegramId(),
@@ -257,9 +304,16 @@ export default function DominoRoyalLobby() {
       });
     };
 
+    socket.on('lobbyUpdate', handleLobbyUpdate);
     socket.on('gameStart', handleGameStart);
     return () => {
+      socket.off('lobbyUpdate', handleLobbyUpdate);
       socket.off('gameStart', handleGameStart);
+      if (queuedTableIdRef.current) {
+        ensureAccountId()
+          .then((accountId) => socket.emit('leaveLobby', { accountId, tableId: queuedTableIdRef.current }))
+          .catch(() => {});
+      }
     };
   }, [mode, stake.token, stake.amount, totalPlayers, avatar, flags, gameType, targetPoints]);
 
@@ -551,12 +605,18 @@ export default function DominoRoyalLobby() {
           </div>
         </div>
 
+        {mode === 'online' && (queueStatus || queueError) && (
+          <div className={`rounded-2xl border px-4 py-3 text-sm ${queueError ? 'border-red-400/40 bg-red-500/10 text-red-100' : 'border-sky-400/30 bg-sky-500/10 text-sky-100'}`}>
+            {queueError || queueStatus}
+          </div>
+        )}
+
         <button
           onClick={startGame}
-          disabled={mode === 'local' && flags.length !== flagPickerCount}
+          disabled={(mode === 'local' && flags.length !== flagPickerCount) || Boolean(queuedTableId)}
           className="w-full rounded-2xl bg-primary px-4 py-3 text-base font-semibold text-background shadow-[0_16px_30px_rgba(14,165,233,0.35)] transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
         >
-          START
+          {mode === 'online' && queuedTableId ? 'WAITING FOR PLAYERS…' : 'START'}
         </button>
 
         <FlagPickerModal

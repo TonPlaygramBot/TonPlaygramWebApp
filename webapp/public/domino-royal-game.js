@@ -11,6 +11,23 @@ import { clone as cloneSkeleton } from '/vendor/three/examples/jsm/utils/Skeleto
 import './flag-emojis.js';
 
 const urlParams = new URLSearchParams(window.location.search);
+const DOMINO_ONLINE_MODE = (urlParams.get('mode') || '').toLowerCase() === 'online';
+const DOMINO_ONLINE_TABLE_ID = urlParams.get('tableId') || urlParams.get('table') || '';
+const DOMINO_ONLINE_ACCOUNT_ID = urlParams.get('accountId') || '';
+const DOMINO_ONLINE_SOCKET = typeof window !== 'undefined' ? window.__DOMINO_ROYAL_SOCKET__ : null;
+const DOMINO_ONLINE_MATCH = (() => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.sessionStorage?.getItem('dominoRoyalOnlineMatch');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+})();
+let dominoOnlineStateSeq = 0;
+let dominoApplyingRemoteState = false;
+let dominoOnlineHasState = false;
+let dominoOnlineStateHandler = null;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
 const FRAME_RATE_STORAGE_KEY = 'dominoRoyalFrameRate';
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
@@ -1203,6 +1220,13 @@ function pickFlagForSeat(index = 0) {
 }
 
 function getSeatUsernames(count = N) {
+  if (DOMINO_ONLINE_MODE && Array.isArray(DOMINO_ONLINE_MATCH?.players) && DOMINO_ONLINE_MATCH.players.length) {
+    return Array.from({ length: count }, (_, idx) => {
+      const player = DOMINO_ONLINE_MATCH.players[idx];
+      if (idx === human && seatAvatarUsername) return seatAvatarUsername;
+      return player?.name || DEFAULT_SEAT_NAMES[idx] || `Player ${idx + 1}`;
+    });
+  }
   const avatars = buildSeatAvatarSources(count);
   return avatars.map((avatar, idx) => {
     if (idx === HUMAN_SEAT_INDEX && seatAvatarUsername) {
@@ -6171,6 +6195,13 @@ function isAvatarUrl(str = '') {
 
 function buildSeatAvatarSources(count = N) {
   const total = Math.max(1, count);
+  if (DOMINO_ONLINE_MODE && Array.isArray(DOMINO_ONLINE_MATCH?.players) && DOMINO_ONLINE_MATCH.players.length) {
+    return Array.from({ length: total }, (_, idx) => {
+      const player = DOMINO_ONLINE_MATCH.players[idx];
+      if (idx === human) return normalizeAvatarSource(seatAvatarPhoto) || player?.avatar || lobbyAvatarFallback || pickFlagForSeat(idx);
+      return player?.avatar || pickFlagForSeat(idx);
+    });
+  }
   return Array.from({ length: total }, (_, idx) => {
     if (idx === HUMAN_SEAT_INDEX) {
       const preferred =
@@ -9215,6 +9246,17 @@ const isPointsRace =
 if (requestedPlayers >= 2 && requestedPlayers <= 4) {
   N = requestedPlayers;
 }
+if (DOMINO_ONLINE_MODE && Array.isArray(DOMINO_ONLINE_MATCH?.players)) {
+  const onlineSeatIndex = DOMINO_ONLINE_MATCH.players.findIndex(
+    (player) => String(player?.id || '') === String(DOMINO_ONLINE_ACCOUNT_ID || DOMINO_ONLINE_MATCH?.accountId || '')
+  );
+  if (onlineSeatIndex >= 0) {
+    human = onlineSeatIndex;
+  }
+  if (DOMINO_ONLINE_MATCH.players.length >= 2 && DOMINO_ONLINE_MATCH.players.length <= 4) {
+    N = DOMINO_ONLINE_MATCH.players.length;
+  }
+}
 const stakeAmount = Number.parseInt(urlParams.get('amount') || '', 10);
 const stakeToken = urlParams.get('token') || 'TPC';
 if (Number.isFinite(stakeAmount) && stakeAmount > 0) {
@@ -10105,7 +10147,9 @@ function startGame({ resetRace = true } = {}) {
   renderChain();
   current = (starter - 1 + N) % N;
   updateInteractivity();
-  if (current !== human) {
+  if (DOMINO_ONLINE_MODE) {
+    emitDominoOnlineState('initial');
+  } else if (current !== human) {
     scheduleCpuPlay();
   }
 }
@@ -10660,6 +10704,7 @@ renderer.domElement.addEventListener('pointerdown', (ev) => {
       }
       playedPlacement = placement;
       runDominoCharacterAction(human, 'PLAY');
+      emitDominoOnlineState('play');
     }
     selectedTile = null;
     clearMarkers();
@@ -10794,6 +10839,7 @@ if (btnDraw) {
   renderHands();
   if (drewTile) {
     SFX.drawTile();
+    emitDominoOnlineState('draw');
   }
   });
 }
@@ -10808,11 +10854,154 @@ if (btnPass) {
   });
 }
 
+
+function stripRuntimeTile(tile) {
+  const clean = canonTile(tile) || tile;
+  if (!clean || typeof clean.a !== 'number' || typeof clean.b !== 'number') return null;
+  return { a: clean.a, b: clean.b };
+}
+
+function serializeDominoSegment(segment) {
+  if (!segment?.tile) return null;
+  const tile = stripRuntimeTile(segment.tile);
+  if (!tile) return null;
+  return {
+    tile,
+    x: Number(segment.x) || 0,
+    z: Number(segment.z) || 0,
+    rot: Number(segment.rot) || 0,
+    double: Boolean(segment.double)
+  };
+}
+
+function buildDominoOnlineState() {
+  return {
+    seq: ++dominoOnlineStateSeq,
+    players: players.map((player, idx) => ({
+      id: player?.id ?? idx,
+      hand: Array.isArray(player?.hand) ? player.hand.map(stripRuntimeTile).filter(Boolean) : []
+    })),
+    boneyard: Array.isArray(boneyard) ? boneyard.map(stripRuntimeTile).filter(Boolean) : [],
+    chain: Array.isArray(chain) ? chain.map(serializeDominoSegment).filter(Boolean) : [],
+    ends,
+    current,
+    humanCount: N,
+    gameFinished,
+    winnerIndex,
+    revealAllHands,
+    racePenaltyTotals,
+    raceDisqualifiedPlayers,
+    raceRoundNumber,
+    lastHandWinnerIndex
+  };
+}
+
+function emitDominoOnlineState(action = 'sync') {
+  if (!DOMINO_ONLINE_MODE || dominoApplyingRemoteState || !DOMINO_ONLINE_SOCKET || !DOMINO_ONLINE_TABLE_ID) {
+    return;
+  }
+  DOMINO_ONLINE_SOCKET.emit('dominoRoyalState', {
+    tableId: DOMINO_ONLINE_TABLE_ID,
+    action: { type: action, accountId: DOMINO_ONLINE_ACCOUNT_ID, seat: human },
+    state: buildDominoOnlineState()
+  });
+}
+
+function hydrateRuntimeTile(tile) {
+  const clean = stripRuntimeTile(tile);
+  return clean ? { ...clean } : null;
+}
+
+function applyDominoOnlineState(remoteState = {}) {
+  if (!remoteState || typeof remoteState !== 'object') return;
+  const incomingSeq = Number(remoteState.seq) || 0;
+  if (incomingSeq && incomingSeq < dominoOnlineStateSeq) return;
+  dominoApplyingRemoteState = true;
+  dominoOnlineStateSeq = Math.max(dominoOnlineStateSeq, incomingSeq);
+  clearMarkers();
+  clearSelectedHighlight();
+  clearExistingDominoMeshes();
+  selectedTile = null;
+  N = Math.max(2, Math.min(4, Number(remoteState.humanCount) || N || 4));
+  players = Array.from({ length: N }, (_, idx) => {
+    const source = Array.isArray(remoteState.players) ? remoteState.players[idx] : null;
+    return {
+      id: source?.id ?? idx,
+      hand: Array.isArray(source?.hand) ? source.hand.map(hydrateRuntimeTile).filter(Boolean) : []
+    };
+  });
+  boneyard = Array.isArray(remoteState.boneyard) ? remoteState.boneyard.map(hydrateRuntimeTile).filter(Boolean) : [];
+  chain = Array.isArray(remoteState.chain)
+    ? remoteState.chain.map((segment) => ({
+        tile: hydrateRuntimeTile(segment.tile),
+        x: Number(segment.x) || 0,
+        z: Number(segment.z) || 0,
+        rot: Number(segment.rot) || 0,
+        double: Boolean(segment.double)
+      })).filter((segment) => segment.tile)
+    : [];
+  usedTileKeys.clear();
+  chain.forEach((segment) => usedTileKeys.add(tileKey(segment.tile)));
+  ends = remoteState.ends || null;
+  current = Number.isInteger(remoteState.current) ? remoteState.current : current;
+  gameFinished = Boolean(remoteState.gameFinished);
+  winnerIndex = Number.isInteger(remoteState.winnerIndex) ? remoteState.winnerIndex : null;
+  revealAllHands = Boolean(remoteState.revealAllHands);
+  racePenaltyTotals = Array.isArray(remoteState.racePenaltyTotals) ? remoteState.racePenaltyTotals : racePenaltyTotals;
+  raceDisqualifiedPlayers = Array.isArray(remoteState.raceDisqualifiedPlayers) ? remoteState.raceDisqualifiedPlayers : raceDisqualifiedPlayers;
+  raceRoundNumber = Number(remoteState.raceRoundNumber) || raceRoundNumber;
+  lastHandWinnerIndex = Number.isInteger(remoteState.lastHandWinnerIndex) ? remoteState.lastHandWinnerIndex : null;
+  dominoOnlineHasState = true;
+  refreshSeatAvatars();
+  rebuildDominoCharactersForChairs();
+  renderBoneyardStack();
+  renderHands();
+  renderChain();
+  updateInteractivity();
+  if (gameFinished) {
+    showWinnerOverlay({ winner: winnerIndex, reason: winnerIndex === human ? 'You won!' : 'Online match finished' });
+  }
+  dominoApplyingRemoteState = false;
+}
+
+function connectDominoOnlineTable() {
+  if (!DOMINO_ONLINE_MODE || !DOMINO_ONLINE_SOCKET || !DOMINO_ONLINE_TABLE_ID) return;
+  DOMINO_ONLINE_SOCKET.emit('joinDominoRoyalTable', {
+    tableId: DOMINO_ONLINE_TABLE_ID,
+    accountId: DOMINO_ONLINE_ACCOUNT_ID
+  });
+  if (dominoOnlineStateHandler) {
+    DOMINO_ONLINE_SOCKET.off?.('dominoRoyalState', dominoOnlineStateHandler);
+  }
+  dominoOnlineStateHandler = ({ tableId, state } = {}) => {
+    if (tableId !== DOMINO_ONLINE_TABLE_ID || !state) return;
+    applyDominoOnlineState(state);
+  };
+  DOMINO_ONLINE_SOCKET.on('dominoRoyalState', dominoOnlineStateHandler);
+  DOMINO_ONLINE_SOCKET.emit('dominoRoyalSyncRequest', { tableId: DOMINO_ONLINE_TABLE_ID });
+}
+
 async function bootstrapDominoRoyal() {
   try {
     await loadHumanProfileFromApi();
-    startGame();
-    setControlEnabled(true);
+    if (DOMINO_ONLINE_MODE) {
+      connectDominoOnlineTable();
+      if (human === 0) {
+        startGame();
+        setControlEnabled(true);
+      } else {
+        players = Array.from({ length: N }, (_, i) => ({ id: i, hand: [] }));
+        refreshSeatAvatars();
+        rebuildDominoCharactersForChairs();
+        renderHands();
+        renderChain();
+        setStatus('Waiting for host sync…');
+        setControlEnabled(true);
+      }
+    } else {
+      startGame();
+      setControlEnabled(true);
+    }
   } catch (error) {
     console.error('Domino Royal failed to start', error);
     revealStatus('Unable to start match. Please reload.');
@@ -10849,6 +11038,7 @@ function blockedAndWinner() {
 }
 
 function scheduleCpuPlay(delay = CPU_PLAY_DELAY) {
+  if (DOMINO_ONLINE_MODE) return;
   if (cpuMoveTimeout) {
     clearTimeout(cpuMoveTimeout);
     cpuMoveTimeout = null;
@@ -10879,6 +11069,7 @@ function scheduleTurnAdvanceAfterPlacement(segment, delayMs = TURN_ADVANCE_AFTER
     pendingTurnAdvanceTimeout = null;
     if (!gameFinished) {
       nextTurn();
+      emitDominoOnlineState('turn-advance');
     }
   }, safeDelay);
 }
@@ -10934,6 +11125,7 @@ function finishGame({ winner = null, reason = '', revealAll = false } = {}) {
     SFX.drawGame();
   }
   showWinnerOverlay({ winner: winnerIndex, reason });
+  emitDominoOnlineState('finish');
 }
 
 
@@ -11035,7 +11227,8 @@ function nextTurn() {
   if (gameFinished) {
     return;
   }
-  if (current !== human) {
+  emitDominoOnlineState('turn');
+  if (!DOMINO_ONLINE_MODE && current !== human) {
     scheduleCpuPlay();
   }
 }
@@ -11365,6 +11558,7 @@ function schedulePassTurnAdvance(
     pendingTurnAdvanceTimeout = null;
     if (!gameFinished) {
       nextTurn();
+      emitDominoOnlineState('pass');
     }
   }, safeDelay);
 }
@@ -11852,6 +12046,10 @@ function shutdownDominoRoyal(reason = 'unknown') {
     }
   } catch (error) {
     console.warn('Domino Royal shutdown failed', reason, error);
+  }
+  if (DOMINO_ONLINE_SOCKET && dominoOnlineStateHandler) {
+    DOMINO_ONLINE_SOCKET.off?.('dominoRoyalState', dominoOnlineStateHandler);
+    dominoOnlineStateHandler = null;
   }
 }
 
