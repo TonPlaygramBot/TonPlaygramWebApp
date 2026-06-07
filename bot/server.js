@@ -440,13 +440,14 @@ const lobbyTables = {};
 const tableMap = new Map();
 const poolStates = new Map();
 const snookerStates = new Map();
+const dominoRoyalStates = new Map();
 const lastActionBySocket = new Map();
 const rollRateLimitMs = Number(process.env.SOCKET_ROLL_COOLDOWN_MS) || 800;
 const seatTableRateLimitMs = Number(process.env.SEAT_TABLE_RATE_LIMIT_MS) || 500;
 const checkersMoveRateLimitMs =
   Number(process.env.CHECKERS_MOVE_RATE_LIMIT_MS) || 120;
 
-const MATCH_META_KEYS = ['mode', 'playType', 'variant', 'tableSize', 'ballSet', 'token'];
+const MATCH_META_KEYS = ['mode', 'playType', 'variant', 'targetPoints', 'tableSize', 'ballSet', 'token'];
 
 function normalizeTableSizeMeta(value = '') {
   const normalized = String(value || '').trim().toLowerCase();
@@ -1327,6 +1328,8 @@ function maybeStartGame(table) {
       );
       if (table.gameType === 'poolroyale') {
         poolStates.set(table.id, { state: null, hud: null, layout: null, ts: Date.now() });
+      } else if (table.gameType === 'domino-royal') {
+        dominoRoyalStates.set(table.id, { state: null, action: null, ts: Date.now() });
       }
       table.startTimeout = null;
     }, 1000);
@@ -1363,6 +1366,9 @@ function unseatTableSocket(accountId, tableId, socketId) {
       if (table.gameType === 'checkers') {
         checkersRealtimeStore.clearState(tableId);
         checkersMatchSessions.delete(tableId);
+      }
+      if (table.gameType === 'domino-royal') {
+        dominoRoyalStates.delete(tableId);
       }
       tableMap.delete(tableId);
       const key = `${table.gameType}-${table.maxPlayers}`;
@@ -2009,7 +2015,9 @@ io.on('connection', (socket) => {
         playType,
         tableSize,
         ballSet,
-        token
+        token,
+        targetPoints,
+        points
       } = payload;
       const resolvedVariant = payloadMatchMeta.variant ?? variant;
       const resolvedMode = payloadMatchMeta.mode ?? mode;
@@ -2017,6 +2025,7 @@ io.on('connection', (socket) => {
       const resolvedTableSize = payloadMatchMeta.tableSize ?? tableSize;
       const resolvedBallSet = payloadMatchMeta.ballSet ?? ballSet;
       const resolvedToken = payloadMatchMeta.token ?? token;
+      const resolvedTargetPoints = payloadMatchMeta.targetPoints ?? targetPoints ?? points;
       const resolvedPreferredSide =
         payloadMatchMeta.preferredSide ?? preferredSide;
       const resolvedAccountId = resolveTpcIdentity(payload);
@@ -2050,6 +2059,7 @@ io.on('connection', (socket) => {
           tableSize: resolvedTableSize,
           ballSet: resolvedBallSet,
           token: resolvedToken,
+          targetPoints: resolvedTargetPoints,
           preferredSide: resolvedPreferredSide
         }
       });
@@ -2063,7 +2073,8 @@ io.on('connection', (socket) => {
         playType: validation.safeMatchMeta.playType,
         tableSize: validation.safeMatchMeta.tableSize,
         ballSet: validation.safeMatchMeta.ballSet,
-        token: validation.safeMatchMeta.token
+        token: validation.safeMatchMeta.token,
+        targetPoints: validation.safeMatchMeta.targetPoints
       };
 
       let table;
@@ -2232,6 +2243,59 @@ io.on('connection', (socket) => {
     if (!tableId) return;
     const state = getChessState(tableId);
     socket.emit('chessState', { tableId, ...state });
+  });
+
+
+  socket.on('joinDominoRoyalTable', async ({ tableId, accountId } = {}) => {
+    if (!tableId) return;
+    if (accountId && !ensureRegistered(socket, accountId)) return;
+    socket.join(tableId);
+    if (accountId) {
+      await registerConnection({
+        userId: String(accountId),
+        roomId: tableId,
+        socketId: socket.id
+      });
+    }
+    const cached = dominoRoyalStates.get(tableId);
+    if (cached?.state) {
+      socket.emit('dominoRoyalState', {
+        tableId,
+        state: cached.state,
+        action: cached.action || null,
+        updatedAt: cached.ts
+      });
+    }
+  });
+
+  socket.on('dominoRoyalSyncRequest', ({ tableId } = {}) => {
+    if (!tableId) return;
+    const cached = dominoRoyalStates.get(tableId);
+    if (cached?.state) {
+      socket.emit('dominoRoyalState', {
+        tableId,
+        state: cached.state,
+        action: cached.action || null,
+        updatedAt: cached.ts
+      });
+    }
+  });
+
+  socket.on('dominoRoyalState', ({ tableId, state, action } = {}) => {
+    if (!tableId || !state || typeof state !== 'object') return;
+    if (!socket.rooms.has(tableId)) return;
+    const payload = {
+      tableId,
+      state,
+      action: action || null,
+      updatedAt: Date.now()
+    };
+    dominoRoyalStates.set(tableId, {
+      state,
+      action: payload.action,
+      ts: payload.updatedAt
+    });
+    socket.to(tableId).emit('dominoRoyalState', payload);
   });
 
   socket.on('joinPoolTable', async ({ tableId, accountId }) => {
