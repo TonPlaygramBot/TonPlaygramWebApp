@@ -22,7 +22,7 @@ describe('Pool Royale table models', () => {
     );
   });
 
-  test('Showood uses original GLB surface layout with slightly larger rail sights and apron', () => {
+  test('Showood uses original GLB surface layout with a slightly larger fit scale', () => {
     const showood = POOL_ROYALE_TABLE_MODEL_OPTIONS.find(
       (option) => option.id === 'showood-seven-foot'
     );
@@ -40,19 +40,20 @@ describe('Pool Royale table models', () => {
       'pocket'
     ]);
     assert.equal(showood.forceGeneratedChromePlates, false);
-    assert.equal(showood.upperFrameHeightScale, 0.58);
-    assert.equal(showood.cornerRimHeightScale, 0.28);
+    assert.equal(showood.fitScale, 1.04);
+    assert.equal(showood.upperFrameHeightScale, 1);
+    assert.equal(showood.cornerRimHeightScale, 1);
     assert.equal(showood.accentBottomTrimOffset, 0);
     assert.equal(showood.markingVisualLift, 0.028);
-    assert.equal(showood.lowerBaseHeightScale, 1.72);
-    assert.equal(showood.lowerLegFootReachScale, 1.28);
-    assert.equal(showood.footWidthScale, 1.08);
+    assert.equal(showood.lowerBaseHeightScale, 1);
+    assert.equal(showood.lowerLegFootReachScale, 1);
+    assert.equal(showood.footWidthScale, 1);
     assert.equal(showood.footHeightScale, 1);
-    assert.equal(showood.railSightApronVisualScale, 1.035);
-    assert.equal(showood.railSightOutwardOffset, 0.024);
-    assert.equal(showood.railSightVisualHeightScale, 1.045);
-    assert.equal(showood.sideApronVisualHeightScale, 1.068);
-    assert.equal(showood.sideApronOutwardOffset, 0.042);
+    assert.equal(showood.railSightApronVisualScale, 1);
+    assert.equal(showood.railSightOutwardOffset, 0);
+    assert.equal(showood.railSightVisualHeightScale, 1);
+    assert.equal(showood.sideApronVisualHeightScale, 1);
+    assert.equal(showood.sideApronOutwardOffset, 0);
     assert.deepEqual(showood.usePoolRoyaleFinishRoles, ['cloth', 'cushion', 'wood']);
   });
 
