@@ -141,10 +141,15 @@ export function refreshSocketAuthIdentity(patch = {}, { reconnect = false } = {}
     ...base,
     ...patch
   };
-  if (!isSameIdentity(socket.auth, nextAuth)) {
+  const changed = !isSameIdentity(socket.auth, nextAuth);
+  if (changed) {
     socket.auth = nextAuth;
-    if (reconnect && socket.connected) {
+  }
+  if (reconnect) {
+    if (socket.connected && changed) {
       socket.disconnect();
+      socket.connect();
+    } else if (!socket.connected) {
       socket.connect();
     }
   }

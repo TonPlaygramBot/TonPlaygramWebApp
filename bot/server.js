@@ -146,27 +146,55 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
   .map((o) => o.trim())
 
   .filter(Boolean);
+const defaultDevOrigins = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:4173',
+  'http://127.0.0.1:4173'
+];
+const effectiveAllowedOrigins = allowedOrigins.length
+  ? allowedOrigins
+  : process.env.NODE_ENV === 'production'
+    ? []
+    : defaultDevOrigins;
+
+function isAllowedCorsOrigin(origin) {
+  if (!origin) return true;
+  if (effectiveAllowedOrigins.includes(origin)) return true;
+  if (process.env.NODE_ENV !== 'production') {
+    try {
+      const { hostname } = new URL(origin);
+      return hostname === 'localhost' || hostname === '127.0.0.1';
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
+
+function resolveCorsOrigin(origin, callback) {
+  if (isAllowedCorsOrigin(origin)) {
+    return callback(null, true);
+  }
+  if (effectiveAllowedOrigins.length === 0) {
+    return callback(null, false);
+  }
+  return callback(new Error('Not allowed by CORS'));
+}
 
 const rateLimitWindowMs =
   Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000;
 
 const rateLimitMax = Number(process.env.RATE_LIMIT_MAX) || 100;
 const app = express();
-const corsOptions = allowedOrigins.length
-  ? {
-    origin(origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      return callback(new Error('Not allowed by CORS'));
-    }
-  }
-  : { origin: false };
+const corsOptions = {
+  origin: resolveCorsOrigin
+};
 app.use(cors(corsOptions));
 const httpServer = http.createServer(app);
 const io = initSocket(httpServer, {
   cors: {
-    origin: allowedOrigins.length ? allowedOrigins : false,
+    origin: resolveCorsOrigin,
     methods: ['GET', 'POST']
   },
   transports: ['websocket', 'polling'],
