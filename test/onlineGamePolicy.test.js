@@ -68,6 +68,27 @@ describe('online game policy', () => {
     expect(normalizeOnlineGameType('poolroyale')).toBe('poolroyale');
   });
 
+
+  test('accepts Domino Royal online tables for 2, 3, and 4 players with rule metadata', () => {
+    for (const maxPlayers of [2, 3, 4]) {
+      const result = validateSeatTableRequest({
+        gameType: 'domino-royal',
+        stake: 100,
+        maxPlayers,
+        matchMeta: { mode: 'online', token: 'TPC', game: 'points', points: '101' }
+      });
+
+      expect(result.ok).toBe(true);
+      expect(result.normalizedMaxPlayers).toBe(maxPlayers);
+      expect(result.safeMatchMeta).toEqual({
+        mode: 'online',
+        token: 'TPC',
+        game: 'points',
+        points: '101'
+      });
+    }
+  });
+
   test('buildReadinessSnapshot returns all policy games with security checks', () => {
     const snapshot = buildReadinessSnapshot();
     expect(Object.keys(snapshot).sort()).toEqual(Object.keys(GAME_ONLINE_POLICY).sort());

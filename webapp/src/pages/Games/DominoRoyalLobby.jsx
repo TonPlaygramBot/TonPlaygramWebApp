@@ -27,6 +27,7 @@ const DEFAULT_FRAME_RATE_ID = 'fhd60';
 
 const DOMINO_PLAYER_FLAG_KEY = 'dominoRoyalPlayerFlag';
 const DOMINO_AI_FLAG_KEY = 'dominoRoyalAiFlag';
+const DOMINO_ONLINE_SESSION_PREFIX = 'dominoRoyalOnlineSession:';
 
 const PLAYER_OPTIONS = [2, 3, 4];
 const HUMAN_ICON_FALLBACK = '🧑‍🤝‍🧑';
@@ -208,7 +209,13 @@ export default function DominoRoyalLobby() {
           mode: 'online',
           token: stake.token,
           game: gameType,
-          points: gameType === 'points' ? Number(targetPoints) : 0
+          points: gameType === 'points' ? Number(targetPoints) : 0,
+          matchMeta: {
+            mode: 'online',
+            token: stake.token,
+            game: gameType,
+            points: gameType === 'points' ? String(targetPoints) : '0'
+          }
         },
         (res = {}) => {
           if (!res.success || !res.tableId) {
@@ -245,6 +252,25 @@ export default function DominoRoyalLobby() {
           : null;
         const token = stake.token || onlineStake?.token || 'TPC';
         const amount = Number(onlineStake?.amount || stake.amount || 0);
+        try {
+          window.sessionStorage?.setItem(
+            `${DOMINO_ONLINE_SESSION_PREFIX}${tableId}`,
+            JSON.stringify({
+              tableId,
+              players: Array.isArray(players) ? players : [],
+              currentTurn: players?.[0]?.id || '',
+              stake: onlineStake || null,
+              meta: {
+                mode: 'online',
+                token,
+                game: gameType,
+                points: gameType === 'points' ? String(targetPoints) : '0'
+              },
+              accountId: resolvedAccountId,
+              savedAt: Date.now()
+            })
+          );
+        } catch {}
         launchGame({
           accountId: resolvedAccountId,
           tgId: getTelegramId(),
