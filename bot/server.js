@@ -440,6 +440,7 @@ const lobbyTables = {};
 const tableMap = new Map();
 const poolStates = new Map();
 const snookerStates = new Map();
+const dominoStates = new Map();
 const lastActionBySocket = new Map();
 const rollRateLimitMs = Number(process.env.SOCKET_ROLL_COOLDOWN_MS) || 800;
 const seatTableRateLimitMs = Number(process.env.SEAT_TABLE_RATE_LIMIT_MS) || 500;
@@ -1327,6 +1328,8 @@ function maybeStartGame(table) {
       );
       if (table.gameType === 'poolroyale') {
         poolStates.set(table.id, { state: null, hud: null, layout: null, ts: Date.now() });
+      } else if (table.gameType === 'domino-royal') {
+        dominoStates.set(table.id, { state: null, action: null, ts: Date.now() });
       }
       table.startTimeout = null;
     }, 1000);
@@ -2232,6 +2235,68 @@ io.on('connection', (socket) => {
     if (!tableId) return;
     const state = getChessState(tableId);
     socket.emit('chessState', { tableId, ...state });
+  });
+
+
+  socket.on('joinDominoTable', async ({ tableId, accountId } = {}) => {
+    if (!tableId) return;
+    if (accountId && !ensureRegistered(socket, accountId)) return;
+    socket.join(tableId);
+    if (accountId) {
+      await registerConnection({
+        userId: String(accountId),
+        roomId: tableId,
+        socketId: socket.id
+      });
+      User.updateOne({ accountId }, { currentTableId: tableId }).catch(() => {});
+    }
+    const cached = dominoStates.get(tableId);
+    if (cached?.state) {
+      socket.emit('dominoState', {
+        tableId,
+        state: cached.state,
+        action: cached.action || null,
+        updatedAt: cached.ts
+      });
+    }
+  });
+
+  socket.on('dominoSyncRequest', ({ tableId } = {}) => {
+    if (!tableId) return;
+    const cached = dominoStates.get(tableId);
+    if (cached?.state) {
+      socket.emit('dominoState', {
+        tableId,
+        state: cached.state,
+        action: cached.action || null,
+        updatedAt: cached.ts
+      });
+    }
+  });
+
+  socket.on('dominoAction', ({ tableId, action, state } = {}) => {
+    if (!tableId || (!action && !state)) return;
+    const table = tableMap.get(tableId);
+    const registered = socket.data?.playerId;
+    if (table?.players?.length && !table.players.some((player) => String(player.id) === String(registered))) {
+      socket.emit('errorMessage', 'seat_required');
+      return;
+    }
+    const payload = {
+      tableId,
+      action: action || null,
+      state: state || action?.state || null,
+      playerId: registered || action?.playerId || null,
+      updatedAt: Date.now()
+    };
+    if (payload.state) {
+      dominoStates.set(tableId, {
+        state: payload.state,
+        action: payload.action,
+        ts: payload.updatedAt
+      });
+    }
+    socket.to(tableId).emit('dominoState', payload);
   });
 
   socket.on('joinPoolTable', async ({ tableId, accountId }) => {
