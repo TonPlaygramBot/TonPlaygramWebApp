@@ -22,6 +22,19 @@ const TABLE_PHYSICAL_SPECS = Object.freeze({
       compactScale: 1.48
     })
   },
+  '7ft': {
+    id: '7ft',
+    label: '7 ft (Showood Source)',
+    playfield: Object.freeze({ widthMm: 1981.2, heightMm: 990.6 }), // BCA/WPA 7 ft 78" × 39" playing surface used by the Showood GLB source
+    ballDiameterMm: 57.15,
+    pocketMouthMm: Object.freeze({
+      corner: 114.3,
+      side: 127
+    }),
+    cushionCutAngleDeg: 32,
+    sideCushionCutAngleDeg: 32,
+    cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 })
+  },
   '8ft': {
     id: '8ft',
     label: '8 ft',
@@ -75,7 +88,7 @@ export const TABLE_SIZE_OPTIONS = Object.freeze(
   }, {})
 )
 
-export const DEFAULT_TABLE_SIZE_ID = '9ft'
+export const DEFAULT_TABLE_SIZE_ID = '7ft'
 
 export function resolveTableSize (sizeId) {
   const key = typeof sizeId === 'string' ? sizeId.toLowerCase() : ''
