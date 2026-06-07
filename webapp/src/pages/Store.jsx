@@ -473,9 +473,13 @@ const TAVULL_TYPE_LABELS = {
 };
 
 const FOUR_IN_ROW_TYPE_LABELS = {
-  tables: 'Table Models',
+  tables: 'Murlan Royale Table Models',
   tableFinish: 'Table Finish',
   chairColor: 'Chairs',
+  humanCharacter: 'Domino Human Characters',
+  boardFinish: 'Board Finish',
+  boardFrameFinish: 'Board Frames',
+  ringFinish: 'Slot Rings',
   boardTheme: 'Board Skins',
   boardLayout: 'Board Sizes',
   stoneStyle: 'Stone Sets',
