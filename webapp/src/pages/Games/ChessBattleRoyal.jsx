@@ -847,8 +847,8 @@ const PLAYER_FACE_CAMERA_SEAT_ANGLE = Math.PI / 2;
 // Keep Chess Battle Royal bottom-player camera aligned with Checkers Battle Royal
 // so portrait framing and left/right/up/down look limits match exactly.
 const PLAYER_FACE_CAMERA_RADIUS = TABLE_RADIUS * 0.98 * CHECKERS_CAMERA_FRAME_COMPENSATION;
-const PLAYER_FACE_CAMERA_EYE_HEIGHT = 2.22 * LAYOUT_SCALE_FACTOR;
-const PLAYER_FACE_CAMERA_TARGET_HEIGHT = 0.22 * LAYOUT_SCALE_FACTOR;
+const PLAYER_FACE_CAMERA_EYE_HEIGHT = 2.05 * LAYOUT_SCALE_FACTOR;
+const PLAYER_FACE_CAMERA_TARGET_HEIGHT = 0.18 * LAYOUT_SCALE_FACTOR;
 const PLAYER_FACE_CAMERA_YAW_LIMIT = THREE.MathUtils.degToRad(18);
 const PLAYER_FACE_CAMERA_PITCH_LIMIT = THREE.MathUtils.degToRad(12);
 const PLAYER_FACE_CAMERA_LOOK_DRAG_SPEED = 0.0045;
@@ -2500,9 +2500,6 @@ const CHESS_FIREARM_FATAL_BULLET_TRAVEL_MS = 1250; // match Ludo Battle Royal se
 const CHESS_FIREARM_FATAL_CAMERA_DISTANCE = 0.046;
 const CHESS_FIREARM_FATAL_CAMERA_HEIGHT = 0.03;
 const CHESS_FIREARM_FATAL_CAMERA_SIDE_DRIFT = 0.012;
-const CHESS_FIREARM_ATTACKER_TILE_LIFT = 0.11; // keep firearms visibly placed on the attacker tile instead of floating around the piece body.
-const CHESS_FIREARM_TARGET_AIM_HEIGHT_RATIO = 0.54; // aim at the target body while keeping the weapon rooted on the attacker tile.
-const CHESS_FIREARM_TILE_MUZZLE_FORWARD = 0.16;
 const CHESS_CAPTURE_SHATTER_PIECES = 14;
 const CHESS_CAPTURE_SHATTER_DURATION = 1.45;
 const CHESS_CAPTURE_SHATTER_GRAVITY = 1.58;
@@ -12123,42 +12120,6 @@ function Chess3D({
       targetPos.y += lift;
       return targetPos;
     };
-    const getFirearmAttackerTilePose = (fallback, movingMesh = null, lift = CHESS_FIREARM_ATTACKER_TILE_LIFT) => {
-      const tilePos = fallback?.clone?.() || new THREE.Vector3();
-      if (movingMesh?.parent) {
-        const worldBounds = new THREE.Box3().setFromObject(movingMesh);
-        if (!worldBounds.isEmpty()) {
-          tilePos.x = (worldBounds.min.x + worldBounds.max.x) * 0.5;
-          tilePos.z = (worldBounds.min.z + worldBounds.max.z) * 0.5;
-          tilePos.y = worldBounds.min.y;
-        } else {
-          movingMesh.getWorldPosition(tilePos);
-        }
-      }
-      tilePos.y += lift;
-      return tilePos;
-    };
-    const getFirearmTargetAimPosition = (fallback, targetMesh = null) => {
-      const aimPos = fallback?.clone?.() || new THREE.Vector3();
-      if (targetMesh?.parent) {
-        const worldBounds = new THREE.Box3().setFromObject(targetMesh);
-        if (!worldBounds.isEmpty()) {
-          aimPos.x = (worldBounds.min.x + worldBounds.max.x) * 0.5;
-          aimPos.z = (worldBounds.min.z + worldBounds.max.z) * 0.5;
-          aimPos.y = THREE.MathUtils.lerp(
-            worldBounds.min.y,
-            worldBounds.max.y,
-            CHESS_FIREARM_TARGET_AIM_HEIGHT_RATIO
-          );
-        } else {
-          targetMesh.getWorldPosition(aimPos);
-          aimPos.y += Math.max(0.035, LUDO_FIREARM_BROADCAST_PROFILE.aimLift ?? 0.064);
-        }
-      } else {
-        aimPos.y += Math.max(0.035, LUDO_FIREARM_BROADCAST_PROFILE.aimLift ?? 0.064);
-      }
-      return aimPos;
-    };
     const getSeatedHumanFirearmPose = (playerIndex, targetPos, fallbackPos) => {
       const actorEntry = seatedHumanActorsRef.current.find((entry) => entry?.playerIndex === playerIndex);
       const rig = actorEntry?.rig;
@@ -15707,41 +15668,53 @@ function Chess3D({
             }
           } else if (fx.type === 'firearm') {
             const targetPos = getLiveTargetPosition(fx.to, fx.targetMesh, 0);
-            const targetAimPos = getFirearmTargetAimPosition(fx.to, fx.targetMesh);
             fx.to.copy(targetPos);
-            const aimOrigin = getFirearmAttackerTilePose(fx.from, fx.movingMesh);
-            const aimDir = targetAimPos.clone().sub(aimOrigin);
-            if (aimDir.lengthSq() > 1e-8) aimDir.normalize();
-            else aimDir.set(0, 0, 1);
-            const muzzleForward = fx.shortMissile ? 0.18 : CHESS_FIREARM_TILE_MUZZLE_FORWARD;
-            const muzzlePos = aimOrigin.clone().addScaledVector(aimDir, muzzleForward);
-            muzzlePos.y += fx.shortMissile ? 0.05 : 0.018;
+            const pieceWorld = new THREE.Vector3();
+            fx.movingMesh?.getWorldPosition?.(pieceWorld);
+            const pieceBounds = fx.movingMesh?.parent ? new THREE.Box3().setFromObject(fx.movingMesh) : null;
+            let shooterPos = pieceWorld.lengthSq() ? pieceWorld : fx.from.clone().lerp(targetPos, 0.24);
+            shooterPos = shooterPos.clone();
+            if (pieceBounds && !pieceBounds.isEmpty()) {
+              shooterPos.x = (pieceBounds.min.x + pieceBounds.max.x) * 0.5;
+              shooterPos.z = (pieceBounds.min.z + pieceBounds.max.z) * 0.5;
+              shooterPos.y = THREE.MathUtils.lerp(pieceBounds.min.y, pieceBounds.max.y, 0.68);
+            } else {
+              shooterPos.y += 0.26;
+            }
+            const aimOrigin = shooterPos;
+            const aimDir = targetPos.clone().sub(aimOrigin).normalize();
+            const muzzlePos = aimOrigin.clone().addScaledVector(aimDir, (fx.shortMissile ? 0.18 : (LUDO_FIREARM_BROADCAST_PROFILE.aimLift ?? 0.064) + 0.055));
+            muzzlePos.y += fx.shortMissile ? 0.05 : 0.015;
             fx.missileFx.root.visible = true;
             fx.missileFx.root.position.copy(muzzlePos).addScaledVector(aimDir, 0.08);
             orientForwardKeepingUp(fx.missileFx.root, aimDir);
             if (fx.firearmFx) {
               fx.firearmFx.visible = true;
-              const liveAimTarget = getFirearmTargetAimPosition(fx.to, fx.targetMesh);
+              const liveAimTarget = targetPos.clone();
+              liveAimTarget.y += Math.max(0.035, LUDO_FIREARM_BROADCAST_PROFILE.aimLift ?? 0.064);
               const liveAimDir = liveAimTarget.clone().sub(aimOrigin);
               if (liveAimDir.lengthSq() > 1e-8) liveAimDir.normalize();
               else liveAimDir.copy(aimDir);
               fx.firearmFx.position.copy(
-                aimOrigin.clone().addScaledVector(liveAimDir, -(fx.shortMissile ? 0.035 : 0.055))
+                aimOrigin.clone().addScaledVector(liveAimDir, -(fx.shortMissile ? 0.04 : (LUDO_FIREARM_BROADCAST_PROFILE.aimRearPullback ?? 0.124)))
               );
               fx.firearmFx.position.y += 0.02 + Math.sin(u * Math.PI * 8) * 0.006;
               orientForwardKeepingUp(fx.firearmFx, liveAimDir);
               fx.firearmFx.updateMatrixWorld?.(true);
-              // Keep the visible weapon rooted on the attacker tile. Do not drag the
-              // weapon root forward to match the model muzzle helper because some
-              // firearm assets have inconsistent muzzle offsets and can visually snap
-              // the whole weapon onto the target tile during capture animations.
+              const muzzleHelper = fx.firearmFx.userData?.muzzleHelper;
+              if (muzzleHelper?.isObject3D) {
+                const currentMuzzleWorld = muzzleHelper.getWorldPosition(new THREE.Vector3());
+                const desiredMuzzleWorld = muzzlePos.clone().addScaledVector(liveAimDir, fx.shortMissile ? 0.08 : 0.02);
+                fx.firearmFx.position.add(desiredMuzzleWorld.sub(currentMuzzleWorld));
+                fx.firearmFx.updateMatrixWorld?.(true);
+              }
               const recoil = Math.sin(Math.min(1, u * Math.max(1, fx.bulletCount || 1)) * Math.PI) * 0.025;
               fx.firearmFx.position.addScaledVector(liveAimDir, -recoil);
               aimDir.copy(liveAimDir);
             }
             if (fx.fpsArmsFx) {
               fx.fpsArmsFx.visible = true;
-              fx.fpsArmsFx.position.copy(aimOrigin).addScaledVector(aimDir, -(fx.shortMissile ? 0.095 : 0.075));
+              fx.fpsArmsFx.position.copy(aimOrigin).addScaledVector(aimDir, -(fx.shortMissile ? 0.095 : (LUDO_FIREARM_BROADCAST_PROFILE.aimRearPullback ?? 0.124) + 0.035));
               fx.fpsArmsFx.position.y += 0.004 + Math.sin(u * Math.PI * Math.max(4, fx.bulletCount || 1)) * 0.004;
               orientForwardKeepingUp(fx.fpsArmsFx, aimDir);
             }
@@ -15875,7 +15848,7 @@ function Chess3D({
               const shotIndex = fx.firedBullets - 1;
               const spread = (shotIndex - (bulletsToFire - 1) * 0.5) * (fx.bulletProfile?.pelletCount ? 0.012 : 0.004);
               const side = new THREE.Vector3().crossVectors(WORLD_UP, aimDir).normalize();
-              const bulletTo = getFirearmTargetAimPosition(fx.to, fx.targetMesh).addScaledVector(side, spread);
+              const bulletTo = targetPos.clone().addScaledVector(side, spread);
               const missileProjectile = fx.shortMissile ? createFxGroundMissile() : null;
               const bullet = missileProjectile?.root || createFirearmBulletMesh(fx.bulletProfile);
               if (missileProjectile) bullet.scale.setScalar(CAPTURE_MISSILE_SCALE * 0.78);
