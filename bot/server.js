@@ -440,14 +440,13 @@ const lobbyTables = {};
 const tableMap = new Map();
 const poolStates = new Map();
 const snookerStates = new Map();
-const dominoStates = new Map();
 const lastActionBySocket = new Map();
 const rollRateLimitMs = Number(process.env.SOCKET_ROLL_COOLDOWN_MS) || 800;
 const seatTableRateLimitMs = Number(process.env.SEAT_TABLE_RATE_LIMIT_MS) || 500;
 const checkersMoveRateLimitMs =
   Number(process.env.CHECKERS_MOVE_RATE_LIMIT_MS) || 120;
 
-const MATCH_META_KEYS = ['mode', 'playType', 'variant', 'tableSize', 'ballSet', 'token', 'game', 'points'];
+const MATCH_META_KEYS = ['mode', 'playType', 'variant', 'tableSize', 'ballSet', 'token'];
 
 function normalizeTableSizeMeta(value = '') {
   const normalized = String(value || '').trim().toLowerCase();
@@ -1329,9 +1328,6 @@ function maybeStartGame(table) {
       if (table.gameType === 'poolroyale') {
         poolStates.set(table.id, { state: null, hud: null, layout: null, ts: Date.now() });
       }
-      if (table.gameType === 'domino-royal') {
-        dominoStates.set(table.id, { state: null, seq: 0, ts: Date.now() });
-      }
       table.startTimeout = null;
     }, 1000);
   }
@@ -1367,9 +1363,6 @@ function unseatTableSocket(accountId, tableId, socketId) {
       if (table.gameType === 'checkers') {
         checkersRealtimeStore.clearState(tableId);
         checkersMatchSessions.delete(tableId);
-      }
-      if (table.gameType === 'domino-royal') {
-        dominoStates.delete(tableId);
       }
       tableMap.delete(tableId);
       const key = `${table.gameType}-${table.maxPlayers}`;
@@ -2016,9 +2009,7 @@ io.on('connection', (socket) => {
         playType,
         tableSize,
         ballSet,
-        token,
-        game,
-        points
+        token
       } = payload;
       const resolvedVariant = payloadMatchMeta.variant ?? variant;
       const resolvedMode = payloadMatchMeta.mode ?? mode;
@@ -2026,8 +2017,6 @@ io.on('connection', (socket) => {
       const resolvedTableSize = payloadMatchMeta.tableSize ?? tableSize;
       const resolvedBallSet = payloadMatchMeta.ballSet ?? ballSet;
       const resolvedToken = payloadMatchMeta.token ?? token;
-      const resolvedGame = payloadMatchMeta.game ?? game;
-      const resolvedPoints = payloadMatchMeta.points ?? points;
       const resolvedPreferredSide =
         payloadMatchMeta.preferredSide ?? preferredSide;
       const resolvedAccountId = resolveTpcIdentity(payload);
@@ -2061,8 +2050,6 @@ io.on('connection', (socket) => {
           tableSize: resolvedTableSize,
           ballSet: resolvedBallSet,
           token: resolvedToken,
-          game: resolvedGame,
-          points: resolvedPoints,
           preferredSide: resolvedPreferredSide
         }
       });
@@ -2076,9 +2063,7 @@ io.on('connection', (socket) => {
         playType: validation.safeMatchMeta.playType,
         tableSize: validation.safeMatchMeta.tableSize,
         ballSet: validation.safeMatchMeta.ballSet,
-        token: validation.safeMatchMeta.token,
-        game: validation.safeMatchMeta.game,
-        points: validation.safeMatchMeta.points
+        token: validation.safeMatchMeta.token
       };
 
       let table;
@@ -2247,75 +2232,6 @@ io.on('connection', (socket) => {
     if (!tableId) return;
     const state = getChessState(tableId);
     socket.emit('chessState', { tableId, ...state });
-  });
-
-
-  socket.on('joinDominoRoom', async ({ tableId, accountId } = {}) => {
-    if (!tableId) return;
-    if (accountId && !ensureRegistered(socket, accountId)) return;
-    socket.join(tableId);
-    if (accountId) {
-      await registerConnection({
-        userId: String(accountId),
-        roomId: tableId,
-        socketId: socket.id
-      });
-    }
-    const cached = dominoStates.get(tableId);
-    if (cached?.state) {
-      socket.emit('dominoState', {
-        tableId,
-        state: cached.state,
-        seq: cached.seq || 0,
-        updatedAt: cached.ts
-      });
-    }
-  });
-
-  socket.on('dominoSyncRequest', ({ tableId } = {}) => {
-    if (!tableId) return;
-    const cached = dominoStates.get(tableId);
-    if (cached?.state) {
-      socket.emit('dominoState', {
-        tableId,
-        state: cached.state,
-        seq: cached.seq || 0,
-        updatedAt: cached.ts
-      });
-    }
-  });
-
-  socket.on('dominoState', ({ tableId, state, seq } = {}, cb) => {
-    if (!tableId || !state || typeof state !== 'object') {
-      cb && cb({ success: false, error: 'invalid_payload' });
-      return;
-    }
-    const playerId = String(socket.data?.playerId || '');
-    if (!playerId) {
-      cb && cb({ success: false, error: 'register_required' });
-      return;
-    }
-    const table = tableMap.get(tableId);
-    if (table && !table.players.some((player) => String(player.id) === playerId)) {
-      cb && cb({ success: false, error: 'seat_required' });
-      return;
-    }
-    const cached = dominoStates.get(tableId) || { seq: 0 };
-    const nextSeq = Number.isFinite(Number(seq)) ? Number(seq) : (Number(cached.seq) || 0) + 1;
-    if (Number(cached.seq) && nextSeq <= Number(cached.seq)) {
-      cb && cb({ success: false, error: 'stale_state', seq: cached.seq });
-      return;
-    }
-    const payload = {
-      tableId,
-      state,
-      seq: nextSeq,
-      updatedAt: Date.now(),
-      playerId
-    };
-    dominoStates.set(tableId, { state, seq: nextSeq, ts: payload.updatedAt });
-    socket.to(tableId).emit('dominoState', payload);
-    cb && cb({ success: true, seq: nextSeq });
   });
 
   socket.on('joinPoolTable', async ({ tableId, accountId }) => {
