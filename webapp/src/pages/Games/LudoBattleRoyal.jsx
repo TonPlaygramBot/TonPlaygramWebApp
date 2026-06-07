@@ -626,14 +626,17 @@ async function inlineExternalGltfAssets(sourceUrl) {
 }
 
 async function loadGunifyOriginalGltf(loader, candidateUrl) {
+  // Match Chess Battle Royal exactly: fetch the source GLTF JSON, patch only
+  // the legacy spec/gloss material extension, and let GLTFLoader resolve the
+  // original sibling image files using the authored relative paths.  Avoid
+  // pre-inlining textures here because it changes the texture-loading path from
+  // Chess and can hide the original weapon textures in Ludo.
+  const response = await fetch(candidateUrl, { mode: 'cors' });
+  if (!response.ok) throw new Error(`Gunify GLTF fetch failed: ${response.status}`);
+  const gltfJson = patchGunifySpecularGlossinessMaterials(await response.json());
   const basePath = new URL('.', candidateUrl).href;
   loader.setPath?.(basePath);
   loader.setResourcePath?.(basePath);
-  const inlinedJson = await inlineExternalGltfAssets(candidateUrl);
-  if (inlinedJson) return loader.parseAsync(inlinedJson, basePath);
-  const response = await fetchWithTimeout(candidateUrl, { mode: 'cors' }, GLTF_JSON_TIMEOUT_MS);
-  if (!response.ok) throw new Error(`Gunify GLTF fetch failed: ${response.status}`);
-  const gltfJson = patchGunifySpecularGlossinessMaterials(await response.json());
   return loader.parseAsync(JSON.stringify(gltfJson), basePath);
 }
 
@@ -681,13 +684,13 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
   },
   assaultRifleAttack: {
     label: 'Assault Rifle',
+    // Keep Ludo identical to Chess Battle Royal: use the original Webaverse
+    // military GLB textures only, with no extra AK47 texture override.
     urls: [
       'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/military.glb',
-      'https://raw.githubusercontent.com/webaverse/pistol/master/military.glb',
-      'https://cdn.statically.io/gh/webaverse/pistol/master/military.glb'
+      'https://raw.githubusercontent.com/webaverse/pistol/master/military.glb'
     ],
-    scale: 0.13,
-    textureOverrideUrls: [`${GUNIFY_RAW_BASE}/images/AK47.jpeg`]
+    scale: 0.13
   },
   uziSprayAttack: {
     label: 'Gunify Uzi',
@@ -1697,6 +1700,12 @@ async function loadCaptureWeaponModel(captureAnimationId) {
           } else {
             preserveCaptureWeaponSourceMaterial(material, config?.texturePolicy || 'preserveSource');
           }
+          // Chess Battle Royal forces loaded weapon materials opaque after the
+          // source texture setup; mirror that so Ludo shows the same visible
+          // weapon surface instead of washed-out/hidden texture layers.
+          material.transparent = false;
+          material.opacity = 1;
+          material.needsUpdate = true;
         });
       });
       applyModelQualityToObject(root);
