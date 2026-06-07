@@ -13150,7 +13150,24 @@ function resolvePoolRoyaleExternalTableFitBounds(model, tableModel = null) {
   const fullSize = fullBox.getSize(new THREE.Vector3());
   let footprintBox = fullBox.clone();
 
-  if (tableModel?.fitReference === 'upperTabletop' && !fullBox.isEmpty()) {
+  if (tableModel?.fitReference === 'playfield' && !fullBox.isEmpty()) {
+    const playfieldBox = new THREE.Box3();
+
+    model.traverse((child) => {
+      if (!child?.isMesh) return;
+      const childBox = new THREE.Box3().setFromObject(child);
+      if (childBox.isEmpty()) return;
+      const childMaterial = Array.isArray(child.material) ? child.material[0] : child.material;
+      const role = classifyPoolRoyaleExternalTableSurface(child, childMaterial);
+      if (role === 'cloth') {
+        expandPoolRoyaleUpperMeshBounds(playfieldBox, child, childBox.min.y);
+      }
+    });
+
+    if (!playfieldBox.isEmpty()) {
+      footprintBox = playfieldBox;
+    }
+  } else if (tableModel?.fitReference === 'upperTabletop' && !fullBox.isEmpty()) {
     const upperY = fullBox.min.y + fullSize.y * 0.45;
     const tabletopBox = new THREE.Box3();
 
@@ -14553,8 +14570,16 @@ function mountPoolRoyaleExternalTableModel({
           tableModel: externalTableModelForMount,
           renderer,
           dims: {
-            targetWidth: generatedVisualBounds.isEmpty() ? TABLE.W : generatedVisualSize.x,
-            targetLength: generatedVisualBounds.isEmpty() ? TABLE.H : generatedVisualSize.z,
+            targetWidth: externalTableModelForMount.fitReference === 'playfield'
+              ? PLAY_W
+              : generatedVisualBounds.isEmpty()
+                ? TABLE.W
+                : generatedVisualSize.x,
+            targetLength: externalTableModelForMount.fitReference === 'playfield'
+              ? PLAY_H
+              : generatedVisualBounds.isEmpty()
+                ? TABLE.H
+                : generatedVisualSize.z,
             targetHeight: generatedVisualBounds.isEmpty() ? TABLE.THICK + LEG_ROOM_HEIGHT : generatedVisualSize.y,
             targetUpperComponentHeight: generatedUpperComponentBounds.isEmpty()
               ? RAIL_HEIGHT
