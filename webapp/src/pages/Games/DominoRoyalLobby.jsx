@@ -230,7 +230,9 @@ export default function DominoRoyalLobby() {
           queuedTableIdRef.current = res.tableId;
           setQueuedTableId(res.tableId);
           const seated = Array.isArray(res.players) ? res.players.length : 1;
-          setQueueStatus(`Table ${res.tableId.slice(0, 8)} • ${seated}/${totalPlayers} players ready`);
+          setQueueStatus(
+            `Table ${res.tableId.slice(0, 8)} • ${seated}/${totalPlayers} players connected • matching same stake and player count`
+          );
           socket.emit('confirmReady', { accountId, tableId: res.tableId });
         }
       );
@@ -250,10 +252,28 @@ export default function DominoRoyalLobby() {
   useEffect(() => {
     if (mode !== 'online') return undefined;
 
-    const handleLobbyUpdate = ({ tableId, players: lobbyPlayers = [], ready = [] } = {}) => {
+    const handleLobbyUpdate = ({
+      tableId,
+      players: lobbyPlayers = [],
+      ready = [],
+      startAt,
+      startDelayMs
+    } = {}) => {
       if (!tableId || tableId !== queuedTableIdRef.current) return;
+      const allReady =
+        lobbyPlayers.length === totalPlayers && ready.length === totalPlayers;
+      const connectGraceSeconds = Math.max(
+        1,
+        Math.ceil(Number(startDelayMs || 0) / 1000)
+      );
+      const startCountdownSeconds = startAt
+        ? Math.max(1, Math.ceil((Number(startAt) - Date.now()) / 1000))
+        : connectGraceSeconds;
+      const suffix = allReady
+        ? ` • starting in ${startCountdownSeconds}s so every player can connect`
+        : '';
       setQueueStatus(
-        `Table ${String(tableId).slice(0, 8)} • ${lobbyPlayers.length}/${totalPlayers} players connected • ${ready.length}/${totalPlayers} ready`
+        `Table ${String(tableId).slice(0, 8)} • ${lobbyPlayers.length}/${totalPlayers} players connected • ${ready.length}/${totalPlayers} ready${suffix}`
       );
     };
 
