@@ -440,7 +440,6 @@ const lobbyTables = {};
 const tableMap = new Map();
 const poolStates = new Map();
 const snookerStates = new Map();
-const dominoRoyalStates = new Map();
 const lastActionBySocket = new Map();
 const rollRateLimitMs = Number(process.env.SOCKET_ROLL_COOLDOWN_MS) || 800;
 const seatTableRateLimitMs = Number(process.env.SEAT_TABLE_RATE_LIMIT_MS) || 500;
@@ -1329,9 +1328,6 @@ function maybeStartGame(table) {
       if (table.gameType === 'poolroyale') {
         poolStates.set(table.id, { state: null, hud: null, layout: null, ts: Date.now() });
       }
-      if (table.gameType === 'domino-royal') {
-        dominoRoyalStates.set(table.id, { state: null, seq: 0, updatedAt: Date.now() });
-      }
       table.startTimeout = null;
     }, 1000);
   }
@@ -1367,9 +1363,6 @@ function unseatTableSocket(accountId, tableId, socketId) {
       if (table.gameType === 'checkers') {
         checkersRealtimeStore.clearState(tableId);
         checkersMatchSessions.delete(tableId);
-      }
-      if (table.gameType === 'domino-royal') {
-        dominoRoyalStates.delete(tableId);
       }
       tableMap.delete(tableId);
       const key = `${table.gameType}-${table.maxPlayers}`;
@@ -2114,84 +2107,6 @@ io.on('connection', (socket) => {
       }
     }
   );
-
-
-  socket.on('joinGameTable', (payload = {}, cb) => {
-    const { tableId } = payload;
-    const resolvedAccountId = resolveTpcIdentity(payload);
-    if (hasConflictingIdentities(payload)) {
-      return cb && cb({ success: false, error: 'identity_mismatch' });
-    }
-    if (!tableId) {
-      return cb && cb({ success: false, error: 'table_required' });
-    }
-    const table = tableMap.get(tableId);
-    if (!table) {
-      return cb && cb({ success: false, error: 'table_not_found' });
-    }
-    if (!ensureRegistered(socket, resolvedAccountId)) {
-      return cb && cb({ success: false, error: 'register_required' });
-    }
-    const seated = table.players.some((player) => String(player.id) === String(resolvedAccountId));
-    if (!seated) {
-      return cb && cb({ success: false, error: 'seat_required' });
-    }
-    socket.join(tableId);
-    cb && cb({
-      success: true,
-      tableId,
-      gameType: table.gameType,
-      players: table.players,
-      currentTurn: table.currentTurn,
-      stake: table.stake,
-      meta: table.meta,
-      dominoState: table.gameType === 'domino-royal' ? dominoRoyalStates.get(tableId)?.state || null : null,
-      dominoSeq: table.gameType === 'domino-royal' ? dominoRoyalStates.get(tableId)?.seq || 0 : undefined
-    });
-  });
-
-  socket.on('dominoRoyalState', (payload = {}, cb) => {
-    const { tableId, state, action } = payload;
-    const resolvedAccountId = resolveTpcIdentity(payload);
-    if (hasConflictingIdentities(payload)) {
-      return cb && cb({ success: false, error: 'identity_mismatch' });
-    }
-    const table = tableMap.get(tableId);
-    if (!table || table.gameType !== 'domino-royal') {
-      return cb && cb({ success: false, error: 'table_not_found' });
-    }
-    if (!ensureRegistered(socket, resolvedAccountId)) {
-      return cb && cb({ success: false, error: 'register_required' });
-    }
-    const seatIndex = table.players.findIndex((player) => String(player.id) === String(resolvedAccountId));
-    if (seatIndex < 0) {
-      return cb && cb({ success: false, error: 'seat_required' });
-    }
-    const currentSeat = Number(state?.current);
-    const nextTurnPlayer = Number.isInteger(currentSeat) ? table.players[currentSeat] : null;
-    if (action !== 'init' && table.currentTurn && String(table.currentTurn) !== String(resolvedAccountId)) {
-      return cb && cb({ success: false, error: 'not_your_turn' });
-    }
-    if (action === 'init' && seatIndex !== 0) {
-      return cb && cb({ success: false, error: 'host_required' });
-    }
-    const previous = dominoRoyalStates.get(tableId) || { seq: 0 };
-    const seq = Number(previous.seq || 0) + 1;
-    const safeState = state && typeof state === 'object' ? state : null;
-    dominoRoyalStates.set(tableId, { state: safeState, seq, updatedAt: Date.now() });
-    if (nextTurnPlayer) {
-      table.currentTurn = nextTurnPlayer.id;
-    }
-    io.to(tableId).emit('dominoRoyalState', {
-      tableId,
-      state: safeState,
-      seq,
-      action: action || 'sync',
-      accountId: resolvedAccountId,
-      currentTurn: table.currentTurn
-    });
-    cb && cb({ success: true, seq, currentTurn: table.currentTurn });
-  });
 
   socket.on('leaveLobby', (payload = {}) => {
     const { tableId } = payload;

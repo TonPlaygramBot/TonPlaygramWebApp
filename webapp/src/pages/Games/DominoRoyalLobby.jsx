@@ -16,7 +16,7 @@ import { loadAvatar } from '../../utils/avatarUtils.js';
 import OptionIcon from '../../components/OptionIcon.jsx';
 import { getLobbyIcon } from '../../config/gameAssets.js';
 import GameLobbyHeader from '../../components/GameLobbyHeader.jsx';
-import { refreshSocketAuthIdentity, socket } from '../../utils/socket.js';
+import { socket } from '../../utils/socket.js';
 import { getOnlineReadiness } from '../../config/onlineContract.js';
 
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
@@ -64,8 +64,6 @@ export default function DominoRoyalLobby() {
   const [flagsManuallySelected, setFlagsManuallySelected] = useState(false);
   const [dominoPlayerFlag, setDominoPlayerFlag] = useState(null);
   const [dominoAiFlag, setDominoAiFlag] = useState(null);
-  const [matching, setMatching] = useState(false);
-  const [matchError, setMatchError] = useState('');
   const startBet = stake.amount / 100;
   const readiness = getOnlineReadiness('domino-royal');
 
@@ -173,33 +171,9 @@ export default function DominoRoyalLobby() {
     if (DEV_ACCOUNT) params.set('dev', DEV_ACCOUNT);
     if (DEV_ACCOUNT_1) params.set('dev1', DEV_ACCOUNT_1);
     if (DEV_ACCOUNT_2) params.set('dev2', DEV_ACCOUNT_2);
-    if (mode === 'online') {
-      const socketUri = socket?.io?.uri || '';
-      const socketPath = socket?.io?.opts?.path || '';
-      if (socketUri) params.set('socketUrl', socketUri);
-      if (socketPath) params.set('socketPath', socketPath);
-    }
     if (frameRateId) params.set('frameRateId', frameRateId);
     navigate(`/games/domino-royal?${params.toString()}`);
   };
-
-  const waitForSocketConnection = () =>
-    new Promise((resolve) => {
-      if (socket.connected) {
-        resolve(true);
-        return;
-      }
-      const timeout = window.setTimeout(() => {
-        socket.off('connect', handleConnect);
-        resolve(false);
-      }, 8000);
-      function handleConnect() {
-        window.clearTimeout(timeout);
-        resolve(true);
-      }
-      socket.once('connect', handleConnect);
-      socket.connect();
-    });
 
   const startGame = async (flagOverride = flags) => {
     let tgId;
@@ -221,18 +195,6 @@ export default function DominoRoyalLobby() {
     } catch {}
 
     if (mode === 'online' && accountId) {
-      setMatchError('');
-      setMatching(true);
-      refreshSocketAuthIdentity({ accountId }, { reconnect: false });
-      const connected = await waitForSocketConnection();
-      if (!connected) {
-        setMatching(false);
-        setMatchError('Unable to connect to the online lobby. Your stake was refunded.');
-        try {
-          await addTransaction(tgId, stake.amount, 'refund', { game: 'domino', accountId });
-        } catch {}
-        return;
-      }
       socket.emit('register', { playerId: accountId });
       socket.emit(
         'seatTable',
@@ -245,25 +207,14 @@ export default function DominoRoyalLobby() {
           avatar,
           mode: 'online',
           token: stake.token,
-          variant: gameType,
-          matchMeta: {
-            variant: gameType,
-            mode: 'online',
-            token: stake.token
-          },
           game: gameType,
           points: gameType === 'points' ? Number(targetPoints) : 0
         },
         (res = {}) => {
           if (!res.success || !res.tableId) {
-            setMatching(false);
-            setMatchError(`Unable to join Domino online table${res.error ? ` (${res.error})` : ''}. Your stake was refunded.`);
-            try {
-              addTransaction(tgId, stake.amount, 'refund', { game: 'domino', accountId });
-            } catch {}
+            alert('Unable to join Domino online table. Please try again.');
             return;
           }
-          setMatchError('');
           socket.emit('confirmReady', { accountId, tableId: res.tableId });
         }
       );
@@ -284,7 +235,6 @@ export default function DominoRoyalLobby() {
     if (mode !== 'online') return undefined;
 
     const handleGameStart = ({ tableId, players, stake: onlineStake }) => {
-      setMatching(false);
       const accountId = ensureAccountId().catch(() => '');
       Promise.resolve(accountId).then((resolvedAccountId) => {
         const seat = Array.isArray(players)
@@ -601,20 +551,12 @@ export default function DominoRoyalLobby() {
           </div>
         </div>
 
-        {mode === 'online' && (matching || matchError) && (
-          <div className="rounded-2xl border border-cyan-300/20 bg-cyan-500/10 p-3 text-sm text-cyan-50">
-            {matching
-              ? 'Matching Domino Royal table… keep this screen open until all players connect.'
-              : matchError}
-          </div>
-        )}
-
         <button
           onClick={startGame}
-          disabled={matching || (mode === 'local' && flags.length !== flagPickerCount)}
+          disabled={mode === 'local' && flags.length !== flagPickerCount}
           className="w-full rounded-2xl bg-primary px-4 py-3 text-base font-semibold text-background shadow-[0_16px_30px_rgba(14,165,233,0.35)] transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {matching ? 'MATCHING…' : 'START'}
+          START
         </button>
 
         <FlagPickerModal

@@ -1106,11 +1106,7 @@ function normalizeAvatarSource(src = '') {
 
 const entryMode = (urlParams.get('entry') || '').toLowerCase();
 const gameMode = (urlParams.get('mode') || 'local').toLowerCase();
-const isOnlineMatch = gameMode === 'online';
-const onlineTableId = (urlParams.get('tableId') || '').trim();
-const onlineSocketUrl = (urlParams.get('socketUrl') || '').trim();
-const onlineSocketPath = (urlParams.get('socketPath') || '/socket.io').trim() || '/socket.io';
-const isVsAiMatch = !isOnlineMatch && (gameMode === 'local' || gameMode === 'ai' || gameMode === 'vs-ai');
+const isVsAiMatch = gameMode === 'local';
 const shouldRunHallwayEntry = !USE_MINIMAL_STAGE && entryMode === 'hallway';
 const shouldShowSeatLabel = shouldRunHallwayEntry;
 
@@ -9099,205 +9095,6 @@ let cpuMoveTimeout = null;
 let pendingTurnAdvanceTimeout = null;
 const activeHandMeshes = new Set();
 
-let onlineSocket = null;
-let onlinePlayers = [];
-let onlineSeatIndex = 0;
-let onlineStateSeq = 0;
-let applyingOnlineState = false;
-let onlineHostShouldCreateInitialState = false;
-
-function encodeDominoTile(tile) {
-  const clean = canonTile(tile);
-  return clean ? { a: clean.a, b: clean.b } : null;
-}
-
-function serializeDominoState() {
-  return {
-    players: players.map((player) => ({
-      id: player.id,
-      hand: Array.isArray(player.hand) ? player.hand.map(encodeDominoTile).filter(Boolean) : []
-    })),
-    boneyard: boneyard.map(encodeDominoTile).filter(Boolean),
-    chain: chain.map((segment) => ({
-      tile: encodeDominoTile(segment.tile),
-      x: Number(segment.x) || 0,
-      z: Number(segment.z) || 0,
-      rot: Number(segment.rot) || 0,
-      double: !!segment.double
-    })).filter((segment) => segment.tile),
-    ends: ends ? JSON.parse(JSON.stringify(ends)) : null,
-    current,
-    human: onlineSeatIndex,
-    flipDir,
-    gameFinished,
-    winnerIndex,
-    revealAllHands,
-    racePenaltyTotals,
-    raceDisqualifiedPlayers,
-    raceRoundNumber,
-    lastHandWinnerIndex,
-    isPointsRace
-  };
-}
-
-function applyDominoState(state = {}) {
-  if (!state || typeof state !== 'object') return;
-  applyingOnlineState = true;
-  try {
-    clearMarkers();
-    clearExistingDominoMeshes();
-    selectedTile = null;
-    clearSelectedHighlight();
-    players = Array.isArray(state.players)
-      ? state.players.slice(0, N).map((player, idx) => ({
-          id: idx,
-          hand: Array.isArray(player?.hand)
-            ? player.hand.map(encodeDominoTile).filter(Boolean)
-            : []
-        }))
-      : players;
-    while (players.length < N) players.push({ id: players.length, hand: [] });
-    boneyard = Array.isArray(state.boneyard)
-      ? state.boneyard.map(encodeDominoTile).filter(Boolean)
-      : [];
-    chain = Array.isArray(state.chain)
-      ? state.chain.map((segment) => ({
-          tile: encodeDominoTile(segment?.tile),
-          x: Number(segment?.x) || 0,
-          z: Number(segment?.z) || 0,
-          rot: Number(segment?.rot) || 0,
-          double: !!segment?.double,
-          mesh: null
-        })).filter((segment) => segment.tile)
-      : [];
-    ends = state.ends || null;
-    current = Number.isInteger(state.current) ? state.current : current;
-    human = onlineSeatIndex;
-    flipDir = !!state.flipDir;
-    gameFinished = !!state.gameFinished;
-    winnerIndex = Number.isInteger(state.winnerIndex) ? state.winnerIndex : null;
-    revealAllHands = !!state.revealAllHands;
-    racePenaltyTotals = Array.isArray(state.racePenaltyTotals) ? state.racePenaltyTotals : racePenaltyTotals;
-    raceDisqualifiedPlayers = Array.isArray(state.raceDisqualifiedPlayers) ? state.raceDisqualifiedPlayers : raceDisqualifiedPlayers;
-    raceRoundNumber = Number.isFinite(state.raceRoundNumber) ? state.raceRoundNumber : raceRoundNumber;
-    lastHandWinnerIndex = Number.isInteger(state.lastHandWinnerIndex) ? state.lastHandWinnerIndex : lastHandWinnerIndex;
-    usedTileKeys.clear();
-    chain.forEach((segment) => usedTileKeys.add(tileKey(segment.tile)));
-    renderBoneyardStack();
-    renderHands();
-    renderChain();
-    updateInteractivity();
-    if (gameFinished) {
-      if (Number.isInteger(winnerIndex)) showWinnerHighlight(winnerIndex);
-      setStatus(winnerIndex === human ? 'You won!' : winnerIndex !== null ? `Player ${winnerIndex + 1} won!` : 'Game over');
-    }
-  } finally {
-    applyingOnlineState = false;
-  }
-}
-
-function emitDominoOnlineState(action = 'sync') {
-  if (!isOnlineMatch || applyingOnlineState || !onlineSocket || !onlineTableId || !accountId) return;
-  onlineSocket.emit('dominoRoyalState', {
-    tableId: onlineTableId,
-    accountId,
-    action,
-    state: serializeDominoState()
-  }, (res = {}) => {
-    if (!res.success && res.error) {
-      setStatus(`Online sync error: ${res.error}`);
-    }
-  });
-}
-
-function loadSocketIoClient() {
-  if (window.io) return Promise.resolve(window.io);
-  return new Promise((resolve, reject) => {
-    const existing = document.querySelector('script[data-domino-socket-io="true"]');
-    if (existing) {
-      existing.addEventListener('load', () => resolve(window.io), { once: true });
-      existing.addEventListener('error', reject, { once: true });
-      return;
-    }
-    const script = document.createElement('script');
-    const socketClientBase = onlineSocketUrl ? onlineSocketUrl.replace(/\/$/, '') : '';
-    script.src = `${socketClientBase}${onlineSocketPath.replace(/\/$/, '')}/socket.io.js`;
-    script.async = true;
-    script.dataset.dominoSocketIo = 'true';
-    script.onload = () => resolve(window.io);
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
-}
-
-function connectDominoOnlineRuntime() {
-  if (!isOnlineMatch) return Promise.resolve({ online: false });
-  if (!onlineTableId || !accountId) {
-    setStatus('Missing online table. Return to lobby.');
-    return Promise.resolve({ online: true, success: false });
-  }
-  setStatus('Connecting online table…');
-  return loadSocketIoClient().then((ioFactory) => new Promise((resolve) => {
-    if (!ioFactory) {
-      setStatus('Socket client unavailable. Return to lobby.');
-      resolve({ online: true, success: false });
-      return;
-    }
-    onlineSocket = ioFactory(onlineSocketUrl || window.location.origin, {
-      path: onlineSocketPath,
-      transports: ['websocket', 'polling'],
-      auth: { accountId },
-      reconnectionAttempts: 8,
-      reconnectionDelay: 500,
-      timeout: 20000
-    });
-    const timeout = window.setTimeout(() => {
-      setStatus('Online table connection timed out.');
-      resolve({ online: true, success: false });
-    }, 12000);
-    const join = () => {
-      onlineSocket.emit('register', { playerId: accountId });
-      onlineSocket.emit('joinGameTable', {
-        accountId,
-        tableId: onlineTableId,
-        gameType: 'domino-royal'
-      }, (res = {}) => {
-        window.clearTimeout(timeout);
-        if (!res.success) {
-          setStatus(`Could not join table${res.error ? `: ${res.error}` : ''}.`);
-          resolve({ online: true, success: false });
-          return;
-        }
-        onlinePlayers = Array.isArray(res.players) ? res.players : [];
-        const found = onlinePlayers.findIndex((player) => String(player?.id || '') === String(accountId));
-        onlineSeatIndex = found >= 0 ? found : 0;
-        human = onlineSeatIndex;
-        N = Math.max(2, Math.min(4, onlinePlayers.length || N));
-        onlineHostShouldCreateInitialState = onlineSeatIndex === 0 && !res.dominoState;
-        if (res.dominoState) {
-          onlineStateSeq = Number(res.dominoSeq) || 0;
-          applyDominoState(res.dominoState);
-        }
-        onlineSocket.on('dominoRoyalState', (message = {}) => {
-          if (message.tableId !== onlineTableId) return;
-          const seq = Number(message.seq) || 0;
-          if (seq && seq <= onlineStateSeq) return;
-          onlineStateSeq = seq || onlineStateSeq;
-          if (message.state) applyDominoState(message.state);
-        });
-        setStatus(onlineHostShouldCreateInitialState ? 'Creating online hand…' : 'Online table synced.');
-        resolve({ online: true, success: true, hasState: !!res.dominoState, host: onlineHostShouldCreateInitialState });
-      });
-    };
-    onlineSocket.on('connect', join);
-    onlineSocket.on('connect_error', () => setStatus('Reconnecting online table…'));
-  })).catch((error) => {
-    console.warn('Domino online connection failed', error);
-    setStatus('Online connection failed. Return to lobby.');
-    return { online: true, success: false };
-  });
-}
-
 function tileKey(tile) {
   const ct = canonTile(tile);
   return ct ? `${ct.a}|${ct.b}` : '';
@@ -10308,10 +10105,6 @@ function startGame({ resetRace = true } = {}) {
   renderChain();
   current = (starter - 1 + N) % N;
   updateInteractivity();
-  if (isOnlineMatch) {
-    emitDominoOnlineState('init');
-    return;
-  }
   if (current !== human) {
     scheduleCpuPlay();
   }
@@ -11001,7 +10794,6 @@ if (btnDraw) {
   renderHands();
   if (drewTile) {
     SFX.drawTile();
-    emitDominoOnlineState('draw');
   }
   });
 }
@@ -11019,18 +10811,7 @@ if (btnPass) {
 async function bootstrapDominoRoyal() {
   try {
     await loadHumanProfileFromApi();
-    const onlineJoin = await connectDominoOnlineRuntime();
-    if (onlineJoin.online && !onlineJoin.success) {
-      setControlEnabled(false);
-      return;
-    }
-    if (!onlineJoin.online || onlineJoin.host) {
-      startGame();
-    } else if (onlineJoin.hasState) {
-      updateInteractivity();
-    } else {
-      setStatus('Waiting for host to create the online hand…');
-    }
+    startGame();
     setControlEnabled(true);
   } catch (error) {
     console.error('Domino Royal failed to start', error);
@@ -11153,7 +10934,6 @@ function finishGame({ winner = null, reason = '', revealAll = false } = {}) {
     SFX.drawGame();
   }
   showWinnerOverlay({ winner: winnerIndex, reason });
-  emitDominoOnlineState('finish');
 }
 
 
@@ -11252,13 +11032,10 @@ function nextTurn() {
     return;
   }
   updateInteractivity();
-  if (isOnlineMatch) {
-    emitDominoOnlineState('turn');
-  }
   if (gameFinished) {
     return;
   }
-  if (!isOnlineMatch && current !== human) {
+  if (current !== human) {
     scheduleCpuPlay();
   }
 }
@@ -12050,9 +11827,6 @@ function detachRuntimeListeners() {
 }
 
 function shutdownDominoRoyal(reason = 'unknown') {
-  try {
-    onlineSocket?.disconnect?.();
-  } catch {}
   if (isGameShuttingDown) return;
   isGameShuttingDown = true;
   try {
