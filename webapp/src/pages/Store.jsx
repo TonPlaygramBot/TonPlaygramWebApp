@@ -476,6 +476,7 @@ const FOUR_IN_ROW_TYPE_LABELS = {
   tables: 'Table Models',
   tableFinish: 'Table Finish',
   chairColor: 'Chairs',
+  humanCharacter: 'Seated Characters',
   boardTheme: 'Board Skins',
   boardLayout: 'Board Sizes',
   stoneStyle: 'Stone Sets',

@@ -1,11 +1,11 @@
-import { MURLAN_TABLE_THEMES } from './murlanThemes.js'
+import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js'
+import { CHESS_HUMAN_CHARACTER_OPTIONS } from './chessBattleInventoryConfig.js'
 import { MURLAN_TABLE_FINISHES } from './murlanTableFinishes.js'
 import {
   POOL_ROYALE_DEFAULT_HDRI_ID,
   POOL_ROYALE_HDRI_VARIANTS
 } from './poolRoyaleInventoryConfig.js'
 import { swatchThumbnail } from './storeThumbnails.js'
-import { MURLAN_STOOL_THEMES } from './murlanThemes.js'
 
 const DEFAULT_HDRI_ID = POOL_ROYALE_DEFAULT_HDRI_ID || POOL_ROYALE_HDRI_VARIANTS[0]?.id
 
@@ -13,6 +13,7 @@ const FOUR_IN_ROW_POLYHAVEN_CHAIR_OPTIONS = MURLAN_STOOL_THEMES.filter((option) 
 
 export const FOUR_IN_ROW_CHAIR_OPTIONS = Object.freeze([...FOUR_IN_ROW_POLYHAVEN_CHAIR_OPTIONS])
 export const FOUR_IN_ROW_TABLE_OPTIONS = Object.freeze([...MURLAN_TABLE_THEMES])
+export const FOUR_IN_ROW_HUMAN_CHARACTER_OPTIONS = Object.freeze([...CHESS_HUMAN_CHARACTER_OPTIONS])
 
 export const FOUR_IN_ROW_BOARD_LAYOUTS = Object.freeze([
   { id: 'classic7x6', label: 'Classic 7×6', rows: 6, cols: 7 },
@@ -94,6 +95,7 @@ export const FOUR_IN_ROW_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   boardTheme: [FOUR_IN_ROW_BOARD_THEMES[0]?.id],
   boardLayout: [FOUR_IN_ROW_BOARD_LAYOUTS[0]?.id],
   stoneStyle: [FOUR_IN_ROW_STONE_STYLES[0]?.id],
+  humanCharacter: [FOUR_IN_ROW_HUMAN_CHARACTER_OPTIONS[0]?.id],
   environmentHdri: [DEFAULT_HDRI_ID]
 })
 
@@ -107,6 +109,7 @@ export const FOUR_IN_ROW_BATTLE_OPTION_LABELS = Object.freeze({
   boardTheme: Object.freeze(FOUR_IN_ROW_BOARD_THEMES.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
   boardLayout: Object.freeze(FOUR_IN_ROW_BOARD_LAYOUTS.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
   stoneStyle: Object.freeze(FOUR_IN_ROW_STONE_STYLES.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
+  humanCharacter: Object.freeze(FOUR_IN_ROW_HUMAN_CHARACTER_OPTIONS.reduce((acc, option) => ({ ...acc, [option.id]: option.label }), {})),
   environmentHdri: Object.freeze(POOL_ROYALE_HDRI_VARIANTS.reduce((acc, variant) => ({ ...acc, [variant.id]: `${variant.name} HDRI` }), {}))
 })
 
@@ -197,6 +200,17 @@ export const FOUR_IN_ROW_BATTLE_STORE_ITEMS = [
     thumbnail: theme.thumbnail,
     swatches: [theme.tint, theme.grid],
     previewShape: 'board'
+  })),
+
+  ...FOUR_IN_ROW_HUMAN_CHARACTER_OPTIONS.map((option, idx) => ({
+    id: `fourinrow-human-${option.id}`,
+    type: 'humanCharacter',
+    optionId: option.id,
+    name: option.label,
+    price: option.price ?? 620 + idx * 30,
+    description: option.description || 'Domino Battle Royal seated human character adapted for the 4 in a Row table.',
+    thumbnail: option.thumbnail,
+    previewShape: 'character'
   })),
   ...FOUR_IN_ROW_STONE_STYLES.slice(1).map((style, idx) => ({
     id: `fourinrow-stones-${style.id}`,

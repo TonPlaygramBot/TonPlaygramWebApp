@@ -24,6 +24,7 @@ import {
   FOUR_IN_ROW_RING_FINISH_OPTIONS,
   FOUR_IN_ROW_STONE_STYLES,
   FOUR_IN_ROW_TABLE_OPTIONS,
+  FOUR_IN_ROW_HUMAN_CHARACTER_OPTIONS,
   FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT,
   FOUR_IN_ROW_BOARD_LAYOUTS,
   FOUR_IN_ROW_BATTLE_OPTION_LABELS
@@ -151,8 +152,11 @@ const FOUR_IN_ROW_CHARACTER_PROPORTION_SCALE = 1.9;
 const FOUR_IN_ROW_CHARACTER_EXTRA_LOWER_OFFSET = 0.4;
 const FOUR_IN_ROW_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.42;
 const FOUR_IN_ROW_CHARACTER_MODEL_CACHE = new Map();
-const FOUR_IN_ROW_CHESS_HUMAN_OPTIONS = Object.freeze(
-  CHESS_HUMAN_CHARACTER_OPTIONS.filter((option) => Array.isArray(option?.modelUrls) && option.modelUrls.length)
+const FOUR_IN_ROW_DOMINO_HUMAN_OPTIONS = Object.freeze(
+  FOUR_IN_ROW_HUMAN_CHARACTER_OPTIONS.filter((option) => {
+    const urls = Array.isArray(option?.modelUrls) ? option.modelUrls : [option?.url];
+    return urls.filter(Boolean).length > 0;
+  })
 );
 const FOUR_IN_ROW_CHARACTER_ANIMATION_DURATION = 1.2;
 const FOUR_IN_ROW_CHARACTER_LOAD_TIMEOUT_MS = 8000;
@@ -943,15 +947,15 @@ async function loadFourInRowCharacterModel(
   seatIndex = 0,
   stylistSeed = 0
 ) {
-  const fallbackOption = FOUR_IN_ROW_CHESS_HUMAN_OPTIONS[0] || {};
+  const fallbackOption = FOUR_IN_ROW_DOMINO_HUMAN_OPTIONS[0] || CHESS_HUMAN_CHARACTER_OPTIONS[0] || {};
   const selectedOption = option || fallbackOption;
   const modelUrls = Array.isArray(selectedOption?.modelUrls)
     ? selectedOption.modelUrls.filter(Boolean)
-    : [];
+    : [selectedOption?.url].filter(Boolean);
   const candidateUrls = modelUrls.length
     ? normalizeFourInRowHumanModelUrlCandidates(modelUrls)
     : normalizeFourInRowHumanModelUrlCandidates(fallbackOption.modelUrls || []);
-  if (!candidateUrls.length) throw new Error('Missing Chess Battle Royal human model URL');
+  if (!candidateUrls.length) throw new Error('Missing Domino Battle Royal human model URL');
   const cacheKey = `${selectedOption.id || fallbackOption.id || candidateUrls[0]}::${candidateUrls.join('|')}`;
   if (FOUR_IN_ROW_CHARACTER_MODEL_CACHE.has(cacheKey)) {
     return FOUR_IN_ROW_CHARACTER_MODEL_CACHE.get(cacheKey);
@@ -1365,6 +1369,66 @@ async function resolvePolyhavenModelCandidates(assetId) {
   return [...fromManifest, ...fallback];
 }
 
+
+function fitFourInRowTableModelToArena(root) {
+  root.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(root);
+  if (box.isEmpty()) return root;
+  const size = box.getSize(new THREE.Vector3());
+  const targetDiameter = TABLE_RADIUS * 2.05;
+  const footprint = Math.max(size.x || 1, size.z || 1);
+  const height = size.y || 1;
+  const scale = Math.min(targetDiameter / footprint, Math.max(TABLE_HEIGHT * 1.35, 0.01) / height);
+  root.scale.multiplyScalar(Number.isFinite(scale) && scale > 0 ? scale : 1);
+  root.updateMatrixWorld(true);
+  const scaledBox = new THREE.Box3().setFromObject(root);
+  const center = scaledBox.getCenter(new THREE.Vector3());
+  root.position.x -= center.x;
+  root.position.z -= center.z;
+  root.position.y -= scaledBox.min.y;
+  root.updateMatrixWorld(true);
+  return root;
+}
+
+async function createFourInRowTableModel(tableTheme, renderer = null) {
+  if (tableTheme?.source !== 'polyhaven' || !tableTheme?.assetId) return null;
+  const loader = createConfiguredGLTFLoader(renderer);
+  let lastError = null;
+  const candidates = await resolvePolyhavenModelCandidates(tableTheme.assetId);
+  for (const candidate of candidates) {
+    try {
+      if (MeshoptDecoder?.ready) await MeshoptDecoder.ready;
+      const candidateUrl = candidate?.url;
+      if (!candidateUrl) continue;
+      const activeLoader = candidate?.includeUrlMap
+        ? createPolyhavenGltfLoader(renderer, candidate.includeUrlMap)
+        : loader;
+      const resolvedUrl = new URL(
+        candidateUrl,
+        typeof window !== 'undefined' ? window.location?.href : candidateUrl
+      ).href;
+      const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
+      activeLoader.setResourcePath(resourcePath);
+      activeLoader.setPath('');
+      const gltf = await activeLoader.loadAsync(resolvedUrl);
+      const root = gltf.scene || gltf.scenes?.[0];
+      if (!root) continue;
+      root.traverse((obj) => {
+        if (!obj.isMesh) return;
+        obj.castShadow = true;
+        obj.receiveShadow = true;
+      });
+      preserveOriginalGltfTextureMapping(root);
+      fitFourInRowTableModelToArena(root);
+      return root;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  console.warn('Four in Row table model failed to load; using procedural table fallback.', tableTheme?.id, lastError);
+  return null;
+}
+
 async function createChairModel(chairTheme, renderer = null) {
   const loader = createConfiguredGLTFLoader(renderer);
   const fallbackAssetId = 'painted_wooden_chair_01';
@@ -1551,6 +1615,10 @@ export default function FourInRowRoyal() {
       inventory.environmentHdri?.[0] ||
       FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT.environmentHdri?.[0] ||
       POOL_ROYALE_DEFAULT_HDRI_ID,
+    humanCharacter:
+      inventory.humanCharacter?.[0] ||
+      FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT.humanCharacter?.[0] ||
+      FOUR_IN_ROW_HUMAN_CHARACTER_OPTIONS[0]?.id,
     graphics: GRAPHICS_PRESETS[1]?.id || GRAPHICS_PRESETS[0].id
   }));
 
@@ -1941,12 +2009,14 @@ export default function FourInRowRoyal() {
     keyLightRef.current = key;
     scene.add(key);
 
+    const tableTheme =
+      FOUR_IN_ROW_TABLE_OPTIONS.find((item) => item.id === appearance.tableId) ||
+      FOUR_IN_ROW_TABLE_OPTIONS[0];
     const table = createMurlanStyleTable({
       arena: arenaRoot,
       renderer,
       tableRadius: TABLE_RADIUS,
-      tableHeight: TABLE_HEIGHT,
-      tableThemeId: appearance.tableId
+      tableHeight: TABLE_HEIGHT
     });
     tablePartsRef.current = table.parts;
     applyTableMaterials(
@@ -1954,6 +2024,14 @@ export default function FourInRowRoyal() {
       MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) ||
         MURLAN_TABLE_FINISHES[0]
     );
+    if (tableTheme?.source === 'polyhaven') {
+      createFourInRowTableModel(tableTheme, renderer).then((model) => {
+        if (!model || arenaRootRef.current !== arenaRoot) return;
+        if (table.group?.parent) table.group.parent.remove(table.group);
+        tablePartsRef.current = null;
+        arenaRoot.add(model);
+      });
+    }
 
     const chairTheme =
       FOUR_IN_ROW_CHAIR_OPTIONS.find(
@@ -1984,12 +2062,13 @@ export default function FourInRowRoyal() {
       arenaRoot.add(chair);
     });
     characterRigsRef.current.clear();
-    const humanOptions = FOUR_IN_ROW_CHESS_HUMAN_OPTIONS.length
-      ? FOUR_IN_ROW_CHESS_HUMAN_OPTIONS
+    const humanOptions = FOUR_IN_ROW_DOMINO_HUMAN_OPTIONS.length
+      ? FOUR_IN_ROW_DOMINO_HUMAN_OPTIONS
       : CHESS_HUMAN_CHARACTER_OPTIONS;
-    const requestedHumanId = params.get('humanCharacter');
+    const requestedHumanId = params.get('humanCharacter') || appearance.humanCharacter;
     const playerHumanOption =
       humanOptions.find((option) => option.id === requestedHumanId) ||
+      humanOptions.find((option) => option.id === appearance.humanCharacter) ||
       humanOptions[0] ||
       CHESS_HUMAN_CHARACTER_OPTIONS[0];
     const aiHumanPool = humanOptions.filter((option) => option.id !== playerHumanOption?.id);
@@ -2566,6 +2645,8 @@ export default function FourInRowRoyal() {
       mount.removeChild(renderer.domElement);
     };
   }, [
+    appearance.humanCharacter,
+    appearance.tableId,
     characterSeed,
     rows,
     cols,
@@ -2918,6 +2999,15 @@ export default function FourInRowRoyal() {
 
   const optionGroups = [
     {
+      key: 'tableId',
+      label: 'Table Models',
+      options: FOUR_IN_ROW_TABLE_OPTIONS.map((item) => ({
+        id: item.id,
+        label: item.label,
+        thumbnail: item.thumbnail
+      }))
+    },
+    {
       key: 'chairId',
       label: 'Chairs',
       options: FOUR_IN_ROW_CHAIR_OPTIONS.map((item) => ({
@@ -2975,6 +3065,15 @@ export default function FourInRowRoyal() {
       key: 'boardTheme',
       label: 'Board',
       options: FOUR_IN_ROW_BOARD_THEMES.map((item) => ({
+        id: item.id,
+        label: item.label,
+        thumbnail: item.thumbnail
+      }))
+    },
+    {
+      key: 'humanCharacter',
+      label: 'Characters',
+      options: FOUR_IN_ROW_HUMAN_CHARACTER_OPTIONS.map((item) => ({
         id: item.id,
         label: item.label,
         thumbnail: item.thumbnail
