@@ -28,6 +28,8 @@ import {
   DEFAULT_TABLE_CUSTOMIZATION
 } from '../utils/tableCustomizationOptions.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../utils/colorSpace.js';
+import { getGameVolume } from '../utils/sound.js';
+import { playLudoCaptureWeaponSfx } from '../utils/ludoSfx.js';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const clamp01 = (v) => clamp(v, 0, 1);
 const smootherstep01 = (v) => {
@@ -841,6 +843,69 @@ const SNAKE_CAPTURE_WEAPON_KIND_MAP = Object.freeze({
   'slot-17-mrtk-gun-glb': 'glockSidearmAttack',
   'slot-18-fps-gun-gltf': 'shotgunBlastAttack'
 });
+const SNAKE_CAPTURE_WEAPON_SFX_ID_MAP = Object.freeze({
+  missileJavelin: 'missileJavelin',
+  droneAttack: 'droneAttack',
+  ukrainianDroneAttack: 'ukrainianDroneAttack',
+  ukrainiandroneattack: 'ukrainianDroneAttack',
+  fighterJetAttack: 'fighterJetAttack',
+  helicopterAttack: 'helicopterAttack',
+  supportTruckAttack: 'missileJavelin',
+  supporttruckattack: 'missileJavelin',
+  truck: 'missileJavelin',
+  fpsGunAttack: 'fpsGunAttack',
+  glockSidearmAttack: 'glockSidearmAttack',
+  assaultRifleAttack: 'assaultRifleAttack',
+  uziSprayAttack: 'uziSprayAttack',
+  ak47VolleyAttack: 'ak47VolleyAttack',
+  krsvBurstAttack: 'krsvBurstAttack',
+  smithSidearmAttack: 'smithSidearmAttack',
+  mosinMarksmanAttack: 'mosinMarksmanAttack',
+  sigsauerTacticalAttack: 'sigsauerTacticalAttack',
+  grenadeBlastAttack: 'grenadeBlastAttack',
+  shotgunBlastAttack: 'shotgunBlastAttack',
+  sniperShotAttack: 'sniperShotAttack',
+  smgBurstAttack: 'smgBurstAttack',
+  compactCarbineAttack: 'compactCarbineAttack',
+  marksmanDmrAttack: 'marksmanDmrAttack',
+  polyShotgun01Attack: 'shotgunBlastAttack',
+  polyAssaultRifle01Attack: 'assaultRifleAttack',
+  polyPistol01Attack: 'glockSidearmAttack',
+  polyRevolver01Attack: 'smithSidearmAttack',
+  polySawedOff01Attack: 'shotgunBlastAttack',
+  polyRevolver02Attack: 'smithSidearmAttack',
+  polyShotgun02Attack: 'shotgunBlastAttack',
+  polyShotgun03Attack: 'shotgunBlastAttack',
+  polySmg01Attack: 'smgBurstAttack',
+  'poly-shotgun-01': 'shotgunBlastAttack',
+  'poly-assault-rifle-01': 'assaultRifleAttack',
+  'poly-pistol-01': 'glockSidearmAttack',
+  'poly-revolver-01': 'smithSidearmAttack',
+  'poly-sawed-off-01': 'shotgunBlastAttack',
+  'poly-revolver-02': 'smithSidearmAttack',
+  'poly-shotgun-02': 'shotgunBlastAttack',
+  'poly-shotgun-03': 'shotgunBlastAttack',
+  'poly-smg-01': 'smgBurstAttack',
+  'poly-robot-large-gun-01': 'assaultRifleAttack',
+  'poly-robot-flying-gun-01': 'smgBurstAttack',
+  'poly-bazooka-01': 'polyBazooka01Attack',
+  'poly-grenade-launcher-01': 'polyGrenadeLauncher01Attack',
+  'poly-dynamite-bomb-01': 'polyDynamiteBomb01Attack',
+  'poly-molotov-01': 'polyMolotov01Attack',
+  'poly-gas-tank-01': 'polyGasTank01Attack',
+  'poly-hand-grenade-01': 'polyHandGrenade01Attack',
+  'poly-tank-01': 'polyTank01Attack',
+  'slot-10-ak47-gltf': 'ak47VolleyAttack',
+  'slot-11-krsv-gltf': 'krsvBurstAttack',
+  'slot-12-smith-gltf': 'smithSidearmAttack',
+  'slot-13-mosin-gltf': 'mosinMarksmanAttack',
+  'slot-14-uzi-gltf': 'uziSprayAttack',
+  'slot-15-sigsauer-gltf': 'sigsauerTacticalAttack',
+  'slot-16-awp-glb': 'sniperShotAttack',
+  'slot-17-mrtk-gun-glb': 'glockSidearmAttack',
+  'slot-18-fps-gun-gltf': 'shotgunBlastAttack'
+});
+const resolveSnakeCaptureWeaponSfxId = (weaponType) => SNAKE_CAPTURE_WEAPON_SFX_ID_MAP[weaponType] || weaponType || 'missileJavelin';
 const WEAPON_TABLE_PARKING_ROTATION_BY_POSE = Object.freeze({
   // Portrait screen: top/bottom player weapons lie flat left-to-right on the tabletop.
   horizontal: Object.freeze({ yaw: 0, preferAxis: 'x' }),
@@ -3601,6 +3666,7 @@ function createDiceRollAnimation(
   const wobbleVectors = diceArray.map(
     () => new THREE.Vector3((Math.random() - 0.5) * 0.16, 0, (Math.random() - 0.5) * 0.16)
   );
+  const targetValues = diceArray.map(() => 1 + Math.floor(Math.random() * 6));
 
   return {
     type: 'diceRoll',
@@ -3629,6 +3695,12 @@ function createDiceRollAnimation(
         diceArray.forEach((die, index) => {
           const base = basePositions[index];
           if (!base) return;
+          const targetValue = targetValues[index] ?? 1;
+          if (typeof die.userData?.setValue === 'function') {
+            die.userData.setValue(targetValue);
+          } else {
+            setDiceOrientation(die, targetValue);
+          }
           die.position.copy(base);
           die.position.y = baseY;
         });
@@ -6386,7 +6458,8 @@ export default function SnakeBoard3D({
   cameraViewMode = '3d',
   camera2dTilt = 0.2,
   onCameraTiltChange,
-  onDiceTap
+  onDiceTap,
+  soundEnabled = true
 }) {
   const mountRef = useRef(null);
   const cameraRef = useRef(null);
@@ -7580,7 +7653,15 @@ export default function SnakeBoard3D({
       captureStartMs: performance.now(),
       captureEndMs: 0
     };
+    const sfxWeaponId = resolveSnakeCaptureWeaponSfxId(captureEvent.weaponType || 'missileJavelin');
+    const playCaptureSfx = (stage, multiplier = 1) => {
+      playLudoCaptureWeaponSfx(sfxWeaponId, stage, {
+        volume: getGameVolume() * multiplier,
+        muted: !soundEnabled
+      });
+    };
     const completeCaptureAnimation = () => {
+      playCaptureSfx('loopStop');
       seatedHumanActionRef.current = {
         ...seatedHumanActionRef.current,
         captureEndMs: performance.now()
@@ -7648,6 +7729,8 @@ export default function SnakeBoard3D({
     missileProjectile.trail?.forEach((puff) => {
       puff.visible = !isUkrainianDroneAircraft;
     });
+    playCaptureSfx('loopStart');
+    playCaptureSfx('launch');
 
     const startTime = performance.now();
     const stageFlightDuration = CAPTURE_MISSILE_FLIGHT_MS / Math.max(0.58, captureTuning.speed || 1);
@@ -7665,6 +7748,12 @@ export default function SnakeBoard3D({
     const returnDuration = CAPTURE_RETURN_MS;
     let aircraftMissileLaunchStartedAt = null;
     let aircraftMissileLaunchFrom = null;
+    let impactSfxPlayed = false;
+    const playImpactSfxOnce = () => {
+      if (impactSfxPlayed) return;
+      impactSfxPlayed = true;
+      playCaptureSfx('impact');
+    };
     const camera = cameraRef.current;
     const controls = board.controls;
     if (cameraViewMode !== '2d' && camera && controls) {
@@ -7827,6 +7916,7 @@ export default function SnakeBoard3D({
           primaryVehicle.root.visible = false;
           const impactElapsed = Math.max(0, missileElapsed - perMissileFlight);
           if (impactElapsed <= impactDuration) {
+            playImpactSfxOnce();
             explosion.root.position.copy(impact);
             updateCaptureExplosionRig(explosion, impactElapsed / 1000);
             setCameraTrack(impact);
@@ -7884,6 +7974,7 @@ export default function SnakeBoard3D({
         missileProjectile.root.visible = false;
         const impactElapsed = attackElapsed - (vehicleKind === 'drone' ? droneAttackDuration : volleyDuration);
         if (impactElapsed <= impactDuration) {
+          playImpactSfxOnce();
           explosion.root.position.copy(impact);
           updateCaptureExplosionRig(explosion, impactElapsed / 1000);
           setCameraTrack(impact);
@@ -7919,7 +8010,7 @@ export default function SnakeBoard3D({
         return false;
       }
     });
-  }, [captureEvent, onCaptureAnimationComplete]);
+  }, [captureEvent, onCaptureAnimationComplete, soundEnabled]);
 
   useEffect(() => {
     const handle = () => fitRef.current();
