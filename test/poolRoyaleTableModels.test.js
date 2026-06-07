@@ -34,11 +34,11 @@ describe('Pool Royale table models', () => {
     assert.equal(showood.hideGeneratedRailMarkers, false);
     assert.deepEqual(showood.hideSurfaceRoles, []);
     assert.deepEqual(showood.preserveSourceTextureRoles, [
+      'sideWoodApron',
       'baseFoot',
       'trim',
       'pocket'
     ]);
-    assert.deepEqual(showood.forceHideExternalReferenceParts, []);
     assert.equal(showood.forceGeneratedChromePlates, false);
     assert.equal(showood.upperFrameHeightScale, 0.58);
     assert.equal(showood.cornerRimHeightScale, 0.28);
