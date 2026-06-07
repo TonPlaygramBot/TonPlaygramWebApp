@@ -13583,7 +13583,7 @@ function subtlyWidenPoolRoyaleShowoodFeet(model, tableModel) {
   model.updateMatrixWorld(true);
 }
 
-function subtlyExpandPoolRoyaleShowoodRailSightsAndAprons(model, tableModel) {
+function subtlyExpandPoolRoyaleShowoodRailSightsAndAprons(model, tableModel, dims = null) {
   if (!model || !tableModel?.useReferenceShowoodMapping) return;
   const visualScale = Number(tableModel?.railSightApronVisualScale);
   const railSightHeightScale = Number(tableModel?.railSightVisualHeightScale);
@@ -13601,6 +13601,8 @@ function subtlyExpandPoolRoyaleShowoodRailSightsAndAprons(model, tableModel) {
   const fullBox = new THREE.Box3().setFromObject(model);
   if (fullBox.isEmpty()) return;
   const fullCenter = fullBox.getCenter(new THREE.Vector3());
+  const targetHalfWidth = Number.isFinite(dims?.targetWidth) ? Math.max(MICRO_EPS, dims.targetWidth * 0.5) : null;
+  const targetHalfLength = Number.isFinite(dims?.targetLength) ? Math.max(MICRO_EPS, dims.targetLength * 0.5) : null;
   const safeVisualScale = hasScale ? THREE.MathUtils.clamp(visualScale, 1, 1.18) : 1;
   const safeRailSightHeightScale = hasRailSightHeight ? THREE.MathUtils.clamp(railSightHeightScale, 1, 1.22) : 1;
   const safeSideApronHeightScale = hasSideApronHeight ? THREE.MathUtils.clamp(sideApronHeightScale, 1, 1.24) : 1;
@@ -13621,21 +13623,30 @@ function subtlyExpandPoolRoyaleShowoodRailSightsAndAprons(model, tableModel) {
     const heightScale = isSideApron ? safeSideApronHeightScale : safeRailSightHeightScale;
     if (heightScale > 1) child.scale.y *= heightScale;
 
-    const outwardOffset = isRailSight && hasRailSightOffset
+    const configuredOffset = isRailSight && hasRailSightOffset
       ? railSightOutwardOffset
       : isSideApron && hasSideApronOffset
         ? sideApronOutwardOffset
         : 0;
-    if (Math.abs(outwardOffset) > MICRO_EPS) {
-      const childBox = new THREE.Box3().setFromObject(child);
-      if (!childBox.isEmpty()) {
-        const childCenter = childBox.getCenter(new THREE.Vector3());
-        const awayX = childCenter.x - fullCenter.x;
-        const awayZ = childCenter.z - fullCenter.z;
-        if (Math.abs(awayX) >= Math.abs(awayZ) && Math.abs(awayX) > MICRO_EPS) {
-          child.position.x += Math.sign(awayX) * outwardOffset;
-        } else if (Math.abs(awayZ) > MICRO_EPS) {
-          child.position.z += Math.sign(awayZ) * outwardOffset;
+    const childBox = new THREE.Box3().setFromObject(child);
+    if (!childBox.isEmpty()) {
+      const childCenter = childBox.getCenter(new THREE.Vector3());
+      const awayX = childCenter.x - fullCenter.x;
+      const awayZ = childCenter.z - fullCenter.z;
+      const followsWidth = Math.abs(awayX) >= Math.abs(awayZ);
+      const axis = followsWidth ? 'x' : 'z';
+      const away = followsWidth ? awayX : awayZ;
+      const targetHalf = followsWidth ? targetHalfWidth : targetHalfLength;
+      if (Math.abs(away) > MICRO_EPS) {
+        const direction = Math.sign(away);
+        let outwardOffset = configuredOffset;
+        if (targetHalf != null) {
+          const outerFace = direction > 0 ? childBox.max[axis] : -childBox.min[axis];
+          const targetOuterFace = targetHalf + configuredOffset;
+          outwardOffset = Math.max(-0.18, Math.min(0.18, targetOuterFace - outerFace));
+        }
+        if (Math.abs(outwardOffset) > MICRO_EPS) {
+          child.position[axis] += direction * outwardOffset;
         }
       }
     }
@@ -13715,7 +13726,7 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   stretchPoolRoyaleExternalLowerBase(model, tableModel, dims);
   stretchPoolRoyaleShowoodLegsToFeet(model, tableModel);
   subtlyWidenPoolRoyaleShowoodFeet(model, tableModel);
-  subtlyExpandPoolRoyaleShowoodRailSightsAndAprons(model, tableModel);
+  subtlyExpandPoolRoyaleShowoodRailSightsAndAprons(model, tableModel, dims);
   model.userData = {
     ...(model.userData || {}),
     poolRoyaleExternalTable: true,
