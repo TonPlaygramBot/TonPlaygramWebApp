@@ -1425,7 +1425,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     'Pool table inner ratio must match the official 2:1 target after scaling.'
   );
 const MM_TO_UNITS = innerLong / WIDTH_REF; // map game physics directly to the native Showood 7 ft GLB playfield size
-const BALL_SIZE_SCALE = 1; // official WPA/WEPF 57.15 mm balls; every helper stays tied to BALL_R/BALL_DIAMETER
+const BALL_SIZE_SCALE = 1.045; // slightly enlarged for clearer mobile portrait play; every helper stays tied to BALL_R/BALL_DIAMETER
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -6337,14 +6337,16 @@ const RANDOM_BREAK_REVEAL_DELAY_MS = 360;
 const RANDOM_BREAK_RESULT_PAUSE_MS = 480;
 const REPLAY_CUE_MIN_PULLBACK_MS = 220; // guarantee a readable pullback in replay/broadcast clips
 const REPLAY_CUE_MIN_RELEASE_MS = 180; // keep forward stroke visible while still feeling fast
-const MIN_VISIBLE_CUE_PUSH_DISTANCE = BALL_R * 0.12;
+const MIN_VISIBLE_CUE_PUSH_DISTANCE = BALL_R * 0.42;
 const REPLAY_FOUL_WRONG_BALL_IMPACT_WINDOW_MS = 220;
 const REPLAY_FOUL_WRONG_BALL_IMPACT_SLOW_FACTOR = 0.82;
 const CUE_STROKE_POST_HIT_CAMERA_HOLD_MS = 140; // hold broadcast cue angle a bit longer so forward push reads clearly
 // Keep the live stroke timing aligned with the reference cue motion:
 // quick push forward and a short hold before snapping back to idle.
 const LIVE_CUE_FORWARD_DURATION_MS = 140;
-const LIVE_CUE_IMPACT_HOLD_MS = 90;
+const LIVE_CUE_IMPACT_HOLD_MS = 120;
+const LIVE_CUE_CONTACT_ADVANCE = BALL_R * 0.62;
+const LIVE_CUE_FOLLOW_THROUGH = BALL_R * 0.28;
 const CAMERA_SWITCH_MIN_HOLD_MS = 70; // cut mandatory lock further so rail-overhead camera switches in noticeably earlier
 const CUEBALL_EARLY_CAMERA_SWITCH_SPEED = BALL_R * 24;
 const CUEBALL_CAMERA_SWITCH_MIN_TRAVEL = BALL_R * 1.15;
@@ -29543,7 +29545,9 @@ const shotPowerRef = useRef(0);
             strikeDuration: strokeProfile.strikeDuration ?? LIVE_CUE_FORWARD_DURATION_MS,
             applied: false
           };
-          applyShotAtImpact(shotImpactPayload);
+          // Do not apply the physics impulse immediately on slider release.
+          // The cue stroke owns impact timing so players first see the cue stick
+          // drive forward from the pulled-back pose, then the ball/camera reacts.
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -29645,12 +29649,20 @@ const shotPowerRef = useRef(0);
           const pullbackDuration = strokeProfile.pullbackDuration ?? 0;
           const startTime = performance.now();
           const impactPos = idlePos.clone();
-          const contactAdvance = 0; // stop the cue exactly where the slider pull started, matching Snooker Royal
+          const contactAdvance = THREE.MathUtils.lerp(
+            LIVE_CUE_CONTACT_ADVANCE * 0.72,
+            LIVE_CUE_CONTACT_ADVANCE,
+            clampedPower
+          );
           shotImpactPayload.contactAdvance = contactAdvance;
           const contactPos = impactPos
             .clone()
             .addScaledVector(dir, contactAdvance);
-          const followDistance = 0; // stop at cue-ball contact instead of visually following the moving cue ball
+          const followDistance = THREE.MathUtils.lerp(
+            LIVE_CUE_FOLLOW_THROUGH * 0.55,
+            LIVE_CUE_FOLLOW_THROUGH,
+            clampedPower
+          );
           const followPos = contactPos
             .clone()
             .addScaledVector(dir, followDistance);
