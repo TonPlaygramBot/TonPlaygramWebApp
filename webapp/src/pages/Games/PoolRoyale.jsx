@@ -1185,6 +1185,7 @@ const CLOTH_COLOR_STORAGE_KEY = 'poolRoyaleClothColor';
 const TABLE_BASE_STORAGE_KEY = 'poolRoyaleTableBase';
 const POCKET_LINER_STORAGE_KEY = 'poolPocketLiner';
 const POOL_ROYALE_REPLAY_ENABLED = true;
+const CUE_LOGIC_PULL_EASE_RANGE = 0.34;
 const POOL_ROYALE_VOICE_COMMENTARY_ENABLED = false;
 const COMMENTARY_PRESET_STORAGE_KEY = 'poolRoyaleCommentaryPreset';
 const COMMENTARY_MUTE_STORAGE_KEY = 'poolRoyaleCommentaryMute';
@@ -1933,22 +1934,20 @@ const LEG_BASE_DROP = LEG_ROOM_HEIGHT * 0.3;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT - LEG_BASE_DROP + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.07;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
-const CUE_TIP_CLEARANCE = BALL_R * 0.24; // widen the visible air gap so the cue sits a little farther from the cue ball
-const CUE_TIP_GAP = BALL_R * 1.42 + CUE_TIP_CLEARANCE; // pull the cue tip slightly farther back so the blue tip remains visible
+const CUE_TIP_CLEARANCE = BALL_R * 0.18; // match Snooker Royal's visible air gap so the blue tip never kisses the cue ball
+const CUE_TIP_GAP = BALL_R * 1.02 + CUE_TIP_CLEARANCE; // match Snooker Royal's cue-ball centre-line tip spacing
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
-const CUE_PULL_VISUAL_MULTIPLIER = 1.28;
-const CUE_PULL_DISTANCE_SCALE = 0.5;
+const CUE_PULL_VISUAL_MULTIPLIER = 2.08;
 const CUE_PULL_SMOOTHING = 0.55;
 const CUE_PULL_ALIGNMENT_BOOST = 0.32; // amplify visible pull when the camera looks straight down the cue, reducing foreshortening
 const CUE_PULL_CUE_CAMERA_DAMPING = 0.08; // trim the pull depth slightly while keeping more of the stroke visible in cue view
 const CUE_PULL_STANDING_CAMERA_BONUS = 0.2; // add extra draw for higher orbit angles so the stroke feels weightier
 const CUE_PULL_MAX_VISUAL_BONUS = 0.38; // cap the compensation so the cue never overextends past the intended stroke
-const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 0.86; // trim global pullback so charge-up stays readable without over-drawing the cue
-const CUE_PULL_RETURN_PUSH = 1.22; // accelerate the forward cue drive so push-through feels snappier
-const CUE_FOLLOW_THROUGH_MIN = BALL_R * 3.9; // keep low-power shots visibly pushing through the cue ball
-const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so powerful shots visibly punch forward
+const CUE_PULL_GLOBAL_VISIBILITY_BOOST = 1.24; // match Snooker Royal pullback readability at all camera angles
+const CUE_FOLLOW_THROUGH_MIN = BALL_R * 0.18; // match Snooker Royal's short visible forward push
+const CUE_FOLLOW_THROUGH_MAX = BALL_R * 1.8; // match Snooker Royal's capped forward travel
 const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER; // keep Pool Royale release gate identical to Bilardo Shqip
 const HUMAN_PLAYER_HEIGHT_METERS = 1.8; // normalize the shooter to a realistic 1.8 m human before portrait scaling.
 const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.96; // fallback body/table proportion when cue dimensions are unavailable
@@ -2016,21 +2015,21 @@ const HUMAN_WALK_EPS = 1e-5;
 const CUE_STRIKE_DURATION_MS = 260;
 const PLAYER_CUE_STRIKE_MIN_MS = 120;
 const PLAYER_CUE_STRIKE_MAX_MS = 1400;
-const PLAYER_CUE_FORWARD_MIN_MS = 500;
-const PLAYER_CUE_FORWARD_MAX_MS = 880;
+const PLAYER_CUE_FORWARD_MIN_MS = 450;
+const PLAYER_CUE_FORWARD_MAX_MS = 1025;
 const PLAYER_CUE_FORWARD_EASE = 0.65;
 const CUE_STRIKE_HOLD_MS = 80;
 const CUE_RETURN_SPEEDUP = 0.95;
-const CUE_FOLLOW_MIN_MS = 250;
-const CUE_FOLLOW_MAX_MS = 560;
-const CUE_FOLLOW_SPEED_MIN = BALL_R * 7.6;
-const CUE_FOLLOW_SPEED_MAX = BALL_R * 16.4;
-const CUE_Y = BALL_CENTER_Y - BALL_R * 0.34; // lift the full cue line slightly to match the updated rail/cushion height
+const CUE_FOLLOW_MIN_MS = 180;
+const CUE_FOLLOW_MAX_MS = 420;
+const CUE_FOLLOW_SPEED_MIN = BALL_R * 12;
+const CUE_FOLLOW_SPEED_MAX = BALL_R * 24;
+const CUE_Y = BALL_CENTER_Y - BALL_R * 0.085; // match Snooker Royal cue height on the cue-ball centre line
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
-const CUE_BUTT_LIFT = 0; // keep the live cue stick flat on the cloth/table line for Pool Royal aiming
-const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.38; // keep extra vertical headroom so cue helpers clear cushion lips more reliably
-const CUE_CUSHION_LIFT_BIAS = BALL_R * 0.35; // raise cue helper path a bit more to avoid cushion/ball clipping on tight angles
+const CUE_BUTT_LIFT = 0; // match Snooker Royal's flat, colinear cue aiming
+const CUE_BUTT_CUSHION_CLEARANCE = 0; // Snooker Royal straight-table mode does not tilt the butt near cushions
+const CUE_CUSHION_LIFT_BIAS = 0; // Snooker Royal straight-table mode does not add cushion lift
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const CUE_FORCE_STRAIGHT_TABLE_STROKE = true; // lock the cue visually straight with the aiming line while it pulls/pushes
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
@@ -28906,32 +28905,22 @@ const shotPowerRef = useRef(0);
         );
       };
 
-      const resolveCueStrokeProfile = (_styleId, powerRatio = 0) => {
-        const p = THREE.MathUtils.clamp(powerRatio ?? 0, 0, 1);
-        const pullbackDuration = THREE.MathUtils.lerp(110, 190, p);
-        const strikeDuration = THREE.MathUtils.lerp(128, 92, p);
-        const holdDuration = THREE.MathUtils.lerp(40, 68, p);
-        return {
-          // Rebuilt cue stroke: slider pull maps directly to cue pullback,
-          // then release performs a single forward punch through the cue ball.
-          motion: 'classic',
-          pullRatio: p,
-          pullSmoothing: 1,
-          strikeDuration,
-          holdDuration,
-          pullbackDuration,
-          recoverDuration: 0,
-          impactThreshold: 0.86,
-          forwardOnly: false,
-          cameraExtraHoldMs: 240,
-          spinScale: 0.22
-        };
-      };
+      const resolveCueStrokeProfile = (_styleId, powerRatio = 0) => ({
+        motion: 'snookerRoyal',
+        pullRatio: THREE.MathUtils.clamp(powerRatio ?? 0, 0, 1),
+        pullSmoothing: CUE_PULL_SMOOTHING,
+        strikeDuration: 110,
+        holdDuration: 45,
+        pullbackDuration: 115,
+        recoverDuration: 95,
+        cameraExtraHoldMs: 0,
+        spinScale: 1
+      });
 
       const computeCuePull = (
         pullTarget = 0,
         maxPull = CUE_PULL_BASE,
-        { instant = false, preserveLarger = false, smoothingOverride = null } = {}
+        { instant = false, preserveLarger = false } = {}
       ) => {
         const slider = sliderInstanceRef.current;
         const dragging = Boolean(slider?.dragging);
@@ -28942,27 +28931,11 @@ const shotPowerRef = useRef(0);
           : pullTarget ?? 0;
         const boostedTarget = desiredTarget * CUE_PULL_GLOBAL_VISIBILITY_BOOST;
         const clampedTarget = THREE.MathUtils.clamp(boostedTarget, 0, effectiveMax);
-        const smoothing = instant || dragging
-          ? 1
-          : Number.isFinite(smoothingOverride)
-            ? THREE.MathUtils.clamp(smoothingOverride, 0.04, 1)
-            : CUE_PULL_SMOOTHING;
-        const isReturning =
-          !dragging &&
-          !instant &&
-          clampedTarget <= 0 &&
-          (cuePullCurrentRef.current ?? 0) > 0;
-        const returnSmoothing = isReturning
-          ? Math.max(smoothing, CUE_PULL_RETURN_PUSH)
-          : smoothing;
+        const smoothing = instant || dragging ? 1 : CUE_PULL_SMOOTHING;
         const nextPull =
-          returnSmoothing >= 1
+          smoothing >= 1
             ? clampedTarget
-            : THREE.MathUtils.lerp(
-                cuePullCurrentRef.current ?? 0,
-                clampedTarget,
-                returnSmoothing
-              );
+            : THREE.MathUtils.lerp(cuePullCurrentRef.current ?? 0, clampedTarget, smoothing);
         cuePullTargetRef.current = clampedTarget;
         cuePullCurrentRef.current = nextPull;
         return nextPull;
@@ -29003,13 +28976,12 @@ const shotPowerRef = useRef(0);
       };
       const computePullTargetFromPower = (power, maxPull = CUE_PULL_BASE) => {
         const ratio = THREE.MathUtils.clamp(power ?? 0, 0, 1);
-        const style = cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
-        const styleRatio = resolveCueStrokeProfile(style, ratio).pullRatio;
+        const easedRatio = 1 - Math.pow(1 - ratio, 3);
         const effectiveMax = Number.isFinite(maxPull) ? Math.max(maxPull, 0) : CUE_PULL_BASE;
         const amplifiedMax = Math.max(effectiveMax, CUE_PULL_MIN_VISUAL);
         const visualMax = effectiveMax + CUE_PULL_VISUAL_FUDGE;
-        const target =
-          amplifiedMax * styleRatio * CUE_PULL_VISUAL_MULTIPLIER * CUE_PULL_DISTANCE_SCALE;
+        const logicTarget = CUE_LOGIC_PULL_EASE_RANGE * easedRatio;
+        const target = Math.max(logicTarget, amplifiedMax * ratio * CUE_PULL_VISUAL_MULTIPLIER);
         return Math.min(target, visualMax);
       };
       // Easing adapted from easings.net (MIT) for a smoother pull/release cue stroke.
@@ -29631,16 +29603,13 @@ const shotPowerRef = useRef(0);
           );
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
-          // Rebuilt stroke pullback: tie visible pull directly to slider power
-          // and the currently available room behind the cue ball.
-          const pullRange = THREE.MathUtils.clamp(
-            maxPull * 0.92,
-            CUE_PULL_MIN_VISUAL,
-            Math.max(CUE_PULL_MIN_VISUAL, maxPull)
-          );
-          const pullTarget = pullRange * strokeProfile.pullRatio;
+          const pullTarget = computePullTargetFromPower(clampedPower, maxPull);
           const pulledNow = cuePullCurrentRef.current ?? pullTarget;
-          const startPull = THREE.MathUtils.clamp(pulledNow, 0, Math.max(maxPull, 0));
+          const startPull = THREE.MathUtils.clamp(
+            Math.max(pulledNow, pullTarget),
+            0,
+            Math.max(maxPull + CUE_PULL_VISUAL_FUDGE, CUE_PULL_MIN_VISUAL)
+          );
           const visualPull = applyVisualPullCompensation(startPull, dir);
           shotImpactPayload.pullDistance = visualPull;
           cuePullCurrentRef.current = startPull;
@@ -29657,22 +29626,16 @@ const shotPowerRef = useRef(0);
             cuePerp.z * contactSide
           );
           clampCueTipOffset(spinWorld);
-          const cueVisualSpinWorld = CUE_FORCE_STRAIGHT_TABLE_STROKE
-            ? new THREE.Vector3(0, 0, 0)
-            : spinWorld;
-          const obstructionStrength = CUE_FORCE_STRAIGHT_TABLE_STROKE
-            ? 0
-            : resolveCueObstruction(
-                dir,
-                startPull,
-                activeRenderCameraRef.current ?? cameraRef.current ?? camera
-              );
+          const cueVisualSpinWorld = spinWorld;
+          const obstructionStrength = resolveCueObstruction(
+            dir,
+            startPull,
+            activeRenderCameraRef.current ?? cameraRef.current ?? camera
+          );
           const { obstructionTilt, obstructionLift, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
           const tiltAmount = hasSpin ? Math.max(0, appliedSpin.y || 0) : 0;
-          const extraTilt = CUE_FORCE_STRAIGHT_TABLE_STROKE
-            ? 0
-            : MAX_BACKSPIN_TILT * tiltAmount + liftAngle;
+          const extraTilt = MAX_BACKSPIN_TILT * tiltAmount + liftAngle;
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           applyCueButtTilt(
             cueStick,
@@ -29685,39 +29648,45 @@ const shotPowerRef = useRef(0);
           TMP_VEC3_CUE_BUTT_OFFSET.copy(cueButtLocal).applyEuler(cueStick.rotation);
           const buildCuePosition = (pullAmount = visualPull) => {
             const tipTarget = resolveCueTipTarget(dir, pullAmount, cueVisualSpinWorld);
-            if (!CUE_FORCE_STRAIGHT_TABLE_STROKE) {
-              applyCueObstructionLift(tipTarget, obstructionLift);
-            }
+            applyCueObstructionLift(tipTarget, obstructionLift);
             return new THREE.Vector3(tipTarget.x, tipTarget.y, tipTarget.z)
               .sub(TMP_VEC3_CUE_TIP_OFFSET);
           };
           const idlePos = buildCuePosition(0);
-          // Start the release exactly from the computed pull position so the
-          // cue always pushes forward from the same pulled depth the player set.
           const releaseStartPos = buildCuePosition(visualPull);
-          cueStick.position.copy(releaseStartPos);
+          cueStick.position.copy(idlePos);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
           cueStick.visible = true;
           if (shotRecording) {
             recordReplayFrame(performance.now());
           }
-          const strikeDuration = strokeProfile.strikeDuration ?? LIVE_CUE_FORWARD_DURATION_MS;
-          const strikeHoldDuration = strokeProfile.holdDuration ?? LIVE_CUE_IMPACT_HOLD_MS;
-          const pullbackDuration = strokeProfile.pullbackDuration ?? 0;
-          const startTime = performance.now();
-          const impactPos = idlePos.clone();
-          const contactAdvance = 0; // stop the cue exactly where the slider pull started, matching Snooker Royal
-          shotImpactPayload.contactAdvance = contactAdvance;
-          const contactPos = impactPos
+          const pullbackDuration = 115;
+          const strikeDuration = 110;
+          const strikeHoldDuration = 45;
+          const recoverDuration = 95;
+          const impactPush = THREE.MathUtils.clamp(
+            CUE_TIP_GAP - BALL_R * 0.9,
+            BALL_R * 0.16,
+            BALL_R * 0.38
+          );
+          shotImpactPayload.contactAdvance = impactPush;
+          const impactPos = buildCuePosition(-impactPush);
+          const followExtra = THREE.MathUtils.lerp(
+            BALL_R * 0.26,
+            BALL_R * 0.72,
+            clampedPower
+          );
+          TMP_VEC3_FOLLOW_DIR.copy(impactPos).sub(releaseStartPos);
+          if (TMP_VEC3_FOLLOW_DIR.lengthSq() > 1e-8) {
+            TMP_VEC3_FOLLOW_DIR.normalize();
+          }
+          const contactPos = impactPos.clone();
+          const followPos = impactPos
             .clone()
-            .addScaledVector(dir, contactAdvance);
-          const followDistance = 0; // stop at cue-ball contact instead of visually following the moving cue ball
-          const followPos = contactPos
-            .clone()
-            .addScaledVector(dir, followDistance);
+            .addScaledVector(TMP_VEC3_FOLLOW_DIR, followExtra);
           const followDurationResolved = strikeHoldDuration;
-          const recoverDuration = strokeProfile.recoverDuration ?? 0;
+          const startTime = performance.now();
           const forwardPreviewHold =
             startTime +
             Math.max(
@@ -29725,9 +29694,8 @@ const shotPowerRef = useRef(0);
                 strikeDuration +
                 followDurationResolved +
                 recoverDuration +
-                (strokeProfile.cameraExtraHoldMs ?? 240) +
                 CUE_STROKE_POST_HIT_CAMERA_HOLD_MS,
-              980
+              365
             );
           powerImpactHoldRef.current = Math.max(
             powerImpactHoldRef.current || 0,
@@ -29844,7 +29812,7 @@ const shotPowerRef = useRef(0);
               onImpact: () => applyShotImpactOnce(),
               animationStyle: strokeStyle,
               motionTechnique: strokeProfile.motion ?? strokeStyle,
-              releaseStartsFromCurrentPull: true
+              releaseStartsFromCurrentPull: false
             };
           } else {
             applyShotImpactOnce();
