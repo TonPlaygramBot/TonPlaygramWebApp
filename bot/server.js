@@ -479,6 +479,9 @@ const rollRateLimitMs = Number(process.env.SOCKET_ROLL_COOLDOWN_MS) || 800;
 const seatTableRateLimitMs = Number(process.env.SEAT_TABLE_RATE_LIMIT_MS) || 500;
 const checkersMoveRateLimitMs =
   Number(process.env.CHECKERS_MOVE_RATE_LIMIT_MS) || 120;
+const defaultGameStartGraceMs = Number(process.env.GAME_START_GRACE_MS) || 1000;
+const dominoRoyalStartGraceMs =
+  Number(process.env.DOMINO_ROYAL_START_GRACE_MS) || 5000;
 
 function isRateLimited(socket, key, cooldownMs) {
   const now = Date.now();
@@ -1283,7 +1286,8 @@ function maybeStartGame(table) {
         players: table.players,
         currentTurn: table.currentTurn,
         stake: table.stake,
-        meta: table.meta
+        meta: table.meta,
+        connectGraceMs: table.gameType === 'domino-royal' ? dominoRoyalStartGraceMs : defaultGameStartGraceMs
       });
       tableSeats.delete(table.id);
       const key = `${table.gameType}-${table.maxPlayers}`;
@@ -1296,7 +1300,7 @@ function maybeStartGame(table) {
         dominoRoyalStates.set(table.id, { state: null, action: null, ts: Date.now() });
       }
       table.startTimeout = null;
-    }, 1000);
+    }, table.gameType === 'domino-royal' ? dominoRoyalStartGraceMs : defaultGameStartGraceMs);
   }
 }
 

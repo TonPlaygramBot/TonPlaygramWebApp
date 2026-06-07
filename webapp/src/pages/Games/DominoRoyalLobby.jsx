@@ -47,6 +47,35 @@ const GAME_TYPE_OPTIONS = [
   }
 ];
 const TARGET_POINTS_OPTIONS = [51, 101];
+const DOMINO_MATCH_TIMEOUT_MS = 120000;
+const DOMINO_SOCKET_CONNECT_TIMEOUT_MS = 10000;
+
+function ensureDominoSocketReady(timeoutMs = DOMINO_SOCKET_CONNECT_TIMEOUT_MS) {
+  if (socket.connected) return Promise.resolve(true);
+  try {
+    socket.connect?.();
+  } catch {
+    return Promise.resolve(false);
+  }
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (ok) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      socket.off?.('connect', onConnect);
+      socket.off?.('connect_error', onError);
+      socket.off?.('error', onError);
+      resolve(Boolean(ok));
+    };
+    const onConnect = () => finish(true);
+    const onError = () => finish(false);
+    const timer = setTimeout(() => finish(socket.connected), timeoutMs);
+    socket.once?.('connect', onConnect);
+    socket.once?.('connect_error', onError);
+    socket.once?.('error', onError);
+  });
+}
 
 export default function DominoRoyalLobby() {
   const navigate = useNavigate();
@@ -68,6 +97,7 @@ export default function DominoRoyalLobby() {
   const [queueStatus, setQueueStatus] = useState('');
   const [queueError, setQueueError] = useState('');
   const queuedTableIdRef = useRef('');
+  const queueTimeoutRef = useRef(null);
   const onlineStakeDebitedRef = useRef(false);
   const startBet = stake.amount / 100;
   const readiness = getOnlineReadiness('domino-royal');
@@ -199,7 +229,24 @@ export default function DominoRoyalLobby() {
       setQueueError('');
       setQueueStatus('Connecting to Domino Royal lobby…');
       onlineStakeDebitedRef.current = false;
+      const socketReady = await ensureDominoSocketReady();
+      if (!socketReady) {
+        setQueueError('Unable to connect to Domino Royal lobby. Please try again.');
+        setQueueStatus('');
+        return;
+      }
       socket.emit('register', { playerId: accountId });
+      if (queueTimeoutRef.current) clearTimeout(queueTimeoutRef.current);
+      queueTimeoutRef.current = setTimeout(() => {
+        const tableId = queuedTableIdRef.current;
+        if (tableId) {
+          socket.emit('leaveLobby', { accountId, tableId });
+        }
+        queuedTableIdRef.current = '';
+        setQueuedTableId('');
+        setQueueStatus('');
+        setQueueError('Matchmaking is taking longer than expected. Please try again with the same stake and player count.');
+      }, DOMINO_MATCH_TIMEOUT_MS);
       socket.emit(
         'seatTable',
         {
@@ -216,13 +263,17 @@ export default function DominoRoyalLobby() {
           matchMeta: {
             mode: 'online',
             variant: gameType,
-            targetPoints: gameType === 'points' ? String(targetPoints) : '',
+            targetPoints: String(gameType === 'points' ? targetPoints : 0),
             token: stake.token
           }
         },
         (res = {}) => {
           if (!res.success || !res.tableId) {
             const message = `Unable to join Domino online table (${res.error || 'try_again'}).`;
+            if (queueTimeoutRef.current) {
+              clearTimeout(queueTimeoutRef.current);
+              queueTimeoutRef.current = null;
+            }
             setQueueError(message);
             setQueueStatus('');
             return;
@@ -257,7 +308,7 @@ export default function DominoRoyalLobby() {
       );
     };
 
-    const handleGameStart = ({ tableId, players, stake: onlineStake, meta }) => {
+    const handleGameStart = ({ tableId, players, stake: onlineStake, meta, connectGraceMs }) => {
       if (!tableId || tableId !== queuedTableIdRef.current) return;
       const accountId = ensureAccountId().catch(() => '');
       Promise.resolve(accountId).then((resolvedAccountId) => {
@@ -289,9 +340,14 @@ export default function DominoRoyalLobby() {
             })
           );
         } catch {}
+        if (queueTimeoutRef.current) {
+          clearTimeout(queueTimeoutRef.current);
+          queueTimeoutRef.current = null;
+        }
         queuedTableIdRef.current = '';
         setQueuedTableId('');
-        setQueueStatus('Starting online match…');
+        const graceSeconds = Math.max(1, Math.round((Number(connectGraceMs) || 0) / 1000));
+        setQueueStatus(`Starting online match… players had ${graceSeconds}s to connect.`);
         launchGame({
           accountId: resolvedAccountId,
           tgId: getTelegramId(),
@@ -309,9 +365,14 @@ export default function DominoRoyalLobby() {
     return () => {
       socket.off('lobbyUpdate', handleLobbyUpdate);
       socket.off('gameStart', handleGameStart);
+      if (queueTimeoutRef.current) {
+        clearTimeout(queueTimeoutRef.current);
+        queueTimeoutRef.current = null;
+      }
       if (queuedTableIdRef.current) {
+        const tableId = queuedTableIdRef.current;
         ensureAccountId()
-          .then((accountId) => socket.emit('leaveLobby', { accountId, tableId: queuedTableIdRef.current }))
+          .then((accountId) => socket.emit('leaveLobby', { accountId, tableId }))
           .catch(() => {});
       }
     };

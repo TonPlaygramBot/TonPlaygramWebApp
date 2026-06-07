@@ -1,5 +1,8 @@
 const MATCH_META_KEYS = ['mode', 'playType', 'variant', 'targetPoints', 'tableSize', 'ballSet', 'token'];
 const STRICT_MATCH_META_KEYS = new Set(['mode', 'token', 'targetPoints']);
+const GAME_STRICT_MATCH_META_KEYS = {
+  'domino-royal': new Set(['mode', 'token', 'variant', 'targetPoints'])
+};
 
 export function normalizeTableSizeMeta(value = '') {
   const normalized = String(value || '').trim().toLowerCase();
@@ -43,10 +46,11 @@ export function normalizeMatchMeta(rawMeta = {}) {
   const normalized = {};
   MATCH_META_KEYS.forEach((key) => {
     const value = rawMeta[key];
-    if (typeof value === 'string' && value.trim()) {
-      const normalizedValue = normalizeMatchMetaValue(key, value);
-      if (normalizedValue) normalized[key] = normalizedValue;
-    }
+    if (value == null) return;
+    const rawValue = String(value).trim();
+    if (!rawValue) return;
+    const normalizedValue = normalizeMatchMetaValue(key, rawValue);
+    if (normalizedValue) normalized[key] = normalizedValue;
   });
   return normalized;
 }
@@ -64,9 +68,12 @@ export function isMatchMetaCompatible(existing = {}, requested = {}, gameType = 
     return existingVariant === requestedVariant;
   }
 
+  const gameStrictKeys = GAME_STRICT_MATCH_META_KEYS[normalizedGameType];
+  const strictKeys = gameStrictKeys || STRICT_MATCH_META_KEYS;
   const allKeys = new Set([
     ...Object.keys(existing || {}),
-    ...Object.keys(requested || {})
+    ...Object.keys(requested || {}),
+    ...(gameStrictKeys || [])
   ]);
   for (const key of allKeys) {
     if (key === 'preferredSide') {
@@ -79,7 +86,7 @@ export function isMatchMetaCompatible(existing = {}, requested = {}, gameType = 
     if (!existingValue || !requestedValue) {
       // Core lobby criteria must match exactly. This prevents Chess Battle
       // Royal players with different tokens/modes from being seated together.
-      if (STRICT_MATCH_META_KEYS.has(key)) return false;
+      if (strictKeys.has(key)) return false;
       // Treat non-core missing keys as wildcards so players can still pair when
       // one client sends less detailed lobby metadata (for example tableSize).
       continue;
