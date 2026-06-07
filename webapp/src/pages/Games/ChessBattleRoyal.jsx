@@ -837,7 +837,7 @@ const FALLBACK_SEAT_POSITIONS = [
 ];
 const CAMERA_WHEEL_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAMERA_PULL_FORWARD_MIN = THREE.MathUtils.degToRad(15);
-const CAMERA_CAPTURE_VIEW_UPWARD_BIAS = THREE.MathUtils.degToRad(21); // raise forced 3D animation camera for a stronger portrait top-down feel.
+const CAMERA_CAPTURE_VIEW_UPWARD_BIAS = THREE.MathUtils.degToRad(25); // raise forced 3D animation camera higher for a stronger portrait top-down feel.
 const CAMERA_CAPTURE_VIEW_RADIUS_SCALE = 1.18; // keep forced 3D animation wider during capture so the board stays fully readable
 const CAMERA_CAPTURE_BOTTOM_AVATAR_SCREEN_OFFSET = 0; // keep projected avatars pinned to the seated character chest anchors
 const CAMERA_LOCKED_3D_PHI = THREE.MathUtils.degToRad(86.5); // portrait reference: opponent remains visible while board/gameplay sits lower on the phone.
@@ -847,7 +847,7 @@ const PLAYER_FACE_CAMERA_SEAT_ANGLE = Math.PI / 2;
 // Keep Chess Battle Royal bottom-player camera aligned with Checkers Battle Royal
 // so portrait framing and left/right/up/down look limits match exactly.
 const PLAYER_FACE_CAMERA_RADIUS = TABLE_RADIUS * 0.98 * CHECKERS_CAMERA_FRAME_COMPENSATION;
-const PLAYER_FACE_CAMERA_EYE_HEIGHT = 2.05 * LAYOUT_SCALE_FACTOR;
+const PLAYER_FACE_CAMERA_EYE_HEIGHT = 2.35 * LAYOUT_SCALE_FACTOR;
 const PLAYER_FACE_CAMERA_TARGET_HEIGHT = 0.18 * LAYOUT_SCALE_FACTOR;
 const PLAYER_FACE_CAMERA_YAW_LIMIT = THREE.MathUtils.degToRad(18);
 const PLAYER_FACE_CAMERA_PITCH_LIMIT = THREE.MathUtils.degToRad(12);
@@ -870,8 +870,8 @@ const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.24; // move camera a bit close
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.18; // keep a similar closer framing in landscape.
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 1.08;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.68;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.42; // lift camera a bit higher while preserving table focus in portrait.
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.98; // mirror the slight upward lift for landscape framing.
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.58; // lift camera higher while preserving table focus in portrait.
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 1.08; // mirror the upward lift for landscape framing.
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -BOARD.tile * BOARD_SCALE * 1.35;
 const PLAYER_VIEW_LOOK_TARGET_UP_BIAS = 0.82; // looking higher makes the 3D gameplay land lower on portrait screens.
 const TABLE_BOTTOM_PLAYER_BIAS_Z = BOARD.tile * BOARD_SCALE * 12.8; // push gameplay lower toward the phone bottom, matching the reference framing.
@@ -909,6 +909,9 @@ const SEATED_HUMAN_FIREARM_SUPPORT_SIDE = 0.018;
 const SEATED_HUMAN_FIREARM_MUZZLE_FORWARD = 0.245;
 const SEATED_HUMAN_FIREARM_GRIP_REAR_PULLBACK = 0.04;
 const SEATED_HUMAN_FIREARM_MIN_HAND_LIFT = 0.24;
+const CHESS_FIREARM_ATTACKER_TILE_HEIGHT = 0.34;
+const CHESS_FIREARM_ATTACKER_TILE_REAR_PULLBACK = 0.12;
+const CHESS_FIREARM_ATTACKER_TILE_MUZZLE_FORWARD = 0.11;
 
 
 function resolveChairDistanceForDirection(tableInfo, ...layoutArgs) {
@@ -15669,52 +15672,51 @@ function Chess3D({
           } else if (fx.type === 'firearm') {
             const targetPos = getLiveTargetPosition(fx.to, fx.targetMesh, 0);
             fx.to.copy(targetPos);
-            const pieceWorld = new THREE.Vector3();
-            fx.movingMesh?.getWorldPosition?.(pieceWorld);
             const pieceBounds = fx.movingMesh?.parent ? new THREE.Box3().setFromObject(fx.movingMesh) : null;
-            let shooterPos = pieceWorld.lengthSq() ? pieceWorld : fx.from.clone().lerp(targetPos, 0.24);
-            shooterPos = shooterPos.clone();
+            const shooterTilePos = fx.from.clone();
+            shooterTilePos.y += CHESS_FIREARM_ATTACKER_TILE_HEIGHT;
             if (pieceBounds && !pieceBounds.isEmpty()) {
-              shooterPos.x = (pieceBounds.min.x + pieceBounds.max.x) * 0.5;
-              shooterPos.z = (pieceBounds.min.z + pieceBounds.max.z) * 0.5;
-              shooterPos.y = THREE.MathUtils.lerp(pieceBounds.min.y, pieceBounds.max.y, 0.68);
-            } else {
-              shooterPos.y += 0.26;
+              shooterTilePos.y = Math.max(
+                shooterTilePos.y,
+                THREE.MathUtils.lerp(pieceBounds.min.y, pieceBounds.max.y, 0.34)
+              );
             }
-            const aimOrigin = shooterPos;
-            const aimDir = targetPos.clone().sub(aimOrigin).normalize();
-            const muzzlePos = aimOrigin.clone().addScaledVector(aimDir, (fx.shortMissile ? 0.18 : (LUDO_FIREARM_BROADCAST_PROFILE.aimLift ?? 0.064) + 0.055));
+            const liveAimTarget = targetPos.clone();
+            liveAimTarget.y += Math.max(0.035, LUDO_FIREARM_BROADCAST_PROFILE.aimLift ?? 0.064);
+            const tileAimDir = liveAimTarget.clone().sub(shooterTilePos);
+            if (tileAimDir.lengthSq() > 1e-8) tileAimDir.normalize();
+            else tileAimDir.set(0, 0, -1);
+            const aimOrigin = shooterTilePos
+              .clone()
+              .addScaledVector(tileAimDir, -(fx.shortMissile ? 0.04 : CHESS_FIREARM_ATTACKER_TILE_REAR_PULLBACK));
+            const aimDir = tileAimDir.clone();
+            const muzzlePos = shooterTilePos.clone().addScaledVector(
+              aimDir,
+              fx.shortMissile ? 0.18 : CHESS_FIREARM_ATTACKER_TILE_MUZZLE_FORWARD
+            );
             muzzlePos.y += fx.shortMissile ? 0.05 : 0.015;
             fx.missileFx.root.visible = true;
             fx.missileFx.root.position.copy(muzzlePos).addScaledVector(aimDir, 0.08);
             orientForwardKeepingUp(fx.missileFx.root, aimDir);
             if (fx.firearmFx) {
               fx.firearmFx.visible = true;
-              const liveAimTarget = targetPos.clone();
-              liveAimTarget.y += Math.max(0.035, LUDO_FIREARM_BROADCAST_PROFILE.aimLift ?? 0.064);
-              const liveAimDir = liveAimTarget.clone().sub(aimOrigin);
-              if (liveAimDir.lengthSq() > 1e-8) liveAimDir.normalize();
-              else liveAimDir.copy(aimDir);
-              fx.firearmFx.position.copy(
-                aimOrigin.clone().addScaledVector(liveAimDir, -(fx.shortMissile ? 0.04 : (LUDO_FIREARM_BROADCAST_PROFILE.aimRearPullback ?? 0.124)))
-              );
+              fx.firearmFx.position.copy(aimOrigin);
               fx.firearmFx.position.y += 0.02 + Math.sin(u * Math.PI * 8) * 0.006;
-              orientForwardKeepingUp(fx.firearmFx, liveAimDir);
+              orientForwardKeepingUp(fx.firearmFx, aimDir);
               fx.firearmFx.updateMatrixWorld?.(true);
               const muzzleHelper = fx.firearmFx.userData?.muzzleHelper;
               if (muzzleHelper?.isObject3D) {
                 const currentMuzzleWorld = muzzleHelper.getWorldPosition(new THREE.Vector3());
-                const desiredMuzzleWorld = muzzlePos.clone().addScaledVector(liveAimDir, fx.shortMissile ? 0.08 : 0.02);
+                const desiredMuzzleWorld = muzzlePos.clone().addScaledVector(aimDir, fx.shortMissile ? 0.08 : 0.02);
                 fx.firearmFx.position.add(desiredMuzzleWorld.sub(currentMuzzleWorld));
                 fx.firearmFx.updateMatrixWorld?.(true);
               }
               const recoil = Math.sin(Math.min(1, u * Math.max(1, fx.bulletCount || 1)) * Math.PI) * 0.025;
-              fx.firearmFx.position.addScaledVector(liveAimDir, -recoil);
-              aimDir.copy(liveAimDir);
+              fx.firearmFx.position.addScaledVector(aimDir, -recoil);
             }
             if (fx.fpsArmsFx) {
               fx.fpsArmsFx.visible = true;
-              fx.fpsArmsFx.position.copy(aimOrigin).addScaledVector(aimDir, -(fx.shortMissile ? 0.095 : (LUDO_FIREARM_BROADCAST_PROFILE.aimRearPullback ?? 0.124) + 0.035));
+              fx.fpsArmsFx.position.copy(aimOrigin).addScaledVector(aimDir, -(fx.shortMissile ? 0.055 : 0.035));
               fx.fpsArmsFx.position.y += 0.004 + Math.sin(u * Math.PI * Math.max(4, fx.bulletCount || 1)) * 0.004;
               orientForwardKeepingUp(fx.fpsArmsFx, aimDir);
             }
