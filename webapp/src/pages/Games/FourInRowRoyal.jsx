@@ -24,7 +24,6 @@ import {
   FOUR_IN_ROW_RING_FINISH_OPTIONS,
   FOUR_IN_ROW_STONE_STYLES,
   FOUR_IN_ROW_TABLE_OPTIONS,
-  FOUR_IN_ROW_HUMAN_CHARACTER_OPTIONS,
   FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT,
   FOUR_IN_ROW_BOARD_LAYOUTS,
   FOUR_IN_ROW_BATTLE_OPTION_LABELS
@@ -152,9 +151,6 @@ const FOUR_IN_ROW_CHARACTER_PROPORTION_SCALE = 1.9;
 const FOUR_IN_ROW_CHARACTER_EXTRA_LOWER_OFFSET = 0.4;
 const FOUR_IN_ROW_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.42;
 const FOUR_IN_ROW_CHARACTER_MODEL_CACHE = new Map();
-const FOUR_IN_ROW_DOMINO_HUMAN_OPTIONS = Object.freeze(
-  FOUR_IN_ROW_HUMAN_CHARACTER_OPTIONS.filter((option) => Array.isArray(option?.modelUrls) && option.modelUrls.length)
-);
 const FOUR_IN_ROW_CHESS_HUMAN_OPTIONS = Object.freeze(
   CHESS_HUMAN_CHARACTER_OPTIONS.filter((option) => Array.isArray(option?.modelUrls) && option.modelUrls.length)
 );
@@ -1369,70 +1365,6 @@ async function resolvePolyhavenModelCandidates(assetId) {
   return [...fromManifest, ...fallback];
 }
 
-function fitFourInRowPolyhavenTable(root) {
-  if (!root) return;
-  root.updateMatrixWorld(true);
-  const box = new THREE.Box3().setFromObject(root);
-  const size = box.getSize(new THREE.Vector3());
-  const maxHorizontal = Math.max(size.x, size.z, 0.001);
-  const targetHorizontal = TABLE_RADIUS * 2.05;
-  const targetHeight = Math.max(TABLE_HEIGHT * 1.38, 0.001);
-  const heightScale = size.y > 0.001 ? targetHeight / size.y : targetHorizontal / maxHorizontal;
-  root.scale.multiplyScalar(Math.min(targetHorizontal / maxHorizontal, heightScale));
-  root.updateMatrixWorld(true);
-  const fitBox = new THREE.Box3().setFromObject(root);
-  const center = fitBox.getCenter(new THREE.Vector3());
-  root.position.x -= center.x;
-  root.position.z -= center.z;
-  root.position.y -= fitBox.min.y;
-}
-
-async function createFourInRowTableModel(tableTheme, renderer = null, tableFinish = null) {
-  const container = new THREE.Group();
-  const theme = tableTheme || FOUR_IN_ROW_TABLE_OPTIONS[0];
-  if (theme?.source === 'polyhaven' && theme?.assetId) {
-    const loader = createConfiguredGLTFLoader(renderer);
-    let lastError = null;
-    const candidates = await resolvePolyhavenModelCandidates(theme.assetId);
-    for (const candidate of candidates) {
-      try {
-        if (MeshoptDecoder?.ready) await MeshoptDecoder.ready;
-        const candidateUrl = candidate?.url;
-        if (!candidateUrl) continue;
-        const activeLoader = candidate?.includeUrlMap
-          ? createPolyhavenGltfLoader(renderer, candidate.includeUrlMap)
-          : loader;
-        const resolvedUrl = new URL(candidateUrl, typeof window !== 'undefined' ? window.location?.href : candidateUrl).href;
-        activeLoader.setResourcePath(resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1));
-        activeLoader.setPath('');
-        const gltf = await activeLoader.loadAsync(resolvedUrl);
-        const root = gltf.scene || gltf.scenes?.[0];
-        if (!root) continue;
-        root.traverse((obj) => {
-          if (!obj?.isMesh) return;
-          obj.castShadow = true;
-          obj.receiveShadow = true;
-        });
-        preserveOriginalGltfTextureMapping(root);
-        fitFourInRowPolyhavenTable(root);
-        container.add(root);
-        return { group: container, parts: null };
-      } catch (error) {
-        lastError = error;
-      }
-    }
-    console.warn('Four in Row table model failed to load; using procedural table.', theme.id, lastError);
-  }
-  const procedural = createMurlanStyleTable({
-    arena: container,
-    renderer,
-    tableRadius: TABLE_RADIUS,
-    tableHeight: TABLE_HEIGHT
-  });
-  applyTableMaterials(procedural.parts, tableFinish || MURLAN_TABLE_FINISHES[0]);
-  return { group: container, parts: procedural.parts };
-}
-
 async function createChairModel(chairTheme, renderer = null) {
   const loader = createConfiguredGLTFLoader(renderer);
   const fallbackAssetId = 'painted_wooden_chair_01';
@@ -1538,7 +1470,6 @@ export default function FourInRowRoyal() {
     getArenaYOffsetForHdri(POOL_ROYALE_DEFAULT_HDRI_ID)
   );
   const tablePartsRef = useRef(null);
-  const tableObjectRef = useRef(null);
   const chairMeshesRef = useRef([]);
   const characterRigsRef = useRef(new Map());
   const characterChipActionsRef = useRef([]);
@@ -1616,10 +1547,6 @@ export default function FourInRowRoyal() {
       inventory.stoneStyle?.[0] ||
       FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT.stoneStyle?.[0] ||
       FOUR_IN_ROW_STONE_STYLES[0]?.id,
-    humanCharacter:
-      inventory.humanCharacter?.[0] ||
-      FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT.humanCharacter?.[0] ||
-      FOUR_IN_ROW_HUMAN_CHARACTER_OPTIONS[0]?.id,
     hdriId:
       inventory.environmentHdri?.[0] ||
       FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT.environmentHdri?.[0] ||
@@ -2014,9 +1941,19 @@ export default function FourInRowRoyal() {
     keyLightRef.current = key;
     scene.add(key);
 
-    const tableMount = new THREE.Group();
-    tableObjectRef.current = tableMount;
-    arenaRoot.add(tableMount);
+    const table = createMurlanStyleTable({
+      arena: arenaRoot,
+      renderer,
+      tableRadius: TABLE_RADIUS,
+      tableHeight: TABLE_HEIGHT,
+      tableThemeId: appearance.tableId
+    });
+    tablePartsRef.current = table.parts;
+    applyTableMaterials(
+      table.parts,
+      MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) ||
+        MURLAN_TABLE_FINISHES[0]
+    );
 
     const chairTheme =
       FOUR_IN_ROW_CHAIR_OPTIONS.find(
@@ -2047,12 +1984,10 @@ export default function FourInRowRoyal() {
       arenaRoot.add(chair);
     });
     characterRigsRef.current.clear();
-    const humanOptions = FOUR_IN_ROW_DOMINO_HUMAN_OPTIONS.length
-      ? FOUR_IN_ROW_DOMINO_HUMAN_OPTIONS
-      : FOUR_IN_ROW_CHESS_HUMAN_OPTIONS.length
-        ? FOUR_IN_ROW_CHESS_HUMAN_OPTIONS
-        : CHESS_HUMAN_CHARACTER_OPTIONS;
-    const requestedHumanId = appearance.humanCharacter || params.get('humanCharacter');
+    const humanOptions = FOUR_IN_ROW_CHESS_HUMAN_OPTIONS.length
+      ? FOUR_IN_ROW_CHESS_HUMAN_OPTIONS
+      : CHESS_HUMAN_CHARACTER_OPTIONS;
+    const requestedHumanId = params.get('humanCharacter');
     const playerHumanOption =
       humanOptions.find((option) => option.id === requestedHumanId) ||
       humanOptions[0] ||
@@ -2627,13 +2562,11 @@ export default function FourInRowRoyal() {
       });
       characterChipActionsRef.current = [];
       characterRigsRef.current.clear();
-      tableObjectRef.current = null;
       renderer.dispose();
       mount.removeChild(renderer.domElement);
     };
   }, [
     characterSeed,
-    appearance.humanCharacter,
     rows,
     cols,
     boardWidth,
@@ -2892,29 +2825,6 @@ export default function FourInRowRoyal() {
   }, [appearance.graphics]);
 
   useEffect(() => {
-    const tableMount = tableObjectRef.current;
-    if (!tableMount) return;
-    let cancelled = false;
-    const theme =
-      FOUR_IN_ROW_TABLE_OPTIONS.find((item) => item.id === appearance.tableId) ||
-      FOUR_IN_ROW_TABLE_OPTIONS[0];
-    const finish =
-      MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) ||
-      MURLAN_TABLE_FINISHES[0];
-    tableMount.clear();
-    tablePartsRef.current = null;
-    createFourInRowTableModel(theme, rendererRef.current, finish).then((table) => {
-      if (cancelled || tableObjectRef.current !== tableMount) return;
-      tableMount.clear();
-      tableMount.add(table.group);
-      tablePartsRef.current = table.parts;
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [appearance.tableId, appearance.tableFinish]);
-
-  useEffect(() => {
     if (!tablePartsRef.current) return;
     const finish =
       MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) ||
@@ -3008,15 +2918,6 @@ export default function FourInRowRoyal() {
 
   const optionGroups = [
     {
-      key: 'tableId',
-      label: 'Tables',
-      options: FOUR_IN_ROW_TABLE_OPTIONS.map((item) => ({
-        id: item.id,
-        label: item.label,
-        thumbnail: item.thumbnail
-      }))
-    },
-    {
       key: 'chairId',
       label: 'Chairs',
       options: FOUR_IN_ROW_CHAIR_OPTIONS.map((item) => ({
@@ -3083,15 +2984,6 @@ export default function FourInRowRoyal() {
       key: 'stoneStyle',
       label: 'Pieces',
       options: FOUR_IN_ROW_STONE_STYLES.map((item) => ({
-        id: item.id,
-        label: item.label,
-        thumbnail: item.thumbnail
-      }))
-    },
-    {
-      key: 'humanCharacter',
-      label: 'Humans',
-      options: FOUR_IN_ROW_HUMAN_CHARACTER_OPTIONS.map((item) => ({
         id: item.id,
         label: item.label,
         thumbnail: item.thumbnail
