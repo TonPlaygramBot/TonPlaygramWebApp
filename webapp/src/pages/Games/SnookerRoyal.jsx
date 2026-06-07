@@ -1689,9 +1689,9 @@ const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear secti
 const SNOOKER_CUE_POSE_SCALE = BALL_R / 0.0525;
 const SNOOKER_CUE_IDLE_GAP = 0.012 * SNOOKER_CUE_POSE_SCALE;
 const SNOOKER_CUE_CONTACT_GAP = -CUE_TIP_RADIUS * 0.28; // let the leather tip visibly meet the cue ball instead of stopping with an air gap
+const SNOOKER_CUE_FOLLOW_GAP = -CUE_TIP_RADIUS * 0.62; // tiny post-impact compression that sells the forward push without spearing through the ball
 const SNOOKER_CUE_PULL_RANGE = 0.42 * SNOOKER_CUE_POSE_SCALE;
 const SNOOKER_CUE_BRIDGE_DIST = 0.28 * SNOOKER_CUE_POSE_SCALE;
-const SNOOKER_HUMAN_HEIGHT_TO_CUE_RATIO = 1.3; // keep the player visually ~30% taller than the 1.78m cue stick
 
 
 const HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
@@ -1719,7 +1719,7 @@ const CFG = {
   poseLambda: 9,
   moveLambda: 5.6,
   rotLambda: 8.5,
-  humanScale: SNOOKER_HUMAN_HEIGHT_TO_CUE_RATIO * 1.78 * SNOOKER_CUE_POSE_SCALE,
+  humanScale: 1.2 * 1.78 * SNOOKER_CUE_POSE_SCALE,
   humanVisualYawFix: Math.PI,
   stanceWidth: 0.52 * SNOOKER_CUE_POSE_SCALE,
   bridgePalmTableLift: 0.006 * SNOOKER_CUE_POSE_SCALE,
@@ -1988,9 +1988,10 @@ function driveHuman(human, frame) {
 }
 function chooseHumanEdgePosition(cueBallWorld, aimForward) {
   const desired = cueBallWorld.clone().addScaledVector(aimForward, -CFG.desiredShootDistance);
+  desired.y = CFG.groundY;
   const xEdge = CFG.tableW / 2 + CFG.edgeMargin;
   const zEdge = CFG.tableL / 2 + CFG.edgeMargin;
-  const candidates = [new THREE.Vector3(-xEdge, 0, clamp(desired.z, -zEdge, zEdge)), new THREE.Vector3(xEdge, 0, clamp(desired.z, -zEdge, zEdge)), new THREE.Vector3(clamp(desired.x, -xEdge, xEdge), 0, -zEdge), new THREE.Vector3(clamp(desired.x, -xEdge, xEdge), 0, zEdge)];
+  const candidates = [new THREE.Vector3(-xEdge, CFG.groundY, clamp(desired.z, -zEdge, zEdge)), new THREE.Vector3(xEdge, CFG.groundY, clamp(desired.z, -zEdge, zEdge)), new THREE.Vector3(clamp(desired.x, -xEdge, xEdge), CFG.groundY, -zEdge), new THREE.Vector3(clamp(desired.x, -xEdge, xEdge), CFG.groundY, zEdge)];
   return candidates.sort((a, b) => a.distanceToSquared(desired) - b.distanceToSquared(desired))[0].clone();
 }
 function constrainHumanPerimeterStep(current, target) {
@@ -2036,7 +2037,7 @@ function updateHumanPose(human, dt, state, rootTarget, aimForward, bridgeTarget,
   const local = (v) => v.clone().applyAxisAngle(Y_AXIS, human.yaw).add(human.root.position);
   const powerLean = power * t;
   const rootWorld = human.root.position.clone().addScaledVector(forward, (0.018 * powerLean + 0.026 * strikeFollow) * CFG.scale);
-  rootWorld.y = 0;
+  rootWorld.y = CFG.groundY;
   const torso = local(new THREE.Vector3(0, lerp(1.3, 1.14, t) * CFG.scale + breath, (lerp(0.02, -0.16, t) - 0.014 * powerLean) * CFG.scale));
   const chest = local(new THREE.Vector3(0, lerp(1.52, 1.24, t) * CFG.scale + breath, (lerp(0.02, -0.42, t) - 0.024 * powerLean) * CFG.scale));
   const neck = local(new THREE.Vector3(0, lerp(1.68, 1.28, t) * CFG.scale + breath, (lerp(0.02, -0.61, t) - 0.028 * powerLean) * CFG.scale));
@@ -2109,7 +2110,6 @@ function updateSnookerRoyalCuePose(controller, dt, options) {
     aimDir,
     visible,
     power = 0,
-    spinInput = { x: 0, y: 0 },
     shooting = false,
     cueAnimating = false,
     tableCueVisible = false
@@ -2125,14 +2125,13 @@ function updateSnookerRoyalCuePose(controller, dt, options) {
   if (aimForward.lengthSq() < 1e-8) aimForward.set(0, 0, 1);
   aimForward.normalize();
   const activePower = THREE.MathUtils.clamp(power ?? 0, 0, 1);
-  const liveCueBallWorld = new THREE.Vector3(cuePos.x, BALL_CENTER_Y, cuePos.y);
+  const liveCueBallWorld = new THREE.Vector3(cuePos.x, CUE_Y, cuePos.y);
   const strikeActive = Boolean(shooting || cueAnimating);
   if (strikeActive && !controller.strikeLock) {
     controller.strikeLock = {
       cueBallWorld: liveCueBallWorld.clone(),
       aimForward: aimForward.clone(),
-      power: activePower,
-      spinInput: { x: spinInput?.x ?? 0, y: spinInput?.y ?? 0 }
+      power: activePower
     };
   } else if (!strikeActive) {
     controller.strikeLock = null;
@@ -2143,35 +2142,33 @@ function updateSnookerRoyalCuePose(controller, dt, options) {
     aimForward.copy(lockedStrike.aimForward).normalize();
   }
 
-  const aimSide = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
-  const bridgeHandTarget = cueBallWorld.clone()
-    .addScaledVector(aimForward, -CFG.bridgeHandBackFromBall)
-    .addScaledVector(aimSide, CFG.bridgeHandSide)
-    .setY(CFG.tableTopY + CFG.bridgePalmTableLift);
-  const bridgeCuePoint = bridgeHandTarget.clone()
-    .addScaledVector(aimForward, CFG.bridgeVGrooveForward)
-    .addScaledVector(aimSide, CFG.bridgeVGrooveSide)
-    .add(new THREE.Vector3(0, CFG.bridgeCueLift, 0));
-  const pull = CFG.pullRange * cuePoseEaseOutCubic(activePower);
+  const bridgeCuePoint = cueBallWorld.clone()
+    .addScaledVector(aimForward, -(SNOOKER_CUE_BRIDGE_DIST + BALL_R))
+    .setY(BALL_CENTER_Y + 0.018 * SNOOKER_CUE_POSE_SCALE);
+  const pull = SNOOKER_CUE_PULL_RANGE * cuePoseEaseOutCubic(activePower);
   const practiceStroke = !shooting && !cueAnimating && activePower > 0.02
-    ? Math.sin(performance.now() * 0.012) * 0.035 * CFG.scale * (0.25 + activePower * 0.75)
+    ? Math.sin(performance.now() * 0.012) * 0.035 * SNOOKER_CUE_POSE_SCALE * (0.25 + activePower * 0.75)
     : 0;
-  const strikeNorm = THREE.MathUtils.clamp((controller.strikeClock || 0) / CFG.strikeTime, 0, 1);
-  let gap = CFG.idleGap;
-  const resolvedSpinInput = lockedStrike?.spinInput ?? spinInput ?? { x: 0, y: 0 };
-  const spinOffset = mapSpinForPhysics(normalizeSpinInput(resolvedSpinInput));
-  if (activePower > 0.02 && !shooting && !cueAnimating) gap += pull + practiceStroke;
+  const strikeNorm = THREE.MathUtils.clamp((controller.strikeClock || 0) / 0.12, 0, 1);
+  let providedGap = SNOOKER_CUE_IDLE_GAP;
+  if (activePower > 0.02 && !shooting && !cueAnimating) providedGap += pull + practiceStroke;
   if (shooting || cueAnimating) {
-    const strikeMotionNorm = strikeNorm > 0.88 ? 0.88 : strikeNorm;
-    gap = cuePoseLerp(CFG.idleGap + pull, CFG.contactGap, cuePoseEaseOutCubic(strikeMotionNorm));
+    const contactPushT = THREE.MathUtils.clamp((strikeNorm - 0.86) / 0.14, 0, 1);
+    const contactGap = cuePoseLerp(
+      SNOOKER_CUE_CONTACT_GAP,
+      SNOOKER_CUE_FOLLOW_GAP,
+      cuePoseEaseOutCubic(contactPushT)
+    );
+    providedGap = cuePoseLerp(
+      SNOOKER_CUE_IDLE_GAP + pull,
+      contactGap,
+      cuePoseEaseOutCubic(strikeNorm)
+    );
   }
-  const providedCueTip = cueBallWorld.clone()
-    .addScaledVector(aimForward, -(CFG.ballR + gap))
-    .addScaledVector(aimSide, (spinOffset.x ?? 0) * CFG.ballR * 0.52)
-    .add(new THREE.Vector3(0, (spinOffset.y ?? 0) * CFG.ballR * 0.44, 0));
-  const providedCueBack = bridgeCuePoint.clone()
-    .addScaledVector(aimForward, -(cueLen - CFG.bridgeDist - CFG.ballR - gap))
-    .add(new THREE.Vector3(0, 0.024 * CFG.scale, 0));
+  const providedCueTip = cueBallWorld.clone().addScaledVector(aimForward, -(BALL_R + providedGap));
+  const providedCueBack = providedCueTip.clone()
+    .addScaledVector(aimForward, -cueLen)
+    .setY(bridgeCuePoint.y + 0.006 * SNOOKER_CUE_POSE_SCALE);
   applyProvidedCueEndpointPose(cueStick, providedCueBack, providedCueTip);
   cueStick.visible = Boolean(tableCueVisible || activePower > 0.02 || shooting || cueAnimating);
 }
@@ -26764,7 +26761,6 @@ const powerRef = useRef(hud.power);
               : activeAiPlan?.aimDir || aimDir,
             visible: Boolean(cue?.active),
             power: (shooting || cueAnimating) ? lastShotPower : (powerRef.current ?? activeAiPlan?.power ?? 0),
-            spinInput: activeAiPlan?.spin ?? spinRef.current ?? { x: 0, y: 0 },
             shooting,
             cueAnimating,
             tableCueVisible: Boolean(cueStick.visible && (cameraBlendRef.current ?? 1) <= 0.55)
