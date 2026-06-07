@@ -1425,7 +1425,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     'Pool table inner ratio must match the official 2:1 target after scaling.'
   );
 const MM_TO_UNITS = innerLong / WIDTH_REF; // map game physics directly to the native Showood 7 ft GLB playfield size
-const BALL_SIZE_SCALE = 1; // official WPA/WEPF 57.15 mm balls; every helper stays tied to BALL_R/BALL_DIAMETER
+const BALL_SIZE_SCALE = 1.06; // make Pool Royale balls slightly larger on mobile while every helper stays tied to BALL_R/BALL_DIAMETER
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -24830,6 +24830,7 @@ const shotPowerRef = useRef(0);
             baseRotationX,
             baseRotationY,
             strikeDip,
+            wobbleAmount,
             forwardOnly,
             strikeImpactThreshold
           } = stroke;
@@ -29543,7 +29544,6 @@ const shotPowerRef = useRef(0);
             strikeDuration: strokeProfile.strikeDuration ?? LIVE_CUE_FORWARD_DURATION_MS,
             applied: false
           };
-          applyShotAtImpact(shotImpactPayload);
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -33286,7 +33286,7 @@ const shotPowerRef = useRef(0);
         }
 
         sidePocketAimRef.current = false;
-        if (canShowCue && (isPlayerTurn || previewingAiShot || aiCueViewActive)) {
+        if (canShowCue && !shooting && !cueAnimating && (isPlayerTurn || previewingAiShot || aiCueViewActive)) {
           const baseAimDir = new THREE.Vector3(aimDir.x, 0, aimDir.y);
           if (baseAimDir.lengthSq() < 1e-8) baseAimDir.set(0, 0, 1);
           else baseAimDir.normalize();
