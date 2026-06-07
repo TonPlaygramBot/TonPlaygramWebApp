@@ -45,11 +45,6 @@ const APP_SHELL = [
 
 const PREFETCH_RUNTIME_ASSETS = [
   '/flag-emojis.js',
-  '/free-kick-api.js',
-  '/goal-rush.html',
-  '/goal-rush-api.js',
-  '/goal-rush-bracket.html',
-  '/goal-rush-calibration.json',
   '/init.js',
   '/texas-holdem.js',
   '/lib/texasHoldem.js',

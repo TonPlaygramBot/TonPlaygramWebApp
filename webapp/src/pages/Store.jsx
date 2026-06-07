@@ -25,11 +25,6 @@ import {
   AIR_HOCKEY_STORE_ITEMS
 } from '../config/airHockeyInventoryConfig.js';
 import {
-  GOAL_RUSH_DEFAULT_LOADOUT,
-  GOAL_RUSH_OPTION_LABELS,
-  GOAL_RUSH_STORE_ITEMS
-} from '../config/goalRushInventoryConfig.js';
-import {
   addPoolRoyalUnlock,
   getCachedPoolRoyalInventory,
   getPoolRoyalInventory,
@@ -52,13 +47,6 @@ import {
   isAirHockeyOptionUnlocked,
   listOwnedAirHockeyOptions
 } from '../utils/airHockeyInventory.js';
-import {
-  addGoalRushUnlock,
-  goalRushAccountId,
-  getGoalRushInventory,
-  isGoalRushOptionUnlocked,
-  listOwnedGoalRushOptions
-} from '../utils/goalRushInventory.js';
 import {
   CHESS_BATTLE_DEFAULT_LOADOUT,
   CHESS_BATTLE_OPTION_LABELS,
@@ -132,7 +120,6 @@ import {
   TEXAS_HOLDEM_OPTION_LABELS,
   TEXAS_HOLDEM_STORE_ITEMS
 } from '../config/texasHoldemInventoryConfig.js';
-import { BOWLING_DEFAULT_LOADOUT, BOWLING_OPTION_LABELS, BOWLING_STORE_ITEMS } from '../config/bowlingInventoryConfig.js';
 import { TABLE_CLOTH_OPTIONS } from '../utils/tableCustomizationOptions.js';
 import { TABLE_SHAPE_OPTIONS } from '../utils/murlanTable.js';
 import {
@@ -405,17 +392,6 @@ const AIR_HOCKEY_TYPE_LABELS = {
   goals: 'Goals'
 };
 
-const GOAL_RUSH_TYPE_LABELS = {
-  field: 'Pitch Surface',
-  cushionCloth: 'Cushion Cloth',
-  table: 'Table Finish',
-  tableBase: 'Table Bases',
-  environmentHdri: 'HDR Environments',
-  puck: 'WebGL Balls',
-  mallet: 'Strikers',
-  rails: 'Rails',
-  goals: 'Goal Nets'
-};
 
 const CHESS_TYPE_LABELS = {
   tables: 'Table Models',
@@ -590,8 +566,6 @@ const SNOOKER_STORE_ACCOUNT_ID =
   import.meta.env.VITE_SNOOKER_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const AIR_HOCKEY_STORE_ACCOUNT_ID =
   import.meta.env.VITE_AIR_HOCKEY_STORE_ACCOUNT_ID || DEV_INFO.account;
-const GOAL_RUSH_STORE_ACCOUNT_ID =
-  import.meta.env.VITE_GOAL_RUSH_STORE_ACCOUNT_ID || DEV_INFO.account;
 const CHESS_STORE_ACCOUNT_ID =
   import.meta.env.VITE_CHESS_BATTLE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const TAVULL_STORE_ACCOUNT_ID =
@@ -1249,7 +1223,6 @@ const USAGE_BY_TYPE = {
   }
 };
 
-const TENNIS_HDRI_OPTION_IDS = Object.freeze(['suburbanGarden','countryTrackMidday','autumnPark','rooitouPark','rotesRathaus','veniceDawn2','piazzaSanMarco']);
 
 const hashString = (value) => {
   let hash = 0;
@@ -1268,17 +1241,6 @@ const formatShortDate = (date) =>
   }).format(date);
 
 const storeMeta = {
-  tennis: {
-    name: 'Tennis',
-    items: [
-      ...POOL_ROYALE_STORE_ITEMS.filter((item) => item.type === 'environmentHdri' && TENNIS_HDRI_OPTION_IDS.includes(item.optionId)),
-      ...LUDO_BATTLE_STORE_ITEMS.filter((item) => item.type === 'humanCharacter')
-    ],
-    defaults: [...POOL_ROYALE_DEFAULT_LOADOUT, ...LUDO_BATTLE_DEFAULT_LOADOUT.filter((entry) => entry.type === 'humanCharacter')],
-    labels: { ...POOL_ROYALE_OPTION_LABELS, humanCharacter: LUDO_BATTLE_OPTION_LABELS.humanCharacter },
-    typeLabels: TYPE_LABELS,
-    accountId: POOL_STORE_ACCOUNT_ID
-  },
   poolroyale: {
     name: 'Pool Royale',
     items: POOL_ROYALE_STORE_ITEMS,
@@ -1310,14 +1272,6 @@ const storeMeta = {
     labels: AIR_HOCKEY_OPTION_LABELS,
     typeLabels: AIR_HOCKEY_TYPE_LABELS,
     accountId: AIR_HOCKEY_STORE_ACCOUNT_ID
-  },
-  goalrush: {
-    name: 'Goal Rush',
-    items: GOAL_RUSH_STORE_ITEMS,
-    defaults: GOAL_RUSH_DEFAULT_LOADOUT,
-    labels: GOAL_RUSH_OPTION_LABELS,
-    typeLabels: GOAL_RUSH_TYPE_LABELS,
-    accountId: GOAL_RUSH_STORE_ACCOUNT_ID
   },
   chessbattleroyal: {
     name: 'Chess Battle Royal',
@@ -1397,14 +1351,6 @@ const storeMeta = {
     typeLabels: SNAKE_TYPE_LABELS,
     accountId: SNAKE_STORE_ACCOUNT_ID
   },
-  bowling: {
-    name: 'Real Bowling',
-    items: BOWLING_STORE_ITEMS,
-    defaults: BOWLING_DEFAULT_LOADOUT,
-    labels: BOWLING_OPTION_LABELS,
-    typeLabels: TYPE_LABELS,
-    accountId: POOL_STORE_ACCOUNT_ID
-  },
   texasholdem: {
     name: "Texas Hold'em",
     items: TEXAS_HOLDEM_STORE_ITEMS,
@@ -1428,9 +1374,6 @@ export default function Store() {
   );
   const [airOwned, setAirOwned] = useState(() =>
     getAirHockeyInventory(airHockeyAccountId(accountId))
-  );
-  const [goalRushOwned, setGoalRushOwned] = useState(() =>
-    getGoalRushInventory(goalRushAccountId(accountId))
   );
   const [chessOwned, setChessOwned] = useState(() =>
     getChessBattleInventory(chessBattleAccountId(accountId))
@@ -1570,7 +1513,6 @@ export default function Store() {
     setPoolOwned(getCachedPoolRoyalInventory(accountId));
     setSnookerOwned(getCachedSnookerRoyalInventory(accountId));
     setAirOwned(getAirHockeyInventory(airHockeyAccountId(accountId)));
-    setGoalRushOwned(getGoalRushInventory(goalRushAccountId(accountId)));
     setChessOwned(getChessBattleInventory(chessBattleAccountId(accountId)));
     setFourInRowOwned(getFourInRowInventory(fourInRowAccountId(accountId)));
     setLudoOwned(getLudoBattleInventory(ludoBattleAccountId(accountId)));
@@ -1897,11 +1839,6 @@ export default function Store() {
         key: createItemKey(item.type, item.optionId),
         slug: 'airhockey'
       })),
-      goalrush: GOAL_RUSH_STORE_ITEMS.map((item) => ({
-        ...item,
-        key: createItemKey(item.type, item.optionId),
-        slug: 'goalrush'
-      })),
       chessbattleroyal: CHESS_BATTLE_ROYAL_STORE_ITEMS.map((item) => ({
         ...item,
         key: createItemKey(item.type, item.optionId),
@@ -1948,20 +1885,10 @@ export default function Store() {
         key: createItemKey(item.type, item.optionId),
         slug: 'snake'
       })),
-      bowling: BOWLING_STORE_ITEMS.map((item) => ({
-        ...item,
-        key: createItemKey(item.type, item.optionId),
-        slug: 'bowling'
-      })),
       texasholdem: TEXAS_HOLDEM_STORE_ITEMS.map((item) => ({
         ...item,
         key: createItemKey(item.type, item.optionId),
         slug: 'texasholdem'
-      })),
-      tennis: POOL_ROYALE_STORE_ITEMS.filter((item) => item.type === 'environmentHdri' && TENNIS_HDRI_OPTION_IDS.includes(item.optionId)).map((item) => ({
-        ...item,
-        key: createItemKey(item.type, item.optionId),
-        slug: 'tennis'
       })),
     }),
     []
@@ -1977,8 +1904,6 @@ export default function Store() {
         isSnookerOptionUnlocked(type, optionId, snookerOwned),
       airhockey: (type, optionId) =>
         isAirHockeyOptionUnlocked(type, optionId, airOwned),
-      goalrush: (type, optionId) =>
-        isGoalRushOptionUnlocked(type, optionId, goalRushOwned),
       chessbattleroyal: (type, optionId) =>
         isChessOptionUnlocked(type, optionId, chessOwned),
       checkersbattleroyal: (type, optionId) =>
@@ -1997,16 +1922,11 @@ export default function Store() {
         isDominoOptionUnlocked(type, optionId, dominoOwned),
       snake: (type, optionId) =>
         isSnakeOptionUnlocked(type, optionId, snakeOwned),
-      tennis: (type, optionId) =>
-        isPoolOptionUnlocked(type, optionId, poolOwned),
-      bowling: (type, optionId) =>
-        optionId === BOWLING_DEFAULT_LOADOUT[type] || isPoolOptionUnlocked(type, optionId, poolOwned),
       texasholdem: (type, optionId) =>
         isTexasOptionUnlocked(type, optionId, texasOwned),
     }),
     [
       airOwned,
-      goalRushOwned,
       poolOwned,
       snookerOwned,
       chessOwned,
@@ -2030,8 +1950,6 @@ export default function Store() {
         SNOOKER_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       airhockey: (item) =>
         AIR_HOCKEY_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      goalrush: (item) =>
-        GOAL_RUSH_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       chessbattleroyal: (item) =>
         CHESS_BATTLE_ROYAL_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       checkersbattleroyal: (item) =>
@@ -2053,8 +1971,6 @@ export default function Store() {
         SNAKE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       texasholdem: (item) =>
         TEXAS_HOLDEM_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      tennis: (item) =>
-        POOL_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name
     }),
     []
   );
@@ -2064,7 +1980,6 @@ export default function Store() {
       poolroyale: TYPE_LABELS,
       bilardoshqip: TYPE_LABELS,
       airhockey: AIR_HOCKEY_TYPE_LABELS,
-      goalrush: GOAL_RUSH_TYPE_LABELS,
       chessbattleroyal: CHESS_TYPE_LABELS,
       checkersbattleroyal: CHECKERS_BATTLE_TYPE_LABELS,
       fourinrowroyale: FOUR_IN_ROW_TYPE_LABELS,
@@ -2074,8 +1989,7 @@ export default function Store() {
       weaponkart: { humanCharacter: 'Seated Characters' },
       'domino-royal': DOMINO_TYPE_LABELS,
       snake: SNAKE_TYPE_LABELS,
-      texasholdem: TEXAS_TYPE_LABELS,
-      tennis: TYPE_LABELS
+      texasholdem: TEXAS_TYPE_LABELS
     }),
     []
   );
@@ -2664,7 +2578,7 @@ export default function Store() {
 
       const backgroundSyncTasks = [];
       for (const [slug, group] of Object.entries(groupedBySlug)) {
-        if (slug === 'poolroyale' || slug === 'bilardoshqip' || slug === 'tennis' || slug === 'bowling') {
+        if (slug === 'poolroyale' || slug === 'bilardoshqip') {
           for (const entry of group.items) {
             const syncTask = addPoolRoyalUnlock(
               entry.type,

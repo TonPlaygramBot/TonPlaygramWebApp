@@ -42,10 +42,6 @@ const MiningTransactions = React.lazy(
   () => import('./pages/MiningTransactions.jsx')
 );
 const SpinPage = React.lazy(() => import('./pages/spin.tsx'));
-const GoalRush = React.lazy(() => import('./pages/Games/GoalRush.jsx'));
-const GoalRushLobby = React.lazy(
-  () => import('./pages/Games/GoalRushLobby.jsx')
-);
 const AirHockey = React.lazy(() => import('./pages/Games/AirHockey.jsx'));
 const AirHockeyLobby = React.lazy(
   () => import('./pages/Games/AirHockeyLobby.jsx')
@@ -103,15 +99,6 @@ const PoolRoyaleCareer = React.lazy(
 const SnookerRoyal = React.lazy(() => import('./pages/Games/SnookerRoyal.jsx'));
 const SnookerRoyalLobby = React.lazy(
   () => import('./pages/Games/SnookerRoyalLobby.jsx')
-);
-const Tennis = React.lazy(() => import('./pages/Games/Tennis.tsx'));
-const TennisLobby = React.lazy(() => import('./pages/Games/TennisLobby.jsx'));
-const BowlingRealistic = React.lazy(
-  () => import('./pages/Games/BowlingRealistic.tsx')
-);
-const BowlingLobby = React.lazy(() => import('./pages/Games/BowlingLobby.jsx'));
-const FreeKickArena = React.lazy(
-  () => import('./pages/Games/FreeKickArena.tsx')
 );
 const ShootingRange = React.lazy(
   () => import('./pages/Games/ShootingRange.tsx')
@@ -225,21 +212,11 @@ export default function App() {
               />
               <Route path="/games/snake/mp" element={<SnakeMultiplayer />} />
               <Route path="/games/snake/results" element={<SnakeResults />} />
-              <Route path="/games/goalrush/lobby" element={<GoalRushLobby />} />
-              <Route
-                path="/games/goalrush"
-                element={
-                  <GameLiveAvatarOverlay gameSlug="goalrush">
-                    <GoalRush />
-                  </GameLiveAvatarOverlay>
-                }
-              />
               <Route
                 path="/games/airhockey/lobby"
                 element={<AirHockeyLobby />}
               />
               <Route path="/games/airhockey" element={<AirHockey />} />
-              <Route path="/games/freekickarena" element={<FreeKickArena />} />
               <Route
                 path="/games/chessbattleroyal/lobby"
                 element={
@@ -419,24 +396,6 @@ export default function App() {
                 element={
                   <GameLiveAvatarOverlay gameSlug="poolroyale">
                     <PoolRoyale />
-                  </GameLiveAvatarOverlay>
-                }
-              />
-              <Route path="/games/tennis/lobby" element={<TennisLobby />} />
-              <Route
-                path="/games/tennis"
-                element={
-                  <GameLiveAvatarOverlay gameSlug="tennis">
-                    <Tennis />
-                  </GameLiveAvatarOverlay>
-                }
-              />
-              <Route path="/games/bowling/lobby" element={<BowlingLobby />} />
-              <Route
-                path="/games/bowling"
-                element={
-                  <GameLiveAvatarOverlay gameSlug="bowling">
-                    <BowlingRealistic />
                   </GameLiveAvatarOverlay>
                 }
               />

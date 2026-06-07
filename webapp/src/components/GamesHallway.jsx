@@ -21,11 +21,9 @@ const fallbackGameNames = [
   'Horse Racing',
   'Pool Royale',
   'Snooker Royal',
-  'Free Kick',
   'Texas Holdem',
   'Domino Royal 3D',
-  'Blackjack Multi',
-  'Goal Rush'
+  'Blackjack Multi'
 ];
 
 let modernLightBufferPromise = null;

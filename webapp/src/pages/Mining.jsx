@@ -204,12 +204,6 @@ export default function Mining() {
             Daily Streak Challenge · Open full screen Shooting Range (5 shots)
           </Link>
           <SpinGame />
-          <Link
-            to="/games/freekickarena?challenge=luckyCard"
-            className="block rounded-2xl border border-emerald-300/70 bg-gradient-to-br from-emerald-400/30 via-teal-400/15 to-cyan-500/20 px-4 py-3 text-sm font-semibold text-emerald-50 shadow-[0_0_0_1px_rgba(52,211,153,.22),0_14px_30px_rgba(16,185,129,.24)]"
-          >
-            Lucky Card Challenge · Open full screen Free Kick (5 kicks)
-          </Link>
           <RouletteMini />
         </section>
 

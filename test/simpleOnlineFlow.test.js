@@ -22,7 +22,7 @@ class MockSocket extends EventEmitter {
   emit(event, payload, cb) {
     if (event === 'seatTable') {
       this.seatRequests.push({ payload, cb });
-      cb?.({ success: true, tableId: 'goalrush-1' });
+      cb?.({ success: true, tableId: 'airhockey-1' });
       return true;
     }
     if (event === 'leaveLobby') {
@@ -54,7 +54,7 @@ test('runSimpleOnlineFlow reconnects socket before joining a table', async () =>
   const transactions = [];
 
   const result = await runSimpleOnlineFlow({
-    gameType: 'goalrush',
+    gameType: 'airhockey',
     stake: { token: 'TPC', amount: 100 },
     state,
     deps: {
@@ -82,7 +82,7 @@ test('runSimpleOnlineFlow refunds stake when socket reconnection fails', async (
   const transactions = [];
 
   const result = await runSimpleOnlineFlow({
-    gameType: 'goalrush',
+    gameType: 'airhockey',
     stake: { token: 'TPC', amount: 80 },
     state,
     timeoutMs: 100,

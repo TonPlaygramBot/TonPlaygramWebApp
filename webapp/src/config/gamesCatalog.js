@@ -1,20 +1,5 @@
 const gamesCatalog = [
   {
-    name: 'Real Bowling',
-    route: '/games/bowling/lobby',
-    slug: 'bowling',
-    image: '/assets/icons/air-hockey.svg',
-    description: 'Portrait-friendly 3D bowling with swipe aim and power.'
-  },
-
-  {
-    name: 'Tennis',
-    route: '/games/tennis/lobby',
-    slug: 'tennis',
-    image: '/assets/icons/tennis-icon.svg',
-    description: '3D tennis rally with swipe controls and physics.'
-  },
-  {
     name: "Texas Hold'em",
     route: '/games/texasholdem/lobby',
     slug: 'texasholdem',
@@ -41,13 +26,6 @@ const gamesCatalog = [
     slug: 'snookerroyale',
     image: '/assets/icons/file_00000000123071f4a91766ac58320bce.png',
     description: 'Precision snooker battles with competitive stakes.'
-  },
-  {
-    name: 'Goal Rush',
-    route: '/games/goalrush/lobby',
-    slug: 'goalrush',
-    image: '/assets/icons/Goal%20rush%20logo.png',
-    description: 'Score fast goals and climb the rankings.'
   },
   {
     name: 'Air Hockey',
@@ -103,14 +81,6 @@ const gamesCatalog = [
     description: 'Backgammon duels with a royal 3D-inspired board and smart AI.'
   },
 
-  {
-    name: 'Free Kick Arena',
-    route: '/games/freekickarena/lobby',
-    slug: 'freekickarena',
-    image: '/assets/icons/Goal%20rush%20logo.png',
-    description:
-      'Portrait-friendly 3D free kicks with swipe curve, VAR checks, and replay cams.'
-  },
 
   {
     name: 'Ludo Battle Royal',

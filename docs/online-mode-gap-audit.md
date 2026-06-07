@@ -22,7 +22,6 @@ It is intentionally scoped to readiness and delivery planning (no gameplay logic
 | Ludo Battle Royal | Beta | Readiness gate exists in lobby; online alerts/fallbacks present | P1 promote after backend gate passes |
 | Texas Hold'em | Beta | Shared matchmaking enabled in lobby; backend marked incomplete | P1 harden backend + disable toggle while beta |
 | Air Hockey | Beta | Shared matchmaking enabled in lobby; backend marked incomplete | P1 harden backend + disable toggle while beta |
-| Goal Rush | Beta | Shared matchmaking enabled in lobby; backend marked incomplete | P1 harden backend + disable toggle while beta |
 | Murlan Royale | Beta | Shared matchmaking enabled in lobby; backend marked incomplete | P1 harden backend + disable toggle while beta |
 
 ## Key gaps found
@@ -93,7 +92,6 @@ The contract mentions queue/start/refund telemetry, but there is no dashboard-le
 ## Added task board (ready to execute)
 
 - [ ] Create `ONLINE_GATING_TASK`: wire every lobby online toggle to centralized readiness.
-- [ ] Create `ONLINE_BACKEND_TASK`: finish backend contract for Texas Hold'em, Air Hockey, Goal Rush, Murlan Royale, Domino Royal, Ludo.
 - [ ] Create `ONLINE_QA_TASK`: automated online smoke test matrix for all game slugs.
 - [ ] Create `ONLINE_METRICS_TASK`: publish target thresholds and dashboard widgets.
 - [ ] Create `ONLINE_MOBILE_TASK`: reconnect/resume test pass on portrait mobile devices.

@@ -734,7 +734,7 @@ function setHumanAction (human, next, blend = 0.18) {
   human.currentAction = next
 }
 
-function updateGoalRushWalkAnimation (human, dt, frame) {
+function updateOpeningWalkAnimation (human, dt, frame) {
   if (!human?.mixer || !human.actions?.Walk) return false
   const walkWeight = frame.walkAmount * (1 - easeInOut(clamp01(frame.t)))
   const next = walkWeight > 0.05 ? 'Walk' : 'Idle'
@@ -756,8 +756,8 @@ function driveHuman (human, frame) {
   human.modelRoot.position.copy(frame.rootWorld)
   human.modelRoot.rotation.y = human.yaw
   human.modelRoot.updateMatrixWorld(true)
-  const usingGoalRushWalk = updateGoalRushWalkAnimation(human, frame.dt || 0, frame)
-  if (usingGoalRushWalk) return
+  const usingOpeningWalk = updateOpeningWalkAnimation(human, frame.dt || 0, frame)
+  if (usingOpeningWalk) return
   human.restQuats.forEach((q, bone) => bone.quaternion.copy(q))
   human.modelRoot.updateMatrixWorld(true)
   const b = human.bones
