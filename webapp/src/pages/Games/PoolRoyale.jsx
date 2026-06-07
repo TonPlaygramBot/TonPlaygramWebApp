@@ -1950,9 +1950,8 @@ const CUE_PULL_RETURN_PUSH = 1.22; // accelerate the forward cue drive so push-t
 const CUE_FOLLOW_THROUGH_MIN = BALL_R * 3.9; // keep low-power shots visibly pushing through the cue ball
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so powerful shots visibly punch forward
 const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER; // keep Pool Royale release gate identical to Bilardo Shqip
-const HUMAN_PLAYER_HEIGHT_METERS = 1.8; // lock the shooter to a realistic 1.8 m body target before scene scaling
 const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.96; // fallback body/table proportion when cue dimensions are unavailable
-const HUMAN_PLAYER_HEIGHT_RATIO_TO_CUE = 1.3; // human stands about 30% taller than the live cue stick
+const HUMAN_PLAYER_HEIGHT_RATIO_TO_CUE = 1.46; // make the shooter visibly bigger in portrait while staying proportional to the live cue stick
 const BILARDO_SHQIP_HUMAN_URL = 'https://threejs.org/examples/models/gltf/Soldier.glb';
 const buildPoolRoyaleHumanUrls = (theme) => {
   const urls = [];
@@ -1975,7 +1974,7 @@ const POOL_ROYALE_VERIFIED_HUMAN_FALLBACK_URLS = Object.freeze(
 const POOL_ROYALE_PRIMARY_HUMAN_FALLBACKS_BY_ID = POOL_ROYALE_HUMAN_URLS_BY_ID;
 const DEFAULT_POOL_ROYALE_HUMAN_CHARACTER_ID = POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0]?.id ?? 'rpm-current';
 const POOL_ROYALE_HUMAN_CHARACTER_STORAGE_KEY = 'poolHumanCharacter';
-const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.18; // final visual upscale for the grounded Pool/Snooker Royale shooter
+const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.12; // final visual upscale for the grounded Pool/Snooker Royale shooter
 const POOL_ROYALE_LOUNGE_TABLE_RADIUS = BALL_R * 24; // match Murlan Royale's default octagon table proportions at pool-side scale.
 const POOL_ROYALE_LOUNGE_TABLE_HEIGHT = BALL_R * 16.5;
 const POOL_ROYALE_LOUNGE_CHAIR_SPAN = BALL_R * 64; // oversized portrait-readable chairs matching Murlan's default dining-chair asset.
@@ -2002,18 +2001,12 @@ const HUMAN_EYE_CAMERA_FORWARD_OFFSET = BALL_R * 2.34; // move the low cue camer
 const HUMAN_EYE_CAMERA_SIDE_OFFSET = -BALL_R * 0.22; // preserve subtle right-eye bias without exposing too much of the avatar body
 const HUMAN_EYE_CAMERA_MIN_BLEND = 0.06; // only engage eye camera when cue view is noticeably lowered
 const HUMAN_EYE_CAMERA_SMOOTH = 0.48; // smooth eye-camera blending into the cue camera for portrait stability
-const HUMAN_IDLE_GAP = 0.012; // SnookerRoyalProvided CFG.idleGap scaled to Pool units
-const HUMAN_CONTACT_GAP = 0.0012; // SnookerRoyalProvided CFG.contactGap scaled to Pool units
-const HUMAN_PULL_RANGE = 0.42; // SnookerRoyalProvided CFG.pullRange scaled to Pool units
-const HUMAN_BRIDGE_HAND_BACK_FROM_BALL = 0.235; // SnookerRoyalProvided CFG.bridgeHandBackFromBall
-const HUMAN_BRIDGE_HAND_SIDE = -0.115; // SnookerRoyalProvided CFG.bridgeHandSide
-const HUMAN_BRIDGE_V_GROOVE_FORWARD = 0.026; // SnookerRoyalProvided CFG.bridgeVGrooveForward
-const HUMAN_BRIDGE_V_GROOVE_SIDE = -0.032; // SnookerRoyalProvided CFG.bridgeVGrooveSide
-const HUMAN_BRIDGE_PALM_TABLE_LIFT = 0.006; // SnookerRoyalProvided CFG.bridgePalmTableLift
-const HUMAN_BRIDGE_CUE_LIFT = 0.018; // SnookerRoyalProvided CFG.bridgeCueLift
+const HUMAN_BRIDGE_HAND_BACK_FROM_BALL = 0.34; // set the bridge farther behind the cue ball to match real pool hand placement
+const HUMAN_BRIDGE_HAND_SIDE = -0.008; // match Bilardo Shqip bridge hand lateral placement
+const HUMAN_BRIDGE_CUE_LIFT = 0.018; // flatten the cue closer to the cloth like the reference shooting photos
 const HUMAN_GRIP_RATIO = 0.9; // anchor right-hand grip much closer to the cue butt so the hand no longer drifts toward the tip
-const HUMAN_CUE_LENGTH = 1.46; // 1.46 m cue length for the 1.8 m / 30%-taller shooter proportion
-const HUMAN_BRIDGE_DIST = 0.28; // SnookerRoyalProvided CFG.bridgeDist scaled to Pool units
+const HUMAN_CUE_LENGTH = 1.46; // match Bilardo Shqip cue length used for hand/cue alignment
+const HUMAN_BRIDGE_DIST = 0.24; // match Bilardo Shqip bridge-to-tip section used by cue placement
 const HUMAN_WALK_PERIMETER_SPEED = Math.max(TABLE.W * 0.95, TABLE.H * 0.7); // world units per second when traversing the walk ring
 const HUMAN_WALK_EPS = 1e-5;
 const CUE_STRIKE_DURATION_MS = 260;
@@ -26490,10 +26483,9 @@ const shotPowerRef = useRef(0);
         rigGroup.rotation.y = facingY;
 
         const liveCueLength = 1.5 * (BALL_R / 0.0525) * CUE_LENGTH_MULTIPLIER;
-        const humanHeightFromCue = Number.isFinite(liveCueLength) && liveCueLength > 0
+        const humanHeight = Number.isFinite(liveCueLength) && liveCueLength > 0
           ? liveCueLength * HUMAN_PLAYER_HEIGHT_RATIO_TO_CUE
           : TABLE.H * HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE;
-        const humanHeight = Math.max(HUMAN_PLAYER_HEIGHT_METERS, humanHeightFromCue);
         const scale = (humanHeight / 1.82) * POOL_ROYALE_HUMAN_SCALE_MULTIPLIER * (template?.userData?.poolShooterScaleMultiplier ?? 1);
         const skinMat = new THREE.MeshStandardMaterial({ color: 0xe4bf9d, roughness: 0.82 });
         const bridgeHand = createBridgeHandGroup(skinMat);
@@ -26888,7 +26880,7 @@ const shotPowerRef = useRef(0);
         const aimDir2 = aimDirRef.current;
         const hasAim = cueBall?.pos && aimDir2 && Number.isFinite(aimDir2.x) && Number.isFinite(aimDir2.y) && aimDir2.lengthSq?.() > 1e-6;
         const normalizedAim = hasAim ? aimDir2.clone().normalize() : new THREE.Vector2(0, -1);
-        const cueWorld = hasAim ? new THREE.Vector3(cueBall.pos.x, CUE_Y, cueBall.pos.y) : new THREE.Vector3(0, CUE_Y, 0);
+        const cueWorld = hasAim ? new THREE.Vector3(cueBall.pos.x, floorY, cueBall.pos.y) : new THREE.Vector3(0, floorY, 0);
 
         const chooseEdgeTarget = (forward2) => {
           const desired = cueWorld.clone().add(new THREE.Vector3(
@@ -27080,11 +27072,10 @@ const shotPowerRef = useRef(0);
             .clone()
             .addScaledVector(aimForward, -HUMAN_BRIDGE_HAND_BACK_FROM_BALL)
             .addScaledVector(side, HUMAN_BRIDGE_HAND_SIDE)
-            .setY(CUE_Y + HUMAN_BRIDGE_PALM_TABLE_LIFT);
+            .setY(TABLE_Y + TABLE.THICK + BALL_R * 0.7);
           const bridgeCuePoint = bridgeHandTarget
             .clone()
-            .addScaledVector(aimForward, HUMAN_BRIDGE_V_GROOVE_FORWARD)
-            .addScaledVector(side, HUMAN_BRIDGE_V_GROOVE_SIDE)
+            .addScaledVector(aimForward, 0.01)
             .add(new THREE.Vector3(0, HUMAN_BRIDGE_CUE_LIFT, 0));
 
           const humanShotState =
@@ -27092,38 +27083,44 @@ const shotPowerRef = useRef(0);
           const draggingPower = Math.max(0, Math.min(1, powerRef.current ?? 0));
           const strikingPower = Math.max(0, Math.min(1, shotPowerRef.current ?? draggingPower));
           const activePower = humanShotState === 'dragging' ? draggingPower : strikingPower;
-          const pull = HUMAN_PULL_RANGE * (1 - Math.pow(1 - activePower, 3));
-          const practiceStroke = humanShotState === 'dragging'
-            ? Math.sin(nowMs * 0.012) * 0.035 * scale * (0.25 + activePower * 0.75)
-            : 0;
+          const pull = BALL_R * 7.6 * (1 - Math.pow(1 - activePower, 3));
+          const practiceStroke =
+            humanShotState === 'dragging'
+              ? Math.sin(nowMs * 0.012) * BALL_R * 0.65 * (0.25 + activePower * 0.75)
+              : 0;
           const strikeTotalMs = Math.max(
             1,
             (cueStrokeStateRef.current?.strikeDuration ?? PLAYER_CUE_FORWARD_MIN_MS) +
               (cueStrokeStateRef.current?.holdDuration ?? 0)
           );
-          const strikeNorm = humanShotState === 'striking'
-            ? THREE.MathUtils.clamp(shotAge / strikeTotalMs, 0, 1)
+          const strikeNorm =
+            humanShotState === 'striking'
+              ? THREE.MathUtils.clamp(shotAge / strikeTotalMs, 0, 1)
+              : 0;
+          const strikePush = humanShotState === 'striking'
+            ? Math.sin(strikeNorm * Math.PI) * BALL_R * 1.25 * (0.35 + activePower * 0.65)
             : 0;
-          let cueBallGap = HUMAN_IDLE_GAP;
-          const spinOffset = mapSpinForPhysics(spinRef.current);
-          if (humanShotState === 'dragging') cueBallGap += pull + practiceStroke;
-          if (humanShotState === 'striking') {
-            const strikeMotionNorm = strikeNorm > 0.88 ? 0.88 : strikeNorm;
-            cueBallGap = THREE.MathUtils.lerp(
-              HUMAN_IDLE_GAP + pull,
-              HUMAN_CONTACT_GAP,
-              1 - Math.pow(1 - strikeMotionNorm, 3)
+          let cueBallGap = BALL_R * 1.22;
+          if (humanShotState === 'dragging') {
+            cueBallGap += pull + practiceStroke;
+          } else if (humanShotState === 'striking') {
+            cueBallGap = Math.max(
+              BALL_R * 1.05,
+              THREE.MathUtils.lerp(
+                BALL_R * (1.22 + (pull / BALL_R)),
+                BALL_R * 1.22,
+                1 - Math.pow(1 - strikeNorm, 3)
+              ) - strikePush
             );
           }
           const cueTipShoot = cueWorld
             .clone()
-            .addScaledVector(aimForward, -(BALL_R + cueBallGap))
-            .addScaledVector(side, (spinOffset.x ?? 0) * BALL_R * 0.52)
-            .add(new THREE.Vector3(0, (spinOffset.y ?? 0) * BALL_R * 0.44, 0));
+            .addScaledVector(aimForward, -cueBallGap)
+            .setY(bridgeHandTarget.y + HUMAN_BRIDGE_CUE_LIFT - 0.004);
           const cueBackShoot = bridgeCuePoint
             .clone()
             .addScaledVector(aimForward, -(HUMAN_CUE_LENGTH - HUMAN_BRIDGE_DIST - BALL_R - cueBallGap))
-            .add(new THREE.Vector3(0, 0.024 * scale, 0));
+            .add(new THREE.Vector3(0, 0.028 * scale, 0));
           if (isShooter && (mode === 'aim' || mode === 'strike')) {
             setCueStickFromHumanCuePose?.(cueBackShoot, cueTipShoot);
             activeHumanCueViewRef.current = {
