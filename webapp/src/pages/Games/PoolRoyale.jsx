@@ -1950,8 +1950,12 @@ const CUE_PULL_RETURN_PUSH = 1.22; // accelerate the forward cue drive so push-t
 const CUE_FOLLOW_THROUGH_MIN = BALL_R * 3.9; // keep low-power shots visibly pushing through the cue ball
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so powerful shots visibly punch forward
 const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER; // keep Pool Royale release gate identical to Bilardo Shqip
+const POOL_ROYALE_HUMAN_REFERENCE_UNIT = BALL_R / 0.0525; // SnookerRoyalProvided-style metres-to-table-unit conversion for the shooter/cue rig
+const POOL_ROYALE_HUMAN_HEIGHT_METERS = 1.8; // requested full-size standing human height reference
+const POOL_ROYALE_HUMAN_TO_CUE_RATIO = 1.3; // keep the human roughly 30% taller than the live cue stick
+const POOL_ROYALE_REFERENCE_CUE_LENGTH_METERS = 1.78; // SnookerRoyalProvided cueLength value before table scaling
 const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.96; // fallback body/table proportion when cue dimensions are unavailable
-const HUMAN_PLAYER_HEIGHT_RATIO_TO_CUE = 1.46; // make the shooter visibly bigger in portrait while staying proportional to the live cue stick
+const HUMAN_PLAYER_HEIGHT_RATIO_TO_CUE = POOL_ROYALE_HUMAN_TO_CUE_RATIO; // requested 1.8m shooter, about 30% taller than the cue stick
 const BILARDO_SHQIP_HUMAN_URL = 'https://threejs.org/examples/models/gltf/Soldier.glb';
 const buildPoolRoyaleHumanUrls = (theme) => {
   const urls = [];
@@ -1974,7 +1978,7 @@ const POOL_ROYALE_VERIFIED_HUMAN_FALLBACK_URLS = Object.freeze(
 const POOL_ROYALE_PRIMARY_HUMAN_FALLBACKS_BY_ID = POOL_ROYALE_HUMAN_URLS_BY_ID;
 const DEFAULT_POOL_ROYALE_HUMAN_CHARACTER_ID = POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0]?.id ?? 'rpm-current';
 const POOL_ROYALE_HUMAN_CHARACTER_STORAGE_KEY = 'poolHumanCharacter';
-const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.12; // final visual upscale for the grounded Pool/Snooker Royale shooter
+const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.3; // final visual upscale for the requested larger 1.8m Pool Royale shooter
 const POOL_ROYALE_LOUNGE_TABLE_RADIUS = BALL_R * 24; // match Murlan Royale's default octagon table proportions at pool-side scale.
 const POOL_ROYALE_LOUNGE_TABLE_HEIGHT = BALL_R * 16.5;
 const POOL_ROYALE_LOUNGE_CHAIR_SPAN = BALL_R * 64; // oversized portrait-readable chairs matching Murlan's default dining-chair asset.
@@ -1990,8 +1994,8 @@ const HUMAN_PLAYER_REACT_LEAN = 0.12;
 const HUMAN_POSE_LAMBDA = 9.0;
 const HUMAN_MOVE_LAMBDA = 5.6;
 const HUMAN_ROT_LAMBDA = 8.5;
-const HUMAN_EDGE_MARGIN = 1.86; // push the shooter farther outward so the avatar stays clear of the table edge in portrait
-const HUMAN_DESIRED_SHOOT_DISTANCE = 2.08; // keep the shooter much farther back on the cue-butt side like a real pool stance
+const HUMAN_EDGE_MARGIN = 0.5 * POOL_ROYALE_HUMAN_REFERENCE_UNIT; // SnookerRoyalProvided edge margin for identical shooter-side aiming placement
+const HUMAN_DESIRED_SHOOT_DISTANCE = 0.82 * POOL_ROYALE_HUMAN_REFERENCE_UNIT; // SnookerRoyalProvided shooter distance behind the cue ball
 const HUMAN_SHOOT_BLEND_THRESHOLD = 0.96; // enter shooting pose immediately when the portrait cue camera starts lowering
 const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 4.55; // widen the perimeter walk ring so feet never step onto the table mesh
 const HUMAN_TABLE_BLOCKER_MARGIN = TABLE.WALL * 1.95; // collision helper margin so characters never cut through the table body
@@ -2001,12 +2005,12 @@ const HUMAN_EYE_CAMERA_FORWARD_OFFSET = BALL_R * 2.34; // move the low cue camer
 const HUMAN_EYE_CAMERA_SIDE_OFFSET = -BALL_R * 0.22; // preserve subtle right-eye bias without exposing too much of the avatar body
 const HUMAN_EYE_CAMERA_MIN_BLEND = 0.06; // only engage eye camera when cue view is noticeably lowered
 const HUMAN_EYE_CAMERA_SMOOTH = 0.48; // smooth eye-camera blending into the cue camera for portrait stability
-const HUMAN_BRIDGE_HAND_BACK_FROM_BALL = 0.34; // set the bridge farther behind the cue ball to match real pool hand placement
-const HUMAN_BRIDGE_HAND_SIDE = -0.008; // match Bilardo Shqip bridge hand lateral placement
-const HUMAN_BRIDGE_CUE_LIFT = 0.018; // flatten the cue closer to the cloth like the reference shooting photos
+const HUMAN_BRIDGE_HAND_BACK_FROM_BALL = 0.235 * POOL_ROYALE_HUMAN_REFERENCE_UNIT; // SnookerRoyalProvided bridge hand distance behind the cue ball
+const HUMAN_BRIDGE_HAND_SIDE = -0.115 * POOL_ROYALE_HUMAN_REFERENCE_UNIT; // SnookerRoyalProvided bridge hand lateral position
+const HUMAN_BRIDGE_CUE_LIFT = 0.018 * POOL_ROYALE_HUMAN_REFERENCE_UNIT; // SnookerRoyalProvided bridge cue lift
 const HUMAN_GRIP_RATIO = 0.9; // anchor right-hand grip much closer to the cue butt so the hand no longer drifts toward the tip
-const HUMAN_CUE_LENGTH = 1.46; // match Bilardo Shqip cue length used for hand/cue alignment
-const HUMAN_BRIDGE_DIST = 0.24; // match Bilardo Shqip bridge-to-tip section used by cue placement
+const HUMAN_CUE_LENGTH = POOL_ROYALE_REFERENCE_CUE_LENGTH_METERS * POOL_ROYALE_HUMAN_REFERENCE_UNIT; // requested 1.8m human stays ~30% taller than cue stick
+const HUMAN_BRIDGE_DIST = 0.28 * POOL_ROYALE_HUMAN_REFERENCE_UNIT; // SnookerRoyalProvided bridge-to-tip section used by cue placement
 const HUMAN_WALK_PERIMETER_SPEED = Math.max(TABLE.W * 0.95, TABLE.H * 0.7); // world units per second when traversing the walk ring
 const HUMAN_WALK_EPS = 1e-5;
 const CUE_STRIKE_DURATION_MS = 260;
@@ -2027,7 +2031,7 @@ const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak 
 const CUE_BUTT_LIFT = BALL_R * 0.46; // lower the butt slightly while keeping the tip level with the cue-ball centre
 const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.38; // keep extra vertical headroom so cue helpers clear cushion lips more reliably
 const CUE_CUSHION_LIFT_BIAS = BALL_R * 0.35; // raise cue helper path a bit more to avoid cushion/ball clipping on tight angles
-const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
+const CUE_LENGTH_MULTIPLIER = POOL_ROYALE_REFERENCE_CUE_LENGTH_METERS / 1.5; // match SnookerRoyalProvided cue length while human stays about 30% taller
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_LIFT_DRAG_SCALE = 0.0048;
 const CUE_LIFT_MAX_TILT = THREE.MathUtils.degToRad(12.5);
@@ -26484,7 +26488,10 @@ const shotPowerRef = useRef(0);
 
         const liveCueLength = 1.5 * (BALL_R / 0.0525) * CUE_LENGTH_MULTIPLIER;
         const humanHeight = Number.isFinite(liveCueLength) && liveCueLength > 0
-          ? liveCueLength * HUMAN_PLAYER_HEIGHT_RATIO_TO_CUE
+          ? Math.max(
+            POOL_ROYALE_HUMAN_HEIGHT_METERS * POOL_ROYALE_HUMAN_REFERENCE_UNIT,
+            liveCueLength * HUMAN_PLAYER_HEIGHT_RATIO_TO_CUE
+          )
           : TABLE.H * HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE;
         const scale = (humanHeight / 1.82) * POOL_ROYALE_HUMAN_SCALE_MULTIPLIER * (template?.userData?.poolShooterScaleMultiplier ?? 1);
         const skinMat = new THREE.MeshStandardMaterial({ color: 0xe4bf9d, roughness: 0.82 });
@@ -26880,7 +26887,7 @@ const shotPowerRef = useRef(0);
         const aimDir2 = aimDirRef.current;
         const hasAim = cueBall?.pos && aimDir2 && Number.isFinite(aimDir2.x) && Number.isFinite(aimDir2.y) && aimDir2.lengthSq?.() > 1e-6;
         const normalizedAim = hasAim ? aimDir2.clone().normalize() : new THREE.Vector2(0, -1);
-        const cueWorld = hasAim ? new THREE.Vector3(cueBall.pos.x, floorY, cueBall.pos.y) : new THREE.Vector3(0, floorY, 0);
+        const cueWorld = hasAim ? new THREE.Vector3(cueBall.pos.x, CUE_Y, cueBall.pos.y) : new THREE.Vector3(0, CUE_Y, 0);
 
         const chooseEdgeTarget = (forward2) => {
           const desired = cueWorld.clone().add(new THREE.Vector3(
@@ -27058,13 +27065,13 @@ const shotPowerRef = useRef(0);
           const scale = anim.scale || 1;
 
           const hipCenterWorld = localToWorld(new THREE.Vector3(0, 1.02 * scale, 0.02 * scale));
-          const torsoCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.28, 1.15, t) * scale, THREE.MathUtils.lerp(0, 0.14, t) * scale));
-          const chestCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.5, 1.25, t) * scale, THREE.MathUtils.lerp(0.01, 0.34, t) * scale));
-          const neckWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.66, 1.28, t) * scale, THREE.MathUtils.lerp(0.02, 0.54, t) * scale));
-          const headCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.82, 1.34, t) * scale, THREE.MathUtils.lerp(0.04, 0.62, t) * scale));
+          const torsoCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.3, 1.14, t) * scale, THREE.MathUtils.lerp(0.02, -0.16, t) * scale));
+          const chestCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.52, 1.24, t) * scale, THREE.MathUtils.lerp(0.02, -0.42, t) * scale));
+          const neckWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.68, 1.28, t) * scale, THREE.MathUtils.lerp(0.02, -0.61, t) * scale));
+          const headCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.84, 1.37, t) * scale, THREE.MathUtils.lerp(0.04, -0.72, t) * scale));
 
-          const leftShoulderWorld = localToWorld(new THREE.Vector3(-0.22 * scale, THREE.MathUtils.lerp(1.57, 1.36, t) * scale, THREE.MathUtils.lerp(0, 0.38, t) * scale));
-          const rightShoulderWorld = localToWorld(new THREE.Vector3(0.22 * scale, THREE.MathUtils.lerp(1.57, 1.36, t) * scale, THREE.MathUtils.lerp(0, 0.31, t) * scale));
+          const leftShoulderWorld = localToWorld(new THREE.Vector3(-0.23 * scale, THREE.MathUtils.lerp(1.58, 1.36, t) * scale, THREE.MathUtils.lerp(0, -0.46, t) * scale));
+          const rightShoulderWorld = localToWorld(new THREE.Vector3(0.23 * scale, THREE.MathUtils.lerp(1.58, 1.36, t) * scale, THREE.MathUtils.lerp(0, -0.34, t) * scale));
           const leftHipWorld = localToWorld(new THREE.Vector3(-0.12 * scale, 0.93 * scale, 0.02 * scale));
           const rightHipWorld = localToWorld(new THREE.Vector3(0.12 * scale, 0.93 * scale, 0.02 * scale));
 
@@ -27072,10 +27079,11 @@ const shotPowerRef = useRef(0);
             .clone()
             .addScaledVector(aimForward, -HUMAN_BRIDGE_HAND_BACK_FROM_BALL)
             .addScaledVector(side, HUMAN_BRIDGE_HAND_SIDE)
-            .setY(TABLE_Y + TABLE.THICK + BALL_R * 0.7);
+            .setY(TABLE_Y + TABLE.THICK + 0.006 * POOL_ROYALE_HUMAN_REFERENCE_UNIT);
           const bridgeCuePoint = bridgeHandTarget
             .clone()
-            .addScaledVector(aimForward, 0.01)
+            .addScaledVector(aimForward, 0.026 * POOL_ROYALE_HUMAN_REFERENCE_UNIT)
+            .addScaledVector(side, -0.032 * POOL_ROYALE_HUMAN_REFERENCE_UNIT)
             .add(new THREE.Vector3(0, HUMAN_BRIDGE_CUE_LIFT, 0));
 
           const humanShotState =
@@ -27116,11 +27124,11 @@ const shotPowerRef = useRef(0);
           const cueTipShoot = cueWorld
             .clone()
             .addScaledVector(aimForward, -cueBallGap)
-            .setY(bridgeHandTarget.y + HUMAN_BRIDGE_CUE_LIFT - 0.004);
+            .setY(CUE_Y);
           const cueBackShoot = bridgeCuePoint
             .clone()
             .addScaledVector(aimForward, -(HUMAN_CUE_LENGTH - HUMAN_BRIDGE_DIST - BALL_R - cueBallGap))
-            .add(new THREE.Vector3(0, 0.028 * scale, 0));
+            .add(new THREE.Vector3(0, 0.024 * POOL_ROYALE_HUMAN_REFERENCE_UNIT, 0));
           if (isShooter && (mode === 'aim' || mode === 'strike')) {
             setCueStickFromHumanCuePose?.(cueBackShoot, cueTipShoot);
             activeHumanCueViewRef.current = {
