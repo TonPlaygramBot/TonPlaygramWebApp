@@ -36,6 +36,12 @@ export default function Lobby() {
     ensureAccountId().catch(() => {});
   }, []);
 
+  useEffect(() => {
+    if (game && game !== 'snake') {
+      navigate('/games', { replace: true });
+    }
+  }, [game, navigate]);
+
   const [tables, setTables] = useState([]);
   const [table, setTable] = useState(null);
   const [stake, setStake] = useState({ token: '', amount: 0 });

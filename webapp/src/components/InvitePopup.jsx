@@ -54,11 +54,6 @@ export default function InvitePopup({
                     alt: 'Snake & Ladders',
                   },
                   {
-                    id: 'goalrush',
-                    src: '/assets/icons/goal_rush_card_1200x675.webp',
-                    alt: 'Goal Rush',
-                  },
-                  {
                     id: 'poolroyale',
                     src: '/assets/icons/pool-royale.svg',
                     alt: 'Pool Royale',

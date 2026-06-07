@@ -69,22 +69,6 @@ export default function HomeGamesCard() {
           </h3>
         </Link>
         <Link
-          to="/games/goalrush/lobby"
-          className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
-        >
-          <img
-            src={getGameThumbnail('goalrush') || '/assets/icons/Goal%20rush%20logo.png'}
-            alt=""
-            className="h-20 w-20"
-            onError={(event) => {
-              event.currentTarget.src = '/assets/icons/Goal%20rush%20logo.png';
-            }}
-          />
-          <h3 className="text-sm font-semibold text-center text-yellow-400">
-            Goal Rush
-          </h3>
-        </Link>
-        <Link
           to="/games/snake/lobby"
           className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
         >

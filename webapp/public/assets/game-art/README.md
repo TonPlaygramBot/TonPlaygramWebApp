@@ -12,7 +12,6 @@ games/
   domino-royal.webp
   pool-royale.webp
   snooker-royale.webp
-  goal-rush.webp
   air-hockey.webp
   snake-ladder.webp
   murlan-royale.webp
@@ -23,7 +22,6 @@ lobby/
   domino-royal/
   pool-royale/
   snooker-royale/
-  goal-rush/
   air-hockey/
   snake/
   murlan-royale/

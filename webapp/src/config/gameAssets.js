@@ -15,7 +15,6 @@ export const gameThumbnails = {
   'domino-royal': '/assets/icons/Domino%20battle%20Royal%20logo.png',
   poolroyale: '/assets/icons/Pool%20Royal%20game%20logo.png',
   snookerroyale: '/assets/icons/file_00000000123071f4a91766ac58320bce.png',
-  goalrush: '/assets/icons/Goal%20rush%20logo.png',
   airhockey: '/assets/icons/Air%20hockey%20game%20logo.png',
   snake: '/assets/icons/Snake%20and%20ladder%20game%20logo.png',
   murlanroyale: '/assets/icons/Murlan%20Royal%20logo.png',
@@ -24,7 +23,6 @@ export const gameThumbnails = {
   fourinrowroyale: '/assets/icons/four-in-row-royale.svg',
   tavullbattleroyal: '/assets/icons/Backgammonroyallogo.png',
   ludobattleroyal: '/assets/icons/Ludo%20battle%20Royal%20game%20logo.png',
-  tennis: '/assets/icons/tennis-icon.svg',
   shootingrange: '/assets/icons/shooting-range.svg',
 };
 
@@ -75,19 +73,6 @@ export const lobbyOptionIcons = {
     'table-club': '/assets/icons/snooker-royale.svg',
     'table-practice': '/assets/icons/snooker-royale.svg'
   },
-  goalrush: buildLobbyIconSet(
-    [
-      'type-regular',
-      'type-training',
-      'type-tournament',
-      'mode-ai',
-      'mode-online',
-      'target-3',
-      'target-5',
-      'target-10'
-    ],
-    '/assets/icons/goal_rush_card_1200x675.webp'
-  ),
   airhockey: buildLobbyIconSet(
     [
       'type-regular',

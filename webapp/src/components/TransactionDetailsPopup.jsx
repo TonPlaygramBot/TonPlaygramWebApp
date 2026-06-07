@@ -13,7 +13,6 @@ import GiftIcon from './GiftIcon.jsx';
 
 const GAME_NAME_MAP = {
   snake: 'Snake & Ladder',
-  goalrush: 'Goal Rush',
   pool: 'Pool Royale',
   snooker: 'Snooker Royal',
   texas: "Texas Hold'em",

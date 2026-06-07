@@ -196,28 +196,15 @@ const AIR_HOCKEY_TOP_VIEW_CAMERA_DISTANCE_SCALE = 0.9;
 const CAMERA_LIFT_STEP = 0.2;
 const CAMERA_LIFT_MIN = 0.45;
 const CAMERA_LIFT_MAX = 1.85;
-const GAME_VARIANTS = Object.freeze({
-  airhockey: {
-    id: 'airhockey',
-    roomPrefix: 'air-hockey',
-    lobbyPath: '/games/airhockey/lobby',
-    lobbyLabel: 'Air Hockey',
-    arenaLabel: 'Air Hockey arena',
-    optionLabels: {
-      puck: 'Puck',
-      mallet: 'Mallets'
-    }
-  },
-  goalrush: {
-    id: 'goalrush',
-    roomPrefix: 'goal-rush',
-    lobbyPath: '/games/goalrush/lobby',
-    lobbyLabel: 'Goal Rush',
-    arenaLabel: 'Goal Rush arena',
-    optionLabels: {
-      puck: 'Football',
-      mallet: 'Strikers'
-    }
+const AIR_HOCKEY_VARIANT = Object.freeze({
+  id: 'airhockey',
+  roomPrefix: 'air-hockey',
+  lobbyPath: '/games/airhockey/lobby',
+  lobbyLabel: 'Air Hockey',
+  arenaLabel: 'Air Hockey arena',
+  optionLabels: {
+    puck: 'Puck',
+    mallet: 'Mallets'
   }
 });
 
@@ -468,7 +455,7 @@ const loadGltfMaterialSet = (fieldOption) => {
 };
 
 
-const createBowlingBallPaletteTexture = (colors = []) => {
+const createNebulaSpherePaletteTexture = (colors = []) => {
   if (!Array.isArray(colors) || colors.length < 3 || typeof document === 'undefined') return null;
   const canvas = document.createElement('canvas');
   canvas.width = 1024;
@@ -509,8 +496,8 @@ const createBowlingBallPaletteTexture = (colors = []) => {
 };
 
 const loadFieldSurface = async (fieldOption) => {
-  if (fieldOption?.generatedTexture === 'bowlingBall') {
-    const map = createBowlingBallPaletteTexture(fieldOption?.swatches || []);
+  if (fieldOption?.generatedTexture === 'nebulaSphere') {
+    const map = createNebulaSpherePaletteTexture(fieldOption?.swatches || []);
     return map ? { textures: { map, normal: null, roughness: null, metalness: null, emissive: null } } : null;
   }
   if (Array.isArray(fieldOption?.gltfUrls) && fieldOption.gltfUrls.length) {
@@ -614,11 +601,9 @@ export default function AirHockey3D({
   ai,
   target = 11,
   playType = 'regular',
-  accountId,
-  variant = 'airhockey'
+  accountId
 }) {
-  const gameVariant = GAME_VARIANTS[variant] || GAME_VARIANTS.airhockey;
-  const isGoalRushVariant = gameVariant.id === 'goalrush';
+  const gameVariant = AIR_HOCKEY_VARIANT;
   const targetValue = Number(target) || 11;
   const hostRef = useRef(null);
   const raf = useRef(0);
@@ -1364,41 +1349,6 @@ export default function AirHockey3D({
       const ctx = canvas.getContext('2d');
       const cx = size / 2;
       const cy = size / 2;
-      if (isGoalRushVariant) {
-        ctx.fillStyle = '#f8fafc';
-        ctx.fillRect(0, 0, size, size);
-        ctx.strokeStyle = '#0f172a';
-        ctx.lineWidth = size * 0.03;
-        ctx.beginPath();
-        ctx.arc(cx, cy, size * 0.42, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.fillStyle = '#0f172a';
-        ctx.beginPath();
-        ctx.moveTo(cx, cy - size * 0.14);
-        ctx.lineTo(cx + size * 0.11, cy - size * 0.03);
-        ctx.lineTo(cx + size * 0.07, cy + size * 0.12);
-        ctx.lineTo(cx - size * 0.07, cy + size * 0.12);
-        ctx.lineTo(cx - size * 0.11, cy - size * 0.03);
-        ctx.closePath();
-        ctx.fill();
-        const patchPositions = [
-          [-0.19, -0.18],
-          [0.19, -0.18],
-          [-0.26, 0.12],
-          [0.26, 0.12]
-        ];
-        patchPositions.forEach(([x, y]) => {
-          ctx.beginPath();
-          ctx.arc(cx + size * x, cy + size * y, size * 0.06, 0, Math.PI * 2);
-          ctx.fill();
-        });
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.colorSpace = THREE.SRGBColorSpace;
-        texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
-        texture.needsUpdate = true;
-        return texture;
-      }
-
       ctx.fillStyle = '#0b0c0f';
       ctx.fillRect(0, 0, size, size);
 
@@ -1536,7 +1486,7 @@ export default function AirHockey3D({
       knobHeight: MALLET_KNOB_HEIGHT
     };
     const PUCK_RADIUS = PLAYFIELD.w * 0.0285;
-    const PUCK_HEIGHT = isGoalRushVariant ? PUCK_RADIUS * 2 : PUCK_RADIUS * 1.05;
+    const PUCK_HEIGHT = PUCK_RADIUS * 1.05;
     const CORNER_POCKET_RADIUS = Math.max(PUCK_RADIUS * 2.3, PLAYFIELD.w * 0.055);
     const CORNER_POCKET_CAPTURE = Math.max(PUCK_RADIUS * 0.6, CORNER_POCKET_RADIUS - PUCK_RADIUS * 0.25);
     const cornerPocketCenters = [
@@ -1842,39 +1792,6 @@ export default function AirHockey3D({
     circleMesh.rotation.x = -Math.PI / 2;
     circleMesh.position.set(0, markingLift, 0);
     tableGroup.add(circleMesh);
-    if (isGoalRushVariant) {
-      const boxDepth = PLAYFIELD.h * 0.165;
-      const boxThickness = markingThickness;
-      const boxWidth = PLAYFIELD.w * 0.52;
-      const addBoxMarking = (direction) => {
-        const baseZ = direction * (PLAYFIELD.h / 2 - boxDepth / 2);
-        const longA = new THREE.Mesh(
-          new THREE.PlaneGeometry(boxWidth, boxThickness),
-          lineMaterial.clone()
-        );
-        longA.rotation.x = -Math.PI / 2;
-        longA.position.set(0, markingLift, baseZ + direction * boxDepth * 0.5);
-        tableGroup.add(longA);
-        const longB = new THREE.Mesh(
-          new THREE.PlaneGeometry(boxWidth, boxThickness),
-          lineMaterial.clone()
-        );
-        longB.rotation.x = -Math.PI / 2;
-        longB.position.set(0, markingLift, baseZ - direction * boxDepth * 0.5);
-        tableGroup.add(longB);
-        [-1, 1].forEach((xDirection) => {
-          const side = new THREE.Mesh(
-            new THREE.PlaneGeometry(boxThickness, boxDepth),
-            lineMaterial.clone()
-          );
-          side.rotation.x = -Math.PI / 2;
-          side.position.set(xDirection * boxWidth * 0.5, markingLift, baseZ);
-          tableGroup.add(side);
-        });
-      };
-      addBoxMarking(1);
-      addBoxMarking(-1);
-    }
 
     materialsRef.current.line = lineMaterial;
     materialsRef.current.rings = [circleMaterial];
@@ -1931,19 +1848,17 @@ export default function AirHockey3D({
 
     const puckTexture = createPuckTexture();
     const puck = new THREE.Mesh(
-      isGoalRushVariant
-        ? new THREE.SphereGeometry(PUCK_RADIUS, 48, 48)
-        : new THREE.CylinderGeometry(PUCK_RADIUS, PUCK_RADIUS, PUCK_HEIGHT, 32),
+      new THREE.CylinderGeometry(PUCK_RADIUS, PUCK_RADIUS, PUCK_HEIGHT, 32),
       new THREE.MeshStandardMaterial({
-        color: isGoalRushVariant ? 0xfafafa : 0x111111,
+        color: 0x111111,
         map: puckTexture,
-        roughness: isGoalRushVariant ? 0.26 : 0.34,
+        roughness: 0.34,
         metalness: 0.22,
-        clearcoat: isGoalRushVariant ? 0.55 : 0.35,
-        clearcoatRoughness: isGoalRushVariant ? 0.16 : 0.28
+        clearcoat: 0.35,
+        clearcoatRoughness: 0.28
       })
     );
-    puck.position.y = isGoalRushVariant ? PUCK_RADIUS : PUCK_HEIGHT / 2;
+    puck.position.y = PUCK_HEIGHT / 2;
     tableGroup.add(puck);
     materialsRef.current.puck = puck.material;
 
