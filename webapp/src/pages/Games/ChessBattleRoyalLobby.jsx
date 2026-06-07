@@ -305,7 +305,13 @@ export default function ChessBattleRoyalLobby() {
   const [matchError, setMatchError] = useState('');
   const preferredSide = 'auto';
   const pendingTableRef = useRef('');
-  const lobbyHandlersRef = useRef({ gameStart: null, lobbyUpdate: null });
+  const lobbyHandlersRef = useRef({
+    gameStart: null,
+    lobbyUpdate: null,
+    connectError: null,
+    disconnect: null,
+    errorMessage: null
+  });
   const cleanupRef = useRef(() => {});
   const matchmakingTimeoutRef = useRef(null);
   const spinIntervalRef = useRef(null);
@@ -481,13 +487,28 @@ export default function ChessBattleRoyalLobby() {
       clearTimeout(matchmakingTimeoutRef.current);
       matchmakingTimeoutRef.current = null;
     }
-    const { gameStart, lobbyUpdate } = lobbyHandlersRef.current;
+    const {
+      gameStart,
+      lobbyUpdate,
+      connectError,
+      disconnect,
+      errorMessage
+    } = lobbyHandlersRef.current;
     if (gameStart) {
       socket.off('gameStart', gameStart);
       socket.off('gameStarted', gameStart);
     }
     if (lobbyUpdate) socket.off('lobbyUpdate', lobbyUpdate);
-    lobbyHandlersRef.current = { gameStart: null, lobbyUpdate: null };
+    if (connectError) socket.off('connect_error', connectError);
+    if (disconnect) socket.off('disconnect', disconnect);
+    if (errorMessage) socket.off('errorMessage', errorMessage);
+    lobbyHandlersRef.current = {
+      gameStart: null,
+      lobbyUpdate: null,
+      connectError: null,
+      disconnect: null,
+      errorMessage: null
+    };
     if (!skipLeave && pendingTableRef.current && (account || accountId)) {
       socket.emit('leaveLobby', {
         accountId: account || accountId,
@@ -638,15 +659,37 @@ export default function ChessBattleRoyalLobby() {
       });
     };
 
+    const handleConnectError = () => {
+      setMatchStatus('Lobby connection failed. Reconnecting…');
+    };
+
+    const handleDisconnect = () => {
+      if (pendingTableRef.current) {
+        setMatchStatus('Connection dropped. Reconnecting to lobby…');
+      }
+    };
+
+    const handleErrorMessage = (error) => {
+      if (!pendingTableRef.current) return;
+      const message = resolveSeatErrorMessage(error);
+      setMatchError(message);
+    };
+
     cleanupRef.current = () =>
       cleanupLobby({ account: trackedAccountId, skipRefReset: true });
 
     socket.on('gameStart', handleGameStart);
     socket.on('gameStarted', handleGameStart);
     socket.on('lobbyUpdate', handleLobbyUpdate);
+    socket.on('connect_error', handleConnectError);
+    socket.on('disconnect', handleDisconnect);
+    socket.on('errorMessage', handleErrorMessage);
     lobbyHandlersRef.current = {
       gameStart: handleGameStart,
-      lobbyUpdate: handleLobbyUpdate
+      lobbyUpdate: handleLobbyUpdate,
+      connectError: handleConnectError,
+      disconnect: handleDisconnect,
+      errorMessage: handleErrorMessage
     };
 
     const matchTimeout = window.setTimeout(async () => {
