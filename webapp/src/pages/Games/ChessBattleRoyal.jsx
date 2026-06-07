@@ -2471,33 +2471,29 @@ const DRONE_FLY_SOUND_URL = '/assets/sounds/kimsa-kimsa-big-motorcycle-sound-394
 const HELICOPTER_FLY_SOUND_URL = '/assets/sounds/dragon-studio-helicopter-sound-8d-372463.mp3';
 const BAZOOKA_FIRE_SOUND_URL = '/assets/sounds/launch-85216.mp3';
 const MISSILE_IMPACT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
-// Weapon model sources used here ship meshes/materials only; firearm audio is
-// streamed from attributed CC-BY source URLs so no binary MP3 files enter the PR.
-const CHESS_FIREARM_REMOTE_SFX = Object.freeze({
-  gunshot: {
-    url: 'https://www.orangefreesounds.com/wp-content/uploads/2015/01/Gunshot-sound-effect.mp3',
-    page: 'https://orangefreesounds.com/gunshot-sound-effect/',
-    credit: 'Gunshot Sound Effect by Alexander / Orange Free Sounds, CC BY 4.0'
-  },
-  shotgun: {
-    url: 'https://www.orangefreesounds.com/wp-content/uploads/2016/12/Shotgun-sound.mp3',
-    page: 'https://orangefreesounds.com/shotgun-sound/',
-    credit: 'Shotgun Sound by Alexander / Orange Free Sounds, CC BY 4.0'
-  },
-  launcher: {
-    url: 'https://www.orangefreesounds.com/wp-content/uploads/2017/03/Cannon-sound-effect.mp3',
-    page: 'https://orangefreesounds.com/cannon-sound-effect/',
-    credit: 'Cannon Sound Effect by Alexander / Orange Free Sounds, CC BY 4.0'
-  }
+const LUDO_CAPTURE_FIREARM_SHOT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
+const LUDO_CAPTURE_FIREARM_SHELL_SOUND_URL = '/assets/sounds/cueshootsound.mp3';
+const LUDO_CAPTURE_GLASS_SHATTER_SOUND_URL = '/assets/sounds/glass-bottle-breaking-351297.mp3';
+const FIREARM_CAPTURE_SHOT_SOUND_URL_BY_ID = Object.freeze({
+  glockSidearmAttack: 'https://cdn.freesound.org/previews/414/414888_5121236-lq.mp3',
+  smithSidearmAttack: 'https://cdn.freesound.org/previews/414/414888_5121236-lq.mp3',
+  sigsauerTacticalAttack: 'https://cdn.freesound.org/previews/414/414888_5121236-lq.mp3',
+  uziSprayAttack: 'https://cdn.freesound.org/previews/171/171104_2437358-lq.mp3',
+  smgBurstAttack: 'https://cdn.freesound.org/previews/171/171104_2437358-lq.mp3',
+  assaultRifleAttack: 'https://cdn.freesound.org/previews/212/212968_4048940-lq.mp3',
+  ak47VolleyAttack: 'https://cdn.freesound.org/previews/212/212968_4048940-lq.mp3',
+  sniperShotAttack: 'https://cdn.freesound.org/previews/533/533981_11861866-lq.mp3',
+  shotgunBlastAttack: 'https://cdn.freesound.org/previews/456/456035_5121236-lq.mp3',
+  grenadeBlastAttack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
+  polyBazooka01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
+  polyGrenadeLauncher01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
+  polyDynamiteBomb01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
+  polyMolotov01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
+  polyGasTank01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
+  polyHandGrenade01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
+  polyTank01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3'
 });
-const CHESS_FIREARM_SFX_BY_TYPE = Object.freeze({
-  Pistol: { key: 'gunshot', volume: 0.92, playbackRate: 1.18, maxDurationMs: 620 },
-  SMG: { key: 'gunshot', volume: 0.56, playbackRate: 1.34, maxDurationMs: 360 },
-  Rifle: { key: 'gunshot', volume: 0.82, playbackRate: 0.86, maxDurationMs: 760 },
-  Sniper: { key: 'gunshot', volume: 1, playbackRate: 0.72, maxDurationMs: 980 },
-  Shotgun: { key: 'shotgun', volume: 1, playbackRate: 0.98, maxDurationMs: 950 },
-  GrenadeLauncher: { key: 'launcher', volume: 1, playbackRate: 1.04, maxDurationMs: 980 }
-});
+const FIREARM_SOURCE_AUDIO_CACHE = new Map();
 const LUDO_FIREARM_BROADCAST_PROFILE = LUDO_WEAPON_DIRECTOR_BRIDGE.firearmBroadcastProfile || {};
 const LUDO_WEAPON_TYPE_BY_ANIMATION_ID = LUDO_WEAPON_DIRECTOR_BRIDGE.weaponTypeByCaptureAnimationId || {};
 const CHESS_FIREARM_FATAL_BULLET_TRAVEL_MS = 1250; // match Ludo Battle Royal service-pistol final bullet travel.
@@ -8656,7 +8652,9 @@ function Chess3D({
   const helicopterSoundRef = useRef(null);
   const missileLaunchSoundRef = useRef(null);
   const missileImpactSoundRef = useRef(null);
-  const firearmSfxPoolRef = useRef(new Map());
+  const firearmShotSoundRef = useRef(null);
+  const firearmShellSoundRef = useRef(null);
+  const firearmGlassSoundRef = useRef(null);
   const audioStopTimeoutsRef = useRef(new Map());
   const lastBeepRef = useRef({ white: null, black: null });
   const suppressTimerBeepUntilRef = useRef(0);
@@ -9823,7 +9821,16 @@ function Chess3D({
         } catch {}
       }
     }
-    [swordSoundRef, droneSoundRef, helicopterSoundRef, missileLaunchSoundRef, missileImpactSoundRef].forEach((ref) => {
+    [
+      swordSoundRef,
+      droneSoundRef,
+      helicopterSoundRef,
+      missileLaunchSoundRef,
+      missileImpactSoundRef,
+      firearmShotSoundRef,
+      firearmShellSoundRef,
+      firearmGlassSoundRef
+    ].forEach((ref) => {
       if (!ref.current) return;
       ref.current.volume = effectiveSoundEnabled ? volume : 0;
       if (!effectiveSoundEnabled) {
@@ -9833,16 +9840,14 @@ function Chess3D({
         } catch {}
       }
     });
-    firearmSfxPoolRef.current.forEach((pool) => {
-      pool.forEach((audio) => {
-        audio.volume = effectiveSoundEnabled ? volume : 0;
-        if (!effectiveSoundEnabled) {
-          try {
-            audio.pause();
-            audio.currentTime = 0;
-          } catch {}
-        }
-      });
+    FIREARM_SOURCE_AUDIO_CACHE.forEach((audio) => {
+      audio.volume = effectiveSoundEnabled ? volume : 0;
+      if (!effectiveSoundEnabled) {
+        try {
+          audio.pause();
+          audio.currentTime = 0;
+        } catch {}
+      }
     });
     if (!effectiveSoundEnabled) {
       audioStopTimeoutsRef.current.forEach((timeoutId) => clearTimeout(timeoutId));
@@ -9871,14 +9876,21 @@ function Chess3D({
       if (laughSoundRef.current) {
         laughSoundRef.current.volume = settingsRef.current.soundEnabled ? volume : 0;
       }
-      [swordSoundRef, droneSoundRef, helicopterSoundRef, missileLaunchSoundRef, missileImpactSoundRef].forEach((ref) => {
+      [
+        swordSoundRef,
+        droneSoundRef,
+        helicopterSoundRef,
+        missileLaunchSoundRef,
+        missileImpactSoundRef,
+        firearmShotSoundRef,
+        firearmShellSoundRef,
+        firearmGlassSoundRef
+      ].forEach((ref) => {
         if (!ref.current) return;
         ref.current.volume = settingsRef.current.soundEnabled ? volume : 0;
       });
-      firearmSfxPoolRef.current.forEach((pool) => {
-        pool.forEach((audio) => {
-          audio.volume = settingsRef.current.soundEnabled ? volume : 0;
-        });
+      FIREARM_SOURCE_AUDIO_CACHE.forEach((audio) => {
+        audio.volume = settingsRef.current.soundEnabled ? volume : 0;
       });
     };
     window.addEventListener('gameVolumeChanged', handleVolumeChange);
@@ -10310,18 +10322,12 @@ function Chess3D({
     missileLaunchSoundRef.current.volume = baseVolume;
     missileImpactSoundRef.current = new Audio(MISSILE_IMPACT_SOUND_URL);
     missileImpactSoundRef.current.volume = baseVolume;
-    firearmSfxPoolRef.current = new Map(
-      Object.entries(CHESS_FIREARM_REMOTE_SFX).map(([soundKey, source]) => [
-        soundKey,
-        Array.from({ length: 4 }, () => {
-          const audio = new Audio(source.url);
-          audio.preload = 'auto';
-          audio.volume = baseVolume;
-          audio.dataset.sourcePage = source.page;
-          return audio;
-        })
-      ])
-    );
+    firearmShotSoundRef.current = new Audio(LUDO_CAPTURE_FIREARM_SHOT_SOUND_URL);
+    firearmShotSoundRef.current.volume = baseVolume;
+    firearmShellSoundRef.current = new Audio(LUDO_CAPTURE_FIREARM_SHELL_SOUND_URL);
+    firearmShellSoundRef.current.volume = baseVolume;
+    firearmGlassSoundRef.current = new Audio(LUDO_CAPTURE_GLASS_SHATTER_SOUND_URL);
+    firearmGlassSoundRef.current.volume = baseVolume;
 
     let stopCameraTween = () => {};
     let onResize = null;
@@ -10411,32 +10417,44 @@ function Chess3D({
           playPromise?.catch(() => {});
         } catch {}
       };
-      const playFirearmSfx = (profile = {}) => {
-        if (!settingsRef.current.soundEnabled) return;
-        const soundProfile = CHESS_FIREARM_SFX_BY_TYPE[profile.ludoType] || CHESS_FIREARM_SFX_BY_TYPE.Rifle;
-        const pool = firearmSfxPoolRef.current.get(soundProfile.key) || [];
-        const audio = pool.find((candidate) => candidate.paused || candidate.ended) || pool[0];
-        if (!audio) return;
+      const playWeaponSfxFromUrl = (url, volume = 1) => {
+        if (!settingsRef.current.soundEnabled || !url) return;
+        let audio = FIREARM_SOURCE_AUDIO_CACHE.get(url);
+        if (!audio) {
+          audio = new Audio(url);
+          audio.preload = 'auto';
+          FIREARM_SOURCE_AUDIO_CACHE.set(url, audio);
+        }
         try {
-          const existingTimeoutId = audioStopTimeoutsRef.current.get(audio);
-          if (existingTimeoutId) clearTimeout(existingTimeoutId);
           audio.pause();
           audio.currentTime = 0;
-          audio.volume = clamp01(getGameVolume() * (soundProfile.volume ?? 1), 0);
-          audio.playbackRate = soundProfile.playbackRate ?? 1;
-          const playPromise = audio.play();
-          if (soundProfile.maxDurationMs && Number.isFinite(soundProfile.maxDurationMs)) {
-            const timeoutId = setTimeout(() => {
-              try {
-                audio.pause();
-                audio.currentTime = 0;
-              } catch {}
-              audioStopTimeoutsRef.current.delete(audio);
-            }, soundProfile.maxDurationMs);
-            audioStopTimeoutsRef.current.set(audio, timeoutId);
-          }
-          playPromise?.catch(() => {});
+          audio.volume = clamp(volume, 0, 1);
+          audio.playbackRate = 1;
+          audio.play().catch(() => {});
         } catch {}
+      };
+      const playCaptureWeaponSourceSound = (captureAnimationId, { volume = 1, muted = false } = {}) => {
+        if (muted) return false;
+        const config = CHESS_CAPTURE_WEAPON_MODEL_CONFIG[captureAnimationId];
+        const sourceUrl = Array.isArray(config?.soundUrls) ? config.soundUrls.find(Boolean) : null;
+        if (!sourceUrl) return false;
+        playWeaponSfxFromUrl(sourceUrl, volume);
+        return true;
+      };
+      const playFirearmShotSound = () => playAudio(firearmShotSoundRef);
+      const playFirearmShellSound = () => playAudio(firearmShellSoundRef);
+      const playGlassShatterSound = () => playAudio(firearmGlassSoundRef);
+      const playLudoWeaponFirearmSfx = (captureAnimationId) => {
+        playFirearmShotSound();
+        playFirearmShellSound();
+        playCaptureWeaponSourceSound(captureAnimationId, {
+          volume: 0.8 * getGameVolume(),
+          muted: !settingsRef.current.soundEnabled
+        });
+        const openSourceShotUrl = FIREARM_CAPTURE_SHOT_SOUND_URL_BY_ID[captureAnimationId];
+        if (openSourceShotUrl) {
+          playWeaponSfxFromUrl(openSourceShotUrl, 0.9 * getGameVolume());
+        }
       };
       const playMoveSound = () => playAudio(moveSoundRef);
       const playCheckSound = () => playAudio(checkSoundRef);
@@ -12015,8 +12033,11 @@ function Chess3D({
       });
     };
 
-    const launchExplosion = (position, targetMesh = null) => {
-      if (targetMesh) launchTargetShatter(targetMesh, position);
+    const launchExplosion = (position, targetMesh = null, { playShatterSound = false } = {}) => {
+      if (targetMesh) {
+        launchTargetShatter(targetMesh, position);
+        if (playShatterSound) playGlassShatterSound();
+      }
       const explosion = createFxExplosion(position);
       captureFxGroup.add(explosion.root);
       playAudio(bombSoundRef, { maxDurationMs: 520 });
@@ -13156,6 +13177,7 @@ function Chess3D({
           impactAt: firearmProfile.impactAt,
           singleShot: firearmProfile.singleShot,
           bulletProfile: firearmProfile,
+          captureAnimationId: firearmAnimationId,
           shortMissile: Boolean(firearmProfile.shortMissile),
           firedBullets: 0,
           hitTriggered: false,
@@ -15755,7 +15777,7 @@ function Chess3D({
                 bullet.impactTriggered = true;
                 fx.hitTriggered = true;
                 playAudio(missileImpactSoundRef, { volume: 0.95 });
-                launchExplosion(bullet.to.clone(), fx.targetMesh);
+                launchExplosion(bullet.to.clone(), fx.targetMesh, { playShatterSound: true });
                 if (activeBulletCameraFollow === bullet) activeBulletCameraFollow = null;
               }
             });
@@ -15870,13 +15892,13 @@ function Chess3D({
                 velocity: ejectSide.multiplyScalar(0.16).add(new THREE.Vector3(0, 0.11, 0)).addScaledVector(aimDir, -0.025),
                 startMs: now
               });
-              playFirearmSfx(fx.bulletProfile);
+              playLudoWeaponFirearmSfx(fx.bulletProfile?.captureAnimationId || fx.captureAnimationId);
             }
 
             if (!fx.hitTriggered && u >= fx.impactAt && !(fx.liveBullets || []).some((bullet) => bullet.cinematic)) {
               fx.hitTriggered = true;
               playAudio(missileImpactSoundRef, { volume: fx.singleShot ? 0.9 : 0.65 });
-              launchExplosion(targetPos, fx.targetMesh);
+              launchExplosion(targetPos, fx.targetMesh, { playShatterSound: true });
             }
 
             if (u >= 1 && !(fx.liveBullets || []).length && !(fx.liveShells || []).length) {
@@ -16331,13 +16353,15 @@ function Chess3D({
       helicopterSoundRef.current?.pause();
       missileLaunchSoundRef.current?.pause();
       missileImpactSoundRef.current?.pause();
-      firearmSfxPoolRef.current.forEach((pool) => {
-        pool.forEach((audio) => {
+      firearmShotSoundRef.current?.pause();
+      firearmShellSoundRef.current?.pause();
+      firearmGlassSoundRef.current?.pause();
+      FIREARM_SOURCE_AUDIO_CACHE.forEach((audio) => {
+        try {
           audio.pause();
           audio.currentTime = 0;
-        });
+        } catch {}
       });
-      firearmSfxPoolRef.current.clear();
       activeCaptureFx.splice(0, activeCaptureFx.length);
       activeBulletCameraFollow = null;
       captureFxGroup?.clear?.();
