@@ -1106,23 +1106,6 @@ function normalizeAvatarSource(src = '') {
 
 const entryMode = (urlParams.get('entry') || '').toLowerCase();
 const gameMode = (urlParams.get('mode') || 'local').toLowerCase();
-const onlineTableId = (urlParams.get('tableId') || urlParams.get('table') || '').trim();
-const isOnlineMatch = gameMode === 'online' && !!onlineTableId;
-const onlineSeatIndexParam = Number.parseInt(urlParams.get('seatIndex') || '', 10);
-function parseOnlineListParam(key) {
-  const raw = urlParams.get(key) || '';
-  if (!raw) return [];
-  return raw.split(',').map((part) => {
-    try {
-      return decodeURIComponent(part || '').trim();
-    } catch {
-      return (part || '').trim();
-    }
-  });
-}
-const onlineSeatIds = parseOnlineListParam('seatIds');
-const onlineSeatNames = parseOnlineListParam('seatNames');
-const onlineSeatAvatars = parseOnlineListParam('seatAvatars').map(normalizeAvatarSource);
 const isVsAiMatch = gameMode === 'local';
 const shouldRunHallwayEntry = !USE_MINIMAL_STAGE && entryMode === 'hallway';
 const shouldShowSeatLabel = shouldRunHallwayEntry;
@@ -1222,9 +1205,6 @@ function pickFlagForSeat(index = 0) {
 function getSeatUsernames(count = N) {
   const avatars = buildSeatAvatarSources(count);
   return avatars.map((avatar, idx) => {
-    if (isOnlineMatch && onlineSeatNames[idx]) {
-      return onlineSeatNames[idx];
-    }
     if (idx === HUMAN_SEAT_INDEX && seatAvatarUsername) {
       return seatAvatarUsername;
     }
@@ -6192,9 +6172,6 @@ function isAvatarUrl(str = '') {
 function buildSeatAvatarSources(count = N) {
   const total = Math.max(1, count);
   return Array.from({ length: total }, (_, idx) => {
-    if (isOnlineMatch && onlineSeatAvatars[idx]) {
-      return onlineSeatAvatars[idx];
-    }
     if (idx === HUMAN_SEAT_INDEX) {
       const preferred =
         normalizeAvatarSource(seatAvatarPhoto) ||
@@ -9038,7 +9015,7 @@ function hideWinnerOverlay() {
 }
 
 function showWinnerOverlay({ winner = null, reason = '' } = {}) {
-  if (!winnerOverlay || (!isVsAiMatch && !isOnlineMatch)) return;
+  if (!winnerOverlay || !isVsAiMatch) return;
   const names = getSeatUsernames(N);
   const avatars = buildSeatAvatarSources(N);
   const safeWinner = Number.isInteger(winner) && winner >= 0 ? winner : human;
@@ -9098,14 +9075,6 @@ let statusPrefix = '';
 let ends = null; // {L:{v,x,z,dir:[dx,dz]}, R:{...}}
 let current = 0;
 let human = 0;
-if (isOnlineMatch && Number.isInteger(onlineSeatIndexParam) && onlineSeatIndexParam >= 0) {
-  human = Math.min(3, onlineSeatIndexParam);
-}
-const onlineHostAccountId = onlineSeatIds[0] || accountId;
-const isOnlineHost = isOnlineMatch && (!onlineHostAccountId || String(accountId) === String(onlineHostAccountId));
-let onlineBridge = null;
-let applyingOnlineState = false;
-let lastOnlineSeq = 0;
 let selectedTile = null;
 let selectedHighlight = null;
 let selectedHighlightHost = null;
@@ -9125,138 +9094,6 @@ let winnerHighlightStart = 0;
 let cpuMoveTimeout = null;
 let pendingTurnAdvanceTimeout = null;
 const activeHandMeshes = new Set();
-
-
-function cloneOnlineTile(tile) {
-  if (!tile || typeof tile.a !== 'number' || typeof tile.b !== 'number') return null;
-  return { a: tile.a, b: tile.b };
-}
-
-function serializeDominoState() {
-  return {
-    seq: Date.now(),
-    players: players.map((player, idx) => ({
-      id: onlineSeatIds[idx] || player.id || idx,
-      name: onlineSeatNames[idx] || formatSeatName(idx),
-      hand: (player.hand || []).map(cloneOnlineTile).filter(Boolean)
-    })),
-    boneyard: boneyard.map(cloneOnlineTile).filter(Boolean),
-    chain: chain.map((segment) => ({
-      tile: cloneOnlineTile(segment.tile),
-      x: segment.x,
-      z: segment.z,
-      rot: segment.rot,
-      double: !!segment.double
-    })).filter((segment) => segment.tile),
-    ends: ends ? JSON.parse(JSON.stringify(ends)) : null,
-    current,
-    gameFinished,
-    winnerIndex,
-    revealAllHands,
-    racePenaltyTotals,
-    raceDisqualifiedPlayers,
-    raceRoundNumber,
-    lastHandWinnerIndex
-  };
-}
-
-function hydrateDominoTile(tile) {
-  const safe = cloneOnlineTile(tile);
-  return safe ? { ...safe } : null;
-}
-
-function applyDominoOnlineState(state = {}) {
-  if (!isOnlineMatch || !state || typeof state !== 'object') return;
-  const seq = Number(state.seq || state.updatedAt || 0);
-  if (seq && seq < lastOnlineSeq) return;
-  if (seq) lastOnlineSeq = seq;
-  applyingOnlineState = true;
-  clearMarkers();
-  clearExistingDominoMeshes();
-  selectedTile = null;
-  clearSelectedHighlight();
-  if (cpuMoveTimeout) {
-    clearTimeout(cpuMoveTimeout);
-    cpuMoveTimeout = null;
-  }
-  if (pendingTurnAdvanceTimeout) {
-    clearTimeout(pendingTurnAdvanceTimeout);
-    pendingTurnAdvanceTimeout = null;
-  }
-  const remotePlayers = Array.isArray(state.players) ? state.players : [];
-  players = Array.from({ length: N }, (_, idx) => ({
-    id: onlineSeatIds[idx] || remotePlayers[idx]?.id || idx,
-    name: onlineSeatNames[idx] || remotePlayers[idx]?.name || `Player ${idx + 1}`,
-    hand: (remotePlayers[idx]?.hand || []).map(hydrateDominoTile).filter(Boolean)
-  }));
-  boneyard = Array.isArray(state.boneyard)
-    ? state.boneyard.map(hydrateDominoTile).filter(Boolean)
-    : [];
-  chain = Array.isArray(state.chain)
-    ? state.chain.map((segment) => ({
-        tile: hydrateDominoTile(segment.tile),
-        x: Number(segment.x) || 0,
-        z: Number(segment.z) || 0,
-        rot: Number(segment.rot) || 0,
-        double: !!segment.double
-      })).filter((segment) => segment.tile)
-    : [];
-  ends = state.ends || null;
-  current = Number.isInteger(state.current) ? state.current : current;
-  gameFinished = !!state.gameFinished;
-  winnerIndex = Number.isInteger(state.winnerIndex) ? state.winnerIndex : null;
-  revealAllHands = !!state.revealAllHands;
-  racePenaltyTotals = Array.isArray(state.racePenaltyTotals) ? state.racePenaltyTotals : racePenaltyTotals;
-  raceDisqualifiedPlayers = Array.isArray(state.raceDisqualifiedPlayers) ? state.raceDisqualifiedPlayers : raceDisqualifiedPlayers;
-  raceRoundNumber = Number.isInteger(state.raceRoundNumber) ? state.raceRoundNumber : raceRoundNumber;
-  lastHandWinnerIndex = Number.isInteger(state.lastHandWinnerIndex) ? state.lastHandWinnerIndex : lastHandWinnerIndex;
-  renderBoneyardStack();
-  renderHands();
-  renderChain();
-  if (gameFinished) {
-    showWinnerOverlay({ winner: winnerIndex, reason: winnerIndex === human ? 'You won!' : `Player ${winnerIndex + 1} won!` });
-  } else {
-    hideWinnerOverlay();
-    updateInteractivity();
-  }
-  applyingOnlineState = false;
-}
-
-function emitDominoOnlineState(reason = 'sync') {
-  if (!isOnlineMatch || applyingOnlineState) return;
-  onlineBridge = onlineBridge || window.__dominoRoyalSocketBridge || null;
-  if (!onlineBridge || typeof onlineBridge.emit !== 'function') return;
-  const state = serializeDominoState();
-  lastOnlineSeq = state.seq;
-  onlineBridge.emit('dominoAction', {
-    tableId: onlineTableId,
-    action: { type: reason, playerId: accountId, state },
-    state
-  });
-}
-
-function setupDominoOnlineSync() {
-  if (!isOnlineMatch) return;
-  const attach = () => {
-    onlineBridge = window.__dominoRoyalSocketBridge || onlineBridge;
-    if (!onlineBridge || typeof onlineBridge.on !== 'function') return false;
-    const handleState = (payload = {}) => {
-      if (payload.tableId && payload.tableId !== onlineTableId) return;
-      if (payload.playerId && accountId && String(payload.playerId) === String(accountId)) return;
-      applyDominoOnlineState(payload.state || payload.action?.state);
-    };
-    onlineBridge.on('dominoState', handleState);
-    onlineBridge.emit?.('joinDominoTable', { tableId: onlineTableId, accountId });
-    onlineBridge.emit?.('dominoSyncRequest', { tableId: onlineTableId });
-    window.__dominoRoyalOnlineCleanup = () => onlineBridge?.off?.('dominoState', handleState);
-    return true;
-  };
-  if (!attach()) {
-    setTimeout(() => {
-      if (attach()) onlineBridge?.emit?.('dominoSyncRequest', { tableId: onlineTableId });
-    }, 350);
-  }
-}
 
 function tileKey(tile) {
   const ct = canonTile(tile);
@@ -9377,9 +9214,6 @@ const isPointsRace =
   raceTargetPoints > 0;
 if (requestedPlayers >= 2 && requestedPlayers <= 4) {
   N = requestedPlayers;
-}
-if (isOnlineMatch && onlineSeatIds.length >= 2 && onlineSeatIds.length <= 4) {
-  N = onlineSeatIds.length;
 }
 const stakeAmount = Number.parseInt(urlParams.get('amount') || '', 10);
 const stakeToken = urlParams.get('token') || 'TPC';
@@ -10271,9 +10105,7 @@ function startGame({ resetRace = true } = {}) {
   renderChain();
   current = (starter - 1 + N) % N;
   updateInteractivity();
-  if (isOnlineMatch) {
-    if (isOnlineHost && !applyingOnlineState) emitDominoOnlineState('start');
-  } else if (current !== human) {
+  if (current !== human) {
     scheduleCpuPlay();
   }
 }
@@ -10962,7 +10794,6 @@ if (btnDraw) {
   renderHands();
   if (drewTile) {
     SFX.drawTile();
-    emitDominoOnlineState('draw');
   }
   });
 }
@@ -10980,13 +10811,7 @@ if (btnPass) {
 async function bootstrapDominoRoyal() {
   try {
     await loadHumanProfileFromApi();
-    setupDominoOnlineSync();
-    if (!isOnlineMatch || isOnlineHost) {
-      startGame();
-    } else {
-      setStatus('Syncing online table…');
-      setTimeout(() => onlineBridge?.emit?.('dominoSyncRequest', { tableId: onlineTableId }), 900);
-    }
+    startGame();
     setControlEnabled(true);
   } catch (error) {
     console.error('Domino Royal failed to start', error);
@@ -11024,7 +10849,6 @@ function blockedAndWinner() {
 }
 
 function scheduleCpuPlay(delay = CPU_PLAY_DELAY) {
-  if (isOnlineMatch) return;
   if (cpuMoveTimeout) {
     clearTimeout(cpuMoveTimeout);
     cpuMoveTimeout = null;
@@ -11110,7 +10934,6 @@ function finishGame({ winner = null, reason = '', revealAll = false } = {}) {
     SFX.drawGame();
   }
   showWinnerOverlay({ winner: winnerIndex, reason });
-  emitDominoOnlineState('finish');
 }
 
 
@@ -11209,10 +11032,6 @@ function nextTurn() {
     return;
   }
   updateInteractivity();
-  if (isOnlineMatch) {
-    emitDominoOnlineState('turn');
-    return;
-  }
   if (gameFinished) {
     return;
   }
@@ -12009,10 +11828,6 @@ function detachRuntimeListeners() {
 
 function shutdownDominoRoyal(reason = 'unknown') {
   if (isGameShuttingDown) return;
-  if (typeof window.__dominoRoyalOnlineCleanup === 'function') {
-    window.__dominoRoyalOnlineCleanup();
-    delete window.__dominoRoyalOnlineCleanup;
-  }
   isGameShuttingDown = true;
   try {
     if (typeof animationFrameId === 'number') {
