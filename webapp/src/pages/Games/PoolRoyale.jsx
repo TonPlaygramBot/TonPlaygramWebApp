@@ -13029,12 +13029,12 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
           poolRoyaleShowoodOriginalBaseHidden: true
         };
       }
-      if (tableModel?.useReferenceShowoodMapping) {
+      if (tableModel?.useReferenceShowoodMapping && !tableModel?.preserveSourceMaterials) {
         const nextMaterial = applyPoolRoyaleShowoodReferenceMaterial(material, referencePart || role, tableModel, finishInfo);
         normalizePoolRoyaleExternalClothTextureScale(child, nextMaterial, role);
         return nextMaterial;
       }
-      if (tableModel?.usePoolRoyaleFinish && finishInfo) {
+      if (tableModel?.usePoolRoyaleFinish && finishInfo && !tableModel?.preserveSourceMaterials) {
         const nextMaterial = applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tableModel);
         normalizePoolRoyaleExternalClothTextureScale(child, nextMaterial, role);
         return nextMaterial;
@@ -13680,7 +13680,13 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   const widthScale = dims.targetWidth / modelWidth;
   const lengthScale = dims.targetLength / modelLength;
   const fitScaleMultiplier = tableModel?.fitScale ?? 1;
-  if (tableModel?.fitStrategy === 'exact') {
+  const preserveSourceLayout = tableModel?.preserveSourceLayout === true;
+  if (preserveSourceLayout) {
+    const sourceFitScale = tableModel?.sourceLayoutFitStrategy === 'cover'
+      ? Math.max(widthScale, lengthScale)
+      : Math.min(widthScale, lengthScale);
+    model.scale.multiplyScalar(sourceFitScale * fitScaleMultiplier);
+  } else if (tableModel?.fitStrategy === 'exact') {
     const exactXScale = Math.max(MICRO_EPS, dims.targetWidth / Math.max(MICRO_EPS, footprintSize.x));
     const exactZScale = Math.max(MICRO_EPS, dims.targetLength / Math.max(MICRO_EPS, footprintSize.z));
     const targetHeight = dims.targetHeight ?? dims.nativeVisualHeight;
@@ -13720,13 +13726,15 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   const targetTopLocal = dims.targetTopLocal ?? dims.cushionTopLocal;
   model.position.y += targetTopLocal - fullBox.max.y + (tableModel?.verticalOffset ?? 0);
   model.updateMatrixWorld(true);
-  shrinkPoolRoyaleExternalUpperFrame(model, tableModel, dims);
-  shortenPoolRoyaleShowoodCornerRims(model, tableModel, dims);
-  trimPoolRoyaleShowoodLowerAccentTriangles(model, tableModel, dims);
-  stretchPoolRoyaleExternalLowerBase(model, tableModel, dims);
-  stretchPoolRoyaleShowoodLegsToFeet(model, tableModel);
-  subtlyWidenPoolRoyaleShowoodFeet(model, tableModel);
-  subtlyExpandPoolRoyaleShowoodRailSightsAndAprons(model, tableModel, dims);
+  if (!preserveSourceLayout) {
+    shrinkPoolRoyaleExternalUpperFrame(model, tableModel, dims);
+    shortenPoolRoyaleShowoodCornerRims(model, tableModel, dims);
+    trimPoolRoyaleShowoodLowerAccentTriangles(model, tableModel, dims);
+    stretchPoolRoyaleExternalLowerBase(model, tableModel, dims);
+    stretchPoolRoyaleShowoodLegsToFeet(model, tableModel);
+    subtlyWidenPoolRoyaleShowoodFeet(model, tableModel);
+    subtlyExpandPoolRoyaleShowoodRailSightsAndAprons(model, tableModel, dims);
+  }
   model.userData = {
     ...(model.userData || {}),
     poolRoyaleExternalTable: true,
@@ -13735,7 +13743,8 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
       width: dims.targetWidth,
       length: dims.targetLength,
       height: dims.targetHeight ?? null,
-      physics: 'Pool Royale playfield, pockets, cushions, and ball simulation'
+      physics: 'Pool Royale playfield, pockets, cushions, and ball simulation',
+      sourceLayoutPreserved: preserveSourceLayout
     }
   };
 }
