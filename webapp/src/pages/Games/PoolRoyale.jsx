@@ -1950,8 +1950,7 @@ const CUE_FOLLOW_THROUGH_MIN = BALL_R * 3.9; // keep low-power shots visibly pus
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so powerful shots visibly punch forward
 const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER; // keep Pool Royale release gate identical to Bilardo Shqip
 const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.96; // fallback body/table proportion when cue dimensions are unavailable
-const HUMAN_PLAYER_HEIGHT_RATIO_TO_CUE = 1.55; // make the shooter visibly bigger in portrait while staying proportional to the live cue stick
-const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.12; // extra Pool/Snooker Royal growth pass for the grounded human character
+const HUMAN_PLAYER_HEIGHT_RATIO_TO_CUE = 1.3; // keep the shooter 30% taller than the live cue stick
 const BILARDO_SHQIP_HUMAN_URL = 'https://threejs.org/examples/models/gltf/Soldier.glb';
 const POOL_ROYALE_VERIFIED_HUMAN_FALLBACK_URLS = Object.freeze([
   'https://threejs.org/examples/models/gltf/readyplayer.me.glb',
@@ -1974,35 +1973,6 @@ const POOL_ROYALE_PRIMARY_HUMAN_FALLBACKS_BY_ID = Object.freeze({
   'webgl-ai-teacher-1': ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb'],
   'webgl-thanh-human': ['https://raw.githubusercontent.com/hmthanh/3d-human-model/main/Thanh.glb'],
   'threejs-xbot-human': ['https://threejs.org/examples/models/gltf/Xbot.glb']
-});
-const POOL_ROYALE_DOMINO_CHARACTER_THEMES = Object.freeze([
-  { id: 'rpm-current-domino', urls: ['https://threejs.org/examples/models/gltf/readyplayer.me.glb'], clothCombo: 'royalDenim', hairColor: 0x24150f, eyeColor: 0x2f5d7c, skinTone: 0xd9a27d },
-  { id: 'rpm-67d411-domino', urls: ['https://models.readyplayer.me/67d411b30787acbf58ce58ac.glb', 'https://api.readyplayer.me/v1/avatars/67d411b30787acbf58ce58ac.glb', 'https://avatars.readyplayer.me/67d411b30787acbf58ce58ac.glb'], clothCombo: 'casinoCheck', hairColor: 0x14100c, eyeColor: 0x5a3d2b, skinTone: 0xc78f68 },
-  { id: 'rpm-67f433-domino', urls: ['https://models.readyplayer.me/67f433b69dc08cf26d2cf585.glb', 'https://api.readyplayer.me/v1/avatars/67f433b69dc08cf26d2cf585.glb', 'https://avatars.readyplayer.me/67f433b69dc08cf26d2cf585.glb'], clothCombo: 'linenStreet', hairColor: 0x2c1b12, eyeColor: 0x406a45, skinTone: 0xe0b18d },
-  { id: 'rpm-67e1b5-domino', urls: ['https://models.readyplayer.me/67e1b51ae11c93725e4395c9.glb', 'https://api.readyplayer.me/v1/avatars/67e1b51ae11c93725e4395c9.glb', 'https://avatars.readyplayer.me/67e1b51ae11c93725e4395c9.glb'], clothCombo: 'jacquardNight', hairColor: 0x3a2418, eyeColor: 0x364f7d, skinTone: 0xb87957 },
-  { id: 'webgl-vietnam-human-domino', urls: ['https://raw.githubusercontent.com/hmthanh/3d-human-model/main/TranThiNgocTham.glb'], clothCombo: 'softFleece', hairColor: 0x120d0a, eyeColor: 0x33271e, skinTone: 0xd39a72 },
-  { id: 'webgl-ai-teacher-domino', urls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar.glb'], clothCombo: 'patternedRed', hairColor: 0x231915, eyeColor: 0x3d5f73, skinTone: 0xc88b64 },
-  { id: 'webgl-ai-teacher-1-domino', urls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb'], clothCombo: 'mixedDenim', hairColor: 0x0f0b08, eyeColor: 0x4c3425, skinTone: 0xe3b08b }
-]);
-const POOL_ROYALE_DOMINO_CHARACTER_URLS = Object.freeze(
-  POOL_ROYALE_DOMINO_CHARACTER_THEMES.flatMap((theme) => theme.urls).filter(Boolean)
-);
-const POOL_ROYALE_DOMINO_CHARACTER_CLOTH_MATERIALS = Object.freeze({
-  denim: { color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_diff_1k.jpg', normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_nor_gl_1k.jpg', roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_rough_1k.jpg', tint: 0x314d86 },
-  check: { color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_diff_1k.jpg', normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_nor_gl_1k.jpg', roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_rough_1k.jpg', tint: 0x9f3651 },
-  hessian: { color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_diff_1k.jpg', normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_nor_gl_1k.jpg', roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_rough_1k.jpg', tint: 0xa27445 },
-  floral: { color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_diff_1k.jpg', normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_nor_gl_1k.jpg', roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_rough_1k.jpg', tint: 0x6d3f7f },
-  fleece: { color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_diff_1k.jpg', normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_nor_gl_1k.jpg', roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_rough_1k.jpg', tint: 0x4b5563 },
-  picnic: { color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_col_1_1k.jpg', normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_nor_gl_1k.jpg', roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_rough_1k.jpg', tint: 0xc44f42 }
-});
-const POOL_ROYALE_DOMINO_CHARACTER_CLOTH_COMBOS = Object.freeze({
-  royalDenim: { upper: { material: 'denim', tint: 0x2f5f9f, repeat: 4.2 }, lower: { material: 'hessian', tint: 0x9b6b3f, repeat: 3.4 }, accent: { material: 'fleece', tint: 0xd8dee9, repeat: 5.0 } },
-  casinoCheck: { upper: { material: 'check', tint: 0xb7375d, repeat: 3.8 }, lower: { material: 'denim', tint: 0x243e70, repeat: 4.4 }, accent: { material: 'hessian', tint: 0xf4d7a1, repeat: 3.2 } },
-  linenStreet: { upper: { material: 'hessian', tint: 0xb68452, repeat: 3.6 }, lower: { material: 'fleece', tint: 0x374151, repeat: 5.2 }, accent: { material: 'denim', tint: 0x4a6fa4, repeat: 4.0 } },
-  jacquardNight: { upper: { material: 'floral', tint: 0x7c3f88, repeat: 3.2 }, lower: { material: 'denim', tint: 0x1f335f, repeat: 4.5 }, accent: { material: 'check', tint: 0xe3c16f, repeat: 4.0 } },
-  softFleece: { upper: { material: 'fleece', tint: 0x556070, repeat: 5.3 }, lower: { material: 'hessian', tint: 0x8b633f, repeat: 3.7 }, accent: { material: 'floral', tint: 0xb88ab8, repeat: 3.0 } },
-  patternedRed: { upper: { material: 'picnic', tint: 0xc44f42, repeat: 3.4 }, lower: { material: 'denim', tint: 0x263f73, repeat: 4.7 }, accent: { material: 'fleece', tint: 0xf1f5f9, repeat: 5.0 } },
-  mixedDenim: { upper: { material: 'denim', tint: 0x3b6ea8, repeat: 4.0 }, lower: { material: 'check', tint: 0x4f6f93, repeat: 4.2 }, accent: { material: 'hessian', tint: 0xd6a35f, repeat: 3.2 } }
 });
 const POOL_ROYALE_LOUNGE_TABLE_RADIUS = BALL_R * 24; // match Murlan Royale's default octagon table proportions at pool-side scale.
 const POOL_ROYALE_LOUNGE_TABLE_HEIGHT = BALL_R * 16.5;
@@ -3686,7 +3656,6 @@ const POOL_ROYALE_MURLAN_CHAIR_URLS = Object.freeze([
   'https://dl.polyhaven.org/file/ph-assets/Models/gltf/4k/dining_chair_02/dining_chair_02_4k.gltf'
 ]);
 const POOL_ROYALE_REFEREE_HUMAN_URLS = Object.freeze([
-  ...POOL_ROYALE_DOMINO_CHARACTER_URLS,
   'https://threejs.org/examples/models/gltf/Xbot.glb',
   'https://threejs.org/examples/models/gltf/readyplayer.me.glb',
   BILARDO_SHQIP_HUMAN_URL
@@ -21497,116 +21466,6 @@ const shotPowerRef = useRef(0);
           child.material = materials.map((mat) => cloneHospitalityMaterial(mat));
         });
       };
-      const poolRoyaleDominoTextureCache = new Map();
-      const loadPoolRoyaleDominoTexture = (url, { isColor = false, repeat = 4 } = {}) => {
-        if (!url) return null;
-        const cacheKey = `${url}|${isColor ? 'color' : 'data'}|${repeat}`;
-        if (poolRoyaleDominoTextureCache.has(cacheKey)) return poolRoyaleDominoTextureCache.get(cacheKey);
-        const loader = new THREE.TextureLoader();
-        loader.setCrossOrigin('anonymous');
-        const texture = loader.load(url);
-        texture.wrapS = THREE.RepeatWrapping;
-        texture.wrapT = THREE.RepeatWrapping;
-        texture.repeat.set(repeat, repeat);
-        texture.anisotropy = Math.min(8, renderer?.capabilities?.getMaxAnisotropy?.() || 4);
-        if (isColor) applySRGBColorSpace(texture);
-        texture.needsUpdate = true;
-        poolRoyaleDominoTextureCache.set(cacheKey, texture);
-        return texture;
-      };
-      const classifyPoolRoyaleDominoHumanSurface = (mesh, mat) => {
-        const text = `${mesh?.name || ''} ${mat?.name || ''}`.toLowerCase();
-        if (/hair|brow|beard|mustache|moustache/.test(text)) return 'hair';
-        if (/eye|iris|pupil|cornea/.test(text)) return 'eye';
-        if (/skin|face|head|hand|arm|body|neck|leg/.test(text)) return 'skin';
-        if (/shoe|boot|foot|sole/.test(text)) return 'shoe';
-        if (/pant|jean|trouser|short|lower/.test(text)) return 'lowerCloth';
-        if (/shirt|jacket|coat|hoodie|top|torso|vest|cloth|dress/.test(text)) return 'upperCloth';
-        return 'upperCloth';
-      };
-      const resolvePoolRoyaleDominoClothSlot = (theme, slot) => {
-        const combo = POOL_ROYALE_DOMINO_CHARACTER_CLOTH_COMBOS[theme?.clothCombo] || POOL_ROYALE_DOMINO_CHARACTER_CLOTH_COMBOS.royalDenim;
-        const slotConfig = combo?.[slot] || combo?.upper || { material: 'denim' };
-        const material = POOL_ROYALE_DOMINO_CHARACTER_CLOTH_MATERIALS[slotConfig.material] || POOL_ROYALE_DOMINO_CHARACTER_CLOTH_MATERIALS.denim;
-        return {
-          ...material,
-          tint: slotConfig.tint ?? material.tint ?? 0xffffff,
-          repeat: slotConfig.repeat ?? 4
-        };
-      };
-      const applyPoolRoyaleDominoClothMaterial = (mat, cloth) => {
-        mat.map = loadPoolRoyaleDominoTexture(cloth.color, { isColor: true, repeat: cloth.repeat });
-        mat.normalMap = loadPoolRoyaleDominoTexture(cloth.normal, { repeat: cloth.repeat });
-        mat.roughnessMap = loadPoolRoyaleDominoTexture(cloth.roughness, { repeat: cloth.repeat });
-        mat.color = new THREE.Color(cloth.tint ?? 0xffffff);
-        mat.normalScale = new THREE.Vector2(0.28, 0.28);
-        mat.roughness = 0.86;
-        mat.metalness = 0.015;
-        mat.needsUpdate = true;
-      };
-      const enhancePoolRoyaleDominoCharacterMaterials = (instance, theme) => {
-        const clothSlots = {
-          upperCloth: resolvePoolRoyaleDominoClothSlot(theme, 'upper'),
-          lowerCloth: resolvePoolRoyaleDominoClothSlot(theme, 'lower'),
-          accentCloth: resolvePoolRoyaleDominoClothSlot(theme, 'accent')
-        };
-        const skinColor = new THREE.Color(theme?.skinTone ?? 0xd2a07c);
-        const hairColor = new THREE.Color(theme?.hairColor ?? 0x21150f);
-        const eyeColor = new THREE.Color(theme?.eyeColor ?? 0x3f5f75);
-        instance.traverse((child) => {
-          if (!child?.isMesh) return;
-          const materials = Array.isArray(child.material) ? child.material : [child.material];
-          const enhanced = materials.map((sourceMat) => {
-            if (!sourceMat) return sourceMat;
-            const mat = sourceMat.clone?.() ?? sourceMat;
-            const surface = classifyPoolRoyaleDominoHumanSurface(child, mat);
-            if (clothSlots[surface]) {
-              applyPoolRoyaleDominoClothMaterial(mat, clothSlots[surface]);
-            } else if (surface === 'hair') {
-              mat.map = null;
-              mat.color = hairColor.clone();
-              mat.roughness = 0.56;
-              mat.metalness = 0.02;
-            } else if (surface === 'eye') {
-              mat.map = null;
-              mat.color = eyeColor.clone();
-              mat.roughness = 0.18;
-              mat.metalness = 0;
-            } else if (surface === 'skin') {
-              mat.color = skinColor.clone();
-              mat.roughness = Math.min(mat.roughness ?? 0.62, 0.62);
-              mat.metalness = 0;
-            } else if (surface === 'shoe') {
-              mat.color = new THREE.Color(0x111827);
-              mat.roughness = 0.78;
-              mat.metalness = 0.02;
-            }
-            applySRGBColorSpace(mat.map);
-            applySRGBColorSpace(mat.emissiveMap);
-            if (mat.map) sharpenTexture(mat.map);
-            mat.needsUpdate = true;
-            return mat;
-          });
-          child.material = Array.isArray(child.material) ? enhanced : enhanced[0];
-          child.castShadow = true;
-          child.receiveShadow = true;
-          child.frustumCulled = false;
-        });
-      };
-      const loadPoolRoyaleDominoHumanTemplates = async () => {
-        const results = await Promise.allSettled(
-          POOL_ROYALE_DOMINO_CHARACTER_THEMES.map(async (theme) => {
-            const gltf = await loadFirstAvailableGltf(theme.urls);
-            const model = gltf?.scene?.clone?.(true) ?? gltf?.scene ?? gltf?.scenes?.[0] ?? null;
-            if (!model) throw new Error(`Missing Pool Royale Domino human scene: ${theme.id}`);
-            enhancePoolRoyaleDominoCharacterMaterials(model, theme);
-            return { theme, model };
-          })
-        );
-        return results
-          .filter((result) => result.status === 'fulfilled' && result.value?.model)
-          .map((result) => result.value);
-      };
       const ensureChessLoungeAssets = async () => {
         if (chessLoungeTemplateRef.current && chessChairTemplateRef.current) {
           return {
@@ -26924,38 +26783,20 @@ const shotPowerRef = useRef(0);
           TABLE.H / 2 + HUMAN_WALK_RING_MARGIN
         );
         const facingY = Math.atan2(-startAim.x, -startAim.y);
-        let dominoTemplates = [];
-        try {
-          dominoTemplates = await loadPoolRoyaleDominoHumanTemplates();
-        } catch (error) {
-          console.warn('Pool Royale Domino human roster failed to load; using procedural shooter', error);
-        }
-        const roster = dominoTemplates.length
-          ? dominoTemplates
-          : [{ theme: { id: 'procedural-pool-shooter' }, model: null }];
-        playerCharacterRigsRef.current = roster.map((entry, index) => {
-          const theta = -Math.PI / 2 + index * ((Math.PI * 2) / Math.max(1, roster.length));
-          const edgeX = (TABLE.W / 2 + HUMAN_EDGE_MARGIN) * Math.sin(theta);
-          const edgeZ = (TABLE.H / 2 + HUMAN_EDGE_MARGIN) * Math.cos(theta);
-          const isShooter = index === 0;
-          const group = createPlayerCharacterRig({
-            seat: isShooter ? 'A' : `D${index}`,
-            x: isShooter ? startRoot.x : edgeX,
-            z: isShooter ? startRoot.z : edgeZ,
-            facingY: isShooter ? facingY : Math.atan2(-edgeX, -edgeZ),
-            template: entry.model
-          });
-          group.position.y = floorY;
-          group.userData.anim.rosterIndex = index;
-          group.userData.anim.rosterCount = roster.length;
-          group.userData.anim.themeId = entry.theme?.id;
-          scene.add(group);
-          return {
-            seat: group.userData.anim.seat,
-            group,
-            anim: group.userData.anim
-          };
+        const group = createPlayerCharacterRig({
+          seat: 'A',
+          x: startRoot.x,
+          z: startRoot.z,
+          facingY,
+          template: null
         });
+        group.position.y = floorY;
+        scene.add(group);
+        playerCharacterRigsRef.current = [{
+          seat: 'A',
+          group,
+          anim: group.userData.anim
+        }];
       };
       spawnPlayerCharactersRef.current = spawnPlayerCharacters;
 
@@ -27131,12 +26972,9 @@ const shotPowerRef = useRef(0);
           const targetPose = mode === 'idle' ? 0 : 1;
           anim.poseT = THREE.MathUtils.lerp(anim.poseT ?? 0, targetPose, 1 - Math.exp(-HUMAN_POSE_LAMBDA * dtSeconds));
 
-          const rosterCount = Math.max(1, anim.rosterCount || rigs.length || 1);
-          const rosterIndex = Number.isFinite(anim.rosterIndex) ? anim.rosterIndex : (anim.seat === 'A' ? 0 : 1);
-          const idleAngle = -Math.PI / 2 + rosterIndex * ((Math.PI * 2) / rosterCount);
-          const seatBiasX = anim.seat === 'A' ? -TABLE.W * 0.19 : Math.sin(idleAngle) * TABLE.W * 0.72;
-          const seatBiasZ = anim.seat === 'A' ? -TABLE.H * 0.72 : Math.cos(idleAngle) * TABLE.H * 0.72;
-          const seatTarget = desiredRoot.clone().lerp(new THREE.Vector3(seatBiasX, floorY, seatBiasZ), anim.seat === 'A' ? 0.42 : 0.9);
+          const seatBiasX = anim.seat === 'A' ? -TABLE.W * 0.19 : TABLE.W * 0.19;
+          const seatBiasZ = anim.seat === 'A' ? -TABLE.H * 0.72 : TABLE.H * 0.72;
+          const seatTarget = desiredRoot.clone().lerp(new THREE.Vector3(seatBiasX, floorY, seatBiasZ), 0.42);
           const perimeterTarget = clampToWalkPerimeter(seatTarget);
           if (!anim.rootTarget) anim.rootTarget = perimeterTarget.clone();
           anim.rootTarget.copy(perimeterTarget);
@@ -27169,14 +27007,14 @@ const shotPowerRef = useRef(0);
           const localToWorld = (v) => v.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), anim.yaw).add(rig.group.position);
           const scale = anim.scale || 1;
 
-          const hipCenterWorld = localToWorld(new THREE.Vector3(0, 1.02 * scale, THREE.MathUtils.lerp(0, 0.02, t) * scale));
-          const torsoCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.28, 1.2, t) * scale, THREE.MathUtils.lerp(0, 0.12, t) * scale));
-          const chestCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.5, 1.34, t) * scale, THREE.MathUtils.lerp(0.01, 0.3, t) * scale));
-          const neckWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.66, 1.42, t) * scale, THREE.MathUtils.lerp(0.02, 0.44, t) * scale));
-          const headCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.82, 1.52, t) * scale, THREE.MathUtils.lerp(0.04, 0.52, t) * scale));
+          const hipCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.02, 0.98, t) * scale, THREE.MathUtils.lerp(0, 0.02, t) * scale));
+          const torsoCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.28, 1.13, t) * scale, THREE.MathUtils.lerp(0, -0.16, t) * scale));
+          const chestCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.5, 1.22, t) * scale, THREE.MathUtils.lerp(0.01, -0.38, t) * scale));
+          const neckWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.66, 1.22, t) * scale, THREE.MathUtils.lerp(0.02, -0.61, t) * scale));
+          const headCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.82, 1.27, t) * scale, THREE.MathUtils.lerp(0.04, -0.71, t) * scale));
 
-          const leftShoulderWorld = localToWorld(new THREE.Vector3(-0.22 * scale, THREE.MathUtils.lerp(1.57, 1.44, t) * scale, THREE.MathUtils.lerp(0, 0.28, t) * scale));
-          const rightShoulderWorld = localToWorld(new THREE.Vector3(0.22 * scale, THREE.MathUtils.lerp(1.57, 1.44, t) * scale, THREE.MathUtils.lerp(0, 0.24, t) * scale));
+          const leftShoulderWorld = localToWorld(new THREE.Vector3(-0.22 * scale, THREE.MathUtils.lerp(1.57, 1.34, t) * scale, THREE.MathUtils.lerp(0, -0.42, t) * scale));
+          const rightShoulderWorld = localToWorld(new THREE.Vector3(0.22 * scale, THREE.MathUtils.lerp(1.57, 1.34, t) * scale, THREE.MathUtils.lerp(0, -0.35, t) * scale));
           const leftHipWorld = localToWorld(new THREE.Vector3(-0.12 * scale, 0.93 * scale, 0.02 * scale));
           const rightHipWorld = localToWorld(new THREE.Vector3(0.12 * scale, 0.93 * scale, 0.02 * scale));
 
@@ -27256,9 +27094,9 @@ const shotPowerRef = useRef(0);
           if (anim.model && !anim.pelvis) {
             const idle = 1 - t;
             const breath = Math.sin(nowMs * 0.0028 + (anim.seat === 'A' ? 0 : Math.PI * 0.5)) * (0.006 + idle * 0.004);
-            anim.model.position.set(0, 0.006 * breath, 0.01 * walk);
+            anim.model.position.set(0, 0.006 * breath - 0.02 * t, 0.01 * walk);
             anim.model.rotation.set(
-              0.11 * t - 0.024 * walk,
+              -0.11 * t - 0.024 * walk,
               0,
               (anim.seat === activeSeat ? -1 : 1) * 0.012 * idle
             );
@@ -27290,20 +27128,20 @@ const shotPowerRef = useRef(0);
           const bodyQ = makeHumanoidBasis(side, aimForward);
           anim.pelvis.position.copy(hipCenterWorld);
           anim.pelvis.quaternion.copy(bodyQ);
-          anim.pelvis.rotation.x += 0;
+          anim.pelvis.rotation.x += THREE.MathUtils.lerp(0, -0.08, t);
 
           anim.torso.position.copy(torsoCenterWorld);
           anim.torso.quaternion.copy(bodyQ);
-          anim.torso.rotation.x += THREE.MathUtils.lerp(0, 0.16, t);
+          anim.torso.rotation.x += THREE.MathUtils.lerp(0, -0.28, t);
 
           anim.chest.position.copy(chestCenterWorld);
           anim.chest.quaternion.copy(bodyQ);
-          anim.chest.rotation.x += THREE.MathUtils.lerp(0, 0.42, t);
+          anim.chest.rotation.x += THREE.MathUtils.lerp(0, -0.62, t);
 
           setHumanoidSegment(anim.neck, neckWorld.clone().addScaledVector(new THREE.Vector3(0, 1, 0), -0.06 * scale), neckWorld.clone().addScaledVector(new THREE.Vector3(0, 1, 0), 0.06 * scale), 0.045 * scale);
           anim.head.position.copy(headCenterWorld);
           anim.head.quaternion.copy(bodyQ);
-          anim.head.rotation.x += THREE.MathUtils.lerp(0, 0.12, t);
+          anim.head.rotation.x += THREE.MathUtils.lerp(0, -0.2, t);
 
           setHumanoidSegment(anim.leftUpperArm, leftShoulderWorld, leftElbow, 0.044 * scale);
           setHumanoidSegment(anim.leftLowerArm, leftElbow, leftHandWorld, 0.036 * scale);
