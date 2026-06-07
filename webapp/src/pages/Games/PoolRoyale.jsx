@@ -85,7 +85,8 @@ import {
   POOL_ROYALE_HDRI_VARIANTS,
   POOL_ROYALE_HDRI_VARIANT_MAP,
   POOL_ROYALE_BASE_VARIANTS,
-  POOL_ROYALE_OPTION_LABELS
+  POOL_ROYALE_OPTION_LABELS,
+  POOL_ROYALE_HUMAN_CHARACTER_OPTIONS
 } from '../../config/poolRoyaleInventoryConfig.js';
 import { BILARDO_MIN_RELEASE_POWER } from './shared/bilardoShotModel';
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../../config/poolRoyaleClothPresets.js';
@@ -1950,30 +1951,30 @@ const CUE_FOLLOW_THROUGH_MIN = BALL_R * 3.9; // keep low-power shots visibly pus
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so powerful shots visibly punch forward
 const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER; // keep Pool Royale release gate identical to Bilardo Shqip
 const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.96; // fallback body/table proportion when cue dimensions are unavailable
-const HUMAN_PLAYER_HEIGHT_RATIO_TO_CUE = 1.3; // keep the shooter 30% taller than the live cue stick
+const HUMAN_PLAYER_HEIGHT_RATIO_TO_CUE = 1.46; // make the shooter visibly bigger in portrait while staying proportional to the live cue stick
 const BILARDO_SHQIP_HUMAN_URL = 'https://threejs.org/examples/models/gltf/Soldier.glb';
-const POOL_ROYALE_VERIFIED_HUMAN_FALLBACK_URLS = Object.freeze([
-  'https://threejs.org/examples/models/gltf/readyplayer.me.glb',
-  'https://models.readyplayer.me/67d411b30787acbf58ce58ac.glb',
-  'https://models.readyplayer.me/67f433b69dc08cf26d2cf585.glb',
-  'https://models.readyplayer.me/67e1b51ae11c93725e4395c9.glb',
-  'https://raw.githubusercontent.com/hmthanh/3d-human-model/main/TranThiNgocTham.glb',
-  'https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar.glb',
-  'https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb',
-  'https://raw.githubusercontent.com/hmthanh/3d-human-model/main/Thanh.glb',
-  'https://threejs.org/examples/models/gltf/Xbot.glb'
-]);
-const POOL_ROYALE_PRIMARY_HUMAN_FALLBACKS_BY_ID = Object.freeze({
-  'rpm-current': ['https://threejs.org/examples/models/gltf/readyplayer.me.glb'],
-  'rpm-67d411': ['https://models.readyplayer.me/67d411b30787acbf58ce58ac.glb'],
-  'rpm-67f433': ['https://models.readyplayer.me/67f433b69dc08cf26d2cf585.glb'],
-  'rpm-67e1b5': ['https://models.readyplayer.me/67e1b51ae11c93725e4395c9.glb'],
-  'webgl-vietnam-human': ['https://raw.githubusercontent.com/hmthanh/3d-human-model/main/TranThiNgocTham.glb'],
-  'webgl-ai-teacher': ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar.glb'],
-  'webgl-ai-teacher-1': ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb'],
-  'webgl-thanh-human': ['https://raw.githubusercontent.com/hmthanh/3d-human-model/main/Thanh.glb'],
-  'threejs-xbot-human': ['https://threejs.org/examples/models/gltf/Xbot.glb']
-});
+const buildPoolRoyaleHumanUrls = (theme) => {
+  const urls = [];
+  if (Array.isArray(theme?.modelUrls)) urls.push(...theme.modelUrls);
+  if (theme?.url) urls.push(theme.url);
+  return Array.from(new Set(urls.filter(Boolean)));
+};
+const POOL_ROYALE_HUMAN_URLS_BY_ID = Object.freeze(
+  POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.reduce((acc, theme) => {
+    acc[theme.id] = buildPoolRoyaleHumanUrls(theme);
+    return acc;
+  }, {})
+);
+const POOL_ROYALE_VERIFIED_HUMAN_FALLBACK_URLS = Object.freeze(
+  Array.from(new Set([
+    ...POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.flatMap(buildPoolRoyaleHumanUrls),
+    BILARDO_SHQIP_HUMAN_URL
+  ]))
+);
+const POOL_ROYALE_PRIMARY_HUMAN_FALLBACKS_BY_ID = POOL_ROYALE_HUMAN_URLS_BY_ID;
+const DEFAULT_POOL_ROYALE_HUMAN_CHARACTER_ID = POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0]?.id ?? 'rpm-current';
+const POOL_ROYALE_HUMAN_CHARACTER_STORAGE_KEY = 'poolHumanCharacter';
+const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.12; // final visual upscale for the grounded Pool/Snooker Royale shooter
 const POOL_ROYALE_LOUNGE_TABLE_RADIUS = BALL_R * 24; // match Murlan Royale's default octagon table proportions at pool-side scale.
 const POOL_ROYALE_LOUNGE_TABLE_HEIGHT = BALL_R * 16.5;
 const POOL_ROYALE_LOUNGE_CHAIR_SPAN = BALL_R * 64; // oversized portrait-readable chairs matching Murlan's default dining-chair asset.
@@ -15467,6 +15468,14 @@ function PoolRoyaleGame({
       DEFAULT_CHROME_PLATE_STYLE_ID
     );
   });
+  const [humanCharacterId, setHumanCharacterId] = useState(() => {
+    return resolveStoredSelection(
+      'humanCharacter',
+      POOL_ROYALE_HUMAN_CHARACTER_STORAGE_KEY,
+      (id) => POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.some((option) => option.id === id),
+      DEFAULT_POOL_ROYALE_HUMAN_CHARACTER_ID
+    );
+  });
   const showoodPalette = useMemo(
     () => ({
       ...POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE,
@@ -15638,6 +15647,20 @@ function PoolRoyaleGame({
       ),
     [isCueFinishUnlocked, poolInventory]
   );
+  const availableHumanCharacters = useMemo(
+    () =>
+      POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.filter((option) =>
+        isPoolOptionUnlocked('humanCharacter', option.id, poolInventory)
+      ),
+    [poolInventory]
+  );
+  const activeHumanCharacterOption = useMemo(
+    () =>
+      availableHumanCharacters.find((option) => option.id === humanCharacterId) ??
+      availableHumanCharacters[0] ??
+      POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0],
+    [availableHumanCharacters, humanCharacterId]
+  );
   const activeChromeOption = useMemo(
     () =>
       availableChromeOptions.find((opt) => opt.id === chromeColorId) ??
@@ -15743,11 +15766,15 @@ function PoolRoyaleGame({
     if (!isPoolOptionUnlocked('environmentHdri', environmentHdriId, poolInventory)) {
       setEnvironmentHdriId(POOL_ROYALE_DEFAULT_HDRI_ID);
     }
+    if (!isPoolOptionUnlocked('humanCharacter', humanCharacterId, poolInventory)) {
+      setHumanCharacterId(DEFAULT_POOL_ROYALE_HUMAN_CHARACTER_ID);
+    }
   }, [
     chromeColorId,
     chromePlateStyleId,
     clothColorId,
     environmentHdriId,
+    humanCharacterId,
     pocketLinerId,
     poolInventory,
     railMarkerColorId,
@@ -17148,6 +17175,11 @@ function PoolRoyaleGame({
   }, [tableFinishId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      window.localStorage.setItem(POOL_ROYALE_HUMAN_CHARACTER_STORAGE_KEY, humanCharacterId);
+    }
+  }, [humanCharacterId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
       window.localStorage.setItem(TABLE_BASE_STORAGE_KEY, tableBaseId);
     }
   }, [tableBaseId]);
@@ -17226,14 +17258,19 @@ function PoolRoyaleGame({
     seatedBySeat: { A: true, B: true }
   });
   const activeHumanCueViewRef = useRef(null);
+  const activeHumanCharacterRef = useRef(activeHumanCharacterOption);
+  useEffect(() => {
+    activeHumanCharacterRef.current = activeHumanCharacterOption;
+    spawnPlayerCharactersRef.current?.();
+  }, [activeHumanCharacterOption]);
   const characterShotStartedAtRef = useRef(0);
   const characterShotShooterRef = useRef('A');
   const hospitalityLayoutRunRef = useRef(null);
   const chessLoungeTemplateRef = useRef(null);
   const chessChairTemplateRef = useRef(null);
   const chessLoungeLoadRef = useRef(null);
-  const seatedHumanTemplateRef = useRef(null);
-  const seatedHumanLoadRef = useRef(null);
+  const seatedHumanTemplateRef = useRef(new Map());
+  const seatedHumanLoadRef = useRef(new Map());
   const hospitalityLoaderRef = useRef(null);
   const refreshSecondaryTableDecorRef = useRef(() => {});
   const clearSecondaryTableDecorRef = useRef(() => {});
@@ -21600,23 +21637,33 @@ const shotPowerRef = useRef(0);
         return group;
       };
 
-      const ensureSeatedHumanTemplate = async () => {
-        if (seatedHumanTemplateRef.current) {
-          return seatedHumanTemplateRef.current;
+      const ensureSelectedHumanTemplate = async (theme = activeHumanCharacterRef.current) => {
+        const themeId = theme?.id ?? DEFAULT_POOL_ROYALE_HUMAN_CHARACTER_ID;
+        const templateCache = seatedHumanTemplateRef.current;
+        const loadCache = seatedHumanLoadRef.current;
+        if (templateCache?.has?.(themeId)) {
+          return templateCache.get(themeId);
         }
-        if (seatedHumanLoadRef.current) {
-          return seatedHumanLoadRef.current;
+        if (loadCache?.has?.(themeId)) {
+          return loadCache.get(themeId);
         }
-        seatedHumanLoadRef.current = loadFirstAvailableGltf([BILARDO_SHQIP_HUMAN_URL])
+        const themeUrls = POOL_ROYALE_PRIMARY_HUMAN_FALLBACKS_BY_ID[themeId] || [];
+        const loadUrls = Array.from(new Set([
+          ...themeUrls,
+          ...POOL_ROYALE_VERIFIED_HUMAN_FALLBACK_URLS,
+          BILARDO_SHQIP_HUMAN_URL
+        ].filter(Boolean)));
+        const pending = loadFirstAvailableGltf(loadUrls)
           .then((gltf) => {
             const model = gltf?.scene?.clone?.(true) ?? gltf?.scene ?? gltf?.scenes?.[0] ?? null;
             if (!model) {
-              throw new Error('Missing seated human scene');
+              throw new Error(`Missing Pool Royale human scene for ${themeId}`);
             }
             model.traverse((child) => {
               if (!child?.isMesh) return;
               child.castShadow = true;
               child.receiveShadow = true;
+              child.frustumCulled = false;
               const sourceMaterials = Array.isArray(child.material)
                 ? child.material
                 : [child.material];
@@ -21636,17 +21683,21 @@ const shotPowerRef = useRef(0);
                 ? fixedMaterials
                 : fixedMaterials[0];
             });
-            seatedHumanTemplateRef.current = model;
+            model.userData.poolHumanThemeId = themeId;
+            model.userData.poolShooterScaleMultiplier = theme?.poolShooterScaleMultiplier ?? 1.16;
+            templateCache?.set?.(themeId, model);
             return model;
           })
           .catch((error) => {
-            console.warn('Failed to load seated human GLB for Pool Royale', error);
+            console.warn('Failed to load Domino Royal human GLTF for Pool Royale', themeId, error);
+            templateCache?.set?.(themeId, null);
             return null;
           })
           .finally(() => {
-            seatedHumanLoadRef.current = null;
+            loadCache?.delete?.(themeId);
           });
-        return seatedHumanLoadRef.current;
+        loadCache?.set?.(themeId, pending);
+        return pending;
       };
 
       const createChessLoungeSet = async ({
@@ -26435,7 +26486,7 @@ const shotPowerRef = useRef(0);
         const humanHeight = Number.isFinite(liveCueLength) && liveCueLength > 0
           ? liveCueLength * HUMAN_PLAYER_HEIGHT_RATIO_TO_CUE
           : TABLE.H * HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE;
-        const scale = (humanHeight / 1.82) * POOL_ROYALE_HUMAN_SCALE_MULTIPLIER;
+        const scale = (humanHeight / 1.82) * POOL_ROYALE_HUMAN_SCALE_MULTIPLIER * (template?.userData?.poolShooterScaleMultiplier ?? 1);
         const skinMat = new THREE.MeshStandardMaterial({ color: 0xe4bf9d, roughness: 0.82 });
         const bridgeHand = createBridgeHandGroup(skinMat);
         const gripHand = createGripHandGroup(skinMat);
@@ -26446,6 +26497,7 @@ const shotPowerRef = useRef(0);
         if (template) {
           const avatar = template.clone(true);
           fitPlayerHumanModelHeight(avatar, humanHeight);
+          avatar.userData.poolHumanThemeId = template.userData?.poolHumanThemeId;
           avatar.traverse((child) => {
             if (!child?.isMesh) return;
             child.castShadow = true;
@@ -26780,12 +26832,13 @@ const shotPowerRef = useRef(0);
           TABLE.H / 2 + HUMAN_WALK_RING_MARGIN
         );
         const facingY = Math.atan2(-startAim.x, -startAim.y);
+        const selectedHumanTemplate = await ensureSelectedHumanTemplate(activeHumanCharacterRef.current);
         const group = createPlayerCharacterRig({
           seat: 'A',
           x: startRoot.x,
           z: startRoot.z,
           facingY,
-          template: null
+          template: selectedHumanTemplate
         });
         group.position.y = floorY;
         scene.add(group);
@@ -27004,14 +27057,14 @@ const shotPowerRef = useRef(0);
           const localToWorld = (v) => v.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), anim.yaw).add(rig.group.position);
           const scale = anim.scale || 1;
 
-          const hipCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.02, 0.98, t) * scale, THREE.MathUtils.lerp(0, 0.02, t) * scale));
-          const torsoCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.28, 1.13, t) * scale, THREE.MathUtils.lerp(0, -0.16, t) * scale));
-          const chestCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.5, 1.22, t) * scale, THREE.MathUtils.lerp(0.01, -0.38, t) * scale));
-          const neckWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.66, 1.22, t) * scale, THREE.MathUtils.lerp(0.02, -0.61, t) * scale));
-          const headCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.82, 1.27, t) * scale, THREE.MathUtils.lerp(0.04, -0.71, t) * scale));
+          const hipCenterWorld = localToWorld(new THREE.Vector3(0, 1.02 * scale, 0.02 * scale));
+          const torsoCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.28, 1.15, t) * scale, THREE.MathUtils.lerp(0, 0.14, t) * scale));
+          const chestCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.5, 1.25, t) * scale, THREE.MathUtils.lerp(0.01, 0.34, t) * scale));
+          const neckWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.66, 1.28, t) * scale, THREE.MathUtils.lerp(0.02, 0.54, t) * scale));
+          const headCenterWorld = localToWorld(new THREE.Vector3(0, THREE.MathUtils.lerp(1.82, 1.34, t) * scale, THREE.MathUtils.lerp(0.04, 0.62, t) * scale));
 
-          const leftShoulderWorld = localToWorld(new THREE.Vector3(-0.22 * scale, THREE.MathUtils.lerp(1.57, 1.34, t) * scale, THREE.MathUtils.lerp(0, -0.42, t) * scale));
-          const rightShoulderWorld = localToWorld(new THREE.Vector3(0.22 * scale, THREE.MathUtils.lerp(1.57, 1.34, t) * scale, THREE.MathUtils.lerp(0, -0.35, t) * scale));
+          const leftShoulderWorld = localToWorld(new THREE.Vector3(-0.22 * scale, THREE.MathUtils.lerp(1.57, 1.36, t) * scale, THREE.MathUtils.lerp(0, 0.38, t) * scale));
+          const rightShoulderWorld = localToWorld(new THREE.Vector3(0.22 * scale, THREE.MathUtils.lerp(1.57, 1.36, t) * scale, THREE.MathUtils.lerp(0, 0.31, t) * scale));
           const leftHipWorld = localToWorld(new THREE.Vector3(-0.12 * scale, 0.93 * scale, 0.02 * scale));
           const rightHipWorld = localToWorld(new THREE.Vector3(0.12 * scale, 0.93 * scale, 0.02 * scale));
 
@@ -27091,9 +27144,10 @@ const shotPowerRef = useRef(0);
           if (anim.model && !anim.pelvis) {
             const idle = 1 - t;
             const breath = Math.sin(nowMs * 0.0028 + (anim.seat === 'A' ? 0 : Math.PI * 0.5)) * (0.006 + idle * 0.004);
-            anim.model.position.set(0, 0.006 * breath - 0.02 * t, 0.01 * walk);
+            // Keep imported Domino/Murlan GLTF feet grounded: only breathe/walk in place, no whole-body pitch that lifts feet.
+            anim.model.position.set(0, 0.004 * breath, 0.01 * walk);
             anim.model.rotation.set(
-              -0.11 * t - 0.024 * walk,
+              0,
               0,
               (anim.seat === activeSeat ? -1 : 1) * 0.012 * idle
             );
@@ -27114,8 +27168,8 @@ const shotPowerRef = useRef(0);
 
           const leftFootStand = new THREE.Vector3(-0.13 * scale, 0.035 * scale, (0.03 + walk * 0.03) * scale);
           const rightFootStand = new THREE.Vector3(0.13 * scale, 0.035 * scale, (-0.03 - walk * 0.03) * scale);
-          const frontFootShoot = new THREE.Vector3(-0.22 * scale, 0.035 * scale, -0.34 * scale);
-          const rearFootShoot = new THREE.Vector3(0.26 * scale, 0.035 * scale, 0.34 * scale);
+          const frontFootShoot = leftFootStand.clone();
+          const rearFootShoot = rightFootStand.clone();
           const leftFootWorld = localToWorld(leftFootStand.lerp(frontFootShoot, t));
           const rightFootWorld = localToWorld(rightFootStand.lerp(rearFootShoot, t));
 
@@ -27125,20 +27179,20 @@ const shotPowerRef = useRef(0);
           const bodyQ = makeHumanoidBasis(side, aimForward);
           anim.pelvis.position.copy(hipCenterWorld);
           anim.pelvis.quaternion.copy(bodyQ);
-          anim.pelvis.rotation.x += THREE.MathUtils.lerp(0, -0.08, t);
+          anim.pelvis.rotation.x += 0;
 
           anim.torso.position.copy(torsoCenterWorld);
           anim.torso.quaternion.copy(bodyQ);
-          anim.torso.rotation.x += THREE.MathUtils.lerp(0, -0.28, t);
+          anim.torso.rotation.x += THREE.MathUtils.lerp(0, 0.22, t);
 
           anim.chest.position.copy(chestCenterWorld);
           anim.chest.quaternion.copy(bodyQ);
-          anim.chest.rotation.x += THREE.MathUtils.lerp(0, -0.62, t);
+          anim.chest.rotation.x += THREE.MathUtils.lerp(0, 0.52, t);
 
           setHumanoidSegment(anim.neck, neckWorld.clone().addScaledVector(new THREE.Vector3(0, 1, 0), -0.06 * scale), neckWorld.clone().addScaledVector(new THREE.Vector3(0, 1, 0), 0.06 * scale), 0.045 * scale);
           anim.head.position.copy(headCenterWorld);
           anim.head.quaternion.copy(bodyQ);
-          anim.head.rotation.x += THREE.MathUtils.lerp(0, -0.2, t);
+          anim.head.rotation.x += THREE.MathUtils.lerp(0, 0.16, t);
 
           setHumanoidSegment(anim.leftUpperArm, leftShoulderWorld, leftElbow, 0.044 * scale);
           setHumanoidSegment(anim.leftLowerArm, leftElbow, leftHandWorld, 0.036 * scale);
@@ -36739,6 +36793,45 @@ const shotPowerRef = useRef(0);
                       Replays keep live graphics quality and appear on potted/foul moments.
                     </span>
                   </button>
+                </div>
+              ) : null}
+
+              {availableHumanCharacters.length > 0 ? (
+                <div>
+                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                    Human Character
+                  </h3>
+                  <p className="mt-1 text-[0.68rem] leading-snug text-white/60">
+                    Uses the same Domino Royal / Murlan GLTF characters and original texture maps, scaled larger and grounded for the Pool Royal shooting stance.
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {availableHumanCharacters.map((option) => {
+                      const active = option.id === humanCharacterId;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setHumanCharacterId(option.id)}
+                          aria-pressed={active}
+                          className={`flex min-w-[9.5rem] flex-1 items-center justify-between gap-3 rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                            active
+                              ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                              : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                          }`}
+                        >
+                          <span className="truncate">{option.label}</span>
+                          {option.thumbnail ? (
+                            <img
+                              src={option.thumbnail}
+                              alt={option.label}
+                              className="h-7 w-7 rounded-full border border-white/25 object-cover"
+                              loading="lazy"
+                            />
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               ) : null}
 
