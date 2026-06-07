@@ -714,13 +714,14 @@ function resolveSeatIdentityFromTableId(tableId, fallbackGameType, fallbackMaxPl
   }
 
   const [prefix, capStr] = String(tableId).split('-');
+  const normalizedPrefix = normalizeOnlineGameType(prefix);
   const parsedCap = Number(capStr);
 
   // Some joins use invite/table ids that are opaque (UUID-like) and not in
   // "<game>-<capacity>-..." form. In those cases, keep the explicit payload
   // gameType/maxPlayers instead of inferring invalid values from the table id.
   if (
-    !GAME_ONLINE_POLICY[prefix] ||
+    !GAME_ONLINE_POLICY[normalizedPrefix] ||
     !Number.isFinite(parsedCap) ||
     parsedCap <= 0
   ) {
@@ -731,7 +732,7 @@ function resolveSeatIdentityFromTableId(tableId, fallbackGameType, fallbackMaxPl
   }
 
   return {
-    gameType: normalizeOnlineGameType(prefix),
+    gameType: normalizedPrefix,
     maxPlayers: parsedCap
   };
 }
@@ -1014,7 +1015,8 @@ function updateChessState(tableId, nextState = {}) {
 }
 
 function normalizeSidePreference(pref) {
-  return pref === 'white' || pref === 'black' ? pref : 'auto';
+  const normalized = String(pref || '').trim().toLowerCase();
+  return normalized === 'white' || normalized === 'black' ? normalized : 'auto';
 }
 
 function assignCheckersSides(players = []) {
