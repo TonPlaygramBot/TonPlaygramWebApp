@@ -12522,6 +12522,53 @@ function isPoolRoyaleShowoodOriginalBaseOrLeg(child, material, referencePart = n
 
 
 const POOL_ROYALE_SHOWOOD_ORIGINAL_BASE_PARTS = new Set(['leg', 'baseFoot', 'baseCornerBlock', 'underside']);
+const POOL_ROYALE_SHOWOOD_VISIBLE_ACCENT_PARTS = new Set(['railSight', 'sideWoodApron']);
+const POOL_ROYALE_SHOWOOD_ACCENT_RENDER_ORDER = CHROME_PLATE_RENDER_ORDER + 0.55;
+
+function isPoolRoyaleShowoodVisibleAccentPart(part) {
+  return POOL_ROYALE_SHOWOOD_VISIBLE_ACCENT_PARTS.has(part);
+}
+
+function tunePoolRoyaleShowoodVisibleAccentMesh(child, referenceParts = [], tableModel = null) {
+  if (!child?.isMesh || !tableModel?.useReferenceShowoodMapping) return;
+  const visibleAccentParts = referenceParts.filter(isPoolRoyaleShowoodVisibleAccentPart);
+  if (!visibleAccentParts.length) return;
+
+  child.renderOrder = Math.max(
+    child.renderOrder ?? 0,
+    POOL_ROYALE_SHOWOOD_ACCENT_RENDER_ORDER
+  );
+  child.userData = {
+    ...(child.userData || {}),
+    poolRoyaleShowoodVisibleAccentEdge: true
+  };
+
+  const tuneMaterial = (material, referencePart) => {
+    if (!material || !isPoolRoyaleShowoodVisibleAccentPart(referencePart)) return;
+    material.depthTest = true;
+    material.depthWrite = true;
+    material.side = THREE.DoubleSide;
+    material.polygonOffset = true;
+    material.polygonOffsetFactor = referencePart === 'railSight' ? -1.35 : -0.85;
+    material.polygonOffsetUnits = referencePart === 'railSight' ? -1.35 : -0.85;
+    material.userData = {
+      ...(material.userData || {}),
+      poolRoyaleShowoodVisibleAccentEdge: referencePart
+    };
+    material.needsUpdate = true;
+  };
+
+  const materials = Array.isArray(child.material) ? child.material : [child.material].filter(Boolean);
+  materials.forEach((material) => {
+    const referencePart = classifyPoolRoyaleShowoodReferencePart(child, material);
+    tuneMaterial(
+      material,
+      isPoolRoyaleShowoodVisibleAccentPart(referencePart)
+        ? referencePart
+        : visibleAccentParts[0]
+    );
+  });
+}
 
 function isPoolRoyaleShowoodProtectedUpperLabel(label = '') {
   return /pocket|hole|drop|net|liner|leather|cup|basket|holder|plate|chrome|cushion|rubber|bumper|cloth|felt|slate|bed|playfield|baize|sight|diamond|marker|dot|inlay/.test(label);
@@ -13054,6 +13101,17 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
       child.material = child.material.map(prepareMaterial);
     } else if (child.material) {
       child.material = prepareMaterial(child.material);
+    }
+
+    if (tableModel?.useReferenceShowoodMapping) {
+      const preparedReferenceParts = Array.isArray(child.material)
+        ? child.material.map((material) => classifyPoolRoyaleShowoodReferencePart(child, material))
+        : [classifyPoolRoyaleShowoodReferencePart(child, child.material)].filter(Boolean);
+      tunePoolRoyaleShowoodVisibleAccentMesh(
+        child,
+        Array.from(new Set([...childReferenceParts, ...preparedReferenceParts])),
+        tableModel
+      );
     }
   });
 }
@@ -13590,12 +13648,16 @@ function subtlyExpandPoolRoyaleShowoodRailSightsAndAprons(model, tableModel) {
   const sideApronHeightScale = Number(tableModel?.sideApronVisualHeightScale);
   const railSightOutwardOffset = Number(tableModel?.railSightOutwardOffset);
   const sideApronOutwardOffset = Number(tableModel?.sideApronOutwardOffset);
+  const railSightVisualLift = Number(tableModel?.railSightVisualLift);
+  const sideApronVisualLift = Number(tableModel?.sideApronVisualLift);
   const hasScale = Number.isFinite(visualScale) && visualScale > 1 + MICRO_EPS;
   const hasRailSightHeight = Number.isFinite(railSightHeightScale) && railSightHeightScale > 1 + MICRO_EPS;
   const hasSideApronHeight = Number.isFinite(sideApronHeightScale) && sideApronHeightScale > 1 + MICRO_EPS;
   const hasRailSightOffset = Number.isFinite(railSightOutwardOffset) && Math.abs(railSightOutwardOffset) > MICRO_EPS;
   const hasSideApronOffset = Number.isFinite(sideApronOutwardOffset) && Math.abs(sideApronOutwardOffset) > MICRO_EPS;
-  if (!hasScale && !hasRailSightHeight && !hasSideApronHeight && !hasRailSightOffset && !hasSideApronOffset) return;
+  const hasRailSightLift = Number.isFinite(railSightVisualLift) && Math.abs(railSightVisualLift) > MICRO_EPS;
+  const hasSideApronLift = Number.isFinite(sideApronVisualLift) && Math.abs(sideApronVisualLift) > MICRO_EPS;
+  if (!hasScale && !hasRailSightHeight && !hasSideApronHeight && !hasRailSightOffset && !hasSideApronOffset && !hasRailSightLift && !hasSideApronLift) return;
   if (model.userData?.poolRoyaleShowoodRailSightApronExpanded) return;
 
   const fullBox = new THREE.Box3().setFromObject(model);
@@ -13620,6 +13682,13 @@ function subtlyExpandPoolRoyaleShowoodRailSightsAndAprons(model, tableModel) {
     }
     const heightScale = isSideApron ? safeSideApronHeightScale : safeRailSightHeightScale;
     if (heightScale > 1) child.scale.y *= heightScale;
+
+    const visualLift = isRailSight && hasRailSightLift
+      ? railSightVisualLift
+      : isSideApron && hasSideApronLift
+        ? sideApronVisualLift
+        : 0;
+    if (Math.abs(visualLift) > MICRO_EPS) child.position.y += visualLift;
 
     const outwardOffset = isRailSight && hasRailSightOffset
       ? railSightOutwardOffset
