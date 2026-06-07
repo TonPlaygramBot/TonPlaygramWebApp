@@ -93,7 +93,6 @@ type RollDecision = {
   rollIndex: number;
   frameEnded: boolean;
   resetPins: boolean;
-  foulRestoresPins?: boolean;
   gameFinished: boolean;
   knocked: number;
   foul?: boolean;
@@ -288,7 +287,7 @@ const RESULT_COMPLIMENTS = {
 } as const;
 
 // Keep the full bowling field grounded on the HDRI floor in portrait view.
-const BOWLING_HDRI_GROUND_SNAP_DROP = 0.32;
+const BOWLING_HDRI_GROUND_SNAP_DROP = 0;
 
 const CFG = {
   laneY: -1.5 - BOWLING_HDRI_GROUND_SNAP_DROP,
@@ -618,8 +617,7 @@ function shouldResetPinsForNextRoll(
 function describeRollResult(
   player: ScorePlayer,
   result: RollDecision,
-  knocked: number,
-  standingAfter: number
+  knocked: number
 ) {
   if (result.foul) {
     return {
@@ -652,7 +650,7 @@ function describeRollResult(
         : result.frameEnded
           ? 'Open frame: switch players'
           : 'Second ball: convert the spare',
-    lane: `${pocket} · ${standingAfter} pin${standingAfter === 1 ? '' : 's'} left`
+    lane: `${pocket} · ${Math.max(0, 10 - knocked)} pin${10 - knocked === 1 ? '' : 's'} left`
   };
 }
 
@@ -660,32 +658,6 @@ function standingPinsCount(pins: PinState[]) {
   return pins.filter(
     (p) => p.root.visible && p.standing && p.tilt < CFG.pinToppleThreshold
   ).length;
-}
-
-function standingPinIndexes(pins: PinState[]) {
-  return pins
-    .map((pin, index) => ({ pin, index }))
-    .filter(
-      ({ pin }) =>
-        pin.root.visible && pin.standing && pin.tilt < CFG.pinToppleThreshold
-    )
-    .map(({ index }) => index);
-}
-
-function restoreStandingPinLayout(pins: PinState[], standingIndexes: number[]) {
-  const restore = new Set(standingIndexes);
-  pins.forEach((pin, index) => {
-    const visible = restore.has(index);
-    pin.root.visible = visible;
-    pin.standing = visible;
-    pin.knocked = false;
-    pin.tilt = 0;
-    pin.vel.set(0, 0, 0);
-    pin.angularVel = 0;
-    pin.pos.copy(pin.start);
-    pin.root.position.copy(pin.start);
-    pin.root.rotation.set(0, 0, 0);
-  });
 }
 
 function enableShadow(obj: THREE.Object3D) {
@@ -2312,7 +2284,7 @@ function createEnvironment(
     resetMachine: new THREE.Group()
   };
   scene.add(group);
-  group.position.y = 0;
+  group.position.y = -0.32;
   let laneMat: THREE.Material;
   let woodMat: THREE.Material;
   try {
@@ -4889,10 +4861,7 @@ export default function MobileBowlingRealistic() {
       pinsWereMoving = false;
       settleTimer = 0;
       pendingIntent = null;
-      if (foulRestoreStandingIndexes) {
-        restoreStandingPinLayout(lanePins[0], foulRestoreStandingIndexes);
-        foulRestoreStandingIndexes = null;
-      } else if (shouldResetRackBeforeNextRoll) resetPins(lanePins[0]);
+      if (shouldResetRackBeforeNextRoll) resetPins(lanePins[0]);
       shouldResetRackBeforeNextRoll = false;
       const previousPlayer = player;
       player = playerRigs[activePlayer];
@@ -4921,14 +4890,7 @@ export default function MobileBowlingRealistic() {
       const playerBefore = localScores[scoringPlayerIndex];
       const result = addRollToPlayer(playerBefore, rawKnocked, foul);
       const knocked = result.knocked;
-      const rollRead = describeRollResult(
-        playerBefore,
-        result,
-        knocked,
-        result.foul && result.foulRestoresPins
-          ? lastShotStandingBefore
-          : afterStanding
-      );
+      const rollRead = describeRollResult(playerBefore, result, knocked);
       let status = foul
         ? `${playerBefore.name} fouled · 0 pins score`
         : `${playerBefore.name} knocked ${knocked} pin${knocked === 1 ? '' : 's'}`;
@@ -4939,10 +4901,6 @@ export default function MobileBowlingRealistic() {
       const strike = rollRead.isStrike;
       const spare = rollRead.isSpare;
       shouldResetRackBeforeNextRoll = result.resetPins;
-      foulRestoreStandingIndexes =
-        result.foul && result.foulRestoresPins
-          ? [...lastShotStandingIndexes]
-          : null;
       rackResetLane = 0;
       if (strike) {
         void new Audio(BOWLING_SFX.strike).play().catch(() => undefined);
@@ -5406,9 +5364,7 @@ export default function MobileBowlingRealistic() {
         player.throwT >= CFG.releaseT &&
         ball.held
       ) {
-        const pinsBeforeRelease = activePins();
-        lastShotStandingBefore = standingPinsCount(pinsBeforeRelease);
-        lastShotStandingIndexes = standingPinIndexes(pinsBeforeRelease);
+        lastShotStandingBefore = standingPinsCount(activePins());
         releaseBall(ball, pendingIntent, activeLaneCenter(), player);
         pendingIntent = null;
         setHud((prev) => ({
