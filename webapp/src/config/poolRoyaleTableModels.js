@@ -57,7 +57,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     useOriginalLayoutSurfaces: true,
     useProceduralBaseWithExternal: false,
     hideOriginalBaseAndLegsForProceduralBase: false,
-    keepGeneratedPocketDropHardware: true,
+    keepGeneratedPocketDropHardware: false,
     usePoolRoyaleFinish: true,
     useReferenceShowoodMapping: true,
     usePoolRoyaleFinishRoles: ['cloth', 'cushion', 'wood'],
