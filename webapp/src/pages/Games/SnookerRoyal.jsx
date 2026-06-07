@@ -1719,7 +1719,7 @@ const CFG = {
   poseLambda: 9,
   moveLambda: 5.6,
   rotLambda: 8.5,
-  humanScale: 1.2 * 1.78 * SNOOKER_CUE_POSE_SCALE,
+  humanScale: 1.3 * 1.78 * SNOOKER_CUE_POSE_SCALE,
   humanVisualYawFix: Math.PI,
   stanceWidth: 0.52 * SNOOKER_CUE_POSE_SCALE,
   bridgePalmTableLift: 0.006 * SNOOKER_CUE_POSE_SCALE,
@@ -2093,14 +2093,6 @@ function applyProvidedCueEndpointPose(cueStick, cueBack, cueTip) {
   cueStick.userData.providedCueTip = cueTip.clone();
 }
 
-function cuePoseEaseOutCubic(t) {
-  return 1 - Math.pow(1 - t, 3);
-}
-
-function cuePoseLerp(a, b, t) {
-  return a + (b - a) * t;
-}
-
 function updateSnookerRoyalCuePose(controller, dt, options) {
   if (!controller || controller.disabled) return;
   const {
@@ -2112,7 +2104,8 @@ function updateSnookerRoyalCuePose(controller, dt, options) {
     power = 0,
     shooting = false,
     cueAnimating = false,
-    tableCueVisible = false
+    tableCueVisible = false,
+    spinInput = { x: 0, y: 0 }
   } = options || {};
   const cuePos = cue?.pos;
   if (!cueStick || !cueLen || !cuePos || !cue?.active || !visible) return;
@@ -2142,33 +2135,32 @@ function updateSnookerRoyalCuePose(controller, dt, options) {
     aimForward.copy(lockedStrike.aimForward).normalize();
   }
 
-  const bridgeCuePoint = cueBallWorld.clone()
-    .addScaledVector(aimForward, -(SNOOKER_CUE_BRIDGE_DIST + BALL_R))
-    .setY(BALL_CENTER_Y + 0.018 * SNOOKER_CUE_POSE_SCALE);
-  const pull = SNOOKER_CUE_PULL_RANGE * cuePoseEaseOutCubic(activePower);
+  const aimSide = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
+  const bridgeHandTarget = cueBallWorld.clone()
+    .addScaledVector(aimForward, -CFG.bridgeHandBackFromBall)
+    .addScaledVector(aimSide, CFG.bridgeHandSide)
+    .setY(CFG.tableTopY + CFG.bridgePalmTableLift);
+  const bridgeCuePoint = bridgeHandTarget.clone()
+    .addScaledVector(aimForward, CFG.bridgeVGrooveForward)
+    .addScaledVector(aimSide, CFG.bridgeVGrooveSide)
+    .add(new THREE.Vector3(0, CFG.bridgeCueLift, 0));
+  const pull = CFG.pullRange * easeOutCubic(activePower);
   const practiceStroke = !shooting && !cueAnimating && activePower > 0.02
-    ? Math.sin(performance.now() * 0.012) * 0.035 * SNOOKER_CUE_POSE_SCALE * (0.25 + activePower * 0.75)
+    ? Math.sin(performance.now() * 0.012) * 0.035 * CFG.scale * (0.25 + activePower * 0.75)
     : 0;
-  const strikeNorm = THREE.MathUtils.clamp((controller.strikeClock || 0) / 0.12, 0, 1);
-  let providedGap = SNOOKER_CUE_IDLE_GAP;
-  if (activePower > 0.02 && !shooting && !cueAnimating) providedGap += pull + practiceStroke;
+  const strikeNorm = clamp01((controller.strikeClock || 0) / CFG.strikeTime);
+  let gap = CFG.idleGap;
+  const spinOffset = mapSpinForPhysics(spinInput);
+  if (activePower > 0.02 && !shooting && !cueAnimating) gap += pull + practiceStroke;
   if (shooting || cueAnimating) {
-    const contactPushT = THREE.MathUtils.clamp((strikeNorm - 0.86) / 0.14, 0, 1);
-    const contactGap = cuePoseLerp(
-      SNOOKER_CUE_CONTACT_GAP,
-      SNOOKER_CUE_FOLLOW_GAP,
-      cuePoseEaseOutCubic(contactPushT)
-    );
-    providedGap = cuePoseLerp(
-      SNOOKER_CUE_IDLE_GAP + pull,
-      contactGap,
-      cuePoseEaseOutCubic(strikeNorm)
-    );
+    const strikeMotionNorm = strikeNorm > 0.88 ? 0.88 : strikeNorm;
+    gap = lerp(CFG.idleGap + pull, CFG.contactGap, easeOutCubic(strikeMotionNorm));
   }
-  const providedCueTip = cueBallWorld.clone().addScaledVector(aimForward, -(BALL_R + providedGap));
-  const providedCueBack = providedCueTip.clone()
-    .addScaledVector(aimForward, -cueLen)
-    .setY(bridgeCuePoint.y + 0.006 * SNOOKER_CUE_POSE_SCALE);
+  const providedCueTip = cueBallWorld.clone()
+    .addScaledVector(aimForward, -(CFG.ballR + gap))
+    .addScaledVector(aimSide, (spinOffset.x ?? 0) * CFG.ballR * 0.52)
+    .add(new THREE.Vector3(0, (spinOffset.y ?? 0) * CFG.ballR * 0.44, 0));
+  const providedCueBack = bridgeCuePoint.clone().addScaledVector(aimForward, -(CFG.cueLength - CFG.bridgeDist - CFG.ballR - gap)).add(new THREE.Vector3(0, 0.024 * CFG.scale, 0));
   applyProvidedCueEndpointPose(cueStick, providedCueBack, providedCueTip);
   cueStick.visible = Boolean(tableCueVisible || activePower > 0.02 || shooting || cueAnimating);
 }
@@ -26763,7 +26755,8 @@ const powerRef = useRef(hud.power);
             power: (shooting || cueAnimating) ? lastShotPower : (powerRef.current ?? activeAiPlan?.power ?? 0),
             shooting,
             cueAnimating,
-            tableCueVisible: Boolean(cueStick.visible && (cameraBlendRef.current ?? 1) <= 0.55)
+            tableCueVisible: Boolean(cueStick.visible && (cameraBlendRef.current ?? 1) <= 0.55),
+            spinInput: activeAiPlan?.spin ?? spinRef.current ?? { x: 0, y: 0 }
           });
         } catch (error) {
           snookerCuePoseController.disabled = true;
