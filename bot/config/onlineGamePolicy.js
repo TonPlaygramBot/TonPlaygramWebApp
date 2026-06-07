@@ -26,14 +26,21 @@ const GAME_ONLINE_POLICY = Object.freeze({
 });
 
 const GAME_TYPE_ALIASES = Object.freeze({
+  chessbattle: 'chess',
   chessbattleroyal: 'chess',
-  checkersbattleroyal: 'checkers'
+  chessbattleroyale: 'chess',
+  checkersbattle: 'checkers',
+  checkersbattleroyal: 'checkers',
+  checkersbattleroyale: 'checkers'
 });
 
 export function normalizeOnlineGameType(gameType) {
   const normalized = String(gameType || '').trim().toLowerCase();
   if (!normalized) return '';
-  return GAME_TYPE_ALIASES[normalized] || normalized;
+  if (GAME_TYPE_ALIASES[normalized]) return GAME_TYPE_ALIASES[normalized];
+
+  const compact = normalized.replace(/[^a-z0-9]+/g, '');
+  return GAME_TYPE_ALIASES[compact] || normalized;
 }
 
 function sanitizeMetaValue(value) {

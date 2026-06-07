@@ -64,7 +64,10 @@ describe('online game policy', () => {
 
   test('normalizes battle royal aliases to shared lobby game types', () => {
     expect(normalizeOnlineGameType('chessbattleroyal')).toBe('chess');
+    expect(normalizeOnlineGameType('Chess Battle Royal')).toBe('chess');
+    expect(normalizeOnlineGameType('chess-battle-royale')).toBe('chess');
     expect(normalizeOnlineGameType('checkersbattleroyal')).toBe('checkers');
+    expect(normalizeOnlineGameType('Checkers Battle Royal')).toBe('checkers');
     expect(normalizeOnlineGameType('poolroyale')).toBe('poolroyale');
   });
 
