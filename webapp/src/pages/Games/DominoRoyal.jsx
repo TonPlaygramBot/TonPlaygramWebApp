@@ -17,6 +17,17 @@ export default function DominoRoyal() {
 
     let cancelled = false;
     let resolvedAccountId = (params.get('accountId') || '').trim();
+    window.__dominoRoyalSocketBridge = {
+      emit(event, payload) {
+        socket.emit(event, payload);
+      },
+      on(event, handler) {
+        socket.on(event, handler);
+      },
+      off(event, handler) {
+        socket.off(event, handler);
+      }
+    };
 
     const syncRuntime = async () => {
       if (!resolvedAccountId) {
@@ -29,6 +40,7 @@ export default function DominoRoyal() {
         accountId: resolvedAccountId,
         name: getTelegramUsername() || 'Player'
       });
+      socket.emit('joinDominoTable', { tableId, accountId: resolvedAccountId });
       socket.emit('confirmReady', { accountId: resolvedAccountId, tableId });
     };
 
@@ -38,6 +50,9 @@ export default function DominoRoyal() {
       cancelled = true;
       if (resolvedAccountId) {
         socket.emit('leaveLobby', { accountId: resolvedAccountId, tableId });
+      }
+      if (window.__dominoRoyalSocketBridge) {
+        delete window.__dominoRoyalSocketBridge;
       }
     };
   }, [search]);

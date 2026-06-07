@@ -142,7 +142,11 @@ export default function DominoRoyalLobby() {
     tgId = '',
     tableId = '',
     token = stake.token,
-    amount = stake.amount
+    amount = stake.amount,
+    seatIndex = '',
+    seatIds = [],
+    seatNames = [],
+    seatAvatars = []
   } = {}) => {
     const params = new URLSearchParams();
     params.set('mode', mode);
@@ -166,6 +170,10 @@ export default function DominoRoyalLobby() {
     if (tgId) params.set('tgId', tgId);
     if (accountId) params.set('accountId', accountId);
     if (tableId) params.set('tableId', tableId);
+    if (seatIndex !== '' && seatIndex != null) params.set('seatIndex', String(seatIndex));
+    if (seatIds.length) params.set('seatIds', seatIds.map((id) => encodeURIComponent(id || '')).join(','));
+    if (seatNames.length) params.set('seatNames', seatNames.map((name) => encodeURIComponent(name || '')).join(','));
+    if (seatAvatars.length) params.set('seatAvatars', seatAvatars.map((src) => encodeURIComponent(src || '')).join(','));
     const initData = window.Telegram?.WebApp?.initData;
     if (initData) params.set('init', encodeURIComponent(initData));
     if (DEV_ACCOUNT) params.set('dev', DEV_ACCOUNT);
@@ -208,7 +216,13 @@ export default function DominoRoyalLobby() {
           mode: 'online',
           token: stake.token,
           game: gameType,
-          points: gameType === 'points' ? Number(targetPoints) : 0
+          playType: gameType,
+          points: gameType === 'points' ? Number(targetPoints) : 0,
+          matchMeta: {
+            mode: 'online',
+            playType: gameType,
+            token: stake.token
+          }
         },
         (res = {}) => {
           if (!res.success || !res.tableId) {
@@ -245,13 +259,23 @@ export default function DominoRoyalLobby() {
           : null;
         const token = stake.token || onlineStake?.token || 'TPC';
         const amount = Number(onlineStake?.amount || stake.amount || 0);
+        const seatIndex = Array.isArray(players)
+          ? players.findIndex(
+              (player) =>
+                String(player?.id || '') === String(resolvedAccountId || '')
+            )
+          : -1;
         launchGame({
           accountId: resolvedAccountId,
           tgId: getTelegramId(),
           tableId,
           token,
           amount,
-          flagOverride: flags
+          flagOverride: flags,
+          seatIndex: seatIndex >= 0 ? seatIndex : '',
+          seatIds: Array.isArray(players) ? players.map((player) => String(player?.id || '')) : [],
+          seatNames: Array.isArray(players) ? players.map((player) => String(player?.name || 'Player')) : [],
+          seatAvatars: Array.isArray(players) ? players.map((player) => String(player?.avatar || '')) : []
         });
         if (seat?.avatar && !avatar) setAvatar(seat.avatar);
       });
