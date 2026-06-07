@@ -1,5 +1,6 @@
 import { POOL_ROYALE_CLOTH_VARIANTS } from './poolRoyaleClothPresets.js';
 import { polyHavenThumb, swatchThumbnail } from './storeThumbnails.js';
+import { MURLAN_CHARACTER_THEMES } from './murlanCharacterThemes.js';
 
 const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
   neonPhotostudio: {
@@ -697,6 +698,29 @@ export const POOL_ROYALE_BASE_VARIANTS = Object.freeze([
   thumbnail: BASE_VARIANT_THUMBNAILS[variant.id]
 })));
 
+
+export const POOL_ROYALE_HUMAN_CHARACTER_OPTIONS = Object.freeze(
+  MURLAN_CHARACTER_THEMES.map((theme) => ({
+    id: theme.id,
+    label: theme.label,
+    price: theme.price ?? 0,
+    description:
+      theme.description || 'Domino Royal shared GLTF human character with original texture maps preserved for Pool Royale.',
+    thumbnail: theme.thumbnail,
+    url: theme.url,
+    modelUrls: theme.modelUrls,
+    source: theme.source,
+    sourceUrl: theme.sourceUrl,
+    license: theme.license,
+    requiresAttribution: theme.requiresAttribution,
+    nonCommercialOnly: theme.nonCommercialOnly,
+    scale: theme.scale,
+    poolShooterScaleMultiplier: 1.16,
+    poolShooterUpperBodyBend: 'opposite-cue-side-grounded-feet'
+  }))
+);
+const DEFAULT_POOL_ROYALE_HUMAN_CHARACTER_ID = POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0]?.id;
+
 export const POOL_ROYALE_DEFAULT_HDRI_ID = 'colorfulStudio';
 
 export const POOL_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
@@ -708,7 +732,8 @@ export const POOL_ROYALE_DEFAULT_UNLOCKS = Object.freeze({
   cueStyle: ['birch-frost'],
   pocketLiner: ['plastic-black', 'brown-showood'],
   environmentHdri: [POOL_ROYALE_DEFAULT_HDRI_ID],
-  tableBase: POOL_ROYALE_BASE_VARIANTS.map((variant) => variant.id)
+  tableBase: POOL_ROYALE_BASE_VARIANTS.map((variant) => variant.id),
+  humanCharacter: POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.map((option) => option.id)
 });
 
 export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
@@ -773,6 +798,12 @@ export const POOL_ROYALE_OPTION_LABELS = Object.freeze({
   tableBase: Object.freeze(
     POOL_ROYALE_BASE_VARIANTS.reduce((acc, variant) => {
       acc[variant.id] = variant.name;
+      return acc;
+    }, {})
+  ),
+  humanCharacter: Object.freeze(
+    POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.reduce((acc, option) => {
+      acc[option.id] = option.label;
       return acc;
     }, {})
   ),
@@ -1174,6 +1205,16 @@ export const POOL_ROYALE_STORE_ITEMS = [
     description: 'Graphite weave cue with aurora-inspired tint.',
     thumbnail: CUE_STYLE_THUMBNAILS['graphite-aurora']
   },
+  ...POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.map((option, idx) => ({
+    id: `pool-human-${option.id}`,
+    type: 'humanCharacter',
+    optionId: option.id,
+    name: `${option.label} Shooter`,
+    price: option.price || 580 + idx * 35,
+    description:
+      option.description || 'Domino Royal GLTF human character reused as a grounded Pool Royale shooter with original textures.',
+    thumbnail: option.thumbnail
+  })),
   ...POOL_ROYALE_BASE_VARIANTS.map((variant) => ({
     id: `base-${variant.id}`,
     type: 'tableBase',
@@ -1212,6 +1253,11 @@ export const POOL_ROYALE_DEFAULT_LOADOUT = [
   { type: 'cueStyle', optionId: 'birch-frost', label: 'Birch Frost Cue' },
   { type: 'pocketLiner', optionId: 'plastic-black', label: 'Plastic Black Pocket Jaws' },
   { type: 'pocketLiner', optionId: 'brown-showood', label: 'Brown Showood Pocket Jaws' },
+  {
+    type: 'humanCharacter',
+    optionId: DEFAULT_POOL_ROYALE_HUMAN_CHARACTER_ID,
+    label: POOL_ROYALE_OPTION_LABELS.humanCharacter[DEFAULT_POOL_ROYALE_HUMAN_CHARACTER_ID]
+  },
   {
     type: 'tableBase',
     optionId: POOL_ROYALE_BASE_VARIANTS[0].id,
