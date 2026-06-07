@@ -12455,7 +12455,6 @@ function applyPoolRoyaleShowoodClothLibraryMaterial(mat, control, option, finish
 }
 
 function applyPoolRoyaleShowoodMetalAccentMaterial(mat, option) {
-  clearPoolRoyaleMaterialTextureMaps(mat);
   const preset = CHROME_COLOR_OPTIONS.find((entry) => entry.id === option?.metalAccentId || entry.id === option?.id) ||
     CHROME_COLOR_OPTIONS.find((entry) => entry.id === 'gold') ||
     CHROME_COLOR_OPTIONS[0];
@@ -12481,9 +12480,6 @@ function applyPoolRoyaleShowoodPocketJawMaterial(mat, option, finishInfo = null)
 }
 
 function classifyPoolRoyaleShowoodReferencePart(child, material) {
-  if (typeof material?.userData?.poolRoyaleShowoodReferencePart === 'string') {
-    return material.userData.poolRoyaleShowoodReferencePart;
-  }
   const childName = `${child?.name || ''}`.toLowerCase();
   const materialName = `${material?.name || ''}`.toLowerCase();
   const label = `${childName} ${materialName}`;
@@ -12663,212 +12659,6 @@ function removePoolRoyaleShowoodOriginalBaseAndLegGeometry(root, tableModel = nu
   root.updateMatrixWorld?.(true);
   return removedTriangles;
 }
-function colorFlagsPoolRoyaleShowoodMaterial(material) {
-  const color = material?.color instanceof THREE.Color ? material.color : new THREE.Color('#ffffff');
-  return {
-    green: color.g > color.r * 1.14 && color.g > color.b * 1.08 && color.g > 0.11,
-    black: color.r < 0.11 && color.g < 0.11 && color.b < 0.11,
-    brown: color.r > color.b * 1.12 && color.g > color.b * 0.48 && color.r > 0.07 && color.g < color.r * 0.9,
-    gold: color.r > 0.42 && color.g > 0.29 && color.b < 0.25 && color.r >= color.g * 0.88,
-    light: color.r > 0.72 && color.g > 0.72 && color.b > 0.62
-  };
-}
-
-function getPoolRoyaleShowoodTriangleSpatialContext(mesh, geometry, aIndex, bIndex, cIndex, tableBox, tableCenter, tableSize) {
-  const position = geometry?.attributes?.position;
-  const a = new THREE.Vector3().fromBufferAttribute(position, aIndex).applyMatrix4(mesh.matrixWorld);
-  const b = new THREE.Vector3().fromBufferAttribute(position, bIndex).applyMatrix4(mesh.matrixWorld);
-  const c = new THREE.Vector3().fromBufferAttribute(position, cIndex).applyMatrix4(mesh.matrixWorld);
-  const center = new THREE.Vector3().addVectors(a, b).add(c).multiplyScalar(1 / 3);
-  const normal = new THREE.Vector3()
-    .crossVectors(new THREE.Vector3().subVectors(b, a), new THREE.Vector3().subVectors(c, a))
-    .normalize()
-    .transformDirection(mesh.matrixWorld);
-  const relX = Math.abs(center.x - tableCenter.x) / Math.max(tableSize.x * 0.5, MICRO_EPS);
-  const relZ = Math.abs(center.z - tableCenter.z) / Math.max(tableSize.z * 0.5, MICRO_EPS);
-  const relY = (center.y - tableBox.min.y) / Math.max(tableSize.y, MICRO_EPS);
-  const xIsLongAxis = tableSize.x >= tableSize.z;
-  return {
-    center,
-    relY,
-    longN: xIsLongAxis ? relX : relZ,
-    shortN: xIsLongAxis ? relZ : relX,
-    upFace: normal.y > 0.33,
-    sideFace: Math.abs(normal.x) > 0.25 || Math.abs(normal.z) > 0.25,
-    downFace: normal.y < -0.33
-  };
-}
-
-function classifyPoolRoyaleShowoodReferenceTriangle(mesh, geometry, material, aIndex, bIndex, cIndex, tableBox, tableCenter, tableSize) {
-  const name = `${mesh?.name || ''} ${material?.name || ''}`.toLowerCase();
-  const s = getPoolRoyaleShowoodTriangleSpatialContext(mesh, geometry, aIndex, bIndex, cIndex, tableBox, tableCenter, tableSize);
-  const flags = colorFlagsPoolRoyaleShowoodMaterial(material);
-
-  const namedCloth = /cloth|felt|fabric|surface|bed|slate|playfield|baize/i.test(name);
-  const namedCushion = /cushion|rubber|bumper|railrubber|rail[_\s-]*nose/i.test(name);
-  const namedPocket = /pocket|hole|drop|net|liner|leather|cup|basket|holder/i.test(name);
-  const namedHardware = /trim|bezel|ring|metal|chrome|brass|gold|plate|cap|rim|guard|insert|hardware|bolt|screw/i.test(name);
-  const namedSight = /sight|diamond|marker|dot|inlay/i.test(name);
-  const namedWood = /wood|walnut|rail|apron|leg|base|frame|cabinet|corner|showood|support/i.test(name);
-  const metalish = (material?.metalness ?? 0) > 0.16 || (material?.clearcoat ?? 0) > 0.58 || flags.gold;
-
-  const high = s.relY > 0.54;
-  const veryTop = s.relY > 0.65;
-  const low = s.relY <= 0.16;
-  const sideMiddlePocketZone = high && s.longN < 0.255 && s.shortN > 0.69;
-  const cornerPocketZone = high && s.longN > 0.68 && s.shortN > 0.66;
-  const anyPocketZone = sideMiddlePocketZone || cornerPocketZone;
-  const centralCloth = high && s.upFace && s.longN < 0.61 && s.shortN < 0.53;
-  const cushionBand = high && (s.longN > 0.52 || s.shortN > 0.49) && (s.longN < 0.9 || s.shortN < 0.9);
-  const topRailBand = high && (s.longN > 0.58 || s.shortN > 0.535);
-  const topRailNonPocket = topRailBand && !anyPocketZone;
-  const topRailSideVerticalRimZone =
-    s.sideFace && !s.upFace && s.relY > 0.46 && s.relY < 0.96 && s.longN > 0.6 && s.shortN > 0.58;
-  const underRailSightCornerRimZone =
-    s.sideFace && !s.upFace && s.relY > 0.36 && s.relY < 0.76 && s.longN > 0.67 && s.shortN > 0.52;
-  const outsideBaseCornerRimZone =
-    s.sideFace && s.relY > 0.08 && s.relY < 0.78 && s.longN > 0.72 && s.shortN > 0.54;
-  const outerMostVerticalCorner =
-    s.sideFace && s.relY > 0.1 && s.relY < 0.8 && s.longN > 0.8 && s.shortN > 0.68;
-  const baseCornerZone =
-    s.sideFace &&
-    s.relY > 0.12 &&
-    s.relY < 0.64 &&
-    ((s.longN > 0.1 && s.longN < 0.56 && s.shortN < 0.36) ||
-      (s.longN > 0.58 && s.shortN > 0.56)) &&
-    !(underRailSightCornerRimZone || topRailSideVerticalRimZone);
-  const legZone = s.sideFace && s.relY > 0.14 && s.relY < 0.62 && s.longN < 0.62 && s.shortN < 0.58;
-  const railSightDownBand =
-    s.sideFace &&
-    !s.upFace &&
-    !anyPocketZone &&
-    s.relY > 0.44 &&
-    s.relY < 0.72 &&
-    (s.longN > 0.54 || s.shortN > 0.48) &&
-    !(topRailSideVerticalRimZone || underRailSightCornerRimZone || outsideBaseCornerRimZone || outerMostVerticalCorner || baseCornerZone || legZone);
-  const sideLowerTrimZone =
-    s.sideFace && s.relY > 0.18 && s.relY < 0.44 && (s.longN > 0.54 || s.shortN > 0.54);
-  const hardwareCandidate =
-    namedHardware ||
-    metalish ||
-    ((flags.black || flags.gold || flags.light) && !flags.green && !flags.brown && !namedWood);
-  const pocketInteriorCandidate =
-    namedPocket ||
-    (flags.black && anyPocketZone && (s.downFace || s.sideFace || s.relY < 0.79) && !hardwareCandidate);
-
-  if (namedCloth) return 'cloth';
-  if (namedCushion) return 'cushion';
-  if (namedSight && high) return 'railSight';
-  if (pocketInteriorCandidate) return 'pocketCup';
-  if (namedPocket && hardwareCandidate && sideMiddlePocketZone) return 'middlePocketPlate';
-  if (namedPocket && hardwareCandidate && cornerPocketZone) return 'cornerPocketPlate';
-  if (hardwareCandidate && sideMiddlePocketZone && !flags.green && !flags.brown) return 'middlePocketPlate';
-  if (hardwareCandidate && cornerPocketZone && !flags.green && !flags.brown) return 'cornerPocketPlate';
-  if (flags.green && centralCloth) return 'cloth';
-  if (flags.green && cushionBand) return 'cushion';
-  if (topRailSideVerticalRimZone || underRailSightCornerRimZone || outsideBaseCornerRimZone || outerMostVerticalCorner) return 'verticalCornerRim';
-  if (hardwareCandidate && topRailNonPocket && s.upFace && !flags.brown && !flags.green) return 'railSight';
-  if (low) return 'baseFoot';
-  if (s.downFace && s.relY < 0.5) return 'underside';
-  if ((flags.brown || namedWood) && baseCornerZone) return 'baseCornerBlock';
-  if (baseCornerZone) return 'baseCornerBlock';
-  if (legZone && (flags.brown || namedWood || !hardwareCandidate)) return 'leg';
-  if (hardwareCandidate && sideLowerTrimZone && !flags.green) return 'lowerTrim';
-  if (railSightDownBand && !flags.green) return 'sideWoodApron';
-  if (veryTop && (s.upFace || topRailBand) && !flags.green) return 'topWoodRail';
-  if (high && s.sideFace && !flags.green && !anyPocketZone) return 'sideWoodApron';
-  return 'sideWoodApron';
-}
-
-function splitPoolRoyaleShowoodReferenceGeometryIntoMappedParts(root, tableModel = null, finishInfo = null) {
-  if (!root || !tableModel?.useReferenceShowoodMapping || root.userData?.poolRoyaleShowoodReferenceGeometrySplit) return;
-  root.updateMatrixWorld?.(true);
-  const tableBox = new THREE.Box3().setFromObject(root);
-  if (tableBox.isEmpty()) return;
-  const tableCenter = tableBox.getCenter(new THREE.Vector3());
-  const tableSize = tableBox.getSize(new THREE.Vector3());
-
-  root.traverse((child) => {
-    if (!child?.isMesh || !child.geometry?.attributes?.position || child.userData?.poolRoyaleShowoodReferenceGeometrySplit) return;
-    const geometry = child.geometry;
-    const position = geometry.attributes.position;
-    const sourceIndex = geometry.index;
-    const sourceMaterials = Array.isArray(child.material) ? child.material : [child.material].filter(Boolean);
-    if (!sourceMaterials.length) return;
-    const total = sourceIndex ? sourceIndex.count : position.count;
-    const groupedIndices = new Map();
-    const groupedMaterials = [];
-    const groupedMaterialLookup = new Map();
-
-    const getGroupedMaterialIndex = (sourceMaterialIndex, part) => {
-      const key = `${sourceMaterialIndex}:${part}`;
-      const existing = groupedMaterialLookup.get(key);
-      if (existing !== undefined) return existing;
-      const sourceMaterial = sourceMaterials[Math.max(0, Math.min(sourceMaterialIndex, sourceMaterials.length - 1))];
-      const nextMaterial = applyPoolRoyaleShowoodReferenceMaterial(sourceMaterial, part, tableModel, finishInfo);
-      nextMaterial.name = `${sourceMaterial?.name || 'showood_source'}__${part}`;
-      nextMaterial.userData = {
-        ...(nextMaterial.userData || {}),
-        poolRoyaleShowoodReferencePart: part,
-        poolRoyaleShowoodSourceMaterialIndex: sourceMaterialIndex
-      };
-      const nextIndex = groupedMaterials.length;
-      groupedMaterials.push(nextMaterial);
-      groupedMaterialLookup.set(key, nextIndex);
-      return nextIndex;
-    };
-
-    for (let i = 0; i + 2 < total; i += 3) {
-      const sourceMaterialIndex = Math.max(
-        0,
-        Math.min(materialIndexAtPoolRoyaleGeometryOffset(geometry, i), sourceMaterials.length - 1)
-      );
-      const material = sourceMaterials[sourceMaterialIndex];
-      const ai = sourceIndex ? sourceIndex.getX(i) : i;
-      const bi = sourceIndex ? sourceIndex.getX(i + 1) : i + 1;
-      const ci = sourceIndex ? sourceIndex.getX(i + 2) : i + 2;
-      const part = classifyPoolRoyaleShowoodReferenceTriangle(
-        child,
-        geometry,
-        material,
-        ai,
-        bi,
-        ci,
-        tableBox,
-        tableCenter,
-        tableSize
-      );
-      const groupedMaterialIndex = getGroupedMaterialIndex(sourceMaterialIndex, part);
-      if (!groupedIndices.has(groupedMaterialIndex)) groupedIndices.set(groupedMaterialIndex, []);
-      groupedIndices.get(groupedMaterialIndex).push(ai, bi, ci);
-    }
-
-    if (!groupedMaterials.length) return;
-    const nextIndex = [];
-    geometry.clearGroups();
-    Array.from(groupedIndices.keys()).sort((a, b) => a - b).forEach((materialIndex) => {
-      const indices = groupedIndices.get(materialIndex) || [];
-      const start = nextIndex.length;
-      nextIndex.push(...indices);
-      geometry.addGroup(start, indices.length, materialIndex);
-    });
-    geometry.setIndex(nextIndex);
-    geometry.computeBoundingBox?.();
-    geometry.computeBoundingSphere?.();
-    child.material = groupedMaterials.length > 1 ? groupedMaterials : groupedMaterials[0];
-    child.userData = {
-      ...(child.userData || {}),
-      poolRoyaleShowoodReferenceGeometrySplit: true
-    };
-  });
-
-  root.userData = {
-    ...(root.userData || {}),
-    poolRoyaleShowoodReferenceGeometrySplit: true
-  };
-  root.updateMatrixWorld?.(true);
-}
-
 function applyPoolRoyaleShowoodReferenceMaterial(material, part, tableModel = null, finishInfo = null) {
   if (!material) return material;
   const mat = material.clone ? material.clone() : material;
@@ -13177,7 +12967,6 @@ function applyPoolRoyaleFinishToExternalMaterial(material, role, finishInfo, tab
 }
 
 function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finishInfo = null) {
-  splitPoolRoyaleShowoodReferenceGeometryIntoMappedParts(root, tableModel, finishInfo);
   root?.traverse?.((child) => {
     if (!child?.isMesh) return;
     child.castShadow = true;
