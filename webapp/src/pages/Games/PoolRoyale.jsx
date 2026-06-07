@@ -1425,7 +1425,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     'Pool table inner ratio must match the official 2:1 target after scaling.'
   );
 const MM_TO_UNITS = innerLong / WIDTH_REF; // map game physics directly to the native Showood 7 ft GLB playfield size
-const BALL_SIZE_SCALE = 1.06; // slightly larger portrait-screen balls; every helper stays tied to BALL_R/BALL_DIAMETER
+const BALL_SIZE_SCALE = 1; // official WPA/WEPF 57.15 mm balls; every helper stays tied to BALL_R/BALL_DIAMETER
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -24914,8 +24914,7 @@ const shotPowerRef = useRef(0);
             strikeDuration,
             holdDuration,
             recoverDuration,
-            animationStyle: stroke.animationStyle ?? cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE,
-            hitArmRatio: stroke.strikeImpactThreshold ?? 0.86
+            animationStyle: stroke.animationStyle ?? cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE
           });
           cueStick.visible = true;
           cueAnimating = !sample.done;
@@ -29544,6 +29543,7 @@ const shotPowerRef = useRef(0);
             strikeDuration: strokeProfile.strikeDuration ?? LIVE_CUE_FORWARD_DURATION_MS,
             applied: false
           };
+          applyShotAtImpact(shotImpactPayload);
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -29645,16 +29645,12 @@ const shotPowerRef = useRef(0);
           const pullbackDuration = strokeProfile.pullbackDuration ?? 0;
           const startTime = performance.now();
           const impactPos = idlePos.clone();
-          // After the pull slider is released, show the stick itself driving
-          // visually inward/forward into the cue ball instead of relying on the
-          // camera motion to imply impact. Keep the follow-through short so the
-          // tip never appears to chase the moving cue ball across the table.
-          const contactAdvance = Math.min(BALL_R * 0.62, CUE_TIP_GAP + BALL_R * 0.38);
+          const contactAdvance = 0; // stop the cue exactly where the slider pull started, matching Snooker Royal
           shotImpactPayload.contactAdvance = contactAdvance;
           const contactPos = impactPos
             .clone()
             .addScaledVector(dir, contactAdvance);
-          const followDistance = BALL_R * 0.28;
+          const followDistance = 0; // stop at cue-ball contact instead of visually following the moving cue ball
           const followPos = contactPos
             .clone()
             .addScaledVector(dir, followDistance);
@@ -29780,7 +29776,7 @@ const shotPowerRef = useRef(0);
               baseRotationY: cueStick.rotation.y,
               strikeDip: THREE.MathUtils.lerp(0.0028, 0.0054, clampedPower),
               wobbleAmount: THREE.MathUtils.lerp(0.0014, 0.0036, clampedPower),
-              strikeImpactThreshold: strokeProfile.impactThreshold ?? 0.86,
+              strikeImpactThreshold: 0.9,
               strikeExtraFollow: Math.min(0.018, Math.max(0, (rawSpin?.y ?? 0) * clampedPower) * 0.016),
               forwardOnly: false,
               onImpact: () => applyShotImpactOnce(),
