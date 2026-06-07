@@ -28,6 +28,7 @@ import {
   DEFAULT_TABLE_CUSTOMIZATION
 } from '../utils/tableCustomizationOptions.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../utils/colorSpace.js';
+import { getGameVolume } from '../utils/sound.js';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const clamp01 = (v) => clamp(v, 0, 1);
 const smootherstep01 = (v) => {
@@ -38,6 +39,50 @@ const smootherstep01 = (v) => {
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 const DEFAULT_HDRI_RESOLUTIONS = ['4k'];
+
+const LUDO_CAPTURE_MISSILE_LAUNCH_SOUND_URL = '/assets/sounds/launch-85216.mp3';
+const LUDO_CAPTURE_MISSILE_IMPACT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
+const LUDO_CAPTURE_FIREARM_SHOT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
+const LUDO_CAPTURE_FIREARM_SHELL_SOUND_URL = '/assets/sounds/cueshootsound.mp3';
+const LUDO_CAPTURE_GLASS_SHATTER_SOUND_URL = '/assets/sounds/glass-bottle-breaking-351297.mp3';
+const LUDO_CAPTURE_DRONE_SOUND_URL = '/assets/sounds/kimsa-kimsa-big-motorcycle-sound-394700.mp3';
+const LUDO_CAPTURE_FIGHTER_SOUND_URL = '/assets/sounds/race-care-151963.mp3';
+const LUDO_CAPTURE_HELICOPTER_SOUND_URL = '/assets/sounds/dragon-studio-helicopter-sound-8d-372463.mp3';
+const FIREARM_SOURCE_AUDIO_CACHE = new Map();
+const FIREARM_CAPTURE_SHOT_SOUND_URL_BY_ID = Object.freeze({
+  glockSidearmAttack: 'https://cdn.freesound.org/previews/414/414888_5121236-lq.mp3',
+  smithSidearmAttack: 'https://cdn.freesound.org/previews/414/414888_5121236-lq.mp3',
+  sigsauerTacticalAttack: 'https://cdn.freesound.org/previews/414/414888_5121236-lq.mp3',
+  uziSprayAttack: 'https://cdn.freesound.org/previews/171/171104_2437358-lq.mp3',
+  smgBurstAttack: 'https://cdn.freesound.org/previews/171/171104_2437358-lq.mp3',
+  assaultRifleAttack: 'https://cdn.freesound.org/previews/212/212968_4048940-lq.mp3',
+  ak47VolleyAttack: 'https://cdn.freesound.org/previews/212/212968_4048940-lq.mp3',
+  sniperShotAttack: 'https://cdn.freesound.org/previews/533/533981_11861866-lq.mp3',
+  shotgunBlastAttack: 'https://cdn.freesound.org/previews/456/456035_5121236-lq.mp3',
+  grenadeBlastAttack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
+  polyBazooka01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
+  polyGrenadeLauncher01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
+  polyDynamiteBomb01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
+  polyMolotov01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
+  polyGasTank01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
+  polyHandGrenade01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3',
+  polyTank01Attack: 'https://cdn.freesound.org/previews/514/514644_9960520-lq.mp3'
+});
+const LUDO_FIREARM_CAPTURE_WEAPON_IDS = new Set([
+  'assaultRifleAttack', 'fpsGunAttack', 'glockSidearmAttack', 'uziSprayAttack',
+  'ak47VolleyAttack', 'krsvBurstAttack', 'smithSidearmAttack', 'mosinMarksmanAttack',
+  'sigsauerTacticalAttack', 'grenadeBlastAttack', 'shotgunBlastAttack', 'sniperShotAttack',
+  'smgBurstAttack', 'compactCarbineAttack', 'marksmanDmrAttack', 'polyShotgun01Attack',
+  'polyAssaultRifle01Attack', 'polyPistol01Attack', 'polyRevolver01Attack',
+  'polySawedOff01Attack', 'polyRevolver02Attack', 'polyShotgun02Attack',
+  'polyShotgun03Attack', 'polySmg01Attack', 'polyRobotLargeGunAttack',
+  'polyRobotFlyingGunAttack', 'polyBazooka01Attack', 'polyGrenadeLauncher01Attack',
+  'polyDynamiteBomb01Attack', 'polyMolotov01Attack', 'polyGasTank01Attack',
+  'polyHandGrenade01Attack', 'polyTank01Attack', 'slot-10-ak47-gltf',
+  'slot-11-krsv-gltf', 'slot-12-smith-gltf', 'slot-13-mosin-gltf',
+  'slot-14-uzi-gltf', 'slot-15-sigsauer-gltf', 'slot-16-awp-glb',
+  'slot-17-mrtk-gun-glb', 'slot-18-fps-gun-gltf'
+]);
 
 const MODEL_SCALE = 0.75;
 const CHAIR_SIZE_SCALE = 1.38;
@@ -266,7 +311,7 @@ const DICE_FACE_INSET = DICE_SIZE * 0.064;
 // Keep Snake dice motion aligned with Ludo Battle Royal's frame-synced single-arc spinDice roll.
 const DICE_ROLL_DURATION = 1100;
 const DICE_SETTLE_DURATION = 220;
-const DICE_RESULT_HOLD_DURATION = 720;
+const DICE_RESULT_HOLD_DURATION = 1500;
 const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.78;
 const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.8;
 const DICE_THROW_START_EXTRA = TILE_SIZE * 3.6;
@@ -6386,7 +6431,8 @@ export default function SnakeBoard3D({
   cameraViewMode = '3d',
   camera2dTilt = 0.2,
   onCameraTiltChange,
-  onDiceTap
+  onDiceTap,
+  muted = false
 }) {
   const mountRef = useRef(null);
   const cameraRef = useRef(null);
@@ -6410,6 +6456,7 @@ export default function SnakeBoard3D({
   const fixedSeatCameraPositionRef = useRef(null);
   const previousTurnRef = useRef(null);
   const headLookRef = useRef({ yaw: 0, pitch: 0 });
+  const ludoWeaponAudioRef = useRef({});
   const currentTurnRef = useRef(currentTurn);
   const diceEventRef = useRef(diceEvent);
   const seatedHumanActionRef = useRef({
@@ -6441,6 +6488,50 @@ export default function SnakeBoard3D({
     frameAccumulatorRef.current = 0;
     lastFrameTimeRef.current = 0;
   }, [frameRate]);
+
+  useEffect(() => {
+    const audioSet = {
+      missileLaunch: new Audio(LUDO_CAPTURE_MISSILE_LAUNCH_SOUND_URL),
+      missileImpact: new Audio(LUDO_CAPTURE_MISSILE_IMPACT_SOUND_URL),
+      firearmShot: new Audio(LUDO_CAPTURE_FIREARM_SHOT_SOUND_URL),
+      firearmShell: new Audio(LUDO_CAPTURE_FIREARM_SHELL_SOUND_URL),
+      glassShatter: new Audio(LUDO_CAPTURE_GLASS_SHATTER_SOUND_URL),
+      drone: new Audio(LUDO_CAPTURE_DRONE_SOUND_URL),
+      fighter: new Audio(LUDO_CAPTURE_FIGHTER_SOUND_URL),
+      helicopter: new Audio(LUDO_CAPTURE_HELICOPTER_SOUND_URL)
+    };
+    audioSet.drone.loop = true;
+    audioSet.fighter.loop = true;
+    audioSet.helicopter.loop = true;
+    Object.values(audioSet).forEach((audio) => {
+      audio.preload = 'auto';
+      audio.volume = muted ? 0 : getGameVolume();
+      audio.muted = muted;
+    });
+    ludoWeaponAudioRef.current = audioSet;
+    return () => {
+      Object.values(audioSet).forEach((audio) => {
+        try {
+          audio.pause();
+          audio.currentTime = 0;
+        } catch {}
+      });
+    };
+  }, []);
+
+  useEffect(() => {
+    const volume = muted ? 0 : getGameVolume();
+    Object.values(ludoWeaponAudioRef.current || {}).forEach((audio) => {
+      audio.volume = volume;
+      audio.muted = muted;
+      if (muted) {
+        try {
+          audio.pause();
+          audio.currentTime = 0;
+        } catch {}
+      }
+    });
+  }, [muted]);
 
   useEffect(() => {
     currentTurnRef.current = currentTurn;
@@ -7569,6 +7660,55 @@ export default function SnakeBoard3D({
     }
   }, [diceEvent, cameraViewMode, currentTurn, players]);
 
+  const playLudoWeaponAudio = (key, { volume = getGameVolume(), loop = false } = {}) => {
+    if (muted) return false;
+    const audio = ludoWeaponAudioRef.current?.[key];
+    if (!audio) return false;
+    try {
+      audio.loop = loop;
+      audio.volume = clamp(volume, 0, 1);
+      audio.currentTime = 0;
+      audio.play().catch(() => {});
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const stopLudoWeaponAudio = (key) => {
+    const audio = ludoWeaponAudioRef.current?.[key];
+    if (!audio) return;
+    try {
+      audio.pause();
+      audio.currentTime = 0;
+    } catch {}
+  };
+
+  const playLudoWeaponSourceAudio = (url, { volume = getGameVolume() } = {}) => {
+    if (muted || !url) return false;
+    let audio = FIREARM_SOURCE_AUDIO_CACHE.get(url);
+    if (!audio) {
+      audio = new Audio(url);
+      audio.preload = 'auto';
+      FIREARM_SOURCE_AUDIO_CACHE.set(url, audio);
+    }
+    try {
+      audio.pause();
+      audio.currentTime = 0;
+      audio.volume = clamp(volume, 0, 1);
+      audio.play().catch(() => {});
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const stopAllLoopingLudoWeaponAudio = () => {
+    stopLudoWeaponAudio('drone');
+    stopLudoWeaponAudio('fighter');
+    stopLudoWeaponAudio('helicopter');
+  };
+
   useEffect(() => {
     if (!captureEvent || !boardRef.current) return;
     if (captureFxIdRef.current === captureEvent.id) return;
@@ -7581,13 +7721,16 @@ export default function SnakeBoard3D({
       captureEndMs: 0
     };
     const completeCaptureAnimation = () => {
+      stopAllLoopingLudoWeaponAudio();
       seatedHumanActionRef.current = {
         ...seatedHumanActionRef.current,
         captureEndMs: performance.now()
       };
       onCaptureAnimationComplete?.(captureEvent.id);
     };
-    const vehicleKind = normalizeSnakeCaptureWeaponKind(captureEvent.weaponType || 'fighter');
+    const rawWeaponType = typeof captureEvent.weaponType === 'string' ? captureEvent.weaponType : 'fighter';
+    const vehicleKind = normalizeSnakeCaptureWeaponKind(rawWeaponType || 'fighter');
+    const isFirearmCapture = LUDO_FIREARM_CAPTURE_WEAPON_IDS.has(rawWeaponType) || LUDO_FIREARM_CAPTURE_WEAPON_IDS.has(vehicleKind);
     const vehicleMap = board.captureFx?.vehicles || {};
     const primaryVehicle = vehicleMap[vehicleKind] || vehicleMap.fighter || Object.values(vehicleMap)[0];
     const missileProjectile = vehicleMap.javelin || vehicleMap.fighter || Object.values(vehicleMap)[0];
@@ -7650,6 +7793,10 @@ export default function SnakeBoard3D({
     });
 
     const startTime = performance.now();
+    let launchSoundPlayed = false;
+    let impactSoundPlayed = false;
+    let firearmVolleyStarted = false;
+    let vehicleLoopStarted = false;
     const stageFlightDuration = CAPTURE_MISSILE_FLIGHT_MS / Math.max(0.58, captureTuning.speed || 1);
     const impactDuration = CAPTURE_EXPLOSION_MS;
     const advanceDuration = CAPTURE_TOKEN_ADVANCE_MS;
@@ -7725,6 +7872,34 @@ export default function SnakeBoard3D({
     animationsRef.current.push({
       update: (now) => {
         const elapsed = now - startTime;
+        if (!vehicleLoopStarted) {
+          vehicleLoopStarted = true;
+          if (vehicleKind === 'drone' || vehicleKind === 'ukrainianDrone') {
+            playLudoWeaponAudio('drone', { volume: getGameVolume() * 0.42, loop: true });
+          } else if (vehicleKind === 'fighter') {
+            playLudoWeaponAudio('fighter', { volume: getGameVolume() * 0.42, loop: true });
+          } else if (vehicleKind === 'helicopter') {
+            playLudoWeaponAudio('helicopter', { volume: getGameVolume() * 0.42, loop: true });
+          }
+        }
+        const playImpactOnce = () => {
+          if (impactSoundPlayed) return;
+          impactSoundPlayed = true;
+          playLudoWeaponAudio('missileImpact');
+          if (isFirearmCapture) playLudoWeaponAudio('glassShatter', { volume: getGameVolume() * 0.82 });
+        };
+        const playLaunchOnce = () => {
+          if (launchSoundPlayed) return;
+          launchSoundPlayed = true;
+          if (isFirearmCapture) {
+            playLudoWeaponAudio('firearmShot');
+            playLudoWeaponAudio('firearmShell', { volume: getGameVolume() * 0.72 });
+            const sourceUrl = FIREARM_CAPTURE_SHOT_SOUND_URL_BY_ID[rawWeaponType] || FIREARM_CAPTURE_SHOT_SOUND_URL_BY_ID[vehicleKind];
+            playLudoWeaponSourceAudio(sourceUrl, { volume: getGameVolume() * 0.9 });
+          } else {
+            playLudoWeaponAudio('missileLaunch');
+          }
+        };
         const setCameraTrack = (focus) => {
           if (cameraViewMode === '2d' || !camera || !controls || !focus) return;
           const trackOffset = new THREE.Vector3(TOKEN_HEIGHT * 11, TOKEN_HEIGHT * 7.2, TOKEN_HEIGHT * 11);
@@ -7808,6 +7983,11 @@ export default function SnakeBoard3D({
               ? ukrainianDropTop.clone().lerp(impact, easeInOut(clamp01(u + 0.02)))
               : missilePathAt(clamp01(u + 0.02), from);
             const dir = next.clone().sub(pos).normalize();
+            playLaunchOnce();
+            if (isFirearmCapture && !firearmVolleyStarted) {
+              firearmVolleyStarted = true;
+              window.setTimeout(() => playLudoWeaponAudio('firearmShell', { volume: getGameVolume() * 0.7 }), 90);
+            }
             missileProjectile.root.visible = true;
             missileProjectile.root.position.copy(pos);
             missileProjectile.root.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), dir);
@@ -7827,6 +8007,7 @@ export default function SnakeBoard3D({
           primaryVehicle.root.visible = false;
           const impactElapsed = Math.max(0, missileElapsed - perMissileFlight);
           if (impactElapsed <= impactDuration) {
+            playImpactOnce();
             explosion.root.position.copy(impact);
             updateCaptureExplosionRig(explosion, impactElapsed / 1000);
             setCameraTrack(impact);
@@ -7870,6 +8051,11 @@ export default function SnakeBoard3D({
             const pos = missilePathAt(u, from);
             const next = missilePathAt(clamp01(u + 0.02), from);
             const dir = next.clone().sub(pos).normalize();
+            playLaunchOnce();
+            if (isFirearmCapture && !firearmVolleyStarted) {
+              firearmVolleyStarted = true;
+              window.setTimeout(() => playLudoWeaponAudio('firearmShell', { volume: getGameVolume() * 0.7 }), 90);
+            }
             missileProjectile.root.visible = true;
             missileProjectile.root.position.copy(pos);
             missileProjectile.root.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), dir);
@@ -7884,6 +8070,7 @@ export default function SnakeBoard3D({
         missileProjectile.root.visible = false;
         const impactElapsed = attackElapsed - (vehicleKind === 'drone' ? droneAttackDuration : volleyDuration);
         if (impactElapsed <= impactDuration) {
+          playImpactOnce();
           explosion.root.position.copy(impact);
           updateCaptureExplosionRig(explosion, impactElapsed / 1000);
           setCameraTrack(impact);

@@ -3654,6 +3654,7 @@ export default function SnakeAndLadder() {
           camera2dTilt={camera2dTilt}
           onCameraTiltChange={setCamera2dTilt}
           onDiceTap={handleRollButtonClick}
+          muted={muted}
         />
       </div>
       <div
