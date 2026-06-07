@@ -1680,9 +1680,10 @@ const PLAYER_CUE_FORWARD_EASE = 0.65;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.085; // rest the cue a touch lower so the tip lines up with the cue-ball centre on portrait screens
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
-const CUE_BUTT_LIFT = BALL_R * 0.52; // keep the butt elevated for clearance while keeping the tip level with the cue-ball centre
-const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.11; // keep the cue butt from dipping below the cushion top surface
-const CUE_CUSHION_LIFT_BIAS = BALL_R * 0.06; // lift the cue slightly more as cushions rise so it never touches
+const SNOOKER_CUE_STRAIGHT_ON_TABLE = true; // keep the Snooker Royal cue visually flat on the table and colinear with the aim line
+const CUE_BUTT_LIFT = SNOOKER_CUE_STRAIGHT_ON_TABLE ? 0 : BALL_R * 0.52; // keep the butt level for Snooker Royal aiming instead of lifting off the table
+const CUE_BUTT_CUSHION_CLEARANCE = SNOOKER_CUE_STRAIGHT_ON_TABLE ? 0 : BALL_R * 0.11; // straight-table mode must not tilt the butt up near cushions
+const CUE_CUSHION_LIFT_BIAS = SNOOKER_CUE_STRAIGHT_ON_TABLE ? 0 : BALL_R * 0.06; // straight-table mode must not add extra cushion lift
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 
 
@@ -1709,9 +1710,11 @@ const CFG = {
   ballR: BALL_R,
   idleGap: SNOOKER_CUE_IDLE_GAP,
   contactGap: SNOOKER_CUE_CONTACT_GAP,
+  followGap: SNOOKER_CUE_FOLLOW_GAP,
   pullRange: SNOOKER_CUE_PULL_RANGE,
   strikeTime: 0.12,
   holdTime: 0.05,
+  returnTime: 0.16,
   cueLength: 1.78 * SNOOKER_CUE_POSE_SCALE,
   bridgeDist: SNOOKER_CUE_BRIDGE_DIST,
   edgeMargin: 0.5 * SNOOKER_CUE_POSE_SCALE,
@@ -1757,6 +1760,8 @@ const CFG = {
 const clamp01 = (v) => clamp(v, 0, 1);
 const lerp = (a, b, t) => a + (b - a) * t;
 const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+const easeInOutQuad = (t) =>
+  t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 const easeInOut = (t) => t * t * (3 - 2 * t);
 const dampScalar = (current, target, lambda, dt) => THREE.MathUtils.lerp(current, target, 1 - Math.exp(-lambda * dt));
 const dampVector = (current, target, lambda, dt) => current.lerp(target, 1 - Math.exp(-lambda * dt));
@@ -2148,19 +2153,38 @@ function updateSnookerRoyalCuePose(controller, dt, options) {
   const practiceStroke = !shooting && !cueAnimating && activePower > 0.02
     ? Math.sin(performance.now() * 0.012) * 0.035 * CFG.scale * (0.25 + activePower * 0.75)
     : 0;
-  const strikeNorm = clamp01((controller.strikeClock || 0) / CFG.strikeTime);
   let gap = CFG.idleGap;
   const spinOffset = mapSpinForPhysics(spinInput);
   if (activePower > 0.02 && !shooting && !cueAnimating) gap += pull + practiceStroke;
   if (shooting || cueAnimating) {
-    const strikeMotionNorm = strikeNorm > 0.88 ? 0.88 : strikeNorm;
-    gap = lerp(CFG.idleGap + pull, CFG.contactGap, easeOutCubic(strikeMotionNorm));
+    const strikeClock = Math.max(0, controller.strikeClock || 0);
+    const strikeDuration = Math.max(CFG.strikeTime, 1e-4);
+    const holdDuration = Math.max(CFG.holdTime ?? 0, 0);
+    const returnDuration = Math.max(CFG.returnTime ?? 0, 1e-4);
+    if (strikeClock <= strikeDuration) {
+      const t = THREE.MathUtils.clamp(strikeClock / strikeDuration, 0, 1);
+      gap = lerp(CFG.idleGap + pull, CFG.contactGap, easeOutCubic(t));
+    } else if (strikeClock <= strikeDuration + holdDuration) {
+      gap = CFG.followGap ?? CFG.contactGap;
+    } else {
+      const t = THREE.MathUtils.clamp(
+        (strikeClock - strikeDuration - holdDuration) / returnDuration,
+        0,
+        1
+      );
+      gap = lerp(CFG.followGap ?? CFG.contactGap, CFG.idleGap, easeInOutQuad(t));
+    }
   }
   const providedCueTip = cueBallWorld.clone()
     .addScaledVector(aimForward, -(CFG.ballR + gap))
     .addScaledVector(aimSide, (spinOffset.x ?? 0) * CFG.ballR * 0.52)
     .add(new THREE.Vector3(0, (spinOffset.y ?? 0) * CFG.ballR * 0.44, 0));
-  const providedCueBack = bridgeCuePoint.clone().addScaledVector(aimForward, -(CFG.cueLength - CFG.bridgeDist - CFG.ballR - gap)).add(new THREE.Vector3(0, 0.024 * CFG.scale, 0));
+  const providedCueBack = SNOOKER_CUE_STRAIGHT_ON_TABLE
+    ? providedCueTip.clone().addScaledVector(aimForward, -CFG.cueLength)
+    : bridgeCuePoint.clone().addScaledVector(aimForward, -(CFG.cueLength - CFG.bridgeDist - CFG.ballR - gap)).add(new THREE.Vector3(0, 0.024 * CFG.scale, 0));
+  if (SNOOKER_CUE_STRAIGHT_ON_TABLE) {
+    providedCueBack.y = providedCueTip.y;
+  }
   applyProvidedCueEndpointPose(cueStick, providedCueBack, providedCueTip);
   cueStick.visible = Boolean(tableCueVisible || activePower > 0.02 || shooting || cueAnimating);
 }
@@ -2171,8 +2195,8 @@ const CUE_LIFT_MAX_TILT = THREE.MathUtils.degToRad(12.5);
 const CUE_FRONT_SECTION_RATIO = 0.28;
 const CUE_OBSTRUCTION_CLEARANCE = BALL_R * 2.85; // start avoidance a touch earlier so cue helpers keep a cleaner gap from nearby balls
 const CUE_OBSTRUCTION_RANGE = BALL_R * 9;
-const CUE_OBSTRUCTION_LIFT = BALL_R * 0.62; // add a small extra lift whenever helpers approach obstacles
-const CUE_OBSTRUCTION_TILT = THREE.MathUtils.degToRad(5.2);
+const CUE_OBSTRUCTION_LIFT = SNOOKER_CUE_STRAIGHT_ON_TABLE ? 0 : BALL_R * 0.62; // keep the cue flat instead of lifting over helpers in Snooker Royal
+const CUE_OBSTRUCTION_TILT = SNOOKER_CUE_STRAIGHT_ON_TABLE ? 0 : THREE.MathUtils.degToRad(5.2);
 const CUE_OBSTRUCTION_RAIL_CLEARANCE = CUE_OBSTRUCTION_CLEARANCE * 0.78; // increase cushion clearance so cue helpers do not visually touch the rails
 const CUE_OBSTRUCTION_RAIL_INFLUENCE = 0.7; // prioritize cushion avoidance when blending obstruction response
 // Match the 2D aiming configuration for side spin while letting top/back spin reach the full cue-tip radius.
@@ -20273,9 +20297,9 @@ const powerRef = useRef(hud.power);
                   0,
                   1
                 );
-                cueStick.position.lerpVectors(impactPos, idlePos, easeInOutQuad(t));
+                cueStick.position.lerpVectors(settlePos, idlePos, easeInOutQuad(t));
               } else {
-                cueStick.position.copy(pullPos);
+                cueStick.position.copy(idlePos);
               }
             }
             return;
@@ -20361,7 +20385,7 @@ const powerRef = useRef(hud.power);
               0,
               1
             );
-            tmpReplayCueA.set(impactSnap.x, impactSnap.y, impactSnap.z);
+            tmpReplayCueA.set(settleSnap.x, settleSnap.y, settleSnap.z);
             tmpReplayCueB.set(idleSnap.x, idleSnap.y, idleSnap.z);
             cueStick.position.lerpVectors(tmpReplayCueA, tmpReplayCueB, t);
             return;
@@ -21955,6 +21979,17 @@ const powerRef = useRef(hud.power);
       };
       const applyCueButtTilt = (group, extraTilt = 0) => {
         if (!group) return;
+        if (SNOOKER_CUE_STRAIGHT_ON_TABLE) {
+          group.rotation.x = 0;
+          const info = group.userData?.buttTilt;
+          if (info) {
+            info.tipCompensation = 0;
+            info.current = 0;
+            info.extra = 0;
+            info.buttHeightOffset = 0;
+          }
+          return;
+        }
         const info = group.userData?.buttTilt;
         const baseTilt = info?.angle ?? buttTilt;
         const len = info?.length ?? cueLen;
@@ -21991,6 +22026,7 @@ const powerRef = useRef(hud.power);
         TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
       };
       const clampCueButtAboveCushion = (tipTarget) => {
+        if (SNOOKER_CUE_STRAIGHT_ON_TABLE) return;
         if (!tipTarget) return;
         const cushionTop = table?.userData?.cushionTopLocal;
         if (!Number.isFinite(cushionTop)) return;
