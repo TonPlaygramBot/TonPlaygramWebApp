@@ -22,25 +22,6 @@ const TABLE_PHYSICAL_SPECS = Object.freeze({
       compactScale: 1.48
     })
   },
-
-  '7ft': {
-    id: '7ft',
-    label: '7 ft (Showood Source)',
-    playfield: Object.freeze({ widthMm: 1981.2, heightMm: 990.6 }), // 78" × 39" Showood/BCA 7 ft playing surface
-    ballDiameterMm: 57.15,
-    pocketMouthMm: Object.freeze({
-      corner: 114.3,
-      side: 127
-    }),
-    cushionCutAngleDeg: 32,
-    sideCushionCutAngleDeg: 32,
-    cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 }),
-    scaleOverrides: Object.freeze({
-      scale: 1.22,
-      mobileScale: 1.36,
-      compactScale: 1.18
-    })
-  },
   '8ft': {
     id: '8ft',
     label: '8 ft',
