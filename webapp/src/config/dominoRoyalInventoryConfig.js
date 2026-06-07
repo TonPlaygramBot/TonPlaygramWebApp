@@ -76,6 +76,99 @@ export const DOMINO_ROYAL_OPTION_SETS = Object.freeze({
 });
 
 
+export const DOMINO_ROYAL_HUMAN_CHARACTER_OPTIONS = Object.freeze([
+  {
+    id: 'rpm-current-domino',
+    label: 'Domino Royal Denim',
+    modelUrls: ['https://threejs.org/examples/models/gltf/readyplayer.me.glb'],
+    thumbnail: swatchThumbnail(['#2f5f9f', '#9b6b3f', '#d8dee9']),
+    dominoClothTheme: 'royalDenim',
+    hairColor: 0x24150f,
+    eyeColor: 0x2f5d7c,
+    skinTone: 0xd9a27d,
+    source: 'Domino Battle Royal seated human'
+  },
+  {
+    id: 'rpm-67d411-domino',
+    label: 'Domino Casino Check',
+    modelUrls: [
+      'https://models.readyplayer.me/67d411b30787acbf58ce58ac.glb',
+      'https://api.readyplayer.me/v1/avatars/67d411b30787acbf58ce58ac.glb',
+      'https://avatars.readyplayer.me/67d411b30787acbf58ce58ac.glb'
+    ],
+    thumbnail: swatchThumbnail(['#b7375d', '#243e70', '#f4d7a1']),
+    dominoClothTheme: 'casinoCheck',
+    hairColor: 0x14100c,
+    eyeColor: 0x5a3d2b,
+    skinTone: 0xc78f68,
+    source: 'Domino Battle Royal seated human'
+  },
+  {
+    id: 'rpm-67f433-domino',
+    label: 'Domino Linen Street',
+    modelUrls: [
+      'https://models.readyplayer.me/67f433b69dc08cf26d2cf585.glb',
+      'https://api.readyplayer.me/v1/avatars/67f433b69dc08cf26d2cf585.glb',
+      'https://avatars.readyplayer.me/67f433b69dc08cf26d2cf585.glb'
+    ],
+    thumbnail: swatchThumbnail(['#b68452', '#374151', '#4a6fa4']),
+    dominoClothTheme: 'linenStreet',
+    hairColor: 0x2c1b12,
+    eyeColor: 0x406a45,
+    skinTone: 0xe0b18d,
+    source: 'Domino Battle Royal seated human'
+  },
+  {
+    id: 'rpm-67e1b5-domino',
+    label: 'Domino Jacquard Night',
+    modelUrls: [
+      'https://models.readyplayer.me/67e1b51ae11c93725e4395c9.glb',
+      'https://api.readyplayer.me/v1/avatars/67e1b51ae11c93725e4395c9.glb',
+      'https://avatars.readyplayer.me/67e1b51ae11c93725e4395c9.glb'
+    ],
+    thumbnail: swatchThumbnail(['#7c3f88', '#1f335f', '#e3c16f']),
+    dominoClothTheme: 'jacquardNight',
+    hairColor: 0x3a2418,
+    eyeColor: 0x364f7d,
+    skinTone: 0xb87957,
+    source: 'Domino Battle Royal seated human'
+  },
+  {
+    id: 'webgl-vietnam-human-domino',
+    label: 'Domino Soft Fleece',
+    modelUrls: ['https://raw.githubusercontent.com/hmthanh/3d-human-model/main/TranThiNgocTham.glb'],
+    thumbnail: swatchThumbnail(['#556070', '#8b633f', '#b88ab8']),
+    dominoClothTheme: 'softFleece',
+    hairColor: 0x120d0a,
+    eyeColor: 0x33271e,
+    skinTone: 0xd39a72,
+    source: 'Domino Battle Royal seated human'
+  },
+  {
+    id: 'webgl-ai-teacher-domino',
+    label: 'Domino Patterned Red',
+    modelUrls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar.glb'],
+    thumbnail: swatchThumbnail(['#c44f42', '#263f73', '#f1f5f9']),
+    dominoClothTheme: 'patternedRed',
+    hairColor: 0x231915,
+    eyeColor: 0x3d5f73,
+    skinTone: 0xc88b64,
+    source: 'Domino Battle Royal seated human'
+  },
+  {
+    id: 'webgl-ai-teacher-1-domino',
+    label: 'Domino Mixed Denim',
+    modelUrls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb'],
+    thumbnail: swatchThumbnail(['#3b6ea8', '#4f6f93', '#d6a35f']),
+    dominoClothTheme: 'mixedDenim',
+    hairColor: 0x0f0b08,
+    eyeColor: 0x4c3425,
+    skinTone: 0xe3b08b,
+    source: 'Domino Battle Royal seated human'
+  }
+]);
+
+
 const DOMINO_TABLE_CLOTH_THUMBNAILS = Object.freeze({
   crimson: swatchThumbnail(['#960019', '#4a0012', '#fecaca']),
   emerald: swatchThumbnail(['#0f6a2f', '#054d24', '#bbf7d0']),
