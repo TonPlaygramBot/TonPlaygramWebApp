@@ -831,9 +831,6 @@ const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.22; // add a slight extra side-plate
 const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0.06; // lift fascia slightly with the raised rail/cushion profile so chrome stays aligned on all six pockets
 const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
-const SHOWOOD_EDGE_ACCENT_RENDER_ORDER = CHROME_PLATE_RENDER_ORDER + 0.55; // keep Showood rail-sight and side-apron metal edges in front of adjacent top rails
-const SHOWOOD_EDGE_ACCENT_POLYGON_OFFSET_FACTOR = -2.4; // pull the small metal edge faces toward the portrait camera to prevent rail overlap shimmer
-const SHOWOOD_EDGE_ACCENT_POLYGON_OFFSET_UNITS = -8;
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.34; // trim the side fascia reach so the middle chrome ends cleanly before the pocket curve
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.32; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0.228; // trim the side opposite the rounded middle cut a touch more while staying stable
@@ -12472,31 +12469,6 @@ function applyPoolRoyaleShowoodMetalAccentMaterial(mat, option) {
   mat.needsUpdate = true;
 }
 
-function tunePoolRoyaleShowoodEdgeAccentMaterial(mat, referencePart) {
-  if (!mat || (referencePart !== 'railSight' && referencePart !== 'sideWoodApron')) return;
-  mat.polygonOffset = true;
-  mat.polygonOffsetFactor = SHOWOOD_EDGE_ACCENT_POLYGON_OFFSET_FACTOR;
-  mat.polygonOffsetUnits = SHOWOOD_EDGE_ACCENT_POLYGON_OFFSET_UNITS;
-  mat.depthTest = true;
-  mat.depthWrite = true;
-  mat.side = THREE.DoubleSide;
-  mat.userData = {
-    ...(mat.userData || {}),
-    poolRoyaleShowoodEdgeAccentDepthPriority: true
-  };
-  mat.needsUpdate = true;
-}
-
-function tunePoolRoyaleShowoodEdgeAccentMesh(mesh, referenceParts = []) {
-  if (!mesh?.isMesh || !referenceParts.some((part) => part === 'railSight' || part === 'sideWoodApron')) return;
-  mesh.renderOrder = Math.max(mesh.renderOrder || 0, SHOWOOD_EDGE_ACCENT_RENDER_ORDER);
-  mesh.frustumCulled = false;
-  mesh.userData = {
-    ...(mesh.userData || {}),
-    poolRoyaleShowoodEdgeAccentDepthPriority: true
-  };
-}
-
 function applyPoolRoyaleShowoodPocketJawMaterial(mat, option, finishInfo = null) {
   const linerId = option?.pocketLinerId || DEFAULT_POCKET_LINER_OPTION_ID;
   const linerOption = POCKET_LINER_OPTIONS.find((entry) => entry.id === linerId) ||
@@ -12722,7 +12694,6 @@ function applyPoolRoyaleShowoodReferenceMaterial(material, part, tableModel = nu
   mat.opacity = 1;
   mat.depthWrite = true;
   mat.side = THREE.DoubleSide;
-  tunePoolRoyaleShowoodEdgeAccentMaterial(mat, part);
   mat.userData = {
     ...(mat.userData || {}),
     poolRoyaleShowoodReferencePart: part,
@@ -13009,8 +12980,6 @@ function preparePoolRoyaleExternalTableMaterials(root, tableModel = null, finish
     const childReferenceParts = needsReferencePartVisibility
       ? childMaterials.map((entry) => classifyPoolRoyaleShowoodReferencePart(child, entry))
       : [];
-
-    tunePoolRoyaleShowoodEdgeAccentMesh(child, childReferenceParts);
 
     const prepareMaterial = (material) => {
       if (!material) return material;
