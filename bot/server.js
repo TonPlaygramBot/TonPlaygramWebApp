@@ -472,7 +472,6 @@ const dominoRoyalStates = new Map();
 const lastActionBySocket = new Map();
 const rollRateLimitMs = Number(process.env.SOCKET_ROLL_COOLDOWN_MS) || 800;
 const seatTableRateLimitMs = Number(process.env.SEAT_TABLE_RATE_LIMIT_MS) || 500;
-const lobbySeatTtlMs = Number(process.env.LOBBY_SEAT_TTL_MS) || 60_000;
 const checkersMoveRateLimitMs =
   Number(process.env.CHECKERS_MOVE_RATE_LIMIT_MS) || 120;
 
@@ -669,8 +668,6 @@ function getAvailableTable(
   const normalizedMeta = normalizeMatchMeta(matchMeta);
   const key = `${gameType}-${maxPlayers}`;
   if (!lobbyTables[key]) lobbyTables[key] = [];
-  cleanupSeats();
-  reconcileOpenLobbyTables(key);
   if (forcedTableId) {
     const isHostedTable = isReservedHostedTableId(forcedTableId, gameType, maxPlayers);
     const existing = tableMap.get(forcedTableId);
@@ -739,70 +736,13 @@ function resolveSeatIdentityFromTableId(tableId, fallbackGameType, fallbackMaxPl
   };
 }
 
-function pruneLobbyTableSeats(tableId) {
-  const table = tableMap.get(tableId);
-  if (!table) return;
-  const key = `${table.gameType}-${table.maxPlayers}`;
-  if (!(lobbyTables[key] || []).some((entry) => entry.id === tableId)) return;
-
-  const seats = tableSeats.get(tableId);
-  const liveSeatIds = new Set(
-    Array.from(seats?.keys() || []).map((pid) => String(pid))
-  );
-
-  table.players = (table.players || []).filter((player) =>
-    liveSeatIds.has(String(player.id))
-  );
-
-  if (table.ready) {
-    for (const pid of Array.from(table.ready)) {
-      if (!liveSeatIds.has(String(pid))) table.ready.delete(pid);
-    }
-  }
-
-  if (table.players.length === 0) {
-    tableSeats.delete(tableId);
-    tableMap.delete(tableId);
-    lobbyTables[key] = (lobbyTables[key] || []).filter(
-      (entry) => entry.id !== tableId
-    );
-    return;
-  }
-
-  if (!table.currentTurn || !liveSeatIds.has(String(table.currentTurn))) {
-    table.currentTurn = table.players[0]?.id || null;
-  }
-}
-
 function cleanupSeats() {
   const now = Date.now();
-  const touchedTables = new Set();
   for (const [tableId, players] of tableSeats) {
-    let changed = false;
     for (const [pid, info] of players) {
-      if (now - info.ts > lobbySeatTtlMs) {
-        players.delete(pid);
-        changed = true;
-      }
+      if (now - info.ts > 60_000) players.delete(pid);
     }
-    if (players.size === 0) {
-      tableSeats.delete(tableId);
-      changed = true;
-    }
-    if (changed) touchedTables.add(tableId);
-  }
-
-  for (const tableId of touchedTables) {
-    pruneLobbyTableSeats(tableId);
-  }
-}
-
-function reconcileOpenLobbyTables(key) {
-  const tables = key
-    ? [...(lobbyTables[key] || [])]
-    : Object.values(lobbyTables).flatMap((entries) => entries || []);
-  for (const table of tables) {
-    pruneLobbyTableSeats(table.id);
+    if (players.size === 0) tableSeats.delete(tableId);
   }
 }
 
