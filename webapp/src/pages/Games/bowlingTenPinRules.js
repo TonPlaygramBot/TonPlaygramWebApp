@@ -1,5 +1,5 @@
 export const OFFICIAL_TEN_PIN_RULE_SUMMARY =
-  'Official ten-pin: 10 frames · frames 1-9 allow two deliveries unless the first is a strike · strike scores 10 plus the next two deliveries · spare scores 10 plus the next delivery · open frame scores pinfall · the 10th frame allows one or two bonus deliveries only after a strike/spare · each standing rack is capped at 10 pins · foul deliveries count as a ball, score 0, and restore the pre-foul standing pins when another delivery remains.';
+  'Official ten-pin: 10 frames · max two rolls per frames 1-9 unless strike · strike scores 10 plus next two rolls · spare scores 10 plus next roll · open frame scores pinfall · 10th frame grants bonus rolls only after strike/spare · each full rack is limited to 10 pins · foul rolls score 0 while still counting as delivered balls.';
 
 export function frameComplete(frame, index) {
   const r = frame.rolls || [];
@@ -84,14 +84,9 @@ export function shouldResetPinsForNextRoll(
   frameIndex,
   rollIndex,
   knocked,
-  frameEnded,
-  foul = false
+  frameEnded
 ) {
   if (frameEnded) return true;
-  // USBC/PBA-style foul handling: the delivery counts as zero, but if the
-  // bowler still has another delivery in the frame the pin deck must restore
-  // the pins that were standing before the foul ball.
-  if (foul) return true;
   if (frameIndex < 9) return knocked === 10;
   if (rollIndex === 0) return knocked === 10;
   if (rollIndex === 1)
@@ -121,10 +116,8 @@ export function addTenPinRoll(player, knocked, options = {}) {
       frameIndex,
       rollIndex,
       legalKnocked,
-      frameEnded,
-      foul
+      frameEnded
     ),
-    foulRestoresPins: foul && !frameEnded,
     gameFinished: playerFinished(player)
   };
 }
