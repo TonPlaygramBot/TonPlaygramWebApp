@@ -7,7 +7,7 @@ import {
   POOL_ROYALE_TABLE_MODEL_STORAGE_KEY,
   resolvePoolRoyaleTableModel
 } from '../../config/poolRoyaleTableModels.js';
-import PoolRoyaleLobby from './PoolRoyaleLobby.jsx';
+import PoolRoyaleLobby from './PoolRoyaleLobbyCore.jsx';
 
 function persistTableModel(tableModelId) {
   try {
