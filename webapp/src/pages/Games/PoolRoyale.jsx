@@ -28828,7 +28828,7 @@ const shotPowerRef = useRef(0);
           strikeDuration,
           holdDuration,
           pullbackDuration,
-          recoverDuration: 95,
+          recoverDuration: 0,
           impactThreshold: 0.86,
           forwardOnly: false,
           cameraExtraHoldMs: 240,
@@ -29605,22 +29605,13 @@ const shotPowerRef = useRef(0);
           const strikeHoldDuration = strokeProfile.holdDuration ?? LIVE_CUE_IMPACT_HOLD_MS;
           const pullbackDuration = strokeProfile.pullbackDuration ?? 0;
           const startTime = performance.now();
-          // Match Snooker Royal's visible release: the cue drives forward past
-          // its address point, then recovers to the exact idle/address position
-          // where the pull started instead of staying at the pulled-back depth.
-          const impactPush = THREE.MathUtils.clamp(
-            CUE_TIP_GAP - BALL_R * 0.9,
-            BALL_R * 0.16,
-            BALL_R * 0.38
-          );
-          const impactPos = buildCuePosition(-impactPush);
-          shotImpactPayload.contactAdvance = impactPush;
-          const contactPos = impactPos.clone();
-          const followDistance = THREE.MathUtils.lerp(
-            BALL_R * 0.26,
-            BALL_R * 0.72,
-            clampedPower
-          );
+          const impactPos = idlePos.clone();
+          const contactAdvance = 0; // stop the cue exactly where the slider pull started, matching Snooker Royal
+          shotImpactPayload.contactAdvance = contactAdvance;
+          const contactPos = impactPos
+            .clone()
+            .addScaledVector(dir, contactAdvance);
+          const followDistance = 0; // stop at cue-ball contact instead of visually following the moving cue ball
           const followPos = contactPos
             .clone()
             .addScaledVector(dir, followDistance);
