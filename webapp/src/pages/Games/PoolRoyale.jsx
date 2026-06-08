@@ -85,8 +85,7 @@ import {
   POOL_ROYALE_HDRI_VARIANTS,
   POOL_ROYALE_HDRI_VARIANT_MAP,
   POOL_ROYALE_BASE_VARIANTS,
-  POOL_ROYALE_OPTION_LABELS,
-  POOL_ROYALE_HUMAN_CHARACTER_OPTIONS
+  POOL_ROYALE_OPTION_LABELS
 } from '../../config/poolRoyaleInventoryConfig.js';
 import { BILARDO_MIN_RELEASE_POWER } from './shared/bilardoShotModel';
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../../config/poolRoyaleClothPresets.js';
@@ -1953,30 +1952,31 @@ const CUE_FOLLOW_THROUGH_MIN = BALL_R * 3.9; // keep low-power shots visibly pus
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 8.4; // extend top-end follow-through so powerful shots visibly punch forward
 const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER; // keep Pool Royale release gate identical to Bilardo Shqip
 const HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE = 0.96; // fallback body/table proportion when cue dimensions are unavailable
-const HUMAN_PLAYER_HEIGHT_RATIO_TO_CUE = 1.46; // make the shooter visibly bigger in portrait while staying proportional to the live cue stick
+const HUMAN_PLAYER_HEIGHT_RATIO_TO_CUE = 1.3; // keep the shooter 30% taller than the live cue stick
 const BILARDO_SHQIP_HUMAN_URL = 'https://threejs.org/examples/models/gltf/Soldier.glb';
-const buildPoolRoyaleHumanUrls = (theme) => {
-  const urls = [];
-  if (Array.isArray(theme?.modelUrls)) urls.push(...theme.modelUrls);
-  if (theme?.url) urls.push(theme.url);
-  return Array.from(new Set(urls.filter(Boolean)));
-};
-const POOL_ROYALE_HUMAN_URLS_BY_ID = Object.freeze(
-  POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.reduce((acc, theme) => {
-    acc[theme.id] = buildPoolRoyaleHumanUrls(theme);
-    return acc;
-  }, {})
-);
-const POOL_ROYALE_VERIFIED_HUMAN_FALLBACK_URLS = Object.freeze(
-  Array.from(new Set([
-    ...POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.flatMap(buildPoolRoyaleHumanUrls),
-    BILARDO_SHQIP_HUMAN_URL
-  ]))
-);
-const POOL_ROYALE_PRIMARY_HUMAN_FALLBACKS_BY_ID = POOL_ROYALE_HUMAN_URLS_BY_ID;
-const DEFAULT_POOL_ROYALE_HUMAN_CHARACTER_ID = POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0]?.id ?? 'rpm-current';
-const POOL_ROYALE_HUMAN_CHARACTER_STORAGE_KEY = 'poolHumanCharacter';
-const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.12; // final visual upscale for the grounded Pool/Snooker Royale shooter
+const POOL_ROYALE_VERIFIED_HUMAN_FALLBACK_URLS = Object.freeze([
+  'https://threejs.org/examples/models/gltf/readyplayer.me.glb',
+  'https://models.readyplayer.me/67d411b30787acbf58ce58ac.glb',
+  'https://models.readyplayer.me/67f433b69dc08cf26d2cf585.glb',
+  'https://models.readyplayer.me/67e1b51ae11c93725e4395c9.glb',
+  'https://raw.githubusercontent.com/hmthanh/3d-human-model/main/TranThiNgocTham.glb',
+  'https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar.glb',
+  'https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb',
+  'https://raw.githubusercontent.com/hmthanh/3d-human-model/main/Thanh.glb',
+  'https://threejs.org/examples/models/gltf/Xbot.glb'
+]);
+const POOL_ROYALE_PRIMARY_HUMAN_FALLBACKS_BY_ID = Object.freeze({
+  'rpm-current': ['https://threejs.org/examples/models/gltf/readyplayer.me.glb'],
+  'rpm-67d411': ['https://models.readyplayer.me/67d411b30787acbf58ce58ac.glb'],
+  'rpm-67f433': ['https://models.readyplayer.me/67f433b69dc08cf26d2cf585.glb'],
+  'rpm-67e1b5': ['https://models.readyplayer.me/67e1b51ae11c93725e4395c9.glb'],
+  'webgl-vietnam-human': ['https://raw.githubusercontent.com/hmthanh/3d-human-model/main/TranThiNgocTham.glb'],
+  'webgl-ai-teacher': ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar.glb'],
+  'webgl-ai-teacher-1': ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb'],
+  'webgl-thanh-human': ['https://raw.githubusercontent.com/hmthanh/3d-human-model/main/Thanh.glb'],
+  'threejs-xbot-human': ['https://threejs.org/examples/models/gltf/Xbot.glb']
+});
+const POOL_ROYALE_HUMAN_SCALE_MULTIPLIER = 1.08; // grounded Pool/Snooker Royale shooter stays proportional to the cue stick
 const POOL_ROYALE_LOUNGE_TABLE_RADIUS = BALL_R * 24; // match Murlan Royale's default octagon table proportions at pool-side scale.
 const POOL_ROYALE_LOUNGE_TABLE_HEIGHT = BALL_R * 16.5;
 const POOL_ROYALE_LOUNGE_CHAIR_SPAN = BALL_R * 64; // oversized portrait-readable chairs matching Murlan's default dining-chair asset.
@@ -15470,14 +15470,6 @@ function PoolRoyaleGame({
       DEFAULT_CHROME_PLATE_STYLE_ID
     );
   });
-  const [humanCharacterId, setHumanCharacterId] = useState(() => {
-    return resolveStoredSelection(
-      'humanCharacter',
-      POOL_ROYALE_HUMAN_CHARACTER_STORAGE_KEY,
-      (id) => POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.some((option) => option.id === id),
-      DEFAULT_POOL_ROYALE_HUMAN_CHARACTER_ID
-    );
-  });
   const showoodPalette = useMemo(
     () => ({
       ...POOL_ROYALE_SHOWOOD_DEFAULT_PALETTE,
@@ -15649,20 +15641,6 @@ function PoolRoyaleGame({
       ),
     [isCueFinishUnlocked, poolInventory]
   );
-  const availableHumanCharacters = useMemo(
-    () =>
-      POOL_ROYALE_HUMAN_CHARACTER_OPTIONS.filter((option) =>
-        isPoolOptionUnlocked('humanCharacter', option.id, poolInventory)
-      ),
-    [poolInventory]
-  );
-  const activeHumanCharacterOption = useMemo(
-    () =>
-      availableHumanCharacters.find((option) => option.id === humanCharacterId) ??
-      availableHumanCharacters[0] ??
-      POOL_ROYALE_HUMAN_CHARACTER_OPTIONS[0],
-    [availableHumanCharacters, humanCharacterId]
-  );
   const activeChromeOption = useMemo(
     () =>
       availableChromeOptions.find((opt) => opt.id === chromeColorId) ??
@@ -15768,15 +15746,11 @@ function PoolRoyaleGame({
     if (!isPoolOptionUnlocked('environmentHdri', environmentHdriId, poolInventory)) {
       setEnvironmentHdriId(POOL_ROYALE_DEFAULT_HDRI_ID);
     }
-    if (!isPoolOptionUnlocked('humanCharacter', humanCharacterId, poolInventory)) {
-      setHumanCharacterId(DEFAULT_POOL_ROYALE_HUMAN_CHARACTER_ID);
-    }
   }, [
     chromeColorId,
     chromePlateStyleId,
     clothColorId,
     environmentHdriId,
-    humanCharacterId,
     pocketLinerId,
     poolInventory,
     railMarkerColorId,
@@ -17177,11 +17151,6 @@ function PoolRoyaleGame({
   }, [tableFinishId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(POOL_ROYALE_HUMAN_CHARACTER_STORAGE_KEY, humanCharacterId);
-    }
-  }, [humanCharacterId]);
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
       window.localStorage.setItem(TABLE_BASE_STORAGE_KEY, tableBaseId);
     }
   }, [tableBaseId]);
@@ -17260,19 +17229,14 @@ function PoolRoyaleGame({
     seatedBySeat: { A: true, B: true }
   });
   const activeHumanCueViewRef = useRef(null);
-  const activeHumanCharacterRef = useRef(activeHumanCharacterOption);
-  useEffect(() => {
-    activeHumanCharacterRef.current = activeHumanCharacterOption;
-    spawnPlayerCharactersRef.current?.();
-  }, [activeHumanCharacterOption]);
   const characterShotStartedAtRef = useRef(0);
   const characterShotShooterRef = useRef('A');
   const hospitalityLayoutRunRef = useRef(null);
   const chessLoungeTemplateRef = useRef(null);
   const chessChairTemplateRef = useRef(null);
   const chessLoungeLoadRef = useRef(null);
-  const seatedHumanTemplateRef = useRef(new Map());
-  const seatedHumanLoadRef = useRef(new Map());
+  const seatedHumanTemplateRef = useRef(null);
+  const seatedHumanLoadRef = useRef(null);
   const hospitalityLoaderRef = useRef(null);
   const refreshSecondaryTableDecorRef = useRef(() => {});
   const clearSecondaryTableDecorRef = useRef(() => {});
@@ -21639,67 +21603,46 @@ const shotPowerRef = useRef(0);
         return group;
       };
 
-      const ensureSelectedHumanTemplate = async (theme = activeHumanCharacterRef.current) => {
-        const themeId = theme?.id ?? DEFAULT_POOL_ROYALE_HUMAN_CHARACTER_ID;
-        const templateCache = seatedHumanTemplateRef.current;
-        const loadCache = seatedHumanLoadRef.current;
-        if (templateCache?.has?.(themeId)) {
-          return templateCache.get(themeId);
+      const ensureSeatedHumanTemplate = async () => {
+        if (seatedHumanTemplateRef.current) {
+          return seatedHumanTemplateRef.current;
         }
-        if (loadCache?.has?.(themeId)) {
-          return loadCache.get(themeId);
+        if (seatedHumanLoadRef.current) {
+          return seatedHumanLoadRef.current;
         }
-        const themeUrls = POOL_ROYALE_PRIMARY_HUMAN_FALLBACKS_BY_ID[themeId] || [];
-        const loadUrls = Array.from(new Set([
-          ...themeUrls,
-          ...POOL_ROYALE_VERIFIED_HUMAN_FALLBACK_URLS,
-          BILARDO_SHQIP_HUMAN_URL
-        ].filter(Boolean)));
-        const pending = loadFirstAvailableGltf(loadUrls)
+        seatedHumanLoadRef.current = loadFirstAvailableGltf([BILARDO_SHQIP_HUMAN_URL])
           .then((gltf) => {
             const model = gltf?.scene?.clone?.(true) ?? gltf?.scene ?? gltf?.scenes?.[0] ?? null;
             if (!model) {
-              throw new Error(`Missing Pool Royale human scene for ${themeId}`);
+              throw new Error('Missing seated human scene');
             }
             model.traverse((child) => {
               if (!child?.isMesh) return;
               child.castShadow = true;
               child.receiveShadow = true;
-              child.frustumCulled = false;
               const sourceMaterials = Array.isArray(child.material)
                 ? child.material
                 : [child.material];
-              const fixedMaterials = sourceMaterials.map((sourceMat) => {
-                if (!sourceMat) return sourceMat;
-                const mat = sourceMat.clone?.() ?? sourceMat;
-                applySRGBColorSpace(mat.map);
-                applySRGBColorSpace(mat.emissiveMap);
-                applySRGBColorSpace(mat.aoMap);
-                applySRGBColorSpace(mat.lightMap);
-                if (mat.map) sharpenTexture(mat.map);
-                if (mat.emissiveMap) sharpenTexture(mat.emissiveMap);
-                mat.needsUpdate = true;
-                return mat;
+              const fixedMaterials = sourceMaterials.map((material) => {
+                const fixed = normalizeLoadedGltfMaterial(material);
+                fixed.skinning = material?.skinning ?? fixed.skinning;
+                return fixed;
               });
               child.material = Array.isArray(child.material)
                 ? fixedMaterials
                 : fixedMaterials[0];
             });
-            model.userData.poolHumanThemeId = themeId;
-            model.userData.poolShooterScaleMultiplier = theme?.poolShooterScaleMultiplier ?? 1.16;
-            templateCache?.set?.(themeId, model);
+            seatedHumanTemplateRef.current = model;
             return model;
           })
           .catch((error) => {
-            console.warn('Failed to load Domino Royal human GLTF for Pool Royale', themeId, error);
-            templateCache?.set?.(themeId, null);
+            console.warn('Failed to load seated human GLB for Pool Royale', error);
             return null;
           })
           .finally(() => {
-            loadCache?.delete?.(themeId);
+            seatedHumanLoadRef.current = null;
           });
-        loadCache?.set?.(themeId, pending);
-        return pending;
+        return seatedHumanLoadRef.current;
       };
 
       const createChessLoungeSet = async ({
@@ -26488,7 +26431,7 @@ const shotPowerRef = useRef(0);
         const humanHeight = Number.isFinite(liveCueLength) && liveCueLength > 0
           ? liveCueLength * HUMAN_PLAYER_HEIGHT_RATIO_TO_CUE
           : TABLE.H * HUMAN_PLAYER_HEIGHT_RATIO_TO_TABLE;
-        const scale = (humanHeight / 1.82) * POOL_ROYALE_HUMAN_SCALE_MULTIPLIER * (template?.userData?.poolShooterScaleMultiplier ?? 1);
+        const scale = (humanHeight / 1.82) * POOL_ROYALE_HUMAN_SCALE_MULTIPLIER;
         const skinMat = new THREE.MeshStandardMaterial({ color: 0xe4bf9d, roughness: 0.82 });
         const bridgeHand = createBridgeHandGroup(skinMat);
         const gripHand = createGripHandGroup(skinMat);
@@ -26499,7 +26442,6 @@ const shotPowerRef = useRef(0);
         if (template) {
           const avatar = template.clone(true);
           fitPlayerHumanModelHeight(avatar, humanHeight);
-          avatar.userData.poolHumanThemeId = template.userData?.poolHumanThemeId;
           avatar.traverse((child) => {
             if (!child?.isMesh) return;
             child.castShadow = true;
@@ -26809,46 +26751,9 @@ const shotPowerRef = useRef(0);
         return group;
       };
 
-      const spawnPlayerCharacters = async () => {
+      const spawnPlayerCharacters = () => {
         disposePlayerCharacters();
         activeHumanCueViewRef.current = null;
-
-        const startAim = aimDirRef.current?.clone?.() ?? new THREE.Vector2(0, -1);
-        if (startAim.lengthSq?.() > 1e-6) startAim.normalize();
-        const startCue = cueRef.current?.pos
-          ? new THREE.Vector3(cueRef.current.pos.x, floorY, cueRef.current.pos.y)
-          : new THREE.Vector3(0, floorY, 0);
-        const startRoot = startCue.clone().add(new THREE.Vector3(
-          -startAim.x * HUMAN_DESIRED_SHOOT_DISTANCE,
-          0,
-          -startAim.y * HUMAN_DESIRED_SHOOT_DISTANCE
-        ));
-        startRoot.x = THREE.MathUtils.clamp(
-          startRoot.x,
-          -(TABLE.W / 2 + HUMAN_WALK_RING_MARGIN),
-          TABLE.W / 2 + HUMAN_WALK_RING_MARGIN
-        );
-        startRoot.z = THREE.MathUtils.clamp(
-          startRoot.z,
-          -(TABLE.H / 2 + HUMAN_WALK_RING_MARGIN),
-          TABLE.H / 2 + HUMAN_WALK_RING_MARGIN
-        );
-        const facingY = Math.atan2(-startAim.x, -startAim.y);
-        const selectedHumanTemplate = await ensureSelectedHumanTemplate(activeHumanCharacterRef.current);
-        const group = createPlayerCharacterRig({
-          seat: 'A',
-          x: startRoot.x,
-          z: startRoot.z,
-          facingY,
-          template: selectedHumanTemplate
-        });
-        group.position.y = floorY;
-        scene.add(group);
-        playerCharacterRigsRef.current = [{
-          seat: 'A',
-          group,
-          anim: group.userData.anim
-        }];
       };
       spawnPlayerCharactersRef.current = spawnPlayerCharacters;
 
@@ -28326,40 +28231,6 @@ const shotPowerRef = useRef(0);
       const camFwd = new THREE.Vector3();
       const shotSph = new THREE.Spherical();
       const tmpAim = new THREE.Vector2();
-      const keepCueAimFacingCurrentSide = (candidate) => {
-        if (!candidate || candidate.lengthSq() <= 1e-6) return candidate;
-        candidate.normalize();
-        const currentAim = aimDirRef.current;
-        if (currentAim?.lengthSq?.() > 1e-6) {
-          TMP_VEC2_VIEW.copy(currentAim).normalize();
-          // Lowering the portrait camera can make the camera-derived azimuth cross
-          // the cue-ball focus and report the opposite direction for one frame.
-          // Keep the cue's front/tip on the same visual side as the standing
-          // camera by rejecting only that sudden 180° inversion; normal gradual
-          // aiming rotation still updates through the usual lerp path.
-          if (candidate.dot(TMP_VEC2_VIEW) < -0.35) {
-            candidate.multiplyScalar(-1);
-          }
-        }
-        return candidate;
-      };
-      const resolveStableCameraAim = () => {
-        const sph = sphRef.current;
-        if (sph && Number.isFinite(sph.theta)) {
-          tmpAim.set(-Math.sin(sph.theta), -Math.cos(sph.theta));
-          if (tmpAim.lengthSq() > 1e-6) {
-            return keepCueAimFacingCurrentSide(tmpAim);
-          }
-        }
-        camera.getWorldDirection(camFwd);
-        tmpAim.set(camFwd.x, camFwd.z);
-        if (tmpAim.lengthSq() > 1e-6) {
-          return keepCueAimFacingCurrentSide(tmpAim);
-        }
-        const fallbackAim = aimDirRef.current.clone();
-        if (fallbackAim.lengthSq() < 1e-6) fallbackAim.set(0, 1);
-        return tmpAim.copy(fallbackAim.normalize());
-      };
 
       // In-hand placement
 
@@ -33088,13 +32959,15 @@ const shotPowerRef = useRef(0);
           if (fallbackAim.lengthSq() < 1e-6) fallbackAim.set(0, 1);
           tmpAim.copy(fallbackAim.normalize());
         } else {
-          // Keep the cue stick on the same visual side of the table while the
-          // player lowers/raises the camera.  A raw camera forward vector can
-          // cross the cue-ball focus point as the camera pitch changes, which
-          // made the cue flip to the opposite side on portrait phones.  The
-          // orbit theta stores the standing-view side, so derive aim from that
-          // stable table azimuth and only fall back to camera forward if needed.
-          resolveStableCameraAim();
+          camera.getWorldDirection(camFwd);
+          tmpAim.set(camFwd.x, camFwd.z);
+          if (tmpAim.lengthSq() < 1e-6) {
+            const fallbackAim = aimDirRef.current.clone();
+            if (fallbackAim.lengthSq() < 1e-6) fallbackAim.set(0, 1);
+            tmpAim.copy(fallbackAim.normalize());
+          } else {
+            tmpAim.normalize();
+          }
         }
         const cameraBlend = THREE.MathUtils.clamp(
           cameraBlendRef.current ?? 1,
@@ -36827,45 +36700,6 @@ const shotPowerRef = useRef(0);
                       Replays keep live graphics quality and appear on potted/foul moments.
                     </span>
                   </button>
-                </div>
-              ) : null}
-
-              {availableHumanCharacters.length > 0 ? (
-                <div>
-                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                    Human Character
-                  </h3>
-                  <p className="mt-1 text-[0.68rem] leading-snug text-white/60">
-                    Uses the same Domino Royal / Murlan GLTF characters and original texture maps, scaled larger and grounded for the Pool Royal shooting stance.
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {availableHumanCharacters.map((option) => {
-                      const active = option.id === humanCharacterId;
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          onClick={() => setHumanCharacterId(option.id)}
-                          aria-pressed={active}
-                          className={`flex min-w-[9.5rem] flex-1 items-center justify-between gap-3 rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                            active
-                              ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                              : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                          }`}
-                        >
-                          <span className="truncate">{option.label}</span>
-                          {option.thumbnail ? (
-                            <img
-                              src={option.thumbnail}
-                              alt={option.label}
-                              className="h-7 w-7 rounded-full border border-white/25 object-cover"
-                              loading="lazy"
-                            />
-                          ) : null}
-                        </button>
-                      );
-                    })}
-                  </div>
                 </div>
               ) : null}
 
