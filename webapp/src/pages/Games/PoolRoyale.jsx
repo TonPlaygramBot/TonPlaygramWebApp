@@ -28970,11 +28970,39 @@ const shotPowerRef = useRef(0);
         cuePullCurrentRef.current = nextPull;
         return nextPull;
       };
-      const applyVisualPullCompensation = (pullValue) => {
-        // Keep cue travel in table space, not camera space. The cue must stay on
-        // the same side of the cue ball and use the same pull distance whether
-        // the player is in standing view or lowers the camera into cue view.
-        return Math.max(pullValue ?? 0, 0);
+      const applyVisualPullCompensation = (pullValue, dirVec3) => {
+        const basePull = Math.max(pullValue ?? 0, 0);
+        if (basePull <= 1e-6 || !dirVec3) return basePull;
+        const cam =
+          activeRenderCameraRef.current ??
+          cameraRef.current ??
+          camera;
+        TMP_VEC3_CUE_DIR.set(dirVec3.x, 0, dirVec3.z);
+        if (TMP_VEC3_CUE_DIR.lengthSq() > 1e-8) {
+          TMP_VEC3_CUE_DIR.normalize();
+        } else {
+          TMP_VEC3_CUE_DIR.set(0, 0, 1);
+        }
+        let alignment = 0;
+        if (cam?.getWorldDirection) {
+          cam.getWorldDirection(TMP_VEC3_CAM_DIR);
+          TMP_VEC3_CAM_DIR.y = 0;
+          if (TMP_VEC3_CAM_DIR.lengthSq() > 1e-8) {
+            TMP_VEC3_CAM_DIR.normalize();
+            alignment = Math.abs(TMP_VEC3_CAM_DIR.dot(TMP_VEC3_CUE_DIR));
+          }
+        }
+        const blend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
+        const cameraPullScale = THREE.MathUtils.lerp(
+          1 - CUE_PULL_CUE_CAMERA_DAMPING,
+          1 + CUE_PULL_STANDING_CAMERA_BONUS,
+          blend
+        );
+        const alignmentBoost = 1 + alignment * CUE_PULL_ALIGNMENT_BOOST;
+        const compensated =
+          basePull * alignmentBoost * cameraPullScale;
+        const maxScale = 1 + CUE_PULL_MAX_VISUAL_BONUS;
+        return Math.min(compensated, basePull * maxScale);
       };
       const computePullTargetFromPower = (power, maxPull = CUE_PULL_BASE) => {
         const ratio = THREE.MathUtils.clamp(power ?? 0, 0, 1);
@@ -29615,12 +29643,7 @@ const shotPowerRef = useRef(0);
           );
           const pullTarget = pullRange * strokeProfile.pullRatio;
           const pulledNow = cuePullCurrentRef.current ?? pullTarget;
-          const releasePullMax = Math.max(
-            maxPull + CUE_PULL_VISUAL_FUDGE,
-            CUE_PULL_MIN_VISUAL,
-            0
-          );
-          const startPull = THREE.MathUtils.clamp(pulledNow, 0, releasePullMax);
+          const startPull = THREE.MathUtils.clamp(pulledNow, 0, Math.max(maxPull, 0));
           const visualPull = applyVisualPullCompensation(startPull, dir);
           shotImpactPayload.pullDistance = visualPull;
           cuePullCurrentRef.current = startPull;
@@ -33031,21 +33054,8 @@ const shotPowerRef = useRef(0);
           if (fallbackAim.lengthSq() < 1e-6) fallbackAim.set(0, 1);
           tmpAim.copy(fallbackAim.normalize());
         } else {
-          // Aim from orbit yaw only. Using camera.getWorldDirection() couples the
-          // cue side to camera height/pitch, so pulling the camera lower can make
-          // the cue jump to the opposite side of the cue ball. The yaw mapping is
-          // the inverse of alignStandingCameraToAim(), which keeps the cue in the
-          // same table-space position while the camera is raised or lowered.
-          const orbitTheta = sphRef.current?.theta ?? sph.theta;
-          if (Number.isFinite(orbitTheta)) {
-            tmpAim.set(
-              Math.sin(orbitTheta - Math.PI),
-              Math.cos(orbitTheta - Math.PI)
-            );
-          } else {
-            camera.getWorldDirection(camFwd);
-            tmpAim.set(camFwd.x, camFwd.z);
-          }
+          camera.getWorldDirection(camFwd);
+          tmpAim.set(camFwd.x, camFwd.z);
           if (tmpAim.lengthSq() < 1e-6) {
             const fallbackAim = aimDirRef.current.clone();
             if (fallbackAim.lengthSq() < 1e-6) fallbackAim.set(0, 1);
