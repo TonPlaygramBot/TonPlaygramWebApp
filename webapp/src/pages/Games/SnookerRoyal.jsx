@@ -5609,7 +5609,8 @@ const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.96;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.94;
-const STANDING_VIEW_DISTANCE_SCALE = 0.132; // pull the standing camera closer so the table fills more of portrait screens
+const STANDING_VIEW_DISTANCE_SCALE = 0.122; // pull the standing camera a bit closer so the table fills more of portrait screens
+const CUE_VISIBLE_CAMERA_BLEND_THRESHOLD = 0.985; // show the table cue as soon as the portrait camera is lowered even a tiny bit
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -22269,9 +22270,6 @@ const powerRef = useRef(hud.power);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
       table.add(cueStick);
-      const snookerRoyalHuman = addHuman(table, renderer, (status) => {
-        if (status) console.debug(status);
-      });
       const snookerCuePoseController = createSnookerRoyalCuePoseController();
       applySelectedCueStyle(cueStyleIndexRef.current ?? cueStyleIndex);
 
@@ -23603,16 +23601,11 @@ const powerRef = useRef(hud.power);
           const settlePos = impactPos
             .clone()
             .addScaledVector(TMP_VEC3_FOLLOW_DIR, followExtra);
-          const cameraForCueVisibility =
-            activeRenderCameraRef.current ?? cameraRef.current ?? camera;
-          const cueBallY = cue?.pos ? CUE_Y : BALL_CENTER_Y;
-          const cameraHeightAboveCue =
-            (cameraForCueVisibility?.position?.y ?? cueBallY) - cueBallY;
-          const isStandingCueView =
+          const isFullStandingCueView =
             !shooting &&
             !cueAnimating &&
-            cameraHeightAboveCue > BALL_R * 3.4;
-          cueStick.visible = !isStandingCueView;
+            (cameraBlendRef.current ?? 1) > CUE_VISIBLE_CAMERA_BLEND_THRESHOLD;
+          cueStick.visible = !isFullStandingCueView;
           cueStick.position.copy(idlePos);
           const startTime = performance.now();
           const pullEndTime = startTime + pullbackDuration;
@@ -23715,12 +23708,8 @@ const powerRef = useRef(hud.power);
               const t = THREE.MathUtils.clamp((now - holdEndTime) / returnDuration, 0, 1);
               cueStick.position.lerpVectors(settlePos, idlePos, easeInOutQuad(t));
             } else {
-              const releaseCamera =
-                activeRenderCameraRef.current ?? cameraRef.current ?? camera;
-              const releaseCueBallY = cue?.pos ? CUE_Y : BALL_CENTER_Y;
-              const releaseHeightAboveCue =
-                (releaseCamera?.position?.y ?? releaseCueBallY) - releaseCueBallY;
-              const standingReleaseView = releaseHeightAboveCue > BALL_R * 3.4;
+              const standingReleaseView =
+                (cameraBlendRef.current ?? 1) > CUE_VISIBLE_CAMERA_BLEND_THRESHOLD;
               cueStick.visible = !standingReleaseView;
               cueAnimating = false;
               cuePullCurrentRef.current = 0;
@@ -26791,79 +26780,12 @@ const powerRef = useRef(hud.power);
             power: (shooting || cueAnimating) ? lastShotPower : (powerRef.current ?? activeAiPlan?.power ?? 0),
             shooting,
             cueAnimating,
-            tableCueVisible: Boolean(cueStick.visible && (cameraBlendRef.current ?? 1) <= 0.55),
+            tableCueVisible: Boolean((cameraBlendRef.current ?? 1) <= CUE_VISIBLE_CAMERA_BLEND_THRESHOLD),
             spinInput: activeAiPlan?.spin ?? spinRef.current ?? { x: 0, y: 0 }
           });
         } catch (error) {
           snookerCuePoseController.disabled = true;
           console.warn('Snooker Royal cue pose disabled after update error', error);
-        }
-
-        try {
-          const cueBallWorld = cue?.pos
-            ? new THREE.Vector3(cue.pos.x, CUE_Y, cue.pos.y)
-            : null;
-          const activeAimDir = showingRemoteAim
-            ? new THREE.Vector2(remoteAimState?.dir?.x ?? 0, remoteAimState?.dir?.y ?? 1)
-            : activeAiPlan?.aimDir || aimDir;
-          const aimForward = new THREE.Vector3(activeAimDir?.x ?? 0, 0, activeAimDir?.y ?? 1);
-          if (aimForward.lengthSq() < 1e-8) aimForward.set(0, 0, 1);
-          aimForward.normalize();
-          const activePower = THREE.MathUtils.clamp(
-            (shooting || cueAnimating) ? lastShotPower : (powerRef.current ?? activeAiPlan?.power ?? 0),
-            0,
-            1
-          );
-          if (cueBallWorld && cue?.active) {
-            const aimSide = new THREE.Vector3(aimForward.z, 0, -aimForward.x).normalize();
-            const humanRootTarget = chooseHumanEdgePosition(cueBallWorld, aimForward);
-            const bridgeHandTarget = cueBallWorld.clone()
-              .addScaledVector(aimForward, -CFG.bridgeHandBackFromBall)
-              .addScaledVector(aimSide, CFG.bridgeHandSide)
-              .setY(CFG.tableTopY + CFG.bridgePalmTableLift);
-            const standingYaw = yawFromForward(aimForward);
-            const idleRightHandTarget = humanRootTarget.clone().add(
-              new THREE.Vector3(CFG.idleRightHandX, CFG.idleRightHandY, CFG.idleRightHandZ)
-                .applyAxisAngle(Y_AXIS, standingYaw)
-            );
-            const idleLeftHandTarget = humanRootTarget.clone().add(
-              new THREE.Vector3(-0.18 * CFG.scale, 1.08 * CFG.scale, 0.03 * CFG.scale)
-                .applyAxisAngle(Y_AXIS, standingYaw)
-            );
-            const idleDir = CFG.idleCueDir.clone().applyAxisAngle(Y_AXIS, standingYaw).normalize();
-            const idleCue = cuePoseFromGrip(idleRightHandTarget, idleDir, CFG.idleCueGripFromBack, CFG.cueLength);
-            const providedCueBack = cueStick.userData.providedCueBack?.clone?.() ?? idleCue.back;
-            const providedCueTip = cueStick.userData.providedCueTip?.clone?.() ?? idleCue.tip;
-            const visualState = shooting || cueAnimating
-              ? 'striking'
-              : activePower > 0.02
-                ? 'dragging'
-                : cueStick.visible
-                  ? 'aiming'
-                  : 'idle';
-            const activeCueBack = visualState === 'idle' ? idleCue.back : providedCueBack;
-            const activeCueTip = visualState === 'idle' ? idleCue.tip : providedCueTip;
-            updateHumanPose(
-              snookerRoyalHuman,
-              deltaSeconds,
-              visualState,
-              humanRootTarget,
-              aimForward,
-              bridgeHandTarget,
-              idleRightHandTarget,
-              idleLeftHandTarget,
-              activeCueBack,
-              activeCueTip,
-              activePower
-            );
-          } else {
-            snookerRoyalHuman.root.visible = false;
-            snookerRoyalHuman.modelRoot.visible = false;
-          }
-        } catch (error) {
-          snookerRoyalHuman.root.visible = false;
-          snookerRoyalHuman.modelRoot.visible = false;
-          console.warn('Snooker Royal ReadyPlayer human pose skipped', error);
         }
 
         if (!shouldSlowAim) {
