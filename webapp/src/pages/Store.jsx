@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import * as THREE from 'three';
 import { loadExactUkrainianDroneModel } from '../utils/ukrainianDroneModel.js';
+import { createInlineHelicopterModel } from '../utils/helicopterInlinePreview.js';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import {
   POOL_ROYALE_DEFAULT_LOADOUT,
@@ -164,6 +165,12 @@ const UKRAINIAN_DRONE_PREVIEW_STATUS = Object.freeze({
   fallback: 'FALLBACK'
 });
 
+const INLINE_HELICOPTER_PREVIEW_STATUS = Object.freeze({
+  loading: 'LOADING',
+  ready: 'READY',
+  fallback: 'FALLBACK'
+});
+
 function fitUkrainianDronePreviewObject(model, targetLength = 4.2) {
   model.updateMatrixWorld?.(true);
   const box = new THREE.Box3().setFromObject(model);
@@ -217,7 +224,7 @@ function createUkrainianDronePreviewFallback() {
 function disposeUkrainianDronePreviewObject(object) {
   object?.traverse?.((child) => {
     if (!child?.isMesh && !child?.isSkinnedMesh) return;
-    child.geometry?.dispose?.();
+    if (!child.geometry?.userData?.sharedInlineHelicopter) child.geometry?.dispose?.();
     const materials = Array.isArray(child.material) ? child.material : child.material ? [child.material] : [];
     materials.forEach((material) => {
       ['map', 'emissiveMap', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'alphaMap'].forEach((key) => material?.[key]?.dispose?.());
@@ -368,6 +375,194 @@ function UkrainianDroneExactPreview({ showCaption = true, size = 'sm', container
   );
 }
 
+function createInlineHelicopterPreviewFallback() {
+  const group = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color: '#64748b', roughness: 0.66, metalness: 0.22 });
+  const glassMat = new THREE.MeshStandardMaterial({ color: '#7dd3fc', roughness: 0.28, metalness: 0.05, transparent: true, opacity: 0.68 });
+  const darkMat = new THREE.MeshStandardMaterial({ color: '#111827', roughness: 0.74, metalness: 0.18 });
+
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 1.55, 8, 24), bodyMat);
+  body.rotation.z = Math.PI / 2;
+  body.position.y = 1.6;
+  group.add(body);
+
+  const cockpit = new THREE.Mesh(new THREE.SphereGeometry(0.38, 24, 16), glassMat);
+  cockpit.scale.set(1.05, 0.72, 0.82);
+  cockpit.position.set(0.72, 1.66, 0);
+  group.add(cockpit);
+
+  const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.12, 1.85, 16), bodyMat);
+  tail.rotation.z = Math.PI / 2;
+  tail.position.set(-1.35, 1.64, 0);
+  group.add(tail);
+
+  const rotor = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.035, 0.13), darkMat);
+  rotor.name = 'top_rotor';
+  rotor.position.set(0, 2.22, 0);
+  group.add(rotor);
+
+  const tailRotor = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.72, 0.08), darkMat);
+  tailRotor.name = 'tail_rotor';
+  tailRotor.position.set(-2.34, 1.66, 0);
+  group.add(tailRotor);
+
+  const skidA = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.045, 0.05), darkMat);
+  skidA.position.set(0.05, 0.94, 0.42);
+  group.add(skidA);
+  const skidB = skidA.clone();
+  skidB.position.z = -0.42;
+  group.add(skidB);
+
+  group.traverse((obj) => {
+    if (obj.isMesh) {
+      obj.castShadow = true;
+      obj.receiveShadow = true;
+    }
+  });
+  return group;
+}
+
+function InlineHelicopterExactPreview({ showCaption = true, size = 'sm', containerClassName = '' }) {
+  const mountRef = useRef(null);
+  const runtimeRef = useRef(null);
+  const [status, setStatus] = useState(INLINE_HELICOPTER_PREVIEW_STATUS.loading);
+  const sizeClasses = {
+    sm: 'h-16 w-24',
+    md: 'h-24 w-40',
+    lg: 'h-32 w-full'
+  };
+
+  useEffect(() => {
+    const mount = mountRef.current;
+    if (!mount) return undefined;
+
+    let disposed = false;
+    let frame = 0;
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color('#020617');
+    scene.fog = new THREE.Fog('#020617', 18, 52);
+
+    const camera = new THREE.PerspectiveCamera(46, 1, 0.1, 120);
+    camera.position.set(5.5, 3.7, 7.8);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.45;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    mount.innerHTML = '';
+    mount.appendChild(renderer.domElement);
+
+    scene.add(new THREE.AmbientLight(0xffffff, 1.3));
+    scene.add(new THREE.HemisphereLight(0xe0f2fe, 0x0f172a, 2.0));
+
+    const key = new THREE.DirectionalLight(0xffffff, 4.2);
+    key.position.set(5, 7, 6);
+    key.castShadow = true;
+    scene.add(key);
+
+    const fill = new THREE.PointLight(0x86efac, 9, 28, 1.4);
+    fill.position.set(-3, 3.6, 5.5);
+    scene.add(fill);
+
+    const floor = new THREE.Mesh(
+      new THREE.CircleGeometry(3.6, 72),
+      new THREE.MeshStandardMaterial({ color: '#111827', roughness: 0.88, metalness: 0.12 })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    const resize = () => {
+      const width = mount.clientWidth || 160;
+      const height = mount.clientHeight || 100;
+      camera.aspect = width / Math.max(1, height);
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height, false);
+    };
+
+    const start = async () => {
+      try {
+        setStatus(INLINE_HELICOPTER_PREVIEW_STATUS.loading);
+        const helicopter = await createInlineHelicopterModel({ targetSize: 4.4 });
+        if (disposed) {
+          disposeUkrainianDronePreviewObject(helicopter);
+          return;
+        }
+        helicopter.position.y += 1.85;
+        helicopter.rotation.y = 0.62;
+        scene.add(helicopter);
+        runtimeRef.current = { root: helicopter, baseY: helicopter.position.y };
+        setStatus(INLINE_HELICOPTER_PREVIEW_STATUS.ready);
+      } catch (error) {
+        console.warn('Store inline helicopter preview failed, using fallback helicopter', error);
+        if (disposed) return;
+        const fallback = createInlineHelicopterPreviewFallback();
+        scene.add(fallback);
+        runtimeRef.current = { root: fallback, baseY: fallback.position.y };
+        setStatus(INLINE_HELICOPTER_PREVIEW_STATUS.fallback);
+      }
+    };
+
+    resize();
+    void start();
+    const clock = new THREE.Clock();
+    const animate = () => {
+      if (disposed) return;
+      frame = requestAnimationFrame(animate);
+      const time = clock.elapsedTime;
+      const runtime = runtimeRef.current;
+      if (runtime?.root) {
+        runtime.root.position.y = runtime.baseY + Math.sin(time * 1.7) * 0.09;
+        runtime.root.rotation.y += 0.0045;
+        runtime.root.traverse((obj) => {
+          const name = `${obj.name || ''}`.toLowerCase();
+          if (name.includes('rotor') || name.includes('propeller')) obj.rotation.y = time * 28;
+        });
+      }
+      renderer.render(scene, camera);
+    };
+    animate();
+
+    const observer = new ResizeObserver(resize);
+    observer.observe(mount);
+    window.addEventListener('resize', resize);
+
+    return () => {
+      disposed = true;
+      observer.disconnect();
+      window.removeEventListener('resize', resize);
+      cancelAnimationFrame(frame);
+      if (runtimeRef.current?.root) disposeUkrainianDronePreviewObject(runtimeRef.current.root);
+      floor.geometry.dispose();
+      floor.material.dispose();
+      renderer.dispose();
+      if (renderer.domElement.parentElement === mount) mount.removeChild(renderer.domElement);
+      runtimeRef.current = null;
+    };
+  }, []);
+
+  return (
+    <div className={`flex items-center gap-3 ${containerClassName}`}>
+      <div className={`relative overflow-hidden rounded-xl border border-white/10 bg-[#020617] shadow-[0_18px_45px_-26px_rgba(0,0,0,0.9)] ${sizeClasses[size] || sizeClasses.sm}`}>
+        <div ref={mountRef} className="absolute inset-0" />
+        <div className="pointer-events-none absolute left-1 top-1 rounded-full border border-white/10 bg-slate-950/70 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.18em] text-white/80">
+          {status}
+        </div>
+      </div>
+      {showCaption ? (
+        <div className="grid gap-0.5 text-xs text-white/70">
+          <span className="font-semibold text-white">Inline Helicopter</span>
+          <span className="text-white/60">Zip geometry + vertex colors</span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+
 const TYPE_LABELS = {
   tableFinish: 'Table Finishes',
   chromeColor: 'Chrome Fascias',
@@ -402,7 +597,8 @@ const CHESS_TYPE_LABELS = {
   sideColor: 'Piece Colors',
   boardTheme: 'Board Themes',
   headStyle: 'Pawn Heads',
-  environmentHdri: 'HDR Environments'
+  environmentHdri: 'HDR Environments',
+  captureAnimation: 'Capture Weapons'
 };
 const CHECKERS_BATTLE_TYPE_LABELS = {
   ...CHESS_TYPE_LABELS,
@@ -469,7 +665,8 @@ const TAVULL_TYPE_LABELS = {
   boardFinish: 'Board Finish',
   frameFinish: 'Board Frame',
   triangleColor: 'Triangle Colors',
-  environmentHdri: 'HDR Environments'
+  environmentHdri: 'HDR Environments',
+  captureAnimation: 'Capture Weapons'
 };
 
 const FOUR_IN_ROW_TYPE_LABELS = {
@@ -480,7 +677,8 @@ const FOUR_IN_ROW_TYPE_LABELS = {
   boardTheme: 'Board Skins',
   boardLayout: 'Board Sizes',
   stoneStyle: 'Stone Sets',
-  environmentHdri: 'HDR Environments'
+  environmentHdri: 'HDR Environments',
+  captureAnimation: 'Capture Weapons'
 };
 
 const BLACKJACK_TYPE_LABELS = {
@@ -511,7 +709,8 @@ const MURLAN_TYPE_LABELS = {
   tables: 'Table Models',
   tableCloth: 'Table Cloth',
   tableFinish: 'Table Finish',
-  environmentHdri: 'HDR Environments'
+  environmentHdri: 'HDR Environments',
+  captureAnimation: 'Capture Weapons'
 };
 
 const DOMINO_TYPE_LABELS = {
@@ -540,7 +739,8 @@ const SNAKE_TYPE_LABELS = {
   tableFinish: 'Table Finish',
   tables: 'Table Models',
   stools: 'Chairs',
-  environmentHdri: 'HDR Environments'
+  environmentHdri: 'HDR Environments',
+  captureAnimation: 'Capture Weapons'
 };
 
 const TEXAS_TYPE_LABELS = {
@@ -552,7 +752,8 @@ const TEXAS_TYPE_LABELS = {
   tableTheme: 'Table Models',
   tableShape: 'Table Shape',
   cards: 'Cards',
-  environmentHdri: 'HDR Environments'
+  environmentHdri: 'HDR Environments',
+  captureAnimation: 'Capture Weapons'
 };
 
 const TON_ICON = '/assets/icons/ezgif-54c96d8a9b9236.webp';
@@ -790,7 +991,7 @@ function FaceScanCharacterPreview({ scanEntries = [], bodyOption, title }) {
       window.removeEventListener('resize', onResize);
       scene.traverse((child) => {
         if (!child.isMesh && !child.isLine) return;
-        child.geometry?.dispose?.();
+        if (!child.geometry?.userData?.sharedInlineHelicopter) child.geometry?.dispose?.();
         const materials = Array.isArray(child.material) ? child.material : child.material ? [child.material] : [];
         materials.forEach((material) => material.dispose?.());
       });
@@ -3604,6 +3805,16 @@ export default function Store() {
     if (previewShape === 'ukrainian-drone') {
       return (
         <UkrainianDroneExactPreview
+          showCaption={showCaption}
+          size={size}
+          containerClassName={containerClassName}
+        />
+      );
+    }
+
+    if (previewShape === 'inline-helicopter') {
+      return (
+        <InlineHelicopterExactPreview
           showCaption={showCaption}
           size={size}
           containerClassName={containerClassName}
