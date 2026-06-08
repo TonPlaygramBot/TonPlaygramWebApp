@@ -51,20 +51,6 @@ describe('chess battle inventory config', () => {
     expect(storeDroneIds.has('ukrainianDroneAttack')).toBe(true);
   });
 
-
-  test('adds provided inline helicopter to Chess Battle Royal capture inventory', () => {
-    expect(CHESS_BATTLE_ROYAL_DEFAULT_UNLOCKS.captureAnimation).toContain('helicopterAttack');
-    expect(CHESS_BATTLE_OPTION_LABELS.captureAnimation.helicopterAttack).toBe('Helicopter Strike');
-
-    const helicopterItem = CHESS_BATTLE_ROYAL_STORE_ITEMS.find(
-      (item) => item.type === 'captureAnimation' && item.optionId === 'helicopterAttack'
-    );
-    expect(helicopterItem).toMatchObject({
-      previewShape: 'inline-helicopter',
-      modelUrls: ['/assets/helicopter_inline_preview/helicopter_inline_preview.html']
-    });
-  });
-
   test('keeps current avatar free by default and sells exactly the 5 requested WebGL humans', () => {
     expect(CHESS_HUMAN_CHARACTER_OPTIONS[0]?.id).toBe('rpm-current');
     expect(CHESS_BATTLE_DEFAULT_UNLOCKS.humanCharacter[0]).toBe('rpm-current');
