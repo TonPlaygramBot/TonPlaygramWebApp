@@ -6736,15 +6736,6 @@ const computeCueViewVector = (cueBall, camera) => {
   return TMP_VEC2_VIEW.clone().normalize();
 };
 
-const resolveAimDirectionFromOrbitTheta = (theta, fallback = null) => {
-  if (!Number.isFinite(theta)) {
-    const safeFallback = fallback?.clone?.() ?? new THREE.Vector2(0, 1);
-    if (safeFallback.lengthSq() < 1e-8) safeFallback.set(0, 1);
-    return safeFallback.normalize();
-  }
-  return new THREE.Vector2(-Math.sin(theta), -Math.cos(theta)).normalize();
-};
-
 const clampSpinToVisibleHemisphere = (spinInput, aimDir, cueBall, camera) => {
   if (!spinInput || !aimDir || !cueBall || !camera) return spinInput;
   const viewVec = computeCueViewVector(cueBall, camera);
@@ -28332,6 +28323,7 @@ const shotPowerRef = useRef(0);
       };
 
       const aimDir = aimDirRef.current;
+      const camFwd = new THREE.Vector3();
       const shotSph = new THREE.Spherical();
       const tmpAim = new THREE.Vector2();
 
@@ -33062,11 +33054,15 @@ const shotPowerRef = useRef(0);
           if (fallbackAim.lengthSq() < 1e-6) fallbackAim.set(0, 1);
           tmpAim.copy(fallbackAim.normalize());
         } else {
-          // Keep the table-space cue line locked to the standing orbit theta. The
-          // low human-eye/cue camera can slide beside the stick for portrait aiming,
-          // so deriving aim from the live camera direction can make the cue appear
-          // to jump or flip sides while the player only lowers the camera.
-          tmpAim.copy(resolveAimDirectionFromOrbitTheta(sph.theta, aimDirRef.current));
+          camera.getWorldDirection(camFwd);
+          tmpAim.set(camFwd.x, camFwd.z);
+          if (tmpAim.lengthSq() < 1e-6) {
+            const fallbackAim = aimDirRef.current.clone();
+            if (fallbackAim.lengthSq() < 1e-6) fallbackAim.set(0, 1);
+            tmpAim.copy(fallbackAim.normalize());
+          } else {
+            tmpAim.normalize();
+          }
         }
         const cameraBlend = THREE.MathUtils.clamp(
           cameraBlendRef.current ?? 1,
