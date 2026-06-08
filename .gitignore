@@ -56,3 +56,5 @@ webapp/public/models/pool-royale/*.glb
 webapp/public/models/pool-royale/*.gltf
 webapp/public/models/pool-royale/*.bin
 webapp/public/models/pool-royale/pool-table-traditional-fizyman/
+# Runtime-only Sketchfab glTF archives fetched with webapp/scripts/fetch-sketchfab-assets.mjs.
+webapp/public/models/sketchfab/
