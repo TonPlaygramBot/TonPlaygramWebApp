@@ -17260,7 +17260,6 @@ function PoolRoyaleGame({
     seatedBySeat: { A: true, B: true }
   });
   const activeHumanCueViewRef = useRef(null);
-  const tableLockedCueViewRef = useRef(null);
   const activeHumanCharacterRef = useRef(activeHumanCharacterOption);
   useEffect(() => {
     activeHumanCharacterRef.current = activeHumanCharacterOption;
@@ -22368,10 +22367,7 @@ const shotPowerRef = useRef(0);
           const cueBlend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
           const cueBias = 1 - cueBlend;
           if (cueBias <= HUMAN_EYE_CAMERA_MIN_BLEND) return null;
-          // Use the procedural/table cue pose first so lowering the camera never
-          // moves the cue to the avatar side; the low view must match the same
-          // table position players saw from the standing camera.
-          const cuePose = tableLockedCueViewRef.current ?? activeHumanCueViewRef.current;
+          const cuePose = activeHumanCueViewRef.current;
           if (!cuePose?.cueBack || !cuePose?.bridgeTarget || !cuePose?.aimForward || !cuePose?.side) {
             return null;
           }
@@ -27128,10 +27124,7 @@ const shotPowerRef = useRef(0);
             .addScaledVector(aimForward, -(HUMAN_CUE_LENGTH - HUMAN_BRIDGE_DIST - BALL_R - cueBallGap))
             .add(new THREE.Vector3(0, 0.028 * scale, 0));
           if (isShooter && (mode === 'aim' || mode === 'strike')) {
-            // Keep the avatar aiming beside the table, but do not let the
-            // avatar rig replace the live cue stick. The visible cue stays
-            // driven by the procedural table pose below, so dropping into the
-            // low camera cannot flip it to the other side of the table.
+            setCueStickFromHumanCuePose?.(cueBackShoot, cueTipShoot);
             activeHumanCueViewRef.current = {
               eye: headCenterWorld.clone().addScaledVector(WORLD_UP, 0.02 * scale),
               aimForward: aimForward.clone(),
@@ -27735,18 +27728,6 @@ const shotPowerRef = useRef(0);
         TMP_VEC3_CUE_BUTT_OFFSET.copy(cueButtLocal).applyEuler(cueStick.rotation);
         cueStick.position.copy(tipTarget).sub(TMP_VEC3_CUE_TIP_OFFSET);
         TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
-      };
-      const recordTableLockedCueView = (dirVec3, sideVec3, tipTarget) => {
-        if (!dirVec3 || !sideVec3 || !tipTarget) return;
-        TMP_VEC3_CUE_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
-        tableLockedCueViewRef.current = {
-          aimForward: dirVec3.clone(),
-          side: sideVec3.clone(),
-          cueBack: TMP_VEC3_CUE_BUTT.clone(),
-          cueTip: tipTarget.clone(),
-          bridgeTarget: tipTarget.clone(),
-          blend: 1
-        };
       };
       const clampCueButtAboveCushion = (tipTarget) => {
         if (!tipTarget) return;
@@ -33611,7 +33592,6 @@ const shotPowerRef = useRef(0);
           applyCueObstructionLift(tipTarget, obstructionLift);
           applyCueStickTransform(tipTarget);
           clampCueButtAboveCushion(tipTarget);
-          recordTableLockedCueView(dir, perp, tipTarget);
           let visibleChalkIndex = null;
           const chalkMeta = table.userData?.chalkMeta;
           if (chalkMeta) {
@@ -33925,7 +33905,6 @@ const shotPowerRef = useRef(0);
           applyCueObstructionLift(tipTarget, obstructionLift);
           applyCueStickTransform(tipTarget);
           clampCueButtAboveCushion(tipTarget);
-          recordTableLockedCueView(remoteGuideDir, perp, tipTarget);
           cueStick.visible = true;
           updateChalkVisibility(null);
           if (targetDir && targetBall) {
@@ -34054,7 +34033,6 @@ const shotPowerRef = useRef(0);
           applyCueObstructionLift(tipTarget, obstructionLift);
           applyCueStickTransform(tipTarget);
           clampCueButtAboveCushion(tipTarget);
-          recordTableLockedCueView(dir, perp, tipTarget);
           cueStick.visible = true;
         } else {
           aimFocusRef.current = null;
