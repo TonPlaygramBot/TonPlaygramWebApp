@@ -18039,7 +18039,6 @@ const shotPowerRef = useRef(0);
   const preShotTopViewLockRef = useRef(false);
   const sidePocketAimRef = useRef(false);
   const aimDirRef = useRef(new THREE.Vector2(0, 1));
-  const cueChargeAimLockRef = useRef(null);
   const playerOffsetRef = useRef(0);
   const orbitFocusRef = useRef({
     target: new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0),
@@ -18163,16 +18162,10 @@ const shotPowerRef = useRef(0);
     dot.style.backgroundColor = magnitude > 0.01 ? '#facc15' : '#dc2626';
     dot.dataset.blocked = showBlocked ? '1' : '0';
   }, []);
-  const captureCueStickAnchor = useCallback(({ lockAim = false } = {}) => {
+  const captureCueStickAnchor = useCallback(() => {
     const cueBall = cueRef.current;
     if (!cueBall?.pos) return;
     cueStickAnchorRef.current.set(cueBall.pos.x, CUE_Y, cueBall.pos.y);
-    if (lockAim) {
-      const lockedAim = aimDirRef.current?.clone?.() ?? new THREE.Vector2(0, 1);
-      if (lockedAim.lengthSq() < 1e-6) lockedAim.set(0, 1);
-      else lockedAim.normalize();
-      cueChargeAimLockRef.current = lockedAim;
-    }
   }, []);
   const cueRef = useRef(null);
   const ballsRef = useRef([]);
@@ -24863,7 +24856,6 @@ const shotPowerRef = useRef(0);
               cueAnimating = false;
               cuePullCurrentRef.current = 0;
               cuePullTargetRef.current = 0;
-              cueChargeAimLockRef.current = null;
               pendingImpactRef.current = null;
             }
             return false;
@@ -24872,7 +24864,6 @@ const shotPowerRef = useRef(0);
             cueStick.visible = false;
             cueAnimating = false;
             cueStrokeStateRef.current = null;
-            cueChargeAimLockRef.current = null;
             pendingImpactRef.current = null;
             syncCueShadow();
             return false;
@@ -24953,7 +24944,6 @@ const shotPowerRef = useRef(0);
             cueAnimating = false;
             cuePullCurrentRef.current = 0;
             cuePullTargetRef.current = 0;
-            cueChargeAimLockRef.current = null;
             cueStrokeStateRef.current = null;
             pendingImpactRef.current = null;
             if (cameraRef.current && sphRef.current) {
@@ -25054,7 +25044,6 @@ const shotPowerRef = useRef(0);
           cuePullCurrentRef.current = 0;
           cuePullTargetRef.current = 0;
           cueStrokeStateRef.current = null;
-          cueChargeAimLockRef.current = null;
           pendingImpactRef.current = null;
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -29608,6 +29597,8 @@ const shotPowerRef = useRef(0);
             strikeDuration: strokeProfile.strikeDuration ?? LIVE_CUE_FORWARD_DURATION_MS,
             applied: false
           };
+          applyShotAtImpact(shotImpactPayload);
+
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
             topViewLockedRef.current = false;
@@ -29708,20 +29699,12 @@ const shotPowerRef = useRef(0);
           const pullbackDuration = strokeProfile.pullbackDuration ?? 0;
           const startTime = performance.now();
           const impactPos = idlePos.clone();
-          const contactAdvance = THREE.MathUtils.lerp(
-            BALL_R * 0.42,
-            BALL_R * 0.9,
-            clampedPower
-          );
+          const contactAdvance = 0; // stop the cue exactly where the slider pull started, matching Snooker Royal
           shotImpactPayload.contactAdvance = contactAdvance;
           const contactPos = impactPos
             .clone()
             .addScaledVector(dir, contactAdvance);
-          const followDistance = THREE.MathUtils.lerp(
-            CUE_FOLLOW_THROUGH_MIN,
-            CUE_FOLLOW_THROUGH_MAX,
-            clampedPower
-          );
+          const followDistance = 0; // stop at cue-ball contact instead of visually following the moving cue ball
           const followPos = contactPos
             .clone()
             .addScaledVector(dir, followDistance);
@@ -33159,13 +33142,6 @@ const shotPowerRef = useRef(0);
             }
           }
         }
-        const chargeAimLock = cueChargeAimLockRef.current;
-        if (
-          chargeAimLock?.lengthSq?.() > 1e-6 &&
-          (Boolean(sliderInstanceRef.current?.dragging) || shooting || cueAnimating)
-        ) {
-          aimDir.copy(chargeAimLock).normalize();
-        }
         const appliedSpin = applySpinConstraints(aimDir, true);
         const aimPreviewSpin = resolveAimPreviewSpin(appliedSpin);
         const liftStrength = normalizeCueLift(resolveUserCueLift());
@@ -35698,14 +35674,10 @@ const shotPowerRef = useRef(0);
       labels: true,
       onChange: (v) => applyPower(v / 100),
       onStart: () => {
-        captureCueStickAnchor({ lockAim: true });
+        captureCueStickAnchor();
       },
       onCommit: (value) => {
         const committedPower = clampPower(value / 100, 0);
-        const lockedAim = cueChargeAimLockRef.current;
-        if (lockedAim?.lengthSq?.() > 1e-6) {
-          aimDirRef.current.copy(lockedAim).normalize();
-        }
         shotPowerRef.current = committedPower;
         powerRef.current = committedPower;
         fireRef.current?.(committedPower);
