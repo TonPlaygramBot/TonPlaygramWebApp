@@ -18132,6 +18132,8 @@ const shotPowerRef = useRef(0);
   const cuePullTargetRef = useRef(0);
   const cuePullCurrentRef = useRef(0);
   const cueStickAnchorRef = useRef(new THREE.Vector3(0, BALL_CENTER_Y, 0));
+  const cuePullAimLockRef = useRef(null);
+  const cuePullThetaLockRef = useRef(null);
   const cueLiftRef = useRef({
     active: false,
     startY: 0,
@@ -18168,6 +18170,23 @@ const shotPowerRef = useRef(0);
     const cueBall = cueRef.current;
     if (!cueBall?.pos) return;
     cueStickAnchorRef.current.set(cueBall.pos.x, CUE_Y, cueBall.pos.y);
+
+    // Freeze the standing-camera shot azimuth at the moment the player starts
+    // pulling the slider.  The lowered cue camera can move closer to/through the
+    // cue-ball focus point, so deriving aim from the live camera while dragging
+    // can visually swap the cue tip and butt.  The spherical theta is the same
+    // side used by the standing camera, keeping the cue orientation unchanged.
+    const sph = sphRef.current;
+    const lockedAim = new THREE.Vector2();
+    if (sph && Number.isFinite(sph.theta)) {
+      lockedAim.set(-Math.sin(sph.theta), -Math.cos(sph.theta));
+    } else {
+      lockedAim.copy(aimDirRef.current ?? new THREE.Vector2(0, 1));
+    }
+    if (lockedAim.lengthSq() < 1e-6) lockedAim.set(0, 1);
+    else lockedAim.normalize();
+    cuePullAimLockRef.current = lockedAim;
+    cuePullThetaLockRef.current = sph && Number.isFinite(sph.theta) ? sph.theta : null;
   }, []);
   const cueRef = useRef(null);
   const ballsRef = useRef([]);
@@ -24858,6 +24877,8 @@ const shotPowerRef = useRef(0);
               cueAnimating = false;
               cuePullCurrentRef.current = 0;
               cuePullTargetRef.current = 0;
+              cuePullAimLockRef.current = null;
+              cuePullThetaLockRef.current = null;
               pendingImpactRef.current = null;
             }
             return false;
@@ -24883,6 +24904,7 @@ const shotPowerRef = useRef(0);
             baseRotationX,
             baseRotationY,
             strikeDip,
+            wobbleAmount,
             forwardOnly,
             strikeImpactThreshold
           } = stroke;
@@ -24946,6 +24968,8 @@ const shotPowerRef = useRef(0);
             cueAnimating = false;
             cuePullCurrentRef.current = 0;
             cuePullTargetRef.current = 0;
+            cuePullAimLockRef.current = null;
+            cuePullThetaLockRef.current = null;
             cueStrokeStateRef.current = null;
             pendingImpactRef.current = null;
             if (cameraRef.current && sphRef.current) {
@@ -25045,6 +25069,8 @@ const shotPowerRef = useRef(0);
           cueAnimating = false;
           cuePullCurrentRef.current = 0;
           cuePullTargetRef.current = 0;
+          cuePullAimLockRef.current = null;
+          cuePullThetaLockRef.current = null;
           cueStrokeStateRef.current = null;
           pendingImpactRef.current = null;
           if (cameraRef.current && sphRef.current) {
@@ -28327,6 +28353,20 @@ const shotPowerRef = useRef(0);
       const shotSph = new THREE.Spherical();
       const tmpAim = new THREE.Vector2();
       const resolveStableCameraAim = () => {
+        const lockedAim = cuePullAimLockRef.current;
+        const lockActive =
+          Boolean(lockedAim) &&
+          (Boolean(sliderInstanceRef.current?.dragging) ||
+            Boolean(cueStrokeStateRef.current) ||
+            shootingRef.current ||
+            cueAnimating ||
+            (powerRef.current ?? 0) > 0.001);
+        if (lockActive) {
+          tmpAim.copy(lockedAim);
+          if (tmpAim.lengthSq() > 1e-6) {
+            return tmpAim.normalize();
+          }
+        }
         const sph = sphRef.current;
         if (sph && Number.isFinite(sph.theta)) {
           tmpAim.set(-Math.sin(sph.theta), -Math.cos(sph.theta));
@@ -29310,7 +29350,7 @@ const shotPowerRef = useRef(0);
         pottedIds.clear();
         firstHit = null;
         clearInterval(timerRef.current);
-        const aimDir = aimDirRef.current.clone();
+        const aimDir = (cuePullAimLockRef.current?.clone?.() ?? aimDirRef.current.clone());
         if (aimDir.lengthSq() < 1e-6) {
           aimDir.set(0, 1);
         } else {
@@ -29323,6 +29363,8 @@ const shotPowerRef = useRef(0);
         );
         const clampedPower = clampPower(sourcePower, 0);
         if (clampedPower < MIN_SHOT_POWER_TO_FIRE) {
+          cuePullAimLockRef.current = null;
+          cuePullThetaLockRef.current = null;
           setShootingState(false);
           return;
         }
@@ -33116,7 +33158,20 @@ const shotPowerRef = useRef(0);
             ? resolveAutoAimDirection({ turnOwner: 'ai', cycleToNext: false })
             : null;
         if (!lookModeRef.current) {
-          if (shouldLockAiAim) {
+          const lockedCueAim = cuePullAimLockRef.current;
+          const cueAimLockActive =
+            Boolean(lockedCueAim) &&
+            (Boolean(sliderInstanceRef.current?.dragging) ||
+              Boolean(cueStrokeStateRef.current) ||
+              shooting ||
+              cueAnimating ||
+              (powerRef.current ?? 0) > 0.001);
+          if (cueAimLockActive) {
+            aimDir.copy(lockedCueAim);
+            if (aimDir.lengthSq() > 1e-6) {
+              aimDir.normalize();
+            }
+          } else if (shouldLockAiAim) {
             aimDir.copy(activeAiPlan.aimDir);
             if (aimDir.lengthSq() > 1e-6) {
               aimDir.normalize();
@@ -35721,6 +35776,8 @@ const shotPowerRef = useRef(0);
     shotPowerRef.current = 0;
     cuePullCurrentRef.current = 0;
     cuePullTargetRef.current = 0;
+    cuePullAimLockRef.current = null;
+    cuePullThetaLockRef.current = null;
   }, [applyPower, hud.over, hud.turn, shotActive]);
 
   const isPlayerTurn = hud.turn === 0;
