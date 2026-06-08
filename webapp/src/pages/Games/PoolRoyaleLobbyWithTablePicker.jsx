@@ -24,7 +24,9 @@ export default function PoolRoyaleLobbyWithTablePicker() {
   const [tableModelId, setTableModelId] = useState(() => {
     try {
       if (requestedTableModel) {
-        return resolvePoolRoyaleTableModel(requestedTableModel).id;
+        const resolved = resolvePoolRoyaleTableModel(requestedTableModel);
+        persistTableModel(resolved.id);
+        return resolved.id;
       }
       const stored = window.localStorage?.getItem(
         POOL_ROYALE_TABLE_MODEL_STORAGE_KEY
