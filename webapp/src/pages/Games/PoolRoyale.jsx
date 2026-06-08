@@ -28326,6 +28326,23 @@ const shotPowerRef = useRef(0);
       const camFwd = new THREE.Vector3();
       const shotSph = new THREE.Spherical();
       const tmpAim = new THREE.Vector2();
+      const resolveStableCameraAim = () => {
+        const sph = sphRef.current;
+        if (sph && Number.isFinite(sph.theta)) {
+          tmpAim.set(-Math.sin(sph.theta), -Math.cos(sph.theta));
+          if (tmpAim.lengthSq() > 1e-6) {
+            return tmpAim.normalize();
+          }
+        }
+        camera.getWorldDirection(camFwd);
+        tmpAim.set(camFwd.x, camFwd.z);
+        if (tmpAim.lengthSq() > 1e-6) {
+          return tmpAim.normalize();
+        }
+        const fallbackAim = aimDirRef.current.clone();
+        if (fallbackAim.lengthSq() < 1e-6) fallbackAim.set(0, 1);
+        return tmpAim.copy(fallbackAim.normalize());
+      };
 
       // In-hand placement
 
@@ -33054,15 +33071,13 @@ const shotPowerRef = useRef(0);
           if (fallbackAim.lengthSq() < 1e-6) fallbackAim.set(0, 1);
           tmpAim.copy(fallbackAim.normalize());
         } else {
-          camera.getWorldDirection(camFwd);
-          tmpAim.set(camFwd.x, camFwd.z);
-          if (tmpAim.lengthSq() < 1e-6) {
-            const fallbackAim = aimDirRef.current.clone();
-            if (fallbackAim.lengthSq() < 1e-6) fallbackAim.set(0, 1);
-            tmpAim.copy(fallbackAim.normalize());
-          } else {
-            tmpAim.normalize();
-          }
+          // Keep the cue stick on the same visual side of the table while the
+          // player lowers/raises the camera.  A raw camera forward vector can
+          // cross the cue-ball focus point as the camera pitch changes, which
+          // made the cue flip to the opposite side on portrait phones.  The
+          // orbit theta stores the standing-view side, so derive aim from that
+          // stable table azimuth and only fall back to camera forward if needed.
+          resolveStableCameraAim();
         }
         const cameraBlend = THREE.MathUtils.clamp(
           cameraBlendRef.current ?? 1,
