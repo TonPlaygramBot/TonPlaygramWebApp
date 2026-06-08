@@ -14,6 +14,7 @@
     "fetch:murlan-agent47": "node scripts/fetch-murlan-agent47.mjs --asset agent-47",
     "fetch:murlan-characters": "node scripts/fetch-murlan-agent47.mjs --asset all",
     "fetch:pool-royale-showood-table": "node scripts/fetch-pool-royale-showood-table.mjs",
+    "fetch:pool-royale-traditional-table": "node scripts/fetch-pool-royale-traditional-table.mjs",
     "fetch:sketchfab-assets": "node scripts/fetch-sketchfab-assets.mjs"
   },
   "type": "module",
