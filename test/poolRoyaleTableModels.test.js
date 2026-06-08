@@ -108,24 +108,39 @@ describe('Pool Royale table models', () => {
   test('Showood table remains selectable', () => {
     assert.deepEqual(
       POOL_ROYALE_TABLE_MODEL_OPTIONS.map((option) => option.id),
-      ['showood-seven-foot']
+      ['showood-seven-foot', 'traditional-fizyman-eight-foot']
     );
     assert.equal(
       resolvePoolRoyaleTableModel('traditional-fizyman-eight-foot').id,
-      'showood-seven-foot'
+      'traditional-fizyman-eight-foot'
     );
   });
 
-  test('Pool Royale lobby exposes model choices without removed 8 ft guidance', async () => {
+  test('Traditional fizyman table uses the 8 ft table-only runtime GLB', () => {
+    const traditional = POOL_ROYALE_TABLE_MODEL_OPTIONS.find(
+      (option) => option.id === 'traditional-fizyman-eight-foot'
+    );
+
+    assert.ok(traditional, 'Traditional table model must be configured');
+    assert.equal(traditional.kind, 'gltf');
+    assert.equal(traditional.tableSizeId, '8ft');
+    assert.equal(traditional.useOriginalLayoutSurfaces, true);
+    assert.equal(traditional.usePoolRoyaleFinish, false);
+    assert.equal(traditional.hideGeneratedRailMarkers, true);
+    assert.equal(
+      traditional.assetUrl,
+      '/models/pool-royale/traditional-fizyman-eight-foot/pool_table_traditional.glb'
+    );
+  });
+
+  test('Pool Royale lobby exposes table model choices', async () => {
     const lobby = await readFile(
       'webapp/src/pages/Games/PoolRoyaleLobby.jsx',
       'utf8'
     );
 
-    assert.equal(
-      lobby.includes('traditional-fizyman-eight-foot'),
-      false,
-      'lobby should not reference the removed 8 ft glTF table'
-    );
+    assert.equal(lobby.includes('Choose Table'), true);
+    assert.equal(lobby.includes('POOL_ROYALE_TABLE_MODEL_OPTIONS'), true);
+    assert.equal(lobby.includes('selectTableModel'), true);
   });
 });
