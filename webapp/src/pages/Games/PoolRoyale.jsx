@@ -28326,18 +28326,35 @@ const shotPowerRef = useRef(0);
       const camFwd = new THREE.Vector3();
       const shotSph = new THREE.Spherical();
       const tmpAim = new THREE.Vector2();
+      const keepCueAimFacingCurrentSide = (candidate) => {
+        if (!candidate || candidate.lengthSq() <= 1e-6) return candidate;
+        candidate.normalize();
+        const currentAim = aimDirRef.current;
+        if (currentAim?.lengthSq?.() > 1e-6) {
+          TMP_VEC2_VIEW.copy(currentAim).normalize();
+          // Lowering the portrait camera can make the camera-derived azimuth cross
+          // the cue-ball focus and report the opposite direction for one frame.
+          // Keep the cue's front/tip on the same visual side as the standing
+          // camera by rejecting only that sudden 180° inversion; normal gradual
+          // aiming rotation still updates through the usual lerp path.
+          if (candidate.dot(TMP_VEC2_VIEW) < -0.35) {
+            candidate.multiplyScalar(-1);
+          }
+        }
+        return candidate;
+      };
       const resolveStableCameraAim = () => {
         const sph = sphRef.current;
         if (sph && Number.isFinite(sph.theta)) {
           tmpAim.set(-Math.sin(sph.theta), -Math.cos(sph.theta));
           if (tmpAim.lengthSq() > 1e-6) {
-            return tmpAim.normalize();
+            return keepCueAimFacingCurrentSide(tmpAim);
           }
         }
         camera.getWorldDirection(camFwd);
         tmpAim.set(camFwd.x, camFwd.z);
         if (tmpAim.lengthSq() > 1e-6) {
-          return tmpAim.normalize();
+          return keepCueAimFacingCurrentSide(tmpAim);
         }
         const fallbackAim = aimDirRef.current.clone();
         if (fallbackAim.lengthSq() < 1e-6) fallbackAim.set(0, 1);
