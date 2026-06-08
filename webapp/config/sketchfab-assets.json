@@ -1,3 +1,15 @@
 {
-  "assets": []
+  "assets": [
+    {
+      "id": "chess-eastern-carbine-rifle",
+      "label": "Chess Eastern Carbine Rifle",
+      "uid": "3b06ac94c2f9475b962afdc06e16ddcf",
+      "format": "gltf",
+      "targetDir": "public/models/sketchfab/chess-eastern-carbine-rifle",
+      "targetFileName": "scene.gltf",
+      "sourceUrl": "https://skfb.ly/pKGIA",
+      "author": "Dezryelle",
+      "license": "CC Attribution 4.0"
+    }
+  ]
 }
