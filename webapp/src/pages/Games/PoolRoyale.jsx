@@ -17258,7 +17258,6 @@ function PoolRoyaleGame({
     seatedBySeat: { A: true, B: true }
   });
   const activeHumanCueViewRef = useRef(null);
-  const standingCuePoseRef = useRef(null);
   const activeHumanCharacterRef = useRef(activeHumanCharacterOption);
   useEffect(() => {
     activeHumanCharacterRef.current = activeHumanCharacterOption;
@@ -22366,11 +22365,8 @@ const shotPowerRef = useRef(0);
           const cueBlend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
           const cueBias = 1 - cueBlend;
           if (cueBias <= HUMAN_EYE_CAMERA_MIN_BLEND) return null;
-          // Keep cue-camera framing tied to the same table-space cue pose used by
-          // the standing camera.  The animated character can move independently,
-          // but the player always sees the cue stick with one stable orientation.
-          const cuePose = standingCuePoseRef.current ?? activeHumanCueViewRef.current;
-          if (!cuePose?.cueBack || !cuePose?.aimForward || !cuePose?.side) {
+          const cuePose = activeHumanCueViewRef.current;
+          if (!cuePose?.cueBack || !cuePose?.bridgeTarget || !cuePose?.aimForward || !cuePose?.side) {
             return null;
           }
           const eyePos = cuePose.cueBack
@@ -29601,6 +29597,7 @@ const shotPowerRef = useRef(0);
             strikeDuration: strokeProfile.strikeDuration ?? LIVE_CUE_FORWARD_DURATION_MS,
             applied: false
           };
+          applyShotAtImpact(shotImpactPayload);
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -33593,12 +33590,6 @@ const shotPowerRef = useRef(0);
           applyCueObstructionLift(tipTarget, obstructionLift);
           applyCueStickTransform(tipTarget);
           clampCueButtAboveCushion(tipTarget);
-          standingCuePoseRef.current = {
-            cueBack: TMP_VEC3_BUTT.clone(),
-            cueTip: tipTarget.clone(),
-            aimForward: dir.clone(),
-            side: perp.clone()
-          };
           let visibleChalkIndex = null;
           const chalkMeta = table.userData?.chalkMeta;
           if (chalkMeta) {
@@ -34052,7 +34043,6 @@ const shotPowerRef = useRef(0);
           cueAfterPower.visible = false;
           impactRing.visible = false;
           computeCuePull(0, CUE_PULL_BASE);
-          standingCuePoseRef.current = null;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
