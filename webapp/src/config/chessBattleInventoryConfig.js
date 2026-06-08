@@ -468,7 +468,7 @@ export const CHESS_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   headStyle: ['current'],
   humanCharacter: [CHESS_HUMAN_CHARACTER_OPTIONS[0]?.id],
   environmentHdri: [DEFAULT_HDRI_ID],
-  captureAnimation: [CAPTURE_ANIMATION_OPTIONS[0]?.id, 'ukrainianDroneAttack']
+  captureAnimation: [CAPTURE_ANIMATION_OPTIONS[0]?.id, 'ukrainianDroneAttack', 'helicopterAttack']
 });
 
 export const CHESS_BATTLE_OPTION_LABELS = Object.freeze({
@@ -815,21 +815,29 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     type: 'captureAnimation',
     optionId: option.id,
     name: option.label,
-    price: option.id === 'ukrainianDroneAttack' ? 0 : 900 + idx * 110,
+    price: option.id === 'ukrainianDroneAttack' || option.id === 'helicopterAttack' ? 0 : 900 + idx * 110,
     description:
       option.id === 'ukrainianDroneAttack'
         ? 'Exact srcejon Ukrainian drone.glb inventory weapon with original texture preflight, direct-loader fallbacks, and a straight-down no-smoke missile drop.'
-        : option.description || 'Ludo Battle Royal weapon animation pack adapted for Chess Battle Royal.',
+        : option.id === 'helicopterAttack'
+          ? 'Same srcejon helicopter.glb used by Snake & Ladder, with Chess Battle Royal flyover and missile timing.'
+          : option.description || 'Ludo Battle Royal weapon animation pack adapted for Chess Battle Royal.',
     thumbnail: option.thumbnail,
-    swatches: option.id === 'ukrainianDroneAttack' ? ['#020617', '#2563eb', '#facc15'] : undefined,
-    previewShape: option.id === 'ukrainianDroneAttack' ? 'ukrainian-drone' : undefined,
+    swatches: option.id === 'ukrainianDroneAttack' ? ['#020617', '#2563eb', '#facc15'] : option.id === 'helicopterAttack' ? ['#5f6871', '#848f99', '#a5b1ba'] : undefined,
+    previewShape: option.id === 'ukrainianDroneAttack' ? 'ukrainian-drone' : option.id === 'helicopterAttack' ? 'helicopter' : undefined,
     modelUrls: option.id === 'ukrainianDroneAttack'
       ? [
           'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/drone.glb',
           'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main/drone.glb',
           'https://cdn.statically.io/gh/srcejon/sdrangel-3d-models/main/drone.glb'
         ]
-      : undefined
+      : option.id === 'helicopterAttack'
+        ? [
+            'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/helicopter.glb',
+            'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main/helicopter.glb',
+            'https://cdn.statically.io/gh/srcejon/sdrangel-3d-models/main/helicopter.glb'
+          ]
+        : undefined
   })),
   ...CHESS_HUMAN_CHARACTER_OPTIONS.filter((option) =>
     CHESS_STORE_HUMAN_CHARACTER_IDS.includes(option.id)
