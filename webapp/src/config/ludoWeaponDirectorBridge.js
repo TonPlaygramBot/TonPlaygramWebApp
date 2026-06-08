@@ -12,7 +12,6 @@ export const LUDO_WEAPON_DIRECTOR_BRIDGE = Object.freeze({
     smgBurstAttack: 'SMG',
     polySmg01Attack: 'SMG',
     assaultRifleAttack: 'Rifle',
-    easternCarbineRifleAttack: 'Rifle',
     ak47VolleyAttack: 'Rifle',
     fpsGunAttack: 'Rifle',
     compactCarbineAttack: 'Rifle',
