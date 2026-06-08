@@ -2028,11 +2028,10 @@ const CUE_FOLLOW_SPEED_MAX = BALL_R * 16.4;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.34; // lift the full cue line slightly to match the updated rail/cushion height
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
-const CUE_BUTT_LIFT = 0; // keep the live cue stick flat on the cloth/table line for Pool Royal aiming
+const CUE_BUTT_LIFT = BALL_R * 0.46; // lower the butt slightly while keeping the tip level with the cue-ball centre
 const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.38; // keep extra vertical headroom so cue helpers clear cushion lips more reliably
 const CUE_CUSHION_LIFT_BIAS = BALL_R * 0.35; // raise cue helper path a bit more to avoid cushion/ball clipping on tight angles
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
-const CUE_FORCE_STRAIGHT_TABLE_STROKE = true; // lock the cue visually straight with the aiming line while it pulls/pushes
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(6.25);
 const CUE_LIFT_DRAG_SCALE = 0.0048;
 const CUE_LIFT_MAX_TILT = THREE.MathUtils.degToRad(12.5);
@@ -29657,22 +29656,15 @@ const shotPowerRef = useRef(0);
             cuePerp.z * contactSide
           );
           clampCueTipOffset(spinWorld);
-          const cueVisualSpinWorld = CUE_FORCE_STRAIGHT_TABLE_STROKE
-            ? new THREE.Vector3(0, 0, 0)
-            : spinWorld;
-          const obstructionStrength = CUE_FORCE_STRAIGHT_TABLE_STROKE
-            ? 0
-            : resolveCueObstruction(
-                dir,
-                startPull,
-                activeRenderCameraRef.current ?? cameraRef.current ?? camera
-              );
+          const obstructionStrength = resolveCueObstruction(
+            dir,
+            startPull,
+            activeRenderCameraRef.current ?? cameraRef.current ?? camera
+          );
           const { obstructionTilt, obstructionLift, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
           const tiltAmount = hasSpin ? Math.max(0, appliedSpin.y || 0) : 0;
-          const extraTilt = CUE_FORCE_STRAIGHT_TABLE_STROKE
-            ? 0
-            : MAX_BACKSPIN_TILT * tiltAmount + liftAngle;
+          const extraTilt = MAX_BACKSPIN_TILT * tiltAmount + liftAngle;
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           applyCueButtTilt(
             cueStick,
@@ -29684,10 +29676,8 @@ const shotPowerRef = useRef(0);
           TMP_VEC3_CUE_TIP_OFFSET.copy(cueTipLocal).applyEuler(cueStick.rotation);
           TMP_VEC3_CUE_BUTT_OFFSET.copy(cueButtLocal).applyEuler(cueStick.rotation);
           const buildCuePosition = (pullAmount = visualPull) => {
-            const tipTarget = resolveCueTipTarget(dir, pullAmount, cueVisualSpinWorld);
-            if (!CUE_FORCE_STRAIGHT_TABLE_STROKE) {
-              applyCueObstructionLift(tipTarget, obstructionLift);
-            }
+            const tipTarget = resolveCueTipTarget(dir, pullAmount, spinWorld);
+            applyCueObstructionLift(tipTarget, obstructionLift);
             return new THREE.Vector3(tipTarget.x, tipTarget.y, tipTarget.z)
               .sub(TMP_VEC3_CUE_TIP_OFFSET);
           };
@@ -33575,24 +33565,17 @@ const shotPowerRef = useRef(0);
           const { side, vert, hasSpin } = computeSpinOffsets(appliedSpin, ranges);
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           clampCueTipOffset(spinWorld);
-          const cueVisualSpinWorld = CUE_FORCE_STRAIGHT_TABLE_STROKE
-            ? new THREE.Vector3(0, 0, 0)
-            : spinWorld;
-          const obstructionStrength = CUE_FORCE_STRAIGHT_TABLE_STROKE
-            ? 0
-            : resolveCueObstruction(
-                dir,
-                pull,
-                null,
-                spinWorld
-              );
+          const obstructionStrength = resolveCueObstruction(
+            dir,
+            pull,
+            null,
+            spinWorld
+          );
           const { obstructionTilt, obstructionLift, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
           const tiltAmount = hasSpin ? Math.max(0, appliedSpin.y || 0) : 0;
           const liftTilt = resolveUserCueLift();
-          const extraTilt = CUE_FORCE_STRAIGHT_TABLE_STROKE
-            ? 0
-            : MAX_BACKSPIN_TILT * tiltAmount + liftTilt;
+          const extraTilt = MAX_BACKSPIN_TILT * tiltAmount + liftTilt;
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           applyCueButtTilt(
             cueStick,
@@ -33601,14 +33584,10 @@ const shotPowerRef = useRef(0);
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
-          const tipTarget = resolveCueTipTarget(dir, visualPull, cueVisualSpinWorld);
-          if (!CUE_FORCE_STRAIGHT_TABLE_STROKE) {
-            applyCueObstructionLift(tipTarget, obstructionLift);
-          }
+          const tipTarget = resolveCueTipTarget(dir, visualPull, spinWorld);
+          applyCueObstructionLift(tipTarget, obstructionLift);
           applyCueStickTransform(tipTarget);
-          if (!CUE_FORCE_STRAIGHT_TABLE_STROKE) {
-            clampCueButtAboveCushion(tipTarget);
-          }
+          clampCueButtAboveCushion(tipTarget);
           let visibleChalkIndex = null;
           const chalkMeta = table.userData?.chalkMeta;
           if (chalkMeta) {
@@ -34028,23 +34007,16 @@ const shotPowerRef = useRef(0);
           );
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           clampCueTipOffset(spinWorld);
-          const cueVisualSpinWorld = CUE_FORCE_STRAIGHT_TABLE_STROKE
-            ? new THREE.Vector3(0, 0, 0)
-            : spinWorld;
-          const obstructionStrength = CUE_FORCE_STRAIGHT_TABLE_STROKE
-            ? 0
-            : resolveCueObstruction(
-                dir,
-                pull,
-                activeRenderCameraRef.current ?? cameraRef.current ?? camera,
-                spinWorld
-              );
+          const obstructionStrength = resolveCueObstruction(
+            dir,
+            pull,
+            activeRenderCameraRef.current ?? cameraRef.current ?? camera,
+            spinWorld
+          );
           const { obstructionTilt, obstructionLift, obstructionTiltFromLift } =
             resolveCueObstructionTilt(obstructionStrength);
           const tiltAmount = hasSpin ? Math.abs(spinY) : 0;
-          const extraTilt = CUE_FORCE_STRAIGHT_TABLE_STROKE
-            ? 0
-            : MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
+          const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           applyCueButtTilt(
             cueStick,
@@ -34053,14 +34025,10 @@ const shotPowerRef = useRef(0);
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
-          const tipTarget = resolveCueTipTarget(dir, visualPull, cueVisualSpinWorld);
-          if (!CUE_FORCE_STRAIGHT_TABLE_STROKE) {
-            applyCueObstructionLift(tipTarget, obstructionLift);
-          }
+          const tipTarget = resolveCueTipTarget(dir, visualPull, spinWorld);
+          applyCueObstructionLift(tipTarget, obstructionLift);
           applyCueStickTransform(tipTarget);
-          if (!CUE_FORCE_STRAIGHT_TABLE_STROKE) {
-            clampCueButtAboveCushion(tipTarget);
-          }
+          clampCueButtAboveCushion(tipTarget);
           cueStick.visible = true;
         } else {
           aimFocusRef.current = null;
