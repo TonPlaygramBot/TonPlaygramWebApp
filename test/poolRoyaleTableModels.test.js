@@ -133,14 +133,23 @@ describe('Pool Royale table models', () => {
     );
   });
 
-  test('Pool Royale lobby exposes table model choices', async () => {
-    const lobby = await readFile(
+  test('Pool Royale lobby entrypoint mounts table model choices', async () => {
+    const entrypoint = await readFile(
       'webapp/src/pages/Games/PoolRoyaleLobby.jsx',
       'utf8'
     );
+    const wrapper = await readFile(
+      'webapp/src/pages/Games/PoolRoyaleLobbyWithTablePicker.jsx',
+      'utf8'
+    );
 
-    assert.equal(lobby.includes('Choose Table'), true);
-    assert.equal(lobby.includes('POOL_ROYALE_TABLE_MODEL_OPTIONS'), true);
-    assert.equal(lobby.includes('selectTableModel'), true);
+    assert.equal(
+      entrypoint.includes('PoolRoyaleLobbyWithTablePicker'),
+      true
+    );
+    assert.equal(wrapper.includes('PoolRoyaleLobbyCore.jsx'), true);
+    assert.equal(wrapper.includes('Choose Table'), true);
+    assert.equal(wrapper.includes('POOL_ROYALE_TABLE_MODEL_OPTIONS'), true);
+    assert.equal(wrapper.includes('selectTableModel'), true);
   });
 });
