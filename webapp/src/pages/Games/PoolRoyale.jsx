@@ -28820,8 +28820,8 @@ const shotPowerRef = useRef(0);
         const strikeDuration = THREE.MathUtils.lerp(128, 92, p);
         const holdDuration = THREE.MathUtils.lerp(40, 68, p);
         return {
-          // Rebuilt cue stroke: slider pull maps directly to cue pullback,
-          // then release performs a single forward punch through the cue ball.
+          // Snooker Royal-style live stroke: slider pull maps directly to cue pullback,
+          // then release performs one forward push back to the original cue-start pose.
           motion: 'classic',
           pullRatio: p,
           pullSmoothing: 1,
@@ -28830,7 +28830,7 @@ const shotPowerRef = useRef(0);
           pullbackDuration,
           recoverDuration: 0,
           impactThreshold: 0.86,
-          forwardOnly: false,
+          forwardOnly: true,
           cameraExtraHoldMs: 240,
           spinScale: 0.22
         };
@@ -29739,7 +29739,9 @@ const shotPowerRef = useRef(0);
               wobbleAmount: THREE.MathUtils.lerp(0.0014, 0.0036, clampedPower),
               strikeImpactThreshold: 0.9,
               strikeExtraFollow: Math.min(0.018, Math.max(0, (rawSpin?.y ?? 0) * clampedPower) * 0.016),
-              forwardOnly: false,
+              // Match Snooker Royal's release: push from the pulled pose and
+              // stop exactly at the cue's original idle/contact pose.
+              forwardOnly: Boolean(strokeProfile.forwardOnly),
               onImpact: () => applyShotImpactOnce(),
               animationStyle: strokeStyle,
               motionTechnique: strokeProfile.motion ?? strokeStyle,
