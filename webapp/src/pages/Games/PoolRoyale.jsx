@@ -29504,10 +29504,7 @@ const shotPowerRef = useRef(0);
             strikeDuration: strokeProfile.strikeDuration ?? LIVE_CUE_FORWARD_DURATION_MS,
             applied: false
           };
-          // Apply the physics impulse from the cue-stroke impact callback, not
-          // immediately on slider release. This keeps the visible Pool Royale
-          // cue push-forward aligned with the moment the stick returns to the
-          // original address point instead of leaving the cue visually pulled.
+          applyShotAtImpact(shotImpactPayload);
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -33066,9 +33063,6 @@ const shotPowerRef = useRef(0);
         if (isAiTurn) {
           autoPlaceAiCueBall();
         }
-        const cueStrokeVisualActive = Boolean(
-          ENABLE_CUE_STROKE_ANIMATION && (cueStrokeStateRef.current || cueAnimating)
-        );
         const canShowCue =
           allStopped(balls) &&
           cue?.active &&
@@ -33076,8 +33070,6 @@ const shotPowerRef = useRef(0);
           !(inHandPlacementModeRef.current) &&
           (!(currentHud?.inHand) || cueBallPlacedFromHandRef.current) &&
           !remoteShotActive &&
-          !shooting &&
-          !cueStrokeVisualActive &&
           (isPlayerTurn || previewingAiShot || aiCueViewActive);
         if (
           cue?.pos &&
