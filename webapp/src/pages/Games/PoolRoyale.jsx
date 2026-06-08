@@ -28968,7 +28968,7 @@ const shotPowerRef = useRef(0);
         cuePullCurrentRef.current = nextPull;
         return nextPull;
       };
-      const applyVisualPullCompensation = (pullValue, dirVec3, options = {}) => {
+      const applyVisualPullCompensation = (pullValue, dirVec3) => {
         const basePull = Math.max(pullValue ?? 0, 0);
         if (basePull <= 1e-6 || !dirVec3) return basePull;
         const cam =
@@ -28990,13 +28990,7 @@ const shotPowerRef = useRef(0);
             alignment = Math.abs(TMP_VEC3_CAM_DIR.dot(TMP_VEC3_CUE_DIR));
           }
         }
-        // Keep the cue stroke visually identical to the standing camera while the
-        // power slider is driving it. Low/cue cameras can otherwise shorten the
-        // perceived pull, so releases would not push from the same depth the
-        // player saw on the standing view.
-        const blend = options.forceStandingCameraScale
-          ? 1
-          : THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
+        const blend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
         const cameraPullScale = THREE.MathUtils.lerp(
           1 - CUE_PULL_CUE_CAMERA_DAMPING,
           1 + CUE_PULL_STANDING_CAMERA_BONUS,
@@ -29640,20 +29634,15 @@ const shotPowerRef = useRef(0);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
           // Rebuilt stroke pullback: tie visible pull directly to slider power
           // and the currently available room behind the cue ball.
-          const pullRange = Math.max(maxPull + CUE_PULL_VISUAL_FUDGE, CUE_PULL_MIN_VISUAL);
-          const pullTarget = Math.max(
-            pullRange * strokeProfile.pullRatio,
-            computePullTargetFromPower(clampedPower, maxPull)
+          const pullRange = THREE.MathUtils.clamp(
+            maxPull * 0.92,
+            CUE_PULL_MIN_VISUAL,
+            Math.max(CUE_PULL_MIN_VISUAL, maxPull)
           );
+          const pullTarget = pullRange * strokeProfile.pullRatio;
           const pulledNow = cuePullCurrentRef.current ?? pullTarget;
-          const startPull = THREE.MathUtils.clamp(
-            Math.max(pulledNow, pullTarget),
-            0,
-            pullRange
-          );
-          const visualPull = applyVisualPullCompensation(startPull, dir, {
-            forceStandingCameraScale: true
-          });
+          const startPull = THREE.MathUtils.clamp(pulledNow, 0, Math.max(maxPull, 0));
+          const visualPull = applyVisualPullCompensation(startPull, dir);
           shotImpactPayload.pullDistance = visualPull;
           cuePullCurrentRef.current = startPull;
           cuePullTargetRef.current = startPull;
@@ -33574,9 +33563,7 @@ const shotPowerRef = useRef(0);
               (isAiTurn && !aiPullReady),
             smoothingOverride: pullProfile.pullSmoothing
           });
-          const visualPull = applyVisualPullCompensation(pull, dir, {
-            forceStandingCameraScale: true
-          });
+          const visualPull = applyVisualPullCompensation(pull, dir);
           const { side, vert, hasSpin } = computeSpinOffsets(appliedSpin, ranges);
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
           clampCueTipOffset(spinWorld);
@@ -33885,9 +33872,7 @@ const shotPowerRef = useRef(0);
               powerStrength
             ).pullSmoothing
           });
-          const visualPull = applyVisualPullCompensation(pull, remoteGuideDir, {
-            forceStandingCameraScale: true
-          });
+          const visualPull = applyVisualPullCompensation(pull, remoteGuideDir);
           const spinX = THREE.MathUtils.clamp(remoteAimState?.spin?.x ?? 0, -1, 1);
           const spinY = THREE.MathUtils.clamp(remoteAimState?.spin?.y ?? 0, -1, 1);
           const { side, vert, hasSpin } = computeSpinOffsets(
@@ -34014,9 +33999,7 @@ const shotPowerRef = useRef(0);
               powerRef.current ?? 0
             ).pullSmoothing
           });
-          const visualPull = applyVisualPullCompensation(pull, dir, {
-            forceStandingCameraScale: true
-          });
+          const visualPull = applyVisualPullCompensation(pull, dir);
           const planSpin = activeAiPlan.spin ?? spinRef.current ?? { x: 0, y: 0 };
           const spinX = THREE.MathUtils.clamp(planSpin.x ?? 0, -1, 1);
           const spinY = THREE.MathUtils.clamp(planSpin.y ?? 0, -1, 1);
