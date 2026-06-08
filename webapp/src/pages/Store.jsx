@@ -1001,6 +1001,7 @@ const PREVIEW_LABELS = {
   table: 'Table surface',
   puck: 'Rink gear',
   'token-stack': 'Token stack',
+  helicopter: 'Helicopter model',
   default: '3D sample'
 };
 
@@ -3855,6 +3856,30 @@ export default function Store() {
                 fill={accent}
                 opacity="0.15"
               />
+            </g>
+          );
+        case 'helicopter':
+          return (
+            <g filter={`url(#${shadowId})`}>
+              <ellipse cx="80" cy="78" rx="44" ry="8" fill="rgba(0,0,0,0.36)" />
+              <rect x="42" y="45" width="58" height="18" rx="9" fill={`url(#${gradientId})`} />
+              <path
+                d="M94 49h34c5 0 8 4 8 8v2h-42Z"
+                fill={`url(#${shineId})`}
+                opacity="0.92"
+              />
+              <path
+                d="M48 49 25 42v8l24 7Z"
+                fill={secondary}
+                opacity="0.86"
+              />
+              <rect x="75" y="28" width="5" height="18" rx="2" fill={accent} opacity="0.78" />
+              <rect x="31" y="25" width="98" height="5" rx="2.5" fill={accent} opacity="0.82" />
+              <rect x="72" y="17" width="5" height="22" rx="2.5" fill={accent} opacity="0.34" transform="rotate(90 74.5 28)" />
+              <rect x="50" y="66" width="52" height="4" rx="2" fill={accent} opacity="0.66" />
+              <rect x="55" y="62" width="4" height="10" rx="2" fill={accent} opacity="0.5" />
+              <rect x="94" y="62" width="4" height="10" rx="2" fill={accent} opacity="0.5" />
+              <circle cx="128" cy="56" r="8" fill="none" stroke={accent} strokeWidth="3" opacity="0.74" />
             </g>
           );
         case 'puck':

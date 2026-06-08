@@ -183,27 +183,20 @@ const CAPTURE_EXPLOSION_SCALE = 0.132; // smaller capture explosion
 const CAPTURE_EDGE_PATH_FACTOR = 0.52;
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+const SNAKE_SHARED_CAPTURE_VEHICLE_MODEL_HOSTS = Object.freeze([
+  'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main',
+  'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main',
+  'https://cdn.statically.io/gh/srcejon/sdrangel-3d-models/main'
+]);
+const snakeSharedCaptureVehicleUrls = (fileName) =>
+  SNAKE_SHARED_CAPTURE_VEHICLE_MODEL_HOSTS.map((host) => `${host}/${fileName}`);
 const CAPTURE_MODEL_URLS = Object.freeze({
-  drone: [
-    'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/drone.glb',
-    'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main/drone.glb',
-    'https://cdn.statically.io/gh/srcejon/sdrangel-3d-models/main/drone.glb'
-  ],
-  helicopter: [
-    'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/helicopter.glb',
-    'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main/helicopter.glb',
-    'https://cdn.statically.io/gh/srcejon/sdrangel-3d-models/main/helicopter.glb'
-  ],
-  fighter: [
-    'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/f15.glb',
-    'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main/f15.glb',
-    'https://cdn.statically.io/gh/srcejon/sdrangel-3d-models/main/f15.glb'
-  ],
-  truck: [
-    'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/fire_truck.glb',
-    'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main/fire_truck.glb',
-    'https://cdn.statically.io/gh/srcejon/sdrangel-3d-models/main/fire_truck.glb'
-  ]
+  drone: snakeSharedCaptureVehicleUrls('drone.glb'),
+  // Keep the Chess Battle Royal jet and helicopter on the exact same source
+  // models as Snake & Ladder so portrait players see the familiar aircraft.
+  helicopter: snakeSharedCaptureVehicleUrls('helicopter.glb'),
+  fighter: snakeSharedCaptureVehicleUrls('f15.glb'),
+  truck: snakeSharedCaptureVehicleUrls('fire_truck.glb')
 });
 
 const GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID = Object.freeze({
@@ -11638,15 +11631,49 @@ function Chess3D({
           addFxSphere(root, 0.1 + i * 0.024, [-1.05 - i * 0.18, 0, 0], '#8b949b', 1, 0, true, 0.26 - i * 0.03)
         );
       }
-      return {
+      const fx = {
         root,
         topRotor,
         tailRotor,
         topRotorAxis: new THREE.Vector3(0, 1, 0),
         tailRotorAxis: new THREE.Vector3(1, 0, 0),
+        rotorNodes: [topRotor, tailRotor],
         exhaustClouds,
         missileHardpoints: [new THREE.Vector3(0.14, -0.17, -0.27), new THREE.Vector3(0.14, -0.17, 0.27)]
       };
+      // Match Snake & Ladder behavior: show a fallback immediately, then swap
+      // only the helicopter to the shared srcejon helicopter.glb when it loads.
+      void loadCaptureUnitTemplate('helicopter', 5.2).then(() => {
+        if (!root.parent || root.userData?.loadedSnakeSharedHelicopter) return;
+        const loadedModel = cloneCaptureUnitTemplate('helicopter');
+        if (!loadedModel) return;
+        loadedModel.rotation.set(0, 0, 0);
+        const loadedTailRotor = findCaptureRotor(loadedModel, 'tail');
+        let loadedTopRotor = findCaptureRotor(loadedModel, 'main');
+        const loadedRotorNodes = [];
+        loadedModel.traverse((node) => {
+          if (!node?.isObject3D) return;
+          const name = `${node.name || ''}`.toLowerCase();
+          if (/rotor|propell|blade|fan/.test(name)) loadedRotorNodes.push(node);
+          if (!loadedTopRotor && node?.isMesh && !isDescendantOf(node, loadedTailRotor) && /rotor|propell|blade|fan/.test(name)) {
+            loadedTopRotor = node;
+          }
+        });
+        applyMilitaryHelicopterLook(loadedModel, loadedTopRotor, loadedTailRotor, getCaptureToneSeed('helicopter'));
+        const overlayChildren = root.children.filter((child) => child?.geometry?.type === 'CircleGeometry');
+        root.clear();
+        root.add(loadedModel);
+        overlayChildren.forEach((child) => root.add(child));
+        root.userData.loadedSnakeSharedHelicopter = true;
+        fx.topRotor = loadedTopRotor;
+        fx.tailRotor = loadedTailRotor;
+        fx.rotorNodes = loadedRotorNodes;
+        fx.topRotorAxis = new THREE.Vector3(0, 1, 0);
+        fx.tailRotorAxis = inferRotorSpinAxis(loadedTailRotor, 'x');
+        fx.exhaustClouds = [];
+        fx.missileHardpoints = findAirMissileHardpoints(loadedModel, 'helicopter');
+      }).catch(() => {});
+      return fx;
     };
     const createFxJet = () => {
       const model = cloneCaptureUnitTemplate('fighter');
@@ -11728,7 +11755,44 @@ function Chess3D({
       const exhaustClouds = createJetExhaustClouds(root, 8, [exhaustAnchor.x, exhaustAnchor.y, exhaustAnchor.z], 0.26);
       const missileHardpoints = [leftStore.position.clone(), rightStore.position.clone()];
       setJetExhaustVisible({ exhaustClouds }, false);
-      return { root, cockpit, leftStore, rightStore, exhaustClouds, exhaustAnchor, missileHardpoints };
+      const fx = { root, cockpit, leftStore, rightStore, exhaustClouds, exhaustAnchor, missileHardpoints };
+      // Match Snake & Ladder behavior: show a fallback immediately, then swap
+      // only the jet to the shared srcejon f15.glb when it loads.
+      void loadCaptureUnitTemplate('fighter', 5.8).then(() => {
+        if (!root.parent || root.userData?.loadedSnakeSharedJet) return;
+        const loadedModel = cloneCaptureUnitTemplate('fighter');
+        if (!loadedModel) return;
+        loadedModel.rotation.set(0, 0, 0);
+        loadedModel.traverse((node) => {
+          if (!node?.isMesh) return;
+          const name = `${node.name || ''}`.toLowerCase();
+          if (!/cockpit|canopy|glass|window/.test(name)) return;
+          ensureIsolatedMaterial(node);
+          const mats = Array.isArray(node.material) ? node.material : [node.material];
+          mats.forEach((mat) => {
+            if (!mat) return;
+            mat.color?.set?.('#050608');
+            mat.emissive?.set?.('#000000');
+            mat.metalness = Math.max(0.08, Number.isFinite(mat.metalness) ? mat.metalness * 0.35 : 0.12);
+            mat.roughness = Math.max(0.18, Number.isFinite(mat.roughness) ? mat.roughness * 0.6 : 0.28);
+          });
+        });
+        const loadedExhaustAnchor = findJetExhaustAnchor(loadedModel).lerp(new THREE.Vector3(-1.95, -0.02, 0), 0.25);
+        const overlayChildren = root.children.filter((child) => child?.geometry?.type === 'CircleGeometry');
+        root.clear();
+        root.add(loadedModel);
+        overlayChildren.forEach((child) => root.add(child));
+        const loadedExhaustClouds = createJetExhaustClouds(root, 8, [loadedExhaustAnchor.x, loadedExhaustAnchor.y, loadedExhaustAnchor.z], 0.24);
+        setJetExhaustVisible({ exhaustClouds: loadedExhaustClouds }, false);
+        root.userData.loadedSnakeSharedJet = true;
+        fx.cockpit = loadedModel.getObjectByName('cockpit') || loadedModel.getObjectByName('Cockpit') || loadedModel;
+        fx.leftStore = null;
+        fx.rightStore = null;
+        fx.exhaustClouds = loadedExhaustClouds;
+        fx.exhaustAnchor = loadedExhaustAnchor;
+        fx.missileHardpoints = findAirMissileHardpoints(loadedModel, 'jet');
+      }).catch(() => {});
+      return fx;
     };
     const createFxSupportTruck = () => {
       const root = new THREE.Group();
