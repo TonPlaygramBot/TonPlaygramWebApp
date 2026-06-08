@@ -72,6 +72,7 @@ import {
   isExactUkrainianDroneObject,
   loadExactUkrainianDroneModel
 } from '../../utils/ukrainianDroneModel.js';
+import { createInlineHelicopterModel } from '../../utils/helicopterInlinePreview.js';
 import { giftSounds } from '../../utils/giftSounds.js';
 import { CAPTURE_ANIMATION_OPTIONS } from '../../config/ludoBattleOptions.js';
 import { LUDO_WEAPON_DIRECTOR_BRIDGE } from '../../config/ludoWeaponDirectorBridge.js';
@@ -8810,6 +8811,7 @@ function Chess3D({
     () =>
       [
         'ukrainianDroneAttack',
+        'helicopterAttack',
         'droneAttack',
         'polyShotgun01Attack',
         'polyAssaultRifle01Attack',
@@ -11124,6 +11126,21 @@ function Chess3D({
         return captureUnitLoads.exactUkrainianDrone;
       }
       if (captureUnitLoads[key]) return captureUnitLoads[key];
+      if (key === 'helicopter') {
+        captureUnitLoads.inlineHelicopter = createInlineHelicopterModel({ targetSize })
+          .then((model) => {
+            prepareCaptureModel(model);
+            normalizeModel(model, targetSize);
+            captureUnitTemplates[key] = model;
+            return model;
+          })
+          .catch((error) => {
+            console.warn('Chess inline helicopter model failed, trying GLB fallbacks', error);
+            return null;
+          });
+        const inlineHelicopter = await captureUnitLoads.inlineHelicopter;
+        if (inlineHelicopter) return inlineHelicopter;
+      }
       const urls = CAPTURE_MODEL_URLS[key] || [];
       const loader = createConfiguredGLTFLoader(renderer);
       const imageCache = new Map();
