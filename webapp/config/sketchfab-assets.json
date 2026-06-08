@@ -1,3 +1,18 @@
 {
-  "assets": []
+  "assets": [
+    {
+      "id": "eastern-carbine-rifle",
+      "label": "Eastern Carbine Rifle",
+      "uid": "3b06ac94c2f9475b962afdc06e16ddcf",
+      "sourceUrl": "https://skfb.ly/pKGIA",
+      "modelPageUrl": "https://sketchfab.com/3d-models/eastern-carbine-rifle-3b06ac94c2f9475b962afdc06e16ddcf",
+      "format": "gltf",
+      "targetDir": "public/models/sketchfab/eastern-carbine-rifle",
+      "targetFileName": "scene.gltf",
+      "license": "CC BY 4.0",
+      "creator": "Dezryelle",
+      "attribution": "Eastern Carbine Rifle by Dezryelle on Sketchfab, CC BY 4.0",
+      "notes": "Runtime original Sketchfab glTF for Chess Battle Royal Eastern Carbine Rifle. Install with SKETCHFAB_TOKEN or --from so scene.gltf and sibling texture/buffer files stay together; do not commit downloaded binaries."
+    }
+  ]
 }
