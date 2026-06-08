@@ -10,6 +10,33 @@ import { swatchThumbnail } from './storeThumbnails.js';
 
 const DEFAULT_HDRI_ID = POOL_ROYALE_DEFAULT_HDRI_ID || POOL_ROYALE_HDRI_VARIANTS[0]?.id;
 
+const EASTERN_CARBINE_SKETCHFAB_THUMBNAIL =
+  'https://media.sketchfab.com/models/3b06ac94c2f9475b962afdc06e16ddcf/thumbnails/5e445b35a1b74a79ae1a0a3f41cab344/a8f4b97044e3409e8d57b3f025ee9c7d.jpeg';
+const EASTERN_CARBINE_SKETCHFAB_MODEL_URL =
+  '/models/sketchfab/eastern-carbine-rifle/scene.gltf';
+
+export const CHESS_EASTERN_CARBINE_CAPTURE_OPTION = Object.freeze({
+  id: 'easternCarbineRifleAttack',
+  label: 'Eastern Carbine Rifle',
+  description:
+    'Dezryelle Sketchfab eastern_carbine_rifle adapted as a Chess Battle Royal capture weapon with low-poly carbine proportions.',
+  thumbnail: EASTERN_CARBINE_SKETCHFAB_THUMBNAIL,
+  modelUrls: [EASTERN_CARBINE_SKETCHFAB_MODEL_URL],
+  modelPageUrl:
+    'https://sketchfab.com/3d-models/eastern-carbine-rifle-3b06ac94c2f9475b962afdc06e16ddcf',
+  sourceUrl: 'https://skfb.ly/pKGIA',
+  source: 'Sketchfab',
+  author: 'Dezryelle',
+  license: 'CC Attribution 4.0'
+});
+
+export const CHESS_EASTERN_CARBINE_MODEL_URLS = CHESS_EASTERN_CARBINE_CAPTURE_OPTION.modelUrls;
+
+export const CHESS_CAPTURE_ANIMATION_OPTIONS = Object.freeze([
+  ...CAPTURE_ANIMATION_OPTIONS,
+  CHESS_EASTERN_CARBINE_CAPTURE_OPTION
+]);
+
 const CHESS_HUMAN_CHARACTER_SOURCE = Object.freeze({
   source: 'open-source',
   license: 'CC0',
@@ -534,7 +561,7 @@ export const CHESS_BATTLE_OPTION_LABELS = Object.freeze({
     }, {})
   ),
   captureAnimation: Object.freeze(
-    CAPTURE_ANIMATION_OPTIONS.reduce((acc, option) => {
+    CHESS_CAPTURE_ANIMATION_OPTIONS.reduce((acc, option) => {
       acc[option.id] = option.label;
       return acc;
     }, {})
@@ -580,7 +607,7 @@ export const CHESS_BATTLE_OPTION_THUMBNAILS = Object.freeze({
     }, {})
   ),
   captureAnimation: Object.freeze(
-    CAPTURE_ANIMATION_OPTIONS.reduce((acc, option) => {
+    CHESS_CAPTURE_ANIMATION_OPTIONS.reduce((acc, option) => {
       acc[option.id] = option.thumbnail;
       return acc;
     }, {})
@@ -810,7 +837,7 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     description: 'Unlocks an additional pawn head glass preset.',
     thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.headStyle.headGold
   },
-  ...CAPTURE_ANIMATION_OPTIONS.slice(1).map((option, idx) => ({
+  ...CHESS_CAPTURE_ANIMATION_OPTIONS.slice(1).map((option, idx) => ({
     id: `chess-capture-animation-${option.id}`,
     type: 'captureAnimation',
     optionId: option.id,
@@ -819,9 +846,15 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     description:
       option.id === 'ukrainianDroneAttack'
         ? 'Exact srcejon Ukrainian drone.glb inventory weapon with original texture preflight, direct-loader fallbacks, and a straight-down no-smoke missile drop.'
-        : option.description || 'Ludo Battle Royal weapon animation pack adapted for Chess Battle Royal.',
+        : option.id === CHESS_EASTERN_CARBINE_CAPTURE_OPTION.id
+          ? 'Sketchfab eastern_carbine_rifle by Dezryelle (CC BY 4.0), adapted as a low-poly Chess Battle Royal capture rifle from https://skfb.ly/pKGIA.'
+          : option.description || 'Ludo Battle Royal weapon animation pack adapted for Chess Battle Royal.',
     thumbnail: option.thumbnail,
-    swatches: option.id === 'ukrainianDroneAttack' ? ['#020617', '#2563eb', '#facc15'] : undefined,
+    swatches: option.id === 'ukrainianDroneAttack'
+      ? ['#020617', '#2563eb', '#facc15']
+      : option.id === CHESS_EASTERN_CARBINE_CAPTURE_OPTION.id
+        ? ['#1f2937', '#6b4f35', '#cbd5e1']
+        : undefined,
     previewShape: option.id === 'ukrainianDroneAttack' ? 'ukrainian-drone' : undefined,
     modelUrls: option.id === 'ukrainianDroneAttack'
       ? [
@@ -829,7 +862,11 @@ export const CHESS_BATTLE_STORE_ITEMS = [
           'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main/drone.glb',
           'https://cdn.statically.io/gh/srcejon/sdrangel-3d-models/main/drone.glb'
         ]
-      : undefined
+      : option.modelUrls,
+    sourceUrl: option.sourceUrl,
+    modelPageUrl: option.modelPageUrl,
+    author: option.author,
+    license: option.license
   })),
   ...CHESS_HUMAN_CHARACTER_OPTIONS.filter((option) =>
     CHESS_STORE_HUMAN_CHARACTER_IDS.includes(option.id)

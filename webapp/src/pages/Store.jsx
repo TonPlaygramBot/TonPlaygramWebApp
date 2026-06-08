@@ -402,6 +402,7 @@ const CHESS_TYPE_LABELS = {
   sideColor: 'Piece Colors',
   boardTheme: 'Board Themes',
   headStyle: 'Pawn Heads',
+  captureAnimation: 'Weapons',
   environmentHdri: 'HDR Environments'
 };
 const CHECKERS_BATTLE_TYPE_LABELS = {
