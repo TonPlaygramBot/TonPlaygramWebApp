@@ -108,48 +108,24 @@ describe('Pool Royale table models', () => {
   test('Showood table remains selectable', () => {
     assert.deepEqual(
       POOL_ROYALE_TABLE_MODEL_OPTIONS.map((option) => option.id),
-      ['showood-seven-foot', 'traditional-fizyman-eight-foot']
+      ['showood-seven-foot']
     );
     assert.equal(
       resolvePoolRoyaleTableModel('traditional-fizyman-eight-foot').id,
-      'traditional-fizyman-eight-foot'
+      'showood-seven-foot'
     );
   });
 
-  test('Traditional fizyman table uses the 8 ft table-only runtime GLB', () => {
-    const traditional = POOL_ROYALE_TABLE_MODEL_OPTIONS.find(
-      (option) => option.id === 'traditional-fizyman-eight-foot'
-    );
-
-    assert.ok(traditional, 'Traditional table model must be configured');
-    assert.equal(traditional.kind, 'gltf');
-    assert.equal(traditional.tableSizeId, '8ft');
-    assert.equal(traditional.useOriginalLayoutSurfaces, true);
-    assert.equal(traditional.usePoolRoyaleFinish, false);
-    assert.equal(traditional.hideGeneratedRailMarkers, true);
-    assert.equal(
-      traditional.assetUrl,
-      '/models/pool-royale/traditional-fizyman-eight-foot/pool_table_traditional.glb'
-    );
-  });
-
-  test('Pool Royale lobby entrypoint mounts table model choices', async () => {
-    const entrypoint = await readFile(
+  test('Pool Royale lobby exposes model choices without removed 8 ft guidance', async () => {
+    const lobby = await readFile(
       'webapp/src/pages/Games/PoolRoyaleLobby.jsx',
       'utf8'
     );
-    const wrapper = await readFile(
-      'webapp/src/pages/Games/PoolRoyaleLobbyWithTablePicker.jsx',
-      'utf8'
-    );
 
     assert.equal(
-      entrypoint.includes('PoolRoyaleLobbyWithTablePicker'),
-      true
+      lobby.includes('traditional-fizyman-eight-foot'),
+      false,
+      'lobby should not reference the removed 8 ft glTF table'
     );
-    assert.equal(wrapper.includes('PoolRoyaleLobbyCore.jsx'), true);
-    assert.equal(wrapper.includes('Choose Table'), true);
-    assert.equal(wrapper.includes('POOL_ROYALE_TABLE_MODEL_OPTIONS'), true);
-    assert.equal(wrapper.includes('selectTableModel'), true);
   });
 });

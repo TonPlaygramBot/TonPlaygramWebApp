@@ -13,10 +13,6 @@ const SHOWOOD_TABLE_CDN_URL =
 const SHOWOOD_TABLE_FASTLY_URL =
   'https://fastly.jsdelivr.net/gh/ekiefl/pooltool@main/pooltool/models/table/seven_foot_showood/seven_foot_showood.glb'
 const SHOWOOD_TABLE_RAW_URL = `${POOLTOOL_RAW_BASE}/seven_foot_showood/seven_foot_showood.glb`
-const TRADITIONAL_FIZYMAN_TABLE_LOCAL_URL =
-  '/models/pool-royale/traditional-fizyman-eight-foot/pool_table_traditional.glb'
-const TRADITIONAL_FIZYMAN_TABLE_SOURCE_URL =
-  'https://sketchfab.com/3d-models/pool-table-traditional-e0b938c0c2e74eb794a49ebde2543977'
 
 export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
   {
@@ -32,7 +28,7 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
       SHOWOOD_TABLE_FASTLY_URL,
       SHOWOOD_TABLE_RAW_URL
     ]),
-    icon: '\uD83D\uDFEB',
+    icon: '🟫',
     kind: 'gltf',
     fitScale: 1.04,
     upperFrameHeightScale: 1,
@@ -75,36 +71,6 @@ export const POOL_ROYALE_TABLE_MODEL_OPTIONS = Object.freeze([
     forceGeneratedChromePlates: false,
     hideSurfaceRoles: [],
     hideGeneratedRailMarkers: false
-  },
-  {
-    id: 'traditional-fizyman-eight-foot',
-    label: 'Traditional 8 ft GLB',
-    description:
-      'Classic Sketchfab pool table by fizyman, cleaned to a table-only runtime GLB so Pool Royale supplies the live balls, cue, and match physics.',
-    tableSizeId: '8ft',
-    assetUrl: TRADITIONAL_FIZYMAN_TABLE_LOCAL_URL,
-    assetUrls: Object.freeze([TRADITIONAL_FIZYMAN_TABLE_LOCAL_URL]),
-    source: 'Sketchfab',
-    sourceUrl: TRADITIONAL_FIZYMAN_TABLE_SOURCE_URL,
-    author: 'fizyman',
-    license: 'CC-BY-4.0',
-    icon: '\uD83C\uDFB1',
-    kind: 'gltf',
-    fitStrategy: 'exact',
-    fitReference: 'upperTabletop',
-    fitScale: 1,
-    useOriginalLayoutSurfaces: true,
-    useProceduralBaseWithExternal: false,
-    hideOriginalBaseAndLegsForProceduralBase: false,
-    keepGeneratedPocketDropHardware: false,
-    usePoolRoyaleFinish: false,
-    useReferenceShowoodMapping: false,
-    usePoolRoyaleFinishRoles: [],
-    preserveSourceTextureRoles: ['wood', 'cloth', 'cushion', 'trim', 'pocket'],
-    preserveOriginalSurfaceRoles: ['wood', 'cloth', 'cushion', 'trim', 'pocket'],
-    forceGeneratedChromePlates: false,
-    hideSurfaceRoles: [],
-    hideGeneratedRailMarkers: true
   }
 ])
 
