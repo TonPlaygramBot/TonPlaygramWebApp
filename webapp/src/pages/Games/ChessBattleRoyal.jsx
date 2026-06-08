@@ -49,10 +49,7 @@ import {
   CHESS_BATTLE_TABLE_OPTIONS,
   CHESS_BATTLE_OPTION_THUMBNAILS,
   CHESS_TABLE_FINISH_OPTIONS,
-  CHESS_HUMAN_CHARACTER_OPTIONS,
-  CHESS_CAPTURE_ANIMATION_OPTIONS,
-  CHESS_EASTERN_CARBINE_CAPTURE_OPTION,
-  CHESS_EASTERN_CARBINE_MODEL_URLS
+  CHESS_HUMAN_CHARACTER_OPTIONS
 } from '../../config/chessBattleInventoryConfig.js';
 import {
   chessBattleAccountId,
@@ -76,6 +73,7 @@ import {
   loadExactUkrainianDroneModel
 } from '../../utils/ukrainianDroneModel.js';
 import { giftSounds } from '../../utils/giftSounds.js';
+import { CAPTURE_ANIMATION_OPTIONS } from '../../config/ludoBattleOptions.js';
 import { LUDO_WEAPON_DIRECTOR_BRIDGE } from '../../config/ludoWeaponDirectorBridge.js';
 import { SNAKE_FPS_GUN_MODEL_CONFIG } from '../../config/snakeWeaponCatalog.js';
 
@@ -225,7 +223,7 @@ const getParkedWeaponKindForAnimationId = (animationId) => {
 const isCaptureAnimationVisibleOnParkedKind = (animationId, parkedKind) =>
   getParkedWeaponKindForAnimationId(animationId) === parkedKind;
 const FIREARM_CAPTURE_ANIMATION_IDS = new Set(
-  CHESS_CAPTURE_ANIMATION_OPTIONS.map((option) => option.id).filter((id) => !GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[id])
+  CAPTURE_ANIMATION_OPTIONS.map((option) => option.id).filter((id) => !GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[id])
 );
 
 const resolveFirearmTypeForAnimationId = (captureAnimationId) =>
@@ -308,52 +306,6 @@ function applyGunifyWeaponTexturePolicy(material) {
   material.needsUpdate = true;
 }
 
-
-function configureLoaderResourcePath(loader, candidateUrl) {
-  try {
-    const basePath = new URL('.', candidateUrl, window.location.href).href;
-    loader.setPath?.(basePath);
-    loader.setResourcePath?.(basePath);
-    return basePath;
-  } catch {
-    const basePath = `${candidateUrl}`.replace(/[^/]*(?:[?#].*)?$/i, '');
-    loader.setPath?.(basePath);
-    loader.setResourcePath?.(basePath);
-    return basePath;
-  }
-}
-
-function applySketchfabOriginalGltfTexturePolicy(material) {
-  if (!material) return;
-  [
-    'map',
-    'emissiveMap',
-    'normalMap',
-    'roughnessMap',
-    'metalnessMap',
-    'aoMap',
-    'alphaMap',
-    'bumpMap',
-    'displacementMap',
-    'lightMap'
-  ].forEach((textureKey) => {
-    const texture = material[textureKey];
-    if (!texture) return;
-    if (textureKey === 'map' || textureKey === 'emissiveMap') applySRGBColorSpace(texture);
-    // GLTFLoader already sets glTF texture orientation. Re-asserting false keeps
-    // installed Sketchfab sibling images visually identical instead of vertically
-    // flipped on portrait WebGL previews.
-    texture.flipY = false;
-    texture.anisotropy = Math.max(texture.anisotropy || 1, 8);
-    texture.needsUpdate = true;
-  });
-  material.userData = {
-    ...(material.userData || {}),
-    sourceTexturePolicy: 'sketchfabOriginalGltf'
-  };
-  material.needsUpdate = true;
-}
-
 function preserveChessCaptureWeaponSourceMaterial(material, texturePolicy = 'preserveSource') {
   if (!material) return;
   material.userData = {
@@ -364,17 +316,6 @@ function preserveChessCaptureWeaponSourceMaterial(material, texturePolicy = 'pre
 }
 
 const CHESS_CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
-  easternCarbineRifleAttack: {
-    label: CHESS_EASTERN_CARBINE_CAPTURE_OPTION.label,
-    urls: [...CHESS_EASTERN_CARBINE_MODEL_URLS],
-    source: CHESS_EASTERN_CARBINE_CAPTURE_OPTION.source,
-    author: CHESS_EASTERN_CARBINE_CAPTURE_OPTION.author,
-    license: CHESS_EASTERN_CARBINE_CAPTURE_OPTION.license,
-    sourceUrl: CHESS_EASTERN_CARBINE_CAPTURE_OPTION.sourceUrl,
-    scale: 0.215,
-    texturePolicy: 'sketchfabOriginalGltf',
-    requireExactModel: true
-  },
   fpsGunAttack: {
     label: 'FPS Gun',
     urls: [...SNAKE_FPS_GUN_MODEL_CONFIG.urls],
@@ -505,8 +446,7 @@ const CHESS_LARGE_FIREARM_IDS = new Set([
   'polyRobotFlyingGunAttack',
   'polyBazooka01Attack',
   'polyGrenadeLauncher01Attack',
-  'polyTank01Attack',
-  'easternCarbineRifleAttack'
+  'polyTank01Attack'
 ]);
 const CHESS_FIREARM_MAGAZINE_SHOTS_BY_ID = Object.freeze({
   fpsGunAttack: 24,
@@ -542,8 +482,7 @@ const CHESS_FIREARM_MAGAZINE_SHOTS_BY_ID = Object.freeze({
   polyMolotov01Attack: 1,
   polyGasTank01Attack: 1,
   polyHandGrenade01Attack: 1,
-  polyTank01Attack: 1,
-  easternCarbineRifleAttack: 20
+  polyTank01Attack: 1
 });
 const CHESS_GRENADE_SHORT_MISSILE_IDS = new Set([
   'grenadeBlastAttack',
@@ -584,8 +523,7 @@ const CHESS_FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
   polyMolotov01Attack: 0.92,
   polyGasTank01Attack: 1.28,
   polyHandGrenade01Attack: 0.48,
-  polyTank01Attack: 2.3,
-  easternCarbineRifleAttack: 2.15
+  polyTank01Attack: 2.3
 });
 const CHESS_FIREARM_FLAT_ROTATION = Object.freeze([-Math.PI * 0.5, -Math.PI * 0.02, 0]);
 const CHESS_FIREARM_AIM_ROTATION = Object.freeze([0, -Math.PI * 0.5, 0]); // keep weapon front/muzzle pointed visually toward the board target.
@@ -621,8 +559,7 @@ const CHESS_FIREARM_HANDHELD_SCALE_MULTIPLIER_BY_ID = Object.freeze({
   polyMolotov01Attack: 0.9,
   polyGasTank01Attack: 1.0,
   polyHandGrenade01Attack: 0.95,
-  polyTank01Attack: 1.2,
-  easternCarbineRifleAttack: 1.24
+  polyTank01Attack: 1.2
 });
 const CHESS_FIREARM_MUZZLE_YAW_CORRECTION_BY_ID = Object.freeze({
   ak47VolleyAttack: Math.PI,
@@ -647,7 +584,6 @@ const CHESS_FIREARM_HAND_ATTACH_TUNING = Object.freeze({
   uziSprayAttack: { muzzleOffset: [0, 0.014, 0.215] },
   smgBurstAttack: { muzzleOffset: [0, 0.014, 0.22] },
   assaultRifleAttack: { muzzleOffset: [0, 0.014, 0.244] },
-  easternCarbineRifleAttack: { muzzleOffset: [0, 0.014, 0.248] },
   ak47VolleyAttack: { muzzleOffset: [0, 0.014, 0.256] },
   krsvBurstAttack: { muzzleOffset: [0, 0.014, 0.249] },
   smithSidearmAttack: { muzzleOffset: [0, 0.012, 0.194] },
@@ -2545,7 +2481,6 @@ const FIREARM_CAPTURE_SHOT_SOUND_URL_BY_ID = Object.freeze({
   uziSprayAttack: 'https://cdn.freesound.org/previews/171/171104_2437358-lq.mp3',
   smgBurstAttack: 'https://cdn.freesound.org/previews/171/171104_2437358-lq.mp3',
   assaultRifleAttack: 'https://cdn.freesound.org/previews/212/212968_4048940-lq.mp3',
-  easternCarbineRifleAttack: 'https://cdn.freesound.org/previews/212/212968_4048940-lq.mp3',
   ak47VolleyAttack: 'https://cdn.freesound.org/previews/212/212968_4048940-lq.mp3',
   sniperShotAttack: 'https://cdn.freesound.org/previews/533/533981_11861866-lq.mp3',
   shotgunBlastAttack: 'https://cdn.freesound.org/previews/456/456035_5121236-lq.mp3',
@@ -2612,7 +2547,6 @@ const CHESS_FIREARM_CALIBER_BY_ANIMATION_ID = Object.freeze({
   marksmanDmrAttack: Object.freeze({ caliberLabel: '7.62×51mm DMR round', projectileKind: 'marksman-round', bulletRadius: 0.0042, bulletLength: 0.052, shellRadius: 0.0032, shellLength: 0.024, bulletSpeed: 0.292 }),
   polyRobotLargeGunAttack: Object.freeze({ caliberLabel: 'heavy robot rifle round', projectileKind: 'rifle-round', bulletRadius: 0.0042, bulletLength: 0.047, shellRadius: 0.0032, shellLength: 0.024, bulletSpeed: 0.255 }),
   polyRobotFlyingGunAttack: Object.freeze({ caliberLabel: 'drone SMG micro-round', projectileKind: 'smg-round', bulletRadius: 0.003, bulletLength: 0.026, shellRadius: 0.0021, shellLength: 0.012, bulletSpeed: 0.235 }),
-  easternCarbineRifleAttack: Object.freeze({ caliberLabel: '7.62×39mm carbine round', projectileKind: 'rifle-round', bulletRadius: 0.0039, bulletLength: 0.043, shellRadius: 0.003, shellLength: 0.022, bulletSpeed: 0.27 }),
   grenadeBlastAttack: Object.freeze({ caliberLabel: 'hand grenade blast', projectileKind: 'explosive-warhead', bulletRadius: 0.0064, bulletLength: 0.046, shellRadius: 0.0046, shellLength: 0.03, bulletSpeed: 0.14 }),
   polyBazooka01Attack: Object.freeze({ caliberLabel: 'RPG rocket', projectileKind: 'explosive-warhead', bulletRadius: 0.0075, bulletLength: 0.068, shellRadius: 0.0054, shellLength: 0.036, bulletSpeed: 0.12 }),
   polyGrenadeLauncher01Attack: Object.freeze({ caliberLabel: '40mm launcher grenade', projectileKind: 'explosive-warhead', bulletRadius: 0.0068, bulletLength: 0.049, shellRadius: 0.005, shellLength: 0.032, bulletSpeed: 0.135 }),
@@ -3563,7 +3497,7 @@ const SIDE_PARKED_TRUCK_SCALE_MULTIPLIER = 1.22; // keep truck as prominent as t
 const SIDE_PARKED_FIREARM_DISPLAY_SIZE_RATIO = 1.22; // scale parked firearm swaps to match the larger vehicles occupying each pad
 
 function chooseRandomCaptureAnimationId(kind, fallbackId) {
-  const pool = CHESS_CAPTURE_ANIMATION_OPTIONS
+  const pool = CAPTURE_ANIMATION_OPTIONS
     .map((option) => option?.id)
     .filter((id) => {
       if (!id) return false;
@@ -4563,8 +4497,6 @@ function fitObjectToTargetSize(object, targetSize = 0.12) {
   object.updateMatrixWorld?.(true);
 }
 
-
-
 function prepareChessCaptureWeaponClone(template, captureAnimationId, { flat = true, targetSize = null } = {}) {
   const clone = cloneSkinned(template);
   clone.traverse((node) => {
@@ -4608,11 +4540,11 @@ function prepareChessCaptureWeaponClone(template, captureAnimationId, { flat = t
 
 async function loadChessCaptureWeaponModel(captureAnimationId) {
   const config = CHESS_CAPTURE_WEAPON_MODEL_CONFIG[captureAnimationId];
+  const candidateUrls = Array.isArray(config?.urls) ? config.urls.filter(Boolean) : [];
+  if (!candidateUrls.length) return null;
   if (CHESS_CAPTURE_WEAPON_MODEL_CACHE.has(captureAnimationId)) {
     return CHESS_CAPTURE_WEAPON_MODEL_CACHE.get(captureAnimationId);
   }
-  const candidateUrls = Array.isArray(config?.urls) ? config.urls.filter(Boolean) : [];
-  if (!candidateUrls.length) return null;
   const withLoadTimeout = async (promise) =>
     Promise.race([
       promise,
@@ -4629,7 +4561,6 @@ async function loadChessCaptureWeaponModel(captureAnimationId) {
       const candidateUrl = candidateUrls[i];
       try {
         // eslint-disable-next-line no-await-in-loop
-        if (config?.texturePolicy !== 'gunifyPbr') configureLoaderResourcePath(loader, candidateUrl);
         loadedRoot = assignLoadedGltf(
           config?.texturePolicy === 'gunifyPbr'
             ? await withLoadTimeout(loadGunifyOriginalGltf(loader, candidateUrl))
@@ -4682,10 +4613,6 @@ async function loadChessCaptureWeaponModel(captureAnimationId) {
       const materials = Array.isArray(node.material) ? node.material : [node.material];
       materials.forEach((material) => {
         if (!material) return;
-        if (config?.texturePolicy === 'sketchfabOriginalGltf') {
-          applySketchfabOriginalGltfTexturePolicy(material);
-          return;
-        }
         if (textureOverride && !material.map) material.map = textureOverride;
         if (material.map) applySRGBColorSpace(material.map);
         if (material.emissiveMap) applySRGBColorSpace(material.emissiveMap);
@@ -4706,7 +4633,6 @@ async function loadChessCaptureWeaponModel(captureAnimationId) {
   const resolved = await promise;
   if (resolved) return resolved;
   CHESS_CAPTURE_WEAPON_MODEL_FAILURE.add(captureAnimationId);
-  if (config?.requireExactModel) return null;
   const fallbackId = Array.from(FIREARM_CAPTURE_ANIMATION_IDS).find(
     (id) => id !== captureAnimationId && !CHESS_CAPTURE_WEAPON_MODEL_FAILURE.has(id) && CHESS_CAPTURE_WEAPON_MODEL_CONFIG[id]
   );
@@ -8859,7 +8785,7 @@ function Chess3D({
   );
   const selectedCaptureAnimationId = useMemo(() => {
     const owned = chessInventory?.captureAnimation;
-    return (Array.isArray(owned) && owned[0]) || CHESS_CAPTURE_ANIMATION_OPTIONS[0]?.id || 'missileJavelin';
+    return (Array.isArray(owned) && owned[0]) || CAPTURE_ANIMATION_OPTIONS[0]?.id || 'missileJavelin';
   }, [chessInventory]);
   const selectedCaptureKind = useMemo(() => {
     if (FIREARM_CAPTURE_ANIMATION_IDS.has(selectedCaptureAnimationId)) return 'firearm';
@@ -8876,14 +8802,13 @@ function Chess3D({
   const ownedCaptureAnimations = useMemo(
     () =>
       (chessInventory?.captureAnimation || [])
-        .map((optionId) => CHESS_CAPTURE_ANIMATION_OPTIONS.find((option) => option.id === optionId))
+        .map((optionId) => CAPTURE_ANIMATION_OPTIONS.find((option) => option.id === optionId))
         .filter(Boolean),
     [chessInventory]
   );
   const QUICK_SWAP_WEAPON_IDS = useMemo(
     () =>
       [
-        'easternCarbineRifleAttack',
         'ukrainianDroneAttack',
         'droneAttack',
         'polyShotgun01Attack',
