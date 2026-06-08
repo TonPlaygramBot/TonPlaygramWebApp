@@ -1312,7 +1312,9 @@ const REPLAY_CAMERA_START_DELAY_MS = 0;
   const TABLE_WIDTH_SCALE = 1.25;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
   const TABLE_LENGTH_SCALE = 0.8;
-  const TABLE_SURFACE_EXPANSION = 1.25; // widen/lengthen the visual table footprint while the game mapping stays locked to the Showood 7 ft playfield
+  const TABLE_SURFACE_REFERENCE = 1.12; // baseline expansion before the wider table adjustment
+  const TABLE_SURFACE_EXPANSION = 1.25; // widen/lengthen the table footprint by ~12% while keeping pockets/balls unchanged
+  const TABLE_SURFACE_COMPENSATION = TABLE_SURFACE_EXPANSION / TABLE_SURFACE_REFERENCE;
   const TABLE = {
     W: 72 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE * OFFICIAL_TABLE_SCALE * TABLE_SURFACE_EXPANSION,
     H:
@@ -1425,7 +1427,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     Math.abs(CURRENT_RATIO - TARGET_RATIO) < 1e-4,
     'Pool table inner ratio must match the official 2:1 target after scaling.'
   );
-const MM_TO_UNITS = innerLong / WIDTH_REF; // map game physics directly to the native Showood 7 ft GLB playfield size
+const MM_TO_UNITS = (innerLong / WIDTH_REF) / TABLE_SURFACE_COMPENSATION;
 const BALL_SIZE_SCALE = 1; // official WPA/WEPF 57.15 mm balls; every helper stays tied to BALL_R/BALL_DIAMETER
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
