@@ -55,7 +55,7 @@ import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from '../../config/murlanThe
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from '../../config/poolRoyaleInventoryConfig.js';
 import { LUDO_WEAPON_DIRECTOR_BRIDGE } from '../../config/ludoWeaponDirectorBridge.js';
 import { SNAKE_FPS_GUN_MODEL_CONFIG } from '../../config/snakeWeaponCatalog.js';
-import { SNAKE_CAPTURE_WEAPON_OPTIONS } from '../../config/snakeWeaponCatalog.js';
+import { SNAKE_CAPTURE_WEAPON_OPTIONS, SNAKE_GUNIFY_MAY_9_REF } from '../../config/snakeWeaponCatalog.js';
 import { TOKEN_TYPE_SEQUENCE } from '../../utils/ludoTokenConstants.js';
 import {
   getLudoBattleInventory,
@@ -368,7 +368,7 @@ const FIREARM_RACK_OPPOSITE_SEAT_TARGET_BY_PLAYER = Object.freeze({
 });
 // Latest Gunify commit visible at the end of May 9, 2026; keep Ludo weapons
 // pinned to that tree so texture folders/material JSON cannot drift under main.
-const GUNIFY_MAY_9_REF = '27232cf389a2be3f8f476c667cb293e978aaf5f9';
+const GUNIFY_MAY_9_REF = SNAKE_GUNIFY_MAY_9_REF;
 const GUNIFY_RAW_BASE = `https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/${GUNIFY_MAY_9_REF}`;
 const GUNIFY_JSDELIVR_BASE = `https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@${GUNIFY_MAY_9_REF}`;
 const GUNIFY_MAY_9_MODEL_FOLDER_BY_NAME = Object.freeze({
@@ -390,6 +390,28 @@ const SNAKE_CAPTURE_WEAPON_OPTION_BY_ID = Object.freeze(
     return acc;
   }, {})
 );
+const SNAKE_GUNIFY_CAPTURE_OPTION_BY_LUDO_ID = Object.freeze(
+  SNAKE_CAPTURE_WEAPON_OPTIONS.reduce((acc, option) => {
+    if (option?.source === 'Gunify' && option?.ludoCaptureAnimationId) {
+      acc[option.ludoCaptureAnimationId] = option;
+    }
+    return acc;
+  }, {})
+);
+const snakeMatchedGunifyCaptureConfig = (ludoId, fallback = {}) => {
+  const sourceOption = SNAKE_GUNIFY_CAPTURE_OPTION_BY_LUDO_ID[ludoId] || {};
+  return {
+    label: fallback.label || sourceOption.label,
+    urls: Array.isArray(sourceOption.urls) && sourceOption.urls.length
+      ? [...sourceOption.urls]
+      : gunifyModelUrls(fallback.modelName),
+    modelName: fallback.modelName || sourceOption.modelName,
+    source: 'Gunify',
+    texturePolicy: sourceOption.texturePolicy || 'gunifyPbr',
+    snakeCaptureWeaponId: sourceOption.id,
+    scale: sourceOption.ludoCaptureScale ?? fallback.scale
+  };
+};
 const LUDO_POLY_PIZZA_WEAPON_SOURCE_ID_BY_ID = Object.freeze({
   polyShotgun01Attack: 'poly-shotgun-01',
   polyAssaultRifle01Attack: 'poly-assault-rifle-01',
@@ -692,54 +714,36 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
     ],
     scale: 0.13
   },
-  uziSprayAttack: {
+  uziSprayAttack: snakeMatchedGunifyCaptureConfig('uziSprayAttack', {
     label: 'Gunify Uzi',
-    urls: gunifyModelUrls('Uzi'),
     modelName: 'Uzi',
-    source: 'Gunify',
-    texturePolicy: 'gunifyPbr',
     scale: 0.2
-  },
-  ak47VolleyAttack: {
+  }),
+  ak47VolleyAttack: snakeMatchedGunifyCaptureConfig('ak47VolleyAttack', {
     label: 'Gunify AK-47',
-    urls: gunifyModelUrls('AK47'),
     modelName: 'AK47',
-    source: 'Gunify',
-    texturePolicy: 'gunifyPbr',
     scale: 0.24
-  },
-  krsvBurstAttack: {
+  }),
+  krsvBurstAttack: snakeMatchedGunifyCaptureConfig('krsvBurstAttack', {
     label: 'Gunify KRSV',
-    urls: gunifyModelUrls('KRSV'),
     modelName: 'KRSV',
-    source: 'Gunify',
-    texturePolicy: 'gunifyPbr',
     scale: 0.24
-  },
-  smithSidearmAttack: {
+  }),
+  smithSidearmAttack: snakeMatchedGunifyCaptureConfig('smithSidearmAttack', {
     label: 'Gunify Smith',
-    urls: gunifyModelUrls('Smith'),
     modelName: 'Smith',
-    source: 'Gunify',
-    texturePolicy: 'gunifyPbr',
     scale: 0.13
-  },
-  mosinMarksmanAttack: {
+  }),
+  mosinMarksmanAttack: snakeMatchedGunifyCaptureConfig('mosinMarksmanAttack', {
     label: 'Gunify Mosin',
-    urls: gunifyModelUrls('Mosin'),
     modelName: 'Mosin',
-    source: 'Gunify',
-    texturePolicy: 'gunifyPbr',
     scale: 0.5125
-  },
-  sigsauerTacticalAttack: {
+  }),
+  sigsauerTacticalAttack: snakeMatchedGunifyCaptureConfig('sigsauerTacticalAttack', {
     label: 'Gunify SigSauer Tactical',
-    urls: gunifyModelUrls('SigSauer'),
     modelName: 'SigSauer',
-    source: 'Gunify',
-    texturePolicy: 'gunifyPbr',
     scale: 0.13
-  },
+  }),
   grenadeBlastAttack: {
     label: 'Grenade Blast',
     urls: [
@@ -759,14 +763,11 @@ const CAPTURE_WEAPON_MODEL_CONFIG = Object.freeze({
     ],
     scale: 0.24
   },
-  sniperShotAttack: {
+  sniperShotAttack: snakeMatchedGunifyCaptureConfig('sniperShotAttack', {
     label: 'Gunify Mosin Sniper Shot',
-    urls: gunifyModelUrls('Mosin'),
     modelName: 'Mosin',
-    source: 'Gunify',
-    texturePolicy: 'gunifyPbr',
     scale: 0.504
-  },
+  }),
   smgBurstAttack: {
     label: 'SMG',
     urls: [
@@ -8639,14 +8640,37 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     return kingToken.getWorldPosition(new THREE.Vector3());
   }, []);
 
+  const getDiceRollWorldPositionForPlayer = useCallback((playerIndex) => {
+    const dice = diceRef.current;
+    if (!dice?.isObject3D) return null;
+    const targets = Array.isArray(dice.userData?.rollTargets) && dice.userData.rollTargets[playerIndex]
+      ? dice.userData.rollTargets
+      : dice.userData?.railPositions;
+    const target = targets?.[playerIndex];
+    if (target?.isVector3) {
+      const worldTarget = target.clone();
+      if (dice.parent?.localToWorld) {
+        dice.parent.localToWorld(worldTarget);
+      } else if (dice.getWorldPosition) {
+        const diceWorld = dice.getWorldPosition(new THREE.Vector3());
+        worldTarget.add(diceWorld).sub(dice.position);
+      }
+      return worldTarget;
+    }
+    return dice.getWorldPosition?.(new THREE.Vector3()) ?? null;
+  }, []);
+
   const resolveCaptureParkingAnchors = useCallback((playerIndex, vehicleType = 'fighter') => {
     const arena = arenaRef.current;
     if (!arena?.seatAnchors?.length || !arena.boardLookTarget) return null;
     const anchor = arena.seatAnchors[playerIndex];
     if (!anchor) return null;
     const seatPos = anchor.getWorldPosition(new THREE.Vector3());
-    const kingPos = getKingTokenPositionForPlayer(playerIndex) ?? seatPos;
-    const inward = arena.boardLookTarget.clone().sub(kingPos).setY(0).normalize();
+    const dicePos = getDiceRollWorldPositionForPlayer(playerIndex);
+    // Park weapons beside each player's dice-roll spot, not beside the reserve token,
+    // so the same visible hand reach can roll the dice and pick up the weapon.
+    const parkBase = dicePos ?? getKingTokenPositionForPlayer(playerIndex) ?? seatPos;
+    const inward = arena.boardLookTarget.clone().sub(parkBase).setY(0).normalize();
     if (inward.lengthSq() < 1e-6) return null;
     const rightSide = new THREE.Vector3().crossVectors(inward, MISSILE_WORLD_UP).normalize();
     const sideSign = CAPTURE_PARK_SIDE_SIGN_BY_TYPE[vehicleType] ?? 1;
@@ -8658,14 +8682,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         : null;
     const sideOffsetExtra = firearmSeatAdjustment?.side ?? 0;
     const inwardOffsetExtra = firearmSeatAdjustment?.inward ?? 0;
-    const park = kingPos
+    const park = parkBase
       .clone()
       .addScaledVector(rightSide, (CAPTURE_PARK_SIDE_OFFSET + sideOffsetExtra) * sideSign)
       .addScaledVector(inward, forwardOffset + inwardOffsetExtra)
       .addScaledVector(inward, -outwardOffset);
     park.y = (arena.tableInfo?.surfaceY ?? park.y) + 0.002;
     return park;
-  }, [getKingTokenPositionForPlayer]);
+  }, [getDiceRollWorldPositionForPlayer, getKingTokenPositionForPlayer]);
 
   const resolvePlayerLabel = useCallback(
     (playerIndex) => players[playerIndex]?.name || COLOR_NAMES[playerIndex] || `Player ${playerIndex + 1}`,
@@ -8684,8 +8708,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (!arena?.seatAnchors?.length || !arena.boardLookTarget || !Number.isFinite(playerIndex)) return;
       const anchor = arena.seatAnchors[playerIndex];
       if (!anchor?.isObject3D) return;
-      const kingPos = getKingTokenPositionForPlayer(playerIndex) ?? anchor.getWorldPosition(new THREE.Vector3());
-      const inward = arena.boardLookTarget.clone().sub(kingPos).setY(0);
+      const dicePos = getDiceRollWorldPositionForPlayer(playerIndex);
+      const parkBase = dicePos ?? getKingTokenPositionForPlayer(playerIndex) ?? anchor.getWorldPosition(new THREE.Vector3());
+      const inward = arena.boardLookTarget.clone().sub(parkBase).setY(0);
       if (inward.lengthSq() < 1e-6) return;
       inward.normalize();
       const rightSide = new THREE.Vector3().crossVectors(inward, MISSILE_WORLD_UP).normalize();
@@ -8696,7 +8721,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           ? FIREARM_RACK_PARKING_TUNING.large
           : FIREARM_RACK_PARKING_TUNING.small);
       const seatAdjustment = FIREARM_RACK_PARKING_SEAT_ADJUSTMENTS[playerIndex] || FIREARM_RACK_PARKING_SEAT_ADJUSTMENTS[0];
-      const basePosition = kingPos
+      const basePosition = parkBase
         .clone()
         .addScaledVector(rightSide, rackTuning.side + seatAdjustment.side)
         .addScaledVector(inward, rackTuning.inward + seatAdjustment.inward)
@@ -8758,7 +8783,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         }
       }
     });
-  }, [aiLoadoutByPlayer, getKingTokenPositionForPlayer]);
+  }, [aiLoadoutByPlayer, getDiceRollWorldPositionForPlayer, getKingTokenPositionForPlayer]);
 
   const rebuildParkedCaptureVehicles = useCallback(async () => {
     const arena = arenaRef.current;
