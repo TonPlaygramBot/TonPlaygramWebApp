@@ -1427,7 +1427,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     'Pool table inner ratio must match the official 2:1 target after scaling.'
   );
 const MM_TO_UNITS = (innerLong / WIDTH_REF) / TABLE_SURFACE_COMPENSATION;
-const BALL_SIZE_SCALE = 1.04; // make balls just a tiny bit smaller while every helper stays tied to BALL_R/BALL_DIAMETER
+const BALL_SIZE_SCALE = 1.07; // make balls a bit bigger while every helper stays tied to BALL_R/BALL_DIAMETER
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -1562,7 +1562,7 @@ const PHYSICS_BASE_STEP = 1 / 60;
 const FRICTION = 0.9962;
 // Cushions use a slightly higher restitution than ball-ball impacts so rail
 // rebounds feel livelier without making direct ball collisions over-energetic.
-const DEFAULT_CUSHION_RESTITUTION = 1.015;
+const DEFAULT_CUSHION_RESTITUTION = 0.992;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const BALL_MASS = 0.17;
 const BALL_INERTIA = (2 / 5) * BALL_MASS * BALL_R * BALL_R;
@@ -1619,7 +1619,7 @@ const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
   0,
   SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.04
 );
-const CUSHION_CUT_RESTITUTION_SCALE = 1.045; // make cut-angle rebounds more lively without adding excess speed
+const CUSHION_CUT_RESTITUTION_SCALE = 1.025; // make cut-angle rebounds a bit more lively without adding excess speed
 const CUSHION_CUT_FRICTION_SCALE = 0.985; // reduce cut-line grab slightly so added bounce reads naturally
 const SIDE_POCKET_DEPTH_LIMIT =
   SIDE_POCKET_RADIUS * 1.6 * POCKET_VISUAL_EXPANSION; // align side-pocket rail limits with the visible mouth depth
@@ -1857,7 +1857,7 @@ const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
 const SHOT_POWER_BOOST = 1.5; // preserve legacy cue response before the final mobile comfort trim
-const SHOT_GLOBAL_POWER_SCALE = 0.94; // add just a bit more Pool Royale shot power while keeping the selected shot-power curve
+const SHOT_GLOBAL_POWER_SCALE = 0.88; // add a bit more Pool Royale shot power while keeping the selected shot-power curve
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -2355,31 +2355,6 @@ function getPoolBallId(variant, index) {
     return `ball_${number}`;
   }
   return `ball_${index + 1}`;
-}
-
-
-function alignRackPositionsToPenaltySpot(positions, variantConfig, penaltySpot) {
-  if (!Array.isArray(positions) || !positions.length || !Array.isArray(penaltySpot)) {
-    return positions;
-  }
-  const numbers = Array.isArray(variantConfig?.objectNumbers) ? variantConfig.objectNumbers : [];
-  const eightBallIndex = numbers.findIndex((number) => number === 8);
-  if (eightBallIndex < 0 || !positions[eightBallIndex]) {
-    return positions;
-  }
-  const targetX = Number(penaltySpot[0]);
-  const targetZ = Number(penaltySpot[1]);
-  if (!Number.isFinite(targetX) || !Number.isFinite(targetZ)) {
-    return positions;
-  }
-  const anchor = positions[eightBallIndex];
-  const dx = targetX - anchor.x;
-  const dz = targetZ - anchor.z;
-  return positions.map((position) => ({
-    ...position,
-    x: position.x + dx,
-    z: position.z + dz
-  }));
 }
 
 function generateRackPositions(ballCount, layout, ballRadius, startZ) {
@@ -3659,9 +3634,7 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
   ].filter(Boolean)
 );
 
-const CUE_FINISH_OPTIONS = Object.freeze(
-  TABLE_FINISH_OPTIONS.filter((finish) => !String(finish?.id || '').startsWith('carbonFiber'))
-);
+const CUE_FINISH_OPTIONS = TABLE_FINISH_OPTIONS;
 const CUE_FINISH_PALETTE = Object.freeze(
   CUE_FINISH_OPTIONS.map(
     (finish) => finish?.colors?.rail ?? finish?.colors?.base ?? 0xdeb887
@@ -9329,9 +9302,9 @@ export function Table3D(
 
   const markingsGroup = new THREE.Group();
   const markingMat = new THREE.MeshBasicMaterial({
-    color: 0xffffff,
+    color: resolvedTableOptions?.tableModel?.useReferenceShowoodMapping ? 0xffffff : palette.markings,
     transparent: true,
-    opacity: 0.98,
+    opacity: resolvedTableOptions?.tableModel?.useReferenceShowoodMapping ? 0.98 : 0.94,
     side: THREE.DoubleSide,
     depthWrite: false
   });
@@ -26064,15 +26037,11 @@ const shotPowerRef = useRef(0);
           const rackNumbers = AMERICAN_BALL_SET.objectNumbers || [];
           const rackPatterns = AMERICAN_BALL_SET.objectPatterns || [];
           const rackStartZ = SPOTS.pink[1] + BALL_R * 2 + RACK_VERTICAL_SCREEN_LIFT;
-          const rackPositions = alignRackPositionsToPenaltySpot(
-            generateRackPositions(
-              rackColors.length,
-              'triangle',
-              BALL_R,
-              rackStartZ
-            ),
-            { objectNumbers: rackNumbers },
-            SPOTS.penalty
+          const rackPositions = generateRackPositions(
+            rackColors.length,
+            'triangle',
+            BALL_R,
+            rackStartZ
           );
           rackColors.forEach((color, index) => {
             const pos =
@@ -27363,15 +27332,11 @@ const shotPowerRef = useRef(0);
         const rackColors = Array.isArray(variantConfig?.objectColors)
           ? variantConfig.objectColors
           : [];
-        const rackPositions = alignRackPositionsToPenaltySpot(
-          generateRackPositions(
-            rackColors.length,
-            rackLayout,
-            BALL_R,
-            rackStartZ
-          ),
-          variantConfig,
-          SPOTS.penalty
+        const rackPositions = generateRackPositions(
+          rackColors.length,
+          rackLayout,
+          BALL_R,
+          rackStartZ
         );
         for (let rid = 0; rid < rackColors.length; rid++) {
           const pos = rackPositions[rid] || rackPositions[rackPositions.length - 1] || {
@@ -36779,6 +36744,53 @@ const shotPowerRef = useRef(0);
                             loading="lazy"
                           />
                         ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Shared Table Base
+                </h3>
+                <p className="mt-1 text-[0.68rem] leading-snug text-white/60">
+                  Shape options for the procedural support base and legs under the Showood GLB table.
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {availableTableBases.map((option) => {
+                    const active = option.id === tableBaseId;
+                    const swatchA = option.swatches?.[0] ?? '#0f172a';
+                    const swatchB = option.swatches?.[1] ?? '#1f2937';
+                    const thumb = option.thumbnail;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setTableBaseId(option.id)}
+                        aria-pressed={active}
+                        className={`flex min-w-[9rem] flex-1 items-center justify-between gap-3 rounded-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
+                            : 'bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="truncate">{option.name}</span>
+                        {thumb ? (
+                          <img
+                            src={thumb}
+                            alt={option.name}
+                            className="h-6 w-10 rounded-lg border border-white/25 object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <span
+                            className="h-5 w-8 rounded-lg border border-white/25"
+                            aria-hidden="true"
+                            style={{
+                              background: `linear-gradient(135deg, ${swatchA}, ${swatchB})`
+                            }}
+                          />
+                        )}
                       </button>
                     );
                   })}
