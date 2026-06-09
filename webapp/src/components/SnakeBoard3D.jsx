@@ -268,7 +268,7 @@ const DICE_FACE_INSET = DICE_SIZE * 0.064;
 // Keep Snake dice motion aligned with Ludo Battle Royal's frame-synced single-arc spinDice roll.
 const DICE_ROLL_DURATION = 1100;
 const DICE_SETTLE_DURATION = 220;
-const DICE_RESULT_HOLD_DURATION = 1500;
+const DICE_RESULT_HOLD_DURATION = 720;
 const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.78;
 const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.8;
 const DICE_THROW_START_EXTRA = TILE_SIZE * 3.6;
@@ -388,7 +388,7 @@ function applyChessBattleSeatedHumanBaseline(seatHuman, seatIndex, timeSeconds =
 
 const TURN_CAMERA_TURN_IN_DURATION = 620;
 const DICE_CAMERA_LOOK_IN_DURATION = 220;
-const DICE_CAMERA_LOOK_HOLD_DURATION = 1500;
+const DICE_CAMERA_LOOK_HOLD_DURATION = 460;
 const DICE_CAMERA_LOOK_OUT_DURATION = 220;
 const BOARD_AUTO_ROTATE_IN_DURATION = 520;
 const BOARD_AUTO_ROTATE_HOLD_DURATION = 0;
