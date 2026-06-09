@@ -1435,6 +1435,8 @@ const RACK_VERTICAL_SCREEN_LIFT = BALL_R * 0.86; // nudge the rack farther upwar
 const ENABLE_BALL_FLOOR_SHADOWS = true;
 const ENABLE_CUE_CLOTH_SHADOW = true;
 const ENABLE_TABLE_FLOOR_SHADOW = false;
+const ENABLE_POCKET_NETS_AND_HOLDERS = false; // hide net, chrome ring, holder bars, and leather strap while preserving original table bounds
+const ENABLE_POCKET_UNDERBALLS = false; // potted balls disappear into the procedural pockets instead of resting/rendering under them
 const BALL_SHADOW_RADIUS_MULTIPLIER = 1;
 const BALL_SHADOW_OPACITY = 0.25;
 const BALL_SHADOW_LIFT = BALL_R * 0.02;
@@ -9333,9 +9335,13 @@ export function Table3D(
   const markingMat = new THREE.MeshBasicMaterial({
     color: resolvedTableOptions?.tableModel?.useReferenceShowoodMapping ? 0xffffff : palette.markings,
     transparent: true,
-    opacity: resolvedTableOptions?.tableModel?.useReferenceShowoodMapping ? 0.98 : 0.94,
+    opacity: 1,
     side: THREE.DoubleSide,
-    depthWrite: false
+    depthWrite: false,
+    depthTest: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -4,
+    polygonOffsetUnits: -4
   });
   const externalMarkingLift =
     usesExternalTableModel && Number.isFinite(resolvedTableOptions?.tableModel?.markingVisualLift)
@@ -9370,7 +9376,7 @@ export function Table3D(
   const penaltySpot = addSpot(0, (topCushionZ + 0) / 2);
   markingsGroup.traverse((child) => {
     if (child.isMesh) {
-      child.renderOrder = cloth.renderOrder + 1;
+      child.renderOrder = cloth.renderOrder + 20;
       child.castShadow = false;
       child.receiveShadow = false;
     }
@@ -9455,6 +9461,22 @@ export function Table3D(
     if (!entry?.glowMesh) return;
     entry.glowMesh.parent?.remove?.(entry.glowMesh);
     entry.glowMesh = null;
+  };
+  const hiddenPocketHardwareMaterial = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0,
+    colorWrite: false,
+    depthWrite: false,
+    depthTest: false
+  });
+  const hidePocketHardwareVisuals = (mesh) => {
+    if (ENABLE_POCKET_NETS_AND_HOLDERS || !mesh) return mesh;
+    mesh.material = hiddenPocketHardwareMaterial;
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
+    mesh.userData.externalTablePocketHardwareHidden = true;
+    return mesh;
   };
   const removePocketDropEntry = (ballId) => {
     const entry = pocketDropRef.current.get(ballId);
@@ -9544,10 +9566,13 @@ export function Table3D(
     net.renderOrder = pocket.renderOrder - 0.25;
     net.userData.externalTableKeepVisible = true;
     net.userData.externalTablePocketDropHardware = true;
+    hidePocketHardwareVisuals(net);
     table.add(net);
     finishParts.pocketNetMeshes.push(net);
 
     // Add chrome cradle rails and holders beneath the pocket net to catch potted balls.
+    // When hidden, these meshes stay transparent so the table's original shape/height
+    // and camera fitting bounds remain identical to the previous table.
     const netBottomY = net.position.y - POCKET_NET_DEPTH * 1.06;
     const ringAnchor = new THREE.Vector3(
       p.x,
@@ -9559,6 +9584,7 @@ export function Table3D(
     ring.rotation.x = Math.PI / 2;
     ring.castShadow = true;
     ring.receiveShadow = true;
+    hidePocketHardwareVisuals(ring);
     ring.userData.externalTableKeepVisible = true;
     ring.userData.externalTablePocketDropHardware = true;
     table.add(ring);
@@ -9594,6 +9620,7 @@ export function Table3D(
       guide.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), delta.clone().normalize());
       guide.castShadow = true;
       guide.receiveShadow = true;
+      hidePocketHardwareVisuals(guide);
       guide.userData.externalTableKeepVisible = true;
       guide.userData.externalTablePocketDropHardware = true;
       table.add(guide);
@@ -9659,6 +9686,7 @@ export function Table3D(
       strap.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), strapForward);
       strap.castShadow = true;
       strap.receiveShadow = true;
+      hidePocketHardwareVisuals(strap);
       strap.userData.externalTableKeepVisible = true;
       strap.userData.externalTablePocketDropHardware = true;
       table.add(strap);
@@ -24872,13 +24900,14 @@ const shotPowerRef = useRef(0);
             const safeStrikeDuration = Math.max(1, strikeDuration ?? 110);
             const safeHoldDuration = Math.max(0, holdDuration ?? 45);
             const safeRecoverDuration = Math.max(0, recoverDuration ?? 0);
+            const resolvedIdlePos = idlePos ?? impactPos ?? stroke.contactPos ?? pullPos;
             const normalizedStroke = ensureCueStrokeForwardMotion({
-              pullPos: pullPos ?? impactPos,
-              impactPos: impactPos ?? pullPos,
+              pullPos: pullPos ?? resolvedIdlePos,
+              impactPos: resolvedIdlePos ?? pullPos,
               fallbackDirection: tmpCueStrokeB.set(Math.sin(baseRotationY ?? 0), 0, Math.cos(baseRotationY ?? 0))
             });
-            const resolvedPullPos = normalizedStroke.pullPos ?? pullPos ?? impactPos;
-            const resolvedContactPos = stroke.contactPos ?? impactPos ?? pullPos;
+            const resolvedPullPos = normalizedStroke.pullPos ?? pullPos ?? resolvedIdlePos;
+            const resolvedContactPos = resolvedIdlePos ?? stroke.contactPos ?? impactPos ?? pullPos;
             const strikeProgress = THREE.MathUtils.clamp(
               elapsed / Math.max(safeStrikeDuration, 1e-6),
               0,
@@ -24912,14 +24941,14 @@ const shotPowerRef = useRef(0);
             if (recoverT < 1) {
               cueStick.position.lerpVectors(
                 resolvedContactPos,
-                idlePos ?? impactPos ?? pullPos,
+                resolvedIdlePos ?? impactPos ?? pullPos,
                 easeInOutCubic(recoverT)
               );
               cueAnimating = true;
               syncCueShadow();
               return true;
             }
-            cueStick.position.copy(idlePos ?? followPos ?? impactPos);
+            cueStick.position.copy(resolvedIdlePos ?? followPos ?? impactPos);
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
             cueStick.visible = false;
@@ -29643,10 +29672,10 @@ const shotPowerRef = useRef(0);
           }
           const strikeDuration = strokeProfile.strikeDuration ?? LIVE_CUE_FORWARD_DURATION_MS;
           const strikeHoldDuration = strokeProfile.holdDuration ?? LIVE_CUE_IMPACT_HOLD_MS;
-          const pullbackDuration = strokeProfile.pullbackDuration ?? 0;
+          const pullbackDuration = 0;
           const startTime = performance.now();
           const impactPos = idlePos.clone();
-          const contactAdvance = 0; // stop the cue exactly where the slider pull started, matching Snooker Royal
+          const contactAdvance = 0; // push forward only to the original idle pose where the slider pull began
           shotImpactPayload.contactAdvance = contactAdvance;
           const contactPos = impactPos
             .clone()
@@ -34023,7 +34052,7 @@ const shotPowerRef = useRef(0);
             if (ball.shadow) ball.shadow.visible = true;
           }
           if (!ball.active) {
-            if (dropEntry) {
+            if (dropEntry && ENABLE_POCKET_UNDERBALLS) {
               ball.mesh.visible = true;
               if (ball.shadow) ball.shadow.visible = false;
             } else {
@@ -34919,7 +34948,7 @@ const shotPowerRef = useRef(0);
                 );
               const restY =
                 railRunStart.y - POCKET_HOLDER_REST_DROP - tiltDrop;
-              if (!isCueBall) {
+              if (!isCueBall && ENABLE_POCKET_UNDERBALLS) {
                 const dropEntry = {
                   start: dropStart,
                   fromY: BALL_CENTER_Y,
@@ -35138,7 +35167,14 @@ const shotPowerRef = useRef(0);
               resolve();
             }
           }
-          if (pocketDropRef.current.size > 0) {
+          if (!ENABLE_POCKET_UNDERBALLS && pocketDropRef.current.size > 0) {
+            pocketDropRef.current.forEach((entry, key) => {
+              if (entry?.mesh) entry.mesh.visible = false;
+              clearPocketGlow(entry);
+            });
+            pocketDropRef.current.clear();
+          }
+          if (ENABLE_POCKET_UNDERBALLS && pocketDropRef.current.size > 0) {
             pocketDropRef.current.forEach((entry, key) => {
               const { mesh } = entry;
               if (!mesh) {
