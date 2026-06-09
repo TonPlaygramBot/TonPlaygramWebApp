@@ -1208,6 +1208,7 @@ const FIREARM_SHOULDER_SETTLE_PHASE_RATIO = 0.43;
 const FIREARM_AIM_LOCK_PHASE_RATIO = 0.56;
 const FIREARM_AIM_SLERP_FAST = 0.62;
 const FIREARM_AIM_SLERP_LOCKED = 0.88;
+const FIREARM_MUZZLE_AIM_FORWARD = new THREE.Vector3(0, 0, 1);
 const FIREARM_RECOIL_ROTATION_RAD = 0.026;
 const FIREARM_RECOIL_RECOVER_MS = 94;
 const FIREARM_FINAL_BULLET_SLOWMO_FACTOR = 0.105;
@@ -1850,6 +1851,31 @@ function alignFirearmRackFlatByBounds(root, baseRotation = [0, 0, 0]) {
   if (bestRotation) root.rotation.set(bestRotation[0], bestRotation[1], bestRotation[2]);
 }
 
+function aimHandWeaponMuzzleAtTarget(attachment, targetWorld, blend = FIREARM_AIM_SLERP_LOCKED) {
+  const weapon = attachment?.weapon;
+  const muzzle = attachment?.muzzle;
+  const parent = weapon?.parent;
+  if (!weapon?.isObject3D || !muzzle?.isObject3D || !parent?.isObject3D || !targetWorld?.isVector3) return;
+
+  weapon.updateMatrixWorld?.(true);
+  muzzle.updateMatrixWorld?.(true);
+  const muzzleWorld = muzzle.getWorldPosition(new THREE.Vector3());
+  const desiredForward = targetWorld.clone().sub(muzzleWorld);
+  if (desiredForward.lengthSq() < 1e-8) return;
+  desiredForward.normalize();
+
+  const muzzleQuat = muzzle.getWorldQuaternion(new THREE.Quaternion());
+  const currentForward = FIREARM_MUZZLE_AIM_FORWARD.clone().applyQuaternion(muzzleQuat).normalize();
+  if (currentForward.lengthSq() < 1e-8) return;
+
+  const weaponWorldQuat = weapon.getWorldQuaternion(new THREE.Quaternion());
+  const correction = new THREE.Quaternion().setFromUnitVectors(currentForward, desiredForward);
+  const targetWorldQuat = correction.multiply(weaponWorldQuat);
+  const parentWorldInv = parent.getWorldQuaternion(new THREE.Quaternion()).invert();
+  const targetLocalQuat = parentWorldInv.multiply(targetWorldQuat);
+  weapon.quaternion.slerp(targetLocalQuat, clamp(blend, 0, 1));
+}
+
 async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
   const rightHand = attackerEntry?.rig?.rightHand;
   if (!rightHand?.isBone) return null;
@@ -1873,7 +1899,7 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
     paused: true
   });
   weapon.updateMatrixWorld?.(true);
-  const sourceRightGrip = findObjectByNeedles(weapon, ['r_wrist', 'right_wrist']);
+  const sourceRightGrip = findObjectByNeedles(weapon, ['trigger', 'grip', 'handle', 'r_wrist', 'right_wrist', 'hand_r', 'r_hand']);
   if (sourceRightGrip?.isObject3D) {
     sourceRightGrip.updateMatrixWorld?.(true);
     const gripLocal = rightHand.worldToLocal(sourceRightGrip.getWorldPosition(new THREE.Vector3()));
@@ -11428,7 +11454,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           const aimLeadMs = 340;
           const rackWorld = new THREE.Vector3();
           parkedEntry?.weaponHolder?.getWorldPosition?.(rackWorld);
-          if (parkedEntry?.weaponHolder) parkedEntry.weaponHolder.visible = false;
+          // Keep the parked weapon visible on the table during the hand-held attack so the
+          // rack presentation stays like the legacy portrait view instead of disappearing.
+          if (parkedEntry?.weaponHolder) parkedEntry.weaponHolder.visible = true;
           if (shooterRoot?.isObject3D) {
             shooterRoot.updateMatrixWorld?.(true);
             shooterRoot.getWorldPosition(muzzleOrigin);
@@ -11496,14 +11524,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           const aerodynamicRings = createBulletAerodynamicRingsFx();
           scene.add(aerodynamicRings);
           let finalImpactDone = false;
-          const aimUp = new THREE.Vector3(0, 1, 0);
           const cameraWorldUp = new THREE.Vector3(0, 1, 0);
           const cinematicAimDir = new THREE.Vector3();
           const cinematicSide = new THREE.Vector3();
           const cinematicPosition = new THREE.Vector3();
           const cinematicTarget = new THREE.Vector3();
-          const aimLookMatrix = new THREE.Matrix4();
-          const aimTargetQuat = new THREE.Quaternion();
           const recoilEuler = new THREE.Euler(0, 0, 0, 'XYZ');
           const recoilQuat = new THREE.Quaternion();
           const setFirearmCinematicPose = (position, target, lerp = 0.34) => {
@@ -11541,8 +11566,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               muzzleTarget.copy(liveTarget).add(new THREE.Vector3(0, FIREARM_CAMERA_TARGET_OFFSET, 0));
             }
             if (handWeaponAttachment?.weapon?.isObject3D && handWeaponAttachment.weapon.parent?.isObject3D) {
-              const parent = handWeaponAttachment.weapon.parent;
-              const targetLocal = parent.worldToLocal(muzzleTarget.clone());
               const drawPhase = clamp(elapsed / Math.max(1, pickupLeadMs), 0, 1);
               const shoulderPhase = clamp((elapsed - pickupLeadMs) / Math.max(1, reloadLeadMs + aimLeadMs), 0, 1);
               if (elapsed < pickupLeadMs) {
@@ -11554,14 +11577,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 handWeaponAttachment.weapon.rotation.x += Math.sin(elapsed * 0.018) * 0.004;
               }
               if (elapsed >= pickupLeadMs * 0.52) {
-                aimLookMatrix.lookAt(handWeaponAttachment.weapon.position, targetLocal, aimUp);
-                aimTargetQuat
-                  .setFromRotationMatrix(aimLookMatrix)
-                  .multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI, 0)));
                 const lockBlend = elapsed >= preFireLeadMs
                   ? FIREARM_AIM_SLERP_LOCKED
                   : THREE.MathUtils.lerp(FIREARM_AIM_SLERP_FAST, FIREARM_AIM_SLERP_LOCKED, smoother01(shoulderPhase));
-                handWeaponAttachment.weapon.quaternion.slerp(aimTargetQuat, lockBlend);
+                aimHandWeaponMuzzleAtTarget(handWeaponAttachment, muzzleTarget, lockBlend);
                 const shotRemainder = elapsedShooting >= 0 ? elapsedShooting % cadenceMs : cadenceMs;
                 const recoilPhase = elapsedShooting >= 0 ? 1 - clamp(shotRemainder / FIREARM_RECOIL_RECOVER_MS, 0, 1) : 0;
                 if (recoilPhase > 0 && elapsedShooting < shots * cadenceMs) {
