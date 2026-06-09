@@ -2050,6 +2050,53 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
   };
 }
 
+
+const PARKED_WEAPON_FALLBACK_NAME = 'captureWeaponRackFallback';
+
+function removeCaptureWeaponHolderModels(entry) {
+  if (!entry?.weaponHolder?.children) return;
+  const keepFallback = entry.parkedWeaponFallback ?? null;
+  [...entry.weaponHolder.children].forEach((child) => {
+    if (child === keepFallback || child?.name === PARKED_WEAPON_FALLBACK_NAME) return;
+    stopCaptureWeaponMixersForObjectTree(child, entry.weaponAnimationMixers);
+    child.parent?.remove?.(child);
+  });
+}
+
+function setParkedWeaponFallbackVisible(entry, captureAnimationId, visible) {
+  const fallback = entry?.parkedWeaponFallback;
+  if (!fallback?.isObject3D) return;
+  fallback.visible = Boolean(visible && FIREARM_CAPTURE_ANIMATION_IDS.has(captureAnimationId));
+  if (!fallback.visible) return;
+  const isLargeFirearm = LARGE_RACK_FIREARM_IDS.has(captureAnimationId);
+  const displayTuning =
+    MAY_9_TABLE_FIREARM_DISPLAY_TUNING_BY_ID[captureAnimationId] ||
+    (isLargeFirearm ? FIREARM_RACK_DISPLAY_TUNING.large : FIREARM_RACK_DISPLAY_TUNING.default);
+  const weaponRackScaleMultiplier = FIREARM_RACK_SIZE_MULTIPLIER_BY_ID[captureAnimationId] ?? 1;
+  const fallbackLength = THREE.MathUtils.clamp(
+    CAPTURE_PARK_BOX_TARGET_SIZE * displayTuning.targetSizeMultiplier * weaponRackScaleMultiplier * (isLargeFirearm ? 0.62 : 0.48),
+    0.052,
+    0.18
+  );
+  const fallbackThickness = THREE.MathUtils.clamp(fallbackLength * (isLargeFirearm ? 0.09 : 0.12), 0.006, 0.018);
+  const displayPosition = UNIFORM_FIREARM_RACK_DISPLAY_TUNING.position;
+  fallback.position.set(displayPosition[0], displayPosition[1] + fallbackThickness * 0.65, displayPosition[2]);
+  fallback.rotation.set(0, 0, -Math.PI * 0.5);
+  const barrel = fallback.getObjectByName?.('fallbackBarrel');
+  const grip = fallback.getObjectByName?.('fallbackGrip');
+  if (barrel?.geometry?.dispose) {
+    barrel.geometry.dispose();
+    barrel.geometry = new THREE.CylinderGeometry(fallbackThickness * 0.45, fallbackThickness * 0.5, fallbackLength, 12);
+  }
+  if (grip?.geometry?.dispose) {
+    grip.geometry.dispose();
+    grip.geometry = new THREE.BoxGeometry(fallbackThickness * 1.8, fallbackThickness * 3.2, fallbackThickness * 1.2);
+  }
+  if (grip?.position) {
+    grip.position.set(0, -fallbackLength * 0.24, fallbackThickness * 0.7);
+  }
+}
+
 async function createCaptureWeaponRackFx() {
   const root = new THREE.Group();
   const weaponHolder = new THREE.Group();
@@ -2088,9 +2135,32 @@ async function createCaptureWeaponRackFx() {
   weaponRackHit.position.set(0.04, 0.01, -0.018);
   root.add(weaponRackHit);
 
+  const parkedWeaponFallback = new THREE.Group();
+  parkedWeaponFallback.name = PARKED_WEAPON_FALLBACK_NAME;
+  parkedWeaponFallback.visible = false;
+  const fallbackMaterial = createCaptureVehicleMaterial('truck', {
+    color: '#1f2937',
+    roughness: 0.34,
+    metalness: 0.32,
+    emissive: '#020617'
+  });
+  const fallbackBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.0045, 0.08, 12), fallbackMaterial);
+  fallbackBarrel.name = 'fallbackBarrel';
+  fallbackBarrel.castShadow = true;
+  fallbackBarrel.receiveShadow = true;
+  parkedWeaponFallback.add(fallbackBarrel);
+  const fallbackGrip = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.024, 0.01), fallbackMaterial);
+  fallbackGrip.name = 'fallbackGrip';
+  fallbackGrip.castShadow = true;
+  fallbackGrip.receiveShadow = true;
+  fallbackGrip.position.set(0, -0.022, 0.006);
+  parkedWeaponFallback.add(fallbackGrip);
+  weaponHolder.add(parkedWeaponFallback);
+
   return {
     root,
     weaponHolder,
+    parkedWeaponFallback,
     actionButton,
     actionButtonHit,
     weaponRackHit,
@@ -2101,28 +2171,30 @@ async function createCaptureWeaponRackFx() {
 async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
   if (!entry?.weaponHolder) return;
   if (!FIREARM_CAPTURE_ANIMATION_IDS.has(captureAnimationId)) {
-    entry.weaponHolder.children.forEach((child) => {
-      stopCaptureWeaponMixersForObjectTree(child, entry.weaponAnimationMixers);
-    });
-    entry.weaponHolder.clear();
+    removeCaptureWeaponHolderModels(entry);
+    setParkedWeaponFallbackVisible(entry, captureAnimationId, false);
     entry.selectedCaptureAnimationId = null;
     return;
   }
-  if (entry.selectedCaptureAnimationId === captureAnimationId && entry.weaponHolder.children.length > 0) return;
-  entry.weaponHolder.children.forEach((child) => {
-    stopCaptureWeaponMixersForObjectTree(child, entry.weaponAnimationMixers);
-  });
-  entry.weaponHolder.clear();
+  const hasDisplayedWeaponModel = entry.weaponHolder.children.some(
+    (child) => child !== entry.parkedWeaponFallback && child?.name !== PARKED_WEAPON_FALLBACK_NAME
+  );
+  if (entry.selectedCaptureAnimationId === captureAnimationId && hasDisplayedWeaponModel) {
+    setParkedWeaponFallbackVisible(entry, captureAnimationId, false);
+    return;
+  }
+  entry.pendingCaptureAnimationId = captureAnimationId;
+  removeCaptureWeaponHolderModels(entry);
+  setParkedWeaponFallbackVisible(entry, captureAnimationId, true);
   const weaponModel = await loadCaptureWeaponModel(captureAnimationId);
+  if (entry.pendingCaptureAnimationId !== captureAnimationId) return;
   if (!weaponModel) {
-    entry.selectedCaptureAnimationId = null;
+    entry.selectedCaptureAnimationId = captureAnimationId;
+    setParkedWeaponFallbackVisible(entry, captureAnimationId, true);
     return;
   }
   entry.selectedCaptureAnimationId = captureAnimationId;
-  entry.weaponHolder.children.forEach((child) => {
-    stopCaptureWeaponMixersForObjectTree(child, entry.weaponAnimationMixers);
-  });
-  entry.weaponHolder.clear();
+  removeCaptureWeaponHolderModels(entry);
   const clone = weaponModel.clone(true);
   alignObjectBottomToY(clone, 0);
   const displayTuning =
@@ -2151,6 +2223,7 @@ async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
   if (!Number.isFinite(stabilizedCenter.x) || !Number.isFinite(stabilizedCenter.y) || !Number.isFinite(stabilizedCenter.z) || stabilizedCenter.length() > 0.32) {
     clone.position.set(displayPosition[0], displayPosition[1], displayPosition[2]);
   }
+  setParkedWeaponFallbackVisible(entry, captureAnimationId, false);
   entry.weaponHolder.add(clone);
 }
 
@@ -8725,11 +8798,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             refreshWeaponRackPose(entry, selectedCaptureAnimationId);
           });
         } else {
-          entry?.weaponHolder?.children?.forEach?.((child) => {
-            stopCaptureWeaponMixersForObjectTree(child, entry.weaponAnimationMixers);
-          });
-          entry.weaponHolder?.clear?.();
+          removeCaptureWeaponHolderModels(entry);
+          setParkedWeaponFallbackVisible(entry, selectedCaptureAnimationId, false);
           entry.selectedCaptureAnimationId = null;
+          entry.pendingCaptureAnimationId = null;
           refreshWeaponRackPose(entry, selectedCaptureAnimationId);
         }
       }
@@ -8829,6 +8901,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         droneTruck: droneTruckFx.root,
         weaponRack: weaponRackFx.root,
         weaponHolder: weaponRackFx.weaponHolder ?? null,
+        parkedWeaponFallback: weaponRackFx.parkedWeaponFallback ?? null,
         weaponAnimationMixers: weaponAnimationMixersRef.current,
         actionButton: weaponRackFx.actionButton ?? null,
         actionButtonHit: weaponRackFx.actionButtonHit ?? null,
