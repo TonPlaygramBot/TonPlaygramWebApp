@@ -66,6 +66,63 @@ namespace TonPlaygram.Gameplay.Weapons
     }
 
     [Serializable]
+    public sealed class ParkedWeaponDisplay
+    {
+        public LudoWeaponType weaponType = LudoWeaponType.Rifle;
+        public Transform weaponTransform;
+        public Transform tableAnchor;
+        public Vector3 tableOffset;
+        public Vector3 tableEulerOffset;
+        public bool hideWhenEquipped = true;
+
+        private Vector3 _cachedWorldPosition;
+        private Quaternion _cachedWorldRotation = Quaternion.identity;
+        private bool _hasCachedPose;
+
+        public void CachePose(Transform fallbackAnchor)
+        {
+            if (weaponTransform == null)
+                return;
+
+            Transform anchor = tableAnchor != null ? tableAnchor : fallbackAnchor;
+            if (anchor != null)
+            {
+                _cachedWorldPosition = anchor.TransformPoint(tableOffset);
+                _cachedWorldRotation = anchor.rotation * Quaternion.Euler(tableEulerOffset);
+            }
+            else
+            {
+                _cachedWorldPosition = weaponTransform.position;
+                _cachedWorldRotation = weaponTransform.rotation;
+            }
+
+            _hasCachedPose = true;
+            ApplyPose(false);
+        }
+
+        public void ApplyPose(bool isEquipped)
+        {
+            if (weaponTransform == null)
+                return;
+
+            if (_hasCachedPose)
+            {
+                weaponTransform.position = _cachedWorldPosition;
+                weaponTransform.rotation = _cachedWorldRotation;
+            }
+
+            if (hideWhenEquipped && weaponTransform.gameObject.activeSelf == isEquipped)
+            {
+                weaponTransform.gameObject.SetActive(!isEquipped);
+            }
+            else if (!hideWhenEquipped && !weaponTransform.gameObject.activeSelf)
+            {
+                weaponTransform.gameObject.SetActive(true);
+            }
+        }
+    }
+
+    [Serializable]
     public sealed class WeaponBallisticsProfile
     {
         public LudoWeaponType weaponType = LudoWeaponType.Rifle;
@@ -122,6 +179,10 @@ namespace TonPlaygram.Gameplay.Weapons
         [SerializeField] private Transform leftHandGrip;
         [SerializeField] private FpsGunHumanHandRetargeter humanHandRetargeter;
 
+        [Header("Parked table weapons")]
+        [SerializeField] private List<ParkedWeaponDisplay> parkedWeapons = new List<ParkedWeaponDisplay>();
+        [SerializeField] private bool keepHeldWeaponOnCachedRoot;
+
         [Header("Weapon presets")]
         [SerializeField] private List<WeaponBallisticsProfile> weaponProfiles = new List<WeaponBallisticsProfile>();
         [SerializeField] private LudoWeaponType startingWeapon = LudoWeaponType.Rifle;
@@ -130,6 +191,7 @@ namespace TonPlaygram.Gameplay.Weapons
         [SerializeField] private int minorPiecesPerNonFinalShot = 3;
 
         [Header("Camera anchors")]
+        [SerializeField] private bool rotateHeldWeaponMuzzleTowardTarget = true;
         [SerializeField] private Vector3 firstPersonAimOffset = new Vector3(0.08f, -0.04f, 0.18f);
         [SerializeField] private float aimPositionLerp = 20f;
         [SerializeField] private bool followAllBullets = true;
@@ -159,6 +221,7 @@ namespace TonPlaygram.Gameplay.Weapons
         private Quaternion _weaponRootLocalRot;
         private Vector3 _swapIconWorldPos;
         private Quaternion _swapIconWorldRot;
+        private Vector3 _lastAimDirection = Vector3.forward;
         private bool _isAnimationCameraActive;
 
         private void Awake()
@@ -203,6 +266,8 @@ namespace TonPlaygram.Gameplay.Weapons
             }
 
             _activeWeapon = profile;
+            RefreshParkedWeaponVisibility();
+            AimHeldWeaponAtTarget();
             PlayWeaponEquipAnimation(profile);
             for (int i = 0; i < _eventListeners.Length; i++)
             {
@@ -274,7 +339,7 @@ namespace TonPlaygram.Gameplay.Weapons
 
         private void FireSingleRound(WeaponBallisticsProfile weapon, int shotIndex, int totalShots, bool isLastBullet)
         {
-            Vector3 directionToTarget = (targetTokenRoot.position - muzzle.position).normalized;
+            Vector3 directionToTarget = (ResolveLiveTargetPosition() - muzzle.position).normalized;
             Vector3 spreadVec = UnityEngine.Random.insideUnitSphere * weapon.spread;
             Vector3 shotDirection = (directionToTarget + spreadVec).normalized;
             RefreshWeaponPose(shotDirection);
@@ -525,7 +590,12 @@ namespace TonPlaygram.Gameplay.Weapons
 
         private void RefreshWeaponPose(Vector3 shotDirection)
         {
-            if (weaponRoot != null)
+            if (shotDirection.sqrMagnitude > 0.00001f)
+            {
+                _lastAimDirection = shotDirection.normalized;
+            }
+
+            if (keepHeldWeaponOnCachedRoot && weaponRoot != null)
             {
                 weaponRoot.localPosition = _weaponRootLocalPos;
                 weaponRoot.localRotation = _weaponRootLocalRot;
@@ -553,6 +623,29 @@ namespace TonPlaygram.Gameplay.Weapons
             {
                 humanHandRetargeter.SnapToMappedPose();
             }
+
+            RotateHeldWeaponMuzzleToAim(shotDirection);
+        }
+
+        private void AimHeldWeaponAtTarget()
+        {
+            if (muzzle == null || targetTokenRoot == null)
+                return;
+
+            Vector3 aimDirection = ResolveLiveTargetPosition() - muzzle.position;
+            if (aimDirection.sqrMagnitude > 0.00001f)
+            {
+                RefreshWeaponPose(aimDirection.normalized);
+            }
+        }
+
+        private void RotateHeldWeaponMuzzleToAim(Vector3 shotDirection)
+        {
+            if (!rotateHeldWeaponMuzzleTowardTarget || weaponRoot == null || muzzle == null || shotDirection.sqrMagnitude <= 0.00001f)
+                return;
+
+            Quaternion delta = Quaternion.FromToRotation(muzzle.forward, shotDirection.normalized);
+            weaponRoot.rotation = delta * weaponRoot.rotation;
         }
 
         private IEnumerator AimViewRoutine(WeaponBallisticsProfile weapon)
@@ -734,6 +827,8 @@ namespace TonPlaygram.Gameplay.Weapons
             {
                 humanHandRetargeter.SnapToMappedPose();
             }
+
+            RotateHeldWeaponMuzzleToAim(_lastAimDirection);
         }
 
         private void CacheStaticAnchors()
@@ -742,6 +837,15 @@ namespace TonPlaygram.Gameplay.Weapons
             {
                 _weaponRootLocalPos = weaponRoot.localPosition;
                 _weaponRootLocalRot = weaponRoot.localRotation;
+            }
+
+            for (int i = 0; i < parkedWeapons.Count; i++)
+            {
+                ParkedWeaponDisplay parkedWeapon = parkedWeapons[i];
+                if (parkedWeapon != null)
+                {
+                    parkedWeapon.CachePose(tableWeaponAnchor);
+                }
             }
 
             if (weaponSwapIcon != null)
@@ -763,16 +867,37 @@ namespace TonPlaygram.Gameplay.Weapons
 
         private void MaintainStaticPresentationAnchors()
         {
-            if (weaponRoot != null)
+            if (keepHeldWeaponOnCachedRoot && weaponRoot != null)
             {
                 weaponRoot.localPosition = _weaponRootLocalPos;
                 weaponRoot.localRotation = _weaponRootLocalRot;
+            }
+
+            for (int i = 0; i < parkedWeapons.Count; i++)
+            {
+                ParkedWeaponDisplay parkedWeapon = parkedWeapons[i];
+                if (parkedWeapon != null)
+                {
+                    parkedWeapon.ApplyPose(_activeWeapon != null && parkedWeapon.weaponType == _activeWeapon.weaponType);
+                }
             }
 
             if (weaponSwapIcon != null)
             {
                 weaponSwapIcon.position = _swapIconWorldPos;
                 weaponSwapIcon.rotation = _swapIconWorldRot;
+            }
+        }
+
+        private void RefreshParkedWeaponVisibility()
+        {
+            for (int i = 0; i < parkedWeapons.Count; i++)
+            {
+                ParkedWeaponDisplay parkedWeapon = parkedWeapons[i];
+                if (parkedWeapon != null)
+                {
+                    parkedWeapon.ApplyPose(_activeWeapon != null && parkedWeapon.weaponType == _activeWeapon.weaponType);
+                }
             }
         }
 
