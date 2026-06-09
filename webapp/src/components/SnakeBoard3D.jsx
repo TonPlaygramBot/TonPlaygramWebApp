@@ -267,10 +267,9 @@ const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
 // Keep Snake dice motion aligned with Ludo Battle Royal's frame-synced single-arc spinDice roll.
 const DICE_ROLL_DURATION = 1100;
-const DICE_SETTLE_DURATION = 0;
-const DICE_RESULT_HOLD_DURATION = 1500;
-// Ludo Battle Royal spinDice uses an absolute 0.06 tabletop bounce.
-const DICE_BOUNCE_HEIGHT = 0.06;
+const DICE_SETTLE_DURATION = 220;
+const DICE_RESULT_HOLD_DURATION = 720;
+const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.78;
 const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.8;
 const DICE_THROW_START_EXTRA = TILE_SIZE * 3.6;
 const DICE_THROW_HEIGHT = DICE_SIZE * 0.78;
