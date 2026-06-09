@@ -440,7 +440,7 @@ const chessMatchedPolyPizzaCaptureConfig = (ludoId) => {
     source: sourceOption.source || 'Poly Pizza',
     creator: sourceOption.creator,
     license: sourceOption.license,
-    texturePolicy: 'polyPizzaOriginalGlb',
+    texturePolicy: 'preserveSource',
     snakeCaptureWeaponId: snakeId,
     scale: chessConfig.scale
   };
@@ -1152,6 +1152,54 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
     rotation: [-1.46, -0.04, -1.56],
     muzzleOffset: [0, 0.014, 0.223]
   },
+  polyRobotLargeGunAttack: {
+    position: [0.036, -0.005, 0.13],
+    rotation: [-1.41, -0.045, -1.56],
+    muzzleOffset: [0, 0.016, 0.25],
+    offhandOffset: [-0.024, -0.003, 0.088]
+  },
+  polyRobotFlyingGunAttack: {
+    position: [0.025, -0.003, 0.103],
+    rotation: [-1.46, -0.04, -1.56],
+    muzzleOffset: [0, 0.014, 0.218]
+  },
+  polyBazooka01Attack: {
+    position: [0.04, -0.006, 0.142],
+    rotation: [-1.37, -0.05, -1.565],
+    muzzleOffset: [0, 0.016, 0.285],
+    offhandOffset: [-0.028, -0.003, 0.094]
+  },
+  polyGrenadeLauncher01Attack: {
+    position: [0.036, -0.005, 0.13],
+    rotation: [-1.4, -0.05, -1.56],
+    muzzleOffset: [0, 0.016, 0.24],
+    offhandOffset: [-0.024, -0.003, 0.084]
+  },
+  polyDynamiteBomb01Attack: {
+    position: [0.02, -0.001, 0.084],
+    rotation: [-1.5, -0.03, -1.58],
+    muzzleOffset: [0, 0.014, 0.16]
+  },
+  polyMolotov01Attack: {
+    position: [0.02, -0.001, 0.082],
+    rotation: [-1.5, -0.03, -1.58],
+    muzzleOffset: [0, 0.014, 0.15]
+  },
+  polyGasTank01Attack: {
+    position: [0.022, -0.002, 0.088],
+    rotation: [-1.49, -0.035, -1.575],
+    muzzleOffset: [0, 0.014, 0.18]
+  },
+  polyHandGrenade01Attack: {
+    position: [0.018, 0, 0.078],
+    rotation: [-1.52, -0.03, -1.58],
+    muzzleOffset: [0, 0.012, 0.13]
+  },
+  polyTank01Attack: {
+    position: [0.034, -0.004, 0.122],
+    rotation: [-1.44, -0.04, -1.555],
+    muzzleOffset: [0, 0.016, 0.2]
+  },
   shotgunBlastAttack: {
     position: [0.036, -0.006, 0.129],
     rotation: [-1.4, -0.05, -1.56],
@@ -1196,7 +1244,16 @@ const FIREARM_ATTACH_SCALE_MULTIPLIER = Object.freeze({
   polyRevolver02Attack: 1.17,
   polyShotgun02Attack: 1.34,
   polyShotgun03Attack: 1.28,
-  polySmg01Attack: 1.22
+  polySmg01Attack: 1.22,
+  polyRobotLargeGunAttack: 1.34,
+  polyRobotFlyingGunAttack: 1.18,
+  polyBazooka01Attack: 1.44,
+  polyGrenadeLauncher01Attack: 1.34,
+  polyDynamiteBomb01Attack: 0.74,
+  polyMolotov01Attack: 0.66,
+  polyGasTank01Attack: 0.78,
+  polyHandGrenade01Attack: 0.54,
+  polyTank01Attack: 0.86
 });
 const FIREARM_VOLLEY_SLOW_FACTOR = 2.08;
 const FIREARM_CAMERA_FOCUS_BLEND = 0.58;
@@ -1210,6 +1267,49 @@ const FIREARM_AIM_SLERP_FAST = 0.62;
 const FIREARM_AIM_SLERP_LOCKED = 0.88;
 const FIREARM_MUZZLE_AIM_FORWARD = new THREE.Vector3(0, 0, 1);
 const FIREARM_MUZZLE_AIM_UP = new THREE.Vector3(0, 1, 0);
+const FIREARM_MUZZLE_FORWARD_BY_ID = Object.freeze({
+  // Explicit per-weapon barrel mapping: every loaded source model is posed so
+  // its authored barrel/front points along local +Z after the hand-attachment
+  // tuning below. Keeping this one-by-one table prevents future rack/hand pose
+  // edits from accidentally aiming the stock, grip, or explosive body at the target.
+  default: [0, 0, 1],
+  mrtkGunAttack: [0, 0, 1],
+  pistolHolsterAttack: [0, 0, 1],
+  fpsGunAttack: [0, 0, 1],
+  glockSidearmAttack: [0, 0, 1],
+  pistolSidearmAttack: [0, 0, 1],
+  uziSprayAttack: [0, 0, 1],
+  smgBurstAttack: [0, 0, 1],
+  assaultRifleAttack: [0, 0, 1],
+  ak47VolleyAttack: [0, 0, 1],
+  krsvBurstAttack: [0, 0, 1],
+  smithSidearmAttack: [0, 0, 1],
+  mosinMarksmanAttack: [0, 0, 1],
+  sigsauerTacticalAttack: [0, 0, 1],
+  compactCarbineAttack: [0, 0, 1],
+  marksmanDmrAttack: [0, 0, 1],
+  shotgunBlastAttack: [0, 0, 1],
+  sniperShotAttack: [0, 0, 1],
+  grenadeBlastAttack: [0, 0, 1],
+  polyShotgun01Attack: [0, 0, 1],
+  polyAssaultRifle01Attack: [0, 0, 1],
+  polyPistol01Attack: [0, 0, 1],
+  polyRevolver01Attack: [0, 0, 1],
+  polySawedOff01Attack: [0, 0, 1],
+  polyRevolver02Attack: [0, 0, 1],
+  polyShotgun02Attack: [0, 0, 1],
+  polyShotgun03Attack: [0, 0, 1],
+  polySmg01Attack: [0, 0, 1],
+  polyRobotLargeGunAttack: [0, 0, 1],
+  polyRobotFlyingGunAttack: [0, 0, 1],
+  polyBazooka01Attack: [0, 0, 1],
+  polyGrenadeLauncher01Attack: [0, 0, 1],
+  polyDynamiteBomb01Attack: [0, 0, 1],
+  polyMolotov01Attack: [0, 0, 1],
+  polyGasTank01Attack: [0, 0, 1],
+  polyHandGrenade01Attack: [0, 0, 1],
+  polyTank01Attack: [0, 0, 1]
+});
 const FIREARM_AIM_ROLL_BY_PROFILE = Object.freeze({
   pistol: 0.08,
   smg: 0.04,
@@ -1880,7 +1980,8 @@ function aimHandWeaponMuzzleAtTarget(attachment, targetWorld, blend = FIREARM_AI
   desiredForward.normalize();
 
   const muzzleQuat = muzzle.getWorldQuaternion(new THREE.Quaternion());
-  const currentForward = FIREARM_MUZZLE_AIM_FORWARD.clone().applyQuaternion(muzzleQuat).normalize();
+  const muzzleForward = attachment?.muzzleForward || FIREARM_MUZZLE_AIM_FORWARD;
+  const currentForward = muzzleForward.clone().applyQuaternion(muzzleQuat).normalize();
   if (currentForward.lengthSq() < 1e-8) return;
 
   const weaponWorldQuat = weapon.getWorldQuaternion(new THREE.Quaternion());
@@ -1961,6 +2062,7 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
     offhandTarget,
     twoHanded,
     gripProfile,
+    muzzleForward: new THREE.Vector3(...(FIREARM_MUZZLE_FORWARD_BY_ID[captureAnimationId] || FIREARM_MUZZLE_FORWARD_BY_ID.default)),
     aimRollRad: FIREARM_AIM_ROLL_BY_PROFILE[gripProfile] ?? FIREARM_AIM_ROLL_BY_PROFILE.default,
     release: () => {
       const mixer = weapon.userData?.captureWeaponMixer;
@@ -1979,7 +2081,7 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
 async function createCaptureWeaponRackFx() {
   const root = new THREE.Group();
   const weaponHolder = new THREE.Group();
-  weaponHolder.position.set(0.04, 0.032, -0.018);
+  weaponHolder.position.set(0.04, 0.004, -0.018);
   weaponHolder.rotation.set(0, 0, 0);
   root.add(weaponHolder);
 
@@ -2011,7 +2113,7 @@ async function createCaptureWeaponRackFx() {
     new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 })
   );
   weaponRackHit.name = 'captureWeaponRackHit';
-  weaponRackHit.position.set(0.04, 0.032, -0.018);
+  weaponRackHit.position.set(0.04, 0.01, -0.018);
   root.add(weaponRackHit);
 
   return {
@@ -4349,7 +4451,7 @@ function resolvePlayerColors(appearance = {}) {
   return PLAYER_COLOR_ORDER.map((_, idx) => normalizeColorValue(swatches[idx], DEFAULT_PLAYER_COLORS[idx]));
 }
 
-const CAMERA_FOV = 72;
+const CAMERA_FOV = 75;
 const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
 const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
 const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
@@ -4382,8 +4484,8 @@ const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.18;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.26;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 2.3;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.98;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.12;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.84;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.2;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.9;
 const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_PORTRAIT = 0.42 * MODEL_SCALE;
 const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_LANDSCAPE = 0.2 * MODEL_SCALE;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -0.02 * 3.22 * ARENA_SCALE;
@@ -4400,8 +4502,8 @@ const PORTRAIT_CAMERA_TUNING = Object.freeze({
   targetLift: 0.06 * MODEL_SCALE
 });
 const CAMERA_EXTRA_PULLBACK = 0.1;
-const CAMERA_EXTRA_LIFT = 0.16;
-const PORTRAIT_CAMERA_EXTRA_LIFT = 0.14;
+const CAMERA_EXTRA_LIFT = 0.2;
+const PORTRAIT_CAMERA_EXTRA_LIFT = 0.18;
 const CAMERA_PLAYER_CENTER_X_EPSILON = 0.0001;
 const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
 const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
@@ -10205,6 +10307,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
     let cancelled = false;
     let onPointerDown = null;
+    let onPointerMove = null;
     let onPointerUp = null;
     let onResize = null;
 
@@ -10752,7 +10855,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     };
 
     let pointerLocked = false;
-    let onPointerMove = null;
     onPointerDown = (event) => {
       const { clientX, clientY } = event;
       if (clientX == null || clientY == null) return;
