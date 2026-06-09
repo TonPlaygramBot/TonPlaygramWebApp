@@ -13,8 +13,7 @@ const polyPizzaWeapon = (id, label, uuid, colors, extra = {}) => ({
   creator: extra.creator || undefined,
   license: extra.license || 'CC0 / Poly Pizza source page',
   modelScale: extra.modelScale,
-  ludoCaptureAnimationId: extra.ludoCaptureAnimationId,
-  ...Object.fromEntries(Object.entries(extra).filter(([key]) => !['thumbnail', 'source', 'creator', 'license', 'modelScale', 'ludoCaptureAnimationId'].includes(key))),
+  ...Object.fromEntries(Object.entries(extra).filter(([key]) => !['thumbnail', 'source', 'creator', 'license', 'modelScale'].includes(key))),
   fallbackThumbnail: weaponSilhouetteThumbnail(colors)
 })
 
@@ -46,8 +45,8 @@ const gunifyWeapon = (id, label, modelName, colors, extra = {}) => ({
   ...extra
 })
 
+
 const LUDO_CAPTURE_WEAPON_IDS = Object.freeze([
-  'missileJavelin',
   'fighterJetAttack',
   'helicopterAttack',
   'droneAttack'
@@ -66,37 +65,8 @@ const ludoVehicleWeapon = (id, vehicleKind, fallbackLabel, fallbackThumbnail, ex
   thumbnail: LUDO_CAPTURE_OPTION_BY_ID[id]?.thumbnail || fallbackThumbnail,
   source: 'Ludo Battle Royal',
   vehicleKind,
-  ludoCaptureAnimationId: id,
   ...extra
 })
-
-const ludoCaptureWeapon = (id, colors, extra = {}) => {
-  const option = LUDO_CAPTURE_OPTION_BY_ID[id] || CAPTURE_ANIMATION_OPTIONS.find((entry) => entry.id === id)
-  return {
-    id,
-    label: option?.label || extra.label || id,
-    description: option?.description || extra.description,
-    thumbnail: option?.thumbnail || extra.thumbnail || weaponSilhouetteThumbnail(colors),
-    source: 'Ludo Battle Royal',
-    ludoCaptureAnimationId: id,
-    ...extra
-  }
-}
-
-const SNAKE_DIRECT_LUDO_WEAPON_IDS = new Set([
-  'droneAttack',
-  'ukrainianDroneAttack',
-  'fighterJetAttack',
-  'helicopterAttack'
-])
-
-const LUDO_CAPTURE_WEAPON_PROXY_OPTIONS = Object.freeze(
-  CAPTURE_ANIMATION_OPTIONS.filter((option) => !SNAKE_DIRECT_LUDO_WEAPON_IDS.has(option.id)).map((option) =>
-    ludoCaptureWeapon(option.id, ['#334155', '#0f172a', '#e2e8f0'], {
-      ludoProxyOnly: true
-    })
-  )
-)
 
 export const UKRAINIAN_DRONE_GLB_URLS = Object.freeze([
   'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/drone.glb',
@@ -129,8 +99,7 @@ export const SNAKE_FPS_GUN_MODEL_CONFIG = Object.freeze({
   // May 9 05:00 baseline used by Ludo Battle Royal for the same FPS gun asset.
   ludoModelScale: 0.24,
   ludoRackSizeMultiplier: 2.2,
-  ludoHandScaleMultiplier: 3.2,
-  ludoCaptureAnimationId: 'fpsGunAttack'
+  ludoHandScaleMultiplier: 3.2
 })
 
 export const SNAKE_CAPTURE_WEAPON_OPTIONS = Object.freeze([
@@ -139,10 +108,8 @@ export const SNAKE_CAPTURE_WEAPON_OPTIONS = Object.freeze([
     label: 'Ukrainian Drone',
     thumbnail: swatchThumbnail(['#60a5fa', '#facc15', '#1d4ed8']),
     urls: UKRAINIAN_DRONE_GLB_URLS,
-    vehicleKind: 'ukrainianDrone',
-    ludoCaptureAnimationId: 'ukrainianDroneAttack'
+    vehicleKind: 'ukrainianDrone'
   },
-  ...LUDO_CAPTURE_WEAPON_PROXY_OPTIONS,
   ludoVehicleWeapon(
     'fighterJetAttack',
     'fighter',
@@ -167,8 +134,7 @@ export const SNAKE_CAPTURE_WEAPON_OPTIONS = Object.freeze([
     description: 'Ludo Battle Royal support truck parked with the same capture-vehicle inventory set.',
     thumbnail: swatchThumbnail(['#f97316', '#7c2d12', '#fdba74']),
     source: 'Ludo Battle Royal',
-    vehicleKind: 'supportTruck',
-    ludoCaptureAnimationId: 'missileJavelin'
+    vehicleKind: 'supportTruck'
   },
   polyPizzaWeapon('poly-shotgun-01', 'Quaternius Shotgun', '032e6589-3188-41bc-b92b-e25528344275', ['#64748b', '#1e293b', '#f8fafc'], { creator: 'Quaternius', modelScale: 1 }),
   polyPizzaWeapon('poly-assault-rifle-01', 'Quaternius Assault Rifle', 'b3e6be61-0299-4866-a227-58f5f3fe610b', ['#334155', '#0f172a', '#94a3b8'], { creator: 'Quaternius', modelScale: 1.02 }),
@@ -188,14 +154,13 @@ export const SNAKE_CAPTURE_WEAPON_OPTIONS = Object.freeze([
   polyPizzaWeapon('poly-gas-tank-01', 'Quaternius Gas Tank', '9c4d2ac5-114b-4da2-a26a-8049e2b1ba04', ['#b91c1c', '#111827', '#e5e7eb'], { creator: 'Quaternius', modelScale: 0.62 }),
   polyPizzaWeapon('poly-hand-grenade-01', 'CreativeTrio Hand Grenade', '03fa7f5b-4df5-45d6-86fb-87e8590f28d7', ['#3f6212', '#111827', '#a3e635'], { creator: 'CreativeTrio', modelScale: 0.36 }),
   polyPizzaWeapon('poly-tank-01', 'Quaternius Battle Tank', '58c387b2-636f-49dc-a900-13b0852717d6', ['#334155', '#111827', '#94a3b8'], { creator: 'Quaternius', modelScale: 0.7 }),
-  gunifyWeapon('slot-10-ak47-gltf', 'AK47 GLTF', 'AK47', ['#7f1d1d', '#111827', '#f59e0b'], { ludoCaptureScale: 0.24, ludoCaptureAnimationId: 'ak47VolleyAttack' }),
-  gunifyWeapon('slot-11-krsv-gltf', 'KRSV GLTF', 'KRSV', ['#1d4ed8', '#0f172a', '#bfdbfe'], { ludoCaptureScale: 0.24, ludoCaptureAnimationId: 'krsvBurstAttack' }),
-  gunifyWeapon('slot-12-smith-gltf', 'Smith GLTF', 'Smith', ['#6b7280', '#0f172a', '#f8fafc'], { ludoCaptureScale: 0.13, ludoCaptureAnimationId: 'smithSidearmAttack' }),
-  gunifyWeapon('slot-13-mosin-gltf', 'Mosin GLTF', 'Mosin', ['#92400e', '#1f2937', '#fcd34d'], { ludoCaptureScale: 0.5125, ludoCaptureAnimationId: 'mosinMarksmanAttack' }),
-  gunifyWeapon('slot-14-uzi-gltf', 'Uzi GLTF', 'Uzi', ['#0f766e', '#111827', '#99f6e4'], { ludoCaptureScale: 0.2, ludoCaptureAnimationId: 'uziSprayAttack' }),
-  gunifyWeapon('slot-15-sigsauer-gltf', 'SigSauer GLTF', 'SigSauer', ['#334155', '#020617', '#f1f5f9'], { ludoCaptureScale: 0.13, ludoCaptureAnimationId: 'sigsauerTacticalAttack' }),
-  { id: 'slot-16-awp-glb', label: 'AWP Sniper GLB', thumbnail: weaponSilhouetteThumbnail(['#1e293b', '#0f172a', '#f8fafc']), urls: [SNAKE_KNOWN_WORKING_GLB.awp, SNAKE_KNOWN_WORKING_GLB.awpRaw], ludoCaptureAnimationId: 'sniperShotAttack' },
-  { id: 'slot-17-mrtk-gun-glb', label: 'MRTK Glock Sidearm GLB', thumbnail: weaponSilhouetteThumbnail(['#111827', '#475569', '#e5e7eb']), urls: [SNAKE_KNOWN_WORKING_GLB.mrtk, SNAKE_KNOWN_WORKING_GLB.mrtkRaw, SNAKE_KNOWN_WORKING_GLB.mrtkMaster], ludoCaptureAnimationId: 'glockSidearmAttack' },
+  gunifyWeapon('slot-10-ak47-gltf', 'AK47 GLTF', 'AK47', ['#7f1d1d', '#111827', '#f59e0b'], { ludoCaptureScale: 0.24 }),
+  gunifyWeapon('slot-11-krsv-gltf', 'KRSV GLTF', 'KRSV', ['#1d4ed8', '#0f172a', '#bfdbfe'], { ludoCaptureScale: 0.24 }),
+  gunifyWeapon('slot-12-smith-gltf', 'Smith GLTF', 'Smith', ['#6b7280', '#0f172a', '#f8fafc'], { ludoCaptureScale: 0.13 }),
+  gunifyWeapon('slot-13-mosin-gltf', 'Mosin GLTF', 'Mosin', ['#92400e', '#1f2937', '#fcd34d'], { ludoCaptureScale: 0.5125 }),
+  gunifyWeapon('slot-14-uzi-gltf', 'Uzi GLTF', 'Uzi', ['#0f766e', '#111827', '#99f6e4'], { ludoCaptureScale: 0.2 }),
+  gunifyWeapon('slot-15-sigsauer-gltf', 'SigSauer GLTF', 'SigSauer', ['#334155', '#020617', '#f1f5f9'], { ludoCaptureScale: 0.13 }),
+  { id: 'slot-16-awp-glb', label: 'AWP Sniper GLB', thumbnail: weaponSilhouetteThumbnail(['#1e293b', '#0f172a', '#f8fafc']), urls: [SNAKE_KNOWN_WORKING_GLB.awp, SNAKE_KNOWN_WORKING_GLB.awpRaw] },
   SNAKE_FPS_GUN_MODEL_CONFIG
 ])
 
