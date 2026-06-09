@@ -11,8 +11,10 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import {
+  createExactUkrainianFallbackDrone,
   isExactUkrainianDroneObject,
-  loadExactUkrainianDroneModel
+  loadExactUkrainianDroneModel,
+  normalizeExactUkrainianDroneObject
 } from '../utils/ukrainianDroneModel.js';
 
 import {
@@ -5693,6 +5695,14 @@ function stripAk47RearWoodStock(model) {
   return model;
 }
 
+function normalizeExactUkrainianDroneForCapture(model) {
+  if (!model) return model;
+  normalizeExactUkrainianDroneObject(model, 1);
+  model.rotation.y = 0.45;
+  model.userData = { ...(model.userData || {}), exactUkrainianDroneCaptureScale: true };
+  return model;
+}
+
 function normalizeCaptureVehicleModel(model) {
   if (!model) return model;
   const box = new THREE.Box3().setFromObject(model);
@@ -5984,7 +5994,7 @@ async function loadCaptureVehicleModel(kind = 'fighter') {
   if (kind === 'ukrainianDrone') {
     const cacheKey = `${kind}:exactUkrainianDrone`;
     if (!SNAKE_CAPTURE_VEHICLE_MODEL_CACHE.has(cacheKey)) {
-      SNAKE_CAPTURE_VEHICLE_MODEL_CACHE.set(cacheKey, loadExactUkrainianDroneModel().then((model) => normalizeCaptureVehicleModel(model)));
+      SNAKE_CAPTURE_VEHICLE_MODEL_CACHE.set(cacheKey, loadExactUkrainianDroneModel().then((model) => normalizeExactUkrainianDroneForCapture(model)));
     }
     const model = await SNAKE_CAPTURE_VEHICLE_MODEL_CACHE.get(cacheKey);
     return model?.clone?.(true) ?? null;
@@ -6050,7 +6060,7 @@ function createCaptureVehicleRig(kind = 'fighter') {
     opacity: 0.2
   });
 
-  root.add(createCaptureVehicleFallbackMesh(visualKind));
+  root.add(kind === 'ukrainianDrone' ? normalizeExactUkrainianDroneForCapture(createExactUkrainianFallbackDrone()) : createCaptureVehicleFallbackMesh(visualKind));
   if (kind === 'javelin') {
     root.userData.rotorNodes = [];
     root.userData.topRotor = null;
@@ -7720,7 +7730,11 @@ export default function SnakeBoard3D({
     const bbox = new THREE.Box3().setFromObject(attacker);
     const tokenHeight = Math.max(TOKEN_HEIGHT * 5, bbox.max.y - bbox.min.y);
     const isUkrainianDroneAircraft = vehicleKind === 'ukrainianDrone';
-    primaryVehicle.root.scale.set(tokenHeight, tokenHeight * 0.38, tokenHeight * 0.38);
+    if (isUkrainianDroneAircraft) {
+      primaryVehicle.root.scale.setScalar(tokenHeight * 0.82);
+    } else {
+      primaryVehicle.root.scale.set(tokenHeight, tokenHeight * 0.38, tokenHeight * 0.38);
+    }
     missileProjectile.root.scale.set(
       isUkrainianDroneAircraft ? tokenHeight * 0.42 : tokenHeight * 0.85,
       isUkrainianDroneAircraft ? tokenHeight * 0.12 : tokenHeight * 0.22,
