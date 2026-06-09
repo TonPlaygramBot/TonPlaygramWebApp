@@ -444,6 +444,46 @@ const CHESS_LARGE_FIREARM_IDS = new Set([
   'polyGrenadeLauncher01Attack',
   'polyTank01Attack'
 ]);
+const CHESS_TWO_HANDED_FIREARM_IDS = new Set([
+  'fpsGunAttack',
+  'assaultRifleAttack',
+  'ak47VolleyAttack',
+  'krsvBurstAttack',
+  'mosinMarksmanAttack',
+  'shotgunBlastAttack',
+  'sniperShotAttack',
+  'marksmanDmrAttack',
+  'compactCarbineAttack',
+  'polyShotgun01Attack',
+  'polyAssaultRifle01Attack',
+  'polyShotgun02Attack',
+  'polyShotgun03Attack',
+  'polyRobotLargeGunAttack',
+  'polyRobotFlyingGunAttack',
+  'polyBazooka01Attack',
+  'polyGrenadeLauncher01Attack',
+  'polyTank01Attack'
+]);
+const CHESS_SINGLE_HAND_FIREARM_IDS = new Set([
+  'glockSidearmAttack',
+  'pistolSidearmAttack',
+  'uziSprayAttack',
+  'smgBurstAttack',
+  'smithSidearmAttack',
+  'sigsauerTacticalAttack',
+  'grenadeBlastAttack',
+  'polyPistol01Attack',
+  'polyRevolver01Attack',
+  'polySawedOff01Attack',
+  'polyRevolver02Attack',
+  'polySmg01Attack',
+  'polyDynamiteBomb01Attack',
+  'polyMolotov01Attack',
+  'polyGasTank01Attack',
+  'polyHandGrenade01Attack'
+]);
+const isChessTwoHandedFirearm = (captureAnimationId) =>
+  CHESS_TWO_HANDED_FIREARM_IDS.has(captureAnimationId) && !CHESS_SINGLE_HAND_FIREARM_IDS.has(captureAnimationId);
 const CHESS_FIREARM_MAGAZINE_SHOTS_BY_ID = Object.freeze({
   fpsGunAttack: 24,
   glockSidearmAttack: 17,
@@ -593,9 +633,25 @@ const CHESS_FIREARM_HOLD_PROFILE_BY_TYPE = Object.freeze({
   GrenadeLauncher: { supportGrip: 0.96, shoulderX: -1.06, shoulderY: -0.13, shoulderZ: -1.16, forearmX: -0.32, forearmY: -0.1, forearmZ: 0.16, wristX: 0.18, wristY: -0.08, wristZ: -0.24, chestX: 0.24, headX: -0.18, triggerGrip: 0.96 }
 });
 
+const CHESS_FIREARM_FPS_HAND_POSITION = Object.freeze([0.034, -0.004, 0.122]);
+const CHESS_FIREARM_FPS_HAND_ROTATION = Object.freeze([-1.45, -0.04, -1.56]);
+const CHESS_FIREARM_DEFAULT_OFFHAND_OFFSET = Object.freeze([-0.023, -0.002, 0.082]);
+const CHESS_FIREARM_AIM_ROLL_BY_TYPE = Object.freeze({
+  Pistol: 0.08,
+  Revolver: 0.08,
+  SMG: 0.04,
+  Rifle: -0.02,
+  AssaultRifle: -0.02,
+  Sniper: -0.025,
+  SniperRifle: -0.025,
+  DMR: -0.025,
+  Shotgun: -0.045,
+  GrenadeLauncher: -0.055,
+  default: 0
+});
 const CHESS_FIREARM_HAND_ATTACH_TUNING = Object.freeze({
-  default: { muzzleOffset: [0.0, 0.012, 0.2] },
-  fpsGunAttack: { muzzleOffset: [0, 0.014, 0.248] },
+  default: { position: CHESS_FIREARM_FPS_HAND_POSITION, rotation: CHESS_FIREARM_FPS_HAND_ROTATION, muzzleOffset: [0.0, 0.012, 0.2], offhandOffset: CHESS_FIREARM_DEFAULT_OFFHAND_OFFSET },
+  fpsGunAttack: { position: CHESS_FIREARM_FPS_HAND_POSITION, rotation: CHESS_FIREARM_FPS_HAND_ROTATION, muzzleOffset: [0, 0.014, 0.248], offhandOffset: CHESS_FIREARM_DEFAULT_OFFHAND_OFFSET },
   glockSidearmAttack: { muzzleOffset: [0, 0.012, 0.19] },
   uziSprayAttack: { muzzleOffset: [0, 0.014, 0.215] },
   smgBurstAttack: { muzzleOffset: [0, 0.014, 0.22] },
@@ -1356,10 +1412,18 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, m
     chestX = THREE.MathUtils.lerp(chestX, holdProfile.chestX ?? 0.2, t);
     headX = THREE.MathUtils.lerp(headX, holdProfile.headX ?? -0.14, t);
     rightHandGrip = Math.max(handGrip, holdProfile.triggerGrip ?? 0.94);
-    addBoneRot(rig, rig.leftUpperArm, -0.92, -0.08, 0.92);
-    addBoneRot(rig, rig.leftForeArm, -0.66, 0.12, -0.28);
-    addBoneRot(rig, rig.leftHand, -0.04, -0.12, 0.08);
-    applyLeftHandSupportGrip(rig, Math.max(holdProfile.supportGrip ?? 0.72, handGrip));
+    const twoHandedFirearm = motionProfile?.twoHandedFirearm !== false;
+    if (twoHandedFirearm) {
+      addBoneRot(rig, rig.leftUpperArm, -0.92, -0.08, 0.92);
+      addBoneRot(rig, rig.leftForeArm, -0.66, 0.12, -0.28);
+      addBoneRot(rig, rig.leftHand, -0.04, -0.12, 0.08);
+      applyLeftHandSupportGrip(rig, Math.max(holdProfile.supportGrip ?? 0.72, handGrip));
+    } else {
+      // Pistols, Uzi/SMG and compact sidearms stay visibly one-handed on portrait screens.
+      addBoneRot(rig, rig.leftUpperArm, -0.12, 0.04, 0.08);
+      addBoneRot(rig, rig.leftForeArm, -0.08, 0.02, -0.04);
+      addBoneRot(rig, rig.leftHand, -0.02, 0.01, 0.02);
+    }
   } else if (mode === 'carryPiece') {
     shoulderX = THREE.MathUtils.lerp(shoulderX, -0.98, t);
     shoulderY = THREE.MathUtils.lerp(shoulderY, -0.02, t);
@@ -4559,7 +4623,8 @@ function aimChessHandWeaponMuzzleAtTarget(attachment, targetWorld, blend = 0.92)
       desiredForward.dot(new THREE.Vector3().crossVectors(flatCurrentUp, flatWorldUp)),
       clamp(flatCurrentUp.dot(flatWorldUp), -1, 1)
     );
-    targetWorldQuat.premultiply(new THREE.Quaternion().setFromAxisAngle(desiredForward, signedRoll));
+    const profileRoll = attachment?.aimRollRad ?? 0;
+    targetWorldQuat.premultiply(new THREE.Quaternion().setFromAxisAngle(desiredForward, signedRoll + profileRoll));
   }
   const parentWorldInv = parent.getWorldQuaternion(new THREE.Quaternion()).invert();
   weapon.quaternion.slerp(parentWorldInv.multiply(targetWorldQuat), clamp(blend, 0, 1));
@@ -4573,8 +4638,9 @@ async function attachChessFirearmToRightHand(attackerEntry, captureAnimationId) 
   const targetSize = resolveChessFirearmAnimationTargetSize(captureAnimationId);
   const weapon = prepareChessCaptureWeaponClone(template, captureAnimationId, { flat: false, targetSize });
   const tuning = CHESS_FIREARM_HAND_ATTACH_TUNING[captureAnimationId] || CHESS_FIREARM_HAND_ATTACH_TUNING.default;
-  weapon.position.set(0.012, 0.006, -0.008);
-  weapon.rotation.set(...CHESS_FIREARM_AIM_ROTATION);
+  const readyGripOffset = new THREE.Vector3(...(tuning.position || CHESS_FIREARM_FPS_HAND_POSITION));
+  weapon.position.copy(readyGripOffset);
+  weapon.rotation.set(...(tuning.rotation || CHESS_FIREARM_FPS_HAND_ROTATION));
   weapon.scale.multiplyScalar(1.06);
   rightHand.add(weapon);
   weapon.updateMatrixWorld?.(true);
@@ -4582,17 +4648,26 @@ async function attachChessFirearmToRightHand(attackerEntry, captureAnimationId) 
   if (gripNode?.isObject3D) {
     gripNode.updateMatrixWorld?.(true);
     const gripLocal = rightHand.worldToLocal(gripNode.getWorldPosition(new THREE.Vector3()));
-    const gripCorrection = new THREE.Vector3(0.012, 0.006, -0.008).sub(gripLocal);
+    const gripCorrection = readyGripOffset.clone().sub(gripLocal);
     if (gripCorrection.lengthSq() < 0.2 * 0.2) weapon.position.add(gripCorrection);
   }
+  const offhandTarget = new THREE.Object3D();
+  offhandTarget.name = 'chess-handheld-firearm-offhand-target';
+  offhandTarget.position.set(...(tuning.offhandOffset || CHESS_FIREARM_DEFAULT_OFFHAND_OFFSET));
+  weapon.add(offhandTarget);
   const muzzle = new THREE.Object3D();
   muzzle.name = 'chess-handheld-firearm-muzzle';
   muzzle.position.set(...(tuning.muzzleOffset || CHESS_FIREARM_HAND_ATTACH_TUNING.default.muzzleOffset));
   weapon.add(muzzle);
+  const firearmType = resolveFirearmTypeForAnimationId(captureAnimationId);
   return {
     weapon,
     muzzle,
+    offhandTarget,
+    twoHanded: isChessTwoHandedFirearm(captureAnimationId),
     muzzleForward: new THREE.Vector3(0, 0, 1),
+    aimRollRad: CHESS_FIREARM_AIM_ROLL_BY_TYPE[firearmType] ?? CHESS_FIREARM_AIM_ROLL_BY_TYPE.default,
+    actorEntry: attackerEntry,
     release: () => {
       weapon.parent?.remove?.(weapon);
       disposeObject3D(weapon);
@@ -14878,6 +14953,9 @@ function Chess3D({
           firearmType: isFirearmCaptureAction
             ? resolveFirearmTypeForAnimationId(captureAnimationIdForAction)
             : null,
+          twoHandedFirearm: isFirearmCaptureAction
+            ? isChessTwoHandedFirearm(captureAnimationIdForAction)
+            : false,
           forwardReach,
           sideReach,
           gripOffset: null,
@@ -15966,6 +16044,11 @@ function Chess3D({
             if (handAttachment?.muzzle?.isObject3D) {
               aimChessHandWeaponMuzzleAtTarget(handAttachment, targetAimPos, u < CHESS_FIREARM_SHOULDER_SETTLE_PHASE_RATIO ? 0.58 : 0.94);
               handAttachment.muzzle.updateMatrixWorld?.(true);
+              if (handAttachment.twoHanded && handAttachment.offhandTarget?.isObject3D && handAttachment.actorEntry?.rig) {
+                handAttachment.offhandTarget.updateMatrixWorld?.(true);
+                const offhandWorld = handAttachment.offhandTarget.getWorldPosition(new THREE.Vector3());
+                applyLeftArmContactIK(handAttachment.actorEntry.rig, offhandWorld, u < CHESS_FIREARM_SHOULDER_SETTLE_PHASE_RATIO ? 0.58 : 0.95);
+              }
             }
             const tileAimOrigin = getFirearmAttackerTilePose(fx.from);
             // Keep the visible weapon on the attacking piece/table square. Do not use
@@ -16397,7 +16480,8 @@ function Chess3D({
           applySeatedHumanPose(entry.rig, mode, intensity, grip, {
             forwardReach: action.forwardReach,
             sideReach: action.sideReach,
-            firearmType: action.firearmType
+            firearmType: action.firearmType,
+            twoHandedFirearm: action.twoHandedFirearm
           });
           if (action?.mesh) {
             if (SEATED_HUMAN_CONTACT_HELPERS_ENABLED && !action.handHelper && !action.pieceHelper) {
