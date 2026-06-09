@@ -60,6 +60,22 @@ const SKETCHFAB_CHARACTERS = Object.freeze({
       'https://sketchfab.com/3d-models/casual-confidence-bff76010d9534241ae6c96a4a46a7959',
     targetDir: 'public/models/murlan/casual-confidence',
     targetFileName: TARGET_FILE_NAME
+  },
+  'generic-scanned-man': {
+    label: 'Generic Scanned Man',
+    uid: '9b4527d4bc524c31bed48054f0c04b71',
+    sourceUrl:
+      'https://sketchfab.com/3d-models/generic-man-9b4527d4bc524c31bed48054f0c04b71',
+    targetDir: 'public/models/murlan/generic-scanned-man',
+    targetFileName: TARGET_FILE_NAME
+  },
+  'rigged-scan-male': {
+    label: 'Rigged Scan Male',
+    uid: 'cc7e4596bcd145208a6992c757854c07',
+    sourceUrl:
+      'https://sketchfab.com/3d-models/rigged-t-pose-human-male-w-50-face-blendshapes-cc7e4596bcd145208a6992c757854c07',
+    targetDir: 'public/models/murlan/rigged-scan-male',
+    targetFileName: TARGET_FILE_NAME
   }
 });
 
@@ -112,6 +128,7 @@ Usage:
   SKETCHFAB_TOKEN=<token> npm run fetch:murlan-characters -- --asset suede-gentleman
   npm run fetch:murlan-agent47 -- --from /path/to/authentic-sketchfab-gltf.zip
   npm run fetch:murlan-characters -- --asset casual-confidence --from /path/to/extracted-gltf-folder
+  npm run fetch:murlan-characters -- --asset generic-scanned-man
   npm run fetch:murlan-characters -- --asset red-hibiscus-hair --validate-only
 
 Assets:
