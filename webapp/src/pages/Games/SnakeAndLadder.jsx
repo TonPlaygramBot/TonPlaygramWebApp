@@ -192,7 +192,10 @@ const TURN_ADVANCE_AFTER_DICE_MS = 0;
 const DICE_RESULT_HOLD_MS = 2000;
 // Match the 3D Ludo/Pool dice: a server-authoritative value should only
 // replace the rolling face after the physical throw has had time to land.
-const DICE_BOARD_ROLL_REVEAL_DELAY_MS = 930;
+// Match Ludo Battle Royal's AUTO_ROLL_DURATION_MS so the server/local result
+// appears only after the full one-arc dice throw has completed.
+const LUDO_MATCHED_DICE_ROLL_DURATION_MS = 1100;
+const DICE_BOARD_ROLL_REVEAL_DELAY_MS = LUDO_MATCHED_DICE_ROLL_DURATION_MS;
 const DICE_SFX_MIN_INTERVAL_MS = 850;
 const DEFAULT_CAPACITY = 4;
 const COMMENTARY_PRESET_STORAGE_KEY = 'snakeCommentaryPreset';
@@ -4261,6 +4264,7 @@ export default function SnakeAndLadder() {
             showButton={false}
             muted
             fixedSoundVolume={1}
+            rollDurationMs={LUDO_MATCHED_DICE_ROLL_DURATION_MS}
           />
         </div>
       )}
@@ -4272,6 +4276,7 @@ export default function SnakeAndLadder() {
               showButton={false}
               muted
               fixedSoundVolume={1}
+              rollDurationMs={LUDO_MATCHED_DICE_ROLL_DURATION_MS}
               emitRollEvent
               divRef={diceRollerDivRef}
               onRollStart={() => {

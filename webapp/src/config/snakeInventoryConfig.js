@@ -1,15 +1,15 @@
-import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js';
-import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js';
-import { polyHavenThumb, swatchThumbnail } from './storeThumbnails.js';
-import { SNAKE_CAPTURE_WEAPON_OPTIONS } from './snakeWeaponCatalog.js';
+import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from './poolRoyaleInventoryConfig.js'
+import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from './murlanThemes.js'
+import { polyHavenThumb, swatchThumbnail } from './storeThumbnails.js'
+import { SNAKE_CAPTURE_WEAPON_OPTIONS } from './snakeWeaponCatalog.js'
 
 const mapLabels = (options) =>
   Object.freeze(
     options.reduce((acc, option) => {
-      acc[option.id] = option.label;
-      return acc;
+      acc[option.id] = option.label
+      return acc
     }, {})
-  );
+  )
 
 const SNAKE_TABLE_FINISH_OPTIONS = Object.freeze([
   { id: 'peelingPaintWeathered', label: 'Wood Peeling Paint Weathered' },
@@ -17,7 +17,7 @@ const SNAKE_TABLE_FINISH_OPTIONS = Object.freeze([
   { id: 'woodTable001', label: 'Wood Table 001' },
   { id: 'darkWood', label: 'Dark Wood' },
   { id: 'rosewoodVeneer01', label: 'Rosewood Veneer 01' }
-]);
+])
 
 const SNAKE_TOKEN_SHAPE_OPTIONS = Object.freeze([
   { id: 'pawn', label: 'Pawn Token' },
@@ -26,7 +26,7 @@ const SNAKE_TOKEN_SHAPE_OPTIONS = Object.freeze([
   { id: 'rook', label: 'Rook Token' },
   { id: 'queen', label: 'Queen Token' },
   { id: 'king', label: 'King Token' }
-]);
+])
 
 export const SNAKE_PAWN_HEAD_OPTIONS = Object.freeze([
   { id: 'current', label: 'Current' },
@@ -34,7 +34,7 @@ export const SNAKE_PAWN_HEAD_OPTIONS = Object.freeze([
   { id: 'headSapphire', label: 'Sapphire' },
   { id: 'headChrome', label: 'Chrome' },
   { id: 'headGold', label: 'Gold' }
-]);
+])
 
 export const SNAKE_TOKEN_COLOR_OPTIONS = Object.freeze([
   { id: 'marble', label: 'Marble', color: '#f8fafc' },
@@ -46,7 +46,7 @@ export const SNAKE_TOKEN_COLOR_OPTIONS = Object.freeze([
   { id: 'amethyst', label: 'Amethyst', color: '#8b5cf6' },
   { id: 'cinderBlaze', label: 'Cinder Blaze', color: '#ff6b35' },
   { id: 'arcticDrift', label: 'Arctic Drift', color: '#bcd7ff' }
-]);
+])
 
 const SNAKE_TABLE_FINISH_THUMBNAILS = Object.freeze({
   peelingPaintWeathered: polyHavenThumb('wood_peeling_paint_weathered'),
@@ -54,7 +54,7 @@ const SNAKE_TABLE_FINISH_THUMBNAILS = Object.freeze({
   woodTable001: polyHavenThumb('wood_table_001'),
   darkWood: polyHavenThumb('dark_wood'),
   rosewoodVeneer01: polyHavenThumb('rosewood_veneer_01')
-});
+})
 
 const SNAKE_THEME_THUMBNAILS = Object.freeze({
   arenaTheme: {
@@ -97,7 +97,7 @@ const SNAKE_THEME_THUMBNAILS = Object.freeze({
     supportTruck: swatchThumbnail(['#f97316', '#7c2d12', '#fdba74']),
     drone: swatchThumbnail(['#60a5fa', '#1d4ed8', '#bfdbfe'])
   }
-});
+})
 
 export const SNAKE_DEFAULT_UNLOCKS = Object.freeze({
   arenaTheme: ['nebulaAtrium'],
@@ -109,17 +109,13 @@ export const SNAKE_DEFAULT_UNLOCKS = Object.freeze({
   tableFinish: [SNAKE_TABLE_FINISH_OPTIONS[0].id],
   headStyle: [SNAKE_PAWN_HEAD_OPTIONS[0].id],
   tokenShape: [SNAKE_TOKEN_SHAPE_OPTIONS[0].id],
-  captureWeapon: [
-    SNAKE_CAPTURE_WEAPON_OPTIONS[0].id,
-    'fighterJetAttack',
-    'helicopterAttack',
-    'droneAttack',
-    'supportTruckAttack'
-  ],
+  // Snake & Ladder uses the full Ludo Battle Royal weapon rack by default so
+  // every Ludo capture animation/sound/camera profile is available in inventory.
+  captureWeapon: SNAKE_CAPTURE_WEAPON_OPTIONS.map((option) => option.id),
   tables: [MURLAN_TABLE_THEMES[0].id],
   stools: [MURLAN_STOOL_THEMES[0].id],
   environmentHdri: [POOL_ROYALE_DEFAULT_HDRI_ID]
-});
+})
 
 export const SNAKE_OPTION_LABELS = Object.freeze({
   arenaTheme: Object.freeze({
@@ -156,11 +152,11 @@ export const SNAKE_OPTION_LABELS = Object.freeze({
   stools: mapLabels(MURLAN_STOOL_THEMES),
   environmentHdri: Object.freeze(
     POOL_ROYALE_HDRI_VARIANTS.reduce((acc, variant) => {
-      acc[variant.id] = `${variant.name} HDRI`;
-      return acc;
+      acc[variant.id] = `${variant.name} HDRI`
+      return acc
     }, {})
   )
-});
+})
 
 export const SNAKE_STORE_ITEMS = [
   ...SNAKE_CAPTURE_WEAPON_OPTIONS.filter((option, idx) => idx > 0).map((option, idx) => ({
@@ -359,7 +355,7 @@ export const SNAKE_STORE_ITEMS = [
     thumbnail: variant.thumbnail,
     previewShape: 'table'
   }))
-);
+)
 
 export const SNAKE_DEFAULT_LOADOUT = [
   { type: 'arenaTheme', optionId: 'nebulaAtrium', label: 'Nebula Atrium Arena' },
@@ -391,4 +387,4 @@ export const SNAKE_DEFAULT_LOADOUT = [
     optionId: POOL_ROYALE_DEFAULT_HDRI_ID,
     label: `${POOL_ROYALE_HDRI_VARIANTS[0].name} HDRI`
   }
-];
+]
