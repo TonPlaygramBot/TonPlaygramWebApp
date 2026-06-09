@@ -39,16 +39,13 @@ namespace TonPlaygram.Gameplay.Weapons
     public sealed class WeaponGripPoseProfile
     {
         [Tooltip("Visible right-hand grip socket offset for this weapon, in muzzle/local aim space.")]
-        public Vector3 rightGripBackOffset = new Vector3(0.035f, -0.055f, -0.22f);
+        public Vector3 rightGripBackOffset = new Vector3(0f, 0f, -0.12f);
 
         [Tooltip("Visible left/support-hand grip socket offset for this weapon, in muzzle/local aim space.")]
-        public Vector3 leftGripBackOffset = new Vector3(-0.045f, -0.045f, -0.12f);
+        public Vector3 leftGripBackOffset = new Vector3(-0.06f, 0f, -0.06f);
 
         [Tooltip("Extra rotation applied to both visible grip sockets after aiming at the token.")]
         public Vector3 gripEulerOffset;
-
-        [Tooltip("How strongly the support/left hand rotates inward to meet the weapon barrel. 0 keeps both hands parallel; 1 aims the support hand directly at the muzzle.")]
-        [Range(0f, 1f)] public float supportHandTowardMuzzle = 0.55f;
 
         [Tooltip("Animator that owns the imported weapon or FPS-rig animation states for this specific weapon.")]
         public Animator animator;
@@ -605,50 +602,29 @@ namespace TonPlaygram.Gameplay.Weapons
             }
 
             WeaponGripPoseProfile gripPose = _activeWeapon != null ? _activeWeapon.gripPose : null;
-            Vector3 aimDirection = shotDirection.normalized;
-            Quaternion aimRotation = Quaternion.LookRotation(aimDirection, Vector3.up);
+            Quaternion aimRotation = Quaternion.LookRotation(shotDirection, Vector3.up);
             Quaternion gripRotation = aimRotation * (gripPose != null ? gripPose.GripRotationOffset : Quaternion.identity);
 
             if (rightHandGrip != null)
             {
-                Vector3 rightOffset = gripPose != null ? gripPose.rightGripBackOffset : new Vector3(0.035f, -0.055f, -0.22f);
+                Vector3 rightOffset = gripPose != null ? gripPose.rightGripBackOffset : new Vector3(0f, 0f, -0.12f);
                 rightHandGrip.position = muzzle.position + aimRotation * rightOffset;
                 rightHandGrip.rotation = gripRotation;
             }
 
             if (leftHandGrip != null)
             {
-                Vector3 leftOffset = gripPose != null ? gripPose.leftGripBackOffset : new Vector3(-0.045f, -0.045f, -0.12f);
+                Vector3 leftOffset = gripPose != null ? gripPose.leftGripBackOffset : new Vector3(-0.06f, 0f, -0.06f);
                 leftHandGrip.position = muzzle.position + aimRotation * leftOffset;
-                leftHandGrip.rotation = ResolveSupportHandGripRotation(gripRotation, leftHandGrip.position, aimDirection, gripPose);
+                leftHandGrip.rotation = gripRotation;
             }
 
             if (humanHandRetargeter != null)
             {
-                humanHandRetargeter.SetRuntimeAimDirection(aimDirection, muzzle);
                 humanHandRetargeter.SnapToMappedPose();
             }
 
-            RotateHeldWeaponMuzzleToAim(aimDirection);
-        }
-
-        private Quaternion ResolveSupportHandGripRotation(Quaternion baseGripRotation, Vector3 supportHandPosition, Vector3 aimDirection, WeaponGripPoseProfile gripPose)
-        {
-            float blend = gripPose != null ? Mathf.Clamp01(gripPose.supportHandTowardMuzzle) : 0.55f;
-            if (blend <= 0.001f || muzzle == null)
-            {
-                return baseGripRotation;
-            }
-
-            Vector3 towardMuzzle = muzzle.position - supportHandPosition;
-            if (towardMuzzle.sqrMagnitude <= 0.00001f)
-            {
-                return baseGripRotation;
-            }
-
-            Quaternion supportGrip = Quaternion.LookRotation(Vector3.Slerp(aimDirection, towardMuzzle.normalized, blend), Vector3.up)
-                * (gripPose != null ? gripPose.GripRotationOffset : Quaternion.identity);
-            return supportGrip;
+            RotateHeldWeaponMuzzleToAim(shotDirection);
         }
 
         private void AimHeldWeaponAtTarget()
@@ -849,7 +825,6 @@ namespace TonPlaygram.Gameplay.Weapons
             MaintainStaticPresentationAnchors();
             if (humanHandRetargeter != null)
             {
-                humanHandRetargeter.SetRuntimeAimDirection(_lastAimDirection, muzzle);
                 humanHandRetargeter.SnapToMappedPose();
             }
 
