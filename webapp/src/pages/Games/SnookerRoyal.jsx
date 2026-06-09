@@ -1178,7 +1178,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
   );
 const MARKINGS_MM_TO_UNITS = innerLong / WIDTH_REF;
 const OBJECT_MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_SIZE_SCALE = 0.96; // make Snooker Royal balls a little smaller while preserving table scale and collision proportions
+const BALL_SIZE_SCALE = 0.94; // make Snooker Royal balls just a bit smaller while preserving table scale and collision proportions
 const BALL_DIAMETER = BALL_D_REF * OBJECT_MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -5607,9 +5607,9 @@ const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 0.96;
-const STANDING_VIEW_MARGIN_PORTRAIT = 0.94;
-const STANDING_VIEW_DISTANCE_SCALE = 0.122; // pull the standing camera a bit closer so the table fills more of portrait screens
+const STANDING_VIEW_MARGIN_LANDSCAPE = 0.92;
+const STANDING_VIEW_MARGIN_PORTRAIT = 0.9;
+const STANDING_VIEW_DISTANCE_SCALE = 0.105; // pull the standing camera closer so the table fills more of portrait screens
 const CUE_VISIBLE_CAMERA_BLEND_THRESHOLD = 0.985; // show the table cue as soon as the portrait camera is lowered even a tiny bit
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
@@ -6346,13 +6346,18 @@ const pocketCaptureCenters = () =>
 const resolvePocketHolderDirection = (center, pocketId = null) => {
   const absX = Math.abs(center?.x ?? 0);
   const absZ = Math.abs(center?.y ?? 0);
-  const isMiddlePocket = pocketId === 'TM' || pocketId === 'BM' || absZ < BALL_R * 0.6;
+  const isMiddlePocket =
+    pocketId === 'LM' ||
+    pocketId === 'RM' ||
+    pocketId === 'TM' ||
+    pocketId === 'BM' ||
+    absZ < BALL_R * 0.6;
   if (isMiddlePocket) {
     // Turn the middle-pocket holders to run along the rail like the corner trays instead of jutting outward.
     const zDir =
-      pocketId === 'TM'
+      pocketId === 'LM' || pocketId === 'TM'
         ? -1
-        : pocketId === 'BM'
+        : pocketId === 'RM' || pocketId === 'BM'
         ? 1
           : Math.sign(center?.y || 1) || 1;
     return new THREE.Vector3(0, 0, zDir);
@@ -6372,14 +6377,16 @@ const resolvePocketHolderDirection = (center, pocketId = null) => {
   }
   return new THREE.Vector3(0, 0, Math.sign(center?.y || 1));
 };
-const POCKET_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
+const POCKET_IDS = ['BL', 'BR', 'TL', 'TR', 'LM', 'RM'];
 const POCKET_LABELS = Object.freeze({
   TL: 'Top Left',
   TR: 'Top Right',
   BL: 'Bottom Left',
   BR: 'Bottom Right',
-  TM: 'Top Middle',
-  BM: 'Bottom Middle',
+  LM: 'Left Middle',
+  RM: 'Right Middle',
+  TM: 'Left Middle',
+  BM: 'Right Middle',
   SAFETY: 'Safety'
 });
 const formatPocketLabel = (id) => POCKET_LABELS[id] || id || '';
@@ -6400,15 +6407,17 @@ const formatBallLabel = (colorId) => {
 const getPocketCenterById = (id) => {
   switch (id) {
     case 'TL':
-      return cornerPocketCenter(-1, -1);
-    case 'TR':
-      return cornerPocketCenter(1, -1);
-    case 'BL':
       return cornerPocketCenter(-1, 1);
-    case 'BR':
+    case 'TR':
       return cornerPocketCenter(1, 1);
+    case 'BL':
+      return cornerPocketCenter(-1, -1);
+    case 'BR':
+      return cornerPocketCenter(1, -1);
+    case 'LM':
     case 'TM':
       return new THREE.Vector2(-(PLAY_W / 2 + sidePocketShift), 0);
+    case 'RM':
     case 'BM':
       return new THREE.Vector2(PLAY_W / 2 + sidePocketShift, 0);
     default:
@@ -6417,10 +6426,12 @@ const getPocketCenterById = (id) => {
 };
 const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR'];
 const POCKET_CAMERA_OUTWARD = Object.freeze({
-  TL: new THREE.Vector2(-1, -1).normalize(),
-  TR: new THREE.Vector2(1, -1).normalize(),
-  BL: new THREE.Vector2(-1, 1).normalize(),
-  BR: new THREE.Vector2(1, 1).normalize(),
+  TL: new THREE.Vector2(-1, 1).normalize(),
+  TR: new THREE.Vector2(1, 1).normalize(),
+  BL: new THREE.Vector2(-1, -1).normalize(),
+  BR: new THREE.Vector2(1, -1).normalize(),
+  LM: new THREE.Vector2(-1, 0).normalize(),
+  RM: new THREE.Vector2(1, 0).normalize(),
   TM: new THREE.Vector2(-1, 0).normalize(),
   BM: new THREE.Vector2(1, 0).normalize()
 });
@@ -6434,10 +6445,12 @@ const resolvePocketCameraAnchor = (pocketId, center, approachDir, ballPos) => {
     case 'BL':
     case 'BR':
       return pocketId;
+    case 'LM':
     case 'TM':
-      return 'TM';
+      return 'LM';
+    case 'RM':
     case 'BM':
-      return 'BM';
+      return 'RM';
     default:
       return pocketId;
   }
@@ -6445,12 +6458,12 @@ const resolvePocketCameraAnchor = (pocketId, center, approachDir, ballPos) => {
 const pocketIdFromCenter = (center) => {
   const epsilon = BALL_R * 0.2;
   if (Math.abs(center.y) < epsilon) {
-    return center.x < 0 ? 'TM' : 'BM';
+    return center.x < 0 ? 'LM' : 'RM';
   }
   if (center.y < 0) {
-    return center.x < 0 ? 'TL' : 'TR';
+    return center.x < 0 ? 'BL' : 'BR';
   }
-  return center.x < 0 ? 'BL' : 'BR';
+  return center.x < 0 ? 'TL' : 'TR';
 };
 const allStopped = (balls) => balls.every((b) => b.vel.length() < STOP_EPS);
 
@@ -8645,7 +8658,9 @@ function Table3D(
     let strapOrigin = null;
     let strapEnd = null;
     for (let i = 0; i < 3; i += 1) {
-      const middleSway = isMiddlePocket ? POCKET_MIDDLE_HOLDER_SWAY * (pocketId === 'TM' ? -1 : 1) : 0;
+      const middleSway = isMiddlePocket
+        ? POCKET_MIDDLE_HOLDER_SWAY * (pocketId === 'LM' || pocketId === 'TM' ? -1 : 1)
+        : 0;
       const lateralOffset = (i - 1) * POCKET_GUIDE_SPREAD + middleSway * (i - 1);
       const isCenterGuide = i === 1;
       const start = ringAnchor
@@ -19727,7 +19742,11 @@ const powerRef = useRef(hud.power);
             return null;
           }
           const anchorPocketId = pocketIdFromCenter(best.center);
-          const isSidePocket = anchorPocketId === 'TM' || anchorPocketId === 'BM';
+          const isSidePocket =
+            anchorPocketId === 'LM' ||
+            anchorPocketId === 'RM' ||
+            anchorPocketId === 'TM' ||
+            anchorPocketId === 'BM';
           if (isSidePocket) return null;
           const approachDir = best.pocketDir.clone();
           const anchorId = resolvePocketCameraAnchor(
@@ -24506,7 +24525,7 @@ const powerRef = useRef(hud.power);
                   power,
                   target: toBallColorId(targetBall.id),
                   targetBall,
-                  pocketId: POCKET_IDS[centers.indexOf(pocketCenter)] ?? 'TM',
+                  pocketId: POCKET_IDS[centers.indexOf(pocketCenter)] ?? 'LM',
                   pocketCenter: pocketCenter.clone(),
                   difficulty: cueDist + toPocket,
                   cueToTarget: cueDist,
@@ -24521,7 +24540,7 @@ const powerRef = useRef(hud.power);
                       power,
                       target: toBallColorId(targetBall.id),
                       targetBall,
-                      pocketId: POCKET_IDS[centers.indexOf(pocketCenter)] ?? 'TM',
+                      pocketId: POCKET_IDS[centers.indexOf(pocketCenter)] ?? 'LM',
                       pocketCenter: pocketCenter.clone(),
                       difficulty: cueDist + toPocket,
                       cueToTarget: cueDist,
@@ -24667,15 +24686,15 @@ const powerRef = useRef(hud.power);
         };
 
         const mapLocalPocketToAi = (id) => {
-          if (id === 'TM') return 'ML';
-          if (id === 'BM') return 'MR';
+          if (id === 'LM' || id === 'TM') return 'ML';
+          if (id === 'RM' || id === 'BM') return 'MR';
           return id;
         };
 
         const mapAiPocketToLocal = (name) => {
           if (!name) return null;
-          if (name === 'ML') return 'TM';
-          if (name === 'MR') return 'BM';
+          if (name === 'ML' || name === 'TM') return 'LM';
+          if (name === 'MR' || name === 'BM') return 'RM';
           return POCKET_IDS.includes(name) ? name : null;
         };
 
@@ -25468,7 +25487,7 @@ const powerRef = useRef(hud.power);
           });
         }
         potted.forEach((entry) => {
-          const pocket = entry.pocket ?? 'TM';
+          const pocket = entry.pocket ?? 'LM';
           shotEvents.push({
             type: 'POTTED',
             ball: entry.color,
@@ -26301,7 +26320,10 @@ const powerRef = useRef(hud.power);
             String(suggestionPlan.targetBall.id) === String(targetBall.id);
           if (
             suggestionMatchesTarget &&
-            (suggestionPlan.pocketId === 'TM' || suggestionPlan.pocketId === 'BM')
+            (suggestionPlan.pocketId === 'LM' ||
+              suggestionPlan.pocketId === 'RM' ||
+              suggestionPlan.pocketId === 'TM' ||
+              suggestionPlan.pocketId === 'BM')
           ) {
             sidePocketAimRef.current = true;
           }
@@ -27406,7 +27428,7 @@ const powerRef = useRef(hud.power);
               b.swervePowerStrength = 0;
               b.launchDir = null;
               if (b.id === 'cue') b.impacted = false;
-              const pocketId = POCKET_IDS[pocketIndex] ?? 'TM';
+              const pocketId = POCKET_IDS[pocketIndex] ?? 'LM';
               const dropStart = performance.now();
               const fromX = b.pos.x;
               const fromZ = b.pos.y;
