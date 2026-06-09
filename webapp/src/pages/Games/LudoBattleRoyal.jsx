@@ -1795,40 +1795,6 @@ function findObjectByNeedles(root, needles = []) {
   return match;
 }
 
-function findBestFirearmGripNode(root, preferredNeedles = []) {
-  if (!root?.isObject3D) return null;
-  const preferred = preferredNeedles.map((needle) => `${needle}`.toLowerCase());
-  const weightedNeedles = [
-    ['trigger', 70],
-    ['grip', 66],
-    ['handle', 64],
-    ['magwell', 38],
-    ['foregrip', 34],
-    ['stock', -18],
-    ['muzzle', -30],
-    ['barrel', -24],
-    ['wrist', -12],
-    ['hand', -10]
-  ];
-  let best = null;
-  let bestScore = Number.NEGATIVE_INFINITY;
-  root.traverse((node) => {
-    if (!node?.isObject3D || !node?.name) return;
-    const name = node.name.toLowerCase();
-    let score = preferred.some((needle) => name.includes(needle)) ? 42 : 0;
-    weightedNeedles.forEach(([needle, weight]) => {
-      if (name.includes(needle)) score += weight;
-    });
-    // Meshes named after trigger/grip are better hand sockets than large animated rig bones.
-    if (node.isMesh) score += 5;
-    if (score > bestScore) {
-      best = node;
-      bestScore = score;
-    }
-  });
-  return bestScore > 0 ? best : null;
-}
-
 function alignFirearmRackGripAnchor(root) {
   if (!root?.isObject3D) return;
   const originalPosition = root.position.clone();
@@ -1903,22 +1869,8 @@ function aimHandWeaponMuzzleAtTarget(attachment, targetWorld, blend = FIREARM_AI
   if (currentForward.lengthSq() < 1e-8) return;
 
   const weaponWorldQuat = weapon.getWorldQuaternion(new THREE.Quaternion());
-  const pointCorrection = new THREE.Quaternion().setFromUnitVectors(currentForward, desiredForward);
-  const targetWorldQuat = pointCorrection.multiply(weaponWorldQuat);
-
-  // After the muzzle points at the token, remove unnatural barrel roll so the top of
-  // the weapon stays visually higher on portrait screens and the wrist reads like a real grip.
-  const desiredUp = (attachment?.aimUpWorld?.isVector3 ? attachment.aimUpWorld : new THREE.Vector3(0, 1, 0)).clone();
-  desiredUp.addScaledVector(desiredForward, -desiredUp.dot(desiredForward));
-  const currentUpAfterPoint = new THREE.Vector3(0, 1, 0).applyQuaternion(targetWorldQuat);
-  currentUpAfterPoint.addScaledVector(desiredForward, -currentUpAfterPoint.dot(desiredForward));
-  if (desiredUp.lengthSq() > 1e-8 && currentUpAfterPoint.lengthSq() > 1e-8) {
-    desiredUp.normalize();
-    currentUpAfterPoint.normalize();
-    const rollCorrection = new THREE.Quaternion().setFromUnitVectors(currentUpAfterPoint, desiredUp);
-    targetWorldQuat.premultiply(rollCorrection);
-  }
-
+  const correction = new THREE.Quaternion().setFromUnitVectors(currentForward, desiredForward);
+  const targetWorldQuat = correction.multiply(weaponWorldQuat);
   const parentWorldInv = parent.getWorldQuaternion(new THREE.Quaternion()).invert();
   const targetLocalQuat = parentWorldInv.multiply(targetWorldQuat);
   weapon.quaternion.slerp(targetLocalQuat, clamp(blend, 0, 1));
@@ -1932,7 +1884,7 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
   const tuning = FIREARM_HAND_ATTACH_TUNING[captureAnimationId] || FIREARM_HAND_ATTACH_TUNING.default;
   const weapon = modelTemplate.clone(true);
   weapon.position.set(...(tuning.position || FIREARM_HAND_ATTACH_TUNING.default.position));
-  weapon.rotation.set(...(tuning.rotation || FIREARM_UNIFIED_DIRECTION_ROTATION));
+  weapon.rotation.set(...FIREARM_UNIFIED_DIRECTION_ROTATION);
   const attachScaleMultiplier = FIREARM_ATTACH_SCALE_MULTIPLIER[captureAnimationId] ?? 1;
   const scaleBoost =
     FIREARM_ATTACH_WORLD_SCALE_BOOST * attachScaleMultiplier;
@@ -1947,16 +1899,14 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
     paused: true
   });
   weapon.updateMatrixWorld?.(true);
-  const sourceRightGrip = findBestFirearmGripNode(weapon, ['trigger', 'grip', 'handle']) ||
-    findObjectByNeedles(weapon, ['trigger', 'grip', 'handle', 'r_wrist', 'right_wrist', 'hand_r', 'r_hand']);
+  const sourceRightGrip = findObjectByNeedles(weapon, ['trigger', 'grip', 'handle', 'r_wrist', 'right_wrist', 'hand_r', 'r_hand']);
   if (sourceRightGrip?.isObject3D) {
     sourceRightGrip.updateMatrixWorld?.(true);
     const gripLocal = rightHand.worldToLocal(sourceRightGrip.getWorldPosition(new THREE.Vector3()));
     weapon.position.sub(gripLocal);
   }
   const twoHanded = FIREARM_TWO_HANDED_IDS.has(captureAnimationId) && !FIREARM_SINGLE_HAND_ONLY_IDS.has(captureAnimationId);
-  const sourceLeftGrip = findBestFirearmGripNode(weapon, ['foregrip', 'support', 'l_wrist', 'left_wrist']) ||
-    findObjectByNeedles(weapon, ['foregrip', 'support', 'l_wrist', 'left_wrist']);
+  const sourceLeftGrip = findObjectByNeedles(weapon, ['l_wrist', 'left_wrist']);
   const offhandTarget = new THREE.Object3D();
   if (sourceLeftGrip?.isObject3D) {
     sourceLeftGrip.updateMatrixWorld?.(true);
@@ -1975,7 +1925,6 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
     muzzle,
     offhandTarget,
     twoHanded,
-    aimUpWorld: new THREE.Vector3(0, 1, 0),
     release: () => {
       const mixer = weapon.userData?.captureWeaponMixer;
       if (mixer && weaponMixers?.delete) {
@@ -10219,7 +10168,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
     let cancelled = false;
     let onPointerDown = null;
-    let onPointerMove = null;
     let onPointerUp = null;
     let onResize = null;
 
@@ -10767,6 +10715,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     };
 
     let pointerLocked = false;
+    let onPointerMove = null;
     onPointerDown = (event) => {
       const { clientX, clientY } = event;
       if (clientX == null || clientY == null) return;
