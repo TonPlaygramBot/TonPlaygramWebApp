@@ -1,12 +1,42 @@
 import { CAPTURE_ANIMATION_OPTIONS } from './ludoBattleOptions.js'
 import { swatchThumbnail, weaponSilhouetteThumbnail } from './storeThumbnails.js'
 
+const SNAKE_LEGACY_WEAPON_ID_TO_LUDO_ANIMATION_ID = Object.freeze({
+  'poly-shotgun-01': 'polyShotgun01Attack',
+  'poly-assault-rifle-01': 'polyAssaultRifle01Attack',
+  'poly-pistol-01': 'polyPistol01Attack',
+  'poly-revolver-01': 'polyRevolver01Attack',
+  'poly-sawed-off-01': 'polySawedOff01Attack',
+  'poly-revolver-02': 'polyRevolver02Attack',
+  'poly-shotgun-02': 'polyShotgun02Attack',
+  'poly-shotgun-03': 'polyShotgun03Attack',
+  'poly-smg-01': 'polySmg01Attack',
+  'poly-robot-large-gun-01': 'polyRobotLargeGunAttack',
+  'poly-robot-flying-gun-01': 'polyRobotFlyingGunAttack',
+  'poly-bazooka-01': 'polyBazooka01Attack',
+  'poly-grenade-launcher-01': 'polyGrenadeLauncher01Attack',
+  'poly-dynamite-bomb-01': 'polyDynamiteBomb01Attack',
+  'poly-molotov-01': 'polyMolotov01Attack',
+  'poly-gas-tank-01': 'polyGasTank01Attack',
+  'poly-hand-grenade-01': 'polyHandGrenade01Attack',
+  'poly-tank-01': 'polyTank01Attack',
+  'slot-10-ak47-gltf': 'ak47VolleyAttack',
+  'slot-11-krsv-gltf': 'krsvBurstAttack',
+  'slot-12-smith-gltf': 'smithSidearmAttack',
+  'slot-13-mosin-gltf': 'mosinMarksmanAttack',
+  'slot-14-uzi-gltf': 'uziSprayAttack',
+  'slot-15-sigsauer-gltf': 'sigsauerTacticalAttack',
+  'slot-16-awp-glb': 'sniperShotAttack',
+  'slot-18-fps-gun-gltf': 'fpsGunAttack'
+})
+
 const polyGlb = (uuid) => `https://static.poly.pizza/${uuid}.glb`
 const polyWebp = (uuid) => `https://static.poly.pizza/${uuid}.webp`
 
 const polyPizzaWeapon = (id, label, uuid, colors, extra = {}) => ({
   id,
   label,
+  ludoAnimationId: extra.ludoAnimationId || SNAKE_LEGACY_WEAPON_ID_TO_LUDO_ANIMATION_ID[id],
   thumbnail: extra.thumbnail || polyWebp(uuid),
   urls: [polyGlb(uuid)],
   source: extra.source || 'Poly Pizza',
@@ -37,6 +67,7 @@ const gunifyModelUrls = (modelName) => {
 const gunifyWeapon = (id, label, modelName, colors, extra = {}) => ({
   id,
   label,
+  ludoAnimationId: extra.ludoAnimationId || SNAKE_LEGACY_WEAPON_ID_TO_LUDO_ANIMATION_ID[id],
   thumbnail: weaponSilhouetteThumbnail(colors),
   urls: gunifyModelUrls(modelName),
   modelName,
@@ -67,6 +98,26 @@ const ludoVehicleWeapon = (id, vehicleKind, fallbackLabel, fallbackThumbnail, ex
   vehicleKind,
   ...extra
 })
+
+const LUDO_CAPTURE_OPTION_MAP = Object.freeze(
+  CAPTURE_ANIMATION_OPTIONS.reduce((acc, option) => {
+    acc[option.id] = option
+    return acc
+  }, {})
+)
+
+const ludoCaptureWeapon = (id, colors, extra = {}) => {
+  const option = LUDO_CAPTURE_OPTION_MAP[id] || {}
+  return {
+    id,
+    label: option.label || extra.label || id,
+    description: option.description || extra.description || 'Ludo Battle Royal capture weapon animation and sound setup.',
+    thumbnail: option.thumbnail || weaponSilhouetteThumbnail(colors),
+    source: 'Ludo Battle Royal',
+    ludoAnimationId: id,
+    ...extra
+  }
+}
 
 export const UKRAINIAN_DRONE_GLB_URLS = Object.freeze([
   'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/drone.glb',
@@ -103,6 +154,7 @@ export const SNAKE_FPS_GUN_MODEL_CONFIG = Object.freeze({
 })
 
 export const SNAKE_CAPTURE_WEAPON_OPTIONS = Object.freeze([
+  ludoCaptureWeapon('missileJavelin', ['#1d4ed8', '#0f172a', '#93c5fd'], { vehicleKind: 'javelin' }),
   {
     id: 'ukrainianDroneAttack',
     label: 'Ukrainian Drone',
@@ -136,6 +188,15 @@ export const SNAKE_CAPTURE_WEAPON_OPTIONS = Object.freeze([
     source: 'Ludo Battle Royal',
     vehicleKind: 'supportTruck'
   },
+  ludoCaptureWeapon('fpsGunAttack', ['#f59e0b', '#111827', '#fde68a'], { urls: SNAKE_FPS_GUN_MODEL_CONFIG.urls, modelScale: SNAKE_FPS_GUN_MODEL_CONFIG.ludoModelScale }),
+  ludoCaptureWeapon('glockSidearmAttack', ['#475569', '#111827', '#e5e7eb']),
+  ludoCaptureWeapon('assaultRifleAttack', ['#334155', '#111827', '#94a3b8']),
+  ludoCaptureWeapon('grenadeBlastAttack', ['#166534', '#111827', '#f97316']),
+  ludoCaptureWeapon('shotgunBlastAttack', ['#64748b', '#1e293b', '#f8fafc']),
+  ludoCaptureWeapon('sniperShotAttack', ['#1e293b', '#0f172a', '#f8fafc'], { urls: [SNAKE_KNOWN_WORKING_GLB.awp, SNAKE_KNOWN_WORKING_GLB.awpRaw] }),
+  ludoCaptureWeapon('smgBurstAttack', ['#374151', '#030712', '#d1d5db']),
+  ludoCaptureWeapon('compactCarbineAttack', ['#334155', '#020617', '#bfdbfe']),
+  ludoCaptureWeapon('marksmanDmrAttack', ['#92400e', '#1f2937', '#fcd34d']),
   polyPizzaWeapon('poly-shotgun-01', 'Quaternius Shotgun', '032e6589-3188-41bc-b92b-e25528344275', ['#64748b', '#1e293b', '#f8fafc'], { creator: 'Quaternius', modelScale: 1 }),
   polyPizzaWeapon('poly-assault-rifle-01', 'Quaternius Assault Rifle', 'b3e6be61-0299-4866-a227-58f5f3fe610b', ['#334155', '#0f172a', '#94a3b8'], { creator: 'Quaternius', modelScale: 1.02 }),
   polyPizzaWeapon('poly-pistol-01', 'Quaternius Pistol', '3b53f0fe-f86e-451c-816d-6ab9bd265cdc', ['#6b7280', '#111827', '#e5e7eb'], { creator: 'Quaternius', modelScale: 0.6 }),
@@ -178,6 +239,24 @@ export const SNAKE_CAPTURE_WEAPON_ALIAS_MAP = Object.freeze({
   supporttruck: 'supportTruckAttack',
   supporttruckattack: 'supportTruckAttack',
   truck: 'supportTruckAttack',
+  javelin: 'missileJavelin',
+  missile: 'missileJavelin',
+  missilejavelin: 'missileJavelin',
+  fpsgun: 'fpsGunAttack',
+  fpsgunattack: 'fpsGunAttack',
+  glock: 'glockSidearmAttack',
+  glocksidearmattack: 'glockSidearmAttack',
+  assaultrifle: 'assaultRifleAttack',
+  assaultrifleattack: 'assaultRifleAttack',
+  grenadeblast: 'grenadeBlastAttack',
+  grenadeblastattack: 'grenadeBlastAttack',
+  shotgun: 'shotgunBlastAttack',
+  shotgunblastattack: 'shotgunBlastAttack',
+  sniper: 'sniperShotAttack',
+  snipershotattack: 'sniperShotAttack',
+  smgburstattack: 'smgBurstAttack',
+  compactcarbineattack: 'compactCarbineAttack',
+  marksmandmrattack: 'marksmanDmrAttack',
   polyrobotlargegunattack: 'poly-robot-large-gun-01',
   polyrobotflyinggunattack: 'poly-robot-flying-gun-01',
   polybazooka01attack: 'poly-bazooka-01',
