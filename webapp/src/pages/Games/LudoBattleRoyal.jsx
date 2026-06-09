@@ -1208,6 +1208,9 @@ const FIREARM_SHOULDER_SETTLE_PHASE_RATIO = 0.43;
 const FIREARM_AIM_LOCK_PHASE_RATIO = 0.56;
 const FIREARM_AIM_SLERP_FAST = 0.62;
 const FIREARM_AIM_SLERP_LOCKED = 0.88;
+const FIREARM_MUZZLE_FORWARD = new THREE.Vector3(0, 0, 1);
+const FIREARM_MUZZLE_AIM_REFINEMENT_PASSES = 3;
+const FIREARM_MUZZLE_AIM_MAX_STEP_RAD = 0.42;
 const FIREARM_RECOIL_ROTATION_RAD = 0.026;
 const FIREARM_RECOIL_RECOVER_MS = 94;
 const FIREARM_FINAL_BULLET_SLOWMO_FACTOR = 0.105;
@@ -1850,6 +1853,57 @@ function alignFirearmRackFlatByBounds(root, baseRotation = [0, 0, 0]) {
   if (bestRotation) root.rotation.set(bestRotation[0], bestRotation[1], bestRotation[2]);
 }
 
+function refineAttachedFirearmMuzzleAim(weapon, muzzle, targetWorld, blend = 1) {
+  if (!weapon?.isObject3D || !muzzle?.isObject3D || !targetWorld?.isVector3) return;
+  const parent = weapon.parent;
+  if (!parent?.isObject3D) return;
+  const strength = clamp(blend, 0, 1);
+  if (strength <= 1e-4) return;
+  const muzzleWorld = new THREE.Vector3();
+  const desired = new THREE.Vector3();
+  const currentForward = new THREE.Vector3();
+  const muzzleWorldQuat = new THREE.Quaternion();
+  const deltaWorld = new THREE.Quaternion();
+  const parentWorldQuat = new THREE.Quaternion();
+  const parentWorldInv = new THREE.Quaternion();
+  const localDelta = new THREE.Quaternion();
+
+  for (let pass = 0; pass < FIREARM_MUZZLE_AIM_REFINEMENT_PASSES; pass += 1) {
+    weapon.updateMatrixWorld?.(true);
+    muzzle.updateMatrixWorld?.(true);
+    muzzle.getWorldPosition(muzzleWorld);
+    desired.copy(targetWorld).sub(muzzleWorld);
+    if (desired.lengthSq() < 1e-8) return;
+    desired.normalize();
+    muzzle.getWorldQuaternion(muzzleWorldQuat);
+    currentForward.copy(FIREARM_MUZZLE_FORWARD).applyQuaternion(muzzleWorldQuat).normalize();
+    const aimError = Math.acos(clamp(currentForward.dot(desired), -1, 1));
+    if (!Number.isFinite(aimError) || aimError < 1e-5) return;
+    deltaWorld.setFromUnitVectors(currentForward, desired);
+    parent.getWorldQuaternion(parentWorldQuat);
+    parentWorldInv.copy(parentWorldQuat).invert();
+    localDelta.copy(parentWorldInv).multiply(deltaWorld).multiply(parentWorldQuat);
+    const passBlend = Math.min(aimError, FIREARM_MUZZLE_AIM_MAX_STEP_RAD) / aimError * strength;
+    weapon.quaternion.premultiply(new THREE.Quaternion().identity().slerp(localDelta, passBlend));
+  }
+}
+
+function aimAttachedFirearmAtTarget(attachment, targetWorld, aimUp, blend = 1) {
+  const weapon = attachment?.weapon;
+  const muzzle = attachment?.muzzle;
+  if (!weapon?.isObject3D || !targetWorld?.isVector3 || !weapon.parent?.isObject3D) return;
+  const parent = weapon.parent;
+  const targetLocal = parent.worldToLocal(targetWorld.clone());
+  const lookMatrix = new THREE.Matrix4();
+  const targetQuat = new THREE.Quaternion();
+  lookMatrix.lookAt(weapon.position, targetLocal, aimUp);
+  targetQuat
+    .setFromRotationMatrix(lookMatrix)
+    .multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI, 0)));
+  weapon.quaternion.slerp(targetQuat, clamp(blend, 0, 1));
+  refineAttachedFirearmMuzzleAim(weapon, muzzle, targetWorld, Math.max(0.38, blend));
+}
+
 async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
   const rightHand = attackerEntry?.rig?.rightHand;
   if (!rightHand?.isBone) return null;
@@ -1891,12 +1945,17 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
   }
   offhandTarget.name = 'offhandTarget';
   weapon.add(offhandTarget);
+  const rightGripTarget = new THREE.Object3D();
+  rightGripTarget.name = 'rightGripTarget';
+  rightGripTarget.position.set(0, 0, 0);
+  weapon.add(rightGripTarget);
   const muzzle = new THREE.Object3D();
   muzzle.position.set(...(tuning.muzzleOffset || FIREARM_HAND_ATTACH_TUNING.default.muzzleOffset));
   weapon.add(muzzle);
   return {
     weapon,
     muzzle,
+    rightGripTarget,
     offhandTarget,
     twoHanded,
     release: () => {
@@ -1963,6 +2022,8 @@ async function createCaptureWeaponRackFx() {
 
 async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
   if (!entry?.weaponHolder) return;
+  // Parked loadout weapons must remain on the tabletop whenever they are not actively in hand.
+  entry.weaponHolder.visible = true;
   if (!FIREARM_CAPTURE_ANIMATION_IDS.has(captureAnimationId)) {
     entry.weaponHolder.children.forEach((child) => {
       stopCaptureWeaponMixersForObjectTree(child, entry.weaponAnimationMixers);
@@ -8579,6 +8640,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         if (entry.weaponRackHit?.isObject3D) {
           entry.weaponRackHit.visible = showFirearm;
         }
+        if (entry.weaponHolder?.isObject3D) {
+          const activeCapture = seatedHumanActionRef.current;
+          const weaponIsCurrentlyHeld =
+            showFirearm &&
+            activeCapture?.capturePlayer === playerIndex &&
+            activeCapture?.captureAnimationId === selectedCaptureAnimationId &&
+            Number.isFinite(activeCapture?.captureEndMs) &&
+            performance.now() <= activeCapture.captureEndMs;
+          entry.weaponHolder.visible = showFirearm && !weaponIsCurrentlyHeld;
+        }
         if (showFirearm) {
           void applyCaptureWeaponDisplay(entry, selectedCaptureAnimationId).then(() => {
             refreshWeaponRackPose(entry, selectedCaptureAnimationId);
@@ -11502,8 +11573,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           const cinematicSide = new THREE.Vector3();
           const cinematicPosition = new THREE.Vector3();
           const cinematicTarget = new THREE.Vector3();
-          const aimLookMatrix = new THREE.Matrix4();
-          const aimTargetQuat = new THREE.Quaternion();
           const recoilEuler = new THREE.Euler(0, 0, 0, 'XYZ');
           const recoilQuat = new THREE.Quaternion();
           const setFirearmCinematicPose = (position, target, lerp = 0.34) => {
@@ -11541,8 +11610,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               muzzleTarget.copy(liveTarget).add(new THREE.Vector3(0, FIREARM_CAMERA_TARGET_OFFSET, 0));
             }
             if (handWeaponAttachment?.weapon?.isObject3D && handWeaponAttachment.weapon.parent?.isObject3D) {
-              const parent = handWeaponAttachment.weapon.parent;
-              const targetLocal = parent.worldToLocal(muzzleTarget.clone());
               const drawPhase = clamp(elapsed / Math.max(1, pickupLeadMs), 0, 1);
               const shoulderPhase = clamp((elapsed - pickupLeadMs) / Math.max(1, reloadLeadMs + aimLeadMs), 0, 1);
               if (elapsed < pickupLeadMs) {
@@ -11554,14 +11621,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 handWeaponAttachment.weapon.rotation.x += Math.sin(elapsed * 0.018) * 0.004;
               }
               if (elapsed >= pickupLeadMs * 0.52) {
-                aimLookMatrix.lookAt(handWeaponAttachment.weapon.position, targetLocal, aimUp);
-                aimTargetQuat
-                  .setFromRotationMatrix(aimLookMatrix)
-                  .multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI, 0)));
                 const lockBlend = elapsed >= preFireLeadMs
                   ? FIREARM_AIM_SLERP_LOCKED
                   : THREE.MathUtils.lerp(FIREARM_AIM_SLERP_FAST, FIREARM_AIM_SLERP_LOCKED, smoother01(shoulderPhase));
-                handWeaponAttachment.weapon.quaternion.slerp(aimTargetQuat, lockBlend);
+                aimAttachedFirearmAtTarget(handWeaponAttachment, muzzleTarget, aimUp, lockBlend);
                 const shotRemainder = elapsedShooting >= 0 ? elapsedShooting % cadenceMs : cadenceMs;
                 const recoilPhase = elapsedShooting >= 0 ? 1 - clamp(shotRemainder / FIREARM_RECOIL_RECOVER_MS, 0, 1) : 0;
                 if (recoilPhase > 0 && elapsedShooting < shots * cadenceMs) {
