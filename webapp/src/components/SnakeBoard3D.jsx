@@ -3654,7 +3654,8 @@ function createDiceRollAnimation(
   {
     basePositions,
     baseY,
-    startPositions = []
+    startPositions = [],
+    bouncePoints = []
   }
 ) {
   const start = performance.now();
@@ -3664,6 +3665,13 @@ function createDiceRollAnimation(
       1.35 + Math.random() * 0.65,
       1.05 + Math.random() * 0.75
     )
+  );
+  const tumbleAxes = diceArray.map(() =>
+    new THREE.Vector3(
+      (Math.random() - 0.5) * 0.9,
+      0.55 + Math.random() * 0.5,
+      0.75 + Math.random() * 0.7
+    ).normalize()
   );
   const wobbleVectors = diceArray.map(
     () => new THREE.Vector3((Math.random() - 0.5) * 0.16, 0, (Math.random() - 0.5) * 0.16)
@@ -3680,18 +3688,35 @@ function createDiceRollAnimation(
         if (!base) return;
         const startPos = startPositions[index] ?? base;
         const endPos = new THREE.Vector3(base.x, baseY, base.z);
-        const position = startPos.clone().lerp(endPos, eased);
+        const bouncePoint = bouncePoints[index]
+          ? new THREE.Vector3(bouncePoints[index].x, baseY, bouncePoints[index].z)
+          : startPos.clone().lerp(endPos, 0.72).setY(baseY);
+        const firstLeg = eased < 0.58;
+        const legT = firstLeg ? eased / 0.58 : (eased - 0.58) / 0.42;
+        const legEase = firstLeg ? easeOutCubic(legT) : legT * legT * (3 - 2 * legT);
+        const position = firstLeg
+          ? startPos.clone().lerp(bouncePoint, legEase)
+          : bouncePoint.clone().lerp(endPos, legEase);
+        const arcHeight = firstLeg
+          ? DICE_BOUNCE_HEIGHT * 1.1 * Math.sin(Math.min(1, legT) * Math.PI)
+          : DICE_BOUNCE_HEIGHT * 0.24 * Math.sin(Math.min(1, legT) * Math.PI) * (1 - legT * 0.35);
+        const contactHop = Math.max(0, Math.sin((eased * 5.5 + index * 0.35) * Math.PI))
+          * DICE_SIZE
+          * 0.055
+          * (1 - eased);
         const wobbleStrength = Math.sin(eased * Math.PI);
         position.addScaledVector(wobbleVectors[index], wobbleStrength * 0.45);
-        const bounce = Math.sin(Math.min(1, eased * 1.25) * Math.PI) * DICE_BOUNCE_HEIGHT * (1 - eased * 0.45);
-        position.y = THREE.MathUtils.lerp(startPos.y, endPos.y, eased) + bounce;
+        position.y = THREE.MathUtils.lerp(startPos.y, baseY, eased) + arcHeight + contactHop;
         die.position.copy(position);
 
-        // Same spin cadence as Ludo Battle Royal's spinDice helper.
+        // Same spin cadence as Ludo Battle Royal's spinDice helper, with an
+        // added distance-based tumble axis so the cube travels across the cloth
+        // instead of vibrating in place.
         const spinFactor = 1 - eased * 0.28;
         die.rotation.x += spinVectors[index].x * spinFactor * 0.22;
         die.rotation.y += spinVectors[index].y * spinFactor * 0.22;
         die.rotation.z += spinVectors[index].z * spinFactor * 0.22;
+        die.rotateOnWorldAxis(tumbleAxes[index], (firstLeg ? 0.18 : 0.1) * spinFactor);
       });
       if (t >= 1) {
         diceArray.forEach((die, index) => {
