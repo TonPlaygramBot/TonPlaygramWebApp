@@ -416,8 +416,6 @@ const resolveTextureAnisotropy = (fallback = 1) =>
   Math.max(rendererAnisotropyCap, Number.isFinite(fallback) ? fallback : 1);
 
 const POCKET_NET_LINE_THICKNESS_SCALE = 4.8;
-const POOL_ROYALE_RENDER_POCKET_DROP_HARDWARE = false;
-const POOL_ROYALE_RENDER_POTTED_HOLDER_BALLS = false;
 
 const createPocketNetTexture = (size = 256, repeat = POCKET_NET_HEX_REPEAT) => {
   if (typeof document === 'undefined') return null;
@@ -9333,22 +9331,18 @@ export function Table3D(
 
   const markingsGroup = new THREE.Group();
   const markingMat = new THREE.MeshBasicMaterial({
-    color: 0xffffff,
+    color: resolvedTableOptions?.tableModel?.useReferenceShowoodMapping ? 0xffffff : palette.markings,
     transparent: true,
-    opacity: 1,
+    opacity: resolvedTableOptions?.tableModel?.useReferenceShowoodMapping ? 0.98 : 0.94,
     side: THREE.DoubleSide,
-    depthWrite: false,
-    depthTest: false
+    depthWrite: false
   });
-  markingMat.polygonOffset = true;
-  markingMat.polygonOffsetFactor = -4;
-  markingMat.polygonOffsetUnits = -4;
   const externalMarkingLift =
     usesExternalTableModel && Number.isFinite(resolvedTableOptions?.tableModel?.markingVisualLift)
       ? Math.max(0, resolvedTableOptions.tableModel.markingVisualLift)
       : 0;
-  const markingHeight = clothPlaneLocal + Math.max(MICRO_EPS * 8, BALL_R * 0.018) + externalMarkingLift;
-  const lineThickness = Math.max(BALL_R * 0.22, 0.014);
+  const markingHeight = clothPlaneLocal - CLOTH_DROP + MICRO_EPS * 2 + externalMarkingLift;
+  const lineThickness = Math.max(BALL_R * 0.1, 0.1);
   const baulkLineLength = PLAY_W - SIDE_RAIL_INNER_THICKNESS * 0.4;
   const baulkLineGeom = new THREE.PlaneGeometry(baulkLineLength, lineThickness);
   const baulkLine = new THREE.Mesh(baulkLineGeom, markingMat);
@@ -9359,7 +9353,7 @@ export function Table3D(
   markingsGroup.add(baulkLine);
 
   const dArc = null;
-  const spotRadius = BALL_R * 0.46;
+  const spotRadius = BALL_R * 0.34;
   const spotMeshes = [];
   const addSpot = (x, z) => {
     const spotGeo = new THREE.CircleGeometry(spotRadius, 40);
@@ -9376,7 +9370,7 @@ export function Table3D(
   const penaltySpot = addSpot(0, (topCushionZ + 0) / 2);
   markingsGroup.traverse((child) => {
     if (child.isMesh) {
-      child.renderOrder = cloth.renderOrder + 12;
+      child.renderOrder = cloth.renderOrder + 1;
       child.castShadow = false;
       child.receiveShadow = false;
     }
@@ -9537,14 +9531,6 @@ export function Table3D(
     pocket.userData.externalTablePocketDropHardware = true;
     table.add(pocket);
     pocketMeshes.push(pocket);
-    if (!POOL_ROYALE_RENDER_POCKET_DROP_HARDWARE) {
-      table.userData.pocketHolderAnchors[index] = {
-        pocketId,
-        ringAnchor: null
-      };
-      return;
-    }
-
     const fieldCutRadius = resolvePocketFieldCutRadius(index);
     const pocketGuideRingRadius = fieldCutRadius;
     const net = new THREE.Mesh(resolvePocketNetGeometry(index), pocketNetMaterial);
@@ -29558,10 +29544,7 @@ const shotPowerRef = useRef(0);
             strikeDuration: strokeProfile.strikeDuration ?? LIVE_CUE_FORWARD_DURATION_MS,
             applied: false
           };
-          const shouldDeferShotUntilCueImpact = Boolean(ENABLE_CUE_STROKE_ANIMATION && cueStick);
-          if (!shouldDeferShotUntilCueImpact) {
-            applyShotAtImpact(shotImpactPayload);
-          }
+          applyShotAtImpact(shotImpactPayload);
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -29604,7 +29587,7 @@ const shotPowerRef = useRef(0);
             Math.max(CUE_PULL_MIN_VISUAL, maxPull)
           );
           const pullTarget = pullRange * strokeProfile.pullRatio;
-          const pulledNow = Math.max(cuePullCurrentRef.current ?? 0, pullTarget);
+          const pulledNow = cuePullCurrentRef.current ?? pullTarget;
           const startPull = THREE.MathUtils.clamp(pulledNow, 0, Math.max(maxPull, 0));
           const visualPull = applyVisualPullCompensation(startPull, dir);
           shotImpactPayload.pullDistance = visualPull;
@@ -34936,7 +34919,7 @@ const shotPowerRef = useRef(0);
                 );
               const restY =
                 railRunStart.y - POCKET_HOLDER_REST_DROP - tiltDrop;
-              if (!isCueBall && POOL_ROYALE_RENDER_POTTED_HOLDER_BALLS) {
+              if (!isCueBall) {
                 const dropEntry = {
                   start: dropStart,
                   fromY: BALL_CENTER_Y,
@@ -34973,10 +34956,6 @@ const shotPowerRef = useRef(0);
                 pocketDropRef.current.set(b.id, dropEntry);
               } else {
                 removePocketDropEntry(b.id);
-                if (b.mesh) {
-                  b.mesh.visible = false;
-                  b.mesh.scale.set(1, 1, 1);
-                }
               }
               const mappedColor = toBallColorId(b.id);
               const colorId =
