@@ -83,9 +83,7 @@ namespace TonPlaygram.Gameplay.Weapons
         [SerializeField] private Transform weaponRoot;
         [SerializeField] private Transform originalFpsRightGrip;
         [SerializeField] private Transform humanRightGrip;
-        [SerializeField] private Transform weaponMuzzle;
         [SerializeField] private bool keepWeaponOnHumanRightGrip = true;
-        [SerializeField] private bool forceMuzzleTowardRuntimeAim = true;
         [SerializeField] private Vector3 weaponGripPositionOffset;
         [SerializeField] private Vector3 weaponGripEulerOffset;
 
@@ -94,8 +92,6 @@ namespace TonPlaygram.Gameplay.Weapons
         private Quaternion _originalGripToWeaponRotation = Quaternion.identity;
         private Vector3 _originalGripToWeaponPosition;
         private bool _hasOriginalGripToWeapon;
-        private Vector3 _runtimeAimDirection = Vector3.forward;
-        private bool _hasRuntimeAimDirection;
 
         private void Awake()
         {
@@ -115,23 +111,6 @@ namespace TonPlaygram.Gameplay.Weapons
                 return;
 
             SnapToMappedPose();
-        }
-
-        public void SetRuntimeAimDirection(Vector3 worldAimDirection, Transform runtimeMuzzle = null)
-        {
-            if (runtimeMuzzle != null)
-            {
-                weaponMuzzle = runtimeMuzzle;
-            }
-
-            if (worldAimDirection.sqrMagnitude <= 0.00001f)
-            {
-                _hasRuntimeAimDirection = false;
-                return;
-            }
-
-            _runtimeAimDirection = worldAimDirection.normalized;
-            _hasRuntimeAimDirection = true;
         }
 
         [ContextMenu("Snap Human Hands To FPS Gun Rig")]
@@ -208,23 +187,11 @@ namespace TonPlaygram.Gameplay.Weapons
             {
                 weaponRoot.rotation = humanRightGrip.rotation * _originalGripToWeaponRotation * _weaponGripRotationOffset;
                 weaponRoot.position = humanRightGrip.position + (humanRightGrip.rotation * (_originalGripToWeaponPosition + weaponGripPositionOffset));
-                AimWeaponMuzzleTowardRuntimeTarget();
                 return;
             }
 
             weaponRoot.position = humanRightGrip.TransformPoint(weaponGripPositionOffset);
             weaponRoot.rotation = humanRightGrip.rotation * _weaponGripRotationOffset;
-
-            AimWeaponMuzzleTowardRuntimeTarget();
-        }
-
-        private void AimWeaponMuzzleTowardRuntimeTarget()
-        {
-            if (!forceMuzzleTowardRuntimeAim || !_hasRuntimeAimDirection || weaponRoot == null || weaponMuzzle == null)
-                return;
-
-            Quaternion delta = Quaternion.FromToRotation(weaponMuzzle.forward, _runtimeAimDirection);
-            weaponRoot.rotation = delta * weaponRoot.rotation;
         }
 
         private void AddExtraOriginalHandRenderers()
