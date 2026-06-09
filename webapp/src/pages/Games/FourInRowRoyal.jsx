@@ -95,6 +95,12 @@ const CAMERA_FRAME_MATCH_SCALE =
   ROW_GAME_SCALE_REDUCTION * TABLE_CHAIR_BOARD_GLOBAL_SCALE_BOOST;
 const CAMERA_CLOSER_RADIUS_FACTOR = 0.76;
 const CAMERA_HEIGHT_MATCH_BOOST = 1.3;
+const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(16);
+const CAMERA_LOOK_UP_LIMIT = THREE.MathUtils.degToRad(10);
+const CAMERA_LOOK_DOWN_LIMIT = THREE.MathUtils.degToRad(6);
+const CAMERA_LOOK_YAW_DRAG_FACTOR = -0.0048;
+const CAMERA_LOOK_PITCH_DRAG_FACTOR = -0.0032;
+const CAMERA_LOOK_TAP_DRAG_THRESHOLD_PX = 10;
 const ARENA_VISUAL_SCALE = 1;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE * TABLE_SCALE;
 const TABLE_HEIGHT =
@@ -1526,6 +1532,17 @@ export default function FourInRowRoyal() {
   const rendererRef = useRef(null);
   const perspectiveCameraRef = useRef(null);
   const controlsRef = useRef(null);
+  const cameraBaseTargetRef = useRef(new THREE.Vector3());
+  const cameraLockedPositionRef = useRef(new THREE.Vector3());
+  const cameraLookRef = useRef({ yaw: 0, pitch: 0 });
+  const cameraLookPointerRef = useRef({
+    pointerId: null,
+    startX: 0,
+    startY: 0,
+    lastX: 0,
+    lastY: 0,
+    dragged: false
+  });
   const rayRef = useRef(new THREE.Raycaster());
   const pointerRef = useRef(new THREE.Vector2());
   const envRef = useRef({ map: null, skybox: null, hdriId: null, qualityKey: null });
@@ -1983,6 +2000,7 @@ export default function FourInRowRoyal() {
       arenaRoot.position.y + TABLE_HEIGHT + cameraHeightOffset,
       Math.sin(cameraSeatAngle) * cameraRadius
     );
+    cameraLockedPositionRef.current.copy(perspective.position);
     perspectiveCameraRef.current = perspective;
 
     const controls = new OrbitControls(perspective, renderer.domElement);
@@ -1990,7 +2008,8 @@ export default function FourInRowRoyal() {
     controls.enableRotate = false;
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
-    controls.target.set(0, arenaRoot.position.y + TABLE_HEIGHT + 0.08, 0);
+    cameraBaseTargetRef.current.set(0, arenaRoot.position.y + TABLE_HEIGHT + 0.08, 0);
+    controls.target.copy(cameraBaseTargetRef.current);
     controls.minPolarAngle = THREE.MathUtils.degToRad(30);
     controls.maxPolarAngle =
       ARENA_CAMERA_DEFAULTS.phiMax + THREE.MathUtils.degToRad(16);
@@ -2460,6 +2479,31 @@ export default function FourInRowRoyal() {
     onResize();
     animationClockRef.current.start();
 
+    const applyCameraLookTarget = () => {
+      const baseTarget = cameraBaseTargetRef.current;
+      const lockedPosition = cameraLockedPositionRef.current;
+      const look = cameraLookRef.current;
+      const target = baseTarget.clone();
+      const toTarget = target.clone().sub(lockedPosition);
+      const horizontalLength = Math.hypot(toTarget.x, toTarget.z);
+
+      if (horizontalLength > 0.0001 && Math.abs(look.yaw) > 0.0001) {
+        const lateral = new THREE.Vector3(toTarget.z, 0, -toTarget.x).normalize();
+        target.addScaledVector(lateral, Math.tan(look.yaw) * horizontalLength);
+      }
+
+      if (Math.abs(look.pitch) > 0.0001) {
+        const distance = toTarget.length();
+        if (distance > 0.0001) {
+          target.y += Math.tan(look.pitch) * distance;
+        }
+      }
+
+      perspective.position.copy(lockedPosition);
+      controls.target.lerp(target, 0.32);
+      perspective.lookAt(controls.target);
+    };
+
     let raf;
     const animate = () => {
       raf = requestAnimationFrame(animate);
@@ -2616,6 +2660,7 @@ export default function FourInRowRoyal() {
       });
 
       controls.update();
+      applyCameraLookTarget();
       if (
         markerRef.current &&
         Number.isInteger(hoverColRef.current) &&
@@ -2716,6 +2761,8 @@ export default function FourInRowRoyal() {
         const key = keyLightRef.current;
         if (arenaRoot) arenaRoot.position.y = nextArenaYOffset;
         if (camera) camera.position.y += yDelta;
+        cameraLockedPositionRef.current.y += yDelta;
+        cameraBaseTargetRef.current.y += yDelta;
         if (controls) controls.target.y += yDelta;
         if (key) key.position.y += yDelta;
         arenaYOffsetRef.current = nextArenaYOffset;
@@ -2853,27 +2900,106 @@ export default function FourInRowRoyal() {
       return Math.min(cols - 1, Math.max(0, Math.floor(normalizedX * cols)));
     };
 
+    const updateCameraLookDrag = (deltaX = 0, deltaY = 0) => {
+      const look = cameraLookRef.current;
+      look.yaw = THREE.MathUtils.clamp(
+        look.yaw + deltaX * CAMERA_LOOK_YAW_DRAG_FACTOR,
+        -CAMERA_LOOK_YAW_LIMIT,
+        CAMERA_LOOK_YAW_LIMIT
+      );
+      look.pitch = THREE.MathUtils.clamp(
+        look.pitch + deltaY * CAMERA_LOOK_PITCH_DRAG_FACTOR,
+        -CAMERA_LOOK_DOWN_LIMIT,
+        CAMERA_LOOK_UP_LIMIT
+      );
+    };
+
     const updateHover = (event) => {
       const col = getColumnFromEvent(event);
       setHoverCol(col);
     };
 
-    const onPointer = (event) => {
-      if (turn !== 'player' || winner) return;
-      const col = getColumnFromEvent(event);
-      setHoverCol(col);
-      if (Number.isInteger(col)) playColumn(col, 'player');
+    const onPointerDown = (event) => {
+      event.preventDefault();
+      cameraLookPointerRef.current = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        lastX: event.clientX,
+        lastY: event.clientY,
+        dragged: false
+      };
+      updateHover(event);
+      renderer.domElement.setPointerCapture?.(event.pointerId);
     };
 
-    const onPointerLeave = () => setHoverCol(null);
+    const onPointerMove = (event) => {
+      updateHover(event);
+      const state = cameraLookPointerRef.current;
+      if (state.pointerId !== event.pointerId) return;
+      event.preventDefault();
+      const deltaX = event.clientX - state.lastX;
+      const deltaY = event.clientY - state.lastY;
+      const totalDrag = Math.hypot(
+        event.clientX - state.startX,
+        event.clientY - state.startY
+      );
+      state.lastX = event.clientX;
+      state.lastY = event.clientY;
+      if (totalDrag >= CAMERA_LOOK_TAP_DRAG_THRESHOLD_PX) {
+        state.dragged = true;
+      }
+      if (state.dragged) {
+        updateCameraLookDrag(deltaX, deltaY);
+      }
+    };
 
-    renderer.domElement.addEventListener('pointermove', updateHover);
-    renderer.domElement.addEventListener('pointerdown', onPointer);
-    renderer.domElement.addEventListener('pointerleave', onPointerLeave);
+    const onPointerUp = (event) => {
+      const state = cameraLookPointerRef.current;
+      if (state.pointerId !== event.pointerId) return;
+      event.preventDefault();
+      const wasTap = !state.dragged;
+      cameraLookPointerRef.current = {
+        pointerId: null,
+        startX: 0,
+        startY: 0,
+        lastX: 0,
+        lastY: 0,
+        dragged: false
+      };
+      renderer.domElement.releasePointerCapture?.(event.pointerId);
+      if (wasTap && turn === 'player' && !winner) {
+        const col = getColumnFromEvent(event);
+        setHoverCol(col);
+        if (Number.isInteger(col)) playColumn(col, 'player');
+      }
+    };
+
+    const clearPointerState = (event) => {
+      if (cameraLookPointerRef.current.pointerId === event.pointerId) {
+        cameraLookPointerRef.current = {
+          pointerId: null,
+          startX: 0,
+          startY: 0,
+          lastX: 0,
+          lastY: 0,
+          dragged: false
+        };
+      }
+      setHoverCol(null);
+    };
+
+    renderer.domElement.addEventListener('pointerdown', onPointerDown, { passive: false });
+    renderer.domElement.addEventListener('pointermove', onPointerMove, { passive: false });
+    renderer.domElement.addEventListener('pointerup', onPointerUp, { passive: false });
+    renderer.domElement.addEventListener('pointercancel', clearPointerState);
+    renderer.domElement.addEventListener('pointerleave', clearPointerState);
     return () => {
-      renderer.domElement.removeEventListener('pointermove', updateHover);
-      renderer.domElement.removeEventListener('pointerdown', onPointer);
-      renderer.domElement.removeEventListener('pointerleave', onPointerLeave);
+      renderer.domElement.removeEventListener('pointerdown', onPointerDown);
+      renderer.domElement.removeEventListener('pointermove', onPointerMove);
+      renderer.domElement.removeEventListener('pointerup', onPointerUp);
+      renderer.domElement.removeEventListener('pointercancel', clearPointerState);
+      renderer.domElement.removeEventListener('pointerleave', clearPointerState);
     };
   }, [turn, winner, board, cols, boardWidth]);
 
