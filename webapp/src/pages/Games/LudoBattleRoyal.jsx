@@ -361,6 +361,10 @@ const FIREARM_RACK_PARKING_SEAT_ADJUSTMENTS = Object.freeze([
   Object.freeze({ side: -0.012, inward: 0.052 }), // top
   Object.freeze({ side: -0.008, inward: 0.004 }) // left
 ]);
+const FIREARM_RACK_DICE_SIDE_OFFSET = 0.102;
+const FIREARM_RACK_DICE_INWARD_OFFSET = 0.018;
+const FIREARM_RACK_DICE_LONG_GUN_SIDE_EXTRA = 0.036;
+const FIREARM_RACK_DICE_LONG_GUN_INWARD_EXTRA = 0.012;
 const FIREARM_RACK_OPPOSITE_SEAT_TARGET_BY_PLAYER = Object.freeze({
   0: 2,
   2: 0
@@ -8611,14 +8615,51 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     return kingToken.getWorldPosition(new THREE.Vector3());
   }, []);
 
+  const resolveFirearmRackDicePose = useCallback((playerIndex, captureAnimationId = null) => {
+    const arena = arenaRef.current;
+    const dice = diceRef.current;
+    const boardGroup = arena?.boardGroup;
+    if (!arena?.boardLookTarget || !dice?.userData || !boardGroup?.localToWorld) return null;
+    const railPositions = Array.isArray(dice.userData.railPositions) ? dice.userData.railPositions : [];
+    const layouts = Array.isArray(dice.userData.tokenRails) ? dice.userData.tokenRails : [];
+    const railLocal = railPositions[playerIndex]?.clone?.();
+    const layout = layouts[playerIndex];
+    if (!railLocal || !layout?.forward?.clone || !layout?.right?.clone) return null;
+
+    const railWorld = railLocal.clone();
+    boardGroup.localToWorld(railWorld);
+    railWorld.y = arena.tableInfo?.surfaceY ?? railWorld.y;
+
+    const forwardWorld = layout.forward.clone().setY(0);
+    const rightWorld = layout.right.clone().setY(0);
+    if (forwardWorld.lengthSq() < 1e-6 || rightWorld.lengthSq() < 1e-6) return null;
+    forwardWorld.normalize().transformDirection(boardGroup.matrixWorld).setY(0);
+    rightWorld.normalize().transformDirection(boardGroup.matrixWorld).setY(0);
+    if (forwardWorld.lengthSq() < 1e-6 || rightWorld.lengthSq() < 1e-6) return null;
+    forwardWorld.normalize();
+    rightWorld.normalize();
+
+    const isLargeFirearm = LARGE_RACK_FIREARM_IDS.has(captureAnimationId);
+    const sideOffset = FIREARM_RACK_DICE_SIDE_OFFSET + (isLargeFirearm ? FIREARM_RACK_DICE_LONG_GUN_SIDE_EXTRA : 0);
+    const inwardOffset = FIREARM_RACK_DICE_INWARD_OFFSET + (isLargeFirearm ? FIREARM_RACK_DICE_LONG_GUN_INWARD_EXTRA : 0);
+    const position = railWorld
+      .clone()
+      .addScaledVector(rightWorld, sideOffset)
+      .addScaledVector(forwardWorld, -inwardOffset);
+    position.y = (arena.tableInfo?.surfaceY ?? position.y) + 0.002;
+    return { position, aimTarget: railWorld.clone().addScaledVector(forwardWorld, -0.22) };
+  }, []);
+
   const resolveCaptureParkingAnchors = useCallback((playerIndex, vehicleType = 'fighter') => {
     const arena = arenaRef.current;
     if (!arena?.seatAnchors?.length || !arena.boardLookTarget) return null;
     const anchor = arena.seatAnchors[playerIndex];
     if (!anchor) return null;
+    if (vehicleType === 'firearmRack') {
+      const dicePose = resolveFirearmRackDicePose(playerIndex);
+      if (dicePose?.position?.isVector3) return dicePose.position;
+    }
     const seatPos = anchor.getWorldPosition(new THREE.Vector3());
-    // Park table weapons from the player's king/token anchor, matching the legacy tabletop
-    // layout instead of drifting them into the dice roll slot.
     const kingPos = getKingTokenPositionForPlayer(playerIndex) ?? seatPos;
     const inward = arena.boardLookTarget.clone().sub(kingPos).setY(0).normalize();
     if (inward.lengthSq() < 1e-6) return null;
@@ -8639,7 +8680,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       .addScaledVector(inward, -outwardOffset);
     park.y = (arena.tableInfo?.surfaceY ?? park.y) + 0.002;
     return park;
-  }, [getKingTokenPositionForPlayer]);
+  }, [getKingTokenPositionForPlayer, resolveFirearmRackDicePose]);
 
   const resolvePlayerLabel = useCallback(
     (playerIndex) => players[playerIndex]?.name || COLOR_NAMES[playerIndex] || `Player ${playerIndex + 1}`,
@@ -8658,8 +8699,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       if (!arena?.seatAnchors?.length || !arena.boardLookTarget || !Number.isFinite(playerIndex)) return;
       const anchor = arena.seatAnchors[playerIndex];
       if (!anchor?.isObject3D) return;
-      // Keep refreshed firearms parked by the player token/king, as they were in the
-      // legacy tabletop layout, rather than snapping to the dice roll target.
       const kingPos = getKingTokenPositionForPlayer(playerIndex) ?? anchor.getWorldPosition(new THREE.Vector3());
       const inward = arena.boardLookTarget.clone().sub(kingPos).setY(0);
       if (inward.lengthSq() < 1e-6) return;
@@ -8672,20 +8711,25 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           ? FIREARM_RACK_PARKING_TUNING.large
           : FIREARM_RACK_PARKING_TUNING.small);
       const seatAdjustment = FIREARM_RACK_PARKING_SEAT_ADJUSTMENTS[playerIndex] || FIREARM_RACK_PARKING_SEAT_ADJUSTMENTS[0];
-      const basePosition = kingPos
-        .clone()
-        .addScaledVector(rightSide, rackTuning.side + seatAdjustment.side)
-        .addScaledVector(inward, rackTuning.inward + seatAdjustment.inward)
-        .addScaledVector(inward, -rackTuning.outward);
+      const dicePose = resolveFirearmRackDicePose(playerIndex, captureAnimationId);
+      const basePosition = dicePose?.position?.isVector3
+        ? dicePose.position.clone()
+        : kingPos
+            .clone()
+            .addScaledVector(rightSide, rackTuning.side + seatAdjustment.side)
+            .addScaledVector(inward, rackTuning.inward + seatAdjustment.inward)
+            .addScaledVector(inward, -rackTuning.outward);
       entry.weaponRack.position.copy(basePosition);
       alignObjectBottomToY(entry.weaponRack, arena.tableInfo?.surfaceY);
       entry.weaponRack.position.y += CAPTURE_PARKED_LIFT_OFFSET_Y;
       const firearmAimTarget =
-        resolveFirearmRackAimTarget(
-          arena,
-          playerIndex,
-          getKingTokenPositionForPlayer
-        ) ?? arena.boardLookTarget;
+        dicePose?.aimTarget?.isVector3
+          ? dicePose.aimTarget
+          : resolveFirearmRackAimTarget(
+              arena,
+              playerIndex,
+              getKingTokenPositionForPlayer
+            ) ?? arena.boardLookTarget;
       orientFirearmRackTowardBoardCenter(entry.weaponRack, firearmAimTarget);
       orientWeaponHolderTowardBoardCenter(entry, firearmAimTarget);
     };
@@ -8734,7 +8778,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         }
       }
     });
-  }, [aiLoadoutByPlayer, getKingTokenPositionForPlayer]);
+  }, [aiLoadoutByPlayer, getKingTokenPositionForPlayer, resolveFirearmRackDicePose]);
 
   const rebuildParkedCaptureVehicles = useCallback(async () => {
     const arena = arenaRef.current;
