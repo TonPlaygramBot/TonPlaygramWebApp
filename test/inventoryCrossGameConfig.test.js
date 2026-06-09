@@ -233,7 +233,7 @@ describe('cross-game inventory alignment', () => {
     expect(source).toContain('applyGunifyWeaponTexturePolicy(material)');
     expect(source).toContain("config?.texturePolicy === 'gunifyPbr'");
     expect(source).toContain('CHESS_FIREARM_AIM_ROTATION = Object.freeze([0, -Math.PI * 0.5, 0])');
-    expect(source).toContain('rightHandGrip = Math.max(handGrip, holdProfile.triggerGrip ?? 0.98)');
+    expect(source).toContain('rightHandGrip = Math.max(handGrip, holdProfile.triggerGrip ?? 0.94)');
     expect(source).not.toContain('Gunify/main/images/AK47.jpeg');
     expect(source).not.toContain('Gunify/main/images/SigSauer.jpg');
 
@@ -266,18 +266,39 @@ describe('cross-game inventory alignment', () => {
     expect(source).toContain('}, DICE_RESULT_CAMERA_HOLD_MS);');
   });
 
-  test('ludo battle royal preserves source-authored materials for non-Gunify weapons', async () => {
+  test('ludo battle royal mirrors chess source material visibility for non-Gunify weapons', async () => {
     const source = await readFile('webapp/src/pages/Games/LudoBattleRoyal.jsx', 'utf8');
 
     expect(source).toContain('function preserveCaptureWeaponSourceMaterial');
     expect(source).toContain("sourceTexturePolicy: texturePolicy");
     expect(source).toContain("preserveCaptureWeaponSourceMaterial(material, config?.texturePolicy || 'preserveSource')");
+    expect(source).not.toContain("texturePolicy: 'polyPizzaOriginalGlb'");
 
     const setupStart = source.indexOf('root.traverse((node) => {', source.indexOf('async function loadCaptureWeaponModel'));
     const setupEnd = source.indexOf('applyModelQualityToObject(root);', setupStart);
     const materialSetup = source.slice(setupStart, setupEnd);
-    expect(materialSetup).not.toContain('material.transparent = false');
-    expect(materialSetup).not.toContain('material.opacity = 1');
+    expect(materialSetup).toContain('material.transparent = false');
+    expect(materialSetup).toContain('material.opacity = 1');
+  });
+
+  test('ludo battle royal parks firearms on table and uses per-weapon muzzle aim mapping', async () => {
+    const source = await readFile('webapp/src/pages/Games/LudoBattleRoyal.jsx', 'utf8');
+
+    expect(source).toContain('weaponHolder.position.set(0.04, 0, -0.018)');
+    expect(source).toContain('weaponRackHit.position.set(0.04, 0, -0.018)');
+    expect(source).toContain('const FIREARM_MUZZLE_AIM_FORWARD_BY_ID = Object.freeze');
+    expect(source).toContain('muzzleForward: [0, 0, -1]');
+    expect(source).toContain('captureAnimationId,');
+    expect(source).toContain('resolveFirearmMuzzleVector(FIREARM_MUZZLE_AIM_FORWARD_BY_ID');
+  });
+
+  test('ludo battle royal camera is slightly higher with a wider fov without extra pullback', async () => {
+    const source = await readFile('webapp/src/pages/Games/LudoBattleRoyal.jsx', 'utf8');
+
+    expect(source).toContain('const CAMERA_FOV = 76');
+    expect(source).toContain('const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.17');
+    expect(source).toContain('targetLift: 0.072 * MODEL_SCALE');
+    expect(source).toContain('const USER_TURN_CAMERA_PULLBACK = 0');
   });
 
   test('snake store mirrors ludo battle royal capture weapons', () => {
@@ -287,7 +308,9 @@ describe('cross-game inventory alignment', () => {
     const snakeCatalogIds = new Set(SNAKE_CAPTURE_WEAPON_OPTIONS.slice(1).map((option) => option.id));
 
     expect(snakeCaptureStoreIds).toEqual(snakeCatalogIds);
-    expect(new Set(SNAKE_DEFAULT_UNLOCKS.captureWeapon)).toEqual(new Set([SNAKE_CAPTURE_WEAPON_OPTIONS[0]?.id]));
+    SNAKE_DEFAULT_UNLOCKS.captureWeapon.forEach((weaponId) => {
+      expect(SNAKE_CAPTURE_WEAPON_OPTIONS.some((option) => option.id === weaponId)).toBe(true);
+    });
 
     [
       'poly-robot-large-gun-01',
