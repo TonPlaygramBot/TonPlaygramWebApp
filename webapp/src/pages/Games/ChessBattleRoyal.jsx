@@ -477,30 +477,6 @@ const CHESS_FIREARM_MAGAZINE_SHOTS_BY_ID = Object.freeze({
   polyHandGrenade01Attack: 1,
   polyTank01Attack: 1
 });
-
-const CHESS_FIREARM_SHOTGUN_IDS = new Set([
-  'shotgunBlastAttack',
-  'polyShotgun01Attack',
-  'polyShotgun02Attack',
-  'polyShotgun03Attack',
-  'polySawedOff01Attack'
-]);
-const CHESS_FIREARM_MARKSMAN_IDS = new Set(['sniperShotAttack', 'mosinMarksmanAttack', 'marksmanDmrAttack']);
-const CHESS_FIREARM_SCATTER_PROJECTILE_IDS = new Set([...CHESS_FIREARM_SHOTGUN_IDS]);
-const CHESS_FIREARM_PICKUP_LEAD_MS = 420;
-const CHESS_FIREARM_RELOAD_LEAD_MS = 260;
-const CHESS_FIREARM_AIM_LEAD_MS = 340;
-const CHESS_FIREARM_PRE_FIRE_LEAD_MS = CHESS_FIREARM_PICKUP_LEAD_MS + CHESS_FIREARM_RELOAD_LEAD_MS + CHESS_FIREARM_AIM_LEAD_MS;
-const CHESS_FIREARM_VOLLEY_SLOW_FACTOR = 2.08;
-const CHESS_FIREARM_RECOIL_RECOVER_MS = 94;
-const CHESS_FIREARM_RECOIL_DISTANCE = 0.025;
-const CHESS_FIREARM_FINAL_BULLET_SPIN_RATE = 0.118;
-const CHESS_FIREARM_NON_FINAL_BULLET_SPIN_RATE = 0.032;
-const CHESS_FIREARM_VOLLEY_SETTLE_MS = 760;
-const resolveChessFirearmCadenceMs = (captureAnimationId) =>
-  (CHESS_FIREARM_MARKSMAN_IDS.has(captureAnimationId) ? 155 : CHESS_FIREARM_SHOTGUN_IDS.has(captureAnimationId) ? 92 : 56) *
-  CHESS_FIREARM_VOLLEY_SLOW_FACTOR;
-
 const CHESS_GRENADE_SHORT_MISSILE_IDS = new Set([
   'grenadeBlastAttack',
   'polyBazooka01Attack',
@@ -13248,12 +13224,6 @@ function Chess3D({
         const group = resolvePieceGroupFromType(movingType);
         const firearmAnimationId = captureAnimationByPieceGroupRef.current?.[group] || selectedCaptureAnimationIdRef.current;
         const firearmProfile = resolveFirearmCaptureProfile(firearmAnimationId);
-        const firearmShots = Math.max(1, firearmProfile.bulletCount || 1);
-        const firearmPelletsPerShot = CHESS_FIREARM_SCATTER_PROJECTILE_IDS.has(firearmAnimationId)
-          ? Math.max(14, firearmProfile.pelletCount || 1)
-          : 1;
-        const firearmCadenceMs = resolveChessFirearmCadenceMs(firearmAnimationId);
-        const firearmVolleyDurationMs = CHESS_FIREARM_PRE_FIRE_LEAD_MS + firearmShots * firearmCadenceMs + CHESS_FIREARM_VOLLEY_SETTLE_MS;
         const missileFx = createFxMissile();
         missileFx.root.scale.setScalar(CAPTURE_MISSILE_SCALE * 0.52);
         missileFx.root.visible = false;
@@ -13292,7 +13262,7 @@ function Chess3D({
         activeCaptureFx.push({
           type: 'firearm',
           t: 0,
-          duration: firearmVolleyDurationMs / 1000,
+          duration: firearmProfile.duration,
           from: fromPos.clone(),
           to: targetPos.clone(),
           targetMesh,
@@ -13300,14 +13270,7 @@ function Chess3D({
           firearmFx,
           fpsArmsFx,
           aerodynamicRings,
-          bulletCount: firearmShots,
-          pelletsPerShot: firearmPelletsPerShot,
-          projectileCount: firearmShots * firearmPelletsPerShot,
-          cadenceMs: firearmCadenceMs,
-          pickupLeadMs: CHESS_FIREARM_PICKUP_LEAD_MS,
-          reloadLeadMs: CHESS_FIREARM_RELOAD_LEAD_MS,
-          aimLeadMs: CHESS_FIREARM_AIM_LEAD_MS,
-          preFireLeadMs: CHESS_FIREARM_PRE_FIRE_LEAD_MS,
+          bulletCount: firearmProfile.bulletCount,
           impactAt: firearmProfile.impactAt,
           singleShot: firearmProfile.singleShot,
           bulletProfile: firearmProfile,
@@ -13322,7 +13285,7 @@ function Chess3D({
           muzzleOffset: new THREE.Vector3(0.24, 0.14, 0)
         });
         const finalBulletTravelMs = CHESS_FIREARM_FATAL_BULLET_TRAVEL_MS;
-        const firearmTotalMs = firearmVolleyDurationMs + finalBulletTravelMs + 260;
+        const firearmTotalMs = firearmProfile.duration * 1000 + finalBulletTravelMs + 260;
         return withAuto3d({
           moveDelayMs: firearmTotalMs,
           captureResolveDelayMs: firearmTotalMs
@@ -15804,14 +15767,6 @@ function Chess3D({
             const targetPos = getLiveTargetPosition(fx.to, fx.targetMesh, 0);
             const targetAimPos = getFirearmTargetAimPosition(fx.to, fx.targetMesh);
             fx.to.copy(targetPos);
-            const elapsedMs = fx.t * 1000;
-            const pickupLeadMs = fx.pickupLeadMs ?? CHESS_FIREARM_PICKUP_LEAD_MS;
-            const reloadLeadMs = fx.reloadLeadMs ?? CHESS_FIREARM_RELOAD_LEAD_MS;
-            const aimLeadMs = fx.aimLeadMs ?? CHESS_FIREARM_AIM_LEAD_MS;
-            const preFireLeadMs = fx.preFireLeadMs ?? CHESS_FIREARM_PRE_FIRE_LEAD_MS;
-            const cadenceMs = fx.cadenceMs ?? resolveChessFirearmCadenceMs(fx.captureAnimationId);
-            const elapsedShooting = Math.max(0, elapsedMs - preFireLeadMs);
-            const weaponAnimationActive = elapsedMs >= preFireLeadMs && elapsedShooting < Math.max(1, fx.bulletCount || 1) * cadenceMs;
             const aimOrigin = getFirearmAttackerTilePose(fx.from);
             const aimDir = targetAimPos.clone().sub(aimOrigin);
             if (aimDir.lengthSq() > 1e-8) aimDir.normalize();
@@ -15828,30 +15783,11 @@ function Chess3D({
               const liveAimDir = liveAimTarget.clone().sub(aimOrigin);
               if (liveAimDir.lengthSq() > 1e-8) liveAimDir.normalize();
               else liveAimDir.copy(aimDir);
-              const drawPhase = clamp(elapsedMs / Math.max(1, pickupLeadMs), 0, 1);
-              const shoulderPhase = clamp((elapsedMs - pickupLeadMs) / Math.max(1, reloadLeadMs + aimLeadMs), 0, 1);
-              const sideVector = new THREE.Vector3().crossVectors(WORLD_UP, liveAimDir);
-              if (sideVector.lengthSq() < 1e-7) sideVector.set(1, 0, 0);
-              sideVector.normalize();
-              const readyPosition = aimOrigin.clone().addScaledVector(liveAimDir, -(fx.shortMissile ? 0.035 : 0.055));
-              const rackStartPosition = readyPosition
-                .clone()
-                .addScaledVector(sideVector, 0.18)
-                .addScaledVector(liveAimDir, -0.06)
-                .addScaledVector(WORLD_UP, 0.035);
-              const drawEase = smoothEase(drawPhase);
-              fx.firearmFx.position.lerpVectors(rackStartPosition, readyPosition, drawEase);
-              const aimSettle = elapsedMs >= preFireLeadMs ? 1 : smoothEase(shoulderPhase);
-              fx.firearmFx.position.addScaledVector(liveAimDir, (fx.singleShot ? 0.018 : 0.012) * aimSettle);
-              fx.firearmFx.position.addScaledVector(WORLD_UP, 0.02 - 0.006 * aimSettle);
-              if (elapsedMs < pickupLeadMs) {
-                fx.firearmFx.rotation.x += Math.sin(elapsedMs * 0.018) * 0.004;
-              }
-              if (elapsedMs >= pickupLeadMs * 0.52) {
-                orientForwardKeepingUp(fx.firearmFx, liveAimDir);
-              } else {
-                orientForwardKeepingUp(fx.firearmFx, aimDir);
-              }
+              fx.firearmFx.position.copy(
+                aimOrigin.clone().addScaledVector(liveAimDir, -(fx.shortMissile ? 0.035 : 0.055))
+              );
+              fx.firearmFx.position.y += 0.02 + Math.sin(u * Math.PI * 8) * 0.006;
+              orientForwardKeepingUp(fx.firearmFx, liveAimDir);
               fx.firearmFx.updateMatrixWorld?.(true);
               const muzzleHelper = fx.firearmFx.userData?.muzzleHelper;
               if (muzzleHelper?.isObject3D) {
@@ -15860,18 +15796,14 @@ function Chess3D({
                 fx.firearmFx.position.add(desiredMuzzleWorld.sub(currentMuzzleWorld));
                 fx.firearmFx.updateMatrixWorld?.(true);
               }
-              const shotRemainder = elapsedShooting >= 0 ? elapsedShooting % cadenceMs : cadenceMs;
-              const recoilPhase = weaponAnimationActive ? 1 - clamp(shotRemainder / CHESS_FIREARM_RECOIL_RECOVER_MS, 0, 1) : 0;
-              fx.firearmFx.position.addScaledVector(liveAimDir, -CHESS_FIREARM_RECOIL_DISTANCE * recoilPhase);
+              const recoil = Math.sin(Math.min(1, u * Math.max(1, fx.bulletCount || 1)) * Math.PI) * 0.025;
+              fx.firearmFx.position.addScaledVector(liveAimDir, -recoil);
               aimDir.copy(liveAimDir);
             }
             if (fx.fpsArmsFx) {
               fx.fpsArmsFx.visible = true;
-              const drawPhase = clamp(elapsedMs / Math.max(1, pickupLeadMs), 0, 1);
-              const shoulderPhase = clamp((elapsedMs - pickupLeadMs) / Math.max(1, reloadLeadMs + aimLeadMs), 0, 1);
-              const armSettle = elapsedMs >= preFireLeadMs ? 1 : smoothEase(Math.max(drawPhase, shoulderPhase));
               fx.fpsArmsFx.position.copy(aimOrigin).addScaledVector(aimDir, -(fx.shortMissile ? 0.095 : 0.075));
-              fx.fpsArmsFx.position.y += 0.004 - 0.006 * armSettle + (weaponAnimationActive ? Math.sin(elapsedShooting * 0.03) * 0.004 : 0);
+              fx.fpsArmsFx.position.y += 0.004 + Math.sin(u * Math.PI * Math.max(4, fx.bulletCount || 1)) * 0.004;
               orientForwardKeepingUp(fx.fpsArmsFx, aimDir);
             }
 
@@ -15902,7 +15834,7 @@ function Chess3D({
               }
               bullet.mesh.position.copy(pos);
               bullet.mesh.quaternion.setFromUnitVectors(WORLD_UP, projectileDir);
-              bullet.mesh.rotateY((now - bullet.startMs) * (bullet.cinematic ? CHESS_FIREARM_FINAL_BULLET_SPIN_RATE : CHESS_FIREARM_NON_FINAL_BULLET_SPIN_RATE));
+              bullet.mesh.rotateY(bulletAge * 0.118);
               bullet.mesh.rotateX(bullet.cinematic ? 0.18 : 0.1);
               bullet.mesh.visible = bulletAge < 1;
               if (bullet.trail?.isObject3D) {
@@ -15993,29 +15925,18 @@ function Chess3D({
               return false;
             });
 
-            const shotsToFire = Math.max(1, fx.bulletCount || 1);
-            const pelletsPerShot = Math.max(1, fx.pelletsPerShot || 1);
-            const bulletsToFire = Math.max(1, fx.projectileCount || shotsToFire * pelletsPerShot);
-            const shouldFireShots = elapsedMs >= preFireLeadMs
-              ? Math.min(shotsToFire, Math.floor(elapsedShooting / cadenceMs) + 1)
-              : 0;
-            const shouldFireCount = Math.min(bulletsToFire, shouldFireShots * pelletsPerShot);
+            const bulletsToFire = Math.max(1, fx.bulletCount || 1);
+            const fireStep = 1 / bulletsToFire;
+            const shouldFireCount = Math.min(
+              bulletsToFire,
+              Math.floor((u + 0.0001) / fireStep) + (u > 0.04 ? 1 : 0)
+            );
             while (fx.firedBullets < shouldFireCount) {
               fx.firedBullets += 1;
-              const projectileIndex = fx.firedBullets - 1;
-              const shotIndex = Math.floor(projectileIndex / pelletsPerShot);
-              const pelletIndex = projectileIndex % pelletsPerShot;
+              const shotIndex = fx.firedBullets - 1;
+              const spread = (shotIndex - (bulletsToFire - 1) * 0.5) * (fx.bulletProfile?.pelletCount ? 0.012 : 0.004);
               const side = new THREE.Vector3().crossVectors(WORLD_UP, aimDir).normalize();
-              const verticalSpread = new THREE.Vector3(0, 1, 0);
-              const scatterRadius = pelletsPerShot > 1 ? 0.012 : 0.004;
-              const pelletAngle = pelletIndex * 2.399;
-              const spread = pelletsPerShot > 1
-                ? Math.cos(pelletAngle) * scatterRadius
-                : (shotIndex - (shotsToFire - 1) * 0.5) * scatterRadius;
-              const liftSpread = pelletsPerShot > 1 ? Math.sin(pelletAngle) * scatterRadius * 0.55 : 0;
-              const bulletTo = getFirearmTargetAimPosition(fx.to, fx.targetMesh)
-                .addScaledVector(side, spread)
-                .addScaledVector(verticalSpread, liftSpread);
+              const bulletTo = getFirearmTargetAimPosition(fx.to, fx.targetMesh).addScaledVector(side, spread);
               const missileProjectile = fx.shortMissile ? createFxGroundMissile() : null;
               const bullet = missileProjectile?.root || createFirearmBulletMesh(fx.bulletProfile);
               if (missileProjectile) bullet.scale.setScalar(CAPTURE_MISSILE_SCALE * 0.78);
@@ -16029,7 +15950,7 @@ function Chess3D({
               const isFatalBullet = fx.firedBullets === bulletsToFire;
               const bulletDurationMs = isFatalBullet
                 ? CHESS_FIREARM_FATAL_BULLET_TRAVEL_MS
-                : Math.max(90, cadenceMs * 0.82);
+                : Math.max(90, fx.duration * 1000 * fireStep * 0.86);
               const bulletState = {
                 mesh: bullet,
                 from: muzzlePos.clone(),
