@@ -3654,44 +3654,76 @@ function createDiceRollAnimation(
   {
     basePositions,
     baseY,
-    startPositions = []
+    startPositions = [],
+    bouncePoints = []
   }
 ) {
   const start = performance.now();
-  const spinVectors = diceArray.map(() =>
+  const tumbleAxes = diceArray.map(() =>
     new THREE.Vector3(
-      1.2 + Math.random() * 0.7,
-      1.35 + Math.random() * 0.65,
-      1.05 + Math.random() * 0.75
-    )
+      0.55 + Math.random() * 0.55,
+      0.35 + Math.random() * 0.45,
+      0.5 + Math.random() * 0.6
+    ).normalize()
   );
+  const tumbleRates = diceArray.map(() => 8.2 + Math.random() * 3.4);
   const wobbleVectors = diceArray.map(
     () => new THREE.Vector3((Math.random() - 0.5) * 0.16, 0, (Math.random() - 0.5) * 0.16)
   );
+  const lastPositions = diceArray.map((die, index) => (startPositions[index] ?? die.position).clone());
   const targetValues = diceArray.map(() => 1 + Math.floor(Math.random() * 6));
 
   return {
     type: 'diceRoll',
     update: (now) => {
       const t = Math.min((now - start) / Math.max(1, DICE_ROLL_DURATION), 1);
-      const eased = easeOutCubic(t);
       diceArray.forEach((die, index) => {
         const base = basePositions[index];
         if (!base) return;
         const startPos = startPositions[index] ?? base;
         const endPos = new THREE.Vector3(base.x, baseY, base.z);
-        const position = startPos.clone().lerp(endPos, eased);
+        const bouncePoint = bouncePoints[index];
+        let eased = easeOutCubic(t);
+        let position;
+
+        if (bouncePoint) {
+          const landingSplit = 0.64;
+          if (t < landingSplit) {
+            const u = easeOutCubic(t / landingSplit);
+            position = startPos.clone().lerp(bouncePoint, u);
+            const throwArc = Math.sin(u * Math.PI) * DICE_BOUNCE_HEIGHT * (1 - u * 0.2);
+            position.y = THREE.MathUtils.lerp(startPos.y, bouncePoint.y, u) + throwArc;
+            eased = u * landingSplit;
+          } else {
+            const u = easeOutCubic((t - landingSplit) / (1 - landingSplit));
+            position = bouncePoint.clone().lerp(endPos, u);
+            const smallHops = Math.abs(Math.sin(u * Math.PI * 2.6)) * DICE_BOUNCE_HEIGHT * 0.18 * (1 - u);
+            position.y = THREE.MathUtils.lerp(bouncePoint.y, endPos.y, u) + smallHops;
+            eased = landingSplit + u * (1 - landingSplit);
+          }
+        } else {
+          position = startPos.clone().lerp(endPos, eased);
+          const bounce = Math.sin(Math.min(1, eased * 1.25) * Math.PI) * DICE_BOUNCE_HEIGHT * (1 - eased * 0.45);
+          position.y = THREE.MathUtils.lerp(startPos.y, endPos.y, eased) + bounce;
+        }
+
         const wobbleStrength = Math.sin(eased * Math.PI);
         position.addScaledVector(wobbleVectors[index], wobbleStrength * 0.45);
-        const bounce = Math.sin(Math.min(1, eased * 1.25) * Math.PI) * DICE_BOUNCE_HEIGHT * (1 - eased * 0.45);
-        position.y = THREE.MathUtils.lerp(startPos.y, endPos.y, eased) + bounce;
-        die.position.copy(position);
 
-        // Same spin cadence as Ludo Battle Royal's spinDice helper.
+        const lastPosition = lastPositions[index];
+        const travel = position.clone().sub(lastPosition);
+        const horizontalTravel = travel.clone().setY(0);
+        if (horizontalTravel.lengthSq() > 1e-7) {
+          const rollAxis = new THREE.Vector3().crossVectors(WORLD_UP, horizontalTravel.clone().normalize());
+          if (rollAxis.lengthSq() > 1e-7) {
+            die.rotateOnWorldAxis(rollAxis.normalize(), (horizontalTravel.length() / (DICE_SIZE * 0.5)) * 0.92);
+          }
+        }
+
         const spinFactor = 1 - eased * 0.28;
-        die.rotation.x += spinVectors[index].x * spinFactor * 0.22;
-        die.rotation.y += spinVectors[index].y * spinFactor * 0.22;
-        die.rotation.z += spinVectors[index].z * spinFactor * 0.22;
+        die.rotateOnAxis(tumbleAxes[index], tumbleRates[index] * spinFactor * 0.022);
+        die.position.copy(position);
+        lastPosition.copy(position);
       });
       if (t >= 1) {
         diceArray.forEach((die, index) => {
