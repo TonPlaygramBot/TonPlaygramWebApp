@@ -440,7 +440,8 @@ const chessMatchedPolyPizzaCaptureConfig = (ludoId) => {
     source: sourceOption.source || 'Poly Pizza',
     creator: sourceOption.creator,
     license: sourceOption.license,
-    texturePolicy: 'polyPizzaOriginalGlb',
+    // Keep Quaternius / Poly Pizza material handling identical to Chess Battle Royal:
+    // no custom texture policy, so GLTFLoader-preserved source textures flow through.
     snakeCaptureWeaponId: snakeId,
     scale: chessConfig.scale
   };
@@ -1075,12 +1076,16 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
   ak47VolleyAttack: {
     position: [0.036, -0.004, 0.128],
     rotation: [-1.43, -0.04, -1.555],
-    muzzleOffset: [0, 0.014, 0.256]
+    // Gunify AK-47's authored muzzle points along local -Z; keep the helper on the real barrel.
+    muzzleOffset: [0, 0.014, -0.256],
+    muzzleForward: [0, 0, -1]
   },
   krsvBurstAttack: {
     position: [0.035, -0.004, 0.125],
     rotation: [-1.43, -0.04, -1.55],
-    muzzleOffset: [0, 0.014, 0.249]
+    // Gunify KRSV uses the same reversed authored barrel axis as AK-47.
+    muzzleOffset: [0, 0.014, -0.249],
+    muzzleForward: [0, 0, -1]
   },
   smithSidearmAttack: {
     position: [0.019, -0.001, 0.084],
@@ -1161,11 +1166,82 @@ const FIREARM_HAND_ATTACH_TUNING = Object.freeze({
     position: [0.04, -0.005, 0.148],
     rotation: [-1.38, -0.04, -1.58],
     muzzleOffset: [0, 0.015, 0.278]
+  },
+  grenadeBlastAttack: {
+    position: [0.022, -0.002, 0.092],
+    rotation: [-1.48, -0.04, -1.57],
+    muzzleOffset: [0, 0.016, 0.17]
+  },
+  polyRobotLargeGunAttack: {
+    position: [0.032, -0.004, 0.118],
+    rotation: [-1.43, -0.04, -1.555],
+    muzzleOffset: [0, 0.014, 0.232]
+  },
+  polyRobotFlyingGunAttack: {
+    position: [0.026, -0.003, 0.106],
+    rotation: [-1.46, -0.04, -1.56],
+    muzzleOffset: [0, 0.014, 0.216]
+  },
+  polyBazooka01Attack: {
+    position: [0.038, -0.006, 0.142],
+    rotation: [-1.36, -0.05, -1.56],
+    muzzleOffset: [0, 0.016, 0.285]
+  },
+  polyGrenadeLauncher01Attack: {
+    position: [0.034, -0.006, 0.128],
+    rotation: [-1.39, -0.05, -1.56],
+    muzzleOffset: [0, 0.016, 0.24]
+  },
+  polyDynamiteBomb01Attack: {
+    position: [0.018, -0.002, 0.08],
+    rotation: [-1.5, -0.03, -1.57],
+    muzzleOffset: [0, 0.014, 0.16]
+  },
+  polyMolotov01Attack: {
+    position: [0.018, -0.002, 0.078],
+    rotation: [-1.5, -0.03, -1.57],
+    muzzleOffset: [0, 0.014, 0.15]
+  },
+  polyGasTank01Attack: {
+    position: [0.02, -0.002, 0.086],
+    rotation: [-1.49, -0.03, -1.57],
+    muzzleOffset: [0, 0.014, 0.18]
+  },
+  polyHandGrenade01Attack: {
+    position: [0.016, -0.001, 0.068],
+    rotation: [-1.52, -0.03, -1.58],
+    muzzleOffset: [0, 0.012, 0.13]
+  },
+  polyTank01Attack: {
+    position: [0.028, -0.004, 0.102],
+    rotation: [-1.44, -0.04, -1.56],
+    muzzleOffset: [0, 0.016, 0.2]
   }
 });
 const FIREARM_UNIFIED_DIRECTION_ROTATION =
   FIREARM_HAND_ATTACH_TUNING.assaultRifleAttack?.rotation ||
   FIREARM_HAND_ATTACH_TUNING.default.rotation;
+const FIREARM_MUZZLE_AIM_FORWARD_BY_ID = Object.freeze(
+  Object.fromEntries(
+    Array.from(FIREARM_CAPTURE_ANIMATION_IDS, (weaponId) => [
+      weaponId,
+      FIREARM_HAND_ATTACH_TUNING[weaponId]?.muzzleForward || [0, 0, 1]
+    ])
+  )
+);
+const FIREARM_MUZZLE_AIM_UP_BY_ID = Object.freeze(
+  Object.fromEntries(
+    Array.from(FIREARM_CAPTURE_ANIMATION_IDS, (weaponId) => [
+      weaponId,
+      FIREARM_HAND_ATTACH_TUNING[weaponId]?.muzzleUp || [0, 1, 0]
+    ])
+  )
+);
+function resolveFirearmMuzzleVector(map, weaponId, fallback) {
+  const tuple = map?.[weaponId];
+  const vector = Array.isArray(tuple) ? new THREE.Vector3(...tuple) : fallback.clone();
+  return vector.lengthSq() > 1e-8 ? vector.normalize() : fallback.clone();
+}
 const FIREARM_ATTACH_WORLD_SCALE_BOOST = 1.18;
 const FIREARM_ATTACH_SCALE_MULTIPLIER = Object.freeze({
   // Keep glock as the grip-size baseline and upscale all other firearms so
@@ -1880,14 +1956,17 @@ function aimHandWeaponMuzzleAtTarget(attachment, targetWorld, blend = FIREARM_AI
   desiredForward.normalize();
 
   const muzzleQuat = muzzle.getWorldQuaternion(new THREE.Quaternion());
-  const currentForward = FIREARM_MUZZLE_AIM_FORWARD.clone().applyQuaternion(muzzleQuat).normalize();
+  const weaponId = attachment?.captureAnimationId || '';
+  const muzzleAimForward = resolveFirearmMuzzleVector(FIREARM_MUZZLE_AIM_FORWARD_BY_ID, weaponId, FIREARM_MUZZLE_AIM_FORWARD);
+  const muzzleAimUp = resolveFirearmMuzzleVector(FIREARM_MUZZLE_AIM_UP_BY_ID, weaponId, FIREARM_MUZZLE_AIM_UP);
+  const currentForward = muzzleAimForward.applyQuaternion(muzzleQuat).normalize();
   if (currentForward.lengthSq() < 1e-8) return;
 
   const weaponWorldQuat = weapon.getWorldQuaternion(new THREE.Quaternion());
   const correction = new THREE.Quaternion().setFromUnitVectors(currentForward, desiredForward);
   const targetWorldQuat = correction.multiply(weaponWorldQuat);
 
-  const targetMuzzleUp = FIREARM_MUZZLE_AIM_UP.clone().applyQuaternion(muzzle.getWorldQuaternion(new THREE.Quaternion()));
+  const targetMuzzleUp = muzzleAimUp.applyQuaternion(muzzle.getWorldQuaternion(new THREE.Quaternion()));
   const correctedMuzzleUp = targetMuzzleUp.applyQuaternion(correction).normalize();
   const flatCurrentUp = projectVectorOntoPlane(correctedMuzzleUp, desiredForward);
   const flatWorldUp = projectVectorOntoPlane(MISSILE_WORLD_UP, desiredForward);
@@ -1958,6 +2037,7 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
   return {
     weapon,
     muzzle,
+    captureAnimationId,
     offhandTarget,
     twoHanded,
     gripProfile,
@@ -1979,7 +2059,7 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
 async function createCaptureWeaponRackFx() {
   const root = new THREE.Group();
   const weaponHolder = new THREE.Group();
-  weaponHolder.position.set(0.04, 0.032, -0.018);
+  weaponHolder.position.set(0.04, 0, -0.018);
   weaponHolder.rotation.set(0, 0, 0);
   root.add(weaponHolder);
 
@@ -2011,7 +2091,7 @@ async function createCaptureWeaponRackFx() {
     new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 })
   );
   weaponRackHit.name = 'captureWeaponRackHit';
-  weaponRackHit.position.set(0.04, 0.032, -0.018);
+  weaponRackHit.position.set(0.04, 0, -0.018);
   root.add(weaponRackHit);
 
   return {
@@ -4349,7 +4429,7 @@ function resolvePlayerColors(appearance = {}) {
   return PLAYER_COLOR_ORDER.map((_, idx) => normalizeColorValue(swatches[idx], DEFAULT_PLAYER_COLORS[idx]));
 }
 
-const CAMERA_FOV = 72;
+const CAMERA_FOV = 76;
 const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
 const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
 const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
@@ -4382,8 +4462,8 @@ const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.18;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.26;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 2.3;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.98;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.12;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.84;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.17;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.88;
 const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_PORTRAIT = 0.42 * MODEL_SCALE;
 const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_LANDSCAPE = 0.2 * MODEL_SCALE;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -0.02 * 3.22 * ARENA_SCALE;
@@ -4397,11 +4477,11 @@ const PORTRAIT_CAMERA_TUNING = Object.freeze({
   backOffset: PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT,
   forwardOffset: PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT,
   heightOffset: PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT,
-  targetLift: 0.06 * MODEL_SCALE
+  targetLift: 0.072 * MODEL_SCALE
 });
 const CAMERA_EXTRA_PULLBACK = 0.1;
-const CAMERA_EXTRA_LIFT = 0.16;
-const PORTRAIT_CAMERA_EXTRA_LIFT = 0.14;
+const CAMERA_EXTRA_LIFT = 0.18;
+const PORTRAIT_CAMERA_EXTRA_LIFT = 0.165;
 const CAMERA_PLAYER_CENTER_X_EPSILON = 0.0001;
 const CAMERA_LOOK_YAW_LIMIT = THREE.MathUtils.degToRad(26);
 const CAMERA_LOOK_YAW_DRAG_FACTOR = 0.0055;
