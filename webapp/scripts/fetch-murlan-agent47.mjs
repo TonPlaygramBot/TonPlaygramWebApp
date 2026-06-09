@@ -60,6 +60,30 @@ const SKETCHFAB_CHARACTERS = Object.freeze({
       'https://sketchfab.com/3d-models/casual-confidence-bff76010d9534241ae6c96a4a46a7959',
     targetDir: 'public/models/murlan/casual-confidence',
     targetFileName: TARGET_FILE_NAME
+  },
+  'generic-man-scan': {
+    label: 'Generic Man Scan',
+    uid: '9b4527d4bc524c31bed48054f0c04b71',
+    sourceUrl:
+      'https://sketchfab.com/3d-models/generic-man-9b4527d4bc524c31bed48054f0c04b71',
+    targetDir: 'public/models/murlan/generic-man-scan',
+    targetFileName: TARGET_FILE_NAME
+  },
+  'thunk3d-human-scan': {
+    label: 'Thunk3D Human Scan',
+    uid: 'a75f10c50fb44a70a1b04bcb49f3d71f',
+    sourceUrl:
+      'https://sketchfab.com/3d-models/human-a75f10c50fb44a70a1b04bcb49f3d71f',
+    targetDir: 'public/models/murlan/thunk3d-human-scan',
+    targetFileName: TARGET_FILE_NAME
+  },
+  'hoodie-apose-scan': {
+    label: 'Hoodie A-Pose Scan',
+    uid: '78c2d136f91c46a8a696d5bacfde2daf',
+    sourceUrl:
+      'https://sketchfab.com/3d-models/a-pose-male-full-body-3d-scan-78c2d136f91c46a8a696d5bacfde2daf',
+    targetDir: 'public/models/murlan/hoodie-apose-scan',
+    targetFileName: TARGET_FILE_NAME
   }
 });
 
