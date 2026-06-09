@@ -189,9 +189,10 @@ const TURN_TIME = 15;
 const AI_ROLL_DELAY_MS = 1300;
 const AI_EXTRA_ROLL_DELAY_MS = 850;
 const TURN_ADVANCE_AFTER_DICE_MS = 0;
-const DICE_RESULT_HOLD_MS = 1500;
-// Ludo Battle Royal resolves the face only after the full 1100ms spinDice throw.
-const DICE_BOARD_ROLL_REVEAL_DELAY_MS = 1100;
+const DICE_RESULT_HOLD_MS = 2000;
+// Match the 3D Ludo/Pool dice: a server-authoritative value should only
+// replace the rolling face after the physical throw has had time to land.
+const DICE_BOARD_ROLL_REVEAL_DELAY_MS = 930;
 const DICE_SFX_MIN_INTERVAL_MS = 850;
 const DEFAULT_CAPACITY = 4;
 const COMMENTARY_PRESET_STORAGE_KEY = 'snakeCommentaryPreset';
@@ -824,17 +825,14 @@ const CAPTURE_WEAPON_OPTIONS = Object.freeze(
   SNAKE_CAPTURE_WEAPON_OPTIONS.map((option) => ({
     id: option.id,
     label: option.label,
-    thumbnail: option.thumbnail,
-    ludoAnimationId: option.ludoAnimationId
+    thumbnail: option.thumbnail
   }))
 );
 
 const resolveCaptureWeaponOptionById = (weaponId) => {
   const resolvedId = resolveSnakeCaptureWeaponId(weaponId);
   if (!resolvedId) return null;
-  return (
-    CAPTURE_WEAPON_OPTIONS.find((option) => option.id === resolvedId || option.ludoAnimationId === resolvedId) || null
-  );
+  return CAPTURE_WEAPON_OPTIONS.find((option) => option.id === resolvedId) || null;
 };
 
 const SNAKE_SKIN_OPTIONS = Object.freeze([
@@ -1813,8 +1811,7 @@ export default function SnakeAndLadder() {
       if (idx !== mover && p === cell) victims.push(idx);
     });
     if (victims.length && cell > 0) {
-      const selectedWeaponOption = resolvedAppearance?.captureWeapon;
-      const selectedWeapon = selectedWeaponOption?.ludoAnimationId || selectedWeaponOption?.id || 'drone';
+      const selectedWeapon = resolvedAppearance?.captureWeapon?.id || 'drone';
       const aiWeapon = aiWeaponLoadout[mover - 1];
       const weaponType = mover === 0 ? selectedWeapon : (aiWeapon || selectedWeapon || 'drone');
       setBurning((b) => [...new Set([...b, ...victims])]);
