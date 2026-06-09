@@ -1174,7 +1174,7 @@ const TABLE_FOOTPRINT_SCALE = 0.82; // reduce the table footprint ~18% while kee
 const BASE_FOOTPRINT_SHRINK = 0.82; // shrink the table base footprint by 18% without changing overall height
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
-const TABLE_DISPLAY_SCALE = 0.89; // make the table read a bit larger in portrait while preserving proportions
+const TABLE_DISPLAY_SCALE = 0.86; // make the table read just a bit larger in portrait while preserving proportions
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
 const TOUCH_UI_SCALE = SIZE_REDUCTION;
 const POINTER_UI_SCALE = 1;
@@ -1312,7 +1312,7 @@ const REPLAY_CAMERA_START_DELAY_MS = 0;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * TABLE_WIDTH_SCALE;
   const TABLE_LENGTH_SCALE = 0.8;
   const TABLE_SURFACE_REFERENCE = 1.12; // baseline expansion before the wider table adjustment
-  const TABLE_SURFACE_EXPANSION = 1.29; // widen/lengthen the table footprint a bit more while keeping pocket/ball scaling stable
+  const TABLE_SURFACE_EXPANSION = 1.25; // widen/lengthen the table footprint by ~12% while keeping pockets/balls unchanged
   const TABLE_SURFACE_COMPENSATION = TABLE_SURFACE_EXPANSION / TABLE_SURFACE_REFERENCE;
   const TABLE = {
     W: 72 * TABLE_SCALE * TABLE_FOOTPRINT_SCALE * OFFICIAL_TABLE_SCALE * TABLE_SURFACE_EXPANSION,
@@ -1427,7 +1427,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     'Pool table inner ratio must match the official 2:1 target after scaling.'
   );
 const MM_TO_UNITS = (innerLong / WIDTH_REF) / TABLE_SURFACE_COMPENSATION;
-const BALL_SIZE_SCALE = 1.04; // make balls just a bit bigger while every helper stays tied to BALL_R/BALL_DIAMETER
+const BALL_SIZE_SCALE = 1; // official WPA/WEPF 57.15 mm balls; every helper stays tied to BALL_R/BALL_DIAMETER
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -1552,14 +1552,14 @@ if (BALL_SHADOW_MATERIAL) {
 // Match the snooker build so pace and rebound energy stay consistent between modes.
 // Physics profile tuned to the open-source Billiards solver constants (see /billiards/PhysicsConstants.cs).
 const PHYSICS_PROFILE = Object.freeze({
-  restitution: 0.975,
+  restitution: 0.96,
   mu: 0.421,
   spinDecay: 2.0,
   airSpinDecay: 0.6,
   maxTipOffsetRatio: 0.9
 });
 const PHYSICS_BASE_STEP = 1 / 60;
-const FRICTION = 0.99535;
+const FRICTION = 0.9951;
 const DEFAULT_CUSHION_RESTITUTION = PHYSICS_PROFILE.restitution;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const BALL_MASS = 0.17;
@@ -1570,7 +1570,7 @@ const SPIN_KINETIC_FRICTION = 0.22;
 const SPIN_ROLL_DAMPING = 0.1;
 const SPIN_ANGULAR_DAMPING = 0.04;
 const SPIN_GRAVITY = 9.81;
-const ROLLING_RESISTANCE = 0.0104;
+const ROLLING_RESISTANCE = 0.011;
 const BALL_BALL_FRICTION = 0.105;
 const BALL_CONTACT_EPS = BALL_R * 0.012; // broaden contact tolerance slightly so grazing touches resolve instead of tunneling
 const BALL_COLLISION_SLOP = BALL_R * 0.001; // tighter tolerance so visible ball overlap is corrected faster
@@ -1617,7 +1617,7 @@ const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
   0,
   SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.04
 );
-const CUSHION_CUT_RESTITUTION_SCALE = 1; // keep cut-angle rebounds livelier without adding excess speed
+const CUSHION_CUT_RESTITUTION_SCALE = 0.99; // keep cut-angle rebounds lively without adding excess speed
 const CUSHION_CUT_FRICTION_SCALE = 1.02; // reduce cut-line grab slightly so added bounce reads naturally
 const SIDE_POCKET_DEPTH_LIMIT =
   SIDE_POCKET_RADIUS * 1.6 * POCKET_VISUAL_EXPANSION; // align side-pocket rail limits with the visible mouth depth
@@ -1855,7 +1855,7 @@ const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
 const SHOT_POWER_BOOST = 1.5; // preserve legacy cue response before the final mobile comfort trim
-const SHOT_GLOBAL_POWER_SCALE = 0.82; // add a bit more Pool Royale shot pace while keeping the selected shot-power curve
+const SHOT_GLOBAL_POWER_SCALE = 0.78; // add a small Pool Royale shot pace bump while keeping the selected shot-power curve
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
