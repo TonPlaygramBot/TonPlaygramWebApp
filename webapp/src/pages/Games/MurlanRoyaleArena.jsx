@@ -2161,18 +2161,12 @@ async function loadGltfChair(urls = CHAIR_MODEL_URLS, rotationY = 0, renderer = 
 
 const CHARACTER_MODEL_CACHE = new Map();
 
-function uniqueCharacterModelUrls(urls = []) {
-  return Array.from(new Set(urls.filter((url) => typeof url === 'string' && url.trim().length > 0)));
-}
-
 async function loadCharacterModel(theme, renderer = null) {
-  const primaryUrls = Array.isArray(theme?.modelUrls) && theme.modelUrls.length
+  const urls = Array.isArray(theme?.modelUrls) && theme.modelUrls.length
     ? theme.modelUrls
     : theme?.url
       ? [theme.url]
       : [];
-  const fallbackUrls = Array.isArray(theme?.runtimeFallbackModelUrls) ? theme.runtimeFallbackModelUrls : [];
-  const urls = uniqueCharacterModelUrls([...primaryUrls, ...fallbackUrls]);
   if (!urls.length) throw new Error('Missing character model URL');
   const cacheKey = `${theme.id || urls[0]}::${urls.join('|')}`;
   if (CHARACTER_MODEL_CACHE.has(cacheKey)) {
@@ -2190,11 +2184,6 @@ async function loadCharacterModel(theme, renderer = null) {
         if (gltf) break;
       } catch (error) {
         lastError = error;
-        console.warn('Murlan character model URL failed, trying next candidate', {
-          characterId: theme?.id,
-          url,
-          error
-        });
       }
     }
     if (!gltf) {
