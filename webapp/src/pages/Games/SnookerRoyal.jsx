@@ -1178,7 +1178,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
   );
 const MARKINGS_MM_TO_UNITS = innerLong / WIDTH_REF;
 const OBJECT_MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_SIZE_SCALE = 0.96; // make Snooker Royal balls a little smaller while preserving table scale and collision proportions
+const BALL_SIZE_SCALE = 0.92; // make Snooker Royal balls a bit smaller while preserving table scale and collision proportions
 const BALL_DIAMETER = BALL_D_REF * OBJECT_MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -5607,9 +5607,10 @@ const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 0.96;
-const STANDING_VIEW_MARGIN_PORTRAIT = 0.94;
-const STANDING_VIEW_DISTANCE_SCALE = 0.122; // pull the standing camera a bit closer so the table fills more of portrait screens
+const STANDING_VIEW_MARGIN_LANDSCAPE = 0.9;
+const STANDING_VIEW_MARGIN_PORTRAIT = 0.86;
+const STANDING_VIEW_DISTANCE_SCALE = 0.108; // pull the standing camera closer so the table fills more of portrait screens
+const STANDING_VIEW_REFIT_DISTANCE_SCALE = 0.58; // keep resize/refit standing framing closer to the table
 const CUE_VISIBLE_CAMERA_BLEND_THRESHOLD = 0.985; // show the table cue as soon as the portrait camera is lowered even a tiny bit
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
@@ -6310,8 +6311,11 @@ const resolvePocketMappedCenter = (center, index, inwardScale) => {
   towardField.normalize();
   return center.clone().add(towardField.multiplyScalar(mouthRadius * inwardScale));
 };
+const POCKET_ENTRANCE_CENTER_INWARD_SCALE = 0.35; // aim overlays target the visible mouth instead of an over-inward helper point
 const pocketEntranceCenters = () =>
-  pocketCenters().map((center, index) => resolvePocketMappedCenter(center, index, 0.6));
+  pocketCenters().map((center, index) =>
+    resolvePocketMappedCenter(center, index, POCKET_ENTRANCE_CENTER_INWARD_SCALE)
+  );
 const resolvePocketEntranceForTarget = (targetPos, pocketIndex) => {
   const centers = pocketCenters();
   const pocketCenter = centers[pocketIndex];
@@ -6328,11 +6332,17 @@ const resolvePocketEntranceForTarget = (targetPos, pocketIndex) => {
     microEps: MICRO_EPS
   });
 
-  if (!entry?.point) return resolvePocketMappedCenter(pocketCenter, pocketIndex, 0.6);
+  if (!entry?.point) {
+    return resolvePocketMappedCenter(
+      pocketCenter,
+      pocketIndex,
+      POCKET_ENTRANCE_CENTER_INWARD_SCALE
+    );
+  }
   return new THREE.Vector2(entry.point.x, entry.point.y);
 };
-const POCKET_CAPTURE_CENTER_INWARD_SCALE = 0.12;
-const SIDE_POCKET_CAPTURE_CENTER_INWARD_SCALE = 0.14;
+const POCKET_CAPTURE_CENTER_INWARD_SCALE = 0; // keep capture mapping centered on the visible corner pockets
+const SIDE_POCKET_CAPTURE_CENTER_INWARD_SCALE = 0; // keep middle-pocket capture mapping centered on the actual pocket mouths
 const pocketCaptureCenters = () =>
   pocketCenters().map((center, index) =>
     resolvePocketMappedCenter(
@@ -19817,7 +19827,8 @@ const powerRef = useRef(hud.power);
           const zoomProfile = resolveCameraZoomProfile(aspect);
           const standingRadiusRaw = fitRadius(
             camera,
-            Math.max(m * zoomProfile.margin, 1e-4)
+            Math.max(m * zoomProfile.margin, 1e-4),
+            STANDING_VIEW_REFIT_DISTANCE_SCALE
           );
           const cueBase = clampOrbitRadius(BREAK_VIEW.radius);
           const playerRadiusBase = Math.max(standingRadiusRaw, cueBase);
