@@ -1209,16 +1209,6 @@ const FIREARM_AIM_LOCK_PHASE_RATIO = 0.56;
 const FIREARM_AIM_SLERP_FAST = 0.62;
 const FIREARM_AIM_SLERP_LOCKED = 0.88;
 const FIREARM_MUZZLE_AIM_FORWARD = new THREE.Vector3(0, 0, 1);
-const FIREARM_HAND_GRIP_WORLD_OFFSET = new THREE.Vector3(0.003, -0.004, 0.006);
-const FIREARM_HAND_SHOULDER_PUSH = 0.012;
-const FIREARM_HAND_SHOULDER_DROP = 0.006;
-const FIREARM_HAND_MUZZLE_YAW_CORRECTION_BY_ID = Object.freeze({
-  // These Gunify rifles import stock-first relative to the common +Z muzzle convention.
-  // Flip only the hand-held pose so the visible barrel, muzzle flash and projectiles all
-  // point visually toward the captured target during portrait attack cinematics.
-  ak47VolleyAttack: Math.PI,
-  krsvBurstAttack: Math.PI
-});
 const FIREARM_RECOIL_ROTATION_RAD = 0.026;
 const FIREARM_RECOIL_RECOVER_MS = 94;
 const FIREARM_FINAL_BULLET_SLOWMO_FACTOR = 0.105;
@@ -1861,29 +1851,7 @@ function alignFirearmRackFlatByBounds(root, baseRotation = [0, 0, 0]) {
   if (bestRotation) root.rotation.set(bestRotation[0], bestRotation[1], bestRotation[2]);
 }
 
-function lockHandWeaponGripToPalm(attachment, palmWorld = null, shoulderOffset = null) {
-  const weapon = attachment?.weapon;
-  const gripAnchor = attachment?.gripAnchor;
-  const parent = weapon?.parent;
-  if (!weapon?.isObject3D || !gripAnchor?.isObject3D || !parent?.isObject3D) return;
-
-  const targetPalmWorld = palmWorld?.isVector3
-    ? palmWorld.clone()
-    : parent.getWorldPosition(new THREE.Vector3()).add(FIREARM_HAND_GRIP_WORLD_OFFSET);
-  if (shoulderOffset?.isVector3) targetPalmWorld.add(shoulderOffset);
-
-  weapon.updateMatrixWorld?.(true);
-  gripAnchor.updateMatrixWorld?.(true);
-  const gripWorld = gripAnchor.getWorldPosition(new THREE.Vector3());
-  const worldDelta = targetPalmWorld.sub(gripWorld);
-  if (worldDelta.lengthSq() < 1e-10) return;
-
-  const localStart = parent.worldToLocal(weapon.getWorldPosition(new THREE.Vector3()));
-  const localEnd = parent.worldToLocal(weapon.getWorldPosition(new THREE.Vector3()).add(worldDelta));
-  weapon.position.add(localEnd.sub(localStart));
-}
-
-function aimHandWeaponMuzzleAtTarget(attachment, targetWorld, blend = FIREARM_AIM_SLERP_LOCKED, options = {}) {
+function aimHandWeaponMuzzleAtTarget(attachment, targetWorld, blend = FIREARM_AIM_SLERP_LOCKED) {
   const weapon = attachment?.weapon;
   const muzzle = attachment?.muzzle;
   const parent = weapon?.parent;
@@ -1891,8 +1859,6 @@ function aimHandWeaponMuzzleAtTarget(attachment, targetWorld, blend = FIREARM_AI
 
   weapon.updateMatrixWorld?.(true);
   muzzle.updateMatrixWorld?.(true);
-  const gripAnchor = attachment?.gripAnchor;
-  const palmWorld = parent.getWorldPosition(new THREE.Vector3()).add(FIREARM_HAND_GRIP_WORLD_OFFSET);
   const muzzleWorld = muzzle.getWorldPosition(new THREE.Vector3());
   const desiredForward = targetWorld.clone().sub(muzzleWorld);
   if (desiredForward.lengthSq() < 1e-8) return;
@@ -1908,10 +1874,6 @@ function aimHandWeaponMuzzleAtTarget(attachment, targetWorld, blend = FIREARM_AI
   const parentWorldInv = parent.getWorldQuaternion(new THREE.Quaternion()).invert();
   const targetLocalQuat = parentWorldInv.multiply(targetWorldQuat);
   weapon.quaternion.slerp(targetLocalQuat, clamp(blend, 0, 1));
-
-  if (gripAnchor?.isObject3D) {
-    lockHandWeaponGripToPalm(attachment, palmWorld, options.shoulderOffset);
-  }
 }
 
 async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
@@ -1922,9 +1884,7 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
   const tuning = FIREARM_HAND_ATTACH_TUNING[captureAnimationId] || FIREARM_HAND_ATTACH_TUNING.default;
   const weapon = modelTemplate.clone(true);
   weapon.position.set(...(tuning.position || FIREARM_HAND_ATTACH_TUNING.default.position));
-  weapon.rotation.set(...(tuning.rotation || FIREARM_UNIFIED_DIRECTION_ROTATION));
-  const handMuzzleYawCorrection = FIREARM_HAND_MUZZLE_YAW_CORRECTION_BY_ID[captureAnimationId] ?? 0;
-  if (handMuzzleYawCorrection) weapon.rotateY(handMuzzleYawCorrection);
+  weapon.rotation.set(...FIREARM_UNIFIED_DIRECTION_ROTATION);
   const attachScaleMultiplier = FIREARM_ATTACH_SCALE_MULTIPLIER[captureAnimationId] ?? 1;
   const scaleBoost =
     FIREARM_ATTACH_WORLD_SCALE_BOOST * attachScaleMultiplier;
@@ -1940,20 +1900,11 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
   });
   weapon.updateMatrixWorld?.(true);
   const sourceRightGrip = findObjectByNeedles(weapon, ['trigger', 'grip', 'handle', 'r_wrist', 'right_wrist', 'hand_r', 'r_hand']);
-  const gripAnchor = new THREE.Object3D();
-  gripAnchor.name = 'rightGripAnchor';
   if (sourceRightGrip?.isObject3D) {
     sourceRightGrip.updateMatrixWorld?.(true);
-    const gripWorld = sourceRightGrip.getWorldPosition(new THREE.Vector3());
-    const gripLocal = rightHand.worldToLocal(gripWorld.clone());
+    const gripLocal = rightHand.worldToLocal(sourceRightGrip.getWorldPosition(new THREE.Vector3()));
     weapon.position.sub(gripLocal);
-    weapon.updateMatrixWorld?.(true);
-    gripAnchor.position.copy(weapon.worldToLocal(gripWorld));
-  } else {
-    gripAnchor.position.copy(weapon.worldToLocal(rightHand.getWorldPosition(new THREE.Vector3())));
   }
-  weapon.add(gripAnchor);
-  lockHandWeaponGripToPalm({ weapon, gripAnchor });
   const twoHanded = FIREARM_TWO_HANDED_IDS.has(captureAnimationId) && !FIREARM_SINGLE_HAND_ONLY_IDS.has(captureAnimationId);
   const sourceLeftGrip = findObjectByNeedles(weapon, ['l_wrist', 'left_wrist']);
   const offhandTarget = new THREE.Object3D();
@@ -1972,7 +1923,6 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
   return {
     weapon,
     muzzle,
-    gripAnchor,
     offhandTarget,
     twoHanded,
     release: () => {
@@ -11630,21 +11580,25 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 const lockBlend = elapsed >= preFireLeadMs
                   ? FIREARM_AIM_SLERP_LOCKED
                   : THREE.MathUtils.lerp(FIREARM_AIM_SLERP_FAST, FIREARM_AIM_SLERP_LOCKED, smoother01(shoulderPhase));
-                const aimSettle = elapsed >= preFireLeadMs ? 1 : smoother01(shoulderPhase);
-                const shoulderOffset = new THREE.Vector3(
-                  0,
-                  -FIREARM_HAND_SHOULDER_DROP * aimSettle,
-                  (singleShotFirearm ? FIREARM_HAND_SHOULDER_PUSH * 1.5 : FIREARM_HAND_SHOULDER_PUSH) * aimSettle
-                );
-                aimHandWeaponMuzzleAtTarget(handWeaponAttachment, muzzleTarget, lockBlend, { shoulderOffset });
+                aimHandWeaponMuzzleAtTarget(handWeaponAttachment, muzzleTarget, lockBlend);
                 const shotRemainder = elapsedShooting >= 0 ? elapsedShooting % cadenceMs : cadenceMs;
                 const recoilPhase = elapsedShooting >= 0 ? 1 - clamp(shotRemainder / FIREARM_RECOIL_RECOVER_MS, 0, 1) : 0;
                 if (recoilPhase > 0 && elapsedShooting < shots * cadenceMs) {
                   recoilEuler.set(-FIREARM_RECOIL_ROTATION_RAD * recoilPhase, 0, 0);
                   recoilQuat.setFromEuler(recoilEuler);
                   handWeaponAttachment.weapon.quaternion.multiply(recoilQuat);
-                  lockHandWeaponGripToPalm(handWeaponAttachment, null, shoulderOffset);
                 }
+                const aimSettle = elapsed >= preFireLeadMs ? 1 : smoother01(shoulderPhase);
+                handWeaponAttachment.weapon.position.z = THREE.MathUtils.lerp(
+                  handLocalReady.z,
+                  handLocalReady.z + (singleShotFirearm ? 0.018 : 0.012),
+                  aimSettle
+                );
+                handWeaponAttachment.weapon.position.y = THREE.MathUtils.lerp(
+                  handLocalReady.y,
+                  handLocalReady.y - 0.006,
+                  aimSettle
+                );
               }
               handWeaponAttachment.weapon.updateMatrixWorld?.(true);
               if (handWeaponAttachment?.muzzle?.isObject3D) {
