@@ -905,7 +905,15 @@ const SNAKE_CAPTURE_WEAPON_SFX_ID_MAP = Object.freeze({
   'slot-17-mrtk-gun-glb': 'glockSidearmAttack',
   'slot-18-fps-gun-gltf': 'shotgunBlastAttack'
 });
-const resolveSnakeCaptureWeaponSfxId = (weaponType) => SNAKE_CAPTURE_WEAPON_SFX_ID_MAP[weaponType] || weaponType || 'missileJavelin';
+const resolveSnakeCaptureWeaponAnimationId = (weaponType) => {
+  const rawWeaponType = typeof weaponType === 'string' ? weaponType.trim() : '';
+  const catalogOption = SNAKE_CAPTURE_WEAPON_OPTION_BY_ID[rawWeaponType] || null;
+  return catalogOption?.ludoCaptureAnimationId || SNAKE_CAPTURE_WEAPON_KIND_MAP[rawWeaponType] || rawWeaponType || 'missileJavelin';
+};
+const resolveSnakeCaptureWeaponSfxId = (weaponType) => {
+  const animationId = resolveSnakeCaptureWeaponAnimationId(weaponType);
+  return SNAKE_CAPTURE_WEAPON_SFX_ID_MAP[weaponType] || SNAKE_CAPTURE_WEAPON_SFX_ID_MAP[animationId] || animationId || 'missileJavelin';
+};
 const WEAPON_TABLE_PARKING_ROTATION_BY_POSE = Object.freeze({
   // Portrait screen: top/bottom player weapons lie flat left-to-right on the tabletop.
   horizontal: Object.freeze({ yaw: 0, preferAxis: 'x' }),
@@ -972,7 +980,9 @@ function applyFlatTableWeaponParkingPose(object, parkingPose = 'horizontal') {
 }
 
 function normalizeSnakeCaptureWeaponKind(weaponType = 'fighter') {
-  return SNAKE_CAPTURE_WEAPON_KIND_MAP[weaponType] || weaponType || 'fighter';
+  const animationId = resolveSnakeCaptureWeaponAnimationId(weaponType);
+  const mapped = SNAKE_CAPTURE_WEAPON_KIND_MAP[animationId] || animationId || weaponType || 'fighter';
+  return SNAKE_CAPTURE_WEAPON_KIND_MAP[mapped] || mapped;
 }
 
 function pullPointTowardCenter(point, amount = TILE_EDGE_INSET) {
