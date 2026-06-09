@@ -107,34 +107,11 @@ describe('cross-game inventory alignment', () => {
     expectedSketchfabCharacters.forEach(([id, modelUrl, license]) => {
       const theme = MURLAN_CHARACTER_THEMES.find((entry) => entry.id === id);
       expect(theme).toBeTruthy();
-      expect(theme.modelUrls[0]).toBe(modelUrl);
-      expect(theme.modelUrls.some((url) => url.includes('cdn.jsdelivr.net/gh/c-frame/valid-avatars-glb'))).toBe(true);
+      expect(theme.modelUrls).toEqual([modelUrl]);
       expect(theme.sourceUrl).toContain('sketchfab.com/3d-models/');
       expect(theme.license).toContain(license);
       expect(theme.sourceFormat).toBe('sketchfab-converted-gltf');
       expect(theme.installCheck).toBe('gltf-json');
-      expect(MURLAN_ROYALE_STORE_ITEMS.some((item) => item.type === 'characters' && item.optionId === theme.id)).toBe(true);
-      expect(MURLAN_ROYALE_DEFAULT_UNLOCKS.characters).toContain(theme.id);
-    });
-  });
-
-
-  test('murlan includes online VALID human avatar fallbacks and store entries', () => {
-    const validCharacters = [
-      'valid-aian-business-human',
-      'valid-black-casual-human',
-      'valid-asian-casual-human'
-    ];
-
-    validCharacters.forEach((id) => {
-      const theme = MURLAN_CHARACTER_THEMES.find((entry) => entry.id === id);
-      expect(theme).toBeTruthy();
-      expect(theme.sourceUrl).toBe('https://github.com/c-frame/valid-avatars-glb');
-      expect(theme.license).toContain('MIT');
-      expect(theme.sourceFormat).toBe('valid-avatar-glb');
-      expect(theme.modelUrls).toEqual([theme.url]);
-      expect(theme.url).toMatch(/^https:\/\/cdn\.jsdelivr\.net\/gh\/c-frame\/valid-avatars-glb@c539a28\/avatars\/.+\.glb$/);
-      expect(theme.thumbnail).toMatch(/^https:\/\/cdn\.jsdelivr\.net\/gh\/c-frame\/valid-avatars-glb@c539a28\/images\/.+\.jpg$/);
       expect(MURLAN_ROYALE_STORE_ITEMS.some((item) => item.type === 'characters' && item.optionId === theme.id)).toBe(true);
       expect(MURLAN_ROYALE_DEFAULT_UNLOCKS.characters).toContain(theme.id);
     });
