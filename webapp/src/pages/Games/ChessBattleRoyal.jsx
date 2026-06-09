@@ -531,6 +531,9 @@ const CHESS_FIREARM_AIM_LOCK_PHASE_RATIO = 0.56;
 const CHESS_FIREARM_RECOIL_ROTATION_RAD = 0.026;
 const CHESS_FIREARM_RECOIL_RECOVER_MS = 94;
 const CHESS_FIREARM_HANDHELD_SCALE_MULTIPLIER = 1.9;
+// Boost only the animated/hand-held weapon fit so capture weapons read closer
+// to the seated human character scale without changing side-rack display sizing.
+const CHESS_FIREARM_ANIMATION_HUMAN_SCALE_BOOST = 1.28;
 const CHESS_FIREARM_HANDHELD_SCALE_MULTIPLIER_BY_ID = Object.freeze({
   fpsGunAttack: SNAKE_FPS_GUN_MODEL_CONFIG.ludoHandScaleMultiplier,
   glockSidearmAttack: 1.2,
@@ -568,6 +571,13 @@ const CHESS_FIREARM_MUZZLE_YAW_CORRECTION_BY_ID = Object.freeze({
   ak47VolleyAttack: Math.PI,
   krsvBurstAttack: Math.PI
 });
+
+function resolveChessFirearmAnimationTargetSize(captureAnimationId) {
+  const modelScale = CHESS_CAPTURE_WEAPON_MODEL_CONFIG[captureAnimationId]?.scale ?? 0.18;
+  const handheldScale =
+    CHESS_FIREARM_HANDHELD_SCALE_MULTIPLIER_BY_ID[captureAnimationId] ?? CHESS_FIREARM_HANDHELD_SCALE_MULTIPLIER;
+  return modelScale * handheldScale * CHESS_FIREARM_ANIMATION_HUMAN_SCALE_BOOST;
+}
 
 const CHESS_FIREARM_HOLD_PROFILE_BY_TYPE = Object.freeze({
   default: { supportGrip: 0.94, shoulderX: -0.96, shoulderY: -0.09, shoulderZ: -1.02, forearmX: -0.22, forearmY: -0.06, forearmZ: 0.1, wristX: 0.1, wristY: -0.05, wristZ: -0.18, chestX: 0.2, headX: -0.14, triggerGrip: 0.94 },
@@ -4560,13 +4570,12 @@ async function attachChessFirearmToRightHand(attackerEntry, captureAnimationId) 
   if (!rightHand?.isBone) return null;
   const template = await loadChessCaptureWeaponModel(captureAnimationId);
   if (!template?.isObject3D) return null;
-  const targetSize = (CHESS_CAPTURE_WEAPON_MODEL_CONFIG[captureAnimationId]?.scale ?? 0.18) *
-    (CHESS_FIREARM_HANDHELD_SCALE_MULTIPLIER_BY_ID[captureAnimationId] ?? CHESS_FIREARM_HANDHELD_SCALE_MULTIPLIER);
+  const targetSize = resolveChessFirearmAnimationTargetSize(captureAnimationId);
   const weapon = prepareChessCaptureWeaponClone(template, captureAnimationId, { flat: false, targetSize });
   const tuning = CHESS_FIREARM_HAND_ATTACH_TUNING[captureAnimationId] || CHESS_FIREARM_HAND_ATTACH_TUNING.default;
   weapon.position.set(0.012, 0.006, -0.008);
   weapon.rotation.set(...CHESS_FIREARM_AIM_ROTATION);
-  weapon.scale.multiplyScalar(0.92);
+  weapon.scale.multiplyScalar(1.06);
   rightHand.add(weapon);
   weapon.updateMatrixWorld?.(true);
   const gripNode = findChessObjectByNeedles(weapon, ['trigger', 'grip', 'handle', 'r_wrist', 'right_wrist', 'hand_r', 'r_hand']);
@@ -13411,8 +13420,7 @@ function Chess3D({
           firearmFx.clear();
           const weaponClone = prepareChessCaptureWeaponClone(template, firearmAnimationId, {
             flat: false,
-            targetSize: (CHESS_CAPTURE_WEAPON_MODEL_CONFIG[firearmAnimationId]?.scale ?? 0.18) *
-              (CHESS_FIREARM_HANDHELD_SCALE_MULTIPLIER_BY_ID[firearmAnimationId] ?? CHESS_FIREARM_HANDHELD_SCALE_MULTIPLIER)
+            targetSize: resolveChessFirearmAnimationTargetSize(firearmAnimationId)
           });
           weaponClone.position.y = -0.04;
           const muzzleHelper = new THREE.Object3D();
