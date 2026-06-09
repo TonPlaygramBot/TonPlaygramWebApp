@@ -134,6 +134,9 @@ const CAPTURE_AIR_STRIKE_BOARD_CLEARANCE = 0; // measure air-strike altitude str
 const CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER = 7.18; // push jet/helicopter flight lanes higher for a more pronounced top-screen flyover
 const CAPTURE_JET_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * CAPTURE_AIR_STRIKE_ALTITUDE_MULTIPLIER;
 const CAPTURE_HELICOPTER_ALTITUDE_BOOST = 0.22; // keep helicopter a touch above jet while both fly higher
+const HELICOPTER_TOP_ROTOR_SPIN_SPEED = 26; // match Snake/Ludo helicopter top rotor cadence.
+const HELICOPTER_TAIL_ROTOR_SPIN_SPEED = 30; // keep the back rotor spinning independently and visibly.
+const HELICOPTER_AUX_ROTOR_SPIN_SPEED = 24;
 const CAPTURE_AIR_STRIKE_PATH_RADIUS_FACTOR = 0.03; // retained for legacy paths
 const CAPTURE_AIR_STRIKE_PATH_EDGE_MARGIN_TILES = 3.85; // keep turns inboard so aircraft never drift away from center
 const CAPTURE_AIR_STRIKE_BOTTOM_PLAYER_BIAS_TILES = 0.02; // reduce portrait bottom bias so aircraft stay nearer center
@@ -2474,6 +2477,7 @@ const CHECKMATE_SOUND_URL =
 const LAUGH_SOUND_URL = '/assets/sounds/Haha.mp3';
 const DRONE_FLY_SOUND_URL = '/assets/sounds/kimsa-kimsa-big-motorcycle-sound-394700.mp3';
 const HELICOPTER_FLY_SOUND_URL = '/assets/sounds/dragon-studio-helicopter-sound-8d-372463.mp3';
+const FIGHTER_JET_FLY_SOUND_URL = '/assets/sounds/race-care-151963.mp3';
 const BAZOOKA_FIRE_SOUND_URL = '/assets/sounds/launch-85216.mp3';
 const MISSILE_IMPACT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
 const LUDO_CAPTURE_FIREARM_SHOT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
@@ -4714,6 +4718,33 @@ function isDescendantOf(node, ancestor) {
     current = current.parent || null;
   }
   return false;
+}
+
+function getHelicopterRotorAssembly(helicopterFx) {
+  if (!helicopterFx) return {};
+  return helicopterFx.root?.userData?.helicopterRotorAssembly || helicopterFx;
+}
+
+function spinChessHelicopterRotors(helicopterFx, deltaSeconds) {
+  if (!helicopterFx || !Number.isFinite(deltaSeconds) || deltaSeconds <= 0) return;
+  const assembly = getHelicopterRotorAssembly(helicopterFx);
+  const topRotor = assembly.topRotor || assembly.rotor || helicopterFx.topRotor || helicopterFx.rotor;
+  const tailRotor = assembly.tailRotor || helicopterFx.tailRotor;
+  const topRotorAxis = assembly.topRotorAxis || helicopterFx.topRotorAxis || new THREE.Vector3(0, 1, 0);
+  const tailRotorAxis = assembly.tailRotorAxis || helicopterFx.tailRotorAxis || new THREE.Vector3(1, 0, 0);
+  const rotorNodes = Array.isArray(assembly.rotorNodes) ? assembly.rotorNodes : helicopterFx.rotorNodes;
+  if (topRotor?.isObject3D) {
+    topRotor.rotateOnAxis(topRotorAxis, deltaSeconds * HELICOPTER_TOP_ROTOR_SPIN_SPEED);
+  }
+  if (tailRotor?.isObject3D) {
+    tailRotor.rotateOnAxis(tailRotorAxis, deltaSeconds * HELICOPTER_TAIL_ROTOR_SPIN_SPEED);
+  }
+  if (Array.isArray(rotorNodes)) {
+    rotorNodes.forEach((rotorNode) => {
+      if (!rotorNode?.isObject3D || rotorNode === topRotor || rotorNode === tailRotor) return;
+      rotorNode.rotation.y += deltaSeconds * HELICOPTER_AUX_ROTOR_SPIN_SPEED;
+    });
+  }
 }
 
 function applyMilitaryHelicopterLook(model, topRotor = null, tailRotor = null, toneSeed = null, skin = null) {
@@ -8658,6 +8689,7 @@ function Chess3D({
   const swordSoundRef = useRef(null);
   const droneSoundRef = useRef(null);
   const helicopterSoundRef = useRef(null);
+  const fighterJetSoundRef = useRef(null);
   const missileLaunchSoundRef = useRef(null);
   const missileImpactSoundRef = useRef(null);
   const firearmShotSoundRef = useRef(null);
@@ -9833,6 +9865,7 @@ function Chess3D({
       swordSoundRef,
       droneSoundRef,
       helicopterSoundRef,
+      fighterJetSoundRef,
       missileLaunchSoundRef,
       missileImpactSoundRef,
       firearmShotSoundRef,
@@ -10326,6 +10359,9 @@ function Chess3D({
     droneSoundRef.current.volume = baseVolume;
     helicopterSoundRef.current = new Audio(HELICOPTER_FLY_SOUND_URL);
     helicopterSoundRef.current.volume = baseVolume;
+    fighterJetSoundRef.current = new Audio(FIGHTER_JET_FLY_SOUND_URL);
+    fighterJetSoundRef.current.loop = true;
+    fighterJetSoundRef.current.volume = baseVolume * 0.42;
     missileLaunchSoundRef.current = new Audio(BAZOOKA_FIRE_SOUND_URL);
     missileLaunchSoundRef.current.volume = baseVolume;
     missileImpactSoundRef.current = new Audio(MISSILE_IMPACT_SOUND_URL);
@@ -10425,6 +10461,26 @@ function Chess3D({
           playPromise?.catch(() => {});
         } catch {}
       };
+      const playLoopingAudio = (audioRef, { volume = 1, playbackRate = 1 } = {}) => {
+        if (!audioRef?.current || !settingsRef.current.soundEnabled) return;
+        try {
+          clearAudioStopTimeout(audioRef);
+          audioRef.current.loop = true;
+          audioRef.current.currentTime = 0;
+          audioRef.current.volume = clamp01(getGameVolume() * volume, 0);
+          audioRef.current.playbackRate = Number.isFinite(playbackRate) && playbackRate > 0 ? playbackRate : 1;
+          audioRef.current.play()?.catch(() => {});
+        } catch {}
+      };
+      const stopAudio = (audioRef) => {
+        if (!audioRef?.current) return;
+        try {
+          clearAudioStopTimeout(audioRef);
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+        } catch {}
+      };
+
       const playWeaponSfxFromUrl = (url, volume = 1) => {
         if (!settingsRef.current.soundEnabled || !url) return;
         let audio = FIREARM_SOURCE_AUDIO_CACHE.get(url);
@@ -11615,7 +11671,9 @@ function Chess3D({
         applyMilitaryHelicopterLook(model, topRotor, tailRotor, getCaptureToneSeed('helicopter'));
         const topRotorAxis = new THREE.Vector3(0, 1, 0);
         const tailRotorAxis = inferRotorSpinAxis(tailRotor, 'x');
-        return { root, topRotor, tailRotor, rotorNodes, topRotorAxis, tailRotorAxis, exhaustClouds: [], missileHardpoints };
+        const fx = { root, topRotor, tailRotor, rotorNodes, topRotorAxis, tailRotorAxis, exhaustClouds: [], missileHardpoints };
+        root.userData.helicopterRotorAssembly = fx;
+        return fx;
       }
       const root = new THREE.Group();
       addFxCylinder(root, 0.2, 0.24, 2.5, [0.05, 0, 0], [0, 0, Math.PI / 2], '#96a0a8', 20);
@@ -11653,6 +11711,7 @@ function Chess3D({
         exhaustClouds,
         missileHardpoints: [new THREE.Vector3(0.14, -0.17, -0.27), new THREE.Vector3(0.14, -0.17, 0.27)]
       };
+      root.userData.helicopterRotorAssembly = fx;
       // Match Snake & Ladder behavior: show a fallback immediately, then swap
       // only the helicopter to the shared srcejon helicopter.glb when it loads.
       void loadCaptureUnitTemplate('helicopter', 5.2).then(() => {
@@ -11684,6 +11743,7 @@ function Chess3D({
         fx.tailRotorAxis = inferRotorSpinAxis(loadedTailRotor, 'x');
         fx.exhaustClouds = [];
         fx.missileHardpoints = findAirMissileHardpoints(loadedModel, 'helicopter');
+        root.userData.helicopterRotorAssembly = fx;
       }).catch(() => {});
       return fx;
     };
@@ -13212,8 +13272,8 @@ function Chess3D({
           missile.root.visible = false;
           captureFxGroup.add(missile.root);
         });
-        // The jet strike now uses the same audible cue family as its missiles.
-        playAudio(missileLaunchSoundRef, { maxDurationMs: CAPTURE_JET_TOTAL * 1000 });
+        // Keep the jet engine looping for the full fly-by; missile launch sounds remain separate.
+        playLoopingAudio(fighterJetSoundRef, { volume: 0.42 });
         activeCaptureFx.push({
           type: 'jet',
           t: 0,
@@ -15310,16 +15370,9 @@ function Chess3D({
       parkedAirUnits.forEach((unit) => {
         if (!unit?.root) return;
         unit.root.visible = true;
-        if (unit.rotorsActive && unit.topRotor && unit.topRotorAxis) {
-          unit.topRotor.rotateOnAxis(unit.topRotorAxis, dt * 22);
+        if (unit.rotorsActive) {
+          spinChessHelicopterRotors(unit, dt);
         }
-        if (unit.rotorsActive && unit.tailRotor && unit.tailRotorAxis) {
-          unit.tailRotor.rotateOnAxis(unit.tailRotorAxis, dt * 24);
-        }
-        unit.rotorsActive && unit.rotorNodes?.forEach((rotorNode) => {
-          if (!rotorNode || rotorNode === unit.topRotor || rotorNode === unit.tailRotor) return;
-          rotorNode.rotation.y += dt * 24;
-        });
       });
 
       if (activePieceAnimations.length) {
@@ -15589,6 +15642,7 @@ function Chess3D({
                 captureFxGroup.remove(fx.jetFx.root);
               }
               setJetExhaustVisible(fx.jetFx, false);
+              stopAudio(fighterJetSoundRef);
               jetMissiles.forEach((missile) => {
                 captureFxGroup.remove(missile.root);
               });
@@ -15616,16 +15670,7 @@ function Chess3D({
             captureDir.copy(heliNext).sub(heliPos).normalize();
             const heliForward = captureDir.clone();
             orientForwardKeepingUp(fx.helicopterFx.root, captureDir);
-            if (fx.helicopterFx.topRotor && fx.helicopterFx.topRotorAxis) {
-              fx.helicopterFx.topRotor.rotateOnAxis(fx.helicopterFx.topRotorAxis, dt * 35);
-            }
-            if (fx.helicopterFx.tailRotor && fx.helicopterFx.tailRotorAxis) {
-              fx.helicopterFx.tailRotor.rotateOnAxis(fx.helicopterFx.tailRotorAxis, dt * 35);
-            }
-            fx.helicopterFx.rotorNodes?.forEach((rotorNode) => {
-              if (!rotorNode || rotorNode === fx.helicopterFx.topRotor || rotorNode === fx.helicopterFx.tailRotor) return;
-              rotorNode.rotation.y += dt * 36;
-            });
+            spinChessHelicopterRotors(fx.helicopterFx, dt);
             fx.helicopterFx.exhaustClouds?.forEach((puff, idx) => {
               puff.position.set(-1 - idx * 0.2, Math.sin(fx.t * 6.2 + idx * 0.4) * 0.03, 0);
             });
@@ -15796,10 +15841,10 @@ function Chess3D({
             const targetAimPos = getFirearmTargetAimPosition(fx.to, fx.targetMesh);
             fx.to.copy(targetPos);
             const tileAimOrigin = getFirearmAttackerTilePose(fx.from);
-            const liveAttackerOrigin = getLiveLaunchPosition(tileAimOrigin, fx.movingMesh, fx.shortMissile ? 0.1 : 0.14);
-            // Keep the visible weapon on the attacking piece/table square, then continuously
-            // aim it at the live target position so moving pieces stay locked in the sightline.
-            const aimOrigin = liveAttackerOrigin;
+            // Keep the visible weapon on the attacking piece/table square. Do not use
+            // the live moving mesh here, because after board state updates it can be
+            // animated toward the captured target and drag the gun to the wrong side.
+            const aimOrigin = tileAimOrigin;
             const aimDir = targetAimPos.clone().sub(aimOrigin);
             if (aimDir.lengthSq() > 1e-8) aimDir.normalize();
             else aimDir.set(0, 0, 1);
@@ -16485,6 +16530,7 @@ function Chess3D({
       swordSoundRef.current?.pause();
       droneSoundRef.current?.pause();
       helicopterSoundRef.current?.pause();
+      fighterJetSoundRef.current?.pause();
       missileLaunchSoundRef.current?.pause();
       missileImpactSoundRef.current?.pause();
       firearmShotSoundRef.current?.pause();
