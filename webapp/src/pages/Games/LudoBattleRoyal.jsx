@@ -1209,6 +1209,16 @@ const FIREARM_AIM_LOCK_PHASE_RATIO = 0.56;
 const FIREARM_AIM_SLERP_FAST = 0.62;
 const FIREARM_AIM_SLERP_LOCKED = 0.88;
 const FIREARM_MUZZLE_AIM_FORWARD = new THREE.Vector3(0, 0, 1);
+const FIREARM_MUZZLE_AIM_UP = new THREE.Vector3(0, 1, 0);
+const FIREARM_AIM_ROLL_BY_PROFILE = Object.freeze({
+  pistol: 0.08,
+  smg: 0.04,
+  rifle: -0.02,
+  marksman: -0.025,
+  shotgun: -0.045,
+  explosive: -0.055,
+  default: 0
+});
 const FIREARM_RECOIL_ROTATION_RAD = 0.026;
 const FIREARM_RECOIL_RECOVER_MS = 94;
 const FIREARM_FINAL_BULLET_SLOWMO_FACTOR = 0.105;
@@ -1851,6 +1861,11 @@ function alignFirearmRackFlatByBounds(root, baseRotation = [0, 0, 0]) {
   if (bestRotation) root.rotation.set(bestRotation[0], bestRotation[1], bestRotation[2]);
 }
 
+function projectVectorOntoPlane(vector, planeNormal) {
+  const projected = vector.clone().addScaledVector(planeNormal, -vector.dot(planeNormal));
+  return projected.lengthSq() > 1e-8 ? projected.normalize() : projected;
+}
+
 function aimHandWeaponMuzzleAtTarget(attachment, targetWorld, blend = FIREARM_AIM_SLERP_LOCKED) {
   const weapon = attachment?.weapon;
   const muzzle = attachment?.muzzle;
@@ -1871,6 +1886,21 @@ function aimHandWeaponMuzzleAtTarget(attachment, targetWorld, blend = FIREARM_AI
   const weaponWorldQuat = weapon.getWorldQuaternion(new THREE.Quaternion());
   const correction = new THREE.Quaternion().setFromUnitVectors(currentForward, desiredForward);
   const targetWorldQuat = correction.multiply(weaponWorldQuat);
+
+  const targetMuzzleUp = FIREARM_MUZZLE_AIM_UP.clone().applyQuaternion(muzzle.getWorldQuaternion(new THREE.Quaternion()));
+  const correctedMuzzleUp = targetMuzzleUp.applyQuaternion(correction).normalize();
+  const flatCurrentUp = projectVectorOntoPlane(correctedMuzzleUp, desiredForward);
+  const flatWorldUp = projectVectorOntoPlane(MISSILE_WORLD_UP, desiredForward);
+  if (flatCurrentUp.lengthSq() > 1e-8 && flatWorldUp.lengthSq() > 1e-8) {
+    const signedRoll = Math.atan2(
+      desiredForward.dot(new THREE.Vector3().crossVectors(flatCurrentUp, flatWorldUp)),
+      clamp(flatCurrentUp.dot(flatWorldUp), -1, 1)
+    );
+    const profileRoll = attachment?.aimRollRad ?? 0;
+    const rollCorrection = new THREE.Quaternion().setFromAxisAngle(desiredForward, signedRoll + profileRoll);
+    targetWorldQuat.premultiply(rollCorrection);
+  }
+
   const parentWorldInv = parent.getWorldQuaternion(new THREE.Quaternion()).invert();
   const targetLocalQuat = parentWorldInv.multiply(targetWorldQuat);
   weapon.quaternion.slerp(targetLocalQuat, clamp(blend, 0, 1));
@@ -1883,8 +1913,9 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
   if (!modelTemplate?.isObject3D) return null;
   const tuning = FIREARM_HAND_ATTACH_TUNING[captureAnimationId] || FIREARM_HAND_ATTACH_TUNING.default;
   const weapon = modelTemplate.clone(true);
-  weapon.position.set(...(tuning.position || FIREARM_HAND_ATTACH_TUNING.default.position));
-  weapon.rotation.set(...FIREARM_UNIFIED_DIRECTION_ROTATION);
+  const readyGripOffset = new THREE.Vector3(...(tuning.gripOffset || tuning.position || FIREARM_HAND_ATTACH_TUNING.default.position));
+  weapon.position.copy(readyGripOffset);
+  weapon.rotation.set(...(tuning.rotation || FIREARM_UNIFIED_DIRECTION_ROTATION));
   const attachScaleMultiplier = FIREARM_ATTACH_SCALE_MULTIPLIER[captureAnimationId] ?? 1;
   const scaleBoost =
     FIREARM_ATTACH_WORLD_SCALE_BOOST * attachScaleMultiplier;
@@ -1903,9 +1934,13 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
   if (sourceRightGrip?.isObject3D) {
     sourceRightGrip.updateMatrixWorld?.(true);
     const gripLocal = rightHand.worldToLocal(sourceRightGrip.getWorldPosition(new THREE.Vector3()));
-    weapon.position.sub(gripLocal);
+    const gripCorrection = readyGripOffset.clone().sub(gripLocal);
+    // Move the model so its real trigger/handle sits in the palm socket instead of snapping
+    // the grip to the wrist bone origin. This keeps the barrel in hand while aiming.
+    if (gripCorrection.lengthSq() < 0.18 * 0.18) weapon.position.add(gripCorrection);
   }
   const twoHanded = FIREARM_TWO_HANDED_IDS.has(captureAnimationId) && !FIREARM_SINGLE_HAND_ONLY_IDS.has(captureAnimationId);
+  const gripProfile = FIREARM_BALLISTICS_PROFILE_BY_ID[captureAnimationId] || 'default';
   const sourceLeftGrip = findObjectByNeedles(weapon, ['l_wrist', 'left_wrist']);
   const offhandTarget = new THREE.Object3D();
   if (sourceLeftGrip?.isObject3D) {
@@ -1925,6 +1960,8 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
     muzzle,
     offhandTarget,
     twoHanded,
+    gripProfile,
+    aimRollRad: FIREARM_AIM_ROLL_BY_PROFILE[gripProfile] ?? FIREARM_AIM_ROLL_BY_PROFILE.default,
     release: () => {
       const mixer = weapon.userData?.captureWeaponMixer;
       if (mixer && weaponMixers?.delete) {
