@@ -109,7 +109,13 @@ export const SNAKE_DEFAULT_UNLOCKS = Object.freeze({
   tableFinish: [SNAKE_TABLE_FINISH_OPTIONS[0].id],
   headStyle: [SNAKE_PAWN_HEAD_OPTIONS[0].id],
   tokenShape: [SNAKE_TOKEN_SHAPE_OPTIONS[0].id],
-  captureWeapon: [SNAKE_CAPTURE_WEAPON_OPTIONS[0].id],
+  captureWeapon: [
+    SNAKE_CAPTURE_WEAPON_OPTIONS[0].id,
+    'fighterJetAttack',
+    'helicopterAttack',
+    'droneAttack',
+    'supportTruckAttack'
+  ],
   tables: [MURLAN_TABLE_THEMES[0].id],
   stools: [MURLAN_STOOL_THEMES[0].id],
   environmentHdri: [POOL_ROYALE_DEFAULT_HDRI_ID]
