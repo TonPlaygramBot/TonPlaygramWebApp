@@ -3148,7 +3148,7 @@ const CAMERA_SEATED_RETREAT_OFFSETS = Object.freeze({
   landscape: 0.62
 });
 const CAMERA_SEATED_ELEVATION_OFFSETS = Object.freeze({
-  portrait: 2.22,
+  portrait: 2.14,
   landscape: 0.96
 });
 const CAMERA_LOOK_VERTICAL_ALLOWANCE = Object.freeze({
@@ -3156,7 +3156,7 @@ const CAMERA_LOOK_VERTICAL_ALLOWANCE = Object.freeze({
   landscape: { up: THREE.MathUtils.degToRad(7), down: THREE.MathUtils.degToRad(4) }
 });
 const CAMERA_TARGET_LIFT = 0.08 * MODEL_SCALE;
-const CAMERA_FOCUS_CENTER_LIFT = 0.1 * MODEL_SCALE;
+const CAMERA_FOCUS_CENTER_LIFT = 0.145 * MODEL_SCALE;
 const CAMERA_TARGET_TOP_PLAYER_BIAS = 0.36 * MODEL_SCALE;
 const CAMERA_SCREEN_DOWN_SHIFT = Object.freeze({
   portrait: 0.19 * MODEL_SCALE,
