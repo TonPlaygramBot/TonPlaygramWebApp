@@ -1427,7 +1427,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
     'Pool table inner ratio must match the official 2:1 target after scaling.'
   );
 const MM_TO_UNITS = (innerLong / WIDTH_REF) / TABLE_SURFACE_COMPENSATION;
-const BALL_SIZE_SCALE = 1.07; // make balls a bit bigger while every helper stays tied to BALL_R/BALL_DIAMETER
+const BALL_SIZE_SCALE = 1.04; // keep balls just a tiny bit smaller while every helper stays tied to BALL_R/BALL_DIAMETER
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -1562,7 +1562,7 @@ const PHYSICS_BASE_STEP = 1 / 60;
 const FRICTION = 0.9962;
 // Cushions use a slightly higher restitution than ball-ball impacts so rail
 // rebounds feel livelier without making direct ball collisions over-energetic.
-const DEFAULT_CUSHION_RESTITUTION = 0.992;
+const DEFAULT_CUSHION_RESTITUTION = 0.997;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const BALL_MASS = 0.17;
 const BALL_INERTIA = (2 / 5) * BALL_MASS * BALL_R * BALL_R;
@@ -1619,7 +1619,7 @@ const SIDE_POCKET_GUARD_CLEARANCE = Math.max(
   0,
   SIDE_POCKET_GUARD_RADIUS - BALL_R * 0.04
 );
-const CUSHION_CUT_RESTITUTION_SCALE = 1.025; // make cut-angle rebounds a bit more lively without adding excess speed
+const CUSHION_CUT_RESTITUTION_SCALE = 1.035; // make cut-angle rebounds more lively without adding excess speed
 const CUSHION_CUT_FRICTION_SCALE = 0.985; // reduce cut-line grab slightly so added bounce reads naturally
 const SIDE_POCKET_DEPTH_LIMIT =
   SIDE_POCKET_RADIUS * 1.6 * POCKET_VISUAL_EXPANSION; // align side-pocket rail limits with the visible mouth depth
@@ -1857,7 +1857,7 @@ const SHOT_POWER_MULTIPLIER = 2.109375;
 const SHOT_POWER_INCREASE = 1.5; // match Snooker Royale standard shot lift
 const SHOT_POWER_ADJUSTMENT = 0.72; // reduce overall Pool Royale power by an additional 20%
 const SHOT_POWER_BOOST = 1.5; // preserve legacy cue response before the final mobile comfort trim
-const SHOT_GLOBAL_POWER_SCALE = 0.88; // add a bit more Pool Royale shot power while keeping the selected shot-power curve
+const SHOT_GLOBAL_POWER_SCALE = 0.93; // add just a bit more Pool Royale shot power while keeping the selected shot-power curve
 const SHOT_FORCE_BOOST =
   1.5 *
   0.75 *
@@ -3634,7 +3634,9 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
   ].filter(Boolean)
 );
 
-const CUE_FINISH_OPTIONS = TABLE_FINISH_OPTIONS;
+const CUE_FINISH_OPTIONS = TABLE_FINISH_OPTIONS.filter(
+  (finish) => finish && !String(finish.id || '').startsWith('carbonFiberChalk')
+);
 const CUE_FINISH_PALETTE = Object.freeze(
   CUE_FINISH_OPTIONS.map(
     (finish) => finish?.colors?.rail ?? finish?.colors?.base ?? 0xdeb887
@@ -9302,7 +9304,7 @@ export function Table3D(
 
   const markingsGroup = new THREE.Group();
   const markingMat = new THREE.MeshBasicMaterial({
-    color: resolvedTableOptions?.tableModel?.useReferenceShowoodMapping ? 0xffffff : palette.markings,
+    color: 0xffffff,
     transparent: true,
     opacity: resolvedTableOptions?.tableModel?.useReferenceShowoodMapping ? 0.98 : 0.94,
     side: THREE.DoubleSide,
@@ -9326,18 +9328,20 @@ export function Table3D(
   const dArc = null;
   const spotRadius = BALL_R * 0.28;
   const spotMeshes = [];
-  const addSpot = (x, z) => {
+  const addSpot = (x, z, name = 'penaltySpot') => {
     const spotGeo = new THREE.CircleGeometry(spotRadius, 40);
     const spot = new THREE.Mesh(spotGeo, markingMat.clone());
     spot.rotation.x = -Math.PI / 2;
     spot.position.set(x, markingHeight, z);
+    spot.name = name;
     spot.userData.externalTableKeepVisible = true;
     spot.userData.externalTableAlwaysKeepVisible = true;
+    spot.userData.poolPenaltySpot = true;
     markingsGroup.add(spot);
     spotMeshes.push(spot);
   };
   const topCushionZ = PLAY_H / 2;
-  addSpot(0, (topCushionZ + 0) / 2);
+  addSpot(0, (topCushionZ + 0) / 2, 'poolPenaltySpot');
   markingsGroup.traverse((child) => {
     if (child.isMesh) {
       child.renderOrder = cloth.renderOrder + 1;
@@ -26044,10 +26048,12 @@ const shotPowerRef = useRef(0);
             rackStartZ
           );
           rackColors.forEach((color, index) => {
-            const pos =
-              rackPositions[index] ||
-              rackPositions[rackPositions.length - 1] || { x: 0, z: rackStartZ };
-            addDecorBall(color, rackNumbers[index], rackPatterns[index], pos, 'pool');
+            const number = rackNumbers[index];
+            const pos = number === 8
+              ? { x: SPOTS.penalty[0], z: SPOTS.penalty[1] }
+              : rackPositions[index] ||
+                rackPositions[rackPositions.length - 1] || { x: 0, z: rackStartZ };
+            addDecorBall(color, number, rackPatterns[index], pos, 'pool');
           });
           addDecorBall(0xffffff, null, 'cue', { x: 0, z: baulkZ - BALL_R * 5.5 }, 'pool');
           addCueStick(-PLAY_W * 0.18, rackStartZ + BALL_R * 4.5, -Math.PI * 0.06);
@@ -27264,7 +27270,7 @@ const shotPowerRef = useRef(0);
         if (dArc) dArc.visible = false;
         if (Array.isArray(spots)) {
           spots.forEach((spot) => {
-            if (spot) spot.visible = false;
+            if (spot) spot.visible = Boolean(spot?.userData?.poolPenaltySpot);
           });
         }
       }
@@ -27339,14 +27345,16 @@ const shotPowerRef = useRef(0);
           rackStartZ
         );
         for (let rid = 0; rid < rackColors.length; rid++) {
-          const pos = rackPositions[rid] || rackPositions[rackPositions.length - 1] || {
-            x: 0,
-            z: rackStartZ + rid * BALL_R * 1.9
-          };
           const color = getPoolBallColor(variantConfig, rid);
           const number = getPoolBallNumber(variantConfig, rid);
           const pattern = getPoolBallPattern(variantConfig, rid);
           const ballId = getPoolBallId(variantConfig, rid);
+          const pos = number === 8
+            ? { x: SPOTS.penalty[0], z: SPOTS.penalty[1] }
+            : rackPositions[rid] || rackPositions[rackPositions.length - 1] || {
+                x: 0,
+                z: rackStartZ + rid * BALL_R * 1.9
+              };
           add(ballId, color, pos.x, pos.z, { number, pattern });
         }
       }
@@ -36744,53 +36752,6 @@ const shotPowerRef = useRef(0);
                             loading="lazy"
                           />
                         ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Shared Table Base
-                </h3>
-                <p className="mt-1 text-[0.68rem] leading-snug text-white/60">
-                  Shape options for the procedural support base and legs under the Showood GLB table.
-                </p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {availableTableBases.map((option) => {
-                    const active = option.id === tableBaseId;
-                    const swatchA = option.swatches?.[0] ?? '#0f172a';
-                    const swatchB = option.swatches?.[1] ?? '#1f2937';
-                    const thumb = option.thumbnail;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setTableBaseId(option.id)}
-                        aria-pressed={active}
-                        className={`flex min-w-[9rem] flex-1 items-center justify-between gap-3 rounded-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
-                            : 'bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        <span className="truncate">{option.name}</span>
-                        {thumb ? (
-                          <img
-                            src={thumb}
-                            alt={option.name}
-                            className="h-6 w-10 rounded-lg border border-white/25 object-cover"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <span
-                            className="h-5 w-8 rounded-lg border border-white/25"
-                            aria-hidden="true"
-                            style={{
-                              background: `linear-gradient(135deg, ${swatchA}, ${swatchB})`
-                            }}
-                          />
-                        )}
                       </button>
                     );
                   })}
