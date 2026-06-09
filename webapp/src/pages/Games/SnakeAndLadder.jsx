@@ -192,7 +192,7 @@ const TURN_ADVANCE_AFTER_DICE_MS = 0;
 const DICE_RESULT_HOLD_MS = 2000;
 // Match the 3D Ludo/Pool dice: a server-authoritative value should only
 // replace the rolling face after the physical throw has had time to land.
-const DICE_BOARD_ROLL_REVEAL_DELAY_MS = 930;
+const DICE_BOARD_ROLL_REVEAL_DELAY_MS = 1100;
 const DICE_SFX_MIN_INTERVAL_MS = 850;
 const DEFAULT_CAPACITY = 4;
 const COMMENTARY_PRESET_STORAGE_KEY = 'snakeCommentaryPreset';
