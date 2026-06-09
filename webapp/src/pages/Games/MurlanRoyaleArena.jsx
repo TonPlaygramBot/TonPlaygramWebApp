@@ -2281,7 +2281,7 @@ function fitCharacterModelForSeat(characterRoot, characterTheme = null) {
   const size = bounds.getSize(new THREE.Vector3());
   const currentHeight = size.y;
   const shouldNormalize = Boolean(
-    characterTheme?.sourceFormat === 'sketchfab-converted-gltf' ||
+    ['sketchfab-converted-gltf', 'valid-avatar-glb'].includes(characterTheme?.sourceFormat) ||
     characterTheme?.normalizeForSeat ||
     currentHeight < 0.35 ||
     currentHeight > 2.4
@@ -2296,7 +2296,7 @@ function fitCharacterModelForSeat(characterRoot, characterTheme = null) {
 }
 
 function shouldPreserveOriginalCharacterMaterials(characterTheme) {
-  return Boolean(characterTheme?.sourceFormat === 'sketchfab-converted-gltf' || characterTheme?.preserveOriginalMaterials);
+  return Boolean(['sketchfab-converted-gltf', 'valid-avatar-glb'].includes(characterTheme?.sourceFormat) || characterTheme?.preserveOriginalMaterials);
 }
 
 function normalizeOriginalCharacterTexture(texture, { isColor = false, maxAnisotropy = 8 } = {}) {
