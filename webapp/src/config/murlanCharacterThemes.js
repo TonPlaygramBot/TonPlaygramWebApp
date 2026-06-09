@@ -1,5 +1,9 @@
 import { khronosThumb } from './storeThumbnails.js';
 
+const VALID_AVATAR_BASE_URL = 'https://cdn.jsdelivr.net/gh/c-frame/valid-avatars-glb@c539a28';
+const validAvatarModel = (path) => `${VALID_AVATAR_BASE_URL}/avatars/${path}.glb`;
+const validAvatarThumb = (path) => `${VALID_AVATAR_BASE_URL}/images/${path}.jpg`;
+
 export const MURLAN_CHARACTER_THEMES = Object.freeze([
   {
     id: 'rpm-current',
@@ -35,7 +39,8 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     modelUrls: [
       'https://models.readyplayer.me/67d411b30787acbf58ce58ac.glb',
       'https://api.readyplayer.me/v1/avatars/67d411b30787acbf58ce58ac.glb',
-      'https://avatars.readyplayer.me/67d411b30787acbf58ce58ac.glb'
+      'https://avatars.readyplayer.me/67d411b30787acbf58ce58ac.glb',
+      validAvatarModel('AIAN/AIAN_M_1_Busi')
     ],
     thumbnail: khronosThumb('ReadyPlayerMe67d411'),
     scale: 1.0,
@@ -62,7 +67,8 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     modelUrls: [
       'https://models.readyplayer.me/67f433b69dc08cf26d2cf585.glb',
       'https://api.readyplayer.me/v1/avatars/67f433b69dc08cf26d2cf585.glb',
-      'https://avatars.readyplayer.me/67f433b69dc08cf26d2cf585.glb'
+      'https://avatars.readyplayer.me/67f433b69dc08cf26d2cf585.glb',
+      validAvatarModel('Black/Black_F_1_Casual')
     ],
     thumbnail: khronosThumb('ReadyPlayerMe67f433'),
     scale: 1.0,
@@ -89,7 +95,8 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     modelUrls: [
       'https://models.readyplayer.me/67e1b51ae11c93725e4395c9.glb',
       'https://api.readyplayer.me/v1/avatars/67e1b51ae11c93725e4395c9.glb',
-      'https://avatars.readyplayer.me/67e1b51ae11c93725e4395c9.glb'
+      'https://avatars.readyplayer.me/67e1b51ae11c93725e4395c9.glb',
+      validAvatarModel('Asian/Asian_M_2_Casual')
     ],
     thumbnail: khronosThumb('ReadyPlayerMe67e1b5'),
     scale: 1.0,
@@ -193,6 +200,82 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     eyeColor: 0x334d5f,
     skinTone: 0xd09a73
   },
+
+  {
+    id: 'valid-aian-business-human',
+    label: 'VALID AIAN Business',
+    source: 'c-frame/valid-avatars-glb VALID converted glTF avatar library',
+    license: 'MIT; open-source VALID avatar library',
+    price: 600,
+    description: 'Open-source VALID business human avatar served as GLB through jsDelivr for reliable WebGL loading on mobile.',
+    url: validAvatarModel('AIAN/AIAN_M_1_Busi'),
+    modelUrls: [validAvatarModel('AIAN/AIAN_M_1_Busi')],
+    sourceUrl: 'https://github.com/c-frame/valid-avatars-glb',
+    thumbnail: validAvatarThumb('AIAN/AIAN_M_1_Busi'),
+    sourceFormat: 'valid-avatar-glb',
+    scale: 1.0,
+    seatOffsetY: -0.84,
+    seatOffsetZ: -0.22,
+    normalizedSeatOffsetY: -0.4,
+    normalizedSeatOffsetZ: 0.52,
+    seatPitch: 0,
+    seatYaw: 0,
+    handLift: 1.04,
+    clothCombo: 'casinoCheck',
+    hairColor: 0x1a120d,
+    eyeColor: 0x4a3528,
+    skinTone: 0xb9815c
+  },
+  {
+    id: 'valid-black-casual-human',
+    label: 'VALID Black Casual',
+    source: 'c-frame/valid-avatars-glb VALID converted glTF avatar library',
+    license: 'MIT; open-source VALID avatar library',
+    price: 620,
+    description: 'Open-source VALID casual human avatar added as a free-to-load realistic 3D WebGL character option.',
+    url: validAvatarModel('Black/Black_F_1_Casual'),
+    modelUrls: [validAvatarModel('Black/Black_F_1_Casual')],
+    sourceUrl: 'https://github.com/c-frame/valid-avatars-glb',
+    thumbnail: validAvatarThumb('Black/Black_F_1_Casual'),
+    sourceFormat: 'valid-avatar-glb',
+    scale: 1.0,
+    seatOffsetY: -0.84,
+    seatOffsetZ: -0.22,
+    normalizedSeatOffsetY: -0.4,
+    normalizedSeatOffsetZ: 0.52,
+    seatPitch: 0,
+    seatYaw: 0,
+    handLift: 1.04,
+    clothCombo: 'softFleece',
+    hairColor: 0x140f0c,
+    eyeColor: 0x30241c,
+    skinTone: 0x8b5a3d
+  },
+  {
+    id: 'valid-asian-casual-human',
+    label: 'VALID Asian Casual',
+    source: 'c-frame/valid-avatars-glb VALID converted glTF avatar library',
+    license: 'MIT; open-source VALID avatar library',
+    price: 640,
+    description: 'Open-source VALID casual human avatar with a direct GLB URL and CORS-friendly CDN delivery.',
+    url: validAvatarModel('Asian/Asian_M_2_Casual'),
+    modelUrls: [validAvatarModel('Asian/Asian_M_2_Casual')],
+    sourceUrl: 'https://github.com/c-frame/valid-avatars-glb',
+    thumbnail: validAvatarThumb('Asian/Asian_M_2_Casual'),
+    sourceFormat: 'valid-avatar-glb',
+    scale: 1.0,
+    seatOffsetY: -0.84,
+    seatOffsetZ: -0.22,
+    normalizedSeatOffsetY: -0.4,
+    normalizedSeatOffsetZ: 0.52,
+    seatPitch: 0,
+    seatYaw: 0,
+    handLift: 1.04,
+    clothCombo: 'linenStreet',
+    hairColor: 0x19110c,
+    eyeColor: 0x463126,
+    skinTone: 0xc9926f
+  },
   {
     id: 'sketchfab-agent-47',
     label: 'Agent 47',
@@ -201,7 +284,7 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     price: 760,
     description: 'Sketchfab rigged Mixamo-style character loaded from the converted glTF package and prepared for Murlan Royale seating. Converted glTF folder is installed locally outside git with npm run fetch:murlan-characters.',
     url: '/models/murlan/agent-47-rigged-face-morphs/scene.gltf',
-    modelUrls: ['/models/murlan/agent-47-rigged-face-morphs/scene.gltf'],
+    modelUrls: ['/models/murlan/agent-47-rigged-face-morphs/scene.gltf', validAvatarModel('White/White_M_2_Busi')],
     sourceUrl: 'https://sketchfab.com/3d-models/agent-47-riggedface-morphs-1680cad927304bb687d6a9ad5b9dd98a',
     sketchfabUid: '1680cad927304bb687d6a9ad5b9dd98a',
     sourceFormat: 'sketchfab-converted-gltf',
@@ -230,7 +313,7 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     price: 780,
     description: 'Sketchfab human portrait loaded from the converted glTF package and prepared for Murlan Royale seating. Converted glTF folder is installed locally outside git with npm run fetch:murlan-characters.',
     url: '/models/murlan/leather-jacket-portrait/scene.gltf',
-    modelUrls: ['/models/murlan/leather-jacket-portrait/scene.gltf'],
+    modelUrls: ['/models/murlan/leather-jacket-portrait/scene.gltf', validAvatarModel('Hispanic/Hispanic_M_1_Casual')],
     sourceUrl: 'https://sketchfab.com/3d-models/leather-jacket-portrait-e4b6a08211c746fe932e0d5041d28812',
     sketchfabUid: 'e4b6a08211c746fe932e0d5041d28812',
     sourceFormat: 'sketchfab-converted-gltf',
@@ -259,7 +342,7 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     price: 820,
     description: 'Sketchfab seated gentleman character loaded from the converted glTF package and prepared for Murlan Royale seating. Converted glTF folder is installed locally outside git with npm run fetch:murlan-characters.',
     url: '/models/murlan/seated-gentleman-suede-jacket/scene.gltf',
-    modelUrls: ['/models/murlan/seated-gentleman-suede-jacket/scene.gltf'],
+    modelUrls: ['/models/murlan/seated-gentleman-suede-jacket/scene.gltf', validAvatarModel('White/White_M_1_Busi')],
     sourceUrl: 'https://sketchfab.com/3d-models/seated-gentleman-in-suede-jacket-8b1101c090d4454caf9f311b3c008946',
     sketchfabUid: '8b1101c090d4454caf9f311b3c008946',
     sourceFormat: 'sketchfab-converted-gltf',
@@ -288,7 +371,7 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     price: 840,
     description: 'Sketchfab hibiscus portrait character loaded from the converted glTF package and prepared for Murlan Royale seating. Converted glTF folder is installed locally outside git with npm run fetch:murlan-characters.',
     url: '/models/murlan/red-hibiscus-in-the-hair/scene.gltf',
-    modelUrls: ['/models/murlan/red-hibiscus-in-the-hair/scene.gltf'],
+    modelUrls: ['/models/murlan/red-hibiscus-in-the-hair/scene.gltf', validAvatarModel('NHPI/NHPI_M_1_Casual')],
     sourceUrl: 'https://sketchfab.com/3d-models/red-hibiscus-in-the-hair-dc65f86920814a4296f930e7d85ab314',
     sketchfabUid: 'dc65f86920814a4296f930e7d85ab314',
     sourceFormat: 'sketchfab-converted-gltf',
@@ -317,7 +400,7 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     price: 860,
     description: 'Sketchfab casual human character loaded from the converted glTF package and prepared for Murlan Royale seating. Converted glTF folder is installed locally outside git with npm run fetch:murlan-characters.',
     url: '/models/murlan/casual-confidence/scene.gltf',
-    modelUrls: ['/models/murlan/casual-confidence/scene.gltf'],
+    modelUrls: ['/models/murlan/casual-confidence/scene.gltf', validAvatarModel('Black/Black_M_2_Casual')],
     sourceUrl: 'https://sketchfab.com/3d-models/casual-confidence-bff76010d9534241ae6c96a4a46a7959',
     sketchfabUid: 'bff76010d9534241ae6c96a4a46a7959',
     sourceFormat: 'sketchfab-converted-gltf',

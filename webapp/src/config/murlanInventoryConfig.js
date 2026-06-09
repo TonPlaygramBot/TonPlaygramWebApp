@@ -27,7 +27,7 @@ const DEFAULT_MURLAN_SHARED_IDS = Object.freeze({
 
 
 const DEFAULT_UNLOCKED_CHARACTER_IDS = Object.freeze(
-  MURLAN_CHARACTER_THEMES.filter((theme, index) => index === 0 || theme?.sourceUrl?.includes('sketchfab.com/3d-models/'))
+  MURLAN_CHARACTER_THEMES.filter((theme, index) => index === 0 || theme?.sourceUrl?.includes('sketchfab.com/3d-models/') || theme?.sourceFormat === 'valid-avatar-glb')
     .map((theme) => theme.id)
     .filter(Boolean)
 );
