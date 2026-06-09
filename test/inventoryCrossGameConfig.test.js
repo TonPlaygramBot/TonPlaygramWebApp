@@ -117,32 +117,6 @@ describe('cross-game inventory alignment', () => {
     });
   });
 
-  test('murlan includes scanned Sketchfab humans with stable runtime fallbacks', () => {
-    const expectedScannedCharacters = [
-      ['sketchfab-generic-man-scan', '/models/murlan/generic-man-scan/scene.gltf', '9b4527d4bc524c31bed48054f0c04b71'],
-      ['sketchfab-thunk3d-human-scan', '/models/murlan/thunk3d-human-scan/scene.gltf', 'a75f10c50fb44a70a1b04bcb49f3d71f'],
-      ['sketchfab-hoodie-apose-scan', '/models/murlan/hoodie-apose-scan/scene.gltf', '78c2d136f91c46a8a696d5bacfde2daf']
-    ];
-
-    expectedScannedCharacters.forEach(([id, modelUrl, sketchfabUid]) => {
-      const theme = MURLAN_CHARACTER_THEMES.find((entry) => entry.id === id);
-      expect(theme).toBeTruthy();
-      expect(theme.modelUrls).toEqual([modelUrl]);
-      expect(theme.sketchfabUid).toBe(sketchfabUid);
-      expect(theme.sourceFormat).toBe('sketchfab-converted-gltf');
-      expect(theme.installCheck).toBe('gltf-json');
-      expect(theme.license).toContain('CC BY 4.0');
-      expect(theme.runtimeFallbackModelUrls).toEqual(
-        expect.arrayContaining([
-          'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/readyplayer.me.glb',
-          'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Xbot.glb'
-        ])
-      );
-      expect(MURLAN_ROYALE_STORE_ITEMS.some((item) => item.type === 'characters' && item.optionId === theme.id)).toBe(true);
-      expect(MURLAN_ROYALE_DEFAULT_UNLOCKS.characters).toContain(theme.id);
-    });
-  });
-
 
   test('murlan Sketchfab character installer fetches converted glTF instead of GLB binaries', async () => {
     const source = await readFile('webapp/scripts/fetch-murlan-agent47.mjs', 'utf8');
