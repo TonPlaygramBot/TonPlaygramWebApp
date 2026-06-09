@@ -18,7 +18,6 @@ export default function DiceRoller({
   renderVisual = true,
   placeholder = null,
   diceWrapperClassName = 'flex space-x-4 items-center justify-center',
-  rollDurationMs = 1050,
 }) {
   const [values, setValues] = useState(Array(numDice).fill(1));
   const [rolling, setRolling] = useState(false);
@@ -79,7 +78,7 @@ export default function DiceRoller({
     };
 
     const tick = 50; // ms between face changes
-    const iterations = Math.max(1, Math.round(rollDurationMs / tick)); // Ludo-compatible configurable roll cadence
+    const iterations = 20; // ~1 second of rolling
     let count = 0;
 
     const id = setInterval(() => {
