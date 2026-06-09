@@ -2489,18 +2489,7 @@ const FIREARM_CAPTURE_SHOT_SOUND_URL_BY_ID = Object.freeze({
 const FIREARM_SOURCE_AUDIO_CACHE = new Map();
 const LUDO_FIREARM_BROADCAST_PROFILE = LUDO_WEAPON_DIRECTOR_BRIDGE.firearmBroadcastProfile || {};
 const LUDO_WEAPON_TYPE_BY_ANIMATION_ID = LUDO_WEAPON_DIRECTOR_BRIDGE.weaponTypeByCaptureAnimationId || {};
-const CHESS_FIREARM_PICKUP_LEAD_MS = 420;
-const CHESS_FIREARM_RELOAD_LEAD_MS = 260;
-const CHESS_FIREARM_AIM_LEAD_MS = 340;
-const CHESS_FIREARM_PREFIRE_LEAD_MS = CHESS_FIREARM_PICKUP_LEAD_MS + CHESS_FIREARM_RELOAD_LEAD_MS + CHESS_FIREARM_AIM_LEAD_MS;
-const CHESS_FIREARM_VOLLEY_SLOW_FACTOR = 2.08;
-const CHESS_FIREARM_RECOIL_ROTATION_RAD = 0.026;
-const CHESS_FIREARM_RECOIL_RECOVER_MS = 94;
-const CHESS_FIREARM_FINAL_BULLET_SLOWMO_FACTOR = 0.105;
-const CHESS_FIREARM_FINAL_BULLET_SPIN_RATE = 0.118;
-const CHESS_FIREARM_NON_FINAL_BULLET_CINEMATIC_FACTOR = 0.46;
-const CHESS_FIREARM_POST_VOLLEY_HOLD_MS = 760;
-const CHESS_FIREARM_FATAL_BULLET_TRAVEL_MS = 1250; // fallback; live shots use the Ludo Battle Royal per-caliber timing below.
+const CHESS_FIREARM_FATAL_BULLET_TRAVEL_MS = 1250; // match Ludo Battle Royal service-pistol final bullet travel.
 const CHESS_FIREARM_FATAL_CAMERA_DISTANCE = 0.046;
 const CHESS_FIREARM_FATAL_CAMERA_HEIGHT = 0.03;
 const CHESS_FIREARM_FATAL_CAMERA_SIDE_DRIFT = 0.012;
@@ -2510,16 +2499,6 @@ const CHESS_FIREARM_TILE_MUZZLE_FORWARD = 0.16;
 const CHESS_CAPTURE_SHATTER_PIECES = 14;
 const CHESS_CAPTURE_SHATTER_DURATION = 1.45;
 const CHESS_CAPTURE_SHATTER_GRAVITY = 1.58;
-const CHESS_FIREARM_SHOTGUN_IDS = new Set([
-  'shotgunBlastAttack',
-  'polyShotgun01Attack',
-  'polyShotgun02Attack',
-  'polyShotgun03Attack',
-  'polySawedOff01Attack'
-]);
-const CHESS_FIREARM_MARKSMAN_IDS = new Set(['sniperShotAttack', 'mosinMarksmanAttack', 'marksmanDmrAttack']);
-const CHESS_FIREARM_SCATTER_PROJECTILE_IDS = new Set([...CHESS_FIREARM_SHOTGUN_IDS]);
-
 const CHESS_CAPTURE_SHATTER_BOARD_BOUNCE = 0.38;
 
 const CHESS_FIREARM_BULLET_PROFILE_BY_TYPE = Object.freeze({
@@ -12727,42 +12706,19 @@ function Chess3D({
       'compactCarbineAttack'
     ]);
 
-    const getLudoFirearmCadenceMs = (captureAnimationId) =>
-      (CHESS_FIREARM_MARKSMAN_IDS.has(captureAnimationId)
-        ? 155
-        : CHESS_FIREARM_SHOTGUN_IDS.has(captureAnimationId)
-        ? 92
-        : 56) * CHESS_FIREARM_VOLLEY_SLOW_FACTOR;
-
-    const getLudoFirearmTotalDurationMs = (captureAnimationId, shots) =>
-      CHESS_FIREARM_PREFIRE_LEAD_MS + Math.max(1, shots) * getLudoFirearmCadenceMs(captureAnimationId) + CHESS_FIREARM_POST_VOLLEY_HOLD_MS;
-
-    const getLudoBulletTravelMs = ({ cadenceMs, bulletSpeed, finalProjectile = false }) => {
-      const speed = Math.max(0.001, bulletSpeed || 0.22);
-      const speedFactor = finalProjectile ? CHESS_FIREARM_FINAL_BULLET_SLOWMO_FACTOR : CHESS_FIREARM_NON_FINAL_BULLET_CINEMATIC_FACTOR;
-      const cadenceFactor = finalProjectile ? 2.18 : 0.82;
-      return Math.max(90, (Math.max(1, cadenceMs) * cadenceFactor) / (speed * speedFactor));
-    };
-
     const resolveFirearmCaptureProfile = (captureAnimationId = selectedCaptureAnimationIdRef.current) => {
       const ludoType = LUDO_WEAPON_TYPE_BY_ANIMATION_ID[captureAnimationId] || 'Rifle';
       const bridgeProfile = CHESS_FIREARM_BULLET_PROFILE_BY_TYPE[ludoType] || CHESS_FIREARM_BULLET_PROFILE_BY_TYPE.Rifle;
       const projectileProfile = CHESS_LUDO_PROJECTILE_PROFILE_BY_TYPE[ludoType] || CHESS_LUDO_PROJECTILE_PROFILE_BY_TYPE.Rifle;
       const animationCaliberProfile = CHESS_FIREARM_CALIBER_BY_ANIMATION_ID[captureAnimationId] || null;
       const singleShot = SINGLE_SHOT_FIREARM_IDS.has(captureAnimationId) || bridgeProfile.bulletCount === 1;
-      const bulletCount = CHESS_FIREARM_MAGAZINE_SHOTS_BY_ID[captureAnimationId] ?? bridgeProfile.bulletCount ?? (singleShot ? 1 : 7);
-      const cadenceMs = getLudoFirearmCadenceMs(captureAnimationId);
-      const durationMs = getLudoFirearmTotalDurationMs(captureAnimationId, bulletCount);
       return {
         ...bridgeProfile,
         ...projectileProfile,
         ...(animationCaliberProfile || {}),
         ludoType,
-        bulletCount,
-        cadenceMs,
-        preFireLeadMs: CHESS_FIREARM_PREFIRE_LEAD_MS,
-        durationMs,
-        duration: durationMs / 1000,
+        bulletCount: CHESS_FIREARM_MAGAZINE_SHOTS_BY_ID[captureAnimationId] ?? bridgeProfile.bulletCount ?? (singleShot ? 1 : 7),
+        duration: Math.max(bridgeProfile.duration ?? (singleShot ? 0.62 : 1.15), ((CHESS_FIREARM_MAGAZINE_SHOTS_BY_ID[captureAnimationId] ?? bridgeProfile.bulletCount ?? 1) > 1 ? 1.35 : 0.82)),
         impactAt: bridgeProfile.impactAt ?? (singleShot ? 1 : 0.92),
         singleShot,
         shortMissile: CHESS_GRENADE_SHORT_MISSILE_IDS.has(captureAnimationId)
@@ -13315,8 +13271,6 @@ function Chess3D({
           fpsArmsFx,
           aerodynamicRings,
           bulletCount: firearmProfile.bulletCount,
-          cadenceMs: firearmProfile.cadenceMs,
-          preFireLeadMs: firearmProfile.preFireLeadMs,
           impactAt: firearmProfile.impactAt,
           singleShot: firearmProfile.singleShot,
           bulletProfile: firearmProfile,
@@ -15813,22 +15767,14 @@ function Chess3D({
             const targetPos = getLiveTargetPosition(fx.to, fx.targetMesh, 0);
             const targetAimPos = getFirearmTargetAimPosition(fx.to, fx.targetMesh);
             fx.to.copy(targetPos);
-            const elapsedMs = fx.t * 1000;
-            const preFireLeadMs = fx.preFireLeadMs ?? CHESS_FIREARM_PREFIRE_LEAD_MS;
-            const cadenceMs = fx.cadenceMs ?? getLudoFirearmCadenceMs(fx.captureAnimationId);
-            const elapsedShootingMs = Math.max(0, elapsedMs - preFireLeadMs);
-            const shotRemainderMs = elapsedShootingMs % Math.max(1, cadenceMs);
-            const weaponAnimationActive = elapsedMs >= preFireLeadMs && elapsedShootingMs < Math.max(1, fx.bulletCount || 1) * cadenceMs;
             const aimOrigin = getFirearmAttackerTilePose(fx.from);
             const aimDir = targetAimPos.clone().sub(aimOrigin);
             if (aimDir.lengthSq() > 1e-8) aimDir.normalize();
             else aimDir.set(0, 0, 1);
-            const shoulderPhase = clamp01((elapsedMs - CHESS_FIREARM_PICKUP_LEAD_MS) / Math.max(1, CHESS_FIREARM_RELOAD_LEAD_MS + CHESS_FIREARM_AIM_LEAD_MS));
-            const drawPhase = clamp01(elapsedMs / Math.max(1, CHESS_FIREARM_PICKUP_LEAD_MS));
             const muzzleForward = fx.shortMissile ? 0.18 : CHESS_FIREARM_TILE_MUZZLE_FORWARD;
             const muzzlePos = aimOrigin.clone().addScaledVector(aimDir, muzzleForward);
             muzzlePos.y += fx.shortMissile ? 0.05 : 0.018;
-            fx.missileFx.root.visible = weaponAnimationActive;
+            fx.missileFx.root.visible = true;
             fx.missileFx.root.position.copy(muzzlePos).addScaledVector(aimDir, 0.08);
             orientForwardKeepingUp(fx.missileFx.root, aimDir);
             if (fx.firearmFx) {
@@ -15837,9 +15783,10 @@ function Chess3D({
               const liveAimDir = liveAimTarget.clone().sub(aimOrigin);
               if (liveAimDir.lengthSq() > 1e-8) liveAimDir.normalize();
               else liveAimDir.copy(aimDir);
-              const rackDrawOffset = THREE.MathUtils.lerp(fx.shortMissile ? 0.02 : 0.105, fx.shortMissile ? 0.035 : 0.055, smoothEase(drawPhase));
-              fx.firearmFx.position.copy(aimOrigin.clone().addScaledVector(liveAimDir, -rackDrawOffset));
-              fx.firearmFx.position.y += THREE.MathUtils.lerp(0.004, 0.014, smoothEase(shoulderPhase));
+              fx.firearmFx.position.copy(
+                aimOrigin.clone().addScaledVector(liveAimDir, -(fx.shortMissile ? 0.035 : 0.055))
+              );
+              fx.firearmFx.position.y += 0.02 + Math.sin(u * Math.PI * 8) * 0.006;
               orientForwardKeepingUp(fx.firearmFx, liveAimDir);
               fx.firearmFx.updateMatrixWorld?.(true);
               const muzzleHelper = fx.firearmFx.userData?.muzzleHelper;
@@ -15849,25 +15796,22 @@ function Chess3D({
                 fx.firearmFx.position.add(desiredMuzzleWorld.sub(currentMuzzleWorld));
                 fx.firearmFx.updateMatrixWorld?.(true);
               }
-              const recoilPhase = weaponAnimationActive ? 1 - clamp(shotRemainderMs / CHESS_FIREARM_RECOIL_RECOVER_MS, 0, 1) : 0;
-              if (recoilPhase > 0) {
-                fx.firearmFx.position.addScaledVector(liveAimDir, -CHESS_FIREARM_RECOIL_ROTATION_RAD * recoilPhase);
-                fx.firearmFx.rotateX(-CHESS_FIREARM_RECOIL_ROTATION_RAD * recoilPhase);
-              }
+              const recoil = Math.sin(Math.min(1, u * Math.max(1, fx.bulletCount || 1)) * Math.PI) * 0.025;
+              fx.firearmFx.position.addScaledVector(liveAimDir, -recoil);
               aimDir.copy(liveAimDir);
             }
             if (fx.fpsArmsFx) {
               fx.fpsArmsFx.visible = true;
               fx.fpsArmsFx.position.copy(aimOrigin).addScaledVector(aimDir, -(fx.shortMissile ? 0.095 : 0.075));
-              fx.fpsArmsFx.position.y += THREE.MathUtils.lerp(0.0, -0.006, smoothEase(shoulderPhase));
-              if (weaponAnimationActive) fx.fpsArmsFx.position.addScaledVector(aimDir, -CHESS_FIREARM_RECOIL_ROTATION_RAD * 0.42 * (1 - clamp(shotRemainderMs / CHESS_FIREARM_RECOIL_RECOVER_MS, 0, 1)));
+              fx.fpsArmsFx.position.y += 0.004 + Math.sin(u * Math.PI * Math.max(4, fx.bulletCount || 1)) * 0.004;
               orientForwardKeepingUp(fx.fpsArmsFx, aimDir);
             }
 
             (fx.liveBullets || []).forEach((bullet) => {
               const bulletAgeRaw = (now - bullet.startMs) / Math.max(1, bullet.durationMs);
               const bulletAge = clamp01(bulletAgeRaw);
-              const bt = bullet.cinematic ? smoothEase(bulletAge) : bulletAge;
+              const cinematicEase = bullet.cinematic ? Math.pow(bulletAge, 0.68) : smoothEase(bulletAge);
+              const bt = bullet.cinematic ? cinematicEase : smoothEase(bulletAge);
               let pos = bullet.from.clone().lerp(bullet.to, bt);
               let projectileDir = bullet.dir;
               if (bullet.shortMissile) {
@@ -15890,9 +15834,8 @@ function Chess3D({
               }
               bullet.mesh.position.copy(pos);
               bullet.mesh.quaternion.setFromUnitVectors(WORLD_UP, projectileDir);
-              bullet.mesh.rotateY((now - bullet.startMs) * (bullet.finalSpinRate ?? (bullet.cinematic ? CHESS_FIREARM_FINAL_BULLET_SPIN_RATE : 0.032)));
+              bullet.mesh.rotateY(bulletAge * 0.118);
               bullet.mesh.rotateX(bullet.cinematic ? 0.18 : 0.1);
-              if (bullet.cinematic) bullet.mesh.rotateZ((now - bullet.startMs) * 0.036);
               bullet.mesh.visible = bulletAge < 1;
               if (bullet.trail?.isObject3D) {
                 bullet.trail.visible = bullet.mesh.visible;
@@ -15982,29 +15925,18 @@ function Chess3D({
               return false;
             });
 
-            const shotsToFire = Math.max(1, fx.bulletCount || 1);
-            const scatterPellets = CHESS_FIREARM_SCATTER_PROJECTILE_IDS.has(fx.captureAnimationId) ? 14 : 1;
-            const totalProjectiles = shotsToFire * scatterPellets;
-            const cadence = fx.cadenceMs ?? getLudoFirearmCadenceMs(fx.captureAnimationId);
-            const elapsedShooting = Math.max(0, fx.t * 1000 - (fx.preFireLeadMs ?? CHESS_FIREARM_PREFIRE_LEAD_MS));
-            const shouldFireShots = fx.t * 1000 >= (fx.preFireLeadMs ?? CHESS_FIREARM_PREFIRE_LEAD_MS)
-              ? Math.min(shotsToFire, Math.floor((elapsedShooting + 0.0001) / cadence) + 1)
-              : 0;
-            const shouldFireCount = Math.min(totalProjectiles, shouldFireShots * scatterPellets);
+            const bulletsToFire = Math.max(1, fx.bulletCount || 1);
+            const fireStep = 1 / bulletsToFire;
+            const shouldFireCount = Math.min(
+              bulletsToFire,
+              Math.floor((u + 0.0001) / fireStep) + (u > 0.04 ? 1 : 0)
+            );
             while (fx.firedBullets < shouldFireCount) {
               fx.firedBullets += 1;
-              const projectileIndex = fx.firedBullets - 1;
-              const shotIndex = Math.floor(projectileIndex / scatterPellets);
-              const pelletIndex = projectileIndex % scatterPellets;
+              const shotIndex = fx.firedBullets - 1;
+              const spread = (shotIndex - (bulletsToFire - 1) * 0.5) * (fx.bulletProfile?.pelletCount ? 0.012 : 0.004);
               const side = new THREE.Vector3().crossVectors(WORLD_UP, aimDir).normalize();
-              const pelletSpread = scatterPellets > 1
-                ? new THREE.Vector3(
-                  Math.cos(pelletIndex * 2.399) * (fx.bulletProfile?.tracerSpread ?? 0.026) * 0.72,
-                  Math.sin(pelletIndex * 2.399) * (fx.bulletProfile?.tracerSpread ?? 0.026) * 0.36,
-                  Math.sin(pelletIndex * 1.719) * (fx.bulletProfile?.tracerSpread ?? 0.026) * 0.72
-                )
-                : new THREE.Vector3().addScaledVector(side, (shotIndex - (shotsToFire - 1) * 0.5) * 0.004);
-              const bulletTo = getFirearmTargetAimPosition(fx.to, fx.targetMesh).add(pelletSpread);
+              const bulletTo = getFirearmTargetAimPosition(fx.to, fx.targetMesh).addScaledVector(side, spread);
               const missileProjectile = fx.shortMissile ? createFxGroundMissile() : null;
               const bullet = missileProjectile?.root || createFirearmBulletMesh(fx.bulletProfile);
               if (missileProjectile) bullet.scale.setScalar(CAPTURE_MISSILE_SCALE * 0.78);
@@ -16015,12 +15947,10 @@ function Chess3D({
               const bulletWake = bullet.userData?.wake;
               if (bulletTrail) captureFxGroup.add(bulletTrail);
               if (bulletWake) captureFxGroup.add(bulletWake);
-              const isFatalBullet = projectileIndex >= totalProjectiles - scatterPellets;
-              const bulletDurationMs = getLudoBulletTravelMs({
-                cadenceMs: cadence,
-                bulletSpeed: fx.bulletProfile?.bulletSpeed,
-                finalProjectile: isFatalBullet
-              });
+              const isFatalBullet = fx.firedBullets === bulletsToFire;
+              const bulletDurationMs = isFatalBullet
+                ? CHESS_FIREARM_FATAL_BULLET_TRAVEL_MS
+                : Math.max(90, fx.duration * 1000 * fireStep * 0.86);
               const bulletState = {
                 mesh: bullet,
                 from: muzzlePos.clone(),
@@ -16033,8 +15963,7 @@ function Chess3D({
                 trail: bulletTrail,
                 wake: bulletWake,
                 missileProjectile,
-                shortMissile: Boolean(fx.shortMissile),
-                finalSpinRate: isFatalBullet ? CHESS_FIREARM_FINAL_BULLET_SPIN_RATE : 0.032
+                shortMissile: Boolean(fx.shortMissile)
               };
               fx.liveBullets.push(bulletState);
               // Keep the final bullet's cinematic trail/easing, but never hand
