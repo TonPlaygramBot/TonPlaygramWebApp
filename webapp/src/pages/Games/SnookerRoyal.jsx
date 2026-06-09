@@ -981,7 +981,7 @@ const TABLE_FOOTPRINT_SCALE = 0.82; // reduce the table footprint ~18% while kee
 const BASE_FOOTPRINT_SHRINK = 0.82; // shrink the table base footprint by 18% without changing overall height
 const SIZE_REDUCTION = 0.78; // enlarge the playfield/balls to better match Pool Royale sizing
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
-const TABLE_DISPLAY_SCALE = 1.06; // keep the playfield slightly enlarged without altering layout proportions
+const TABLE_DISPLAY_SCALE = 1.12; // enlarge the Snooker Royal table a bit more while preserving proportions
 const CAMERA_DISPLAY_SCALE = 1; // match Pool Royale camera scaling for identical coordinates
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
 const TOUCH_UI_SCALE = SIZE_REDUCTION;
@@ -1178,7 +1178,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
   );
 const MARKINGS_MM_TO_UNITS = innerLong / WIDTH_REF;
 const OBJECT_MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_SIZE_SCALE = 0.92; // make Snooker Royal balls a bit smaller while preserving table scale and collision proportions
+const BALL_SIZE_SCALE = 1; // make Snooker Royal balls just a bit bigger while keeping official snooker proportions
 const BALL_DIAMETER = BALL_D_REF * OBJECT_MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -5602,15 +5602,15 @@ const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.1; // match Pool Royale standing-view
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.54);
 const CAMERA_MAX_PHI = CAMERA_LOWEST_PHI; // halt the downward sweep right above the cue while still enabling the lower AI cue height for players
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0096; // bring the player's standing/cue camera closer to the table
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0088; // bring the player's standing/cue camera closer to the table
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.9;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.86;
-const STANDING_VIEW_DISTANCE_SCALE = 0.108; // pull the standing camera closer so the table fills more of portrait screens
-const STANDING_VIEW_REFIT_DISTANCE_SCALE = 0.58; // keep resize/refit standing framing closer to the table
+const STANDING_VIEW_DISTANCE_SCALE = 0.096; // pull the standing camera closer so the table fills more of portrait screens
+const STANDING_VIEW_REFIT_DISTANCE_SCALE = 0.52; // keep resize/refit standing framing closer to the table
 const CUE_VISIBLE_CAMERA_BLEND_THRESHOLD = 0.985; // show the table cue as soon as the portrait camera is lowered even a tiny bit
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
@@ -6114,7 +6114,7 @@ function checkSpinLegality2D(cueBall, spinVec, balls = [], options = {}) {
   ) {
     return { blocked: true, reason: 'Cushion blocks that strike point' };
   }
-  const blockingRadius = BALL_R + CUE_TIP_RADIUS * 1.05;
+  const blockingRadius = BALL_R + CUE_TIP_RADIUS * 0.85;
   const blockingRadiusSq = blockingRadius * blockingRadius;
   const combinedRadius = BALL_R * 2 + 0.003;
   for (const other of balls) {
@@ -6225,8 +6225,8 @@ function computeSpinLimits(cueBall, aimDir, balls = [], axesInput = null) {
   const axes = [
     { key: 'maxX', dir: lateral.clone(), positive: true },
     { key: 'minX', dir: lateral.clone().multiplyScalar(-1), positive: false },
-    { key: 'minY', dir: forward.clone(), positive: false },
-    { key: 'maxY', dir: forward.clone().multiplyScalar(-1), positive: true }
+    { key: 'maxY', dir: forward.clone(), positive: true },
+    { key: 'minY', dir: forward.clone().multiplyScalar(-1), positive: false }
   ];
   const limits = { ...DEFAULT_SPIN_LIMITS };
   const cueCenter = new THREE.Vector2(cueBall.pos.x, cueBall.pos.y);
@@ -20762,7 +20762,19 @@ const powerRef = useRef(hud.power);
               x: 0,
               y: 0
             };
-            legality = checkSpinLegality2D(cueBall, requested, ballsList, {
+            const viewClamped = clampSpinToVisibleHemisphere(
+              requested,
+              aimVec,
+              cueBall,
+              activeCamera
+            );
+            if (
+              viewClamped.x !== requested.x ||
+              viewClamped.y !== requested.y
+            ) {
+              spinRequestRef.current = { ...viewClamped };
+            }
+            legality = checkSpinLegality2D(cueBall, viewClamped, ballsList, {
               axes,
               view: viewVec
                 ? { x: viewVec.x, y: viewVec.y }
