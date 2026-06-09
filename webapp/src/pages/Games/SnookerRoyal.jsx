@@ -977,8 +977,9 @@ function addPocketCuts(
 // Dimensions tuned for the Pool Royale footprint for identical table sizing and layout.
 const TABLE_SIZE_SHRINK = 0.85; // tighten the table footprint by ~8% to add breathing room without altering proportions
 const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK; // apply the legacy trim plus the tighter shrink so the arena stays compact without distorting proportions
-const TABLE_FOOTPRINT_SCALE = 0.82; // reduce the table footprint ~18% while keeping the table height unchanged
-const BASE_FOOTPRINT_SHRINK = 0.82; // shrink the table base footprint by 18% without changing overall height
+const SNOOKER_TABLE_FOOTPRINT_ENLARGE = 1.12; // enlarge the playable table footprint while keeping ball geometry unchanged
+const TABLE_FOOTPRINT_SCALE = 0.82 * SNOOKER_TABLE_FOOTPRINT_ENLARGE; // make the table 12% larger in portrait without changing its proportions
+const BASE_FOOTPRINT_SHRINK = 0.82 * SNOOKER_TABLE_FOOTPRINT_ENLARGE; // keep the base matched to the larger table footprint without changing overall height
 const SIZE_REDUCTION = 0.78; // enlarge the playfield/balls to better match Pool Royale sizing
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
 const TABLE_DISPLAY_SCALE = 1.12; // enlarge the Snooker Royal table a bit more while preserving proportions
@@ -1178,8 +1179,9 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
   );
 const MARKINGS_MM_TO_UNITS = innerLong / WIDTH_REF;
 const OBJECT_MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_SIZE_SCALE = 1; // make Snooker Royal balls just a bit bigger while keeping official snooker proportions
-const BALL_DIAMETER = BALL_D_REF * OBJECT_MM_TO_UNITS * BALL_SIZE_SCALE;
+const BALL_MM_TO_UNITS = OBJECT_MM_TO_UNITS / SNOOKER_TABLE_FOOTPRINT_ENLARGE; // preserve the previous ball size while the table expands
+const BALL_SIZE_SCALE = 1; // keep Snooker Royal balls the same size while the table and mappings expand
+const BALL_DIAMETER = BALL_D_REF * BALL_MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
 const ENABLE_BALL_FLOOR_SHADOWS = true;
@@ -1204,8 +1206,10 @@ const CHALK_RING_OPACITY = 0.18;
 const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MARKINGS_MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MARKINGS_MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MARKINGS_MM_TO_UNITS;
-const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE;
-const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 1; // preserve the original snooker side-pocket mouth width
+const SNOOKER_POCKET_MOUTH_ENLARGE = 1.12; // make all six pockets a bit larger for the bigger table
+const POCKET_CORNER_MOUTH_SCALE =
+  CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE * SNOOKER_POCKET_MOUTH_ENLARGE;
+const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 1; // keep side pockets proportional to the enlarged corner mouths
 const POCKET_SIDE_MOUTH_SCALE = POCKET_CORNER_MOUTH_SCALE * SIDE_POCKET_MOUTH_REDUCTION_SCALE;
 const SIDE_POCKET_CUT_SCALE = 1; // keep middle-pocket cut size on the snooker cushion template
 const POCKET_CORNER_MOUTH =
@@ -1226,7 +1230,7 @@ const SIDE_CHROME_NOTCH_RADIUS = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
 const CORNER_RAIL_NOTCH_INSET =
   POCKET_VIS_R * 0.078 * POCKET_VISUAL_EXPANSION; // let the rail and chrome cutouts follow the outward corner pocket shift
 const POCKET_MOUTH_TOLERANCE = 0.5 * OBJECT_MM_TO_UNITS;
-const BALL_DIAMETER_TOLERANCE = BALL_D_TOLERANCE_REF * OBJECT_MM_TO_UNITS;
+const BALL_DIAMETER_TOLERANCE = BALL_D_TOLERANCE_REF * BALL_MM_TO_UNITS;
 console.assert(
   Math.abs(POCKET_CORNER_MOUTH - POCKET_VIS_R * 2) <= POCKET_MOUTH_TOLERANCE,
   'Corner pocket mouth width mismatch.'
@@ -1236,7 +1240,7 @@ console.assert(
   'Side pocket mouth width mismatch.'
 );
 console.assert(
-  Math.abs(BALL_DIAMETER - BALL_D_REF * OBJECT_MM_TO_UNITS * BALL_SIZE_SCALE) <= BALL_DIAMETER_TOLERANCE,
+  Math.abs(BALL_DIAMETER - BALL_D_REF * BALL_MM_TO_UNITS * BALL_SIZE_SCALE) <= BALL_DIAMETER_TOLERANCE,
   'Ball diameter must match the configured Snooker Royal ball size scale.'
 );
 console.assert(
