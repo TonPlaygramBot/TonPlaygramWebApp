@@ -4506,6 +4506,102 @@ function fitObjectToTargetSize(object, targetSize = 0.12) {
   object.updateMatrixWorld?.(true);
 }
 
+
+function projectVectorOntoPlane(vector, planeNormal) {
+  const projected = vector.clone().addScaledVector(planeNormal, -vector.dot(planeNormal));
+  return projected.lengthSq() > 1e-8 ? projected.normalize() : projected;
+}
+
+function findChessObjectByNeedles(root, needles = []) {
+  if (!root?.isObject3D || !Array.isArray(needles) || needles.length === 0) return null;
+  const lowered = needles.map((needle) => `${needle}`.toLowerCase());
+  let match = null;
+  root.traverse((node) => {
+    if (match || !node?.isObject3D || !node?.name) return;
+    const name = node.name.toLowerCase();
+    if (lowered.some((needle) => name.includes(needle))) match = node;
+  });
+  return match;
+}
+
+function aimChessHandWeaponMuzzleAtTarget(attachment, targetWorld, blend = 0.92) {
+  const weapon = attachment?.weapon;
+  const muzzle = attachment?.muzzle;
+  const parent = weapon?.parent;
+  if (!weapon?.isObject3D || !muzzle?.isObject3D || !parent?.isObject3D || !targetWorld?.isVector3) return;
+  weapon.updateMatrixWorld?.(true);
+  muzzle.updateMatrixWorld?.(true);
+  const muzzleWorld = muzzle.getWorldPosition(new THREE.Vector3());
+  const desiredForward = targetWorld.clone().sub(muzzleWorld);
+  if (desiredForward.lengthSq() < 1e-8) return;
+  desiredForward.normalize();
+  const muzzleQuat = muzzle.getWorldQuaternion(new THREE.Quaternion());
+  const currentForward = (attachment.muzzleForward || new THREE.Vector3(0, 0, 1)).clone().applyQuaternion(muzzleQuat).normalize();
+  if (currentForward.lengthSq() < 1e-8) return;
+  const weaponWorldQuat = weapon.getWorldQuaternion(new THREE.Quaternion());
+  const correction = new THREE.Quaternion().setFromUnitVectors(currentForward, desiredForward);
+  const targetWorldQuat = correction.multiply(weaponWorldQuat);
+  const correctedMuzzleUp = new THREE.Vector3(0, 1, 0).applyQuaternion(muzzle.getWorldQuaternion(new THREE.Quaternion())).applyQuaternion(correction).normalize();
+  const flatCurrentUp = projectVectorOntoPlane(correctedMuzzleUp, desiredForward);
+  const flatWorldUp = projectVectorOntoPlane(WORLD_UP, desiredForward);
+  if (flatCurrentUp.lengthSq() > 1e-8 && flatWorldUp.lengthSq() > 1e-8) {
+    const signedRoll = Math.atan2(
+      desiredForward.dot(new THREE.Vector3().crossVectors(flatCurrentUp, flatWorldUp)),
+      clamp(flatCurrentUp.dot(flatWorldUp), -1, 1)
+    );
+    targetWorldQuat.premultiply(new THREE.Quaternion().setFromAxisAngle(desiredForward, signedRoll));
+  }
+  const parentWorldInv = parent.getWorldQuaternion(new THREE.Quaternion()).invert();
+  weapon.quaternion.slerp(parentWorldInv.multiply(targetWorldQuat), clamp(blend, 0, 1));
+}
+
+async function attachChessFirearmToRightHand(attackerEntry, captureAnimationId) {
+  const rightHand = attackerEntry?.rig?.rightHand;
+  if (!rightHand?.isBone) return null;
+  const template = await loadChessCaptureWeaponModel(captureAnimationId);
+  if (!template?.isObject3D) return null;
+  const targetSize = (CHESS_CAPTURE_WEAPON_MODEL_CONFIG[captureAnimationId]?.scale ?? 0.18) *
+    (CHESS_FIREARM_HANDHELD_SCALE_MULTIPLIER_BY_ID[captureAnimationId] ?? CHESS_FIREARM_HANDHELD_SCALE_MULTIPLIER);
+  const weapon = prepareChessCaptureWeaponClone(template, captureAnimationId, { flat: false, targetSize });
+  const tuning = CHESS_FIREARM_HAND_ATTACH_TUNING[captureAnimationId] || CHESS_FIREARM_HAND_ATTACH_TUNING.default;
+  weapon.position.set(0.012, 0.006, -0.008);
+  weapon.rotation.set(...CHESS_FIREARM_AIM_ROTATION);
+  weapon.scale.multiplyScalar(0.92);
+  rightHand.add(weapon);
+  weapon.updateMatrixWorld?.(true);
+  const gripNode = findChessObjectByNeedles(weapon, ['trigger', 'grip', 'handle', 'r_wrist', 'right_wrist', 'hand_r', 'r_hand']);
+  if (gripNode?.isObject3D) {
+    gripNode.updateMatrixWorld?.(true);
+    const gripLocal = rightHand.worldToLocal(gripNode.getWorldPosition(new THREE.Vector3()));
+    const gripCorrection = new THREE.Vector3(0.012, 0.006, -0.008).sub(gripLocal);
+    if (gripCorrection.lengthSq() < 0.2 * 0.2) weapon.position.add(gripCorrection);
+  }
+  const muzzle = new THREE.Object3D();
+  muzzle.name = 'chess-handheld-firearm-muzzle';
+  muzzle.position.set(...(tuning.muzzleOffset || CHESS_FIREARM_HAND_ATTACH_TUNING.default.muzzleOffset));
+  weapon.add(muzzle);
+  return {
+    weapon,
+    muzzle,
+    muzzleForward: new THREE.Vector3(0, 0, 1),
+    release: () => {
+      weapon.parent?.remove?.(weapon);
+      disposeObject3D(weapon);
+    }
+  };
+}
+
+function spinExactUkrainianDroneRotors(root, timeSeconds) {
+  if (!root) return;
+  const rotation = timeSeconds * 24;
+  root.traverse?.((obj) => {
+    const name = `${obj.name || ''}`.toLowerCase();
+    if (name.includes('propeller') || name.includes('rotor')) {
+      obj.rotation.x = rotation;
+    }
+  });
+}
+
 function prepareChessCaptureWeaponClone(template, captureAnimationId, { flat = true, targetSize = null } = {}) {
   const clone = cloneSkinned(template);
   clone.traverse((node) => {
@@ -10359,7 +10455,7 @@ function Chess3D({
     droneSoundRef.current.volume = baseVolume;
     helicopterSoundRef.current = new Audio(HELICOPTER_FLY_SOUND_URL);
     helicopterSoundRef.current.volume = baseVolume;
-    fighterJetSoundRef.current = new Audio(FIGHTER_JET_FLY_SOUND_URL);
+    fighterJetSoundRef.current = new Audio(BAZOOKA_FIRE_SOUND_URL);
     fighterJetSoundRef.current.loop = true;
     fighterJetSoundRef.current.volume = baseVolume * 0.42;
     missileLaunchSoundRef.current = new Audio(BAZOOKA_FIRE_SOUND_URL);
@@ -13272,7 +13368,7 @@ function Chess3D({
           missile.root.visible = false;
           captureFxGroup.add(missile.root);
         });
-        // Keep the jet engine looping for the full fly-by; missile launch sounds remain separate.
+        // Use the same missile-launch sound source as the jet missile and loop it for the full fly-by.
         playLoopingAudio(fighterJetSoundRef, { volume: 0.42 });
         activeCaptureFx.push({
           type: 'jet',
@@ -13336,6 +13432,16 @@ function Chess3D({
           const activeFx = activeCaptureFx.find((fx) => fx.firearmFx === firearmFx);
           if (activeFx) activeFx.fpsArmsFx = fpsArmsFx;
         });
+        const shooterSeatIndex = movingMesh?.userData?.w ? 0 : 1;
+        const shooterActor = seatedHumanActorsRef.current.find((entry) => entry?.playerIndex === shooterSeatIndex);
+        void attachChessFirearmToRightHand(shooterActor, firearmAnimationId).then((attachment) => {
+          const activeFx = activeCaptureFx.find((fx) => fx.firearmFx === firearmFx);
+          if (!activeFx) {
+            attachment?.release?.();
+            return;
+          }
+          activeFx.handWeaponAttachment = attachment;
+        });
         activeCaptureFx.push({
           type: 'firearm',
           t: 0,
@@ -13357,7 +13463,8 @@ function Chess3D({
           hitTriggered: false,
           liveBullets: [],
           liveShells: [],
-          shooterSeatIndex: movingMesh?.userData?.w ? 0 : 1,
+          shooterSeatIndex,
+          handWeaponAttachment: null,
           movingMesh,
           muzzleOffset: new THREE.Vector3(0.24, 0.14, 0)
         });
@@ -15370,7 +15477,9 @@ function Chess3D({
       parkedAirUnits.forEach((unit) => {
         if (!unit?.root) return;
         unit.root.visible = true;
-        if (unit.rotorsActive) {
+        if (unit.rotorsActive && unit.kind === 'drone' && isExactUkrainianDroneObject(unit.root)) {
+          spinExactUkrainianDroneRotors(unit.root, now * 0.001);
+        } else if (unit.rotorsActive) {
           spinChessHelicopterRotors(unit, dt);
         }
       });
@@ -15490,7 +15599,11 @@ function Chess3D({
             fx.droneFx.root.position.copy(dronePos);
             captureDir.copy(droneNext).sub(dronePos).normalize();
             orientForwardKeepingUp(fx.droneFx.root, captureDir);
-            if (fx.droneFx.propeller) fx.droneFx.propeller.rotation.x += dt * 42;
+            if (isExactUkrainianDroneObject(fx.droneFx.root)) {
+              spinExactUkrainianDroneRotors(fx.droneFx.root, now * 0.001);
+            } else if (fx.droneFx.propeller) {
+              fx.droneFx.propeller.rotation.x += dt * 42;
+            }
 
             const releaseStart = CAPTURE_HELICOPTER_TOTAL * CAPTURE_AIR_MISSILE_RELEASE_START_RATIO;
             const releaseEnd = CAPTURE_HELICOPTER_TOTAL * CAPTURE_AIR_MISSILE_RELEASE_END_RATIO;
@@ -15830,6 +15943,7 @@ function Chess3D({
                 captureFxGroup.remove(fx.fpsArmsFx);
                 disposeObject3D(fx.fpsArmsFx);
               }
+              fx.handWeaponAttachment?.release?.();
               if (fx.aerodynamicRings) {
                 captureFxGroup.remove(fx.aerodynamicRings);
                 disposeObject3D(fx.aerodynamicRings);
@@ -15840,6 +15954,11 @@ function Chess3D({
             const targetPos = getLiveTargetPosition(fx.to, fx.targetMesh, 0);
             const targetAimPos = getFirearmTargetAimPosition(fx.to, fx.targetMesh);
             fx.to.copy(targetPos);
+            const handAttachment = fx.handWeaponAttachment;
+            if (handAttachment?.muzzle?.isObject3D) {
+              aimChessHandWeaponMuzzleAtTarget(handAttachment, targetAimPos, u < CHESS_FIREARM_SHOULDER_SETTLE_PHASE_RATIO ? 0.58 : 0.94);
+              handAttachment.muzzle.updateMatrixWorld?.(true);
+            }
             const tileAimOrigin = getFirearmAttackerTilePose(fx.from);
             // Keep the visible weapon on the attacking piece/table square. Do not use
             // the live moving mesh here, because after board state updates it can be
@@ -15855,7 +15974,8 @@ function Chess3D({
             fx.missileFx.root.position.copy(muzzlePos).addScaledVector(aimDir, 0.08);
             orientForwardKeepingUp(fx.missileFx.root, aimDir);
             if (fx.firearmFx) {
-              fx.firearmFx.visible = true;
+              fx.firearmFx.visible = !handAttachment;
+              if (!handAttachment) {
               const liveAimTarget = getFirearmTargetAimPosition(fx.to, fx.targetMesh);
               const liveAimDir = liveAimTarget.clone().sub(aimOrigin);
               if (liveAimDir.lengthSq() > 1e-8) liveAimDir.normalize();
@@ -15884,6 +16004,13 @@ function Chess3D({
               fx.firearmFx.position.addScaledVector(liveAimDir, -recoil);
               fx.firearmFx.rotateX(-CHESS_FIREARM_RECOIL_ROTATION_RAD * Math.max(0, recoilPhase));
               aimDir.copy(liveAimDir);
+              }
+            }
+            if (handAttachment?.muzzle?.isObject3D) {
+              handAttachment.muzzle.updateMatrixWorld?.(true);
+              muzzlePos.copy(handAttachment.muzzle.getWorldPosition(new THREE.Vector3()));
+              const handAimDir = targetAimPos.clone().sub(muzzlePos);
+              if (handAimDir.lengthSq() > 1e-8) aimDir.copy(handAimDir.normalize());
             }
             if (fx.fpsArmsFx) {
               fx.fpsArmsFx.visible = true;
@@ -16085,6 +16212,7 @@ function Chess3D({
                 captureFxGroup.remove(fx.fpsArmsFx);
                 disposeObject3D(fx.fpsArmsFx);
               }
+              fx.handWeaponAttachment?.release?.();
               if (fx.aerodynamicRings) {
                 captureFxGroup.remove(fx.aerodynamicRings);
                 disposeObject3D(fx.aerodynamicRings);
