@@ -639,10 +639,10 @@ function adjustSideNotchDepth(mp) {
 
 const POCKET_VISUAL_EXPANSION = 1; // exact physical pocket aperture: no visual/physics over-expansion
 const CORNER_POCKET_INWARD_SCALE = 1; // keep corner cushion/jaw mapping on the real pocket mouth
-const CORNER_POCKET_SCALE_BOOST = 0.998; // match Pool Royale's procedural mouth bias so corner shots enter the visible jaw lane
-const CORNER_POCKET_EXTRA_SCALE = 1.028; // reuse Pool Royale's small corner-mouth relaxation so balls no longer hang on exact snooker-size sensors
+const CORNER_POCKET_SCALE_BOOST = 1; // preserve the exact official snooker corner cushion-template mouth width
+const CORNER_POCKET_EXTRA_SCALE = 1; // disable gameplay relaxation so visual pockets, jaws, and sensors share the true mouth size
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1; // match chrome jaw radius exactly to the physical pocket radius
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08; // match Pool Royale jaw notch depth for identical pocket/cushion mapping
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 1; // keep the chrome corner cut centred on the true circular pocket template
 const CHROME_CORNER_EXPANSION_SCALE = 1.034; // match the physical jaw reach used by Pool Royale
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.032; // mirror Pool Royale's jaw shoulder reach on the short rail
 const CHROME_CORNER_FIELD_TRIM_SCALE = -0.03; // remove the base trim so the fascia rides the cushion edge without a gap
@@ -688,9 +688,9 @@ const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.012; // align middle-pocket chrome plates with Pool Royale jaw mapping
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0.022; // Pool Royale outer fascia trim
 const CHROME_SIDE_OUTER_FLUSH_TRIM_SCALE = 0.078; // Pool Royale middle-pocket outside trim
-const CHROME_CORNER_POCKET_CUT_SCALE = 1.045; // Pool Royale corner chrome pocket cut
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.03; // Pool Royale middle-pocket chrome cut
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // pull the rounded chrome cutouts inward so they sit deeper into the fascia mass
+const CHROME_CORNER_POCKET_CUT_SCALE = 1; // chrome corner cut is the exact physical pocket aperture
+const CHROME_SIDE_POCKET_CUT_SCALE = 1; // chrome side cut is the exact physical pocket aperture
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0; // keep side chrome cut centers on the exact side-pocket mouth line
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 1.045; // match wooden rail pocket relief to the physical jaw diameter
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.958; // Pool Royale corner wood relief
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
@@ -1127,10 +1127,10 @@ const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thi
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.74; // extend the corner jaw reach so the entry width matches the visible bowl while stretching the fascia forward
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.5; // push the middle jaw reach a touch wider so the openings read larger
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.995; // trim the middle jaw arc radius so the side-pocket jaws read a touch tighter
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // keep the middle jaw arc radius identical to the chrome side-pocket aperture
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.04; // add a hint of extra depth so the enlarged jaws stay balanced
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.01; // match Pool Royale middle-pocket jaw vertical offset
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.028; // match Pool Royale middle-pocket jaw outward placement
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = 0; // side-pocket jaws inherit the exact chrome cut center without extra outward bias
 const POCKET_JAW_INWARD_PULL = 0; // keep the jaw centers aligned with the snooker pocket layout
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.66; // taper the middle jaw edges sooner so they finish where the rails stop
@@ -1339,8 +1339,8 @@ const POCKET_INTERIOR_CAPTURE_R =
   POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION; // match capture radius directly to the pocket bowl opening
 const SIDE_POCKET_INTERIOR_CAPTURE_R =
   SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION; // keep middle-pocket capture identical to its bowl radius
-const POCKET_CAPTURE_ASSIST = BALL_R * 1.08; // portrait-friendly potting sensor allowance so balls that visibly enter a corner mouth are captured
-const SIDE_POCKET_CAPTURE_ASSIST = BALL_R * 1.0; // match the middle-pocket capture to the visible side-mouth opening without over-widening rails
+const POCKET_CAPTURE_ASSIST = BALL_R * 0.55; // tighter capture allowance so drops match the actual visible corner pocket bowl
+const SIDE_POCKET_CAPTURE_ASSIST = BALL_R * 0.5; // tighter side-pocket capture allowance for physical mouth-size precision
 const CAPTURE_R =
   POCKET_INTERIOR_CAPTURE_R + POCKET_CAPTURE_ASSIST; // corner captures now use the physical pocket bowl instead of an oversized helper zone
 const SIDE_CAPTURE_R =
@@ -5609,8 +5609,8 @@ const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.9;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.86;
-const STANDING_VIEW_DISTANCE_SCALE = 0.096; // pull the standing camera closer so the table fills more of portrait screens
-const STANDING_VIEW_REFIT_DISTANCE_SCALE = 0.52; // keep resize/refit standing framing closer to the table
+const STANDING_VIEW_DISTANCE_SCALE = 0.078; // pull the standing camera even closer so the table fills portrait screens
+const STANDING_VIEW_REFIT_DISTANCE_SCALE = 0.44; // keep resize/refit standing framing closer to the table
 const CUE_VISIBLE_CAMERA_BLEND_THRESHOLD = 0.985; // show the table cue as soon as the portrait camera is lowered even a tiny bit
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
@@ -5619,8 +5619,8 @@ const CAMERA_ZOOM_PROFILES = Object.freeze({
   default: Object.freeze({ cue: 0.86, broadcast: 0.9, margin: 0.97 }),
   nearLandscape: Object.freeze({ cue: 0.84, broadcast: 0.88, margin: 0.97 }),
   landscape: Object.freeze({ cue: 0.82, broadcast: 0.86, margin: 0.965 }),
-  portrait: Object.freeze({ cue: 0.78, broadcast: 0.96, margin: 0.955 }),
-  ultraPortrait: Object.freeze({ cue: 0.76, broadcast: 0.95, margin: 0.95 })
+  portrait: Object.freeze({ cue: 0.76, broadcast: 0.9, margin: 0.94 }),
+  ultraPortrait: Object.freeze({ cue: 0.74, broadcast: 0.88, margin: 0.93 })
 });
 const resolveCameraZoomProfile = (aspect) => {
   if (!Number.isFinite(aspect)) {
@@ -9184,6 +9184,14 @@ function Table3D(
       });
     });
   };
+  const chromeCornerPocketCutMP = (sx, sz) =>
+    translatePocketCutMP(
+      scaleChromeCornerPocketCut(cornerNotchMP(sx, sz)),
+      sx,
+      sz,
+      CORNER_RAIL_NOTCH_INSET
+    );
+  const chromeSidePocketCutMP = (sx) => scaleChromeSidePocketCut(sideNotchMP(sx));
   const scaleWoodRailCornerPocketCut = (mp) =>
     scalePocketCutMP(
       scaleChromeCornerPocketCut(mp),
@@ -9474,12 +9482,7 @@ function Table3D(
       sz * (outerHalfH - chromePlateHeight / 2 - chromePlateInset + chromeCornerCenterOutset) +
       sz * chromeCornerShortRailShift;
     // Chrome plates use their own rounded cuts as-is; nothing references the wooden rail arches.
-    const notchMP = translatePocketCutMP(
-      scaleChromeCornerPocketCut(cornerNotchMP(sx, sz)),
-      sx,
-      sz,
-      CORNER_RAIL_NOTCH_INSET
-    );
+    const notchMP = chromeCornerPocketCutMP(sx, sz);
     const notchLocalMP = notchMP.map((poly) =>
       poly.map((ring) =>
         ring.map(([x, z]) => [x - centerX, -(z - centerZ)])
@@ -9534,7 +9537,7 @@ function Table3D(
       centerX = Math.sign(centerX) * Math.max(0, Math.abs(centerX) - overrun);
     }
     const centerZ = 0;
-    const notchMP = scaleChromeSidePocketCut(sideNotchMP(sx));
+    const notchMP = chromeSidePocketCutMP(sx);
     const sidePocketCutCenterPull =
       TABLE.THICK * CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE;
     const notchLocalMP = notchMP.map((poly) =>
@@ -10063,7 +10066,7 @@ function Table3D(
       { sx: -1, sz: -1 },
       { sx: 1, sz: -1 }
     ].forEach(({ sx, sz }) => {
-      const baseMP = cornerNotchMP(sx, sz);
+      const baseMP = chromeCornerPocketCutMP(sx, sz);
       const fallbackCenter = new THREE.Vector2(
         sx * (innerHalfW - cornerInset),
         sz * (innerHalfH - cornerInset)
@@ -10086,7 +10089,7 @@ function Table3D(
 
   if (sideBaseRadius && sideBaseRadius > MICRO_EPS) {
     [-1, 1].forEach((sx) => {
-      const baseMP = sideNotchMP(sx);
+      const baseMP = chromeSidePocketCutMP(sx);
       const fallbackCenter = new THREE.Vector2(sx * sidePocketCenterX, 0);
       const center = resolvePocketCenter(baseMP, fallbackCenter.x, fallbackCenter.y);
       center.x += sx * SIDE_POCKET_JAW_OUTWARD_SHIFT;
