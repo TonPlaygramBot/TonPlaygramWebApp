@@ -45,3 +45,15 @@ License notes from Sketchfab:
 
 - Agent 47: CC BY-NC 4.0, attribution required, non-commercial use only.
 - Leather Jacket Portrait, Seated Gentleman in Suede Jacket, Red Hibiscus in the Hair, and Casual Confidence: CC BY 4.0, attribution required.
+
+## Runtime CDN characters
+
+The default playable roster also includes direct GLB URLs that do not require local binary commits:
+
+| Character set | Runtime source | License note |
+| --- | --- | --- |
+| VALID avatars converted to GLB | <https://github.com/c-frame/valid-avatars-glb> via `https://cdn.jsdelivr.net/gh/c-frame/valid-avatars-glb@c539a28/` | MIT repository; preserve original avatar attribution/license metadata where required. |
+| three.js example avatars | <https://threejs.org/examples/models/gltf/> | three.js examples bundle. |
+| Existing GitHub GLB avatars | Raw GitHub GLB URLs configured in `webapp/src/config/murlanCharacterThemes.js` | Check each upstream repository license before commercial use. |
+
+Local Sketchfab placeholders are intentionally skipped for random AI seat assignment until installed, so missing optional folders no longer make an opponent chair appear empty. If a selected character fails at runtime, Murlan Royale substitutes the first loaded fallback instead of leaving the human seat blank.

@@ -180,8 +180,14 @@ function hasMurlanCharacterModelSource(theme) {
   return Boolean(theme && (theme.url || (Array.isArray(theme.modelUrls) && theme.modelUrls.length)));
 }
 
+function isMurlanCharacterRosterCandidate(theme) {
+  if (!hasMurlanCharacterModelSource(theme)) return false;
+  if (theme.rosterEligible === false) return false;
+  return !theme.installCheck;
+}
+
 function buildSeatCharacterThemeRoster(baseTheme, players = [], humanSeatIndex = 0, rosterSeed = 0) {
-  const availableThemes = MURLAN_CHARACTER_THEMES.filter(hasMurlanCharacterModelSource);
+  const availableThemes = MURLAN_CHARACTER_THEMES.filter(isMurlanCharacterRosterCandidate);
   if (!availableThemes.length) return [];
 
   const selectedTheme = baseTheme || availableThemes[0];
@@ -234,11 +240,10 @@ function resolveLoadedSeatCharacterTheme({
 
   const isSelectedHumanSeat = Boolean(player?.isHuman || seatIndex === humanSeatIndex);
   if (isSelectedHumanSeat && seatTheme?.id === selectedTheme?.id) {
-    console.warn('Selected Murlan character model is unavailable; not substituting another character', {
+    console.warn('Selected Murlan character model is unavailable; using a loaded fallback character', {
       characterId: seatTheme?.id,
       modelUrls: seatTheme?.modelUrls || (seatTheme?.url ? [seatTheme.url] : [])
     });
-    return null;
   }
 
   const fallbackTheme = fallbackThemes.find((theme) => theme?.id && theme.id !== selectedTheme?.id && templatesById.has(theme.id)) ||
