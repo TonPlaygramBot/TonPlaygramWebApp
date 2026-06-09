@@ -46,11 +46,7 @@ const gunifyWeapon = (id, label, modelName, colors, extra = {}) => ({
 })
 
 
-const LUDO_CAPTURE_WEAPON_IDS = Object.freeze([
-  'fighterJetAttack',
-  'helicopterAttack',
-  'droneAttack'
-])
+const LUDO_CAPTURE_WEAPON_IDS = Object.freeze(CAPTURE_ANIMATION_OPTIONS.map((option) => option.id))
 const LUDO_CAPTURE_OPTION_BY_ID = Object.freeze(
   CAPTURE_ANIMATION_OPTIONS.filter((option) => LUDO_CAPTURE_WEAPON_IDS.includes(option.id)).reduce((acc, option) => {
     acc[option.id] = option
@@ -136,6 +132,105 @@ export const SNAKE_CAPTURE_WEAPON_OPTIONS = Object.freeze([
     source: 'Ludo Battle Royal',
     vehicleKind: 'supportTruck'
   },
+  {
+    id: 'missileJavelin',
+    label: LUDO_CAPTURE_OPTION_BY_ID.missileJavelin?.label || 'Javelin Missile',
+    description: LUDO_CAPTURE_OPTION_BY_ID.missileJavelin?.description,
+    thumbnail: LUDO_CAPTURE_OPTION_BY_ID.missileJavelin?.thumbnail || swatchThumbnail(['#1d4ed8', '#0f172a', '#93c5fd']),
+    source: 'Ludo Battle Royal',
+    vehicleKind: 'javelin'
+  },
+  {
+    id: 'glockSidearmAttack',
+    label: LUDO_CAPTURE_OPTION_BY_ID.glockSidearmAttack?.label || 'Glock Sidearm',
+    description: LUDO_CAPTURE_OPTION_BY_ID.glockSidearmAttack?.description,
+    thumbnail: LUDO_CAPTURE_OPTION_BY_ID.glockSidearmAttack?.thumbnail || weaponSilhouetteThumbnail(['#111827', '#9ca3af', '#f8fafc']),
+    urls: [
+      'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/glock.glb',
+      'https://raw.githubusercontent.com/webaverse/pistol/master/glock.glb',
+      SNAKE_KNOWN_WORKING_GLB.mrtk,
+      SNAKE_KNOWN_WORKING_GLB.mrtkRaw
+    ],
+    source: 'Ludo Battle Royal',
+    modelScale: 0.13,
+    ludoCaptureScale: 0.13
+  },
+  {
+    id: 'assaultRifleAttack',
+    label: LUDO_CAPTURE_OPTION_BY_ID.assaultRifleAttack?.label || 'Assault Rifle',
+    description: LUDO_CAPTURE_OPTION_BY_ID.assaultRifleAttack?.description,
+    thumbnail: LUDO_CAPTURE_OPTION_BY_ID.assaultRifleAttack?.thumbnail || weaponSilhouetteThumbnail(['#334155', '#111827', '#d1d5db']),
+    urls: [
+      'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/military.glb',
+      'https://raw.githubusercontent.com/webaverse/pistol/master/military.glb'
+    ],
+    source: 'Ludo Battle Royal',
+    modelScale: 0.13,
+    ludoCaptureScale: 0.13
+  },
+  {
+    id: 'grenadeBlastAttack',
+    label: LUDO_CAPTURE_OPTION_BY_ID.grenadeBlastAttack?.label || 'Grenade Blast',
+    description: LUDO_CAPTURE_OPTION_BY_ID.grenadeBlastAttack?.description,
+    thumbnail: LUDO_CAPTURE_OPTION_BY_ID.grenadeBlastAttack?.thumbnail || weaponSilhouetteThumbnail(['#9a3412', '#111827', '#f97316']),
+    urls: [
+      'https://cdn.jsdelivr.net/gh/friuns2/bingextension@main/grenade.glb',
+      'https://raw.githubusercontent.com/friuns2/bingextension/main/grenade.glb',
+      'https://cdn.statically.io/gh/friuns2/bingextension/main/grenade.glb'
+    ],
+    source: 'Ludo Battle Royal',
+    modelScale: 0.11,
+    ludoCaptureScale: 0.11
+  },
+  {
+    id: 'shotgunBlastAttack',
+    label: LUDO_CAPTURE_OPTION_BY_ID.shotgunBlastAttack?.label || 'Shotgun Blast',
+    description: LUDO_CAPTURE_OPTION_BY_ID.shotgunBlastAttack?.description,
+    thumbnail: LUDO_CAPTURE_OPTION_BY_ID.shotgunBlastAttack?.thumbnail || SNAKE_FPS_GUN_MODEL_CONFIG.thumbnail,
+    urls: [...SNAKE_FPS_GUN_MODEL_CONFIG.urls],
+    source: 'Ludo Battle Royal',
+    modelScale: SNAKE_FPS_GUN_MODEL_CONFIG.ludoModelScale,
+    ludoCaptureScale: SNAKE_FPS_GUN_MODEL_CONFIG.ludoModelScale
+  },
+  {
+    id: 'smgBurstAttack',
+    label: LUDO_CAPTURE_OPTION_BY_ID.smgBurstAttack?.label || 'SMG Burst',
+    description: LUDO_CAPTURE_OPTION_BY_ID.smgBurstAttack?.description,
+    thumbnail: LUDO_CAPTURE_OPTION_BY_ID.smgBurstAttack?.thumbnail || weaponSilhouetteThumbnail(['#0f172a', '#334155', '#cbd5e1']),
+    urls: [
+      'https://cdn.jsdelivr.net/gh/webaverse/uzi@main/uzi.glb',
+      'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/pistol.glb'
+    ],
+    source: 'Ludo Battle Royal',
+    modelScale: 0.2,
+    ludoCaptureScale: 0.2
+  },
+  {
+    id: 'compactCarbineAttack',
+    label: LUDO_CAPTURE_OPTION_BY_ID.compactCarbineAttack?.label || 'Compact Carbine',
+    description: LUDO_CAPTURE_OPTION_BY_ID.compactCarbineAttack?.description,
+    thumbnail: LUDO_CAPTURE_OPTION_BY_ID.compactCarbineAttack?.thumbnail || weaponSilhouetteThumbnail(['#1f2937', '#4b5563', '#e5e7eb']),
+    urls: [
+      'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/military.glb',
+      'https://raw.githubusercontent.com/webaverse/pistol/master/military.glb'
+    ],
+    source: 'Ludo Battle Royal',
+    modelScale: 0.21,
+    ludoCaptureScale: 0.21
+  },
+  {
+    id: 'marksmanDmrAttack',
+    label: LUDO_CAPTURE_OPTION_BY_ID.marksmanDmrAttack?.label || 'Marksman DMR',
+    description: LUDO_CAPTURE_OPTION_BY_ID.marksmanDmrAttack?.description,
+    thumbnail: LUDO_CAPTURE_OPTION_BY_ID.marksmanDmrAttack?.thumbnail || weaponSilhouetteThumbnail(['#334155', '#111827', '#f8fafc']),
+    urls: [
+      'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/military.glb',
+      'https://cdn.jsdelivr.net/gh/LazerMaker/gun-models-ak47-and-supprest-pistol-@master/ak47.glb'
+    ],
+    source: 'Ludo Battle Royal',
+    modelScale: 0.23,
+    ludoCaptureScale: 0.23
+  },
   polyPizzaWeapon('poly-shotgun-01', 'Quaternius Shotgun', '032e6589-3188-41bc-b92b-e25528344275', ['#64748b', '#1e293b', '#f8fafc'], { creator: 'Quaternius', modelScale: 1 }),
   polyPizzaWeapon('poly-assault-rifle-01', 'Quaternius Assault Rifle', 'b3e6be61-0299-4866-a227-58f5f3fe610b', ['#334155', '#0f172a', '#94a3b8'], { creator: 'Quaternius', modelScale: 1.02 }),
   polyPizzaWeapon('poly-pistol-01', 'Quaternius Pistol', '3b53f0fe-f86e-451c-816d-6ab9bd265cdc', ['#6b7280', '#111827', '#e5e7eb'], { creator: 'Quaternius', modelScale: 0.6 }),
@@ -178,6 +273,23 @@ export const SNAKE_CAPTURE_WEAPON_ALIAS_MAP = Object.freeze({
   supporttruck: 'supportTruckAttack',
   supporttruckattack: 'supportTruckAttack',
   truck: 'supportTruckAttack',
+  missilejavelin: 'missileJavelin',
+  javelin: 'missileJavelin',
+  glocksidearmattack: 'glockSidearmAttack',
+  glock: 'glockSidearmAttack',
+  assault: 'assaultRifleAttack',
+  assaultrifle: 'assaultRifleAttack',
+  assaultrifleattack: 'assaultRifleAttack',
+  grenade: 'grenadeBlastAttack',
+  grenadeblastattack: 'grenadeBlastAttack',
+  shotgun: 'shotgunBlastAttack',
+  shotgunblastattack: 'shotgunBlastAttack',
+  smg: 'smgBurstAttack',
+  smgburstattack: 'smgBurstAttack',
+  carbine: 'compactCarbineAttack',
+  compactcarbineattack: 'compactCarbineAttack',
+  dmr: 'marksmanDmrAttack',
+  marksmandmrattack: 'marksmanDmrAttack',
   polyrobotlargegunattack: 'poly-robot-large-gun-01',
   polyrobotflyinggunattack: 'poly-robot-flying-gun-01',
   polybazooka01attack: 'poly-bazooka-01',
