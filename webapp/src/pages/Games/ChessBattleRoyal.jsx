@@ -520,6 +520,13 @@ const CHESS_FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
 });
 const CHESS_FIREARM_FLAT_ROTATION = Object.freeze([-Math.PI * 0.5, -Math.PI * 0.02, 0]);
 const CHESS_FIREARM_AIM_ROTATION = Object.freeze([0, -Math.PI * 0.5, 0]); // keep weapon front/muzzle pointed visually toward the board target.
+// Mirror the Ludo Battle Royal firearm draw/shoulder/aim timing so Chess firearms
+// raise, settle, lock and recoil with the same portrait-screen cadence.
+const CHESS_FIREARM_PICKUP_PHASE_RATIO = 0.24;
+const CHESS_FIREARM_SHOULDER_SETTLE_PHASE_RATIO = 0.43;
+const CHESS_FIREARM_AIM_LOCK_PHASE_RATIO = 0.56;
+const CHESS_FIREARM_RECOIL_ROTATION_RAD = 0.026;
+const CHESS_FIREARM_RECOIL_RECOVER_MS = 94;
 const CHESS_FIREARM_HANDHELD_SCALE_MULTIPLIER = 1.9;
 const CHESS_FIREARM_HANDHELD_SCALE_MULTIPLIER_BY_ID = Object.freeze({
   fpsGunAttack: SNAKE_FPS_GUN_MODEL_CONFIG.ludoHandScaleMultiplier,
@@ -560,14 +567,17 @@ const CHESS_FIREARM_MUZZLE_YAW_CORRECTION_BY_ID = Object.freeze({
 });
 
 const CHESS_FIREARM_HOLD_PROFILE_BY_TYPE = Object.freeze({
-  Rifle: { supportGrip: 0.94, shoulderX: -1.14, shoulderZ: -1.34, forearmX: -0.52, wristX: 0.02 },
-  AssaultRifle: { supportGrip: 0.96, shoulderX: -1.16, shoulderZ: -1.36, forearmX: -0.54, wristX: 0.03 },
-  SMG: { supportGrip: 0.92, shoulderX: -1.12, shoulderZ: -1.31, forearmX: -0.46, wristX: 0.05 },
-  Shotgun: { supportGrip: 0.98, shoulderX: -1.18, shoulderZ: -1.4, forearmX: -0.58, wristX: -0.01 },
-  SniperRifle: { supportGrip: 0.9, shoulderX: -1.22, shoulderZ: -1.42, forearmX: -0.6, wristX: -0.03 },
-  DMR: { supportGrip: 0.92, shoulderX: -1.2, shoulderZ: -1.38, forearmX: -0.56, wristX: -0.01 },
-  Pistol: { supportGrip: 0.86, shoulderX: -1.02, shoulderZ: -1.2, forearmX: -0.36, wristX: 0.07 },
-  Revolver: { supportGrip: 0.84, shoulderX: -1.0, shoulderZ: -1.18, forearmX: -0.34, wristX: 0.08 }
+  default: { supportGrip: 0.94, shoulderX: -0.96, shoulderY: -0.09, shoulderZ: -1.02, forearmX: -0.22, forearmY: -0.06, forearmZ: 0.1, wristX: 0.1, wristY: -0.05, wristZ: -0.18, chestX: 0.2, headX: -0.14, triggerGrip: 0.94 },
+  Rifle: { supportGrip: 0.96, shoulderX: -1.02, shoulderY: -0.11, shoulderZ: -1.12, forearmX: -0.28, forearmY: -0.07, forearmZ: 0.14, wristX: 0.14, wristY: -0.07, wristZ: -0.22, chestX: 0.22, headX: -0.16, triggerGrip: 0.96 },
+  AssaultRifle: { supportGrip: 0.96, shoulderX: -1.02, shoulderY: -0.11, shoulderZ: -1.12, forearmX: -0.28, forearmY: -0.07, forearmZ: 0.14, wristX: 0.14, wristY: -0.07, wristZ: -0.22, chestX: 0.22, headX: -0.16, triggerGrip: 0.96 },
+  SMG: { supportGrip: 0.94, shoulderX: -0.98, shoulderY: -0.1, shoulderZ: -1.06, forearmX: -0.26, forearmY: -0.08, forearmZ: 0.12, wristX: 0.12, wristY: -0.06, wristZ: -0.2, chestX: 0.2, headX: -0.14, triggerGrip: 0.94 },
+  Shotgun: { supportGrip: 0.98, shoulderX: -1.06, shoulderY: -0.13, shoulderZ: -1.16, forearmX: -0.32, forearmY: -0.1, forearmZ: 0.16, wristX: 0.18, wristY: -0.08, wristZ: -0.24, chestX: 0.24, headX: -0.18, triggerGrip: 0.98 },
+  Sniper: { supportGrip: 0.98, shoulderX: -1.02, shoulderY: -0.11, shoulderZ: -1.12, forearmX: -0.28, forearmY: -0.07, forearmZ: 0.14, wristX: 0.14, wristY: -0.07, wristZ: -0.22, chestX: 0.22, headX: -0.16, triggerGrip: 0.98 },
+  SniperRifle: { supportGrip: 0.98, shoulderX: -1.02, shoulderY: -0.11, shoulderZ: -1.12, forearmX: -0.28, forearmY: -0.07, forearmZ: 0.14, wristX: 0.14, wristY: -0.07, wristZ: -0.22, chestX: 0.22, headX: -0.16, triggerGrip: 0.98 },
+  DMR: { supportGrip: 0.98, shoulderX: -1.02, shoulderY: -0.11, shoulderZ: -1.12, forearmX: -0.28, forearmY: -0.07, forearmZ: 0.14, wristX: 0.14, wristY: -0.07, wristZ: -0.22, chestX: 0.22, headX: -0.16, triggerGrip: 0.98 },
+  Pistol: { supportGrip: 0.9, shoulderX: -0.94, shoulderY: -0.04, shoulderZ: -0.96, forearmX: -0.18, forearmY: -0.04, forearmZ: 0.07, wristX: 0.06, wristY: -0.03, wristZ: -0.12, chestX: 0.16, headX: -0.1, triggerGrip: 0.9 },
+  Revolver: { supportGrip: 0.9, shoulderX: -0.94, shoulderY: -0.04, shoulderZ: -0.96, forearmX: -0.18, forearmY: -0.04, forearmZ: 0.07, wristX: 0.06, wristY: -0.03, wristZ: -0.12, chestX: 0.16, headX: -0.1, triggerGrip: 0.9 },
+  GrenadeLauncher: { supportGrip: 0.96, shoulderX: -1.06, shoulderY: -0.13, shoulderZ: -1.16, forearmX: -0.32, forearmY: -0.1, forearmZ: 0.16, wristX: 0.18, wristY: -0.08, wristZ: -0.24, chestX: 0.24, headX: -0.18, triggerGrip: 0.96 }
 });
 
 const CHESS_FIREARM_HAND_ATTACH_TUNING = Object.freeze({
@@ -1318,19 +1328,21 @@ function applySeatedHumanPose(rig, mode = 'idle', intensity = 1, handGrip = 0, m
     headX = THREE.MathUtils.lerp(headX, 0.09, t);
   } else if (mode === 'firearmAim') {
     const firearmType = motionProfile?.firearmType || 'Rifle';
-    const holdProfile = CHESS_FIREARM_HOLD_PROFILE_BY_TYPE[firearmType] || CHESS_FIREARM_HOLD_PROFILE_BY_TYPE.Rifle;
-    shoulderX = THREE.MathUtils.lerp(shoulderX, holdProfile.shoulderX ?? -1.08, t);
-    shoulderY = THREE.MathUtils.lerp(shoulderY, -0.04, t);
-    shoulderZ = THREE.MathUtils.lerp(shoulderZ, holdProfile.shoulderZ ?? -1.28, t);
-    forearmX = THREE.MathUtils.lerp(forearmX, holdProfile.forearmX ?? -0.48, t);
-    forearmY = THREE.MathUtils.lerp(forearmY, -0.1, t);
-    forearmZ = THREE.MathUtils.lerp(forearmZ, -0.02, t);
-    wristX = THREE.MathUtils.lerp(wristX, holdProfile.wristX ?? 0.03, t);
-    wristY = THREE.MathUtils.lerp(wristY, 0.1, t);
-    wristZ = THREE.MathUtils.lerp(wristZ, -0.06, t);
-    chestX = THREE.MathUtils.lerp(chestX, 0.34, t);
-    headX = THREE.MathUtils.lerp(headX, 0.09, t);
-    rightHandGrip = Math.max(handGrip, holdProfile.triggerGrip ?? 0.98);
+    const holdProfile =
+      CHESS_FIREARM_HOLD_PROFILE_BY_TYPE[firearmType] ||
+      CHESS_FIREARM_HOLD_PROFILE_BY_TYPE.default;
+    shoulderX = THREE.MathUtils.lerp(shoulderX, holdProfile.shoulderX ?? -0.96, t);
+    shoulderY = THREE.MathUtils.lerp(shoulderY, holdProfile.shoulderY ?? -0.09, t);
+    shoulderZ = THREE.MathUtils.lerp(shoulderZ, holdProfile.shoulderZ ?? -1.02, t);
+    forearmX = THREE.MathUtils.lerp(forearmX, holdProfile.forearmX ?? -0.22, t);
+    forearmY = THREE.MathUtils.lerp(forearmY, holdProfile.forearmY ?? -0.06, t);
+    forearmZ = THREE.MathUtils.lerp(forearmZ, holdProfile.forearmZ ?? 0.1, t);
+    wristX = THREE.MathUtils.lerp(wristX, holdProfile.wristX ?? 0.1, t);
+    wristY = THREE.MathUtils.lerp(wristY, holdProfile.wristY ?? -0.05, t);
+    wristZ = THREE.MathUtils.lerp(wristZ, holdProfile.wristZ ?? -0.18, t);
+    chestX = THREE.MathUtils.lerp(chestX, holdProfile.chestX ?? 0.2, t);
+    headX = THREE.MathUtils.lerp(headX, holdProfile.headX ?? -0.14, t);
+    rightHandGrip = Math.max(handGrip, holdProfile.triggerGrip ?? 0.94);
     addBoneRot(rig, rig.leftUpperArm, -0.92, -0.08, 0.92);
     addBoneRot(rig, rig.leftForeArm, -0.66, 0.12, -0.28);
     addBoneRot(rig, rig.leftHand, -0.04, -0.12, 0.08);
@@ -15767,13 +15779,23 @@ function Chess3D({
             const targetPos = getLiveTargetPosition(fx.to, fx.targetMesh, 0);
             const targetAimPos = getFirearmTargetAimPosition(fx.to, fx.targetMesh);
             fx.to.copy(targetPos);
-            const aimOrigin = getFirearmAttackerTilePose(fx.from);
+            const tileAimOrigin = getFirearmAttackerTilePose(fx.from);
+            const seatedFirearmPose = getSeatedHumanFirearmPose(fx.shooterSeatIndex, targetAimPos, tileAimOrigin);
+            const drawPhase = clamp01(u / CHESS_FIREARM_PICKUP_PHASE_RATIO);
+            const aimOrigin = seatedFirearmPose?.weaponWorld
+              ? tileAimOrigin.clone().lerp(seatedFirearmPose.weaponWorld, smooth01(drawPhase))
+              : tileAimOrigin;
             const aimDir = targetAimPos.clone().sub(aimOrigin);
             if (aimDir.lengthSq() > 1e-8) aimDir.normalize();
             else aimDir.set(0, 0, 1);
             const muzzleForward = fx.shortMissile ? 0.18 : CHESS_FIREARM_TILE_MUZZLE_FORWARD;
-            const muzzlePos = aimOrigin.clone().addScaledVector(aimDir, muzzleForward);
-            muzzlePos.y += fx.shortMissile ? 0.05 : 0.018;
+            const muzzlePos = seatedFirearmPose?.muzzleWorld
+              ? tileAimOrigin
+                  .clone()
+                  .addScaledVector(aimDir, muzzleForward)
+                  .lerp(seatedFirearmPose.muzzleWorld, smooth01(drawPhase))
+              : aimOrigin.clone().addScaledVector(aimDir, muzzleForward);
+            muzzlePos.y += seatedFirearmPose?.muzzleWorld ? 0 : fx.shortMissile ? 0.05 : 0.018;
             fx.missileFx.root.visible = true;
             fx.missileFx.root.position.copy(muzzlePos).addScaledVector(aimDir, 0.08);
             orientForwardKeepingUp(fx.missileFx.root, aimDir);
@@ -15796,8 +15818,16 @@ function Chess3D({
                 fx.firearmFx.position.add(desiredMuzzleWorld.sub(currentMuzzleWorld));
                 fx.firearmFx.updateMatrixWorld?.(true);
               }
-              const recoil = Math.sin(Math.min(1, u * Math.max(1, fx.bulletCount || 1)) * Math.PI) * 0.025;
+              const elapsedMs = fx.t * 1000;
+              const cadenceMs = Math.max(56, (fx.duration * 1000) / Math.max(1, fx.bulletCount || 1));
+              const elapsedShooting = Math.max(0, elapsedMs - CHESS_FIREARM_SHOULDER_SETTLE_PHASE_RATIO * fx.duration * 1000);
+              const shotRemainder = elapsedShooting % cadenceMs;
+              const recoilPhase = elapsedShooting > 0
+                ? 1 - clamp01(shotRemainder / CHESS_FIREARM_RECOIL_RECOVER_MS)
+                : 0;
+              const recoil = Math.max(0, recoilPhase) * (fx.shortMissile ? 0.018 : 0.025);
               fx.firearmFx.position.addScaledVector(liveAimDir, -recoil);
+              fx.firearmFx.rotateX(-CHESS_FIREARM_RECOIL_ROTATION_RAD * Math.max(0, recoilPhase));
               aimDir.copy(liveAimDir);
             }
             if (fx.fpsArmsFx) {
@@ -16136,19 +16166,25 @@ function Chess3D({
           let intensity = 1;
           let grip = 1;
           if (action.isFirearmCapture) {
-            const raiseEnd = 0.18;
-            if (u < raiseEnd) {
-              mode = 'reachPiece';
-              intensity = clamp01(u / raiseEnd);
-              grip = 0.45 + intensity * 0.45;
-            } else if (u < 0.94) {
+            if (u < CHESS_FIREARM_PICKUP_PHASE_RATIO) {
+              const drawPhase = smooth01(u / CHESS_FIREARM_PICKUP_PHASE_RATIO);
+              mode = drawPhase < 0.62 ? 'reachPiece' : 'gripPiece';
+              intensity = 0.52 + drawPhase * 0.48;
+              grip = 0.16 + drawPhase * 0.72;
+            } else if (u < CHESS_FIREARM_SHOULDER_SETTLE_PHASE_RATIO) {
+              const shoulderPhase = smooth01(
+                (u - CHESS_FIREARM_PICKUP_PHASE_RATIO) /
+                  Math.max(0.001, CHESS_FIREARM_SHOULDER_SETTLE_PHASE_RATIO - CHESS_FIREARM_PICKUP_PHASE_RATIO)
+              );
               mode = 'firearmAim';
-              intensity = clamp01((u - raiseEnd) / 0.16);
-              grip = 1;
+              intensity = 0.72 + shoulderPhase * 0.3;
+              grip = 0.96;
             } else {
-              mode = 'placePiece';
-              intensity = clamp01((u - 0.94) / 0.06);
-              grip = 1 - intensity * 0.7;
+              const settleWindow = 0.9;
+              const settleBlend = u > settleWindow ? 1 - smooth01((u - settleWindow) / (1 - settleWindow)) : 1;
+              mode = 'firearmAim';
+              intensity = clamp01((1.02 - Math.max(0, u - CHESS_FIREARM_AIM_LOCK_PHASE_RATIO) * 0.06) * settleBlend);
+              grip = 0.98;
             }
           } else if (u < SEATED_HUMAN_PICKUP_PHASE_END) {
             mode = 'reachPiece';
