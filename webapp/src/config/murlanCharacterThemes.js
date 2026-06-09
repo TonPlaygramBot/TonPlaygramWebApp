@@ -1,9 +1,4 @@
-import { khronosThumb, swatchThumbnail } from './storeThumbnails.js';
-
-const MURLAN_READY_PLAYER_ME_FALLBACK_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
-const MURLAN_XBOT_FALLBACK_URL = 'https://threejs.org/examples/models/gltf/Xbot.glb';
-const MURLAN_VIETNAM_HUMAN_FALLBACK_URL = 'https://raw.githubusercontent.com/hmthanh/3d-human-model/main/TranThiNgocTham.glb';
-const MURLAN_AI_TEACHER_FALLBACK_URL = 'https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar.glb';
+import { khronosThumb } from './storeThumbnails.js';
 
 export const MURLAN_CHARACTER_THEMES = Object.freeze([
   {
@@ -42,7 +37,6 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
       'https://api.readyplayer.me/v1/avatars/67d411b30787acbf58ce58ac.glb',
       'https://avatars.readyplayer.me/67d411b30787acbf58ce58ac.glb'
     ],
-    fallbackModelUrls: [MURLAN_READY_PLAYER_ME_FALLBACK_URL, MURLAN_VIETNAM_HUMAN_FALLBACK_URL],
     thumbnail: khronosThumb('ReadyPlayerMe67d411'),
     scale: 1.0,
     seatOffsetY: -0.84,
@@ -70,7 +64,6 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
       'https://api.readyplayer.me/v1/avatars/67f433b69dc08cf26d2cf585.glb',
       'https://avatars.readyplayer.me/67f433b69dc08cf26d2cf585.glb'
     ],
-    fallbackModelUrls: [MURLAN_AI_TEACHER_FALLBACK_URL, MURLAN_READY_PLAYER_ME_FALLBACK_URL],
     thumbnail: khronosThumb('ReadyPlayerMe67f433'),
     scale: 1.0,
     seatOffsetY: -0.84,
@@ -98,7 +91,6 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
       'https://api.readyplayer.me/v1/avatars/67e1b51ae11c93725e4395c9.glb',
       'https://avatars.readyplayer.me/67e1b51ae11c93725e4395c9.glb'
     ],
-    fallbackModelUrls: [MURLAN_XBOT_FALLBACK_URL, MURLAN_READY_PLAYER_ME_FALLBACK_URL],
     thumbnail: khronosThumb('ReadyPlayerMe67e1b5'),
     scale: 1.0,
     seatOffsetY: -0.84,
@@ -210,7 +202,6 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     description: 'Sketchfab rigged Mixamo-style character loaded from the converted glTF package and prepared for Murlan Royale seating. Converted glTF folder is installed locally outside git with npm run fetch:murlan-characters.',
     url: '/models/murlan/agent-47-rigged-face-morphs/scene.gltf',
     modelUrls: ['/models/murlan/agent-47-rigged-face-morphs/scene.gltf'],
-    fallbackModelUrls: [MURLAN_READY_PLAYER_ME_FALLBACK_URL, MURLAN_XBOT_FALLBACK_URL],
     sourceUrl: 'https://sketchfab.com/3d-models/agent-47-riggedface-morphs-1680cad927304bb687d6a9ad5b9dd98a',
     sketchfabUid: '1680cad927304bb687d6a9ad5b9dd98a',
     sourceFormat: 'sketchfab-converted-gltf',
@@ -240,7 +231,6 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     description: 'Sketchfab human portrait loaded from the converted glTF package and prepared for Murlan Royale seating. Converted glTF folder is installed locally outside git with npm run fetch:murlan-characters.',
     url: '/models/murlan/leather-jacket-portrait/scene.gltf',
     modelUrls: ['/models/murlan/leather-jacket-portrait/scene.gltf'],
-    fallbackModelUrls: [MURLAN_AI_TEACHER_FALLBACK_URL, MURLAN_READY_PLAYER_ME_FALLBACK_URL],
     sourceUrl: 'https://sketchfab.com/3d-models/leather-jacket-portrait-e4b6a08211c746fe932e0d5041d28812',
     sketchfabUid: 'e4b6a08211c746fe932e0d5041d28812',
     sourceFormat: 'sketchfab-converted-gltf',
@@ -270,7 +260,6 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     description: 'Sketchfab seated gentleman character loaded from the converted glTF package and prepared for Murlan Royale seating. Converted glTF folder is installed locally outside git with npm run fetch:murlan-characters.',
     url: '/models/murlan/seated-gentleman-suede-jacket/scene.gltf',
     modelUrls: ['/models/murlan/seated-gentleman-suede-jacket/scene.gltf'],
-    fallbackModelUrls: [MURLAN_VIETNAM_HUMAN_FALLBACK_URL, MURLAN_READY_PLAYER_ME_FALLBACK_URL],
     sourceUrl: 'https://sketchfab.com/3d-models/seated-gentleman-in-suede-jacket-8b1101c090d4454caf9f311b3c008946',
     sketchfabUid: '8b1101c090d4454caf9f311b3c008946',
     sourceFormat: 'sketchfab-converted-gltf',
@@ -300,7 +289,6 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     description: 'Sketchfab hibiscus portrait character loaded from the converted glTF package and prepared for Murlan Royale seating. Converted glTF folder is installed locally outside git with npm run fetch:murlan-characters.',
     url: '/models/murlan/red-hibiscus-in-the-hair/scene.gltf',
     modelUrls: ['/models/murlan/red-hibiscus-in-the-hair/scene.gltf'],
-    fallbackModelUrls: [MURLAN_AI_TEACHER_FALLBACK_URL, MURLAN_READY_PLAYER_ME_FALLBACK_URL],
     sourceUrl: 'https://sketchfab.com/3d-models/red-hibiscus-in-the-hair-dc65f86920814a4296f930e7d85ab314',
     sketchfabUid: 'dc65f86920814a4296f930e7d85ab314',
     sourceFormat: 'sketchfab-converted-gltf',
@@ -330,7 +318,6 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     description: 'Sketchfab casual human character loaded from the converted glTF package and prepared for Murlan Royale seating. Converted glTF folder is installed locally outside git with npm run fetch:murlan-characters.',
     url: '/models/murlan/casual-confidence/scene.gltf',
     modelUrls: ['/models/murlan/casual-confidence/scene.gltf'],
-    fallbackModelUrls: [MURLAN_VIETNAM_HUMAN_FALLBACK_URL, MURLAN_READY_PLAYER_ME_FALLBACK_URL],
     sourceUrl: 'https://sketchfab.com/3d-models/casual-confidence-bff76010d9534241ae6c96a4a46a7959',
     sketchfabUid: 'bff76010d9534241ae6c96a4a46a7959',
     sourceFormat: 'sketchfab-converted-gltf',
@@ -350,66 +337,6 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     hairColor: 0x21150f,
     eyeColor: 0x4a5d6a,
     skinTone: 0xc98f68
-  },
-  {
-    id: 'sketchfab-generic-scanned-man',
-    label: 'Generic Scanned Man',
-    source: 'Sketchfab: Generic Man by Scanlab Photogrammetry Inc.',
-    license: 'CC BY 4.0; attribution required; commercial use allowed',
-    price: 880,
-    description: 'Realistic 3D-scanned human compiled from photogrammetry scans. Install the converted glTF with npm run fetch:murlan-characters -- --asset generic-scanned-man; reliable GLB fallbacks keep this slot visible before the scan pack is installed.',
-    url: '/models/murlan/generic-scanned-man/scene.gltf',
-    modelUrls: ['/models/murlan/generic-scanned-man/scene.gltf'],
-    fallbackModelUrls: [MURLAN_VIETNAM_HUMAN_FALLBACK_URL, MURLAN_READY_PLAYER_ME_FALLBACK_URL],
-    sourceUrl: 'https://sketchfab.com/3d-models/generic-man-9b4527d4bc524c31bed48054f0c04b71',
-    sketchfabUid: '9b4527d4bc524c31bed48054f0c04b71',
-    sourceFormat: 'sketchfab-converted-gltf',
-    installCheck: 'gltf-json',
-    thumbnail: swatchThumbnail(['#2b211c', '#8b6f5a', '#f0c49a']),
-    requiresAttribution: true,
-    nonCommercialOnly: false,
-    scale: 1.0,
-    seatOffsetY: -0.84,
-    seatOffsetZ: -0.22,
-    normalizedSeatOffsetY: -0.4,
-    normalizedSeatOffsetZ: 0.52,
-    seatPitch: 0,
-    seatYaw: 0,
-    handLift: 1.04,
-    clothCombo: 'linenStreet',
-    hairColor: 0x17100c,
-    eyeColor: 0x4b5563,
-    skinTone: 0xcb9874
-  },
-  {
-    id: 'sketchfab-rigged-scan-male',
-    label: 'Rigged Scan Male',
-    source: 'Sketchfab: Rigged T-Pose Human Male by Mike Alger',
-    license: 'CC BY 4.0; attribution required; commercial use allowed',
-    price: 900,
-    description: 'Optimized rigged scan created from a real person scan for game/avatar use. Install with npm run fetch:murlan-characters -- --asset rigged-scan-male; reliable GLB fallbacks keep this slot visible before the scan pack is installed.',
-    url: '/models/murlan/rigged-scan-male/scene.gltf',
-    modelUrls: ['/models/murlan/rigged-scan-male/scene.gltf'],
-    fallbackModelUrls: [MURLAN_XBOT_FALLBACK_URL, MURLAN_READY_PLAYER_ME_FALLBACK_URL],
-    sourceUrl: 'https://sketchfab.com/3d-models/rigged-t-pose-human-male-w-50-face-blendshapes-cc7e4596bcd145208a6992c757854c07',
-    sketchfabUid: 'cc7e4596bcd145208a6992c757854c07',
-    sourceFormat: 'sketchfab-converted-gltf',
-    installCheck: 'gltf-json',
-    thumbnail: swatchThumbnail(['#111827', '#475569', '#d7a37b']),
-    requiresAttribution: true,
-    nonCommercialOnly: false,
-    scale: 1.0,
-    seatOffsetY: -0.84,
-    seatOffsetZ: -0.22,
-    normalizedSeatOffsetY: -0.4,
-    normalizedSeatOffsetZ: 0.52,
-    seatPitch: 0,
-    seatYaw: 0,
-    handLift: 1.04,
-    clothCombo: 'casinoCheck',
-    hairColor: 0x20140e,
-    eyeColor: 0x465a66,
-    skinTone: 0xc7926e
   },
   {
     id: 'threejs-xbot-human',
