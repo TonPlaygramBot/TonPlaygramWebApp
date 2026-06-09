@@ -77,8 +77,8 @@ export default function DiceRoller({
       return Math.floor(Math.random() * 6) + 1;
     };
 
-    const tick = 50; // ms between face changes
-    const iterations = 20; // ~1 second of rolling
+    const tick = 50; // Ludo Battle Royal dice face cadence
+    const iterations = 22; // 1100ms, matching Ludo Battle Royal AUTO_ROLL_DURATION_MS
     let count = 0;
 
     const id = setInterval(() => {
