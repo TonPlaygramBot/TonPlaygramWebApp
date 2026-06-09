@@ -212,16 +212,6 @@ const GRAPHICS_PRESETS = Object.freeze([
     preferredHdriResolutions: ['8k', '4k', '2k'],
     description: 'High-fidelity preset for flagship mobile GPUs.'
   },
-  {
-    id: 'ultra144',
-    label: 'Ultra HD+ (144 Hz)',
-    fps: 144,
-    pixelRatioScale: 1.35,
-    pixelRatioCap: 2.2,
-    shadowMapSize: 2048,
-    preferredHdriResolutions: ['8k', '4k'],
-    description: 'Maximum smoothness preset where thermals allow.'
-  }
 ]);
 let sharedKtx2Loader = null;
 const polyhavenModelUrlCache = new Map();
@@ -1547,6 +1537,9 @@ export default function FourInRowRoyal() {
   const pointerRef = useRef(new THREE.Vector2());
   const envRef = useRef({ map: null, skybox: null, hdriId: null, qualityKey: null });
   const arenaRootRef = useRef(null);
+  const tableGroupRef = useRef(null);
+  const tableBuildIdRef = useRef(0);
+  const chairBuildIdRef = useRef(0);
   const arenaYOffsetRef = useRef(
     getArenaYOffsetForHdri(POOL_ROYALE_DEFAULT_HDRI_ID)
   );
@@ -1633,9 +1626,13 @@ export default function FourInRowRoyal() {
       FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT.environmentHdri?.[0] ||
       POOL_ROYALE_DEFAULT_HDRI_ID,
     humanCharacter:
-      inventory.humanCharacter?.[0] ||
-      FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT.humanCharacter?.[0] ||
-      FOUR_IN_ROW_HUMAN_CHARACTER_OPTIONS[0]?.id,
+      FOUR_IN_ROW_HUMAN_CHARACTER_OPTIONS.some(
+        (option) => option.id === params.get('humanCharacter')
+      )
+        ? params.get('humanCharacter')
+        : inventory.humanCharacter?.[0] ||
+          FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT.humanCharacter?.[0] ||
+          FOUR_IN_ROW_HUMAN_CHARACTER_OPTIONS[0]?.id,
     graphics: GRAPHICS_PRESETS[1]?.id || GRAPHICS_PRESETS[0].id
   }));
 
@@ -1951,6 +1948,106 @@ export default function FourInRowRoyal() {
     displayedBoardRef.current = cloneBoard(boardState);
   };
 
+
+  const rebuildTableScene = (tableId) => {
+    const arena = arenaRootRef.current;
+    const renderer = rendererRef.current;
+    if (!arena || !renderer) return;
+    const buildId = (tableBuildIdRef.current += 1);
+    if (tableGroupRef.current?.parent) {
+      tableGroupRef.current.parent.remove(tableGroupRef.current);
+    }
+    tableGroupRef.current = null;
+    tablePartsRef.current = null;
+
+    const tableTheme =
+      FOUR_IN_ROW_TABLE_OPTIONS.find((item) => item.id === tableId) ||
+      FOUR_IN_ROW_TABLE_OPTIONS[0];
+    const fallbackTable = createMurlanStyleTable({
+      arena,
+      renderer,
+      tableRadius: TABLE_RADIUS,
+      tableHeight: TABLE_HEIGHT
+    });
+    tableGroupRef.current = fallbackTable.group;
+    tablePartsRef.current = fallbackTable.parts;
+    applyTableMaterials(
+      fallbackTable.parts,
+      MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) ||
+        MURLAN_TABLE_FINISHES[0]
+    );
+
+    if (tableTheme?.source !== 'polyhaven') return;
+    createFourInRowTableModel(tableTheme, renderer).then((model) => {
+      if (!model || tableBuildIdRef.current !== buildId || arenaRootRef.current !== arena) return;
+      if (fallbackTable.group?.parent) fallbackTable.group.parent.remove(fallbackTable.group);
+      tablePartsRef.current = null;
+      tableGroupRef.current = model;
+      arena.add(model);
+    });
+  };
+
+  const rebuildChairsAndCharacters = (chairId, humanCharacterId) => {
+    const renderer = rendererRef.current;
+    if (!renderer || !chairMeshesRef.current.length) return;
+    const buildId = (chairBuildIdRef.current += 1);
+    characterChipActionsRef.current.forEach((action) => {
+      if (action.heldChip?.parent) action.heldChip.parent.remove(action.heldChip);
+    });
+    characterChipActionsRef.current = [];
+    characterRigsRef.current.clear();
+
+    const chairTheme =
+      FOUR_IN_ROW_CHAIR_OPTIONS.find((item) => item.id === chairId) ||
+      FOUR_IN_ROW_CHAIR_OPTIONS[0];
+    const humanOptions = FOUR_IN_ROW_DOMINO_HUMAN_OPTIONS.length
+      ? FOUR_IN_ROW_DOMINO_HUMAN_OPTIONS
+      : CHESS_HUMAN_CHARACTER_OPTIONS;
+    const playerHumanOption =
+      humanOptions.find((option) => option.id === humanCharacterId) ||
+      humanOptions[0] ||
+      CHESS_HUMAN_CHARACTER_OPTIONS[0];
+    const aiHumanPool = humanOptions.filter((option) => option.id !== playerHumanOption?.id);
+    const aiHumanOption =
+      aiHumanPool[(Math.abs(characterSeed) + 1) % Math.max(aiHumanPool.length, 1)] ||
+      humanOptions[1] ||
+      playerHumanOption;
+
+    Promise.all([
+      createFourInRowChairModelOrFallback(chairTheme, renderer),
+      loadFourInRowCharacterModelOrFallback(playerHumanOption, renderer, 'player', 0, characterSeed),
+      loadFourInRowCharacterModelOrFallback(aiHumanOption, renderer, 'opponent', 1, characterSeed)
+    ]).then(([chairTemplate, playerTemplate, aiTemplate]) => {
+      if (chairBuildIdRef.current !== buildId || !arenaRootRef.current) return;
+      characterRigsRef.current.clear();
+      chairMeshesRef.current.forEach((chair) => {
+        chair.clear();
+        chair.userData.seatColor = chairTheme.primary;
+        chair.userData.legColor = chairTheme.legColor;
+        chair.add(chairTemplate.clone(true));
+        const seatId = chair.userData?.seatId || 'front';
+        const isPlayerSeat = chair.userData?.seatRole === 'player';
+        const option = isPlayerSeat ? playerHumanOption : aiHumanOption;
+        const template = isPlayerSeat ? playerTemplate : aiTemplate;
+        const rig = template
+          ? attachFourInRowSeatedCharacter({
+              template,
+              chair,
+              theme: option,
+              isHumanSeat: isPlayerSeat
+            })
+          : attachFourInRowFallbackSeatedCharacter({
+              chair,
+              theme: option,
+              isHumanSeat: isPlayerSeat
+            });
+        if (rig) characterRigsRef.current.set(seatId, rig);
+      });
+    }).catch((error) => {
+      console.warn('Four in Row chair or character model failed to load.', error);
+    });
+  };
+
   useEffect(() => {
     setBoard(createBoard(rows, cols));
     setTurn('player');
@@ -2028,34 +2125,6 @@ export default function FourInRowRoyal() {
     keyLightRef.current = key;
     scene.add(key);
 
-    const tableTheme =
-      FOUR_IN_ROW_TABLE_OPTIONS.find((item) => item.id === appearance.tableId) ||
-      FOUR_IN_ROW_TABLE_OPTIONS[0];
-    const table = createMurlanStyleTable({
-      arena: arenaRoot,
-      renderer,
-      tableRadius: TABLE_RADIUS,
-      tableHeight: TABLE_HEIGHT
-    });
-    tablePartsRef.current = table.parts;
-    applyTableMaterials(
-      table.parts,
-      MURLAN_TABLE_FINISHES.find((f) => f.id === appearance.tableFinish) ||
-        MURLAN_TABLE_FINISHES[0]
-    );
-    if (tableTheme?.source === 'polyhaven') {
-      createFourInRowTableModel(tableTheme, renderer).then((model) => {
-        if (!model || arenaRootRef.current !== arenaRoot) return;
-        if (table.group?.parent) table.group.parent.remove(table.group);
-        tablePartsRef.current = null;
-        arenaRoot.add(model);
-      });
-    }
-
-    const chairTheme =
-      FOUR_IN_ROW_CHAIR_OPTIONS.find(
-        (item) => item.id === appearance.chairId
-      ) || FOUR_IN_ROW_CHAIR_OPTIONS[0];
     chairMeshesRef.current = [];
     const chairSeats = [
       { id: 'front', role: 'player', position: [0, 0, -CHAIR_DISTANCE] },
@@ -2074,58 +2143,12 @@ export default function FourInRowRoyal() {
       chair.userData = {
         seatId: seat.id,
         seatRole: seat.role,
-        seatColor: chairTheme.primary,
-        legColor: chairTheme.legColor
+        seatColor: FOUR_IN_ROW_CHAIR_OPTIONS[0]?.primary,
+        legColor: FOUR_IN_ROW_CHAIR_OPTIONS[0]?.legColor
       };
       chairMeshesRef.current.push(chair);
       arenaRoot.add(chair);
     });
-    characterRigsRef.current.clear();
-    const humanOptions = FOUR_IN_ROW_DOMINO_HUMAN_OPTIONS.length
-      ? FOUR_IN_ROW_DOMINO_HUMAN_OPTIONS
-      : CHESS_HUMAN_CHARACTER_OPTIONS;
-    const requestedHumanId = params.get('humanCharacter') || appearance.humanCharacter;
-    const playerHumanOption =
-      humanOptions.find((option) => option.id === requestedHumanId) ||
-      humanOptions.find((option) => option.id === appearance.humanCharacter) ||
-      humanOptions[0] ||
-      CHESS_HUMAN_CHARACTER_OPTIONS[0];
-    const aiHumanPool = humanOptions.filter((option) => option.id !== playerHumanOption?.id);
-    const aiHumanOption =
-      aiHumanPool[(Math.abs(characterSeed) + 1) % Math.max(aiHumanPool.length, 1)] ||
-      humanOptions[1] ||
-      playerHumanOption;
-    Promise.all([
-      createFourInRowChairModelOrFallback(chairTheme, renderer),
-      loadFourInRowCharacterModelOrFallback(playerHumanOption, renderer, 'player', 0, characterSeed),
-      loadFourInRowCharacterModelOrFallback(aiHumanOption, renderer, 'opponent', 1, characterSeed)
-    ]).then(([chairTemplate, playerTemplate, aiTemplate]) => {
-      if (!arenaRootRef.current) return;
-      chairMeshesRef.current.forEach((chair) => {
-        chair.clear();
-        chair.add(chairTemplate.clone(true));
-        const seatId = chair.userData?.seatId || 'front';
-        const isPlayerSeat = chair.userData?.seatRole === 'player';
-        const option = isPlayerSeat ? playerHumanOption : aiHumanOption;
-        const template = isPlayerSeat ? playerTemplate : aiTemplate;
-        const rig = template
-          ? attachFourInRowSeatedCharacter({
-              template,
-              chair,
-              theme: option,
-              isHumanSeat: isPlayerSeat
-            })
-          : attachFourInRowFallbackSeatedCharacter({
-              chair,
-              theme: option,
-              isHumanSeat: isPlayerSeat
-            });
-        if (rig) characterRigsRef.current.set(seatId, rig);
-      });
-    }).catch((error) => {
-      console.warn('Four in Row chair model failed to load.', error);
-    });
-
     const boardGroup = new THREE.Group();
 
     const selectedBoardTheme =
@@ -2686,12 +2709,13 @@ export default function FourInRowRoyal() {
       });
       characterChipActionsRef.current = [];
       characterRigsRef.current.clear();
+      tableGroupRef.current = null;
+      tablePartsRef.current = null;
+      chairMeshesRef.current = [];
       renderer.dispose();
       mount.removeChild(renderer.domElement);
     };
   }, [
-    appearance.humanCharacter,
-    appearance.tableId,
     characterSeed,
     rows,
     cols,
@@ -3040,22 +3064,12 @@ export default function FourInRowRoyal() {
   }, [appearance.tableFinish]);
 
   useEffect(() => {
-    const chairTheme =
-      FOUR_IN_ROW_CHAIR_OPTIONS.find(
-        (item) => item.id === appearance.chairId
-      ) || FOUR_IN_ROW_CHAIR_OPTIONS[0];
-    let cancelled = false;
-    createChairModel(chairTheme, rendererRef.current).then((template) => {
-      if (cancelled) return;
-      chairMeshesRef.current.forEach((chair) => {
-        chair.clear();
-        chair.add(template.clone(true));
-      });
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [appearance.chairId]);
+    rebuildTableScene(appearance.tableId);
+  }, [appearance.tableId]);
+
+  useEffect(() => {
+    rebuildChairsAndCharacters(appearance.chairId, appearance.humanCharacter);
+  }, [appearance.chairId, appearance.humanCharacter, characterSeed]);
 
   useEffect(() => {
     const { boardFaceMat, railMat, trimMat, holeRimMat } =
