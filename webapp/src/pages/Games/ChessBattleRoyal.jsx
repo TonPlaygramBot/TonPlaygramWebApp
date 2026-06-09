@@ -2473,6 +2473,7 @@ const CHECKMATE_SOUND_URL =
   'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/End.mp3';
 const LAUGH_SOUND_URL = '/assets/sounds/Haha.mp3';
 const DRONE_FLY_SOUND_URL = '/assets/sounds/kimsa-kimsa-big-motorcycle-sound-394700.mp3';
+const JET_FLY_SOUND_URL = '/assets/sounds/kimsa-kimsa-big-motorcycle-sound-394700.mp3';
 const HELICOPTER_FLY_SOUND_URL = '/assets/sounds/dragon-studio-helicopter-sound-8d-372463.mp3';
 const BAZOOKA_FIRE_SOUND_URL = '/assets/sounds/launch-85216.mp3';
 const MISSILE_IMPACT_SOUND_URL = '/assets/sounds/080998_bullet-hit-39870.mp3';
@@ -4685,35 +4686,38 @@ function prepareCaptureModel(root) {
   });
 }
 
-function inferRotorSpinAxis(node, fallbackAxis = 'y') {
-  if (!node) return new THREE.Vector3(0, 1, 0);
-  const bounds = new THREE.Box3().setFromObject(node);
-  if (bounds.isEmpty()) {
-    if (fallbackAxis === 'x') return new THREE.Vector3(1, 0, 0);
-    if (fallbackAxis === 'z') return new THREE.Vector3(0, 0, 1);
-    return new THREE.Vector3(0, 1, 0);
+function collectChessCaptureRotorNodes(root, kind = 'fighter') {
+  const all = [];
+  if (!root) return { all, topRotor: null, tailRotor: null };
+  root.traverse((node) => {
+    if (!node?.isObject3D) return;
+    const name = `${node.name || ''}`.toLowerCase();
+    if (/rotor|propell|blade|fan/.test(name)) all.push(node);
+  });
+  if (kind !== 'helicopter') {
+    return { all, topRotor: all[0] || null, tailRotor: null };
   }
-  const size = new THREE.Vector3();
-  bounds.getSize(size);
-  const dims = [
-    { axis: 'x', value: Math.abs(size.x) },
-    { axis: 'y', value: Math.abs(size.y) },
-    { axis: 'z', value: Math.abs(size.z) }
-  ].sort((a, b) => a.value - b.value);
-  const chosen = dims[0]?.axis || fallbackAxis;
-  if (chosen === 'x') return new THREE.Vector3(1, 0, 0);
-  if (chosen === 'z') return new THREE.Vector3(0, 0, 1);
-  return new THREE.Vector3(0, 1, 0);
+  let topRotor = null;
+  let tailRotor = null;
+  all.forEach((node) => {
+    const pos = new THREE.Vector3();
+    node.getWorldPosition(pos);
+    if (!topRotor || pos.y > topRotor.y) topRotor = { node, y: pos.y };
+    if (!tailRotor || Math.abs(pos.x) > Math.abs(tailRotor.x)) tailRotor = { node, x: pos.x };
+  });
+  return { all, topRotor: topRotor?.node || null, tailRotor: tailRotor?.node || null };
 }
 
-function isDescendantOf(node, ancestor) {
-  if (!node || !ancestor) return false;
-  let current = node;
-  while (current) {
-    if (current === ancestor) return true;
-    current = current.parent || null;
-  }
-  return false;
+function spinChessCaptureRotors(rig, dtSeconds = 0) {
+  if (!rig || dtSeconds <= 0) return;
+  const speed = 32;
+  if (rig.topRotor) rig.topRotor.rotateOnAxis(new THREE.Vector3(0, 1, 0), dtSeconds * speed);
+  if (rig.tailRotor) rig.tailRotor.rotateOnAxis(new THREE.Vector3(1, 0, 0), dtSeconds * speed);
+  const excluded = new Set([rig.topRotor, rig.tailRotor]);
+  rig.rotorNodes?.forEach((node) => {
+    if (!node || excluded.has(node)) return;
+    node.rotation.y += dtSeconds * speed;
+  });
 }
 
 function applyMilitaryHelicopterLook(model, topRotor = null, tailRotor = null, toneSeed = null, skin = null) {
@@ -8657,6 +8661,7 @@ function Chess3D({
   const laughSoundRef = useRef(null);
   const swordSoundRef = useRef(null);
   const droneSoundRef = useRef(null);
+  const jetSoundRef = useRef(null);
   const helicopterSoundRef = useRef(null);
   const missileLaunchSoundRef = useRef(null);
   const missileImpactSoundRef = useRef(null);
@@ -9832,6 +9837,7 @@ function Chess3D({
     [
       swordSoundRef,
       droneSoundRef,
+      jetSoundRef,
       helicopterSoundRef,
       missileLaunchSoundRef,
       missileImpactSoundRef,
@@ -9887,6 +9893,7 @@ function Chess3D({
       [
         swordSoundRef,
         droneSoundRef,
+        jetSoundRef,
         helicopterSoundRef,
         missileLaunchSoundRef,
         missileImpactSoundRef,
@@ -10324,6 +10331,8 @@ function Chess3D({
     swordSoundRef.current.volume = baseVolume;
     droneSoundRef.current = new Audio(DRONE_FLY_SOUND_URL);
     droneSoundRef.current.volume = baseVolume;
+    jetSoundRef.current = new Audio(JET_FLY_SOUND_URL);
+    jetSoundRef.current.volume = baseVolume;
     helicopterSoundRef.current = new Audio(HELICOPTER_FLY_SOUND_URL);
     helicopterSoundRef.current.volume = baseVolume;
     missileLaunchSoundRef.current = new Audio(BAZOOKA_FIRE_SOUND_URL);
@@ -10405,8 +10414,9 @@ function Chess3D({
       const pieceSetPromise = loadPieceSet(RAW_BOARD_SIZE);
       const playAudio = (audioRef, options = {}) => {
         if (!audioRef?.current || !settingsRef.current.soundEnabled) return;
-        const { maxDurationMs = null, volume = 1, playbackRate = 1 } = options;
+        const { maxDurationMs = null, volume = 1, playbackRate = 1, loop = false } = options;
         try {
+          audioRef.current.loop = Boolean(loop);
           audioRef.current.currentTime = 0;
           audioRef.current.volume = clamp01(getGameVolume() * volume, 0);
           audioRef.current.playbackRate = Number.isFinite(playbackRate) && playbackRate > 0 ? playbackRate : 1;
@@ -10416,6 +10426,7 @@ function Chess3D({
             const timeoutId = setTimeout(() => {
               try {
                 audioRef.current.pause();
+                audioRef.current.loop = false;
                 audioRef.current.currentTime = 0;
               } catch {}
               audioStopTimeoutsRef.current.delete(audioRef.current);
@@ -11595,26 +11606,13 @@ function Chess3D({
         model.rotation.set(0, 0, 0);
         root.add(model);
         const missileHardpoints = findAirMissileHardpoints(model, 'helicopter');
-        const tailRotor = findCaptureRotor(model, 'tail');
-        let topRotor = findCaptureRotor(model, 'main');
-        const rotorNodes = [];
-        model.traverse((node) => {
-          if (!node?.isObject3D) return;
-          const name = `${node.name || ''}`.toLowerCase();
-          if (/rotor|propell|blade|fan/.test(name)) rotorNodes.push(node);
-        });
-        if (!topRotor) {
-          model.traverse((node) => {
-            if (topRotor || !node?.isMesh || isDescendantOf(node, tailRotor)) return;
-            const name = `${node.name || ''}`.toLowerCase();
-            if (/rotor|propell|blade|fan/.test(name)) {
-              topRotor = node;
-            }
-          });
-        }
+        const rotors = collectChessCaptureRotorNodes(model, 'helicopter');
+        const topRotor = rotors.topRotor || findCaptureRotor(model, 'main');
+        const tailRotor = rotors.tailRotor || findCaptureRotor(model, 'tail');
+        const rotorNodes = rotors.all;
         applyMilitaryHelicopterLook(model, topRotor, tailRotor, getCaptureToneSeed('helicopter'));
         const topRotorAxis = new THREE.Vector3(0, 1, 0);
-        const tailRotorAxis = inferRotorSpinAxis(tailRotor, 'x');
+        const tailRotorAxis = new THREE.Vector3(1, 0, 0);
         return { root, topRotor, tailRotor, rotorNodes, topRotorAxis, tailRotorAxis, exhaustClouds: [], missileHardpoints };
       }
       const root = new THREE.Group();
@@ -11660,17 +11658,10 @@ function Chess3D({
         const loadedModel = cloneCaptureUnitTemplate('helicopter');
         if (!loadedModel) return;
         loadedModel.rotation.set(0, 0, 0);
-        const loadedTailRotor = findCaptureRotor(loadedModel, 'tail');
-        let loadedTopRotor = findCaptureRotor(loadedModel, 'main');
-        const loadedRotorNodes = [];
-        loadedModel.traverse((node) => {
-          if (!node?.isObject3D) return;
-          const name = `${node.name || ''}`.toLowerCase();
-          if (/rotor|propell|blade|fan/.test(name)) loadedRotorNodes.push(node);
-          if (!loadedTopRotor && node?.isMesh && !isDescendantOf(node, loadedTailRotor) && /rotor|propell|blade|fan/.test(name)) {
-            loadedTopRotor = node;
-          }
-        });
+        const loadedRotors = collectChessCaptureRotorNodes(loadedModel, 'helicopter');
+        const loadedTopRotor = loadedRotors.topRotor || findCaptureRotor(loadedModel, 'main');
+        const loadedTailRotor = loadedRotors.tailRotor || findCaptureRotor(loadedModel, 'tail');
+        const loadedRotorNodes = loadedRotors.all;
         applyMilitaryHelicopterLook(loadedModel, loadedTopRotor, loadedTailRotor, getCaptureToneSeed('helicopter'));
         const overlayChildren = root.children.filter((child) => child?.geometry?.type === 'CircleGeometry');
         root.clear();
@@ -11681,7 +11672,7 @@ function Chess3D({
         fx.tailRotor = loadedTailRotor;
         fx.rotorNodes = loadedRotorNodes;
         fx.topRotorAxis = new THREE.Vector3(0, 1, 0);
-        fx.tailRotorAxis = inferRotorSpinAxis(loadedTailRotor, 'x');
+        fx.tailRotorAxis = new THREE.Vector3(1, 0, 0);
         fx.exhaustClouds = [];
         fx.missileHardpoints = findAirMissileHardpoints(loadedModel, 'helicopter');
       }).catch(() => {});
@@ -13212,8 +13203,9 @@ function Chess3D({
           missile.root.visible = false;
           captureFxGroup.add(missile.root);
         });
-        // The jet strike now uses the same audible cue family as its missiles.
-        playAudio(missileLaunchSoundRef, { maxDurationMs: CAPTURE_JET_TOTAL * 1000 });
+        // Keep the jet engine audible for the full fly-over; missile launch
+        // sounds still fire separately at release time.
+        playAudio(jetSoundRef, { maxDurationMs: CAPTURE_JET_TOTAL * 1000, loop: true, volume: 0.82, playbackRate: 1.35 });
         activeCaptureFx.push({
           type: 'jet',
           t: 0,
@@ -15616,16 +15608,7 @@ function Chess3D({
             captureDir.copy(heliNext).sub(heliPos).normalize();
             const heliForward = captureDir.clone();
             orientForwardKeepingUp(fx.helicopterFx.root, captureDir);
-            if (fx.helicopterFx.topRotor && fx.helicopterFx.topRotorAxis) {
-              fx.helicopterFx.topRotor.rotateOnAxis(fx.helicopterFx.topRotorAxis, dt * 35);
-            }
-            if (fx.helicopterFx.tailRotor && fx.helicopterFx.tailRotorAxis) {
-              fx.helicopterFx.tailRotor.rotateOnAxis(fx.helicopterFx.tailRotorAxis, dt * 35);
-            }
-            fx.helicopterFx.rotorNodes?.forEach((rotorNode) => {
-              if (!rotorNode || rotorNode === fx.helicopterFx.topRotor || rotorNode === fx.helicopterFx.tailRotor) return;
-              rotorNode.rotation.y += dt * 36;
-            });
+            spinChessCaptureRotors(fx.helicopterFx, dt);
             fx.helicopterFx.exhaustClouds?.forEach((puff, idx) => {
               puff.position.set(-1 - idx * 0.2, Math.sin(fx.t * 6.2 + idx * 0.4) * 0.03, 0);
             });
@@ -15796,10 +15779,11 @@ function Chess3D({
             const targetAimPos = getFirearmTargetAimPosition(fx.to, fx.targetMesh);
             fx.to.copy(targetPos);
             const tileAimOrigin = getFirearmAttackerTilePose(fx.from);
-            const liveAttackerOrigin = getLiveLaunchPosition(tileAimOrigin, fx.movingMesh, fx.shortMissile ? 0.1 : 0.14);
-            // Keep the visible weapon on the attacking piece/table square, then continuously
-            // aim it at the live target position so moving pieces stay locked in the sightline.
-            const aimOrigin = liveAttackerOrigin;
+            // Keep the visible weapon locked beside the attacker start square.
+            // Do not pull from movingMesh here: on delayed captures that mesh can
+            // already be animating toward the victim, which made the gun appear
+            // beside the target on portrait devices.
+            const aimOrigin = tileAimOrigin;
             const aimDir = targetAimPos.clone().sub(aimOrigin);
             if (aimDir.lengthSq() > 1e-8) aimDir.normalize();
             else aimDir.set(0, 0, 1);
@@ -16484,6 +16468,7 @@ function Chess3D({
       laughSoundRef.current?.pause();
       swordSoundRef.current?.pause();
       droneSoundRef.current?.pause();
+      jetSoundRef.current?.pause();
       helicopterSoundRef.current?.pause();
       missileLaunchSoundRef.current?.pause();
       missileImpactSoundRef.current?.pause();
