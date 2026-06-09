@@ -1560,7 +1560,9 @@ const PHYSICS_PROFILE = Object.freeze({
 });
 const PHYSICS_BASE_STEP = 1 / 60;
 const FRICTION = 0.9962;
-const DEFAULT_CUSHION_RESTITUTION = PHYSICS_PROFILE.restitution;
+// Cushions use a slightly higher restitution than ball-ball impacts so rail
+// rebounds feel livelier without making direct ball collisions over-energetic.
+const DEFAULT_CUSHION_RESTITUTION = 0.992;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const BALL_MASS = 0.17;
 const BALL_INERTIA = (2 / 5) * BALL_MASS * BALL_R * BALL_R;
@@ -13681,6 +13683,7 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   const widthScale = dims.targetWidth / modelWidth;
   const lengthScale = dims.targetLength / modelLength;
   const fitScaleMultiplier = tableModel?.fitScale ?? 1;
+  const horizontalFitScaleMultiplier = tableModel?.horizontalFitScale ?? fitScaleMultiplier;
   if (tableModel?.fitStrategy === 'exact') {
     const exactXScale = Math.max(MICRO_EPS, dims.targetWidth / Math.max(MICRO_EPS, footprintSize.x));
     const exactZScale = Math.max(MICRO_EPS, dims.targetLength / Math.max(MICRO_EPS, footprintSize.z));
@@ -13701,16 +13704,20 @@ function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
         (tableModel?.fitHeightScale ?? 1)
       : Math.sqrt(exactXScale * exactZScale);
     model.scale.set(
-      model.scale.x * exactXScale * fitScaleMultiplier,
+      model.scale.x * exactXScale * horizontalFitScaleMultiplier,
       model.scale.y * exactYScale * fitScaleMultiplier,
-      model.scale.z * exactZScale * fitScaleMultiplier
+      model.scale.z * exactZScale * horizontalFitScaleMultiplier
     );
   } else {
     const baseFitScale =
       tableModel?.fitStrategy === 'contain'
         ? Math.min(widthScale, lengthScale)
         : Math.max(widthScale, lengthScale);
-    model.scale.multiplyScalar(baseFitScale * fitScaleMultiplier);
+    model.scale.set(
+      model.scale.x * baseFitScale * horizontalFitScaleMultiplier,
+      model.scale.y * baseFitScale * fitScaleMultiplier,
+      model.scale.z * baseFitScale * horizontalFitScaleMultiplier
+    );
   }
   model.updateMatrixWorld(true);
 
