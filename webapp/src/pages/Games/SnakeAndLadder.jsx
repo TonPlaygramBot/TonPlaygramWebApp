@@ -1018,133 +1018,25 @@ function resolveAppearance(appearance) {
 
 const buildAppearanceKey = (appearance) => JSON.stringify(normalizeAppearance(appearance));
 
-
-function tileGridPoint(tile) {
-  const cell = Math.max(1, Math.min(FINAL_TILE - 1, Number(tile) || 1)) - 1;
-  const row = Math.floor(cell / 10);
-  const colInRow = cell % 10;
-  const col = row % 2 === 0 ? colInRow : 9 - colInRow;
-  return { x: col, y: row };
-}
-
-function ccw(a, b, c) {
-  return (c.y - a.y) * (b.x - a.x) > (b.y - a.y) * (c.x - a.x);
-}
-
-function jumpSegmentsIntersect(aStart, aEnd, bStart, bEnd) {
-  if ([aStart, aEnd].includes(bStart) || [aStart, aEnd].includes(bEnd)) return true;
-  const a = tileGridPoint(aStart);
-  const b = tileGridPoint(aEnd);
-  const c = tileGridPoint(bStart);
-  const d = tileGridPoint(bEnd);
-  return ccw(a, c, d) !== ccw(b, c, d) && ccw(a, b, c) !== ccw(a, b, d);
-}
-
-function jumpOverlapsExisting(start, end, existingJumps) {
-  return existingJumps.some(([otherStart, otherEnd]) =>
-    jumpSegmentsIntersect(start, end, otherStart, otherEnd)
-  );
-}
-
-function removeOverlappingJumps(snakesObj = {}, laddersObj = {}, maxEntries = 8) {
-  const used = new Set();
-  const jumpSegments = [];
-  const snakes = {};
-  const ladders = {};
-
-  Object.entries(snakesObj).slice(0, maxEntries).forEach(([rawStart, rawEnd]) => {
-    const start = Number(rawStart);
-    const end = Number(rawEnd);
-    if (!Number.isFinite(start) || !Number.isFinite(end) || end >= start) return;
-    if (used.has(start) || used.has(end) || jumpOverlapsExisting(start, end, jumpSegments)) return;
-    snakes[start] = end;
-    used.add(start);
-    used.add(end);
-    jumpSegments.push([start, end]);
-  });
-
-  Object.entries(laddersObj).slice(0, maxEntries).forEach(([rawStart, rawEnd]) => {
-    const start = Number(rawStart);
-    const end = typeof rawEnd === 'object' ? Number(rawEnd?.end) : Number(rawEnd);
-    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return;
-    if (used.has(start) || used.has(end) || jumpOverlapsExisting(start, end, jumpSegments)) return;
-    ladders[start] = typeof rawEnd === 'object' ? { ...rawEnd, end } : end;
-    used.add(start);
-    used.add(end);
-    jumpSegments.push([start, end]);
-  });
-
-  return { snakes, ladders };
-}
-
-function resolveSnakeLadderMove(current, value, rolledSix, snakes = {}, ladders = {}) {
-  let target = current;
-  let blockedReason = '';
-  let exactNeed = null;
-
-  if (current === PENULTIMATE_TILE) {
-    if (value === 1) target = FINAL_TILE;
-    else {
-      blockedReason = 'penultimate';
-      exactNeed = 1;
-    }
-  } else if (current === 0) {
-    if (rolledSix) target = 1;
-    else blockedReason = 'start';
-  } else if (current + value <= FINAL_TILE) {
-    target = current + value;
-  } else {
-    blockedReason = 'exact';
-    exactNeed = FINAL_TILE - current;
-  }
-
-  let finalPos = target;
-  let effectType = 'normal';
-  if (!blockedReason) {
-    if (snakes[finalPos] != null) {
-      finalPos = Math.max(0, snakes[finalPos]);
-      effectType = 'snake';
-    } else if (ladders[finalPos] != null) {
-      const ladObj = ladders[finalPos];
-      finalPos = typeof ladObj === 'object' ? ladObj.end : ladObj;
-      effectType = 'ladder';
-    }
-  }
-
-  return { target, finalPos, effectType, blockedReason, exactNeed };
-}
-
 function generateBoardLocal() {
   const boardSize = FINAL_TILE - 1;
   const snakeCount = 6 + Math.floor(Math.random() * 3);
   const ladderCount = 6 + Math.floor(Math.random() * 3);
   const snakes = {};
   const used = new Set();
-  const jumpSegments = [];
-  let snakeAttempts = 0;
-  while (Object.keys(snakes).length < snakeCount && snakeAttempts < boardSize * 30) {
-    snakeAttempts += 1;
+  while (Object.keys(snakes).length < snakeCount) {
     const start = Math.floor(Math.random() * (boardSize - 10)) + 10;
     const maxDrop = Math.min(start - 1, 20);
     if (maxDrop <= 0) continue;
     const end = start - (Math.floor(Math.random() * maxDrop) + 1);
-    if (
-      used.has(start) ||
-      used.has(end) ||
-      snakes[start] ||
-      end === 1 ||
-      jumpOverlapsExisting(start, end, jumpSegments)
-    ) continue;
+    if (used.has(start) || used.has(end) || snakes[start] || end === 1) continue;
     snakes[start] = end;
     used.add(start);
     used.add(end);
-    jumpSegments.push([start, end]);
   }
   const ladders = {};
   const usedL = new Set([...used]);
-  let ladderAttempts = 0;
-  while (Object.keys(ladders).length < ladderCount && ladderAttempts < boardSize * 40) {
-    ladderAttempts += 1;
+  while (Object.keys(ladders).length < ladderCount) {
     const start = Math.floor(Math.random() * (boardSize - 20)) + 2;
     const max = Math.min(boardSize - start - 1, 20);
     if (max < 1) continue;
@@ -1153,14 +1045,12 @@ function generateBoardLocal() {
       usedL.has(start) ||
       usedL.has(end) ||
       ladders[start] ||
-      Object.values(ladders).includes(end) ||
-      jumpOverlapsExisting(start, end, jumpSegments)
+      Object.values(ladders).includes(end)
     )
       continue;
     ladders[start] = end;
     usedL.add(start);
     usedL.add(end);
-    jumpSegments.push([start, end]);
   }
   const diceCells = generateDiceCellsLocal(snakes, ladders);
   return { snakes, ladders, diceCells };
@@ -2184,7 +2074,11 @@ export default function SnakeAndLadder() {
       : Promise.resolve(generateBoardLocal());
     boardPromise
       .then(({ snakes: snakesObj = {}, ladders: laddersObj = {}, diceCells: diceCellsObj = {} }) => {
-        const { snakes: snakesLim, ladders: laddersLim } = removeOverlappingJumps(snakesObj, laddersObj, 8);
+        const limit = (obj) => {
+          return Object.fromEntries(Object.entries(obj).slice(0, 8));
+        };
+        const snakesLim = limit(snakesObj);
+        const laddersLim = limit(laddersObj);
         setSnakes(snakesLim);
         setLadders(laddersLim);
         const snk = {};
@@ -2849,42 +2743,78 @@ export default function SnakeAndLadder() {
 
 
       setMessage("");
-      const current = pos;
-      const movePlan = resolveSnakeLadderMove(current, value, rolledSix, snakes, ladders);
-      const { target } = movePlan;
+      let current = pos;
+      let target = current;
 
-      if (movePlan.blockedReason) {
-        if (movePlan.blockedReason === 'penultimate') {
+      if (current === PENULTIMATE_TILE) {
+        if (value === 1) {
+          target = FINAL_TILE;
+        } else {
           setMessage("Need a 1 to win!");
           enqueueSnakeCommentaryEvent('exactNeeded', { player: playerLabel, need: 1 });
-        } else if (movePlan.blockedReason === 'start') {
+          setTurnMessage("");
+          setDiceVisible(false);
+          const next = getPreviousTurn(currentTurn);
+          setTimeout(() => {
+            setCurrentTurn(next);
+            setDiceCount(playerDiceCounts[next] ?? 1);
+          }, TURN_ADVANCE_AFTER_DICE_MS);
+          setTimeout(() => setMoving(false), TURN_ADVANCE_AFTER_DICE_MS);
+          return;
+        }
+      } else if (current === 0) {
+        if (rolledSix) {
+          target = 1;
+          if (!muted) cheerSoundRef.current?.play().catch(() => {});
+        }
+        else {
           setMessage("");
           enqueueSnakeCommentaryEvent('startBlocked', { player: playerLabel });
-        } else {
-          setMessage("Need exact roll!");
-          setShowExactHelp(true);
-          enqueueSnakeCommentaryEvent('exactNeeded', { player: playerLabel, need: movePlan.exactNeed });
+          setTurnMessage("");
+          setDiceVisible(false);
+          const next = getPreviousTurn(currentTurn);
+          setTimeout(() => {
+            setCurrentTurn(next);
+            setDiceCount(playerDiceCounts[next] ?? 1);
+          }, TURN_ADVANCE_AFTER_DICE_MS);
+          setTimeout(() => setMoving(false), TURN_ADVANCE_AFTER_DICE_MS);
+          return;
         }
+      } else if (current + value <= FINAL_TILE) {
+        target = current + value;
+      } else {
+        setMessage("Need exact roll!");
+        setShowExactHelp(true);
+        enqueueSnakeCommentaryEvent('exactNeeded', { player: playerLabel, need: FINAL_TILE - current });
         setTurnMessage("");
         setDiceVisible(false);
         const next = getPreviousTurn(currentTurn);
         setTimeout(() => {
           setCurrentTurn(next);
           setDiceCount(playerDiceCounts[next] ?? 1);
-          setRollingIndex(null);
         }, TURN_ADVANCE_AFTER_DICE_MS);
         setTimeout(() => setMoving(false), TURN_ADVANCE_AFTER_DICE_MS);
         return;
       }
 
-      if (current === 0 && rolledSix && !muted) cheerSoundRef.current?.play().catch(() => {});
-      const extraPred = diceCells[movePlan.finalPos] || rolledSix;
+
+      let predicted = target;
+      if (snakes[predicted] != null) predicted = Math.max(0, snakes[predicted]);
+      else if (ladders[predicted] != null) {
+        const ladObj = ladders[predicted];
+        predicted = typeof ladObj === 'object' ? ladObj.end : ladObj;
+      }
+      const extraPred = diceCells[predicted] || rolledSix;
       const nextPlayer = extraPred ? currentTurn : getPreviousTurn(currentTurn);
+      if (!gameOver) {
+        setCurrentTurn(nextPlayer);
+        setDiceCount(playerDiceCounts[nextPlayer] ?? 1);
+      }
 
       const steps = [];
       for (let i = current + 1; i <= target; i++) steps.push(i);
 
-      setHighlight(null);
+        setHighlight(null);
       const ctx = {
         updatePosition: (p) => setPos(p),
         setHighlight,
@@ -3015,11 +2945,14 @@ export default function SnakeAndLadder() {
         setDiceVisible(true);
         setPendingExtraRoll(extraTurn);
         setMoving(false);
-        setRollingIndex(null);
         if (!gameOver) {
-          setCurrentTurn(extraTurn ? currentTurn : nextPlayer);
-          setDiceCount(playerDiceCounts[extraTurn ? currentTurn : nextPlayer] ?? 1);
-          if (extraTurn && currentTurn === 0) setRollCooldown(0);
+          if (extraTurn) {
+            // Do not delay the local extra roll button after a six/bonus.
+            const next = currentTurn;
+            setCurrentTurn(next);
+            setDiceCount(playerDiceCounts[next] ?? 1);
+            if (next === 0) setRollCooldown(0);
+          }
         }
       };
 
@@ -3038,7 +2971,7 @@ export default function SnakeAndLadder() {
     setMoving(true);
     const value = Array.isArray(vals)
       ? vals.reduce((a, b) => a + b, 0)
-      : (vals ?? Math.floor(Math.random() * 6) + 1);
+      : vals ?? Math.floor(Math.random() * 6) + 1;
     const rolledSix = Array.isArray(vals)
       ? vals.some((v) => Number(v) === 6)
       : Number(value) === 6;
@@ -3063,11 +2996,7 @@ export default function SnakeAndLadder() {
       (index !== 0 && pos === preview) ||
       aiPositions.some((p, i) => i !== index - 1 && p === preview);
 
-    setTurnMessage(
-      <>
-        {playerName(index)} rolled {value}
-      </>
-    );
+    setTurnMessage(<>{playerName(index)} rolled {value}</>);
     setRollResult(value);
     playDiceRollSound(`ai:${index}:${value}`);
     if (capture && preview > 4 && !muted) {
@@ -3077,183 +3006,174 @@ export default function SnakeAndLadder() {
     setTimeout(() => setRollResult(null), DICE_RESULT_HOLD_MS);
     setTimeout(() => {
       setDiceVisible(false);
-      let positions = [...aiPositions];
-      const current = positions[index - 1];
-      const movePlan = resolveSnakeLadderMove(
-        current,
-        value,
-        rolledSix,
-        snakes,
-        ladders
-      );
-      const { target } = movePlan;
-      if (movePlan.blockedReason) {
-        if (movePlan.blockedReason === 'start') {
-          enqueueSnakeCommentaryEvent('startBlocked', { player: playerLabel });
-        } else {
-          enqueueSnakeCommentaryEvent('exactNeeded', {
-            player: playerLabel,
-            need: movePlan.exactNeed
-          });
-        }
+    let positions = [...aiPositions];
+    let current = positions[index - 1];
+    let target = current;
+    if (current === 0) {
+      if (rolledSix) {
+        target = 1;
+        if (!muted) cheerSoundRef.current?.play().catch(() => {});
+      } else {
+        enqueueSnakeCommentaryEvent('startBlocked', { player: playerLabel });
+      }
+    } else if (current === PENULTIMATE_TILE) {
+      if (value === 1) target = FINAL_TILE;
+      else {
+        enqueueSnakeCommentaryEvent('exactNeeded', { player: playerLabel, need: 1 });
         setTurnMessage('');
         setDiceVisible(false);
         const next = getPreviousTurn(currentTurn);
         setTimeout(() => {
           setCurrentTurn(next);
           setDiceCount(playerDiceCounts[next] ?? 1);
-          setRollingIndex(null);
         }, TURN_ADVANCE_AFTER_DICE_MS);
         setTimeout(() => setMoving(false), TURN_ADVANCE_AFTER_DICE_MS);
         return;
       }
-      if (current === 0 && rolledSix && !muted)
-        cheerSoundRef.current?.play().catch(() => {});
+    } else if (current + value <= FINAL_TILE) {
+      target = current + value;
+    } else if (current !== 0) {
+      enqueueSnakeCommentaryEvent('exactNeeded', { player: playerLabel, need: FINAL_TILE - current });
+    }
 
-      const extraPred = diceCells[movePlan.finalPos] || rolledSix;
-      const nextPlayer = extraPred ? index : getPreviousTurn(index);
+    let predicted = target;
+    if (snakes[predicted] != null) predicted = Math.max(0, snakes[predicted]);
+    else if (ladders[predicted] != null) {
+      const ladObj = ladders[predicted];
+      predicted = typeof ladObj === 'object' ? ladObj.end : ladObj;
+    }
+    const extraPred = diceCells[predicted] || rolledSix;
+    const nextPlayer = extraPred ? index : getPreviousTurn(index);
+    setCurrentTurn(nextPlayer);
+    setDiceCount(playerDiceCounts[nextPlayer] ?? 1);
 
-      const steps = [];
-      for (let i = current + 1; i <= target; i++) steps.push(i);
+    const steps = [];
+    for (let i = current + 1; i <= target; i++) steps.push(i);
 
       setHighlight(null);
-      const ctx = {
-        updatePosition: (p) => {
-          positions[index - 1] = p;
-          setAiPositions([...positions]);
-        },
-        setHighlight,
-        setTrail,
-        moveSoundRef,
-        hahaSoundRef,
-        snakes,
-        ladders,
-        setOffsetPopup,
-        snakeSoundRef,
-        oldSnakeSoundRef,
-        ladderSoundRef,
-        badLuckSoundRef,
-        muted,
-        FINAL_TILE,
-        playerIndex: index,
-        currentPosition: current,
-        stepDurationMs: 430,
-        startStepAnimation: ({ from, to, type, duration, onComplete }) =>
-          requestSlideAnimation({
-            playerIndex: index,
-            from,
-            to,
-            type,
-            duration,
-            onComplete
-          }),
-        startSlide: ({ from, to, type, onComplete }) =>
-          requestSlideAnimation({
-            playerIndex: index,
-            from,
-            to,
-            type,
-            onComplete
-          })
-      };
-
-      const finalizeMove = async (finalPos, type, effectStart) => {
-        const effectOrigin = Number.isFinite(effectStart)
-          ? effectStart
-          : finalPos;
-        positions[index - 1] = finalPos;
+    const ctx = {
+      updatePosition: (p) => {
+        positions[index - 1] = p;
         setAiPositions([...positions]);
-        setHighlight({ cell: finalPos, type, color: playerColors[index] });
-        setTrail([]);
-        const victims = capturePieces(finalPos, index, {
-          attackerFrom: current
+      },
+      setHighlight,
+      setTrail,
+      moveSoundRef,
+      hahaSoundRef,
+      snakes,
+      ladders,
+      setOffsetPopup,
+      snakeSoundRef,
+      oldSnakeSoundRef,
+      ladderSoundRef,
+      badLuckSoundRef,
+      muted,
+      FINAL_TILE,
+      playerIndex: index,
+      currentPosition: current,
+      stepDurationMs: 430,
+      startStepAnimation: ({ from, to, type, duration, onComplete }) =>
+        requestSlideAnimation({
+          playerIndex: index,
+          from,
+          to,
+          type,
+          duration,
+          onComplete
+        }),
+      startSlide: ({ from, to, type, onComplete }) =>
+        requestSlideAnimation({
+          playerIndex: index,
+          from,
+          to,
+          type,
+          onComplete
+        })
+    };
+
+    const finalizeMove = async (finalPos, type, effectStart) => {
+      const effectOrigin = Number.isFinite(effectStart) ? effectStart : finalPos;
+      positions[index - 1] = finalPos;
+      setAiPositions([...positions]);
+      setHighlight({ cell: finalPos, type, color: playerColors[index] });
+      setTrail([]);
+      const victims = capturePieces(finalPos, index, { attackerFrom: current });
+      if (victims.length) {
+        const victimLabel = getPlayerName(victims[0]);
+        enqueueSnakeCommentaryEvent('capture', { player: playerLabel, victim: victimLabel });
+      }
+      if (type === 'ladder') {
+        enqueueSnakeCommentaryEvent('ladder', {
+          player: playerLabel,
+          from: effectOrigin,
+          to: finalPos,
+          delta: finalPos - effectOrigin
         });
-        if (victims.length) {
-          const victimLabel = getPlayerName(victims[0]);
-          enqueueSnakeCommentaryEvent('capture', {
-            player: playerLabel,
-            victim: victimLabel
-          });
+      }
+      if (type === 'snake') {
+        enqueueSnakeCommentaryEvent('snake', {
+          player: playerLabel,
+          from: effectOrigin,
+          to: finalPos,
+          delta: effectOrigin - finalPos
+        });
+      }
+      setTimeout(() => setHighlight(null), 2300);
+      if (finalPos === FINAL_TILE && !ranking.some((r) => r.name === getPlayerName(index))) {
+        const first = ranking.length === 0;
+        const name = getPlayerName(index);
+        const avatar = getPlayerAvatar(index);
+        const winAmt = Math.round(pot * (ai + 1) * 0.91);
+        setRanking((r) => [...r, { name, photoUrl: avatar, amount: first ? winAmt : 0 }]);
+        if (first) {
+          await awardDevShare(pot * (ai + 1));
+          setGameOver(true);
         }
-        if (type === 'ladder') {
-          enqueueSnakeCommentaryEvent('ladder', {
-            player: playerLabel,
-            from: effectOrigin,
-            to: finalPos,
-            delta: finalPos - effectOrigin
-          });
-        }
-        if (type === 'snake') {
-          enqueueSnakeCommentaryEvent('snake', {
-            player: playerLabel,
-            from: effectOrigin,
-            to: finalPos,
-            delta: effectOrigin - finalPos
-          });
-        }
-        setTimeout(() => setHighlight(null), 2300);
-        if (
-          finalPos === FINAL_TILE &&
-          !ranking.some((r) => r.name === getPlayerName(index))
-        ) {
-          const first = ranking.length === 0;
-          const name = getPlayerName(index);
-          const avatar = getPlayerAvatar(index);
-          const winAmt = Math.round(pot * (ai + 1) * 0.91);
-          setRanking((r) => [
-            ...r,
-            { name, photoUrl: avatar, amount: first ? winAmt : 0 }
-          ]);
-          if (first) {
-            await awardDevShare(pot * (ai + 1));
-            setGameOver(true);
-          }
-          setMessage(`${name} wins!`);
-          enqueueSnakeCommentaryEvent('win', { player: playerLabel });
-          setDiceVisible(false);
-          setMoving(false);
-          return;
-        }
-        let extraTurn = false;
-        if (diceCells[finalPos]) {
-          const bonus = diceCells[finalPos];
-          setDiceCells((d) => {
-            const n = { ...d };
-            delete n[finalPos];
-            return n;
-          });
-          setBonusDice(bonus);
-          setRewardDice(bonus);
-          setTurnMessage('Bonus roll');
-          extraTurn = true;
-          if (!muted) {
-            diceRewardSoundRef.current?.play().catch(() => {});
-            yabbaSoundRef.current?.play().catch(() => {});
-          }
-          setTimeout(() => setRewardDice(0), 1000);
-          enqueueSnakeCommentaryEvent('bonus', { player: playerLabel });
-        } else if (rolledSix) {
-          extraTurn = true;
-          enqueueSnakeCommentaryEvent('bonus', { player: playerLabel });
-        }
-        const next = extraTurn ? index : getPreviousTurn(index);
-        if (next === 0) setTurnMessage('Your turn');
-        setDiceVisible(true);
+        setMessage(`${name} wins!`);
+        enqueueSnakeCommentaryEvent('win', { player: playerLabel });
+        setDiceVisible(false);
         setMoving(false);
-        setRollingIndex(null);
+        return;
+      }
+      let extraTurn = false;
+      if (diceCells[finalPos]) {
+        const bonus = diceCells[finalPos];
+        setDiceCells((d) => {
+          const n = { ...d };
+          delete n[finalPos];
+          return n;
+        });
+        setBonusDice(bonus);
+        setRewardDice(bonus);
+        setTurnMessage('Bonus roll');
+        extraTurn = true;
+        if (!muted) {
+          diceRewardSoundRef.current?.play().catch(() => {});
+          yabbaSoundRef.current?.play().catch(() => {});
+        }
+        setTimeout(() => setRewardDice(0), 1000);
+        enqueueSnakeCommentaryEvent('bonus', { player: playerLabel });
+      } else if (rolledSix) {
+        extraTurn = true;
+        enqueueSnakeCommentaryEvent('bonus', { player: playerLabel });
+      }
+      const next = extraTurn ? index : getPreviousTurn(index);
+      if (next === 0) setTurnMessage('Your turn');
+      if (extraTurn) {
         setCurrentTurn(next);
         setDiceCount(playerDiceCounts[next] ?? 1);
-        if (extraTurn && next === index) {
-          setTimeout(() => triggerAIRoll(index), AI_EXTRA_ROLL_DELAY_MS);
-        }
-      };
+      }
+      setDiceVisible(true);
+      setMoving(false);
+      if (extraTurn && next === index) {
+        setTimeout(() => triggerAIRoll(index), AI_EXTRA_ROLL_DELAY_MS);
+      }
+    };
 
-      const applyEffect = (startPos) =>
-        applyEffectHelper(startPos, ctx, (finalPos, type) =>
-          finalizeMove(finalPos, type, startPos)
-        );
+    const applyEffect = (startPos) =>
+      applyEffectHelper(startPos, ctx, (finalPos, type) => finalizeMove(finalPos, type, startPos));
 
-      moveSeq(steps, 'normal', ctx, () => applyEffect(target), 'forward');
+    moveSeq(steps, 'normal', ctx, () => applyEffect(target), 'forward');
     }, DICE_RESULT_HOLD_MS);
   };
 
@@ -4305,6 +4225,7 @@ export default function SnakeAndLadder() {
                 handleRoll(vals);
                 setBonusDice(0);
               }
+              setRollingIndex(null);
               setPlayerAutoRolling(false);
             }}
             onRollStart={() => {
