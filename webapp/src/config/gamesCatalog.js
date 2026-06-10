@@ -1,5 +1,20 @@
 const gamesCatalog = [
   {
+    name: 'Real Bowling',
+    route: '/games/bowling/lobby',
+    slug: 'bowling',
+    image: '/assets/icons/air-hockey.svg',
+    description: 'Portrait-friendly 3D bowling with swipe aim and power.'
+  },
+
+  {
+    name: 'Tennis',
+    route: '/games/tennis/lobby',
+    slug: 'tennis',
+    image: '/assets/icons/tennis-icon.svg',
+    description: '3D tennis rally with swipe controls and physics.'
+  },
+  {
     name: "Texas Hold'em",
     route: '/games/texasholdem/lobby',
     slug: 'texasholdem',
