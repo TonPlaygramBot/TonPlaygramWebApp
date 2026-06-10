@@ -1179,8 +1179,8 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
   );
 const MARKINGS_MM_TO_UNITS = innerLong / WIDTH_REF;
 const OBJECT_MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_MM_TO_UNITS = OBJECT_MM_TO_UNITS; // official snooker balls use the same table millimetre mapping as the 3569mm playfield
-const BALL_SIZE_SCALE = 1; // keep Snooker Royal balls at the official 52.5mm diameter, with no gameplay shrink
+const BALL_MM_TO_UNITS = OBJECT_MM_TO_UNITS / SNOOKER_TABLE_FOOTPRINT_ENLARGE; // preserve the previous ball size while the table expands
+const BALL_SIZE_SCALE = 0.965; // trim Snooker Royal balls just a bit smaller while keeping the table/pocket mapping full-size
 const BALL_DIAMETER = BALL_D_REF * BALL_MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -1240,8 +1240,8 @@ console.assert(
   'Side pocket mouth width mismatch.'
 );
 console.assert(
-  Math.abs(BALL_DIAMETER - BALL_D_REF * OBJECT_MM_TO_UNITS) <= BALL_DIAMETER_TOLERANCE,
-  'Ball diameter must remain the official 52.5mm size on the snooker table millimetre mapping.'
+  Math.abs(BALL_DIAMETER - BALL_D_REF * BALL_MM_TO_UNITS * BALL_SIZE_SCALE) <= BALL_DIAMETER_TOLERANCE,
+  'Ball diameter must match the configured Snooker Royal ball size scale.'
 );
 console.assert(
   Math.abs(BALL_DIAMETER - BALL_R * 2) <= BALL_DIAMETER_TOLERANCE,
