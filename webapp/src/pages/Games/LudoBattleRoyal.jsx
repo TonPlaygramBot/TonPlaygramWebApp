@@ -293,6 +293,8 @@ const UNIFORM_FIREARM_RACK_GRIP_ANCHOR = Object.freeze({
   position: [0.086, 0.008, -0.02],
   minSurfaceY: 0
 });
+const PARKED_FIREARM_HOLDER_LOCAL_POSITION = Object.freeze([0.04, 0.004, -0.018]);
+const PARKED_FIREARM_HIT_LOCAL_POSITION = Object.freeze([...PARKED_FIREARM_HOLDER_LOCAL_POSITION]);
 
 const FIREARM_RACK_MUZZLE_YAW_CORRECTION_BY_ID = Object.freeze({
   // Gunify's AK-47 GLTF imports with the stock/muzzle reversed after the flat-table
@@ -2064,8 +2066,10 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
 async function createCaptureWeaponRackFx() {
   const root = new THREE.Group();
   const weaponHolder = new THREE.Group();
-  weaponHolder.position.set(0.04, 0.004, -0.018);
+  // Park every selected firearm in the same local table slot that the legacy rack used.
+  weaponHolder.position.set(...PARKED_FIREARM_HOLDER_LOCAL_POSITION);
   weaponHolder.rotation.set(0, 0, 0);
+  weaponHolder.visible = true;
   root.add(weaponHolder);
 
   const buttonBase = new THREE.Mesh(
@@ -2096,7 +2100,11 @@ async function createCaptureWeaponRackFx() {
     new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 })
   );
   weaponRackHit.name = 'captureWeaponRackHit';
-  weaponRackHit.position.set(0.04, 0.01, -0.018);
+  weaponRackHit.position.set(
+    PARKED_FIREARM_HIT_LOCAL_POSITION[0],
+    0.01,
+    PARKED_FIREARM_HIT_LOCAL_POSITION[2]
+  );
   root.add(weaponRackHit);
 
   return {
@@ -2112,21 +2120,29 @@ async function createCaptureWeaponRackFx() {
 async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
   if (!entry?.weaponHolder) return;
   if (!FIREARM_CAPTURE_ANIMATION_IDS.has(captureAnimationId)) {
+    entry.weaponDisplayRequestId = (entry.weaponDisplayRequestId ?? 0) + 1;
     entry.weaponHolder.children.forEach((child) => {
       stopCaptureWeaponMixersForObjectTree(child, entry.weaponAnimationMixers);
     });
     entry.weaponHolder.clear();
+    entry.weaponHolder.visible = false;
     entry.selectedCaptureAnimationId = null;
     return;
   }
+  entry.weaponHolder.visible = true;
   if (entry.selectedCaptureAnimationId === captureAnimationId && entry.weaponHolder.children.length > 0) return;
+  const requestId = (entry.weaponDisplayRequestId ?? 0) + 1;
+  entry.weaponDisplayRequestId = requestId;
   entry.weaponHolder.children.forEach((child) => {
     stopCaptureWeaponMixersForObjectTree(child, entry.weaponAnimationMixers);
   });
   entry.weaponHolder.clear();
+  entry.selectedCaptureAnimationId = null;
   const weaponModel = await loadCaptureWeaponModel(captureAnimationId);
+  if (entry.weaponDisplayRequestId !== requestId) return;
   if (!weaponModel) {
     entry.selectedCaptureAnimationId = null;
+    entry.weaponHolder.visible = false;
     return;
   }
   entry.selectedCaptureAnimationId = captureAnimationId;
@@ -2162,6 +2178,7 @@ async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
   if (!Number.isFinite(stabilizedCenter.x) || !Number.isFinite(stabilizedCenter.y) || !Number.isFinite(stabilizedCenter.z) || stabilizedCenter.length() > 0.32) {
     clone.position.set(displayPosition[0], displayPosition[1], displayPosition[2]);
   }
+  entry.weaponHolder.visible = true;
   entry.weaponHolder.add(clone);
 }
 
@@ -8782,14 +8799,19 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           entry.weaponRackHit.visible = showFirearm;
         }
         if (showFirearm) {
+          if (entry.weaponHolder?.isObject3D) entry.weaponHolder.visible = true;
           void applyCaptureWeaponDisplay(entry, selectedCaptureAnimationId).then(() => {
-            refreshWeaponRackPose(entry, selectedCaptureAnimationId);
+            if (entry.selectedCaptureAnimationId === selectedCaptureAnimationId) {
+              refreshWeaponRackPose(entry, selectedCaptureAnimationId);
+            }
           });
         } else {
+          entry.weaponDisplayRequestId = (entry.weaponDisplayRequestId ?? 0) + 1;
           entry?.weaponHolder?.children?.forEach?.((child) => {
             stopCaptureWeaponMixersForObjectTree(child, entry.weaponAnimationMixers);
           });
           entry.weaponHolder?.clear?.();
+          if (entry.weaponHolder?.isObject3D) entry.weaponHolder.visible = false;
           entry.selectedCaptureAnimationId = null;
           refreshWeaponRackPose(entry, selectedCaptureAnimationId);
         }
@@ -8895,6 +8917,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         actionButtonHit: weaponRackFx.actionButtonHit ?? null,
         weaponRackHit: weaponRackFx.weaponRackHit ?? null,
         selectedCaptureAnimationId: null,
+        weaponDisplayRequestId: 0,
         helicopterRotor: helicopterFx.rotor ?? null,
         helicopterTailRotor: helicopterFx.tailRotor ?? null,
         helicopterRotorNodes: Array.isArray(helicopterFx.rotorNodes) ? helicopterFx.rotorNodes : [],
