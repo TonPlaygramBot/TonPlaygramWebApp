@@ -100,6 +100,12 @@ const SnookerRoyal = React.lazy(() => import('./pages/Games/SnookerRoyal.jsx'));
 const SnookerRoyalLobby = React.lazy(
   () => import('./pages/Games/SnookerRoyalLobby.jsx')
 );
+const Tennis = React.lazy(() => import('./pages/Games/Tennis.tsx'));
+const TennisLobby = React.lazy(() => import('./pages/Games/TennisLobby.jsx'));
+const BowlingRealistic = React.lazy(
+  () => import('./pages/Games/BowlingRealistic.tsx')
+);
+const BowlingLobby = React.lazy(() => import('./pages/Games/BowlingLobby.jsx'));
 const ShootingRange = React.lazy(
   () => import('./pages/Games/ShootingRange.tsx')
 );
@@ -420,6 +426,24 @@ export default function App() {
                 element={
                   <GameLiveAvatarOverlay gameSlug="snookerroyale">
                     <SnookerRoyal />
+                  </GameLiveAvatarOverlay>
+                }
+              />
+              <Route path="/games/tennis/lobby" element={<TennisLobby />} />
+              <Route
+                path="/games/tennis"
+                element={
+                  <GameLiveAvatarOverlay gameSlug="tennis">
+                    <Tennis />
+                  </GameLiveAvatarOverlay>
+                }
+              />
+              <Route path="/games/bowling/lobby" element={<BowlingLobby />} />
+              <Route
+                path="/games/bowling"
+                element={
+                  <GameLiveAvatarOverlay gameSlug="bowling">
+                    <BowlingRealistic />
                   </GameLiveAvatarOverlay>
                 }
               />

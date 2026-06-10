@@ -23,6 +23,7 @@ export const gameThumbnails = {
   fourinrowroyale: '/assets/icons/four-in-row-royale.svg',
   tavullbattleroyal: '/assets/icons/Backgammonroyallogo.png',
   ludobattleroyal: '/assets/icons/Ludo%20battle%20Royal%20game%20logo.png',
+  tennis: '/assets/icons/tennis-icon.svg',
   shootingrange: '/assets/icons/shooting-range.svg',
 };
 
