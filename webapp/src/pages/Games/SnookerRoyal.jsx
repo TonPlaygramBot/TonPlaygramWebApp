@@ -1180,7 +1180,7 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
 const MARKINGS_MM_TO_UNITS = innerLong / WIDTH_REF;
 const OBJECT_MM_TO_UNITS = innerLong / WIDTH_REF;
 const BALL_MM_TO_UNITS = OBJECT_MM_TO_UNITS / SNOOKER_TABLE_FOOTPRINT_ENLARGE; // preserve the previous ball size while the table expands
-const BALL_SIZE_SCALE = 1; // keep Snooker Royal balls the same size while the table and mappings expand
+const BALL_SIZE_SCALE = 0.965; // trim Snooker Royal balls just a bit smaller while keeping the table/pocket mapping full-size
 const BALL_DIAMETER = BALL_D_REF * BALL_MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -1188,8 +1188,8 @@ const ENABLE_BALL_FLOOR_SHADOWS = true;
 const BALL_SHADOW_RADIUS_MULTIPLIER = 0.92;
 const BALL_SHADOW_OPACITY = 0.25;
 const BALL_SHADOW_LIFT = BALL_R * 0.02;
-const SIDE_POCKET_EXTRA_SHIFT = TABLE.THICK * 0.17; // align middle pocket centres flush with the reference layout
-const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.34; // push the middle pocket centres and cloth cutouts slightly outward away from the table midpoint
+const SIDE_POCKET_EXTRA_SHIFT = 0; // keep middle pocket centres on the measured playfield edge for true cushion-jaw mapping
+const SIDE_POCKET_OUTWARD_BIAS = 0; // keep side pocket bowls, jaws, and sensors on the actual table mouth centreline
 const SIDE_POCKET_FIELD_PULL = 0; // gently bias the middle pocket centres and cuts back toward the playfield
 const SIDE_POCKET_CLOTH_INWARD_PULL = 0; // keep the middle cloth cutouts, pocket bowls, nets, and physics sensors on the same vertical line
 const CHALK_TOP_COLOR = 0xd9c489;
@@ -1206,7 +1206,7 @@ const CHALK_RING_OPACITY = 0.18;
 const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MARKINGS_MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MARKINGS_MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MARKINGS_MM_TO_UNITS;
-const SNOOKER_POCKET_MOUTH_ENLARGE = 1.12; // make all six pockets a bit larger for the bigger table
+const SNOOKER_POCKET_MOUTH_ENLARGE = 1; // keep all six pocket mouths on the real snooker cushion-template size
 const POCKET_CORNER_MOUTH_SCALE =
   CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE * SNOOKER_POCKET_MOUTH_ENLARGE;
 const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 1; // keep side pockets proportional to the enlarged corner mouths
@@ -5613,8 +5613,8 @@ const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.9;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.86;
-const STANDING_VIEW_DISTANCE_SCALE = 0.078; // pull the standing camera even closer so the table fills portrait screens
-const STANDING_VIEW_REFIT_DISTANCE_SCALE = 0.44; // keep resize/refit standing framing closer to the table
+const STANDING_VIEW_DISTANCE_SCALE = 0.36; // match Pool Royale standing-camera dolly so lowering the camera also moves closer to the table
+const STANDING_VIEW_REFIT_DISTANCE_SCALE = STANDING_VIEW_DISTANCE_SCALE; // refits keep the same Pool Royale close standing-camera feel
 const CUE_VISIBLE_CAMERA_BLEND_THRESHOLD = 0.985; // show the table cue as soon as the portrait camera is lowered even a tiny bit
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
@@ -5748,7 +5748,8 @@ const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 1.3;
 const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.32; // restore the 9pm in-hand orbit framing for cue-ball placement
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
-const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.42; // nudge forward slightly at the floor of the cue view, then stop
+const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.36; // match Pool Royale's cue-floor slide while keeping the lowered view close
+const STANDING_TO_CUE_FORWARD_PUSH = CAMERA.minR * 0.1; // gently push forward as the standing view lowers toward cue view
 const CUE_VIEW_FORWARD_SLIDE_BLEND_FADE = 0.32;
 const CUE_VIEW_FORWARD_SLIDE_RESET_BLEND = 0.45;
 const CUE_VIEW_SPIN_ZOOM = 0;
@@ -18136,6 +18137,19 @@ const powerRef = useRef(hud.power);
               minRadiusForRails != null
                 ? Math.max(adjusted, minRadiusForRails)
                 : adjusted;
+          }
+          if (STANDING_TO_CUE_FORWARD_PUSH > 1e-6) {
+            const forwardPush = STANDING_TO_CUE_FORWARD_PUSH * (1 - blend);
+            if (forwardPush > 1e-6) {
+              const adjusted = clampOrbitRadius(
+                finalRadius - forwardPush,
+                cueMinRadius
+              );
+              finalRadius =
+                minRadiusForRails != null
+                  ? Math.max(adjusted, minRadiusForRails)
+                  : adjusted;
+            }
           }
           const tiltZoom = CAMERA_TILT_ZOOM * (1 - phiProgress);
           if (tiltZoom > 1e-5) {
