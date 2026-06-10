@@ -206,6 +206,19 @@ describe('cross-game inventory alignment', () => {
   });
 
 
+  test('ludo battle royal parks each firearm beside player token rails with opposite-side aim', async () => {
+    const source = await readFile('webapp/src/pages/Games/LudoBattleRoyal.jsx', 'utf8');
+
+    expect(source).toContain('FIREARM_TOKEN_RAIL_SIDE_OFFSET');
+    expect(source).toContain("Put the parked weapon on the same tabletop rail as the player's home tokens and dice.");
+    expect(source).toContain('Pull it slightly toward the board so the handle remains on the character side for pickup.');
+    expect(source).toContain('const FIREARM_RACK_OPPOSITE_SEAT_TARGET_BY_PLAYER = Object.freeze({');
+    expect(source).toContain('1: 3');
+    expect(source).toContain('3: 1');
+    expect(source).toContain('orientWeaponHolderTowardBoardCenter(entry, firearmAimTarget);');
+  });
+
+
   test('ludo battle royal pins Gunify weapon loading to the May 9 texture baseline', async () => {
     const source = await readFile('webapp/src/pages/Games/LudoBattleRoyal.jsx', 'utf8');
     const may9Ref = '27232cf389a2be3f8f476c667cb293e978aaf5f9';
