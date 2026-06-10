@@ -138,8 +138,7 @@ const CAPTURE_PARK_SCALE_BY_TYPE = Object.freeze({
   missile: 1.2,
   drone: 1.2
 });
-const CAPTURE_AIR_ATTACK_ID_SET = new Set(['fighterJetAttack', 'helicopterAttack', 'droneAttack', 'ukrainianDroneAttack', 'missileJavelin']);
-const UKRAINIAN_DRONE_CAPTURE_ANIMATION_IDS = new Set(['ukrainianDroneAttack']);
+const CAPTURE_AIR_ATTACK_ID_SET = new Set(['fighterJetAttack', 'helicopterAttack', 'droneAttack', 'missileJavelin']);
 const FIREARM_CAPTURE_ANIMATION_IDS = new Set([
   'assaultRifleAttack',
   'fpsGunAttack',
@@ -294,8 +293,6 @@ const UNIFORM_FIREARM_RACK_GRIP_ANCHOR = Object.freeze({
   position: [0.086, 0.008, -0.02],
   minSurfaceY: 0
 });
-const PARKED_FIREARM_HOLDER_LOCAL_POSITION = Object.freeze([0.04, 0.004, -0.018]);
-const PARKED_FIREARM_HIT_LOCAL_POSITION = Object.freeze([...PARKED_FIREARM_HOLDER_LOCAL_POSITION]);
 
 const FIREARM_RACK_MUZZLE_YAW_CORRECTION_BY_ID = Object.freeze({
   // Gunify's AK-47 GLTF imports with the stock/muzzle reversed after the flat-table
@@ -2067,10 +2064,8 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
 async function createCaptureWeaponRackFx() {
   const root = new THREE.Group();
   const weaponHolder = new THREE.Group();
-  // Park every selected firearm in the same local table slot that the legacy rack used.
-  weaponHolder.position.set(...PARKED_FIREARM_HOLDER_LOCAL_POSITION);
+  weaponHolder.position.set(0.04, 0.004, -0.018);
   weaponHolder.rotation.set(0, 0, 0);
-  weaponHolder.visible = true;
   root.add(weaponHolder);
 
   const buttonBase = new THREE.Mesh(
@@ -2101,11 +2096,7 @@ async function createCaptureWeaponRackFx() {
     new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 })
   );
   weaponRackHit.name = 'captureWeaponRackHit';
-  weaponRackHit.position.set(
-    PARKED_FIREARM_HIT_LOCAL_POSITION[0],
-    0.01,
-    PARKED_FIREARM_HIT_LOCAL_POSITION[2]
-  );
+  weaponRackHit.position.set(0.04, 0.01, -0.018);
   root.add(weaponRackHit);
 
   return {
@@ -2121,29 +2112,21 @@ async function createCaptureWeaponRackFx() {
 async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
   if (!entry?.weaponHolder) return;
   if (!FIREARM_CAPTURE_ANIMATION_IDS.has(captureAnimationId)) {
-    entry.weaponDisplayRequestId = (entry.weaponDisplayRequestId ?? 0) + 1;
     entry.weaponHolder.children.forEach((child) => {
       stopCaptureWeaponMixersForObjectTree(child, entry.weaponAnimationMixers);
     });
     entry.weaponHolder.clear();
-    entry.weaponHolder.visible = false;
     entry.selectedCaptureAnimationId = null;
     return;
   }
-  entry.weaponHolder.visible = true;
   if (entry.selectedCaptureAnimationId === captureAnimationId && entry.weaponHolder.children.length > 0) return;
-  const requestId = (entry.weaponDisplayRequestId ?? 0) + 1;
-  entry.weaponDisplayRequestId = requestId;
   entry.weaponHolder.children.forEach((child) => {
     stopCaptureWeaponMixersForObjectTree(child, entry.weaponAnimationMixers);
   });
   entry.weaponHolder.clear();
-  entry.selectedCaptureAnimationId = null;
   const weaponModel = await loadCaptureWeaponModel(captureAnimationId);
-  if (entry.weaponDisplayRequestId !== requestId) return;
   if (!weaponModel) {
     entry.selectedCaptureAnimationId = null;
-    entry.weaponHolder.visible = false;
     return;
   }
   entry.selectedCaptureAnimationId = captureAnimationId;
@@ -2179,7 +2162,6 @@ async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
   if (!Number.isFinite(stabilizedCenter.x) || !Number.isFinite(stabilizedCenter.y) || !Number.isFinite(stabilizedCenter.z) || stabilizedCenter.length() > 0.32) {
     clone.position.set(displayPosition[0], displayPosition[1], displayPosition[2]);
   }
-  entry.weaponHolder.visible = true;
   entry.weaponHolder.add(clone);
 }
 
@@ -4400,10 +4382,10 @@ const SEATED_HELPER_FACE_CAMERA_UP = 0.146 * MODEL_SCALE;
 const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.072 * MODEL_SCALE;
 // The bottom-seat gameplay camera is intentionally raised and pushed farther toward the table so
 // portrait players see over the local avatar and closer into the Ludo board/action area.
-const SEATED_FACE_CAMERA_GAMEPLAY_FORWARD = 0.365 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_FORWARD = 0.335 * MODEL_SCALE;
 // Lift the human player's locked first-person camera higher so portrait gameplay has a clearer
 // over-the-table view of the dice, tokens, and board while staying only slightly closer.
-const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.76 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.72 * MODEL_SCALE;
 const SEATED_FACE_CAMERA_GAMEPLAY_LOOK_DOWN = 0.37 * MODEL_SCALE;
 const SEATED_CONTACT_IK_ITERATIONS = 9;
 const SEATED_CONTACT_IK_MAX_STEP_RAD = 0.34;
@@ -4452,7 +4434,7 @@ function resolvePlayerColors(appearance = {}) {
   return PLAYER_COLOR_ORDER.map((_, idx) => normalizeColorValue(swatches[idx], DEFAULT_PLAYER_COLORS[idx]));
 }
 
-const CAMERA_FOV = 78;
+const CAMERA_FOV = 75;
 const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
 const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
 const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
@@ -4498,8 +4480,8 @@ const LANDSCAPE_CAMERA_TUNING = Object.freeze({
 });
 const PORTRAIT_CAMERA_TUNING = Object.freeze({
   backOffset: PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT,
-  forwardOffset: PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT + 0.1,
-  heightOffset: PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT + 0.06,
+  forwardOffset: PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT,
+  heightOffset: PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT,
   targetLift: 0.03 * MODEL_SCALE
 });
 const CAMERA_EXTRA_PULLBACK = 0.1;
@@ -8774,7 +8756,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         CAPTURE_ANIMATION_OPTIONS[optionIndex]?.id ?? CAPTURE_ANIMATION_OPTIONS[0]?.id ?? 'missileJavelin';
       if (entry?.jet) entry.jet.visible = selectedCaptureAnimationId === 'fighterJetAttack';
       if (entry?.helicopter) entry.helicopter.visible = selectedCaptureAnimationId === 'helicopterAttack';
-      if (entry?.drone) entry.drone.visible = UKRAINIAN_DRONE_CAPTURE_ANIMATION_IDS.has(selectedCaptureAnimationId);
+      if (entry?.drone) entry.drone.visible = false;
       if (entry?.droneTruck) entry.droneTruck.visible = selectedCaptureAnimationId === 'droneAttack';
       if (entry?.missile) entry.missile.visible = selectedCaptureAnimationId === 'missileJavelin';
       if (entry?.weaponRack) {
@@ -8800,19 +8782,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           entry.weaponRackHit.visible = showFirearm;
         }
         if (showFirearm) {
-          if (entry.weaponHolder?.isObject3D) entry.weaponHolder.visible = true;
           void applyCaptureWeaponDisplay(entry, selectedCaptureAnimationId).then(() => {
-            if (entry.selectedCaptureAnimationId === selectedCaptureAnimationId) {
-              refreshWeaponRackPose(entry, selectedCaptureAnimationId);
-            }
+            refreshWeaponRackPose(entry, selectedCaptureAnimationId);
           });
         } else {
-          entry.weaponDisplayRequestId = (entry.weaponDisplayRequestId ?? 0) + 1;
           entry?.weaponHolder?.children?.forEach?.((child) => {
             stopCaptureWeaponMixersForObjectTree(child, entry.weaponAnimationMixers);
           });
           entry.weaponHolder?.clear?.();
-          if (entry.weaponHolder?.isObject3D) entry.weaponHolder.visible = false;
           entry.selectedCaptureAnimationId = null;
           refreshWeaponRackPose(entry, selectedCaptureAnimationId);
         }
@@ -8918,7 +8895,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         actionButtonHit: weaponRackFx.actionButtonHit ?? null,
         weaponRackHit: weaponRackFx.weaponRackHit ?? null,
         selectedCaptureAnimationId: null,
-        weaponDisplayRequestId: 0,
         helicopterRotor: helicopterFx.rotor ?? null,
         helicopterTailRotor: helicopterFx.tailRotor ?? null,
         helicopterRotorNodes: Array.isArray(helicopterFx.rotorNodes) ? helicopterFx.rotorNodes : [],
