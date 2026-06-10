@@ -280,6 +280,28 @@ describe('cross-game inventory alignment', () => {
     expect(materialSetup).not.toContain('material.opacity = 1');
   });
 
+
+  test('ludo battle royal parks each selected firearm in the legacy table slot and ignores stale loads', async () => {
+    const source = await readFile('webapp/src/pages/Games/LudoBattleRoyal.jsx', 'utf8');
+
+    expect(source).toContain('const PARKED_FIREARM_HOLDER_LOCAL_POSITION = Object.freeze([0.04, 0.004, -0.018])');
+    expect(source).toContain('weaponHolder.position.set(...PARKED_FIREARM_HOLDER_LOCAL_POSITION);');
+    expect(source).toContain('if (entry.weaponDisplayRequestId !== requestId || entry.selectedCaptureAnimationId !== captureAnimationId) return;');
+    expect(source).toContain('createParkedFirearmFallbackModel(captureAnimationId)');
+    expect(source).toContain('installParkedCaptureWeaponModel(entry, weaponModel, captureAnimationId);');
+    expect(source).toContain('entry.weaponHolder.visible = true;');
+    expect(source).toContain('if (entry.selectedCaptureAnimationId === selectedCaptureAnimationId) {');
+  });
+
+  test('ludo battle royal keeps portrait camera higher, closer, and wider without adding pullback', async () => {
+    const source = await readFile('webapp/src/pages/Games/LudoBattleRoyal.jsx', 'utf8');
+
+    expect(source).toContain('const CAMERA_FOV = 79;');
+    expect(source).toContain('const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 2.46;');
+    expect(source).toContain('const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.36;');
+    expect(source).toContain('const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.18;');
+  });
+
   test('snake store mirrors ludo battle royal capture weapons', () => {
     const snakeCaptureStoreIds = new Set(
       SNAKE_STORE_ITEMS.filter((item) => item.type === 'captureWeapon').map((item) => item.optionId)
