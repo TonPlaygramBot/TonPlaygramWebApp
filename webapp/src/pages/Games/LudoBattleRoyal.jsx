@@ -138,9 +138,7 @@ const CAPTURE_PARK_SCALE_BY_TYPE = Object.freeze({
   missile: 1.2,
   drone: 1.2
 });
-const UKRAINIAN_DRONE_CAPTURE_ID = 'ukrainianDroneAttack';
-const DRONE_CAPTURE_ANIMATION_IDS = new Set(['droneAttack', UKRAINIAN_DRONE_CAPTURE_ID]);
-const CAPTURE_AIR_ATTACK_ID_SET = new Set(['fighterJetAttack', 'helicopterAttack', ...DRONE_CAPTURE_ANIMATION_IDS, 'missileJavelin']);
+const CAPTURE_AIR_ATTACK_ID_SET = new Set(['fighterJetAttack', 'helicopterAttack', 'droneAttack', 'missileJavelin']);
 const FIREARM_CAPTURE_ANIMATION_IDS = new Set([
   'assaultRifleAttack',
   'fpsGunAttack',
@@ -295,8 +293,6 @@ const UNIFORM_FIREARM_RACK_GRIP_ANCHOR = Object.freeze({
   position: [0.086, 0.008, -0.02],
   minSurfaceY: 0
 });
-const PARKED_FIREARM_HOLDER_LOCAL_POSITION = Object.freeze([0.04, 0.004, -0.018]);
-const PARKED_FIREARM_HIT_LOCAL_POSITION = Object.freeze([...PARKED_FIREARM_HOLDER_LOCAL_POSITION]);
 
 const FIREARM_RACK_MUZZLE_YAW_CORRECTION_BY_ID = Object.freeze({
   // Gunify's AK-47 GLTF imports with the stock/muzzle reversed after the flat-table
@@ -1316,7 +1312,6 @@ const CAPTURE_ATTACK_TUNING = Object.freeze({
   fighterJetAttack: { speed: 1.2, height: 0.92, inward: 0.94, takeoff: 0.2, landing: 0.24 },
   helicopterAttack: { speed: 1.26, height: 0.84, inward: 0.88, takeoff: 0.24, landing: 0.28 },
   droneAttack: { speed: 1.14, height: 0.9, inward: 0.94, takeoff: 0.22, landing: 0.26 },
-  ukrainianDroneAttack: { speed: 1.14, height: 0.9, inward: 0.94, takeoff: 0.22, landing: 0.26 },
   missileJavelin: { speed: 1.12, height: 0.88, inward: 0.92, takeoff: 0.18, landing: 0.24 }
 });
 const CAPTURE_CAMERA_ZOOM_OUT_FACTOR = 1.08;
@@ -1326,7 +1321,6 @@ const HELICOPTER_AUX_ROTOR_SPIN_SPEED = 24;
 const QUICK_SWAP_WEAPON_ICON_KIND_BY_ID = Object.freeze({
   missileJavelin: 'rocket',
   droneAttack: 'drone',
-  ukrainianDroneAttack: 'drone',
   fighterJetAttack: 'jet',
   helicopterAttack: 'helicopter',
   fpsGunAttack: 'rifle',
@@ -2070,10 +2064,8 @@ async function attachFirearmToRightHand(attackerEntry, captureAnimationId) {
 async function createCaptureWeaponRackFx() {
   const root = new THREE.Group();
   const weaponHolder = new THREE.Group();
-  // Park every selected firearm in the same local table slot that the legacy rack used.
-  weaponHolder.position.set(...PARKED_FIREARM_HOLDER_LOCAL_POSITION);
+  weaponHolder.position.set(0.04, 0.004, -0.018);
   weaponHolder.rotation.set(0, 0, 0);
-  weaponHolder.visible = true;
   root.add(weaponHolder);
 
   const buttonBase = new THREE.Mesh(
@@ -2104,11 +2096,7 @@ async function createCaptureWeaponRackFx() {
     new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 })
   );
   weaponRackHit.name = 'captureWeaponRackHit';
-  weaponRackHit.position.set(
-    PARKED_FIREARM_HIT_LOCAL_POSITION[0],
-    0.01,
-    PARKED_FIREARM_HIT_LOCAL_POSITION[2]
-  );
+  weaponRackHit.position.set(0.04, 0.01, -0.018);
   root.add(weaponRackHit);
 
   return {
@@ -2124,29 +2112,21 @@ async function createCaptureWeaponRackFx() {
 async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
   if (!entry?.weaponHolder) return;
   if (!FIREARM_CAPTURE_ANIMATION_IDS.has(captureAnimationId)) {
-    entry.weaponDisplayRequestId = (entry.weaponDisplayRequestId ?? 0) + 1;
     entry.weaponHolder.children.forEach((child) => {
       stopCaptureWeaponMixersForObjectTree(child, entry.weaponAnimationMixers);
     });
     entry.weaponHolder.clear();
-    entry.weaponHolder.visible = false;
     entry.selectedCaptureAnimationId = null;
     return;
   }
-  entry.weaponHolder.visible = true;
   if (entry.selectedCaptureAnimationId === captureAnimationId && entry.weaponHolder.children.length > 0) return;
-  const requestId = (entry.weaponDisplayRequestId ?? 0) + 1;
-  entry.weaponDisplayRequestId = requestId;
   entry.weaponHolder.children.forEach((child) => {
     stopCaptureWeaponMixersForObjectTree(child, entry.weaponAnimationMixers);
   });
   entry.weaponHolder.clear();
-  entry.selectedCaptureAnimationId = null;
   const weaponModel = await loadCaptureWeaponModel(captureAnimationId);
-  if (entry.weaponDisplayRequestId !== requestId) return;
   if (!weaponModel) {
     entry.selectedCaptureAnimationId = null;
-    entry.weaponHolder.visible = false;
     return;
   }
   entry.selectedCaptureAnimationId = captureAnimationId;
@@ -2182,7 +2162,6 @@ async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
   if (!Number.isFinite(stabilizedCenter.x) || !Number.isFinite(stabilizedCenter.y) || !Number.isFinite(stabilizedCenter.z) || stabilizedCenter.length() > 0.32) {
     clone.position.set(displayPosition[0], displayPosition[1], displayPosition[2]);
   }
-  entry.weaponHolder.visible = true;
   entry.weaponHolder.add(clone);
 }
 
@@ -3669,7 +3648,7 @@ const TOKEN_BREAK_PROFILE_BY_WEAPON = Object.freeze({
 
 function resolveTokenBreakProfile(weaponId = '') {
   if (FIREARM_CAPTURE_ANIMATION_IDS.has(weaponId)) return TOKEN_BREAK_PROFILE_BY_WEAPON.firearm;
-  if (weaponId === 'missileJavelin' || DRONE_CAPTURE_ANIMATION_IDS.has(weaponId)) return TOKEN_BREAK_PROFILE_BY_WEAPON.explosive;
+  if (weaponId === 'missileJavelin' || weaponId === 'droneAttack') return TOKEN_BREAK_PROFILE_BY_WEAPON.explosive;
   if (weaponId === 'fighterJetAttack' || weaponId === 'helicopterAttack') return TOKEN_BREAK_PROFILE_BY_WEAPON.aerial;
   return TOKEN_BREAK_PROFILE_BY_WEAPON.firearm;
 }
@@ -3896,7 +3875,7 @@ function spawnTokenBreakDebris({
     profileScale: clamp(profileScale, 0.55, 1.6)
   });
   const startMs = performance.now();
-  const dustCount = weaponId === 'missileJavelin' || DRONE_CAPTURE_ANIMATION_IDS.has(weaponId) ? 18 : 12;
+  const dustCount = weaponId === 'missileJavelin' || weaponId === 'droneAttack' ? 18 : 12;
   const dustClouds = Array.from({ length: dustCount }, (_, idx) => {
     const dust = new THREE.Mesh(
       new THREE.SphereGeometry(0.012 + idx * 0.0016, 10, 10),
@@ -4403,10 +4382,10 @@ const SEATED_HELPER_FACE_CAMERA_UP = 0.146 * MODEL_SCALE;
 const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.072 * MODEL_SCALE;
 // The bottom-seat gameplay camera is intentionally raised and pushed farther toward the table so
 // portrait players see over the local avatar and closer into the Ludo board/action area.
-const SEATED_FACE_CAMERA_GAMEPLAY_FORWARD = 0.36 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_FORWARD = 0.335 * MODEL_SCALE;
 // Lift the human player's locked first-person camera higher so portrait gameplay has a clearer
 // over-the-table view of the dice, tokens, and board while staying only slightly closer.
-const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.76 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.72 * MODEL_SCALE;
 const SEATED_FACE_CAMERA_GAMEPLAY_LOOK_DOWN = 0.37 * MODEL_SCALE;
 const SEATED_CONTACT_IK_ITERATIONS = 9;
 const SEATED_CONTACT_IK_MAX_STEP_RAD = 0.34;
@@ -4455,8 +4434,7 @@ function resolvePlayerColors(appearance = {}) {
   return PLAYER_COLOR_ORDER.map((_, idx) => normalizeColorValue(swatches[idx], DEFAULT_PLAYER_COLORS[idx]));
 }
 
-// Slightly wider portrait gameplay view without moving the camera farther back.
-const CAMERA_FOV = 78;
+const CAMERA_FOV = 75;
 const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
 const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
 const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
@@ -4476,7 +4454,6 @@ const CAPTURE_ATTACK_CAMERA_FRAME = Object.freeze({
   fighterJetAttack: { focusWeight: 0.52, targetLift: 0.014, followPullback: 0.082, followLift: 0.022 },
   helicopterAttack: { focusWeight: 0.56, targetLift: 0.02, followPullback: 0.068, followLift: 0.026 },
   droneAttack: { focusWeight: 0.62, targetLift: 0.016, followPullback: 0.054, followLift: 0.018 },
-  ukrainianDroneAttack: { focusWeight: 0.62, targetLift: 0.016, followPullback: 0.054, followLift: 0.018 },
   missileJavelin: { focusWeight: 0.67, targetLift: 0.012, followPullback: 0.048, followLift: 0.016 }
 });
 const CAMERA_FREE_LOOK_AZIMUTH_RANGE = THREE.MathUtils.degToRad(34);
@@ -4488,11 +4465,11 @@ const LUDO_CAMERA_PHI_MAX = 1.14;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.18;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.26;
-const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 2.42;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 2.34;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.98;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.34;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.28;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.9;
-const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_PORTRAIT = 0.45 * MODEL_SCALE;
+const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_PORTRAIT = 0.42 * MODEL_SCALE;
 const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_LANDSCAPE = 0.2 * MODEL_SCALE;
 const PLAYER_VIEW_LOOK_TARGET_FORWARD_BIAS = -0.02 * 3.22 * ARENA_SCALE;
 const LANDSCAPE_CAMERA_TUNING = Object.freeze({
@@ -7696,7 +7673,7 @@ function resolveSeatedHumanActionPose(actorState, gameState, playerIndex, nowMs)
   ) {
     const phase = normalizedPhase(nowMs, actorState.captureStartMs, actorState.captureEndMs - actorState.captureStartMs);
     const attackId = actorState.captureAnimationId;
-    const isAirAttack = CAPTURE_AIR_ATTACK_ID_SET.has(attackId);
+    const isAirAttack = CAPTURE_AIR_ATTACK_ID_SET.has(attackId) || attackId === 'missileJavelin';
     const isFirearmAttack = FIREARM_CAPTURE_ANIMATION_IDS.has(attackId);
     if (isAirAttack) {
       return {
@@ -8779,7 +8756,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         CAPTURE_ANIMATION_OPTIONS[optionIndex]?.id ?? CAPTURE_ANIMATION_OPTIONS[0]?.id ?? 'missileJavelin';
       if (entry?.jet) entry.jet.visible = selectedCaptureAnimationId === 'fighterJetAttack';
       if (entry?.helicopter) entry.helicopter.visible = selectedCaptureAnimationId === 'helicopterAttack';
-      if (entry?.drone) entry.drone.visible = selectedCaptureAnimationId === UKRAINIAN_DRONE_CAPTURE_ID;
+      if (entry?.drone) entry.drone.visible = false;
       if (entry?.droneTruck) entry.droneTruck.visible = selectedCaptureAnimationId === 'droneAttack';
       if (entry?.missile) entry.missile.visible = selectedCaptureAnimationId === 'missileJavelin';
       if (entry?.weaponRack) {
@@ -8787,7 +8764,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         const showActionButton =
           selectedCaptureAnimationId === 'fighterJetAttack' ||
           selectedCaptureAnimationId === 'helicopterAttack' ||
-          DRONE_CAPTURE_ANIMATION_IDS.has(selectedCaptureAnimationId);
+          selectedCaptureAnimationId === 'droneAttack';
         entry.weaponRack.visible = showFirearm || showActionButton;
         if (entry.actionButton?.isObject3D) {
           entry.actionButton.visible = showActionButton;
@@ -8805,19 +8782,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           entry.weaponRackHit.visible = showFirearm;
         }
         if (showFirearm) {
-          if (entry.weaponHolder?.isObject3D) entry.weaponHolder.visible = true;
           void applyCaptureWeaponDisplay(entry, selectedCaptureAnimationId).then(() => {
-            if (entry.selectedCaptureAnimationId === selectedCaptureAnimationId) {
-              refreshWeaponRackPose(entry, selectedCaptureAnimationId);
-            }
+            refreshWeaponRackPose(entry, selectedCaptureAnimationId);
           });
         } else {
-          entry.weaponDisplayRequestId = (entry.weaponDisplayRequestId ?? 0) + 1;
           entry?.weaponHolder?.children?.forEach?.((child) => {
             stopCaptureWeaponMixersForObjectTree(child, entry.weaponAnimationMixers);
           });
           entry.weaponHolder?.clear?.();
-          if (entry.weaponHolder?.isObject3D) entry.weaponHolder.visible = false;
           entry.selectedCaptureAnimationId = null;
           refreshWeaponRackPose(entry, selectedCaptureAnimationId);
         }
@@ -8923,7 +8895,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         actionButtonHit: weaponRackFx.actionButtonHit ?? null,
         weaponRackHit: weaponRackFx.weaponRackHit ?? null,
         selectedCaptureAnimationId: null,
-        weaponDisplayRequestId: 0,
         helicopterRotor: helicopterFx.rotor ?? null,
         helicopterTailRotor: helicopterFx.tailRotor ?? null,
         helicopterRotorNodes: Array.isArray(helicopterFx.rotorNodes) ? helicopterFx.rotorNodes : [],
@@ -11166,7 +11137,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               actorState?.capturePlayer === playerIndex ? actorState?.captureAnimationId : null;
             const parkedEntry = captureAttackId ? parkedCaptureVehiclesRef.current.get(playerIndex) : null;
             const isCaptureAirAttack =
-              captureAttackId && CAPTURE_AIR_ATTACK_ID_SET.has(captureAttackId);
+              captureAttackId && (CAPTURE_AIR_ATTACK_ID_SET.has(captureAttackId) || captureAttackId === 'missileJavelin');
             const captureTargetObject = isCaptureAirAttack ? parkedEntry?.actionButton : parkedEntry?.weaponHolder;
             if (captureTargetObject?.isObject3D) {
               hasContactTarget = sampleSeatedObjectContactTarget(entry, captureTargetObject, 'token', handContactTarget);
@@ -11640,8 +11611,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         };
         const captureTuning = resolveCaptureAttackTuning(resolvedCaptureAnimationId);
         const isHelicopterAttack = resolvedCaptureAnimationId === 'helicopterAttack';
-        const isDroneAttack = DRONE_CAPTURE_ANIMATION_IDS.has(resolvedCaptureAnimationId);
-        const isUkrainianDroneAttack = resolvedCaptureAnimationId === UKRAINIAN_DRONE_CAPTURE_ID;
+        const isDroneAttack = resolvedCaptureAnimationId === 'droneAttack';
         const isFighterJetAttack = resolvedCaptureAnimationId === 'fighterJetAttack';
         const isFirearmAttack = FIREARM_CAPTURE_ANIMATION_IDS.has(resolvedCaptureAnimationId);
         if (isFirearmAttack) {
@@ -12070,8 +12040,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             ? parkedEntry?.jetPark?.clone?.()
             : isHelicopterAttack
             ? parkedEntry?.helicopterPark?.clone?.()
-            : isUkrainianDroneAttack
-            ? parkedEntry?.dronePark?.clone?.()
             : isDroneAttack
             ? parkedEntry?.droneTruckPark?.clone?.() ?? parkedEntry?.dronePark?.clone?.()
             : isMissileTruckAttack
@@ -12082,9 +12050,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             ? parkedEntry?.jet
             : resolvedCaptureAnimationId === 'helicopterAttack'
             ? parkedEntry?.helicopter
-            : isUkrainianDroneAttack
-            ? parkedEntry?.drone
-            : isDroneAttack
+            : resolvedCaptureAnimationId === 'droneAttack'
             ? parkedEntry?.droneTruck ?? parkedEntry?.drone
             : resolvedCaptureAnimationId === 'missileJavelin'
             ? parkedEntry?.missile
@@ -12092,7 +12058,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         parkedReloadMissile = parkedEntry?.reloadMissile ?? null;
         parkedReloadMissileLocalPosition = parkedEntry?.reloadMissileLocalPosition ?? null;
         parkedReloadMissileLocalRotation = parkedEntry?.reloadMissileLocalRotation ?? null;
-        if (isDroneAttack && !isUkrainianDroneAttack) {
+        if (isDroneAttack) {
           const parkedPayloads = Array.isArray(parkedEntry?.droneTruckPayloads) ? parkedEntry.droneTruckPayloads : [];
           if (parkedPayloads.length > 0) {
             const nextPayloadIndex = Number.isFinite(parkedEntry?.nextDronePayloadIndex)
@@ -12110,7 +12076,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         if (isDroneAttack) playDroneSound();
         if (isFighterJetAttack) playFighterJetSound();
         const primaryFx =
-          isDroneAttack
+          resolvedCaptureAnimationId === 'droneAttack'
             ? await createCaptureDroneFx()
             : resolvedCaptureAnimationId === 'helicopterAttack'
             ? await createCaptureHelicopterFx()
@@ -12146,7 +12112,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             ? 0.34
             : resolvedCaptureAnimationId === 'helicopterAttack'
             ? 0.24
-            : isDroneAttack
+            : resolvedCaptureAnimationId === 'droneAttack'
             ? 0.26
             : 1;
         const parkedScale =
@@ -12154,7 +12120,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             ? parkedEntry?.jet?.scale
             : resolvedCaptureAnimationId === 'helicopterAttack'
             ? parkedEntry?.helicopter?.scale
-            : isDroneAttack
+            : resolvedCaptureAnimationId === 'droneAttack'
             ? parkedEntry?.drone?.scale
             : parkedEntry?.missile?.scale;
         if (parkedScale?.isVector3) {
@@ -12234,13 +12200,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             ? 2860
             : resolvedCaptureAnimationId === 'helicopterAttack'
             ? 3320
-            : isDroneAttack
+            : resolvedCaptureAnimationId === 'droneAttack'
             ? 1780
             : 1780;
         const airAttackSlowFactor =
           resolvedCaptureAnimationId === 'fighterJetAttack' ||
           resolvedCaptureAnimationId === 'helicopterAttack' ||
-          isDroneAttack
+          resolvedCaptureAnimationId === 'droneAttack'
             ? CAPTURE_AIRCRAFT_SLOW_FACTOR
             : 1;
         const travelTime =
@@ -12404,7 +12370,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               ? 0.84
             : selectedCaptureAnimationId === 'helicopterAttack'
               ? 0.84
-              : DRONE_CAPTURE_ANIMATION_IDS.has(selectedCaptureAnimationId)
+              : selectedCaptureAnimationId === 'droneAttack'
               ? 0.78
               : 0.84;
           if (elapsed < tunedTravelTime) {
@@ -12438,7 +12404,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   .add(new THREE.Vector3(0, topStrikeHeight * 0.2, 0));
                 return quadraticBezier(apex, apex.clone().lerp(flyByEnd, 0.5), flyByEnd, d);
               }
-              const isDroneStrike = DRONE_CAPTURE_ANIMATION_IDS.has(selectedCaptureAnimationId);
+              const isDroneStrike = selectedCaptureAnimationId === 'droneAttack';
               if (isDroneStrike) {
                 return quadraticBezier(apex, apex.clone().lerp(dynamicTo, 0.46), dynamicTo, d);
               }
@@ -12473,7 +12439,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             }
             const isVerticalImpactVehicle =
               selectedCaptureAnimationId === 'missileJavelin' ||
-              DRONE_CAPTURE_ANIMATION_IDS.has(selectedCaptureAnimationId);
+              selectedCaptureAnimationId === 'droneAttack';
             if (isVerticalImpactVehicle && u > phaseSplit) {
               primaryFx.root.quaternion.setFromUnitVectors(MISSILE_FORWARD, new THREE.Vector3(0, -1, 0));
             }
