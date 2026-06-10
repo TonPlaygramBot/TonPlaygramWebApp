@@ -1,7 +1,4 @@
-import {
-  POOL_ROYALE_HDRI_VARIANTS,
-  POOL_ROYALE_STORE_ITEMS,
-} from './poolRoyaleInventoryConfig.js';
+import { POOL_ROYALE_STORE_ITEMS } from './poolRoyaleInventoryConfig.js';
 import { swatchThumbnail } from './storeThumbnails.js';
 
 const DEFAULT_BOWLING_CHARACTER_SOURCE = Object.freeze({
@@ -197,34 +194,18 @@ const reduceLabels = (options) =>
     return acc;
   }, {});
 
-export const BOWLING_HDRI_VARIANTS = Object.freeze(
-  POOL_ROYALE_HDRI_VARIANTS.map((variant, index) => ({
-    ...variant,
-    id: variant.id,
-    name: variant.name,
-    description: variant.description || 'Shared Pool Royale HDRI for bowling.',
-    sourceUrl: variant.sourceUrl,
-    hdriUrl: variant.hdriUrl,
-    thumbnailUrl: variant.thumbnailUrl || variant.thumbnail,
-    priceCoins: index === 0 ? 0 : variant.priceCoins ?? variant.price ?? 450,
-    rarity: index === 0 ? 'common' : 'rare',
-  }))
-);
-
 export const BOWLING_OPTION_LABELS = Object.freeze({
-  environmentHdri: Object.freeze(reduceLabels(BOWLING_HDRI_VARIANTS.map((variant) => ({ id: variant.id, label: `${variant.name} HDRI` })))),
   tableFinish: 'Bowling Table Finish',
   chromeColor: 'Bowling Chrome Plates',
   humanCharacter: Object.freeze(reduceLabels(BOWLING_HUMAN_CHARACTER_OPTIONS)),
 });
 
 export const BOWLING_DEFAULT_LOADOUT = Object.freeze({
-  environmentHdri: BOWLING_HDRI_VARIANTS[0]?.id,
   humanCharacter: BOWLING_HUMAN_CHARACTER_OPTIONS[0]?.id,
 });
 
 const poolVisualStoreItems = POOL_ROYALE_STORE_ITEMS.filter((item) =>
-  ['environmentHdri', 'tableFinish', 'chromeColor'].includes(item.type)
+  ['tableFinish', 'chromeColor'].includes(item.type)
 );
 
 export const BOWLING_STORE_ITEMS = Object.freeze([
@@ -232,7 +213,7 @@ export const BOWLING_STORE_ITEMS = Object.freeze([
     ...item,
     id: `bowling-${item.id}`,
     game: 'bowling',
-    featured: item.type === 'environmentHdri' ? item.optionId === BOWLING_DEFAULT_LOADOUT.environmentHdri : !!item.featured,
+    featured: !!item.featured,
   })),
   ...BOWLING_HUMAN_CHARACTER_OPTIONS.slice(1).map((option, index) => ({
     id: `bowling-human-character-${option.id}`,
