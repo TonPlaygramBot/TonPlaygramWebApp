@@ -21,7 +21,7 @@ export function resolveSnookerGlbFitTransform(sourceSize = {}, targetSize = {}, 
   const xScale = targetX / sourceX;
   const yScale = targetY / sourceY;
   const zScale = targetZ / sourceZ;
-  const preserveOriginalShape = options.preserveOriginalShape !== false;
+  const preserveOriginalShape = options.preserveOriginalShape === true;
 
   if (!preserveOriginalShape) {
     return {
