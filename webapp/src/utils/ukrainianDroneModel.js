@@ -356,26 +356,58 @@ export function normalizeExactUkrainianDroneObject (model, targetLength = 4.2) {
 export function createExactUkrainianFallbackDrone () {
   const group = new THREE.Group()
   const bodyMat = new THREE.MeshStandardMaterial({ color: '#7b8792', roughness: 0.65, metalness: 0.2 })
-  const darkMat = new THREE.MeshStandardMaterial({ color: '#374151', roughness: 0.7, metalness: 0.12 })
+  const darkMat = new THREE.MeshStandardMaterial({ color: '#1f2937', roughness: 0.7, metalness: 0.16 })
+  const accentBlue = new THREE.MeshStandardMaterial({ color: '#2563eb', roughness: 0.42, metalness: 0.12 })
+  const accentYellow = new THREE.MeshStandardMaterial({ color: '#facc15', roughness: 0.42, metalness: 0.08 })
 
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 2.4, 24), bodyMat)
-  body.rotation.z = Math.PI / 2
-  body.position.y = 1.8
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.22, 0.48), bodyMat)
+  body.position.y = 1.78
   group.add(body)
 
-  const wing = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.06, 3.0), bodyMat)
-  wing.position.set(-0.1, 1.76, 0)
-  group.add(wing)
+  const battery = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.16, 0.36), darkMat)
+  battery.position.y = 1.62
+  group.add(battery)
 
-  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.55, 24), bodyMat)
-  nose.rotation.z = -Math.PI / 2
-  nose.position.set(1.45, 1.8, 0)
-  group.add(nose)
+  const armGeometry = new THREE.BoxGeometry(1.92, 0.07, 0.08)
+  ;[Math.PI / 4, -Math.PI / 4].forEach((rotationY) => {
+    const arm = new THREE.Mesh(armGeometry, bodyMat.clone())
+    arm.position.y = 1.82
+    arm.rotation.y = rotationY
+    group.add(arm)
+  })
 
-  const prop = new THREE.Mesh(new THREE.BoxGeometry(0.04, 1.1, 0.08), darkMat)
-  prop.name = 'propeller'
-  prop.position.set(-1.45, 1.8, 0)
-  group.add(prop)
+  const rotorNodes = []
+  const rotorPositions = [
+    [-0.78, 1.86, -0.78],
+    [0.78, 1.86, -0.78],
+    [-0.78, 1.86, 0.78],
+    [0.78, 1.86, 0.78]
+  ]
+  rotorPositions.forEach(([x, y, z], index) => {
+    const motor = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.12, 20), darkMat.clone())
+    motor.position.set(x, y, z)
+    motor.castShadow = true
+    motor.receiveShadow = true
+    group.add(motor)
+
+    const rotor = new THREE.Group()
+    rotor.name = `ukrainian-fallback-rotor-${index + 1}`
+    rotor.position.set(x, y + 0.08, z)
+    const bladeA = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.018, 0.065), darkMat.clone())
+    const bladeB = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.018, 0.78), darkMat.clone())
+    bladeA.castShadow = true
+    bladeB.castShadow = true
+    rotor.add(bladeA, bladeB)
+    group.add(rotor)
+    rotorNodes.push(rotor)
+  })
+
+  const bluePanel = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.028, 0.5), accentBlue)
+  bluePanel.position.set(-0.24, 1.91, 0)
+  group.add(bluePanel)
+  const yellowPanel = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.03, 0.5), accentYellow)
+  yellowPanel.position.set(0.24, 1.915, 0)
+  group.add(yellowPanel)
 
   group.traverse((obj) => {
     if (obj.isMesh) {
@@ -384,7 +416,7 @@ export function createExactUkrainianFallbackDrone () {
     }
   })
 
-  group.userData = { ...(group.userData || {}), exactUkrainianDroneFallback: true }
+  group.userData = { ...(group.userData || {}), exactUkrainianDroneFallback: true, exactUkrainianDroneModel: true, quadRotorNodes: rotorNodes }
   return group
 }
 

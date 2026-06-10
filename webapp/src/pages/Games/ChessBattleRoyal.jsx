@@ -919,7 +919,7 @@ const PLAYER_FACE_CAMERA_SEAT_ANGLE = Math.PI / 2;
 // Keep Chess Battle Royal bottom-player camera aligned with Checkers Battle Royal
 // so portrait framing and left/right/up/down look limits match exactly.
 const PLAYER_FACE_CAMERA_RADIUS = TABLE_RADIUS * 0.98 * CHECKERS_CAMERA_FRAME_COMPENSATION;
-const PLAYER_FACE_CAMERA_EYE_HEIGHT = 2.22 * LAYOUT_SCALE_FACTOR;
+const PLAYER_FACE_CAMERA_EYE_HEIGHT = 2.02 * LAYOUT_SCALE_FACTOR; // lower the 3D player-facing camera slightly for portrait framing.
 const PLAYER_FACE_CAMERA_TARGET_HEIGHT = 0.22 * LAYOUT_SCALE_FACTOR;
 const PLAYER_FACE_CAMERA_YAW_LIMIT = THREE.MathUtils.degToRad(18);
 const PLAYER_FACE_CAMERA_PITCH_LIMIT = THREE.MathUtils.degToRad(12);
@@ -4678,6 +4678,13 @@ async function attachChessFirearmToRightHand(attackerEntry, captureAnimationId) 
 function spinExactUkrainianDroneRotors(root, timeSeconds) {
   if (!root) return;
   const rotation = timeSeconds * 24;
+  const rotorNodes = root.userData?.quadRotorNodes;
+  if (Array.isArray(rotorNodes) && rotorNodes.length) {
+    rotorNodes.forEach((rotor, index) => {
+      if (rotor) rotor.rotation.y = rotation * (index % 2 === 0 ? 1 : -1);
+    });
+    return;
+  }
   root.traverse?.((obj) => {
     const name = `${obj.name || ''}`.toLowerCase();
     if (name.includes('propeller') || name.includes('rotor')) {
@@ -11755,74 +11762,109 @@ function Chess3D({
       const root = new THREE.Group();
       root.scale.setScalar(0.3);
       const droneTone = getCaptureToneSeed('missile');
-      const body = addFxCylinder(root, 0.14, 0.19, 2.75, [0, 0, 0], [0, 0, Math.PI / 2], '#cfd3d6', 20);
-      body.material = createCaptureVehicleMaterial('missile', { toneSeed: droneTone, color: '#d1d7de', roughness: 0.28, metalness: 0.84 });
-      const nose = new THREE.Mesh(
-        new THREE.ConeGeometry(0.18, 0.72, 20),
-        createCaptureVehicleMaterial('missile', { toneSeed: droneTone, color: '#edf1f6', roughness: 0.24, metalness: 0.88 })
-      );
-      nose.position.set(1.7, 0, 0);
-      nose.rotation.z = -Math.PI / 2;
-      nose.castShadow = true;
-      root.add(nose);
-      const tail = addFxCylinder(root, 0.18, 0.14, 0.48, [-1.58, 0, 0], [0, 0, Math.PI / 2], '#879095', 14);
-      tail.material = createCaptureVehicleMaterial('missile', { toneSeed: droneTone, color: '#10151c', roughness: 0.44, metalness: 0.44 });
-      const deltaWing = createFxPolygon(
-        [
-          [-1.2, -2.05],
-          [1.0, 0],
-          [-1.2, 2.05]
-        ],
-        0.08,
-        '#556b2f',
-        0.82,
-        0.08
-      );
-      deltaWing.position.set(-0.15, -0.06, 0);
-      root.add(deltaWing);
-      const spine = createFxPolygon(
-        [
-          [-0.55, -0.18],
-          [0.9, 0],
-          [-0.55, 0.18]
-        ],
-        0.06,
-        '#7d858a',
-        0.55,
-        0.22
-      );
-      spine.position.set(0.15, 0.03, 0);
-      root.add(spine);
-      addFxSphere(root, 0.09, [1.05, 0, 0], '#1f2428', 0.22, 0.35);
-      const propeller = new THREE.Group();
-      propeller.position.set(-1.95, 0, 0);
-      addFxBox(propeller, [0.05, 1.0, 0.08], [0, 0, 0], '#191d20', 0.6, 0.12);
-      const blade2 = new THREE.Mesh(
-        new THREE.BoxGeometry(0.05, 1.0, 0.08),
-        new THREE.MeshStandardMaterial({ color: '#191d20', roughness: 0.6 })
-      );
-      blade2.rotation.x = Math.PI / 2;
-      blade2.castShadow = true;
-      propeller.add(blade2);
-      addFxSphere(propeller, 0.07, [0, 0, 0], '#41484d', 0.45, 0.25);
-      root.add(propeller);
+      const bodyMaterial = createCaptureVehicleMaterial('missile', {
+        toneSeed: droneTone,
+        color: '#cfd3d6',
+        roughness: 0.34,
+        metalness: 0.72
+      });
+      const darkMaterial = createCaptureVehicleMaterial('missile', {
+        toneSeed: droneTone,
+        color: '#151b22',
+        roughness: 0.54,
+        metalness: 0.28
+      });
+      const blueMaterial = new THREE.MeshStandardMaterial({
+        color: '#2563eb',
+        emissive: '#0f3aa8',
+        emissiveIntensity: 0.18,
+        roughness: 0.36,
+        metalness: 0.16
+      });
+      const yellowMaterial = new THREE.MeshStandardMaterial({
+        color: '#facc15',
+        emissive: '#854d0e',
+        emissiveIntensity: 0.16,
+        roughness: 0.38,
+        metalness: 0.12
+      });
 
-      const exhaustClouds = [];
-      for (let i = 0; i < 5; i += 1) {
-        exhaustClouds.push(
-          addFxSphere(
-            root,
-            0.12 + i * 0.03,
-            [-0.84 - i * 0.19, 0, 0],
-            i < 2 ? '#f6af4b' : '#8f989d',
-            i < 2 ? 0.2 : 1,
-            0,
-            true,
-            i < 2 ? 0.8 - i * 0.15 : 0.26 - (i - 2) * 0.04
-          )
+      const body = new THREE.Mesh(new THREE.BoxGeometry(1.08, 0.24, 0.5), bodyMaterial);
+      body.castShadow = true;
+      body.receiveShadow = true;
+      root.add(body);
+
+      const cameraPod = new THREE.Mesh(new THREE.SphereGeometry(0.18, 18, 12), darkMaterial.clone());
+      cameraPod.scale.set(1.15, 0.7, 0.9);
+      cameraPod.position.set(0.42, -0.16, 0);
+      cameraPod.castShadow = true;
+      root.add(cameraPod);
+
+      const battery = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.16, 0.34), darkMaterial.clone());
+      battery.position.set(-0.08, -0.2, 0);
+      battery.castShadow = true;
+      battery.receiveShadow = true;
+      root.add(battery);
+
+      const armGeometry = new THREE.BoxGeometry(2.08, 0.07, 0.08);
+      [Math.PI / 4, -Math.PI / 4].forEach((rotationY) => {
+        const arm = new THREE.Mesh(armGeometry, bodyMaterial.clone());
+        arm.rotation.y = rotationY;
+        arm.castShadow = true;
+        arm.receiveShadow = true;
+        root.add(arm);
+      });
+
+      const rotorNodes = [];
+      const rotorPositions = [
+        [-0.86, 0.08, -0.86],
+        [0.86, 0.08, -0.86],
+        [-0.86, 0.08, 0.86],
+        [0.86, 0.08, 0.86]
+      ];
+      rotorPositions.forEach(([x, y, z], index) => {
+        const motor = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.12, 20), darkMaterial.clone());
+        motor.position.set(x, y, z);
+        motor.castShadow = true;
+        motor.receiveShadow = true;
+        root.add(motor);
+
+        const guard = new THREE.Mesh(
+          new THREE.TorusGeometry(0.34, 0.016, 8, 32),
+          new THREE.MeshStandardMaterial({ color: '#2f3740', roughness: 0.6, metalness: 0.18 })
         );
-      }
-      return { root, propeller, exhaustClouds };
+        guard.name = `ukrainian-drone-rotor-guard-${index + 1}`;
+        guard.position.set(x, y + 0.07, z);
+        guard.rotation.x = Math.PI / 2;
+        guard.castShadow = true;
+        root.add(guard);
+
+        const rotor = new THREE.Group();
+        rotor.name = `ukrainian-drone-rotor-${index + 1}`;
+        rotor.position.set(x, y + 0.1, z);
+        addFxBox(rotor, [0.72, 0.018, 0.055], [0, 0, 0], '#111827', 0.58, 0.12);
+        addFxBox(rotor, [0.055, 0.018, 0.72], [0, 0, 0], '#111827', 0.58, 0.12);
+        addFxSphere(rotor, 0.055, [0, 0, 0], '#4b5563', 0.45, 0.18);
+        root.add(rotor);
+        rotorNodes.push(rotor);
+      });
+
+      const bluePanel = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.035, 0.52), blueMaterial);
+      bluePanel.position.set(-0.25, 0.15, 0);
+      bluePanel.castShadow = true;
+      root.add(bluePanel);
+      const yellowPanel = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.038, 0.52), yellowMaterial);
+      yellowPanel.position.set(0.25, 0.155, 0);
+      yellowPanel.castShadow = true;
+      root.add(yellowPanel);
+
+      root.userData = {
+        ...(root.userData || {}),
+        exactUkrainianDroneModel: true,
+        exactUkrainianDroneFallback: true,
+        quadRotorNodes: rotorNodes
+      };
+      return { root, propeller: rotorNodes[0] || null, rotorNodes, exhaustClouds: [] };
     };
     const createFxHelicopter = () => {
       const model = cloneCaptureUnitTemplate('helicopter');
@@ -13320,8 +13362,12 @@ function Chess3D({
       if (captureKind === 'ukrainianDrone') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_HELICOPTER_TOTAL * 1000;
         const isWhiteSide = Boolean(movingMesh?.userData?.w);
-        const parkedDrone = acquireParkedAirUnit(isWhiteSide, 'drone');
-        const droneFx = parkedDrone || createFxDrone({ forceProcedural: !parkedDrone });
+        const acquiredParkedDrone = acquireParkedAirUnit(isWhiteSide, 'drone');
+        const parkedDrone = acquiredParkedDrone && isExactUkrainianDroneObject(acquiredParkedDrone.root) ? acquiredParkedDrone : null;
+        if (acquiredParkedDrone && !parkedDrone) {
+          returnParkedAirUnit(acquiredParkedDrone);
+        }
+        const droneFx = parkedDrone || createFxDrone();
         if (!parkedDrone) {
           droneFx.root.scale.setScalar(CAPTURE_DRONE_SCALE);
           captureFxGroup.add(droneFx.root);
