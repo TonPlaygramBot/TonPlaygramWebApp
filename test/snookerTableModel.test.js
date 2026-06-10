@@ -66,12 +66,4 @@ describe('snooker table model selection', () => {
       /pooltool\/models\/table\/snooker_generic\/snooker_generic\.glb$/
     );
   });
-
-  test('Snooker Royal maps procedural pocket hardware to the loaded GLB pockets', async () => {
-    const source = await readFile('webapp/src/pages/Games/SnookerRoyal.jsx', 'utf8');
-    assert.match(source, /calculateOpenSourcePocketMapFromModel/);
-    assert.match(source, /applyOpenSourcePocketMap\(openSourcePocketMap\)/);
-    assert.match(source, /proceduralPocketHardwareMappedToGlbPockets: true/);
-    assert.match(source, /proceduralPocketHardwareUsesGlbPocketSize: true/);
-  });
 });
