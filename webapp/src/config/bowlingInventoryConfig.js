@@ -1,4 +1,7 @@
-import { POOL_ROYALE_STORE_ITEMS } from './poolRoyaleInventoryConfig.js';
+import {
+  POOL_ROYALE_HDRI_VARIANTS,
+  POOL_ROYALE_STORE_ITEMS,
+} from './poolRoyaleInventoryConfig.js';
 import { swatchThumbnail } from './storeThumbnails.js';
 
 const DEFAULT_BOWLING_CHARACTER_SOURCE = Object.freeze({
@@ -9,62 +12,44 @@ const DEFAULT_BOWLING_CHARACTER_SOURCE = Object.freeze({
 export const BOWLING_DOMINO_CLOTH_MATERIALS = Object.freeze({
   denim: {
     source: 'Poly Haven denim_fabric 1k glTF CC0',
-    color:
-      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_diff_1k.jpg',
-    normal:
-      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_nor_gl_1k.jpg',
-    roughness:
-      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_rough_1k.jpg',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_rough_1k.jpg',
     tint: 0x314d86
   },
   check: {
     source: 'Poly Haven gingham_check 1k glTF CC0',
-    color:
-      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_diff_1k.jpg',
-    normal:
-      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_nor_gl_1k.jpg',
-    roughness:
-      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_rough_1k.jpg',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_rough_1k.jpg',
     tint: 0x9f3651
   },
   hessian: {
     source: 'Poly Haven hessian_230 1k glTF CC0',
-    color:
-      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_diff_1k.jpg',
-    normal:
-      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_nor_gl_1k.jpg',
-    roughness:
-      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_rough_1k.jpg',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_rough_1k.jpg',
     tint: 0xa27445
   },
   floral: {
     source: 'Poly Haven floral_jacquard 1k glTF CC0',
-    color:
-      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_diff_1k.jpg',
-    normal:
-      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_nor_gl_1k.jpg',
-    roughness:
-      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_rough_1k.jpg',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_rough_1k.jpg',
     tint: 0x6d3f7f
   },
   fleece: {
     source: 'Poly Haven knitted_fleece 1k glTF CC0',
-    color:
-      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_diff_1k.jpg',
-    normal:
-      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_nor_gl_1k.jpg',
-    roughness:
-      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_rough_1k.jpg',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_rough_1k.jpg',
     tint: 0x4b5563
   },
   picnic: {
     source: 'Poly Haven fabric_pattern_07 1k glTF CC0',
-    color:
-      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_col_1_1k.jpg',
-    normal:
-      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_nor_gl_1k.jpg',
-    roughness:
-      'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_rough_1k.jpg',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_col_1_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_rough_1k.jpg',
     tint: 0xc44f42
   }
 });
@@ -180,9 +165,7 @@ export const BOWLING_HUMAN_CHARACTER_OPTIONS = Object.freeze([
   {
     id: 'webgl-vietnam-human-domino',
     label: 'Street Champ',
-    modelUrls: [
-      'https://raw.githubusercontent.com/hmthanh/3d-human-model/main/TranThiNgocTham.glb'
-    ],
+    modelUrls: ['https://raw.githubusercontent.com/hmthanh/3d-human-model/main/TranThiNgocTham.glb'],
     thumbnail: swatchThumbnail(['#556070', '#8b633f', '#b88ab8']),
     accent: '#556070',
     clothCombo: 'softFleece',
@@ -191,9 +174,7 @@ export const BOWLING_HUMAN_CHARACTER_OPTIONS = Object.freeze([
   {
     id: 'webgl-ai-teacher-domino',
     label: 'Pattern Coach',
-    modelUrls: [
-      'https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar.glb'
-    ],
+    modelUrls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar.glb'],
     thumbnail: swatchThumbnail(['#c44f42', '#263f73', '#f1f5f9']),
     accent: '#c44f42',
     clothCombo: 'patternedRed',
@@ -202,9 +183,7 @@ export const BOWLING_HUMAN_CHARACTER_OPTIONS = Object.freeze([
   {
     id: 'webgl-ai-teacher-1-domino',
     label: 'Denim Striker',
-    modelUrls: [
-      'https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb'
-    ],
+    modelUrls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb'],
     thumbnail: swatchThumbnail(['#3b6ea8', '#4f6f93', '#d6a35f']),
     accent: '#3b6ea8',
     clothCombo: 'mixedDenim',
@@ -218,18 +197,34 @@ const reduceLabels = (options) =>
     return acc;
   }, {});
 
+export const BOWLING_HDRI_VARIANTS = Object.freeze(
+  POOL_ROYALE_HDRI_VARIANTS.map((variant, index) => ({
+    ...variant,
+    id: variant.id,
+    name: variant.name,
+    description: variant.description || 'Shared Pool Royale HDRI for bowling.',
+    sourceUrl: variant.sourceUrl,
+    hdriUrl: variant.hdriUrl,
+    thumbnailUrl: variant.thumbnailUrl || variant.thumbnail,
+    priceCoins: index === 0 ? 0 : variant.priceCoins ?? variant.price ?? 450,
+    rarity: index === 0 ? 'common' : 'rare',
+  }))
+);
+
 export const BOWLING_OPTION_LABELS = Object.freeze({
+  environmentHdri: Object.freeze(reduceLabels(BOWLING_HDRI_VARIANTS.map((variant) => ({ id: variant.id, label: `${variant.name} HDRI` })))),
   tableFinish: 'Bowling Table Finish',
   chromeColor: 'Bowling Chrome Plates',
-  humanCharacter: Object.freeze(reduceLabels(BOWLING_HUMAN_CHARACTER_OPTIONS))
+  humanCharacter: Object.freeze(reduceLabels(BOWLING_HUMAN_CHARACTER_OPTIONS)),
 });
 
 export const BOWLING_DEFAULT_LOADOUT = Object.freeze({
-  humanCharacter: BOWLING_HUMAN_CHARACTER_OPTIONS[0]?.id
+  environmentHdri: BOWLING_HDRI_VARIANTS[0]?.id,
+  humanCharacter: BOWLING_HUMAN_CHARACTER_OPTIONS[0]?.id,
 });
 
 const poolVisualStoreItems = POOL_ROYALE_STORE_ITEMS.filter((item) =>
-  ['tableFinish', 'chromeColor'].includes(item.type)
+  ['environmentHdri', 'tableFinish', 'chromeColor'].includes(item.type)
 );
 
 export const BOWLING_STORE_ITEMS = Object.freeze([
@@ -237,7 +232,7 @@ export const BOWLING_STORE_ITEMS = Object.freeze([
     ...item,
     id: `bowling-${item.id}`,
     game: 'bowling',
-    featured: !!item.featured
+    featured: item.type === 'environmentHdri' ? item.optionId === BOWLING_DEFAULT_LOADOUT.environmentHdri : !!item.featured,
   })),
   ...BOWLING_HUMAN_CHARACTER_OPTIONS.slice(1).map((option, index) => ({
     id: `bowling-human-character-${option.id}`,
@@ -246,9 +241,8 @@ export const BOWLING_STORE_ITEMS = Object.freeze([
     game: 'bowling',
     name: option.label,
     price: 1200 + index * 90,
-    description:
-      'Domino Royal human avatar adapted for Real Bowling player and AI bowlers.',
+    description: 'Domino Royal human avatar adapted for Real Bowling player and AI bowlers.',
     thumbnail: option.thumbnail,
-    featured: index < 2
+    featured: index < 2,
   }))
 ]);
