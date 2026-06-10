@@ -2029,11 +2029,6 @@ const CUE_FOLLOW_SPEED_MIN = BALL_R * 7.6;
 const CUE_FOLLOW_SPEED_MAX = BALL_R * 16.4;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.34; // lift the full cue line slightly to match the updated rail/cushion height
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
-// Match SnookerRoyalProvided's cue contact model: the cue tip rests at
-// the ball radius plus a tiny cloth/leather gap, rather than stopping at
-// the larger aiming/idle air gap.
-const POOL_ROYALE_CUE_CONTACT_GAP = Math.max(BALL_R * 0.045, CUE_TIP_RADIUS * 0.45);
-const POOL_ROYALE_CUE_STRIKE_HIT_RATIO = 0.88;
 const MAX_POWER_LIFT_HEIGHT = CUE_TIP_RADIUS * 9.6; // let full-power hops peak higher so max-strength jumps pop
 const CUE_BUTT_LIFT = BALL_R * 0.46; // lower the butt slightly while keeping the tip level with the cue-ball centre
 const CUE_BUTT_CUSHION_CLEARANCE = BALL_R * 0.38; // keep extra vertical headroom so cue helpers clear cushion lips more reliably
@@ -24906,15 +24901,13 @@ const shotPowerRef = useRef(0);
             const safeHoldDuration = Math.max(0, holdDuration ?? 45);
             const safeRecoverDuration = Math.max(0, recoverDuration ?? 0);
             const resolvedIdlePos = idlePos ?? impactPos ?? stroke.contactPos ?? pullPos;
-            const resolvedImpactPos = impactPos ?? stroke.contactPos ?? resolvedIdlePos ?? pullPos;
             const normalizedStroke = ensureCueStrokeForwardMotion({
               pullPos: pullPos ?? resolvedIdlePos,
-              impactPos: resolvedImpactPos ?? resolvedIdlePos ?? pullPos,
+              impactPos: resolvedIdlePos ?? pullPos,
               fallbackDirection: tmpCueStrokeB.set(Math.sin(baseRotationY ?? 0), 0, Math.cos(baseRotationY ?? 0))
             });
             const resolvedPullPos = normalizedStroke.pullPos ?? pullPos ?? resolvedIdlePos;
-            const resolvedContactPos = stroke.contactPos ?? resolvedImpactPos ?? resolvedIdlePos ?? pullPos;
-            const resolvedFollowPos = followPos ?? resolvedContactPos;
+            const resolvedContactPos = resolvedIdlePos ?? stroke.contactPos ?? impactPos ?? pullPos;
             const strikeProgress = THREE.MathUtils.clamp(
               elapsed / Math.max(safeStrikeDuration, 1e-6),
               0,
@@ -24935,22 +24928,7 @@ const shotPowerRef = useRef(0);
               stroke.onImpact?.();
             }
 
-            if (elapsed < safeStrikeDuration) {
-              cueAnimating = true;
-              syncCueShadow();
-              return true;
-            }
             if (elapsed < safeStrikeDuration + safeHoldDuration) {
-              const holdT = THREE.MathUtils.clamp(
-                (elapsed - safeStrikeDuration) / Math.max(safeHoldDuration, 1e-6),
-                0,
-                1
-              );
-              cueStick.position.lerpVectors(
-                resolvedContactPos,
-                resolvedFollowPos,
-                easeInOutCubic(holdT)
-              );
               cueAnimating = true;
               syncCueShadow();
               return true;
@@ -24962,7 +24940,7 @@ const shotPowerRef = useRef(0);
             );
             if (recoverT < 1) {
               cueStick.position.lerpVectors(
-                resolvedFollowPos,
+                resolvedContactPos,
                 resolvedIdlePos ?? impactPos ?? pullPos,
                 easeInOutCubic(recoverT)
               );
@@ -28912,7 +28890,7 @@ const shotPowerRef = useRef(0);
         const holdDuration = THREE.MathUtils.lerp(40, 68, p);
         return {
           // Snooker Royal-style live stroke: slider pull maps directly to cue pullback,
-          // then release performs one forward push through cue-ball contact.
+          // then release performs one forward push back to the original cue-start pose.
           motion: 'classic',
           pullRatio: p,
           pullSmoothing: 1,
@@ -29595,6 +29573,7 @@ const shotPowerRef = useRef(0);
             strikeDuration: strokeProfile.strikeDuration ?? LIVE_CUE_FORWARD_DURATION_MS,
             applied: false
           };
+          applyShotAtImpact(shotImpactPayload);
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -29695,35 +29674,16 @@ const shotPowerRef = useRef(0);
           const strikeHoldDuration = strokeProfile.holdDuration ?? LIVE_CUE_IMPACT_HOLD_MS;
           const pullbackDuration = 0;
           const startTime = performance.now();
-          // Same contact model as SnookerRoyalProvided.jsx: the cue starts at
-          // the pulled gap, then the live strike closes the gap until the tip is
-          // physically at the cue-ball surface (ball radius + tiny contact gap).
-          const cueBallContactTipGap = BALL_R + POOL_ROYALE_CUE_CONTACT_GAP;
-          const impactPush = THREE.MathUtils.clamp(
-            CUE_TIP_GAP - cueBallContactTipGap,
-            0,
-            Math.max(0, CUE_TIP_GAP - BALL_R * 0.94)
-          );
-          const impactPos = buildCuePosition(-impactPush);
-          shotImpactPayload.contactAdvance = impactPush;
-          const contactPos = impactPos.clone();
-          const followDir = impactPos.clone().sub(releaseStartPos);
-          if (followDir.lengthSq() > 1e-8) {
-            followDir.normalize();
-          } else {
-            followDir.copy(dir);
-          }
-          // SnookerRoyalProvided holds the cue at contact after impact. Add only
-          // a tiny power-scaled compression so the forward push is readable
-          // without visually teleporting the cue through the ball.
-          const followDistance = THREE.MathUtils.lerp(
-            CUE_TIP_RADIUS * 0.45,
-            BALL_R * 0.16,
-            clampedPower
-          );
+          const impactPos = idlePos.clone();
+          const contactAdvance = 0; // push forward only to the original idle pose where the slider pull began
+          shotImpactPayload.contactAdvance = contactAdvance;
+          const contactPos = impactPos
+            .clone()
+            .addScaledVector(dir, contactAdvance);
+          const followDistance = 0; // stop at cue-ball contact instead of visually following the moving cue ball
           const followPos = contactPos
             .clone()
-            .addScaledVector(followDir, followDistance);
+            .addScaledVector(dir, followDistance);
           const followDurationResolved = strikeHoldDuration;
           const recoverDuration = strokeProfile.recoverDuration ?? 0;
           const forwardPreviewHold =
@@ -29846,10 +29806,10 @@ const shotPowerRef = useRef(0);
               baseRotationY: cueStick.rotation.y,
               strikeDip: THREE.MathUtils.lerp(0.0028, 0.0054, clampedPower),
               wobbleAmount: THREE.MathUtils.lerp(0.0014, 0.0036, clampedPower),
-              strikeImpactThreshold: POOL_ROYALE_CUE_STRIKE_HIT_RATIO,
+              strikeImpactThreshold: 0.9,
               strikeExtraFollow: Math.min(0.018, Math.max(0, (rawSpin?.y ?? 0) * clampedPower) * 0.016),
-              // Match Snooker Royal's release: push from the pulled pose
-              // through cue-ball contact, then hold the forward follow-through.
+              // Match Snooker Royal's release: push from the pulled pose and
+              // stop exactly at the cue's original idle/contact pose.
               forwardOnly: Boolean(strokeProfile.forwardOnly),
               onImpact: () => applyShotImpactOnce(),
               animationStyle: strokeStyle,
@@ -35191,12 +35151,7 @@ const shotPowerRef = useRef(0);
             const any = balls.some(
               (b) => b.active && b.vel.length() * frameScale >= STOP_EPS
             );
-            const waitingForCueImpact = Boolean(
-              ENABLE_CUE_STROKE_ANIMATION &&
-                cueStrokeStateRef.current &&
-                !cueStrokeStateRef.current.shotApplied
-            );
-            if (!any && !waitingForCueImpact) {
+            if (!any) {
               resolve();
             } else if (shotStartedAt > 0 && now - shotStartedAt >= STUCK_SHOT_TIMEOUT_MS) {
               console.warn('Shot timeout reached; forcing resolve to prevent a stuck frame.');
