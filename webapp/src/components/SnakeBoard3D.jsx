@@ -32,6 +32,7 @@ import {
 import { applyRendererSRGB, applySRGBColorSpace } from '../utils/colorSpace.js';
 import { getGameVolume } from '../utils/sound.js';
 import { playLudoCaptureWeaponSfx } from '../utils/ludoSfx.js';
+import { LUDO_WEAPON_DIRECTOR_BRIDGE } from '../config/ludoWeaponDirectorBridge.js';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const clamp01 = (v) => clamp(v, 0, 1);
 const smootherstep01 = (v) => {
@@ -3148,6 +3149,7 @@ function createCameraTransitionAnimation(
 
   return {
     type,
+    lockPosition,
     update: (now) => {
       const elapsed = now - start;
       if (elapsed <= durationIn) {
@@ -3264,20 +3266,17 @@ function computeTurnCameraFocusState(board, camera, turnIndex, players = []) {
   const direction = seatWorld.clone().sub(boardLookTarget).setY(0);
   if (direction.lengthSq() < 1e-6) return null;
   direction.normalize();
-  const isTopOrBottomSeat = Math.abs(direction.z) >= Math.abs(direction.x);
-  if (isTopOrBottomSeat) {
-    return {
-      position: camera.position.clone(),
-      target: boardLookTarget.clone()
-    };
-  }
-  if (seatIndex === 1) {
-    target.x += CAMERA_SIDE_LOOK_EXTRA;
+
+  // Match Ludo Battle Royal turn broadcasting: every turn aims at the active seated
+  // player first, then keeps a little board context so the portrait camera visibly
+  // hands off from player -> dice -> moving token.
+  target.addScaledVector(direction, TILE_SIZE * 0.28);
+  if (Math.abs(direction.x) > Math.abs(direction.z)) {
+    target.x += direction.x * CAMERA_SIDE_LOOK_EXTRA;
     target.z += TILE_SIZE * 0.18;
-  }
-  if (seatIndex === 3) {
-    target.x -= CAMERA_SIDE_LOOK_EXTRA;
-    target.z += TILE_SIZE * 0.18;
+  } else {
+    target.z += direction.z * TILE_SIZE * 0.42;
+    target.y += TILE_SIZE * 0.06;
   }
   const boardToCamera = camera.position.clone().sub(boardLookTarget).setY(0);
   if (boardToCamera.lengthSq() > 1e-6) {
@@ -6637,7 +6636,7 @@ export default function SnakeBoard3D({
         }
       }
     }
-  }, [currentTurn, cameraViewMode]);
+  }, [currentTurn, cameraViewMode, players]);
 
   useEffect(() => {
     const board = boardRef.current;
@@ -7183,7 +7182,10 @@ export default function SnakeBoard3D({
       arena.controls?.update?.();
       const camera = cameraRef.current;
       if (camera) {
-        if (cameraViewModeRef.current !== '2d' && fixedSeatCameraPositionRef.current) {
+        const activeCameraFreeMove = animationsRef.current.some(
+          (anim) => anim?.type === 'cameraCaptureFocus' && anim.lockPosition === false
+        );
+        if (cameraViewModeRef.current !== '2d' && fixedSeatCameraPositionRef.current && !activeCameraFreeMove) {
           camera.position.copy(fixedSeatCameraPositionRef.current);
         }
         const minCameraY = startCameraMinYRef.current;
@@ -7796,18 +7798,45 @@ export default function SnakeBoard3D({
     const camera = cameraRef.current;
     const controls = board.controls;
     if (cameraViewMode !== '2d' && camera && controls) {
-      const focusTarget = launch.clone().lerp(centerStage, 0.6);
+      removeAnimationsByType(animationsRef.current, 'cameraTurnFocus');
+      removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
+      removeAnimationsByType(animationsRef.current, 'cameraTokenFollow');
+      removeAnimationsByType(animationsRef.current, 'cameraCaptureFocus');
+      const attackerSeat = board.seatedHumans?.[captureEvent.attackerIndex]?.root;
+      const attackerSeatWorld = attackerSeat?.isObject3D
+        ? attackerSeat.getWorldPosition(new THREE.Vector3())
+        : launch.clone();
+      const weaponDirectorProfile = LUDO_WEAPON_DIRECTOR_BRIDGE.firearmBroadcastProfile;
+      const isFirearmDirectorShot = Boolean(
+        LUDO_WEAPON_DIRECTOR_BRIDGE.weaponTypeByCaptureAnimationId[captureEvent.weaponType]
+      );
+      const aimTarget = isFirearmDirectorShot
+        ? attackerSeatWorld
+            .clone()
+            .lerp(impact, weaponDirectorProfile.bulletTargetBlend)
+            .add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.55 + weaponDirectorProfile.aimLift, 0))
+        : launch.clone().lerp(centerStage, 0.6).add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.8, 0));
       const currentOffset = camera.position.clone().sub(controls.target);
-      const desiredTarget = focusTarget.clone().add(new THREE.Vector3(0, TOKEN_HEIGHT * 1.8, 0));
-      const desiredPosition = desiredTarget.clone().add(currentOffset);
+      const cinematicOffset = currentOffset
+        .clone()
+        .multiplyScalar(isFirearmDirectorShot ? 0.72 : 1)
+        .add(new THREE.Vector3(0, isFirearmDirectorShot ? TOKEN_HEIGHT * 2.1 : 0, 0));
+      if (isFirearmDirectorShot) {
+        const rear = attackerSeatWorld.clone().sub(impact).setY(0);
+        if (rear.lengthSq() > 1e-6) {
+          rear.normalize();
+          cinematicOffset.addScaledVector(rear, weaponDirectorProfile.aimRearPullback + TOKEN_HEIGHT * 2.2);
+        }
+      }
+      const desiredPosition = aimTarget.clone().add(cinematicOffset);
       const captureCameraAnimation = createCameraTransitionAnimation(camera, controls, {
         toPosition: desiredPosition,
-        toTarget: desiredTarget,
-        durationIn: 180,
-        hold: Math.max(140, stageFlightDuration - 220),
+        toTarget: aimTarget,
+        durationIn: isFirearmDirectorShot ? 240 : 180,
+        hold: Math.max(isFirearmDirectorShot ? 520 : 140, stageFlightDuration - 220),
         durationOut: 200,
         type: 'cameraCaptureFocus',
-        lockPosition: true,
+        lockPosition: false,
         returnPosition: turnCameraStateRef.current?.position,
         returnTarget: turnCameraStateRef.current?.target
       });

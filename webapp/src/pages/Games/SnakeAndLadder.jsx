@@ -1018,40 +1018,96 @@ function resolveAppearance(appearance) {
 
 const buildAppearanceKey = (appearance) => JSON.stringify(normalizeAppearance(appearance));
 
+const jumpRange = (start, end) => ({
+  min: Math.min(Number(start), Number(end)),
+  max: Math.max(Number(start), Number(end))
+});
+
+const jumpRangesOverlap = (a, b, padding = 1) =>
+  !(a.max < b.min - padding || a.min > b.max + padding);
+
+function normalizeJumpEntries(data = {}, direction = 'snake') {
+  return Object.entries(data)
+    .map(([start, value]) => {
+      const s = Number(start);
+      const rawEnd = typeof value === 'object' && value !== null ? value.end ?? value.target ?? value.to : value;
+      const e = Number(rawEnd);
+      if (!Number.isFinite(s) || !Number.isFinite(e)) return null;
+      if (s <= 1 || s >= FINAL_TILE || e <= 1 || e >= FINAL_TILE || s === e) return null;
+      if (direction === 'snake' && e >= s) return null;
+      if (direction === 'ladder' && e <= s) return null;
+      return [Math.trunc(s), Math.trunc(e)];
+    })
+    .filter(Boolean)
+    .sort((a, b) => Math.abs(b[0] - b[1]) - Math.abs(a[0] - a[1]) || a[0] - b[0]);
+}
+
+function sanitizeJumpMaps(snakesInput = {}, laddersInput = {}, { maxSnakes = 8, maxLadders = 8 } = {}) {
+  const usedCells = new Set([1, FINAL_TILE]);
+  const acceptedRanges = [];
+  const snakes = {};
+  const ladders = {};
+
+  const tryAdd = (target, start, end, limit) => {
+    if (Object.keys(target).length >= limit) return false;
+    if (usedCells.has(start) || usedCells.has(end)) return false;
+    const range = jumpRange(start, end);
+    if (acceptedRanges.some((existing) => jumpRangesOverlap(existing, range, 1))) return false;
+    target[start] = end;
+    usedCells.add(start);
+    usedCells.add(end);
+    acceptedRanges.push(range);
+    return true;
+  };
+
+  normalizeJumpEntries(snakesInput, 'snake').forEach(([start, end]) => tryAdd(snakes, start, end, maxSnakes));
+  normalizeJumpEntries(laddersInput, 'ladder').forEach(([start, end]) => tryAdd(ladders, start, end, maxLadders));
+
+  return { snakes, ladders };
+}
+
 function generateBoardLocal() {
   const boardSize = FINAL_TILE - 1;
   const snakeCount = 6 + Math.floor(Math.random() * 3);
   const ladderCount = 6 + Math.floor(Math.random() * 3);
   const snakes = {};
-  const used = new Set();
-  while (Object.keys(snakes).length < snakeCount) {
-    const start = Math.floor(Math.random() * (boardSize - 10)) + 10;
-    const maxDrop = Math.min(start - 1, 20);
-    if (maxDrop <= 0) continue;
-    const end = start - (Math.floor(Math.random() * maxDrop) + 1);
-    if (used.has(start) || used.has(end) || snakes[start] || end === 1) continue;
-    snakes[start] = end;
+  const ladders = {};
+  const used = new Set([1, FINAL_TILE]);
+  const ranges = [];
+  const canPlaceJump = (start, end) => {
+    if (used.has(start) || used.has(end)) return false;
+    const range = jumpRange(start, end);
+    return !ranges.some((existing) => jumpRangesOverlap(existing, range, 1));
+  };
+  const acceptJump = (target, start, end) => {
+    target[start] = end;
     used.add(start);
     used.add(end);
+    ranges.push(jumpRange(start, end));
+  };
+
+  let attempts = 0;
+  while (Object.keys(snakes).length < snakeCount && attempts < boardSize * 40) {
+    attempts += 1;
+    const start = Math.floor(Math.random() * (boardSize - 10)) + 10;
+    const maxDrop = Math.min(start - 2, 20);
+    if (maxDrop <= 0) continue;
+    const end = start - (Math.floor(Math.random() * maxDrop) + 1);
+    if (!canPlaceJump(start, end)) continue;
+    acceptJump(snakes, start, end);
   }
-  const ladders = {};
-  const usedL = new Set([...used]);
-  while (Object.keys(ladders).length < ladderCount) {
+
+  attempts = 0;
+  while (Object.keys(ladders).length < ladderCount && attempts < boardSize * 40) {
+    attempts += 1;
     const start = Math.floor(Math.random() * (boardSize - 20)) + 2;
     const max = Math.min(boardSize - start - 1, 20);
     if (max < 1) continue;
     const end = start + (Math.floor(Math.random() * max) + 1);
-    if (
-      usedL.has(start) ||
-      usedL.has(end) ||
-      ladders[start] ||
-      Object.values(ladders).includes(end)
-    )
-      continue;
-    ladders[start] = end;
-    usedL.add(start);
-    usedL.add(end);
+    if (!canPlaceJump(start, end)) continue;
+    acceptJump(ladders, start, end);
   }
+
   const diceCells = generateDiceCellsLocal(snakes, ladders);
   return { snakes, ladders, diceCells };
 }
@@ -2074,11 +2130,7 @@ export default function SnakeAndLadder() {
       : Promise.resolve(generateBoardLocal());
     boardPromise
       .then(({ snakes: snakesObj = {}, ladders: laddersObj = {}, diceCells: diceCellsObj = {} }) => {
-        const limit = (obj) => {
-          return Object.fromEntries(Object.entries(obj).slice(0, 8));
-        };
-        const snakesLim = limit(snakesObj);
-        const laddersLim = limit(laddersObj);
+        const { snakes: snakesLim, ladders: laddersLim } = sanitizeJumpMaps(snakesObj, laddersObj);
         setSnakes(snakesLim);
         setLadders(laddersLim);
         const snk = {};
@@ -2095,7 +2147,7 @@ export default function SnakeAndLadder() {
         const normalizedDice = normalizeDiceCells(diceCellsObj);
         const diceSource = Object.keys(normalizedDice).length
           ? normalizedDice
-          : generateDiceCellsLocal(snakesObj, laddersObj);
+          : generateDiceCellsLocal(snakesLim, laddersLim);
         setDiceCells(diceSource);
       })
       .catch(() => {});
@@ -2483,9 +2535,7 @@ export default function SnakeAndLadder() {
     socket.on('gameWon', onWon);
     socket.on('currentPlayers', onCurrentPlayers);
     socket.on('boardData', ({ snakes: sn, ladders: lad, diceCells: diceObj }) => {
-      const limit = (obj) => Object.fromEntries(Object.entries(obj).slice(0, 8));
-      const snakesLim = limit(sn || {});
-      const laddersLim = limit(lad || {});
+      const { snakes: snakesLim, ladders: laddersLim } = sanitizeJumpMaps(sn || {}, lad || {});
       setSnakes(snakesLim);
       setLadders(laddersLim);
       const snk = {};
@@ -2626,9 +2676,8 @@ export default function SnakeAndLadder() {
     const stored = localStorage.getItem(key);
     if (stored) {
       try {
-        const limit = (obj) =>
-          Object.fromEntries(Object.entries(obj).slice(0, 8));
         const data = JSON.parse(stored);
+        const sanitizeStoredJumps = (snakesData, laddersData) => sanitizeJumpMaps(snakesData, laddersData);
         if (data.gameOver) {
           localStorage.removeItem(key);
         } else {
@@ -2637,10 +2686,11 @@ export default function SnakeAndLadder() {
           setCurrentTurn(data.currentTurn ?? 0);
           setDiceCount(playerDiceCounts[data.currentTurn ?? 0] ?? 1);
           setDiceCells(data.diceCells ?? {});
-          setSnakes(limit(data.snakes ?? {}));
-          setLadders(limit(data.ladders ?? {}));
-          setSnakeOffsets(limit(data.snakeOffsets ?? {}));
-          setLadderOffsets(limit(data.ladderOffsets ?? {}));
+          const { snakes: storedSnakes, ladders: storedLadders } = sanitizeStoredJumps(data.snakes ?? {}, data.ladders ?? {});
+          setSnakes(storedSnakes);
+          setLadders(storedLadders);
+          setSnakeOffsets(data.snakeOffsets ?? {});
+          setLadderOffsets(data.ladderOffsets ?? {});
           setRanking((data.ranking || []).map((r) =>
             typeof r === 'string'
               ? { name: r, photoUrl: '', amount: 0 }
@@ -2804,13 +2854,6 @@ export default function SnakeAndLadder() {
         const ladObj = ladders[predicted];
         predicted = typeof ladObj === 'object' ? ladObj.end : ladObj;
       }
-      const extraPred = diceCells[predicted] || rolledSix;
-      const nextPlayer = extraPred ? currentTurn : getPreviousTurn(currentTurn);
-      if (!gameOver) {
-        setCurrentTurn(nextPlayer);
-        setDiceCount(playerDiceCounts[nextPlayer] ?? 1);
-      }
-
       const steps = [];
       for (let i = current + 1; i <= target; i++) steps.push(i);
 
@@ -2946,12 +2989,12 @@ export default function SnakeAndLadder() {
         setPendingExtraRoll(extraTurn);
         setMoving(false);
         if (!gameOver) {
-          if (extraTurn) {
+          const next = extraTurn ? currentTurn : getPreviousTurn(currentTurn);
+          setCurrentTurn(next);
+          setDiceCount(playerDiceCounts[next] ?? 1);
+          if (extraTurn && next === 0) {
             // Do not delay the local extra roll button after a six/bonus.
-            const next = currentTurn;
-            setCurrentTurn(next);
-            setDiceCount(playerDiceCounts[next] ?? 1);
-            if (next === 0) setRollCooldown(0);
+            setRollCooldown(0);
           }
         }
       };
@@ -3042,11 +3085,6 @@ export default function SnakeAndLadder() {
       const ladObj = ladders[predicted];
       predicted = typeof ladObj === 'object' ? ladObj.end : ladObj;
     }
-    const extraPred = diceCells[predicted] || rolledSix;
-    const nextPlayer = extraPred ? index : getPreviousTurn(index);
-    setCurrentTurn(nextPlayer);
-    setDiceCount(playerDiceCounts[nextPlayer] ?? 1);
-
     const steps = [];
     for (let i = current + 1; i <= target; i++) steps.push(i);
 
@@ -3159,10 +3197,8 @@ export default function SnakeAndLadder() {
       }
       const next = extraTurn ? index : getPreviousTurn(index);
       if (next === 0) setTurnMessage('Your turn');
-      if (extraTurn) {
-        setCurrentTurn(next);
-        setDiceCount(playerDiceCounts[next] ?? 1);
-      }
+      setCurrentTurn(next);
+      setDiceCount(playerDiceCounts[next] ?? 1);
       setDiceVisible(true);
       setMoving(false);
       if (extraTurn && next === index) {
