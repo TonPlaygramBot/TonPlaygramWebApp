@@ -363,15 +363,13 @@ const FIREARM_RACK_PARKING_SEAT_ADJUSTMENTS = Object.freeze([
   Object.freeze({ side: -0.012, inward: 0.052 }), // top
   Object.freeze({ side: -0.008, inward: 0.004 }) // left
 ]);
-const FIREARM_TOKEN_RAIL_SIDE_OFFSET = 0.108;
-const FIREARM_TOKEN_RAIL_INWARD_OFFSET = 0.024;
-const FIREARM_TOKEN_RAIL_LONG_GUN_SIDE_EXTRA = 0.05;
-const FIREARM_TOKEN_RAIL_LONG_GUN_INWARD_EXTRA = 0.018;
+const FIREARM_RACK_DICE_SIDE_OFFSET = 0.102;
+const FIREARM_RACK_DICE_INWARD_OFFSET = 0.018;
+const FIREARM_RACK_DICE_LONG_GUN_SIDE_EXTRA = 0.036;
+const FIREARM_RACK_DICE_LONG_GUN_INWARD_EXTRA = 0.012;
 const FIREARM_RACK_OPPOSITE_SEAT_TARGET_BY_PLAYER = Object.freeze({
   0: 2,
-  1: 3,
-  2: 0,
-  3: 1
+  2: 0
 });
 // Latest Gunify commit visible at the end of May 9, 2026; keep Ludo weapons
 // pinned to that tree so texture folders/material JSON cannot drift under main.
@@ -8676,26 +8674,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     rightWorld.normalize();
 
     const isLargeFirearm = LARGE_RACK_FIREARM_IDS.has(captureAnimationId);
-    const sideOffset = FIREARM_TOKEN_RAIL_SIDE_OFFSET + (isLargeFirearm ? FIREARM_TOKEN_RAIL_LONG_GUN_SIDE_EXTRA : 0);
-    const inwardOffset = FIREARM_TOKEN_RAIL_INWARD_OFFSET + (isLargeFirearm ? FIREARM_TOKEN_RAIL_LONG_GUN_INWARD_EXTRA : 0);
+    const sideOffset = FIREARM_RACK_DICE_SIDE_OFFSET + (isLargeFirearm ? FIREARM_RACK_DICE_LONG_GUN_SIDE_EXTRA : 0);
+    const inwardOffset = FIREARM_RACK_DICE_INWARD_OFFSET + (isLargeFirearm ? FIREARM_RACK_DICE_LONG_GUN_INWARD_EXTRA : 0);
     const position = railWorld
       .clone()
-      // Put the parked weapon on the same tabletop rail as the player's home tokens and dice.
       .addScaledVector(rightWorld, sideOffset)
-      // Pull it slightly toward the board so the handle remains on the character side for pickup.
       .addScaledVector(forwardWorld, -inwardOffset);
     position.y = (arena.tableInfo?.surfaceY ?? position.y) + 0.002;
-    const oppositeSeatTarget = resolveFirearmRackAimTarget(
-      arena,
-      playerIndex,
-      getKingTokenPositionForPlayer
-    );
-    const aimTarget = oppositeSeatTarget?.isVector3
-      ? oppositeSeatTarget.clone()
-      : railWorld.clone().addScaledVector(forwardWorld, -0.32);
-    aimTarget.y = position.y;
-    return { position, aimTarget };
-  }, [getKingTokenPositionForPlayer]);
+    return { position, aimTarget: railWorld.clone().addScaledVector(forwardWorld, -0.22) };
+  }, []);
 
   const resolveCaptureParkingAnchors = useCallback((playerIndex, vehicleType = 'fighter') => {
     const arena = arenaRef.current;
