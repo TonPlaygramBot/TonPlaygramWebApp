@@ -11,16 +11,39 @@ function safePositiveDimension(value, fallback = MIN_GLB_FIT_SIZE) {
   return Number.isFinite(numeric) && numeric > MIN_GLB_FIT_SIZE ? numeric : fallback;
 }
 
-export function resolveSnookerGlbFitTransform(sourceSize = {}, targetSize = {}) {
+export function resolveSnookerGlbFitTransform(sourceSize = {}, targetSize = {}, options = {}) {
   const sourceX = safePositiveDimension(sourceSize.x);
   const sourceY = safePositiveDimension(sourceSize.y);
   const sourceZ = safePositiveDimension(sourceSize.z);
+  const targetX = safePositiveDimension(targetSize.x);
+  const targetY = safePositiveDimension(targetSize.y);
+  const targetZ = safePositiveDimension(targetSize.z);
+  const xScale = targetX / sourceX;
+  const yScale = targetY / sourceY;
+  const zScale = targetZ / sourceZ;
+  const preserveOriginalShape = options.preserveOriginalShape !== false;
+
+  if (!preserveOriginalShape) {
+    return {
+      scale: { x: xScale, y: yScale, z: zScale },
+      preservesOriginalShape: false
+    };
+  }
+
+  const fitAxis = options.fitAxis === 'z' || options.fitAxis === 'long' ? 'z' : 'x';
+  const uniformHorizontalScale = fitAxis === 'z' ? zScale : xScale;
+
   return {
     scale: {
-      x: safePositiveDimension(targetSize.x) / sourceX,
-      y: safePositiveDimension(targetSize.y) / sourceY,
-      z: safePositiveDimension(targetSize.z) / sourceZ
-    }
+      x: uniformHorizontalScale,
+      y: uniformHorizontalScale,
+      z: uniformHorizontalScale
+    },
+    preservesOriginalShape: true,
+    fitAxis,
+    sourceAspect: sourceX / sourceZ,
+    targetAspect: targetX / targetZ,
+    nonUniformCandidateScale: { x: xScale, y: yScale, z: zScale }
   };
 }
 

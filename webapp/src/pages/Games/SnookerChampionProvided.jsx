@@ -827,10 +827,9 @@ function addTable(scene, renderer, options = {}) {
     const sourceFitSize = sourceFitBounds.getSize(new THREE.Vector3());
     const fit = resolveSnookerGlbFitTransform(
       { x: sourceFitSize.x, y: sourceFitSize.y, z: sourceFitSize.z },
-      { x: targetSize.x, y: targetSize.y, z: targetSize.z }
+      { x: targetSize.x, y: targetSize.y, z: targetSize.z },
+      { fitAxis: sourceFitSize.x >= sourceFitSize.z ? 'x' : 'z' }
     );
-    const horizontalScale = Math.min(fit.scale.x, fit.scale.z);
-    fit.scale.y = horizontalScale;
     model.scale.set(fit.scale.x, fit.scale.y, fit.scale.z);
     model.updateMatrixWorld(true);
     const scaledFullBounds = new THREE.Box3().setFromObject(model);
