@@ -146,8 +146,8 @@ export default function BowlingLobby() {
         <GameLobbyHeader
           slug="bowling"
           title="Real Bowling Lobby"
-          badge="1 lane · 1 Murlan table"
-          description="Choose 1–5 bowlers, world-flag avatars, and online or AI play."
+          badge="1 lane · realistic arena"
+          description="Choose 1–5 bowlers in a fully modeled bowling arena with online or AI play."
         />
 
         <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#101828]/80 to-[#0b1324]/90 p-4">
