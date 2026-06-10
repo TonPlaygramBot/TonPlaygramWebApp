@@ -1604,9 +1604,9 @@ const POCKET_INTERIOR_CAPTURE_R =
 const SIDE_POCKET_INTERIOR_CAPTURE_R =
   SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION; // keep middle-pocket capture identical to its bowl radius
 const CAPTURE_R =
-  POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.22; // match corner-pocket capture gain to middle pockets so both jaw types accept shots the same way
+  POCKET_INTERIOR_CAPTURE_R; // exact visible corner pocket opening; no hidden capture inflation beyond the mapped jaw mouth
 const SIDE_CAPTURE_R =
-  SIDE_POCKET_INTERIOR_CAPTURE_R + BALL_R * 0.22; // give middle pockets a touch more capture so shots don't hang in the jaws
+  SIDE_POCKET_INTERIOR_CAPTURE_R; // exact visible middle pocket opening so capture size matches the real pocket cut
 const POCKET_GUARD_RADIUS =
   CAPTURE_R - BALL_R * 0.12; // mirror the middle-pocket guard inset so corner jaws reject/accept on the same threshold
 const POCKET_GUARD_CLEARANCE = Math.max(
@@ -6067,7 +6067,7 @@ function applySnookerScaling({
   if (Array.isArray(pockets)) {
     pockets.forEach((pocket, index) => {
       if (pocket?.userData) {
-        const capture = index >= 4 ? SIDE_CAPTURE_R : CAPTURE_R;
+        const capture = captureRadiusForPocketIndex(index);
         pocket.userData.captureRadius = capture;
       }
     });
@@ -7130,6 +7130,18 @@ const resolvePocketHolderDirection = (center, pocketId = null) => {
   return new THREE.Vector3(0, 0, Math.sign(center?.y || 1));
 };
 const POCKET_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
+const pocketIdForSigns = (sx, sz) => {
+  if (sx < 0 && sz < 0) return 'TL';
+  if (sx > 0 && sz < 0) return 'TR';
+  if (sx < 0 && sz > 0) return 'BL';
+  if (sx > 0 && sz > 0) return 'BR';
+  return null;
+};
+const pocketIndexForId = (id) => POCKET_IDS.indexOf(id);
+const captureRadiusForPocketIndex = (index) =>
+  index >= 4 ? SIDE_CAPTURE_R : CAPTURE_R;
+const captureRadiusForPocketId = (id) =>
+  captureRadiusForPocketIndex(pocketIndexForId(id));
 const POCKET_LABELS = Object.freeze({
   TL: 'Top Left',
   TR: 'Top Right',
@@ -7488,7 +7500,7 @@ function reflectRails(ball) {
   let preImpactVel = null;
   const resolveBoundaryFallback = () => {
     const isNearPocketMouth = pocketCenters().some((center, index) => {
-      const captureRadius = index >= 4 ? SIDE_CAPTURE_R : CAPTURE_R;
+      const captureRadius = captureRadiusForPocketIndex(index);
       return ball.pos.distanceTo(center) <= captureRadius + BALL_R * 1.3;
     });
     if (isNearPocketMouth) return null;
@@ -7551,7 +7563,7 @@ function reflectRails(ball) {
       const dist = ball.pos.distanceTo(center);
       if (dist < nearestPocketDist) {
         nearestPocketDist = dist;
-        nearestCaptureRadius = index >= 4 ? SIDE_CAPTURE_R : CAPTURE_R;
+        nearestCaptureRadius = captureRadiusForPocketIndex(index);
         nearestPocketIndex = index;
       }
     });
@@ -7622,7 +7634,7 @@ function reflectRails(ball) {
     for (let i = 0; i < centers.length; i++) {
       const center = centers[i];
       if (!center) continue;
-      const captureRadius = i >= 4 ? SIDE_CAPTURE_R : CAPTURE_R;
+      const captureRadius = captureRadiusForPocketIndex(i);
       const jawBaseRadius = i >= 4 ? SIDE_POCKET_RADIUS : POCKET_VIS_R;
       const jawRadius = jawBaseRadius * POCKET_VISUAL_EXPANSION;
       TMP_VEC2_A.copy(ball.pos).sub(center);
@@ -7724,7 +7736,7 @@ function reflectRails(ball) {
     }
 
     const nearPocketRadius =
-      Math.max(CAPTURE_R, SIDE_CAPTURE_R) + BALL_R * 0.22;
+      Math.max(CAPTURE_R, SIDE_CAPTURE_R) + CUSHION_CUT_NEAR_POCKET_BUFFER;
     const nearPocket = pocketCenters().some(
       (c) => ball.pos.distanceTo(c) < nearPocketRadius
     );
@@ -10819,6 +10831,7 @@ export function Table3D(
 
   const createPocketJawAssembly = ({
     center,
+    pocketId = null,
     baseRadius,
     jawAngle,
     orientationAngle,
@@ -10981,7 +10994,8 @@ export function Table3D(
       jawAngle: localJawAngle,
       orientationAngle,
       outerRadius: baseOuterLimit + Math.max(0, outerExpansion ?? 0),
-      captureRadius: isMiddle ? SIDE_CAPTURE_R : CAPTURE_R,
+      captureRadius: captureRadiusForPocketId(pocketId),
+      pocketId,
       isMiddle
     };
     return { group, jawMesh, rimMesh, jawMeta };
@@ -11114,6 +11128,7 @@ export function Table3D(
       const orientationAngle = Math.atan2(sz, sx);
       addPocketJaw({
         center,
+        pocketId: pocketIdForSigns(sx, sz),
         baseRadius: cornerBaseRadius,
         jawAngle: CORNER_JAW_ANGLE,
         orientationAngle,
@@ -11135,6 +11150,7 @@ export function Table3D(
       const orientationAngle = Math.atan2(0, sx);
       addPocketJaw({
         center,
+        pocketId: sx < 0 ? 'TM' : 'BM',
         baseRadius: sideBaseRadius,
         jawAngle: SIDE_JAW_ANGLE,
         orientationAngle,
@@ -14266,10 +14282,23 @@ function mountPoolRoyaleExternalTableModel({
   const clothPlaneWorld = cloth.position.y;
 
   table.userData.pockets = [];
+  const pocketJawCentersById = new Map();
+  if (Array.isArray(table.userData.pocketJaws)) {
+    table.userData.pocketJaws.forEach((jaw) => {
+      if (jaw?.pocketId && jaw.center instanceof THREE.Vector2) {
+        pocketJawCentersById.set(jaw.pocketId, jaw.center.clone());
+      }
+    });
+  }
   resolveTablePocketCenters().forEach((p, index) => {
+    const pocketId = POCKET_IDS[index] ?? null;
+    const mappedCenter = pocketId ? pocketJawCentersById.get(pocketId) : null;
+    const markerCenter = mappedCenter ?? p;
     const marker = new THREE.Object3D();
-    marker.position.set(p.x, clothPlaneWorld - POCKET_VIS_R, p.y);
-    marker.userData.captureRadius = index >= 4 ? SIDE_CAPTURE_R : CAPTURE_R;
+    marker.position.set(markerCenter.x, clothPlaneWorld - POCKET_VIS_R, markerCenter.y);
+    marker.userData.captureRadius = captureRadiusForPocketIndex(index);
+    marker.userData.pocketId = pocketId;
+    marker.userData.mappedToJawCenter = Boolean(mappedCenter);
     table.add(marker);
     table.userData.pockets.push(marker);
   });
@@ -34675,11 +34704,9 @@ const shotPowerRef = useRef(0);
             ? pocketMarkers.map((marker, idx) =>
                 typeof marker?.userData?.captureRadius === 'number'
                   ? marker.userData.captureRadius
-                  : idx >= 4
-                    ? SIDE_CAPTURE_R
-                    : CAPTURE_R
+                  : captureRadiusForPocketIndex(idx)
               )
-            : centers.map((_, idx) => (idx >= 4 ? SIDE_CAPTURE_R : CAPTURE_R));
+            : centers.map((_, idx) => captureRadiusForPocketIndex(idx));
         balls.forEach((b) => {
           if (!b.active) return;
           for (let pocketIndex = 0; pocketIndex < captureCenters.length; pocketIndex++) {
