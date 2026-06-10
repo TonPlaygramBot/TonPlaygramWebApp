@@ -884,7 +884,7 @@ const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.24; // Lower tokens slightly so they stay grounded on the board after shrinking.
 const LAYOUT_SCALE_FACTOR = 0.7225;
 const TABLE_LAYOUT_SCALE_FACTOR = 0.84; // Slightly enlarge the board/chair footprint so board + pieces read bigger in portrait.
-const PIECE_SCALE_FACTOR = 0.73 * LAYOUT_SCALE_FACTOR * 1.5 * 0.82 * 1.42; // Make pieces a bit bigger for clearer readability.
+const PIECE_SCALE_FACTOR = 0.73 * LAYOUT_SCALE_FACTOR * 1.5 * 0.82 * 1.34; // Keep pieces readable but slightly smaller so the board has more air on portrait screens.
 const PIECE_FOOTPRINT_RATIO = 0.86;
 const BOARD_GROUP_Y_OFFSET = 0.012; // keep the chess board visibly above the tabletop surface.
 const BOARD_MODEL_Y_OFFSET = -0.12;
@@ -920,7 +920,8 @@ const COFFEE_TABLE_01_REFERENCE_HEIGHT = TABLE_HEIGHT;
 const TABLE_MODEL_TARGET_DIAMETER = COFFEE_TABLE_01_REFERENCE_RADIUS * 2;
 const TABLE_MODEL_TARGET_HEIGHT = COFFEE_TABLE_01_REFERENCE_HEIGHT;
 const COFFEE_TABLE_01_POLYHAVEN_ID = 'coffeetable_01';
-const POLYHAVEN_TABLE_MATCH_HEIGHT_SCALE = 0.94;
+const POLYHAVEN_TABLE_MATCH_HEIGHT_SCALE = 1; // Normalize every Poly Haven tabletop to Coffee Table 01's surface height.
+const NON_REFERENCE_POLYHAVEN_BOARD_LIFT = 0.026; // lift boards slightly on non-Coffee Table 01 Poly Haven tables only.
 const AI_CHAIR_GAP = (0.4 * MODEL_SCALE * CARD_SCALE) * 0.4;
 const CAMERA_TABLE_SPAN_FACTOR = 2.6;
 
@@ -2379,37 +2380,60 @@ function disposeObjectResources(object) {
   });
 }
 
+function getPolyhavenAssetId(theme = null) {
+  return String(theme?.assetId || theme?.id || '').toLowerCase();
+}
+
+function isCoffeeTable01Theme(theme = null) {
+  return getPolyhavenAssetId(theme) === COFFEE_TABLE_01_POLYHAVEN_ID;
+}
+
 function getPolyhavenTableTargetHeight(theme = null) {
-  const assetId = String(theme?.assetId || theme?.id || '').toLowerCase();
-  if (!assetId || assetId === COFFEE_TABLE_01_POLYHAVEN_ID) {
+  const assetId = getPolyhavenAssetId(theme);
+  if (!assetId || isCoffeeTable01Theme(theme)) {
     return TABLE_MODEL_TARGET_HEIGHT;
   }
   return TABLE_MODEL_TARGET_HEIGHT * POLYHAVEN_TABLE_MATCH_HEIGHT_SCALE;
 }
 
+function getPolyhavenBoardLift(theme = null) {
+  return theme?.source === 'polyhaven' && !isCoffeeTable01Theme(theme)
+    ? NON_REFERENCE_POLYHAVEN_BOARD_LIFT
+    : 0;
+}
+
 function fitTableModelToArena(model, theme = null) {
-  if (!model) return { surfaceY: getPolyhavenTableTargetHeight(theme), radius: TABLE_RADIUS };
+  if (!model) {
+    return {
+      surfaceY: getPolyhavenTableTargetHeight(theme),
+      radius: TABLE_RADIUS,
+      boardLift: getPolyhavenBoardLift(theme)
+    };
+  }
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
-  const maxXZ = Math.max(size.x, size.z);
   const targetHeight = getPolyhavenTableTargetHeight(theme);
   const targetDiameter = TABLE_MODEL_TARGET_DIAMETER;
   const targetRadius = COFFEE_TABLE_01_REFERENCE_RADIUS;
   const scaleY = size.y > 0 ? targetHeight / size.y : 1;
-  const scaleXZ = maxXZ > 0 ? targetDiameter / maxXZ : 1;
-  if (scaleY !== 1 || scaleXZ !== 1) {
+  // Match every Poly Haven table to Coffee Table 01 in both visual left/right
+  // and up/down table footprint instead of using only the largest side.
+  const scaleX = size.x > 0 ? targetDiameter / size.x : 1;
+  const scaleZ = size.z > 0 ? targetDiameter / size.z : 1;
+  if (scaleY !== 1 || scaleX !== 1 || scaleZ !== 1) {
     model.scale.set(
-      model.scale.x * scaleXZ,
+      model.scale.x * scaleX,
       model.scale.y * scaleY,
-      model.scale.z * scaleXZ
+      model.scale.z * scaleZ
     );
   }
   const scaledBox = new THREE.Box3().setFromObject(model);
   const center = scaledBox.getCenter(new THREE.Vector3());
   model.position.add(new THREE.Vector3(-center.x, -scaledBox.min.y, -center.z));
   return {
-    surfaceY: COFFEE_TABLE_01_REFERENCE_HEIGHT,
-    radius: targetRadius
+    surfaceY: targetHeight,
+    radius: targetRadius,
+    boardLift: getPolyhavenBoardLift(theme)
   };
 }
 
@@ -3468,7 +3492,8 @@ function getChessBoardSurfaceY(tableInfo = null) {
   const surfaceY = Number.isFinite(tableInfo?.surfaceY)
     ? tableInfo.surfaceY
     : parentY + COFFEE_TABLE_01_REFERENCE_HEIGHT;
-  return surfaceY + BOARD_GROUP_Y_OFFSET;
+  const extraBoardLift = Number.isFinite(tableInfo?.boardLift) ? tableInfo.boardLift : 0;
+  return surfaceY + BOARD_GROUP_Y_OFFSET + extraBoardLift;
 }
 
 function alignBoardGroupToTableSurface(boardGroup, tableInfo) {
@@ -4007,6 +4032,7 @@ async function buildTableFromTheme(theme, options = {}) {
         group,
         surfaceY: fitted.surfaceY,
         radius: fitted.radius,
+        boardLift: fitted.boardLift,
         dispose: () => {
           disposeObjectResources(group);
           group.removeFromParent();
