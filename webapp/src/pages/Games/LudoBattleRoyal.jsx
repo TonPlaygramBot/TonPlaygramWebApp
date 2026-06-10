@@ -361,6 +361,9 @@ const FIREARM_RACK_PARKING_SEAT_ADJUSTMENTS = Object.freeze([
   Object.freeze({ side: -0.012, inward: 0.052 }), // top
   Object.freeze({ side: -0.008, inward: 0.004 }) // left
 ]);
+// Legacy tabletop parking: keep firearms on the same dice/token rail slots used by
+// the late-May Ludo layout so portrait players see the weapons parked on the table
+// instead of drifting back to the seated hands or token center.
 const FIREARM_RACK_DICE_SIDE_OFFSET = 0.102;
 const FIREARM_RACK_DICE_INWARD_OFFSET = 0.018;
 const FIREARM_RACK_DICE_LONG_GUN_SIDE_EXTRA = 0.036;
@@ -8667,13 +8670,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     return { position, aimTarget: railWorld.clone().addScaledVector(forwardWorld, -0.22) };
   }, []);
 
-  const resolveCaptureParkingAnchors = useCallback((playerIndex, vehicleType = 'fighter') => {
+  const resolveCaptureParkingAnchors = useCallback((playerIndex, vehicleType = 'fighter', captureAnimationId = null) => {
     const arena = arenaRef.current;
     if (!arena?.seatAnchors?.length || !arena.boardLookTarget) return null;
     const anchor = arena.seatAnchors[playerIndex];
     if (!anchor) return null;
     if (vehicleType === 'firearmRack') {
-      const dicePose = resolveFirearmRackDicePose(playerIndex);
+      const dicePose = resolveFirearmRackDicePose(playerIndex, captureAnimationId);
       if (dicePose?.position?.isVector3) return dicePose.position;
     }
     const seatPos = anchor.getWorldPosition(new THREE.Vector3());
@@ -8841,7 +8844,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const dronePark = resolveCaptureParkingAnchors(playerIndex, 'drone');
       const missilePark = resolveCaptureParkingAnchors(playerIndex, 'missile');
       const droneTruckPark = resolveCaptureParkingAnchors(playerIndex, 'missile');
-      const weaponRackPark = resolveCaptureParkingAnchors(playerIndex, 'firearmRack');
+      const rackOptionIndex = playerIndex > 0 ? aiLoadoutByPlayer[playerIndex]?.captureAnimationIndex ?? 0 : appearanceRef.current?.captureAnimation ?? 0;
+      const rackCaptureAnimationId =
+        CAPTURE_ANIMATION_OPTIONS[rackOptionIndex]?.id ?? CAPTURE_ANIMATION_OPTIONS[0]?.id ?? 'missileJavelin';
+      const weaponRackPark = resolveCaptureParkingAnchors(playerIndex, 'firearmRack', rackCaptureAnimationId);
       if (!jetPark || !helicopterPark || !dronePark || !missilePark || !droneTruckPark || !weaponRackPark) continue;
       jetFx.root.position.copy(jetPark);
       helicopterFx.root.position.copy(helicopterPark);
@@ -8923,7 +8929,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     activePlayerCount,
     updateParkedCaptureVehicleVisibility,
     fitCaptureVehicleToPlayerKing,
-    resolveCaptureParkingAnchors
+    resolveCaptureParkingAnchors,
+    aiLoadoutByPlayer
   ]);
 
   useEffect(() => {
