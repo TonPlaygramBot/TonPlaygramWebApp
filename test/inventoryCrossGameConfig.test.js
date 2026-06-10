@@ -280,6 +280,30 @@ describe('cross-game inventory alignment', () => {
     expect(materialSetup).not.toContain('material.opacity = 1');
   });
 
+
+  test('ludo battle royal parks each selected firearm in the legacy table slot and ignores stale loads', async () => {
+    const source = await readFile('webapp/src/pages/Games/LudoBattleRoyal.jsx', 'utf8');
+
+    expect(source).toContain('const PARKED_FIREARM_HOLDER_LOCAL_POSITION = Object.freeze([0.04, 0.004, -0.018])');
+    expect(source).toContain('weaponHolder.position.set(...PARKED_FIREARM_HOLDER_LOCAL_POSITION);');
+    expect(source).toContain('if (entry.weaponDisplayRequestId !== requestId) return;');
+    expect(source).toContain('entry.weaponHolder.visible = true;');
+    expect(source).toContain('if (entry.selectedCaptureAnimationId === selectedCaptureAnimationId) {');
+  });
+
+
+  test('ludo battle royal parks Ukrainian drone selections and adjusts portrait camera framing', async () => {
+    const source = await readFile('webapp/src/pages/Games/LudoBattleRoyal.jsx', 'utf8');
+
+    expect(source).toContain("const UKRAINIAN_DRONE_CAPTURE_ID = 'ukrainianDroneAttack';");
+    expect(source).toContain("const DRONE_CAPTURE_ANIMATION_IDS = new Set(['droneAttack', UKRAINIAN_DRONE_CAPTURE_ID]);");
+    expect(source).toContain('entry.drone.visible = selectedCaptureAnimationId === UKRAINIAN_DRONE_CAPTURE_ID;');
+    expect(source).toContain('DRONE_CAPTURE_ANIMATION_IDS.has(selectedCaptureAnimationId);');
+    expect(source).toContain('const CAMERA_FOV = 78;');
+    expect(source).toContain('const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 2.42;');
+    expect(source).toContain('const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.34;');
+  });
+
   test('snake store mirrors ludo battle royal capture weapons', () => {
     const snakeCaptureStoreIds = new Set(
       SNAKE_STORE_ITEMS.filter((item) => item.type === 'captureWeapon').map((item) => item.optionId)
