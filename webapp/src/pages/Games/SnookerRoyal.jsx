@@ -1179,8 +1179,8 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
   );
 const MARKINGS_MM_TO_UNITS = innerLong / WIDTH_REF;
 const OBJECT_MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_MM_TO_UNITS = OBJECT_MM_TO_UNITS / SNOOKER_TABLE_FOOTPRINT_ENLARGE; // preserve the previous ball size while the table expands
-const BALL_SIZE_SCALE = 0.965; // trim Snooker Royal balls just a bit smaller while keeping the table/pocket mapping full-size
+const BALL_MM_TO_UNITS = OBJECT_MM_TO_UNITS; // official 52.5mm balls share the same mm-to-table mapping as the 3569mm x 1778mm playfield
+const BALL_SIZE_SCALE = 1; // regulation snooker ball size: 52.5mm diameter, no visual trim
 const BALL_DIAMETER = BALL_D_REF * BALL_MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -1240,8 +1240,8 @@ console.assert(
   'Side pocket mouth width mismatch.'
 );
 console.assert(
-  Math.abs(BALL_DIAMETER - BALL_D_REF * BALL_MM_TO_UNITS * BALL_SIZE_SCALE) <= BALL_DIAMETER_TOLERANCE,
-  'Ball diameter must match the configured Snooker Royal ball size scale.'
+  Math.abs(BALL_DIAMETER - BALL_D_REF * OBJECT_MM_TO_UNITS) <= BALL_DIAMETER_TOLERANCE,
+  'Ball diameter must match official snooker ball size: 52.5mm on the same mapping as the 3569mm playfield.'
 );
 console.assert(
   Math.abs(BALL_DIAMETER - BALL_R * 2) <= BALL_DIAMETER_TOLERANCE,
@@ -11770,13 +11770,10 @@ function Table3D(
         const sourceFitSize = sourceFitBounds.getSize(new THREE.Vector3());
         const fit = resolveSnookerGlbFitTransform(
           { x: sourceFitSize.x, y: sourceFitSize.y, z: sourceFitSize.z },
-          { x: targetSize.x, y: targetSize.y, z: targetSize.z }
+          { x: targetSize.x, y: targetSize.y, z: targetSize.z },
+          { fitAxis: sourceFitSize.x >= sourceFitSize.z ? 'x' : 'z' }
         );
-        const upperTableScale = Math.min(fit.scale.x, fit.scale.z);
-        if (Number.isFinite(upperTableScale) && upperTableScale > MICRO_EPS) {
-          fit.scale.y = upperTableScale;
-          fit.preservesOriginalUpperTableProportions = true;
-        }
+        fit.preservesOriginalUpperTableProportions = true;
         model.scale.set(fit.scale.x, fit.scale.y, fit.scale.z);
 
         model.updateMatrixWorld(true);
