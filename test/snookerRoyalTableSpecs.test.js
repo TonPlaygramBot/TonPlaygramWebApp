@@ -32,11 +32,11 @@ describe('Snooker Royal physical table specs', () => {
     assert.match(source, /const TARGET_RATIO = WIDTH_REF \/ HEIGHT_REF;/);
     assert.match(source, /const BALL_D_REF = 52\.5;/);
     assert.match(source, /const SNOOKER_TABLE_FOOTPRINT_ENLARGE = 1\.12;/);
-    assert.match(source, /const BALL_MM_TO_UNITS = OBJECT_MM_TO_UNITS \/ SNOOKER_TABLE_FOOTPRINT_ENLARGE;/);
+    assert.match(source, /const BALL_MM_TO_UNITS = OBJECT_MM_TO_UNITS;/);
     assert.match(source, /const BALL_SIZE_SCALE = 1;/);
     assert.match(source, /const CORNER_MOUTH_REF = 83;/);
     assert.match(source, /const SIDE_MOUTH_REF = 87;/);
-    assert.match(source, /const SNOOKER_POCKET_MOUTH_ENLARGE = 1\.12;/);
+    assert.match(source, /const SNOOKER_POCKET_MOUTH_ENLARGE = 1;/);
     assert.doesNotMatch(source, /const BALL_D_REF = 57\.15;/);
     assert.doesNotMatch(source, /const TARGET_RATIO = 1\.83;/);
   });

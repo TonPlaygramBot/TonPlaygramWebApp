@@ -18,6 +18,7 @@ import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import {
   resolveSnookerGlbFitTransform,
+  resolveSnookerGlbPocketLayout,
   resolveSnookerTableModel,
   usesProceduralSnookerTableRailDecor,
   TABLE_MODEL_CLASSIC,
@@ -6288,16 +6289,11 @@ const pocketCenters = () => {
   if (cachedPocketCenters && cachedPocketShift === sidePocketShift) {
     return cachedPocketCenters;
   }
-  const sidePocketCenterX = PLAY_W / 2 + sidePocketShift;
+  const glbPocketLayout = resolveSnookerGlbPocketLayout({ x: PLAY_W, z: PLAY_H });
   cachedPocketShift = sidePocketShift;
-  cachedPocketCenters = [
-    cornerPocketCenter(-1, -1),
-    cornerPocketCenter(1, -1),
-    cornerPocketCenter(-1, 1),
-    cornerPocketCenter(1, 1),
-    new THREE.Vector2(-sidePocketCenterX, 0),
-    new THREE.Vector2(sidePocketCenterX, 0)
-  ];
+  cachedPocketCenters = glbPocketLayout.pockets.map(
+    (pocket) => new THREE.Vector2(pocket.x, pocket.z)
+  );
   cachedSidePocketCenters = cachedPocketCenters.slice(4);
   return cachedPocketCenters;
 };
@@ -8528,14 +8524,6 @@ function Table3D(
     dArc,
     spots: spotMeshes
   };
-  const pocketGeo = new THREE.CylinderGeometry(
-    POCKET_TOP_R,
-    POCKET_BOTTOM_R,
-    POCKET_WALL_HEIGHT,
-    48,
-    1,
-    true
-  );
   const pocketMat = new THREE.MeshStandardMaterial({
     color: 0x000000,
     metalness: 0.45,
@@ -8554,25 +8542,41 @@ function Table3D(
     side: THREE.DoubleSide,
     depthWrite: false
   });
-  const pocketGuideRingRadius = POCKET_BOTTOM_R * POCKET_NET_RING_RADIUS_SCALE;
-  const pocketNetProfile = [
-    new THREE.Vector2(pocketGuideRingRadius, 0),
-    new THREE.Vector2(POCKET_BOTTOM_R * 0.94, -POCKET_NET_DEPTH * 0.16),
-    new THREE.Vector2(POCKET_BOTTOM_R * 0.82, -POCKET_NET_DEPTH * 0.45),
-    new THREE.Vector2(POCKET_BOTTOM_R * 0.7, -POCKET_NET_DEPTH * 0.74),
-    new THREE.Vector2(pocketGuideRingRadius, -POCKET_NET_DEPTH * 1.06)
-  ];
-  const pocketNetGeo = new THREE.LatheGeometry(pocketNetProfile, POCKET_NET_SEGMENTS);
+  const createPocketDropGeometry = (mouthRadius) => {
+    const topRadius = Math.max(MICRO_EPS, mouthRadius);
+    const bottomRadius = topRadius * 0.7;
+    const guideRingRadius = topRadius;
+    const linerGeometry = new THREE.CylinderGeometry(
+      topRadius,
+      bottomRadius,
+      POCKET_WALL_HEIGHT,
+      48,
+      1,
+      true
+    );
+    const netProfile = [
+      new THREE.Vector2(guideRingRadius, 0),
+      new THREE.Vector2(bottomRadius * 0.94, -POCKET_NET_DEPTH * 0.16),
+      new THREE.Vector2(bottomRadius * 0.82, -POCKET_NET_DEPTH * 0.45),
+      new THREE.Vector2(bottomRadius * 0.7, -POCKET_NET_DEPTH * 0.74),
+      new THREE.Vector2(guideRingRadius, -POCKET_NET_DEPTH * 1.06)
+    ];
+    return {
+      linerGeometry,
+      netGeometry: new THREE.LatheGeometry(netProfile, POCKET_NET_SEGMENTS),
+      ringGeometry: new THREE.TorusGeometry(
+        guideRingRadius,
+        POCKET_NET_RING_TUBE_RADIUS,
+        12,
+        28
+      ),
+      guideRingRadius
+    };
+  };
   const pocketGuideMaterial = trimMat;
   const pocketStrapLength = Math.max(POCKET_GUIDE_LENGTH * 0.62, BALL_DIAMETER * 5.4);
   const pocketStrapWidth = BALL_R * 1.8;
   const pocketStrapThickness = BALL_R * 0.12;
-  const pocketRingGeometry = new THREE.TorusGeometry(
-    pocketGuideRingRadius,
-    POCKET_NET_RING_TUBE_RADIUS,
-    12,
-    28
-  );
   const pocketMeshes = [];
   table.userData.pocketHolderAnchors = [];
   const cornerPocketLift = SIDE_POCKET_PLYWOOD_LIFT;
@@ -8580,7 +8584,9 @@ function Table3D(
     const pocketId = POCKET_IDS[index] ?? null;
     const isMiddlePocket = index >= 4;
     const pocketLift = isMiddlePocket ? SIDE_POCKET_PLYWOOD_LIFT : cornerPocketLift;
-    const pocket = new THREE.Mesh(pocketGeo, pocketMat);
+    const pocketMouthRadius = isMiddlePocket ? SIDE_POCKET_RADIUS : POCKET_TOP_R;
+    const pocketDropGeometry = createPocketDropGeometry(pocketMouthRadius);
+    const pocket = new THREE.Mesh(pocketDropGeometry.linerGeometry, pocketMat);
     pocket.name = `${pocketId || 'pocket'}DropLiner`;
     pocket.userData = { ...(pocket.userData || {}), isPocketDropHardware: true };
     pocket.position.set(p.x, pocketTopY - POCKET_WALL_HEIGHT / 2 + pocketLift, p.y);
@@ -8590,7 +8596,7 @@ function Table3D(
     pocket.userData.verticalLift = pocketLift;
     table.add(pocket);
     pocketMeshes.push(pocket);
-    const net = new THREE.Mesh(pocketNetGeo, pocketNetMaterial);
+    const net = new THREE.Mesh(pocketDropGeometry.netGeometry, pocketNetMaterial);
     net.name = `${pocketId || 'pocket'}DropNet`;
     net.userData = { ...(net.userData || {}), isPocketDropHardware: true };
     net.position.set(
@@ -8611,7 +8617,7 @@ function Table3D(
       netBottomY + POCKET_NET_RING_VERTICAL_OFFSET,
       p.y
     );
-    const ring = new THREE.Mesh(pocketRingGeometry, pocketGuideMaterial);
+    const ring = new THREE.Mesh(pocketDropGeometry.ringGeometry, pocketGuideMaterial);
     ring.name = `${pocketId || 'pocket'}ChromeHolderRing`;
     ring.userData = { ...(ring.userData || {}), isPocketDropHardware: true };
     ring.position.copy(ringAnchor);
@@ -8630,7 +8636,7 @@ function Table3D(
     const strapDir = outwardDir.clone().setY(-Math.tan(POCKET_HOLDER_TILT_RAD)).normalize();
     const railStartDistance = Math.max(
       MICRO_EPS,
-      pocketGuideRingRadius +
+      pocketDropGeometry.guideRingRadius +
         POCKET_GUIDE_RING_CLEARANCE +
         POCKET_GUIDE_RING_OVERLAP -
         POCKET_GUIDE_RING_TOWARD_STRAP

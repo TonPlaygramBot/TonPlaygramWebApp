@@ -29,7 +29,8 @@ import {
 } from './snookerRoyalSpinUtils.js';
 import {
   TABLE_MODEL_OPENSOURCE_GLB_URL,
-  resolveSnookerGlbFitTransform
+  resolveSnookerGlbFitTransform,
+  resolveSnookerGlbPocketLayout
 } from './snookerTableModel.js';
 
 const HUMAN_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
@@ -130,8 +131,8 @@ const OFFICIAL_SNOOKER_BALL_DIAMETER_M = 0.0525;
 const OFFICIAL_SNOOKER_BAULK_LINE_FROM_CUSHION_M = 0.737;
 const OFFICIAL_SNOOKER_D_RADIUS_M = 0.292;
 const OFFICIAL_SNOOKER_BLACK_FROM_TOP_CUSHION_M = 0.324;
-const OFFICIAL_SNOOKER_POCKET_CORNER_MOUTH_M = 0.086;
-const OFFICIAL_SNOOKER_POCKET_MIDDLE_MOUTH_M = 0.095;
+const OFFICIAL_SNOOKER_POCKET_CORNER_MOUTH_M = 0.083;
+const OFFICIAL_SNOOKER_POCKET_MIDDLE_MOUTH_M = 0.087;
 const SNOOKER_TABLE_VISUAL_LENGTH_TRIM = 1.08; // larger GLB cabinet framing so the imported snooker table wraps the official mapped cushion rectangle
 const SNOOKER_PLAYFIELD_SCALE = (2.62 * WORLD_SCALE) / OFFICIAL_SNOOKER_PLAYFIELD_WIDTH_M;
 const SNOOKER_OFFICIAL_PLAYFIELD_W = OFFICIAL_SNOOKER_PLAYFIELD_WIDTH_M * SNOOKER_PLAYFIELD_SCALE;
@@ -143,8 +144,6 @@ const SNOOKER_OFFICIAL_D_RADIUS = OFFICIAL_SNOOKER_D_RADIUS_M * SNOOKER_PLAYFIEL
 const SNOOKER_OFFICIAL_BLACK_FROM_TOP_CUSHION = OFFICIAL_SNOOKER_BLACK_FROM_TOP_CUSHION_M * SNOOKER_PLAYFIELD_SCALE;
 const SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS = (OFFICIAL_SNOOKER_POCKET_CORNER_MOUTH_M * SNOOKER_PLAYFIELD_SCALE) / 2;
 const SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS = (OFFICIAL_SNOOKER_POCKET_MIDDLE_MOUTH_M * SNOOKER_PLAYFIELD_SCALE) / 2;
-const SNOOKER_CORNER_JAW_SETBACK = SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS * 0.72;
-const SNOOKER_MIDDLE_JAW_SETBACK = SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS * 0.68;
 const SNOOKER_SHOT_POWER_BOOST = 0.455; // Snooker Royal full-size strike output, shared by Champion through the common table/physics core
 const SNOOKER_SHOT_MIN_FACTOR = 0.25;
 const SNOOKER_SHOT_POWER_RANGE = 0.75;
@@ -705,6 +704,112 @@ function resolveSnookerChampionGlbUpperBounds(model, fullBounds) {
   return upperBounds.isEmpty() ? fullBounds.clone() : upperBounds;
 }
 
+
+function resolveSnookerChampionPocketOutward(pocket) {
+  const dir = new THREE.Vector3(pocket.x, 0, pocket.z);
+  if (dir.lengthSq() < 1e-8) {
+    dir.set(Math.sign(pocket.x || 1), 0, 0);
+  }
+  return dir.normalize();
+}
+
+function addSnookerChampionGlbPocketHardware(tableGroup, pocketPositions = []) {
+  const chromeMat = new THREE.MeshPhysicalMaterial({
+    color: 0xd9dee8,
+    metalness: 0.96,
+    roughness: 0.18,
+    clearcoat: 0.62,
+    clearcoatRoughness: 0.16,
+    envMapIntensity: 1.1
+  });
+  const netMat = new THREE.MeshStandardMaterial({
+    color: 0x16110d,
+    roughness: 0.82,
+    metalness: 0.02,
+    transparent: true,
+    opacity: 0.58,
+    wireframe: true
+  });
+  const leatherMat = new THREE.MeshStandardMaterial({
+    color: 0x2b160d,
+    roughness: 0.88,
+    metalness: 0.01
+  });
+  const holderRadius = Math.max(CFG.ballR * 0.055, 0.006 * CFG.scale);
+  const yAxis = new THREE.Vector3(0, 1, 0);
+  const buildBar = (start, end, name) => {
+    const delta = end.clone().sub(start);
+    const length = delta.length();
+    if (length <= 1e-6) return null;
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(holderRadius, holderRadius, length, 12), chromeMat);
+    mesh.name = name;
+    mesh.position.copy(start).addScaledVector(delta, 0.5);
+    mesh.quaternion.setFromUnitVectors(yAxis, delta.normalize());
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.userData.snookerChampionGlbPocketHardware = true;
+    tableGroup.add(mesh);
+    return mesh;
+  };
+
+  pocketPositions.forEach((pocket, index) => {
+    const radius = pocket.userData?.radius ?? SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS;
+    const id = pocket.userData?.id ?? `P${index}`;
+    const drop = Math.max(radius * 2.45, CFG.ballR * 2.2);
+    const net = new THREE.Mesh(
+      new THREE.CylinderGeometry(radius, radius * 0.72, drop, 40, 5, true),
+      netMat
+    );
+    net.name = `${id}-glb-exact-pocket-net`;
+    net.position.set(pocket.x, pocket.y - drop * 0.48, pocket.z);
+    net.castShadow = false;
+    net.receiveShadow = true;
+    net.userData.snookerChampionGlbPocketHardware = true;
+    tableGroup.add(net);
+
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(radius * 0.72, holderRadius * 1.5, 10, 48),
+      chromeMat
+    );
+    ring.name = `${id}-glb-exact-chrome-holder-ring`;
+    ring.position.set(pocket.x, pocket.y - drop * 0.98, pocket.z);
+    ring.rotation.x = Math.PI / 2;
+    ring.castShadow = true;
+    ring.receiveShadow = true;
+    ring.userData.snookerChampionGlbPocketHardware = true;
+    tableGroup.add(ring);
+
+    const outward = resolveSnookerChampionPocketOutward(pocket);
+    const side = new THREE.Vector3(-outward.z, 0, outward.x).normalize();
+    const strapDir = outward.clone().add(new THREE.Vector3(0, -0.24, 0)).normalize();
+    const spread = radius * 0.56;
+    [-1, 0, 1].forEach((slot) => {
+      const start = ring.position.clone().addScaledVector(side, spread * slot);
+      const stem = start.clone().add(new THREE.Vector3(0, -CFG.ballR * 0.42, 0));
+      const end = stem.clone().addScaledVector(strapDir, radius * 1.45);
+      buildBar(start, stem, `${id}-glb-exact-chrome-holder-stem-${slot + 1}`);
+      buildBar(stem, end, `${id}-glb-exact-chrome-holder-rail-${slot + 1}`);
+    });
+
+    const strapHeight = Math.max(radius * 1.55, CFG.ballR * 1.45);
+    const strap = new THREE.Mesh(
+      new THREE.BoxGeometry(radius * 1.18, strapHeight, holderRadius * 2.3),
+      leatherMat
+    );
+    strap.name = `${id}-glb-exact-leather-drop-strap`;
+    const strapCenter = ring.position
+      .clone()
+      .addScaledVector(strapDir, radius * 1.68)
+      .add(new THREE.Vector3(0, -strapHeight * 0.42, 0));
+    strap.position.copy(strapCenter);
+    strap.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), outward);
+    strap.castShadow = true;
+    strap.receiveShadow = true;
+    strap.userData.snookerChampionGlbPocketHardware = true;
+    tableGroup.add(strap);
+  });
+}
+
 function resolveSnookerChampionGlbBedBounds(model) {
   const bedBounds = new THREE.Box3();
   model.traverse((node) => {
@@ -783,19 +888,23 @@ function addTable(scene, renderer, options = {}) {
   const clothOption = options.clothOption ?? null;
   const textureOption = resolveSnookerChampionTextureOption(options.textureId);
   const pocketY = CFG.ballR + 0.006 * CFG.scale;
-  const pocketPositions = [
-    [-CFG.tableW / 2 + SNOOKER_CORNER_JAW_SETBACK, pocketY, -CFG.tableL / 2 + SNOOKER_CORNER_JAW_SETBACK, SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS],
-    [CFG.tableW / 2 - SNOOKER_CORNER_JAW_SETBACK, pocketY, -CFG.tableL / 2 + SNOOKER_CORNER_JAW_SETBACK, SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS],
-    [-CFG.tableW / 2 + SNOOKER_CORNER_JAW_SETBACK, pocketY, CFG.tableL / 2 - SNOOKER_CORNER_JAW_SETBACK, SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS],
-    [CFG.tableW / 2 - SNOOKER_CORNER_JAW_SETBACK, pocketY, CFG.tableL / 2 - SNOOKER_CORNER_JAW_SETBACK, SNOOKER_OFFICIAL_CORNER_POCKET_RADIUS],
-    [-CFG.tableW / 2 + SNOOKER_MIDDLE_JAW_SETBACK, pocketY, 0, SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS],
-    [CFG.tableW / 2 - SNOOKER_MIDDLE_JAW_SETBACK, pocketY, 0, SNOOKER_OFFICIAL_MIDDLE_POCKET_RADIUS]
-  ].map(([x, y, z, radius]) => {
-    const pocket = new THREE.Vector3(x, y, z);
-    pocket.userData = { radius };
+  const glbPocketLayout = resolveSnookerGlbPocketLayout(
+    { x: CFG.tableW, z: CFG.tableL },
+    { y: pocketY }
+  );
+  const pocketPositions = glbPocketLayout.pockets.map((spec) => {
+    const pocket = new THREE.Vector3(spec.x, spec.y, spec.z);
+    pocket.userData = {
+      id: spec.id,
+      radius: spec.radius,
+      mouth: spec.radius * 2,
+      type: spec.type,
+      mapping: glbPocketLayout.mapping
+    };
     return pocket;
   });
   addOfficialSnookerMarkings(tableGroup);
+  addSnookerChampionGlbPocketHardware(tableGroup, pocketPositions);
   let disposed = false;
   const gltfTools = createUniversalGLTFLoader(renderer);
   (async () => {
