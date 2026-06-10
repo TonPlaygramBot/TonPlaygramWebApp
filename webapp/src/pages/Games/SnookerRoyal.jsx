@@ -6281,10 +6281,14 @@ const cornerPocketCenter = (sx, sz) =>
     sz * (PLAY_H / 2 - CORNER_POCKET_CENTER_INSET)
   );
 let sidePocketShift = 0;
+let openSourcePocketLayout = null;
 let cachedPocketCenters = null;
 let cachedSidePocketCenters = null;
 let cachedPocketShift = null;
 const pocketCenters = () => {
+  if (Array.isArray(openSourcePocketLayout) && openSourcePocketLayout.length >= 6) {
+    return openSourcePocketLayout.map((entry) => entry.center.clone());
+  }
   if (cachedPocketCenters && cachedPocketShift === sidePocketShift) {
     return cachedPocketCenters;
   }
@@ -6307,8 +6311,17 @@ const getSidePocketCenters = () => {
   }
   return cachedSidePocketCenters ?? [];
 };
+const getPocketLayoutRadius = (index) => {
+  const mappedRadius = openSourcePocketLayout?.[index]?.radius;
+  return Number.isFinite(mappedRadius) && mappedRadius > MICRO_EPS
+    ? mappedRadius
+    : index >= 4
+      ? SIDE_POCKET_RADIUS
+      : POCKET_VIS_R;
+};
+const getPocketLayoutCaptureRadius = (index) => getPocketLayoutRadius(index);
 const resolvePocketMappedCenter = (center, index, inwardScale) => {
-  const mouthRadius = index >= 4 ? SIDE_POCKET_RADIUS : POCKET_VIS_R;
+  const mouthRadius = getPocketLayoutRadius(index);
   const towardField = center.clone().multiplyScalar(-1);
   if (towardField.lengthSq() < MICRO_EPS * MICRO_EPS) {
     return center.clone();
@@ -7780,6 +7793,10 @@ function Table3D(
     resolvedTableVisualModel
   );
   applyTablePhysicsSpec(tableSizeMeta);
+  openSourcePocketLayout = null;
+  cachedPocketCenters = null;
+  cachedSidePocketCenters = null;
+  cachedPocketShift = null;
 
   const table = new THREE.Group();
   table.userData = table.userData || {};
@@ -8575,11 +8592,39 @@ function Table3D(
   );
   const pocketMeshes = [];
   table.userData.pocketHolderAnchors = [];
+  table.userData.pocketHardwareGroups = [];
   const cornerPocketLift = SIDE_POCKET_PLYWOOD_LIFT;
   pocketCenters().forEach((p, index) => {
     const pocketId = POCKET_IDS[index] ?? null;
     const isMiddlePocket = index >= 4;
     const pocketLift = isMiddlePocket ? SIDE_POCKET_PLYWOOD_LIFT : cornerPocketLift;
+    const basePocketRadius = isMiddlePocket ? SIDE_POCKET_RADIUS : POCKET_VIS_R;
+    const hardwareGroup = new THREE.Group();
+    hardwareGroup.name = `${pocketId || 'pocket'}ProceduralDropHardware`;
+    hardwareGroup.position.set(p.x, 0, p.y);
+    hardwareGroup.userData = {
+      ...(hardwareGroup.userData || {}),
+      isPocketDropHardware: true,
+      pocketIndex: index,
+      basePocketCenter: p.clone(),
+      basePocketRadius
+    };
+    table.add(hardwareGroup);
+    table.userData.pocketHardwareGroups[index] = hardwareGroup;
+    const addPocketHardware = (mesh, list = null) => {
+      if (!mesh) return;
+      mesh.userData = {
+        ...(mesh.userData || {}),
+        isPocketDropHardware: true,
+        pocketIndex: index,
+        basePocketCenter: p.clone(),
+        basePocketRadius
+      };
+      mesh.position.x -= p.x;
+      mesh.position.z -= p.y;
+      hardwareGroup.add(mesh);
+      if (Array.isArray(list)) list.push(mesh);
+    };
     const pocket = new THREE.Mesh(pocketGeo, pocketMat);
     pocket.name = `${pocketId || 'pocket'}DropLiner`;
     pocket.userData = { ...(pocket.userData || {}), isPocketDropHardware: true };
@@ -8588,7 +8633,7 @@ function Table3D(
     pocket.castShadow = false;
     pocket.receiveShadow = true;
     pocket.userData.verticalLift = pocketLift;
-    table.add(pocket);
+    addPocketHardware(pocket);
     pocketMeshes.push(pocket);
     const net = new THREE.Mesh(pocketNetGeo, pocketNetMaterial);
     net.name = `${pocketId || 'pocket'}DropNet`;
@@ -8601,8 +8646,7 @@ function Table3D(
     net.castShadow = false;
     net.receiveShadow = true;
     net.renderOrder = pocket.renderOrder - 0.25;
-    table.add(net);
-    finishParts.pocketNetMeshes.push(net);
+    addPocketHardware(net, finishParts.pocketNetMeshes);
 
     // Add chrome cradle rails and holders beneath the pocket net to catch potted balls.
     const netBottomY = net.position.y - POCKET_NET_DEPTH * 1.06;
@@ -8618,11 +8662,13 @@ function Table3D(
     ring.rotation.x = Math.PI / 2;
     ring.castShadow = true;
     ring.receiveShadow = true;
-    table.add(ring);
-    finishParts.pocketBaseMeshes.push(ring);
+    addPocketHardware(ring, finishParts.pocketBaseMeshes);
     table.userData.pocketHolderAnchors[index] = {
       pocketId,
-      ringAnchor: ringAnchor.clone()
+      ringAnchor: ringAnchor.clone(),
+      baseRingAnchor: ringAnchor.clone(),
+      basePocketCenter: p.clone(),
+      basePocketRadius
     };
 
     const outwardDir = resolvePocketHolderDirection(p, pocketId);
@@ -8653,8 +8699,7 @@ function Table3D(
       guide.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), delta.clone().normalize());
       guide.castShadow = true;
       guide.receiveShadow = true;
-      table.add(guide);
-      finishParts.pocketBaseMeshes.push(guide);
+      addPocketHardware(guide, finishParts.pocketBaseMeshes);
       return guide;
     };
     let strapOrigin = null;
@@ -8716,8 +8761,7 @@ function Table3D(
       strap.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), strapForward);
       strap.castShadow = true;
       strap.receiveShadow = true;
-      table.add(strap);
-      finishParts.pocketJawMeshes.push(strap);
+      addPocketHardware(strap, finishParts.pocketJawMeshes);
     }
   });
 
@@ -11485,6 +11529,163 @@ function Table3D(
     return box;
   };
 
+  const resolveOpenSourcePocketLayoutFromModel = (model) => {
+    if (!model) return null;
+    const expectedCenters = pocketCenters();
+    if (!Array.isArray(expectedCenters) || expectedCenters.length < 6) return null;
+    const candidates = [];
+    const localBoundsFromWorldBox = (worldBox) => {
+      if (!worldBox || worldBox.isEmpty()) return null;
+      const localBox = new THREE.Box3();
+      [
+        new THREE.Vector3(worldBox.min.x, worldBox.min.y, worldBox.min.z),
+        new THREE.Vector3(worldBox.min.x, worldBox.min.y, worldBox.max.z),
+        new THREE.Vector3(worldBox.min.x, worldBox.max.y, worldBox.min.z),
+        new THREE.Vector3(worldBox.min.x, worldBox.max.y, worldBox.max.z),
+        new THREE.Vector3(worldBox.max.x, worldBox.min.y, worldBox.min.z),
+        new THREE.Vector3(worldBox.max.x, worldBox.min.y, worldBox.max.z),
+        new THREE.Vector3(worldBox.max.x, worldBox.max.y, worldBox.min.z),
+        new THREE.Vector3(worldBox.max.x, worldBox.max.y, worldBox.max.z)
+      ].forEach((corner) => localBox.expandByPoint(table.worldToLocal(corner.clone())));
+      return localBox;
+    };
+
+    model.updateMatrixWorld(true);
+    table.updateMatrixWorld(true);
+    model.traverse((node) => {
+      if (!node?.isMesh) return;
+      const label = `${node.name || ''} ${node.material?.name || ''}`.toLowerCase();
+      if (!/pocket/.test(label)) return;
+      const localBox = localBoundsFromWorldBox(new THREE.Box3().setFromObject(node));
+      if (!localBox || localBox.isEmpty()) return;
+      const size = localBox.getSize(new THREE.Vector3());
+      const center3 = localBox.getCenter(new THREE.Vector3());
+      const measuredRadius = Math.max(
+        MICRO_EPS,
+        Math.min(
+          Math.max(size.x, size.z) * 0.5,
+          Math.max(MICRO_EPS, Math.min(size.x, size.z) * 0.82)
+        )
+      );
+      candidates.push({
+        center: new THREE.Vector2(center3.x, center3.z),
+        radius: measuredRadius,
+        name: node.name || 'open-source-pocket'
+      });
+    });
+
+    if (candidates.length < 6) return null;
+    const layout = new Array(6).fill(null);
+    candidates
+      .map((candidate) => {
+        let bestIndex = -1;
+        let bestDistance = Infinity;
+        expectedCenters.forEach((expected, index) => {
+          if (!expected || layout[index]) return;
+          const distance = candidate.center.distanceToSquared(expected);
+          if (distance < bestDistance) {
+            bestDistance = distance;
+            bestIndex = index;
+          }
+        });
+        return { candidate, bestIndex, bestDistance };
+      })
+      .sort((a, b) => a.bestDistance - b.bestDistance)
+      .forEach(({ candidate }) => {
+        let bestIndex = -1;
+        let bestDistance = Infinity;
+        expectedCenters.forEach((expected, index) => {
+          if (!expected || layout[index]) return;
+          const distance = candidate.center.distanceToSquared(expected);
+          if (distance < bestDistance) {
+            bestDistance = distance;
+            bestIndex = index;
+          }
+        });
+        if (bestIndex >= 0) {
+          layout[bestIndex] = {
+            center: candidate.center.clone(),
+            radius: candidate.radius,
+            sourceName: candidate.name
+          };
+        }
+      });
+
+    if (layout.some((entry) => !entry)) return null;
+    return layout.map((entry, index) => {
+      const fallbackRadius = index >= 4 ? SIDE_POCKET_RADIUS : POCKET_VIS_R;
+      const radius = Number.isFinite(entry.radius) && entry.radius > MICRO_EPS
+        ? entry.radius
+        : fallbackRadius;
+      return {
+        ...entry,
+        radius,
+        radiusScale: radius / Math.max(fallbackRadius, MICRO_EPS)
+      };
+    });
+  };
+
+  const applyOpenSourcePocketLayout = (layout) => {
+    if (!Array.isArray(layout) || layout.length < 6) return false;
+    openSourcePocketLayout = layout.map((entry) => ({
+      ...entry,
+      center: entry.center.clone()
+    }));
+    cachedPocketCenters = null;
+    cachedSidePocketCenters = null;
+    cachedPocketShift = null;
+
+    const groups = table.userData?.pocketHardwareGroups || [];
+    groups.forEach((group, index) => {
+      const entry = openSourcePocketLayout[index];
+      if (!group || !entry?.center) return;
+      const baseRadius = group.userData?.basePocketRadius || (index >= 4 ? SIDE_POCKET_RADIUS : POCKET_VIS_R);
+      const scale = entry.radius / Math.max(baseRadius, MICRO_EPS);
+      group.position.x = entry.center.x;
+      group.position.z = entry.center.y;
+      group.scale.set(scale, 1, scale);
+      group.userData.openSourcePocketMapped = true;
+      group.userData.openSourcePocketRadius = entry.radius;
+    });
+
+    const anchors = table.userData?.pocketHolderAnchors || [];
+    anchors.forEach((anchor, index) => {
+      const entry = openSourcePocketLayout[index];
+      if (!anchor || !entry?.center) return;
+      const baseCenter = anchor.basePocketCenter || new THREE.Vector2(0, 0);
+      const baseRingAnchor = anchor.baseRingAnchor || anchor.ringAnchor;
+      const baseRadius = anchor.basePocketRadius || (index >= 4 ? SIDE_POCKET_RADIUS : POCKET_VIS_R);
+      const scale = entry.radius / Math.max(baseRadius, MICRO_EPS);
+      if (baseRingAnchor) {
+        anchor.ringAnchor = new THREE.Vector3(
+          entry.center.x + (baseRingAnchor.x - baseCenter.x) * scale,
+          baseRingAnchor.y,
+          entry.center.y + (baseRingAnchor.z - baseCenter.y) * scale
+        );
+      }
+      anchor.openSourcePocketMapped = true;
+    });
+
+    const markers = table.userData?.pockets || [];
+    markers.forEach((marker, index) => {
+      const entry = openSourcePocketLayout[index];
+      if (!marker || !entry?.center) return;
+      marker.position.x = entry.center.x;
+      marker.position.y = clothPlaneWorld - entry.radius;
+      marker.position.z = entry.center.y;
+      marker.userData.captureRadius = entry.radius;
+      marker.userData.openSourcePocketMapped = true;
+    });
+
+    table.userData.openSourcePocketLayout = openSourcePocketLayout.map((entry) => ({
+      center: entry.center.clone(),
+      radius: entry.radius,
+      radiusScale: entry.radiusScale,
+      sourceName: entry.sourceName
+    }));
+    return true;
+  };
+
   const resolveOpenSourceTargetBounds = () => {
     const targetBox = new THREE.Box3();
     const parts = finishInfo?.parts || {};
@@ -11791,6 +11992,8 @@ function Table3D(
 
         applyDefaultTableFinishToOpenSourceModel(model);
         const removedOriginalBaseMeshCount = removeOpenSourceOriginalTableBase(model, scaledFitBounds);
+        const openSourcePocketLayout = resolveOpenSourcePocketLayoutFromModel(model);
+        const openSourcePocketLayoutApplied = applyOpenSourcePocketLayout(openSourcePocketLayout);
         remapOpenSourceClothTextureCoordinates(model, clothUvBounds);
         applyOpenSourceCushionPhysicsFromModel(model);
         removeOpenSourceProceduralRailDecor();
@@ -11802,6 +12005,7 @@ function Table3D(
           sourceUrl: TABLE_MODEL_OPENSOURCE_GLB_URL,
           fitToProceduralMapping: true,
           keepsDefaultPocketDropHardware: true,
+          alignsProceduralPocketHardwareToGlbPockets: openSourcePocketLayoutApplied,
           preservesProceduralChromeHoldersLeatherStrapsAndNets: true,
           removesProceduralFrameRailsChromePlatesAndJaws: !keepProceduralRailDecor,
           preservesOriginalTableBase: false,
@@ -11809,12 +12013,14 @@ function Table3D(
           usesProceduralTableBase: true,
           usesGlbCushionShapes: true,
           clothUvMappedToDefaultPlayfield: true,
-          clothUvUsesProceduralWorldScale: true
+          clothUvUsesProceduralWorldScale: true,
+          pocketLayoutSource: openSourcePocketLayoutApplied ? 'glb-pocket-cover-bounds' : 'procedural-fallback'
         };
         table.userData.openSourceVisual = model;
         table.userData.openSourceVisualUrl = TABLE_MODEL_OPENSOURCE_GLB_URL;
         table.userData.openSourceVisualFit = fit;
         table.userData.openSourceVisualTargetBounds = targetBounds;
+        table.userData.openSourcePocketLayoutApplied = openSourcePocketLayoutApplied;
       })
       .catch((error) => {
         setProceduralTableMeshesVisible(true);
@@ -12101,8 +12307,9 @@ function Table3D(
   table.userData.pockets = [];
   pocketCaptureCenters().forEach((p, index) => {
     const marker = new THREE.Object3D();
-    marker.position.set(p.x, clothPlaneWorld - POCKET_VIS_R, p.y);
-    marker.userData.captureRadius = index >= 4 ? SIDE_CAPTURE_R : CAPTURE_R;
+    marker.position.set(p.x, clothPlaneWorld - getPocketLayoutRadius(index), p.y);
+    marker.userData.captureRadius = getPocketLayoutCaptureRadius(index);
+    marker.userData.baseCaptureRadius = marker.userData.captureRadius;
     table.add(marker);
     table.userData.pockets.push(marker);
   });
