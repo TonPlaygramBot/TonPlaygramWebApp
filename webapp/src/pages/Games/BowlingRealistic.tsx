@@ -3,11 +3,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import {
   BOWLING_DOMINO_CHARACTER_TEXTURES,
   BOWLING_DOMINO_CLOTH_MATERIALS,
-  BOWLING_HDRI_VARIANTS,
   BOWLING_HUMAN_CHARACTER_OPTIONS
 } from '../../config/bowlingInventoryConfig.js';
 import {
@@ -114,7 +112,7 @@ type HumanRig = {
   throwT: number;
   recoverT: number;
   celebrateT: number;
-  celebrateVariant: "armsUp" | "fistPump" | "sideWave";
+  celebrateVariant: 'armsUp' | 'fistPump' | 'sideWave';
   celebrateNext: boolean;
   returnWalkT: number;
   pickT: number;
@@ -175,19 +173,6 @@ const DEFAULT_HUMAN_CHARACTER_ID =
 const HUMAN_CHARACTER_OPTIONS =
   BOWLING_HUMAN_CHARACTER_OPTIONS as HumanCharacterOption[];
 const HUMAN_INITIAL_SCALE = 1.34;
-const HDRI_OPTIONS = BOWLING_HDRI_VARIANTS.map((h) => ({
-  id: h.id,
-  name: h.name,
-  thumb: h.thumbnailUrl || h.thumbnail,
-  hdriUrl: h.hdriUrl,
-  assetId: h.assetId,
-  assetUrls: h.assetUrls,
-  preferredResolutions: h.preferredResolutions,
-  rotationY: h.rotationY,
-  cameraHeightM: h.cameraHeightM,
-  arenaScale: h.arenaScale
-}));
-const DEFAULT_HDRI_ID = HDRI_OPTIONS[0]?.id || 'studio_small_09';
 const TABLE_FINISH_ITEMS = POOL_ROYALE_STORE_ITEMS.filter(
   (item) => item.type === 'tableFinish'
 );
@@ -199,7 +184,6 @@ const PORTRAIT_CAMERA_HEIGHT_OFFSET = 0.18;
 const BOWLING_CAMERA_PULLBACK = 0.5;
 const BOWLING_HUMAN_SHOT_BROADCAST_PULLBACK = 1.15;
 const BOWLING_CAMERA_WIDER_FOV_BOOST = 1.5;
-const BOWLING_HDRI_WALL_ALIGNMENT_Y = 0;
 const BOWLING_GRAPHICS_PROFILES: Record<
   GraphicsQuality,
   {
@@ -286,11 +270,11 @@ const RESULT_COMPLIMENTS = {
   open: ['Nice try—adjust and fire again.', 'Good pace, keep rhythm.']
 } as const;
 
-// Keep the full bowling field grounded on the HDRI floor in portrait view.
-const BOWLING_HDRI_GROUND_SNAP_DROP = 0;
+// Keep the full bowling field grounded on the in-app arena floor in portrait view.
+const BOWLING_ARENA_GROUND_DROP = 0;
 
 const CFG = {
-  laneY: -1.5 - BOWLING_HDRI_GROUND_SNAP_DROP,
+  laneY: -1.5 - BOWLING_ARENA_GROUND_DROP,
   laneHalfW: 1.36,
   gutterHalfW: 1.72,
   laneCenterOffset: 1.82,
@@ -324,12 +308,14 @@ const clamp01 = (v: number) => clamp(v, 0, 1);
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 const easeInOut = (t: number) => t * t * (3 - 2 * t);
-const HDRI_RES_LADDER = ['8k', '4k', '2k', '1k'] as const;
 const CELEBRATION_VARIANTS = ['armsUp', 'fistPump', 'sideWave'] as const;
 const BOWLING_SFX = {
-  throw: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8f4f5f572.mp3?filename=bowling-ball-roll-6891.mp3',
-  strike: 'https://cdn.pixabay.com/download/audio/2022/03/24/audio_1710eb2548.mp3?filename=small-crowd-cheer-6713.mp3',
-  spare: 'https://cdn.pixabay.com/download/audio/2022/03/10/audio_e325dc0d53.mp3?filename=success-fanfare-trumpets-6185.mp3'
+  throw:
+    'https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8f4f5f572.mp3?filename=bowling-ball-roll-6891.mp3',
+  strike:
+    'https://cdn.pixabay.com/download/audio/2022/03/24/audio_1710eb2548.mp3?filename=small-crowd-cheer-6713.mp3',
+  spare:
+    'https://cdn.pixabay.com/download/audio/2022/03/10/audio_e325dc0d53.mp3?filename=success-fanfare-trumpets-6185.mp3'
 } as const;
 
 const BOWLING_RULE_SUMMARY = OFFICIAL_TEN_PIN_RULE_SUMMARY;
@@ -995,7 +981,10 @@ function addHuman(
     throwT: 0,
     recoverT: 0,
     celebrateT: 0,
-    celebrateVariant: CELEBRATION_VARIANTS[Math.floor(Math.random() * CELEBRATION_VARIANTS.length)],
+    celebrateVariant:
+      CELEBRATION_VARIANTS[
+        Math.floor(Math.random() * CELEBRATION_VARIANTS.length)
+      ],
     celebrateNext: false,
     returnWalkT: 0,
     pickT: 0,
@@ -2316,7 +2305,7 @@ function createEnvironment(
   if ((laneMat as THREE.MeshStandardMaterial).color)
     (laneMat as THREE.MeshStandardMaterial).color.multiplyScalar(1.18);
 
-  // Clean, open HDRI-driven venue shell: keep only floor, lane, lounge furniture, and gameplay mechanisms.
+  // Full in-app bowling venue shell: modeled walls, ceiling, lights, lane, lounge, and mechanisms.
   const carpetMat = new THREE.MeshStandardMaterial({
     color: 0x23182f,
     roughness: 0.9,
@@ -2339,10 +2328,135 @@ function createEnvironment(
     opacity: 0.42,
     toneMapped: false
   });
+  const wallMat = new THREE.MeshStandardMaterial({
+    color: 0x111827,
+    roughness: 0.78,
+    metalness: 0.08
+  });
+  const acousticPanelMat = new THREE.MeshStandardMaterial({
+    color: 0x1f2937,
+    roughness: 0.92,
+    metalness: 0.02
+  });
+  const ceilingMat = new THREE.MeshStandardMaterial({
+    color: 0x090d14,
+    roughness: 0.84,
+    metalness: 0.16
+  });
+  const polishedConcreteMat = new THREE.MeshStandardMaterial({
+    color: 0x202938,
+    roughness: 0.58,
+    metalness: 0.02
+  });
+  const glowWhite = new THREE.MeshBasicMaterial({
+    color: 0xfff7df,
+    transparent: true,
+    opacity: 0.74,
+    toneMapped: false
+  });
+
+  const arenaWidth = 9.2;
+  const arenaLength = 32.8;
+  const arenaCenterZ = -5.52;
+  const floorSlab = new THREE.Mesh(
+    new THREE.BoxGeometry(arenaWidth, 0.08, arenaLength + 3.4),
+    polishedConcreteMat
+  );
+  floorSlab.position.set(0, CFG.laneY - 0.09, arenaCenterZ + 0.8);
+  floorSlab.receiveShadow = true;
+  group.add(floorSlab);
+
+  for (const side of [-1, 1] as const) {
+    const wall = new THREE.Mesh(
+      new THREE.BoxGeometry(0.22, 3.35, arenaLength),
+      wallMat
+    );
+    wall.position.set(side * arenaWidth * 0.5, CFG.laneY + 1.46, arenaCenterZ);
+    wall.receiveShadow = true;
+    group.add(wall);
+
+    for (let i = 0; i < 8; i++) {
+      const z = lerp(7.1, -17.1, i / 7);
+      const panel = new THREE.Mesh(
+        new THREE.BoxGeometry(0.045, 1.18, 1.82),
+        acousticPanelMat.clone()
+      );
+      (panel.material as THREE.MeshStandardMaterial).color.offsetHSL(
+        0,
+        0,
+        i % 2 ? 0.035 : -0.015
+      );
+      panel.position.set(side * (arenaWidth * 0.5 - 0.13), CFG.laneY + 1.08, z);
+      panel.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
+      group.add(panel);
+    }
+
+    const handRail = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.035, 0.035, arenaLength - 2.8, 16),
+      metalMat
+    );
+    handRail.rotation.x = Math.PI / 2;
+    handRail.position.set(
+      side * (arenaWidth * 0.5 - 0.19),
+      CFG.laneY + 0.72,
+      arenaCenterZ + 0.2
+    );
+    group.add(handRail);
+  }
+
+  const ceiling = new THREE.Mesh(
+    new THREE.BoxGeometry(arenaWidth + 0.16, 0.18, arenaLength),
+    ceilingMat
+  );
+  ceiling.position.set(0, CFG.laneY + 3.18, arenaCenterZ);
+  ceiling.receiveShadow = true;
+  group.add(ceiling);
+
+  for (let i = 0; i < 9; i++) {
+    const z = lerp(7.4, -17.4, i / 8);
+    const beam = new THREE.Mesh(
+      new THREE.BoxGeometry(arenaWidth + 0.28, 0.16, 0.14),
+      new THREE.MeshStandardMaterial({
+        color: 0x151b26,
+        roughness: 0.52,
+        metalness: 0.36
+      })
+    );
+    beam.position.set(0, CFG.laneY + 2.98, z);
+    group.add(beam);
+
+    const lightStrip = new THREE.Mesh(
+      new THREE.BoxGeometry(arenaWidth - 1.2, 0.026, 0.045),
+      glowWhite
+    );
+    lightStrip.position.set(0, CFG.laneY + 2.86, z + 0.19);
+    group.add(lightStrip);
+  }
+
+  for (const side of [-1, 1] as const) {
+    const entryPillar = new THREE.Mesh(
+      new THREE.BoxGeometry(0.52, 2.36, 0.28),
+      wallMat
+    );
+    entryPillar.position.set(side * 3.98, CFG.laneY + 1.18, 9.72);
+    group.add(entryPillar);
+  }
+  const entrySign = new THREE.Mesh(
+    new THREE.PlaneGeometry(3.4, 0.64),
+    makeCanvasTextMaterial('REAL BOWLING ARENA', {
+      width: 1024,
+      height: 256,
+      accent: '#f8fafc',
+      bg: 'rgba(2,6,12,0.9)'
+    })
+  );
+  entrySign.position.set(0, CFG.laneY + 1.86, 9.82);
+  group.add(entrySign);
 
   const sidePanelLength = 33.2;
   const sidePanelWidth = 2.56;
-  const sidePanelOffsetX = CFG.laneHalfW + CFG.gutterHalfW + sidePanelWidth * 0.5 + 0.2;
+  const sidePanelOffsetX =
+    CFG.laneHalfW + CFG.gutterHalfW + sidePanelWidth * 0.5 + 0.2;
   for (const side of [-1, 1] as const) {
     const sidePanel = new THREE.Mesh(
       new THREE.PlaneGeometry(sidePanelWidth, sidePanelLength),
@@ -2510,7 +2624,7 @@ function createEnvironment(
         -5.98
       );
       group.add(gutter);
-      // Removed the two raised brown lane-side caps so the bowling field stays open and HDRI-clean.
+      // Low gutters keep the lane readable on portrait screens without blocking aim.
     }
     const foulLine = new THREE.Mesh(
       new THREE.BoxGeometry(CFG.laneHalfW * 2 + 0.08, 0.018, 0.055),
@@ -4107,7 +4221,8 @@ function updateCamera(
   const forceBroadcastShotCamera =
     usePlayerPerspective &&
     (['approach', 'throw', 'recover'].includes(player.action) || ball.rolling);
-  const usingPlayerPerspective = usePlayerPerspective && !forceBroadcastShotCamera;
+  const usingPlayerPerspective =
+    usePlayerPerspective && !forceBroadcastShotCamera;
   let desired: THREE.Vector3;
   let look: THREE.Vector3;
   const isActiveGameplay =
@@ -4449,9 +4564,6 @@ export default function MobileBowlingRealistic() {
     localStorage.setItem('bowling.fps', fps);
     setSelectedFpsState(fps);
   };
-  const [selectedHdriId, setSelectedHdriId] = useState<string>(
-    () => localStorage.getItem('bowling.hdri') || DEFAULT_HDRI_ID
-  );
   const [ownedPoolInventory, setOwnedPoolInventory] = useState<any>(() =>
     getCachedPoolRoyalInventory()
   );
@@ -4547,83 +4659,8 @@ export default function MobileBowlingRealistic() {
       playerCharacter?.id || DEFAULT_HUMAN_CHARACTER_ID
     );
 
-    const pmrem = new THREE.PMREMGenerator(renderer);
-    pmrem.compileEquirectangularShader();
-    let envTex: THREE.Texture | null = null;
-    let bgTex: THREE.Texture | null = null;
-    const applyHdri = (id: string) => {
-      const selected = HDRI_OPTIONS.find((h) => h.id === id) || HDRI_OPTIONS[0];
-      const menuPreferred =
-        graphicsQuality === 'performance'
-          ? ['2k', '1k']
-          : graphicsQuality === 'ultra'
-            ? ['8k', '4k', '2k']
-            : ['4k', '2k'];
-      const preferred = Array.isArray(selected?.preferredResolutions)
-        ? [...menuPreferred, ...selected.preferredResolutions]
-        : menuPreferred;
-      const candidates = [
-        ...(Object.values(selected?.assetUrls || {}) as string[]),
-        selected?.hdriUrl,
-        ...HDRI_RES_LADDER.map(
-          (r) =>
-            `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${r}/${selected?.assetId || 'studio_small_09'}_${r}.hdr`
-        )
-      ].filter(Boolean) as string[];
-      const ordered = [
-        ...new Set([
-          ...preferred.flatMap((res) =>
-            candidates.filter((u) => u.includes(`_${res}.`))
-          ),
-          ...candidates
-        ])
-      ];
-      const tryLoad = (idx: number) => {
-        if (idx >= ordered.length) {
-          scene.environment = null;
-          scene.background = new THREE.Color(0x090b11);
-          return;
-        }
-        new RGBELoader().setCrossOrigin('anonymous').load(
-          ordered[idx],
-          (hdr) => {
-            envTex?.dispose();
-            bgTex?.dispose();
-            hdr.mapping = THREE.EquirectangularReflectionMapping;
-            bgTex = hdr;
-            envTex = pmrem.fromEquirectangular(hdr).texture;
-            scene.environment = envTex;
-            scene.background = bgTex;
-            const selectedRotation =
-              (Number.isFinite(selected?.rotationY) ? selected.rotationY : 0) +
-              BOWLING_HDRI_WALL_ALIGNMENT_Y;
-            if ('backgroundRotation' in scene)
-              scene.backgroundRotation.set(0, selectedRotation, 0);
-            if ('environmentRotation' in scene)
-              scene.environmentRotation.set(0, selectedRotation, 0);
-            if ('backgroundBlurriness' in scene) scene.backgroundBlurriness = 0;
-            if ('backgroundIntensity' in scene)
-              scene.backgroundIntensity =
-                graphicsQuality === 'ultra'
-                  ? 0.42
-                  : graphicsQuality === 'performance'
-                    ? 0.32
-                    : 0.36;
-            if ('environmentIntensity' in scene)
-              scene.environmentIntensity =
-                graphicsQuality === 'performance'
-                  ? 0.34
-                  : graphicsQuality === 'ultra'
-                    ? 0.52
-                    : 0.42;
-          },
-          undefined,
-          () => tryLoad(idx + 1)
-        );
-      };
-      tryLoad(0);
-    };
-    applyHdri(selectedHdriId);
+    scene.environment = null;
+    scene.background = new THREE.Color(0x070a12);
 
     scene.add(new THREE.AmbientLight(0x8fa6d9, 0.035));
     scene.add(new THREE.HemisphereLight(0xffecd6, 0x08070b, 0.18));
@@ -5257,7 +5294,10 @@ export default function MobileBowlingRealistic() {
         if (officialTenPinPlayerFinished(localScores[activePlayer])) {
           player.action = 'toSeat';
           player.seatT = 0.001;
-          setHud((prev) => ({ ...prev, status: `${localScores[activePlayer].name} finished the game and is returning to the chair.` }));
+          setHud((prev) => ({
+            ...prev,
+            status: `${localScores[activePlayer].name} finished the game and is returning to the chair.`
+          }));
           player.approachFrom.copy(player.pos);
           player.approachTo.copy(player.seatPos);
         } else if (!ball.held && rackDistance > 1.9) {
@@ -5313,7 +5353,10 @@ export default function MobileBowlingRealistic() {
         if (officialTenPinPlayerFinished(localScores[0])) {
           playerRigs[0].action = 'toSeat';
           playerRigs[0].seatT = 0.001;
-          setHud((prev) => ({ ...prev, status: 'Frame complete — returning directly to chair.' }));
+          setHud((prev) => ({
+            ...prev,
+            status: 'Frame complete — returning directly to chair.'
+          }));
           playerRigs[0].approachFrom.copy(playerRigs[0].pos);
           playerRigs[0].approachTo.copy(playerRigs[0].seatPos);
         } else if (rackDistance > 1.9) {
@@ -5437,8 +5480,6 @@ export default function MobileBowlingRealistic() {
       canvas.removeEventListener('pointermove', onPointerMove);
       canvas.removeEventListener('pointerup', onPointerUp);
       canvas.removeEventListener('pointercancel', onPointerUp);
-      pmrem.dispose();
-      envTex?.dispose();
       renderer.dispose();
       scene.traverse((obj) => {
         const mesh = obj as THREE.Mesh;
@@ -5453,7 +5494,6 @@ export default function MobileBowlingRealistic() {
   }, [
     graphicsQuality,
     selectedFps,
-    selectedHdriId,
     ballSelectionMode,
     selectedTableFinish,
     selectedChromeColor,
@@ -5784,49 +5824,6 @@ export default function MobileBowlingRealistic() {
               ))}
             </div>
 
-            <div
-              style={{ fontSize: 12, fontWeight: 800, margin: '10px 0 6px' }}
-            >
-              HDRI inventory
-            </div>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(2,minmax(0,1fr))',
-                gap: 8
-              }}
-            >
-              {HDRI_OPTIONS.filter((h) =>
-                (ownedPoolInventory?.environmentHdri || []).includes(h.id)
-              ).map((h) => (
-                <button
-                  key={h.id}
-                  onClick={() => {
-                    setSelectedHdriId(h.id);
-                    localStorage.setItem('bowling.hdri', h.id);
-                  }}
-                  style={{
-                    textAlign: 'left',
-                    border: '1px solid rgba(255,255,255,0.2)',
-                    borderRadius: 10,
-                    padding: 6,
-                    background:
-                      selectedHdriId === h.id
-                        ? 'rgba(127,214,255,0.2)'
-                        : 'rgba(255,255,255,0.05)',
-                    color: '#fff'
-                  }}
-                >
-                  <img
-                    src={h.thumb}
-                    alt={h.name}
-                    style={{ width: '100%', borderRadius: 8, marginBottom: 6 }}
-                  />
-                  <div style={{ fontSize: 11, fontWeight: 700 }}>{h.name}</div>
-                  <div style={{ fontSize: 10, opacity: 0.75 }}>Owned</div>
-                </button>
-              ))}
-            </div>
             <div
               style={{ fontSize: 12, fontWeight: 800, margin: '10px 0 6px' }}
             >
