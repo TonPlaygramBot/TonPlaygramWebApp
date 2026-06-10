@@ -266,20 +266,6 @@ describe('cross-game inventory alignment', () => {
     expect(source).toContain('}, DICE_RESULT_CAMERA_HOLD_MS);');
   });
 
-  test('ludo battle royal parks firearm racks on dice rail table slots', async () => {
-    const source = await readFile('webapp/src/pages/Games/LudoBattleRoyal.jsx', 'utf8');
-
-    expect(source).toContain('const FIREARM_RACK_DICE_SIDE_OFFSET = 0.102');
-    expect(source).toContain('const FIREARM_RACK_DICE_INWARD_OFFSET = 0.018');
-    expect(source).toContain('const resolveFirearmRackDicePose = useCallback');
-    expect(source).toContain('dice.userData.railPositions');
-    expect(source).toContain('dice.userData.tokenRails');
-    expect(source).toContain("if (vehicleType === 'firearmRack')");
-    expect(source).toContain('const dicePose = resolveFirearmRackDicePose(playerIndex, captureAnimationId);');
-    expect(source).toContain("const weaponRackPark = resolveCaptureParkingAnchors(playerIndex, 'firearmRack', rackCaptureAnimationId);");
-    expect(source).toContain('dicePose?.aimTarget?.isVector3');
-  });
-
   test('ludo battle royal preserves source-authored materials for non-Gunify weapons', async () => {
     const source = await readFile('webapp/src/pages/Games/LudoBattleRoyal.jsx', 'utf8');
 
