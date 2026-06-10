@@ -22,8 +22,7 @@ import {
   usesProceduralSnookerTableRailDecor,
   TABLE_MODEL_CLASSIC,
   TABLE_MODEL_OPENSOURCE,
-  TABLE_MODEL_OPENSOURCE_GLB_URL,
-  OFFICIAL_SNOOKER_SPEC
+  TABLE_MODEL_OPENSOURCE_GLB_URL
 } from './snookerTableModel.js';
 import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
 import '../../../../pool-royale-power-slider.css';
@@ -978,9 +977,9 @@ function addPocketCuts(
 // Dimensions tuned for the Pool Royale footprint for identical table sizing and layout.
 const TABLE_SIZE_SHRINK = 0.85; // tighten the table footprint by ~8% to add breathing room without altering proportions
 const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK; // apply the legacy trim plus the tighter shrink so the arena stays compact without distorting proportions
-const SNOOKER_TABLE_FOOTPRINT_ENLARGE = 1; // keep the imported GLB, playfield mapping, and balls on the same official snooker scale
-const TABLE_FOOTPRINT_SCALE = 0.82 * SNOOKER_TABLE_FOOTPRINT_ENLARGE; // keep portrait framing compact while preserving the official snooker proportions
-const BASE_FOOTPRINT_SHRINK = 0.82 * SNOOKER_TABLE_FOOTPRINT_ENLARGE; // keep the base matched to the official GLB/table footprint without changing overall height
+const SNOOKER_TABLE_FOOTPRINT_ENLARGE = 1.12; // enlarge the playable table footprint while keeping ball geometry unchanged
+const TABLE_FOOTPRINT_SCALE = 0.82 * SNOOKER_TABLE_FOOTPRINT_ENLARGE; // make the table 12% larger in portrait without changing its proportions
+const BASE_FOOTPRINT_SHRINK = 0.82 * SNOOKER_TABLE_FOOTPRINT_ENLARGE; // keep the base matched to the larger table footprint without changing overall height
 const SIZE_REDUCTION = 0.78; // enlarge the playfield/balls to better match Pool Royale sizing
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
 const TABLE_DISPLAY_SCALE = 1.12; // enlarge the Snooker Royal table a bit more while preserving proportions
@@ -1149,16 +1148,16 @@ const FRAME_TOP_Y = -TABLE.THICK + 0.01; // mirror the snooker rail stackup so c
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
   // Official 12ft snooker playfield and ball references. Pocket mouths use the original snooker
   // cushion-template proportions instead of the wider Pool Royale pocket layout.
-  const WIDTH_REF = OFFICIAL_SNOOKER_SPEC.playfieldWidthMm;
-  const HEIGHT_REF = OFFICIAL_SNOOKER_SPEC.playfieldHeightMm;
-  const BALL_D_REF = OFFICIAL_SNOOKER_SPEC.ballDiameterMm;
-  const BALL_D_TOLERANCE_REF = OFFICIAL_SNOOKER_SPEC.ballDiameterToleranceMm;
-  const BAULK_FROM_BAULK_REF = OFFICIAL_SNOOKER_SPEC.baulkLineFromBaulkCushionMm; // Baulk-line distance from the baulk cushion (29")
-  const D_RADIUS_REF = OFFICIAL_SNOOKER_SPEC.dRadiusMm;
-  const PINK_FROM_TOP_REF = OFFICIAL_SNOOKER_SPEC.pinkSpotFromTopCushionMm;
-  const BLACK_FROM_TOP_REF = OFFICIAL_SNOOKER_SPEC.blackSpotFromTopCushionMm; // Black spot distance from the top cushion (12.75")
-  const CORNER_MOUTH_REF = OFFICIAL_SNOOKER_SPEC.cornerPocketMouthMm; // original snooker corner cushion-template mouth width (mm)
-  const SIDE_MOUTH_REF = OFFICIAL_SNOOKER_SPEC.sidePocketMouthMm; // original snooker side cushion-template mouth width (mm)
+  const WIDTH_REF = 3569;
+  const HEIGHT_REF = 1778;
+  const BALL_D_REF = 52.5;
+  const BALL_D_TOLERANCE_REF = 0.05;
+  const BAULK_FROM_BAULK_REF = 737; // Baulk-line distance from the baulk cushion (29")
+  const D_RADIUS_REF = 292;
+  const PINK_FROM_TOP_REF = 737;
+  const BLACK_FROM_TOP_REF = 324; // Black spot distance from the top cushion (12.75")
+  const CORNER_MOUTH_REF = 83; // original snooker corner cushion-template mouth width (mm)
+  const SIDE_MOUTH_REF = 87; // original snooker side cushion-template mouth width (mm)
   const SIDE_RAIL_INNER_REDUCTION = 0.72; // nudge the rails further inward so the cloth footprint tightens slightly more
   const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
   const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
@@ -1180,8 +1179,8 @@ const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
   );
 const MARKINGS_MM_TO_UNITS = innerLong / WIDTH_REF;
 const OBJECT_MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_MM_TO_UNITS = OBJECT_MM_TO_UNITS; // same mm-to-world mapping as the official snooker table and GLB playfield
-const BALL_SIZE_SCALE = 1; // official snooker ball diameter: 52.5mm with no gameplay shrink
+const BALL_MM_TO_UNITS = OBJECT_MM_TO_UNITS / SNOOKER_TABLE_FOOTPRINT_ENLARGE; // preserve the previous ball size while the table expands
+const BALL_SIZE_SCALE = 0.965; // trim Snooker Royal balls just a bit smaller while keeping the table/pocket mapping full-size
 const BALL_DIAMETER = BALL_D_REF * BALL_MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -1241,8 +1240,8 @@ console.assert(
   'Side pocket mouth width mismatch.'
 );
 console.assert(
-  Math.abs(BALL_DIAMETER - BALL_D_REF * OBJECT_MM_TO_UNITS) <= BALL_DIAMETER_TOLERANCE,
-  'Ball diameter must match the official 52.5mm snooker spec on the table mapping.'
+  Math.abs(BALL_DIAMETER - BALL_D_REF * BALL_MM_TO_UNITS * BALL_SIZE_SCALE) <= BALL_DIAMETER_TOLERANCE,
+  'Ball diameter must match the configured Snooker Royal ball size scale.'
 );
 console.assert(
   Math.abs(BALL_DIAMETER - BALL_R * 2) <= BALL_DIAMETER_TOLERANCE,
@@ -11771,9 +11770,13 @@ function Table3D(
         const sourceFitSize = sourceFitBounds.getSize(new THREE.Vector3());
         const fit = resolveSnookerGlbFitTransform(
           { x: sourceFitSize.x, y: sourceFitSize.y, z: sourceFitSize.z },
-          { x: targetSize.x, y: targetSize.y, z: targetSize.z },
-          { preserveOriginalHorizontalShape: true, preserveVerticalFromHorizontal: true }
+          { x: targetSize.x, y: targetSize.y, z: targetSize.z }
         );
+        const upperTableScale = Math.min(fit.scale.x, fit.scale.z);
+        if (Number.isFinite(upperTableScale) && upperTableScale > MICRO_EPS) {
+          fit.scale.y = upperTableScale;
+          fit.preservesOriginalUpperTableProportions = true;
+        }
         model.scale.set(fit.scale.x, fit.scale.y, fit.scale.z);
 
         model.updateMatrixWorld(true);
@@ -11801,8 +11804,6 @@ function Table3D(
           isOpenSourceVisual: true,
           sourceUrl: TABLE_MODEL_OPENSOURCE_GLB_URL,
           fitToProceduralMapping: true,
-          officialSnookerSpec: OFFICIAL_SNOOKER_SPEC,
-          preservesOriginalGlbHorizontalShape: fit.preservesOriginalHorizontalShape === true,
           keepsDefaultPocketDropHardware: true,
           preservesProceduralChromeHoldersLeatherStrapsAndNets: true,
           removesProceduralFrameRailsChromePlatesAndJaws: !keepProceduralRailDecor,
