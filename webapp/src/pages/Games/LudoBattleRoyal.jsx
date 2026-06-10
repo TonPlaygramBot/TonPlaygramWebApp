@@ -230,7 +230,7 @@ const FIREARM_SINGLE_HAND_ONLY_IDS = new Set([
 const FIREARM_RACK_SIZE_MULTIPLIER_BY_ID = Object.freeze({
   fpsGunAttack: SNAKE_FPS_GUN_MODEL_CONFIG.ludoRackSizeMultiplier,
   glockSidearmAttack: 1,
-  // May 9 05:00 table snapshot: keep these four legacy firearms at the exact
+  // May 8/9 table snapshot: keep these four legacy firearms at the exact
   // rack sizing used before the Gunify source/Poly Pizza additions.
   assaultRifleAttack: 1,
   uziSprayAttack: 1.65,
@@ -340,13 +340,13 @@ const FIREARM_RACK_PARKING_TUNING = Object.freeze({
     outward: 0.188
   })
 });
-const MAY_9_TABLE_FIREARM_DISPLAY_TUNING_BY_ID = Object.freeze({
+const MAY_8_TABLE_FIREARM_DISPLAY_TUNING_BY_ID = Object.freeze({
   assaultRifleAttack: FIREARM_RACK_DISPLAY_TUNING.default,
   uziSprayAttack: FIREARM_RACK_DISPLAY_TUNING.default,
   sigsauerTacticalAttack: FIREARM_RACK_DISPLAY_TUNING.default,
   mosinMarksmanAttack: FIREARM_RACK_DISPLAY_TUNING.large
 });
-const MAY_9_TABLE_FIREARM_PARKING_TUNING_BY_ID = Object.freeze({
+const MAY_8_TABLE_FIREARM_PARKING_TUNING_BY_ID = Object.freeze({
   assaultRifleAttack: FIREARM_RACK_PARKING_TUNING.small,
   uziSprayAttack: FIREARM_RACK_PARKING_TUNING.small,
   sigsauerTacticalAttack: FIREARM_RACK_PARKING_TUNING.small,
@@ -361,8 +361,8 @@ const FIREARM_RACK_PARKING_SEAT_ADJUSTMENTS = Object.freeze([
   Object.freeze({ side: -0.012, inward: 0.052 }), // top
   Object.freeze({ side: -0.008, inward: 0.004 }) // left
 ]);
-// Legacy tabletop parking: keep firearms on the same dice/token rail slots used by
-// the late-May Ludo layout so portrait players see the weapons parked on the table
+// Legacy May 8/9 tabletop parking: keep firearms on the same dice/token rail slots
+// used by the restored Ludo layout so portrait players see weapons parked on the table
 // instead of drifting back to the seated hands or token center.
 const FIREARM_RACK_DICE_SIDE_OFFSET = 0.102;
 const FIREARM_RACK_DICE_INWARD_OFFSET = 0.018;
@@ -2140,7 +2140,7 @@ async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
   const clone = weaponModel.clone(true);
   alignObjectBottomToY(clone, 0);
   const displayTuning =
-    MAY_9_TABLE_FIREARM_DISPLAY_TUNING_BY_ID[captureAnimationId] ||
+    MAY_8_TABLE_FIREARM_DISPLAY_TUNING_BY_ID[captureAnimationId] ||
     (LARGE_RACK_FIREARM_IDS.has(captureAnimationId)
       ? FIREARM_RACK_DISPLAY_TUNING.large
       : FIREARM_RACK_DISPLAY_TUNING.default);
@@ -4385,11 +4385,11 @@ const SEATED_HELPER_FACE_CAMERA_UP = 0.146 * MODEL_SCALE;
 const SEATED_HELPER_FACE_CAMERA_FORWARD = -0.072 * MODEL_SCALE;
 // The bottom-seat gameplay camera is intentionally raised and pushed farther toward the table so
 // portrait players see over the local avatar and closer into the Ludo board/action area.
-const SEATED_FACE_CAMERA_GAMEPLAY_FORWARD = 0.335 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_FORWARD = 0.348 * MODEL_SCALE;
 // Lift the human player's locked first-person camera higher so portrait gameplay has a clearer
 // over-the-table view of the dice, tokens, and board while staying only slightly closer.
-const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.72 * MODEL_SCALE;
-const SEATED_FACE_CAMERA_GAMEPLAY_LOOK_DOWN = 0.37 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.78 * MODEL_SCALE;
+const SEATED_FACE_CAMERA_GAMEPLAY_LOOK_DOWN = 0.42 * MODEL_SCALE;
 const SEATED_CONTACT_IK_ITERATIONS = 9;
 const SEATED_CONTACT_IK_MAX_STEP_RAD = 0.34;
 const SEATED_CONTACT_DICE_Y_OFFSET = 0.005;
@@ -4437,7 +4437,7 @@ function resolvePlayerColors(appearance = {}) {
   return PLAYER_COLOR_ORDER.map((_, idx) => normalizeColorValue(swatches[idx], DEFAULT_PLAYER_COLORS[idx]));
 }
 
-const CAMERA_FOV = 75;
+const CAMERA_FOV = 78;
 const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
 const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
 const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
@@ -4468,9 +4468,9 @@ const LUDO_CAMERA_PHI_MAX = 1.14;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.18;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.26;
-const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 2.34;
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 2.38;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.98;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.28;
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.34;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.9;
 const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_PORTRAIT = 0.42 * MODEL_SCALE;
 const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_LANDSCAPE = 0.2 * MODEL_SCALE;
@@ -5815,7 +5815,7 @@ const CAMERA_2D_MIN_DISTANCE_FACTOR = 1.2;
 const CAMERA_2D_MAX_DISTANCE_FACTOR = 4.7;
 const CAMERA_3D_VERTICAL_DROP = 0;
 const CAMERA_3D_HEIGHT_BOOST = 0.26 * MODEL_SCALE;
-const CAMERA_LOOKDOWN_TARGET_OFFSET = 0.062 * MODEL_SCALE;
+const CAMERA_LOOKDOWN_TARGET_OFFSET = 0.078 * MODEL_SCALE;
 const TRACK_COORDS = Object.freeze([
   [6, 1],
   [6, 2],
@@ -8726,7 +8726,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const rightSide = new THREE.Vector3().crossVectors(inward, MISSILE_WORLD_UP).normalize();
       const isLargeFirearm = LARGE_RACK_FIREARM_IDS.has(captureAnimationId);
       const rackTuning =
-        MAY_9_TABLE_FIREARM_PARKING_TUNING_BY_ID[captureAnimationId] ||
+        MAY_8_TABLE_FIREARM_PARKING_TUNING_BY_ID[captureAnimationId] ||
         (isLargeFirearm
           ? FIREARM_RACK_PARKING_TUNING.large
           : FIREARM_RACK_PARKING_TUNING.small);
