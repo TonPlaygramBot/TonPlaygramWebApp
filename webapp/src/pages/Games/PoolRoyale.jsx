@@ -24901,13 +24901,15 @@ const shotPowerRef = useRef(0);
             const safeHoldDuration = Math.max(0, holdDuration ?? 45);
             const safeRecoverDuration = Math.max(0, recoverDuration ?? 0);
             const resolvedIdlePos = idlePos ?? impactPos ?? stroke.contactPos ?? pullPos;
+            const resolvedForwardPos =
+              stroke.followPos ?? stroke.contactPos ?? impactPos ?? resolvedIdlePos ?? pullPos;
             const normalizedStroke = ensureCueStrokeForwardMotion({
               pullPos: pullPos ?? resolvedIdlePos,
-              impactPos: resolvedIdlePos ?? pullPos,
+              impactPos: resolvedForwardPos ?? resolvedIdlePos ?? pullPos,
               fallbackDirection: tmpCueStrokeB.set(Math.sin(baseRotationY ?? 0), 0, Math.cos(baseRotationY ?? 0))
             });
             const resolvedPullPos = normalizedStroke.pullPos ?? pullPos ?? resolvedIdlePos;
-            const resolvedContactPos = resolvedIdlePos ?? stroke.contactPos ?? impactPos ?? pullPos;
+            const resolvedContactPos = normalizedStroke.impactPos ?? resolvedForwardPos ?? resolvedIdlePos ?? pullPos;
             const strikeProgress = THREE.MathUtils.clamp(
               elapsed / Math.max(safeStrikeDuration, 1e-6),
               0,
@@ -29675,12 +29677,23 @@ const shotPowerRef = useRef(0);
           const pullbackDuration = 0;
           const startTime = performance.now();
           const impactPos = idlePos.clone();
-          const contactAdvance = 0; // push forward only to the original idle pose where the slider pull began
+          // Match Snooker Royal's visible cue drive: after starting from the
+          // pulled slider pose, the cue tip continues visually past the address
+          // gap toward cue-ball contact and then follows through a little bit.
+          const contactAdvance = THREE.MathUtils.clamp(
+            CUE_TIP_GAP - BALL_R * 0.9,
+            BALL_R * 0.16,
+            BALL_R * 0.38
+          );
           shotImpactPayload.contactAdvance = contactAdvance;
           const contactPos = impactPos
             .clone()
             .addScaledVector(dir, contactAdvance);
-          const followDistance = 0; // stop at cue-ball contact instead of visually following the moving cue ball
+          const followDistance = THREE.MathUtils.lerp(
+            BALL_R * 0.26,
+            BALL_R * 0.72,
+            clampedPower
+          );
           const followPos = contactPos
             .clone()
             .addScaledVector(dir, followDistance);
