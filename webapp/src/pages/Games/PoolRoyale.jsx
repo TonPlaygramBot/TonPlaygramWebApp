@@ -1940,6 +1940,7 @@ const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.07;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.42; // keep orbit height aligned with the cue while leaving a safe buffer above
 const CUE_TIP_CLEARANCE = BALL_R * 0.24; // widen the visible air gap so the cue sits a little farther from the cue ball
 const CUE_TIP_GAP = BALL_R * 1.42 + CUE_TIP_CLEARANCE; // pull the cue tip slightly farther back so the blue tip remains visible
+const CUE_CONTACT_GAP = BALL_R + CUE_TIP_CLEARANCE * 0.22; // Snooker-style strike gap: drive the tip back to the cue ball on release
 const CUE_PULL_BASE = BALL_R * 10 * 0.95 * 2.05;
 const CUE_PULL_MIN_VISUAL = BALL_R * 1.75; // guarantee a clear visible pull even when clearance is tight
 const CUE_PULL_VISUAL_FUDGE = BALL_R * 2.5; // allow extra travel before obstructions cancel the pull
@@ -24907,7 +24908,8 @@ const shotPowerRef = useRef(0);
               fallbackDirection: tmpCueStrokeB.set(Math.sin(baseRotationY ?? 0), 0, Math.cos(baseRotationY ?? 0))
             });
             const resolvedPullPos = normalizedStroke.pullPos ?? pullPos ?? resolvedIdlePos;
-            const resolvedContactPos = resolvedIdlePos ?? stroke.contactPos ?? impactPos ?? pullPos;
+            const resolvedContactPos = stroke.contactPos ?? resolvedIdlePos ?? impactPos ?? pullPos;
+            const resolvedFollowPos = stroke.followPos ?? resolvedContactPos;
             const strikeProgress = THREE.MathUtils.clamp(
               elapsed / Math.max(safeStrikeDuration, 1e-6),
               0,
@@ -24929,6 +24931,16 @@ const shotPowerRef = useRef(0);
             }
 
             if (elapsed < safeStrikeDuration + safeHoldDuration) {
+              const holdElapsed = Math.max(0, elapsed - safeStrikeDuration);
+              if (holdElapsed > 0 && safeHoldDuration > 0) {
+                const holdT = THREE.MathUtils.clamp(holdElapsed / safeHoldDuration, 0, 1);
+                cueStick.position.lerpVectors(
+                  resolvedContactPos,
+                  resolvedFollowPos,
+                  1 - Math.pow(1 - holdT, 3)
+                );
+                cueStick.position.y -= (strikeDip ?? 0.0035);
+              }
               cueAnimating = true;
               syncCueShadow();
               return true;
@@ -24940,7 +24952,7 @@ const shotPowerRef = useRef(0);
             );
             if (recoverT < 1) {
               cueStick.position.lerpVectors(
-                resolvedContactPos,
+                resolvedFollowPos,
                 resolvedIdlePos ?? impactPos ?? pullPos,
                 easeInOutCubic(recoverT)
               );
@@ -24948,7 +24960,7 @@ const shotPowerRef = useRef(0);
               syncCueShadow();
               return true;
             }
-            cueStick.position.copy(resolvedIdlePos ?? followPos ?? impactPos);
+            cueStick.position.copy(resolvedFollowPos ?? resolvedIdlePos ?? impactPos);
             cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
             cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
             cueStick.visible = false;
@@ -29120,13 +29132,19 @@ const shotPowerRef = useRef(0);
         const shotDir3 = TMP_VEC3_C.set(aimDir.x, 0, aimDir.y);
         if (shotDir3.lengthSq() > 1e-8) shotDir3.normalize();
         else shotDir3.set(0, 0, 1);
+        const driveBoost = computeCueDriveBoost({
+          pullDistance,
+          contactAdvance,
+          strikeDurationMs: strikeDuration,
+          clampedPower
+        });
         const launchVelocity = base?.clone?.();
         if (launchVelocity?.lengthSq?.() > 1e-8) {
-          cue.vel.copy(launchVelocity);
+          cue.vel.copy(launchVelocity).multiplyScalar(driveBoost);
         } else {
           const speedBase = SHOT_BASE_SPEED;
           const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
-          cue.vel.copy(shotDir3).multiplyScalar(speedBase * powerScale);
+          cue.vel.copy(shotDir3).multiplyScalar(speedBase * powerScale * driveBoost);
         }
         if (cue.spin) {
           cue.spin.set(offsetScaled.x, offsetScaled.y);
@@ -29573,7 +29591,9 @@ const shotPowerRef = useRef(0);
             strikeDuration: strokeProfile.strikeDuration ?? LIVE_CUE_FORWARD_DURATION_MS,
             applied: false
           };
-          applyShotAtImpact(shotImpactPayload);
+          // Do not launch the cue ball while the cue is still pulled back.
+          // The live stroke below applies this payload at impact so the visible
+          // cue push and cue-ball power happen together, like Snooker Royal.
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
@@ -29675,12 +29695,16 @@ const shotPowerRef = useRef(0);
           const pullbackDuration = 0;
           const startTime = performance.now();
           const impactPos = idlePos.clone();
-          const contactAdvance = 0; // push forward only to the original idle pose where the slider pull began
+          const contactAdvance = Math.max(0, CUE_TIP_GAP - CUE_CONTACT_GAP);
           shotImpactPayload.contactAdvance = contactAdvance;
           const contactPos = impactPos
             .clone()
             .addScaledVector(dir, contactAdvance);
-          const followDistance = 0; // stop at cue-ball contact instead of visually following the moving cue ball
+          const followDistance = THREE.MathUtils.lerp(
+            CUE_FOLLOW_THROUGH_MIN,
+            CUE_FOLLOW_THROUGH_MAX,
+            clampedPower
+          );
           const followPos = contactPos
             .clone()
             .addScaledVector(dir, followDistance);
@@ -29808,8 +29832,8 @@ const shotPowerRef = useRef(0);
               wobbleAmount: THREE.MathUtils.lerp(0.0014, 0.0036, clampedPower),
               strikeImpactThreshold: 0.9,
               strikeExtraFollow: Math.min(0.018, Math.max(0, (rawSpin?.y ?? 0) * clampedPower) * 0.016),
-              // Match Snooker Royal's release: push from the pulled pose and
-              // stop exactly at the cue's original idle/contact pose.
+              // Match Snooker Royal's release: push from the pulled pose into
+              // the cue ball, then hold a short forward follow-through.
               forwardOnly: Boolean(strokeProfile.forwardOnly),
               onImpact: () => applyShotImpactOnce(),
               animationStyle: strokeStyle,
