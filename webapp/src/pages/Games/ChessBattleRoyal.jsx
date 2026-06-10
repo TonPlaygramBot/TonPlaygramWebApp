@@ -607,10 +607,52 @@ const CHESS_FIREARM_HANDHELD_SCALE_MULTIPLIER_BY_ID = Object.freeze({
   polyHandGrenade01Attack: 0.95,
   polyTank01Attack: 1.2
 });
-const CHESS_FIREARM_MUZZLE_YAW_CORRECTION_BY_ID = Object.freeze({
-  ak47VolleyAttack: Math.PI,
-  krsvBurstAttack: Math.PI
-});
+const CHESS_FIREARM_KRSV_MATCHED_YAW_CORRECTION = Math.PI;
+const CHESS_FIREARM_MUZZLE_YAW_CORRECTION_BY_ID = Object.freeze(
+  Object.fromEntries(
+    [
+      'fpsGunAttack',
+      'glockSidearmAttack',
+      'pistolSidearmAttack',
+      'assaultRifleAttack',
+      'uziSprayAttack',
+      'ak47VolleyAttack',
+      'krsvBurstAttack',
+      'smithSidearmAttack',
+      'mosinMarksmanAttack',
+      'sigsauerTacticalAttack',
+      'grenadeBlastAttack',
+      'shotgunBlastAttack',
+      'sniperShotAttack',
+      'smgBurstAttack',
+      'compactCarbineAttack',
+      'marksmanDmrAttack',
+      'polyShotgun01Attack',
+      'polyAssaultRifle01Attack',
+      'polyPistol01Attack',
+      'polyRevolver01Attack',
+      'polySawedOff01Attack',
+      'polyRevolver02Attack',
+      'polyShotgun02Attack',
+      'polyShotgun03Attack',
+      'polySmg01Attack',
+      'polyRobotLargeGunAttack',
+      'polyRobotFlyingGunAttack',
+      'polyBazooka01Attack',
+      'polyGrenadeLauncher01Attack',
+      'polyDynamiteBomb01Attack',
+      'polyMolotov01Attack',
+      'polyGasTank01Attack',
+      'polyHandGrenade01Attack',
+      'polyTank01Attack'
+    ].map((id) => [id, CHESS_FIREARM_KRSV_MATCHED_YAW_CORRECTION])
+  )
+);
+const CHESS_FIREARM_MUZZLE_FORWARD_BY_ID = Object.freeze(
+  Object.fromEntries(
+    Object.keys(CHESS_FIREARM_MUZZLE_YAW_CORRECTION_BY_ID).map((id) => [id, new THREE.Vector3(0, 0, 1)])
+  )
+);
 
 function resolveChessFirearmAnimationTargetSize(captureAnimationId) {
   const modelScale = CHESS_CAPTURE_WEAPON_MODEL_CONFIG[captureAnimationId]?.scale ?? 0.18;
@@ -873,8 +915,10 @@ const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
-const TABLE_MODEL_TARGET_DIAMETER = TABLE_RADIUS * 2;
-const TABLE_MODEL_TARGET_HEIGHT = TABLE_HEIGHT;
+const COFFEE_TABLE_01_REFERENCE_RADIUS = TABLE_RADIUS;
+const COFFEE_TABLE_01_REFERENCE_HEIGHT = TABLE_HEIGHT;
+const TABLE_MODEL_TARGET_DIAMETER = COFFEE_TABLE_01_REFERENCE_RADIUS * 2;
+const TABLE_MODEL_TARGET_HEIGHT = COFFEE_TABLE_01_REFERENCE_HEIGHT;
 const AI_CHAIR_GAP = (0.4 * MODEL_SCALE * CARD_SCALE) * 0.4;
 const CAMERA_TABLE_SPAN_FACTOR = 2.6;
 
@@ -2340,7 +2384,7 @@ function fitTableModelToArena(model) {
   const maxXZ = Math.max(size.x, size.z);
   const targetHeight = TABLE_MODEL_TARGET_HEIGHT;
   const targetDiameter = TABLE_MODEL_TARGET_DIAMETER;
-  const targetRadius = targetDiameter / 2;
+  const targetRadius = COFFEE_TABLE_01_REFERENCE_RADIUS;
   const scaleY = size.y > 0 ? targetHeight / size.y : 1;
   const scaleXZ = maxXZ > 0 ? targetDiameter / maxXZ : 1;
   if (scaleY !== 1 || scaleXZ !== 1) {
@@ -2354,7 +2398,7 @@ function fitTableModelToArena(model) {
   const center = scaledBox.getCenter(new THREE.Vector3());
   model.position.add(new THREE.Vector3(-center.x, -scaledBox.min.y, -center.z));
   return {
-    surfaceY: targetHeight,
+    surfaceY: COFFEE_TABLE_01_REFERENCE_HEIGHT,
     radius: targetRadius
   };
 }
@@ -3409,11 +3453,16 @@ function alignGroupToFloorY(group, floorY = 0) {
   return offset;
 }
 
-function alignBoardGroupToTableSurface(boardGroup, _tableInfo) {
+function getChessBoardSurfaceY(tableInfo = null) {
+  const parentY = tableInfo?.group?.position?.y ?? 0;
+  return parentY + COFFEE_TABLE_01_REFERENCE_HEIGHT + BOARD_GROUP_Y_OFFSET;
+}
+
+function alignBoardGroupToTableSurface(boardGroup, tableInfo) {
   if (!boardGroup) return 0;
-  // All Chess Battle Royal table options are normalized to the default tabletop height,
-  // so the board keeps one consistent felt-surface height instead of jumping per model.
-  return alignGroupToFloorY(boardGroup, TABLE_HEIGHT + BOARD_GROUP_Y_OFFSET);
+  // Every selectable table is normalized to Coffee Table 01's height/width,
+  // so the chess board keeps the exact same visible tabletop position on mobile.
+  return alignGroupToFloorY(boardGroup, getChessBoardSurfaceY(tableInfo));
 }
 
 function alignArenaContentsToRoom(groups = [], roomHalfWidth, roomHalfDepth, preferredShiftZ = 0) {
@@ -3610,12 +3659,9 @@ function pickRandomAiHumanCharacterOption(playerOption) {
   return pool[Math.floor(Math.random() * pool.length)] ?? fallback;
 }
 
-function getTableHeightForShape(shapeId) {
-  if (LOWER_PROFILE_TABLE_SHAPE_IDS.has(shapeId)) {
-    // Keep cloth/board surface aligned with other tables while shortening the visible pedestal only.
-    return TABLE_HEIGHT;
-  }
-  return TABLE_HEIGHT;
+function getTableHeightForShape(_shapeId) {
+  // Lock every table option to Coffee Table 01's normalized tabletop height.
+  return COFFEE_TABLE_01_REFERENCE_HEIGHT;
 }
 
 function getPedestalHeightScaleForShape(shapeId) {
@@ -3913,8 +3959,8 @@ async function buildTableFromTheme(theme, options = {}) {
   const {
     arena,
     renderer = null,
-    tableRadius = TABLE_RADIUS,
-    tableHeight = TABLE_HEIGHT,
+    tableRadius = COFFEE_TABLE_01_REFERENCE_RADIUS,
+    tableHeight = COFFEE_TABLE_01_REFERENCE_HEIGHT,
     woodOption = TABLE_WOOD_OPTIONS[0],
     clothOption = TABLE_CLOTH_OPTIONS[0],
     baseOption = TABLE_BASE_OPTIONS[0],
@@ -4665,7 +4711,7 @@ async function attachChessFirearmToRightHand(attackerEntry, captureAnimationId) 
     muzzle,
     offhandTarget,
     twoHanded: isChessTwoHandedFirearm(captureAnimationId),
-    muzzleForward: new THREE.Vector3(0, 0, 1),
+    muzzleForward: (CHESS_FIREARM_MUZZLE_FORWARD_BY_ID[captureAnimationId] || new THREE.Vector3(0, 0, 1)).clone(),
     aimRollRad: CHESS_FIREARM_AIM_ROLL_BY_TYPE[firearmType] ?? CHESS_FIREARM_AIM_ROLL_BY_TYPE.default,
     actorEntry: attackerEntry,
     release: () => {
@@ -9304,6 +9350,8 @@ function Chess3D({
       onlineRef.current.synced = true;
       if (onlineRef.current.status !== 'started') onlineRef.current.status = 'in-progress';
       setOnlineStatus('in-game');
+      setViewMode('2d');
+      cameraViewRef.current?.setMode('2d');
       onlineRef.current.applyRemoteMove?.(payload);
     };
 
@@ -9318,6 +9366,8 @@ function Chess3D({
       onlineRef.current.side = mySide;
       onlineRef.current.status = 'started';
       setOnlineStatus('starting');
+      setViewMode('2d');
+      cameraViewRef.current?.setMode('2d');
       socket.emit('joinChessRoom', { tableId: startedId, accountId });
       onlineRef.current.requestSync?.();
     };
@@ -10199,7 +10249,7 @@ function Chess3D({
         const nextTable = await buildTableFromTheme(tableTheme, {
           arena: arena.arenaGroup,
           renderer: arena.renderer,
-          tableRadius: TABLE_RADIUS,
+          tableRadius: COFFEE_TABLE_01_REFERENCE_RADIUS,
           tableHeight: shapeTableHeight,
           woodOption,
           clothOption,
@@ -10936,7 +10986,7 @@ function Chess3D({
     const tableInfo = await buildTableFromTheme(tableTheme, {
       arena,
       renderer,
-      tableRadius: TABLE_RADIUS,
+      tableRadius: COFFEE_TABLE_01_REFERENCE_RADIUS,
       tableHeight: shapeTableHeight,
       woodOption,
       clothOption,
@@ -11279,7 +11329,7 @@ function Chess3D({
         }
         const target = initial2dViewRef.current;
         locked3dViewRef.current.activeLook = false;
-        animateCameraTo(target, 360);
+        applyCameraSpherical(target);
       } else {
         camera.near = CAM.near;
         camera.updateProjectionMatrix();
@@ -11339,6 +11389,15 @@ function Chess3D({
     };
     fitRef.current = fit;
     fit();
+    const stableFitFrames = { first: 0, second: 0 };
+    stableFitFrames.first = requestAnimationFrame(() => {
+      fit();
+      stableFitFrames.second = requestAnimationFrame(fit);
+    });
+    disposers.push(() => {
+      cancelAnimationFrame(stableFitFrames.first);
+      cancelAnimationFrame(stableFitFrames.second);
+    });
     baseCameraRadiusRef.current = camera.position.distanceTo(boardLookTarget);
     baseSkyboxScaleRef.current =
       envSkyboxRef.current?.scale?.x ?? baseSkyboxScaleRef.current ?? 1;
