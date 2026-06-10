@@ -1092,8 +1092,8 @@ const ENABLE_TABLE_MAPPING_LINES = false;
 const TABLE_OUTER_EXPANSION = TABLE.WALL * 0.22;
 const FRAME_RAIL_OUTWARD_SCALE = 1.38; // expand wooden frame rails outward by 38% on all sides
 const RAIL_HEIGHT = TABLE.THICK * 1.9; // match Pool Royale rail/cushion top height
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.024; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
-const POCKET_JAW_MAPPING_RADIUS_SCALE = 1.04; // expand jaw collision arcs to match the visible GLB jaw lips and close corner escape seams
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1; // clamp corner jaws to the exact chrome pocket cut so mapping cannot drift outward
+const POCKET_JAW_MAPPING_RADIUS_SCALE = 1; // keep procedural jaw collision arcs exactly on the visible GLB/chrome jaw lip
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
 const POCKET_JAW_CORNER_INNER_SCALE = 1.44; // pull the inner lip farther outward so the jaw profile runs longer and thins slightly while keeping the chrome-facing radius untouched
@@ -1101,7 +1101,7 @@ const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 1.03; // rou
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.69; // preserve the playable mouth while letting the corner fascia run longer and slimmer
 const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
-const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.036; // nudge jaws outward to track the cushion line precisely
+const POCKET_JAW_CORNER_OUTER_EXPANSION = 0; // no extra jaw expansion: chrome cut, visual jaw, and physics mapping share one exact outline
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
 const POCKET_JAW_DEPTH_SCALE = 0.98; // extend the jaw bodies so the underside reaches deeper below the cloth
 const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.086; // trim the jaw height slightly so the top edge sits lower
@@ -1343,12 +1343,12 @@ const POCKET_INTERIOR_CAPTURE_R =
   POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION; // match capture radius directly to the pocket bowl opening
 const SIDE_POCKET_INTERIOR_CAPTURE_R =
   SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION; // keep middle-pocket capture identical to its bowl radius
-const POCKET_CAPTURE_ASSIST = BALL_R * 0.55; // tighter capture allowance so drops match the actual visible corner pocket bowl
-const SIDE_POCKET_CAPTURE_ASSIST = BALL_R * 0.5; // tighter side-pocket capture allowance for physical mouth-size precision
+const POCKET_CAPTURE_ASSIST = 0; // exact capture: do not enlarge beyond the visible corner pocket bowl
+const SIDE_POCKET_CAPTURE_ASSIST = 0; // exact capture: do not enlarge beyond the visible side pocket bowl
 const CAPTURE_R =
-  POCKET_INTERIOR_CAPTURE_R + POCKET_CAPTURE_ASSIST; // corner captures now use the physical pocket bowl instead of an oversized helper zone
+  POCKET_INTERIOR_CAPTURE_R + POCKET_CAPTURE_ASSIST; // corner capture radius matches the actual pocket opening
 const SIDE_CAPTURE_R =
-  SIDE_POCKET_INTERIOR_CAPTURE_R + SIDE_POCKET_CAPTURE_ASSIST; // middle-pocket captures now follow the actual side-pocket bowl
+  SIDE_POCKET_INTERIOR_CAPTURE_R + SIDE_POCKET_CAPTURE_ASSIST; // side capture radius matches the actual pocket opening
 const POCKET_GUARD_RADIUS =
   CAPTURE_R - BALL_R * 0.12; // mirror Pool Royale guard inset so corner jaw collision acceptance matches
 const POCKET_GUARD_CLEARANCE = Math.max(
