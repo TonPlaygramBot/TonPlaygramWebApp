@@ -6281,36 +6281,15 @@ const cornerPocketCenter = (sx, sz) =>
     sz * (PLAY_H / 2 - CORNER_POCKET_CENTER_INSET)
   );
 let sidePocketShift = 0;
-let openSourcePocketLayoutOverride = null;
 let cachedPocketCenters = null;
 let cachedSidePocketCenters = null;
 let cachedPocketShift = null;
-let cachedPocketLayoutOverride = null;
 const pocketCenters = () => {
-  if (openSourcePocketLayoutOverride?.centers?.length === 6) {
-    if (
-      cachedPocketCenters &&
-      cachedPocketLayoutOverride === openSourcePocketLayoutOverride &&
-      cachedPocketShift === sidePocketShift
-    ) {
-      return cachedPocketCenters;
-    }
-    cachedPocketShift = sidePocketShift;
-    cachedPocketLayoutOverride = openSourcePocketLayoutOverride;
-    cachedPocketCenters = openSourcePocketLayoutOverride.centers.map((center) => center.clone());
-    cachedSidePocketCenters = cachedPocketCenters.slice(4);
-    return cachedPocketCenters;
-  }
-  if (
-    cachedPocketCenters &&
-    cachedPocketShift === sidePocketShift &&
-    cachedPocketLayoutOverride === openSourcePocketLayoutOverride
-  ) {
+  if (cachedPocketCenters && cachedPocketShift === sidePocketShift) {
     return cachedPocketCenters;
   }
   const sidePocketCenterX = PLAY_W / 2 + sidePocketShift;
   cachedPocketShift = sidePocketShift;
-  cachedPocketLayoutOverride = openSourcePocketLayoutOverride;
   cachedPocketCenters = [
     cornerPocketCenter(-1, -1),
     cornerPocketCenter(1, -1),
@@ -6434,9 +6413,22 @@ const formatBallLabel = (colorId) => {
   return BALL_LABELS[colorId] || colorId.charAt(0) + colorId.slice(1).toLowerCase();
 };
 const getPocketCenterById = (id) => {
-  const index = POCKET_IDS.indexOf(id);
-  if (index < 0) return null;
-  return pocketCenters()[index]?.clone() ?? null;
+  switch (id) {
+    case 'TL':
+      return cornerPocketCenter(-1, -1);
+    case 'TR':
+      return cornerPocketCenter(1, -1);
+    case 'BL':
+      return cornerPocketCenter(-1, 1);
+    case 'BR':
+      return cornerPocketCenter(1, 1);
+    case 'TM':
+      return new THREE.Vector2(-(PLAY_W / 2 + sidePocketShift), 0);
+    case 'BM':
+      return new THREE.Vector2(PLAY_W / 2 + sidePocketShift, 0);
+    default:
+      return null;
+  }
 };
 const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR'];
 const POCKET_CAMERA_OUTWARD = Object.freeze({
@@ -8582,22 +8574,11 @@ function Table3D(
     28
   );
   const pocketMeshes = [];
-  const pocketHardwareAssemblies = [];
   table.userData.pocketHolderAnchors = [];
-  table.userData.pocketHardwareAssemblies = pocketHardwareAssemblies;
   const cornerPocketLift = SIDE_POCKET_PLYWOOD_LIFT;
   pocketCenters().forEach((p, index) => {
     const pocketId = POCKET_IDS[index] ?? null;
     const isMiddlePocket = index >= 4;
-    const basePocketRadius = isMiddlePocket ? SIDE_POCKET_RADIUS : POCKET_VIS_R;
-    const assembly = {
-      pocketId,
-      index,
-      baseCenter: p.clone(),
-      baseRadius: basePocketRadius,
-      meshes: []
-    };
-    pocketHardwareAssemblies[index] = assembly;
     const pocketLift = isMiddlePocket ? SIDE_POCKET_PLYWOOD_LIFT : cornerPocketLift;
     const pocket = new THREE.Mesh(pocketGeo, pocketMat);
     pocket.name = `${pocketId || 'pocket'}DropLiner`;
@@ -8608,7 +8589,6 @@ function Table3D(
     pocket.receiveShadow = true;
     pocket.userData.verticalLift = pocketLift;
     table.add(pocket);
-    assembly.meshes.push(pocket);
     pocketMeshes.push(pocket);
     const net = new THREE.Mesh(pocketNetGeo, pocketNetMaterial);
     net.name = `${pocketId || 'pocket'}DropNet`;
@@ -8622,7 +8602,6 @@ function Table3D(
     net.receiveShadow = true;
     net.renderOrder = pocket.renderOrder - 0.25;
     table.add(net);
-    assembly.meshes.push(net);
     finishParts.pocketNetMeshes.push(net);
 
     // Add chrome cradle rails and holders beneath the pocket net to catch potted balls.
@@ -8640,7 +8619,6 @@ function Table3D(
     ring.castShadow = true;
     ring.receiveShadow = true;
     table.add(ring);
-    assembly.meshes.push(ring);
     finishParts.pocketBaseMeshes.push(ring);
     table.userData.pocketHolderAnchors[index] = {
       pocketId,
@@ -8676,7 +8654,6 @@ function Table3D(
       guide.castShadow = true;
       guide.receiveShadow = true;
       table.add(guide);
-      assembly.meshes.push(guide);
       finishParts.pocketBaseMeshes.push(guide);
       return guide;
     };
@@ -8740,135 +8717,9 @@ function Table3D(
       strap.castShadow = true;
       strap.receiveShadow = true;
       table.add(strap);
-      assembly.meshes.push(strap);
       finishParts.pocketJawMeshes.push(strap);
     }
   });
-
-  const captureOriginalPocketHardwareTransforms = (assembly) => {
-    if (!assembly || assembly.originalTransformsCaptured) return;
-    assembly.meshes.forEach((mesh) => {
-      if (!mesh) return;
-      mesh.userData = {
-        ...(mesh.userData || {}),
-        pocketHardwareOriginalPosition: mesh.position.clone(),
-        pocketHardwareOriginalScale: mesh.scale.clone()
-      };
-    });
-    assembly.originalTransformsCaptured = true;
-  };
-
-  const applyMeasuredPocketHardwareLayout = (layout) => {
-    if (!layout?.centers?.length || !layout?.radii?.length) return;
-    const assemblies = table.userData?.pocketHardwareAssemblies || [];
-    assemblies.forEach((assembly, index) => {
-      const center = layout.centers[index];
-      const radius = layout.radii[index];
-      if (!assembly || !center || !Number.isFinite(radius) || radius <= MICRO_EPS) return;
-      captureOriginalPocketHardwareTransforms(assembly);
-      const scaleFactor = THREE.MathUtils.clamp(
-        radius / Math.max(assembly.baseRadius || radius, MICRO_EPS),
-        0.35,
-        2.5
-      );
-      assembly.meshes.forEach((mesh) => {
-        if (!mesh) return;
-        const originalPosition = mesh.userData?.pocketHardwareOriginalPosition;
-        const originalScale = mesh.userData?.pocketHardwareOriginalScale;
-        if (!originalPosition || !originalScale) return;
-        const relativeX = originalPosition.x - assembly.baseCenter.x;
-        const relativeZ = originalPosition.z - assembly.baseCenter.y;
-        mesh.position.set(
-          center.x + relativeX * scaleFactor,
-          originalPosition.y,
-          center.y + relativeZ * scaleFactor
-        );
-        mesh.scale.set(
-          originalScale.x * scaleFactor,
-          originalScale.y,
-          originalScale.z * scaleFactor
-        );
-        mesh.updateMatrixWorld(true);
-      });
-      assembly.measuredCenter = center.clone();
-      assembly.measuredRadius = radius;
-      assembly.measuredScaleFactor = scaleFactor;
-    });
-    table.userData.openSourcePocketHardwareLayout = {
-      centers: layout.centers.map((center) => center.clone()),
-      radii: layout.radii.slice(),
-      source: layout.source || 'glb-derived-pocket-layout'
-    };
-  };
-
-  const resolveOpenSourcePocketLayoutFromBounds = (bounds) => {
-    if (!bounds || bounds.isEmpty()) return null;
-    const size = bounds.getSize(new THREE.Vector3());
-    const center = bounds.getCenter(new THREE.Vector3());
-    const longSpan = Math.max(size.x, size.z);
-    if (!Number.isFinite(longSpan) || longSpan <= MICRO_EPS) return null;
-    const mmToUnits = longSpan / WIDTH_REF;
-    const cornerRadius = (CORNER_MOUTH_REF * mmToUnits) / 2;
-    const sideRadius = (SIDE_MOUTH_REF * mmToUnits) / 2;
-    const cornerInset = Math.max(0, cornerRadius * 0.2 - POCKET_CENTER_OUTWARD_SHIFT);
-    const minX = bounds.min.x + cornerInset;
-    const maxX = bounds.max.x - cornerInset;
-    const minZ = bounds.min.z + cornerInset;
-    const maxZ = bounds.max.z - cornerInset;
-    return {
-      centers: [
-        new THREE.Vector2(minX, minZ),
-        new THREE.Vector2(maxX, minZ),
-        new THREE.Vector2(minX, maxZ),
-        new THREE.Vector2(maxX, maxZ),
-        new THREE.Vector2(bounds.min.x, center.z),
-        new THREE.Vector2(bounds.max.x, center.z)
-      ],
-      radii: [cornerRadius, cornerRadius, cornerRadius, cornerRadius, sideRadius, sideRadius],
-      source: 'open-source-glb-cloth-bounds',
-      bounds: bounds.clone()
-    };
-  };
-
-  const resolveOpenSourcePocketHardwareLayout = (model, fallbackBounds = null) => {
-    const clothBounds = new THREE.Box3();
-    model?.traverse?.((node) => {
-      if (!node?.isMesh || node.userData?.openSourceMaterialRole !== 'cloth') return;
-      expandBoxByObjectLocalBounds(clothBounds, node);
-    });
-    const layout = resolveOpenSourcePocketLayoutFromBounds(clothBounds);
-    if (layout) return layout;
-    const fallbackLocalBounds = new THREE.Box3();
-    if (fallbackBounds && !fallbackBounds.isEmpty()) {
-      const corners = [
-        new THREE.Vector3(fallbackBounds.min.x, fallbackBounds.min.y, fallbackBounds.min.z),
-        new THREE.Vector3(fallbackBounds.min.x, fallbackBounds.min.y, fallbackBounds.max.z),
-        new THREE.Vector3(fallbackBounds.max.x, fallbackBounds.min.y, fallbackBounds.min.z),
-        new THREE.Vector3(fallbackBounds.max.x, fallbackBounds.min.y, fallbackBounds.max.z),
-        new THREE.Vector3(fallbackBounds.min.x, fallbackBounds.max.y, fallbackBounds.min.z),
-        new THREE.Vector3(fallbackBounds.min.x, fallbackBounds.max.y, fallbackBounds.max.z),
-        new THREE.Vector3(fallbackBounds.max.x, fallbackBounds.max.y, fallbackBounds.min.z),
-        new THREE.Vector3(fallbackBounds.max.x, fallbackBounds.max.y, fallbackBounds.max.z)
-      ];
-      corners.forEach((corner) => fallbackLocalBounds.expandByPoint(table.worldToLocal(corner.clone())));
-    }
-    return resolveOpenSourcePocketLayoutFromBounds(fallbackLocalBounds);
-  };
-
-  const applyOpenSourcePocketLayout = (model, fallbackBounds = null) => {
-    const layout = resolveOpenSourcePocketHardwareLayout(model, fallbackBounds);
-    if (!layout) return null;
-    openSourcePocketLayoutOverride = {
-      centers: layout.centers.map((center) => center.clone()),
-      radii: layout.radii.slice(),
-      source: layout.source
-    };
-    cachedPocketCenters = null;
-    cachedSidePocketCenters = null;
-    cachedPocketLayoutOverride = null;
-    applyMeasuredPocketHardwareLayout(layout);
-    return layout;
-  };
 
   const railsTopY = frameTopY + railH;
   const longRailW = ORIGINAL_RAIL_WIDTH; // keep the long rail caps as wide as the end rails so side pockets match visually
@@ -11942,7 +11793,6 @@ function Table3D(
         model.updateMatrixWorld(true);
 
         applyDefaultTableFinishToOpenSourceModel(model);
-        const measuredPocketLayout = applyOpenSourcePocketLayout(model, scaledFitBounds);
         const removedOriginalBaseMeshCount = removeOpenSourceOriginalTableBase(model, scaledFitBounds);
         remapOpenSourceClothTextureCoordinates(model, clothUvBounds);
         applyOpenSourceCushionPhysicsFromModel(model);
@@ -11962,9 +11812,7 @@ function Table3D(
           usesProceduralTableBase: true,
           usesGlbCushionShapes: true,
           clothUvMappedToDefaultPlayfield: true,
-          clothUvUsesProceduralWorldScale: true,
-          pocketHardwareMappedToGlb: Boolean(measuredPocketLayout),
-          pocketHardwareMappingSource: measuredPocketLayout?.source || null
+          clothUvUsesProceduralWorldScale: true
         };
         table.userData.openSourceVisual = model;
         table.userData.openSourceVisualUrl = TABLE_MODEL_OPENSOURCE_GLB_URL;
