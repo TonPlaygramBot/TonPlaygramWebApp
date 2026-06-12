@@ -10,6 +10,17 @@ const UP = new THREE.Vector3(0, 1, 0);
 const Y_AXIS = UP;
 const BASIS_MAT = new THREE.Matrix4();
 
+export const POOL_ROYALE_TABLE_DIMENSIONS = {
+  width: 2.24 * WORLD_SCALE,
+  length: 4.08 * WORLD_SCALE,
+  height: 0.84 * WORLD_SCALE,
+  ballRadius: 0.052 * WORLD_SCALE
+};
+
+export function PoolRoyaleTable3D() {
+  return null;
+}
+
 const CFG = {
   scale: WORLD_SCALE,
   humanScale: 1.18 * WORLD_SCALE,
@@ -53,8 +64,7 @@ function easeOutCubic(t) {
 
 function easeInOut(t) {
   return t * t * (3 - 2 * t);
-}
-
+}\n
 function dampScalar(current, target, lambda, dt) {
   return THREE.MathUtils.lerp(current, target, 1 - Math.exp(-lambda * dt));
 }
@@ -69,11 +79,6 @@ function yawFromForward(forward) {
 
 function cleanName(name) {
   return String(name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-}
-
-function makeBasisQuaternion(side, up, forward) {
-  BASIS_MAT.makeBasis(side.clone().normalize(), up.clone().normalize(), forward.clone().normalize());
-  return new THREE.Quaternion().setFromRotationMatrix(BASIS_MAT);
 }
 
 function material(color, roughness = 0.72, metalness = 0.03) {
@@ -94,52 +99,30 @@ function createLoader() {
   const manager = new THREE.LoadingManager();
   const loader = new GLTFLoader(manager);
   loader.setCrossOrigin('anonymous');
-
   const draco = new DRACOLoader(manager);
   draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/');
   draco.setDecoderConfig({ type: 'js' });
   draco.preload();
-
   loader.setDRACOLoader(draco);
   loader.setMeshoptDecoder(MeshoptDecoder);
-
-  return {
-    loader,
-    dispose: () => draco.dispose()
-  };
+  return { loader, dispose: () => draco.dispose() };
 }
 
 function patchLoadedMaterials(model, renderer) {
   const maxAnisotropy = Math.min(12, renderer.capabilities.getMaxAnisotropy());
-
   model.traverse((child) => {
     if (!child.isMesh) return;
-
     child.castShadow = true;
     child.receiveShadow = true;
     child.frustumCulled = false;
-
     const materials = Array.isArray(child.material) ? child.material : child.material ? [child.material] : [];
     materials.forEach((mat) => {
       mat.side = THREE.DoubleSide;
       mat.depthTest = true;
       mat.depthWrite = !mat.transparent;
-
-      [
-        mat.map,
-        mat.emissiveMap,
-        mat.aoMap,
-        mat.normalMap,
-        mat.roughnessMap,
-        mat.metalnessMap,
-        mat.lightMap,
-        mat.bumpMap,
-        mat.alphaMap
-      ].forEach((texture) => {
+      [mat.map, mat.emissiveMap, mat.aoMap, mat.normalMap, mat.roughnessMap, mat.metalnessMap, mat.lightMap, mat.bumpMap, mat.alphaMap].forEach((texture) => {
         if (!texture) return;
-        if (texture === mat.map || texture === mat.emissiveMap || texture === mat.lightMap) {
-          texture.colorSpace = THREE.SRGBColorSpace;
-        }
+        if (texture === mat.map || texture === mat.emissiveMap || texture === mat.lightMap) texture.colorSpace = THREE.SRGBColorSpace;
         texture.flipY = false;
         texture.generateMipmaps = true;
         texture.minFilter = THREE.LinearMipmapLinearFilter;
@@ -147,7 +130,6 @@ function patchLoadedMaterials(model, renderer) {
         texture.anisotropy = maxAnisotropy;
         texture.needsUpdate = true;
       });
-
       mat.needsUpdate = true;
     });
   });
@@ -158,7 +140,6 @@ function createCue() {
   const shaft = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 18), material(0xd9b88d, 0.7, 0.03));
   const ferrule = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 18), material(0xf8fafc, 0.55, 0.02));
   const tip = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 18), material(0x2563eb, 0.6, 0.02));
-
   group.add(enableShadow(shaft), enableShadow(ferrule), enableShadow(tip));
   return { group, shaft, ferrule, tip };
 }
@@ -182,10 +163,7 @@ function setCuePose(cue, back, tip) {
 
 function cuePoseFromGrip(grip, dir, gripFromBack, length = CFG.cueLength) {
   const n = dir.clone().normalize();
-  return {
-    back: grip.clone().addScaledVector(n, -gripFromBack),
-    tip: grip.clone().addScaledVector(n, length - gripFromBack)
-  };
+  return { back: grip.clone().addScaledVector(n, -gripFromBack), tip: grip.clone().addScaledVector(n, length - gripFromBack) };
 }
 
 function createLine(color, opacity = 0.9) {
@@ -217,115 +195,67 @@ function normalizeHuman(model) {
   model.rotation.set(0, CFG.humanVisualYawFix, 0);
   model.position.set(0, 0, 0);
   model.updateMatrixWorld(true);
-
   const box = new THREE.Box3().setFromObject(model);
   const center = box.getCenter(new THREE.Vector3());
   model.position.set(-center.x, -box.min.y, -center.z);
 }
 
 function addHuman(scene, renderer, setStatus) {
-  const human = {
-    root: new THREE.Group(),
-    modelRoot: new THREE.Group(),
-    model: null,
-    activeGlb: false,
-    poseT: 0,
-    walkT: 0,
-    yaw: 0,
-    breathT: 0,
-    strikeClock: 0,
-    rightArm: null,
-    rightForeArm: null,
-    rightHand: null,
-    leftArm: null,
-    leftForeArm: null,
-    leftHand: null,
-    spine: null,
-    head: null,
-    rest: new Map()
-  };
-
+  const human = { root: new THREE.Group(), modelRoot: new THREE.Group(), model: null, activeGlb: false, poseT: 0, walkT: 0, yaw: 0, breathT: 0, strikeClock: 0, rightArm: null, rightForeArm: null, rightHand: null, leftArm: null, leftForeArm: null, leftHand: null, spine: null, head: null, rest: new Map() };
   human.root.visible = false;
   human.modelRoot.visible = false;
   scene.add(human.root, human.modelRoot);
-
   const { loader, dispose } = createLoader();
   setStatus('Loading ReadyPlayer human…');
-
-  loader.load(
-    HUMAN_URL,
-    (gltf) => {
-      const model = gltf.scene;
-      normalizeHuman(model);
-      patchLoadedMaterials(model, renderer);
-
-      human.rightArm = findHumanPart(model, ['rightarm', 'rightupperarm']);
-      human.rightForeArm = findHumanPart(model, ['rightforearm', 'rightlowerarm']);
-      human.rightHand = findHumanPart(model, ['righthand']);
-      human.leftArm = findHumanPart(model, ['leftarm', 'leftupperarm']);
-      human.leftForeArm = findHumanPart(model, ['leftforearm', 'leftlowerarm']);
-      human.leftHand = findHumanPart(model, ['lefthand']);
-      human.spine = findHumanPart(model, ['spine', 'chest']);
-      human.head = findHumanPart(model, ['head']);
-
-      [
-        human.rightArm,
-        human.rightForeArm,
-        human.rightHand,
-        human.leftArm,
-        human.leftForeArm,
-        human.leftHand,
-        human.spine,
-        human.head
-      ].forEach((part) => {
-        if (part) human.rest.set(part, part.quaternion.clone());
-      });
-
-      human.model = model;
-      human.modelRoot.add(model);
-      human.activeGlb = true;
-      human.modelRoot.visible = true;
-      setStatus('ReadyPlayer human active');
-      dispose();
-    },
-    undefined,
-    (error) => {
-      console.warn('[PoolRoyale] ReadyPlayer human failed', error);
-      setStatus('ReadyPlayer human failed');
-      dispose();
-    }
-  );
-
+  loader.load(HUMAN_URL, (gltf) => {
+    const model = gltf.scene;
+    normalizeHuman(model);
+    patchLoadedMaterials(model, renderer);
+    human.rightArm = findHumanPart(model, ['rightarm', 'rightupperarm']);
+    human.rightForeArm = findHumanPart(model, ['rightforearm', 'rightlowerarm']);
+    human.rightHand = findHumanPart(model, ['righthand']);
+    human.leftArm = findHumanPart(model, ['leftarm', 'leftupperarm']);
+    human.leftForeArm = findHumanPart(model, ['leftforearm', 'leftlowerarm']);
+    human.leftHand = findHumanPart(model, ['lefthand']);
+    human.spine = findHumanPart(model, ['spine', 'chest']);
+    human.head = findHumanPart(model, ['head']);
+    [human.rightArm, human.rightForeArm, human.rightHand, human.leftArm, human.leftForeArm, human.leftHand, human.spine, human.head].forEach((part) => {
+      if (part) human.rest.set(part, part.quaternion.clone());
+    });
+    human.model = model;
+    human.modelRoot.add(model);
+    human.activeGlb = true;
+    human.modelRoot.visible = true;
+    setStatus('ReadyPlayer human active');
+    dispose();
+  }, undefined, (error) => {
+    console.warn('[PoolRoyale] ReadyPlayer human failed', error);
+    setStatus('ReadyPlayer human failed');
+    dispose();
+  });
   return human;
 }
 
 function updateHumanPose(human, dt, state, rootTarget, aimForward, power) {
   if (!human.activeGlb || !human.model) return;
-
   human.poseT = dampScalar(human.poseT, state === 'idle' ? 0 : 1, CFG.poseLambda, dt);
   human.breathT += dt * (state === 'idle' ? 1.05 : 0.5);
   human.strikeClock = state === 'striking' ? human.strikeClock + dt : 0;
-
   dampVector(human.root.position, rootTarget, state === 'striking' ? 12 : CFG.moveLambda, dt);
   human.yaw = dampScalar(human.yaw, yawFromForward(aimForward), CFG.rotLambda, dt);
-
   human.modelRoot.position.copy(human.root.position);
   human.modelRoot.rotation.y = human.yaw;
   human.modelRoot.updateMatrixWorld(true);
-
   human.rest.forEach((q, part) => part.quaternion.copy(q));
-
   const t = easeInOut(human.poseT);
   const strokeBack = state === 'dragging' ? easeOutCubic(power) : 0;
   const strikePush = state === 'striking' ? Math.sin(clamp01(human.strikeClock / (CFG.strikeTime + CFG.holdTime)) * Math.PI) : 0;
   const breath = Math.sin(human.breathT * Math.PI * 2) * 0.015;
-
   if (human.spine) {
     human.spine.rotation.x += -0.22 * t + breath;
     human.spine.rotation.z += 0.035 * t;
   }
   if (human.head) human.head.rotation.x += -0.1 * t;
-
   if (human.rightArm) {
     human.rightArm.rotation.x += -0.58 * t;
     human.rightArm.rotation.z += -0.42 * t;
@@ -338,21 +268,16 @@ function updateHumanPose(human, dt, state, rootTarget, aimForward, power) {
     human.rightHand.rotation.x += -0.18 * t;
     human.rightHand.rotation.z += -0.18 * t;
   }
-
   if (human.leftArm) {
     human.leftArm.rotation.x += -0.72 * t;
     human.leftArm.rotation.z += 0.48 * t;
   }
   if (human.leftForeArm) human.leftForeArm.rotation.x += -0.38 * t;
-
   human.modelRoot.updateMatrixWorld(true);
 }
 
 function addReferenceFloor(scene) {
-  const floor = new THREE.Mesh(
-    new THREE.PlaneGeometry(18 * CFG.scale, 18 * CFG.scale),
-    new THREE.MeshStandardMaterial({ color: 0x121820, roughness: 0.9, metalness: 0.02 })
-  );
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(18 * CFG.scale, 18 * CFG.scale), new THREE.MeshStandardMaterial({ color: 0x121820, roughness: 0.9, metalness: 0.02 }));
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
   scene.add(floor);
@@ -365,7 +290,6 @@ export default function PoolRoyale() {
   const [power, setPower] = useState(0);
   const [shotState, setShotState] = useState('idle');
   const [humanStatus, setHumanStatus] = useState('Preparing ReadyPlayer human…');
-
   const powerRef = useRef(0);
   const shotPowerRef = useRef(0);
   const shotStateRef = useRef('idle');
@@ -414,7 +338,6 @@ export default function PoolRoyale() {
     const host = hostRef.current;
     const canvas = canvasRef.current;
     if (!host || !canvas) return undefined;
-
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
     renderer.setClearColor(0x0b0b0b, 1);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -422,31 +345,25 @@ export default function PoolRoyale() {
     renderer.toneMappingExposure = 1.05;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(40, 1, 0.05 * CFG.scale, 80 * CFG.scale);
     camera.position.set(1.85 * CFG.scale, 2.45 * CFG.scale, 7.85 * CFG.scale);
     camera.lookAt(0, 1.05 * CFG.scale, 0);
-
     scene.add(new THREE.AmbientLight(0xffffff, 0.86));
     scene.add(new THREE.HemisphereLight(0xffffff, 0x334155, 0.55));
-
     const sun = new THREE.DirectionalLight(0xffffff, 1.35);
     sun.position.set(3.5 * CFG.scale, 7 * CFG.scale, 5 * CFG.scale);
     sun.castShadow = true;
     sun.shadow.mapSize.width = 2048;
     sun.shadow.mapSize.height = 2048;
     scene.add(sun);
-
     const floor = addReferenceFloor(scene);
     const cue = createCue();
     scene.add(cue.group);
-
     const human = addHuman(scene, renderer, setHumanStatus);
     const cueLine = createLine(0xffd166, 0.95);
     const aimLine = createLine(0xff6b4a, 0.85);
     scene.add(cueLine, aimLine);
-
     const tmpA = new THREE.Vector3();
     const tmpB = new THREE.Vector3();
     let strikeT = 0;
@@ -470,16 +387,12 @@ export default function PoolRoyale() {
         lastAimX = event.clientX;
       }
     };
-
     const onCanvasMove = (event) => {
       if (!isAiming || draggingSliderRef.current) return;
       aimYawRef.current -= (event.clientX - lastAimX) * 0.006;
       lastAimX = event.clientX;
     };
-
-    const onCanvasUp = () => {
-      isAiming = false;
-    };
+    const onCanvasUp = () => { isAiming = false; };
 
     canvas.addEventListener('pointerdown', onCanvasDown);
     canvas.addEventListener('pointermove', onCanvasMove);
@@ -493,36 +406,25 @@ export default function PoolRoyale() {
       const now = performance.now();
       const dt = Math.min(0.033, (now - last) / 1000);
       last = now;
-
       const state = shotStateRef.current;
       const activePower = state === 'dragging' ? powerRef.current : shotPowerRef.current;
       const aimForward = tmpA.set(0, 0, -1).applyAxisAngle(Y_AXIS, aimYawRef.current).normalize().clone();
       const aimSide = tmpB.set(aimForward.z, 0, -aimForward.x).normalize().clone();
       const rootTarget = new THREE.Vector3(0, 0, 1.25 * CFG.scale).applyAxisAngle(Y_AXIS, aimYawRef.current);
-
       const visualAimPoint = CFG.visualAimPoint.clone().applyAxisAngle(Y_AXIS, aimYawRef.current);
-      const bridgeCuePoint = visualAimPoint
-        .clone()
-        .addScaledVector(aimForward, -CFG.bridgeHandBackFromBall)
-        .addScaledVector(aimSide, CFG.bridgeHandSide)
-        .add(new THREE.Vector3(0, CFG.bridgeCueLift, 0));
-
+      const bridgeCuePoint = visualAimPoint.clone().addScaledVector(aimForward, -CFG.bridgeHandBackFromBall).addScaledVector(aimSide, CFG.bridgeHandSide).add(new THREE.Vector3(0, CFG.bridgeCueLift, 0));
       const pull = CFG.pullRange * easeOutCubic(activePower);
       const practiceStroke = state === 'dragging' ? Math.sin(now * 0.012) * 0.035 * CFG.scale * (0.25 + activePower * 0.75) : 0;
       const strikeNorm = clamp01(strikeT / CFG.strikeTime);
-
       let gap = CFG.idleGap;
       if (state === 'dragging') gap += pull + practiceStroke;
       if (state === 'striking') gap = lerp(CFG.idleGap + pull, CFG.contactGap, easeOutCubic(strikeNorm));
-
       const cueTipShoot = visualAimPoint.clone().addScaledVector(aimForward, -gap);
       const cueBackShoot = bridgeCuePoint.clone().addScaledVector(aimForward, -(CFG.cueLength - gap)).add(new THREE.Vector3(0, 0.024 * CFG.scale, 0));
-
       const standingYaw = yawFromForward(aimForward);
       const idleRightHandTarget = rootTarget.clone().add(new THREE.Vector3(CFG.idleRightHandX, CFG.idleRightHandY, CFG.idleRightHandZ).applyAxisAngle(Y_AXIS, standingYaw));
       const idleDir = CFG.idleCueDir.clone().applyAxisAngle(Y_AXIS, standingYaw).normalize();
       const idleCue = cuePoseFromGrip(idleRightHandTarget, idleDir, CFG.idleCueGripFromBack, CFG.cueLength);
-
       if (state === 'idle') strikeT = 0;
       else if (state === 'dragging') strikeT = 0;
       else {
@@ -532,20 +434,16 @@ export default function PoolRoyale() {
           setShotState('idle');
         }
       }
-
       const activeCueBack = state === 'idle' ? idleCue.back : cueBackShoot;
       const activeCueTip = state === 'idle' ? idleCue.tip : cueTipShoot;
-
       setCuePose(cue, activeCueBack, activeCueTip);
       updateHumanPose(human, dt, state, rootTarget, aimForward, activePower);
       setLinePoints(cueLine, activeCueBack, visualAimPoint);
       setLinePoints(aimLine, visualAimPoint, visualAimPoint.clone().add(aimForward.clone().multiplyScalar(2.1 * CFG.scale)));
-
       renderer.render(scene, camera);
     }
 
     animate();
-
     return () => {
       cancelAnimationFrame(frameId);
       window.removeEventListener('resize', resize);
@@ -570,12 +468,10 @@ export default function PoolRoyale() {
       <div ref={hostRef} style={{ position: 'absolute', inset: 0 }}>
         <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block', touchAction: 'none' }} />
       </div>
-
       <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', fontFamily: 'system-ui, sans-serif' }}>
         <div style={{ position: 'absolute', left: 10, top: 10, color: 'white', background: 'rgba(0,0,0,0.62)', padding: '8px 10px', borderRadius: 10, fontSize: 12, lineHeight: 1.35, maxWidth: '76vw' }}>
           Human character logic only<br />Cue stick active<br />Power slider active<br />No table · no balls · no game rules<br />{humanStatus}
         </div>
-
         <div style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, pointerEvents: 'auto', touchAction: 'none', userSelect: 'none' }}>
           <div onPointerDown={onSliderDown} onPointerMove={onSliderMove} onPointerUp={onSliderUp} style={{ position: 'relative', height: sliderH, width: sliderW, borderRadius: 18, background: 'rgba(255,255,255,0.92)', boxShadow: '0 12px 28px rgba(0,0,0,0.2)', padding: 9 }}>
             <div style={{ position: 'absolute', left: 14, right: 14, top: 14, bottom: 14, borderRadius: 999, background: 'rgba(0,0,0,0.12)', overflow: 'hidden' }}>
