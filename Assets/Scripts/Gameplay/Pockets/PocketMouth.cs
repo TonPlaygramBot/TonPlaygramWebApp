@@ -11,7 +11,7 @@ namespace Aiming.Pockets
         [SerializeField] private PocketJawDefinition rightJaw;
 
         [Header("Pocket shape")]
-        [SerializeField, Min(0.01f)] private float mouthWidth = 0.115f;
+        [SerializeField, Min(0.01f)] private float mouthWidth = 0.102f;
         [SerializeField, Min(0f)] private float shelfDepth = 0.028f;
         [SerializeField] private Vector2 pocketCenter = new Vector2(0f, -0.06f);
         [SerializeField] private Vector2 fallDirection = new Vector2(0f, -1f);

@@ -8,8 +8,8 @@ namespace Aiming.Pockets
     public class PocketJawDefinition : MonoBehaviour
     {
         [Header("Jaw bounds (local table space)")]
-        [SerializeField] private Vector2 start = new Vector2(-0.05f, 0f);
-        [SerializeField] private Vector2 end = new Vector2(0.05f, 0f);
+        [SerializeField] private Vector2 start = new Vector2(-0.042f, 0f);
+        [SerializeField] private Vector2 end = new Vector2(0.042f, 0f);
 
         [Header("Jaw contact")]
         [SerializeField, Min(0f)] private float jawRadius = 0.012f;

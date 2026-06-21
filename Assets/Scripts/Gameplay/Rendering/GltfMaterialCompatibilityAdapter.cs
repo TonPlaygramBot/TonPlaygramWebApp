@@ -14,6 +14,13 @@ namespace Aiming.Gameplay.Rendering
         [SerializeField] private bool upgradeGltfImportShaders = true;
         [SerializeField] private Shader urpLitShader;
         [SerializeField] private Shader standardShader;
+        [Header("Rail sight material polish")]
+        [SerializeField] private bool tuneRailSightMaterials = true;
+        [SerializeField] private string[] railSightMaterialNameHints = { "railsight", "rail_sight", "rail sight", "diamond", "chrome", "gold" };
+        [SerializeField, Range(0f, 1f)] private float railSightSmoothness = 0.92f;
+        [SerializeField, Range(0f, 1f)] private float railSightMetallic = 0.86f;
+        [SerializeField, Range(0.1f, 4f)] private float railSightVerticalTextureScale = 1.28f;
+        [SerializeField, Range(-1f, 1f)] private float railSightVerticalTextureOffset = -0.12f;
 
         private static readonly int BaseMapId = Shader.PropertyToID("_BaseMap");
         private static readonly int MainTexId = Shader.PropertyToID("_MainTex");
@@ -65,8 +72,77 @@ namespace Aiming.Gameplay.Rendering
                     MaterialTextureSnapshot textureSnapshot = MaterialTextureSnapshot.Capture(mat);
                     EnsureSupportedShader(mat, textureSnapshot);
                     CopyPbrMaps(mat, textureSnapshot);
+                    ApplyRailSightTuning(mat);
                 }
             }
+        }
+
+        private void ApplyRailSightTuning(Material material)
+        {
+            if (!tuneRailSightMaterials || material == null || !IsRailSightMaterial(material.name))
+            {
+                return;
+            }
+
+            if (material.HasProperty("_Smoothness"))
+            {
+                material.SetFloat("_Smoothness", railSightSmoothness);
+            }
+
+            if (material.HasProperty("_Metallic"))
+            {
+                material.SetFloat("_Metallic", railSightMetallic);
+            }
+
+            if (material.HasProperty("_BumpScale"))
+            {
+                material.SetFloat("_BumpScale", 0.7f);
+            }
+
+            if (material.HasProperty(BaseMapId))
+            {
+                Vector2 scale = material.GetTextureScale(BaseMapId);
+                Vector2 offset = material.GetTextureOffset(BaseMapId);
+                scale.y *= railSightVerticalTextureScale;
+                offset.y += railSightVerticalTextureOffset;
+                material.SetTextureScale(BaseMapId, scale);
+                material.SetTextureOffset(BaseMapId, offset);
+            }
+
+            if (material.HasProperty(MainTexId))
+            {
+                Vector2 scale = material.GetTextureScale(MainTexId);
+                Vector2 offset = material.GetTextureOffset(MainTexId);
+                scale.y *= railSightVerticalTextureScale;
+                offset.y += railSightVerticalTextureOffset;
+                material.SetTextureScale(MainTexId, scale);
+                material.SetTextureOffset(MainTexId, offset);
+            }
+        }
+
+        private bool IsRailSightMaterial(string materialName)
+        {
+            if (string.IsNullOrWhiteSpace(materialName) || railSightMaterialNameHints == null)
+            {
+                return false;
+            }
+
+            string lowered = materialName.ToLowerInvariant();
+            for (int i = 0; i < railSightMaterialNameHints.Length; i++)
+            {
+                string hint = railSightMaterialNameHints[i];
+                if (string.IsNullOrWhiteSpace(hint))
+                {
+                    continue;
+                }
+
+                if (lowered.Contains(hint.ToLowerInvariant()))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private Renderer[] ResolveRenderers()
