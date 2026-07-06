@@ -65,6 +65,8 @@ export default function PoolRoyaleLobby() {
   const initialMode = searchParams.get('mode') === 'online' ? 'online' : 'ai';
   const autoStartRequested = searchParams.get('autostart') === '1';
   const requestedOnlineTableId = (searchParams.get('tableId') || '').trim();
+  const forcedOnlineTableId =
+    autoStartRequested && requestedOnlineTableId ? requestedOnlineTableId : '';
 
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [mode, setMode] = useState(initialMode);
@@ -296,7 +298,7 @@ export default function PoolRoyaleLobby() {
     if (isOnlineMatch) {
       await runPoolRoyaleOnlineFlow({
         stake,
-        tableId: requestedOnlineTableId || undefined,
+        tableId: forcedOnlineTableId || undefined,
         variant,
         ballSet: ukBallSet,
         playType,
