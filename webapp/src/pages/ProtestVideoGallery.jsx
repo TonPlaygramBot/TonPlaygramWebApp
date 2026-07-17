@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FaArrowLeft, FaDownload, FaUpload, FaVideo } from 'react-icons/fa';
 import { useTonAddress } from '@tonconnect/ui-react';
+import { uploadProtestVideo } from '../utils/api.js';
 
 const PROTEST_VIDEO_LIBRARY_URL = '/ProtestVideo/library.json';
 const PROTEST_VIDEO_BASE_URL = '/ProtestVideo/';
@@ -24,21 +25,7 @@ const normalizeAddress = (address) =>
     .trim()
     .toLowerCase();
 
-const buildUploadedVideo = (file) => ({
-  id: `upload-${file.name}-${file.lastModified}`,
-  title: file.name.replace(/\.[^/.]+$/, '').replace(/[-_]+/g, ' '),
-  fileName: file.name,
-  size: file.size,
-  date: new Date(file.lastModified || Date.now()).toLocaleDateString(),
-  time: new Date(file.lastModified || Date.now()).toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit'
-  }),
-  quality: 'Developer upload',
-  source: 'upload',
-  url: URL.createObjectURL(file),
-  file
-});
+const getVideoId = (video) => video.id || video.file || video.url;
 
 const formatBytes = (bytes = 0) => {
   if (!bytes) return 'Unknown size';
@@ -54,8 +41,13 @@ export default function ProtestVideoGallery() {
   const tonAddress = useTonAddress();
   const fileInputRef = useRef(null);
   const [libraryVideos, setLibraryVideos] = useState([]);
-  const [uploadedVideos, setUploadedVideos] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
+  const [uploadDate, setUploadDate] = useState(() =>
+    new Date().toISOString().slice(0, 10)
+  );
+  const [isDraggingUpload, setIsDraggingUpload] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
   const [status, setStatus] = useState('loading');
   const [walletAddress, setWalletAddress] = useState(
     () => tonAddress || getStoredWalletAddress()
@@ -99,25 +91,48 @@ export default function ProtestVideoGallery() {
       });
   }, []);
 
-  const allVideos = useMemo(
-    () => [...uploadedVideos, ...libraryVideos],
-    [uploadedVideos, libraryVideos]
-  );
+  const allVideos = useMemo(() => libraryVideos, [libraryVideos]);
   const selectedVideos = allVideos.filter((video) =>
-    selectedIds.includes(video.id || video.file || video.url)
+    selectedIds.includes(getVideoId(video))
   );
 
-  const handleUpload = (event) => {
-    const files = Array.from(event.target.files || []).filter((file) =>
+
+  const addUploadedFiles = async (fileList) => {
+    const files = Array.from(fileList || []).filter((file) =>
       file.type.startsWith('video/')
     );
-    if (!files.length) return;
-    setUploadedVideos((current) => [
-      ...files.map(buildUploadedVideo),
-      ...current
+    if (!files.length) {
+      setUploadStatus('Choose a video clip from your phone first.');
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadStatus(`Uploading ${files.length} video clip${files.length > 1 ? 's' : ''}…`);
+
+    const uploaded = [];
+    for (const file of files) {
+      const result = await uploadProtestVideo(file, { date: uploadDate });
+      if (result.error) {
+        setUploadStatus(result.error);
+        setIsUploading(false);
+        return;
+      }
+      if (result.video) uploaded.push(result.video);
+    }
+
+    setLibraryVideos((current) => [...uploaded, ...current]);
+    setSelectedIds((current) => [
+      ...new Set([...uploaded.map(getVideoId), ...current])
     ]);
+    setUploadStatus('Upload complete. Your clips are now published in the gallery.');
+    setIsUploading(false);
+  };
+
+  const handleUpload = (event) => {
+    addUploadedFiles(event.target.files);
     event.target.value = '';
   };
+
 
   const toggleSelected = (id) => {
     setSelectedIds((current) =>
@@ -165,7 +180,7 @@ export default function ProtestVideoGallery() {
             </h1>
             <p className="mt-2 text-sm leading-6 text-subtext">
               Select one video or many videos, then download them together.
-              Published videos are grouped with their date, time, and quality.
+              Published videos are grouped by their protest date.
             </p>
           </div>
         </div>
@@ -177,11 +192,11 @@ export default function ProtestVideoGallery() {
             Developer only
           </p>
           <h2 className="mt-1 text-lg font-black text-white">
-            Upload multiple videos
+            Direct page uploads
           </h2>
           <p className="mt-1 text-sm text-subtext">
-            This uploader is hidden from regular users. Choose multiple videos
-            to preview and download in this device session.
+            Add clips directly from your phone gallery/camera roll. Choose the
+            protest date once, then upload clips up to 1GB.
           </p>
           <input
             ref={fileInputRef}
@@ -191,13 +206,48 @@ export default function ProtestVideoGallery() {
             className="hidden"
             onChange={handleUpload}
           />
+          <label className="mt-3 block text-xs font-bold uppercase tracking-[0.16em] text-amber-100">
+            Clip date
+          </label>
+          <input
+            type="date"
+            value={uploadDate}
+            onChange={(event) => setUploadDate(event.target.value)}
+            className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-3 text-sm text-white"
+          />
           <button
             type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-300 px-4 py-3 text-sm font-black text-slate-950"
+            onDragOver={(event) => {
+              event.preventDefault();
+              setIsDraggingUpload(true);
+            }}
+            onDragLeave={() => setIsDraggingUpload(false)}
+            onDrop={(event) => {
+              event.preventDefault();
+              setIsDraggingUpload(false);
+              addUploadedFiles(event.dataTransfer.files);
+            }}
+            onClick={() => !isUploading && fileInputRef.current?.click()}
+            disabled={isUploading}
+            className={`mt-3 inline-flex w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed px-4 py-5 text-sm font-black ${
+              isDraggingUpload
+                ? 'border-amber-100 bg-amber-200 text-slate-950'
+                : 'border-amber-200/60 bg-amber-300 text-slate-950'
+            }`}
           >
-            <FaUpload /> Select videos to upload
+            <span className="inline-flex items-center gap-2">
+              <FaUpload /> {isUploading ? 'Uploading…' : 'Upload clips from phone'}
+            </span>
+            <span className="text-xs font-semibold opacity-80">
+              Opens your phone gallery/camera roll. Uploaded clips are published
+              and selected automatically.
+            </span>
           </button>
+          {uploadStatus && (
+            <p className="mt-3 rounded-xl bg-black/30 p-3 text-sm font-semibold text-amber-50">
+              {uploadStatus}
+            </p>
+          )}
         </section>
       )}
 
@@ -236,10 +286,8 @@ export default function ProtestVideoGallery() {
 
       <div className="grid grid-cols-1 gap-4">
         {allVideos.map((video) => {
-          const id = video.id || video.file || video.url;
-          const recordedAt = [video.date, video.time, video.timezone]
-            .filter(Boolean)
-            .join(' • ');
+          const id = getVideoId(video);
+          const recordedAt = video.date;
           const checked = selectedIds.includes(id);
 
           return (
@@ -271,14 +319,9 @@ export default function ProtestVideoGallery() {
                 <p className="text-xs font-semibold text-red-200">
                   {recordedAt || 'Date and time not set'}
                 </p>
-                {video.description && (
-                  <p className="text-sm leading-5 text-subtext">
-                    {video.description}
-                  </p>
-                )}
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="rounded-full bg-red-500/15 px-3 py-1 text-xs font-semibold text-red-100">
-                    {video.quality || formatBytes(video.size) || 'High quality'}
+                    {formatBytes(video.size)}
                   </span>
                   <a
                     href={video.url}
