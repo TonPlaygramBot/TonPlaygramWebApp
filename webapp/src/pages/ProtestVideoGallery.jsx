@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FaArrowLeft, FaDownload, FaTimes, FaUpload, FaVideo } from 'react-icons/fa';
+import { FaArrowLeft, FaDownload, FaUpload, FaVideo } from 'react-icons/fa';
 import { useTonAddress } from '@tonconnect/ui-react';
 
 const PROTEST_VIDEO_LIBRARY_URL = '/ProtestVideo/library.json';
@@ -24,29 +24,19 @@ const normalizeAddress = (address) =>
     .trim()
     .toLowerCase();
 
-const getVideoId = (video) => video.id || video.file || video.url;
-
-const createUploadedVideoUrl = (file) => URL.createObjectURL(file);
-
-const buildUploadedVideo = (file, metadata = {}) => ({
-  id: `upload-${file.name}-${file.lastModified}-${file.size}`,
-  title:
-    metadata.title?.trim() ||
-    file.name.replace(/\.[^/.]+$/, '').replace(/[-_]+/g, ' '),
+const buildUploadedVideo = (file) => ({
+  id: `upload-${file.name}-${file.lastModified}`,
+  title: file.name.replace(/\.[^/.]+$/, '').replace(/[-_]+/g, ' '),
   fileName: file.name,
   size: file.size,
-  date: metadata.date || new Date(file.lastModified || Date.now()).toLocaleDateString(),
-  time:
-    metadata.time ||
-    new Date(file.lastModified || Date.now()).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit'
-    }),
-  timezone: metadata.timezone?.trim() || undefined,
-  quality: metadata.quality?.trim() || 'Developer upload',
-  description: metadata.description?.trim() || undefined,
+  date: new Date(file.lastModified || Date.now()).toLocaleDateString(),
+  time: new Date(file.lastModified || Date.now()).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit'
+  }),
+  quality: 'Developer upload',
   source: 'upload',
-  url: createUploadedVideoUrl(file),
+  url: URL.createObjectURL(file),
   file
 });
 
@@ -63,19 +53,9 @@ const formatBytes = (bytes = 0) => {
 export default function ProtestVideoGallery() {
   const tonAddress = useTonAddress();
   const fileInputRef = useRef(null);
-  const uploadedVideoUrlsRef = useRef(new Set());
   const [libraryVideos, setLibraryVideos] = useState([]);
   const [uploadedVideos, setUploadedVideos] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
-  const [uploadMetadata, setUploadMetadata] = useState({
-    title: '',
-    date: '',
-    time: '',
-    timezone: '',
-    quality: '',
-    description: ''
-  });
-  const [isDraggingUpload, setIsDraggingUpload] = useState(false);
   const [status, setStatus] = useState('loading');
   const [walletAddress, setWalletAddress] = useState(
     () => tonAddress || getStoredWalletAddress()
@@ -124,48 +104,19 @@ export default function ProtestVideoGallery() {
     [uploadedVideos, libraryVideos]
   );
   const selectedVideos = allVideos.filter((video) =>
-    selectedIds.includes(getVideoId(video))
+    selectedIds.includes(video.id || video.file || video.url)
   );
 
-  useEffect(() => {
-    return () => {
-      uploadedVideoUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
-      uploadedVideoUrlsRef.current.clear();
-    };
-  }, []);
-
-  const addUploadedFiles = (fileList) => {
-    const files = Array.from(fileList || []).filter((file) =>
+  const handleUpload = (event) => {
+    const files = Array.from(event.target.files || []).filter((file) =>
       file.type.startsWith('video/')
     );
     if (!files.length) return;
-
-    const nextVideos = files.map((file) =>
-      buildUploadedVideo(file, uploadMetadata)
-    );
-    nextVideos.forEach((video) => uploadedVideoUrlsRef.current.add(video.url));
-    setUploadedVideos((current) => [...nextVideos, ...current]);
-    setSelectedIds((current) => [
-      ...new Set([...nextVideos.map(getVideoId), ...current])
+    setUploadedVideos((current) => [
+      ...files.map(buildUploadedVideo),
+      ...current
     ]);
-    setUploadMetadata((current) => ({ ...current, title: '', description: '' }));
-  };
-
-  const handleUpload = (event) => {
-    addUploadedFiles(event.target.files);
     event.target.value = '';
-  };
-
-  const removeUploadedVideo = (id) => {
-    setUploadedVideos((current) => {
-      const video = current.find((item) => getVideoId(item) === id);
-      if (video?.url) {
-        URL.revokeObjectURL(video.url);
-        uploadedVideoUrlsRef.current.delete(video.url);
-      }
-      return current.filter((item) => getVideoId(item) !== id);
-    });
-    setSelectedIds((current) => current.filter((item) => item !== id));
   };
 
   const toggleSelected = (id) => {
@@ -226,12 +177,11 @@ export default function ProtestVideoGallery() {
             Developer only
           </p>
           <h2 className="mt-1 text-lg font-black text-white">
-            Direct page uploads
+            Upload multiple videos
           </h2>
           <p className="mt-1 text-sm text-subtext">
-            This uploader is hidden from regular users. Add video files directly
-            into this gallery, preview them instantly, and download them in this
-            device session.
+            This uploader is hidden from regular users. Choose multiple videos
+            to preview and download in this device session.
           </p>
           <input
             ref={fileInputRef}
@@ -241,88 +191,12 @@ export default function ProtestVideoGallery() {
             className="hidden"
             onChange={handleUpload}
           />
-          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <input
-              value={uploadMetadata.title}
-              onChange={(event) =>
-                setUploadMetadata((current) => ({
-                  ...current,
-                  title: event.target.value
-                }))
-              }
-              placeholder="Optional title for next upload"
-              className="rounded-xl border border-white/10 bg-black/30 px-3 py-3 text-sm text-white placeholder:text-subtext"
-            />
-            <input
-              value={uploadMetadata.quality}
-              onChange={(event) =>
-                setUploadMetadata((current) => ({
-                  ...current,
-                  quality: event.target.value
-                }))
-              }
-              placeholder="Quality label, e.g. 4K original"
-              className="rounded-xl border border-white/10 bg-black/30 px-3 py-3 text-sm text-white placeholder:text-subtext"
-            />
-            <input
-              type="date"
-              value={uploadMetadata.date}
-              onChange={(event) =>
-                setUploadMetadata((current) => ({
-                  ...current,
-                  date: event.target.value
-                }))
-              }
-              className="rounded-xl border border-white/10 bg-black/30 px-3 py-3 text-sm text-white"
-            />
-            <input
-              type="time"
-              value={uploadMetadata.time}
-              onChange={(event) =>
-                setUploadMetadata((current) => ({
-                  ...current,
-                  time: event.target.value
-                }))
-              }
-              className="rounded-xl border border-white/10 bg-black/30 px-3 py-3 text-sm text-white"
-            />
-            <textarea
-              value={uploadMetadata.description}
-              onChange={(event) =>
-                setUploadMetadata((current) => ({
-                  ...current,
-                  description: event.target.value
-                }))
-              }
-              placeholder="Optional description for next upload"
-              className="min-h-20 rounded-xl border border-white/10 bg-black/30 px-3 py-3 text-sm text-white placeholder:text-subtext sm:col-span-2"
-            />
-          </div>
           <button
             type="button"
-            onDragOver={(event) => {
-              event.preventDefault();
-              setIsDraggingUpload(true);
-            }}
-            onDragLeave={() => setIsDraggingUpload(false)}
-            onDrop={(event) => {
-              event.preventDefault();
-              setIsDraggingUpload(false);
-              addUploadedFiles(event.dataTransfer.files);
-            }}
             onClick={() => fileInputRef.current?.click()}
-            className={`mt-3 inline-flex w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed px-4 py-5 text-sm font-black ${
-              isDraggingUpload
-                ? 'border-amber-100 bg-amber-200 text-slate-950'
-                : 'border-amber-200/60 bg-amber-300 text-slate-950'
-            }`}
+            className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-300 px-4 py-3 text-sm font-black text-slate-950"
           >
-            <span className="inline-flex items-center gap-2">
-              <FaUpload /> Select or drop videos here
-            </span>
-            <span className="text-xs font-semibold opacity-80">
-              Files appear at the top and are selected automatically.
-            </span>
+            <FaUpload /> Select videos to upload
           </button>
         </section>
       )}
@@ -362,7 +236,7 @@ export default function ProtestVideoGallery() {
 
       <div className="grid grid-cols-1 gap-4">
         {allVideos.map((video) => {
-          const id = getVideoId(video);
+          const id = video.id || video.file || video.url;
           const recordedAt = [video.date, video.time, video.timezone]
             .filter(Boolean)
             .join(' • ');
@@ -406,15 +280,6 @@ export default function ProtestVideoGallery() {
                   <span className="rounded-full bg-red-500/15 px-3 py-1 text-xs font-semibold text-red-100">
                     {video.quality || formatBytes(video.size) || 'High quality'}
                   </span>
-                  {video.source === 'upload' && (
-                    <button
-                      type="button"
-                      onClick={() => removeUploadedVideo(id)}
-                      className="inline-flex items-center gap-2 rounded-full bg-red-500/20 px-4 py-2 text-xs font-black text-red-100"
-                    >
-                      <FaTimes /> Remove
-                    </button>
-                  )}
                   <a
                     href={video.url}
                     download={video.fileName || video.file}
