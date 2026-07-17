@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FaArrowLeft, FaDownload, FaUpload, FaVideo } from 'react-icons/fa';
+import { FaArrowLeft, FaDownload, FaFolderOpen, FaUpload, FaVideo } from 'react-icons/fa';
 import { useTonAddress } from '@tonconnect/ui-react';
 import { uploadProtestVideo } from '../utils/api.js';
 
@@ -249,11 +249,11 @@ export default function ProtestVideoGallery() {
             }`}
           >
             <span className="inline-flex items-center gap-2">
-              <FaUpload /> {pendingUploadFiles.length ? 'Change selected clips' : 'Choose clips from phone'}
+              <FaFolderOpen className="text-lg" /> {pendingUploadFiles.length ? 'Change selected clips' : 'Choose clips from phone'}
             </span>
             <span className="text-xs font-semibold opacity-80">
-              Opens your phone gallery/camera roll. Clips stay private until you
-              confirm with the Upload button below.
+              Tap the folder icon to open your phone gallery/camera roll. Clips stay
+              private until you confirm with the Upload button below.
             </span>
           </button>
           {pendingUploadFiles.length > 0 && (
