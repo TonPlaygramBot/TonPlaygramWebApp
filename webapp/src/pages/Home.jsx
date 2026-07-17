@@ -10,6 +10,14 @@ import { IoLogoTiktok } from 'react-icons/io5';
 import { RiTelegramFill } from 'react-icons/ri';
 import { useTonAddress } from '@tonconnect/ui-react';
 
+const ALBANIA_PAUSE_NOTICE = {
+  title: 'Njoftim për komunitetin',
+  body:
+    'Puna në projektin e lojës është ndalur përkohësisht. Zhvillimi do të rifillojë vetëm kur populli i Shqipërisë të arrijë qëllimin e tij.',
+  detail:
+    'Faleminderit për durimin dhe mbështetjen. Platforma do të mbetet online për informacionet kryesore dhe lidhjet e komunitetit.'
+};
+
 const xIcon = (
   <img
     src="/assets/icons/new-twitter-x-logo-twitter-icon-x-social-media-icon-free-png.webp"
@@ -153,6 +161,25 @@ export default function Home() {
 
   return (
     <div className="space-y-4">
+      <section className="rounded-2xl border border-red-400/40 bg-gradient-to-br from-red-950/90 via-slate-950 to-black p-4 shadow-xl">
+        <div className="flex items-start gap-3">
+          <div className="text-3xl leading-none" aria-hidden="true">
+            🇦🇱
+          </div>
+          <div className="space-y-2">
+            <p className="text-lg font-bold text-white">
+              {ALBANIA_PAUSE_NOTICE.title}
+            </p>
+            <p className="text-sm leading-6 text-white/90">
+              {ALBANIA_PAUSE_NOTICE.body}
+            </p>
+            <p className="text-xs leading-5 text-subtext">
+              {ALBANIA_PAUSE_NOTICE.detail}
+            </p>
+          </div>
+        </div>
+      </section>
+
       <div className="flex flex-col items-center">
         {photoUrl && (
           <div className="relative">
