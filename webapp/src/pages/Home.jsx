@@ -5,7 +5,7 @@ import PwaDownloadFrame from '../components/PwaDownloadFrame.jsx';
 import HomeSocialHub from '../components/HomeSocialHub.jsx';
 import PlatformStatsCard from '../components/PlatformStatsCard.jsx';
 
-import { FaArrowUp, FaArrowDown, FaWallet } from 'react-icons/fa';
+import { FaArrowUp, FaArrowDown, FaDownload, FaTimes, FaWallet } from 'react-icons/fa';
 import { IoLogoTiktok } from 'react-icons/io5';
 import { RiTelegramFill } from 'react-icons/ri';
 import { useTonAddress } from '@tonconnect/ui-react';
@@ -17,6 +17,9 @@ const ALBANIA_PAUSE_NOTICE = {
   detail:
     'Faleminderit për durimin dhe mbështetjen. Platforma do të mbetet online për informacionet kryesore dhe lidhjet e komunitetit.'
 };
+
+const PROTEST_VIDEO_LIBRARY_URL = '/ProtestVideo/library.json';
+const PROTEST_VIDEO_BASE_URL = '/ProtestVideo/';
 
 const xIcon = (
   <img
@@ -49,6 +52,9 @@ const getStoredWalletAddress = () => {
 
 export default function Home() {
   const [status, setStatus] = useState('checking');
+  const [isProtestGalleryOpen, setIsProtestGalleryOpen] = useState(false);
+  const [protestVideos, setProtestVideos] = useState([]);
+  const [protestVideosStatus, setProtestVideosStatus] = useState('idle');
 
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
   const { tpcBalance, tonBalance, tpcWalletBalance } = useTokenBalances();
@@ -159,6 +165,28 @@ export default function Home() {
       window.removeEventListener('profilePhotoUpdated', handleUpdate);
   }, []);
 
+  useEffect(() => {
+    if (!isProtestGalleryOpen || protestVideosStatus !== 'idle') return;
+
+    setProtestVideosStatus('loading');
+    fetch(PROTEST_VIDEO_LIBRARY_URL, { cache: 'no-store' })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error('Unable to load protest video library.');
+        }
+        return response.json();
+      })
+      .then((library) => {
+        const videos = Array.isArray(library?.videos) ? library.videos : [];
+        setProtestVideos(videos);
+        setProtestVideosStatus('ready');
+      })
+      .catch(() => {
+        setProtestVideos([]);
+        setProtestVideosStatus('error');
+      });
+  }, [isProtestGalleryOpen, protestVideosStatus]);
+
   return (
     <div className="space-y-4">
       <section className="rounded-2xl border border-red-400/40 bg-gradient-to-br from-red-950/90 via-slate-950 to-black p-4 shadow-xl">
@@ -176,9 +204,124 @@ export default function Home() {
             <p className="text-xs leading-5 text-subtext">
               {ALBANIA_PAUSE_NOTICE.detail}
             </p>
+            <button
+              type="button"
+              onClick={() => setIsProtestGalleryOpen(true)}
+              className="mt-2 w-full rounded-xl border border-red-300/50 bg-red-600/90 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-red-950/30 transition hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-red-200"
+            >
+              Open protest video gallery
+            </button>
           </div>
         </div>
       </section>
+
+      {isProtestGalleryOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 px-3 py-4 sm:items-center"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="protest-video-gallery-title"
+        >
+          <div className="max-h-[88vh] w-full max-w-lg overflow-hidden rounded-3xl border border-red-300/40 bg-slate-950 shadow-2xl">
+            <div className="flex items-start justify-between gap-3 border-b border-red-300/20 p-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-300">
+                  ProtestVideo Library
+                </p>
+                <h2
+                  id="protest-video-gallery-title"
+                  className="text-xl font-black text-white"
+                >
+                  High-quality protest videos
+                </h2>
+                <p className="mt-1 text-xs leading-5 text-subtext">
+                  Download original higher-quality videos. Every item keeps its
+                  recorded date and time.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsProtestGalleryOpen(false)}
+                className="rounded-full border border-white/20 bg-white/10 p-2 text-white"
+                aria-label="Close protest video gallery"
+              >
+                <FaTimes />
+              </button>
+            </div>
+
+            <div className="max-h-[65vh] space-y-3 overflow-y-auto p-4">
+              {protestVideosStatus === 'loading' && (
+                <p className="rounded-2xl border border-border bg-background/60 p-4 text-sm text-subtext">
+                  Loading protest video library…
+                </p>
+              )}
+
+              {protestVideosStatus === 'error' && (
+                <p className="rounded-2xl border border-red-400/40 bg-red-950/50 p-4 text-sm text-red-100">
+                  The protest video library could not load. Check
+                  public/ProtestVideo/library.json.
+                </p>
+              )}
+
+              {protestVideosStatus === 'ready' && protestVideos.length === 0 && (
+                <p className="rounded-2xl border border-border bg-background/60 p-4 text-sm text-subtext">
+                  No protest videos are published yet. Upload videos into
+                  public/ProtestVideo and add them to library.json.
+                </p>
+              )}
+
+              {protestVideos.map((video) => {
+                const videoUrl = `${PROTEST_VIDEO_BASE_URL}${video.file || ''}`;
+                const recordedAt = [video.date, video.time, video.timezone]
+                  .filter(Boolean)
+                  .join(' • ');
+
+                return (
+                  <article
+                    key={video.id || video.file}
+                    className="rounded-2xl border border-white/10 bg-white/[0.04] p-3"
+                  >
+                    <video
+                      className="aspect-video w-full rounded-xl bg-black object-cover"
+                      src={videoUrl}
+                      controls
+                      preload="metadata"
+                    />
+                    <div className="mt-3 space-y-2">
+                      <div>
+                        <h3 className="text-base font-bold text-white">
+                          {video.title || 'Untitled protest video'}
+                        </h3>
+                        <p className="text-xs font-semibold text-red-200">
+                          {recordedAt || 'Date and time not set'}
+                        </p>
+                      </div>
+                      {video.description && (
+                        <p className="text-sm leading-5 text-subtext">
+                          {video.description}
+                        </p>
+                      )}
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="rounded-full bg-red-500/15 px-3 py-1 text-xs font-semibold text-red-100">
+                          {video.quality || 'High quality'}
+                        </span>
+                        <a
+                          href={videoUrl}
+                          download
+                          className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-black text-slate-950"
+                        >
+                          <FaDownload />
+                          Download
+                        </a>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col items-center">
         {photoUrl && (
