@@ -317,6 +317,42 @@ export function completeQuest(telegramId) {
   return post('/api/ads/quest-watch', { telegramId });
 }
 
+
+export async function uploadProtestVideo(file, metadata = {}) {
+  const formData = new FormData();
+  formData.append('video', file, file.name || 'protest-video.mp4');
+  if (metadata.date) formData.append('date', metadata.date);
+  const headers = buildHeaders();
+
+  let res;
+  try {
+    res = await fetchWithRetry(`${API_BASE_URL}/api/protest-videos/upload`, {
+      method: 'POST',
+      headers,
+      body: formData
+    }, 0);
+  } catch {
+    return { error: 'Network request failed' };
+  }
+
+  let text;
+  try {
+    text = await res.text();
+  } catch {
+    return { error: 'Invalid server response' };
+  }
+
+  let data;
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    return { error: 'Invalid server response' };
+  }
+
+  if (!res.ok) return { error: data.error || res.statusText || 'Upload failed' };
+  return data;
+}
+
 export function submitInfluencerVideo(telegramId, platform, videoUrl) {
   return post('/api/influencer/submit', { telegramId, platform, videoUrl });
 }
