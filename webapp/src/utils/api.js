@@ -317,57 +317,6 @@ export function completeQuest(telegramId) {
   return post('/api/ads/quest-watch', { telegramId });
 }
 
-
-function readFileAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(reader.error || new Error('Unable to read video file'));
-    reader.readAsDataURL(file);
-  });
-}
-
-export async function uploadProtestVideo(file, metadata = {}, uploadToken = '') {
-  const fileData = await readFileAsDataUrl(file);
-  const headers = buildHeaders({ 'Content-Type': 'application/json' });
-  if (uploadToken) headers['X-Protest-Video-Upload-Token'] = uploadToken;
-
-  let res;
-  try {
-    res = await fetchWithRetry(`${API_BASE_URL}/api/protest-videos/upload`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        ...metadata,
-        uploadToken,
-        fileName: file.name,
-        fileSize: file.size,
-        fileType: file.type,
-        fileData
-      })
-    }, 0);
-  } catch {
-    return { error: 'Network request failed' };
-  }
-
-  let text;
-  try {
-    text = await res.text();
-  } catch {
-    return { error: 'Invalid server response' };
-  }
-
-  let data;
-  try {
-    data = text ? JSON.parse(text) : {};
-  } catch {
-    return { error: 'Invalid server response' };
-  }
-
-  if (!res.ok) return { error: data.error || res.statusText || 'Upload failed' };
-  return data;
-}
-
 export function submitInfluencerVideo(telegramId, platform, videoUrl) {
   return post('/api/influencer/submit', { telegramId, platform, videoUrl });
 }
