@@ -14,6 +14,7 @@ import Notifications from './pages/Notifications.jsx';
 import InfluencerAdmin from './pages/InfluencerAdmin.jsx';
 import Nfts from './pages/Nfts.jsx';
 import PlatformStatsDetails from './pages/PlatformStatsDetails.jsx';
+import ProtestVideoGallery from './pages/ProtestVideoGallery.jsx';
 import Exchange from './pages/Exchange.jsx';
 import Layout from './components/Layout.jsx';
 import TonConnectSync from './components/TonConnectSync.jsx';
@@ -197,6 +198,7 @@ export default function App() {
           >
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/protest-videos" element={<ProtestVideoGallery />} />
               <Route path="/mining" element={<Mining />} />
               <Route
                 path="/mining/transactions"
