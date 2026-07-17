@@ -46,6 +46,7 @@ export default function ProtestVideoGallery() {
     new Date().toISOString().slice(0, 10)
   );
   const [isDraggingUpload, setIsDraggingUpload] = useState(false);
+  const [pendingUploadFiles, setPendingUploadFiles] = useState([]);
   const [uploadStatus, setUploadStatus] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [status, setStatus] = useState('loading');
@@ -97,20 +98,31 @@ export default function ProtestVideoGallery() {
   );
 
 
-  const addUploadedFiles = async (fileList) => {
+  const chooseUploadFiles = (fileList) => {
     const files = Array.from(fileList || []).filter((file) =>
       file.type.startsWith('video/')
     );
-    if (!files.length) {
+    setPendingUploadFiles(files);
+    setUploadStatus(
+      files.length
+        ? `${files.length} video clip${files.length > 1 ? 's' : ''} ready. Tap Upload to publish.`
+        : 'Choose a video clip from your phone first.'
+    );
+  };
+
+  const uploadPendingFiles = async () => {
+    if (!pendingUploadFiles.length) {
       setUploadStatus('Choose a video clip from your phone first.');
       return;
     }
 
     setIsUploading(true);
-    setUploadStatus(`Uploading ${files.length} video clip${files.length > 1 ? 's' : ''}…`);
+    setUploadStatus(
+      `Uploading ${pendingUploadFiles.length} video clip${pendingUploadFiles.length > 1 ? 's' : ''}…`
+    );
 
     const uploaded = [];
-    for (const file of files) {
+    for (const file of pendingUploadFiles) {
       const result = await uploadProtestVideo(file, { date: uploadDate });
       if (result.error) {
         setUploadStatus(result.error);
@@ -124,12 +136,13 @@ export default function ProtestVideoGallery() {
     setSelectedIds((current) => [
       ...new Set([...uploaded.map(getVideoId), ...current])
     ]);
+    setPendingUploadFiles([]);
     setUploadStatus('Upload complete. Your clips are now published in the gallery.');
     setIsUploading(false);
   };
 
   const handleUpload = (event) => {
-    addUploadedFiles(event.target.files);
+    chooseUploadFiles(event.target.files);
     event.target.value = '';
   };
 
@@ -225,7 +238,7 @@ export default function ProtestVideoGallery() {
             onDrop={(event) => {
               event.preventDefault();
               setIsDraggingUpload(false);
-              addUploadedFiles(event.dataTransfer.files);
+              chooseUploadFiles(event.dataTransfer.files);
             }}
             onClick={() => !isUploading && fileInputRef.current?.click()}
             disabled={isUploading}
@@ -236,13 +249,35 @@ export default function ProtestVideoGallery() {
             }`}
           >
             <span className="inline-flex items-center gap-2">
-              <FaUpload /> {isUploading ? 'Uploading…' : 'Upload clips from phone'}
+              <FaUpload /> {pendingUploadFiles.length ? 'Change selected clips' : 'Choose clips from phone'}
             </span>
             <span className="text-xs font-semibold opacity-80">
-              Opens your phone gallery/camera roll. Uploaded clips are published
-              and selected automatically.
+              Opens your phone gallery/camera roll. Clips stay private until you
+              confirm with the Upload button below.
             </span>
           </button>
+          {pendingUploadFiles.length > 0 && (
+            <div className="mt-3 rounded-2xl border border-amber-200/40 bg-black/30 p-3">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-100">
+                Ready to upload
+              </p>
+              <ul className="mt-2 space-y-1 text-xs font-semibold text-white">
+                {pendingUploadFiles.map((file) => (
+                  <li key={`${file.name}-${file.lastModified}`} className="truncate">
+                    {file.name} · {formatBytes(file.size)}
+                  </li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                onClick={uploadPendingFiles}
+                disabled={isUploading}
+                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-white px-4 py-3 text-sm font-black text-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <FaUpload /> {isUploading ? 'Uploading…' : 'Upload'}
+              </button>
+            </div>
+          )}
           {uploadStatus && (
             <p className="mt-3 rounded-xl bg-black/30 p-3 text-sm font-semibold text-amber-50">
               {uploadStatus}
