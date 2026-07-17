@@ -1,22 +1,28 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FaArrowLeft, FaDownload, FaUpload, FaVideo } from 'react-icons/fa';
+import { FaArrowLeft, FaDownload, FaTimes, FaUpload, FaVideo } from 'react-icons/fa';
 import { useTonAddress } from '@tonconnect/ui-react';
+import { uploadProtestVideo } from '../utils/api.js';
 
 const PROTEST_VIDEO_LIBRARY_URL = '/ProtestVideo/library.json';
 const PROTEST_VIDEO_BASE_URL = '/ProtestVideo/';
+const UPLOAD_TOKEN_STORAGE_KEY = 'protestVideoUploadToken';
 const DEV_ACCOUNTS = [
   import.meta.env.VITE_DEV_ACCOUNT_ID,
   import.meta.env.VITE_DEV_ACCOUNT_ID_1,
   import.meta.env.VITE_DEV_ACCOUNT_ID_2
 ].filter(Boolean);
 
-const getStoredWalletAddress = () => {
+const getStoredValue = (key) => {
   try {
-    return localStorage.getItem('walletAddress') || '';
+    return localStorage.getItem(key) || '';
   } catch {
     return '';
   }
+};
+
+const getStoredWalletAddress = () => {
+  return getStoredValue('walletAddress');
 };
 
 const normalizeAddress = (address) =>
@@ -24,19 +30,29 @@ const normalizeAddress = (address) =>
     .trim()
     .toLowerCase();
 
-const buildUploadedVideo = (file) => ({
-  id: `upload-${file.name}-${file.lastModified}`,
-  title: file.name.replace(/\.[^/.]+$/, '').replace(/[-_]+/g, ' '),
+const getVideoId = (video) => video.id || video.file || video.url;
+
+const createUploadedVideoUrl = (file) => URL.createObjectURL(file);
+
+const buildUploadedVideo = (file, metadata = {}) => ({
+  id: `upload-${file.name}-${file.lastModified}-${file.size}`,
+  title:
+    metadata.title?.trim() ||
+    file.name.replace(/\.[^/.]+$/, '').replace(/[-_]+/g, ' '),
   fileName: file.name,
   size: file.size,
-  date: new Date(file.lastModified || Date.now()).toLocaleDateString(),
-  time: new Date(file.lastModified || Date.now()).toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit'
-  }),
-  quality: 'Developer upload',
+  date: metadata.date || new Date(file.lastModified || Date.now()).toLocaleDateString(),
+  time:
+    metadata.time ||
+    new Date(file.lastModified || Date.now()).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit'
+    }),
+  timezone: metadata.timezone?.trim() || undefined,
+  quality: metadata.quality?.trim() || 'Developer upload',
+  description: metadata.description?.trim() || undefined,
   source: 'upload',
-  url: URL.createObjectURL(file),
+  url: createUploadedVideoUrl(file),
   file
 });
 
@@ -53,9 +69,24 @@ const formatBytes = (bytes = 0) => {
 export default function ProtestVideoGallery() {
   const tonAddress = useTonAddress();
   const fileInputRef = useRef(null);
+  const uploadedVideoUrlsRef = useRef(new Set());
   const [libraryVideos, setLibraryVideos] = useState([]);
   const [uploadedVideos, setUploadedVideos] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
+  const [uploadMetadata, setUploadMetadata] = useState({
+    title: '',
+    date: '',
+    time: '',
+    timezone: '',
+    quality: '',
+    description: ''
+  });
+  const [isDraggingUpload, setIsDraggingUpload] = useState(false);
+  const [uploadToken, setUploadToken] = useState(() =>
+    getStoredValue(UPLOAD_TOKEN_STORAGE_KEY)
+  );
+  const [uploadStatus, setUploadStatus] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
   const [status, setStatus] = useState('loading');
   const [walletAddress, setWalletAddress] = useState(
     () => tonAddress || getStoredWalletAddress()
@@ -65,11 +96,13 @@ export default function ProtestVideoGallery() {
     const account = normalizeAddress(tonAddress || walletAddress);
     return (
       import.meta.env.DEV ||
+      Boolean(uploadToken) ||
+      new URLSearchParams(window.location.search).has('devUpload') ||
       DEV_ACCOUNTS.some(
         (devAccount) => normalizeAddress(devAccount) === account
       )
     );
-  }, [tonAddress, walletAddress]);
+  }, [tonAddress, walletAddress, uploadToken]);
 
   useEffect(() => {
     setWalletAddress(tonAddress || getStoredWalletAddress());
@@ -104,19 +137,63 @@ export default function ProtestVideoGallery() {
     [uploadedVideos, libraryVideos]
   );
   const selectedVideos = allVideos.filter((video) =>
-    selectedIds.includes(video.id || video.file || video.url)
+    selectedIds.includes(getVideoId(video))
   );
 
-  const handleUpload = (event) => {
-    const files = Array.from(event.target.files || []).filter((file) =>
+  useEffect(() => {
+    return () => {
+      uploadedVideoUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      uploadedVideoUrlsRef.current.clear();
+    };
+  }, []);
+
+  const addUploadedFiles = async (fileList) => {
+    const files = Array.from(fileList || []).filter((file) =>
       file.type.startsWith('video/')
     );
-    if (!files.length) return;
-    setUploadedVideos((current) => [
-      ...files.map(buildUploadedVideo),
-      ...current
+    if (!files.length) {
+      setUploadStatus('Choose a video clip from your phone first.');
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadStatus(`Uploading ${files.length} video clip${files.length > 1 ? 's' : ''}…`);
+
+    const uploaded = [];
+    for (const file of files) {
+      const result = await uploadProtestVideo(file, uploadMetadata, uploadToken);
+      if (result.error) {
+        setUploadStatus(result.error);
+        setIsUploading(false);
+        return;
+      }
+      if (result.video) uploaded.push(result.video);
+    }
+
+    setLibraryVideos((current) => [...uploaded, ...current]);
+    setSelectedIds((current) => [
+      ...new Set([...uploaded.map(getVideoId), ...current])
     ]);
+    setUploadMetadata((current) => ({ ...current, title: '', description: '' }));
+    setUploadStatus('Upload complete. Your clips are now published in the gallery.');
+    setIsUploading(false);
+  };
+
+  const handleUpload = (event) => {
+    addUploadedFiles(event.target.files);
     event.target.value = '';
+  };
+
+  const removeUploadedVideo = (id) => {
+    setUploadedVideos((current) => {
+      const video = current.find((item) => getVideoId(item) === id);
+      if (video?.url) {
+        URL.revokeObjectURL(video.url);
+        uploadedVideoUrlsRef.current.delete(video.url);
+      }
+      return current.filter((item) => getVideoId(item) !== id);
+    });
+    setSelectedIds((current) => current.filter((item) => item !== id));
   };
 
   const toggleSelected = (id) => {
@@ -171,35 +248,141 @@ export default function ProtestVideoGallery() {
         </div>
       </header>
 
-      {isDev && (
-        <section className="rounded-2xl border border-amber-300/40 bg-amber-500/10 p-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-200">
-            Developer only
+      <section className="rounded-2xl border border-amber-300/40 bg-amber-500/10 p-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-200">
+          Developer only
+        </p>
+        <h2 className="mt-1 text-lg font-black text-white">
+          Direct page uploads
+        </h2>
+        <p className="mt-1 text-sm text-subtext">
+          Add clips directly from your phone gallery/camera roll. Successful
+          uploads are saved to the ProtestVideo library and appear immediately
+          on this page.
+        </p>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="video/*"
+          multiple
+          className="hidden"
+          onChange={handleUpload}
+        />
+        <input
+          value={uploadToken}
+          onChange={(event) => {
+            const nextToken = event.target.value;
+            setUploadToken(nextToken);
+            try {
+              localStorage.setItem(UPLOAD_TOKEN_STORAGE_KEY, nextToken);
+            } catch {
+              // ignore private browsing storage failures
+            }
+          }}
+          placeholder="Developer upload code"
+          className="mt-3 w-full rounded-xl border border-amber-200/40 bg-black/30 px-3 py-3 text-sm text-white placeholder:text-amber-100/70"
+          autoComplete="off"
+        />
+        {!isDev && (
+          <p className="mt-3 rounded-xl bg-black/30 p-3 text-sm font-semibold text-amber-50">
+            Enter the developer upload code above to unlock mobile uploads.
           </p>
-          <h2 className="mt-1 text-lg font-black text-white">
-            Upload multiple videos
-          </h2>
-          <p className="mt-1 text-sm text-subtext">
-            This uploader is hidden from regular users. Choose multiple videos
-            to preview and download in this device session.
+        )}
+        {isDev && (
+          <>
+            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <input
+                value={uploadMetadata.title}
+                onChange={(event) =>
+                  setUploadMetadata((current) => ({
+                    ...current,
+                    title: event.target.value
+                  }))
+                }
+                placeholder="Optional title for next upload"
+                className="rounded-xl border border-white/10 bg-black/30 px-3 py-3 text-sm text-white placeholder:text-subtext"
+              />
+              <input
+                value={uploadMetadata.quality}
+                onChange={(event) =>
+                  setUploadMetadata((current) => ({
+                    ...current,
+                    quality: event.target.value
+                  }))
+                }
+                placeholder="Quality label, e.g. 4K original"
+                className="rounded-xl border border-white/10 bg-black/30 px-3 py-3 text-sm text-white placeholder:text-subtext"
+              />
+              <input
+                type="date"
+                value={uploadMetadata.date}
+                onChange={(event) =>
+                  setUploadMetadata((current) => ({
+                    ...current,
+                    date: event.target.value
+                  }))
+                }
+                className="rounded-xl border border-white/10 bg-black/30 px-3 py-3 text-sm text-white"
+              />
+              <input
+                type="time"
+                value={uploadMetadata.time}
+                onChange={(event) =>
+                  setUploadMetadata((current) => ({
+                    ...current,
+                    time: event.target.value
+                  }))
+                }
+                className="rounded-xl border border-white/10 bg-black/30 px-3 py-3 text-sm text-white"
+              />
+              <textarea
+                value={uploadMetadata.description}
+                onChange={(event) =>
+                  setUploadMetadata((current) => ({
+                    ...current,
+                    description: event.target.value
+                  }))
+                }
+                placeholder="Optional description for next upload"
+                className="min-h-20 rounded-xl border border-white/10 bg-black/30 px-3 py-3 text-sm text-white placeholder:text-subtext sm:col-span-2"
+              />
+            </div>
+            <button
+              type="button"
+              onDragOver={(event) => {
+                event.preventDefault();
+                setIsDraggingUpload(true);
+              }}
+              onDragLeave={() => setIsDraggingUpload(false)}
+              onDrop={(event) => {
+                event.preventDefault();
+                setIsDraggingUpload(false);
+                addUploadedFiles(event.dataTransfer.files);
+              }}
+              onClick={() => !isUploading && fileInputRef.current?.click()}
+              disabled={isUploading}
+              className={`mt-3 inline-flex w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed px-4 py-5 text-sm font-black ${
+                isDraggingUpload
+                  ? 'border-amber-100 bg-amber-200 text-slate-950'
+                  : 'border-amber-200/60 bg-amber-300 text-slate-950'
+              }`}
+            >
+              <span className="inline-flex items-center gap-2">
+                <FaUpload /> {isUploading ? 'Uploading…' : 'Upload clips from phone'}
+              </span>
+              <span className="text-xs font-semibold opacity-80">
+                Opens your phone gallery/camera roll. Uploaded clips are
+                published and selected automatically.
+              </span>
+            </button>
+          </>
+        )}
+        {uploadStatus && (
+          <p className="mt-3 rounded-xl bg-black/30 p-3 text-sm font-semibold text-amber-50">
+            {uploadStatus}
           </p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="video/*"
-            multiple
-            className="hidden"
-            onChange={handleUpload}
-          />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-300 px-4 py-3 text-sm font-black text-slate-950"
-          >
-            <FaUpload /> Select videos to upload
-          </button>
-        </section>
-      )}
+        )}
+      </section>
 
       <section className="sticky top-2 z-10 rounded-2xl border border-white/10 bg-slate-950/95 p-3 shadow-lg backdrop-blur">
         <div className="flex items-center justify-between gap-3">
@@ -236,7 +419,7 @@ export default function ProtestVideoGallery() {
 
       <div className="grid grid-cols-1 gap-4">
         {allVideos.map((video) => {
-          const id = video.id || video.file || video.url;
+          const id = getVideoId(video);
           const recordedAt = [video.date, video.time, video.timezone]
             .filter(Boolean)
             .join(' • ');
@@ -280,6 +463,15 @@ export default function ProtestVideoGallery() {
                   <span className="rounded-full bg-red-500/15 px-3 py-1 text-xs font-semibold text-red-100">
                     {video.quality || formatBytes(video.size) || 'High quality'}
                   </span>
+                  {video.source === 'upload' && (
+                    <button
+                      type="button"
+                      onClick={() => removeUploadedVideo(id)}
+                      className="inline-flex items-center gap-2 rounded-full bg-red-500/20 px-4 py-2 text-xs font-black text-red-100"
+                    >
+                      <FaTimes /> Remove
+                    </button>
+                  )}
                   <a
                     href={video.url}
                     download={video.fileName || video.file}
