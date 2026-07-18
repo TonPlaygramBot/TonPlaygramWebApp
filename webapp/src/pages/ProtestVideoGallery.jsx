@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FaArrowLeft, FaDownload, FaUpload, FaVideo } from 'react-icons/fa';
+import { FaArrowLeft, FaDownload, FaPlus, FaUpload, FaVideo } from 'react-icons/fa';
 import { useTonAddress } from '@tonconnect/ui-react';
 import { uploadProtestVideo } from '../utils/api.js';
 
@@ -208,8 +208,8 @@ export default function ProtestVideoGallery() {
             Direct page uploads
           </h2>
           <p className="mt-1 text-sm text-subtext">
-            Add clips directly from your phone gallery/camera roll. Choose the
-            protest date once, then upload clips up to 1GB.
+            Tap +, pick videos from your phone like TikTok, then upload the
+            original files without compression. Only developer accounts can see this.
           </p>
           <input
             ref={fileInputRef}
@@ -249,11 +249,14 @@ export default function ProtestVideoGallery() {
             }`}
           >
             <span className="inline-flex items-center gap-2">
-              <FaUpload /> {pendingUploadFiles.length ? 'Change selected clips' : 'Choose clips from phone'}
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-950 text-xl text-amber-200">
+                <FaPlus />
+              </span>
+              {pendingUploadFiles.length ? 'Change selected clips' : 'Tap + to add videos'}
             </span>
             <span className="text-xs font-semibold opacity-80">
-              Opens your phone gallery/camera roll. Clips stay private until you
-              confirm with the Upload button below.
+              Opens your phone gallery/camera roll. Uploaded videos keep original
+              quality and users download the same file.
             </span>
           </button>
           {pendingUploadFiles.length > 0 && (
@@ -284,6 +287,18 @@ export default function ProtestVideoGallery() {
             </p>
           )}
         </section>
+      )}
+
+      {isDev && (
+        <button
+          type="button"
+          onClick={() => !isUploading && fileInputRef.current?.click()}
+          disabled={isUploading}
+          aria-label="Add protest videos from phone"
+          className="fixed bottom-6 right-5 z-30 flex h-16 w-16 items-center justify-center rounded-full bg-amber-300 text-3xl text-slate-950 shadow-2xl shadow-amber-500/40 ring-4 ring-slate-950/80 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <FaPlus />
+        </button>
       )}
 
       <section className="sticky top-2 z-10 rounded-2xl border border-white/10 bg-slate-950/95 p-3 shadow-lg backdrop-blur">
