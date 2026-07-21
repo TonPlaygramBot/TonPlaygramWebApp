@@ -63,6 +63,7 @@ import {
 } from '../../utils/ludoBattleInventory.js';
 import { giftSounds } from '../../utils/giftSounds.js';
 import { playLudoDiceRollSfx, playLudoTokenStepSfx } from '../../utils/ludoSfx.js';
+import { createLudoBattleRoyalDiceSpin } from '../../../../lib/sharedDiceRoll.js';
 import { socket } from '../../utils/socket.js';
 import { loadExactUkrainianDroneModel } from '../../utils/ukrainianDroneModel.js';
 
@@ -7915,13 +7916,10 @@ function spinDice(
     const start = performance.now();
     const startPos = dice.position.clone();
     const endPos = targetPosition.clone();
-    const spinVec = new THREE.Vector3(
-      1.2 + Math.random() * 0.7,
-      1.35 + Math.random() * 0.65,
-      1.05 + Math.random() * 0.75
-    );
-    const wobble = new THREE.Vector3((Math.random() - 0.5) * 0.16, 0, (Math.random() - 0.5) * 0.16);
-    const targetValue = 1 + Math.floor(Math.random() * 6);
+    const rollPlan = createLudoBattleRoyalDiceSpin();
+    const spinVec = new THREE.Vector3(rollPlan.spin.x, rollPlan.spin.y, rollPlan.spin.z);
+    const wobble = new THREE.Vector3(rollPlan.wobble.x, rollPlan.wobble.y, rollPlan.wobble.z);
+    const targetValue = rollPlan.value;
 
     const step = () => {
       const now = performance.now();

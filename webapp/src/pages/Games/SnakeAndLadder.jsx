@@ -1,6 +1,10 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import coinConfetti from "../../utils/coinConfetti";
 import DiceRoller from "../../components/DiceRoller.jsx";
+import {
+  normalizeDiceRollValues,
+  rollLudoBattleRoyalDiceFace
+} from "../../../../lib/sharedDiceRoll.js";
 import SnakeBoard3D from "../../components/SnakeBoard3D.jsx";
 import { FINAL_TILE as BOARD_FINAL_TILE } from "../../components/SnakeBoard.jsx";
 import {
@@ -1574,19 +1578,10 @@ export default function SnakeAndLadder() {
     setDiceBoardEvent(phase);
   }, []);
 
-  const normalizeAuthoritativeDiceValues = useCallback((value, fallbackCount = 1) => {
-    if (Array.isArray(value)) {
-      return value
-        .map((candidate) => Number(candidate))
-        .filter((candidate) => Number.isFinite(candidate))
-        .map((candidate) => Math.max(1, Math.min(6, Math.floor(candidate))));
-    }
-    const numeric = Number(value);
-    if (Number.isFinite(numeric)) {
-      return [Math.max(1, Math.min(6, Math.floor(numeric)))];
-    }
-    return Array(Math.max(1, fallbackCount || 1)).fill(1);
-  }, []);
+  const normalizeAuthoritativeDiceValues = useCallback(
+    (value, fallbackCount = 1) => normalizeDiceRollValues(value, fallbackCount),
+    []
+  );
 
   const startCaptureAnimation = useCallback(
     ({ attackerIndex, fromCell, targetCell, victimIndices = [], weaponType, onComplete }) => {
@@ -2620,7 +2615,7 @@ export default function SnakeAndLadder() {
     );
     let over = state.gameOver ?? false;
     while (elapsed > 0 && !over) {
-      const roll = Math.floor(Math.random() * 6) + 1;
+      const roll = rollLudoBattleRoyalDiceFace();
       if (turn === 0) {
         if (p === 0) {
           if (roll === 6) p = 1;
@@ -3014,7 +3009,7 @@ export default function SnakeAndLadder() {
     setMoving(true);
     const value = Array.isArray(vals)
       ? vals.reduce((a, b) => a + b, 0)
-      : vals ?? Math.floor(Math.random() * 6) + 1;
+      : vals ?? rollLudoBattleRoyalDiceFace();
     const rolledSix = Array.isArray(vals)
       ? vals.some((v) => Number(v) === 6)
       : Number(value) === 6;
@@ -3255,7 +3250,7 @@ export default function SnakeAndLadder() {
         return;
       }
       const idxPlayer = rollOrder[idx];
-      const roll = Math.floor(Math.random() * 6) + 1;
+      const roll = rollLudoBattleRoyalDiceFace();
       results.push({ index: idxPlayer, roll });
       setTurnMessage(<>{playerName(idxPlayer)} rolled {roll}</>);
       setTimeout(() => rollNext(idx + 1), 1000);
