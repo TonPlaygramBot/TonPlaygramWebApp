@@ -1,0 +1,8 @@
+[
+  {
+    "id": "video-1",
+    "title": "Protest Video 1",
+    "thumbnail": "thumbnails/video-1.webp",
+    "video": "videos/video-1.mp4"
+  }
+]
