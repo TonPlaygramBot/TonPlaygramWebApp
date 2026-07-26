@@ -1,0 +1,14 @@
+{
+  "videos": [
+    {
+      "id": "sample-protest-video",
+      "title": "Sample protest video",
+      "date": "2026-07-17",
+      "time": "12:00",
+      "timezone": "UTC",
+      "file": "sample-protest-video.mp4",
+      "quality": "Upload high quality MP4 here",
+      "description": "Replace this entry after uploading a real protest video to public/ProtestVideo."
+    }
+  ]
+}
