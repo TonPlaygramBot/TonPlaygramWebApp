@@ -1,4 +1,9 @@
 node_modules
+.env
+*.mp4
+*.mov
+videos/
+thumbnails/
 package-lock.json
 bot/node_modules
 webapp/node_modules
@@ -30,6 +35,7 @@ webapp/public/apple-app-site-association
 twitter.env
 .env*
 **/.env*
+!.env.example
 /webapp/dist/
 # Hardhat build artifacts
 artifacts/
