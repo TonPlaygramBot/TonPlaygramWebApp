@@ -59,10 +59,14 @@ export default function ReactClient({
   }, [roomId, playerName, socket]);
 
   const rollDice = () => socket.emit('rollDice', { roomId });
+  const updateOption = (key, value) =>
+    socket.emit('setOption', { roomId, key, value });
+  const swapWeapon = (weapon) => socket.emit('swapWeapon', { roomId, weapon });
 
   if (!state) return <div style={{ color: '#fff' }}>Loading...</div>;
 
   const current = state.players[state.currentPlayer]?.id;
+  const me = state.players.find((p) => p.id === socket.id);
 
   return (
     <div
@@ -111,6 +115,48 @@ export default function ReactClient({
         {state.winner && (
           <p style={{ margin: '12px 0 0' }}>Winner: {state.winner}</p>
         )}
+        <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <label>
+            Theme:{' '}
+            <select
+              value={state.options?.boardTheme || 'classic'}
+              onChange={(e) => updateOption('boardTheme', e.target.value)}
+            >
+              <option value="classic">Classic</option>
+              <option value="night">Night</option>
+            </select>
+          </label>
+          <label>
+            Speed:{' '}
+            <select
+              value={state.options?.moveSpeed || 'normal'}
+              onChange={(e) => updateOption('moveSpeed', e.target.value)}
+            >
+              <option value="slow">Slow</option>
+              <option value="normal">Normal</option>
+              <option value="fast">Fast</option>
+            </select>
+          </label>
+          {me && (
+            <label>
+              Weapon:{' '}
+              <select
+                value={me.equippedWeapon}
+                onChange={(e) => swapWeapon(e.target.value)}
+              >
+                {me.inventory.map((weapon) => (
+                  <option key={weapon} value={weapon}>
+                    {weapon}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
+        {me && <p style={{ margin: '8px 0 0' }}>My weapon: {me.equippedWeapon}</p>}
+        <p style={{ margin: '4px 0 0' }}>
+          AI weapon this game: {state.ai?.equippedWeapon}
+        </p>
       </div>
 
       <div style={{ margin: '0 auto', maxWidth: 900 }}>
