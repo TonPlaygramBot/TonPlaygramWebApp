@@ -120,7 +120,6 @@ import {
   TEXAS_HOLDEM_OPTION_LABELS,
   TEXAS_HOLDEM_STORE_ITEMS
 } from '../config/texasHoldemInventoryConfig.js';
-import { BOWLING_DEFAULT_LOADOUT, BOWLING_OPTION_LABELS, BOWLING_STORE_ITEMS } from '../config/bowlingInventoryConfig.js';
 import { TABLE_CLOTH_OPTIONS } from '../utils/tableCustomizationOptions.js';
 import { TABLE_SHAPE_OPTIONS } from '../utils/murlanTable.js';
 import {
@@ -1227,8 +1226,6 @@ const USAGE_BY_TYPE = {
 };
 
 
-const TENNIS_HDRI_OPTION_IDS = Object.freeze(['suburbanGarden','countryTrackMidday','autumnPark','rooitouPark','rotesRathaus','veniceDawn2','piazzaSanMarco']);
-
 const hashString = (value) => {
   let hash = 0;
   if (!value) return hash;
@@ -1246,17 +1243,6 @@ const formatShortDate = (date) =>
   }).format(date);
 
 const storeMeta = {
-  tennis: {
-    name: 'Tennis',
-    items: [
-      ...POOL_ROYALE_STORE_ITEMS.filter((item) => item.type === 'environmentHdri' && TENNIS_HDRI_OPTION_IDS.includes(item.optionId)),
-      ...LUDO_BATTLE_STORE_ITEMS.filter((item) => item.type === 'humanCharacter')
-    ],
-    defaults: [...POOL_ROYALE_DEFAULT_LOADOUT, ...LUDO_BATTLE_DEFAULT_LOADOUT.filter((entry) => entry.type === 'humanCharacter')],
-    labels: { ...POOL_ROYALE_OPTION_LABELS, humanCharacter: LUDO_BATTLE_OPTION_LABELS.humanCharacter },
-    typeLabels: TYPE_LABELS,
-    accountId: POOL_STORE_ACCOUNT_ID
-  },
   poolroyale: {
     name: 'Pool Royale',
     items: POOL_ROYALE_STORE_ITEMS,
@@ -1366,14 +1352,6 @@ const storeMeta = {
     labels: SNAKE_OPTION_LABELS,
     typeLabels: SNAKE_TYPE_LABELS,
     accountId: SNAKE_STORE_ACCOUNT_ID
-  },
-  bowling: {
-    name: 'Real Bowling',
-    items: BOWLING_STORE_ITEMS,
-    defaults: BOWLING_DEFAULT_LOADOUT,
-    labels: BOWLING_OPTION_LABELS,
-    typeLabels: TYPE_LABELS,
-    accountId: POOL_STORE_ACCOUNT_ID
   },
   texasholdem: {
     name: "Texas Hold'em",
@@ -1909,20 +1887,10 @@ export default function Store() {
         key: createItemKey(item.type, item.optionId),
         slug: 'snake'
       })),
-      bowling: BOWLING_STORE_ITEMS.map((item) => ({
-        ...item,
-        key: createItemKey(item.type, item.optionId),
-        slug: 'bowling'
-      })),
       texasholdem: TEXAS_HOLDEM_STORE_ITEMS.map((item) => ({
         ...item,
         key: createItemKey(item.type, item.optionId),
         slug: 'texasholdem'
-      })),
-      tennis: POOL_ROYALE_STORE_ITEMS.filter((item) => item.type === 'environmentHdri' && TENNIS_HDRI_OPTION_IDS.includes(item.optionId)).map((item) => ({
-        ...item,
-        key: createItemKey(item.type, item.optionId),
-        slug: 'tennis'
       })),
     }),
     []
@@ -1956,10 +1924,6 @@ export default function Store() {
         isDominoOptionUnlocked(type, optionId, dominoOwned),
       snake: (type, optionId) =>
         isSnakeOptionUnlocked(type, optionId, snakeOwned),
-      tennis: (type, optionId) =>
-        isPoolOptionUnlocked(type, optionId, poolOwned),
-      bowling: (type, optionId) =>
-        optionId === BOWLING_DEFAULT_LOADOUT[type] || isPoolOptionUnlocked(type, optionId, poolOwned),
       texasholdem: (type, optionId) =>
         isTexasOptionUnlocked(type, optionId, texasOwned),
     }),
@@ -2009,8 +1973,6 @@ export default function Store() {
         SNAKE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       texasholdem: (item) =>
         TEXAS_HOLDEM_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      tennis: (item) =>
-        POOL_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
     }),
     []
   );
@@ -2029,8 +1991,7 @@ export default function Store() {
       weaponkart: { humanCharacter: 'Seated Characters' },
       'domino-royal': DOMINO_TYPE_LABELS,
       snake: SNAKE_TYPE_LABELS,
-      texasholdem: TEXAS_TYPE_LABELS,
-      tennis: TYPE_LABELS
+      texasholdem: TEXAS_TYPE_LABELS
     }),
     []
   );
@@ -2619,7 +2580,7 @@ export default function Store() {
 
       const backgroundSyncTasks = [];
       for (const [slug, group] of Object.entries(groupedBySlug)) {
-        if (slug === 'poolroyale' || slug === 'bilardoshqip' || slug === 'tennis' || slug === 'bowling') {
+        if (slug === 'poolroyale' || slug === 'bilardoshqip') {
           for (const entry of group.items) {
             const syncTask = addPoolRoyalUnlock(
               entry.type,
