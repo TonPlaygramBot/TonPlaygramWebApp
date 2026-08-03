@@ -45,8 +45,8 @@ const gunifyWeapon = (id, label, modelName, colors, extra = {}) => ({
   ...extra
 })
 
-
 const LUDO_CAPTURE_WEAPON_IDS = Object.freeze([
+  'missileJavelin',
   'fighterJetAttack',
   'helicopterAttack',
   'droneAttack'
@@ -102,7 +102,7 @@ export const SNAKE_FPS_GUN_MODEL_CONFIG = Object.freeze({
   ludoHandScaleMultiplier: 3.2
 })
 
-export const SNAKE_CAPTURE_WEAPON_OPTIONS = Object.freeze([
+export const SNAKE_SHARED_CAPTURE_WEAPON_OPTIONS = Object.freeze([
   {
     id: 'ukrainianDroneAttack',
     label: 'Ukrainian Drone',
@@ -163,6 +163,33 @@ export const SNAKE_CAPTURE_WEAPON_OPTIONS = Object.freeze([
   { id: 'slot-16-awp-glb', label: 'AWP Sniper GLB', thumbnail: weaponSilhouetteThumbnail(['#1e293b', '#0f172a', '#f8fafc']), urls: [SNAKE_KNOWN_WORKING_GLB.awp, SNAKE_KNOWN_WORKING_GLB.awpRaw] },
   SNAKE_FPS_GUN_MODEL_CONFIG
 ])
+
+const SNAKE_CAPTURE_WEAPON_IDS = Object.freeze([
+  'ukrainianDroneAttack',
+  'droneAttack',
+  'missileJavelin',
+  'helicopterAttack',
+  'fighterJetAttack'
+])
+
+const SNAKE_SHARED_CAPTURE_WEAPON_BY_ID = new Map(
+  SNAKE_SHARED_CAPTURE_WEAPON_OPTIONS.map((option) => [option.id, option])
+)
+
+export const SNAKE_CAPTURE_WEAPON_OPTIONS = Object.freeze(
+  SNAKE_CAPTURE_WEAPON_IDS.map((id) => {
+    if (id === 'missileJavelin') {
+      return ludoVehicleWeapon(
+        id,
+        'javelin',
+        'Short Missile',
+        swatchThumbnail(['#1d4ed8', '#64748b', '#dbeafe']),
+        { label: 'Short Missile' }
+      )
+    }
+    return SNAKE_SHARED_CAPTURE_WEAPON_BY_ID.get(id)
+  }).filter(Boolean)
+)
 
 export const SNAKE_CAPTURE_WEAPON_ALIAS_MAP = Object.freeze({
   fighter: 'fighterJetAttack',
