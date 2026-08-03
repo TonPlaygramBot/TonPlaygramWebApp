@@ -311,21 +311,15 @@ describe('cross-game inventory alignment', () => {
     const snakeCatalogIds = new Set(SNAKE_CAPTURE_WEAPON_OPTIONS.slice(1).map((option) => option.id));
 
     expect(snakeCaptureStoreIds).toEqual(snakeCatalogIds);
-    expect(new Set(SNAKE_DEFAULT_UNLOCKS.captureWeapon)).toEqual(new Set([SNAKE_CAPTURE_WEAPON_OPTIONS[0]?.id]));
-
-    [
-      'poly-robot-large-gun-01',
-      'poly-robot-flying-gun-01',
-      'poly-bazooka-01',
-      'poly-grenade-launcher-01',
-      'poly-dynamite-bomb-01',
-      'poly-molotov-01',
-      'poly-gas-tank-01',
-      'poly-hand-grenade-01',
-      'poly-tank-01'
-    ].forEach((weaponId) => {
-      expect(snakeCatalogIds.has(weaponId)).toBe(true);
-      expect(snakeCaptureStoreIds.has(weaponId)).toBe(true);
-    });
+    expect(new Set(SNAKE_DEFAULT_UNLOCKS.captureWeapon)).toEqual(
+      new Set(SNAKE_CAPTURE_WEAPON_OPTIONS.map((option) => option.id))
+    );
+    expect(SNAKE_CAPTURE_WEAPON_OPTIONS.map(({ id, label }) => ({ id, label }))).toEqual([
+      { id: 'ukrainianDroneAttack', label: 'Ukrainian Drone' },
+      { id: 'droneAttack', label: 'Shahad Drone' },
+      { id: 'missileJavelin', label: 'Short Missile' },
+      { id: 'helicopterAttack', label: 'Helicopter Strike' },
+      { id: 'fighterJetAttack', label: 'Fighter Jet Attack' }
+    ]);
   });
 });

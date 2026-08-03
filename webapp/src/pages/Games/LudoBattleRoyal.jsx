@@ -54,7 +54,8 @@ import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
 import { MURLAN_STOOL_THEMES, MURLAN_TABLE_THEMES } from '../../config/murlanThemes.js';
 import { POOL_ROYALE_DEFAULT_HDRI_ID, POOL_ROYALE_HDRI_VARIANTS } from '../../config/poolRoyaleInventoryConfig.js';
 import { LUDO_WEAPON_DIRECTOR_BRIDGE } from '../../config/ludoWeaponDirectorBridge.js';
-import { SNAKE_CAPTURE_WEAPON_OPTIONS, SNAKE_FPS_GUN_MODEL_CONFIG } from '../../config/snakeWeaponCatalog.js';
+import { SNAKE_FPS_GUN_MODEL_CONFIG } from '../../config/snakeWeaponCatalog.js';
+import { SNAKE_SHARED_CAPTURE_WEAPON_OPTIONS } from '../../config/snakeWeaponCatalog.js';
 import { TOKEN_TYPE_SEQUENCE } from '../../utils/ludoTokenConstants.js';
 import {
   getLudoBattleInventory,
@@ -386,7 +387,7 @@ const gunifyModelUrls = (modelName) => {
 };
 
 const SNAKE_CAPTURE_WEAPON_OPTION_BY_ID = Object.freeze(
-  SNAKE_CAPTURE_WEAPON_OPTIONS.reduce((acc, option) => {
+  SNAKE_SHARED_CAPTURE_WEAPON_OPTIONS.reduce((acc, option) => {
     acc[option.id] = option;
     return acc;
   }, {})
