@@ -1265,7 +1265,8 @@ async function seatTableSocket(
     map = new Map();
     tableSeats.set(tableId, map);
   }
-  if (!map.has(String(accountId))) {
+  const isNewSeat = !map.has(String(accountId));
+  if (isNewSeat) {
     map.set(String(accountId), {
       id: accountId,
       name: playerName || String(accountId),
@@ -1292,7 +1293,9 @@ async function seatTableSocket(
     info.ts = Date.now();
     info.socketId = socket?.id;
     info.sidePreference = normalizeSidePreference(preferredSide || info.sidePreference);
-    const p = table.players.find((pl) => pl.id === accountId);
+    const p = table.players.find(
+      (pl) => String(pl.id) === String(accountId)
+    );
     if (p) {
       p.socketId = socket?.id;
       p.avatar = playerAvatar || p.avatar;
@@ -1301,7 +1304,9 @@ async function seatTableSocket(
   }
   console.log(`Player ${playerName || accountId} joined table ${tableId}`);
   socket?.join(tableId);
-  table.ready.delete(String(accountId));
+  // A matchmaking refresh is also the seat heartbeat. Do not revoke a
+  // player's ready confirmation merely because the client is searching again.
+  if (isNewSeat) table.ready.delete(String(accountId));
   if (!table.meta) {
     table.meta = normalizeMatchMeta(matchMeta);
   }

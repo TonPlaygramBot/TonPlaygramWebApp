@@ -1,6 +1,17 @@
 const DEFAULT_CONNECT_TIMEOUT_MS = 15000
 const DEFAULT_ACK_TIMEOUT_MS = 6000
 
+function buildSeatPayload (accountId, criteria = {}) {
+  const tpcAccountNumber = String(accountId || '').trim()
+  return {
+    ...criteria,
+    // Keep accountId for older servers, while making the canonical lobby
+    // identity explicit for current servers and reconnects.
+    accountId: tpcAccountNumber,
+    tpcAccountNumber
+  }
+}
+
 function waitForSocketConnection (socket, timeoutMs = DEFAULT_CONNECT_TIMEOUT_MS) {
   if (socket?.connected) return Promise.resolve(true)
   if (!socket) return Promise.resolve(false)
@@ -63,7 +74,7 @@ export async function joinDominoRoyalLobby ({
   const registration = await emitWithAck(
     socket,
     'register',
-    { accountId: identity },
+    { accountId: identity, tpcAccountNumber: identity },
     ackTimeoutMs
   )
   if (!registration?.success) {
@@ -73,7 +84,28 @@ export async function joinDominoRoyalLobby ({
   return emitWithAck(
     socket,
     'seatTable',
-    { ...criteria, accountId: identity },
+    buildSeatPayload(identity, criteria),
+    ackTimeoutMs
+  )
+}
+
+/**
+ * Refreshes a queued seat and asks the server to search all compatible open
+ * tables again. This also keeps the online seat alive during long searches.
+ */
+export async function searchDominoRoyalLobby ({
+  socket,
+  accountId,
+  criteria,
+  ackTimeoutMs = DEFAULT_ACK_TIMEOUT_MS
+}) {
+  if (!socket?.connected || !accountId) {
+    return { success: false, error: 'socket_unavailable' }
+  }
+  return emitWithAck(
+    socket,
+    'seatTable',
+    buildSeatPayload(accountId, criteria),
     ackTimeoutMs
   )
 }
