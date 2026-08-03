@@ -49,7 +49,8 @@ import {
   CHESS_BATTLE_TABLE_OPTIONS,
   CHESS_BATTLE_OPTION_THUMBNAILS,
   CHESS_TABLE_FINISH_OPTIONS,
-  CHESS_HUMAN_CHARACTER_OPTIONS
+  CHESS_HUMAN_CHARACTER_OPTIONS,
+  CHESS_BATTLE_WEAPON_OPTIONS
 } from '../../config/chessBattleInventoryConfig.js';
 import {
   chessBattleAccountId,
@@ -485,7 +486,7 @@ const CHESS_SINGLE_HAND_FIREARM_IDS = new Set([
 const isChessTwoHandedFirearm = (captureAnimationId) =>
   CHESS_TWO_HANDED_FIREARM_IDS.has(captureAnimationId) && !CHESS_SINGLE_HAND_FIREARM_IDS.has(captureAnimationId);
 const CHESS_FIREARM_MAGAZINE_SHOTS_BY_ID = Object.freeze({
-  fpsGunAttack: 24,
+  fpsGunAttack: 36,
   glockSidearmAttack: 17,
   pistolSidearmAttack: 16,
   assaultRifleAttack: 30,
@@ -3680,8 +3681,8 @@ function chooseRandomCaptureAnimationId(kind, fallbackId) {
 
 function createRandomAiCaptureLoadout() {
   return {
-    kingQueen: chooseRandomCaptureAnimationId('jet', 'fighterJetAttack'),
-    bishopRook: chooseRandomCaptureAnimationId('helicopter', 'helicopterAttack'),
+    kingQueen: 'fpsGunAttack',
+    bishopRook: 'ukrainianDroneAttack',
     knight: chooseRandomCaptureAnimationId('drone', 'droneAttack'),
     pawn: chooseRandomCaptureAnimationId('truck', 'missileJavelin')
   };
@@ -9094,7 +9095,7 @@ function Chess3D({
   );
   const selectedCaptureAnimationId = useMemo(() => {
     const owned = chessInventory?.captureAnimation;
-    return (Array.isArray(owned) && owned[0]) || CAPTURE_ANIMATION_OPTIONS[0]?.id || 'missileJavelin';
+    return (Array.isArray(owned) && owned.find((id) => CHESS_BATTLE_WEAPON_OPTIONS.some((option) => option.id === id))) || 'missileJavelin';
   }, [chessInventory]);
   const selectedCaptureKind = useMemo(() => {
     if (FIREARM_CAPTURE_ANIMATION_IDS.has(selectedCaptureAnimationId)) return 'firearm';
@@ -9111,34 +9112,13 @@ function Chess3D({
   const ownedCaptureAnimations = useMemo(
     () =>
       (chessInventory?.captureAnimation || [])
-        .map((optionId) => CAPTURE_ANIMATION_OPTIONS.find((option) => option.id === optionId))
+        .map((optionId) => CHESS_BATTLE_WEAPON_OPTIONS.find((option) => option.id === optionId))
         .filter(Boolean),
     [chessInventory]
   );
   const QUICK_SWAP_WEAPON_IDS = useMemo(
     () =>
-      [
-        'ukrainianDroneAttack',
-        'droneAttack',
-        'polyShotgun01Attack',
-        'polyAssaultRifle01Attack',
-        'polyPistol01Attack',
-        'polyRevolver01Attack',
-        'polySawedOff01Attack',
-        'polyRevolver02Attack',
-        'polyShotgun02Attack',
-        'polyShotgun03Attack',
-        'polySmg01Attack',
-        'ak47VolleyAttack',
-        'krsvBurstAttack',
-        'smithSidearmAttack',
-        'mosinMarksmanAttack',
-        'uziSprayAttack',
-        'sigsauerTacticalAttack',
-        'sniperShotAttack',
-        'compactCarbineAttack',
-        'fpsGunAttack'
-      ],
+      ['droneAttack', 'ukrainianDroneAttack', 'fpsGunAttack', 'missileJavelin'],
     []
   );
   const quickSwapWeapons = useMemo(() => {
@@ -9167,8 +9147,8 @@ function Chess3D({
   const captureAnimationByPieceGroupRef = useRef(captureAnimationByPieceGroup);
   useEffect(() => {
     setCaptureAnimationByPieceGroup((prev) => ({
-      kingQueen: prev.kingQueen || 'fighterJetAttack',
-      bishopRook: prev.bishopRook || 'helicopterAttack',
+      kingQueen: prev.kingQueen || 'fpsGunAttack',
+      bishopRook: prev.bishopRook || 'ukrainianDroneAttack',
       knight: prev.knight || 'droneAttack',
       pawn: prev.pawn || 'missileJavelin'
     }));
@@ -9184,6 +9164,13 @@ function Chess3D({
       const targetGroup = targetKind ? PIECE_GROUP_BY_PARKED_KIND[targetKind] : null;
       if (targetGroup) {
         setCaptureAnimationByPieceGroup((prev) => ({ ...prev, [targetGroup]: optionId }));
+      } else {
+        setCaptureAnimationByPieceGroup({
+          kingQueen: optionId,
+          bishopRook: optionId,
+          knight: optionId,
+          pawn: optionId
+        });
       }
       if (optionId !== selectedCaptureAnimationId) {
         setChessBattleEquippedOption('captureAnimation', optionId, resolvedAccountId);
@@ -12293,7 +12280,7 @@ function Chess3D({
     };
     const returnParkedAirUnit = (unit) => {
       if (!unit?.root) return;
-      unit.root.visible = true;
+      unit.root.visible = false;
       if (unit.kind === 'jet') {
         setJetExhaustVisible(unit, false);
       }
@@ -13392,9 +13379,7 @@ function Chess3D({
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
         const missileFx = createFxGroundMissile();
         missileFx.root.scale.setScalar(CAPTURE_ROOK_JAVELIN_SCALE);
-        const isWhiteSide = Boolean(movingMesh?.userData?.w);
-        const parkedTruck = acquireParkedSupportUnit(isWhiteSide);
-        const launchBase = parkedTruck ? getSupportTruckMissileLaunchPosition(parkedTruck) : getAirPadAnchor(isWhiteSide, 'truck', 0);
+        const launchBase = getLiveLaunchPosition(fromPos, movingMesh, 0);
         missileFx.root.position.copy(launchBase.clone());
         captureFxGroup.add(missileFx.root);
         playAudio(missileLaunchSoundRef);
@@ -13407,9 +13392,9 @@ function Chess3D({
           launchPos: launchBase.clone(),
           movingMesh,
           targetMesh,
-          launchFromLivePiece: false,
-          sourceUnit: parkedTruck,
-          getLaunchPos: () => getSupportTruckMissileLaunchPosition(parkedTruck),
+          launchFromLivePiece: true,
+          sourceUnit: null,
+          getLaunchPos: () => getLiveLaunchPosition(fromPos, movingMesh, 0),
           missileFx,
           directPath: false,
           strictPrecision: true,
@@ -13425,17 +13410,10 @@ function Chess3D({
       }
       if (captureKind === 'drone') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_DRONE_ATTACK_TOTAL * 1000;
-        const isWhiteSide = Boolean(movingMesh?.userData?.w);
-        const parkedDrone = acquireParkedAirUnit(isWhiteSide, 'drone');
-        const droneFx = parkedDrone || createFxDrone({ forceProcedural: !parkedDrone });
-        if (!parkedDrone) {
-          droneFx.root.scale.setScalar(CAPTURE_DRONE_SCALE);
-          captureFxGroup.add(droneFx.root);
-        }
-        const launchBase =
-          parkedDrone?.root?.position?.clone?.() ||
-          parkedDrone?.homePosition?.clone?.() ||
-          getAirPadAnchor(isWhiteSide, 'drone', 0);
+        const droneFx = createFxDrone();
+        droneFx.root.scale.setScalar(CAPTURE_DRONE_SCALE);
+        captureFxGroup.add(droneFx.root);
+        const launchBase = getLiveLaunchPosition(fromPos, movingMesh, 0);
         droneFx.root.position.copy(launchBase.clone());
         playAudio(droneSoundRef, { maxDurationMs: CAPTURE_DRONE_ATTACK_TOTAL * 1000 });
         activeCaptureFx.push({
@@ -13447,8 +13425,8 @@ function Chess3D({
           launchPos: launchBase.clone(),
           movingMesh,
           targetMesh,
-          returnToOrigin: true,
-          sourceUnit: parkedDrone,
+          returnToOrigin: false,
+          sourceUnit: null,
           droneFx,
           strikeAltitude: CAPTURE_DRONE_STRIKE_ALTITUDE
         });
@@ -13460,17 +13438,10 @@ function Chess3D({
       if (captureKind === 'ukrainianDrone') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_HELICOPTER_TOTAL * 1000;
         const isWhiteSide = Boolean(movingMesh?.userData?.w);
-        const acquiredParkedDrone = acquireParkedAirUnit(isWhiteSide, 'drone');
-        const parkedDrone = acquiredParkedDrone && isExactUkrainianDroneObject(acquiredParkedDrone.root) ? acquiredParkedDrone : null;
-        if (acquiredParkedDrone && !parkedDrone) {
-          returnParkedAirUnit(acquiredParkedDrone);
-        }
-        const droneFx = parkedDrone || createFxDrone();
-        if (!parkedDrone) {
-          droneFx.root.scale.setScalar(CAPTURE_DRONE_SCALE);
-          captureFxGroup.add(droneFx.root);
-        }
-        const launchBase = parkedDrone?.root?.position?.clone?.() || parkedDrone?.homePosition?.clone?.() || getAirPadAnchor(isWhiteSide, 'drone', 0);
+        const droneFx = createFxDrone();
+        droneFx.root.scale.setScalar(CAPTURE_DRONE_SCALE);
+        captureFxGroup.add(droneFx.root);
+        const launchBase = getLiveLaunchPosition(fromPos, movingMesh, 0);
         const exactUkrainianDroneVisual = isExactUkrainianDroneObject(droneFx.root);
         if (!exactUkrainianDroneVisual) {
           const sideSkin = resolveSideVehicleSkin(isWhiteSide);
@@ -13504,8 +13475,8 @@ function Chess3D({
           movingMesh,
           targetMesh,
           returnToOrigin: true,
-          flightTarget: getAirStrikeCenterFlightTarget(fromPos, targetPos),
-          sourceUnit: parkedDrone,
+          flightTarget: targetPos.clone(),
+          sourceUnit: null,
           droneFx,
           missileFx
         });
@@ -13558,7 +13529,7 @@ function Chess3D({
           targetMesh,
           returnToOrigin: true,
           missileReleaseTime: CAPTURE_HELICOPTER_TOTAL * CAPTURE_JET_MISSILE_ENTRY_RELEASE_RATIO,
-          flightTarget: getAirStrikeCenterFlightTarget(fromPos, targetPos),
+          flightTarget: targetPos.clone(),
           sourceUnit: parkedUnit,
           helicopterFx,
           missileFx
@@ -14358,7 +14329,7 @@ function Chess3D({
       });
       parkedAirUnits.forEach((unit) => {
         if (!unit?.root) return;
-        unit.root.visible = true;
+        unit.root.visible = false;
         unit.baseChildren = [...unit.root.children];
         const parkedBounds = getRenderableMeshBounds(unit.root) || new THREE.Box3().setFromObject(unit.root);
         const parkedSize = parkedBounds.getSize(new THREE.Vector3());
@@ -15706,7 +15677,7 @@ function Chess3D({
 
       parkedAirUnits.forEach((unit) => {
         if (!unit?.root) return;
-        unit.root.visible = true;
+        unit.root.visible = false;
         if (unit.rotorsActive && unit.kind === 'drone' && isExactUkrainianDroneObject(unit.root)) {
           spinExactUkrainianDroneRotors(unit.root, now * 0.001);
         } else if (unit.rotorsActive) {
@@ -16413,9 +16384,11 @@ function Chess3D({
                 shortMissile: Boolean(fx.shortMissile)
               };
               fx.liveBullets.push(bulletState);
-              // Keep the final bullet's cinematic trail/easing, but never hand
-              // camera control to it; players should keep their current view.
-              if (isFatalBullet) activeBulletCameraFollow = null;
+              // FPS attacks switch to a close cinematic projectile chase; the
+              // other retained weapons keep their authored aerial cameras.
+              if (isFatalBullet) {
+                activeBulletCameraFollow = fx.captureAnimationId === 'fpsGunAttack' ? bulletState : null;
+              }
               const shell = createFirearmShellMesh(fx.bulletProfile);
               const ejectSide = new THREE.Vector3().crossVectors(aimDir, WORLD_UP).normalize();
               shell.position.copy(muzzlePos).addScaledVector(ejectSide, 0.048).addScaledVector(aimDir, -0.012);
@@ -16959,6 +16932,17 @@ function Chess3D({
         </div>
         <div className="fixed right-3 bottom-[10.4rem] z-50 pointer-events-none">
           <div className="pointer-events-auto flex flex-col items-start gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setWeaponSwapTargetKind(null);
+                setWeaponSwapOpen((open) => !open);
+              }}
+              aria-expanded={weaponSwapOpen}
+              className="self-end rounded-full border border-sky-300/50 bg-[#071426]/95 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-sky-100 shadow-xl backdrop-blur"
+            >
+              ⚔ Weapon
+            </button>
             {weaponSwapOpen && (
               <div className="max-h-[52vh] w-[14rem] overflow-y-auto rounded-2xl border border-white/20 bg-[#060a14]/95 p-2 text-xs shadow-2xl backdrop-blur">
                 <div className="flex items-center justify-between px-2 pb-2">
