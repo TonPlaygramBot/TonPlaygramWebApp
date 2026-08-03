@@ -1329,6 +1329,15 @@ function maybeStartGame(table) {
   ) {
     if (table.startTimeout) return;
     table.startTimeout = setTimeout(() => {
+      table.startTimeout = null;
+      if (
+        tableMap.get(table.id) !== table ||
+        table.players.length !== table.maxPlayers ||
+        table.ready.size !== table.maxPlayers ||
+        table.players.some((player) => !table.ready.has(String(player.id)))
+      ) {
+        return;
+      }
       console.log(`Table ${table.id} confirmed by all players. Starting game.`);
       if (table.gameType === 'poolroyale') {
         const randomStarter = table.players[Math.floor(Math.random() * table.players.length)];
@@ -1380,7 +1389,6 @@ function maybeStartGame(table) {
       } else if (table.gameType === 'domino-royal') {
         dominoRoyalStates.set(table.id, { state: null, action: null, ts: Date.now() });
       }
-      table.startTimeout = null;
     }, 1000);
   }
 }
@@ -1399,6 +1407,10 @@ function unseatTableSocket(accountId, tableId, socketId) {
   }
   const table = tableMap.get(tableId);
   if (table) {
+    if (table.startTimeout) {
+      clearTimeout(table.startTimeout);
+      table.startTimeout = null;
+    }
     if (accountId)
       table.players = table.players.filter((p) => p.id !== accountId);
     else if (socketId)

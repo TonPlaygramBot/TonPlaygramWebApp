@@ -30,6 +30,10 @@ test('Domino matchmaking keeps different game criteria in separate queues', () =
     isDominoMatchCompatible(criteria, { ...criteria, variant: 'single' }),
     false
   )
+  assert.equal(
+    isDominoMatchCompatible(criteria, { ...criteria, token: 'ton' }),
+    false
+  )
 })
 
 test('Domino matchmaking does not treat missing criteria as wildcards', () => {

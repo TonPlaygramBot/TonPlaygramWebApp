@@ -62,6 +62,46 @@ describe('online game policy', () => {
     expect(checkers.safeMatchMeta).toEqual({ preferredSide: 'black', mode: 'online' });
   });
 
+  test('accepts and canonicalizes all Domino Royal matchmaking criteria', () => {
+    const result = validateSeatTableRequest({
+      gameType: 'domino-royal',
+      stake: '100',
+      maxPlayers: '4',
+      matchMeta: {
+        variant: 'Points',
+        targetPoints: 101,
+        mode: 'ONLINE',
+        token: 'tpc'
+      }
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      normalizedStake: 100,
+      normalizedMaxPlayers: 4,
+      safeMatchMeta: {
+        variant: 'points',
+        targetPoints: '101',
+        mode: 'online',
+        token: 'TPC'
+      }
+    });
+  });
+
+  test.each([
+    [{ variant: 'rounds', mode: 'online', token: 'TPC' }, 'invalid_game_variant'],
+    [{ variant: 'single', mode: 'online', token: 'TON' }, 'invalid_stake_token'],
+    [{ variant: 'single', mode: 'local', token: 'TPC' }, 'invalid_game_mode'],
+    [{ variant: 'points', targetPoints: 75, mode: 'online', token: 'TPC' }, 'invalid_target_points']
+  ])('rejects invalid Domino Royal criteria %#', (matchMeta, error) => {
+    expect(validateSeatTableRequest({
+      gameType: 'domino-royal',
+      stake: 100,
+      maxPlayers: 4,
+      matchMeta
+    })).toEqual({ ok: false, error });
+  });
+
   test('normalizes battle royal aliases to shared lobby game types', () => {
     expect(normalizeOnlineGameType('chessbattleroyal')).toBe('chess');
     expect(normalizeOnlineGameType('Chess Battle Royal')).toBe('chess');
