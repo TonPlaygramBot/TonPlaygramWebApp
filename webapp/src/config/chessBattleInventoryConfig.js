@@ -810,35 +810,6 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     description: 'Unlocks an additional pawn head glass preset.',
     thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.headStyle.headGold
   },
-  ...CAPTURE_ANIMATION_OPTIONS.slice(1).map((option, idx) => ({
-    id: `chess-capture-animation-${option.id}`,
-    type: 'captureAnimation',
-    optionId: option.id,
-    name: option.label,
-    price: option.id === 'ukrainianDroneAttack' || option.id === 'helicopterAttack' ? 0 : 900 + idx * 110,
-    description:
-      option.id === 'ukrainianDroneAttack'
-        ? 'Exact srcejon Ukrainian drone.glb inventory weapon with original texture preflight, direct-loader fallbacks, and a straight-down no-smoke missile drop.'
-        : option.id === 'helicopterAttack'
-          ? 'Same srcejon helicopter.glb used by Snake & Ladder, with Chess Battle Royal flyover and missile timing.'
-          : option.description || 'Ludo Battle Royal weapon animation pack adapted for Chess Battle Royal.',
-    thumbnail: option.thumbnail,
-    swatches: option.id === 'ukrainianDroneAttack' ? ['#020617', '#2563eb', '#facc15'] : option.id === 'helicopterAttack' ? ['#5f6871', '#848f99', '#a5b1ba'] : undefined,
-    previewShape: option.id === 'ukrainianDroneAttack' ? 'ukrainian-drone' : option.id === 'helicopterAttack' ? 'helicopter' : undefined,
-    modelUrls: option.id === 'ukrainianDroneAttack'
-      ? [
-          'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/drone.glb',
-          'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main/drone.glb',
-          'https://cdn.statically.io/gh/srcejon/sdrangel-3d-models/main/drone.glb'
-        ]
-      : option.id === 'helicopterAttack'
-        ? [
-            'https://cdn.jsdelivr.net/gh/srcejon/sdrangel-3d-models@main/helicopter.glb',
-            'https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/main/helicopter.glb',
-            'https://cdn.statically.io/gh/srcejon/sdrangel-3d-models/main/helicopter.glb'
-          ]
-        : undefined
-  })),
   ...CHESS_HUMAN_CHARACTER_OPTIONS.filter((option) =>
     CHESS_STORE_HUMAN_CHARACTER_IDS.includes(option.id)
   ).map((option, idx) => ({
@@ -887,11 +858,6 @@ export const CHESS_BATTLE_DEFAULT_LOADOUT = [
     optionId: DEFAULT_HDRI_ID,
     label: CHESS_BATTLE_OPTION_LABELS.environmentHdri[DEFAULT_HDRI_ID] || 'HDR Environment'
   },
-  {
-    type: 'captureAnimation',
-    optionId: CAPTURE_ANIMATION_OPTIONS[0]?.id,
-    label: CAPTURE_ANIMATION_OPTIONS[0]?.label
-  }
 ];
 
 export const CHESS_BATTLE_ROYAL_OPTION_LABELS = Object.freeze({
