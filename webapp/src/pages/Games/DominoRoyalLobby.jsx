@@ -210,7 +210,6 @@ export default function DominoRoyalLobby() {
         socket,
         accountId,
         criteria: {
-          accountId,
           gameType: 'domino-royal',
           stake: Number(stake.amount) || 0,
           maxPlayers: totalPlayers,
@@ -238,7 +237,6 @@ export default function DominoRoyalLobby() {
       setQueuedTableId(res.tableId);
       const seated = Array.isArray(res.players) ? res.players.length : 1;
       setQueueStatus(`Table ${res.tableNumber || res.tableId.slice(0, 8)} • ${seated}/${totalPlayers} players ready`);
-      socket.emit('confirmReady', { accountId, tableId: res.tableId });
       return;
     }
 

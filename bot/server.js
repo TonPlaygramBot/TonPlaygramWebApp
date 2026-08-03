@@ -51,6 +51,7 @@ import { execSync } from 'child_process';
 import { randomUUID } from 'crypto';
 import {
   createDominoTableNumber,
+  isDominoMatchCompatible,
   validateDominoStateSubmission
 } from './utils/dominoRoyalOnline.js';
 import compression from 'compression';
@@ -536,6 +537,10 @@ function normalizeMatchMeta(rawMeta = {}) {
 
 function isMatchMetaCompatible(existing = {}, requested = {}, gameType = '') {
   const normalizedGameType = String(gameType || '').trim().toLowerCase();
+
+  if (normalizedGameType === 'domino-royal') {
+    return isDominoMatchCompatible(existing, requested);
+  }
 
   if (normalizedGameType === 'poolroyale') {
     const existingVariant = existing?.variant || '';
@@ -2063,7 +2068,8 @@ io.on('connection', (socket) => {
         ballSet,
         token,
         targetPoints,
-        points
+        points,
+        ready: readyOnJoin = false
       } = payload;
       const resolvedVariant = payloadMatchMeta.variant ?? variant;
       const resolvedMode = payloadMatchMeta.mode ?? mode;
@@ -2150,8 +2156,20 @@ io.on('connection', (socket) => {
           safeMeta
         );
       }
-      if (table && cb) {
-        cb({
+      if (table) {
+        if (readyOnJoin) {
+          table.ready.add(String(resolvedAccountId));
+          io.to(table.id).emit('lobbyUpdate', {
+            tableId: table.id,
+            tableNumber: table.tableNumber,
+            players: table.players,
+            currentTurn: table.currentTurn,
+            ready: Array.from(table.ready),
+            meta: table.meta
+          });
+          maybeStartGame(table);
+        }
+        cb && cb({
           success: true,
           tableId: table.id,
           tableNumber: table.tableNumber,
