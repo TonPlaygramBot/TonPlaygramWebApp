@@ -6359,6 +6359,14 @@ function createSeatWeaponMesh(weaponType = 'fighter', options = {}) {
 
 function updateSeatWeaponDisplays(board, players = []) {
   if (!board?.weaponDisplayGroup || !Array.isArray(board?.seatAnchors)) return;
+  // Capture effects still use their transient models, but inventory weapons no
+  // longer remain parked around the tabletop.
+  const showParkedWeapons = board.userData?.showParkedWeapons === true;
+  if (!showParkedWeapons) {
+    board.weaponDisplayGroup.clear();
+    board.weaponDisplayGroup.userData.byPlayer = new Map();
+    return;
+  }
   const anchors = board.seatAnchors;
   const boardLookTarget = board.boardLookTarget;
   if (!boardLookTarget) return;

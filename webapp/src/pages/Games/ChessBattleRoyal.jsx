@@ -12293,7 +12293,7 @@ function Chess3D({
     };
     const returnParkedAirUnit = (unit) => {
       if (!unit?.root) return;
-      unit.root.visible = true;
+      unit.root.visible = false;
       if (unit.kind === 'jet') {
         setJetExhaustVisible(unit, false);
       }
@@ -14358,7 +14358,7 @@ function Chess3D({
       });
       parkedAirUnits.forEach((unit) => {
         if (!unit?.root) return;
-        unit.root.visible = true;
+        unit.root.visible = false;
         unit.baseChildren = [...unit.root.children];
         const parkedBounds = getRenderableMeshBounds(unit.root) || new THREE.Box3().setFromObject(unit.root);
         const parkedSize = parkedBounds.getSize(new THREE.Vector3());
