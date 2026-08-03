@@ -163,6 +163,18 @@ export const SNAKE_OPTION_LABELS = Object.freeze({
 });
 
 export const SNAKE_STORE_ITEMS = [
+  ...SNAKE_CAPTURE_WEAPON_OPTIONS.filter((option, idx) => idx > 0).map((option, idx) => ({
+    id: `capture-${option.id}`,
+    type: 'captureWeapon',
+    optionId: option.id,
+    name: option.label,
+    price: 390 + idx * 30,
+    description: 'Weapon set for Snake & Ladder capture animations with dedicated GLTF/GLB fallback chain.',
+    thumbnail:
+      option.thumbnail ||
+      SNAKE_THEME_THUMBNAILS.captureWeapon.fighter ||
+      SNAKE_THEME_THUMBNAILS.captureWeapon.drone
+  })),
   {
     id: 'arena-crystalLagoon',
     type: 'arenaTheme',

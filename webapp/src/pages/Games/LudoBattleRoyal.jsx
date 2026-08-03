@@ -4625,6 +4625,7 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'tokenPalette', label: 'Token Palette', options: TOKEN_PALETTE_OPTIONS },
   { key: 'tokenStyle', label: 'Token Style', options: TOKEN_STYLE_OPTIONS },
   { key: 'tokenPiece', label: 'Token Piece', options: TOKEN_PIECE_OPTIONS },
+  { key: 'captureAnimation', label: 'Capture Animation', options: CAPTURE_ANIMATION_OPTIONS },
   { key: 'humanCharacter', label: 'Human Character', options: HUMAN_CHARACTER_OPTIONS }
 ];
 
@@ -8768,12 +8769,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           refreshWeaponRackPose(entry, selectedCaptureAnimationId);
         }
       }
-      // Weapons are available only while a capture effect is running; do not
-      // leave inventory models, vehicles, racks, or controls on the table.
-      ['jet', 'helicopter', 'drone', 'droneTruck', 'missile', 'weaponRack', 'weaponHolder', 'actionButton', 'actionButtonHit', 'weaponRackHit']
-        .forEach((key) => {
-          if (entry?.[key]?.isObject3D) entry[key].visible = false;
-        });
     });
   }, [aiLoadoutByPlayer, getKingTokenPositionForPlayer]);
 

@@ -221,6 +221,17 @@ export const LUDO_BATTLE_STORE_ITEMS = uniqueStoreItemsByName([
     description: 'Unlock an alternate piece identity for your pawns.',
     thumbnail: swatchThumbnail(['#f8fafc', '#0f172a', '#fbbf24'])
   })),
+  ...CAPTURE_ANIMATION_OPTIONS.slice(1)
+    .filter((option) => shouldShowCaptureAnimationInStore(option.id))
+    .map((option, idx) => ({
+      id: `ludo-capture-animation-${option.id}`,
+      type: 'captureAnimation',
+      optionId: option.id,
+      name: option.label,
+      price: 950 + idx * 120,
+      description: option.description,
+      thumbnail: option.thumbnail || swatchThumbnail(['#0f172a', '#1d4ed8', '#f97316'])
+    })),
   ...HUMAN_CHARACTER_OPTIONS.slice(1).map((option, idx) => ({
     id: `ludo-human-character-${option.id}`,
     type: 'humanCharacter',
@@ -255,6 +266,11 @@ export const LUDO_BATTLE_DEFAULT_LOADOUT = [
   { type: 'tokenPalette', optionId: TOKEN_PALETTE_OPTIONS[0]?.id, label: `${TOKEN_PALETTE_OPTIONS[0]?.label} Palette` },
   { type: 'tokenStyle', optionId: TOKEN_STYLE_OPTIONS[0]?.id, label: TOKEN_STYLE_OPTIONS[0]?.label },
   { type: 'tokenPiece', optionId: TOKEN_PIECE_OPTIONS[0]?.id, label: TOKEN_PIECE_OPTIONS[0]?.label },
+  {
+    type: 'captureAnimation',
+    optionId: CAPTURE_ANIMATION_OPTIONS[0]?.id,
+    label: CAPTURE_ANIMATION_OPTIONS[0]?.label
+  },
   {
     type: 'humanCharacter',
     optionId: HUMAN_CHARACTER_OPTIONS[0]?.id,
