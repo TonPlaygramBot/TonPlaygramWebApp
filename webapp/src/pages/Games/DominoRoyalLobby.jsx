@@ -18,7 +18,7 @@ import { getLobbyIcon } from '../../config/gameAssets.js';
 import GameLobbyHeader from '../../components/GameLobbyHeader.jsx';
 import { socket } from '../../utils/socket.js';
 import { getOnlineReadiness } from '../../config/onlineContract.js';
-import { joinDominoRoyalLobby } from './dominoRoyalMatchmaking.js';
+import { joinDominoRoyalLobby, searchDominoRoyalLobby } from './dominoRoyalMatchmaking.js';
 
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
@@ -69,6 +69,9 @@ export default function DominoRoyalLobby() {
   const [queueStatus, setQueueStatus] = useState('');
   const [queueError, setQueueError] = useState('');
   const queuedTableIdRef = useRef('');
+  const queuedAccountIdRef = useRef('');
+  const queuedCriteriaRef = useRef(null);
+  const searchInFlightRef = useRef(false);
   const onlineStakeDebitedRef = useRef(false);
   const startBet = stake.amount / 100;
   const readiness = getOnlineReadiness('domino-royal');
@@ -235,6 +238,24 @@ export default function DominoRoyalLobby() {
         return;
       }
       queuedTableIdRef.current = res.tableId;
+      queuedAccountIdRef.current = String(accountId);
+      queuedCriteriaRef.current = {
+        gameType: 'domino-royal',
+        stake: Number(stake.amount) || 0,
+        maxPlayers: totalPlayers,
+        playerName: getTelegramUsername() || 'Player',
+        avatar,
+        mode: 'online',
+        token: stake.token,
+        variant: gameType,
+        targetPoints: gameType === 'points' ? Number(targetPoints) : 0,
+        matchMeta: {
+          mode: 'online',
+          variant: gameType,
+          targetPoints: gameType === 'points' ? String(targetPoints) : '',
+          token: stake.token
+        }
+      };
       setQueuedTableId(res.tableId);
       const seated = Array.isArray(res.players) ? res.players.length : 1;
       setQueueStatus(`Table ${res.tableNumber || res.tableId.slice(0, 8)} • ${seated}/${totalPlayers} players ready`);
@@ -254,6 +275,31 @@ export default function DominoRoyalLobby() {
 
   useEffect(() => {
     if (mode !== 'online') return undefined;
+
+    const searchTimer = window.setInterval(async () => {
+      if (!queuedTableIdRef.current || searchInFlightRef.current) return;
+      const accountId = queuedAccountIdRef.current;
+      const criteria = queuedCriteriaRef.current;
+      if (!accountId || !criteria) return;
+      searchInFlightRef.current = true;
+      try {
+        const result = await searchDominoRoyalLobby({ socket, accountId, criteria });
+        if (!result?.success || !result.tableId) return;
+        queuedTableIdRef.current = result.tableId;
+        setQueuedTableId(result.tableId);
+        const seated = Array.isArray(result.players) ? result.players.length : 1;
+        setQueueStatus(
+          `Searching matching tables • ${seated}/${totalPlayers} players found`
+        );
+        socket.emit('confirmReady', {
+          accountId,
+          tpcAccountNumber: accountId,
+          tableId: result.tableId
+        });
+      } finally {
+        searchInFlightRef.current = false;
+      }
+    }, 3000);
 
     const handleLobbyUpdate = ({ tableId, tableNumber, players: lobbyPlayers = [], ready = [] } = {}) => {
       if (!tableId || tableId !== queuedTableIdRef.current) return;
@@ -315,11 +361,14 @@ export default function DominoRoyalLobby() {
     return () => {
       socket.off('lobbyUpdate', handleLobbyUpdate);
       socket.off('gameStart', handleGameStart);
+      window.clearInterval(searchTimer);
       if (queuedTableIdRef.current) {
         ensureAccountId()
           .then((accountId) => socket.emit('leaveLobby', { accountId, tableId: queuedTableIdRef.current }))
           .catch(() => {});
       }
+      queuedAccountIdRef.current = '';
+      queuedCriteriaRef.current = null;
     };
   }, [mode, stake.token, stake.amount, totalPlayers, avatar, flags, gameType, targetPoints]);
 
