@@ -10,6 +10,17 @@ import { swatchThumbnail } from './storeThumbnails.js';
 
 const DEFAULT_HDRI_ID = POOL_ROYALE_DEFAULT_HDRI_ID || POOL_ROYALE_HDRI_VARIANTS[0]?.id;
 
+export const CHESS_BATTLE_WEAPON_IDS = Object.freeze([
+  'droneAttack',
+  'ukrainianDroneAttack',
+  'fpsGunAttack',
+  'missileJavelin'
+]);
+
+export const CHESS_BATTLE_WEAPON_OPTIONS = Object.freeze(
+  CHESS_BATTLE_WEAPON_IDS.map((id) => CAPTURE_ANIMATION_OPTIONS.find((option) => option.id === id)).filter(Boolean)
+);
+
 const CHESS_HUMAN_CHARACTER_SOURCE = Object.freeze({
   source: 'open-source',
   license: 'CC0',
@@ -468,7 +479,7 @@ export const CHESS_BATTLE_DEFAULT_UNLOCKS = Object.freeze({
   headStyle: ['current'],
   humanCharacter: [CHESS_HUMAN_CHARACTER_OPTIONS[0]?.id],
   environmentHdri: [DEFAULT_HDRI_ID],
-  captureAnimation: [CAPTURE_ANIMATION_OPTIONS[0]?.id, 'ukrainianDroneAttack', 'helicopterAttack']
+  captureAnimation: [...CHESS_BATTLE_WEAPON_IDS]
 });
 
 export const CHESS_BATTLE_OPTION_LABELS = Object.freeze({
@@ -810,7 +821,7 @@ export const CHESS_BATTLE_STORE_ITEMS = [
     description: 'Unlocks an additional pawn head glass preset.',
     thumbnail: CHESS_BATTLE_OPTION_THUMBNAILS.headStyle.headGold
   },
-  ...CAPTURE_ANIMATION_OPTIONS.slice(1).map((option, idx) => ({
+  ...CHESS_BATTLE_WEAPON_OPTIONS.filter((option) => option.id !== 'missileJavelin').map((option, idx) => ({
     id: `chess-capture-animation-${option.id}`,
     type: 'captureAnimation',
     optionId: option.id,
