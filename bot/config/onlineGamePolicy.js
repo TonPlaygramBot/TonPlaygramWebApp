@@ -49,6 +49,34 @@ function sanitizeMetaValue(value) {
   return String(value).slice(0, 48);
 }
 
+function validateDominoRoyalCriteria(matchMeta = {}) {
+  const variant = String(matchMeta.variant || '').trim().toLowerCase();
+  if (!['single', 'points'].includes(variant)) {
+    return { ok: false, error: 'invalid_game_variant' };
+  }
+
+  const token = String(matchMeta.token || '').trim().toUpperCase();
+  if (token !== 'TPC') {
+    return { ok: false, error: 'invalid_stake_token' };
+  }
+
+  const mode = String(matchMeta.mode || '').trim().toLowerCase();
+  if (mode !== 'online') {
+    return { ok: false, error: 'invalid_game_mode' };
+  }
+
+  const safeMatchMeta = { variant, mode, token };
+  if (variant === 'points') {
+    const targetPoints = Number(matchMeta.targetPoints);
+    if (![51, 101].includes(targetPoints)) {
+      return { ok: false, error: 'invalid_target_points' };
+    }
+    safeMatchMeta.targetPoints = String(targetPoints);
+  }
+
+  return { ok: true, safeMatchMeta };
+}
+
 export function validateSeatTableRequest({
   gameType,
   stake,
@@ -69,6 +97,19 @@ export function validateSeatTableRequest({
   const normalizedMaxPlayers = Number(maxPlayers) || 0;
   if (!policy.maxPlayers.includes(normalizedMaxPlayers)) {
     return { ok: false, error: 'invalid_max_players' };
+  }
+
+  if (normalizedGameType === 'domino-royal') {
+    const dominoCriteria = validateDominoRoyalCriteria(matchMeta);
+    if (!dominoCriteria.ok) return dominoCriteria;
+    return {
+      ok: true,
+      normalizedGameType,
+      normalizedStake,
+      normalizedMaxPlayers,
+      safeMatchMeta: dominoCriteria.safeMatchMeta,
+      policy
+    };
   }
 
   const safeMatchMeta = {};

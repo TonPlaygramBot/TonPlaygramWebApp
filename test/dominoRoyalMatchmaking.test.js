@@ -45,7 +45,12 @@ test('Domino lobby waits for registration before seating with matching criteria'
 
   assert.equal(result.success, true);
   assert.deepEqual(socket.events.map(({ event }) => event), ['register', 'seatTable']);
-  assert.deepEqual(socket.events[1].payload, { ...criteria, accountId: 'TPC-100' });
+  assert.deepEqual(socket.events[1].payload, {
+    ...criteria,
+    tpcAccountNumber: 'TPC-100',
+    accountId: undefined,
+    ready: true
+  });
 });
 
 test('Domino lobby never requests a seat when registration fails', async () => {
