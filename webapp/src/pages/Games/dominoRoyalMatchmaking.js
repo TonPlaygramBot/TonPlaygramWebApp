@@ -63,7 +63,7 @@ export async function joinDominoRoyalLobby ({
   const registration = await emitWithAck(
     socket,
     'register',
-    { accountId: identity },
+    { tpcAccountNumber: identity },
     ackTimeoutMs
   )
   if (!registration?.success) {
@@ -73,7 +73,12 @@ export async function joinDominoRoyalLobby ({
   return emitWithAck(
     socket,
     'seatTable',
-    { ...criteria, accountId: identity },
+    {
+      ...criteria,
+      tpcAccountNumber: identity,
+      accountId: undefined,
+      ready: true
+    },
     ackTimeoutMs
   )
 }

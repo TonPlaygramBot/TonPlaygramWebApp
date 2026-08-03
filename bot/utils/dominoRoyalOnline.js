@@ -1,6 +1,13 @@
 import { randomInt } from 'crypto'
 
 const TABLE_NUMBER_SPACE = 1_000_000
+const DOMINO_MATCH_KEYS = Object.freeze(['mode', 'variant', 'targetPoints', 'token'])
+
+export function isDominoMatchCompatible (existing = {}, requested = {}) {
+  return DOMINO_MATCH_KEYS.every((key) =>
+    String(existing?.[key] || '') === String(requested?.[key] || '')
+  )
+}
 
 export function createDominoTableNumber (isInUse = () => false) {
   for (let attempt = 0; attempt < 32; attempt += 1) {
