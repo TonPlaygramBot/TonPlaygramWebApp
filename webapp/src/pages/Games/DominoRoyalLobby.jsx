@@ -230,7 +230,7 @@ export default function DominoRoyalLobby() {
           queuedTableIdRef.current = res.tableId;
           setQueuedTableId(res.tableId);
           const seated = Array.isArray(res.players) ? res.players.length : 1;
-          setQueueStatus(`Table ${res.tableId.slice(0, 8)} • ${seated}/${totalPlayers} players ready`);
+          setQueueStatus(`Table ${res.tableNumber || res.tableId.slice(0, 8)} • ${seated}/${totalPlayers} players ready`);
           socket.emit('confirmReady', { accountId, tableId: res.tableId });
         }
       );
@@ -250,14 +250,14 @@ export default function DominoRoyalLobby() {
   useEffect(() => {
     if (mode !== 'online') return undefined;
 
-    const handleLobbyUpdate = ({ tableId, players: lobbyPlayers = [], ready = [] } = {}) => {
+    const handleLobbyUpdate = ({ tableId, tableNumber, players: lobbyPlayers = [], ready = [] } = {}) => {
       if (!tableId || tableId !== queuedTableIdRef.current) return;
       setQueueStatus(
-        `Table ${String(tableId).slice(0, 8)} • ${lobbyPlayers.length}/${totalPlayers} players connected • ${ready.length}/${totalPlayers} ready`
+        `Table ${tableNumber || String(tableId).slice(0, 8)} • ${lobbyPlayers.length}/${totalPlayers} players connected • ${ready.length}/${totalPlayers} ready`
       );
     };
 
-    const handleGameStart = ({ tableId, players, stake: onlineStake, meta }) => {
+    const handleGameStart = ({ tableId, tableNumber, players, stake: onlineStake, meta }) => {
       if (!tableId || tableId !== queuedTableIdRef.current) return;
       const accountId = ensureAccountId().catch(() => '');
       Promise.resolve(accountId).then((resolvedAccountId) => {
@@ -282,6 +282,7 @@ export default function DominoRoyalLobby() {
             'dominoRoyalOnlineMatch',
             JSON.stringify({
               tableId,
+              tableNumber: tableNumber || '',
               accountId: resolvedAccountId,
               players: Array.isArray(players) ? players : [],
               meta: meta || {},

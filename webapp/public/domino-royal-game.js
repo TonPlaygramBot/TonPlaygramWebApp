@@ -10876,9 +10876,9 @@ function serializeDominoSegment(segment) {
 
 function buildDominoOnlineState() {
   return {
-    seq: ++dominoOnlineStateSeq,
+    seq: dominoOnlineStateSeq,
     players: players.map((player, idx) => ({
-      id: player?.id ?? idx,
+      id: DOMINO_ONLINE_MATCH?.players?.[idx]?.id ?? player?.id ?? idx,
       hand: Array.isArray(player?.hand) ? player.hand.map(stripRuntimeTile).filter(Boolean) : []
     })),
     boneyard: Array.isArray(boneyard) ? boneyard.map(stripRuntimeTile).filter(Boolean) : [],
@@ -10902,8 +10902,19 @@ function emitDominoOnlineState(action = 'sync') {
   }
   DOMINO_ONLINE_SOCKET.emit('dominoRoyalState', {
     tableId: DOMINO_ONLINE_TABLE_ID,
+    accountId: DOMINO_ONLINE_ACCOUNT_ID,
     action: { type: action, accountId: DOMINO_ONLINE_ACCOUNT_ID, seat: human },
     state: buildDominoOnlineState()
+  }, (response = {}) => {
+    if (response.success && Number.isInteger(response.revision)) {
+      dominoOnlineStateSeq = response.revision;
+      dominoOnlineHasState = true;
+      return;
+    }
+    DOMINO_ONLINE_SOCKET.emit('dominoRoyalSyncRequest', {
+      tableId: DOMINO_ONLINE_TABLE_ID,
+      accountId: DOMINO_ONLINE_ACCOUNT_ID
+    });
   });
 }
 
@@ -10966,10 +10977,17 @@ function applyDominoOnlineState(remoteState = {}) {
 
 function connectDominoOnlineTable() {
   if (!DOMINO_ONLINE_MODE || !DOMINO_ONLINE_SOCKET || !DOMINO_ONLINE_TABLE_ID) return;
-  DOMINO_ONLINE_SOCKET.emit('joinDominoRoyalTable', {
-    tableId: DOMINO_ONLINE_TABLE_ID,
-    accountId: DOMINO_ONLINE_ACCOUNT_ID
-  });
+  const joinAndSync = () => {
+    DOMINO_ONLINE_SOCKET.emit('joinDominoRoyalTable', {
+      tableId: DOMINO_ONLINE_TABLE_ID,
+      accountId: DOMINO_ONLINE_ACCOUNT_ID
+    });
+    DOMINO_ONLINE_SOCKET.emit('dominoRoyalSyncRequest', {
+      tableId: DOMINO_ONLINE_TABLE_ID,
+      accountId: DOMINO_ONLINE_ACCOUNT_ID
+    });
+  };
+  joinAndSync();
   if (dominoOnlineStateHandler) {
     DOMINO_ONLINE_SOCKET.off?.('dominoRoyalState', dominoOnlineStateHandler);
   }
@@ -10978,7 +10996,9 @@ function connectDominoOnlineTable() {
     applyDominoOnlineState(state);
   };
   DOMINO_ONLINE_SOCKET.on('dominoRoyalState', dominoOnlineStateHandler);
-  DOMINO_ONLINE_SOCKET.emit('dominoRoyalSyncRequest', { tableId: DOMINO_ONLINE_TABLE_ID });
+  DOMINO_ONLINE_SOCKET.off?.('connect', joinAndSync);
+  DOMINO_ONLINE_SOCKET.on('connect', joinAndSync);
+  window.__dominoRoyalOnlineReconnectHandler = joinAndSync;
 }
 
 async function bootstrapDominoRoyal() {
@@ -12050,6 +12070,10 @@ function shutdownDominoRoyal(reason = 'unknown') {
   if (DOMINO_ONLINE_SOCKET && dominoOnlineStateHandler) {
     DOMINO_ONLINE_SOCKET.off?.('dominoRoyalState', dominoOnlineStateHandler);
     dominoOnlineStateHandler = null;
+  }
+  if (DOMINO_ONLINE_SOCKET && window.__dominoRoyalOnlineReconnectHandler) {
+    DOMINO_ONLINE_SOCKET.off?.('connect', window.__dominoRoyalOnlineReconnectHandler);
+    delete window.__dominoRoyalOnlineReconnectHandler;
   }
 }
 

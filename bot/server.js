@@ -49,6 +49,10 @@ import { fileURLToPath } from 'url';
 import { existsSync, readFileSync } from 'fs';
 import { execSync } from 'child_process';
 import { randomUUID } from 'crypto';
+import {
+  createDominoTableNumber,
+  validateDominoStateSubmission
+} from './utils/dominoRoyalOnline.js';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
@@ -471,6 +475,7 @@ const tableMap = new Map();
 const poolStates = new Map();
 const snookerStates = new Map();
 const dominoRoyalStates = new Map();
+const dominoRoyalTableNumbers = new Set();
 const lastActionBySocket = new Map();
 const rollRateLimitMs = Number(process.env.SOCKET_ROLL_COOLDOWN_MS) || 800;
 const seatTableRateLimitMs = Number(process.env.SEAT_TABLE_RATE_LIMIT_MS) || 500;
@@ -644,6 +649,10 @@ function createLobbyTable({
   if (!lobbyTables[key]) lobbyTables[key] = [];
   const table = {
     id,
+    tableNumber:
+      gameType === 'domino-royal'
+        ? createDominoTableNumber((number) => dominoRoyalTableNumbers.has(number))
+        : null,
     gameType,
     stake,
     maxPlayers,
@@ -652,6 +661,7 @@ function createLobbyTable({
     ready: new Set(),
     meta
   };
+  if (table.tableNumber) dominoRoyalTableNumbers.add(table.tableNumber);
   lobbyTables[key].push(table);
   tableMap.set(table.id, table);
   console.log(
@@ -1297,6 +1307,7 @@ async function seatTableSocket(
   }
   io.to(tableId).emit('lobbyUpdate', {
     tableId,
+    tableNumber: table.tableNumber,
     players: table.players,
     currentTurn: table.currentTurn,
     ready: Array.from(table.ready),
@@ -1348,6 +1359,7 @@ function maybeStartGame(table) {
       }
       io.to(table.id).emit('gameStart', {
         tableId: table.id,
+        tableNumber: table.tableNumber,
         players: table.players,
         currentTurn: table.currentTurn,
         stake: table.stake,
@@ -1401,6 +1413,7 @@ function unseatTableSocket(accountId, tableId, socketId) {
       }
       if (table.gameType === 'domino-royal') {
         dominoRoyalStates.delete(tableId);
+        if (table.tableNumber) dominoRoyalTableNumbers.delete(table.tableNumber);
       }
       tableMap.delete(tableId);
       const key = `${table.gameType}-${table.maxPlayers}`;
@@ -1414,6 +1427,7 @@ function unseatTableSocket(accountId, tableId, socketId) {
     }
     io.to(tableId).emit('lobbyUpdate', {
       tableId,
+      tableNumber: table.tableNumber,
       players: table.players,
       currentTurn: table.currentTurn,
       ready: Array.from(table.ready || []),
@@ -2140,6 +2154,7 @@ io.on('connection', (socket) => {
         cb({
           success: true,
           tableId: table.id,
+          tableNumber: table.tableNumber,
           players: table.players,
           currentTurn: table.currentTurn,
           ready: Array.from(table.ready),
@@ -2181,6 +2196,7 @@ io.on('connection', (socket) => {
     table.ready.add(String(resolvedAccountId));
     io.to(tableId).emit('lobbyUpdate', {
       tableId,
+      tableNumber: table.tableNumber,
       players: table.players,
       currentTurn: table.currentTurn,
       ready: Array.from(table.ready)
@@ -2280,11 +2296,21 @@ io.on('connection', (socket) => {
 
   socket.on('joinDominoRoyalTable', async ({ tableId, accountId } = {}) => {
     if (!tableId) return;
-    if (accountId && !ensureRegistered(socket, accountId)) return;
+    const resolvedAccountId = resolveTpcIdentity({ accountId });
+    if (!ensureRegistered(socket, resolvedAccountId)) return;
+    const table = tableMap.get(tableId);
+    if (
+      !table ||
+      table.gameType !== 'domino-royal' ||
+      !table.players.some((player) => String(player.id) === String(resolvedAccountId))
+    ) {
+      socket.emit('dominoRoyalSyncError', { tableId, error: 'seat_required' });
+      return;
+    }
     socket.join(tableId);
-    if (accountId) {
+    if (resolvedAccountId) {
       await registerConnection({
-        userId: String(accountId),
+        userId: String(resolvedAccountId),
         roomId: tableId,
         socketId: socket.id
       });
@@ -2300,8 +2326,12 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('dominoRoyalSyncRequest', ({ tableId } = {}) => {
+  socket.on('dominoRoyalSyncRequest', ({ tableId, accountId } = {}) => {
     if (!tableId) return;
+    const resolvedAccountId = resolveTpcIdentity({ accountId });
+    if (!ensureRegistered(socket, resolvedAccountId)) return;
+    const table = tableMap.get(tableId);
+    if (!table?.players.some((player) => String(player.id) === String(resolvedAccountId))) return;
     const cached = dominoRoyalStates.get(tableId);
     if (cached?.state) {
       socket.emit('dominoRoyalState', {
@@ -2313,21 +2343,43 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('dominoRoyalState', ({ tableId, state, action } = {}) => {
+  socket.on('dominoRoyalState', ({ tableId, accountId, state, action } = {}, cb) => {
     if (!tableId || !state || typeof state !== 'object') return;
     if (!socket.rooms.has(tableId)) return;
+    const resolvedAccountId = resolveTpcIdentity({ accountId, tpcAccountNumber: action?.accountId });
+    if (!ensureRegistered(socket, resolvedAccountId)) return;
+    const table = tableMap.get(tableId);
+    const cached = dominoRoyalStates.get(tableId);
+    const validation = validateDominoStateSubmission({
+      table,
+      cached,
+      accountId: resolvedAccountId,
+      state,
+      action
+    });
+    if (!validation.ok) {
+      cb && cb({ success: false, error: validation.error });
+      socket.emit('dominoRoyalSyncError', { tableId, error: validation.error });
+      if (cached?.state) socket.emit('dominoRoyalState', { tableId, state: cached.state, action: cached.action, updatedAt: cached.ts });
+      return;
+    }
+    const revision = Number(cached?.revision || 0) + 1;
+    const authoritativeState = { ...state, seq: revision };
     const payload = {
       tableId,
-      state,
-      action: action || null,
+      tableNumber: table.tableNumber,
+      state: authoritativeState,
+      action: { ...(action || {}), accountId: String(resolvedAccountId) },
       updatedAt: Date.now()
     };
     dominoRoyalStates.set(tableId, {
-      state,
+      state: authoritativeState,
       action: payload.action,
-      ts: payload.updatedAt
+      ts: payload.updatedAt,
+      revision
     });
     socket.to(tableId).emit('dominoRoyalState', payload);
+    cb && cb({ success: true, revision });
   });
 
   socket.on('joinPoolTable', async ({ tableId, accountId }) => {
