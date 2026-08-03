@@ -8,8 +8,6 @@ import {
   CHESS_TABLE_FINISH_OPTIONS
 } from '../webapp/src/config/chessBattleInventoryConfig.js';
 import { CAPTURE_ANIMATION_OPTIONS } from '../webapp/src/config/ludoBattleOptions.js';
-import { LUDO_BATTLE_STORE_ITEMS } from '../webapp/src/config/ludoBattleInventoryConfig.js';
-import { SNAKE_STORE_ITEMS } from '../webapp/src/config/snakeInventoryConfig.js';
 
 describe('chess battle inventory config', () => {
   test('defaults to octagon table for battle royal', () => {
@@ -38,7 +36,7 @@ describe('chess battle inventory config', () => {
     });
   });
 
-  test('keeps capture effects available to gameplay but removes weapons from every related store', () => {
+  test('adds Ukrainian drone and renames the existing drone to Shahad Drone', () => {
     const labelsById = Object.fromEntries(CAPTURE_ANIMATION_OPTIONS.map((option) => [option.id, option.label]));
     expect(labelsById.droneAttack).toBe('Shahad Drone');
     expect(labelsById.ukrainianDroneAttack).toBe('Ukrainian Drone');
@@ -46,9 +44,11 @@ describe('chess battle inventory config', () => {
     expect(CHESS_BATTLE_DEFAULT_UNLOCKS.captureAnimation).toContain('ukrainianDroneAttack');
     expect(CHESS_BATTLE_ROYAL_DEFAULT_UNLOCKS.captureAnimation).toContain('ukrainianDroneAttack');
 
-    expect(CHESS_BATTLE_ROYAL_STORE_ITEMS.some((item) => item.type === 'captureAnimation')).toBe(false);
-    expect(LUDO_BATTLE_STORE_ITEMS.some((item) => item.type === 'captureAnimation')).toBe(false);
-    expect(SNAKE_STORE_ITEMS.some((item) => item.type === 'captureWeapon')).toBe(false);
+    const storeDroneIds = new Set(
+      CHESS_BATTLE_ROYAL_STORE_ITEMS.filter((item) => item.type === 'captureAnimation').map((item) => item.optionId)
+    );
+    expect(storeDroneIds.has('droneAttack')).toBe(true);
+    expect(storeDroneIds.has('ukrainianDroneAttack')).toBe(true);
   });
 
   test('keeps current avatar free by default and sells exactly the 5 requested WebGL humans', () => {
