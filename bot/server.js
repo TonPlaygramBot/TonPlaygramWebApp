@@ -29,7 +29,6 @@ import poolRoyaleRoutes from './routes/poolRoyale.js';
 import snookerRoyaleRoutes from './routes/snookerRoyal.js';
 import exchangeRoutes from './routes/exchange.js';
 import pushRoutes from './routes/push.js';
-import protestVideoRoutes from './routes/protestVideos.js';
 import User from './models/User.js';
 import GameResult from './models/GameResult.js';
 import AdView from './models/AdView.js';
@@ -274,7 +273,6 @@ app.use(helmet({
   }
 }));
 app.use(compression());
-app.use('/api/protest-videos', protestVideoRoutes);
 // Increase JSON body limit to handle large photo uploads
 app.use(express.json({ limit: '10mb' }));
 app.use(optionalAuthenticate);

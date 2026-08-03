@@ -25,8 +25,6 @@ const xIcon = (
   />
 );
 
-import { Link } from 'react-router-dom';
-
 import { ping, getProfile, fetchTelegramInfo } from '../utils/api.js';
 
 import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
@@ -179,12 +177,6 @@ export default function Home() {
             <p className="text-xs leading-5 text-subtext">
               {ALBANIA_PAUSE_NOTICE.detail}
             </p>
-            <Link
-              to="/protest-videos"
-              className="mt-2 block w-full rounded-xl border border-red-300/50 bg-red-600/90 px-4 py-3 text-center text-sm font-bold text-white shadow-lg shadow-red-950/30 transition hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-red-200"
-            >
-              Open protest video gallery
-            </Link>
           </div>
         </div>
       </section>
