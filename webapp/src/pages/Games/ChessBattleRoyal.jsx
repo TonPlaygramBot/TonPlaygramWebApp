@@ -170,8 +170,12 @@ const CAPTURE_PRECISION_STRIKE_DROP_RATIO = 0.34; // longer vertical terminal dr
 const CAPTURE_DRONE_PRECISION_LOCK_RATIO = 0.72; // lock horizontal coordinates earlier so drone impacts are extremely precise
 const CAPTURE_SHORT_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 3.55; // raise shared missile lane to keep aerial/truck strikes at a higher altitude
 const CAPTURE_AIRCRAFT_CRUISE_HEIGHT = CAPTURE_JET_ALTITUDE; // keep jet/helicopter on the same high lane as the jet missile apex reference altitude
-const CAPTURE_DRONE_STRIKE_ALTITUDE = CAPTURE_AIRCRAFT_CRUISE_HEIGHT * 1.03; // keep drone on a very slightly higher precision lane for cleaner impact lines
-const CAPTURE_TRUCK_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 2.35; // truck missile should skim lower than drone/jet/helicopter attacks
+// These three inventory attacks use portrait-friendly low lanes independently of
+// the much higher jet/helicopter flyover lane.
+const CAPTURE_SHAHAD_DRONE_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 2.15;
+const CAPTURE_UKRAINIAN_DRONE_CRUISE_HEIGHT = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 2.25;
+const CAPTURE_UKRAINIAN_DRONE_MISSILE_CLEARANCE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 1.35;
+const CAPTURE_SHORT_MISSILE_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 1.55;
 const CAPTURE_LOOP_TAKEOFF_RATIO = 0.24; // shorter lift so vehicles enter the orbit earlier
 const CAPTURE_AIR_APPROACH_RATIO = 0.96; // keep jet/helicopter on the long arc for a longer pass before strike
 const CAPTURE_RELOAD_SHOW_TIME = 0.58;
@@ -13400,7 +13404,7 @@ function Chess3D({
           strictPrecision: true,
           longArc: true,
           verticalStrike: true,
-          strikeAltitude: CAPTURE_TRUCK_STRIKE_ALTITUDE,
+          strikeAltitude: CAPTURE_SHORT_MISSILE_STRIKE_ALTITUDE,
           targetLift: CAPTURE_TRUCK_STRIKE_TARGET_LIFT
         });
         return withAuto3d({
@@ -13428,7 +13432,7 @@ function Chess3D({
           returnToOrigin: false,
           sourceUnit: null,
           droneFx,
-          strikeAltitude: CAPTURE_DRONE_STRIKE_ALTITUDE
+          strikeAltitude: CAPTURE_SHAHAD_DRONE_STRIKE_ALTITUDE
         });
         return withAuto3d({
           moveDelayMs: CAPTURE_DRONE_ATTACK_TOTAL * 1000,
@@ -15793,7 +15797,7 @@ function Chess3D({
               from: launchPos,
               to: fx.flightTarget || fx.to,
               progress: droneU,
-              cruiseHeight: CAPTURE_AIRCRAFT_CRUISE_HEIGHT + CAPTURE_HELICOPTER_ALTITUDE_BOOST,
+              cruiseHeight: CAPTURE_UKRAINIAN_DRONE_CRUISE_HEIGHT,
               returnToOrigin: true,
               constrainToBoard: false
             });
@@ -15817,7 +15821,10 @@ function Chess3D({
             } else {
               if (!missile.launchPos) {
                 missile.launchPos = liveTargetPos.clone();
-                missile.launchPos.y = Math.max(dronePos.y - 0.04, liveTargetPos.y + CAPTURE_SHORT_STRIKE_ALTITUDE);
+                missile.launchPos.y = Math.max(
+                  dronePos.y - 0.04,
+                  liveTargetPos.y + CAPTURE_UKRAINIAN_DRONE_MISSILE_CLEARANCE
+                );
               }
               const missileU = clamp01((fx.t - releaseStart) / missileTravel);
               if (missileU <= 0 || missileU >= 1) {
