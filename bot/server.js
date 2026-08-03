@@ -348,6 +348,15 @@ function ensureWebappBuilt() {
   ) {
     return true;
   }
+  // Production deploys must build the client during the provider's build phase.
+  // Installing/building here blocks the event loop before httpServer.listen(),
+  // which makes platforms such as Render report that no port is open.
+  if (process.env.NODE_ENV === 'production') {
+    console.error(
+      'Webapp build is missing. Run the repository postinstall/build step before starting the server.'
+    );
+    return false;
+  }
   try {
     console.log('Building webapp...');
     const webappDir = path.join(__dirname, '../webapp');
@@ -372,8 +381,6 @@ function ensureWebappBuilt() {
     return false;
   }
 }
-
-ensureWebappBuilt();
 
 const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
 
