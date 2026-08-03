@@ -170,12 +170,13 @@ const CAPTURE_PRECISION_STRIKE_DROP_RATIO = 0.34; // longer vertical terminal dr
 const CAPTURE_DRONE_PRECISION_LOCK_RATIO = 0.72; // lock horizontal coordinates earlier so drone impacts are extremely precise
 const CAPTURE_SHORT_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 3.55; // raise shared missile lane to keep aerial/truck strikes at a higher altitude
 const CAPTURE_AIRCRAFT_CRUISE_HEIGHT = CAPTURE_JET_ALTITUDE; // keep jet/helicopter on the same high lane as the jet missile apex reference altitude
-// These three inventory attacks use portrait-friendly low lanes independently of
-// the much higher jet/helicopter flyover lane.
-const CAPTURE_SHAHAD_DRONE_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 2.15;
-const CAPTURE_UKRAINIAN_DRONE_CRUISE_HEIGHT = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 2.25;
+// Keep these three inventory attacks together on one portrait-friendly low lane,
+// independently of the much higher jet/helicopter flyover lane.
+const CAPTURE_LOW_ATTACK_FLIGHT_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 1.25;
+const CAPTURE_SHAHAD_DRONE_STRIKE_ALTITUDE = CAPTURE_LOW_ATTACK_FLIGHT_ALTITUDE;
+const CAPTURE_UKRAINIAN_DRONE_CRUISE_HEIGHT = CAPTURE_LOW_ATTACK_FLIGHT_ALTITUDE;
 const CAPTURE_UKRAINIAN_DRONE_MISSILE_CLEARANCE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 1.35;
-const CAPTURE_SHORT_MISSILE_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 1.55;
+const CAPTURE_SHORT_MISSILE_STRIKE_ALTITUDE = CAPTURE_LOW_ATTACK_FLIGHT_ALTITUDE;
 const CAPTURE_LOOP_TAKEOFF_RATIO = 0.24; // shorter lift so vehicles enter the orbit earlier
 const CAPTURE_AIR_APPROACH_RATIO = 0.96; // keep jet/helicopter on the long arc for a longer pass before strike
 const CAPTURE_RELOAD_SHOW_TIME = 0.58;

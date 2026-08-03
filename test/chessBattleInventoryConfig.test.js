@@ -68,17 +68,20 @@ describe('chess battle inventory config', () => {
     ).toBe(true);
   });
 
-  test('keeps the short missile and both inventory drones on dedicated low flight lanes', async () => {
+  test('keeps the lowered short missile and both inventory drones on the same low flight lane', async () => {
     const source = await readFile('webapp/src/pages/Games/ChessBattleRoyal.jsx', 'utf8');
 
     expect(source).toContain(
-      'const CAPTURE_SHAHAD_DRONE_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 2.15;'
+      'const CAPTURE_LOW_ATTACK_FLIGHT_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 1.25;'
     );
     expect(source).toContain(
-      'const CAPTURE_UKRAINIAN_DRONE_CRUISE_HEIGHT = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 2.25;'
+      'const CAPTURE_SHAHAD_DRONE_STRIKE_ALTITUDE = CAPTURE_LOW_ATTACK_FLIGHT_ALTITUDE;'
     );
     expect(source).toContain(
-      'const CAPTURE_SHORT_MISSILE_STRIKE_ALTITUDE = CAPTURE_DRONE_REFERENCE_BOARD_ALTITUDE * 1.55;'
+      'const CAPTURE_UKRAINIAN_DRONE_CRUISE_HEIGHT = CAPTURE_LOW_ATTACK_FLIGHT_ALTITUDE;'
+    );
+    expect(source).toContain(
+      'const CAPTURE_SHORT_MISSILE_STRIKE_ALTITUDE = CAPTURE_LOW_ATTACK_FLIGHT_ALTITUDE;'
     );
     expect(source).toContain('strikeAltitude: CAPTURE_SHORT_MISSILE_STRIKE_ALTITUDE');
     expect(source).toContain('strikeAltitude: CAPTURE_SHAHAD_DRONE_STRIKE_ALTITUDE');
