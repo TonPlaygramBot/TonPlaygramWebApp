@@ -18,6 +18,7 @@ import { getLobbyIcon } from '../../config/gameAssets.js';
 import GameLobbyHeader from '../../components/GameLobbyHeader.jsx';
 import { socket } from '../../utils/socket.js';
 import { getOnlineReadiness } from '../../config/onlineContract.js';
+import { joinDominoRoyalLobby } from './dominoRoyalMatchmaking.js';
 
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
@@ -195,14 +196,20 @@ export default function DominoRoyalLobby() {
       }
     } catch {}
 
-    if (mode === 'online' && accountId) {
+    if (mode === 'online' && !accountId) {
+      setQueueStatus('');
+      setQueueError('Unable to identify your online account. Please reopen the lobby and try again.');
+      return;
+    }
+
+    if (mode === 'online') {
       setQueueError('');
       setQueueStatus('Connecting to Domino Royal lobby…');
       onlineStakeDebitedRef.current = false;
-      socket.emit('register', { playerId: accountId });
-      socket.emit(
-        'seatTable',
-        {
+      const res = await joinDominoRoyalLobby({
+        socket,
+        accountId,
+        criteria: {
           accountId,
           gameType: 'domino-royal',
           stake: Number(stake.amount) || 0,
@@ -219,21 +226,19 @@ export default function DominoRoyalLobby() {
             targetPoints: gameType === 'points' ? String(targetPoints) : '',
             token: stake.token
           }
-        },
-        (res = {}) => {
-          if (!res.success || !res.tableId) {
-            const message = `Unable to join Domino online table (${res.error || 'try_again'}).`;
-            setQueueError(message);
-            setQueueStatus('');
-            return;
-          }
-          queuedTableIdRef.current = res.tableId;
-          setQueuedTableId(res.tableId);
-          const seated = Array.isArray(res.players) ? res.players.length : 1;
-          setQueueStatus(`Table ${res.tableNumber || res.tableId.slice(0, 8)} • ${seated}/${totalPlayers} players ready`);
-          socket.emit('confirmReady', { accountId, tableId: res.tableId });
         }
-      );
+      });
+      if (!res.success || !res.tableId) {
+        const message = `Unable to join Domino online table (${res.error || 'try_again'}).`;
+        setQueueError(message);
+        setQueueStatus('');
+        return;
+      }
+      queuedTableIdRef.current = res.tableId;
+      setQueuedTableId(res.tableId);
+      const seated = Array.isArray(res.players) ? res.players.length : 1;
+      setQueueStatus(`Table ${res.tableNumber || res.tableId.slice(0, 8)} • ${seated}/${totalPlayers} players ready`);
+      socket.emit('confirmReady', { accountId, tableId: res.tableId });
       return;
     }
 
