@@ -72,8 +72,10 @@ test(
         gameType: 'chess-battle-royale',
         stake: 100,
         maxPlayers: 2,
-        mode: 'online',
-        token: 'tpc',
+        // Quick matchmaking intentionally ignores every criterion except the
+        // numeric stake, including legacy client mode/token metadata.
+        mode: 'ranked',
+        token: 'legacy-tpc',
         preferredSide: 'black'
       });
 

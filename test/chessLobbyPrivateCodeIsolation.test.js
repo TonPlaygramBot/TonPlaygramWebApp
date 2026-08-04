@@ -40,12 +40,14 @@ test(
     };
     const server = await startServer(env);
     const quick = io('http://localhost:3214', { auth: { token: apiToken } });
+    const quickB = io('http://localhost:3214', { auth: { token: apiToken } });
     const privateA = io('http://localhost:3214', { auth: { token: apiToken } });
     const privateB = io('http://localhost:3214', { auth: { token: apiToken } });
 
     try {
       await Promise.all([
         new Promise((resolve) => quick.on('connect', resolve)),
+        new Promise((resolve) => quickB.on('connect', resolve)),
         new Promise((resolve) => privateA.on('connect', resolve)),
         new Promise((resolve) => privateB.on('connect', resolve))
       ]);
@@ -56,6 +58,7 @@ test(
         });
       await Promise.all([
         register(quick, 'chess-private-quick'),
+        register(quickB, 'chess-private-quick-b'),
         register(privateA, 'chess-private-a'),
         register(privateB, 'chess-private-b')
       ]);
@@ -65,14 +68,6 @@ test(
           socket.emit('seatTable', payload, resolve);
         });
 
-      const quickSeat = await seat(quick, {
-        accountId: 'chess-private-quick',
-        gameType: 'chess',
-        stake: 100,
-        maxPlayers: 2,
-        mode: 'online',
-        token: 'TPC'
-      });
       const codedSeatA = await seat(privateA, {
         accountId: 'chess-private-a',
         gameType: 'chess',
@@ -81,6 +76,22 @@ test(
         mode: 'online',
         token: 'TPC',
         tableId: 'chess-2-host-FRIEND123'
+      });
+      const quickSeat = await seat(quick, {
+        accountId: 'chess-private-quick',
+        gameType: 'chess',
+        stake: 100,
+        maxPlayers: 2,
+        mode: 'online',
+        token: 'TPC'
+      });
+      const quickSeatB = await seat(quickB, {
+        accountId: 'chess-private-quick-b',
+        gameType: 'chess',
+        stake: 100,
+        maxPlayers: 2,
+        mode: 'online',
+        token: 'TPC'
       });
       const codedSeatB = await seat(privateB, {
         accountId: 'chess-private-b',
@@ -95,11 +106,14 @@ test(
       assert.equal(quickSeat.success, true);
       assert.equal(codedSeatA.success, true);
       assert.equal(codedSeatB.success, true);
+      assert.equal(quickSeatB.success, true);
       assert.notEqual(codedSeatA.tableId, quickSeat.tableId);
+      assert.equal(quickSeatB.tableId, quickSeat.tableId);
       assert.equal(codedSeatA.tableId, 'chess-2-host-FRIEND123');
       assert.equal(codedSeatB.tableId, codedSeatA.tableId);
     } finally {
       quick.disconnect();
+      quickB.disconnect();
       privateA.disconnect();
       privateB.disconnect();
       server.kill();
