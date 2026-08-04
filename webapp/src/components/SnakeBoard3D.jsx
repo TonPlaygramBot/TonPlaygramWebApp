@@ -269,7 +269,10 @@ const DICE_PIP_RIM_OFFSET = DICE_SIZE * 0.0048;
 const DICE_PIP_SPREAD = DICE_SIZE * 0.3;
 const DICE_FACE_INSET = DICE_SIZE * 0.064;
 // Keep Snake dice motion aligned with Ludo Battle Royal's frame-synced single-arc spinDice roll.
-const DICE_ROLL_DURATION = 1100;
+// Ludo Battle Royal's spinDice defaults to a 900 ms physical throw. Keep the
+// same duration here so the hidden result generator cannot stop the 3D roll
+// before the cube has completed its arc.
+const DICE_ROLL_DURATION = 900;
 const DICE_SETTLE_DURATION = 220;
 const DICE_RESULT_HOLD_DURATION = 720;
 const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.78;
@@ -5331,7 +5334,7 @@ function updateTokens(
   });
 }
 
-function updateLadders(group, ladders, indexToPosition, serpentineIndexToXZ, railTexture, theme = {}) {
+function updateLadders(group, ladders, snakes, indexToPosition, serpentineIndexToXZ, railTexture, theme = {}) {
   while (group.children.length) {
     const child = group.children.pop();
     if (child) {
@@ -5363,7 +5366,13 @@ function updateLadders(group, ladders, indexToPosition, serpentineIndexToXZ, rai
   group.userData.paths = new Map();
 
   const ladderEntries = parseJumpMap(ladders).filter(([a, b]) => b > a);
-  const resolveLadderLane = createJumpLaneResolver(ladderEntries);
+  // Resolve lanes against every jump, not only other ladders. This gives a
+  // snake and a ladder that cross the same run different height/side lanes.
+  const allJumpEntries = [
+    ...ladderEntries,
+    ...parseJumpMap(snakes).filter(([a, b]) => b < a)
+  ];
+  const resolveLadderLane = createJumpLaneResolver(allJumpEntries);
   ladderEntries.forEach(([start, end]) => {
     const laneConfig = resolveLadderLane(start);
     const A = (indexToPosition.get(start) || serpentineIndexToXZ(start)).clone();
@@ -5442,7 +5451,7 @@ function updateLadders(group, ladders, indexToPosition, serpentineIndexToXZ, rai
   });
 }
 
-function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snakeTexture, theme = {}) {
+function updateSnakes(group, snakes, ladders, indexToPosition, serpentineIndexToXZ, snakeTexture, theme = {}) {
   while (group.children.length) {
     const child = group.children.pop();
     if (child) {
@@ -5483,7 +5492,11 @@ function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snake
   });
 
   const entries = parseJumpMap(snakes).filter(([a, b]) => b < a);
-  const resolveSnakeLane = createJumpLaneResolver(entries);
+  const allJumpEntries = [
+    ...parseJumpMap(ladders).filter(([a, b]) => b > a),
+    ...entries
+  ];
+  const resolveSnakeLane = createJumpLaneResolver(allJumpEntries);
 
   group.userData.paths = new Map();
 
@@ -7389,23 +7402,25 @@ export default function SnakeBoard3D({
     updateLadders(
       boardRef.current.laddersGroup,
       ladders,
+      snakes,
       boardRef.current.indexToPosition,
       boardRef.current.serpentineIndexToXZ,
       railTextureRef.current
     );
-  }, [ladders, ladderOffsets, keyForEffect]);
+  }, [ladders, snakes, ladderOffsets, keyForEffect]);
 
   useEffect(() => {
     if (!boardRef.current || !snakeTextureRef.current) return;
     updateSnakes(
       boardRef.current.snakesGroup,
       snakes,
+      ladders,
       boardRef.current.indexToPosition,
       boardRef.current.serpentineIndexToXZ,
       snakeTextureRef.current,
       snakeTheme
     );
-  }, [snakes, snakeOffsets, keyForEffect, snakeTheme]);
+  }, [snakes, ladders, snakeOffsets, keyForEffect, snakeTheme]);
 
   useEffect(() => {
     if (!slide || !boardRef.current) return;
