@@ -605,7 +605,25 @@ function resolveDefaultPixelRatioCap() {
   if (typeof window === 'undefined') {
     return 2;
   }
-  return window.innerWidth <= 1366 ? 1.5 : 2;
+  return isConstrainedMobileRuntime() ? 1 : window.innerWidth <= 1366 ? 1.5 : 2;
+}
+
+function isAndroidWebViewRuntime() {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent ?? '';
+  return /Android/i.test(ua) && (/\bwv\b/i.test(ua) || /Version\/\d+(?:\.\d+)? Chrome\//i.test(ua));
+}
+
+function isConstrainedMobileRuntime() {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent ?? '';
+  const deviceMemory = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
+  return (
+    isAndroidWebViewRuntime() ||
+    /Android|iPhone|iPad|iPod/i.test(ua) ||
+    detectCoarsePointer() ||
+    (deviceMemory !== null && deviceMemory <= 4)
+  );
 }
 
 function detectPreferredFrameRateId() {
@@ -661,6 +679,7 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
 const PREFERRED_TEXTURE_SIZES = ['2k', '1k'];
+const MOBILE_PREFERRED_TEXTURE_SIZES = Object.freeze(['1k']);
 const POLYHAVEN_MODEL_CACHE = new Map();
 const BASIS_TRANSCODER_PATH = 'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
@@ -3734,14 +3753,16 @@ export default function MurlanRoyaleArena({ search }) {
       typeof option?.pixelRatioCap === 'number' && Number.isFinite(option.pixelRatioCap)
         ? Math.max(1, option.pixelRatioCap)
         : resolveDefaultPixelRatioCap();
+    const constrainedMobile = isConstrainedMobileRuntime();
     return {
       id: option?.id ?? DEFAULT_FRAME_RATE_ID,
-      fps,
-      renderScale,
-      pixelRatioCap
+      fps: constrainedMobile ? Math.min(fps, 60) : fps,
+      renderScale: constrainedMobile ? 1 : renderScale,
+      pixelRatioCap: constrainedMobile ? Math.min(pixelRatioCap, 1) : pixelRatioCap
     };
   }, [activeFrameRateOption]);
   const activeTextureResolutionOrder = useMemo(() => {
+    if (isConstrainedMobileRuntime()) return MOBILE_PREFERRED_TEXTURE_SIZES;
     const configured = Array.isArray(activeFrameRateOption?.preferredTextureSizes)
       ? activeFrameRateOption.preferredTextureSizes
       : [];
@@ -3761,7 +3782,9 @@ export default function MurlanRoyaleArena({ search }) {
     frameQualityRef.current = frameQualityProfile;
   }, [frameQualityProfile]);
   const resolvedHdriResolution = useMemo(() => {
-    return resolveHdriResolutionFromGraphics(activeFrameRateOption);
+    return isConstrainedMobileRuntime()
+      ? '1k'
+      : resolveHdriResolutionFromGraphics(activeFrameRateOption);
   }, [activeFrameRateOption]);
   const activeHdriPolicy = useMemo(
     () => resolveHdriPolicyForFps(activeFrameRateOption?.fps),
@@ -5128,14 +5151,19 @@ export default function MurlanRoyaleArena({ search }) {
       if (expectedTheme.id !== safe.id) return;
 
       const uniqueThemes = [...new Map(characterRoster.map((theme) => [theme?.id, theme])).values()].filter(Boolean);
-      const templateEntries = await Promise.all(uniqueThemes.map(async (theme) => {
+      const themesToLoad = isConstrainedMobileRuntime() ? [safe] : uniqueThemes;
+      const templateEntries = [];
+      for (const theme of themesToLoad) {
         try {
-          return [theme.id, await loadCharacterModel(theme, store.renderer)];
+          // Loading sequentially avoids the large transient memory spike caused by
+          // decoding several glTF character packages at the same time in WebView.
+          // eslint-disable-next-line no-await-in-loop
+          templateEntries.push([theme.id, await loadCharacterModel(theme, store.renderer)]);
         } catch (error) {
           console.warn('Failed to load character theme', theme?.id, error);
-          return [theme.id, null];
+          templateEntries.push([theme.id, null]);
         }
-      }));
+      }
       const templatesById = new Map(templateEntries.filter(([, template]) => template));
       if (!templatesById.size) return;
       const loadedFallbackThemes = characterRoster.filter((theme) => theme?.id && templatesById.has(theme.id));
@@ -5863,11 +5891,16 @@ export default function MurlanRoyaleArena({ search }) {
     let lastRenderTime = performance.now();
 
     const setup = async () => {
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+      const constrainedMobile = isConstrainedMobileRuntime();
+      renderer = new THREE.WebGLRenderer({
+        antialias: !constrainedMobile,
+        alpha: false,
+        powerPreference: constrainedMobile ? 'default' : 'high-performance'
+      });
       applyRendererSRGB(renderer);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.85;
-      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.enabled = !constrainedMobile;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       renderer.domElement.style.width = '100%';
       renderer.domElement.style.height = '100%';
@@ -5877,7 +5910,8 @@ export default function MurlanRoyaleArena({ search }) {
       threeStateRef.current.renderer = renderer;
       const textureLoader = new THREE.TextureLoader();
       textureLoader.setCrossOrigin?.('anonymous');
-      const maxAnisotropy = renderer.capabilities.getMaxAnisotropy?.() ?? 1;
+      const hardwareAnisotropy = renderer.capabilities.getMaxAnisotropy?.() ?? 1;
+      const maxAnisotropy = constrainedMobile ? Math.min(hardwareAnisotropy, 2) : hardwareAnisotropy;
       const fallbackTexture = textureLoader.load(
         'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/uv_grid_opengl.jpg'
       );
@@ -6120,14 +6154,18 @@ export default function MurlanRoyaleArena({ search }) {
             gameStateRef.current?.characterRosterSeed ?? characterRosterSeedRef.current
           );
           const uniqueThemes = [...new Map(initialCharacterRoster.map((theme) => [theme?.id, theme])).values()].filter(Boolean);
-          const templateEntries = await Promise.all(uniqueThemes.map(async (theme) => {
+          const themesToLoad = isConstrainedMobileRuntime() ? [characterTheme] : uniqueThemes;
+          const templateEntries = [];
+          for (const theme of themesToLoad) {
             try {
-              return [theme.id, await loadCharacterModel(theme, renderer)];
+              // Keep peak memory bounded on Android WebView by decoding one model at a time.
+              // eslint-disable-next-line no-await-in-loop
+              templateEntries.push([theme.id, await loadCharacterModel(theme, renderer)]);
             } catch (error) {
               console.warn('Failed to load initial character theme', theme?.id, error);
-              return [theme.id, null];
+              templateEntries.push([theme.id, null]);
             }
-          }));
+          }
           const templatesById = new Map(templateEntries.filter(([, template]) => template));
           if (!templatesById.size) {
             throw new Error('No initial character templates loaded');
