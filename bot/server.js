@@ -48,7 +48,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync, readFileSync } from 'fs';
 import { execSync } from 'child_process';
-import { randomInt, randomUUID } from 'crypto';
+import { randomUUID } from 'crypto';
 import {
   createDominoTableNumber,
   isDominoMatchCompatible,
@@ -477,15 +477,6 @@ const poolStates = new Map();
 const snookerStates = new Map();
 const dominoRoyalStates = new Map();
 const dominoRoyalTableNumbers = new Set();
-const chessTableNumbers = new Set();
-
-function createChessTableNumber() {
-  for (let attempt = 0; attempt < 32; attempt += 1) {
-    const number = `CBR-${String(randomInt(1_000_000)).padStart(6, '0')}`;
-    if (!chessTableNumbers.has(number)) return number;
-  }
-  return `CBR-${Date.now().toString(36).toUpperCase()}`;
-}
 const lastActionBySocket = new Map();
 const rollRateLimitMs = Number(process.env.SOCKET_ROLL_COOLDOWN_MS) || 800;
 const seatTableRateLimitMs = Number(process.env.SEAT_TABLE_RATE_LIMIT_MS) || 500;
@@ -666,9 +657,7 @@ function createLobbyTable({
     tableNumber:
       gameType === 'domino-royal'
         ? createDominoTableNumber((number) => dominoRoyalTableNumbers.has(number))
-        : gameType === 'chess'
-          ? createChessTableNumber()
-          : null,
+        : null,
     gameType,
     stake,
     maxPlayers,
@@ -677,10 +666,7 @@ function createLobbyTable({
     ready: new Set(),
     meta
   };
-  if (gameType === 'domino-royal' && table.tableNumber) {
-    dominoRoyalTableNumbers.add(table.tableNumber);
-  }
-  if (gameType === 'chess' && table.tableNumber) chessTableNumbers.add(table.tableNumber);
+  if (table.tableNumber) dominoRoyalTableNumbers.add(table.tableNumber);
   lobbyTables[key].push(table);
   tableMap.set(table.id, table);
   console.log(
@@ -1447,9 +1433,6 @@ function unseatTableSocket(accountId, tableId, socketId) {
       if (table.gameType === 'domino-royal') {
         dominoRoyalStates.delete(tableId);
         if (table.tableNumber) dominoRoyalTableNumbers.delete(table.tableNumber);
-      }
-      if (table.gameType === 'chess' && table.tableNumber) {
-        chessTableNumbers.delete(table.tableNumber);
       }
       tableMap.delete(tableId);
       const key = `${table.gameType}-${table.maxPlayers}`;
