@@ -506,8 +506,14 @@ export default function LeaderboardCard() {
         friendship={inviteTarget && friendIds.has(String(inviteTarget.telegramId)) ? 'friend' : inviteTarget && pendingFriendIds.has(String(inviteTarget.telegramId)) ? 'pending' : 'none'}
         onAddFriend={async () => {
           if (!inviteTarget?.telegramId) return;
-          await sendFriendRequest(telegramId, inviteTarget.telegramId);
-          setPendingFriendIds((current) => new Set(current).add(String(inviteTarget.telegramId)));
+          try {
+            await sendFriendRequest(telegramId, inviteTarget.telegramId);
+            setPendingFriendIds((current) =>
+              new Set(current).add(String(inviteTarget.telegramId))
+            );
+          } catch (error) {
+            alert(error?.message || 'Failed to send friend request');
+          }
         }}
         onCall={(type) => {
           if (!inviteTarget) return;

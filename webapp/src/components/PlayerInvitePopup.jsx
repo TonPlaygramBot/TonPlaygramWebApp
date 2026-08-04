@@ -33,6 +33,7 @@ export default function PlayerInvitePopup({
   friendship = 'none',
   onAddFriend,
   onCall,
+  profileOnly = false,
 }) {
   const [info, setInfo] = useState(null);
   const [records, setRecords] = useState([]);
@@ -207,7 +208,7 @@ export default function PlayerInvitePopup({
               )}
             </ul>
           </div>
-          <div className="space-y-1">
+          {!profileOnly && <div className="space-y-1">
             <p className="font-semibold text-white-shadow">Game</p>
             <div className="flex flex-wrap justify-center gap-2">
               {inviteGames.map((g) => (
@@ -222,12 +223,12 @@ export default function PlayerInvitePopup({
                 />
               ))}
             </div>
-          </div>
-          <RoomSelector
+          </div>}
+          {!profileOnly && <RoomSelector
             selected={stake}
             onSelect={onStakeChange}
             tokens={['TPC']}
-          />
+          />}
           <div className="flex justify-center gap-2">
             {friendship === 'friend' ? <>
               <button onClick={() => onCall?.('voice')} className="px-3 py-2 bg-emerald-600 rounded text-white" aria-label={`Voice call ${name}`}><FaPhone /></button>
@@ -237,12 +238,12 @@ export default function PlayerInvitePopup({
                 <FaUserPlus /> {friendship === 'pending' ? 'Request sent' : 'Add friend'}
               </button>
             )}
-            <button
+            {!profileOnly && <button
               onClick={() => onInvite(game)}
               className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-white-shadow text-sm"
             >
               Invite
-            </button>
+            </button>}
             <button
               onClick={() => setGiftOpen(true)}
               className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-white-shadow text-sm"

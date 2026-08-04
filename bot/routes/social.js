@@ -46,8 +46,30 @@ router.post('/request', async (req, res) => {
     return res.status(400).json({ error: 'fromId and toId required' });
   }
   if (!requireMatchingTelegram(req, res, fromId)) return;
-  let reqDoc = await FriendRequest.findOne({ from: fromId, to: toId });
-  if (!reqDoc) reqDoc = await FriendRequest.create({ from: fromId, to: toId });
+  const normalizedFromId = Number(fromId);
+  const normalizedToId = Number(toId);
+  if (!Number.isFinite(normalizedFromId) || !Number.isFinite(normalizedToId)) {
+    return res.status(400).json({ error: 'invalid player id' });
+  }
+  if (normalizedFromId === normalizedToId) {
+    return res.status(400).json({ error: 'you cannot add yourself' });
+  }
+  const recipientExists = await User.exists({ telegramId: normalizedToId });
+  if (!recipientExists) return res.status(404).json({ error: 'player not found' });
+
+  const alreadyFriends = await User.exists({
+    telegramId: normalizedFromId,
+    friends: normalizedToId
+  });
+  if (alreadyFriends) return res.status(409).json({ error: 'already friends' });
+
+  // Reuse a previous rejected/accepted pair rather than failing against the
+  // unique index, and make repeated taps on a pending request idempotent.
+  const reqDoc = await FriendRequest.findOneAndUpdate(
+    { from: normalizedFromId, to: normalizedToId },
+    { $set: { status: 'pending', createdAt: new Date() } },
+    { new: true, upsert: true, setDefaultsOnInsert: true }
+  );
   const sender = await User.findOne({ telegramId: Number(fromId) })
     .select('accountId firstName lastName nickname photo')
     .lean();
@@ -103,8 +125,43 @@ router.post('/requests', async (req, res) => {
   const { telegramId } = req.body;
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
   if (!requireMatchingTelegram(req, res, telegramId)) return;
-  const incoming = await FriendRequest.find({ to: telegramId, status: 'pending' });
-  res.json(incoming);
+  const normalizedId = Number(telegramId);
+  const requests = await FriendRequest.find({
+    status: 'pending',
+    $or: [{ to: normalizedId }, { from: normalizedId }]
+  })
+    .sort({ createdAt: -1 })
+    .lean();
+  const participantIds = [
+    ...new Set(requests.flatMap((request) => [request.from, request.to]))
+  ];
+  const users = await User.find({ telegramId: { $in: participantIds } })
+    .select('telegramId accountId firstName lastName nickname photo')
+    .lean();
+  const userById = new Map(users.map((user) => [Number(user.telegramId), user]));
+  const response = requests.map((request) => {
+    const fromUser = userById.get(Number(request.from));
+    const toUser = userById.get(Number(request.to));
+    const displayName = (user) =>
+      user?.nickname ||
+      `${user?.firstName || ''} ${user?.lastName || ''}`.trim() ||
+      '';
+    return {
+      ...request,
+      requestId: String(request._id),
+      fromId: request.from,
+      toId: request.to,
+      fromTelegramId: request.from,
+      toTelegramId: request.to,
+      fromAccountId: fromUser?.accountId,
+      toAccountId: toUser?.accountId,
+      fromName: displayName(fromUser),
+      toName: displayName(toUser),
+      fromPhoto: fromUser?.photo || '',
+      toPhoto: toUser?.photo || ''
+    };
+  });
+  res.json(response);
 });
 
 router.post('/friends', async (req, res) => {

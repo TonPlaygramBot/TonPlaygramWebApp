@@ -4,12 +4,15 @@ import { createPortal } from 'react-dom';
 
 import { FiCopy } from 'react-icons/fi';
 
-import { getProfileByAccount } from '../utils/api.js';
+import { getProfileByAccount, sendFriendRequest } from '../utils/api.js';
+
+import { getTelegramId } from '../utils/telegram.js';
 
 import { getAvatarUrl } from '../utils/avatarUtils.js';
 
 import { NFT_GIFTS } from '../utils/nftGifts.js';
 import GiftIcon from './GiftIcon.jsx';
+import PlayerInvitePopup from './PlayerInvitePopup.jsx';
 
 const GAME_NAME_MAP = {
   snake: 'Snake & Ladder',
@@ -30,6 +33,8 @@ function getGameName(slug = '') {
 export default function TransactionDetailsPopup({ tx, onClose }) {
 
   const [counterparty, setCounterparty] = useState(null);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [friendship, setFriendship] = useState('none');
 
   useEffect(() => {
 
@@ -110,7 +115,11 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
 
   });
 
-  return createPortal(
+  const openCounterpartyProfile = () => {
+    if (counterparty) setProfileOpen(true);
+  };
+
+  const popup = createPortal(
 
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
 
@@ -183,7 +192,12 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
 
           {counterparty && (
 
-            <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              onClick={openCounterpartyProfile}
+              className="flex items-center space-x-2 rounded-lg p-2 text-left hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-primary"
+              aria-label={`View ${displayName || 'player'} profile`}
+            >
 
                 {counterparty.photo && (
                   <img
@@ -213,7 +227,7 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
 
               </div>
 
-            </div>
+            </button>
 
           )}
 
@@ -277,6 +291,36 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
 
     document.body
 
+  );
+
+  return (
+    <>
+      {popup}
+      <PlayerInvitePopup
+        open={profileOpen}
+        player={counterparty ? { ...counterparty, accountId: account } : null}
+        stake={{ token: 'TPC', amount: 100 }}
+        onStakeChange={() => {}}
+        onInvite={() => {}}
+        onClose={() => setProfileOpen(false)}
+        onlineStatus="offline"
+        friendship={friendship}
+        profileOnly
+        onAddFriend={async () => {
+          const telegramId = getTelegramId();
+          if (!telegramId || !counterparty?.telegramId) {
+            window.alert('This player cannot receive a friend request right now.');
+            return;
+          }
+          try {
+            await sendFriendRequest(telegramId, counterparty.telegramId);
+            setFriendship('pending');
+          } catch (error) {
+            window.alert(error?.message || 'Failed to send friend request');
+          }
+        }}
+      />
+    </>
   );
 
 }

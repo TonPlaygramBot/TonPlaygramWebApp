@@ -14,8 +14,12 @@ export default function UserSearchBar() {
 
   async function requestFriend(id) {
     const fromId = getTelegramId();
-    await sendFriendRequest(fromId, id);
-    alert('Friend request sent');
+    try {
+      await sendFriendRequest(fromId, id);
+      alert('Friend request sent');
+    } catch (error) {
+      alert(error?.message || 'Failed to send friend request');
+    }
   }
 
   return (
