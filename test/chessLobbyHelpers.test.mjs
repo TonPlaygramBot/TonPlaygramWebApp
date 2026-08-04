@@ -89,3 +89,10 @@ test('chess lobby builds online game params and seat account fallback', () => {
   assert.equal(sandbox.resolveSeatAccountId('', 'state-1'), 'stored-account');
   assert.match(sandbox.resolveSeatErrorMessage('stake_mismatch'), /different stake/);
 });
+
+test('chess quick match refreshes every minute and keeps searching', () => {
+  assert.match(source, /const MATCHMAKING_REFRESH_MS = 60000;/);
+  assert.match(source, /Refreshing the queue and looking again/);
+  assert.match(source, /onlineQueueMode === 'quick' \|\|/);
+  assert.match(source, /Queue refresh in \{searchSecondsLeft\}s/);
+});
