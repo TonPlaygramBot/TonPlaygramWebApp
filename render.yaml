@@ -43,7 +43,7 @@ services:
       - key: AUTH_REQUIRED
         value: true
       - key: ACCOUNT_API_URL
-        value: https://tonplaygram-api.onrender.com
+        value: https://tonplaygram-bot.onrender.com
       - key: MATCHMAKING_SERVICE_SECRET
         fromSecret: MATCHMAKING_SERVICE_SECRET
       - key: REDIS_URL

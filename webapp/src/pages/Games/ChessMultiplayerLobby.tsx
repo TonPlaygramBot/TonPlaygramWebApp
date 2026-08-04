@@ -88,10 +88,19 @@ export default function ChessMultiplayerLobby() {
   const authOptions = async () => {
     const resolved = await ensureAccountId();
     const resolvedAccountId = String(resolved || accountId);
+    const googleId = localStorage.getItem('googleId') || (() => {
+      try {
+        const profile = JSON.parse(localStorage.getItem('googleProfile') || 'null');
+        return profile?.id ? String(profile.id) : '';
+      } catch {
+        return '';
+      }
+    })();
     accountIdRef.current = resolvedAccountId;
     setAccountId(resolvedAccountId);
     return {
       accountId: resolvedAccountId,
+      googleId,
       name: getTelegramFirstName() || 'Player',
       avatar: getTelegramPhotoUrl() || '',
       initData: window.Telegram?.WebApp?.initData || ''

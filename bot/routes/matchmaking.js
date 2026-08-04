@@ -15,14 +15,27 @@ const serviceOnly = (req, res, next) => {
 router.use(serviceOnly);
 
 router.post('/session', async (req, res) => {
-  const verified = verifyTelegramInitData(String(req.body?.initData || ''));
-  if (!verified?.user) return res.status(401).json({ error: 'invalid_telegram_authentication' });
-  const telegram = JSON.parse(verified.user);
-  const user = await User.findOne({ telegramId: Number(telegram.id), isBanned: { $ne: true } }).lean();
+  const initData = String(req.body?.initData || '');
+  const verified = initData ? verifyTelegramInitData(initData) : null;
+  let telegram = null;
+  if (verified?.user) telegram = JSON.parse(verified.user);
+
+  const accountId = String(req.body?.accountId || '').trim().slice(0, 80);
+  const googleId = String(req.body?.googleId || '').trim().slice(0, 160);
+  const identity = telegram?.id
+    ? { telegramId: Number(telegram.id) }
+    : googleId
+      ? { googleId }
+      : accountId
+        ? { $or: [{ tpcAccountNumber: accountId }, { accountId }] }
+        : null;
+  if (!identity) return res.status(401).json({ error: 'missing_account_authentication' });
+
+  const user = await User.findOne({ ...identity, isBanned: { $ne: true } }).lean();
   if (!user) return res.status(404).json({ error: 'registered_tpc_account_not_found' });
   const tpcAccountNumber = String(user.tpcAccountNumber || user.accountId || '');
   if (!tpcAccountNumber) return res.status(409).json({ error: 'tpc_account_number_missing' });
-  res.json({ tpcAccountNumber, balance: user.balance || 0, name: user.nickname || user.firstName || telegram.first_name || 'Player', avatar: user.photo || telegram.photo_url || '', activeTableId: user.currentTableId || null });
+  res.json({ tpcAccountNumber, balance: user.balance || 0, name: user.nickname || user.firstName || telegram?.first_name || 'Player', avatar: user.photo || telegram?.photo_url || '', activeTableId: user.currentTableId || null });
 });
 
 router.post('/reserve', async (req, res) => {
