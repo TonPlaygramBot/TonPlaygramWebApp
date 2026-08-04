@@ -1273,6 +1273,7 @@ async function seatTableSocket(
   if (!map.has(String(accountId))) {
     map.set(String(accountId), {
       id: accountId,
+      tpcAccountNumber: String(accountId),
       name: playerName || String(accountId),
       avatar: playerAvatar || '',
       ts: Date.now(),
@@ -1281,6 +1282,7 @@ async function seatTableSocket(
     });
     table.players.push({
       id: accountId,
+      tpcAccountNumber: String(accountId),
       name: playerName || String(accountId),
       avatar: playerAvatar || '',
       position: 0,

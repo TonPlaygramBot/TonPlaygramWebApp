@@ -308,6 +308,7 @@ export default function ChessBattleRoyalLobby() {
   const lobbyHandlersRef = useRef({
     gameStart: null,
     lobbyUpdate: null,
+    reconnect: null,
     connectError: null,
     disconnect: null,
     errorMessage: null
@@ -490,6 +491,7 @@ export default function ChessBattleRoyalLobby() {
     const {
       gameStart,
       lobbyUpdate,
+      reconnect,
       connectError,
       disconnect,
       errorMessage
@@ -499,12 +501,14 @@ export default function ChessBattleRoyalLobby() {
       socket.off('gameStarted', gameStart);
     }
     if (lobbyUpdate) socket.off('lobbyUpdate', lobbyUpdate);
+    if (reconnect) socket.off('connect', reconnect);
     if (connectError) socket.off('connect_error', connectError);
     if (disconnect) socket.off('disconnect', disconnect);
     if (errorMessage) socket.off('errorMessage', errorMessage);
     lobbyHandlersRef.current = {
       gameStart: null,
       lobbyUpdate: null,
+      reconnect: null,
       connectError: null,
       disconnect: null,
       errorMessage: null
@@ -669,6 +673,22 @@ export default function ChessBattleRoyalLobby() {
       }
     };
 
+    // A Socket.IO reconnect creates a new server-side socket. The server removes
+    // lobby seats owned by the disconnected socket, so merely reconnecting the
+    // transport leaves the player looking for a match forever. Re-register the
+    // canonical TPC account and restore the same seat after every reconnect.
+    const handleReconnect = async () => {
+      const interruptedTableId = pendingTableRef.current;
+      if (!interruptedTableId) return;
+      setMatchStatus('Restoring your lobby seat…');
+      const registered = await ensureSocketRegistered(seatAccountId);
+      if (!registered || !pendingTableRef.current) {
+        setMatchError('Could not restore your TPC account session. Please retry.');
+        return;
+      }
+      seatPlayer(interruptedTableId, true);
+    };
+
     const handleErrorMessage = (error) => {
       if (!pendingTableRef.current) return;
       const message = resolveSeatErrorMessage(error);
@@ -681,12 +701,14 @@ export default function ChessBattleRoyalLobby() {
     socket.on('gameStart', handleGameStart);
     socket.on('gameStarted', handleGameStart);
     socket.on('lobbyUpdate', handleLobbyUpdate);
+    socket.on('connect', handleReconnect);
     socket.on('connect_error', handleConnectError);
     socket.on('disconnect', handleDisconnect);
     socket.on('errorMessage', handleErrorMessage);
     lobbyHandlersRef.current = {
       gameStart: handleGameStart,
       lobbyUpdate: handleLobbyUpdate,
+      reconnect: handleReconnect,
       connectError: handleConnectError,
       disconnect: handleDisconnect,
       errorMessage: handleErrorMessage
@@ -704,8 +726,8 @@ export default function ChessBattleRoyalLobby() {
       getTelegramFirstName() || getTelegramUsername() || 'Player';
     let seatAttempts = 0;
     const maxSeatAttempts = 4;
-    const seatPlayer = () => {
-      seatAttempts += 1;
+    const seatPlayer = (tableIdOverride = '', reconnecting = false) => {
+      if (!reconnecting) seatAttempts += 1;
       socket.emit(
         'seatTable',
         {
@@ -714,7 +736,7 @@ export default function ChessBattleRoyalLobby() {
           tpcAccountId: seatAccountId,
           gameType: 'chess',
           stake: stake.amount ?? 0,
-          tableId: hostedTableId || undefined,
+          tableId: tableIdOverride || hostedTableId || undefined,
           maxPlayers: 2,
           mode: 'online',
           playerName: friendlyName,
@@ -726,7 +748,7 @@ export default function ChessBattleRoyalLobby() {
           if (!res?.success || !res.tableId) {
             const shouldRetry =
               MATCHMAKING_RECOVERABLE_ERRORS.has(res?.error) &&
-              seatAttempts < maxSeatAttempts;
+              (reconnecting || seatAttempts < maxSeatAttempts);
             if (shouldRetry) {
               const retryDelay = Math.min(
                 SEAT_RETRY_BASE_DELAY_MS * 2 ** (seatAttempts - 1),
@@ -763,7 +785,7 @@ export default function ChessBattleRoyalLobby() {
                     return;
                   }
                 }
-                seatPlayer();
+                seatPlayer(tableIdOverride, reconnecting);
               }, retryDelay);
               return;
             }
