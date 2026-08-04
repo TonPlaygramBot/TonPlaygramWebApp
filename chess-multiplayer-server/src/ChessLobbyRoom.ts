@@ -44,6 +44,7 @@ export class ChessBattleRoyaleRoom extends Room<{ state: ChessLobbyState }> {
     const player = new LobbyPlayer();
     Object.assign(player, auth, { joinedAt: Date.now(), connected: true, ready: false });
     this.state.players.set(client.sessionId, player);
+    console.info('[chess_lobby] player joined', { roomId: this.roomId, sessionId: client.sessionId, accountId: auth.accountId, players: this.state.players.size });
     if (this.state.players.size === this.maxClients) this.lock();
     this.evaluateCountdown();
   }
@@ -56,15 +57,18 @@ export class ChessBattleRoyaleRoom extends Room<{ state: ChessLobbyState }> {
     this.cancelCountdown();
     if (closeCode === 4000) {
       this.state.players.delete(client.sessionId);
+      console.info('[chess_lobby] player left', { roomId: this.roomId, sessionId: client.sessionId, players: this.state.players.size });
       return this.cancelCountdown();
     }
     try {
       await this.allowReconnection(client, 30);
       const restored = this.state.players.get(client.sessionId);
       if (restored) restored.connected = true;
+      console.info('[chess_lobby] player reconnected', { roomId: this.roomId, sessionId: client.sessionId });
       this.evaluateCountdown();
     } catch {
       this.state.players.delete(client.sessionId);
+      console.info('[chess_lobby] reconnect expired', { roomId: this.roomId, sessionId: client.sessionId, players: this.state.players.size });
       this.cancelCountdown();
     }
   }

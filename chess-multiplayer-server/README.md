@@ -8,4 +8,4 @@ npm install
 npm run dev
 ```
 
-Set `VITE_CHESS_COLYSEUS_URL=ws://localhost:2567` in `webapp/.env`. Redis is not required; setting `REDIS_URL` enables distributed presence and room discovery.
+Set `VITE_MATCHMAKING_URL=ws://localhost:2567` for local web preview. Deployments must use a public `wss://` URL (never `localhost`) when the website is served over HTTPS. Redis is not required; setting `REDIS_URL` enables distributed presence and room discovery.

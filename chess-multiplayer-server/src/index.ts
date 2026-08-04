@@ -1,18 +1,13 @@
 import 'dotenv/config';
-import { RedisDriver } from '@colyseus/redis-driver';
-import { RedisPresence } from '@colyseus/redis-presence';
-import { defineServer, defineRoom } from 'colyseus';
-import { ChessLobbyRoom } from './ChessLobbyRoom.js';
+import WebSocket from 'ws';
+import { defineServer } from 'colyseus';
+import { chessServerConfig } from './app.config.js';
 
-const redis = process.env.REDIS_URL;
-const server = defineServer({
-  rooms: {
-    chess_lobby: defineRoom(ChessLobbyRoom).filterBy(['visibility', 'invitationCode'])
-  },
-  ...(redis ? { driver: new RedisDriver(redis), presence: new RedisPresence(redis) } : {}),
-  express: (app) => {
-    app.get('/health', (_req, res) => res.json({ ok: true, service: 'chess-colyseus', redis: Boolean(redis) }));
-  }
-});
+// Colyseus 0.17 uses the browser-compatible WebSocket constants while restoring
+// a seat. Node 20 has no global WebSocket, so provide the server transport's
+// implementation instead of letting reconnection fail after authentication.
+if (!globalThis.WebSocket) Object.assign(globalThis, { WebSocket });
+
+const server = defineServer(chessServerConfig);
 
 server.listen(Number(process.env.PORT) || 2567);
