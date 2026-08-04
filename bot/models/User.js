@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 const transactionSchema = new mongoose.Schema(
   {
+    transactionId: { type: String },
     amount: Number,
     type: { type: String },
     token: { type: String, default: 'TPC' },
@@ -159,6 +160,7 @@ userSchema.index({ telegramId: 1 }, { unique: true, sparse: true });
 userSchema.index({ googleId: 1 }, { unique: true, sparse: true });
 // Ensure walletAddress remains unique when present
 userSchema.index({ walletAddress: 1 }, { unique: true, sparse: true });
+userSchema.index({ 'transactions.transactionId': 1 }, { unique: true, sparse: true });
 
 userSchema.pre('save', function(next) {
   if (!this.referralCode) {

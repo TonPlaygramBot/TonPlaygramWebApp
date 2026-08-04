@@ -9,3 +9,5 @@ npm run dev
 ```
 
 Set `VITE_MATCHMAKING_URL=ws://localhost:2567` for local web preview. Deployments must use a public `wss://` URL (never `localhost`) when the website is served over HTTPS. Redis is not required; setting `REDIS_URL` enables distributed presence and room discovery.
+
+Production additionally requires `ACCOUNT_API_URL`, `MATCHMAKING_SERVICE_SECRET`, and `AUTH_REQUIRED=true`. The account API authenticates Telegram, resolves the canonical TPC account and balance, and performs idempotent stake reservations/refunds in MongoDB transactions. The browser-provided account ID is never authoritative in production.

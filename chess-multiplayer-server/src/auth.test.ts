@@ -6,7 +6,7 @@ describe('authenticatePlayer', () => {
 
   it('uses the existing account identity in development mode', async () => {
     await expect(authenticatePlayer({} as never, { accountId: 'TPC-42', name: 'Ada' }))
-      .resolves.toEqual({ accountId: 'TPC-42', name: 'Ada', avatar: '' });
+      .resolves.toEqual({ accountId: 'TPC-42', name: 'Ada', avatar: '', balance: Number.MAX_SAFE_INTEGER });
   });
 
   it('rejects anonymous clients', async () => {

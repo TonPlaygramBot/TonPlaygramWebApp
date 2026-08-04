@@ -24,5 +24,27 @@ services:
         fromSecret: CLAIM_CONTRACT_ADDRESS
       - key: CLAIM_WALLET_MNEMONIC
         fromSecret: CLAIM_WALLET_MNEMONIC
+      - key: MATCHMAKING_SERVICE_SECRET
+        fromSecret: MATCHMAKING_SERVICE_SECRET
+      - key: VITE_MATCHMAKING_URL
+        value: wss://tonplaygram-chess-matchmaking.onrender.com
       - key: RPC_URL
         fromSecret: RPC_URL
+
+  - type: web
+    runtime: node
+    name: tonplaygram-chess-matchmaking
+    branch: main
+    rootDir: chess-multiplayer-server
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: AUTH_REQUIRED
+        value: true
+      - key: ACCOUNT_API_URL
+        value: https://tonplaygram-api.onrender.com
+      - key: MATCHMAKING_SERVICE_SECRET
+        fromSecret: MATCHMAKING_SERVICE_SECRET
+      - key: REDIS_URL
+        fromSecret: REDIS_URL

@@ -2,7 +2,7 @@ import { Client, Room } from 'colyseus';
 import { authenticatePlayer, type PlayerAuth } from './auth.js';
 import { ChessLobbyState, LobbyPlayer } from './state.js';
 
-interface RoomOptions { visibility?: 'public' | 'private'; invitationCode?: string }
+interface RoomOptions { visibility?: 'public' | 'private'; invitationCode?: string; stake?: number; token?: string }
 const code = (value: unknown) => String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
 
 export const canStartChessMatch = (players: Iterable<LobbyPlayer>) => {
@@ -29,7 +29,10 @@ export class ChessBattleRoyaleRoom extends Room<{ state: ChessLobbyState }> {
     this.state.visibility = visibility;
     this.state.invitationCode = invitationCode;
     this.state.maxPlayers = this.maxClients;
-    this.setMetadata({ visibility, invitationCode, maxPlayers: this.maxClients, phase: 'waiting' });
+    this.state.stake = Number(options.stake) || 0;
+    this.state.token = String(options.token || 'TPC').toUpperCase();
+    if (!Number.isSafeInteger(this.state.stake) || this.state.stake <= 0 || this.state.token !== 'TPC') throw new Error('invalid_stake');
+    this.setMetadata({ visibility, invitationCode, stake: this.state.stake, token: this.state.token, maxPlayers: this.maxClients, phase: 'waiting' });
     this.onMessage('ready', (client, ready: boolean) => {
       const player = this.state.players.get(client.sessionId);
       if (!player || this.state.phase === 'playing') return;
@@ -38,14 +41,19 @@ export class ChessBattleRoyaleRoom extends Room<{ state: ChessLobbyState }> {
     });
   }
 
-  onJoin(client: Client, _options: RoomOptions, auth: PlayerAuth) {
+  async onJoin(client: Client, _options: RoomOptions, auth: PlayerAuth) {
+    if (auth.balance < this.state.stake) throw new Error('insufficient_balance');
     const duplicate = [...this.state.players.entries()].find(([, p]) => p.accountId === auth.accountId);
     if (duplicate) this.state.players.delete(duplicate[0]);
     const player = new LobbyPlayer();
-    Object.assign(player, auth, { joinedAt: Date.now(), connected: true, ready: false });
+    const maskedAccount = auth.accountId.length <= 8 ? `${auth.accountId.slice(0, 2)}••${auth.accountId.slice(-2)}` : `${auth.accountId.slice(0, 4)}••••${auth.accountId.slice(-4)}`;
+    Object.assign(player, auth, { maskedAccount, joinedAt: Date.now(), connected: true, ready: false });
     this.state.players.set(client.sessionId, player);
     console.info('[chess_lobby] player joined', { roomId: this.roomId, sessionId: client.sessionId, accountId: auth.accountId, players: this.state.players.size });
-    if (this.state.players.size === this.maxClients) this.lock();
+    if (this.state.players.size === this.maxClients) {
+      this.lock();
+      try { await this.reserveStakes(); } catch (error) { this.state.players.delete(client.sessionId); this.unlock(); throw error; }
+    }
     this.evaluateCountdown();
   }
 
@@ -56,6 +64,7 @@ export class ChessBattleRoyaleRoom extends Room<{ state: ChessLobbyState }> {
     player.ready = false;
     this.cancelCountdown();
     if (closeCode === 4000) {
+      if (this.state.stakesReserved && this.state.phase !== 'playing') await this.releaseStakes('matchmaking_cancelled');
       this.state.players.delete(client.sessionId);
       console.info('[chess_lobby] player left', { roomId: this.roomId, sessionId: client.sessionId, players: this.state.players.size });
       return this.cancelCountdown();
@@ -75,6 +84,22 @@ export class ChessBattleRoyaleRoom extends Room<{ state: ChessLobbyState }> {
 
   onDispose() { if (this.countdown) clearTimeout(this.countdown); }
 
+  private async reserveStakes() {
+    if (this.state.stakesReserved) return;
+    const base = String(process.env.ACCOUNT_API_URL || '').replace(/\/$/, '');
+    if (!base) { this.state.tableNumber = `TABLE #${this.roomId.slice(-6).toUpperCase().padStart(6, '0')}`; this.state.matchId = this.roomId; this.state.stakesReserved = true; return; }
+    const response = await fetch(`${base}/api/matchmaking/reserve`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-matchmaking-secret': String(process.env.MATCHMAKING_SERVICE_SECRET || '') }, body: JSON.stringify({ roomId: this.roomId, accounts: [...this.state.players.values()].map(p => p.accountId), stake: this.state.stake, token: this.state.token }) });
+    const result = await response.json().catch(() => ({})) as any;
+    if (!response.ok) throw new Error(String(result.error || 'stake_reservation_failed'));
+    this.state.tableNumber = result.tableNumber; this.state.matchId = result.matchId; this.state.stakesReserved = true;
+  }
+
+  private async releaseStakes(reason: string) {
+    const base = String(process.env.ACCOUNT_API_URL || '').replace(/\/$/, '');
+    if (base) await fetch(`${base}/api/matchmaking/release`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-matchmaking-secret': String(process.env.MATCHMAKING_SERVICE_SECRET || '') }, body: JSON.stringify({ matchId: this.state.matchId, reason }) });
+    this.state.stakesReserved = false;
+  }
+
   private evaluateCountdown() {
     const players = [...this.state.players.values()];
     const canStart = canStartChessMatch(players);
@@ -88,7 +113,7 @@ export class ChessBattleRoyaleRoom extends Room<{ state: ChessLobbyState }> {
       this.state.phase = 'playing';
       this.state.countdownEndsAt = 0;
       void this.setMetadata({ visibility: this.state.visibility, invitationCode: this.state.invitationCode, phase: 'playing' });
-      this.broadcast('match_start', { roomId: this.roomId, players: [...this.state.players.values()].map((p) => ({ accountId: p.accountId, name: p.name })) });
+      this.broadcast('match_start', { roomId: this.roomId, matchId: this.state.matchId, tableNumber: this.state.tableNumber, players: [...this.state.players.values()].map((p) => ({ accountId: p.accountId, maskedAccount: p.maskedAccount, name: p.name })) });
     }, 5000);
   }
 

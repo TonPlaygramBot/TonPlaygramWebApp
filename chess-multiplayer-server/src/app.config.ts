@@ -7,7 +7,7 @@ const redis = process.env.REDIS_URL;
 
 export const chessServerConfig = {
   rooms: {
-    chess_lobby: defineRoom(ChessLobbyRoom).filterBy(['visibility', 'invitationCode'])
+    chess_lobby: defineRoom(ChessLobbyRoom).filterBy(['visibility', 'invitationCode', 'stake', 'token'])
   },
   ...(redis ? { driver: new RedisDriver(redis), presence: new RedisPresence(redis) } : {}),
   express: (app: any) => {
