@@ -8939,6 +8939,7 @@ function Chess3D({
   initialAiFlag,
   accountId,
   initialTableId,
+  initialTableNumber,
   initialSide,
   initialOpponent
 }) {
@@ -16854,7 +16855,9 @@ function Chess3D({
                   : `Status: ${onlineStatus}`}
               </div>
               {tableId && (
-                <div className="text-[10px] text-emerald-50/70">Table {tableId.slice(0, 8)}</div>
+                <div className="text-[10px] text-emerald-50/70">
+                  Table {initialTableNumber || tableId.slice(0, 8)}
+                </div>
               )}
             </div>
           )}
@@ -17540,6 +17543,7 @@ export default function ChessBattleRoyal() {
   const initialAccountId = params.get('accountId') || '';
   const mode = params.get('mode') || 'ai';
   const initialTableId = params.get('tableId') || '';
+  const initialTableNumber = params.get('tableNumber') || '';
   const preferredSideParam = params.get('preferredSide');
   const [accountId, setAccountId] = useState(initialAccountId);
   const [redirecting, setRedirecting] = useState(false);
@@ -17600,6 +17604,7 @@ export default function ChessBattleRoyal() {
       initialAiFlag={initialAiFlag}
       accountId={accountId}
       initialTableId={initialTableId}
+      initialTableNumber={initialTableNumber}
       initialSide={initialSide}
       initialOpponent={initialOpponent}
     />

@@ -48,7 +48,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync, readFileSync } from 'fs';
 import { execSync } from 'child_process';
-import { randomUUID } from 'crypto';
+import { randomInt, randomUUID } from 'crypto';
 import {
   createDominoTableNumber,
   isDominoMatchCompatible,
@@ -477,6 +477,15 @@ const poolStates = new Map();
 const snookerStates = new Map();
 const dominoRoyalStates = new Map();
 const dominoRoyalTableNumbers = new Set();
+const chessTableNumbers = new Set();
+
+function createChessTableNumber() {
+  for (let attempt = 0; attempt < 32; attempt += 1) {
+    const number = `CBR-${String(randomInt(1_000_000)).padStart(6, '0')}`;
+    if (!chessTableNumbers.has(number)) return number;
+  }
+  return `CBR-${Date.now().toString(36).toUpperCase()}`;
+}
 const lastActionBySocket = new Map();
 const rollRateLimitMs = Number(process.env.SOCKET_ROLL_COOLDOWN_MS) || 800;
 const seatTableRateLimitMs = Number(process.env.SEAT_TABLE_RATE_LIMIT_MS) || 500;
@@ -657,7 +666,9 @@ function createLobbyTable({
     tableNumber:
       gameType === 'domino-royal'
         ? createDominoTableNumber((number) => dominoRoyalTableNumbers.has(number))
-        : null,
+        : gameType === 'chess'
+          ? createChessTableNumber()
+          : null,
     gameType,
     stake,
     maxPlayers,
@@ -666,7 +677,10 @@ function createLobbyTable({
     ready: new Set(),
     meta
   };
-  if (table.tableNumber) dominoRoyalTableNumbers.add(table.tableNumber);
+  if (gameType === 'domino-royal' && table.tableNumber) {
+    dominoRoyalTableNumbers.add(table.tableNumber);
+  }
+  if (gameType === 'chess' && table.tableNumber) chessTableNumbers.add(table.tableNumber);
   lobbyTables[key].push(table);
   tableMap.set(table.id, table);
   console.log(
@@ -1434,6 +1448,9 @@ function unseatTableSocket(accountId, tableId, socketId) {
         dominoRoyalStates.delete(tableId);
         if (table.tableNumber) dominoRoyalTableNumbers.delete(table.tableNumber);
       }
+      if (table.gameType === 'chess' && table.tableNumber) {
+        chessTableNumbers.delete(table.tableNumber);
+      }
       tableMap.delete(tableId);
       const key = `${table.gameType}-${table.maxPlayers}`;
       lobbyTables[key] = (lobbyTables[key] || []).filter(
@@ -2171,7 +2188,12 @@ io.on('connection', (socket) => {
         );
       }
       if (table) {
-        if (readyOnJoin) {
+        // Chess quick matches have no separate ready-up screen. Once a player
+        // owns a seat, that seat is ready. Keeping this server-authoritative
+        // also lets older/mobile clients match when confirmReady is delayed or
+        // lost while Telegram's WebView reconnects.
+        const shouldReadySeat = validation.normalizedGameType === 'chess' || readyOnJoin;
+        if (shouldReadySeat) {
           table.ready.add(String(resolvedAccountId));
           io.to(table.id).emit('lobbyUpdate', {
             tableId: table.id,
@@ -2181,7 +2203,6 @@ io.on('connection', (socket) => {
             ready: Array.from(table.ready),
             meta: table.meta
           });
-          maybeStartGame(table);
         }
         cb && cb({
           success: true,
@@ -2192,6 +2213,7 @@ io.on('connection', (socket) => {
           ready: Array.from(table.ready),
           meta: table.meta
         });
+        if (shouldReadySeat) maybeStartGame(table);
       } else if (cb) {
         cb({ success: false, error: 'table_join_failed' });
       }
