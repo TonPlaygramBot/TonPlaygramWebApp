@@ -89,6 +89,22 @@ test(
         secondSeat.players.map((player) => player.tpcAccountNumber),
         ['chess-alias-a', 'chess-alias-b']
       );
+      // A mobile reconnect can restore its seat after both seats have filled
+      // but before the one-second start lock completes. It must rejoin the
+      // same full table rather than being moved into a fresh empty queue.
+      await new Promise((resolve) => setTimeout(resolve, 550));
+      const restoredSeat = await seat(s2, {
+        accountId: 'chess-alias-b',
+        gameType: 'chess',
+        stake: 100,
+        maxPlayers: 2,
+        mode: 'online',
+        token: 'TPC',
+        tableId: secondSeat.tableId
+      });
+      assert.equal(restoredSeat.success, true);
+      assert.equal(restoredSeat.tableId, firstSeat.tableId);
+      assert.equal(restoredSeat.players.length, 2);
       // Chess has no ready-up screen: seating the second same-stake player is
       // sufficient to start both clients without a confirmReady round trip.
       const [gameStartA, gameStartB] = await Promise.all([

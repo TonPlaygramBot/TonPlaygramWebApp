@@ -703,7 +703,8 @@ function getAvailableTable(
   stake = 0,
   maxPlayers = 4,
   matchMeta = {},
-  forcedTableId = null
+  forcedTableId = null,
+  accountId = ''
 ) {
   const normalizedMeta = normalizeMatchMeta(matchMeta);
   const key = `${gameType}-${maxPlayers}`;
@@ -713,10 +714,13 @@ function getAvailableTable(
     const existing = tableMap.get(forcedTableId);
     if (existing) {
       const normalizedStake = Number(stake) || 0;
+      const alreadySeated = existing.players.some(
+        (player) => String(player.id) === String(accountId)
+      );
       const canJoinForced =
         existing.gameType === gameType &&
         Number(existing.stake || 0) === normalizedStake &&
-        existing.players.length < existing.maxPlayers &&
+        (alreadySeated || existing.players.length < existing.maxPlayers) &&
         isMatchMetaCompatible(existing.meta, normalizedMeta, gameType);
       if (canJoinForced) return existing;
       if (isHostedTable) return null;
@@ -1286,7 +1290,8 @@ async function seatTableSocket(
     stake,
     maxPlayers,
     matchMeta,
-    forcedTableId
+    forcedTableId,
+    accountId
   );
   if (!table) return null;
   const tableId = table.id;
