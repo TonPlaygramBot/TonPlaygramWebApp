@@ -2920,6 +2920,55 @@ io.on('connection', (socket) => {
     });
   });
 
+  socket.on('friendCall:invite', async (payload = {}, cb) => {
+    const fromAccountId = String(socket.data?.playerId || '');
+    const toAccountId = String(payload.toAccountId || '');
+    const fromTelegramId = Number(payload.fromTelegramId);
+    const toTelegramId = Number(payload.toTelegramId);
+    const type = payload.type === 'video' ? 'video' : 'voice';
+    if (!fromAccountId || !toAccountId || !fromTelegramId || !toTelegramId) {
+      return cb?.({ success: false, error: 'Invalid call details' });
+    }
+    try {
+      const caller = await User.findOne({ telegramId: fromTelegramId }).select('friends accountId');
+      if (!caller || String(caller.accountId) !== fromAccountId || !caller.friends.map(String).includes(String(toTelegramId))) {
+        return cb?.({ success: false, error: 'Calls are available between friends only' });
+      }
+      const target = await User.findOne({ telegramId: toTelegramId, accountId: toAccountId }).select('_id');
+      if (!target) return cb?.({ success: false, error: 'Friend not found' });
+      const targets = userSockets.get(toAccountId);
+      if (!targets?.size) return cb?.({ success: false, error: 'Friend is offline' });
+      const call = {
+        roomId: `friend-call-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+        fromAccountId,
+        toAccountId,
+        fromName: String(payload.fromName || 'Friend').slice(0, 60),
+        type
+      };
+      for (const sid of targets) io.to(sid).emit('friendCall:incoming', call);
+      cb?.({ success: true, call });
+    } catch (error) {
+      console.error('friend call invite failed', error);
+      cb?.({ success: false, error: 'Unable to start call' });
+    }
+  });
+
+  socket.on('friendCall:accept', ({ roomId, fromAccountId } = {}) => {
+    const targets = userSockets.get(String(fromAccountId || ''));
+    for (const sid of targets || []) io.to(sid).emit('friendCall:accepted', { roomId });
+  });
+
+  socket.on('friendCall:reject', ({ roomId, fromAccountId } = {}) => {
+    const targets = userSockets.get(String(fromAccountId || ''));
+    for (const sid of targets || []) io.to(sid).emit('friendCall:ended', { roomId, reason: 'declined' });
+  });
+
+  socket.on('friendCall:end', ({ roomId, fromAccountId, toAccountId } = {}) => {
+    const peerId = String(socket.data?.playerId) === String(fromAccountId) ? toAccountId : fromAccountId;
+    const targets = userSockets.get(String(peerId || ''));
+    for (const sid of targets || []) io.to(sid).emit('friendCall:ended', { roomId });
+  });
+
   socket.on('rollDice', async (payload = {}) => {
     const { accountId, tableId } = payload;
     if (accountId && tableId && tableMap.has(tableId)) {
