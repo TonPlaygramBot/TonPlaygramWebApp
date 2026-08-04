@@ -46,9 +46,27 @@ router.post('/request', async (req, res) => {
     return res.status(400).json({ error: 'fromId and toId required' });
   }
   if (!requireMatchingTelegram(req, res, fromId)) return;
-  const existing = await FriendRequest.findOne({ from: fromId, to: toId });
-  if (existing) return res.json(existing);
-  const reqDoc = await FriendRequest.create({ from: fromId, to: toId });
+  let reqDoc = await FriendRequest.findOne({ from: fromId, to: toId });
+  if (!reqDoc) reqDoc = await FriendRequest.create({ from: fromId, to: toId });
+  const sender = await User.findOne({ telegramId: Number(fromId) })
+    .select('accountId firstName lastName nickname photo')
+    .lean();
+  const recipient = await User.findOne({ telegramId: Number(toId) }).select('accountId').lean();
+  const sockets = req.app.get('userSockets');
+  const io = req.app.get('io');
+  const targets = new Set([
+    ...(sockets?.get(String(toId)) || []),
+    ...(recipient?.accountId ? sockets?.get(String(recipient.accountId)) || [] : [])
+  ]);
+  for (const socketId of targets) {
+    io?.to(socketId).emit('friendRequest', {
+      requestId: String(reqDoc._id),
+      fromTelegramId: Number(fromId),
+      fromAccountId: sender?.accountId,
+      fromName: sender?.nickname || `${sender?.firstName || ''} ${sender?.lastName || ''}`.trim() || String(fromId),
+      fromPhoto: sender?.photo || ''
+    });
+  }
   try {
     await bot.telegram.sendMessage(
       String(toId),

@@ -470,6 +470,23 @@ const pendingInvites = new Map();
 
 app.set('userSockets', userSockets);
 
+async function getUserSocketIds({ accountId, telegramId } = {}) {
+  const identities = new Set(
+    [accountId, telegramId].filter((value) => value !== undefined && value !== null && value !== '').map(String)
+  );
+
+  if (telegramId) {
+    const user = await User.findOne({ telegramId: Number(telegramId) }).select('accountId').lean();
+    if (user?.accountId) identities.add(String(user.accountId));
+  }
+
+  const socketIds = new Set();
+  for (const identity of identities) {
+    for (const socketId of userSockets.get(identity) || []) socketIds.add(socketId);
+  }
+  return socketIds;
+}
+
 const tableWatchers = new Map();
 const liveChatRooms = new Map();
 // Dynamic lobby tables grouped by game type and capacity
@@ -3016,12 +3033,12 @@ io.on('connection', (socket) => {
   });
 
   socket.on('invite1v1', async (payload, cb) => {
-    let { fromId, fromName, toId, roomId, token, amount, game } = payload || {};
+    let { fromId, fromName, toId, toTelegramId, roomId, token, amount, game } = payload || {};
     if (!fromId || !toId)
       return cb && cb({ success: false, error: 'invalid ids' });
 
-    const targets = userSockets.get(String(toId));
-    if (targets && targets.size > 0) {
+    const targets = await getUserSocketIds({ accountId: toId, telegramId: toTelegramId });
+    if (targets.size > 0) {
       for (const sid of targets) {
         io.to(sid).emit('gameInvite', {
           fromId,
@@ -3047,7 +3064,7 @@ io.on('connection', (socket) => {
   socket.on(
     'inviteGroup',
     async (
-      { fromId, fromName, toIds, opponentNames = [], roomId, token, amount },
+      { fromId, fromName, toIds, telegramIds = [], opponentNames = [], roomId, token, amount, game = 'snake' },
       cb
     ) => {
       if (!fromId || !Array.isArray(toIds) || toIds.length === 0) {
@@ -3058,13 +3075,13 @@ io.on('connection', (socket) => {
         toIds: [...toIds],
         token,
         amount,
-        game: 'snake'
+        game
       });
-      let url = getInviteUrl(roomId, token, amount, 'snake');
+      let url = getInviteUrl(roomId, token, amount, game);
       for (let i = 0; i < toIds.length; i++) {
         const toId = toIds[i];
-        const targets = userSockets.get(String(toId));
-        if (targets && targets.size > 0) {
+        const targets = await getUserSocketIds({ accountId: toId, telegramId: telegramIds[i] });
+        if (targets.size > 0) {
           for (const sid of targets) {
             io.to(sid).emit('gameInvite', {
               fromId,
@@ -3074,7 +3091,7 @@ io.on('connection', (socket) => {
               amount,
               group: toIds,
               opponentNames,
-              game: 'snake'
+              game
             });
           }
         } else {
