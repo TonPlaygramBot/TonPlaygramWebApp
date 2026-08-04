@@ -81,6 +81,10 @@ test(
       assert.equal(secondSeat.success, true);
       assert.equal(secondSeat.tableId, firstSeat.tableId);
       assert.equal(secondSeat.players.length, 2);
+      assert.deepEqual(
+        secondSeat.players.map((player) => player.tpcAccountNumber),
+        ['chess-alias-a', 'chess-alias-b']
+      );
     } finally {
       s1.disconnect();
       s2.disconnect();
