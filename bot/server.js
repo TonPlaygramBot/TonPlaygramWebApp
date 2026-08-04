@@ -489,6 +489,7 @@ function createChessTableNumber() {
 const lastActionBySocket = new Map();
 const rollRateLimitMs = Number(process.env.SOCKET_ROLL_COOLDOWN_MS) || 800;
 const seatTableRateLimitMs = Number(process.env.SEAT_TABLE_RATE_LIMIT_MS) || 500;
+const lobbySeatTtlMs = Number(process.env.LOBBY_SEAT_TTL_MS) || 60_000;
 const checkersMoveRateLimitMs =
   Number(process.env.CHECKERS_MOVE_RATE_LIMIT_MS) || 120;
 
@@ -781,9 +782,14 @@ function cleanupSeats() {
   const now = Date.now();
   for (const [tableId, players] of tableSeats) {
     for (const [pid, info] of players) {
-      if (now - info.ts > 60_000) players.delete(pid);
+      if (now - info.ts > lobbySeatTtlMs) {
+        // Keep the public table and its authoritative seat map in sync. Merely
+        // deleting the seat-map entry leaves a ghost in table.players; the next
+        // quick-match player can then be started against that disconnected
+        // ghost instead of another person who is genuinely waiting.
+        unseatTableSocket(pid, tableId, info.socketId);
+      }
     }
-    if (players.size === 0) tableSeats.delete(tableId);
   }
 }
 
