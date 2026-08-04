@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Client, Room } from '@colyseus/sdk';
 import { useNavigate } from 'react-router-dom';
-import { ensureAccountId, getTelegramFirstName, getTelegramPhotoUrl } from '../../utils/telegram.js';
+import { ensureAccountId, getTelegramFirstName, getTelegramPhotoUrl, getTpcAccountId } from '../../utils/telegram.js';
 
 type Player = { sessionId: string; accountId: string; name: string; avatar: string; ready: boolean; connected: boolean };
 type LobbySnapshot = { players: Player[]; phase: string; invitationCode: string; countdownEndsAt: number; minPlayers: number; maxPlayers: number; tableNumber: string };
@@ -87,7 +87,10 @@ export default function ChessMultiplayerLobby() {
 
   const authOptions = async () => {
     const resolved = await ensureAccountId();
-    const resolvedAccountId = String(resolved || accountId);
+    // The TPC account number is the durable identity shared by the account API,
+    // lobby and game. Never replace it with a Telegram id or a room session id.
+    const resolvedAccountId = String(getTpcAccountId() || resolved || accountId).trim();
+    if (!resolvedAccountId) throw new Error('Your TPC account is not ready. Reopen your profile and try again.');
     const googleId = localStorage.getItem('googleId') || (() => {
       try {
         const profile = JSON.parse(localStorage.getItem('googleProfile') || 'null');
@@ -100,6 +103,7 @@ export default function ChessMultiplayerLobby() {
     setAccountId(resolvedAccountId);
     return {
       accountId: resolvedAccountId,
+      tpcAccountNumber: resolvedAccountId,
       googleId,
       name: getTelegramFirstName() || 'Player',
       avatar: getTelegramPhotoUrl() || '',
@@ -114,7 +118,22 @@ export default function ChessMultiplayerLobby() {
       const visibility = roomType;
       const code = visibility === 'private' ? (createPrivate ? newCode() : inviteCode.trim().toUpperCase()) : '';
       if (visibility === 'private' && !code) throw new Error('Enter an invitation code.');
-      const joinRequest = getClient().joinOrCreate(ROOM_NAME, { ...identity, visibility, invitationCode: code, stake: selectedStake, token: 'TPC' });
+      const options = { ...identity, visibility, invitationCode: code, stake: selectedStake, token: 'TPC' };
+      // Joining a private code must never create a second, isolated room when the
+      // host code is missing or mistyped. Hosts create; guests locate and join.
+      const joinRequest = visibility === 'private' && !createPrivate
+        ? getClient().getAvailableRooms(ROOM_NAME).then((rooms) => {
+            const target = rooms.find((candidate) => {
+              const metadata = (candidate.metadata || {}) as Record<string, unknown>;
+              return metadata.visibility === 'private'
+                && String(metadata.invitationCode || '').toUpperCase() === code
+                && Number(metadata.stake) === selectedStake
+                && candidate.clients < candidate.maxClients;
+            });
+            if (!target) throw new Error('Private match not found. Check the code and stake.');
+            return getClient().joinById(target.roomId, options);
+          })
+        : getClient().joinOrCreate(ROOM_NAME, options);
       let timedOut = false;
       let timeoutId = 0;
       const timeout = new Promise<never>((_, reject) => {
