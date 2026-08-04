@@ -10,6 +10,8 @@ import {
   listFriendRequests
 } from '../utils/api.js';
 
+const FRIEND_REQUEST_REFRESH_MS = 15000;
+
 const INVITES_STORAGE_KEY = 'tonplaygram-game-invites';
 
 function normalizeRequests(payload) {
@@ -94,13 +96,19 @@ export default function HomeSocialHub() {
 
   useEffect(() => {
     let active = true;
-    listFriendRequests(telegramId)
-      .then((requests) => {
-        if (active) setFriendRequests(normalizeRequests(requests));
-      })
-      .catch(() => {
-        if (active) setFriendRequests([]);
-      });
+    const refreshFriendRequests = () =>
+      listFriendRequests(telegramId)
+        .then((requests) => {
+          if (active) setFriendRequests(normalizeRequests(requests));
+        })
+        .catch(() => {
+          if (active) setFriendRequests([]);
+        });
+    refreshFriendRequests();
+    const refreshId = window.setInterval(
+      refreshFriendRequests,
+      FRIEND_REQUEST_REFRESH_MS
+    );
     getUnreadCount(telegramId)
       .then((count) => {
         if (active) setUnreadCount(count?.count ?? count ?? 0);
@@ -110,7 +118,18 @@ export default function HomeSocialHub() {
       });
     return () => {
       active = false;
+      window.clearInterval(refreshId);
     };
+  }, [telegramId]);
+
+  useEffect(() => {
+    const onFriendRequest = () => {
+      listFriendRequests(telegramId)
+        .then((requests) => setFriendRequests(normalizeRequests(requests)))
+        .catch(() => {});
+    };
+    socket.on('friendRequest', onFriendRequest);
+    return () => socket.off('friendRequest', onFriendRequest);
   }, [telegramId]);
 
   useEffect(() => {

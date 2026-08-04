@@ -544,7 +544,10 @@ export function searchUsers(query) {
 }
 
 export function sendFriendRequest(fromId, toId) {
-  return post('/api/social/request', { fromId, toId });
+  return post('/api/social/request', { fromId, toId }).then((result) => {
+    if (result?.error) throw new Error(result.error);
+    return result;
+  });
 }
 
 export function listFriendRequests(telegramId) {
