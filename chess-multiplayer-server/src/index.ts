@@ -7,7 +7,7 @@ import { ChessLobbyRoom } from './ChessLobbyRoom.js';
 const redis = process.env.REDIS_URL;
 const server = defineServer({
   rooms: {
-    chess_lobby: defineRoom(ChessLobbyRoom).filterBy(['visibility', 'invitationCode', 'maxPlayers'])
+    chess_lobby: defineRoom(ChessLobbyRoom).filterBy(['visibility', 'invitationCode'])
   },
   ...(redis ? { driver: new RedisDriver(redis), presence: new RedisPresence(redis) } : {}),
   express: (app) => {

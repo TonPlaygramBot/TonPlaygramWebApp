@@ -14,8 +14,8 @@ export class ChessLobbyState extends Schema {
   @type('string') phase: 'waiting' | 'countdown' | 'playing' = 'waiting';
   @type('string') visibility: 'public' | 'private' = 'public';
   @type('string') invitationCode = '';
-  @type('number') minPlayers = 4;
-  @type('number') maxPlayers = 8;
+  @type('number') minPlayers = 2;
+  @type('number') maxPlayers = 2;
   @type('number') countdownEndsAt = 0;
   @type('number') createdAt = Date.now();
 }
