@@ -1,6 +1,6 @@
 # Chess Battle Royal matchmaking
 
-Authoritative Colyseus lobby service for 4–8 players. Public Quick Match rooms are discovered by Colyseus; private rooms are isolated by invitation code. Lobby readiness, countdown, capacity, and the 30-second reconnection window are enforced by the room server.
+Authoritative Colyseus lobby service for two-player chess matches. The public queue can contain any number of online users, but Colyseus assigns exactly two players (Player 1 versus Player 2) to each match room; a third player is assigned to a new room. Private rooms are isolated by invitation code and reserve their two seats for the creator and one invited opponent. The match starts after both connected players mark themselves ready. Lobby readiness, countdown, capacity, and the 30-second reconnection window are enforced by the room server.
 
 ```bash
 cp .env.example .env
