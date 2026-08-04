@@ -547,6 +547,14 @@ function normalizeMatchMeta(rawMeta = {}) {
 function isMatchMetaCompatible(existing = {}, requested = {}, gameType = '') {
   const normalizedGameType = String(gameType || '').trim().toLowerCase();
 
+  if (normalizedGameType === 'chess') {
+    // Chess Battle Royal quick matchmaking has one queue criterion: stake.
+    // Color, client mode labels, token casing, and other lobby metadata are
+    // seat/game preferences and must never split otherwise compatible users.
+    // The numeric stake is compared by getAvailableTable.
+    return true;
+  }
+
   if (normalizedGameType === 'domino-royal') {
     return isDominoMatchCompatible(existing, requested);
   }
@@ -729,6 +737,7 @@ function getAvailableTable(
     (t) =>
       t.stake === stake &&
       t.players.length < t.maxPlayers &&
+      !isReservedHostedTableId(t.id, gameType, maxPlayers) &&
       isMatchMetaCompatible(t.meta, normalizedMeta, gameType)
   );
   if (open) return open;
@@ -1263,6 +1272,9 @@ async function seatTableSocket(
   console.log(
     `Seating player ${playerName || accountId} at ${gameType}-${maxPlayers} (stake ${stake})`
   );
+  // Remove disconnected/expired seats before choosing an open table so a
+  // quick-match request always searches the current queue state.
+  cleanupSeats();
   const table = getAvailableTable(
     gameType,
     stake,
@@ -1272,7 +1284,6 @@ async function seatTableSocket(
   );
   if (!table) return null;
   const tableId = table.id;
-  cleanupSeats();
   // Ensure this user is not seated at any other table
   for (const id of Array.from(tableSeats.keys())) {
     if (id !== tableId && tableSeats.get(id)?.has(String(accountId))) {
