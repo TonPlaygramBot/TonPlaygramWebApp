@@ -35,7 +35,13 @@ describe('authenticatePlayer', () => {
       accountId: 'legacy-account', googleId: 'google-42'
     })).resolves.toMatchObject({ accountId: 'TPC-900', name: 'Web player', balance: 500 });
     expect(fetchMock).toHaveBeenCalledWith('https://accounts.example/api/matchmaking/session', expect.objectContaining({
-      body: JSON.stringify({ initData: '', accountId: 'legacy-account', googleId: 'google-42' })
+      body: JSON.stringify({ initData: '', accountId: 'legacy-account', tpcAccountNumber: 'legacy-account', googleId: 'google-42' })
     }));
+  });
+
+  it('uses the TPC account number before legacy account aliases', async () => {
+    await expect(authenticatePlayer({} as never, {
+      tpcAccountNumber: 'TPC-PRIMARY', accountId: 'legacy-account', name: 'Ada'
+    })).resolves.toMatchObject({ accountId: 'TPC-PRIMARY' });
   });
 });

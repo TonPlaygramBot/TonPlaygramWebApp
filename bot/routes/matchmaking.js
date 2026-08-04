@@ -20,7 +20,9 @@ router.post('/session', async (req, res) => {
   let telegram = null;
   if (verified?.user) telegram = JSON.parse(verified.user);
 
-  const accountId = String(req.body?.accountId || '').trim().slice(0, 80);
+  const accountId = String(
+    req.body?.tpcAccountNumber || req.body?.accountId || ''
+  ).trim().slice(0, 80);
   const googleId = String(req.body?.googleId || '').trim().slice(0, 160);
   const identity = telegram?.id
     ? { telegramId: Number(telegram.id) }

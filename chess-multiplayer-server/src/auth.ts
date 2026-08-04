@@ -16,7 +16,7 @@ async function authenticateWithAccountServer(initData: string, accountId: string
   const response = await fetch(`${base}/api/matchmaking/session`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-matchmaking-secret': String(process.env.MATCHMAKING_SERVICE_SECRET || '') },
-    body: JSON.stringify({ initData, accountId, googleId })
+    body: JSON.stringify({ initData, accountId, tpcAccountNumber: accountId, googleId })
   });
   const body = await response.json().catch(() => ({})) as any;
   if (!response.ok) throw new Error(String(body.error || `authentication_failed_${response.status}`));
@@ -41,7 +41,9 @@ function validateTelegram(initData: string, botToken: string): Record<string, st
 }
 
 export async function authenticatePlayer(_client: Client, options: Record<string, unknown>): Promise<PlayerAuth> {
-  const accountId = String(options.accountId || '').trim().slice(0, 80);
+  // The canonical TPC account number is the primary real-time identity. Keep
+  // accountId as a compatibility fallback for clients deployed before this field.
+  const accountId = String(options.tpcAccountNumber || options.accountId || '').trim().slice(0, 80);
   const initData = String(options.initData || '');
   const googleId = String(options.googleId || '').trim().slice(0, 160);
   const botToken = process.env.TELEGRAM_BOT_TOKEN || '';
