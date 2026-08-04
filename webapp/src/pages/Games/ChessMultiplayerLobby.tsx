@@ -4,8 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { ensureAccountId, getTelegramFirstName, getTelegramPhotoUrl } from '../../utils/telegram.js';
 
 type Player = { sessionId: string; accountId: string; name: string; avatar: string; ready: boolean; connected: boolean };
-type LobbySnapshot = { players: Player[]; phase: string; invitationCode: string; countdownEndsAt: number; minPlayers: number; maxPlayers: number };
-const EMPTY: LobbySnapshot = { players: [], phase: 'idle', invitationCode: '', countdownEndsAt: 0, minPlayers: 2, maxPlayers: 2 };
+type LobbySnapshot = { players: Player[]; phase: string; invitationCode: string; countdownEndsAt: number; minPlayers: number; maxPlayers: number; tableNumber: string };
+const EMPTY: LobbySnapshot = { players: [], phase: 'idle', invitationCode: '', countdownEndsAt: 0, minPlayers: 2, maxPlayers: 2, tableNumber: '' };
 const ROOM_NAME = 'chess_lobby';
 const CONNECTION_TIMEOUT_MS = 10_000;
 
@@ -31,7 +31,7 @@ function connectionError(error: unknown) {
 function snapshot(state: any): LobbySnapshot {
   const players: Player[] = [];
   state?.players?.forEach?.((p: any, sessionId: string) => players.push({ sessionId, accountId: p.accountId, name: p.name, avatar: p.avatar, ready: p.ready, connected: p.connected }));
-  return { players, phase: state?.phase || 'waiting', invitationCode: state?.invitationCode || '', countdownEndsAt: state?.countdownEndsAt || 0, minPlayers: 2, maxPlayers: 2 };
+  return { players, phase: state?.phase || 'waiting', invitationCode: state?.invitationCode || '', countdownEndsAt: state?.countdownEndsAt || 0, minPlayers: 2, maxPlayers: 2, tableNumber: state?.tableNumber || '' };
 }
 
 const newCode = () => Math.random().toString(36).slice(2, 8).toUpperCase();
@@ -51,6 +51,7 @@ export default function ChessMultiplayerLobby() {
   const statusRef = useRef(status);
   const accountIdRef = useRef(accountId);
   const me = lobby.players.find((p) => p.accountId === accountId);
+  const selectedStake = Number(new URLSearchParams(location.search).get('amount') || 100);
 
   useEffect(() => { statusRef.current = status; }, [status]);
 
@@ -104,7 +105,7 @@ export default function ChessMultiplayerLobby() {
       const visibility = roomType;
       const code = visibility === 'private' ? (createPrivate ? newCode() : inviteCode.trim().toUpperCase()) : '';
       if (visibility === 'private' && !code) throw new Error('Enter an invitation code.');
-      const joinRequest = getClient().joinOrCreate(ROOM_NAME, { ...identity, visibility, invitationCode: code });
+      const joinRequest = getClient().joinOrCreate(ROOM_NAME, { ...identity, visibility, invitationCode: code, stake: selectedStake, token: 'TPC' });
       let timedOut = false;
       let timeoutId = 0;
       const timeout = new Promise<never>((_, reject) => {
@@ -159,6 +160,7 @@ export default function ChessMultiplayerLobby() {
       </> : <>
         <div className="rounded-xl bg-cyan-300/10 p-3 text-center"><b className="block text-sm text-cyan-200">{matchmakingStatus}</b><span className="text-xs text-white/60">{status === 'connecting' ? 'Contacting the authoritative matchmaker' : `${Math.min(connectedPlayers, 2)}/2 players`}</span></div>
         <div className="grid grid-cols-2 gap-2 text-center"><div className="rounded-xl bg-white/5 p-2"><b className="block text-lg text-white">{Math.floor(elapsed/60)}:{String(elapsed%60).padStart(2,'0')}</b><span className="text-[10px] text-white/45">WAITING</span></div><div className="rounded-xl bg-white/5 p-2"><b className="block text-lg text-amber-300">{countdown || '—'}</b><span className="text-[10px] text-white/45">START</span></div></div>
+        {lobby.tableNumber && <p className="text-center font-mono text-lg font-black tracking-wider text-cyan-200">{lobby.tableNumber}</p>}
         {lobby.invitationCode && <button onClick={() => navigator.clipboard?.writeText(lobby.invitationCode)} className="w-full rounded-xl border border-dashed border-cyan-300/40 p-2 font-mono tracking-[.25em] text-cyan-200">{lobby.invitationCode} · COPY</button>}
         <div className="space-y-2">{Array.from({length:lobby.maxPlayers}, (_, i) => lobby.players[i] || null).map((p, i) => <div key={p?.sessionId || i} className="flex min-h-12 items-center gap-3 rounded-xl border border-white/5 bg-white/[.04] px-3">{p ? <><div className="h-8 w-8 overflow-hidden rounded-full bg-cyan-900">{p.avatar && <img src={p.avatar} className="h-full w-full object-cover" alt="" />}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-white">{p.name}{p.accountId === accountId ? ' (You)' : ''}</p><p className="text-[10px] text-white/40">{p.connected ? 'Connected' : 'Reconnecting…'}</p></div><b className={`text-xs ${p.ready ? 'text-emerald-400' : 'text-amber-200'}`}>{p.ready ? 'READY' : 'WAITING'}</b></> : <span className="text-xs text-white/25">Searching for player {i + 1}…</span>}</div>)}</div>
         <button disabled={!me || status !== 'joined'} onClick={() => roomRef.current?.send('ready', !me?.ready)} className={`w-full rounded-2xl p-4 text-lg font-black ${me?.ready ? 'bg-emerald-400 text-emerald-950' : 'bg-cyan-300 text-[#04101d]'} disabled:opacity-40`}>{me?.ready ? 'READY ✓' : 'READY'}</button>

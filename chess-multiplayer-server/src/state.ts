@@ -7,6 +7,7 @@ export class LobbyPlayer extends Schema {
   @type('boolean') ready = false;
   @type('boolean') connected = true;
   @type('number') joinedAt = 0;
+  @type('string') maskedAccount = '';
 }
 
 export class ChessLobbyState extends Schema {
@@ -18,4 +19,9 @@ export class ChessLobbyState extends Schema {
   @type('number') maxPlayers = 2;
   @type('number') countdownEndsAt = 0;
   @type('number') createdAt = Date.now();
+  @type('number') stake = 0;
+  @type('string') token = 'TPC';
+  @type('string') tableNumber = '';
+  @type('string') matchId = '';
+  @type('boolean') stakesReserved = false;
 }
