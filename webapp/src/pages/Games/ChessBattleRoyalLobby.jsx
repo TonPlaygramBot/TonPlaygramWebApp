@@ -34,7 +34,7 @@ const CHESS_ONLINE_TABLE_PREFIX = 'chess-2-host';
 
 const SOCKET_CONNECT_TIMEOUT_MS = 6000;
 const SOCKET_REGISTER_TIMEOUT_MS = 6000;
-const MATCHMAKING_TIMEOUT_MS = 45000;
+const MATCHMAKING_REFRESH_MS = 60000;
 const SEAT_RETRY_BASE_DELAY_MS = 700;
 const MATCHMAKING_RECOVERABLE_ERRORS = new Set([
   'register_required',
@@ -304,6 +304,7 @@ export default function ChessBattleRoyalLobby() {
   const [onlinePlayers, setOnlinePlayers] = useState([]);
   const [matchStatus, setMatchStatus] = useState('');
   const [matchError, setMatchError] = useState('');
+  const [searchSecondsLeft, setSearchSecondsLeft] = useState(60);
   const preferredSide = 'auto';
   const pendingTableRef = useRef('');
   const [tableNumber, setTableNumber] = useState('');
@@ -317,6 +318,7 @@ export default function ChessBattleRoyalLobby() {
   });
   const cleanupRef = useRef(() => {});
   const matchmakingTimeoutRef = useRef(null);
+  const matchmakingCountdownRef = useRef(null);
   const spinIntervalRef = useRef(null);
 
   const selectedFlag =
@@ -464,6 +466,10 @@ export default function ChessBattleRoyalLobby() {
         clearTimeout(matchmakingTimeoutRef.current);
         matchmakingTimeoutRef.current = null;
       }
+      if (matchmakingCountdownRef.current) {
+        clearInterval(matchmakingCountdownRef.current);
+        matchmakingCountdownRef.current = null;
+      }
     },
     []
   );
@@ -489,6 +495,10 @@ export default function ChessBattleRoyalLobby() {
     if (matchmakingTimeoutRef.current) {
       clearTimeout(matchmakingTimeoutRef.current);
       matchmakingTimeoutRef.current = null;
+    }
+    if (matchmakingCountdownRef.current) {
+      clearInterval(matchmakingCountdownRef.current);
+      matchmakingCountdownRef.current = null;
     }
     const {
       gameStart,
@@ -530,6 +540,7 @@ export default function ChessBattleRoyalLobby() {
     setMatchPlayers([]);
     setReadyList([]);
     setSpinningPlayer('');
+    setSearchSecondsLeft(60);
     if (!skipRefReset) cleanupRef.current = null;
   };
 
@@ -724,18 +735,43 @@ export default function ChessBattleRoyalLobby() {
       errorMessage: handleErrorMessage
     };
 
-    const matchTimeout = window.setTimeout(async () => {
-      if (!pendingTableRef.current) return;
-      cleanupLobby({ account: trackedAccountId });
-      await refundStakeIfNeeded('matchmaking_timeout');
-      setMatchError('No opponent joined in time. Your stake was refunded.');
-    }, MATCHMAKING_TIMEOUT_MS);
-    matchmakingTimeoutRef.current = matchTimeout;
-
     const friendlyName =
       getTelegramFirstName() || getTelegramUsername() || 'Player';
     let seatAttempts = 0;
     const maxSeatAttempts = 4;
+    const armSearchRefresh = () => {
+      if (matchmakingTimeoutRef.current) clearTimeout(matchmakingTimeoutRef.current);
+      if (matchmakingCountdownRef.current) clearInterval(matchmakingCountdownRef.current);
+      const refreshAt = Date.now() + MATCHMAKING_REFRESH_MS;
+      setSearchSecondsLeft(60);
+      matchmakingCountdownRef.current = window.setInterval(() => {
+        setSearchSecondsLeft(Math.max(0, Math.ceil((refreshAt - Date.now()) / 1000)));
+      }, 250);
+      matchmakingTimeoutRef.current = window.setTimeout(async () => {
+        if (!pendingTableRef.current) return;
+        if (onlineQueueMode === 'quick') {
+          const previousTableId = pendingTableRef.current;
+          socket.emit('leaveLobby', {
+            accountId: trackedAccountId,
+            tpcAccountNumber: trackedAccountId,
+            tpcAccountId: trackedAccountId,
+            tableId: previousTableId
+          });
+          pendingTableRef.current = '';
+          setTableNumber('');
+          setMatchPlayers([]);
+          setReadyList([]);
+          setMatchError('');
+          setMatchStatus('Refreshing the queue and looking again…');
+          seatAttempts = 0;
+          seatPlayer();
+          return;
+        }
+        cleanupLobby({ account: trackedAccountId });
+        await refundStakeIfNeeded('matchmaking_timeout');
+        setMatchError('No opponent joined in time. Your stake was refunded.');
+      }, MATCHMAKING_REFRESH_MS);
+    };
     const seatPlayer = (tableIdOverride = '', reconnecting = false) => {
       if (!reconnecting) seatAttempts += 1;
       socket.emit(
@@ -756,9 +792,9 @@ export default function ChessBattleRoyalLobby() {
         },
         async (res) => {
           if (!res?.success || !res.tableId) {
-            const shouldRetry =
-              MATCHMAKING_RECOVERABLE_ERRORS.has(res?.error) &&
-              (reconnecting || seatAttempts < maxSeatAttempts);
+            const shouldRetry = onlineQueueMode === 'quick' ||
+              (MATCHMAKING_RECOVERABLE_ERRORS.has(res?.error) &&
+                (reconnecting || seatAttempts < maxSeatAttempts));
             if (shouldRetry) {
               const retryDelay = Math.min(
                 SEAT_RETRY_BASE_DELAY_MS * 2 ** (seatAttempts - 1),
@@ -774,6 +810,11 @@ export default function ChessBattleRoyalLobby() {
               setTimeout(async () => {
                 const restored = await ensureSocketConnected();
                 if (!restored) {
+                  if (onlineQueueMode === 'quick') {
+                    setMatchStatus('Matchmaker unavailable. Reconnecting and searching again…');
+                    seatPlayer(tableIdOverride, reconnecting);
+                    return;
+                  }
                   cleanupLobby({ account: trackedAccountId });
                   await refundStakeIfNeeded('socket_retry_failed');
                   setMatchError(
@@ -816,9 +857,12 @@ export default function ChessBattleRoyalLobby() {
               ? resolvePrivateMatchStatus(res.tableId, hostCodeInput)
               : resolveLobbyStatus(res.players, res.ready, seatAccountId)
           );
+          armSearchRefresh();
           cleanupRef.current = () => {
-            clearTimeout(matchTimeout);
+            clearTimeout(matchmakingTimeoutRef.current);
             matchmakingTimeoutRef.current = null;
+            clearInterval(matchmakingCountdownRef.current);
+            matchmakingCountdownRef.current = null;
             cleanupLobby({ account: trackedAccountId, skipRefReset: true });
           };
         }
@@ -1044,6 +1088,11 @@ export default function ChessBattleRoyalLobby() {
             <p className="text-sm text-white/60">
               {matchStatus || 'Syncing with the lobby…'}
             </p>
+            {onlineQueueMode === 'quick' && (
+              <p className="text-center text-xs font-semibold text-cyan-200">
+                Queue refresh in {searchSecondsLeft}s · searching continues automatically
+              </p>
+            )}
             {tableNumber && (
               <p className="text-center text-sm font-semibold text-emerald-300">
                 Table {tableNumber}
