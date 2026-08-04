@@ -1,6 +1,6 @@
 import { khronosThumb } from './storeThumbnails.js';
 
-export const MURLAN_CHARACTER_THEMES = Object.freeze([
+const CHARACTER_THEME_CATALOG = Object.freeze([
   {
     id: 'rpm-current',
     label: 'Current Avatar',
@@ -361,3 +361,22 @@ export const MURLAN_CHARACTER_THEMES = Object.freeze([
     skinTone: 0xc9906e
   }
 ]);
+
+// Murlan Royale intentionally uses the same seven-player roster as Domino
+// Royal. Keep Pool Royale's additional standing/shooter models in the shared
+// catalog without exposing them in Murlan's character picker or AI seats.
+const DOMINO_ROYAL_CHARACTER_IDS = new Set([
+  'rpm-current',
+  'rpm-67d411',
+  'rpm-67f433',
+  'rpm-67e1b5',
+  'webgl-vietnam-human',
+  'webgl-ai-teacher',
+  'webgl-ai-teacher-1'
+]);
+
+export const MURLAN_CHARACTER_THEMES = Object.freeze(
+  CHARACTER_THEME_CATALOG.filter((theme) => DOMINO_ROYAL_CHARACTER_IDS.has(theme.id))
+);
+
+export const POOL_ROYALE_CHARACTER_THEMES = CHARACTER_THEME_CATALOG;

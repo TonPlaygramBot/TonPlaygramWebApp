@@ -1,6 +1,6 @@
 import { POOL_ROYALE_CLOTH_VARIANTS } from './poolRoyaleClothPresets.js';
 import { polyHavenThumb, swatchThumbnail } from './storeThumbnails.js';
-import { MURLAN_CHARACTER_THEMES } from './murlanCharacterThemes.js';
+import { POOL_ROYALE_CHARACTER_THEMES } from './murlanCharacterThemes.js';
 
 const POOL_ROYALE_HDRI_PLACEMENTS = Object.freeze({
   neonPhotostudio: {
@@ -700,7 +700,7 @@ export const POOL_ROYALE_BASE_VARIANTS = Object.freeze([
 
 
 export const POOL_ROYALE_HUMAN_CHARACTER_OPTIONS = Object.freeze(
-  MURLAN_CHARACTER_THEMES.map((theme) => ({
+  POOL_ROYALE_CHARACTER_THEMES.map((theme) => ({
     id: theme.id,
     label: theme.label,
     price: theme.price ?? 0,
