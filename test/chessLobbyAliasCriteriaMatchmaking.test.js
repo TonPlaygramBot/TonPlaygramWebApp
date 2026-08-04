@@ -65,7 +65,8 @@ test(
         maxPlayers: 2,
         mode: 'Online',
         token: 'TPC',
-        preferredSide: 'WHITE'
+        preferredSide: 'WHITE',
+        ready: true
       });
       const secondSeat = await seat(s2, {
         accountId: 'chess-alias-b',
@@ -74,17 +75,26 @@ test(
         maxPlayers: 2,
         mode: 'online',
         token: 'tpc',
-        preferredSide: 'black'
+        preferredSide: 'black',
+        ready: true
       });
 
       assert.equal(firstSeat.success, true);
       assert.equal(secondSeat.success, true);
       assert.equal(secondSeat.tableId, firstSeat.tableId);
+      assert.match(firstSeat.tableNumber, /^CBR-\w{6,}$/);
+      assert.equal(secondSeat.tableNumber, firstSeat.tableNumber);
       assert.equal(secondSeat.players.length, 2);
       assert.deepEqual(
         secondSeat.players.map((player) => player.tpcAccountNumber),
         ['chess-alias-a', 'chess-alias-b']
       );
+      const [gameStartA, gameStartB] = await Promise.all([
+        new Promise((resolve) => s1.once('gameStart', resolve)),
+        new Promise((resolve) => s2.once('gameStart', resolve))
+      ]);
+      assert.equal(gameStartA.tableId, firstSeat.tableId);
+      assert.equal(gameStartB.tableNumber, firstSeat.tableNumber);
     } finally {
       s1.disconnect();
       s2.disconnect();
