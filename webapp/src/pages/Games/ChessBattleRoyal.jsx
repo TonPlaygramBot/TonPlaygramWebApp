@@ -9102,44 +9102,11 @@ function Chess3D({
     const owned = chessInventory?.captureAnimation;
     return (Array.isArray(owned) && owned.find((id) => CHESS_BATTLE_WEAPON_OPTIONS.some((option) => option.id === id))) || 'missileJavelin';
   }, [chessInventory]);
-  const selectedCaptureKind = useMemo(() => {
-    if (FIREARM_CAPTURE_ANIMATION_IDS.has(selectedCaptureAnimationId)) return 'firearm';
-    return GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[selectedCaptureAnimationId] || 'truck';
-  }, [selectedCaptureAnimationId]);
-  const selectedParkedWeaponKind = useMemo(
-    () => getParkedWeaponKindForAnimationId(selectedCaptureAnimationId),
-    [selectedCaptureAnimationId]
-  );
-  const selectedParkedWeaponKindRef = useRef(selectedParkedWeaponKind);
-  useEffect(() => {
-    selectedParkedWeaponKindRef.current = selectedParkedWeaponKind;
-  }, [selectedParkedWeaponKind]);
-  const ownedCaptureAnimations = useMemo(
-    () =>
-      (chessInventory?.captureAnimation || [])
-        .map((optionId) => CHESS_BATTLE_WEAPON_OPTIONS.find((option) => option.id === optionId))
-        .filter(Boolean),
-    [chessInventory]
-  );
-  const QUICK_SWAP_WEAPON_IDS = useMemo(
-    () =>
-      ['droneAttack', 'ukrainianDroneAttack', 'fpsGunAttack', 'missileJavelin'],
-    []
-  );
-  const quickSwapWeapons = useMemo(() => {
-    const ownedById = new Map((ownedCaptureAnimations || []).map((option) => [option.id, option]));
-    const ordered = QUICK_SWAP_WEAPON_IDS.map((id) => ownedById.get(id)).filter(Boolean);
-    const quickIds = new Set(ordered.map((option) => option.id));
-    const remaining = (ownedCaptureAnimations || []).filter((option) => !quickIds.has(option.id));
-    return [...ordered, ...remaining];
-  }, [ownedCaptureAnimations, QUICK_SWAP_WEAPON_IDS]);
   const syncParkedWeaponVisualsRef = useRef(() => {});
   const selectedCaptureAnimationIdRef = useRef(selectedCaptureAnimationId);
   useEffect(() => {
     selectedCaptureAnimationIdRef.current = selectedCaptureAnimationId;
   }, [selectedCaptureAnimationId]);
-  const [weaponSwapOpen, setWeaponSwapOpen] = useState(false);
-  const [weaponSwapTargetKind, setWeaponSwapTargetKind] = useState(null);
   const PIECE_GROUP_BY_PARKED_KIND = useMemo(() => ({
     jet: 'kingQueen',
     helicopter: 'bishopRook',
@@ -9162,52 +9129,6 @@ function Chess3D({
     captureAnimationByPieceGroupRef.current = captureAnimationByPieceGroup;
     syncParkedWeaponVisualsRef.current?.();
   }, [captureAnimationByPieceGroup]);
-  const handleCaptureAnimationSwap = useCallback(
-    (optionId) => {
-      if (!optionId) return;
-      const targetKind = weaponSwapTargetKind;
-      const targetGroup = targetKind ? PIECE_GROUP_BY_PARKED_KIND[targetKind] : null;
-      if (targetGroup) {
-        setCaptureAnimationByPieceGroup((prev) => ({ ...prev, [targetGroup]: optionId }));
-      } else {
-        setCaptureAnimationByPieceGroup({
-          kingQueen: optionId,
-          bishopRook: optionId,
-          knight: optionId,
-          pawn: optionId
-        });
-      }
-      if (optionId !== selectedCaptureAnimationId) {
-        setChessBattleEquippedOption('captureAnimation', optionId, resolvedAccountId);
-      }
-      setWeaponSwapOpen(false);
-      setWeaponSwapTargetKind(null);
-    },
-    [PIECE_GROUP_BY_PARKED_KIND, resolvedAccountId, selectedCaptureAnimationId, weaponSwapTargetKind]
-  );
-  const quickSwapWeaponList = useMemo(() => {
-    const pool = quickSwapWeapons.length ? quickSwapWeapons : ownedCaptureAnimations;
-    if (!weaponSwapTargetKind) return pool;
-
-    // Parked pads (jet / drone / helicopter / truck) can now be swapped with any owned firearm.
-    // On portrait phones, keep the matching vehicle options first so Ukrainian Drone is visible
-    // immediately at the top of the drone quick-swap sheet instead of below the firearm list.
-    if (['jet', 'drone', 'helicopter', 'truck'].includes(weaponSwapTargetKind)) {
-      const matchingVehicles = pool.filter(
-        (option) => !FIREARM_CAPTURE_ANIMATION_IDS.has(option.id) && isCaptureAnimationVisibleOnParkedKind(option.id, weaponSwapTargetKind)
-      );
-      const firearms = pool.filter((option) => FIREARM_CAPTURE_ANIMATION_IDS.has(option.id));
-      const ordered = [...matchingVehicles, ...firearms];
-      if (ordered.length) return ordered;
-    }
-
-    const filtered = pool.filter((option) => {
-      if (FIREARM_CAPTURE_ANIMATION_IDS.has(option.id)) return true;
-      return isCaptureAnimationVisibleOnParkedKind(option.id, weaponSwapTargetKind);
-    });
-    if (filtered.length) return filtered;
-    return pool;
-  }, [ownedCaptureAnimations, quickSwapWeapons, weaponSwapTargetKind]);
   useEffect(() => {
     const handler = (event) => {
       if (!event?.detail?.accountId || event.detail.accountId === resolvedAccountId) {
@@ -13355,12 +13276,11 @@ function Chess3D({
       return 'pawn';
     };
 
-    const resolveCaptureKindForPiece = (pieceType) => {
-      const group = resolvePieceGroupFromType(pieceType);
-      const selectedId = captureAnimationByPieceGroupRef.current?.[group] || selectedCaptureAnimationIdRef.current;
-      if (FIREARM_CAPTURE_ANIMATION_IDS.has(selectedId)) return 'firearm';
-      return GLOBAL_CAPTURE_KIND_BY_ANIMATION_ID[selectedId] || 'truck';
-    };
+    // Battle Royale uses one clear capture identity per player: the near/white side
+    // launches the short missile and the far/black side launches the Shahad drone.
+    // Piece type and inventory weapon selections must not change these identities.
+    const resolveCaptureKindForPlayer = (movingMesh) =>
+      movingMesh?.userData?.w === false ? 'drone' : 'truck';
 
     const playCaptureAnimation = ({
       fromPos,
@@ -13379,7 +13299,7 @@ function Chess3D({
         }
         return timing;
       };
-      const captureKind = resolveCaptureKindForPiece(movingType);
+      const captureKind = resolveCaptureKindForPlayer(movingMesh);
       if (captureKind === 'truck') {
         suppressTimerBeepUntilRef.current = performance.now() + CAPTURE_GROUND_TOTAL * 1000;
         const missileFx = createFxGroundMissile();
@@ -13421,23 +13341,36 @@ function Chess3D({
         const launchBase = getLiveLaunchPosition(fromPos, movingMesh, 0);
         droneFx.root.position.copy(launchBase.clone());
         playAudio(droneSoundRef, { maxDurationMs: CAPTURE_DRONE_ATTACK_TOTAL * 1000 });
+        // Feed the Shahad visual through the very same long-arc strike state used by
+        // the short missile. This guarantees an identical screen-space flight path,
+        // timing, and precise impact point on portrait displays.
         activeCaptureFx.push({
-          type: 'drone',
+          type: 'javelin',
           t: 0,
-          duration: CAPTURE_DRONE_ATTACK_TOTAL,
+          duration: CAPTURE_GROUND_TOTAL,
           from: fromPos.clone(),
           to: targetPos.clone(),
           launchPos: launchBase.clone(),
           movingMesh,
           targetMesh,
-          returnToOrigin: false,
+          launchFromLivePiece: true,
           sourceUnit: null,
-          droneFx,
-          strikeAltitude: CAPTURE_SHAHAD_DRONE_STRIKE_ALTITUDE
+          getLaunchPos: () => getLiveLaunchPosition(fromPos, movingMesh, 0),
+          missileFx: {
+            root: droneFx.root,
+            rotor: droneFx.propeller,
+            trail: droneFx.exhaustClouds
+          },
+          directPath: false,
+          strictPrecision: true,
+          longArc: true,
+          verticalStrike: true,
+          strikeAltitude: CAPTURE_SHORT_MISSILE_STRIKE_ALTITUDE,
+          targetLift: CAPTURE_TRUCK_STRIKE_TARGET_LIFT
         });
         return withAuto3d({
-          moveDelayMs: CAPTURE_DRONE_ATTACK_TOTAL * 1000,
-          captureResolveDelayMs: CAPTURE_DRONE_ATTACK_TOTAL * 1000
+          moveDelayMs: CAPTURE_GROUND_TOTAL * 1000,
+          captureResolveDelayMs: CAPTURE_GROUND_TOTAL * 1000
         });
       }
       if (captureKind === 'ukrainianDrone') {
@@ -15554,18 +15487,6 @@ function Chess3D({
       if (settingsRef.current.moveMode !== 'click') return;
       setPointer(e);
       ray.setFromCamera(pointer, camera);
-      const parkedIntersects = ray.intersectObjects(airPadGroup?.children || [], true);
-      for (const hit of parkedIntersects) {
-        let node = hit.object;
-        while (node) {
-          if (node?.userData?.type === 'parkedWeapon' && node?.userData?.parkedWeaponKind) {
-            setWeaponSwapTargetKind(node.userData.parkedWeaponKind);
-            setWeaponSwapOpen(true);
-            return;
-          }
-          node = node.parent;
-        }
-      }
       const intersects = ray.intersectObjects(boardGroup.children, true);
       let obj = null;
       for (const i of intersects) {
@@ -16937,78 +16858,6 @@ function Chess3D({
               )}
             </div>
           )}
-        </div>
-        <div className="fixed right-3 bottom-[10.4rem] z-50 pointer-events-none">
-          <div className="pointer-events-auto flex flex-col items-start gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setWeaponSwapTargetKind(null);
-                setWeaponSwapOpen((open) => !open);
-              }}
-              aria-expanded={weaponSwapOpen}
-              className="self-end rounded-full border border-sky-300/50 bg-[#071426]/95 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-sky-100 shadow-xl backdrop-blur"
-            >
-              ⚔ Weapon
-            </button>
-            {weaponSwapOpen && (
-              <div className="max-h-[52vh] w-[14rem] overflow-y-auto rounded-2xl border border-white/20 bg-[#060a14]/95 p-2 text-xs shadow-2xl backdrop-blur">
-                <div className="flex items-center justify-between px-2 pb-2">
-                  <p className="text-[10px] uppercase tracking-[0.3em] text-sky-200/80">
-                    Quick Weapon Swap {weaponSwapTargetKind ? `• ${weaponSwapTargetKind}` : ''}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setWeaponSwapOpen(false);
-                      setWeaponSwapTargetKind(null);
-                    }}
-                    className="rounded-md border border-white/20 px-1.5 py-0.5 text-[10px] text-white/75 hover:border-white/40 hover:text-white"
-                  >
-                    ✕
-                  </button>
-                </div>
-                <div className="space-y-2">
-                  {quickSwapWeaponList.map((option) => {
-                    const targetGroup = weaponSwapTargetKind ? PIECE_GROUP_BY_PARKED_KIND[weaponSwapTargetKind] : null;
-                    const activeOptionId = targetGroup
-                      ? captureAnimationByPieceGroup[targetGroup]
-                      : selectedCaptureAnimationId;
-                    const isSelected = option.id === activeOptionId;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => handleCaptureAnimationSwap(option.id)}
-                        className={`flex w-full items-center gap-2 rounded-xl border p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                          isSelected
-                            ? 'border-emerald-300/80 bg-emerald-300/15'
-                            : 'border-white/10 bg-white/5 hover:border-white/30'
-                        }`}
-                      >
-                        {option.thumbnail ? (
-                          <img
-                            src={option.thumbnail}
-                            alt={option.label}
-                            className="h-9 w-9 rounded-md border border-white/20 bg-black/30 object-cover p-[1px]"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <span className="flex h-9 w-9 items-center justify-center rounded-md border border-white/20 bg-white/10 text-base">
-                            🧰
-                          </span>
-                        )}
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[0.68rem] font-semibold text-white">{option.label}</span>
-                          <span className="block truncate text-[0.58rem] text-white/60">{option.description}</span>
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
         </div>
         <div className="absolute top-20 right-4 z-20 flex flex-col items-end gap-3 pointer-events-none">
           <div className="pointer-events-auto flex flex-col items-end gap-3">
