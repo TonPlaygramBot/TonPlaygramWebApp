@@ -23,6 +23,7 @@ import { socket, refreshSocketAuthIdentity } from '../../utils/socket.js';
 import OptionIcon from '../../components/OptionIcon.jsx';
 import { getLobbyIcon } from '../../config/gameAssets.js';
 import GameLobbyHeader from '../../components/GameLobbyHeader.jsx';
+import ChessMultiplayerLobby from './ChessMultiplayerLobby.tsx';
 
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
@@ -966,6 +967,10 @@ export default function ChessBattleRoyalLobby() {
         </div>
 
         {mode === 'online' && (
+          <ChessMultiplayerLobby />
+        )}
+
+        {mode === 'online' && false && (
           <div className="space-y-2 rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
             <div className="flex items-center gap-3">
               <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-yellow-400/40 to-orange-500/40 p-[1px]">
@@ -1093,7 +1098,7 @@ export default function ChessBattleRoyalLobby() {
           </div>
         )}
 
-        <button
+        {mode !== 'online' && <button
           onClick={startGame}
           disabled={matching}
           className="w-full rounded-2xl bg-primary px-4 py-3 text-base font-semibold text-background shadow-[0_16px_30px_rgba(14,165,233,0.35)] transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
@@ -1103,7 +1108,7 @@ export default function ChessBattleRoyalLobby() {
               ? 'Finding Online Match…'
               : 'Find Online Match'
             : 'Play vs AI'}
-        </button>
+        </button>}
 
         <FlagPickerModal
           open={showFlagPicker}
