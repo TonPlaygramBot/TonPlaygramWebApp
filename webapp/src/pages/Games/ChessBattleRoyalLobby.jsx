@@ -305,7 +305,6 @@ export default function ChessBattleRoyalLobby() {
   const [matchError, setMatchError] = useState('');
   const preferredSide = 'auto';
   const pendingTableRef = useRef('');
-  const [tableNumber, setTableNumber] = useState('');
   const lobbyHandlersRef = useRef({
     gameStart: null,
     lobbyUpdate: null,
@@ -523,7 +522,6 @@ export default function ChessBattleRoyalLobby() {
       });
     }
     pendingTableRef.current = '';
-    setTableNumber('');
     setMatching(false);
     setMatchStatus('');
     setMatchPlayers([]);
@@ -638,12 +636,10 @@ export default function ChessBattleRoyalLobby() {
 
     const handleLobbyUpdate = ({
       tableId: tid,
-      tableNumber: updatedTableNumber,
       players: list = [],
       ready = []
     } = {}) => {
       if (!tid || String(tid) !== String(pendingTableRef.current)) return;
-      if (updatedTableNumber) setTableNumber(String(updatedTableNumber));
       const playersList = Array.isArray(list) ? list : [];
       const readyIds = Array.isArray(ready) ? ready.map((id) => String(id)) : [];
       setMatchPlayers(playersList);
@@ -651,11 +647,7 @@ export default function ChessBattleRoyalLobby() {
       setMatchStatus(resolveLobbyStatus(playersList, readyIds, seatAccountId));
     };
 
-    const handleGameStart = ({
-      tableId: startedId,
-      tableNumber: startedTableNumber,
-      players = []
-    } = {}) => {
+    const handleGameStart = ({ tableId: startedId, players = [] } = {}) => {
       if (!startedId || String(startedId) !== String(pendingTableRef.current)) return;
       stakeCharged = false;
       const mySide = resolveChessSide(players, seatAccountId);
@@ -665,7 +657,6 @@ export default function ChessBattleRoyalLobby() {
         tgId,
         trackedAccountId,
         tableId: startedId,
-        tableNumber: startedTableNumber,
         side: mySide,
         opponentName: resolvePlayerName(opp),
         opponentAvatar: opp?.avatar
@@ -751,9 +742,7 @@ export default function ChessBattleRoyalLobby() {
           playerName: friendlyName,
           avatar,
           preferredSide,
-          token: stake.token,
-          // Seat and ready are atomic so a reconnect cannot lose confirmReady.
-          ready: true
+          token: stake.token
         },
         async (res) => {
           if (!res?.success || !res.tableId) {
@@ -807,7 +796,6 @@ export default function ChessBattleRoyalLobby() {
             return;
           }
           pendingTableRef.current = res.tableId;
-          setTableNumber(String(res.tableNumber || ''));
           setMatchPlayers(Array.isArray(res.players) ? res.players : []);
           setReadyList(
             Array.isArray(res.ready) ? res.ready.map((id) => String(id)) : []
@@ -817,6 +805,12 @@ export default function ChessBattleRoyalLobby() {
               ? resolvePrivateMatchStatus(res.tableId, hostCodeInput)
               : resolveLobbyStatus(res.players, res.ready, seatAccountId)
           );
+          socket.emit('confirmReady', {
+            accountId: seatAccountId,
+            tpcAccountNumber: seatAccountId,
+            tpcAccountId: seatAccountId,
+            tableId: res.tableId
+          });
           cleanupRef.current = () => {
             clearTimeout(matchTimeout);
             matchmakingTimeoutRef.current = null;
@@ -1041,11 +1035,6 @@ export default function ChessBattleRoyalLobby() {
             <p className="text-sm text-white/60">
               {matchStatus || 'Syncing with the lobby…'}
             </p>
-            {tableNumber && (
-              <p className="text-center text-sm font-semibold text-emerald-300">
-                Table {tableNumber}
-              </p>
-            )}
             <div className="lobby-tile w-full flex items-center justify-between">
               <span>🎯 {spinningPlayer || 'Searching…'}</span>
               <span className="text-xs text-white/60">
