@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import RoomSelector from './RoomSelector.jsx';
 import GiftPopup from './GiftPopup.jsx';
 import GiftIcon from './GiftIcon.jsx';
-import { FaCircle, FaDesktop, FaTimes, FaTv } from 'react-icons/fa';
+import { FaCircle, FaDesktop, FaPhone, FaTimes, FaTv, FaUserPlus, FaVideo } from 'react-icons/fa';
 import { getAccountInfo, getSnakeResults, getWatchCount } from '../utils/api.js';
 import { NFT_GIFTS } from '../utils/nftGifts.js';
 import gamesCatalog from '../config/gamesCatalog.js';
@@ -30,6 +30,9 @@ export default function PlayerInvitePopup({
   onInvite,
   onClose,
   onlineStatus,
+  friendship = 'none',
+  onAddFriend,
+  onCall,
 }) {
   const [info, setInfo] = useState(null);
   const [records, setRecords] = useState([]);
@@ -226,6 +229,14 @@ export default function PlayerInvitePopup({
             tokens={['TPC']}
           />
           <div className="flex justify-center gap-2">
+            {friendship === 'friend' ? <>
+              <button onClick={() => onCall?.('voice')} className="px-3 py-2 bg-emerald-600 rounded text-white" aria-label={`Voice call ${name}`}><FaPhone /></button>
+              <button onClick={() => onCall?.('video')} className="px-3 py-2 bg-cyan-600 rounded text-white" aria-label={`Video call ${name}`}><FaVideo /></button>
+            </> : (
+              <button onClick={onAddFriend} disabled={friendship === 'pending'} className="inline-flex items-center gap-1 px-2 py-1 bg-cyan-700 rounded text-white text-sm disabled:opacity-60">
+                <FaUserPlus /> {friendship === 'pending' ? 'Request sent' : 'Add friend'}
+              </button>
+            )}
             <button
               onClick={() => onInvite(game)}
               className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-white-shadow text-sm"

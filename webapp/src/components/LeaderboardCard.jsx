@@ -10,6 +10,8 @@ import {
   getProfile,
   getWatchCount,
   pingOnline,
+  listFriends,
+  sendFriendRequest,
 } from '../utils/api.js';
 import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 import { socket } from '../utils/socket.js';
@@ -59,6 +61,8 @@ export default function LeaderboardCard() {
   const [selected, setSelected] = useState([]);
   const [groupPopup, setGroupPopup] = useState(false);
   const [watchFrame, setWatchFrame] = useState(null);
+  const [friendIds, setFriendIds] = useState(new Set());
+  const [pendingFriendIds, setPendingFriendIds] = useState(new Set());
 
   const openWatchFrame = (tableId) => {
     if (!tableId) return;
@@ -69,6 +73,13 @@ export default function LeaderboardCard() {
       url: `/games/${game}?table=${tableId}&watch=1`,
     });
   };
+
+  useEffect(() => {
+    if (!telegramId) return;
+    listFriends(telegramId).then((friends) => {
+      setFriendIds(new Set((friends || []).map((friend) => String(friend.telegramId))));
+    }).catch(() => {});
+  }, [telegramId]);
 
   useEffect(() => {
     const saved = loadAvatar();
@@ -492,6 +503,26 @@ export default function LeaderboardCard() {
         onlineStatus={inviteTarget ? onlineUsers[String(inviteTarget.accountId)] : 'offline'}
         stake={stake}
         onStakeChange={setStake}
+        friendship={inviteTarget && friendIds.has(String(inviteTarget.telegramId)) ? 'friend' : inviteTarget && pendingFriendIds.has(String(inviteTarget.telegramId)) ? 'pending' : 'none'}
+        onAddFriend={async () => {
+          if (!inviteTarget?.telegramId) return;
+          await sendFriendRequest(telegramId, inviteTarget.telegramId);
+          setPendingFriendIds((current) => new Set(current).add(String(inviteTarget.telegramId)));
+        }}
+        onCall={(type) => {
+          if (!inviteTarget) return;
+          socket.emit('friendCall:invite', {
+            toAccountId: inviteTarget.accountId,
+            fromTelegramId: telegramId,
+            toTelegramId: inviteTarget.telegramId,
+            fromName: myName,
+            type
+          }, (response) => {
+            if (!response?.success) return alert(response?.error || 'Unable to start call');
+            window.dispatchEvent(new CustomEvent('friend-call:start', { detail: { ...response.call, name: inviteTarget.nickname || inviteTarget.firstName, photo: inviteTarget.photo || inviteTarget.photoUrl } }));
+            setInviteTarget(null);
+          });
+        }}
         onInvite={(game) => {
           if (inviteTarget) {
             const roomId = `invite-${accountId}-${inviteTarget.accountId}-${Date.now()}-2`;

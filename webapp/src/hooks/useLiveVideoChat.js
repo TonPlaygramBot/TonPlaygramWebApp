@@ -10,7 +10,7 @@ const RTC_CONFIG = {
 
 const EMPTY_MEDIA_STATE = Object.freeze({ microphone: true, camera: true });
 
-export default function useLiveVideoChat({ roomId, displayName, enabled }) {
+export default function useLiveVideoChat({ roomId, displayName, enabled, video = true }) {
   const [isConnected, setIsConnected] = useState(false);
   const [remotePeers, setRemotePeers] = useState([]);
   const [mediaState, setMediaState] = useState(EMPTY_MEDIA_STATE);
@@ -133,11 +133,11 @@ export default function useLiveVideoChat({ roomId, displayName, enabled }) {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: true,
-        video: {
+        video: video ? {
           width: { ideal: 640 },
           height: { ideal: 360 },
           facingMode: 'user'
-        }
+        } : false
       });
 
       localStreamRef.current = stream;
@@ -151,7 +151,7 @@ export default function useLiveVideoChat({ roomId, displayName, enabled }) {
         roomId: safeRoomId,
         participant: {
           displayName: displayName || 'Player',
-          mediaState: { microphone: true, camera: true }
+          mediaState: { microphone: true, camera: video }
         }
       });
       setIsConnected(true);
@@ -160,7 +160,7 @@ export default function useLiveVideoChat({ roomId, displayName, enabled }) {
       setError(message);
       console.error('live chat media init failed', mediaError);
     }
-  }, [displayName, enabled, isConnected, safeRoomId]);
+  }, [displayName, enabled, isConnected, safeRoomId, video]);
 
   const toggleTrack = useCallback((kind) => {
     const stream = localStreamRef.current;

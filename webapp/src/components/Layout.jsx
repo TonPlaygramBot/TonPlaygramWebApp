@@ -8,6 +8,7 @@ import { isGameMuted, getGameVolume } from '../utils/sound.js';
 import { chatBeep as inviteBeep } from '../assets/coreSoundData.js';
 import usePwaInstallPrompt from '../hooks/usePwaInstallPrompt.js';
 import InvitePopup from './InvitePopup.jsx';
+import FriendCallOverlay from './FriendCallOverlay.jsx';
 
 import Navbar from './Navbar.jsx';
 
@@ -23,6 +24,8 @@ export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [invite, setInvite] = useState(null);
+  const [incomingCall, setIncomingCall] = useState(null);
+  const [activeCall, setActiveCall] = useState(null);
   const inviteSoundRef = useRef(null);
   const {
     canInstall,
@@ -33,6 +36,22 @@ export default function Layout({ children }) {
     dismiss
   } = usePwaInstallPrompt();
   const { isUpdating } = useAppUpdate();
+
+  useEffect(() => {
+    const onIncomingCall = (call) => setIncomingCall(call);
+    const onStartCall = (event) => setActiveCall(event.detail);
+    const onEnded = ({ roomId } = {}) => {
+      if (!roomId || activeCall?.roomId === roomId) setActiveCall(null);
+    };
+    socket.on('friendCall:incoming', onIncomingCall);
+    socket.on('friendCall:ended', onEnded);
+    window.addEventListener('friend-call:start', onStartCall);
+    return () => {
+      socket.off('friendCall:incoming', onIncomingCall);
+      socket.off('friendCall:ended', onEnded);
+      window.removeEventListener('friend-call:start', onStartCall);
+    };
+  }, [activeCall?.roomId]);
 
   useEffect(() => {
     inviteSoundRef.current = new Audio(inviteBeep);
@@ -203,6 +222,20 @@ export default function Layout({ children }) {
         }}
         onReject={() => setInvite(null)}
       />
+
+      {incomingCall && !activeCall && (
+        <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/70 p-4 pb-24">
+          <div className="w-full max-w-sm rounded-3xl border border-white/15 bg-[#101b2a] p-6 text-center shadow-2xl">
+            <p className="text-xs uppercase tracking-widest text-cyan-300">Incoming {incomingCall.type} call</p>
+            <h2 className="mt-2 text-xl font-bold">{incomingCall.fromName || 'Friend'}</h2>
+            <div className="mt-6 flex justify-center gap-4">
+              <button onClick={() => { socket.emit('friendCall:reject', incomingCall); setIncomingCall(null); }} className="rounded-full bg-red-600 px-6 py-3 font-semibold">Decline</button>
+              <button onClick={() => { socket.emit('friendCall:accept', incomingCall); setActiveCall({ ...incomingCall, name: incomingCall.fromName }); setIncomingCall(null); }} className="rounded-full bg-emerald-600 px-6 py-3 font-semibold">Accept</button>
+            </div>
+          </div>
+        </div>
+      )}
+      <FriendCallOverlay call={activeCall} displayName="TonPlaygram player" onEnd={() => { socket.emit('friendCall:end', activeCall); setActiveCall(null); }} />
 
       <PwaInstallBanner
         mode={showPwaBanner ? mode : 'none'}
