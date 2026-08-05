@@ -5,7 +5,7 @@ import { socket } from '../../utils/socket.js';
 
 const INLINE_STYLE_ID = 'domino-royal-inline-style';
 const GAME_SCRIPT_SELECTOR = 'script[data-domino-royal-script="true"]';
-const DOMINO_ROYAL_SCRIPT_VERSION = '2026-08-03-authoritative-online-v67';
+const DOMINO_ROYAL_SCRIPT_VERSION = '2026-08-05-online-seat-wait-v68';
 const DOMINO_CHARACTER_PRECONNECT_URLS = Object.freeze([
   'https://threejs.org',
   'https://models.readyplayer.me',
