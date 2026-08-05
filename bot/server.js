@@ -2065,6 +2065,20 @@ function removeSocketFromLiveChat(socket) {
 }
 
 io.on('connection', (socket) => {
+  const authAccountId = resolveTpcIdentity(socket.handshake?.auth || {});
+  if (authAccountId) {
+    let set = userSockets.get(String(authAccountId));
+    if (!set) {
+      set = new Set();
+      userSockets.set(String(authAccountId), set);
+    }
+    set.add(socket.id);
+    socket.data.playerId = String(authAccountId);
+    registerConnection({ userId: String(authAccountId), socketId: socket.id }).catch((err) => {
+      console.error('registerConnection auth failed', err);
+    });
+  }
+
   socket.on('register', async (payload = {}, cb) => {
     const resolvedPlayerId = resolveTpcIdentity(payload);
     if (!resolvedPlayerId) {
@@ -2934,19 +2948,20 @@ io.on('connection', (socket) => {
       return cb?.({ success: false, error: 'Invalid call details' });
     }
     try {
-      const caller = await User.findOne({ telegramId: fromTelegramId }).select('friends accountId');
-      if (!caller || String(caller.accountId) !== fromAccountId || !caller.friends.map(String).includes(String(toTelegramId))) {
-        return cb?.({ success: false, error: 'Calls are available between friends only' });
-      }
-      const target = await User.findOne({ telegramId: toTelegramId, accountId: toAccountId }).select('_id');
-      if (!target) return cb?.({ success: false, error: 'Friend not found' });
+      const caller = await User.findOne({ telegramId: fromTelegramId, accountId: fromAccountId }).select('accountId nickname firstName lastName photo');
+      if (!caller) return cb?.({ success: false, error: 'Caller account not found' });
+      const target = await User.findOne({ telegramId: toTelegramId, accountId: toAccountId }).select('_id accountId nickname firstName lastName photo');
+      if (!target) return cb?.({ success: false, error: 'User not found' });
       const targets = userSockets.get(toAccountId);
-      if (!targets?.size) return cb?.({ success: false, error: 'Friend is offline' });
+      if (!targets?.size) return cb?.({ success: false, error: 'User is offline' });
       const call = {
         roomId: `friend-call-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
         fromAccountId,
         toAccountId,
-        fromName: String(payload.fromName || 'Friend').slice(0, 60),
+        fromName: String(payload.fromName || caller.nickname || caller.firstName || 'TonPlaygram player').slice(0, 60),
+        toName: String(target.nickname || target.firstName || 'TonPlaygram player').slice(0, 60),
+        fromPhoto: caller.photo || '',
+        toPhoto: target.photo || '',
         type
       };
       for (const sid of targets) io.to(sid).emit('friendCall:incoming', call);
