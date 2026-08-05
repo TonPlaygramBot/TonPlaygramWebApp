@@ -15,7 +15,7 @@ const DOMINO_ONLINE_MODE = (urlParams.get('mode') || '').toLowerCase() === 'onli
 const DOMINO_ONLINE_TABLE_ID = urlParams.get('tableId') || urlParams.get('table') || '';
 const DOMINO_ONLINE_ACCOUNT_ID = urlParams.get('accountId') || '';
 const DOMINO_ONLINE_SOCKET = typeof window !== 'undefined' ? window.__DOMINO_ROYAL_SOCKET__ : null;
-const DOMINO_ONLINE_MATCH = (() => {
+let DOMINO_ONLINE_MATCH = (() => {
   if (typeof window === 'undefined') return null;
   try {
     const raw = window.sessionStorage?.getItem('dominoRoyalOnlineMatch');
@@ -10991,6 +10991,7 @@ function persistDominoOnlineMatch(update = {}) {
       'dominoRoyalOnlineMatch',
       JSON.stringify({ ...(DOMINO_ONLINE_MATCH || {}), ...update })
     );
+    DOMINO_ONLINE_MATCH = { ...(DOMINO_ONLINE_MATCH || {}), ...update };
   } catch {}
 }
 
@@ -11044,7 +11045,7 @@ function connectDominoOnlineTable() {
     }
     if (!dominoOnlineHasState && human === 0) {
       startGame();
-      emitDominoOnlineState('start');
+      emitDominoOnlineState('initial');
     }
     setControlEnabled(true);
     setStatus('Opponent found. Match started.');
@@ -11072,6 +11073,7 @@ async function bootstrapDominoRoyal() {
     if (DOMINO_ONLINE_MODE) {
       connectDominoOnlineTable();
       if (DOMINO_ONLINE_MATCH?.waiting) {
+        N = Math.max(2, Math.min(4, Number(DOMINO_ONLINE_MATCH?.maxPlayers) || N || 2));
         players = Array.from({ length: N }, (_, i) => ({ id: i, hand: [] }));
         refreshSeatAvatars();
         rebuildDominoCharactersForChairs();
@@ -11090,7 +11092,7 @@ async function bootstrapDominoRoyal() {
         renderHands();
         renderChain();
         setStatus('Waiting for host sync…');
-        setControlEnabled(true);
+        setControlEnabled(false);
       }
     } else {
       startGame();
