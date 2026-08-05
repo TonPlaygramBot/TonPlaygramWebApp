@@ -28,6 +28,9 @@ let dominoOnlineStateSeq = 0;
 let dominoApplyingRemoteState = false;
 let dominoOnlineHasState = false;
 let dominoOnlineStateHandler = null;
+let dominoOnlineGameStartHandler = null;
+let dominoOnlineMatchTimeoutHandler = null;
+let dominoOnlineWaitingTimer = null;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
 const FRAME_RATE_STORAGE_KEY = 'dominoRoyalFrameRate';
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
@@ -10963,6 +10966,12 @@ function applyDominoOnlineState(remoteState = {}) {
   raceRoundNumber = Number(remoteState.raceRoundNumber) || raceRoundNumber;
   lastHandWinnerIndex = Number.isInteger(remoteState.lastHandWinnerIndex) ? remoteState.lastHandWinnerIndex : null;
   dominoOnlineHasState = true;
+  if (dominoOnlineWaitingTimer) {
+    clearInterval(dominoOnlineWaitingTimer);
+    dominoOnlineWaitingTimer = null;
+  }
+  persistDominoOnlineMatch({ waiting: false, startedAt: Date.now() });
+  setControlEnabled(true);
   refreshSeatAvatars();
   rebuildDominoCharactersForChairs();
   renderBoneyardStack();
@@ -10973,6 +10982,28 @@ function applyDominoOnlineState(remoteState = {}) {
     showWinnerOverlay({ winner: winnerIndex, reason: winnerIndex === human ? 'You won!' : 'Online match finished' });
   }
   dominoApplyingRemoteState = false;
+}
+
+function persistDominoOnlineMatch(update = {}) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.sessionStorage?.setItem(
+      'dominoRoyalOnlineMatch',
+      JSON.stringify({ ...(DOMINO_ONLINE_MATCH || {}), ...update })
+    );
+  } catch {}
+}
+
+function updateDominoOnlineWaitingStatus() {
+  if (!DOMINO_ONLINE_MODE || !DOMINO_ONLINE_MATCH?.waiting) return;
+  const queuedAt = Number(DOMINO_ONLINE_MATCH.queuedAt) || Date.now();
+  const timeoutMs = Number(DOMINO_ONLINE_MATCH.timeoutMs) || 120000;
+  const remaining = Math.max(0, Math.ceil((queuedAt + timeoutMs - Date.now()) / 1000));
+  setStatus(`You are seated. Waiting for opponent… ${remaining}s`);
+  if (remaining <= 0 && dominoOnlineWaitingTimer) {
+    clearInterval(dominoOnlineWaitingTimer);
+    dominoOnlineWaitingTimer = null;
+  }
 }
 
 function connectDominoOnlineTable() {
@@ -10996,6 +11027,40 @@ function connectDominoOnlineTable() {
     applyDominoOnlineState(state);
   };
   DOMINO_ONLINE_SOCKET.on('dominoRoyalState', dominoOnlineStateHandler);
+  if (dominoOnlineGameStartHandler) {
+    DOMINO_ONLINE_SOCKET.off?.('gameStart', dominoOnlineGameStartHandler);
+  }
+  dominoOnlineGameStartHandler = ({ tableId, tableNumber, players: roster = [], meta = {} } = {}) => {
+    if (tableId !== DOMINO_ONLINE_TABLE_ID) return;
+    const onlineSeatIndex = Array.isArray(roster)
+      ? roster.findIndex((player) => String(player?.id || '') === String(DOMINO_ONLINE_ACCOUNT_ID || DOMINO_ONLINE_MATCH?.accountId || ''))
+      : -1;
+    if (onlineSeatIndex >= 0) human = onlineSeatIndex;
+    if (Array.isArray(roster) && roster.length >= 2 && roster.length <= 4) N = roster.length;
+    persistDominoOnlineMatch({ tableId, tableNumber: tableNumber || '', players: roster, meta, waiting: false, startedAt: Date.now() });
+    if (dominoOnlineWaitingTimer) {
+      clearInterval(dominoOnlineWaitingTimer);
+      dominoOnlineWaitingTimer = null;
+    }
+    if (!dominoOnlineHasState && human === 0) {
+      startGame();
+      emitDominoOnlineState('start');
+    }
+    setControlEnabled(true);
+    setStatus('Opponent found. Match started.');
+  };
+  DOMINO_ONLINE_SOCKET.on('gameStart', dominoOnlineGameStartHandler);
+  if (dominoOnlineMatchTimeoutHandler) {
+    DOMINO_ONLINE_SOCKET.off?.('dominoRoyalMatchTimeout', dominoOnlineMatchTimeoutHandler);
+  }
+  dominoOnlineMatchTimeoutHandler = ({ tableId } = {}) => {
+    if (tableId !== DOMINO_ONLINE_TABLE_ID) return;
+    if (dominoOnlineWaitingTimer) clearInterval(dominoOnlineWaitingTimer);
+    dominoOnlineWaitingTimer = null;
+    setControlEnabled(false);
+    setStatus('No opponent found in 120 seconds. Please return to the lobby and start again.');
+  };
+  DOMINO_ONLINE_SOCKET.on('dominoRoyalMatchTimeout', dominoOnlineMatchTimeoutHandler);
   DOMINO_ONLINE_SOCKET.off?.('connect', joinAndSync);
   DOMINO_ONLINE_SOCKET.on('connect', joinAndSync);
   window.__dominoRoyalOnlineReconnectHandler = joinAndSync;
@@ -11006,7 +11071,16 @@ async function bootstrapDominoRoyal() {
     await loadHumanProfileFromApi();
     if (DOMINO_ONLINE_MODE) {
       connectDominoOnlineTable();
-      if (human === 0) {
+      if (DOMINO_ONLINE_MATCH?.waiting) {
+        players = Array.from({ length: N }, (_, i) => ({ id: i, hand: [] }));
+        refreshSeatAvatars();
+        rebuildDominoCharactersForChairs();
+        renderHands();
+        renderChain();
+        updateDominoOnlineWaitingStatus();
+        dominoOnlineWaitingTimer = setInterval(updateDominoOnlineWaitingStatus, 1000);
+        setControlEnabled(false);
+      } else if (human === 0) {
         startGame();
         setControlEnabled(true);
       } else {
@@ -12067,9 +12141,21 @@ function shutdownDominoRoyal(reason = 'unknown') {
   } catch (error) {
     console.warn('Domino Royal shutdown failed', reason, error);
   }
+  if (dominoOnlineWaitingTimer) {
+    clearInterval(dominoOnlineWaitingTimer);
+    dominoOnlineWaitingTimer = null;
+  }
   if (DOMINO_ONLINE_SOCKET && dominoOnlineStateHandler) {
     DOMINO_ONLINE_SOCKET.off?.('dominoRoyalState', dominoOnlineStateHandler);
     dominoOnlineStateHandler = null;
+  }
+  if (DOMINO_ONLINE_SOCKET && dominoOnlineGameStartHandler) {
+    DOMINO_ONLINE_SOCKET.off?.('gameStart', dominoOnlineGameStartHandler);
+    dominoOnlineGameStartHandler = null;
+  }
+  if (DOMINO_ONLINE_SOCKET && dominoOnlineMatchTimeoutHandler) {
+    DOMINO_ONLINE_SOCKET.off?.('dominoRoyalMatchTimeout', dominoOnlineMatchTimeoutHandler);
+    dominoOnlineMatchTimeoutHandler = null;
   }
   if (DOMINO_ONLINE_SOCKET && window.__dominoRoyalOnlineReconnectHandler) {
     DOMINO_ONLINE_SOCKET.off?.('connect', window.__dominoRoyalOnlineReconnectHandler);

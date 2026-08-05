@@ -1,5 +1,6 @@
 const DEFAULT_CONNECT_TIMEOUT_MS = 15000
 const DEFAULT_ACK_TIMEOUT_MS = 6000
+export const DOMINO_ROYAL_MATCH_TIMEOUT_MS = 120000
 
 function waitForSocketConnection (socket, timeoutMs = DEFAULT_CONNECT_TIMEOUT_MS) {
   if (socket?.connected) return Promise.resolve(true)

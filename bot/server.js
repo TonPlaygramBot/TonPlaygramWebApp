@@ -510,6 +510,7 @@ function createChessTableNumber() {
 const lastActionBySocket = new Map();
 const rollRateLimitMs = Number(process.env.SOCKET_ROLL_COOLDOWN_MS) || 800;
 const seatTableRateLimitMs = Number(process.env.SEAT_TABLE_RATE_LIMIT_MS) || 500;
+const dominoRoyalMatchTimeoutMs = Number(process.env.DOMINO_ROYAL_MATCH_TIMEOUT_MS) || 120000;
 const lobbySeatTtlMs = Number(process.env.LOBBY_SEAT_TTL_MS) || 120_000;
 const checkersMoveRateLimitMs =
   Number(process.env.CHECKERS_MOVE_RATE_LIMIT_MS) || 120;
@@ -690,7 +691,8 @@ function createLobbyTable({
     players: [],
     currentTurn: null,
     ready: new Set(),
-    meta
+    meta,
+    matchTimeout: null
   };
   if (gameType === 'domino-royal' && table.tableNumber) {
     dominoRoyalTableNumbers.add(table.tableNumber);
@@ -1350,6 +1352,21 @@ async function seatTableSocket(
   }
   console.log(`Player ${playerName || accountId} joined table ${tableId}`);
   socket?.join(tableId);
+  if (table.gameType === 'domino-royal' && table.players.length === 1 && !table.matchTimeout) {
+    table.matchTimeout = setTimeout(() => {
+      table.matchTimeout = null;
+      const currentTable = tableMap.get(table.id);
+      if (!currentTable || currentTable.players.length >= currentTable.maxPlayers) return;
+      io.to(table.id).emit('dominoRoyalMatchTimeout', {
+        tableId: table.id,
+        tableNumber: table.tableNumber,
+        timeoutMs: dominoRoyalMatchTimeoutMs
+      });
+      for (const player of [...currentTable.players]) {
+        unseatTableSocket(player.id, table.id, player.socketId);
+      }
+    }, dominoRoyalMatchTimeoutMs);
+  }
   table.ready.delete(String(accountId));
   if (!table.meta) {
     table.meta = normalizeMatchMeta(matchMeta);
@@ -1383,6 +1400,10 @@ function maybeStartGame(table) {
         return;
       }
       console.log(`Table ${table.id} confirmed by all players. Starting game.`);
+      if (table.matchTimeout) {
+        clearTimeout(table.matchTimeout);
+        table.matchTimeout = null;
+      }
       if (table.gameType === 'poolroyale') {
         const randomStarter = table.players[Math.floor(Math.random() * table.players.length)];
         if (randomStarter) table.currentTurn = randomStarter.id;
@@ -1473,6 +1494,10 @@ function unseatTableSocket(accountId, tableId, socketId) {
         checkersMatchSessions.delete(tableId);
       }
       if (table.gameType === 'domino-royal') {
+        if (table.matchTimeout) {
+          clearTimeout(table.matchTimeout);
+          table.matchTimeout = null;
+        }
         dominoRoyalStates.delete(tableId);
         if (table.tableNumber) dominoRoyalTableNumbers.delete(table.tableNumber);
       }

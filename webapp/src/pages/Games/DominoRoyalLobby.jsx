@@ -18,7 +18,7 @@ import { getLobbyIcon } from '../../config/gameAssets.js';
 import GameLobbyHeader from '../../components/GameLobbyHeader.jsx';
 import { refreshSocketAuthIdentity, socket } from '../../utils/socket.js';
 import { getOnlineReadiness } from '../../config/onlineContract.js';
-import { joinDominoRoyalLobby } from './dominoRoyalMatchmaking.js';
+import { DOMINO_ROYAL_MATCH_TIMEOUT_MS, joinDominoRoyalLobby } from './dominoRoyalMatchmaking.js';
 
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
@@ -213,7 +213,7 @@ export default function DominoRoyalLobby() {
         criteria: {
           gameType: 'domino-royal',
           stake: Number(stake.amount) || 0,
-          maxPlayers: totalPlayers,
+          maxPlayers: 2,
           playerName: getTelegramUsername() || 'Player',
           avatar,
           mode: 'online',
@@ -237,7 +237,30 @@ export default function DominoRoyalLobby() {
       queuedTableIdRef.current = res.tableId;
       setQueuedTableId(res.tableId);
       const seated = Array.isArray(res.players) ? res.players.length : 1;
-      setQueueStatus(`Table ${res.tableNumber || res.tableId.slice(0, 8)} • ${seated}/${totalPlayers} players ready`);
+      setQueueStatus(`Table ${res.tableNumber || res.tableId.slice(0, 8)} • seat ${seated}/2 ready • waiting up to 120s for opponent`);
+      try {
+        window.sessionStorage?.setItem(
+          'dominoRoyalOnlineMatch',
+          JSON.stringify({
+            tableId: res.tableId,
+            tableNumber: res.tableNumber || '',
+            accountId,
+            players: Array.isArray(res.players) ? res.players : [],
+            meta: res.meta || {},
+            waiting: true,
+            queuedAt: Date.now(),
+            timeoutMs: DOMINO_ROYAL_MATCH_TIMEOUT_MS
+          })
+        );
+      } catch {}
+      launchGame({
+        accountId,
+        tgId,
+        tableId: res.tableId,
+        token: stake.token,
+        amount: stake.amount,
+        flagOverride: flags
+      });
       return;
     }
 
@@ -257,7 +280,7 @@ export default function DominoRoyalLobby() {
     const handleLobbyUpdate = ({ tableId, tableNumber, players: lobbyPlayers = [], ready = [] } = {}) => {
       if (!tableId || tableId !== queuedTableIdRef.current) return;
       setQueueStatus(
-        `Table ${tableNumber || String(tableId).slice(0, 8)} • ${lobbyPlayers.length}/${totalPlayers} players connected • ${ready.length}/${totalPlayers} ready`
+        `Table ${tableNumber || String(tableId).slice(0, 8)} • ${lobbyPlayers.length}/2 players connected • ${ready.length}/2 ready`
       );
     };
 
