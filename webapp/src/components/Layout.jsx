@@ -120,6 +120,8 @@ export default function Layout({ children }) {
     let id;
     try {
       const playerId = getPlayerId();
+      if (!socket.connected) socket.connect();
+      socket.emit('register', { playerId, tpcAccountNumber: playerId });
       function ping() {
         const status = localStorage.getItem('onlineStatus') || 'online';
         pingOnline(playerId, status).catch(() => {});
