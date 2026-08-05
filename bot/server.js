@@ -45,6 +45,7 @@ import PostRecord from './models/PostRecord.js';
 import Task from './models/Task.js';
 import WatchRecord from './models/WatchRecord.js';
 import ActiveConnection from './models/ActiveConnection.js';
+import ChessMatch from './models/ChessMatch.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync, readFileSync } from 'fs';
@@ -78,6 +79,8 @@ import { applyAuthoritativeMove, SIDES } from './utils/checkersAuthoritativeEngi
 validateEnv();
 
 const CHESS_START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1';
+const CHESS_HOUSE_FEE_BPS = Math.max(0, Math.min(10_000, Number(process.env.CHESS_HOUSE_FEE_BPS) || 500));
+const CHESS_HOUSE_ACCOUNT = String(process.env.CHESS_HOUSE_ACCOUNT || process.env.HOUSE_TPC_ACCOUNT || '').trim();
 const chessGames = new Map();
 const checkersRealtimeStore = createCheckersRealtimeStore();
 const checkersMatchSessions = new Map();
@@ -1384,6 +1387,141 @@ async function seatTableSocket(
   return table;
 }
 
+
+async function reserveChessStakeContract(table) {
+  if (!table || table.gameType !== 'chess') return { ok: true };
+  if (table.matchId) return { ok: true, matchId: table.matchId };
+  const accounts = table.players.map((player) => String(player.tpcAccountNumber || player.id || '')).filter(Boolean);
+  const stake = Number(table.stake || 0);
+  if (accounts.length !== 2 || new Set(accounts).size !== 2 || !Number.isSafeInteger(stake) || stake <= 0) {
+    return { ok: false, error: 'invalid_chess_stake_contract' };
+  }
+  const session = await mongoose.startSession();
+  try {
+    let matchId = '';
+    await session.withTransaction(async () => {
+      const active = await ChessMatch.findOne({
+        status: { $in: ['reserved', 'playing'] },
+        $or: [
+          { player1TpcAccountId: { $in: accounts } },
+          { player2TpcAccountId: { $in: accounts } }
+        ]
+      }).session(session);
+      if (active) throw new Error('account_already_in_active_match');
+      const users = await User.find({
+        $or: [
+          { tpcAccountNumber: { $in: accounts } },
+          { accountId: { $in: accounts } }
+        ],
+        balance: { $gte: stake },
+        isBanned: { $ne: true }
+      }).session(session);
+      const byAccount = new Map(users.flatMap((user) => [String(user.tpcAccountNumber || ''), String(user.accountId || '')].filter(Boolean).map((id) => [id, user])));
+      if (accounts.some((account) => !byAccount.has(account))) throw new Error('insufficient_balance_or_account_missing');
+      matchId = randomUUID();
+      const transactionIds = accounts.map((account) => `chess:${matchId}:reserve:${account}`);
+      for (const [index, account] of accounts.entries()) {
+        const user = byAccount.get(account);
+        user.balance = Number(user.balance || 0) - stake;
+        user.currentTableId = table.tableNumber || table.id;
+        user.transactions.push({
+          transactionId: transactionIds[index],
+          amount: -stake,
+          type: 'stake_reserve',
+          token: 'TPC',
+          status: 'reserved',
+          game: 'chessbattle',
+          players: 2,
+          detail: matchId
+        });
+        await user.save({ session });
+      }
+      await ChessMatch.create([{
+        tableNumber: table.tableNumber || table.id,
+        internalMatchId: matchId,
+        roomId: table.id,
+        player1TpcAccountId: accounts[0],
+        player2TpcAccountId: accounts[1],
+        stakePerPlayer: stake,
+        totalLockedStake: stake * 2,
+        stakeTransactionIds: transactionIds,
+        status: 'playing',
+        startedAt: new Date()
+      }], { session });
+    });
+    table.matchId = matchId;
+    return { ok: true, matchId };
+  } catch (error) {
+    return { ok: false, error: error.message || 'stake_contract_failed' };
+  } finally {
+    await session.endSession();
+  }
+}
+
+async function settleChessStakeContract(tableId, result = {}) {
+  const winnerSide = result.winner === 'white' || result.winner === 'black' ? result.winner : null;
+  const isDraw = result.draw || !winnerSide;
+  const table = tableMap.get(tableId);
+  const session = await mongoose.startSession();
+  try {
+    let settlement = null;
+    await session.withTransaction(async () => {
+      const match = await ChessMatch.findOne({ roomId: tableId }).session(session);
+      if (!match) throw new Error('match_not_found');
+      if (['finished', 'draw', 'refunded'].includes(match.status)) {
+        settlement = { status: match.status, matchId: match.internalMatchId };
+        return;
+      }
+      if (match.status !== 'playing') throw new Error('match_not_playing');
+      const accounts = [match.player1TpcAccountId, match.player2TpcAccountId];
+      if (isDraw) {
+        for (const account of accounts) {
+          const transactionId = `chess:${match.internalMatchId}:draw:${account}`;
+          await User.updateOne({ $or: [{ tpcAccountNumber: account }, { accountId: account }], 'transactions.transactionId': { $ne: transactionId } }, {
+            $inc: { balance: match.stakePerPlayer },
+            $set: { currentTableId: null },
+            $push: { transactions: { transactionId, amount: match.stakePerPlayer, type: 'stake_refund', token: 'TPC', status: 'delivered', game: 'chessbattle', players: 2, detail: 'draw' } }
+          }, { session });
+        }
+        match.status = 'draw';
+        match.result = String(result.draw || 'draw');
+      } else {
+        const players = Array.isArray(table?.players) ? table.players : [];
+        const winnerPlayer = players.find((player) => player.side === winnerSide);
+        const winnerAccount = String(winnerPlayer?.tpcAccountNumber || winnerPlayer?.id || (winnerSide === 'white' ? accounts[0] : accounts[1]));
+        const gross = Number(match.totalLockedStake || match.stakePerPlayer * 2);
+        const houseFee = Math.floor((gross * CHESS_HOUSE_FEE_BPS) / 10_000);
+        const payout = gross - houseFee;
+        const payoutTx = `chess:${match.internalMatchId}:payout:${winnerAccount}`;
+        await User.updateOne({ $or: [{ tpcAccountNumber: winnerAccount }, { accountId: winnerAccount }], 'transactions.transactionId': { $ne: payoutTx } }, {
+          $inc: { balance: payout },
+          $set: { currentTableId: null },
+          $push: { transactions: { transactionId: payoutTx, amount: payout, type: 'stake_payout', token: 'TPC', status: 'delivered', game: 'chessbattle', players: 2, detail: match.internalMatchId } }
+        }, { session });
+        const loserAccount = accounts.find((account) => account !== winnerAccount);
+        if (loserAccount) await User.updateOne({ $or: [{ tpcAccountNumber: loserAccount }, { accountId: loserAccount }] }, { $set: { currentTableId: null } }, { session });
+        if (houseFee > 0 && CHESS_HOUSE_ACCOUNT) {
+          const feeTx = `chess:${match.internalMatchId}:house:${CHESS_HOUSE_ACCOUNT}`;
+          await User.updateOne({ $or: [{ tpcAccountNumber: CHESS_HOUSE_ACCOUNT }, { accountId: CHESS_HOUSE_ACCOUNT }] }, {
+            $inc: { balance: houseFee },
+            $push: { transactions: { transactionId: feeTx, amount: houseFee, type: 'house_fee', token: 'TPC', status: 'delivered', game: 'chessbattle', players: 2, detail: match.internalMatchId } }
+          }, { session });
+        }
+        match.status = 'finished';
+        match.winnerTpcAccountId = winnerAccount;
+        match.result = `${winnerSide}_checkmate`;
+      }
+      await match.save({ session });
+      settlement = { status: match.status, matchId: match.internalMatchId, winner: match.winnerTpcAccountId || null };
+    });
+    return { ok: true, settlement };
+  } catch (error) {
+    return { ok: false, error: error.message || 'settlement_failed' };
+  } finally {
+    await session.endSession();
+  }
+}
+
 function maybeStartGame(table) {
   if (
     table.players.length === table.maxPlayers &&
@@ -1391,7 +1529,7 @@ function maybeStartGame(table) {
     table.ready.size === table.maxPlayers
   ) {
     if (table.startTimeout) return;
-    table.startTimeout = setTimeout(() => {
+    table.startTimeout = setTimeout(async () => {
       table.startTimeout = null;
       if (
         tableMap.get(table.id) !== table ||
@@ -1402,6 +1540,22 @@ function maybeStartGame(table) {
         return;
       }
       console.log(`Table ${table.id} confirmed by all players. Starting game.`);
+      if (table.gameType === 'chess') {
+        const reservation = await reserveChessStakeContract(table);
+        if (!reservation.ok) {
+          table.ready.clear();
+          io.to(table.id).emit('errorMessage', reservation.error);
+          io.to(table.id).emit('lobbyUpdate', {
+            tableId: table.id,
+            tableNumber: table.tableNumber,
+            players: table.players,
+            currentTurn: table.currentTurn,
+            ready: [],
+            meta: table.meta
+          });
+          return;
+        }
+      }
       if (table.matchTimeout) {
         clearTimeout(table.matchTimeout);
         table.matchTimeout = null;
@@ -1444,7 +1598,8 @@ function maybeStartGame(table) {
         players: table.players,
         currentTurn: table.currentTurn,
         stake: table.stake,
-        meta: table.meta
+        meta: table.meta,
+        matchId: table.matchId || null
       });
       tableSeats.delete(table.id);
       const key = `${table.gameType}-${table.maxPlayers}`;
@@ -2680,6 +2835,13 @@ io.on('connection', (socket) => {
     const payload = { tableId, ...next };
     socket.to(tableId).emit('chessMove', payload);
     cb && cb({ success: true, state: payload });
+    if (next.winner || next.draw) {
+      settleChessStakeContract(tableId, { winner: next.winner, draw: next.draw }).then((settlement) => {
+        io.to(tableId).emit('chessSettlement', { tableId, ...settlement });
+      }).catch((error) => {
+        io.to(tableId).emit('chessSettlement', { tableId, ok: false, error: error.message || 'settlement_failed' });
+      });
+    }
   });
 
   socket.on('checkersMove', async ({ tableId, move }) => {

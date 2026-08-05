@@ -9381,11 +9381,27 @@ function Chess3D({
       setOnlineStatus(opp ? 'matched' : 'waiting');
     };
 
+    const handleChessSettlement = ({ tableId: settledId, ok, settlement, error } = {}) => {
+      if (!settledId || String(settledId) !== String(tableJoin.current)) return;
+      if (ok === false) {
+        setOnlineStatus('settlement-error');
+        setUi((state) => ({ ...state, status: `Settlement pending — ${error || 'retrying'}` }));
+        return;
+      }
+      setOnlineStatus('settled');
+      if (settlement?.status === 'draw') {
+        setUi((state) => ({ ...state, status: 'Draw settled — stakes refunded' }));
+      } else if (settlement?.winner) {
+        setUi((state) => ({ ...state, status: 'Winner paid — house fee kept' }));
+      }
+    };
+
     socket.on('gameStart', handleGameStart);
     socket.on('gameStarted', handleGameStart);
     socket.on('lobbyUpdate', handleLobbyUpdate);
     socket.on('chessState', handleChessState);
     socket.on('chessMove', handleChessState);
+    socket.on('chessSettlement', handleChessSettlement);
 
     cleanups.push(() => {
       socket.off('gameStart', handleGameStart);
@@ -9393,6 +9409,7 @@ function Chess3D({
       socket.off('lobbyUpdate', handleLobbyUpdate);
       socket.off('chessState', handleChessState);
       socket.off('chessMove', handleChessState);
+      socket.off('chessSettlement', handleChessSettlement);
       if (tableJoin.current)
         socket.emit('leaveLobby', { accountId, tableId: tableJoin.current });
     });
