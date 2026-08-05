@@ -33,7 +33,7 @@ const CHESS_ONLINE_TABLE_PREFIX = 'chess-2-host';
 
 const SOCKET_CONNECT_TIMEOUT_MS = 6000;
 const SOCKET_REGISTER_TIMEOUT_MS = 6000;
-const MATCHMAKING_REFRESH_MS = 60000;
+const MATCHMAKING_REFRESH_MS = 120000;
 const SEAT_RETRY_BASE_DELAY_MS = 700;
 const MATCHMAKING_RECOVERABLE_ERRORS = new Set([
   'register_required',
@@ -539,7 +539,7 @@ export default function ChessBattleRoyalLobby() {
     setMatchPlayers([]);
     setReadyList([]);
     setSpinningPlayer('');
-    setSearchSecondsLeft(60);
+    setSearchSecondsLeft(MATCHMAKING_REFRESH_MS / 1000);
     if (!skipRefReset) cleanupRef.current = null;
   };
 
@@ -742,7 +742,7 @@ export default function ChessBattleRoyalLobby() {
       if (matchmakingTimeoutRef.current) clearTimeout(matchmakingTimeoutRef.current);
       if (matchmakingCountdownRef.current) clearInterval(matchmakingCountdownRef.current);
       const refreshAt = Date.now() + MATCHMAKING_REFRESH_MS;
-      setSearchSecondsLeft(60);
+      setSearchSecondsLeft(MATCHMAKING_REFRESH_MS / 1000);
       matchmakingCountdownRef.current = window.setInterval(() => {
         setSearchSecondsLeft(Math.max(0, Math.ceil((refreshAt - Date.now()) / 1000)));
       }, 250);
@@ -761,7 +761,7 @@ export default function ChessBattleRoyalLobby() {
           setMatchPlayers([]);
           setReadyList([]);
           setMatchError('');
-          setMatchStatus('Refreshing the queue and looking again…');
+          setMatchStatus('Still searching the ordered queue for the next same-stake opponent…');
           seatAttempts = 0;
           seatPlayer();
           return;
@@ -1097,7 +1097,7 @@ export default function ChessBattleRoyalLobby() {
             </p>
             {onlineQueueMode === 'quick' && (
               <p className="text-center text-xs font-semibold text-cyan-200">
-                Queue refresh in {searchSecondsLeft}s · searching continues automatically
+                120s opponent search window: {searchSecondsLeft}s left
               </p>
             )}
             {tableNumber && (

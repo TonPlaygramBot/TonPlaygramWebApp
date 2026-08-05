@@ -510,7 +510,7 @@ function createChessTableNumber() {
 const lastActionBySocket = new Map();
 const rollRateLimitMs = Number(process.env.SOCKET_ROLL_COOLDOWN_MS) || 800;
 const seatTableRateLimitMs = Number(process.env.SEAT_TABLE_RATE_LIMIT_MS) || 500;
-const lobbySeatTtlMs = Number(process.env.LOBBY_SEAT_TTL_MS) || 60_000;
+const lobbySeatTtlMs = Number(process.env.LOBBY_SEAT_TTL_MS) || 120_000;
 const checkersMoveRateLimitMs =
   Number(process.env.CHECKERS_MOVE_RATE_LIMIT_MS) || 120;
 

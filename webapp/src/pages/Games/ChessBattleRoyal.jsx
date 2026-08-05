@@ -199,6 +199,8 @@ const SNAKE_SHARED_CAPTURE_VEHICLE_MODEL_HOSTS = Object.freeze([
 ]);
 const snakeSharedCaptureVehicleUrls = (fileName) =>
   SNAKE_SHARED_CAPTURE_VEHICLE_MODEL_HOSTS.map((host) => `${host}/${fileName}`);
+const CHESS_ONLINE_OPPONENT_WAIT_MS = 120000;
+
 const CAPTURE_MODEL_URLS = Object.freeze({
   drone: snakeSharedCaptureVehicleUrls('drone.glb'),
   // Keep the Chess Battle Royal jet and helicopter on the exact same source
@@ -9074,6 +9076,9 @@ function Chess3D({
   const [onlineStatus, setOnlineStatus] = useState(
     onlineRef.current.enabled ? 'connecting' : 'offline'
   );
+  const [onlineWaitSecondsLeft, setOnlineWaitSecondsLeft] = useState(
+    CHESS_ONLINE_OPPONENT_WAIT_MS / 1000
+  );
   useEffect(() => {
     if (accountId) {
       setOnlineStatus((prev) => (prev === 'offline' ? 'connecting' : prev));
@@ -9099,6 +9104,30 @@ function Chess3D({
       onlineRef.current.opponent = initialOpponent;
     }
   }, [initialOpponent]);
+
+  useEffect(() => {
+    if (!onlineRef.current.enabled || opponent || onlineStatus === 'in-game') {
+      setOnlineWaitSecondsLeft(CHESS_ONLINE_OPPONENT_WAIT_MS / 1000);
+      return undefined;
+    }
+    if (!['waiting', 'matched', 'connecting', 'starting'].includes(onlineStatus)) {
+      return undefined;
+    }
+    const expiresAt = Date.now() + CHESS_ONLINE_OPPONENT_WAIT_MS;
+    setOnlineWaitSecondsLeft(CHESS_ONLINE_OPPONENT_WAIT_MS / 1000);
+    const timer = window.setInterval(() => {
+      const secondsLeft = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+      setOnlineWaitSecondsLeft(secondsLeft);
+      if (secondsLeft <= 0) {
+        window.clearInterval(timer);
+        if (onlineRef.current.tableId) {
+          socket.emit('leaveLobby', { accountId, tableId: onlineRef.current.tableId });
+        }
+        setOnlineStatus('timeout');
+      }
+    }, 250);
+    return () => window.clearInterval(timer);
+  }, [accountId, onlineStatus, opponent]);
   const resolvedAccountId = useMemo(() => chessBattleAccountId(accountId), [accountId]);
   const [inventoryVersion, setInventoryVersion] = useState(0);
   const chessInventory = useMemo(
@@ -16871,7 +16900,11 @@ function Chess3D({
               <div className="text-emerald-50/80">
                 {onlineStatus === 'in-game'
                   ? `Synced${opponent ? ` vs ${avatarToName(opponent.avatar) || opponent.name || opponent.id}` : ''}`
-                  : `Status: ${onlineStatus}`}
+                  : onlineStatus === 'waiting'
+                    ? `Waiting for opponent · ${onlineWaitSecondsLeft}s`
+                    : onlineStatus === 'timeout'
+                      ? 'Opponent was not found in 120s'
+                      : `Status: ${onlineStatus}`}
               </div>
               {tableId && (
                 <div className="text-[10px] text-emerald-50/70">
