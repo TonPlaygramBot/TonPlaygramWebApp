@@ -78,7 +78,10 @@ export default function MurlanRoyaleLobby() {
         playerName: getTelegramFirstName() || 'Player',
         state: { setMatching, setMatchStatus, setMatchError },
         deps: { ensureAccountId, getAccountBalance, addTransaction, getTelegramId, socket },
-        onMatched: ({ accountId, tableId }) => {
+        onMatched: ({ accountId, tableId, players }) => {
+          try {
+            window.sessionStorage?.setItem(`murlanRoyaleOnlineMatch:${tableId}`, JSON.stringify({ accountId, tableId, players }));
+          } catch {}
           const params = new URLSearchParams();
           params.set('mode', 'online');
           params.set('tableId', tableId);

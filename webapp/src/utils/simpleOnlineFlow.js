@@ -1,6 +1,6 @@
 import { ensureAccountId, getTelegramId } from './telegram.js';
 import { getAccountBalance, addTransaction } from './api.js';
-import { socket } from './socket.js';
+import { refreshSocketAuthIdentity, socket } from './socket.js';
 
 const DEFAULT_MATCH_TIMEOUT_MS = 35000;
 const SOCKET_CONNECT_TIMEOUT_MS = 8000;
@@ -140,6 +140,7 @@ export async function runSimpleOnlineFlow({
     });
     stakeDebited = true;
 
+    refreshSocketAuthIdentity({ accountId }, { reconnect: true });
     const socketReady = await ensureSocketReady(socketInstance, socketConnectTimeoutMs);
     if (!socketReady) {
       setMatchError('Socket not connected. Please retry.');

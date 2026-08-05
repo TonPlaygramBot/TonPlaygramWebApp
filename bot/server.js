@@ -499,6 +499,7 @@ app.set('tableMap', tableMap);
 const poolStates = new Map();
 const snookerStates = new Map();
 const dominoRoyalStates = new Map();
+const murlanRoyalStates = new Map();
 const dominoRoyalTableNumbers = new Set();
 const chessTableNumbers = new Set();
 
@@ -1455,6 +1456,8 @@ function maybeStartGame(table) {
         poolStates.set(table.id, { state: null, hud: null, layout: null, ts: Date.now() });
       } else if (table.gameType === 'domino-royal') {
         dominoRoyalStates.set(table.id, { state: null, action: null, ts: Date.now() });
+      } else if (table.gameType === 'murlanroyale') {
+        murlanRoyalStates.set(table.id, { state: null, action: null, ts: Date.now(), revision: 0 });
       }
     }, 1000);
   }
@@ -2502,6 +2505,66 @@ io.on('connection', (socket) => {
       revision
     });
     socket.to(tableId).emit('dominoRoyalState', payload);
+    cb && cb({ success: true, revision });
+  });
+
+
+  socket.on('joinMurlanRoyaleTable', async ({ tableId, accountId } = {}) => {
+    if (!tableId) return;
+    const resolvedAccountId = resolveTpcIdentity({ accountId });
+    if (!ensureRegistered(socket, resolvedAccountId)) return;
+    const table = tableMap.get(tableId);
+    if (
+      !table ||
+      table.gameType !== 'murlanroyale' ||
+      !table.players.some((player) => String(player.id) === String(resolvedAccountId))
+    ) {
+      socket.emit('murlanRoyaleSyncError', { tableId, error: 'seat_required' });
+      return;
+    }
+    socket.join(tableId);
+    if (resolvedAccountId) {
+      await registerConnection({ userId: String(resolvedAccountId), roomId: tableId, socketId: socket.id });
+    }
+    const cached = murlanRoyalStates.get(tableId);
+    if (cached?.state) {
+      socket.emit('murlanRoyaleState', { tableId, state: cached.state, action: cached.action || null, updatedAt: cached.ts });
+    }
+  });
+
+  socket.on('murlanRoyaleSyncRequest', ({ tableId, accountId } = {}) => {
+    if (!tableId) return;
+    const resolvedAccountId = resolveTpcIdentity({ accountId });
+    if (!ensureRegistered(socket, resolvedAccountId)) return;
+    const table = tableMap.get(tableId);
+    if (!table?.players.some((player) => String(player.id) === String(resolvedAccountId))) return;
+    const cached = murlanRoyalStates.get(tableId);
+    if (cached?.state) {
+      socket.emit('murlanRoyaleState', { tableId, state: cached.state, action: cached.action || null, updatedAt: cached.ts });
+    }
+  });
+
+  socket.on('murlanRoyaleState', ({ tableId, accountId, state, action } = {}, cb) => {
+    if (!tableId || !state || typeof state !== 'object') return;
+    if (!socket.rooms.has(tableId)) return;
+    const resolvedAccountId = resolveTpcIdentity({ accountId, tpcAccountNumber: action?.accountId });
+    if (!ensureRegistered(socket, resolvedAccountId)) return;
+    const table = tableMap.get(tableId);
+    if (
+      !table ||
+      table.gameType !== 'murlanroyale' ||
+      !table.players.some((player) => String(player.id) === String(resolvedAccountId))
+    ) {
+      cb && cb({ success: false, error: 'seat_required' });
+      socket.emit('murlanRoyaleSyncError', { tableId, error: 'seat_required' });
+      return;
+    }
+    const cached = murlanRoyalStates.get(tableId);
+    const revision = Number(cached?.revision || 0) + 1;
+    const authoritativeState = { ...state, seq: revision };
+    const payload = { tableId, tableNumber: table.tableNumber, state: authoritativeState, action: { ...(action || {}), accountId: String(resolvedAccountId) }, updatedAt: Date.now() };
+    murlanRoyalStates.set(tableId, { state: authoritativeState, action: payload.action, ts: payload.updatedAt, revision });
+    socket.to(tableId).emit('murlanRoyaleState', payload);
     cb && cb({ success: true, revision });
   });
 
