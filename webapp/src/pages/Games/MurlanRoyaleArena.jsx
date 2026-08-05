@@ -22,6 +22,7 @@ import { applyTableMaterials, createMurlanStyleTable, TABLE_SHAPE_OPTIONS } from
 import { CARD_THEMES } from '../../utils/cards3d.js';
 import { makeTonplaygramCardBackTexture } from '../../utils/cards3d.js';
 import { createCardGeometry } from '../../utils/cards3d.js';
+import { refreshSocketAuthIdentity, socket } from '../../utils/socket.js';
 import { chatBeep, bombSound } from '../../assets/coreSoundData.js';
 import {
   getMurlanInventory,
@@ -3588,7 +3589,8 @@ const START_CARD = { rank: '3', suit: '♠' };
 
 export default function MurlanRoyaleArena({ search }) {
   const mountRef = useRef(null);
-  const players = useMemo(() => buildPlayers(search), [search]);
+  const onlineContext = useMemo(() => resolveMurlanOnlineContext(search), [search]);
+  const players = useMemo(() => buildPlayers(search, onlineContext), [search, onlineContext]);
   const characterRosterSeedRef = useRef(Math.random());
 
   const [murlanInventory, setMurlanInventory] = useState(() => getMurlanInventory(murlanAccountId()));
@@ -4257,6 +4259,7 @@ export default function MurlanRoyaleArena({ search }) {
 
   const gameStateRef = useRef(gameState);
   const selectedRef = useRef(selectedIds);
+  const onlineStateRef = useRef({ suppressNextEmit: false, hydrated: false });
   const humanTurnRef = useRef(false);
 
   const threeStateRef = useRef({
@@ -5523,6 +5526,48 @@ export default function MurlanRoyaleArena({ search }) {
     }
   }, [selectedIds, threeReady, applyStateToScene]);
 
+
+  useEffect(() => {
+    if (!onlineContext.enabled || !onlineContext.tableId || !onlineContext.accountId) return undefined;
+    refreshSocketAuthIdentity({ accountId: onlineContext.accountId }, { reconnect: true });
+    const joinAndSync = () => {
+      socket.emit('register', { playerId: onlineContext.accountId });
+      socket.emit('joinMurlanRoyaleTable', { tableId: onlineContext.tableId, accountId: onlineContext.accountId });
+      socket.emit('murlanRoyaleSyncRequest', { tableId: onlineContext.tableId, accountId: onlineContext.accountId });
+    };
+    const handleRemoteState = ({ tableId, state } = {}) => {
+      if (tableId !== onlineContext.tableId || !state) return;
+      onlineStateRef.current.suppressNextEmit = true;
+      onlineStateRef.current.hydrated = true;
+      setSelectedIds([]);
+      setGameState(state);
+    };
+    socket.on('murlanRoyaleState', handleRemoteState);
+    socket.on('connect', joinAndSync);
+    joinAndSync();
+    return () => {
+      socket.off('murlanRoyaleState', handleRemoteState);
+      socket.off('connect', joinAndSync);
+    };
+  }, [onlineContext]);
+
+  useEffect(() => {
+    if (!onlineContext.enabled || !onlineContext.tableId || !onlineContext.accountId) return;
+    if (onlineStateRef.current.suppressNextEmit) {
+      onlineStateRef.current.suppressNextEmit = false;
+      return;
+    }
+    const hostAccountId = String(onlineContext.players?.[0]?.id || onlineContext.players?.[0]?.tpcAccountNumber || '');
+    const isHost = hostAccountId && hostAccountId === String(onlineContext.accountId);
+    if (!isHost && !onlineStateRef.current.hydrated && !gameState.lastAction) return;
+    socket.emit('murlanRoyaleState', {
+      tableId: onlineContext.tableId,
+      accountId: onlineContext.accountId,
+      state: gameState,
+      action: gameState.lastAction || { type: 'SYNC' }
+    });
+  }, [gameState, onlineContext]);
+
   useEffect(() => {
     if (threeReady) {
       updateSeatAnchors();
@@ -6589,12 +6634,12 @@ export default function MurlanRoyaleArena({ search }) {
     const state = gameState;
     if (state.status !== 'PLAYING') return;
     const active = state.players[state.activePlayer];
-    if (!active || active.isHuman) return;
+    if (!active || active.isHuman || active.isOnlineRemote) return;
     const timer = setTimeout(() => {
       setGameState((prev) => {
         if (prev.status !== 'PLAYING') return prev;
         const current = prev.players[prev.activePlayer];
-        if (!current || current.isHuman) return prev;
+        if (!current || current.isHuman || current.isOnlineRemote) return prev;
         return runAiTurn(prev);
       });
     }, AI_TURN_DELAY);
@@ -7376,7 +7421,21 @@ function cardLabel(card) {
   return `${card.rank}${card.suit || ''}`;
 }
 
-function buildPlayers(search) {
+function resolveMurlanOnlineContext(search) {
+  const params = new URLSearchParams(search);
+  const tableId = params.get('tableId') || '';
+  const accountId = params.get('accountId') || '';
+  const enabled = (params.get('mode') || '').toLowerCase() === 'online' && tableId && accountId;
+  let match = null;
+  if (enabled && typeof window !== 'undefined') {
+    try {
+      match = JSON.parse(window.sessionStorage?.getItem(`murlanRoyaleOnlineMatch:${tableId}`) || 'null');
+    } catch {}
+  }
+  return { enabled, tableId, accountId, players: Array.isArray(match?.players) ? match.players : [] };
+}
+
+function buildPlayers(search, onlineContext = null) {
   const params = new URLSearchParams(search);
   const username = params.get('username') || 'You';
   const avatar = params.get('avatar') || '';
@@ -7384,6 +7443,19 @@ function buildPlayers(search) {
   const totalPlayers = Number.isFinite(requestedPlayers)
     ? Math.min(Math.max(requestedPlayers, 2), 4)
     : 4;
+  if (onlineContext?.enabled && onlineContext.players.length) {
+    return onlineContext.players.slice(0, totalPlayers).map((player, index) => {
+      const isSelf = String(player.id || player.tpcAccountNumber || '') === String(onlineContext.accountId);
+      return {
+        name: player.name || (isSelf ? username : `Player ${index + 1}`),
+        avatar: player.avatar || '',
+        id: player.id || player.tpcAccountNumber || `online-${index}`,
+        isHuman: isSelf,
+        isOnlineRemote: !isSelf,
+        color: PLAYER_COLORS[index % PLAYER_COLORS.length]
+      };
+    });
+  }
   const aiCount = Math.max(totalPlayers - 1, 1);
   const providedFlags = (params.get('flags') || '')
     .split(',')
