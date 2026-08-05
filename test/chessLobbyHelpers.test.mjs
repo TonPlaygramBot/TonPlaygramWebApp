@@ -90,9 +90,9 @@ test('chess lobby builds online game params and seat account fallback', () => {
   assert.match(sandbox.resolveSeatErrorMessage('stake_mismatch'), /different stake/);
 });
 
-test('chess quick match refreshes every minute and keeps searching', () => {
-  assert.match(source, /const MATCHMAKING_REFRESH_MS = 60000;/);
-  assert.match(source, /Refreshing the queue and looking again/);
+test('chess quick match waits two minutes and keeps searching', () => {
+  assert.match(source, /const MATCHMAKING_REFRESH_MS = 120000;/);
+  assert.match(source, /Still searching the ordered queue/);
   assert.match(source, /onlineQueueMode === 'quick' \|\|/);
-  assert.match(source, /Queue refresh in \{searchSecondsLeft\}s/);
+  assert.match(source, /120s opponent search window: \{searchSecondsLeft\}s left/);
 });
