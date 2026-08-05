@@ -92,4 +92,48 @@ router.post('/release', async (req, res) => {
   finally { await session.endSession(); }
 });
 
+
+router.post('/settle', async (req, res) => {
+  const matchId = String(req.body?.matchId || '');
+  const winnerAccount = String(req.body?.winnerTpcAccountId || req.body?.winnerAccountId || '');
+  const draw = Boolean(req.body?.draw);
+  const feeBps = Math.max(0, Math.min(10_000, Number(process.env.CHESS_HOUSE_FEE_BPS) || 500));
+  const houseAccount = String(process.env.CHESS_HOUSE_ACCOUNT || process.env.HOUSE_TPC_ACCOUNT || '').trim();
+  const session = await mongoose.startSession();
+  try {
+    let result;
+    await session.withTransaction(async () => {
+      const match = await ChessMatch.findOne({ internalMatchId: matchId }).session(session);
+      if (!match) throw new Error('match_not_found');
+      if (['finished', 'draw'].includes(match.status)) { result = { settled: true, status: match.status, winnerTpcAccountId: match.winnerTpcAccountId || null }; return; }
+      if (match.status !== 'playing') throw new Error('match_not_playing');
+      const accounts = [match.player1TpcAccountId, match.player2TpcAccountId];
+      if (draw) {
+        for (const account of accounts) {
+          const transactionId = `chess:${matchId}:draw:${account}`;
+          await User.updateOne({ tpcAccountNumber: account, 'transactions.transactionId': { $ne: transactionId } }, { $inc: { balance: match.stakePerPlayer }, $set: { currentTableId: null }, $push: { transactions: { transactionId, amount: match.stakePerPlayer, type: 'stake_refund', token: 'TPC', status: 'delivered', game: 'chessbattle', players: 2, detail: 'draw' } } }, { session });
+        }
+        match.status = 'draw'; match.result = String(req.body?.reason || 'draw');
+      } else {
+        if (!accounts.includes(winnerAccount)) throw new Error('winner_not_in_match');
+        const gross = Number(match.totalLockedStake || match.stakePerPlayer * 2);
+        const houseFee = Math.floor((gross * feeBps) / 10_000);
+        const payout = gross - houseFee;
+        const payoutTx = `chess:${matchId}:payout:${winnerAccount}`;
+        await User.updateOne({ tpcAccountNumber: winnerAccount, 'transactions.transactionId': { $ne: payoutTx } }, { $inc: { balance: payout }, $set: { currentTableId: null }, $push: { transactions: { transactionId: payoutTx, amount: payout, type: 'stake_payout', token: 'TPC', status: 'delivered', game: 'chessbattle', players: 2, detail: matchId } } }, { session });
+        for (const account of accounts.filter((account) => account !== winnerAccount)) await User.updateOne({ tpcAccountNumber: account }, { $set: { currentTableId: null } }, { session });
+        if (houseFee > 0 && houseAccount) {
+          const feeTx = `chess:${matchId}:house:${houseAccount}`;
+          await User.updateOne({ tpcAccountNumber: houseAccount }, { $inc: { balance: houseFee }, $push: { transactions: { transactionId: feeTx, amount: houseFee, type: 'house_fee', token: 'TPC', status: 'delivered', game: 'chessbattle', players: 2, detail: matchId } } }, { session });
+        }
+        match.status = 'finished'; match.winnerTpcAccountId = winnerAccount; match.result = String(req.body?.reason || 'checkmate');
+      }
+      await match.save({ session });
+      result = { settled: true, status: match.status, winnerTpcAccountId: match.winnerTpcAccountId || null };
+    });
+    res.json(result);
+  } catch (error) { res.status(409).json({ error: error.message || 'settlement_failed' }); }
+  finally { await session.endSession(); }
+});
+
 export default router;

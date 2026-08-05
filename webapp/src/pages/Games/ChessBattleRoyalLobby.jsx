@@ -13,7 +13,6 @@ import {
 } from '../../utils/telegram.js';
 import {
   getAccountBalance,
-  addTransaction,
   getOnlineCount,
   getOnlineUsers
 } from '../../utils/api.js';
@@ -548,19 +547,6 @@ export default function ChessBattleRoyalLobby() {
     if (matching) return;
     let tgId;
     let trackedAccountId;
-    let stakeCharged = false;
-    const refundStakeIfNeeded = async (reason = 'matchmaking_cleanup') => {
-      if (!stakeCharged || !trackedAccountId) return;
-      try {
-        await addTransaction(tgId || getTelegramId(), stake.amount, 'stake_refund', {
-          game: 'chessbattle',
-          players: 2,
-          accountId: trackedAccountId,
-          reason
-        });
-        stakeCharged = false;
-      } catch {}
-    };
     if (isOnline) {
       try {
         trackedAccountId = await ensureAccountId();
@@ -572,12 +558,6 @@ export default function ChessBattleRoyalLobby() {
           return;
         }
         tgId = getTelegramId();
-        await addTransaction(tgId, -stake.amount, 'stake', {
-          game: 'chessbattle',
-          players: 2,
-          accountId: trackedAccountId
-        });
-        stakeCharged = true;
       } catch {}
 
       if (!trackedAccountId) {
@@ -600,7 +580,6 @@ export default function ChessBattleRoyalLobby() {
         ? requestedTableId || buildHostedTableId(hostCodeInput)
         : '';
     if (onlineQueueMode === 'private' && !hostedTableId) {
-      await refundStakeIfNeeded('missing_private_code');
       setMatchError('Enter a private code to create or join a chess table.');
       setMatching(false);
       setMatchStatus('');
@@ -628,7 +607,6 @@ export default function ChessBattleRoyalLobby() {
 
     const socketReady = await ensureSocketConnected();
     if (!socketReady) {
-      await refundStakeIfNeeded('socket_connect_failed');
       setMatchError(
         'Lobby connection failed. Check your network and try again.'
       );
@@ -640,7 +618,6 @@ export default function ChessBattleRoyalLobby() {
     const seatAccountId = resolveSeatAccountId(trackedAccountId, accountId);
     const socketRegistered = await ensureSocketRegistered(seatAccountId);
     if (!socketRegistered) {
-      await refundStakeIfNeeded('socket_register_failed');
       setMatchError('Unable to sync your online session. Please retry.');
       setMatching(false);
       setMatchStatus('');
@@ -668,7 +645,6 @@ export default function ChessBattleRoyalLobby() {
       players = []
     } = {}) => {
       if (!startedId || String(startedId) !== String(pendingTableRef.current)) return;
-      stakeCharged = false;
       const mySide = resolveChessSide(players, seatAccountId);
       const opp = resolveChessOpponent(players, seatAccountId);
       cleanupLobby({ account: trackedAccountId, skipLeave: true });
@@ -767,8 +743,7 @@ export default function ChessBattleRoyalLobby() {
           return;
         }
         cleanupLobby({ account: trackedAccountId });
-        await refundStakeIfNeeded('matchmaking_timeout');
-        setMatchError('No opponent joined in time. Your stake was refunded.');
+        setMatchError('No opponent joined in time. No stake was deducted.');
       }, MATCHMAKING_REFRESH_MS);
     };
     const seatPlayer = (tableIdOverride = '', reconnecting = false) => {
@@ -815,9 +790,8 @@ export default function ChessBattleRoyalLobby() {
                     return;
                   }
                   cleanupLobby({ account: trackedAccountId });
-                  await refundStakeIfNeeded('socket_retry_failed');
                   setMatchError(
-                    'Lobby connection dropped while retrying. Your stake was refunded.'
+                    'Lobby connection dropped while retrying. No stake was deducted.'
                   );
                   setMatchStatus('');
                   return;
@@ -827,9 +801,8 @@ export default function ChessBattleRoyalLobby() {
                     await ensureSocketRegistered(seatAccountId);
                   if (!reRegistered) {
                     cleanupLobby({ account: trackedAccountId });
-                    await refundStakeIfNeeded('socket_reregister_failed');
                     setMatchError(
-                      'Could not restore your online identity. Your stake was refunded.'
+                      'Could not restore your online identity. No stake was deducted.'
                     );
                     setMatchStatus('');
                     return;
@@ -839,7 +812,6 @@ export default function ChessBattleRoyalLobby() {
               }, retryDelay);
               return;
             }
-            await refundStakeIfNeeded('seat_table_failed');
             const errorMessage = resolveSeatErrorMessage(res?.error);
             cleanupLobby({ account: trackedAccountId });
             setMatchError(errorMessage);
@@ -861,11 +833,10 @@ export default function ChessBattleRoyalLobby() {
                 ? resolvePrivateMatchStatus(res.tableId, hostCodeInput)
                 : 'Opening the board while we find the same-stake opponent…'
           );
-          // Keep the reserved stake attached to this table and move immediately into
+          // Keep the server-managed stake contract attached to this table and move immediately into
           // the game scene. The game screen stays in a waiting state until another
           // player with the same chess stake/table joins, then both ready signals
           // start the match. Do not leave the lobby seat during this handoff.
-          stakeCharged = false;
           cleanupLobby({ account: trackedAccountId, skipLeave: true });
           navigateToGame({
             tgId,
