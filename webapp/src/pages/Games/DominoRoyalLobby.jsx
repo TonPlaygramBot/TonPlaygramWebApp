@@ -16,7 +16,7 @@ import { loadAvatar } from '../../utils/avatarUtils.js';
 import OptionIcon from '../../components/OptionIcon.jsx';
 import { getLobbyIcon } from '../../config/gameAssets.js';
 import GameLobbyHeader from '../../components/GameLobbyHeader.jsx';
-import { socket } from '../../utils/socket.js';
+import { refreshSocketAuthIdentity, socket } from '../../utils/socket.js';
 import { getOnlineReadiness } from '../../config/onlineContract.js';
 import { joinDominoRoyalLobby } from './dominoRoyalMatchmaking.js';
 
@@ -205,6 +205,7 @@ export default function DominoRoyalLobby() {
     if (mode === 'online') {
       setQueueError('');
       setQueueStatus('Connecting to Domino Royal lobby…');
+      refreshSocketAuthIdentity({ accountId: String(accountId) }, { reconnect: true });
       onlineStakeDebitedRef.current = false;
       const res = await joinDominoRoyalLobby({
         socket,
