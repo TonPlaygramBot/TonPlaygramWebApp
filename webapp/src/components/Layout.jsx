@@ -62,6 +62,19 @@ export default function Layout({ children }) {
       setIncomingCall(call);
       setCallNotice(`${call?.fromName || 'Someone'} is calling you now`);
       ring();
+      if (typeof window !== 'undefined' && 'Notification' in window) {
+        const title = `Incoming ${call?.type === 'video' ? 'video' : 'voice'} call`;
+        const body = `${call?.fromName || 'TonPlaygram player'} is calling you now`;
+        if (Notification.permission === 'granted') {
+          new Notification(title, { body, icon: call?.fromPhoto || '/assets/icons/profile.svg' });
+        } else if (Notification.permission === 'default') {
+          Notification.requestPermission().then((permission) => {
+            if (permission === 'granted') {
+              new Notification(title, { body, icon: call?.fromPhoto || '/assets/icons/profile.svg' });
+            }
+          }).catch(() => {});
+        }
+      }
     };
     const onStartCall = (event) => {
       setActiveCall(event.detail);

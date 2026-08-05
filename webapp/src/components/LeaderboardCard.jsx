@@ -123,6 +123,9 @@ export default function LeaderboardCard() {
       setLeaderboardState('loading');
       getLeaderboard({ telegramId, accountId })
         .then((data) => {
+          if (data?.error) {
+            throw new Error(data.error);
+          }
           const users = Array.isArray(data?.users) ? data.users : [];
           setLeaderboard(users);
           setRank(typeof data?.rank === 'number' ? data.rank : null);
@@ -130,10 +133,19 @@ export default function LeaderboardCard() {
           setLeaderboardError('');
         })
         .catch((error) => {
-          setLeaderboard([]);
+          const fallbackUsers = accountId
+            ? [{
+                accountId,
+                telegramId,
+                balance: '...',
+                nickname: myName || 'You',
+                photo: myPhotoUrl || '/assets/icons/profile.svg'
+              }]
+            : [];
+          setLeaderboard(fallbackUsers);
           setRank(null);
           setLeaderboardState('error');
-          setLeaderboardError(error?.message || 'Leaderboard failed to load.');
+          setLeaderboardError(`${error?.message || 'Leaderboard failed to load.'} Pull down or keep this screen open; TonPlaygram retries automatically.`);
         });
     }
     loadLeaderboard();

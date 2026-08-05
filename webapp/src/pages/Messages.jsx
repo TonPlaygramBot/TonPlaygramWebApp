@@ -82,7 +82,10 @@ export default function Messages() {
       return;
     }
 
+    if (!socket.connected) socket.connect();
+    socket.emit('register', { playerId: accountId, tpcAccountNumber: accountId });
     socket.emit('friendCall:invite', {
+      fromAccountId: accountId,
       toAccountId: selected.accountId,
       fromTelegramId: telegramId,
       toTelegramId: selected.telegramId,

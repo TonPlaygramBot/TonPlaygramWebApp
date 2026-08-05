@@ -494,6 +494,8 @@ const liveChatRooms = new Map();
 // Dynamic lobby tables grouped by game type and capacity
 const lobbyTables = {};
 const tableMap = new Map();
+app.set('gameManager', gameManager);
+app.set('tableMap', tableMap);
 const poolStates = new Map();
 const snookerStates = new Map();
 const dominoRoyalStates = new Map();
@@ -2964,7 +2966,11 @@ io.on('connection', (socket) => {
   });
 
   socket.on('friendCall:invite', async (payload = {}, cb) => {
-    const fromAccountId = String(socket.data?.playerId || '');
+    const requestedFromAccountId = resolveTpcIdentity({
+      accountId: payload.fromAccountId,
+      tpcAccountNumber: payload.fromAccountId
+    });
+    const fromAccountId = String(socket.data?.playerId || requestedFromAccountId || '');
     const toAccountId = String(payload.toAccountId || '');
     const fromTelegramId = Number(payload.fromTelegramId);
     const toTelegramId = Number(payload.toTelegramId);
@@ -2977,12 +2983,23 @@ io.on('connection', (socket) => {
       if (!caller) return cb?.({ success: false, error: 'Caller account not found' });
       const target = await User.findOne({ telegramId: toTelegramId, accountId: toAccountId }).select('_id accountId nickname firstName lastName photo');
       if (!target) return cb?.({ success: false, error: 'User not found' });
-      const targets = userSockets.get(toAccountId);
+      if (!socket.data?.playerId) {
+        socket.data.playerId = fromAccountId;
+        let callerSockets = userSockets.get(fromAccountId);
+        if (!callerSockets) {
+          callerSockets = new Set();
+          userSockets.set(fromAccountId, callerSockets);
+        }
+        callerSockets.add(socket.id);
+      }
+      const targets = await getUserSocketIds({ accountId: toAccountId, telegramId: toTelegramId });
       if (!targets?.size) return cb?.({ success: false, error: 'User is offline' });
       const call = {
         roomId: `friend-call-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
         fromAccountId,
         toAccountId,
+        fromTelegramId,
+        toTelegramId,
         fromName: String(payload.fromName || caller.nickname || caller.firstName || 'TonPlaygram player').slice(0, 60),
         toName: String(target.nickname || target.firstName || 'TonPlaygram player').slice(0, 60),
         fromPhoto: caller.photo || '',
@@ -2997,19 +3014,20 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('friendCall:accept', ({ roomId, fromAccountId } = {}) => {
-    const targets = userSockets.get(String(fromAccountId || ''));
+  socket.on('friendCall:accept', async ({ roomId, fromAccountId, fromTelegramId } = {}) => {
+    const targets = await getUserSocketIds({ accountId: fromAccountId, telegramId: fromTelegramId });
     for (const sid of targets || []) io.to(sid).emit('friendCall:accepted', { roomId });
   });
 
-  socket.on('friendCall:reject', ({ roomId, fromAccountId } = {}) => {
-    const targets = userSockets.get(String(fromAccountId || ''));
+  socket.on('friendCall:reject', async ({ roomId, fromAccountId, fromTelegramId } = {}) => {
+    const targets = await getUserSocketIds({ accountId: fromAccountId, telegramId: fromTelegramId });
     for (const sid of targets || []) io.to(sid).emit('friendCall:ended', { roomId, reason: 'declined' });
   });
 
-  socket.on('friendCall:end', ({ roomId, fromAccountId, toAccountId } = {}) => {
+  socket.on('friendCall:end', async ({ roomId, fromAccountId, toAccountId, fromTelegramId, toTelegramId } = {}) => {
     const peerId = String(socket.data?.playerId) === String(fromAccountId) ? toAccountId : fromAccountId;
-    const targets = userSockets.get(String(peerId || ''));
+    const peerTelegramId = String(peerId) === String(toAccountId) ? toTelegramId : fromTelegramId;
+    const targets = await getUserSocketIds({ accountId: peerId, telegramId: peerTelegramId });
     for (const sid of targets || []) io.to(sid).emit('friendCall:ended', { roomId });
   });
 
