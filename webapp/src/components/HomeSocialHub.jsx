@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FaUserFriends, FaGamepad, FaComments, FaMicrophone, FaMicrophoneSlash, FaPhoneSlash, FaVideo, FaVideoSlash, FaUsers } from 'react-icons/fa';
+import { FaUserFriends, FaGamepad, FaComments } from 'react-icons/fa';
 import LoginOptions from './LoginOptions.jsx';
 import { socket } from '../utils/socket.js';
-import { getPlayerId, getTelegramId } from '../utils/telegram.js';
-import useLiveVideoChat from '../hooks/useLiveVideoChat.js';
+import { getTelegramId } from '../utils/telegram.js';
 import {
   acceptFriendRequest,
   getUnreadCount,
@@ -40,98 +39,6 @@ function persistInvites(invites) {
   }
 }
 
-function SocialVideoTile({ title, stream, muted = false, isVideo = true }) {
-  const videoRef = useRef(null);
-
-  useEffect(() => {
-    if (videoRef.current) videoRef.current.srcObject = stream || null;
-  }, [stream]);
-
-  return (
-    <div className="relative min-h-[8rem] overflow-hidden rounded-2xl border border-cyan-300/30 bg-black/50 shadow-[0_0_24px_rgba(34,211,238,.12)]">
-      {stream && isVideo ? (
-        <video ref={videoRef} autoPlay playsInline muted={muted} className="h-full w-full object-cover" />
-      ) : (
-        <div className="flex h-full min-h-[8rem] flex-col items-center justify-center gap-2 bg-gradient-to-br from-cyan-950/80 via-slate-950 to-fuchsia-950/70 p-4 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-white/10 text-xl text-cyan-200">
-            <FaUsers />
-          </div>
-          <p className="text-xs font-semibold text-white">{title}</p>
-          <p className="text-[10px] text-cyan-100/70">Voice connected</p>
-        </div>
-      )}
-      <span className="absolute bottom-2 left-2 rounded-full bg-black/60 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur">
-        {title}
-      </span>
-    </div>
-  );
-}
-
-function SocialCallStudio({ displayName }) {
-  const [roomName, setRoomName] = useState('tonplaygram-social-hub');
-  const [mode, setMode] = useState('video');
-  const [joined, setJoined] = useState(false);
-  const roomId = useMemo(() => `social-hub-${roomName.trim() || 'lobby'}`, [roomName]);
-  const liveChat = useLiveVideoChat({
-    roomId,
-    displayName,
-    enabled: joined,
-    video: mode === 'video'
-  });
-
-  useEffect(() => {
-    if (joined) {
-      liveChat.startLiveChat();
-      return;
-    }
-    liveChat.stopLiveChat();
-  }, [joined, roomId, liveChat.startLiveChat, liveChat.stopLiveChat]);
-
-  const isVideo = mode === 'video';
-
-  return (
-    <div className="overflow-hidden rounded-2xl border border-cyan-300/30 bg-gradient-to-br from-slate-950 via-cyan-950/50 to-fuchsia-950/40 shadow-[0_0_30px_rgba(6,182,212,.16)]">
-      <div className="space-y-3 p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.25em] text-cyan-200">Open-source WebRTC</p>
-            <h4 className="text-base font-bold text-white">Group Voice + Video Room</h4>
-            <p className="text-xs text-cyan-100/70">Free peer-to-peer video, voice and text-ready signaling for friends or groups.</p>
-          </div>
-          <span className="rounded-full border border-emerald-300/30 bg-emerald-400/10 px-2 py-1 text-[10px] font-semibold text-emerald-200">FREE</span>
-        </div>
-        <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-          <input
-            value={roomName}
-            onChange={(event) => setRoomName(event.target.value)}
-            disabled={joined}
-            className="rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300"
-            aria-label="Social call room name"
-          />
-          <div className="grid grid-cols-2 gap-2">
-            <button onClick={() => setMode('voice')} disabled={joined} className={`rounded-xl px-3 py-2 text-xs font-semibold ${!isVideo ? 'bg-emerald-500 text-white' : 'bg-white/10 text-cyan-100'}`}>Voice</button>
-            <button onClick={() => setMode('video')} disabled={joined} className={`rounded-xl px-3 py-2 text-xs font-semibold ${isVideo ? 'bg-cyan-500 text-white' : 'bg-white/10 text-cyan-100'}`}>Video</button>
-          </div>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <SocialVideoTile title="You" stream={liveChat.localStream} muted isVideo={isVideo} />
-          {liveChat.remotePeers.length === 0 ? (
-            <SocialVideoTile title="Waiting for group" stream={null} isVideo={false} />
-          ) : liveChat.remotePeers.slice(0, 5).map((peer) => (
-            <SocialVideoTile key={peer.socketId} title={peer.displayName || 'Friend'} stream={peer.stream} isVideo={isVideo && peer.mediaState?.camera !== false} />
-          ))}
-        </div>
-        {liveChat.error && <p className="rounded-xl border border-red-400/30 bg-red-950/60 p-2 text-xs text-red-100">{liveChat.error}</p>}
-      </div>
-      <div className="flex items-center justify-center gap-3 border-t border-white/10 bg-black/25 px-4 py-3">
-        <button onClick={liveChat.toggleMicrophone} disabled={!joined} className="rounded-full bg-white/10 p-3 text-white disabled:opacity-40" aria-label="Toggle social microphone">{liveChat.mediaState.microphone ? <FaMicrophone /> : <FaMicrophoneSlash />}</button>
-        {isVideo && <button onClick={liveChat.toggleCamera} disabled={!joined} className="rounded-full bg-white/10 p-3 text-white disabled:opacity-40" aria-label="Toggle social camera">{liveChat.mediaState.camera ? <FaVideo /> : <FaVideoSlash />}</button>}
-        <button onClick={() => setJoined((value) => !value)} className={`rounded-full px-5 py-3 text-sm font-bold text-white ${joined ? 'bg-red-600' : 'bg-cyan-500'}`}>{joined ? <span className="flex items-center gap-2"><FaPhoneSlash /> Leave</span> : 'Join room'}</button>
-      </div>
-    </div>
-  );
-}
-
 export default function HomeSocialHub() {
   let telegramId;
   try {
@@ -143,13 +50,6 @@ export default function HomeSocialHub() {
   const [friendRequests, setFriendRequests] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [invites, setInvites] = useState(() => loadStoredInvites());
-  const displayName = useMemo(() => {
-    try {
-      return window.localStorage.getItem('telegramUsername') || window.localStorage.getItem('telegramFirstName') || `TPC ${getPlayerId()}`;
-    } catch {
-      return 'TonPlaygram player';
-    }
-  }, []);
 
   const receivedInvites = useMemo(
     () =>
@@ -259,8 +159,6 @@ export default function HomeSocialHub() {
           <h3 className="text-lg font-semibold text-white">Messages Hub</h3>
         </div>
       </div>
-
-      <SocialCallStudio displayName={displayName} />
 
       <div className="grid gap-3">
         <Link
