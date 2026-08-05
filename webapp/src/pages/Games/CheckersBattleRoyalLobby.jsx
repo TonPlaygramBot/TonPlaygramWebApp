@@ -498,19 +498,29 @@ export default function CheckersBattleRoyalLobby() {
           pendingTableRef.current = res.tableId;
           setMatchStatus(
             hostedTableId
-              ? `Private table ready (${normalizeHostCode(hostCodeInput)}). Waiting for your invited opponent…`
-              : 'Waiting for another player…'
+              ? `Private table ready (${normalizeHostCode(hostCodeInput)}). Moving you to the board…`
+              : 'Table ready. Moving you to the board…'
           );
           socket.emit('confirmReady', {
             accountId: seatAccountId,
             tpcAccountId: seatAccountId,
             tableId: res.tableId
           });
-          cleanupRef.current = () => {
-            clearTimeout(matchTimeout);
-            matchmakingTimeoutRef.current = null;
-            cleanupLobby({ account: trackedAccountId, skipRefReset: true });
-          };
+
+          clearTimeout(matchTimeout);
+          matchmakingTimeoutRef.current = null;
+          socket.off('gameStart', handleGameStart);
+          socket.off('lobbyUpdate', handleLobbyUpdate);
+          pendingTableRef.current = '';
+          cleanupRef.current = () => {};
+          setMatching(false);
+          navigateToGame({
+            tgId,
+            trackedAccountId,
+            tableId: res.tableId,
+            side: preferredSide === 'black' ? 'dark' : preferredSide === 'white' ? 'light' : 'light',
+            waitingForOpponent: '1'
+          });
         }
       );
     };

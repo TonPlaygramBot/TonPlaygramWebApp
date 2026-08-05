@@ -1839,10 +1839,11 @@ export default function CheckersBattleRoyal() {
   const initialSideParam = params.get('side');
   const initialOpponentName = params.get('opponentName') || '';
   const initialOpponentAvatar = params.get('opponentAvatar') || '';
+  const waitingForOpponent = params.get('waitingForOpponent') === '1';
   const [accountId, setAccountId] = useState(initialAccountId);
   const [tableId] = useState(initialTableId);
   const [onlineStatus, setOnlineStatus] = useState(
-    mode === 'online' ? 'connecting' : 'offline'
+    mode === 'online' ? (waitingForOpponent ? 'waiting' : 'connecting') : 'offline'
   );
   const [onlineOpponent, setOnlineOpponent] = useState(
     initialOpponentName || initialOpponentAvatar
@@ -1863,7 +1864,7 @@ export default function CheckersBattleRoyal() {
         ? 'dark'
         : 'light',
     synced: mode !== 'online',
-    status: mode === 'online' ? 'connecting' : 'offline',
+    status: mode === 'online' ? (waitingForOpponent ? 'waiting' : 'connecting') : 'offline',
     opponent: null
   });
   const mountRef = useRef(null);
@@ -1902,7 +1903,11 @@ export default function CheckersBattleRoyal() {
   const proceduralBoardRef = useRef({ lightMat: null, darkMat: null });
 
   const [turn, setTurn] = useState('light');
-  const [status, setStatus] = useState(`Loading arena… ${RULE_SUMMARY}`);
+  const [status, setStatus] = useState(
+    mode === 'online' && waitingForOpponent
+      ? 'Table ready. Waiting for opponent on the board…'
+      : `Loading arena… ${RULE_SUMMARY}`
+  );
   const [configOpen, setConfigOpen] = useState(false);
   const [viewMode, setViewMode] = useState('3d');
   const [graphicsProfileId, setGraphicsProfileId] = useState(() => {
@@ -3416,8 +3421,12 @@ export default function CheckersBattleRoyal() {
     onlineRef.current.tableId = tableId;
     onlineRef.current.accountId = accountId;
     onlineRef.current.synced = false;
-    setOnlineStatus('connecting');
-    setStatus('Connecting to online table…');
+    setOnlineStatus(waitingForOpponent ? 'waiting' : 'connecting');
+    setStatus(
+      waitingForOpponent
+        ? 'Table ready. Waiting for opponent on the board…'
+        : 'Connecting to online table…'
+    );
 
     const handleGameStart = ({ tableId: startedId, players: remotePlayers = [] } = {}) => {
       if (!startedId || startedId !== tableId) return;
@@ -3436,6 +3445,19 @@ export default function CheckersBattleRoyal() {
       );
       setOnlineStatus('in-game');
       setStatus(mySide === 'light' ? 'Your turn. Forced captures are enabled.' : 'Waiting for opponent move…');
+    };
+
+    const handleLobbyUpdate = ({ tableId: eventTableId, players: remotePlayers = [] } = {}) => {
+      if (!eventTableId || eventTableId !== tableId) return;
+      const opp = remotePlayers.find((player) => String(player.id) !== String(accountId));
+      if (opp) {
+        setOnlineOpponent({ name: opp.name || 'Opponent', avatar: opp.avatar || '' });
+        setOnlineStatus('connecting');
+        setStatus('Opponent joined. Starting match…');
+      } else if (!onlineRef.current.synced) {
+        setOnlineStatus('waiting');
+        setStatus('Table ready. Waiting for opponent on the board…');
+      }
     };
 
     const handleCheckersState = ({ tableId: eventTableId, board, turn: remoteTurn } = {}) => {
@@ -3509,6 +3531,7 @@ export default function CheckersBattleRoyal() {
 
     let cancelled = false;
     socket.on('gameStart', handleGameStart);
+    socket.on('lobbyUpdate', handleLobbyUpdate);
     socket.on('checkersState', handleCheckersState);
     socket.on('checkersMoveAccepted', handleMoveAccepted);
     socket.on('checkersMoveRejected', handleMoveRejected);
@@ -3535,6 +3558,7 @@ export default function CheckersBattleRoyal() {
     return () => {
       cancelled = true;
       socket.off('gameStart', handleGameStart);
+      socket.off('lobbyUpdate', handleLobbyUpdate);
       socket.off('checkersState', handleCheckersState);
       socket.off('checkersMoveAccepted', handleMoveAccepted);
       socket.off('checkersMoveRejected', handleMoveRejected);
@@ -3544,7 +3568,7 @@ export default function CheckersBattleRoyal() {
       socket.off('reconnect', handleSocketReconnect);
       socket.emit('leaveLobby', { accountId, tableId });
     };
-  }, [accountId, mode, queueMoveAnimation, renderHighlights, renderPieces, tableId]);
+  }, [accountId, mode, queueMoveAnimation, renderHighlights, renderPieces, tableId, waitingForOpponent]);
 
   useEffect(() => {
     if (onlineRef.current.enabled) return;
