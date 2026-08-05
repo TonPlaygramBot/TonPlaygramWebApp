@@ -851,19 +851,31 @@ export default function ChessBattleRoyalLobby() {
           setReadyList(
             Array.isArray(res.ready) ? res.ready.map((id) => String(id)) : []
           );
+          const playersList = Array.isArray(res.players) ? res.players : [];
+          const mySide = resolveChessSide(playersList, seatAccountId);
+          const opp = resolveChessOpponent(playersList, seatAccountId);
           setMatchStatus(
-            onlineQueueMode === 'private'
-              ? resolvePrivateMatchStatus(res.tableId, hostCodeInput)
-              : resolveLobbyStatus(res.players, res.ready, seatAccountId)
+            opp
+              ? 'Match found. Opening the board…'
+              : onlineQueueMode === 'private'
+                ? resolvePrivateMatchStatus(res.tableId, hostCodeInput)
+                : 'Opening the board while we find the same-stake opponent…'
           );
-          armSearchRefresh();
-          cleanupRef.current = () => {
-            clearTimeout(matchmakingTimeoutRef.current);
-            matchmakingTimeoutRef.current = null;
-            clearInterval(matchmakingCountdownRef.current);
-            matchmakingCountdownRef.current = null;
-            cleanupLobby({ account: trackedAccountId, skipRefReset: true });
-          };
+          // Keep the reserved stake attached to this table and move immediately into
+          // the game scene. The game screen stays in a waiting state until another
+          // player with the same chess stake/table joins, then both ready signals
+          // start the match. Do not leave the lobby seat during this handoff.
+          stakeCharged = false;
+          cleanupLobby({ account: trackedAccountId, skipLeave: true });
+          navigateToGame({
+            tgId,
+            trackedAccountId,
+            tableId: res.tableId,
+            tableNumber: res.tableNumber,
+            side: mySide,
+            opponentName: resolvePlayerName(opp),
+            opponentAvatar: opp?.avatar
+          });
         }
       );
     };

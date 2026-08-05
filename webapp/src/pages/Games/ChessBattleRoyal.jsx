@@ -8931,6 +8931,9 @@ function bestAIMove(board, aiPlaysWhite, depth = 4) {
 const formatTime = (t) =>
   `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
 
+const resolveOnlinePlayerId = (player) =>
+  String(player?.id ?? player?.accountId ?? player?.tpcAccountNumber ?? player?.playerId ?? '').trim();
+
 // ======================= Main Component =======================
 function Chess3D({
   avatar,
@@ -8941,7 +8944,10 @@ function Chess3D({
   initialTableId,
   initialTableNumber,
   initialSide,
-  initialOpponent
+  initialOpponent,
+  preferredSideParam = 'auto',
+  stakeAmount = 0,
+  stakeToken = 'TPC'
 }) {
   const wrapRef = useRef(null);
   const normalizedInitialSide = initialSide === 'black' ? 'black' : 'white';
@@ -9310,11 +9316,11 @@ function Chess3D({
 
     const handleGameStart = ({ tableId: startedId, players = [] } = {}) => {
       if (!startedId || startedId !== tableJoin.current) return;
-      const meIndex = players.findIndex((p) => String(p.id) === String(accountId));
-      const opp = players.find((p) => String(p.id) !== String(accountId));
+      const meIndex = players.findIndex((p) => resolveOnlinePlayerId(p) === String(accountId));
+      const opp = players.find((p) => resolveOnlinePlayerId(p) !== String(accountId));
       if (opp) setOpponent(opp);
       const mySide =
-        players.find((p) => String(p.id) === String(accountId))?.side ||
+        players.find((p) => resolveOnlinePlayerId(p) === String(accountId))?.side ||
         (meIndex === 0 ? 'white' : 'black');
       onlineRef.current.side = mySide;
       onlineRef.current.status = 'started';
@@ -9350,12 +9356,23 @@ function Chess3D({
       socket.emit('chessSyncRequest', { tableId: target });
     };
 
+    const handleLobbyUpdate = ({ tableId: updatedId, players = [] } = {}) => {
+      if (!updatedId || String(updatedId) !== String(tableJoin.current)) return;
+      const opp = (Array.isArray(players) ? players : []).find((p) => resolveOnlinePlayerId(p) !== String(accountId));
+      if (opp) setOpponent(opp);
+      setOnlineStatus(opp ? 'matched' : 'waiting');
+    };
+
     socket.on('gameStart', handleGameStart);
+    socket.on('gameStarted', handleGameStart);
+    socket.on('lobbyUpdate', handleLobbyUpdate);
     socket.on('chessState', handleChessState);
     socket.on('chessMove', handleChessState);
 
     cleanups.push(() => {
       socket.off('gameStart', handleGameStart);
+      socket.off('gameStarted', handleGameStart);
+      socket.off('lobbyUpdate', handleLobbyUpdate);
       socket.off('chessState', handleChessState);
       socket.off('chessMove', handleChessState);
       if (tableJoin.current)
@@ -9366,8 +9383,9 @@ function Chess3D({
       setTableId(tableIdToJoin);
       tableJoin.current = tableIdToJoin;
       onlineRef.current.tableId = tableIdToJoin;
-      setOnlineStatus('starting');
+      setOnlineStatus('waiting');
       socket.emit('joinChessRoom', { tableId: tableIdToJoin, accountId });
+      socket.emit('confirmReady', { accountId, tableId: tableIdToJoin });
       onlineRef.current.requestSync?.();
     };
 
@@ -9381,7 +9399,8 @@ function Chess3D({
         {
           accountId,
           gameType: 'chess',
-          stake: 0,
+          stake: Number(stakeAmount) || 0,
+          token: stakeToken || 'TPC',
           maxPlayers: 2,
           playerName: username,
           avatar,
@@ -9402,7 +9421,7 @@ function Chess3D({
       active = false;
       cleanups.forEach((fn) => fn());
     };
-  }, [accountId, avatar, initialTableId, normalizedInitialSide, username]);
+  }, [accountId, avatar, initialTableId, normalizedInitialSide, preferredSideParam, stakeAmount, stakeToken, username]);
 
   useEffect(() => {
     whiteTimeRef.current = whiteTime;
@@ -17561,6 +17580,9 @@ export default function ChessBattleRoyal() {
       : preferredSideParam === 'black'
       ? 'black'
       : 'white';
+  const rawStakeAmount = Number(params.get('amount') || 0);
+  const stakeAmount = Number.isFinite(rawStakeAmount) && rawStakeAmount > 0 ? rawStakeAmount : 0;
+  const stakeToken = params.get('token') || 'TPC';
   const opponentName = params.get('opponentName') || '';
   const opponentAvatar = params.get('opponentAvatar') || '';
   const initialOpponent =
@@ -17607,6 +17629,9 @@ export default function ChessBattleRoyal() {
       initialTableNumber={initialTableNumber}
       initialSide={initialSide}
       initialOpponent={initialOpponent}
+      preferredSideParam={preferredSideParam}
+      stakeAmount={stakeAmount}
+      stakeToken={stakeToken}
     />
   );
 }
