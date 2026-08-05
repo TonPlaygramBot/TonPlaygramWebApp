@@ -9427,8 +9427,20 @@ function Chess3D({
         (res) => {
           if (!active) return;
           if (res?.tableId) {
+            const playersList = Array.isArray(res.players) ? res.players : [];
+            const opp = playersList.find(
+              (p) => resolveOnlinePlayerId(p) !== String(accountId)
+            );
+            const meIndex = playersList.findIndex(
+              (p) => resolveOnlinePlayerId(p) === String(accountId)
+            );
+            const mySide =
+              playersList.find((p) => resolveOnlinePlayerId(p) === String(accountId))?.side ||
+              (meIndex === 0 ? 'white' : meIndex === 1 ? 'black' : normalizedInitialSide);
+            onlineRef.current.side = mySide;
+            if (opp) setOpponent(opp);
             joinExistingTable(res.tableId);
-            setOnlineStatus('matched');
+            setOnlineStatus(opp ? 'matched' : 'waiting');
             socket.emit('confirmReady', { accountId, tableId: res.tableId });
           }
         }
@@ -17581,7 +17593,7 @@ export default function ChessBattleRoyal() {
     getTelegramUsername();
   const initialAccountId = params.get('accountId') || '';
   const mode = params.get('mode') || 'ai';
-  const initialTableId = params.get('tableId') || '';
+  const initialTableId = params.get('tableId') || params.get('table') || '';
   const initialTableNumber = params.get('tableNumber') || '';
   const preferredSideParam = params.get('preferredSide');
   const [accountId, setAccountId] = useState(initialAccountId);
@@ -17613,11 +17625,10 @@ export default function ChessBattleRoyal() {
   useEffect(() => {
     let cancelled = false;
     if (mode === 'online' && !initialTableId) {
-      setRedirecting(true);
-      navigate('/games/chessbattleroyal/lobby', { replace: true });
-      return () => {
-        cancelled = true;
-      };
+      // Let the game scene itself claim an online seat when it opens without a
+      // table id. This keeps the player seated at the board while matchmaking
+      // waits for the opponent instead of bouncing them back to the lobby.
+      setRedirecting(false);
     }
     if (mode === 'online' && !initialAccountId) {
       ensureAccountId()
