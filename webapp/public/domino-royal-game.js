@@ -28,6 +28,38 @@ let dominoOnlineStateSeq = 0;
 let dominoApplyingRemoteState = false;
 let dominoOnlineHasState = false;
 let dominoOnlineStateHandler = null;
+let dominoOnlineLobbyUpdateHandler = null;
+let dominoOnlineGameStartHandler = null;
+let dominoOnlineWaitingTimer = null;
+
+function persistDominoOnlineMatchPatch(patch = {}) {
+  if (typeof window === 'undefined') return null;
+  const next = { ...(DOMINO_ONLINE_MATCH || {}), ...patch };
+  try {
+    window.sessionStorage?.setItem('dominoRoyalOnlineMatch', JSON.stringify(next));
+  } catch {}
+  return next;
+}
+
+function showDominoOnlineWaitingStatus() {
+  if (!DOMINO_ONLINE_MODE || !DOMINO_ONLINE_MATCH?.waitingForOpponent) return;
+  const expiresAt = Number(DOMINO_ONLINE_MATCH.waitingExpiresAt || 0);
+  const update = () => {
+    const remaining = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+    if (remaining > 0) {
+      setStatus(`Seated at ${DOMINO_ONLINE_MATCH.tableNumber || 'online table'} • waiting for opponent (${remaining}s)`);
+      return;
+    }
+    setStatus('No opponent found in 120 seconds. Return to lobby or keep waiting.');
+    if (dominoOnlineWaitingTimer) {
+      clearInterval(dominoOnlineWaitingTimer);
+      dominoOnlineWaitingTimer = null;
+    }
+  };
+  update();
+  if (!dominoOnlineWaitingTimer) dominoOnlineWaitingTimer = setInterval(update, 1000);
+}
+
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
 const FRAME_RATE_STORAGE_KEY = 'dominoRoyalFrameRate';
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
@@ -10996,9 +11028,42 @@ function connectDominoOnlineTable() {
     applyDominoOnlineState(state);
   };
   DOMINO_ONLINE_SOCKET.on('dominoRoyalState', dominoOnlineStateHandler);
+  if (dominoOnlineLobbyUpdateHandler) DOMINO_ONLINE_SOCKET.off?.('lobbyUpdate', dominoOnlineLobbyUpdateHandler);
+  dominoOnlineLobbyUpdateHandler = ({ tableId, tableNumber, players: lobbyPlayers = [], ready = [] } = {}) => {
+    if (tableId !== DOMINO_ONLINE_TABLE_ID) return;
+    persistDominoOnlineMatchPatch({
+      tableId,
+      tableNumber: tableNumber || DOMINO_ONLINE_MATCH?.tableNumber || '',
+      players: Array.isArray(lobbyPlayers) ? lobbyPlayers : [],
+      ready: Array.isArray(ready) ? ready : [],
+      waitingForOpponent: Array.isArray(lobbyPlayers) && lobbyPlayers.length < N
+    });
+    setStatus(`Seated at ${tableNumber || 'online table'} • ${lobbyPlayers.length}/${N} players connected`);
+  };
+  DOMINO_ONLINE_SOCKET.on('lobbyUpdate', dominoOnlineLobbyUpdateHandler);
+  if (dominoOnlineGameStartHandler) DOMINO_ONLINE_SOCKET.off?.('gameStart', dominoOnlineGameStartHandler);
+  dominoOnlineGameStartHandler = ({ tableId, tableNumber, players: onlinePlayers = [], meta = {} } = {}) => {
+    if (tableId !== DOMINO_ONLINE_TABLE_ID) return;
+    persistDominoOnlineMatchPatch({
+      tableId,
+      tableNumber: tableNumber || DOMINO_ONLINE_MATCH?.tableNumber || '',
+      players: Array.isArray(onlinePlayers) ? onlinePlayers : [],
+      meta,
+      waitingForOpponent: false,
+      startedAt: Date.now()
+    });
+    if (dominoOnlineWaitingTimer) {
+      clearInterval(dominoOnlineWaitingTimer);
+      dominoOnlineWaitingTimer = null;
+    }
+    setStatus('Opponent found • starting online match…');
+    window.location.reload();
+  };
+  DOMINO_ONLINE_SOCKET.on('gameStart', dominoOnlineGameStartHandler);
   DOMINO_ONLINE_SOCKET.off?.('connect', joinAndSync);
   DOMINO_ONLINE_SOCKET.on('connect', joinAndSync);
   window.__dominoRoyalOnlineReconnectHandler = joinAndSync;
+  showDominoOnlineWaitingStatus();
 }
 
 async function bootstrapDominoRoyal() {
