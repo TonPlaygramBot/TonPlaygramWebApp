@@ -69,6 +69,7 @@ export default function DominoRoyalLobby() {
   const [queueStatus, setQueueStatus] = useState('');
   const [queueError, setQueueError] = useState('');
   const queuedTableIdRef = useRef('');
+  const launchingOnlineGameRef = useRef(false);
   const onlineStakeDebitedRef = useRef(false);
   const startBet = stake.amount / 100;
   const readiness = getOnlineReadiness('domino-royal');
@@ -188,9 +189,10 @@ export default function DominoRoyalLobby() {
       accountId = await ensureAccountId();
       tgId = getTelegramId();
       if (mode !== 'local') {
-        const balRes = await getAccountBalance(accountId);
-        if ((balRes.balance || 0) < stake.amount) {
-          alert('Insufficient balance');
+        const balRes = await getAccountBalance(accountId).catch(() => null);
+        const appBalance = Number(balRes?.balance);
+        if (Number.isFinite(appBalance) && appBalance > 0 && appBalance < stake.amount) {
+          setQueueError(`Your app balance is ${appBalance} TPC, below the ${stake.amount} TPC stake.`);
           return;
         }
       }
@@ -207,13 +209,15 @@ export default function DominoRoyalLobby() {
       setQueueStatus('Connecting to Domino Royal lobby…');
       refreshSocketAuthIdentity({ accountId: String(accountId) }, { reconnect: true });
       onlineStakeDebitedRef.current = false;
+      launchingOnlineGameRef.current = false;
+      const requestedPlayers = totalPlayers;
       const res = await joinDominoRoyalLobby({
         socket,
         accountId,
         criteria: {
           gameType: 'domino-royal',
           stake: Number(stake.amount) || 0,
-          maxPlayers: 2,
+          maxPlayers: requestedPlayers,
           playerName: getTelegramUsername() || 'Player',
           avatar,
           mode: 'online',
@@ -237,7 +241,7 @@ export default function DominoRoyalLobby() {
       queuedTableIdRef.current = res.tableId;
       setQueuedTableId(res.tableId);
       const seated = Array.isArray(res.players) ? res.players.length : 1;
-      setQueueStatus(`Table ${res.tableNumber || res.tableId.slice(0, 8)} • seat ${seated}/2 ready • waiting up to 120s for opponent`);
+      setQueueStatus(`Table ${res.tableNumber || res.tableId.slice(0, 8)} • seat ${seated}/${requestedPlayers} ready • opening game while we wait for players`);
       try {
         window.sessionStorage?.setItem(
           'dominoRoyalOnlineMatch',
@@ -249,10 +253,12 @@ export default function DominoRoyalLobby() {
             meta: res.meta || {},
             waiting: true,
             queuedAt: Date.now(),
-            timeoutMs: DOMINO_ROYAL_MATCH_TIMEOUT_MS
+            timeoutMs: DOMINO_ROYAL_MATCH_TIMEOUT_MS,
+            maxPlayers: requestedPlayers
           })
         );
       } catch {}
+      launchingOnlineGameRef.current = true;
       launchGame({
         accountId,
         tgId,
@@ -280,7 +286,7 @@ export default function DominoRoyalLobby() {
     const handleLobbyUpdate = ({ tableId, tableNumber, players: lobbyPlayers = [], ready = [] } = {}) => {
       if (!tableId || tableId !== queuedTableIdRef.current) return;
       setQueueStatus(
-        `Table ${tableNumber || String(tableId).slice(0, 8)} • ${lobbyPlayers.length}/2 players connected • ${ready.length}/2 ready`
+        `Table ${tableNumber || String(tableId).slice(0, 8)} • ${lobbyPlayers.length}/${totalPlayers} players connected • ${ready.length}/${totalPlayers} ready`
       );
     };
 
@@ -318,6 +324,7 @@ export default function DominoRoyalLobby() {
           );
         } catch {}
         queuedTableIdRef.current = '';
+        launchingOnlineGameRef.current = true;
         setQueuedTableId('');
         setQueueStatus('Starting online match…');
         launchGame({
@@ -337,7 +344,7 @@ export default function DominoRoyalLobby() {
     return () => {
       socket.off('lobbyUpdate', handleLobbyUpdate);
       socket.off('gameStart', handleGameStart);
-      if (queuedTableIdRef.current) {
+      if (queuedTableIdRef.current && !launchingOnlineGameRef.current) {
         ensureAccountId()
           .then((accountId) => socket.emit('leaveLobby', { accountId, tableId: queuedTableIdRef.current }))
           .catch(() => {});
