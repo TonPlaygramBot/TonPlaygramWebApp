@@ -1,12 +1,57 @@
 import { randomInt } from 'crypto'
 
 const TABLE_NUMBER_SPACE = 1_000_000
-const DOMINO_MATCH_KEYS = Object.freeze(['mode', 'variant', 'targetPoints', 'token'])
+const DOMINO_REQUIRED_MATCH_KEYS = Object.freeze(['mode', 'variant', 'token'])
+
+function normalizeDominoMatchValue (key, value) {
+  const normalized = String(value || '').trim()
+  if (!normalized) return ''
+  if (key === 'token') return normalized.toUpperCase()
+  if (key === 'targetPoints') return String(Number(normalized) || '')
+  return normalized.toLowerCase()
+}
+
+export function resolvePrimaryTpcAccountNumber (payload = {}) {
+  return String(
+    payload?.tpcAccountNumber ||
+      payload?.tpcAccountId ||
+      payload?.accountId ||
+      payload?.playerId ||
+      ''
+  ).trim()
+}
+
+export function hasConflictingPrimaryTpcIdentities (payload = {}) {
+  const primaryIds = [payload?.tpcAccountNumber, payload?.tpcAccountId]
+    .map((id) => String(id || '').trim())
+    .filter(Boolean)
+  if (new Set(primaryIds).size > 1) return true
+
+  // Once a TPC account number is present, it is authoritative for matchmaking.
+  // Legacy accountId/playerId fields can lag behind during mobile migrations,
+  // so they must not block seating into the lobby.
+  if (primaryIds.length > 0) return false
+
+  const fallbackIds = [payload?.accountId, payload?.playerId]
+    .map((id) => String(id || '').trim())
+    .filter(Boolean)
+  return new Set(fallbackIds).size > 1
+}
 
 export function isDominoMatchCompatible (existing = {}, requested = {}) {
-  return DOMINO_MATCH_KEYS.every((key) =>
-    String(existing?.[key] || '') === String(requested?.[key] || '')
-  )
+  for (const key of DOMINO_REQUIRED_MATCH_KEYS) {
+    if (normalizeDominoMatchValue(key, existing?.[key]) !== normalizeDominoMatchValue(key, requested?.[key])) {
+      return false
+    }
+  }
+
+  const existingVariant = normalizeDominoMatchValue('variant', existing?.variant)
+  const requestedVariant = normalizeDominoMatchValue('variant', requested?.variant)
+  if (existingVariant === 'points' || requestedVariant === 'points') {
+    return normalizeDominoMatchValue('targetPoints', existing?.targetPoints) === normalizeDominoMatchValue('targetPoints', requested?.targetPoints)
+  }
+
+  return true
 }
 
 export function createDominoTableNumber (isInUse = () => false) {

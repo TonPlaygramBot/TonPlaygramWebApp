@@ -52,7 +52,9 @@ import { execSync } from 'child_process';
 import { randomInt, randomUUID } from 'crypto';
 import {
   createDominoTableNumber,
+  hasConflictingPrimaryTpcIdentities,
   isDominoMatchCompatible,
+  resolvePrimaryTpcAccountNumber,
   validateDominoStateSubmission
 } from './utils/dominoRoyalOnline.js';
 import compression from 'compression';
@@ -620,26 +622,11 @@ function isRateLimited(socket, key, cooldownMs) {
 }
 
 function resolveTpcIdentity(payload = {}) {
-  const tpcAccountNumber = String(
-    payload?.tpcAccountNumber ||
-      payload?.tpcAccountId ||
-      payload?.accountId ||
-      payload?.playerId ||
-      ''
-  ).trim();
-  return tpcAccountNumber;
+  return resolvePrimaryTpcAccountNumber(payload);
 }
 
 function hasConflictingIdentities(payload = {}) {
-  const ids = [
-    payload?.tpcAccountNumber,
-    payload?.tpcAccountId,
-    payload?.accountId,
-    payload?.playerId
-  ]
-    .map((id) => String(id || '').trim())
-    .filter(Boolean);
-  return new Set(ids).size > 1;
+  return hasConflictingPrimaryTpcIdentities(payload);
 }
 
 function ensureRegistered(socket, tpcAccountNumber) {

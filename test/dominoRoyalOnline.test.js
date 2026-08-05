@@ -1,6 +1,9 @@
 /* global describe, test, expect */
 import {
   createDominoTableNumber,
+  hasConflictingPrimaryTpcIdentities,
+  isDominoMatchCompatible,
+  resolvePrimaryTpcAccountNumber,
   validateDominoStateSubmission
 } from '../bot/utils/dominoRoyalOnline.js'
 
@@ -29,5 +32,29 @@ describe('Domino Royal online synchronization', () => {
     const cached = { state: state(1) }
     expect(validateDominoStateSubmission({ table, cached, accountId: 'TPC-100', state: state(1), action: { type: 'play' } })).toMatchObject({ ok: false, error: 'not_your_turn' })
     expect(validateDominoStateSubmission({ table, cached, accountId: 'TPC-200', state: state(0), action: { type: 'turn' } }).ok).toBe(true)
+  })
+
+  test('uses the TPC account number as the primary lobby identity', () => {
+    const payload = {
+      tpcAccountNumber: 'TPC-777',
+      accountId: 'legacy-local-storage-id',
+      playerId: 'legacy-player-id'
+    }
+
+    expect(resolvePrimaryTpcAccountNumber(payload)).toBe('TPC-777')
+    expect(hasConflictingPrimaryTpcIdentities(payload)).toBe(false)
+    expect(hasConflictingPrimaryTpcIdentities({ tpcAccountNumber: 'TPC-1', tpcAccountId: 'TPC-2' })).toBe(true)
+  })
+
+  test('matches Domino Royal lobbies by stake-compatible game rules', () => {
+    expect(isDominoMatchCompatible(
+      { mode: 'online', variant: 'single', token: 'tpc' },
+      { mode: 'ONLINE', variant: 'SINGLE', token: 'TPC', targetPoints: '0' }
+    )).toBe(true)
+
+    expect(isDominoMatchCompatible(
+      { mode: 'online', variant: 'points', token: 'TPC', targetPoints: '51' },
+      { mode: 'online', variant: 'points', token: 'TPC', targetPoints: 101 }
+    )).toBe(false)
   })
 })
