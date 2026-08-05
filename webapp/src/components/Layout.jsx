@@ -27,6 +27,7 @@ export default function Layout({ children }) {
   const [friendRequest, setFriendRequest] = useState(null);
   const [incomingCall, setIncomingCall] = useState(null);
   const [activeCall, setActiveCall] = useState(null);
+  const [callNotice, setCallNotice] = useState('');
   const inviteSoundRef = useRef(null);
   const {
     canInstall,
@@ -51,20 +52,48 @@ export default function Layout({ children }) {
   }, []);
 
   useEffect(() => {
-    const onIncomingCall = (call) => setIncomingCall(call);
-    const onStartCall = (event) => setActiveCall(event.detail);
-    const onEnded = ({ roomId } = {}) => {
-      if (!roomId || activeCall?.roomId === roomId) setActiveCall(null);
+    const ring = () => {
+      if (inviteSoundRef.current && !isGameMuted()) {
+        inviteSoundRef.current.currentTime = 0;
+        inviteSoundRef.current.play().catch(() => {});
+      }
+    };
+    const onIncomingCall = (call) => {
+      setIncomingCall(call);
+      setCallNotice(`${call?.fromName || 'Someone'} is calling you now`);
+      ring();
+    };
+    const onStartCall = (event) => {
+      setActiveCall(event.detail);
+      setCallNotice(`${event.detail?.name || 'Friend'} is ringing…`);
+    };
+    const onAccepted = ({ roomId } = {}) => {
+      if (!roomId || activeCall?.roomId === roomId) setCallNotice('Call connected');
+    };
+    const onEnded = ({ roomId, reason } = {}) => {
+      if (!roomId || activeCall?.roomId === roomId) {
+        setActiveCall(null);
+        setCallNotice(reason === 'declined' ? 'Call declined' : 'Call ended');
+      }
+      setIncomingCall((current) => (current?.roomId === roomId ? null : current));
     };
     socket.on('friendCall:incoming', onIncomingCall);
+    socket.on('friendCall:accepted', onAccepted);
     socket.on('friendCall:ended', onEnded);
     window.addEventListener('friend-call:start', onStartCall);
     return () => {
       socket.off('friendCall:incoming', onIncomingCall);
+      socket.off('friendCall:accepted', onAccepted);
       socket.off('friendCall:ended', onEnded);
       window.removeEventListener('friend-call:start', onStartCall);
     };
   }, [activeCall?.roomId]);
+
+  useEffect(() => {
+    if (!callNotice || activeCall || incomingCall) return undefined;
+    const id = window.setTimeout(() => setCallNotice(''), 2800);
+    return () => window.clearTimeout(id);
+  }, [activeCall, callNotice, incomingCall]);
 
   useEffect(() => {
     inviteSoundRef.current = new Audio(inviteBeep);
@@ -118,16 +147,27 @@ export default function Layout({ children }) {
 
   useEffect(() => {
     let id;
-    try {
+    const registerAndPing = () => {
       const playerId = getPlayerId();
-      function ping() {
-        const status = localStorage.getItem('onlineStatus') || 'online';
-        pingOnline(playerId, status).catch(() => {});
-      }
-      ping();
-      id = setInterval(ping, 30000);
+      if (!playerId) return;
+      if (!socket.connected) socket.connect();
+      socket.emit('register', { playerId, tpcAccountNumber: playerId });
+      const status = localStorage.getItem('onlineStatus') || 'online';
+      pingOnline(playerId, status).catch(() => {});
+    };
+    try {
+      registerAndPing();
+      id = setInterval(registerAndPing, 30000);
+      socket.on('connect', registerAndPing);
+      window.addEventListener('focus', registerAndPing);
+      window.addEventListener('storage', registerAndPing);
     } catch {}
-    return () => clearInterval(id);
+    return () => {
+      clearInterval(id);
+      socket.off('connect', registerAndPing);
+      window.removeEventListener('focus', registerAndPing);
+      window.removeEventListener('storage', registerAndPing);
+    };
   }, []);
 
   const showNavbar = !(
@@ -251,11 +291,19 @@ export default function Layout({ children }) {
         </div>
       )}
 
+      {callNotice && (
+        <div className="fixed left-4 right-4 top-4 z-[91] mx-auto max-w-sm rounded-2xl border border-cyan-300/30 bg-[#081525]/95 px-4 py-3 text-center text-sm font-semibold text-white shadow-2xl">
+          {callNotice}
+        </div>
+      )}
+
       {incomingCall && !activeCall && (
         <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/70 p-4 pb-24">
           <div className="w-full max-w-sm rounded-3xl border border-white/15 bg-[#101b2a] p-6 text-center shadow-2xl">
             <p className="text-xs uppercase tracking-widest text-cyan-300">Incoming {incomingCall.type} call</p>
-            <h2 className="mt-2 text-xl font-bold">{incomingCall.fromName || 'Friend'}</h2>
+            <img src={incomingCall.fromPhoto || '/assets/icons/profile.svg'} alt="" className="mx-auto mt-4 h-20 w-20 rounded-full border-4 border-cyan-300 object-cover shadow-xl" />
+            <h2 className="mt-3 text-xl font-bold">{incomingCall.fromName || 'Friend'}</h2>
+            <p className="mt-1 text-sm text-white/65">Real-time Messenger call invitation</p>
             <div className="mt-6 flex justify-center gap-4">
               <button onClick={() => { socket.emit('friendCall:reject', incomingCall); setIncomingCall(null); }} className="rounded-full bg-red-600 px-6 py-3 font-semibold">Decline</button>
               <button onClick={() => { socket.emit('friendCall:accept', incomingCall); setActiveCall({ ...incomingCall, name: incomingCall.fromName }); setIncomingCall(null); }} className="rounded-full bg-emerald-600 px-6 py-3 font-semibold">Accept</button>

@@ -43,6 +43,8 @@ export default function LeaderboardCard() {
   const accountId = getPlayerId();
 
   const [leaderboard, setLeaderboard] = useState([]);
+  const [leaderboardState, setLeaderboardState] = useState('loading');
+  const [leaderboardError, setLeaderboardError] = useState('');
   const [rank, setRank] = useState(null);
   const [myPhotoUrl, setMyPhotoUrl] = useState(
     loadAvatar() || getTelegramPhotoUrl()
@@ -118,21 +120,26 @@ export default function LeaderboardCard() {
 
   useEffect(() => {
     function loadLeaderboard() {
-      getLeaderboard(telegramId)
+      setLeaderboardState('loading');
+      getLeaderboard({ telegramId, accountId })
         .then((data) => {
           const users = Array.isArray(data?.users) ? data.users : [];
           setLeaderboard(users);
           setRank(typeof data?.rank === 'number' ? data.rank : null);
+          setLeaderboardState('ready');
+          setLeaderboardError('');
         })
-        .catch(() => {
+        .catch((error) => {
           setLeaderboard([]);
           setRank(null);
+          setLeaderboardState('error');
+          setLeaderboardError(error?.message || 'Leaderboard failed to load.');
         });
     }
     loadLeaderboard();
     const id = setInterval(loadLeaderboard, 15000);
     return () => clearInterval(id);
-  }, [telegramId]);
+  }, [telegramId, accountId]);
 
   useEffect(() => {
     const tables = new Set(
@@ -245,6 +252,12 @@ export default function LeaderboardCard() {
             <span className="ml-1">{onlineCount}</span>
           </span>
         </div>
+        {leaderboardState === 'loading' && leaderboard.length === 0 && (
+          <div className="rounded border border-border bg-background/40 p-3 text-center text-sm text-subtext">Loading leaderboard…</div>
+        )}
+        {leaderboardState === 'error' && (
+          <div className="rounded border border-red-400/40 bg-red-950/40 p-3 text-center text-sm text-red-100">{leaderboardError}</div>
+        )}
         <div className="max-h-[80rem] overflow-y-auto border border-border rounded">
           <table className="w-full text-sm">
             <thead className="sticky top-0 bg-surface">
@@ -517,6 +530,8 @@ export default function LeaderboardCard() {
         }}
         onCall={(type) => {
           if (!inviteTarget) return;
+          if (!socket.connected) socket.connect();
+          socket.emit('register', { playerId: accountId, tpcAccountNumber: accountId });
           socket.emit('friendCall:invite', {
             toAccountId: inviteTarget.accountId,
             fromTelegramId: telegramId,
