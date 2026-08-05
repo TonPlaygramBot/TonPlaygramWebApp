@@ -12,8 +12,9 @@ import {
 } from 'react-icons/fa';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import LoginOptions from '../components/LoginOptions.jsx';
-import { getTelegramId } from '../utils/telegram.js';
+import { getPlayerId, getTelegramId } from '../utils/telegram.js';
 import { getMessages, sendMessage, listFriends, markInboxRead } from '../utils/api.js';
+import { socket } from '../utils/socket.js';
 
 export default function Messages() {
   useTelegramBackButton();
@@ -32,6 +33,7 @@ export default function Messages() {
   const [activeFolder, setActiveFolder] = useState('inbox');
   const [actionNote, setActionNote] = useState('');
   const [clipFile, setClipFile] = useState(null);
+  const accountId = getPlayerId();
 
   useEffect(() => {
     markInboxRead(telegramId);
@@ -59,9 +61,72 @@ export default function Messages() {
     markInboxRead(telegramId);
   }
 
+  function flashActionNote(message) {
+    setActionNote(message);
+    setTimeout(() => setActionNote(''), 2500);
+  }
+
   function handleQuickAction(label) {
-    setActionNote(`${label} queued`);
-    setTimeout(() => setActionNote(''), 2000);
+    flashActionNote(`${label} queued`);
+  }
+
+  function selectedName() {
+    return selected?.nickname ||
+      `${selected?.firstName || ''} ${selected?.lastName || ''}`.trim() ||
+      'Friend';
+  }
+
+  function startFriendCall(type) {
+    if (!selected?.accountId || !selected?.telegramId) {
+      flashActionNote('This friend is missing call details.');
+      return;
+    }
+
+    socket.emit('friendCall:invite', {
+      toAccountId: selected.accountId,
+      fromTelegramId: telegramId,
+      toTelegramId: selected.telegramId,
+      fromName: 'TonPlaygram player',
+      type
+    }, (response) => {
+      if (!response?.success) {
+        flashActionNote(response?.error || 'Unable to start call.');
+        return;
+      }
+      window.dispatchEvent(new CustomEvent('friend-call:start', {
+        detail: {
+          ...response.call,
+          name: selectedName(),
+          photo: selected.photo || selected.photoUrl
+        }
+      }));
+      flashActionNote(`${type === 'video' ? 'Video' : 'Voice'} call started.`);
+    });
+  }
+
+  function sendGameInvite() {
+    if (!selected?.accountId || !selected?.telegramId) {
+      flashActionNote('This friend is missing invite details.');
+      return;
+    }
+    const roomId = `invite-${accountId}-${selected.accountId}-${Date.now()}-2`;
+    socket.emit('invite1v1', {
+      fromId: accountId,
+      fromTelegramId: telegramId,
+      fromName: 'TonPlaygram player',
+      toId: selected.accountId,
+      toTelegramId: selected.telegramId,
+      roomId,
+      game: 'snake',
+      token: 'TPC',
+      amount: 100
+    }, (response) => {
+      if (!response?.success) {
+        flashActionNote(response?.error || 'Failed to send invite.');
+        return;
+      }
+      flashActionNote('Game invite sent.');
+    });
   }
 
   const filteredFriends = useMemo(() => {
@@ -192,6 +257,24 @@ export default function Messages() {
                 </div>
                 <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
                   <button
+                    onClick={() => startFriendCall('voice')}
+                    className="inline-flex items-center justify-center gap-1 rounded-full border border-emerald-400/50 px-3 py-1 text-[11px] text-white"
+                  >
+                    <FaMicrophone /> Voice
+                  </button>
+                  <button
+                    onClick={() => startFriendCall('video')}
+                    className="inline-flex items-center justify-center gap-1 rounded-full border border-cyan-400/50 px-3 py-1 text-[11px] text-white"
+                  >
+                    <FaVideo /> Video
+                  </button>
+                  <button
+                    onClick={sendGameInvite}
+                    className="inline-flex items-center justify-center gap-1 rounded-full border border-primary/70 px-3 py-1 text-[11px] text-white"
+                  >
+                    Invite Game
+                  </button>
+                  <button
                     onClick={() => handleQuickAction('Archive')}
                     className="inline-flex items-center justify-center gap-1 rounded-full border border-border px-3 py-1 text-[11px] text-white"
                   >
@@ -284,10 +367,10 @@ export default function Messages() {
                     />
                   </label>
                   <button
-                    onClick={() => handleQuickAction('Voice')}
-                    className="inline-flex items-center justify-center gap-2 rounded-full border border-border px-3 py-1 text-xs text-white"
+                    onClick={() => startFriendCall('voice')}
+                    className="inline-flex items-center justify-center gap-2 rounded-full border border-emerald-400/50 px-3 py-1 text-xs text-white"
                   >
-                    <FaMicrophone /> Voice
+                    <FaMicrophone /> Voice Call
                   </button>
                   <button
                     onClick={() => handleQuickAction('Report')}

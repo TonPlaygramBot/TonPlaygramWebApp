@@ -3,7 +3,7 @@ import { validateEnv } from './env.js';
 import express from 'express';
 import cors from 'cors';
 import bot from './bot.js';
-import { getInviteUrl } from './utils/notifications.js';
+import { getInviteUrl, sendInviteNotification } from './utils/notifications.js';
 import mongoose from 'mongoose';
 import { proxyUrl, proxyAgent } from './utils/proxyAgent.js';
 import http from 'http';
@@ -3057,14 +3057,31 @@ io.on('connection', (socket) => {
       amount,
       game
     });
-    const url = getInviteUrl(roomId, token, amount, game);
+    let url = getInviteUrl(roomId, token, amount, game);
+    if (toTelegramId) {
+      try {
+        url = await sendInviteNotification(
+          bot,
+          toTelegramId,
+          payload?.fromTelegramId || fromId,
+          fromName,
+          '1v1',
+          roomId,
+          token,
+          amount,
+          game
+        );
+      } catch (error) {
+        console.error('Failed to send 1v1 invite notification:', error.message);
+      }
+    }
     cb && cb({ success: true, url });
   });
 
   socket.on(
     'inviteGroup',
     async (
-      { fromId, fromName, toIds, telegramIds = [], opponentNames = [], roomId, token, amount, game = 'snake' },
+      { fromId, fromTelegramId, fromName, toIds, telegramIds = [], opponentNames = [], roomId, token, amount, game = 'snake' },
       cb
     ) => {
       if (!fromId || !Array.isArray(toIds) || toIds.length === 0) {
@@ -3081,6 +3098,23 @@ io.on('connection', (socket) => {
       for (let i = 0; i < toIds.length; i++) {
         const toId = toIds[i];
         const targets = await getUserSocketIds({ accountId: toId, telegramId: telegramIds[i] });
+        if (telegramIds[i]) {
+          try {
+            url = await sendInviteNotification(
+              bot,
+              telegramIds[i],
+              fromTelegramId || fromId,
+              fromName,
+              'group',
+              roomId,
+              token,
+              amount,
+              game
+            );
+          } catch (error) {
+            console.error('Failed to send group invite notification:', error.message);
+          }
+        }
         if (targets.size > 0) {
           for (const sid of targets) {
             io.to(sid).emit('gameInvite', {

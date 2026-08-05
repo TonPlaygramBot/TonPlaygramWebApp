@@ -131,6 +131,10 @@ export default function useLiveVideoChat({ roomId, displayName, enabled, video =
     if (!enabled || !safeRoomId || isConnected) return;
     setError('');
     try {
+      if (!navigator?.mediaDevices?.getUserMedia) {
+        throw new Error('Camera and microphone are unavailable in this browser. Open TonPlaygram over HTTPS or inside Telegram with media permissions enabled.');
+      }
+      if (!socket.connected) socket.connect();
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: true,
         video: video ? {
