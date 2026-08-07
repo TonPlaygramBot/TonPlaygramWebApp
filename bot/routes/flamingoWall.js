@@ -24,6 +24,7 @@ router.post('/posts', async (req, res) => {
   const fields = {};
   let upload;
   let writeDone;
+  let completed = false;
 
   busboy.on('field', (name, value) => { fields[name] = value; });
   busboy.on('file', (_name, stream, info) => {
@@ -41,9 +42,16 @@ router.post('/posts', async (req, res) => {
     stream.pipe(output);
   });
 
+  req.on('aborted', async () => {
+    if (completed) return;
+    completed = true;
+    if (upload?.diskPath) await rm(upload.diskPath, { force: true });
+  });
+
   busboy.on('error', err => res.status(400).json({ error: err.message }));
   busboy.on('finish', async () => {
     try {
+      if (completed) return;
       if (writeDone) await writeDone;
       if (upload?.limited) {
         await rm(upload.diskPath, { force: true });
@@ -55,6 +63,7 @@ router.post('/posts', async (req, res) => {
       const author = String(fields.author || (identity ? `Anëtar ${identity}` : 'Anëtar i komunitetit')).slice(0, 120);
       const attachment = upload ? { name: upload.originalName, size: upload.size, type: upload.type, url: `/api/flamingo-wall/files/${upload.storedName}` } : undefined;
       const post = await FlamingoPost.create({ text: text.slice(0, 1200), author, attachment });
+      completed = true;
       res.status(201).json({ post });
     } catch (err) {
       if (upload?.diskPath) await rm(upload.diskPath, { force: true });
@@ -66,7 +75,11 @@ router.post('/posts', async (req, res) => {
 
 router.get('/files/:name', (req, res) => {
   const name = path.basename(req.params.name);
-  res.setHeader('Content-Disposition', `inline; filename="${name.replace(/["\\]/g, '')}"`);
+  const disposition = req.query.download === '1' ? 'attachment' : 'inline';
+  const requestedName = path.basename(String(req.query.name || name)).replace(/["\\\r\n]/g, '');
+  res.setHeader('Content-Disposition', `${disposition}; filename="${requestedName}"`);
+  res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
   res.sendFile(path.join(uploadDirectory, name), err => {
     if (err && !res.headersSent) res.status(err.statusCode || 404).end();
   });
