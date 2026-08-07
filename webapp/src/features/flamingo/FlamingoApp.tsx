@@ -4,7 +4,7 @@ import {
   AlertTriangle, Bell, CalendarDays, Check, ChevronLeft, ChevronRight, CircleUserRound,
   ClipboardCheck, Clock3, Copy, Download, ExternalLink, EyeOff, FileText, Globe2,
   Home, Info, LayoutDashboard, LockKeyhole, MapPin, Megaphone,
-  MessageCircle, Navigation, Plus, Radio, Search, Send, Share2, ShieldCheck, Siren, Smartphone,
+  Inbox, MessageCircle, Navigation, Plus, Radio, Search, Send, Share2, ShieldCheck, Siren, Smartphone,
   Camera, Mic, MonitorUp, Upload, UserPlus, Users, Video, X,
 } from 'lucide-react';
 import HomeSocialHub from '../../components/HomeSocialHub.jsx';
@@ -12,7 +12,8 @@ import MediaWall from './MediaWall';
 import { documents, groups, locations, onlineTasks, protests, tasks, updates } from './mock';
 import { useFlamingoStore } from './store';
 import type { LiveUpdate, Protest, Task } from './types';
-import { getTelegramId } from '../../utils/telegram.js';
+import { getTelegramFirstName, getTelegramId, getTelegramLastName, getTelegramPhotoUrl, getTelegramUsername } from '../../utils/telegram.js';
+import { fetchTelegramInfo } from '../../utils/api.js';
 import './flamingo.css';
 
 const getStaffRole = () => localStorage.getItem('flamingoRole') || 'ADMIN';
@@ -153,7 +154,14 @@ function LivePage() { return <Shell title="Përditësime Live" back><div classNa
 function DocumentCard({ doc }: { doc: (typeof documents)[number] }) { return <article className="fr-card fr-doc"><div className="fr-doc-icon"><FileText /></div><div><span>{doc.category}</span><h3>{doc.title}</h3><small>{doc.date} • {doc.author}</small></div><button aria-label="Shkarko dokumentin"><Download /></button></article>; }
 function DocumentsPage() { return <Shell title="Dokumente & Informacion" back><div className="fr-list">{documents.map(x => <DocumentCard key={x.id} doc={x} />)}</div></Shell>; }
 
-function ProfilePage() { return <Shell title="Profili"><div className="fr-profile"><div className="fr-avatar">AM</div><h1>Arta M.</h1><span className="fr-badge">✓ ANËTAR I CERTIFIKUAR</span><p>Të dhënat e kontaktit nuk shfaqen publikisht.</p></div><div className="fr-menu">{[[Globe2, 'Kontributet online', '/flamingo/digital'], [Video, 'Media Wall', '/flamingo/media'], [Send, 'Njoftimet Telegram', '/flamingo/telegram'], [Users, 'Grupet e mia', '/flamingo/groups'], [Video, 'Krijo thirrje video', '/flamingo/calls'], [ClipboardCheck, 'Detyrat e mia', '/flamingo/tasks'], [FileText, 'Dokumentet', '/flamingo/documents'], [LayoutDashboard, 'Paneli i organizatorit', '/flamingo/admin']].map(([Icon, label, to]) => <Link key={String(label)} to={String(to)}><Icon /><span>{String(label)}</span><ChevronRight /></Link>)}</div><section className="fr-safety"><ShieldCheck /><div><strong>Privacy-first</strong><p>Vendndodhja, telefoni dhe email-i yt nuk publikohen.</p></div></section></Shell>; }
+function ProfilePage() {
+  const telegramId = getTelegramId();
+  const [profile, setProfile] = useState(() => ({ username: getTelegramUsername(), firstName: getTelegramFirstName(), lastName: getTelegramLastName(), photoUrl: getTelegramPhotoUrl() }));
+  useEffect(() => { if (!telegramId) return; fetchTelegramInfo(telegramId).then(info => { if (!info) return; setProfile(current => ({ username: info.username || current.username, firstName: info.firstName || current.firstName, lastName: info.lastName || current.lastName, photoUrl: info.photoUrl || current.photoUrl })); }).catch(() => {}); }, [telegramId]);
+  const fullName = [profile.firstName, profile.lastName].filter(Boolean).join(' ') || profile.username || `Telegram ${telegramId}`;
+  const initials = fullName.split(/\s+/).map(value => value[0]).join('').slice(0, 2).toUpperCase();
+  return <Shell title="Profili"><div className="fr-profile-card"><div className="fr-profile"><div className="fr-avatar">{profile.photoUrl ? <img src={profile.photoUrl} alt={fullName} /> : initials}</div><div><h1>{fullName}</h1>{profile.username && <a href={`https://t.me/${profile.username}`} target="_blank" rel="noreferrer">@{profile.username}</a>}<span className="fr-badge">✓ TELEGRAM I VERIFIKUAR</span><p>ID {telegramId} • Të dhënat e kontaktit mbeten private.</p></div></div><div className="fr-profile-shortcuts"><Link to="/messages"><Inbox /><span><strong>Inbox</strong><small>Mesazhet e tua</small></span><ChevronRight /></Link><Link to="/flamingo/groups"><Users /><span><strong>Bashkëpunëtorët</strong><small>{team.length} anëtarë aktivë</small></span><ChevronRight /></Link></div></div><SectionTitle>Hapësira ime</SectionTitle><div className="fr-menu">{[[Globe2, 'Kontributet online', '/flamingo/digital'], [Video, 'Media Wall', '/flamingo/media'], [Send, 'Njoftimet Telegram', '/flamingo/telegram'], [Users, 'Grupet e mia', '/flamingo/groups'], [Video, 'Krijo thirrje video', '/flamingo/calls'], [ClipboardCheck, 'Detyrat e mia', '/flamingo/tasks'], [FileText, 'Dokumentet', '/flamingo/documents'], [LayoutDashboard, 'Paneli i organizatorit', '/flamingo/admin']].map(([Icon, label, to]) => <Link key={String(label)} to={String(to)}><Icon /><span>{String(label)}</span><ChevronRight /></Link>)}</div><SectionTitle>Lista e bashkëpunëtorëve</SectionTitle><div className="fr-collaborators">{team.map(member => <article key={member.name}><span>{member.initials}</span><div><strong>{member.name}</strong><small>{member.role}</small></div><i>Aktiv</i></article>)}</div><section className="fr-safety"><ShieldCheck /><div><strong>Privacy-first</strong><p>Vendndodhja, telefoni dhe email-i yt nuk publikohen.</p></div></section></Shell>;
+}
 
 function ReportPage() {
   const nav = useNavigate(); const notify = useFlamingoStore(s => s.notify); const [anonymous, setAnonymous] = useState(true); const [step, setStep] = useState(1); const [category, setCategory] = useState('Korrupsion / abuzim');
