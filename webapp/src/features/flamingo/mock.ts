@@ -14,10 +14,10 @@ export const protests: Protest[] = [
   { id:'vlore', title:'Zëri i qytetit', city:'Vlorë', place:'Sheshi i Flamurit', date:'2 Gusht', time:'19:00', organizer:'Nisma Vlorë', participants:950, status:'PËRFUNDUAR', description:'Tubim qytetar i përfunduar në mënyrë paqësore.' }
 ];
 export const updates: LiveUpdate[] = [
-  { id:'1', time:'19:42', author:'Këshilli Qytetar', type:'ZYRTARE', text:'Organizatorët njoftojnë se fjalimet fillojnë pas 20 minutash.' },
-  { id:'2', time:'19:20', author:'Ekipi i sigurisë', type:'URGJENTE', text:'Pika e ndihmës së parë është zhvendosur pranë hyrjes veriore.' },
-  { id:'3', time:'18:55', author:'Koordinimi', type:'INFO', text:'Zona kryesore është hapur për pjesëmarrësit.' },
-  { id:'4', time:'18:30', author:'Transporti', type:'INFO', text:'Linja urbane 2 ka shtuar dy nisje pas përfundimit të tubimit.' }
+  { id:'1', time:'19:42', author:'Këshilli Qytetar', authorRole:'ZYRTARE', verified:true, type:'ZYRTARE', text:'Organizatorët njoftojnë se fjalimet fillojnë pas 20 minutash.' },
+  { id:'2', time:'19:20', author:'Ekipi i sigurisë', authorRole:'MODERATOR', verified:true, type:'URGJENTE', text:'Pika e ndihmës së parë është zhvendosur pranë hyrjes veriore.' },
+  { id:'3', time:'18:55', author:'Koordinimi', authorRole:'MODERATOR', verified:true, type:'INFO', text:'Zona kryesore është hapur për pjesëmarrësit.' },
+  { id:'4', time:'18:30', author:'Transporti', authorRole:'ANËTAR', verified:false, type:'INFO', text:'Linja urbane 2 ka shtuar dy nisje pas përfundimit të tubimit.' }
 ];
 export const groups: Group[] = [
   { id:'volunteers', name:'Vullnetarët', description:'Orientim dhe mbështetje për pjesëmarrësit.', admin:'Elira Hoxha', members:86, tasks:4 },
