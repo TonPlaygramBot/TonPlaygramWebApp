@@ -8,3 +8,4 @@ export interface Report { category: string; description: string; location?: stri
 export interface MapLocation { id: string; name: string; type: 'Takim' | 'Ndihmë' | 'Informacion' | 'Transport'; description: string; status: string; hours: string; x: number; y: number }
 export interface Document { id: string; title: string; category: string; date: string; author: string }
 export interface Notification { id: string; title: string; read: boolean }
+export interface OnlineTask { id: string; network: 'Instagram' | 'TikTok' | 'X' | 'Telegram'; title: string; description: string; url: string; reward: number; completed: number; goal: number }
