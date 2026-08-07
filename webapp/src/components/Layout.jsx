@@ -188,12 +188,13 @@ export default function Layout({ children }) {
     !location.pathname.includes('/lobby')
   );
 
+  const isFlamingo = location.pathname.startsWith('/flamingo');
+
   const isLobby = location.pathname.includes('/lobby');
 
-  const showFooter = !location.pathname.startsWith('/games/');
+  const showFooter = !location.pathname.startsWith('/games/') && !isFlamingo;
   const showHeader =
-    !location.pathname.startsWith('/games/') ||
-    isLobby;
+    !isFlamingo && (!location.pathname.startsWith('/games/') || isLobby);
 
   useEffect(() => {
     if (location.pathname === '/mining') {
@@ -252,7 +253,7 @@ export default function Layout({ children }) {
       )}
       <main
         className={`flex-grow ${
-          showNavbar
+          showNavbar && !isFlamingo
             ? isLobby
               ? 'w-full p-4 pb-28'
               : 'container mx-auto p-4 pb-28'
@@ -264,7 +265,7 @@ export default function Layout({ children }) {
 
       {/* Fixed Bottom Navbar */}
 
-      {showNavbar && (
+      {showNavbar && !isFlamingo && (
         <div className="fixed bottom-0 inset-x-0 z-50">
           <Navbar />
         </div>

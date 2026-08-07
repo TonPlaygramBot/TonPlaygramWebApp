@@ -109,6 +109,9 @@ const ShootingRangeLobby = React.lazy(
 const StoreThumbnailStudioPoolRoyale = React.lazy(
   () => import('./pages/Tools/StoreThumbnailStudioPoolRoyale.jsx')
 );
+const FlamingoApp = React.lazy(
+  () => import('./features/flamingo/FlamingoApp.tsx')
+);
 
 export default function App() {
   // Enforce canonical origin for wallet connection flows.
@@ -191,6 +194,7 @@ export default function App() {
           >
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/flamingo/*" element={<FlamingoApp />} />
               <Route path="/mining" element={<Mining />} />
               <Route
                 path="/mining/transactions"
