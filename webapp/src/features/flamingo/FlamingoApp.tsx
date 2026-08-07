@@ -50,7 +50,7 @@ function TopBar({ title, back = false, action }: { title?: string; back?: boolea
 }
 
 function BottomNavigation() {
-  const items = [['/flamingo', Home, 'Kreu'], ['/flamingo/protests', Megaphone, 'Protestat'], ['/flamingo/digital', Globe2, 'Online'], ['/flamingo/map', Map, 'Harta'], ['/flamingo/profile', CircleUserRound, 'Profili']] as const;
+  const items = [['/flamingo', Home, 'Kreu'], ['/flamingo/media', Video, 'Media'], ['/flamingo/tasks', ClipboardCheck, 'Detyrat'], ['/flamingo/protests', Megaphone, 'Protestat'], ['/flamingo/map', Map, 'Harta'], ['/flamingo/profile', CircleUserRound, 'Profili']] as const;
   return <nav className="fr-nav" aria-label="Navigimi kryesor">{items.map(([to, Icon, label]) => <NavLink key={to} to={to} end={to === '/flamingo'}><Icon /><span>{label}</span></NavLink>)}</nav>;
 }
 
