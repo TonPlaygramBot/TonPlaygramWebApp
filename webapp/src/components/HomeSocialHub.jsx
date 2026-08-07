@@ -117,7 +117,7 @@ function SocialCallStudio({ displayName }) {
           <SocialVideoTile title="You" stream={liveChat.localStream} muted isVideo={isVideo} />
           {liveChat.remotePeers.length === 0 ? (
             <SocialVideoTile title="Waiting for group" stream={null} isVideo={false} />
-          ) : liveChat.remotePeers.slice(0, 5).map((peer) => (
+          ) : liveChat.remotePeers.slice(0, 19).map((peer) => (
             <SocialVideoTile key={peer.socketId} title={peer.displayName || 'Friend'} stream={peer.stream} isVideo={isVideo && peer.mediaState?.camera !== false} />
           ))}
         </div>
