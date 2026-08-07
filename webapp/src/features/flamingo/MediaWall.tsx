@@ -1,37 +1,23 @@
-import { useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { CheckCircle2, Download, Play, Share2, Upload, Video } from 'lucide-react';
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { CheckCircle2, Download, FileText, Image, Paperclip, Play, Send, Share2, Upload, Video } from 'lucide-react';
 
-type Clip = { id: string; title: string; author: string; src: string; verified: boolean; fileName?: string };
-const starterClips: Clip[] = [
-  { id: 'welcome', title: 'Zëri ynë, me fakte', author: 'Ekipi i medias', src: '/assets/videos/flamingo-community.mp4', verified: true },
-];
+type Attachment = { name: string; size: number; type: string; src: string };
+type Post = { id: string; text: string; author: string; createdAt: string; attachment?: Attachment };
+const MAX_UPLOAD_BYTES = 1024 * 1024 * 1024;
+const initialPosts: Post[] = [{ id: 'welcome', author: 'Ekipi Flamingo', createdAt: 'Sot • 09:30', text: 'Mirë se erdhët në murin e komunitetit. Ndani foto, video dhe dokumente të dobishme me burim të qartë.' }];
 
-export default function MediaWall() {
-  const [clips, setClips] = useState<Clip[]>(starterClips);
-  const [notice, setNotice] = useState('');
-  const urls = useRef<string[]>([]);
+function formatBytes(bytes: number) { if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} GB`; if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(1)} MB`; return `${Math.max(1, Math.round(bytes / 1024))} KB`; }
+function AttachmentPreview({ file }: { file: Attachment }) {
+  if (file.type.startsWith('video/')) return <div className="fr-video-frame"><video src={file.src} controls playsInline preload="metadata" /><span><Play /> VIDEO</span></div>;
+  if (file.type.startsWith('image/')) return <img className="fr-post-image" src={file.src} alt={file.name} />;
+  return <a className="fr-file-card" href={file.src} download={file.name}><FileText /><span><strong>{file.name}</strong><small>{formatBytes(file.size)} • Prek për ta shkarkuar</small></span><Download /></a>;
+}
+
+export default function MediaWall({ compact = false }: { compact?: boolean }) {
+  const [posts, setPosts] = useState<Post[]>(initialPosts); const [text, setText] = useState(''); const [selected, setSelected] = useState<Attachment>(); const [notice, setNotice] = useState(''); const urls = useRef<string[]>([]);
   useEffect(() => () => urls.current.forEach(URL.revokeObjectURL), []);
-
-  function upload(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('video/')) return setNotice('Zgjidh një skedar video MP4, WebM ose MOV.');
-    if (file.size > 250 * 1024 * 1024) return setNotice('Videoja duhet të jetë më e vogël se 250 MB.');
-    const src = URL.createObjectURL(file); urls.current.push(src);
-    setClips(items => [{ id: crypto.randomUUID(), title: file.name.replace(/\.[^.]+$/, ''), author: 'Ti • në shqyrtim', src, verified: false, fileName: file.name }, ...items]);
-    setNotice('Videoja u shtua privatisht në pajisjen tënde dhe u dërgua për shqyrtim.');
-    event.target.value = '';
-  }
-
-  async function share(clip: Clip) {
-    const text = `${clip.title} — Flamingo Revolution. Material i verifikuar për rishpërndarje.`;
-    if (navigator.share) { await navigator.share({ title: clip.title, text, url: location.href }); return; }
-    await navigator.clipboard.writeText(`${text} ${location.href}`); setNotice('Teksti dhe lidhja u kopjuan.');
-  }
-
-  return <>
-    <section className="fr-media-upload"><div><span className="fr-kicker"><Video /> MEDIA WALL</span><h1>Video gati për komunitetin.</h1><p>Anëtarët e certifikuar mund të ngarkojnë video HD. Moderatorët i kontrollojnë para publikimit.</p></div><label><Upload /> Ngarko video HD<input type="file" accept="video/mp4,video/webm,video/quicktime" onChange={upload} /></label><small>MP4, WebM ose MOV • maksimumi 250 MB • kërkohen të drejtat e publikimit</small></section>
-    {notice && <p className="fr-inline-notice"><CheckCircle2 />{notice}</p>}
-    <div className="fr-media-grid">{clips.map(clip => <article key={clip.id} className="fr-media-card"><div className="fr-video-frame"><video src={clip.src} controls playsInline preload="metadata" poster="/assets/icons/flamingo-revolution.webp" /><span><Play /> HD</span></div><div className="fr-media-copy"><div>{clip.verified ? <b><CheckCircle2 /> CERTIFIKUAR</b> : <b className="pending">NË SHQYRTIM</b>}<small>{clip.author}</small></div><h2>{clip.title}</h2><div className="fr-media-actions"><button onClick={() => share(clip)}><Share2 /> Shpërndaj</button>{clip.fileName && <a href={clip.src} download={clip.fileName}><Download /> Ruaj</a>}</div></div></article>)}</div>
-  </>;
+  function selectFile(event: ChangeEvent<HTMLInputElement>) { const file = event.target.files?.[0]; event.target.value = ''; if (!file) return; if (file.size > MAX_UPLOAD_BYTES) return setNotice('Skedari tejkalon kufirin maksimal prej 1 GB.'); const src = URL.createObjectURL(file); urls.current.push(src); setSelected({ name: file.name, size: file.size, type: file.type || 'application/octet-stream', src }); setNotice('Skedari është gati. Publikoje që të shfaqet menjëherë në mur.'); }
+  function publish(event: FormEvent) { event.preventDefault(); if (!text.trim() && !selected) return setNotice('Shkruaj diçka ose zgjidh një skedar.'); setPosts(items => [{ id: crypto.randomUUID(), text: text.trim(), author: 'Arta M. • Koordinatore', createdAt: 'Tani', attachment: selected }, ...items]); setText(''); setSelected(undefined); setNotice('Postimi u publikua menjëherë në mur.'); }
+  async function share(post: Post) { const shareText = `${post.author}: ${post.text || post.attachment?.name || 'Postim në Flamingo Revolution'}`; if (navigator.share) { await navigator.share({ text: shareText, url: location.href }); return; } await navigator.clipboard.writeText(`${shareText} ${location.href}`); setNotice('Lidhja e postimit u kopjua.'); }
+  return <section className={compact ? 'fr-wall compact' : 'fr-wall'}><div className="fr-wall-heading"><div><span className="fr-kicker"><Video /> SOCIAL WALL</span><h1>Zëri i komunitetit.</h1><p>Postime, foto, video dhe dokumente nga anëtarët me leje publikimi.</p></div><span className="fr-wall-live"><i /> LIVE</span></div><form className="fr-wall-compose" onSubmit={publish}><div className="fr-compose-person">AM</div><textarea value={text} onChange={event => setText(event.target.value)} maxLength={1200} placeholder="Ndaj një përditësim me komunitetin…" />{selected && <div className="fr-selected-file"><Paperclip /><span>{selected.name}<small>{formatBytes(selected.size)}</small></span><button type="button" onClick={() => setSelected(undefined)}>Hiq</button></div>}<div className="fr-compose-tools"><label><Image /><span>Foto</span><input type="file" accept="image/*" onChange={selectFile} /></label><label><Video /><span>Video</span><input type="file" accept="video/*" onChange={selectFile} /></label><label><FileText /><span>Skedar</span><input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip" onChange={selectFile} /></label><button type="submit"><Send /> Publiko</button></div><small className="fr-upload-limit"><Upload /> Ngarkim i menjëhershëm • maksimumi 1 GB për skedar</small></form>{notice && <p className="fr-inline-notice"><CheckCircle2 />{notice}</p>}<div className="fr-social-feed">{posts.map(post => <article className="fr-social-post" key={post.id}><header><span>{post.author.slice(0, 2).toUpperCase()}</span><div><strong>{post.author}</strong><small>{post.createdAt}</small></div></header>{post.text && <p>{post.text}</p>}{post.attachment && <AttachmentPreview file={post.attachment} />}<footer><button onClick={() => share(post)}><Share2 /> Shpërndaj</button>{post.attachment && <a href={post.attachment.src} download={post.attachment.name}><Download /> Ruaj</a>}</footer></article>)}</div></section>;
 }
