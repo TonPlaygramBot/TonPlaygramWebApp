@@ -3,7 +3,7 @@ import { Link, NavLink, Route, Routes, useNavigate, useParams } from 'react-rout
 import {
   AlertTriangle, Bell, CalendarDays, Check, ChevronLeft, ChevronRight, CircleUserRound,
   ClipboardCheck, Clock3, Copy, Download, ExternalLink, EyeOff, FileText, Globe2,
-  Home, Info, LayoutDashboard, LockKeyhole, Map, MapPin, Megaphone,
+  Home, Info, LayoutDashboard, LockKeyhole, MapPin, Megaphone,
   MessageCircle, Navigation, Plus, Radio, Search, Send, Share2, ShieldCheck, Siren, Smartphone,
   Users, Video, X,
 } from 'lucide-react';
@@ -50,7 +50,7 @@ function TopBar({ title, back = false, action }: { title?: string; back?: boolea
 }
 
 function BottomNavigation() {
-  const items = [['/flamingo', Home, 'Kreu'], ['/flamingo/media', Video, 'Media'], ['/flamingo/tasks', ClipboardCheck, 'Detyrat'], ['/flamingo/protests', Megaphone, 'Protestat'], ['/flamingo/map', Map, 'Harta'], ['/flamingo/profile', CircleUserRound, 'Profili']] as const;
+  const items = [['/flamingo', Home, 'Kreu'], ['/flamingo/media', Video, 'Media'], ['/flamingo/tasks', ClipboardCheck, 'Detyrat'], ['/flamingo/protests', Megaphone, 'Protestat'], ['/flamingo/profile', CircleUserRound, 'Profili']] as const;
   return <nav className="fr-nav" aria-label="Navigimi kryesor">{items.map(([to, Icon, label]) => <NavLink key={to} to={to} end={to === '/flamingo'}><Icon /><span>{label}</span></NavLink>)}</nav>;
 }
 
@@ -81,7 +81,7 @@ function StatusCard() {
   return <section className="fr-status fr-status-new"><div className="fr-eyebrow"><span>AKTIVITETI KRYESOR</span><span className="fr-live"><i /> LIVE</span></div>
     <h2>Tubim qytetar në Tiranë</h2><div className="fr-place"><MapPin /> Sheshi Skënderbej</div><div className="fr-date"><CalendarDays /> Sot, 7 Gusht • 18:00</div>
     <div className="fr-status-copy"><strong>Itinerari dhe pikat e ndihmës janë publikuar.</strong><p>Kontrollo përditësimin e fundit para se të nisesh.</p><small><Clock3 /> Përditësuar 2 minuta më parë</small></div>
-    <div className="fr-actions"><Link className="fr-primary" to="/flamingo/protests/tirana">Detajet & itinerari</Link><Link className="fr-secondary" to="/flamingo/map">Harta</Link></div>
+    <div className="fr-actions"><Link className="fr-primary" to="/flamingo/protests/tirana">Detajet & itinerari</Link><Link className="fr-secondary" to="/flamingo/protests/tirana">Harta</Link></div>
   </section>;
 }
 
@@ -103,11 +103,22 @@ function ProtestsPage() { const [query, setQuery] = useState(''); const shown = 
 
 function RoutePanel() { return <section className="fr-route-panel"><div className="fr-route-head"><div><span className="fr-kicker">ITINERARI I MARSHIMIT</span><h2>Rruga e konfirmuar</h2></div><span className="fr-verified"><Check /> Verifikuar</span></div><div className="fr-route-map"><div className="fr-route-line" />{marchStops.map((stop, i) => <div className="fr-route-stop" key={stop.name}><b>{i + 1}</b><div><time>{stop.time}</time><strong>{stop.name}</strong><span>{stop.place}</span><small>{stop.note}</small></div></div>)}</div><div className="fr-route-warning"><AlertTriangle /><span>Itinerari mund të ndryshojë. Ndiq vetëm njoftimet “ZYRTARE” dhe udhëzimet e autoriteteve në terren.</span></div></section>; }
 
+const protestMapCoordinates: Record<string, { latitude: number; longitude: number }> = {
+  tirana: { latitude: 41.3275, longitude: 19.8187 }, durres: { latitude: 41.3233, longitude: 19.4544 },
+  shkoder: { latitude: 42.0683, longitude: 19.5126 }, vlore: { latitude: 40.4661, longitude: 19.4914 },
+};
+function ProtestMap({ event }: { event: Protest }) {
+  const point = protestMapCoordinates[event.id] || protestMapCoordinates.tirana;
+  const delta = .012; const bbox = `${point.longitude - delta},${point.latitude - delta},${point.longitude + delta},${point.latitude + delta}`;
+  const destination = `${event.place}, ${event.city}`;
+  return <section className="fr-protest-map"><div className="fr-route-head"><div><span className="fr-kicker">VENDI I PROTESTËS</span><h2>{event.place}</h2></div><span className="fr-verified"><Check /> Publike</span></div><p className="fr-map-note"><ShieldCheck />Harta tregon vetëm vendin publik të aktivitetit, jo vendndodhjen e pjesëmarrësve.</p><div className="fr-osm"><iframe title={`Harta e ${event.title}`} src={`https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(bbox)}&layer=mapnik&marker=${point.latitude}%2C${point.longitude}`} loading="lazy" referrerPolicy="no-referrer" /><a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`} target="_blank" rel="noreferrer"><Navigation /> Nise navigimin për te protesta</a></div></section>;
+}
+
 function ProtestDetail() {
-  const { id } = useParams(); const event = protests.find(x => x.id === id) || protests[0]; const [tab, setTab] = useState('Itinerari'); const { joined, joinProtest } = useFlamingoStore();
-  const tabs = ['Itinerari', 'Përmbledhje', 'Programi', 'Njoftime', 'Dokumente'];
+  const { id } = useParams(); const event = protests.find(x => x.id === id) || protests[0]; const [tab, setTab] = useState('Harta'); const { joined, joinProtest } = useFlamingoStore();
+  const tabs = ['Harta', 'Itinerari', 'Përmbledhje', 'Programi', 'Njoftime', 'Dokumente'];
   return <Shell title="Detajet e protestës" back><div className="fr-detail-head"><span className={badgeClass(event.status)}>{event.status}</span><h1>{event.title}</h1><p><CalendarDays />{event.date} • {event.time}</p><p><MapPin />{event.place}, {event.city}</p></div><div className="fr-tabs">{tabs.map(tabName => <button className={tab === tabName ? 'active' : ''} onClick={() => setTab(tabName)} key={tabName}>{tabName}</button>)}</div>
-    {tab === 'Itinerari' && <RoutePanel />}{tab === 'Përmbledhje' && <div className="fr-stack"><section className="fr-panel"><h2>Rreth tubimit</h2><p>{event.description}</p></section><section className="fr-panel"><h2>Parimet e pjesëmarrjes</h2><ul><li>Paqe, dinjitet dhe respekt për hapësirën publike</li><li>Mos shpërnda identitete pa pëlqim</li><li>Verifiko informacionin para publikimit</li></ul></section></div>}
+    {tab === 'Harta' && <ProtestMap event={event} />}{tab === 'Itinerari' && <RoutePanel />}{tab === 'Përmbledhje' && <div className="fr-stack"><section className="fr-panel"><h2>Rreth tubimit</h2><p>{event.description}</p></section><section className="fr-panel"><h2>Parimet e pjesëmarrjes</h2><ul><li>Paqe, dinjitet dhe respekt për hapësirën publike</li><li>Mos shpërnda identitete pa pëlqim</li><li>Verifiko informacionin para publikimit</li></ul></section></div>}
     {tab === 'Programi' && <div className="fr-panel fr-program">{marchStops.map(x => <p key={x.time}><time>{x.time}</time>{x.name}</p>)}</div>}{tab === 'Njoftime' && updates.map(x => <UpdateCard key={x.id} item={x} />)}{tab === 'Dokumente' && documents.map(x => <DocumentCard key={x.id} doc={x} />)}
     <button className="fr-sticky-cta" disabled={joined.includes(event.id)} onClick={() => joinProtest(event.id)}>{joined.includes(event.id) ? 'Po e ndjek këtë aktivitet ✓' : 'Merr njoftime për këtë protestë'}</button></Shell>;
 }
