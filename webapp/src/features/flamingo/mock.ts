@@ -1,4 +1,11 @@
-import type { Document, Group, LiveUpdate, MapLocation, Protest, Task } from './types';
+import type { Document, Group, LiveUpdate, MapLocation, OnlineTask, Protest, Task } from './types';
+
+export const onlineTasks: OnlineTask[] = [
+  { id:'share-pack', network:'Instagram', title:'Shpërndaj paketën e verifikuar', description:'Publiko kartën e sotme në story dhe përfshi lidhjen e burimit.', url:'https://www.instagram.com/', reward:40, completed:312, goal:500 },
+  { id:'follow-channel', network:'Telegram', title:'Ndiq kanalin e njoftimeve', description:'Aktivizo njoftimet për të marrë vetëm përditësimet e certifikuara.', url:'https://t.me/TonPlaygramBot?start=flamingo', reward:20, completed:428, goal:500 },
+  { id:'comment-source', network:'X', title:'Komento me burimin zyrtar', description:'Ndihmo komunitetin duke shtuar një koment të sjellshëm me burimin e verifikuar.', url:'https://x.com/', reward:30, completed:184, goal:300 },
+  { id:'short-video', network:'TikTok', title:'Rishpërndaj videon e komunitetit', description:'Zgjidh një video nga Media Wall dhe përdor tekstin e miratuar.', url:'https://www.tiktok.com/', reward:50, completed:96, goal:200 },
+];
 
 export const protests: Protest[] = [
   { id:'tirana', title:'Tubim qytetar në Tiranë', city:'Tiranë', place:'Sheshi Skënderbej', date:'Sot, 7 Gusht', time:'18:00', organizer:'Këshilli Qytetar', participants:2400, status:'LIVE', description:'Një tubim paqësor për transparencë, përgjegjshmëri dhe institucione që dëgjojnë qytetarët.' },
