@@ -302,7 +302,9 @@ export default function ChessBattleRoyalLobby() {
   const [onlinePlayers, setOnlinePlayers] = useState([]);
   const [matchStatus, setMatchStatus] = useState('');
   const [matchError, setMatchError] = useState('');
-  const [searchSecondsLeft, setSearchSecondsLeft] = useState(60);
+  const [searchSecondsLeft, setSearchSecondsLeft] = useState(
+    MATCHMAKING_REFRESH_MS / 1000
+  );
   const preferredSide = 'auto';
   const pendingTableRef = useRef('');
   const [tableNumber, setTableNumber] = useState('');
@@ -689,6 +691,7 @@ export default function ChessBattleRoyalLobby() {
       if (!pendingTableRef.current) return;
       const message = resolveSeatErrorMessage(error);
       setMatchError(message);
+      setMatchStatus('The match could not start. Cancel and try again.');
     };
 
     cleanupRef.current = () =>
@@ -818,35 +821,26 @@ export default function ChessBattleRoyalLobby() {
             return;
           }
           pendingTableRef.current = res.tableId;
+          armSearchRefresh();
           setTableNumber(String(res.tableNumber || ''));
           setMatchPlayers(Array.isArray(res.players) ? res.players : []);
           setReadyList(
             Array.isArray(res.ready) ? res.ready.map((id) => String(id)) : []
           );
           const playersList = Array.isArray(res.players) ? res.players : [];
-          const mySide = resolveChessSide(playersList, seatAccountId);
           const opp = resolveChessOpponent(playersList, seatAccountId);
           setMatchStatus(
             opp
-              ? 'Match found. Opening the board…'
+              ? 'Match found. Securing both seats…'
               : onlineQueueMode === 'private'
                 ? resolvePrivateMatchStatus(res.tableId, hostCodeInput)
-                : 'Opening the board while we find the same-stake opponent…'
+                : 'Waiting for the next same-stake opponent…'
           );
-          // Keep the server-managed stake contract attached to this table and move immediately into
-          // the game scene. The game screen stays in a waiting state until another
-          // player with the same chess stake/table joins, then both ready signals
-          // start the match. Do not leave the lobby seat during this handoff.
-          cleanupLobby({ account: trackedAccountId, skipLeave: true });
-          navigateToGame({
-            tgId,
-            trackedAccountId,
-            tableId: res.tableId,
-            tableNumber: res.tableNumber,
-            side: mySide,
-            opponentName: resolvePlayerName(opp),
-            opponentAvatar: opp?.avatar
-          });
+          // Stay in the lobby until the authoritative gameStart event. Moving
+          // the first player to the heavy 3D scene here could detach this
+          // listener before the second seat was locked, leaving the two phones
+          // in different lifecycle states. handleGameStart moves both clients
+          // together after stake reservation and side assignment succeed.
         }
       );
     };
