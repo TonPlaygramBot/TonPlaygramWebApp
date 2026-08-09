@@ -219,21 +219,6 @@ export default function Home() {
         )}
 
         <div className="w-full mt-2 space-y-4">
-          <Link
-            to="/flamingo"
-            className="group relative block overflow-hidden rounded-2xl border border-rose-400/30 bg-[#111419] p-5 text-left no-underline shadow-[0_18px_45px_rgba(0,0,0,.45)] transition-transform duration-200 active:scale-[.98]"
-          >
-            <div className="absolute -right-10 -top-14 h-36 w-36 rounded-full bg-red-500/15 blur-2xl" />
-            <div className="relative flex items-start gap-4">
-              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-red-500 text-xl font-black italic text-white">F</span>
-              <div className="min-w-0">
-                <span className="text-[10px] font-bold uppercase tracking-[.18em] text-red-400">Platformë qytetare</span>
-                <h2 className="mt-1 text-xl font-bold text-white">Flamingo Revolution</h2>
-                <p className="mt-2 text-sm leading-relaxed text-slate-300">Organizim, njoftime dhe informacion praktik për protestat paqësore në Shqipëri.</p>
-                <span className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-red-500 px-4 text-sm font-bold text-white">Hap platformën →</span>
-              </div>
-            </div>
-          </Link>
           <div className="relative bg-surface border border-border rounded-xl p-4 flex items-center justify-around overflow-hidden wide-card">
             <img
               src="/assets/icons/snakes_and_ladders.webp"
