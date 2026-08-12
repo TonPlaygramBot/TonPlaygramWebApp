@@ -168,7 +168,14 @@ router.post('/complete', authenticate, async (req, res) => {
   const existing = await Task.findOne({ telegramId, taskId });
   if (existing) return res.json({ message: 'already completed' });
 
-  await Task.create({ telegramId, taskId, completedAt: new Date() });
+  const isServerVerified = taskId.startsWith('react_tg_post') || taskId === 'engage_tweet';
+  await Task.create({
+    telegramId,
+    taskId,
+    completedAt: new Date(),
+    verificationMethod: isServerVerified ? 'platform_api' : (config.verification || 'self_attested'),
+    verificationStatus: isServerVerified ? 'verified' : 'attested'
+  });
   const user = await User.findOneAndUpdate(
     { telegramId },
     { $setOnInsert: { referralCode: telegramId.toString() } },
@@ -184,7 +191,11 @@ router.post('/complete', authenticate, async (req, res) => {
   });
   await user.save();
 
-  res.json({ message: 'completed', reward: config.reward });
+  res.json({
+    message: 'completed',
+    reward: config.reward,
+    verificationStatus: isServerVerified ? 'verified' : 'attested'
+  });
 });
 
 router.post('/verify-telegram-reaction', authenticate, async (req, res) => {

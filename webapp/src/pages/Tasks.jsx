@@ -153,7 +153,11 @@ export default function Tasks() {
         return;
       }
     }
-    await completeTask(telegramId, task.id);
+    const result = await completeTask(telegramId, task.id);
+    if (result.error) {
+      alert(result.error);
+      return;
+    }
     load();
   };
 

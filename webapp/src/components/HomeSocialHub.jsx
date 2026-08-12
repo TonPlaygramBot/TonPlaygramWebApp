@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FaUserFriends, FaGamepad, FaComments, FaMicrophone, FaMicrophoneSlash, FaPhoneSlash, FaVideo, FaVideoSlash, FaUsers } from 'react-icons/fa';
 import LoginOptions from './LoginOptions.jsx';
+import SocialChannels from './SocialChannels.jsx';
 import { socket } from '../utils/socket.js';
 import { getPlayerId, getTelegramId } from '../utils/telegram.js';
 import useLiveVideoChat from '../hooks/useLiveVideoChat.js';
@@ -137,7 +138,14 @@ export default function HomeSocialHub() {
   try {
     telegramId = getTelegramId();
   } catch (err) {
-    return <LoginOptions />;
+    return (
+      <div className="space-y-4">
+        <SocialChannels />
+        <div className="rounded-xl border border-border bg-surface p-4">
+          <LoginOptions />
+        </div>
+      </div>
+    );
   }
 
   const [friendRequests, setFriendRequests] = useState([]);
@@ -259,6 +267,8 @@ export default function HomeSocialHub() {
           <h3 className="text-lg font-semibold text-white">Messages Hub</h3>
         </div>
       </div>
+
+      <SocialChannels />
 
       <SocialCallStudio displayName={displayName} />
 
