@@ -580,8 +580,8 @@ export default function SnookerRoyalLobby() {
               <div>
                 <h3 className="font-semibold text-white">Online Arena</h3>
                 <p className="text-sm text-white/60">
-                  We match players by TPG account number, stake ({stake.amount} {stake.token}),
-                  and Snooker Royal game type.
+                  We match your verified TPG account by stake ({stake.amount} {stake.token})
+                  and the selected Snooker Royal options.
                 </p>
               </div>
               <div className="text-xs text-white/60">{onlinePlayers.length} online</div>
@@ -610,8 +610,8 @@ export default function SnookerRoyalLobby() {
                     >
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-semibold">{p.name || `TPG ${p.id}`}</p>
-                          <p className="text-xs text-white/60">Account #{p.id}</p>
+                          <p className="text-sm font-semibold">{p.name || 'Player'}</p>
+                          <p className="text-xs text-white/60">Verified player</p>
                         </div>
                         <span
                           className={`text-xs font-semibold ${

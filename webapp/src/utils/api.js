@@ -810,3 +810,13 @@ export function getExchangeCoinDetails(coinId) {
   const id = encodeURIComponent(String(coinId || '').trim());
   return get(`/api/exchange/coin/${id}`);
 }
+
+
+export function getTpgGameContracts() {
+  return get('/api/online/tpg-contracts');
+}
+
+export function getTpgGameContract(gameType) {
+  const value = encodeURIComponent(String(gameType || '').trim().toLowerCase());
+  return get(`/api/online/tpg-contracts/${value}`);
+}

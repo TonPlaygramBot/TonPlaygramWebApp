@@ -609,7 +609,7 @@ export default function Lobby() {
                         </div>
                         <div>
                           <p className="text-sm font-semibold leading-tight text-white">{p.name || `Player ${index + 1}`}</p>
-                          <p className="text-xs text-white/50 leading-tight">ID: {p.id}</p>
+                          <p className="text-xs text-white/50 leading-tight">Verified player</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
