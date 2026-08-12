@@ -150,7 +150,14 @@ export async function runSimpleOnlineFlow({
 
     socketInstance.on('lobbyUpdate', handleLobbyUpdate);
     socketInstance.on('gameStart', handleGameStart);
-    socketInstance.emit('register', { playerId: accountId });
+    const identity = {
+      tpcAccountNumber: String(accountId),
+      // Kept for one compatibility window. The server always treats the TPG
+      // account number above as the authoritative matchmaking identity.
+      accountId: String(accountId),
+      playerId: String(accountId),
+    };
+    socketInstance.emit('register', identity);
 
     timeoutRef = setTimeout(() => {
       setMatchError('Matchmaking timeout. Stake refunded.');
@@ -158,7 +165,7 @@ export async function runSimpleOnlineFlow({
     }, timeoutMs);
 
     socketInstance.emit('seatTable', {
-      accountId,
+      ...identity,
       gameType,
       stake: Number(stake.amount) || 0,
       maxPlayers,
@@ -175,7 +182,7 @@ export async function runSimpleOnlineFlow({
       }
       pendingTableId = res.tableId;
       setMatchStatus('Waiting for players…');
-      socketInstance.emit('confirmReady', { accountId, tableId: res.tableId });
+      socketInstance.emit('confirmReady', { ...identity, tableId: res.tableId });
     });
 
     setCleanup?.(() => cleanup);

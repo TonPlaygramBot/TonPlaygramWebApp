@@ -15,7 +15,7 @@ describe('online game policy', () => {
       maxPlayers: 2,
       matchMeta: {
         variant: '8ball',
-        mode: 'Ranked',
+        mode: 'ONLINE',
         tableSize: '9ft',
         token: 'TPG',
         unexpected: 'ignore-me'
@@ -27,7 +27,7 @@ describe('online game policy', () => {
     expect(result.normalizedMaxPlayers).toBe(2);
     expect(result.safeMatchMeta).toEqual({
       variant: '8ball',
-      mode: 'Ranked',
+      mode: 'online',
       tableSize: '9ft',
       token: 'TPG'
     });
@@ -45,21 +45,31 @@ describe('online game policy', () => {
       gameType: 'chess',
       stake: 100,
       maxPlayers: 2,
-      matchMeta: { preferredSide: 'white', mode: 'online' }
+      matchMeta: { preferredSide: 'white', mode: 'online', token: 'TPG' }
     });
     const checkers = validateSeatTableRequest({
       gameType: 'checkers',
       stake: 100,
       maxPlayers: 2,
-      matchMeta: { preferredSide: 'black', mode: 'online' }
+      matchMeta: { preferredSide: 'black', mode: 'online', token: 'TPG' }
     });
 
     expect(chess.ok).toBe(true);
     expect(chess.normalizedGameType).toBe('chess');
-    expect(chess.safeMatchMeta).toEqual({ preferredSide: 'white', mode: 'online' });
+    expect(chess.safeMatchMeta).toEqual({ preferredSide: 'white', mode: 'online', token: 'TPG' });
     expect(checkers.ok).toBe(true);
     expect(checkers.normalizedGameType).toBe('checkers');
-    expect(checkers.safeMatchMeta).toEqual({ preferredSide: 'black', mode: 'online' });
+    expect(checkers.safeMatchMeta).toEqual({ preferredSide: 'black', mode: 'online', token: 'TPG' });
+
+  });
+
+  test.each([
+    [{ gameType: 'poolroyale', stake: 100, maxPlayers: 2, matchMeta: { mode: 'online', token: 'TON' } }, 'invalid_stake_token'],
+    [{ gameType: 'poolroyale', stake: 100, maxPlayers: 2, matchMeta: { mode: 'ai', token: 'TPG' } }, 'invalid_game_mode'],
+    [{ gameType: 'poolroyale', stake: 0, maxPlayers: 2, matchMeta: { mode: 'online', token: 'TPG' } }, 'invalid_stake'],
+    [{ gameType: 'poolroyale', stake: 1.5, maxPlayers: 2, matchMeta: { mode: 'online', token: 'TPG' } }, 'invalid_stake']
+  ])('rejects a lobby request outside the TPG stake contract %#', (payload, error) => {
+    expect(validateSeatTableRequest(payload)).toEqual({ ok: false, error });
   });
 
   test('accepts and canonicalizes all Domino Royal matchmaking criteria', () => {

@@ -184,11 +184,12 @@ export default function LudoBattleRoyalLobby() {
     if (initData) params.set('init', encodeURIComponent(initData));
 
     if (mode === 'online' && accountId) {
-      socket.emit('register', { playerId: accountId });
+      socket.emit('register', { tpcAccountNumber: accountId, accountId, playerId: accountId });
       socket.emit(
         'seatTable',
         {
           accountId,
+          tpcAccountNumber: accountId,
           gameType: 'ludobattleroyal',
           stake: Number(stake.amount) || 0,
           maxPlayers: table.capacity || 2,
@@ -203,7 +204,7 @@ export default function LudoBattleRoyalLobby() {
             return;
           }
           params.set('tableId', res.tableId);
-          socket.emit('confirmReady', { accountId, tableId: res.tableId });
+          socket.emit('confirmReady', { tpcAccountNumber: accountId, accountId, tableId: res.tableId });
           navigate(`/games/ludobattleroyal?${params.toString()}`);
         }
       );

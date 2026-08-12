@@ -71,6 +71,15 @@ test('runSimpleOnlineFlow reconnects socket before joining a table', async () =>
 
   assert.equal(result.ok, true);
   assert.equal(mockSocket.seatRequests.length, 1);
+  assert.deepEqual(
+    {
+      tpcAccountNumber: mockSocket.seatRequests[0].payload.tpcAccountNumber,
+      accountId: mockSocket.seatRequests[0].payload.accountId,
+      playerId: mockSocket.seatRequests[0].payload.playerId
+    },
+    { tpcAccountNumber: 'acct-1', accountId: 'acct-1', playerId: 'acct-1' },
+    'all matchmaking events must carry the authoritative TPG account number'
+  );
   assert.equal(state.snapshot.matchError, '');
   assert.equal(transactions.length, 1, 'debit should happen once and no refund should occur');
   result.cleanup();

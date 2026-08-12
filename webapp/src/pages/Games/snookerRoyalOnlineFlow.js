@@ -222,7 +222,7 @@ export async function runSnookerRoyalOnlineFlow({
 
   socketInstance.on('lobbyUpdate', handleLobbyUpdate);
   socketInstance.on('gameStart', handleGameStart);
-  socketInstance.emit('register', { playerId: accountId });
+  socketInstance.emit('register', { tpcAccountNumber: accountId, accountId, playerId: accountId });
 
   function startMatchTimeout(tableId) {
     clearTimeoutSafely(matchTimeoutRef);
@@ -238,6 +238,7 @@ export async function runSnookerRoyalOnlineFlow({
     'seatTable',
     {
       accountId,
+      tpcAccountNumber: accountId,
       stake: stake.amount,
       token: stake.token,
       gameType,
