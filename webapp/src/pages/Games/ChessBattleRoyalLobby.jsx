@@ -1151,14 +1151,16 @@ export default function ChessBattleRoyalLobby() {
                 Table {tableNumber}
               </p>
             )}
-            <div className="lobby-tile w-full flex items-center justify-between">
-              <span>🎯 {spinningPlayer || 'Searching…'}</span>
-              <span className="text-xs text-white/60">
-                {onlineQueueMode === 'private'
-                  ? `Code ${normalizeHostCode(hostCodeInput) || extractHostCodeFromTableId(pendingTableRef.current) || '—'}`
-                  : `Stake ${stake.amount} ${stake.token}`}
-              </span>
-            </div>
+            {matchPlayers.length === 0 && (
+              <div className="lobby-tile w-full flex items-center justify-between">
+                <span>🎯 {spinningPlayer || 'Searching…'}</span>
+                <span className="text-xs text-white/60">
+                  {onlineQueueMode === 'private'
+                    ? `Code ${normalizeHostCode(hostCodeInput) || extractHostCodeFromTableId(pendingTableRef.current) || '—'}`
+                    : `Stake ${stake.amount} ${stake.token}`}
+                </span>
+              </div>
+            )}
             {matchPlayers.length > 0 && (
               <div className="space-y-1">
                 {matchPlayers.map((player) => {

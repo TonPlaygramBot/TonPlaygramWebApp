@@ -41,6 +41,7 @@ test(
     const server = await startServer(env);
     const s1 = io('http://localhost:3221', { auth: { token: apiToken } });
     const s2 = io('http://localhost:3221', { auth: { token: apiToken } });
+    let restoredSocket;
 
     try {
       await Promise.all([
@@ -89,11 +90,17 @@ test(
         secondSeat.players.map((player) => player.tpcAccountNumber),
         ['chess-alias-a', 'chess-alias-b']
       );
-      // A mobile reconnect can restore its seat after both seats have filled
-      // but before the one-second start lock completes. It must rejoin the
-      // same full table rather than being moved into a fresh empty queue.
-      await new Promise((resolve) => setTimeout(resolve, 550));
-      const restoredSeat = await seat(s2, {
+      // A mobile reconnect can restore its seat on a replacement transport
+      // after both seats have filled but before the one-second start lock
+      // completes. The late disconnect from the old transport must not remove
+      // the newly restored seat or strand one phone on the search screen.
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      restoredSocket = io('http://localhost:3221', {
+        auth: { token: apiToken }
+      });
+      await new Promise((resolve) => restoredSocket.on('connect', resolve));
+      await register(restoredSocket, 'chess-alias-b');
+      const restoredSeat = await seat(restoredSocket, {
         accountId: 'chess-alias-b',
         gameType: 'chess',
         stake: 100,
@@ -105,17 +112,19 @@ test(
       assert.equal(restoredSeat.success, true);
       assert.equal(restoredSeat.tableId, firstSeat.tableId);
       assert.equal(restoredSeat.players.length, 2);
+      s2.disconnect();
       // Chess has no ready-up screen: seating the second same-stake player is
       // sufficient to start both clients without a confirmReady round trip.
       const [gameStartA, gameStartB] = await Promise.all([
         new Promise((resolve) => s1.once('gameStart', resolve)),
-        new Promise((resolve) => s2.once('gameStart', resolve))
+        new Promise((resolve) => restoredSocket.once('gameStart', resolve))
       ]);
       assert.equal(gameStartA.tableId, firstSeat.tableId);
       assert.equal(gameStartB.tableNumber, firstSeat.tableNumber);
     } finally {
       s1.disconnect();
       s2.disconnect();
+      restoredSocket?.disconnect();
       server.kill();
     }
   }
