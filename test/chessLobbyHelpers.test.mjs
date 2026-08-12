@@ -17,6 +17,7 @@ const helperNames = [
   'resolveChessTableMode',
   'resolveInitialOnlineQueue',
   'resolveLobbyStatus',
+  'resolvePlayerName',
   'resolveSeatAccountId',
   'resolveSeatErrorMessage',
   'shouldKeepSearching'
@@ -98,6 +99,20 @@ test('chess lobby status and side helpers match paired players', () => {
     'Both players ready. Starting match…'
   );
   assert.equal(sandbox.resolveChessSide(players, 'black-player'), 'black');
+});
+
+test('chess lobby never substitutes a private account number for a player name', () => {
+  assert.equal(
+    sandbox.resolvePlayerName({ accountId: 'TPG-PRIVATE-123' }),
+    'Player'
+  );
+  assert.equal(
+    sandbox.resolvePlayerName({
+      accountId: 'TPG-PRIVATE-123',
+      username: 'Ada'
+    }),
+    'Ada'
+  );
 });
 
 test('chess lobby builds online game params and seat account fallback', () => {
