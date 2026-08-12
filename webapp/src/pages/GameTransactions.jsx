@@ -64,7 +64,7 @@ export default function GameTransactions() {
           const gameName = getGameName(tx.game);
           const token = (tx.token || 'TPG').toUpperCase();
           const iconMap = {
-            TPG: '/assets/icons/ezgif-54c96d8a9b9236.webp',
+            TPG: '/assets/icons/file_00000000362481f7978631c42572193f.png',
             TON: '/assets/icons/TON.webp',
             USDT: '/assets/icons/Usdt.webp',
           };

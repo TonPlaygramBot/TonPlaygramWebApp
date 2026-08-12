@@ -30,7 +30,7 @@ function PrizeItem({ value }) {
   return (
     <>
       <img
-        src="/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp"
+        src="/assets/icons/file_00000000efd081f78539cff614489f91.png"
         alt="TonPlaygram"
         className="w-10 h-10"
       />

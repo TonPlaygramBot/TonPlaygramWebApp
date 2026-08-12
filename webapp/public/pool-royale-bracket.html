@@ -97,7 +97,7 @@
     line:'#233155'
   };
   const tpcImg = new Image();
-  tpcImg.src = '/assets/icons/ezgif-54c96d8a9b9236.webp';
+  tpcImg.src = '/assets/icons/file_00000000362481f7978631c42572193f.png';
 
   let hitRegions = []; // {round, match, slot, x,y,w,h}
 
@@ -315,7 +315,7 @@
     document.body.appendChild(container);
     for(let i=0;i<count;i++){
       const img=document.createElement('img');
-      img.src='/assets/icons/ezgif-54c96d8a9b9236.webp';
+      img.src='/assets/icons/file_00000000362481f7978631c42572193f.png';
       img.className='coin-confetti';
       const left=Math.random()*100; const delay=Math.random()*3; const duration=2+Math.random()*2;
       img.style.left=left+'vw'; img.style.animationDelay=delay+'s'; img.style.setProperty('--duration',duration+'s');
@@ -596,7 +596,7 @@
       }
       const prize=document.createElement('div');
       prize.style.display='flex';prize.style.alignItems='center';prize.style.gap='4px';prize.style.marginTop='8px';
-      const icon=document.createElement('img');icon.src='/assets/icons/ezgif-54c96d8a9b9236.webp';icon.style.width='24px';icon.style.height='24px';
+      const icon=document.createElement('img');icon.src='/assets/icons/file_00000000362481f7978631c42572193f.png';icon.style.width='24px';icon.style.height='24px';
       prize.appendChild(icon);
       const amt=document.createElement('span');amt.textContent=String(state.pot);prize.appendChild(amt);
       overlay.appendChild(prize);

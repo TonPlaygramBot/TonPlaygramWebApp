@@ -34,7 +34,7 @@ const APP_SHELL = [
   ...VERSION_ASSETS,
   '/assets/icons/generated/app-icon-192.png',
   '/assets/icons/generated/app-icon-512.png',
-  '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp',
+  '/assets/icons/file_00000000efd081f78539cff614489f91.png',
   '/assets/icons/file_000000003f7861f481d50537fb031e13.png',
   '/assets/splash/splash-828x1792.png',
   '/assets/splash/splash-1125x2436.png',

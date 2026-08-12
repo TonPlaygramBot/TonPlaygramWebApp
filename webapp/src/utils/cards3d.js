@@ -8,7 +8,7 @@ import { CARD_THEMES, DEFAULT_CARD_THEME } from './cardThemes.js';
 
 export { CARD_THEMES, DEFAULT_CARD_THEME } from './cardThemes.js';
 
-const TONPLAYGRAM_LOGO_SRC = '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp';
+const TONPLAYGRAM_LOGO_SRC = '/assets/icons/file_00000000efd081f78539cff614489f91.png';
 let tonplaygramLogoImage = null;
 const cardBackTextureCache = new Map();
 

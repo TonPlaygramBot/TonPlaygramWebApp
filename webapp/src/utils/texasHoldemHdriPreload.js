@@ -7,7 +7,7 @@ const hdriJsonPromiseCache = new Map();
 const hdriWarmPromiseCache = new Map();
 const modelWarmPromiseCache = new Map();
 const imageWarmPromiseCache = new Map();
-const TEXAS_CARD_BACK_LOGO_SRC = '/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp';
+const TEXAS_CARD_BACK_LOGO_SRC = '/assets/icons/file_00000000efd081f78539cff614489f91.png';
 
 function buildPolyHavenModelUrls(assetId) {
   if (!assetId) return [];

@@ -245,7 +245,7 @@ export default function Layout({ children }) {
       {showHeader && (
         <header className="w-full bg-surface border-b-2 border-accent flex justify-center py-0.5">
           <img
-            src="/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp"
+            src="/assets/icons/file_00000000efd081f78539cff614489f91.png"
             alt="TonPlaygram logo"
             className="h-[190px]"
           />

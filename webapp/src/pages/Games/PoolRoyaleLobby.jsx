@@ -969,7 +969,7 @@ export default function PoolRoyaleLobby() {
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200/40 bg-emerald-300/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-100">
                     <img
-                      src="/assets/icons/ezgif-54c96d8a9b9236.webp"
+                      src="/assets/icons/file_00000000362481f7978631c42572193f.png"
                       alt="TPG"
                       className="h-3.5 w-3.5"
                     />
@@ -1069,7 +1069,7 @@ export default function PoolRoyaleLobby() {
                           </span>
                           <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200/40 bg-emerald-300/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-100">
                             <img
-                              src="/assets/icons/ezgif-54c96d8a9b9236.webp"
+                              src="/assets/icons/file_00000000362481f7978631c42572193f.png"
                               alt="TPG"
                               className="h-3.5 w-3.5"
                             />

@@ -9,7 +9,7 @@ import {
 } from '../../utils/poolRoyaleCareerProgress.js';
 import { loadTrainingProgress } from '../../utils/poolRoyaleTrainingProgress.js';
 
-const TPC_ICON_SRC = '/assets/icons/ezgif-54c96d8a9b9236.webp';
+const TPC_ICON_SRC = '/assets/icons/file_00000000362481f7978631c42572193f.png';
 
 const stageTypeLabel = (type) => {
   if (type === 'training') return '🎯 Task drill';

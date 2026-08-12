@@ -22,7 +22,7 @@ export default function RewardPopup({
   useEffect(() => {
     let audio: HTMLAudioElement | undefined;
     if (!disableEffects) {
-      let icon = '/assets/icons/ezgif-54c96d8a9b9236.webp';
+      let icon = '/assets/icons/file_00000000362481f7978631c42572193f.png';
       if (reward === 'BONUS_X3') {
         icon = '/assets/icons/file_00000000ead061faa3b429466e006f48.webp';
       } else if (reward === 'FREE_SPIN') {
@@ -71,7 +71,7 @@ export default function RewardPopup({
             <>
               <img
 
-                src="/assets/icons/ezgif-54c96d8a9b9236.webp"
+                src="/assets/icons/file_00000000362481f7978631c42572193f.png"
                 alt="TPG"
                 className="w-8 h-8"
               />

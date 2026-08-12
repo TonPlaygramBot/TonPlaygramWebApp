@@ -6,7 +6,7 @@ const AMOUNTS = {
   USDT: [0.1, 0.5, 1, 5, 10],
 };
 const tokens = [
-  { id: 'TPG', icon: '/assets/icons/ezgif-54c96d8a9b9236.webp' },
+  { id: 'TPG', icon: '/assets/icons/file_00000000362481f7978631c42572193f.png' },
   { id: 'TON', icon: '/assets/icons/TON.webp' },
   { id: 'USDT', icon: '/assets/icons/Usdt.webp' },
 ];

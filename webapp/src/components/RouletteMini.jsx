@@ -229,7 +229,7 @@ export default function RouletteMini() {
         // ignore API errors silently
       }
 
-      coinConfetti(60, '/assets/icons/ezgif-54c96d8a9b9236.webp');
+      coinConfetti(60, '/assets/icons/file_00000000362481f7978631c42572193f.png');
       const audio = new Audio(
         '/assets/sounds/11l-victory_sound_with_t-1749487412779-357604.mp3',
       );

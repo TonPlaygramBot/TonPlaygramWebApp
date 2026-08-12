@@ -147,7 +147,7 @@ export default function PlayerInvitePopup({
               <p className="text-sm flex items-center justify-center gap-1">
                 <span className="text-white-shadow">Balance:</span>
                 <img
-                  src="/assets/icons/ezgif-54c96d8a9b9236.webp"
+                  src="/assets/icons/file_00000000362481f7978631c42572193f.png"
                   alt="TPG"
                   className="inline w-4 h-4"
                 />

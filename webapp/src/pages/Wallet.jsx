@@ -342,7 +342,7 @@ export default function Wallet({ hideClaim = false, accountIdOverride = '' }) {
           </span>
         </p>
         <div className="flex items-center space-x-1">
-          <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPG" className="w-16 h-16" />
+          <img src="/assets/icons/file_00000000362481f7978631c42572193f.png" alt="TPG" className="w-16 h-16" />
           <span className="text-lg font-medium text-white text-outline-black">
             TPG Balance
           </span>

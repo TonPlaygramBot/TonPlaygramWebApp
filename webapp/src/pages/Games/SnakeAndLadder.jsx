@@ -1637,7 +1637,7 @@ export default function SnakeAndLadder() {
     });
     {
       const img = new Image();
-      img.src = '/assets/icons/ezgif-54c96d8a9b9236.webp';
+      img.src = '/assets/icons/file_00000000362481f7978631c42572193f.png';
     }
     AVATARS.forEach((src) => {
       const img = new Image();
@@ -4462,7 +4462,7 @@ export default function SnakeAndLadder() {
                         ? '/assets/icons/TON.webp'
                         : token === 'USDT'
                         ? '/assets/icons/Usdt.webp'
-                        : '/assets/icons/ezgif-54c96d8a9b9236.webp'
+                        : '/assets/icons/file_00000000362481f7978631c42572193f.png'
                     }
                     alt={token}
                     className="inline w-4 h-4 align-middle"

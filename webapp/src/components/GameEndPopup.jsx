@@ -49,7 +49,7 @@ export default function GameEndPopup({ open, ranking = [], onReturn }) {
             <span className="flex items-center gap-1 font-semibold text-lg">
               {winner.amount}
               <img
-                src="/assets/icons/ezgif-54c96d8a9b9236.webp"
+                src="/assets/icons/file_00000000362481f7978631c42572193f.png"
                 alt="TPG"
                 className="w-5 h-5"
               />
@@ -70,7 +70,7 @@ export default function GameEndPopup({ open, ranking = [], onReturn }) {
               <span className="flex items-center gap-1">
                 {p.amount}
                 <img
-                  src="/assets/icons/ezgif-54c96d8a9b9236.webp"
+                  src="/assets/icons/file_00000000362481f7978631c42572193f.png"
                   alt="TPG"
                   className="w-4 h-4"
                 />

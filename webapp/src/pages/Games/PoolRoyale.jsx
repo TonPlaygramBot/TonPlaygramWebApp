@@ -15292,7 +15292,7 @@ function PoolRoyaleGame({
       document.body.appendChild(container);
       for (let i = 0; i < count; i += 1) {
         const img = document.createElement('img');
-        img.src = '/assets/icons/ezgif-54c96d8a9b9236.webp';
+        img.src = '/assets/icons/file_00000000362481f7978631c42572193f.png';
         img.className = 'pr-coin-burst';
         const left = Math.random() * 100;
         const delay = Math.random() * 0.6;
@@ -36411,7 +36411,7 @@ const shotPowerRef = useRef(0);
             ) : null}
             {winnerOverlay.prizeText ? (
               <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-emerald-300 px-4 py-2 text-sm font-bold uppercase tracking-[0.22em] text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]">
-                <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPG prize" className="h-6 w-6" />
+                <img src="/assets/icons/file_00000000362481f7978631c42572193f.png" alt="TPG prize" className="h-6 w-6" />
                 <span>{winnerOverlay.prizeText}</span>
               </div>
             ) : null}
@@ -36538,7 +36538,7 @@ const shotPowerRef = useRef(0);
             ) : null}
             <div className="mt-4 flex items-center justify-center gap-2 text-xs text-white/75">
               <img src={resolvedPlayerAvatar || '/assets/icons/profile.svg'} alt="Player avatar" className="h-8 w-8 rounded-full border border-amber-200/60 object-cover" />
-              <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPG" className="h-5 w-5 animate-bounce" />
+              <img src="/assets/icons/file_00000000362481f7978631c42572193f.png" alt="TPG" className="h-5 w-5 animate-bounce" />
               <span>Career reward opened</span>
             </div>
           </div>
@@ -37358,7 +37358,7 @@ const shotPowerRef = useRef(0);
                 <div className="mt-3 space-y-2 text-xs text-emerald-100">
                   {Number(careerTaskResultModal.rewardAmount) > 0 ? (
                     <p className="inline-flex items-center gap-1">
-                      <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPG" className="h-4 w-4" />
+                      <img src="/assets/icons/file_00000000362481f7978631c42572193f.png" alt="TPG" className="h-4 w-4" />
                       +{Number(careerTaskResultModal.rewardAmount).toLocaleString('en-US')} TPG Coins
                     </p>
                   ) : null}
@@ -37462,7 +37462,7 @@ const shotPowerRef = useRef(0);
                       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-100">Progress reward</p>
                       {trainingTaskTransition?.rewardAmount > 0 ? (
                         <p className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-100">
-                          <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPG" className="h-4 w-4" />
+                          <img src="/assets/icons/file_00000000362481f7978631c42572193f.png" alt="TPG" className="h-4 w-4" />
                           +{Number(trainingTaskTransition.rewardAmount).toLocaleString('en-US')} TPG
                         </p>
                       ) : null}
@@ -37554,7 +37554,7 @@ const shotPowerRef = useRef(0);
                           </div>
                           <div className="flex w-full flex-wrap items-center gap-1.5">
                             <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200/40 bg-emerald-300/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-100">
-                              <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPG" className="h-3.5 w-3.5" />
+                              <img src="/assets/icons/file_00000000362481f7978631c42572193f.png" alt="TPG" className="h-3.5 w-3.5" />
                               {Number(levelDef.rewardAmount || 0).toLocaleString('en-US')} TPG
                             </span>
                             {levelDef.hasGift ? (
