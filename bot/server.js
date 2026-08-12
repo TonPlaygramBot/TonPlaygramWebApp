@@ -1658,8 +1658,17 @@ function maybeStartGame(table) {
 function unseatTableSocket(accountId, tableId, socketId) {
   if (!tableId) return;
   const map = tableSeats.get(tableId);
+  const normalizedAccountId = accountId ? String(accountId) : '';
+  // A mobile WebView can reconnect before Socket.IO finishes disconnecting the
+  // previous transport. seatTableSocket transfers the authoritative seat to
+  // the new socket. Do not let the late `disconnecting` event from the old
+  // socket remove that restored seat (and strand only one player in the game).
+  if (normalizedAccountId && socketId) {
+    const currentSeat = map?.get(normalizedAccountId);
+    if (currentSeat?.socketId && currentSeat.socketId !== socketId) return;
+  }
   if (map) {
-    if (accountId) map.delete(String(accountId));
+    if (normalizedAccountId) map.delete(normalizedAccountId);
     else if (socketId) {
       for (const [pid, info] of map) {
         if (info.socketId === socketId) map.delete(pid);
@@ -1673,8 +1682,10 @@ function unseatTableSocket(accountId, tableId, socketId) {
       clearTimeout(table.startTimeout);
       table.startTimeout = null;
     }
-    if (accountId)
-      table.players = table.players.filter((p) => p.id !== accountId);
+    if (normalizedAccountId)
+      table.players = table.players.filter(
+        (p) => String(p.id) !== normalizedAccountId
+      );
     else if (socketId)
       table.players = table.players.filter((p) => p.socketId !== socketId);
     if (table.ready) {
