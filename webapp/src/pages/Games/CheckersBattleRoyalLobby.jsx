@@ -661,7 +661,7 @@ export default function CheckersBattleRoyalLobby() {
               <RoomSelector selected={stake} onSelect={setStake} tokens={['TPG']} />
             </div>
             <p className="text-center text-white/60 text-xs">
-              Staking uses your TPG account{accountId ? ` #${accountId}` : ''} as escrow for every online round.
+              Your verified TPG account secures each online round. Only your username and avatar are visible.
             </p>
           </div>
         )}
