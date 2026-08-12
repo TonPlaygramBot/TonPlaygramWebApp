@@ -1378,14 +1378,68 @@ async function reserveChessStakeContract(table) {
   try {
     let matchId = '';
     await session.withTransaction(async () => {
-      const active = await ChessMatch.findOne({
+      const activeMatches = await ChessMatch.find({
         status: { $in: ['reserved', 'playing'] },
         $or: [
           { player1TpcAccountId: { $in: accounts } },
           { player2TpcAccountId: { $in: accounts } }
         ]
       }).session(session);
-      if (active) throw new Error('account_already_in_active_match');
+      for (const active of activeMatches) {
+        const activeTable = tableMap.get(String(active.roomId));
+        const hasConnectedPlayer = activeTable?.players?.some((player) => {
+          const liveSocket = io.sockets.sockets.get(String(player.socketId || ''));
+          return liveSocket?.rooms?.has(String(active.roomId));
+        });
+        if (hasConnectedPlayer) {
+          throw new Error('account_already_in_active_match');
+        }
+
+        // A server restart or a closed WebView can leave a persisted chess
+        // contract marked "playing" even though its Socket.IO room no longer
+        // has either phone. Such an orphan used to permanently reject every
+        // later Quick Match for both accounts. Refund the locked stakes inside
+        // this transaction before reserving the replacement match.
+        const orphanAccounts = [
+          active.player1TpcAccountId,
+          active.player2TpcAccountId
+        ].map(String);
+        const releaseIds = [];
+        for (const orphanAccount of orphanAccounts) {
+          const transactionId = `chess:${active.internalMatchId}:orphan-refund:${orphanAccount}`;
+          releaseIds.push(transactionId);
+          await User.updateOne(
+            {
+              $or: [
+                { tpcAccountNumber: orphanAccount },
+                { accountId: orphanAccount }
+              ],
+              'transactions.transactionId': { $ne: transactionId }
+            },
+            {
+              $inc: { balance: Number(active.stakePerPlayer || 0) },
+              $set: { currentTableId: null },
+              $push: {
+                transactions: {
+                  transactionId,
+                  amount: Number(active.stakePerPlayer || 0),
+                  type: 'stake_refund',
+                  token: active.token || 'TPG',
+                  status: 'delivered',
+                  game: 'chessbattle',
+                  players: 2,
+                  detail: 'orphaned_match_recovery'
+                }
+              }
+            },
+            { session }
+          );
+        }
+        active.status = 'refunded';
+        active.result = 'orphaned_match_recovery';
+        active.releaseTransactionIds = releaseIds;
+        await active.save({ session });
+      }
       const users = await User.find({
         $or: [
           { tpcAccountNumber: { $in: accounts } },
