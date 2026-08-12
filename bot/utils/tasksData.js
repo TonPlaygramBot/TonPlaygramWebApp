@@ -1,4 +1,4 @@
-export const TASKS_VERSION = 6;
+export const TASKS_VERSION = 7;
 
 export const TASKS = [
 
@@ -14,6 +14,46 @@ export const TASKS = [
 
   link: 'https://x.com/TonPlaygram?t=SyGyXA0H8PdLz7z2kfIWQw&s=09'
 
+  },
+
+  {
+    id: 'follow_instagram',
+    description: 'Follow TonPlaygram on Instagram',
+    reward: 450,
+    icon: 'instagram',
+    action: 'follow',
+    verification: 'self_attested',
+    link: 'https://www.instagram.com/tonplaygram'
+  },
+
+  {
+    id: 'follow_youtube',
+    description: 'Subscribe to our YouTube channel',
+    reward: 600,
+    icon: 'youtube',
+    action: 'subscribe',
+    verification: 'self_attested',
+    link: 'https://www.youtube.com/@TonPlaygram'
+  },
+
+  {
+    id: 'follow_facebook',
+    description: 'Follow TonPlaygram on Facebook',
+    reward: 350,
+    icon: 'facebook',
+    action: 'follow',
+    verification: 'self_attested',
+    link: 'https://www.facebook.com/share/1JcMX1CkQr/'
+  },
+
+  {
+    id: 'open_telegram_bot',
+    description: 'Open the official Telegram bot',
+    reward: 250,
+    icon: 'telegram',
+    action: 'open',
+    verification: 'self_attested',
+    link: 'https://t.me/TonPlaygramBot'
   },
 
   {
