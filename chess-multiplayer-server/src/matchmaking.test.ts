@@ -11,7 +11,7 @@ describe('chess_lobby matchmaking', () => {
   beforeAll(async () => { server = await boot(chessServerConfig as any); });
   afterAll(async () => { await server.shutdown(); });
 
-  it('pairs two clients, starts only when both are ready, and seats a third separately', async () => {
+  it('pairs two clients, reserves both seats, assigns opposite colours, and seats a third separately', async () => {
     const first = await server.sdk.joinOrCreate('chess_lobby', options('first'));
     await waitForPatch();
     expect(first.state.players.size).toBe(1);
@@ -26,17 +26,15 @@ describe('chess_lobby matchmaking', () => {
     expect(third.roomId).not.toBe(first.roomId);
     expect(third.state.players.size).toBe(1);
 
-    first.send('ready', true);
-    await waitForPatch();
-    expect(first.state.phase).toBe('waiting');
     const firstStarted = new Promise<any>((resolve) => first.onMessage('match_start', resolve));
     const secondStarted = new Promise<any>((resolve) => second.onMessage('match_start', resolve));
-    second.send('ready', true);
     await waitForPatch();
     expect(first.state.phase).toBe('countdown');
     const [firstMatch, secondMatch] = await Promise.all([firstStarted, secondStarted]);
     expect(firstMatch.roomId).toBe(first.roomId);
     expect(secondMatch.roomId).toBe(first.roomId);
+    expect(firstMatch.players.map((player: any) => player.side).sort()).toEqual(['black', 'white']);
+    expect(secondMatch.players).toEqual(firstMatch.players);
 
     await Promise.all([first.leave(true), second.leave(true), third.leave(true)]);
   }, 8_000);

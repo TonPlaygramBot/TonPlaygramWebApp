@@ -8,6 +8,7 @@ export class LobbyPlayer extends Schema {
   @type('boolean') connected = true;
   @type('number') joinedAt = 0;
   @type('string') maskedAccount = '';
+  @type('string') side: 'white' | 'black' | '' = '';
 }
 
 export class ChessLobbyState extends Schema {
