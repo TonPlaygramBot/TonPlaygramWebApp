@@ -1606,7 +1606,7 @@ export default function Store() {
         setAccountBalance(res.balance);
       }
     } catch (err) {
-      console.error('Failed to load TPC balance', err);
+      console.error('Failed to load TPG balance', err);
     }
   }, [accountId]);
 
@@ -1765,7 +1765,7 @@ export default function Store() {
     if (!canCreateFaceScan || faceScanSaving) return;
     if (typeof accountBalance === 'number' && accountBalance < faceScanBuildTotalTariff) {
       setTransactionState('error');
-      setTransactionStatus(`Not enough TPC. Add ${formatTpcAmount(faceScanBuildTotalTariff - accountBalance)} more to create this character.`);
+      setTransactionStatus(`Not enough TPG. Add ${formatTpcAmount(faceScanBuildTotalTariff - accountBalance)} more to create this character.`);
       return;
     }
     try {
@@ -2521,16 +2521,16 @@ export default function Store() {
       return;
     }
     if (!resolvedAccountId || resolvedAccountId === 'guest') {
-      setInfo('Link your TPC account before completing a purchase.');
+      setInfo('Link your TPG account before completing a purchase.');
       return;
     }
     const totalPrice = purchasable.reduce((sum, item) => sum + item.price, 0);
     if (!Number.isFinite(totalPrice) || totalPrice <= 0) {
-      setInfo('Unable to compute total TPC payment.');
+      setInfo('Unable to compute total TPG payment.');
       return;
     }
     if (accountBalance !== null && totalPrice > accountBalance) {
-      setInfo('Insufficient TPC balance to complete this purchase.');
+      setInfo('Insufficient TPG balance to complete this purchase.');
       return;
     }
 
@@ -2569,7 +2569,7 @@ export default function Store() {
       };
       const purchase = await buyBundle(resolvedAccountId, bundle);
       if (purchase?.error) {
-        setInfo(purchase.error || 'Unable to process TPC payment.');
+        setInfo(purchase.error || 'Unable to process TPG payment.');
         setTransactionState('error');
         setTransactionStatus(
           purchase.error || 'Payment failed. Please try again.'
@@ -2876,7 +2876,7 @@ export default function Store() {
                               <span>{item.price}</span>
                               <img
                                 src={TON_ICON}
-                                alt="TPC"
+                                alt="TPG"
                                 className="h-4 w-4"
                               />
                             </div>
@@ -2918,7 +2918,7 @@ export default function Store() {
 
                 <label className="grid gap-1 text-sm text-white/80">
                   <span className="text-xs uppercase tracking-wide text-white/60">
-                    Listing price (TPC)
+                    Listing price (TPG)
                   </span>
                   <input
                     type="number"
@@ -2994,13 +2994,13 @@ export default function Store() {
             </div>
             <div className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-sm font-semibold">
               {confirmItem.price}
-              <img src={TON_ICON} alt="TPC" className="h-4 w-4" />
+              <img src={TON_ICON} alt="TPG" className="h-4 w-4" />
             </div>
           </div>
 
           <div className="space-y-3 p-4 text-sm text-white/70">
             <p>
-              Purchase with your TPC balance. Once approved, we deliver the NFT
+              Purchase with your TPG balance. Once approved, we deliver the NFT
               instantly and log it on your statement.
             </p>
             <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
@@ -3027,7 +3027,7 @@ export default function Store() {
                 <span className="text-white/60">Price</span>
                 <span className="flex items-center gap-1 font-semibold">
                   {confirmItem.price}
-                  <img src={TON_ICON} alt="TPC" className="h-4 w-4" />
+                  <img src={TON_ICON} alt="TPG" className="h-4 w-4" />
                 </span>
               </div>
             </div>
@@ -3035,7 +3035,7 @@ export default function Store() {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-white/60">Payment</span>
                 <span className="font-semibold text-white">
-                  TPC balance purchase
+                  TPG balance purchase
                 </span>
               </div>
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -3047,7 +3047,7 @@ export default function Store() {
             </div>
             <div className="grid gap-2 rounded-2xl border border-emerald-300/20 bg-emerald-500/5 p-3 text-xs text-white/80">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-white/60">TPC balance</span>
+                <span className="text-white/60">TPG balance</span>
                 <span className="font-semibold text-white">
                   {accountBalance === null
                     ? '—'
@@ -3072,7 +3072,7 @@ export default function Store() {
               </div>
               {isInsufficientBalance ? (
                 <p className="text-rose-200">
-                  Need {formatTpcAmount(confirmShortfall)} more TPC to complete
+                  Need {formatTpcAmount(confirmShortfall)} more TPG to complete
                   this purchase.
                 </p>
               ) : null}
@@ -3107,7 +3107,7 @@ export default function Store() {
                 }
               >
                 {isInsufficientBalance
-                  ? 'Insufficient TPC'
+                  ? 'Insufficient TPG'
                   : isPaying
                     ? 'Purchasing…'
                     : 'Purchase'}
@@ -3154,7 +3154,7 @@ export default function Store() {
             </div>
             <div className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-sm font-semibold">
               {totalPrice.toLocaleString()}
-              <img src={TON_ICON} alt="TPC" className="h-4 w-4" />
+              <img src={TON_ICON} alt="TPG" className="h-4 w-4" />
             </div>
           </div>
 
@@ -3179,7 +3179,7 @@ export default function Store() {
                   </div>
                   <div className="flex items-center gap-1 text-sm font-semibold">
                     {item.price}
-                    <img src={TON_ICON} alt="TPC" className="h-4 w-4" />
+                    <img src={TON_ICON} alt="TPG" className="h-4 w-4" />
                   </div>
                 </div>
               ))}
@@ -3188,7 +3188,7 @@ export default function Store() {
             <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-white/60">
               <p className="font-semibold text-white">Checkout summary</p>
               <p className="mt-1">
-                Purchase once with your TPC balance, then we deliver instantly
+                Purchase once with your TPG balance, then we deliver instantly
                 and record it on your statement.
               </p>
             </div>
@@ -3196,7 +3196,7 @@ export default function Store() {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-white/60">Payment</span>
                 <span className="font-semibold text-white">
-                  TPC balance purchase
+                  TPG balance purchase
                 </span>
               </div>
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -3208,7 +3208,7 @@ export default function Store() {
             </div>
             <div className="grid gap-2 rounded-2xl border border-emerald-300/20 bg-emerald-500/5 p-3 text-xs text-white/80">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-white/60">TPC balance</span>
+                <span className="text-white/60">TPG balance</span>
                 <span className="font-semibold text-white">
                   {accountBalance === null
                     ? '—'
@@ -3233,7 +3233,7 @@ export default function Store() {
               </div>
               {hasBulkShortfall ? (
                 <p className="text-rose-200">
-                  Need {formatTpcAmount(bulkShortfall)} more TPC to checkout
+                  Need {formatTpcAmount(bulkShortfall)} more TPG to checkout
                   this bundle.
                 </p>
               ) : null}
@@ -3267,7 +3267,7 @@ export default function Store() {
                 disabled={Boolean(processing) || isPaying || hasBulkShortfall}
               >
                 {hasBulkShortfall
-                  ? 'Insufficient TPC'
+                  ? 'Insufficient TPG'
                   : isPaying
                     ? 'Purchasing…'
                     : 'Purchase'}
@@ -3317,7 +3317,7 @@ export default function Store() {
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-sm font-semibold">
                 {detailItem.price}
-                <img src={TON_ICON} alt="TPC" className="h-4 w-4" />
+                <img src={TON_ICON} alt="TPG" className="h-4 w-4" />
               </div>
               <button
                 type="button"
@@ -3458,7 +3458,7 @@ export default function Store() {
                               {event.price}
                               <img
                                 src={TON_ICON}
-                                alt="TPC"
+                                alt="TPG"
                                 className="h-3.5 w-3.5"
                               />
                             </span>
@@ -3527,8 +3527,8 @@ export default function Store() {
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70">
                   <p className="font-semibold text-white">What you get</p>
                   <p className="mt-1">
-                    After the TPC payment is confirmed, the NFT unlocks
-                    immediately on your linked TPC account.
+                    After the TPG payment is confirmed, the NFT unlocks
+                    immediately on your linked TPG account.
                   </p>
                 </div>
               </div>
@@ -4202,7 +4202,7 @@ export default function Store() {
         <div className="mt-auto flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-sm font-semibold">
             {item.price}
-            <img src={TON_ICON} alt="TPC" className="h-4 w-4" />
+            <img src={TON_ICON} alt="TPG" className="h-4 w-4" />
           </div>
           <button
             type="button"
@@ -4249,10 +4249,10 @@ export default function Store() {
 
           <div className="flex items-center gap-2">
             <div className="hidden items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/80 md:flex">
-              <span className="text-white/60">TPC</span>
+              <span className="text-white/60">TPG</span>
               <span className="flex items-center gap-1 font-semibold text-white">
                 {accountBalance === null ? '—' : accountBalance}
-                <img src={TON_ICON} alt="TPC" className="h-4 w-4" />
+                <img src={TON_ICON} alt="TPG" className="h-4 w-4" />
               </span>
             </div>
             <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
@@ -4539,7 +4539,7 @@ export default function Store() {
             >
               {faceScanSaving
                 ? 'Creating character…'
-                : `Create character (${formatTpcAmount(faceScanBuildTotalTariff)} TPC)`}
+                : `Create character (${formatTpcAmount(faceScanBuildTotalTariff)} TPG)`}
             </button>
             <span className="text-xs text-cyan-100/85">
               {faceScanCreated
@@ -4552,8 +4552,8 @@ export default function Store() {
 
           <div className="mt-2 text-xs text-white/70">
             {faceScanBuildShortfall
-              ? `Balance alert: you need ${formatTpcAmount(faceScanBuildShortfall)} more TPC to create this character.`
-              : `Creation tariff: ${formatTpcAmount(FACE_SCAN_BUILD_TARIFF_TPC)} TPC + ${formatTpcAmount(FACE_SCAN_DETAIL_TARIFF_PER_POSE_TPC)} TPC per captured angle.`}
+              ? `Balance alert: you need ${formatTpcAmount(faceScanBuildShortfall)} more TPG to create this character.`
+              : `Creation tariff: ${formatTpcAmount(FACE_SCAN_BUILD_TARIFF_TPC)} TPG + ${formatTpcAmount(FACE_SCAN_DETAIL_TARIFF_PER_POSE_TPC)} TPG per captured angle.`}
           </div>
         </section>
 
@@ -4573,7 +4573,7 @@ export default function Store() {
 
             <p className="max-w-2xl text-sm text-white/70">
               Mobile-first design inspired by the mock above. Every card shows
-              TPC price, accessory type, and whether you already own it.
+              TPG price, accessory type, and whether you already own it.
             </p>
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -4614,10 +4614,10 @@ export default function Store() {
                   <p className="font-semibold text-white">{ownedCount}</p>
                 </div>
                 <div className="text-left">
-                  <p className="text-xs text-white/60">TPC</p>
+                  <p className="text-xs text-white/60">TPG</p>
                   <p className="flex items-center gap-1 font-semibold text-white">
                     {accountBalance === null ? '—' : accountBalance}
-                    <img src={TON_ICON} alt="TPC" className="h-4 w-4" />
+                    <img src={TON_ICON} alt="TPG" className="h-4 w-4" />
                   </p>
                 </div>
               </div>
@@ -4735,7 +4735,7 @@ export default function Store() {
                     className="rounded-2xl bg-white px-3 py-2 text-xs font-semibold text-zinc-950 hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
                     disabled={!hasPurchasableSelection || Boolean(processing)}
                   >
-                    Buy selected ({selectedTotalPrice.toLocaleString()} TPC)
+                    Buy selected ({selectedTotalPrice.toLocaleString()} TPG)
                   </button>
                 </div>
               </div>
@@ -4746,8 +4746,8 @@ export default function Store() {
                   {selectedBalanceAfter === null
                     ? 'Balance preview unavailable'
                     : selectedShortfall
-                      ? `Need +${formatTpcAmount(selectedShortfall)} TPC`
-                      : `After checkout: ${formatTpcAmount(selectedBalanceAfter)} TPC`}
+                      ? `Need +${formatTpcAmount(selectedShortfall)} TPG`
+                      : `After checkout: ${formatTpcAmount(selectedBalanceAfter)} TPG`}
                 </span>
                 <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5">
                   Green + Blue cloth bundles ready for Pool Royale
@@ -4776,7 +4776,7 @@ export default function Store() {
                 </p>
                 <p className="flex items-center gap-1 text-2xl font-semibold text-white">
                   {userListingStats.totalValue.toLocaleString()}
-                  <img src={TON_ICON} alt="TPC" className="h-4 w-4" />
+                  <img src={TON_ICON} alt="TPG" className="h-4 w-4" />
                 </p>
                 <p className="text-xs text-white/60">
                   Sum of your active listings
@@ -4788,7 +4788,7 @@ export default function Store() {
                 </p>
                 <p className="flex items-center gap-1 text-2xl font-semibold text-white">
                   {userListingStats.avgPrice.toLocaleString()}
-                  <img src={TON_ICON} alt="TPC" className="h-4 w-4" />
+                  <img src={TON_ICON} alt="TPG" className="h-4 w-4" />
                 </p>
                 <p className="text-xs text-white/60">
                   Per item across your listings
@@ -4803,7 +4803,7 @@ export default function Store() {
                     ? userListingStats.floorPrice.toLocaleString()
                     : '—'}
                   {userListingStats.total ? (
-                    <img src={TON_ICON} alt="TPC" className="h-4 w-4" />
+                    <img src={TON_ICON} alt="TPG" className="h-4 w-4" />
                   ) : null}
                 </p>
                 <p className="text-xs text-white/60">
@@ -4871,7 +4871,7 @@ export default function Store() {
                 {showMyListings ? 'Your listings' : 'Marketplace'}
               </div>
               <div className="text-xs text-white/60">
-                {visibleItems.length} listings | pay with TPC | accessories for
+                {visibleItems.length} listings | pay with TPG | accessories for
                 every game
               </div>
             </div>
@@ -4954,7 +4954,7 @@ export default function Store() {
             <div className="flex items-center justify-between text-xs text-white/70">
               <span>
                 {hasPurchasableSelection
-                  ? `${selectedPurchasable.length} item${selectedPurchasable.length === 1 ? '' : 's'} • ${selectedTotalPrice.toLocaleString()} TPC`
+                  ? `${selectedPurchasable.length} item${selectedPurchasable.length === 1 ? '' : 's'} • ${selectedTotalPrice.toLocaleString()} TPG`
                   : 'No purchasable items in your selection.'}
               </span>
               {selectedGameCount && hasPurchasableSelection ? (
@@ -4970,8 +4970,8 @@ export default function Store() {
                 {selectedBalanceAfter === null
                   ? 'Balance preview unavailable.'
                   : selectedShortfall
-                    ? `Need ${formatTpcAmount(selectedShortfall)} more TPC before checkout.`
-                    : `After checkout balance: ${formatTpcAmount(selectedBalanceAfter)} TPC.`}
+                    ? `Need ${formatTpcAmount(selectedShortfall)} more TPG before checkout.`
+                    : `After checkout balance: ${formatTpcAmount(selectedBalanceAfter)} TPG.`}
               </div>
             ) : null}
             <div className="flex items-center gap-2">
@@ -4991,7 +4991,7 @@ export default function Store() {
                 className="flex-[2] rounded-2xl bg-white px-3 py-2 text-xs font-semibold text-zinc-950"
                 disabled={!hasPurchasableSelection || Boolean(processing)}
               >
-                Buy now ({selectedTotalPrice.toLocaleString()} TPC)
+                Buy now ({selectedTotalPrice.toLocaleString()} TPG)
               </button>
             </div>
           </div>

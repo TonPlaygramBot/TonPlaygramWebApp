@@ -64,7 +64,7 @@ test(
         stake: 100,
         maxPlayers: 2,
         mode: 'online',
-        token: 'TPC',
+        token: 'TPG',
         preferredSide: 'white'
       });
       const secondSeat = await emitAck(black, 'seatTable', {
@@ -73,7 +73,7 @@ test(
         stake: 100,
         maxPlayers: 2,
         mode: 'online',
-        token: 'TPC',
+        token: 'TPG',
         preferredSide: 'black'
       });
       assert.equal(firstSeat.success, true);

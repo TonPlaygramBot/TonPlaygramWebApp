@@ -36,16 +36,6 @@ import useProfileLock from '../hooks/useProfileLock.js';
 import ProfileLockOverlay from '../components/ProfileLockOverlay.jsx';
 import Wallet from './Wallet.jsx';
 
-const TIKTOK_CHANNEL_URL = 'https://www.tiktok.com/@tonplaygram?_t=ZS-8xxPL1nbD9U&_r=1';
-const TIKTOK_CHANNEL_HANDLE = '@tonplaygram';
-const MARKETING_COMMENT_IDEAS = [
-  'Qëndroni të bashkuar dhe me dinjitet. Shqipëria meriton më të mirën.',
-  'Forcë, shpresë dhe respekt për çdo qytetar që kërkon një të ardhme më të drejtë.',
-  'Me zemër për Shqipërinë dhe me besim te zëri i popullit.',
-  'Bashkimi, qetësia dhe kurajoja janë fuqia jonë.',
-  'Për një Shqipëri më të ndershme, më të lirë dhe më të fortë.',
-  'Respekt për të gjithë ata që flasin me paqe dhe dashuri për atdheun.'
-];
 
 import {
   FiCheckCircle,
@@ -63,8 +53,7 @@ import {
   FiBell,
   FiList,
   FiDollarSign,
-  FiCheckSquare,
-  FiShare2
+  FiCheckSquare
 } from 'react-icons/fi';
 
 export default function MyAccount() {
@@ -118,8 +107,6 @@ export default function MyAccount() {
   const [notifyStatus, setNotifyStatus] = useState('');
   const [showNotifyModal, setShowNotifyModal] = useState(false);
   const [showTasksModal, setShowTasksModal] = useState(false);
-  const [campaignVideoUrl, setCampaignVideoUrl] = useState('');
-  const [campaignNote, setCampaignNote] = useState('');
   const [twitterError, setTwitterError] = useState('');
   const [twitterLink, setTwitterLink] = useState('');
   const [unread, setUnread] = useState(0);
@@ -187,7 +174,7 @@ export default function MyAccount() {
       if (accountPayload?.error || !accountPayload?.accountId) {
         throw new Error(
           accountPayload?.error ||
-            'Unable to load your TPC account. Please try again.'
+            'Unable to load your TPG account. Please try again.'
         );
       }
       if (accountPayload.accountId) {
@@ -351,7 +338,7 @@ export default function MyAccount() {
       setTelegramId(telegramIdentifier);
       setGoogleLinked(true);
       setManualTelegramInput('');
-      setLinkFeedback('Telegram linked. We refreshed your TPC profile.');
+      setLinkFeedback('Telegram linked. We refreshed your TPG profile.');
       setReloadNonce((n) => n + 1);
     } catch (err) {
       console.error('Failed to link Telegram account', err);
@@ -420,7 +407,7 @@ export default function MyAccount() {
   const devPanelTools = [
     {
       label: 'Top up',
-      value: 'Instant TPC credit testing',
+      value: 'Instant TPG credit testing',
       icon: FiDollarSign
     },
     { label: 'Notify', value: 'Broadcast update to all users', icon: FiBell },
@@ -433,11 +420,6 @@ export default function MyAccount() {
       label: 'Claims',
       value: 'Review influencer payout requests',
       icon: FiCheckSquare
-    },
-    {
-      label: 'Campaign',
-      value: 'Coordinate real volunteer outreach',
-      icon: FiShare2
     }
   ];
 
@@ -980,75 +962,6 @@ export default function MyAccount() {
               </button>
             </div>
 
-            <div className="rounded-xl border border-pink-400/30 bg-pink-950/20 p-3 space-y-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-white">
-                    TikTok Campaign Control Panel
-                  </p>
-                  <p className="text-[11px] text-subtext">
-                    Dev-only coordination for legitimate, manual supporter activity.
-                  </p>
-                </div>
-                <a
-                  href={TIKTOK_CHANNEL_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="shrink-0 rounded-full border border-pink-400/40 px-3 py-1 text-[11px] font-semibold text-pink-200"
-                >
-                  {TIKTOK_CHANNEL_HANDLE}
-                </a>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <input
-                  type="url"
-                  value={campaignVideoUrl}
-                  onChange={(e) => setCampaignVideoUrl(e.target.value)}
-                  placeholder="Paste latest TikTok video link"
-                  className="rounded border border-border bg-background/80 p-2 text-sm text-white placeholder:text-subtext"
-                />
-                <input
-                  value={campaignNote}
-                  onChange={(e) => setCampaignNote(e.target.value)}
-                  placeholder="Volunteer note / campaign focus"
-                  className="rounded border border-border bg-background/80 p-2 text-sm text-white placeholder:text-subtext"
-                />
-              </div>
-
-              <div className="rounded-lg border border-amber-400/30 bg-amber-950/20 p-2 text-[11px] leading-5 text-amber-100">
-                Automation, fake accounts, bot comments, and algorithm manipulation are disabled. Use this panel only to brief real supporters and track public links manually.
-              </div>
-
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-white">
-                  Positive Albanian comment ideas
-                </p>
-                <div className="grid grid-cols-1 gap-2">
-                  {MARKETING_COMMENT_IDEAS.map((comment) => (
-                    <div
-                      key={comment}
-                      className="rounded-lg border border-border bg-background/60 p-2 text-[11px] leading-5 text-subtext"
-                    >
-                      {comment}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 text-center text-[11px]">
-                <div className="rounded-lg border border-border bg-background/60 p-2">
-                  <p className="text-subtext">Video link</p>
-                  <p className="font-semibold text-white">
-                    {campaignVideoUrl ? 'Ready' : 'Not set'}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border bg-background/60 p-2">
-                  <p className="text-subtext">Mode</p>
-                  <p className="font-semibold text-white">Manual only</p>
-                </div>
-              </div>
-            </div>
 
             <div className="rounded-lg border border-border bg-background/60 p-3 text-xs text-subtext space-y-1">
               <p>

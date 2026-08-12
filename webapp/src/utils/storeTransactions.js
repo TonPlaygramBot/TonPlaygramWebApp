@@ -77,7 +77,7 @@ export const recordStorePurchase = (accountId, payload = {}) => {
     amount: -Math.abs(Number(totalPrice) || 0),
     date: now.toISOString(),
     status,
-    token: 'TPC',
+    token: 'TPG',
     detail,
     items
   };

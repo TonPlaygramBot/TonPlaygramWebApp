@@ -46,11 +46,11 @@ export default function useWalletUsdValue(tonBalance, tpcWalletBalance) {
         );
         if (pool) {
           const [tonReserve, tpcReserve] = pool.reserves.map((r) => Number(r));
-          const rate = tpcReserve / tonReserve; // TPC per TON
-          if (rate) tpcPrice = tonPrice / rate; // USD per TPC
+          const rate = tpcReserve / tonReserve; // TPG per TON
+          if (rate) tpcPrice = tonPrice / rate; // USD per TPG
         }
       } catch (err) {
-        console.error('Failed to load TPC price from dedust:', err);
+        console.error('Failed to load TPG price from dedust:', err);
       }
 
       const total =

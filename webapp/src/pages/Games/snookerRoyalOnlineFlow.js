@@ -67,7 +67,7 @@ export async function runSnookerRoyalOnlineFlow({
   const telegramId = getTelegramIdFn?.();
 
   setMatchingError('');
-  setMatchStatus('Checking your TPC account…');
+  setMatchStatus('Checking your TPG account…');
   setMatching(true);
   setIsSearching(true);
 
@@ -101,7 +101,7 @@ export async function runSnookerRoyalOnlineFlow({
     accountId = await ensureAccountIdFn();
     accountIdRef.current = accountId;
   } catch (error) {
-    setMatchingError('Unable to verify your TPC account. Please retry.');
+    setMatchingError('Unable to verify your TPG account. Please retry.');
     setMatchStatus('');
     setMatching(false);
     setIsSearching(false);
@@ -247,7 +247,7 @@ export async function runSnookerRoyalOnlineFlow({
       ballSet,
       tableSize,
       playType,
-      playerName: getTelegramFirstNameFn?.() || `TPC ${accountId}` || 'Player',
+      playerName: getTelegramFirstNameFn?.() || `TPG ${accountId}` || 'Player',
       avatar
     },
     (res) => {

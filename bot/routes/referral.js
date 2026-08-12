@@ -70,7 +70,7 @@ router.post('/claim', async (req, res) => {
   const userTx = {
     amount: REWARD,
     type: 'referral',
-    token: 'TPC',
+    token: 'TPG',
     status: 'delivered',
     date: txDate,
   };
@@ -90,7 +90,7 @@ router.post('/claim', async (req, res) => {
       await sendTPCNotification(
         bot,
         inviter.telegramId,
-        `\u{1FA99} You received ${REWARD} TPC for referring a friend`,
+        `\u{1FA99} You received ${REWARD} TPG for referring a friend`,
       );
     } catch (err) {
       console.error('Failed to send Telegram notification:', err.message);
@@ -102,7 +102,7 @@ router.post('/claim', async (req, res) => {
       await sendTPCNotification(
         bot,
         user.telegramId,
-        `\u{1FA99} You received ${REWARD} TPC for joining via referral`,
+        `\u{1FA99} You received ${REWARD} TPG for joining via referral`,
       );
     } catch (err) {
       console.error('Failed to send Telegram notification:', err.message);

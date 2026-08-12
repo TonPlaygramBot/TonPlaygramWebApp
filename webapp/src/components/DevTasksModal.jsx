@@ -80,7 +80,7 @@ export default function DevTasksModal({ open, onClose }) {
           </select>
           <input
             type="number"
-            placeholder="Reward (TPC)"
+            placeholder="Reward (TPG)"
             value={reward}
             onChange={(e) => setReward(e.target.value)}
             className="border p-1 rounded w-full text-black"
@@ -125,7 +125,7 @@ export default function DevTasksModal({ open, onClose }) {
             <li key={t._id} className="lobby-tile space-y-1">
               <div className="text-sm break-all">{t.description}</div>
               <div className="text-xs break-all">
-                {t.platform} - {t.reward} TPC
+                {t.platform} - {t.reward} TPG
               </div>
               <div className="text-xs break-all">{t.link}</div>
               <div className="flex gap-4 mt-1 justify-center">

@@ -343,7 +343,7 @@ router.post('/info', authenticate, async (req, res) => {
   });
 });
 
-// Send TPC between accounts
+// Send TPG between accounts
 router.post('/send', authenticate, async (req, res) => {
   const { fromAccount, toAccount, amount, note } = req.body;
   if (!fromAccount || !toAccount || typeof amount !== 'number') {
@@ -411,7 +411,7 @@ router.post('/send', authenticate, async (req, res) => {
   const senderTx = {
     amount: -(amount + feeSender),
     type: 'send',
-    token: 'TPC',
+    token: 'TPG',
     status: 'delivered',
     date: txDate,
     toAccount: toAccount,
@@ -421,7 +421,7 @@ router.post('/send', authenticate, async (req, res) => {
   const receiverTx = {
     amount: amount - feeReceiver,
     type: 'receive',
-    token: 'TPC',
+    token: 'TPG',
     status: 'delivered',
     date: txDate,
     fromAccount: fromAccount,
@@ -434,7 +434,7 @@ router.post('/send', authenticate, async (req, res) => {
     devTxs.push({
       amount: feeReceiver,
       type: 'fee',
-      token: 'TPC',
+      token: 'TPG',
       status: 'delivered',
       date: txDate,
       fromAccount: fromAccount,
@@ -446,7 +446,7 @@ router.post('/send', authenticate, async (req, res) => {
     devTxs.push({
       amount: feeSender,
       type: 'fee',
-      token: 'TPC',
+      token: 'TPG',
       status: 'delivered',
       date: txDate,
       fromAccount: fromAccount,
@@ -532,7 +532,7 @@ router.post('/gift', authenticate, async (req, res) => {
   const senderTx = {
     amount: -g.price,
     type: 'gift',
-    token: 'TPC',
+    token: 'TPG',
     status: 'delivered',
     date: txDate,
     toAccount: String(toAccount),
@@ -556,7 +556,7 @@ router.post('/gift', authenticate, async (req, res) => {
   const receiverTx = {
     amount: 0,
     type: 'gift-receive',
-    token: 'TPC',
+    token: 'TPG',
     status: 'pending',
     date: txDate,
     fromAccount: String(fromAccount),
@@ -599,7 +599,7 @@ router.post('/store-purchase', authenticate, async (req, res) => {
   }
 
   if (txHash) {
-    return res.status(400).json({ error: 'TON payments are disabled. Use TPC balance only.' });
+    return res.status(400).json({ error: 'TON payments are disabled. Use TPG balance only.' });
   }
 
   const isItemBundle =
@@ -649,7 +649,7 @@ router.post('/store-purchase', authenticate, async (req, res) => {
   sender.transactions.push({
     amount: -totalPrice,
     type: 'store',
-    token: 'TPC',
+    token: 'TPG',
     status: 'delivered',
     date: txDate,
     detail: 'Store purchase',
@@ -679,7 +679,7 @@ router.post('/store-purchase', authenticate, async (req, res) => {
   return res.json({
     balance: sender.balance,
     transaction: sender.transactions[sender.transactions.length - 1],
-    paymentToken: 'TPC',
+    paymentToken: 'TPG',
     delivery: {
       pool: delivery.pool.length,
       snooker: delivery.snooker.length,
@@ -688,7 +688,7 @@ router.post('/store-purchase', authenticate, async (req, res) => {
   });
 });
 
-// Convert received gifts to TPC
+// Convert received gifts to TPG
 router.post('/convert-gifts', authenticate, async (req, res) => {
   const { accountId, giftIds, action = 'burn', toAccount } = req.body;
   if (!accountId || !Array.isArray(giftIds)) {
@@ -746,7 +746,7 @@ router.post('/convert-gifts', authenticate, async (req, res) => {
       receiver.transactions.push({
         amount: 0,
         type: 'gift-receive',
-        token: 'TPC',
+        token: 'TPG',
         status: 'pending',
         date: txDate,
         fromAccount: String(user.accountId),
@@ -759,7 +759,7 @@ router.post('/convert-gifts', authenticate, async (req, res) => {
       user.transactions.push({
         amount: 0,
         type: 'gift-transfer',
-        token: 'TPC',
+        token: 'TPG',
         status: 'delivered',
         date: txDate,
         toAccount: String(toAccount),
@@ -791,7 +791,7 @@ router.post('/convert-gifts', authenticate, async (req, res) => {
       user.transactions.push({
         amount: net,
         type: 'gift-receive',
-        token: 'TPC',
+        token: 'TPG',
         status: 'delivered',
         date: txDate,
         fromAccount: g.fromAccount,
@@ -803,7 +803,7 @@ router.post('/convert-gifts', authenticate, async (req, res) => {
       user.transactions.push({
         amount: -fee,
         type: 'gift-fee',
-        token: 'TPC',
+        token: 'TPG',
         status: 'delivered',
         date: txDate,
         detail: g.gift
@@ -880,7 +880,7 @@ router.get('/transfers/public', async (req, res) => {
         $project: {
           _id: 0,
           amount: { $abs: '$transactions.amount' },
-          token: { $ifNull: ['$transactions.token', 'TPC'] },
+          token: { $ifNull: ['$transactions.token', 'TPG'] },
           date: '$transactions.date',
           note: '$transactions.detail',
           fromAccount: '$accountId',
@@ -937,7 +937,7 @@ router.post('/deposit', authenticate, async (req, res) => {
   const tx = {
     amount,
     type: 'deposit',
-    token: 'TPC',
+    token: 'TPG',
     status: 'delivered',
     date: new Date()
   };

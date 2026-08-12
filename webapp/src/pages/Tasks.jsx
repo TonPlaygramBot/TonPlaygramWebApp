@@ -274,7 +274,7 @@ export default function Tasks() {
                 <div className="grid grid-cols-[20px_1fr_auto_auto] items-center gap-2 w-full">
                   <AiOutlineCheck className="w-5 h-5 text-accent" />
                   <span className="text-sm">Daily Check-In</span>
-                  <span className="text-xs text-subtext flex items-center gap-1">{REWARDS[streak - 1]} <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="w-4 h-4" /></span>
+                  <span className="text-xs text-subtext flex items-center gap-1">{REWARDS[streak - 1]} <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPG" className="w-4 h-4" /></span>
                   {lastCheck && Date.now() - lastCheck < ONE_DAY ? (
                     <span className="text-green-500 font-semibold text-sm">Completed</span>
                   ) : (
@@ -292,7 +292,7 @@ export default function Tasks() {
               <div className="grid grid-cols-[20px_1fr_auto_auto] items-center gap-2 w-full">
                 {ICONS[t.id] || ICONS[t.icon] || <FiLink className="w-5 h-5" />}
                 <span className="text-sm">{t.description}</span>
-                <span className="text-xs text-subtext flex items-center gap-1">{t.reward} <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="w-4 h-4" /></span>
+                <span className="text-xs text-subtext flex items-center gap-1">{t.reward} <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPG" className="w-4 h-4" /></span>
                 {t.completed && t.id === 'post_tweet' && t.cooldown > 0 ? (
                   <span className="text-sm text-subtext">{formatTime(t.cooldown)}</span>
                 ) : t.completed ? (
@@ -330,7 +330,7 @@ export default function Tasks() {
             <div className="grid grid-cols-[20px_1fr_auto_auto] items-center gap-2 w-full">
               {ICONS.watch_ad}
               <span className="text-sm">Watch Ad ({adCount}/5)</span>
-              <span className="text-xs text-subtext flex items-center gap-1">50 <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="w-4 h-4" /></span>
+              <span className="text-xs text-subtext flex items-center gap-1">50 <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPG" className="w-4 h-4" /></span>
               {adCount >= 5 ? (
                 <span className="text-green-500 font-semibold text-sm">Completed</span>
               ) : (
@@ -347,7 +347,7 @@ export default function Tasks() {
             <div className="grid grid-cols-[20px_1fr_auto_auto] items-center gap-2 w-full">
               {ICONS.watch_ad}
               <span className="text-sm">Advertising Quest</span>
-              <span className="text-xs text-subtext flex items-center gap-1">200 <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="w-4 h-4" /></span>
+              <span className="text-xs text-subtext flex items-center gap-1">200 <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPG" className="w-4 h-4" /></span>
               {questTime > 0 ? (
                 <span className="text-sm text-subtext">{formatTime(questTime)}</span>
               ) : (
@@ -403,7 +403,7 @@ export default function Tasks() {
                 <thead>
                   <tr className="border-b border-border">
                     <th className="py-1">Views Range</th>
-                    <th className="py-1 flex items-center justify-center gap-1">Reward <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="w-4 h-4" /></th>
+                    <th className="py-1 flex items-center justify-center gap-1">Reward <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPG" className="w-4 h-4" /></th>
                     <th className="py-1">Notes</th>
                   </tr>
                 </thead>
@@ -411,7 +411,7 @@ export default function Tasks() {
                   {INFLUENCER_REWARDS.map((r) => (
                     <tr key={r.range} className="border-b border-border last:border-0">
                       <td className="py-1">{r.range}</td>
-                      <td className="py-1 flex items-center justify-center gap-1">{r.reward.toLocaleString()} <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="w-4 h-4" /></td>
+                      <td className="py-1 flex items-center justify-center gap-1">{r.reward.toLocaleString()} <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPG" className="w-4 h-4" /></td>
                       <td className="py-1">{r.notes}</td>
                     </tr>
                   ))}
@@ -429,7 +429,7 @@ export default function Tasks() {
                   </div>
                   <div className="flex justify-between text-xs">
                     <span>Status: {s.status}</span>
-                    <span className="flex items-center gap-1">{s.rewardTPC.toLocaleString()} <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="w-4 h-4" /></span>
+                    <span className="flex items-center gap-1">{s.rewardTPC.toLocaleString()} <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPG" className="w-4 h-4" /></span>
                   </div>
                 </li>
               ))}

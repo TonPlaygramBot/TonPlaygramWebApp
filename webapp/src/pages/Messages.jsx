@@ -121,7 +121,7 @@ export default function Messages() {
       toTelegramId: selected.telegramId,
       roomId,
       game: 'snake',
-      token: 'TPC',
+      token: 'TPG',
       amount: 100
     }, (response) => {
       if (!response?.success) {

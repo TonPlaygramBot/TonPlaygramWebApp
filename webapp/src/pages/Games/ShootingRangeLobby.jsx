@@ -40,7 +40,7 @@ export default function ShootingRangeLobby() {
 
   const [mode, setMode] = useState('ai');
   const [players, setPlayers] = useState(4);
-  const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
+  const [stake, setStake] = useState({ token: 'TPG', amount: 100 });
   const [distance, setDistance] = useState('standard');
   const [avatar, setAvatar] = useState('');
   const [playerFlagIndex, setPlayerFlagIndex] = useState(null);
@@ -212,7 +212,7 @@ export default function ShootingRangeLobby() {
               {
                 id: 'online',
                 label: 'Online',
-                desc: 'TPC staking queue',
+                desc: 'TPG staking queue',
                 icon: '⚔️'
               }
             ].map(({ id, label, desc, icon }) => {
@@ -323,7 +323,7 @@ export default function ShootingRangeLobby() {
               <div>
                 <h3 className="font-semibold text-white">Stake</h3>
                 <p className="text-xs text-white/60">
-                  Online Shooting Range uses the same TPC staking flow as other
+                  Online Shooting Range uses the same TPG staking flow as other
                   games.
                 </p>
               </div>
@@ -332,7 +332,7 @@ export default function ShootingRangeLobby() {
               <RoomSelector
                 selected={stake}
                 onSelect={setStake}
-                tokens={['TPC']}
+                tokens={['TPG']}
               />
             </div>
           </div>

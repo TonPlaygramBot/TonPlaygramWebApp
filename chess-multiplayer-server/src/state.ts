@@ -20,7 +20,7 @@ export class ChessLobbyState extends Schema {
   @type('number') countdownEndsAt = 0;
   @type('number') createdAt = Date.now();
   @type('number') stake = 0;
-  @type('string') token = 'TPC';
+  @type('string') token = 'TPG';
   @type('string') tableNumber = '';
   @type('string') matchId = '';
   @type('boolean') stakesReserved = false;

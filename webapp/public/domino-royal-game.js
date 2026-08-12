@@ -9076,7 +9076,7 @@ function showWinnerOverlay({ winner = null, reason = '' } = {}) {
     for (let i = 0; i < 20; i += 1) {
       const coin = document.createElement('span');
       coin.className = 'winner-coin';
-      coin.textContent = 'TPC';
+      coin.textContent = 'TPG';
       coin.style.setProperty('--angle', `${(360 / 20) * i}deg`);
       coin.style.setProperty('--distance', `${52 + (i % 4) * 14}px`);
       coin.style.setProperty('--delay', `${i * 30}ms`);
@@ -9261,7 +9261,7 @@ if (DOMINO_ONLINE_MODE && Array.isArray(DOMINO_ONLINE_MATCH?.players)) {
   }
 }
 const stakeAmount = Number.parseInt(urlParams.get('amount') || '', 10);
-const stakeToken = urlParams.get('token') || 'TPC';
+const stakeToken = urlParams.get('token') || 'TPG';
 if (Number.isFinite(stakeAmount) && stakeAmount > 0) {
   statusPrefix = `Stake ${stakeAmount.toLocaleString('en-US')} ${stakeToken.toUpperCase()}`;
   setStatus('Ready');

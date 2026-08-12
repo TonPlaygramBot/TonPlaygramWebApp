@@ -30,8 +30,8 @@ export class ChessBattleRoyaleRoom extends Room<{ state: ChessLobbyState }> {
     this.state.invitationCode = invitationCode;
     this.state.maxPlayers = this.maxClients;
     this.state.stake = Number(options.stake) || 0;
-    this.state.token = String(options.token || 'TPC').toUpperCase();
-    if (!Number.isSafeInteger(this.state.stake) || this.state.stake <= 0 || this.state.token !== 'TPC') throw new Error('invalid_stake');
+    this.state.token = String(options.token || 'TPG').toUpperCase();
+    if (!Number.isSafeInteger(this.state.stake) || this.state.stake <= 0 || this.state.token !== 'TPG') throw new Error('invalid_stake');
     this.setMetadata({ visibility, invitationCode, stake: this.state.stake, token: this.state.token, maxPlayers: this.maxClients, phase: 'waiting' });
     this.onMessage('ready', (client, ready: boolean) => {
       const player = this.state.players.get(client.sessionId);

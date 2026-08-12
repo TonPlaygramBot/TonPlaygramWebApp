@@ -15221,7 +15221,7 @@ function PoolRoyaleGame({
   }, [location.search]);
   const stakeToken = useMemo(() => {
     const params = new URLSearchParams(location.search);
-    return params.get('token') || 'TPC';
+    return params.get('token') || 'TPG';
   }, [location.search]);
   const [winnerOverlay, setWinnerOverlay] = useState(null);
   const [finalPotLabel, setFinalPotLabel] = useState('');
@@ -16160,7 +16160,7 @@ function PoolRoyaleGame({
     try {
       const receipt = await depositAccount(account, amount, {
         source: 'pool-royale-training',
-        token: 'TPC',
+        token: 'TPG',
         type: 'task',
         note: `Pool Royale training task ${safeLevel}`,
         game: 'pool',
@@ -16523,7 +16523,7 @@ function PoolRoyaleGame({
     if (cueFeePaidRef.current) return true;
     const id = accountIdRef.current;
     if (!id) {
-      alert('Link your TPC account before switching cues.');
+      alert('Link your TPG account before switching cues.');
       return false;
     }
     if (cueFeePendingRef.current) return false;
@@ -16531,7 +16531,7 @@ function PoolRoyaleGame({
     try {
       const balRes = await getAccountBalance(id);
       if ((balRes?.balance || 0) < 50) {
-        alert('You need at least 50 TPC to change cues for this game.');
+        alert('You need at least 50 TPG to change cues for this game.');
         return false;
       }
       const telegramId = tgIdRef.current || getTelegramId();
@@ -36411,7 +36411,7 @@ const shotPowerRef = useRef(0);
             ) : null}
             {winnerOverlay.prizeText ? (
               <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-emerald-300 px-4 py-2 text-sm font-bold uppercase tracking-[0.22em] text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]">
-                <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC prize" className="h-6 w-6" />
+                <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPG prize" className="h-6 w-6" />
                 <span>{winnerOverlay.prizeText}</span>
               </div>
             ) : null}
@@ -36538,7 +36538,7 @@ const shotPowerRef = useRef(0);
             ) : null}
             <div className="mt-4 flex items-center justify-center gap-2 text-xs text-white/75">
               <img src={resolvedPlayerAvatar || '/assets/icons/profile.svg'} alt="Player avatar" className="h-8 w-8 rounded-full border border-amber-200/60 object-cover" />
-              <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="h-5 w-5 animate-bounce" />
+              <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPG" className="h-5 w-5 animate-bounce" />
               <span>Career reward opened</span>
             </div>
           </div>
@@ -37279,8 +37279,8 @@ const shotPowerRef = useRef(0);
                       </span>
                     </span>
                     <span className="text-right">
-                      <span className="block text-sm font-semibold">{bundle.price} TPC</span>
-                      <span className="block text-[11px] text-emerald-200">{unitPrice.toFixed(1)} TPC / attempt</span>
+                      <span className="block text-sm font-semibold">{bundle.price} TPG</span>
+                      <span className="block text-[11px] text-emerald-200">{unitPrice.toFixed(1)} TPG / attempt</span>
                     </span>
                   </button>
                 );
@@ -37358,8 +37358,8 @@ const shotPowerRef = useRef(0);
                 <div className="mt-3 space-y-2 text-xs text-emerald-100">
                   {Number(careerTaskResultModal.rewardAmount) > 0 ? (
                     <p className="inline-flex items-center gap-1">
-                      <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="h-4 w-4" />
-                      +{Number(careerTaskResultModal.rewardAmount).toLocaleString('en-US')} TPC Coins
+                      <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPG" className="h-4 w-4" />
+                      +{Number(careerTaskResultModal.rewardAmount).toLocaleString('en-US')} TPG Coins
                     </p>
                   ) : null}
                   {careerTaskResultModal.nftReward ? (
@@ -37462,8 +37462,8 @@ const shotPowerRef = useRef(0);
                       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-100">Progress reward</p>
                       {trainingTaskTransition?.rewardAmount > 0 ? (
                         <p className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-100">
-                          <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="h-4 w-4" />
-                          +{Number(trainingTaskTransition.rewardAmount).toLocaleString('en-US')} TPC
+                          <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPG" className="h-4 w-4" />
+                          +{Number(trainingTaskTransition.rewardAmount).toLocaleString('en-US')} TPG
                         </p>
                       ) : null}
                     </div>
@@ -37554,8 +37554,8 @@ const shotPowerRef = useRef(0);
                           </div>
                           <div className="flex w-full flex-wrap items-center gap-1.5">
                             <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200/40 bg-emerald-300/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-100">
-                              <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="h-3.5 w-3.5" />
-                              {Number(levelDef.rewardAmount || 0).toLocaleString('en-US')} TPC
+                              <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPG" className="h-3.5 w-3.5" />
+                              {Number(levelDef.rewardAmount || 0).toLocaleString('en-US')} TPG
                             </span>
                             {levelDef.hasGift ? (
                               <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/50 bg-amber-300/12 px-2 py-0.5 text-[10px] font-semibold text-amber-100">
@@ -38315,7 +38315,7 @@ export default function PoolRoyale() {
   }, [location.search]);
   const stakeToken = useMemo(() => {
     const params = new URLSearchParams(location.search);
-    return params.get('token') || 'TPC';
+    return params.get('token') || 'TPG';
   }, [location.search]);
   const exitMessage = useMemo(
     () =>

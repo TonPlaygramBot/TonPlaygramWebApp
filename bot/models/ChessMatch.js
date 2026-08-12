@@ -8,7 +8,7 @@ const chessMatchSchema = new mongoose.Schema({
   player2TpcAccountId: { type: String, required: true },
   stakePerPlayer: { type: Number, required: true },
   totalLockedStake: { type: Number, required: true },
-  token: { type: String, default: 'TPC' },
+  token: { type: String, default: 'TPG' },
   status: { type: String, enum: ['reserved', 'playing', 'cancelled', 'finished', 'draw', 'refunded'], default: 'reserved' },
   createdAt: { type: Date, default: Date.now },
   startedAt: Date,

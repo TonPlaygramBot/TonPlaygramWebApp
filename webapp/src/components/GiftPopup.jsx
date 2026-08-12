@@ -145,7 +145,7 @@ export default function GiftPopup({
                     <GiftIcon icon={gift.icon} className="w-4 h-4" />
                     <span className="flex items-center space-x-0.5">
                       <span>{gift.price}</span>
-                      <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="w-3 h-3" />
+                      <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPG" className="w-3 h-3" />
                     </span>
                   </button>
                 ))}

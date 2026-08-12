@@ -66,7 +66,7 @@ test(
         stake: 100,
         maxPlayers: 2,
         mode: 'online',
-        token: 'TPC'
+        token: 'TPG'
       });
       const secondSeat = await seat(s2, {
         accountId: 'checkers-b',
@@ -74,7 +74,7 @@ test(
         stake: 100,
         maxPlayers: 2,
         mode: 'online',
-        token: 'TPC'
+        token: 'TPG'
       });
 
       assert.equal(firstSeat.success, true);

@@ -28,7 +28,7 @@ for (const user of users) {
       user.transactions.push({
         amount,
         type: 'refund',
-        token: tx.token || 'TPC',
+        token: tx.token || 'TPG',
         status: 'delivered',
         date: new Date(),
         detail: 'Refund of pending withdrawal'
@@ -38,7 +38,7 @@ for (const user of users) {
   if (refundTotal > 0) {
     user.balance += refundTotal;
     await user.save();
-    console.log(`Refunded ${refundTotal} TPC to ${user.telegramId || user.accountId}`);
+    console.log(`Refunded ${refundTotal} TPG to ${user.telegramId || user.accountId}`);
   }
 }
 

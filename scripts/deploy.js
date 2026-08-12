@@ -51,7 +51,7 @@ async function confirmClaim(userAddress, amount) {
   const walletContract = client.open(wallet);
   const seqno = await walletContract.getSeqno();
 
-  console.log(`Confirming claim for ${userAddress}, amount: ${amount} TPC...`);
+  console.log(`Confirming claim for ${userAddress}, amount: ${amount} TPG...`);
   await walletContract.sendTransfer({
     secretKey: keyPair.secretKey,
     seqno,

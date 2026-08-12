@@ -1250,7 +1250,7 @@ export default function SnakeAndLadder() {
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
   const [myName, setMyName] = useState('You');
   const [pot, setPot] = useState(101);
-  const [token, setToken] = useState("TPC");
+  const [token, setToken] = useState("TPG");
   const [celebrate, setCelebrate] = useState(false);
   const [leftWinner, setLeftWinner] = useState(null);
   const [disconnectMsg, setDisconnectMsg] = useState(null);
@@ -2438,7 +2438,7 @@ export default function SnakeAndLadder() {
       if (playerId === myAccountId) {
         const totalPlayers = isMultiplayer ? mpPlayers.length : ai + 1;
         const tgId = getTelegramId();
-        if (token === 'TPC' && pot > 0) {
+        if (token === 'TPG' && pot > 0) {
           const total = pot * totalPlayers;
           ensureAccountId()
             .then(async (aid) => {
@@ -4488,7 +4488,7 @@ export default function SnakeAndLadder() {
             open={showWatchWelcome}
             onClose={() => setShowWatchWelcome(false)}
             title="Watching Game"
-            info="You're watching this match. Support your player by sending NFT GIFs and chat messages. Watching is free, but each chat costs 10 TPC."
+            info="You're watching this match. Support your player by sending NFT GIFs and chat messages. Watching is free, but each chat costs 10 TPG."
           />
         </div>
       )}

@@ -18,7 +18,7 @@ const state = {
   turnTime: 0,
   timerInterval: null,
   stake: 0,
-  token: 'TPC',
+  token: 'TPG',
   pot: 0,
   maxPot: 0,
   raiseAmount: 0,
@@ -352,7 +352,7 @@ function randomBalance() {
 }
 
 const TPC_ICON_HTML =
-  '<img src="assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" class="tpc-inline-icon" />';
+  '<img src="assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPG" class="tpc-inline-icon" />';
 
 function formatAmount(amount) {
   return `${amount} ${TPC_ICON_HTML}`;
@@ -420,7 +420,7 @@ function init() {
   let name = params.get('username') || 'You';
   let avatar = params.get('avatar') || '';
   state.stake = parseInt(params.get('amount'), 10) || 0;
-  state.token = params.get('token') || 'TPC';
+  state.token = params.get('token') || 'TPG';
   devAccountId = params.get('dev');
   myAccountId = params.get('accountId') || '';
   try {

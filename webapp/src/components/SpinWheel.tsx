@@ -234,7 +234,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
                 <>
                   <img
                     src="/assets/icons/ezgif-54c96d8a9b9236.webp"
-                    alt="TPC"
+                    alt="TPG"
                     className="w-8 h-8"
                   />
                   <span>{val >= 1000 ? `${val / 1000}k` : val}</span>

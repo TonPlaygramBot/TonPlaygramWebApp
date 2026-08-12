@@ -46,7 +46,7 @@ describe('pool royale career progression isolation', () => {
   test('career training stages use training objectives and rewards', () => {
     const firstStage = CAREER_STAGES[0]
     expect(firstStage.objective).toContain('Clear')
-    expect(firstStage.reward).toContain('TPC')
+    expect(firstStage.reward).toContain('TPG')
     expect(firstStage.rewardTpc).toBeGreaterThan(0)
   })
 

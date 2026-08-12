@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { boot, type ColyseusTestServer } from '@colyseus/testing';
 import { chessServerConfig } from './app.config.js';
 
-const options = (accountId: string) => ({ accountId, name: accountId, visibility: 'public' as const, invitationCode: '', stake: 100, token: 'TPC' });
+const options = (accountId: string) => ({ accountId, name: accountId, visibility: 'public' as const, invitationCode: '', stake: 100, token: 'TPG' });
 const waitForPatch = () => new Promise((resolve) => setTimeout(resolve, 80));
 
 describe('chess_lobby matchmaking', () => {

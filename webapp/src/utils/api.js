@@ -775,7 +775,7 @@ export function buyBundle(accountId, bundle) {
 }
 
 export function claimPurchase() {
-  return Promise.resolve({ error: 'TON purchase claims are disabled. Use TPC balance purchases.' });
+  return Promise.resolve({ error: 'TON purchase claims are disabled. Use TPG balance purchases.' });
 }
 
 export function sendBroadcast(data) {

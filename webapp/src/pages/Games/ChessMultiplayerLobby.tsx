@@ -87,10 +87,10 @@ export default function ChessMultiplayerLobby() {
 
   const authOptions = async () => {
     const resolved = await ensureAccountId();
-    // The TPC account number is the durable identity shared by the account API,
+    // The TPG account number is the durable identity shared by the account API,
     // lobby and game. Never replace it with a Telegram id or a room session id.
     const resolvedAccountId = String(getTpcAccountId() || resolved || accountId).trim();
-    if (!resolvedAccountId) throw new Error('Your TPC account is not ready. Reopen your profile and try again.');
+    if (!resolvedAccountId) throw new Error('Your TPG account is not ready. Reopen your profile and try again.');
     const googleId = localStorage.getItem('googleId') || (() => {
       try {
         const profile = JSON.parse(localStorage.getItem('googleProfile') || 'null');
@@ -118,7 +118,7 @@ export default function ChessMultiplayerLobby() {
       const visibility = roomType;
       const code = visibility === 'private' ? (createPrivate ? newCode() : inviteCode.trim().toUpperCase()) : '';
       if (visibility === 'private' && !code) throw new Error('Enter an invitation code.');
-      const options = { ...identity, visibility, invitationCode: code, stake: selectedStake, token: 'TPC' };
+      const options = { ...identity, visibility, invitationCode: code, stake: selectedStake, token: 'TPG' };
       // Joining a private code must never create a second, isolated room when the
       // host code is missing or mistyped. Hosts create; guests locate and join.
       const joinRequest = visibility === 'private' && !createPrivate

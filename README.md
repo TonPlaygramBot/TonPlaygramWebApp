@@ -241,14 +241,14 @@ will be routed through this proxy.
 
 ### Wallet overview
 
-This app exposes a single **TPC Wallet** stored in MongoDB. Commands like
+This app exposes a single **TPG Wallet** stored in MongoDB. Commands like
 `/wallet balance` and `/wallet send` interact with this database record. TON
 deposits sent to `DEPOSIT_WALLET_ADDRESS` credit the balance after the transfer
 is detected.
 
 ### Depositing via API
 
-Call `POST /api/account/deposit` to credit TPC to any account. Normally the
+Call `POST /api/account/deposit` to credit TPG to any account. Normally the
 request must include Telegram web app data in the `X-Telegram-Init-Data` header
 so the server can verify the user. When the `API_AUTH_TOKEN` environment
 variable is set, you may instead supply `Authorization: Bearer <token>` to
@@ -257,19 +257,19 @@ awarding the developer share after a game ends.
 
 ### Account IDs and player profiles
 
-Each user has a unique **TPC account ID** which serves as the main identifier
+Each user has a unique **TPG account ID** which serves as the main identifier
 when locating players. Most endpoints accept either an `accountId` or a
 Telegram ID. When a profile is requested the server first tries to find the
 account by `accountId`. Missing details such as the name or avatar are
 automatically filled from Telegram when a `telegramId` is provided.
 
-### Claiming TPC on-chain
+### Claiming TPG on-chain
 
 Withdrawals and `/claim-external` trigger a signed message to
 `CLAIM_CONTRACT_ADDRESS` using the mnemonic in `CLAIM_WALLET_MNEMONIC`.
-The `tpc_claim_wallet` contract forwards this call to the TPC Jetton root
+The `tpc_claim_wallet` contract forwards this call to the TPG Jetton root
 (`EQDY3qbfGN6IMI5d4MsEoprhuMTz09OkqjyhPKX6DVtzbi6X`) so the specified amount of
-TPC is transferred directly to the provided address. If the call succeeds the
+TPG is transferred directly to the provided address. If the call succeeds the
 transaction status becomes `delivered`. Failed claims revert the user's balance
 and respond with HTTP 500 while the transaction is removed.
 ### Common issues
@@ -283,17 +283,17 @@ and respond with HTTP 500 while the transaction is removed.
   account ID or Telegram ID. The recipient must have interacted with the bot in
   Telegram for notifications to succeed. If delivery fails the invite API still
   returns a URL that can be shared with the recipient.
-- **Cannot send TPC** – this happens when the API cannot verify your Telegram
+- **Cannot send TPG** – this happens when the API cannot verify your Telegram
   web app data. Ensure the web page was opened from your bot and that the
   `BOT_TOKEN` in `bot/.env` matches the token used by Telegram.
 
-### Resetting the TPC wallet
+### Resetting the TPG wallet
 
 Use these options if you need to completely start over:
 
 1. Open the wallet page in the webapp.
-2. Click **Reset TPC Wallet** to erase your off-chain balance and transaction
-   history stored in MongoDB. Your TPC balance will be set to zero.
+2. Click **Reset TPG Wallet** to erase your off-chain balance and transaction
+   history stored in MongoDB. Your TPG balance will be set to zero.
 
 After resetting you can reconnect and deposit again as if it were a new account.
 
@@ -422,7 +422,7 @@ Run `npm run ban-user -- <accountId>` to mark an account as banned in the databa
 
 ### Claim test script
 
-Run `npm run claim-test <TON_ADDRESS> <AMOUNT>` to send TPC from the claim wallet manually. The amount is specified in nanoTPC as expected by `tonClaim`.
+Run `npm run claim-test <TON_ADDRESS> <AMOUNT>` to send TPG from the claim wallet manually. The amount is specified in nanoTPC as expected by `tonClaim`.
 
 ### Refund pending withdrawals
 

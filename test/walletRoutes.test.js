@@ -154,7 +154,7 @@ test('claim-external route reverts balance on claim failure', { concurrency: fal
 });
 
 
-test('google users can transfer TPC using account ids', { concurrency: false }, async () => {
+test('google users can transfer TPG using account ids', { concurrency: false }, async () => {
   fs.mkdirSync(new URL('assets', distDir), { recursive: true });
   fs.writeFileSync(new URL('index.html', distDir), '');
 

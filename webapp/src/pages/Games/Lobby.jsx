@@ -564,14 +564,14 @@ export default function Lobby() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-white">Select Stake</h3>
-                  <p className="text-xs text-white/60">Stake your TPC to reserve the board.</p>
+                  <p className="text-xs text-white/60">Stake your TPG to reserve the board.</p>
                 </div>
               </div>
               <div className="mt-3">
-                <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
+                <RoomSelector selected={stake} onSelect={setStake} tokens={['TPG']} />
               </div>
               <p className="text-center text-white/60 text-xs">
-                Staking uses your TPC account as escrow for each match.
+                Staking uses your TPG account as escrow for each match.
               </p>
             </div>
           )}
@@ -663,7 +663,7 @@ export default function Lobby() {
       <p className="text-center text-sm">Online users: {online}</p>
       <div className="space-y-2">
         <h3 className="font-semibold">Select Stake</h3>
-        <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
+        <RoomSelector selected={stake} onSelect={setStake} tokens={['TPG']} />
         <p className="text-center text-subtext text-sm">
           Staking is handled via the on-chain contract.
         </p>

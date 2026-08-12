@@ -78,7 +78,7 @@ export default function NftGiftCard({ accountId: propAccountId }) {
               >
                 <GiftIcon icon={info.icon} className="w-12 h-12" />
                 <span className="text-center">{info.name || g.gift}</span>
-                <span className="text-xs">{g.price} TPC</span>
+                <span className="text-xs">{g.price} TPG</span>
               </div>
             );
           })
@@ -128,7 +128,7 @@ export default function NftGiftCard({ accountId: propAccountId }) {
             <div className="mt-auto flex flex-col items-center space-y-2 w-full">
               <span className="flex items-center space-x-1 text-lg">
                 <span>{previewInfo.price}</span>
-                <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="w-6 h-6" />
+                <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPG" className="w-6 h-6" />
               </span>
               <button
                 onClick={() => setConfirmConvert(true)}
@@ -142,7 +142,7 @@ export default function NftGiftCard({ accountId: propAccountId }) {
       </InfoPopup>
       <ConfirmPopup
         open={confirmConvert}
-        message="Convert this gift for TPC?"
+        message="Convert this gift for TPG?"
         onConfirm={async () => {
           if (!previewGift?._id) return;
           setConfirmConvert(false);

@@ -30,7 +30,7 @@ export default function TexasHoldemLobby() {
   const navigate = useNavigate();
   useTelegramBackButton();
 
-  const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
+  const [stake, setStake] = useState({ token: 'TPG', amount: 100 });
   const [mode, setMode] = useState('local');
   const [avatar, setAvatar] = useState('');
   const [opponents, setOpponents] = useState(5);
@@ -184,14 +184,14 @@ export default function TexasHoldemLobby() {
               <h3 className="text-lg font-semibold text-white">Pick your buy-in</h3>
             </div>
             <div className="rounded-full border border-emerald-300/30 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-100">
-              Start bet: {startBet.toLocaleString('en-US')} TPC
+              Start bet: {startBet.toLocaleString('en-US')} TPG
             </div>
           </div>
           <div className="mt-4">
-            <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
+            <RoomSelector selected={stake} onSelect={setStake} tokens={['TPG']} />
           </div>
           <p className="mt-3 text-xs text-white/60">
-            Pot max: {stake.amount.toLocaleString('en-US')} TPC
+            Pot max: {stake.amount.toLocaleString('en-US')} TPG
           </p>
         </div>
 

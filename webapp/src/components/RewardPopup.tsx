@@ -72,7 +72,7 @@ export default function RewardPopup({
               <img
 
                 src="/assets/icons/ezgif-54c96d8a9b9236.webp"
-                alt="TPC"
+                alt="TPG"
                 className="w-8 h-8"
               />
               <span>+{reward}</span>

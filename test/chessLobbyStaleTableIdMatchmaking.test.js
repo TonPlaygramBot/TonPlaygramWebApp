@@ -65,7 +65,7 @@ test(
         stake: 500,
         maxPlayers: 2,
         mode: 'online',
-        token: 'TPC',
+        token: 'TPG',
         tableId: 'stale-table-a'
       });
       const secondSeat = await seat(s2, {
@@ -74,7 +74,7 @@ test(
         stake: 500,
         maxPlayers: 2,
         mode: 'online',
-        token: 'TPC',
+        token: 'TPG',
         tableId: 'stale-table-b'
       });
 
@@ -138,7 +138,7 @@ test(
         stake: 100,
         maxPlayers: 2,
         mode: 'online',
-        token: 'TPC'
+        token: 'TPG'
       });
 
       const mismatchedStakeSeat = await seat(s2, {
@@ -147,7 +147,7 @@ test(
         stake: 500,
         maxPlayers: 2,
         mode: 'online',
-        token: 'TPC',
+        token: 'TPG',
         tableId: firstSeat.tableId
       });
 
@@ -157,7 +157,7 @@ test(
         stake: 100,
         maxPlayers: 2,
         mode: 'online',
-        token: 'TPC',
+        token: 'TPG',
         tableId: firstSeat.tableId
       });
 

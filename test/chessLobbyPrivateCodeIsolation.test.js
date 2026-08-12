@@ -74,7 +74,7 @@ test(
         stake: 100,
         maxPlayers: 2,
         mode: 'online',
-        token: 'TPC',
+        token: 'TPG',
         tableId: 'chess-2-host-FRIEND123'
       });
       const quickSeat = await seat(quick, {
@@ -83,7 +83,7 @@ test(
         stake: 100,
         maxPlayers: 2,
         mode: 'online',
-        token: 'TPC'
+        token: 'TPG'
       });
       const quickSeatB = await seat(quickB, {
         accountId: 'chess-private-quick-b',
@@ -91,7 +91,7 @@ test(
         stake: 100,
         maxPlayers: 2,
         mode: 'online',
-        token: 'TPC'
+        token: 'TPG'
       });
       const codedSeatB = await seat(privateB, {
         accountId: 'chess-private-b',
@@ -99,7 +99,7 @@ test(
         stake: 100,
         maxPlayers: 2,
         mode: 'online',
-        token: 'TPC',
+        token: 'TPG',
         tableId: 'chess-2-host-FRIEND123'
       });
 

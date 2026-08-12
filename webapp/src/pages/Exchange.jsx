@@ -130,7 +130,7 @@ export default function Exchange() {
       </div>
 
       <div className="bg-surface border border-border rounded-xl p-4 space-y-3">
-        <h2 className="text-lg font-semibold text-white">Convert to TPC</h2>
+        <h2 className="text-lg font-semibold text-white">Convert to TPG</h2>
         <div className="flex gap-2">
           <input
             value={symbol}
@@ -148,9 +148,9 @@ export default function Exchange() {
         </div>
         {quote && (
           <div className="text-sm rounded-lg border border-border bg-background/60 p-3 space-y-1">
-            <p>Pair: {quote.fromSymbol} → TPC</p>
+            <p>Pair: {quote.fromSymbol} → TPG</p>
             <p>Input value: {quote.amount} {quote.fromSymbol} ({formatUsd(quote.usdValue)})</p>
-            <p>TPC estimate: <span className="text-green-300 font-semibold">{Number(quote.estimatedTpc).toLocaleString(undefined, { maximumFractionDigits: 4 })} TPC</span></p>
+            <p>TPG estimate: <span className="text-green-300 font-semibold">{Number(quote.estimatedTpc).toLocaleString(undefined, { maximumFractionDigits: 4 })} TPG</span></p>
           </div>
         )}
       </div>

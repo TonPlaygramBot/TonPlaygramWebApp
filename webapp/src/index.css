@@ -2114,8 +2114,8 @@ input:focus {
   animation: canvasDepthMove 30s linear infinite;
 }
 
-/* Ensure TPC icon appears slightly larger across the site */
-img[alt="TPC"] {
+/* Ensure TPG icon appears slightly larger across the site */
+img[alt="TPG"] {
   min-width: 3rem;
   min-height: 3rem;
 }

@@ -1,7 +1,7 @@
 {
-  "name": "TPC",
-  "symbol": "TPC",
+  "name": "TPG",
+  "symbol": "TPG",
   "decimals": 9,
-  "description": "TonPlaygram Coin (TPC) powers mining, games, and rewards inside the TonPlaygram platform.",
+  "description": "TonPlaygram Coin (TPG) powers mining, games, and rewards inside the TonPlaygram platform.",
   "image": "https://tonplaygramwebapp.onrender.com/assets/icons/ezgif-54c96d8a9b9236.webp"
 }

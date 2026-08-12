@@ -62,9 +62,9 @@ export default function GameTransactions() {
           const avatarSrc = tx.fromPhoto || tx.fromAvatar || tx.photo || '';
           const avatarUrl = avatarSrc ? getAvatarUrl(avatarSrc) : '/assets/icons/profile.svg';
           const gameName = getGameName(tx.game);
-          const token = (tx.token || 'TPC').toUpperCase();
+          const token = (tx.token || 'TPG').toUpperCase();
           const iconMap = {
-            TPC: '/assets/icons/ezgif-54c96d8a9b9236.webp',
+            TPG: '/assets/icons/ezgif-54c96d8a9b9236.webp',
             TON: '/assets/icons/TON.webp',
             USDT: '/assets/icons/Usdt.webp',
           };

@@ -19,7 +19,7 @@ const WITHDRAW_ENABLED = process.env.WITHDRAW_ENABLED === 'true';
 const USDT_JETTON_HEX =
   '0:b113a994b5024a16719f69139328eb759596c38a25f59028b146fecdc3621dfe';
 
-// Token root address used when directing users to import TPC
+// Token root address used when directing users to import TPG
 const TPC_JETTON_ADDRESS =
   process.env.TPC_JETTON_ADDRESS ||
   'EQDY3qbfGN6IMI5d4MsEoprhuMTz09OkqjyhPKX6DVtzbi6X';
@@ -200,7 +200,7 @@ router.post('/usdt-balance', async (req, res) => {
   }
 });
 
-// Transfer TPC between any authenticated users (Telegram or Google)
+// Transfer TPG between any authenticated users (Telegram or Google)
 
 router.post('/send', authenticate, async (req, res) => {
 
@@ -267,7 +267,7 @@ router.post('/send', authenticate, async (req, res) => {
     const senderTx = {
       amount: -amount,
       type: 'send',
-      token: 'TPC',
+      token: 'TPG',
       status: 'delivered',
       date: txDate,
       toAccount: String(receiver.accountId || toAccountId || toId),
@@ -278,7 +278,7 @@ router.post('/send', authenticate, async (req, res) => {
     const receiverTx = {
       amount,
       type: 'receive',
-      token: 'TPC',
+      token: 'TPG',
       status: 'delivered',
       date: txDate,
       fromAccount: String(sender.accountId || fromAccountId || fromId),
@@ -299,8 +299,8 @@ router.post('/send', authenticate, async (req, res) => {
     const receiverBalance = receiver.balance;
     const noteText = safeNote ? ` Note: ${safeNote}` : '';
     const detailText =
-      `You received ${amount} TPC from ${senderName} on ${txDate.toLocaleString()}. ` +
-      `New balance: ${receiverBalance} TPC.` + noteText;
+      `You received ${amount} TPG from ${senderName} on ${txDate.toLocaleString()}. ` +
+      `New balance: ${receiverBalance} TPG.` + noteText;
 
     try {
       if (receiver.telegramId) {
@@ -327,7 +327,7 @@ router.post('/send', authenticate, async (req, res) => {
 
   } catch (err) {
 
-    console.error('Failed to complete TPC transfer:', err.message);
+    console.error('Failed to complete TPG transfer:', err.message);
 
     const failedTx = {
 
@@ -361,7 +361,7 @@ router.post('/send', authenticate, async (req, res) => {
 
     ).catch(() => {});
 
-    res.status(500).json({ error: 'Failed to send TPC' });
+    res.status(500).json({ error: 'Failed to send TPG' });
 
   }
 
@@ -400,7 +400,7 @@ router.post('/deposit', authenticate, async (req, res) => {
   const tx = {
     amount,
     type: 'deposit',
-    token: 'TPC',
+    token: 'TPG',
     status: 'delivered',
     date: new Date()
   };
@@ -413,7 +413,7 @@ router.post('/deposit', authenticate, async (req, res) => {
     await sendTPCNotification(
       bot,
       user.telegramId,
-      `\u{1FA99} Your deposit of ${amount} TPC was credited`
+      `\u{1FA99} Your deposit of ${amount} TPG was credited`
     );
   } catch (err) {
     console.error('Failed to send Telegram notification:', err.message);
@@ -460,7 +460,7 @@ router.post('/withdraw', authenticate, async (req, res) => {
   const tx = {
     amount: -amount,
     type: 'withdraw',
-    token: 'TPC',
+    token: 'TPG',
     status: 'pending',
     date: new Date()
   };
@@ -477,7 +477,7 @@ router.post('/withdraw', authenticate, async (req, res) => {
       await sendTPCNotification(
         bot,
         user.telegramId,
-        `\u{1FA99} Claim of ${amount} TPC sent to ${address}. If it doesn't appear, add TPC using ${TPC_JETTON_ADDRESS}`
+        `\u{1FA99} Claim of ${amount} TPG sent to ${address}. If it doesn't appear, add TPG using ${TPC_JETTON_ADDRESS}`
       );
     } catch (err) {
       console.error('Failed to send Telegram notification:', err.message);
@@ -494,7 +494,7 @@ router.post('/withdraw', authenticate, async (req, res) => {
 
 });
 
-// ✅ Claim TPC to an external TON wallet
+// ✅ Claim TPG to an external TON wallet
 router.post('/claim-external', authenticate, async (req, res) => {
   const { telegramId, accountId, address, amount } = req.body;
 
@@ -520,7 +520,7 @@ router.post('/claim-external', authenticate, async (req, res) => {
   const tx = {
     amount: -amount,
     type: 'withdraw',
-    token: 'TPC',
+    token: 'TPG',
     status: 'pending',
     date: new Date(),
     address,
@@ -536,7 +536,7 @@ router.post('/claim-external', authenticate, async (req, res) => {
       await sendTPCNotification(
         bot,
         user.telegramId,
-        `\u{1FA99} Claim of ${amount} TPC sent to ${address}. If it doesn't appear, add TPC using ${TPC_JETTON_ADDRESS}`
+        `\u{1FA99} Claim of ${amount} TPG sent to ${address}. If it doesn't appear, add TPG using ${TPC_JETTON_ADDRESS}`
       );
     } catch (err) {
       console.error('Failed to send Telegram notification:', err.message);
@@ -602,7 +602,7 @@ router.post('/transactions', authenticate, async (req, res) => {
 });
 
 
-// Reset TPC wallet balance and history
+// Reset TPG wallet balance and history
 router.post('/reset', authenticate, async (req, res) => {
   const { telegramId, accountId } = req.body;
   if (!telegramId && !accountId) {

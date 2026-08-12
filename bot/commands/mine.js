@@ -26,18 +26,18 @@ export default function registerMine(bot) {
           ctx.reply('Mining is not active.');
         } else {
           await stopMining(user);
-          ctx.reply(`Mining stopped. Pending rewards: ${user.minedTPC} TPC. Balance: ${user.balance}`);
+          ctx.reply(`Mining stopped. Pending rewards: ${user.minedTPC} TPG. Balance: ${user.balance}`);
         }
         break;
       case 'claim':
         const amount = await claimRewards(user);
-        ctx.reply(`You claimed ${amount} TPC. New balance: ${user.balance}`);
+        ctx.reply(`You claimed ${amount} TPG. New balance: ${user.balance}`);
         break;
       case 'status':
       default:
         await updateMiningRewards(user);
         await user.save();
-        ctx.reply(`Mining: ${user.isMining ? 'active' : 'inactive'}\nPending rewards: ${user.minedTPC} TPC\nBalance: ${user.balance}`);
+        ctx.reply(`Mining: ${user.isMining ? 'active' : 'inactive'}\nPending rewards: ${user.minedTPC} TPG\nBalance: ${user.balance}`);
         break;
     }
   });

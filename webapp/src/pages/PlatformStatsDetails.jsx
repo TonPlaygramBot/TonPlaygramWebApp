@@ -251,9 +251,9 @@ export default function PlatformStatsDetails() {
       iconClass: 'text-emerald-300'
     },
     {
-      label: 'TPC in circulation',
+      label: 'TPG in circulation',
       value: formatStat(normalized.circulatingTpc),
-      helper: `≈ ${formatCompact(normalized.circulatingTpc)} TPC`,
+      helper: `≈ ${formatCompact(normalized.circulatingTpc)} TPG`,
       icon: FaCoins,
       iconClass: 'text-yellow-300'
     },
@@ -273,7 +273,7 @@ export default function PlatformStatsDetails() {
       helper:
         normalized.transferVolume === null
           ? 'Transfer volume not provided by API'
-          : `${formatCompact(normalized.transferVolume)} TPC moved`,
+          : `${formatCompact(normalized.transferVolume)} TPG moved`,
       icon: FaExchangeAlt,
       iconClass: 'text-cyan-300'
     },
@@ -389,21 +389,21 @@ export default function PlatformStatsDetails() {
           <StatCard
             label="Game transactions"
             value={formatStat(transactionHighlights.gameCount)}
-            helper={`${formatValue(transactionHighlights.gameVolume)} TPC moved`}
+            helper={`${formatValue(transactionHighlights.gameVolume)} TPG moved`}
             icon={FaGamepad}
             iconClass="text-indigo-300"
           />
           <StatCard
             label="Mining transactions"
             value={formatStat(transactionHighlights.miningCount)}
-            helper={`${formatValue(transactionHighlights.miningVolume)} TPC rewarded`}
+            helper={`${formatValue(transactionHighlights.miningVolume)} TPG rewarded`}
             icon={FaBolt}
             iconClass="text-emerald-300"
           />
           <StatCard
             label="User transfers"
             value={formatStat(transactionHighlights.transferCount)}
-            helper={`${formatValue(transactionHighlights.transferVolume)} TPC sent`}
+            helper={`${formatValue(transactionHighlights.transferVolume)} TPG sent`}
             icon={FaExchangeAlt}
             iconClass="text-cyan-300"
           />
@@ -429,7 +429,7 @@ export default function PlatformStatsDetails() {
                   {(tx.fromName || tx.fromAccount || 'Unknown')} → {(tx.toName || tx.toAccount || 'Unknown')}
                 </div>
                 <div className="text-subtext">
-                  {formatValue(tx.amount)} {(tx.token || 'TPC').toUpperCase()} • {tx.date ? new Date(tx.date).toLocaleString(undefined, { hour12: false }) : 'unknown date'}
+                  {formatValue(tx.amount)} {(tx.token || 'TPG').toUpperCase()} • {tx.date ? new Date(tx.date).toLocaleString(undefined, { hour12: false }) : 'unknown date'}
                 </div>
                 {tx.note ? <div className="text-subtext">Note: {tx.note}</div> : null}
               </div>

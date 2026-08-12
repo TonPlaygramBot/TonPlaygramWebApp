@@ -115,7 +115,7 @@ export default function LoginOptions({ onAuthenticated, onTonConnected }) {
         <h2 className="text-xl font-bold text-white">Welcome to TonPlaygram</h2>
         <p className="text-sm text-subtext">
           Sign in with Google on Chrome or continue from the Telegram mini app. We&apos;ll create a fresh
-          TPC profile so you can access the full site, stake, and sync rewards anywhere.
+          TPG profile so you can access the full site, stake, and sync rewards anywhere.
         </p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
@@ -136,11 +136,11 @@ export default function LoginOptions({ onAuthenticated, onTonConnected }) {
         <div className="rounded-xl border border-border bg-surface/60 p-4 space-y-3">
           <p className="text-sm font-semibold text-white">Login with Google</p>
           <p className="text-xs text-subtext">
-            Ideal for desktop browsers. We&apos;ll link your Google profile to a new TPC account if you don&apos;t have one.
+            Ideal for desktop browsers. We&apos;ll link your Google profile to a new TPG account if you don&apos;t have one.
           </p>
           {isChrome && (
             <p className="text-[11px] text-amber-200">
-              Chrome detected — tap below to create your TPC account with your Google details.
+              Chrome detected — tap below to create your TPG account with your Google details.
             </p>
           )}
           <LinkGoogleButton
@@ -157,7 +157,7 @@ export default function LoginOptions({ onAuthenticated, onTonConnected }) {
           )}
           {googleProfile?.email && (
             <p className="text-green-400 text-xs">
-              Signed in as {googleProfile.email}. Completing your TPC profile…
+              Signed in as {googleProfile.email}. Completing your TPG profile…
             </p>
           )}
           {status === 'error' && (
@@ -168,7 +168,7 @@ export default function LoginOptions({ onAuthenticated, onTonConnected }) {
         <div className="rounded-xl border border-border bg-surface/60 p-4 space-y-3">
           <p className="text-sm font-semibold text-white">Sign up with TON Connect</p>
           <p className="text-xs text-subtext">
-            Use your TON wallet to create a TPC account and sync rewards from anywhere.
+            Use your TON wallet to create a TPG account and sync rewards from anywhere.
           </p>
           <TonConnectButton className="w-full" />
           {tonAddress && (
@@ -177,7 +177,7 @@ export default function LoginOptions({ onAuthenticated, onTonConnected }) {
             </p>
           )}
           {tonStatus === 'linking' && (
-            <p className="text-[11px] text-amber-200">Creating your TPC account with TON…</p>
+            <p className="text-[11px] text-amber-200">Creating your TPG account with TON…</p>
           )}
           {tonStatus === 'ready' && (
             <p className="text-[11px] text-green-400">TON wallet linked. Reloading your profile…</p>
