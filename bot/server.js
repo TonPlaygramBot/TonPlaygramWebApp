@@ -1570,7 +1570,7 @@ function maybeStartGame(table) {
         ensureCheckersSession(table.id, table);
         io.to(table.id).emit('checkersState', { tableId: table.id, ...initial });
       }
-      io.to(table.id).emit('gameStart', {
+      const gameStartPayload = {
         tableId: table.id,
         tableNumber: table.tableNumber,
         players: table.players,
@@ -1578,7 +1578,13 @@ function maybeStartGame(table) {
         stake: table.stake,
         meta: table.meta,
         matchId: table.matchId || null
-      });
+      };
+      // Older game clients subscribe to `gameStarted`, while current lobbies
+      // subscribe to both names. Broadcasting the compatibility event as part
+      // of the same authoritative transition prevents one phone remaining on
+      // the search screen when accounts use different cached app versions.
+      io.to(table.id).emit('gameStart', gameStartPayload);
+      io.to(table.id).emit('gameStarted', gameStartPayload);
       tableSeats.delete(table.id);
       const key = `${table.gameType}-${table.maxPlayers}`;
       lobbyTables[key] = (lobbyTables[key] || []).filter(

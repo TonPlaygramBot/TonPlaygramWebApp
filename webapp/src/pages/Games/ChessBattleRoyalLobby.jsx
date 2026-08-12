@@ -76,8 +76,7 @@ function resolvePlayerName(player) {
       player.username ||
       player.telegramName ||
       player.firstName ||
-      resolveTpcAccountNumber(player) ||
-      ''
+      'Player'
   ).trim();
 }
 
@@ -343,6 +342,7 @@ export default function ChessBattleRoyalLobby() {
   const matchmakingCountdownRef = useRef(null);
   const spinIntervalRef = useRef(null);
   const matchmakingSessionRef = useRef(0);
+  const startedMatchRef = useRef('');
 
   const selectedFlag =
     playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
@@ -457,12 +457,8 @@ export default function ChessBattleRoyalLobby() {
     const candidates = [...onlinePlayers, ...matchPlayers]
       .map((p) => ({
         id: resolveTpcAccountNumber(p),
-        name:
-          p?.username ||
-          p?.name ||
-          p?.telegramName ||
-          p?.telegramId ||
-          resolveTpcAccountNumber(p)
+        name: resolvePlayerName(p),
+        avatar: p?.avatar || p?.photoUrl || p?.photoURL || ''
       }))
       .filter((p) => p.id);
     const deduped = candidates.filter((p, idx, arr) => {
@@ -628,6 +624,7 @@ export default function ChessBattleRoyalLobby() {
 
     setMatchError('');
     setMatching(true);
+    startedMatchRef.current = '';
     setMatchStatus('Connecting to lobby…');
     const matchmakingSession = ++matchmakingSessionRef.current;
     const isCurrentSearch = () =>
@@ -698,6 +695,10 @@ export default function ChessBattleRoyalLobby() {
     } = {}) => {
       if (!startedId || String(startedId) !== String(pendingTableRef.current))
         return;
+      // The server emits both event names for compatibility. Treat the table id
+      // as an idempotency key so each phone enters the game exactly once.
+      if (startedMatchRef.current === String(startedId)) return;
+      startedMatchRef.current = String(startedId);
       const mySide = resolveChessSide(players, seatAccountId);
       const opp = resolveChessOpponent(players, seatAccountId);
       cleanupLobby({ account: trackedAccountId, skipLeave: true });
@@ -1128,8 +1129,8 @@ export default function ChessBattleRoyalLobby() {
               )}
             </div>
             <p className="text-center text-white/60 text-xs">
-              Staking uses your TPG account{accountId ? ` #${accountId}` : ''}{' '}
-              as escrow for every online round.
+              Staking uses your verified TPG account as escrow for every online
+              round. Your account number stays private.
             </p>
           </div>
         )}
@@ -1163,17 +1164,31 @@ export default function ChessBattleRoyalLobby() {
                 {matchPlayers.map((player) => {
                   const playerId = resolveTpcAccountNumber(player);
                   const isReady = readyList.includes(String(playerId));
+                  const playerName = resolvePlayerName(player);
+                  const playerAvatar =
+                    player?.avatar ||
+                    player?.photoUrl ||
+                    player?.photoURL ||
+                    '';
                   return (
                     <div
                       key={playerId || player.name}
                       className="lobby-tile w-full flex items-center justify-between"
                     >
-                      <div>
-                        <p className="text-sm font-semibold">
-                          {player?.name || `TPG ${playerId}`}
-                        </p>
-                        <p className="text-xs text-white/50">
-                          Account #{playerId}
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-cyan-950 text-sm font-bold text-cyan-200">
+                          {playerAvatar ? (
+                            <img
+                              src={playerAvatar}
+                              alt=""
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            playerName.slice(0, 1).toUpperCase()
+                          )}
+                        </div>
+                        <p className="truncate text-sm font-semibold">
+                          {playerName}
                         </p>
                       </div>
                       <span
