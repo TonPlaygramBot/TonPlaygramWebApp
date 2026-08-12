@@ -34,7 +34,13 @@ describe('online game policy', () => {
   });
 
   test('rejects unsupported game and invalid max players', () => {
-    expect(validateSeatTableRequest({ gameType: 'unknown', stake: 10, maxPlayers: 2 })).toEqual({
+    expect(
+      validateSeatTableRequest({
+        gameType: 'unknown',
+        stake: 10,
+        maxPlayers: 2
+      })
+    ).toEqual({
       ok: false,
       error: 'unsupported_game_type'
     });
@@ -56,21 +62,63 @@ describe('online game policy', () => {
 
     expect(chess.ok).toBe(true);
     expect(chess.normalizedGameType).toBe('chess');
-    expect(chess.safeMatchMeta).toEqual({ preferredSide: 'white', mode: 'online', token: 'TPG' });
+    expect(chess.safeMatchMeta).toEqual({
+      preferredSide: 'white',
+      mode: 'online',
+      token: 'TPG'
+    });
     expect(checkers.ok).toBe(true);
     expect(checkers.normalizedGameType).toBe('checkers');
-    expect(checkers.safeMatchMeta).toEqual({ preferredSide: 'black', mode: 'online', token: 'TPG' });
-
+    expect(checkers.safeMatchMeta).toEqual({
+      preferredSide: 'black',
+      mode: 'online',
+      token: 'TPG'
+    });
   });
 
   test.each([
-    [{ gameType: 'poolroyale', stake: 100, maxPlayers: 2, matchMeta: { mode: 'online', token: 'TON' } }, 'invalid_stake_token'],
-    [{ gameType: 'poolroyale', stake: 100, maxPlayers: 2, matchMeta: { mode: 'ai', token: 'TPG' } }, 'invalid_game_mode'],
-    [{ gameType: 'poolroyale', stake: 0, maxPlayers: 2, matchMeta: { mode: 'online', token: 'TPG' } }, 'invalid_stake'],
-    [{ gameType: 'poolroyale', stake: 1.5, maxPlayers: 2, matchMeta: { mode: 'online', token: 'TPG' } }, 'invalid_stake']
-  ])('rejects a lobby request outside the TPG stake contract %#', (payload, error) => {
-    expect(validateSeatTableRequest(payload)).toEqual({ ok: false, error });
-  });
+    [
+      {
+        gameType: 'poolroyale',
+        stake: 100,
+        maxPlayers: 2,
+        matchMeta: { mode: 'online', token: 'TON' }
+      },
+      'invalid_stake_token'
+    ],
+    [
+      {
+        gameType: 'poolroyale',
+        stake: 100,
+        maxPlayers: 2,
+        matchMeta: { mode: 'ai', token: 'TPG' }
+      },
+      'invalid_game_mode'
+    ],
+    [
+      {
+        gameType: 'poolroyale',
+        stake: 0,
+        maxPlayers: 2,
+        matchMeta: { mode: 'online', token: 'TPG' }
+      },
+      'invalid_stake'
+    ],
+    [
+      {
+        gameType: 'poolroyale',
+        stake: 1.5,
+        maxPlayers: 2,
+        matchMeta: { mode: 'online', token: 'TPG' }
+      },
+      'invalid_stake'
+    ]
+  ])(
+    'rejects a lobby request outside the TPG stake contract %#',
+    (payload, error) => {
+      expect(validateSeatTableRequest(payload)).toEqual({ ok: false, error });
+    }
+  );
 
   test('accepts and canonicalizes all Domino Royal matchmaking criteria', () => {
     const result = validateSeatTableRequest({
@@ -98,18 +146,68 @@ describe('online game policy', () => {
     });
   });
 
+  test.each([2, 3, 4])(
+    'accepts %i-player Murlan single and tournament tables',
+    (maxPlayers) => {
+      const single = validateSeatTableRequest({
+        gameType: 'murlanroyale',
+        stake: 100,
+        maxPlayers,
+        matchMeta: { variant: 'single', mode: 'online', token: 'TPG' }
+      });
+      const tournament = validateSeatTableRequest({
+        gameType: 'murlanroyale',
+        stake: 100,
+        maxPlayers,
+        matchMeta: {
+          variant: 'tournament',
+          targetPoints: 21,
+          mode: 'online',
+          token: 'TPG'
+        }
+      });
+
+      expect(single).toMatchObject({
+        ok: true,
+        normalizedMaxPlayers: maxPlayers,
+        safeMatchMeta: { variant: 'single', mode: 'online', token: 'TPG' }
+      });
+      expect(tournament).toMatchObject({
+        ok: true,
+        normalizedMaxPlayers: maxPlayers,
+        safeMatchMeta: {
+          variant: 'tournament',
+          targetPoints: '21',
+          mode: 'online',
+          token: 'TPG'
+        }
+      });
+    }
+  );
+
   test.each([
-    [{ variant: 'rounds', mode: 'online', token: 'TPG' }, 'invalid_game_variant'],
-    [{ variant: 'single', mode: 'online', token: 'TON' }, 'invalid_stake_token'],
+    [
+      { variant: 'rounds', mode: 'online', token: 'TPG' },
+      'invalid_game_variant'
+    ],
+    [
+      { variant: 'single', mode: 'online', token: 'TON' },
+      'invalid_stake_token'
+    ],
     [{ variant: 'single', mode: 'local', token: 'TPG' }, 'invalid_game_mode'],
-    [{ variant: 'points', targetPoints: 75, mode: 'online', token: 'TPG' }, 'invalid_target_points']
+    [
+      { variant: 'points', targetPoints: 75, mode: 'online', token: 'TPG' },
+      'invalid_target_points'
+    ]
   ])('rejects invalid Domino Royal criteria %#', (matchMeta, error) => {
-    expect(validateSeatTableRequest({
-      gameType: 'domino-royal',
-      stake: 100,
-      maxPlayers: 4,
-      matchMeta
-    })).toEqual({ ok: false, error });
+    expect(
+      validateSeatTableRequest({
+        gameType: 'domino-royal',
+        stake: 100,
+        maxPlayers: 4,
+        matchMeta
+      })
+    ).toEqual({ ok: false, error });
   });
 
   test('normalizes battle royal aliases to shared lobby game types', () => {
@@ -123,10 +221,17 @@ describe('online game policy', () => {
 
   test('buildReadinessSnapshot returns all policy games with security checks', () => {
     const snapshot = buildReadinessSnapshot();
-    expect(Object.keys(snapshot).sort()).toEqual(Object.keys(GAME_ONLINE_POLICY).sort());
+    expect(Object.keys(snapshot).sort()).toEqual(
+      Object.keys(GAME_ONLINE_POLICY).sort()
+    );
 
     const sample = snapshot.poolroyale;
-    expect(sample.checks).toEqual({ lobby: true, runtime: true, backend: true, security: true });
+    expect(sample.checks).toEqual({
+      lobby: true,
+      runtime: true,
+      backend: true,
+      security: true
+    });
     expect(sample.securityControls).toEqual(BASE_SECURITY_CONTROLS);
     expect(sample.label).toBe('Online Ready');
   });

@@ -9,22 +9,50 @@ const BASE_SECURITY_CONTROLS = Object.freeze([
 ]);
 
 const GAME_ONLINE_POLICY = Object.freeze({
-  chess: { maxPlayers: [2], allowMatchMeta: ['preferredSide', 'mode', 'token'] },
-  checkers: { maxPlayers: [2], allowMatchMeta: ['preferredSide', 'mode', 'token'] },
+  chess: {
+    maxPlayers: [2],
+    allowMatchMeta: ['preferredSide', 'mode', 'token']
+  },
+  checkers: {
+    maxPlayers: [2],
+    allowMatchMeta: ['preferredSide', 'mode', 'token']
+  },
   poolroyale: {
     maxPlayers: [2],
-    allowMatchMeta: ['variant', 'mode', 'playType', 'tableSize', 'ballSet', 'token']
+    allowMatchMeta: [
+      'variant',
+      'mode',
+      'playType',
+      'tableSize',
+      'ballSet',
+      'token'
+    ]
   },
-  snookerroyale: { maxPlayers: [2], allowMatchMeta: ['mode', 'playType', 'tableSize', 'token'] },
+  snookerroyale: {
+    maxPlayers: [2],
+    allowMatchMeta: ['mode', 'playType', 'tableSize', 'token']
+  },
   snake: { maxPlayers: [2, 3, 4], allowMatchMeta: ['mode', 'token'] },
-  chessbattleroyal: { maxPlayers: [2], allowMatchMeta: ['preferredSide', 'mode', 'token'] },
+  chessbattleroyal: {
+    maxPlayers: [2],
+    allowMatchMeta: ['preferredSide', 'mode', 'token']
+  },
   checkersbattleroyal: { maxPlayers: [2], allowMatchMeta: ['mode', 'token'] },
-  'domino-royal': { maxPlayers: [2, 3, 4], allowMatchMeta: ['variant', 'targetPoints', 'mode', 'token'] },
-  ludobattleroyal: { maxPlayers: [2, 4], allowMatchMeta: ['variant', 'mode', 'token'] },
+  'domino-royal': {
+    maxPlayers: [2, 3, 4],
+    allowMatchMeta: ['variant', 'targetPoints', 'mode', 'token']
+  },
+  ludobattleroyal: {
+    maxPlayers: [2, 4],
+    allowMatchMeta: ['variant', 'mode', 'token']
+  },
   texasholdem: { maxPlayers: [2, 6], allowMatchMeta: ['mode', 'token'] },
   airhockey: { maxPlayers: [2], allowMatchMeta: ['mode', 'token'] },
   backgammon: { maxPlayers: [2], allowMatchMeta: ['mode', 'token'] },
-  murlanroyale: { maxPlayers: [2, 4], allowMatchMeta: ['variant', 'mode', 'token'] }
+  murlanroyale: {
+    maxPlayers: [2, 3, 4],
+    allowMatchMeta: ['variant', 'targetPoints', 'mode', 'token']
+  }
 });
 
 const GAME_TYPE_ALIASES = Object.freeze({
@@ -37,7 +65,9 @@ const GAME_TYPE_ALIASES = Object.freeze({
 });
 
 export function normalizeOnlineGameType(gameType) {
-  const normalized = String(gameType || '').trim().toLowerCase();
+  const normalized = String(gameType || '')
+    .trim()
+    .toLowerCase();
   if (!normalized) return '';
   if (GAME_TYPE_ALIASES[normalized]) return GAME_TYPE_ALIASES[normalized];
 
@@ -52,17 +82,23 @@ function sanitizeMetaValue(value) {
 }
 
 function validateDominoRoyalCriteria(matchMeta = {}) {
-  const variant = String(matchMeta.variant || '').trim().toLowerCase();
+  const variant = String(matchMeta.variant || '')
+    .trim()
+    .toLowerCase();
   if (!['single', 'points'].includes(variant)) {
     return { ok: false, error: 'invalid_game_variant' };
   }
 
-  const token = String(matchMeta.token || '').trim().toUpperCase();
+  const token = String(matchMeta.token || '')
+    .trim()
+    .toUpperCase();
   if (token !== 'TPG') {
     return { ok: false, error: 'invalid_stake_token' };
   }
 
-  const mode = String(matchMeta.mode || '').trim().toLowerCase();
+  const mode = String(matchMeta.mode || '')
+    .trim()
+    .toLowerCase();
   if (mode !== 'online') {
     return { ok: false, error: 'invalid_game_mode' };
   }
@@ -114,12 +150,16 @@ export function validateSeatTableRequest({
     };
   }
 
-  const token = String(matchMeta.token || '').trim().toUpperCase();
+  const token = String(matchMeta.token || '')
+    .trim()
+    .toUpperCase();
   if (token !== 'TPG') {
     return { ok: false, error: 'invalid_stake_token' };
   }
 
-  const mode = String(matchMeta.mode || '').trim().toLowerCase();
+  const mode = String(matchMeta.mode || '')
+    .trim()
+    .toLowerCase();
   if (mode !== 'online') {
     return { ok: false, error: 'invalid_game_mode' };
   }
@@ -128,11 +168,12 @@ export function validateSeatTableRequest({
   for (const key of policy.allowMatchMeta) {
     const value = sanitizeMetaValue(matchMeta[key]);
     if (value != null && value !== '') {
-      safeMatchMeta[key] = key === 'token'
-        ? String(value).toUpperCase()
-        : key === 'mode'
-          ? String(value).toLowerCase()
-          : value;
+      safeMatchMeta[key] =
+        key === 'token'
+          ? String(value).toUpperCase()
+          : key === 'mode'
+            ? String(value).toLowerCase()
+            : value;
     }
   }
 

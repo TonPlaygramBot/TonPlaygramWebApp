@@ -5,7 +5,10 @@ import { refreshSocketAuthIdentity, socket } from './socket.js';
 const DEFAULT_MATCH_TIMEOUT_MS = 35000;
 const SOCKET_CONNECT_TIMEOUT_MS = 8000;
 
-async function ensureSocketReady(socketInstance, timeoutMs = SOCKET_CONNECT_TIMEOUT_MS) {
+async function ensureSocketReady(
+  socketInstance,
+  timeoutMs = SOCKET_CONNECT_TIMEOUT_MS
+) {
   if (!socketInstance) return false;
   if (socketInstance.connected) return true;
 
@@ -50,21 +53,22 @@ export async function runSimpleOnlineFlow({
   onMatched,
   deps = {},
   timeoutMs = DEFAULT_MATCH_TIMEOUT_MS,
-  socketConnectTimeoutMs = SOCKET_CONNECT_TIMEOUT_MS,
+  socketConnectTimeoutMs = SOCKET_CONNECT_TIMEOUT_MS
 }) {
   const {
     setMatching,
     setMatchStatus,
     setMatchError,
     setOnlineCount,
-    setCleanup,
+    setMatchPlayers,
+    setCleanup
   } = state;
   const {
     ensureAccountId: ensureAccountIdFn = ensureAccountId,
     getAccountBalance: getAccountBalanceFn = getAccountBalance,
     addTransaction: addTransactionFn = addTransaction,
     getTelegramId: getTelegramIdFn = getTelegramId,
-    socket: socketInstance = socket,
+    socket: socketInstance = socket
   } = deps;
 
   let accountId = '';
@@ -83,6 +87,7 @@ export async function runSimpleOnlineFlow({
       socketInstance.emit('leaveLobby', { accountId, tableId: pendingTableId });
     }
     pendingTableId = '';
+    setMatchPlayers?.([]);
     setMatching(false);
     setMatchStatus('');
     if (!keepError) setMatchError('');
@@ -92,7 +97,7 @@ export async function runSimpleOnlineFlow({
         game: `${gameType}-online`,
         players: maxPlayers,
         accountId,
-        reason: 'matchmaking_cleanup',
+        reason: 'matchmaking_cleanup'
       }).catch(() => {});
       stakeDebited = false;
     }
@@ -101,7 +106,12 @@ export async function runSimpleOnlineFlow({
   const handleLobbyUpdate = ({ tableId, players = [] } = {}) => {
     if (!pendingTableId || tableId !== pendingTableId) return;
     setOnlineCount?.(players.length);
-    setMatchStatus(players.length > 1 ? 'Opponent joined. Confirming table…' : 'Waiting for players…');
+    setMatchPlayers?.(players);
+    setMatchStatus(
+      players.length > 1
+        ? 'Opponent joined. Confirming table…'
+        : 'Waiting for players…'
+    );
   };
 
   const handleGameStart = ({ tableId, players = [] } = {}) => {
@@ -114,6 +124,7 @@ export async function runSimpleOnlineFlow({
     socketInstance.off('lobbyUpdate', handleLobbyUpdate);
     socketInstance.off('gameStart', handleGameStart);
     setMatching(false);
+    setMatchPlayers?.(players);
     setMatchStatus('Match found. Launching game…');
     onMatched?.({ accountId, tableId, players });
   };
@@ -136,12 +147,15 @@ export async function runSimpleOnlineFlow({
     await addTransactionFn(tgId, -stake.amount, 'stake', {
       game: `${gameType}-online`,
       players: maxPlayers,
-      accountId,
+      accountId
     });
     stakeDebited = true;
 
     refreshSocketAuthIdentity({ accountId }, { reconnect: true });
-    const socketReady = await ensureSocketReady(socketInstance, socketConnectTimeoutMs);
+    const socketReady = await ensureSocketReady(
+      socketInstance,
+      socketConnectTimeoutMs
+    );
     if (!socketReady) {
       setMatchError('Socket not connected. Please retry.');
       cleanup({ keepError: true, refund: stakeDebited });
@@ -155,7 +169,7 @@ export async function runSimpleOnlineFlow({
       // Kept for one compatibility window. The server always treats the TPG
       // account number above as the authoritative matchmaking identity.
       accountId: String(accountId),
-      playerId: String(accountId),
+      playerId: String(accountId)
     };
     socketInstance.emit('register', identity);
 
@@ -164,26 +178,34 @@ export async function runSimpleOnlineFlow({
       cleanup({ keepError: true, refund: true });
     }, timeoutMs);
 
-    socketInstance.emit('seatTable', {
-      ...identity,
-      gameType,
-      stake: Number(stake.amount) || 0,
-      maxPlayers,
-      playerName,
-      avatar,
-      mode: 'online',
-      token: stake.token,
-      ...matchMeta,
-    }, (res = {}) => {
-      if (!res.success || !res.tableId) {
-        setMatchError('Unable to join online table. Stake refunded.');
-        cleanup({ keepError: true, refund: true });
-        return;
+    socketInstance.emit(
+      'seatTable',
+      {
+        ...identity,
+        gameType,
+        stake: Number(stake.amount) || 0,
+        maxPlayers,
+        playerName,
+        avatar,
+        mode: 'online',
+        token: stake.token,
+        ...matchMeta
+      },
+      (res = {}) => {
+        if (!res.success || !res.tableId) {
+          setMatchError('Unable to join online table. Stake refunded.');
+          cleanup({ keepError: true, refund: true });
+          return;
+        }
+        pendingTableId = res.tableId;
+        setMatchPlayers?.(Array.isArray(res.players) ? res.players : []);
+        setMatchStatus('Waiting for players…');
+        socketInstance.emit('confirmReady', {
+          ...identity,
+          tableId: res.tableId
+        });
       }
-      pendingTableId = res.tableId;
-      setMatchStatus('Waiting for players…');
-      socketInstance.emit('confirmReady', { ...identity, tableId: res.tableId });
-    });
+    );
 
     setCleanup?.(() => cleanup);
     return { ok: true, cleanup, accountId };
