@@ -1018,6 +1018,10 @@ function hasAnyLegalChessMove(board, white) {
 
 function validateAndApplyChessMove(state, playerId, move = {}) {
   if (state.winner) return { ok: false, error: 'game_finished' };
+  const player = (state.players || []).find((p) => String(p.id) === String(playerId));
+  // Never infer permission from the colour of the submitted piece. A socket
+  // must own one of the two authoritative match seats before it may move.
+  if (!player?.side) return { ok: false, error: 'seat_required' };
   const board = normalizeChessBoard(state.board);
   const lastMove = move.lastMove || {};
   const from = lastMove.from || {};
@@ -1029,8 +1033,7 @@ function validateAndApplyChessMove(state, playerId, move = {}) {
   const piece = board[fromR][fromC];
   if (!piece) return { ok: false, error: 'empty_source' };
   if (piece.w !== Boolean(state.turnWhite)) return { ok: false, error: 'wrong_turn_piece' };
-  const player = (state.players || []).find((p) => String(p.id) === String(playerId));
-  if (player?.side && player.side !== (piece.w ? 'white' : 'black')) return { ok: false, error: 'wrong_player_turn' };
+  if (player.side !== (piece.w ? 'white' : 'black')) return { ok: false, error: 'wrong_player_turn' };
   const legal = getLegalChessMoves(board, fromR, fromC);
   if (!legal.some(([r, c]) => r === toR && c === toC)) return { ok: false, error: 'illegal_move' };
   const nextBoard = applyChessMoveOnBoard(board, fromR, fromC, toR, toC);
@@ -2581,19 +2584,32 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('joinChessRoom', async ({ tableId, accountId }) => {
-    if (!tableId) return;
-    if (accountId && !ensureRegistered(socket, accountId)) return;
-    socket.join(tableId);
-    const state = getChessState(tableId);
-    socket.emit('chessState', { tableId, ...state });
-    if (accountId) {
-      await registerConnection({
-        userId: String(accountId),
-        roomId: tableId,
-        socketId: socket.id
-      });
+  socket.on('joinChessRoom', async ({ tableId, accountId } = {}, cb) => {
+    if (!tableId) {
+      cb && cb({ success: false, error: 'invalid_payload' });
+      return;
     }
+    if (!accountId || !ensureRegistered(socket, accountId)) {
+      cb && cb({ success: false, error: 'register_required' });
+      return;
+    }
+    const state = getChessState(tableId);
+    const table = tableMap.get(tableId);
+    const seated = [...(state.players || []), ...(table?.players || [])].some(
+      (player) => String(player.id) === String(accountId)
+    );
+    if (!seated) {
+      cb && cb({ success: false, error: 'seat_required' });
+      return;
+    }
+    socket.join(tableId);
+    socket.emit('chessState', { tableId, ...state });
+    await registerConnection({
+      userId: String(accountId),
+      roomId: tableId,
+      socketId: socket.id
+    });
+    cb && cb({ success: true, state: { tableId, ...state } });
   });
 
   socket.on('joinCheckersRoom', async ({ tableId, accountId }) => {
@@ -2620,6 +2636,11 @@ io.on('connection', (socket) => {
   socket.on('chessSyncRequest', ({ tableId }) => {
     if (!tableId) return;
     const state = getChessState(tableId);
+    const playerId = String(socket.data?.playerId || '');
+    if (!(state.players || []).some((player) => String(player.id) === playerId)) {
+      socket.emit('chessSyncError', { tableId, error: 'seat_required' });
+      return;
+    }
     socket.emit('chessState', { tableId, ...state });
   });
 

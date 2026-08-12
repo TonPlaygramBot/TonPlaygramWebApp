@@ -8958,6 +8958,7 @@ function Chess3D({
     tableId: null,
     side: normalizedInitialSide,
     synced: false,
+    pendingState: null,
     opponent: null,
     emitMove: () => {},
     requestSync: () => {},
@@ -9329,6 +9330,10 @@ function Chess3D({
       setOnlineStatus('in-game');
       setViewMode('2d');
       cameraViewRef.current?.setMode('2d');
+      // The authoritative snapshot often arrives while the large Three.js
+      // scene is still loading. Retain it until the board adapter is ready;
+      // dropping this first snapshot left one phone connected but unsynced.
+      onlineRef.current.pendingState = payload;
       onlineRef.current.applyRemoteMove?.(payload);
     };
 
@@ -9345,8 +9350,7 @@ function Chess3D({
       setOnlineStatus('starting');
       setViewMode('2d');
       cameraViewRef.current?.setMode('2d');
-      socket.emit('joinChessRoom', { tableId: startedId, accountId });
-      onlineRef.current.requestSync?.();
+      restoreOnlineSession();
     };
 
     onlineRef.current.emitMove = ({ tableId: tid, move }) => {
@@ -9396,12 +9400,34 @@ function Chess3D({
       }
     };
 
+    const restoreOnlineSession = () => {
+      if (!active || !tableJoin.current || !socket.connected) return;
+      setOnlineStatus((status) => (status === 'in-game' ? status : 'connecting'));
+      socket.emit('register', { playerId: accountId }, (registered) => {
+        if (!active || !registered?.success) return;
+        socket.emit(
+          'joinChessRoom',
+          { tableId: tableJoin.current, accountId },
+          (joined) => {
+            if (!active) return;
+            if (!joined?.success) {
+              setOnlineStatus('reconnect-error');
+              return;
+            }
+            if (joined.state) handleChessState(joined.state);
+            onlineRef.current.requestSync?.();
+          }
+        );
+      });
+    };
+
     socket.on('gameStart', handleGameStart);
     socket.on('gameStarted', handleGameStart);
     socket.on('lobbyUpdate', handleLobbyUpdate);
     socket.on('chessState', handleChessState);
     socket.on('chessMove', handleChessState);
     socket.on('chessSettlement', handleChessSettlement);
+    socket.on('connect', restoreOnlineSession);
 
     cleanups.push(() => {
       socket.off('gameStart', handleGameStart);
@@ -9410,6 +9436,7 @@ function Chess3D({
       socket.off('chessState', handleChessState);
       socket.off('chessMove', handleChessState);
       socket.off('chessSettlement', handleChessSettlement);
+      socket.off('connect', restoreOnlineSession);
       if (tableJoin.current)
         socket.emit('leaveLobby', { accountId, tableId: tableJoin.current });
     });
@@ -9419,9 +9446,7 @@ function Chess3D({
       tableJoin.current = tableIdToJoin;
       onlineRef.current.tableId = tableIdToJoin;
       setOnlineStatus('waiting');
-      socket.emit('joinChessRoom', { tableId: tableIdToJoin, accountId });
-      socket.emit('confirmReady', { accountId, tableId: tableIdToJoin });
-      onlineRef.current.requestSync?.();
+      restoreOnlineSession();
     };
 
     socket.emit('register', { playerId: accountId });
@@ -14397,6 +14422,11 @@ function Chess3D({
       }
     };
     onlineRef.current.applyRemoteMove = syncBoardFromState;
+    if (onlineRef.current.pendingState) {
+      syncBoardFromState(onlineRef.current.pendingState);
+      onlineRef.current.pendingState = null;
+    }
+    onlineRef.current.requestSync?.();
 
     const paintPiecesFromPrototypes = (prototypes, styleId = currentPieceSetId) => {
       if (!prototypes) return;
