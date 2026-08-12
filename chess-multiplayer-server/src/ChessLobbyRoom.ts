@@ -10,6 +10,13 @@ export const canStartChessMatch = (players: Iterable<LobbyPlayer>) => {
   return seats.length === 2 && seats.every((player) => player.ready && player.connected);
 };
 
+export const assignRandomChessSides = (players: LobbyPlayer[], random = Math.random) => {
+  if (players.length !== 2) return players;
+  const whiteIndex = random() < 0.5 ? 0 : 1;
+  players.forEach((player, index) => { player.side = index === whiteIndex ? 'white' : 'black'; });
+  return players;
+};
+
 export class ChessBattleRoyaleRoom extends Room<{ state: ChessLobbyState }> {
   maxClients = 2;
   private countdown?: ReturnType<typeof setTimeout>;
@@ -53,6 +60,9 @@ export class ChessBattleRoyaleRoom extends Room<{ state: ChessLobbyState }> {
     if (this.state.players.size === this.maxClients) {
       this.lock();
       try { await this.reserveStakes(); } catch (error) { this.state.players.delete(client.sessionId); this.unlock(); throw error; }
+      // Quick Match has no ready-up step: successfully reserving both stakes is
+      // the authoritative confirmation for both connected seats.
+      this.state.players.forEach((seatedPlayer) => { seatedPlayer.ready = true; });
     }
     this.evaluateCountdown();
   }
@@ -110,10 +120,11 @@ export class ChessBattleRoyaleRoom extends Room<{ state: ChessLobbyState }> {
     void this.setMetadata({ visibility: this.state.visibility, invitationCode: this.state.invitationCode, phase: 'countdown' });
     this.lock();
     this.countdown = setTimeout(() => {
+      const players = assignRandomChessSides([...this.state.players.values()]);
       this.state.phase = 'playing';
       this.state.countdownEndsAt = 0;
       void this.setMetadata({ visibility: this.state.visibility, invitationCode: this.state.invitationCode, phase: 'playing' });
-      this.broadcast('match_start', { roomId: this.roomId, matchId: this.state.matchId, tableNumber: this.state.tableNumber, players: [...this.state.players.values()].map((p) => ({ accountId: p.accountId, maskedAccount: p.maskedAccount, name: p.name })) });
+      this.broadcast('match_start', { roomId: this.roomId, matchId: this.state.matchId, tableNumber: this.state.tableNumber, players: players.map((p) => ({ accountId: p.accountId, maskedAccount: p.maskedAccount, name: p.name, side: p.side })) });
     }, 5000);
   }
 

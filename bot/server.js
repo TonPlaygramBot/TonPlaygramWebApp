@@ -1143,37 +1143,10 @@ function assignChessSides(players = []) {
     }));
   }
 
-  const [p1, p2] = players.map((p) => ({
-    ...p,
-    sidePreference: normalizeSidePreference(p.sidePreference)
-  }));
-
-  let whitePlayer = null;
-  let blackPlayer = null;
-
-  if (p1.sidePreference === 'white' && p2.sidePreference === 'black') {
-    whitePlayer = p1;
-    blackPlayer = p2;
-  } else if (p1.sidePreference === 'black' && p2.sidePreference === 'white') {
-    whitePlayer = p2;
-    blackPlayer = p1;
-  } else if (p1.sidePreference === 'white' && p2.sidePreference !== 'white') {
-    whitePlayer = p1;
-    blackPlayer = p2;
-  } else if (p2.sidePreference === 'white' && p1.sidePreference !== 'white') {
-    whitePlayer = p2;
-    blackPlayer = p1;
-  } else if (p1.sidePreference === 'black' && p2.sidePreference !== 'black') {
-    blackPlayer = p1;
-    whitePlayer = p2;
-  } else if (p2.sidePreference === 'black' && p1.sidePreference !== 'black') {
-    blackPlayer = p2;
-    whitePlayer = p1;
-  } else {
-    const p1White = Math.random() < 0.5;
-    whitePlayer = p1White ? p1 : p2;
-    blackPlayer = p1White ? p2 : p1;
-  }
+  // Competitive quick match never lets a client choose its colour. Apart from
+  // being fair, assigning both seats in one authoritative operation guarantees
+  // that two clients can never render themselves with the same pieces.
+  const whitePlayer = players[Math.floor(Math.random() * players.length)];
 
   return players.map((p) => ({
     ...p,
