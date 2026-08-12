@@ -1,4 +1,9 @@
-import { ensureAccountId, getTelegramFirstName, getTelegramId } from '../../utils/telegram.js';
+import {
+  ensureAccountId,
+  getTelegramFirstName,
+  getTelegramId,
+  getTelegramUsername
+} from '../../utils/telegram.js';
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { socket, refreshSocketAuthIdentity } from '../../utils/socket.js';
 
@@ -32,7 +37,10 @@ function clearTimeoutSafely(ref) {
   }
 }
 
-async function ensureSocketReady(socketInstance, timeoutMs = DEFAULT_SOCKET_CONNECT_TIMEOUT_MS) {
+async function ensureSocketReady(
+  socketInstance,
+  timeoutMs = DEFAULT_SOCKET_CONNECT_TIMEOUT_MS
+) {
   if (!socketInstance) return false;
   if (socketInstance.connected) return true;
 
@@ -111,12 +119,16 @@ async function ensureSocketRegistered(
     }, timeoutMs);
 
     try {
-      socketInstance.emit('register', { tpcAccountNumber: accountId, tpcAccountId: accountId }, (res) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        resolve(!!res?.success);
-      });
+      socketInstance.emit(
+        'register',
+        { tpcAccountNumber: accountId, tpcAccountId: accountId },
+        (res) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          resolve(!!res?.success);
+        }
+      );
     } catch (error) {
       clearTimeout(timer);
       logSupportError('Socket register emit failed', error, { accountId });
@@ -147,7 +159,11 @@ async function ensureSocketRegisteredWithRetry(
   maxAttempts = DEFAULT_REGISTER_ATTEMPTS
 ) {
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    const registered = await ensureSocketRegistered(socketInstance, accountId, timeoutMs);
+    const registered = await ensureSocketRegistered(
+      socketInstance,
+      accountId,
+      timeoutMs
+    );
     if (registered) return true;
     if (attempt < maxAttempts) {
       await new Promise((resolve) => setTimeout(resolve, 250));
@@ -189,6 +205,7 @@ export async function runPoolRoyaleOnlineFlow({
     addTransaction: addTransactionFn = addTransaction,
     getTelegramId: getTelegramIdFn = getTelegramId,
     getTelegramFirstName: getTelegramFirstNameFn = getTelegramFirstName,
+    getTelegramUsername: getTelegramUsernameFn = getTelegramUsername,
     socket: socketInstance = socket
   } = deps;
   const {
@@ -213,14 +230,15 @@ export async function runPoolRoyaleOnlineFlow({
 
   const seatTimeoutMs = timeouts.seat ?? DEFAULT_SEAT_TIMEOUT_MS;
   const matchmakingTimeoutMs = timeouts.matchmaking ?? DEFAULT_MATCH_TIMEOUT_MS;
-  const socketConnectTimeoutMs = timeouts.socketConnect ?? DEFAULT_SOCKET_CONNECT_TIMEOUT_MS;
+  const socketConnectTimeoutMs =
+    timeouts.socketConnect ?? DEFAULT_SOCKET_CONNECT_TIMEOUT_MS;
   const registerTimeoutMs = timeouts.register ?? DEFAULT_REGISTER_TIMEOUT_MS;
   const requestedTableId =
-    typeof tableId === 'string' && tableId.trim()
-      ? tableId.trim()
-      : undefined;
+    typeof tableId === 'string' && tableId.trim() ? tableId.trim() : undefined;
   const normalizedTableSize =
-    typeof tableSize === 'string' && tableSize.trim() ? tableSize.trim() : undefined;
+    typeof tableSize === 'string' && tableSize.trim()
+      ? tableSize.trim()
+      : undefined;
 
   const telegramId = getTelegramIdFn?.();
 
@@ -231,7 +249,11 @@ export async function runPoolRoyaleOnlineFlow({
 
   const refundStake = async (reason, extra = {}) => {
     if (!stakeDebitRef?.current) return false;
-    const { telegramId: debitedTelegram, accountId: debitedAccount, amount } = stakeDebitRef.current;
+    const {
+      telegramId: debitedTelegram,
+      accountId: debitedAccount,
+      amount
+    } = stakeDebitRef.current;
     try {
       await addTransactionFn(debitedTelegram, amount, 'stake_refund', {
         game: 'poolroyale-online',
@@ -302,7 +324,10 @@ export async function runPoolRoyaleOnlineFlow({
     setMatchStatus('');
     setMatching(false);
     setIsSearching(false);
-    logSupportError('addTransaction debit failed', error, { accountId, telegramId });
+    logSupportError('addTransaction debit failed', error, {
+      accountId,
+      telegramId
+    });
     return { success: false };
   }
 
@@ -312,7 +337,9 @@ export async function runPoolRoyaleOnlineFlow({
   );
   if (!socketReady) {
     setMatchStatus('');
-    setMatchingError('Unable to reach the online arena. We refunded your stake.');
+    setMatchingError(
+      'Unable to reach the online arena. We refunded your stake.'
+    );
     await refundStake('socket_registration_failed', { accountId });
     setMatching(false);
     setIsSearching(false);
@@ -326,14 +353,20 @@ export async function runPoolRoyaleOnlineFlow({
   );
   if (!socketRegistered) {
     setMatchStatus('');
-    setMatchingError('Unable to sync your online session. We refunded your stake.');
+    setMatchingError(
+      'Unable to sync your online session. We refunded your stake.'
+    );
     await refundStake('socket_register_ack_failed', { accountId });
     setMatching(false);
     setIsSearching(false);
     return { success: false };
   }
 
-  function handleLobbyUpdate({ tableId: tid, players: list = [], ready = [] } = {}) {
+  function handleLobbyUpdate({
+    tableId: tid,
+    players: list = [],
+    ready = []
+  } = {}) {
     if (!tid || tid !== pendingTableRef.current) return;
     setMatchPlayers(list);
     matchPlayersRef.current = list;
@@ -344,7 +377,9 @@ export async function runPoolRoyaleOnlineFlow({
         resolveTpcAccountNumber(p) !== String(accountId)
     );
     setMatchStatus(
-      others.length > 0 ? 'Opponent joined. Locking seats…' : 'Waiting for another player…'
+      others.length > 0
+        ? 'Opponent joined. Locking seats…'
+        : 'Waiting for another player…'
     );
   }
 
@@ -355,9 +390,15 @@ export async function runPoolRoyaleOnlineFlow({
     }
   }
 
-  async function cleanupLobby({ account = accountIdRef.current, skipRefReset, refundReason, keepError } = {}) {
+  async function cleanupLobby({
+    account = accountIdRef.current,
+    skipRefReset,
+    refundReason,
+    keepError
+  } = {}) {
     socketInstance.off('lobbyUpdate', handleLobbyUpdate);
     socketInstance.off('gameStart', handleGameStart);
+    socketInstance.off('gameStarted', handleGameStart);
     if (pendingTableRef.current && account) {
       socketInstance.emit('leaveLobby', {
         tpcAccountNumber: account,
@@ -396,11 +437,20 @@ export async function runPoolRoyaleOnlineFlow({
     meta
   } = {}) {
     if (!startedId || startedId !== pendingTableRef.current) return;
-    const roster = Array.isArray(joined) && joined.length > 0 ? joined : matchPlayersRef.current;
+    const roster =
+      Array.isArray(joined) && joined.length > 0
+        ? joined
+        : matchPlayersRef.current;
     stakeDebitRef.current = null;
     clearTimers();
     cleanupLobby({ account: accountId, skipRefReset: true, keepError: true });
-    onGameStart?.({ tableId: startedId, roster, accountId, currentTurn, matchMeta: meta });
+    onGameStart?.({
+      tableId: startedId,
+      roster,
+      accountId,
+      currentTurn,
+      matchMeta: meta
+    });
   }
 
   cleanupRef.current = cleanupLobby;
@@ -415,14 +465,19 @@ export async function runPoolRoyaleOnlineFlow({
 
   socketInstance.on('lobbyUpdate', handleLobbyUpdate);
   socketInstance.on('gameStart', handleGameStart);
+  socketInstance.on('gameStarted', handleGameStart);
 
   function startMatchTimeout(tableId) {
     clearTimeoutSafely(matchTimeoutRef);
     matchTimeoutRef.current = setTimeout(() => {
-      triggerTimeoutRefund('matchmaking_timeout', 'Matchmaking timed out. We refunded your stake.', {
-        accountId,
-        tableId
-      });
+      triggerTimeoutRefund(
+        'matchmaking_timeout',
+        'Matchmaking timed out. We refunded your stake.',
+        {
+          accountId,
+          tableId
+        }
+      );
     }, matchmakingTimeoutMs);
   }
 
@@ -446,15 +501,22 @@ export async function runPoolRoyaleOnlineFlow({
         ballSet,
         tableSize: normalizedTableSize,
         playType,
-        playerName: getTelegramFirstNameFn?.() || `TPG ${accountId}` || 'Player',
-        avatar
+        // The TPG account number remains the authoritative seat key, but is
+        // never repurposed as public profile text in the lobby.
+        playerName:
+          getTelegramUsernameFn?.() || getTelegramFirstNameFn?.() || 'Player',
+        avatar,
+        // Match Chess Battle Royal's server-authoritative ready-on-seat flow.
+        // confirmReady remains below for compatibility with cached clients.
+        ready: true
       },
       (res) => {
         clearTimeoutSafely(seatTimeoutRef);
         setIsSearching(false);
         if (!res?.success || !res.tableId) {
           const isRegistrationError =
-            res?.error === 'register_required' || res?.error === 'identity_mismatch';
+            res?.error === 'register_required' ||
+            res?.error === 'identity_mismatch';
           const shouldRetry =
             (isRegistrationError || res?.error === 'rate_limited') &&
             seatAttempts < maxSeatAttempts;
@@ -495,7 +557,9 @@ export async function runPoolRoyaleOnlineFlow({
         }
         pendingTableRef.current = res.tableId;
         setMatchStatus('Waiting for another player…');
-        const playersList = Array.isArray(res.players) ? res.players.filter(Boolean) : [];
+        const playersList = Array.isArray(res.players)
+          ? res.players.filter(Boolean)
+          : [];
         setMatchPlayers(playersList);
         matchPlayersRef.current = playersList;
         setReadyList(res.ready || []);

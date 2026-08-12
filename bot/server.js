@@ -2466,11 +2466,14 @@ io.on('connection', (socket) => {
         );
       }
       if (table) {
-        // Chess quick matches have no separate ready-up screen. Once a player
-        // owns a seat, that seat is ready. Keeping this server-authoritative
-        // also lets older/mobile clients match when confirmReady is delayed or
-        // lost while Telegram's WebView reconnects.
-        const shouldReadySeat = validation.normalizedGameType === 'chess' || readyOnJoin;
+        // Chess and Pool Royale quick matches have no separate ready-up screen.
+        // Once a player owns a seat, that seat is ready. Keeping this
+        // server-authoritative also lets older/mobile clients match when
+        // confirmReady is delayed or lost while Telegram's WebView reconnects.
+        const shouldReadySeat =
+          validation.normalizedGameType === 'chess' ||
+          validation.normalizedGameType === 'poolroyale' ||
+          readyOnJoin;
         if (shouldReadySeat) {
           table.ready.add(String(resolvedAccountId));
           io.to(table.id).emit('lobbyUpdate', {

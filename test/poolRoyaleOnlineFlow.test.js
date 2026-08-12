@@ -138,6 +138,7 @@ test('runPoolRoyaleOnlineFlow debits once and keeps stake for game start', async
   assert.equal(seatPayload.tableSize, 'medium');
   assert.equal(seatPayload.playType, 'regular');
   assert.equal(seatPayload.tableId, 'room-77');
+  assert.equal(seatPayload.ready, true);
   const seatCb = mockSocket.seatRequests[0].cb;
   seatCb({
     success: true,
@@ -170,6 +171,43 @@ test('runPoolRoyaleOnlineFlow debits once and keeps stake for game start', async
   assert.equal(started[0].tableId, 'tbl-1');
   assert.equal(started[0].matchMeta?.tableSize, '9ft');
   assert.equal(refs.stakeDebitRef.current, null, 'stake cleared after start');
+});
+
+test('runPoolRoyaleOnlineFlow uses profile text while keeping the TPG number private', async () => {
+  const mockSocket = new MockSocket();
+  const refs = createRefs();
+  const state = createState();
+
+  await runPoolRoyaleOnlineFlow({
+    stake: { token: 'TPG', amount: 100 },
+    variant: 'uk',
+    ballSet: 'uk',
+    playType: 'regular',
+    mode: 'online',
+    tableSize: 'medium',
+    avatar: 'alice.png',
+    deps: {
+      ensureAccountId: () => Promise.resolve('TPG-PRIVATE-42'),
+      getAccountBalance: () => Promise.resolve({ balance: 200 }),
+      addTransaction: () => Promise.resolve(),
+      getTelegramId: () => 'telegram-private-id',
+      getTelegramFirstName: () => 'Alice',
+      getTelegramUsername: () => 'alice_pool',
+      socket: mockSocket
+    },
+    state,
+    refs,
+    timeouts: { seat: 100, matchmaking: 100 }
+  });
+
+  const payload = mockSocket.seatRequests[0].payload;
+  assert.equal(payload.tpcAccountNumber, 'TPG-PRIVATE-42');
+  assert.equal(payload.playerName, 'alice_pool');
+  assert.equal(payload.avatar, 'alice.png');
+  assert.equal(payload.playerName.includes(payload.tpcAccountNumber), false);
+
+  mockSocket.seatRequests[0].cb({ success: false, message: 'test cleanup' });
+  await delay(0);
 });
 
 test('runPoolRoyaleOnlineFlow refunds when matchmaking times out', async () => {
@@ -220,7 +258,6 @@ test('runPoolRoyaleOnlineFlow refunds when matchmaking times out', async () => {
   assert.equal(refs.pendingTableRef.current, '');
 });
 
-
 test('runPoolRoyaleOnlineFlow reconnects socket before seating table', async () => {
   const mockSocket = new MockSocket();
   mockSocket.connected = false;
@@ -257,7 +294,11 @@ test('runPoolRoyaleOnlineFlow reconnects socket before seating table', async () 
   assert.equal(mockSocket.connectCalls, 1);
   assert.equal(mockSocket.registerRequests.length, 1);
   assert.equal(mockSocket.registerRequests[0].tpcAccountId, 'acct-3');
-  assert.equal(mockSocket.seatRequests.length, 1, 'should proceed after reconnecting');
+  assert.equal(
+    mockSocket.seatRequests.length,
+    1,
+    'should proceed after reconnecting'
+  );
   mockSocket.seatRequests[0].cb({ success: false, message: 'busy' });
   await delay(0);
   assert.equal(addCalls[0][2], 'stake');
@@ -268,7 +309,10 @@ test('runPoolRoyaleOnlineFlow tolerates transient socket connect errors on mobil
     connect() {
       this.connectCalls += 1;
       this.connected = false;
-      setTimeout(() => this.emit('connect_error', new Error('temporary network dip')), 5);
+      setTimeout(
+        () => this.emit('connect_error', new Error('temporary network dip')),
+        5
+      );
       setTimeout(() => {
         this.connected = true;
         this.emit('connect');
@@ -311,7 +355,11 @@ test('runPoolRoyaleOnlineFlow tolerates transient socket connect errors on mobil
   assert.equal(mockSocket.connectCalls, 1);
   assert.equal(mockSocket.registerRequests.length, 1);
   assert.equal(mockSocket.registerRequests[0].tpcAccountId, 'acct-4');
-  assert.equal(mockSocket.seatRequests.length, 1, 'should keep waiting after temporary connect error');
+  assert.equal(
+    mockSocket.seatRequests.length,
+    1,
+    'should keep waiting after temporary connect error'
+  );
   mockSocket.seatRequests[0].cb({ success: false, message: 'busy' });
   await delay(0);
   assert.equal(state.snapshot.matchingError, 'busy');
@@ -378,7 +426,8 @@ test('runPoolRoyaleOnlineFlow refunds if register ack fails', async () => {
     emit(event, payload, cb) {
       if (event === 'register') {
         this.registerRequests.push(payload);
-        if (typeof cb === 'function') cb({ success: false, error: 'register_failed' });
+        if (typeof cb === 'function')
+          cb({ success: false, error: 'register_failed' });
         return true;
       }
       return super.emit(event, payload, cb);
@@ -418,7 +467,11 @@ test('runPoolRoyaleOnlineFlow refunds if register ack fails', async () => {
 
   assert.equal(mockSocket.registerRequests.length, 3);
   assert.equal(mockSocket.seatRequests.length, 0);
-  assert.equal(addCalls.length, 2, 'should debit then refund when register ack fails');
+  assert.equal(
+    addCalls.length,
+    2,
+    'should debit then refund when register ack fails'
+  );
   assert.equal(addCalls[1][2], 'stake_refund');
   assert.ok(state.snapshot.matchingError.includes('online session'));
 });
@@ -430,7 +483,11 @@ test('runPoolRoyaleOnlineFlow retries register after transient ack failure', asy
         this.registerRequests.push(payload);
         const attempt = this.registerRequests.length;
         if (typeof cb === 'function') {
-          cb(attempt === 1 ? { success: false, error: 'temporary_failure' } : { success: true });
+          cb(
+            attempt === 1
+              ? { success: false, error: 'temporary_failure' }
+              : { success: true }
+          );
         }
         return true;
       }
@@ -463,8 +520,16 @@ test('runPoolRoyaleOnlineFlow retries register after transient ack failure', asy
     timeouts: { seat: 50, matchmaking: 100, register: 40 }
   });
 
-  assert.equal(mockSocket.registerRequests.length, 2, 'should retry register once after transient failure');
-  assert.equal(mockSocket.seatRequests.length, 1, 'should continue to seat after register retry succeeds');
+  assert.equal(
+    mockSocket.registerRequests.length,
+    2,
+    'should retry register once after transient failure'
+  );
+  assert.equal(
+    mockSocket.seatRequests.length,
+    1,
+    'should continue to seat after register retry succeeds'
+  );
 });
 
 test('runPoolRoyaleOnlineFlow retries seat after identity mismatch and starts match', async () => {
@@ -505,8 +570,16 @@ test('runPoolRoyaleOnlineFlow retries seat after identity mismatch and starts ma
   mockSocket.seatRequests[0].cb({ success: false, error: 'identity_mismatch' });
   await delay(450);
 
-  assert.equal(mockSocket.registerRequests.length, 2, 'identity mismatch should trigger register retry');
-  assert.equal(mockSocket.seatRequests.length, 2, 'identity mismatch should trigger seat retry');
+  assert.equal(
+    mockSocket.registerRequests.length,
+    2,
+    'identity mismatch should trigger register retry'
+  );
+  assert.equal(
+    mockSocket.seatRequests.length,
+    2,
+    'identity mismatch should trigger seat retry'
+  );
 
   mockSocket.seatRequests[1].cb({
     success: true,
@@ -528,6 +601,10 @@ test('runPoolRoyaleOnlineFlow retries seat after identity mismatch and starts ma
   await delay(0);
 
   assert.equal(started.length, 1);
-  assert.equal(addCalls.length, 1, 'stake should remain debited when match starts');
+  assert.equal(
+    addCalls.length,
+    1,
+    'stake should remain debited when match starts'
+  );
   assert.equal(state.snapshot.matchingError, '');
 });
