@@ -40,6 +40,10 @@ const MATCHMAKING_RECOVERABLE_ERRORS = new Set([
   'identity_mismatch'
 ]);
 
+function shouldKeepSearching(queueMode, error = '') {
+  return queueMode === 'quick' || MATCHMAKING_RECOVERABLE_ERRORS.has(error);
+}
+
 function normalizeHostCode(code = '') {
   return String(code || '')
     .trim()
@@ -84,10 +88,14 @@ function formatLobbyError(error) {
 
 function resolveSeatErrorMessage(error) {
   const clean = formatLobbyError(error);
-  if (error === 'table_full') return 'That private chess table is already full.';
-  if (error === 'table_not_found') return 'That private chess table was not found.';
-  if (error === 'table_unavailable') return 'That private chess table is no longer available.';
-  if (error === 'stake_mismatch') return 'That chess table uses a different stake.';
+  if (error === 'table_full')
+    return 'That private chess table is already full.';
+  if (error === 'table_not_found')
+    return 'That private chess table was not found.';
+  if (error === 'table_unavailable')
+    return 'That private chess table is no longer available.';
+  if (error === 'stake_mismatch')
+    return 'That chess table uses a different stake.';
   if (error === 'game_type_mismatch') return 'That table is for another game.';
   return `Could not join the online lobby. Please try again${clean ? ` (${clean})` : ''}.`;
 }
@@ -98,16 +106,26 @@ function resolveSeatAccountId(primary, secondary) {
 
 function resolveLobbyStatus(players = [], ready = [], seatAccountId = '') {
   const list = Array.isArray(players) ? players : [];
-  const readyIds = new Set((Array.isArray(ready) ? ready : []).map((id) => String(id)));
-  const others = list.filter((p) => resolveTpcAccountNumber(p) !== String(seatAccountId));
+  const readyIds = new Set(
+    (Array.isArray(ready) ? ready : []).map((id) => String(id))
+  );
+  const others = list.filter(
+    (p) => resolveTpcAccountNumber(p) !== String(seatAccountId)
+  );
   if (others.length <= 0) return 'Waiting for another player…';
-  const everyoneReady = list.length >= 2 && list.every((p) => readyIds.has(resolveTpcAccountNumber(p)));
-  return everyoneReady ? 'Both players ready. Starting match…' : 'Opponent joined. Locking seats…';
+  const everyoneReady =
+    list.length >= 2 &&
+    list.every((p) => readyIds.has(resolveTpcAccountNumber(p)));
+  return everyoneReady
+    ? 'Both players ready. Starting match…'
+    : 'Opponent joined. Locking seats…';
 }
 
 function resolveChessSide(players = [], seatAccountId = '') {
   const list = Array.isArray(players) ? players : [];
-  const meIndex = list.findIndex((p) => resolveTpcAccountNumber(p) === String(seatAccountId));
+  const meIndex = list.findIndex(
+    (p) => resolveTpcAccountNumber(p) === String(seatAccountId)
+  );
   const me = list[meIndex];
   return me?.side || (meIndex === 0 ? 'white' : 'black');
 }
@@ -124,7 +142,8 @@ function resolveChessTableMode(tableId = '') {
 }
 
 function resolvePrivateMatchStatus(tableId = '', hostCode = '') {
-  const code = normalizeHostCode(hostCode) || extractHostCodeFromTableId(tableId);
+  const code =
+    normalizeHostCode(hostCode) || extractHostCodeFromTableId(tableId);
   return code
     ? `Private table ${code} ready. Waiting for your opponent…`
     : 'Private table ready. Waiting for your opponent…';
@@ -173,11 +192,13 @@ function buildChessGameParams({
 
 function resolveInitialOnlineQueue(searchParams) {
   const requestedTableId = (searchParams.get('tableId') || '').trim();
-  const requestedHostCode =
-    normalizeHostCode(searchParams.get('hostCode') || extractHostCodeFromTableId(requestedTableId));
-  const requestedMode = searchParams.get('queue') === 'private' || requestedHostCode
-    ? 'private'
-    : 'quick';
+  const requestedHostCode = normalizeHostCode(
+    searchParams.get('hostCode') || extractHostCodeFromTableId(requestedTableId)
+  );
+  const requestedMode =
+    searchParams.get('queue') === 'private' || requestedHostCode
+      ? 'private'
+      : 'quick';
   return { requestedTableId, requestedHostCode, requestedMode };
 }
 
@@ -195,7 +216,8 @@ export {
   resolveLobbyStatus,
   resolvePlayerName,
   resolveSeatAccountId,
-  resolveSeatErrorMessage
+  resolveSeatErrorMessage,
+  shouldKeepSearching
 };
 
 function resolveTpcAccountNumber(player) {
@@ -320,6 +342,7 @@ export default function ChessBattleRoyalLobby() {
   const matchmakingTimeoutRef = useRef(null);
   const matchmakingCountdownRef = useRef(null);
   const spinIntervalRef = useRef(null);
+  const matchmakingSessionRef = useRef(0);
 
   const selectedFlag =
     playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
@@ -492,6 +515,11 @@ export default function ChessBattleRoyalLobby() {
   };
 
   const cleanupLobby = ({ account, skipRefReset, skipLeave } = {}) => {
+    // Invalidate every in-flight connect/register/seat callback. Socket.IO
+    // acknowledgements can arrive after a player cancels or after React
+    // unmounts the lobby; without this guard a late retry can silently put the
+    // player back into matchmaking and then immediately tear the seat down.
+    matchmakingSessionRef.current += 1;
     if (matchmakingTimeoutRef.current) {
       clearTimeout(matchmakingTimeoutRef.current);
       matchmakingTimeoutRef.current = null;
@@ -591,7 +619,9 @@ export default function ChessBattleRoyalLobby() {
       try {
         window.localStorage?.setItem(
           CHESS_HOST_CODE_STORAGE_KEY,
-          normalizeHostCode(hostCodeInput || extractHostCodeFromTableId(hostedTableId))
+          normalizeHostCode(
+            hostCodeInput || extractHostCodeFromTableId(hostedTableId)
+          )
         );
       } catch {}
     }
@@ -599,6 +629,9 @@ export default function ChessBattleRoyalLobby() {
     setMatchError('');
     setMatching(true);
     setMatchStatus('Connecting to lobby…');
+    const matchmakingSession = ++matchmakingSessionRef.current;
+    const isCurrentSearch = () =>
+      matchmakingSessionRef.current === matchmakingSession;
 
     if (trackedAccountId) {
       refreshSocketAuthIdentity(
@@ -607,24 +640,39 @@ export default function ChessBattleRoyalLobby() {
       );
     }
 
-    const socketReady = await ensureSocketConnected();
-    if (!socketReady) {
-      setMatchError(
-        'Lobby connection failed. Check your network and try again.'
-      );
-      setMatching(false);
-      setMatchStatus('');
-      return;
-    }
-
     const seatAccountId = resolveSeatAccountId(trackedAccountId, accountId);
-    const socketRegistered = await ensureSocketRegistered(seatAccountId);
-    if (!socketRegistered) {
-      setMatchError('Unable to sync your online session. Please retry.');
-      setMatching(false);
-      setMatchStatus('');
-      return;
+    // Telegram WebViews frequently replace their network connection while the
+    // socket auth identity is being refreshed. A single failed connect or
+    // register acknowledgement must not end Quick Match. Keep the visible
+    // search alive and restore the authoritative TPG identity until the player
+    // explicitly cancels.
+    while (isCurrentSearch()) {
+      const socketReady = await ensureSocketConnected();
+      if (!isCurrentSearch()) return;
+      const socketRegistered =
+        socketReady && (await ensureSocketRegistered(seatAccountId));
+      if (!isCurrentSearch()) return;
+      if (socketReady && socketRegistered) break;
+      if (!shouldKeepSearching(onlineQueueMode)) {
+        cleanupLobby({ account: trackedAccountId });
+        setMatchError(
+          socketReady
+            ? 'Unable to sync your online session. Please retry.'
+            : 'Lobby connection failed. Check your network and try again.'
+        );
+        return;
+      }
+      setMatchError('');
+      setMatchStatus(
+        socketReady
+          ? 'Restoring your online session and continuing the search…'
+          : 'Matchmaker unavailable. Reconnecting and continuing the search…'
+      );
+      await new Promise((resolve) =>
+        setTimeout(resolve, SEAT_RETRY_BASE_DELAY_MS)
+      );
     }
+    if (!isCurrentSearch()) return;
 
     const handleLobbyUpdate = ({
       tableId: tid,
@@ -635,7 +683,9 @@ export default function ChessBattleRoyalLobby() {
       if (!tid || String(tid) !== String(pendingTableRef.current)) return;
       if (updatedTableNumber) setTableNumber(String(updatedTableNumber));
       const playersList = Array.isArray(list) ? list : [];
-      const readyIds = Array.isArray(ready) ? ready.map((id) => String(id)) : [];
+      const readyIds = Array.isArray(ready)
+        ? ready.map((id) => String(id))
+        : [];
       setMatchPlayers(playersList);
       setReadyList(readyIds);
       setMatchStatus(resolveLobbyStatus(playersList, readyIds, seatAccountId));
@@ -646,7 +696,8 @@ export default function ChessBattleRoyalLobby() {
       tableNumber: startedTableNumber,
       players = []
     } = {}) => {
-      if (!startedId || String(startedId) !== String(pendingTableRef.current)) return;
+      if (!startedId || String(startedId) !== String(pendingTableRef.current))
+        return;
       const mySide = resolveChessSide(players, seatAccountId);
       const opp = resolveChessOpponent(players, seatAccountId);
       cleanupLobby({ account: trackedAccountId, skipLeave: true });
@@ -676,12 +727,15 @@ export default function ChessBattleRoyalLobby() {
     // transport leaves the player looking for a match forever. Re-register the
     // canonical TPG account and restore the same seat after every reconnect.
     const handleReconnect = async () => {
+      if (!isCurrentSearch()) return;
       const interruptedTableId = pendingTableRef.current;
       if (!interruptedTableId) return;
       setMatchStatus('Restoring your lobby seat…');
       const registered = await ensureSocketRegistered(seatAccountId);
-      if (!registered || !pendingTableRef.current) {
-        setMatchError('Could not restore your TPG account session. Please retry.');
+      if (!isCurrentSearch() || !registered || !pendingTableRef.current) {
+        setMatchError(
+          'Could not restore your TPG account session. Please retry.'
+        );
         return;
       }
       seatPlayer(interruptedTableId, true);
@@ -718,15 +772,20 @@ export default function ChessBattleRoyalLobby() {
     let seatAttempts = 0;
     const maxSeatAttempts = 4;
     const armSearchRefresh = () => {
-      if (matchmakingTimeoutRef.current) clearTimeout(matchmakingTimeoutRef.current);
-      if (matchmakingCountdownRef.current) clearInterval(matchmakingCountdownRef.current);
+      if (!isCurrentSearch()) return;
+      if (matchmakingTimeoutRef.current)
+        clearTimeout(matchmakingTimeoutRef.current);
+      if (matchmakingCountdownRef.current)
+        clearInterval(matchmakingCountdownRef.current);
       const refreshAt = Date.now() + MATCHMAKING_REFRESH_MS;
       setSearchSecondsLeft(MATCHMAKING_REFRESH_MS / 1000);
       matchmakingCountdownRef.current = window.setInterval(() => {
-        setSearchSecondsLeft(Math.max(0, Math.ceil((refreshAt - Date.now()) / 1000)));
+        setSearchSecondsLeft(
+          Math.max(0, Math.ceil((refreshAt - Date.now()) / 1000))
+        );
       }, 250);
       matchmakingTimeoutRef.current = window.setTimeout(async () => {
-        if (!pendingTableRef.current) return;
+        if (!isCurrentSearch() || !pendingTableRef.current) return;
         if (onlineQueueMode === 'quick') {
           const previousTableId = pendingTableRef.current;
           socket.emit('leaveLobby', {
@@ -740,7 +799,9 @@ export default function ChessBattleRoyalLobby() {
           setMatchPlayers([]);
           setReadyList([]);
           setMatchError('');
-          setMatchStatus('Still searching the ordered queue for the next same-stake opponent…');
+          setMatchStatus(
+            'Still searching the ordered queue for the next same-stake opponent…'
+          );
           seatAttempts = 0;
           seatPlayer();
           return;
@@ -750,6 +811,7 @@ export default function ChessBattleRoyalLobby() {
       }, MATCHMAKING_REFRESH_MS);
     };
     const seatPlayer = (tableIdOverride = '', reconnecting = false) => {
+      if (!isCurrentSearch()) return;
       if (!reconnecting) seatAttempts += 1;
       socket.emit(
         'seatTable',
@@ -768,10 +830,13 @@ export default function ChessBattleRoyalLobby() {
           token: stake.token
         },
         async (res) => {
+          if (!isCurrentSearch()) return;
           if (!res?.success || !res.tableId) {
-            const shouldRetry = onlineQueueMode === 'quick' ||
-              (MATCHMAKING_RECOVERABLE_ERRORS.has(res?.error) &&
-                (reconnecting || seatAttempts < maxSeatAttempts));
+            const shouldRetry =
+              shouldKeepSearching(onlineQueueMode, res?.error) &&
+              (onlineQueueMode === 'quick' ||
+                reconnecting ||
+                seatAttempts < maxSeatAttempts);
             if (shouldRetry) {
               const retryDelay = Math.min(
                 SEAT_RETRY_BASE_DELAY_MS * 2 ** (seatAttempts - 1),
@@ -785,10 +850,14 @@ export default function ChessBattleRoyalLobby() {
                 );
               }
               setTimeout(async () => {
+                if (!isCurrentSearch()) return;
                 const restored = await ensureSocketConnected();
+                if (!isCurrentSearch()) return;
                 if (!restored) {
                   if (onlineQueueMode === 'quick') {
-                    setMatchStatus('Matchmaker unavailable. Reconnecting and searching again…');
+                    setMatchStatus(
+                      'Matchmaker unavailable. Reconnecting and searching again…'
+                    );
                     seatPlayer(tableIdOverride, reconnecting);
                     return;
                   }
@@ -1011,8 +1080,16 @@ export default function ChessBattleRoyalLobby() {
             <div className="mt-4 space-y-3 rounded-2xl border border-white/10 bg-black/20 p-3">
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { key: 'quick', label: 'Quick Match', desc: 'Any same-stake player' },
-                  { key: 'private', label: 'Private Code', desc: 'Share table code' }
+                  {
+                    key: 'quick',
+                    label: 'Quick Match',
+                    desc: 'Any same-stake player'
+                  },
+                  {
+                    key: 'private',
+                    label: 'Private Code',
+                    desc: 'Share table code'
+                  }
                 ].map((option) => {
                   const active = onlineQueueMode === option.key;
                   return (
@@ -1037,12 +1114,15 @@ export default function ChessBattleRoyalLobby() {
                   Private table code
                   <input
                     value={hostCodeInput}
-                    onChange={(event) => setHostCodeInput(normalizeHostCode(event.target.value))}
+                    onChange={(event) =>
+                      setHostCodeInput(normalizeHostCode(event.target.value))
+                    }
                     placeholder="FRIEND123"
                     className="mt-1 w-full rounded-xl border border-white/10 bg-[#050914] px-3 py-2 text-sm text-white outline-none focus:border-primary"
                   />
                   <span className="mt-1 block text-[11px] text-white/45">
-                    Both phones must use the same code and stake to enter the same chess table.
+                    Both phones must use the same code and stake to enter the
+                    same chess table.
                   </span>
                 </label>
               )}
