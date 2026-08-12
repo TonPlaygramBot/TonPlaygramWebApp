@@ -121,6 +121,20 @@ test(
       ]);
       assert.equal(gameStartA.tableId, firstSeat.tableId);
       assert.equal(gameStartB.tableNumber, firstSeat.tableNumber);
+
+      const resumedSeat = await seat(restoredSocket, {
+        accountId: 'chess-alias-b',
+        gameType: 'chess',
+        stake: 100,
+        maxPlayers: 2,
+        tableId: firstSeat.tableId
+      });
+      assert.equal(resumedSeat.started, true);
+      assert.equal(resumedSeat.gameStart.tableId, firstSeat.tableId);
+      assert.deepEqual(
+        resumedSeat.players.map((player) => player.tpcAccountNumber),
+        ['chess-alias-a', 'chess-alias-b']
+      );
     } finally {
       s1.disconnect();
       s2.disconnect();

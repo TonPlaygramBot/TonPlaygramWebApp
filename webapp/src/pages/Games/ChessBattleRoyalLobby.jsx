@@ -898,6 +898,14 @@ export default function ChessBattleRoyalLobby() {
             Array.isArray(res.ready) ? res.ready.map((id) => String(id)) : []
           );
           const playersList = Array.isArray(res.players) ? res.players : [];
+          // The server persists the start transition for reconnects and for
+          // the narrow race where Socket.IO delivers gameStart immediately
+          // before this seat acknowledgement. Consume that snapshot through
+          // the same idempotent handler so both phones always open the board.
+          if (res.started && res.gameStart) {
+            handleGameStart(res.gameStart);
+            return;
+          }
           const opp = resolveChessOpponent(playersList, seatAccountId);
           setMatchStatus(
             opp

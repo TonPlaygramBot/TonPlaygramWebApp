@@ -702,7 +702,9 @@ function createLobbyTable({
     currentTurn: null,
     ready: new Set(),
     meta,
-    matchTimeout: null
+    matchTimeout: null,
+    started: false,
+    gameStartPayload: null
   };
   if (gameType === 'domino-royal' && table.tableNumber) {
     dominoRoyalTableNumbers.add(table.tableNumber);
@@ -738,6 +740,7 @@ function getAvailableTable(
       const canJoinForced =
         existing.gameType === gameType &&
         Number(existing.stake || 0) === normalizedStake &&
+        (!existing.started || alreadySeated) &&
         (alreadySeated || existing.players.length < existing.maxPlayers) &&
         isMatchMetaCompatible(existing.meta, normalizedMeta, gameType);
       if (canJoinForced) return existing;
@@ -1300,8 +1303,19 @@ async function seatTableSocket(
     map = new Map();
     tableSeats.set(tableId, map);
   }
-  if (!map.has(String(accountId))) {
-    map.set(String(accountId), {
+  // Keep one authoritative roster entry per TPG account. Besides protecting
+  // new joins, this repairs a table created by an older process/client that
+  // managed to append the same account through two transports.
+  const normalizedAccountId = String(accountId);
+  table.players = table.players.filter((player, index, players) => {
+    const playerId = String(player?.tpcAccountNumber || player?.id || '');
+    return playerId !== normalizedAccountId ||
+      players.findIndex((candidate) =>
+        String(candidate?.tpcAccountNumber || candidate?.id || '') === normalizedAccountId
+      ) === index;
+  });
+  if (!map.has(normalizedAccountId)) {
+    map.set(normalizedAccountId, {
       id: accountId,
       tpcAccountNumber: String(accountId),
       name: playerName || String(accountId),
@@ -1329,7 +1343,7 @@ async function seatTableSocket(
     info.ts = Date.now();
     info.socketId = socket?.id;
     info.sidePreference = normalizeSidePreference(preferredSide || info.sidePreference);
-    const p = table.players.find((pl) => pl.id === accountId);
+    const p = table.players.find((pl) => String(pl.id) === normalizedAccountId);
     if (p) {
       p.socketId = socket?.id;
       p.avatar = playerAvatar || p.avatar;
@@ -1353,7 +1367,7 @@ async function seatTableSocket(
       }
     }, dominoRoyalMatchTimeoutMs);
   }
-  table.ready.delete(String(accountId));
+  if (!table.started) table.ready.delete(normalizedAccountId);
   if (!table.meta) {
     table.meta = normalizeMatchMeta(matchMeta);
   }
@@ -1558,6 +1572,7 @@ async function settleChessStakeContract(tableId, result = {}) {
 }
 
 function maybeStartGame(table) {
+  if (table.started) return;
   if (
     table.players.length === table.maxPlayers &&
     table.ready &&
@@ -1636,6 +1651,12 @@ function maybeStartGame(table) {
         meta: table.meta,
         matchId: table.matchId || null
       };
+      // Persist the authoritative transition before broadcasting it. A phone
+      // can reconnect or receive its seat acknowledgement just after the
+      // broadcast; returning this snapshot lets that client enter the exact
+      // same match instead of remaining forever on the lobby screen.
+      table.started = true;
+      table.gameStartPayload = gameStartPayload;
       // Older game clients subscribe to `gameStarted`, while current lobbies
       // subscribe to both names. Broadcasting the compatibility event as part
       // of the same authoritative transition prevents one phone remaining on
@@ -2471,9 +2492,10 @@ io.on('connection', (socket) => {
         // server-authoritative also lets older/mobile clients match when
         // confirmReady is delayed or lost while Telegram's WebView reconnects.
         const shouldReadySeat =
-          validation.normalizedGameType === 'chess' ||
-          validation.normalizedGameType === 'poolroyale' ||
-          readyOnJoin;
+          !table.started &&
+          (validation.normalizedGameType === 'chess' ||
+            validation.normalizedGameType === 'poolroyale' ||
+            readyOnJoin);
         if (shouldReadySeat) {
           table.ready.add(String(resolvedAccountId));
           io.to(table.id).emit('lobbyUpdate', {
@@ -2492,7 +2514,9 @@ io.on('connection', (socket) => {
           players: table.players,
           currentTurn: table.currentTurn,
           ready: Array.from(table.ready),
-          meta: table.meta
+          meta: table.meta,
+          started: Boolean(table.started),
+          gameStart: table.gameStartPayload
         });
         if (shouldReadySeat) maybeStartGame(table);
       } else if (cb) {
