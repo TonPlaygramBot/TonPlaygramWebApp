@@ -24,7 +24,7 @@ export default function registerTasks(bot) {
       );
       user.minedTPC += config.reward;
       await user.save();
-      return ctx.reply(`Task completed! You earned ${config.reward} TPC.`);
+      return ctx.reply(`Task completed! You earned ${config.reward} TPG.`);
     }
 
     const tasks = await Promise.all(TASKS.map(async t => {

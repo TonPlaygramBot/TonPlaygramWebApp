@@ -54,7 +54,7 @@ export default function LudoBattleRoyalLobby() {
   useTelegramBackButton();
   const navigate = useNavigate();
 
-  const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
+  const [stake, setStake] = useState({ token: 'TPG', amount: 100 });
   const [table, setTable] = useState(TABLES[0]);
   const [mode, setMode] = useState('local');
   const [avatar, setAvatar] = useState('');
@@ -346,10 +346,10 @@ export default function LudoBattleRoyalLobby() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold text-white">Select Stake</h3>
-              <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">TPC</span>
+              <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">TPG</span>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow">
-              <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
+              <RoomSelector selected={stake} onSelect={setStake} tokens={['TPG']} />
               <p className="text-center text-white/60 text-xs mt-3">
                 Staking is handled via the on-chain contract.
               </p>

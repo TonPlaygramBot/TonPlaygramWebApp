@@ -71,7 +71,7 @@ test('chess lobby status and side helpers match paired players', () => {
 test('chess lobby builds online game params and seat account fallback', () => {
   const params = sandbox.buildChessGameParams({
     mode: 'online',
-    stake: { token: 'TPC', amount: 100 },
+    stake: { token: 'TPG', amount: 100 },
     avatar: 'avatar.png',
     tgId: 'tg-1',
     trackedAccountId: 'tracked-1',

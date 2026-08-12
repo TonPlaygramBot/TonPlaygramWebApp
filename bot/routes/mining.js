@@ -137,7 +137,7 @@ router.get('/transactions', async (req, res) => {
         amount: '$transactions.amount',
         type: '$transactions.type',
         date: '$transactions.date',
-        token: { $ifNull: ['$transactions.token', 'TPC'] },
+        token: { $ifNull: ['$transactions.token', 'TPG'] },
         fromAccount: '$accountId',
         fromName: { $ifNull: ['$nickname', '$firstName'] },
         fromPhoto: '$photo'

@@ -148,7 +148,7 @@ export default function PlayerInvitePopup({
                 <span className="text-white-shadow">Balance:</span>
                 <img
                   src="/assets/icons/ezgif-54c96d8a9b9236.webp"
-                  alt="TPC"
+                  alt="TPG"
                   className="inline w-4 h-4"
                 />
                 <span className="text-yellow-400 text-outline-black">
@@ -227,7 +227,7 @@ export default function PlayerInvitePopup({
           {!profileOnly && <RoomSelector
             selected={stake}
             onSelect={onStakeChange}
-            tokens={['TPC']}
+            tokens={['TPG']}
           />}
           <div className="flex justify-center gap-2">
             {friendship === 'friend' ? <>

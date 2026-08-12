@@ -117,7 +117,7 @@ function CoinBurst({ token }) {
         <img
           key={i}
           src={
-            token.toUpperCase() === 'TPC'
+            token.toUpperCase() === 'TPG'
               ? '/assets/icons/ezgif-54c96d8a9b9236.webp'
               : `/icons/${token.toLowerCase()}.svg`
           }

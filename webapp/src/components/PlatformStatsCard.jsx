@@ -181,17 +181,17 @@ export default function PlatformStatsCard() {
       iconClass: 'text-sky-300'
     },
     {
-      label: 'TPC in circulation',
+      label: 'TPG in circulation',
       value: formatStat(normalizedStats.tpcCirculating),
       helper:
         normalizedStats.tpcCirculating === null
           ? 'Pulled from /api/stats appClaimed'
-          : `~${formatCompact(normalizedStats.tpcCirculating)} TPC live`,
+          : `~${formatCompact(normalizedStats.tpcCirculating)} TPG live`,
       icon: GiToken,
       iconClass: 'text-yellow-300'
     },
     {
-      label: 'TPC minted',
+      label: 'TPG minted',
       value: formatStat(normalizedStats.mintedSupply),
       helper: 'Lifetime mined + distributed supply',
       icon: FaCoins,

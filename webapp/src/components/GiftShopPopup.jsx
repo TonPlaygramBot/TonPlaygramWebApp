@@ -49,7 +49,7 @@ export default function GiftShopPopup({ open, onClose, accountId }) {
                 </span>
                 <span className="flex items-center space-x-0.5">
                   <span>{g.price}</span>
-                  <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="w-3 h-3" />
+                  <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPG" className="w-3 h-3" />
                 </span>
               </button>
             ))}
@@ -71,7 +71,7 @@ export default function GiftShopPopup({ open, onClose, accountId }) {
       </div>
       <ConfirmPopup
         open={confirm}
-        message={`Spend ${selected.price} TPC to ${receiver && receiver !== accountId ? 'send' : 'buy'} ${selected.name}?`}
+        message={`Spend ${selected.price} TPG to ${receiver && receiver !== accountId ? 'send' : 'buy'} ${selected.name}?`}
         onConfirm={handleSend}
         onCancel={() => setConfirm(false)}
       />

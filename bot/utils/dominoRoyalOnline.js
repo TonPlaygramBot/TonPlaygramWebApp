@@ -27,7 +27,7 @@ export function hasConflictingPrimaryTpcIdentities (payload = {}) {
     .filter(Boolean)
   if (new Set(primaryIds).size > 1) return true
 
-  // Once a TPC account number is present, it is authoritative for matchmaking.
+  // Once a TPG account number is present, it is authoritative for matchmaking.
   // Legacy accountId/playerId fields can lag behind during mobile migrations,
   // so they must not block seating into the lobby.
   if (primaryIds.length > 0) return false

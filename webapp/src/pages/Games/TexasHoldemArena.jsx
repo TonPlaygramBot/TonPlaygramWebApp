@@ -980,7 +980,7 @@ function parseSearch(search) {
   const username = params.get('username') || 'You';
   const avatar = params.get('avatar') || '';
   const amount = Number.parseInt(params.get('amount') || '1000', 10);
-  const token = params.get('token') || 'TPC';
+  const token = params.get('token') || 'TPG';
   const stake = Number.isFinite(amount) && amount > 0 ? amount : 1000;
   const rawPlayers = Number.parseInt(params.get('players') || params.get('playerCount') || '', 10);
   const playerCount = clampPlayerCount(rawPlayers);
@@ -2948,9 +2948,9 @@ function makeNameplate(name, chips, renderer, avatar) {
       ctx.shadowBlur = 10;
       ctx.drawImage(tpcIcon, textX, balanceY + 6, iconSize, iconSize);
       ctx.restore();
-      ctx.fillText(`${stack} TPC`, textX + iconSize + 16, balanceY);
+      ctx.fillText(`${stack} TPG`, textX + iconSize + 16, balanceY);
     } else {
-      ctx.fillText(`${stack} TPC`, textX, balanceY);
+      ctx.fillText(`${stack} TPG`, textX, balanceY);
     }
 
     if (status) {
@@ -3076,13 +3076,13 @@ function createRailTextSprite(initialLines = [], options = {}) {
     if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
       return {
         amount: Math.max(0, Math.round(Number(payload.amount) || 0)),
-        token: String(payload.token || 'TPC').toUpperCase()
+        token: String(payload.token || 'TPG').toUpperCase()
       };
     }
     const content = Array.isArray(payload) ? payload : [String(payload ?? '')];
     const tail = String(content[content.length - 1] ?? '0');
     const parsedAmount = Number.parseInt(tail.replace(/[^\d-]/g, ''), 10);
-    const parsedToken = (tail.match(/[A-Za-z]+$/)?.[0] || 'TPC').toUpperCase();
+    const parsedToken = (tail.match(/[A-Za-z]+$/)?.[0] || 'TPG').toUpperCase();
     return {
       amount: Number.isFinite(parsedAmount) ? Math.max(0, parsedAmount) : 0,
       token: parsedToken
@@ -5737,7 +5737,7 @@ function TexasHoldemArena({ search }) {
         .addScaledVector(potForward, FOLD_PILE_FORWARD_OFFSET)
         .addScaledVector(potRight, FOLD_PILE_RIGHT_OFFSET)
         .setY((tableInfo?.surfaceY ?? TABLE_HEIGHT) + CARD_SURFACE_OFFSET * 0.2);
-        const potLabel = createRailTextSprite({ amount: 0, token: 'TPC' }, {
+        const potLabel = createRailTextSprite({ amount: 0, token: 'TPG' }, {
           width: (3.4 * MODEL_SCALE) / 3,
           height: (1.3 * MODEL_SCALE) / 3
         });

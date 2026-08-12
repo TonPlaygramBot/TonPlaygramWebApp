@@ -92,7 +92,7 @@ router.post('/grant', adminOnly, async (req, res) => {
       await sendTPCNotification(
         bot,
         telegramId,
-        `\u{1FA99} You received an airdrop of ${amount} TPC`
+        `\u{1FA99} You received an airdrop of ${amount} TPG`
       );
     } catch (err) {
       console.error('Failed to send Telegram notification:', err.message);
@@ -138,7 +138,7 @@ router.post('/grant-all', adminOnly, async (req, res) => {
           await sendTPCNotification(
             bot,
             user.telegramId,
-            `\u{1FA99} You received an airdrop of ${amount} TPC`
+            `\u{1FA99} You received an airdrop of ${amount} TPG`
           );
         } catch (err) {
           console.error('Failed to send Telegram notification:', err.message);

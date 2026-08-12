@@ -66,7 +66,7 @@ export default function PoolRoyaleLobby() {
   const autoStartRequested = searchParams.get('autostart') === '1';
   const requestedOnlineTableId = (searchParams.get('tableId') || '').trim();
 
-  const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
+  const [stake, setStake] = useState({ token: 'TPG', amount: 100 });
   const [mode, setMode] = useState(initialMode);
   const [avatar, setAvatar] = useState('');
   const [showFlagPicker, setShowFlagPicker] = useState(false);
@@ -223,14 +223,14 @@ export default function PoolRoyaleLobby() {
       selfEntry?.name ||
       getTelegramFirstName() ||
       getTelegramId() ||
-      (selfId ? `TPC ${selfId}` : 'Player');
+      (selfId ? `TPG ${selfId}` : 'Player');
     const friendlyAvatar = selfEntry?.avatar || avatar;
     const opponentName =
       opponentEntry?.name ||
       opponentEntry?.username ||
       opponentEntry?.telegramName ||
       (resolveTpcAccountNumber(opponentEntry)
-        ? `TPC ${resolveTpcAccountNumber(opponentEntry)}`
+        ? `TPG ${resolveTpcAccountNumber(opponentEntry)}`
         : '');
     const opponentAvatar = opponentEntry?.avatar || '';
     cleanupRef.current?.({ account: accountId, skipRefReset: true });
@@ -341,7 +341,7 @@ export default function PoolRoyaleLobby() {
       tgId = getTelegramId();
       accountId = await ensureAccountId();
     } catch (error) {
-      const message = 'Unable to verify your TPC account. Please retry.';
+      const message = 'Unable to verify your TPG account. Please retry.';
       setMatchingError(message);
       try {
         window?.Telegram?.WebApp?.showAlert?.(message);
@@ -970,13 +970,13 @@ export default function PoolRoyaleLobby() {
                   <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200/40 bg-emerald-300/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-100">
                     <img
                       src="/assets/icons/ezgif-54c96d8a9b9236.webp"
-                      alt="TPC"
+                      alt="TPG"
                       className="h-3.5 w-3.5"
                     />
                     {Number(nextCareerTask.rewardTpc || 0).toLocaleString(
                       'en-US'
                     )}{' '}
-                    TPC
+                    TPG
                   </span>
                   {nextCareerTask.hasGift ? (
                     <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/50 bg-amber-300/12 px-2 py-0.5 text-[10px] font-semibold text-amber-100">
@@ -1070,13 +1070,13 @@ export default function PoolRoyaleLobby() {
                           <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200/40 bg-emerald-300/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-100">
                             <img
                               src="/assets/icons/ezgif-54c96d8a9b9236.webp"
-                              alt="TPC"
+                              alt="TPG"
                               className="h-3.5 w-3.5"
                             />
                             {Number(stage.rewardTpc || 0).toLocaleString(
                               'en-US'
                             )}{' '}
-                            TPC
+                            TPG
                           </span>
                           {stage.hasGift ? (
                             <span className="inline-flex items-center gap-1 rounded-full border border-amber-200/50 bg-amber-300/12 px-2 py-0.5 text-[10px] font-semibold text-amber-100">
@@ -1184,16 +1184,16 @@ export default function PoolRoyaleLobby() {
             <div className="flex items-center justify-between">
               <h3 className="font-semibold text-white">Stake</h3>
               <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
-                TPC
+                TPG
               </span>
             </div>
             <RoomSelector
               selected={stake}
               onSelect={setStake}
-              tokens={['TPC']}
+              tokens={['TPG']}
             />
             <p className="text-center text-xs text-white/50">
-              Online games use your TPC stake as escrow, while AI matches stay
+              Online games use your TPG stake as escrow, while AI matches stay
               free.
             </p>
           </div>
@@ -1205,7 +1205,7 @@ export default function PoolRoyaleLobby() {
               <div>
                 <h3 className="font-semibold text-white">Online Arena</h3>
                 <p className="text-sm text-white/60">
-                  We match players by TPC account number, stake ({stake.amount}{' '}
+                  We match players by TPG account number, stake ({stake.amount}{' '}
                   {stake.token}), and Pool Royale game type.
                 </p>
               </div>
@@ -1243,7 +1243,7 @@ export default function PoolRoyaleLobby() {
                     >
                       <div>
                         <p className="text-sm font-semibold">
-                          {p.name || `TPC ${p.id}`}
+                          {p.name || `TPG ${p.id}`}
                         </p>
                         <p className="text-xs text-white/50">Account #{p.id}</p>
                       </div>

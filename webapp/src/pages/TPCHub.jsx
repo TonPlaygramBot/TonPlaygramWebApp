@@ -46,7 +46,7 @@ export default function TPCHub() {
       try {
         const account = await createAccount(telegramId, googleProfile, undefined, tonAddress || undefined);
         if (account?.error || !account?.accountId) {
-          throw new Error(account?.error || 'Unable to load TPC account hub');
+          throw new Error(account?.error || 'Unable to load TPG account hub');
         }
         if (cancelled) return;
         setAccountId(account.accountId);
@@ -56,7 +56,7 @@ export default function TPCHub() {
           setTransactions(Array.isArray(tx) ? tx : tx?.transactions || []);
         }
       } catch (err) {
-        if (!cancelled) setError(err.message || 'Failed to load TPC hub');
+        if (!cancelled) setError(err.message || 'Failed to load TPG hub');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -70,7 +70,7 @@ export default function TPCHub() {
   return (
     <div className="space-y-4 pb-24">
       <section className="rounded-xl border border-border bg-surface p-4">
-        <h1 className="text-xl font-semibold text-white">TPC Account Hub</h1>
+        <h1 className="text-xl font-semibold text-white">TPG Account Hub</h1>
         <p className="text-xs text-subtext mt-1">Unified account center for identity, wallets, exchange access, and statements.</p>
         <p className="text-[11px] text-green-300 mt-2">Account ID: {accountId || 'initializing...'}</p>
       </section>
@@ -115,7 +115,7 @@ export default function TPCHub() {
             <div key={`${tx.txHash || tx.date || idx}-${idx}`} className="rounded-lg border border-border bg-background/60 px-3 py-2 text-xs">
               <div className="flex items-center justify-between">
                 <span className="text-white font-semibold">{tx.type || tx.category || 'Transaction'}</span>
-                <span>{formatAmount(tx.amount)} {tx.token || 'TPC'}</span>
+                <span>{formatAmount(tx.amount)} {tx.token || 'TPG'}</span>
               </div>
               <div className="text-subtext mt-1">{tx.detail || tx.game || 'No details'}</div>
               <div className="text-[10px] text-subtext mt-1">{tx.date ? new Date(tx.date).toLocaleString() : '—'}</div>

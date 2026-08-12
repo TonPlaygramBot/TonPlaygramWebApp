@@ -126,7 +126,7 @@ export default function Wallet({ hideClaim = false, accountIdOverride = '' }) {
       localStorage.setItem('accountId', normalizedOverride);
       const bal = await getAccountBalance(normalizedOverride);
       if (bal?.error || typeof bal.balance !== 'number') {
-        console.error('Failed to load TPC balance:', bal?.error);
+        console.error('Failed to load TPG balance:', bal?.error);
         setTpcBalance(0);
       } else {
         setTpcBalance(bal.balance);
@@ -156,7 +156,7 @@ export default function Wallet({ hideClaim = false, accountIdOverride = '' }) {
 
     const bal = await getAccountBalance(acc.accountId || id);
     if (bal?.error || typeof bal.balance !== 'number') {
-      console.error('Failed to load TPC balance:', bal?.error);
+      console.error('Failed to load TPG balance:', bal?.error);
       setTpcBalance(0);
     } else {
       setTpcBalance(bal.balance);
@@ -239,7 +239,7 @@ export default function Wallet({ hideClaim = false, accountIdOverride = '' }) {
       }
     } catch (err) {
       console.error('Send failed', err);
-      setErrorMsg('Failed to send TPC');
+      setErrorMsg('Failed to send TPG');
     } finally {
       setSending(false);
     }
@@ -306,7 +306,7 @@ export default function Wallet({ hideClaim = false, accountIdOverride = '' }) {
 
   return (
     <div className="relative p-4 space-y-4 text-text wide-card">
-      <h2 className="text-xl font-bold text-center">TPC Account Wallet</h2>
+      <h2 className="text-xl font-bold text-center">TPG Account Wallet</h2>
       <div className="bg-surface border border-border rounded-xl p-4 space-y-3 wide-card mx-auto">
         <h3 className="text-base font-semibold text-white">Identity & Wallet Connections</h3>
         <div className="grid grid-cols-1 gap-2">
@@ -342,9 +342,9 @@ export default function Wallet({ hideClaim = false, accountIdOverride = '' }) {
           </span>
         </p>
         <div className="flex items-center space-x-1">
-          <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC" className="w-16 h-16" />
+          <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPG" className="w-16 h-16" />
           <span className="text-lg font-medium text-white text-outline-black">
-            TPC Balance
+            TPG Balance
           </span>
         </div>
         <p className="text-xl font-medium text-yellow-400 text-outline-black">
@@ -361,11 +361,11 @@ export default function Wallet({ hideClaim = false, accountIdOverride = '' }) {
         )}
       </div>
 
-      {/* TPC account section */}
+      {/* TPG account section */}
       <div className="space-y-4">
         <div className="prism-box p-6 space-y-3 text-center flex flex-col items-center min-h-40 wide-card mx-auto">
           <label className="block font-semibold text-white text-outline-black">
-            Send TPC
+            Send TPG
           </label>
           <input
             type="text"
@@ -396,7 +396,7 @@ export default function Wallet({ hideClaim = false, accountIdOverride = '' }) {
             Send
           </button>
           <p className="text-xs text-subtext mt-1">
-            Sending TPC 2% charge will be applied.
+            Sending TPG 2% charge will be applied.
           </p>
           {sending && (
             <div className="mt-1">
@@ -411,7 +411,7 @@ export default function Wallet({ hideClaim = false, accountIdOverride = '' }) {
 
       <div className="prism-box p-6 space-y-3 text-center mt-4 flex flex-col items-center wide-card mx-auto">
         <label className="block font-semibold text-white text-outline-black">
-          Receive TPC
+          Receive TPG
         </label>
           <button
             onClick={() => navigator.clipboard.writeText(String(accountId))}
@@ -419,7 +419,7 @@ export default function Wallet({ hideClaim = false, accountIdOverride = '' }) {
           >
             Copy Account Number
           </button>
-          <p className="text-xs text-subtext mt-1">Receive TPC 1% charge will be applied.</p>
+          <p className="text-xs text-subtext mt-1">Receive TPG 1% charge will be applied.</p>
         {accountId && (
           <div className="mt-4 flex justify-center">
             <QRCode value={String(accountId)} size={100} />
@@ -433,7 +433,7 @@ export default function Wallet({ hideClaim = false, accountIdOverride = '' }) {
 
 
     <div className="bg-surface border border-border rounded-xl p-4 space-y-2 text-center mt-4 wide-card">
-        <h3 className="font-semibold text-center">TPC Statements</h3>
+        <h3 className="font-semibold text-center">TPG Statements</h3>
         <div className="flex items-center justify-center">
           <div className="flex items-center space-x-1 flex-wrap justify-center">
             <input
@@ -508,7 +508,7 @@ export default function Wallet({ hideClaim = false, accountIdOverride = '' }) {
                 </span>
                 <span className={tx.amount > 0 ? 'text-green-500' : 'text-red-500'}>
                   {sign}
-                  {amt} {(tx.token || 'TPC').toUpperCase()}
+                  {amt} {(tx.token || 'TPG').toUpperCase()}
                 </span>
                 <span className="text-xs">
                   {new Date(tx.date).toLocaleString(undefined, { hour12: false })}
@@ -523,7 +523,7 @@ export default function Wallet({ hideClaim = false, accountIdOverride = '' }) {
 
       <ConfirmPopup
         open={confirmOpen}
-        message={`Send ${Number(amount)} TPC to ${receiver.trim()}?`}
+        message={`Send ${Number(amount)} TPG to ${receiver.trim()}?`}
         onConfirm={handleSend}
         onCancel={() => setConfirmOpen(false)}
       />

@@ -38,16 +38,16 @@ test('Domino lobby waits for registration before seating with matching criteria'
     gameType: 'domino-royal',
     maxPlayers: 4,
     stake: 100,
-    matchMeta: { variant: 'points', targetPoints: '101', token: 'TPC' }
+    matchMeta: { variant: 'points', targetPoints: '101', token: 'TPG' }
   };
 
-  const result = await joinDominoRoyalLobby({ socket, accountId: 'TPC-100', criteria });
+  const result = await joinDominoRoyalLobby({ socket, accountId: 'TPG-100', criteria });
 
   assert.equal(result.success, true);
   assert.deepEqual(socket.events.map(({ event }) => event), ['register', 'seatTable']);
   assert.deepEqual(socket.events[1].payload, {
     ...criteria,
-    tpcAccountNumber: 'TPC-100',
+    tpcAccountNumber: 'TPG-100',
     accountId: undefined,
     ready: true
   });
@@ -60,7 +60,7 @@ test('Domino lobby never requests a seat when registration fails', async () => {
 
   const result = await joinDominoRoyalLobby({
     socket,
-    accountId: 'TPC-200',
+    accountId: 'TPG-200',
     criteria: { gameType: 'domino-royal', maxPlayers: 2, stake: 0 }
   });
 

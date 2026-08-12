@@ -284,7 +284,7 @@ export default function ChessBattleRoyalLobby() {
   const { requestedTableId, requestedHostCode, requestedMode } =
     resolveInitialOnlineQueue(searchParams);
 
-  const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
+  const [stake, setStake] = useState({ token: 'TPG', amount: 100 });
   const [avatar, setAvatar] = useState('');
   const [mode, setMode] = useState(requestedTableId ? 'online' : 'ai');
   const [onlineQueueMode, setOnlineQueueMode] = useState(requestedMode);
@@ -674,14 +674,14 @@ export default function ChessBattleRoyalLobby() {
     // A Socket.IO reconnect creates a new server-side socket. The server removes
     // lobby seats owned by the disconnected socket, so merely reconnecting the
     // transport leaves the player looking for a match forever. Re-register the
-    // canonical TPC account and restore the same seat after every reconnect.
+    // canonical TPG account and restore the same seat after every reconnect.
     const handleReconnect = async () => {
       const interruptedTableId = pendingTableRef.current;
       if (!interruptedTableId) return;
       setMatchStatus('Restoring your lobby seat…');
       const registered = await ensureSocketRegistered(seatAccountId);
       if (!registered || !pendingTableRef.current) {
-        setMatchError('Could not restore your TPC account session. Please retry.');
+        setMatchError('Could not restore your TPG account session. Please retry.');
         return;
       }
       seatPlayer(interruptedTableId, true);
@@ -981,7 +981,7 @@ export default function ChessBattleRoyalLobby() {
             })}
           </div>
           <p className="text-xs text-white/60 text-center">
-            AI matches stay offline. Online mode uses your TPC stake and pairs
+            AI matches stay offline. Online mode uses your TPG stake and pairs
             you with another player.
           </p>
         </div>
@@ -997,7 +997,7 @@ export default function ChessBattleRoyalLobby() {
               <div>
                 <h3 className="font-semibold text-white">Select Stake</h3>
                 <p className="text-xs text-white/60">
-                  Stake your TPC to lock a table.
+                  Stake your TPG to lock a table.
                 </p>
               </div>
             </div>
@@ -1005,7 +1005,7 @@ export default function ChessBattleRoyalLobby() {
               <RoomSelector
                 selected={stake}
                 onSelect={setStake}
-                tokens={['TPC']}
+                tokens={['TPG']}
               />
             </div>
             <div className="mt-4 space-y-3 rounded-2xl border border-white/10 bg-black/20 p-3">
@@ -1048,7 +1048,7 @@ export default function ChessBattleRoyalLobby() {
               )}
             </div>
             <p className="text-center text-white/60 text-xs">
-              Staking uses your TPC account{accountId ? ` #${accountId}` : ''}{' '}
+              Staking uses your TPG account{accountId ? ` #${accountId}` : ''}{' '}
               as escrow for every online round.
             </p>
           </div>
@@ -1090,7 +1090,7 @@ export default function ChessBattleRoyalLobby() {
                     >
                       <div>
                         <p className="text-sm font-semibold">
-                          {player?.name || `TPC ${playerId}`}
+                          {player?.name || `TPG ${playerId}`}
                         </p>
                         <p className="text-xs text-white/50">
                           Account #{playerId}

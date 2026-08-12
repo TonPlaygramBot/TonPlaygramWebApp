@@ -11,7 +11,7 @@ export default function registerWallet(bot) {
       case 'balance': {
         const user = await User.findOne({ telegramId });
         const balance = user ? user.balance : 0;
-        ctx.reply(`Your balance is ${balance} TPC.`);
+        ctx.reply(`Your balance is ${balance} TPG.`);
         break;
       }
       case 'send': {
@@ -56,18 +56,18 @@ export default function registerWallet(bot) {
         await sender.save();
         await receiver.save();
         try {
-          await ctx.telegram.sendMessage(String(toId), `You received ${amount} TPC from ${telegramId}`);
+          await ctx.telegram.sendMessage(String(toId), `You received ${amount} TPG from ${telegramId}`);
         } catch (err) {
           console.error('Failed to send Telegram notification:', err.message);
         }
-        ctx.reply(`Sent ${amount} TPC to ${toId}. Balance: ${sender.balance}`);
+        ctx.reply(`Sent ${amount} TPG to ${toId}. Balance: ${sender.balance}`);
         break;
       }
       default:
         ctx.reply(
           'Wallet commands:\n' +
-            '/wallet balance - show your TPC balance\n' +
-            '/wallet send <telegramId> <amount> - send TPC to another user'
+            '/wallet balance - show your TPG balance\n' +
+            '/wallet send <telegramId> <amount> - send TPG to another user'
         );
     }
   });

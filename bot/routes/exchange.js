@@ -91,7 +91,7 @@ router.get('/convert', async (req, res) => {
       return res.status(400).json({ ok: false, error: 'amount must be > 0' });
     }
     if (!tpcPriceUsd || tpcPriceUsd <= 0) {
-      return res.status(500).json({ ok: false, error: 'TPC reference price is invalid' });
+      return res.status(500).json({ ok: false, error: 'TPG reference price is invalid' });
     }
 
     const markets = await fetchTopMarkets();

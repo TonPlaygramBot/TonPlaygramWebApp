@@ -122,7 +122,7 @@ const buildReward = (level, type) => {
     giftThumbnail: hasGift
       ? GIFT_THUMBNAILS[(Math.floor(level / 5) - 1) % GIFT_THUMBNAILS.length]
       : null,
-    label: `${tpc.toLocaleString('en-US')} TPC${hasGift ? ' + 🎁 Bonus Crate' : ''}`
+    label: `${tpc.toLocaleString('en-US')} TPG${hasGift ? ' + 🎁 Bonus Crate' : ''}`
   }
 }
 

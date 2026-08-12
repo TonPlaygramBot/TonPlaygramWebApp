@@ -5,10 +5,10 @@ export default function registerWatch(bot) {
     bot.command('watch', async (ctx) => {
         const telegramId = ctx.from.id;
         const records = await WatchRecord.find({ telegramId });
-        let msg = 'Watch videos to earn TPC:\n';
+        let msg = 'Watch videos to earn TPG:\n';
         for (const v of VIDEOS) {
             const done = records.some(r => r.videoId === v.id);
-            msg += `- ${v.title} (${v.reward} TPC) - `;
+            msg += `- ${v.title} (${v.reward} TPG) - `;
             msg += done ? '✅' : `[Watch](${v.url})`;
             msg += '\n';
         }

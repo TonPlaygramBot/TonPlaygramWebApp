@@ -6,7 +6,7 @@ const transactionSchema = new mongoose.Schema(
     transactionId: { type: String },
     amount: Number,
     type: { type: String },
-    token: { type: String, default: 'TPC' },
+    token: { type: String, default: 'TPG' },
     status: { type: String, default: 'delivered' },
     date: { type: Date, default: Date.now },
     fromAccount: String,

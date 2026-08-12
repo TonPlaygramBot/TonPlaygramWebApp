@@ -40,7 +40,7 @@ export default function useTokenBalances() {
         if (bal?.error) throw new Error(bal.error);
         setTpcBalance(bal.balance ?? 0);
       } catch (err) {
-        console.error('Failed to load TPC balance:', err);
+        console.error('Failed to load TPG balance:', err);
         setTpcBalance(0);
       }
     }
@@ -115,7 +115,7 @@ export default function useTokenBalances() {
         const decimals = Number(data.jetton?.decimals) || 0;
         setTpcWalletBalance(Number(data.balance) / 10 ** decimals);
       } catch (err) {
-        console.error('Failed to load TPC balance:', err);
+        console.error('Failed to load TPG balance:', err);
         setTpcWalletBalance(0);
       }
     }

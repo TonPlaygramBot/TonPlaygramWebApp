@@ -43,10 +43,10 @@ export default function ProjectAchievementsCard() {
         'Completed: a full wallet ledger with timestamped deposits, withdrawals, rewards, and gameplay transfers. Each entry shows transaction type, source, and balance delta so audits are straightforward. Next: exportable statements (CSV/PDF), searchable transaction IDs, and advanced filters (date range, amount, source) with quick presets.',
     },
     {
-      label: '💬 In-chat TPC transfers enabled',
+      label: '💬 In-chat TPG transfers enabled',
       progress: 100,
       info:
-        'Completed: peer-to-peer TPC transfers directly in chat with confirmations, balance updates, and receipts for each send. Status updates are embedded in the conversation for traceability. Next: optional transfer limits, scheduled sends, and scam-prevention alerts with receiver verification and risk checks.',
+        'Completed: peer-to-peer TPG transfers directly in chat with confirmations, balance updates, and receipts for each send. Status updates are embedded in the conversation for traceability. Next: optional transfer limits, scheduled sends, and scam-prevention alerts with receiver verification and risk checks.',
     },
     {
       label: '🧑‍🤝‍🤝 Friends and inbox chat',
@@ -128,7 +128,7 @@ export default function ProjectAchievementsCard() {
         'Completed: NFT gift distribution for campaigns, rewards, and partner drops with claim tracking. Users can see claim status, ownership, and drop source. Next: gift previews, rarity labels, and transfer history.',
     },
     {
-      label: '🚀 Referral boost: invite more friends to earn more TPC',
+      label: '🚀 Referral boost: invite more friends to earn more TPG',
       progress: 100,
       info:
         'Completed: referral boosts tied to invited friends, conversion tracking, and bonus payouts. Each referral shows status and reward value. Next: referral tiers, invite analytics, and anti-fraud checks with flagged patterns.',
@@ -224,9 +224,9 @@ export default function ProjectAchievementsCard() {
       ],
     },
     {
-      title: 'TPC Tokenization',
+      title: 'TPG Tokenization',
       description:
-        'Mint the official TPC token and finalize token utility across the ecosystem.',
+        'Mint the official TPG token and finalize token utility across the ecosystem.',
       info:
         'Done: token utility requirements drafted and reward flows scoped. Utility includes rewards, purchases, and marketplace use cases with compliance checks. Next: finalize token economics, minting plan, and in-app utility rollout timeline.',
       nextActions: [

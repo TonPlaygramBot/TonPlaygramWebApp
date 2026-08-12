@@ -50,7 +50,7 @@ export default function LeaderboardCard() {
     loadAvatar() || getTelegramPhotoUrl()
   );
   const [inviteTarget, setInviteTarget] = useState(null);
-  const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
+  const [stake, setStake] = useState({ token: 'TPG', amount: 100 });
   const [myName, setMyName] = useState('');
   const [status, setStatus] = useState(
     localStorage.getItem('onlineStatus') || 'online'
@@ -291,7 +291,7 @@ export default function LeaderboardCard() {
                   className="p-2 text-right text-white"
                   style={{ WebkitTextStroke: '1px black' }}
                 >
-                  TPC
+                  TPG
                 </th>
               </tr>
             </thead>

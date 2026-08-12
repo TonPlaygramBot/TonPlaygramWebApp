@@ -319,9 +319,9 @@ export default function RouletteMini() {
           })}
         </div>
         <div className="absolute inset-[28%] rounded-full bg-surface/85 border border-yellow-400/80 flex flex-col items-center justify-center text-xs text-subtext space-y-1 pointer-events-none">
-          <span className="uppercase tracking-wide">TPC Rewards</span>
+          <span className="uppercase tracking-wide">TPG Rewards</span>
           <span className="text-sm font-semibold text-white">
-            {outcome ? `+${formatPrize(outcome.prize)} TPC` : 'Spin to win'}
+            {outcome ? `+${formatPrize(outcome.prize)} TPG` : 'Spin to win'}
           </span>
         </div>
         {outcome && !spinning && (
@@ -329,7 +329,7 @@ export default function RouletteMini() {
             <div className="roulette-prize-beam" />
             <div className="roulette-prize-pop">
               <div className="roulette-prize-value">
-                +{formatPrize(outcome.prize)} TPC
+                +{formatPrize(outcome.prize)} TPG
               </div>
             </div>
           </div>
@@ -356,7 +356,7 @@ export default function RouletteMini() {
           <div className="text-sm text-white font-semibold">
             Winning Number {outcome.number} ·
             <span className="text-yellow-300 ml-1">
-              +{formatPrize(outcome.prize)} TPC
+              +{formatPrize(outcome.prize)} TPG
             </span>
           </div>
         )}

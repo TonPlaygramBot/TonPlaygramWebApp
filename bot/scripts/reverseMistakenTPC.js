@@ -49,7 +49,7 @@ async function reverseMistakenTPC() {
         to: devWallet,
         amount,
         type: 'REVERSAL',
-        reason: 'Mistaken TPC transfer refund',
+        reason: 'Mistaken TPG transfer refund',
         timestamp: new Date()
       }
     ], { session });

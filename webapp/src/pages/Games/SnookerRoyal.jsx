@@ -12279,7 +12279,7 @@ function SnookerRoyalGame({
   }, [location.search]);
   const stakeToken = useMemo(() => {
     const params = new URLSearchParams(location.search);
-    return params.get('token') || 'TPC';
+    return params.get('token') || 'TPG';
   }, [location.search]);
   const [winnerOverlay, setWinnerOverlay] = useState(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
@@ -13021,7 +13021,7 @@ function SnookerRoyalGame({
     if (cueFeePaidRef.current) return true;
     const id = accountIdRef.current;
     if (!id) {
-      alert('Link your TPC account before switching cues.');
+      alert('Link your TPG account before switching cues.');
       return false;
     }
     if (cueFeePendingRef.current) return false;
@@ -13029,7 +13029,7 @@ function SnookerRoyalGame({
     try {
       const balRes = await getAccountBalance(id);
       if ((balRes?.balance || 0) < 50) {
-        alert('You need at least 50 TPC to change cues for this game.');
+        alert('You need at least 50 TPG to change cues for this game.');
         return false;
       }
       const telegramId = tgIdRef.current || getTelegramId();
@@ -28248,7 +28248,7 @@ const powerRef = useRef(hud.power);
             </div>
             {winnerOverlay.prizeText ? (
               <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-emerald-300 px-4 py-2 text-sm font-bold uppercase tracking-[0.22em] text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]">
-                <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPC prize" className="h-6 w-6" />
+                <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPG prize" className="h-6 w-6" />
                 <span>{winnerOverlay.prizeText}</span>
               </div>
             ) : null}

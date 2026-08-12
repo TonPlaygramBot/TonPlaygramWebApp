@@ -27,7 +27,7 @@ describe('ChessLobbyState', () => {
   it('stores authoritative readiness per session', () => {
     const state = new ChessLobbyState();
     const player = new LobbyPlayer();
-    player.accountId = 'TPC-1';
+    player.accountId = 'TPG-1';
     player.ready = true;
     state.players.set('session-1', player);
     expect(state.players.get('session-1')?.ready).toBe(true);

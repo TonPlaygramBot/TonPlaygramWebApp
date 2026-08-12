@@ -64,11 +64,11 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
 
   if (!tx) return null;
 
-  const token = (tx.token || 'TPC').toUpperCase();
+  const token = (tx.token || 'TPG').toUpperCase();
 
   const iconMap = {
 
-    TPC: '/assets/icons/ezgif-54c96d8a9b9236.webp',
+    TPG: '/assets/icons/ezgif-54c96d8a9b9236.webp',
 
     TON: '/assets/icons/TON.webp',
 
@@ -146,7 +146,7 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
 
         </button>
 
-        <h3 className="text-lg font-bold text-center">TPC Statement Details</h3>
+        <h3 className="text-lg font-bold text-center">TPG Statement Details</h3>
 
         <div className="flex flex-col items-center space-y-2">
 
@@ -213,7 +213,7 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
 
                 <div className="text-xs text-subtext flex items-center space-x-1">
 
-                  <span>TPC Account #{account}</span>
+                  <span>TPG Account #{account}</span>
 
                   <FiCopy
 
@@ -262,7 +262,7 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
 
           {gift && giftFee !== null && (
 
-            <div className="text-sm text-subtext">Fee: {giftFee} TPC</div>
+            <div className="text-sm text-subtext">Fee: {giftFee} TPG</div>
 
           )}
 
@@ -299,7 +299,7 @@ export default function TransactionDetailsPopup({ tx, onClose }) {
       <PlayerInvitePopup
         open={profileOpen}
         player={counterparty ? { ...counterparty, accountId: account } : null}
-        stake={{ token: 'TPC', amount: 100 }}
+        stake={{ token: 'TPG', amount: 100 }}
         onStakeChange={() => {}}
         onInvite={() => {}}
         onClose={() => setProfileOpen(false)}

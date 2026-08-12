@@ -139,7 +139,7 @@ const buildTrainingDefinition = (level) => {
   const targetCount = getTrainingTargetCount(level)
   const strategy = STRATEGY_DRILLS[(level - 1) % STRATEGY_DRILLS.length]
   const rewardAmount = level * 100
-  const reward = `${rewardAmount.toLocaleString('en-US')} TPC`
+  const reward = `${rewardAmount.toLocaleString('en-US')} TPG`
 
   return {
     level,

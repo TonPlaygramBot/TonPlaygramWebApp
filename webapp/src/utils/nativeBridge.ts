@@ -314,7 +314,7 @@ export function getNativeBridgeHeaders() {
   if (bridgeState.user?.id != null) headers['X-Telegram-User-Id'] = String(bridgeState.user.id);
   if (bridgeState.user?.username) headers['X-Telegram-Username'] = bridgeState.user.username;
   if (bridgeState.startParam) headers['X-Telegram-Start-Param'] = bridgeState.startParam;
-  headers['X-TPC-Client'] = 'native';
+  headers['X-TPG-Client'] = 'native';
   return headers;
 }
 

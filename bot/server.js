@@ -1187,7 +1187,7 @@ function ensureCheckersSession(tableId, table = null) {
     session = {
       tableId,
       stake: Number(table?.stake || 0),
-      token: table?.meta?.token || 'TPC',
+      token: table?.meta?.token || 'TPG',
       playersBySide: {
         light: table?.players?.find((p) => p.side === 'light')?.id || null,
         dark: table?.players?.find((p) => p.side === 'dark')?.id || null
@@ -1206,7 +1206,7 @@ async function settleCheckersMatch({
   loserId,
   reason = 'match_end',
   stake = 0,
-  token = 'TPC'
+  token = 'TPG'
 } = {}) {
   if (!winnerId || !loserId || !stake) {
     return {
@@ -1433,7 +1433,7 @@ async function reserveChessStakeContract(table) {
           transactionId: transactionIds[index],
           amount: -stake,
           type: 'stake_reserve',
-          token: 'TPC',
+          token: 'TPG',
           status: 'reserved',
           game: 'chessbattle',
           players: 2,
@@ -1485,7 +1485,7 @@ async function settleChessStakeContract(tableId, result = {}) {
           await User.updateOne({ $or: [{ tpcAccountNumber: account }, { accountId: account }], 'transactions.transactionId': { $ne: transactionId } }, {
             $inc: { balance: match.stakePerPlayer },
             $set: { currentTableId: null },
-            $push: { transactions: { transactionId, amount: match.stakePerPlayer, type: 'stake_refund', token: 'TPC', status: 'delivered', game: 'chessbattle', players: 2, detail: 'draw' } }
+            $push: { transactions: { transactionId, amount: match.stakePerPlayer, type: 'stake_refund', token: 'TPG', status: 'delivered', game: 'chessbattle', players: 2, detail: 'draw' } }
           }, { session });
         }
         match.status = 'draw';
@@ -1501,7 +1501,7 @@ async function settleChessStakeContract(tableId, result = {}) {
         await User.updateOne({ $or: [{ tpcAccountNumber: winnerAccount }, { accountId: winnerAccount }], 'transactions.transactionId': { $ne: payoutTx } }, {
           $inc: { balance: payout },
           $set: { currentTableId: null },
-          $push: { transactions: { transactionId: payoutTx, amount: payout, type: 'stake_payout', token: 'TPC', status: 'delivered', game: 'chessbattle', players: 2, detail: match.internalMatchId } }
+          $push: { transactions: { transactionId: payoutTx, amount: payout, type: 'stake_payout', token: 'TPG', status: 'delivered', game: 'chessbattle', players: 2, detail: match.internalMatchId } }
         }, { session });
         const loserAccount = accounts.find((account) => account !== winnerAccount);
         if (loserAccount) await User.updateOne({ $or: [{ tpcAccountNumber: loserAccount }, { accountId: loserAccount }] }, { $set: { currentTableId: null } }, { session });
@@ -1509,7 +1509,7 @@ async function settleChessStakeContract(tableId, result = {}) {
           const feeTx = `chess:${match.internalMatchId}:house:${CHESS_HOUSE_ACCOUNT}`;
           await User.updateOne({ $or: [{ tpcAccountNumber: CHESS_HOUSE_ACCOUNT }, { accountId: CHESS_HOUSE_ACCOUNT }] }, {
             $inc: { balance: houseFee },
-            $push: { transactions: { transactionId: feeTx, amount: houseFee, type: 'house_fee', token: 'TPC', status: 'delivered', game: 'chessbattle', players: 2, detail: match.internalMatchId } }
+            $push: { transactions: { transactionId: feeTx, amount: houseFee, type: 'house_fee', token: 'TPG', status: 'delivered', game: 'chessbattle', players: 2, detail: match.internalMatchId } }
           }, { session });
         }
         match.status = 'finished';
@@ -3040,7 +3040,7 @@ io.on('connection', (socket) => {
         loserId,
         reason: matchEndPayload.reason,
         stake: Number(session.stake || table.stake || 0),
-        token: session.token || table.meta?.token || 'TPC'
+        token: session.token || table.meta?.token || 'TPG'
       });
       io.to(tableId).emit('settlementConfirmed', {
         tableId,
@@ -3048,7 +3048,7 @@ io.on('connection', (socket) => {
         winnerId: winnerId ? String(winnerId) : null,
         loserId: loserId ? String(loserId) : null,
         payoutAmount: settlementResult.settlement?.payoutAmount || 0,
-        token: settlementResult.settlement?.token || session.token || 'TPC',
+        token: settlementResult.settlement?.token || session.token || 'TPG',
         status: settlementResult.status || 'skipped'
       });
     } catch (error) {
@@ -3059,7 +3059,7 @@ io.on('connection', (socket) => {
         winnerId: winnerId ? String(winnerId) : null,
         loserId: loserId ? String(loserId) : null,
         payoutAmount: 0,
-        token: session.token || 'TPC',
+        token: session.token || 'TPG',
         status: 'failed'
       });
     }

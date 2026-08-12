@@ -180,7 +180,7 @@ export default function Home() {
         )}
         <div className="w-full rounded-xl border border-border bg-surface/60 p-3 mb-2 space-y-2">
           <p className="text-xs text-subtext">
-            1 TPC account • connect only what is still missing.
+            1 TPG account • connect only what is still missing.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {!hasTelegram && (
@@ -237,7 +237,7 @@ export default function Home() {
             <div className="flex-1 flex items-center justify-center space-x-1">
               <img
                 src="/assets/icons/ezgif-54c96d8a9b9236.webp"
-                alt="TPC"
+                alt="TPG"
                 className="w-8 h-8"
               />
               <span className="text-base">
@@ -262,7 +262,7 @@ export default function Home() {
               />
 
               <p className="text-center text-xs text-yellow-400">
-                Only to send and receive TPC coins
+                Only to send and receive TPG coins
               </p>
 
               <div className="flex items-start justify-between">
@@ -286,7 +286,7 @@ export default function Home() {
                 <div className="flex flex-col items-center space-y-1">
                   <img
                     src="/assets/icons/ezgif-54c96d8a9b9236.webp"
-                    alt="TPC"
+                    alt="TPG"
                     className="w-[4rem] h-[4rem]"
                   />
                   <span className="text-sm">
@@ -344,7 +344,7 @@ export default function Home() {
               <span className="text-white font-semibold">4%</span>
             </div>
             <div className="flex items-start justify-between gap-4">
-              <p>3% Treasury & liquidity to stabilize TPC markets.</p>
+              <p>3% Treasury & liquidity to stabilize TPG markets.</p>
               <span className="text-white font-semibold">3%</span>
             </div>
             <div className="flex items-start justify-between gap-4">

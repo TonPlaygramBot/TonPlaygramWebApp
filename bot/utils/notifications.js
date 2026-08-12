@@ -320,7 +320,7 @@ export async function generateReceiptImage({
 
   ctx.font = '700 38px Sans';
   ctx.fillStyle = '#a5f3fc';
-  ctx.fillText('TPC', tokenStartX + 66, amountBoxY + 88);
+  ctx.fillText('TPG', tokenStartX + 66, amountBoxY + 88);
 
   const fromAvatar = await resolveReceiptAvatar(fromPhoto, fromName);
   const toAvatar = await resolveReceiptAvatar(toPhoto, toName);
@@ -391,7 +391,7 @@ export async function sendTransferNotification(bot, toId, fromId, amount, note) 
     'You';
 
   const image = await generateReceiptImage({
-    title: 'TPC Transfer Received',
+    title: 'TPG Transfer Received',
     subtitle: 'Statement details',
     amount,
     date: new Date(),
@@ -404,7 +404,7 @@ export async function sendTransferNotification(bot, toId, fromId, amount, note) 
   await bot.telegram.sendPhoto(String(toId), { source: image });
 
   const noteText = note ? `\nNote: ${note}` : '';
-  const caption = `🪙 You received ${amount.toFixed(2)} TPC from ${fromName}.${noteText}`;
+  const caption = `🪙 You received ${amount.toFixed(2)} TPG from ${fromName}.${noteText}`;
   await bot.telegram.sendMessage(String(toId), caption);
 }
 
@@ -416,7 +416,7 @@ export async function sendDepositNotification(bot, toId, amount) {
 
   const image = await generateReceiptImage({
     title: 'Deposit Confirmed',
-    subtitle: 'TPC credited successfully',
+    subtitle: 'TPG credited successfully',
     amount,
     date: new Date(),
     fromName: 'TonPlaygram Treasury',
@@ -427,7 +427,7 @@ export async function sendDepositNotification(bot, toId, amount) {
   await bot.telegram.sendPhoto(String(toId), { source: image });
   await bot.telegram.sendMessage(
     String(toId),
-    `🪙 Your deposit of ${amount.toFixed(2)} TPC was credited.`
+    `🪙 Your deposit of ${amount.toFixed(2)} TPG was credited.`
   );
 }
 
@@ -444,11 +444,11 @@ export async function sendGiftNotification(bot, toId, gift, senderName, date, op
     fromPhoto: options.senderPhoto,
     toPhoto: toInfo?.photoUrl,
     itemThumbnail: resolveReceiptItemThumbnail(gift),
-    itemLabel: `${gift?.name || 'Gift'} • ${gift?.price || 0} TPC`,
+    itemLabel: `${gift?.name || 'Gift'} • ${gift?.price || 0} TPG`,
   });
 
   await bot.telegram.sendPhoto(String(toId), { source: image });
-  const caption = `🧧 You received ${gift.name} worth ${gift.price} TPC from ${senderName} on ${date.toLocaleString()}`;
+  const caption = `🧧 You received ${gift.name} worth ${gift.price} TPG from ${senderName} on ${date.toLocaleString()}`;
   await bot.telegram.sendMessage(String(toId), caption);
 }
 
@@ -470,7 +470,7 @@ export async function sendStorePurchaseNotification(bot, toId, payload) {
   await bot.telegram.sendPhoto(String(toId), { source: image });
   await bot.telegram.sendMessage(
     String(toId),
-    `🛍️ Store purchase completed: ${payload.itemLabel} for ${Number(payload.totalPrice || 0).toFixed(2)} TPC.`
+    `🛍️ Store purchase completed: ${payload.itemLabel} for ${Number(payload.totalPrice || 0).toFixed(2)} TPG.`
   );
 }
 

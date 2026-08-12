@@ -27,7 +27,7 @@ export default function TavullBattleRoyalLobby() {
   const navigate = useNavigate();
   useTelegramBackButton();
 
-  const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
+  const [stake, setStake] = useState({ token: 'TPG', amount: 100 });
   const [avatar, setAvatar] = useState('');
   const [mode, setMode] = useState('ai');
   const [showFlagPicker, setShowFlagPicker] = useState(false);
@@ -356,7 +356,7 @@ export default function TavullBattleRoyalLobby() {
             })}
           </div>
           <p className="text-xs text-white/60 text-center">
-            AI matches stay offline. Online mode uses your TPC stake and pairs you with another player.
+            AI matches stay offline. Online mode uses your TPG stake and pairs you with another player.
           </p>
         </div>
 
@@ -370,14 +370,14 @@ export default function TavullBattleRoyalLobby() {
               </div>
               <div>
                 <h3 className="font-semibold text-white">Select Stake</h3>
-                <p className="text-xs text-white/60">Stake your TPC to lock a table.</p>
+                <p className="text-xs text-white/60">Stake your TPG to lock a table.</p>
               </div>
             </div>
             <div className="mt-3">
-              <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
+              <RoomSelector selected={stake} onSelect={setStake} tokens={['TPG']} />
             </div>
             <p className="text-center text-white/60 text-xs">
-              Staking uses your TPC account{accountId ? ` #${accountId}` : ''} as escrow for every online round.
+              Staking uses your TPG account{accountId ? ` #${accountId}` : ''} as escrow for every online round.
             </p>
           </div>
         )}

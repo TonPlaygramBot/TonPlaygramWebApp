@@ -31,7 +31,7 @@ export default function MurlanRoyaleLobby() {
   const navigate = useNavigate();
   useTelegramBackButton();
 
-  const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
+  const [stake, setStake] = useState({ token: 'TPG', amount: 100 });
   const [mode, setMode] = useState('local');
   const [avatar, setAvatar] = useState('');
   const [gameType, setGameType] = useState('single');
@@ -306,11 +306,11 @@ export default function MurlanRoyaleLobby() {
               </div>
               <div>
                 <h3 className="font-semibold text-white">Select Stake</h3>
-                <p className="text-xs text-white/60">Stake your TPC to lock a table.</p>
+                <p className="text-xs text-white/60">Stake your TPG to lock a table.</p>
               </div>
             </div>
             <div className="mt-3">
-              <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
+              <RoomSelector selected={stake} onSelect={setStake} tokens={['TPG']} />
             </div>
           </div>
         )}

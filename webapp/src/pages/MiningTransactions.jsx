@@ -62,9 +62,9 @@ export default function MiningTransactions() {
           const avatarSrc = tx.fromPhoto || tx.photo || '';
           const avatarUrl = avatarSrc ? getAvatarUrl(avatarSrc) : '/assets/icons/profile.svg';
           const category = TYPE_NAME_MAP[tx.type] || tx.type;
-          const token = (tx.token || 'TPC').toUpperCase();
+          const token = (tx.token || 'TPG').toUpperCase();
           const iconMap = {
-            TPC: '/assets/icons/ezgif-54c96d8a9b9236.webp',
+            TPG: '/assets/icons/ezgif-54c96d8a9b9236.webp',
             TON: '/assets/icons/TON.webp',
             USDT: '/assets/icons/Usdt.webp'
           };

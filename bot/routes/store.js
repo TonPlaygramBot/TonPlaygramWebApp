@@ -130,7 +130,7 @@ async function handleTpcPurchase(req, res) {
   }
 
   if (txHash) {
-    return res.status(400).json({ error: 'TON payments are disabled. Use TPC balance only.' });
+    return res.status(400).json({ error: 'TON payments are disabled. Use TPG balance only.' });
   }
 
   const isItemBundle =
@@ -179,7 +179,7 @@ async function handleTpcPurchase(req, res) {
   user.transactions.push({
     amount: -totalPrice,
     type: 'storefront',
-    token: 'TPC',
+    token: 'TPG',
     status: 'delivered',
     date: txDate,
     detail: 'Storefront purchase',
@@ -191,7 +191,7 @@ async function handleTpcPurchase(req, res) {
   return res.json({
     balance: user.balance,
     date: txDate,
-    paymentToken: 'TPC',
+    paymentToken: 'TPG',
     delivery: {
       pool: delivery.pool.length,
       snooker: delivery.snooker.length,

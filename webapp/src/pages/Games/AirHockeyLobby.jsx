@@ -26,7 +26,7 @@ export default function AirHockeyLobby() {
   const { search } = useLocation();
   useTelegramBackButton();
 
-  const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
+  const [stake, setStake] = useState({ token: 'TPG', amount: 100 });
   const [mode, setMode] = useState('ai');
   const [goal, setGoal] = useState(11);
   const [playType, setPlayType] = useState('regular');
@@ -365,11 +365,11 @@ export default function AirHockeyLobby() {
               </div>
               <div>
                 <h3 className="font-semibold text-white">Stake</h3>
-                <p className="text-xs text-white/60">Stake your TPC for ranked play.</p>
+                <p className="text-xs text-white/60">Stake your TPG for ranked play.</p>
               </div>
             </div>
             <div className="mt-3">
-              <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
+              <RoomSelector selected={stake} onSelect={setStake} tokens={['TPG']} />
             </div>
           </div>
         )}

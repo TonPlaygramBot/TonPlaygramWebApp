@@ -56,7 +56,7 @@ function validateDominoRoyalCriteria(matchMeta = {}) {
   }
 
   const token = String(matchMeta.token || '').trim().toUpperCase();
-  if (token !== 'TPC') {
+  if (token !== 'TPG') {
     return { ok: false, error: 'invalid_stake_token' };
   }
 

@@ -1,4 +1,4 @@
-;; TPC Claim Jetton Minter
+;; TPG Claim Jetton Minter
 ;; Admin Wallet: UQAPwsGyKzA4MuBnCflTVwEcTLcGS9yV6okJWQGzO5VxVYD1
 ;; This contract handles claims and automatically transfers Jettons
 ;; when a claim or bundle purchase is confirmed.

@@ -55,7 +55,7 @@ test('runSimpleOnlineFlow reconnects socket before joining a table', async () =>
 
   const result = await runSimpleOnlineFlow({
     gameType: 'airhockey',
-    stake: { token: 'TPC', amount: 100 },
+    stake: { token: 'TPG', amount: 100 },
     state,
     deps: {
       ensureAccountId: () => Promise.resolve('acct-1'),
@@ -83,7 +83,7 @@ test('runSimpleOnlineFlow refunds stake when socket reconnection fails', async (
 
   const result = await runSimpleOnlineFlow({
     gameType: 'airhockey',
-    stake: { token: 'TPC', amount: 80 },
+    stake: { token: 'TPG', amount: 80 },
     state,
     timeoutMs: 100,
     socketConnectTimeoutMs: 40,

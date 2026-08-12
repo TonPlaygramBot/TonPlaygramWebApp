@@ -177,7 +177,7 @@ export default function Nfts() {
   };
 
   const renderThumbnail = (item, fallbackIcon) => {
-    const priceLabel = item.isDefault || Number(item.price) === 0 ? 'Free' : `${item.price} TPC`;
+    const priceLabel = item.isDefault || Number(item.price) === 0 ? 'Free' : `${item.price} TPG`;
     let content = null;
     if (item.icon) {
       content = <GiftIcon icon={item.icon} className="w-10 h-10" />;
@@ -234,7 +234,7 @@ export default function Nfts() {
                   </p>
                   {item.price != null && (
                     <p className="text-[11px] text-subtext">
-                      {item.isDefault || Number(item.price) === 0 ? 'Free' : `${item.price} TPC`}
+                      {item.isDefault || Number(item.price) === 0 ? 'Free' : `${item.price} TPG`}
                     </p>
                   )}
                   {item.isDefault && (

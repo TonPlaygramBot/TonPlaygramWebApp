@@ -52,7 +52,7 @@ export default function Mining() {
   );
   const [friendRequests, setFriendRequests] = useState([]);
   const [inviteTarget, setInviteTarget] = useState(null);
-  const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
+  const [stake, setStake] = useState({ token: 'TPG', amount: 100 });
   const [myName, setMyName] = useState('');
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [onlineCount, setOnlineCount] = useState(0);
@@ -164,7 +164,7 @@ export default function Mining() {
             </div>
             <div className="bg-black/20 rounded-lg border border-border p-2 text-center">
               <p className="text-subtext">Base Reward</p>
-              <p className="text-white font-semibold">Up to 1000 TPC</p>
+              <p className="text-white font-semibold">Up to 1000 TPG</p>
             </div>
             <div className="bg-black/20 rounded-lg border border-border p-2 text-center">
               <p className="text-subtext">Online Now</p>

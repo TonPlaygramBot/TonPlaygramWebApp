@@ -14,7 +14,7 @@ await mongoose.connect(uri);
 
 const ids = process.argv.slice(2);
 
-// If no identifiers are provided, reset every user's TPC balance just like
+// If no identifiers are provided, reset every user's TPG balance just like
 // the original behaviour of this script.
 if (ids.length === 0) {
   const users = await User.find({});
@@ -23,7 +23,7 @@ if (ids.length === 0) {
     user.minedTPC = 0;
     user.transactions = [];
     await user.save();
-    console.log(`Reset TPC for ${user.telegramId || user.accountId}`);
+    console.log(`Reset TPG for ${user.telegramId || user.accountId}`);
   }
 } else {
   // Otherwise, only reset the balances of the specified users. The arguments
@@ -43,7 +43,7 @@ if (ids.length === 0) {
     user.minedTPC = 0;
     user.transactions = [];
     await user.save();
-    console.log(`Reset TPC for ${user.telegramId || user.accountId || user.nickname}`);
+    console.log(`Reset TPG for ${user.telegramId || user.accountId || user.nickname}`);
   }
 }
 

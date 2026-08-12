@@ -64,7 +64,7 @@ test(
         stake: '100.00',
         maxPlayers: 2,
         mode: 'Online',
-        token: 'TPC',
+        token: 'TPG',
         preferredSide: 'WHITE'
       });
       const secondSeat = await seat(s2, {
@@ -99,7 +99,7 @@ test(
         stake: 100,
         maxPlayers: 2,
         mode: 'online',
-        token: 'TPC',
+        token: 'TPG',
         tableId: secondSeat.tableId
       });
       assert.equal(restoredSeat.success, true);

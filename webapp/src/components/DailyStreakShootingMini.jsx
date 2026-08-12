@@ -51,7 +51,7 @@ export default function DailyStreakShootingMini() {
   return (
     <div className="relative bg-surface border border-border rounded-xl p-4 space-y-3 text-center overflow-hidden wide-card">
       <h3 className="text-lg font-bold text-white">Daily Streak Shooting</h3>
-      <p className="text-xs text-subtext">5 shots only • random weapon each shot • ring points decide TPC reward.</p>
+      <p className="text-xs text-subtext">5 shots only • random weapon each shot • ring points decide TPG reward.</p>
       <div className="text-sm text-white">Weapon: <span className="text-yellow-300 font-semibold">{weapon}</span></div>
       <div className="text-sm text-white">Shots Left: {shotsLeft} • Score: {total}</div>
       <div className="mx-auto w-52 h-52 rounded-full border border-white/20 p-4 flex flex-col justify-center gap-2 bg-black/20">

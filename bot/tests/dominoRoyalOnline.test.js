@@ -8,7 +8,7 @@ test('Domino matchmaking seats players with identical criteria together', () => 
     mode: 'online',
     variant: 'points',
     targetPoints: '101',
-    token: 'tpc'
+    token: 'tpg'
   }
 
   assert.equal(isDominoMatchCompatible(criteria, { ...criteria }), true)
@@ -19,7 +19,7 @@ test('Domino matchmaking keeps different game criteria in separate queues', () =
     mode: 'online',
     variant: 'points',
     targetPoints: '101',
-    token: 'tpc'
+    token: 'tpg'
   }
 
   assert.equal(
@@ -39,8 +39,8 @@ test('Domino matchmaking keeps different game criteria in separate queues', () =
 test('Domino matchmaking does not treat missing criteria as wildcards', () => {
   assert.equal(
     isDominoMatchCompatible(
-      { mode: 'online', variant: 'single', token: 'tpc' },
-      { mode: 'online', token: 'tpc' }
+      { mode: 'online', variant: 'single', token: 'tpg' },
+      { mode: 'online', token: 'tpg' }
     ),
     false
   )

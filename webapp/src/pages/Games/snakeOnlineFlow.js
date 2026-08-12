@@ -65,7 +65,7 @@ export async function runSnakeOnlineFlow({
   const telegramId = getTelegramIdFn?.();
 
   setMatchingError('');
-  setMatchStatus('Checking your TPC account…');
+  setMatchStatus('Checking your TPG account…');
   setMatching(true);
   setIsSearching(true);
 
@@ -100,7 +100,7 @@ export async function runSnakeOnlineFlow({
     accountId = await ensureAccountIdFn();
     accountIdRef.current = accountId;
   } catch (error) {
-    setMatchingError('Unable to verify your TPC account. Please retry.');
+    setMatchingError('Unable to verify your TPG account. Please retry.');
     setMatchStatus('');
     setMatching(false);
     setIsSearching(false);
@@ -233,7 +233,7 @@ export async function runSnakeOnlineFlow({
       token: stake.token,
       gameType: 'snake',
       maxPlayers: capacity,
-      playerName: playerName || getTelegramFirstNameFn?.() || `TPC ${accountId}` || 'Player',
+      playerName: playerName || getTelegramFirstNameFn?.() || `TPG ${accountId}` || 'Player',
       tableId: table?.id,
       avatar: playerAvatar
     },

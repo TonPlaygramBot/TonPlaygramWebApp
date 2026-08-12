@@ -53,7 +53,7 @@ export default function DominoRoyalLobby() {
   const navigate = useNavigate();
   useTelegramBackButton();
 
-  const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
+  const [stake, setStake] = useState({ token: 'TPG', amount: 100 });
   const [mode, setMode] = useState('local');
   const [avatar, setAvatar] = useState('');
   const [playerCount, setPlayerCount] = useState(4);
@@ -192,7 +192,7 @@ export default function DominoRoyalLobby() {
         const balRes = await getAccountBalance(accountId).catch(() => null);
         const appBalance = Number(balRes?.balance);
         if (Number.isFinite(appBalance) && appBalance > 0 && appBalance < stake.amount) {
-          setQueueError(`Your app balance is ${appBalance} TPC, below the ${stake.amount} TPC stake.`);
+          setQueueError(`Your app balance is ${appBalance} TPG, below the ${stake.amount} TPG stake.`);
           return;
         }
       }
@@ -300,7 +300,7 @@ export default function DominoRoyalLobby() {
                 String(player?.id || '') === String(resolvedAccountId || '')
             )
           : null;
-        const token = stake.token || onlineStake?.token || 'TPC';
+        const token = stake.token || onlineStake?.token || 'TPG';
         const amount = Number(onlineStake?.amount || stake.amount || 0);
         if (!onlineStakeDebitedRef.current && amount > 0) {
           onlineStakeDebitedRef.current = true;
@@ -442,7 +442,7 @@ export default function DominoRoyalLobby() {
               <div>
                 <h3 className="font-semibold text-white">Stake</h3>
                 <p className="text-xs text-white/60">
-                  Lock your entry with TPC.
+                  Lock your entry with TPG.
                 </p>
               </div>
             </div>
@@ -450,12 +450,12 @@ export default function DominoRoyalLobby() {
               <RoomSelector
                 selected={stake}
                 onSelect={setStake}
-                tokens={['TPC']}
+                tokens={['TPG']}
               />
             </div>
             <p className="text-center text-white/60 text-xs">
-              Start bet: {startBet.toLocaleString('en-US')} TPC • Pot max:{' '}
-              {stake.amount.toLocaleString('en-US')} TPC
+              Start bet: {startBet.toLocaleString('en-US')} TPG • Pot max:{' '}
+              {stake.amount.toLocaleString('en-US')} TPG
             </p>
           </div>
         )}

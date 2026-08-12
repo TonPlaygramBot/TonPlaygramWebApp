@@ -151,7 +151,7 @@ export default function MiningCard() {
       {isMining && (
         <div className="flex items-center justify-center space-x-1 text-sm">
           <span>{minted}</span>
-          <span>TPC</span>
+          <span>TPG</span>
         </div>
       )}
       <p className="text-xs text-subtext">Speed boost: +{(bonusRate * 100).toFixed(0)}%</p>

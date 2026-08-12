@@ -1,12 +1,12 @@
 import React from 'react';
 
 const AMOUNTS = {
-  TPC: [100, 500, 1000, 5000, 10000],
+  TPG: [100, 500, 1000, 5000, 10000],
   TON: [0.1, 0.5, 1, 5, 10],
   USDT: [0.1, 0.5, 1, 5, 10],
 };
 const tokens = [
-  { id: 'TPC', icon: '/assets/icons/ezgif-54c96d8a9b9236.webp' },
+  { id: 'TPG', icon: '/assets/icons/ezgif-54c96d8a9b9236.webp' },
   { id: 'TON', icon: '/assets/icons/TON.webp' },
   { id: 'USDT', icon: '/assets/icons/Usdt.webp' },
 ];
@@ -34,7 +34,7 @@ export default function RoomSelector({ selected, onSelect, tokens: allowed }) {
                 src={icon}
                 alt={id}
                 className={
-                  id === 'TPC'
+                  id === 'TPG'
                     ? 'w-[0.9306rem] h-[0.9306rem]'
                     : 'w-[1.3294rem] h-[1.3294rem]'
                 }

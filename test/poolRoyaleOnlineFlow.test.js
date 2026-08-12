@@ -112,7 +112,7 @@ test('runPoolRoyaleOnlineFlow debits once and keeps stake for game start', async
   };
 
   await runPoolRoyaleOnlineFlow({
-    stake: { token: 'TPC', amount: 100 },
+    stake: { token: 'TPG', amount: 100 },
     tableId: 'room-77',
     variant: 'uk',
     ballSet: 'american',
@@ -191,7 +191,7 @@ test('runPoolRoyaleOnlineFlow refunds when matchmaking times out', async () => {
   };
 
   await runPoolRoyaleOnlineFlow({
-    stake: { token: 'TPC', amount: 75 },
+    stake: { token: 'TPG', amount: 75 },
     tableId: 'room-timeout',
     variant: 'uk',
     ballSet: 'uk',
@@ -241,7 +241,7 @@ test('runPoolRoyaleOnlineFlow reconnects socket before seating table', async () 
   };
 
   await runPoolRoyaleOnlineFlow({
-    stake: { token: 'TPC', amount: 100 },
+    stake: { token: 'TPG', amount: 100 },
     variant: 'uk',
     ballSet: 'uk',
     playType: 'regular',
@@ -295,7 +295,7 @@ test('runPoolRoyaleOnlineFlow tolerates transient socket connect errors on mobil
   };
 
   await runPoolRoyaleOnlineFlow({
-    stake: { token: 'TPC', amount: 100 },
+    stake: { token: 'TPG', amount: 100 },
     variant: 'uk',
     ballSet: 'uk',
     playType: 'regular',
@@ -334,7 +334,7 @@ test('runPoolRoyaleOnlineFlow tolerates null lobby players and accountId-only en
   };
 
   await runPoolRoyaleOnlineFlow({
-    stake: { token: 'TPC', amount: 50 },
+    stake: { token: 'TPG', amount: 50 },
     variant: 'uk',
     ballSet: 'uk',
     playType: 'regular',
@@ -403,7 +403,7 @@ test('runPoolRoyaleOnlineFlow refunds if register ack fails', async () => {
   };
 
   await runPoolRoyaleOnlineFlow({
-    stake: { token: 'TPC', amount: 100 },
+    stake: { token: 'TPG', amount: 100 },
     variant: 'uk',
     ballSet: 'uk',
     playType: 'regular',
@@ -443,7 +443,7 @@ test('runPoolRoyaleOnlineFlow retries register after transient ack failure', asy
   const state = createState();
 
   await runPoolRoyaleOnlineFlow({
-    stake: { token: 'TPC', amount: 100 },
+    stake: { token: 'TPG', amount: 100 },
     variant: 'uk',
     ballSet: 'uk',
     playType: 'regular',
@@ -487,7 +487,7 @@ test('runPoolRoyaleOnlineFlow retries seat after identity mismatch and starts ma
   };
 
   await runPoolRoyaleOnlineFlow({
-    stake: { token: 'TPC', amount: 100 },
+    stake: { token: 'TPG', amount: 100 },
     variant: 'uk',
     ballSet: 'uk',
     playType: 'regular',
@@ -512,16 +512,16 @@ test('runPoolRoyaleOnlineFlow retries seat after identity mismatch and starts ma
     success: true,
     tableId: 'tbl-identity',
     players: [
-      { id: 'acct-22', name: 'TPC acct-22' },
-      { id: 'acct-23', name: 'TPC acct-23' }
+      { id: 'acct-22', name: 'TPG acct-22' },
+      { id: 'acct-23', name: 'TPG acct-23' }
     ],
     ready: ['acct-22']
   });
   mockSocket.emit('gameStart', {
     tableId: 'tbl-identity',
     players: [
-      { id: 'acct-22', name: 'TPC acct-22' },
-      { id: 'acct-23', name: 'TPC acct-23' }
+      { id: 'acct-22', name: 'TPG acct-22' },
+      { id: 'acct-23', name: 'TPG acct-23' }
     ],
     currentTurn: 'acct-22'
   });

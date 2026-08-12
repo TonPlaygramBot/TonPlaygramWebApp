@@ -154,8 +154,8 @@ export default function PoolRoyaleCareer() {
                 <p className="truncate text-sm font-semibold text-white">{nextStage.icon} {nextStage.title}</p>
                 <p className="mt-0.5 line-clamp-2 text-[11px] text-white/70">{nextStage.objective}</p>
                 <div className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-emerald-200/40 bg-emerald-300/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-100">
-                  <img src={TPC_ICON_SRC} alt="TPC" className="h-3.5 w-3.5" />
-                  {Number(nextStage.rewardTpc || 0).toLocaleString('en-US')} TPC
+                  <img src={TPC_ICON_SRC} alt="TPG" className="h-3.5 w-3.5" />
+                  {Number(nextStage.rewardTpc || 0).toLocaleString('en-US')} TPG
                 </div>
               </div>
             </div>
@@ -256,8 +256,8 @@ export default function PoolRoyaleCareer() {
                 <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px]">
                   <span className="rounded-full border border-white/20 bg-white/10 px-2 py-0.5">{stageTypeLabel(stage.type)}</span>
                   <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200/40 bg-emerald-300/10 px-2 py-0.5 font-semibold text-emerald-100">
-                    <img src={TPC_ICON_SRC} alt="TPC" className="h-3.5 w-3.5" />
-                    {Number(stage.rewardTpc || 0).toLocaleString('en-US')} TPC
+                    <img src={TPC_ICON_SRC} alt="TPG" className="h-3.5 w-3.5" />
+                    {Number(stage.rewardTpc || 0).toLocaleString('en-US')} TPG
                   </span>
                   {stage.hasGift && stage.giftThumbnail ? (
                     <span className="rounded-full border border-amber-200/45 bg-amber-300/15 px-2 py-0.5 text-amber-100">

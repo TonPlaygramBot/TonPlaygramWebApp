@@ -3498,7 +3498,7 @@ export default function ShootingRange() {
       setWinnerText(
         `Winner: ${winnerName} · Lane ${winnerLane + 1} · ${best} pts`
       );
-      setStatus(`${winnerName} wins! Winner target reveal + TPC coin burst.`);
+      setStatus(`${winnerName} wins! Winner target reveal + TPG coin burst.`);
 
       tpcCoins.forEach((coin) => {
         coin.mesh.visible = true;
@@ -4694,7 +4694,7 @@ export default function ShootingRange() {
             onClick={() => window.location.assign('/mining')}
             style={{ padding: '12px 18px', borderRadius: 12, background: '#facc15', color: '#111827', fontWeight: 900 }}
           >
-            Return to Mining {challengeReward ? `· +${challengeReward} TPC` : ''}
+            Return to Mining {challengeReward ? `· +${challengeReward} TPG` : ''}
           </button>
         </div>
       )}

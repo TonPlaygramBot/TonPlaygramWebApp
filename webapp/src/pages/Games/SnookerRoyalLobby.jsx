@@ -33,7 +33,7 @@ export default function SnookerRoyalLobby() {
     return requestedType === 'tournament' ? 'tournament' : 'regular';
   })();
 
-  const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
+  const [stake, setStake] = useState({ token: 'TPG', amount: 100 });
   const [mode, setMode] = useState('ai');
   const [avatar, setAvatar] = useState('');
   const [showFlagPicker, setShowFlagPicker] = useState(false);
@@ -109,13 +109,13 @@ export default function SnookerRoyalLobby() {
       selfEntry?.name ||
       getTelegramFirstName() ||
       getTelegramId() ||
-      (selfId ? `TPC ${selfId}` : 'Player');
+      (selfId ? `TPG ${selfId}` : 'Player');
     const friendlyAvatar = selfEntry?.avatar || avatar;
     const opponentName =
       opponentEntry?.name ||
       opponentEntry?.username ||
       opponentEntry?.telegramName ||
-      (opponentEntry?.id ? `TPC ${opponentEntry.id}` : '');
+      (opponentEntry?.id ? `TPG ${opponentEntry.id}` : '');
     const opponentAvatar = opponentEntry?.avatar || '';
     cleanupRef.current?.({ account: accountId, skipRefReset: true });
     const params = new URLSearchParams();
@@ -188,7 +188,7 @@ export default function SnookerRoyalLobby() {
       tgId = getTelegramId();
       accountId = await ensureAccountId();
     } catch (error) {
-      const message = 'Unable to verify your TPC account. Please retry.';
+      const message = 'Unable to verify your TPG account. Please retry.';
       setMatchingError(message);
       try {
         window?.Telegram?.WebApp?.showAlert?.(message);
@@ -505,7 +505,7 @@ export default function SnookerRoyalLobby() {
             })}
           </div>
           <p className="text-xs text-white/60 text-center">
-            AI matches stay offline. Online mode uses your TPC stake and pairs you with another player.
+            AI matches stay offline. Online mode uses your TPG stake and pairs you with another player.
           </p>
         </div>
 
@@ -562,14 +562,14 @@ export default function SnookerRoyalLobby() {
               </div>
               <div>
                 <h3 className="font-semibold text-white">Select Stake</h3>
-                <p className="text-xs text-white/60">Stake your TPC to lock a table.</p>
+                <p className="text-xs text-white/60">Stake your TPG to lock a table.</p>
               </div>
             </div>
             <div className="mt-3">
-              <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
+              <RoomSelector selected={stake} onSelect={setStake} tokens={['TPG']} />
             </div>
             <p className="text-center text-white/60 text-xs">
-              Online games use your TPC stake as escrow, while AI matches stay free.
+              Online games use your TPG stake as escrow, while AI matches stay free.
             </p>
           </div>
         )}
@@ -580,7 +580,7 @@ export default function SnookerRoyalLobby() {
               <div>
                 <h3 className="font-semibold text-white">Online Arena</h3>
                 <p className="text-sm text-white/60">
-                  We match players by TPC account number, stake ({stake.amount} {stake.token}),
+                  We match players by TPG account number, stake ({stake.amount} {stake.token}),
                   and Snooker Royal game type.
                 </p>
               </div>
@@ -610,7 +610,7 @@ export default function SnookerRoyalLobby() {
                     >
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-semibold">{p.name || `TPC ${p.id}`}</p>
+                          <p className="text-sm font-semibold">{p.name || `TPG ${p.id}`}</p>
                           <p className="text-xs text-white/60">Account #{p.id}</p>
                         </div>
                         <span

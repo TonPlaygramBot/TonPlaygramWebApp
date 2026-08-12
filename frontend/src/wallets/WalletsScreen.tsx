@@ -55,7 +55,7 @@ export function WalletsScreen({ session }: { session: SessionState }) {
 
   return (
     <div>
-      <h2>Tpc Account: {session.account?.telegramUserId}</h2>
+      <h2>TPG Account: {session.account?.telegramUserId}</h2>
       <button onClick={() => setOpen(true)}>Add wallet</button>
       {(['solana', 'evm', 'ton'] as const).map((chain) => (
         <section key={chain}>

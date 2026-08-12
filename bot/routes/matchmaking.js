@@ -43,7 +43,7 @@ router.post('/session', async (req, res) => {
 router.post('/reserve', async (req, res) => {
   const accounts = [...new Set((req.body?.accounts || []).map(String))];
   const stake = Number(req.body?.stake); const roomId = String(req.body?.roomId || '');
-  if (accounts.length !== 2 || !roomId || !Number.isSafeInteger(stake) || stake <= 0 || req.body?.token !== 'TPC') return res.status(400).json({ error: 'invalid_reservation' });
+  if (accounts.length !== 2 || !roomId || !Number.isSafeInteger(stake) || stake <= 0 || req.body?.token !== 'TPG') return res.status(400).json({ error: 'invalid_reservation' });
   const existing = await ChessMatch.findOne({ roomId }).lean();
   if (existing) return res.json({ matchId: existing.internalMatchId, tableNumber: existing.tableNumber, transactionIds: existing.stakeTransactionIds });
   const session = await mongoose.startSession();
@@ -61,7 +61,7 @@ router.post('/reserve', async (req, res) => {
       for (const user of users) {
         const index = accounts.indexOf(String(user.tpcAccountNumber));
         user.balance -= stake; user.currentTableId = tableNumber;
-        user.transactions.push({ transactionId: transactionIds[index], amount: -stake, type: 'stake_reserve', token: 'TPC', status: 'reserved', game: 'chessbattle', players: 2, detail: matchId });
+        user.transactions.push({ transactionId: transactionIds[index], amount: -stake, type: 'stake_reserve', token: 'TPG', status: 'reserved', game: 'chessbattle', players: 2, detail: matchId });
         await user.save({ session });
       }
       await ChessMatch.create([{ tableNumber, internalMatchId: matchId, roomId, player1TpcAccountId: accounts[0], player2TpcAccountId: accounts[1], stakePerPlayer: stake, totalLockedStake: stake * 2, stakeTransactionIds: transactionIds }], { session });
@@ -83,7 +83,7 @@ router.post('/release', async (req, res) => {
       if (match.status !== 'reserved') throw new Error('match_already_started');
       for (const account of [match.player1TpcAccountId, match.player2TpcAccountId]) {
         const transactionId = `chess:${matchId}:release:${account}`; transactionIds.push(transactionId);
-        await User.updateOne({ tpcAccountNumber: account, 'transactions.transactionId': { $ne: transactionId } }, { $inc: { balance: match.stakePerPlayer }, $set: { currentTableId: null }, $push: { transactions: { transactionId, amount: match.stakePerPlayer, type: 'stake_refund', token: 'TPC', status: 'delivered', game: 'chessbattle', players: 2, detail: String(req.body?.reason || 'cancelled') } } }, { session });
+        await User.updateOne({ tpcAccountNumber: account, 'transactions.transactionId': { $ne: transactionId } }, { $inc: { balance: match.stakePerPlayer }, $set: { currentTableId: null }, $push: { transactions: { transactionId, amount: match.stakePerPlayer, type: 'stake_refund', token: 'TPG', status: 'delivered', game: 'chessbattle', players: 2, detail: String(req.body?.reason || 'cancelled') } } }, { session });
       }
       match.status = 'refunded'; match.releaseTransactionIds = transactionIds; await match.save({ session });
     });
@@ -111,7 +111,7 @@ router.post('/settle', async (req, res) => {
       if (draw) {
         for (const account of accounts) {
           const transactionId = `chess:${matchId}:draw:${account}`;
-          await User.updateOne({ tpcAccountNumber: account, 'transactions.transactionId': { $ne: transactionId } }, { $inc: { balance: match.stakePerPlayer }, $set: { currentTableId: null }, $push: { transactions: { transactionId, amount: match.stakePerPlayer, type: 'stake_refund', token: 'TPC', status: 'delivered', game: 'chessbattle', players: 2, detail: 'draw' } } }, { session });
+          await User.updateOne({ tpcAccountNumber: account, 'transactions.transactionId': { $ne: transactionId } }, { $inc: { balance: match.stakePerPlayer }, $set: { currentTableId: null }, $push: { transactions: { transactionId, amount: match.stakePerPlayer, type: 'stake_refund', token: 'TPG', status: 'delivered', game: 'chessbattle', players: 2, detail: 'draw' } } }, { session });
         }
         match.status = 'draw'; match.result = String(req.body?.reason || 'draw');
       } else {
@@ -120,11 +120,11 @@ router.post('/settle', async (req, res) => {
         const houseFee = Math.floor((gross * feeBps) / 10_000);
         const payout = gross - houseFee;
         const payoutTx = `chess:${matchId}:payout:${winnerAccount}`;
-        await User.updateOne({ tpcAccountNumber: winnerAccount, 'transactions.transactionId': { $ne: payoutTx } }, { $inc: { balance: payout }, $set: { currentTableId: null }, $push: { transactions: { transactionId: payoutTx, amount: payout, type: 'stake_payout', token: 'TPC', status: 'delivered', game: 'chessbattle', players: 2, detail: matchId } } }, { session });
+        await User.updateOne({ tpcAccountNumber: winnerAccount, 'transactions.transactionId': { $ne: payoutTx } }, { $inc: { balance: payout }, $set: { currentTableId: null }, $push: { transactions: { transactionId: payoutTx, amount: payout, type: 'stake_payout', token: 'TPG', status: 'delivered', game: 'chessbattle', players: 2, detail: matchId } } }, { session });
         for (const account of accounts.filter((account) => account !== winnerAccount)) await User.updateOne({ tpcAccountNumber: account }, { $set: { currentTableId: null } }, { session });
         if (houseFee > 0 && houseAccount) {
           const feeTx = `chess:${matchId}:house:${houseAccount}`;
-          await User.updateOne({ tpcAccountNumber: houseAccount }, { $inc: { balance: houseFee }, $push: { transactions: { transactionId: feeTx, amount: houseFee, type: 'house_fee', token: 'TPC', status: 'delivered', game: 'chessbattle', players: 2, detail: matchId } } }, { session });
+          await User.updateOne({ tpcAccountNumber: houseAccount }, { $inc: { balance: houseFee }, $push: { transactions: { transactionId: feeTx, amount: houseFee, type: 'house_fee', token: 'TPG', status: 'delivered', game: 'chessbattle', players: 2, detail: matchId } } }, { session });
         }
         match.status = 'finished'; match.winnerTpcAccountId = winnerAccount; match.result = String(req.body?.reason || 'checkmate');
       }

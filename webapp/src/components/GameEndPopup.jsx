@@ -50,7 +50,7 @@ export default function GameEndPopup({ open, ranking = [], onReturn }) {
               {winner.amount}
               <img
                 src="/assets/icons/ezgif-54c96d8a9b9236.webp"
-                alt="TPC"
+                alt="TPG"
                 className="w-5 h-5"
               />
             </span>
@@ -71,7 +71,7 @@ export default function GameEndPopup({ open, ranking = [], onReturn }) {
                 {p.amount}
                 <img
                   src="/assets/icons/ezgif-54c96d8a9b9236.webp"
-                  alt="TPC"
+                  alt="TPG"
                   className="w-4 h-4"
                 />
               </span>

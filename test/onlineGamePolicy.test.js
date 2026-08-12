@@ -17,7 +17,7 @@ describe('online game policy', () => {
         variant: '8ball',
         mode: 'Ranked',
         tableSize: '9ft',
-        token: 'TPC',
+        token: 'TPG',
         unexpected: 'ignore-me'
       }
     });
@@ -29,7 +29,7 @@ describe('online game policy', () => {
       variant: '8ball',
       mode: 'Ranked',
       tableSize: '9ft',
-      token: 'TPC'
+      token: 'TPG'
     });
   });
 
@@ -71,7 +71,7 @@ describe('online game policy', () => {
         variant: 'Points',
         targetPoints: 101,
         mode: 'ONLINE',
-        token: 'tpc'
+        token: 'tpg'
       }
     });
 
@@ -83,16 +83,16 @@ describe('online game policy', () => {
         variant: 'points',
         targetPoints: '101',
         mode: 'online',
-        token: 'TPC'
+        token: 'TPG'
       }
     });
   });
 
   test.each([
-    [{ variant: 'rounds', mode: 'online', token: 'TPC' }, 'invalid_game_variant'],
+    [{ variant: 'rounds', mode: 'online', token: 'TPG' }, 'invalid_game_variant'],
     [{ variant: 'single', mode: 'online', token: 'TON' }, 'invalid_stake_token'],
-    [{ variant: 'single', mode: 'local', token: 'TPC' }, 'invalid_game_mode'],
-    [{ variant: 'points', targetPoints: 75, mode: 'online', token: 'TPC' }, 'invalid_target_points']
+    [{ variant: 'single', mode: 'local', token: 'TPG' }, 'invalid_game_mode'],
+    [{ variant: 'points', targetPoints: 75, mode: 'online', token: 'TPG' }, 'invalid_target_points']
   ])('rejects invalid Domino Royal criteria %#', (matchMeta, error) => {
     expect(validateSeatTableRequest({
       gameType: 'domino-royal',

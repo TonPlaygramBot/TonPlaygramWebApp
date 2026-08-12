@@ -225,7 +225,7 @@ export async function runPoolRoyaleOnlineFlow({
   const telegramId = getTelegramIdFn?.();
 
   setMatchingError('');
-  setMatchStatus('Checking your TPC account…');
+  setMatchStatus('Checking your TPG account…');
   setMatching(true);
   setIsSearching(true);
 
@@ -259,7 +259,7 @@ export async function runPoolRoyaleOnlineFlow({
     accountId = await ensureAccountIdFn();
     accountIdRef.current = accountId;
   } catch (error) {
-    setMatchingError('Unable to verify your TPC account. Please retry.');
+    setMatchingError('Unable to verify your TPG account. Please retry.');
     setMatchStatus('');
     setMatching(false);
     setIsSearching(false);
@@ -446,7 +446,7 @@ export async function runPoolRoyaleOnlineFlow({
         ballSet,
         tableSize: normalizedTableSize,
         playType,
-        playerName: getTelegramFirstNameFn?.() || `TPC ${accountId}` || 'Player',
+        playerName: getTelegramFirstNameFn?.() || `TPG ${accountId}` || 'Player',
         avatar
       },
       (res) => {

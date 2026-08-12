@@ -3516,7 +3516,7 @@ export default function CheckersBattleRoyal() {
       if (!eventTableId || eventTableId !== tableId) return;
       if (String(winnerId || '') !== String(accountId || '')) return;
       if (settlementStatus === 'settled' && Number(payoutAmount) > 0) {
-        setStatus(`Match settled. +${Number(payoutAmount)} TPC paid.`);
+        setStatus(`Match settled. +${Number(payoutAmount)} TPG paid.`);
       }
     };
     const handleSocketDisconnect = () => {

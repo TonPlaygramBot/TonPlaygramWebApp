@@ -8948,7 +8948,7 @@ function Chess3D({
   initialOpponent,
   preferredSideParam = 'auto',
   stakeAmount = 0,
-  stakeToken = 'TPC'
+  stakeToken = 'TPG'
 }) {
   const wrapRef = useRef(null);
   const normalizedInitialSide = initialSide === 'black' ? 'black' : 'white';
@@ -9435,7 +9435,7 @@ function Chess3D({
           accountId,
           gameType: 'chess',
           stake: Number(stakeAmount) || 0,
-          token: stakeToken || 'TPC',
+          token: stakeToken || 'TPG',
           maxPlayers: 2,
           playerName: username,
           avatar,
@@ -17444,7 +17444,7 @@ function Chess3D({
                       animationDelay: `${(idx % 6) * 0.08}s`
                     }}
                   >
-                    TPC
+                    TPG
                   </span>
                 ))}
               </div>
@@ -17631,7 +17631,7 @@ export default function ChessBattleRoyal() {
       : 'white';
   const rawStakeAmount = Number(params.get('amount') || 0);
   const stakeAmount = Number.isFinite(rawStakeAmount) && rawStakeAmount > 0 ? rawStakeAmount : 0;
-  const stakeToken = params.get('token') || 'TPC';
+  const stakeToken = params.get('token') || 'TPG';
   const opponentName = params.get('opponentName') || '';
   const opponentAvatar = params.get('opponentAvatar') || '';
   const initialOpponent =

@@ -35,7 +35,7 @@ export default function WatchToEarn() {
       <ul className="space-y-2">
         {videos.map(v => (
           <li key={v.id} className="border p-2 flex justify-between items-center">
-            <span>{v.title} ({v.reward} TPC)</span>
+            <span>{v.title} ({v.reward} TPG)</span>
             {v.watched ? (
               <span className="text-accent">Watched</span>
             ) : (

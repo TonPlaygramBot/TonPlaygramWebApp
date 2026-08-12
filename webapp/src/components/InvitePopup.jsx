@@ -24,7 +24,7 @@ export default function InvitePopup({
             <img
               
               src={
-                stake?.token === 'TPC'
+                stake?.token === 'TPG'
                   ? '/assets/icons/ezgif-54c96d8a9b9236.webp'
                   : stake?.token === 'TON'
                   ? '/assets/icons/TON.webp'
@@ -79,7 +79,7 @@ export default function InvitePopup({
             <RoomSelector
               selected={stake}
               onSelect={onStakeChange}
-              tokens={['TPC']}
+              tokens={['TPG']}
             />
           </>
         )}

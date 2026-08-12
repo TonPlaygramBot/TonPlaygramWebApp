@@ -41,7 +41,7 @@ function validateTelegram(initData: string, botToken: string): Record<string, st
 }
 
 export async function authenticatePlayer(_client: Client, options: Record<string, unknown>): Promise<PlayerAuth> {
-  // The canonical TPC account number is the primary real-time identity. Keep
+  // The canonical TPG account number is the primary real-time identity. Keep
   // accountId as a compatibility fallback for clients deployed before this field.
   const accountId = String(options.tpcAccountNumber || options.accountId || '').trim().slice(0, 80);
   const initData = String(options.initData || '');

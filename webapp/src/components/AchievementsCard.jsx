@@ -56,7 +56,7 @@ export default function AchievementsCard({ telegramId: propTelegramId }) {
       />
       <h3 className="text-lg font-bold text-center">Achievements</h3>
       <p className="text-center text-sm">Daily Streak: {profile.dailyStreak || 0} days</p>
-      <p className="text-center text-sm">Mined TPC: {formatValue(profile.minedTPC || 0, 0)}</p>
+      <p className="text-center text-sm">Mined TPG: {formatValue(profile.minedTPC || 0, 0)}</p>
       <p className="text-center text-sm">Gifts Collected: {profile.gifts ? profile.gifts.length : 0}</p>
       <Link
         to="/tasks"

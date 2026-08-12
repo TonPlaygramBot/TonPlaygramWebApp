@@ -66,7 +66,7 @@ test(
         stake: 100,
         maxPlayers: 2,
         mode: 'online',
-        token: 'TPC',
+        token: 'TPG',
         preferredSide: 'white'
       });
       const secondSeat = await seat(s2, {
@@ -75,7 +75,7 @@ test(
         stake: 100,
         maxPlayers: 2,
         mode: 'online',
-        token: 'TPC',
+        token: 'TPG',
         preferredSide: 'black'
       });
 
