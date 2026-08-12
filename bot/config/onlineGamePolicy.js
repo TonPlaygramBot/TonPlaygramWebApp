@@ -1,4 +1,5 @@
 const BASE_SECURITY_CONTROLS = Object.freeze([
+  'tpg_account_number_required',
   'authoritative_lobby_server',
   'socket_identity_binding',
   'seat_request_rate_limit',
@@ -22,6 +23,7 @@ const GAME_ONLINE_POLICY = Object.freeze({
   ludobattleroyal: { maxPlayers: [2, 4], allowMatchMeta: ['variant', 'mode', 'token'] },
   texasholdem: { maxPlayers: [2, 6], allowMatchMeta: ['mode', 'token'] },
   airhockey: { maxPlayers: [2], allowMatchMeta: ['mode', 'token'] },
+  backgammon: { maxPlayers: [2], allowMatchMeta: ['mode', 'token'] },
   murlanroyale: { maxPlayers: [2, 4], allowMatchMeta: ['variant', 'mode', 'token'] }
 });
 
@@ -90,7 +92,7 @@ export function validateSeatTableRequest({
   }
 
   const normalizedStake = Number(stake);
-  if (!Number.isFinite(normalizedStake) || normalizedStake < 0) {
+  if (!Number.isSafeInteger(normalizedStake) || normalizedStake <= 0) {
     return { ok: false, error: 'invalid_stake' };
   }
 
@@ -112,11 +114,25 @@ export function validateSeatTableRequest({
     };
   }
 
+  const token = String(matchMeta.token || '').trim().toUpperCase();
+  if (token !== 'TPG') {
+    return { ok: false, error: 'invalid_stake_token' };
+  }
+
+  const mode = String(matchMeta.mode || '').trim().toLowerCase();
+  if (mode !== 'online') {
+    return { ok: false, error: 'invalid_game_mode' };
+  }
+
   const safeMatchMeta = {};
   for (const key of policy.allowMatchMeta) {
     const value = sanitizeMetaValue(matchMeta[key]);
     if (value != null && value !== '') {
-      safeMatchMeta[key] = value;
+      safeMatchMeta[key] = key === 'token'
+        ? String(value).toUpperCase()
+        : key === 'mode'
+          ? String(value).toLowerCase()
+          : value;
     }
   }
 

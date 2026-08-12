@@ -2454,6 +2454,7 @@ io.on('connection', (socket) => {
   socket.on('leaveLobby', (payload = {}) => {
     const { tableId } = payload;
     const resolvedAccountId = resolveTpcIdentity(payload);
+    if (hasConflictingIdentities(payload) || !ensureRegistered(socket, resolvedAccountId)) return;
     if (tableId) {
       unseatTableSocket(resolvedAccountId, tableId, socket.id);
     }

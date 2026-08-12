@@ -221,19 +221,26 @@ export default function TavullBattleRoyalLobby() {
 
     socket.on('gameStart', handleGameStart);
     socket.on('lobbyUpdate', handleLobbyUpdate);
-    socket.emit('register', { playerId: trackedAccountId });
+    socket.emit('register', {
+      tpcAccountNumber: trackedAccountId,
+      accountId: trackedAccountId,
+      playerId: trackedAccountId
+    });
 
     const friendlyName = getTelegramFirstName() || getTelegramUsername() || 'Player';
     socket.emit(
       'seatTable',
       {
         accountId: trackedAccountId || accountId,
+        tpcAccountNumber: trackedAccountId || accountId,
         gameType: 'backgammon',
         stake: stake.amount ?? 0,
         maxPlayers: 2,
         playerName: friendlyName,
         avatar,
-        preferredSide
+        preferredSide,
+        mode: 'online',
+        token: stake.token
       },
       (res) => {
         if (!res?.success || !res.tableId) {
@@ -245,6 +252,7 @@ export default function TavullBattleRoyalLobby() {
         setMatchStatus('Waiting for another player…');
         socket.emit('confirmReady', {
           accountId: trackedAccountId,
+          tpcAccountNumber: trackedAccountId,
           tableId: res.tableId
         });
       }

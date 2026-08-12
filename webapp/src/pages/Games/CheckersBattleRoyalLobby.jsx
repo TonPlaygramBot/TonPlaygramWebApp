@@ -435,6 +435,7 @@ export default function CheckersBattleRoyalLobby() {
         'seatTable',
         {
           accountId: trackedAccountId || accountId,
+          tpcAccountNumber: seatAccountId,
           tpcAccountId: seatAccountId,
           gameType: 'checkers',
           stake: stake.amount ?? 0,
