@@ -118,14 +118,12 @@ export function getPlayerId() {
     const perTelegramKey = accountIdMapStorageKey(telegramId);
     let telegramScopedId = localStorage.getItem(perTelegramKey);
 
-    if (globalId && (!telegramScopedId || telegramScopedId !== globalId)) {
-      telegramScopedId = globalId;
-      localStorage.setItem(perTelegramKey, telegramScopedId);
-    }
-
     // Backward compatibility:
     // if this Telegram user already had a single legacy accountId stored, bind it
-    // once to the per-user key instead of generating a new id.
+    // once to the first per-user key instead of generating a new id. Never copy
+    // the mutable global alias over a different Telegram user's scoped key: two
+    // accounts sharing a WebView/storage would otherwise occupy the same lobby
+    // seat and could never match each other.
     if (!telegramScopedId && globalId && !hasAnyScopedAccountIds(localStorage)) {
       telegramScopedId = globalId;
       localStorage.setItem(perTelegramKey, telegramScopedId);
@@ -145,10 +143,6 @@ export function getPlayerId() {
   if (googleId) {
     const perGoogleKey = accountIdGoogleStorageKey(googleId);
     let googleScopedId = localStorage.getItem(perGoogleKey);
-    if (globalId && (!googleScopedId || googleScopedId !== globalId)) {
-      googleScopedId = globalId;
-      localStorage.setItem(perGoogleKey, googleScopedId);
-    }
     if (!googleScopedId && globalId && !hasAnyScopedAccountIds(localStorage)) {
       googleScopedId = globalId;
       localStorage.setItem(perGoogleKey, googleScopedId);
