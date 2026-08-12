@@ -68,6 +68,8 @@ export default function DominoRoyalLobby() {
   const [queuedTableId, setQueuedTableId] = useState('');
   const [queueStatus, setQueueStatus] = useState('');
   const [queueError, setQueueError] = useState('');
+  const [matchPlayers, setMatchPlayers] = useState([]);
+  const [readyPlayers, setReadyPlayers] = useState([]);
   const queuedTableIdRef = useRef('');
   const launchingOnlineGameRef = useRef(false);
   const onlineStakeDebitedRef = useRef(false);
@@ -241,7 +243,9 @@ export default function DominoRoyalLobby() {
       queuedTableIdRef.current = res.tableId;
       setQueuedTableId(res.tableId);
       const seated = Array.isArray(res.players) ? res.players.length : 1;
-      setQueueStatus(`Table ${res.tableNumber || res.tableId.slice(0, 8)} • seat ${seated}/${requestedPlayers} ready • opening game while we wait for players`);
+      setMatchPlayers(Array.isArray(res.players) ? res.players : []);
+      setReadyPlayers(Array.isArray(res.ready) ? res.ready : []);
+      setQueueStatus(`Table ${res.tableNumber || res.tableId.slice(0, 8)} • ${seated}/${requestedPlayers} players connected`);
       try {
         window.sessionStorage?.setItem(
           'dominoRoyalOnlineMatch',
@@ -258,15 +262,6 @@ export default function DominoRoyalLobby() {
           })
         );
       } catch {}
-      launchingOnlineGameRef.current = true;
-      launchGame({
-        accountId,
-        tgId,
-        tableId: res.tableId,
-        token: stake.token,
-        amount: stake.amount,
-        flagOverride: flags
-      });
       return;
     }
 
@@ -285,6 +280,8 @@ export default function DominoRoyalLobby() {
 
     const handleLobbyUpdate = ({ tableId, tableNumber, players: lobbyPlayers = [], ready = [] } = {}) => {
       if (!tableId || tableId !== queuedTableIdRef.current) return;
+      setMatchPlayers(lobbyPlayers);
+      setReadyPlayers(ready);
       setQueueStatus(
         `Table ${tableNumber || String(tableId).slice(0, 8)} • ${lobbyPlayers.length}/${totalPlayers} players connected • ${ready.length}/${totalPlayers} ready`
       );
@@ -339,11 +336,28 @@ export default function DominoRoyalLobby() {
       });
     };
 
+    const handleMatchTimeout = ({ tableId } = {}) => {
+      if (!tableId || tableId !== queuedTableIdRef.current) return;
+      queuedTableIdRef.current = '';
+      setQueuedTableId('');
+      setMatchPlayers([]);
+      setReadyPlayers([]);
+      setQueueStatus('');
+      setQueueError('No compatible players joined within 120 seconds. Your seat was released; you can search again.');
+      try {
+        window.sessionStorage?.removeItem('dominoRoyalOnlineMatch');
+      } catch {}
+    };
+
     socket.on('lobbyUpdate', handleLobbyUpdate);
     socket.on('gameStart', handleGameStart);
+    socket.on('gameStarted', handleGameStart);
+    socket.on('dominoRoyalMatchTimeout', handleMatchTimeout);
     return () => {
       socket.off('lobbyUpdate', handleLobbyUpdate);
       socket.off('gameStart', handleGameStart);
+      socket.off('gameStarted', handleGameStart);
+      socket.off('dominoRoyalMatchTimeout', handleMatchTimeout);
       if (queuedTableIdRef.current && !launchingOnlineGameRef.current) {
         ensureAccountId()
           .then((accountId) => socket.emit('leaveLobby', { accountId, tableId: queuedTableIdRef.current }))
@@ -351,6 +365,22 @@ export default function DominoRoyalLobby() {
       }
     };
   }, [mode, stake.token, stake.amount, totalPlayers, avatar, flags, gameType, targetPoints]);
+
+  const cancelOnlineSearch = async () => {
+    const tableId = queuedTableIdRef.current;
+    if (!tableId) return;
+    const accountId = await ensureAccountId().catch(() => '');
+    socket.emit('leaveLobby', { tpcAccountNumber: accountId, tableId });
+    queuedTableIdRef.current = '';
+    setQueuedTableId('');
+    setMatchPlayers([]);
+    setReadyPlayers([]);
+    setQueueStatus('');
+    setQueueError('');
+    try {
+      window.sessionStorage?.removeItem('dominoRoyalOnlineMatch');
+    } catch {}
+  };
 
   return (
     <div className="relative min-h-screen bg-[#070b16] text-text">
@@ -632,7 +662,9 @@ export default function DominoRoyalLobby() {
                   </div>
                   <div className="text-center">
                     <p className="lobby-option-label">{value} Players</p>
-                    <p className="lobby-option-subtitle">Local table seats</p>
+                    <p className="lobby-option-subtitle">
+                      {mode === 'online' ? 'Online table seats' : 'Local table seats'}
+                    </p>
                   </div>
                 </button>
               ))}
@@ -641,8 +673,31 @@ export default function DominoRoyalLobby() {
         </div>
 
         {mode === 'online' && (queueStatus || queueError) && (
-          <div className={`rounded-2xl border px-4 py-3 text-sm ${queueError ? 'border-red-400/40 bg-red-500/10 text-red-100' : 'border-sky-400/30 bg-sky-500/10 text-sky-100'}`}>
-            {queueError || queueStatus}
+          <div className={`rounded-2xl border px-4 py-3 text-sm ${queueError ? 'border-red-400/40 bg-red-500/10 text-red-100' : 'border-sky-400/30 bg-sky-500/10 text-sky-100'}`} aria-live="polite">
+            <p>{queueError || queueStatus}</p>
+            {queuedTableId && (
+              <div className="mt-3 space-y-2">
+                <div className="grid grid-cols-4 gap-2" aria-label={`${matchPlayers.length} of ${totalPlayers} seats filled`}>
+                  {Array.from({ length: totalPlayers }, (_, index) => {
+                    const player = matchPlayers[index];
+                    const playerId = String(player?.tpcAccountNumber || player?.id || '');
+                    const isReady = player && readyPlayers.map(String).includes(playerId);
+                    return (
+                      <div key={playerId || `open-${index}`} className={`min-w-0 rounded-xl border px-2 py-2 text-center ${player ? 'border-emerald-300/30 bg-emerald-400/10' : 'border-white/10 bg-black/10'}`}>
+                        <div className="mx-auto flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-white/10 text-base">
+                          {player?.avatar ? <img src={player.avatar} alt="" className="h-full w-full object-cover" /> : player ? '🎴' : '…'}
+                        </div>
+                        <p className="mt-1 truncate text-[10px]">{player?.name || `Seat ${index + 1}`}</p>
+                        <p className="text-[9px] uppercase tracking-wide opacity-60">{player ? (isReady ? 'Ready' : 'Joined') : 'Open'}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+                <button type="button" onClick={cancelOnlineSearch} className="w-full rounded-xl border border-white/20 px-3 py-2 text-xs font-semibold text-white/80">
+                  CANCEL SEARCH
+                </button>
+              </div>
+            )}
           </div>
         )}
 
