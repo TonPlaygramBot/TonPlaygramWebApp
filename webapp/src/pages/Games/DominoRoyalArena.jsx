@@ -340,7 +340,7 @@ export default function DominoRoyalArena() {
           <div className="gift-cost">
             <span>Cost:</span>
             <span id="giftCost">0</span>
-            <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPG" />
+            <img src="/assets/icons/file_00000000362481f7978631c42572193f.png" alt="TPG" />
           </div>
           <button className="modal-primary" id="giftSend" type="button">Send Gift</button>
           <p className="gift-note">10% charge and the amount of the gift will be deducted from your balance.</p>

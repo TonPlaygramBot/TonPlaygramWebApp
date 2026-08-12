@@ -12380,7 +12380,7 @@ function SnookerRoyalGame({
       document.body.appendChild(container);
       for (let i = 0; i < count; i += 1) {
         const img = document.createElement('img');
-        img.src = '/assets/icons/ezgif-54c96d8a9b9236.webp';
+        img.src = '/assets/icons/file_00000000362481f7978631c42572193f.png';
         img.className = 'pr-coin-burst';
         const left = Math.random() * 100;
         const delay = Math.random() * 0.6;
@@ -28248,7 +28248,7 @@ const powerRef = useRef(hud.power);
             </div>
             {winnerOverlay.prizeText ? (
               <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-emerald-300 px-4 py-2 text-sm font-bold uppercase tracking-[0.22em] text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]">
-                <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPG prize" className="h-6 w-6" />
+                <img src="/assets/icons/file_00000000362481f7978631c42572193f.png" alt="TPG prize" className="h-6 w-6" />
                 <span>{winnerOverlay.prizeText}</span>
               </div>
             ) : null}

@@ -236,7 +236,7 @@ export default function Home() {
             </div>
             <div className="flex-1 flex items-center justify-center space-x-1">
               <img
-                src="/assets/icons/ezgif-54c96d8a9b9236.webp"
+                src="/assets/icons/file_00000000362481f7978631c42572193f.png"
                 alt="TPG"
                 className="w-8 h-8"
               />
@@ -285,7 +285,7 @@ export default function Home() {
                 </Link>
                 <div className="flex flex-col items-center space-y-1">
                   <img
-                    src="/assets/icons/ezgif-54c96d8a9b9236.webp"
+                    src="/assets/icons/file_00000000362481f7978631c42572193f.png"
                     alt="TPG"
                     className="w-[4rem] h-[4rem]"
                   />

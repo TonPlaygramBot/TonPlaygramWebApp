@@ -137,7 +137,7 @@ export default function DailyCheckIn() {
 
         <span className="flex flex-col items-center mt-1">
           <img
-            src="/assets/icons/ezgif-54c96d8a9b9236.webp"
+            src="/assets/icons/file_00000000362481f7978631c42572193f.png"
             alt="TPG"
             className="w-5 h-5 mb-0.5"
           />

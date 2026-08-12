@@ -233,7 +233,7 @@ export default forwardRef<SpinWheelHandle, SpinWheelProps>(function SpinWheel(
               ) : (
                 <>
                   <img
-                    src="/assets/icons/ezgif-54c96d8a9b9236.webp"
+                    src="/assets/icons/file_00000000362481f7978631c42572193f.png"
                     alt="TPG"
                     className="w-8 h-8"
                   />

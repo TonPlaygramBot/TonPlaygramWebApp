@@ -3025,7 +3025,7 @@ function makeNameplate(name, chips, renderer, avatar) {
     draw(lastName, lastStack, lastHighlight, lastStatus, avatarState.flag || avatarState.image, lastTimer, lastTimerProgress);
     texture.needsUpdate = true;
   };
-  tpcIcon.src = '/assets/icons/ezgif-54c96d8a9b9236.webp';
+  tpcIcon.src = '/assets/icons/file_00000000362481f7978631c42572193f.png';
 
   const texture = new THREE.CanvasTexture(canvas);
   applySRGBColorSpace(texture);
@@ -3143,7 +3143,7 @@ function createRailTextSprite(initialLines = [], options = {}) {
     draw(lastPayload);
     texture.needsUpdate = true;
   };
-  tpcIcon.src = '/assets/icons/ezgif-54c96d8a9b9236.webp';
+  tpcIcon.src = '/assets/icons/file_00000000362481f7978631c42572193f.png';
 
   draw(initialLines);
   const texture = new THREE.CanvasTexture(canvas);

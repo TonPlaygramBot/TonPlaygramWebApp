@@ -5,7 +5,7 @@ import sharp from 'sharp';
 
 const rootDir = fileURLToPath(new URL('..', import.meta.url));
 const iconSource = join(rootDir, 'public/assets/icons/TON.webp');
-const splashSource = join(rootDir, 'public/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp');
+const splashSource = join(rootDir, 'public/assets/icons/file_00000000efd081f78539cff614489f91.png');
 
 const generatedIconDir = join(rootDir, 'public/assets/icons/generated');
 const pwaSplashDir = join(rootDir, 'public/assets/splash');

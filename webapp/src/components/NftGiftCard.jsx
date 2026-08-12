@@ -128,7 +128,7 @@ export default function NftGiftCard({ accountId: propAccountId }) {
             <div className="mt-auto flex flex-col items-center space-y-2 w-full">
               <span className="flex items-center space-x-1 text-lg">
                 <span>{previewInfo.price}</span>
-                <img src="/assets/icons/ezgif-54c96d8a9b9236.webp" alt="TPG" className="w-6 h-6" />
+                <img src="/assets/icons/file_00000000362481f7978631c42572193f.png" alt="TPG" className="w-6 h-6" />
               </span>
               <button
                 onClick={() => setConfirmConvert(true)}

@@ -555,7 +555,7 @@ const TEXAS_TYPE_LABELS = {
   environmentHdri: 'HDR Environments'
 };
 
-const TON_ICON = '/assets/icons/ezgif-54c96d8a9b9236.webp';
+const TON_ICON = '/assets/icons/file_00000000362481f7978631c42572193f.png';
 const TON_PRICE_MIN = 100;
 const TON_PRICE_MAX = 5000;
 const THUMBNAIL_SIZE = 256;
@@ -4234,7 +4234,7 @@ export default function Store() {
           <div className="flex items-center gap-3">
             <div className="grid h-10 w-10 place-items-center overflow-hidden rounded-2xl bg-white/10 shadow-sm">
               <img
-                src="/assets/icons/file_00000000bc2862439eecffff3730bbe4.webp"
+                src="/assets/icons/file_00000000efd081f78539cff614489f91.png"
                 alt="TonPlaygram store avatar"
                 className="h-full w-full object-cover"
               />
