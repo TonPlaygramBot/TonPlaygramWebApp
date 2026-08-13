@@ -598,12 +598,90 @@ const normalizeAccount = (value) =>
 
 const STORE_LAYOUT_STORAGE_KEY = 'tonplaygram:storeLayout';
 const STORE_LAYOUTS = [
-  { id: 'grid', name: 'Classic grid', description: 'Balanced cards', icon: LayoutGrid },
-  { id: 'compact', name: 'Compact', description: 'More items at once', icon: Grid2X2 },
-  { id: 'list', name: 'List', description: 'Easy scanning', icon: List },
-  { id: 'gallery', name: 'Gallery', description: 'Larger product art', icon: Columns3 },
-  { id: 'rows', name: 'Showcase', description: 'Spacious rows', icon: Rows3 }
+  {
+    id: 'grid',
+    name: 'Emerald grid',
+    description: 'Balanced marketplace cards',
+    icon: LayoutGrid,
+    previewClass: 'border-emerald-300/50 bg-emerald-400/15 text-emerald-100',
+    dotClass: 'bg-emerald-300'
+  },
+  {
+    id: 'compact',
+    name: 'Cyan compact',
+    description: 'Small tiles, more items',
+    icon: Grid2X2,
+    previewClass: 'border-cyan-300/50 bg-cyan-400/15 text-cyan-100',
+    dotClass: 'bg-cyan-300'
+  },
+  {
+    id: 'list',
+    name: 'Amber list',
+    description: 'Horizontal scan-friendly rows',
+    icon: List,
+    previewClass: 'border-amber-300/50 bg-amber-400/15 text-amber-100',
+    dotClass: 'bg-amber-300'
+  },
+  {
+    id: 'gallery',
+    name: 'Violet gallery',
+    description: 'Large art-first cards',
+    icon: Columns3,
+    previewClass: 'border-violet-300/50 bg-violet-400/15 text-violet-100',
+    dotClass: 'bg-violet-300'
+  },
+  {
+    id: 'rows',
+    name: 'Rose showcase',
+    description: 'Editorial premium panels',
+    icon: Rows3,
+    previewClass: 'border-rose-300/50 bg-rose-400/15 text-rose-100',
+    dotClass: 'bg-rose-300'
+  }
 ];
+
+const STORE_LAYOUT_THEMES = {
+  grid: {
+    page: 'bg-zinc-950',
+    header: 'border-emerald-400/15 bg-zinc-950/85',
+    accent: 'text-emerald-300',
+    glow: 'bg-emerald-400/15',
+    card: 'rounded-3xl border-emerald-300/15 bg-gradient-to-br from-emerald-400/10 to-black/35 hover:border-emerald-300/35',
+    buy: 'bg-emerald-200 text-emerald-950 hover:bg-emerald-100'
+  },
+  compact: {
+    page: 'bg-slate-950',
+    header: 'border-cyan-400/20 bg-slate-950/90',
+    accent: 'text-cyan-300',
+    glow: 'bg-cyan-400/15',
+    card: 'rounded-xl border-cyan-300/20 bg-cyan-950/35 hover:border-cyan-300/45',
+    buy: 'bg-cyan-300 text-cyan-950 hover:bg-cyan-200'
+  },
+  list: {
+    page: 'bg-stone-950',
+    header: 'border-amber-400/20 bg-stone-950/90',
+    accent: 'text-amber-300',
+    glow: 'bg-amber-400/15',
+    card: 'rounded-2xl border-amber-300/20 bg-gradient-to-r from-amber-950/45 to-stone-950 hover:border-amber-300/45',
+    buy: 'bg-amber-300 text-amber-950 hover:bg-amber-200'
+  },
+  gallery: {
+    page: 'bg-[#100b1d]',
+    header: 'border-violet-400/20 bg-[#100b1d]/90',
+    accent: 'text-violet-300',
+    glow: 'bg-violet-500/20',
+    card: 'rounded-[2rem] border-violet-300/20 bg-gradient-to-b from-violet-500/15 to-[#100b1d] shadow-xl hover:border-violet-300/45',
+    buy: 'bg-violet-300 text-violet-950 hover:bg-violet-200'
+  },
+  rows: {
+    page: 'bg-[#180c12]',
+    header: 'border-rose-400/20 bg-[#180c12]/90',
+    accent: 'text-rose-300',
+    glow: 'bg-rose-500/20',
+    card: 'rounded-[2rem] border-rose-300/20 bg-gradient-to-br from-rose-500/15 via-[#241019] to-black/40 shadow-xl hover:border-rose-300/45',
+    buy: 'bg-rose-300 text-rose-950 hover:bg-rose-200'
+  }
+};
 
 const resolveSwatches = (type, optionId, fallbackSwatches = []) => {
   if (OPTION_SWATCH_OVERRIDES[optionId])
@@ -2436,6 +2514,7 @@ export default function Store() {
     gallery: 'grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-3',
     rows: 'grid grid-cols-1 gap-5 sm:grid-cols-2'
   }[storeLayout];
+  const layoutTheme = STORE_LAYOUT_THEMES[storeLayout] || STORE_LAYOUT_THEMES.grid;
 
   const renderListModal = () => {
     if (!showListModal) return null;
@@ -3744,10 +3823,11 @@ export default function Store() {
     const label = (item.displayLabel || item.name || '').slice(0, 18);
     const media = resolveItemMedia(item);
     const resolvedThumbnail = media.thumbnail;
-    const isCompact = variant === 'compact';
+    const isCompact = variant === 'compact' || variant === 'list';
+    const isGallery = variant === 'gallery';
     const wrapperClass = isCompact
-      ? 'relative h-16 w-20 overflow-hidden rounded-2xl border border-white/10 bg-black/40 shadow-[0_16px_30px_-24px_rgba(0,0,0,0.9)]'
-      : 'relative h-32 w-full overflow-hidden rounded-2xl border border-white/10 bg-black/40 shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)]';
+      ? `relative ${variant === 'list' ? 'h-24 w-24 shrink-0' : 'h-16 w-full'} overflow-hidden rounded-xl border border-white/10 bg-black/40 shadow-[0_16px_30px_-24px_rgba(0,0,0,0.9)]`
+      : `relative ${isGallery ? 'h-48' : 'h-32'} w-full overflow-hidden rounded-2xl border border-white/10 bg-black/40 shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)]`;
     const imageClass = isCompact
       ? 'h-full w-full object-contain p-2'
       : 'h-full w-full object-contain p-3';
@@ -3795,17 +3875,19 @@ export default function Store() {
     return (
       <div
         key={`${item.slug}-${item.id}`}
-        className={`group flex h-full flex-col gap-3 border border-white/10 bg-gradient-to-br from-white/5 to-black/30 text-left shadow-sm transition hover:border-white/20 hover:bg-white/10 ${
+        className={`group h-full gap-3 border text-left shadow-sm transition ${layoutTheme.card} ${
+          storeLayout === 'list' ? 'flex flex-row flex-wrap items-center' : 'flex flex-col'
+        } ${
           storeLayout === 'compact'
-            ? 'rounded-2xl p-2.5'
+            ? 'p-2'
             : storeLayout === 'gallery'
-              ? 'rounded-[2rem] p-3 shadow-lg'
+              ? 'p-3'
               : storeLayout === 'rows'
-                ? 'rounded-3xl p-5'
-                : 'rounded-3xl p-4'
+                ? 'p-5'
+                : 'p-4'
         }`}
       >
-        <div className="flex items-center justify-between gap-2">
+        <div className={`flex items-center justify-between gap-2 ${storeLayout === 'list' ? 'w-full' : ''}`}>
           <label className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -3825,9 +3907,18 @@ export default function Store() {
           </button>
         </div>
 
-        {renderStoreThumbnail(item, storeLayout === 'compact' ? 'compact' : 'card')}
+        {renderStoreThumbnail(
+          item,
+          storeLayout === 'compact'
+            ? 'compact'
+            : storeLayout === 'list'
+              ? 'list'
+              : storeLayout === 'gallery'
+                ? 'gallery'
+                : 'card'
+        )}
 
-        <div className="space-y-1">
+        <div className={`space-y-1 ${storeLayout === 'list' ? 'min-w-0 flex-1' : ''}`}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-sm font-semibold">{item.displayLabel}</div>
             {item.owned && (
@@ -3847,7 +3938,7 @@ export default function Store() {
           </div>
         </div>
 
-        <div className="mt-auto flex flex-wrap items-center gap-2">
+        <div className={`mt-auto flex flex-wrap items-center gap-2 ${storeLayout === 'list' ? 'w-full border-t border-white/10 pt-3' : ''}`}>
           <div className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-sm font-semibold">
             {item.price}
             <img src={TON_ICON} alt="TPG" className="h-4 w-4" />
@@ -3865,7 +3956,7 @@ export default function Store() {
               setConfirmItems([]);
               setConfirmItem(item);
             }}
-            className="rounded-2xl bg-white px-3 py-2 text-xs font-semibold text-zinc-950 hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
+            className={`rounded-2xl px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${layoutTheme.buy}`}
             disabled={item.owned || Boolean(processing)}
           >
             {item.owned ? 'Owned' : 'Buy'}
@@ -3876,8 +3967,8 @@ export default function Store() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      <header className="sticky top-0 z-30 border-b border-white/10 bg-zinc-950/80 backdrop-blur">
+    <div className={`min-h-screen text-zinc-100 transition-colors duration-300 ${layoutTheme.page}`}>
+      <header className={`sticky top-0 z-30 border-b backdrop-blur ${layoutTheme.header}`}>
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
             <div className="grid h-10 w-10 place-items-center overflow-hidden rounded-2xl bg-white/10 shadow-sm">
@@ -3910,7 +4001,10 @@ export default function Store() {
               aria-label="Change store layout"
               aria-expanded={showLayoutPicker}
             >
-              <LayoutGrid size={19} aria-hidden="true" />
+              {(() => {
+                const ActiveLayoutIcon = STORE_LAYOUTS.find((layout) => layout.id === storeLayout)?.icon || LayoutGrid;
+                return <ActiveLayoutIcon size={19} aria-hidden="true" />;
+              })()}
             </button>
             <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
               <div
@@ -3936,7 +4030,7 @@ export default function Store() {
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300">
+                <p className={`text-xs font-semibold uppercase tracking-[0.18em] ${layoutTheme.accent}`}>
                   Store view
                 </p>
                 <h2 id="store-layout-title" className="mt-1 text-xl font-semibold text-white">
@@ -3964,19 +4058,19 @@ export default function Store() {
                     key={layout.id}
                     type="button"
                     onClick={() => selectStoreLayout(layout.id)}
-                    className={`flex min-h-24 flex-col items-start justify-between rounded-2xl border p-3 text-left transition ${
+                    className={`relative flex min-h-24 flex-col items-start justify-between overflow-hidden rounded-2xl border p-3 text-left transition ${
                       selected
-                        ? 'border-emerald-300/60 bg-emerald-400/15 text-white'
-                        : 'border-white/10 bg-white/5 text-white/75 hover:bg-white/10'
+                        ? `${layout.previewClass} ring-1 ring-inset ring-white/20`
+                        : `${layout.previewClass} opacity-65 hover:opacity-100`
                     } ${index === STORE_LAYOUTS.length - 1 ? 'col-span-2' : ''}`}
                   >
                     <span className="flex w-full items-center justify-between">
                       <Icon size={21} aria-hidden="true" />
                       {selected ? (
-                        <span className="rounded-full bg-emerald-300 px-2 py-0.5 text-[10px] font-bold text-emerald-950">
+                        <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-zinc-950">
                           Active
                         </span>
-                      ) : null}
+                      ) : <span className={`h-2.5 w-2.5 rounded-full ${layout.dotClass}`} />}
                     </span>
                     <span>
                       <span className="block text-sm font-semibold">{layout.name}</span>
@@ -4046,12 +4140,12 @@ export default function Store() {
         className={`mx-auto w-full max-w-6xl px-4 pt-4 ${mainPaddingClass}`}
       >
         <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 to-white/0 p-5 shadow-sm">
-          <div className="absolute -right-8 -top-10 h-40 w-40 rounded-full bg-emerald-400/10 blur-2xl" />
+          <div className={`absolute -right-8 -top-10 h-40 w-40 rounded-full blur-2xl ${layoutTheme.glow}`} />
           <div className="absolute -left-10 -bottom-10 h-44 w-44 rounded-full bg-indigo-400/10 blur-2xl" />
 
           <div className="relative grid gap-2">
             <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs text-white/70">
-              <span className="h-2 w-2 rounded-full bg-emerald-400" />
+              <span className={`h-2 w-2 rounded-full ${STORE_LAYOUTS.find((layout) => layout.id === storeLayout)?.dotClass || 'bg-emerald-400'}`} />
               Explore NFT cosmetics across every TonPlaygram game
             </div>
 
