@@ -302,6 +302,8 @@ const apiLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req) => {
     if (req.auth?.telegramId) return `telegram:${req.auth.telegramId}`;
+    if (req.auth?.accountId) return `account:${req.auth.accountId}`;
+    if (req.auth?.googleId) return `google:${req.auth.googleId}`;
     if (req.body?.telegramId) return `telegram:${req.body.telegramId}`;
     if (req.body?.accountId) return `account:${req.body.accountId}`;
     return req.ip;

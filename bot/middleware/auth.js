@@ -33,7 +33,9 @@ function attachAuth(req, token, initData) {
     const data = verifyTelegramInitData(initData);
     if (data) {
       req.auth = {
-        telegramId: data.user ? Number(JSON.parse(data.user).id) : undefined
+        telegramId: data.user ? Number(JSON.parse(data.user).id) : undefined,
+        accountId: accountId || undefined,
+        googleId: googleId || undefined
       };
       return true;
     }

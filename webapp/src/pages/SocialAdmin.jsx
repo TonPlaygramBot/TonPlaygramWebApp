@@ -33,7 +33,6 @@ export default function SocialAdmin() {
   const [busy, setBusy] = useState(false);
   const [connecting, setConnecting] = useState('');
   const refresh = async () => { const [o, p, a] = await Promise.all([socialAdminApi.overview(), socialAdminApi.posts(), socialAdminApi.automations()]); if (!o.error) setOverview(o); if (!p.error) setPosts(p); if (!a.error) setRules(a); };
-  useEffect(() => { refresh(); }, []);
   useEffect(() => { if (tab === 'overview' || tab === 'posts' || tab === 'scheduled') refresh(); }, [tab]);
   const payload = useMemo(() => ({ caption, link, platforms: selected, overrides, media, scheduledAt: mode === 'schedule' ? scheduledAt : null }), [caption, link, selected, overrides, media, mode, scheduledAt]);
   const runValidation = async () => { const result = await socialAdminApi.validate(payload); if (!result.error) setValidation(result); };
