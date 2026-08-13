@@ -25,6 +25,9 @@ import useReferralClaim from './hooks/useReferralClaim.js';
 import useNativePushNotifications from './hooks/useNativePushNotifications.js';
 import { BOT_USERNAME } from './utils/constants.js';
 import { isTelegramWebView } from './utils/telegram.js';
+import { applyAppTheme, getStoredTheme } from './utils/appTheme.js';
+
+applyAppTheme(getStoredTheme());
 
 const SnakeAndLadder = React.lazy(
   () => import('./pages/Games/SnakeAndLadder.jsx')
