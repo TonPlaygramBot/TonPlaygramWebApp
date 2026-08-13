@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import * as THREE from 'three';
+import { Columns3, Grid2X2, LayoutGrid, List, Rows3, X } from 'lucide-react';
 import { loadExactUkrainianDroneModel } from '../utils/ukrainianDroneModel.js';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import {
@@ -589,53 +590,20 @@ const SNAKE_STORE_ACCOUNT_ID =
   import.meta.env.VITE_SNAKE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const TEXAS_STORE_ACCOUNT_ID =
   import.meta.env.VITE_TEXAS_HOLDEM_STORE_ACCOUNT_ID || DEV_INFO.account;
-const FACE_SCAN_BUILD_TARIFF_TPC = 3200;
-const FACE_SCAN_DETAIL_TARIFF_PER_POSE_TPC = 450;
-const FACE_SCAN_CREATOR_STEPS = [
-  {
-    id: 'camera',
-    title: '1) Scan with phone camera',
-    description: 'Capture front, left, right, and raised chin angles in portrait.'
-  },
-  {
-    id: 'mesh',
-    title: '2) Build 3D face mesh',
-    description: 'Use side details to generate a full 3D head scan preview.'
-  },
-  {
-    id: 'body',
-    title: '3) Pick human body',
-    description: 'Attach the scanned head to one of the human character bodies in store.'
-  },
-  {
-    id: 'create',
-    title: '4) Create character',
-    description: 'Save your custom human character with the scanned face attached.'
-  }
-];
-const FACE_SCAN_POSES = Object.freeze([
-  { id: 'front', label: 'Front', hint: 'Look straight at the screen' },
-  { id: 'left', label: 'Left side', hint: 'Turn face visually left' },
-  { id: 'right', label: 'Right side', hint: 'Turn face visually right' },
-  { id: 'chin', label: 'Chin up', hint: 'Lift chin higher' }
-]);
-const FACE_SCAN_DETAIL_PRESETS = [
-  { label: 'Natural hero', detail: 'Balanced', lighting: 'Soft studio', expression: 'Neutral' },
-  { label: 'Arcade avatar', detail: 'Stylized', lighting: 'Neon rim', expression: 'Confident' },
-  { label: 'Real scan', detail: 'High detail', lighting: 'Even daylight', expression: 'Relaxed' }
-];
-const FACE_SCAN_BODY_OPTIONS = Object.freeze([
-  { id: 'human-warrior', label: 'Royal Warrior', tone: '#38bdf8', outfit: '#1e3a8a' },
-  { id: 'human-striker', label: 'Arena Striker', tone: '#f97316', outfit: '#7c2d12' },
-  { id: 'human-casual', label: 'Casual Player', tone: '#22c55e', outfit: '#14532d' },
-  { id: 'human-champion', label: 'Gold Champion', tone: '#facc15', outfit: '#713f12' }
-]);
-
 const createItemKey = (type, optionId) => `${type}:${optionId}`;
 const selectionKey = (item) => `${item.slug}:${item.id}`;
 const formatTpcAmount = (value) => Number(value || 0).toLocaleString();
 const normalizeAccount = (value) =>
   typeof value === 'string' ? value.trim().toLowerCase() : '';
+
+const STORE_LAYOUT_STORAGE_KEY = 'tonplaygram:storeLayout';
+const STORE_LAYOUTS = [
+  { id: 'grid', name: 'Classic grid', description: 'Balanced cards', icon: LayoutGrid },
+  { id: 'compact', name: 'Compact', description: 'More items at once', icon: Grid2X2 },
+  { id: 'list', name: 'List', description: 'Easy scanning', icon: List },
+  { id: 'gallery', name: 'Gallery', description: 'Larger product art', icon: Columns3 },
+  { id: 'rows', name: 'Showcase', description: 'Spacious rows', icon: Rows3 }
+];
 
 const resolveSwatches = (type, optionId, fallbackSwatches = []) => {
   if (OPTION_SWATCH_OVERRIDES[optionId])
@@ -659,161 +627,6 @@ const GAME_HDRI_SELECTION_STORAGE_KEYS = Object.freeze({
   bilardoshqip: 'bilardoShqipHdriEnvironment',
   snookerroyale: 'snookerHdriEnvironment'
 });
-
-function FaceScanCharacterPreview({ scanEntries = [], bodyOption, title }) {
-  const mountRef = useRef(null);
-
-  useEffect(() => {
-    const mount = mountRef.current;
-    if (!mount) return undefined;
-    let disposed = false;
-    let frame = 0;
-    const width = Math.max(1, mount.clientWidth || 360);
-    const height = Math.max(1, mount.clientHeight || 320);
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    renderer.setSize(width, height, false);
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.25;
-
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(42, width / height, 0.1, 100);
-    camera.position.set(0, 1.7, 6.2);
-    camera.lookAt(0, 1.55, 0);
-
-    scene.add(new THREE.HemisphereLight(0xe0f2fe, 0x111827, 2.7));
-    const key = new THREE.DirectionalLight(0xffffff, 4.8);
-    key.position.set(3.8, 5.2, 5.5);
-    scene.add(key);
-    const rim = new THREE.PointLight(0x67e8f9, 12, 16, 1.4);
-    rim.position.set(-3, 2.6, 3.8);
-    scene.add(rim);
-
-    const bodyColor = new THREE.Color(bodyOption?.outfit || '#1e3a8a');
-    const accentColor = new THREE.Color(bodyOption?.tone || '#38bdf8');
-    const skinMat = new THREE.MeshStandardMaterial({ color: '#f0b887', roughness: 0.58, metalness: 0.02 });
-    const bodyMat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.48, metalness: 0.08 });
-    const accentMat = new THREE.MeshStandardMaterial({ color: accentColor, roughness: 0.35, metalness: 0.18, emissive: accentColor, emissiveIntensity: 0.08 });
-    const darkMat = new THREE.MeshStandardMaterial({ color: '#111827', roughness: 0.75, metalness: 0.04 });
-    const lineMat = new THREE.LineBasicMaterial({ color: 0x93c5fd, transparent: true, opacity: 0.65 });
-
-    const group = new THREE.Group();
-    const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.52, 1.12, 8, 24), bodyMat);
-    torso.position.y = 0.95;
-    group.add(torso);
-
-    const chest = new THREE.Mesh(new THREE.TorusGeometry(0.48, 0.025, 8, 64), accentMat);
-    chest.position.set(0, 1.25, 0.32);
-    chest.rotation.x = Math.PI / 2;
-    group.add(chest);
-
-    [-0.62, 0.62].forEach((x) => {
-      const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.12, 0.92, 8, 16), bodyMat);
-      arm.position.set(x, 0.95, 0);
-      arm.rotation.z = x > 0 ? -0.2 : 0.2;
-      group.add(arm);
-      const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.15, 1.0, 8, 16), darkMat);
-      leg.position.set(x * 0.35, 0.02, 0);
-      group.add(leg);
-    });
-
-    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.26, 24), skinMat);
-    neck.position.y = 1.72;
-    group.add(neck);
-
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.43, 48, 32), skinMat);
-    head.scale.set(0.82, 1.08, 0.72);
-    head.position.y = 2.16;
-    group.add(head);
-
-    const nose = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.18, 16), skinMat);
-    nose.rotation.x = Math.PI / 2;
-    nose.position.set(0, 2.17, 0.33);
-    group.add(nose);
-
-    [-0.14, 0.14].forEach((x) => {
-      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.035, 16, 12), darkMat);
-      eye.position.set(x, 2.23, 0.32);
-      eye.scale.set(1, 0.7, 0.45);
-      group.add(eye);
-    });
-
-    const scanRing = new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.012, 8, 96), accentMat);
-    scanRing.position.y = 2.16;
-    scanRing.rotation.x = Math.PI / 2;
-    group.add(scanRing);
-
-    const points = [];
-    const poseCount = Math.max(1, scanEntries.length);
-    for (let i = 0; i < poseCount; i += 1) {
-      const angle = (i / poseCount) * Math.PI * 2;
-      points.push(new THREE.Vector3(Math.cos(angle) * 0.58, 2.16 + Math.sin(i * 1.7) * 0.12, Math.sin(angle) * 0.58));
-    }
-    if (points.length > 1) {
-      points.push(points[0].clone());
-      group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), lineMat));
-    }
-
-    group.position.y = -0.28;
-    scene.add(group);
-
-    const floor = new THREE.Mesh(
-      new THREE.CircleGeometry(1.75, 72),
-      new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.9, metalness: 0.05, transparent: true, opacity: 0.82 })
-    );
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.y = -0.86;
-    scene.add(floor);
-
-    const onResize = () => {
-      if (disposed) return;
-      const nextWidth = Math.max(1, mount.clientWidth || 360);
-      const nextHeight = Math.max(1, mount.clientHeight || 320);
-      renderer.setSize(nextWidth, nextHeight, false);
-      camera.aspect = nextWidth / nextHeight;
-      camera.updateProjectionMatrix();
-    };
-
-    mount.innerHTML = '';
-    mount.appendChild(renderer.domElement);
-    window.addEventListener('resize', onResize);
-
-    const animate = () => {
-      if (disposed) return;
-      frame = requestAnimationFrame(animate);
-      const t = performance.now() * 0.001;
-      group.rotation.y = Math.sin(t * 0.7) * 0.28;
-      scanRing.rotation.z = t * 1.4;
-      scanRing.scale.setScalar(1 + Math.sin(t * 2.4) * 0.035);
-      renderer.render(scene, camera);
-    };
-    animate();
-
-    return () => {
-      disposed = true;
-      cancelAnimationFrame(frame);
-      window.removeEventListener('resize', onResize);
-      scene.traverse((child) => {
-        if (!child.isMesh && !child.isLine) return;
-        child.geometry?.dispose?.();
-        const materials = Array.isArray(child.material) ? child.material : child.material ? [child.material] : [];
-        materials.forEach((material) => material.dispose?.());
-      });
-      renderer.dispose?.();
-      if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement);
-    };
-  }, [bodyOption, scanEntries.length]);
-
-  return (
-    <div className="relative overflow-hidden rounded-2xl border border-cyan-200/35 bg-slate-950/70">
-      <div ref={mountRef} className="h-72 w-full" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-3 py-2 text-[11px] text-cyan-50/90">
-        3D face scan preview · head attached to {bodyOption?.label || 'human body'} · {title}
-      </div>
-    </div>
-  );
-}
 
 const normalizePolyHavenImage = (url, size) => {
   if (typeof url !== 'string' || !url.startsWith(POLYHAVEN_THUMBNAIL_BASE))
@@ -1438,21 +1251,20 @@ export default function Store() {
   const [selectedKeys, setSelectedKeys] = useState([]);
   const [confirmItems, setConfirmItems] = useState([]);
   const [isPaying, setIsPaying] = useState(false);
-  const [faceScanStep, setFaceScanStep] = useState(0);
-  const [faceScanDraft, setFaceScanDraft] = useState({
-    name: '',
-    bodyId: FACE_SCAN_BODY_OPTIONS[0]?.id || '',
-    detail: 'Balanced',
-    lighting: 'Soft studio',
-    expression: 'Neutral',
-    scanQuality: 72,
-    privacy: 'private'
+  const [showLayoutPicker, setShowLayoutPicker] = useState(false);
+  const [storeLayout, setStoreLayout] = useState(() => {
+    if (typeof window === 'undefined') return 'grid';
+    const storedLayout = window.localStorage.getItem(STORE_LAYOUT_STORAGE_KEY);
+    return STORE_LAYOUTS.some((layout) => layout.id === storedLayout)
+      ? storedLayout
+      : 'grid';
   });
-  const [faceScanUploads, setFaceScanUploads] = useState([]);
-  const [faceScanPreviewReady, setFaceScanPreviewReady] = useState(false);
-  const [faceScanCreated, setFaceScanCreated] = useState(false);
-  const [faceScanSaving, setFaceScanSaving] = useState(false);
 
+  const selectStoreLayout = useCallback((layoutId) => {
+    setStoreLayout(layoutId);
+    setShowLayoutPicker(false);
+    window.localStorage.setItem(STORE_LAYOUT_STORAGE_KEY, layoutId);
+  }, []);
   const resolvedGameSlug = useMemo(() => {
     if (!gameSlug) return 'all';
     if (gameSlug === 'all') return 'all';
@@ -1628,211 +1440,6 @@ export default function Store() {
   useEffect(() => {
     loadAccountBalance();
   }, [loadAccountBalance]);
-
-  const faceScanStepProgress = useMemo(
-    () =>
-      Math.max(
-        1,
-        Math.min(FACE_SCAN_CREATOR_STEPS.length, faceScanStep + 1)
-      ),
-    [faceScanStep]
-  );
-  const selectedFaceScanBody = useMemo(
-    () =>
-      FACE_SCAN_BODY_OPTIONS.find(
-        (option) => option.id === faceScanDraft.bodyId
-      ) || FACE_SCAN_BODY_OPTIONS[0] || null,
-    [faceScanDraft.bodyId]
-  );
-  const capturedPoseCount = faceScanUploads.length;
-  const faceScanBuildTotalTariff =
-    FACE_SCAN_BUILD_TARIFF_TPC + capturedPoseCount * FACE_SCAN_DETAIL_TARIFF_PER_POSE_TPC;
-  const faceScanBuildShortfall =
-    typeof accountBalance === 'number'
-      ? Math.max(0, faceScanBuildTotalTariff - accountBalance)
-      : null;
-  const canCreateFaceScan =
-    faceScanDraft.name.trim().length >= 3 &&
-    capturedPoseCount >= FACE_SCAN_POSES.length &&
-    Boolean(faceScanDraft.bodyId) &&
-    faceScanPreviewReady &&
-    !faceScanCreated;
-
-
-  useEffect(
-    () => () => {
-      faceScanUploads.forEach((entry) => {
-        if (entry?.previewUrl?.startsWith?.('blob:')) {
-          URL.revokeObjectURL(entry.previewUrl);
-        }
-      });
-    },
-    [faceScanUploads]
-  );
-
-  const handleFaceScanDraftChange = useCallback((field, value) => {
-    setFaceScanDraft((prev) => ({ ...prev, [field]: value }));
-    if (field !== 'name') {
-      setFaceScanPreviewReady(false);
-      setFaceScanCreated(false);
-    }
-  }, []);
-
-  const fileToDataUrl = useCallback(
-    (file) =>
-      new Promise((resolve, reject) => {
-        if (!file) {
-          reject(new Error('No file selected'));
-          return;
-        }
-        const reader = new FileReader();
-        reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
-        reader.onerror = () => reject(reader.error || new Error('Failed to read file'));
-        reader.readAsDataURL(file);
-      }),
-    []
-  );
-
-  const prepareFaceScanImage = useCallback(
-    (file) =>
-      new Promise(async (resolve) => {
-        try {
-          const rawDataUrl = await fileToDataUrl(file);
-          resolve({ previewUrl: rawDataUrl, meshDataUrl: rawDataUrl });
-        } catch (error) {
-          console.warn('Failed to prepare face scan image', error);
-          resolve({ previewUrl: '', meshDataUrl: '' });
-        }
-      }),
-    [fileToDataUrl]
-  );
-
-  const handleFaceScanUploads = useCallback(
-    async (event) => {
-      const files = Array.from(event.target.files || []).slice(0, FACE_SCAN_POSES.length);
-      const preparedFiles = await Promise.all(
-        files.map(async (file, index) => {
-          const prepared = await prepareFaceScanImage(file);
-          const pose = FACE_SCAN_POSES[index] || FACE_SCAN_POSES[0];
-          return {
-            id: `${pose.id}-${file.name}-${file.size}-${index}`,
-            poseId: pose.id,
-            poseLabel: pose.label,
-            poseHint: pose.hint,
-            file,
-            previewUrl: prepared.previewUrl,
-            meshDataUrl: prepared.meshDataUrl
-          };
-        })
-      );
-      const validFiles = preparedFiles.filter((entry) => entry.previewUrl);
-      setFaceScanUploads((prev) => {
-        prev.forEach((entry) => {
-          if (entry?.previewUrl?.startsWith?.('blob:')) URL.revokeObjectURL(entry.previewUrl);
-        });
-        return validFiles;
-      });
-      if (validFiles.length === 0) {
-        setTransactionState('error');
-        setTransactionStatus('Could not read those face scan photos. Please upload JPG/PNG/WebP from the phone camera.');
-        setFaceScanPreviewReady(false);
-        setFaceScanCreated(false);
-        return;
-      }
-      setFaceScanPreviewReady(false);
-      setFaceScanCreated(false);
-      setFaceScanStep(validFiles.length >= FACE_SCAN_POSES.length ? 1 : 0);
-    },
-    [prepareFaceScanImage]
-  );
-
-  const applyFaceScanPreset = useCallback((preset) => {
-    setFaceScanDraft((prev) => ({
-      ...prev,
-      detail: preset.detail,
-      lighting: preset.lighting,
-      expression: preset.expression
-    }));
-    setFaceScanPreviewReady(false);
-    setFaceScanCreated(false);
-    setFaceScanStep(1);
-  }, []);
-
-  const handleFaceScanPreview = useCallback(() => {
-    if (faceScanDraft.name.trim().length < 3) {
-      setTransactionState('error');
-      setTransactionStatus('Name your custom character (min 3 chars) before building preview.');
-      return;
-    }
-    if (capturedPoseCount < FACE_SCAN_POSES.length) {
-      setTransactionState('error');
-      setTransactionStatus(`Add ${FACE_SCAN_POSES.length - capturedPoseCount} more face angle photo(s) for a full 3D scan.`);
-      return;
-    }
-    setFaceScanPreviewReady(true);
-    setFaceScanCreated(false);
-    setFaceScanStep(2);
-    setTransactionState('success');
-    setTransactionStatus(`3D face preview ready: "${faceScanDraft.name.trim()}" is attached to ${selectedFaceScanBody?.label || 'the selected body'}.`);
-  }, [capturedPoseCount, faceScanDraft.name, selectedFaceScanBody?.label]);
-
-  const handleFaceScanCreate = useCallback(async () => {
-    if (!canCreateFaceScan || faceScanSaving) return;
-    if (typeof accountBalance === 'number' && accountBalance < faceScanBuildTotalTariff) {
-      setTransactionState('error');
-      setTransactionStatus(`Not enough TPG. Add ${formatTpcAmount(faceScanBuildTotalTariff - accountBalance)} more to create this character.`);
-      return;
-    }
-    try {
-      setFaceScanSaving(true);
-      setTransactionState('processing');
-      setTransactionStatus('Creating your human character with the scanned 3D head attached…');
-      await new Promise((resolve) => window.setTimeout(resolve, 650));
-      const createdAt = Date.now();
-      const savedCharacter = {
-        id: `face-scan-character-${createdAt}`,
-        name: faceScanDraft.name.trim(),
-        bodyId: faceScanDraft.bodyId,
-        bodyLabel: selectedFaceScanBody?.label || 'Human body',
-        poseCount: capturedPoseCount,
-        detail: faceScanDraft.detail,
-        lighting: faceScanDraft.lighting,
-        expression: faceScanDraft.expression,
-        privacy: faceScanDraft.privacy,
-        thumbnailUrl: faceScanUploads[0]?.previewUrl || '',
-        createdAt
-      };
-      if (typeof window !== 'undefined') {
-        const storageKey = `tonplaygram:faceScanCharacters:${normalizeAccount(accountId || 'guest') || 'guest'}`;
-        const current = JSON.parse(window.localStorage.getItem(storageKey) || '[]');
-        window.localStorage.setItem(storageKey, JSON.stringify([savedCharacter, ...current].slice(0, 12)));
-      }
-      setFaceScanCreated(true);
-      setFaceScanStep(3);
-      setTransactionState('success');
-      setTransactionStatus(`${savedCharacter.name} is ready: scanned head attached to ${savedCharacter.bodyLabel}.`);
-      if (typeof accountBalance === 'number') {
-        setAccountBalance((prev) => Math.max(0, (prev || 0) - faceScanBuildTotalTariff));
-      }
-    } catch (error) {
-      console.warn('Face scan character creation failed', error);
-      setTransactionState('error');
-      setTransactionStatus('Could not create the face scan character right now. Please try again.');
-    } finally {
-      setFaceScanSaving(false);
-    }
-  }, [
-    accountBalance,
-    accountId,
-    canCreateFaceScan,
-    capturedPoseCount,
-    faceScanBuildTotalTariff,
-    faceScanDraft,
-    faceScanSaving,
-    faceScanUploads,
-    selectedFaceScanBody
-  ]);
-
 
   const storeItemsBySlug = useMemo(
     () => ({
@@ -2822,6 +2429,13 @@ export default function Store() {
   const mainPaddingClass = hasSelection
     ? 'pb-[calc(10rem+env(safe-area-inset-bottom))]'
     : 'pb-24';
+  const storeGridClass = {
+    grid: 'grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
+    compact: 'grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5',
+    list: 'grid grid-cols-1 gap-3',
+    gallery: 'grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-3',
+    rows: 'grid grid-cols-1 gap-5 sm:grid-cols-2'
+  }[storeLayout];
 
   const renderListModal = () => {
     if (!showListModal) return null;
@@ -4181,7 +3795,15 @@ export default function Store() {
     return (
       <div
         key={`${item.slug}-${item.id}`}
-        className="group flex h-full flex-col gap-3 rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-black/30 p-4 text-left shadow-sm transition hover:border-white/20 hover:bg-white/10"
+        className={`group flex h-full flex-col gap-3 border border-white/10 bg-gradient-to-br from-white/5 to-black/30 text-left shadow-sm transition hover:border-white/20 hover:bg-white/10 ${
+          storeLayout === 'compact'
+            ? 'rounded-2xl p-2.5'
+            : storeLayout === 'gallery'
+              ? 'rounded-[2rem] p-3 shadow-lg'
+              : storeLayout === 'rows'
+                ? 'rounded-3xl p-5'
+                : 'rounded-3xl p-4'
+        }`}
       >
         <div className="flex items-center justify-between gap-2">
           <label className="flex items-center gap-2">
@@ -4203,7 +3825,7 @@ export default function Store() {
           </button>
         </div>
 
-        {renderStoreThumbnail(item)}
+        {renderStoreThumbnail(item, storeLayout === 'compact' ? 'compact' : 'card')}
 
         <div className="space-y-1">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -4281,6 +3903,15 @@ export default function Store() {
                 <img src={TON_ICON} alt="TPG" className="h-4 w-4" />
               </span>
             </div>
+            <button
+              type="button"
+              onClick={() => setShowLayoutPicker(true)}
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-white/15 bg-white/10 text-white shadow-sm transition hover:bg-white/15"
+              aria-label="Change store layout"
+              aria-expanded={showLayoutPicker}
+            >
+              <LayoutGrid size={19} aria-hidden="true" />
+            </button>
             <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
               <div
                 className={`h-2.5 w-2.5 rounded-full ${accountId && accountId !== 'guest' ? 'bg-emerald-400' : 'bg-white/40'}`}
@@ -4290,6 +3921,74 @@ export default function Store() {
           </div>
         </div>
       </header>
+
+      {showLayoutPicker ? (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 px-4 pt-20 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="store-layout-title"
+          onClick={() => setShowLayoutPicker(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-3xl border border-white/15 bg-zinc-950 p-4 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300">
+                  Store view
+                </p>
+                <h2 id="store-layout-title" className="mt-1 text-xl font-semibold text-white">
+                  Choose your layout
+                </h2>
+                <p className="mt-1 text-xs text-white/55">
+                  Your choice is saved on this device.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowLayoutPicker(false)}
+                className="grid h-9 w-9 place-items-center rounded-full border border-white/10 bg-white/5 text-white/70"
+                aria-label="Close layout picker"
+              >
+                <X size={17} aria-hidden="true" />
+              </button>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              {STORE_LAYOUTS.map((layout, index) => {
+                const Icon = layout.icon;
+                const selected = storeLayout === layout.id;
+                return (
+                  <button
+                    key={layout.id}
+                    type="button"
+                    onClick={() => selectStoreLayout(layout.id)}
+                    className={`flex min-h-24 flex-col items-start justify-between rounded-2xl border p-3 text-left transition ${
+                      selected
+                        ? 'border-emerald-300/60 bg-emerald-400/15 text-white'
+                        : 'border-white/10 bg-white/5 text-white/75 hover:bg-white/10'
+                    } ${index === STORE_LAYOUTS.length - 1 ? 'col-span-2' : ''}`}
+                  >
+                    <span className="flex w-full items-center justify-between">
+                      <Icon size={21} aria-hidden="true" />
+                      {selected ? (
+                        <span className="rounded-full bg-emerald-300 px-2 py-0.5 text-[10px] font-bold text-emerald-950">
+                          Active
+                        </span>
+                      ) : null}
+                    </span>
+                    <span>
+                      <span className="block text-sm font-semibold">{layout.name}</span>
+                      <span className="block text-[11px] text-white/50">{layout.description}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {purchaseStatus && showPurchaseToast ? (
         <div className="fixed inset-x-0 top-16 z-40 flex justify-center px-4">
@@ -4346,243 +4045,6 @@ export default function Store() {
       <main
         className={`mx-auto w-full max-w-6xl px-4 pt-4 ${mainPaddingClass}`}
       >
-        <section className="mb-4 rounded-3xl border border-cyan-300/30 bg-gradient-to-br from-cyan-500/20 via-blue-500/10 to-zinc-950 p-4 shadow-[0_18px_45px_-30px_rgba(34,211,238,0.95)] md:p-5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <p className="inline-flex items-center gap-2 rounded-full border border-cyan-200/40 bg-cyan-400/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-cyan-100">
-                New 3D Face Scan
-              </p>
-              <h2 className="mt-2 text-lg font-semibold text-white md:text-xl">
-                Scan your face and attach it to a store human body
-              </h2>
-              <p className="mt-1 max-w-3xl text-sm text-cyan-100/80">
-                Use the phone camera in portrait, capture every side of your face, choose a human character body, and create a custom character with your scanned 3D head.
-              </p>
-            </div>
-            <div className="rounded-2xl border border-cyan-200/40 bg-black/35 px-3 py-2 text-xs text-cyan-100">
-              Step {faceScanStepProgress} / {FACE_SCAN_CREATOR_STEPS.length}
-            </div>
-          </div>
-
-          <div className="mt-3 grid gap-2 md:grid-cols-4">
-            {FACE_SCAN_CREATOR_STEPS.map((step, idx) => (
-              <button
-                key={step.id}
-                type="button"
-                onClick={() => setFaceScanStep(idx)}
-                className={`rounded-2xl border px-3 py-2 text-left transition ${
-                  faceScanStep === idx
-                    ? 'border-cyan-100/60 bg-cyan-500/20 text-white'
-                    : 'border-white/10 bg-black/25 text-white/75 hover:border-cyan-200/30 hover:text-white'
-                }`}
-              >
-                <p className="text-xs font-semibold">{step.title}</p>
-                <p className="mt-1 text-[11px] text-white/70">{step.description}</p>
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-3 grid gap-3 rounded-2xl border border-white/10 bg-black/25 p-3 md:grid-cols-[1fr_1.1fr]">
-            <div className="grid gap-2">
-              <label className="text-xs text-white/80">
-                Character name
-                <input
-                  value={faceScanDraft.name}
-                  onChange={(e) => handleFaceScanDraftChange('name', e.target.value)}
-                  placeholder="e.g. My Royal Avatar"
-                  className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300/60"
-                />
-              </label>
-              <label className="text-xs text-white/80">
-                Capture face angles with phone camera
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="user"
-                  multiple
-                  onChange={handleFaceScanUploads}
-                  className="mt-1 w-full rounded-xl border border-dashed border-cyan-200/40 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none file:mr-3 file:rounded-lg file:border-0 file:bg-cyan-400/25 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-cyan-100"
-                />
-              </label>
-              <p className="text-[11px] text-white/60">
-                {capturedPoseCount
-                  ? `${capturedPoseCount} / ${FACE_SCAN_POSES.length} scan angle${capturedPoseCount === 1 ? '' : 's'} ready`
-                  : 'No face angles captured yet'}
-              </p>
-
-              <div className="grid grid-cols-2 gap-2">
-                {FACE_SCAN_POSES.map((pose, idx) => {
-                  const captured = Boolean(faceScanUploads[idx]);
-                  return (
-                    <div
-                      key={pose.id}
-                      className={`rounded-xl border px-3 py-2 text-xs ${
-                        captured
-                          ? 'border-cyan-200/50 bg-cyan-400/15 text-cyan-50'
-                          : 'border-white/10 bg-black/25 text-white/65'
-                      }`}
-                    >
-                      <p className="font-semibold">{pose.label}</p>
-                      <p className="mt-1 text-[11px] text-white/60">{pose.hint}</p>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
-                {FACE_SCAN_DETAIL_PRESETS.map((preset) => (
-                  <button
-                    key={preset.label}
-                    type="button"
-                    onClick={() => applyFaceScanPreset(preset)}
-                    className="rounded-xl border border-white/10 bg-black/35 px-2 py-2 text-[11px] font-semibold text-white/80 hover:border-cyan-200/30 hover:text-white"
-                  >
-                    {preset.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid gap-2">
-              <div className="grid grid-cols-2 gap-2">
-                <label className="text-xs text-white/80">
-                  Human body
-                  <select
-                    value={faceScanDraft.bodyId}
-                    onChange={(e) => handleFaceScanDraftChange('bodyId', e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300/60"
-                  >
-                    {FACE_SCAN_BODY_OPTIONS.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="text-xs text-white/80">
-                  Face detail
-                  <select
-                    value={faceScanDraft.detail}
-                    onChange={(e) => handleFaceScanDraftChange('detail', e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300/60"
-                  >
-                    <option>Balanced</option>
-                    <option>Stylized</option>
-                    <option>High detail</option>
-                  </select>
-                </label>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <label className="text-xs text-white/80">
-                  Scan lighting
-                  <select
-                    value={faceScanDraft.lighting}
-                    onChange={(e) => handleFaceScanDraftChange('lighting', e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300/60"
-                  >
-                    <option>Soft studio</option>
-                    <option>Even daylight</option>
-                    <option>Neon rim</option>
-                    <option>Low shadow</option>
-                  </select>
-                </label>
-                <label className="text-xs text-white/80">
-                  Expression
-                  <select
-                    value={faceScanDraft.expression}
-                    onChange={(e) => handleFaceScanDraftChange('expression', e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300/60"
-                  >
-                    <option>Neutral</option>
-                    <option>Relaxed</option>
-                    <option>Confident</option>
-                  </select>
-                </label>
-              </div>
-              <label className="text-xs text-white/80">
-                Mesh quality ({faceScanDraft.scanQuality}%)
-                <input
-                  type="range"
-                  min="40"
-                  max="100"
-                  step="4"
-                  value={faceScanDraft.scanQuality}
-                  onChange={(e) => handleFaceScanDraftChange('scanQuality', Number(e.target.value))}
-                  className="mt-1 w-full accent-cyan-400"
-                />
-              </label>
-              <label className="text-xs text-white/80">
-                Privacy
-                <select
-                  value={faceScanDraft.privacy}
-                  onChange={(e) => handleFaceScanDraftChange('privacy', e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-sm text-white outline-none focus:border-cyan-300/60"
-                >
-                  <option value="private">Private to my account</option>
-                  <option value="public">Public avatar listing</option>
-                </select>
-              </label>
-              <div className="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-[11px] text-white/70">
-                The preview shows the scanned head visually higher on the selected body, sized to fit the neck, with the body staying upright for portrait phone screens.
-              </div>
-            </div>
-          </div>
-
-          {faceScanUploads.length ? (
-            <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
-              {faceScanUploads.map((entry) => (
-                <div key={entry.id} className="overflow-hidden rounded-xl border border-white/10 bg-black/30">
-                  <img src={entry.previewUrl} alt={`${entry.poseLabel} face scan`} className="h-24 w-full object-cover" />
-                  <p className="px-2 py-1 text-[11px] font-semibold text-cyan-100">{entry.poseLabel}</p>
-                </div>
-              ))}
-            </div>
-          ) : null}
-
-          {faceScanPreviewReady ? (
-            <div className="mt-3">
-              <FaceScanCharacterPreview
-                scanEntries={faceScanUploads}
-                bodyOption={selectedFaceScanBody}
-                title={faceScanDraft.name.trim() || 'Untitled character'}
-              />
-            </div>
-          ) : null}
-
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={handleFaceScanPreview}
-              className="rounded-2xl border border-cyan-200/50 bg-cyan-400/20 px-4 py-2 text-sm font-semibold text-cyan-50 hover:bg-cyan-400/30"
-            >
-              Build 3D preview
-            </button>
-            <button
-              type="button"
-              onClick={handleFaceScanCreate}
-              disabled={!canCreateFaceScan || faceScanSaving}
-              className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-45"
-            >
-              {faceScanSaving
-                ? 'Creating character…'
-                : `Create character (${formatTpcAmount(faceScanBuildTotalTariff)} TPG)`}
-            </button>
-            <span className="text-xs text-cyan-100/85">
-              {faceScanCreated
-                ? `${faceScanDraft.name || 'Custom character'} is ready with your scanned face attached.`
-                : faceScanPreviewReady
-                  ? 'Preview ready. Create it when the head fit looks correct.'
-                  : 'Capture all four face angles before creating the scan.'}
-            </span>
-          </div>
-
-          <div className="mt-2 text-xs text-white/70">
-            {faceScanBuildShortfall
-              ? `Balance alert: you need ${formatTpcAmount(faceScanBuildShortfall)} more TPG to create this character.`
-              : `Creation tariff: ${formatTpcAmount(FACE_SCAN_BUILD_TARIFF_TPC)} TPG + ${formatTpcAmount(FACE_SCAN_DETAIL_TARIFF_PER_POSE_TPC)} TPG per captured angle.`}
-          </div>
-        </section>
-
         <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 to-white/0 p-5 shadow-sm">
           <div className="absolute -right-8 -top-10 h-40 w-40 rounded-full bg-emerald-400/10 blur-2xl" />
           <div className="absolute -left-10 -bottom-10 h-44 w-44 rounded-full bg-indigo-400/10 blur-2xl" />
@@ -4924,13 +4386,13 @@ export default function Store() {
                       Category
                     </div>
                   </div>
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  <div className={storeGridClass}>
                     {items.map((item) => renderStoreCard(item))}
                   </div>
                 </section>
               ))
             ) : (
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className={storeGridClass}>
                 {visibleItems.map((item) => renderStoreCard(item))}
               </div>
             )}
