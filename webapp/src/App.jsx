@@ -5,6 +5,7 @@ import { TonConnectUIProvider } from '@tonconnect/ui-react';
 import Home from './pages/Home.jsx';
 import Mining from './pages/Mining.jsx';
 import Wallet from './pages/Wallet.jsx';
+import HomeThemeStore from './pages/HomeThemeStore.jsx';
 import Tasks from './pages/Tasks.jsx';
 import Referral from './pages/Referral.jsx';
 import MyAccount from './pages/MyAccount.jsx';
@@ -445,6 +446,7 @@ export default function App() {
                 path="/store"
                 element={<Navigate to="/store/all" replace />}
               />
+              <Route path="/store/home-themes" element={<HomeThemeStore />} />
               <Route path="/store/:gameSlug" element={<Store />} />
               <Route path="/referral" element={<Referral />} />
               <Route path="/wallet" element={<Wallet />} />

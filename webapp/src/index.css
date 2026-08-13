@@ -17,66 +17,53 @@ body {
   text-size-adjust: 100%;
 }
 
+.home-theme-store { max-width:720px; margin:0 auto; padding:16px 14px 100px; color:white; }
+.home-theme-store__header { display:grid; grid-template-columns:auto auto 1fr auto; align-items:center; gap:10px; margin-bottom:14px; }
+.home-theme-store__header button { padding:7px 9px; border:1px solid #d6a72e; border-radius:9px; background:#101010; color:#ffe599; font-size:11px; }
+.home-theme-store__header h1 { margin:0; color:#f5cc66; font-size:20px; line-height:1; }.home-theme-store__header p { margin:4px 0 0; color:#cbd5e1; font:10px sans-serif; }.home-theme-store__header strong { color:#f5cc66; font-size:12px; }
+.home-theme-store__message { padding:10px; border:1px solid #b88720; border-radius:10px; background:#211706; color:#ffe599; font:12px sans-serif; }
+.home-theme-store__grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.home-theme-card { overflow:hidden; border:1px solid #a97d21; border-radius:14px; background:#090b0e; box-shadow:0 7px 20px #0008; }
+.home-theme-card__preview { position:relative; min-height:175px; overflow:hidden; display:flex; flex-direction:column; align-items:center; gap:7px; padding:13px 10px; color:var(--preview-gold); background:radial-gradient(circle at 75% 5%,color-mix(in srgb,var(--preview-accent) 65%,white),transparent 42%),repeating-linear-gradient(135deg,transparent 0 20px,color-mix(in srgb,var(--preview-gold) 16%,transparent) 21px 22px),var(--preview-bg); }
+.home-theme-card__number { position:absolute; top:7px; left:8px; font:bold 12px Georgia; }.home-theme-card__coin { width:44px; height:44px; display:grid; place-items:center; border:3px double var(--preview-gold); border-radius:50%; background:color-mix(in srgb,var(--preview-accent) 70%,black); font:bold 25px Georgia; }.home-theme-card__title { font:bold 18px Georgia; text-shadow:0 2px 2px #000; }.home-theme-card__button { width:88%; padding:5px; border:1px solid var(--preview-gold); border-radius:15px; background:color-mix(in srgb,var(--preview-accent) 80%,black); color:white; text-align:center; font:10px sans-serif; }.home-theme-card__panel { width:90%; height:40px; border:1px solid var(--preview-gold); border-radius:7px; background:color-mix(in srgb,var(--preview-bg) 80%,white); }
+.home-theme-card__details { display:flex; align-items:center; justify-content:space-between; gap:5px; padding:9px; }.home-theme-card__details h2 { margin:0; color:#f4d076; font-size:12px; }.home-theme-card__details span { color:#94a3b8; font:9px sans-serif; }.home-theme-card__details button,.home-theme-card__owned { display:flex; align-items:center; gap:3px; padding:6px 7px; border:1px solid #c89629; border-radius:8px; background:#3a2907; color:#ffe599!important; font:10px sans-serif!important; white-space:nowrap; }
+@media (min-width:600px) { .home-theme-store__grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+
 /* User-selectable app palettes. These variables recolor the shared utility
    surfaces while preserving the existing layout and game-specific styling. */
-:root[data-app-theme='sunset'] {
-  --app-bg: #160b24;
-  --app-bg-glow: #65254f;
-  --app-surface: #2b1237;
-  --app-surface-deep: #160b24;
-  --app-accent: #ff6b6b;
-  --app-text: #ffd166;
-}
+:root[data-app-theme='royal-navy'] { --app-bg:#031222; --app-bg-glow:#12395f; --app-surface:#071c32; --app-surface-deep:#020d19; --app-accent:#e7b934; --app-text:#fff1bd; }
+:root[data-app-theme='emerald-classic'] { --app-bg:#e9dfc2; --app-bg-glow:#fffdf4; --app-surface:#f9f0d9; --app-surface-deep:#e9dcb9; --app-accent:#087142; --app-text:#38220d; }
+:root[data-app-theme='vintage-brown'] { --app-bg:#1c0b03; --app-bg-glow:#6f3613; --app-surface:#321606; --app-surface-deep:#160802; --app-accent:#d69b2d; --app-text:#ffe0a0; }
+:root[data-app-theme='classic-marble'] { --app-bg:#ece6dc; --app-bg-glow:#fffef9; --app-surface:#fffaf0; --app-surface-deep:#e4ddd0; --app-accent:#b67b18; --app-text:#20180e; }
+:root[data-app-theme='midnight-purple'] { --app-bg:#0e071a; --app-bg-glow:#5b1268; --app-surface:#21102e; --app-surface-deep:#0b0612; --app-accent:#f0c22b; --app-text:#ffe47a; }
+:root[data-app-theme='ocean-wave'] { --app-bg:#dce8d2; --app-bg-glow:#83c7c5; --app-surface:#eef1dd; --app-surface-deep:#c7ded0; --app-accent:#087d83; --app-text:#153f3d; }
+:root[data-app-theme='golden-age'] { --app-bg:#f1deb0; --app-bg-glow:#fff8df; --app-surface:#fff0c7; --app-surface-deep:#e9c983; --app-accent:#b7740f; --app-text:#55330a; }
+:root[data-app-theme='steel-blue'] { --app-bg:#0c151f; --app-bg-glow:#365a73; --app-surface:#172635; --app-surface-deep:#08111a; --app-accent:#aebec8; --app-text:#ecf2f5; }
+:root[data-app-theme='sunset-haze'] { --app-bg:#7c2827; --app-bg-glow:#fcbd73; --app-surface:#f1b271; --app-surface-deep:#ad4337; --app-accent:#ffd061; --app-text:#fff4d7; }
+:root[data-app-theme='ivory-black'] { --app-bg:#050606; --app-bg-glow:#29251f; --app-surface:#151615; --app-surface-deep:#050505; --app-accent:#d8a92f; --app-text:#fff1bd; }
 
-:root[data-app-theme='forest'] {
-  --app-bg: #041712;
-  --app-bg-glow: #145c48;
-  --app-surface: #0c2d25;
-  --app-surface-deep: #041712;
-  --app-accent: #34d399;
-  --app-text: #f4d35e;
-}
-
-:root[data-app-theme='royal'] {
-  --app-bg: #0e0821;
-  --app-bg-glow: #4c2a82;
-  --app-surface: #211342;
-  --app-surface-deep: #0e0821;
-  --app-accent: #a78bfa;
-  --app-text: #f9a8d4;
-}
-
-:root[data-app-theme='daylight'] {
-  --app-bg: #e9f5ff;
-  --app-bg-glow: #b7dcff;
-  --app-surface: #ffffff;
-  --app-surface-deep: #dceeff;
-  --app-accent: #1677ff;
-  --app-text: #102a43;
-}
-
-:root[data-app-theme]:not([data-app-theme='neon']) body {
-  background: radial-gradient(1100px 750px at 70% -10%, var(--app-bg-glow), var(--app-bg) 48%) fixed;
+:root[data-app-theme] body {
+  background: radial-gradient(1100px 750px at 70% -10%, var(--app-bg-glow), var(--app-bg) 48%), repeating-linear-gradient(135deg, transparent 0 22px, color-mix(in srgb, var(--app-accent) 5%, transparent) 23px 24px) fixed;
   color: var(--app-text);
 }
 
-:root[data-app-theme]:not([data-app-theme='neon']) .bg-surface {
+:root[data-app-theme] .bg-surface {
   background: radial-gradient(circle at top, var(--app-surface) 0%, var(--app-surface-deep) 88%);
   box-shadow: inset 0 0 12px color-mix(in srgb, var(--app-accent) 35%, transparent);
 }
 
-:root[data-app-theme]:not([data-app-theme='neon']) .border-border {
+:root[data-app-theme] .border-border {
   border-color: var(--app-accent) !important;
   box-shadow: 0 0 8px color-mix(in srgb, var(--app-accent) 75%, transparent);
 }
 
-:root[data-app-theme]:not([data-app-theme='neon']) .text-primary,
-:root[data-app-theme]:not([data-app-theme='neon']) .text-accent {
+:root[data-app-theme] .text-primary,
+:root[data-app-theme] .text-accent {
   color: var(--app-accent) !important;
 }
 
-:root[data-app-theme]:not([data-app-theme='neon']) .text-subtext,
-:root[data-app-theme]:not([data-app-theme='neon']) .text-text {
+:root[data-app-theme] .text-subtext,
+:root[data-app-theme] .text-text {
   color: var(--app-text) !important;
 }
 
@@ -139,12 +126,12 @@ body {
 .theme-picker__heading strong { font-size: 16px; }
 .theme-picker__heading div > span { margin-top: 3px; color: #cbd5e1; font: 600 11px/1.2 sans-serif; }
 .theme-picker__heading .theme-picker__count { color: var(--app-accent, #67e8f9); font: 700 10px/1 sans-serif; }
-.theme-picker__options { display: grid; gap: 7px; }
+.theme-picker__options { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; max-height: min(55vh, 410px); overflow-y: auto; }
 
 .theme-picker__option {
   min-height: 46px;
   display: grid;
-  grid-template-columns: 58px 1fr 20px;
+  grid-template-columns: 42px 1fr 16px;
   align-items: center;
   gap: 10px;
   padding: 7px 10px;
@@ -161,9 +148,11 @@ body {
 }
 
 .theme-picker__swatches { display: flex; }
-.theme-picker__swatches span { width: 23px; height: 27px; margin-right: -6px; border: 2px solid rgba(255,255,255,.8); border-radius: 8px; }
+.theme-picker__swatches span { width: 17px; height: 25px; margin-right: -8px; border: 2px solid rgba(255,255,255,.8); border-radius: 7px; }
 .theme-picker__option > span:nth-child(2) { font-size: 13px; }
 .theme-picker__check { color: var(--app-accent, #00f7ff); }
+.theme-picker__lock { color: #f7c948; }
+.theme-picker__store { width:100%; margin-top:10px; padding:9px; display:flex; align-items:center; justify-content:center; gap:7px; border:1px solid var(--app-accent); border-radius:10px; color:white; background:color-mix(in srgb,var(--app-accent) 18%,transparent); font-size:12px; }
 
 body {
   font-family: 'Luckiest Guy', 'Comic Sans MS', cursive;
