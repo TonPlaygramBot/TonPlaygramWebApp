@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import useLiveVideoChat from '../hooks/useLiveVideoChat.js';
+import { buildGameLiveChatRoomId } from '../utils/liveVideoRoom.js';
 
 const AVATAR_ANCHOR_SELECTORS = [
   '[data-self-player="true"] .seat-badge-core',
@@ -74,17 +75,10 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
   }, []);
 
   const roomId = useMemo(() => {
-    const accountId =
-      typeof window !== 'undefined'
-        ? window.localStorage.getItem('accountId') || 'guest'
-        : 'guest';
-    const sessionId =
-      params.get('table') ||
-      params.get('tableId') ||
-      params.get('room') ||
-      params.get('roomId') ||
-      'default';
-    return `live-${gameSlug}-${sessionId}-${accountId}`;
+    // A live-chat room belongs to the match, not to an account. Including the
+    // local account ID here put the two online players in different signaling
+    // rooms, so their camera tracks could never be negotiated reliably.
+    return buildGameLiveChatRoomId(gameSlug, params);
   }, [gameSlug, params]);
 
   const liveChat = useLiveVideoChat({
