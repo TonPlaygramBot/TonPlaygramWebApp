@@ -5,7 +5,10 @@ const RTC_CONFIG = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' }
-  ]
+  ],
+  // Collect all candidates before giving up. Mobile networks frequently need
+  // a little longer to move from a host candidate to a server-reflexive one.
+  iceCandidatePoolSize: 4
 };
 
 const EMPTY_MEDIA_STATE = Object.freeze({ microphone: true, camera: true });
@@ -19,6 +22,9 @@ export default function useLiveVideoChat({ roomId, displayName, enabled, video =
   const localStreamRef = useRef(null);
   const peersRef = useRef(new Map());
   const pendingIceCandidatesRef = useRef(new Map());
+  const disconnectTimersRef = useRef(new Map());
+  const startPromiseRef = useRef(null);
+  const sessionGenerationRef = useRef(0);
 
   const safeRoomId = useMemo(() => String(roomId || '').trim(), [roomId]);
 
@@ -37,6 +43,9 @@ export default function useLiveVideoChat({ roomId, displayName, enabled, video =
   }, []);
 
   const closePeer = useCallback((socketId) => {
+    const disconnectTimer = disconnectTimersRef.current.get(socketId);
+    if (disconnectTimer) window.clearTimeout(disconnectTimer);
+    disconnectTimersRef.current.delete(socketId);
     const peer = peersRef.current.get(socketId);
     if (peer) {
       peer.close();
@@ -112,8 +121,25 @@ export default function useLiveVideoChat({ roomId, displayName, enabled, video =
     };
 
     peerConnection.onconnectionstatechange = () => {
-      if (['failed', 'closed', 'disconnected'].includes(peerConnection.connectionState)) {
+      const state = peerConnection.connectionState;
+      if (state === 'connected') {
+        const disconnectTimer = disconnectTimersRef.current.get(socketId);
+        if (disconnectTimer) window.clearTimeout(disconnectTimer);
+        disconnectTimersRef.current.delete(socketId);
+        return;
+      }
+      if (['failed', 'closed'].includes(state)) {
         closePeer(socketId);
+        return;
+      }
+      // WebKit briefly reports `disconnected` while Telegram switches between
+      // Wi-Fi and cellular. Closing immediately made the call one-way because
+      // the other device kept its still-valid peer connection.
+      if (state === 'disconnected' && !disconnectTimersRef.current.has(socketId)) {
+        disconnectTimersRef.current.set(socketId, window.setTimeout(() => {
+          disconnectTimersRef.current.delete(socketId);
+          if (peerConnection.connectionState === 'disconnected') closePeer(socketId);
+        }, 8000));
       }
     };
 
@@ -138,6 +164,9 @@ export default function useLiveVideoChat({ roomId, displayName, enabled, video =
   }, [emitSignal, ensurePeerConnection]);
 
   const stopLiveChat = useCallback(() => {
+    sessionGenerationRef.current += 1;
+    disconnectTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+    disconnectTimersRef.current.clear();
     peersRef.current.forEach((peer) => peer.close());
     peersRef.current.clear();
     pendingIceCandidatesRef.current.clear();
@@ -157,42 +186,72 @@ export default function useLiveVideoChat({ roomId, displayName, enabled, video =
   }, [safeRoomId]);
 
   const startLiveChat = useCallback(async () => {
-    if (!enabled || !safeRoomId || isConnected) return;
-    setError('');
-    try {
-      if (!navigator?.mediaDevices?.getUserMedia) {
-        throw new Error('Camera and microphone are unavailable in this browser. Open TonPlaygram over HTTPS or inside Telegram with media permissions enabled.');
-      }
-      if (!socket.connected) socket.connect();
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: video ? {
-          width: { ideal: 640 },
-          height: { ideal: 360 },
-          facingMode: 'user'
-        } : false
-      });
+    if (!enabled || !safeRoomId || isConnected) return startPromiseRef.current;
+    // React StrictMode and fast Telegram WebView renders can invoke this action
+    // twice before state updates. Sharing the in-flight request prevents two
+    // simultaneous camera captures, which can terminate the Telegram WebView.
+    if (startPromiseRef.current) return startPromiseRef.current;
 
-      localStreamRef.current = stream;
-      setLocalStream(stream);
-      setMediaState({
-        microphone: stream.getAudioTracks().every((track) => track.enabled),
-        camera: stream.getVideoTracks().every((track) => track.enabled)
-      });
-
-      socket.emit('liveChat:join', {
-        roomId: safeRoomId,
-        participant: {
-          displayName: displayName || 'Player',
-          mediaState: { microphone: true, camera: video }
+    const startPromise = (async () => {
+      const sessionGeneration = sessionGenerationRef.current;
+      setError('');
+      try {
+        if (!navigator?.mediaDevices?.getUserMedia) {
+          throw new Error('Camera and microphone are unavailable in this browser. Open TonPlaygram over HTTPS or inside Telegram with media permissions enabled.');
         }
-      });
-      setIsConnected(true);
-    } catch (mediaError) {
-      const message = mediaError instanceof Error ? mediaError.message : 'Unable to access camera and microphone.';
-      setError(message);
-      console.error('live chat media init failed', mediaError);
-    }
+        if (!socket.connected) socket.connect();
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            channelCount: 1
+          },
+          video: video
+            ? {
+                // A small portrait-friendly capture is enough for the circular game
+                // avatar and avoids exhausting Telegram's mobile WebView decoder.
+                width: { ideal: 320, max: 480 },
+                height: { ideal: 320, max: 480 },
+                frameRate: { ideal: 15, max: 20 },
+                facingMode: 'user'
+              }
+            : false
+        });
+
+        // The user may turn the avatar off while the Telegram permission sheet is
+        // still open. Do not resurrect that cancelled call when permission returns.
+        if (sessionGeneration !== sessionGenerationRef.current) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+
+        localStreamRef.current = stream;
+        setLocalStream(stream);
+        const nextMediaState = {
+          microphone: stream.getAudioTracks().some((track) => track.enabled),
+          camera: video && stream.getVideoTracks().some((track) => track.enabled)
+        };
+        setMediaState(nextMediaState);
+
+        socket.emit('liveChat:join', {
+          roomId: safeRoomId,
+          participant: {
+            displayName: displayName || 'Player',
+            mediaState: nextMediaState
+          }
+        });
+        setIsConnected(true);
+      } catch (mediaError) {
+        const message = mediaError instanceof Error ? mediaError.message : 'Unable to access camera and microphone.';
+        setError(message);
+        console.error('live chat media init failed', mediaError);
+      } finally {
+        startPromiseRef.current = null;
+      }
+    })();
+    startPromiseRef.current = startPromise;
+    return startPromise;
   }, [displayName, enabled, isConnected, safeRoomId, video]);
 
   const toggleTrack = useCallback((kind) => {
@@ -218,6 +277,21 @@ export default function useLiveVideoChat({ roomId, displayName, enabled, video =
 
   useEffect(() => {
     if (!enabled) return undefined;
+
+    const handleSocketConnect = () => {
+      // Socket.IO allocates a new socket id after a mobile network interruption.
+      // Rejoin and renegotiate instead of leaving the remote player attached to
+      // peer connections addressed to the obsolete id.
+      peersRef.current.forEach((peer) => peer.close());
+      peersRef.current.clear();
+      pendingIceCandidatesRef.current.clear();
+      setRemotePeers([]);
+      if (!localStreamRef.current || !safeRoomId) return;
+      socket.emit('liveChat:join', {
+        roomId: safeRoomId,
+        participant: { displayName: displayName || 'Player', mediaState }
+      });
+    };
 
     const handleParticipants = ({ participants = [] } = {}) => {
       participants.forEach((participant) => {
@@ -272,6 +346,7 @@ export default function useLiveVideoChat({ roomId, displayName, enabled, video =
       upsertRemotePeer(socketId, { mediaState: nextMediaState || EMPTY_MEDIA_STATE });
     };
 
+    socket.on('connect', handleSocketConnect);
     socket.on('liveChat:participants', handleParticipants);
     socket.on('liveChat:peer-joined', handlePeerJoined);
     socket.on('liveChat:signal', handleSignal);
@@ -279,13 +354,14 @@ export default function useLiveVideoChat({ roomId, displayName, enabled, video =
     socket.on('liveChat:media_state', handleMediaState);
 
     return () => {
+      socket.off('connect', handleSocketConnect);
       socket.off('liveChat:participants', handleParticipants);
       socket.off('liveChat:peer-joined', handlePeerJoined);
       socket.off('liveChat:signal', handleSignal);
       socket.off('liveChat:peer-left', handlePeerLeft);
       socket.off('liveChat:media_state', handleMediaState);
     };
-  }, [addOrQueueIceCandidate, closePeer, createOfferForPeer, emitSignal, enabled, ensurePeerConnection, flushIceCandidates, upsertRemotePeer]);
+  }, [addOrQueueIceCandidate, closePeer, createOfferForPeer, displayName, emitSignal, enabled, ensurePeerConnection, flushIceCandidates, mediaState, safeRoomId, upsertRemotePeer]);
 
   useEffect(() => () => stopLiveChat(), [stopLiveChat]);
 
