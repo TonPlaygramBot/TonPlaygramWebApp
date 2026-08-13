@@ -157,6 +157,12 @@ import {
 import { DEV_INFO } from '../utils/constants.js';
 import { swatchThumbnail } from '../config/storeThumbnails.js';
 import { getCustomHdriCatalog, saveCustomHdriEntry } from '../utils/customHdriCatalog.js';
+import {
+  APP_THEME_STORE_ITEMS,
+  addAppThemeUnlock,
+  getOwnedAppThemes,
+  isAppThemeOwned
+} from '../utils/appTheme.js';
 
 const UKRAINIAN_DRONE_PREVIEW_STATUS = Object.freeze({
   loading: 'LOADING',
@@ -1243,6 +1249,14 @@ const formatShortDate = (date) =>
   }).format(date);
 
 const storeMeta = {
+  home: {
+    name: 'Home Themes',
+    items: APP_THEME_STORE_ITEMS,
+    defaults: [],
+    labels: { appTheme: Object.fromEntries(APP_THEME_STORE_ITEMS.map((item) => [item.optionId, item.name])) },
+    typeLabels: { appTheme: 'Home Themes' },
+    accountId: POOL_STORE_ACCOUNT_ID
+  },
   poolroyale: {
     name: 'Pool Royale',
     items: POOL_ROYALE_STORE_ITEMS,
@@ -1401,6 +1415,7 @@ export default function Store() {
   const [texasOwned, setTexasOwned] = useState(() =>
     getTexasHoldemInventory(texasHoldemAccountId(accountId))
   );
+  const [appThemesOwned, setAppThemesOwned] = useState(getOwnedAppThemes);
   const [accountBalance, setAccountBalance] = useState(null);
   const [processing, setProcessing] = useState('');
   const [info, setInfo] = useState('');
@@ -1821,6 +1836,11 @@ export default function Store() {
 
   const storeItemsBySlug = useMemo(
     () => ({
+      home: APP_THEME_STORE_ITEMS.map((item) => ({
+        ...item,
+        key: createItemKey(item.type, item.optionId),
+        slug: 'home'
+      })),
       poolroyale: POOL_ROYALE_STORE_ITEMS.map((item) => ({
         ...item,
         key: createItemKey(item.type, item.optionId),
@@ -1898,6 +1918,7 @@ export default function Store() {
 
   const ownedCheckers = useMemo(
     () => ({
+      home: (_type, optionId) => isAppThemeOwned(optionId),
       poolroyale: (type, optionId) =>
         isPoolOptionUnlocked(type, optionId, poolOwned),
       bilardoshqip: (type, optionId) =>
@@ -1939,11 +1960,13 @@ export default function Store() {
       dominoOwned,
       snakeOwned,
       texasOwned,
+      appThemesOwned,
     ]
   );
 
   const labelResolvers = useMemo(
     () => ({
+      home: (item) => item.name,
       poolroyale: (item) =>
         POOL_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       bilardoshqip: (item) =>
@@ -1979,6 +2002,7 @@ export default function Store() {
 
   const typeLabelResolver = useMemo(
     () => ({
+      home: { appTheme: 'Home Themes' },
       poolroyale: TYPE_LABELS,
       bilardoshqip: TYPE_LABELS,
       airhockey: AIR_HOCKEY_TYPE_LABELS,
@@ -2675,6 +2699,8 @@ export default function Store() {
                 resolvedAccountId
               )
             );
+          } else if (slug === 'home') {
+            setAppThemesOwned(addAppThemeUnlock(entry.type, entry.optionId));
           }
         }
       }
