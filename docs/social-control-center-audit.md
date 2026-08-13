@@ -1,0 +1,12 @@
+# Social Control Center repository audit
+
+- **Stack:** the production service is Express/Node.js with Mongoose/MongoDB, serving a Vite React 18 web application styled with Tailwind utility classes and shared CSS. A separate Prisma wallet proof-of-concept exists under `backend/`, but Render deploys `bot/` and `webapp/`.
+- **Important directories:** `bot/routes`, `bot/models`, and `bot/services` contain the production API; `webapp/src/pages`, `components`, `utils`, and `index.css` contain the client. `render.yaml` is the deployment blueprint.
+- **Authentication/admin:** Telegram init data is HMAC verified by `bot/middleware/auth.js`; account and Google headers are also supported. Owner access is configured by `OWNER_TELEGRAM_ID`, while the existing developer profile is identified by the configured developer account UUID. Social endpoints accept only the owner, configured developer account, or server API authentication.
+- **Database and tasks:** production uses Mongoose. `Task` is primarily a user task-completion ledger and `CustomTask` defines reward tasks. Social automation extends `Task` additively with optional workflow/source fields while preserving its existing unique user/task key.
+- **Content:** `Post`, `FlamingoPost`, and `PostRecord` serve existing user/community content and verification; none represents multi-provider admin publications, so additive Social models are used.
+- **Layout/navigation:** React Router renders all pages inside the existing `Layout`; the developer tools live on `MyAccount`. The Social entry is added to that developer-only panel and routes remain in the same application shell.
+- **API conventions:** JSON Express routers are mounted below `/api`; web calls use shared auth headers and normalized error responses in `webapp/src/utils/api.js`.
+- **Background processing:** no durable general queue exists. Existing runtime work uses timers/socket state. Social therefore uses independent asynchronous jobs plus a due-post poller; a durable Render worker/queue is still recommended before real production publishing.
+- **Deployment/environment:** Render builds the Vite client from the `bot` service and starts Express. MongoDB and provider settings are environment variables.
+- **Reusable components/systems:** existing page shell, colors, typography, card/button/input styles, React Router, Mongoose users/tasks, authentication middleware, and Render service are reused. Telegram, TON, games, and public Social flows are unchanged.

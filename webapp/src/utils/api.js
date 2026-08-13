@@ -46,6 +46,19 @@ export async function ping() {
   return data.message;
 }
 
+export const socialAdminApi = {
+  overview: () => get('/api/admin/social/overview'),
+  posts: () => get('/api/admin/social/posts'),
+  post: (id) => get(`/api/admin/social/posts/${id}`),
+  accounts: () => get('/api/admin/social/accounts'),
+  automations: () => get('/api/admin/social/automations'),
+  validate: (payload) => post('/api/admin/social/validate', payload),
+  createPost: (payload) => post('/api/admin/social/posts', payload),
+  retry: (postId, publicationId) => post(`/api/admin/social/posts/${postId}/publications/${publicationId}/retry`, {}),
+  createAutomation: (payload) => post('/api/admin/social/automations', payload),
+  updateAutomation: (id, payload) => patch(`/api/admin/social/automations/${id}`, payload)
+};
+
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -135,6 +148,20 @@ export async function post(path, body, token) {
     return { error: data.error || res.statusText || 'Request failed' };
   }
   return data;
+}
+
+export async function patch(path, body) {
+  try {
+    const res = await fetchWithRetry(API_BASE_URL + path, {
+      method: 'PATCH',
+      headers: buildHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(body)
+    });
+    const data = await res.json().catch(() => ({}));
+    return res.ok ? data : { ...data, error: data.error || `Request failed (${res.status})` };
+  } catch {
+    return { error: 'Network request failed' };
+  }
 }
 
 export async function put(path, body, token) {

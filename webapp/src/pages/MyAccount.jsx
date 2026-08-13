@@ -54,6 +54,7 @@ import {
   FiList,
   FiDollarSign,
   FiCheckSquare
+  ,FiShare2
 } from 'react-icons/fi';
 
 export default function MyAccount() {
@@ -946,6 +947,13 @@ export default function MyAccount() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <Link
+                to="/admin/social"
+                className="px-3 py-3 bg-primary hover:bg-primary-hover rounded text-background w-full inline-flex items-center justify-center gap-2 sm:col-span-2"
+              >
+                <FiShare2 className="w-5 h-5" />
+                Open Social Media Control Center
+              </Link>
               <button
                 onClick={() => setShowNotifyModal(true)}
                 className="px-3 py-2 bg-primary hover:bg-primary-hover rounded text-background w-full inline-flex items-center justify-center gap-2"

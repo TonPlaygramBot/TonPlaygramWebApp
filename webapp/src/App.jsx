@@ -15,6 +15,8 @@ import InfluencerAdmin from './pages/InfluencerAdmin.jsx';
 import Nfts from './pages/Nfts.jsx';
 import PlatformStatsDetails from './pages/PlatformStatsDetails.jsx';
 import Exchange from './pages/Exchange.jsx';
+import SocialAdmin from './pages/SocialAdmin.jsx';
+import SocialPostDetails from './pages/SocialPostDetails.jsx';
 import Layout from './components/Layout.jsx';
 import TonConnectSync from './components/TonConnectSync.jsx';
 import GameLiveAvatarOverlay from './components/GameLiveAvatarOverlay.jsx';
@@ -442,6 +444,8 @@ export default function App() {
               />
               <Route path="/spin" element={<SpinPage />} />
               <Route path="/admin/influencer" element={<InfluencerAdmin />} />
+              <Route path="/admin/social" element={<SocialAdmin />} />
+              <Route path="/admin/social/posts/:id" element={<SocialPostDetails />} />
               <Route path="/tasks" element={<Navigate to="/earn#tasks" replace />} />
               <Route
                 path="/store"
