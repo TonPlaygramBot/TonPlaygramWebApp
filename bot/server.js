@@ -20,6 +20,8 @@ import twitterAuthRoutes from './routes/twitterAuth.js';
 import airdropRoutes from './routes/airdrop.js';
 import checkinRoutes from './routes/checkin.js';
 import socialRoutes from './routes/social.js';
+import socialAdminRoutes from './routes/socialAdmin.js';
+import { queueDueSocialPosts } from './services/socialPublishing.js';
 import broadcastRoutes from './routes/broadcast.js';
 import storeRoutes from './routes/store.js';
 import adsRoutes from './routes/ads.js';
@@ -322,6 +324,7 @@ if (process.env.ENABLE_TWITTER_OAUTH === 'true') {
 app.use('/api/airdrop', airdropRoutes);
 app.use('/api/checkin', checkinRoutes);
 app.use('/api/social', socialRoutes);
+app.use('/api/admin/social', socialAdminRoutes);
 app.use('/api/broadcast', broadcastRoutes);
 app.use('/api/store', storeRoutes);
 app.use('/api/online', onlineRoutes);
@@ -329,6 +332,9 @@ app.use('/api/matchmaking', matchmakingRoutes);
 app.use('/api/pool-royale', poolRoyaleRoutes);
 app.use('/api/snooker-royale', snookerRoyaleRoutes);
 app.use('/api/exchange', exchangeRoutes);
+
+const socialScheduler = setInterval(() => queueDueSocialPosts().catch((error) => console.error('Social scheduler failed:', error.message)), 30_000);
+socialScheduler.unref?.();
 
 
 // Serve the built React app

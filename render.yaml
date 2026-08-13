@@ -30,6 +30,10 @@ services:
         value: wss://tonplaygram-chess-matchmaking.onrender.com
       - key: RPC_URL
         fromSecret: RPC_URL
+      - key: DEV_ACCOUNT_ID
+        fromSecret: DEV_ACCOUNT_ID
+      - key: SOCIAL_PROVIDER_MODE
+        value: mock
 
   - type: web
     runtime: node
