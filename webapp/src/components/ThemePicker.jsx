@@ -1,14 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, LockKeyhole, Palette, ShoppingBag, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Check, Palette, X } from 'lucide-react';
 
-import { APP_THEMES, applyAppTheme, getOwnedThemes, getStoredTheme } from '../utils/appTheme.js';
+import { APP_THEMES, applyAppTheme, getStoredTheme } from '../utils/appTheme.js';
 
 export default function ThemePicker() {
   const [isOpen, setIsOpen] = useState(false);
   const [theme, setTheme] = useState(getStoredTheme);
-  const [owned, setOwned] = useState(getOwnedThemes);
-  const navigate = useNavigate();
   const panelRef = useRef(null);
 
   useEffect(() => {
@@ -23,16 +20,6 @@ export default function ThemePicker() {
     document.addEventListener('pointerdown', closeOnOutsideTap);
     return () => document.removeEventListener('pointerdown', closeOnOutsideTap);
   }, [isOpen]);
-
-  useEffect(() => {
-    const syncOwned = () => setOwned(getOwnedThemes());
-    window.addEventListener('appThemeInventoryUpdated', syncOwned);
-    window.addEventListener('storage', syncOwned);
-    return () => {
-      window.removeEventListener('appThemeInventoryUpdated', syncOwned);
-      window.removeEventListener('storage', syncOwned);
-    };
-  }, []);
 
   return (
     <div ref={panelRef} className="theme-picker">
@@ -53,26 +40,19 @@ export default function ThemePicker() {
               <strong>Choose a style</strong>
               <span>Make TonPlaygram yours</span>
             </div>
-            <span className="theme-picker__count">5 FREE · 5 STORE</span>
+            <span className="theme-picker__count">5 themes</span>
           </div>
           <div className="theme-picker__options" role="radiogroup" aria-label="App theme">
             {APP_THEMES.map((option) => {
               const selected = theme === option.id;
-              const unlocked = owned.has(option.id);
               return (
                 <button
                   type="button"
                   role="radio"
                   aria-checked={selected}
-                  aria-label={`${option.name}${unlocked ? '' : `, locked, ${option.price} TPG`}`}
                   key={option.id}
                   className={`theme-picker__option${selected ? ' is-selected' : ''}`}
                   onClick={() => {
-                    if (!unlocked) {
-                      setIsOpen(false);
-                      navigate('/store/all#home-themes');
-                      return;
-                    }
                     setTheme(option.id);
                     setIsOpen(false);
                   }}
@@ -83,14 +63,11 @@ export default function ThemePicker() {
                     ))}
                   </span>
                   <span>{option.name}</span>
-                  {selected ? <Check className="theme-picker__check" size={17} /> : !unlocked ? <LockKeyhole className="theme-picker__lock" size={16} /> : null}
+                  {selected && <Check className="theme-picker__check" size={17} />}
                 </button>
               );
             })}
           </div>
-          <button className="theme-picker__store" type="button" onClick={() => { setIsOpen(false); navigate('/store/all#home-themes'); }}>
-            <ShoppingBag size={15} /> Open theme store
-          </button>
         </div>
       )}
     </div>
