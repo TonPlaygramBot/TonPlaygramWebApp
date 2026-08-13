@@ -74,7 +74,7 @@ async function fetchWithRetry(url, options = {}, retries = 3, backoff = 500) {
 }
 
 function buildHeaders(base = {}) {
-  const headers = { Accept: 'application/json', ...base };
+  const headers = { ...base };
   const initData = window?.Telegram?.WebApp?.initData;
   if (initData) headers['X-Telegram-Init-Data'] = initData;
   const accountId = window?.localStorage?.getItem('accountId');
@@ -119,14 +119,14 @@ export async function post(path, body, token) {
   try {
     text = await res.text();
   } catch {
-    return { error: 'The server did not finish its response. Please retry.' };
+    return { error: 'Invalid server response' };
   }
   let data;
   try {
     data = text ? JSON.parse(text) : {};
   } catch (err) {
     // Provide a generic error instead of exposing parse details
-    return { error: res.ok ? 'The server returned an unreadable response. Please retry.' : `Server error (${res.status}). Please retry.` };
+    return { error: 'Invalid server response' };
   }
   if (!res.ok) {
     if (res.status === 502) {
@@ -156,13 +156,13 @@ export async function put(path, body, token) {
   try {
     text = await res.text();
   } catch {
-    return { error: 'The server did not finish its response. Please retry.' };
+    return { error: 'Invalid server response' };
   }
   let data;
   try {
     data = text ? JSON.parse(text) : {};
   } catch (err) {
-    return { error: res.ok ? 'The server returned an unreadable response. Please retry.' : `Server error (${res.status}). Please retry.` };
+    return { error: 'Invalid server response' };
   }
   if (!res.ok) {
     if (res.status === 502) {
@@ -188,13 +188,13 @@ export async function get(path, token) {
   try {
     text = await res.text();
   } catch {
-    return { error: 'The server did not finish its response. Please retry.' };
+    return { error: 'Invalid server response' };
   }
   let data;
   try {
     data = text ? JSON.parse(text) : {};
   } catch (err) {
-    return { error: res.ok ? 'The server returned an unreadable response. Please retry.' : `Server error (${res.status}). Please retry.` };
+    return { error: 'Invalid server response' };
   }
   if (!res.ok) {
     if (res.status === 502) {

@@ -3,9 +3,9 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { TonConnectUIProvider } from '@tonconnect/ui-react';
 
 import Home from './pages/Home.jsx';
-import Earn from './pages/Earn.jsx';
-import Social from './pages/Social.jsx';
+import Mining from './pages/Mining.jsx';
 import Wallet from './pages/Wallet.jsx';
+import Tasks from './pages/Tasks.jsx';
 import Referral from './pages/Referral.jsx';
 import MyAccount from './pages/MyAccount.jsx';
 import Store from './pages/Store.jsx';
@@ -198,9 +198,7 @@ export default function App() {
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/flamingo/*" element={<FlamingoApp />} />
-              <Route path="/earn" element={<Earn />} />
-              <Route path="/social" element={<Social />} />
-              <Route path="/mining" element={<Navigate to="/earn#mining" replace />} />
+              <Route path="/mining" element={<Mining />} />
               <Route
                 path="/mining/transactions"
                 element={<MiningTransactions />}
@@ -442,7 +440,7 @@ export default function App() {
               />
               <Route path="/spin" element={<SpinPage />} />
               <Route path="/admin/influencer" element={<InfluencerAdmin />} />
-              <Route path="/tasks" element={<Navigate to="/earn#tasks" replace />} />
+              <Route path="/tasks" element={<Tasks />} />
               <Route
                 path="/store"
                 element={<Navigate to="/store/all" replace />}
