@@ -21,6 +21,8 @@ const roomService = new RoomService();
 const validator = new GameValidator();
 const stateService = new MatchStateService();
 const sessions = new SessionRegistry();
+const RECONNECT_GRACE_MS = 30_000;
+const disconnectTimers = new Map<string, NodeJS.Timeout>();
 
 export function createRealtimeServer(app: Express) {
   const httpServer = createServer(app);
@@ -45,13 +47,22 @@ export function createRealtimeServer(app: Express) {
   io.on('connection', async (socket) => {
     const user = socket.data.user as { id: string; username: string };
     sessions.setSocket(user.id, socket.id);
+    const pendingDisconnect = disconnectTimers.get(user.id);
+    if (pendingDisconnect) {
+      clearTimeout(pendingDisconnect);
+      disconnectTimers.delete(user.id);
+    }
     await upsertUser(user.id, user.username);
     await logConnectionEvent({ userId: user.id, socketId: socket.id, event: 'connected' });
 
     socket.emit('player:connect', { userId: user.id, socketId: socket.id });
     const room = roomService.getRoomByUser(user.id);
     if (room) {
+      socket.join(room.roomCode);
       socket.emit('player:reconnect', { userId: user.id, matchId: room.matchId });
+      const currentState = stateService.getState(room.matchId);
+      if (currentState) socket.emit('match:state_update', currentState);
+      socket.to(room.roomCode).emit('match:connection_status', { userId: user.id, status: 'connected' });
     }
 
     socket.on('player:queue_join', async (payload) => {
@@ -117,6 +128,8 @@ export function createRealtimeServer(app: Express) {
         { playerId: playerA.userId, socketId: playerASocketId },
         { playerId: playerB.userId, socketId: playerBSocketId },
       ].forEach(({ playerId, socketId }) => {
+        const matchedSocket = io.sockets.sockets.get(socketId);
+        matchedSocket?.join(generatedRoom.roomCode);
         io.to(socketId).emit('match:found', {
           matchId: dbMatch.id,
           roomCode: generatedRoom.roomCode,
@@ -183,6 +196,11 @@ export function createRealtimeServer(app: Express) {
       }
 
       const state = stateService.getState(parsed.data.matchId);
+      const actionRoom = roomService.getRoomByUser(user.id);
+      if (!actionRoom || actionRoom.matchId !== parsed.data.matchId) {
+        socket.emit('error', { code: 'ACTION_MATCH_SPOOFED', message: 'You are not in this match' });
+        return;
+      }
       const result = validator.validateAction(parsed.data, state, user.id);
       if (!result.valid) {
         socket.emit('match:validated_action', { matchId: parsed.data.matchId, tick: parsed.data.tick, accepted: false });
@@ -214,6 +232,12 @@ export function createRealtimeServer(app: Express) {
         return;
       }
 
+      const liveState = stateService.getState(parsed.data.matchId);
+      if (!validator.validateResult(liveState, parsed.data.winnerUserId, parsed.data.scoreByUser)) {
+        socket.emit('error', { code: 'MATCH_END_UNVERIFIED', message: 'Result does not match authoritative server state' });
+        return;
+      }
+
       const endedState = stateService.endMatch(parsed.data.matchId);
       await finishMatch({
         matchId: parsed.data.matchId,
@@ -241,6 +265,15 @@ export function createRealtimeServer(app: Express) {
       const activeRoom = roomService.getRoomByUser(user.id);
       if (activeRoom) {
         socket.to(activeRoom.roomCode).emit('player:disconnect', { userId: user.id });
+        const reconnectDeadline = Date.now() + RECONNECT_GRACE_MS;
+        socket.to(activeRoom.roomCode).emit('match:connection_status', {
+          userId: user.id,
+          status: 'reconnecting',
+          reconnectDeadline,
+        });
+        const timer = setTimeout(() => disconnectTimers.delete(user.id), RECONNECT_GRACE_MS);
+        timer.unref();
+        disconnectTimers.set(user.id, timer);
       }
       logger.info({ userId: user.id, socketId: socket.id }, 'Socket disconnected');
     });
