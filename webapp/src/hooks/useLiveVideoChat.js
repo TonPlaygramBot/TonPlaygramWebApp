@@ -18,6 +18,7 @@ export default function useLiveVideoChat({ roomId, displayName, enabled, video =
   const [localStream, setLocalStream] = useState(null);
   const localStreamRef = useRef(null);
   const peersRef = useRef(new Map());
+  const pendingIceCandidatesRef = useRef(new Map());
 
   const safeRoomId = useMemo(() => String(roomId || '').trim(), [roomId]);
 
@@ -41,8 +42,28 @@ export default function useLiveVideoChat({ roomId, displayName, enabled, video =
       peer.close();
       peersRef.current.delete(socketId);
     }
+    pendingIceCandidatesRef.current.delete(socketId);
     removeRemotePeer(socketId);
   }, [removeRemotePeer]);
+
+  const addOrQueueIceCandidate = useCallback(async (socketId, peerConnection, candidate) => {
+    if (peerConnection.remoteDescription) {
+      await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+      return;
+    }
+
+    const queued = pendingIceCandidatesRef.current.get(socketId) || [];
+    queued.push(candidate);
+    pendingIceCandidatesRef.current.set(socketId, queued);
+  }, []);
+
+  const flushIceCandidates = useCallback(async (socketId, peerConnection) => {
+    const queued = pendingIceCandidatesRef.current.get(socketId) || [];
+    pendingIceCandidatesRef.current.delete(socketId);
+    for (const candidate of queued) {
+      await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+    }
+  }, []);
 
   const emitSignal = useCallback((targetSocketId, data) => {
     if (!safeRoomId || !targetSocketId || !data) return;
@@ -74,8 +95,15 @@ export default function useLiveVideoChat({ roomId, displayName, enabled, video =
     };
 
     peerConnection.ontrack = (event) => {
-      const [stream] = event.streams;
-      if (!stream) return;
+      // WebKit may deliver a track without event.streams. Keep a stable remote
+      // MediaStream in that case so portrait iOS/Telegram clients render it.
+      const currentPeer = peersRef.current.get(socketId);
+      const [receivedStream] = event.streams;
+      const stream = receivedStream || currentPeer?.remoteStream || new MediaStream();
+      if (!receivedStream && !stream.getTracks().includes(event.track)) {
+        stream.addTrack(event.track);
+      }
+      peerConnection.remoteStream = stream;
       upsertRemotePeer(socketId, {
         displayName: participant.displayName || 'Player',
         stream,
@@ -112,6 +140,7 @@ export default function useLiveVideoChat({ roomId, displayName, enabled, video =
   const stopLiveChat = useCallback(() => {
     peersRef.current.forEach((peer) => peer.close());
     peersRef.current.clear();
+    pendingIceCandidatesRef.current.clear();
     setRemotePeers([]);
 
     if (localStreamRef.current) {
@@ -212,6 +241,7 @@ export default function useLiveVideoChat({ roomId, displayName, enabled, video =
       try {
         if (data.type === 'offer' && data.sdp) {
           await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
+          await flushIceCandidates(fromSocketId, peerConnection);
           const answer = await peerConnection.createAnswer();
           await peerConnection.setLocalDescription(answer);
           emitSignal(fromSocketId, { type: 'answer', sdp: answer });
@@ -220,11 +250,12 @@ export default function useLiveVideoChat({ roomId, displayName, enabled, video =
 
         if (data.type === 'answer' && data.sdp) {
           await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
+          await flushIceCandidates(fromSocketId, peerConnection);
           return;
         }
 
         if (data.type === 'ice-candidate' && data.candidate) {
-          await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+          await addOrQueueIceCandidate(fromSocketId, peerConnection, data.candidate);
         }
       } catch (signalError) {
         console.error('live chat signal handling failed', signalError);
@@ -254,7 +285,7 @@ export default function useLiveVideoChat({ roomId, displayName, enabled, video =
       socket.off('liveChat:peer-left', handlePeerLeft);
       socket.off('liveChat:media_state', handleMediaState);
     };
-  }, [closePeer, createOfferForPeer, emitSignal, enabled, ensurePeerConnection, upsertRemotePeer]);
+  }, [addOrQueueIceCandidate, closePeer, createOfferForPeer, emitSignal, enabled, ensurePeerConnection, flushIceCandidates, upsertRemotePeer]);
 
   useEffect(() => () => stopLiveChat(), [stopLiveChat]);
 
