@@ -9,6 +9,7 @@ export interface ServerToClientEvents {
   'match:end': (payload: MatchResultPayload) => void;
   'player:disconnect': (payload: { userId: string }) => void;
   'player:reconnect': (payload: { userId: string; matchId?: string }) => void;
+  'match:connection_status': (payload: { userId: string; status: 'reconnecting' | 'connected'; reconnectDeadline?: number }) => void;
   error: (payload: RealtimeError) => void;
 }
 
