@@ -51,6 +51,7 @@ export const socialAdminApi = {
   posts: () => get('/api/admin/social/posts'),
   post: (id) => get(`/api/admin/social/posts/${id}`),
   accounts: () => get('/api/admin/social/accounts'),
+  connectAccount: (platform) => post(`/api/admin/social/accounts/${platform}/connect`, {}),
   automations: () => get('/api/admin/social/automations'),
   validate: (payload) => post('/api/admin/social/validate', payload),
   createPost: (payload) => post('/api/admin/social/posts', payload),

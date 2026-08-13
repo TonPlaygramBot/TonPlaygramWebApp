@@ -37,6 +37,24 @@ router.post('/posts', async (req, res) => {
 });
 router.post('/posts/:postId/publications/:publicationId/retry', async (req, res) => { const post = await SocialPost.findById(req.params.postId); const publication = post?.publications.id(req.params.publicationId); if (!publication) return res.status(404).json({ error: 'Not found' }); if (publication.status !== 'FAILED') return res.status(409).json({ error: 'Only failed publications can be retried' }); publication.status = 'QUEUED'; await post.save(); queuePublication(post._id, publication._id); res.status(202).json(publication); });
 router.get('/accounts', async (_req, res) => res.json(await SocialAccount.find().lean()));
+router.post('/accounts/:platform/connect', async (req, res) => {
+  const platform = String(req.params.platform || '').toLowerCase();
+  if (!SOCIAL_PLATFORMS.includes(platform)) return res.status(404).json({ error: 'Unsupported social platform' });
+
+  const authorizationUrl = String(process.env[`SOCIAL_${platform.toUpperCase()}_AUTHORIZATION_URL`] || '').trim();
+  if (authorizationUrl) return res.json({ authorizationUrl });
+
+  if ((process.env.SOCIAL_PROVIDER_MODE || 'mock') !== 'mock') {
+    return res.status(503).json({ error: `${platform} authorization is not configured on the server` });
+  }
+
+  const account = await SocialAccount.findOneAndUpdate(
+    { platform, accountName: `${platform}-sandbox` },
+    { status: 'CONNECTED', lastSuccessfulUse: new Date() },
+    { new: true, upsert: true, runValidators: true }
+  );
+  res.json({ account, mock: true });
+});
 router.get('/automations', async (_req, res) => { await ensureDefaultRules(); res.json(await SocialAutomationRule.find().sort({ createdAt: 1 }).lean()); });
 router.post('/automations', async (req, res) => res.json(await SocialAutomationRule.create(req.body)));
 router.patch('/automations/:id', async (req, res) => res.json(await SocialAutomationRule.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true })));
