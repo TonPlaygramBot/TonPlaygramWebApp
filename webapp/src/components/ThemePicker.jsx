@@ -49,7 +49,7 @@ export default function ThemePicker() {
               <strong>Choose a style</strong>
               <span>Make TonPlaygram yours</span>
             </div>
-            <span className="theme-picker__count">5 FREE · 5 STORE</span>
+            <span className="theme-picker__count">5 FREE · 10 STORE</span>
           </div>
           <div className="theme-picker__options" role="radiogroup" aria-label="App theme">
             {APP_THEMES.map((option) => {
@@ -83,7 +83,7 @@ export default function ThemePicker() {
             })}
           </div>
           <button type="button" className="theme-picker__store" onClick={() => navigate('/store/home')}>
-            <ShoppingBag size={15} /> Explore premium themes
+            <ShoppingBag size={15} /> Explore 10 store themes
           </button>
         </div>
       )}
