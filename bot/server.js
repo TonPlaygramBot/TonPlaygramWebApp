@@ -2812,11 +2812,61 @@ io.on('connection', (socket) => {
       return;
     }
     const cached = murlanRoyalStates.get(tableId);
+    if (cached?.state) {
+      const expectedRevision = Number(cached.revision || 0);
+      const submittedRevision = Number(state.seq || 0);
+      const activePlayer = cached.state.players?.[cached.state.activePlayer];
+      const activeAccountId = String(activePlayer?.id || activePlayer?.tpcAccountNumber || '');
+      const submittedActionId = Number(state.lastActionId || 0);
+      const expectedActionId = Number(cached.state.lastActionId || 0) + 1;
+      const actionType = String(action?.type || '').toUpperCase();
+      const actionPlayerIndex = Number(action?.playerIndex);
+      const cardIds = (cards) => (Array.isArray(cards) ? cards.map((card) => String(card?.id || '')).sort() : []);
+      const sameCards = (left, right) => JSON.stringify(cardIds(left)) === JSON.stringify(cardIds(right));
+      const submittedPlayers = Array.isArray(state.players) ? state.players : [];
+      const previousPlayers = Array.isArray(cached.state.players) ? cached.state.players : [];
+      const playedCardIds = new Set(cardIds(action?.cards));
+      const expectedActiveHand = cardIds(activePlayer?.hand).filter((cardId) => !playedCardIds.has(cardId));
+      const handsAreValid =
+        submittedPlayers.length === previousPlayers.length &&
+        submittedPlayers.every((player, index) => {
+          if (index !== cached.state.activePlayer || actionType === 'PASS') {
+            return sameCards(player?.hand, previousPlayers[index]?.hand);
+          }
+          return JSON.stringify(cardIds(player?.hand)) === JSON.stringify(expectedActiveHand);
+        });
+      const invalidTransition =
+        submittedRevision !== expectedRevision ||
+        submittedActionId !== expectedActionId ||
+        !['PLAY', 'PASS'].includes(actionType) ||
+        actionPlayerIndex !== cached.state.activePlayer ||
+        !handsAreValid ||
+        (actionType === 'PLAY' && (!playedCardIds.size || !sameCards(action?.cards, state.lastAction?.cards))) ||
+        !activeAccountId ||
+        activeAccountId !== String(resolvedAccountId);
+      if (invalidTransition) {
+        cb && cb({ success: false, error: 'invalid_transition', revision: expectedRevision });
+        socket.emit('murlanRoyaleSyncError', { tableId, error: 'invalid_transition' });
+        socket.emit('murlanRoyaleState', {
+          tableId,
+          state: cached.state,
+          action: cached.action || null,
+          updatedAt: cached.ts
+        });
+        return;
+      }
+    } else if (String(action?.type || '').toUpperCase() !== 'SYNC') {
+      cb && cb({ success: false, error: 'sync_required' });
+      socket.emit('murlanRoyaleSyncError', { tableId, error: 'sync_required' });
+      return;
+    }
     const revision = Number(cached?.revision || 0) + 1;
     const authoritativeState = { ...state, seq: revision };
     const payload = { tableId, tableNumber: table.tableNumber, state: authoritativeState, action: { ...(action || {}), accountId: String(resolvedAccountId) }, updatedAt: Date.now() };
     murlanRoyalStates.set(tableId, { state: authoritativeState, action: payload.action, ts: payload.updatedAt, revision });
-    socket.to(tableId).emit('murlanRoyaleState', payload);
+    // Echo the authoritative revision to the sender as well. This gives every
+    // client the same revision baseline for reconnects and rejects stale moves.
+    io.to(tableId).emit('murlanRoyaleState', payload);
     cb && cb({ success: true, revision });
   });
 

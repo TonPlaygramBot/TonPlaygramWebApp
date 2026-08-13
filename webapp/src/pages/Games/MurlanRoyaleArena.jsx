@@ -440,13 +440,20 @@ const AVATAR_VISUAL_SCALE = 0.98;
 
 const TABLE_RADIUS = 3.4 * MODEL_SCALE * 0.83 * TABLE_AND_CHAIR_VISUAL_SHRINK;
 const TABLE_HORIZONTAL_SHRINK = 1;
-const CHAIR_COUNT = 4;
 const CUSTOM_SEAT_ANGLES = [
   THREE.MathUtils.degToRad(90),
   THREE.MathUtils.degToRad(0),
   THREE.MathUtils.degToRad(270),
   THREE.MathUtils.degToRad(180)
 ];
+
+function resolveMurlanSeatAngle(seatIndex, playerCount, localSeatIndex = 0) {
+  const relativeSeatIndex = (seatIndex - localSeatIndex + playerCount) % Math.max(playerCount, 1);
+  if (playerCount === 2) {
+    return relativeSeatIndex === 0 ? THREE.MathUtils.degToRad(90) : THREE.MathUtils.degToRad(270);
+  }
+  return CUSTOM_SEAT_ANGLES[relativeSeatIndex] ?? Math.PI / 2 - (relativeSeatIndex / Math.max(playerCount, 1)) * Math.PI * 2;
+}
 
 const SUITS = ['♠', '♥', '♦', '♣'];
 const OPEN_SOURCE_SUIT_CODES = Object.freeze({
@@ -3614,6 +3621,7 @@ export default function MurlanRoyaleArena({ search }) {
   const [selectedIds, setSelectedIds] = useState([]);
   const [uiState, setUiState] = useState(() => computeUiState(gameState));
   const [actionError, setActionError] = useState('');
+  const [connectionState, setConnectionState] = useState(() => (socket.connected ? 'connected' : 'connecting'));
   const [threeReady, setThreeReady] = useState(false);
   const [seatAnchors, setSeatAnchors] = useState([]);
   const [discardHudAnchor, setDiscardHudAnchor] = useState(null);
@@ -4668,7 +4676,7 @@ export default function MurlanRoyaleArena({ search }) {
 
     const seatConfigs = three.seatConfigs;
     const cardMap = three.cardMap;
-    const humanTurn = state.status === 'PLAYING' && state.players[state.activePlayer]?.isHuman;
+    const humanTurn = state.status === 'PLAYING' && state.activePlayer === humanPlayerIndex;
     const isInitialDealAnimation = !previous && (state.lastActionId ?? 0) === 0;
     humanTurnRef.current = humanTurn;
     state.players.forEach((player, idx) => {
@@ -4688,7 +4696,9 @@ export default function MurlanRoyaleArena({ search }) {
         const entry = cardMap.get(card.id);
         if (!entry) return;
         const mesh = entry.mesh;
-        const isHumanCard = player.isHuman;
+        // `isHuman` is client-relative and must never be trusted from a remote
+        // snapshot. The locally controlled seat alone gets readable faces.
+        const isHumanCard = idx === humanPlayerIndex;
         const layerIndex = isHumanCard ? cards.length - 1 - cardIdx : cardIdx;
         applyHandCardLayering(mesh, isHumanCard, layerIndex);
         const isSideSeat = seat?.handVariant === 'side';
@@ -4943,7 +4953,7 @@ export default function MurlanRoyaleArena({ search }) {
     if (three.renderer?.domElement) {
       three.renderer.domElement.style.cursor = humanTurn && three.selectionTargets.length ? 'pointer' : 'default';
     }
-  }, []);
+  }, [humanPlayerIndex]);
 
   const rebuildTable = useCallback(
     async (tableTheme, tableFinish, tableCloth, tableShapeOption) => {
@@ -5540,16 +5550,55 @@ export default function MurlanRoyaleArena({ search }) {
       onlineStateRef.current.suppressNextEmit = true;
       onlineStateRef.current.hydrated = true;
       setSelectedIds([]);
-      setGameState(state);
+      const remotePlayers = Array.isArray(state.players) ? state.players : [];
+      const localOrder = players
+        .map((localPlayer) => remotePlayers.findIndex(
+          (remotePlayer) => String(remotePlayer?.id || '') === String(localPlayer?.id || '')
+        ))
+        .filter((index) => index >= 0);
+      const hasCompleteLocalOrder = localOrder.length === remotePlayers.length;
+      const orderedRemotePlayers = hasCompleteLocalOrder
+        ? localOrder.map((remoteIndex) => remotePlayers[remoteIndex])
+        : remotePlayers;
+      const remappedActivePlayer = hasCompleteLocalOrder
+        ? localOrder.indexOf(state.activePlayer)
+        : state.activePlayer;
+      setGameState({
+        ...state,
+        activePlayer: remappedActivePlayer >= 0 ? remappedActivePlayer : state.activePlayer,
+        players: orderedRemotePlayers.length
+          ? orderedRemotePlayers.map((player, index) => ({
+              ...player,
+              isHuman: index === humanPlayerIndex,
+              isOnlineRemote: index !== humanPlayerIndex
+            }))
+          : state.players
+      });
+    };
+    const handleConnect = () => {
+      setConnectionState('connected');
+      joinAndSync();
+    };
+    const handleDisconnect = () => setConnectionState('reconnecting');
+    const handleConnectError = () => setConnectionState('reconnecting');
+    const handleSyncError = ({ error } = {}) => {
+      setConnectionState('error');
+      setActionError(error === 'seat_required' ? 'Your online seat could not be verified.' : 'Unable to synchronize the match.');
     };
     socket.on('murlanRoyaleState', handleRemoteState);
-    socket.on('connect', joinAndSync);
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
+    socket.on('connect_error', handleConnectError);
+    socket.on('murlanRoyaleSyncError', handleSyncError);
     joinAndSync();
     return () => {
       socket.off('murlanRoyaleState', handleRemoteState);
-      socket.off('connect', joinAndSync);
+      socket.off('connect', handleConnect);
+      socket.off('disconnect', handleDisconnect);
+      socket.off('connect_error', handleConnectError);
+      socket.off('murlanRoyaleSyncError', handleSyncError);
     };
-  }, [onlineContext]);
+  }, [humanPlayerIndex, onlineContext, players]);
 
   useEffect(() => {
     if (!onlineContext.enabled || !onlineContext.tableId || !onlineContext.accountId) return;
@@ -6080,7 +6129,7 @@ export default function MurlanRoyaleArena({ search }) {
       const seatConfigs = [];
       threeStateRef.current.chairInstances = [];
 
-      for (let i = 0; i < CHAIR_COUNT; i++) {
+      for (let i = 0; i < players.length; i++) {
         const player = players[i] ?? null;
         const chair = new THREE.Group();
         chair.scale.set(
@@ -6094,7 +6143,7 @@ export default function MurlanRoyaleArena({ search }) {
         chair.userData.chairModel = chairModel;
         threeStateRef.current.chairInstances.push(chair);
 
-        const angle = CUSTOM_SEAT_ANGLES[i] ?? Math.PI / 2 - (i / CHAIR_COUNT) * Math.PI * 2;
+        const angle = resolveMurlanSeatAngle(i, players.length, humanPlayerIndex);
         const isHumanSeat = Boolean(player?.isHuman);
         const baseSeatRadius =
           (isHumanSeat
@@ -6716,6 +6765,15 @@ export default function MurlanRoyaleArena({ search }) {
   return (
     <div className="absolute inset-0">
       <div ref={mountRef} className="absolute inset-0" />
+      {onlineContext.enabled && connectionState !== 'connected' ? (
+        <div
+          className="absolute left-1/2 top-[max(0.75rem,env(safe-area-inset-top))] z-50 -translate-x-1/2 rounded-full border border-amber-300/40 bg-slate-950/90 px-4 py-2 text-xs font-semibold text-amber-100 shadow-xl backdrop-blur"
+          role="status"
+          aria-live="polite"
+        >
+          {connectionState === 'error' ? 'Connection problem' : 'Connection lost — reconnecting…'}
+        </div>
+      ) : null}
       <div className="absolute inset-0 pointer-events-none flex h-full flex-col">
         {uiState.scoreboard?.length ? (
           <div className="sr-only" aria-live="polite">
