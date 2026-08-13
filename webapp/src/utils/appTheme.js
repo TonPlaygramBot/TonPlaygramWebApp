@@ -1,14 +1,19 @@
 export const APP_THEMES = [
   { id: 'neon', name: 'Neon Lights', colors: ['#071426', '#00f7ff', '#f72585'], free: true },
-  { id: 'forest', name: 'Emerald', colors: ['#041712', '#34d399', '#f4d35e'], free: true },
-  { id: 'aurora', name: 'Aurora', colors: ['#11123b', '#22d3ee', '#c084fc'], free: true },
-  { id: 'ocean', name: 'Ocean Blue', colors: ['#061a33', '#38bdf8', '#f8fafc'], free: true },
-  { id: 'rose', name: 'Rose Quartz', colors: ['#351526', '#fb7185', '#fbcfe8'], free: true },
-  { id: 'obsidian', name: 'Obsidian', colors: ['#05060a', '#64748b', '#f8fafc'], price: 450 },
-  { id: 'gold', name: 'Golden Hour', colors: ['#281706', '#f59e0b', '#fff1b8'], price: 500 },
-  { id: 'lavender', name: 'Lavender Dream', colors: ['#1e1239', '#a78bfa', '#f5d0fe'], price: 500 },
-  { id: 'arctic', name: 'Arctic Ice', colors: ['#071d2b', '#67e8f9', '#e0f2fe'], price: 550 },
-  { id: 'crimson', name: 'Crimson Night', colors: ['#25070d', '#ef4444', '#fda4af'], price: 550 }
+  { id: 'emerald', name: 'Emerald', colors: ['#041712', '#34d399', '#f4d35e'], free: true },
+  { id: 'obsidian', name: 'Obsidian', colors: ['#05060a', '#64748b', '#f8fafc'], free: true },
+  { id: 'golden-hour', name: 'Golden Hour', colors: ['#281706', '#f59e0b', '#fff1b8'], free: true },
+  { id: 'arctic-ice', name: 'Arctic Ice', colors: ['#071d2b', '#67e8f9', '#e0f2fe'], free: true },
+  { id: 'royal-navy', name: 'Royal Navy', colors: ['#06162d', '#123a67', '#f5c84c'], price: 450 },
+  { id: 'emerald-classic', name: 'Emerald Classic', colors: ['#f4ecd8', '#075c3b', '#d4a72c'], price: 475 },
+  { id: 'vintage-brown', name: 'Vintage Brown', colors: ['#241006', '#6b3514', '#e9b949'], price: 500 },
+  { id: 'classic-marble', name: 'Classic Marble', colors: ['#f7f2e8', '#20252b', '#c9912b'], price: 525 },
+  { id: 'midnight-purple', name: 'Midnight Purple', colors: ['#12051f', '#51205f', '#e4b635'], price: 550 },
+  { id: 'ocean-wave', name: 'Ocean Wave', colors: ['#eaf1df', '#16859a', '#d6a72c'], price: 575 },
+  { id: 'golden-age', name: 'Golden Age', colors: ['#fff3cf', '#bd7416', '#6e3e08'], price: 600 },
+  { id: 'steel-blue', name: 'Steel Blue', colors: ['#08131f', '#31516a', '#c2c8cc'], price: 625 },
+  { id: 'sunset-haze', name: 'Sunset Haze', colors: ['#722d39', '#e5663d', '#f7d7a7'], price: 650 },
+  { id: 'ivory-black', name: 'Ivory Black', colors: ['#070807', '#28241d', '#e2b33b'], price: 675 }
 ]
 
 export const FREE_APP_THEME_IDS = APP_THEMES.filter(({ free }) => free).map(({ id }) => id)
