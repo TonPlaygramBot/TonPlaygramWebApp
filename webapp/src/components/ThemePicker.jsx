@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, LockKeyhole, Palette, ShoppingBag, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Check, Palette, X } from 'lucide-react';
 
 import { APP_THEMES, applyAppTheme, getOwnedAppThemes, getStoredTheme } from '../utils/appTheme.js';
 
@@ -9,7 +8,6 @@ export default function ThemePicker() {
   const [theme, setTheme] = useState(getStoredTheme);
   const [ownedThemes, setOwnedThemes] = useState(getOwnedAppThemes);
   const panelRef = useRef(null);
-  const navigate = useNavigate();
 
   useEffect(() => {
     applyAppTheme(theme);
@@ -49,7 +47,7 @@ export default function ThemePicker() {
               <strong>Choose a style</strong>
               <span>Make TonPlaygram yours</span>
             </div>
-            <span className="theme-picker__count">5 FREE · 5 STORE</span>
+            <span className="theme-picker__count">5 COLOR TONES</span>
           </div>
           <div className="theme-picker__options" role="radiogroup" aria-label="App theme">
             {APP_THEMES.map((option) => {
@@ -67,7 +65,7 @@ export default function ThemePicker() {
                       setTheme(option.id);
                       setIsOpen(false);
                     } else {
-                      navigate('/store/home');
+                      return;
                     }
                   }}
                 >
@@ -76,15 +74,12 @@ export default function ThemePicker() {
                       <span key={color} style={{ backgroundColor: color }} />
                     ))}
                   </span>
-                  <span className="theme-picker__name">{option.name}<small>{owned ? 'Included' : `${option.price} TPG`}</small></span>
-                  {selected ? <Check className="theme-picker__check" size={17} /> : !owned ? <LockKeyhole className="theme-picker__lock" size={15} /> : null}
+                  <span className="theme-picker__name">{option.name}<small>Included</small></span>
+                  {selected ? <Check className="theme-picker__check" size={17} /> : null}
                 </button>
               );
             })}
           </div>
-          <button type="button" className="theme-picker__store" onClick={() => navigate('/store/home')}>
-            <ShoppingBag size={15} /> Explore premium themes
-          </button>
         </div>
       )}
     </div>
