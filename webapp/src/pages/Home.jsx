@@ -4,6 +4,7 @@ import ProjectAchievementsCard from '../components/ProjectAchievementsCard.jsx';
 import PwaDownloadFrame from '../components/PwaDownloadFrame.jsx';
 import HomeSocialHub from '../components/HomeSocialHub.jsx';
 import PlatformStatsCard from '../components/PlatformStatsCard.jsx';
+import ThemePicker from '../components/ThemePicker.jsx';
 
 import { FaArrowUp, FaArrowDown, FaWallet } from 'react-icons/fa';
 import { IoLogoTiktok } from 'react-icons/io5';
@@ -156,7 +157,8 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="space-y-4">
+    <div className="home-page space-y-4">
+      <ThemePicker />
       <div className="flex flex-col items-center">
         {photoUrl && (
           <div className="relative">
