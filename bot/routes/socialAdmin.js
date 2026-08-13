@@ -8,11 +8,31 @@ import { ensureDefaultRules } from '../services/socialAutomation.js';
 import { queuePublication } from '../services/socialPublishing.js';
 
 const router = Router();
+
+export function hasSocialDeveloperAccess(auth = {}, env = process.env) {
+  if (auth.apiToken) return true;
+
+  const developerAccountIds = [
+    env.DEV_ACCOUNT_ID,
+    env.DEV_ACCOUNT_ID_1,
+    env.DEV_ACCOUNT_ID_2,
+    env.VITE_DEV_ACCOUNT_ID,
+    env.VITE_DEV_ACCOUNT_ID_1,
+    env.VITE_DEV_ACCOUNT_ID_2
+  ]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean);
+  const accountId = String(auth.accountId || '').trim();
+  if (accountId && developerAccountIds.includes(accountId)) return true;
+
+  const ownerTelegramId = Number(env.OWNER_TELEGRAM_ID);
+  return Number.isFinite(ownerTelegramId) && ownerTelegramId > 0 && auth.telegramId === ownerTelegramId;
+}
+
 router.use((req, res, next) => {
-  const configuredId = process.env.DEV_ACCOUNT_ID;
-  const ownerTelegramId = Number(process.env.OWNER_TELEGRAM_ID);
-  const allowed = req.auth?.apiToken || (configuredId && req.auth?.accountId === configuredId) || (ownerTelegramId && req.auth?.telegramId === ownerTelegramId);
-  if (!allowed) return res.status(403).json({ error: 'Developer access required' });
+  if (!hasSocialDeveloperAccess(req.auth)) {
+    return res.status(403).json({ error: 'Developer access required' });
+  }
   next();
 });
 
