@@ -50,6 +50,9 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
   const [liveMode, setLiveMode] = useState(false);
   const [anchorElement, setAnchorElement] = useState(null);
   const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
+  const [opponentElement, setOpponentElement] = useState(null);
+  const [opponentRect, setOpponentRect] = useState(null);
   const [overlayRect, setOverlayRect] = useState({
     top: 96,
     left: 12,
@@ -99,6 +102,14 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
     if (!localVideoRef.current) return;
     localVideoRef.current.srcObject = liveChat.localStream || null;
   }, [liveChat.localStream]);
+
+  const remoteStream = liveChat.remotePeers.find((peer) => peer.stream)?.stream || null;
+  useEffect(() => {
+    const video = remoteVideoRef.current;
+    if (!video) return;
+    video.srcObject = remoteStream;
+    if (remoteStream) video.play().catch(() => {});
+  }, [remoteStream]);
 
   useLayoutEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -197,6 +208,22 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
         0
       );
       setAnchorElement(node);
+      const opponent = document.querySelector('[data-opponent-player="true"]');
+      if (opponent) {
+        const opponentAvatar = opponent.querySelector('.avatar-timer-avatar, img') || opponent;
+        const opponentBounds = opponentAvatar.getBoundingClientRect();
+        const diameter = Math.max(Math.round(Math.min(opponentBounds.width, opponentBounds.height) * FRAME_SCALE), 32);
+        setOpponentElement(opponentAvatar);
+        setOpponentRect({
+          top: Math.max(Math.round(opponentBounds.top - (diameter - opponentBounds.height) / 2), 0),
+          left: Math.max(Math.round(opponentBounds.left - (diameter - opponentBounds.width) / 2), 0),
+          width: diameter,
+          height: diameter
+        });
+      } else {
+        setOpponentElement(null);
+        setOpponentRect(null);
+      }
       setOverlayRect((prev) => {
         if (
           Math.abs(prev.top - top) <= 1 &&
@@ -314,6 +341,16 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
   }, [anchorElement, liveMode]);
 
   useEffect(() => {
+    if (!opponentElement) return undefined;
+    const previousVisibility = opponentElement.style.visibility;
+    if (liveMode && remoteStream) opponentElement.style.visibility = 'hidden';
+    else opponentElement.style.visibility = previousVisibility || '';
+    return () => {
+      opponentElement.style.visibility = previousVisibility || '';
+    };
+  }, [liveMode, opponentElement, remoteStream]);
+
+  useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const handleStartEvent = (event) => {
       const eventSlug = event?.detail?.gameSlug;
@@ -376,6 +413,20 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
             className="h-full w-full object-cover scale-x-[-1]"
           />
         </button>
+      ) : null}
+      {liveMode && remoteStream && opponentRect ? (
+        <div
+          aria-label="Opponent live video and voice"
+          className="fixed z-[18] overflow-hidden rounded-full border border-sky-300 bg-black/40 shadow-lg pointer-events-none"
+          style={{
+            top: `${opponentRect.top}px`,
+            left: `${opponentRect.left}px`,
+            width: `${opponentRect.width}px`,
+            height: `${opponentRect.height}px`
+          }}
+        >
+          <video ref={remoteVideoRef} autoPlay playsInline className="h-full w-full object-cover" />
+        </div>
       ) : null}
     </>
   );

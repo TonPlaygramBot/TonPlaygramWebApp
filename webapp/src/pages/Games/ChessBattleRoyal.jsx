@@ -14387,7 +14387,26 @@ function Chess3D({
       if (!fen && !syncedBoard) return;
       try {
         const parsedBoard = parseWireBoard(syncedBoard);
-        board = parsedBoard || parseFEN(String(fen || START_FEN).split(' ')[0]);
+        const authoritativeBoard = parsedBoard || parseFEN(String(fen || START_FEN).split(' ')[0]);
+        // Replay a newly received opponent move through the normal move pipeline.
+        // Repainting the authoritative board immediately skipped every Three.js
+        // piece/capture/weapon animation and made online moves appear to teleport.
+        const from = lastMove?.from;
+        const to = lastMove?.to;
+        const localBoardCanAnimate =
+          onlineRef.current.synced &&
+          from &&
+          to &&
+          board?.[from.r]?.[from.c] &&
+          !authoritativeBoard?.[from.r]?.[from.c] &&
+          authoritativeBoard?.[to.r]?.[to.c] &&
+          uiRef.current.turnWhite !== turnWhite;
+        if (localBoardCanAnimate) {
+          selectAt(from.r, from.c, { force: true });
+          moveSelTo(to.r, to.c, { byAi: true, suppressOnlineEmit: true });
+          return;
+        }
+        board = authoritativeBoard;
         if (Array.isArray(players) && players.length) {
           const me = players.find((p) => String(p.id) === String(accountId));
           const opp = players.find((p) => String(p.id) !== String(accountId));
@@ -14891,7 +14910,7 @@ function Chess3D({
       if (!isPlayerPiece(piece)) return false;
       if (!uiRef.current.turnWhite && piece.w) return false;
       if (uiRef.current.turnWhite && !piece.w) return false;
-      if (onlineRef.current.enabled) {
+      if (onlineRef.current.enabled && !suppressOnlineEmit) {
         if (!onlineRef.current.synced) return false;
         if (
           onlineRef.current.status !== 'started' &&
@@ -14932,7 +14951,7 @@ function Chess3D({
     }
 
     function moveSelTo(rr, cc, options = {}) {
-      const { byAi = false } = options;
+      const { byAi = false, suppressOnlineEmit = false } = options;
       const finalizeAiMove = () => {
         if (byAi) aiMovingRef.current = false;
       };
@@ -14952,7 +14971,7 @@ function Chess3D({
         finalizeAiMove();
         return;
       }
-      if (onlineRef.current.enabled) {
+      if (onlineRef.current.enabled && !suppressOnlineEmit) {
         const myTurnIsWhite = onlineRef.current.side === 'white';
         if (!onlineRef.current.synced) {
           finalizeAiMove();
@@ -15261,7 +15280,7 @@ function Chess3D({
         enqueueChessCommentaryEvent('outro', context, { priority: true });
       }
 
-      if (onlineRef.current.enabled && onlineRef.current.tableId) {
+      if (!suppressOnlineEmit && onlineRef.current.enabled && onlineRef.current.tableId) {
         const movePayload = {
           lastMove: { from: { r: sel.r, c: sel.c }, to: { r: rr, c: cc } },
           fen: boardToFEN(board, nextWhite),
@@ -17426,6 +17445,8 @@ function Chess3D({
                 key={`chess-seat-${player.index}`}
                 className={`absolute ${configOpen ? 'pointer-events-none' : 'pointer-events-auto'} flex flex-col items-center`}
                 data-player-index={player.index}
+                data-self-player={player.index === 0 ? 'true' : undefined}
+                data-opponent-player={player.index === 1 ? 'true' : undefined}
                 style={positionStyle}
               >
                 <AvatarTimer
