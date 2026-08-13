@@ -157,6 +157,7 @@ import {
 import { DEV_INFO } from '../utils/constants.js';
 import { swatchThumbnail } from '../config/storeThumbnails.js';
 import { getCustomHdriCatalog, saveCustomHdriEntry } from '../utils/customHdriCatalog.js';
+import { APP_THEMES, getOwnedThemes, unlockAppTheme } from '../utils/appTheme.js';
 
 const UKRAINIAN_DRONE_PREVIEW_STATUS = Object.freeze({
   loading: 'LOADING',
@@ -1402,6 +1403,7 @@ export default function Store() {
     getTexasHoldemInventory(texasHoldemAccountId(accountId))
   );
   const [accountBalance, setAccountBalance] = useState(null);
+  const [ownedAppThemes, setOwnedAppThemes] = useState(getOwnedThemes);
   const [processing, setProcessing] = useState('');
   const [info, setInfo] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -1613,6 +1615,47 @@ export default function Store() {
   useEffect(() => {
     loadAccountBalance();
   }, [loadAccountBalance]);
+
+  useEffect(() => {
+    const syncThemes = () => setOwnedAppThemes(getOwnedThemes());
+    window.addEventListener('appThemeInventoryUpdated', syncThemes);
+    window.addEventListener('storage', syncThemes);
+    return () => {
+      window.removeEventListener('appThemeInventoryUpdated', syncThemes);
+      window.removeEventListener('storage', syncThemes);
+    };
+  }, []);
+
+  const purchaseAppTheme = async (theme) => {
+    const resolvedAccountId = poolRoyalAccountId(accountId === 'guest' ? '' : accountId);
+    if (!resolvedAccountId || resolvedAccountId === 'guest') {
+      setInfo('Link your TPG account before purchasing a premium home theme.');
+      return;
+    }
+    if (typeof accountBalance === 'number' && accountBalance < theme.price) {
+      setInfo(`You need ${formatTpcAmount(theme.price)} TPG to unlock ${theme.name}.`);
+      return;
+    }
+    setProcessing(`app-theme:${theme.id}`);
+    setTransactionState('processing');
+    setTransactionStatus(`Purchasing ${theme.name}…`);
+    try {
+      const result = await buyBundle(resolvedAccountId, {
+        items: [{ slug: 'home', type: 'appTheme', optionId: theme.id, price: theme.price }]
+      });
+      if (result?.error) throw new Error(result.error);
+      setOwnedAppThemes(unlockAppTheme(theme.id));
+      setPurchaseStatus(`${theme.name} was added to your Home theme collection.`);
+      setTransactionState('success');
+      setTransactionStatus(`${theme.name} unlocked. Open the Home palette to apply it.`);
+      await loadAccountBalance();
+    } catch (error) {
+      setTransactionState('error');
+      setTransactionStatus(error?.message || 'Theme purchase failed. Please try again.');
+    } finally {
+      setProcessing('');
+    }
+  };
 
   const faceScanStepProgress = useMemo(
     () =>
@@ -4320,6 +4363,60 @@ export default function Store() {
       <main
         className={`mx-auto w-full max-w-6xl px-4 pt-4 ${mainPaddingClass}`}
       >
+        <section id="home-themes" className="luxury-theme-store mb-5" aria-labelledby="home-theme-store-title">
+          <div className="luxury-theme-store__halo" aria-hidden="true" />
+          <header className="luxury-theme-store__header">
+            <div className="luxury-theme-store__crest" aria-hidden="true"><span>G</span></div>
+            <div className="min-w-0 flex-1">
+              <p className="luxury-theme-store__eyebrow">The TonPlayGram Collection</p>
+              <h2 id="home-theme-store-title">Classic Home Themes</h2>
+              <p>Five signature editions are included. Unlock five collector editions here in the Store.</p>
+            </div>
+            <div className="luxury-theme-store__balance">
+              <span>Your balance</span>
+              <strong>{typeof accountBalance === 'number' ? formatTpcAmount(accountBalance) : '—'} TPG</strong>
+            </div>
+          </header>
+
+          <div className="luxury-theme-store__legend">
+            <span><i className="is-included" /> 5 included</span>
+            <span><i className="is-collector" /> 5 collector</span>
+          </div>
+
+          <div className="luxury-theme-store__grid">
+            {APP_THEMES.map((theme, index) => {
+              const isOwned = ownedAppThemes.has(theme.id);
+              const isBuying = processing === `app-theme:${theme.id}`;
+              return (
+                <article className="luxury-theme-card" key={theme.id} style={{ '--theme-base': theme.colors[0], '--theme-accent': theme.colors[1], '--theme-gold': theme.colors[2] }}>
+                  <div className="luxury-theme-card__preview">
+                    <div className="luxury-theme-card__corner luxury-theme-card__corner--left" />
+                    <div className="luxury-theme-card__corner luxury-theme-card__corner--right" />
+                    <span className="luxury-theme-card__edition">{String(index + 1).padStart(2, '0')}</span>
+                    <span className="luxury-theme-card__tier">{theme.free ? 'SIGNATURE' : 'COLLECTOR'}</span>
+                    <div className="luxury-theme-card__medallion"><span>G</span></div>
+                    <strong className="luxury-theme-card__wordmark">TonPlayGram</strong>
+                    <small>PLAY · EARN · DOMINATE</small>
+                    <div className="luxury-theme-card__wallet">◇ &nbsp; Connect Wallet</div>
+                    <div className="luxury-theme-card__console"><span>G</span><b>WALLET</b><span>G</span></div>
+                  </div>
+                  <div className="luxury-theme-card__footer">
+                    <div><h3>{theme.name}</h3><p>{theme.free ? 'Included with every account' : `${formatTpcAmount(theme.price)} TPG · one-time unlock`}</p></div>
+                    {isOwned ? (
+                      <span className="luxury-theme-card__owned">✓ Owned</span>
+                    ) : (
+                      <button type="button" disabled={Boolean(processing)} onClick={() => purchaseAppTheme(theme)}>
+                        {isBuying ? 'Unlocking…' : 'Unlock'}
+                      </button>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+          <p className="luxury-theme-store__note">Purchased themes appear instantly in the palette button on your Home page.</p>
+        </section>
+
         <section className="mb-4 rounded-3xl border border-cyan-300/30 bg-gradient-to-br from-cyan-500/20 via-blue-500/10 to-zinc-950 p-4 shadow-[0_18px_45px_-30px_rgba(34,211,238,0.95)] md:p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
