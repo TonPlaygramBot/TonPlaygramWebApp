@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 
 import ProjectAchievementsCard from '../components/ProjectAchievementsCard.jsx';
 import PwaDownloadFrame from '../components/PwaDownloadFrame.jsx';
+import HomeSocialHub from '../components/HomeSocialHub.jsx';
+import PlatformStatsCard from '../components/PlatformStatsCard.jsx';
 import ThemePicker from '../components/ThemePicker.jsx';
 
 import { FaArrowUp, FaArrowDown, FaWallet } from 'react-icons/fa';
@@ -314,6 +316,8 @@ export default function Home() {
             </div>
           </div>
 
+          <HomeSocialHub />
+          <PlatformStatsCard />
         </div>
       </div>
 

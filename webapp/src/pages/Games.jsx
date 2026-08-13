@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
+import LeaderboardCard from '../components/LeaderboardCard.jsx';
 import GameTransactionsCard from '../components/GameTransactionsCard.jsx';
 import gamesCatalog from '../config/gamesCatalog.js';
 import { getGameThumbnail } from '../config/gameAssets.js';
@@ -81,6 +82,7 @@ export default function Games() {
         })}
       </div>
       <GameTransactionsCard />
+      <LeaderboardCard />
     </div>
   );
 }
