@@ -1,3 +1,5 @@
+import { clampDiceFace, rollLudoBattleRoyalDiceFace } from '../../lib/sharedDiceRoll.js';
+
 export const FINAL_TILE = 101;
 
 export function applySnakesAndLadders(pos, snakes, ladders) {
@@ -39,11 +41,10 @@ export class SnakeGame {
     const player = this.players[this.currentTurn];
     if (!player) return null;
 
-    const rand = () => Math.floor(Math.random() * 6) + 1;
     const provided = Number(diceValue);
     const dice = Number.isFinite(provided)
-      ? Math.max(1, Math.min(6, Math.floor(provided)))
-      : rand();
+      ? clampDiceFace(provided)
+      : rollLudoBattleRoyalDiceFace();
 
     let target = player.position;
     let extraTurn = false;

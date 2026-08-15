@@ -2,6 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createDiceRollAudio } from '../utils/diceAudio.js';
 import Dice from './Dice.jsx';
 import { socket } from '../utils/socket.js';
+import {
+  LUDO_BATTLE_ROYAL_DICE_ITERATIONS,
+  LUDO_BATTLE_ROYAL_DICE_TICK_MS,
+  rollLudoBattleRoyalDiceValues
+} from '../../../lib/sharedDiceRoll.js';
 
 export default function DiceRoller({
   onRollEnd,
@@ -63,26 +68,12 @@ export default function DiceRoller({
     setRolling(true);
     onRollStart && onRollStart();
 
-    const rand = () => {
-      if (window.crypto?.getRandomValues) {
-        const arr = new Uint32Array(1);
-        const maxUnbiased = Math.floor(0x100000000 / 6) * 6;
-        let value = 0;
-        do {
-          window.crypto.getRandomValues(arr);
-          value = arr[0];
-        } while (value >= maxUnbiased);
-        return (value % 6) + 1;
-      }
-      return Math.floor(Math.random() * 6) + 1;
-    };
-
-    const tick = 50; // ms between face changes
-    const iterations = 20; // ~1 second of rolling
+    const tick = LUDO_BATTLE_ROYAL_DICE_TICK_MS; // ms between face changes
+    const iterations = LUDO_BATTLE_ROYAL_DICE_ITERATIONS; // ~1 second of rolling
     let count = 0;
 
     const id = setInterval(() => {
-      const results = Array.from({ length: numDice }, rand);
+      const results = rollLudoBattleRoyalDiceValues(numDice);
       setValues(results);
       count += 1;
       if (count >= iterations) {
