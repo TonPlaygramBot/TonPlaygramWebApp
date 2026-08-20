@@ -73,8 +73,20 @@ function normalizeTelegramId(rawId) {
 async function fetchWithRetry(url, options = {}, retries = 3, backoff = 500) {
   try {
     const res = await fetch(url, options);
-    if (res.status === 502 && retries > 0) {
-      await wait(backoff);
+    const retryAfterSeconds = Number(res.headers?.get?.('retry-after'));
+    const hasShortRateLimit =
+      res.status === 429 &&
+      Number.isFinite(retryAfterSeconds) &&
+      retryAfterSeconds <= 5;
+    if ((res.status === 502 || hasShortRateLimit) && retries > 0) {
+      // A global rate-limit window can be several minutes long. Do not freeze
+      // the profile screen for that duration, but do recover automatically
+      // from short throttles and transient gateway failures.
+      const retryDelay =
+        res.status === 429 && Number.isFinite(retryAfterSeconds)
+          ? Math.max(retryAfterSeconds * 1000, backoff)
+          : backoff;
+      await wait(retryDelay);
       return fetchWithRetry(url, options, retries - 1, backoff * 2);
     }
     return res;
@@ -139,10 +151,16 @@ export async function post(path, body, token) {
   try {
     data = text ? JSON.parse(text) : {};
   } catch (err) {
+    if (res.status === 429) {
+      return { error: 'Too many requests. Please wait a moment and try again.' };
+    }
     // Provide a generic error instead of exposing parse details
     return { error: res.ok ? 'The server returned an unreadable response. Please retry.' : `Server error (${res.status}). Please retry.` };
   }
   if (!res.ok) {
+    if (res.status === 429) {
+      return { error: data.error || 'Too many requests. Please wait a moment and try again.' };
+    }
     if (res.status === 502) {
       return { error: 'Server unavailable. Please try again later.' };
     }
@@ -190,9 +208,15 @@ export async function put(path, body, token) {
   try {
     data = text ? JSON.parse(text) : {};
   } catch (err) {
+    if (res.status === 429) {
+      return { error: 'Too many requests. Please wait a moment and try again.' };
+    }
     return { error: res.ok ? 'The server returned an unreadable response. Please retry.' : `Server error (${res.status}). Please retry.` };
   }
   if (!res.ok) {
+    if (res.status === 429) {
+      return { error: data.error || 'Too many requests. Please wait a moment and try again.' };
+    }
     if (res.status === 502) {
       return { error: 'Server unavailable. Please try again later.' };
     }
@@ -222,9 +246,15 @@ export async function get(path, token) {
   try {
     data = text ? JSON.parse(text) : {};
   } catch (err) {
+    if (res.status === 429) {
+      return { error: 'Too many requests. Please wait a moment and try again.' };
+    }
     return { error: res.ok ? 'The server returned an unreadable response. Please retry.' : `Server error (${res.status}). Please retry.` };
   }
   if (!res.ok) {
+    if (res.status === 429) {
+      return { error: data.error || 'Too many requests. Please wait a moment and try again.' };
+    }
     if (res.status === 502) {
       return { error: 'Server unavailable. Please try again later.' };
     }

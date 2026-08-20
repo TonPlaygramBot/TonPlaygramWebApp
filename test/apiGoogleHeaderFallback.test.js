@@ -52,4 +52,21 @@ describe('api auth headers google fallback', () => {
     const fetchOptions = global.fetch.mock.calls[0][1];
     expect(fetchOptions.headers['X-Google-Id']).toBe('google-profile-only');
   });
+
+  test('returns a useful error for a long rate-limit response without retrying', async () => {
+    global.fetch.mockResolvedValue({
+      ok: false,
+      status: 429,
+      statusText: 'Too Many Requests',
+      headers: { get: () => '900' },
+      text: async () => 'Too many requests'
+    });
+
+    const result = await post('/api/profile/get', { telegramId: 123 });
+
+    expect(result).toEqual({
+      error: 'Too many requests. Please wait a moment and try again.'
+    });
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
 });

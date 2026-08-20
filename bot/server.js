@@ -202,7 +202,11 @@ function resolveCorsOrigin(origin, callback) {
 const rateLimitWindowMs =
   Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000;
 
-const rateLimitMax = Number(process.env.RATE_LIMIT_MAX) || 100;
+// The web app loads several independent account widgets and game services. A
+// 100-request/15-minute global allowance was low enough for normal mobile use
+// to lock the user out of their own profile. Keep this as a broad abuse guard;
+// sensitive write routes apply their own validation and throttling.
+const rateLimitMax = Number(process.env.RATE_LIMIT_MAX) || 1000;
 const app = express();
 const corsOptions = {
   origin: resolveCorsOrigin
@@ -300,6 +304,11 @@ const apiLimiter = rateLimit({
   limit: rateLimitMax,
   standardHeaders: true,
   legacyHeaders: false,
+  handler: (_req, res) => {
+    res.status(429).json({
+      error: 'Too many requests. Please wait a moment and try again.'
+    });
+  },
   keyGenerator: (req) => {
     if (req.auth?.telegramId) return `telegram:${req.auth.telegramId}`;
     if (req.auth?.accountId) return `account:${req.auth.accountId}`;
