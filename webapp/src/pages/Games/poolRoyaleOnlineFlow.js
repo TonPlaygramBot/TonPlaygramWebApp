@@ -276,6 +276,13 @@ export async function runPoolRoyaleOnlineFlow({
     clearTimeoutSafely(seatTimeoutRef);
   };
 
+  // The stake belongs to this matchmaking session, not to a particular
+  // Socket.IO transport. Telegram mobile WebViews routinely replace their
+  // transport while an app is backgrounded, so keep the session alive and
+  // restore its authoritative seat after reconnecting.
+  let sessionActive = true;
+  let reconnectRecoveryInFlight = false;
+
   let accountId;
   try {
     accountId = await ensureAccountIdFn();
@@ -397,9 +404,12 @@ export async function runPoolRoyaleOnlineFlow({
     refundReason,
     keepError
   } = {}) {
+    sessionActive = false;
     socketInstance.off('lobbyUpdate', handleLobbyUpdate);
     socketInstance.off('gameStart', handleGameStart);
     socketInstance.off('gameStarted', handleGameStart);
+    socketInstance.off('disconnect', handleSocketDisconnect);
+    socketInstance.off('connect', handleSocketReconnect);
     if (!preserveSeat && pendingTableRef.current && account) {
       socketInstance.emit('leaveLobby', {
         tpcAccountNumber: account,
@@ -472,6 +482,8 @@ export async function runPoolRoyaleOnlineFlow({
   socketInstance.on('lobbyUpdate', handleLobbyUpdate);
   socketInstance.on('gameStart', handleGameStart);
   socketInstance.on('gameStarted', handleGameStart);
+  socketInstance.on('disconnect', handleSocketDisconnect);
+  socketInstance.on('connect', handleSocketReconnect);
 
   function startMatchTimeout(tableId) {
     clearTimeoutSafely(matchTimeoutRef);
@@ -488,9 +500,12 @@ export async function runPoolRoyaleOnlineFlow({
   }
 
   let seatAttempts = 0;
+  let seatRequestGeneration = 0;
   const maxSeatAttempts = 2;
-  const seatPlayer = () => {
+  const seatPlayer = (recoveryTableId) => {
+    if (!sessionActive || !socketInstance.connected) return;
     seatAttempts += 1;
+    const requestGeneration = ++seatRequestGeneration;
     socketInstance.emit(
       'seatTable',
       {
@@ -501,7 +516,10 @@ export async function runPoolRoyaleOnlineFlow({
         token: stake.token,
         gameType: 'poolroyale',
         maxPlayers: 2,
-        tableId: requestedTableId,
+        // Prefer the table already acknowledged by the server when restoring
+        // a dropped mobile transport. If that table expired, the server safely
+        // falls back to the compatible quick-match queue.
+        tableId: recoveryTableId || requestedTableId,
         mode,
         variant,
         ballSet,
@@ -517,6 +535,9 @@ export async function runPoolRoyaleOnlineFlow({
         ready: true
       },
       (res) => {
+        if (!sessionActive || requestGeneration !== seatRequestGeneration) {
+          return;
+        }
         clearTimeoutSafely(seatTimeoutRef);
         setIsSearching(false);
         if (!res?.success || !res.tableId) {
@@ -585,6 +606,48 @@ export async function runPoolRoyaleOnlineFlow({
       }
     );
   };
+
+  function handleSocketDisconnect() {
+    if (!sessionActive) return;
+    clearTimeoutSafely(seatTimeoutRef);
+    clearTimeoutSafely(matchTimeoutRef);
+    setIsSearching(true);
+    setMatchStatus('Connection interrupted. Restoring your seat…');
+  }
+
+  async function handleSocketReconnect() {
+    if (!sessionActive || reconnectRecoveryInFlight) return;
+    reconnectRecoveryInFlight = true;
+    const acknowledgedTableId = pendingTableRef.current || requestedTableId;
+    try {
+      setMatchStatus('Connection restored. Syncing your seat…');
+      const registered = await ensureSocketRegisteredWithRetry(
+        socketInstance,
+        accountId,
+        registerTimeoutMs
+      );
+      if (!sessionActive) return;
+      if (!registered) {
+        triggerTimeoutRefund(
+          'socket_reconnect_registration_failed',
+          'Unable to restore your online seat. We refunded your stake.',
+          { accountId, tableId: acknowledgedTableId }
+        );
+        return;
+      }
+      seatAttempts = 0;
+      seatTimeoutRef.current = setTimeout(() => {
+        triggerTimeoutRefund(
+          'seat_reconnect_timeout',
+          'Timed out while restoring the online arena. We refunded your stake.',
+          { accountId, tableId: acknowledgedTableId }
+        );
+      }, seatTimeoutMs);
+      seatPlayer(acknowledgedTableId);
+    } finally {
+      reconnectRecoveryInFlight = false;
+    }
+  }
 
   seatPlayer();
 
