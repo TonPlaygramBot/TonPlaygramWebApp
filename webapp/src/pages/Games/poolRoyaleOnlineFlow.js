@@ -393,13 +393,14 @@ export async function runPoolRoyaleOnlineFlow({
   async function cleanupLobby({
     account = accountIdRef.current,
     skipRefReset,
+    preserveSeat = false,
     refundReason,
     keepError
   } = {}) {
     socketInstance.off('lobbyUpdate', handleLobbyUpdate);
     socketInstance.off('gameStart', handleGameStart);
     socketInstance.off('gameStarted', handleGameStart);
-    if (pendingTableRef.current && account) {
+    if (!preserveSeat && pendingTableRef.current && account) {
       socketInstance.emit('leaveLobby', {
         tpcAccountNumber: account,
         tpcAccountId: account,
@@ -443,7 +444,12 @@ export async function runPoolRoyaleOnlineFlow({
         : matchPlayersRef.current;
     stakeDebitRef.current = null;
     clearTimers();
-    cleanupLobby({ account: accountId, skipRefReset: true, keepError: true });
+    cleanupLobby({
+      account: accountId,
+      skipRefReset: true,
+      preserveSeat: true,
+      keepError: true
+    });
     onGameStart?.({
       tableId: startedId,
       roster,
@@ -563,6 +569,13 @@ export async function runPoolRoyaleOnlineFlow({
         setMatchPlayers(playersList);
         matchPlayersRef.current = playersList;
         setReadyList(res.ready || []);
+        // The server persists the authoritative start payload before replying.
+        // This covers reconnects and explicit-table joins where gameStart was
+        // broadcast before this phone finished attaching its listeners.
+        if (res.started && res.gameStart) {
+          handleGameStart(res.gameStart);
+          return;
+        }
         socketInstance.emit('confirmReady', {
           tpcAccountNumber: accountId,
           tpcAccountId: accountId,

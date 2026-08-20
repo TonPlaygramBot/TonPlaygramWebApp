@@ -1677,7 +1677,7 @@ function maybeStartGame(table) {
         (t) => t.id !== table.id
       );
       if (table.gameType === 'poolroyale') {
-        poolStates.set(table.id, { state: null, hud: null, layout: null, ts: Date.now() });
+        poolStates.set(table.id, { state: null, hud: null, layout: null, ts: Date.now(), revision: 0 });
       } else if (table.gameType === 'domino-royal') {
         dominoRoyalStates.set(table.id, { state: null, action: null, ts: Date.now() });
       } else if (table.gameType === 'murlanroyale') {
@@ -2828,13 +2828,20 @@ io.on('connection', (socket) => {
     cb && cb({ success: true, revision });
   });
 
-  socket.on('joinPoolTable', async ({ tableId, accountId }) => {
+  socket.on('joinPoolTable', async ({ tableId, accountId } = {}, cb) => {
     if (!tableId) return;
-    if (accountId && !ensureRegistered(socket, accountId)) return;
+    const resolvedAccountId = resolveTpcIdentity({ accountId });
+    const table = tableMap.get(tableId);
+    if (!ensureRegistered(socket, resolvedAccountId) || !table || table.gameType !== 'poolroyale' ||
+      !table.players.some((player) => String(player.id) === String(resolvedAccountId))) {
+      socket.emit('poolSyncError', { tableId, error: 'seat_required' });
+      cb && cb({ success: false, error: 'seat_required' });
+      return;
+    }
     socket.join(tableId);
-    if (accountId) {
+    if (resolvedAccountId) {
       await registerConnection({
-        userId: String(accountId),
+        userId: String(resolvedAccountId),
         roomId: tableId,
         socketId: socket.id
       });
@@ -2846,13 +2853,22 @@ io.on('connection', (socket) => {
         state: cached.state,
         hud: cached.hud,
         layout: cached.layout,
-        updatedAt: cached.ts
+        updatedAt: cached.ts,
+        revision: cached.revision || 0
       });
     }
+    cb && cb({ success: true, revision: cached?.revision || 0 });
   });
 
-  socket.on('poolSyncRequest', ({ tableId }) => {
+  socket.on('poolSyncRequest', ({ tableId, accountId } = {}) => {
     if (!tableId) return;
+    const resolvedAccountId = resolveTpcIdentity({ accountId });
+    const table = tableMap.get(tableId);
+    if (!ensureRegistered(socket, resolvedAccountId) || !socket.rooms.has(tableId) ||
+      !table?.players.some((player) => String(player.id) === String(resolvedAccountId))) {
+      socket.emit('poolSyncError', { tableId, error: 'seat_required' });
+      return;
+    }
     const cached = poolStates.get(tableId);
     if (cached?.state) {
       socket.emit('poolState', {
@@ -2860,47 +2876,72 @@ io.on('connection', (socket) => {
         state: cached.state,
         hud: cached.hud,
         layout: cached.layout,
-        updatedAt: cached.ts
+        updatedAt: cached.ts,
+        revision: cached.revision || 0
       });
     }
   });
 
-  socket.on('poolFrame', ({ tableId, layout, hud, playerId, frameTs }) => {
+  socket.on('poolFrame', ({ tableId, layout, hud, playerId, frameTs, accountId } = {}) => {
     if (!tableId || !Array.isArray(layout)) return;
+    const resolvedAccountId = resolveTpcIdentity({ accountId: accountId || playerId || socket.data?.playerId });
+    const table = tableMap.get(tableId);
+    if (!ensureRegistered(socket, resolvedAccountId) || !socket.rooms.has(tableId) ||
+      !table?.players.some((player) => String(player.id) === String(resolvedAccountId))) {
+      socket.emit('poolSyncError', { tableId, error: 'seat_required' });
+      return;
+    }
     const ts = Number.isFinite(frameTs) ? frameTs : Date.now();
     const cached = poolStates.get(tableId) || {};
+    const revision = Number(cached.revision || 0) + 1;
     const payload = {
       tableId,
       layout,
       hud: hud || cached.hud || null,
       updatedAt: ts,
-      playerId: playerId || null
+      playerId: String(resolvedAccountId),
+      revision
     };
     poolStates.set(tableId, {
       state: cached.state || null,
       hud: payload.hud,
       layout,
-      ts
+      ts,
+      revision
     });
     socket.to(tableId).emit('poolFrame', payload);
   });
 
-  socket.on('poolShot', ({ tableId, state, hud, layout }) => {
+  socket.on('poolShot', ({ tableId, state, hud, layout, accountId } = {}, cb) => {
     if (!tableId || !state) return;
+    const resolvedAccountId = resolveTpcIdentity({ accountId: accountId || socket.data?.playerId });
+    const table = tableMap.get(tableId);
+    if (!ensureRegistered(socket, resolvedAccountId) || !socket.rooms.has(tableId) ||
+      !table?.players.some((player) => String(player.id) === String(resolvedAccountId))) {
+      socket.emit('poolSyncError', { tableId, error: 'seat_required' });
+      cb && cb({ success: false, error: 'seat_required' });
+      return;
+    }
+    const cached = poolStates.get(tableId) || {};
+    const revision = Number(cached.revision || 0) + 1;
+    const authoritativeState = { ...state, seq: revision };
     const payload = {
       tableId,
-      state,
+      state: authoritativeState,
       hud: hud || null,
       layout: layout || null,
-      updatedAt: Date.now()
+      updatedAt: Date.now(),
+      revision
     };
     poolStates.set(tableId, {
-      state,
+      state: authoritativeState,
       hud: hud || null,
       layout: layout || null,
-      ts: payload.updatedAt
+      ts: payload.updatedAt,
+      revision
     });
     socket.to(tableId).emit('poolState', payload);
+    cb && cb({ success: true, revision });
   });
 
   socket.on('joinSnookerTable', async ({ tableId, accountId }) => {
