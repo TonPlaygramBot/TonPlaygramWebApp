@@ -36,7 +36,7 @@
 
   - `RATE_LIMIT_WINDOW_MS` – (optional) timeframe for rate limits in milliseconds (defaults to 900000)
 
-  - `RATE_LIMIT_MAX` – (optional) max requests per window from one IP (defaults to 100)
+  - `RATE_LIMIT_MAX` – (optional) max API requests per window from one authenticated account or IP (defaults to 1000)
 
   - `ALLOWED_ORIGINS` – list of origins allowed for CORS and socket.io. Multiple
     origins may be comma-separated, e.g.
