@@ -418,6 +418,73 @@ test('runPoolRoyaleOnlineFlow tolerates transient socket connect errors on mobil
   assert.equal(addCalls[0][2], 'stake');
 });
 
+test('runPoolRoyaleOnlineFlow restores the same seat after a mobile reconnect', async () => {
+  const mockSocket = new MockSocket();
+  const refs = createRefs();
+  const state = createState();
+  const addCalls = [];
+  const started = [];
+
+  await runPoolRoyaleOnlineFlow({
+    stake: { token: 'TPG', amount: 100 },
+    variant: 'uk',
+    ballSet: 'uk',
+    playType: 'regular',
+    mode: 'online',
+    tableSize: '9ft',
+    deps: {
+      ensureAccountId: () => Promise.resolve('acct-mobile'),
+      getAccountBalance: () => Promise.resolve({ balance: 200 }),
+      addTransaction: (...args) => {
+        addCalls.push(args);
+        return Promise.resolve();
+      },
+      getTelegramId: () => 'tg-mobile',
+      getTelegramFirstName: () => 'Mobile',
+      socket: mockSocket
+    },
+    state,
+    refs,
+    timeouts: { seat: 100, matchmaking: 500, register: 50 },
+    onGameStart: (payload) => started.push(payload)
+  });
+
+  mockSocket.seatRequests[0].cb({
+    success: true,
+    tableId: 'tbl-mobile',
+    players: [{ id: 'acct-mobile' }],
+    ready: ['acct-mobile']
+  });
+  mockSocket.connected = false;
+  mockSocket.emit('disconnect', 'transport close');
+  assert.ok(state.snapshot.matchStatus.includes('Restoring'));
+
+  mockSocket.connected = true;
+  mockSocket.emit('connect');
+  await delay(0);
+
+  assert.equal(mockSocket.registerRequests.length, 2);
+  assert.equal(mockSocket.seatRequests.length, 2);
+  assert.equal(mockSocket.seatRequests[1].payload.tableId, 'tbl-mobile');
+  assert.equal(addCalls.length, 1, 'reconnect must not debit the stake twice');
+
+  mockSocket.seatRequests[1].cb({
+    success: true,
+    tableId: 'tbl-mobile',
+    players: [{ id: 'acct-mobile' }, { id: 'acct-opponent' }],
+    ready: ['acct-mobile', 'acct-opponent']
+  });
+  mockSocket.emit('gameStart', {
+    tableId: 'tbl-mobile',
+    players: [{ id: 'acct-mobile' }, { id: 'acct-opponent' }]
+  });
+  await delay(0);
+
+  assert.equal(started.length, 1);
+  assert.equal(addCalls.length, 1);
+  assert.equal(mockSocket.leaveRequests.length, 0);
+});
+
 test('runPoolRoyaleOnlineFlow tolerates null lobby players and accountId-only entries', async () => {
   const mockSocket = new MockSocket();
   const refs = createRefs();
