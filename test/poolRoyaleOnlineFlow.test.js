@@ -171,6 +171,58 @@ test('runPoolRoyaleOnlineFlow debits once and keeps stake for game start', async
   assert.equal(started[0].tableId, 'tbl-1');
   assert.equal(started[0].matchMeta?.tableSize, '9ft');
   assert.equal(refs.stakeDebitRef.current, null, 'stake cleared after start');
+  assert.equal(
+    mockSocket.leaveRequests.length,
+    0,
+    'starting a match must preserve the authoritative server seat'
+  );
+});
+
+test('runPoolRoyaleOnlineFlow resumes from a persisted gameStart seat response', async () => {
+  const mockSocket = new MockSocket();
+  const refs = createRefs();
+  const state = createState();
+  const started = [];
+
+  await runPoolRoyaleOnlineFlow({
+    stake: { token: 'TPG', amount: 100 },
+    variant: 'uk',
+    ballSet: 'uk',
+    playType: 'regular',
+    mode: 'online',
+    tableSize: '9ft',
+    deps: {
+      ensureAccountId: () => Promise.resolve('acct-resume'),
+      getAccountBalance: () => Promise.resolve({ balance: 200 }),
+      addTransaction: () => Promise.resolve(),
+      getTelegramId: () => 'tg-resume',
+      getTelegramFirstName: () => 'Resume',
+      socket: mockSocket
+    },
+    state,
+    refs,
+    timeouts: { seat: 100, matchmaking: 200 },
+    onGameStart: (payload) => started.push(payload)
+  });
+
+  mockSocket.seatRequests[0].cb({
+    success: true,
+    tableId: 'tbl-resume',
+    started: true,
+    players: [{ id: 'acct-resume' }, { id: 'acct-opponent' }],
+    gameStart: {
+      tableId: 'tbl-resume',
+      players: [{ id: 'acct-resume' }, { id: 'acct-opponent' }],
+      currentTurn: 'acct-opponent',
+      meta: { variant: 'uk', tableSize: '9ft' }
+    }
+  });
+  await delay(0);
+
+  assert.equal(started.length, 1);
+  assert.equal(started[0].tableId, 'tbl-resume');
+  assert.equal(started[0].currentTurn, 'acct-opponent');
+  assert.equal(mockSocket.leaveRequests.length, 0);
 });
 
 test('runPoolRoyaleOnlineFlow uses profile text while keeping the TPG number private', async () => {
