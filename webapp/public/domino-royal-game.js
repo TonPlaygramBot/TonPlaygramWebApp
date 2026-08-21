@@ -1596,7 +1596,7 @@ function updateTurnCameraFocus() {
     return;
   }
 
-  const focusSeat = seatBasisForIndex(current % Math.max(1, N));
+  const focusSeat = seatBasisForIndex(getVisualSeatIndex(current));
   const focusCenter = getActiveCameraTarget();
   const isSideSeat = Math.abs(focusSeat.position.x) > Math.abs(focusSeat.position.z);
   const seatWeight = CAMERA_TURN_SEAT_WEIGHT + (isSideSeat ? CAMERA_TURN_SIDE_SEAT_EXTRA_WEIGHT : 0);
@@ -6404,9 +6404,10 @@ function updateSeatBadgePositions() {
   seatBadges.forEach((badge) =>
     badge?.style?.setProperty?.('--timer-gradient', gradient)
   );
-  chairs.forEach((wrapper, idx) => {
-    const badge = seatBadges[idx];
-    if (!badge) return;
+  seatBadges.forEach((badge, logicalSeatIndex) => {
+    const visualSeatIndex = getVisualSeatIndex(logicalSeatIndex);
+    const wrapper = chairs[visualSeatIndex];
+    if (!wrapper) return;
     const world = wrapper.getWorldPosition(projectedSeatTarget);
     world.y +=
       CHAIR_DIMENSIONS.seatThickness + CHAIR_DIMENSIONS.backHeight * 0.62;
@@ -6415,7 +6416,7 @@ function updateSeatBadgePositions() {
     const projectedY = (1 - (world.y * 0.5 + 0.5)) * rect.height + rect.top;
     let x = projectedX;
     let y = projectedY;
-    if (idx === human) {
+    if (logicalSeatIndex === human) {
       const anchorX =
         rect.left + rect.width * 0.5 + HUMAN_SEAT_BADGE_LEFT_OFFSET;
       const anchorY = rect.top + rect.height - HUMAN_SEAT_BADGE_BOTTOM_OFFSET;
@@ -6428,7 +6429,7 @@ function updateSeatBadgePositions() {
     badge.style.left = `${x}px`;
     badge.style.top = `${y}px`;
     badge.style.opacity =
-      idx === human ? '1' : world.z > 1 || world.z < -1 ? '0' : '1';
+      logicalSeatIndex === human ? '1' : world.z > 1 || world.z < -1 ? '0' : '1';
   });
   anchorSelfVideoToBottomSeat();
 }
@@ -8566,7 +8567,7 @@ function attachDominoCharacterToChair(template, chair, seatIndex, player) {
   enhanceDominoCharacterMaterials(instance, theme, seatIndex);
   normalizeDominoCharacterRoot(instance);
   const seatRoot = new THREE.Group();
-  const isHumanSeat = seatIndex === HUMAN_SEAT_INDEX;
+  const isHumanSeat = seatIndex === human;
   const characterScale = DOMINO_CHARACTER_PROPORTION_SCALE +
     (isHumanSeat ? DOMINO_HUMAN_CHARACTER_SCALE_BOOST : 0);
   const seatScale = (theme.scale || 1) * characterScale;
@@ -8605,14 +8606,22 @@ async function rebuildDominoCharactersForChairs() {
   const token = ++dominoCharacterBuildToken;
   clearDominoCharacters();
   if (!ENABLE_DOMINO_SEATED_HUMANS || !chairs.length) return;
+  const activeSeatCount = Math.min(N, chairs.length);
   const templates = await Promise.all(
-    chairs.map((_, seatIndex) => loadDominoSeatCharacterTemplate(seatIndex))
+    Array.from({ length: activeSeatCount }, (_, logicalSeatIndex) =>
+      loadDominoSeatCharacterTemplate(logicalSeatIndex)
+    )
   );
   if (token !== dominoCharacterBuildToken) return;
-  chairs.forEach((chair, seatIndex) => {
-    const template = templates[seatIndex];
+  templates.forEach((template, logicalSeatIndex) => {
+    const chair = chairs[getVisualSeatIndex(logicalSeatIndex)];
     if (!template) return;
-    attachDominoCharacterToChair(template, chair, seatIndex, players[seatIndex] || null);
+    attachDominoCharacterToChair(
+      template,
+      chair,
+      logicalSeatIndex,
+      players[logicalSeatIndex] || null
+    );
   });
 }
 
@@ -9249,10 +9258,28 @@ const isPointsRace =
 if (requestedPlayers >= 2 && requestedPlayers <= 4) {
   N = requestedPlayers;
 }
-if (DOMINO_ONLINE_MODE && Array.isArray(DOMINO_ONLINE_MATCH?.players)) {
-  const onlineSeatIndex = DOMINO_ONLINE_MATCH.players.findIndex(
-    (player) => String(player?.id || '') === String(DOMINO_ONLINE_ACCOUNT_ID || DOMINO_ONLINE_MATCH?.accountId || '')
+function getOnlinePlayerIdentity(player) {
+  return String(
+    player?.id ??
+    player?.accountId ??
+    player?.tpcAccountNumber ??
+    player?.playerId ??
+    ''
   );
+}
+
+function findOnlineHumanSeat(players = []) {
+  const localIdentity = String(
+    DOMINO_ONLINE_ACCOUNT_ID || DOMINO_ONLINE_MATCH?.accountId || ''
+  );
+  if (!localIdentity || !Array.isArray(players)) return -1;
+  return players.findIndex(
+    (player) => getOnlinePlayerIdentity(player) === localIdentity
+  );
+}
+
+if (DOMINO_ONLINE_MODE && Array.isArray(DOMINO_ONLINE_MATCH?.players)) {
+  const onlineSeatIndex = findOnlineHumanSeat(DOMINO_ONLINE_MATCH.players);
   if (onlineSeatIndex >= 0) {
     human = onlineSeatIndex;
   }
@@ -9288,15 +9315,25 @@ function layoutSeat(idx) {
   return seats[idx % seats.length];
 }
 
+// The server seat remains the gameplay identity, while every client rotates the
+// presentation so its own rack, chair and character use the same bottom seat as
+// the single-player game. This keeps online and AI layouts visually identical.
+function getVisualSeatIndex(logicalSeatIndex) {
+  const seatCount = Math.max(1, N | 0);
+  const normalized = (logicalSeatIndex - human) % seatCount;
+  return normalized < 0 ? normalized + seatCount : normalized;
+}
+
 function computeHandSlotPosition(
   seatIndex,
   slotIndex,
   handCount,
   { isTopDown = cameraViewMode === VIEW_MODES.twoD } = {}
 ) {
-  const [x0, z0] = layoutSeat(seatIndex);
+  const visualSeatIndex = getVisualSeatIndex(seatIndex);
+  const [x0, z0] = layoutSeat(visualSeatIndex);
   const isHuman = seatIndex === human;
-  const isSide = seatIndex === 1 || seatIndex === 3;
+  const isSide = visualSeatIndex === 1 || visualSeatIndex === 3;
   const openFlat = isTopDown && isHuman;
 
   const EDGE_SPAN = CLOTH_RADIUS - 0.28;
@@ -9320,7 +9357,7 @@ function computeHandSlotPosition(
   const handOutwardOffset = isHuman && !openFlat
     ? HUMAN_PLAYER_HAND_OUTWARD_OFFSET
     : PLAYER_HAND_OUTWARD_OFFSET + PLAYER_HAND_OPPONENT_OUTWARD_EXTRA +
-      (seatIndex === 2 ? PLAYER_HAND_TOP_OUTWARD_EXTRA : 0) +
+      (visualSeatIndex === 2 ? PLAYER_HAND_TOP_OUTWARD_EXTRA : 0) +
       (isSide ? PLAYER_HAND_SIDE_OUTWARD_EXTRA + PLAYER_HAND_SIDE_EDGE_OUTWARD_EXTRA : 0);
   const outwardX = (x0 / seatLength) * handOutwardOffset;
   const outwardZ = (z0 / seatLength) * handOutwardOffset;
@@ -9384,7 +9421,7 @@ function renderHands() {
   const isTopDown = cameraViewMode === VIEW_MODES.twoD;
 
   players.forEach((p, pi) => {
-    const [x0, z0] = layoutSeat(pi);
+    const [x0, z0] = layoutSeat(getVisualSeatIndex(pi));
     const isHuman = pi === human;
     const faceUp =
       revealAllHands || isHuman || (gameFinished && pi === winnerIndex);
@@ -9701,7 +9738,7 @@ function spawnPlacementAnimation(
       isTopDown: cameraViewMode === VIEW_MODES.twoD
     });
     mesh.position.copy(sourcePos);
-    const [seatX, seatZ] = layoutSeat(sourceSeat);
+    const [seatX, seatZ] = layoutSeat(getVisualSeatIndex(sourceSeat));
     const yawTowardCenter = Math.atan2(-seatX, -seatZ);
     if (cameraViewMode === VIEW_MODES.twoD) {
       orientDominoFlat(mesh, sourceSeat === human ? Math.PI / 2 : yawTowardCenter);
@@ -11033,9 +11070,7 @@ function connectDominoOnlineTable() {
   }
   dominoOnlineGameStartHandler = ({ tableId, tableNumber, players: roster = [], meta = {} } = {}) => {
     if (tableId !== DOMINO_ONLINE_TABLE_ID) return;
-    const onlineSeatIndex = Array.isArray(roster)
-      ? roster.findIndex((player) => String(player?.id || '') === String(DOMINO_ONLINE_ACCOUNT_ID || DOMINO_ONLINE_MATCH?.accountId || ''))
-      : -1;
+    const onlineSeatIndex = findOnlineHumanSeat(roster);
     if (onlineSeatIndex >= 0) human = onlineSeatIndex;
     if (Array.isArray(roster) && roster.length >= 2 && roster.length <= 4) N = roster.length;
     persistDominoOnlineMatch({ tableId, tableNumber: tableNumber || '', players: roster, meta, waiting: false, startedAt: Date.now() });
