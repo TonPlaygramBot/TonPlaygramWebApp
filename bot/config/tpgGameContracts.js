@@ -11,7 +11,7 @@ const CONTRACTS = {
   ludobattleroyal: ['players', 'rules'],
   texasholdem: ['tableSize', 'gameMode', 'buyIn'],
   airhockey: ['winScore', 'arena'],
-  murlanroyale: ['players', 'rules'],
+  murlanroyale: ['variant', 'targetPoints', 'players', 'rules'],
   shootingrange: ['mode', 'difficulty']
 };
 

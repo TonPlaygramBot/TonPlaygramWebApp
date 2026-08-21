@@ -38,6 +38,10 @@ const GAME_ONLINE_POLICY = Object.freeze({
     allowMatchMeta: ['preferredSide', 'mode', 'token']
   },
   checkersbattleroyal: { maxPlayers: [2], allowMatchMeta: ['mode', 'token'] },
+  fourinrow: {
+    maxPlayers: [2],
+    allowMatchMeta: ['boardSize', 'mode', 'token']
+  },
   'domino-royal': {
     maxPlayers: [2, 3, 4],
     allowMatchMeta: ['variant', 'targetPoints', 'mode', 'token']
@@ -46,12 +50,25 @@ const GAME_ONLINE_POLICY = Object.freeze({
     maxPlayers: [2, 4],
     allowMatchMeta: ['variant', 'mode', 'token']
   },
-  texasholdem: { maxPlayers: [2, 6], allowMatchMeta: ['mode', 'token'] },
-  airhockey: { maxPlayers: [2], allowMatchMeta: ['mode', 'token'] },
+  texasholdem: {
+    maxPlayers: [2, 3, 4, 5, 6, 7, 8],
+    allowMatchMeta: ['tableSize', 'gameMode', 'buyIn', 'mode', 'token']
+  },
+  airhockey: {
+    maxPlayers: [2],
+    allowMatchMeta: ['winScore', 'arena', 'mode', 'token']
+  },
   backgammon: { maxPlayers: [2], allowMatchMeta: ['mode', 'token'] },
   murlanroyale: {
     maxPlayers: [2, 3, 4],
-    allowMatchMeta: ['variant', 'targetPoints', 'mode', 'token']
+    allowMatchMeta: [
+      'variant',
+      'targetPoints',
+      'players',
+      'rules',
+      'mode',
+      'token'
+    ]
   }
 });
 
@@ -61,7 +78,9 @@ const GAME_TYPE_ALIASES = Object.freeze({
   chessbattleroyale: 'chess',
   checkersbattle: 'checkers',
   checkersbattleroyal: 'checkers',
-  checkersbattleroyale: 'checkers'
+  checkersbattleroyale: 'checkers',
+  fourinrowroyale: 'fourinrow',
+  fourinarowroyale: 'fourinrow'
 });
 
 export function normalizeOnlineGameType(gameType) {
@@ -188,7 +207,7 @@ export function validateSeatTableRequest({
 }
 
 export function buildReadinessSnapshot() {
-  return Object.entries(GAME_ONLINE_POLICY).reduce((acc, [slug, policy]) => {
+  const snapshot = Object.entries(GAME_ONLINE_POLICY).reduce((acc, [slug, policy]) => {
     acc[slug] = {
       checks: {
         lobby: true,
@@ -202,6 +221,10 @@ export function buildReadinessSnapshot() {
     };
     return acc;
   }, {});
+  // The public Games catalog uses the royale slug while sockets use the short
+  // authoritative game type.
+  snapshot.fourinrowroyale = snapshot.fourinrow;
+  return snapshot;
 }
 
 export { GAME_ONLINE_POLICY, BASE_SECURITY_CONTROLS, GAME_TYPE_ALIASES };

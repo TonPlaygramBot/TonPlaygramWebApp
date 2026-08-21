@@ -187,9 +187,18 @@ export async function runSimpleOnlineFlow({
         maxPlayers,
         playerName,
         avatar,
+        // Keep criteria grouped for the authoritative validator while also
+        // sending top-level values during the legacy-client compatibility
+        // window. Canonical mode/token are deliberately applied last so a
+        // caller cannot accidentally create an invalid or cross-token queue.
+        ...matchMeta,
         mode: 'online',
         token: stake.token,
-        ...matchMeta
+        matchMeta: {
+          ...matchMeta,
+          mode: 'online',
+          token: stake.token
+        }
       },
       (res = {}) => {
         if (!res.success || !res.tableId) {

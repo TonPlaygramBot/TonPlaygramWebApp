@@ -79,6 +79,10 @@ export default function AirHockeyLobby() {
         maxPlayers: 2,
         avatar,
         playerName: getTelegramFirstName() || 'Player',
+        matchMeta: {
+          winScore: goal,
+          arena: playType
+        },
         state: { setMatching, setMatchStatus, setMatchError },
         deps: { ensureAccountId, getAccountBalance, addTransaction, getTelegramId, socket },
         onMatched: ({ accountId, tableId }) => {

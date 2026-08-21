@@ -82,6 +82,11 @@ export default function TexasHoldemLobby() {
         maxPlayers: totalPlayers,
         avatar,
         playerName: getTelegramUsername() || 'Player',
+        matchMeta: {
+          tableSize: totalPlayers,
+          gameMode: 'standard',
+          buyIn: stake.amount
+        },
         state: {
           setMatching,
           setMatchStatus,

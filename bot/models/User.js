@@ -164,7 +164,16 @@ userSchema.index({ 'transactions.transactionId': 1 }, { unique: true, sparse: tr
 
 userSchema.pre('save', function(next) {
   if (!this.referralCode) {
-    const base = this.telegramId || this.googleId || this.walletAddress || '';
+    // Test/mobile accounts can be created from only a TPG account number.
+    // Never persist an empty value into the unique referral index because the
+    // second such player would make index creation and chess stake reservation
+    // fail for the whole matchmaking room.
+    const base =
+      this.telegramId ||
+      this.googleId ||
+      this.walletAddress ||
+      this.accountId ||
+      uuidv4();
     this.referralCode = String(base);
   }
   if (!this.accountId) {

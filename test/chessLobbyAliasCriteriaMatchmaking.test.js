@@ -36,7 +36,8 @@ test(
       BOT_TOKEN: 'dummy',
       API_AUTH_TOKEN: apiToken,
       SKIP_WEBAPP_BUILD: '1',
-      SKIP_BOT_LAUNCH: '1'
+      SKIP_BOT_LAUNCH: '1',
+      SKIP_CHESS_STAKE_RESERVATION: '1'
     };
     const server = await startServer(env);
     const s1 = io('http://localhost:3221', { auth: { token: apiToken } });
@@ -68,6 +69,7 @@ test(
         token: 'TPG',
         preferredSide: 'WHITE'
       });
+      const gameStartAPromise = new Promise((resolve) => s1.once('gameStart', resolve));
       const secondSeat = await seat(s2, {
         accountId: 'chess-alias-b',
         gameType: 'chess-battle-royale',
@@ -100,6 +102,9 @@ test(
       });
       await new Promise((resolve) => restoredSocket.on('connect', resolve));
       await register(restoredSocket, 'chess-alias-b');
+      const gameStartBPromise = new Promise((resolve) =>
+        restoredSocket.once('gameStart', resolve)
+      );
       const restoredSeat = await seat(restoredSocket, {
         accountId: 'chess-alias-b',
         gameType: 'chess',
@@ -116,8 +121,8 @@ test(
       // Chess has no ready-up screen: seating the second same-stake player is
       // sufficient to start both clients without a confirmReady round trip.
       const [gameStartA, gameStartB] = await Promise.all([
-        new Promise((resolve) => s1.once('gameStart', resolve)),
-        new Promise((resolve) => restoredSocket.once('gameStart', resolve))
+        gameStartAPromise,
+        gameStartBPromise
       ]);
       assert.equal(gameStartA.tableId, firstSeat.tableId);
       assert.equal(gameStartB.tableNumber, firstSeat.tableNumber);

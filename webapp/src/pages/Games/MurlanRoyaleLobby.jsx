@@ -91,6 +91,8 @@ export default function MurlanRoyaleLobby() {
         playerName: displayName,
         matchMeta: {
           variant: gameType,
+          players: totalPlayers,
+          rules: gameType,
           ...(gameType === 'tournament' ? { targetPoints } : {})
         },
         state: {
