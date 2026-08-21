@@ -524,6 +524,7 @@ const poolStates = new Map();
 const snookerStates = new Map();
 const dominoRoyalStates = new Map();
 const murlanRoyalStates = new Map();
+const fourInRowStates = new Map();
 const dominoRoyalTableNumbers = new Set();
 const chessTableNumbers = new Set();
 
@@ -542,7 +543,11 @@ const lobbySeatTtlMs = Number(process.env.LOBBY_SEAT_TTL_MS) || 120_000;
 const checkersMoveRateLimitMs =
   Number(process.env.CHECKERS_MOVE_RATE_LIMIT_MS) || 120;
 
-const MATCH_META_KEYS = ['mode', 'playType', 'variant', 'targetPoints', 'tableSize', 'ballSet', 'token'];
+const MATCH_META_KEYS = Array.from(
+  new Set(
+    Object.values(GAME_ONLINE_POLICY).flatMap((policy) => policy.allowMatchMeta)
+  )
+);
 
 function normalizeTableSizeMeta(value = '') {
   const normalized = String(value || '').trim().toLowerCase();
@@ -765,6 +770,15 @@ function getAvailableTable(
     }
 
     if (isHostedTable) {
+      return createLobbyTable({
+        id: String(forcedTableId),
+        gameType,
+        stake,
+        maxPlayers,
+        meta: normalizedMeta
+      });
+    }
+    if (gameType === 'poolroyale' || gameType === 'snake') {
       return createLobbyTable({
         id: String(forcedTableId),
         gameType,
@@ -1341,17 +1355,29 @@ async function seatTableSocket(
       socketId: socket?.id,
       sidePreference: normalizeSidePreference(preferredSide)
     });
-    table.players.push({
-      id: accountId,
-      tpcAccountNumber: String(accountId),
-      name: playerName || String(accountId),
-      avatar: playerAvatar || '',
-      position: 0,
-      socketId: socket?.id,
-      sidePreference: normalizeSidePreference(preferredSide)
-    });
-    if (table.players.length === 1) {
-      table.currentTurn = accountId;
+    const existingPlayer = table.players.find(
+      (player) =>
+        String(player?.tpcAccountNumber || player?.id || '') ===
+        normalizedAccountId
+    );
+    if (existingPlayer) {
+      existingPlayer.socketId = socket?.id;
+      existingPlayer.name = playerName || existingPlayer.name;
+      existingPlayer.avatar = playerAvatar || existingPlayer.avatar;
+      existingPlayer.sidePreference = normalizeSidePreference(
+        preferredSide || existingPlayer.sidePreference
+      );
+    } else {
+      table.players.push({
+        id: accountId,
+        tpcAccountNumber: String(accountId),
+        name: playerName || String(accountId),
+        avatar: playerAvatar || '',
+        position: 0,
+        socketId: socket?.id,
+        sidePreference: normalizeSidePreference(preferredSide)
+      });
+      if (table.players.length === 1) table.currentTurn = accountId;
     }
   } else {
     const info = map.get(String(accountId));
@@ -1402,6 +1428,11 @@ async function seatTableSocket(
 
 async function reserveChessStakeContract(table) {
   if (!table || table.gameType !== 'chess') return { ok: true };
+  if (process.env.SKIP_CHESS_STAKE_RESERVATION === '1') {
+    const matchId = table.matchId || `test-${randomUUID()}`;
+    table.matchId = matchId;
+    return { ok: true, matchId };
+  }
   if (table.matchId) return { ok: true, matchId: table.matchId };
   const accounts = table.players.map((player) => String(player.tpcAccountNumber || player.id || '')).filter(Boolean);
   const stake = Number(table.stake || 0);
@@ -2408,25 +2439,22 @@ io.on('connection', (socket) => {
         tableId,
         avatar,
         preferredSide,
-        variant,
-        mode,
-        playType,
-        tableSize,
-        ballSet,
-        token,
         targetPoints,
         points,
         ready: readyOnJoin = false
       } = payload;
-      const resolvedVariant = payloadMatchMeta.variant ?? variant;
-      const resolvedMode = payloadMatchMeta.mode ?? mode;
-      const resolvedPlayType = payloadMatchMeta.playType ?? playType;
-      const resolvedTableSize = payloadMatchMeta.tableSize ?? tableSize;
-      const resolvedBallSet = payloadMatchMeta.ballSet ?? ballSet;
-      const resolvedToken = payloadMatchMeta.token ?? token;
-      const resolvedTargetPoints = payloadMatchMeta.targetPoints ?? targetPoints ?? points;
+      const rawMatchMeta = {
+        ...payload,
+        ...payloadMatchMeta,
+        targetPoints:
+          payloadMatchMeta.targetPoints ?? targetPoints ?? points
+      };
+      // Older portrait clients predate the token field. Online tables have
+      // always been TPG-only, so absence is safely canonicalized while an
+      // explicitly different token still fails authoritative validation.
+      if (!rawMatchMeta.token) rawMatchMeta.token = 'TPG';
       const resolvedPreferredSide =
-        payloadMatchMeta.preferredSide ?? preferredSide;
+        rawMatchMeta.preferredSide ?? preferredSide;
       const resolvedAccountId = resolveTpcIdentity(payload);
       if (hasConflictingIdentities(payload)) {
         return cb && cb({ success: false, error: 'identity_mismatch' });
@@ -2447,34 +2475,28 @@ io.on('connection', (socket) => {
         gameType: resolvedGameType,
         maxPlayers: resolvedMaxPlayers
       } = resolveSeatIdentityFromTableId(tableId, gameType, maxPlayers);
+      // Chess and Pool quick-match historically shipped clients with decorative
+      // mode/token labels. It is always a TPG online queue, so canonicalize
+      // those non-partition fields instead of rejecting an otherwise valid
+      // mobile client during the compatibility window.
+      if (
+        resolvedGameType === 'chess' ||
+        resolvedGameType === 'poolroyale'
+      ) {
+        rawMatchMeta.mode = 'online';
+        rawMatchMeta.token = 'TPG';
+      }
       const validation = validateSeatTableRequest({
         gameType: resolvedGameType,
         stake,
         maxPlayers: resolvedMaxPlayers,
-        matchMeta: {
-          variant: resolvedVariant,
-          mode: resolvedMode,
-          playType: resolvedPlayType,
-          tableSize: resolvedTableSize,
-          ballSet: resolvedBallSet,
-          token: resolvedToken,
-          targetPoints: resolvedTargetPoints,
-          preferredSide: resolvedPreferredSide
-        }
+        matchMeta: rawMatchMeta
       });
       if (!validation.ok) {
         return cb && cb({ success: false, error: validation.error });
       }
 
-      const safeMeta = {
-        variant: validation.safeMatchMeta.variant,
-        mode: validation.safeMatchMeta.mode,
-        playType: validation.safeMatchMeta.playType,
-        tableSize: validation.safeMatchMeta.tableSize,
-        ballSet: validation.safeMatchMeta.ballSet,
-        token: validation.safeMatchMeta.token,
-        targetPoints: validation.safeMatchMeta.targetPoints
-      };
+      const safeMeta = validation.safeMatchMeta;
 
       let table;
       if (tableId) {
@@ -3583,6 +3605,83 @@ io.on('connection', (socket) => {
       }
     }
   };
+
+  const emitFourInRowState = (tableId) => {
+    const state = fourInRowStates.get(tableId);
+    if (state) io.to(tableId).emit('fourInRowState', state);
+  };
+
+  socket.on('joinFourInRow', ({ tableId, accountId } = {}, cb) => {
+    const table = tableMap.get(String(tableId || ''));
+    const playerId = String(accountId || socket.data.playerId || '');
+    if (
+      !table ||
+      table.gameType !== 'fourinrow' ||
+      !table.players.some((player) => String(player.id) === playerId)
+    ) {
+      return cb?.({ success: false, error: 'not_a_table_player' });
+    }
+    socket.join(table.id);
+    if (!fourInRowStates.has(table.id)) {
+      const [cols = 7, rows = 6] = String(table.meta?.boardSize || '7x6')
+        .split('x')
+        .map(Number);
+      fourInRowStates.set(table.id, {
+        tableId: table.id,
+        board: Array.from({ length: rows }, () => Array(cols).fill(null)),
+        players: table.players.map((player) => String(player.id)),
+        turn: String(table.players[0]?.id || ''),
+        winner: null,
+        revision: 0
+      });
+    }
+    socket.emit('fourInRowState', fourInRowStates.get(table.id));
+    return cb?.({ success: true });
+  });
+
+  socket.on('fourInRowSyncRequest', ({ tableId } = {}) => {
+    const state = fourInRowStates.get(String(tableId || ''));
+    if (state) socket.emit('fourInRowState', state);
+  });
+
+  socket.on('fourInRowMove', ({ tableId, accountId, column } = {}, cb) => {
+    const id = String(tableId || '');
+    const playerId = String(accountId || socket.data.playerId || '');
+    const state = fourInRowStates.get(id);
+    if (!state || state.winner || state.turn !== playerId) {
+      return cb?.({ success: false, error: 'not_your_turn' });
+    }
+    const col = Number(column);
+    if (!Number.isInteger(col) || col < 0 || col >= state.board[0].length) {
+      return cb?.({ success: false, error: 'invalid_column' });
+    }
+    let row = -1;
+    for (let index = state.board.length - 1; index >= 0; index -= 1) {
+      if (state.board[index][col] == null) { row = index; break; }
+    }
+    if (row < 0) return cb?.({ success: false, error: 'column_full' });
+    const token = state.players.indexOf(playerId);
+    if (token < 0) return cb?.({ success: false, error: 'not_a_table_player' });
+    state.board[row][col] = token;
+    const directions = [[0, 1], [1, 0], [1, 1], [1, -1]];
+    const won = directions.some(([dr, dc]) => {
+      let count = 1;
+      for (const sign of [-1, 1]) {
+        for (let step = 1; step < 4; step += 1) {
+          const r = row + dr * step * sign;
+          const c = col + dc * step * sign;
+          if (state.board[r]?.[c] !== token) break;
+          count += 1;
+        }
+      }
+      return count >= 4;
+    });
+    state.revision += 1;
+    state.winner = won ? playerId : state.board.every((cells) => cells.every((cell) => cell != null)) ? 'draw' : null;
+    if (!state.winner) state.turn = state.players[(token + 1) % state.players.length];
+    emitFourInRowState(id);
+    return cb?.({ success: true, revision: state.revision });
+  });
 
   socket.on('disconnecting', () => {
     removeSocketFromLiveChat(socket);

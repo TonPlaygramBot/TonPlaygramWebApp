@@ -185,6 +185,53 @@ describe('online game policy', () => {
     }
   );
 
+  test.each([2, 3, 4, 5, 6, 7, 8])(
+    'accepts %i-player Texas Holdem tables with adapted queue criteria',
+    (maxPlayers) => {
+      expect(
+        validateSeatTableRequest({
+          gameType: 'texasholdem',
+          stake: 100,
+          maxPlayers,
+          matchMeta: {
+            tableSize: maxPlayers,
+            gameMode: 'standard',
+            buyIn: 100,
+            mode: 'online',
+            token: 'TPG'
+          }
+        })
+      ).toMatchObject({
+        ok: true,
+        normalizedMaxPlayers: maxPlayers,
+        safeMatchMeta: {
+          tableSize: String(maxPlayers),
+          gameMode: 'standard',
+          buyIn: '100'
+        }
+      });
+    }
+  );
+
+  test('keeps Air Hockey score and arena selections in its queue', () => {
+    expect(
+      validateSeatTableRequest({
+        gameType: 'airhockey',
+        stake: 100,
+        maxPlayers: 2,
+        matchMeta: {
+          winScore: 11,
+          arena: 'regular',
+          mode: 'online',
+          token: 'TPG'
+        }
+      })
+    ).toMatchObject({
+      ok: true,
+      safeMatchMeta: { winScore: '11', arena: 'regular' }
+    });
+  });
+
   test.each([
     [
       { variant: 'rounds', mode: 'online', token: 'TPG' },
@@ -216,13 +263,14 @@ describe('online game policy', () => {
     expect(normalizeOnlineGameType('chess-battle-royale')).toBe('chess');
     expect(normalizeOnlineGameType('checkersbattleroyal')).toBe('checkers');
     expect(normalizeOnlineGameType('Checkers Battle Royal')).toBe('checkers');
+    expect(normalizeOnlineGameType('fourinrowroyale')).toBe('fourinrow');
     expect(normalizeOnlineGameType('poolroyale')).toBe('poolroyale');
   });
 
   test('buildReadinessSnapshot returns all policy games with security checks', () => {
     const snapshot = buildReadinessSnapshot();
     expect(Object.keys(snapshot).sort()).toEqual(
-      Object.keys(GAME_ONLINE_POLICY).sort()
+      [...Object.keys(GAME_ONLINE_POLICY), 'fourinrowroyale'].sort()
     );
 
     const sample = snapshot.poolroyale;

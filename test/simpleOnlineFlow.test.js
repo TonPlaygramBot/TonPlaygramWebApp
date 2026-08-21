@@ -85,6 +85,42 @@ test('runSimpleOnlineFlow reconnects socket before joining a table', async () =>
   result.cleanup();
 });
 
+test('runSimpleOnlineFlow preserves game criteria and owns canonical queue fields', async () => {
+  const mockSocket = new MockSocket({ connected: true });
+  const state = createState();
+
+  const result = await runSimpleOnlineFlow({
+    gameType: 'airhockey',
+    stake: { token: 'TPG', amount: 100 },
+    maxPlayers: 2,
+    matchMeta: {
+      winScore: 11,
+      arena: 'regular',
+      mode: 'local',
+      token: 'TON'
+    },
+    state,
+    deps: {
+      ensureAccountId: () => Promise.resolve('acct-meta'),
+      getAccountBalance: () => Promise.resolve({ balance: 500 }),
+      addTransaction: () => Promise.resolve(),
+      getTelegramId: () => 'tg-meta',
+      socket: mockSocket
+    }
+  });
+
+  const payload = mockSocket.seatRequests[0].payload;
+  assert.deepEqual(payload.matchMeta, {
+    winScore: 11,
+    arena: 'regular',
+    mode: 'online',
+    token: 'TPG'
+  });
+  assert.equal(payload.mode, 'online');
+  assert.equal(payload.token, 'TPG');
+  result.cleanup();
+});
+
 test('runSimpleOnlineFlow refunds stake when socket reconnection fails', async () => {
   const mockSocket = new MockSocket({ connected: false, connectSucceeds: false });
   const state = createState();

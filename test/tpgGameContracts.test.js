@@ -28,5 +28,17 @@ describe('TPG game smart contract API descriptors', () => {
       'gameMode',
       'buyIn'
     ]);
+    expect(getTpgGameContract('airhockey').matchmaking).toEqual([
+      'stake',
+      'winScore',
+      'arena'
+    ]);
+    expect(getTpgGameContract('murlanroyale').matchmaking).toEqual([
+      'stake',
+      'variant',
+      'targetPoints',
+      'players',
+      'rules'
+    ]);
   });
 });

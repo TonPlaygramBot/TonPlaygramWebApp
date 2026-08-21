@@ -55,6 +55,7 @@ import {
   getFourInRowInventory
 } from '../../utils/fourInRowInventory.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
+import { socket } from '../../utils/socket.js';
 
 const MODEL_SCALE = 0.75;
 const ROW_GAME_SCALE_REDUCTION = 0.25;
@@ -1560,6 +1561,8 @@ export default function FourInRowRoyal() {
   const navigate = useNavigate();
 
   const accountId = params.get('accountId') || '';
+  const onlineTableId = params.get('tableId') || '';
+  const onlineMode = params.get('mode') === 'online' && Boolean(onlineTableId && accountId);
   const avatar = params.get('avatar') || getTelegramPhotoUrl();
   const username = params.get('username') || getTelegramUsername() || 'Player';
 
@@ -1645,6 +1648,44 @@ export default function FourInRowRoyal() {
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
   const [chatBubbles, setChatBubbles] = useState([]);
+
+  useEffect(() => {
+    if (!onlineMode) return undefined;
+    const handleState = (state = {}) => {
+      if (state.tableId !== onlineTableId || !Array.isArray(state.board)) return;
+      const myIndex = state.players?.findIndex((id) => String(id) === String(accountId));
+      const mappedBoard = state.board.map((cells) => cells.map((token) => (
+        token == null ? null : token === myIndex ? 'player' : 'ai'
+      )));
+      setBoard(mappedBoard);
+      setTurn(String(state.turn) === String(accountId) ? 'player' : 'ai');
+      setWinner(
+        state.winner === 'draw'
+          ? 'draw'
+          : String(state.winner) === String(accountId)
+            ? 'player'
+            : state.winner
+              ? 'ai'
+              : null
+      );
+      const winningToken = state.winner && state.winner !== 'draw'
+        ? String(state.winner) === String(accountId) ? 'player' : 'ai'
+        : null;
+      setWinningCells(winningToken ? getWinningCells(mappedBoard, winningToken) || [] : []);
+    };
+    socket.emit('register', {
+      tpcAccountNumber: accountId,
+      accountId,
+      playerId: accountId
+    });
+    socket.on('fourInRowState', handleState);
+    socket.emit('joinFourInRow', { tableId: onlineTableId, accountId });
+    socket.emit('fourInRowSyncRequest', { tableId: onlineTableId });
+    return () => {
+      socket.off('fourInRowState', handleState);
+      socket.emit('leaveLobby', { tableId: onlineTableId, accountId });
+    };
+  }, [accountId, onlineMode, onlineTableId]);
 
   useEffect(() => {
     hoverColRef.current = hoverCol;
@@ -2995,7 +3036,17 @@ export default function FourInRowRoyal() {
       if (wasTap && turn === 'player' && !winner) {
         const col = getColumnFromEvent(event);
         setHoverCol(col);
-        if (Number.isInteger(col)) playColumn(col, 'player');
+        if (Number.isInteger(col)) {
+          if (onlineMode) {
+            socket.emit('fourInRowMove', {
+              tableId: onlineTableId,
+              accountId,
+              column: col
+            });
+          } else {
+            playColumn(col, 'player');
+          }
+        }
       }
     };
 
@@ -3025,17 +3076,17 @@ export default function FourInRowRoyal() {
       renderer.domElement.removeEventListener('pointercancel', clearPointerState);
       renderer.domElement.removeEventListener('pointerleave', clearPointerState);
     };
-  }, [turn, winner, board, cols, boardWidth]);
+  }, [turn, winner, board, cols, boardWidth, onlineMode, onlineTableId, accountId]);
 
   useEffect(() => {
-    if (turn !== 'ai' || winner) return;
+    if (onlineMode || turn !== 'ai' || winner) return;
     const t = setTimeout(() => {
       const depth = cols >= 8 ? 5 : 6;
       const col = chooseAiMove(board, 'ai', 'player', depth);
       if (Number.isInteger(col)) playColumn(col, 'ai');
     }, 420);
     return () => clearTimeout(t);
-  }, [turn, winner, board, cols]);
+  }, [turn, winner, board, cols, onlineMode]);
 
   useEffect(() => {
     const renderer = rendererRef.current;
@@ -3325,7 +3376,7 @@ export default function FourInRowRoyal() {
         <div className="absolute left-1/2 top-[11%] -translate-x-1/2">
           <AvatarTimer
             photoUrl="🤖"
-            name="AI Rival"
+            name={onlineMode ? 'Online Rival' : 'AI Rival'}
             active
             isTurn={turn === 'ai'}
             size={0.92}

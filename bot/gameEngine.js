@@ -1,6 +1,6 @@
 import GameResult from "./models/GameResult.js";
 export const FINAL_TILE = 50;
-export const DEFAULT_SNAKES = { 49: 35 };
+export const DEFAULT_SNAKES = { 49: 35, 99: 80 };
 export const DEFAULT_LADDERS = { 3: 22, 27: 46 };
 export const ROLL_COOLDOWN_MS = 1000;
 export const RECONNECT_GRACE_MS = 60000;
@@ -330,12 +330,14 @@ export class GameRoom {
 
       if (result.finished) {
         this.status = 'finished';
-        GameResult.create({
-          winner: player.name,
-          participants: this.players.map((p) => p.name)
-        }).catch((err) =>
-          console.error('Failed to store game result:', err.message)
-        );
+        if (GameResult.db?.readyState === 1) {
+          GameResult.create({
+            winner: player.name,
+            participants: this.players.map((p) => p.name)
+          }).catch((err) =>
+            console.error('Failed to store game result:', err.message)
+          );
+        }
         this.io.to(this.id).emit('gameWon', { playerId: player.playerId });
         return;
       }
