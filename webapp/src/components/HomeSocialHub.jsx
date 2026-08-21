@@ -7,6 +7,7 @@ import { socket } from '../utils/socket.js';
 import { getTelegramId } from '../utils/telegram.js';
 import {
   acceptFriendRequest,
+  rejectFriendRequest,
   getUnreadCount,
   listFriendRequests
 } from '../utils/api.js';
@@ -159,6 +160,18 @@ export default function HomeSocialHub() {
     setFriendRequests(normalizeRequests(updated));
   }
 
+  async function handleReject(requestId) {
+    await rejectFriendRequest(requestId);
+    const updated = await listFriendRequests(telegramId);
+    setFriendRequests(normalizeRequests(updated));
+  }
+
+  function handleHide(requestId) {
+    setFriendRequests((requests) =>
+      requests.filter((request) => (request._id || request.requestId) !== requestId)
+    );
+  }
+
   return (
     <div className="bg-surface border border-border rounded-xl p-4 space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -208,17 +221,31 @@ export default function HomeSocialHub() {
                 {incomingRequests.slice(0, 3).map((req) => (
                   <div
                     key={req._id || req.requestId || req.fromId}
-                    className="flex items-center justify-between text-xs text-subtext border border-border rounded p-2"
+                    className="space-y-2 text-xs text-subtext border border-border rounded p-2"
                   >
-                    <span className="text-white">
+                    <span className="block text-white">
                       {req.fromName || req.fromNickname || req.fromId || 'Player'}
                     </span>
-                    <button
-                      onClick={() => handleAccept(req._id || req.requestId)}
-                      className="px-2 py-1 rounded bg-primary hover:bg-primary-hover text-white text-[11px]"
-                    >
-                      Accept
-                    </button>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      <button
+                        onClick={() => handleAccept(req._id || req.requestId)}
+                        className="rounded bg-primary px-2 py-1.5 text-[11px] text-white hover:bg-primary-hover"
+                      >
+                        Accept
+                      </button>
+                      <button
+                        onClick={() => handleReject(req._id || req.requestId)}
+                        className="rounded bg-red-600 px-2 py-1.5 text-[11px] text-white hover:bg-red-500"
+                      >
+                        Reject
+                      </button>
+                      <button
+                        onClick={() => handleHide(req._id || req.requestId)}
+                        className="rounded border border-border px-2 py-1.5 text-[11px] text-subtext hover:text-white"
+                      >
+                        Hide
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

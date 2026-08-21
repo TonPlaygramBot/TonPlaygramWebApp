@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 
 import { useLocation, useNavigate } from 'react-router-dom';
 import { socket } from '../utils/socket.js';
-import { acceptFriendRequest, pingOnline } from '../utils/api.js';
+import { acceptFriendRequest, rejectFriendRequest, pingOnline } from '../utils/api.js';
 import { getPlayerId } from '../utils/telegram.js';
 import { isGameMuted, getGameVolume } from '../utils/sound.js';
 import { chatBeep as inviteBeep } from '../assets/coreSoundData.js';
@@ -49,6 +49,15 @@ export default function Layout({ children }) {
     };
     socket.on('friendRequest', onFriendRequest);
     return () => socket.off('friendRequest', onFriendRequest);
+  }, []);
+
+  useEffect(() => {
+    const onAccepted = ({ byName } = {}) => {
+      setCallNotice(`${byName || 'A player'} accepted your friend request`);
+      window.setTimeout(() => setCallNotice(''), 5000);
+    };
+    socket.on('friendRequestAccepted', onAccepted);
+    return () => socket.off('friendRequestAccepted', onAccepted);
   }, []);
 
   useEffect(() => {
@@ -297,9 +306,10 @@ export default function Layout({ children }) {
             <img src={friendRequest.fromPhoto || '/assets/icons/profile.svg'} alt="" className="mx-auto mt-4 h-16 w-16 rounded-full border-2 border-cyan-300 object-cover" />
             <h2 className="mt-3 text-xl font-bold text-white">{friendRequest.fromName || 'TonPlaygram player'}</h2>
             <p className="mt-1 text-sm text-white/65">wants to add you as a friend.</p>
-            <div className="mt-6 grid grid-cols-2 gap-3">
-              <button type="button" onClick={() => setFriendRequest(null)} className="rounded-xl border border-white/15 px-4 py-3 font-semibold text-white">Not now</button>
-              <button type="button" onClick={async () => { await acceptFriendRequest(friendRequest.requestId); setFriendRequest(null); }} className="rounded-xl bg-cyan-500 px-4 py-3 font-semibold text-[#07111d]">Accept</button>
+            <div className="mt-6 grid grid-cols-3 gap-2">
+              <button type="button" onClick={async () => { await acceptFriendRequest(friendRequest.requestId); setFriendRequest(null); }} className="rounded-xl bg-cyan-500 px-2 py-3 text-sm font-semibold text-[#07111d]">Accept</button>
+              <button type="button" onClick={async () => { await rejectFriendRequest(friendRequest.requestId); setFriendRequest(null); }} className="rounded-xl bg-red-600 px-2 py-3 text-sm font-semibold text-white">Reject</button>
+              <button type="button" onClick={() => setFriendRequest(null)} className="rounded-xl border border-white/15 px-2 py-3 text-sm font-semibold text-white">Hide</button>
             </div>
           </div>
         </div>

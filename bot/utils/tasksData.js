@@ -1,4 +1,4 @@
-export const TASKS_VERSION = 7;
+export const TASKS_VERSION = 8;
 
 export const TASKS = [
 
@@ -24,6 +24,36 @@ export const TASKS = [
     action: 'follow',
     verification: 'self_attested',
     link: 'https://www.instagram.com/tonplaygram'
+  },
+
+  {
+    id: 'visit_instagram_reels',
+    description: 'Explore TonPlaygram Instagram Reels',
+    reward: 350,
+    icon: 'instagram',
+    action: 'view',
+    verification: 'self_attested',
+    link: 'https://www.instagram.com/tonplaygram/reels/'
+  },
+
+  {
+    id: 'engage_instagram',
+    description: 'Like and comment on an Instagram post',
+    reward: 500,
+    icon: 'instagram',
+    action: 'engage',
+    verification: 'self_attested',
+    link: 'https://www.instagram.com/tonplaygram/'
+  },
+
+  {
+    id: 'share_instagram',
+    description: 'Share TonPlaygram on your Instagram story',
+    reward: 650,
+    icon: 'instagram',
+    action: 'share',
+    verification: 'self_attested',
+    link: 'https://www.instagram.com/tonplaygram/'
   },
 
   {

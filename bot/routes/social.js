@@ -110,6 +110,26 @@ router.post('/accept', async (req, res) => {
   await fr.save();
   await User.updateOne({ telegramId: fr.from }, { $addToSet: { friends: fr.to } });
   await User.updateOne({ telegramId: fr.to }, { $addToSet: { friends: fr.from } });
+  const sender = await User.findOne({ telegramId: fr.from }).select('accountId').lean();
+  const recipient = await User.findOne({ telegramId: fr.to })
+    .select('firstName lastName nickname')
+    .lean();
+  const sockets = req.app.get('userSockets');
+  const io = req.app.get('io');
+  const targets = new Set([
+    ...(sockets?.get(String(fr.from)) || []),
+    ...(sender?.accountId ? sockets?.get(String(sender.accountId)) || [] : [])
+  ]);
+  const acceptedBy = recipient?.nickname ||
+    `${recipient?.firstName || ''} ${recipient?.lastName || ''}`.trim() ||
+    String(fr.to);
+  for (const socketId of targets) {
+    io?.to(socketId).emit('friendRequestAccepted', {
+      requestId: String(fr._id),
+      byTelegramId: fr.to,
+      byName: acceptedBy
+    });
+  }
   try {
     await bot.telegram.sendMessage(
       String(fr.from),
@@ -117,6 +137,18 @@ router.post('/accept', async (req, res) => {
     );
   } catch (err) {
     console.error('Failed to send Telegram notification:', err.message);
+  }
+  res.json(fr);
+});
+
+router.post('/reject', async (req, res) => {
+  const { requestId } = req.body;
+  const fr = await FriendRequest.findById(requestId);
+  if (!fr) return res.status(404).json({ error: 'request not found' });
+  if (!requireMatchingTelegram(req, res, fr.to)) return;
+  if (fr.status === 'pending') {
+    fr.status = 'rejected';
+    await fr.save();
   }
   res.json(fr);
 });

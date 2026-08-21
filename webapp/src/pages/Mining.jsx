@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import LoginOptions from '../components/LoginOptions.jsx';
 import { getTelegramId, getTelegramPhotoUrl, getPlayerId } from '../utils/telegram.js';
@@ -16,6 +15,7 @@ import {
   getProfile,
   listFriendRequests,
   acceptFriendRequest,
+  rejectFriendRequest,
   getOnlineCount,
   getOnlineUsers
 } from '../utils/api.js';
@@ -197,12 +197,6 @@ export default function Mining() {
           <p className="text-xs text-subtext">
             These actions improve your consistency and help you compound mining rewards every day.
           </p>
-          <Link
-            to="/games/shootingrange?challenge=dailyStreak"
-            className="block rounded-2xl border border-yellow-300/70 bg-gradient-to-br from-yellow-400/30 via-amber-300/15 to-orange-500/20 px-4 py-3 text-sm font-semibold text-yellow-50 shadow-[0_0_0_1px_rgba(253,224,71,.24),0_14px_30px_rgba(245,158,11,.24)]"
-          >
-            Daily Streak Challenge · Open full screen Shooting Range (5 shots)
-          </Link>
           <SpinGame />
           <RouletteMini />
         </section>
@@ -222,19 +216,40 @@ export default function Mining() {
             <section className="space-y-1">
               <h3 className="text-lg font-semibold">Friend Requests</h3>
               {friendRequests.map((fr) => (
-                <div key={fr._id} className="lobby-tile flex items-center justify-between">
-                  <span>{fr.from}</span>
-                  <button
+                <div key={fr._id} className="lobby-tile space-y-2">
+                  <span className="block text-sm">{fr.fromName || fr.from}</span>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
                     onClick={async () => {
-                      await acceptFriendRequest(fr._id);
+                      await acceptFriendRequest(fr._id || fr.requestId);
                       listFriendRequests(telegramId).then((requests) =>
                         setFriendRequests(normalizeRequests(requests))
                       );
                     }}
-                    className="px-2 py-1 text-sm bg-primary hover:bg-primary-hover rounded"
+                    className="px-2 py-2 text-xs bg-primary hover:bg-primary-hover rounded"
                   >
                     Accept
                   </button>
+                    <button
+                      onClick={async () => {
+                        await rejectFriendRequest(fr._id || fr.requestId);
+                        setFriendRequests((requests) => requests.filter(
+                          (request) => (request._id || request.requestId) !== (fr._id || fr.requestId)
+                        ));
+                      }}
+                      className="rounded bg-red-600 px-2 py-2 text-xs text-white hover:bg-red-500"
+                    >
+                      Reject
+                    </button>
+                    <button
+                      onClick={() => setFriendRequests((requests) => requests.filter(
+                        (request) => (request._id || request.requestId) !== (fr._id || fr.requestId)
+                      ))}
+                      className="rounded border border-border px-2 py-2 text-xs text-subtext hover:text-white"
+                    >
+                      Hide
+                    </button>
+                  </div>
                 </div>
               ))}
             </section>
