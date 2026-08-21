@@ -11,99 +11,21 @@ import {
   getTelegramPhotoUrl,
   getTelegramUsername
 } from '../../utils/telegram.js';
-import { getAccountBalance, addTransaction, getOnlineCount } from '../../utils/api.js';
+import { getAccountBalance, getOnlineCount } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
-import { socket, refreshSocketAuthIdentity } from '../../utils/socket.js';
+import { socket } from '../../utils/socket.js';
 import OptionIcon from '../../components/OptionIcon.jsx';
 import { getLobbyIcon } from '../../config/gameAssets.js';
 import GameLobbyHeader from '../../components/GameLobbyHeader.jsx';
 import { getOnlineReadiness } from '../../config/onlineContract.js';
+import { runSimpleOnlineFlow } from '../../utils/simpleOnlineFlow.js';
 
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
 const DEV_ACCOUNT_2 = import.meta.env.VITE_DEV_ACCOUNT_ID_2;
 const AI_FLAG_STORAGE_KEY = 'checkersBattleRoyalAiFlag';
 const CHECKERS_HOST_CODE_STORAGE_KEY = 'checkersBattleRoyalHostCode';
-const SOCKET_CONNECT_TIMEOUT_MS = 6000;
-const SOCKET_REGISTER_TIMEOUT_MS = 6000;
-const MATCHMAKING_TIMEOUT_MS = 45000;
-const MATCHMAKING_RECOVERABLE_ERRORS = new Set([
-  'register_required',
-  'rate_limited',
-  'identity_mismatch'
-]);
-
-function normalizeHostCode(code = '') {
-  return String(code || '')
-    .trim()
-    .replace(/[^a-zA-Z0-9_-]/g, '')
-    .toUpperCase()
-    .slice(0, 48);
-}
-
-function buildHostedTableId(code = '') {
-  const safeCode = normalizeHostCode(code);
-  if (!safeCode) return '';
-  return `checkers-2-host-${safeCode}`;
-}
-
-async function ensureSocketConnected(timeoutMs = SOCKET_CONNECT_TIMEOUT_MS) {
-  if (socket.connected) return true;
-
-  return new Promise((resolve) => {
-    let settled = false;
-
-    const cleanup = () => {
-      socket.off('connect', handleConnect);
-      socket.off('connect_error', handleError);
-      socket.off('error', handleError);
-    };
-
-    const finish = (result) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      cleanup();
-      resolve(result);
-    };
-
-    const handleConnect = () => finish(true);
-    const handleError = () => finish(false);
-
-    const timer = setTimeout(() => finish(socket.connected), timeoutMs);
-    socket.once('connect', handleConnect);
-    socket.once('connect_error', handleError);
-    socket.once('error', handleError);
-    socket.connect?.();
-  });
-}
-
-async function ensureSocketRegistered(accountId, timeoutMs = SOCKET_REGISTER_TIMEOUT_MS) {
-  if (!accountId) return false;
-  return new Promise((resolve) => {
-    let settled = false;
-
-    const timer = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      resolve(false);
-    }, timeoutMs);
-
-    try {
-      socket.emit('register', { playerId: accountId }, (res) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        resolve(Boolean(res?.success));
-      });
-    } catch {
-      clearTimeout(timer);
-      resolve(false);
-    }
-  });
-}
-
 export default function CheckersBattleRoyalLobby() {
   const navigate = useNavigate();
   useTelegramBackButton();
@@ -123,8 +45,6 @@ export default function CheckersBattleRoyalLobby() {
   const [preferredSide, setPreferredSide] = useState('auto');
   const [onlineQueueMode, setOnlineQueueMode] = useState('quick');
   const [hostCodeInput, setHostCodeInput] = useState('');
-  const pendingTableRef = useRef('');
-  const matchmakingTimeoutRef = useRef(null);
   const cleanupRef = useRef(() => {});
   const readiness = getOnlineReadiness('checkersbattleroyal');
 
@@ -191,16 +111,6 @@ export default function CheckersBattleRoyalLobby() {
 
   useEffect(() => () => cleanupRef.current?.(), []);
 
-  useEffect(
-    () => () => {
-      if (matchmakingTimeoutRef.current) {
-        clearTimeout(matchmakingTimeoutRef.current);
-        matchmakingTimeoutRef.current = null;
-      }
-    },
-    []
-  );
-
   useEffect(() => {
     try {
       const stored = window.localStorage?.getItem(CHECKERS_HOST_CODE_STORAGE_KEY) || '';
@@ -250,283 +160,58 @@ export default function CheckersBattleRoyalLobby() {
     navigate(`/games/checkersbattleroyal?${params.toString()}`);
   };
 
-  const cleanupLobby = ({ account, skipRefReset, skipLeave } = {}) => {
-    if (matchmakingTimeoutRef.current) {
-      clearTimeout(matchmakingTimeoutRef.current);
-      matchmakingTimeoutRef.current = null;
-    }
-    socket.off('gameStart');
-    socket.off('lobbyUpdate');
-    if (!skipLeave && pendingTableRef.current && (account || accountId)) {
-      socket.emit('leaveLobby', {
-        accountId: account || accountId,
-        tpcAccountId: account || accountId,
-        tableId: pendingTableRef.current
-      });
-    }
-    pendingTableRef.current = '';
-    setMatching(false);
-    setMatchStatus('');
-    if (!skipRefReset) cleanupRef.current = null;
-  };
-
   const startGame = async () => {
-    const isOnline = mode === 'online';
     if (matching) return;
-    if (isOnline && !readiness.ready) {
+    if (mode !== 'online') {
+      navigateToGame();
+      return;
+    }
+    if (!readiness.ready) {
       setMatchError('Online mode is temporarily unavailable for Checkers Battle Royal.');
-      setMatchStatus('');
       return;
     }
-    let tgId;
-    let trackedAccountId;
-    let stakeCharged = false;
-    const refundStakeIfNeeded = async (reason = 'stake_refund') => {
-      if (!isOnline || !stakeCharged || !trackedAccountId || !tgId || !stake.amount) return;
-      stakeCharged = false;
-      try {
-        await addTransaction(tgId, stake.amount, reason, {
-          game: 'checkersbattle',
-          players: 2,
-          accountId: trackedAccountId
-        });
-      } catch {}
-    };
-    if (isOnline) {
-      try {
-        trackedAccountId = await ensureAccountId();
-        trackedAccountId = getTpcAccountId() || trackedAccountId;
-        if (trackedAccountId) setAccountId((prev) => prev || trackedAccountId);
-      } catch {}
-
-      if (!trackedAccountId) {
-        await refundStakeIfNeeded();
-        setMatchError('Unable to resolve your player account. Reopen Telegram and try again.');
-        setMatching(false);
-        setMatchStatus('');
-        return;
-      }
-
-      try {
-        const balRes = await getAccountBalance(trackedAccountId);
-        if ((balRes.balance || 0) < stake.amount) {
-          alert('Insufficient balance');
-          return;
-        }
-      } catch {
-        setMatchError('Unable to verify your balance right now. Please try again.');
-        setMatching(false);
-        setMatchStatus('');
-        return;
-      }
-
-      try {
-        tgId = getTelegramId();
-        await addTransaction(tgId, -stake.amount, 'stake', {
-          game: 'checkersbattle',
-          players: 2,
-          accountId: trackedAccountId,
-        });
-        stakeCharged = true;
-      } catch {
-        await refundStakeIfNeeded();
-        setMatchError('Unable to reserve your stake. Please try again.');
-        setMatching(false);
-        setMatchStatus('');
-        return;
-      }
-    }
-
-    if (!isOnline) {
-      navigateToGame({ tgId, trackedAccountId });
-      return;
-    }
-
-    setMatchError('');
-    setMatching(true);
-    setMatchStatus('Connecting to lobby…');
-
-    if (trackedAccountId) {
-      refreshSocketAuthIdentity(
-        { accountId: String(trackedAccountId) },
-        { reconnect: true }
-      );
-    }
-
-    const socketReady = await ensureSocketConnected();
-    if (!socketReady) {
-      await refundStakeIfNeeded();
-      setMatchError('Lobby connection failed. Check your network and try again.');
-      setMatching(false);
-      setMatchStatus('');
-      return;
-    }
-
-    const seatAccountId = getTpcAccountId() || trackedAccountId || accountId;
-    const socketRegistered = await ensureSocketRegistered(seatAccountId);
-    if (!socketRegistered) {
-      await refundStakeIfNeeded();
-      setMatchError('Unable to sync your online session. Please retry.');
-      setMatching(false);
-      setMatchStatus('');
-      return;
-    }
-
-    const handleLobbyUpdate = ({ tableId: tid, players: list = [] } = {}) => {
-      if (!tid || tid !== pendingTableRef.current) return;
-      const others = list.filter((p) => String(p.id) !== String(seatAccountId));
-      if (others.length > 0) {
-        setMatchStatus('Opponent joined. Locking seats…');
-      } else {
-        setMatchStatus('Waiting for another player…');
-      }
-    };
-
-    const handleGameStart = ({ tableId: startedId, players = [] } = {}) => {
-      if (!startedId || startedId !== pendingTableRef.current) return;
-      const meIndex = players.findIndex((p) => String(p.id) === String(seatAccountId));
-      const opp = players.find((p) => String(p.id) !== String(seatAccountId));
-      const mySide =
-        players.find((p) => String(p.id) === String(seatAccountId))?.side ||
-        (meIndex === 0 ? 'white' : 'black');
-      cleanupLobby({ account: trackedAccountId, skipLeave: true });
-      navigateToGame({
-        tgId,
-        trackedAccountId,
-        tableId: startedId,
-        side: mySide,
-        opponentName: opp?.name,
-        opponentAvatar: opp?.avatar
-      });
-    };
-
-    cleanupRef.current = () => cleanupLobby({ account: trackedAccountId, skipRefReset: true });
-
-    const hostedTableId =
-      onlineQueueMode === 'quick' ? '' : buildHostedTableId(hostCodeInput);
-    if (onlineQueueMode !== 'quick' && !hostedTableId) {
-      await refundStakeIfNeeded();
+    const hostedTableId = onlineQueueMode === 'private'
+      ? buildHostedTableId(hostCodeInput)
+      : '';
+    if (onlineQueueMode === 'private' && !hostedTableId) {
       setMatchError('Enter a host code to create or join a private online table.');
-      setMatching(false);
-      setMatchStatus('');
-      socket.off('gameStart', handleGameStart);
-      socket.off('lobbyUpdate', handleLobbyUpdate);
       return;
     }
-
-    socket.on('gameStart', handleGameStart);
-    socket.on('lobbyUpdate', handleLobbyUpdate);
-
-    const friendlyName = getTelegramFirstName() || getTelegramUsername() || 'Player';
-    const matchTimeout = window.setTimeout(async () => {
-      if (!pendingTableRef.current) return;
-      cleanupLobby({ account: trackedAccountId });
-      await refundStakeIfNeeded();
-      setMatchError('No opponent joined in time. Your stake was refunded.');
-      setMatchStatus('');
-    }, MATCHMAKING_TIMEOUT_MS);
-    matchmakingTimeoutRef.current = matchTimeout;
-
-    let seatAttempts = 0;
-    const maxSeatAttempts = 2;
-    const seatPlayer = () => {
-      seatAttempts += 1;
-      socket.emit(
-        'seatTable',
-        {
-          accountId: trackedAccountId || accountId,
-          tpcAccountNumber: seatAccountId,
-          tpcAccountId: seatAccountId,
-          gameType: 'checkers',
-          stake: stake.amount ?? 0,
-          maxPlayers: 2,
-          mode: 'online',
-          playerName: friendlyName,
-          avatar,
-          preferredSide,
-          token: stake.token,
-          ...(hostedTableId ? { tableId: hostedTableId } : {})
-        },
-        async (res) => {
-          if (!res?.success || !res.tableId) {
-            const shouldRetry =
-              MATCHMAKING_RECOVERABLE_ERRORS.has(res?.error) &&
-              seatAttempts < maxSeatAttempts;
-            if (shouldRetry) {
-              setMatchStatus('Retrying online seat…');
-              if (res?.error === 'identity_mismatch' && trackedAccountId) {
-                refreshSocketAuthIdentity(
-                  { accountId: String(trackedAccountId) },
-                  { reconnect: true }
-                );
-              }
-              setTimeout(async () => {
-                const restored = await ensureSocketConnected();
-                if (!restored) {
-                  clearTimeout(matchTimeout);
-                  matchmakingTimeoutRef.current = null;
-                  await refundStakeIfNeeded();
-                  setMatchError('Lobby connection dropped while retrying. Your stake was refunded.');
-                  cleanupLobby({ account: trackedAccountId });
-                  return;
-                }
-                if (res?.error === 'identity_mismatch' && trackedAccountId) {
-                  const reRegistered = await ensureSocketRegistered(trackedAccountId);
-                  if (!reRegistered) {
-                    clearTimeout(matchTimeout);
-                    matchmakingTimeoutRef.current = null;
-                    await refundStakeIfNeeded();
-                    setMatchError('Could not restore your online identity. Your stake was refunded.');
-                    cleanupLobby({ account: trackedAccountId });
-                    return;
-                  }
-                }
-                seatPlayer();
-              }, 400);
-              return;
-            }
-            clearTimeout(matchTimeout);
-            matchmakingTimeoutRef.current = null;
-            await refundStakeIfNeeded();
-            const serverMessage =
-              typeof res?.error === 'string' && res.error.trim()
-                ? ` (${res.error.replace(/_/g, ' ')})`
-                : '';
-            setMatchError(`Could not join the online lobby. Please try again${serverMessage}.`);
-            cleanupLobby({ account: trackedAccountId });
-            return;
-          }
-          pendingTableRef.current = res.tableId;
-          setMatchStatus(
-            hostedTableId
-              ? `Private table ready (${normalizeHostCode(hostCodeInput)}). Moving you to the board…`
-              : 'Table ready. Moving you to the board…'
-          );
-          socket.emit('confirmReady', {
-            accountId: seatAccountId,
-            tpcAccountId: seatAccountId,
-            tableId: res.tableId
-          });
-
-          clearTimeout(matchTimeout);
-          matchmakingTimeoutRef.current = null;
-          socket.off('gameStart', handleGameStart);
-          socket.off('lobbyUpdate', handleLobbyUpdate);
-          pendingTableRef.current = '';
-          cleanupRef.current = () => {};
-          setMatching(false);
-          navigateToGame({
-            tgId,
-            trackedAccountId,
-            tableId: res.tableId,
-            side: preferredSide === 'black' ? 'dark' : preferredSide === 'white' ? 'light' : 'light',
-            waitingForOpponent: '1'
-          });
-        }
-      );
-    };
-
-    seatPlayer();
+    const tgId = getTelegramId();
+    await runSimpleOnlineFlow({
+      gameType: 'checkers',
+      stake,
+      maxPlayers: 2,
+      avatar,
+      playerName: getTelegramFirstName() || getTelegramUsername() || 'Player',
+      tableId: hostedTableId,
+      quickMatch: onlineQueueMode === 'quick',
+      matchMeta: { preferredSide },
+      state: {
+        setMatching,
+        setMatchStatus,
+        setMatchError,
+        setCleanup: (cleanup) => { cleanupRef.current = cleanup; }
+      },
+      deps: { ensureAccountId, getAccountBalance, getTelegramId, socket },
+      onMatched: ({ tableId, accountId: trackedAccountId, players = [], tableNumber }) => {
+        const meIndex = players.findIndex((player) =>
+          String(player.tpcAccountNumber || player.accountId || player.id) === String(trackedAccountId)
+        );
+        const opponent = players.find((player) =>
+          String(player.tpcAccountNumber || player.accountId || player.id) !== String(trackedAccountId)
+        );
+        navigateToGame({
+          tgId,
+          trackedAccountId,
+          tableId,
+          tableNumber,
+          side: players[meIndex]?.side || (meIndex === 0 ? 'white' : 'black'),
+          opponentName: opponent?.name,
+          opponentAvatar: opponent?.avatar
+        });
+      }
+    });
   };
 
   return (
@@ -790,7 +475,7 @@ export default function CheckersBattleRoyalLobby() {
             <button
               type="button"
               className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white/80 hover:border-white/30"
-              onClick={() => cleanupLobby({ account: accountId })}
+              onClick={() => cleanupRef.current?.()}
             >
               Cancel matchmaking
             </button>

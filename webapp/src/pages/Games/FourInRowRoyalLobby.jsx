@@ -9,8 +9,11 @@ import { fourInRowAccountId, getFourInRowInventory } from '../../utils/fourInRow
 import RoomSelector from '../../components/RoomSelector.jsx';
 import { runSimpleOnlineFlow } from '../../utils/simpleOnlineFlow.js';
 import { ensureAccountId, getTelegramFirstName, getTelegramId } from '../../utils/telegram.js';
-import { addTransaction, getAccountBalance } from '../../utils/api.js';
+import { getAccountBalance } from '../../utils/api.js';
 import { socket } from '../../utils/socket.js';
+
+const HOST_PREFIX = 'fourinrow-2-host';
+const normalizeHostCode = (value = '') => String(value).trim().replace(/[^a-zA-Z0-9_-]/g, '').toUpperCase().slice(0, 48);
 
 export default function FourInRowRoyalLobby() {
   useTelegramBackButton();
@@ -20,6 +23,9 @@ export default function FourInRowRoyalLobby() {
   const [matching, setMatching] = useState(false);
   const [matchStatus, setMatchStatus] = useState('');
   const [matchError, setMatchError] = useState('');
+  const [onlineQueueMode, setOnlineQueueMode] = useState('quick');
+  const [hostCode, setHostCode] = useState('');
+  const [matchPlayers, setMatchPlayers] = useState([]);
   const cleanupRef = useRef(null);
 
   const inventory = useMemo(() => getFourInRowInventory(fourInRowAccountId()), []);
@@ -45,19 +51,29 @@ export default function FourInRowRoyalLobby() {
       return;
     }
     const layout = FOUR_IN_ROW_BOARD_LAYOUTS.find((item) => item.id === boardLayout);
+    const privateTableId = onlineQueueMode === 'private' && hostCode
+      ? `${HOST_PREFIX}-${normalizeHostCode(hostCode)}`
+      : '';
+    if (onlineQueueMode === 'private' && !privateTableId) {
+      setMatchError('Enter a private code to create or join a 4 in a Row table.');
+      return;
+    }
     await runSimpleOnlineFlow({
       gameType: 'fourinrow',
       stake,
       maxPlayers: 2,
       playerName: getTelegramFirstName() || 'Player',
       matchMeta: { boardSize: `${layout?.cols || 7}x${layout?.rows || 6}` },
+      tableId: privateTableId,
+      quickMatch: onlineQueueMode === 'quick',
       state: {
         setMatching,
         setMatchStatus,
         setMatchError,
+        setMatchPlayers,
         setCleanup: (cleanup) => { cleanupRef.current = cleanup; }
       },
-      deps: { ensureAccountId, getAccountBalance, addTransaction, getTelegramId, socket },
+      deps: { ensureAccountId, getAccountBalance, getTelegramId, socket },
       onMatched: ({ tableId, accountId }) => navigateToGame({ tableId, accountId })
     });
   };
@@ -108,10 +124,41 @@ export default function FourInRowRoyalLobby() {
         {mode === 'online' && (
           <section className="rounded-3xl border border-white/10 bg-black/25 p-4">
             <RoomSelector selected={stake} onSelect={setStake} />
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              {['quick', 'private'].map((queue) => (
+                <button
+                  key={queue}
+                  type="button"
+                  onClick={() => setOnlineQueueMode(queue)}
+                  className={`rounded-xl border px-3 py-2 text-sm font-semibold ${onlineQueueMode === queue ? 'border-cyan-300 bg-cyan-300/15 text-cyan-200' : 'border-white/10 bg-white/5 text-white/60'}`}
+                >
+                  {queue === 'quick' ? 'Quick Match' : 'Private Code'}
+                </button>
+              ))}
+            </div>
+            {onlineQueueMode === 'private' && (
+              <input
+                value={hostCode}
+                onChange={(event) => setHostCode(normalizeHostCode(event.target.value))}
+                placeholder="FRIEND123"
+                aria-label="Private table code"
+                className="mt-3 w-full rounded-xl border border-white/10 bg-[#050914] px-3 py-2 text-sm text-white outline-none focus:border-cyan-300"
+              />
+            )}
             {(matchStatus || matchError) && (
               <p className={`mt-3 text-center text-sm ${matchError ? 'text-rose-300' : 'text-cyan-200'}`}>
                 {matchError || matchStatus}
               </p>
+            )}
+            {matching && matchPlayers.map((player) => (
+              <div key={player.tpcAccountNumber || player.id} className="lobby-tile mt-2 flex items-center justify-between">
+                <span>{player.name || 'Player'}</span><span className="text-xs text-cyan-200">Seated</span>
+              </div>
+            ))}
+            {matching && (
+              <button type="button" onClick={() => cleanupRef.current?.()} className="mt-3 w-full rounded-xl border border-white/10 px-3 py-2 text-sm text-white/80">
+                Cancel matchmaking
+              </button>
             )}
           </section>
         )}
