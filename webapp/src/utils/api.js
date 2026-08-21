@@ -616,6 +616,10 @@ export function acceptFriendRequest(requestId) {
   return post('/api/social/accept', { requestId });
 }
 
+export function rejectFriendRequest(requestId) {
+  return post('/api/social/reject', { requestId });
+}
+
 export function listFriends(telegramId) {
   return post('/api/social/friends', { telegramId });
 }
