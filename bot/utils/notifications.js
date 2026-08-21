@@ -500,10 +500,10 @@ export async function sendInviteNotification(
   const url = getInviteUrl(roomId, token, amount, game);
   const replyMarkup = {
     inline_keyboard: [
-      [{ text: 'Open Game', url }],
       [
+        { text: '✅ Accept', url },
         {
-          text: 'Reject',
+          text: '❌ Reject',
           callback_data: `reject_invite:${roomId}:${toId}`,
         },
       ],

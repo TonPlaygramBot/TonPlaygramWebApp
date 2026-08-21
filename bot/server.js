@@ -513,6 +513,15 @@ async function getUserSocketIds({ accountId, telegramId } = {}) {
   return socketIds;
 }
 
+async function resolveInviteTelegramId(accountId, telegramId) {
+  if (telegramId !== undefined && telegramId !== null && telegramId !== '') {
+    return telegramId;
+  }
+  if (!accountId) return null;
+  const user = await User.findOne({ accountId: String(accountId) }).select('telegramId').lean();
+  return user?.telegramId ?? null;
+}
+
 const tableWatchers = new Map();
 const liveChatRooms = new Map();
 // Dynamic lobby tables grouped by game type and capacity
@@ -3484,6 +3493,7 @@ io.on('connection', (socket) => {
     if (!fromId || !toId)
       return cb && cb({ success: false, error: 'invalid ids' });
 
+    toTelegramId = await resolveInviteTelegramId(toId, toTelegramId);
     const targets = await getUserSocketIds({ accountId: toId, telegramId: toTelegramId });
     if (targets.size > 0) {
       for (const sid of targets) {
@@ -3544,12 +3554,13 @@ io.on('connection', (socket) => {
       let url = getInviteUrl(roomId, token, amount, game);
       for (let i = 0; i < toIds.length; i++) {
         const toId = toIds[i];
-        const targets = await getUserSocketIds({ accountId: toId, telegramId: telegramIds[i] });
-        if (telegramIds[i]) {
+        const toTelegramId = await resolveInviteTelegramId(toId, telegramIds[i]);
+        const targets = await getUserSocketIds({ accountId: toId, telegramId: toTelegramId });
+        if (toTelegramId) {
           try {
             url = await sendInviteNotification(
               bot,
-              telegramIds[i],
+              toTelegramId,
               fromTelegramId || fromId,
               fromName,
               'group',

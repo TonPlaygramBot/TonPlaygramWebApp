@@ -19,6 +19,35 @@ import useAppUpdate from '../hooks/useAppUpdate.js';
 
 const GAME_ACTIVE_KEY = 'tonplaygram-game-active';
 
+function showGameInviteNotification(invite) {
+  if (typeof window === 'undefined' || !('Notification' in window)) return;
+  const title = 'New game invite';
+  const gameName = String(invite?.game || 'snake').replace(/[-_]/g, ' ');
+  const stake = Number(invite?.amount) > 0
+    ? ` for ${invite.amount} ${invite.token || 'TPG'}`
+    : '';
+  const options = {
+    body: `${invite?.fromName || 'A TonPlaygram player'} invited you to ${gameName}${stake}. Open TonPlaygram to accept or reject.`,
+    icon: '/assets/icons/file_00000000efd081f78539cff614489f91.png',
+    tag: invite?.roomId ? `game-invite-${invite.roomId}` : 'game-invite',
+  };
+
+  const display = () => {
+    const notification = new Notification(title, options);
+    notification.onclick = () => {
+      window.focus();
+      notification.close();
+    };
+  };
+
+  if (Notification.permission === 'granted') display();
+  else if (Notification.permission === 'default') {
+    Notification.requestPermission()
+      .then((permission) => permission === 'granted' && display())
+      .catch(() => {});
+  }
+}
+
 
 export default function Layout({ children }) {
   const location = useLocation();
@@ -148,7 +177,7 @@ export default function Layout({ children }) {
       opponentNames,
       game
     }) => {
-      setInvite({
+      const nextInvite = {
         fromId,
         fromName,
         roomId,
@@ -157,7 +186,9 @@ export default function Layout({ children }) {
         group,
         opponentNames,
         game
-      });
+      };
+      setInvite(nextInvite);
+      showGameInviteNotification(nextInvite);
       if (inviteSoundRef.current && !isGameMuted()) {
         inviteSoundRef.current.currentTime = 0;
         inviteSoundRef.current.play().catch(() => {});

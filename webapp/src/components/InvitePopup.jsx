@@ -88,13 +88,13 @@ export default function InvitePopup({
             onClick={() => onAccept(game)}
             className="px-3 py-1 bg-primary hover:bg-primary-hover rounded text-black"
           >
-            Yes
+            {incoming ? 'Accept' : 'Yes'}
           </button>
           <button
             onClick={onReject}
             className="px-3 py-1 bg-primary hover:bg-primary-hover rounded text-black"
           >
-            No
+            {incoming ? 'Reject' : 'No'}
           </button>
         </div>
       </div>
