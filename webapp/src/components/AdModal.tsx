@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 const AD_VIDEO_ID = '7614838290667031816';
-const AD_PLAYER_URL = `https://www.tiktok.com/player/v1/${AD_VIDEO_ID}?autoplay=1&rel=0`;
+// Mobile browsers only permit reliable autoplay when embedded video starts muted.
+const AD_PLAYER_URL = `https://www.tiktok.com/player/v1/${AD_VIDEO_ID}?autoplay=1&muted=1&rel=0`;
 const AD_CANONICAL_URL = `https://www.tiktok.com/@tonplaygram/video/${AD_VIDEO_ID}`;
 const REWARD_DELAY_MS = 15_000;
 
@@ -81,7 +82,7 @@ export default function AdModal({ open, onComplete, onClose }: AdModalProps) {
             className="w-full h-full"
             allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
             allowFullScreen
-            loading="lazy"
+            loading="eager"
             referrerPolicy="strict-origin-when-cross-origin"
           />
         </div>
