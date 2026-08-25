@@ -3654,6 +3654,11 @@ export default function MurlanRoyaleArena({ search }) {
     const idx = players.findIndex((player) => player.isHuman);
     return idx >= 0 ? idx : 0;
   }, [players]);
+  const getVisualSeatIndex = useCallback((logicalSeatIndex) => {
+    const seatCount = Math.max(1, players.length);
+    const normalized = (logicalSeatIndex - humanPlayerIndex) % seatCount;
+    return normalized < 0 ? normalized + seatCount : normalized;
+  }, [humanPlayerIndex, players.length]);
   const humanAvatarUrl = useMemo(
     () => getAvatarUrl(players[humanPlayerIndex]?.avatar || players[0]?.avatar || ''),
     [players, humanPlayerIndex],
@@ -5540,7 +5545,7 @@ export default function MurlanRoyaleArena({ search }) {
       onlineStateRef.current.suppressNextEmit = true;
       onlineStateRef.current.hydrated = true;
       setSelectedIds([]);
-      setGameState(state);
+      setGameState(localizeMurlanOnlineState(state, onlineContext.accountId));
     };
     socket.on('murlanRoyaleState', handleRemoteState);
     socket.on('connect', joinAndSync);
@@ -6094,7 +6099,10 @@ export default function MurlanRoyaleArena({ search }) {
         chair.userData.chairModel = chairModel;
         threeStateRef.current.chairInstances.push(chair);
 
-        const angle = CUSTOM_SEAT_ANGLES[i] ?? Math.PI / 2 - (i / CHAIR_COUNT) * Math.PI * 2;
+        // Preserve server player order while rotating the presentation so every
+        // local player gets the same visually-bottom seat used by VS AI.
+        const visualSeatIndex = player ? getVisualSeatIndex(i) : i;
+        const angle = CUSTOM_SEAT_ANGLES[visualSeatIndex] ?? Math.PI / 2 - (visualSeatIndex / CHAIR_COUNT) * Math.PI * 2;
         const isHumanSeat = Boolean(player?.isHuman);
         const baseSeatRadius =
           (isHumanSeat
@@ -6178,7 +6186,8 @@ export default function MurlanRoyaleArena({ search }) {
             throw new Error('No initial character templates loaded');
           }
           const loadedFallbackThemes = initialCharacterRoster.filter((theme) => theme?.id && templatesById.has(theme.id));
-          for (let i = 0; i < seatConfigs.length; i++) {
+          // Keep unused chairs empty; a 1v1 match has exactly two characters.
+          for (let i = 0; i < players.length; i++) {
             const seatConfig = seatConfigs[i];
             const player = players[i] ?? null;
             const seatTheme = initialCharacterRoster[i] || characterTheme;
@@ -6627,7 +6636,7 @@ export default function MurlanRoyaleArena({ search }) {
       setThreeReady(false);
       setSeatAnchors([]);
     };
-  }, [activeTextureResolutionOrder, applyHdriEnvironment, applyRendererQuality, applyStateToScene, clearCameraPlayCardFocusTimeout, clearCameraPlayFollowTimeout, enforceRotationOnlyCamera, ensureCardMeshes, players, rebuildTable, stopCameraPlayTrackAnimation, stopCameraTurnAnimation, toggleSelection, updateScoreboardDisplay, updateSeatAnchors]);
+  }, [activeTextureResolutionOrder, applyHdriEnvironment, applyRendererQuality, applyStateToScene, clearCameraPlayCardFocusTimeout, clearCameraPlayFollowTimeout, enforceRotationOnlyCamera, ensureCardMeshes, getVisualSeatIndex, players, rebuildTable, stopCameraPlayTrackAnimation, stopCameraTurnAnimation, toggleSelection, updateScoreboardDisplay, updateSeatAnchors]);
 
   useEffect(() => {
     if (!threeReady) return;
@@ -7433,6 +7442,19 @@ function resolveMurlanOnlineContext(search) {
     } catch {}
   }
   return { enabled, tableId, accountId, players: Array.isArray(match?.players) ? match.players : [] };
+}
+
+function localizeMurlanOnlineState(state, accountId) {
+  if (!state || !Array.isArray(state.players)) return state;
+  const localIdentity = String(accountId || '');
+  return {
+    ...state,
+    players: state.players.map((player) => ({
+      ...player,
+      isHuman: String(player?.id || player?.tpcAccountNumber || '') === localIdentity,
+      isOnlineRemote: String(player?.id || player?.tpcAccountNumber || '') !== localIdentity
+    }))
+  };
 }
 
 function buildPlayers(search, onlineContext = null) {
