@@ -8,6 +8,7 @@ import mongoose from 'mongoose';
 import { proxyUrl, proxyAgent } from './utils/proxyAgent.js';
 import http from 'http';
 import { initSocket } from './socket.js';
+import { LudoBattleGame } from './logic/ludoBattleGame.js';
 import { GameRoomManager } from './gameEngine.js';
 import miningRoutes from './routes/mining.js';
 import tasksRoutes from './routes/tasks.js';
@@ -533,6 +534,7 @@ const poolStates = new Map();
 const snookerStates = new Map();
 const dominoRoyalStates = new Map();
 const murlanRoyalStates = new Map();
+const ludoBattleStates = new Map();
 const fourInRowStates = new Map();
 const dominoRoyalTableNumbers = new Set();
 const chessTableNumbers = new Set();
@@ -1790,6 +1792,7 @@ function unseatTableSocket(accountId, tableId, socketId) {
         dominoRoyalStates.delete(tableId);
         if (table.tableNumber) dominoRoyalTableNumbers.delete(table.tableNumber);
       }
+      if (table.gameType === 'ludobattleroyal') ludoBattleStates.delete(tableId);
       if (table.gameType === 'chess' && table.tableNumber) {
         chessTableNumbers.delete(table.tableNumber);
       }
@@ -2833,6 +2836,94 @@ io.on('connection', (socket) => {
     cb && cb({ success: true, revision });
   });
 
+
+  const getLudoSession = (tableId, table) => {
+    let game = ludoBattleStates.get(tableId);
+    const playerIds = table?.players?.map((player) => String(player.id)) || [];
+    if (!game || game.players.join('|') !== playerIds.join('|')) {
+      game = new LudoBattleGame(playerIds);
+      ludoBattleStates.set(tableId, game);
+    }
+    return game;
+  };
+
+  socket.on('joinLudoBattleTable', async ({ tableId, accountId } = {}, cb) => {
+    const resolvedAccountId = resolveTpcIdentity({ accountId });
+    const table = tableMap.get(tableId);
+    if (!ensureRegistered(socket, resolvedAccountId) || !table ||
+      table.gameType !== 'ludobattleroyal' ||
+      !table.players.some((player) => String(player.id) === String(resolvedAccountId))) {
+      socket.emit('ludoBattleSyncError', { tableId, error: 'seat_required' });
+      cb?.({ success: false, error: 'seat_required' });
+      return;
+    }
+    socket.join(tableId);
+    const game = getLudoSession(tableId, table);
+    const state = game.snapshot();
+    socket.emit('ludoBattleState', { tableId, state, action: { type: 'sync' } });
+    await registerConnection({ userId: String(resolvedAccountId), roomId: tableId, socketId: socket.id });
+    cb?.({ success: true, state });
+  });
+
+  socket.on('ludoBattleSyncRequest', ({ tableId, accountId } = {}) => {
+    const resolvedAccountId = resolveTpcIdentity({ accountId });
+    const table = tableMap.get(tableId);
+    if (!ensureRegistered(socket, resolvedAccountId) || !table?.players.some(
+      (player) => String(player.id) === String(resolvedAccountId))) return;
+    const game = getLudoSession(tableId, table);
+    socket.emit('ludoBattleState', { tableId, state: game.snapshot(), action: { type: 'sync' } });
+  });
+
+  socket.on('ludoBattleRoll', ({ tableId, accountId } = {}, cb) => {
+    const resolvedAccountId = resolveTpcIdentity({ accountId });
+    const table = tableMap.get(tableId);
+    if (!ensureRegistered(socket, resolvedAccountId) || !socket.rooms.has(tableId) ||
+      !table?.players.some((player) => String(player.id) === String(resolvedAccountId))) {
+      cb?.({ success: false, error: 'seat_required' });
+      return;
+    }
+    if (isRateLimited(socket, 'ludoBattleRoll', rollRateLimitMs)) {
+      cb?.({ success: false, error: 'roll_rate_limited' });
+      return;
+    }
+    const game = getLudoSession(tableId, table);
+    const result = game.roll(resolvedAccountId);
+    if (!result.ok) {
+      socket.emit('ludoBattleSyncError', { tableId, error: result.error, state: game.snapshot() });
+      cb?.({ success: false, error: result.error });
+      return;
+    }
+    const payload = { tableId, state: result.state, action: {
+      type: 'roll', accountId: String(resolvedAccountId), roll: result.roll,
+      movableTokens: result.movableTokens, revision: result.state.revision
+    }};
+    io.to(tableId).emit('ludoBattleState', payload);
+    cb?.({ success: true, ...payload.action });
+  });
+
+  socket.on('ludoBattleMove', ({ tableId, accountId, token, revision } = {}, cb) => {
+    const resolvedAccountId = resolveTpcIdentity({ accountId });
+    const table = tableMap.get(tableId);
+    if (!ensureRegistered(socket, resolvedAccountId) || !socket.rooms.has(tableId) ||
+      !table?.players.some((player) => String(player.id) === String(resolvedAccountId))) {
+      cb?.({ success: false, error: 'seat_required' });
+      return;
+    }
+    const game = getLudoSession(tableId, table);
+    const result = game.move(resolvedAccountId, token, revision);
+    if (!result.ok) {
+      socket.emit('ludoBattleSyncError', { tableId, error: result.error, state: game.snapshot() });
+      cb?.({ success: false, error: result.error });
+      return;
+    }
+    const payload = { tableId, state: result.state, action: {
+      type: 'move', accountId: String(resolvedAccountId), player: result.player,
+      token: result.token, from: result.from, to: result.to, roll: result.roll,
+      captures: result.captures, revision: result.state.revision
+    }};
+    io.to(tableId).emit('ludoBattleState', payload);
+    cb?.({ success: true, revision: result.state.revision });
+  });
 
   socket.on('joinMurlanRoyaleTable', async ({ tableId, accountId } = {}) => {
     if (!tableId) return;
