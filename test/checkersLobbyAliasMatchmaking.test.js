@@ -53,7 +53,10 @@ test(
         new Promise((resolve) => {
           socket.emit('register', { playerId }, resolve);
         });
-      await Promise.all([register(s1, 'checkers-a'), register(s2, 'checkers-b')]);
+      await Promise.all([
+        register(s1, 'checkers-a'),
+        register(s2, 'checkers-b')
+      ]);
 
       const seat = (socket, payload) =>
         new Promise((resolve) => {
@@ -68,6 +71,12 @@ test(
         mode: 'online',
         token: 'TPG'
       });
+      const gameStartAPromise = new Promise((resolve) =>
+        s1.once('gameStart', resolve)
+      );
+      const gameStartBPromise = new Promise((resolve) =>
+        s2.once('gameStart', resolve)
+      );
       const secondSeat = await seat(s2, {
         accountId: 'checkers-b',
         gameType: 'checkersbattleroyal',
@@ -80,13 +89,12 @@ test(
       assert.equal(firstSeat.success, true);
       assert.equal(secondSeat.success, true);
       assert.equal(secondSeat.tableId, firstSeat.tableId);
-
-      s1.emit('confirmReady', { accountId: 'checkers-a', tableId: firstSeat.tableId });
-      s2.emit('confirmReady', { accountId: 'checkers-b', tableId: firstSeat.tableId });
-
+      // Checkers now mirrors Chess Battle Royal: both authoritative seats are
+      // ready immediately, so mobile clients do not depend on a second ready
+      // acknowledgement before entering the board together.
       const [gameStartA, gameStartB] = await Promise.all([
-        new Promise((resolve) => s1.once('gameStart', resolve)),
-        new Promise((resolve) => s2.once('gameStart', resolve))
+        gameStartAPromise,
+        gameStartBPromise
       ]);
       assert.equal(gameStartA.tableId, firstSeat.tableId);
       assert.equal(gameStartB.tableId, firstSeat.tableId);

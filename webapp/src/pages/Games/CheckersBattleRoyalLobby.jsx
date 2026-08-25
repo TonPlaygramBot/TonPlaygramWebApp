@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import RoomSelector from '../../components/RoomSelector.jsx';
 import FlagPickerModal from '../../components/FlagPickerModal.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
@@ -11,28 +11,305 @@ import {
   getTelegramPhotoUrl,
   getTelegramUsername
 } from '../../utils/telegram.js';
-import { getAccountBalance, getOnlineCount } from '../../utils/api.js';
+import {
+  getAccountBalance,
+  getOnlineCount,
+  getOnlineUsers
+} from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
-import { socket } from '../../utils/socket.js';
+import { socket, refreshSocketAuthIdentity } from '../../utils/socket.js';
 import OptionIcon from '../../components/OptionIcon.jsx';
 import { getLobbyIcon } from '../../config/gameAssets.js';
 import GameLobbyHeader from '../../components/GameLobbyHeader.jsx';
-import { getOnlineReadiness } from '../../config/onlineContract.js';
-import { runSimpleOnlineFlow } from '../../utils/simpleOnlineFlow.js';
 
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
 const DEV_ACCOUNT_2 = import.meta.env.VITE_DEV_ACCOUNT_ID_2;
 const AI_FLAG_STORAGE_KEY = 'checkersBattleRoyalAiFlag';
 const CHECKERS_HOST_CODE_STORAGE_KEY = 'checkersBattleRoyalHostCode';
+const CHECKERS_ONLINE_TABLE_PREFIX = 'checkers-2-host';
+
+const SOCKET_CONNECT_TIMEOUT_MS = 6000;
+const SOCKET_REGISTER_TIMEOUT_MS = 6000;
+const MATCHMAKING_REFRESH_MS = 120000;
+const SEAT_RETRY_BASE_DELAY_MS = 700;
+const MATCHMAKING_RECOVERABLE_ERRORS = new Set([
+  'register_required',
+  'rate_limited',
+  'identity_mismatch'
+]);
+
+function shouldKeepSearching(queueMode, error = '') {
+  return queueMode === 'quick' || MATCHMAKING_RECOVERABLE_ERRORS.has(error);
+}
+
+function normalizeHostCode(code = '') {
+  return String(code || '')
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]/g, '')
+    .toUpperCase()
+    .slice(0, 48);
+}
+
+function buildHostedTableId(code = '') {
+  const safeCode = normalizeHostCode(code);
+  if (!safeCode) return '';
+  return `${CHECKERS_ONLINE_TABLE_PREFIX}-${safeCode}`;
+}
+
+function isCheckersHostedTableId(tableId = '') {
+  return String(tableId || '').startsWith(`${CHECKERS_ONLINE_TABLE_PREFIX}-`);
+}
+
+function extractHostCodeFromTableId(tableId = '') {
+  const value = String(tableId || '');
+  return isCheckersHostedTableId(value)
+    ? value.slice(`${CHECKERS_ONLINE_TABLE_PREFIX}-`.length)
+    : '';
+}
+
+function resolvePlayerName(player) {
+  if (!player || typeof player !== 'object') return '';
+  return String(
+    player.name ||
+      player.username ||
+      player.telegramName ||
+      player.firstName ||
+      'Player'
+  ).trim();
+}
+
+function formatLobbyError(error) {
+  if (!error) return '';
+  return String(error).replace(/_/g, ' ');
+}
+
+function resolveSeatErrorMessage(error) {
+  const clean = formatLobbyError(error);
+  if (error === 'table_full')
+    return 'That private checkers table is already full.';
+  if (error === 'table_not_found')
+    return 'That private checkers table was not found.';
+  if (error === 'table_unavailable')
+    return 'That private checkers table is no longer available.';
+  if (error === 'stake_mismatch')
+    return 'That checkers table uses a different stake.';
+  if (error === 'game_type_mismatch') return 'That table is for another game.';
+  return `Could not join the online lobby. Please try again${clean ? ` (${clean})` : ''}.`;
+}
+
+function resolveSeatAccountId(primary, secondary) {
+  return String(getTpcAccountId() || primary || secondary || '').trim();
+}
+
+function resolveLobbyStatus(players = [], ready = [], seatAccountId = '') {
+  const list = Array.isArray(players) ? players : [];
+  const readyIds = new Set(
+    (Array.isArray(ready) ? ready : []).map((id) => String(id))
+  );
+  const others = list.filter(
+    (p) => resolveTpcAccountNumber(p) !== String(seatAccountId)
+  );
+  if (others.length <= 0) return 'Waiting for another player…';
+  const everyoneReady =
+    list.length >= 2 &&
+    list.every((p) => readyIds.has(resolveTpcAccountNumber(p)));
+  return everyoneReady
+    ? 'Both players ready. Starting match…'
+    : 'Opponent joined. Locking seats…';
+}
+
+function resolveCheckersSide(players = [], seatAccountId = '') {
+  const list = Array.isArray(players) ? players : [];
+  const meIndex = list.findIndex(
+    (p) => resolveTpcAccountNumber(p) === String(seatAccountId)
+  );
+  const me = list[meIndex];
+  return me?.side || (meIndex === 0 ? 'white' : 'black');
+}
+
+function resolveCheckersOpponent(players = [], seatAccountId = '') {
+  return (Array.isArray(players) ? players : []).find(
+    (p) => resolveTpcAccountNumber(p) !== String(seatAccountId)
+  );
+}
+
+function resolveCheckersTableMode(tableId = '') {
+  if (!tableId) return 'quick';
+  return isCheckersHostedTableId(tableId) ? 'private' : 'quick';
+}
+
+function resolvePrivateMatchStatus(tableId = '', hostCode = '') {
+  const code =
+    normalizeHostCode(hostCode) || extractHostCodeFromTableId(tableId);
+  return code
+    ? `Private table ${code} ready. Waiting for your opponent…`
+    : 'Private table ready. Waiting for your opponent…';
+}
+
+function buildCheckersGameParams({
+  mode,
+  stake,
+  avatar,
+  tgId,
+  trackedAccountId,
+  accountId,
+  selectedFlag,
+  selectedAiFlag,
+  preferredSide,
+  extraParams = {}
+}) {
+  const params = new URLSearchParams();
+  const initData = window.Telegram?.WebApp?.initData;
+  const isOnline = mode === 'online';
+
+  if (isOnline && stake.token) params.set('token', stake.token);
+  if (isOnline && stake.amount) params.set('amount', stake.amount);
+  if (avatar) params.set('avatar', avatar);
+  if (tgId) params.set('tgId', tgId);
+  if (isOnline && (trackedAccountId || accountId)) {
+    params.set('accountId', trackedAccountId || accountId);
+  }
+  if (selectedFlag) params.set('flag', selectedFlag);
+  if (!isOnline && selectedAiFlag) params.set('aiFlag', selectedAiFlag);
+  if (preferredSide) params.set('preferredSide', preferredSide);
+  if (DEV_ACCOUNT) params.set('dev', DEV_ACCOUNT);
+  if (DEV_ACCOUNT_1) params.set('dev1', DEV_ACCOUNT_1);
+  if (DEV_ACCOUNT_2) params.set('dev2', DEV_ACCOUNT_2);
+  if (isOnline && initData) params.set('init', encodeURIComponent(initData));
+  params.set('mode', mode);
+
+  Object.entries(extraParams).forEach(([key, value]) => {
+    if (value != null && key !== 'tgId' && key !== 'trackedAccountId') {
+      params.set(key, value);
+    }
+  });
+
+  return params;
+}
+
+function resolveInitialOnlineQueue(searchParams) {
+  const requestedTableId = (searchParams.get('tableId') || '').trim();
+  const requestedHostCode = normalizeHostCode(
+    searchParams.get('hostCode') || extractHostCodeFromTableId(requestedTableId)
+  );
+  const requestedMode =
+    searchParams.get('queue') === 'private' || requestedHostCode
+      ? 'private'
+      : 'quick';
+  return { requestedTableId, requestedHostCode, requestedMode };
+}
+
+export {
+  buildCheckersGameParams,
+  buildHostedTableId,
+  extractHostCodeFromTableId,
+  formatLobbyError,
+  isCheckersHostedTableId,
+  normalizeHostCode,
+  resolveCheckersOpponent,
+  resolveCheckersSide,
+  resolveCheckersTableMode,
+  resolveInitialOnlineQueue,
+  resolveLobbyStatus,
+  resolvePlayerName,
+  resolveSeatAccountId,
+  resolveSeatErrorMessage,
+  shouldKeepSearching
+};
+
+function resolveTpcAccountNumber(player) {
+  if (!player || typeof player !== 'object') return '';
+  return String(
+    player.tpcAccountNumber ??
+      player.accountId ??
+      player.playerId ??
+      player.id ??
+      ''
+  ).trim();
+}
+
+async function ensureSocketConnected(timeoutMs = SOCKET_CONNECT_TIMEOUT_MS) {
+  if (socket.connected) return true;
+
+  return new Promise((resolve) => {
+    let settled = false;
+
+    const cleanup = () => {
+      socket.off('connect', handleConnect);
+      socket.off('connect_error', handleError);
+      socket.off('error', handleError);
+    };
+
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      cleanup();
+      resolve(result);
+    };
+
+    const handleConnect = () => finish(true);
+    const handleError = () => finish(false);
+
+    const timer = setTimeout(() => finish(socket.connected), timeoutMs);
+    socket.once('connect', handleConnect);
+    socket.once('connect_error', handleError);
+    socket.once('error', handleError);
+    socket.connect?.();
+  });
+}
+
+async function ensureSocketRegistered(
+  accountId,
+  timeoutMs = SOCKET_REGISTER_TIMEOUT_MS
+) {
+  if (!accountId) return false;
+  return new Promise((resolve) => {
+    let settled = false;
+
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      resolve(false);
+    }, timeoutMs);
+
+    try {
+      socket.emit(
+        'register',
+        {
+          playerId: accountId,
+          tpcAccountNumber: accountId,
+          tpcAccountId: accountId
+        },
+        (res) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          resolve(Boolean(res?.success));
+        }
+      );
+    } catch {
+      clearTimeout(timer);
+      resolve(false);
+    }
+  });
+}
+
 export default function CheckersBattleRoyalLobby() {
   const navigate = useNavigate();
+  const { search } = useLocation();
   useTelegramBackButton();
+  const searchParams = new URLSearchParams(search);
+  const { requestedTableId, requestedHostCode, requestedMode } =
+    resolveInitialOnlineQueue(searchParams);
 
   const [stake, setStake] = useState({ token: 'TPG', amount: 100 });
   const [avatar, setAvatar] = useState('');
-  const [mode, setMode] = useState('ai');
+  const [mode, setMode] = useState(requestedTableId ? 'online' : 'ai');
+  const [onlineQueueMode, setOnlineQueueMode] = useState(requestedMode);
+  const [hostCodeInput, setHostCodeInput] = useState(requestedHostCode);
   const [showFlagPicker, setShowFlagPicker] = useState(false);
   const [showAiFlagPicker, setShowAiFlagPicker] = useState(false);
   const [playerFlagIndex, setPlayerFlagIndex] = useState(null);
@@ -40,15 +317,35 @@ export default function CheckersBattleRoyalLobby() {
   const [onlineCount, setOnlineCount] = useState(null);
   const [accountId, setAccountId] = useState('');
   const [matching, setMatching] = useState(false);
+  const [spinningPlayer, setSpinningPlayer] = useState('');
+  const [matchPlayers, setMatchPlayers] = useState([]);
+  const [readyList, setReadyList] = useState([]);
+  const [onlinePlayers, setOnlinePlayers] = useState([]);
   const [matchStatus, setMatchStatus] = useState('');
   const [matchError, setMatchError] = useState('');
-  const [preferredSide, setPreferredSide] = useState('auto');
-  const [onlineQueueMode, setOnlineQueueMode] = useState('quick');
-  const [hostCodeInput, setHostCodeInput] = useState('');
+  const [searchSecondsLeft, setSearchSecondsLeft] = useState(
+    MATCHMAKING_REFRESH_MS / 1000
+  );
+  const preferredSide = 'auto';
+  const pendingTableRef = useRef('');
+  const [tableNumber, setTableNumber] = useState('');
+  const lobbyHandlersRef = useRef({
+    gameStart: null,
+    lobbyUpdate: null,
+    reconnect: null,
+    connectError: null,
+    disconnect: null,
+    errorMessage: null
+  });
   const cleanupRef = useRef(() => {});
-  const readiness = getOnlineReadiness('checkersbattleroyal');
+  const matchmakingTimeoutRef = useRef(null);
+  const matchmakingCountdownRef = useRef(null);
+  const spinIntervalRef = useRef(null);
+  const matchmakingSessionRef = useRef(0);
+  const startedMatchRef = useRef('');
 
-  const selectedFlag = playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
+  const selectedFlag =
+    playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
   const selectedAiFlag = aiFlagIndex != null ? FLAG_EMOJIS[aiFlagIndex] : '';
 
   useEffect(() => {
@@ -64,7 +361,9 @@ export default function CheckersBattleRoyalLobby() {
 
   useEffect(() => {
     try {
-      const stored = window.localStorage?.getItem('checkersBattleRoyalPlayerFlag');
+      const stored = window.localStorage?.getItem(
+        'checkersBattleRoyalPlayerFlag'
+      );
       const idx = FLAG_EMOJIS.indexOf(stored);
       if (idx >= 0) setPlayerFlagIndex(idx);
     } catch {}
@@ -77,6 +376,26 @@ export default function CheckersBattleRoyalLobby() {
       if (idx >= 0) setAiFlagIndex(idx);
     } catch {}
   }, []);
+
+  useEffect(() => {
+    if (requestedTableId) {
+      setMode('online');
+      setOnlineQueueMode(resolveCheckersTableMode(requestedTableId));
+      const requestedCode = extractHostCodeFromTableId(requestedTableId);
+      if (requestedCode) setHostCodeInput(requestedCode);
+    }
+  }, [requestedTableId]);
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage?.getItem(
+        CHECKERS_HOST_CODE_STORAGE_KEY
+      );
+      if (stored && !hostCodeInput && !requestedHostCode) {
+        setHostCodeInput(normalizeHostCode(stored));
+      }
+    } catch {}
+  }, [hostCodeInput, requestedHostCode]);
 
   useEffect(() => {
     let cancelled = false;
@@ -109,109 +428,506 @@ export default function CheckersBattleRoyalLobby() {
     };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    const loadOnline = () => {
+      getOnlineUsers()
+        .then((data) => {
+          if (!active) return;
+          const list = Array.isArray(data?.users)
+            ? data.users
+            : Array.isArray(data)
+              ? data
+              : [];
+          setOnlinePlayers(list);
+        })
+        .catch(() => {});
+    };
+    loadOnline();
+    const id = setInterval(loadOnline, 15000);
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
+  }, []);
+
   useEffect(() => () => cleanupRef.current?.(), []);
 
   useEffect(() => {
-    try {
-      const stored = window.localStorage?.getItem(CHECKERS_HOST_CODE_STORAGE_KEY) || '';
-      setHostCodeInput(normalizeHostCode(stored));
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    try {
-      if (hostCodeInput) {
-        window.localStorage?.setItem(
-          CHECKERS_HOST_CODE_STORAGE_KEY,
-          normalizeHostCode(hostCodeInput)
-        );
-      } else {
-        window.localStorage?.removeItem(CHECKERS_HOST_CODE_STORAGE_KEY);
+    if (spinIntervalRef.current) {
+      clearInterval(spinIntervalRef.current);
+      spinIntervalRef.current = null;
+    }
+    const candidates = [...onlinePlayers, ...matchPlayers]
+      .map((p) => ({
+        id: resolveTpcAccountNumber(p),
+        name: resolvePlayerName(p),
+        avatar: p?.avatar || p?.photoUrl || p?.photoURL || ''
+      }))
+      .filter((p) => p.id);
+    const deduped = candidates.filter((p, idx, arr) => {
+      const first = arr.findIndex((item) => item.id === p.id);
+      return first === idx;
+    });
+    if (!matching || deduped.length === 0) return undefined;
+    setSpinningPlayer(deduped[0].name || 'Searching…');
+    spinIntervalRef.current = setInterval(() => {
+      const pick = deduped[Math.floor(Math.random() * deduped.length)];
+      setSpinningPlayer(pick?.name || 'Searching…');
+    }, 500);
+    return () => {
+      if (spinIntervalRef.current) {
+        clearInterval(spinIntervalRef.current);
+        spinIntervalRef.current = null;
       }
-    } catch {}
-  }, [hostCodeInput]);
+    };
+  }, [matching, matchPlayers, onlinePlayers]);
+
+  useEffect(
+    () => () => {
+      if (matchmakingTimeoutRef.current) {
+        clearTimeout(matchmakingTimeoutRef.current);
+        matchmakingTimeoutRef.current = null;
+      }
+      if (matchmakingCountdownRef.current) {
+        clearInterval(matchmakingCountdownRef.current);
+        matchmakingCountdownRef.current = null;
+      }
+    },
+    []
+  );
 
   const navigateToGame = (extraParams = {}) => {
-    const params = new URLSearchParams();
-    const initData = window.Telegram?.WebApp?.initData;
-    const isOnline = mode === 'online';
-
-    if (isOnline && stake.token) params.set('token', stake.token);
-    if (isOnline && stake.amount) params.set('amount', stake.amount);
-    if (avatar) params.set('avatar', avatar);
-    if (extraParams.tgId) params.set('tgId', extraParams.tgId);
-    if (isOnline && (extraParams.trackedAccountId || accountId))
-      params.set('accountId', extraParams.trackedAccountId || accountId);
-    if (selectedFlag) params.set('flag', selectedFlag);
-    if (!isOnline && selectedAiFlag) params.set('aiFlag', selectedAiFlag);
-    if (preferredSide) params.set('preferredSide', preferredSide);
-    if (DEV_ACCOUNT) params.set('dev', DEV_ACCOUNT);
-    if (DEV_ACCOUNT_1) params.set('dev1', DEV_ACCOUNT_1);
-    if (DEV_ACCOUNT_2) params.set('dev2', DEV_ACCOUNT_2);
-    if (isOnline && initData) params.set('init', encodeURIComponent(initData));
-    params.set('mode', mode);
-
-    Object.entries(extraParams).forEach(([key, value]) => {
-      if (value != null && key !== 'tgId' && key !== 'trackedAccountId') {
-        params.set(key, value);
-      }
+    const params = buildCheckersGameParams({
+      mode,
+      stake,
+      avatar,
+      tgId: extraParams.tgId,
+      trackedAccountId: extraParams.trackedAccountId,
+      accountId,
+      selectedFlag,
+      selectedAiFlag,
+      preferredSide,
+      extraParams
     });
 
     navigate(`/games/checkersbattleroyal?${params.toString()}`);
   };
 
+  const cleanupLobby = ({ account, skipRefReset, skipLeave } = {}) => {
+    // Invalidate every in-flight connect/register/seat callback. Socket.IO
+    // acknowledgements can arrive after a player cancels or after React
+    // unmounts the lobby; without this guard a late retry can silently put the
+    // player back into matchmaking and then immediately tear the seat down.
+    matchmakingSessionRef.current += 1;
+    if (matchmakingTimeoutRef.current) {
+      clearTimeout(matchmakingTimeoutRef.current);
+      matchmakingTimeoutRef.current = null;
+    }
+    if (matchmakingCountdownRef.current) {
+      clearInterval(matchmakingCountdownRef.current);
+      matchmakingCountdownRef.current = null;
+    }
+    const {
+      gameStart,
+      lobbyUpdate,
+      reconnect,
+      connectError,
+      disconnect,
+      errorMessage
+    } = lobbyHandlersRef.current;
+    if (gameStart) {
+      socket.off('gameStart', gameStart);
+      socket.off('gameStarted', gameStart);
+    }
+    if (lobbyUpdate) socket.off('lobbyUpdate', lobbyUpdate);
+    if (reconnect) socket.off('connect', reconnect);
+    if (connectError) socket.off('connect_error', connectError);
+    if (disconnect) socket.off('disconnect', disconnect);
+    if (errorMessage) socket.off('errorMessage', errorMessage);
+    lobbyHandlersRef.current = {
+      gameStart: null,
+      lobbyUpdate: null,
+      reconnect: null,
+      connectError: null,
+      disconnect: null,
+      errorMessage: null
+    };
+    if (!skipLeave && pendingTableRef.current && (account || accountId)) {
+      socket.emit('leaveLobby', {
+        accountId: account || accountId,
+        tpcAccountNumber: account || accountId,
+        tpcAccountId: account || accountId,
+        tableId: pendingTableRef.current
+      });
+    }
+    pendingTableRef.current = '';
+    setTableNumber('');
+    setMatching(false);
+    setMatchStatus('');
+    setMatchPlayers([]);
+    setReadyList([]);
+    setSpinningPlayer('');
+    setSearchSecondsLeft(MATCHMAKING_REFRESH_MS / 1000);
+    if (!skipRefReset) cleanupRef.current = null;
+  };
+
   const startGame = async () => {
+    const isOnline = mode === 'online';
     if (matching) return;
-    if (mode !== 'online') {
-      navigateToGame();
-      return;
-    }
-    if (!readiness.ready) {
-      setMatchError('Online mode is temporarily unavailable for Checkers Battle Royal.');
-      return;
-    }
-    const hostedTableId = onlineQueueMode === 'private'
-      ? buildHostedTableId(hostCodeInput)
-      : '';
-    if (onlineQueueMode === 'private' && !hostedTableId) {
-      setMatchError('Enter a host code to create or join a private online table.');
-      return;
-    }
-    const tgId = getTelegramId();
-    await runSimpleOnlineFlow({
-      gameType: 'checkers',
-      stake,
-      maxPlayers: 2,
-      avatar,
-      playerName: getTelegramFirstName() || getTelegramUsername() || 'Player',
-      tableId: hostedTableId,
-      quickMatch: onlineQueueMode === 'quick',
-      matchMeta: { preferredSide },
-      state: {
-        setMatching,
-        setMatchStatus,
-        setMatchError,
-        setCleanup: (cleanup) => { cleanupRef.current = cleanup; }
-      },
-      deps: { ensureAccountId, getAccountBalance, getTelegramId, socket },
-      onMatched: ({ tableId, accountId: trackedAccountId, players = [], tableNumber }) => {
-        const meIndex = players.findIndex((player) =>
-          String(player.tpcAccountNumber || player.accountId || player.id) === String(trackedAccountId)
+    let tgId;
+    let trackedAccountId;
+    if (isOnline) {
+      try {
+        trackedAccountId = await ensureAccountId();
+        trackedAccountId = getTpcAccountId() || trackedAccountId;
+        if (trackedAccountId) setAccountId((prev) => prev || trackedAccountId);
+        const balRes = await getAccountBalance(trackedAccountId);
+        if ((balRes.balance || 0) < stake.amount) {
+          alert('Insufficient balance');
+          return;
+        }
+        tgId = getTelegramId();
+      } catch {}
+
+      if (!trackedAccountId) {
+        setMatchError(
+          'Unable to resolve your player account. Reopen Telegram and try again.'
         );
-        const opponent = players.find((player) =>
-          String(player.tpcAccountNumber || player.accountId || player.id) !== String(trackedAccountId)
-        );
-        navigateToGame({
-          tgId,
-          trackedAccountId,
-          tableId,
-          tableNumber,
-          side: players[meIndex]?.side || (meIndex === 0 ? 'white' : 'black'),
-          opponentName: opponent?.name,
-          opponentAvatar: opponent?.avatar
-        });
+        setMatching(false);
+        setMatchStatus('');
+        return;
       }
-    });
+    }
+
+    if (!isOnline) {
+      navigateToGame({ tgId, trackedAccountId });
+      return;
+    }
+
+    const hostedTableId =
+      onlineQueueMode === 'private'
+        ? requestedTableId || buildHostedTableId(hostCodeInput)
+        : '';
+    if (onlineQueueMode === 'private' && !hostedTableId) {
+      setMatchError('Enter a private code to create or join a checkers table.');
+      setMatching(false);
+      setMatchStatus('');
+      return;
+    }
+    if (onlineQueueMode === 'private') {
+      try {
+        window.localStorage?.setItem(
+          CHECKERS_HOST_CODE_STORAGE_KEY,
+          normalizeHostCode(
+            hostCodeInput || extractHostCodeFromTableId(hostedTableId)
+          )
+        );
+      } catch {}
+    }
+
+    setMatchError('');
+    setMatching(true);
+    startedMatchRef.current = '';
+    setMatchStatus('Connecting to lobby…');
+    const matchmakingSession = ++matchmakingSessionRef.current;
+    const isCurrentSearch = () =>
+      matchmakingSessionRef.current === matchmakingSession;
+
+    if (trackedAccountId) {
+      refreshSocketAuthIdentity(
+        { accountId: String(trackedAccountId) },
+        { reconnect: true }
+      );
+    }
+
+    const seatAccountId = resolveSeatAccountId(trackedAccountId, accountId);
+    // Telegram WebViews frequently replace their network connection while the
+    // socket auth identity is being refreshed. A single failed connect or
+    // register acknowledgement must not end Quick Match. Keep the visible
+    // search alive and restore the authoritative TPG identity until the player
+    // explicitly cancels.
+    while (isCurrentSearch()) {
+      const socketReady = await ensureSocketConnected();
+      if (!isCurrentSearch()) return;
+      const socketRegistered =
+        socketReady && (await ensureSocketRegistered(seatAccountId));
+      if (!isCurrentSearch()) return;
+      if (socketReady && socketRegistered) break;
+      if (!shouldKeepSearching(onlineQueueMode)) {
+        cleanupLobby({ account: trackedAccountId });
+        setMatchError(
+          socketReady
+            ? 'Unable to sync your online session. Please retry.'
+            : 'Lobby connection failed. Check your network and try again.'
+        );
+        return;
+      }
+      setMatchError('');
+      setMatchStatus(
+        socketReady
+          ? 'Restoring your online session and continuing the search…'
+          : 'Matchmaker unavailable. Reconnecting and continuing the search…'
+      );
+      await new Promise((resolve) =>
+        setTimeout(resolve, SEAT_RETRY_BASE_DELAY_MS)
+      );
+    }
+    if (!isCurrentSearch()) return;
+
+    const handleLobbyUpdate = ({
+      tableId: tid,
+      tableNumber: updatedTableNumber,
+      players: list = [],
+      ready = []
+    } = {}) => {
+      if (!tid || String(tid) !== String(pendingTableRef.current)) return;
+      if (updatedTableNumber) setTableNumber(String(updatedTableNumber));
+      const playersList = Array.isArray(list) ? list : [];
+      const readyIds = Array.isArray(ready)
+        ? ready.map((id) => String(id))
+        : [];
+      setMatchPlayers(playersList);
+      setReadyList(readyIds);
+      setMatchStatus(resolveLobbyStatus(playersList, readyIds, seatAccountId));
+    };
+
+    const handleGameStart = ({
+      tableId: startedId,
+      tableNumber: startedTableNumber,
+      players = []
+    } = {}) => {
+      if (!startedId || String(startedId) !== String(pendingTableRef.current))
+        return;
+      // The server emits both event names for compatibility. Treat the table id
+      // as an idempotency key so each phone enters the game exactly once.
+      if (startedMatchRef.current === String(startedId)) return;
+      startedMatchRef.current = String(startedId);
+      const mySide = resolveCheckersSide(players, seatAccountId);
+      const opp = resolveCheckersOpponent(players, seatAccountId);
+      cleanupLobby({ account: trackedAccountId, skipLeave: true });
+      navigateToGame({
+        tgId,
+        trackedAccountId,
+        tableId: startedId,
+        tableNumber: startedTableNumber,
+        side: mySide,
+        opponentName: resolvePlayerName(opp),
+        opponentAvatar: opp?.avatar
+      });
+    };
+
+    const handleConnectError = () => {
+      setMatchStatus('Lobby connection failed. Reconnecting…');
+    };
+
+    const handleDisconnect = () => {
+      if (pendingTableRef.current) {
+        setMatchStatus('Connection dropped. Reconnecting to lobby…');
+      }
+    };
+
+    // A Socket.IO reconnect creates a new server-side socket. The server removes
+    // lobby seats owned by the disconnected socket, so merely reconnecting the
+    // transport leaves the player looking for a match forever. Re-register the
+    // canonical TPG account and restore the same seat after every reconnect.
+    const handleReconnect = async () => {
+      if (!isCurrentSearch()) return;
+      const interruptedTableId = pendingTableRef.current;
+      if (!interruptedTableId) return;
+      setMatchStatus('Restoring your lobby seat…');
+      const registered = await ensureSocketRegistered(seatAccountId);
+      if (!isCurrentSearch() || !registered || !pendingTableRef.current) {
+        setMatchError(
+          'Could not restore your TPG account session. Please retry.'
+        );
+        return;
+      }
+      seatPlayer(interruptedTableId, true);
+    };
+
+    const handleErrorMessage = (error) => {
+      if (!pendingTableRef.current) return;
+      const message = resolveSeatErrorMessage(error);
+      setMatchError(message);
+      setMatchStatus('The match could not start. Cancel and try again.');
+    };
+
+    cleanupRef.current = () =>
+      cleanupLobby({ account: trackedAccountId, skipRefReset: true });
+
+    socket.on('gameStart', handleGameStart);
+    socket.on('gameStarted', handleGameStart);
+    socket.on('lobbyUpdate', handleLobbyUpdate);
+    socket.on('connect', handleReconnect);
+    socket.on('connect_error', handleConnectError);
+    socket.on('disconnect', handleDisconnect);
+    socket.on('errorMessage', handleErrorMessage);
+    lobbyHandlersRef.current = {
+      gameStart: handleGameStart,
+      lobbyUpdate: handleLobbyUpdate,
+      reconnect: handleReconnect,
+      connectError: handleConnectError,
+      disconnect: handleDisconnect,
+      errorMessage: handleErrorMessage
+    };
+
+    const friendlyName =
+      getTelegramFirstName() || getTelegramUsername() || 'Player';
+    let seatAttempts = 0;
+    const maxSeatAttempts = 4;
+    const armSearchRefresh = () => {
+      if (!isCurrentSearch()) return;
+      if (matchmakingTimeoutRef.current)
+        clearTimeout(matchmakingTimeoutRef.current);
+      if (matchmakingCountdownRef.current)
+        clearInterval(matchmakingCountdownRef.current);
+      const refreshAt = Date.now() + MATCHMAKING_REFRESH_MS;
+      setSearchSecondsLeft(MATCHMAKING_REFRESH_MS / 1000);
+      matchmakingCountdownRef.current = window.setInterval(() => {
+        setSearchSecondsLeft(
+          Math.max(0, Math.ceil((refreshAt - Date.now()) / 1000))
+        );
+      }, 250);
+      matchmakingTimeoutRef.current = window.setTimeout(async () => {
+        if (!isCurrentSearch() || !pendingTableRef.current) return;
+        if (onlineQueueMode === 'quick') {
+          const previousTableId = pendingTableRef.current;
+          socket.emit('leaveLobby', {
+            accountId: trackedAccountId,
+            tpcAccountNumber: trackedAccountId,
+            tpcAccountId: trackedAccountId,
+            tableId: previousTableId
+          });
+          pendingTableRef.current = '';
+          setTableNumber('');
+          setMatchPlayers([]);
+          setReadyList([]);
+          setMatchError('');
+          setMatchStatus(
+            'Still searching the ordered queue for the next same-stake opponent…'
+          );
+          seatAttempts = 0;
+          seatPlayer();
+          return;
+        }
+        cleanupLobby({ account: trackedAccountId });
+        setMatchError('No opponent joined in time. No stake was deducted.');
+      }, MATCHMAKING_REFRESH_MS);
+    };
+    const seatPlayer = (tableIdOverride = '', reconnecting = false) => {
+      if (!isCurrentSearch()) return;
+      if (!reconnecting) seatAttempts += 1;
+      socket.emit(
+        'seatTable',
+        {
+          accountId: seatAccountId,
+          tpcAccountNumber: seatAccountId,
+          tpcAccountId: seatAccountId,
+          gameType: 'checkers',
+          stake: stake.amount ?? 0,
+          tableId: tableIdOverride || hostedTableId || undefined,
+          maxPlayers: 2,
+          mode: 'online',
+          playerName: friendlyName,
+          avatar,
+          preferredSide,
+          token: stake.token
+        },
+        async (res) => {
+          if (!isCurrentSearch()) return;
+          if (!res?.success || !res.tableId) {
+            const shouldRetry =
+              shouldKeepSearching(onlineQueueMode, res?.error) &&
+              (onlineQueueMode === 'quick' ||
+                reconnecting ||
+                seatAttempts < maxSeatAttempts);
+            if (shouldRetry) {
+              const retryDelay = Math.min(
+                SEAT_RETRY_BASE_DELAY_MS * 2 ** (seatAttempts - 1),
+                3000
+              );
+              setMatchStatus('Retrying matchmaking request…');
+              if (res?.error === 'identity_mismatch' && seatAccountId) {
+                refreshSocketAuthIdentity(
+                  { accountId: String(seatAccountId) },
+                  { reconnect: true }
+                );
+              }
+              setTimeout(async () => {
+                if (!isCurrentSearch()) return;
+                const restored = await ensureSocketConnected();
+                if (!isCurrentSearch()) return;
+                if (!restored) {
+                  if (onlineQueueMode === 'quick') {
+                    setMatchStatus(
+                      'Matchmaker unavailable. Reconnecting and searching again…'
+                    );
+                    seatPlayer(tableIdOverride, reconnecting);
+                    return;
+                  }
+                  cleanupLobby({ account: trackedAccountId });
+                  setMatchError(
+                    'Lobby connection dropped while retrying. No stake was deducted.'
+                  );
+                  setMatchStatus('');
+                  return;
+                }
+                if (res?.error === 'identity_mismatch' && seatAccountId) {
+                  const reRegistered =
+                    await ensureSocketRegistered(seatAccountId);
+                  if (!reRegistered) {
+                    cleanupLobby({ account: trackedAccountId });
+                    setMatchError(
+                      'Could not restore your online identity. No stake was deducted.'
+                    );
+                    setMatchStatus('');
+                    return;
+                  }
+                }
+                seatPlayer(tableIdOverride, reconnecting);
+              }, retryDelay);
+              return;
+            }
+            const errorMessage = resolveSeatErrorMessage(res?.error);
+            cleanupLobby({ account: trackedAccountId });
+            setMatchError(errorMessage);
+            return;
+          }
+          pendingTableRef.current = res.tableId;
+          armSearchRefresh();
+          setTableNumber(String(res.tableNumber || ''));
+          setMatchPlayers(Array.isArray(res.players) ? res.players : []);
+          setReadyList(
+            Array.isArray(res.ready) ? res.ready.map((id) => String(id)) : []
+          );
+          const playersList = Array.isArray(res.players) ? res.players : [];
+          // The server persists the start transition for reconnects and for
+          // the narrow race where Socket.IO delivers gameStart immediately
+          // before this seat acknowledgement. Consume that snapshot through
+          // the same idempotent handler so both phones always open the board.
+          if (res.started && res.gameStart) {
+            handleGameStart(res.gameStart);
+            return;
+          }
+          const opp = resolveCheckersOpponent(playersList, seatAccountId);
+          setMatchStatus(
+            opp
+              ? 'Match found. Securing both seats…'
+              : onlineQueueMode === 'private'
+                ? resolvePrivateMatchStatus(res.tableId, hostCodeInput)
+                : 'Waiting for the next same-stake opponent…'
+          );
+          // Stay in the lobby until the authoritative gameStart event. Moving
+          // the first player to the heavy 3D scene here could detach this
+          // listener before the second seat was locked, leaving the two phones
+          // in different lifecycle states. handleGameStart moves both clients
+          // together after stake reservation and side assignment succeed.
+        }
+      );
+    };
+
+    seatPlayer();
   };
 
   return (
@@ -225,18 +941,30 @@ export default function CheckersBattleRoyalLobby() {
         />
 
         <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#101828]/80 to-[#0b1324]/90 p-4">
-          <p className="text-[11px] uppercase tracking-[0.3em] text-white/60">Player Profile</p>
+          <p className="text-[11px] uppercase tracking-[0.3em] text-white/60">
+            Player Profile
+          </p>
           <div className="mt-3 flex items-center gap-3">
             <div className="h-12 w-12 overflow-hidden rounded-full border border-white/15 bg-white/5">
               {avatar ? (
-                <img src={avatar} alt="Your avatar" className="h-full w-full object-cover" />
+                <img
+                  src={avatar}
+                  alt="Your avatar"
+                  className="h-full w-full object-cover"
+                />
               ) : (
-                <div className="flex h-full w-full items-center justify-center text-lg">🙂</div>
+                <div className="flex h-full w-full items-center justify-center text-lg">
+                  🙂
+                </div>
               )}
             </div>
             <div className="text-sm text-white/80">
-              <p className="font-semibold">{getTelegramFirstName() || 'Player'} ready</p>
-              <p className="text-xs text-white/50">Flag: {selectedFlag || 'Auto'}</p>
+              <p className="font-semibold">
+                {getTelegramFirstName() || 'Player'} ready
+              </p>
+              <p className="text-xs text-white/50">
+                Flag: {selectedFlag || 'Auto'}
+              </p>
             </div>
           </div>
           <div className="mt-3 grid gap-2">
@@ -245,10 +973,14 @@ export default function CheckersBattleRoyalLobby() {
               onClick={() => setShowFlagPicker(true)}
               className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-left text-sm text-white/80 transition hover:border-white/30"
             >
-              <div className="text-[11px] uppercase tracking-wide text-white/50">Flag</div>
+              <div className="text-[11px] uppercase tracking-wide text-white/50">
+                Flag
+              </div>
               <div className="flex items-center gap-2 text-base font-semibold">
                 <span className="text-lg">{selectedFlag || '🌐'}</span>
-                <span>{selectedFlag ? 'Custom flag' : 'Auto-detect & save'}</span>
+                <span>
+                  {selectedFlag ? 'Custom flag' : 'Auto-detect & save'}
+                </span>
               </div>
             </button>
             <button
@@ -256,20 +988,28 @@ export default function CheckersBattleRoyalLobby() {
               onClick={() => setShowAiFlagPicker(true)}
               className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-left text-sm text-white/80 transition hover:border-white/30"
             >
-              <div className="text-[11px] uppercase tracking-wide text-white/50">AI Flag</div>
+              <div className="text-[11px] uppercase tracking-wide text-white/50">
+                AI Flag
+              </div>
               <div className="flex items-center gap-2 text-base font-semibold">
                 <span className="text-lg">{selectedAiFlag || '🌐'}</span>
-                <span>{selectedAiFlag ? 'Custom AI flag' : 'Auto-pick opponent'}</span>
+                <span>
+                  {selectedAiFlag ? 'Custom AI flag' : 'Auto-pick opponent'}
+                </span>
               </div>
             </button>
           </div>
-          <p className="mt-3 text-xs text-white/60">Your lobby choices persist into the match start screen.</p>
+          <p className="mt-3 text-xs text-white/60">
+            Your lobby choices persist into the match start screen.
+          </p>
         </div>
 
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-white">Choose Mode</h3>
-            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Queue</span>
+            <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">
+              Queue
+            </span>
           </div>
           <div className="grid grid-cols-3 gap-3">
             {[
@@ -296,12 +1036,15 @@ export default function CheckersBattleRoyalLobby() {
                   key={key}
                   type="button"
                   onClick={() => setMode(key)}
-                  disabled={key === 'online' && !readiness.ready}
                   className={`lobby-option-card ${
-                    active ? 'lobby-option-card-active' : 'lobby-option-card-inactive'
-                  } ${key === 'online' && !readiness.ready ? 'cursor-not-allowed opacity-60' : ''}`}
+                    active
+                      ? 'lobby-option-card-active'
+                      : 'lobby-option-card-inactive'
+                  }`}
                 >
-                  <div className={`lobby-option-thumb bg-gradient-to-br ${accent}`}>
+                  <div
+                    className={`lobby-option-thumb bg-gradient-to-br ${accent}`}
+                  >
                     <div className="lobby-option-thumb-inner">
                       <OptionIcon
                         src={getLobbyIcon('poolroyale', iconKey)}
@@ -320,13 +1063,9 @@ export default function CheckersBattleRoyalLobby() {
             })}
           </div>
           <p className="text-xs text-white/60 text-center">
-            AI matches stay offline. Online mode uses your TPG stake and pairs you with another player.
+            AI matches stay offline. Online mode uses your TPG stake and pairs
+            you with another player.
           </p>
-          {!readiness.ready && (
-            <p className="text-xs text-amber-200 text-center">
-              Online matchmaking is currently disabled while service checks complete.
-            </p>
-          )}
         </div>
 
         {mode === 'online' && (
@@ -339,143 +1078,150 @@ export default function CheckersBattleRoyalLobby() {
               </div>
               <div>
                 <h3 className="font-semibold text-white">Select Stake</h3>
-                <p className="text-xs text-white/60">Stake your TPG to lock a table.</p>
+                <p className="text-xs text-white/60">
+                  Stake your TPG to lock a table.
+                </p>
               </div>
             </div>
             <div className="mt-3">
-              <RoomSelector selected={stake} onSelect={setStake} tokens={['TPG']} />
+              <RoomSelector
+                selected={stake}
+                onSelect={setStake}
+                tokens={['TPG']}
+              />
+            </div>
+            <div className="mt-4 space-y-3 rounded-2xl border border-white/10 bg-black/20 p-3">
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  {
+                    key: 'quick',
+                    label: 'Quick Match',
+                    desc: 'Any same-stake player'
+                  },
+                  {
+                    key: 'private',
+                    label: 'Private Code',
+                    desc: 'Share table code'
+                  }
+                ].map((option) => {
+                  const active = onlineQueueMode === option.key;
+                  return (
+                    <button
+                      key={option.key}
+                      type="button"
+                      onClick={() => setOnlineQueueMode(option.key)}
+                      className={`rounded-xl border px-3 py-2 text-left transition ${
+                        active
+                          ? 'border-primary bg-primary/15 text-primary'
+                          : 'border-white/10 bg-white/5 text-white/70 hover:border-white/30'
+                      }`}
+                    >
+                      <p className="text-sm font-semibold">{option.label}</p>
+                      <p className="text-[11px] text-white/50">{option.desc}</p>
+                    </button>
+                  );
+                })}
+              </div>
+              {onlineQueueMode === 'private' && (
+                <label className="block text-xs text-white/60">
+                  Private table code
+                  <input
+                    value={hostCodeInput}
+                    onChange={(event) =>
+                      setHostCodeInput(normalizeHostCode(event.target.value))
+                    }
+                    placeholder="FRIEND123"
+                    className="mt-1 w-full rounded-xl border border-white/10 bg-[#050914] px-3 py-2 text-sm text-white outline-none focus:border-primary"
+                  />
+                  <span className="mt-1 block text-[11px] text-white/45">
+                    Both phones must use the same code and stake to enter the
+                    same checkers table.
+                  </span>
+                </label>
+              )}
             </div>
             <p className="text-center text-white/60 text-xs">
-              Your verified TPG account secures each online round. Only your username and avatar are visible.
+              Staking uses your verified TPG account as escrow for every online
+              round. Your account number stays private.
             </p>
           </div>
         )}
-
-        {mode === 'online' && (
-          <div className="space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-white">Online Table Type</h3>
-              <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Host</span>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { key: 'quick', label: 'Quick Match', desc: 'Auto-join public queue', icon: '🌐' },
-                { key: 'host', label: 'Host / Join', desc: 'Use private host code', icon: '🛡️' }
-              ].map((item) => {
-                const active = onlineQueueMode === item.key;
-                return (
-                  <button
-                    key={item.key}
-                    type="button"
-                    onClick={() => setOnlineQueueMode(item.key)}
-                    className={`rounded-2xl border px-4 py-3 text-left transition ${
-                      active
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-white/10 bg-white/5 text-white/80 hover:border-white/30'
-                    }`}
-                  >
-                    <div className="text-lg">{item.icon}</div>
-                    <div className="mt-1 text-sm font-semibold">{item.label}</div>
-                    <div className="text-[11px] text-white/60">{item.desc}</div>
-                  </button>
-                );
-              })}
-            </div>
-            {onlineQueueMode === 'host' && (
-              <div className="space-y-2">
-                <label className="block text-xs uppercase tracking-wide text-white/50">
-                  Host code (share with your opponent)
-                </label>
-                <input
-                  value={hostCodeInput}
-                  onChange={(e) => setHostCodeInput(normalizeHostCode(e.target.value))}
-                  placeholder="e.g. ALBANIA-ROOM-01"
-                  className="w-full rounded-xl border border-white/15 bg-black/35 px-3 py-2 text-sm text-white outline-none transition focus:border-primary/70"
-                  maxLength={48}
-                />
-                <p className="text-xs text-white/60">
-                  Both players must use the same host code and stake amount to enter this private table.
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {mode === 'online' && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-white">Pick Your Pieces</h3>
-              <span className="text-[11px] uppercase tracking-[0.3em] text-white/40">Sides</span>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                {
-                  key: 'auto',
-                  label: 'Auto',
-                  desc: 'Random seats, no duplicates',
-                  accent: 'from-slate-400/30 via-slate-500/10 to-transparent',
-                  icon: '🎲'
-                },
-                {
-                  key: 'white',
-                  label: 'White',
-                  desc: 'You start first',
-                  accent: 'from-white/40 via-white/10 to-transparent',
-                  icon: '♔'
-                },
-                {
-                  key: 'black',
-                  label: 'Black',
-                  desc: 'Opponent opens',
-                  accent: 'from-gray-500/30 via-gray-700/10 to-transparent',
-                  icon: '♚'
-                }
-              ].map(({ key, label, desc, accent, icon }) => {
-                const active = preferredSide === key;
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => setPreferredSide(key)}
-                    className={`flex flex-col gap-3 rounded-2xl border px-4 py-4 text-left shadow transition ${
-                      active
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-white/10 bg-black/30 text-white/80 hover:border-white/30'
-                    }`}
-                  >
-                    <div className={`h-12 w-12 rounded-2xl bg-gradient-to-br ${accent} p-[1px]`}>
-                      <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[#0b1220] text-xl">
-                        {icon}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold">{label}</span>
-                        {active && <span className="text-[10px] font-bold uppercase">Selected</span>}
-                      </div>
-                      <div className="text-xs text-white/60">{desc}</div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-            <p className="text-xs text-white/60 text-center">
-              Auto randomizes colors while ensuring both players get different sides.
-            </p>
-          </div>
-        )}
-
-        
 
         {mode === 'online' && matching && (
           <div className="space-y-2 rounded-2xl border border-primary/40 bg-primary/5 p-4 shadow">
             <h3 className="font-semibold text-primary">Matching players…</h3>
-            <p className="text-sm text-white/60">{matchStatus || 'Syncing with the lobby…'}</p>
+            <p className="text-sm text-white/60">
+              {matchStatus || 'Syncing with the lobby…'}
+            </p>
+            {onlineQueueMode === 'quick' && (
+              <p className="text-center text-xs font-semibold text-cyan-200">
+                120s opponent search window: {searchSecondsLeft}s left
+              </p>
+            )}
+            {tableNumber && (
+              <p className="text-center text-sm font-semibold text-emerald-300">
+                Table {tableNumber}
+              </p>
+            )}
+            {matchPlayers.length === 0 && (
+              <div className="lobby-tile w-full flex items-center justify-between">
+                <span>🎯 {spinningPlayer || 'Searching…'}</span>
+                <span className="text-xs text-white/60">
+                  {onlineQueueMode === 'private'
+                    ? `Code ${normalizeHostCode(hostCodeInput) || extractHostCodeFromTableId(pendingTableRef.current) || '—'}`
+                    : `Stake ${stake.amount} ${stake.token}`}
+                </span>
+              </div>
+            )}
+            {matchPlayers.length > 0 && (
+              <div className="space-y-1">
+                {matchPlayers.map((player) => {
+                  const playerId = resolveTpcAccountNumber(player);
+                  const isReady = readyList.includes(String(playerId));
+                  const playerName = resolvePlayerName(player);
+                  const playerAvatar =
+                    player?.avatar ||
+                    player?.photoUrl ||
+                    player?.photoURL ||
+                    '';
+                  return (
+                    <div
+                      key={playerId || player.name}
+                      className="lobby-tile w-full flex items-center justify-between"
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-cyan-950 text-sm font-bold text-cyan-200">
+                          {playerAvatar ? (
+                            <img
+                              src={playerAvatar}
+                              alt=""
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            playerName.slice(0, 1).toUpperCase()
+                          )}
+                        </div>
+                        <p className="truncate text-sm font-semibold">
+                          {playerName}
+                        </p>
+                      </div>
+                      <span
+                        className={`text-xs font-semibold ${
+                          isReady ? 'text-emerald-400' : 'text-white/50'
+                        }`}
+                      >
+                        {isReady ? 'Ready' : 'Waiting'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             {matchError && <p className="text-sm text-red-400">{matchError}</p>}
             <button
               type="button"
               className="w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white/80 hover:border-white/30"
-              onClick={() => cleanupRef.current?.()}
+              onClick={() => cleanupLobby({ account: accountId })}
             >
               Cancel matchmaking
             </button>
@@ -503,7 +1249,10 @@ export default function CheckersBattleRoyalLobby() {
             setPlayerFlagIndex(idx);
             try {
               if (idx != null) {
-                window.localStorage?.setItem('checkersBattleRoyalPlayerFlag', FLAG_EMOJIS[idx]);
+                window.localStorage?.setItem(
+                  'checkersBattleRoyalPlayerFlag',
+                  FLAG_EMOJIS[idx]
+                );
               }
             } catch {}
           }}
@@ -519,7 +1268,10 @@ export default function CheckersBattleRoyalLobby() {
             setAiFlagIndex(idx);
             try {
               if (idx != null) {
-                window.localStorage?.setItem(AI_FLAG_STORAGE_KEY, FLAG_EMOJIS[idx]);
+                window.localStorage?.setItem(
+                  AI_FLAG_STORAGE_KEY,
+                  FLAG_EMOJIS[idx]
+                );
               }
             } catch {}
           }}
