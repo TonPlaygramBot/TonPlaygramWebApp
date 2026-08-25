@@ -37791,7 +37791,8 @@ const shotPowerRef = useRef(0);
                   {isOnlineMatch ? (
                     <img
                       src={player.avatar || '/assets/icons/profile.svg'}
-                      alt="player avatar"
+                      alt="You"
+                      data-self-player="true"
                       className={`${avatarSizeClass} rounded-full object-cover transition-all duration-150 ${
                         isPlayerTurn
                           ? 'ring-2 ring-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
