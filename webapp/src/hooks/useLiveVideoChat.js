@@ -1,10 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { socket } from '../utils/socket.js';
 
+const turnUrls = String(import.meta.env.VITE_WEBRTC_TURN_URLS || import.meta.env.VITE_WEBRTC_TURN_URL || '')
+  .split(',')
+  .map((url) => url.trim())
+  .filter(Boolean);
+
 const RTC_CONFIG = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' }
+    { urls: 'stun:stun1.l.google.com:19302' },
+    ...(turnUrls.length > 0
+      ? [{
+          urls: turnUrls,
+          username: import.meta.env.VITE_WEBRTC_TURN_USERNAME || '',
+          credential: import.meta.env.VITE_WEBRTC_TURN_CREDENTIAL || ''
+        }]
+      : [])
   ],
   // Collect all candidates before giving up. Mobile networks frequently need
   // a little longer to move from a host candidate to a server-reflexive one.

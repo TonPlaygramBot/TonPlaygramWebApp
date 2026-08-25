@@ -3,6 +3,58 @@ import { useLocation } from 'react-router-dom';
 import useLiveVideoChat from '../hooks/useLiveVideoChat.js';
 import { buildGameLiveChatRoomId } from '../utils/liveVideoRoom.js';
 
+function RemoteVideo({ peer }) {
+  const videoRef = useRef(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return undefined;
+    video.srcObject = peer.stream || null;
+
+    const play = () => {
+      if (!video.srcObject) return;
+      video.play().catch(() => {
+        // Mobile WebViews can defer audible playback until the next touch.
+        // The one-time listeners below retry without muting the opponent.
+      });
+    };
+    play();
+    video.addEventListener('loadedmetadata', play);
+    document.addEventListener('pointerdown', play, { once: true });
+    document.addEventListener('touchend', play, { once: true });
+    return () => {
+      video.removeEventListener('loadedmetadata', play);
+      document.removeEventListener('pointerdown', play);
+      document.removeEventListener('touchend', play);
+      video.srcObject = null;
+    };
+  }, [peer.stream]);
+
+  return (
+    <div className="relative h-full w-full overflow-hidden rounded-2xl bg-slate-950 shadow-2xl ring-2 ring-emerald-300/80">
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted={false}
+        aria-label={`${peer.displayName || 'Opponent'} live video`}
+        className="h-full w-full object-cover"
+      />
+      {!peer.stream || peer.mediaState?.camera === false ? (
+        <div className="absolute inset-0 flex items-center justify-center bg-slate-950/95 px-2 text-center text-[10px] font-semibold text-white/75">
+          {peer.stream ? 'Opponent camera off' : 'Connecting to opponent…'}
+        </div>
+      ) : null}
+      <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/90 to-transparent px-2 pb-1 pt-5 text-[9px] font-semibold text-white">
+        <span className="max-w-[75%] truncate">{peer.displayName || 'Opponent'}</span>
+        <span aria-label={peer.mediaState?.microphone === false ? 'Opponent microphone off' : 'Opponent microphone on'}>
+          {peer.mediaState?.microphone === false ? '🔇' : '🔊'}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 const AVATAR_ANCHOR_SELECTORS = [
   '[data-self-player="true"] .seat-badge-core',
   '[data-self-player="true"] .score-avatar',
@@ -376,6 +428,45 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
             className="h-full w-full object-cover scale-x-[-1]"
           />
         </button>
+      ) : null}
+      {liveMode ? (
+        <div
+          className="fixed right-3 z-[18] flex w-28 flex-col gap-2 pointer-events-auto"
+          style={{
+            top: 'max(4.75rem, env(safe-area-inset-top))',
+            opacity: hasBlockingOverlay ? 0 : 1,
+            pointerEvents: hasBlockingOverlay ? 'none' : 'auto'
+          }}
+          aria-live="polite"
+        >
+          <div className="h-36 w-28">
+            {liveChat.remotePeers[0] ? (
+              <RemoteVideo peer={liveChat.remotePeers[0]} />
+            ) : (
+              <div className="flex h-full items-center justify-center rounded-2xl bg-slate-950/90 px-3 text-center text-[10px] font-semibold text-white/70 shadow-xl ring-1 ring-white/20">
+                {liveChat.error || 'Waiting for opponent to activate live video…'}
+              </div>
+            )}
+          </div>
+          <div className="flex justify-center gap-2">
+            <button
+              type="button"
+              onClick={liveChat.toggleMicrophone}
+              className={`flex h-9 w-9 items-center justify-center rounded-full text-sm text-white shadow-lg ${liveChat.mediaState.microphone ? 'bg-emerald-600' : 'bg-rose-600'}`}
+              aria-label={liveChat.mediaState.microphone ? 'Turn microphone off' : 'Turn microphone on'}
+            >
+              {liveChat.mediaState.microphone ? '🎙️' : '🔇'}
+            </button>
+            <button
+              type="button"
+              onClick={liveChat.toggleCamera}
+              className={`flex h-9 w-9 items-center justify-center rounded-full text-sm text-white shadow-lg ${liveChat.mediaState.camera ? 'bg-emerald-600' : 'bg-rose-600'}`}
+              aria-label={liveChat.mediaState.camera ? 'Turn camera off' : 'Turn camera on'}
+            >
+              {liveChat.mediaState.camera ? '📹' : '🚫'}
+            </button>
+          </div>
+        </div>
       ) : null}
     </>
   );
