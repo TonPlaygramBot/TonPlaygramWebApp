@@ -2689,23 +2689,46 @@ io.on('connection', (socket) => {
     cb && cb({ success: true, state: { tableId, ...state } });
   });
 
-  socket.on('joinCheckersRoom', async ({ tableId, accountId }) => {
-    if (!tableId) return;
-    if (accountId && !ensureRegistered(socket, accountId)) return;
-    socket.join(tableId);
-    const state = checkersRealtimeStore.getState(tableId);
-    socket.emit('checkersState', { tableId, ...state });
-    if (accountId) {
-      await registerConnection({
-        userId: String(accountId),
-        roomId: tableId,
-        socketId: socket.id
-      });
+  socket.on('joinCheckersRoom', async ({ tableId, accountId } = {}, cb) => {
+    if (!tableId) {
+      cb && cb({ success: false, error: 'invalid_payload' });
+      return;
     }
+    if (!accountId || !ensureRegistered(socket, accountId)) {
+      cb && cb({ success: false, error: 'register_required' });
+      return;
+    }
+    const table = tableMap.get(tableId);
+    const seated = table?.gameType === 'checkers' && table.players.some(
+      (player) => String(player.id) === String(accountId)
+    );
+    if (!seated) {
+      cb && cb({ success: false, error: 'seat_required' });
+      return;
+    }
+    const state = checkersRealtimeStore.getState(tableId);
+    socket.join(tableId);
+    const payload = { tableId, ...state };
+    socket.emit('checkersState', payload);
+    await registerConnection({
+      userId: String(accountId),
+      roomId: tableId,
+      socketId: socket.id
+    });
+    cb && cb({ success: true, state: payload });
   });
 
   socket.on('checkersSyncRequest', ({ tableId }) => {
     if (!tableId) return;
+    const table = tableMap.get(tableId);
+    const playerId = String(socket.data?.playerId || '');
+    if (
+      table?.gameType !== 'checkers' ||
+      !table.players.some((player) => String(player.id) === playerId)
+    ) {
+      socket.emit('checkersSyncError', { tableId, error: 'seat_required' });
+      return;
+    }
     const state = checkersRealtimeStore.getState(tableId);
     socket.emit('checkersState', { tableId, ...state });
   });

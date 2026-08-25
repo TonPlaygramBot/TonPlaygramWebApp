@@ -1884,6 +1884,7 @@ export default function CheckersBattleRoyal() {
   const captureSoundRef = useRef(null);
   const pointerDownRef = useRef(null);
   const pendingMoveRef = useRef(null);
+  const lastAppliedMoveSeqRef = useRef(-1);
 
   const sceneRef = useRef(null);
   const rendererRef = useRef(null);
@@ -3460,19 +3461,45 @@ export default function CheckersBattleRoyal() {
       }
     };
 
-    const handleCheckersState = ({ tableId: eventTableId, board, turn: remoteTurn } = {}) => {
-      if (!eventTableId || eventTableId !== tableId) return;
+    const handleCheckersState = ({ tableId: eventTableId, board, turn: remoteTurn, lastMove, moveSeq, winner } = {}) => {
+      if (!eventTableId || String(eventTableId) !== String(tableId)) return;
       if (!Array.isArray(board)) return;
-      const inferredMove = inferMoveFromBoardDelta(boardRef.current, board);
+      const nextMoveSeq = Number(moveSeq);
+      if (Number.isFinite(nextMoveSeq) && nextMoveSeq < lastAppliedMoveSeqRef.current) return;
+      const isNewMove = Number.isFinite(nextMoveSeq)
+        ? nextMoveSeq > lastAppliedMoveSeqRef.current
+        : true;
+      const inferredMove = isNewMove && lastMove?.from && lastMove?.to
+        ? {
+            from: lastMove.from,
+            to: lastMove.to,
+            side: lastMove.side || board[lastMove.to.r]?.[lastMove.to.c]?.side,
+            king: board[lastMove.to.r]?.[lastMove.to.c]?.king,
+            capture: Boolean(lastMove.capture)
+          }
+        : isNewMove
+        ? inferMoveFromBoardDelta(boardRef.current, board)
+        : null;
       boardRef.current = copyBoard(board);
       if (inferredMove) {
         queueMoveAnimation(inferredMove);
       }
+      if (Number.isFinite(nextMoveSeq)) lastAppliedMoveSeqRef.current = nextMoveSeq;
       selectedRef.current = null;
       setTurn(remoteTurn === 'dark' ? 'dark' : 'light');
       setCanReplay(false);
-      setGameOver(null);
-      setCapturedBySide({ light: [], dark: [] });
+      setGameOver(winner === 'dark' ? 'dark' : winner === 'light' ? 'light' : null);
+      const remaining = board.flat().reduce(
+        (counts, piece) => {
+          if (piece?.side === 'light' || piece?.side === 'dark') counts[piece.side] += 1;
+          return counts;
+        },
+        { light: 0, dark: 0 }
+      );
+      setCapturedBySide({
+        light: Array.from({ length: Math.max(0, 12 - remaining.dark) }, () => ({ side: 'dark', king: false })),
+        dark: Array.from({ length: Math.max(0, 12 - remaining.light) }, () => ({ side: 'light', king: false }))
+      });
       renderPieces();
       renderHighlights();
       onlineRef.current.synced = true;
@@ -3524,9 +3551,25 @@ export default function CheckersBattleRoyal() {
       setStatus('Connection lost. Reconnecting to table…');
     };
     const handleSocketReconnect = () => {
-      socket.emit('register', { playerId: accountId });
-      socket.emit('joinCheckersRoom', { tableId, accountId });
-      socket.emit('checkersSyncRequest', { tableId });
+      restoreOnlineSession();
+    };
+
+    const restoreOnlineSession = () => {
+      if (cancelled || !socket.connected) return;
+      setOnlineStatus((current) => (current === 'in-game' ? current : 'connecting'));
+      socket.emit('register', { playerId: accountId }, (registered) => {
+        if (cancelled || !registered?.success) return;
+        socket.emit('joinCheckersRoom', { tableId, accountId }, (joined) => {
+          if (cancelled) return;
+          if (!joined?.success) {
+            setOnlineStatus('reconnect-error');
+            setStatus('Could not restore your online seat. Return to the lobby and retry.');
+            return;
+          }
+          if (joined.state) handleCheckersState(joined.state);
+          socket.emit('checkersSyncRequest', { tableId });
+        });
+      });
     };
 
     let cancelled = false;
@@ -3538,7 +3581,7 @@ export default function CheckersBattleRoyal() {
     socket.on('matchEnded', handleMatchEnded);
     socket.on('settlementConfirmed', handleSettlementConfirmed);
     socket.on('disconnect', handleSocketDisconnect);
-    socket.on('reconnect', handleSocketReconnect);
+    socket.on('connect', handleSocketReconnect);
 
     const joinOnlineTable = async () => {
       const connected = await ensureOnlineSocketConnected();
@@ -3548,9 +3591,7 @@ export default function CheckersBattleRoyal() {
         setStatus('Online connection failed. Return to lobby and retry.');
         return;
       }
-      socket.emit('register', { playerId: accountId });
-      socket.emit('joinCheckersRoom', { tableId, accountId });
-      socket.emit('checkersSyncRequest', { tableId });
+      restoreOnlineSession();
     };
 
     void joinOnlineTable();
@@ -3565,7 +3606,7 @@ export default function CheckersBattleRoyal() {
       socket.off('matchEnded', handleMatchEnded);
       socket.off('settlementConfirmed', handleSettlementConfirmed);
       socket.off('disconnect', handleSocketDisconnect);
-      socket.off('reconnect', handleSocketReconnect);
+      socket.off('connect', handleSocketReconnect);
       socket.emit('leaveLobby', { accountId, tableId });
     };
   }, [accountId, mode, queueMoveAnimation, renderHighlights, renderPieces, tableId, waitingForOpponent]);
