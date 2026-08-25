@@ -65,6 +65,7 @@ import {
 import { giftSounds } from '../../utils/giftSounds.js';
 import { playLudoDiceRollSfx, playLudoTokenStepSfx } from '../../utils/ludoSfx.js';
 import { socket } from '../../utils/socket.js';
+import GameLiveAvatarOverlay from '../../components/GameLiveAvatarOverlay.jsx';
 import { loadExactUkrainianDroneModel } from '../../utils/ukrainianDroneModel.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -14710,6 +14711,8 @@ export default function LudoBattleRoyal() {
         avatar
       });
       socket.emit('confirmReady', { accountId: resolvedAccountId, tableId: onlineTableId });
+      socket.emit('joinLudoBattleTable', { accountId: resolvedAccountId, tableId: onlineTableId });
+      socket.emit('ludoBattleSyncRequest', { accountId: resolvedAccountId, tableId: onlineTableId });
     };
 
     const handleReconnect = () => {
@@ -14740,13 +14743,11 @@ export default function LudoBattleRoyal() {
     if (!indices.length) return null;
     return indices.map((idx) => FLAG_EMOJIS[idx]);
   }, [flagsParam]);
-  return (
-    <Ludo3D
-      avatar={avatar}
-      username={username}
-      aiFlagOverrides={aiFlagOverrides}
-      playerCount={playerCount}
-      aiCount={tableId === 'practice' ? requestedAiCount : playerCount - 1}
-    />
+  const game = (
+    <Ludo3D avatar={avatar} username={username} aiFlagOverrides={aiFlagOverrides}
+      playerCount={playerCount} aiCount={tableId === 'practice' ? requestedAiCount : playerCount - 1} />
   );
+  return mode === 'online' ? (
+    <GameLiveAvatarOverlay gameSlug="ludobattleroyal">{game}</GameLiveAvatarOverlay>
+  ) : game;
 }
