@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import FlagPickerModal from '../../components/FlagPickerModal.jsx';
 import RoomSelector from '../../components/RoomSelector.jsx';
@@ -7,17 +7,15 @@ import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import {
-  addTransaction,
-  getAccountBalance,
   getOnlineCount,
   pingOnline
 } from '../../utils/api.js';
 import { ensureAccountId, getTelegramId, getTelegramPhotoUrl } from '../../utils/telegram.js';
 import OptionIcon from '../../components/OptionIcon.jsx';
 import { getLobbyIcon } from '../../config/gameAssets.js';
-import { socket } from '../../utils/socket.js';
 import GameLobbyHeader from '../../components/GameLobbyHeader.jsx';
 import { getOnlineReadiness } from '../../config/onlineContract.js';
+import { runSimpleOnlineFlow } from '../../utils/simpleOnlineFlow.js';
 
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
@@ -63,7 +61,14 @@ export default function LudoBattleRoyalLobby() {
   const [showFlagPicker, setShowFlagPicker] = useState(false);
   const [showAiFlagPicker, setShowAiFlagPicker] = useState(false);
   const [online, setOnline] = useState(null);
+  const [matching, setMatching] = useState(false);
+  const [matchStatus, setMatchStatus] = useState('');
+  const [matchError, setMatchError] = useState('');
+  const [matchPlayers, setMatchPlayers] = useState([]);
+  const cleanupRef = useRef(null);
   const readiness = getOnlineReadiness('ludobattleroyal');
+
+  useEffect(() => () => cleanupRef.current?.(), []);
 
   useEffect(() => {
     import('./LudoBattleRoyal.jsx').catch(() => {});
@@ -147,19 +152,19 @@ export default function LudoBattleRoyalLobby() {
     try {
       tgId = getTelegramId();
       accountId = await ensureAccountId();
+      // Online balance validation and authoritative stake reservation are
+      // handled by the shared Chess-style matchmaking lifecycle below.
+    } catch {
       if (mode === 'online') {
-        const balRes = await getAccountBalance(accountId);
-        if ((balRes.balance || 0) < stake.amount) {
-          alert('Insufficient balance');
-          return;
-        }
-        await addTransaction(tgId, -stake.amount, 'stake', {
-          game: 'ludobattle',
-          players: table.capacity,
-          accountId
-        });
+        setMatchError('Unable to verify your TPG account. Please retry.');
+        return;
       }
-    } catch {}
+    }
+
+    if (mode === 'online' && !accountId) {
+      setMatchError('Unable to verify your TPG account. Please retry.');
+      return;
+    }
 
     const params = new URLSearchParams();
     const initData = window.Telegram?.WebApp?.initData;
@@ -184,37 +189,35 @@ export default function LudoBattleRoyalLobby() {
     if (initData) params.set('init', encodeURIComponent(initData));
 
     if (mode === 'online' && accountId) {
-      socket.emit('register', { tpcAccountNumber: accountId, accountId, playerId: accountId });
-      socket.emit(
-        'seatTable',
-        {
-          accountId,
-          tpcAccountNumber: accountId,
-          gameType: 'ludobattleroyal',
-          stake: Number(stake.amount) || 0,
-          maxPlayers: table.capacity || 2,
-          playerName: 'Player',
-          avatar,
-          mode: 'online',
-          token: stake.token
+      cleanupRef.current?.();
+      await runSimpleOnlineFlow({
+        gameType: 'ludobattleroyal',
+        stake,
+        maxPlayers: table.capacity || 2,
+        avatar,
+        playerName: 'Player',
+        quickMatch: true,
+        matchMeta: { requestedCapacity: table.capacity || 2 },
+        state: {
+          setMatching,
+          setMatchStatus,
+          setMatchError,
+          setMatchPlayers,
+          setCleanup: (cleanup) => { cleanupRef.current = cleanup; }
         },
-        (res = {}) => {
-          if (!res.success || !res.tableId) {
-            alert('Unable to join Ludo online table. Please try again.');
-            return;
-          }
-          params.set('tableId', res.tableId);
-          socket.emit('confirmReady', { tpcAccountNumber: accountId, accountId, tableId: res.tableId });
+        onMatched: (match) => {
+          params.set('tableId', match.tableId);
+          params.set('capacity', String(match.maxPlayers || table.capacity || 2));
           navigate(`/games/ludobattleroyal?${params.toString()}`);
         }
-      );
+      });
       return;
     }
 
     navigate(`/games/ludobattleroyal?${params.toString()}`);
   };
 
-  const disabled = mode === 'online' && (!stake || !stake.token || !stake.amount);
+  const disabled = matching || (mode === 'online' && (!stake || !stake.token || !stake.amount));
 
   return (
     <div className="relative min-h-screen bg-[#070b16] text-text">
@@ -368,12 +371,25 @@ export default function LudoBattleRoyalLobby() {
           </div>
         )}
 
+        {mode === 'online' && (matching || matchStatus || matchError) && (
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center">
+            <p className={`text-sm font-semibold ${matchError ? 'text-red-400' : 'text-white/80'}`}>
+              {matchError || matchStatus}
+            </p>
+            {matching && (
+              <p className="mt-1 text-xs text-white/50">
+                {matchPlayers.length}/{table.capacity || 2} verified players • your seat restores automatically
+              </p>
+            )}
+          </div>
+        )}
+
         <button
           onClick={startGame}
           disabled={disabled}
           className="w-full rounded-2xl bg-primary px-4 py-3 text-base font-semibold text-background shadow-[0_16px_30px_rgba(14,165,233,0.35)] transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Start Game
+          {matching ? 'Finding players…' : 'Start Game'}
         </button>
 
         <FlagPickerModal

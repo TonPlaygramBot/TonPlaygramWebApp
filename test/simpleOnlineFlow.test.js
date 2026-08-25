@@ -15,11 +15,17 @@ class MockSocket extends EventEmitter {
     if (this.connectSucceeds) {
       this.connected = true;
       setTimeout(() => this.emit('connect'), 0);
+    } else {
+      setTimeout(() => this.emit('connect_error', new Error('offline')), 0);
     }
     return this;
   }
 
   emit(event, payload, cb) {
+    if (event === 'register') {
+      cb?.({ success: true });
+      return true;
+    }
     if (event === 'seatTable') {
       this.seatRequests.push({ payload, cb });
       cb?.({ success: true, tableId: 'airhockey-1' });
@@ -81,7 +87,7 @@ test('runSimpleOnlineFlow reconnects socket before joining a table', async () =>
     'all matchmaking events must carry the authoritative TPG account number'
   );
   assert.equal(state.snapshot.matchError, '');
-  assert.equal(transactions.length, 1, 'debit should happen once and no refund should occur');
+  assert.equal(transactions.length, 0, 'the lobby must not debit before the authoritative seat lock');
   result.cleanup();
 });
 
@@ -121,7 +127,7 @@ test('runSimpleOnlineFlow preserves game criteria and owns canonical queue field
   result.cleanup();
 });
 
-test('runSimpleOnlineFlow refunds stake when socket reconnection fails', async () => {
+test('runSimpleOnlineFlow leaves stake untouched when private socket connection fails', async () => {
   const mockSocket = new MockSocket({ connected: false, connectSucceeds: false });
   const state = createState();
   const transactions = [];
@@ -129,6 +135,7 @@ test('runSimpleOnlineFlow refunds stake when socket reconnection fails', async (
   const result = await runSimpleOnlineFlow({
     gameType: 'airhockey',
     stake: { token: 'TPG', amount: 80 },
+    quickMatch: false,
     state,
     timeoutMs: 100,
     socketConnectTimeoutMs: 40,
@@ -145,10 +152,7 @@ test('runSimpleOnlineFlow refunds stake when socket reconnection fails', async (
   });
 
   assert.equal(result.ok, false);
-  assert.equal(state.snapshot.matchError, 'Socket not connected. Please retry.');
-  assert.equal(transactions.length, 2, 'debit should be refunded after failed socket reconnection');
-  assert.equal(transactions[0][1], -80);
-  assert.equal(transactions[1][1], 80);
-  assert.equal(transactions[1][2], 'stake_refund');
+  assert.equal(state.snapshot.matchError, 'Could not start online matchmaking. Please retry.');
+  assert.equal(transactions.length, 0, 'failed matchmaking cannot debit or require a refund');
   result.cleanup();
 });
