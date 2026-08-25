@@ -72,6 +72,9 @@ export async function runSimpleOnlineFlow({
   deps = {},
   refreshMs = MATCHMAKING_REFRESH_MS
 }) {
+  const effectiveRefreshMs = Number.isFinite(refreshMs) && refreshMs > 0
+    ? refreshMs
+    : MATCHMAKING_REFRESH_MS;
   const {
     setMatching,
     setMatchStatus,
@@ -174,7 +177,7 @@ export async function runSimpleOnlineFlow({
       setMatchPlayers?.([]);
       setMatchStatus('Still searching the ordered queue for the next same-stake opponent…');
       seatPlayer();
-    }, refreshMs);
+    }, effectiveRefreshMs);
   };
 
   let seatAttempts = 0;

@@ -14712,10 +14712,19 @@ export default function LudoBattleRoyal() {
       socket.emit('confirmReady', { accountId: resolvedAccountId, tableId: onlineTableId });
     };
 
+    const handleReconnect = () => {
+      // Socket.IO assigns a new server-side socket after a mobile network
+      // handoff. Re-bind the verified identity and authoritative room instead
+      // of allowing this client to continue from a stale local-only state.
+      syncRuntime().catch(() => {});
+    };
+
+    socket.on('connect', handleReconnect);
     syncRuntime().catch(() => {});
 
     return () => {
       cancelled = true;
+      socket.off('connect', handleReconnect);
       if (resolvedAccountId) {
         socket.emit('leaveLobby', { accountId: resolvedAccountId, tableId: onlineTableId });
       }
