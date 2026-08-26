@@ -5,7 +5,8 @@ import authenticate from '../middleware/auth.js';
 import { optionalAuthenticate } from '../middleware/auth.js';
 import {
   ensureTransactionArray,
-  calculateBalance
+  calculateBalance,
+  resolveAccountBalance
 } from '../utils/userUtils.js';
 import bot from '../bot.js';
 import {
@@ -294,7 +295,7 @@ router.post('/balance', authenticate, async (req, res) => {
   if (!canAccessUser(req, user)) {
     return res.status(403).json({ error: 'forbidden' });
   }
-  const balance = calculateBalance(user);
+  const balance = resolveAccountBalance(user);
   if (user.balance !== balance) {
     user.balance = balance;
     try {
@@ -320,7 +321,7 @@ router.post('/info', authenticate, async (req, res) => {
   ensureTransactionArray(user);
   if (!Array.isArray(user.gifts)) user.gifts = [];
 
-  const balance = calculateBalance(user);
+  const balance = resolveAccountBalance(user);
   if (user.balance !== balance) {
     user.balance = balance;
     try {

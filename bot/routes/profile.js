@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import User from '../models/User.js';
 import { fetchTelegramInfo } from '../utils/telegram.js';
-import { ensureTransactionArray, calculateBalance, sanitizeUser } from '../utils/userUtils.js';
+import { ensureTransactionArray, resolveAccountBalance, sanitizeUser } from '../utils/userUtils.js';
 import { normalizeAddress } from '../utils/ton.js';
 import authenticate from '../middleware/auth.js';
 
@@ -148,7 +148,7 @@ router.post('/get', async (req, res) => {
 
   ensureTransactionArray(user);
   if (!Array.isArray(user.gifts)) user.gifts = [];
-  const balance = calculateBalance(user);
+  const balance = resolveAccountBalance(user);
   if (user.balance !== balance) {
     user.balance = balance;
     await user.save();

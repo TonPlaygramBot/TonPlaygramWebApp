@@ -8,7 +8,11 @@ import bot from '../bot.js';
 import Message from '../models/Message.js';
 import { sendTransferNotification, sendTPCNotification } from '../utils/notifications.js';
 
-import { ensureTransactionArray, calculateBalance } from '../utils/userUtils.js';
+import {
+  ensureTransactionArray,
+  calculateBalance,
+  resolveAccountBalance
+} from '../utils/userUtils.js';
 
 import authenticate from '../middleware/auth.js';
 import tonClaim from '../utils/tonClaim.js';
@@ -87,7 +91,7 @@ router.post('/balance', authenticate, async (req, res) => {
     return res.status(400).json({ error: 'accountId or telegramId required' });
   }
 
-  const balance = calculateBalance(user);
+  const balance = resolveAccountBalance(user);
   if (user.balance !== balance) {
     user.balance = balance;
     try {

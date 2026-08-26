@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import authenticate from '../middleware/auth.js';
 import User from '../models/User.js';
-import { ensureTransactionArray, calculateBalance } from '../utils/userUtils.js';
+import { ensureTransactionArray, resolveAccountBalance } from '../utils/userUtils.js';
 import {
   findMemoryUser,
   saveMemoryUser,
@@ -94,14 +94,8 @@ export function applyStoreItemDelivery(user, items = []) {
   };
 }
 
-function safeNumericBalance(value) {
-  return Number.isFinite(value) ? value : 0;
-}
-
 function resolveUserBalance(user) {
-  const derived = safeNumericBalance(calculateBalance(user));
-  const persisted = safeNumericBalance(Number(user?.balance));
-  return Math.max(derived, persisted);
+  return resolveAccountBalance(user);
 }
 
 function isPrivileged(req) {
