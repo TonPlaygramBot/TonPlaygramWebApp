@@ -23,6 +23,20 @@ export function calculateBalance(user) {
   }, 0);
 }
 
+// `balance` is updated atomically by deposits, rewards, stakes, and payouts.
+// Some older accounts do not have a complete transaction ledger, so summing
+// that ledger can be lower than the funds that were actually persisted. Never
+// let a read request erase those funds; the ledger may still repair a stale
+// persisted value when its total is higher.
+export function resolveAccountBalance(user) {
+  if (!user) return 0;
+  const persisted = Number(user.balance);
+  const derived = Number(calculateBalance(user));
+  const safePersisted = Number.isFinite(persisted) ? persisted : 0;
+  const safeDerived = Number.isFinite(derived) ? derived : 0;
+  return Math.max(safePersisted, safeDerived);
+}
+
 export async function incrementReferralBonus(code) {
   if (!code) return;
   await User.updateOne(
