@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import useLiveVideoChat from '../hooks/useLiveVideoChat.js';
 import { buildGameLiveChatRoomId } from '../utils/liveVideoRoom.js';
 
-function RemoteVideo({ peer }) {
+function RemoteVideo({ peer, circular = false }) {
   const videoRef = useRef(null);
 
   useEffect(() => {
@@ -31,7 +31,7 @@ function RemoteVideo({ peer }) {
   }, [peer.stream]);
 
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-2xl bg-slate-950 shadow-2xl ring-2 ring-emerald-300/80">
+    <div className={`relative h-full w-full overflow-hidden bg-slate-950 shadow-2xl ring-2 ring-emerald-300/80 ${circular ? 'rounded-full' : 'rounded-2xl'}`}>
       <video
         ref={videoRef}
         autoPlay
@@ -115,6 +115,7 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
     height: 44
   });
   const [hasBlockingOverlay, setHasBlockingOverlay] = useState(false);
+  const isDominoRoyal = gameSlug === 'domino-royal';
 
   const displayName = useMemo(() => {
     if (typeof window === 'undefined') return 'Player';
@@ -431,19 +432,23 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
       ) : null}
       {liveMode ? (
         <div
-          className="fixed right-3 z-[18] flex w-28 flex-col gap-2 pointer-events-auto"
+          className={`fixed right-3 z-[18] flex flex-col gap-2 pointer-events-auto ${isDominoRoyal ? '' : 'w-28'}`}
           style={{
             top: 'max(4.75rem, env(safe-area-inset-top))',
+            ...(isDominoRoyal ? { width: `${overlayRect.width}px` } : {}),
             opacity: hasBlockingOverlay ? 0 : 1,
             pointerEvents: hasBlockingOverlay ? 'none' : 'auto'
           }}
           aria-live="polite"
         >
-          <div className="h-36 w-28">
+          <div
+            className={isDominoRoyal ? 'overflow-hidden rounded-full' : 'h-36 w-28'}
+            style={isDominoRoyal ? { width: `${overlayRect.width}px`, height: `${overlayRect.height}px` } : undefined}
+          >
             {liveChat.remotePeers[0] ? (
-              <RemoteVideo peer={liveChat.remotePeers[0]} />
+              <RemoteVideo peer={liveChat.remotePeers[0]} circular={isDominoRoyal} />
             ) : (
-              <div className="flex h-full items-center justify-center rounded-2xl bg-slate-950/90 px-3 text-center text-[10px] font-semibold text-white/70 shadow-xl ring-1 ring-white/20">
+              <div className={`flex h-full items-center justify-center bg-slate-950/90 px-2 text-center text-[10px] font-semibold text-white/70 shadow-xl ring-1 ring-white/20 ${isDominoRoyal ? 'rounded-full' : 'rounded-2xl'}`}>
                 {liveChat.error || 'Waiting for opponent to activate live video…'}
               </div>
             )}

@@ -9036,6 +9036,7 @@ const winnerOverlayReason = document.getElementById('winnerReason');
 const winnerPlayAgainButton = document.getElementById('winnerPlayAgain');
 const winnerReturnLobbyButton = document.getElementById('winnerReturnLobby');
 const winnerCoinBurst = document.getElementById('winnerCoinBurst');
+const yourTurnPopup = document.getElementById('yourTurnPopup');
 const leaderboardToggleButton = document.getElementById('leaderboardToggle');
 const leaderboardCard = null;
 
@@ -9103,9 +9104,12 @@ winnerPlayAgainButton?.addEventListener('click', () => {
 
 function navigateToDominoLobby() {
   shutdownDominoRoyal('return-to-lobby');
-  const route = '/games/domino-royal/lobby?return=1';
+  const currentParams = new URLSearchParams(window.location.search);
+  currentParams.set('return', '1');
+  const route = `/games/domino-royal/lobby?${currentParams.toString()}`;
   if (typeof window !== 'undefined' && window.location) {
-    window.location.replace(route);
+    window.history.pushState({}, '', route);
+    window.dispatchEvent(new PopStateEvent('popstate'));
   }
 }
 
@@ -11331,6 +11335,13 @@ function updateInteractivity() {
     return;
   }
   setStatus(`Turn: Player ${current + 1}`);
+  if (yourTurnPopup) {
+    yourTurnPopup.classList.remove('active');
+    if (current === human) {
+      void yourTurnPopup.offsetWidth;
+      yourTurnPopup.classList.add('active');
+    }
+  }
   clearAllPassBubbles();
   renderHands();
   renderChain();
