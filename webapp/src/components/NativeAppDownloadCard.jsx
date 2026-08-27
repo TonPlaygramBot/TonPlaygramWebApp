@@ -1,12 +1,6 @@
 import { Apple, Check, Download, ShieldCheck, Smartphone } from 'lucide-react';
 
-const configuredAndroidUrl = import.meta.env.VITE_ANDROID_APK_URL || import.meta.env.VITE_LAUNCHER_URL;
-// The old cdn.tonplaygram.com hostname was never provisioned and sends Android
-// users to Chrome's DNS error page. Keep the download on the web app's origin
-// unless deployment explicitly supplies a working APK URL.
-const androidUrl = configuredAndroidUrl?.includes('://cdn.tonplaygram.com/')
-  ? '/tonplaygram-launcher.apk'
-  : configuredAndroidUrl || '/tonplaygram-launcher.apk';
+const androidUrl = import.meta.env.VITE_ANDROID_APK_URL || import.meta.env.VITE_LAUNCHER_URL || '';
 const iosUrl = import.meta.env.VITE_IOS_INSTALL_URL || '';
 
 function StoreButton({ href, icon: Icon, eyebrow, title, download, unavailableLabel }) {
