@@ -53,6 +53,7 @@ import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
 import { refreshSocketAuthIdentity, socket } from '../../utils/socket.js';
 import { addTransaction, getAccountBalance } from '../../utils/api.js';
 import { getTelegramId } from '../../utils/telegram.js';
+import { orderTexasHoldemStateForNetwork, orderTexasHoldemStateForViewer } from '../../utils/texasHoldemOnlineState.js';
 
 import {
   createDeck,
@@ -1022,7 +1023,14 @@ function buildPlayers(searchOrOptions) {
   const humanAvatar = getAvatarUrl(options.avatar) || nextAvatar();
   const humanFlag = nextFlag() || '🇦🇱';
   if (options.mode === 'online' && options.tableId && options.accountId && options.onlinePlayers?.length) {
-    return options.onlinePlayers.slice(0, playerCount).map((player, index) => {
+    const tablePlayers = options.onlinePlayers.slice(0, playerCount);
+    const selfIndex = tablePlayers.findIndex((player) =>
+      String(player.id || player.tpcAccountNumber || '') === String(options.accountId)
+    );
+    const orderedPlayers = selfIndex > 0
+      ? [...tablePlayers.slice(selfIndex), ...tablePlayers.slice(0, selfIndex)]
+      : tablePlayers;
+    return orderedPlayers.map((player, index) => {
       const id = String(player.id || player.tpcAccountNumber || '');
       const isSelf = id === String(options.accountId);
       return {
@@ -6978,9 +6986,10 @@ function TexasHoldemArena({ search }) {
       if (String(tableId) !== String(onlineContext.tableId) || !state?.players) return;
       onlineStateRef.current.suppressNextEmit = true;
       onlineStateRef.current.hydrated = true;
+      const viewerState = orderTexasHoldemStateForViewer(state, onlineContext.accountId);
       setGameState({
-        ...state,
-        players: state.players.map((player) => {
+        ...viewerState,
+        players: viewerState.players.map((player) => {
           const isSelf = String(player.id) === String(onlineContext.accountId);
           return { ...player, isHuman: isSelf, isOnlineRemote: !isSelf };
         })
@@ -7003,10 +7012,11 @@ function TexasHoldemArena({ search }) {
     }
     const hostId = String(onlineContext.players?.[0]?.id || onlineContext.players?.[0]?.tpcAccountNumber || '');
     if (!onlineStateRef.current.hydrated && hostId !== String(onlineContext.accountId)) return;
-    const sharedState = {
+    const localSharedState = {
       ...gameState,
       players: gameState.players.map(({ isHuman: _isHuman, isOnlineRemote: _isOnlineRemote, ...player }) => player)
     };
+    const sharedState = orderTexasHoldemStateForNetwork(localSharedState, onlineContext.players);
     socket.emit('texasHoldemState', {
       tableId: onlineContext.tableId,
       accountId: onlineContext.accountId,
@@ -7313,19 +7323,29 @@ function TexasHoldemArena({ search }) {
   }, [overheadView, overheadZoom]);
 
 
+  const triggerLiveAvatarVideo = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(new CustomEvent('tonplaygram:live-avatar:start', {
+      detail: { gameSlug: 'texasholdem' }
+    }));
+  }, []);
+
   return (
     <div className="relative w-full h-full">
       <div ref={mountRef} className="absolute inset-0" />
-      <div
+      <button
+        type="button"
         data-self-player="true"
-        className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+1rem)] left-1/2 z-[17] -translate-x-1/2"
+        onClick={triggerLiveAvatarVideo}
+        aria-label="Turn on live avatar video"
+        className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+1rem)] left-1/2 z-[17] -translate-x-1/2 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
       >
         <div
           className="seat-badge-core flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border-2 border-emerald-300 bg-slate-950 shadow-xl"
         >
           {humanPlayer?.avatar ? <img src={humanPlayer.avatar} alt="You" className="h-full w-full object-cover" /> : <span>🙂</span>}
         </div>
-      </div>
+      </button>
       <button type="button" onClick={() => setShowTopUp(true)} className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+1.4rem)] right-3 z-20 rounded-full border border-emerald-200/50 bg-emerald-500 px-3 py-2 text-xs font-black text-slate-950 shadow-xl" aria-label="Top up poker chips from TPC account">+ TPC</button>
       {showTopUp ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)]" role="dialog" aria-modal="true" aria-label="Top up table chips">
