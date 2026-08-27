@@ -4,9 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag used by the permanent homepage download"
+        description: "Release tag (e.g. launcher-v1)"
         required: true
         default: "launcher-latest"
+      prerelease:
+        description: "Mark as prerelease"
+        required: false
+        default: "true"
 
 permissions:
   contents: write
@@ -29,11 +33,6 @@ jobs:
         run: npm run install-all
 
       - name: Build webapp
-        env:
-          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
-          VITE_SOCKET_URL: ${{ secrets.VITE_SOCKET_URL }}
-          VITE_SOCKET_PATH: ${{ secrets.VITE_SOCKET_PATH }}
-          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
         run: npm --prefix webapp run build
 
       - name: Setup Java
@@ -43,49 +42,22 @@ jobs:
           java-version: 21
 
       - name: Sync Capacitor
-        working-directory: webapp
         run: npx cap sync android
 
-      - name: Restore Android release keystore
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: |
-          test -n "$ANDROID_KEYSTORE_BASE64"
-          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > webapp/android/release.keystore
-          cat > webapp/android/keystore.properties <<EOF
-          storeFile=release.keystore
-          storePassword=$ANDROID_STORE_PASSWORD
-          keyAlias=$ANDROID_KEY_ALIAS
-          keyPassword=$ANDROID_KEY_PASSWORD
-          EOF
-
-      - name: Build signed, locally bundled APK
+      - name: Build debug APK
         working-directory: webapp/android
-        run: ./gradlew assembleRelease
+        run: ./gradlew assembleDebug
 
-      - name: Verify and prepare APK
+      - name: Prepare APK
         run: |
-          cp webapp/android/app/build/outputs/apk/release/app-release.apk tonplaygram-launcher.apk
-          unzip -l tonplaygram-launcher.apk | grep -q 'assets/public/index.html'
-          unzip -l tonplaygram-launcher.apk | grep -q 'assets/public/assets/'
-          test "$(stat -c%s tonplaygram-launcher.apk)" -gt 1000000
-
-      - name: Upload installable APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: TonPlaygram-Android
-          path: tonplaygram-launcher.apk
-          if-no-files-found: error
+          cp webapp/android/app/build/outputs/apk/debug/app-debug.apk tonplaygram-launcher.apk
+          ls -la tonplaygram-launcher.apk
 
       - name: Create/Update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.tag }}
-          name: TonPlaygram Android App
-          prerelease: false
-          make_latest: true
+          name: TonPlaygram Android Launcher
+          prerelease: ${{ inputs.prerelease }}
           files: tonplaygram-launcher.apk
           fail_on_unmatched_files: true

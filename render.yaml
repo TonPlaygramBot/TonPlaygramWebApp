@@ -4,17 +4,13 @@ services:
     name: tonplaygram-api
     branch: main
     rootDir: bot
-    buildCommand: npm install && npm --prefix ../webapp install && npm --prefix ../webapp run fetch:launcher && WEBAPP_BUILD_MAX_OLD_SPACE_SIZE=1536 npm --prefix ../webapp run build
+    buildCommand: npm install && npm --prefix ../webapp install && WEBAPP_BUILD_MAX_OLD_SPACE_SIZE=1536 npm --prefix ../webapp run build
     startCommand: npm start
     envVars:
       - key: MONGO_URI
         fromSecret: MONGO_URI
       - key: BOT_TOKEN
         fromSecret: BOT_TOKEN
-      # Signed APK published by the Android release workflow. It is copied into
-      # the web build so /tonplaygram-launcher.apk always returns a real file.
-      - key: LAUNCHER_URL
-        fromSecret: LAUNCHER_URL
       # Recommended (set these in Render, even if some are optional):
       - key: ALLOWED_ORIGINS
         fromSecret: ALLOWED_ORIGINS
