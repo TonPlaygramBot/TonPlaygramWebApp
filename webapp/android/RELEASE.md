@@ -13,4 +13,9 @@
 
 4) Publish and wire the download link
    - Upload the generated `app-release.apk` to your CDN/object storage.
-   - Set `VITE_LAUNCHER_URL` in the web deployment environment to the new URL so `Home.jsx` links to the latest launcher without committing binaries.
+   - Set `VITE_ANDROID_APK_URL` (or the legacy `VITE_LAUNCHER_URL`) in the web deployment environment to the new URL so the home page links to the latest APK without committing binaries.
+
+5) Publish the iOS build separately
+   - Archive and sign `webapp/ios/App/App.xcworkspace` on macOS with Xcode.
+   - Distribute it with TestFlight, the App Store, or another Apple-approved signed installation service.
+   - Set `VITE_IOS_INSTALL_URL` to that public installation page. iOS does not install Android APK files.
