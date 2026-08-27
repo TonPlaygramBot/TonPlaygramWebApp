@@ -447,6 +447,11 @@ const CUSTOM_SEAT_ANGLES = [
   THREE.MathUtils.degToRad(270),
   THREE.MathUtils.degToRad(180)
 ];
+const HEAD_TO_HEAD_SEAT_ANGLES = [
+  THREE.MathUtils.degToRad(90),
+  THREE.MathUtils.degToRad(270)
+];
+const ONLINE_REMATCH_GRACE_SECONDS = 10;
 
 const SUITS = ['♠', '♥', '♦', '♣'];
 const OPEN_SOURCE_SUIT_CODES = Object.freeze({
@@ -3614,6 +3619,7 @@ export default function MurlanRoyaleArena({ search }) {
   const [selectedIds, setSelectedIds] = useState([]);
   const [uiState, setUiState] = useState(() => computeUiState(gameState));
   const [actionError, setActionError] = useState('');
+  const [rematchWaitSeconds, setRematchWaitSeconds] = useState(0);
   const [threeReady, setThreeReady] = useState(false);
   const [seatAnchors, setSeatAnchors] = useState([]);
   const [discardHudAnchor, setDiscardHudAnchor] = useState(null);
@@ -4670,6 +4676,7 @@ export default function MurlanRoyaleArena({ search }) {
     const handsVisible = new Set();
     const tableSet = new Set(state.tableCards.map((card) => card.id));
     const discardSet = new Set(state.discardPile.map((card) => card.id));
+    const stockSet = new Set((state.stockCards || []).map((card) => card.id));
 
     const seatConfigs = three.seatConfigs;
     const cardMap = three.cardMap;
@@ -4932,8 +4939,28 @@ export default function MurlanRoyaleArena({ search }) {
       );
     });
 
+    (state.stockCards || []).forEach((card, idx) => {
+      const entry = cardMap.get(card.id);
+      if (!entry) return;
+      const mesh = entry.mesh;
+      mesh.visible = true;
+      mesh.scale.setScalar(1);
+      updateCardFace(mesh, 'back');
+      setBackLogoOrientation(mesh, 'top');
+      const target = tableAnchor.clone().addScaledVector(pileRightAxis, -0.72 * MODEL_SCALE);
+      target.y += 0.052 * MODEL_SCALE + idx * 0.0022;
+      setMeshPosition(
+        mesh,
+        target,
+        tableLookBase,
+        { face: 'back', flat: true, flatTiltX: COMMUNITY_CARD_TOP_TILT, flatYawY: 0 },
+        immediate,
+        three.animations
+      );
+    });
+
     three.cardMap.forEach(({ mesh }, id) => {
-      if (handsVisible.has(id) || tableSet.has(id) || discardSet.has(id)) return;
+      if (handsVisible.has(id) || tableSet.has(id) || discardSet.has(id) || stockSet.has(id)) return;
       mesh.scale.setScalar(1);
       mesh.visible = false;
       if (mesh.userData?.animation) {
@@ -6085,8 +6112,9 @@ export default function MurlanRoyaleArena({ search }) {
       const seatConfigs = [];
       threeStateRef.current.chairInstances = [];
 
-      for (let i = 0; i < CHAIR_COUNT; i++) {
-        const player = players[i] ?? null;
+      const activeSeatCount = Math.min(players.length, CHAIR_COUNT);
+      for (let i = 0; i < activeSeatCount; i++) {
+        const player = players[i];
         const chair = new THREE.Group();
         chair.scale.set(
           CHAIR_VISUAL_SCALE,
@@ -6102,7 +6130,8 @@ export default function MurlanRoyaleArena({ search }) {
         // Preserve server player order while rotating the presentation so every
         // local player gets the same visually-bottom seat used by VS AI.
         const visualSeatIndex = player ? getVisualSeatIndex(i) : i;
-        const angle = CUSTOM_SEAT_ANGLES[visualSeatIndex] ?? Math.PI / 2 - (visualSeatIndex / CHAIR_COUNT) * Math.PI * 2;
+        const seatAngles = activeSeatCount === 2 ? HEAD_TO_HEAD_SEAT_ANGLES : CUSTOM_SEAT_ANGLES;
+        const angle = seatAngles[visualSeatIndex] ?? Math.PI / 2 - (visualSeatIndex / activeSeatCount) * Math.PI * 2;
         const isHumanSeat = Boolean(player?.isHuman);
         const baseSeatRadius =
           (isHumanSeat
@@ -6705,6 +6734,37 @@ export default function MurlanRoyaleArena({ search }) {
     setActionError('');
   }, []);
 
+  useEffect(() => {
+    if (gameState.status !== 'ENDED') {
+      setRematchWaitSeconds(0);
+      return undefined;
+    }
+    setRematchWaitSeconds(onlineContext.enabled ? ONLINE_REMATCH_GRACE_SECONDS : 0);
+    if (!onlineContext.enabled) return undefined;
+    const timer = window.setInterval(() => {
+      setRematchWaitSeconds((seconds) => {
+        if (seconds <= 1) {
+          window.clearInterval(timer);
+          return 0;
+        }
+        return seconds - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [gameState.status, onlineContext.enabled]);
+
+  const handlePlayAgain = useCallback(() => {
+    if (rematchWaitSeconds > 0) return;
+    setSelectedIds([]);
+    setActionError('');
+    onlineStateRef.current.hydrated = true;
+    setGameState(initializeGame(players));
+  }, [players, rematchWaitSeconds]);
+
+  const handleReturnToLobby = useCallback(() => {
+    window.location.assign('/games/murlanroyale/lobby');
+  }, []);
+
   const humanPlayer = gameState.players.find((player) => player.isHuman) ?? null;
   const topSeatIndex = useMemo(() => {
     let bestIndex = -1;
@@ -7017,6 +7077,38 @@ export default function MurlanRoyaleArena({ search }) {
           </div>
         </div>
       </div>
+      {gameState.status === 'ENDED' ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/72 px-5 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-3xl border border-amber-300/40 bg-slate-950/95 p-6 text-center text-white shadow-2xl">
+            <p className="text-xs font-bold uppercase tracking-[0.35em] text-amber-300">Match complete</p>
+            <h2 className="mt-3 text-2xl font-black">{uiState.message}</h2>
+            <p className="mt-3 text-sm text-slate-300">
+              {rematchWaitSeconds > 0
+                ? `Keeping the table open for players to reconnect… ${rematchWaitSeconds}s`
+                : onlineContext.enabled
+                  ? 'The table is ready for the next game.'
+                  : 'Ready for another game?'}
+            </p>
+            <div className="mt-6 grid gap-3">
+              <button
+                type="button"
+                onClick={handlePlayAgain}
+                disabled={rematchWaitSeconds > 0}
+                className="rounded-2xl bg-emerald-500 px-5 py-3 font-extrabold uppercase tracking-wider text-white disabled:cursor-wait disabled:bg-emerald-900 disabled:text-white/60"
+              >
+                {rematchWaitSeconds > 0 ? `Reconnect (${rematchWaitSeconds})` : 'Play again'}
+              </button>
+              <button
+                type="button"
+                onClick={handleReturnToLobby}
+                className="rounded-2xl border border-white/20 bg-white/10 px-5 py-3 font-bold uppercase tracking-wider text-white"
+              >
+                Return to lobby
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {chatBubbles.map((bubble) => (
         <div key={bubble.id} className="chat-bubble">
           <span>{bubble.text}</span>
@@ -7279,7 +7371,8 @@ function extractSelectedCards(hand, selectedIds) {
 function initializeGame(playersInfo) {
   const deck = createDeck();
   shuffleInPlace(deck);
-  const hands = dealHands(deck, playersInfo.length);
+  const dealtHandCount = playersInfo.length === 2 ? 3 : playersInfo.length;
+  const hands = dealHands(deck, dealtHandCount);
   const playerStates = playersInfo.map((info, idx) => ({
     ...info,
     hand: sortHand(hands[idx], GAME_CONFIG),
@@ -7299,6 +7392,7 @@ function initializeGame(playersInfo) {
     lastWinner: active,
     firstMove: true,
     status: 'PLAYING',
+    stockCards: dealtHandCount > playersInfo.length ? hands[playersInfo.length] : [],
     allCards: deck,
     lastAction: null,
     lastActionId: 0,
