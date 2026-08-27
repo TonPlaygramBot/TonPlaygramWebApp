@@ -1,9 +1,9 @@
-export function buildGameLiveChatRoomId(gameSlug, params) {
+export function buildGameLiveChatRoomId (gameSlug, params) {
   const sessionId =
-    params.get('table') ||
     params.get('tableId') ||
+    params.get('table') ||
     params.get('room') ||
     params.get('roomId') ||
-    'default';
-  return `live-${gameSlug}-${sessionId}`;
+    'default'
+  return `live-${gameSlug}-${sessionId}`
 }
