@@ -534,6 +534,7 @@ const poolStates = new Map();
 const snookerStates = new Map();
 const dominoRoyalStates = new Map();
 const murlanRoyalStates = new Map();
+const texasHoldemStates = new Map();
 const ludoBattleStates = new Map();
 const fourInRowStates = new Map();
 const dominoRoyalTableNumbers = new Set();
@@ -1733,6 +1734,8 @@ function maybeStartGame(table) {
         dominoRoyalStates.set(table.id, { state: null, action: null, ts: Date.now() });
       } else if (table.gameType === 'murlanroyale') {
         murlanRoyalStates.set(table.id, { state: null, action: null, ts: Date.now(), revision: 0 });
+      } else if (table.gameType === 'texasholdem') {
+        texasHoldemStates.set(table.id, { state: null, action: null, ts: Date.now(), revision: 0 });
       }
     }, 1000);
   }
@@ -2982,6 +2985,47 @@ io.on('connection', (socket) => {
     murlanRoyalStates.set(tableId, { state: authoritativeState, action: payload.action, ts: payload.updatedAt, revision });
     socket.to(tableId).emit('murlanRoyaleState', payload);
     cb && cb({ success: true, revision });
+  });
+
+  socket.on('joinTexasHoldemTable', async ({ tableId, accountId } = {}) => {
+    if (!tableId) return;
+    const resolvedAccountId = resolveTpcIdentity({ accountId });
+    const table = tableMap.get(tableId);
+    if (!ensureRegistered(socket, resolvedAccountId) || !table || table.gameType !== 'texasholdem' ||
+      !table.players.some((player) => String(player.id) === String(resolvedAccountId))) {
+      socket.emit('texasHoldemSyncError', { tableId, error: 'seat_required' });
+      return;
+    }
+    socket.join(tableId);
+    await registerConnection({ userId: String(resolvedAccountId), roomId: tableId, socketId: socket.id });
+    const cached = texasHoldemStates.get(tableId);
+    if (cached?.state) socket.emit('texasHoldemState', { tableId, ...cached });
+  });
+
+  socket.on('texasHoldemSyncRequest', ({ tableId, accountId } = {}) => {
+    const resolvedAccountId = resolveTpcIdentity({ accountId });
+    const table = tableMap.get(tableId);
+    if (!ensureRegistered(socket, resolvedAccountId) || !table?.players.some((player) => String(player.id) === String(resolvedAccountId))) return;
+    const cached = texasHoldemStates.get(tableId);
+    if (cached?.state) socket.emit('texasHoldemState', { tableId, ...cached });
+  });
+
+  socket.on('texasHoldemState', ({ tableId, accountId, state, action } = {}, cb) => {
+    if (!tableId || !state || !socket.rooms.has(tableId)) return;
+    const resolvedAccountId = resolveTpcIdentity({ accountId });
+    const table = tableMap.get(tableId);
+    if (!ensureRegistered(socket, resolvedAccountId) || !table || table.gameType !== 'texasholdem' ||
+      !table.players.some((player) => String(player.id) === String(resolvedAccountId))) {
+      cb?.({ success: false, error: 'seat_required' });
+      return;
+    }
+    const cached = texasHoldemStates.get(tableId);
+    const revision = Number(cached?.revision || 0) + 1;
+    const authoritativeState = { ...state, seq: revision };
+    const payload = { tableId, state: authoritativeState, action: { ...(action || {}), accountId: String(resolvedAccountId) }, ts: Date.now(), revision };
+    texasHoldemStates.set(tableId, payload);
+    socket.to(tableId).emit('texasHoldemState', payload);
+    cb?.({ success: true, revision });
   });
 
   socket.on('joinPoolTable', async ({ tableId, accountId } = {}, cb) => {
