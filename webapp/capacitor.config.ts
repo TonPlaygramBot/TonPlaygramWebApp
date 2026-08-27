@@ -23,7 +23,9 @@ const config: CapacitorConfig = {
   },
   server: {
     androidScheme: 'https',
-    // Production host used by the Android shell.
+    // This is the origin of Capacitor's on-device asset server. There is no
+    // remote `server.url`: cap sync packages webDir into the APK so the UI,
+    // games and static assets load locally after installation.
     hostname: 'tonplaygram-bot.onrender.com',
     allowNavigation: [
       'tonplaygram-bot.onrender.com',

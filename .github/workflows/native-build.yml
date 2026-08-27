@@ -41,7 +41,8 @@ jobs:
         run: npm --prefix webapp run build
 
       - name: Sync Capacitor Android
-        run: npx --prefix webapp cap sync android
+        working-directory: webapp
+        run: npx cap sync android
 
       - name: Build Android APK and AAB
         run: |
@@ -87,7 +88,8 @@ jobs:
         run: npm --prefix webapp run build
 
       - name: Sync Capacitor iOS
-        run: npx --prefix webapp cap sync ios
+        working-directory: webapp
+        run: npx cap sync ios
 
       - name: Install CocoaPods
         run: |
