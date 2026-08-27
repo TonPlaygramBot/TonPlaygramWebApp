@@ -91,6 +91,52 @@ test('runSimpleOnlineFlow reconnects socket before joining a table', async () =>
   result.cleanup();
 });
 
+test('runSimpleOnlineFlow lets the server verify a transient zero balance response', async () => {
+  const mockSocket = new MockSocket({ connected: true });
+  const state = createState();
+
+  const result = await runSimpleOnlineFlow({
+    gameType: 'ludobattleroyal',
+    stake: { token: 'TPG', amount: 100 },
+    state,
+    deps: {
+      ensureAccountId: () => Promise.resolve('acct-ludo'),
+      getAccountBalance: () => Promise.resolve({ balance: 0 }),
+      addTransaction: () => Promise.resolve(),
+      getTelegramId: () => 'tg-ludo',
+      socket: mockSocket
+    }
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(mockSocket.seatRequests.length, 1);
+  assert.equal(state.snapshot.matchError, '');
+  result.cleanup();
+});
+
+test('runSimpleOnlineFlow still blocks a confirmed positive balance shortfall', async () => {
+  const mockSocket = new MockSocket({ connected: true });
+  const state = createState();
+
+  const result = await runSimpleOnlineFlow({
+    gameType: 'ludobattleroyal',
+    stake: { token: 'TPG', amount: 100 },
+    state,
+    deps: {
+      ensureAccountId: () => Promise.resolve('acct-ludo'),
+      getAccountBalance: () => Promise.resolve({ balance: 50 }),
+      addTransaction: () => Promise.resolve(),
+      getTelegramId: () => 'tg-ludo',
+      socket: mockSocket
+    }
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(mockSocket.seatRequests.length, 0);
+  assert.equal(state.snapshot.matchError, 'Insufficient balance for this stake.');
+  result.cleanup();
+});
+
 test('runSimpleOnlineFlow preserves game criteria and owns canonical queue fields', async () => {
   const mockSocket = new MockSocket({ connected: true });
   const state = createState();

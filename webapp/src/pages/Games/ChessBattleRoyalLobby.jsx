@@ -579,7 +579,15 @@ export default function ChessBattleRoyalLobby() {
         trackedAccountId = getTpcAccountId() || trackedAccountId;
         if (trackedAccountId) setAccountId((prev) => prev || trackedAccountId);
         const balRes = await getAccountBalance(trackedAccountId);
-        if ((balRes.balance || 0) < stake.amount) {
+        const confirmedBalance = Number(balRes?.balance);
+        // Do not treat the mobile balance endpoint's transient zero fallback
+        // as authoritative. The server reserves and validates both stakes
+        // when the two seats are locked.
+        if (
+          Number.isFinite(confirmedBalance) &&
+          confirmedBalance > 0 &&
+          confirmedBalance < stake.amount
+        ) {
           alert('Insufficient balance');
           return;
         }
