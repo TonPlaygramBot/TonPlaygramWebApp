@@ -8138,7 +8138,7 @@ function disposeBoardGroup(group) {
   });
 }
 
-function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
+function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlineContext = null }) {
   const wrapRef = useRef(null);
   const rafRef = useRef(0);
   const controlsRef = useRef(null);
@@ -8152,6 +8152,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const rollDiceRef = useRef(() => {});
   const turnIndicatorRef = useRef(null);
   const stateRef = useRef(null);
+  const onlineContextRef = useRef(onlineContext);
+  const pendingOnlineStateRef = useRef(null);
+  const applyOnlineStateRef = useRef(() => {});
   const uiRef = useRef(null);
   const moveSoundRef = useRef(null);
   const captureSoundRef = useRef(null);
@@ -8213,11 +8216,56 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const parkedCaptureVehiclesRef = useRef(new Map());
   const weaponAnimationMixersRef = useRef(new Set());
   const activePlayerCount = useMemo(() => clampPlayerCount(playerCount), [playerCount]);
+  const isOnlineMatch = Boolean(onlineContext?.tableId && onlineContext?.accountId);
   const aiSlots = Math.max(0, activePlayerCount - 1);
   const aiOpponentCount = useMemo(
     () => clamp(Math.floor(aiCount ?? aiSlots), 0, aiSlots),
     [aiCount, aiSlots]
   );
+
+  useEffect(() => {
+    onlineContextRef.current = onlineContext;
+  }, [onlineContext]);
+
+  useEffect(() => {
+    if (!isOnlineMatch) return undefined;
+    const { tableId, accountId } = onlineContext;
+    let active = true;
+
+    const handleState = (payload = {}) => {
+      if (!active || String(payload.tableId || '') !== String(tableId) || !payload.state) return;
+      pendingOnlineStateRef.current = payload;
+      applyOnlineStateRef.current(payload);
+    };
+    const handleSyncError = (payload = {}) => {
+      if (!active || String(payload.tableId || '') !== String(tableId)) return;
+      if (payload.state) handleState({ tableId, state: payload.state, action: { type: 'sync' } });
+      else socket.emit('ludoBattleSyncRequest', { tableId, accountId });
+    };
+    const restoreSession = () => {
+      if (!active) return;
+      socket.emit('register', { playerId: accountId }, (registered) => {
+        if (!active || registered?.success === false) return;
+        socket.emit('joinLudoBattleTable', { tableId, accountId }, (joined) => {
+          if (!active) return;
+          if (joined?.state) handleState({ tableId, state: joined.state, action: { type: 'sync' } });
+          socket.emit('ludoBattleSyncRequest', { tableId, accountId });
+        });
+      });
+    };
+
+    socket.on('ludoBattleState', handleState);
+    socket.on('ludoBattleSyncError', handleSyncError);
+    socket.on('connect', restoreSession);
+    restoreSession();
+    return () => {
+      active = false;
+      socket.off('ludoBattleState', handleState);
+      socket.off('ludoBattleSyncError', handleSyncError);
+      socket.off('connect', restoreSession);
+      socket.emit('leaveLobby', { tableId, accountId });
+    };
+  }, [isOnlineMatch, onlineContext?.tableId, onlineContext?.accountId]);
   const resolvedAccountId = useMemo(() => ludoBattleAccountId(), []);
   const [inventoryVersion, setInventoryVersion] = useState(0);
   const ludoInventory = useMemo(
@@ -10179,7 +10227,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       setUi({ turn: 0, status: 'Your turn — dice rolling soon', dice: null, winner: null, turnCycle: 0 });
       updateTokenStacks();
       applyRailLayout();
-      scheduleHumanAutoRoll();
+      if (!onlineContextRef.current?.tableId) scheduleHumanAutoRoll();
+      else if (pendingOnlineStateRef.current) applyOnlineStateRef.current(pendingOnlineStateRef.current);
     };
 
     playerColorsRef.current = nextColors;
@@ -10717,7 +10766,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
     applyRailLayout();
 
-    scheduleHumanAutoRoll();
+    if (!onlineContextRef.current?.tableId) scheduleHumanAutoRoll();
+    else if (pendingOnlineStateRef.current) applyOnlineStateRef.current(pendingOnlineStateRef.current);
 
     arenaRef.current = {
       renderer,
@@ -13449,6 +13499,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
   const queueAiRoll = useCallback(
     (delay = AI_ROLL_DELAY_MS) => {
+      if (onlineContextRef.current?.tableId) return;
       if (aiTimeoutRef.current) {
         clearTimeout(aiTimeoutRef.current);
       }
@@ -13486,6 +13537,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   }, [setUi]);
 
   const advanceTurn = (extraTurn) => {
+    if (onlineContextRef.current?.tableId) return;
     clearTurnAdvanceTimeout();
     clearHumanSelection();
     cancelCameraFocusAnimation();
@@ -13614,6 +13666,22 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const moveToken = (player, tokenIndex, roll, options = {}) => {
     const state = stateRef.current;
     if (!state) return;
+    const online = onlineContextRef.current;
+    if (online?.tableId) {
+      if (player !== 0 || state.turn !== 0) return;
+      clearHumanSelection();
+      socket.emit('ludoBattleMove', {
+        tableId: online.tableId,
+        accountId: online.accountId,
+        token: tokenIndex,
+        revision: state.onlineRevision
+      }, (response = {}) => {
+        if (response?.success === false) {
+          socket.emit('ludoBattleSyncRequest', online);
+        }
+      });
+      return;
+    }
     if (player === 0) {
       lockUserTurnSeatViewRef.current = false;
     }
@@ -13788,6 +13856,22 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const dice = diceRef.current;
     if (!dice || dice.userData?.isRolling) return;
     const player = state.turn;
+    const online = onlineContextRef.current;
+    if (online?.tableId) {
+      if (player !== 0 || state.onlinePendingRoll != null) return;
+      dice.userData.isRolling = true;
+      setUi((current) => ({ ...current, status: 'Rolling…' }));
+      socket.emit('ludoBattleRoll', {
+        tableId: online.tableId,
+        accountId: online.accountId
+      }, (response = {}) => {
+        if (response?.success === false) {
+          dice.userData.isRolling = false;
+          socket.emit('ludoBattleSyncRequest', online);
+        }
+      });
+      return;
+    }
     const isHumanTurn = player === 0;
     const baseHeight = dice.userData?.baseHeight ?? DICE_BASE_HEIGHT;
     const rollTargets = dice.userData?.rollTargets;
@@ -13899,9 +13983,61 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
   rollDiceRef.current = rollDice;
 
+  applyOnlineStateRef.current = (payload = {}) => {
+    const remote = payload.state;
+    const state = stateRef.current;
+    const online = onlineContextRef.current;
+    if (!remote || !state || !online?.accountId || !Array.isArray(remote.players)) return;
+    const localServerIndex = remote.players.findIndex((id) => String(id) === String(online.accountId));
+    if (localServerIndex < 0) return;
+    const count = Math.min(activePlayerCount, remote.players.length);
+    const toVisual = (serverIndex) => (localServerIndex - serverIndex + count) % count;
+    const visualProgress = Array.from({ length: count }, () => Array(4).fill(-1));
+    remote.progress?.slice(0, count).forEach((tokens, serverIndex) => {
+      visualProgress[toVisual(serverIndex)] = Array.isArray(tokens) ? tokens.slice(0, 4) : Array(4).fill(-1);
+    });
+    state.progress = visualProgress;
+    state.turn = toVisual(Number(remote.turn) || 0);
+    state.onlineRevision = remote.revision;
+    state.onlinePendingRoll = remote.pendingRoll;
+    state.winner = remote.winner ? toVisual(remote.players.findIndex((id) => String(id) === String(remote.winner))) : null;
+    state.progress.forEach((tokens, player) => tokens.forEach((progress, token) => {
+      const node = state.tokens?.[player]?.[token];
+      if (!node) return;
+      node.position.copy(getWorldForProgress(player, progress, token));
+      applyTokenFacingRotation(node);
+    }));
+    updateTokenStacks();
+    updateTurnIndicator(state.turn, true);
+    moveDiceToRail(state.turn, true);
+    const myTurn = state.turn === 0;
+    const winnerLabel = remote.winner
+      ? (String(remote.winner) === String(online.accountId) ? 'You' : COLOR_NAMES[state.winner] || 'Opponent')
+      : null;
+    setUi((current) => ({
+      ...current,
+      turn: state.turn,
+      turnCycle: (current.turnCycle || 0) + 1,
+      dice: remote.pendingRoll,
+      winner: winnerLabel,
+      status: winnerLabel
+        ? `${winnerLabel} won!`
+        : myTurn
+          ? (remote.pendingRoll == null ? 'Your turn — tap the dice' : `You rolled ${remote.pendingRoll} — choose a token`)
+          : `${COLOR_NAMES[state.turn] || 'Opponent'} is playing`
+    }));
+    if (diceRef.current) diceRef.current.userData.isRolling = false;
+    clearHumanSelection();
+    if (myTurn && remote.pendingRoll != null) {
+      const options = getMovableTokens(0, remote.pendingRoll);
+      if (options.length) beginHumanSelection(remote.pendingRoll, options);
+    }
+    pendingOnlineStateRef.current = null;
+  };
+
   useEffect(() => {
     const state = stateRef.current;
-    if (ui.winner) return undefined;
+    if (isOnlineMatch || ui.winner) return undefined;
     if (!state) return undefined;
     if (ui.turn === 0) return undefined;
     if (state.turn !== ui.turn) return undefined;
@@ -13916,7 +14052,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         aiTimeoutRef.current = null;
       }
     };
-  }, [ui.turn, ui.turnCycle, ui.winner, queueAiRoll]);
+  }, [isOnlineMatch, ui.turn, ui.turnCycle, ui.winner, queueAiRoll]);
 
   return (
     <div
@@ -14692,47 +14828,11 @@ export default function LudoBattleRoyal() {
   const onlineTableId = params.get('tableId') || params.get('table') || '';
   const accountIdParam = params.get('accountId') || '';
 
+  const [resolvedOnlineAccountId, setResolvedOnlineAccountId] = useState(accountIdParam.trim());
   useEffect(() => {
-    if (mode !== 'online' || !onlineTableId) return undefined;
-
-    let cancelled = false;
-    let resolvedAccountId = accountIdParam.trim();
-
-    const syncRuntime = async () => {
-      if (!resolvedAccountId) {
-        resolvedAccountId = (await ensureAccountId().catch(() => '')) || '';
-      }
-      if (cancelled || !resolvedAccountId) return;
-      socket.emit('register', { playerId: resolvedAccountId });
-      socket.emit('joinRoom', {
-        roomId: onlineTableId,
-        accountId: resolvedAccountId,
-        name: username || getTelegramUsername() || 'Player',
-        avatar
-      });
-      socket.emit('confirmReady', { accountId: resolvedAccountId, tableId: onlineTableId });
-      socket.emit('joinLudoBattleTable', { accountId: resolvedAccountId, tableId: onlineTableId });
-      socket.emit('ludoBattleSyncRequest', { accountId: resolvedAccountId, tableId: onlineTableId });
-    };
-
-    const handleReconnect = () => {
-      // Socket.IO assigns a new server-side socket after a mobile network
-      // handoff. Re-bind the verified identity and authoritative room instead
-      // of allowing this client to continue from a stale local-only state.
-      syncRuntime().catch(() => {});
-    };
-
-    socket.on('connect', handleReconnect);
-    syncRuntime().catch(() => {});
-
-    return () => {
-      cancelled = true;
-      socket.off('connect', handleReconnect);
-      if (resolvedAccountId) {
-        socket.emit('leaveLobby', { accountId: resolvedAccountId, tableId: onlineTableId });
-      }
-    };
-  }, [mode, onlineTableId, accountIdParam, username, avatar]);
+    if (mode !== 'online' || resolvedOnlineAccountId) return;
+    ensureAccountId().then((id) => setResolvedOnlineAccountId(id || '')).catch(() => {});
+  }, [mode, resolvedOnlineAccountId]);
 
   const aiFlagOverrides = useMemo(() => {
     if (!flagsParam) return null;
@@ -14745,7 +14845,8 @@ export default function LudoBattleRoyal() {
   }, [flagsParam]);
   const game = (
     <Ludo3D avatar={avatar} username={username} aiFlagOverrides={aiFlagOverrides}
-      playerCount={playerCount} aiCount={tableId === 'practice' ? requestedAiCount : playerCount - 1} />
+      playerCount={playerCount} aiCount={tableId === 'practice' ? requestedAiCount : playerCount - 1}
+      onlineContext={mode === 'online' ? { tableId: onlineTableId, accountId: resolvedOnlineAccountId } : null} />
   );
   return mode === 'online' ? (
     <GameLiveAvatarOverlay gameSlug="ludobattleroyal">{game}</GameLiveAvatarOverlay>
