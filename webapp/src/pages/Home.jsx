@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 
 import ProjectAchievementsCard from '../components/ProjectAchievementsCard.jsx';
 import PwaDownloadFrame from '../components/PwaDownloadFrame.jsx';
-import NativeAppDownloadCard from '../components/NativeAppDownloadCard.jsx';
 import ThemePicker from '../components/ThemePicker.jsx';
 
 import { FaArrowUp, FaArrowDown, FaWallet } from 'react-icons/fa';
@@ -158,7 +157,6 @@ export default function Home() {
   return (
     <div className="home-page space-y-4">
       <ThemePicker />
-      <NativeAppDownloadCard />
       <div className="flex flex-col items-center">
         {photoUrl && (
           <div className="relative">
