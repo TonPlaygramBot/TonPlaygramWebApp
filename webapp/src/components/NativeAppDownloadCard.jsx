@@ -57,9 +57,8 @@ export default function NativeAppDownloadCard() {
         </div>
         <h2 id="native-app-download-title">Take the whole arcade with you.</h2>
         <p>
-          Download one installable app with TonPlaygram's interface, games and
-          static files stored on your phone for faster startup. Online play,
-          account and wallet features still connect securely when needed.
+          Install the full TonPlaygram prototype with the same account, wallet,
+          social features and games you use here.
         </p>
       </div>
 
@@ -68,7 +67,7 @@ export default function NativeAppDownloadCard() {
           href={androidUrl}
           icon={Smartphone}
           eyebrow="ANDROID"
-          title="Download full app"
+          title="Download APK"
           unavailableLabel="APK coming soon"
           download="TonPlaygram.apk"
         />
@@ -87,9 +86,8 @@ export default function NativeAppDownloadCard() {
         <span><ShieldCheck size={14} aria-hidden="true" /> Official builds</span>
       </div>
       <p className="native-app-download__note">
-        Android downloads the official signed APK directly to your phone. Open
-        the downloaded file once to install it. Apple devices use TestFlight or
-        the App Store—not an APK.
+        Android installs with an APK. Apple devices use a signed iOS install,
+        TestFlight or the App Store—not an APK.
       </p>
     </section>
   );
