@@ -94,7 +94,13 @@ export default function TexasHoldemLobby() {
           setCleanup: setCleanupMatch,
         },
         deps: { ensureAccountId, getAccountBalance, addTransaction, getTelegramId, socket },
-        onMatched: ({ accountId, tableId }) => {
+        onMatched: ({ accountId, tableId, players }) => {
+          try {
+            window.sessionStorage?.setItem(
+              `texasHoldemOnlineMatch:${tableId}`,
+              JSON.stringify({ accountId, tableId, players })
+            );
+          } catch {}
           const params = new URLSearchParams();
           params.set('mode', 'online');
           params.set('tableId', tableId);

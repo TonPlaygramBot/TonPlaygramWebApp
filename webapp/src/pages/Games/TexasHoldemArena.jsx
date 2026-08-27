@@ -50,6 +50,9 @@ import { resolveTexasHoldemHdriUrl } from '../../utils/texasHoldemHdriPreload.js
 import GiftPopup from '../../components/GiftPopup.jsx';
 import InfoPopup from '../../components/InfoPopup.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
+import { refreshSocketAuthIdentity, socket } from '../../utils/socket.js';
+import { addTransaction, getAccountBalance } from '../../utils/api.js';
+import { getTelegramId } from '../../utils/telegram.js';
 
 import {
   createDeck,
@@ -990,7 +993,16 @@ function parseSearch(search) {
     .filter(Number.isFinite)
     .map((index) => FLAG_EMOJIS[index])
     .filter(Boolean);
-  return { username, avatar, stake, token, playerCount, flags };
+  const mode = (params.get('mode') || '').toLowerCase();
+  const tableId = params.get('tableId') || params.get('table') || '';
+  const accountId = params.get('accountId') || '';
+  let onlinePlayers = [];
+  if (mode === 'online' && tableId && typeof window !== 'undefined') {
+    try {
+      onlinePlayers = JSON.parse(window.sessionStorage?.getItem(`texasHoldemOnlineMatch:${tableId}`) || 'null')?.players || [];
+    } catch {}
+  }
+  return { username, avatar, stake, token, playerCount, flags, mode, tableId, accountId, onlinePlayers };
 }
 
 function buildPlayers(searchOrOptions) {
@@ -1009,6 +1021,21 @@ function buildPlayers(searchOrOptions) {
   const nextAvatar = () => getAvatarUrl(shuffledAvatars.shift()) || fallbackAvatar;
   const humanAvatar = getAvatarUrl(options.avatar) || nextAvatar();
   const humanFlag = nextFlag() || '🇦🇱';
+  if (options.mode === 'online' && options.tableId && options.accountId && options.onlinePlayers?.length) {
+    return options.onlinePlayers.slice(0, playerCount).map((player, index) => {
+      const id = String(player.id || player.tpcAccountNumber || '');
+      const isSelf = id === String(options.accountId);
+      return {
+        id,
+        name: player.name || (isSelf ? username : `Player ${index + 1}`),
+        flag: nextFlag() || '🌐',
+        isHuman: isSelf,
+        isOnlineRemote: !isSelf,
+        chips: baseChips,
+        avatar: player.avatar || (isSelf ? humanAvatar : fallbackAvatar)
+      };
+    });
+  }
   const players = [
     {
       id: 'player-0',
@@ -3757,6 +3784,13 @@ function TexasHoldemArena({ search }) {
   });
   const hoverTargetRef = useRef(null);
   const searchOptions = useMemo(() => parseSearch(search), [search]);
+  const onlineContext = useMemo(() => ({
+    enabled: searchOptions.mode === 'online' && Boolean(searchOptions.tableId && searchOptions.accountId),
+    tableId: searchOptions.tableId,
+    accountId: searchOptions.accountId,
+    players: searchOptions.onlinePlayers
+  }), [searchOptions]);
+  const onlineStateRef = useRef({ suppressNextEmit: false, hydrated: false });
   const effectivePlayerCount = clampPlayerCount(searchOptions.playerCount);
   const resolvedAccountId = useMemo(() => texasHoldemAccountId(), []);
   const [inventoryVersion, setInventoryVersion] = useState(0);
@@ -3781,6 +3815,10 @@ function TexasHoldemArena({ search }) {
   const [showInfo, setShowInfo] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showGift, setShowGift] = useState(false);
+  const [showTopUp, setShowTopUp] = useState(false);
+  const [topUpAmount, setTopUpAmount] = useState(100);
+  const [topUpStatus, setTopUpStatus] = useState('');
+  const [topUpBusy, setTopUpBusy] = useState(false);
   const playChatBeep = useCallback(() => {
     if (typeof window === 'undefined') return;
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -6909,7 +6947,7 @@ function TexasHoldemArena({ search }) {
       setUiState({ availableActions: actions, toCall: humanToCall, canRaise: humanCanRaise, maxRaise: humanMaxRaise, minRaise: humanMinRaise });
     } else {
       setUiState({ availableActions: [], toCall: humanToCall, canRaise: humanCanRaise, maxRaise: humanMaxRaise, minRaise: humanMinRaise });
-      if (!actor?.isHuman) {
+      if (!actor?.isHuman && !actor?.isOnlineRemote) {
         const thinkDelay = AI_ACTION_DELAY_MS + Math.round(Math.random() * AI_ACTION_DELAY_JITTER_MS);
         timerRef.current = setTimeout(() => {
           setGameState((prev) => {
@@ -6928,6 +6966,56 @@ function TexasHoldemArena({ search }) {
     };
   }, [gameState]);
 
+  useEffect(() => {
+    if (!onlineContext.enabled) return undefined;
+    refreshSocketAuthIdentity({ accountId: onlineContext.accountId }, { reconnect: true });
+    const joinAndSync = () => {
+      socket.emit('register', { playerId: onlineContext.accountId, tpcAccountNumber: onlineContext.accountId });
+      socket.emit('joinTexasHoldemTable', onlineContext);
+      socket.emit('texasHoldemSyncRequest', onlineContext);
+    };
+    const handleRemoteState = ({ tableId, state } = {}) => {
+      if (String(tableId) !== String(onlineContext.tableId) || !state?.players) return;
+      onlineStateRef.current.suppressNextEmit = true;
+      onlineStateRef.current.hydrated = true;
+      setGameState({
+        ...state,
+        players: state.players.map((player) => {
+          const isSelf = String(player.id) === String(onlineContext.accountId);
+          return { ...player, isHuman: isSelf, isOnlineRemote: !isSelf };
+        })
+      });
+    };
+    socket.on('texasHoldemState', handleRemoteState);
+    socket.on('connect', joinAndSync);
+    joinAndSync();
+    return () => {
+      socket.off('texasHoldemState', handleRemoteState);
+      socket.off('connect', joinAndSync);
+    };
+  }, [onlineContext]);
+
+  useEffect(() => {
+    if (!onlineContext.enabled) return;
+    if (onlineStateRef.current.suppressNextEmit) {
+      onlineStateRef.current.suppressNextEmit = false;
+      return;
+    }
+    const hostId = String(onlineContext.players?.[0]?.id || onlineContext.players?.[0]?.tpcAccountNumber || '');
+    if (!onlineStateRef.current.hydrated && hostId !== String(onlineContext.accountId)) return;
+    const sharedState = {
+      ...gameState,
+      players: gameState.players.map(({ isHuman: _isHuman, isOnlineRemote: _isOnlineRemote, ...player }) => player)
+    };
+    socket.emit('texasHoldemState', {
+      tableId: onlineContext.tableId,
+      accountId: onlineContext.accountId,
+      state: sharedState,
+      action: { type: 'STATE_UPDATE', handId: gameState.handId, stage: gameState.stage }
+    });
+    onlineStateRef.current.hydrated = true;
+  }, [gameState, onlineContext]);
+
   const handleAction = useCallback((id, raiseAmount) => {
     setGameState((prev) => {
       const next = cloneState(prev);
@@ -6938,6 +7026,33 @@ function TexasHoldemArena({ search }) {
       return next;
     });
   }, []);
+
+  const handleTopUp = useCallback(async () => {
+    const amount = Math.max(1, Math.round(Number(topUpAmount) || 0));
+    const accountId = onlineContext.accountId || resolvedAccountId;
+    if (!accountId || topUpBusy) return;
+    setTopUpBusy(true);
+    setTopUpStatus('Checking your TPC account…');
+    try {
+      const wallet = await getAccountBalance(accountId);
+      if (Number(wallet?.balance || 0) < amount) throw new Error('Insufficient TPC balance');
+      await addTransaction(getTelegramId(), -amount, 'poker_top_up', {
+        game: 'texasholdem', accountId, tableId: onlineContext.tableId || undefined
+      });
+      setGameState((previous) => ({
+        ...previous,
+        players: previous.players.map((player) => player.isHuman
+          ? { ...player, chips: Number(player.chips || 0) + amount }
+          : player)
+      }));
+      setTopUpStatus(`${amount} TPG added to your table stack.`);
+      window.setTimeout(() => setShowTopUp(false), 900);
+    } catch (error) {
+      setTopUpStatus(error?.message || 'Top up failed. Please try again.');
+    } finally {
+      setTopUpBusy(false);
+    }
+  }, [onlineContext, resolvedAccountId, topUpAmount, topUpBusy]);
 
   const actor = gameState.players[gameState.actionIndex];
   const humanPlayer = useMemo(() => gameState.players.find((p) => p.isHuman), [gameState.players]);
@@ -7201,6 +7316,28 @@ function TexasHoldemArena({ search }) {
   return (
     <div className="relative w-full h-full">
       <div ref={mountRef} className="absolute inset-0" />
+      <div
+        data-self-player="true"
+        className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+1rem)] left-1/2 z-[17] -translate-x-1/2"
+      >
+        <div
+          className="seat-badge-core flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border-2 border-emerald-300 bg-slate-950 shadow-xl"
+        >
+          {humanPlayer?.avatar ? <img src={humanPlayer.avatar} alt="You" className="h-full w-full object-cover" /> : <span>🙂</span>}
+        </div>
+      </div>
+      <button type="button" onClick={() => setShowTopUp(true)} className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+1.4rem)] right-3 z-20 rounded-full border border-emerald-200/50 bg-emerald-500 px-3 py-2 text-xs font-black text-slate-950 shadow-xl" aria-label="Top up poker chips from TPC account">+ TPC</button>
+      {showTopUp ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)]" role="dialog" aria-modal="true" aria-label="Top up table chips">
+          <div className="w-full max-w-sm rounded-3xl border border-emerald-300/30 bg-slate-950 p-5 text-white shadow-2xl">
+            <div className="flex items-center justify-between"><h2 className="text-lg font-bold">Top up from TPC account</h2><button type="button" onClick={() => setShowTopUp(false)} aria-label="Close top up">✕</button></div>
+            <p className="mt-1 text-xs text-white/60">Add TPG chips without leaving this poker table.</p>
+            <div className="mt-4 grid grid-cols-3 gap-2">{[100, 500, 1000].map((amount) => <button type="button" key={amount} onClick={() => setTopUpAmount(amount)} className={`rounded-xl border px-2 py-3 text-sm font-bold ${topUpAmount === amount ? 'border-emerald-300 bg-emerald-500/20' : 'border-white/15 bg-white/5'}`}>{amount}</button>)}</div>
+            <button type="button" disabled={topUpBusy} onClick={handleTopUp} className="mt-4 w-full rounded-xl bg-emerald-500 py-3 font-bold text-slate-950 disabled:opacity-50">{topUpBusy ? 'Adding chips…' : `Add ${topUpAmount} TPG`}</button>
+            {topUpStatus ? <p className="mt-3 text-center text-xs text-emerald-200">{topUpStatus}</p> : null}
+          </div>
+        </div>
+      ) : null}
       <div className="fixed z-20 left-[calc(0.2rem+env(safe-area-inset-left,0px))] bottom-[calc(env(safe-area-inset-bottom,0px)+8.9rem)] landscape:left-[calc(0.2rem+env(safe-area-inset-left,0px))] landscape:bottom-[calc(env(safe-area-inset-bottom,0px)+8.9rem)]">
         <div className="flex items-center gap-2">
           <button
