@@ -63,6 +63,7 @@ import {
   loadSeatedHumanTemplate,
   saveSeatedHumanBoneRig
 } from './shared/seatedHumanActors.js';
+import { canControlCheckersTurn } from './shared/checkersTurnControl.js';
 
 const SIZE = 8;
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -1885,6 +1886,7 @@ export default function CheckersBattleRoyal() {
   const pointerDownRef = useRef(null);
   const pendingMoveRef = useRef(null);
   const lastAppliedMoveSeqRef = useRef(-1);
+  const turnRef = useRef('light');
 
   const sceneRef = useRef(null);
   const rendererRef = useRef(null);
@@ -1904,6 +1906,7 @@ export default function CheckersBattleRoyal() {
   const proceduralBoardRef = useRef({ lightMat: null, darkMat: null });
 
   const [turn, setTurn] = useState('light');
+  turnRef.current = turn;
   const [status, setStatus] = useState(
     mode === 'online' && waitingForOpponent
       ? 'Table ready. Waiting for opponent on the board…'
@@ -2683,7 +2686,7 @@ export default function CheckersBattleRoyal() {
           y + tile * 0.02,
           z + (r - 3.5) * tile
         );
-      const sideMoves = getMovesForSide(board, turn);
+      const sideMoves = getMovesForSide(board, turnRef.current);
       const forcedCaptures = sideMoves.filter((move) => move.capture);
       const allowedMoves = forcedCaptures.length
         ? forcedCaptures
@@ -2717,7 +2720,7 @@ export default function CheckersBattleRoyal() {
         group.add(marker);
       });
     },
-    [turn]
+    []
   );
 
   useEffect(() => {
@@ -2832,25 +2835,31 @@ export default function CheckersBattleRoyal() {
     const applyMove = (r, c) => {
       const isOnlineGame = onlineRef.current.enabled;
       if (isOnlineGame && !onlineRef.current.synced) return;
-      if (isOnlineGame && turn !== onlineRef.current.side) {
+      const activeTurn = turnRef.current;
+      if (
+        !canControlCheckersTurn({
+          isOnlineGame,
+          activeTurn,
+          playerSide: onlineRef.current.side
+        })
+      ) {
         setStatus('Waiting for opponent move…');
         return;
       }
       const board = boardRef.current;
       const selected = selectedRef.current;
-      const sideMoves = getMovesForSide(board, turn);
+      const sideMoves = getMovesForSide(board, activeTurn);
       if (!sideMoves.length) {
-        const winnerSide = turn === HUMAN_SIDE ? AI_SIDE : HUMAN_SIDE;
+        const winnerSide = activeTurn === HUMAN_SIDE ? AI_SIDE : HUMAN_SIDE;
         setStatus(
-          `${turn === HUMAN_SIDE ? 'You' : 'AI'} has no legal moves. ${winnerSide === HUMAN_SIDE ? 'You' : 'AI'} win.`
+          `${activeTurn === HUMAN_SIDE ? 'You' : 'AI'} has no legal moves. ${winnerSide === HUMAN_SIDE ? 'You' : 'AI'} win.`
         );
         setGameOver(winnerSide);
         return;
       }
 
       const piece = board[r][c];
-      if (piece && piece.side === turn) {
-        if (turn === AI_SIDE) return;
+      if (piece && piece.side === activeTurn) {
         const forcedCaptures = sideMoves.filter((move) => move.capture);
         if (
           forcedCaptures.length &&
@@ -2918,7 +2927,7 @@ export default function CheckersBattleRoyal() {
         if (capturedPiece?.side) {
           setCapturedBySide((prev) => ({
             ...prev,
-            [turn]: [...prev[turn], capturedPiece]
+            [activeTurn]: [...prev[activeTurn], capturedPiece]
           }));
         }
       }
@@ -2936,12 +2945,12 @@ export default function CheckersBattleRoyal() {
         replayStateRef.current = {
           beforeBoard,
           afterBoard: copyBoard(applied.board),
-          beforeTurn: turn,
-          afterTurn: turn
+          beforeTurn: activeTurn,
+          afterTurn: activeTurn
         };
         setCanReplay(true);
         setStatus(
-          turn === HUMAN_SIDE
+          activeTurn === HUMAN_SIDE
             ? 'Chain capture required. Continue capturing.'
             : 'Chain capture required. Continue capturing.'
         );
@@ -2950,17 +2959,17 @@ export default function CheckersBattleRoyal() {
       }
 
       selectedRef.current = null;
-      const nextTurn = turn === HUMAN_SIDE ? AI_SIDE : HUMAN_SIDE;
+      const nextTurn = activeTurn === HUMAN_SIDE ? AI_SIDE : HUMAN_SIDE;
       replayStateRef.current = {
         beforeBoard,
         afterBoard: copyBoard(applied.board),
-        beforeTurn: turn,
+        beforeTurn: activeTurn,
         afterTurn: nextTurn
       };
       setCanReplay(true);
       const nextMoves = getMovesForSide(applied.board, nextTurn);
       if (!nextMoves.length) {
-        const winnerSide = turn;
+        const winnerSide = activeTurn;
         setGameOver(winnerSide);
         setTurn(nextTurn);
         setStatus(
