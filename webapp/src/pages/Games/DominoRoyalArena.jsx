@@ -230,31 +230,6 @@ export default function DominoRoyalArena() {
           padding: 1rem;
         }
         #winnerOverlay.active { display: flex; }
-        #yourTurnPopup {
-          position: fixed;
-          left: 50%;
-          top: calc(22% + env(safe-area-inset-top, 0px));
-          z-index: 12;
-          transform: translate(-50%, -8px) scale(0.94);
-          opacity: 0;
-          pointer-events: none;
-          border: 1px solid rgba(253, 224, 71, 0.7);
-          border-radius: 999px;
-          padding: 0.65rem 1.25rem;
-          color: #fff7cc;
-          background: linear-gradient(135deg, rgba(30, 41, 59, 0.96), rgba(120, 53, 15, 0.94));
-          box-shadow: 0 10px 28px rgba(0, 0, 0, 0.48), 0 0 22px rgba(250, 204, 21, 0.22);
-          font-size: clamp(0.9rem, 4vw, 1.1rem);
-          font-weight: 800;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-        }
-        #yourTurnPopup.active { animation: domino-your-turn 1.8s ease both; }
-        @keyframes domino-your-turn {
-          0% { opacity: 0; transform: translate(-50%, -8px) scale(0.94); }
-          14%, 72% { opacity: 1; transform: translate(-50%, 0) scale(1); }
-          100% { opacity: 0; transform: translate(-50%, -5px) scale(0.98); }
-        }
         .winner-card {
           width: min(92vw, 360px);
           border-radius: 22px;
@@ -383,7 +358,6 @@ export default function DominoRoyalArena() {
           </div>
         </div>
       </div>
-      <div id="yourTurnPopup" role="status" aria-live="assertive" aria-atomic="true">Your turn</div>
     </div>
   );
 }

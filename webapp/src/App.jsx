@@ -371,13 +371,14 @@ export default function App() {
                 }
               />
               <Route
-                path="/games/domino-royal/*"
+                path="/games/domino-royal/lobby"
+                element={<DominoRoyalLobby />}
+              />
+              <Route
+                path="/games/domino-royal"
                 element={
                   <GameLiveAvatarOverlay gameSlug="domino-royal">
-                    <Routes>
-                      <Route path="lobby" element={<DominoRoyalLobby />} />
-                      <Route index element={<DominoRoyal />} />
-                    </Routes>
+                    <DominoRoyal />
                   </GameLiveAvatarOverlay>
                 }
               />
