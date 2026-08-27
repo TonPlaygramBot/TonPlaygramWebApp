@@ -246,7 +246,16 @@ export async function runSimpleOnlineFlow({
     accountId = String(await ensureAccountIdFn() || '');
     if (!accountId) throw new Error('missing_account');
     const balance = await getAccountBalanceFn(accountId);
-    if ((balance?.balance || 0) < stake.amount) {
+    const confirmedBalance = Number(balance?.balance);
+    // Some mobile account lookups transiently return the API's zero fallback
+    // even though the authoritative matchmaking account has funds.  A real,
+    // positive shortfall is still useful as an early warning; zero/invalid
+    // results must continue to the server, which owns stake reservation.
+    if (
+      Number.isFinite(confirmedBalance) &&
+      confirmedBalance > 0 &&
+      confirmedBalance < stake.amount
+    ) {
       setMatchError('Insufficient balance for this stake.');
       cleanup({ keepError: true });
       return { ok: false, cleanup };
