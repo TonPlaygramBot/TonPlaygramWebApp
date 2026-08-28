@@ -41,12 +41,7 @@ export function getInviteUrl(roomId, token, amount, game = 'snake', capacity = 2
   });
   if (token) params.set('token', String(token));
   if (amount !== undefined && amount !== null && amount !== '') params.set('amount', String(amount));
-  // Telegram opens this URL as a new Mini App document. Keep the initial
-  // request on the webapp root because static/proxy deployments do not all
-  // rewrite nested React Router paths to index.html. Layout accepts the invite
-  // from these query parameters and then navigates to the resolved game route.
-  params.set('game', safeGame);
-  return `${baseUrl.replace(/\/$/, '')}/?${params.toString()}`;
+  return `${baseUrl.replace(/\/$/, '')}/games/${safeGame}?${params.toString()}`;
 }
 
 export function getInviteReplyMarkup(url, rejectToken) {
