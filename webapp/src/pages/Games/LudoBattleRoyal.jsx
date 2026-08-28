@@ -13999,6 +13999,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
     const count = Math.min(activePlayerCount, remote.players.length);
     const toVisual = (serverIndex) => (localServerIndex - serverIndex + count) % count;
     const action = payload.action || {};
+    const rollingServerIndex = action.type === 'roll'
+      ? remote.players.findIndex((id) => String(id) === String(action.accountId))
+      : -1;
+    const rollingPlayer = rollingServerIndex >= 0 ? toVisual(rollingServerIndex) : -1;
     const movingPlayer = action.type === 'move' ? toVisual(Number(action.player)) : -1;
     const movingToken = Number(action.token);
     const previousMoveProgress = movingPlayer >= 0 && Number.isInteger(movingToken)
@@ -14016,12 +14020,18 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
     state.progress.forEach((tokens, player) => tokens.forEach((progress, token) => {
       const node = state.tokens?.[player]?.[token];
       if (!node) return;
+      // A move snapshot is authoritative, but the moving piece must remain at
+      // its previous square until the same step animation used by VS AI ends.
+      if (player === movingPlayer && token === movingToken && Number.isFinite(previousMoveProgress)) return;
       node.position.copy(getWorldForProgress(player, progress, token));
       applyTokenFacingRotation(node);
     }));
     updateTokenStacks();
-    updateTurnIndicator(state.turn, true);
-    moveDiceToRail(state.turn, true);
+    // A roll can advance the authoritative turn immediately when there is no
+    // legal move. Keep the die with the player who actually rolled until its
+    // physical throw/result presentation has completed.
+    const presentedTurn = rollingPlayer >= 0 ? rollingPlayer : state.turn;
+    updateTurnIndicator(presentedTurn, action.type !== 'roll');
     const myTurn = state.turn === 0;
     const winnerLabel = remote.winner
       ? (String(remote.winner) === String(online.accountId) ? 'You' : COLOR_NAMES[state.winner] || 'Opponent')
@@ -14030,7 +14040,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
       ...current,
       turn: state.turn,
       turnCycle: (current.turnCycle || 0) + 1,
-      dice: remote.pendingRoll,
+      dice: action.type === 'roll' ? null : remote.pendingRoll,
       winner: winnerLabel,
       status: winnerLabel
         ? `${winnerLabel} won!`
@@ -14042,17 +14052,70 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
     clearHumanSelection();
     if (action.type === 'roll' && Number.isInteger(action.roll) && diceRef.current) {
       const dice = diceRef.current;
+      const baseHeight = dice.userData?.baseHeight ?? DICE_BASE_HEIGHT;
+      const rollTargets = dice.userData?.rollTargets;
+      const clothLimit = dice.userData?.clothLimit ?? BOARD_CLOTH_HALF - 0.12;
+      const targetPosition = rollTargets?.[presentedTurn]?.clone() ?? dice.position.clone();
+      targetPosition.x = THREE.MathUtils.clamp(targetPosition.x, -clothLimit, clothLimit);
+      targetPosition.z = THREE.MathUtils.clamp(targetPosition.z, -clothLimit, clothLimit);
+      targetPosition.y = baseHeight;
+      if (presentedTurn !== 0) {
+        setCameraViewForTurn(presentedTurn, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
+        setCameraFocus({
+          object: dice,
+          follow: false,
+          priority: 5,
+          force: true,
+          offset: CAMERA_TARGET_LIFT + 0.025
+        });
+      } else {
+        preserveUserTurnCameraRef.current = true;
+      }
+      const diceToTarget = targetPosition.clone().sub(dice.position);
+      let throwLateral = 0;
+      let throwForward = 1;
+      const seatAnchor = arenaRef.current?.seatAnchors?.[presentedTurn];
+      if (seatAnchor?.isObject3D && diceToTarget.lengthSq() > 1e-7) {
+        const anchorQuat = seatAnchor.getWorldQuaternion(new THREE.Quaternion());
+        const localDir = diceToTarget.clone().normalize().applyQuaternion(anchorQuat.clone().invert());
+        throwLateral = clamp(localDir.x * 2.1, -1, 1);
+        throwForward = clamp(-localDir.z * 1.4, -1, 1);
+      }
       dice.userData.isRolling = true;
       playDiceSound();
-      void spinDice(dice, {
-        duration: resolveFrameSyncedDuration(AUTO_ROLL_DURATION_MS, { min: 620, max: 1800 }),
-        targetPosition: dice.position.clone(),
-        bounceHeight: dice.userData?.bounceHeight ?? 0.06,
-        value: action.roll
-      }).finally(() => {
-        dice.userData.isRolling = false;
-        setUi((current) => ({ ...current, dice: action.roll }));
-      });
+      beginDiceThrowPose(presentedTurn, { lateral: throwLateral, forward: throwForward });
+      void syncDiceToThrowHand(presentedTurn, dice, { duration: 12 })
+        .then(() => spinDice(dice, {
+          duration: resolveFrameSyncedDuration(AUTO_ROLL_DURATION_MS, { min: 620, max: 1800 }),
+          targetPosition,
+          bounceHeight: dice.userData?.bounceHeight ?? 0.06,
+          value: action.roll
+        }))
+        .finally(() => {
+          dice.userData.isRolling = false;
+          seatedHumanActionRef.current = { ...seatedHumanActionRef.current, rollEndMs: performance.now() };
+          setUi((current) => ({ ...current, dice: action.roll }));
+          setCameraFocus({
+            target: targetPosition,
+            follow: false,
+            ttl: DICE_RESULT_CAMERA_HOLD_MS / 1000,
+            priority: 7,
+            offset: CAMERA_TARGET_LIFT + 0.03,
+            force: true
+          });
+          if (stateRef.current?.turn === 0 && remote.pendingRoll != null) {
+            const options = getMovableTokens(0, remote.pendingRoll);
+            if (options.length) {
+              window.setTimeout(() => beginHumanSelection(remote.pendingRoll, options), DICE_RESULT_CAMERA_HOLD_MS);
+            }
+          }
+          window.setTimeout(() => {
+            if (stateRef.current?.turn !== presentedTurn) {
+              updateTurnIndicator(stateRef.current.turn, false);
+              setCameraViewForTurn(stateRef.current.turn, CAMERA_TURN_VIEW_DURATION_MS, { force: true });
+            }
+          }, DICE_RESULT_CAMERA_HOLD_MS);
+        });
     }
     if (
       action.type === 'move' &&
@@ -14074,7 +14137,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
         }));
         updateTokenStacks();
       }, { enteringMove: previousMoveProgress < 0 });
-    } else if (myTurn && remote.pendingRoll != null) {
+    } else if (action.type !== 'roll' && myTurn && remote.pendingRoll != null) {
       const options = getMovableTokens(0, remote.pendingRoll);
       if (options.length) beginHumanSelection(remote.pendingRoll, options);
     }
