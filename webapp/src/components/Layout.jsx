@@ -81,7 +81,14 @@ export default function Layout({ children }) {
   }, []);
 
   useEffect(() => {
-    const onPushInvite = (event) => setInvite(event.detail);
+    const onPushInvite = (event) => {
+      setInvite(event.detail);
+      showGameInviteNotification(event.detail);
+      if (inviteSoundRef.current && !isGameMuted()) {
+        inviteSoundRef.current.currentTime = 0;
+        inviteSoundRef.current.play().catch(() => {});
+      }
+    };
     window.addEventListener('game-invite-push', onPushInvite);
     return () => window.removeEventListener('game-invite-push', onPushInvite);
   }, []);
@@ -350,10 +357,16 @@ export default function Layout({ children }) {
         group={Array.isArray(invite?.group)}
         onAccept={() => {
           if (invite) {
-            socket.emit('gameInvite:accept', { roomId: invite.roomId, playerId: getPlayerId() });
-            navigate(
-              `/games/${invite.game || 'snake'}?table=${invite.roomId}&token=${invite.token}&amount=${invite.amount}`
-            );
+            socket.emit('gameInvite:accept', { roomId: invite.roomId, playerId: getPlayerId() }, (response) => {
+              if (!response?.success) {
+                setCallNotice('This game invite expired or is no longer available');
+                return;
+              }
+              const accepted = response.invite || invite;
+              navigate(
+                `/games/${accepted.game || 'snake'}?table=${accepted.roomId}&token=${accepted.token}&amount=${accepted.amount}`
+              );
+            });
           }
           setInvite(null);
         }}
