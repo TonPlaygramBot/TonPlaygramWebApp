@@ -65,7 +65,6 @@ import {
 import { giftSounds } from '../../utils/giftSounds.js';
 import { playLudoDiceRollSfx, playLudoTokenStepSfx } from '../../utils/ludoSfx.js';
 import { socket } from '../../utils/socket.js';
-import GameLiveAvatarOverlay from '../../components/GameLiveAvatarOverlay.jsx';
 import { loadExactUkrainianDroneModel } from '../../utils/ukrainianDroneModel.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -14987,7 +14986,9 @@ export default function LudoBattleRoyal() {
       onlineContext={mode === 'online' ? { tableId: onlineTableId, accountId: resolvedOnlineAccountId } : null}
       onlinePlayers={onlinePlayers} />
   );
-  return mode === 'online' ? (
-    <GameLiveAvatarOverlay gameSlug="ludobattleroyal">{game}</GameLiveAvatarOverlay>
-  ) : game;
+  // App.jsx owns the single live-avatar overlay for both practice and online
+  // matches. Keeping the scene under the same wrapper in every mode preserves
+  // identical portrait viewport measurements for camera fitting, dice throws,
+  // and seated-hand animation targets.
+  return game;
 }
