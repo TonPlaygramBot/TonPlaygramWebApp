@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { socket } from '../utils/socket.js';
 import { acceptFriendRequest, rejectFriendRequest, pingOnline } from '../utils/api.js';
-import { getPlayerId } from '../utils/telegram.js';
+import { getPlayerId, getTelegramId } from '../utils/telegram.js';
 import { isGameMuted, getGameVolume } from '../utils/sound.js';
 import { chatBeep as inviteBeep } from '../assets/coreSoundData.js';
 import usePwaInstallPrompt from '../hooks/usePwaInstallPrompt.js';
@@ -58,6 +58,7 @@ export default function Layout({ children }) {
   const [incomingCall, setIncomingCall] = useState(null);
   const [activeCall, setActiveCall] = useState(null);
   const [callNotice, setCallNotice] = useState('');
+  const [messageNotice, setMessageNotice] = useState('');
   const inviteSoundRef = useRef(null);
   const {
     canInstall,
@@ -75,6 +76,14 @@ export default function Layout({ children }) {
       if (inviteSoundRef.current && !isGameMuted()) {
         inviteSoundRef.current.currentTime = 0;
         inviteSoundRef.current.play().catch(() => {});
+      }
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        const notification = new Notification('New friend request', {
+          body: `${request?.fromName || 'A TonPlaygram player'} wants to add you as a friend.`,
+          icon: request?.fromPhoto || '/assets/icons/profile.svg',
+          tag: `friend-request-${request?.requestId || Date.now()}`
+        });
+        notification.onclick = () => { window.focus(); notification.close(); };
       }
     };
     socket.on('friendRequest', onFriendRequest);
@@ -102,6 +111,32 @@ export default function Layout({ children }) {
     socket.on('friendRequestAccepted', onAccepted);
     return () => socket.off('friendRequestAccepted', onAccepted);
   }, []);
+
+  useEffect(() => {
+    const identity = getTelegramId() || getPlayerId();
+    if (identity) socket.emit('register', { playerId: identity, tpcAccountNumber: identity });
+    const onMessage = (message = {}) => {
+      if (location.pathname === '/messages') return;
+      setMessageNotice('You received a new message');
+      if (inviteSoundRef.current && !isGameMuted()) inviteSoundRef.current.play().catch(() => {});
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        const notification = new Notification('New message', {
+          body: String(message.text || 'Open TonPlaygram to read it.').slice(0, 120),
+          icon: '/assets/icons/profile.svg',
+          tag: `message-${message._id || Date.now()}`
+        });
+        notification.onclick = () => { window.focus(); navigate('/messages'); notification.close(); };
+      }
+    };
+    socket.on('privateMessage', onMessage);
+    return () => socket.off('privateMessage', onMessage);
+  }, [location.pathname, navigate]);
+
+  useEffect(() => {
+    if (!messageNotice) return undefined;
+    const id = window.setTimeout(() => setMessageNotice(''), 5000);
+    return () => window.clearTimeout(id);
+  }, [messageNotice]);
 
   useEffect(() => {
     const ring = () => {
@@ -404,6 +439,12 @@ export default function Layout({ children }) {
         <div className="fixed left-4 right-4 top-4 z-[91] mx-auto max-w-sm rounded-2xl border border-cyan-300/30 bg-[#081525]/95 px-4 py-3 text-center text-sm font-semibold text-white shadow-2xl">
           {callNotice}
         </div>
+      )}
+
+      {messageNotice && (
+        <button type="button" onClick={() => navigate('/messages')} className="fixed left-4 right-4 top-4 z-[92] mx-auto max-w-sm rounded-2xl border border-violet-300/40 bg-[#17122d]/95 px-4 py-3 text-center text-sm font-semibold text-white shadow-2xl">
+          {messageNotice} · Tap to open
+        </button>
       )}
 
       {incomingCall && !activeCall && (

@@ -36,6 +36,7 @@ function Avatar({ friend, large = false }) {
 export default function Messages() {
   useTelegramBackButton();
   const telegramId = getTelegramId();
+  const socialId = telegramId || getPlayerId();
   const [friends, setFriends] = useState([]);
   const [selected, setSelected] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -44,38 +45,43 @@ export default function Messages() {
   const [activeTab, setActiveTab] = useState('chats');
   const [actionNote, setActionNote] = useState('');
   const [attachment, setAttachment] = useState(null);
+  const [isSending, setIsSending] = useState(false);
+  const [loadError, setLoadError] = useState('');
   const messagesEndRef = useRef(null);
   const accountId = getPlayerId();
 
   useEffect(() => {
-    if (!telegramId) return;
-    markInboxRead(telegramId);
-    listFriends(telegramId).then((result) => {
+    if (!socialId) return;
+    markInboxRead(socialId).catch(() => {});
+    listFriends(socialId).then((result) => {
       const nextFriends = Array.isArray(result) ? result : [];
       setFriends(nextFriends);
       // Open the inbox itself, rather than making phone users stop at the
       // conversation list and tap a second time before they can read a message.
       setSelected((current) => current || nextFriends[0] || null);
-    }).catch(() => setFriends([]));
-  }, [telegramId]);
+    }).catch(() => { setFriends([]); setLoadError('We could not load your conversations. Please try again.'); });
+  }, [socialId]);
 
   useEffect(() => {
-    if (!selected || !telegramId) return;
-    getMessages(telegramId, selected.telegramId).then((result) => {
+    if (!selected || !socialId) return;
+    const peerId = selected.socialId || selected.telegramId || selected.accountId;
+    getMessages(socialId, peerId).then((result) => {
       setMessages(Array.isArray(result) ? result : []);
-      markInboxRead(telegramId);
-    });
-  }, [selected, telegramId]);
+      markInboxRead(socialId).catch(() => {});
+      setLoadError('');
+    }).catch(() => setLoadError('We could not open this conversation. Please try again.'));
+  }, [selected, socialId]);
 
   useEffect(() => {
     const receive = (message) => {
-      if (!selected || (message.from !== selected.telegramId && message.to !== selected.telegramId)) return;
+      const peerId = selected?.socialId || selected?.telegramId || selected?.accountId;
+      if (!selected || (String(message.from) !== String(peerId) && String(message.to) !== String(peerId))) return;
       setMessages((current) => [...current, message]);
-      markInboxRead(telegramId);
+      markInboxRead(socialId).catch(() => {});
     };
     socket.on('privateMessage', receive);
     return () => socket.off('privateMessage', receive);
-  }, [selected, telegramId]);
+  }, [selected, socialId]);
 
   useEffect(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), [messages]);
 
@@ -94,12 +100,22 @@ export default function Messages() {
     const cleanText = text.trim();
     if ((!cleanText && !attachment) || !selected) return;
     const outgoingText = cleanText || `Shared ${attachment.type.startsWith('image/') ? 'a photo' : attachment.name}`;
-    await sendMessage(telegramId, selected.telegramId, outgoingText);
-    setText('');
-    setAttachment(null);
-    const result = await getMessages(telegramId, selected.telegramId);
-    setMessages(Array.isArray(result) ? result : []);
-    markInboxRead(telegramId);
+    const peerId = selected.socialId || selected.telegramId || selected.accountId;
+    if (isSending) return;
+    setIsSending(true);
+    try {
+      const sent = await sendMessage(socialId, peerId, outgoingText);
+      if (sent?.error) throw new Error(sent.error);
+      setMessages((current) => current.some((item) => item._id === sent._id) ? current : [...current, sent]);
+      setText('');
+      setAttachment(null);
+      setLoadError('');
+      markInboxRead(socialId).catch(() => {});
+    } catch (error) {
+      setLoadError(error?.message || 'Message could not be sent. Please try again.');
+    } finally {
+      setIsSending(false);
+    }
   }
 
   function startFriendCall(type, friend = selected) {
@@ -127,7 +143,7 @@ export default function Messages() {
     }, (response) => notify(response?.success ? 'Game invite sent' : response?.error || 'Invite failed'));
   }
 
-  if (!telegramId) return <div className="messages-login"><LoginOptions /></div>;
+  if (!socialId) return <div className="messages-login"><LoginOptions /></div>;
 
   return (
     <main className={`messages-app ${selected ? 'chat-is-open' : ''}`}>
@@ -151,7 +167,7 @@ export default function Messages() {
           <div className="messages-online">
             <div className="messages-section-heading"><strong>Online now</strong><span>{friends.length} friends</span></div>
             <div className="messages-online-row">
-              {friends.slice(0, 8).map((friend) => <button key={`online-${friend.telegramId}`} onClick={() => setSelected(friend)}><Avatar friend={friend} /><span>{friendName(friend).split(' ')[0]}</span></button>)}
+              {friends.slice(0, 8).map((friend) => <button key={`online-${friend.socialId || friend.telegramId || friend.accountId}`} onClick={() => setSelected(friend)}><Avatar friend={friend} /><span>{friendName(friend).split(' ')[0]}</span></button>)}
             </div>
           </div>
         )}
@@ -159,7 +175,7 @@ export default function Messages() {
         <div className="messages-list">
           <div className="messages-section-heading"><strong>{activeTab === 'chats' ? 'Messages' : activeTab === 'friends' ? 'All friends' : 'Recent calls'}</strong><button><MoreHorizontal /></button></div>
           {visibleFriends.map((friend, index) => (
-            <button className={`messages-person ${selected?.telegramId === friend.telegramId ? 'active' : ''}`} key={friend.telegramId} onClick={() => activeTab === 'calls' ? startFriendCall('voice', friend) : setSelected(friend)}>
+            <button className={`messages-person ${String(selected?.socialId || selected?.telegramId || selected?.accountId) === String(friend.socialId || friend.telegramId || friend.accountId) ? 'active' : ''}`} key={friend.socialId || friend.telegramId || friend.accountId} onClick={() => activeTab === 'calls' ? startFriendCall('voice', friend) : setSelected(friend)}>
               <Avatar friend={friend} />
               <span className="messages-person-copy"><strong>{friendName(friend)}</strong><small>{activeTab === 'calls' ? 'Tap to call again' : index === 0 ? 'Ready to play?' : 'Online · Active now'}</small></span>
               {activeTab === 'calls' ? <Phone className="messages-row-icon" /> : <span className="messages-person-meta"><time>{index === 0 ? 'Now' : '12m'}</time>{index < 2 && <b>{index + 1}</b>}</span>}
@@ -183,8 +199,9 @@ export default function Messages() {
           <div className="messages-thread">
             <div className="messages-thread-intro"><Avatar friend={selected} large /><strong>{friendName(selected)}</strong><span>TonPlaygram friend</span><small><ShieldCheck /> Private conversation</small></div>
             <div className="messages-day"><span>Today</span></div>
+            {loadError && <div className="messages-error" role="alert">{loadError}</div>}
             {messages.map((message, index) => {
-              const mine = message.from === telegramId;
+              const mine = String(message.from) === String(socialId);
               return <div className={`messages-bubble-row ${mine ? 'mine' : ''}`} key={message._id || `${message.from}-${index}`}>
                 {!mine && <Avatar friend={selected} />}
                 <div className="messages-bubble"><p>{message.text}</p><span>{message.createdAt ? new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}{mine && <CheckCheck />}</span></div>
@@ -199,7 +216,7 @@ export default function Messages() {
             <button aria-label="More message tools" onClick={() => notify('More tools coming soon')}><Plus /></button>
             <label aria-label="Attach a photo or file"><Paperclip /><input type="file" accept="image/*,video/*" onChange={(event) => setAttachment(event.target.files?.[0] || null)} /></label>
             <div><input value={text} onChange={(event) => setText(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) handleSend(); }} placeholder="Message..." /><button aria-label="Add emoji" onClick={() => setText((value) => `${value} 😊`)}><Smile /></button></div>
-            {text.trim() || attachment ? <button className="messages-send" onClick={handleSend} aria-label="Send message"><Send /></button> : <button onClick={() => notify('Hold to record a voice message')} aria-label="Record voice message"><Mic /></button>}
+            {text.trim() || attachment ? <button className="messages-send" disabled={isSending} onClick={handleSend} aria-label="Send message"><Send /></button> : <button onClick={() => notify('Hold to record a voice message')} aria-label="Record voice message"><Mic /></button>}
           </div>
           <div className="messages-quick-actions"><button onClick={sendGameInvite}><Gamepad2 /> Invite to game</button><button onClick={() => startFriendCall('video')}><Camera /> Video room</button><button onClick={() => notify('Notifications muted')}><BellOff /> Mute</button></div>
         </> : <div className="messages-chat-empty"><span><Send /></span><h2>Your conversations</h2><p>Select a friend to send a message or start a secure voice and video call.</p></div>}
