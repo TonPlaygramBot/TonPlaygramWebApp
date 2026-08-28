@@ -7,6 +7,7 @@ import { fetchTelegramInfo } from './telegram.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicPath = path.join(__dirname, '../../webapp/public');
+const DEFAULT_WEBAPP_BASE_URL = 'https://tonplaygram-bot.onrender.com';
 // Keep Telegram receipt branding aligned with the live app visuals.
 const TPC_ICON_ASSET = '/assets/icons/ezgif-54c96d8a9b9236.webp';
 const TPC_ICON_ASSET_FALLBACK = '/assets/icons/file_00000000ce2461f7a5c5347320c3167c.webp';
@@ -28,7 +29,7 @@ const fallbackAvatarPath = path.join(publicPath, 'assets/icons/profile.svg');
 export function getInviteUrl(roomId, token, amount, game = 'snake', capacity = 2) {
   const baseUrl =
     process.env.WEBAPP_BASE_URL ||
-    'https://tonplaygramwebapp.onrender.com';
+    DEFAULT_WEBAPP_BASE_URL;
   const safeGame = String(game || 'snake').trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || 'snake';
   const params = new URLSearchParams({
     table: String(roomId || ''),
@@ -41,7 +42,12 @@ export function getInviteUrl(roomId, token, amount, game = 'snake', capacity = 2
   });
   if (token) params.set('token', String(token));
   if (amount !== undefined && amount !== null && amount !== '') params.set('amount', String(amount));
-  return `${baseUrl.replace(/\/$/, '')}/games/${safeGame}?${params.toString()}`;
+  // Telegram opens this URL as a new Mini App document. Keep the initial
+  // request on the webapp root because static/proxy deployments do not all
+  // rewrite nested React Router paths to index.html. Layout accepts the invite
+  // from these query parameters and then navigates to the resolved game route.
+  params.set('game', safeGame);
+  return `${baseUrl.replace(/\/$/, '')}/?${params.toString()}`;
 }
 
 export function getInviteReplyMarkup(url, rejectToken) {
@@ -78,7 +84,7 @@ function normalizeAssetPath(assetPath) {
 
 function getBrandAssetCandidates(assetPath) {
   const candidates = [];
-  const baseUrl = process.env.WEBAPP_BASE_URL || 'https://tonplaygramwebapp.onrender.com';
+  const baseUrl = process.env.WEBAPP_BASE_URL || DEFAULT_WEBAPP_BASE_URL;
   if (assetPath) {
     candidates.push(assetPath);
     if (assetPath.startsWith('/')) {

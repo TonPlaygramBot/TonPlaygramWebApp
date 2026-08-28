@@ -2,6 +2,8 @@ import User from '../models/User.js';
 import { incrementReferralBonus } from '../utils/userUtils.js';
 import { fetchTelegramInfo } from '../utils/telegram.js';
 
+const WEBAPP_URL = process.env.WEBAPP_BASE_URL || 'https://tonplaygram-bot.onrender.com';
+
 export default function registerStart(bot) {
   bot.start(async (ctx) => {
     const telegramId = ctx.from.id;
@@ -34,7 +36,7 @@ export default function registerStart(bot) {
           [
             {
               text: 'Open WebApp',
-              web_app: { url: 'https://tonplaygramwebapp.onrender.com' }
+              web_app: { url: WEBAPP_URL }
             }
           ]
         ]
