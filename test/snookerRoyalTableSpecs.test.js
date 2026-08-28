@@ -38,6 +38,10 @@ describe('Snooker Royal physical table specs', () => {
     assert.match(source, /spinInput: spinRef\.current/);
     assert.match(source, /const CORNER_MOUTH_REF = 83;/);
     assert.match(source, /const SIDE_MOUTH_REF = 87;/);
+    assert.match(source, /alignPocketSystemsToOpenSourceModel\(model\);/);
+    assert.match(source, /source: 'glb-pocket-cover-bounds'/);
+    assert.match(source, /const SHOT_MIN_FACTOR = 0;/);
+    assert.match(source, /const SHOT_POWER_RANGE = 1;/);
     assert.doesNotMatch(source, /const BALL_D_REF = 57\.15;/);
     assert.doesNotMatch(source, /const TARGET_RATIO = 1\.83;/);
   });

@@ -1510,8 +1510,11 @@ const SHOT_FORCE_BOOST =
   SHOT_POWER_INCREASE;
 const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
-const SHOT_MIN_FACTOR = 0.25;
-const SHOT_POWER_RANGE = 0.75;
+// Keep the complete pull range identical to Pool Royale. In particular, low-power
+// releases must not receive Snooker's former 25% floor: that floor changed both
+// the contact deflection and the amount of spin transferred at the same UI power.
+const SHOT_MIN_FACTOR = 0;
+const SHOT_POWER_RANGE = 1;
 const SPIN_POWER_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.25;
 const TOPSPIN_FOLLOW_TRANSFER_RATE = 0.62; // Pool Royale straight-follow transfer
 const TOPSPIN_FOLLOW_DECAY_ASSIST = 0.84; // Pool Royale natural-roll topspin decay assist
@@ -5821,7 +5824,9 @@ let sidePocketShift = 0;
 let cachedPocketCenters = null;
 let cachedSidePocketCenters = null;
 let cachedPocketShift = null;
+let openSourcePocketCenters = null;
 const pocketCenters = () => {
+  if (openSourcePocketCenters?.length === 6) return openSourcePocketCenters;
   if (cachedPocketCenters && cachedPocketShift === sidePocketShift) {
     return cachedPocketCenters;
   }
@@ -11274,6 +11279,64 @@ function Table3D(
     return false;
   };
 
+  const alignPocketSystemsToOpenSourceModel = (model) => {
+    model.updateMatrixWorld(true);
+    table.updateMatrixWorld(true);
+    const detected = [];
+    model.traverse((node) => {
+      if (!node?.isMesh || !/pocket\s*cover/i.test(node.name || '')) return;
+      const bounds = new THREE.Box3().setFromObject(node);
+      if (bounds.isEmpty()) return;
+      const worldCenter = bounds.getCenter(new THREE.Vector3());
+      const localCenter = table.worldToLocal(worldCenter.clone());
+      detected.push(new THREE.Vector2(localCenter.x, localCenter.z));
+    });
+    if (detected.length !== 6) return false;
+
+    const proceduralCenters = pocketCenters().map((center) => center.clone());
+    const remaining = detected.slice();
+    const calibrated = proceduralCenters.map((center) => {
+      let nearestIndex = 0;
+      let nearestDistance = Infinity;
+      remaining.forEach((candidate, index) => {
+        const distance = candidate.distanceToSquared(center);
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          nearestIndex = index;
+        }
+      });
+      return remaining.splice(nearestIndex, 1)[0];
+    });
+
+    // The GLB is loaded after the procedural drop hardware is built. Move every
+    // liner, net, ring, holder and strap by its pocket's measured GLB offset so
+    // the entire drop assembly stays centred on the visible aperture.
+    table.traverse((node) => {
+      if (!node?.userData?.isPocketDropHardware || !node.position) return;
+      const nodeCenter = new THREE.Vector2(node.position.x, node.position.z);
+      let nearestIndex = 0;
+      let nearestDistance = Infinity;
+      proceduralCenters.forEach((center, index) => {
+        const distance = nodeCenter.distanceToSquared(center);
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          nearestIndex = index;
+        }
+      });
+      node.position.x += calibrated[nearestIndex].x - proceduralCenters[nearestIndex].x;
+      node.position.z += calibrated[nearestIndex].y - proceduralCenters[nearestIndex].y;
+    });
+
+    openSourcePocketCenters = calibrated;
+    cachedPocketCenters = calibrated;
+    cachedSidePocketCenters = calibrated.slice(4);
+    table.userData.openSourcePocketCalibration = {
+      source: 'glb-pocket-cover-bounds',
+      centers: calibrated.map((center) => ({ x: center.x, y: center.y }))
+    };
+    return true;
+  };
+
   const applyOpenSourceTableVisualOverride = () => {
     const targetBounds = resolveOpenSourceTargetBounds();
     const clothUvBounds = resolveOpenSourceClothUvBounds();
@@ -11320,6 +11383,7 @@ function Table3D(
         const removedOriginalBaseMeshCount = removeOpenSourceOriginalTableBase(model, scaledFitBounds);
         remapOpenSourceClothTextureCoordinates(model, clothUvBounds);
         applyOpenSourceCushionPhysicsFromModel(model);
+        alignPocketSystemsToOpenSourceModel(model);
         removeOpenSourceProceduralRailDecor();
         setProceduralTableMeshesVisible(false, { keepProceduralBase: true });
         model.name = 'pooltool-snooker-generic-table';
