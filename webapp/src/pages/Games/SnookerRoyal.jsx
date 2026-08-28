@@ -15437,29 +15437,45 @@ const powerRef = useRef(hud.power);
 
   useEffect(() => {
     if (!isOnlineMatch || !tableId) return undefined;
+    // Ignore delayed packets from before a reconnect/shot. The server assigns
+    // monotonically increasing revisions, just as it does for Pool Royale.
+    let latestRevision = 0;
+    const shouldApplyPayload = (payload = {}) => {
+      const revision = Number(payload.revision ?? payload.state?.seq ?? 0);
+      if (revision > 0 && revision <= latestRevision) return false;
+      if (revision > 0) latestRevision = revision;
+      return true;
+    };
     const handlePoolState = (payload = {}) => {
       if (payload.tableId && payload.tableId !== tableId) return;
+      if (!shouldApplyPayload(payload)) return;
       handleRemotePayload(payload);
       applyRemoteState({ state: payload.state, hud: payload.hud, layout: payload.layout });
     };
     const handlePoolFrame = (payload = {}) => {
       if (payload.tableId && payload.tableId !== tableId) return;
+      if (!shouldApplyPayload(payload)) return;
       handleRemotePayload(payload);
       applyRemoteState({ state: payload.state, hud: payload.hud, layout: payload.layout });
     };
 
-    socket.emit('register', { playerId: accountId }, (registered) => {
-      if (!registered?.success) return;
-      socket.emit('joinSnookerTable', { tableId, accountId }, (joined) => {
-        if (joined?.success) socket.emit('snookerSyncRequest', { tableId, accountId });
+    const joinAndSync = () => {
+      socket.emit('register', { playerId: accountId }, (registered) => {
+        if (!registered?.success) return;
+        socket.emit('joinSnookerTable', { tableId, accountId }, (joined) => {
+          if (joined?.success) socket.emit('snookerSyncRequest', { tableId, accountId });
+        });
       });
-    });
+    };
     socket.on('snookerState', handlePoolState);
     socket.on('snookerFrame', handlePoolFrame);
+    socket.on('connect', joinAndSync);
+    joinAndSync();
 
     return () => {
       socket.off('snookerState', handlePoolState);
       socket.off('snookerFrame', handlePoolFrame);
+      socket.off('connect', joinAndSync);
     };
   }, [accountId, applyRemoteState, handleRemotePayload, isOnlineMatch, tableId]);
 
