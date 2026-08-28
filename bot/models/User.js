@@ -68,7 +68,7 @@ const userSchema = new mongoose.Schema({
   walletPublicKey: { type: String },
 
 
-  accountId: { type: String, unique: true },
+  accountId: { type: String, unique: true, default: uuidv4 },
   tpcAccountNumber: { type: String, unique: true, sparse: true },
 
   createdAt: { type: Date, default: Date.now },

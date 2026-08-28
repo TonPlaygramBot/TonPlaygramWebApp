@@ -12,7 +12,7 @@ module.exports = {
         tsconfig: './tsconfig.json'
       }
     ],
-    '^.+\\.(js|jsx)$': [
+    '^.+\\.(js|jsx|mjs)$': [
       'babel-jest',
       {
         presets: [['@babel/preset-env', { targets: { node: 'current' }, modules: 'commonjs' }]],

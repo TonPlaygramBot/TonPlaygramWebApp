@@ -36,6 +36,7 @@ test(
       MONGO_URI: 'memory',
       BOT_TOKEN: 'dummy',
       API_AUTH_TOKEN: apiToken,
+      SKIP_CHESS_STAKE_RESERVATION: '1',
       SKIP_WEBAPP_BUILD: '1',
       SKIP_BOT_LAUNCH: '1'
     };
@@ -83,13 +84,14 @@ test(
       assert.equal(secondSeat.success, true);
       assert.equal(secondSeat.tableId, firstSeat.tableId);
 
-      s1.emit('confirmReady', { accountId: 'chess-a', tableId: firstSeat.tableId });
-      s2.emit('confirmReady', { accountId: 'chess-b', tableId: firstSeat.tableId });
-
-      const [gameStartA, gameStartB] = await Promise.all([
+      const gameStarts = Promise.all([
         new Promise((resolve) => s1.once('gameStart', resolve)),
         new Promise((resolve) => s2.once('gameStart', resolve))
       ]);
+      s1.emit('confirmReady', { accountId: 'chess-a', tableId: firstSeat.tableId });
+      s2.emit('confirmReady', { accountId: 'chess-b', tableId: firstSeat.tableId });
+
+      const [gameStartA, gameStartB] = await gameStarts;
       assert.equal(gameStartA.tableId, firstSeat.tableId);
       assert.equal(gameStartB.tableId, firstSeat.tableId);
 

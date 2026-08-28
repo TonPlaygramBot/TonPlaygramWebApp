@@ -649,7 +649,7 @@ router.post('/store-purchase', authenticate, async (req, res) => {
   sender.balance -= totalPrice;
   sender.transactions.push({
     amount: -totalPrice,
-    type: 'store',
+    type: 'storefront',
     token: 'TPG',
     status: 'delivered',
     date: txDate,

@@ -2658,6 +2658,10 @@ io.on('connection', (socket) => {
         );
       }
       if (table) {
+        // A lobby seat is also membership in the table's Socket.IO room. This
+        // guarantees that both portrait clients receive lobbyUpdate/gameStart
+        // even before the game scene sends its game-specific join event.
+        socket.join(table.id);
         // These quick matches have no separate ready-up screen. Marking the
         // authoritative seat ready here prevents a dropped confirmReady packet
         // from leaving every Ludo player seated at the same table but stuck in

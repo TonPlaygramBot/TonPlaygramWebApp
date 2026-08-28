@@ -39,7 +39,6 @@ if (preferredBase && !/^https:\/\//i.test(preferredBase)) {
 }
 
 export const API_BASE_URL = preferredBase;
-export const API_AUTH_TOKEN = resolvedEnv.VITE_API_AUTH_TOKEN || '';
 
 export async function ping() {
   const data = await get('/api/ping');
@@ -308,14 +307,14 @@ export function verifyTelegramReaction(telegramId, messageId, threadId) {
 }
 
 export function adminListTasks() {
-  return post('/api/tasks/admin/list', {}, API_AUTH_TOKEN || undefined);
+  return post('/api/tasks/admin/list', {});
 }
 
 export function adminCreateTask(platform, reward, link, description) {
   return post(
     '/api/tasks/admin/create',
     { platform, reward, link, description },
-    API_AUTH_TOKEN || undefined
+    undefined
   );
 }
 
@@ -323,12 +322,12 @@ export function adminUpdateTask(id, platform, reward, link, description) {
   return post(
     '/api/tasks/admin/update',
     { id, platform, reward, link, description },
-    API_AUTH_TOKEN || undefined
+    undefined
   );
 }
 
 export function adminDeleteTask(id) {
-  return post('/api/tasks/admin/delete', { id }, API_AUTH_TOKEN || undefined);
+  return post('/api/tasks/admin/delete', { id });
 }
 
 export function getPoolRoyalInventoryRemote(accountId) {
@@ -420,12 +419,11 @@ export function myInfluencerVideos(telegramId) {
 }
 
 export function listAllInfluencer() {
-  return get('/api/influencer/admin', API_AUTH_TOKEN);
+  return get('/api/influencer/admin');
 }
 
 export function verifyInfluencer(id, status, views) {
   const headers = buildHeaders({ 'Content-Type': 'application/json' });
-  if (API_AUTH_TOKEN) headers['Authorization'] = `Bearer ${API_AUTH_TOKEN}`;
   return fetch(API_BASE_URL + `/api/influencer/admin/${id}/verify`, {
     method: 'PATCH',
     headers,
@@ -786,6 +784,10 @@ export function getAccountInfo(accountId) {
   return post('/api/account/info', { accountId });
 }
 
+export function deleteAccount(accountId) {
+  return post('/api/profile/delete', { accountId, confirmation: 'DELETE' });
+}
+
 export function sendAccountTpc(fromAccount, toAccount, amount, note) {
   const body = { fromAccount, toAccount, amount };
   if (note) body.note = note;
@@ -812,7 +814,7 @@ export function depositAccount(accountId, amount, extra = {}) {
   return post(
     '/api/account/deposit',
     { accountId, amount, ...extra },
-    API_AUTH_TOKEN || undefined
+    undefined
   );
 }
 
@@ -841,7 +843,7 @@ export function claimPurchase() {
 }
 
 export function sendBroadcast(data) {
-  return post('/api/broadcast/send', data, API_AUTH_TOKEN || undefined);
+  return post('/api/broadcast/send', data);
 }
 
 export function getWatchCount(tableId) {

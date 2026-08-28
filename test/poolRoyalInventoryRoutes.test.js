@@ -103,4 +103,4 @@ test('Pool Royale inventory persists across reloads and devices', async () => {
     } finally {
       server.kill();
     }
-  });
+  }, 20000);

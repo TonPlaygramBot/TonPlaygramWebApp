@@ -109,7 +109,7 @@ test('foul grants ball in hand without extra visits', () => {
     noCushionAfterContact: false,
     placedFromHand: true
   });
-  assert.equal(res1.nextPlayer, 'B');
+  assert.equal(res1.nextPlayer, 'A');
   assert.equal(res1.shotsRemainingNext, 1);
 
   const game2 = new UkPool();

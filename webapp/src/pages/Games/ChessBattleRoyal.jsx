@@ -13457,7 +13457,7 @@ function Chess3D({
           strictPrecision: true,
           longArc: true,
           verticalStrike: true,
-          strikeAltitude: CAPTURE_SHORT_MISSILE_STRIKE_ALTITUDE,
+          strikeAltitude: CAPTURE_SHAHAD_DRONE_STRIKE_ALTITUDE,
           targetLift: CAPTURE_TRUCK_STRIKE_TARGET_LIFT
         });
         return withAuto3d({

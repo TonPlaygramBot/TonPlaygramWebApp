@@ -269,7 +269,7 @@ export default function TexasHoldemLobby() {
           <div className="mt-4 grid grid-cols-3 gap-3">
             {[
               { id: 'local', label: 'Local (AI)', iconKey: 'mode-ai' },
-              { id: 'online', label: 'Online', iconKey: 'mode-online' }
+              { id: 'online', label: 'Online Beta', iconKey: 'mode-online', disabled: true }
             ].map(({ id, label, iconKey, disabled }) => (
               <div key={id} className="relative">
                 <button
@@ -291,7 +291,7 @@ export default function TexasHoldemLobby() {
                   </div>
                   <div className="text-center">
                     <p className="lobby-option-label">{label}</p>
-                    {mode === id && id === 'online' && <p className="lobby-option-subtitle">Live queue</p>}
+                    {id === 'online' && <p className="lobby-option-subtitle">Temporarily unavailable</p>}
                   </div>
                 </button>
               </div>

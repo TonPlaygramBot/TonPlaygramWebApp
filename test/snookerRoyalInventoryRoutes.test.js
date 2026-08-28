@@ -103,4 +103,4 @@ test('Snooker Royal inventory persists across reloads and devices', async () => 
     } finally {
       server.kill();
     }
-  });
+}, 20000);

@@ -63,8 +63,8 @@
      the main account receives 9% and this account receives 1%.
    - `VITE_DEV_ACCOUNT_ID_2` – (optional) additional developer account. When set,
      the main account receives 9% and this account receives 2%.
-   - `VITE_API_AUTH_TOKEN` – (optional) token used when calling privileged API
-     endpoints outside Telegram.
+   - Never place `API_AUTH_TOKEN` or any other server credential in a `VITE_`
+     variable. Vite values are public in browser, Android, and iOS bundles.
    - `VITE_LAUNCHER_URL` – HTTPS link to the signed `tonplaygram-launcher.apk` hosted on your CDN/object storage (or GitHub Releases) so `Home.jsx` links to the correct binary.
 
    This value is required for the Google button to appear on the login and
@@ -412,7 +412,7 @@ To move from the start you must roll at least one six when rolling two dice. Any
 
 **X API not configured** – When no `TWITTER_BEARER_TOKEN` is provided the server now skips verification for X related tasks and completes them automatically. Add the token in `bot/.env` if you need strict checks.
 
-**Influencer admin shows "No submissions"** – Ensure your developer token is set in `bot/.env` via `AIRDROP_ADMIN_TOKENS` and in `webapp/.env` through `VITE_API_AUTH_TOKEN` so the webapp can fetch pending submissions.
+**Influencer admin shows "No submissions"** – Open the admin tools through an authenticated owner session. Server credentials must remain in the backend environment and must never be copied into `webapp/.env`.
 
 **Telegram reaction not detected** – The `/api/tasks/verify-telegram-reaction` endpoint relies on `BOT_TOKEN`. If this token is missing the check is skipped and the task automatically succeeds. Configure it only if you require strict validation.
 
