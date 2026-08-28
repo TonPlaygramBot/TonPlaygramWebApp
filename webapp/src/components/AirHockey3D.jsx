@@ -533,7 +533,7 @@ export default function AirHockey3D({
   const [winner, setWinner] = useState('');
   const [goalPopup, setGoalPopup] = useState(null);
   const [postPopup, setPostPopup] = useState(false);
-  const [rematchStatus, setRematchStatus] = useState('');
+  const [redirecting, setRedirecting] = useState(false);
   const resolvedAccountId = useMemo(() => airHockeyAccountId(accountId), [accountId]);
   const [airInventory, setAirInventory] = useState(() => getAirHockeyInventory(resolvedAccountId));
   const defaultSelections = useMemo(
@@ -591,8 +591,9 @@ export default function AirHockey3D({
   const goalTimeoutRef = useRef(null);
   const postTimeoutRef = useRef(null);
   const restartTimeoutRef = useRef(null);
+  const redirectTimeoutRef = useRef(null);
   const lastTouchRef = useRef(null);
-  const onlineSyncRef = useRef({ remoteInput: null, snapshot: null, inputSeq: 0, lastSentAt: 0, revision: 0 });
+  const onlineSyncRef = useRef({ remoteInput: null, snapshot: null, inputSeq: 0, lastSentAt: 0 });
   const topLiveVideoRef = useRef(null);
   const materialsRef = useRef({
     tableSurface: null,
@@ -661,36 +662,16 @@ export default function AirHockey3D({
       if (payload.tableId === tableId) onlineSyncRef.current.remoteInput = payload.input || null;
     };
     const onRemoteState = (payload = {}) => {
-      const revision = Number(payload.revision ?? payload.state?.seq ?? 0);
-      if (
-        payload.tableId === tableId &&
-        payload.state &&
-        revision >= onlineSyncRef.current.revision
-      ) {
-        onlineSyncRef.current.revision = revision;
-        onlineSyncRef.current.snapshot = payload.state;
-      }
-    };
-    const onRematchRequested = (payload = {}) => {
-      if (payload.tableId === tableId && String(payload.accountId) !== String(accountId)) {
-        setRematchStatus('Opponent wants to play again.');
-      }
-    };
-    const onRematchStart = (payload = {}) => {
-      if (payload.tableId === tableId) window.location.reload();
+      if (payload.tableId === tableId && payload.state) onlineSyncRef.current.snapshot = payload.state;
     };
     socket.on('connect', joinAndSync);
     socket.on('airHockeyInput', onRemoteInput);
     socket.on('airHockeyState', onRemoteState);
-    socket.on('airHockeyRematchRequested', onRematchRequested);
-    socket.on('airHockeyRematchStart', onRematchStart);
     joinAndSync();
     return () => {
       socket.off('connect', joinAndSync);
       socket.off('airHockeyInput', onRemoteInput);
       socket.off('airHockeyState', onRemoteState);
-      socket.off('airHockeyRematchRequested', onRematchRequested);
-      socket.off('airHockeyRematchStart', onRematchStart);
     };
   }, [accountId, online, tableId]);
   useEffect(() => {
@@ -811,10 +792,24 @@ export default function AirHockey3D({
     });
   }, [airInventory]);
 
+  useEffect(() => {
+    if (!gameOver) return undefined;
+
+    setRedirecting(true);
+    redirectTimeoutRef.current = setTimeout(() => {
+      window.location.href = gameVariant.lobbyPath;
+    }, 2000);
+
+    return () => {
+      clearTimeout(redirectTimeoutRef.current);
+    };
+  }, [gameOver, gameVariant.lobbyPath]);
+
   useEffect(() => () => {
     clearTimeout(goalTimeoutRef.current);
     clearTimeout(postTimeoutRef.current);
     clearTimeout(restartTimeoutRef.current);
+    clearTimeout(redirectTimeoutRef.current);
   }, []);
 
   useEffect(() => {
@@ -2864,26 +2859,15 @@ export default function AirHockey3D({
             <div className="text-lg font-semibold">Game Over</div>
             <div className="text-sm font-medium">Winner: {winner}</div>
             <div className="text-xs text-white/80">Final Score: {scoreRef.current.left} - {scoreRef.current.right}</div>
-            {rematchStatus ? <div className="text-[11px] text-cyan-200">{rematchStatus}</div> : null}
-            <div className="grid grid-cols-2 gap-2 pt-2">
-              <button
-                onClick={() => {
-                  if (!online) {
-                    window.location.reload();
-                    return;
-                  }
-                  setRematchStatus('Waiting for opponent…');
-                  socket.emit('airHockeyRematch', { tableId, accountId });
-                }}
-                className="w-full rounded bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-semibold py-2 text-sm"
-              >
-                Play Again
-              </button>
+            <div className="text-[11px] text-white/70">
+              {redirecting ? `Redirecting to the ${gameVariant.lobbyLabel} lobby...` : 'Preparing lobby return...'}
+            </div>
+            <div className="pt-2">
               <button
                 onClick={() => (window.location.href = gameVariant.lobbyPath)}
                 className="w-full rounded bg-emerald-500/90 hover:bg-emerald-500 text-black font-semibold py-2 text-sm"
               >
-                Return to Lobby
+                Go to Lobby
               </button>
             </div>
           </div>
