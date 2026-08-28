@@ -35,6 +35,7 @@ import {
   aiChooseAction,
   canBeat,
   detectCombo,
+  resolveOpeningCard,
   sortHand
 } from '../../../../lib/murlan.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
@@ -3590,7 +3591,7 @@ function resolveCardTextureSize(frameOption) {
 }
 
 const GAME_CONFIG = { ...BASE_CONFIG };
-const START_CARD = { rank: '3', suit: '♠' };
+const DEFAULT_START_CARD = { rank: '3', suit: '♠' };
 
 export default function MurlanRoyaleArena({ search }) {
   const mountRef = useRef(null);
@@ -6699,11 +6700,12 @@ export default function MurlanRoyaleArena({ search }) {
       setActionError('The combination is not valid.');
       return;
     }
+    const openingCard = state.openingCard || DEFAULT_START_CARD;
     const includesStart = selectedCards.some(
-      (card) => card.rank === START_CARD.rank && card.suit === START_CARD.suit
+      (card) => card.rank === openingCard.rank && card.suit === openingCard.suit
     );
     if (state.firstMove && !includesStart) {
-      setActionError('The first move must include the 3♠.');
+      setActionError(`The first move must include the ${cardLabel(openingCard)}.`);
       return;
     }
     if (!canBeat(combo, state.tableCombo, GAME_CONFIG)) {
@@ -7238,7 +7240,7 @@ export default function MurlanRoyaleArena({ search }) {
           open={showInfo}
           onClose={() => setShowInfo(false)}
           title="Murlan Royale"
-          info="Play valid combos (singles, pairs, trips, straights, flushes, full house, bombs) to beat the current table. The first move must include 3♠. Pass if you cannot beat the combo."
+          info="Play valid combos (singles, pairs, trips, straights, flushes, full house, bombs) to beat the current table. In 1v1, the lowest spade held by either player opens the game, starting from 3♠. Pass if you cannot beat the combo."
         />
       </div>
     </div>
@@ -7252,8 +7254,9 @@ function runAiTurn(state) {
   if (action.type === 'PLAY' && action.cards?.length) {
     const combo = detectCombo(action.cards, GAME_CONFIG);
     if (combo) {
+      const openingCard = state.openingCard || DEFAULT_START_CARD;
       const includesStart = action.cards.some(
-        (card) => card.rank === START_CARD.rank && card.suit === START_CARD.suit
+        (card) => card.rank === openingCard.rank && card.suit === openingCard.suit
       );
       if (!state.firstMove || includesStart) {
         return buildPlayState(state, action.cards, combo);
@@ -7378,10 +7381,8 @@ function initializeGame(playersInfo) {
     hand: sortHand(hands[idx], GAME_CONFIG),
     finished: false
   }));
-  const startIdx = playerStates.findIndex((player) =>
-    player.hand.some((card) => card.rank === START_CARD.rank && card.suit === START_CARD.suit)
-  );
-  const active = startIdx === -1 ? 0 : startIdx;
+  const openingCard = resolveOpeningCard(playerStates, GAME_CONFIG);
+  const active = openingCard?.playerIndex ?? 0;
   return {
     players: playerStates,
     activePlayer: active,
@@ -7390,6 +7391,7 @@ function initializeGame(playersInfo) {
     discardPile: [],
     passesInRow: 0,
     lastWinner: active,
+    openingCard,
     firstMove: true,
     status: 'PLAYING',
     stockCards: dealtHandCount > playersInfo.length ? hands[playersInfo.length] : [],
@@ -7467,7 +7469,7 @@ function computeUiState(state) {
       humanTurn = !!active.isHuman;
       if (humanTurn) {
         message = state.firstMove
-          ? 'Choose the cards (include 3♠) and press "Play".'
+          ? `Choose the cards (include ${cardLabel(state.openingCard || DEFAULT_START_CARD)}) and press "Play".`
           : state.tableCombo
             ? 'Find a combo that beats the table or press "Pass".'
             : 'Pick your cards and press "Play" to start the trick.';

@@ -7,7 +7,8 @@ import {
   canBeat,
   playTurn,
   aiChooseAction,
-  dealPlayers
+  dealPlayers,
+  resolveOpeningCard
 } from '../lib/murlan.js';
 
 const card = (rank, suit = '') => ({ rank, suit });
@@ -101,6 +102,34 @@ test('dealPlayers marks starting player', () => {
   assert.equal(players.startingPlayer, idx);
 });
 
+test('1v1 opening advances to the lowest spade held by a player', () => {
+  const players = [
+    { hand: [card('7', '♦'), card('5', '♠')] },
+    { hand: [card('4', '♠'), card('K', '♣')] }
+  ];
+
+  assert.deepEqual(resolveOpeningCard(players), { rank: '4', suit: '♠', playerIndex: 1 });
+});
+
+test('fallback opening spade must be included in the first play', () => {
+  const openingCard = { rank: '5', suit: '♠', playerIndex: 0 };
+  const state = {
+    players: [
+      { hand: [card('5', '♠'), card('7', '♦')], finished: false },
+      { hand: [card('6', '♠')], finished: false }
+    ],
+    turn: { activePlayer: 0, currentCombo: null, passesInRow: 0 },
+    config: DEFAULT_CONFIG,
+    openingCard,
+    lastWinner: 0,
+    firstMove: true
+  };
+
+  assert.throws(() => playTurn(state, { type: 'PLAY', cards: [card('7', '♦')] }));
+  playTurn(state, { type: 'PLAY', cards: [card('5', '♠')] });
+  assert.equal(state.firstMove, false);
+});
+
 test('round closes after passes', () => {
   const state = {
     players: [
@@ -191,4 +220,3 @@ test('bomb finishing hand passes lead', () => {
   assert.equal(state.players[0].finished, true);
   assert.equal(state.turn.activePlayer, 1);
 });
-
