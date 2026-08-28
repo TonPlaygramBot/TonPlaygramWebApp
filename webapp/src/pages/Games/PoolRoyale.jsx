@@ -44,7 +44,17 @@ import {
 import { resolveTableSize as resolveSnookerTableSize } from '../../config/snookerClubTables.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { chatBeep } from '../../assets/coreSoundData.js';
-
+import {
+  buildCommentaryLine,
+  POOL_ROYALE_SPEAKERS
+} from '../../utils/poolRoyaleCommentary.js';
+import {
+  getSpeechSupport,
+  getSpeechSynthesis,
+  onSpeechSupportChange,
+  primeSpeechSynthesis,
+  speakCommentaryLines
+} from '../../utils/textToSpeech.js';
 import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
 import InfoPopup from '../../components/InfoPopup.jsx';
 import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
@@ -120,6 +130,7 @@ import { createMurlanStyleTable } from '../../utils/murlanTable.js';
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 const BASIS_TRANSCODER_PATH =
   'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
+
 
 const TRAINING_MISS_ATTEMPT_COST = 1;
 const TRAINING_SCRATCH_ATTEMPT_COST = 1;
@@ -613,6 +624,7 @@ function detectPreferredFrameRateId() {
 
   return DEFAULT_FRAME_RATE_ID;
 }
+
 
 function isLikelyMobileDevice() {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
@@ -1172,9 +1184,113 @@ const CLOTH_COLOR_STORAGE_KEY = 'poolRoyaleClothColor';
 const TABLE_BASE_STORAGE_KEY = 'poolRoyaleTableBase';
 const POCKET_LINER_STORAGE_KEY = 'poolPocketLiner';
 const POOL_ROYALE_REPLAY_ENABLED = true;
-
+const POOL_ROYALE_VOICE_COMMENTARY_ENABLED = false;
+const COMMENTARY_PRESET_STORAGE_KEY = 'poolRoyaleCommentaryPreset';
+const COMMENTARY_MUTE_STORAGE_KEY = 'poolRoyaleCommentaryMute';
 const DEFAULT_CUE_STROKE_STYLE = 'featherLine';
-
+const COMMENTARY_QUEUE_LIMIT = 4;
+const COMMENTARY_MIN_INTERVAL_MS = 1200;
+const POOL_ROYALE_COMMENTARY_PRESETS = Object.freeze([
+  {
+    id: 'english',
+    label: 'English',
+    description: 'Mixed voices, classic English',
+    language: 'en',
+    voiceHints: {
+      [POOL_ROYALE_SPEAKERS.lead]: ['en-US', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex'],
+      [POOL_ROYALE_SPEAKERS.analyst]: ['en-GB', 'English', 'female', 'Sonia', 'Hazel', 'Kate', 'Emma']
+    },
+    speakerSettings: {
+      [POOL_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
+      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.06, volume: 1 }
+    }
+  },
+  {
+    id: 'saffron-table',
+    label: 'Indian Table',
+    description: 'Hindi commentary with lively pacing',
+    language: 'hi',
+    voiceHints: {
+      [POOL_ROYALE_SPEAKERS.lead]: ['hi-IN', 'hi', 'Hindi', 'male', 'Raj', 'Amit', 'Arjun'],
+      [POOL_ROYALE_SPEAKERS.analyst]: ['hi-IN', 'hi', 'Hindi', 'female', 'Asha', 'Priya', 'Neha']
+    },
+    speakerSettings: {
+      [POOL_ROYALE_SPEAKERS.lead]: { rate: 1.06, pitch: 1.02, volume: 1 },
+      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1.08, pitch: 1.08, volume: 1 }
+    }
+  },
+  {
+    id: 'moscow-mics',
+    label: 'Russian Booth',
+    description: 'Russian commentary with steady cadence',
+    language: 'ru',
+    voiceHints: {
+      [POOL_ROYALE_SPEAKERS.lead]: ['ru-RU', 'ru', 'Russian', 'male', 'Dmitri', 'Ivan', 'Sergey', 'Alexey'],
+      [POOL_ROYALE_SPEAKERS.analyst]: ['ru-RU', 'ru', 'Russian', 'female', 'Anna', 'Svetlana', 'Irina', 'Olga']
+    },
+    speakerSettings: {
+      [POOL_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
+      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1.03, pitch: 1.02, volume: 1 }
+    }
+  },
+  {
+    id: 'latin-pulse',
+    label: 'Latin Pulse',
+    description: 'Spanish play-by-play with lively color',
+    language: 'es',
+    voiceHints: {
+      [POOL_ROYALE_SPEAKERS.lead]: ['es-ES', 'es-MX', 'Spanish', 'male', 'Jorge', 'Carlos', 'Miguel'],
+      [POOL_ROYALE_SPEAKERS.analyst]: ['es-ES', 'es-MX', 'Spanish', 'female', 'Isabella', 'Lucia', 'Camila']
+    },
+    speakerSettings: {
+      [POOL_ROYALE_SPEAKERS.lead]: { rate: 1.05, pitch: 1, volume: 1 },
+      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1.08, pitch: 1.1, volume: 1 }
+    }
+  },
+  {
+    id: 'francophone-booth',
+    label: 'Francophone Booth',
+    description: 'French broadcast pairing',
+    language: 'fr',
+    voiceHints: {
+      [POOL_ROYALE_SPEAKERS.lead]: ['fr-FR', 'French', 'male', 'Henri', 'Louis', 'Paul'],
+      [POOL_ROYALE_SPEAKERS.analyst]: ['fr-FR', 'French', 'female', 'Amelie', 'Marie', 'Charlotte']
+    },
+    speakerSettings: {
+      [POOL_ROYALE_SPEAKERS.lead]: { rate: 0.98, pitch: 0.96, volume: 1 },
+      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.06, volume: 1 }
+    }
+  },
+  {
+    id: 'albanian-booth',
+    label: 'Albanian Booth',
+    description: 'Shqip commentary with native cadence',
+    language: 'sq-AL',
+    voiceHints: {
+      [POOL_ROYALE_SPEAKERS.lead]: ['sq-AL', 'Albanian', 'male', 'Arben', 'Besnik', 'Luan'],
+      [POOL_ROYALE_SPEAKERS.analyst]: ['sq-AL', 'Albanian', 'female', 'Elira', 'Arta', 'Besa']
+    },
+    speakerSettings: {
+      [POOL_ROYALE_SPEAKERS.lead]: { rate: 1.02, pitch: 0.98, volume: 1 },
+      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1.05, pitch: 1.06, volume: 1 }
+    }
+  },
+  {
+    id: 'italian-gallery',
+    label: 'Italian Gallery',
+    description: 'Italian booth with authentic broadcast rhythm',
+    language: 'it-IT',
+    voiceHints: {
+      [POOL_ROYALE_SPEAKERS.lead]: ['it-IT', 'it', 'Italian', 'male', 'Marco', 'Luca', 'Giovanni', 'Alessandro'],
+      [POOL_ROYALE_SPEAKERS.analyst]: ['it-IT', 'Italian', 'female', 'Giulia']
+    },
+    speakerSettings: {
+      [POOL_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.98, volume: 1 },
+      [POOL_ROYALE_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.04, volume: 1 }
+    }
+  }
+]);
+const DEFAULT_COMMENTARY_PRESET_ID = POOL_ROYALE_COMMENTARY_PRESETS[0]?.id || 'english';
 const DEFAULT_TABLE_BASE_ID = POOL_ROYALE_BASE_VARIANTS[0]?.id || 'classicCylinders';
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
@@ -2150,6 +2266,7 @@ function deriveInHandFromFrame(frame) {
   return false;
 }
 
+
 function useResponsiveTableSize(option) {
   const [scale, setScale] = useState(() => option?.scale ?? 1);
 
@@ -2395,6 +2512,7 @@ const makeColorPalette = ({ cloth, rail, base, markings = 0xffffff, cushion }) =
   ...BASE_BALL_COLORS
 });
 
+
 const clampToUnit = (value) => Math.min(1, Math.max(0, value));
 
 const mixHexColors = (fromHex, toHex, t) => {
@@ -2406,6 +2524,7 @@ const mixHexColors = (fromHex, toHex, t) => {
 };
 
 const hexNumberToCss = (hex) => `#${hex.toString(16).padStart(6, '0')}`;
+
 
 const SHARED_WOOD_REPEAT = Object.freeze({
   x: 1,
@@ -3114,6 +3233,7 @@ const broadcastPocketPlasticTextures = (textures) => {
   });
 };
 
+
 const ensurePocketPlasticTextures = () => {
   const cacheKey = `pocket-plastic-${getRuntimePocketTextureSize()}`;
   if (!pocketPlasticTextureCache.has(cacheKey)) {
@@ -3240,6 +3360,7 @@ const createStandardWoodFinish = ({
     return { ...materials, ...createPocketMaterials() };
   }
 });
+
 
 const POLYHAVEN_WOOD_TEXTURE_REPEAT_SCALE = Object.freeze({
   // Real-world scan spans from Poly Haven pages (April 4, 2026):
@@ -6593,6 +6714,7 @@ const lerpAngle = (start = 0, end = 0, t = 0.5) => {
   return start + delta * THREE.MathUtils.clamp(t ?? 0, 0, 1);
 };
 
+
 // --------------------------------------------------
 // Utilities
 // --------------------------------------------------
@@ -8122,6 +8244,7 @@ function calcTarget(cue, dir, balls) {
   }
   return { impact, targetDir, cueDir, targetBall, railNormal, tHit: travel };
 }
+
 
 function getPoolRoyaleBallParent(parent) {
   if (!parent?.userData) return parent;
@@ -12199,8 +12322,11 @@ export function Table3D(
     return loader;
   };
 
+
+
 const poolRoyaleExternalTableTemplates = new Map();
 const poolRoyaleExternalTablePromises = new Map();
+
 
 const POOL_ROYALE_SHOWOOD_PART_TO_CONTROL = Object.freeze({
   cloth: 'cloth',
@@ -12262,6 +12388,7 @@ function clearPoolRoyaleMaterialTextureMaps(material) {
   material.lightMap = null;
   material.alphaMap = null;
 }
+
 
 function copyPoolRoyaleMaterialLook(target, source) {
   if (!target || !source) return;
@@ -12454,6 +12581,7 @@ function isPoolRoyaleShowoodOriginalBaseOrLeg(child, material, referencePart = n
   if (['leg', 'baseFoot', 'baseCornerBlock'].includes(referencePart)) return true;
   return /leg|foot|feet|base|support|underside|pedestal|stretcher|plinth/.test(label);
 }
+
 
 const POOL_ROYALE_SHOWOOD_ORIGINAL_BASE_PARTS = new Set(['leg', 'baseFoot', 'baseCornerBlock', 'underside']);
 
@@ -12695,6 +12823,7 @@ function preparePoolRoyaleExternalTexture(texture, isColor = false) {
   texture.anisotropy = resolveTextureAnisotropy(12);
   texture.needsUpdate = true;
 }
+
 
 function getPoolRoyaleExternalUvSpan(mesh) {
   const uv = mesh?.geometry?.attributes?.uv;
@@ -13042,6 +13171,7 @@ function expandPoolRoyaleBoundsByObjects(objects) {
   return box;
 }
 
+
 function expandPoolRoyaleUpperMeshBounds(targetBox, mesh, minWorldY) {
   const position = mesh?.geometry?.attributes?.position;
   if (!position) return false;
@@ -13057,6 +13187,7 @@ function expandPoolRoyaleUpperMeshBounds(targetBox, mesh, minWorldY) {
   }
   return expanded;
 }
+
 
 function applyPoolRoyaleExternalPlayfieldVisualLift(table, lift = 0) {
   if (!table || !Number.isFinite(lift) || Math.abs(lift) <= MICRO_EPS) return 0;
@@ -13208,6 +13339,7 @@ function resolvePoolRoyaleShowoodTopRailBottomY(model, fullBox, dims) {
   const index = THREE.MathUtils.clamp(Math.floor(railBottoms.length * 0.35), 0, railBottoms.length - 1);
   return railBottoms[index];
 }
+
 
 function trimPoolRoyaleShowoodLowerAccentTriangles(model, tableModel, dims) {
   if (!model || !tableModel?.useReferenceShowoodMapping || tableModel?.trimCornerRimsToTopRailBottom === false) return 0;
@@ -13587,6 +13719,7 @@ function subtlyExpandPoolRoyaleShowoodRailSightsAndAprons(model, tableModel, dim
   model.userData.poolRoyaleShowoodRailSightApronExpanded = true;
   model.updateMatrixWorld(true);
 }
+
 
 function fitPoolRoyaleExternalTableModel(model, tableModel, dims) {
   if (!model || !dims) return;
@@ -15319,10 +15452,39 @@ function PoolRoyaleGame({
     );
   });
   const clothTextureSourceId = DEFAULT_CLOTH_TEXTURE_SOURCE_ID;
-
+  const [commentaryPresetId, setCommentaryPresetId] = useState(DEFAULT_COMMENTARY_PRESET_ID);
+  const [commentaryMuted, setCommentaryMuted] = useState(!POOL_ROYALE_VOICE_COMMENTARY_ENABLED);
   const skipReplayRef = useRef(() => {});
   const cueStrokeAnimationStyleRef = useRef(DEFAULT_CUE_STROKE_STYLE);
-
+  const commentaryMutedRef = useRef(commentaryMuted);
+  const commentaryReadyRef = useRef(false);
+  const commentaryQueueRef = useRef([]);
+  const commentarySpeakingRef = useRef(false);
+  const commentaryLastEventAtRef = useRef(0);
+  const commentaryGreetingRef = useRef(false);
+  const pendingCommentaryLinesRef = useRef(null);
+  useEffect(() => {
+    commentaryMutedRef.current = commentaryMuted;
+    if (commentaryMuted) {
+      const synth = getSpeechSynthesis();
+      synth?.cancel();
+      commentaryQueueRef.current = [];
+      commentarySpeakingRef.current = false;
+      pendingCommentaryLinesRef.current = null;
+    }
+  }, [commentaryMuted]);
+  useEffect(() => {
+    if (!POOL_ROYALE_VOICE_COMMENTARY_ENABLED) return;
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(COMMENTARY_PRESET_STORAGE_KEY, commentaryPresetId);
+    }
+  }, [commentaryPresetId]);
+  useEffect(() => {
+    if (!POOL_ROYALE_VOICE_COMMENTARY_ENABLED) return;
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(COMMENTARY_MUTE_STORAGE_KEY, commentaryMuted ? '1' : '0');
+    }
+  }, [commentaryMuted]);
   const [pocketLinerId, setPocketLinerId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(POCKET_LINER_STORAGE_KEY);
@@ -15473,7 +15635,15 @@ function PoolRoyaleGame({
     () => resolveBroadcastSystem(broadcastSystemId),
     [broadcastSystemId]
   );
-
+  const activeCommentaryPreset = useMemo(
+    () =>
+      POOL_ROYALE_COMMENTARY_PRESETS.find((preset) => preset.id === commentaryPresetId) ??
+      POOL_ROYALE_COMMENTARY_PRESETS[0],
+    [commentaryPresetId]
+  );
+  const [commentarySupported, setCommentarySupported] = useState(
+    () => POOL_ROYALE_VOICE_COMMENTARY_ENABLED && getSpeechSupport()
+  );
   const availableTableFinishes = useMemo(
     () =>
       TABLE_FINISH_OPTIONS.filter((option) =>
@@ -15605,9 +15775,13 @@ function PoolRoyaleGame({
     [availablePocketLiners, pocketLinerId]
   );
   useEffect(() => {
-
+    if (!POOL_ROYALE_VOICE_COMMENTARY_ENABLED) {
+      setCommentarySupported(false);
+      return undefined;
+    }
+    const updateSupport = () => setCommentarySupported(getSpeechSupport());
     updateSupport();
-
+    const unsubscribe = onSpeechSupportChange((supported) => setCommentarySupported(Boolean(supported)));
     return () => {
       unsubscribe();
     };
@@ -15707,7 +15881,7 @@ function PoolRoyaleGame({
   const pendingTrainingLayoutLevelRef = useRef(null);
   const trainingTableRef = useRef(null);
   const trainingAutoAdvanceTimeoutRef = useRef(null);
-
+  const trainingCommentaryKeyRef = useRef('');
   const [trainingTaskTransition, setTrainingTaskTransition] = useState(null);
   const persistRewardNft = useCallback(
     (nft) => {
@@ -15731,6 +15905,7 @@ function PoolRoyaleGame({
     },
     [rewardNftStorageKey]
   );
+
 
   const openRewardGift = useCallback((nft, options = {}) => {
     if (!nft) return;
@@ -15846,6 +16021,8 @@ function PoolRoyaleGame({
     return () => window.clearTimeout(timeoutId);
   }, [isTraining]);
 
+
+
   const grantTrainingAttemptsForLevel = useCallback((rawLevel) => {
     if (!isTraining || !usesCareerAttempts) return;
     const stageId = careerStageId || `career-training-level-${Math.min(TRAINING_LEVEL_COUNT, Math.max(1, Number(rawLevel) || 1))}`;
@@ -15866,6 +16043,7 @@ function PoolRoyaleGame({
     setCareerAttemptsProgress(updated);
     setTrainingShotsRemaining(Math.max(0, Number(updated?.carryShots) || 0));
   }, [careerStageId, isTraining, usesCareerAttempts]);
+
 
   const handleTrainingAttemptsPurchase = useCallback(async (bundle) => {
     if (!usesCareerAttempts || !bundle || !resolvedAccountId) {
@@ -17411,6 +17589,7 @@ const shotPowerRef = useRef(0);
     applyRandomBreaker();
   }, [applyRandomBreaker, breakRollLoadReady, breakRollState, isTraining]);
 
+
   useEffect(() => {
     const meshes = breakDiceMeshesRef.current;
     const shouldShow = false;
@@ -18525,6 +18704,7 @@ const shotPowerRef = useRef(0);
     ]
   );
 
+
   const resolvePerfectRunReward = useCallback(
     ({ winnerSeat, userSeat }) => {
       const seat = winnerSeat === 'B' ? 'B' : 'A';
@@ -18780,6 +18960,70 @@ const shotPowerRef = useRef(0);
     [resolveBallLabel]
   );
 
+  const playNextCommentary = useCallback(async () => {
+    if (commentarySpeakingRef.current) return;
+    const next = commentaryQueueRef.current.shift();
+    if (!next) return;
+    const synth = getSpeechSynthesis();
+    if (!synth) return;
+    commentarySpeakingRef.current = true;
+    try {
+      synth.cancel();
+    } catch {}
+    await speakCommentaryLines(next.lines, {
+      speakerSettings: next.preset?.speakerSettings,
+      voiceHints: next.preset?.voiceHints
+    });
+    commentarySpeakingRef.current = false;
+    if (commentaryQueueRef.current.length) {
+      playNextCommentary();
+    }
+  }, []);
+
+  const enqueuePoolCommentary = useCallback(
+    (lines, { priority = false, preset = activeCommentaryPreset } = {}) => {
+      if (!Array.isArray(lines) || lines.length === 0) return;
+      if (commentaryMutedRef.current || isGameMuted()) return;
+      if (!commentaryReadyRef.current) {
+        pendingCommentaryLinesRef.current = { lines, priority, preset };
+        return;
+      }
+      const now = performance.now();
+      if (!priority && now - commentaryLastEventAtRef.current < COMMENTARY_MIN_INTERVAL_MS) return;
+      if (!priority && commentaryQueueRef.current.length >= COMMENTARY_QUEUE_LIMIT) return;
+      if (priority) {
+        commentaryQueueRef.current.unshift({ lines, preset });
+      } else {
+        commentaryQueueRef.current.push({ lines, preset });
+      }
+      if (!commentarySpeakingRef.current) {
+        playNextCommentary();
+      }
+      commentaryLastEventAtRef.current = now;
+    },
+    [activeCommentaryPreset, playNextCommentary]
+  );
+
+  const commentaryLocale = activeCommentaryPreset?.language ?? 'en';
+  const resolveFlagLabel = useCallback((flagEmoji, locale = commentaryLocale) => {
+    if (!flagEmoji) return 'Flag';
+    try {
+      const codePoints = [...flagEmoji].map((c) => c.codePointAt(0));
+      if (codePoints.length === 2) {
+        const [a, b] = codePoints;
+        const base = 0x1f1e6;
+        const region = String.fromCharCode(a - base + 65, b - base + 65);
+        if (typeof Intl !== 'undefined' && typeof Intl.DisplayNames === 'function') {
+          const display = new Intl.DisplayNames([locale || 'en'], { type: 'region' });
+          return display.of(region) || region;
+        }
+        return region;
+      }
+    } catch (err) {
+      console.warn('flag label resolve failed', err);
+    }
+    return flagEmoji;
+  }, [commentaryLocale]);
   const playerFlag = useMemo(
     () => FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)],
     []
@@ -18812,6 +19056,21 @@ const shotPowerRef = useRef(0);
   }, [tournamentAiFlagStorageKey, tournamentMode]);
   const aiFlagLabel = useMemo(() => resolveFlagLabel(aiFlag), [aiFlag, resolveFlagLabel]);
 
+  const resolveFallbackPlayerLabel = useCallback(
+    (seat) => {
+      const localeKey = String(commentaryLocale || 'en').toLowerCase();
+      if (localeKey.startsWith('sq')) return seat === 'A' ? 'Lojtari A' : 'Lojtari B';
+      if (localeKey.startsWith('es')) return seat === 'A' ? 'Jugador A' : 'Jugador B';
+      if (localeKey.startsWith('fr')) return seat === 'A' ? 'Joueur A' : 'Joueur B';
+      if (localeKey.startsWith('it')) return seat === 'A' ? 'Giocatore A' : 'Giocatore B';
+      if (localeKey.startsWith('ru')) return seat === 'A' ? 'Игрок A' : 'Игрок B';
+      if (localeKey.startsWith('hi')) return seat === 'A' ? 'खिलाड़ी A' : 'खिलाड़ी B';
+      if (localeKey.startsWith('ar')) return seat === 'A' ? 'اللاعب A' : 'اللاعب B';
+      return seat === 'A' ? 'Player A' : 'Player B';
+    },
+    [commentaryLocale]
+  );
+
   const resolveSeatLabel = useCallback(
     (seat) => {
       if (seat === 'A') {
@@ -18832,6 +19091,268 @@ const shotPowerRef = useRef(0);
       resolveFallbackPlayerLabel
     ]
   );
+
+  const resolveScoreline = useCallback(
+    (scoreA, scoreB) => {
+      const localeKey = String(commentaryLocale || 'en').toLowerCase();
+      const leader =
+        scoreA > scoreB ? resolveSeatLabel('A') : resolveSeatLabel('B');
+      const leadScore = scoreA > scoreB ? scoreA : scoreB;
+      const trailScore = scoreA > scoreB ? scoreB : scoreA;
+
+      if (scoreA === scoreB) {
+        if (localeKey.startsWith('sq')) return `barazim ${scoreA}-${scoreB}`;
+        if (localeKey.startsWith('es')) return `igualado ${scoreA}-${scoreB}`;
+        if (localeKey.startsWith('fr')) return `égalité ${scoreA}-${scoreB}`;
+        if (localeKey.startsWith('it')) return `parità ${scoreA}-${scoreB}`;
+        if (localeKey.startsWith('ru')) return `равно ${scoreA}-${scoreB}`;
+        if (localeKey.startsWith('hi')) return `बराबरी ${scoreA}-${scoreB}`;
+        if (localeKey.startsWith('ar')) return `تعادل ${scoreA}-${scoreB}`;
+        return `level at ${scoreA}-${scoreB}`;
+      }
+
+      if (localeKey.startsWith('sq')) return `${leader} kryeson ${leadScore}-${trailScore}`;
+      if (localeKey.startsWith('es')) return `${leader} lidera ${leadScore}-${trailScore}`;
+      if (localeKey.startsWith('fr')) return `${leader} mène ${leadScore}-${trailScore}`;
+      if (localeKey.startsWith('it')) return `${leader} avanti ${leadScore}-${trailScore}`;
+      if (localeKey.startsWith('ru')) return `${leader} ведёт ${leadScore}-${trailScore}`;
+      if (localeKey.startsWith('hi')) return `${leader} आगे है ${leadScore}-${trailScore}`;
+      if (localeKey.startsWith('ar')) return `${leader} يتقدم ${leadScore}-${trailScore}`;
+      return `${leader} leads ${leadScore}-${trailScore}`;
+    },
+    [commentaryLocale, resolveSeatLabel]
+  );
+
+  const resolveCommentarySpeaker = useCallback(() => {
+    return POOL_ROYALE_SPEAKERS.analyst;
+  }, []);
+
+  const enqueuePoolCommentaryEvent = useCallback(
+    (event, context = {}, options = {}) => {
+      const speaker = options.speaker ?? resolveCommentarySpeaker();
+      const text = buildCommentaryLine({
+        event,
+        variant: activeVariant?.id ?? variantKey ?? '9ball',
+        speaker,
+        language: activeCommentaryPreset?.language ?? commentaryPresetId,
+        context: {
+          arena: 'Pool Royale arena',
+          ballSet: activeVariant?.ballSet,
+          ...context
+        }
+      });
+      enqueuePoolCommentary([{ speaker, text }], options);
+    },
+    [
+      activeCommentaryPreset?.language,
+      activeVariant?.ballSet,
+      activeVariant?.id,
+      commentaryPresetId,
+      enqueuePoolCommentary,
+      resolveCommentarySpeaker,
+      variantKey
+    ]
+  );
+  useEffect(() => {
+    if (commentaryGreetingRef.current) return;
+    commentaryGreetingRef.current = true;
+    const scoreA = frameState?.players?.A?.score ?? 0;
+    const scoreB = frameState?.players?.B?.score ?? 0;
+    const context = {
+      player: resolveSeatLabel('A'),
+      opponent: resolveSeatLabel('B'),
+      playerScore: scoreA,
+      opponentScore: scoreB,
+      playerPoints: scoreA,
+      opponentPoints: scoreB,
+      scoreline: resolveScoreline(scoreA, scoreB),
+      ballSet: activeVariant?.ballSet,
+      previousResult: tournamentLastResult ?? undefined
+    };
+    enqueuePoolCommentaryEvent('welcome', context, {
+      priority: true,
+      speaker: POOL_ROYALE_SPEAKERS.lead
+    });
+    if (isTournamentFinalMatch) {
+      enqueuePoolCommentary(
+        [{ speaker: POOL_ROYALE_SPEAKERS.lead, text: 'Welcome to the final. Winner takes the crown.' }],
+        { priority: true }
+      );
+    }
+    if (tournamentMode && tournamentLastResult) {
+      enqueuePoolCommentaryEvent(
+        'tournamentRecall',
+        { ...context, previousResult: tournamentLastResult },
+        { speaker: POOL_ROYALE_SPEAKERS.analyst }
+      );
+    }
+  }, [
+    activeVariant?.ballSet,
+    enqueuePoolCommentary,
+    enqueuePoolCommentaryEvent,
+    frameState?.players,
+    isTournamentFinalMatch,
+    resolveScoreline,
+    resolveSeatLabel,
+    tournamentLastResult,
+    tournamentMode
+  ]);
+
+  const maybeSpeakShotCommentary = useCallback(
+    ({
+      shooterSeat,
+      safeState,
+      hadObjectPot,
+      shotWasFoul,
+      cueBallPotted,
+      replayDecision,
+      potCount,
+      pottedBalls
+    }) => {
+      if (commentaryMutedRef.current || isGameMuted()) return;
+      const scoreA = safeState?.players?.A?.score ?? frameState?.players?.A?.score ?? 0;
+      const scoreB = safeState?.players?.B?.score ?? frameState?.players?.B?.score ?? 0;
+      const shooter = shooterSeat === 'A' ? 'A' : 'B';
+      const opponent = shooter === 'A' ? 'B' : 'A';
+      const shooterName = resolveSeatLabel(shooter);
+      const opponentName = resolveSeatLabel(opponent);
+      const scoreline = resolveScoreline(scoreA, scoreB);
+      const shooterScore = shooter === 'A' ? scoreA : scoreB;
+      const opponentScore = shooter === 'A' ? scoreB : scoreA;
+      const shooterPots = (pottedBySeat?.[shooter]?.length ?? 0) + (potCount ?? 0);
+      const opponentPots = pottedBySeat?.[opponent]?.length ?? 0;
+      const { targetBall, potCount: resolvedPotCount, pocket } = resolvePotSummary(pottedBalls);
+      const context = {
+        player: shooterName,
+        opponent: opponentName,
+        playerScore: shooterScore,
+        opponentScore,
+        playerPoints: shooterScore,
+        opponentPoints: opponentScore,
+        playerPots: shooterPots,
+        opponentPots,
+        scoreline,
+        targetBall,
+        potCount: resolvedPotCount,
+        pocket
+      };
+
+      if (safeState?.frameOver) {
+        const winnerSeat = safeState?.winner === 'B' ? 'B' : 'A';
+        const loserSeat = winnerSeat === 'A' ? 'B' : 'A';
+        enqueuePoolCommentaryEvent(
+          'matchWin',
+          {
+            ...context,
+            player: resolveSeatLabel(winnerSeat),
+            opponent: resolveSeatLabel(loserSeat),
+            playerScore: winnerSeat === 'A' ? scoreA : scoreB,
+            opponentScore: winnerSeat === 'A' ? scoreB : scoreA,
+            playerPoints: winnerSeat === 'A' ? scoreA : scoreB,
+            opponentPoints: winnerSeat === 'A' ? scoreB : scoreA
+          },
+          { priority: true }
+        );
+        return;
+      }
+
+      if (shotWasFoul || cueBallPotted || safeState?.foul) {
+        enqueuePoolCommentaryEvent('foul', context);
+        if (safeState?.meta?.state?.ballInHand) {
+          enqueuePoolCommentaryEvent('inHand', {
+            ...context,
+            opponent: opponentName
+          });
+        }
+        return;
+      }
+
+      if (hadObjectPot) {
+        if (replayDecision?.tags?.includes('bank')) {
+          enqueuePoolCommentaryEvent('bank', context);
+        } else if (replayDecision?.tags?.includes('multi')) {
+          enqueuePoolCommentaryEvent('combo', context);
+        } else {
+          enqueuePoolCommentaryEvent('pot', context);
+        }
+        return;
+      }
+
+      enqueuePoolCommentaryEvent('miss', context);
+    },
+    [
+      enqueuePoolCommentaryEvent,
+      frameState?.players,
+      pottedBySeat,
+      resolvePotSummary,
+      resolveScoreline,
+      resolveSeatLabel
+    ]
+  );
+
+  useEffect(() => {
+    if (!isTraining) {
+      trainingCommentaryKeyRef.current = '';
+      return;
+    }
+    const objective = currentTrainingInfo?.objective || 'Complete the drill.';
+    const attemptsLeft = Math.max(0, Number(trainingShotsRemaining) || 0);
+    const key = `${currentTrainingInfo?.level || 1}:${attemptsLeft}`;
+    if (trainingCommentaryKeyRef.current === key) return;
+    trainingCommentaryKeyRef.current = key;
+    const speaker = resolveCommentarySpeaker();
+    enqueuePoolCommentary(
+      [
+        {
+          speaker,
+          text: `Training task ${currentTrainingInfo?.level || 1}: ${objective}`
+        },
+        {
+          speaker,
+          text: usesCareerAttempts
+            ? `Hearts left: ${attemptsLeft}. Every missed shot costs -${TRAINING_MISS_ATTEMPT_COST} attempt.`
+            : 'Free training mode is active. You can keep practicing without heart costs.'
+        }
+      ],
+      { interrupt: false }
+    );
+  }, [
+    currentTrainingInfo?.level,
+    currentTrainingInfo?.objective,
+    enqueuePoolCommentary,
+    isTraining,
+    resolveCommentarySpeaker,
+    trainingShotsRemaining,
+    usesCareerAttempts
+  ]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const unlockCommentary = () => {
+      if (commentaryReadyRef.current) return;
+      primeSpeechSynthesis();
+      const synth = getSpeechSynthesis();
+      synth?.getVoices?.();
+      commentaryReadyRef.current = true;
+      const pending = pendingCommentaryLinesRef.current;
+      if (pending) {
+        pendingCommentaryLinesRef.current = null;
+        enqueuePoolCommentary(pending.lines, pending);
+      }
+    };
+    if (navigator?.userActivation?.hasBeenActive) {
+      unlockCommentary();
+    }
+    window.addEventListener('pointerdown', unlockCommentary);
+    window.addEventListener('click', unlockCommentary);
+    window.addEventListener('touchstart', unlockCommentary);
+    window.addEventListener('keydown', unlockCommentary);
+    return () => {
+      window.removeEventListener('pointerdown', unlockCommentary);
+      window.removeEventListener('click', unlockCommentary);
+      window.removeEventListener('touchstart', unlockCommentary);
+      window.removeEventListener('keydown', unlockCommentary);
+    };
+  }, [enqueuePoolCommentary]);
 
   useEffect(() => {
     document.title = 'Pool Royale 3D';
@@ -18927,9 +19448,9 @@ const shotPowerRef = useRef(0);
       muteRef.current = isGameMuted();
       if (muteRef.current) {
         stopActiveCrowdSound();
-
+        const synth = getSpeechSynthesis();
         synth?.cancel();
-
+        pendingCommentaryLinesRef.current = null;
       }
     };
     const handleVolume = () => {
@@ -21890,6 +22411,7 @@ const shotPowerRef = useRef(0);
             position: eyePos
           };
         };
+
 
         const updateBroadcastCameras = ({
           railDir = 1,
@@ -32063,7 +32585,16 @@ const shotPowerRef = useRef(0);
             }
           });
         }
-
+        maybeSpeakShotCommentary({
+          shooterSeat,
+          safeState,
+          hadObjectPot,
+          shotWasFoul,
+          cueBallPotted,
+          replayDecision,
+          potCount,
+          pottedBalls: potted
+        });
         if (metaState && typeof metaState === 'object') {
           const assignments = metaState.assignments || null;
           if (assignments) {
@@ -36161,6 +36692,7 @@ const shotPowerRef = useRef(0);
         </>
       )}
 
+
       {(!isPortrait || (isPortrait && configOpen && !isFreePractice && !hideNonEssentialHud)) && (
       <div
         className={`${isPortrait ? 'fixed left-1/2 -translate-x-1/2 items-center' : 'absolute items-start'} z-50 flex flex-col gap-2 transition-opacity duration-200 ${replayActive ? 'opacity-0' : 'opacity-100'}`}
@@ -36745,6 +37277,7 @@ const shotPowerRef = useRef(0);
           )}
         </div>
       )}
+
 
       {usesCareerAttempts && trainingAttemptsStoreOpen && (Number(trainingShotsRemaining) || 0) <= 0 && (
         <div className="absolute inset-0 z-[130] flex items-center justify-center bg-black/75 px-4">
