@@ -269,7 +269,7 @@ export default function TexasHoldemLobby() {
           <div className="mt-4 grid grid-cols-3 gap-3">
             {[
               { id: 'local', label: 'Local (AI)', iconKey: 'mode-ai' },
-              { id: 'online', label: 'Online Beta', iconKey: 'mode-online', disabled: true }
+              { id: 'online', label: 'Online', iconKey: 'mode-online' }
             ].map(({ id, label, iconKey, disabled }) => (
               <div key={id} className="relative">
                 <button

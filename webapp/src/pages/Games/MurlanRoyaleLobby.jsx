@@ -267,10 +267,9 @@ export default function MurlanRoyaleLobby() {
               {
                 id: 'online',
                 label: 'Online',
-                desc: 'Temporarily unavailable',
+                desc: 'Live matchmaking',
                 iconKey: 'mode-online',
-                icon: '⚔️',
-                disabled: true
+                icon: '⚔️'
               }
             ].map(({ id, label, desc, iconKey, icon, disabled }) => {
               const active = mode === id;
