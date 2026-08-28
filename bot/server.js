@@ -2494,14 +2494,15 @@ io.on('connection', (socket) => {
         gameType: resolvedGameType,
         maxPlayers: resolvedMaxPlayers
       } = resolveSeatIdentityFromTableId(tableId, gameType, maxPlayers);
-      // Chess, Checkers, and Pool quick-match historically shipped clients with decorative
+      // Chess, Checkers, Pool, and Ludo quick-match historically shipped clients with decorative
       // mode/token labels. It is always a TPG online queue, so canonicalize
       // those non-partition fields instead of rejecting an otherwise valid
       // mobile client during the compatibility window.
       if (
         resolvedGameType === 'chess' ||
         resolvedGameType === 'checkers' ||
-        resolvedGameType === 'poolroyale'
+        resolvedGameType === 'poolroyale' ||
+        resolvedGameType === 'ludobattleroyal'
       ) {
         rawMatchMeta.mode = 'online';
         rawMatchMeta.token = 'TPG';
@@ -2546,7 +2547,10 @@ io.on('connection', (socket) => {
         );
       }
       if (table) {
-        // Chess, Checkers, and Pool Royale quick matches have no separate ready-up screen.
+        // These quick matches have no separate ready-up screen. Marking the
+        // authoritative seat ready here prevents a dropped confirmReady packet
+        // from leaving every Ludo player seated at the same table but stuck in
+        // the lobby forever.
         // Once a player owns a seat, that seat is ready. Keeping this
         // server-authoritative also lets older/mobile clients match when
         // confirmReady is delayed or lost while Telegram's WebView reconnects.
@@ -2555,6 +2559,7 @@ io.on('connection', (socket) => {
           (validation.normalizedGameType === 'chess' ||
             validation.normalizedGameType === 'checkers' ||
             validation.normalizedGameType === 'poolroyale' ||
+            validation.normalizedGameType === 'ludobattleroyal' ||
             readyOnJoin);
         if (shouldReadySeat) {
           table.ready.add(String(resolvedAccountId));
