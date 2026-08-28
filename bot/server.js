@@ -534,6 +534,7 @@ const poolStates = new Map();
 const snookerStates = new Map();
 const dominoRoyalStates = new Map();
 const murlanRoyalStates = new Map();
+const airHockeyStates = new Map();
 const texasHoldemStates = new Map();
 const ludoBattleStates = new Map();
 const fourInRowStates = new Map();
@@ -1734,6 +1735,8 @@ function maybeStartGame(table) {
         dominoRoyalStates.set(table.id, { state: null, action: null, ts: Date.now() });
       } else if (table.gameType === 'murlanroyale') {
         murlanRoyalStates.set(table.id, { state: null, action: null, ts: Date.now(), revision: 0 });
+      } else if (table.gameType === 'airhockey') {
+        airHockeyStates.set(table.id, { state: null, inputs: {}, ts: Date.now(), revision: 0 });
       } else if (table.gameType === 'texasholdem') {
         texasHoldemStates.set(table.id, { state: null, action: null, ts: Date.now(), revision: 0 });
       }
@@ -1796,6 +1799,7 @@ function unseatTableSocket(accountId, tableId, socketId) {
         if (table.tableNumber) dominoRoyalTableNumbers.delete(table.tableNumber);
       }
       if (table.gameType === 'ludobattleroyal') ludoBattleStates.delete(tableId);
+      if (table.gameType === 'airhockey') airHockeyStates.delete(tableId);
       if (table.gameType === 'chess' && table.tableNumber) {
         chessTableNumbers.delete(table.tableNumber);
       }
@@ -2926,6 +2930,66 @@ io.on('connection', (socket) => {
     }};
     io.to(tableId).emit('ludoBattleState', payload);
     cb?.({ success: true, revision: result.state.revision });
+  });
+
+  // Air Hockey uses the first matched player as the physics authority. The
+  // second player sends only their mallet target; authoritative puck, score,
+  // and both mallets are then broadcast as a compact realtime snapshot.
+  socket.on('joinAirHockeyTable', async ({ tableId, accountId } = {}) => {
+    if (!tableId) return;
+    const resolvedAccountId = resolveTpcIdentity({ accountId });
+    const table = tableMap.get(tableId);
+    if (!ensureRegistered(socket, resolvedAccountId) || !table || table.gameType !== 'airhockey' ||
+      !table.players.some((player) => String(player.id) === String(resolvedAccountId))) {
+      socket.emit('airHockeySyncError', { tableId, error: 'seat_required' });
+      return;
+    }
+    socket.join(tableId);
+    await registerConnection({ userId: String(resolvedAccountId), roomId: tableId, socketId: socket.id });
+    const seatIndex = table.players.findIndex((player) => String(player.id) === String(resolvedAccountId));
+    socket.emit('airHockeyJoined', {
+      tableId,
+      seatIndex,
+      hostAccountId: String(table.players[0]?.id || ''),
+      players: table.players
+    });
+    const cached = airHockeyStates.get(tableId);
+    if (cached?.state) socket.emit('airHockeyState', { tableId, state: cached.state, revision: cached.revision });
+  });
+
+  socket.on('airHockeyInput', ({ tableId, accountId, input } = {}) => {
+    const resolvedAccountId = resolveTpcIdentity({ accountId });
+    const table = tableMap.get(tableId);
+    if (!socket.rooms.has(tableId) || !ensureRegistered(socket, resolvedAccountId) ||
+      !table?.players.some((player) => String(player.id) === String(resolvedAccountId))) return;
+    const seatIndex = table.players.findIndex((player) => String(player.id) === String(resolvedAccountId));
+    if (seatIndex !== 1 || !Number.isFinite(input?.x) || !Number.isFinite(input?.z)) return;
+    const payload = { x: Number(input.x), z: Number(input.z), seq: Number(input.seq) || 0 };
+    const cached = airHockeyStates.get(tableId) || { state: null, inputs: {}, revision: 0 };
+    cached.inputs[String(resolvedAccountId)] = payload;
+    airHockeyStates.set(tableId, cached);
+    socket.to(tableId).emit('airHockeyInput', { tableId, accountId: String(resolvedAccountId), input: payload });
+  });
+
+  socket.on('airHockeyState', ({ tableId, accountId, state } = {}) => {
+    const resolvedAccountId = resolveTpcIdentity({ accountId });
+    const table = tableMap.get(tableId);
+    const isHost = String(table?.players?.[0]?.id || '') === String(resolvedAccountId);
+    if (!state || !isHost || !socket.rooms.has(tableId) || !ensureRegistered(socket, resolvedAccountId)) return;
+    const cached = airHockeyStates.get(tableId) || { inputs: {}, revision: 0 };
+    const revision = Number(cached.revision || 0) + 1;
+    const payload = { tableId, state: { ...state, seq: revision }, revision, updatedAt: Date.now() };
+    airHockeyStates.set(tableId, { ...cached, state: payload.state, revision, ts: payload.updatedAt });
+    socket.to(tableId).emit('airHockeyState', payload);
+  });
+
+  socket.on('airHockeySyncRequest', ({ tableId, accountId } = {}) => {
+    const resolvedAccountId = resolveTpcIdentity({ accountId });
+    const table = tableMap.get(tableId);
+    if (!ensureRegistered(socket, resolvedAccountId) ||
+      !table?.players.some((player) => String(player.id) === String(resolvedAccountId))) return;
+    const cached = airHockeyStates.get(tableId);
+    if (cached?.state) socket.emit('airHockeyState', { tableId, state: cached.state, revision: cached.revision });
   });
 
   socket.on('joinMurlanRoyaleTable', async ({ tableId, accountId } = {}) => {
