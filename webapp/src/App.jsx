@@ -14,6 +14,8 @@ import Notifications from './pages/Notifications.jsx';
 import InfluencerAdmin from './pages/InfluencerAdmin.jsx';
 import Nfts from './pages/Nfts.jsx';
 import PlatformStatsDetails from './pages/PlatformStatsDetails.jsx';
+import EcosystemGuide from './pages/EcosystemGuide.jsx';
+import EcosystemTopic from './pages/EcosystemTopic.jsx';
 import Exchange from './pages/Exchange.jsx';
 import SocialAdmin from './pages/SocialAdmin.jsx';
 import SocialPostDetails from './pages/SocialPostDetails.jsx';
@@ -201,6 +203,10 @@ export default function App() {
           >
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/ecosystem" element={<EcosystemGuide />} />
+              <Route path="/achievements" element={<EcosystemTopic topic="achievements" />} />
+              <Route path="/roadmap" element={<EcosystemTopic topic="roadmap" />} />
+              <Route path="/tokenomics" element={<EcosystemTopic topic="tokenomics" />} />
               <Route path="/flamingo/*" element={<FlamingoApp />} />
               <Route path="/earn" element={<Earn />} />
               <Route path="/social" element={<Social />} />
