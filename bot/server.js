@@ -3134,6 +3134,28 @@ io.on('connection', (socket) => {
     if (cached?.state) socket.emit('airHockeyState', { tableId, state: cached.state, revision: cached.revision });
   });
 
+  socket.on('airHockeyRematch', ({ tableId, accountId } = {}) => {
+    const resolvedAccountId = resolveTpcIdentity({ accountId });
+    const table = tableMap.get(tableId);
+    if (!socket.rooms.has(tableId) || !ensureRegistered(socket, resolvedAccountId) ||
+      table?.gameType !== 'airhockey' ||
+      !table.players.some((player) => String(player.id) === String(resolvedAccountId))) return;
+    const cached = airHockeyStates.get(tableId) || { state: null, inputs: {}, revision: 0 };
+    const rematchReady = cached.rematchReady instanceof Set ? cached.rematchReady : new Set();
+    rematchReady.add(String(resolvedAccountId));
+    cached.rematchReady = rematchReady;
+    airHockeyStates.set(tableId, cached);
+    io.to(tableId).emit('airHockeyRematchRequested', {
+      tableId,
+      accountId: String(resolvedAccountId),
+      ready: rematchReady.size
+    });
+    if (table.players.every((player) => rematchReady.has(String(player.id)))) {
+      airHockeyStates.set(tableId, { state: null, inputs: {}, ts: Date.now(), revision: 0, rematchReady: new Set() });
+      io.to(tableId).emit('airHockeyRematchStart', { tableId });
+    }
+  });
+
   socket.on('joinMurlanRoyaleTable', async ({ tableId, accountId } = {}) => {
     if (!tableId) return;
     const resolvedAccountId = resolveTpcIdentity({ accountId });
