@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import User from '../models/User.js';
+import authenticate from '../middleware/auth.js';
 
 const router = Router();
 
@@ -10,14 +11,33 @@ function normalizePlatform(platform) {
   return value;
 }
 
-router.post('/register', async (req, res) => {
-  const { token, platform, accountId, telegramId } = req.body || {};
+export function pushTokenOwnerSelector(auth = {}) {
+  if (auth.apiToken) return null;
+  if (auth.accountId) return { accountId: auth.accountId };
+  if (auth.telegramId != null) return { telegramId: auth.telegramId };
+  if (auth.googleId) return { googleId: auth.googleId };
+  return null;
+}
+
+router.post('/register', authenticate, async (req, res) => {
+  const { token, platform, accountId, telegramId, googleId } = req.body || {};
   if (!token || typeof token !== 'string' || !token.trim()) {
     return res.status(400).json({ error: 'token required' });
   }
 
   try {
-    const selector = accountId ? { accountId } : telegramId != null ? { telegramId } : null;
+    const selector = req.auth?.apiToken
+      ? accountId
+        ? { accountId }
+        : telegramId != null
+          ? { telegramId }
+          : googleId
+            ? { googleId }
+            : null
+      : pushTokenOwnerSelector(req.auth);
+    if (!selector) {
+      return res.status(403).json({ error: 'authenticated account required' });
+    }
     const user = selector ? await User.findOne(selector) : null;
     if (!user) {
       return res.json({ success: true, registered: false });

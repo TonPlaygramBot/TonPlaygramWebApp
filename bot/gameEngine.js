@@ -138,6 +138,17 @@ export class GameRoom {
     this.players = this.game.players;
   }
 
+  dispose() {
+    if (this.startTimer) clearTimeout(this.startTimer);
+    if (this.turnTimer) clearTimeout(this.turnTimer);
+    this.startTimer = null;
+    this.turnTimer = null;
+    this.players.forEach((player) => {
+      if (player.disconnectTimer) clearTimeout(player.disconnectTimer);
+      player.disconnectTimer = null;
+    });
+  }
+
   addPlayer(playerId, name, socket, avatar = '') {
     const existing = this.players.find((p) => p.playerId === playerId);
     if (existing) {

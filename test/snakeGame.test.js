@@ -1,4 +1,4 @@
-import test from 'node:test';
+import test, { afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { setTimeout as delay } from 'timers/promises';
 import {
@@ -17,9 +17,20 @@ class DummyIO {
   }
 }
 
+const rooms = [];
+function createRoom(...args) {
+  const room = new GameRoom(...args);
+  rooms.push(room);
+  return room;
+}
+
+afterEach(() => {
+  rooms.splice(0).forEach((room) => room.dispose());
+});
+
 test('applySnakesAndLadders resolves moves', () => {
   const io = new DummyIO();
-  const room = new GameRoom('r', io, 4, {
+  const room = createRoom('r', io, 4, {
     snakes: DEFAULT_SNAKES,
     ladders: DEFAULT_LADDERS,
   });
@@ -32,7 +43,7 @@ test('applySnakesAndLadders resolves moves', () => {
 
 test('start requires 6 and only double six grants an extra turn', () => {
   const io = new DummyIO();
-  const room = new GameRoom('r', io, 2, {
+  const room = createRoom('r', io, 2, {
     snakes: DEFAULT_SNAKES,
     ladders: DEFAULT_LADDERS,
   });
@@ -65,7 +76,7 @@ test('start requires 6 and only double six grants an extra turn', () => {
 
 test('rolling multiple sixes grants extra turns but preserves order', () => {
   const io = new DummyIO();
-  const room = new GameRoom('r1', io, 1, {
+  const room = createRoom('r1', io, 1, {
     snakes: DEFAULT_SNAKES,
     ladders: DEFAULT_LADDERS,
   });
@@ -82,7 +93,7 @@ test('rolling multiple sixes grants extra turns but preserves order', () => {
 
 test('room starts when reaching custom capacity', async () => {
   const io = new DummyIO();
-  const room = new GameRoom('r2', io, 2, {
+  const room = createRoom('r2', io, 2, {
     snakes: DEFAULT_SNAKES,
     ladders: DEFAULT_LADDERS,
   });
@@ -102,7 +113,7 @@ test('room starts when reaching custom capacity', async () => {
 test('joining player receives full player list', () => {
   const io = new DummyIO();
   const events = [];
-  const room = new GameRoom('r6', io, 3, {
+  const room = createRoom('r6', io, 3, {
     snakes: DEFAULT_SNAKES,
     ladders: DEFAULT_LADDERS,
   });
@@ -117,7 +128,7 @@ test('joining player receives full player list', () => {
 
 test('player wins when landing on the final tile', () => {
   const io = new DummyIO();
-  const room = new GameRoom('r3', io, 4, {
+  const room = createRoom('r3', io, 4, {
     snakes: DEFAULT_SNAKES,
     ladders: DEFAULT_LADDERS,
   });
@@ -140,7 +151,7 @@ test('rolling too quickly triggers anti-cheat', () => {
   const io = new DummyIO();
   const emitted = [];
   const socket = { id: 's1', join: () => {}, emit: (e, d) => emitted.push({ event: e, data: d }) };
-  const room = new GameRoom('r4', io, 4, {
+  const room = createRoom('r4', io, 4, {
     snakes: DEFAULT_SNAKES,
     ladders: DEFAULT_LADDERS,
   });
@@ -161,7 +172,7 @@ test('repeated cheating results in removal', () => {
   const io = new DummyIO();
   const emitted = [];
   const socket = { id: 'sKick', join: () => {}, emit: (e, d) => emitted.push({ event: e, data: d }) };
-  const room = new GameRoom('rKick', io, 1, { snakes: DEFAULT_SNAKES, ladders: DEFAULT_LADDERS });
+  const room = createRoom('rKick', io, 1, { snakes: DEFAULT_SNAKES, ladders: DEFAULT_LADDERS });
   room.addPlayer('p1', 'Cheater', socket);
   room.startGame();
 
@@ -179,7 +190,7 @@ test('repeated cheating results in removal', () => {
 
 test('landing on another player sends them to start', () => {
   const io = new DummyIO();
-  const room = new GameRoom('r5', io, 2, {
+  const room = createRoom('r5', io, 2, {
     snakes: {},
     ladders: {},
   });
@@ -207,7 +218,7 @@ test('landing on another player sends them to start', () => {
 test('dice cells are shared across players', () => {
   const io = new DummyIO();
   const socket = { id: 'diceSock', join: () => {}, emit: () => {} };
-  const room = new GameRoom('dice', io, 1, {
+  const room = createRoom('dice', io, 1, {
     snakes: {},
     ladders: {},
     diceCells: { 5: 2 }

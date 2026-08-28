@@ -19,7 +19,9 @@ services:
       - key: OWNER_TELEGRAM_ID
         fromSecret: OWNER_TELEGRAM_ID
       - key: WITHDRAW_ENABLED
-        fromSecret: WITHDRAW_ENABLED
+        value: false
+      - key: MOBILE_STORE_MODE
+        value: true
       - key: CLAIM_CONTRACT_ADDRESS
         fromSecret: CLAIM_CONTRACT_ADDRESS
       - key: CLAIM_WALLET_MNEMONIC

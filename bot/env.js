@@ -22,6 +22,7 @@ function warnMissing(key, hint) {
 
 export function validateEnv() {
   const isProd = process.env.NODE_ENV === 'production';
+  const mobileStoreMode = isTruthy(process.env.MOBILE_STORE_MODE);
 
   // Required for production runtime.
   if (isProd) {
@@ -38,6 +39,9 @@ export function validateEnv() {
 
   // TON claim / withdraw requirements.
   const withdrawEnabled = isTruthy(process.env.WITHDRAW_ENABLED);
+  if (mobileStoreMode && withdrawEnabled) {
+    throw new Error('WITHDRAW_ENABLED must be false when MOBILE_STORE_MODE is enabled');
+  }
   if (withdrawEnabled) {
     // These are required to sign claim transfers.
     warnMissing('CLAIM_CONTRACT_ADDRESS');
@@ -49,6 +53,7 @@ export function validateEnv() {
 
   return {
     isProd,
-    withdrawEnabled
+    withdrawEnabled,
+    mobileStoreMode
   };
 }
