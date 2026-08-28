@@ -5,21 +5,12 @@ import {
 
 describe('TPG game smart contract API descriptors', () => {
   test('every online lobby game uses private TPG identity and public profile fields', () => {
-    expect(Object.keys(TPG_GAME_CONTRACTS)).toHaveLength(22);
+    expect(Object.keys(TPG_GAME_CONTRACTS)).toHaveLength(14);
     for (const contract of Object.values(TPG_GAME_CONTRACTS)) {
       expect(contract.token).toBe('TPG');
       expect(contract.identity).toBe('tpcAccountNumber');
       expect(contract.publicPlayerFields).toEqual(['name', 'avatar']);
       expect(contract.matchmaking).toContain('stake');
-    }
-  });
-
-  test('registers every Visual Royal release for same-stake standard-rules matchmaking', () => {
-    for (const gameType of [
-      'tabletennis', 'tenpinbowling', 'darts', 'carrom', 'archery',
-      'penaltyshootout', 'basketball', 'gocrazykart'
-    ]) {
-      expect(TPG_GAME_CONTRACTS[gameType].matchmaking).toEqual(['stake', 'rules']);
     }
   });
 

@@ -1,14 +1,14 @@
 const GAME_ASSET_BASE_URL =
-  (import.meta.env && import.meta.env.VITE_GAME_ASSET_BASE_URL) || '/assets/game-art'
+  (import.meta.env && import.meta.env.VITE_GAME_ASSET_BASE_URL) || '/assets/game-art';
 
-const normalizeBase = (base) => base.replace(/\/+$/, '')
+const normalizeBase = (base) => base.replace(/\/+$/, '');
 
 const withBase = (path) => {
   if (path.startsWith('/') || path.startsWith('http')) {
-    return path
+    return path;
   }
-  return `${normalizeBase(GAME_ASSET_BASE_URL)}/${path.replace(/^\/+/, '')}`
-}
+  return `${normalizeBase(GAME_ASSET_BASE_URL)}/${path.replace(/^\/+/, '')}`;
+};
 
 export const gameThumbnails = {
   texasholdem: '/assets/icons/Texas%20holdem%20poker%20game%20logo.png',
@@ -24,21 +24,13 @@ export const gameThumbnails = {
   tavullbattleroyal: '/assets/icons/Backgammonroyallogo.png',
   ludobattleroyal: '/assets/icons/Ludo%20battle%20Royal%20game%20logo.png',
   shootingrange: '/assets/icons/shooting-range.svg',
-  tabletennisroyal: '/assets/icons/table-tennis-icon.svg',
-  tenpinbowlingroyal: '/assets/icons/visual-royal.svg',
-  dartsroyal: '/assets/icons/visual-royal.svg',
-  carromroyal: '/assets/icons/visual-royal.svg',
-  archeryroyal: '/assets/icons/visual-royal.svg',
-  penaltyshootoutroyal: '/assets/icons/visual-royal.svg',
-  basketballroyal: '/assets/icons/visual-royal.svg',
-  gocrazykartarena: '/assets/icons/visual-royal.svg'
-}
+};
 
 const buildLobbyIconSet = (keys, icon) =>
   keys.reduce((acc, key) => {
-    acc[key] = icon
-    return acc
-  }, {})
+    acc[key] = icon;
+    return acc;
+  }, {});
 
 export const lobbyOptionIcons = {
   texasholdem: buildLobbyIconSet(
@@ -151,7 +143,7 @@ export const lobbyOptionIcons = {
     ],
     '/assets/icons/ludo-royale.svg'
   )
-}
+};
 
 export const variantThumbnails = {
   poolroyale: {
@@ -159,19 +151,19 @@ export const variantThumbnails = {
     american: '/assets/icons/American%20Billiards%20.png',
     '9ball': '/assets/icons/9ballrack.png'
   }
-}
+};
 
 export const getGameThumbnail = (key) =>
-  (key && gameThumbnails[key] ? withBase(gameThumbnails[key]) : '')
+  (key && gameThumbnails[key] ? withBase(gameThumbnails[key]) : '');
 
 export const getLobbyIcon = (gameKey, iconKey) =>
   (gameKey && iconKey && lobbyOptionIcons[gameKey]?.[iconKey]
     ? withBase(lobbyOptionIcons[gameKey][iconKey])
-    : '')
+    : '');
 
 export const getVariantThumbnail = (gameKey, variantKey) =>
   (gameKey && variantKey && variantThumbnails[gameKey]?.[variantKey]
     ? withBase(variantThumbnails[gameKey][variantKey])
-    : '')
+    : '');
 
-export const gameAssetBase = GAME_ASSET_BASE_URL
+export const gameAssetBase = GAME_ASSET_BASE_URL;
