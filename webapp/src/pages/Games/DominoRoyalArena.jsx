@@ -5,7 +5,7 @@ import { socket } from '../../utils/socket.js';
 
 const INLINE_STYLE_ID = 'domino-royal-inline-style';
 const GAME_SCRIPT_SELECTOR = 'script[data-domino-royal-script="true"]';
-const DOMINO_ROYAL_SCRIPT_VERSION = '2026-08-28-portrait-head-to-head-video-v70';
+const DOMINO_ROYAL_SCRIPT_VERSION = '2026-08-28-murlan-seats-larger-video-v71';
 const DOMINO_CHARACTER_PRECONNECT_URLS = Object.freeze([
   'https://threejs.org',
   'https://models.readyplayer.me',
@@ -193,8 +193,8 @@ export default function DominoRoyalArena() {
         }
         .seat-badge.is-self .seat-badge-avatar,
         .seat-badge.is-self .seat-badge-core {
-          width: 3.185rem !important;
-          height: 3.185rem !important;
+          width: 3.5rem !important;
+          height: 3.5rem !important;
           transform: none !important;
         }
         .seat-badge-name {

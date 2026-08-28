@@ -6182,10 +6182,9 @@ const seatBadges = [];
 let humanSeatBadgeAnchor = null;
 const HUMAN_SEAT_BADGE_BOTTOM_OFFSET = 82;
 const HUMAN_SEAT_BADGE_LEFT_OFFSET = -6;
-// AvatarTimer renders Murlan Royale's bottom player at 3.25rem with its
-// 0.98 visual scale. Keep Domino's camera target identical so switching
-// between the two games does not resize the player's live-video frame.
-const MURLAN_BOTTOM_AVATAR_FRAME_REM = 3.25 * 0.98;
+// Give the portrait player's live-video frame a little more presence than the
+// Murlan baseline without allowing it to cover the nearby mobile controls.
+const DOMINO_BOTTOM_AVATAR_FRAME_REM = 3.5;
 const HEAD_TO_HEAD_OPPONENT_TOP_RATIO = 0.14;
 const HEAD_TO_HEAD_OPPONENT_MIN_TOP = 96;
 const seatOverlay = document.createElement('div');
@@ -6355,8 +6354,8 @@ function hideSelfVideoUntilSeatAnchor(candidate) {
   candidate.style.position = 'fixed';
   candidate.style.left = '-9999px';
   candidate.style.top = '-9999px';
-  candidate.style.width = `${MURLAN_BOTTOM_AVATAR_FRAME_REM}rem`;
-  candidate.style.height = `${MURLAN_BOTTOM_AVATAR_FRAME_REM}rem`;
+  candidate.style.width = `${DOMINO_BOTTOM_AVATAR_FRAME_REM}rem`;
+  candidate.style.height = `${DOMINO_BOTTOM_AVATAR_FRAME_REM}rem`;
   candidate.style.opacity = '0';
   candidate.style.pointerEvents = 'none';
 }
@@ -6369,7 +6368,7 @@ function anchorSelfVideoToBottomSeat() {
     hideSelfVideoUntilSeatAnchor(candidate);
     return;
   }
-  const size = `${MURLAN_BOTTOM_AVATAR_FRAME_REM}rem`;
+  const size = `${DOMINO_BOTTOM_AVATAR_FRAME_REM}rem`;
   const x = humanSeatBadgeAnchor.x;
   const y = humanSeatBadgeAnchor.y;
   candidate.style.position = 'fixed';
@@ -8621,8 +8620,9 @@ async function loadDominoSeatCharacterTemplate(seatIndex) {
 async function rebuildDominoCharactersForChairs() {
   const token = ++dominoCharacterBuildToken;
   clearDominoCharacters();
-  if (!ENABLE_DOMINO_SEATED_HUMANS || !chairs.length) return;
-  const activeSeatCount = Math.min(N, chairs.length);
+  const availableChairCount = chairs.filter(Boolean).length;
+  if (!ENABLE_DOMINO_SEATED_HUMANS || !availableChairCount) return;
+  const activeSeatCount = Math.min(N, availableChairCount);
   const templates = await Promise.all(
     Array.from({ length: activeSeatCount }, (_, logicalSeatIndex) =>
       loadDominoSeatCharacterTemplate(logicalSeatIndex)
@@ -8767,6 +8767,7 @@ function placeChairsWithOption(option, chairData, token) {
   disposeSeatBadges();
   while (chairs.length) {
     const chair = chairs.pop();
+    if (!chair) continue;
     chair.parent?.remove(chair);
     disposeChairResources(chair);
   }
@@ -8777,7 +8778,16 @@ function placeChairsWithOption(option, chairData, token) {
 
   const seatAvatarSources = buildSeatAvatarSources(N);
 
-  CHAIR_SEAT_ANGLES.forEach((angle, index) => {
+  // Murlan Royale uses bottom/top for head-to-head and then adds the visually
+  // right and left seats as the player count grows. Build only those occupied
+  // seats so two-player games never show spare chairs or spare humans.
+  const activeVisualSeatIndices = Array.from(
+    { length: Math.min(N, CHAIR_SEAT_ANGLES.length) },
+    (_, logicalSeatIndex) => getVisualSeatIndex(logicalSeatIndex)
+  );
+
+  activeVisualSeatIndices.forEach((index) => {
+    const angle = CHAIR_SEAT_ANGLES[index];
     const radius = CHAIR_SEAT_RADII[index] ?? CHAIR_RADIUS;
     const basis = seatBasisForAngle(angle, radius);
     const wrapper = new THREE.Group();
@@ -8793,7 +8803,7 @@ function placeChairsWithOption(option, chairData, token) {
 
     wrapper.updateWorldMatrix(true, true);
     tableG.add(wrapper);
-    chairs.push(wrapper);
+    chairs[index] = wrapper;
 
     if (
       seatLabelShouldDisplay &&
