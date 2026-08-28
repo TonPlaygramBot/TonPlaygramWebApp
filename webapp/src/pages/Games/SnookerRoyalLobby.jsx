@@ -22,6 +22,19 @@ import {
 const PLAYER_FLAG_STORAGE_KEY = 'snookerRoyalPlayerFlag';
 const AI_FLAG_STORAGE_KEY = 'snookerRoyalAiFlag';
 
+// Match Pool Royale's identity normalization. Lobby payloads can come from the
+// REST presence endpoint or Socket.IO and consequently do not always use `id`.
+function resolveTpcAccountNumber(player) {
+  if (!player || typeof player !== 'object') return '';
+  return String(
+    player.tpcAccountNumber ??
+      player.accountId ??
+      player.playerId ??
+      player.id ??
+      ''
+  ).trim();
+}
+
 export default function SnookerRoyalLobby() {
   const navigate = useNavigate();
   const { search } = useLocation();
@@ -98,25 +111,40 @@ export default function SnookerRoyalLobby() {
   }, [matchPlayers]);
 
 
-  const navigateToSnookerRoyal = ({ tableId: startedId, roster = [], accountId, currentTurn }) => {
+  const navigateToSnookerRoyal = ({
+    tableId: startedId,
+    roster = [],
+    accountId,
+    currentTurn,
+    matchMeta = {}
+  }) => {
     const selfId = accountId || accountIdRef.current;
-    const selfEntry = roster.find((p) => String(p.id) === String(selfId));
-    const opponentEntry = roster.find((p) => String(p.id) !== String(selfId));
-    const starterId = currentTurn || roster?.[0]?.id || null;
-    const selfIndex = roster.findIndex((p) => String(p.id) === String(selfId));
+    const safeRoster = Array.isArray(roster) ? roster.filter(Boolean) : [];
+    const selfEntry = safeRoster.find(
+      (p) => resolveTpcAccountNumber(p) === String(selfId)
+    );
+    const opponentEntry = safeRoster.find(
+      (p) => resolveTpcAccountNumber(p) !== String(selfId)
+    );
+    const starterId =
+      currentTurn || resolveTpcAccountNumber(safeRoster[0]) || null;
+    const selfIndex = safeRoster.findIndex(
+      (p) => resolveTpcAccountNumber(p) === String(selfId)
+    );
     const seat = selfIndex === 1 ? 'B' : 'A';
     const starterSeat = starterId && String(starterId) === String(selfId) ? seat : seat === 'A' ? 'B' : 'A';
     const friendlyName =
       selfEntry?.name ||
+      selfEntry?.username ||
+      getTelegramUsername() ||
       getTelegramFirstName() ||
-      getTelegramId() ||
-      (selfId ? `TPG ${selfId}` : 'Player');
+      'Player';
     const friendlyAvatar = selfEntry?.avatar || avatar;
     const opponentName =
       opponentEntry?.name ||
       opponentEntry?.username ||
       opponentEntry?.telegramName ||
-      (opponentEntry?.id ? `TPG ${opponentEntry.id}` : '');
+      (opponentEntry ? 'Opponent' : '');
     const opponentAvatar = opponentEntry?.avatar || '';
     cleanupRef.current?.({ account: accountId, skipRefReset: true });
     const params = new URLSearchParams();
@@ -131,7 +159,8 @@ export default function SnookerRoyalLobby() {
     if (tgId) params.set('tgId', tgId);
     const resolvedAccountId = accountIdRef.current;
     if (resolvedAccountId) params.set('accountId', resolvedAccountId);
-    if (tableSize) params.set('tableSize', tableSize);
+    const resolvedMatchTableSize = resolveTableSize(matchMeta?.tableSize).id;
+    params.set('tableSize', resolvedMatchTableSize || tableSize);
     applySnookerTableModelParam(params, tableModel);
     params.set('seat', seat);
     params.set('starter', starterSeat);
@@ -261,10 +290,15 @@ export default function SnookerRoyalLobby() {
 
   const matchingCandidates = useMemo(() => {
     const base = (onlinePlayers || []).map((p) => ({
-      id: p.accountId || p.playerId || p.id,
-      name: p.username || p.name || p.telegramName || p.telegramId || p.accountId
+      id: resolveTpcAccountNumber(p),
+      name: p.username || p.name || p.telegramName || 'Player',
+      avatar: p.avatar || p.photoUrl || p.photo_url || ''
     }));
-    const lobbyEntries = (matchPlayers || []).map((p) => ({ id: p.id, name: p.name || p.id }));
+    const lobbyEntries = (matchPlayers || []).map((p) => ({
+      id: resolveTpcAccountNumber(p),
+      name: p?.username || p?.name || p?.telegramName || 'Player',
+      avatar: p?.avatar || p?.photoUrl || p?.photo_url || ''
+    }));
     const merged = [...base, ...lobbyEntries].filter((p) => p.id);
     const seen = new Set();
     return merged.filter((p) => {
