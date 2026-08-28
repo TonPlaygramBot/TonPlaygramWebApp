@@ -484,6 +484,7 @@ export async function sendInviteNotification(
   token,
   amount,
   game,
+  rejectToken = roomId,
 ) {
   let info;
   try {
@@ -504,7 +505,9 @@ export async function sendInviteNotification(
         { text: '✅ Accept', url },
         {
           text: '❌ Reject',
-          callback_data: `reject_invite:${roomId}:${toId}`,
+          // Telegram limits callback_data to 64 bytes. Room/account IDs can be
+          // much longer, so the server supplies a short opaque action token.
+          callback_data: `reject_invite:${rejectToken}`,
         },
       ],
     ],

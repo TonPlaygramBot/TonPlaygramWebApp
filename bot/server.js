@@ -273,13 +273,15 @@ const gameManager = new GameRoomManager(io);
 app.set('io', io);
 
 bot.action(/^reject_invite:(.+)/, async (ctx) => {
-  const [roomId] = ctx.match[1].split(':');
+  const actionToken = ctx.match[1];
+  const roomId = inviteActionTokens.get(actionToken) || actionToken;
   await ctx.answerCbQuery('Invite rejected');
   try {
     await ctx.deleteMessage();
   } catch {}
-  const invite = pendingInvites.get(roomId);
+  const invite = getPendingInvite(roomId);
   pendingInvites.delete(roomId);
+  inviteActionTokens.delete(actionToken);
   if (invite) {
     const response = { roomId, game: invite.game, token: invite.token, amount: invite.amount };
     for (const sid of userSockets.get(String(invite.fromId)) || []) {
@@ -502,6 +504,63 @@ const tableSeats = new Map();
 const tables = new Map();
 const userSockets = new Map();
 const pendingInvites = new Map();
+const inviteActionTokens = new Map();
+const GAME_INVITE_TTL_MS = Number(process.env.GAME_INVITE_TTL_MS) || 10 * 60 * 1000;
+
+function serializeGameInvite(invite) {
+  return {
+    fromId: invite.fromId,
+    fromTelegramId: invite.fromTelegramId,
+    fromName: invite.fromName,
+    roomId: invite.roomId,
+    token: invite.token,
+    amount: invite.amount,
+    game: invite.game,
+    group: invite.group,
+    opponentNames: invite.opponentNames,
+    expiresAt: invite.expiresAt
+  };
+}
+
+function savePendingInvite(payload, toIds) {
+  const roomId = String(payload.roomId || '').trim();
+  const invite = {
+    ...payload,
+    roomId,
+    toIds: toIds.map(String),
+    acceptedIds: new Set(),
+    createdAt: Date.now(),
+    expiresAt: Date.now() + GAME_INVITE_TTL_MS
+  };
+  invite.telegramActionToken = randomUUID();
+  pendingInvites.set(roomId, invite);
+  inviteActionTokens.set(invite.telegramActionToken, roomId);
+  return invite;
+}
+
+function getPendingInvite(roomId) {
+  const invite = pendingInvites.get(String(roomId || ''));
+  if (!invite) return null;
+  if (invite.expiresAt <= Date.now()) {
+    pendingInvites.delete(invite.roomId);
+    inviteActionTokens.delete(invite.telegramActionToken);
+    return null;
+  }
+  return invite;
+}
+
+function deliverPendingInvites(socket, playerId) {
+  for (const invite of pendingInvites.values()) {
+    if (invite.expiresAt <= Date.now()) {
+      pendingInvites.delete(invite.roomId);
+      inviteActionTokens.delete(invite.telegramActionToken);
+      continue;
+    }
+    if (invite.toIds.includes(String(playerId)) && !invite.acceptedIds.has(String(playerId))) {
+      socket.emit('gameInvite', serializeGameInvite(invite));
+    }
+  }
+}
 
 async function notifyInviteDevices(accountId, telegramId, invite) {
   const user = await User.findOne({
@@ -520,8 +579,8 @@ async function notifyInviteDevices(accountId, telegramId, invite) {
 
 function respondToInvite(socket, payload = {}, accepted = false, cb) {
   const roomId = String(payload.roomId || '');
-  const invite = pendingInvites.get(roomId);
-  if (!invite) return cb?.({ success: false, error: 'invite_not_found' });
+  const invite = getPendingInvite(roomId);
+  if (!invite) return cb?.({ success: false, error: 'invite_not_found_or_expired' });
   const playerId = String(socket.data?.playerId || '');
   if (!invite.toIds.map(String).includes(playerId)) {
     return cb?.({ success: false, error: 'not_invited' });
@@ -529,6 +588,7 @@ function respondToInvite(socket, payload = {}, accepted = false, cb) {
   const response = { roomId, game: invite.game, token: invite.token, amount: invite.amount, byId: playerId };
   if (!accepted) {
     pendingInvites.delete(roomId);
+    inviteActionTokens.delete(invite.telegramActionToken);
     for (const sid of userSockets.get(String(invite.fromId)) || []) io.to(sid).emit('gameInviteRejected', response);
     return cb?.({ success: true });
   }
@@ -536,9 +596,12 @@ function respondToInvite(socket, payload = {}, accepted = false, cb) {
   const allAccepted = invite.toIds.every((id) => invite.acceptedIds.has(String(id)));
   if (allAccepted) {
     pendingInvites.delete(roomId);
+    inviteActionTokens.delete(invite.telegramActionToken);
     for (const sid of userSockets.get(String(invite.fromId)) || []) io.to(sid).emit('gameInviteAccepted', response);
   }
-  cb?.({ success: true, start: allAccepted });
+  // Returning the authoritative room details keeps every accepted player on
+  // the exact hosted table instead of allowing a game lobby to rematch them.
+  cb?.({ success: true, start: allAccepted, invite: response });
 }
 
 app.set('userSockets', userSockets);
@@ -2301,27 +2364,20 @@ app.post('/api/snake/invite', async (req, res) => {
     return res.status(400).json({ error: 'missing data' });
   }
 
-  const targets = userSockets.get(String(toAccount));
-  if (targets && targets.size > 0) {
-    for (const sid of targets) {
-      io.to(sid).emit('gameInvite', {
-        fromId: fromAccount,
-        fromName,
-        roomId,
-        token,
-        amount,
-        game: 'snake'
-      });
-    }
-  }
-
-  pendingInvites.set(roomId, {
+  const invite = savePendingInvite({
     fromId: fromAccount,
-    toIds: [toAccount],
+    fromName,
+    roomId,
     token,
     amount,
     game: 'snake'
-  });
+  }, [toAccount]);
+  const targets = userSockets.get(String(toAccount));
+  if (targets && targets.size > 0) {
+    for (const sid of targets) {
+      io.to(sid).emit('gameInvite', serializeGameInvite(invite));
+    }
+  }
 
   const url = getInviteUrl(roomId, token, amount, 'snake');
   res.json({ success: true, url });
@@ -2468,6 +2524,7 @@ io.on('connection', (socket) => {
       set.add(socket.id);
       socket.data.playerId = String(resolvedPlayerId);
       await registerConnection({ userId: String(resolvedPlayerId), socketId: socket.id });
+      deliverPendingInvites(socket, resolvedPlayerId);
       cb && cb({ success: true });
     } catch (error) {
       console.error('register socket failed', error);
@@ -3809,27 +3866,16 @@ io.on('connection', (socket) => {
     if (!fromId || !toId)
       return cb && cb({ success: false, error: 'invalid ids' });
 
+    if (!ensureRegistered(socket, fromId)) return cb?.({ success: false, error: 'identity_mismatch' });
+    if (!roomId || !game) return cb?.({ success: false, error: 'missing_room_or_game' });
     toTelegramId = await resolveInviteTelegramId(toId, toTelegramId);
+    const invite = savePendingInvite({ fromId, fromTelegramId: payload?.fromTelegramId, fromName, roomId, token, amount, game }, [toId]);
     const targets = await getUserSocketIds({ accountId: toId, telegramId: toTelegramId });
     if (targets.size > 0) {
       for (const sid of targets) {
-        io.to(sid).emit('gameInvite', {
-          fromId,
-          fromName,
-          roomId,
-          token,
-          amount,
-          game
-        });
+        io.to(sid).emit('gameInvite', serializeGameInvite(invite));
       }
     }
-    pendingInvites.set(roomId, {
-      fromId,
-      toIds: [toId],
-      token,
-      amount,
-      game
-    });
     notifyInviteDevices(toId, toTelegramId, { fromId, fromName, roomId, token, amount, game }).catch((error) =>
       console.error('Failed to send game invite push:', error.message)
     );
@@ -3845,7 +3891,8 @@ io.on('connection', (socket) => {
           roomId,
           token,
           amount,
-          game
+          game,
+          invite.telegramActionToken
         );
       } catch (error) {
         console.error('Failed to send 1v1 invite notification:', error.message);
@@ -3863,13 +3910,12 @@ io.on('connection', (socket) => {
       if (!fromId || !Array.isArray(toIds) || toIds.length === 0) {
         return cb && cb({ success: false, error: 'invalid ids' });
       }
-      pendingInvites.set(roomId, {
-        fromId,
-        toIds: [...toIds],
-        token,
-        amount,
-        game
-      });
+      if (!ensureRegistered(socket, fromId)) return cb?.({ success: false, error: 'identity_mismatch' });
+      if (!roomId || !game) return cb?.({ success: false, error: 'missing_room_or_game' });
+      const invite = savePendingInvite({
+        fromId, fromTelegramId, fromName, roomId, token, amount, game,
+        group: [...toIds], opponentNames
+      }, toIds);
       let url = getInviteUrl(roomId, token, amount, game);
       for (let i = 0; i < toIds.length; i++) {
         const toId = toIds[i];
@@ -3889,7 +3935,8 @@ io.on('connection', (socket) => {
               roomId,
               token,
               amount,
-              game
+              game,
+              invite.telegramActionToken
             );
           } catch (error) {
             console.error('Failed to send group invite notification:', error.message);
@@ -3897,16 +3944,7 @@ io.on('connection', (socket) => {
         }
         if (targets.size > 0) {
           for (const sid of targets) {
-            io.to(sid).emit('gameInvite', {
-              fromId,
-              fromName,
-              roomId,
-              token,
-              amount,
-              group: toIds,
-              opponentNames,
-              game
-            });
+            io.to(sid).emit('gameInvite', serializeGameInvite(invite));
           }
         } else {
           console.warn(`No socket found for account ID ${toId}`);
