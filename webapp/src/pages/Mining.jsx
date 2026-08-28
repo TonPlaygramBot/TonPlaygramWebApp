@@ -25,6 +25,7 @@ import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 import { socket } from '../utils/socket.js';
 import InvitePopup from '../components/InvitePopup.jsx';
 import PlayerInvitePopup from '../components/PlayerInvitePopup.jsx';
+import { getGameInvitePath } from '../utils/gameInviteUrl.js';
 
 function normalizeRequests(payload) {
   if (Array.isArray(payload)) return payload;
@@ -361,12 +362,13 @@ export default function Mining() {
                 fromName: myName,
                 toId: inviteTarget.accountId,
                 roomId,
+                game: 'snake',
                 token: stake.token,
                 amount: stake.amount,
               },
               (res) => {
                 if (res && res.success) {
-                  window.location.href = `/games/snake?table=${roomId}&token=${stake.token}&amount=${stake.amount}`;
+                  window.location.href = getGameInvitePath({ game: 'snake', roomId, ...stake });
                 } else {
                   alert(res?.error || 'Failed to send invite');
                 }
@@ -395,12 +397,18 @@ export default function Mining() {
                 toIds: selected.map((u) => u.accountId),
                 opponentNames: selected.map((u) => u.nickname || `${u.firstName || ''} ${u.lastName || ''}`.trim()),
                 roomId,
+                game: 'snake',
                 token: stake.token,
                 amount: stake.amount,
               },
               (res) => {
                 if (res && res.success) {
-                  window.location.href = `/games/snake?table=${roomId}&token=${stake.token}&amount=${stake.amount}`;
+                  window.location.href = getGameInvitePath({
+                    game: 'snake',
+                    roomId,
+                    capacity: selected.length + 1,
+                    ...stake
+                  });
                 } else {
                   alert(res?.error || 'Failed to send invite');
                 }

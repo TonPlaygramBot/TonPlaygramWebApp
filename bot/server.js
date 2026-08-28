@@ -518,6 +518,7 @@ function serializeGameInvite(invite) {
     game: invite.game,
     group: invite.group,
     opponentNames: invite.opponentNames,
+    capacity: invite.toIds.length + 1,
     expiresAt: invite.expiresAt
   };
 }
@@ -585,7 +586,14 @@ function respondToInvite(socket, payload = {}, accepted = false, cb) {
   if (!invite.toIds.map(String).includes(playerId)) {
     return cb?.({ success: false, error: 'not_invited' });
   }
-  const response = { roomId, game: invite.game, token: invite.token, amount: invite.amount, byId: playerId };
+  const response = {
+    roomId,
+    game: invite.game,
+    token: invite.token,
+    amount: invite.amount,
+    capacity: invite.toIds.length + 1,
+    byId: playerId
+  };
   if (!accepted) {
     pendingInvites.delete(roomId);
     inviteActionTokens.delete(invite.telegramActionToken);
