@@ -182,8 +182,6 @@ export default function HomeSocialHub() {
         </div>
       </div>
 
-      <SocialChannels />
-
       <div className="grid gap-3">
         <Link
           to="/messages"
@@ -200,6 +198,8 @@ export default function HomeSocialHub() {
           <span className="text-xs text-primary">Open</span>
         </Link>
       </div>
+
+      <SocialChannels />
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="rounded-lg border border-border bg-background/40 p-3 space-y-3">
