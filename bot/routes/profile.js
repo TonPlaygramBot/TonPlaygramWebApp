@@ -305,4 +305,42 @@ router.post('/link-social', authenticate, async (req, res) => {
   res.json({ social: user.social });
 });
 
+router.post('/delete', authenticate, async (req, res) => {
+  const { accountId, confirmation } = req.body || {};
+  if (!accountId || confirmation !== 'DELETE') {
+    return res.status(400).json({ error: 'accountId and DELETE confirmation required' });
+  }
+
+  const user = await User.findOne({ accountId });
+  if (!user) return res.status(404).json({ error: 'account not found' });
+
+  // Account-id and Google-id headers are compatibility identifiers, not proof
+  // of identity. Destructive deletion requires signed Telegram init data or a
+  // trusted server-to-server credential until native Google token verification
+  // is implemented.
+  const ownsTelegramAccount =
+    req.auth?.telegramId != null &&
+    user.telegramId != null &&
+    Number(req.auth.telegramId) === Number(user.telegramId);
+  if (!req.auth?.apiToken && !ownsTelegramAccount) {
+    return res.status(403).json({
+      error: 'reauthentication_required',
+      message: 'Open TonPlaygram from the linked Telegram account, or contact privacy@tonplaygram.com.'
+    });
+  }
+
+  const pendingFinancialActivity = (user.transactions || []).some(
+    (transaction) => transaction?.status === 'pending'
+  );
+  if (pendingFinancialActivity || user.currentTableId) {
+    return res.status(409).json({
+      error: 'account_has_pending_activity',
+      message: 'Finish or request support for pending games and transactions before deletion.'
+    });
+  }
+
+  await User.deleteOne({ _id: user._id });
+  return res.json({ success: true, deletedAccountId: String(accountId) });
+});
+
 export default router;

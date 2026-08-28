@@ -4,6 +4,9 @@ import { fileURLToPath } from 'url';
 import { createCanvas, loadImage } from 'canvas';
 import sharp from 'sharp';
 import { fetchTelegramInfo } from './telegram.js';
+import { getInviteReplyMarkup, getInviteUrl } from './gameInviteLinks.js';
+
+export { getInviteReplyMarkup, getInviteUrl } from './gameInviteLinks.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicPath = path.join(__dirname, '../../webapp/public');
@@ -25,42 +28,6 @@ function resolvePublicAssetPath(assetPath) {
 const coinPath = resolvePublicAssetPath(TPC_ICON_ASSET);
 const fallbackAvatarPath = path.join(publicPath, 'assets/icons/profile.svg');
 
-export function getInviteUrl(roomId, token, amount, game = 'snake', capacity = 2) {
-  const baseUrl =
-    process.env.WEBAPP_BASE_URL ||
-    'https://tonplaygramwebapp.onrender.com';
-  const safeGame = String(game || 'snake').trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || 'snake';
-  const params = new URLSearchParams({
-    table: String(roomId || ''),
-    tableId: String(roomId || ''),
-    mode: 'online',
-    capacity: String(Math.max(2, Number(capacity) || 2)),
-    players: String(Math.max(2, Number(capacity) || 2)),
-    type: 'regular',
-    inviteAccept: '1'
-  });
-  if (token) params.set('token', String(token));
-  if (amount !== undefined && amount !== null && amount !== '') params.set('amount', String(amount));
-  return `${baseUrl.replace(/\/$/, '')}/games/${safeGame}?${params.toString()}`;
-}
-
-export function getInviteReplyMarkup(url, rejectToken) {
-  return {
-    inline_keyboard: [
-      [
-        // A web_app button keeps Telegram users inside the existing Mini App
-        // instead of opening the game URL in Telegram's generic browser frame.
-        { text: '✅ Accept', web_app: { url } },
-        {
-          text: '❌ Reject',
-          // Telegram limits callback_data to 64 bytes. Room/account IDs can be
-          // much longer, so the server supplies a short opaque action token.
-          callback_data: `reject_invite:${rejectToken}`,
-        },
-      ],
-    ],
-  };
-}
 
 function normalizeAssetPath(assetPath) {
   if (!assetPath || typeof assetPath !== 'string') return null;

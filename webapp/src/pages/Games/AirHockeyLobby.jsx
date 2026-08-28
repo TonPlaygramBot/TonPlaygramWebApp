@@ -253,7 +253,7 @@ export default function AirHockeyLobby() {
             <div className="grid grid-cols-3 gap-3">
                 {[
                   { id: 'ai', label: 'Vs AI', desc: 'Instant practice', icon: '🤖' },
-                  { id: 'online', label: '1v1 Online', desc: 'Live matchmaking', icon: '⚔️', disabled: false }
+                  { id: 'online', label: 'Online Beta', desc: 'Temporarily unavailable', icon: '⚔️', disabled: true }
                 ].map(({ id, label, desc, icon, disabled }) => {
                 const active = mode === id;
                 return (
@@ -278,7 +278,7 @@ export default function AirHockeyLobby() {
                       </div>
                       <div className="text-center">
                         <p className="lobby-option-label">{label}</p>
-                        <p className="lobby-option-subtitle">{disabled ? 'Live queue' : desc}</p>
+                        <p className="lobby-option-subtitle">{desc}</p>
                       </div>
                     </button>
                   </div>

@@ -27,7 +27,7 @@
     "help:test": "jest test/platformHelpAgent --runInBand"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   },
   "dependencies": {
     "dotenv": "^16.3.1",

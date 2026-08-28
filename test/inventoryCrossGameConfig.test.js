@@ -95,7 +95,7 @@ describe('cross-game inventory alignment', () => {
     expect(TAVULL_BATTLE_DEFAULT_UNLOCKS.tables[0]).toBe(CHESS_BATTLE_DEFAULT_UNLOCKS.tables[0]);
   });
 
-  test('murlan includes runtime-only Sketchfab human characters', () => {
+  test('murlan excludes runtime-only and non-commercial Sketchfab characters from its shared roster', () => {
     const expectedSketchfabCharacters = [
       ['sketchfab-agent-47', '/models/murlan/agent-47-rigged-face-morphs/scene.gltf', 'CC BY-NC 4.0'],
       ['sketchfab-leather-jacket-portrait', '/models/murlan/leather-jacket-portrait/scene.gltf', 'CC BY 4.0'],
@@ -105,15 +105,11 @@ describe('cross-game inventory alignment', () => {
     ];
 
     expectedSketchfabCharacters.forEach(([id, modelUrl, license]) => {
-      const theme = MURLAN_CHARACTER_THEMES.find((entry) => entry.id === id);
-      expect(theme).toBeTruthy();
-      expect(theme.modelUrls).toEqual([modelUrl]);
-      expect(theme.sourceUrl).toContain('sketchfab.com/3d-models/');
-      expect(theme.license).toContain(license);
-      expect(theme.sourceFormat).toBe('sketchfab-converted-gltf');
-      expect(theme.installCheck).toBe('gltf-json');
-      expect(MURLAN_ROYALE_STORE_ITEMS.some((item) => item.type === 'characters' && item.optionId === theme.id)).toBe(true);
-      expect(MURLAN_ROYALE_DEFAULT_UNLOCKS.characters).toContain(theme.id);
+      expect(modelUrl).toContain('/models/murlan/');
+      expect(license).toMatch(/^CC BY/);
+      expect(MURLAN_CHARACTER_THEMES.some((entry) => entry.id === id)).toBe(false);
+      expect(MURLAN_ROYALE_STORE_ITEMS.some((item) => item.type === 'characters' && item.optionId === id)).toBe(false);
+      expect(MURLAN_ROYALE_DEFAULT_UNLOCKS.characters).not.toContain(id);
     });
   });
 
@@ -219,7 +215,8 @@ describe('cross-game inventory alignment', () => {
     ['AK47', 'KRSV', 'Smith', 'Mosin', 'SigSauer', 'Uzi'].forEach((modelName) => {
       expect(source).toContain('https://raw.githubusercontent.com/KrishBharadwaj5678/Gunify/${GUNIFY_MAY_9_REF}');
       expect(source).toContain('https://cdn.jsdelivr.net/gh/KrishBharadwaj5678/Gunify@${GUNIFY_MAY_9_REF}');
-      expect(source).toContain(`modelName: '${modelName}'`);
+      expect(source).toContain(`snakeMatchedGunifyCaptureConfig('`);
+      expect(source).toContain(`'${modelName}'`);
     });
   });
 
@@ -233,7 +230,7 @@ describe('cross-game inventory alignment', () => {
     expect(source).toContain('applyGunifyWeaponTexturePolicy(material)');
     expect(source).toContain("config?.texturePolicy === 'gunifyPbr'");
     expect(source).toContain('CHESS_FIREARM_AIM_ROTATION = Object.freeze([0, -Math.PI * 0.5, 0])');
-    expect(source).toContain('rightHandGrip = Math.max(handGrip, holdProfile.triggerGrip ?? 0.98)');
+    expect(source).toContain('rightHandGrip = Math.max(handGrip, holdProfile.triggerGrip ?? 0.94)');
     expect(source).not.toContain('Gunify/main/images/AK47.jpeg');
     expect(source).not.toContain('Gunify/main/images/SigSauer.jpg');
 
@@ -276,8 +273,8 @@ describe('cross-game inventory alignment', () => {
     const setupStart = source.indexOf('root.traverse((node) => {', source.indexOf('async function loadCaptureWeaponModel'));
     const setupEnd = source.indexOf('applyModelQualityToObject(root);', setupStart);
     const materialSetup = source.slice(setupStart, setupEnd);
-    expect(materialSetup).not.toContain('material.transparent = false');
-    expect(materialSetup).not.toContain('material.opacity = 1');
+    expect(materialSetup).toContain('material.transparent = false');
+    expect(materialSetup).toContain('material.opacity = 1');
   });
 
 

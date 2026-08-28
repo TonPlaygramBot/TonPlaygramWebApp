@@ -10,7 +10,8 @@ import {
   sendBroadcast,
   linkSocial,
   getUnreadCount,
-  linkGoogleAccount
+  linkGoogleAccount,
+  deleteAccount
 } from '../utils/api.js';
 import {
   getTelegramId,
@@ -53,8 +54,9 @@ import {
   FiBell,
   FiList,
   FiDollarSign,
-  FiCheckSquare
-  ,FiShare2
+  FiCheckSquare,
+  FiShare2,
+  FiTrash2
 } from 'react-icons/fi';
 
 export default function MyAccount() {
@@ -74,6 +76,9 @@ export default function MyAccount() {
   const [manualTelegramInput, setManualTelegramInput] = useState('');
   const [linkingTelegram, setLinkingTelegram] = useState(false);
   const [linkFeedback, setLinkFeedback] = useState('');
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [deleteStatus, setDeleteStatus] = useState('');
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const [tonWalletAddress, setTonWalletAddress] = useState(
     () => localStorage.getItem('walletAddress') || ''
   );
@@ -143,6 +148,19 @@ export default function MyAccount() {
     setGoogleProfile(null);
     setProfile(null);
     window.location.href = '/';
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmation !== 'DELETE' || !profile?.accountId) return;
+    setDeletingAccount(true);
+    setDeleteStatus('');
+    const result = await deleteAccount(profile.accountId);
+    if (result?.success) {
+      handleSignOut();
+      return;
+    }
+    setDeleteStatus(result?.message || result?.error || 'Account deletion failed. Please try again.');
+    setDeletingAccount(false);
   };
 
   useEffect(() => {
@@ -995,6 +1013,17 @@ export default function MyAccount() {
       </div>
 
       <Wallet accountIdOverride={profile.accountId} />
+
+      <section id="delete-account" className="rounded-xl border border-red-500/40 bg-red-950/20 p-4 space-y-3">
+        <div className="flex items-start gap-3">
+          <FiTrash2 className="mt-1 h-5 w-5 shrink-0 text-red-300" />
+          <div><h3 className="font-semibold text-red-100">Delete account permanently</h3><p className="mt-1 text-sm text-red-100/70">Profile data, provider links, push tokens, inventories, and embedded account history will be removed. Blockchain records cannot be erased. Pending games or transactions must be resolved first.</p></div>
+        </div>
+        <label className="block text-sm text-red-100">Type <strong>DELETE</strong> to confirm<input value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} autoComplete="off" className="mt-2 w-full rounded-lg border border-red-500/40 bg-background px-3 py-3 text-text" placeholder="DELETE" /></label>
+        {deleteStatus ? <p role="alert" className="text-sm text-red-300">{deleteStatus}</p> : null}
+        <button type="button" disabled={deleteConfirmation !== 'DELETE' || deletingAccount} onClick={handleDeleteAccount} className="w-full rounded-lg bg-red-600 px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">{deletingAccount ? 'Deleting…' : 'Delete my account'}</button>
+        <p className="text-xs text-subtext">For your protection, deletion requires reauthentication. <Link className="underline" to="/privacy">Read the Privacy Policy</Link>.</p>
+      </section>
 
       <DevNotifyModal
         open={showNotifyModal}

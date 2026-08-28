@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { getInviteReplyMarkup, getInviteUrl } from '../utils/notifications.js';
+import { getInviteReplyMarkup, getInviteUrl } from '../utils/gameInviteLinks.js';
 
 test('opens accepted Telegram invites as a Mini App', () => {
   const url = getInviteUrl('pool-room-2', 'TPC', 25, 'pool-royale');
