@@ -227,7 +227,14 @@ export default function App() {
                 path="/games/airhockey/lobby"
                 element={<AirHockeyLobby />}
               />
-              <Route path="/games/airhockey" element={<AirHockey />} />
+              <Route
+                path="/games/airhockey"
+                element={
+                  <GameLiveAvatarOverlay gameSlug="airhockey">
+                    <AirHockey />
+                  </GameLiveAvatarOverlay>
+                }
+              />
               <Route
                 path="/games/chessbattleroyal/lobby"
                 element={

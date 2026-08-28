@@ -15,6 +15,9 @@ export default function AirHockey() {
   const playerFlagParam = params.get('flag');
   const aiFlagParam = params.get('aiFlag');
   const accountId = params.get('accountId') || undefined;
+  const tableId = params.get('tableId') || '';
+  const online = params.get('mode') === 'online' && Boolean(tableId && accountId);
+  const seatIndex = Number(params.get('seat')) === 1 ? 1 : 0;
   const aiFlag = aiFlagParam && FLAG_EMOJIS.includes(aiFlagParam) ? aiFlagParam : '';
   const player = {
     name: params.get('name') || 'You',
@@ -24,6 +27,12 @@ export default function AirHockey() {
   };
   const randomAiFlag = FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)];
   const chosenAiFlag = aiFlag || randomAiFlag;
-  const ai = { name: avatarToName(chosenAiFlag) || 'AI', avatar: chosenAiFlag };
-  return <AirHockey3D player={player} ai={ai} target={target} playType={playType} accountId={accountId} />;
+  const ai = online
+    ? {
+        name: params.get('opponentName') || 'Opponent',
+        avatar: params.get('opponentAvatar') || chosenAiFlag
+      }
+    : { name: avatarToName(chosenAiFlag) || 'AI', avatar: chosenAiFlag };
+  return <AirHockey3D player={player} ai={ai} target={target} playType={playType}
+    accountId={accountId} online={online} tableId={tableId} seatIndex={seatIndex} />;
 }

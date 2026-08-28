@@ -85,11 +85,16 @@ export default function AirHockeyLobby() {
         },
         state: { setMatching, setMatchStatus, setMatchError },
         deps: { ensureAccountId, getAccountBalance, addTransaction, getTelegramId, socket },
-        onMatched: ({ accountId, tableId }) => {
+        onMatched: ({ accountId, tableId, players: matchedPlayers = [] }) => {
           const params = new URLSearchParams(search);
           params.set('mode', 'online');
           params.set('tableId', tableId);
           params.set('accountId', accountId);
+          const seatIndex = matchedPlayers.findIndex((entry) => String(entry?.id) === String(accountId));
+          params.set('seat', String(Math.max(0, seatIndex)));
+          const opponent = matchedPlayers.find((entry) => String(entry?.id) !== String(accountId));
+          if (opponent?.name) params.set('opponentName', opponent.name);
+          if (opponent?.avatar) params.set('opponentAvatar', opponent.avatar);
           params.set('target', goal);
           params.set('type', playType);
           if (stake.token) params.set('token', stake.token);

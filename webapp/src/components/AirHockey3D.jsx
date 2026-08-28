@@ -33,6 +33,7 @@ import {
   getAirHockeyInventory,
   isAirHockeyOptionUnlocked
 } from '../utils/airHockeyInventory.js';
+import { refreshSocketAuthIdentity, socket } from '../utils/socket.js';
 
 const CUSTOMIZATION_KEYS = Object.freeze([
   'field',
@@ -601,7 +602,10 @@ export default function AirHockey3D({
   ai,
   target = 11,
   playType = 'regular',
-  accountId
+  accountId,
+  online = false,
+  tableId = '',
+  seatIndex = 0
 }) {
   const gameVariant = AIR_HOCKEY_VARIANT;
   const targetValue = Number(target) || 11;
@@ -701,6 +705,7 @@ export default function AirHockey3D({
   const restartTimeoutRef = useRef(null);
   const redirectTimeoutRef = useRef(null);
   const lastTouchRef = useRef(null);
+  const onlineSyncRef = useRef({ remoteInput: null, snapshot: null, inputSeq: 0, lastSentAt: 0 });
   const topLiveVideoRef = useRef(null);
   const materialsRef = useRef({
     tableSurface: null,
@@ -757,6 +762,30 @@ export default function AirHockey3D({
     displayName: player?.name || 'Player',
     enabled: liveMode
   });
+  useEffect(() => {
+    if (!online || !tableId || !accountId) return undefined;
+    refreshSocketAuthIdentity({ accountId }, { reconnect: true });
+    const joinAndSync = () => {
+      socket.emit('register', { playerId: accountId });
+      socket.emit('joinAirHockeyTable', { tableId, accountId });
+      socket.emit('airHockeySyncRequest', { tableId, accountId });
+    };
+    const onRemoteInput = (payload = {}) => {
+      if (payload.tableId === tableId) onlineSyncRef.current.remoteInput = payload.input || null;
+    };
+    const onRemoteState = (payload = {}) => {
+      if (payload.tableId === tableId && payload.state) onlineSyncRef.current.snapshot = payload.state;
+    };
+    socket.on('connect', joinAndSync);
+    socket.on('airHockeyInput', onRemoteInput);
+    socket.on('airHockeyState', onRemoteState);
+    joinAndSync();
+    return () => {
+      socket.off('connect', joinAndSync);
+      socket.off('airHockeyInput', onRemoteInput);
+      socket.off('airHockeyState', onRemoteState);
+    };
+  }, [accountId, online, tableId]);
   useEffect(() => {
     if (liveMode) {
       liveChat.startLiveChat();
@@ -1987,6 +2016,21 @@ export default function AirHockey3D({
       if (!isLowerHalfTouch(t.clientY)) return;
       const { x, z } = touchToXZ(t.clientX, t.clientY);
       you.position.set(x, 0, z);
+      if (online && seatIndex === 1 && tableId && accountId) {
+        const sync = onlineSyncRef.current;
+        const now = performance.now();
+        if (now - sync.lastSentAt >= 33) {
+          sync.lastSentAt = now;
+          sync.inputSeq += 1;
+          // The guest sees their own goal at the visually lower edge. Rotate
+          // only the network coordinates so both phones retain that portrait view.
+          socket.emit('airHockeyInput', {
+            tableId,
+            accountId,
+            input: { x: -x, z: -z, seq: sync.inputSeq }
+          });
+        }
+      }
     };
 
     renderer.domElement.addEventListener('touchstart', onMove, {
@@ -2097,6 +2141,35 @@ export default function AirHockey3D({
       frameAccumulatorRef.current = Math.max(0, frameAccumulatorRef.current - targetInterval);
       lastFrameTimeRef.current = timestamp;
 
+      if (online && seatIndex === 1) {
+        const snapshot = onlineSyncRef.current.snapshot;
+        if (snapshot) {
+          puck.position.x += (-Number(snapshot.puck?.x || 0) - puck.position.x) * 0.65;
+          puck.position.z += (-Number(snapshot.puck?.z || 0) - puck.position.z) * 0.65;
+          aiMallet.position.x += (-Number(snapshot.host?.x || 0) - aiMallet.position.x) * 0.65;
+          aiMallet.position.z += (-Number(snapshot.host?.z || 0) - aiMallet.position.z) * 0.65;
+          const nextScore = { left: Number(snapshot.score?.right || 0), right: Number(snapshot.score?.left || 0) };
+          if (nextScore.left !== scoreRef.current.left || nextScore.right !== scoreRef.current.right) {
+            scoreRef.current = nextScore;
+            setUi(nextScore);
+          }
+          if (snapshot.gameOver && !gameOverRef.current) {
+            gameOverRef.current = true;
+            setGameOver(true);
+            setWinner(snapshot.winnerSeat === 1 ? player.name : ai.name);
+          }
+        }
+        renderer.render(scene, camera);
+        if (!gameOverRef.current) raf.current = requestAnimationFrame(tick);
+        return;
+      }
+
+      if (online && seatIndex === 0 && onlineSyncRef.current.remoteInput) {
+        const remote = onlineSyncRef.current.remoteInput;
+        aiMallet.position.x += (clamp(remote.x, -PLAYFIELD.w / 2 + MALLET_RADIUS, PLAYFIELD.w / 2 - MALLET_RADIUS) - aiMallet.position.x) * 0.8;
+        aiMallet.position.z += (clamp(remote.z, -PLAYFIELD.h / 2 + MALLET_RADIUS, -MALLET_RADIUS) - aiMallet.position.z) * 0.8;
+      }
+
       puck.position.x += S.vel.x;
       puck.position.z += S.vel.z;
       S.vel.multiplyScalar(Math.pow(S.friction, dt * 60));
@@ -2158,9 +2231,24 @@ export default function AirHockey3D({
         }
       }
 
-      aiUpdate(dt);
+      if (!online) aiUpdate(dt);
       handleCollision(you, true);
       handleCollision(aiMallet);
+      if (online && seatIndex === 0 && timestamp - onlineSyncRef.current.lastSentAt >= 50) {
+        onlineSyncRef.current.lastSentAt = timestamp;
+        socket.emit('airHockeyState', {
+          tableId,
+          accountId,
+          state: {
+            puck: { x: puck.position.x, z: puck.position.z, vx: S.vel.x, vz: S.vel.z },
+            host: { x: you.position.x, z: you.position.z },
+            guest: { x: aiMallet.position.x, z: aiMallet.position.z },
+            score: scoreRef.current,
+            gameOver: gameOverRef.current,
+            winnerSeat: scoreRef.current.left >= targetRef.current ? 0 : 1
+          }
+        });
+      }
       renderer.render(scene, camera);
       if (!gameOverRef.current) {
         raf.current = requestAnimationFrame(tick);
