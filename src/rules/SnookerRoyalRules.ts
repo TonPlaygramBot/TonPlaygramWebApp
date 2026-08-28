@@ -316,14 +316,6 @@ export class SnookerRoyalRules {
       }
     }
 
-    if (
-      !foulReason &&
-      !pottedNonCue.length &&
-      (context.noCushionAfterContact || context.cushionAfterContact === false)
-    ) {
-      foulReason = 'no cushion';
-    }
-
     let nextActivePlayer = state.activePlayer;
     let nextBreak = state.currentBreak ?? 0;
     let redsRemaining = state.redsRemaining ?? RED_COUNT;
@@ -466,20 +458,10 @@ export class SnookerRoyalRules {
     if (freeBallPotted && nominatedFreeBall) {
       respotColor(nominatedFreeBall);
     }
+    // Colours potted during a foul are spotted again, including during the
+    // final-colours sequence. Reds remain off the table.
     if (foulReason && pottedColors.length) {
-      const removed = new Set<Exclude<BallColor, 'RED'>>(
-        pottedColors
-          .map((entry) => entry.color)
-          .filter((color): color is Exclude<BallColor, 'RED'> => color !== 'RED')
-      );
-      if (removed.size) {
-        for (let index = colorsRemaining.length - 1; index >= 0; index -= 1) {
-          const color = colorsRemaining[index];
-          if (color !== 'RED' && removed.has(color)) {
-            colorsRemaining.splice(index, 1);
-          }
-        }
-      }
+      pottedColors.forEach((entry) => restoreBallState(entry.ball));
     }
 
     const nextState: FrameState = {

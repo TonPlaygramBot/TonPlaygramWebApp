@@ -3144,13 +3144,20 @@ io.on('connection', (socket) => {
     cb && cb({ success: true, revision });
   });
 
-  socket.on('joinSnookerTable', async ({ tableId, accountId }) => {
+  socket.on('joinSnookerTable', async ({ tableId, accountId } = {}, cb) => {
     if (!tableId) return;
-    if (accountId && !ensureRegistered(socket, accountId)) return;
+    const resolvedAccountId = resolveTpcIdentity({ accountId });
+    const table = tableMap.get(tableId);
+    if (!ensureRegistered(socket, resolvedAccountId) || !table || table.gameType !== 'snookerroyale' ||
+      !table.players.some((player) => String(player.id) === String(resolvedAccountId))) {
+      socket.emit('snookerSyncError', { tableId, error: 'seat_required' });
+      cb && cb({ success: false, error: 'seat_required' });
+      return;
+    }
     socket.join(tableId);
-    if (accountId) {
+    if (resolvedAccountId) {
       await registerConnection({
-        userId: String(accountId),
+        userId: String(resolvedAccountId),
         roomId: tableId,
         socketId: socket.id
       });
@@ -3162,13 +3169,22 @@ io.on('connection', (socket) => {
         state: cached.state,
         hud: cached.hud,
         layout: cached.layout,
-        updatedAt: cached.ts
+        updatedAt: cached.ts,
+        revision: cached.revision || 0
       });
     }
+    cb && cb({ success: true, revision: cached?.revision || 0 });
   });
 
-  socket.on('snookerSyncRequest', ({ tableId }) => {
+  socket.on('snookerSyncRequest', ({ tableId, accountId } = {}) => {
     if (!tableId) return;
+    const resolvedAccountId = resolveTpcIdentity({ accountId });
+    const table = tableMap.get(tableId);
+    if (!ensureRegistered(socket, resolvedAccountId) || !socket.rooms.has(tableId) ||
+      !table?.players.some((player) => String(player.id) === String(resolvedAccountId))) {
+      socket.emit('snookerSyncError', { tableId, error: 'seat_required' });
+      return;
+    }
     const cached = snookerStates.get(tableId);
     if (cached?.state) {
       socket.emit('snookerState', {
@@ -3176,47 +3192,72 @@ io.on('connection', (socket) => {
         state: cached.state,
         hud: cached.hud,
         layout: cached.layout,
-        updatedAt: cached.ts
+        updatedAt: cached.ts,
+        revision: cached.revision || 0
       });
     }
   });
 
-  socket.on('snookerFrame', ({ tableId, layout, hud, playerId, frameTs }) => {
+  socket.on('snookerFrame', ({ tableId, layout, hud, playerId, frameTs, accountId } = {}) => {
     if (!tableId || !Array.isArray(layout)) return;
+    const resolvedAccountId = resolveTpcIdentity({ accountId: accountId || playerId || socket.data?.playerId });
+    const table = tableMap.get(tableId);
+    if (!ensureRegistered(socket, resolvedAccountId) || !socket.rooms.has(tableId) ||
+      !table?.players.some((player) => String(player.id) === String(resolvedAccountId))) {
+      socket.emit('snookerSyncError', { tableId, error: 'seat_required' });
+      return;
+    }
     const ts = Number.isFinite(frameTs) ? frameTs : Date.now();
     const cached = snookerStates.get(tableId) || {};
+    const revision = Number(cached.revision || 0) + 1;
     const payload = {
       tableId,
       layout,
       hud: hud || cached.hud || null,
       updatedAt: ts,
-      playerId: playerId || null
+      playerId: String(resolvedAccountId),
+      revision
     };
     snookerStates.set(tableId, {
       state: cached.state || null,
       hud: payload.hud,
       layout,
-      ts
+      ts,
+      revision
     });
     socket.to(tableId).emit('snookerFrame', payload);
   });
 
-  socket.on('snookerShot', ({ tableId, state, hud, layout }) => {
+  socket.on('snookerShot', ({ tableId, state, hud, layout, accountId } = {}, cb) => {
     if (!tableId || !state) return;
+    const resolvedAccountId = resolveTpcIdentity({ accountId: accountId || socket.data?.playerId });
+    const table = tableMap.get(tableId);
+    if (!ensureRegistered(socket, resolvedAccountId) || !socket.rooms.has(tableId) ||
+      !table?.players.some((player) => String(player.id) === String(resolvedAccountId))) {
+      socket.emit('snookerSyncError', { tableId, error: 'seat_required' });
+      cb && cb({ success: false, error: 'seat_required' });
+      return;
+    }
+    const cached = snookerStates.get(tableId) || {};
+    const revision = Number(cached.revision || 0) + 1;
+    const authoritativeState = { ...state, seq: revision };
     const payload = {
       tableId,
-      state,
+      state: authoritativeState,
       hud: hud || null,
       layout: layout || null,
-      updatedAt: Date.now()
+      updatedAt: Date.now(),
+      revision
     };
     snookerStates.set(tableId, {
-      state,
+      state: authoritativeState,
       hud: hud || null,
       layout: layout || null,
-      ts: payload.updatedAt
+      ts: payload.updatedAt,
+      revision
     });
     socket.to(tableId).emit('snookerState', payload);
+    cb && cb({ success: true, revision });
   });
 
   socket.on('chessMove', ({ tableId, move }, cb) => {

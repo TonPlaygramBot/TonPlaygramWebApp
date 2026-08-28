@@ -15448,9 +15448,12 @@ const powerRef = useRef(hud.power);
       applyRemoteState({ state: payload.state, hud: payload.hud, layout: payload.layout });
     };
 
-    socket.emit('register', { playerId: accountId });
-    socket.emit('joinSnookerTable', { tableId, accountId });
-    socket.emit('snookerSyncRequest', { tableId });
+    socket.emit('register', { playerId: accountId }, (registered) => {
+      if (!registered?.success) return;
+      socket.emit('joinSnookerTable', { tableId, accountId }, (joined) => {
+        if (joined?.success) socket.emit('snookerSyncRequest', { tableId, accountId });
+      });
+    });
     socket.on('snookerState', handlePoolState);
     socket.on('snookerFrame', handlePoolFrame);
 
@@ -29248,7 +29251,8 @@ const powerRef = useRef(hud.power);
               {isOnlineMatch ? (
                 <img
                   src={player.avatar || '/assets/icons/profile.svg'}
-                  alt="player avatar"
+                  alt="You"
+                  data-self-player="true"
                   className={`${avatarSizeClass} rounded-full border-2 object-cover transition-all duration-150 ${
                     isPlayerTurn
                       ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
