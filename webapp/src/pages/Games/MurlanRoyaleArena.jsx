@@ -56,18 +56,6 @@ import { MURLAN_CHARACTER_THEMES } from '../../config/murlanCharacterThemes.js';
 import { giftSounds } from '../../utils/giftSounds.js';
 import { getAvatarUrl } from '../../utils/avatarUtils.js';
 import { getGameVolume, isGameMuted } from '../../utils/sound.js';
-import {
-  getSpeechSupport,
-  getSpeechSynthesis,
-  onSpeechSupportChange,
-  primeSpeechSynthesis,
-  speakCommentaryLines
-} from '../../utils/textToSpeech.js';
-import {
-  buildMurlanCommentaryLine,
-  MURLAN_ROYALE_SPEAKERS,
-  resolveMurlanLanguageKey
-} from '../../utils/murlanRoyaleCommentary.js';
 
 const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k', '2k']);
 const HDRI_RESOLUTION_LADDER = Object.freeze(['8k', '4k', '2k', '1k']);
@@ -1181,7 +1169,6 @@ function normalizeMaterialTextures(material, maxAnisotropy = 1) {
   normalizePbrTexture(material.aoMap, maxAnisotropy, { preserveWrapping: true, preserveFlipY: true });
 }
 
-
 function getMurlanCharacterAnisotropyCap(renderer = null) {
   try {
     return Math.max(1, renderer?.capabilities?.getMaxAnisotropy?.() || 8);
@@ -1428,8 +1415,6 @@ const DEFAULT_APPEARANCE = {
 };
 const APPEARANCE_STORAGE_KEY = 'murlanRoyaleAppearance';
 const FRAME_RATE_STORAGE_KEY = 'murlanFrameRate';
-const COMMENTARY_PRESET_STORAGE_KEY = 'murlanRoyaleCommentaryPreset';
-const COMMENTARY_MUTE_STORAGE_KEY = 'murlanRoyaleCommentaryMute';
 
 const CARD_ACTION_ANIMATION_OPTIONS = Object.freeze([
   {
@@ -1440,311 +1425,6 @@ const CARD_ACTION_ANIMATION_OPTIONS = Object.freeze([
 ]);
 const DEFAULT_CARD_ACTION_ANIMATION_ID = CARD_ACTION_ANIMATION_OPTIONS[0].id;
 
-const COMMENTARY_QUEUE_LIMIT = 4;
-const COMMENTARY_MIN_INTERVAL_MS = 900;
-const COMMENTARY_MAX_LATENCY_MS = 2200;
-const COMMENTARY_PRIORITY_MAX_LATENCY_MS = 6000;
-const MURLAN_ROYALE_COMMENTARY_PRESETS = Object.freeze([
-  {
-    id: 'english',
-    label: 'English',
-    description: 'Mixed voices, classic English',
-    language: 'en',
-    voiceHints: {
-      [MURLAN_ROYALE_SPEAKERS.lead]: [
-        'en-US',
-        'English',
-        'male',
-        'David',
-        'Guy',
-        'Daniel',
-        'Alex'
-      ],
-      [MURLAN_ROYALE_SPEAKERS.analyst]: [
-        'en-GB',
-        'English',
-        'female',
-        'Sonia',
-        'Hazel',
-        'Kate',
-        'Emma'
-      ],
-      [MURLAN_ROYALE_SPEAKERS.hype]: [
-        'en-US',
-        'English',
-        'male',
-        'Matthew',
-        'James',
-        'Michael'
-      ],
-      [MURLAN_ROYALE_SPEAKERS.tactician]: [
-        'en-GB',
-        'English',
-        'female',
-        'Amy',
-        'Olivia',
-        'Serena'
-      ],
-      [MURLAN_ROYALE_SPEAKERS.veteran]: [
-        'en-US',
-        'English',
-        'male',
-        'George',
-        'Mark',
-        'Brian'
-      ]
-    },
-    speakerSettings: {
-      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.06, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.hype]: { rate: 1.08, pitch: 1.1, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.tactician]: { rate: 0.98, pitch: 1, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.veteran]: { rate: 0.96, pitch: 0.92, volume: 1 }
-    }
-  },
-  {
-    id: 'saffron-table',
-    label: 'Indian Table',
-    description: 'Hindi commentary with lively pacing',
-    language: 'hi',
-    voiceHints: {
-      [MURLAN_ROYALE_SPEAKERS.lead]: [
-        'hi-IN',
-        'hi',
-        'Hindi',
-        'male',
-        'Raj',
-        'Amit',
-        'Arjun'
-      ],
-      [MURLAN_ROYALE_SPEAKERS.analyst]: [
-        'hi-IN',
-        'hi',
-        'Hindi',
-        'female',
-        'Asha',
-        'Priya',
-        'Neha'
-      ],
-      [MURLAN_ROYALE_SPEAKERS.hype]: [
-        'hi-IN',
-        'hi',
-        'Hindi',
-        'male',
-        'Rohan',
-        'Vijay',
-        'Karan'
-      ],
-      [MURLAN_ROYALE_SPEAKERS.tactician]: [
-        'hi-IN',
-        'hi',
-        'Hindi',
-        'female',
-        'Ananya',
-        'Kiran',
-        'Deepa'
-      ],
-      [MURLAN_ROYALE_SPEAKERS.veteran]: [
-        'hi-IN',
-        'hi',
-        'Hindi',
-        'male',
-        'Suresh',
-        'Ajay',
-        'Prakash'
-      ]
-    },
-    speakerSettings: {
-      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1.06, pitch: 1.02, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.08, pitch: 1.08, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.hype]: { rate: 1.12, pitch: 1.12, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.tactician]: { rate: 1.02, pitch: 1, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.veteran]: { rate: 0.98, pitch: 0.96, volume: 1 }
-    }
-  },
-  {
-    id: 'moscow-mics',
-    label: 'Russian Booth',
-    description: 'Russian commentary with steady cadence',
-    language: 'ru',
-    voiceHints: {
-      [MURLAN_ROYALE_SPEAKERS.lead]: [
-        'ru-RU',
-        'ru',
-        'Russian',
-        'male',
-        'Dmitri',
-        'Ivan',
-        'Sergey',
-        'Alexey'
-      ],
-      [MURLAN_ROYALE_SPEAKERS.analyst]: [
-        'ru-RU',
-        'ru',
-        'Russian',
-        'female',
-        'Anna',
-        'Svetlana',
-        'Irina',
-        'Olga'
-      ],
-      [MURLAN_ROYALE_SPEAKERS.hype]: [
-        'ru-RU',
-        'ru',
-        'Russian',
-        'male',
-        'Pavel',
-        'Nikolai',
-        'Kirill'
-      ],
-      [MURLAN_ROYALE_SPEAKERS.tactician]: [
-        'ru-RU',
-        'ru',
-        'Russian',
-        'female',
-        'Maria',
-        'Elena',
-        'Daria'
-      ],
-      [MURLAN_ROYALE_SPEAKERS.veteran]: [
-        'ru-RU',
-        'ru',
-        'Russian',
-        'male',
-        'Oleg',
-        'Viktor',
-        'Yuri'
-      ]
-    },
-    speakerSettings: {
-      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.03, pitch: 1.02, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.hype]: { rate: 1.07, pitch: 1.04, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.tactician]: { rate: 0.98, pitch: 0.98, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.veteran]: { rate: 0.96, pitch: 0.94, volume: 1 }
-    }
-  },
-  {
-    id: 'latin-pulse',
-    label: 'Latin Pulse',
-    description: 'Spanish play-by-play with lively color',
-    language: 'es',
-    voiceHints: {
-      [MURLAN_ROYALE_SPEAKERS.lead]: [
-        'es-ES',
-        'es-MX',
-        'Spanish',
-        'male',
-        'Jorge',
-        'Carlos',
-        'Miguel'
-      ],
-      [MURLAN_ROYALE_SPEAKERS.analyst]: [
-        'es-ES',
-        'es-MX',
-        'Spanish',
-        'female',
-        'Isabella',
-        'Lucia',
-        'Camila'
-      ],
-      [MURLAN_ROYALE_SPEAKERS.hype]: [
-        'es-ES',
-        'es-MX',
-        'Spanish',
-        'male',
-        'Diego',
-        'Andres',
-        'Sergio'
-      ],
-      [MURLAN_ROYALE_SPEAKERS.tactician]: [
-        'es-ES',
-        'es-MX',
-        'Spanish',
-        'female',
-        'Elena',
-        'Sofia',
-        'Valeria'
-      ],
-      [MURLAN_ROYALE_SPEAKERS.veteran]: [
-        'es-ES',
-        'es-MX',
-        'Spanish',
-        'male',
-        'Ramon',
-        'Alberto',
-        'Hector'
-      ]
-    },
-    speakerSettings: {
-      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 1.05, pitch: 1, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.08, pitch: 1.1, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.hype]: { rate: 1.12, pitch: 1.12, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.tactician]: { rate: 1, pitch: 0.98, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.veteran]: { rate: 0.97, pitch: 0.95, volume: 1 }
-    }
-  },
-  {
-    id: 'francophone-booth',
-    label: 'Francophone Booth',
-    description: 'French broadcast pairing',
-    language: 'fr',
-    voiceHints: {
-      [MURLAN_ROYALE_SPEAKERS.lead]: [
-        'fr-FR',
-        'French',
-        'male',
-        'Henri',
-        'Louis',
-        'Paul'
-      ],
-      [MURLAN_ROYALE_SPEAKERS.analyst]: [
-        'fr-FR',
-        'French',
-        'female',
-        'Amelie',
-        'Marie',
-        'Charlotte'
-      ],
-      [MURLAN_ROYALE_SPEAKERS.hype]: [
-        'fr-FR',
-        'French',
-        'male',
-        'Julien',
-        'Antoine',
-        'Lucas'
-      ],
-      [MURLAN_ROYALE_SPEAKERS.tactician]: [
-        'fr-FR',
-        'French',
-        'female',
-        'Claire',
-        'Camille',
-        'Lea'
-      ],
-      [MURLAN_ROYALE_SPEAKERS.veteran]: [
-        'fr-FR',
-        'French',
-        'male',
-        'Bernard',
-        'Olivier',
-        'Gerard'
-      ]
-    },
-    speakerSettings: {
-      [MURLAN_ROYALE_SPEAKERS.lead]: { rate: 0.98, pitch: 0.96, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.06, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.hype]: { rate: 1.06, pitch: 1.08, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.tactician]: { rate: 0.98, pitch: 0.98, volume: 1 },
-      [MURLAN_ROYALE_SPEAKERS.veteran]: { rate: 0.95, pitch: 0.94, volume: 1 }
-    }
-  },
-]);
-const DEFAULT_COMMENTARY_PRESET_ID = MURLAN_ROYALE_COMMENTARY_PRESETS[0]?.id || 'english';
-const COMMENTARY_PRIMARY_SPEAKERS = Object.freeze({
-  english: MURLAN_ROYALE_SPEAKERS.analyst,
-  'latin-pulse': MURLAN_ROYALE_SPEAKERS.analyst
-});
 const CUSTOMIZATION_SECTIONS = [
   { key: 'tables', label: 'Table Model', options: TABLE_THEMES },
   { key: 'tableShape', label: 'Table Shape', options: TABLE_SHAPE_OPTIONS },
@@ -2279,7 +1959,6 @@ function normalizeCharacterPivot(characterRoot) {
   characterRoot.position.y -= bounds.min.y;
 }
 
-
 function fitCharacterModelForSeat(characterRoot, characterTheme = null) {
   if (!characterRoot) return;
   characterRoot.updateMatrixWorld?.(true);
@@ -2723,8 +2402,6 @@ function attachSeatedCharacter({ template, seatConfig, characterTheme, store, pl
   store.characterInstances.push(seatRoot);
 }
 
-
-
 function resolveCharacterActionAnimationProfile(styleId) {
   switch (styleId) {
     case 'lowArcDeal':
@@ -2912,7 +2589,6 @@ function updateRigContactHelpers(store) {
     helpers.cardHelper.position.copy(tmpCard);
   });
 }
-
 
 async function loadPolyhavenModel(assetId, renderer = null) {
   if (!assetId) throw new Error('Missing Poly Haven asset id');
@@ -3363,132 +3039,6 @@ const AI_NAME_TRANSLATIONS = Object.freeze({
   }
 });
 
-const COMMENTARY_FALLBACK_LABELS = Object.freeze({
-  en: {
-    player: 'Player',
-    table: 'table',
-    combo: 'a clean combo'
-  },
-  zh: {
-    player: '玩家',
-    table: '牌桌',
-    combo: '一手稳健的组合'
-  },
-  hi: {
-    player: 'खिलाड़ी',
-    table: 'टेबल',
-    combo: 'साफ कॉम्बो'
-  },
-  ru: {
-    player: 'Игрок',
-    table: 'стол',
-    combo: 'чистая комбинация'
-  },
-  es: {
-    player: 'Jugador',
-    table: 'mesa',
-    combo: 'un combo limpio'
-  },
-  fr: {
-    player: 'Joueur',
-    table: 'table',
-    combo: 'un combo propre'
-  },
-  ar: {
-    player: 'اللاعب',
-    table: 'الطاولة',
-    combo: 'تركيبة نظيفة'
-  },
-  sq: {
-    player: 'Lojtari',
-    table: 'tavolina',
-    combo: 'një kombinim i pastër'
-  }
-});
-
-const COMMENTARY_COMBO_LABELS = Object.freeze({
-  en: {
-    single: (card) => `a ${card}`,
-    pair: (rank) => `pair ${rank}`,
-    trips: (rank) => `trips ${rank}`,
-    bomb: (rank) => `bomb ${rank}`,
-    straight: (start, end) => `straight ${start} - ${end}`,
-    flush: (count) => `flush with ${count} cards`,
-    fullHouse: () => 'full house',
-    straightFlush: () => 'straight flush'
-  },
-  zh: {
-    single: (card) => `单张${card}`,
-    pair: (rank) => `对子${rank}`,
-    trips: (rank) => `三条${rank}`,
-    bomb: (rank) => `炸弹${rank}`,
-    straight: (start, end) => `顺子${start}-${end}`,
-    flush: (count) => `同花${count}张`,
-    fullHouse: () => '葫芦',
-    straightFlush: () => '同花顺'
-  },
-  hi: {
-    single: (card) => `एकल ${card}`,
-    pair: (rank) => `जोड़ी ${rank}`,
-    trips: (rank) => `ट्रिप्स ${rank}`,
-    bomb: (rank) => `बॉम्ब ${rank}`,
-    straight: (start, end) => `स्ट्रेट ${start}-${end}`,
-    flush: (count) => `${count} पत्तों का फ्लश`,
-    fullHouse: () => 'फुल हाउस',
-    straightFlush: () => 'स्ट्रेट फ्लश'
-  },
-  ru: {
-    single: (card) => `одиночная ${card}`,
-    pair: (rank) => `пара ${rank}`,
-    trips: (rank) => `сет ${rank}`,
-    bomb: (rank) => `бомба ${rank}`,
-    straight: (start, end) => `стрит ${start}-${end}`,
-    flush: (count) => `флеш на ${count} карт`,
-    fullHouse: () => 'фул-хаус',
-    straightFlush: () => 'стрит-флеш'
-  },
-  es: {
-    single: (card) => `una ${card}`,
-    pair: (rank) => `pareja ${rank}`,
-    trips: (rank) => `trío ${rank}`,
-    bomb: (rank) => `bomba ${rank}`,
-    straight: (start, end) => `escalera ${start}-${end}`,
-    flush: (count) => `color de ${count} cartas`,
-    fullHouse: () => 'full house',
-    straightFlush: () => 'escalera de color'
-  },
-  fr: {
-    single: (card) => `une ${card}`,
-    pair: (rank) => `paire ${rank}`,
-    trips: (rank) => `brelan ${rank}`,
-    bomb: (rank) => `bombe ${rank}`,
-    straight: (start, end) => `suite ${start}-${end}`,
-    flush: (count) => `couleur de ${count} cartes`,
-    fullHouse: () => 'full',
-    straightFlush: () => 'quinte flush'
-  },
-  ar: {
-    single: (card) => `ورقة ${card}`,
-    pair: (rank) => `زوج ${rank}`,
-    trips: (rank) => `ثلاثية ${rank}`,
-    bomb: (rank) => `قنبلة ${rank}`,
-    straight: (start, end) => `تسلسل ${start}-${end}`,
-    flush: (count) => `فلش من ${count} أوراق`,
-    fullHouse: () => 'فل هاوس',
-    straightFlush: () => 'ستريت فلش'
-  },
-  sq: {
-    single: (card) => `një ${card}`,
-    pair: (rank) => `çift ${rank}`,
-    trips: (rank) => `treshe ${rank}`,
-    bomb: (rank) => `bombë ${rank}`,
-    straight: (start, end) => `drejtë ${start}-${end}`,
-    flush: (count) => `ngjyrë me ${count} letra`,
-    fullHouse: () => 'shtëpi e plotë',
-    straightFlush: () => 'drejtë e ngjyrës'
-  }
-});
-
 const clampValue = (value, min, max) => Math.min(Math.max(value, min), max);
 
 const FRAME_RATE_OPTIONS = Object.freeze([
@@ -3630,32 +3180,7 @@ export default function MurlanRoyaleArena({ search }) {
   const [chatBubbles, setChatBubbles] = useState([]);
   const [passBubbles, setPassBubbles] = useState([]);
   const [muted, setMuted] = useState(isGameMuted());
-  const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(COMMENTARY_PRESET_STORAGE_KEY);
-      if (stored && MURLAN_ROYALE_COMMENTARY_PRESETS.some((preset) => preset.id === stored)) {
-        return stored;
-      }
-    }
-    return DEFAULT_COMMENTARY_PRESET_ID;
-  });
-  const [commentaryMuted, setCommentaryMuted] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(COMMENTARY_MUTE_STORAGE_KEY);
-      if (stored === '1') return true;
-      if (stored === '0') return false;
-    }
-    return false;
-  });
-  const commentaryMutedRef = useRef(commentaryMuted);
-  const commentaryReadyRef = useRef(false);
-  const commentaryQueueRef = useRef([]);
-  const commentarySpeakingRef = useRef(false);
-  const commentaryLastEventAtRef = useRef(0);
-  const pendingCommentaryLinesRef = useRef(null);
-  const commentaryIntroPlayedRef = useRef(false);
-  const commentarySpeakerIndexRef = useRef(0);
-  const commentaryEventRef = useRef({ lastActionId: null, status: null });
+
   const resolvedAccountId = useMemo(() => murlanAccountId(), []);
   const humanPlayerIndex = useMemo(() => {
     const idx = players.findIndex((player) => player.isHuman);
@@ -3880,199 +3405,14 @@ export default function MurlanRoyaleArena({ search }) {
     return () => window.removeEventListener('gameMuteChanged', handler);
   }, []);
 
-  const activeCommentaryPreset = useMemo(
-    () =>
-      MURLAN_ROYALE_COMMENTARY_PRESETS.find((preset) => preset.id === commentaryPresetId) ??
-      MURLAN_ROYALE_COMMENTARY_PRESETS[0],
-    [commentaryPresetId]
-  );
-  const [, setCommentarySupported] = useState(() => getSpeechSupport());
-  const commentarySpeakers = useMemo(() => {
-    const base = [
-      MURLAN_ROYALE_SPEAKERS.lead,
-      MURLAN_ROYALE_SPEAKERS.analyst,
-      MURLAN_ROYALE_SPEAKERS.hype,
-      MURLAN_ROYALE_SPEAKERS.tactician,
-      MURLAN_ROYALE_SPEAKERS.veteran
-    ];
-    const primary = COMMENTARY_PRIMARY_SPEAKERS[activeCommentaryPreset?.id];
-    if (!primary) return base;
-    return [primary, ...base.filter((speaker) => speaker !== primary)];
-  }, [activeCommentaryPreset?.id]);
-  const pickCommentarySpeaker = useCallback(() => {
-    const primary = COMMENTARY_PRIMARY_SPEAKERS[activeCommentaryPreset?.id];
-    if (primary) {
-      return primary;
-    }
-    const index = commentarySpeakerIndexRef.current;
-    commentarySpeakerIndexRef.current = index + 1;
-    return commentarySpeakers[index % commentarySpeakers.length] || MURLAN_ROYALE_SPEAKERS.analyst;
-  }, [activeCommentaryPreset?.id, commentarySpeakers]);
-
   useEffect(() => {
-    const updateSupport = () => setCommentarySupported(getSpeechSupport());
+
     updateSupport();
-    const unsubscribe = onSpeechSupportChange((supported) => setCommentarySupported(Boolean(supported)));
+
     return () => {
       unsubscribe();
     };
   }, []);
-
-  useEffect(() => {
-    commentaryMutedRef.current = commentaryMuted;
-    if (commentaryMuted) {
-      const synth = getSpeechSynthesis();
-      synth?.cancel();
-      commentaryQueueRef.current = [];
-      commentarySpeakingRef.current = false;
-      pendingCommentaryLinesRef.current = null;
-    }
-  }, [commentaryMuted]);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(COMMENTARY_PRESET_STORAGE_KEY, commentaryPresetId);
-    }
-  }, [commentaryPresetId]);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(COMMENTARY_MUTE_STORAGE_KEY, commentaryMuted ? '1' : '0');
-    }
-  }, [commentaryMuted]);
-
-  const playNextCommentary = useCallback(async () => {
-    if (commentarySpeakingRef.current) return;
-    const now = performance.now();
-    let next = commentaryQueueRef.current.shift();
-    while (next) {
-      const age = now - (next.createdAt ?? now);
-      const maxDelay = next.maxDelay ?? COMMENTARY_MAX_LATENCY_MS;
-      if (age <= maxDelay) break;
-      next = commentaryQueueRef.current.shift();
-    }
-    if (!next) return;
-    const synth = getSpeechSynthesis();
-    if (!synth) return;
-    commentarySpeakingRef.current = true;
-    try {
-      synth.cancel();
-    } catch {}
-    await speakCommentaryLines(next.lines, {
-      speakerSettings: next.preset?.speakerSettings,
-      voiceHints: next.preset?.voiceHints
-    });
-    commentarySpeakingRef.current = false;
-    if (commentaryQueueRef.current.length) {
-      playNextCommentary();
-    }
-  }, []);
-
-  const playImmediateCommentary = useCallback(
-    (entry) => {
-      if (!entry?.lines?.length) return;
-      const synth = getSpeechSynthesis();
-      if (!synth) return;
-      commentarySpeakingRef.current = true;
-      try {
-        synth.cancel();
-      } catch {}
-      const startedAt = performance.now();
-      Promise.resolve(
-        speakCommentaryLines(entry.lines, {
-          speakerSettings: entry.preset?.speakerSettings,
-          voiceHints: entry.preset?.voiceHints
-        })
-      ).finally(() => {
-        commentarySpeakingRef.current = false;
-        if (commentaryQueueRef.current.length) {
-          playNextCommentary();
-        }
-        commentaryLastEventAtRef.current = startedAt;
-      });
-    },
-    [playNextCommentary]
-  );
-
-  const enqueueMurlanCommentary = useCallback(
-    (lines, { priority = false, preset = activeCommentaryPreset } = {}) => {
-      if (!Array.isArray(lines) || lines.length === 0) return;
-      if (commentaryMutedRef.current || isGameMuted()) return;
-      const now = performance.now();
-      if (!commentaryReadyRef.current) {
-        pendingCommentaryLinesRef.current = {
-          lines,
-          priority,
-          preset,
-          createdAt: now,
-          maxDelay: priority ? COMMENTARY_PRIORITY_MAX_LATENCY_MS : COMMENTARY_MAX_LATENCY_MS
-        };
-        return;
-      }
-      if (!priority && now - commentaryLastEventAtRef.current < COMMENTARY_MIN_INTERVAL_MS) return;
-      if (!priority && commentaryQueueRef.current.length >= COMMENTARY_QUEUE_LIMIT) return;
-      const entry = {
-        lines,
-        preset,
-        createdAt: now,
-        maxDelay: priority ? COMMENTARY_PRIORITY_MAX_LATENCY_MS : COMMENTARY_MAX_LATENCY_MS
-      };
-      if (priority) {
-        commentaryQueueRef.current.unshift(entry);
-      } else {
-        commentaryQueueRef.current.push(entry);
-      }
-      if (!commentarySpeakingRef.current) {
-        playNextCommentary();
-      }
-      commentaryLastEventAtRef.current = now;
-    },
-    [activeCommentaryPreset, playNextCommentary]
-  );
-
-  const enqueueMurlanCommentaryEvent = useCallback(
-    (event, context = {}, options = {}) => {
-      const speaker = options.speaker ?? pickCommentarySpeaker();
-      const text = buildMurlanCommentaryLine({
-        event,
-        speaker,
-        language: activeCommentaryPreset?.language ?? commentaryPresetId,
-        context: {
-          arena: 'Murlan Royale arena',
-          ...context
-        }
-      });
-      enqueueMurlanCommentary([{ speaker, text }], options);
-    },
-    [
-      activeCommentaryPreset?.language,
-      commentaryPresetId,
-      enqueueMurlanCommentary,
-      pickCommentarySpeaker
-    ]
-  );
-
-  const unlockCommentary = useCallback(() => {
-    if (commentaryReadyRef.current) return;
-    primeSpeechSynthesis();
-    const synth = getSpeechSynthesis();
-    if (typeof synth?.resume === 'function') {
-      try {
-        synth.resume();
-      } catch {}
-    }
-    synth?.getVoices?.();
-    commentaryReadyRef.current = true;
-    const pending = pendingCommentaryLinesRef.current;
-    if (pending) {
-      pendingCommentaryLinesRef.current = null;
-      playImmediateCommentary(pending);
-      return;
-    }
-    if (commentaryQueueRef.current.length) {
-      playNextCommentary();
-    }
-  }, [playImmediateCommentary, playNextCommentary]);
 
   useEffect(() => {
     syncAudioVolume();
@@ -4085,34 +3425,9 @@ export default function MurlanRoyaleArena({ search }) {
   }, [syncAudioVolume]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-    window.addEventListener('pointerdown', unlockCommentary);
-    window.addEventListener('pointerup', unlockCommentary);
-    window.addEventListener('click', unlockCommentary);
-    window.addEventListener('touchstart', unlockCommentary);
-    window.addEventListener('touchend', unlockCommentary);
-    window.addEventListener('keydown', unlockCommentary);
-    return () => {
-      window.removeEventListener('pointerdown', unlockCommentary);
-      window.removeEventListener('pointerup', unlockCommentary);
-      window.removeEventListener('click', unlockCommentary);
-      window.removeEventListener('touchstart', unlockCommentary);
-      window.removeEventListener('touchend', unlockCommentary);
-      window.removeEventListener('keydown', unlockCommentary);
-    };
-  }, [unlockCommentary]);
-
-  useEffect(() => {
-    if (!configOpen) return;
-    unlockCommentary();
-  }, [configOpen, unlockCommentary]);
-
-  useEffect(() => {
     if (typeof document === 'undefined') return undefined;
     const handleVisibility = () => {
-      if (document.visibilityState !== 'visible' || commentaryMutedRef.current) return;
-      primeSpeechSynthesis();
-      const synth = getSpeechSynthesis();
+
       if (typeof synth?.resume === 'function') {
         try {
           synth.resume();
@@ -4122,143 +3437,6 @@ export default function MurlanRoyaleArena({ search }) {
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, []);
-
-  useEffect(() => {
-    if (!gameState) return;
-    const snapshot = commentaryEventRef.current;
-    const previousActionId = snapshot.lastActionId;
-    const previousStatus = snapshot.status;
-    const players = gameState.players || [];
-    const languageKey = resolveMurlanLanguageKey(activeCommentaryPreset?.language ?? commentaryPresetId);
-
-    const resolvePlayerName = (index) => {
-      const player = players[index];
-      return resolveLocalizedPlayerName(player, index, languageKey);
-    };
-
-    const resolveOpponentName = (index) => {
-      const opponent =
-        players.find((p, idx) => idx !== index && !p.finished) ||
-        players.find((p, idx) => idx !== index);
-      if (!opponent) return getCommentaryFallbackLabel('table', languageKey) || 'the table';
-      const opponentIndex = players.indexOf(opponent);
-      return resolveLocalizedPlayerName(opponent, opponentIndex >= 0 ? opponentIndex : 0, languageKey);
-    };
-
-    const resolveComboEvent = (combo) => {
-      if (!combo?.type) return 'play';
-      switch (combo.type) {
-        case ComboType.SINGLE:
-          return 'single';
-        case ComboType.PAIR:
-          return 'pair';
-        case ComboType.TRIPS:
-          return 'trips';
-        case ComboType.STRAIGHT:
-          return 'straight';
-        case ComboType.FLUSH:
-          return 'flush';
-        case ComboType.FULL_HOUSE:
-          return 'fullHouse';
-        case ComboType.STRAIGHT_FLUSH:
-          return 'straightFlush';
-        case ComboType.BOMB_4K:
-          return 'bomb';
-        default:
-          return 'play';
-      }
-    };
-
-    if (!commentaryIntroPlayedRef.current) {
-      commentaryIntroPlayedRef.current = true;
-      enqueueMurlanCommentary(
-        [
-          {
-            speaker: MURLAN_ROYALE_SPEAKERS.lead,
-            text: buildMurlanCommentaryLine({
-              event: 'intro',
-              speaker: MURLAN_ROYALE_SPEAKERS.lead,
-              language: activeCommentaryPreset?.language ?? commentaryPresetId,
-              context: { arena: 'Murlan Royale arena' }
-            })
-          },
-          {
-            speaker: MURLAN_ROYALE_SPEAKERS.analyst,
-            text: buildMurlanCommentaryLine({
-              event: 'introReply',
-              speaker: MURLAN_ROYALE_SPEAKERS.analyst,
-              language: activeCommentaryPreset?.language ?? commentaryPresetId,
-              context: { arena: 'Murlan Royale arena' }
-            })
-          },
-          {
-            speaker: MURLAN_ROYALE_SPEAKERS.lead,
-            text: buildMurlanCommentaryLine({
-              event: 'shuffle',
-              speaker: MURLAN_ROYALE_SPEAKERS.lead,
-              language: activeCommentaryPreset?.language ?? commentaryPresetId,
-              context: { arena: 'Murlan Royale arena' }
-            })
-          }
-        ],
-        { priority: true, preset: activeCommentaryPreset }
-      );
-    }
-
-    if (gameState.lastActionId && gameState.lastActionId !== previousActionId) {
-      const action = gameState.lastAction;
-      if (action) {
-        const playerName = resolvePlayerName(action.playerIndex);
-        const opponentName = resolveOpponentName(action.playerIndex);
-        const cardsLeft = players[action.playerIndex]?.hand?.length ?? 0;
-        const comboLabel = action.combo
-          ? describeCommentaryCombo(action.combo, action.cards, languageKey)
-          : action.cards?.length
-            ? action.cards.map((card) => localizedCardLabel(card, languageKey)).join(' ')
-            : getCommentaryFallbackLabel('combo', languageKey);
-        const context = {
-          player: playerName,
-          opponent: opponentName,
-          combo: comboLabel,
-          cardsLeft
-        };
-
-        if (action.firstMove) {
-          enqueueMurlanCommentaryEvent('firstMove', context);
-        } else if (action.type === 'PASS') {
-          enqueueMurlanCommentaryEvent('pass', context);
-        } else {
-          enqueueMurlanCommentaryEvent(resolveComboEvent(action.combo), context);
-        }
-
-        if (action.tableCleared) {
-          const leaderName = resolvePlayerName(gameState.activePlayer);
-          enqueueMurlanCommentaryEvent('clearTable', { ...context, player: leaderName }, { priority: true });
-        }
-
-        if (action.type === 'PLAY' && cardsLeft > 0 && cardsLeft <= 2) {
-          enqueueMurlanCommentaryEvent('close', context);
-        }
-      }
-    }
-
-    if (gameState.status === 'ENDED' && previousStatus !== 'ENDED') {
-      const winnerName = resolvePlayerName(gameState.activePlayer);
-      enqueueMurlanCommentaryEvent('win', { player: winnerName }, { priority: true });
-      enqueueMurlanCommentaryEvent('outro', { player: winnerName }, { priority: true });
-    }
-
-    commentaryEventRef.current = {
-      lastActionId: gameState.lastActionId,
-      status: gameState.status
-    };
-  }, [
-    activeCommentaryPreset,
-    commentaryPresetId,
-    enqueueMurlanCommentary,
-    enqueueMurlanCommentaryEvent,
-    gameState
-  ]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -4666,7 +3844,6 @@ export default function MurlanRoyaleArena({ search }) {
     context.restore();
     texture.needsUpdate = true;
   }, []);
-
 
   const applyStateToScene = useCallback((state, selection, immediate = false) => {
     const three = threeStateRef.current;
@@ -5558,7 +4735,6 @@ export default function MurlanRoyaleArena({ search }) {
       applyStateToScene(gameStateRef.current, selectedIds);
     }
   }, [selectedIds, threeReady, applyStateToScene]);
-
 
   useEffect(() => {
     if (!onlineContext.enabled || !onlineContext.tableId || !onlineContext.accountId) return undefined;
@@ -7627,23 +6803,18 @@ function flagNameForLocale(flag, languageKey) {
   }
 }
 
-function getCommentaryFallbackLabel(kind, languageKey) {
-  const localized = COMMENTARY_FALLBACK_LABELS[languageKey];
-  return localized?.[kind] || COMMENTARY_FALLBACK_LABELS.en?.[kind] || '';
-}
-
 function resolveLocalizedPlayerName(player, index, languageKey) {
   if (!player) {
-    const fallback = getCommentaryFallbackLabel('player', languageKey) || 'Player';
+
     return `${fallback} ${index + 1}`.trim();
   }
-  if (player.isHuman) return player.name || `${getCommentaryFallbackLabel('player', languageKey)} ${index + 1}`.trim();
+  if (player.isHuman)
   if (player.avatar) {
     const localizedFlag = flagNameForLocale(player.avatar, languageKey);
     if (localizedFlag) return localizedFlag;
   }
   const translated = AI_NAME_TRANSLATIONS[languageKey]?.[player.name];
-  return translated || player.name || `${getCommentaryFallbackLabel('player', languageKey)} ${index + 1}`.trim();
+
 }
 
 function localizedCardLabel(card, languageKey) {
@@ -7669,35 +6840,6 @@ function localizedCardLabel(card, languageKey) {
     return 'Black Joker';
   }
   return `${card.rank}`;
-}
-
-function describeCommentaryCombo(combo, cards, languageKey) {
-  if (!cards?.length) return '';
-  const labels = COMMENTARY_COMBO_LABELS[languageKey] || COMMENTARY_COMBO_LABELS.en;
-  const cardNames = cards.map((card) => localizedCardLabel(card, languageKey));
-  if (!combo) {
-    return cardNames.join(' ');
-  }
-  switch (combo.type) {
-    case ComboType.SINGLE:
-      return labels.single(cardNames[0]);
-    case ComboType.PAIR:
-      return labels.pair(combo.keyRank);
-    case ComboType.TRIPS:
-      return labels.trips(combo.keyRank);
-    case ComboType.BOMB_4K:
-      return labels.bomb(combo.keyRank);
-    case ComboType.STRAIGHT:
-      return labels.straight(cardNames[0], cardNames[cardNames.length - 1]);
-    case ComboType.FLUSH:
-      return labels.flush(cards.length);
-    case ComboType.FULL_HOUSE:
-      return labels.fullHouse();
-    case ComboType.STRAIGHT_FLUSH:
-      return labels.straightFlush();
-    default:
-      return cardNames.join(' ');
-  }
 }
 
 function roundRect(ctx, x, y, width, height, radius) {
@@ -8336,7 +7478,6 @@ function svgMarkupFromOpenSourceDeck(rank, suit) {
   const svg = renderToStaticMarkup(<CardComponent width={1000} height={1400} />);
   return svg;
 }
-
 
 function makeCardFace(rank, suit, theme, w = 768, h = 1080) {
   const svg = svgMarkupFromOpenSourceDeck(rank, suit);
