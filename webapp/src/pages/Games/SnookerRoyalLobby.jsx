@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import RoomSelector from '../../components/RoomSelector.jsx';
 import FlagPickerModal from '../../components/FlagPickerModal.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
-import { ensureAccountId, getTelegramFirstName, getTelegramId, getTelegramPhotoUrl } from '../../utils/telegram.js';
+import { ensureAccountId, getTelegramFirstName, getTelegramId, getTelegramPhotoUrl, getTelegramUsername } from '../../utils/telegram.js';
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import { resolveTableSize } from '../../config/snookerClubTables.js';
@@ -28,13 +28,14 @@ export default function SnookerRoyalLobby() {
   useTelegramBackButton();
 
   const searchParams = new URLSearchParams(search);
+  const requestedOnlineTableId = (searchParams.get('tableId') || '').trim();
   const initialPlayType = (() => {
     const requestedType = searchParams.get('type');
     return requestedType === 'tournament' ? 'tournament' : 'regular';
   })();
 
   const [stake, setStake] = useState({ token: 'TPG', amount: 100 });
-  const [mode, setMode] = useState('ai');
+  const [mode, setMode] = useState(searchParams.get('mode') === 'online' ? 'online' : 'ai');
   const [avatar, setAvatar] = useState('');
   const [showFlagPicker, setShowFlagPicker] = useState(false);
   const [showAiFlagPicker, setShowAiFlagPicker] = useState(false);
@@ -151,13 +152,14 @@ export default function SnookerRoyalLobby() {
     if (isOnlineMatch) {
       await runSnookerRoyalOnlineFlow({
         stake,
+        tableId: requestedOnlineTableId || undefined,
         variant: forcedVariant,
         ballSet: null,
         playType,
         mode,
         tableSize,
         avatar,
-        deps: { ensureAccountId, getAccountBalance, addTransaction, getTelegramId, getTelegramFirstName, socket },
+        deps: { ensureAccountId, getAccountBalance, addTransaction, getTelegramId, getTelegramFirstName, getTelegramUsername, socket },
         state: {
           setMatchingError,
           setMatchStatus,
