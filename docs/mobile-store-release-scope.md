@@ -18,6 +18,9 @@ obligations, and required licences.
 
 ## Required server gates
 
+- `MOBILE_STORE_MODE=true` for the first review build. This blocks external
+  deposit addresses, balance-credit deposits, withdrawals, and external claims
+  at the API even if an older client still displays a control.
 - `WITHDRAW_ENABLED=false` for the first review build.
 - No external purchase or wallet link may unlock digital app functionality.
 - Unapproved online Beta games remain disabled in their portrait lobbies and in
@@ -40,3 +43,27 @@ Apple/Google accounts, signing identities, Firebase/APNs credentials, domain
 association files, closed-track/TestFlight device tests, final screenshots, and
 store-console declarations require account owners or external services and
 cannot be completed from source code alone.
+
+## Repeatable native checks
+
+Run Android preparation and validation from a clean checkout with:
+
+```bash
+npm ci
+npm --prefix webapp ci
+npm --prefix webapp run android:check
+```
+
+The script builds the web bundle, synchronizes Capacitor-generated files, runs
+Android unit tests and lint, and produces a debug APK. A signed release still
+requires the account owner's private keystore:
+
+```bash
+npm --prefix webapp run android:sync
+cd webapp/android
+./gradlew bundleRelease
+```
+
+On macOS, run `npm --prefix webapp run native:sync`, open
+`webapp/ios/App/App.xcworkspace`, select the account owner's development team,
+archive the Release scheme, and validate the archive before TestFlight upload.

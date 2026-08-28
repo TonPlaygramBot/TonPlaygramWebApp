@@ -16,6 +16,7 @@ import {
 
 import authenticate from '../middleware/auth.js';
 import tonClaim from '../utils/tonClaim.js';
+import { blockExternalValueInMobileStore } from '../config/mobileStorePolicy.js';
 
 const WITHDRAW_ENABLED = process.env.WITHDRAW_ENABLED === 'true';
 
@@ -107,7 +108,7 @@ router.post('/balance', authenticate, async (req, res) => {
 
 // Provide the server deposit address for TON transfers
 
-router.get('/deposit-address', (_req, res) => {
+router.get('/deposit-address', blockExternalValueInMobileStore, (_req, res) => {
 
   const address = process.env.DEPOSIT_WALLET_ADDRESS || '';
 
@@ -373,7 +374,7 @@ router.post('/send', authenticate, async (req, res) => {
 
 // ✅ Credit user balance after a TON deposit
 
-router.post('/deposit', authenticate, async (req, res) => {
+router.post('/deposit', authenticate, blockExternalValueInMobileStore, async (req, res) => {
 
   const { telegramId, accountId, amount } = req.body;
 
@@ -429,7 +430,7 @@ router.post('/deposit', authenticate, async (req, res) => {
 
 // ✅ Request withdrawal to a TON wallet address
 
-router.post('/withdraw', authenticate, async (req, res) => {
+router.post('/withdraw', authenticate, blockExternalValueInMobileStore, async (req, res) => {
 
   if (!WITHDRAW_ENABLED) {
     return res.status(403).json({ error: 'withdrawals disabled' });
@@ -499,7 +500,7 @@ router.post('/withdraw', authenticate, async (req, res) => {
 });
 
 // ✅ Claim TPG to an external TON wallet
-router.post('/claim-external', authenticate, async (req, res) => {
+router.post('/claim-external', authenticate, blockExternalValueInMobileStore, async (req, res) => {
   const { telegramId, accountId, address, amount } = req.body;
 
   if ((!telegramId && !accountId) || !address || typeof amount !== 'number' || amount <= 0) {
