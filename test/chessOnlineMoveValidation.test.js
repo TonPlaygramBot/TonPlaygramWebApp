@@ -44,6 +44,7 @@ test(
       MONGO_URI: 'memory',
       BOT_TOKEN: 'dummy',
       API_AUTH_TOKEN: apiToken,
+      SKIP_CHESS_STAKE_RESERVATION: '1',
       SKIP_WEBAPP_BUILD: '1',
       SKIP_BOT_LAUNCH: '1'
     };
@@ -79,14 +80,18 @@ test(
       assert.equal(firstSeat.success, true);
       assert.equal(secondSeat.success, true);
       assert.equal(secondSeat.tableId, firstSeat.tableId);
-
       white.emit('confirmReady', { accountId: 'white-player', tableId: firstSeat.tableId });
       black.emit('confirmReady', { accountId: 'black-player', tableId: firstSeat.tableId });
-      await Promise.all([once(white, 'gameStart'), once(black, 'gameStart')]);
+      // The authoritative lobby intentionally holds the ready state for one
+      // second so both portrait clients can render the matched transition.
+      await delay(1200);
 
-      white.emit('joinChessRoom', { tableId: firstSeat.tableId, accountId: 'white-player' });
-      black.emit('joinChessRoom', { tableId: firstSeat.tableId, accountId: 'black-player' });
-      await Promise.all([once(white, 'chessState'), once(black, 'chessState')]);
+      const [whiteJoin, blackJoin] = await Promise.all([
+        emitAck(white, 'joinChessRoom', { tableId: firstSeat.tableId, accountId: 'white-player' }),
+        emitAck(black, 'joinChessRoom', { tableId: firstSeat.tableId, accountId: 'black-player' })
+      ]);
+      assert.equal(whiteJoin.success, true);
+      assert.equal(blackJoin.success, true);
 
       const illegalAck = await emitAck(black, 'chessMove', {
         tableId: firstSeat.tableId,

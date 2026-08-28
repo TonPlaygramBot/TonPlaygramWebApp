@@ -83,7 +83,7 @@ export class SnakeGame {
       player.bonus = bonus;
       delete this.diceCells[player.position];
       extraTurn = true;
-    } else if (dice.includes(6)) {
+    } else if (dice.length > 1 && dice.every((value) => value === 6)) {
       extraTurn = true;
     }
 

@@ -17,6 +17,8 @@ import PlatformStatsDetails from './pages/PlatformStatsDetails.jsx';
 import Exchange from './pages/Exchange.jsx';
 import SocialAdmin from './pages/SocialAdmin.jsx';
 import SocialPostDetails from './pages/SocialPostDetails.jsx';
+import LegalPage from './pages/LegalPage.jsx';
+import DeleteAccount from './pages/DeleteAccount.jsx';
 import Layout from './components/Layout.jsx';
 import TonConnectSync from './components/TonConnectSync.jsx';
 import GameLiveAvatarOverlay from './components/GameLiveAvatarOverlay.jsx';
@@ -468,6 +470,9 @@ export default function App() {
                 element={<Navigate to="/messages" replace />}
               />
               <Route path="/account" element={<MyAccount />} />
+              <Route path="/privacy" element={<LegalPage type="privacy" />} />
+              <Route path="/terms" element={<LegalPage type="terms" />} />
+              <Route path="/delete-account" element={<DeleteAccount />} />
               <Route path="/nfts" element={<Nfts />} />
               <Route
                 path="/platform-stats"

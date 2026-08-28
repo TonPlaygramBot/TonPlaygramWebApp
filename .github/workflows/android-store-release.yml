@@ -1,0 +1,68 @@
+name: Android store release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  signed-aab:
+    runs-on: ubuntu-latest
+    environment: mobile-store-release
+    env:
+      VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+      VITE_SOCKET_URL: ${{ secrets.VITE_SOCKET_URL }}
+      VITE_SOCKET_PATH: ${{ secrets.VITE_SOCKET_PATH }}
+      VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - name: Install Android 16 SDK
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+      - name: Validate release secrets
+        run: |
+          test -n "$ANDROID_KEYSTORE_BASE64"
+          test -n "$ANDROID_KEYSTORE_PASSWORD"
+          test -n "$ANDROID_KEY_ALIAS"
+          test -n "$ANDROID_KEY_PASSWORD"
+          test -n "$VITE_API_BASE_URL"
+      - name: Install, build, and sync
+        run: |
+          npm ci --prefix webapp
+          npm --prefix webapp run generate:native-assets
+          npm --prefix webapp run build
+          npx --prefix webapp cap sync android
+      - name: Configure signing
+        run: |
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > webapp/android/tonplaygram-upload.jks
+          cat > webapp/android/keystore.properties <<EOF
+          storeFile=tonplaygram-upload.jks
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          keyPassword=$ANDROID_KEY_PASSWORD
+          EOF
+      - name: Build signed release AAB
+        working-directory: webapp/android
+        run: ./gradlew --no-daemon clean bundleRelease
+      - name: Verify signing certificate
+        run: keytool -printcert -jarfile webapp/android/app/build/outputs/bundle/release/app-release.aab
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tonplaygram-signed-release-aab
+          path: webapp/android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 14

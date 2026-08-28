@@ -67,7 +67,7 @@ async function deposit(port, token, telegramId, amount) {
   await res.json();
 }
 
-test('withdraw route reverts balance on claim failure', { concurrency: false }, async () => {
+test('withdraw route reverts balance on claim failure', { concurrency: false, timeout: 20000 }, async () => {
   fs.mkdirSync(new URL('assets', distDir), { recursive: true });
   fs.writeFileSync(new URL('index.html', distDir), '');
 
@@ -110,7 +110,7 @@ test('withdraw route reverts balance on claim failure', { concurrency: false }, 
   }
 });
 
-test('claim-external route reverts balance on claim failure', { concurrency: false }, async () => {
+test('claim-external route reverts balance on claim failure', { concurrency: false, timeout: 20000 }, async () => {
   fs.mkdirSync(new URL('assets', distDir), { recursive: true });
   fs.writeFileSync(new URL('index.html', distDir), '');
 
@@ -154,7 +154,7 @@ test('claim-external route reverts balance on claim failure', { concurrency: fal
 });
 
 
-test('google users can transfer TPG using account ids', { concurrency: false }, async () => {
+test('google users can transfer TPG using account ids', { concurrency: false, timeout: 20000 }, async () => {
   fs.mkdirSync(new URL('assets', distDir), { recursive: true });
   fs.writeFileSync(new URL('index.html', distDir), '');
 

@@ -33,7 +33,7 @@ services:
       - key: DEV_ACCOUNT_ID
         fromSecret: DEV_ACCOUNT_ID
       - key: SOCIAL_PROVIDER_MODE
-        value: mock
+        value: disabled
 
   - type: web
     runtime: node

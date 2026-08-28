@@ -12,9 +12,20 @@ interface Frontmatter {
   version: string;
 }
 
-function parseFrontmatter(content: string): { frontmatter: Frontmatter; body: string } {
+function parseFrontmatter(content: string, fallbackSlug: string): { frontmatter: Frontmatter; body: string } {
   const match = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/m.exec(content);
-  if (!match) throw new Error('Missing frontmatter');
+  if (!match) {
+    const heading = content.match(/^#\s+(.+)$/m)?.[1]?.trim();
+    return {
+      frontmatter: {
+        title: heading || fallbackSlug.replace(/-/g, ' '),
+        slug: fallbackSlug,
+        locale: 'en',
+        version: '1.0.0'
+      },
+      body: content.trim()
+    };
+  }
 
   const raw = match[1].split('\n').map((line) => line.trim());
   const map = Object.fromEntries(raw.map((line) => line.split(':').map((x) => x.trim())));
@@ -106,7 +117,7 @@ export function ingestPublicContent(rootDir: string): PublicArticle[] {
       .forEach((file) => {
         const sourcePath = path.join(dirName, file);
         const raw = fs.readFileSync(path.join(full, file), 'utf8');
-        const { frontmatter, body } = parseFrontmatter(raw);
+        const { frontmatter, body } = parseFrontmatter(raw, path.basename(file, '.md'));
         const sections = chunkBySection(body);
         const hash = crypto.createHash('sha256').update(raw).digest('hex');
 

@@ -86,6 +86,8 @@ const GAME_TYPE_ALIASES = Object.freeze({
   fourinarowroyale: 'fourinrow'
 });
 
+const ONLINE_BETA_GAMES = new Set(['texasholdem', 'airhockey', 'murlanroyale']);
+
 export function normalizeOnlineGameType(gameType) {
   const normalized = String(gameType || '')
     .trim()
@@ -211,16 +213,17 @@ export function validateSeatTableRequest({
 
 export function buildReadinessSnapshot() {
   const snapshot = Object.entries(GAME_ONLINE_POLICY).reduce((acc, [slug, policy]) => {
+    const beta = ONLINE_BETA_GAMES.has(slug);
     acc[slug] = {
       checks: {
         lobby: true,
         runtime: true,
-        backend: true,
-        security: true
+        backend: !beta,
+        security: !beta
       },
       maxPlayers: policy.maxPlayers,
       securityControls: BASE_SECURITY_CONTROLS,
-      label: 'Online Ready'
+      label: beta ? 'Online Beta — disabled' : 'Online Ready'
     };
     return acc;
   }, {});

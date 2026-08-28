@@ -1,8 +1,6 @@
 node_modules
-package-lock.json
 bot/node_modules
 webapp/node_modules
-bot/package-lock.json
 .idea
 webapp/android/app/src/main/assets/public/
 webapp/ios/App/App/public/

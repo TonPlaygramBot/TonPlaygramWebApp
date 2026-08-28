@@ -36837,6 +36837,34 @@ const shotPowerRef = useRef(0);
               </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Shared Table Base
+                </h3>
+                <p className="mt-1 text-[0.68rem] leading-snug text-white/60">
+                  Uses the same base selection for every supported table model.
+                </p>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {availableTableBases.map((option) => {
+                    const active = option.id === tableBaseId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setTableBaseId(option.id)}
+                        aria-pressed={active}
+                        className={`rounded-2xl border px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300 text-black'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        {option.label || option.name || option.id}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   HDR Environment
                 </h3>
                 <div className="mt-2 grid grid-cols-1 gap-2">

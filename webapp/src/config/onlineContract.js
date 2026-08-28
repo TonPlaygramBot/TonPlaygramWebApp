@@ -45,16 +45,16 @@ export const ONLINE_READINESS_BY_GAME = Object.freeze({
     label: 'Online Ready'
   },
   texasholdem: {
-    checks: { lobby: true, runtime: true, backend: true, security: true },
-    label: 'Online Ready'
+    checks: { lobby: true, runtime: true, backend: false, security: false },
+    label: 'Online Beta — disabled'
   },
   airhockey: {
-    checks: { lobby: true, runtime: true, backend: true, security: true },
-    label: 'Online Ready'
+    checks: { lobby: true, runtime: true, backend: false, security: false },
+    label: 'Online Beta — disabled'
   },
   murlanroyale: {
-    checks: { lobby: true, runtime: true, backend: true, security: true },
-    label: 'Online Ready'
+    checks: { lobby: true, runtime: true, backend: false, security: false },
+    label: 'Online Beta — disabled'
   },
   shootingrange: {
     checks: { lobby: true, runtime: true, backend: false, security: false },
