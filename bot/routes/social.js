@@ -10,12 +10,39 @@ const router = Router();
 
 router.use(authenticate);
 
+function authCanUseIdentity(auth, identity) {
+  const value = String(identity ?? '');
+  return Boolean(
+    auth?.apiToken ||
+    (auth?.telegramId != null && value === String(auth.telegramId)) ||
+    (auth?.accountId && value === String(auth.accountId))
+  );
+}
+
 function requireMatchingTelegram(req, res, telegramId) {
-  if (!req.auth?.telegramId || Number(telegramId) !== req.auth.telegramId) {
+  if (!authCanUseIdentity(req.auth, telegramId)) {
     res.status(403).json({ error: 'forbidden' });
     return false;
   }
   return true;
+}
+
+function userIdentity(user) {
+  return user?.telegramId ?? user?.accountId;
+}
+
+function userIdentityFilter(identity) {
+  const value = String(identity ?? '');
+  const numeric = Number(value);
+  return { $or: [
+    { accountId: value },
+    ...(Number.isFinite(numeric) ? [{ telegramId: numeric }] : [])
+  ] };
+}
+
+function findSocialUser(identity, selection = '') {
+  const query = User.findOne(userIdentityFilter(identity));
+  return selection ? query.select(selection) : query;
 }
 
 router.post('/search', async (req, res) => {
@@ -46,21 +73,15 @@ router.post('/request', async (req, res) => {
     return res.status(400).json({ error: 'fromId and toId required' });
   }
   if (!requireMatchingTelegram(req, res, fromId)) return;
-  const normalizedFromId = Number(fromId);
-  const normalizedToId = Number(toId);
-  if (!Number.isFinite(normalizedFromId) || !Number.isFinite(normalizedToId)) {
-    return res.status(400).json({ error: 'invalid player id' });
-  }
-  if (normalizedFromId === normalizedToId) {
+  const senderUser = await findSocialUser(fromId, 'telegramId accountId firstName lastName nickname photo friends');
+  const recipientUser = await findSocialUser(toId, 'telegramId accountId');
+  if (!senderUser || !recipientUser) return res.status(404).json({ error: 'player not found' });
+  const normalizedFromId = userIdentity(senderUser);
+  const normalizedToId = userIdentity(recipientUser);
+  if (String(normalizedFromId) === String(normalizedToId)) {
     return res.status(400).json({ error: 'you cannot add yourself' });
   }
-  const recipientExists = await User.exists({ telegramId: normalizedToId });
-  if (!recipientExists) return res.status(404).json({ error: 'player not found' });
-
-  const alreadyFriends = await User.exists({
-    telegramId: normalizedFromId,
-    friends: normalizedToId
-  });
+  const alreadyFriends = senderUser.friends?.some((id) => String(id) === String(normalizedToId));
   if (alreadyFriends) return res.status(409).json({ error: 'already friends' });
 
   // Reuse a previous rejected/accepted pair rather than failing against the
@@ -70,10 +91,8 @@ router.post('/request', async (req, res) => {
     { $set: { status: 'pending', createdAt: new Date() } },
     { new: true, upsert: true, setDefaultsOnInsert: true }
   );
-  const sender = await User.findOne({ telegramId: Number(fromId) })
-    .select('accountId firstName lastName nickname photo')
-    .lean();
-  const recipient = await User.findOne({ telegramId: Number(toId) }).select('accountId').lean();
+  const sender = senderUser.toObject();
+  const recipient = recipientUser.toObject();
   const sockets = req.app.get('userSockets');
   const io = req.app.get('io');
   const targets = new Set([
@@ -90,8 +109,8 @@ router.post('/request', async (req, res) => {
     });
   }
   try {
-    await bot.telegram.sendMessage(
-      String(toId),
+    if (recipient.telegramId) await bot.telegram.sendMessage(
+      String(recipient.telegramId),
       `You have a new friend request from ${fromId}`
     );
   } catch (err) {
@@ -108,10 +127,10 @@ router.post('/accept', async (req, res) => {
   if (fr.status !== 'pending') return res.json(fr);
   fr.status = 'accepted';
   await fr.save();
-  await User.updateOne({ telegramId: fr.from }, { $addToSet: { friends: fr.to } });
-  await User.updateOne({ telegramId: fr.to }, { $addToSet: { friends: fr.from } });
-  const sender = await User.findOne({ telegramId: fr.from }).select('accountId').lean();
-  const recipient = await User.findOne({ telegramId: fr.to })
+  await User.updateOne(userIdentityFilter(fr.from), { $addToSet: { friends: fr.to } });
+  await User.updateOne(userIdentityFilter(fr.to), { $addToSet: { friends: fr.from } });
+  const sender = await findSocialUser(fr.from, 'accountId telegramId').lean();
+  const recipient = await findSocialUser(fr.to, 'telegramId firstName lastName nickname')
     .select('firstName lastName nickname')
     .lean();
   const sockets = req.app.get('userSockets');
@@ -131,8 +150,8 @@ router.post('/accept', async (req, res) => {
     });
   }
   try {
-    await bot.telegram.sendMessage(
-      String(fr.from),
+    if (sender?.telegramId) await bot.telegram.sendMessage(
+      String(sender.telegramId),
       `Your friend request to ${fr.to} was accepted`
     );
   } catch (err) {
@@ -157,7 +176,9 @@ router.post('/requests', async (req, res) => {
   const { telegramId } = req.body;
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
   if (!requireMatchingTelegram(req, res, telegramId)) return;
-  const normalizedId = Number(telegramId);
+  const currentUser = await findSocialUser(telegramId, 'telegramId accountId');
+  if (!currentUser) return res.json([]);
+  const normalizedId = userIdentity(currentUser);
   const requests = await FriendRequest.find({
     status: 'pending',
     $or: [{ to: normalizedId }, { from: normalizedId }]
@@ -167,13 +188,13 @@ router.post('/requests', async (req, res) => {
   const participantIds = [
     ...new Set(requests.flatMap((request) => [request.from, request.to]))
   ];
-  const users = await User.find({ telegramId: { $in: participantIds } })
+  const users = await User.find({ $or: [{ telegramId: { $in: participantIds } }, { accountId: { $in: participantIds.map(String) } }] })
     .select('telegramId accountId firstName lastName nickname photo')
     .lean();
-  const userById = new Map(users.map((user) => [Number(user.telegramId), user]));
+  const userById = new Map(users.flatMap((user) => [user.telegramId != null ? [String(user.telegramId), user] : null, user.accountId ? [String(user.accountId), user] : null].filter(Boolean)));
   const response = requests.map((request) => {
-    const fromUser = userById.get(Number(request.from));
-    const toUser = userById.get(Number(request.to));
+    const fromUser = userById.get(String(request.from));
+    const toUser = userById.get(String(request.to));
     const displayName = (user) =>
       user?.nickname ||
       `${user?.firstName || ''} ${user?.lastName || ''}`.trim() ||
@@ -200,11 +221,13 @@ router.post('/friends', async (req, res) => {
   const { telegramId } = req.body;
   if (!telegramId) return res.status(400).json({ error: 'telegramId required' });
   if (!requireMatchingTelegram(req, res, telegramId)) return;
-  const user = await User.findOne({ telegramId });
+  const user = await findSocialUser(telegramId);
   if (!user) return res.json([]);
-  const friends = await User.find({ telegramId: { $in: user.friends } })
-    .select('telegramId firstName lastName nickname photo');
-  res.json(friends);
+  const friendIds = user.friends || [];
+  const numericIds = friendIds.map(Number).filter(Number.isFinite);
+  const friends = await User.find({ $or: [{ telegramId: { $in: numericIds } }, { accountId: { $in: friendIds.map(String) } }] })
+    .select('telegramId accountId firstName lastName nickname photo');
+  res.json(friends.map((friend) => ({ ...friend.toObject(), socialId: userIdentity(friend) })));
 });
 
 router.post('/send-message', async (req, res) => {
@@ -212,10 +235,19 @@ router.post('/send-message', async (req, res) => {
   if (!fromId || !toId || !text)
     return res.status(400).json({ error: 'fromId, toId and text required' });
   if (!requireMatchingTelegram(req, res, fromId)) return;
-  const msg = await Message.create({ from: fromId, to: toId, text });
+  const sender = await findSocialUser(fromId, 'telegramId accountId firstName lastName nickname');
+  const recipient = await findSocialUser(toId, 'telegramId accountId');
+  if (!sender || !recipient) return res.status(404).json({ error: 'player not found' });
+  const senderId = userIdentity(sender);
+  const recipientId = userIdentity(recipient);
+  const msg = await Message.create({ from: senderId, to: recipientId, text: String(text).trim().slice(0, 2000) });
+  const sockets = req.app.get('userSockets');
+  const io = req.app.get('io');
+  const targets = new Set([...(sockets?.get(String(recipientId)) || []), ...(recipient.accountId ? sockets?.get(String(recipient.accountId)) || [] : [])]);
+  for (const socketId of targets) io?.to(socketId).emit('privateMessage', msg.toObject());
   try {
-    await bot.telegram.sendMessage(
-      String(toId),
+    if (recipient.telegramId) await bot.telegram.sendMessage(
+      String(recipient.telegramId),
       `New message from ${fromId}: ${text}`
     );
   } catch (err) {
@@ -230,10 +262,15 @@ router.post('/messages', async (req, res) => {
   if (!telegramId || !withId)
     return res.status(400).json({ error: 'telegramId and withId required' });
   if (!requireMatchingTelegram(req, res, telegramId)) return;
+  const self = await findSocialUser(telegramId, 'telegramId accountId');
+  const peer = await findSocialUser(withId, 'telegramId accountId');
+  if (!self || !peer) return res.json([]);
+  const selfId = userIdentity(self);
+  const peerId = userIdentity(peer);
   const msgs = await Message.find({
     $or: [
-      { from: telegramId, to: withId },
-      { from: withId, to: telegramId }
+      { from: selfId, to: peerId },
+      { from: peerId, to: selfId }
     ]
   })
     .sort({ createdAt: 1 })
@@ -246,9 +283,9 @@ router.post('/unread-count', async (req, res) => {
   if (!telegramId)
     return res.status(400).json({ error: 'telegramId required' });
   if (!requireMatchingTelegram(req, res, telegramId)) return;
-  const user = await User.findOne({ telegramId });
+  const user = await findSocialUser(telegramId);
   const since = user?.inboxReadAt || new Date(0);
-  const count = await Message.countDocuments({ to: telegramId, createdAt: { $gt: since } });
+  const count = await Message.countDocuments({ to: userIdentity(user), createdAt: { $gt: since } });
   res.json({ count });
 });
 
@@ -257,7 +294,7 @@ router.post('/mark-read', async (req, res) => {
   if (!telegramId)
     return res.status(400).json({ error: 'telegramId required' });
   if (!requireMatchingTelegram(req, res, telegramId)) return;
-  await User.updateOne({ telegramId }, { inboxReadAt: new Date() });
+  await User.updateOne(userIdentityFilter(telegramId), { inboxReadAt: new Date() });
   res.json({ success: true });
 });
 

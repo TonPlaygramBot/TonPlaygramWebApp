@@ -98,7 +98,9 @@ const userSchema = new mongoose.Schema({
 
   bio: { type: String, default: '' },
 
-  friends: { type: [Number], default: [] },
+  // Keep legacy numeric Telegram ids while also supporting account ids for
+  // users who sign in from a browser with Google.
+  friends: { type: [mongoose.Schema.Types.Mixed], default: [] },
 
   social: {
 

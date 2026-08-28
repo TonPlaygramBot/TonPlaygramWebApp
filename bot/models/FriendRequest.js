@@ -1,8 +1,8 @@
 import mongoose from 'mongoose';
 
 const friendRequestSchema = new mongoose.Schema({
-  from: { type: Number, required: true },
-  to: { type: Number, required: true },
+  from: { type: mongoose.Schema.Types.Mixed, required: true },
+  to: { type: mongoose.Schema.Types.Mixed, required: true },
   status: {
     type: String,
     enum: ['pending', 'accepted', 'rejected'],
