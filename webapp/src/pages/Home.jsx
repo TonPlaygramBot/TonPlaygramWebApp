@@ -319,45 +319,6 @@ export default function Home() {
 
       <ProjectAchievementsCard />
 
-      <div className="mt-4 bg-surface border border-border rounded-xl p-4 space-y-3">
-        <div className="text-center space-y-1">
-          <h3 className="text-lg font-semibold text-white">
-            Tokenomics & Fee Split
-          </h3>
-          <p className="text-sm text-subtext">
-            We charge a 10% platform fee on paid matches and premium purchases
-            to keep the ecosystem sustainable.
-          </p>
-        </div>
-        <div className="space-y-2 text-xs text-subtext text-left bg-background/50 border border-border rounded-lg p-3">
-          <div className="flex items-start justify-between gap-4">
-            <p className="text-white font-semibold text-sm">
-              Total platform fee
-            </p>
-            <span className="text-white font-semibold text-sm">10%</span>
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-start justify-between gap-4">
-              <p>4% Player rewards & prize pool boosts.</p>
-              <span className="text-white font-semibold">4%</span>
-            </div>
-            <div className="flex items-start justify-between gap-4">
-              <p>3% Treasury & liquidity to stabilize TPG markets.</p>
-              <span className="text-white font-semibold">3%</span>
-            </div>
-            <div className="flex items-start justify-between gap-4">
-              <p>
-                2% Development & infrastructure (servers, anti-cheat, updates).
-              </p>
-              <span className="text-white font-semibold">2%</span>
-            </div>
-            <div className="flex items-start justify-between gap-4">
-              <p>1% Marketing & community growth initiatives.</p>
-              <span className="text-white font-semibold">1%</span>
-            </div>
-          </div>
-        </div>
-      </div>
       <PwaDownloadFrame />
       <p className="text-center text-xs text-subtext">Status: {status}</p>
       <div className="mt-4 space-y-2 text-center text-xs text-subtext">
