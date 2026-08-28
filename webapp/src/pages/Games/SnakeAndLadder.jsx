@@ -2414,7 +2414,10 @@ export default function SnakeAndLadder() {
           seatIndex
         });
         activeDiceBoardRollRef.current = { id: rollId, seatIndex, phase: 'end' };
-      }, canReuseActiveRoll ? 0 : DICE_BOARD_ROLL_REVEAL_DELAY_MS);
+        // The server normally answers before the first rendered frame. Do not
+        // cancel that physical throw: Ludo Battle Royal always completes its
+        // 900 ms spin before resolving the authoritative face.
+      }, DICE_BOARD_ROLL_REVEAL_DELAY_MS);
 
       setRollResult(resultTotal);
       setTimeout(() => setRollResult(null), DICE_RESULT_HOLD_MS);
@@ -2488,6 +2491,56 @@ export default function SnakeAndLadder() {
       updateMpPlayers(arr, capValue);
     };
 
+    const onSnakeState = (state = {}) => {
+      if (state.roomId && String(state.roomId) !== String(tableId)) return;
+      handleCapacity(state.maxPlayers);
+      if (state.snakes && state.ladders) {
+        const board = sanitizeJumpMaps(state.snakes, state.ladders);
+        setSnakes(board.snakes);
+        setLadders(board.ladders);
+      }
+      if (state.diceCells) setDiceCells(normalizeDiceCells(state.diceCells));
+      if (Array.isArray(state.players)) {
+        const roster = state.players.map((player) => ({
+          id: player.playerId ?? player.id,
+          name: player.name || 'Player',
+          photoUrl: player.avatar || player.photoUrl || '/assets/icons/profile.svg',
+          position: Number(player.position) || 0
+        }));
+        updateMpPlayers(roster, state.maxPlayers);
+        const local = roster.find((player) => String(player.id) === String(myAccountId));
+        if (local) setPos(local.position);
+        const turnIndex = roster.findIndex(
+          (player) => String(player.id) === String(state.currentPlayerId)
+        );
+        if (turnIndex >= 0) setCurrentTurn(turnIndex);
+      }
+      if (state.status === 'playing' || state.status === 'finished') {
+        setSetupPhase(false);
+        setWaitingForPlayers(false);
+      }
+      if (state.status === 'finished' || state.finished) setGameOver(true);
+      setConnectionLost(false);
+    };
+
+    const restoreSession = () => {
+      if (watchOnly) {
+        socket.emit('watchRoom', { roomId: tableId });
+        return;
+      }
+      socket.emit('register', { playerId: myAccountId }, (registered) => {
+        if (registered?.success === false) return;
+        socket.emit(
+          'joinRoom',
+          { roomId: tableId, playerId: myAccountId, name, avatar: photoUrl },
+          (joined) => {
+            if (joined?.state) onSnakeState(joined.state);
+            socket.emit('snakeSyncRequest', { tableId, accountId: myAccountId });
+          }
+        );
+      });
+    };
+
     socket.on('playerJoined', onJoined);
     socket.on('playerLeft', onLeft);
     socket.on('playerDisconnected', ({ playerId, maxPlayers }) => {
@@ -2536,6 +2589,8 @@ export default function SnakeAndLadder() {
     socket.on('diceRolled', onRolled);
     socket.on('gameWon', onWon);
     socket.on('currentPlayers', onCurrentPlayers);
+    socket.on('snakeState', onSnakeState);
+    socket.on('connect', restoreSession);
     socket.on('boardData', ({ snakes: sn, ladders: lad, diceCells: diceObj }) => {
       const { snakes: snakesLim, ladders: laddersLim } = sanitizeJumpMaps(sn || {}, lad || {});
       setSnakes(snakesLim);
@@ -2579,9 +2634,7 @@ export default function SnakeAndLadder() {
           });
         })
         .catch(() => {});
-    } else {
-      socket.emit('joinRoom', { roomId: tableId, playerId: myAccountId, name, avatar: photoUrl });
-    }
+    } else restoreSession();
 
 
     return () => {
@@ -2601,6 +2654,8 @@ export default function SnakeAndLadder() {
       socket.off('diceRolled', onRolled);
       socket.off('gameWon', onWon);
       socket.off('currentPlayers', onCurrentPlayers);
+      socket.off('snakeState', onSnakeState);
+      socket.off('connect', restoreSession);
       socket.off('boardData');
       socket.off('diceCellsUpdate');
       if (watchOnly) {

@@ -126,6 +126,38 @@ test('joining player receives full player list', () => {
   assert.equal(cur.data.length, 2);
 });
 
+test('authoritative snake state keeps every phone on the same roster, board and turn', () => {
+  const io = new DummyIO();
+  const room = createRoom('snake-sync-2', io, 2, {
+    snakes: { 9: 2 },
+    ladders: { 3: 8 },
+    diceCells: { 7: 1 }
+  });
+  room.rollCooldown = 0;
+  const first = { id: 'sync-1', join: () => {}, emit: () => {} };
+  const second = { id: 'sync-2', join: () => {}, emit: () => {} };
+  room.addPlayer('p1', 'First', first, '/first.png');
+  room.addPlayer('p2', 'Second', second, '/second.png');
+  room.startGame();
+  room.rollDice(first, [6]);
+
+  const states = io.emitted.filter(({ event }) => event === 'snakeState');
+  const state = states.at(-1)?.data;
+  assert.ok(state, 'snakeState should be broadcast after an authoritative roll');
+  assert.equal(state.roomId, 'snake-sync-2');
+  assert.equal(state.currentPlayerId, 'p2');
+  assert.deepEqual(state.snakes, { 9: 2 });
+  assert.deepEqual(state.ladders, { 3: 8 });
+  assert.deepEqual(state.diceCells, { 7: 1 });
+  assert.deepEqual(
+    state.players.map(({ playerId, position, avatar }) => ({ playerId, position, avatar })),
+    [
+      { playerId: 'p1', position: 1, avatar: '/first.png' },
+      { playerId: 'p2', position: 0, avatar: '/second.png' }
+    ]
+  );
+});
+
 test('player wins when landing on the final tile', () => {
   const io = new DummyIO();
   const room = createRoom('r3', io, 4, {
