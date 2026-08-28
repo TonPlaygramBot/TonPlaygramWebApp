@@ -206,6 +206,14 @@ export default function LudoBattleRoyalLobby() {
           setCleanup: (cleanup) => { cleanupRef.current = cleanup; }
         },
         onMatched: (match) => {
+          try {
+            window.sessionStorage?.setItem('ludoBattleRoyalOnlineMatch', JSON.stringify({
+              tableId: match.tableId,
+              accountId,
+              players: Array.isArray(match.players) ? match.players : [],
+              startedAt: Date.now()
+            }));
+          } catch {}
           params.set('tableId', match.tableId);
           params.set('capacity', String(match.maxPlayers || table.capacity || 2));
           navigate(`/games/ludobattleroyal?${params.toString()}`);
