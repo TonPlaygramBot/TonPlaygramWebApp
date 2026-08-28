@@ -81,75 +81,20 @@ const gamesCatalog = [
     description: 'Backgammon duels with a royal 3D-inspired board and smart AI.'
   },
 
+
   {
     name: 'Ludo Battle Royal',
     route: '/games/ludobattleroyal/lobby',
     slug: 'ludobattleroyal',
     image: '/assets/icons/Ludo%20battle%20Royal%20game%20logo.png',
     description: 'Classic ludo chaos in a battle royale lobby.'
-  },
-  {
-    name: 'Table Tennis Royal',
-    route: '/games/tabletennisroyal/royal-lobby',
-    slug: 'tabletennisroyal',
-    image: '/assets/icons/table-tennis-icon.svg',
-    description: 'Fast 3D rallies in portrait-first online matches.'
-  },
-  {
-    name: 'Ten-Pin Bowling Royal',
-    route: '/games/tenpinbowlingroyal/royal-lobby',
-    slug: 'tenpinbowlingroyal',
-    image: '/assets/icons/visual-royal.svg',
-    description: 'Ten polished frames of competitive 3D bowling.'
-  },
-  {
-    name: 'Darts Royal',
-    route: '/games/dartsroyal/royal-lobby',
-    slug: 'dartsroyal',
-    image: '/assets/icons/visual-royal.svg',
-    description: 'Precision darts with synchronized online scoring.'
-  },
-  {
-    name: 'Carrom Royal',
-    route: '/games/carromroyal/royal-lobby',
-    slug: 'carromroyal',
-    image: '/assets/icons/visual-royal.svg',
-    description: 'Flick, rebound, and pocket pieces online.'
-  },
-  {
-    name: 'Archery Royal',
-    route: '/games/archeryroyal/royal-lobby',
-    slug: 'archeryroyal',
-    image: '/assets/icons/visual-royal.svg',
-    description: 'Competitive 3D bullseye challenges.'
-  },
-  {
-    name: 'Penalty Shootout Royal',
-    route: '/games/penaltyshootoutroyal/royal-lobby',
-    slug: 'penaltyshootoutroyal',
-    image: '/assets/icons/visual-royal.svg',
-    description: 'Best-of-five football pressure duels.'
-  },
-  {
-    name: 'Basketball Free Throw Royal',
-    route: '/games/basketballroyal/royal-lobby',
-    slug: 'basketballroyal',
-    image: '/assets/icons/visual-royal.svg',
-    description: 'Ten-shot 3D free-throw battles.'
-  },
-  {
-    name: 'Go Crazy Kart Arena',
-    route: '/games/gocrazykartarena/royal-lobby',
-    slug: 'gocrazykartarena',
-    image: '/assets/icons/visual-royal.svg',
-    description: 'Colorful four-player kart arena races.'
   }
-]
+];
 
-export default gamesCatalog
+export default gamesCatalog;
 
 export const catalogWithSlugs = gamesCatalog.map((game) => {
-  if (game.slug) return game
-  const [, , slug] = game.route.split('/')
-  return { ...game, slug }
-})
+  if (game.slug) return game;
+  const [, , slug] = game.route.split('/');
+  return { ...game, slug };
+});

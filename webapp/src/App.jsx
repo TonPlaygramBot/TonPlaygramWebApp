@@ -116,8 +116,6 @@ const ShootingRange = React.lazy(
 const ShootingRangeLobby = React.lazy(
   () => import('./pages/Games/ShootingRangeLobby.jsx')
 );
-const VisualRoyalLobby = React.lazy(() => import('./pages/Games/VisualRoyalLobby.tsx'));
-const VisualRoyalGame = React.lazy(() => import('./pages/Games/VisualRoyalGame.tsx'));
 const StoreThumbnailStudioPoolRoyale = React.lazy(
   () => import('./pages/Tools/StoreThumbnailStudioPoolRoyale.jsx')
 );
@@ -219,8 +217,6 @@ export default function App() {
                 element={<MiningTransactions />}
               />
               <Route path="/games" element={<Games />} />
-              <Route path="/games/:game/royal-lobby" element={<VisualRoyalLobby />} />
-              <Route path="/games/:game/royal-play" element={<VisualRoyalGame />} />
               <Route
                 path="/games/transactions"
                 element={<GameTransactions />}
