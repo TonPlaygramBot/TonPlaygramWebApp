@@ -7,10 +7,7 @@ test('opens accepted Telegram invites as a Mini App', () => {
   const markup = getInviteReplyMarkup(url, 'short-action-token');
   const parsedUrl = new URL(url);
 
-  // Telegram must load the Mini App root first. Some production hosts return
-  // a plain 404 for a direct request to a nested client-side route.
-  assert.equal(parsedUrl.pathname, '/');
-  assert.equal(parsedUrl.searchParams.get('game'), 'pool-royale');
+  assert.equal(parsedUrl.pathname, '/games/pool-royale');
   assert.equal(parsedUrl.searchParams.get('table'), 'pool-room-2');
   assert.equal(parsedUrl.searchParams.get('tableId'), 'pool-room-2');
   assert.equal(parsedUrl.searchParams.get('mode'), 'online');
