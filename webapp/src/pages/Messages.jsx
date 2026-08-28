@@ -50,7 +50,13 @@ export default function Messages() {
   useEffect(() => {
     if (!telegramId) return;
     markInboxRead(telegramId);
-    listFriends(telegramId).then((result) => setFriends(Array.isArray(result) ? result : [])).catch(() => setFriends([]));
+    listFriends(telegramId).then((result) => {
+      const nextFriends = Array.isArray(result) ? result : [];
+      setFriends(nextFriends);
+      // Open the inbox itself, rather than making phone users stop at the
+      // conversation list and tap a second time before they can read a message.
+      setSelected((current) => current || nextFriends[0] || null);
+    }).catch(() => setFriends([]));
   }, [telegramId]);
 
   useEffect(() => {
