@@ -655,6 +655,7 @@ const airHockeyStates = new Map();
 const texasHoldemStates = new Map();
 const ludoBattleStates = new Map();
 const fourInRowStates = new Map();
+const visualRoyalStates = new Map();
 const dominoRoyalTableNumbers = new Set();
 const chessTableNumbers = new Set();
 
@@ -4057,6 +4058,73 @@ io.on('connection', (socket) => {
     const state = fourInRowStates.get(tableId);
     if (state) io.to(tableId).emit('fourInRowState', state);
   };
+
+  const visualRoyalTargets = Object.freeze({
+    tabletennis: 11,
+    tenpinbowling: 10,
+    darts: 10,
+    carrom: 9,
+    archery: 10,
+    penaltyshootout: 5,
+    basketball: 10,
+    gocrazykart: 3
+  });
+
+  socket.on('joinVisualRoyalTable', ({ tableId, accountId } = {}, cb) => {
+    const table = tableMap.get(String(tableId || ''));
+    const playerId = String(accountId || socket.data.playerId || '');
+    if (!table || !(table.gameType in visualRoyalTargets) ||
+      !table.players.some((player) => String(player.id) === playerId)) {
+      return cb?.({ success: false, error: 'not_a_table_player' });
+    }
+    socket.join(table.id);
+    if (!visualRoyalStates.has(table.id)) {
+      const players = table.players.map((player) => String(player.id));
+      visualRoyalStates.set(table.id, {
+        gameType: table.gameType,
+        players,
+        scores: Object.fromEntries(players.map((id) => [id, 0])),
+        attempts: Object.fromEntries(players.map((id) => [id, 0])),
+        turn: players[0],
+        revision: 0,
+        winner: null
+      });
+    }
+    socket.emit('visualRoyalState', { tableId: table.id, state: visualRoyalStates.get(table.id) });
+    return cb?.({ success: true });
+  });
+
+  socket.on('visualRoyalAction', ({ tableId, accountId } = {}, cb) => {
+    const id = String(tableId || '');
+    const playerId = String(accountId || socket.data.playerId || '');
+    const state = visualRoyalStates.get(id);
+    if (!state || !state.players.includes(playerId)) return cb?.({ success: false, error: 'not_a_table_player' });
+    if (state.winner) return cb?.({ success: false, error: 'match_complete' });
+    if (state.turn !== playerId) return cb?.({ success: false, error: 'not_your_turn' });
+    const roll = Math.random();
+    const points = state.gameType === 'basketball'
+      ? (roll > 0.72 ? 3 : roll > 0.25 ? 2 : 0)
+      : state.gameType === 'penaltyshootout'
+        ? (roll > 0.32 ? 1 : 0)
+        : Math.max(1, Math.round(roll * 10));
+    state.scores[playerId] += points;
+    state.attempts[playerId] += 1;
+    state.revision += 1;
+    const target = visualRoyalTargets[state.gameType];
+    const everyoneFinished = state.players.every((candidate) => state.attempts[candidate] >= target);
+    if (everyoneFinished) {
+      state.winner = state.players.reduce((leader, candidate) =>
+        state.scores[candidate] > state.scores[leader] ? candidate : leader, state.players[0]);
+    } else {
+      const currentIndex = state.players.indexOf(playerId);
+      state.turn = state.players[(currentIndex + 1) % state.players.length];
+      for (let checked = 0; checked < state.players.length && state.attempts[state.turn] >= target; checked += 1) {
+        state.turn = state.players[(state.players.indexOf(state.turn) + 1) % state.players.length];
+      }
+    }
+    io.to(id).emit('visualRoyalState', { tableId: id, state, action: { playerId, points } });
+    return cb?.({ success: true, points, revision: state.revision });
+  });
 
   socket.on('joinFourInRow', ({ tableId, accountId } = {}, cb) => {
     const table = tableMap.get(String(tableId || ''));
