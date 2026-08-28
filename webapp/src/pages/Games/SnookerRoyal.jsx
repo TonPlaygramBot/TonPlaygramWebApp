@@ -5155,7 +5155,7 @@ const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.96;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.94;
-const STANDING_VIEW_DISTANCE_SCALE = 0.16; // pull the standing camera closer so the table fills more of portrait screens
+const STANDING_VIEW_DISTANCE_SCALE = 0.145; // move the standing camera a little closer so the table fills more of portrait screens
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -5202,7 +5202,7 @@ const CAMERA = {
 const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // keep orbit height safely above cushion lip while hugging the rail
 const AIM_LINE_MIN_Y = CUE_Y; // ensure the orbit never dips below the aiming line height
 const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.075; // keep extra clearance above the aim line for the tighter orbit distance
-const AIM_LINE_WIDTH = Math.max(1, BALL_R * 0.12); // keep the aiming guide proportional to the ball size
+const AIM_LINE_WIDTH = Math.max(1.25, BALL_R * 0.15) * 1.2; // match Pool Royale cue-ball and target guide weight
 const AIM_TICK_HALF_LENGTH = Math.max(0.6, BALL_R * 0.975); // keep the impact tick proportional to the cue ball
 const AIM_DASH_SIZE = Math.max(0.45, BALL_R * 0.75);
 const AIM_GAP_SIZE = Math.max(0.45, BALL_R * 0.5);
@@ -22813,16 +22813,9 @@ const powerRef = useRef(hud.power);
           const settlePos = impactPos
             .clone()
             .addScaledVector(TMP_VEC3_FOLLOW_DIR, followExtra);
-          const cameraForCueVisibility =
-            activeRenderCameraRef.current ?? cameraRef.current ?? camera;
-          const cueBallY = cue?.pos ? CUE_Y : BALL_CENTER_Y;
-          const cameraHeightAboveCue =
-            (cameraForCueVisibility?.position?.y ?? cueBallY) - cueBallY;
-          const isStandingCueView =
-            !shooting &&
-            !cueAnimating &&
-            cameraHeightAboveCue > BALL_R * 3.4;
-          cueStick.visible = !isStandingCueView;
+          // Keep the cue on the table in the standing view, just as Pool Royale
+          // does, so changing camera height never makes the player's cue vanish.
+          cueStick.visible = true;
           cueStick.position.copy(idlePos);
           const startTime = performance.now();
           const pullEndTime = startTime + pullbackDuration;
@@ -22925,13 +22918,7 @@ const powerRef = useRef(hud.power);
               const t = THREE.MathUtils.clamp((now - holdEndTime) / returnDuration, 0, 1);
               cueStick.position.lerpVectors(settlePos, idlePos, easeInOutQuad(t));
             } else {
-              const releaseCamera =
-                activeRenderCameraRef.current ?? cameraRef.current ?? camera;
-              const releaseCueBallY = cue?.pos ? CUE_Y : BALL_CENTER_Y;
-              const releaseHeightAboveCue =
-                (releaseCamera?.position?.y ?? releaseCueBallY) - releaseCueBallY;
-              const standingReleaseView = releaseHeightAboveCue > BALL_R * 3.4;
-              cueStick.visible = !standingReleaseView;
+              cueStick.visible = true;
               cueAnimating = false;
               cuePullCurrentRef.current = 0;
               cuePullTargetRef.current = 0;
@@ -25461,7 +25448,12 @@ const powerRef = useRef(hud.power);
           );
           const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
           let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
-          const dir = baseAimDir.clone();
+          // Drive the visible cue-ball guide from the same spin-adjusted direction
+          // used by collision targeting. Pool Royale uses this single direction for
+          // its cue line, contact tick, cue follow and target prediction.
+          const dir = new THREE.Vector3(guideAimDir2D.x, 0, guideAimDir2D.y);
+          if (dir.lengthSq() < 1e-8) dir.copy(baseAimDir);
+          else dir.normalize();
           if (start.distanceTo(end) < 1e-4) {
             end = start.clone().add(dir.clone().multiplyScalar(BALL_R));
           }
@@ -25759,8 +25751,6 @@ const powerRef = useRef(hud.power);
             remoteAimDir.normalize();
           }
           const baseDir = new THREE.Vector3(remoteAimDir.x, 0, remoteAimDir.y);
-          const perp = new THREE.Vector3(-baseDir.z, 0, baseDir.x);
-          if (perp.lengthSq() > 1e-8) perp.normalize();
           const powerStrength = THREE.MathUtils.clamp(remoteAimState?.power ?? 0, 0, 1);
           const remoteSpin = remoteAimState?.spin ?? { x: 0, y: 0 };
           const remoteSwerveActive = false;
@@ -25771,6 +25761,11 @@ const powerRef = useRef(hud.power);
             powerStrength,
             remoteSwerveActive
           );
+          const guideDir = new THREE.Vector3(guideAimDir2D.x, 0, guideAimDir2D.y);
+          if (guideDir.lengthSq() < 1e-8) guideDir.copy(baseDir);
+          else guideDir.normalize();
+          const perp = new THREE.Vector3(-guideDir.z, 0, guideDir.x);
+          if (perp.lengthSq() > 1e-8) perp.normalize();
           const { impact, targetDir, cueDir, targetBall, railNormal } = calcTarget(
             cue,
             guideAimDir2D,
@@ -25779,14 +25774,14 @@ const powerRef = useRef(hud.power);
           const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
           let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
           if (start.distanceTo(end) < 1e-4) {
-            end = start.clone().add(baseDir.clone().multiplyScalar(BALL_R));
+            end = start.clone().add(guideDir.clone().multiplyScalar(BALL_R));
           }
           const aimPoints = buildSwerveAimLinePoints(
             aimCurvePointsRef.current,
             aimCurveControlRef.current,
             start,
             end,
-            baseDir,
+            guideDir,
             perp,
             remotePhysicsSpin,
             powerStrength,
@@ -25818,7 +25813,7 @@ const powerRef = useRef(hud.power);
           const followEnd = guideEndAtTableEdge(end, cueFollowDirSpinAdjusted, cueFollowLength);
           cueAfterGeom.setFromPoints([end, followEnd]);
           cueAfter.visible = Boolean(cueDir || hasSpinDrivenCueFollow);
-          const cueBackwards = cueFollowDirSpinAdjusted.dot(baseDir) < 0;
+          const cueBackwards = cueFollowDirSpinAdjusted.dot(guideDir) < 0;
           cueAfter.material.color.setHex(cueBackwards ? 0xff3b3b : 0x7ce7ff);
           cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
           cueAfter.computeLineDistances();
@@ -25897,7 +25892,7 @@ const powerRef = useRef(hud.power);
             target.computeLineDistances();
           } else {
             const fallbackLength = Math.max(BALL_R * 10, BALL_R * (7 + powerStrength * 8));
-            const fallbackEnd = end.clone().add(baseDir.clone().multiplyScalar(fallbackLength));
+            const fallbackEnd = end.clone().add(guideDir.clone().multiplyScalar(fallbackLength));
             targetGeom.setFromPoints([end, fallbackEnd]);
             targetGeom.computeBoundingSphere();
             target.material.color.setHex(0x9fd8ff);
