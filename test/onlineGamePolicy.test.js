@@ -270,7 +270,12 @@ describe('online game policy', () => {
   test('buildReadinessSnapshot returns all policy games with security checks', () => {
     const snapshot = buildReadinessSnapshot();
     expect(Object.keys(snapshot).sort()).toEqual(
-      [...Object.keys(GAME_ONLINE_POLICY), 'fourinrowroyale'].sort()
+      [
+        ...Object.keys(GAME_ONLINE_POLICY),
+        'fourinrowroyale', 'tabletennisroyal', 'tenpinbowlingroyal',
+        'dartsroyal', 'carromroyal', 'archeryroyal',
+        'penaltyshootoutroyal', 'basketballroyal', 'gocrazykartarena'
+      ].sort()
     );
 
     const sample = snapshot.poolroyale;

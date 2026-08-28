@@ -72,7 +72,15 @@ const GAME_ONLINE_POLICY = Object.freeze({
       'mode',
       'token'
     ]
-  }
+  },
+  tabletennis: { maxPlayers: [2], allowMatchMeta: ['rules', 'mode', 'token'] },
+  tenpinbowling: { maxPlayers: [2], allowMatchMeta: ['rules', 'mode', 'token'] },
+  darts: { maxPlayers: [2], allowMatchMeta: ['rules', 'mode', 'token'] },
+  carrom: { maxPlayers: [2], allowMatchMeta: ['rules', 'mode', 'token'] },
+  archery: { maxPlayers: [2], allowMatchMeta: ['rules', 'mode', 'token'] },
+  penaltyshootout: { maxPlayers: [2], allowMatchMeta: ['rules', 'mode', 'token'] },
+  basketball: { maxPlayers: [2], allowMatchMeta: ['rules', 'mode', 'token'] },
+  gocrazykart: { maxPlayers: [4], allowMatchMeta: ['rules', 'mode', 'token'] }
 });
 
 const GAME_TYPE_ALIASES = Object.freeze({
@@ -227,6 +235,14 @@ export function buildReadinessSnapshot() {
   // The public Games catalog uses the royale slug while sockets use the short
   // authoritative game type.
   snapshot.fourinrowroyale = snapshot.fourinrow;
+  snapshot.tabletennisroyal = snapshot.tabletennis;
+  snapshot.tenpinbowlingroyal = snapshot.tenpinbowling;
+  snapshot.dartsroyal = snapshot.darts;
+  snapshot.carromroyal = snapshot.carrom;
+  snapshot.archeryroyal = snapshot.archery;
+  snapshot.penaltyshootoutroyal = snapshot.penaltyshootout;
+  snapshot.basketballroyal = snapshot.basketball;
+  snapshot.gocrazykartarena = snapshot.gocrazykart;
   return snapshot;
 }
 
