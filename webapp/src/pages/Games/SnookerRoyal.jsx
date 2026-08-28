@@ -40,11 +40,7 @@ import { SnookerRoyalRules } from '../../../../src/rules/SnookerRoyalRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { resolveTableSize } from '../../config/snookerClubTables.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
-import {
-  buildSnookerCommentaryLine,
-  createSnookerMatchCommentaryScript
-} from '../../utils/snookerRoyalCommentary.js';
-import { getSpeechSupport, getSpeechSynthesis, onSpeechSupportChange, speakCommentaryLines } from '../../utils/textToSpeech.js';
+
 import {
   createBallPreviewDataUrl,
   getBallMaterial as getBilliardBallMaterial
@@ -992,85 +988,7 @@ const CLOTH_COLOR_STORAGE_KEY = 'snookerRoyalClothColor';
 const TABLE_BASE_STORAGE_KEY = 'snookerRoyalTableBase';
 const POCKET_LINER_STORAGE_KEY = 'snookerPocketLiner';
 const SKIP_REPLAYS_STORAGE_KEY = 'snookerSkipReplays';
-const COMMENTARY_PRESET_STORAGE_KEY = 'snookerRoyalCommentaryPreset';
-const COMMENTARY_MUTE_STORAGE_KEY = 'snookerRoyalCommentaryMute';
-const COMMENTARY_QUEUE_LIMIT = 4;
-const COMMENTARY_MIN_INTERVAL_MS = 1200;
-const COMMENTARY_SPEAKER_LEAD = 'Caster';
-const COMMENTARY_SPEAKER_ANALYST = 'Analyst';
-const SNOOKER_ROYAL_COMMENTARY_PRESETS = Object.freeze([
-  {
-    id: 'english',
-    label: 'English',
-    description: 'Mixed voices, classic English',
-    language: 'en',
-    voiceHints: {
-      [COMMENTARY_SPEAKER_LEAD]: ['en-US', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex'],
-      [COMMENTARY_SPEAKER_ANALYST]: ['en-GB', 'English', 'female', 'Sonia', 'Hazel', 'Kate', 'Emma']
-    },
-    speakerSettings: {
-      [COMMENTARY_SPEAKER_LEAD]: { rate: 1, pitch: 0.96, volume: 1 },
-      [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.04, pitch: 1.06, volume: 1 }
-    }
-  },
-  {
-    id: 'saffron-table',
-    label: 'Indian Table',
-    description: 'Hindi commentary with lively pacing',
-    language: 'hi',
-    voiceHints: {
-      [COMMENTARY_SPEAKER_LEAD]: ['hi-IN', 'hi', 'Hindi', 'male', 'Raj', 'Amit', 'Arjun'],
-      [COMMENTARY_SPEAKER_ANALYST]: ['hi-IN', 'hi', 'Hindi', 'female', 'Asha', 'Priya', 'Neha']
-    },
-    speakerSettings: {
-      [COMMENTARY_SPEAKER_LEAD]: { rate: 1.06, pitch: 1.02, volume: 1 },
-      [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.08, pitch: 1.08, volume: 1 }
-    }
-  },
-  {
-    id: 'moscow-mics',
-    label: 'Russian Booth',
-    description: 'Russian commentary with steady cadence',
-    language: 'ru',
-    voiceHints: {
-      [COMMENTARY_SPEAKER_LEAD]: ['ru-RU', 'ru', 'Russian', 'male', 'Dmitri', 'Ivan', 'Sergey', 'Alexey'],
-      [COMMENTARY_SPEAKER_ANALYST]: ['ru-RU', 'ru', 'Russian', 'female', 'Anna', 'Svetlana', 'Irina', 'Olga']
-    },
-    speakerSettings: {
-      [COMMENTARY_SPEAKER_LEAD]: { rate: 1, pitch: 0.95, volume: 1 },
-      [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.03, pitch: 1.02, volume: 1 }
-    }
-  },
-  {
-    id: 'latin-pulse',
-    label: 'Latin Pulse',
-    description: 'Spanish play-by-play with lively color',
-    language: 'es',
-    voiceHints: {
-      [COMMENTARY_SPEAKER_LEAD]: ['es-ES', 'es-MX', 'Spanish', 'male', 'Jorge', 'Carlos', 'Miguel'],
-      [COMMENTARY_SPEAKER_ANALYST]: ['es-ES', 'es-MX', 'Spanish', 'female', 'Isabella', 'Lucia', 'Camila']
-    },
-    speakerSettings: {
-      [COMMENTARY_SPEAKER_LEAD]: { rate: 1.05, pitch: 1, volume: 1 },
-      [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.08, pitch: 1.1, volume: 1 }
-    }
-  },
-  {
-    id: 'francophone-booth',
-    label: 'Francophone Booth',
-    description: 'French broadcast pairing',
-    language: 'fr',
-    voiceHints: {
-      [COMMENTARY_SPEAKER_LEAD]: ['fr-FR', 'French', 'male', 'Henri', 'Louis', 'Paul'],
-      [COMMENTARY_SPEAKER_ANALYST]: ['fr-FR', 'French', 'female', 'Amelie', 'Marie', 'Charlotte']
-    },
-    speakerSettings: {
-      [COMMENTARY_SPEAKER_LEAD]: { rate: 0.98, pitch: 0.96, volume: 1 },
-      [COMMENTARY_SPEAKER_ANALYST]: { rate: 1.04, pitch: 1.06, volume: 1 }
-    }
-  }
-]);
-const DEFAULT_COMMENTARY_PRESET_ID = SNOOKER_ROYAL_COMMENTARY_PRESETS[0]?.id || 'english';
+
 const DEFAULT_TABLE_BASE_ID = SNOOKER_ROYALE_BASE_VARIANTS[0]?.id || 'classicCylinders';
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
@@ -1687,7 +1605,6 @@ const CUE_BUTT_CUSHION_CLEARANCE = SNOOKER_CUE_STRAIGHT_ON_TABLE ? 0 : BALL_R * 
 const CUE_CUSHION_LIFT_BIAS = SNOOKER_CUE_STRAIGHT_ON_TABLE ? 0 : BALL_R * 0.06; // straight-table mode must not add extra cushion lift
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 
-
 const SNOOKER_CUE_POSE_SCALE = BALL_R / 0.0525;
 const SNOOKER_CUE_IDLE_GAP = 0.012 * SNOOKER_CUE_POSE_SCALE;
 const SNOOKER_CUE_CONTACT_GAP = -CUE_TIP_RADIUS * 0.28; // let the leather tip visibly meet the cue ball instead of stopping with an air gap
@@ -2090,7 +2007,6 @@ function deriveInHandFromFrame(frame) {
   return false;
 }
 
-
 function useResponsiveTableSize(option) {
   const [scale, setScale] = useState(() => option?.scale ?? 1);
 
@@ -2306,7 +2222,6 @@ const makeColorPalette = ({ cloth, rail, base, markings = 0xffffff, cushion }) =
   ...BASE_BALL_COLORS
 });
 
-
 const clampToUnit = (value) => Math.min(1, Math.max(0, value));
 
 const mixHexColors = (fromHex, toHex, t) => {
@@ -2318,7 +2233,6 @@ const mixHexColors = (fromHex, toHex, t) => {
 };
 
 const hexNumberToCss = (hex) => `#${hex.toString(16).padStart(6, '0')}`;
-
 
 const SHARED_WOOD_REPEAT = Object.freeze({
   x: 1,
@@ -5586,7 +5500,6 @@ const lerpAngle = (start = 0, end = 0, t = 0.5) => {
   const delta = Math.atan2(Math.sin(end - start), Math.cos(end - start));
   return start + delta * THREE.MathUtils.clamp(t ?? 0, 0, 1);
 };
-
 
 // --------------------------------------------------
 // Utilities
@@ -10791,7 +10704,6 @@ function Table3D(
     return clone;
   };
 
-  
   const POOLTOOL_SNOOKER_TABLE_URL = 'https://raw.githubusercontent.com/ekiefl/pooltool/main/pooltool/models/table/snooker.glb';
   const externalBaseTemplates = new Map();
   const externalBasePromises = new Map();
@@ -12556,35 +12468,10 @@ function SnookerRoyalGame({
     }
     return false;
   });
-  const [commentaryPresetId, setCommentaryPresetId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = safeLocalStorageGet(COMMENTARY_PRESET_STORAGE_KEY);
-      if (stored && SNOOKER_ROYAL_COMMENTARY_PRESETS.some((preset) => preset.id === stored)) {
-        return stored;
-      }
-    }
-    return DEFAULT_COMMENTARY_PRESET_ID;
-  });
-  const [commentaryMuted, setCommentaryMuted] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = safeLocalStorageGet(COMMENTARY_MUTE_STORAGE_KEY);
-      if (stored === '1') return true;
-      if (stored === '0') return false;
-    }
-    return false;
-  });
+
   const skipReplayRef = useRef(() => {});
   const skipAllReplaysRef = useRef(skipAllReplays);
-  const commentaryMutedRef = useRef(commentaryMuted);
-  const commentaryReadyRef = useRef(false);
-  const commentaryQueueRef = useRef([]);
-  const commentarySpeakingRef = useRef(false);
-  const commentaryLastEventAtRef = useRef(0);
-  const pendingCommentaryLinesRef = useRef(null);
-  const commentaryScriptRef = useRef({ start: [], end: [] });
-  const commentaryScriptPlayedRef = useRef(false);
-  const commentaryOutroPlayedRef = useRef(false);
-  const commentaryGreetingPlayedRef = useRef(false);
+
   const breakMilestoneRef = useRef(0);
   const shotCountRef = useRef(0);
   const freeBallAnnouncedRef = useRef(false);
@@ -12596,22 +12483,7 @@ function SnookerRoyalGame({
       skipReplayRef.current?.();
     }
   }, [skipAllReplays]);
-  useEffect(() => {
-    commentaryMutedRef.current = commentaryMuted;
-    if (commentaryMuted) {
-      const synth = getSpeechSynthesis();
-      synth?.cancel();
-      commentaryQueueRef.current = [];
-      pendingCommentaryLinesRef.current = null;
-      commentarySpeakingRef.current = false;
-    }
-  }, [commentaryMuted]);
-  useEffect(() => {
-    safeLocalStorageSet(COMMENTARY_PRESET_STORAGE_KEY, commentaryPresetId);
-  }, [commentaryPresetId]);
-  useEffect(() => {
-    safeLocalStorageSet(COMMENTARY_MUTE_STORAGE_KEY, commentaryMuted ? '1' : '0');
-  }, [commentaryMuted]);
+
   const [pocketLinerId, setPocketLinerId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = safeLocalStorageGet(POCKET_LINER_STORAGE_KEY);
@@ -12722,13 +12594,7 @@ function SnookerRoyalGame({
     () => resolveBroadcastSystem(broadcastSystemId),
     [broadcastSystemId]
   );
-  const activeCommentaryPreset = useMemo(
-    () =>
-      SNOOKER_ROYAL_COMMENTARY_PRESETS.find((preset) => preset.id === commentaryPresetId) ??
-      SNOOKER_ROYAL_COMMENTARY_PRESETS[0],
-    [commentaryPresetId]
-  );
-  const [commentarySupported, setCommentarySupported] = useState(() => getSpeechSupport());
+
   const availableTableFinishes = useMemo(
     () =>
       TABLE_FINISH_OPTIONS.filter((option) =>
@@ -12859,9 +12725,9 @@ function SnookerRoyalGame({
     [availablePocketLiners, pocketLinerId]
   );
   useEffect(() => {
-    const updateSupport = () => setCommentarySupported(getSpeechSupport());
+
     updateSupport();
-    const unsubscribe = onSpeechSupportChange((supported) => setCommentarySupported(Boolean(supported)));
+
     return () => {
       unsubscribe();
     };
@@ -13869,296 +13735,13 @@ function SnookerRoyalGame({
     },
     [aiFlagLabel, aiOpponentEnabled, frameState?.players, localSeat, opponentLabel, playerLabel]
   );
-  const commentarySpeakers = useMemo(
-    () => [COMMENTARY_SPEAKER_ANALYST],
-    []
-  );
-  const lastCommentarySpeakerRef = useRef(COMMENTARY_SPEAKER_ANALYST);
-  const getAlternateCommentarySpeaker = useCallback(
-    () => COMMENTARY_SPEAKER_ANALYST,
-    []
-  );
-  const pickCommentarySpeaker = useCallback(
-    (_event, preferred) => {
-      const selected = preferred || COMMENTARY_SPEAKER_ANALYST;
-      lastCommentarySpeakerRef.current = selected;
-      return selected;
-    },
-    []
-  );
-  const buildCommentaryLine = useCallback(
-    (event, context = {}, options = {}) => {
-      const speaker = pickCommentarySpeaker(event, options.speaker);
-      const text = buildSnookerCommentaryLine({
-        event,
-        speaker,
-        language: options.language ?? activeCommentaryPreset?.language ?? commentaryPresetId,
-        context: {
-          arena: 'Snooker Royal arena',
-          ...context
-        }
-      });
-      if (!text) return null;
-      return { speaker, text };
-    },
-    [activeCommentaryPreset?.language, commentaryPresetId, pickCommentarySpeaker]
-  );
-  const playNextCommentary = useCallback(async () => {
-    if (commentarySpeakingRef.current) return;
-    const next = commentaryQueueRef.current.shift();
-    if (!next) return;
-    const synth = getSpeechSynthesis();
-    if (!synth) return;
-    commentarySpeakingRef.current = true;
-    try {
-      synth.cancel();
-    } catch {}
-    await speakCommentaryLines(next.lines, {
-      speakerSettings: next.preset?.speakerSettings,
-      voiceHints: next.preset?.voiceHints
-    });
-    commentarySpeakingRef.current = false;
-    if (commentaryQueueRef.current.length) {
-      playNextCommentary();
-    }
-  }, []);
-  const enqueueCommentaryLines = useCallback(
-    (lines, { priority = false, preset = activeCommentaryPreset } = {}) => {
-      if (!Array.isArray(lines) || lines.length === 0) return;
-      if (commentaryMutedRef.current || isGameMuted()) return;
-      if (!commentaryReadyRef.current) {
-        pendingCommentaryLinesRef.current = lines;
-        return;
-      }
-      const now = performance.now();
-      if (!priority && now - commentaryLastEventAtRef.current < COMMENTARY_MIN_INTERVAL_MS) return;
-      if (!priority && commentaryQueueRef.current.length >= COMMENTARY_QUEUE_LIMIT) return;
-      commentaryQueueRef.current.push({ lines, preset });
-      if (!commentarySpeakingRef.current) {
-        playNextCommentary();
-      }
-      commentaryLastEventAtRef.current = now;
-    },
-    [activeCommentaryPreset, playNextCommentary]
-  );
-  const enqueueSnookerCommentaryEvent = useCallback(
-    (event, context = {}, options = {}) => {
-      const line = buildCommentaryLine(event, context, {
-        speaker: options.speaker,
-        language: options.preset?.language
-      });
-      if (!line) return;
-      enqueueCommentaryLines([line], options);
-    },
-    [buildCommentaryLine, enqueueCommentaryLines]
-  );
-  const maybeSpeakShotCommentary = useCallback(
-    ({ currentState, nextState, potted, shotContext, shooterSeat }) => {
-      if (!nextState || !currentState) return;
-      if (commentaryMutedRef.current || isGameMuted()) return;
-      const shooterLabel = resolveSeatLabel(shooterSeat);
-      const opponentSeat = shooterSeat === 'A' ? 'B' : 'A';
-      const opponentName = resolveSeatLabel(opponentSeat);
-      const pottedNonCue = (potted || []).filter(
-        (entry) => entry?.color && entry.color !== 'CUE'
-      );
-      const redsPotted = pottedNonCue.filter((entry) => entry.color === 'RED');
-      const colorsPotted = pottedNonCue.filter((entry) => entry.color !== 'RED');
-      const foul = nextState.foul;
-      const breakTotal = Number.isFinite(nextState.currentBreak)
-        ? nextState.currentBreak
-        : 0;
-      const scoreline = `${nextState.players?.A?.score ?? 0}-${nextState.players?.B?.score ?? 0}`;
-      let event = null;
-      const context = {
-        player: shooterLabel,
-        opponent: opponentName,
-        breakTotal: String(breakTotal),
-        scoreline
-      };
 
-      if (foul) {
-        event = 'foul';
-        context.points = String(foul.points ?? 4);
-        context.foulReason = foul.reason ?? 'foul';
-      } else if (nextState.freeBall && !freeBallAnnouncedRef.current) {
-        event = 'freeBall';
-        freeBallAnnouncedRef.current = true;
-      } else if (shotCountRef.current === 0) {
-        event = 'breakOff';
-      } else if (currentState.phase !== 'COLORS_ORDER' && nextState.phase === 'COLORS_ORDER') {
-        event = 'colorsOrder';
-      } else if (breakTotal >= 100 && breakMilestoneRef.current < 100) {
-        event = 'century';
-        breakMilestoneRef.current = 100;
-      } else if (breakTotal >= 50 && breakMilestoneRef.current < 50) {
-        event = 'breakBuild';
-        breakMilestoneRef.current = 50;
-      } else if (pottedNonCue.length > 0) {
-        if (redsPotted.length > 1) {
-          event = 'multiRed';
-        } else if (redsPotted.length === 1 && colorsPotted.length === 0) {
-          event = 'redPot';
-        } else if (colorsPotted.length > 0) {
-          context.color = formatSnookerColorLabel(colorsPotted[0]?.color);
-          if (currentState.phase === 'COLORS_ORDER' || nextState.phase === 'COLORS_ORDER') {
-            event = 'colorOrder';
-          } else if ((nextState.redsRemaining ?? 0) > 0) {
-            event = 'respot';
-          } else {
-            event = 'colorPot';
-          }
-        }
-      } else if (shotContext?.contactMade) {
-        event = 'safety';
-      } else {
-        event = 'miss';
-      }
-
-      if (event) {
-        const priority = event === 'foul' || event === 'freeBall';
-        const lines = [];
-        const primaryLine = buildCommentaryLine(event, context);
-        if (primaryLine) lines.push(primaryLine);
-        const nextActiveSeat = nextState.activePlayer;
-        if (
-          primaryLine &&
-          nextActiveSeat &&
-          nextActiveSeat !== shooterSeat &&
-          ['miss', 'safety', 'foul'].includes(event)
-        ) {
-          const turnLine = buildCommentaryLine(
-            'turn',
-            { player: resolveSeatLabel(nextActiveSeat) },
-            { speaker: getAlternateCommentarySpeaker(primaryLine.speaker) }
-          );
-          if (turnLine) lines.push(turnLine);
-        }
-        if (lines.length) {
-          enqueueCommentaryLines(lines, { priority });
-        }
-      }
-      shotCountRef.current += 1;
-    },
-    [
-      buildCommentaryLine,
-      enqueueCommentaryLines,
-      formatSnookerColorLabel,
-      getAlternateCommentarySpeaker,
-      resolveSeatLabel
-    ]
-  );
-  useEffect(() => {
-    const script = createSnookerMatchCommentaryScript({
-      players: {
-        A: resolveSeatLabel('A') || 'Player A',
-        B: resolveSeatLabel('B') || 'Player B'
-      },
-      commentators: commentarySpeakers,
-      language: activeCommentaryPreset?.language ?? commentaryPresetId
-    });
-    const startLines = Array.isArray(script?.start)
-      ? script.start
-      : Array.isArray(script)
-        ? script.slice(0, 1)
-        : [];
-    const endLines = Array.isArray(script?.end)
-      ? script.end
-      : Array.isArray(script)
-        ? script.slice(1)
-        : [];
-    commentaryScriptRef.current = {
-      start: startLines,
-      end: endLines
-    };
-    commentaryScriptPlayedRef.current = false;
-    commentaryOutroPlayedRef.current = false;
-    commentaryGreetingPlayedRef.current = false;
-    pendingCommentaryLinesRef.current = null;
-    commentaryQueueRef.current = [];
-    shotCountRef.current = 0;
-    breakMilestoneRef.current = 0;
-    freeBallAnnouncedRef.current = false;
-    lastCommentarySpeakerRef.current = COMMENTARY_SPEAKER_ANALYST;
-  }, [
-    activeCommentaryPreset?.language,
-    commentaryPresetId,
-    commentarySpeakers,
-    framePlayerAName,
-    framePlayerBName,
-    initialFrame,
-    resolveSeatLabel
-  ]);
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-    const unlockCommentary = () => {
-      if (commentaryReadyRef.current) return;
-      commentaryReadyRef.current = true;
-      const synth = getSpeechSynthesis();
-      if (synth) {
-        try {
-          synth.resume?.();
-        } catch {}
-        try {
-          synth.getVoices();
-        } catch {}
-      }
-      const pending = pendingCommentaryLinesRef.current;
-      if (pending) {
-        pendingCommentaryLinesRef.current = null;
-        enqueueCommentaryLines(pending, { priority: true });
-      }
-    };
-    window.addEventListener('pointerdown', unlockCommentary);
-    window.addEventListener('keydown', unlockCommentary);
-    window.addEventListener('touchstart', unlockCommentary);
-    window.addEventListener('click', unlockCommentary);
-    return () => {
-      window.removeEventListener('pointerdown', unlockCommentary);
-      window.removeEventListener('keydown', unlockCommentary);
-      window.removeEventListener('touchstart', unlockCommentary);
-      window.removeEventListener('click', unlockCommentary);
-    };
-  }, [enqueueCommentaryLines]);
-  useEffect(() => {
-    if (commentaryScriptPlayedRef.current) return;
-    if (commentaryMutedRef.current || isGameMuted()) return;
-    if (frameState.frameOver) return;
-    const startLines = commentaryScriptRef.current.start;
-    if (!startLines.length) return;
-    commentaryScriptPlayedRef.current = true;
-    commentaryGreetingPlayedRef.current = true;
-    enqueueCommentaryLines(startLines, { priority: true });
-  }, [enqueueCommentaryLines, frameState.frameOver]);
-  useEffect(() => {
-    if (!frameState.frameOver) return;
-    if (commentaryOutroPlayedRef.current) return;
-    if (commentaryMutedRef.current || isGameMuted()) return;
-    const winnerSeat = frameState.winner;
-    if (winnerSeat && winnerSeat !== 'TIE') {
-      enqueueSnookerCommentaryEvent(
-        'frameWin',
-        {
-          player: resolveSeatLabel(winnerSeat),
-          scoreline: `${frameState.players?.A?.score ?? 0}-${frameState.players?.B?.score ?? 0}`
-        },
-        { priority: true }
-      );
-    }
-    const endLines = commentaryScriptRef.current.end;
-    if (endLines.length) {
-      enqueueCommentaryLines(endLines, { priority: true });
-    }
-    commentaryOutroPlayedRef.current = true;
-  }, [enqueueCommentaryLines, enqueueSnookerCommentaryEvent, frameState, resolveSeatLabel]);
   useEffect(() => {
     const handleMute = () => {
       if (!isGameMuted()) return;
-      const synth = getSpeechSynthesis();
+
       synth?.cancel();
-      commentaryQueueRef.current = [];
-      pendingCommentaryLinesRef.current = null;
-      commentarySpeakingRef.current = false;
+
     };
     window.addEventListener('gameMuteChanged', handleMute);
     return () => {
@@ -17818,7 +17401,6 @@ const powerRef = useRef(hud.power);
           }
           return vec;
         };
-
 
         const updateBroadcastCameras = ({
           railDir = 1,
@@ -25341,13 +24923,7 @@ const powerRef = useRef(hud.power);
               Number.isFinite(remainingShots) && remainingShots > 0 ? remainingShots : 0;
           }
         }
-        maybeSpeakShotCommentary({
-          currentState,
-          nextState: safeState,
-          potted,
-          shotContext: shotContextRef.current,
-          shooterSeat
-        });
+
         shotContextRef.current = {
           placedFromHand: false,
           contactMade: false,
@@ -28483,69 +28059,7 @@ const powerRef = useRef(hud.power);
                   </span>
                 </button>
               </div>
-              <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Commentary
-                </h3>
-                <div className="mt-2 grid gap-2">
-                  {SNOOKER_ROYAL_COMMENTARY_PRESETS.map((preset) => {
-                    const active = preset.id === commentaryPresetId;
-                    return (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => setCommentaryPresetId(preset.id)}
-                        aria-pressed={active}
-                        disabled={!commentarySupported}
-                        className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300/15 shadow-[0_0_12px_rgba(16,185,129,0.35)]'
-                            : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
-                        } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
-                      >
-                        <span className="flex items-center justify-between gap-2">
-                          <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">{preset.label}</span>
-                          {active && (
-                            <span className="rounded-full border border-emerald-200/70 px-2 py-0.5 text-[9px] tracking-[0.3em] text-emerald-100">
-                              Active
-                            </span>
-                          )}
-                        </span>
-                        <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
-                          {preset.description}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setCommentaryMuted((prev) => !prev)}
-                  aria-pressed={commentaryMuted}
-                  disabled={!commentarySupported}
-                  className={`mt-2 flex w-full items-center justify-between gap-3 rounded-full px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                    commentaryMuted
-                      ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
-                      : 'bg-white/10 text-white/80 hover:bg-white/20'
-                  } ${commentarySupported ? '' : 'cursor-not-allowed opacity-60'}`}
-                >
-                  <span>Mute commentary</span>
-                  <span
-                    className={`rounded-full border px-2 py-0.5 text-[10px] tracking-[0.3em] ${
-                      commentaryMuted
-                        ? 'border-black/30 text-black/70'
-                        : 'border-white/30 text-white/70'
-                    }`}
-                  >
-                    {commentaryMuted ? 'On' : 'Off'}
-                  </span>
-                </button>
-                {!commentarySupported && (
-                  <p className="mt-2 text-[10px] uppercase tracking-[0.2em] text-white/60">
-                    Voice commentary needs Web Speech support.
-                  </p>
-                )}
-              </div>
+
               <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Table Finish
@@ -29474,7 +28988,6 @@ const powerRef = useRef(hud.power);
           </div>
         </div>
       )}
-
 
       {chatBubbles.map((bubble) => (
         <div key={bubble.id} className="chat-bubble">
