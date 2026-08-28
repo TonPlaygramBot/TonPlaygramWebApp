@@ -2744,7 +2744,7 @@ io.on('connection', (socket) => {
     maybeStartGame(table);
   });
 
-  socket.on('joinRoom', async (payload = {}) => {
+  socket.on('joinRoom', async (payload = {}, cb) => {
     const { roomId, name, avatar } = payload;
     const pid = resolveTpcIdentity(payload);
     if (hasConflictingIdentities(payload)) {
@@ -2755,6 +2755,7 @@ io.on('connection', (socket) => {
     const cap = Number(roomId.split('-')[1]) || 4;
     if (!gameManager.rooms.has(roomId) && map && map.size < cap) {
       socket.emit('waitingForPlayers', { roomId, current: map.size, capacity: cap });
+      cb?.({ success: false, error: 'waiting_for_players' });
       return;
     }
     if (pid && !socket.data?.playerId) {
@@ -2786,9 +2787,30 @@ io.on('connection', (socket) => {
     const result = await gameManager.joinRoom(roomId, pid, name, socket, avatar);
     if (result.error) {
       socket.emit('error', result.error);
+      cb?.({ success: false, error: result.error });
     } else if (result.board) {
       socket.emit('boardData', result.board);
+      const room = gameManager.rooms.get(roomId);
+      cb?.({ success: true, state: room?.getState?.() });
     }
+  });
+
+  socket.on('snakeSyncRequest', ({ tableId, accountId } = {}, cb) => {
+    if (!tableId || !accountId || !ensureRegistered(socket, accountId)) {
+      cb?.({ success: false, error: 'register_required' });
+      return;
+    }
+    const room = gameManager.rooms.get(tableId);
+    const seated = room?.players.some(
+      (player) => String(player.playerId) === String(accountId)
+    );
+    if (!room || !seated) {
+      cb?.({ success: false, error: 'room_or_seat_not_found' });
+      return;
+    }
+    const state = room.getState();
+    socket.emit('snakeState', state);
+    cb?.({ success: true, state });
   });
 
   socket.on('joinChessRoom', async ({ tableId, accountId } = {}, cb) => {
@@ -3829,6 +3851,23 @@ io.on('connection', (socket) => {
 
   socket.on('rollDice', async (payload = {}) => {
     const { accountId, tableId } = payload;
+    // A started Snake match is owned by GameRoom. Prefer its complete rules
+    // and state broadcast over the generic lobby-table dice shortcut.
+    const snakeRoom = tableId
+      ? gameManager.rooms.get(tableId)
+      : gameManager.findRoomBySocket(socket.id);
+    if (snakeRoom?.gameType === 'snake') {
+      if (accountId && !ensureRegistered(socket, accountId)) return;
+      if (isRateLimited(socket, 'rollDice', rollRateLimitMs)) {
+        return socket.emit('errorMessage', 'roll_rate_limited');
+      }
+      const current = snakeRoom.players[snakeRoom.currentTurn];
+      if (!current || current.socketId !== socket.id) {
+        return socket.emit('errorMessage', 'Not your turn');
+      }
+      await gameManager.rollDice(socket);
+      return;
+    }
     if (accountId && tableId && tableMap.has(tableId)) {
       if (!ensureRegistered(socket, accountId)) return;
       if (isRateLimited(socket, 'rollDice', rollRateLimitMs)) {

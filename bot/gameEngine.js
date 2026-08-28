@@ -149,6 +149,34 @@ export class GameRoom {
     });
   }
 
+  getState() {
+    return {
+      roomId: this.id,
+      status: this.status,
+      maxPlayers: this.capacity,
+      currentTurn: this.currentTurn,
+      currentPlayerId: this.players[this.currentTurn]?.playerId ?? null,
+      players: this.players.map((player, seatIndex) => ({
+        id: player.playerId,
+        playerId: player.playerId,
+        name: player.name,
+        avatar: player.avatar || '',
+        position: player.position || 0,
+        isActive: Boolean(player.isActive),
+        disconnected: Boolean(player.disconnected),
+        seatIndex
+      })),
+      snakes: this.snakes,
+      ladders: this.ladders,
+      diceCells: this.diceCells,
+      finished: Boolean(this.game.finished)
+    };
+  }
+
+  emitState(target = this.id) {
+    this.io.to(target).emit('snakeState', this.getState());
+  }
+
   addPlayer(playerId, name, socket, avatar = '') {
     const existing = this.players.find((p) => p.playerId === playerId);
     if (existing) {
@@ -183,6 +211,7 @@ export class GameRoom {
     }));
     socket.emit('currentPlayers', list);
     this.io.to(this.id).emit('currentPlayers', list);
+    this.emitState();
     if (!existing) {
       this.io.to(this.id).emit('playerJoined', { playerId, name });
       if (this.players.length === this.capacity) {
@@ -235,6 +264,7 @@ export class GameRoom {
     this.currentTurn = 0;
     this.io.to(this.id).emit('gameStarted');
     this.emitNextTurn();
+    this.emitState();
   }
 
   emitNextTurn() {
@@ -350,6 +380,7 @@ export class GameRoom {
           );
         }
         this.io.to(this.id).emit('gameWon', { playerId: player.playerId });
+        this.emitState();
         return;
       }
 
@@ -373,6 +404,7 @@ export class GameRoom {
       this.currentTurn = this.game.currentTurn;
     }
     this.emitNextTurn();
+    this.emitState();
   }
 
   handleDisconnect(socket) {
@@ -382,6 +414,7 @@ export class GameRoom {
     player.disconnected = true;
     player.socketId = null;
     this.io.to(this.id).emit('playerDisconnected', { playerId: player.playerId });
+    this.emitState();
     if (this.status === 'waiting' && this.startTimer) {
       clearTimeout(this.startTimer);
       this.startTimer = null;
@@ -508,7 +541,9 @@ export class GameRoomManager {
           socketId: null,
           lastRollTime: 0
         }));
+        room.game.players = room.players;
         room.currentTurn = record.currentTurn;
+        room.game.currentTurn = record.currentTurn;
         room.status = record.status;
       } else {
         const type =
