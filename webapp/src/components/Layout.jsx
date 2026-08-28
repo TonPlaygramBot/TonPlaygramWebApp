@@ -55,6 +55,8 @@ export default function Layout({ children }) {
   const navigate = useNavigate();
   const [invite, setInvite] = useState(null);
   const [friendRequest, setFriendRequest] = useState(null);
+  const [friendRequestAction, setFriendRequestAction] = useState('');
+  const [friendRequestError, setFriendRequestError] = useState('');
   const [incomingCall, setIncomingCall] = useState(null);
   const [activeCall, setActiveCall] = useState(null);
   const [callNotice, setCallNotice] = useState('');
@@ -90,6 +92,23 @@ export default function Layout({ children }) {
     return () => socket.off('friendRequest', onFriendRequest);
   }, []);
 
+  async function respondToFriendRequest(action) {
+    if (!friendRequest?.requestId || friendRequestAction) return;
+    setFriendRequestAction(action);
+    setFriendRequestError('');
+    try {
+      if (action === 'accept') await acceptFriendRequest(friendRequest.requestId);
+      else await rejectFriendRequest(friendRequest.requestId);
+      setCallNotice(action === 'accept' ? 'Friend request accepted' : 'Friend request rejected');
+      window.setTimeout(() => setCallNotice(''), 5000);
+      setFriendRequest(null);
+    } catch (error) {
+      setFriendRequestError(error?.message || `Could not ${action} this request. Please try again.`);
+    } finally {
+      setFriendRequestAction('');
+    }
+  }
+
   useEffect(() => {
     const onPushInvite = (event) => {
       setInvite(event.detail);
@@ -105,8 +124,17 @@ export default function Layout({ children }) {
 
   useEffect(() => {
     const onAccepted = ({ byName } = {}) => {
-      setCallNotice(`${byName || 'A player'} accepted your friend request`);
+      const message = `${byName || 'A player'} accepted your friend request`;
+      setCallNotice(message);
       window.setTimeout(() => setCallNotice(''), 5000);
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        const notification = new Notification('Friend request accepted', {
+          body: message,
+          icon: '/assets/icons/profile.svg',
+          tag: 'friend-request-accepted'
+        });
+        notification.onclick = () => { window.focus(); notification.close(); };
+      }
     };
     socket.on('friendRequestAccepted', onAccepted);
     return () => socket.off('friendRequestAccepted', onAccepted);
@@ -426,10 +454,11 @@ export default function Layout({ children }) {
             <img src={friendRequest.fromPhoto || '/assets/icons/profile.svg'} alt="" className="mx-auto mt-4 h-16 w-16 rounded-full border-2 border-cyan-300 object-cover" />
             <h2 className="mt-3 text-xl font-bold text-white">{friendRequest.fromName || 'TonPlaygram player'}</h2>
             <p className="mt-1 text-sm text-white/65">wants to add you as a friend.</p>
+            {friendRequestError && <p role="alert" className="mt-3 rounded-xl bg-red-500/15 px-3 py-2 text-sm text-red-200">{friendRequestError}</p>}
             <div className="mt-6 grid grid-cols-3 gap-2">
-              <button type="button" onClick={async () => { await acceptFriendRequest(friendRequest.requestId); setFriendRequest(null); }} className="rounded-xl bg-cyan-500 px-2 py-3 text-sm font-semibold text-[#07111d]">Accept</button>
-              <button type="button" onClick={async () => { await rejectFriendRequest(friendRequest.requestId); setFriendRequest(null); }} className="rounded-xl bg-red-600 px-2 py-3 text-sm font-semibold text-white">Reject</button>
-              <button type="button" onClick={() => setFriendRequest(null)} className="rounded-xl border border-white/15 px-2 py-3 text-sm font-semibold text-white">Hide</button>
+              <button type="button" disabled={Boolean(friendRequestAction)} onClick={() => respondToFriendRequest('accept')} className="rounded-xl bg-cyan-500 px-2 py-3 text-sm font-semibold text-[#07111d] disabled:opacity-60">{friendRequestAction === 'accept' ? 'Accepting…' : 'Accept'}</button>
+              <button type="button" disabled={Boolean(friendRequestAction)} onClick={() => respondToFriendRequest('reject')} className="rounded-xl bg-red-600 px-2 py-3 text-sm font-semibold text-white disabled:opacity-60">{friendRequestAction === 'reject' ? 'Rejecting…' : 'Reject'}</button>
+              <button type="button" disabled={Boolean(friendRequestAction)} onClick={() => { setFriendRequestError(''); setFriendRequest(null); }} className="rounded-xl border border-white/15 px-2 py-3 text-sm font-semibold text-white disabled:opacity-60">Hide</button>
             </div>
           </div>
         </div>

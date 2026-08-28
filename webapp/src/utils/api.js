@@ -611,11 +611,17 @@ export function listFriendRequests(telegramId) {
 }
 
 export function acceptFriendRequest(requestId) {
-  return post('/api/social/accept', { requestId });
+  return post('/api/social/accept', { requestId }).then((result) => {
+    if (result?.error) throw new Error(result.error);
+    return result;
+  });
 }
 
 export function rejectFriendRequest(requestId) {
-  return post('/api/social/reject', { requestId });
+  return post('/api/social/reject', { requestId }).then((result) => {
+    if (result?.error) throw new Error(result.error);
+    return result;
+  });
 }
 
 export function listFriends(telegramId) {
