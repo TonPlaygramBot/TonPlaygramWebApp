@@ -261,7 +261,7 @@ export default function Layout({ children }) {
       }
       navigate(getGameInvitePath(response.invite || {
         roomId,
-        game: location.pathname.split('/')[2],
+        game: params.get('game') || location.pathname.split('/')[2],
         token: params.get('token'),
         amount: params.get('amount')
       }), { replace: true });
