@@ -6182,6 +6182,12 @@ const seatBadges = [];
 let humanSeatBadgeAnchor = null;
 const HUMAN_SEAT_BADGE_BOTTOM_OFFSET = 82;
 const HUMAN_SEAT_BADGE_LEFT_OFFSET = -6;
+// AvatarTimer renders Murlan Royale's bottom player at 3.25rem with its
+// 0.98 visual scale. Keep Domino's camera target identical so switching
+// between the two games does not resize the player's live-video frame.
+const MURLAN_BOTTOM_AVATAR_FRAME_REM = 3.25 * 0.98;
+const HEAD_TO_HEAD_OPPONENT_TOP_RATIO = 0.14;
+const HEAD_TO_HEAD_OPPONENT_MIN_TOP = 96;
 const seatOverlay = document.createElement('div');
 seatOverlay.id = 'seatOverlay';
 document.body.appendChild(seatOverlay);
@@ -6349,8 +6355,8 @@ function hideSelfVideoUntilSeatAnchor(candidate) {
   candidate.style.position = 'fixed';
   candidate.style.left = '-9999px';
   candidate.style.top = '-9999px';
-  candidate.style.width = '56px';
-  candidate.style.height = '56px';
+  candidate.style.width = `${MURLAN_BOTTOM_AVATAR_FRAME_REM}rem`;
+  candidate.style.height = `${MURLAN_BOTTOM_AVATAR_FRAME_REM}rem`;
   candidate.style.opacity = '0';
   candidate.style.pointerEvents = 'none';
 }
@@ -6363,15 +6369,14 @@ function anchorSelfVideoToBottomSeat() {
     hideSelfVideoUntilSeatAnchor(candidate);
     return;
   }
-  const width = 56;
-  const height = 56;
+  const size = `${MURLAN_BOTTOM_AVATAR_FRAME_REM}rem`;
   const x = humanSeatBadgeAnchor.x;
   const y = humanSeatBadgeAnchor.y;
   candidate.style.position = 'fixed';
   candidate.style.left = `${x}px`;
   candidate.style.top = `${y}px`;
-  candidate.style.width = `${width}px`;
-  candidate.style.height = `${height}px`;
+  candidate.style.width = size;
+  candidate.style.height = size;
   candidate.style.transform = 'translate(-50%, -50%)';
   candidate.style.borderRadius = '999px';
   candidate.style.overflow = 'hidden';
@@ -6425,6 +6430,16 @@ function updateSeatBadgePositions() {
       humanSeatBadgeAnchor.y = anchorY;
       x = humanSeatBadgeAnchor.x;
       y = humanSeatBadgeAnchor.y;
+    } else if (N === 2) {
+      // In a portrait head-to-head match the opponent must face the player
+      // from the visually opposite end of the screen, never from a side seat.
+      x = rect.left + rect.width * 0.5;
+      y =
+        rect.top +
+        Math.max(
+          HEAD_TO_HEAD_OPPONENT_MIN_TOP,
+          rect.height * HEAD_TO_HEAD_OPPONENT_TOP_RATIO
+        );
     }
     badge.style.left = `${x}px`;
     badge.style.top = `${y}px`;
