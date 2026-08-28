@@ -18780,6 +18780,29 @@ const shotPowerRef = useRef(0);
     [resolveBallLabel]
   );
 
+  const resolveFlagLabel = useCallback((flagEmoji) => {
+    if (!flagEmoji) return 'Flag';
+    try {
+      const codePoints = [...flagEmoji].map((character) => character.codePointAt(0));
+      if (codePoints.length === 2) {
+        const [firstCodePoint, secondCodePoint] = codePoints;
+        const regionalIndicatorA = 0x1f1e6;
+        const region = String.fromCharCode(
+          firstCodePoint - regionalIndicatorA + 65,
+          secondCodePoint - regionalIndicatorA + 65
+        );
+        if (typeof Intl !== 'undefined' && typeof Intl.DisplayNames === 'function') {
+          const displayNames = new Intl.DisplayNames(['en'], { type: 'region' });
+          return displayNames.of(region) || region;
+        }
+        return region;
+      }
+    } catch (err) {
+      console.warn('Pool Royale flag label resolve failed', err);
+    }
+    return flagEmoji;
+  }, []);
+
   const playerFlag = useMemo(
     () => FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)],
     []
