@@ -32,6 +32,24 @@ export function getInviteUrl(roomId, token, amount, game = 'snake') {
   return `${baseUrl}/games/${game}?table=${roomId}&token=${token}&amount=${amount}&inviteAccept=1`;
 }
 
+export function getInviteReplyMarkup(url, rejectToken) {
+  return {
+    inline_keyboard: [
+      [
+        // A web_app button keeps Telegram users inside the existing Mini App
+        // instead of opening the game URL in Telegram's generic browser frame.
+        { text: '✅ Accept', web_app: { url } },
+        {
+          text: '❌ Reject',
+          // Telegram limits callback_data to 64 bytes. Room/account IDs can be
+          // much longer, so the server supplies a short opaque action token.
+          callback_data: `reject_invite:${rejectToken}`,
+        },
+      ],
+    ],
+  };
+}
+
 function normalizeAssetPath(assetPath) {
   if (!assetPath || typeof assetPath !== 'string') return null;
   if (assetPath.startsWith('http://') || assetPath.startsWith('https://')) {
@@ -499,19 +517,7 @@ export async function sendInviteNotification(
   const caption = `${display} invited you to a ${type} game`;
 
   const url = getInviteUrl(roomId, token, amount, game);
-  const replyMarkup = {
-    inline_keyboard: [
-      [
-        { text: '✅ Accept', url },
-        {
-          text: '❌ Reject',
-          // Telegram limits callback_data to 64 bytes. Room/account IDs can be
-          // much longer, so the server supplies a short opaque action token.
-          callback_data: `reject_invite:${rejectToken}`,
-        },
-      ],
-    ],
-  };
+  const replyMarkup = getInviteReplyMarkup(url, rejectToken);
 
 
   const photo = info?.photoUrl ? { url: info.photoUrl } : { source: coinPath };
