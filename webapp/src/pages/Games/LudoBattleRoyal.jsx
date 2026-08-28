@@ -8142,7 +8142,7 @@ function disposeBoardGroup(group) {
   });
 }
 
-function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlineContext = null }) {
+function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlineContext = null, onlinePlayers = [] }) {
   const wrapRef = useRef(null);
   const rafRef = useRef(0);
   const controlsRef = useRef(null);
@@ -8650,12 +8650,30 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
   }, [applyCameraViewMode]);
 
   const players = useMemo(() => {
+    const localServerIndex = onlineContext?.accountId
+      ? onlinePlayers.findIndex((player) => String(player?.id || '') === String(onlineContext.accountId))
+      : -1;
+    const onlinePlayerForVisualSeat = (visualIndex) => {
+      if (localServerIndex < 0 || !onlinePlayers.length) return null;
+      const serverIndex = (localServerIndex - visualIndex + onlinePlayers.length) % onlinePlayers.length;
+      return onlinePlayers[serverIndex] || null;
+    };
     return Array.from({ length: activePlayerCount }, (_, index) => {
+      const matchedPlayer = onlinePlayerForVisualSeat(index);
       if (index === 0) {
         return {
           index,
-          photoUrl: avatar || '🙂',
-          name: username || 'You',
+          photoUrl: avatar || matchedPlayer?.avatar || '🙂',
+          name: username || matchedPlayer?.name || 'You',
+          color: playerColorsHex[index] ?? '#ffffff',
+          isAI: false
+        };
+      }
+      if (matchedPlayer) {
+        return {
+          index,
+          photoUrl: matchedPlayer.avatar || '👤',
+          name: matchedPlayer.name || `Player ${index + 1}`,
           color: playerColorsHex[index] ?? '#ffffff',
           isAI: false
         };
@@ -8670,7 +8688,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
         isAI: true
       };
     });
-  }, [activePlayerCount, aiFlags, avatar, username, playerColorsHex]);
+  }, [activePlayerCount, aiFlags, avatar, username, playerColorsHex, onlineContext?.accountId, onlinePlayers]);
   const getKingTokenHeightForPlayer = useCallback((playerIndex) => {
     const playerTokens = stateRef.current?.tokens?.[playerIndex];
     if (!Array.isArray(playerTokens) || !playerTokens.length) return 0.28;
@@ -14936,6 +14954,17 @@ export default function LudoBattleRoyal() {
   const mode = params.get('mode') || 'local';
   const onlineTableId = params.get('tableId') || params.get('table') || '';
   const accountIdParam = params.get('accountId') || '';
+  const onlinePlayers = useMemo(() => {
+    if (mode !== 'online') return [];
+    try {
+      const match = JSON.parse(window.sessionStorage?.getItem('ludoBattleRoyalOnlineMatch') || '{}');
+      return String(match?.tableId || '') === String(onlineTableId) && Array.isArray(match.players)
+        ? match.players
+        : [];
+    } catch {
+      return [];
+    }
+  }, [mode, onlineTableId]);
 
   const [resolvedOnlineAccountId, setResolvedOnlineAccountId] = useState(accountIdParam.trim());
   useEffect(() => {
@@ -14955,7 +14984,8 @@ export default function LudoBattleRoyal() {
   const game = (
     <Ludo3D avatar={avatar} username={username} aiFlagOverrides={aiFlagOverrides}
       playerCount={playerCount} aiCount={tableId === 'practice' ? requestedAiCount : playerCount - 1}
-      onlineContext={mode === 'online' ? { tableId: onlineTableId, accountId: resolvedOnlineAccountId } : null} />
+      onlineContext={mode === 'online' ? { tableId: onlineTableId, accountId: resolvedOnlineAccountId } : null}
+      onlinePlayers={onlinePlayers} />
   );
   return mode === 'online' ? (
     <GameLiveAvatarOverlay gameSlug="ludobattleroyal">{game}</GameLiveAvatarOverlay>

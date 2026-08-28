@@ -1,6 +1,7 @@
 import { ensureAccountId, getTelegramId } from './telegram.js';
 import { getAccountBalance } from './api.js';
 import { refreshSocketAuthIdentity, socket } from './socket.js';
+import { joinRoyalLobby } from './royalMatchmaking.js';
 
 const MATCHMAKING_REFRESH_MS = 120000;
 const SOCKET_TIMEOUT_MS = 6000;
@@ -181,60 +182,59 @@ export async function runSimpleOnlineFlow({
   };
 
   let seatAttempts = 0;
-  function seatPlayer(tableIdOverride = '', reconnecting = false) {
+  async function seatPlayer(tableIdOverride = '', reconnecting = false) {
     if (!active) return;
     if (!reconnecting) seatAttempts += 1;
-    socketInstance.emit('seatTable', {
-      ...identity(),
-      gameType,
-      stake: Number(stake.amount) || 0,
-      maxPlayers,
-      playerName,
-      avatar,
-      ...matchMeta,
-      mode: 'online',
-      token: stake.token,
-      tableId: tableIdOverride || tableId || undefined,
-      matchMeta: { ...matchMeta, mode: 'online', token: stake.token }
-    }, async (response = {}) => {
-      if (!active) return;
-      if (!response.success || !response.tableId) {
-        const retry = quickMatch || reconnecting || RECOVERABLE_ERRORS.has(response.error);
-        if (retry) {
-          setMatchStatus('Retrying matchmaking request…');
-          if (response.error === 'identity_mismatch') {
-            refreshSocketAuthIdentity({ accountId }, { reconnect: true });
-          }
-          await sleep(Math.min(RETRY_DELAY_MS * 2 ** Math.min(seatAttempts - 1, 2), 3000));
-          if (!active) return;
-          if (await waitForSocket(socketInstance)) {
-            await registerSocket(socketInstance, identity());
-            seatPlayer(tableIdOverride, reconnecting);
-          } else {
-            seatPlayer(tableIdOverride, reconnecting);
-          }
-          return;
-        }
-        setMatchError(`Could not join the online lobby${response.error ? ` (${String(response.error).replace(/_/g, ' ')})` : ''}.`);
-        cleanup({ keepError: true });
-        return;
+    const response = await joinRoyalLobby({
+      socket: socketInstance,
+      accountId,
+      criteria: {
+        ...identity(),
+        gameType,
+        stake: Number(stake.amount) || 0,
+        maxPlayers,
+        playerName,
+        avatar,
+        ...matchMeta,
+        mode: 'online',
+        token: stake.token,
+        tableId: tableIdOverride || tableId || undefined,
+        matchMeta: { ...matchMeta, mode: 'online', token: stake.token }
       }
-      pendingTableId = response.tableId;
-      setMatchPlayers?.(Array.isArray(response.players) ? response.players : []);
-      if (response.started && response.gameStart) {
-        handleGameStart(response.gameStart);
-        return;
-      }
-      setMatchStatus(response.players?.length >= maxPlayers
-        ? 'Match found. Securing every seat…'
-        : quickMatch
-          ? 'Waiting for the next same-stake opponent…'
-          : 'Private table ready. Waiting for your opponent…');
-      // Ready only means this client has loaded the lightweight lobby. Both
-      // clients still navigate together exclusively from gameStart.
-      socketInstance.emit('confirmReady', { ...identity(), tableId: response.tableId });
-      armRefresh();
     });
+    if (!active) return;
+    if (!response.success || !response.tableId) {
+      const retry = quickMatch || reconnecting || RECOVERABLE_ERRORS.has(response.error);
+      if (retry) {
+        setMatchStatus('Retrying matchmaking request…');
+        if (response.error === 'identity_mismatch') {
+          refreshSocketAuthIdentity({ accountId }, { reconnect: true });
+        }
+        await sleep(Math.min(RETRY_DELAY_MS * 2 ** Math.min(seatAttempts - 1, 2), 3000));
+        if (!active) return;
+        await waitForSocket(socketInstance);
+        seatPlayer(tableIdOverride, reconnecting);
+        return;
+      }
+      setMatchError(`Could not join the online lobby${response.error ? ` (${String(response.error).replace(/_/g, ' ')})` : ''}.`);
+      cleanup({ keepError: true });
+      return;
+    }
+    pendingTableId = response.tableId;
+    setMatchPlayers?.(Array.isArray(response.players) ? response.players : []);
+    if (response.started && response.gameStart) {
+      handleGameStart(response.gameStart);
+      return;
+    }
+    setMatchStatus(response.players?.length >= maxPlayers
+      ? 'Match found. Securing every seat…'
+      : quickMatch
+        ? 'Waiting for the next same-stake opponent…'
+        : 'Private table ready. Waiting for your opponent…');
+    // Ready only means this client has loaded the lightweight lobby. Both
+    // clients still navigate together exclusively from gameStart.
+    socketInstance.emit('confirmReady', { ...identity(), tableId: response.tableId });
+    armRefresh();
   }
 
   setMatching(true);
@@ -278,7 +278,7 @@ export async function runSimpleOnlineFlow({
     socketInstance.on('connect', handleReconnect);
     socketInstance.on('connect_error', handleConnectionError);
     socketInstance.on('disconnect', handleDisconnect);
-    seatPlayer();
+    await seatPlayer();
     return { ok: true, cleanup, accountId };
   } catch {
     setMatchError('Could not start online matchmaking. Please retry.');
