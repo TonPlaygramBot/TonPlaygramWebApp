@@ -5,6 +5,7 @@ import LoginOptions from './LoginOptions.jsx';
 import SocialChannels from './SocialChannels.jsx';
 import { socket } from '../utils/socket.js';
 import { getTelegramId } from '../utils/telegram.js';
+import { getGameInvitePath } from '../utils/gameInviteUrl.js';
 import {
   acceptFriendRequest,
   rejectFriendRequest,
@@ -307,7 +308,7 @@ export default function HomeSocialHub() {
                       </p>
                     </div>
                     <Link
-                      to={`/games/${invite.game || 'snake'}?table=${invite.roomId}&token=${invite.token}&amount=${invite.amount}`}
+                      to={getGameInvitePath({ ...invite, inviteAccept: true })}
                       className="px-2 py-1 rounded bg-primary hover:bg-primary-hover text-white text-[11px]"
                     >
                       Join

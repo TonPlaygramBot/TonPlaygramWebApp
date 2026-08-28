@@ -16,6 +16,7 @@ import Footer from './Footer.jsx';
 import PwaInstallBanner from './PwaInstallBanner.jsx';
 import UpdatingOverlay from './UpdatingOverlay.jsx';
 import useAppUpdate from '../hooks/useAppUpdate.js';
+import { getGameInvitePath } from '../utils/gameInviteUrl.js';
 
 const GAME_ACTIVE_KEY = 'tonplaygram-game-active';
 
@@ -213,7 +214,7 @@ export default function Layout({ children }) {
 
   useEffect(() => {
     const onAccepted = (acceptedInvite) => {
-      navigate(`/games/${acceptedInvite.game || 'snake'}?table=${acceptedInvite.roomId}&token=${acceptedInvite.token}&amount=${acceptedInvite.amount}`);
+      navigate(getGameInvitePath(acceptedInvite));
     };
     const onRejected = () => setCallNotice('Your game invite was rejected');
     socket.on('gameInviteAccepted', onAccepted);
@@ -253,9 +254,18 @@ export default function Layout({ children }) {
     const params = new URLSearchParams(location.search);
     const roomId = params.get('table');
     if (params.get('inviteAccept') !== '1' || !roomId) return;
-    socket.emit('gameInvite:accept', { roomId, playerId: getPlayerId() });
-    params.delete('inviteAccept');
-    navigate(`${location.pathname}?${params.toString()}`, { replace: true });
+    socket.emit('gameInvite:accept', { roomId, playerId: getPlayerId() }, (response) => {
+      if (!response?.success) {
+        setCallNotice('This game invite expired or is no longer available');
+        return;
+      }
+      navigate(getGameInvitePath(response.invite || {
+        roomId,
+        game: location.pathname.split('/')[2],
+        token: params.get('token'),
+        amount: params.get('amount')
+      }), { replace: true });
+    });
   }, [location.pathname, location.search, navigate]);
 
   const showNavbar = !(
@@ -363,9 +373,7 @@ export default function Layout({ children }) {
                 return;
               }
               const accepted = response.invite || invite;
-              navigate(
-                `/games/${accepted.game || 'snake'}?table=${accepted.roomId}&token=${accepted.token}&amount=${accepted.amount}`
-              );
+              navigate(getGameInvitePath(accepted));
             });
           }
           setInvite(null);

@@ -25,11 +25,23 @@ function resolvePublicAssetPath(assetPath) {
 const coinPath = resolvePublicAssetPath(TPC_ICON_ASSET);
 const fallbackAvatarPath = path.join(publicPath, 'assets/icons/profile.svg');
 
-export function getInviteUrl(roomId, token, amount, game = 'snake') {
+export function getInviteUrl(roomId, token, amount, game = 'snake', capacity = 2) {
   const baseUrl =
     process.env.WEBAPP_BASE_URL ||
     'https://tonplaygramwebapp.onrender.com';
-  return `${baseUrl}/games/${game}?table=${roomId}&token=${token}&amount=${amount}&inviteAccept=1`;
+  const safeGame = String(game || 'snake').trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || 'snake';
+  const params = new URLSearchParams({
+    table: String(roomId || ''),
+    tableId: String(roomId || ''),
+    mode: 'online',
+    capacity: String(Math.max(2, Number(capacity) || 2)),
+    players: String(Math.max(2, Number(capacity) || 2)),
+    type: 'regular',
+    inviteAccept: '1'
+  });
+  if (token) params.set('token', String(token));
+  if (amount !== undefined && amount !== null && amount !== '') params.set('amount', String(amount));
+  return `${baseUrl.replace(/\/$/, '')}/games/${safeGame}?${params.toString()}`;
 }
 
 export function getInviteReplyMarkup(url, rejectToken) {

@@ -18,6 +18,7 @@ import { socket } from '../utils/socket.js';
 import InvitePopup from './InvitePopup.jsx';
 import PlayerInvitePopup from './PlayerInvitePopup.jsx';
 import gamesCatalog from '../config/gamesCatalog.js';
+import { getGameInvitePath } from '../utils/gameInviteUrl.js';
 
 function getGameFromTableId(id) {
   if (!id) return 'snake';
@@ -574,7 +575,7 @@ export default function LeaderboardCard() {
               },
               (res) => {
                 if (res && res.success) {
-                  window.location.href = `/games/${game}?table=${roomId}&token=${stake.token}&amount=${stake.amount}`;
+                  window.location.href = getGameInvitePath({ game, roomId, ...stake });
                 } else {
                   alert(res?.error || 'Failed to send invite');
                 }
@@ -611,7 +612,12 @@ export default function LeaderboardCard() {
               },
               (res) => {
                 if (res && res.success) {
-                  window.location.href = `/games/${game}?table=${roomId}&token=${stake.token}&amount=${stake.amount}`;
+                  window.location.href = getGameInvitePath({
+                    game,
+                    roomId,
+                    capacity: selected.length + 1,
+                    ...stake
+                  });
                 } else {
                   alert(res?.error || 'Failed to send invite');
                 }
