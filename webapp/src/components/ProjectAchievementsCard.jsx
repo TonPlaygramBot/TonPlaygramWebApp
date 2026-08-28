@@ -1,508 +1,134 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import {
+  Check,
+  ChevronDown,
+  CircleDot,
+  Landmark,
+  Rocket,
+  ShieldCheck,
+  Sparkles,
+  Target,
+  Users,
+  WalletCards,
+} from 'lucide-react';
 import gamesCatalog from '../config/gamesCatalog.js';
-import { getGameThumbnail } from '../config/gameAssets.js';
+
+const achievements = [
+  { title: 'Wallet & public ledgers', detail: 'TPC transfers, deposits, withdrawals, game rewards and mining records are live and auditable.', icon: WalletCards },
+  { title: 'Social play', detail: 'Friends, inbox, in-game chat, Telegram notifications and group invitations are available.', icon: Users },
+  { title: 'Rewards engine', detail: 'Daily check-ins, mining, rewarded video, social tasks, referrals, Lucky Card and Spin & Win are active.', icon: Sparkles },
+  { title: 'Competitive systems', detail: 'Matchmaking, tournament brackets, leaderboards and automated winner gifts are delivered.', icon: Target },
+  { title: 'Store & digital items', detail: 'The marketplace, NFT gifts and the majority of the visual store catalogue are available.', icon: ShieldCheck },
+];
+
+const roadmap = [
+  { title: 'Connection reliability', progress: 85, status: 'Final QA', description: 'Complete reconnection coverage, high-latency testing and multiplayer load validation.' },
+  { title: 'Store visual system', progress: 85, status: 'In production', description: 'Replace the remaining legacy placeholders and unify item lighting and metadata.' },
+  { title: 'Native mobile launch', progress: 70, status: 'Preparing release', description: 'Finish compliance, tune mid-range device performance and stage Android and iOS rollout.' },
+  { title: 'Community operations', progress: 40, status: 'Building', description: 'Introduce structured voting, monthly roadmap reviews and public issue tracking.' },
+  { title: 'TPG token utility', progress: 20, status: 'Planning', description: 'Finalize token economics, compliance, minting and the in-app utility rollout.' },
+  { title: 'Exchange readiness', progress: 10, status: 'Planned', description: 'Prepare documentation, liquidity strategy and a responsible CEX/DEX launch sequence.' },
+];
+
+const feeSplit = [
+  { label: 'Player rewards', description: 'Prize pools and competitive incentives', value: 4, color: '#d7b96e' },
+  { label: 'Treasury & liquidity', description: 'Long-term ecosystem stability', value: 3, color: '#9b8fd9' },
+  { label: 'Product & infrastructure', description: 'Servers, security and game updates', value: 2, color: '#65a9a1' },
+  { label: 'Community growth', description: 'Campaigns and partnerships', value: 1, color: '#b87861' },
+];
 
 export default function ProjectAchievementsCard() {
-  const [expandedInfo, setExpandedInfo] = useState({ type: null, key: null });
-  const handleToggleInfo = (type, key) => {
-    setExpandedInfo((current) => {
-      if (current.type === type && current.key === key) {
-        return { type: null, key: null };
-      }
-      return { type, key };
-    });
-  };
-  const InfoIcon = ({ infoType, infoKey, label }) => (
-    <button
-      type="button"
-      onClick={() => handleToggleInfo(infoType, infoKey)}
-      className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-border/70 bg-surface/80 text-[10px] font-bold text-muted shadow-sm transition hover:text-foreground"
-      aria-label={`Open info about ${label}`}
-    >
-      i
-    </button>
-  );
-
-  const completionThreshold = 90;
-  const calculateAverageProgress = (items) => {
-    if (!items.length) {
-      return 0;
-    }
-
-    const totalProgress = items.reduce(
-      (sum, item) => sum + Math.min(Math.max(item.progress ?? 0, 0), 100),
-      0,
-    );
-    return Math.round(totalProgress / items.length);
-  };
-  const deliveredAchievements = [
-    {
-      label: '🧾 Wallet transaction history works',
-      progress: 100,
-      info:
-        'Completed: a full wallet ledger with timestamped deposits, withdrawals, rewards, and gameplay transfers. Each entry shows transaction type, source, and balance delta so audits are straightforward. Next: exportable statements (CSV/PDF), searchable transaction IDs, and advanced filters (date range, amount, source) with quick presets.',
-    },
-    {
-      label: '💬 In-chat TPG transfers enabled',
-      progress: 100,
-      info:
-        'Completed: peer-to-peer TPG transfers directly in chat with confirmations, balance updates, and receipts for each send. Status updates are embedded in the conversation for traceability. Next: optional transfer limits, scheduled sends, and scam-prevention alerts with receiver verification and risk checks.',
-    },
-    {
-      label: '🧑‍🤝‍🤝 Friends and inbox chat',
-      progress: 100,
-      info:
-        'Completed: friend list management, direct messaging, and system notifications. Players can add/remove friends, view online status, and receive delivery receipts with timestamps. Next: group inboxes, mute controls, and moderation tools (report, block, admin roles) with escalation workflows.',
-    },
-    {
-      label: '🎰 Roulette spin live',
-      progress: 100,
-      info:
-        'Completed: roulette minigame with live spin animation, prize resolution, and automated payout tracking. Spin results and rewards are logged per session for transparency. Next: daily limits, player history view, and jackpot events with capped exposure and published odds.',
-    },
-    {
-      label:
-        '🤝 Game invites for 1v1 or group play with Telegram notifications (Android/iOS push notifications after migration)',
-      progress: 100,
-      info:
-        'Completed: 1v1 and group invites with Telegram notifications, match lobby deep links, and invite acceptance tracking. Invites show sender, mode, and time for clear context. Next: Android/iOS push notifications post-migration, invite expiry rules, and anti-spam throttling with rate limits.',
-    },
-    {
-      label: '💬 In-game chat enabled',
-      progress: 100,
-      info:
-        'Completed: real-time in-match chat with message delivery, basic emoji, and session persistence. Chat state remains visible during gameplay with delivery indicators. Next: quick chat presets, anti-spam rate limits, and mute/report actions with moderator review.',
-    },
-    {
-      label: '🕹️ Telegram bot and web app integration',
-      progress: 100,
-      info:
-        'Completed: Telegram bot connected to the web app for login, deep links, and shared account state. The bot can route users into specific screens and notify about matches. Next: richer bot commands, account linking prompts, and maintenance alerts with status banners.',
-    },
-    {
-      label: '🔄 Daily Check-In rewards',
-      progress: 100,
-      info:
-        'Completed: daily check-in streaks with consecutive-day tracking and immediate rewards. Reward claims update balances instantly with streak status. Next: streak recovery items, calendar view, and milestone bonuses with tiered payouts and previewed rewards.',
-    },
-    {
-      label: '⛏️ Mining system active',
-      progress: 100,
-      info:
-        'Completed: mining accrual timers, claim flows, and reward calculations. Users can start, wait, and claim with clear countdowns and balance updates. Next: tiered mining boosts, cooldown indicators, and anti-abuse monitoring with anomaly detection.',
-    },
-    {
-      label: '📺 Ad watch rewards',
-      progress: 100,
-      info:
-        'Completed: rewarded ad flow with completion verification and automatic crediting. Failed or interrupted ads do not pay out, and attempts are logged. Next: ad frequency caps, per-region fill controls, and opt-out settings with user consent.',
-    },
-    {
-      label: '🎯 Social tasks for X, Telegram, TikTok',
-      progress: 100,
-      info:
-        'Completed: social quests for X, Telegram, and TikTok with task completion tracking and payouts. Each task logs completion and reward status with timestamps. Next: proof-of-completion checks, campaign scheduling, and anti-fraud validation.',
-    },
-    {
-      label: '📹 Intro video view rewards',
-      progress: 100,
-      info:
-        'Completed: intro video reward flow with completion detection and payout. Users see clear progress and completion status tied to rewards. Next: multi-language video variants and rewatch limits with retention analytics.',
-    },
-    {
-      label: '🎡 Spin & Win wheel',
-      progress: 100,
-      info:
-        'Completed: Spin & Win wheel with randomized prizes, animations, and reward delivery. Reward outcomes are logged per spin for auditability. Next: seasonal prize pools and rarity odds transparency.',
-    },
-    {
-      label: '🍀 Lucky Card prizes',
-      progress: 100,
-      info:
-        'Completed: Lucky Card draws with reveal animation, prize validation, and auto-crediting. Prize history is tracked per user with timestamps. Next: limited-time card sets and streak bonuses.',
-    },
-    {
-      label: '🎁 NFT gifts',
-      progress: 100,
-      info:
-        'Completed: NFT gift distribution for campaigns, rewards, and partner drops with claim tracking. Users can see claim status, ownership, and drop source. Next: gift previews, rarity labels, and transfer history.',
-    },
-    {
-      label: '🚀 Referral boost: invite more friends to earn more TPG',
-      progress: 100,
-      info:
-        'Completed: referral boosts tied to invited friends, conversion tracking, and bonus payouts. Each referral shows status and reward value. Next: referral tiers, invite analytics, and anti-fraud checks with flagged patterns.',
-    },
-    {
-      label: '🛒 NFT marketplace for user listings',
-      progress: 100,
-      info:
-        'Completed: NFT marketplace listings, browsing, and purchases with ownership updates. Listings show price, owner, and availability with clear ownership changes. Next: seller analytics, floor price view, and listing history.',
-    },
-    {
-      label: '🖼️ Store catalog photo set finalized',
-      progress: 85,
-      info:
-        'In progress: most catalog photos are aligned, but some thumbnails still fall back to placeholders (notably chess pieces and other legacy items). Next: locate original captures for every remaining item, refresh the missing thumbnails, and re-verify lighting parity for the zoom previews.',
-    },
-    {
-      label: '🏆 Game tournaments live',
-      progress: 100,
-      info:
-        'Completed: tournament brackets, matchmaking, and leaderboard updates. Players can join, play, and see standings with match results. Next: tournament seasons, entry fees, and anti-cheat enforcement.',
-    },
-    {
-      label: '🎁 Tournament winner gifts',
-      progress: 100,
-      info:
-        'Completed: automated gift delivery to winners with audit logs. Winners receive confirmations and reward receipts. Next: tiered prize pools and on-chain proof of rewards.',
-    },
-    {
-      label: '🏦 Game transactions are public',
-      progress: 100,
-      info:
-        'Completed: public ledger entries for game transactions with verification visibility. Users can confirm IDs and timestamps per match. Next: explorer links and advanced filters.',
-    },
-    {
-      label: '⛏️ Mining transactions are public',
-      progress: 100,
-      info:
-        'Completed: public mining transaction records for auditable rewards and claims. Claim history stays visible with reward amounts. Next: explorer deep links and export tools.',
-    },
-  ];
-
-  const roadmapSteps = [
-    {
-      title: 'Online Connection Fix',
-      description:
-        'Fixing the online connection is almost done, partly completed with a bit left to finalize.',
-      progress: 85,
-      info:
-        'Done: stability patches for session joins, improved lobby handshakes, and timeout tuning. Sessions are more stable in high-latency cases with fewer mid-match drops. Next: finalize reconnection flow, resolve edge-case disconnects, and complete QA sign-off with load testing.',
-      nextActions: [
-        'Finalize reconnection flow for dropped sessions.',
-        'Resolve edge-case disconnects across high-latency tests.',
-        'Complete QA sign-off with load testing coverage.',
-      ],
-    },
-    {
-      title: 'Store Item Photos',
-      description: 'Finalize the full store catalog photo set and keep image metadata aligned.',
-      progress: 85,
-      info:
-        'In progress: the photo set is mostly complete, but several thumbnails are still missing originals (chess pieces and other legacy items). We need to locate the source images, update thumbnails, and re-check lighting match across zoom previews.',
-      nextActions: [
-        'Locate original renders for chess pieces and other missing thumbnails.',
-        'Regenerate thumbnails from the original captures and verify metadata.',
-        'Confirm lighting parity between the zoom preview and store thumbnails.',
-      ],
-    },
-    {
-      title: 'Mobile Launch',
-      description:
-        'Release the Playgram app on Android and iOS with the current 3D game lineup.',
-      progress: 70,
-      info:
-        'Done: Android/iOS builds with core 3D titles and onboarding flow stabilized. Initial crash fixes are in place and device coverage is expanding. Next: store compliance checks, performance tuning, and final release submission with staged rollout.',
-      nextActions: [
-        'Finish store compliance checks and policy requirements.',
-        'Tune performance for mid-range devices.',
-        'Submit release builds with staged rollout plan.',
-      ],
-    },
-    {
-      title: 'Growth & Community',
-      description:
-        'Gather Telegram group feedback to identify glitches, errors, and malfunctions, then take new feature requests to community votes so every voice is heard.',
-      progress: 40,
-      info:
-        'Done: feedback channels organized and initial bug triage underway. Top issues are tagged and routed to owners. Next: formal community voting, monthly roadmap reviews, and public issue status updates with resolution targets.',
-      nextActions: [
-        'Launch formal community voting for feature requests.',
-        'Run monthly roadmap review cadence.',
-        'Publish public issue status with resolution targets.',
-      ],
-    },
-    {
-      title: 'TPG Tokenization',
-      description:
-        'Mint the official TPG token and finalize token utility across the ecosystem.',
-      info:
-        'Done: token utility requirements drafted and reward flows scoped. Utility includes rewards, purchases, and marketplace use cases with compliance checks. Next: finalize token economics, minting plan, and in-app utility rollout timeline.',
-      nextActions: [
-        'Finalize token economics and minting plan.',
-        'Lock the in-app utility rollout timeline.',
-        'Confirm compliance checks for rewards and purchases.',
-      ],
-    },
-    {
-      title: 'Exchange Readiness',
-      description:
-        'Begin CEX outreach and prepare DEX liquidity provisioning.',
-      info:
-        'Done: exchange target list and readiness checklist drafted. Initial compliance requirements are outlined and owners assigned. Next: compliance docs, liquidity provisioning plan, and outreach cadence.',
-      nextActions: [
-        'Complete compliance documentation package.',
-        'Define DEX liquidity provisioning plan.',
-        'Set outreach cadence for CEX partners.',
-      ],
-    },
-    {
-      title: 'CEX + DEX Listings',
-      description:
-        'List on decentralized exchanges and finalize listings on major CEX partners.',
-      info:
-        'Done: listing requirements compiled and partner shortlist created. Pre-listing timelines are being estimated with dependency mapping. Next: finalize DEX deployment, complete CEX negotiations, and announce timelines.',
-      nextActions: [
-        'Finalize DEX deployment and liquidity launch.',
-        'Complete CEX negotiations and agreements.',
-        'Announce public listing timelines.',
-      ],
-    },
-    {
-      title: 'Next Phases',
-      description:
-        'Post-listing initiatives are in progress and will be announced after CEX/DEX milestones.',
-      info:
-        'Done: post-listing initiative backlog defined. Items include new game features, partnerships, and platform enhancements with owners. Next: unveil full roadmap after listings are complete.',
-      nextActions: [
-        'Finalize post-listing initiative owners.',
-        'Prepare full roadmap announcement package.',
-        'Sequence new game features and partnerships.',
-      ],
-    },
-  ];
-  const normalizedRoadmapSteps = roadmapSteps.map((step) => ({
-    ...step,
-    progress: step.progress ?? 0,
-  }));
-  const promotedRoadmapAchievements = normalizedRoadmapSteps
-    .filter((step) => step.progress >= completionThreshold)
-    .map((step) => ({
-      label: `✅ ${step.title}`,
-      progress: step.progress,
-      info: `${step.info ?? step.description} Current progress: ${step.progress}%.`,
-    }));
-  const achievements = [...deliveredAchievements, ...promotedRoadmapAchievements];
-  const roadmap = normalizedRoadmapSteps.filter(
-    (step) => step.progress < completionThreshold,
-  );
-  const achievementsProgress = calculateAverageProgress(achievements);
-  const roadmapProgress = calculateAverageProgress(normalizedRoadmapSteps);
-
-  const poolVariants = [
-    {
-      name: '8Ball',
-      image: '/assets/icons/8ballrack.png',
-    },
-    {
-      name: '9 Ball',
-      image: '/assets/icons/9ballrack.png',
-    },
-    {
-      name: 'American Billiards',
-      image: '/assets/icons/American%20Billiards%20.png',
-    },
-  ];
-
-  const liveGameLineup = [
-    ...gamesCatalog.filter((game) => game.slug !== 'poolroyale'),
-    ...poolVariants,
-  ];
-  const liveGameDetails = {
-    'Snakes & Ladders': {
-      info:
-        'Classic board game mode is live with turn-based rolls, animated pieces, and rewards tied to match outcomes.',
-    },
-    Roulette: {
-      info:
-        'Roulette is fully playable with real-time spin results, payout resolution, and reward delivery.',
-    },
-    'Pool Royale': {
-      info:
-        'Pool Royale is in progress with core physics and visuals delivered; multiplayer matchmaking and ranked progression are the next gaps to close.',
-    },
-    '8Ball': {
-      info:
-        '8Ball ruleset is live with polished ball physics, AI opponents, and shot timers. Online PvP is next.',
-    },
-    '9 Ball': {
-      info:
-        '9 Ball mode is live with accurate rack rules, foul detection, and AI play. Competitive online lobbies remain in progress.',
-    },
-    'American Billiards': {
-      info:
-        'American Billiards is available with table physics tuned for the ruleset; ranked matchmaking and tournaments are still planned.',
-    },
-  };
-  const getGameInfo = (game) =>
-    liveGameDetails[game.name]?.info
-    ?? 'Core gameplay is delivered and playable. Missing pieces are the next multiplayer, progression, and competitive layers.';
+  const [showAllAchievements, setShowAllAchievements] = useState(false);
+  const [expandedStep, setExpandedStep] = useState(0);
+  const liveGames = useMemo(() => gamesCatalog.filter((game) => !game.comingSoon).length, []);
+  const roadmapProgress = Math.round(roadmap.reduce((sum, item) => sum + item.progress, 0) / roadmap.length);
+  const visibleAchievements = showAllAchievements ? achievements : achievements.slice(0, 3);
 
   return (
-    <div className="relative rounded-2xl border border-border/70 bg-gradient-to-br from-surface/95 via-surface/90 to-surface/80 p-5 shadow-xl shadow-black/5 space-y-6 overflow-hidden wide-card">
-      <div className="space-y-2 text-center">
-        <p className="text-[10px] uppercase tracking-[0.4em] text-muted">Playgram</p>
-        <h3 className="text-xl font-semibold">Achievements & Roadmap</h3>
-        <p className="text-xs text-muted max-w-[28rem] mx-auto">
-          Progress highlights, core game lineup, and the next delivery milestones.
-        </p>
-      </div>
-
-      <div className="rounded-xl border border-border/60 bg-surface/80 p-4 shadow-sm">
-        <div className="flex items-center justify-between">
-          <h4 className="text-sm font-semibold">Delivered Achievements</h4>
-          <div className="flex items-center gap-2 text-[10px] font-semibold text-emerald-400">
-            <span className="uppercase tracking-[0.2em] text-muted/70">live now</span>
-            <span>{achievementsProgress}%</span>
+    <section className="overflow-hidden rounded-[1.6rem] border border-[#d7b96e]/25 bg-[#0b1018] text-[#f5f1e8] shadow-2xl shadow-black/25 wide-card">
+      <header className="relative overflow-hidden border-b border-white/10 px-5 pb-5 pt-6">
+        <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-[#d7b96e]/10 blur-3xl" />
+        <div className="relative">
+          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.28em] text-[#d7b96e]">
+            <CircleDot size={12} /> Platform progress
+          </div>
+          <h2 className="mt-2 font-serif text-[1.65rem] leading-tight text-white">Built with purpose.<br />Growing with clarity.</h2>
+          <p className="mt-2 max-w-sm text-xs leading-relaxed text-slate-400">A transparent view of what is live today, what comes next, and how platform fees support the ecosystem.</p>
+          <div className="mt-5 grid grid-cols-3 divide-x divide-white/10 rounded-xl border border-white/10 bg-white/[0.035] py-3 text-center">
+            <Stat value={liveGames || gamesCatalog.length} label="Games live" />
+            <Stat value={`${achievements.length}`} label="Core systems" />
+            <Stat value={`${roadmapProgress}%`} label="Roadmap" />
           </div>
         </div>
-        <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-emerald-500/15">
-          <div
-            className="h-1.5 rounded-full bg-emerald-500"
-            style={{ width: `${achievementsProgress}%` }}
-          />
-        </div>
-        <ul className="mt-3 grid gap-2 text-xs text-muted sm:grid-cols-2">
-          {achievements.map((item) => (
-            <li
-              key={item.label}
-              className="rounded-lg border border-border/40 bg-surface/90 px-3 py-2"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-foreground">{item.label}</span>
-                  <InfoIcon infoType="achievement" infoKey={item.label} label={item.label} />
-                </div>
-                <span className="text-[10px] font-semibold text-emerald-400">
-                  {item.progress}%
-                </span>
-              </div>
-              {expandedInfo.type === 'achievement' && expandedInfo.key === item.label && (
-                <p className="mt-2 text-[11px] leading-relaxed text-muted">{item.info}</p>
-              )}
-            </li>
-          ))}
-        </ul>
-      </div>
+      </header>
 
-      <div className="rounded-xl border border-border/60 bg-surface/80 p-4 shadow-sm space-y-3">
-        <div className="flex items-center justify-between">
-          <h4 className="text-sm font-semibold">Live Game Lineup</h4>
-          <span className="text-[10px] uppercase tracking-[0.2em] text-muted/70">
-            full 3D focus
-          </span>
-        </div>
-        <p className="text-xs text-muted">
-          Pool Royale includes 8Ball, 9 Ball, and American Billiards. All games are fully
-          playable (currently local vs AI only).
-        </p>
-        <div className="grid grid-cols-4 gap-2">
-          {liveGameLineup.map((game) => {
-            const thumbnail = getGameThumbnail(game.slug);
-            const gameInfo = getGameInfo(game);
-            return (
-              <div
-                key={game.name}
-                className="relative flex flex-col items-center gap-1 rounded-lg border border-border/50 bg-surface/90 p-2 text-center"
-              >
-                <div className="absolute right-1 top-1">
-                  <InfoIcon infoType="game" infoKey={game.name} label={game.name} />
+      <div className="space-y-8 px-4 py-6">
+        <div>
+          <SectionHeading index="01" title="Delivered achievements" subtitle="The foundation already in players’ hands." />
+          <div className="mt-4 space-y-2">
+            {visibleAchievements.map(({ title, detail, icon: Icon }) => (
+              <article key={title} className="flex gap-3 rounded-xl border border-white/[0.08] bg-white/[0.035] p-3.5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-emerald-400/20 bg-emerald-400/10 text-emerald-300"><Icon size={17} /></div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5"><h3 className="text-sm font-semibold text-white">{title}</h3><Check size={13} className="text-emerald-400" /></div>
+                  <p className="mt-1 text-[11px] leading-relaxed text-slate-400">{detail}</p>
                 </div>
-                <div className="relative flex flex-col items-center">
-                  {expandedInfo.type === 'game' && expandedInfo.key === game.name && (
-                    <div className="absolute bottom-full left-1/2 z-10 mb-1 w-40 -translate-x-1/2 rounded-md border border-border/60 bg-surface/95 p-2 text-[9px] leading-relaxed text-foreground shadow-lg">
-                      {gameInfo}
+              </article>
+            ))}
+          </div>
+          <button type="button" onClick={() => setShowAllAchievements((value) => !value)} className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#d7b96e]/20 !bg-transparent py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#d7b96e]">
+            {showAllAchievements ? 'Show less' : `View all ${achievements.length} systems`}
+            <ChevronDown size={14} className={showAllAchievements ? 'rotate-180 transition-transform' : 'transition-transform'} />
+          </button>
+        </div>
+
+        <div>
+          <SectionHeading index="02" title="Delivery roadmap" subtitle="Prioritized milestones, reported without hype." />
+          <div className="mt-5">
+            {roadmap.map((step, index) => {
+              const isExpanded = expandedStep === index;
+              return (
+                <div key={step.title} className="relative flex gap-3 pb-5 last:pb-0">
+                  {index < roadmap.length - 1 && <div className="absolute bottom-0 left-[13px] top-7 w-px bg-white/10" />}
+                  <div className={`relative z-[1] mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[10px] font-bold ${step.progress >= 70 ? 'border-[#d7b96e]/50 bg-[#d7b96e]/15 text-[#e4cc91]' : 'border-white/15 bg-[#111824] text-slate-400'}`}>{String(index + 1).padStart(2, '0')}</div>
+                  <button type="button" onClick={() => setExpandedStep(isExpanded ? -1 : index)} className="min-w-0 flex-1 !bg-transparent p-0 text-left shadow-none">
+                    <div className="flex items-start justify-between gap-2">
+                      <div><p className="text-sm font-semibold text-white">{step.title}</p><p className="mt-0.5 text-[10px] uppercase tracking-[0.14em] text-[#d7b96e]">{step.status}</p></div>
+                      <span className="font-mono text-xs text-slate-300">{step.progress}%</span>
                     </div>
-                  )}
-                  <img
-                    src={thumbnail || game.image}
-                    alt={game.name}
-                    className="h-10 w-10 rounded-md object-cover"
-                    loading="lazy"
-                    onError={(event) => {
-                      event.currentTarget.src = game.image;
-                    }}
-                  />
+                    <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/[0.08]"><div className="h-full rounded-full bg-gradient-to-r from-[#9d844c] to-[#e3c878]" style={{ width: `${step.progress}%` }} /></div>
+                    {isExpanded && <p className="mt-2 text-[11px] leading-relaxed text-slate-400">{step.description}</p>}
+                  </button>
                 </div>
-                <span className="text-[9px] font-semibold text-muted">{game.name}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <h4 className="text-sm font-semibold">Roadmap (Next)</h4>
-          <div className="flex items-center gap-2 text-[10px] font-semibold text-emerald-400">
-            <span className="uppercase tracking-[0.2em] text-muted/70">in progress</span>
-            <span>{roadmapProgress}%</span>
+              );
+            })}
           </div>
         </div>
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-emerald-500/15">
-          <div
-            className="h-1.5 rounded-full bg-emerald-500"
-            style={{ width: `${roadmapProgress}%` }}
-          />
+
+        <div>
+          <SectionHeading index="03" title="Tokenomics" subtitle="A simple, published fee allocation." />
+          <div className="mt-4 rounded-2xl border border-white/[0.08] bg-[#0e1520] p-4">
+            <div className="flex items-center gap-5">
+              <div className="relative h-28 w-28 shrink-0 rounded-full" style={{ background: 'conic-gradient(#d7b96e 0 40%, #9b8fd9 40% 70%, #65a9a1 70% 90%, #b87861 90% 100%)' }}>
+                <div className="absolute inset-[10px] flex flex-col items-center justify-center rounded-full bg-[#0e1520]"><strong className="font-serif text-2xl text-white">10%</strong><span className="text-[9px] uppercase tracking-[0.16em] text-slate-500">platform fee</span></div>
+              </div>
+              <div><div className="flex items-center gap-2 text-[#d7b96e]"><Landmark size={17} /><span className="text-xs font-semibold uppercase tracking-[0.16em]">Sustainable by design</span></div><p className="mt-2 text-[11px] leading-relaxed text-slate-400">Applied to paid matches and premium purchases. The other 90% is not a platform fee.</p></div>
+            </div>
+            <div className="mt-5 space-y-3 border-t border-white/[0.08] pt-4">
+              {feeSplit.map((item) => <div key={item.label} className="flex items-center gap-3"><span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: item.color }} /><div className="min-w-0 flex-1"><p className="text-xs font-medium text-slate-200">{item.label}</p><p className="text-[10px] text-slate-500">{item.description}</p></div><strong className="font-mono text-sm text-white">{item.value}%</strong></div>)}
+            </div>
+          </div>
+          <div className="mt-3 flex items-start gap-2 rounded-xl border border-[#d7b96e]/15 bg-[#d7b96e]/[0.06] p-3 text-[10px] leading-relaxed text-slate-400"><Rocket size={15} className="mt-0.5 shrink-0 text-[#d7b96e]" /><p>Token launch and exchange milestones remain roadmap items. Percentages describe platform fee allocation—not investment returns or price promises.</p></div>
         </div>
-        <ol className="space-y-3 text-xs text-muted">
-          {roadmap.map((step, index) => (
-            <li key={step.title} className="rounded-xl border border-border/70 bg-surface/70 p-3">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[10px] font-semibold text-muted/80">
-                  Phase {index + 1}
-                </span>
-                <span className="text-[10px] uppercase tracking-[0.2em] text-muted/60">
-                  upcoming
-                </span>
-              </div>
-              <div className="mt-2 space-y-1">
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-emerald-500/15">
-                  <div
-                    className="h-1.5 rounded-full bg-emerald-500"
-                    style={{ width: `${step.progress}%` }}
-                  />
-                </div>
-                <div className="text-[10px] font-semibold text-emerald-400">
-                  {step.progress}% complete ✔️
-                </div>
-              </div>
-              <div className="mt-1 flex items-start justify-between gap-2">
-                <div>
-                  <p className="text-sm font-semibold text-foreground">{step.title}</p>
-                  <p className="mt-1 text-xs text-muted">{step.description}</p>
-                  {step.nextActions?.length ? (
-                    <div className="mt-2 rounded-lg border border-border/50 bg-surface/80 px-2 py-2">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted/70">
-                        Next actions
-                      </p>
-                      <ul className="mt-1 space-y-1 text-[11px] text-muted">
-                        {step.nextActions.map((action) => (
-                          <li key={action} className="flex gap-2">
-                            <span className="text-emerald-400">•</span>
-                            <span>{action}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-                </div>
-                <InfoIcon
-                  infoType="roadmap"
-                  infoKey={step.title}
-                  label={step.title}
-                />
-              </div>
-              {expandedInfo.type === 'roadmap' && expandedInfo.key === step.title && (
-                <p className="mt-2 text-[11px] leading-relaxed text-muted">
-                  {step.info ?? step.description} Current progress: {step.progress}%.
-                </p>
-              )}
-            </li>
-          ))}
-        </ol>
       </div>
-    </div>
+    </section>
   );
+}
+
+function Stat({ value, label }) {
+  return <div className="px-1"><div className="font-serif text-xl text-white">{value}</div><div className="mt-0.5 text-[9px] uppercase tracking-[0.13em] text-slate-500">{label}</div></div>;
+}
+
+function SectionHeading({ index, title, subtitle }) {
+  return <div className="flex items-start gap-3"><span className="pt-1 font-mono text-[10px] text-[#d7b96e]">{index}</span><div><h3 className="font-serif text-lg text-white">{title}</h3><p className="mt-0.5 text-[11px] text-slate-500">{subtitle}</p></div></div>;
 }
