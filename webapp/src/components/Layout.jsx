@@ -81,6 +81,12 @@ export default function Layout({ children }) {
   }, []);
 
   useEffect(() => {
+    const onPushInvite = (event) => setInvite(event.detail);
+    window.addEventListener('game-invite-push', onPushInvite);
+    return () => window.removeEventListener('game-invite-push', onPushInvite);
+  }, []);
+
+  useEffect(() => {
     const onAccepted = ({ byName } = {}) => {
       setCallNotice(`${byName || 'A player'} accepted your friend request`);
       window.setTimeout(() => setCallNotice(''), 5000);
@@ -199,6 +205,19 @@ export default function Layout({ children }) {
   }, []);
 
   useEffect(() => {
+    const onAccepted = (acceptedInvite) => {
+      navigate(`/games/${acceptedInvite.game || 'snake'}?table=${acceptedInvite.roomId}&token=${acceptedInvite.token}&amount=${acceptedInvite.amount}`);
+    };
+    const onRejected = () => setCallNotice('Your game invite was rejected');
+    socket.on('gameInviteAccepted', onAccepted);
+    socket.on('gameInviteRejected', onRejected);
+    return () => {
+      socket.off('gameInviteAccepted', onAccepted);
+      socket.off('gameInviteRejected', onRejected);
+    };
+  }, [navigate]);
+
+  useEffect(() => {
     let id;
     const registerAndPing = () => {
       const playerId = getPlayerId();
@@ -222,6 +241,15 @@ export default function Layout({ children }) {
       window.removeEventListener('storage', registerAndPing);
     };
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const roomId = params.get('table');
+    if (params.get('inviteAccept') !== '1' || !roomId) return;
+    socket.emit('gameInvite:accept', { roomId, playerId: getPlayerId() });
+    params.delete('inviteAccept');
+    navigate(`${location.pathname}?${params.toString()}`, { replace: true });
+  }, [location.pathname, location.search, navigate]);
 
   const showNavbar = !(
     location.pathname.startsWith('/games/') &&
@@ -321,13 +349,18 @@ export default function Layout({ children }) {
         incoming
         group={Array.isArray(invite?.group)}
         onAccept={() => {
-          if (invite)
+          if (invite) {
+            socket.emit('gameInvite:accept', { roomId: invite.roomId, playerId: getPlayerId() });
             navigate(
               `/games/${invite.game || 'snake'}?table=${invite.roomId}&token=${invite.token}&amount=${invite.amount}`
             );
+          }
           setInvite(null);
         }}
-        onReject={() => setInvite(null)}
+        onReject={() => {
+          if (invite) socket.emit('gameInvite:reject', { roomId: invite.roomId, playerId: getPlayerId() });
+          setInvite(null);
+        }}
       />
 
       {friendRequest && (

@@ -29,7 +29,7 @@ export function getInviteUrl(roomId, token, amount, game = 'snake') {
   const baseUrl =
     process.env.WEBAPP_BASE_URL ||
     'https://tonplaygramwebapp.onrender.com';
-  return `${baseUrl}/games/${game}?table=${roomId}&token=${token}&amount=${amount}`;
+  return `${baseUrl}/games/${game}?table=${roomId}&token=${token}&amount=${amount}&inviteAccept=1`;
 }
 
 function normalizeAssetPath(assetPath) {

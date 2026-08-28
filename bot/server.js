@@ -23,6 +23,7 @@ import checkinRoutes from './routes/checkin.js';
 import socialRoutes from './routes/social.js';
 import socialAdminRoutes from './routes/socialAdmin.js';
 import { queueDueSocialPosts } from './services/socialPublishing.js';
+import { sendPushNotifications } from './services/pushNotificationService.js';
 import broadcastRoutes from './routes/broadcast.js';
 import storeRoutes from './routes/store.js';
 import adsRoutes from './routes/ads.js';
@@ -277,7 +278,14 @@ bot.action(/^reject_invite:(.+)/, async (ctx) => {
   try {
     await ctx.deleteMessage();
   } catch {}
+  const invite = pendingInvites.get(roomId);
   pendingInvites.delete(roomId);
+  if (invite) {
+    const response = { roomId, game: invite.game, token: invite.token, amount: invite.amount };
+    for (const sid of userSockets.get(String(invite.fromId)) || []) {
+      io.to(sid).emit('gameInviteRejected', response);
+    }
+  }
 });
 
 // Middleware and routes
@@ -494,6 +502,44 @@ const tableSeats = new Map();
 const tables = new Map();
 const userSockets = new Map();
 const pendingInvites = new Map();
+
+async function notifyInviteDevices(accountId, telegramId, invite) {
+  const user = await User.findOne({
+    $or: [
+      ...(accountId ? [{ accountId: String(accountId) }] : []),
+      ...(telegramId ? [{ telegramId: Number(telegramId) }] : [])
+    ]
+  }).select('pushTokens').lean();
+  if (!user?.pushTokens?.length) return;
+  const gameName = String(invite.game || 'snake').replace(/[-_]/g, ' ');
+  await sendPushNotifications(user.pushTokens, {
+    title: 'New game invite',
+    body: `${invite.fromName || 'A TonPlaygram player'} invited you to ${gameName}. Accept or reject now.`
+  }, { type: 'gameInvite', ...Object.fromEntries(Object.entries(invite).map(([key, value]) => [key, String(value ?? '')])) });
+}
+
+function respondToInvite(socket, payload = {}, accepted = false, cb) {
+  const roomId = String(payload.roomId || '');
+  const invite = pendingInvites.get(roomId);
+  if (!invite) return cb?.({ success: false, error: 'invite_not_found' });
+  const playerId = String(socket.data?.playerId || '');
+  if (!invite.toIds.map(String).includes(playerId)) {
+    return cb?.({ success: false, error: 'not_invited' });
+  }
+  const response = { roomId, game: invite.game, token: invite.token, amount: invite.amount, byId: playerId };
+  if (!accepted) {
+    pendingInvites.delete(roomId);
+    for (const sid of userSockets.get(String(invite.fromId)) || []) io.to(sid).emit('gameInviteRejected', response);
+    return cb?.({ success: true });
+  }
+  invite.acceptedIds = new Set([...(invite.acceptedIds || []), playerId]);
+  const allAccepted = invite.toIds.every((id) => invite.acceptedIds.has(String(id)));
+  if (allAccepted) {
+    pendingInvites.delete(roomId);
+    for (const sid of userSockets.get(String(invite.fromId)) || []) io.to(sid).emit('gameInviteAccepted', response);
+  }
+  cb?.({ success: true, start: allAccepted });
+}
 
 app.set('userSockets', userSockets);
 
@@ -3784,6 +3830,9 @@ io.on('connection', (socket) => {
       amount,
       game
     });
+    notifyInviteDevices(toId, toTelegramId, { fromId, fromName, roomId, token, amount, game }).catch((error) =>
+      console.error('Failed to send game invite push:', error.message)
+    );
     let url = getInviteUrl(roomId, token, amount, game);
     if (toTelegramId) {
       try {
@@ -3826,6 +3875,9 @@ io.on('connection', (socket) => {
         const toId = toIds[i];
         const toTelegramId = await resolveInviteTelegramId(toId, telegramIds[i]);
         const targets = await getUserSocketIds({ accountId: toId, telegramId: toTelegramId });
+        notifyInviteDevices(toId, toTelegramId, { fromId, fromName, roomId, token, amount, game }).catch((error) =>
+          console.error('Failed to send group invite push:', error.message)
+        );
         if (toTelegramId) {
           try {
             url = await sendInviteNotification(
@@ -3874,6 +3926,9 @@ io.on('connection', (socket) => {
       }, 45000);
     }
   );
+
+  socket.on('gameInvite:accept', (payload, cb) => respondToInvite(socket, payload, true, cb));
+  socket.on('gameInvite:reject', (payload, cb) => respondToInvite(socket, payload, false, cb));
 
   const clearSocketLobbySeats = () => {
     const pid = socket.data.playerId;
