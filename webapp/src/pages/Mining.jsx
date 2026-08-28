@@ -26,6 +26,7 @@ import { socket } from '../utils/socket.js';
 import InvitePopup from '../components/InvitePopup.jsx';
 import PlayerInvitePopup from '../components/PlayerInvitePopup.jsx';
 import { getGameInvitePath } from '../utils/gameInviteUrl.js';
+import { friendRequestId, isIncomingFriendRequest } from '../utils/friendRequests.js';
 
 function normalizeRequests(payload) {
   if (Array.isArray(payload)) return payload;
@@ -52,6 +53,8 @@ export default function Mining() {
     loadAvatar() || getTelegramPhotoUrl()
   );
   const [friendRequests, setFriendRequests] = useState([]);
+  const [friendRequestAction, setFriendRequestAction] = useState(null);
+  const [friendRequestError, setFriendRequestError] = useState('');
   const [inviteTarget, setInviteTarget] = useState(null);
   const [stake, setStake] = useState({ token: 'TPG', amount: 100 });
   const [myName, setMyName] = useState('');
@@ -135,6 +138,28 @@ export default function Mining() {
   const link = `https://t.me/${BOT_USERNAME}?start=${referral.referralCode}`;
   const totalBoost =
     (referral.bonusMiningRate || 0) + (referral.storeMiningRate || 0);
+  const incomingFriendRequests = friendRequests.filter((request) =>
+    isIncomingFriendRequest(request, telegramId, accountId)
+  );
+
+  async function respondToFriendRequest(request, action) {
+    const requestId = friendRequestId(request);
+    if (!requestId || friendRequestAction) return;
+
+    setFriendRequestError('');
+    setFriendRequestAction(`${requestId}:${action}`);
+    try {
+      if (action === 'accept') await acceptFriendRequest(requestId);
+      else await rejectFriendRequest(requestId);
+      setFriendRequests((requests) =>
+        requests.filter((item) => friendRequestId(item) !== requestId)
+      );
+    } catch (error) {
+      setFriendRequestError(error?.message || `Unable to ${action} this friend request.`);
+    } finally {
+      setFriendRequestAction(null);
+    }
+  }
 
   return (
     <>
@@ -213,46 +238,52 @@ export default function Mining() {
           />
           <h2 className="text-xl font-bold text-center text-white">Community & Referral Center</h2>
 
-          {friendRequests.length > 0 && (
+          {incomingFriendRequests.length > 0 && (
             <section className="space-y-1">
               <h3 className="text-lg font-semibold">Friend Requests</h3>
-              {friendRequests.map((fr) => (
-                <div key={fr._id} className="lobby-tile space-y-2">
-                  <span className="block text-sm">{fr.fromName || fr.from}</span>
-                  <div className="grid grid-cols-3 gap-2">
-                    <button
-                    onClick={async () => {
-                      await acceptFriendRequest(fr._id || fr.requestId);
-                      listFriendRequests(telegramId).then((requests) =>
-                        setFriendRequests(normalizeRequests(requests))
-                      );
-                    }}
-                    className="px-2 py-2 text-xs bg-primary hover:bg-primary-hover rounded"
-                  >
-                    Accept
-                  </button>
-                    <button
-                      onClick={async () => {
-                        await rejectFriendRequest(fr._id || fr.requestId);
-                        setFriendRequests((requests) => requests.filter(
-                          (request) => (request._id || request.requestId) !== (fr._id || fr.requestId)
-                        ));
-                      }}
-                      className="rounded bg-red-600 px-2 py-2 text-xs text-white hover:bg-red-500"
-                    >
-                      Reject
-                    </button>
-                    <button
-                      onClick={() => setFriendRequests((requests) => requests.filter(
-                        (request) => (request._id || request.requestId) !== (fr._id || fr.requestId)
-                      ))}
-                      className="rounded border border-border px-2 py-2 text-xs text-subtext hover:text-white"
-                    >
-                      Hide
-                    </button>
+              {friendRequestError && (
+                <p role="alert" className="rounded border border-red-500/60 bg-red-950/60 px-3 py-2 text-xs text-red-100">
+                  {friendRequestError}
+                </p>
+              )}
+              {incomingFriendRequests.map((fr) => {
+                const requestId = friendRequestId(fr);
+                const accepting = friendRequestAction === `${requestId}:accept`;
+                const rejecting = friendRequestAction === `${requestId}:reject`;
+                return (
+                  <div key={requestId} className="lobby-tile space-y-2">
+                    <span className="block text-sm">{fr.fromName || fr.from}</span>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        disabled={Boolean(friendRequestAction)}
+                        onClick={() => respondToFriendRequest(fr, 'accept')}
+                        className="rounded bg-primary px-2 py-2 text-xs hover:bg-primary-hover disabled:opacity-60"
+                      >
+                        {accepting ? 'Accepting…' : 'Accept'}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={Boolean(friendRequestAction)}
+                        onClick={() => respondToFriendRequest(fr, 'reject')}
+                        className="rounded bg-red-600 px-2 py-2 text-xs text-white hover:bg-red-500 disabled:opacity-60"
+                      >
+                        {rejecting ? 'Rejecting…' : 'Reject'}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={Boolean(friendRequestAction)}
+                        onClick={() => setFriendRequests((requests) => requests.filter(
+                          (request) => friendRequestId(request) !== requestId
+                        ))}
+                        className="rounded border border-border px-2 py-2 text-xs text-subtext hover:text-white disabled:opacity-60"
+                      >
+                        Hide
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </section>
           )}
 
