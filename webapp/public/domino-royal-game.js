@@ -6541,6 +6541,7 @@ function refreshSeatBadges(avatars = [], names = []) {
       isSelf: idx === human
     });
     badge.style.setProperty('--timer-gradient', gradient);
+    badge.dataset.playerIndex = String(idx);
     seatBadges.push(badge);
   });
   seatOverlay.style.setProperty('--timer-gradient', gradient);
@@ -9321,7 +9322,13 @@ function layoutSeat(idx) {
 function getVisualSeatIndex(logicalSeatIndex) {
   const seatCount = Math.max(1, N | 0);
   const normalized = (logicalSeatIndex - human) % seatCount;
-  return normalized < 0 ? normalized + seatCount : normalized;
+  const relativeSeat = normalized < 0 ? normalized + seatCount : normalized;
+  // With two players, seat 1 is the right-hand chair in the four-seat arena.
+  // Put the opponent in seat 2 instead so portrait players see the two people
+  // directly across from one another: local player at the bottom, opponent at
+  // the top.
+  if (seatCount === 2 && relativeSeat === 1) return 2;
+  return relativeSeat;
 }
 
 function computeHandSlotPosition(
