@@ -14,6 +14,7 @@ const games = [
   { gameType: 'poolroyale', maxPlayers: 2, matchMeta: { variant: '8ball', tableSize: '9ft' } },
   { gameType: 'snookerroyale', maxPlayers: 2, matchMeta: { playType: 'regular', tableSize: '12ft' } },
   { gameType: 'snake', maxPlayers: 4, matchMeta: {} },
+  { gameType: 'ludobattleroyal', maxPlayers: 3, matchMeta: { variant: 'classic' } },
   { gameType: 'ludobattleroyal', maxPlayers: 4, matchMeta: { variant: 'classic' } },
   { gameType: 'fourinrow', maxPlayers: 2, matchMeta: { boardSize: '7x6' } },
   { gameType: 'checkers', maxPlayers: 2, matchMeta: {} },
@@ -151,6 +152,36 @@ test('Test 1 through Test 8 receive identical lobby and game-start state in ever
             start.players.map((player) => player.name),
             Array.from({ length: game.maxPlayers }, (_, index) => `Test ${index + 1}`)
           );
+        }
+        if (game.gameType === 'ludobattleroyal') {
+          const initialStates = sockets.map((socket) => waitForEvent(
+            socket,
+            'ludoBattleState',
+            (payload) => payload?.tableId === tableId && payload.state?.revision === 0
+          ));
+          await Promise.all(sockets.map((socket, index) => emitAck(socket, 'joinLudoBattleTable', {
+            tableId,
+            accountId: `test-${index + 1}`
+          })));
+          const joinedStates = await Promise.all(initialStates);
+          assert.ok(joinedStates.every((payload) =>
+            payload.state.players.join('|') === joinedStates[0].state.players.join('|')
+          ), `${game.gameType}: clients did not join the same authoritative board`);
+
+          const rolledStates = sockets.map((socket) => waitForEvent(
+            socket,
+            'ludoBattleState',
+            (payload) => payload?.tableId === tableId && payload.state?.revision === 1
+          ));
+          const roll = await emitAck(sockets[0], 'ludoBattleRoll', {
+            tableId,
+            accountId: 'test-1'
+          });
+          assert.equal(roll.success, true);
+          const syncedStates = await Promise.all(rolledStates);
+          assert.ok(syncedStates.every((payload) =>
+            JSON.stringify(payload.state) === JSON.stringify(syncedStates[0].state)
+          ), `${game.gameType}: dice state was not synchronized to every board`);
         }
         if (game.gameType === 'fourinrow') {
           const initialStates = sockets.map((socket) => waitForEvent(

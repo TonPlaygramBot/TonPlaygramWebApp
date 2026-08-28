@@ -47,7 +47,10 @@ const GAME_ONLINE_POLICY = Object.freeze({
     allowMatchMeta: ['variant', 'targetPoints', 'mode', 'token']
   },
   ludobattleroyal: {
-    maxPlayers: [2, 4],
+    // The portrait lobby exposes 2, 3, and 4-seat tables. Keep the socket
+    // contract aligned so a three-player quick match is not rejected before
+    // it can enter the shared queue.
+    maxPlayers: [2, 3, 4],
     allowMatchMeta: ['variant', 'mode', 'token']
   },
   texasholdem: {
