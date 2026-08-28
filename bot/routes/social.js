@@ -5,6 +5,7 @@ import Message from '../models/Message.js';
 import Post from '../models/Post.js';
 import bot from '../bot.js';
 import authenticate from '../middleware/auth.js';
+import { sendPushNotifications } from '../services/pushNotificationService.js';
 
 const router = Router();
 
@@ -25,6 +26,26 @@ function requireMatchingTelegram(req, res, telegramId) {
     return false;
   }
   return true;
+}
+
+async function requireRequestRecipient(req, res, identity) {
+  if (authCanUseIdentity(req.auth, identity)) return true;
+  const auth = req.auth || {};
+  const ownerSelector = auth.accountId
+    ? { accountId: String(auth.accountId) }
+    : auth.googleId
+      ? { googleId: String(auth.googleId) }
+      : auth.telegramId != null
+        ? { telegramId: Number(auth.telegramId) }
+        : null;
+  const owner = ownerSelector
+    ? await User.findOne(ownerSelector).select('telegramId accountId').lean()
+    : null;
+  if (owner && [owner.telegramId, owner.accountId].some((value) => String(value) === String(identity))) {
+    return true;
+  }
+  res.status(403).json({ error: 'forbidden' });
+  return false;
 }
 
 function userIdentity(user) {
@@ -74,7 +95,7 @@ router.post('/request', async (req, res) => {
   }
   if (!requireMatchingTelegram(req, res, fromId)) return;
   const senderUser = await findSocialUser(fromId, 'telegramId accountId firstName lastName nickname photo friends');
-  const recipientUser = await findSocialUser(toId, 'telegramId accountId');
+  const recipientUser = await findSocialUser(toId, 'telegramId accountId pushTokens');
   if (!senderUser || !recipientUser) return res.status(404).json({ error: 'player not found' });
   const normalizedFromId = userIdentity(senderUser);
   const normalizedToId = userIdentity(recipientUser);
@@ -116,6 +137,11 @@ router.post('/request', async (req, res) => {
   } catch (err) {
     console.error('Failed to send Telegram notification:', err.message);
   }
+  sendPushNotifications(
+    recipient.pushTokens || [],
+    { title: 'New friend request', body: `${sender?.nickname || sender?.firstName || 'A player'} wants to add you as a friend.` },
+    { type: 'friendRequest', requestId: String(reqDoc._id) }
+  ).catch((err) => console.error('Failed to send friend request push:', err.message));
   res.json(reqDoc);
 });
 
@@ -123,13 +149,13 @@ router.post('/accept', async (req, res) => {
   const { requestId } = req.body;
   const fr = await FriendRequest.findById(requestId);
   if (!fr) return res.status(404).json({ error: 'request not found' });
-  if (!requireMatchingTelegram(req, res, fr.to)) return;
+  if (!(await requireRequestRecipient(req, res, fr.to))) return;
   if (fr.status !== 'pending') return res.json(fr);
   fr.status = 'accepted';
   await fr.save();
   await User.updateOne(userIdentityFilter(fr.from), { $addToSet: { friends: fr.to } });
   await User.updateOne(userIdentityFilter(fr.to), { $addToSet: { friends: fr.from } });
-  const sender = await findSocialUser(fr.from, 'accountId telegramId').lean();
+  const sender = await findSocialUser(fr.from, 'accountId telegramId pushTokens').lean();
   const recipient = await findSocialUser(fr.to, 'telegramId firstName lastName nickname')
     .select('firstName lastName nickname')
     .lean();
@@ -157,6 +183,11 @@ router.post('/accept', async (req, res) => {
   } catch (err) {
     console.error('Failed to send Telegram notification:', err.message);
   }
+  sendPushNotifications(
+    sender?.pushTokens || [],
+    { title: 'Friend request accepted', body: `${acceptedBy} accepted your friend request.` },
+    { type: 'friendRequestAccepted', requestId: String(fr._id) }
+  ).catch((err) => console.error('Failed to send friend acceptance push:', err.message));
   res.json(fr);
 });
 
@@ -164,7 +195,7 @@ router.post('/reject', async (req, res) => {
   const { requestId } = req.body;
   const fr = await FriendRequest.findById(requestId);
   if (!fr) return res.status(404).json({ error: 'request not found' });
-  if (!requireMatchingTelegram(req, res, fr.to)) return;
+  if (!(await requireRequestRecipient(req, res, fr.to))) return;
   if (fr.status === 'pending') {
     fr.status = 'rejected';
     await fr.save();
