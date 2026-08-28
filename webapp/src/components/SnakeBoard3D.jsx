@@ -3656,10 +3656,12 @@ function createDiceRollAnimation(
   {
     basePositions,
     baseY,
-    startPositions = []
+    startPositions = [],
+    rollId = null
   }
 ) {
   const start = performance.now();
+  const startQuaternions = diceArray.map((die) => die.quaternion.clone());
   const spinVectors = diceArray.map(() =>
     new THREE.Vector3(
       1.2 + Math.random() * 0.7,
@@ -3670,10 +3672,18 @@ function createDiceRollAnimation(
   const wobbleVectors = diceArray.map(
     () => new THREE.Vector3((Math.random() - 0.5) * 0.16, 0, (Math.random() - 0.5) * 0.16)
   );
-  const targetValues = diceArray.map(() => 1 + Math.floor(Math.random() * 6));
+  let targetValues = diceArray.map(() => 1 + Math.floor(Math.random() * 6));
 
   return {
     type: 'diceRoll',
+    rollId,
+    // The online result commonly arrives while the cube is still airborne.
+    // Keep the physical Ludo-style throw running and only change the face that
+    // is applied when it reaches the table.
+    setTargetValues(values = []) {
+      if (!Array.isArray(values) || !values.length) return;
+      targetValues = diceArray.map((_, index) => values[index] ?? values[values.length - 1] ?? 1);
+    },
     update: (now) => {
       const t = Math.min((now - start) / Math.max(1, DICE_ROLL_DURATION), 1);
       const eased = easeOutCubic(t);
@@ -3693,10 +3703,15 @@ function createDiceRollAnimation(
         position.y = THREE.MathUtils.lerp(startPos.y, endPos.y, eased) + bounce;
         die.position.copy(position);
 
-        const spinFactor = 1 - eased * 0.28;
-        die.rotation.x += spinVectors[index].x * spinFactor * 0.22;
-        die.rotation.y += spinVectors[index].y * spinFactor * 0.22;
-        die.rotation.z += spinVectors[index].z * spinFactor * 0.22;
+        // Derive rotation from elapsed progress instead of adding once per
+        // rendered frame. This gives 30/60/90 Hz phones the same complete roll.
+        const spinProgress = eased * (1 - eased * 0.14);
+        const spin = new THREE.Quaternion().setFromEuler(new THREE.Euler(
+          spinVectors[index].x * spinProgress * Math.PI * 2.4,
+          spinVectors[index].y * spinProgress * Math.PI * 2.4,
+          spinVectors[index].z * spinProgress * Math.PI * 2.4
+        ));
+        die.quaternion.copy(startQuaternions[index]).multiply(spin);
       });
       if (t >= 1) {
         diceArray.forEach((die, index) => {
@@ -7594,16 +7609,20 @@ export default function SnakeBoard3D({
           basePositions,
           baseY: diceBaseY,
           startPositions,
-          bouncePoints
+          bouncePoints,
+          rollId: diceEvent.id
         });
         if (rollAnimation) animationsRef.current.push(rollAnimation);
       }
     } else if (diceEvent.phase === 'end') {
       if (diceStateRef.current.currentId !== diceEvent.id) return;
-      removeAnimationsByType(animationsRef.current, 'diceRoll');
       const values = diceEvent.values || [];
       const active = diceSet.filter((die) => die.visible);
       if (active.length) {
+        const activeRoll = animationsRef.current.find(
+          (animation) => animation?.type === 'diceRoll' && animation?.rollId === diceEvent.id
+        );
+        activeRoll?.setTargetValues?.(values);
         const startStates = active.map((die) => ({
           position: die.position.clone(),
           quaternion: die.quaternion.clone()
@@ -7617,12 +7636,17 @@ export default function SnakeBoard3D({
           storedBases.length >= active.length
             ? storedBases.slice(0, active.length).map((vec) => vec.clone())
             : active.map((die) => die.position.clone());
-        const settleAnimation = createDiceSettleAnimation(active, {
-          basePositions,
-          baseY: diceBaseY,
-          startStates
-        });
-        if (settleAnimation) animationsRef.current.push(settleAnimation);
+        // If the result arrived before landing, the active roll now owns the
+        // authoritative final face. Starting a settle animation here would
+        // fight it and visually freeze the die in mid-air.
+        if (!activeRoll) {
+          const settleAnimation = createDiceSettleAnimation(active, {
+            basePositions,
+            baseY: diceBaseY,
+            startStates
+          });
+          if (settleAnimation) animationsRef.current.push(settleAnimation);
+        }
 
         const seatCount = Array.isArray(board.seatAnchors) ? board.seatAnchors.length : 0;
         if (seatCount > 0) {
