@@ -29590,7 +29590,11 @@ const shotPowerRef = useRef(0);
             strikeDuration: strokeProfile.strikeDuration ?? LIVE_CUE_FORWARD_DURATION_MS,
             applied: false
           };
-          applyShotAtImpact(shotImpactPayload);
+          // Keep the cue ball still while the cue travels from the slider's
+          // pulled position back to its original address position. The stroke
+          // timeline applies the shot at contact via `onImpact` below; applying
+          // it here would start the broadcast/ball motion first and visually
+          // swallow the cue's forward push.
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
