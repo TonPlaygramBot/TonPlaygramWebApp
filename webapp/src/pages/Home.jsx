@@ -8,6 +8,13 @@ import HomeIntroduction from '../components/HomeIntroduction.jsx';
 import { FaArrowUp, FaArrowDown, FaWallet } from 'react-icons/fa';
 import { IoLogoTiktok } from 'react-icons/io5';
 import { RiTelegramFill } from 'react-icons/ri';
+import {
+  BrainCircuit,
+  Heart,
+  Rocket,
+  Sparkles,
+  Users
+} from 'lucide-react';
 import { useTonAddress } from '@tonconnect/ui-react';
 
 const xIcon = (
@@ -323,28 +330,75 @@ export default function Home() {
 
       <PwaDownloadFrame />
       <p className="text-center text-xs text-subtext">Status: {status}</p>
-      <div className="mt-4 space-y-2 text-center text-xs text-subtext">
-        <p>
-          This platform is currently in its prototype stage, built to give you a
-          clear idea of how the full ecosystem will function. We’re actively
-          working on improvements and new features around the clock.
-        </p>
-        <p>
-          🧠 TonPlaygram was fully designed and developed by a single founder,
-          with the help of AI tools and zero external funding. Despite limited
-          resources, the goal has always been to deliver a powerful, engaging
-          experience from day one.
-        </p>
-        <p>
-          Once sufficient funding is secured, the platform will be rebuilt
-          professionally with a dedicated team to ensure performance,
-          scalability, and long-term growth.
-        </p>
-        <p>
-          Thank you for your support and patience as we continue building the
-          future of crypto gaming. 🚀
-        </p>
-      </div>
+      <section className="relative mt-5 overflow-hidden rounded-3xl border border-brand-gold/25 bg-gradient-to-b from-surface via-surface/95 to-background px-4 py-6 shadow-[0_18px_50px_rgba(0,0,0,0.28)]">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-brand-gold/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-20 -left-16 h-44 w-44 rounded-full bg-primary/10 blur-3xl" />
+
+        <div className="relative">
+          <div className="mx-auto flex w-fit items-center gap-2 rounded-full border border-brand-gold/30 bg-brand-gold/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-brand-gold">
+            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+            Building in public
+          </div>
+
+          <h2 className="mt-4 text-center text-2xl font-black leading-tight text-white">
+            A bold vision,
+            <span className="block bg-gradient-to-r from-brand-gold via-yellow-200 to-primary bg-clip-text text-transparent">
+              growing every day.
+            </span>
+          </h2>
+          <p className="mx-auto mt-3 max-w-sm text-center text-sm leading-6 text-subtext">
+            TonPlaygram is an evolving prototype—your first look at a connected
+            crypto-gaming ecosystem. New features, sharper experiences, and
+            meaningful improvements are being built continuously.
+          </p>
+
+          <div className="mt-5 space-y-3 text-left">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-sm">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/25 bg-primary/10 text-primary">
+                  <BrainCircuit className="h-5 w-5" aria-hidden="true" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">Founder-built. AI-powered.</h3>
+                  <p className="mt-1 text-xs leading-5 text-subtext">
+                    Designed and developed by one founder, amplified by AI
+                    tools, and created with zero external funding—so far.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 backdrop-blur-sm">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-brand-gold/25 bg-brand-gold/10 text-brand-gold">
+                  <Users className="h-5 w-5" aria-hidden="true" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">The next chapter</h3>
+                  <p className="mt-1 text-xs leading-5 text-subtext">
+                    With the right funding, a dedicated team will elevate the
+                    platform for greater performance, scale, and lasting growth.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-2xl border border-brand-gold/20 bg-gradient-to-r from-brand-gold/10 via-white/[0.03] to-primary/10 p-4 text-center">
+            <div className="mb-2 flex justify-center gap-2 text-brand-gold">
+              <Heart className="h-4 w-4" aria-hidden="true" />
+              <Rocket className="h-4 w-4" aria-hidden="true" />
+            </div>
+            <p className="text-sm font-semibold leading-6 text-white">
+              Thank you for believing early.
+            </p>
+            <p className="mt-1 text-xs leading-5 text-subtext">
+              Your support and patience are helping shape the future of crypto
+              gaming—one milestone at a time.
+            </p>
+          </div>
+        </div>
+      </section>
       <div className="flex justify-center space-x-4 mt-4">
         <a
           href="https://x.com/TonPlaygram?t=SyGyXA0H8PdLz7z2kfIWQw&s=09"
