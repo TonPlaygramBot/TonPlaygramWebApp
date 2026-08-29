@@ -1,5 +1,17 @@
 const gamesCatalog = [
   {
+    name: 'Table Tennis', route: '/games/table-tennis/lobby', slug: 'table-tennis',
+    image: '/assets/icons/table-tennis-icon.svg', description: 'Fast 3D rallies, precision spin and live online rivals.'
+  },
+  {
+    name: 'Tennis', route: '/games/tennis/lobby', slug: 'tennis',
+    image: '/assets/icons/tennis-icon.svg', description: 'A portrait-first center-court duel with online matchmaking.'
+  },
+  {
+    name: 'Real Bowling', route: '/games/bowling/lobby', slug: 'bowling',
+    image: '/assets/icons/bowling-icon.svg', description: 'True ten-pin frames, touch aiming and head-to-head play.'
+  },
+  {
     name: "Texas Hold'em",
     route: '/games/texasholdem/lobby',
     slug: 'texasholdem',

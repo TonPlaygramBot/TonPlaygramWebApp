@@ -116,6 +116,12 @@ const ShootingRange = React.lazy(
 const ShootingRangeLobby = React.lazy(
   () => import('./pages/Games/ShootingRangeLobby.jsx')
 );
+const Tennis = React.lazy(() => import('./pages/Games/Tennis.tsx'));
+const TableTennis = React.lazy(() => import('./pages/Games/TableTennis.tsx'));
+const TennisLobby = React.lazy(() => import('./pages/Games/TennisLobby.jsx'));
+const TableTennisLobby = React.lazy(() => import('./pages/Games/TableTennisLobby.jsx'));
+const BowlingRealistic = React.lazy(() => import('./pages/Games/BowlingRealistic.tsx'));
+const BowlingLobby = React.lazy(() => import('./pages/Games/BowlingLobby.jsx'));
 const StoreThumbnailStudioPoolRoyale = React.lazy(
   () => import('./pages/Tools/StoreThumbnailStudioPoolRoyale.jsx')
 );
@@ -222,6 +228,12 @@ export default function App() {
                 element={<GameTransactions />}
               />
               <Route path="/games/:game/lobby" element={<Lobby />} />
+              <Route path="/games/table-tennis/lobby" element={<TableTennisLobby />} />
+              <Route path="/games/table-tennis" element={<GameLiveAvatarOverlay gameSlug="table-tennis"><TableTennis /></GameLiveAvatarOverlay>} />
+              <Route path="/games/tennis/lobby" element={<TennisLobby />} />
+              <Route path="/games/tennis" element={<GameLiveAvatarOverlay gameSlug="tennis"><Tennis /></GameLiveAvatarOverlay>} />
+              <Route path="/games/bowling/lobby" element={<BowlingLobby />} />
+              <Route path="/games/bowling" element={<GameLiveAvatarOverlay gameSlug="bowling"><BowlingRealistic /></GameLiveAvatarOverlay>} />
               <Route
                 path="/games/snake"
                 element={

@@ -11,6 +11,9 @@ const withBase = (path) => {
 };
 
 export const gameThumbnails = {
+  'table-tennis': '/assets/icons/table-tennis-icon.svg',
+  tennis: '/assets/icons/tennis-icon.svg',
+  bowling: '/assets/icons/bowling-icon.svg',
   texasholdem: '/assets/icons/Texas%20holdem%20poker%20game%20logo.png',
   'domino-royal': '/assets/icons/Domino%20battle%20Royal%20logo.png',
   poolroyale: '/assets/icons/Pool%20Royal%20game%20logo.png',
