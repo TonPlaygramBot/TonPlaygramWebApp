@@ -2410,3 +2410,111 @@ img[alt="TPG"] {
   .ecosystem-guide .print-hidden, header, footer, nav { display: none !important; }
   .ecosystem-guide > .ecosystem-hero { display: block !important; }
 }
+
+/* Bright editorial treatment for the 2026 guide. The guide is intentionally
+   independent from the dark game shell so long-form reading stays comfortable. */
+@media screen {
+  .ecosystem-guide {
+    --guide-gold: #1677ff;
+    --guide-cyan: #05a6c7;
+    --guide-card: #fff;
+    gap: 14px;
+    color: #344054;
+  }
+  .ecosystem-guide h1,
+  .ecosystem-guide h2,
+  .ecosystem-guide h3,
+  .ecosystem-guide p,
+  .ecosystem-guide span,
+  .ecosystem-guide strong { text-shadow: none; }
+  .ecosystem-hero,
+  .ecosystem-section {
+    border-color: #dfe7f1;
+    background: #fff;
+    box-shadow: 0 14px 34px rgb(38 58 86 / 9%);
+  }
+  .ecosystem-hero {
+    padding: 22px 18px;
+    border-radius: 26px;
+    background:
+      radial-gradient(circle at 102% 24%, rgb(60 150 255 / 18%), transparent 33%),
+      radial-gradient(circle at -5% 92%, rgb(38 208 176 / 12%), transparent 31%),
+      linear-gradient(155deg, #fff 20%, #f4f8ff 100%);
+  }
+  .guide-orbit { border-color: rgb(22 119 255 / 12%); }
+  .guide-back { color: #344054; font-weight: 750; }
+  .guide-live { color: #667085; }
+  .guide-live i { background: #12b76a; box-shadow: 0 0 0 4px rgb(18 183 106 / 12%); }
+  .guide-kicker { color: #0561c9; font-size: 10px; letter-spacing: .16em; }
+  .guide-hero-copy { margin-top: 40px; }
+  .guide-hero-copy h1 {
+    color: #101828;
+    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    font-size: clamp(39px, 12vw, 54px);
+    font-weight: 850;
+    line-height: .98;
+  }
+  .guide-hero-copy h1 span { color: #1677ff; font-style: normal; }
+  .guide-lead { color: #475467; font-size: 14px; line-height: 1.7; }
+  .universe-ring { border-color: rgb(22 119 255 / 18%); background: radial-gradient(circle, rgb(22 119 255 / 10%), transparent 55%); }
+  .universe-ring:before,.universe-ring:after { border-color: rgb(52 64 84 / 15%); }
+  .universe-core { border-color: rgb(22 119 255 / 30%); background: #fff; box-shadow: 0 14px 35px rgb(22 119 255 / 13%); }
+  .universe-core i { background: linear-gradient(135deg,#1677ff,#65aaff); color: #fff; }
+  .universe-core strong { color: #101828; }
+  .universe-core small,.player-universe>p { color: #667085; }
+  .universe-node { border-color: #d7e2ef; background: #fff; box-shadow: 0 8px 18px rgb(52 64 84 / 12%); }
+  .guide-stat { border-color: #dfe7f1; background: rgb(255 255 255 / 72%); }
+  .guide-stat strong { color: #101828; }
+  .guide-stat span { color: #667085; font-size: 7px; }
+  .guide-language { border-color: #d9e3ef; background: rgb(255 255 255 / 82%); }
+  .guide-language label,.guide-language small { color: #667085; }
+  .guide-language select { border-color: #ccd8e6; background: #fff; color: #101828; }
+  .guide-language button { background: #1677ff; color: #fff; }
+  .guide-nav { position: sticky; z-index: 10; top: 6px; padding: 5px 1px 7px; }
+  .guide-nav a { border-color: #dfe7f1; background: rgb(255 255 255 / 94%); color: #475467; box-shadow: 0 5px 16px rgb(38 58 86 / 8%); }
+  .ecosystem-section { padding: 22px 18px; border-radius: 22px; }
+  .guide-section-head>span { color: #0561c9; }
+  .guide-section-head h2,.ecosystem-copy h3 { color: #101828; font-family: Inter,ui-sans-serif,system-ui,sans-serif; }
+  .guide-section-head h2 { font-size: 28px; font-weight: 820; line-height: 1.1; }
+  .guide-section-head>p,.ecosystem-copy { color: #475467; font-size: 12px; }
+  .journey-map,.game-galaxy,.achievement-dashboard,.fee-chart { border-color: #dfe7f1; background: #f7faff; }
+  .journey-map:before { background-image: linear-gradient(rgb(22 119 255 / 5%) 1px,transparent 1px),linear-gradient(90deg,rgb(22 119 255 / 5%) 1px,transparent 1px); }
+  .journey-path { border-color: rgb(22 119 255 / 30%); border-left-color: transparent; border-right-color: transparent; }
+  .journey-stop b { border-color: #a9ccfa; background: #fff; color: #0561c9; }
+  .journey-stop span,.galaxy-center strong { color: #101828; }
+  .journey-map small,.galaxy-center span,.galaxy-caption { color: #667085; }
+  .guide-pillar,.guide-detail,.guide-roadmap-item,.guide-economy-grid>div,.trust-grid>div { border-color: #dfe7f1; background: #f9fbfe; }
+  .guide-pillar>span,.guide-detail-title small { color: #98a2b3; }
+  .guide-pillar p,.guide-detail>p,.guide-roadmap-item>p,.guide-economy-grid p,.trust-grid span { color: #667085; }
+  .phone-explainer { background: #eef4fb; }
+  .phone-notes strong { color: #101828; }
+  .phone-notes small { color: #667085; }
+  .guide-bullets li { color: #475467; font-size: 11px; }
+  .guide-callout { border-color: #bad6fb; background: #eff6ff; }
+  .guide-callout strong { color: #0759b5; }
+  .guide-callout p { color: #475467; }
+  .game-galaxy { background: radial-gradient(circle at center,rgb(22 119 255 / 10%),transparent 44%),#f7faff; }
+  .game-galaxy:before,.game-galaxy:after { border-color: rgb(22 119 255 / 15%); }
+  .galaxy-center { border-color: #9dc8ff; background: #fff; }
+  .game-chip { border-color: #d5e2f0; background: #fff; color: #475467; }
+  .guide-game-list { border-color: #e4eaf1; }
+  .guide-game-list>div { border-color: #e4eaf1; }
+  .guide-game-list p { color: #667085; }
+  .achievement-score strong,.achievement-mini b,.roadmap-meta strong,.fee-legend b,.guide-economy-grid strong { color: #1677ff; }
+  .achievement-score span,.achievement-mini small,.fee-chart>small { color: #667085; }
+  .achievement-mini span { background: #fff; border: 1px solid #e3eaf2; }
+  .guide-detail .guide-bullets { border-color: #e4eaf1; }
+  .guide-page-link { border-color: #a9ccfa; background: #f5f9ff; color: #0561c9; }
+  .roadmap-line i { background: #fff; }
+  .roadmap-bar { background: #e4eaf1; }
+  .roadmap-bar i { background: linear-gradient(90deg,#54a0ff,#1677ff); }
+  .roadmap-meta span { background: #eaf3ff; color: #0561c9; }
+  .fee-donut>div { background: #fff; }
+  .fee-donut strong { color: #101828; }
+  .fee-donut span,.fee-legend>p,.fee-legend span { color: #667085; }
+  .fee-chart>small { border-color: #dfe7f1; }
+  .guide-economy-grid span,.trust-grid strong { color: #101828; }
+  .guide-finale { background: linear-gradient(140deg,#1677ff,#0559bd); color: #fff; }
+  .guide-finale h3,.guide-finale p { color: #fff!important; }
+  .guide-finale a { background: #fff; color: #0759b5; }
+}
