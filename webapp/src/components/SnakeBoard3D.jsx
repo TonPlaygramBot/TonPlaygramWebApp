@@ -3661,7 +3661,7 @@ function createDiceRollAnimation(
   }
 ) {
   const start = performance.now();
-  const startQuaternions = diceArray.map((die) => die.quaternion.clone());
+  let previousFrameTime = start;
   const spinVectors = diceArray.map(() =>
     new THREE.Vector3(
       1.2 + Math.random() * 0.7,
@@ -3684,9 +3684,17 @@ function createDiceRollAnimation(
       if (!Array.isArray(values) || !values.length) return;
       targetValues = diceArray.map((_, index) => values[index] ?? values[values.length - 1] ?? 1);
     },
+    getRemainingDuration(now = performance.now()) {
+      return Math.max(0, DICE_ROLL_DURATION - (now - start));
+    },
     update: (now) => {
       const t = Math.min((now - start) / Math.max(1, DICE_ROLL_DURATION), 1);
       const eased = easeOutCubic(t);
+      // Ludo applies 0.22 radians of tumble per rendered 60 Hz frame. Convert
+      // that same update to elapsed time so a slow or high-refresh phone keeps
+      // the identical roll without tying the result to its frame rate.
+      const frameScale = THREE.MathUtils.clamp((now - previousFrameTime) / (1000 / 60), 0, 2);
+      previousFrameTime = now;
       diceArray.forEach((die, index) => {
         const base = basePositions[index];
         if (!base) return;
@@ -3703,15 +3711,13 @@ function createDiceRollAnimation(
         position.y = THREE.MathUtils.lerp(startPos.y, endPos.y, eased) + bounce;
         die.position.copy(position);
 
-        // Derive rotation from elapsed progress instead of adding once per
-        // rendered frame. This gives 30/60/90 Hz phones the same complete roll.
-        const spinProgress = eased * (1 - eased * 0.14);
-        const spin = new THREE.Quaternion().setFromEuler(new THREE.Euler(
-          spinVectors[index].x * spinProgress * Math.PI * 2.4,
-          spinVectors[index].y * spinProgress * Math.PI * 2.4,
-          spinVectors[index].z * spinProgress * Math.PI * 2.4
-        ));
-        die.quaternion.copy(startQuaternions[index]).multiply(spin);
+        // Keep Ludo Battle Royal's continuous per-axis tumble. Mutating the
+        // existing Euler is important: rebuilding it from absolute progress
+        // can reverse apparent direction as Euler angles wrap.
+        const spinFactor = 1 - eased * 0.28;
+        die.rotation.x += spinVectors[index].x * spinFactor * 0.22 * frameScale;
+        die.rotation.y += spinVectors[index].y * spinFactor * 0.22 * frameScale;
+        die.rotation.z += spinVectors[index].z * spinFactor * 0.22 * frameScale;
       });
       if (t >= 1) {
         diceArray.forEach((die, index) => {
@@ -7658,7 +7664,10 @@ export default function SnakeBoard3D({
             const handoffAnimation = createDiceHandoffAnimation(active, {
               basePositions: handoffBases,
               baseY: board.diceBaseY ?? 0,
-              duration: TURN_CAMERA_TURN_IN_DURATION
+              duration: TURN_CAMERA_TURN_IN_DURATION,
+              // Do not let the next-seat handoff overwrite the final frames
+              // of the physical throw. Ludo always lands before relocating.
+              delay: (activeRoll?.getRemainingDuration?.() ?? 0) + DICE_RESULT_HOLD_DURATION
             });
             if (handoffAnimation) animationsRef.current.push(handoffAnimation);
             const camera = cameraRef.current;
