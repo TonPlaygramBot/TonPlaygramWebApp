@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 
 import { getGameThumbnail } from '../config/gameAssets.js';
+import SocialChannels from './SocialChannels.jsx';
 
 const featuredGames = [
   { key: 'poolroyale', name: 'Pool Royale', mode: '3D cue sports', to: '/games/poolroyale/lobby' },
@@ -42,6 +43,7 @@ export default function HomeIntroduction() {
           <Link to="/ecosystem" className="home-intro__secondary">How it works</Link>
         </div>
         <div className="home-intro__trust"><ShieldCheck size={16} /><span>One profile. Clear activity. Built for players.</span></div>
+        <SocialChannels variant="hero" />
       </div>
 
       <div className="home-section-heading">

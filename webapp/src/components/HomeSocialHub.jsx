@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FaUserFriends, FaGamepad, FaComments } from 'react-icons/fa';
 import LoginOptions from './LoginOptions.jsx';
-import SocialChannels from './SocialChannels.jsx';
 import { socket } from '../utils/socket.js';
 import { getTelegramId } from '../utils/telegram.js';
 import { getGameInvitePath } from '../utils/gameInviteUrl.js';
@@ -49,7 +48,15 @@ export default function HomeSocialHub() {
   } catch (err) {
     return (
       <div className="space-y-4">
-        <SocialChannels />
+        <Link
+          to="/messages"
+          className="rounded-xl border border-border bg-surface p-4 flex items-center justify-between hover:border-primary transition"
+        >
+          <p className="text-base font-semibold text-white flex items-center gap-2">
+            <FaComments className="text-primary" /> Messenger
+          </p>
+          <span className="text-xs text-primary">Open</span>
+        </Link>
         <div className="rounded-xl border border-border bg-surface p-4">
           <LoginOptions />
         </div>
@@ -182,24 +189,19 @@ export default function HomeSocialHub() {
         </div>
       </div>
 
-      <div className="grid gap-3">
-        <Link
-          to="/messages"
-          className="rounded-lg border border-border bg-background/40 p-3 flex items-center justify-between hover:border-primary transition"
-        >
-          <div>
-            <p className="text-sm font-semibold text-white flex items-center gap-2">
-              <FaComments className="text-primary" /> Messages
-            </p>
-            <p className="text-xs text-subtext">
-              {unreadCount ? `${unreadCount} unread messages` : 'Chat with your friends.'}
-            </p>
-          </div>
-          <span className="text-xs text-primary">Open</span>
-        </Link>
-      </div>
-
-      <SocialChannels />
+      <Link
+        to="/messages"
+        className="overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-slate-950/95 via-slate-900/95 to-cyan-950/70 p-4 shadow-[0_18px_50px_rgba(0,0,0,.25)] flex items-center justify-between gap-3 hover:border-primary transition"
+      >
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-cyan-300">Stay connected</p>
+          <p className="mt-1 text-base font-bold text-white flex items-center gap-2">
+            <FaComments className="text-primary" /> Messenger
+          </p>
+          {unreadCount > 0 && <p className="mt-1 text-xs text-slate-300">{unreadCount} unread messages</p>}
+        </div>
+        <span className="shrink-0 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1.5 text-xs font-semibold text-cyan-100">Open</span>
+      </Link>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="rounded-lg border border-border bg-background/40 p-3 space-y-3">
