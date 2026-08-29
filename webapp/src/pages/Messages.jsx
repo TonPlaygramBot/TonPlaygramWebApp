@@ -1,17 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowLeft, Bell, BellOff, Camera, CheckCheck, Gamepad2, Image, Mic, MoreHorizontal,
-  Paperclip, Phone, Plus, Search, Send, ShieldCheck, Smile, Trophy, Users, Video
+  ArrowLeft, Bell, BellOff, Camera, CheckCheck, Download, FileText, Gamepad2, Image, Mic, MoreHorizontal,
+  Paperclip, Phone, Plus, Search, Send, ShieldCheck, Smile, Trophy, Users, Video, X
 } from 'lucide-react';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import LoginOptions from '../components/LoginOptions.jsx';
 import { getPlayerId, getTelegramId } from '../utils/telegram.js';
 import {
-  acceptFriendRequest, getMessages, listFriendRequests, sendMessage,
+  API_BASE_URL, acceptFriendRequest, getMessages, listFriendRequests, sendMessage,
   listFriends, markInboxRead, rejectFriendRequest
 } from '../utils/api.js';
 import { socket } from '../utils/socket.js';
 import LeaderboardCard from '../components/LeaderboardCard.jsx';
+import gamesCatalog from '../config/gamesCatalog.js';
 
 const tabs = [
   { id: 'chats', label: 'Chats', Icon: Send },
@@ -54,6 +55,10 @@ export default function Messages() {
   const [actionNote, setActionNote] = useState('');
   const [attachment, setAttachment] = useState(null);
   const [isSending, setIsSending] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteGame, setInviteGame] = useState('snake');
+  const [inviteMode, setInviteMode] = useState('1v1');
+  const [groupFriendIds, setGroupFriendIds] = useState([]);
   const [loadError, setLoadError] = useState('');
   const messagesEndRef = useRef(null);
   const accountId = getPlayerId();
@@ -164,7 +169,7 @@ export default function Messages() {
     if (isSending) return;
     setIsSending(true);
     try {
-      const sent = await sendMessage(socialId, peerId, outgoingText);
+      const sent = await sendMessage(socialId, peerId, outgoingText, attachment);
       if (sent?.error) throw new Error(sent.error);
       setMessages((current) => current.some((item) => item._id === sent._id) ? current : [...current, sent]);
       setText('');
@@ -196,11 +201,33 @@ export default function Messages() {
 
   function sendGameInvite() {
     if (!selected?.accountId || !selected?.telegramId) return notify('This friend is not available for invites yet.');
-    socket.emit('invite1v1', {
+    const selectedId = String(selected.accountId);
+    const groupFriends = friends.filter((friend) => groupFriendIds.includes(String(friend.accountId)) || String(friend.accountId) === selectedId);
+    const targets = inviteMode === 'group' ? groupFriends : [selected];
+    if (inviteMode === 'group' && targets.length < 2) return notify('Select at least two friends for a group invite.');
+    const roomId = `invite-${accountId}-${Date.now()}-${inviteMode === 'group' ? targets.length + 1 : 2}`;
+    const common = {
       fromId: accountId, fromTelegramId: telegramId, fromName: 'TonPlaygram player',
-      toId: selected.accountId, toTelegramId: selected.telegramId,
-      roomId: `invite-${accountId}-${selected.accountId}-${Date.now()}-2`, game: 'snake', token: 'TPG', amount: 100
-    }, (response) => notify(response?.success ? 'Game invite sent' : response?.error || 'Invite failed'));
+      roomId, game: inviteGame, token: 'TPG', amount: 100
+    };
+    const event = inviteMode === 'group' ? 'inviteGroup' : 'invite1v1';
+    const payload = inviteMode === 'group'
+      ? { ...common, toIds: targets.map((friend) => friend.accountId), telegramIds: targets.map((friend) => friend.telegramId), opponentNames: targets.map(friendName) }
+      : { ...common, toId: selected.accountId, toTelegramId: selected.telegramId };
+    socket.emit(event, payload, (response) => {
+      notify(response?.success ? `${inviteMode === 'group' ? 'Group' : '1v1'} game invite sent` : response?.error || 'Invite failed');
+      if (response?.success) setInviteOpen(false);
+    });
+  }
+
+  function attachmentUrl(url) { return `${API_BASE_URL}${url}`; }
+
+  function MessageAttachment({ item }) {
+    if (!item) return null;
+    const url = attachmentUrl(item.url);
+    if (item.type?.startsWith('image/')) return <a href={url} target="_blank" rel="noreferrer"><img className="messages-bubble-image" src={url} alt={item.name} /></a>;
+    if (item.type?.startsWith('video/')) return <video className="messages-bubble-video" src={url} controls playsInline preload="metadata" />;
+    return <a className="messages-bubble-file" href={`${url}?download=1&name=${encodeURIComponent(item.name)}`} download={item.name}><FileText /><span><strong>{item.name}</strong><small>{Math.max(1, Math.round(item.size / 1024))} KB · Original file</small></span><Download /></a>;
   }
 
   if (!socialId) return <div className="messages-login"><LoginOptions /></div>;
@@ -287,7 +314,7 @@ export default function Messages() {
               const mine = String(message.from) === String(socialId);
               return <div className={`messages-bubble-row ${mine ? 'mine' : ''}`} key={message._id || `${message.from}-${index}`}>
                 {!mine && <Avatar friend={selected} />}
-                <div className="messages-bubble"><p>{message.text}</p><span>{message.createdAt ? new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}{mine && <CheckCheck />}</span></div>
+                <div className="messages-bubble"><MessageAttachment item={message.attachment} /><p>{message.text}</p><span>{message.createdAt ? new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}{mine && <CheckCheck />}</span></div>
               </div>;
             })}
             {messages.length === 0 && <div className="messages-icebreakers"><span>Start with</span><button onClick={() => setText('Hey! Want to play a match?')}>🎮 Play a match?</button><button onClick={() => setText('Hey! How are you doing?')}>👋 Say hello</button></div>}
@@ -297,14 +324,21 @@ export default function Messages() {
           {attachment && <div className="messages-attachment"><Image /><span>{attachment.name}</span><button onClick={() => setAttachment(null)}>Remove</button></div>}
           <div className="messages-composer">
             <button aria-label="More message tools" onClick={() => notify('More tools coming soon')}><Plus /></button>
-            <label aria-label="Attach a photo or file"><Paperclip /><input type="file" accept="image/*,video/*" onChange={(event) => setAttachment(event.target.files?.[0] || null)} /></label>
+            <label aria-label="Attach a photo, video, PDF or document"><Paperclip /><input type="file" accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z,.heic,.heif,.mkv,.avi,.mov,.webm,.m4v" onChange={(event) => setAttachment(event.target.files?.[0] || null)} /></label>
             <div><input value={text} onChange={(event) => setText(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) handleSend(); }} placeholder="Message..." /><button aria-label="Add emoji" onClick={() => setText((value) => `${value} 😊`)}><Smile /></button></div>
             {text.trim() || attachment ? <button className="messages-send" disabled={isSending} onClick={handleSend} aria-label="Send message"><Send /></button> : <button onClick={() => notify('Hold to record a voice message')} aria-label="Record voice message"><Mic /></button>}
           </div>
-          <div className="messages-quick-actions"><button onClick={sendGameInvite}><Gamepad2 /> Invite to game</button><button onClick={() => startFriendCall('video')}><Camera /> Video room</button><button onClick={() => notify('Notifications muted')}><BellOff /> Mute</button></div>
+          <div className="messages-quick-actions"><button onClick={() => { setGroupFriendIds([String(selected.accountId)]); setInviteOpen(true); }}><Gamepad2 /> Invite to game</button><button onClick={() => startFriendCall('video')}><Camera /> Video room</button><button onClick={() => notify('Notifications muted')}><BellOff /> Mute</button></div>
         </> : <div className="messages-chat-empty"><span><Send /></span><h2>Your conversations</h2><p>Select a friend to send a message or start a secure voice and video call.</p></div>}
       </section>
       {actionNote && <div className="messages-toast" role="status">{actionNote}</div>}
+      {inviteOpen && <div className="messages-invite-backdrop" role="dialog" aria-modal="true" aria-label="Create game invite"><section className="messages-invite-sheet">
+        <header><div><small>PLAY TOGETHER</small><h2>Choose a game</h2></div><button onClick={() => setInviteOpen(false)} aria-label="Close"><X /></button></header>
+        <label className="messages-invite-field"><span>Game</span><select value={inviteGame} onChange={(event) => setInviteGame(event.target.value)}>{gamesCatalog.map((game) => <option key={game.slug} value={game.slug}>{game.name}</option>)}</select></label>
+        <fieldset><legend>Invite type</legend><button className={inviteMode === '1v1' ? 'active' : ''} onClick={() => setInviteMode('1v1')}><Gamepad2 /><span><strong>1v1</strong><small>Challenge {friendName(selected)}</small></span></button><button className={inviteMode === 'group' ? 'active' : ''} onClick={() => setInviteMode('group')}><Users /><span><strong>Group</strong><small>Invite two or more friends</small></span></button></fieldset>
+        {inviteMode === 'group' && <div className="messages-invite-friends"><strong>Select friends</strong>{friends.map((friend) => { const id = String(friend.accountId); const checked = groupFriendIds.includes(id) || id === String(selected.accountId); return <label key={id}><input type="checkbox" checked={checked} disabled={id === String(selected.accountId)} onChange={() => setGroupFriendIds((ids) => ids.includes(id) ? ids.filter((value) => value !== id) : [...ids, id])} /><Avatar friend={friend} /><span>{friendName(friend)}</span></label>; })}</div>}
+        <button className="messages-invite-send" onClick={sendGameInvite}><Send /> Send {inviteMode === 'group' ? 'group' : '1v1'} invite</button>
+      </section></div>}
     </main>
   );
 }
