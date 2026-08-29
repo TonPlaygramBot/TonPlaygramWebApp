@@ -88,6 +88,7 @@ import {
   POOL_ROYALE_OPTION_LABELS
 } from '../../config/poolRoyaleInventoryConfig.js';
 import { BILARDO_MIN_RELEASE_POWER } from './shared/bilardoShotModel';
+import { separatePoolBalls } from './poolRoyaleBallSeparation.js';
 import { POOL_ROYALE_CLOTH_VARIANTS } from '../../config/poolRoyaleClothPresets.js';
 import {
   getCachedPoolRoyalInventory,
@@ -1578,7 +1579,7 @@ const ROLLING_RESISTANCE = 0.0098;
 const BALL_BALL_FRICTION = 0.105;
 const BALL_CONTACT_EPS = BALL_R * 0.012; // broaden contact tolerance slightly so grazing touches resolve instead of tunneling
 const BALL_COLLISION_SLOP = BALL_R * 0.001; // tighter tolerance so visible ball overlap is corrected faster
-const BALL_COLLISION_BAUMGARTE = 0.92; // stronger overlap correction so touching balls settle at true physical spacing
+const BALL_SEPARATION_ITERATIONS = 5; // solve dense clusters fully after impulses without adding duplicate impacts
 const RAIL_FRICTION = 0.16;
 const STOP_EPS = 0.0074;
 const STOP_SOFTENING = 0.96; // ease balls into a stop instead of hard-braking at the speed threshold
@@ -29951,35 +29952,66 @@ const shotPowerRef = useRef(0);
                 )
               : [];
             const nextTargets = new Set(nextTargetsRaw);
+            const legalNextBalls = balls.filter(
+              (ball) =>
+                ball.active &&
+                ball !== cue &&
+                ball !== plan.targetBall &&
+                (nextTargets.has(toBallColorId(ball.id)) ||
+                  (nextTargets.has('RED') && toBallColorId(ball.id) === 'RED'))
+            );
+            // Professionals play into a shot line, not simply toward the first
+            // legal ball in the array. Prefer a ball with a clear, short route
+            // to a pocket and use its ghost point as the positional target.
             let nextBall = null;
-            if (nextTargets.size > 0) {
-              nextBall = balls.find(
-                (b) =>
-                  b.active &&
-                  b !== plan.targetBall &&
-                  nextTargets.has(toBallColorId(b.id))
-              );
-            }
-            if (!nextBall && nextTargets.has('RED')) {
-              nextBall = balls.find(
-                (b) => b.active && toBallColorId(b.id) === 'RED'
-              );
-            }
+            let nextPosition = null;
+            let nextRouteScore = -Infinity;
+            const pocketCenters = pocketEntranceCenters();
+            legalNextBalls.forEach((candidate) => {
+              pocketCenters.forEach((pocket) => {
+                const objectRoute = pocket.clone().sub(candidate.pos);
+                const routeLength = objectRoute.length();
+                if (routeLength < BALL_R * 2 || objectRoute.lengthSq() < 1e-6) return;
+                const ignore = new Set([candidate.id, plan.targetBall?.id].filter(Boolean));
+                if (!isPathClear(candidate.pos, pocket, ignore)) return;
+                const ghost = candidate.pos
+                  .clone()
+                  .sub(objectRoute.normalize().multiplyScalar(BALL_R * 2.35));
+                const approachClear = isPathClear(plan.targetBall.pos, ghost, ignore);
+                const routeScore =
+                  (approachClear ? 1 : 0.25) -
+                  routeLength / Math.max(PLAY_W + PLAY_H, BALL_R) -
+                  plan.targetBall.pos.distanceTo(ghost) /
+                    Math.max((PLAY_W + PLAY_H) * 1.5, BALL_R);
+                if (routeScore > nextRouteScore) {
+                  nextRouteScore = routeScore;
+                  nextBall = candidate;
+                  nextPosition = ghost;
+                }
+              });
+            });
             if (!nextBall) return fallback;
             const aimDir = plan.aimDir.clone();
             if (aimDir.lengthSq() < 1e-6) return fallback;
             aimDir.normalize();
-            const nextDir = nextBall.pos.clone().sub(plan.targetBall.pos);
+            const nextDir = (nextPosition ?? nextBall.pos).clone().sub(plan.targetBall.pos);
             if (nextDir.lengthSq() < 1e-6) return fallback;
             nextDir.normalize();
             const perp = new THREE.Vector2(-aimDir.y, aimDir.x);
             const lateral = THREE.MathUtils.clamp(perp.dot(nextDir), -1, 1);
             const forward = THREE.MathUtils.clamp(aimDir.dot(nextDir), -1, 1);
-            const spinX = THREE.MathUtils.clamp(lateral * 0.45, -0.6, 0.6);
+            const cutDir = plan.pocketCenter
+              ? plan.pocketCenter.clone().sub(plan.targetBall.pos).normalize()
+              : aimDir;
+            const cutSeverity = 1 - Math.abs(THREE.MathUtils.clamp(aimDir.dot(cutDir), -1, 1));
+            // Keep side spin measured on difficult cuts, while allowing a
+            // stronger positional rail angle on simple pots.
+            const sideAuthority = THREE.MathUtils.lerp(0.52, 0.28, cutSeverity);
+            const spinX = THREE.MathUtils.clamp(lateral * sideAuthority, -0.62, 0.62);
             const spinY = THREE.MathUtils.clamp(
-              -forward * (MAX_SPIN_FORWARD / BALL_R),
-              -1,
-              1
+              -forward * THREE.MathUtils.lerp(0.7, 0.42, cutSeverity),
+              -0.72,
+              0.62
             );
             return { x: spinX, y: spinY };
           } catch (err) {
@@ -34274,7 +34306,7 @@ const shotPowerRef = useRef(0);
                 const penetration = Math.max(0, minDist - d);
                 const overlap =
                   penetration > BALL_COLLISION_SLOP
-                    ? ((penetration - BALL_COLLISION_SLOP) * BALL_COLLISION_BAUMGARTE) / 2
+                    ? (penetration - BALL_COLLISION_SLOP) / 2
                     : 0;
                 const pairKey =
                   (a.id ?? i) < (b.id ?? j)
@@ -34399,6 +34431,20 @@ const shotPowerRef = useRef(0);
                 }
               }
             }
+          // Pair impulses above intentionally run once. A separate iterative
+          // position constraint then removes residual penetration in clusters,
+          // including balls that have already slowed below the stop threshold.
+          if (separatePoolBalls(balls, BALL_R * 2, BALL_SEPARATION_ITERATIONS)) {
+            balls.forEach((ball) => {
+              if (!ball.active || !ball.mesh) return;
+              ball.mesh.position.x = ball.pos.x;
+              ball.mesh.position.z = ball.pos.y;
+              if (ball.shadow?.visible) {
+                ball.shadow.position.x = ball.pos.x;
+                ball.shadow.position.z = ball.pos.y;
+              }
+            });
+          }
         }
         if (
           !activeShotView &&
