@@ -6,6 +6,7 @@ import {
   MessageCircle,
   ShieldCheck,
   ShoppingBag,
+  Sparkles,
   Trophy,
   WalletCards,
   Zap
@@ -30,6 +31,12 @@ const ecosystem = [
   { icon: Gift, title: 'Invite', text: 'Bring friends and grow together.', to: '/referral', tone: 'green' }
 ];
 
+const deliveredHighlights = [
+  { value: '12+', label: 'Playable games', detail: 'Solo, AI & multiplayer' },
+  { value: '1', label: 'Connected profile', detail: 'Games, social & wallet' },
+  { value: 'Live', label: 'Core platform', detail: 'Rewards, store & community' }
+];
+
 export default function HomeIntroduction() {
   return (
     <section className="home-intro" aria-labelledby="home-intro-title">
@@ -37,13 +44,35 @@ export default function HomeIntroduction() {
         <div className="home-intro__glow" aria-hidden="true" />
         <div className="home-intro__eyebrow"><Zap size={13} fill="currentColor" /> PLAY · CONNECT · EARN</div>
         <h1 id="home-intro-title">Your world of<br /><span>play, in one place.</span></h1>
-        <p>TonPlayGram brings competitive games, community, rewards and digital collectibles into one mobile-first ecosystem.</p>
+        <p>An independently built, mobile-first gaming ecosystem that brings competitive games, community, rewards and digital collectibles into one connected experience.</p>
         <div className="home-intro__actions">
           <Link to="/games" className="home-intro__primary">Explore games <ArrowRight size={17} /></Link>
           <Link to="/ecosystem" className="home-intro__secondary">How it works</Link>
         </div>
         <div className="home-intro__trust"><ShieldCheck size={16} /><span>One profile. Clear activity. Built for players.</span></div>
         <SocialChannels variant="hero" />
+      </div>
+
+      <div className="home-progress" aria-labelledby="home-progress-title">
+        <div className="home-progress__heading">
+          <span className="home-progress__icon"><Sparkles size={16} /></span>
+          <div>
+            <span>BUILT SO FAR</span>
+            <h2 id="home-progress-title">From concept to a working ecosystem</h2>
+          </div>
+          <span className="home-progress__status"><i /> LIVE</span>
+        </div>
+        <p className="home-progress__lede">A growing platform already brings the essential player journey together—from the first match to rewards, friendships and digital ownership.</p>
+        <div className="home-progress__grid">
+          {deliveredHighlights.map((item) => (
+            <div className="home-progress__metric" key={item.label}>
+              <strong>{item.value}</strong>
+              <span>{item.label}</span>
+              <small>{item.detail}</small>
+            </div>
+          ))}
+        </div>
+        <Link to="/achievements" className="home-progress__link">See every milestone <ArrowRight size={15} /></Link>
       </div>
 
       <div className="home-section-heading">
