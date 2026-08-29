@@ -224,10 +224,17 @@ export default function Messages() {
 
   function MessageAttachment({ item }) {
     if (!item) return null;
-    const url = attachmentUrl(item.url);
-    if (item.type?.startsWith('image/')) return <a href={url} target="_blank" rel="noreferrer"><img className="messages-bubble-image" src={url} alt={item.name} /></a>;
-    if (item.type?.startsWith('video/')) return <video className="messages-bubble-video" src={url} controls playsInline preload="metadata" />;
-    return <a className="messages-bubble-file" href={`${url}?download=1&name=${encodeURIComponent(item.name)}`} download={item.name}><FileText /><span><strong>{item.name}</strong><small>{Math.max(1, Math.round(item.size / 1024))} KB · Original file</small></span><Download /></a>;
+    // Accept JSON attachment descriptors written during deployments that used
+    // the legacy String schema, while all new messages use the object shape.
+    let file = item;
+    if (typeof item === 'string') {
+      try { file = JSON.parse(item); } catch { return null; }
+    }
+    if (!file?.url) return null;
+    const url = attachmentUrl(file.url);
+    if (file.type?.startsWith('image/')) return <a href={url} target="_blank" rel="noreferrer"><img className="messages-bubble-image" src={url} alt={file.name} /></a>;
+    if (file.type?.startsWith('video/')) return <video className="messages-bubble-video" src={url} controls playsInline preload="metadata" />;
+    return <a className="messages-bubble-file" href={`${url}?download=1&name=${encodeURIComponent(file.name)}`} download={file.name}><FileText /><span><strong>{file.name}</strong><small>{Math.max(1, Math.round(file.size / 1024))} KB · Original file</small></span><Download /></a>;
   }
 
   if (!socialId) return <div className="messages-login"><LoginOptions /></div>;
