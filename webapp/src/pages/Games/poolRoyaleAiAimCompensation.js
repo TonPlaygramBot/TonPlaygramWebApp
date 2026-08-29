@@ -1,9 +1,12 @@
 import * as THREE from 'three';
 
 const MIN_VECTOR_EPS = 1e-6;
-const DEFAULT_CONTACT_CALIBRATION = 0.0012;
-const DEFAULT_SIDE_DEFLECTION_SCALE = 0.0115;
-const DEFAULT_POWER_DEFLECTION_SCALE = 0.0125;
+const DEFAULT_CONTACT_CALIBRATION = 0;
+// Deflection is expressed as a fraction of a ball diameter. Keeping these
+// coefficients dimensionless makes the same shot accurate on every table/ball
+// scale instead of applying a fixed world-space error.
+const DEFAULT_SIDE_DEFLECTION_SCALE = 0.065;
+const DEFAULT_POWER_DEFLECTION_SCALE = 0.04;
 
 export const resolveAiPotGhostAim = ({
   cuePos,
@@ -42,11 +45,13 @@ export const resolveAiPotGhostAim = ({
   const sideDeflection =
     sideSpin *
     power01 *
+    radius * 2 *
     DEFAULT_SIDE_DEFLECTION_SCALE *
     (0.32 + cutSeverity * 0.68);
   const powerDeflection =
     topBackSpin *
     (0.22 + 0.78 * Math.pow(power01, 1.18)) *
+    radius * 2 *
     DEFAULT_POWER_DEFLECTION_SCALE *
     (0.24 + 0.76 * cutSeverity) *
     THREE.MathUtils.clamp(
@@ -54,7 +59,10 @@ export const resolveAiPotGhostAim = ({
       0.8,
       1.24
     );
-  const cutCompensatedDepth = baseContactDepth * (1 - 0.024 * cutSeverity * cutSeverity);
+  // The centres are always exactly one diameter apart at impact. Shortening
+  // this distance on thin cuts moves the contact normal away from the selected
+  // pocket line and is a major source of apparently random AI misses.
+  const cutCompensatedDepth = baseContactDepth;
   const lateralUnit = new THREE.Vector2(-toPocketDir.y, toPocketDir.x);
 
   const ghost = new THREE.Vector2()
