@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import ProjectAchievementsCard from '../components/ProjectAchievementsCard.jsx';
 import PwaDownloadFrame from '../components/PwaDownloadFrame.jsx';
 import ThemePicker from '../components/ThemePicker.jsx';
+import HomeIntroduction from '../components/HomeIntroduction.jsx';
 
 import { FaArrowUp, FaArrowDown, FaWallet } from 'react-icons/fa';
 import { IoLogoTiktok } from 'react-icons/io5';
@@ -157,6 +158,7 @@ export default function Home() {
   return (
     <div className="home-page space-y-4">
       <ThemePicker />
+      <HomeIntroduction />
       <div className="flex flex-col items-center">
         {photoUrl && (
           <div className="relative">
