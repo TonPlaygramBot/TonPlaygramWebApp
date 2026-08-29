@@ -361,7 +361,12 @@ export default function RouletteMini() {
           </div>
         )}
       </div>
-      <AdModal open={showAd} onComplete={handleAdComplete} onClose={handleAdClose} />
+      <AdModal
+        open={showAd}
+        onComplete={handleAdComplete}
+        onClose={handleAdClose}
+        videoId="7614503027684216071"
+      />
     </div>
   );
 }
