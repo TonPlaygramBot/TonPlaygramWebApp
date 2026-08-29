@@ -79,6 +79,12 @@ const CUSTOM_CHAIR_ANGLES = [
   THREE.MathUtils.degToRad(270),
   THREE.MathUtils.degToRad(180)
 ];
+// Match Murlan Royal's portrait head-to-head presentation: local player at
+// the visual bottom of the phone and the opponent directly across at the top.
+const HEAD_TO_HEAD_CHAIR_ANGLES = [
+  THREE.MathUtils.degToRad(90),
+  THREE.MathUtils.degToRad(270)
+];
 
 const DEFAULT_CHAIR_OPTION = Object.freeze({
   id: 'crimsonVelvet',
@@ -275,7 +281,10 @@ const DICE_FACE_INSET = DICE_SIZE * 0.064;
 const DICE_ROLL_DURATION = 900;
 const DICE_SETTLE_DURATION = 220;
 const DICE_RESULT_HOLD_DURATION = 720;
-const DICE_BOUNCE_HEIGHT = DICE_SIZE * 0.78;
+// Ludo Battle Royal's spinDice uses a 0.06-world-unit bounce by default.
+// Keep the same throw configuration rather than scaling the arc with the
+// Snake board tile size, which made the roll look flatter on portrait phones.
+const DICE_BOUNCE_HEIGHT = 0.06;
 const DICE_THROW_LANDING_MARGIN = TILE_SIZE * 1.8;
 const DICE_THROW_START_EXTRA = TILE_SIZE * 3.6;
 const DICE_THROW_HEIGHT = DICE_SIZE * 0.78;
@@ -350,6 +359,9 @@ const SNAKE_SEATED_CAPTURE_PHASES = Object.freeze({
 });
 
 function getSeatAngle(seatIndex, activePlayerCount = DEFAULT_PLAYER_COUNT) {
+  if (activePlayerCount === 2) {
+    return HEAD_TO_HEAD_CHAIR_ANGLES[seatIndex];
+  }
   const fallbackAngle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET - (seatIndex / activePlayerCount) * Math.PI * 2;
   return CUSTOM_CHAIR_ANGLES[seatIndex] ?? fallbackAngle;
 }
@@ -4176,7 +4188,15 @@ function createJumpLaneResolver(entries = []) {
   return (start) => laneByStart.get(start) ?? { lane: 0, direction: 1 };
 }
 
-function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanceOptions = {}) {
+function buildArena(
+  scene,
+  renderer,
+  host,
+  cameraRef,
+  disposeHandlers,
+  appearanceOptions = {},
+  playerCount = DEFAULT_PLAYER_COUNT
+) {
   const arenaTheme = appearanceOptions.arena ?? {};
   const tableTheme = appearanceOptions.tableTheme || {};
   const stoolTheme = appearanceOptions.stoolTheme || DEFAULT_STOOL_THEME;
@@ -4380,8 +4400,9 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
   let chairTemplate = initialChair.chairTemplate;
   let chairMaterials = initialChair.materials;
   const chairs = [];
+  const activePlayerCount = clamp(Math.trunc(Number(playerCount) || 0), 0, DEFAULT_PLAYER_COUNT);
   const seatedHumans = [];
-  const seatCharacterThemes = pickUniqueSnakeDominoCharacterThemes(DEFAULT_PLAYER_COUNT);
+  const seatCharacterThemes = pickUniqueSnakeDominoCharacterThemes(activePlayerCount);
   const refreshChairInstances = () => {
     chairs.forEach((chair) => {
       if (chair.model) {
@@ -4398,8 +4419,8 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanc
       applyChessBattleSeatedHumanBaseline(seatHuman, seatIndex, 0, 0);
     });
   };
-  for (let i = 0; i < DEFAULT_PLAYER_COUNT; i += 1) {
-    const angle = getSeatAngle(i, DEFAULT_PLAYER_COUNT);
+  for (let i = 0; i < activePlayerCount; i += 1) {
+    const angle = getSeatAngle(i, activePlayerCount);
     const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
     const seatRadius = getSeatRadius(chairRadius, i);
     const seatPos = forward.clone().multiplyScalar(seatRadius);
@@ -6472,6 +6493,7 @@ function updateSeatWeaponDisplays(board, players = []) {
 
 export default function SnakeBoard3D({
   players = [],
+  playerCount = players.length,
   highlight,
   trail,
   pot,
@@ -6540,6 +6562,7 @@ export default function SnakeBoard3D({
   const [tokenPrototypeVersion, setTokenPrototypeVersion] = useState(0);
   const fallbackAppearanceKey = useMemo(() => JSON.stringify(appearance ?? {}), [appearance]);
   const keyForEffect = appearanceKey ?? fallbackAppearanceKey;
+  const activePlayerCount = clamp(Math.trunc(Number(playerCount) || 0), 0, DEFAULT_PLAYER_COUNT);
   const appearanceMemo = useMemo(() => appearance || {}, [keyForEffect, appearance]);
   const tokenTheme = appearanceMemo?.token;
   const tokenShape = appearanceMemo?.tokenShape;
@@ -6801,7 +6824,15 @@ export default function SnakeBoard3D({
     const handlers = disposeHandlers.current;
     handlers.length = 0;
 
-    const arena = buildArena(scene, renderer, mount, cameraRef, handlers, appearanceMemo);
+    const arena = buildArena(
+      scene,
+      renderer,
+      mount,
+      cameraRef,
+      handlers,
+      appearanceMemo,
+      activePlayerCount
+    );
     const board = buildSnakeBoard(
       arena.boardGroup,
       arena.boardLookTarget,
@@ -7318,7 +7349,7 @@ export default function SnakeBoard3D({
       lastFrameTimeRef.current = 0;
       frameAccumulatorRef.current = 0;
     };
-  }, [keyForEffect]);
+  }, [keyForEffect, activePlayerCount]);
 
   useEffect(() => {
     if (!boardRef.current) return;

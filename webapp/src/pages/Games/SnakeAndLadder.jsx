@@ -3720,6 +3720,7 @@ export default function SnakeAndLadder() {
       <div className="absolute inset-0">
         <SnakeBoard3D
           players={players}
+          playerCount={players.length}
           highlight={highlight}
           trail={showTrailEnabled ? trail : []}
           pot={pot}
