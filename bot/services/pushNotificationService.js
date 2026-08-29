@@ -41,7 +41,7 @@ async function sendApns(token, notification, data) {
     request.on('response', (headers) => resolve(Number(headers[':status']) === 200));
     request.on('error', () => resolve(false));
     request.on('close', () => client.close());
-    request.end(JSON.stringify({ aps: { alert: notification, sound: 'default' }, ...data }));
+    request.end(JSON.stringify({ aps: { alert: notification, sound: 'default', 'content-available': 1 }, ...data }));
   });
 }
 
@@ -51,7 +51,12 @@ async function sendFcm(token, notification, data) {
   const response = await fetch('https://fcm.googleapis.com/fcm/send', {
     method: 'POST',
     headers: { authorization: `key=${key}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ to: token, notification, data })
+    body: JSON.stringify({
+      to: token,
+      priority: 'high',
+      notification: { ...notification, sound: 'default', android_channel_id: data?.type === 'friendCall' ? 'incoming_calls' : 'default' },
+      data
+    })
   });
   return response.ok;
 }

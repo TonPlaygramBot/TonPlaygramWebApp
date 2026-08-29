@@ -206,11 +206,14 @@ export default function Layout({ children }) {
       setIncomingCall((current) => (current?.roomId === roomId ? null : current));
     };
     socket.on('friendCall:incoming', onIncomingCall);
+    const onIncomingCallPush = (event) => onIncomingCall(event.detail || {});
+    window.addEventListener('friend-call:incoming-push', onIncomingCallPush);
     socket.on('friendCall:accepted', onAccepted);
     socket.on('friendCall:ended', onEnded);
     window.addEventListener('friend-call:start', onStartCall);
     return () => {
       socket.off('friendCall:incoming', onIncomingCall);
+      window.removeEventListener('friend-call:incoming-push', onIncomingCallPush);
       socket.off('friendCall:accepted', onAccepted);
       socket.off('friendCall:ended', onEnded);
       window.removeEventListener('friend-call:start', onStartCall);

@@ -6,7 +6,10 @@ import {
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import LoginOptions from '../components/LoginOptions.jsx';
 import { getPlayerId, getTelegramId } from '../utils/telegram.js';
-import { getMessages, sendMessage, listFriends, markInboxRead } from '../utils/api.js';
+import {
+  acceptFriendRequest, getMessages, listFriendRequests, sendMessage,
+  listFriends, markInboxRead, rejectFriendRequest
+} from '../utils/api.js';
 import { socket } from '../utils/socket.js';
 import LeaderboardCard from '../components/LeaderboardCard.jsx';
 
@@ -41,6 +44,8 @@ export default function Messages() {
   const telegramId = getTelegramId();
   const socialId = telegramId || getPlayerId();
   const [friends, setFriends] = useState([]);
+  const [friendRequests, setFriendRequests] = useState([]);
+  const [requestAction, setRequestAction] = useState('');
   const [selected, setSelected] = useState(null);
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
@@ -53,13 +58,30 @@ export default function Messages() {
   const messagesEndRef = useRef(null);
   const accountId = getPlayerId();
 
+  const loadSocial = () => {
+    if (!socialId) return Promise.resolve();
+    return Promise.all([
+      listFriends(socialId).then((result) => setFriends(Array.isArray(result) ? result : [])),
+      listFriendRequests(socialId).then((result) => setFriendRequests(Array.isArray(result) ? result : result?.requests || []))
+    ]);
+  };
+
   useEffect(() => {
     if (!socialId) return;
     markInboxRead(socialId).catch(() => {});
-    listFriends(socialId).then((result) => {
-      const nextFriends = Array.isArray(result) ? result : [];
-      setFriends(nextFriends);
-    }).catch(() => { setFriends([]); setLoadError('We could not load your conversations. Please try again.'); });
+    loadSocial().catch(() => { setFriends([]); setFriendRequests([]); setLoadError('We could not load your conversations. Please try again.'); });
+  }, [socialId]);
+
+  useEffect(() => {
+    const refresh = () => loadSocial().catch(() => {});
+    socket.on('friendRequest', refresh);
+    socket.on('friendRequestAccepted', refresh);
+    window.addEventListener('friend-request:push', refresh);
+    return () => {
+      socket.off('friendRequest', refresh);
+      socket.off('friendRequestAccepted', refresh);
+      window.removeEventListener('friend-request:push', refresh);
+    };
   }, [socialId]);
 
   useEffect(() => {
@@ -89,6 +111,44 @@ export default function Messages() {
     const term = search.trim().toLowerCase();
     return friends.filter((friend) => !term || friendName(friend).toLowerCase().includes(term));
   }, [friends, search]);
+  const incomingRequests = useMemo(() => friendRequests.filter((request) =>
+    ![request.fromId, request.fromTelegramId, request.fromAccountId].some((id) => String(id) === String(socialId))
+  ), [friendRequests, socialId]);
+
+  async function respondToRequest(request, action) {
+    const requestId = request.requestId || request._id;
+    if (!requestId || requestAction) return;
+    setRequestAction(`${requestId}:${action}`);
+    try {
+      if (action === 'accept') await acceptFriendRequest(requestId);
+      else await rejectFriendRequest(requestId);
+      await loadSocial();
+      notify(action === 'accept' ? 'Friend request accepted' : 'Friend request rejected');
+    } catch (error) {
+      notify(error?.message || 'Could not update this request.');
+    } finally {
+      setRequestAction('');
+    }
+  }
+
+  function hideRequest(request) {
+    const requestId = request.requestId || request._id;
+    setFriendRequests((current) => current.filter((item) => (item.requestId || item._id) !== requestId));
+  }
+
+  function FriendRequestCard({ request }) {
+    const requestId = request.requestId || request._id;
+    const busy = requestAction.startsWith(`${requestId}:`);
+    return <article className="messages-friend-request">
+      <Avatar friend={{ nickname: request.fromName, photo: request.fromPhoto }} />
+      <span><strong>{request.fromName || 'TonPlaygram player'}</strong><small>wants to be your friend</small></span>
+      <div>
+        <button disabled={busy} onClick={() => respondToRequest(request, 'accept')}>Accept</button>
+        <button disabled={busy} onClick={() => respondToRequest(request, 'reject')}>Reject</button>
+        <button disabled={busy} onClick={() => hideRequest(request)}>Hide</button>
+      </div>
+    </article>;
+  }
 
   function notify(message) {
     setActionNote(message);
@@ -156,7 +216,7 @@ export default function Messages() {
         <div className="messages-overview" aria-label="Social overview">
           <span><b>{friends.length}</b> Friends</span>
           <span><b>{friends.length}</b> Online</span>
-          <span><b>{Math.min(friends.length, 3)}</b> New</span>
+          <span><b>{incomingRequests.length}</b> Requests</span>
         </div>
 
         <nav className="messages-tabs" aria-label="Social hub sections">
@@ -186,6 +246,7 @@ export default function Messages() {
         <div className="messages-list">
           <div className="messages-section-heading"><strong>{activeTab === 'chats' ? 'Messages' : activeTab === 'friends' ? 'All friends' : activeTab === 'notifications' ? 'Notifications' : 'Recent calls'}</strong><button aria-label="More options"><MoreHorizontal /></button></div>
           {activeTab === 'notifications' && <div className="messages-alerts">
+            {incomingRequests.map((request) => <FriendRequestCard key={`notice-request-${request.requestId || request._id}`} request={request} />)}
             {friends.slice(0, 3).map((friend, index) => <button key={`alert-${friend.socialId || friend.telegramId || friend.accountId}`} onClick={() => { setSelected(friend); setActiveTab('chats'); }}>
               <span className={`messages-alert-icon ${index === 1 ? 'violet' : ''}`}>{index === 1 ? <Gamepad2 /> : <Bell />}</span>
               <span><strong>{index === 1 ? 'Game night is starting' : `${friendName(friend)} is online`}</strong><small>{index === 1 ? 'Invite your squad and jump into a match.' : 'Say hello or start a quick call.'}</small><time>{index === 0 ? 'Just now' : `${index + 2}m ago`}</time></span>
@@ -193,6 +254,7 @@ export default function Messages() {
             {friends.length === 0 && <div className="messages-empty"><Bell /><strong>You’re all caught up</strong><p>Friend requests, messages, calls and game invites will appear here.</p></div>}
           </div>}
           {activeTab !== 'notifications' && <>
+          {activeTab === 'friends' && incomingRequests.map((request) => <FriendRequestCard key={`friend-request-${request.requestId || request._id}`} request={request} />)}
           {visibleFriends.map((friend, index) => (
             <button className={`messages-person ${String(selected?.socialId || selected?.telegramId || selected?.accountId) === String(friend.socialId || friend.telegramId || friend.accountId) ? 'active' : ''}`} key={friend.socialId || friend.telegramId || friend.accountId} onClick={() => activeTab === 'calls' ? startFriendCall('voice', friend) : setSelected(friend)}>
               <Avatar friend={friend} />
