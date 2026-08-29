@@ -122,15 +122,7 @@ export default function MiningCard() {
   const minted = isMining ? Math.floor((elapsed / MINING_DURATION) * totalReward) : 0;
 
   return (
-    <div className="relative bg-surface border border-border rounded-xl p-4 space-y-4 text-center overflow-hidden wide-card">
-      <img
-        src="/assets/icons/snakes_and_ladders.webp"
-        className="background-behind-board object-cover"
-        alt=""
-        onError={(e) => {
-          e.currentTarget.style.display = 'none';
-        }}
-      />
+    <div className="mining-control wide-card">
       <div className="flex justify-center items-center space-x-1">
         <GiMining className="w-5 h-5 text-accent" />
         <span className="text-lg font-bold text-white text-outline-black">Mining</span>
@@ -139,22 +131,18 @@ export default function MiningCard() {
       <button
         onClick={toggleMining}
         disabled={isMining}
-        className={`w-full py-4 rounded text-white text-xl font-semibold ${
-          isMining ? 'bg-red-600 cursor-not-allowed' : 'bg-green-600'
-        }`}
+        className={`mining-control__button ${isMining ? 'is-active' : ''}`}
       >
         <div>{isMining ? 'Mining' : 'Start Mining'}</div>
         <div className="text-sm">
           {formatTime(isMining ? Math.max(MINING_DURATION - elapsed, 0) : MINING_DURATION)}
         </div>
       </button>
-      {isMining && (
-        <div className="flex items-center justify-center space-x-1 text-sm">
-          <span>{minted}</span>
-          <span>TPG</span>
-        </div>
-      )}
-      <p className="text-xs text-subtext">Speed boost: +{(bonusRate * 100).toFixed(0)}%</p>
+      <div className="mining-control__progress"><i style={{ width: `${Math.min(100, (elapsed / MINING_DURATION) * 100)}%` }} /></div>
+      <div className="mining-control__summary">
+        <span><small>Mined</small><strong>{minted.toLocaleString()} TPG</strong></span>
+        <span><small>Speed</small><strong>+{(bonusRate * 100).toFixed(0)}%</strong></span>
+      </div>
       {boostExpiry && (
         <p className="text-xs text-subtext">
           Boost ends in {Math.max(0, Math.floor((boostExpiry.getTime() - Date.now()) / 86400000))}d
