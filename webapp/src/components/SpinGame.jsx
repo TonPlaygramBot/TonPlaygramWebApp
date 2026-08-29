@@ -337,6 +337,7 @@ export default function SpinGame() {
         open={showAd}
         onComplete={handleAdComplete}
         onClose={() => setShowAd(false)}
+        videoId="7614600402654252296"
       />
       {bombed && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-70 z-50">

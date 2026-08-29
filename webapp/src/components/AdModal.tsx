@@ -1,21 +1,42 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-const AD_VIDEO_ID = '7614838290667031816';
-// Mobile browsers only permit reliable autoplay when embedded video starts muted.
-const AD_PLAYER_URL = `https://www.tiktok.com/player/v1/${AD_VIDEO_ID}?autoplay=1&muted=1&rel=0`;
-const AD_CANONICAL_URL = `https://www.tiktok.com/@tonplaygram/video/${AD_VIDEO_ID}`;
+const DEFAULT_AD_VIDEO_ID = '7614838290667031816';
 const REWARD_DELAY_MS = 15_000;
 
 interface AdModalProps {
   open: boolean;
   onComplete: () => void;
   onClose?: () => void;
+  videoId?: string;
 }
 
-export default function AdModal({ open, onComplete, onClose }: AdModalProps) {
+export default function AdModal({
+  open,
+  onComplete,
+  onClose,
+  videoId = DEFAULT_AD_VIDEO_ID,
+}: AdModalProps) {
   const rewardIssuedRef = useRef(false);
+  const playerRef = useRef<HTMLIFrameElement>(null);
   const [remainingMs, setRemainingMs] = useState(REWARD_DELAY_MS);
   const [showOpenLinkHint, setShowOpenLinkHint] = useState(false);
+  // Muted, inline playback is required for autoplay in iOS and Android webviews.
+  const playerUrl = useMemo(
+    () =>
+      `https://www.tiktok.com/player/v1/${videoId}?autoplay=1&muted=1&loop=1&playsinline=1&rel=0`,
+    [videoId],
+  );
+  const canonicalUrl = useMemo(
+    () => `https://www.tiktok.com/@tonplaygram/video/${videoId}`,
+    [videoId],
+  );
+
+  const requestPlayback = useCallback(() => {
+    playerRef.current?.contentWindow?.postMessage(
+      { type: 'play', value: undefined },
+      'https://www.tiktok.com',
+    );
+  }, []);
 
   useEffect(() => {
     if (!open) {
@@ -45,6 +66,25 @@ export default function AdModal({ open, onComplete, onClose }: AdModalProps) {
       window.clearTimeout(fallbackHintId);
     };
   }, [open, onComplete]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    // The player can finish loading after the autoplay query is first handled.
+    // Retrying through TikTok's player API makes playback reliable in webviews.
+    const retryIds = [250, 1000, 2500].map((delay) =>
+      window.setTimeout(requestPlayback, delay),
+    );
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') requestPlayback();
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      retryIds.forEach((id) => window.clearTimeout(id));
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [open, playerUrl, requestPlayback]);
 
   const remainingSeconds = useMemo(
     () => Math.ceil(remainingMs / 1000),
@@ -77,13 +117,16 @@ export default function AdModal({ open, onComplete, onClose }: AdModalProps) {
 
         <div className="aspect-[9/16] w-full overflow-hidden rounded-lg border border-border bg-black relative">
           <iframe
-            src={AD_PLAYER_URL}
+            ref={playerRef}
+            key={playerUrl}
+            src={playerUrl}
             title="Rewarded TikTok"
             className="w-full h-full"
             allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
             allowFullScreen
             loading="eager"
             referrerPolicy="strict-origin-when-cross-origin"
+            onLoad={requestPlayback}
           />
         </div>
 
@@ -94,7 +137,7 @@ export default function AdModal({ open, onComplete, onClose }: AdModalProps) {
         )}
 
         <a
-          href={AD_CANONICAL_URL}
+          href={canonicalUrl}
           target="_blank"
           rel="noreferrer"
           className="block text-center text-xs text-blue-300 underline"
