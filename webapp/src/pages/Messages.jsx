@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowLeft, BellOff, Camera, CheckCheck, Gamepad2, Image, Mic, MoreHorizontal,
+  ArrowLeft, Bell, BellOff, Camera, CheckCheck, Gamepad2, Image, Mic, MoreHorizontal,
   Paperclip, Phone, Plus, Search, Send, ShieldCheck, Smile, Users, Video
 } from 'lucide-react';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
@@ -12,6 +12,7 @@ import { socket } from '../utils/socket.js';
 const tabs = [
   { id: 'chats', label: 'Chats', Icon: Send },
   { id: 'friends', label: 'Friends', Icon: Users },
+  { id: 'notifications', label: 'Alerts', Icon: Bell },
   { id: 'calls', label: 'Calls', Icon: Phone }
 ];
 
@@ -56,9 +57,6 @@ export default function Messages() {
     listFriends(socialId).then((result) => {
       const nextFriends = Array.isArray(result) ? result : [];
       setFriends(nextFriends);
-      // Open the inbox itself, rather than making phone users stop at the
-      // conversation list and tap a second time before they can read a message.
-      setSelected((current) => current || nextFriends[0] || null);
     }).catch(() => { setFriends([]); setLoadError('We could not load your conversations. Please try again.'); });
   }, [socialId]);
 
@@ -149,9 +147,15 @@ export default function Messages() {
     <main className={`messages-app ${selected ? 'chat-is-open' : ''}`}>
       <section className="messages-sidebar">
         <header className="messages-topbar">
-          <div><span>TONPLAYGRAM</span><h1>Social hub</h1></div>
+          <div><span>TONPLAYGRAM</span><h1>Social hub</h1><p>Your people, all in one place</p></div>
           <button aria-label="Start a new chat" onClick={() => { setActiveTab('friends'); setSearch(''); }}><Plus /></button>
         </header>
+
+        <div className="messages-overview" aria-label="Social overview">
+          <span><b>{friends.length}</b> Friends</span>
+          <span><b>{friends.length}</b> Online</span>
+          <span><b>{Math.min(friends.length, 3)}</b> New</span>
+        </div>
 
         <nav className="messages-tabs" aria-label="Social hub sections">
           {tabs.map(({ id, label, Icon }) => (
@@ -163,7 +167,7 @@ export default function Messages() {
 
         <label className="messages-search"><Search /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={`Search ${activeTab}...`} /></label>
 
-        {activeTab !== 'calls' && friends.length > 0 && (
+        {activeTab !== 'calls' && activeTab !== 'notifications' && friends.length > 0 && (
           <div className="messages-online">
             <div className="messages-section-heading"><strong>Online now</strong><span>{friends.length} friends</span></div>
             <div className="messages-online-row">
@@ -173,7 +177,15 @@ export default function Messages() {
         )}
 
         <div className="messages-list">
-          <div className="messages-section-heading"><strong>{activeTab === 'chats' ? 'Messages' : activeTab === 'friends' ? 'All friends' : 'Recent calls'}</strong><button><MoreHorizontal /></button></div>
+          <div className="messages-section-heading"><strong>{activeTab === 'chats' ? 'Messages' : activeTab === 'friends' ? 'All friends' : activeTab === 'notifications' ? 'Notifications' : 'Recent calls'}</strong><button aria-label="More options"><MoreHorizontal /></button></div>
+          {activeTab === 'notifications' && <div className="messages-alerts">
+            {friends.slice(0, 3).map((friend, index) => <button key={`alert-${friend.socialId || friend.telegramId || friend.accountId}`} onClick={() => { setSelected(friend); setActiveTab('chats'); }}>
+              <span className={`messages-alert-icon ${index === 1 ? 'violet' : ''}`}>{index === 1 ? <Gamepad2 /> : <Bell />}</span>
+              <span><strong>{index === 1 ? 'Game night is starting' : `${friendName(friend)} is online`}</strong><small>{index === 1 ? 'Invite your squad and jump into a match.' : 'Say hello or start a quick call.'}</small><time>{index === 0 ? 'Just now' : `${index + 2}m ago`}</time></span>
+            </button>)}
+            {friends.length === 0 && <div className="messages-empty"><Bell /><strong>You’re all caught up</strong><p>Friend requests, messages, calls and game invites will appear here.</p></div>}
+          </div>}
+          {activeTab !== 'notifications' && <>
           {visibleFriends.map((friend, index) => (
             <button className={`messages-person ${String(selected?.socialId || selected?.telegramId || selected?.accountId) === String(friend.socialId || friend.telegramId || friend.accountId) ? 'active' : ''}`} key={friend.socialId || friend.telegramId || friend.accountId} onClick={() => activeTab === 'calls' ? startFriendCall('voice', friend) : setSelected(friend)}>
               <Avatar friend={friend} />
@@ -182,6 +194,7 @@ export default function Messages() {
             </button>
           ))}
           {visibleFriends.length === 0 && <div className="messages-empty"><Users /><strong>No friends here yet</strong><p>Find players after a match and add them to start chatting, calling and playing together.</p></div>}
+          </>}
         </div>
       </section>
 
