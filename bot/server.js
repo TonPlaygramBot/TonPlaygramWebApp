@@ -3819,10 +3819,19 @@ io.on('connection', (socket) => {
       return cb?.({ success: false, error: 'Invalid call details' });
     }
     try {
-      const caller = await User.findOne({ telegramId: fromTelegramId, accountId: fromAccountId }).select('accountId nickname firstName lastName photo');
+      const caller = await User.findOne({ telegramId: fromTelegramId, accountId: fromAccountId }).select('accountId telegramId nickname firstName lastName photo friends');
       if (!caller) return cb?.({ success: false, error: 'Caller account not found' });
-      const target = await User.findOne({ telegramId: toTelegramId, accountId: toAccountId }).select('_id accountId nickname firstName lastName photo');
+      const target = await User.findOne({ telegramId: toTelegramId, accountId: toAccountId }).select('_id accountId telegramId nickname firstName lastName photo friends pushTokens');
       if (!target) return cb?.({ success: false, error: 'User not found' });
+      const callerIsFriend = caller.friends?.some((id) =>
+        [target.accountId, target.telegramId].some((targetId) => String(id) === String(targetId))
+      );
+      const targetIsFriend = target.friends?.some((id) =>
+        [caller.accountId, caller.telegramId].some((callerId) => String(id) === String(callerId))
+      );
+      if (!callerIsFriend || !targetIsFriend) {
+        return cb?.({ success: false, error: 'Only friends can call each other' });
+      }
       if (!socket.data?.playerId) {
         socket.data.playerId = fromAccountId;
         let callerSockets = userSockets.get(fromAccountId);
@@ -3833,7 +3842,6 @@ io.on('connection', (socket) => {
         callerSockets.add(socket.id);
       }
       const targets = await getUserSocketIds({ accountId: toAccountId, telegramId: toTelegramId });
-      if (!targets?.size) return cb?.({ success: false, error: 'User is offline' });
       const call = {
         roomId: `friend-call-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
         fromAccountId,
@@ -3847,7 +3855,15 @@ io.on('connection', (socket) => {
         type
       };
       for (const sid of targets) io.to(sid).emit('friendCall:incoming', call);
-      cb?.({ success: true, call });
+      sendPushNotifications(
+        target.pushTokens || [],
+        {
+          title: `Incoming ${type} call`,
+          body: `${call.fromName} is calling you now.`
+        },
+        { type: 'friendCall', ...Object.fromEntries(Object.entries(call).map(([key, value]) => [key, String(value ?? '')])) }
+      ).catch((error) => console.error('Failed to send friend call push:', error.message));
+      cb?.({ success: true, call, delivery: targets?.size ? 'online' : 'push' });
     } catch (error) {
       console.error('friend call invite failed', error);
       cb?.({ success: false, error: 'Unable to start call' });

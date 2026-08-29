@@ -30,16 +30,22 @@ export default function useNativePushNotifications() {
       console.warn('Push registration failed', err);
     });
 
-    const receivedListener = PushNotifications.addListener('pushNotificationReceived', (notification) => {
+    const dispatchPush = (notification) => {
       if (notification?.data?.type === 'gameInvite') {
         window.dispatchEvent(new CustomEvent('game-invite-push', { detail: notification.data }));
       }
-    });
+      if (notification?.data?.type === 'friendCall') {
+        window.dispatchEvent(new CustomEvent('friend-call:incoming-push', { detail: notification.data }));
+      }
+      if (notification?.data?.type === 'friendRequest') {
+        window.dispatchEvent(new CustomEvent('friend-request:push', { detail: notification.data }));
+      }
+    };
+
+    const receivedListener = PushNotifications.addListener('pushNotificationReceived', dispatchPush);
 
     const actionListener = PushNotifications.addListener('pushNotificationActionPerformed', ({ notification }) => {
-      if (notification?.data?.type === 'gameInvite') {
-        window.dispatchEvent(new CustomEvent('game-invite-push', { detail: notification.data }));
-      }
+      dispatchPush(notification);
     });
 
     registerDevice().catch((err) => console.warn('Unable to register for push', err));
