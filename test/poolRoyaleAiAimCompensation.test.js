@@ -66,4 +66,46 @@ describe('Pool Royale AI aim compensation', () => {
     expect(topspin.contactDepth).toBeGreaterThanOrEqual(neutral.contactDepth - 1e-8);
     expect(topspin.contactDepth - neutral.contactDepth).toBeLessThan(0.0015);
   });
+
+  it('keeps the object-ball contact normal precisely on the pocket line for thin cuts', () => {
+    const result = resolveAiPotGhostAim({
+      cuePos: { x: -0.5, y: -0.05 },
+      targetPos: { x: 0.08, y: 0.02 },
+      pocketPos: { x: 0.14, y: 0.6 },
+      ballRadius: 0.03,
+      spin: { x: 0, y: 0 },
+      power: 0.72
+    });
+    const contactNormal = result.ghost.clone().sub({ x: 0.08, y: 0.02 }).normalize();
+    const pocketLine = { x: 0.08 - 0.14, y: 0.02 - 0.6 };
+    const pocketLength = Math.hypot(pocketLine.x, pocketLine.y);
+    const alignment =
+      contactNormal.x * (pocketLine.x / pocketLength) +
+      contactNormal.y * (pocketLine.y / pocketLength);
+
+    expect(alignment).toBeCloseTo(1, 7);
+    expect(result.contactDepth).toBeCloseTo(0.06, 6);
+  });
+
+  it('scales spin compensation with the ball instead of introducing a fixed world-space error', () => {
+    const small = resolveAiPotGhostAim({
+      cuePos,
+      targetPos,
+      pocketPos,
+      ballRadius: 0.03,
+      spin: { x: 0.5, y: -0.25 },
+      power: 0.85
+    });
+    const scale = 10;
+    const large = resolveAiPotGhostAim({
+      cuePos: { x: cuePos.x * scale, y: cuePos.y * scale },
+      targetPos: { x: targetPos.x * scale, y: targetPos.y * scale },
+      pocketPos: { x: pocketPos.x * scale, y: pocketPos.y * scale },
+      ballRadius: 0.03 * scale,
+      spin: { x: 0.5, y: -0.25 },
+      power: 0.85
+    });
+
+    expect(small.aimDir.angleTo(large.aimDir)).toBeLessThan(1e-7);
+  });
 });
