@@ -43,6 +43,8 @@ test/platformHelpAgent/
    - `npm run help:ingest`
 3. Start API
    - `npm run help:api`
+   - Voice endpoints now support a local development fallback when PersonaPlex credentials are missing.
+   - Optional strict mode: set `PERSONAPLEX_LOCAL_FALLBACK=0` to force real PersonaPlex credentials.
 4. Run tests
    - `npm run help:test`
 
