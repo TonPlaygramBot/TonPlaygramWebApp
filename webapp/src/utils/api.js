@@ -628,7 +628,21 @@ export function listFriends(telegramId) {
   return post('/api/social/friends', { telegramId });
 }
 
-export function sendMessage(fromId, toId, text) {
+export function sendMessage(fromId, toId, text, attachment) {
+  if (attachment) {
+    const form = new FormData();
+    form.set('fromId', fromId);
+    form.set('toId', toId);
+    form.set('text', text || '');
+    form.set('attachment', attachment, attachment.name);
+    return fetchWithRetry(`${API_BASE_URL}/api/social/send-message-attachment`, {
+      method: 'POST', headers: buildHeaders(), body: form
+    }).then(async (response) => {
+      const result = await response.json().catch(() => ({ error: 'The server returned an unreadable response.' }));
+      if (!response.ok) throw new Error(result.error || `Upload failed (${response.status}).`);
+      return result;
+    });
+  }
   return post('/api/social/send-message', { fromId, toId, text });
 }
 

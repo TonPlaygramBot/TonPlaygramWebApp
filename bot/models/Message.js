@@ -6,6 +6,12 @@ const messageSchema = new mongoose.Schema({
   from: { type: mongoose.Schema.Types.Mixed, required: true },
   to: { type: mongoose.Schema.Types.Mixed, required: true },
   text: { type: String, required: true },
+  attachment: {
+    name: String,
+    size: Number,
+    type: String,
+    url: String
+  },
   createdAt: { type: Date, default: Date.now }
 });
 
