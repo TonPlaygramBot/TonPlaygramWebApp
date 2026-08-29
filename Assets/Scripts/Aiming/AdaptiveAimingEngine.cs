@@ -33,6 +33,7 @@ namespace Aiming
         public bool showDebug = true;
 
         LineRenderer lr;
+        LineRenderer objectBallLine;
         IAimingStrategy ghost, contact, fractional, cte;
         ShotClassifier classifier;
         AimingDebugOverlay overlay;
@@ -70,6 +71,31 @@ namespace Aiming
             lr.widthMultiplier = config ? config.lineWidth : 0.01f;
             lr.startColor = lr.endColor = config ? config.lineColor : Color.cyan;
             lr.enabled = true;
+
+            Transform objectLineTransform = transform.Find("ObjectBallPathGuide");
+            GameObject objectLineObject;
+            if (objectLineTransform == null)
+            {
+                objectLineObject = new GameObject("ObjectBallPathGuide");
+                objectLineObject.transform.SetParent(transform, false);
+            }
+            else
+            {
+                objectLineObject = objectLineTransform.gameObject;
+            }
+
+            objectBallLine = objectLineObject.GetComponent<LineRenderer>();
+            if (objectBallLine == null)
+            {
+                objectBallLine = objectLineObject.AddComponent<LineRenderer>();
+            }
+
+            objectBallLine.useWorldSpace = true;
+            objectBallLine.positionCount = 2;
+            objectBallLine.material = lr.material;
+            objectBallLine.widthMultiplier = lr.widthMultiplier;
+            objectBallLine.startColor = objectBallLine.endColor = lr.startColor;
+            objectBallLine.enabled = true;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -91,7 +117,7 @@ namespace Aiming
                     debugNote = !info.losCueToObj ? "Blocked: cue→object" : "Blocked: object→pocket"
                 };
 
-                DrawGuideLine(blocked.aimStart, blocked.aimEnd);
+                DrawGuideLines(blocked.aimStart, blocked.aimEnd, evalCtx.objectBallPos, evalCtx.pocketPos);
                 if (showDebug) overlay.UpdateOverlay(evalCtx, info, blocked);
                 return blocked;
             }
@@ -116,18 +142,23 @@ namespace Aiming
                 sol.cueElevationDeg = (ctx.requiresPower && info.isRailShot) ? config.elevationForPower : 0f;
             }
 
-            DrawGuideLine(sol.aimStart, sol.aimEnd);
+            DrawGuideLines(sol.aimStart, sol.aimEnd, evalCtx.objectBallPos, evalCtx.pocketPos);
             if (showDebug) overlay.UpdateOverlay(evalCtx, info, sol);
 
             return sol;
         }
 
-        void DrawGuideLine(Vector3 start, Vector3 end)
+        void DrawGuideLines(Vector3 cueStart, Vector3 cueEnd, Vector3 objectStart, Vector3 objectEnd)
         {
             if (lr == null) return;
             lr.enabled = true;
-            lr.SetPosition(0, start);
-            lr.SetPosition(1, end);
+            lr.SetPosition(0, cueStart);
+            lr.SetPosition(1, cueEnd);
+
+            if (objectBallLine == null) return;
+            objectBallLine.enabled = true;
+            objectBallLine.SetPosition(0, objectStart);
+            objectBallLine.SetPosition(1, objectEnd);
         }
 
         float RecommendPower(ShotClassifier.DistBucket b, bool requiresPower)

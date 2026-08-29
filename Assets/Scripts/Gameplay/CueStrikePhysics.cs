@@ -26,8 +26,8 @@ namespace Aiming
         public float sideSpinTorqueScale = 0.02f;
         [Tooltip("Torque multiplier for top/back spin.")]
         public float verticalSpinTorqueScale = 0.025f;
-        [Tooltip("Reduces cue-ball path deflection caused by off-center hit/spin while keeping visible spin.")]
-        [Range(0f, 1f)] public float spinDeflectionReduction = 0.8f;
+        [Tooltip("Legacy setting retained for existing scenes. Linear strike direction is always exact; spin is applied as torque only.")]
+        [Range(0f, 1f)] public float spinDeflectionReduction = 1f;
 
         public void Apply(Rigidbody cueBallBody, Vector3 strikeDirection, float impulseMagnitude, Vector2 spinInput, float ballRadius)
         {
@@ -48,11 +48,12 @@ namespace Aiming
 
             Vector2 clampedSpin = Vector2.ClampMagnitude(spinInput, maxSpinInput);
             Vector3 right = Vector3.Cross(Vector3.up, planarDirection).normalized;
-            float deflectionCarry = 1f - Mathf.Clamp01(spinDeflectionReduction);
-            Vector3 contactOffset = ((right * clampedSpin.x) + (Vector3.up * clampedSpin.y)) * (ballRadius * contactRadiusFactor * deflectionCarry);
-            Vector3 contactPoint = cueBallBody.worldCenterOfMass + contactOffset;
 
-            cueBallBody.AddForceAtPosition(planarDirection * impulseMagnitude, contactPoint, ForceMode.Impulse);
+            // Apply all linear energy through the centre of mass. An off-centre
+            // AddForceAtPosition can make the simulated path disagree with the
+            // guide at high power or spin. Spin remains visual and physical, but
+            // is isolated to angular velocity so it cannot rotate the initial path.
+            cueBallBody.AddForce(planarDirection * impulseMagnitude, ForceMode.Impulse);
 
             if (Mathf.Abs(clampedSpin.x) > Mathf.Epsilon || Mathf.Abs(clampedSpin.y) > Mathf.Epsilon)
             {
@@ -60,20 +61,6 @@ namespace Aiming
                     right * clampedSpin.y * verticalSpinTorqueScale) * impulseMagnitude;
                 cueBallBody.AddTorque(torque, ForceMode.Impulse);
 
-                float straightTopSpinBoost = 0f;
-                if (clampedSpin.y > 0f && Mathf.Abs(clampedSpin.x) <= straightTopSpinSideThreshold)
-                {
-                    float straightFactor = 1f - Mathf.Clamp01(Mathf.Abs(clampedSpin.x) / Mathf.Max(straightTopSpinSideThreshold, 0.0001f));
-                    straightTopSpinBoost = clampedSpin.y * straightTopSpinFollowBoost * straightFactor;
-                }
-
-                float follow = (Mathf.Max(0f, clampedSpin.y) * topSpinForwardImpulseScale + straightTopSpinBoost) * deflectionCarry;
-                float draw = (Mathf.Max(0f, -clampedSpin.y) * backSpinReverseImpulseScale) * deflectionCarry;
-                float spinLinearImpulse = (follow - draw) * impulseMagnitude;
-                if (Mathf.Abs(spinLinearImpulse) > Mathf.Epsilon)
-                {
-                    cueBallBody.AddForce(planarDirection * spinLinearImpulse, ForceMode.Impulse);
-                }
             }
         }
     }
