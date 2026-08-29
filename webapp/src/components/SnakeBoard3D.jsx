@@ -3661,7 +3661,6 @@ function createDiceRollAnimation(
   }
 ) {
   const start = performance.now();
-  const startQuaternions = diceArray.map((die) => die.quaternion.clone());
   const spinVectors = diceArray.map(() =>
     new THREE.Vector3(
       1.2 + Math.random() * 0.7,
@@ -3703,15 +3702,13 @@ function createDiceRollAnimation(
         position.y = THREE.MathUtils.lerp(startPos.y, endPos.y, eased) + bounce;
         die.position.copy(position);
 
-        // Derive rotation from elapsed progress instead of adding once per
-        // rendered frame. This gives 30/60/90 Hz phones the same complete roll.
-        const spinProgress = eased * (1 - eased * 0.14);
-        const spin = new THREE.Quaternion().setFromEuler(new THREE.Euler(
-          spinVectors[index].x * spinProgress * Math.PI * 2.4,
-          spinVectors[index].y * spinProgress * Math.PI * 2.4,
-          spinVectors[index].z * spinProgress * Math.PI * 2.4
-        ));
-        die.quaternion.copy(startQuaternions[index]).multiply(spin);
+        // Use Ludo Battle Royal's exact rolling update. Incrementing each axis
+        // produces the same continuous tumble instead of repeatedly rebuilding
+        // an Euler quaternion, which reads as a shake on a portrait phone.
+        const spinFactor = 1 - eased * 0.28;
+        die.rotation.x += spinVectors[index].x * spinFactor * 0.22;
+        die.rotation.y += spinVectors[index].y * spinFactor * 0.22;
+        die.rotation.z += spinVectors[index].z * spinFactor * 0.22;
       });
       if (t >= 1) {
         diceArray.forEach((die, index) => {
