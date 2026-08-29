@@ -29917,6 +29917,27 @@ const shotPowerRef = useRef(0);
           const n = THREE.MathUtils.clamp(dist / MAX_ROUTE_DISTANCE, 0, 1);
           return THREE.MathUtils.lerp(0.35, 0.9, n);
         };
+        // Positional planning runs outside the per-candidate evaluator, so it
+        // must use its own live-table lane test.  Previously it called the
+        // evaluator's locally scoped `isPathClear`, threw a ReferenceError and
+        // silently fell back to the same back-spin on every shot.
+        const isAiRouteClear = (start, end, ignoreIds = new Set()) => {
+          if (!start || !end) return false;
+          const delta = end.clone().sub(start);
+          const lengthSq = delta.lengthSq();
+          if (lengthSq < 1e-6) return true;
+          const length = Math.sqrt(lengthSq);
+          const direction = delta.divideScalar(length);
+          const liveBalls = ballsRef.current?.length > 0 ? ballsRef.current : balls;
+          const clearanceSq = Math.pow(BALL_R * 2.08, 2);
+          return !liveBalls.some((ball) => {
+            if (!ball?.active || ignoreIds.has(ball.id) || !ball.pos) return false;
+            const relative = ball.pos.clone().sub(start);
+            const along = THREE.MathUtils.clamp(relative.dot(direction), 0, length);
+            const closest = start.clone().addScaledVector(direction, along);
+            return ball.pos.distanceToSquared(closest) < clearanceSq;
+          });
+        };
         const computePlanSpin = (plan, stateSnapshot) => {
           const fallback = { x: 0, y: -0.1 };
           if (!plan || plan.type !== 'pot') return fallback;
@@ -29973,11 +29994,11 @@ const shotPowerRef = useRef(0);
                 const routeLength = objectRoute.length();
                 if (routeLength < BALL_R * 2 || objectRoute.lengthSq() < 1e-6) return;
                 const ignore = new Set([candidate.id, plan.targetBall?.id].filter(Boolean));
-                if (!isPathClear(candidate.pos, pocket, ignore)) return;
+                if (!isAiRouteClear(candidate.pos, pocket, ignore)) return;
                 const ghost = candidate.pos
                   .clone()
                   .sub(objectRoute.normalize().multiplyScalar(BALL_R * 2.35));
-                const approachClear = isPathClear(plan.targetBall.pos, ghost, ignore);
+                const approachClear = isAiRouteClear(plan.targetBall.pos, ghost, ignore);
                 const routeScore =
                   (approachClear ? 1 : 0.25) -
                   routeLength / Math.max(PLAY_W + PLAY_H, BALL_R) -
@@ -31969,7 +31990,20 @@ const shotPowerRef = useRef(0);
                   }))
                   .sort((a, b) => a.distance - b.distance);
                 const chosenPocket = candidatePockets[0] ?? null;
-                const rawAim = targetBall.pos.clone().sub(cuePos);
+                // Even the emergency route must aim the cue-ball centre at the
+                // 2R ghost-ball contact point. Aiming at the object-ball centre
+                // only works for a perfectly straight pot and caused the AI's
+                // most visible cut-shot misses.
+                const pocketDirection = chosenPocket
+                  ? chosenPocket.center.clone().sub(targetBall.pos)
+                  : null;
+                if (pocketDirection?.lengthSq() > 1e-6) pocketDirection.normalize();
+                const ghost = pocketDirection
+                  ? targetBall.pos
+                      .clone()
+                      .sub(pocketDirection.multiplyScalar(BALL_R * 2))
+                  : targetBall.pos.clone();
+                const rawAim = ghost.clone().sub(cuePos);
                 const aimDir = rawAim.lengthSq() > 1e-6 ? rawAim.normalize() : new THREE.Vector2(0, 1);
                 plan = {
                   type: 'pot',
