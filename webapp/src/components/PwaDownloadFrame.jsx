@@ -1,5 +1,14 @@
 import { useMemo, useState } from 'react';
-import { Download, PackageOpen, Rocket } from 'lucide-react';
+import {
+  Check,
+  ChevronRight,
+  Chrome,
+  CloudDownload,
+  PackageOpen,
+  RefreshCw,
+  ShieldCheck,
+  Smartphone
+} from 'lucide-react';
 import { cacheOfflineAssets, isTelegramEnvironment } from '../pwa/offlineCache.js';
 import { cacheOpenSourceAssets } from '../pwa/openSourceCache.js';
 import { APP_BUILD } from '../config/buildInfo.js';
@@ -11,27 +20,30 @@ export default function PwaDownloadFrame() {
   const [openSourceState, setOpenSourceState] = useState({ status: 'idle', progress: initialProgress, error: '' });
   const [refreshState, setRefreshState] = useState({ status: 'idle', error: '' });
 
-  const telegramLabel = useMemo(() => (isTelegramEnvironment() ? 'Telegram (in-app)' : 'Telegram'), []);
+  const inTelegram = useMemo(() => isTelegramEnvironment(), []);
+  const progress = offlineState.progress.total
+    ? Math.round((offlineState.progress.completed / offlineState.progress.total) * 100)
+    : 0;
 
   const handleOfflineDownload = async (channel) => {
     setOfflineState({ status: 'loading', progress: initialProgress, error: '' });
     try {
       await cacheOfflineAssets({
         baseUrl: '/',
-        onUpdate: (progress) => setOfflineState({ status: 'loading', progress, error: '' })
+        onUpdate: (nextProgress) => setOfflineState({ status: 'loading', progress: nextProgress, error: '' })
       });
       setOfflineState({ status: 'success', progress: initialProgress, error: '' });
       if (channel === 'telegram' && window.Telegram?.WebApp?.showPopup) {
         window.Telegram.WebApp.showPopup({
-          title: 'TonPlaygram cached',
-          message: 'Offline files are ready for Telegram WebView. Updates will install after your game ends.'
+          title: 'Ready to play',
+          message: 'TonPlaygram is saved for faster loading in Telegram.'
         });
       }
     } catch (err) {
       setOfflineState({
         status: 'error',
         progress: initialProgress,
-        error: err?.message || 'Unable to cache the PWA files.'
+        error: err?.message || 'Download failed. Please try again.'
       });
     }
   };
@@ -40,186 +52,141 @@ export default function PwaDownloadFrame() {
     setOpenSourceState({ status: 'loading', progress: initialProgress, error: '' });
     try {
       await cacheOpenSourceAssets({
-        onUpdate: (progress) => setOpenSourceState({ status: 'loading', progress, error: '' })
+        onUpdate: (nextProgress) => setOpenSourceState({ status: 'loading', progress: nextProgress, error: '' })
       });
       setOpenSourceState({ status: 'success', progress: initialProgress, error: '' });
     } catch (err) {
       setOpenSourceState({
         status: 'error',
         progress: initialProgress,
-        error: err?.message || 'Unable to cache the open-source bundle.'
+        error: err?.message || 'Unable to save the open-source files.'
       });
     }
   };
 
   const handleRefreshToLatest = async () => {
     setRefreshState({ status: 'loading', error: '' });
-
     try {
-      if (!('serviceWorker' in navigator)) {
-        throw new Error('Service worker not supported in this browser.');
-      }
+      if (!('serviceWorker' in navigator)) throw new Error('Updates are not supported in this browser.');
 
       const registration = await navigator.serviceWorker.ready;
       await registration.update();
-
       const waitForInstall = registration.installing
         ? new Promise(resolve => {
             const worker = registration.installing;
             worker?.addEventListener('statechange', () => {
-              if (worker.state === 'installed' || worker.state === 'activated') {
-                resolve();
-              }
+              if (worker.state === 'installed' || worker.state === 'activated') resolve();
             });
           })
         : null;
 
       const targetWorker = registration.waiting || registration.installing;
-      if (targetWorker) {
-        targetWorker.postMessage({ type: 'SKIP_WAITING' });
-      }
-
+      targetWorker?.postMessage({ type: 'SKIP_WAITING' });
       if (waitForInstall) {
         await Promise.race([waitForInstall, new Promise(resolve => setTimeout(resolve, 1500))]);
       }
-
       const activeWorker = navigator.serviceWorker.controller || registration.active || registration.waiting;
       activeWorker?.postMessage({ type: 'CHECK_FOR_UPDATE' });
-
       setRefreshState({ status: 'success', error: '' });
-      setTimeout(() => {
-        window.location.reload();
-      }, 500);
+      setTimeout(() => window.location.reload(), 500);
     } catch (err) {
-      setRefreshState({
-        status: 'error',
-        error: err?.message || 'Unable to refresh the PWA right now.'
-      });
+      setRefreshState({ status: 'error', error: err?.message || 'Unable to update right now.' });
     }
   };
 
-  const offlineHint = offlineState.status === 'loading'
-    ? `Caching ${offlineState.progress.completed}/${offlineState.progress.total}`
+  const downloadLabel = offlineState.status === 'loading'
+    ? `Saving ${progress}%`
     : offlineState.status === 'success'
-      ? 'Cached and ready for offline play.'
-      : 'Download the full PWA shell for faster load times.';
-
-  const openSourceHint = openSourceState.status === 'loading'
-    ? `Downloading ${openSourceState.progress.completed}/${openSourceState.progress.total}`
-    : openSourceState.status === 'success'
-      ? 'Open-source assets cached locally.'
-      : 'Download open-source assets and code links for full transparency.';
+      ? 'Ready to play'
+      : 'Choose where you play';
 
   return (
-    <div className="border border-border rounded-2xl bg-surface/90 p-4 space-y-4 shadow-xl shadow-black/20">
-      <div className="flex items-start gap-3">
-        <div className="w-11 h-11 rounded-xl bg-primary/20 flex items-center justify-center">
-          <Download className="text-primary" size={22} />
-        </div>
-        <div>
-          <h3 className="text-white text-lg font-semibold">Download cached PWA</h3>
-          <p className="text-sm text-subtext max-w-xl">
-            Choose your browser to preload the full game shell. Updates are queued and applied after your match ends.
-          </p>
-        </div>
-      </div>
-      <div className="rounded-xl border border-border bg-background/70 p-3 space-y-2">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-sm text-white font-semibold">Latest home page version</p>
-          <span className="text-xs text-subtext">Build {APP_BUILD || 'dev'}</span>
-        </div>
-        <button
-          type="button"
-          className="w-full bg-primary text-white px-3 py-2 rounded-lg text-sm font-semibold hover:bg-primary/80 transition disabled:opacity-60"
-          onClick={handleRefreshToLatest}
-          disabled={refreshState.status === 'loading'}
-        >
-          {refreshState.status === 'loading' ? 'Updating…' : 'Update PWA to latest version'}
-        </button>
-        <p className="text-xs text-subtext">
-          {refreshState.status === 'success'
-            ? 'Latest version found. Reloading now...'
-            : 'Force a quick update check to pull the newest home page and assets.'}
-          {refreshState.status === 'error' && (
-            <span className="text-red-400 block mt-1">{refreshState.error}</span>
-          )}
-        </p>
-      </div>
-      <div className="grid gap-3 md:grid-cols-2">
-        <button
-          type="button"
-          className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background/70 px-4 py-3 text-left hover:border-primary transition disabled:opacity-60"
-          onClick={() => handleOfflineDownload('chrome')}
-          disabled={offlineState.status === 'loading'}
-        >
-          <div>
-            <p className="text-white font-semibold">Chrome PWA</p>
-            <p className="text-xs text-subtext">Optimized for Chrome installs & desktop shortcuts.</p>
+    <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#151a2b] via-[#101522] to-[#0b0f19] shadow-2xl shadow-black/30">
+      <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-primary/20 blur-3xl" />
+      <div className="relative p-4 sm:p-5">
+        <div className="mb-5 flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-white shadow-lg shadow-primary/30">
+              <CloudDownload size={25} strokeWidth={2.2} />
+            </div>
+            <div className="min-w-0">
+              <div className="mb-0.5 flex items-center gap-2">
+                <h3 className="truncate text-lg font-bold text-white">Save TonPlaygram</h3>
+                <span className="rounded-full bg-emerald-400/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-300">PWA</span>
+              </div>
+              <p className="text-sm text-slate-400">Faster launch. Play anywhere.</p>
+            </div>
           </div>
-          <Rocket className="text-primary" size={20} />
-        </button>
-        <button
-          type="button"
-          className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background/70 px-4 py-3 text-left hover:border-primary transition disabled:opacity-60"
-          onClick={() => handleOfflineDownload('telegram')}
-          disabled={offlineState.status === 'loading'}
-        >
-          <div>
-            <p className="text-white font-semibold">{telegramLabel} WebView</p>
-            <p className="text-xs text-subtext">Preload for Telegram mobile browser sessions.</p>
-          </div>
-          <Rocket className="text-primary" size={20} />
-        </button>
-      </div>
-      <div className="text-xs text-subtext">
-        {offlineHint}
-        {offlineState.status === 'error' && (
-          <span className="text-red-400 block mt-1">{offlineState.error}</span>
-        )}
-      </div>
-      <div className="pt-2 border-t border-border/60 space-y-3">
-        <div className="flex items-start gap-3">
-          <div className="w-11 h-11 rounded-xl bg-accent/20 flex items-center justify-center">
-            <PackageOpen className="text-accent" size={22} />
-          </div>
-          <div>
-            <h4 className="text-white font-semibold">Open-source bundle</h4>
-            <p className="text-sm text-subtext max-w-xl">
-              Download every open-source package and asset reference we use so you can cache them locally.
-            </p>
-          </div>
+          <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-medium text-slate-400">
+            v{APP_BUILD || 'dev'}
+          </span>
         </div>
-        <div className="flex flex-wrap gap-2">
+
+        <div className="mb-3 grid grid-cols-2 gap-2.5">
           <button
             type="button"
-            className="bg-accent text-white px-3 py-2 rounded-lg text-sm hover:bg-accent/80 transition disabled:opacity-60"
-            onClick={handleOpenSourceDownload}
-            disabled={openSourceState.status === 'loading'}
+            className={`group relative min-h-[112px] rounded-2xl border p-3 text-left transition active:scale-[0.98] disabled:opacity-60 ${!inTelegram ? 'border-primary/60 bg-primary/10' : 'border-white/10 bg-white/[0.04] hover:border-primary/40'}`}
+            onClick={() => handleOfflineDownload('chrome')}
+            disabled={offlineState.status === 'loading'}
           >
-            Cache open-source assets
+            {!inTelegram && <span className="absolute right-2 top-2 rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold uppercase text-white">Best</span>}
+            <Chrome className="mb-3 text-sky-300" size={24} />
+            <p className="font-semibold text-white">Browser</p>
+            <p className="mt-0.5 text-[11px] text-slate-400">Chrome &amp; mobile</p>
           </button>
-          <a
-            href="/pwa/open-source-assets.json"
-            download
-            className="text-sm text-text/80 hover:text-white transition underline"
+          <button
+            type="button"
+            className={`group relative min-h-[112px] rounded-2xl border p-3 text-left transition active:scale-[0.98] disabled:opacity-60 ${inTelegram ? 'border-primary/60 bg-primary/10' : 'border-white/10 bg-white/[0.04] hover:border-primary/40'}`}
+            onClick={() => handleOfflineDownload('telegram')}
+            disabled={offlineState.status === 'loading'}
           >
-            Download asset list
-          </a>
-          <a
-            href="/pwa/open-source-sources.json"
-            download
-            className="text-sm text-text/80 hover:text-white transition underline"
-          >
-            Download package sources
-          </a>
+            {inTelegram && <span className="absolute right-2 top-2 rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold uppercase text-white">Best</span>}
+            <Smartphone className="mb-3 text-violet-300" size={24} />
+            <p className="font-semibold text-white">Telegram</p>
+            <p className="mt-0.5 text-[11px] text-slate-400">In-app access</p>
+          </button>
         </div>
-        <div className="text-xs text-subtext">
-          {openSourceHint}
-          {openSourceState.status === 'error' && (
-            <span className="text-red-400 block mt-1">{openSourceState.error}</span>
+
+        <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-xs font-medium text-slate-300">
+              {offlineState.status === 'success' ? <Check size={15} className="text-emerald-400" /> : <ShieldCheck size={15} className="text-emerald-400" />}
+              {downloadLabel}
+            </div>
+            <button
+              type="button"
+              onClick={handleRefreshToLatest}
+              disabled={refreshState.status === 'loading'}
+              className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-primary transition hover:bg-primary/10 disabled:opacity-60"
+            >
+              <RefreshCw size={13} className={refreshState.status === 'loading' ? 'animate-spin' : ''} />
+              {refreshState.status === 'success' ? 'Updated' : 'Update'}
+            </button>
+          </div>
+          {offlineState.status === 'loading' && (
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
+              <div className="h-full rounded-full bg-gradient-to-r from-primary to-cyan-300 transition-all" style={{ width: `${progress}%` }} />
+            </div>
+          )}
+          {(offlineState.error || refreshState.error) && (
+            <p className="mt-2 text-xs text-red-400">{offlineState.error || refreshState.error}</p>
           )}
         </div>
+
+        <div className="mt-3 flex items-center gap-2 border-t border-white/10 pt-3">
+          <PackageOpen size={17} className="shrink-0 text-slate-400" />
+          <button
+            type="button"
+            onClick={handleOpenSourceDownload}
+            disabled={openSourceState.status === 'loading'}
+            className="flex min-w-0 flex-1 items-center justify-between text-left text-xs font-medium text-slate-400 transition hover:text-white disabled:opacity-60"
+          >
+            <span>{openSourceState.status === 'loading' ? 'Saving source files…' : openSourceState.status === 'success' ? 'Source files saved' : 'Save open-source files'}</span>
+            <ChevronRight size={16} />
+          </button>
+        </div>
+        {openSourceState.error && <p className="mt-2 text-xs text-red-400">{openSourceState.error}</p>}
       </div>
-    </div>
+    </section>
   );
 }
