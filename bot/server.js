@@ -2744,6 +2744,21 @@ io.on('connection', (socket) => {
     maybeStartGame(table);
   });
 
+  // Lightweight authoritative room relay for the portrait sports games. Only
+  // a registered, seated player may publish a bounded action to their match.
+  socket.on('sportsAction', (payload = {}, cb) => {
+    const { tableId, gameType, score, power } = payload;
+    const table = tableMap.get(String(tableId || ''));
+    const accountId = String(socket.data?.playerId || '');
+    const supported = new Set(['table-tennis', 'tennis', 'bowling']);
+    if (!table || !supported.has(String(gameType)) || table.gameType !== gameType) return cb?.({ success: false, error: 'invalid_match' });
+    if (!table.players.some((player) => String(player.id) === accountId)) return cb?.({ success: false, error: 'seat_required' });
+    if (isRateLimited(socket, 'sportsAction', 180)) return cb?.({ success: false, error: 'rate_limited' });
+    const safeScore = Array.isArray(score) ? score.slice(0, 2).map((value) => Math.max(0, Math.min(300, Math.floor(Number(value) || 0)))) : [0, 0];
+    socket.to(tableId).emit('sportsAction', { tableId, gameType, score: safeScore, power: Math.max(0, Math.min(100, Number(power) || 0)), playerId: accountId });
+    cb?.({ success: true });
+  });
+
   socket.on('joinRoom', async (payload = {}, cb) => {
     const { roomId, name, avatar } = payload;
     const pid = resolveTpcIdentity(payload);

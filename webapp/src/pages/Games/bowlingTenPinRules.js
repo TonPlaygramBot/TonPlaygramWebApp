@@ -1,76 +1,123 @@
-const clampPins = (value, maximum) =>
-  Math.max(0, Math.min(maximum, Math.floor(Number(value) || 0)));
+export const OFFICIAL_TEN_PIN_RULE_SUMMARY =
+  'Official ten-pin: 10 frames · max two rolls per frames 1-9 unless strike · strike scores 10 plus next two rolls · spare scores 10 plus next roll · open frame scores pinfall · 10th frame grants bonus rolls only after strike/spare · each full rack is limited to 10 pins · foul rolls score 0 while still counting as delivered balls.';
 
-export function frameComplete (frame, frameIndex) {
-  const rolls = frame?.rolls || [];
-  if (frameIndex < 9) return rolls[0] === 10 || rolls.length >= 2;
-  if (rolls.length < 2) return false;
-  const earnedBonus = rolls[0] === 10 || rolls[0] + rolls[1] === 10;
-  return earnedBonus ? rolls.length >= 3 : true;
+export function frameComplete(frame, index) {
+  const r = frame.rolls || [];
+  if (index < 9) return r[0] === 10 || r.length >= 2;
+  if (r.length < 2) return false;
+  if (r[0] === 10 || r[0] + r[1] === 10) return r.length >= 3;
+  return r.length >= 2;
 }
 
-export function getLegalTenPinMax (frame, frameIndex, rollIndex = frame?.rolls?.length || 0) {
-  const rolls = frame?.rolls || [];
-  if (frameIndex < 9) return rollIndex === 0 ? 10 : Math.max(0, 10 - (rolls[0] || 0));
+export function currentFrameIndex(player) {
+  const idx = player.frames.findIndex((f, i) => !frameComplete(f, i));
+  return idx === -1 ? 9 : idx;
+}
+
+export function playerFinished(player) {
+  return player.frames.every((f, i) => frameComplete(f, i));
+}
+
+export function getLegalTenPinMax(frame, frameIndex, rollIndex) {
+  if (frameIndex < 9)
+    return rollIndex === 0 ? 10 : Math.max(0, 10 - (frame.rolls[0] || 0));
   if (rollIndex === 0) return 10;
-  if (rollIndex === 1) return rolls[0] === 10 ? 10 : Math.max(0, 10 - (rolls[0] || 0));
-  if (rolls[0] === 10) return rolls[1] === 10 ? 10 : Math.max(0, 10 - (rolls[1] || 0));
-  return rolls[0] + rolls[1] === 10 ? 10 : 0;
+  if (rollIndex === 1)
+    return frame.rolls[0] === 10 ? 10 : Math.max(0, 10 - (frame.rolls[0] || 0));
+  if (rollIndex === 2) {
+    if (frame.rolls[0] === 10 && frame.rolls[1] !== 10)
+      return Math.max(0, 10 - (frame.rolls[1] || 0));
+    return 10;
+  }
+  return 0;
 }
 
-export function recomputePlayerTotals (player) {
-  const frames = player.frames || [];
-  const allRolls = frames.flatMap((frame) => frame.rolls || []);
-  let rollOffset = 0;
-  let cumulative = 0;
+export function clampTenPinRoll(frame, frameIndex, rollIndex, knocked) {
+  const max = getLegalTenPinMax(frame, frameIndex, rollIndex);
+  return Math.max(0, Math.min(max, Math.round(Number(knocked) || 0)));
+}
 
-  frames.forEach((frame, frameIndex) => {
-    const rolls = frame.rolls || [];
-    let score = null;
-    if (frameIndex === 9) {
-      if (frameComplete(frame, frameIndex)) score = rolls.reduce((sum, pins) => sum + pins, 0);
-    } else if (rolls[0] === 10) {
-      const bonus = allRolls.slice(rollOffset + 1, rollOffset + 3);
-      if (bonus.length === 2) score = 10 + bonus[0] + bonus[1];
-    } else if (rolls.length >= 2 && rolls[0] + rolls[1] === 10) {
-      const bonus = allRolls[rollOffset + 2];
-      if (bonus !== undefined) score = 10 + bonus;
-    } else if (rolls.length >= 2) {
-      score = rolls[0] + rolls[1];
-    }
+export function recomputePlayerTotals(player) {
+  const flat = player.frames.flatMap((f) => f.rolls);
+  let rollIndex = 0;
+  let running = 0;
 
-    if (score == null) {
-      frame.cumulative = null;
+  for (let frame = 0; frame < 10; frame++) {
+    const out = player.frames[frame];
+    out.cumulative = null;
+
+    if (frame < 9) {
+      const a = flat[rollIndex];
+      if (a == null) break;
+      if (a === 10) {
+        const b = flat[rollIndex + 1];
+        const c = flat[rollIndex + 2];
+        if (b == null || c == null) break;
+        running += 10 + b + c;
+        out.cumulative = running;
+        rollIndex += 1;
+      } else {
+        const b = flat[rollIndex + 1];
+        if (b == null) break;
+        const base = a + b;
+        if (base === 10) {
+          const c = flat[rollIndex + 2];
+          if (c == null) break;
+          running += 10 + c;
+        } else running += base;
+        out.cumulative = running;
+        rollIndex += 2;
+      }
     } else {
-      cumulative += score;
-      frame.cumulative = cumulative;
+      if (!frameComplete(out, frame)) break;
+      running += out.rolls.reduce((s, v) => s + v, 0);
+      out.cumulative = running;
     }
-    rollOffset += rolls.length;
-  });
+  }
 
-  player.total = cumulative;
-  return cumulative;
+  player.total = running;
+  return player;
 }
 
-export function addTenPinRoll (player, requestedPins, options = {}) {
-  const frames = player.frames || [];
-  const frameIndex = frames.findIndex((frame, index) => !frameComplete(frame, index));
-  if (frameIndex === -1) return { accepted: false, gameFinished: true, knocked: 0, foul: false };
+export function shouldResetPinsForNextRoll(
+  frame,
+  frameIndex,
+  rollIndex,
+  knocked,
+  frameEnded
+) {
+  if (frameEnded) return true;
+  if (frameIndex < 9) return knocked === 10;
+  if (rollIndex === 0) return knocked === 10;
+  if (rollIndex === 1)
+    return frame.rolls[0] === 10 || frame.rolls[0] + frame.rolls[1] === 10;
+  return false;
+}
 
-  const frame = frames[frameIndex];
+export function addTenPinRoll(player, knocked, options = {}) {
+  const frameIndex = currentFrameIndex(player);
+  const frame = player.frames[frameIndex];
   const rollIndex = frame.rolls.length;
-  const maximum = getLegalTenPinMax(frame, frameIndex, rollIndex);
   const foul = Boolean(options.foul);
-  const knocked = foul ? 0 : clampPins(requestedPins, maximum);
-  frame.rolls.push(knocked);
+  const legalKnocked = foul
+    ? 0
+    : clampTenPinRoll(frame, frameIndex, rollIndex, knocked);
+  if (rollIndex < (frameIndex < 9 ? 2 : 3)) frame.rolls.push(legalKnocked);
   recomputePlayerTotals(player);
-
+  const frameEnded = frameComplete(frame, frameIndex);
   return {
-    accepted: true,
     frameIndex,
     rollIndex,
-    knocked,
+    knocked: legalKnocked,
     foul,
-    gameFinished: frames.every((candidate, index) => frameComplete(candidate, index))
+    frameEnded,
+    resetPins: shouldResetPinsForNextRoll(
+      frame,
+      frameIndex,
+      rollIndex,
+      legalKnocked,
+      frameEnded
+    ),
+    gameFinished: playerFinished(player)
   };
 }
