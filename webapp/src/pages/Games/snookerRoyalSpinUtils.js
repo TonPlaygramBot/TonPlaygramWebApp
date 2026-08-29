@@ -11,9 +11,7 @@ export const SPIN_LEVEL2_MAG = SPIN_RING2_RADIUS;
 export const SPIN_LEVEL3_MAG = SPIN_RING3_RADIUS;
 export const STRAIGHT_SPIN_DEADZONE = 0.02;
 export const SPIN_RESPONSE_EXPONENT = 1.32;
-// Keep the neutral cue-ball response identical to Pool Royale so every spin
-// controller position drives both games' cue, contact and target guides alike.
-export const SPIN_CENTER_TOPSPIN_BIAS = 0.1;
+export const SPIN_CENTER_TOPSPIN_BIAS = 0.13;
 export const SPIN_DIRECTIONS = [
   {
     id: 'stun',

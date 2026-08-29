@@ -5155,7 +5155,7 @@ const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.96;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.94;
-const STANDING_VIEW_DISTANCE_SCALE = 0.135; // move the standing camera a little closer so the table fills more of portrait screens
+const STANDING_VIEW_DISTANCE_SCALE = 0.145; // move the standing camera a little closer so the table fills more of portrait screens
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -25990,8 +25990,7 @@ const powerRef = useRef(hud.power);
             power: (shooting || cueAnimating) ? lastShotPower : (powerRef.current ?? activeAiPlan?.power ?? 0),
             shooting,
             cueAnimating,
-            // The standing orbit keeps the cue at address, just like the closer cue view.
-            tableCueVisible: Boolean(cueStick.visible),
+            tableCueVisible: Boolean(cueStick.visible && (cameraBlendRef.current ?? 1) <= 0.55),
             spinInput: spinRef.current
           });
         } catch (error) {
