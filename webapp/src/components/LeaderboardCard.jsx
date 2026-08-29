@@ -216,7 +216,7 @@ export default function LeaderboardCard() {
     <>
       <section
         id="leaderboard"
-        className="relative bg-surface border border-border rounded-xl p-4 space-y-2 overflow-hidden wide-card mt-4 -ml-3"
+        className="relative w-full bg-surface border border-border rounded-xl p-3 sm:p-4 space-y-2 overflow-hidden mt-4"
       >
         <img
           src="/assets/icons/snakes_and_ladders.webp"

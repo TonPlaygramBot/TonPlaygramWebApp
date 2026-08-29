@@ -1,19 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft, Bell, BellOff, Camera, CheckCheck, Gamepad2, Image, Mic, MoreHorizontal,
-  Paperclip, Phone, Plus, Search, Send, ShieldCheck, Smile, Users, Video
+  Paperclip, Phone, Plus, Search, Send, ShieldCheck, Smile, Trophy, Users, Video
 } from 'lucide-react';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import LoginOptions from '../components/LoginOptions.jsx';
 import { getPlayerId, getTelegramId } from '../utils/telegram.js';
 import { getMessages, sendMessage, listFriends, markInboxRead } from '../utils/api.js';
 import { socket } from '../utils/socket.js';
+import LeaderboardCard from '../components/LeaderboardCard.jsx';
 
 const tabs = [
   { id: 'chats', label: 'Chats', Icon: Send },
   { id: 'friends', label: 'Friends', Icon: Users },
   { id: 'notifications', label: 'Alerts', Icon: Bell },
-  { id: 'calls', label: 'Calls', Icon: Phone }
+  { id: 'calls', label: 'Calls', Icon: Phone },
+  { id: 'leaderboard', label: 'Ranks', Icon: Trophy }
 ];
 
 function friendName(friend) {
@@ -165,6 +167,11 @@ export default function Messages() {
           ))}
         </nav>
 
+        {activeTab === 'leaderboard' ? (
+          <div className="messages-leaderboard">
+            <LeaderboardCard />
+          </div>
+        ) : <>
         <label className="messages-search"><Search /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={`Search ${activeTab}...`} /></label>
 
         {activeTab !== 'calls' && activeTab !== 'notifications' && friends.length > 0 && (
@@ -196,6 +203,7 @@ export default function Messages() {
           {visibleFriends.length === 0 && <div className="messages-empty"><Users /><strong>No friends here yet</strong><p>Find players after a match and add them to start chatting, calling and playing together.</p></div>}
           </>}
         </div>
+        </>}
       </section>
 
       <section className="messages-chat">
