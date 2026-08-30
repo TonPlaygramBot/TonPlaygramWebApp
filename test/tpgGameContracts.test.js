@@ -5,7 +5,7 @@ import {
 
 describe('TPG game smart contract API descriptors', () => {
   test('every online lobby game uses private TPG identity and public profile fields', () => {
-    expect(Object.keys(TPG_GAME_CONTRACTS)).toHaveLength(19);
+    expect(Object.keys(TPG_GAME_CONTRACTS)).toHaveLength(14);
     for (const contract of Object.values(TPG_GAME_CONTRACTS)) {
       expect(contract.token).toBe('TPG');
       expect(contract.identity).toBe('tpcAccountNumber');

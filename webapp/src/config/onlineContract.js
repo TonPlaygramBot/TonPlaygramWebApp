@@ -8,11 +8,6 @@ export const ONLINE_CONTRACT_CHECKS = Object.freeze({
 });
 
 export const ONLINE_READINESS_BY_GAME = Object.freeze({
-  tetrisroyale: { checks: { lobby: true, runtime: true, backend: true, security: true }, label: 'Online Ready' },
-  fruitslice: { checks: { lobby: true, runtime: true, backend: true, security: true }, label: 'Online Ready' },
-  bubblecrush: { checks: { lobby: true, runtime: true, backend: true, security: true }, label: 'Online Ready' },
-  bubblesmash: { checks: { lobby: true, runtime: true, backend: true, security: true }, label: 'Online Ready' },
-  fallingball: { checks: { lobby: true, runtime: true, backend: true, security: true }, label: 'Online Ready' },
   'table-tennis': {
     checks: { lobby: true, runtime: true, backend: true, security: true }, label: 'Online Ready'
   },
