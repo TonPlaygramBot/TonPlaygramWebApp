@@ -5,6 +5,7 @@ import './BowlingRealistic.css';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
+import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import {
   BOWLING_DOMINO_CHARACTER_TEXTURES,
   BOWLING_DOMINO_CLOTH_MATERIALS,
@@ -200,6 +201,9 @@ const BOWLING_CAMERA_PULLBACK = 0.5;
 const BOWLING_HUMAN_SHOT_BROADCAST_PULLBACK = 1.15;
 const BOWLING_CAMERA_WIDER_FOV_BOOST = 1.5;
 const BOWLING_HDRI_WALL_ALIGNMENT_Y = Math.PI / 2;
+const BOWLING_HDRI_MIN_CAMERA_HEIGHT_M = 1.4;
+const BOWLING_HDRI_GROUND_RADIUS_M = 54;
+const BOWLING_HDRI_GROUND_RESOLUTION = 128;
 const BOWLING_GRAPHICS_PROFILES: Record<
   GraphicsQuality,
   {
@@ -4537,6 +4541,7 @@ export default function MobileBowlingRealistic() {
     pmrem.compileEquirectangularShader();
     let envTex: THREE.Texture | null = null;
     let bgTex: THREE.Texture | null = null;
+    let groundedSkybox: GroundedSkybox | null = null;
     const applyHdri = (id: string) => {
       const selected = HDRI_OPTIONS.find((h) => h.id === id) || HDRI_OPTIONS[0];
       const menuPreferred =
@@ -4579,10 +4584,31 @@ export default function MobileBowlingRealistic() {
             bgTex = hdr;
             envTex = pmrem.fromEquirectangular(hdr).texture;
             scene.environment = envTex;
-            scene.background = bgTex;
             const selectedRotation =
               (Number.isFinite(selected?.rotationY) ? selected.rotationY : 0) +
               BOWLING_HDRI_WALL_ALIGNMENT_Y;
+            groundedSkybox?.removeFromParent();
+            groundedSkybox?.geometry.dispose();
+            groundedSkybox?.material.dispose();
+            const hdriCameraHeight = Math.max(
+              Number.isFinite(selected?.cameraHeightM)
+                ? selected.cameraHeightM
+                : BOWLING_HDRI_MIN_CAMERA_HEIGHT_M,
+              BOWLING_HDRI_MIN_CAMERA_HEIGHT_M
+            );
+            groundedSkybox = new GroundedSkybox(
+              bgTex,
+              hdriCameraHeight,
+              BOWLING_HDRI_GROUND_RADIUS_M,
+              BOWLING_HDRI_GROUND_RESOLUTION
+            );
+            // Ground the HDRI projection on the same floor as the lane instead of
+            // centering the panorama on the camera, which made the alley float.
+            groundedSkybox.position.y = CFG.laneY + hdriCameraHeight;
+            groundedSkybox.rotation.y = selectedRotation;
+            groundedSkybox.material.depthWrite = false;
+            scene.background = null;
+            scene.add(groundedSkybox);
             if ('backgroundRotation' in scene)
               scene.backgroundRotation.set(0, selectedRotation, 0);
             if ('environmentRotation' in scene)
@@ -5408,7 +5434,9 @@ export default function MobileBowlingRealistic() {
       canvas.removeEventListener('pointerup', onPointerUp);
       canvas.removeEventListener('pointercancel', onPointerUp);
       pmrem.dispose();
+      groundedSkybox?.removeFromParent();
       envTex?.dispose();
+      bgTex?.dispose();
       renderer.dispose();
       scene.traverse((obj) => {
         const mesh = obj as THREE.Mesh;
