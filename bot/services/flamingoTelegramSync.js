@@ -32,7 +32,7 @@ export function registerFlamingoTelegramSync(bot) {
       }
       await FlamingoPost.findOneAndUpdate(
         { source: 'telegram', sourceId: String(post.message_id) },
-        { text: post.text || post.caption || '', author: post.author_signature || post.chat.title || 'Flamingo Revolution • Telegram', source: 'telegram', sourceId: String(post.message_id), attachment, createdAt: new Date(post.date * 1000) },
+        { text: post.text || post.caption || '', author: post.author_signature || post.chat.title || 'TonPlayGram Community Wall • Telegram', source: 'telegram', sourceId: String(post.message_id), attachment, createdAt: new Date(post.date * 1000) },
         { upsert: true, new: true, setDefaultsOnInsert: true }
       );
     } catch (err) {

@@ -167,6 +167,43 @@ export default function Home() {
     <div className="home-page app-theme-page space-y-4">
       <ThemePicker />
       <HomeIntroduction />
+      <Link
+        to="/wall"
+        className="group relative block overflow-hidden rounded-3xl border border-red-500/35 bg-gradient-to-br from-[#ef233c] via-[#c1121f] to-[#65000b] p-5 text-white shadow-[0_18px_45px_rgba(193,18,31,0.28)]"
+        aria-label="Open the TonPlayGram community wall"
+      >
+        <div className="pointer-events-none absolute -right-10 -top-12 h-36 w-36 rounded-full bg-white/10 blur-2xl" />
+        <div className="relative flex items-start gap-4">
+          <span
+            className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-white/25 bg-[#e41e20] text-4xl shadow-lg"
+            role="img"
+            aria-label="Albanian flag"
+          >
+            🇦🇱
+          </span>
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-red-100">
+              Standing with Albania
+            </p>
+            <h2 className="mt-1 text-xl font-black leading-tight">
+              TonPlayGram fully supports the Albanian protest.
+            </h2>
+          </div>
+        </div>
+        <p className="relative mt-4 text-sm font-medium leading-6 text-red-50">
+          We stand with the Albanian people and the protest that has continued
+          for more than 90 days.
+        </p>
+        <div className="relative mt-4 flex items-center justify-between border-t border-white/20 pt-3 text-xs font-bold">
+          <span>Visit the community wall</span>
+          <span
+            className="transition-transform group-hover:translate-x-1"
+            aria-hidden="true"
+          >
+            →
+          </span>
+        </div>
+      </Link>
       <div className="flex flex-col items-center">
         {photoUrl && (
           <div className="relative">
