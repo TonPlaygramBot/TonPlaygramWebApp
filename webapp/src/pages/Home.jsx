@@ -163,7 +163,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="home-page space-y-4">
+    <div className="home-page app-theme-page space-y-4">
       <ThemePicker />
       <HomeIntroduction />
       <div className="flex flex-col items-center">

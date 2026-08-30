@@ -6,6 +6,10 @@
   --cell-width: 135px;
   /* Slightly taller default height for snake board cells */
   --cell-height: 80px;
+  --app-accent: #00f7ff;
+  --app-surface: #111936;
+  --app-surface-deep: #071426;
+  --app-text: #f8fafc;
 }
 
 html,
@@ -41,6 +45,32 @@ body {
 :root[data-app-theme='steel-blue'] { --app-bg:#08131f; --app-bg-glow:#31516a; --app-surface:#142737; --app-surface-deep:#050d15; --app-accent:#aebbc5; --app-text:#f0f4f7; }
 :root[data-app-theme='sunset-haze'] { --app-bg:#722d39; --app-bg-glow:#e5663d; --app-surface:#a94a3e; --app-surface-deep:#54202b; --app-accent:#ffd08a; --app-text:#fff1d6; }
 :root[data-app-theme='ivory-black'] { --app-bg:#070807; --app-bg-glow:#28241d; --app-surface:#171713; --app-surface-deep:#030403; --app-accent:#e2b33b; --app-text:#fff0bd; }
+
+/* Keep every hub card frame in the palette selected from the theme picker.
+   The shared page marker covers Home, Earn, Games, Store, Social and Profile
+   without leaking these visual overrides into the game arenas. */
+.app-theme-page :where(
+  [class*='card'],
+  [class*='tile'],
+  [class*='panel'],
+  [class*='border'],
+  .hub-hero,
+  .hub-section
+) {
+  border-color: color-mix(in srgb, var(--app-accent) 48%, transparent) !important;
+}
+
+.app-theme-page :where(
+  [class*='card'],
+  [class*='tile'],
+  [class*='panel'],
+  .hub-hero,
+  .hub-section
+) {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--app-accent) 10%, transparent),
+    0 10px 28px color-mix(in srgb, var(--app-surface-deep) 55%, transparent);
+}
 
 .hub-page { display:grid; gap:16px; padding:12px 12px 28px; }
 .hub-hero { position:relative; overflow:hidden; padding:20px 16px; border:1px solid color-mix(in srgb,var(--app-accent,#22d3ee) 55%,transparent); border-radius:20px; background:radial-gradient(circle at 85% 0,color-mix(in srgb,var(--app-accent,#22d3ee) 30%,transparent),transparent 45%),linear-gradient(145deg,var(--app-surface,#17164a),var(--app-surface-deep,#090a25)); box-shadow:0 14px 35px rgba(0,0,0,.25); }
