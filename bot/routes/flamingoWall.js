@@ -160,7 +160,8 @@ router.get('/files/:name', (req, res) => {
   const name = path.basename(req.params.name);
   const disposition = req.query.download === '1' ? 'attachment' : 'inline';
   const requestedName = path.basename(String(req.query.name || name)).replace(/["\\\r\n]/g, '');
-  res.setHeader('Content-Disposition', `${disposition}; filename="${requestedName}"`);
+  const asciiName = requestedName.replace(/[^\x20-\x7E]/g, '_');
+  res.setHeader('Content-Disposition', `${disposition}; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(requestedName)}`);
   res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.sendFile(path.join(uploadDirectory, name), err => {
