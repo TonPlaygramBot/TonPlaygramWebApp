@@ -168,9 +168,9 @@ export default function Home() {
       <ThemePicker />
       <HomeIntroduction />
       <Link to="/airdrop" className="airdrop-home-card">
-        <span><Sparkles /> TPG AIRDROP</span>
-        <strong>Download videos.<br />Earn 5,000 TPG.</strong>
-        <small>Complete creator & social tasks <b>JOIN NOW →</b></small>
+        <span><Sparkles /> LIVE TPG AIRDROP GAME</span>
+        <strong>Splat targets.<br />Stack TPG rewards.</strong>
+        <small>Eggs, tomatoes & oranges ready <b>PLAY NOW →</b></small>
       </Link>
       <div className="flex flex-col items-center">
         {photoUrl && (
