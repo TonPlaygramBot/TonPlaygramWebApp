@@ -5,9 +5,11 @@ import './BowlingRealistic.css';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
+import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import {
   BOWLING_DOMINO_CHARACTER_TEXTURES,
   BOWLING_DOMINO_CLOTH_MATERIALS,
+  BOWLING_HDRI_VARIANTS,
   BOWLING_HUMAN_CHARACTER_OPTIONS
 } from '../../config/bowlingInventoryConfig.js';
 import {
@@ -43,9 +45,6 @@ type PinResetPhase = 'idle' | 'lowering' | 'sweeping' | 'lifting';
 type GraphicsQuality = 'performance' | 'balanced' | 'ultra';
 type BowlingFpsOption = 'auto' | '60' | '90' | '120';
 type BallSelectionMode = 'manual' | 'random';
-
-const BOWLING_ARENA_HDRI_URL =
-  'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/indoor_pool_1k.hdr';
 
 type HudState = {
   power: number;
@@ -177,6 +176,19 @@ const DEFAULT_HUMAN_CHARACTER_ID =
 const HUMAN_CHARACTER_OPTIONS =
   BOWLING_HUMAN_CHARACTER_OPTIONS as HumanCharacterOption[];
 const HUMAN_INITIAL_SCALE = 1.34;
+const HDRI_OPTIONS = BOWLING_HDRI_VARIANTS.map((h) => ({
+  id: h.id,
+  name: h.name,
+  thumb: h.thumbnailUrl || h.thumbnail,
+  hdriUrl: h.hdriUrl,
+  assetId: h.assetId,
+  assetUrls: h.assetUrls,
+  preferredResolutions: h.preferredResolutions,
+  rotationY: h.rotationY,
+  cameraHeightM: h.cameraHeightM,
+  arenaScale: h.arenaScale
+}));
+const DEFAULT_HDRI_ID = HDRI_OPTIONS[0]?.id || 'studio_small_09';
 const TABLE_FINISH_ITEMS = POOL_ROYALE_STORE_ITEMS.filter(
   (item) => item.type === 'tableFinish'
 );
@@ -188,6 +200,10 @@ const PORTRAIT_CAMERA_HEIGHT_OFFSET = 0.18;
 const BOWLING_CAMERA_PULLBACK = 0.5;
 const BOWLING_HUMAN_SHOT_BROADCAST_PULLBACK = 1.15;
 const BOWLING_CAMERA_WIDER_FOV_BOOST = 1.5;
+const BOWLING_HDRI_WALL_ALIGNMENT_Y = Math.PI / 2;
+const BOWLING_HDRI_MIN_CAMERA_HEIGHT_M = 1.4;
+const BOWLING_HDRI_GROUND_RADIUS_M = 54;
+const BOWLING_HDRI_GROUND_RESOLUTION = 128;
 const BOWLING_GRAPHICS_PROFILES: Record<
   GraphicsQuality,
   {
@@ -309,6 +325,7 @@ const clamp01 = (v: number) => clamp(v, 0, 1);
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 const easeInOut = (t: number) => t * t * (3 - 2 * t);
+const HDRI_RES_LADDER = ['8k', '4k', '2k', '1k'] as const;
 const BOWLING_RULE_SUMMARY = OFFICIAL_TEN_PIN_RULE_SUMMARY;
 const SHOOTING_ZONE_DEPTH = 3.55;
 const SHOOTING_ZONE_SIDE_PAD = 0.42;
@@ -2279,8 +2296,7 @@ function createEnvironment(
   if ((laneMat as THREE.MeshStandardMaterial).color)
     (laneMat as THREE.MeshStandardMaterial).color.multiplyScalar(1.18);
 
-  // The modeled shell keeps the venue grounded at human scale while the HDRI
-  // supplies the soft, full-range reflections and ambient light of a real room.
+  // Clean, open HDRI-driven venue shell: keep only floor, lane, lounge furniture, and gameplay mechanisms.
   const carpetMat = new THREE.MeshStandardMaterial({
     color: 0x23182f,
     roughness: 0.9,
@@ -2308,107 +2324,6 @@ function createEnvironment(
     opacity: 0.42,
     toneMapped: false
   });
-
-  const shell = new THREE.Group();
-  shell.name = 'Professional bowling arena shell';
-  const wallMat = new THREE.MeshStandardMaterial({
-    color: 0x3b4652,
-    roughness: 0.68,
-    metalness: 0.08,
-    envMapIntensity: 0.8
-  });
-  const acousticMat = new THREE.MeshStandardMaterial({
-    color: 0x111720,
-    roughness: 0.94,
-    metalness: 0.02
-  });
-  const concreteMat = new THREE.MeshStandardMaterial({
-    color: 0x55565b,
-    roughness: 0.86,
-    metalness: 0.03
-  });
-  const addBox = (
-    size: [number, number, number],
-    position: [number, number, number],
-    material: THREE.Material,
-    name: string
-  ) => {
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), material);
-    mesh.position.set(...position);
-    mesh.name = name;
-    mesh.receiveShadow = true;
-    mesh.castShadow = true;
-    shell.add(mesh);
-    return mesh;
-  };
-
-  // Real architectural boundaries replace the old floating panorama.
-  addBox([0.34, 5.4, 32], [-6.55, 1.65, -2.3], wallMat, 'left wall');
-  addBox([0.34, 5.4, 32], [6.55, 1.65, -2.3], wallMat, 'right wall');
-  addBox([13.4, 0.28, 32], [0, 4.25, -2.3], acousticMat, 'acoustic ceiling');
-  addBox([13.4, 0.24, 8.2], [0, CFG.laneY - 0.16, 8.1], concreteMat, 'lounge slab');
-
-  // Repeating acoustic bays and steel trusses give the long alley readable
-  // scale without expensive unique meshes.
-  for (let i = 0; i < 9; i++) {
-    const z = 10.6 - i * 3.15;
-    addBox([12.8, 0.12, 0.16], [0, 3.82, z], metalMat, `roof truss ${i + 1}`);
-    for (const x of [-4.75, 4.75])
-      addBox([1.9, 0.055, 1.55], [x, 4.08, z], acousticMat, 'ceiling baffle');
-    const lamp = new THREE.Mesh(
-      new THREE.BoxGeometry(3.05, 0.045, 0.2),
-      new THREE.MeshBasicMaterial({
-        color: i > 6 ? 0xffd7a3 : 0xd9f4ff,
-        toneMapped: false
-      })
-    );
-    lamp.position.set(0, 3.73, z);
-    shell.add(lamp);
-
-    // Broad practical lights match the visible ceiling fixtures. Using area
-    // lights instead of isolated bulbs gives lanes, people and pins soft,
-    // believable highlights without harsh mobile-game hotspots.
-    if (i % 2 === 0) {
-      const fixtureLight = new THREE.RectAreaLight(
-        i > 6 ? 0xffe2bc : 0xe5f7ff,
-        2.8,
-        3.05,
-        0.35
-      );
-      fixtureLight.position.set(0, 3.66, z);
-      fixtureLight.rotation.x = -Math.PI / 2;
-      shell.add(fixtureLight);
-    }
-  }
-  for (const side of [-1, 1]) {
-    const x = side * 6.34;
-    for (let i = 0; i < 7; i++) {
-      const z = 9.4 - i * 4.05;
-      addBox([0.12, 4.5, 0.3], [x, 1.35, z], metalMat, 'wall column');
-      const panel = addBox(
-        [0.055, 1.5, 2.9],
-        [x - side * 0.2, 1.75, z - 1.75],
-        acousticMat,
-        'fabric acoustic panel'
-      );
-      panel.material = (acousticMat as THREE.MeshStandardMaterial).clone();
-      (panel.material as THREE.MeshStandardMaterial).color.set(
-        i % 2 ? 0x18283a : 0x291d35
-      );
-    }
-  }
-  const arenaSign = new THREE.Mesh(
-    new THREE.PlaneGeometry(4.7, 0.8),
-    makeCanvasTextMaterial('PRO BOWLING', {
-      width: 1024,
-      height: 220,
-      bg: 'rgba(2,6,12,0.98)',
-      accent: '#38bdf8'
-    })
-  );
-  arenaSign.position.set(0, 3.18, CFG.backStopZ + 1.25);
-  shell.add(arenaSign);
-  group.add(shell);
 
   const sideFloor = new THREE.Mesh(
     new THREE.PlaneGeometry(8.4, 27.8),
@@ -2575,7 +2490,7 @@ function createEnvironment(
         -5.98
       );
       group.add(gutter);
-      // Removed the two raised brown lane-side caps so the bowling field stays open and visually clean.
+      // Removed the two raised brown lane-side caps so the bowling field stays open and HDRI-clean.
     }
     const foulLine = new THREE.Mesh(
       new THREE.BoxGeometry(CFG.laneHalfW * 2 + 0.08, 0.018, 0.055),
@@ -4507,6 +4422,9 @@ export default function MobileBowlingRealistic() {
     localStorage.setItem('bowling.fps', fps);
     setSelectedFpsState(fps);
   };
+  const [selectedHdriId, setSelectedHdriId] = useState<string>(
+    () => localStorage.getItem('bowling.hdri') || DEFAULT_HDRI_ID
+  );
   const [ownedPoolInventory, setOwnedPoolInventory] = useState<any>(() =>
     getCachedPoolRoyalInventory()
   );
@@ -4600,16 +4518,16 @@ export default function MobileBowlingRealistic() {
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure =
       graphicsQuality === 'ultra'
-        ? 1.22
+        ? 0.92
         : graphicsQuality === 'performance'
-          ? 1.05
-          : 1.14;
+          ? 0.78
+          : 0.86;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x18212a);
-    scene.fog = new THREE.FogExp2(0x151a20, 0.017);
+    scene.background = new THREE.Color(0x070a12);
+    scene.fog = new THREE.FogExp2(0x080a10, 0.026);
 
     const camera = new THREE.PerspectiveCamera(44, 1, 0.05, 80);
     camera.position.set(-0.82, 3.34, 14.45);
@@ -4619,32 +4537,109 @@ export default function MobileBowlingRealistic() {
       playerCharacter?.id || DEFAULT_HUMAN_CHARACTER_ID
     );
 
-    // HDRI image-based lighting provides natural ambient fill and physically
-    // coherent reflections. Keep a bright modeled-light fallback while it is
-    // loading (or when the player is offline).
-    let disposed = false;
-    let arenaHdri: THREE.DataTexture | null = null;
-    new RGBELoader().load(
-      BOWLING_ARENA_HDRI_URL,
-      (texture) => {
-        if (disposed) {
-          texture.dispose();
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    pmrem.compileEquirectangularShader();
+    let envTex: THREE.Texture | null = null;
+    let bgTex: THREE.Texture | null = null;
+    let groundedSkybox: GroundedSkybox | null = null;
+    const applyHdri = (id: string) => {
+      const selected = HDRI_OPTIONS.find((h) => h.id === id) || HDRI_OPTIONS[0];
+      const menuPreferred =
+        graphicsQuality === 'performance'
+          ? ['2k', '1k']
+          : graphicsQuality === 'ultra'
+            ? ['8k', '4k', '2k']
+            : ['4k', '2k'];
+      const preferred = Array.isArray(selected?.preferredResolutions)
+        ? [...menuPreferred, ...selected.preferredResolutions]
+        : menuPreferred;
+      const candidates = [
+        ...(Object.values(selected?.assetUrls || {}) as string[]),
+        selected?.hdriUrl,
+        ...HDRI_RES_LADDER.map(
+          (r) =>
+            `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${r}/${selected?.assetId || 'studio_small_09'}_${r}.hdr`
+        )
+      ].filter(Boolean) as string[];
+      const ordered = [
+        ...new Set([
+          ...preferred.flatMap((res) =>
+            candidates.filter((u) => u.includes(`_${res}.`))
+          ),
+          ...candidates
+        ])
+      ];
+      const tryLoad = (idx: number) => {
+        if (idx >= ordered.length) {
+          scene.environment = null;
+          scene.background = new THREE.Color(0x090b11);
           return;
         }
-        texture.mapping = THREE.EquirectangularReflectionMapping;
-        arenaHdri = texture;
-        scene.environment = texture;
-        scene.environmentIntensity = 0.72;
-      },
-      undefined,
-      () => {
-        // Modeled fixtures below deliberately remain a complete offline fallback.
-      }
-    );
+        new RGBELoader().setCrossOrigin('anonymous').load(
+          ordered[idx],
+          (hdr) => {
+            envTex?.dispose();
+            bgTex?.dispose();
+            hdr.mapping = THREE.EquirectangularReflectionMapping;
+            bgTex = hdr;
+            envTex = pmrem.fromEquirectangular(hdr).texture;
+            scene.environment = envTex;
+            const selectedRotation =
+              (Number.isFinite(selected?.rotationY) ? selected.rotationY : 0) +
+              BOWLING_HDRI_WALL_ALIGNMENT_Y;
+            groundedSkybox?.removeFromParent();
+            groundedSkybox?.geometry.dispose();
+            groundedSkybox?.material.dispose();
+            const hdriCameraHeight = Math.max(
+              Number.isFinite(selected?.cameraHeightM)
+                ? selected.cameraHeightM
+                : BOWLING_HDRI_MIN_CAMERA_HEIGHT_M,
+              BOWLING_HDRI_MIN_CAMERA_HEIGHT_M
+            );
+            groundedSkybox = new GroundedSkybox(
+              bgTex,
+              hdriCameraHeight,
+              BOWLING_HDRI_GROUND_RADIUS_M,
+              BOWLING_HDRI_GROUND_RESOLUTION
+            );
+            // Ground the HDRI projection on the same floor as the lane instead of
+            // centering the panorama on the camera, which made the alley float.
+            groundedSkybox.position.y = CFG.laneY + hdriCameraHeight;
+            groundedSkybox.rotation.y = selectedRotation;
+            groundedSkybox.material.depthWrite = false;
+            scene.background = null;
+            scene.add(groundedSkybox);
+            if ('backgroundRotation' in scene)
+              scene.backgroundRotation.set(0, selectedRotation, 0);
+            if ('environmentRotation' in scene)
+              scene.environmentRotation.set(0, selectedRotation, 0);
+            if ('backgroundBlurriness' in scene) scene.backgroundBlurriness = 0;
+            if ('backgroundIntensity' in scene)
+              scene.backgroundIntensity =
+                graphicsQuality === 'ultra'
+                  ? 0.42
+                  : graphicsQuality === 'performance'
+                    ? 0.32
+                    : 0.36;
+            if ('environmentIntensity' in scene)
+              scene.environmentIntensity =
+                graphicsQuality === 'performance'
+                  ? 0.34
+                  : graphicsQuality === 'ultra'
+                    ? 0.52
+                    : 0.42;
+          },
+          undefined,
+          () => tryLoad(idx + 1)
+        );
+      };
+      tryLoad(0);
+    };
+    applyHdri(selectedHdriId);
 
-    scene.add(new THREE.AmbientLight(0xc5dcff, 0.38));
-    scene.add(new THREE.HemisphereLight(0xfff2dd, 0x202631, 0.82));
-    const key = new THREE.DirectionalLight(0xffefd8, 3.15);
+    scene.add(new THREE.AmbientLight(0x8fa6d9, 0.035));
+    scene.add(new THREE.HemisphereLight(0xffecd6, 0x08070b, 0.18));
+    const key = new THREE.DirectionalLight(0xffefd8, 2.65);
     key.position.set(-4.8, 8.2, 6.6);
     key.castShadow = true;
     key.shadow.mapSize.width =
@@ -4658,7 +4653,7 @@ export default function MobileBowlingRealistic() {
     key.shadow.camera.top = 12;
     key.shadow.camera.bottom = -14;
     scene.add(key);
-    const fill = new THREE.DirectionalLight(0xb9edff, 0.72);
+    const fill = new THREE.DirectionalLight(0x7dd3fc, 0.08);
     fill.position.set(4.4, 4.8, 6.3);
     scene.add(fill);
     const rim = new THREE.DirectionalLight(0xff9a4f, 1.72);
@@ -5432,16 +5427,17 @@ export default function MobileBowlingRealistic() {
     animate();
 
     return () => {
-      disposed = true;
       cancelAnimationFrame(frameId);
       window.removeEventListener('resize', resize);
       canvas.removeEventListener('pointerdown', onPointerDown);
       canvas.removeEventListener('pointermove', onPointerMove);
       canvas.removeEventListener('pointerup', onPointerUp);
       canvas.removeEventListener('pointercancel', onPointerUp);
+      pmrem.dispose();
+      groundedSkybox?.removeFromParent();
+      envTex?.dispose();
+      bgTex?.dispose();
       renderer.dispose();
-      if (scene.environment === arenaHdri) scene.environment = null;
-      arenaHdri?.dispose();
       scene.traverse((obj) => {
         const mesh = obj as THREE.Mesh;
         if (mesh.isMesh) {
@@ -5455,6 +5451,7 @@ export default function MobileBowlingRealistic() {
   }, [
     graphicsQuality,
     selectedFps,
+    selectedHdriId,
     ballSelectionMode,
     selectedTableFinish,
     selectedChromeColor,
@@ -5703,6 +5700,49 @@ export default function MobileBowlingRealistic() {
               ))}
             </div>
 
+            <div
+              style={{ fontSize: 12, fontWeight: 800, margin: '10px 0 6px' }}
+            >
+              HDRI inventory
+            </div>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2,minmax(0,1fr))',
+                gap: 8
+              }}
+            >
+              {HDRI_OPTIONS.filter((h) =>
+                (ownedPoolInventory?.environmentHdri || []).includes(h.id)
+              ).map((h) => (
+                <button
+                  key={h.id}
+                  onClick={() => {
+                    setSelectedHdriId(h.id);
+                    localStorage.setItem('bowling.hdri', h.id);
+                  }}
+                  style={{
+                    textAlign: 'left',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    borderRadius: 10,
+                    padding: 6,
+                    background:
+                      selectedHdriId === h.id
+                        ? 'rgba(127,214,255,0.2)'
+                        : 'rgba(255,255,255,0.05)',
+                    color: '#fff'
+                  }}
+                >
+                  <img
+                    src={h.thumb}
+                    alt={h.name}
+                    style={{ width: '100%', borderRadius: 8, marginBottom: 6 }}
+                  />
+                  <div style={{ fontSize: 11, fontWeight: 700 }}>{h.name}</div>
+                  <div style={{ fontSize: 10, opacity: 0.75 }}>Owned</div>
+                </button>
+              ))}
+            </div>
             <div
               style={{ fontSize: 12, fontWeight: 800, margin: '10px 0 6px' }}
             >

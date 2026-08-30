@@ -59,29 +59,6 @@ export const socialAdminApi = {
   updateAutomation: (id, payload) => patch(`/api/admin/social/automations/${id}`, payload)
 };
 
-export const flamingoMediaApi = {
-  access: () => get('/api/flamingo-wall/access'),
-  createPost: async (formData) => {
-    try {
-      const res = await fetchWithRetry(`${API_BASE_URL}/api/flamingo-wall/posts`, {
-        method: 'POST',
-        headers: buildHeaders(),
-        body: formData
-      }, 0);
-      const data = await res.json();
-      return res.ok ? data : { error: data.error || 'Ngarkimi dështoi.' };
-    } catch {
-      return { error: 'Lidhja me serverin dështoi.' };
-    }
-  }
-};
-
-export const airdropVideoApi = {
-  list: (telegramId) => post('/api/airdrop/videos', { telegramId }),
-  claim: (telegramId, videoId) => post('/api/airdrop/videos/claim', { telegramId, videoId }),
-  create: (payload) => post('/api/airdrop/videos/admin/create', payload)
-};
-
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -125,11 +102,7 @@ function buildHeaders(base = {}) {
   const headers = { Accept: 'application/json', ...base };
   const initData = window?.Telegram?.WebApp?.initData;
   if (initData) headers['X-Telegram-Init-Data'] = initData;
-  // Native and legacy login flows can persist the authenticated account under
-  // tpcAccountId. Keep developer-only API access working for either login flow.
-  const accountId =
-    window?.localStorage?.getItem('accountId') ||
-    window?.localStorage?.getItem('tpcAccountId');
+  const accountId = window?.localStorage?.getItem('accountId');
   if (accountId) headers['X-Tpc-Account-Id'] = accountId;
   const googleId =
     window?.localStorage?.getItem('googleId') ||
