@@ -4,6 +4,7 @@ import ProjectAchievementsCard from '../components/ProjectAchievementsCard.jsx';
 import PwaDownloadFrame from '../components/PwaDownloadFrame.jsx';
 import ThemePicker from '../components/ThemePicker.jsx';
 import HomeIntroduction from '../components/HomeIntroduction.jsx';
+import PlatformHelpAgentCard from '../components/PlatformHelpAgentCard.jsx';
 
 import { FaArrowUp, FaArrowDown, FaWallet } from 'react-icons/fa';
 import { IoLogoTiktok } from 'react-icons/io5';
@@ -422,6 +423,7 @@ export default function Home() {
           <IoLogoTiktok className="text-pink-500 w-6 h-6" />
         </a>
       </div>
+      <PlatformHelpAgentCard />
     </div>
   );
 }
