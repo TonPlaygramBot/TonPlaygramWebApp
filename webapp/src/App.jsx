@@ -131,6 +131,9 @@ const StoreThumbnailStudioPoolRoyale = React.lazy(
 const FlamingoApp = React.lazy(
   () => import('./features/flamingo/FlamingoApp.tsx')
 );
+const AlbanianProtestGallery = React.lazy(
+  () => import('./pages/AlbanianProtestGallery.tsx')
+);
 
 export default function App() {
   // Enforce canonical origin for wallet connection flows.
@@ -218,6 +221,7 @@ export default function App() {
               <Route path="/roadmap" element={<EcosystemTopic topic="roadmap" />} />
               <Route path="/tokenomics" element={<EcosystemTopic topic="tokenomics" />} />
               <Route path="/flamingo/*" element={<FlamingoApp />} />
+              <Route path="/protesta-shqiptare" element={<AlbanianProtestGallery />} />
               <Route path="/earn" element={<Earn />} />
               <Route path="/airdrop" element={<Airdrop />} />
               <Route path="/admin/airdrop" element={<Airdrop admin />} />

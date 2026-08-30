@@ -59,6 +59,23 @@ export const socialAdminApi = {
   updateAutomation: (id, payload) => patch(`/api/admin/social/automations/${id}`, payload)
 };
 
+export const flamingoMediaApi = {
+  access: () => get('/api/flamingo-wall/access'),
+  createPost: async (formData) => {
+    try {
+      const res = await fetchWithRetry(`${API_BASE_URL}/api/flamingo-wall/posts`, {
+        method: 'POST',
+        headers: buildHeaders(),
+        body: formData
+      }, 0);
+      const data = await res.json();
+      return res.ok ? data : { error: data.error || 'Ngarkimi dështoi.' };
+    } catch {
+      return { error: 'Lidhja me serverin dështoi.' };
+    }
+  }
+};
+
 export const airdropVideoApi = {
   list: (telegramId) => post('/api/airdrop/videos', { telegramId }),
   claim: (telegramId, videoId) => post('/api/airdrop/videos/claim', { telegramId, videoId }),
