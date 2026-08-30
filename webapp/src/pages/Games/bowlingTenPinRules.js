@@ -95,6 +95,19 @@ export function shouldResetPinsForNextRoll(
 }
 
 export function addTenPinRoll(player, knocked, options = {}) {
+  if (playerFinished(player)) {
+    return {
+      frameIndex: 9,
+      rollIndex: player.frames[9].rolls.length,
+      knocked: 0,
+      foul: false,
+      frameEnded: true,
+      resetPins: false,
+      gameFinished: true,
+      accepted: false
+    };
+  }
+
   const frameIndex = currentFrameIndex(player);
   const frame = player.frames[frameIndex];
   const rollIndex = frame.rolls.length;
@@ -118,6 +131,7 @@ export function addTenPinRoll(player, knocked, options = {}) {
       legalKnocked,
       frameEnded
     ),
-    gameFinished: playerFinished(player)
+    gameFinished: playerFinished(player),
+    accepted: true
   };
 }
