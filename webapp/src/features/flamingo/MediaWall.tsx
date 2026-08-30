@@ -23,6 +23,7 @@ const DB_NAME = 'flamingo-media-wall';
 const STORE_NAME = 'posts';
 const ENGAGEMENT_KEY = 'fr-media-engagement-v2';
 const OWNER_TOKEN_KEY = 'fr-media-wall-owner-token';
+const UPLOAD_REQUEST_TIMEOUT_MS = 30_000;
 const imageExtensions = /\.(avif|heic|heif|jpe?g|png|webp)$/i;
 const videoExtensions = /\.(m4v|mov|mp4|webm)$/i;
 const reactionMeta: { id: Reaction; label: string; emoji: string }[] = [
@@ -47,6 +48,29 @@ function downloadUrl(file: Attachment) { if (file.src.startsWith('blob:')) retur
 function postId() { return globalThis.crypto?.randomUUID?.() || `post-${Date.now()}-${Math.random().toString(36).slice(2)}`; }
 function identityHeaders(extra: Record<string, string> = {}) { const headers = { ...extra, 'X-Wall-Owner-Token': OWNER_TOKEN }; const account = localStorage.getItem('accountId'); const google = localStorage.getItem('googleId'); const initData = (window as any).Telegram?.WebApp?.initData; if (account) headers['X-Tpc-Account-Id'] = account; if (google) headers['X-Google-Id'] = google; if (initData) headers['X-Telegram-Init-Data'] = initData; return headers; }
 function readVideoDuration(file: File) { return new Promise<number>(resolve => { if (!attachmentType(file).startsWith('video/')) return resolve(0); const video = document.createElement('video'); const url = URL.createObjectURL(file); video.preload = 'metadata'; video.onloadedmetadata = () => { const duration = Number.isFinite(video.duration) ? video.duration : 0; URL.revokeObjectURL(url); resolve(duration); }; video.onerror = () => { URL.revokeObjectURL(url); resolve(0); }; video.src = url; }); }
+const wait = (milliseconds: number) => new Promise(resolve => window.setTimeout(resolve, milliseconds));
+async function fetchUpload(url: string, init: RequestInit, attempts = 4) {
+  let lastResponse: Response | undefined;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), UPLOAD_REQUEST_TIMEOUT_MS);
+    try {
+      const response = await fetch(url, { ...init, signal: controller.signal });
+      lastResponse = response;
+      if (response.ok || (response.status < 500 && response.status !== 408 && response.status !== 429)) return response;
+    } catch {
+      // A mobile connection can briefly disappear while the app is backgrounded.
+    } finally {
+      window.clearTimeout(timeout);
+    }
+    if (attempt + 1 < attempts) await wait(750 * 2 ** attempt);
+  }
+  if (lastResponse) return lastResponse;
+  throw new Error('Serveri nuk u arrit. Kontrollo internetin dhe provo përsëri.');
+}
+async function responsePayload(response: Response) {
+  return response.json().catch(() => ({}));
+}
 const OWNER_TOKEN = localStorage.getItem(OWNER_TOKEN_KEY) || postId();
 localStorage.setItem(OWNER_TOKEN_KEY, OWNER_TOKEN);
 async function downloadAttachment(file: Attachment, postIdValue?: string) {
@@ -84,8 +108,9 @@ function AttachmentPreview({ file, postIdValue, onError }: { file: Attachment; p
 
 async function uploadLargePost(file: Blob, name: string, text: string, duration: number, onProgress: (percent: number) => void) {
   const encoded = (value: string) => encodeURIComponent(value);
-  const started = await fetch(`${API_BASE_URL}/api/flamingo-wall/uploads`, { method: 'POST', headers: identityHeaders({ 'X-Upload-Size': String(file.size), 'X-Upload-Name': encoded(name), 'X-Upload-Type': encoded(file.type || 'application/octet-stream'), 'X-Upload-Text': encoded(text), 'X-Upload-Duration': String(duration || 0) }) });
-  const session = await started.json();
+  const uploadId = postId();
+  const started = await fetchUpload(`${API_BASE_URL}/api/flamingo-wall/uploads`, { method: 'POST', headers: identityHeaders({ 'X-Upload-Id': uploadId, 'X-Upload-Size': String(file.size), 'X-Upload-Name': encoded(name), 'X-Upload-Type': encoded(file.type || 'application/octet-stream'), 'X-Upload-Text': encoded(text), 'X-Upload-Duration': String(duration || 0) }) });
+  const session = await responsePayload(started);
   if (!started.ok) throw new Error(session.error || 'Ngarkimi nuk mund të fillonte.');
   const chunkSize = session.chunkBytes || 32 * 1024 * 1024;
   const offsets = Array.from({ length: Math.ceil(file.size / chunkSize) }, (_, index) => index * chunkSize);
@@ -93,10 +118,7 @@ async function uploadLargePost(file: Blob, name: string, text: string, duration:
   const uploadChunk = async (offset: number) => {
     const chunk = file.slice(offset, Math.min(offset + chunkSize, file.size));
     let response: Response | undefined;
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      try { response = await fetch(`${API_BASE_URL}/api/flamingo-wall/uploads/${session.uploadId}`, { method: 'PUT', headers: { 'Content-Type': 'application/octet-stream', 'X-Upload-Offset': String(offset) }, body: chunk }); if (response.ok) break; } catch { /* retry this small chunk */ }
-      await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)));
-    }
+    response = await fetchUpload(`${API_BASE_URL}/api/flamingo-wall/uploads/${session.uploadId}`, { method: 'PUT', headers: identityHeaders({ 'Content-Type': 'application/octet-stream', 'X-Upload-Offset': String(offset) }), body: chunk }, 5);
     if (!response?.ok) throw new Error('Lidhja me serverin u ndërpre. Provo përsëri.');
     uploaded += chunk.size;
     onProgress(Math.round(uploaded / file.size * 100));
@@ -107,8 +129,8 @@ async function uploadLargePost(file: Blob, name: string, text: string, duration:
     while (offsets.length) { const offset = offsets.shift(); if (offset !== undefined) await uploadChunk(offset); }
   });
   await Promise.all(workers);
-  const completed = await fetch(`${API_BASE_URL}/api/flamingo-wall/uploads/${session.uploadId}/complete`, { method: 'POST', headers: identityHeaders() });
-  const payload = await completed.json();
+  const completed = await fetchUpload(`${API_BASE_URL}/api/flamingo-wall/uploads/${session.uploadId}/complete`, { method: 'POST', headers: identityHeaders() });
+  const payload = await responsePayload(completed);
   if (!completed.ok) throw new Error(payload.error || 'Publikimi dështoi.');
   return payload;
 }

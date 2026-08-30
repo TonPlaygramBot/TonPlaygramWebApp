@@ -72,7 +72,10 @@ router.post('/uploads', async (req, res) => {
   if (!Number.isSafeInteger(size) || size < 1 || size > maxBytes) {
     return res.status(413).json({ error: `Skedari duhet të jetë më i vogël se ${Math.floor(maxBytes / 1024 ** 3)} GB.` });
   }
-  const id = randomUUID();
+  // A stable client id makes initiation safe to retry when the phone sent the
+  // request but lost the response. No video bytes are transformed at any point.
+  const requestedId = String(req.get('x-upload-id') || '');
+  const id = /^[0-9a-f-]{36}$/i.test(requestedId) ? requestedId : randomUUID();
   const paths = sessionPaths(id);
   const metadata = {
     id,
@@ -87,6 +90,15 @@ router.post('/uploads', async (req, res) => {
     createdAt: Date.now()
   };
   await mkdir(pendingDirectory, { recursive: true });
+  try {
+    const existing = JSON.parse(await readFile(paths.meta, 'utf8'));
+    if (existing.size === size && existing.ownerTokenHash === metadata.ownerTokenHash) {
+      return res.status(200).json({ uploadId: id, chunkBytes: maxChunkBytes });
+    }
+    return res.status(409).json({ error: 'Ky identifikues ngarkimi është përdorur.' });
+  } catch (err) {
+    if (err?.code !== 'ENOENT') throw err;
+  }
   await Promise.all([writeFile(paths.data, ''), writeFile(paths.meta, JSON.stringify(metadata))]);
   await truncate(paths.data, size);
   res.status(201).json({ uploadId: id, chunkBytes: maxChunkBytes });
@@ -167,7 +179,13 @@ router.post('/uploads/:id/complete', async (req, res) => {
     const post = await FlamingoPost.create({ text: metadata.text, author: displayName(user), authorAvatar: user?.photo || '', authorAccountId: user?.accountId || '', attachment, ownerTokenHash: metadata.ownerTokenHash });
     res.status(201).json({ post });
   } catch (err) {
-    if (err?.code === 'ENOENT') return res.status(404).json({ error: 'Ngarkimi nuk u gjet.' });
+    if (err?.code === 'ENOENT') {
+      // Completion may already have succeeded even if its response was lost.
+      // Return the existing post so a safe client retry cannot show failure.
+      const post = await FlamingoPost.findOne({ 'attachment.url': new RegExp(`/files/${id}-`) }).lean();
+      if (post) return res.status(200).json({ post });
+      return res.status(404).json({ error: 'Ngarkimi nuk u gjet.' });
+    }
     res.status(500).json({ error: err.message || 'Publikimi dështoi.' });
   }
 });
