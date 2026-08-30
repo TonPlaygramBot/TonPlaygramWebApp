@@ -496,6 +496,10 @@ export default function App() {
                 element={<Navigate to="/messages" replace />}
               />
               <Route path="/account" element={<MyAccount />} />
+              <Route
+                path="/profile"
+                element={<Navigate to="/account" replace />}
+              />
               <Route path="/privacy" element={<LegalPage type="privacy" />} />
               <Route path="/terms" element={<LegalPage type="terms" />} />
               <Route path="/competition-policy" element={<LegalPage type="competition" />} />
