@@ -167,6 +167,16 @@ export default function Home() {
     <div className="home-page app-theme-page space-y-4">
       <ThemePicker />
       <HomeIntroduction />
+      <section className="albanian-support-card">
+        <img src="/assets/flags/albania.svg" alt="Flamuri shqiptar" />
+        <div className="albanian-support-card__shade" />
+        <div className="albanian-support-card__content">
+          <span>🇦🇱 QËNDROJMË ME SHQIPËRINË</span>
+          <h2>TonPlayGram mbështet plotësisht protestat shqiptare.</h2>
+          <p>Shiko dhe shkarko videot, fotot dhe dokumentet e publikuara nga ekipi ynë.</p>
+          <Link to="/protesta-shqiptare">Hap galerinë <strong>→</strong></Link>
+        </div>
+      </section>
       <Link to="/airdrop" className="airdrop-home-card">
         <span><Sparkles /> LIVE TPG AIRDROP GAME</span>
         <strong>Splat targets.<br />Stack TPG rewards.</strong>

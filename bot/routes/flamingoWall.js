@@ -5,6 +5,7 @@ import { createWriteStream } from 'fs';
 import { mkdir, rm } from 'fs/promises';
 import { randomUUID } from 'crypto';
 import FlamingoPost from '../models/FlamingoPost.js';
+import { hasSocialDeveloperAccess } from './socialAdmin.js';
 
 const router = express.Router();
 const uploadDirectory = path.resolve('data/flamingo-uploads');
@@ -18,7 +19,16 @@ router.get('/posts', async (_req, res) => {
   res.json({ posts });
 });
 
-router.post('/posts', async (req, res) => {
+router.get('/access', (req, res) => {
+  res.json({ canPublish: hasSocialDeveloperAccess(req.auth) });
+});
+
+router.post('/posts', (req, res, next) => {
+  if (!hasSocialDeveloperAccess(req.auth)) {
+    return res.status(403).json({ error: 'Vetëm zhvilluesi mund të publikojë materiale.' });
+  }
+  next();
+}, async (req, res) => {
   await mkdir(uploadDirectory, { recursive: true });
   const busboy = Busboy({ headers: req.headers, limits: { fileSize: maxBytes, files: 1, fields: 3 } });
   const fields = {};
