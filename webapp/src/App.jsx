@@ -22,6 +22,7 @@ import SocialAdmin from './pages/SocialAdmin.jsx';
 import SocialPostDetails from './pages/SocialPostDetails.jsx';
 import LegalPage from './pages/LegalPage.jsx';
 import DeleteAccount from './pages/DeleteAccount.jsx';
+import Airdrop from './pages/Airdrop.jsx';
 import Layout from './components/Layout.jsx';
 import TonConnectSync from './components/TonConnectSync.jsx';
 import GameLiveAvatarOverlay from './components/GameLiveAvatarOverlay.jsx';
@@ -216,6 +217,8 @@ export default function App() {
               <Route path="/tokenomics" element={<EcosystemTopic topic="tokenomics" />} />
               <Route path="/flamingo/*" element={<FlamingoApp />} />
               <Route path="/earn" element={<Earn />} />
+              <Route path="/airdrop" element={<Airdrop />} />
+              <Route path="/admin/airdrop" element={<Airdrop admin />} />
               <Route path="/social" element={<Social />} />
               <Route path="/mining" element={<Navigate to="/earn#mining" replace />} />
               <Route

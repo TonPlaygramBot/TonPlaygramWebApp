@@ -167,6 +167,11 @@ export default function Home() {
     <div className="home-page app-theme-page space-y-4">
       <ThemePicker />
       <HomeIntroduction />
+      <Link to="/airdrop" className="airdrop-home-card">
+        <span><Sparkles /> TPG AIRDROP</span>
+        <strong>Download videos.<br />Earn 2,500 TPG.</strong>
+        <small>Complete creator & social tasks <b>JOIN NOW →</b></small>
+      </Link>
       <div className="flex flex-col items-center">
         {photoUrl && (
           <div className="relative">

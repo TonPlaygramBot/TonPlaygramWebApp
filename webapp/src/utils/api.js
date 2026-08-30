@@ -59,6 +59,12 @@ export const socialAdminApi = {
   updateAutomation: (id, payload) => patch(`/api/admin/social/automations/${id}`, payload)
 };
 
+export const airdropVideoApi = {
+  list: (telegramId) => post('/api/airdrop/videos', { telegramId }),
+  claim: (telegramId, videoId) => post('/api/airdrop/videos/claim', { telegramId, videoId }),
+  create: (payload, token) => post('/api/airdrop/videos/admin/create', payload, token)
+};
+
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
