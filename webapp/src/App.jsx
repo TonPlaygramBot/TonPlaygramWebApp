@@ -495,10 +495,10 @@ export default function App() {
                 path="/trending"
                 element={<Navigate to="/messages" replace />}
               />
-              <Route path="/account" element={<MyAccount />} />
+              <Route path="/profile" element={<MyAccount />} />
               <Route
-                path="/profile"
-                element={<Navigate to="/account" replace />}
+                path="/account"
+                element={<Navigate to="/profile" replace />}
               />
               <Route path="/privacy" element={<LegalPage type="privacy" />} />
               <Route path="/terms" element={<LegalPage type="terms" />} />
