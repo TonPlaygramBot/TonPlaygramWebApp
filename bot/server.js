@@ -305,11 +305,14 @@ app.use(helmet({
   }
 }));
 app.use(compression());
+// Resolve the signed Telegram/API/developer identity before mounting media
+// routes. Their public read endpoints remain open, while upload/access checks
+// can reliably use req.auth to keep publishing developer-only.
+app.use(optionalAuthenticate);
 app.use('/api/protest-videos', protestVideoRoutes);
 app.use('/api/flamingo-wall', flamingoWallRoutes);
 // Increase JSON body limit to handle large photo uploads
 app.use(express.json({ limit: '10mb' }));
-app.use(optionalAuthenticate);
 const apiLimiter = rateLimit({
   windowMs: rateLimitWindowMs,
   limit: rateLimitMax,
