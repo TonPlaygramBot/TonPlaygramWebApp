@@ -96,7 +96,7 @@ export default function MediaWall({ compact = false }: { compact?: boolean }) {
     <div className="fr-wall-heading"><div><span className="fr-kicker"><span>🇦🇱</span> PROTESTA SHQIPTARE</span><h1>Zëri ynë, pa barriera.</h1><p>Një hapësirë e lirë ku çdo qytetar mund të publikojë.</p></div><span className="fr-wall-live"><i /> LIVE</span></div>
     <div className="fr-discover"><Search /><span>Kërko në komunitet</span><button>Më të rejat <ChevronDown /></button></div>
     <div className="fr-story-row"><span className="fr-story-add"><b><Plus /></b><small>Historia jote</small></span><a href="https://www.tiktok.com/@tonplaygram" target="_blank" rel="noreferrer"><b>TP</b><small>TonPlaygram</small></a><span><b>✊</b><small>Në terren</small></span><span><b>🇦🇱</b><small>Shqipëria</small></span></div>
-    <form className="fr-wall-compose" onSubmit={publish}>
+    <form className="fr-wall-compose" id="wall-composer" onSubmit={publish}>
       <div className="fr-compose-intro"><div className="fr-compose-person">TI</div><button type="button" onClick={() => setPostKind('post')}>Çfarë dëshiron të ndash?</button></div>
       <div className="fr-compose-kinds"><button type="button" className={postKind === 'post' ? 'active' : ''} onClick={() => setPostKind('post')}><MessageCircle /> Postim</button><button type="button" className={postKind === 'article' ? 'active' : ''} onClick={() => setPostKind('article')}><Newspaper /> Artikull</button><button type="button" className={postKind === 'poll' ? 'active' : ''} onClick={() => setPostKind('poll')}><Vote /> Sondazh</button></div>
       {postKind === 'article' && <input className="fr-article-title" value={title} onChange={event => setTitle(event.target.value)} maxLength={120} placeholder="Titulli i artikullit" />}
