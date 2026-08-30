@@ -240,7 +240,7 @@ export default function Messages() {
   if (!socialId) return <div className="messages-login"><LoginOptions /></div>;
 
   return (
-    <main className={`messages-app ${selected ? 'chat-is-open' : ''}`}>
+    <main className={`messages-app social-page app-theme-page ${selected ? 'chat-is-open' : ''}`}>
       <section className="messages-sidebar">
         <header className="messages-topbar">
           <div><span>TONPLAYGRAM</span><h1>Social hub</h1><p>Your people, all in one place</p></div>

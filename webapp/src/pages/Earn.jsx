@@ -4,7 +4,7 @@ import Tasks from './Tasks.jsx';
 
 export default function Earn() {
   return (
-    <main className="hub-page earn-page">
+    <main className="hub-page earn-page app-theme-page">
       <header className="hub-hero">
         <span className="hub-kicker"><Coins size={15} /> Rewards centre</span>
         <h1>Earn</h1>

@@ -3967,7 +3967,7 @@ export default function Store() {
   };
 
   return (
-    <div className={`min-h-screen text-zinc-100 transition-colors duration-300 ${layoutTheme.page}`}>
+    <div className={`store-page app-theme-page min-h-screen text-zinc-100 transition-colors duration-300 ${layoutTheme.page}`}>
       <header className={`sticky top-0 z-30 border-b backdrop-blur ${layoutTheme.header}`}>
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">

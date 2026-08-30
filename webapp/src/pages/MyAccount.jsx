@@ -595,7 +595,7 @@ export default function MyAccount() {
     navigator.clipboard.writeText(String(profile.accountId));
 
   return (
-    <div className="relative p-3 sm:p-4 space-y-4 text-text wide-card max-w-4xl mx-auto">
+    <div className="profile-page app-theme-page relative p-3 sm:p-4 space-y-4 text-text wide-card max-w-4xl mx-auto">
       <ProfileLockOverlay
         locked={profileLocked}
         onUnlockSecret={unlockWithSecret}

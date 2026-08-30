@@ -32,7 +32,7 @@ export default function Games() {
   }, []);
 
   return (
-    <div className="relative space-y-4 text-text">
+    <div className="games-page app-theme-page relative space-y-4 text-text">
       <h2 className="text-2xl font-bold text-center mt-4">Games Lobby</h2>
       <p className="text-center text-sm text-subtext">
         Jump straight into a lobby. Tap any game to start your next match.
