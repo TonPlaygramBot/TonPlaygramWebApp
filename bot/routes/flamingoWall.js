@@ -2,7 +2,7 @@ import Busboy from 'busboy';
 import express from 'express';
 import path from 'path';
 import { createWriteStream } from 'fs';
-import { mkdir, open, readFile, rename, rm, truncate, writeFile } from 'fs/promises';
+import { mkdir, readFile, rename, rm, truncate, writeFile } from 'fs/promises';
 import { createHash, randomUUID, timingSafeEqual } from 'crypto';
 import FlamingoPost from '../models/FlamingoPost.js';
 import User from '../models/User.js';
@@ -51,6 +51,13 @@ const withUploadLock = (id, task) => {
   return current.finally(() => { if (uploadLocks.get(id) === current) uploadLocks.delete(id); });
 };
 const videoPrice = duration => duration > 40 ? 300 : duration >= 20 ? 200 : 0;
+const normalizedAuthor = author => String(author || '')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .trim()
+  .toLocaleLowerCase('sq');
+const isCommitteeVideo = post => post?.attachment?.type?.startsWith('video/')
+  && normalizedAuthor(post.author) === 'antar i komitetit';
 const ownsPost = (post, token) => {
   if (!post.ownerTokenHash || !token) return false;
   const supplied = Buffer.from(tokenHash(token));
@@ -95,14 +102,6 @@ router.put('/uploads/:id', async (req, res) => {
     if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(contentLength) || contentLength < 1 || contentLength > maxChunkBytes) {
       return res.status(413).json({ error: 'Pjesa e videos është shumë e madhe.' });
     }
-    const chunks = [];
-    let received = 0;
-    for await (const chunk of req) {
-      received += chunk.length;
-      if (received > contentLength) throw new Error('Invalid chunk length.');
-      chunks.push(chunk);
-    }
-    if (received !== contentLength) throw new Error('Incomplete chunk.');
     const metadata = await withUploadLock(id, async () => {
       const metadata = JSON.parse(await readFile(paths.meta, 'utf8'));
       const expectedLength = Math.min(maxChunkBytes, metadata.size - offset);
@@ -110,12 +109,27 @@ router.put('/uploads/:id', async (req, res) => {
       return metadata;
     });
     const key = String(offset);
+    let received = 0;
     if (!metadata.chunks?.[key]) {
-      // Positional writes to separate ranges are safe in parallel. Keep slow
-      // disk I/O outside the metadata lock so concurrent mobile uploads really
-      // use the available bandwidth instead of being serialized on the server.
-      const file = await open(paths.data, 'r+');
-      try { await file.write(Buffer.concat(chunks), 0, received, offset); } finally { await file.close(); }
+      // Stream straight to the preallocated range instead of buffering every
+      // chunk in RAM first. Disk writes now overlap the network transfer and a
+      // busy server can sustain parallel phone uploads without memory spikes.
+      const output = createWriteStream(paths.data, { flags: 'r+', start: offset });
+      await new Promise((resolve, reject) => {
+        req.on('data', chunk => {
+          received += chunk.length;
+          if (received > contentLength) req.destroy(new Error('Invalid chunk length.'));
+        });
+        req.on('error', reject);
+        output.on('error', reject);
+        output.on('finish', resolve);
+        req.pipe(output);
+      });
+      if (received !== contentLength) throw new Error('Incomplete chunk.');
+    } else {
+      // Drain a retried chunk that the server has already committed.
+      for await (const chunk of req) received += chunk.length;
+      if (received !== contentLength) throw new Error('Incomplete chunk.');
     }
     const result = await withUploadLock(id, async () => {
       const latest = JSON.parse(await readFile(paths.meta, 'utf8'));
@@ -161,7 +175,16 @@ router.post('/uploads/:id/complete', async (req, res) => {
 router.get('/posts', async (req, res) => {
   const token = ownerToken(req);
   const posts = await FlamingoPost.find().select('+ownerTokenHash').sort({ createdAt: -1 }).lean();
-  res.json({ posts: posts.map(({ ownerTokenHash, ...post }) => ({ ...post, canManage: ownsPost({ ownerTokenHash }, token) })) });
+  const committeeVideos = posts.filter(isCommitteeVideo);
+  if (committeeVideos.length) {
+    // Remove the withdrawn committee video from both the feed and storage.
+    // Normalizing the author also catches the previous spelling with "ë".
+    await Promise.allSettled(committeeVideos.map(async post => {
+      await FlamingoPost.deleteOne({ _id: post._id });
+      if (post.attachment?.url) await rm(path.join(uploadDirectory, path.basename(post.attachment.url)), { force: true });
+    }));
+  }
+  res.json({ posts: posts.filter(post => !isCommitteeVideo(post)).map(({ ownerTokenHash, ...post }) => ({ ...post, canManage: ownsPost({ ownerTokenHash }, token) })) });
 });
 
 router.post('/posts', async (req, res) => {
