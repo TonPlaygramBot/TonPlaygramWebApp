@@ -71,17 +71,33 @@ export default function AdModal({
     if (!open) return;
 
     // The player can finish loading after the autoplay query is first handled.
-    // Retrying through TikTok's player API makes playback reliable in webviews.
-    const retryIds = [250, 1000, 2500].map((delay) =>
+    // Keep retrying through TikTok's player API while slower mobile webviews
+    // initialise the iframe, and play again as soon as the player reports ready.
+    const retryIds = [250, 750, 1500, 3000, 5000, 7500].map((delay) =>
       window.setTimeout(requestPlayback, delay),
     );
+    const handlePlayerMessage = (event: MessageEvent) => {
+      if (
+        event.origin !== 'https://www.tiktok.com' ||
+        event.source !== playerRef.current?.contentWindow
+      ) {
+        return;
+      }
+
+      const messageType = event.data?.type;
+      if (messageType === 'onPlayerReady' || messageType === 'playerReady') {
+        requestPlayback();
+      }
+    };
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') requestPlayback();
     };
+    window.addEventListener('message', handlePlayerMessage);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       retryIds.forEach((id) => window.clearTimeout(id));
+      window.removeEventListener('message', handlePlayerMessage);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [open, playerUrl, requestPlayback]);
