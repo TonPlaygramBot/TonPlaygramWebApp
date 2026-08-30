@@ -167,10 +167,10 @@ export default function Home() {
     <div className="home-page app-theme-page space-y-4">
       <ThemePicker />
       <HomeIntroduction />
-      <Link to="/airdrop" className="airdrop-home-card">
-        <span><Sparkles /> TPG AIRDROP</span>
-        <strong>Download videos.<br />Earn 5,000 TPG.</strong>
-        <small>Complete creator & social tasks <b>JOIN NOW →</b></small>
+      <Link to="/games/splat-squad" className="airdrop-home-card">
+        <span><Sparkles /> LIVE TPG AIRDROP GAME</span>
+        <strong>Splat targets.<br />Stack TPG rewards.</strong>
+        <small>Free fruit & vegetables every hour <b>PLAY NOW →</b></small>
       </Link>
       <div className="flex flex-col items-center">
         {photoUrl && (

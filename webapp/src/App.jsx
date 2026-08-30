@@ -22,7 +22,6 @@ import SocialAdmin from './pages/SocialAdmin.jsx';
 import SocialPostDetails from './pages/SocialPostDetails.jsx';
 import LegalPage from './pages/LegalPage.jsx';
 import DeleteAccount from './pages/DeleteAccount.jsx';
-import Airdrop from './pages/Airdrop.jsx';
 import Layout from './components/Layout.jsx';
 import TonConnectSync from './components/TonConnectSync.jsx';
 import GameLiveAvatarOverlay from './components/GameLiveAvatarOverlay.jsx';
@@ -129,6 +128,7 @@ const StoreThumbnailStudioPoolRoyale = React.lazy(
 const FlamingoApp = React.lazy(
   () => import('./features/flamingo/FlamingoApp.tsx')
 );
+const AirdropGame = React.lazy(() => import('./pages/AirdropGame.tsx'));
 
 export default function App() {
   // Enforce canonical origin for wallet connection flows.
@@ -217,8 +217,8 @@ export default function App() {
               <Route path="/tokenomics" element={<EcosystemTopic topic="tokenomics" />} />
               <Route path="/flamingo/*" element={<FlamingoApp />} />
               <Route path="/earn" element={<Earn />} />
-              <Route path="/airdrop" element={<Airdrop />} />
-              <Route path="/admin/airdrop" element={<Airdrop admin />} />
+              <Route path="/airdrop" element={<Navigate to="/games/splat-squad" replace />} />
+              <Route path="/games/splat-squad" element={<AirdropGame />} />
               <Route path="/social" element={<Social />} />
               <Route path="/mining" element={<Navigate to="/earn#mining" replace />} />
               <Route
