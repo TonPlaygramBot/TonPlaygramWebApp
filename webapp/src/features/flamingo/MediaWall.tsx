@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { createPortal } from 'react-dom';
 import {
   BarChart3, CheckCircle2, ChevronDown, Download, ExternalLink, FileText,
-  Image, MessageCircle, Newspaper, Paperclip, Play, Plus, Search, Send, Share2,
+  Image, Maximize2, MessageCircle, Newspaper, Paperclip, Play, Plus, Search, Send, Share2,
   ThumbsDown, ThumbsUp, Upload, Users, Video, Vote, X,
 } from 'lucide-react';
 import './media-social.css';
@@ -46,7 +47,26 @@ function formatBytes(bytes: number) { if (bytes >= 1024 ** 3) return `${(bytes /
 function attachmentType(file: File) { if (file.type) return file.type; if (imageExtensions.test(file.name)) return 'image/*'; if (videoExtensions.test(file.name)) return 'video/*'; return 'application/octet-stream'; }
 function downloadUrl(file: Attachment) { if (file.src.startsWith('blob:')) return file.src; const separator = file.src.includes('?') ? '&' : '?'; return `${file.src}${separator}download=1&name=${encodeURIComponent(file.name)}`; }
 function postId() { return globalThis.crypto?.randomUUID?.() || `post-${Date.now()}-${Math.random().toString(36).slice(2)}`; }
-function AttachmentPreview({ file }: { file: Attachment }) { if (file.type.startsWith('video/')) return <div className="fr-video-frame"><video key={file.src} src={file.src} controls playsInline preload="metadata" /><span><Play /> VIDEO</span></div>; if (file.type.startsWith('image/')) return <img className="fr-post-image" src={file.src} alt={file.name} loading="lazy" />; return <a className="fr-file-card" href={file.src} download={file.name}><FileText /><span><strong>{file.name}</strong><small>{formatBytes(file.size)} • Prek për ta shkarkuar</small></span><Download /></a>; }
+function downloadAttachment(file: Attachment) {
+  const url = downloadUrl(file);
+  const telegram = (window as any).Telegram?.WebApp;
+  if (!url.startsWith('blob:') && typeof telegram?.downloadFile === 'function') {
+    telegram.downloadFile({ url: new URL(url, location.href).href, file_name: file.name });
+    return;
+  }
+  if (!url.startsWith('blob:') && typeof telegram?.openLink === 'function') {
+    telegram.openLink(new URL(url, location.href).href, { try_instant_view: false });
+    return;
+  }
+  const link = document.createElement('a'); link.href = url; link.download = file.name; link.target = '_blank'; link.rel = 'noopener'; link.click();
+}
+function AttachmentPreview({ file }: { file: Attachment }) {
+  const [expanded, setExpanded] = useState(false);
+  useEffect(() => { if (!expanded) return; const previous = document.body.style.overflow; document.body.style.overflow = 'hidden'; const close = (event: KeyboardEvent) => { if (event.key === 'Escape') setExpanded(false); }; window.addEventListener('keydown', close); return () => { document.body.style.overflow = previous; window.removeEventListener('keydown', close); }; }, [expanded]);
+  if (file.type.startsWith('video/')) return <><div className="fr-video-frame"><video key={file.src} src={file.src} controls playsInline preload="metadata" /><span><Play /> VIDEO</span><button type="button" className="fr-expand-video" onClick={() => setExpanded(true)} aria-label="Hap videon në ekran të plotë"><Maximize2 /> Ekran i plotë</button></div>{expanded && createPortal(<div className="fr-video-fullscreen" role="dialog" aria-modal="true" aria-label={`Video: ${file.name}`}><header><strong>{file.name}</strong><button type="button" onClick={() => setExpanded(false)} aria-label="Mbyll videon"><X /></button></header><video src={file.src} controls autoPlay playsInline preload="auto" /><button type="button" className="fr-fullscreen-download" onClick={() => downloadAttachment(file)}><Download /> Shkarko videon</button></div>, document.body)}</>;
+  if (file.type.startsWith('image/')) return <img className="fr-post-image" src={file.src} alt={file.name} loading="lazy" />;
+  return <button type="button" className="fr-file-card" onClick={() => downloadAttachment(file)}><FileText /><span><strong>{file.name}</strong><small>{formatBytes(file.size)} • Prek për ta shkarkuar</small></span><Download /></button>;
+}
 
 async function uploadLargePost(file: Blob, name: string, text: string, onProgress: (percent: number) => void) {
   const encoded = (value: string) => encodeURIComponent(value);
@@ -112,7 +132,7 @@ export default function MediaWall({ compact = false }: { compact?: boolean }) {
       <div className="fr-post-actions"><div className="fr-reaction-wrap"><button className={data.reaction ? 'active' : ''} onClick={() => setOpenReactions(openReactions === post.id ? undefined : post.id)}>{data.reaction ? <span>{reactionMeta.find(x => x.id === data.reaction)?.emoji}</span> : <ThumbsUp />} {data.reaction ? reactionMeta.find(x => x.id === data.reaction)?.label : 'Reago'} <ChevronDown /></button>{openReactions === post.id && <div className="fr-reaction-picker">{reactionMeta.map(item => <button key={item.id} title={item.label} onClick={() => react(post.id, item.id)}>{item.emoji}</button>)}</div>}</div><button onClick={() => document.getElementById(`comment-${post.id}`)?.focus()}><MessageCircle /> Komento</button><button onClick={() => setOpenShare(openShare === post.id ? undefined : post.id)}><Share2 /> Ndaje</button></div>
       {openShare === post.id && <div className="fr-share-sheet"><header><strong>Ndaje zërin kudo</strong><button onClick={() => setOpenShare(undefined)} aria-label="Mbyll"><X /></button></header><div>{socialNetworks.map(network => <button key={network.id} onClick={() => share(post, network.id)}><b className={network.id}>{network.mark}</b><span>{network.label}</span></button>)}</div><button className="fr-more-share" onClick={() => share(post)}><Share2 /> Më shumë opsione</button></div>}
       <div className="fr-comments">{data.comments.map(comment => <div className="fr-comment" key={comment.id}><span>{comment.author.slice(0, 2)}</span><div><p><b>{comment.author}</b>{comment.text}</p><small>{comment.createdAt}<button className={data.commentVotes[comment.id] === 1 ? 'active' : ''} onClick={() => voteComment(post.id, comment.id, 1)}><ThumbsUp /></button><button className={data.commentVotes[comment.id] === -1 ? 'active dislike' : ''} onClick={() => voteComment(post.id, comment.id, -1)}><ThumbsDown /></button></small></div></div>)}<form onSubmit={event => addComment(event, post.id)}><span>AM</span><input id={`comment-${post.id}`} value={commentDrafts[post.id] || ''} onChange={event => setCommentDrafts(drafts => ({ ...drafts, [post.id]: event.target.value }))} placeholder="Shkruaj një koment…" maxLength={500} /><button aria-label="Dërgo komentin"><Send /></button></form></div>
-      {post.attachment && <a className="fr-post-download" href={downloadUrl(post.attachment)} download={post.attachment.name}><Download /> Shkarko origjinalin <small>{formatBytes(post.attachment.size)}</small></a>}
+      {post.attachment && <button type="button" className="fr-post-download" onClick={() => downloadAttachment(post.attachment!)}><Download /> Shkarko origjinalin <small>{formatBytes(post.attachment.size)}</small></button>}
     </article>; })}</div>
   </section>;
 }
