@@ -1,4 +1,4 @@
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Bell, PenLine } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import MediaWall from './MediaWall';
@@ -13,9 +13,13 @@ export default function CommunityWallApp() {
             <ArrowLeft />
           </Link>
           <span>
-            <strong>TonPlayGram</strong>
-            <small>Community Wall</small>
+            <strong>Protesta shqiptare</strong>
+            <small>Komuniteti TonPlayGram</small>
           </span>
+        </div>
+        <div className="community-wall-header-actions">
+          <button aria-label="Njoftimet"><Bell /></button>
+          <a href="#wall-composer" aria-label="Krijo një postim"><PenLine /></a>
         </div>
       </header>
       <main>

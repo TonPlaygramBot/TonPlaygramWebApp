@@ -11,12 +11,17 @@ const flamingoPostSchema = new mongoose.Schema({
   text: { type: String, default: '', maxlength: 1200 },
   author: { type: String, required: true, maxlength: 120 },
   source: { type: String, enum: ['community', 'telegram'], default: 'community' },
-  sourceId: { type: String, default: '' },
+  // Community posts do not have an upstream id. Leaving this field absent is
+  // important: the sparse unique index must only de-duplicate imported posts.
+  sourceId: { type: String, default: undefined },
   attachment: { type: attachmentSchema, default: undefined },
   createdAt: { type: Date, default: Date.now }
 });
 
 flamingoPostSchema.index({ createdAt: -1 });
-flamingoPostSchema.index({ source: 1, sourceId: 1 }, { unique: true, sparse: true });
+flamingoPostSchema.index(
+  { source: 1, sourceId: 1 },
+  { unique: true, partialFilterExpression: { sourceId: { $type: 'string' } } }
+);
 
 export default mongoose.model('FlamingoPost', flamingoPostSchema);
