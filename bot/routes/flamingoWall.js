@@ -2,7 +2,7 @@ import Busboy from 'busboy';
 import express from 'express';
 import path from 'path';
 import { createWriteStream } from 'fs';
-import { appendFile, mkdir, readFile, rename, rm, writeFile } from 'fs/promises';
+import { mkdir, open, readFile, rename, rm, truncate, writeFile } from 'fs/promises';
 import { createHash, randomUUID, timingSafeEqual } from 'crypto';
 import FlamingoPost from '../models/FlamingoPost.js';
 import User from '../models/User.js';
@@ -14,6 +14,7 @@ const maxBytes = Math.max(1, Number(process.env.FLAMINGO_UPLOAD_MAX_BYTES) || 5 
 const maxChunkBytes = Math.max(1024 ** 2, Number(process.env.FLAMINGO_UPLOAD_CHUNK_BYTES) || 32 * 1024 ** 2);
 const pendingDirectory = path.join(uploadDirectory, '.pending');
 const downloadGrants = new Map();
+const uploadLocks = new Map();
 
 router.use(optionalAuthenticate);
 
@@ -30,15 +31,21 @@ const sessionPaths = (id) => ({
 });
 const tokenHash = token => createHash('sha256').update(String(token || '')).digest('hex');
 const ownerToken = req => req.get('x-wall-owner-token') || '';
-const userSelector = req => req.auth?.telegramId
-  ? { telegramId: req.auth.telegramId }
-  : req.auth?.accountId
-    ? { accountId: req.auth.accountId }
+const userSelector = req => req.auth?.accountId
+  ? { accountId: req.auth.accountId }
+  : req.auth?.telegramId
+    ? { telegramId: req.auth.telegramId }
     : req.auth?.googleId ? { googleId: req.auth.googleId } : null;
 const displayName = user => user?.nickname || [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'Anëtar i komunitetit';
 const resolveUser = req => {
   const selector = userSelector(req);
   return selector ? User.findOne(selector) : null;
+};
+const withUploadLock = (id, task) => {
+  const previous = uploadLocks.get(id) || Promise.resolve();
+  const current = previous.catch(() => {}).then(task);
+  uploadLocks.set(id, current);
+  return current.finally(() => { if (uploadLocks.get(id) === current) uploadLocks.delete(id); });
 };
 const videoPrice = duration => duration > 40 ? 300 : duration >= 20 ? 200 : 0;
 const ownsPost = (post, token) => {
@@ -61,6 +68,7 @@ router.post('/uploads', async (req, res) => {
     id,
     size,
     received: 0,
+    chunks: {},
     name: safeName(decodeHeader(req.get('x-upload-name'), 'video.mp4')),
     type: decodeHeader(req.get('x-upload-type'), 'application/octet-stream'),
     duration: Math.max(0, Number(req.get('x-upload-duration')) || 0),
@@ -70,6 +78,7 @@ router.post('/uploads', async (req, res) => {
   };
   await mkdir(pendingDirectory, { recursive: true });
   await Promise.all([writeFile(paths.data, ''), writeFile(paths.meta, JSON.stringify(metadata))]);
+  await truncate(paths.data, size);
   res.status(201).json({ uploadId: id, chunkBytes: maxChunkBytes });
 });
 
@@ -78,11 +87,9 @@ router.put('/uploads/:id', async (req, res) => {
   if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(404).json({ error: 'Ngarkimi nuk u gjet.' });
   const paths = sessionPaths(id);
   try {
-    const metadata = JSON.parse(await readFile(paths.meta, 'utf8'));
     const offset = Number(req.get('x-upload-offset'));
     const contentLength = Number(req.get('content-length'));
-    if (offset !== metadata.received) return res.status(409).json({ error: 'Pjesa është jashtë radhe.', received: metadata.received });
-    if (!Number.isSafeInteger(contentLength) || contentLength < 1 || contentLength > maxChunkBytes || metadata.received + contentLength > metadata.size) {
+    if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(contentLength) || contentLength < 1 || contentLength > maxChunkBytes) {
       return res.status(413).json({ error: 'Pjesa e videos është shumë e madhe.' });
     }
     const chunks = [];
@@ -93,14 +100,31 @@ router.put('/uploads/:id', async (req, res) => {
       chunks.push(chunk);
     }
     if (received !== contentLength) throw new Error('Incomplete chunk.');
-    await appendFile(paths.data, Buffer.concat(chunks));
-    metadata.received += received;
-    await writeFile(paths.meta, JSON.stringify(metadata));
-    res.json({ received: metadata.received, complete: metadata.received === metadata.size });
+    const result = await withUploadLock(id, async () => {
+      const metadata = JSON.parse(await readFile(paths.meta, 'utf8'));
+      const expectedLength = Math.min(maxChunkBytes, metadata.size - offset);
+      if (offset >= metadata.size || offset % maxChunkBytes !== 0 || contentLength !== expectedLength) throw Object.assign(new Error('Pjesa është jashtë kufijve.'), { status: 409 });
+      const key = String(offset);
+      if (!metadata.chunks?.[key]) {
+        const file = await open(paths.data, 'r+');
+        try { await file.write(Buffer.concat(chunks), 0, received, offset); } finally { await file.close(); }
+        metadata.chunks ||= {};
+        metadata.chunks[key] = received;
+        metadata.received += received;
+        await writeFile(paths.meta, JSON.stringify(metadata));
+      }
+      return { received: metadata.received, complete: metadata.received === metadata.size };
+    });
+    res.json(result);
   } catch (err) {
     if (err?.code === 'ENOENT') return res.status(404).json({ error: 'Ngarkimi nuk u gjet.' });
-    res.status(400).json({ error: err.message || 'Pjesa e videos dështoi.' });
+    res.status(err?.status || 400).json({ error: err.message || 'Pjesa e videos dështoi.' });
   }
+});
+
+router.get('/identity', async (req, res) => {
+  const user = await resolveUser(req);
+  res.json({ author: displayName(user), authorAvatar: user?.photo || '' });
 });
 
 router.post('/uploads/:id/complete', async (req, res) => {
