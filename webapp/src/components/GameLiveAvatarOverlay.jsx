@@ -79,6 +79,7 @@ const AVATAR_ANCHOR_SELECTORS = [
 ];
 
 const FRAME_SCALE = 1;
+const INLINE_REMOTE_VIDEO_GAMES = new Set(['domino-royal', 'murlanroyale']);
 const BLOCKING_OVERLAY_SELECTORS = [
   '#configPanel.active',
   '#chatModal.active',
@@ -101,7 +102,7 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
   const params = useMemo(() => new URLSearchParams(search), [search]);
   const [liveMode, setLiveMode] = useState(false);
   const [anchorElement, setAnchorElement] = useState(null);
-  const [opponentAnchorElement, setOpponentAnchorElement] = useState(null);
+  const [opponentAnchorElements, setOpponentAnchorElements] = useState([]);
   const localVideoRef = useRef(null);
   const [overlayRect, setOverlayRect] = useState({
     top: 96,
@@ -115,7 +116,7 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
     width: 44,
     height: 44
   });
-  const [opponentRect, setOpponentRect] = useState(null);
+  const [opponentRects, setOpponentRects] = useState([]);
   const [hasBlockingOverlay, setHasBlockingOverlay] = useState(false);
 
   const displayName = useMemo(() => {
@@ -251,28 +252,39 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
         0
       );
       setAnchorElement(node);
-      if (gameSlug === 'domino-royal') {
-        let opponentNode = null;
-        let opponentBounds = null;
+      if (INLINE_REMOTE_VIDEO_GAMES.has(gameSlug)) {
+        const opponentNodes = [];
+        const opponentBounds = [];
         for (const context of getIframeContexts()) {
-          const candidate = context.doc.querySelector(
-            '[data-player-index]:not([data-self-player="true"]) .seat-badge-core'
-          );
-          if (!candidate) continue;
-          const localRect = candidate.getBoundingClientRect();
-          if (localRect.width <= 8 || localRect.height <= 8) continue;
-          opponentNode = candidate;
-          const diameter = Math.min(localRect.width, localRect.height);
-          opponentBounds = {
-            top: Math.round(localRect.top + context.offsetY + (localRect.height - diameter) / 2),
-            left: Math.round(localRect.left + context.offsetX + (localRect.width - diameter) / 2),
-            width: Math.round(diameter),
-            height: Math.round(diameter)
-          };
-          break;
+          const selector = gameSlug === 'murlanroyale'
+            ? '[data-self-player="false"] [data-player-index] img'
+            : '[data-player-index]:not([data-self-player="true"]) .seat-badge-core';
+          context.doc.querySelectorAll(selector).forEach((candidate) => {
+            const localRect = candidate.getBoundingClientRect();
+            if (localRect.width <= 8 || localRect.height <= 8) return;
+            const diameter = Math.min(localRect.width, localRect.height);
+            opponentNodes.push(candidate);
+            opponentBounds.push({
+              top: Math.round(localRect.top + context.offsetY + (localRect.height - diameter) / 2),
+              left: Math.round(localRect.left + context.offsetX + (localRect.width - diameter) / 2),
+              width: Math.round(diameter),
+              height: Math.round(diameter)
+            });
+          });
         }
-        setOpponentAnchorElement(opponentNode);
-        setOpponentRect(opponentBounds);
+        setOpponentAnchorElements((previous) =>
+          previous.length === opponentNodes.length && previous.every((element, index) => element === opponentNodes[index])
+            ? previous
+            : opponentNodes
+        );
+        setOpponentRects((previous) =>
+          previous.length === opponentBounds.length && previous.every((bounds, index) => {
+            const next = opponentBounds[index];
+            return bounds.top === next.top && bounds.left === next.left && bounds.width === next.width && bounds.height === next.height;
+          })
+            ? previous
+            : opponentBounds
+        );
       }
       setOverlayRect((prev) => {
         if (
@@ -391,14 +403,17 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
   }, [anchorElement, liveMode]);
 
   useEffect(() => {
-    if (!opponentAnchorElement) return undefined;
-    const previousVisibility = opponentAnchorElement.style.visibility;
-    if (liveMode) opponentAnchorElement.style.visibility = 'hidden';
-    else opponentAnchorElement.style.visibility = previousVisibility || '';
+    if (!opponentAnchorElements.length) return undefined;
+    const previousVisibilities = opponentAnchorElements.map((element) => element.style.visibility);
+    opponentAnchorElements.forEach((element, index) => {
+      element.style.visibility = liveMode && liveChat.remotePeers[index] ? 'hidden' : previousVisibilities[index] || '';
+    });
     return () => {
-      opponentAnchorElement.style.visibility = previousVisibility || '';
+      opponentAnchorElements.forEach((element, index) => {
+        element.style.visibility = previousVisibilities[index] || '';
+      });
     };
-  }, [opponentAnchorElement, liveMode]);
+  }, [opponentAnchorElements, liveChat.remotePeers, liveMode]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -443,8 +458,8 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
             width: `${overlayRect.width}px`,
             height: `${overlayRect.height}px`,
             pointerEvents: hasBlockingOverlay ? 'none' : 'auto',
-            ...(gameSlug === 'domino-royal' ? AVATAR_FRAME_STYLES : {}),
-            ...(gameSlug !== 'domino-royal'
+            ...(INLINE_REMOTE_VIDEO_GAMES.has(gameSlug) ? AVATAR_FRAME_STYLES : {}),
+            ...(!INLINE_REMOTE_VIDEO_GAMES.has(gameSlug)
               ? {
                   borderRadius: '999px',
                   border: '1px solid rgb(110 231 183 / 1)',
@@ -464,30 +479,27 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
           />
         </button>
       ) : null}
-      {liveMode && gameSlug === 'domino-royal' && opponentRect ? (
-        <div
-          className="fixed z-[18] overflow-hidden pointer-events-none"
-          style={{
-            top: `${opponentRect.top}px`,
-            left: `${opponentRect.left}px`,
-            width: `${opponentRect.width}px`,
-            height: `${opponentRect.height}px`,
-            opacity: hasBlockingOverlay ? 0 : 1,
-            ...AVATAR_FRAME_STYLES
-          }}
-        >
-          {liveChat.remotePeers[0] ? (
-            <RemoteVideo peer={liveChat.remotePeers[0]} />
-          ) : (
-            <div className="flex h-full items-center justify-center bg-slate-950 text-center text-[8px] font-semibold text-white/70">
-              Waiting…
+      {liveMode && INLINE_REMOTE_VIDEO_GAMES.has(gameSlug)
+        ? opponentRects.map((opponentRect, index) => liveChat.remotePeers[index] ? (
+            <div
+              key={liveChat.remotePeers[index].peerId || index}
+              className="fixed z-[18] overflow-hidden rounded-full pointer-events-none"
+              style={{
+                top: `${opponentRect.top}px`,
+                left: `${opponentRect.left}px`,
+                width: `${opponentRect.width}px`,
+                height: `${opponentRect.height}px`,
+                opacity: hasBlockingOverlay ? 0 : 1,
+                ...AVATAR_FRAME_STYLES
+              }}
+            >
+              <RemoteVideo peer={liveChat.remotePeers[index]} />
             </div>
-          )}
-        </div>
-      ) : null}
+          ) : null)
+        : null}
       {liveMode ? (
         <div
-          className={`fixed right-3 z-[18] flex flex-col gap-2 pointer-events-auto ${gameSlug === 'domino-royal' ? 'w-auto' : 'w-28'}`}
+          className={`fixed right-3 z-[18] flex flex-col gap-2 pointer-events-auto ${INLINE_REMOTE_VIDEO_GAMES.has(gameSlug) ? 'w-auto' : 'w-28'}`}
           style={{
             top: 'max(4.75rem, env(safe-area-inset-top))',
             opacity: hasBlockingOverlay ? 0 : 1,
@@ -495,7 +507,7 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
           }}
           aria-live="polite"
         >
-          {gameSlug !== 'domino-royal' ? <div className="h-36 w-28">
+          {!INLINE_REMOTE_VIDEO_GAMES.has(gameSlug) ? <div className="h-36 w-28">
             {liveChat.remotePeers[0] ? (
               <RemoteVideo peer={liveChat.remotePeers[0]} />
             ) : (
