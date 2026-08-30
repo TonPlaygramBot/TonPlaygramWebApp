@@ -61,6 +61,7 @@ export default function Messages() {
   const [groupFriendIds, setGroupFriendIds] = useState([]);
   const [loadError, setLoadError] = useState('');
   const messagesEndRef = useRef(null);
+  const messagesThreadRef = useRef(null);
   const accountId = getPlayerId();
 
   const loadSocial = () => {
@@ -110,7 +111,14 @@ export default function Messages() {
     return () => socket.off('privateMessage', receive);
   }, [selected, socialId]);
 
-  useEffect(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), [messages]);
+  useEffect(() => {
+    const thread = messagesThreadRef.current;
+    if (!thread) return;
+    // scrollIntoView can scroll Layout's viewport as well as this nested panel.
+    // Telegram's WebView then leaves the fixed-height chat outside the visible
+    // viewport, which looks like a black page after sending a message.
+    thread.scrollTo({ top: thread.scrollHeight, behavior: 'smooth' });
+  }, [messages]);
 
   const visibleFriends = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -222,6 +230,11 @@ export default function Messages() {
 
   function attachmentUrl(url) { return `${API_BASE_URL}${url}`; }
 
+  function attachmentDownloadUrl(file) {
+    const separator = file.url.includes('?') ? '&' : '?';
+    return `${attachmentUrl(file.url)}${separator}download=1&name=${encodeURIComponent(file.name || 'download')}`;
+  }
+
   function MessageAttachment({ item }) {
     if (!item) return null;
     // Accept JSON attachment descriptors written during deployments that used
@@ -232,9 +245,10 @@ export default function Messages() {
     }
     if (!file?.url) return null;
     const url = attachmentUrl(file.url);
-    if (file.type?.startsWith('image/')) return <a href={url} target="_blank" rel="noreferrer"><img className="messages-bubble-image" src={url} alt={file.name} /></a>;
-    if (file.type?.startsWith('video/')) return <video className="messages-bubble-video" src={url} controls playsInline preload="metadata" />;
-    return <a className="messages-bubble-file" href={`${url}?download=1&name=${encodeURIComponent(file.name)}`} download={file.name}><FileText /><span><strong>{file.name}</strong><small>{Math.max(1, Math.round(file.size / 1024))} KB · Original file</small></span><Download /></a>;
+    const downloadUrl = attachmentDownloadUrl(file);
+    if (file.type?.startsWith('image/')) return <div className="messages-bubble-media"><img className="messages-bubble-image" src={url} alt={file.name} /><a href={downloadUrl} download={file.name}><Download /> Download photo</a></div>;
+    if (file.type?.startsWith('video/')) return <div className="messages-bubble-media"><video className="messages-bubble-video" src={url} controls playsInline preload="metadata" /><a href={downloadUrl} download={file.name}><Download /> Download video</a></div>;
+    return <a className="messages-bubble-file" href={downloadUrl} download={file.name}><FileText /><span><strong>{file.name}</strong><small>{Math.max(1, Math.round(file.size / 1024))} KB · Original file</small></span><Download /></a>;
   }
 
   if (!socialId) return <div className="messages-login"><LoginOptions /></div>;
@@ -313,7 +327,7 @@ export default function Messages() {
             <button onClick={() => notify('Conversation options opened')} aria-label="Conversation options"><MoreHorizontal /></button>
           </header>
 
-          <div className="messages-thread">
+          <div className="messages-thread" ref={messagesThreadRef}>
             <div className="messages-thread-intro"><Avatar friend={selected} large /><strong>{friendName(selected)}</strong><span>TonPlaygram friend</span><small><ShieldCheck /> Private conversation</small></div>
             <div className="messages-day"><span>Today</span></div>
             {loadError && <div className="messages-error" role="alert">{loadError}</div>}
