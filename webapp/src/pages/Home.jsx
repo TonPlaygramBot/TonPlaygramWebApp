@@ -177,11 +177,6 @@ export default function Home() {
           <Link to="/protesta-shqiptare">Hap galerinë <strong>→</strong></Link>
         </div>
       </section>
-      <Link to="/airdrop" className="airdrop-home-card">
-        <span><Sparkles /> TPG AIRDROP</span>
-        <strong>Download videos.<br />Earn 5,000 TPG.</strong>
-        <small>Complete creator & social tasks <b>JOIN NOW →</b></small>
-      </Link>
       <div className="flex flex-col items-center">
         {photoUrl && (
           <div className="relative">
