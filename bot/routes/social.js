@@ -23,7 +23,11 @@ const safeFileName = (name) => path.basename(String(name || 'file'))
 router.get('/message-files/:name', (req, res) => {
   const name = path.basename(req.params.name);
   const downloadName = path.basename(String(req.query.name || name)).replace(/["\\\r\n]/g, '');
-  res.setHeader('Content-Disposition', `${req.query.download === '1' ? 'attachment' : 'inline'}; filename="${downloadName}"`);
+  const disposition = req.query.download === '1' ? 'attachment' : 'inline';
+  const encodedName = encodeURIComponent(downloadName).replace(/['()]/g, (character) =>
+    `%${character.charCodeAt(0).toString(16).toUpperCase()}`
+  );
+  res.setHeader('Content-Disposition', `${disposition}; filename="${downloadName}"; filename*=UTF-8''${encodedName}`);
   res.setHeader('Cache-Control', 'private, max-age=31536000, immutable');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.sendFile(path.join(messageUploadDirectory, name), (error) => {

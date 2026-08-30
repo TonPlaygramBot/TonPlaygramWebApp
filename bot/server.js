@@ -3878,6 +3878,12 @@ io.on('connection', (socket) => {
         },
         { type: 'friendCall', ...Object.fromEntries(Object.entries(call).map(([key, value]) => [key, String(value ?? '')])) }
       ).catch((error) => console.error('Failed to send friend call push:', error.message));
+      if (target.telegramId) {
+        bot.telegram.sendMessage(
+          String(target.telegramId),
+          `📞 Incoming ${type} call from ${call.fromName}. Open TonPlaygram now to answer.`
+        ).catch((error) => console.error('Failed to send friend call Telegram notification:', error.message));
+      }
       cb?.({ success: true, call, delivery: targets?.size ? 'online' : 'push' });
     } catch (error) {
       console.error('friend call invite failed', error);
