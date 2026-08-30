@@ -14,6 +14,7 @@ const flamingoPostSchema = new mongoose.Schema({
   // Community posts do not have an upstream id. Leaving this field absent is
   // important: the sparse unique index must only de-duplicate imported posts.
   sourceId: { type: String, default: undefined },
+  ownerTokenHash: { type: String, default: undefined, select: false },
   attachment: { type: attachmentSchema, default: undefined },
   createdAt: { type: Date, default: Date.now }
 });

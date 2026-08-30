@@ -3,7 +3,7 @@ import express from 'express';
 import path from 'path';
 import { createWriteStream } from 'fs';
 import { appendFile, mkdir, readFile, rename, rm, writeFile } from 'fs/promises';
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID, timingSafeEqual } from 'crypto';
 import FlamingoPost from '../models/FlamingoPost.js';
 
 const router = express.Router();
@@ -23,20 +23,14 @@ const sessionPaths = (id) => ({
   data: path.join(pendingDirectory, `${id}.part`),
   meta: path.join(pendingDirectory, `${id}.json`)
 });
-
-// The protest wall intentionally starts fresh and retains only its newest
-// uploaded video. Remove both stale database rows and their orphaned files.
-async function retainLatestVideo() {
-  const latestVideo = await FlamingoPost.findOne({ 'attachment.type': /^video\//i }).sort({ createdAt: -1 }).lean();
-  const stalePosts = await FlamingoPost.find(latestVideo ? { _id: { $ne: latestVideo._id } } : {}).lean();
-  await FlamingoPost.deleteMany(latestVideo ? { _id: { $ne: latestVideo._id } } : {});
-  await Promise.all(stalePosts.map(post => {
-    if (!post.attachment?.url) return Promise.resolve();
-    const storedName = path.basename(post.attachment.url);
-    return rm(path.join(uploadDirectory, storedName), { force: true });
-  }));
-  return latestVideo;
-}
+const tokenHash = token => createHash('sha256').update(String(token || '')).digest('hex');
+const ownerToken = req => req.get('x-wall-owner-token') || '';
+const ownsPost = (post, token) => {
+  if (!post.ownerTokenHash || !token) return false;
+  const supplied = Buffer.from(tokenHash(token));
+  const stored = Buffer.from(post.ownerTokenHash);
+  return supplied.length === stored.length && timingSafeEqual(supplied, stored);
+};
 
 // Large videos are uploaded in small, retryable requests. This avoids mobile and
 // reverse-proxy timeouts that occur when a multi-gigabyte request stays open.
@@ -55,6 +49,7 @@ router.post('/uploads', async (req, res) => {
     type: decodeHeader(req.get('x-upload-type'), 'application/octet-stream'),
     text: decodeHeader(req.get('x-upload-text')).slice(0, 1200),
     author: decodeHeader(req.get('x-upload-author'), 'Anëtar i komunitetit').slice(0, 120),
+    ownerTokenHash: tokenHash(ownerToken(req)),
     createdAt: Date.now()
   };
   await mkdir(pendingDirectory, { recursive: true });
@@ -102,7 +97,7 @@ router.post('/uploads/:id/complete', async (req, res) => {
     await rename(paths.data, path.join(uploadDirectory, storedName));
     await rm(paths.meta, { force: true });
     const attachment = { name: metadata.name, size: metadata.size, type: metadata.type, url: `/api/flamingo-wall/files/${storedName}` };
-    const post = await FlamingoPost.create({ text: metadata.text, author: metadata.author, attachment });
+    const post = await FlamingoPost.create({ text: metadata.text, author: metadata.author, attachment, ownerTokenHash: metadata.ownerTokenHash });
     res.status(201).json({ post });
   } catch (err) {
     if (err?.code === 'ENOENT') return res.status(404).json({ error: 'Ngarkimi nuk u gjet.' });
@@ -110,9 +105,10 @@ router.post('/uploads/:id/complete', async (req, res) => {
   }
 });
 
-router.get('/posts', async (_req, res) => {
-  const latestVideo = await retainLatestVideo();
-  res.json({ posts: latestVideo ? [latestVideo] : [] });
+router.get('/posts', async (req, res) => {
+  const token = ownerToken(req);
+  const posts = await FlamingoPost.find().select('+ownerTokenHash').sort({ createdAt: -1 }).lean();
+  res.json({ posts: posts.map(({ ownerTokenHash, ...post }) => ({ ...post, canManage: ownsPost({ ownerTokenHash }, token) })) });
 });
 
 router.post('/posts', async (req, res) => {
@@ -159,7 +155,7 @@ router.post('/posts', async (req, res) => {
       const identity = req.auth?.telegramId || req.get('x-tpc-account-id') || req.get('x-google-id');
       const author = String(fields.author || (identity ? `Anëtar ${identity}` : 'Anëtar i komunitetit')).slice(0, 120);
       const attachment = upload ? { name: upload.originalName, size: upload.size, type: upload.type, url: `/api/flamingo-wall/files/${upload.storedName}` } : undefined;
-      const post = await FlamingoPost.create({ text: text.slice(0, 1200), author, attachment });
+      const post = await FlamingoPost.create({ text: text.slice(0, 1200), author, attachment, ownerTokenHash: tokenHash(ownerToken(req)) });
       completed = true;
       res.status(201).json({ post });
     } catch (err) {
@@ -168,6 +164,24 @@ router.post('/posts', async (req, res) => {
     }
   });
   req.pipe(busboy);
+});
+
+router.patch('/posts/:id', express.json({ limit: '16kb' }), async (req, res) => {
+  const post = await FlamingoPost.findById(req.params.id).select('+ownerTokenHash');
+  if (!post) return res.status(404).json({ error: 'Postimi nuk u gjet.' });
+  if (!ownsPost(post, ownerToken(req))) return res.status(403).json({ error: 'Vetëm autori mund ta ndryshojë postimin.' });
+  post.text = String(req.body?.text || '').trim().slice(0, 1200);
+  await post.save();
+  res.json({ post: { ...post.toObject(), ownerTokenHash: undefined, canManage: true } });
+});
+
+router.delete('/posts/:id', async (req, res) => {
+  const post = await FlamingoPost.findById(req.params.id).select('+ownerTokenHash');
+  if (!post) return res.status(404).json({ error: 'Postimi nuk u gjet.' });
+  if (!ownsPost(post, ownerToken(req))) return res.status(403).json({ error: 'Vetëm autori mund ta fshijë postimin.' });
+  await post.deleteOne();
+  if (post.attachment?.url) await rm(path.join(uploadDirectory, path.basename(post.attachment.url)), { force: true });
+  res.status(204).end();
 });
 
 router.get('/files/:name', (req, res) => {
