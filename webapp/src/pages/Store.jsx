@@ -157,6 +157,7 @@ import {
 } from '../utils/storeTransactions.js';
 import { DEV_INFO } from '../utils/constants.js';
 import { swatchThumbnail } from '../config/storeThumbnails.js';
+import { getGameThumbnail } from '../config/gameAssets.js';
 import { getCustomHdriCatalog, saveCustomHdriEntry } from '../utils/customHdriCatalog.js';
 import {
   APP_THEME_STORE_ITEMS,
@@ -1142,6 +1143,7 @@ const formatShortDate = (date) =>
 const storeMeta = {
   home: {
     name: 'Home Themes',
+    thumbnail: '/assets/icons/file_00000000efd081f78539cff614489f91.png',
     items: APP_THEME_STORE_ITEMS,
     defaults: [],
     labels: { appTheme: Object.fromEntries(APP_THEME_STORE_ITEMS.map((item) => [item.optionId, item.name])) },
@@ -1158,6 +1160,7 @@ const storeMeta = {
   },
   bilardoshqip: {
     name: 'Bilardo Shqip',
+    thumbnail: '/assets/icons/American%20Billiards%20.png',
     items: POOL_ROYALE_STORE_ITEMS,
     defaults: POOL_ROYALE_DEFAULT_LOADOUT,
     labels: POOL_ROYALE_OPTION_LABELS,
@@ -1230,6 +1233,7 @@ const storeMeta = {
   },
   weaponkart: {
     name: 'Weapon Kart',
+    thumbnail: '/assets/icons/futuristic_racing_car.webp',
     items: MURLAN_ROYALE_STORE_ITEMS.filter((item) => item.type === 'characters').map((item) => ({
       ...item,
       type: 'humanCharacter'
@@ -4394,35 +4398,69 @@ export default function Store() {
               </div>
             </div>
 
-            <div className="mt-3 grid gap-3 md:grid-cols-2">
-              <div className="grid gap-2">
-                <div className="text-xs font-semibold text-white/70">Games</div>
-                <div className="flex flex-wrap gap-2">
+            <div className="mt-4 grid gap-4">
+              <section aria-labelledby="store-games-heading">
+                <div className="mb-2 flex items-end justify-between gap-3">
+                  <div>
+                    <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/45">Shop by game</div>
+                    <h3 id="store-games-heading" className="text-base font-semibold text-white">Choose a game</h3>
+                  </div>
+                  <span className="text-[11px] text-white/45">Swipe to see more</span>
+                </div>
+                <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   <button
-                    className={`rounded-2xl border px-3 py-2 text-sm font-semibold transition ${
+                    type="button"
+                    aria-pressed={activeGame === 'all'}
+                    className={`relative h-28 w-28 shrink-0 snap-start overflow-hidden rounded-2xl border text-left transition ${
                       activeGame === 'all'
-                        ? 'border-white/20 bg-white text-zinc-950'
-                        : 'border-white/10 bg-black/20 text-white/75 hover:bg-white/10 hover:text-white'
+                        ? 'border-white bg-white text-zinc-950 shadow-lg shadow-white/10'
+                        : 'border-white/10 bg-gradient-to-br from-emerald-400/25 to-cyan-500/10 text-white'
                     }`}
                     onClick={() => handleGameChange('all')}
                   >
-                    All
+                    <span className="absolute inset-0 grid place-items-center text-4xl opacity-80" aria-hidden="true">🎮</span>
+                    <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-3 pt-8 text-white">
+                      <span className="block text-sm font-bold leading-tight">All games</span>
+                      <span className="block text-[10px] text-white/65">{featuredCount.toLocaleString()} items</span>
+                    </span>
                   </button>
-                  {Object.entries(storeMeta).map(([slug, meta]) => (
-                    <button
-                      key={slug}
-                      className={`rounded-2xl border px-3 py-2 text-sm font-semibold transition ${
-                        activeGame === slug
-                          ? 'border-white/20 bg-white text-zinc-950'
-                          : 'border-white/10 bg-black/20 text-white/75 hover:bg-white/10 hover:text-white'
-                      }`}
-                      onClick={() => handleGameChange(slug)}
-                    >
-                      {meta.name}
-                    </button>
-                  ))}
+                  {Object.entries(storeMeta).map(([slug, meta]) => {
+                    const thumbnail = meta.thumbnail || getGameThumbnail(slug);
+                    const itemCount = storeItemsBySlug[slug]?.length || 0;
+                    return (
+                      <button
+                        key={slug}
+                        type="button"
+                        aria-pressed={activeGame === slug}
+                        className={`group relative h-28 w-28 shrink-0 snap-start overflow-hidden rounded-2xl border bg-zinc-900 text-left transition ${
+                          activeGame === slug
+                            ? 'border-white ring-2 ring-white/30'
+                            : 'border-white/10 hover:border-white/35'
+                        }`}
+                        onClick={() => handleGameChange(slug)}
+                      >
+                        {thumbnail ? (
+                          <img
+                            src={thumbnail}
+                            alt={`${meta.name} thumbnail`}
+                            loading="lazy"
+                            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                          />
+                        ) : (
+                          <span className="absolute inset-0 grid place-items-center bg-white/5 text-3xl" aria-hidden="true">🎲</span>
+                        )}
+                        <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/80 to-transparent p-2.5 pt-8 text-white">
+                          <span className="block truncate text-xs font-bold leading-tight">{meta.name}</span>
+                          <span className="block text-[10px] text-white/65">{itemCount.toLocaleString()} items</span>
+                        </span>
+                        {activeGame === slug ? (
+                          <span className="absolute right-2 top-2 grid h-5 w-5 place-items-center rounded-full bg-white text-[11px] font-black text-zinc-950" aria-hidden="true">✓</span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
                 </div>
-              </div>
+              </section>
 
               <div className="grid gap-2">
                 <div className="text-xs font-semibold text-white/70">
