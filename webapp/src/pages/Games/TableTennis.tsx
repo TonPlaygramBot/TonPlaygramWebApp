@@ -10,7 +10,6 @@ import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { KTX2Loader } from "three/examples/jsm/loaders/KTX2Loader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
-import { OFFICIAL_TABLE_TENNIS, gameWinner, scorePoint, serverForScore } from "./tableTennisRules";
 
 type PlayerSide = "near" | "far";
 type PointReason = "out" | "doubleBounce" | "net" | "wrongSide" | "miss";
@@ -105,7 +104,7 @@ type HumanRig = {
   speed: number;
 };
 
-type HudState = { nearScore: number; farScore: number; status: string; power: number; spin: number; gameWinner: PlayerSide | null };
+type HudState = { nearScore: number; farScore: number; status: string; power: number; spin: number };
 
 type ControlState = {
   active: boolean;
@@ -127,15 +126,14 @@ const UP = new THREE.Vector3(0, 1, 0);
 const Y_AXIS = UP;
 
 const CFG = {
-  // One consistent stage scale keeps the ITTF dimensions and people believable inside large HDRIs.
-  stageMeters: 7.2 / OFFICIAL_TABLE_TENNIS.tableLengthM,
+  // Match Pool Royale stage proportions so table footprint/height align in the same HDRI placement.
   tableL: 7.2,
-  tableW: OFFICIAL_TABLE_TENNIS.tableWidthM * (7.2 / OFFICIAL_TABLE_TENNIS.tableLengthM),
-  tableY: OFFICIAL_TABLE_TENNIS.tableHeightM * (7.2 / OFFICIAL_TABLE_TENNIS.tableLengthM),
-  tableTopThickness: 0.035 * (7.2 / OFFICIAL_TABLE_TENNIS.tableLengthM),
-  netH: OFFICIAL_TABLE_TENNIS.netHeightM * (7.2 / OFFICIAL_TABLE_TENNIS.tableLengthM),
-  netPostOutside: 0.1525 * (7.2 / OFFICIAL_TABLE_TENNIS.tableLengthM),
-  ballR: (OFFICIAL_TABLE_TENNIS.ballDiameterM / 2) * (7.2 / OFFICIAL_TABLE_TENNIS.tableLengthM),
+  tableW: 3.96,
+  tableY: 1.7,
+  tableTopThickness: 0.088,
+  netH: 0.21,
+  netPostOutside: 0.21,
+  ballR: 0.052,
   gravity: 9.81,
   airDrag: 0.13,
   magnus: 0.00124,
@@ -147,7 +145,7 @@ const CFG = {
   serveOwnBounceMinY: 0,
   serveOwnBounceForwardDamping: 0.92,
   spinDecay: 0.68,
-  playerHeight: 1.78 * (7.2 / OFFICIAL_TABLE_TENNIS.tableLengthM),
+  playerHeight: 3.5,
   playerSpeed: 3.9,
   aiSpeed: 4.95,
   aiServeReceiveBoost: 1.08,
@@ -398,27 +396,23 @@ function buildRealisticTableTennisTable() {
   addBox(group, [edgeLine, 0.004, CFG.tableL], [TABLE_HALF_W - edgeLine / 2, y, 0], whiteLine);
   addBox(group, [centerLine, 0.004, CFG.tableL], [0, y + 0.001, 0], transparentMaterial(0xffffff, 0.54));
 
-  const frameY = CFG.tableY * 0.58;
-  const frameBar = 0.035 * CFG.stageMeters;
-  addBox(group, [CFG.tableW * 0.88, frameBar, frameBar * 1.4], [0, frameY, CFG.tableL * 0.15], metal);
-  addBox(group, [CFG.tableW * 0.88, frameBar, frameBar * 1.4], [0, frameY, -CFG.tableL * 0.15], metal);
-  addBox(group, [frameBar * 1.3, frameBar, CFG.tableL * 0.74], [-CFG.tableW * 0.22, frameY, 0], metal);
-  addBox(group, [frameBar * 1.3, frameBar, CFG.tableL * 0.74], [CFG.tableW * 0.22, frameY, 0], metal);
-  for (const x of [-CFG.tableW * 0.23, CFG.tableW * 0.23]) {
-    for (const z of [-CFG.tableL * 0.3, -CFG.tableL * 0.13, CFG.tableL * 0.13, CFG.tableL * 0.3]) {
-      const wheelY = 0.045 * CFG.stageMeters;
-      const legHeight = CFG.tableY - wheelY * 2;
-      const leg = addCylinder(group, 0.025 * CFG.stageMeters, 0.027 * CFG.stageMeters, legHeight, [x, wheelY * 2 + legHeight / 2, z], metal, 16);
+  addBox(group, [CFG.tableW * 0.88, 0.035, 0.05], [0, 0.64, 0.42], metal);
+  addBox(group, [CFG.tableW * 0.88, 0.035, 0.05], [0, 0.64, -0.42], metal);
+  addBox(group, [0.045, 0.035, CFG.tableL * 0.74], [-0.56, 0.64, 0], metal);
+  addBox(group, [0.045, 0.035, CFG.tableL * 0.74], [0.56, 0.64, 0], metal);
+  for (const x of [-0.58, 0.58]) {
+    for (const z of [-1.06, -0.44, 0.44, 1.06]) {
+      const leg = addCylinder(group, 0.025, 0.027, 0.66, [x, 0.33, z], metal, 16);
       leg.rotation.z = z > 0 ? 0.05 : -0.05;
-      const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.045 * CFG.stageMeters, 0.015 * CFG.stageMeters, 10, 20), wheelMat);
-      wheel.position.set(x, wheelY, z);
+      const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.015, 10, 20), wheelMat);
+      wheel.position.set(x, 0.035, z);
       wheel.rotation.x = Math.PI / 2;
       enableShadow(wheel);
       group.add(wheel);
     }
   }
-  addBox(group, [frameBar, frameBar, CFG.tableL * 0.64], [-CFG.tableW * 0.24, CFG.tableY * 0.38, 0], metal).rotation.y = 0.16;
-  addBox(group, [frameBar, frameBar, CFG.tableL * 0.64], [CFG.tableW * 0.24, CFG.tableY * 0.38, 0], metal).rotation.y = -0.16;
+  addBox(group, [0.05, 0.035, 1.74], [-0.62, 0.39, 0], metal).rotation.y = 0.16;
+  addBox(group, [0.05, 0.035, 1.74], [0.62, 0.39, 0], metal).rotation.y = -0.16;
 
   const netY = CFG.tableY + CFG.netH / 2;
   const netSpan = CFG.tableW + CFG.netPostOutside * 2;
@@ -803,7 +797,6 @@ function addHuman(scene: THREE.Scene, renderer: THREE.WebGLRenderer, side: Playe
   const root = new THREE.Group();
   const modelRoot = new THREE.Group();
   const fallback = createFallbackHuman(accent);
-  fallback.scale.setScalar(CFG.playerHeight / 1.67);
   const paddle = createTableTennisPaddle(side === "near" ? 0xb91f26 : 0x234ebf);
 
   root.position.copy(start);
@@ -1423,14 +1416,18 @@ function predictAiStrikeRead(ball: BallState, ai: HumanRig) {
   };
 }
 
+function chooseServerAfterScore(nearScore: number, farScore: number): PlayerSide {
+  const total = nearScore + farScore;
+  return Math.floor(total / 2) % 2 === 0 ? "near" : "far";
+}
+
 export default function MobileRealisticTableTennisGame() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [hud, setHud] = useState<HudState>({ nearScore: 0, farScore: 0, status: "Swipe up to serve", power: 0, spin: 0, gameWinner: null });
+  const [hud, setHud] = useState<HudState>({ nearScore: 0, farScore: 0, status: "Swipe up to serve", power: 0, spin: 0 });
   const hudRef = useRef(hud);
   const controlRef = useRef<ControlState>({ active: false, pointerId: null, startX: 0, startY: 0, lastX: 0, lastY: 0, startPlayer: new THREE.Vector3() });
   const [menuOpen, setMenuOpen] = useState(false);
-  const [matchId, setMatchId] = useState(0);
   const [graphicsId, setGraphicsId] = useState<'performance' | 'balanced' | 'ultra'>(() => 'balanced');
   const accountId = typeof window !== "undefined" ? window.localStorage.getItem("accountId") || "guest" : "guest";
   const [inventory] = useState(() => getChessBattleInventory(accountId));
@@ -1598,9 +1595,11 @@ export default function MobileRealisticTableTennisGame() {
       replayT = 0.82;
       replayIndex = 0;
       const prev = hudRef.current;
-      const result = scorePoint({ near: prev.nearScore, far: prev.farScore }, winner);
-      const next = { nearScore: result.score.near, farScore: result.score.far };
-      currentServer = serverForScore(result.score, "near");
+      const next = {
+        nearScore: prev.nearScore + (winner === "near" ? 1 : 0),
+        farScore: prev.farScore + (winner === "far" ? 1 : 0),
+      };
+      currentServer = chooseServerAfterScore(next.nearScore, next.farScore);
       aiServeWindup = 0;
       const reasonText =
         reason === "out" ? "Out" :
@@ -1608,9 +1607,7 @@ export default function MobileRealisticTableTennisGame() {
         reason === "net" ? "Net" :
         reason === "wrongSide" ? "Wrong side" :
         "Miss";
-      const finished = gameWinner(result.score);
-      if (finished) pointLockT = Number.POSITIVE_INFINITY;
-      setHud({ ...prev, ...next, gameWinner: finished, status: finished ? `${finished === "near" ? "You win" : "AI wins"} — first to 11, win by 2` : `${reasonText}: ${winner === "near" ? "You" : "AI"} scores`, power: 0, spin: 0 });
+      setHud({ ...prev, ...next, status: `${reasonText}: ${winner === "near" ? "You" : "AI"} scores`, power: 0, spin: 0 });
       playFx(scoreFx);
     };
 
@@ -1637,7 +1634,7 @@ export default function MobileRealisticTableTennisGame() {
     };
 
     const onPointerDown = (e: PointerEvent) => {
-      if (hudRef.current.gameWinner || (currentServer === "far" && ball.lastHitBy === null)) return;
+      if (currentServer === "far" && ball.lastHitBy === null) return;
       if (controlRef.current.active) return;
       canvas.setPointerCapture(e.pointerId);
       controlRef.current = {
@@ -2016,7 +2013,7 @@ export default function MobileRealisticTableTennisGame() {
         }
       });
     };
-  }, [graphicsId, matchId, selectedHdriOption?.assetId, selectedHumanOption?.id]);
+  }, [graphicsId, selectedHdriOption?.assetId, selectedHumanOption?.id]);
 
   return (
     <div style={{ position: "fixed", inset: 0, overflow: "hidden", background: "#091014", touchAction: "none", userSelect: "none" }}>
@@ -2063,20 +2060,7 @@ export default function MobileRealisticTableTennisGame() {
         <div style={{ position: "absolute", left: "50%", top: 10, transform: "translateX(-50%)", color: "white", background: "rgba(0,0,0,0.58)", border: "1px solid rgba(255,255,255,0.16)", padding: "9px 13px", borderRadius: 16, fontSize: 13, fontWeight: 850, letterSpacing: 0.2, boxShadow: "0 12px 26px rgba(0,0,0,0.25)", textAlign: "center", minWidth: 178 }}>
           You {hud.nearScore} — {hud.farScore} AI
           <div style={{ fontSize: 11, fontWeight: 650, opacity: 0.84, marginTop: 2 }}>{hud.status}</div>
-          <div style={{ fontSize: 9, fontWeight: 650, opacity: 0.62, marginTop: 3 }}>11 points · win by 2 · {hud.nearScore >= 10 && hud.farScore >= 10 ? "serve changes every point" : "2 serves each"}</div>
         </div>
-        {hud.gameWinner && (
-          <button
-            type="button"
-            onClick={() => {
-              setHud({ nearScore: 0, farScore: 0, status: "Swipe up to serve", power: 0, spin: 0, gameWinner: null });
-              setMatchId((value) => value + 1);
-            }}
-            style={{ position: "absolute", left: "50%", bottom: 42, transform: "translateX(-50%)", pointerEvents: "auto", border: "1px solid rgba(255,255,255,0.5)", borderRadius: 999, background: "rgba(8,18,28,0.9)", color: "white", padding: "12px 22px", fontSize: 14, fontWeight: 850 }}
-          >
-            Play again
-          </button>
-        )}
       </div>
     </div>
   );

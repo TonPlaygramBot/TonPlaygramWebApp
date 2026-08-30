@@ -7,54 +7,8 @@ import Airdrop from '../models/Airdrop.js';
 import { ensureTransactionArray } from '../utils/userUtils.js';
 import bot from '../bot.js';
 import { sendTPCNotification } from '../utils/notifications.js';
-import authenticate from '../middleware/auth.js';
-import AirdropVideo from '../models/AirdropVideo.js';
-import AirdropVideoClaim from '../models/AirdropVideoClaim.js';
-import { hasSocialDeveloperAccess } from './socialAdmin.js';
 
 const router = Router();
-
-router.post('/videos', authenticate, async (req, res) => {
-  const telegramId = req.auth?.telegramId;
-  const videos = await AirdropVideo.find({ active: true }).sort({ createdAt: -1 }).lean();
-  const claims = telegramId
-    ? await AirdropVideoClaim.find({ telegramId, videoId: { $in: videos.map((video) => video._id) } }).lean()
-    : [];
-  const claimed = new Set(claims.map((claim) => String(claim.videoId)));
-  res.json(videos.map((video) => ({ ...video, claimed: claimed.has(String(video._id)) })));
-});
-
-router.post('/videos/claim', authenticate, async (req, res) => {
-  const telegramId = req.auth?.telegramId;
-  if (!telegramId) return res.status(403).json({ error: 'Telegram sign-in required' });
-  const video = await AirdropVideo.findOne({ _id: req.body.videoId, active: true });
-  if (!video) return res.status(404).json({ error: 'Video not found' });
-  try {
-    await AirdropVideoClaim.create({ telegramId, videoId: video._id, reward: video.reward });
-    const user = await User.findOne({ telegramId });
-    if (!user) return res.status(404).json({ error: 'User not found' });
-    ensureTransactionArray(user);
-    user.balance += video.reward;
-    user.transactions.push({ amount: video.reward, type: 'airdrop', status: 'delivered', date: new Date() });
-    await user.save();
-    res.json({ reward: video.reward, balance: user.balance });
-  } catch (error) {
-    if (error?.code === 11000) return res.status(409).json({ error: 'Reward already claimed' });
-    throw error;
-  }
-});
-
-router.post('/videos/admin/create', (req, res, next) => {
-  if (!hasSocialDeveloperAccess(req.auth)) {
-    return res.status(403).json({ error: 'Developer access required' });
-  }
-  next();
-}, async (req, res) => {
-  const { title, description, videoUrl, thumbnailUrl, platform, reward = 5000 } = req.body;
-  if (!title || !videoUrl) return res.status(400).json({ error: 'Title and video URL are required' });
-  const video = await AirdropVideo.create({ title, description, videoUrl, thumbnailUrl, platform, reward });
-  res.json(video);
-});
 
 // ✅ Admin-only middleware
 

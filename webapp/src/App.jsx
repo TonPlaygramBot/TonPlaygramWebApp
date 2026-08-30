@@ -22,7 +22,6 @@ import SocialAdmin from './pages/SocialAdmin.jsx';
 import SocialPostDetails from './pages/SocialPostDetails.jsx';
 import LegalPage from './pages/LegalPage.jsx';
 import DeleteAccount from './pages/DeleteAccount.jsx';
-import Airdrop from './pages/Airdrop.jsx';
 import Layout from './components/Layout.jsx';
 import TonConnectSync from './components/TonConnectSync.jsx';
 import GameLiveAvatarOverlay from './components/GameLiveAvatarOverlay.jsx';
@@ -129,9 +128,6 @@ const StoreThumbnailStudioPoolRoyale = React.lazy(
 const FlamingoApp = React.lazy(
   () => import('./features/flamingo/FlamingoApp.tsx')
 );
-const AlbanianProtestGallery = React.lazy(
-  () => import('./pages/AlbanianProtestGallery.tsx')
-);
 
 export default function App() {
   // Enforce canonical origin for wallet connection flows.
@@ -219,10 +215,7 @@ export default function App() {
               <Route path="/roadmap" element={<EcosystemTopic topic="roadmap" />} />
               <Route path="/tokenomics" element={<EcosystemTopic topic="tokenomics" />} />
               <Route path="/flamingo/*" element={<FlamingoApp />} />
-              <Route path="/protesta-shqiptare" element={<AlbanianProtestGallery />} />
               <Route path="/earn" element={<Earn />} />
-              <Route path="/airdrop" element={<Airdrop />} />
-              <Route path="/admin/airdrop" element={<Airdrop admin />} />
               <Route path="/social" element={<Social />} />
               <Route path="/mining" element={<Navigate to="/earn#mining" replace />} />
               <Route
@@ -495,14 +488,9 @@ export default function App() {
                 path="/trending"
                 element={<Navigate to="/messages" replace />}
               />
-              <Route path="/profile" element={<MyAccount />} />
-              <Route
-                path="/account"
-                element={<Navigate to="/profile" replace />}
-              />
+              <Route path="/account" element={<MyAccount />} />
               <Route path="/privacy" element={<LegalPage type="privacy" />} />
               <Route path="/terms" element={<LegalPage type="terms" />} />
-              <Route path="/competition-policy" element={<LegalPage type="competition" />} />
               <Route path="/delete-account" element={<DeleteAccount />} />
               <Route path="/nfts" element={<Nfts />} />
               <Route

@@ -966,13 +966,6 @@ export default function MyAccount() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <Link
-                to="/admin/airdrop"
-                className="px-3 py-3 bg-primary hover:bg-primary-hover rounded text-background w-full inline-flex items-center justify-center gap-2 sm:col-span-2"
-              >
-                <FiVideo className="w-5 h-5" />
-                Open Airdrop Video Studio
-              </Link>
-              <Link
                 to="/admin/social"
                 className="px-3 py-3 bg-primary hover:bg-primary-hover rounded text-background w-full inline-flex items-center justify-center gap-2 sm:col-span-2"
               >
