@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import './BowlingRealistic.css';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import {
   BOWLING_DOMINO_CHARACTER_TEXTURES,
   BOWLING_DOMINO_CLOTH_MATERIALS,
@@ -42,6 +43,9 @@ type PinResetPhase = 'idle' | 'lowering' | 'sweeping' | 'lifting';
 type GraphicsQuality = 'performance' | 'balanced' | 'ultra';
 type BowlingFpsOption = 'auto' | '60' | '90' | '120';
 type BallSelectionMode = 'manual' | 'random';
+
+const BOWLING_ARENA_HDRI_URL =
+  'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/indoor_pool_1k.hdr';
 
 type HudState = {
   power: number;
@@ -2275,9 +2279,8 @@ function createEnvironment(
   if ((laneMat as THREE.MeshStandardMaterial).color)
     (laneMat as THREE.MeshStandardMaterial).color.multiplyScalar(1.18);
 
-  // The alley is a complete mesh-built interior. It deliberately does not rely
-  // on a panoramic HDR image, so walls, roof and lighting stay correctly scaled
-  // and grounded while the portrait camera moves through the venue.
+  // The modeled shell keeps the venue grounded at human scale while the HDRI
+  // supplies the soft, full-range reflections and ambient light of a real room.
   const carpetMat = new THREE.MeshStandardMaterial({
     color: 0x23182f,
     roughness: 0.9,
@@ -2309,9 +2312,10 @@ function createEnvironment(
   const shell = new THREE.Group();
   shell.name = 'Professional bowling arena shell';
   const wallMat = new THREE.MeshStandardMaterial({
-    color: 0x242a33,
-    roughness: 0.72,
-    metalness: 0.12
+    color: 0x3b4652,
+    roughness: 0.68,
+    metalness: 0.08,
+    envMapIntensity: 0.8
   });
   const acousticMat = new THREE.MeshStandardMaterial({
     color: 0x111720,
@@ -2319,8 +2323,8 @@ function createEnvironment(
     metalness: 0.02
   });
   const concreteMat = new THREE.MeshStandardMaterial({
-    color: 0x32343a,
-    roughness: 0.92,
+    color: 0x55565b,
+    roughness: 0.86,
     metalness: 0.03
   });
   const addBox = (
@@ -2360,6 +2364,21 @@ function createEnvironment(
     );
     lamp.position.set(0, 3.73, z);
     shell.add(lamp);
+
+    // Broad practical lights match the visible ceiling fixtures. Using area
+    // lights instead of isolated bulbs gives lanes, people and pins soft,
+    // believable highlights without harsh mobile-game hotspots.
+    if (i % 2 === 0) {
+      const fixtureLight = new THREE.RectAreaLight(
+        i > 6 ? 0xffe2bc : 0xe5f7ff,
+        2.8,
+        3.05,
+        0.35
+      );
+      fixtureLight.position.set(0, 3.66, z);
+      fixtureLight.rotation.x = -Math.PI / 2;
+      shell.add(fixtureLight);
+    }
   }
   for (const side of [-1, 1]) {
     const x = side * 6.34;
@@ -4581,16 +4600,16 @@ export default function MobileBowlingRealistic() {
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure =
       graphicsQuality === 'ultra'
-        ? 0.92
+        ? 1.22
         : graphicsQuality === 'performance'
-          ? 0.78
-          : 0.86;
+          ? 1.05
+          : 1.14;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x070a12);
-    scene.fog = new THREE.FogExp2(0x080a10, 0.026);
+    scene.background = new THREE.Color(0x18212a);
+    scene.fog = new THREE.FogExp2(0x151a20, 0.017);
 
     const camera = new THREE.PerspectiveCamera(44, 1, 0.05, 80);
     camera.position.set(-0.82, 3.34, 14.45);
@@ -4600,13 +4619,32 @@ export default function MobileBowlingRealistic() {
       playerCharacter?.id || DEFAULT_HUMAN_CHARACTER_ID
     );
 
-    // All reflections and illumination now come from the modeled arena and its
-    // fixture lights; no HDRI is fetched or projected into the scene.
-    scene.environment = null;
+    // HDRI image-based lighting provides natural ambient fill and physically
+    // coherent reflections. Keep a bright modeled-light fallback while it is
+    // loading (or when the player is offline).
+    let disposed = false;
+    let arenaHdri: THREE.DataTexture | null = null;
+    new RGBELoader().load(
+      BOWLING_ARENA_HDRI_URL,
+      (texture) => {
+        if (disposed) {
+          texture.dispose();
+          return;
+        }
+        texture.mapping = THREE.EquirectangularReflectionMapping;
+        arenaHdri = texture;
+        scene.environment = texture;
+        scene.environmentIntensity = 0.72;
+      },
+      undefined,
+      () => {
+        // Modeled fixtures below deliberately remain a complete offline fallback.
+      }
+    );
 
-    scene.add(new THREE.AmbientLight(0x8fa6d9, 0.035));
-    scene.add(new THREE.HemisphereLight(0xffecd6, 0x08070b, 0.18));
-    const key = new THREE.DirectionalLight(0xffefd8, 2.65);
+    scene.add(new THREE.AmbientLight(0xc5dcff, 0.38));
+    scene.add(new THREE.HemisphereLight(0xfff2dd, 0x202631, 0.82));
+    const key = new THREE.DirectionalLight(0xffefd8, 3.15);
     key.position.set(-4.8, 8.2, 6.6);
     key.castShadow = true;
     key.shadow.mapSize.width =
@@ -4620,7 +4658,7 @@ export default function MobileBowlingRealistic() {
     key.shadow.camera.top = 12;
     key.shadow.camera.bottom = -14;
     scene.add(key);
-    const fill = new THREE.DirectionalLight(0x7dd3fc, 0.08);
+    const fill = new THREE.DirectionalLight(0xb9edff, 0.72);
     fill.position.set(4.4, 4.8, 6.3);
     scene.add(fill);
     const rim = new THREE.DirectionalLight(0xff9a4f, 1.72);
@@ -5394,6 +5432,7 @@ export default function MobileBowlingRealistic() {
     animate();
 
     return () => {
+      disposed = true;
       cancelAnimationFrame(frameId);
       window.removeEventListener('resize', resize);
       canvas.removeEventListener('pointerdown', onPointerDown);
@@ -5401,6 +5440,8 @@ export default function MobileBowlingRealistic() {
       canvas.removeEventListener('pointerup', onPointerUp);
       canvas.removeEventListener('pointercancel', onPointerUp);
       renderer.dispose();
+      if (scene.environment === arenaHdri) scene.environment = null;
+      arenaHdri?.dispose();
       scene.traverse((obj) => {
         const mesh = obj as THREE.Mesh;
         if (mesh.isMesh) {
