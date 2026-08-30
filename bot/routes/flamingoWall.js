@@ -184,7 +184,36 @@ router.get('/posts', async (req, res) => {
       if (post.attachment?.url) await rm(path.join(uploadDirectory, path.basename(post.attachment.url)), { force: true });
     }));
   }
+  // The wall is a shared live feed. Never let a browser/proxy reuse an old
+  // response while another community member is publishing.
+  res.setHeader('Cache-Control', 'no-store');
   res.json({ posts: posts.filter(post => !isCommitteeVideo(post)).map(({ ownerTokenHash, ...post }) => ({ ...post, canManage: ownsPost({ ownerTokenHash }, token) })) });
+});
+
+router.post('/posts/content', express.json({ limit: '16kb' }), async (req, res) => {
+  const text = String(req.body?.text || '').trim();
+  const title = String(req.body?.title || '').trim();
+  const question = String(req.body?.poll?.question || '').trim();
+  const options = Array.isArray(req.body?.poll?.options)
+    ? req.body.poll.options.map(option => String(option).trim()).filter(Boolean).slice(0, 4)
+    : [];
+  if (!text && !title && (!question || options.length < 2)) {
+    return res.status(400).json({ error: 'Postimi nuk ka përmbajtje.' });
+  }
+  const user = await resolveUser(req);
+  const poll = question && options.length >= 2
+    ? { question: question.slice(0, 300), options: options.map(option => option.slice(0, 160)), votes: options.map(() => 0) }
+    : undefined;
+  const post = await FlamingoPost.create({
+    text: text.slice(0, 8000),
+    title: title ? title.slice(0, 120) : undefined,
+    poll,
+    author: displayName(user).slice(0, 120),
+    authorAvatar: user?.photo || '',
+    authorAccountId: user?.accountId || '',
+    ownerTokenHash: tokenHash(ownerToken(req))
+  });
+  res.status(201).json({ post });
 });
 
 router.post('/posts', async (req, res) => {

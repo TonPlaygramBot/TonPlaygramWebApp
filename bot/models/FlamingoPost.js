@@ -8,8 +8,16 @@ const attachmentSchema = new mongoose.Schema({
   duration: { type: Number, default: 0 }
 }, { _id: false });
 
+const pollSchema = new mongoose.Schema({
+  question: { type: String, required: true, maxlength: 300 },
+  options: [{ type: String, maxlength: 160 }],
+  votes: [{ type: Number, min: 0, default: 0 }]
+}, { _id: false });
+
 const flamingoPostSchema = new mongoose.Schema({
-  text: { type: String, default: '', maxlength: 1200 },
+  text: { type: String, default: '', maxlength: 8000 },
+  title: { type: String, default: undefined, maxlength: 120 },
+  poll: { type: pollSchema, default: undefined },
   author: { type: String, required: true, maxlength: 120 },
   authorAvatar: { type: String, default: '' },
   authorAccountId: { type: String, default: '' },
