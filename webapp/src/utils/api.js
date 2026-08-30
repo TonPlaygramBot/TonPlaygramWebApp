@@ -62,7 +62,7 @@ export const socialAdminApi = {
 export const airdropVideoApi = {
   list: (telegramId) => post('/api/airdrop/videos', { telegramId }),
   claim: (telegramId, videoId) => post('/api/airdrop/videos/claim', { telegramId, videoId }),
-  create: (payload, token) => post('/api/airdrop/videos/admin/create', payload, token)
+  create: (payload) => post('/api/airdrop/videos/admin/create', payload)
 };
 
 function wait(ms) {
