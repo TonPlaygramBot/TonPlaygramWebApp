@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { ArrowLeft, Check, Download, FileText, Image, LockKeyhole, Play, Send, Upload, Video, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { API_BASE_URL, flamingoMediaApi } from '../utils/api.js';
@@ -42,14 +42,18 @@ export default function AlbanianProtestGallery() {
   const [notice, setNotice] = useState('');
   const objectUrls = useRef<string[]>([]);
 
+  const refreshAccess = useCallback(async (showFailure = false) => {
+    const access = await flamingoMediaApi.access();
+    const allowed = access?.canPublish === true;
+    setCanPublish(allowed);
+    if (showFailure && !allowed) setNotice('Hyr me llogarinë e zhvilluesit dhe provo përsëri.');
+    return allowed;
+  }, []);
+
   useEffect(() => {
     let active = true;
-    Promise.all([
-      flamingoMediaApi.access().catch(() => ({ canPublish: false })),
-      fetch(`${API_BASE_URL}/api/flamingo-wall/posts`).then(response => response.ok ? response.json() : Promise.reject()),
-    ]).then(([access, payload]) => {
+    fetch(`${API_BASE_URL}/api/flamingo-wall/posts`).then(response => response.ok ? response.json() : Promise.reject()).then(payload => {
       if (!active) return;
-      setCanPublish(access?.canPublish === true);
       setPosts((payload.posts || []).map((post: any) => ({
         id: post._id,
         text: post.text,
@@ -58,8 +62,23 @@ export default function AlbanianProtestGallery() {
         attachment: post.attachment ? { ...post.attachment, src: `${API_BASE_URL}${post.attachment.url}` } : undefined,
       })));
     }).catch(() => setNotice('Galeria nuk mund të përditësohet tani. Provo përsëri pak më vonë.')).finally(() => active && setLoading(false));
-    return () => { active = false; objectUrls.current.forEach(URL.revokeObjectURL); };
-  }, []);
+
+    // Login restoration is asynchronous in Telegram and native shells. Recheck
+    // after mount and when returning to the app so the composer unlocks itself.
+    const timers = [0, 750, 2000].map(delay => window.setTimeout(() => { if (active) void refreshAccess(); }, delay));
+    const recheck = () => { if (active) void refreshAccess(); };
+    window.addEventListener('focus', recheck);
+    window.addEventListener('storage', recheck);
+    document.addEventListener('visibilitychange', recheck);
+    return () => {
+      active = false;
+      timers.forEach(window.clearTimeout);
+      window.removeEventListener('focus', recheck);
+      window.removeEventListener('storage', recheck);
+      document.removeEventListener('visibilitychange', recheck);
+      objectUrls.current.forEach(URL.revokeObjectURL);
+    };
+  }, [refreshAccess]);
 
   const downloadablePosts = useMemo(() => posts.filter(post => post.attachment), [posts]);
 
@@ -118,7 +137,7 @@ export default function AlbanianProtestGallery() {
             <button type="submit" disabled={publishing || (!selected && !text.trim())}>{publishing ? 'Duke publikuar…' : <><Send /> Publiko</>}</button>
           </div>
           <small className="pg-dev-limit"><Upload /> Deri në 1 GB • publikohet direkt në aplikacion</small>
-        </form> : <div className="pg-readonly"><Download /><p><b>Shiko & shkarko.</b><span>Paneli i publikimit shfaqet automatikisht për zhvilluesin.</span></p><LockKeyhole /></div>}
+        </form> : <div className="pg-readonly"><Download /><p><b>Shiko & shkarko.</b><span>Paneli i publikimit shfaqet për llogarinë e zhvilluesit.</span></p><button type="button" onClick={() => void refreshAccess(true)} aria-label="Kontrollo aksesin e zhvilluesit"><LockKeyhole /><span>AKTIVIZO</span></button></div>}
 
         {notice && <div className="pg-notice"><Check />{notice}<button onClick={() => setNotice('')} aria-label="Mbyll njoftimin"><X /></button></div>}
         {loading && <div className="pg-loading"><i /><span>Duke hapur galerinë…</span></div>}
