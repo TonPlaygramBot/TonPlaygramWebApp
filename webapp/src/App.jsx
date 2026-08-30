@@ -498,6 +498,7 @@ export default function App() {
               <Route path="/account" element={<MyAccount />} />
               <Route path="/privacy" element={<LegalPage type="privacy" />} />
               <Route path="/terms" element={<LegalPage type="terms" />} />
+              <Route path="/competition-policy" element={<LegalPage type="competition" />} />
               <Route path="/delete-account" element={<DeleteAccount />} />
               <Route path="/nfts" element={<Nfts />} />
               <Route
