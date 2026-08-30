@@ -17,10 +17,7 @@ type Engagement = { reaction?: Reaction; counts: Record<Reaction, number>; comme
 
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024 * 1024;
 const TIKTOK_CHANNEL = 'https://www.tiktok.com/@tonplaygram';
-const initialPosts: Post[] = [
-  { id: 'official-protest', author: 'TonPlaygram • Zyrtare', createdAt: 'Videoja më e fundit', text: 'Pamjet më të fundit nga protesta janë publikuar në kanalin zyrtar TonPlaygram në TikTok. Shiko, reago dhe ndaje zërin qytetar.' },
-  { id: 'welcome', author: 'Ekipi TonPlayGram', createdAt: 'Sot • 09:30', text: 'Mirë se erdhët në murin e komunitetit. Ndani foto, video dhe dokumente të dobishme me burim të qartë.' },
-];
+const initialPosts: Post[] = [];
 const DB_NAME = 'flamingo-media-wall';
 const STORE_NAME = 'posts';
 const ENGAGEMENT_KEY = 'fr-media-engagement-v2';
@@ -50,15 +47,21 @@ function postId() { return globalThis.crypto?.randomUUID?.() || `post-${Date.now
 function downloadAttachment(file: Attachment) {
   const url = downloadUrl(file);
   const telegram = (window as any).Telegram?.WebApp;
+  const absoluteUrl = url.startsWith('blob:') ? url : new URL(url, location.href).href;
+  const browserDownload = () => {
+    if (!url.startsWith('blob:') && typeof telegram?.openLink === 'function') {
+      telegram.openLink(absoluteUrl, { try_instant_view: false });
+      return;
+    }
+    const link = document.createElement('a'); link.href = absoluteUrl; link.download = file.name; link.target = '_blank'; link.rel = 'noopener'; document.body.appendChild(link); link.click(); link.remove();
+  };
   if (!url.startsWith('blob:') && typeof telegram?.downloadFile === 'function') {
-    telegram.downloadFile({ url: new URL(url, location.href).href, file_name: file.name });
-    return;
+    // Telegram requires the callback argument. Falling back when the native
+    // download prompt is unavailable also covers older Android/iOS clients.
+    try { telegram.downloadFile({ url: absoluteUrl, file_name: file.name }, (accepted: boolean) => { if (!accepted) browserDownload(); }); return; }
+    catch { browserDownload(); return; }
   }
-  if (!url.startsWith('blob:') && typeof telegram?.openLink === 'function') {
-    telegram.openLink(new URL(url, location.href).href, { try_instant_view: false });
-    return;
-  }
-  const link = document.createElement('a'); link.href = url; link.download = file.name; link.target = '_blank'; link.rel = 'noopener'; link.click();
+  browserDownload();
 }
 function AttachmentPreview({ file }: { file: Attachment }) {
   const [expanded, setExpanded] = useState(false);

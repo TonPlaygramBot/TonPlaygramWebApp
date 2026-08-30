@@ -24,6 +24,20 @@ const sessionPaths = (id) => ({
   meta: path.join(pendingDirectory, `${id}.json`)
 });
 
+// The protest wall intentionally starts fresh and retains only its newest
+// uploaded video. Remove both stale database rows and their orphaned files.
+async function retainLatestVideo() {
+  const latestVideo = await FlamingoPost.findOne({ 'attachment.type': /^video\//i }).sort({ createdAt: -1 }).lean();
+  const stalePosts = await FlamingoPost.find(latestVideo ? { _id: { $ne: latestVideo._id } } : {}).lean();
+  await FlamingoPost.deleteMany(latestVideo ? { _id: { $ne: latestVideo._id } } : {});
+  await Promise.all(stalePosts.map(post => {
+    if (!post.attachment?.url) return Promise.resolve();
+    const storedName = path.basename(post.attachment.url);
+    return rm(path.join(uploadDirectory, storedName), { force: true });
+  }));
+  return latestVideo;
+}
+
 // Large videos are uploaded in small, retryable requests. This avoids mobile and
 // reverse-proxy timeouts that occur when a multi-gigabyte request stays open.
 router.post('/uploads', async (req, res) => {
@@ -97,8 +111,8 @@ router.post('/uploads/:id/complete', async (req, res) => {
 });
 
 router.get('/posts', async (_req, res) => {
-  const posts = await FlamingoPost.find().sort({ createdAt: -1 }).limit(100).lean();
-  res.json({ posts });
+  const latestVideo = await retainLatestVideo();
+  res.json({ posts: latestVideo ? [latestVideo] : [] });
 });
 
 router.post('/posts', async (req, res) => {
