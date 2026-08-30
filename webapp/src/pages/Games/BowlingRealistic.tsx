@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import './BowlingRealistic.css';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
@@ -1263,8 +1264,7 @@ function bowlingPoseBone(model: THREE.Object3D, key: string) {
 
 function resetBowlingHumanBonePose(model: THREE.Object3D | null) {
   const pose = model?.userData?.bowlingDefaultPose as
-    | Record<string, THREE.Euler>
-    | undefined;
+    Record<string, THREE.Euler> | undefined;
   if (!model || !pose) return;
   Object.entries(pose).forEach(([key, rotation]) => {
     const bone = bowlingPoseBone(model, key);
@@ -1505,20 +1505,15 @@ function animateFallbackHuman(
   t: number
 ) {
   const leftArm = rig.fallback.getObjectByName('leftArm') as
-    | THREE.Object3D
-    | undefined;
+    THREE.Object3D | undefined;
   const rightArm = rig.fallback.getObjectByName('rightArm') as
-    | THREE.Object3D
-    | undefined;
+    THREE.Object3D | undefined;
   const leftLeg = rig.fallback.getObjectByName('leftLeg') as
-    | THREE.Object3D
-    | undefined;
+    THREE.Object3D | undefined;
   const rightLeg = rig.fallback.getObjectByName('rightLeg') as
-    | THREE.Object3D
-    | undefined;
+    THREE.Object3D | undefined;
   const torso = rig.fallback.getObjectByName('torso') as
-    | THREE.Object3D
-    | undefined;
+    THREE.Object3D | undefined;
   const reset = () => {
     if (leftArm) leftArm.rotation.set(0, 0, 0.22);
     if (rightArm) rightArm.rotation.set(0, 0, -0.18);
@@ -4009,11 +4004,7 @@ function applyCameraLookOffset(
 }
 
 type BroadcastCameraPhase =
-  | 'lounge'
-  | 'approach'
-  | 'release'
-  | 'laneFollow'
-  | 'pinDeck';
+  'lounge' | 'approach' | 'release' | 'laneFollow' | 'pinDeck';
 
 function getBroadcastCameraPose(player: HumanRig, ball: BallState) {
   const laneCenter = ball.laneCenter || player.standPos.x;
@@ -5473,140 +5464,57 @@ export default function MobileBowlingRealistic() {
           fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, sans-serif'
         }}
       >
-        <div
-          style={{
-            position: 'absolute',
-            left: 18,
-            right: 18,
-            top: 6,
-            color: 'white',
-            background: 'rgba(5,8,14,0.66)',
-            border: '1px solid rgba(255,255,255,0.14)',
-            borderRadius: 14,
-            padding: '6px 6px 8px',
-            boxShadow: '0 10px 24px rgba(0,0,0,0.24)',
-            backdropFilter: 'blur(10px)',
-            transform: 'scale(0.78)',
-            transformOrigin: 'top center'
-          }}
+        <section
+          className="bowling-hud"
+          aria-label="Official ten-pin scoreboard"
         >
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: 6,
-              gap: 8
-            }}
-          >
-            <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: 0.2 }}>
-              REAL BOWLING SCOREBOARD
+          <header className="bowling-hud__header">
+            <div>
+              <span className="bowling-hud__eyebrow">TEN-PIN · MATCH PLAY</span>
+              <strong>LANE 01</strong>
             </div>
-            <div style={{ fontSize: 9, fontWeight: 800, color: '#7fd6ff' }}>
-              FRAME {hud.frame} · ROLL {hud.roll} · P{hud.activePlayer + 1}
+            <div className="bowling-hud__turn" aria-live="polite">
+              <span>FRAME {hud.frame}</span>
+              <b>ROLL {hud.roll}</b>
             </div>
-          </div>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '38px repeat(10, minmax(19px, 1fr))',
-              gap: 3,
-              alignItems: 'center'
-            }}
-          >
-            <div
-              style={{
-                fontSize: 10,
-                fontWeight: 800,
-                opacity: 0.72,
-                textAlign: 'center'
-              }}
-            ></div>
-            {Array.from({ length: 10 }, (_, i) => (
-              <div
-                key={i}
-                style={{
-                  textAlign: 'center',
-                  fontSize: 10,
-                  fontWeight: 800,
-                  opacity: 0.7
-                }}
-              >
-                {i + 1}
-              </div>
-            ))}
+          </header>
+
+          <div className="bowling-scorecard">
+            <div className="bowling-scorecard__frames" aria-hidden="true">
+              <span>PLAYER</span>
+              {Array.from({ length: 10 }, (_, i) => (
+                <span key={i}>{i + 1}</span>
+              ))}
+            </div>
             {scoresMemo.map((p, row) => (
-              <React.Fragment key={p.name}>
-                <div
-                  style={{
-                    paddingLeft: 1,
-                    fontSize: 9,
-                    fontWeight: 900,
-                    color: row === hud.activePlayer ? '#7fd6ff' : '#ffffff'
-                  }}
-                >{`P${row + 1} ${p.total}`}</div>
+              <div
+                className={`bowling-scorecard__row ${row === hud.activePlayer ? 'is-active' : ''}`}
+                key={p.name}
+              >
+                <div className="bowling-scorecard__player">
+                  <span className="bowling-scorecard__dot" />
+                  <span>P{row + 1}</span>
+                  <b>{p.total}</b>
+                </div>
                 {p.frames.map((f, i) => (
                   <FrameBox key={`${row}-${i}`} frame={f} index={i} />
                 ))}
-              </React.Fragment>
+              </div>
             ))}
           </div>
-          <div
-            style={{
-              marginTop: 5,
-              textAlign: 'center',
-              fontSize: 10,
-              fontWeight: 700,
-              opacity: 0.9
-            }}
-          >
-            {hud.status}
+
+          <div className="bowling-hud__status" aria-live="polite">
+            <span className="bowling-hud__status-light" />
+            <span>{hud.status}</span>
           </div>
-          <div
-            style={{
-              marginTop: 4,
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: 5,
-              fontSize: 8,
-              fontWeight: 800
-            }}
-          >
-            <div
-              style={{
-                padding: '4px 5px',
-                borderRadius: 7,
-                background: 'rgba(14,165,233,0.16)',
-                border: '1px solid rgba(125,211,252,0.18)'
-              }}
-            >
-              {hud.lane}
-            </div>
-            <div
-              style={{
-                padding: '4px 5px',
-                borderRadius: 7,
-                background: 'rgba(34,197,94,0.14)',
-                border: '1px solid rgba(134,239,172,0.18)'
-              }}
-            >
-              {hud.rule}
-            </div>
+          <div className="bowling-hud__meta">
+            <span>{hud.lane}</span>
+            <span>OFFICIAL RULES</span>
           </div>
           {hud.compliment ? (
-            <div
-              style={{
-                marginTop: 4,
-                textAlign: 'center',
-                fontSize: 10,
-                fontWeight: 800,
-                color: '#86efac'
-              }}
-            >
-              {hud.compliment}
-            </div>
+            <div className="bowling-hud__callout">{hud.compliment}</div>
           ) : null}
-        </div>
+        </section>
 
         <button
           onClick={() => setMenuOpen((v) => !v)}
@@ -5625,7 +5533,8 @@ export default function MobileBowlingRealistic() {
             pointerEvents: 'auto'
           }}
         >
-          ☰
+          <span aria-hidden="true">☰</span>
+          <span className="sr-only">Game settings</span>
         </button>
         {menuOpen ? (
           <div

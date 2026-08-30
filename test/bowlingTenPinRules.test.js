@@ -76,6 +76,18 @@ describe('official ten-pin bowling rules', () => {
     expect(player.frames[0].cumulative).toBe(5);
   });
 
+  test('rejects rolls after the tenth frame is complete', () => {
+    const player = makePlayer();
+    rollMany(player, Array(12).fill(10));
+
+    const decision = addTenPinRoll(player, 7);
+
+    expect(decision.accepted).toBe(false);
+    expect(decision.gameFinished).toBe(true);
+    expect(player.frames[9].rolls).toEqual([10, 10, 10]);
+    expect(player.total).toBe(300);
+  });
+
   test('scores all nines as 90 open-frame game', () => {
     const player = makePlayer();
     player.frames.forEach((frame) => frame.rolls.push(9, 0));
