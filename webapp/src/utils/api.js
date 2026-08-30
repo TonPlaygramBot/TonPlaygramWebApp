@@ -125,7 +125,11 @@ function buildHeaders(base = {}) {
   const headers = { Accept: 'application/json', ...base };
   const initData = window?.Telegram?.WebApp?.initData;
   if (initData) headers['X-Telegram-Init-Data'] = initData;
-  const accountId = window?.localStorage?.getItem('accountId');
+  // Native and legacy login flows can persist the authenticated account under
+  // tpcAccountId. Keep developer-only API access working for either login flow.
+  const accountId =
+    window?.localStorage?.getItem('accountId') ||
+    window?.localStorage?.getItem('tpcAccountId');
   if (accountId) headers['X-Tpc-Account-Id'] = accountId;
   const googleId =
     window?.localStorage?.getItem('googleId') ||
