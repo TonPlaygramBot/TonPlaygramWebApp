@@ -2512,7 +2512,7 @@ export default function Store() {
     ? 'pb-[calc(10rem+env(safe-area-inset-bottom))]'
     : 'pb-24';
   const storeGridClass = {
-    grid: 'grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
+    grid: 'grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-3 xl:grid-cols-4',
     compact: 'grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5',
     list: 'grid grid-cols-1 gap-3',
     gallery: 'grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-3',
@@ -3888,7 +3888,7 @@ export default function Store() {
               ? 'p-3'
               : storeLayout === 'rows'
                 ? 'p-5'
-                : 'p-4'
+                : 'p-3 sm:p-4'
         }`}
       >
         <div className={`flex items-center justify-between gap-2 ${storeLayout === 'list' ? 'w-full' : ''}`}>
