@@ -2759,28 +2759,6 @@ io.on('connection', (socket) => {
     cb?.({ success: true });
   });
 
-  // Competitive arcade games run deterministic local simulations and relay
-  // only bounded score/lifecycle snapshots. A sender must own a seat in the
-  // authoritative table, preventing spectators from altering a match.
-  socket.on('arcadeAction', (payload = {}, cb) => {
-    const { tableId, gameType, score, status } = payload;
-    const table = tableMap.get(String(tableId || ''));
-    const accountId = String(socket.data?.playerId || '');
-    const supported = new Set(['tetrisroyale', 'fruitslice', 'bubblecrush', 'bubblesmash', 'fallingball']);
-    if (!table || !supported.has(String(gameType)) || table.gameType !== gameType) return cb?.({ success: false, error: 'invalid_match' });
-    if (!table.players.some((player) => String(player.id) === accountId)) return cb?.({ success: false, error: 'seat_required' });
-    if (isRateLimited(socket, 'arcadeAction', 120)) return cb?.({ success: false, error: 'rate_limited' });
-    const safeStatus = ['playing', 'finished'].includes(status) ? status : 'playing';
-    socket.to(table.id).emit('arcadeAction', {
-      tableId: table.id,
-      gameType,
-      playerId: accountId,
-      score: Math.max(0, Math.min(999999, Math.floor(Number(score) || 0))),
-      status: safeStatus
-    });
-    cb?.({ success: true });
-  });
-
   socket.on('joinRoom', async (payload = {}, cb) => {
     const { roomId, name, avatar } = payload;
     const pid = resolveTpcIdentity(payload);

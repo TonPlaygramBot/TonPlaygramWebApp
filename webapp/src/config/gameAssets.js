@@ -11,11 +11,6 @@ const withBase = (path) => {
 };
 
 export const gameThumbnails = {
-  tetrisroyale: '/assets/icons/tetris.svg',
-  fruitslice: '/assets/icons/fruit_slice.svg',
-  bubblecrush: '/assets/icons/fruit_slice.svg',
-  bubblesmash: '/assets/icons/fruit_slice.svg',
-  fallingball: '/assets/icons/falling_ball.svg',
   'table-tennis': '/assets/icons/table-tennis-icon.svg',
   tennis: '/assets/icons/tennis-icon.svg',
   bowling: '/assets/icons/bowling-icon.svg',
