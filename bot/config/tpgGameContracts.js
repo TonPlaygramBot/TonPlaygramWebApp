@@ -12,7 +12,12 @@ const CONTRACTS = {
   texasholdem: ['tableSize', 'gameMode', 'buyIn'],
   airhockey: ['winScore', 'arena'],
   murlanroyale: ['variant', 'targetPoints', 'players', 'rules'],
-  shootingrange: ['mode', 'difficulty']
+  shootingrange: ['mode', 'difficulty'],
+  tetrisroyale: [],
+  fruitslice: [],
+  bubblecrush: [],
+  bubblesmash: [],
+  fallingball: []
 };
 
 export const TPG_GAME_CONTRACTS = Object.freeze(

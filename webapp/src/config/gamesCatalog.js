@@ -1,5 +1,25 @@
 const gamesCatalog = [
   {
+    name: 'Tetris Battle Royale', route: '/games/tetrisroyale/lobby', slug: 'tetrisroyale',
+    image: '/assets/icons/tetris.svg', description: 'Clear falling lines and outscore a live rival.'
+  },
+  {
+    name: 'Fruit Slice', route: '/games/fruitslice/lobby', slug: 'fruitslice',
+    image: '/assets/icons/fruit_slice.svg', description: 'Swipe fruit, dodge bombs and chase the highest score.'
+  },
+  {
+    name: 'Bubble Crush', route: '/games/bubblecrush/lobby', slug: 'bubblecrush',
+    image: '/assets/icons/fruit_slice.svg', description: 'Build colorful chains before the clock runs out.'
+  },
+  {
+    name: 'Bubble Smash', route: '/games/bubblesmash/lobby', slug: 'bubblesmash',
+    image: '/assets/icons/fruit_slice.svg', description: 'Pop fast-moving bubbles in a live score duel.'
+  },
+  {
+    name: 'Falling Ball', route: '/games/fallingball/lobby', slug: 'fallingball',
+    image: '/assets/icons/falling_ball.svg', description: 'Guide the falling ball through an endless neon tower.'
+  },
+  {
     name: 'Table Tennis', route: '/games/table-tennis/lobby', slug: 'table-tennis',
     image: '/assets/icons/table-tennis-icon.svg', description: 'Fast 3D rallies, precision spin and live online rivals.'
   },

@@ -64,6 +64,11 @@ const GAME_ONLINE_POLICY = Object.freeze({
   'table-tennis': { maxPlayers: [2], allowMatchMeta: ['mode', 'token'] },
   tennis: { maxPlayers: [2], allowMatchMeta: ['mode', 'token'] },
   bowling: { maxPlayers: [2], allowMatchMeta: ['mode', 'token'] },
+  tetrisroyale: { maxPlayers: [2], allowMatchMeta: ['mode', 'token'] },
+  fruitslice: { maxPlayers: [2], allowMatchMeta: ['mode', 'token'] },
+  bubblecrush: { maxPlayers: [2], allowMatchMeta: ['mode', 'token'] },
+  bubblesmash: { maxPlayers: [2], allowMatchMeta: ['mode', 'token'] },
+  fallingball: { maxPlayers: [2], allowMatchMeta: ['mode', 'token'] },
   backgammon: { maxPlayers: [2], allowMatchMeta: ['mode', 'token'] },
   murlanroyale: {
     maxPlayers: [2, 3, 4],
