@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
-import { ArrowLeft, Check, Download, FileText, Image, LockKeyhole, Play, Plus, Upload, Video, X } from 'lucide-react';
+import { ArrowLeft, Check, Download, FileText, Image, LockKeyhole, Play, Send, Upload, Video, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { API_BASE_URL, flamingoMediaApi } from '../utils/api.js';
 import './protest-gallery.css';
@@ -8,8 +8,6 @@ type Attachment = { name: string; size: number; type: string; url?: string; src:
 type GalleryPost = { id: string; text: string; author: string; createdAt: string; attachment?: Attachment };
 
 const MAX_UPLOAD_BYTES = 1024 * 1024 * 1024;
-const acceptedFiles = 'image/*,video/*,.pdf,.doc,.docx,.txt,.zip,.csv';
-
 function formatBytes(bytes: number) {
   if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
   if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
@@ -39,7 +37,6 @@ export default function AlbanianProtestGallery() {
   const [canPublish, setCanPublish] = useState(false);
   const [loading, setLoading] = useState(true);
   const [publishing, setPublishing] = useState(false);
-  const [composerOpen, setComposerOpen] = useState(false);
   const [text, setText] = useState('');
   const [selected, setSelected] = useState<Attachment>();
   const [notice, setNotice] = useState('');
@@ -89,7 +86,7 @@ export default function AlbanianProtestGallery() {
     if (payload.error) { setNotice(payload.error); setPublishing(false); return; }
     const post = payload.post;
     setPosts(items => [{ id: post._id, text: post.text, author: post.author, createdAt: 'Sot', attachment: post.attachment ? { ...post.attachment, src: `${API_BASE_URL}${post.attachment.url}` } : undefined }, ...items]);
-    setText(''); setSelected(undefined); setComposerOpen(false); setPublishing(false);
+    setText(''); setSelected(undefined); setPublishing(false);
     setNotice('Materiali u publikua me sukses.');
   }
 
@@ -110,7 +107,18 @@ export default function AlbanianProtestGallery() {
 
       <section className="pg-wall" aria-labelledby="gallery-title">
         <div className="pg-wall-title"><div><span>MURI I MATERIALEVE</span><h2 id="gallery-title">Nga protesta</h2></div><b>{downloadablePosts.length.toString().padStart(2, '0')}</b></div>
-        <div className="pg-readonly"><Download /><p><b>Shiko & shkarko.</b><span>Materialet publikohen vetëm nga TonPlayGram.</span></p><LockKeyhole /></div>
+        {canPublish ? <form className="pg-dev-wall" onSubmit={publish}>
+          <header><div className="pg-dev-avatar">TP</div><div><span>PANELI I ZHVILLUESIT</span><h3>Publiko në mur</h3></div><i>DEV</i></header>
+          <textarea value={text} onChange={event => setText(event.target.value)} maxLength={1200} placeholder="Çfarë po ndodh? Ndaje me komunitetin…" />
+          {selected && <div className="pg-selected"><FileText /><span><b>{selected.name}</b><small>{formatBytes(selected.size)} • gati për publikim</small></span><button type="button" onClick={() => setSelected(undefined)}>Hiq</button></div>}
+          <div className="pg-dev-tools">
+            <label><Image /><span>Foto</span><input type="file" accept="image/*,.heic,.heif" onChange={selectFile} /></label>
+            <label><Video /><span>Video</span><input type="file" accept="video/*,.mov,.m4v" onChange={selectFile} /></label>
+            <label><FileText /><span>Skedar</span><input type="file" accept=".pdf,.doc,.docx,.txt,.zip,.csv" onChange={selectFile} /></label>
+            <button type="submit" disabled={publishing || (!selected && !text.trim())}>{publishing ? 'Duke publikuar…' : <><Send /> Publiko</>}</button>
+          </div>
+          <small className="pg-dev-limit"><Upload /> Deri në 1 GB • publikohet direkt në aplikacion</small>
+        </form> : <div className="pg-readonly"><Download /><p><b>Shiko & shkarko.</b><span>Paneli i publikimit shfaqet automatikisht për zhvilluesin.</span></p><LockKeyhole /></div>}
 
         {notice && <div className="pg-notice"><Check />{notice}<button onClick={() => setNotice('')} aria-label="Mbyll njoftimin"><X /></button></div>}
         {loading && <div className="pg-loading"><i /><span>Duke hapur galerinë…</span></div>}
@@ -125,12 +133,5 @@ export default function AlbanianProtestGallery() {
       </section>
     </main>
 
-    {canPublish && <button className="pg-admin-fab" onClick={() => setComposerOpen(true)}><Plus /> Publiko</button>}
-    {canPublish && composerOpen && <div className="pg-modal" onMouseDown={event => event.target === event.currentTarget && setComposerOpen(false)}><form onSubmit={publish}>
-      <header><div><span>PANELI I ZHVILLUESIT</span><h2>Publiko material</h2></div><button type="button" onClick={() => setComposerOpen(false)} aria-label="Mbyll"><X /></button></header>
-      <textarea value={text} onChange={event => setText(event.target.value)} maxLength={1200} placeholder="Përshkrimi i materialit…" />
-      {selected ? <div className="pg-selected"><FileText /><span><b>{selected.name}</b><small>{formatBytes(selected.size)}</small></span><button type="button" onClick={() => setSelected(undefined)}>Hiq</button></div> : <label className="pg-file-picker"><Upload /><b>Zgjidh foto, video ose dokument</b><span>Deri në 1 GB • cilësia origjinale</span><input type="file" accept={acceptedFiles} onChange={selectFile} /></label>}
-      <button className="pg-publish" disabled={publishing || (!selected && !text.trim())}>{publishing ? 'Duke publikuar…' : 'Publiko në galeri'}</button>
-    </form></div>}
   </div>;
 }
