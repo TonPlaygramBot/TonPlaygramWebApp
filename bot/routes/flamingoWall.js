@@ -5,12 +5,17 @@ import { createWriteStream } from 'fs';
 import { appendFile, mkdir, readFile, rename, rm, writeFile } from 'fs/promises';
 import { createHash, randomUUID, timingSafeEqual } from 'crypto';
 import FlamingoPost from '../models/FlamingoPost.js';
+import User from '../models/User.js';
+import { optionalAuthenticate } from '../middleware/auth.js';
 
 const router = express.Router();
 const uploadDirectory = path.resolve('data/flamingo-uploads');
 const maxBytes = Math.max(1, Number(process.env.FLAMINGO_UPLOAD_MAX_BYTES) || 5 * 1024 ** 3);
-const maxChunkBytes = Math.max(1024 ** 2, Number(process.env.FLAMINGO_UPLOAD_CHUNK_BYTES) || 8 * 1024 ** 2);
+const maxChunkBytes = Math.max(1024 ** 2, Number(process.env.FLAMINGO_UPLOAD_CHUNK_BYTES) || 32 * 1024 ** 2);
 const pendingDirectory = path.join(uploadDirectory, '.pending');
+const downloadGrants = new Map();
+
+router.use(optionalAuthenticate);
 
 const safeName = (name) => path.basename(String(name || 'file'))
   .normalize('NFKD').replace(/[^a-zA-Z0-9._-]+/g, '-').slice(-160) || 'file';
@@ -25,6 +30,17 @@ const sessionPaths = (id) => ({
 });
 const tokenHash = token => createHash('sha256').update(String(token || '')).digest('hex');
 const ownerToken = req => req.get('x-wall-owner-token') || '';
+const userSelector = req => req.auth?.telegramId
+  ? { telegramId: req.auth.telegramId }
+  : req.auth?.accountId
+    ? { accountId: req.auth.accountId }
+    : req.auth?.googleId ? { googleId: req.auth.googleId } : null;
+const displayName = user => user?.nickname || [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'Anëtar i komunitetit';
+const resolveUser = req => {
+  const selector = userSelector(req);
+  return selector ? User.findOne(selector) : null;
+};
+const videoPrice = duration => duration > 40 ? 300 : duration >= 20 ? 200 : 0;
 const ownsPost = (post, token) => {
   if (!post.ownerTokenHash || !token) return false;
   const supplied = Buffer.from(tokenHash(token));
@@ -47,8 +63,8 @@ router.post('/uploads', async (req, res) => {
     received: 0,
     name: safeName(decodeHeader(req.get('x-upload-name'), 'video.mp4')),
     type: decodeHeader(req.get('x-upload-type'), 'application/octet-stream'),
+    duration: Math.max(0, Number(req.get('x-upload-duration')) || 0),
     text: decodeHeader(req.get('x-upload-text')).slice(0, 1200),
-    author: decodeHeader(req.get('x-upload-author'), 'Anëtar i komunitetit').slice(0, 120),
     ownerTokenHash: tokenHash(ownerToken(req)),
     createdAt: Date.now()
   };
@@ -96,8 +112,9 @@ router.post('/uploads/:id/complete', async (req, res) => {
     const storedName = `${id}-${metadata.name}`;
     await rename(paths.data, path.join(uploadDirectory, storedName));
     await rm(paths.meta, { force: true });
-    const attachment = { name: metadata.name, size: metadata.size, type: metadata.type, url: `/api/flamingo-wall/files/${storedName}` };
-    const post = await FlamingoPost.create({ text: metadata.text, author: metadata.author, attachment, ownerTokenHash: metadata.ownerTokenHash });
+    const user = await resolveUser(req);
+    const attachment = { name: metadata.name, size: metadata.size, type: metadata.type, duration: metadata.duration, url: `/api/flamingo-wall/files/${storedName}` };
+    const post = await FlamingoPost.create({ text: metadata.text, author: displayName(user), authorAvatar: user?.photo || '', authorAccountId: user?.accountId || '', attachment, ownerTokenHash: metadata.ownerTokenHash });
     res.status(201).json({ post });
   } catch (err) {
     if (err?.code === 'ENOENT') return res.status(404).json({ error: 'Ngarkimi nuk u gjet.' });
@@ -152,10 +169,10 @@ router.post('/posts', async (req, res) => {
       }
       const text = String(fields.text || '').trim();
       if (!text && !upload) return res.status(400).json({ error: 'Shkruaj diçka ose zgjidh një skedar.' });
-      const identity = req.auth?.telegramId || req.get('x-tpc-account-id') || req.get('x-google-id');
-      const author = String(fields.author || (identity ? `Anëtar ${identity}` : 'Anëtar i komunitetit')).slice(0, 120);
+      const user = await resolveUser(req);
+      const author = displayName(user).slice(0, 120);
       const attachment = upload ? { name: upload.originalName, size: upload.size, type: upload.type, url: `/api/flamingo-wall/files/${upload.storedName}` } : undefined;
-      const post = await FlamingoPost.create({ text: text.slice(0, 1200), author, attachment, ownerTokenHash: tokenHash(ownerToken(req)) });
+      const post = await FlamingoPost.create({ text: text.slice(0, 1200), author, authorAvatar: user?.photo || '', authorAccountId: user?.accountId || '', attachment, ownerTokenHash: tokenHash(ownerToken(req)) });
       completed = true;
       res.status(201).json({ post });
     } catch (err) {
@@ -184,8 +201,41 @@ router.delete('/posts/:id', async (req, res) => {
   res.status(204).end();
 });
 
-router.get('/files/:name', (req, res) => {
+router.post('/posts/:id/download', async (req, res) => {
+  const selector = userSelector(req);
+  if (!selector) return res.status(401).json({ error: 'Hyr në llogari për ta shkarkuar videon.' });
+  const post = await FlamingoPost.findById(req.params.id).lean();
+  if (!post?.attachment?.url) return res.status(404).json({ error: 'Videoja nuk u gjet.' });
+  const price = post.attachment.type.startsWith('video/') ? videoPrice(post.attachment.duration) : 0;
+  let user = await User.findOne(selector);
+  if (!user) return res.status(404).json({ error: 'Llogaria nuk u gjet.' });
+  if (price) {
+    user = await User.findOneAndUpdate({ _id: user._id, balance: { $gte: price } }, {
+      $inc: { balance: -price },
+      $push: { transactions: { transactionId: randomUUID(), amount: -price, type: 'video_download', token: 'TPG', status: 'delivered', detail: String(post._id) } }
+    }, { new: true });
+    if (!user) return res.status(402).json({ error: `Të duhen ${price} TPG për ta shkarkuar këtë video.` });
+  }
+  const grant = randomUUID();
+  downloadGrants.set(grant, { file: path.basename(post.attachment.url), expiresAt: Date.now() + 5 * 60_000 });
+  res.json({ downloadUrl: `/api/flamingo-wall/downloads/${grant}?name=${encodeURIComponent(post.attachment.name)}`, price, balance: user.balance });
+});
+
+router.get('/downloads/:grant', (req, res) => {
+  const grant = downloadGrants.get(req.params.grant);
+  if (!grant || grant.expiresAt < Date.now()) return res.status(403).json({ error: 'Lidhja e shkarkimit ka skaduar.' });
+  const requestedName = path.basename(String(req.query.name || grant.file)).replace(/["\\\r\n]/g, '');
+  res.download(path.join(uploadDirectory, grant.file), requestedName);
+});
+
+router.get('/files/:name', async (req, res) => {
   const name = path.basename(req.params.name);
+  if (req.query.download === '1') {
+    const post = await FlamingoPost.findOne({ 'attachment.url': `/api/flamingo-wall/files/${name}` }).lean();
+    if (post?.attachment?.type?.startsWith('video/')) {
+      return res.status(403).json({ error: 'Përdor butonin e shkarkimit që të zbatohet pagesa TPG.' });
+    }
+  }
   const disposition = req.query.download === '1' ? 'attachment' : 'inline';
   const requestedName = path.basename(String(req.query.name || name)).replace(/["\\\r\n]/g, '');
   const asciiName = requestedName.replace(/[^\x20-\x7E]/g, '_');
