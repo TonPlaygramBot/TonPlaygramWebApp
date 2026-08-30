@@ -10,6 +10,7 @@ import { sendTPCNotification } from '../utils/notifications.js';
 import authenticate from '../middleware/auth.js';
 import AirdropVideo from '../models/AirdropVideo.js';
 import AirdropVideoClaim from '../models/AirdropVideoClaim.js';
+import { hasSocialDeveloperAccess } from './socialAdmin.js';
 
 const router = Router();
 
@@ -43,8 +44,13 @@ router.post('/videos/claim', authenticate, async (req, res) => {
   }
 });
 
-router.post('/videos/admin/create', adminOnly, async (req, res) => {
-  const { title, description, videoUrl, thumbnailUrl, platform, reward = 2500 } = req.body;
+router.post('/videos/admin/create', (req, res, next) => {
+  if (!hasSocialDeveloperAccess(req.auth)) {
+    return res.status(403).json({ error: 'Developer access required' });
+  }
+  next();
+}, async (req, res) => {
+  const { title, description, videoUrl, thumbnailUrl, platform, reward = 5000 } = req.body;
   if (!title || !videoUrl) return res.status(400).json({ error: 'Title and video URL are required' });
   const video = await AirdropVideo.create({ title, description, videoUrl, thumbnailUrl, platform, reward });
   res.json(video);

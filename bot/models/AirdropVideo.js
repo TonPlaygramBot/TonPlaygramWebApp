@@ -6,7 +6,7 @@ const airdropVideoSchema = new mongoose.Schema({
   videoUrl: { type: String, required: true, trim: true },
   thumbnailUrl: { type: String, default: '', trim: true },
   platform: { type: String, default: 'tiktok', trim: true },
-  reward: { type: Number, default: 2500, min: 1 },
+  reward: { type: Number, default: 5000, min: 1 },
   active: { type: Boolean, default: true }
 }, { timestamps: true });
 
