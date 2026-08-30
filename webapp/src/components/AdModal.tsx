@@ -127,11 +127,15 @@ export default function AdModal({
           <p className="text-xs text-subtext">
             {rewardIssuedRef.current
               ? 'Reward unlocked. You can close now or keep watching.'
-              : `Stay for ${remainingSeconds}s to unlock your reward.`}
+              : (
+                <>
+                  Stay for <span className="font-bold text-red-500">{remainingSeconds}</span>s to unlock your reward.
+                </>
+              )}
           </p>
         </div>
 
-        <div className="aspect-[9/16] w-full overflow-hidden rounded-lg border border-border bg-black relative">
+        <div className="relative aspect-[9/16] w-[calc(100%+1.5rem)] max-h-[65vh] -ml-3 overflow-hidden bg-black">
           <iframe
             ref={playerRef}
             key={playerUrl}
