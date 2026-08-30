@@ -11,7 +11,10 @@ import { optionalAuthenticate } from '../middleware/auth.js';
 const router = express.Router();
 const uploadDirectory = path.resolve('data/flamingo-uploads');
 const maxBytes = Math.max(1, Number(process.env.FLAMINGO_UPLOAD_MAX_BYTES) || 5 * 1024 ** 3);
-const maxChunkBytes = Math.max(1024 ** 2, Number(process.env.FLAMINGO_UPLOAD_CHUNK_BYTES) || 32 * 1024 ** 2);
+// Keep each request small enough for mobile networks while allowing several
+// independent ranges to be written at once. Six 8 MB requests use less memory
+// than the former three 32 MB requests and no longer queue behind one another.
+const maxChunkBytes = Math.max(1024 ** 2, Number(process.env.FLAMINGO_UPLOAD_CHUNK_BYTES) || 8 * 1024 ** 2);
 const pendingDirectory = path.join(uploadDirectory, '.pending');
 const downloadGrants = new Map();
 const uploadLocks = new Map();
@@ -100,20 +103,29 @@ router.put('/uploads/:id', async (req, res) => {
       chunks.push(chunk);
     }
     if (received !== contentLength) throw new Error('Incomplete chunk.');
-    const result = await withUploadLock(id, async () => {
+    const metadata = await withUploadLock(id, async () => {
       const metadata = JSON.parse(await readFile(paths.meta, 'utf8'));
       const expectedLength = Math.min(maxChunkBytes, metadata.size - offset);
       if (offset >= metadata.size || offset % maxChunkBytes !== 0 || contentLength !== expectedLength) throw Object.assign(new Error('Pjesa është jashtë kufijve.'), { status: 409 });
-      const key = String(offset);
-      if (!metadata.chunks?.[key]) {
-        const file = await open(paths.data, 'r+');
-        try { await file.write(Buffer.concat(chunks), 0, received, offset); } finally { await file.close(); }
-        metadata.chunks ||= {};
-        metadata.chunks[key] = received;
-        metadata.received += received;
-        await writeFile(paths.meta, JSON.stringify(metadata));
+      return metadata;
+    });
+    const key = String(offset);
+    if (!metadata.chunks?.[key]) {
+      // Positional writes to separate ranges are safe in parallel. Keep slow
+      // disk I/O outside the metadata lock so concurrent mobile uploads really
+      // use the available bandwidth instead of being serialized on the server.
+      const file = await open(paths.data, 'r+');
+      try { await file.write(Buffer.concat(chunks), 0, received, offset); } finally { await file.close(); }
+    }
+    const result = await withUploadLock(id, async () => {
+      const latest = JSON.parse(await readFile(paths.meta, 'utf8'));
+      if (!latest.chunks?.[key]) {
+        latest.chunks ||= {};
+        latest.chunks[key] = received;
+        latest.received += received;
+        await writeFile(paths.meta, JSON.stringify(latest));
       }
-      return { received: metadata.received, complete: metadata.received === metadata.size };
+      return { received: latest.received, complete: latest.received === latest.size };
     });
     res.json(result);
   } catch (err) {
@@ -249,6 +261,11 @@ router.get('/downloads/:grant', (req, res) => {
   const grant = downloadGrants.get(req.params.grant);
   if (!grant || grant.expiresAt < Date.now()) return res.status(403).json({ error: 'Lidhja e shkarkimit ka skaduar.' });
   const requestedName = path.basename(String(req.query.name || grant.file)).replace(/["\\\r\n]/g, '');
+  // sendFile (used by res.download) supports byte ranges; these headers make
+  // that resumable behavior explicit and let a briefly interrupted phone
+  // download continue without transferring the completed bytes again.
+  res.setHeader('Accept-Ranges', 'bytes');
+  res.setHeader('Cache-Control', 'private, max-age=300');
   res.download(path.join(uploadDirectory, grant.file), requestedName);
 });
 

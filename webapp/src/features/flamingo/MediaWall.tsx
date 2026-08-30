@@ -101,7 +101,9 @@ async function uploadLargePost(file: Blob, name: string, text: string, duration:
     uploaded += chunk.size;
     onProgress(Math.round(uploaded / file.size * 100));
   };
-  const workers = Array.from({ length: Math.min(3, offsets.length) }, async () => {
+  // Multiple small requests fill fast Wi-Fi/4G links much better than a few
+  // large requests and make retries considerably cheaper on an unstable phone.
+  const workers = Array.from({ length: Math.min(6, offsets.length) }, async () => {
     while (offsets.length) { const offset = offsets.shift(); if (offset !== undefined) await uploadChunk(offset); }
   });
   await Promise.all(workers);
