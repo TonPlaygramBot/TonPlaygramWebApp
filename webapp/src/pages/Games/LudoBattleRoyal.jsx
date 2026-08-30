@@ -11295,7 +11295,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
             const followCameraTarget = liftedTarget.target.clone().add(cameraTurnStateRef.current.followOffset);
             camera.position.lerp(followCameraTarget, 0.12);
           }
-          cameraTurnStateRef.current.currentTarget = controls.target.clone();
+          cameraTurnStateRef.current.currentTarget = liftedTarget.target.clone();
         }
       }
 
