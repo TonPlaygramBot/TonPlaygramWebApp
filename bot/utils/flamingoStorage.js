@@ -1,6 +1,6 @@
 import path from 'path';
 import { createReadStream } from 'fs';
-import { access, readdir, rm, stat } from 'fs/promises';
+import { access, rm } from 'fs/promises';
 import mongoose from 'mongoose';
 
 const BUCKET_NAME = 'flamingoMedia';
@@ -24,15 +24,12 @@ const bucket = () => {
   return db ? new mongoose.mongo.GridFSBucket(db, { bucketName: BUCKET_NAME }) : null;
 };
 
-export const findFlamingoDatabaseMedia = async (name, originalName, size) => {
+export const findFlamingoDatabaseMedia = async name => {
   const db = database();
   const safeName = path.basename(String(name || ''));
   if (!db || !safeName) return null;
-  const safeOriginalName = path.basename(String(originalName || ''));
-  const expectedSize = Number(size);
-  const aliases = safeOriginalName ? [{ 'metadata.originalName': safeOriginalName }] : [];
   return db.collection(`${BUCKET_NAME}.files`).findOne(
-    { $or: [{ filename: safeName }, ...aliases], ...(Number.isSafeInteger(expectedSize) && expectedSize > 0 ? { length: expectedSize } : {}) },
+    { filename: safeName },
     { sort: { uploadDate: -1 } }
   );
 };
@@ -69,10 +66,8 @@ export const removeFlamingoDatabaseMedia = async name => {
   if (file) await mediaBucket.delete(file._id);
 };
 
-export const findFlamingoMedia = async (name, directories, originalName, size) => {
+export const findFlamingoMedia = async (name, directories) => {
   const safeName = path.basename(String(name || ''));
-  const safeOriginalName = path.basename(String(originalName || ''));
-  const expectedSize = Number(size);
   for (const directory of directories) {
     const candidate = path.join(directory, safeName);
     try {
@@ -80,22 +75,6 @@ export const findFlamingoMedia = async (name, directories, originalName, size) =
       return candidate;
     } catch (error) {
       if (error?.code !== 'ENOENT') throw error;
-    }
-    // Before durable media storage was enabled, retrying an upload created a
-    // new UUID while the post kept the older UUID. Reuse another byte-for-byte
-    // upload of the same original file instead of leaving the historical post
-    // permanently unplayable.
-    if (safeOriginalName && Number.isSafeInteger(expectedSize) && expectedSize > 0) {
-      try {
-        const entries = await readdir(directory);
-        for (const entry of entries) {
-          if (entry !== safeOriginalName && !entry.endsWith(`-${safeOriginalName}`)) continue;
-          const alias = path.join(directory, entry);
-          if ((await stat(alias)).size === expectedSize) return alias;
-        }
-      } catch (error) {
-        if (error?.code !== 'ENOENT') throw error;
-      }
     }
   }
   return null;
