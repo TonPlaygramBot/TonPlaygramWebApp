@@ -4,9 +4,12 @@ import {
   Gamepad2,
   Gift,
   MessageCircle,
+  Scale,
+  ShieldCheck,
   ShoppingBag,
   Sparkles,
   Trophy,
+  Users,
   WalletCards
 } from 'lucide-react';
 
@@ -40,16 +43,20 @@ export default function HomeIntroduction() {
     <section className="home-intro" aria-labelledby="home-intro-title">
       <div className="home-intro__hero">
         <div className="home-intro__glow" aria-hidden="true" />
-        <h1 id="home-intro-title">TonPlayGram is built for players — not the house.</h1>
-        <div className="home-intro__message">
-          <p>
-            TonPlayGram is a <strong>gaming platform, not a gambling platform</strong>. Players compete against players, and we do not use algorithms to choose, influence, or predetermine winners.
-          </p>
-          <p>
-            There is no house playing against you and no house advantage. <strong>Players win — TonPlayGram simply powers the experience.</strong>
-          </p>
-          <p>A small service fee helps us operate, maintain, and grow the ecosystem.</p>
+        <div className="home-intro__eyebrow"><ShieldCheck size={13} /> PLAYER-FIRST GAMING</div>
+        <h1 id="home-intro-title"><span>TonPlayGram</span> is built for players, <em>not the house.</em></h1>
+        <p className="home-intro__lede">A competitive gaming platform where skill, strategy and real players decide every match.</p>
+        <div className="home-intro__principles" aria-label="Our player-first principles">
+          <div className="home-intro__principle">
+            <span><Users size={18} /></span>
+            <div><strong>Player vs player</strong><small>You compete with people—not against the platform.</small></div>
+          </div>
+          <div className="home-intro__principle">
+            <span><Scale size={18} /></span>
+            <div><strong>No house advantage</strong><small>No algorithm chooses, influences or predetermines winners.</small></div>
+          </div>
         </div>
+        <p className="home-intro__fee"><Sparkles size={13} /><span>TonPlayGram powers the experience. A small service fee helps keep it running and growing.</span></p>
         <div className="home-intro__actions">
           <Link to="/games" className="home-intro__primary">Explore games <ArrowRight size={17} /></Link>
           <Link to="/ecosystem" className="home-intro__secondary">How it works</Link>
