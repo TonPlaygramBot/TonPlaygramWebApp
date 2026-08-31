@@ -73,19 +73,21 @@ const withUploadLock = (id, task) => {
 };
 const videoPrice = duration => duration > 40 ? 300 : duration >= 20 ? 200 : 0;
 const premiumPrice = value => Math.min(1_000_000, Math.max(0, Math.floor(Number(value) || 0)));
-const normalizedAuthor = author => String(author || '')
-  .normalize('NFD')
-  .replace(/[\u0300-\u036f]/g, '')
-  .trim()
-  .toLocaleLowerCase('sq');
-const isCommitteeVideo = post => post?.attachment?.type?.startsWith('video/')
-  && normalizedAuthor(post.author) === 'antar i komitetit';
 const ownsPost = (post, token) => {
   if (!post.ownerTokenHash || !token) return false;
   const supplied = Buffer.from(tokenHash(token));
   const stored = Buffer.from(post.ownerTokenHash);
   return supplied.length === stored.length && timingSafeEqual(supplied, stored);
 };
+
+// Database records are the source of truth for the public wall. In particular,
+// do not hide or delete posts based on their author: a read request must never
+// mutate content that a community member has already published.
+export const serializeWallPosts = (posts, token = '') => posts.map(({ ownerTokenHash, ...post }) => (
+  normalizedPost({ ...post, canManage: ownsPost({ ownerTokenHash }, token) })
+));
+
+export const latestWallPost = post => normalizedPost(post || null);
 
 // Large videos are uploaded in small, retryable requests. This avoids mobile and
 // reverse-proxy timeouts that occur when a multi-gigabyte request stays open.
@@ -217,26 +219,16 @@ router.post('/uploads/:id/complete', async (req, res) => {
 router.get('/posts', async (req, res) => {
   const token = ownerToken(req);
   const posts = await FlamingoPost.find().select('+ownerTokenHash').sort({ createdAt: -1 }).lean();
-  const committeeVideos = posts.filter(isCommitteeVideo);
-  if (committeeVideos.length) {
-    // Remove the withdrawn committee video from both the feed and storage.
-    // Normalizing the author also catches the previous spelling with "ë".
-    await Promise.allSettled(committeeVideos.map(async post => {
-      await FlamingoPost.deleteOne({ _id: post._id });
-      if (post.attachment?.url) await removeFlamingoMedia(path.basename(post.attachment.url), mediaDirectories);
-    }));
-  }
   // The wall is a shared live feed. Never let a browser/proxy reuse an old
   // response while another community member is publishing.
   res.setHeader('Cache-Control', 'no-store');
-  res.json({ posts: posts.filter(post => !isCommitteeVideo(post)).map(({ ownerTokenHash, ...post }) => normalizedPost({ ...post, canManage: ownsPost({ ownerTokenHash }, token) })) });
+  res.json({ posts: serializeWallPosts(posts, token) });
 });
 
 router.get('/latest-post', async (req, res) => {
-  const recentPosts = await FlamingoPost.find().sort({ createdAt: -1 }).limit(10).lean();
-  const post = recentPosts.find(item => !isCommitteeVideo(item)) || null;
+  const post = await FlamingoPost.findOne().sort({ createdAt: -1 }).lean();
   res.setHeader('Cache-Control', 'no-store');
-  res.json({ post: normalizedPost(post) });
+  res.json({ post: latestWallPost(post) });
 });
 
 router.post('/posts/content', express.json({ limit: '16kb' }), async (req, res) => {
