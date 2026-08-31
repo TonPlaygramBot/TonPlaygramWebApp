@@ -42,14 +42,14 @@ export default function HomeIntroduction() {
     <section className="home-intro" aria-labelledby="home-intro-title">
       <div className="home-intro__hero">
         <div className="home-intro__glow" aria-hidden="true" />
-        <div className="home-intro__eyebrow"><Zap size={13} fill="currentColor" /> PLAY · CONNECT · EARN</div>
-        <h1 id="home-intro-title">Your world of<br /><span>play, in one place.</span></h1>
-        <p>An independently built, mobile-first gaming ecosystem that brings competitive games, community, rewards and digital collectibles into one connected experience.</p>
+        <div className="home-intro__eyebrow"><Zap size={13} fill="currentColor" /> PLAYER-POWERED GAMING</div>
+        <h1 id="home-intro-title">The power belongs<br /><span>to the players.</span></h1>
+        <p>TonPlayGram is gaming—not gambling. No algorithm picks the winner: skill, strategy and fair play decide every match, so every victory belongs to the players.</p>
         <div className="home-intro__actions">
           <Link to="/games" className="home-intro__primary">Explore games <ArrowRight size={17} /></Link>
           <Link to="/ecosystem" className="home-intro__secondary">How it works</Link>
         </div>
-        <div className="home-intro__trust"><ShieldCheck size={16} /><span>One profile. Clear activity. Built for players.</span></div>
+        <div className="home-intro__trust"><ShieldCheck size={16} /><span>The house never wins. Players do.</span></div>
         <SocialChannels variant="hero" />
       </div>
 
