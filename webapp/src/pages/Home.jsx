@@ -31,7 +31,7 @@ const xIcon = (
 
 import { Link } from 'react-router-dom';
 
-import { API_BASE_URL, ping, getProfile, fetchTelegramInfo } from '../utils/api.js';
+import { ping, getProfile, fetchTelegramInfo } from '../utils/api.js';
 
 import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 
@@ -53,7 +53,6 @@ const getStoredWalletAddress = () => {
 export default function Home() {
   const [status, setStatus] = useState('checking');
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
-  const [latestProtestPost, setLatestProtestPost] = useState(null);
   const { tpcBalance, tonBalance, tpcWalletBalance } = useTokenBalances();
   const usdValue = useWalletUsdValue(tonBalance, tpcWalletBalance);
   const tonAddress = useTonAddress();
@@ -167,38 +166,14 @@ export default function Home() {
       window.removeEventListener('profilePhotoUpdated', handleUpdate);
   }, []);
 
-  useEffect(() => {
-    let active = true;
-    fetch(`${API_BASE_URL}/api/flamingo-wall/latest-post`, { cache: 'no-store' })
-      .then((response) => (response.ok ? response.json() : Promise.reject()))
-      .then(({ post }) => {
-        if (active) setLatestProtestPost(post || null);
-      })
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, []);
-
   return (
     <div className="home-page app-theme-page space-y-4">
       <ThemePicker />
-      <article className="home-protest-card">
-        {latestProtestPost?.attachment && (
-          <Link className="home-protest-card__thumbnail" to="/wall" aria-label="Hap postimin më të fundit">
-            {latestProtestPost.attachment.type?.startsWith('video/') ? (
-              <video
-                src={`${API_BASE_URL}${latestProtestPost.attachment.url}`}
-                muted
-                playsInline
-                preload="metadata"
-              />
-            ) : latestProtestPost.attachment.type?.startsWith('image/') ? (
-              <img src={`${API_BASE_URL}${latestProtestPost.attachment.url}`} alt="Postimi më i fundit" />
-            ) : null}
-            <span>Postimi më i fundit</span>
-          </Link>
-        )}
+      <Link
+        to="/wall"
+        className="home-protest-card group"
+        aria-label="Hap Protesta shqiptare, murin e komunitetit TonPlayGram"
+      >
         <div className="home-protest-card__glow" aria-hidden="true" />
         <div className="home-protest-card__topline">
           <span className="home-protest-card__live"><Radio aria-hidden="true" /> Hapësirë e lirë</span>
@@ -213,13 +188,10 @@ export default function Home() {
           </div>
         </div>
         <div className="home-protest-card__action">
-          <div><Users aria-hidden="true" /><span><b>Mur i hapur për të gjithë</b><small>Foto, video, artikuj dhe sondazhe nga komuniteti</small></span></div>
+          <span>Lexo dhe publiko në komunitet</span>
+          <span aria-hidden="true"><ArrowUpRight /></span>
         </div>
-        <div className="home-protest-card__buttons">
-          <Link to="/wall#wall-composer"><Megaphone /> Publiko tani</Link>
-          <Link to="/wall">Hap faqen <ArrowUpRight /></Link>
-        </div>
-      </article>
+      </Link>
       <HomeIntroduction />
       <div className="flex flex-col items-center">
         {photoUrl && (
