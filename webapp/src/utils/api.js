@@ -375,69 +375,6 @@ export function completeQuest(telegramId) {
 }
 
 
-export async function uploadProtestVideo(file, metadata = {}) {
-  const headers = buildHeaders({ 'Content-Type': 'application/json' });
-  let session;
-  try {
-    const res = await fetchWithRetry(`${API_BASE_URL}/api/protest-videos/uploads`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        name: file.name || 'protest-video.mp4',
-        type: file.type || 'video/mp4',
-        size: file.size,
-        date: metadata.date
-      })
-    });
-    session = await res.json();
-    if (!res.ok) return { error: session.error || 'Could not start upload.' };
-  } catch {
-    return { error: 'Network request failed' };
-  }
-
-  let uploadedBytes = 0;
-  const pending = Array.from({ length: session.chunks }, (_, index) => index);
-  async function uploadChunk(index) {
-    const start = index * session.chunkSize;
-    const body = file.slice(start, Math.min(start + session.chunkSize, file.size));
-    let response;
-    for (let attempt = 0; attempt < 4; attempt += 1) {
-      try {
-        response = await fetch(`${API_BASE_URL}/api/protest-videos/uploads/${session.id}/chunks/${index}`, {
-          method: 'PUT',
-          headers: buildHeaders({ 'Content-Type': 'application/octet-stream' }),
-          body
-        });
-        if (response.ok) break;
-      } catch {
-        // Retry only this chunk; completed chunks do not need to be sent again.
-      }
-      await wait(400 * (2 ** attempt));
-    }
-    if (!response?.ok) throw new Error('A video chunk could not be uploaded.');
-    uploadedBytes += body.size;
-    metadata.onProgress?.(Math.min(1, uploadedBytes / file.size));
-  }
-
-  try {
-    const workers = Array.from(
-      { length: Math.min(session.parallel || 3, session.chunks) },
-      async () => {
-        while (pending.length) await uploadChunk(pending.shift());
-      }
-    );
-    await Promise.all(workers);
-    const res = await fetch(`${API_BASE_URL}/api/protest-videos/uploads/${session.id}/complete`, {
-      method: 'POST',
-      headers: buildHeaders()
-    });
-    const data = await res.json();
-    if (!res.ok) return { error: data.error || 'Upload could not be completed.' };
-    return data;
-  } catch {
-    return { error: 'Network request failed. Your video was not compressed or changed.' };
-  }
-}
 
 export function submitInfluencerVideo(telegramId, platform, videoUrl) {
   return post('/api/influencer/submit', { telegramId, platform, videoUrl });
