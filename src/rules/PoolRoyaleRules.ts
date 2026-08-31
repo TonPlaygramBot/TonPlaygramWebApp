@@ -2,8 +2,9 @@ import { FrameState, Player, ShotContext, ShotEvent } from '../types';
 import { UkPool } from '../../lib/poolUk8Ball.js';
 import { NineBall } from '../../lib/nineBall.js';
 import { BcaEightBall } from '../../lib/bcaEightBall.js';
+import { AlbanianBilliards } from '../../lib/albanianBilliards.js';
 
-type PoolVariantId = '8ball' | 'uk' | '9ball';
+type PoolVariantId = '8ball' | 'uk' | '9ball' | 'albanian';
 
 type UkColour = 'blue' | 'red' | 'black' | 'cue';
 
@@ -50,6 +51,17 @@ type NineSerializedState = {
   breakInProgress: boolean;
 };
 
+type AlbanianSerializedState = {
+  ballsOnTable: number[];
+  currentPlayer: 'A' | 'B';
+  scores: { A: number; B: number };
+  ballInHand: boolean;
+  frameOver: boolean;
+  winner: 'A' | 'B' | 'TIE' | null;
+  breakInProgress: boolean;
+  targetScore: number;
+};
+
 type PoolMeta =
   | {
       variant: 'uk';
@@ -66,6 +78,12 @@ type PoolMeta =
   | {
       variant: '9ball';
       state: NineSerializedState;
+      hud: HudInfo;
+      breakInProgress?: boolean;
+    }
+  | {
+      variant: 'albanian';
+      state: AlbanianSerializedState;
       hud: HudInfo;
       breakInProgress?: boolean;
     };
@@ -179,6 +197,33 @@ function applyNineState(game: NineBall, snapshot: NineSerializedState) {
   };
 }
 
+function serializeAlbanianState(state: AlbanianBilliards['state']): AlbanianSerializedState {
+  return {
+    ballsOnTable: Array.from(state.ballsOnTable.values()),
+    currentPlayer: state.currentPlayer,
+    scores: { ...state.scores },
+    ballInHand: state.ballInHand,
+    frameOver: state.frameOver,
+    winner: state.winner,
+    breakInProgress: state.breakInProgress,
+    targetScore: state.targetScore
+  };
+}
+
+function applyAlbanianState(game: AlbanianBilliards, snapshot: AlbanianSerializedState) {
+  game.state = {
+    ...game.state,
+    ballsOnTable: new Set(snapshot.ballsOnTable),
+    currentPlayer: snapshot.currentPlayer,
+    scores: { ...snapshot.scores },
+    ballInHand: snapshot.ballInHand,
+    frameOver: snapshot.frameOver,
+    winner: snapshot.winner,
+    breakInProgress: snapshot.breakInProgress,
+    targetScore: snapshot.targetScore
+  };
+}
+
 function parseUkColour(value: unknown): UkColour | null {
   if (typeof value === 'number') {
     if (value === 8) return 'black';
@@ -242,6 +287,13 @@ export class PoolRoyaleRules {
       this.variant = '8ball';
     } else if (normalized === '9ball' || normalized === 'nineball' || normalized === '9') {
       this.variant = '9ball';
+    } else if (
+      normalized === 'albanian' ||
+      normalized === 'albanianbilliards' ||
+      normalized === 'bilardoshqiptar' ||
+      normalized === 'rotation61'
+    ) {
+      this.variant = 'albanian';
     } else {
       this.variant = '8ball';
     }
@@ -304,6 +356,22 @@ export class PoolRoyaleRules {
         } satisfies PoolMeta;
         return base;
       }
+      case 'albanian': {
+        const game = new AlbanianBilliards({ targetScore: 61 });
+        game.state.ballInHand = true;
+        const snapshot = serializeAlbanianState(game.state);
+        const base: FrameState = {
+          balls: [], activePlayer: 'A', players: basePlayers(playerA, playerB),
+          currentBreak: 0, phase: 'REDS_AND_COLORS', redsRemaining: 15,
+          ballOn: ['BALL_1'], frameOver: false
+        };
+        base.meta = {
+          variant: 'albanian', state: snapshot,
+          hud: { next: 'ball 1', phase: 'race to 61', scores: { A: 0, B: 0 } },
+          breakInProgress: true
+        } satisfies PoolMeta;
+        return base;
+      }
       case '8ball':
       default: {
         const game = new BcaEightBall();
@@ -342,10 +410,64 @@ export class PoolRoyaleRules {
         return this.applyUkShot(state, events, context);
       case '9ball':
         return this.applyNineBallShot(state, events, context);
+      case 'albanian':
+        return this.applyAlbanianShot(state, events, context);
       case '8ball':
       default:
         return this.applyEightBallShot(state, events, context);
     }
+  }
+
+  private applyAlbanianShot(state: FrameState, events: ShotEvent[], context: ShotContext): FrameState {
+    const meta = state.meta as PoolMeta | undefined;
+    const previous = meta && meta.variant === 'albanian' ? meta : null;
+    const game = new AlbanianBilliards({ targetScore: 61 });
+    if (previous) applyAlbanianState(game, previous.state);
+
+    const contactOrder = events
+      .filter((event) => event.type === 'HIT')
+      .map((event) => parseNumericId(event.ballId ?? event.firstContact))
+      .filter((id): id is number => id != null);
+    const potted = events
+      .filter((event) => event.type === 'POTTED')
+      .map((event) => isCueBallId(event.ballId ?? event.ball)
+        ? 0
+        : parseNumericId(event.ballId ?? event.ball))
+      .filter((id): id is number => id != null);
+    const result = game.shotTaken({
+      contactOrder,
+      potted,
+      cueOffTable: Boolean(context.cueBallPotted),
+      noCushionAfterContact: Boolean(context.noCushionAfterContact),
+      railContactsAfterFirstHit: Number(context.railContactCountAfterContact ?? 0)
+    });
+    const snapshot = serializeAlbanianState(game.state);
+    const lowest = lowestBall(snapshot.ballsOnTable);
+    const scores = { ...snapshot.scores };
+    const pottedCount = potted.filter((id) => id > 0).length;
+    return {
+      ...state,
+      activePlayer: snapshot.currentPlayer,
+      players: {
+        A: { ...state.players.A, score: scores.A },
+        B: { ...state.players.B, score: scores.B }
+      },
+      currentBreak: !result.foul && snapshot.currentPlayer === state.activePlayer && pottedCount
+        ? (state.currentBreak ?? 0) + result.pointsScored
+        : 0,
+      ballOn: lowest != null && !snapshot.frameOver ? [`BALL_${lowest}`] : [],
+      frameOver: snapshot.frameOver,
+      winner: snapshot.winner === 'TIE' || snapshot.winner == null ? undefined : snapshot.winner,
+      foul: result.foul ? { points: 0, reason: result.reason ?? 'foul' } : undefined,
+      meta: {
+        variant: 'albanian', state: snapshot,
+        hud: {
+          next: snapshot.frameOver ? 'frame over' : `ball ${lowest}`,
+          phase: snapshot.frameOver ? 'complete' : 'race to 61', scores
+        },
+        breakInProgress: snapshot.breakInProgress
+      } satisfies PoolMeta
+    };
   }
 
   private applyUkShot(state: FrameState, events: ShotEvent[], context: ShotContext): FrameState {

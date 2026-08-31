@@ -825,8 +825,9 @@ export default function PoolRoyaleLobby() {
               <div className="grid grid-cols-2 gap-3">
                 {[
                   { id: 'uk', label: '8Ball' },
-                  { id: '9ball', label: '9-Ball' }
-                ].map(({ id, label }) => {
+                  { id: '9ball', label: '9-Ball' },
+                  { id: 'albanian', label: 'Albanian Billiards', detail: 'Race to 61 points' }
+                ].map(({ id, label, detail }) => {
                   const active = variant === id;
                   return (
                     <button
@@ -851,6 +852,7 @@ export default function PoolRoyaleLobby() {
                       </div>
                       <div className="text-center">
                         <p className="lobby-option-label">{label}</p>
+                        {detail && <p className="mt-1 text-[10px] font-medium text-amber-100/75">{detail}</p>}
                       </div>
                     </button>
                   );
