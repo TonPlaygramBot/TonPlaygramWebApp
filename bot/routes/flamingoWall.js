@@ -457,7 +457,6 @@ router.get('/files/:name', async (req, res) => {
   const requestedName = path.basename(String(req.query.name || name)).replace(/["\\\r\n]/g, '');
   const asciiName = requestedName.replace(/[^\x20-\x7E]/g, '_');
   res.setHeader('Content-Disposition', `${disposition}; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(requestedName)}`);
-  res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   // Uploaded phone videos do not always keep a recognizable extension (and
   // older uploads can use MOV/M4V names). With `nosniff`, serving those files
@@ -470,12 +469,19 @@ router.get('/files/:name', async (req, res) => {
   }
   const diskPath = await findFlamingoMedia(name, mediaDirectories, post?.attachment?.name, post?.attachment?.size);
   if (diskPath) {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     return res.sendFile(diskPath, err => {
       if (err && !res.headersSent) res.status(err.statusCode || 404).end();
     });
   }
   const databaseFile = await findFlamingoDatabaseMedia(name, post?.attachment?.name, post?.attachment?.size);
-  if (!databaseFile) return res.status(404).end();
+  if (!databaseFile) {
+    // Never pin a temporarily missing media response in the browser. A disk
+    // remount or GridFS recovery should make an older upload playable again.
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(404).end();
+  }
+  res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
   return streamDatabaseMedia(req, res, databaseFile);
 });
 
