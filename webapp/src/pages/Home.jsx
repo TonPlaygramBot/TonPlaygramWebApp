@@ -169,11 +169,7 @@ export default function Home() {
   return (
     <div className="home-page app-theme-page space-y-4">
       <ThemePicker />
-      <Link
-        to="/wall"
-        className="home-protest-card group"
-        aria-label="Hap Protesta shqiptare, murin e komunitetit TonPlayGram"
-      >
+      <article className="home-protest-card">
         <div className="home-protest-card__glow" aria-hidden="true" />
         <div className="home-protest-card__topline">
           <span className="home-protest-card__live"><Radio aria-hidden="true" /> Hapësirë e lirë</span>
@@ -188,10 +184,13 @@ export default function Home() {
           </div>
         </div>
         <div className="home-protest-card__action">
-          <span>Lexo dhe publiko në komunitet</span>
-          <span aria-hidden="true"><ArrowUpRight /></span>
+          <div><Users aria-hidden="true" /><span><b>Mur i hapur për të gjithë</b><small>Foto, video, artikuj dhe sondazhe nga komuniteti</small></span></div>
         </div>
-      </Link>
+        <div className="home-protest-card__buttons">
+          <Link to="/wall#wall-composer"><Megaphone /> Publiko tani</Link>
+          <Link to="/wall">Hap faqen <ArrowUpRight /></Link>
+        </div>
+      </article>
       <HomeIntroduction />
       <div className="flex flex-col items-center">
         {photoUrl && (
