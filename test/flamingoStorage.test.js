@@ -1,7 +1,7 @@
 import os from 'os';
 import path from 'path';
 import { mkdir, mkdtemp, rm, writeFile } from 'fs/promises';
-import { findFlamingoMedia, flamingoStorageDirectories, removeFlamingoMedia } from '../bot/utils/flamingoStorage.js';
+import { findFlamingoMedia, flamingoMediaName, flamingoStorageDirectories, removeFlamingoMedia } from '../bot/utils/flamingoStorage.js';
 
 describe('Protesta Shqiptare media storage migration', () => {
   let root;
@@ -34,5 +34,18 @@ describe('Protesta Shqiptare media storage migration', () => {
     await expect(findFlamingoMedia('../protest.mp4', directories)).resolves.toBe(persistentVideo);
     await removeFlamingoMedia('../protest.mp4', directories);
     await expect(findFlamingoMedia('protest.mp4', directories)).resolves.toBeNull();
+  });
+
+  test('accepts multiple legacy snapshot directories and old absolute attachment URLs', async () => {
+    const snapshotDirectory = path.join(root, 'morning-snapshot');
+    await mkdir(snapshotDirectory);
+    const video = path.join(snapshotDirectory, 'morning protest.mp4');
+    await writeFile(video, 'video');
+
+    const name = flamingoMediaName('https://old-api.example/api/flamingo-wall/files/morning%20protest.mp4?download=1');
+    const directories = flamingoStorageDirectories(persistentDirectory, [legacyDirectory, snapshotDirectory]);
+
+    expect(name).toBe('morning protest.mp4');
+    await expect(findFlamingoMedia(name, directories)).resolves.toBe(video);
   });
 });

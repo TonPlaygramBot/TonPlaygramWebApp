@@ -2,8 +2,17 @@ import path from 'path';
 import { access, rm } from 'fs/promises';
 
 export const flamingoStorageDirectories = (primaryDirectory, legacyDirectory) => (
-  [...new Set([primaryDirectory, legacyDirectory].filter(Boolean).map(directory => path.resolve(directory)))]
+  [...new Set([primaryDirectory, ...(Array.isArray(legacyDirectory) ? legacyDirectory : [legacyDirectory])]
+    .filter(Boolean).map(directory => path.resolve(directory)))]
 );
+
+export const flamingoMediaName = url => {
+  try {
+    return path.basename(decodeURIComponent(new URL(String(url), 'https://wall.local').pathname));
+  } catch {
+    return path.basename(String(url || '').split(/[?#]/, 1)[0]);
+  }
+};
 
 export const findFlamingoMedia = async (name, directories) => {
   const safeName = path.basename(String(name || ''));
