@@ -8,6 +8,7 @@ import { createHash, randomUUID, timingSafeEqual } from 'crypto';
 import FlamingoPost from '../models/FlamingoPost.js';
 import User from '../models/User.js';
 import { optionalAuthenticate } from '../middleware/auth.js';
+import { mediaType } from '../utils/mediaType.js';
 
 const router = express.Router();
 const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -30,6 +31,10 @@ router.use(optionalAuthenticate);
 
 const safeName = (name) => path.basename(String(name || 'file'))
   .normalize('NFKD').replace(/[^a-zA-Z0-9._-]+/g, '-').slice(-160) || 'file';
+
+const normalizedPost = post => post?.attachment
+  ? { ...post, attachment: { ...post.attachment, type: mediaType(post.attachment.type, post.attachment.name) } }
+  : post;
 
 const decodeHeader = (value, fallback = '') => {
   try { return decodeURIComponent(String(value || fallback)); } catch { return fallback; }
@@ -91,7 +96,7 @@ router.post('/uploads', async (req, res) => {
     received: 0,
     chunks: {},
     name: safeName(decodeHeader(req.get('x-upload-name'), 'video.mp4')),
-    type: decodeHeader(req.get('x-upload-type'), 'application/octet-stream'),
+    type: mediaType(decodeHeader(req.get('x-upload-type'), 'application/octet-stream'), decodeHeader(req.get('x-upload-name'), 'video.mp4')),
     duration: Math.max(0, Number(req.get('x-upload-duration')) || 0),
     premium: req.get('x-upload-premium') === '1',
     priceTpg: premiumPrice(req.get('x-upload-price-tpg')),
@@ -215,14 +220,14 @@ router.get('/posts', async (req, res) => {
   // The wall is a shared live feed. Never let a browser/proxy reuse an old
   // response while another community member is publishing.
   res.setHeader('Cache-Control', 'no-store');
-  res.json({ posts: posts.filter(post => !isCommitteeVideo(post)).map(({ ownerTokenHash, ...post }) => ({ ...post, canManage: ownsPost({ ownerTokenHash }, token) })) });
+  res.json({ posts: posts.filter(post => !isCommitteeVideo(post)).map(({ ownerTokenHash, ...post }) => normalizedPost({ ...post, canManage: ownsPost({ ownerTokenHash }, token) })) });
 });
 
 router.get('/latest-post', async (req, res) => {
   const recentPosts = await FlamingoPost.find().sort({ createdAt: -1 }).limit(10).lean();
   const post = recentPosts.find(item => !isCommitteeVideo(item)) || null;
   res.setHeader('Cache-Control', 'no-store');
-  res.json({ post });
+  res.json({ post: normalizedPost(post) });
 });
 
 router.post('/posts/content', express.json({ limit: '16kb' }), async (req, res) => {
@@ -377,8 +382,9 @@ router.get('/files/:name', async (req, res) => {
   // as application/octet-stream makes Safari and Chromium refuse playback.
   // Use the MIME type captured at upload time so historical videos remain
   // playable while preserving byte-range support from sendFile.
-  if (post?.attachment?.type && /^[\w.+-]+\/[\w.+-]+$/.test(post.attachment.type)) {
-    res.type(post.attachment.type);
+  const contentType = mediaType(post?.attachment?.type, post?.attachment?.name || name);
+  if (/^[\w.+-]+\/[\w.+-]+$/.test(contentType)) {
+    res.type(contentType);
   }
   res.sendFile(path.join(uploadDirectory, name), err => {
     if (err && !res.headersSent) res.status(err.statusCode || 404).end();

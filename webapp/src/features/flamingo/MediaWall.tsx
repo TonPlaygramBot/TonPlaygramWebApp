@@ -44,6 +44,7 @@ async function savedPosts() { const db = await openMediaDb(); return new Promise
 async function savePost(post: Post) { const db = await openMediaDb(); return new Promise<void>((resolve, reject) => { const transaction = db.transaction(STORE_NAME, 'readwrite'); transaction.objectStore(STORE_NAME).put({ ...post, attachment: post.attachment ? { ...post.attachment, src: '' } : undefined }); transaction.oncomplete = () => { db.close(); resolve(); }; transaction.onerror = () => reject(transaction.error); }); }
 function formatBytes(bytes: number) { if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} GB`; if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(1)} MB`; return `${Math.max(1, Math.round(bytes / 1024))} KB`; }
 function attachmentType(file: File) { if (file.type) return file.type; if (imageExtensions.test(file.name)) return 'image/*'; if (videoExtensions.test(file.name)) return 'video/*'; return 'application/octet-stream'; }
+function normalizedAttachmentType(type: string, name: string) { if (type && type !== 'application/octet-stream') return type; if (imageExtensions.test(name)) return 'image/*'; if (videoExtensions.test(name)) return 'video/*'; return type || 'application/octet-stream'; }
 function downloadUrl(file: Attachment) { if (file.src.startsWith('blob:')) return file.src; const separator = file.src.includes('?') ? '&' : '?'; return `${file.src}${separator}download=1&name=${encodeURIComponent(file.name)}`; }
 function postId() { return globalThis.crypto?.randomUUID?.() || `post-${Date.now()}-${Math.random().toString(36).slice(2)}`; }
 function identityHeaders(extra: Record<string, string> = {}) { const headers = { ...extra, 'X-Wall-Owner-Token': OWNER_TOKEN }; const account = localStorage.getItem('accountId'); const google = localStorage.getItem('googleId'); const initData = (window as any).Telegram?.WebApp?.initData; if (account) headers['X-Tpc-Account-Id'] = account; if (google) headers['X-Google-Id'] = google; if (initData) headers['X-Telegram-Init-Data'] = initData; return headers; }
@@ -139,10 +140,10 @@ function FullscreenVideoFeed({ posts, initialPostId, engagement, commentDrafts, 
   </div>, document.body);
 }
 
-async function uploadLargePost(file: Blob, name: string, text: string, duration: number, premium: boolean, priceTpg: number, onProgress: (percent: number) => void) {
+async function uploadLargePost(file: Blob, name: string, type: string, text: string, duration: number, premium: boolean, priceTpg: number, onProgress: (percent: number) => void) {
   const encoded = (value: string) => encodeURIComponent(value);
   const uploadId = postId();
-  const started = await fetchUpload(`${API_BASE_URL}/api/flamingo-wall/uploads`, { method: 'POST', headers: identityHeaders({ 'X-Upload-Id': uploadId, 'X-Upload-Size': String(file.size), 'X-Upload-Name': encoded(name), 'X-Upload-Type': encoded(file.type || 'application/octet-stream'), 'X-Upload-Text': encoded(text), 'X-Upload-Duration': String(duration || 0), 'X-Upload-Premium': premium ? '1' : '0', 'X-Upload-Price-TPG': String(priceTpg) }) });
+  const started = await fetchUpload(`${API_BASE_URL}/api/flamingo-wall/uploads`, { method: 'POST', headers: identityHeaders({ 'X-Upload-Id': uploadId, 'X-Upload-Size': String(file.size), 'X-Upload-Name': encoded(name), 'X-Upload-Type': encoded(normalizedAttachmentType(type || file.type, name)), 'X-Upload-Text': encoded(text), 'X-Upload-Duration': String(duration || 0), 'X-Upload-Premium': premium ? '1' : '0', 'X-Upload-Price-TPG': String(priceTpg) }) });
   const session = await responsePayload(started);
   if (!started.ok) throw new Error(session.error || 'Ngarkimi nuk mund të fillonte.');
   const chunkSize = session.chunkBytes || 32 * 1024 * 1024;
@@ -197,7 +198,7 @@ export default function MediaWall({ compact = false }: { compact?: boolean }) {
       for (let index = 0; index < selected.length; index += 1) {
         const file = selected[index];
         if (!file.blob) continue;
-        const result = await uploadLargePost(file.blob, file.name, text.trim(), file.duration || 0, premium, Number(priceTpg) || 0, percent => setNotice(`Duke ngarkuar ${index + 1}/${selected.length}… ${percent}%`));
+        const result = await uploadLargePost(file.blob, file.name, file.type, text.trim(), file.duration || 0, premium, Number(priceTpg) || 0, percent => setNotice(`Duke ngarkuar ${index + 1}/${selected.length}… ${percent}%`));
         uploaded.push(result.post);
       }
       payload = { posts: uploaded };
