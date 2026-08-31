@@ -1,6 +1,7 @@
 import Busboy from 'busboy';
 import express from 'express';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { createWriteStream } from 'fs';
 import { mkdir, readFile, rename, rm, truncate, writeFile } from 'fs/promises';
 import { createHash, randomUUID, timingSafeEqual } from 'crypto';
@@ -9,7 +10,13 @@ import User from '../models/User.js';
 import { optionalAuthenticate } from '../middleware/auth.js';
 
 const router = express.Router();
-const uploadDirectory = path.resolve('data/flamingo-uploads');
+const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
+// Render starts the API from `bot/`, while local tools and tests may start it
+// from the repository root. Resolve the fallback beside the bot instead of
+// against process.cwd(), and let production point it at a persistent disk.
+const uploadDirectory = path.resolve(
+  process.env.FLAMINGO_UPLOAD_DIR || path.join(moduleDirectory, '../data/flamingo-uploads')
+);
 const maxBytes = Math.max(1, Number(process.env.FLAMINGO_UPLOAD_MAX_BYTES) || 5 * 1024 ** 3);
 // Keep each request small enough for mobile networks while allowing several
 // independent ranges to be written at once. Six 8 MB requests use less memory
