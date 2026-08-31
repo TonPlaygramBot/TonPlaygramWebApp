@@ -2,9 +2,10 @@ import Busboy from 'busboy';
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { createWriteStream } from 'fs';
+import { constants as fsConstants, createWriteStream } from 'fs';
 import { access, mkdir, readFile, rename, rm, truncate, writeFile } from 'fs/promises';
 import { createHash, randomUUID, timingSafeEqual } from 'crypto';
+import mongoose from 'mongoose';
 import FlamingoPost from '../models/FlamingoPost.js';
 import User from '../models/User.js';
 import { optionalAuthenticate } from '../middleware/auth.js';
@@ -43,6 +44,7 @@ const maxChunkBytes = Math.max(1024 ** 2, Number(process.env.FLAMINGO_UPLOAD_CHU
 const pendingDirectory = path.join(uploadDirectory, '.pending');
 const downloadGrants = new Map();
 const uploadLocks = new Map();
+const mediaBackfills = new Map();
 
 router.use(optionalAuthenticate);
 
@@ -123,6 +125,21 @@ const streamDatabaseMedia = (req, res, databaseFile) => {
   if (!stream) return res.status(404).end();
   stream.on('error', () => { if (!res.headersSent) res.status(404).end(); else res.destroy(); });
   stream.pipe(res);
+};
+
+// Lazily migrate a legacy disk-only upload without delaying playback. A
+// single promise per filename prevents several phone range requests from
+// uploading the same large video to GridFS concurrently.
+const backfillDatabaseMedia = (diskPath, name, attachment = {}) => {
+  if (!diskPath || mongoose.connection.readyState !== 1 || mediaBackfills.has(name)) return;
+  const task = saveFlamingoMediaToDatabase(diskPath, name, {
+    contentType: mediaType(attachment.type, attachment.name || name),
+    originalName: attachment.name || name,
+    size: attachment.size
+  }).catch(error => {
+    console.error(`Flamingo media backfill failed for ${name}:`, error.message);
+  }).finally(() => mediaBackfills.delete(name));
+  mediaBackfills.set(name, task);
 };
 const ownsPost = (post, token) => {
   if (!post.ownerTokenHash || !token) return false;
@@ -240,6 +257,22 @@ router.put('/uploads/:id', async (req, res) => {
 router.get('/identity', async (req, res) => {
   const user = await resolveUser(req);
   res.json({ author: displayName(user), authorAvatar: user?.photo || '' });
+});
+
+router.get('/health', async (_req, res) => {
+  try {
+    if (mongoose.connection.readyState !== 1 || !mongoose.connection.db) throw new Error('database disconnected');
+    await Promise.all([
+      mongoose.connection.db.command({ ping: 1 }),
+      mkdir(uploadDirectory, { recursive: true }),
+      access(uploadDirectory, fsConstants.R_OK | fsConstants.W_OK)
+    ]);
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ ok: true, database: 'connected', mediaStorage: 'available' });
+  } catch {
+    res.setHeader('Cache-Control', 'no-store');
+    res.status(503).json({ ok: false, database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected', mediaStorage: 'unavailable' });
+  }
 });
 
 router.post('/uploads/:id/complete', async (req, res) => {
@@ -437,7 +470,10 @@ router.get('/downloads/:grant', async (req, res) => {
   res.setHeader('Accept-Ranges', 'bytes');
   res.setHeader('Cache-Control', 'private, max-age=300');
   const diskPath = await findFlamingoMedia(grant.file, mediaDirectories, grant.originalName, grant.size);
-  if (diskPath) return res.download(diskPath, requestedName);
+  if (diskPath) {
+    backfillDatabaseMedia(diskPath, grant.file, { name: grant.originalName, size: grant.size });
+    return res.download(diskPath, requestedName);
+  }
   const databaseFile = await findFlamingoDatabaseMedia(grant.file, grant.originalName, grant.size);
   if (!databaseFile) return res.status(404).json({ error: 'Videoja nuk u gjet.' });
   res.setHeader('Content-Type', databaseFile.metadata?.contentType || 'application/octet-stream');
@@ -469,6 +505,7 @@ router.get('/files/:name', async (req, res) => {
   }
   const diskPath = await findFlamingoMedia(name, mediaDirectories, post?.attachment?.name, post?.attachment?.size);
   if (diskPath) {
+    backfillDatabaseMedia(diskPath, name, post?.attachment);
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     return res.sendFile(diskPath, err => {
       if (err && !res.headersSent) res.status(err.statusCode || 404).end();
