@@ -128,6 +128,10 @@ const BowlingLobby = React.lazy(() => import('./pages/Games/BowlingLobby.jsx'));
 const StoreThumbnailStudioPoolRoyale = React.lazy(
   () => import('./pages/Tools/StoreThumbnailStudioPoolRoyale.jsx')
 );
+const CommunityWallApp = React.lazy(
+  () => import('./features/flamingo/CommunityWallApp.tsx')
+);
+
 export default function App() {
   // Enforce canonical origin for wallet connection flows.
   // TonConnect can hang if the manifest URL/origin mismatch.
@@ -213,6 +217,8 @@ export default function App() {
               <Route path="/achievements" element={<EcosystemTopic topic="achievements" />} />
               <Route path="/roadmap" element={<EcosystemTopic topic="roadmap" />} />
               <Route path="/tokenomics" element={<EcosystemTopic topic="tokenomics" />} />
+              <Route path="/wall" element={<CommunityWallApp />} />
+              <Route path="/flamingo/*" element={<Navigate to="/wall" replace />} />
               <Route path="/earn" element={<Earn />} />
               <Route path="/social" element={<Social />} />
               <Route path="/mining" element={<Navigate to="/earn#mining" replace />} />
