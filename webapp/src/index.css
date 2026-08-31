@@ -188,6 +188,9 @@ body {
 .home-intro h1 { margin:16px 0 12px; font-size:clamp(32px,10vw,46px); line-height:.98; letter-spacing:-.045em; font-weight:900; }
 .home-intro h1 span { color:#f8fafc; }
 .home-intro__hero>p { max-width:430px; margin:0; color:#b9c5dc; font-size:13px; line-height:1.62; }
+.home-intro__message { display:grid; gap:12px; max-width:430px; color:#b9c5dc; font-size:13px; line-height:1.62; }
+.home-intro__message p { margin:0; }
+.home-intro__message strong { color:#f8fafc; font-weight:800; }
 .home-intro__actions { display:grid; grid-template-columns:1.35fr 1fr; gap:9px; margin-top:20px; }
 .home-intro__primary,.home-intro__secondary { min-height:45px; display:flex; align-items:center; justify-content:center; gap:7px; border-radius:13px; font-size:13px; font-weight:800; text-decoration:none; }
 .home-intro__primary { color:#07111e; background:linear-gradient(100deg,#65e6ff,#8aa5ff); box-shadow:0 10px 28px rgba(57,188,255,.23); }
