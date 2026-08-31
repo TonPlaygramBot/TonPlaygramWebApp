@@ -1,5 +1,9 @@
 import path from 'path';
+import { createReadStream } from 'fs';
 import { access, rm } from 'fs/promises';
+import mongoose from 'mongoose';
+
+const BUCKET_NAME = 'flamingoMedia';
 
 export const flamingoStorageDirectories = (primaryDirectory, legacyDirectory) => (
   [...new Set([primaryDirectory, ...(Array.isArray(legacyDirectory) ? legacyDirectory : [legacyDirectory])]
@@ -12,6 +16,54 @@ export const flamingoMediaName = url => {
   } catch {
     return path.basename(String(url || '').split(/[?#]/, 1)[0]);
   }
+};
+
+const database = () => mongoose.connection.readyState === 1 ? mongoose.connection.db : null;
+const bucket = () => {
+  const db = database();
+  return db ? new mongoose.mongo.GridFSBucket(db, { bucketName: BUCKET_NAME }) : null;
+};
+
+export const findFlamingoDatabaseMedia = async name => {
+  const db = database();
+  const safeName = path.basename(String(name || ''));
+  if (!db || !safeName) return null;
+  return db.collection(`${BUCKET_NAME}.files`).findOne(
+    { filename: safeName },
+    { sort: { uploadDate: -1 } }
+  );
+};
+
+// GridFS keeps the original bytes in MongoDB in small chunks. The filename is
+// the same stable key already stored in FlamingoPost, so old and new API URLs
+// can resolve media without embedding multi-gigabyte data in a post document.
+export const saveFlamingoMediaToDatabase = async (diskPath, name, metadata = {}) => {
+  const mediaBucket = bucket();
+  const safeName = path.basename(String(name || ''));
+  if (!mediaBucket) throw new Error('Lidhja me databazën e videove nuk është gati.');
+  const existing = await findFlamingoDatabaseMedia(safeName);
+  if (existing?.length === metadata.size || (existing && metadata.size == null)) return existing;
+  if (existing) await mediaBucket.delete(existing._id);
+  return new Promise((resolve, reject) => {
+    const input = createReadStream(diskPath);
+    const output = mediaBucket.openUploadStream(safeName, { metadata });
+    input.on('error', reject);
+    output.on('error', reject);
+    output.on('finish', () => resolve({ _id: output.id, filename: safeName, length: output.length }));
+    input.pipe(output);
+  });
+};
+
+export const openFlamingoDatabaseMedia = (file, options) => {
+  const mediaBucket = bucket();
+  return mediaBucket && file?._id ? mediaBucket.openDownloadStream(file._id, options) : null;
+};
+
+export const removeFlamingoDatabaseMedia = async name => {
+  const mediaBucket = bucket();
+  if (!mediaBucket) return;
+  const file = await findFlamingoDatabaseMedia(name);
+  if (file) await mediaBucket.delete(file._id);
 };
 
 export const findFlamingoMedia = async (name, directories) => {
@@ -30,5 +82,8 @@ export const findFlamingoMedia = async (name, directories) => {
 
 export const removeFlamingoMedia = async (name, directories) => {
   const safeName = path.basename(String(name || ''));
-  await Promise.all(directories.map(directory => rm(path.join(directory, safeName), { force: true })));
+  await Promise.all([
+    ...directories.map(directory => rm(path.join(directory, safeName), { force: true })),
+    removeFlamingoDatabaseMedia(safeName)
+  ]);
 };
