@@ -116,8 +116,6 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
     height: 44
   });
   const [opponentRect, setOpponentRect] = useState(null);
-  const [groupOpponentRects, setGroupOpponentRects] = useState([]);
-  const [groupOpponentAnchorElements, setGroupOpponentAnchorElements] = useState([]);
   const [hasBlockingOverlay, setHasBlockingOverlay] = useState(false);
 
   const displayName = useMemo(() => {
@@ -253,47 +251,28 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
         0
       );
       setAnchorElement(node);
-      if (gameSlug === 'domino-royal' || gameSlug === 'murlanroyale') {
-        const opponentNodes = [];
-        const opponentBoundsList = [];
+      if (gameSlug === 'domino-royal') {
+        let opponentNode = null;
+        let opponentBounds = null;
         for (const context of getIframeContexts()) {
-          const selector = gameSlug === 'domino-royal'
-            ? '[data-player-index]:not([data-self-player="true"]) .seat-badge-core'
-            : '[data-self-player="false"] [data-player-index] img';
-          context.doc.querySelectorAll(selector).forEach((candidate) => {
-            if (opponentNodes.length >= 3) return;
-            const localRect = candidate.getBoundingClientRect();
-            if (localRect.width <= 8 || localRect.height <= 8) return;
-            const diameter = Math.min(localRect.width, localRect.height);
-            opponentNodes.push(candidate);
-            opponentBoundsList.push({
-              top: Math.round(localRect.top + context.offsetY + (localRect.height - diameter) / 2),
-              left: Math.round(localRect.left + context.offsetX + (localRect.width - diameter) / 2),
-              width: Math.round(diameter),
-              height: Math.round(diameter)
-            });
-          });
+          const candidate = context.doc.querySelector(
+            '[data-player-index]:not([data-self-player="true"]) .seat-badge-core'
+          );
+          if (!candidate) continue;
+          const localRect = candidate.getBoundingClientRect();
+          if (localRect.width <= 8 || localRect.height <= 8) continue;
+          opponentNode = candidate;
+          const diameter = Math.min(localRect.width, localRect.height);
+          opponentBounds = {
+            top: Math.round(localRect.top + context.offsetY + (localRect.height - diameter) / 2),
+            left: Math.round(localRect.left + context.offsetX + (localRect.width - diameter) / 2),
+            width: Math.round(diameter),
+            height: Math.round(diameter)
+          };
+          break;
         }
-        setGroupOpponentAnchorElements((previous) => (
-          previous.length === opponentNodes.length &&
-          previous.every((element, index) => element === opponentNodes[index])
-            ? previous
-            : opponentNodes
-        ));
-        setGroupOpponentRects((previous) => (
-          previous.length === opponentBoundsList.length &&
-          previous.every((bounds, index) => {
-            const nextBounds = opponentBoundsList[index];
-            return bounds.top === nextBounds.top &&
-              bounds.left === nextBounds.left &&
-              bounds.width === nextBounds.width &&
-              bounds.height === nextBounds.height;
-          })
-            ? previous
-            : opponentBoundsList
-        ));
-        setOpponentAnchorElement(gameSlug === 'domino-royal' ? opponentNodes[0] || null : null);
-        setOpponentRect(gameSlug === 'domino-royal' ? opponentBoundsList[0] || null : null);
+        setOpponentAnchorElement(opponentNode);
+        setOpponentRect(opponentBounds);
       }
       setOverlayRect((prev) => {
         if (
@@ -422,18 +401,6 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
   }, [opponentAnchorElement, liveMode]);
 
   useEffect(() => {
-    const previousVisibility = groupOpponentAnchorElements.map((element) => element.style.visibility);
-    groupOpponentAnchorElements.forEach((element) => {
-      if (liveMode) element.style.visibility = 'hidden';
-    });
-    return () => {
-      groupOpponentAnchorElements.forEach((element, index) => {
-        element.style.visibility = previousVisibility[index] || '';
-      });
-    };
-  }, [groupOpponentAnchorElements, liveMode]);
-
-  useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const handleStartEvent = (event) => {
       const eventSlug = event?.detail?.gameSlug;
@@ -518,30 +485,6 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
           )}
         </div>
       ) : null}
-      {liveMode && gameSlug === 'murlanroyale'
-        ? groupOpponentRects.map((rect, index) => (
-            <div
-              key={`murlan-live-seat-${index}`}
-              className="fixed z-[25] overflow-hidden rounded-full pointer-events-none"
-              style={{
-                top: `${rect.top}px`,
-                left: `${rect.left}px`,
-                width: `${rect.width}px`,
-                height: `${rect.height}px`,
-                opacity: hasBlockingOverlay ? 0 : 1,
-                ...AVATAR_FRAME_STYLES
-              }}
-            >
-              {liveChat.remotePeers[index] ? (
-                <RemoteVideo peer={liveChat.remotePeers[index]} />
-              ) : (
-                <div className="flex h-full items-center justify-center bg-slate-950 text-center text-[8px] font-semibold text-white/70">
-                  Waiting…
-                </div>
-              )}
-            </div>
-          ))
-        : null}
       {liveMode ? (
         <div
           className={`fixed right-3 z-[18] flex flex-col gap-2 pointer-events-auto ${gameSlug === 'domino-royal' ? 'w-auto' : 'w-28'}`}
@@ -552,7 +495,7 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
           }}
           aria-live="polite"
         >
-          {gameSlug !== 'domino-royal' && gameSlug !== 'murlanroyale' ? <div className="h-36 w-28">
+          {gameSlug !== 'domino-royal' ? <div className="h-36 w-28">
             {liveChat.remotePeers[0] ? (
               <RemoteVideo peer={liveChat.remotePeers[0]} />
             ) : (

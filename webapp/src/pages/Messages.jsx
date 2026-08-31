@@ -3,7 +3,6 @@ import {
   ArrowLeft, Bell, BellOff, Camera, CheckCheck, Download, FileText, Gamepad2, Image, Mic, MoreHorizontal,
   Paperclip, Phone, Plus, Search, Send, ShieldCheck, Smile, Trophy, Users, Video, X
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import LoginOptions from '../components/LoginOptions.jsx';
 import { getPlayerId, getTelegramId } from '../utils/telegram.js';
@@ -267,12 +266,6 @@ export default function Messages() {
           <span><b>{friends.length}</b> Online</span>
           <span><b>{incomingRequests.length}</b> Requests</span>
         </div>
-
-        <Link className="social-manager-card" to="/social-manager">
-          <span className="social-manager-card-icon"><Video /></span>
-          <span><small>CREATOR TOOL</small><strong>Social Manager</strong><em>Post or go live everywhere</em></span>
-          <span className="social-manager-card-open">Open</span>
-        </Link>
 
         <nav className="messages-tabs" aria-label="Social hub sections">
           {tabs.map(({ id, label, Icon }) => (
