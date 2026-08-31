@@ -107,7 +107,8 @@ const DEFAULT_FRAME_RATE_ID = 'fhd60';
 
 const MODEL_SCALE = 0.75;
 const CHARACTER_PROPORTION_SCALE = 1.82;
-const ENABLE_3D_HUMAN_CHARACTERS = true;
+const ENABLE_3D_HUMAN_CHARACTERS = false;
+const ENABLE_VOICE_COMMENTARY = false;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
 const CHAIR_SIZE_SCALE = 1.14;
 const CHAIR_HEIGHT_TRIM_SCALE = 0.96;
@@ -3640,6 +3641,7 @@ export default function MurlanRoyaleArena({ search }) {
     return DEFAULT_COMMENTARY_PRESET_ID;
   });
   const [commentaryMuted, setCommentaryMuted] = useState(() => {
+    if (!ENABLE_VOICE_COMMENTARY) return true;
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(COMMENTARY_MUTE_STORAGE_KEY);
       if (stored === '1') return true;
@@ -3910,6 +3912,7 @@ export default function MurlanRoyaleArena({ search }) {
   }, [activeCommentaryPreset?.id, commentarySpeakers]);
 
   useEffect(() => {
+    if (!ENABLE_VOICE_COMMENTARY) return undefined;
     const updateSupport = () => setCommentarySupported(getSpeechSupport());
     updateSupport();
     const unsubscribe = onSpeechSupportChange((supported) => setCommentarySupported(Boolean(supported)));
@@ -3996,6 +3999,7 @@ export default function MurlanRoyaleArena({ search }) {
 
   const enqueueMurlanCommentary = useCallback(
     (lines, { priority = false, preset = activeCommentaryPreset } = {}) => {
+      if (!ENABLE_VOICE_COMMENTARY) return;
       if (!Array.isArray(lines) || lines.length === 0) return;
       if (commentaryMutedRef.current || isGameMuted()) return;
       const now = performance.now();
@@ -4053,6 +4057,7 @@ export default function MurlanRoyaleArena({ search }) {
   );
 
   const unlockCommentary = useCallback(() => {
+    if (!ENABLE_VOICE_COMMENTARY) return;
     if (commentaryReadyRef.current) return;
     primeSpeechSynthesis();
     const synth = getSpeechSynthesis();
@@ -4124,6 +4129,7 @@ export default function MurlanRoyaleArena({ search }) {
   }, []);
 
   useEffect(() => {
+    if (!ENABLE_VOICE_COMMENTARY) return;
     if (!gameState) return;
     const snapshot = commentaryEventRef.current;
     const previousActionId = snapshot.lastActionId;
