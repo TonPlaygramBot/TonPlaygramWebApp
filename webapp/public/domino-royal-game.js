@@ -37,15 +37,6 @@ const DEFAULT_FRAME_RATE_ID = 'fhd60';
 const DEFAULT_HDRI_RESOLUTION_KEY = '8k';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
-    id: 'hd50',
-    label: 'Low (50 Hz)',
-    fps: 50,
-    renderScale: 0.85,
-    pixelRatioCap: 0.85,
-    resolution: '1K assets • low-memory mode',
-    description: 'Safer profile for low-power phones and group video calls.'
-  },
-  {
     id: 'fhd60',
     label: '2K (60 Hz)',
     fps: 60,
@@ -109,20 +100,17 @@ const MURLAN_3D_ASSET_RESOLUTION = Object.freeze({
 });
 
 const FRAME_RATE_TEXTURE_SIZE_MAP = Object.freeze({
-  hd50: 1024,
   fhd60: 2048,
   qhd90: 4096,
   uhd120: IS_HIGH_REFRESH_MOBILE ? 4096 : 8192
 });
 
 const DOMINO_TEXTURE_SIZE_MAP = Object.freeze({
-  hd50: 1024,
   fhd60: 2048,
   qhd90: 4096,
   uhd120: IS_HIGH_REFRESH_MOBILE ? 4096 : 8192
 });
 const FRAME_RATE_MODEL_RESOLUTION_ORDER_MAP = Object.freeze({
-  hd50: Object.freeze(['1k']),
   fhd60: Object.freeze(['2k', '1k']),
   qhd90: Object.freeze(['4k', '2k', '1k']),
   uhd120: IS_HIGH_REFRESH_MOBILE
@@ -131,12 +119,13 @@ const FRAME_RATE_MODEL_RESOLUTION_ORDER_MAP = Object.freeze({
 });
 
 const AVATAR_TEXTURE_SIZE_MAP = Object.freeze({
-  hd50: 512,
   fhd60: 2048,
   qhd90: 4096,
   uhd120: IS_HIGH_REFRESH_MOBILE ? 4096 : 8192
 });
-const LEGACY_FRAME_RATE_ALIASES = Object.freeze({});
+const LEGACY_FRAME_RATE_ALIASES = Object.freeze({
+  hd50: 'fhd60'
+});
 
 function getAdaptiveTextureSize(baseSize = 2048) {
   const mappedSize =
@@ -180,8 +169,6 @@ function resolveGraphicsModelResolutions(qualityId = DEFAULT_FRAME_RATE_ID) {
 
 function resolveTelegramPixelRatioCap(qualityId = DEFAULT_FRAME_RATE_ID) {
   switch (qualityId) {
-    case 'hd50':
-      return 0.85;
     case 'fhd60':
       return 1;
     case 'qhd90':
@@ -342,7 +329,7 @@ function detectPreferredFrameRateId() {
     return DEFAULT_FRAME_RATE_ID;
   }
   if (IS_TELEGRAM_RUNTIME) {
-    return 'hd50';
+    return 'fhd60';
   }
   const coarsePointer = detectCoarsePointer();
   const ua = navigator.userAgent ?? '';
@@ -358,7 +345,7 @@ function detectPreferredFrameRateId() {
   const rendererTier = classifyRendererTier(readGraphicsRendererString());
 
   if (lowRefresh) {
-    return 'hd50';
+    return 'fhd60';
   }
 
   if (isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile') {
@@ -366,7 +353,7 @@ function detectPreferredFrameRateId() {
       (deviceMemory !== null && deviceMemory <= 4) ||
       hardwareConcurrency <= 4
     ) {
-      return 'hd50';
+      return 'fhd60';
     }
     if (
       highRefresh &&
@@ -422,7 +409,7 @@ function buildFrameQuality(optionId) {
   const pixelRatioCap =
     typeof option?.pixelRatioCap === 'number' &&
     Number.isFinite(option.pixelRatioCap)
-      ? Math.max(0.75, option.pixelRatioCap)
+      ? Math.max(1, option.pixelRatioCap)
       : resolveDefaultPixelRatioCap();
   return {
     id: option?.id ?? DEFAULT_FRAME_RATE_ID,
@@ -460,12 +447,6 @@ function resolveInitialFrameRateId() {
     return normalizedUrlPreset;
   }
   if (typeof window !== 'undefined') {
-    const detected = detectPreferredFrameRateId();
-    // A stored high-quality choice must not put a constrained phone back under
-    // memory pressure before the player can reach the settings panel.
-    if (detected === 'hd50') {
-      return 'hd50';
-    }
     try {
       const stored = window.localStorage?.getItem(FRAME_RATE_STORAGE_KEY);
       const normalizedStored = normalizeFrameRateId(stored);
@@ -481,7 +462,7 @@ function resolveInitialFrameRateId() {
   }
   const detected = detectPreferredFrameRateId();
   if (IS_TELEGRAM_RUNTIME) {
-    return 'hd50';
+    return 'fhd60';
   }
   if (FRAME_RATE_OPTIONS_BY_ID[detected]) {
     return detected;
@@ -491,8 +472,6 @@ function resolveInitialFrameRateId() {
 
 function resolveGraphicsHdriResolutionId(qualityId = DEFAULT_FRAME_RATE_ID) {
   switch (qualityId) {
-    case 'hd50':
-      return '1k';
     case 'uhd120':
       return '8k';
     case 'qhd90':
@@ -949,7 +928,6 @@ function applyRendererQuality(quality = frameQuality) {
     ? Math.min(cappedRatio, resolveTelegramPixelRatioCap(quality?.id))
     : cappedRatio;
   renderer.setPixelRatio(Math.min(runtimePixelRatioCap, dpr));
-  renderer.shadowMap.enabled = !IS_TELEGRAM_RUNTIME && quality?.id !== 'hd50';
   if (IS_TELEGRAM_RUNTIME && quality && typeof quality === 'object') {
     setRendererSize({
       ...quality,
@@ -12177,40 +12155,9 @@ function monitorFrameHealth(elapsedMs, timing) {
 
 /* ---------- Loop & Resize ---------- */
 let lastFrameTime = performance.now();
-let frameTimeAccumulatorMs = 0;
 let animationFrameId = null;
 let isGameShuttingDown = false;
 let runtimeListenersDetached = false;
-let videoPressureObserver = null;
-let videoPressureCheckTimer = null;
-let videoSafetyModeEnabled = false;
-
-function countActiveVideoParticipants() {
-  if (typeof document === 'undefined') return 0;
-  return Array.from(document.querySelectorAll('video')).filter((video) => {
-    if (!video?.isConnected) return false;
-    const stream = video.srcObject;
-    const hasLiveTrack =
-      typeof stream?.getVideoTracks === 'function' &&
-      stream.getVideoTracks().some((track) => track.readyState === 'live');
-    return hasLiveTrack || (!video.paused && video.readyState >= 2);
-  }).length;
-}
-
-function protectGroupVideoCall() {
-  if (videoSafetyModeEnabled || countActiveVideoParticipants() < 3) return;
-  videoSafetyModeEnabled = true;
-  applyFrameRateSelection('hd50', { source: 'video-safety' });
-  setStatus('50 Hz low graphics enabled for group video stability');
-}
-
-function startVideoPressureMonitor() {
-  protectGroupVideoCall();
-  videoPressureObserver = new MutationObserver(protectGroupVideoCall);
-  videoPressureObserver.observe(document.body, { childList: true, subtree: true });
-  document.addEventListener('playing', protectGroupVideoCall, true);
-  videoPressureCheckTimer = window.setInterval(protectGroupVideoCall, 2000);
-}
 
 const runtimeMessageHandler = (event) => {
   const message = event?.data;
@@ -12234,13 +12181,6 @@ function detachRuntimeListeners() {
   window.removeEventListener('beforeunload', onLifecycleShutdown);
   window.removeEventListener('unload', onLifecycleShutdown);
   window.removeEventListener('message', runtimeMessageHandler);
-  document.removeEventListener('playing', protectGroupVideoCall, true);
-  videoPressureObserver?.disconnect?.();
-  videoPressureObserver = null;
-  if (videoPressureCheckTimer) {
-    window.clearInterval(videoPressureCheckTimer);
-    videoPressureCheckTimer = null;
-  }
 }
 
 function shutdownDominoRoyal(reason = 'unknown') {
@@ -12310,13 +12250,8 @@ function tick(now) {
     ? timing.maxMs
     : targetMs * FRAME_TIME_CATCH_UP_MULTIPLIER;
   const elapsed = Math.max(current - lastFrameTime, 0);
+  const step = Math.min(elapsed, maxMs);
   lastFrameTime = current;
-  frameTimeAccumulatorMs = Math.min(frameTimeAccumulatorMs + elapsed, maxMs);
-  if (frameTimeAccumulatorMs + 0.25 < targetMs) {
-    return;
-  }
-  const step = frameTimeAccumulatorMs;
-  frameTimeAccumulatorMs %= targetMs;
   const deltaSeconds = Math.min(0.2, Math.max(0, step / 1000));
   monitorFrameHealth(elapsed, timing);
 
@@ -12379,8 +12314,6 @@ function onResize() {
 
 function onVisibilityChange() {
   slowFrameAccumulatorMs = 0;
-  frameTimeAccumulatorMs = 0;
-  lastFrameTime = performance.now();
 }
 
 function onLifecycleShutdown() {
@@ -12396,7 +12329,6 @@ window.addEventListener('pagehide', onLifecycleShutdown);
 window.addEventListener('beforeunload', onLifecycleShutdown);
 window.addEventListener('unload', onLifecycleShutdown);
 window.addEventListener('message', runtimeMessageHandler);
-startVideoPressureMonitor();
 animationFrameId = requestAnimationFrame(tick);
 
 if (shouldRunHallwayEntry) {

@@ -24,7 +24,6 @@ const RTC_CONFIG = {
 };
 
 const EMPTY_MEDIA_STATE = Object.freeze({ microphone: true, camera: true });
-const MAX_REMOTE_PEERS = 3;
 
 export default function useLiveVideoChat({ roomId, displayName, enabled, video = true }) {
   const [isConnected, setIsConnected] = useState(false);
@@ -100,9 +99,6 @@ export default function useLiveVideoChat({ roomId, displayName, enabled, video =
     if (!socketId || socketId === socket.id) return null;
     const existing = peersRef.current.get(socketId);
     if (existing) return existing;
-    // Murlan Royale is a four-player call: one local stream plus at most three
-    // independent remote peer connections in the room mesh.
-    if (peersRef.current.size >= MAX_REMOTE_PEERS) return null;
 
     const peerConnection = new RTCPeerConnection(RTC_CONFIG);
     peersRef.current.set(socketId, peerConnection);
@@ -362,17 +358,12 @@ export default function useLiveVideoChat({ roomId, displayName, enabled, video =
       upsertRemotePeer(socketId, { mediaState: nextMediaState || EMPTY_MEDIA_STATE });
     };
 
-    const handleRoomFull = ({ message } = {}) => {
-      setError(message || 'This live video room already has four players.');
-    };
-
     socket.on('connect', handleSocketConnect);
     socket.on('liveChat:participants', handleParticipants);
     socket.on('liveChat:peer-joined', handlePeerJoined);
     socket.on('liveChat:signal', handleSignal);
     socket.on('liveChat:peer-left', handlePeerLeft);
     socket.on('liveChat:media_state', handleMediaState);
-    socket.on('liveChat:room-full', handleRoomFull);
 
     return () => {
       socket.off('connect', handleSocketConnect);
@@ -381,7 +372,6 @@ export default function useLiveVideoChat({ roomId, displayName, enabled, video =
       socket.off('liveChat:signal', handleSignal);
       socket.off('liveChat:peer-left', handlePeerLeft);
       socket.off('liveChat:media_state', handleMediaState);
-      socket.off('liveChat:room-full', handleRoomFull);
     };
   }, [addOrQueueIceCandidate, closePeer, createOfferForPeer, displayName, emitSignal, enabled, ensurePeerConnection, flushIceCandidates, mediaState, safeRoomId, upsertRemotePeer]);
 
