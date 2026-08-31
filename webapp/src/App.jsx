@@ -311,9 +311,7 @@ export default function App() {
                       </div>
                     }
                   >
-                    <GameLiveAvatarOverlay gameSlug="checkersbattleroyal">
-                      <CheckersBattleRoyal />
-                    </GameLiveAvatarOverlay>
+                    <CheckersBattleRoyal />
                   </Suspense>
                 }
               />
