@@ -10,6 +10,7 @@ import User from '../models/User.js';
 import { optionalAuthenticate } from '../middleware/auth.js';
 import { mediaType } from '../utils/mediaType.js';
 import { findFlamingoDatabaseMedia, findFlamingoMedia, flamingoMediaName, flamingoStorageDirectories, openFlamingoDatabaseMedia, removeFlamingoMedia, saveFlamingoMediaToDatabase } from '../utils/flamingoStorage.js';
+import { wallMediaPostQuery } from '../utils/flamingoPostLookup.js';
 
 const router = express.Router();
 const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -446,7 +447,7 @@ router.get('/downloads/:grant', async (req, res) => {
 
 router.get('/files/:name', async (req, res) => {
   const name = path.basename(req.params.name);
-  const post = await FlamingoPost.findOne({ 'attachment.url': `/api/flamingo-wall/files/${name}` }).lean();
+  const post = await FlamingoPost.findOne(wallMediaPostQuery(name)).lean();
   if (req.query.download === '1') {
     if (post?.attachment?.type?.startsWith('video/') || post?.attachment?.premium) {
       return res.status(403).json({ error: 'Përdor butonin e shkarkimit që të zbatohet pagesa TPG.' });
