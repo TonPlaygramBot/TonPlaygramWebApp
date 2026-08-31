@@ -13,6 +13,7 @@ import { mediaType } from '../utils/mediaType.js';
 import { setFlamingoMediaResponseHeaders } from '../utils/flamingoMediaResponse.js';
 import { findFlamingoDatabaseMedia, findFlamingoMedia, flamingoMediaName, flamingoStorageDirectories, openFlamingoDatabaseMedia, removeFlamingoMedia, saveFlamingoMediaToDatabase } from '../utils/flamingoStorage.js';
 import { wallMediaPostQuery } from '../utils/flamingoPostLookup.js';
+import { createFlamingoDownloadGrant, readFlamingoDownloadGrant } from '../utils/flamingoDownloadGrant.js';
 
 const router = express.Router();
 const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -43,7 +44,6 @@ const maxBytes = Math.max(1, Number(process.env.FLAMINGO_UPLOAD_MAX_BYTES) || 5 
 // than the former three 32 MB requests and no longer queue behind one another.
 const maxChunkBytes = Math.max(1024 ** 2, Number(process.env.FLAMINGO_UPLOAD_CHUNK_BYTES) || 8 * 1024 ** 2);
 const pendingDirectory = path.join(uploadDirectory, '.pending');
-const downloadGrants = new Map();
 const uploadLocks = new Map();
 const mediaBackfills = new Map();
 
@@ -456,14 +456,13 @@ router.post('/posts/:id/download', async (req, res) => {
     }, { new: true });
     if (!user) return res.status(402).json({ error: `Të duhen ${price} TPG për ta shkarkuar këtë video.` });
   }
-  const grant = randomUUID();
-  downloadGrants.set(grant, { file, originalName: post.attachment.name, size: post.attachment.size, expiresAt: Date.now() + 5 * 60_000 });
+  const grant = createFlamingoDownloadGrant({ file, originalName: post.attachment.name, size: post.attachment.size });
   res.json({ downloadUrl: `/api/flamingo-wall/downloads/${grant}?name=${encodeURIComponent(post.attachment.name)}`, price, balance: user?.balance });
 });
 
 router.get('/downloads/:grant', async (req, res) => {
-  const grant = downloadGrants.get(req.params.grant);
-  if (!grant || grant.expiresAt < Date.now()) return res.status(403).json({ error: 'Lidhja e shkarkimit ka skaduar.' });
+  const grant = readFlamingoDownloadGrant(req.params.grant);
+  if (!grant) return res.status(403).json({ error: 'Lidhja e shkarkimit ka skaduar.' });
   const requestedName = path.basename(String(req.query.name || grant.file)).replace(/["\\\r\n]/g, '');
   // sendFile (used by res.download) supports byte ranges; these headers make
   // that resumable behavior explicit and let a briefly interrupted phone
