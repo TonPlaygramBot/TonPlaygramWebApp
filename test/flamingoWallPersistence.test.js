@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { latestWallPost, serializeWallPosts } from '../bot/routes/flamingoWall.js';
+import { attachmentDownloadPrice, latestWallPost, serializeWallPosts } from '../bot/routes/flamingoWall.js';
 
 test('keeps every published wall video in the database-backed feed', () => {
   const posts = [
@@ -28,4 +28,9 @@ test('shows the newest database post on the home page without author filtering',
 
   assert.equal(latestWallPost(newest)._id, 'morning-video');
   assert.equal(latestWallPost(null), null);
+});
+
+test('uses the original filename when an older video has no stored MIME type', () => {
+  assert.equal(attachmentDownloadPrice({ name: 'protesta-e-mengjesit.mov', duration: 25 }), 200);
+  assert.equal(attachmentDownloadPrice({ name: 'njoftim.pdf' }), 0);
 });

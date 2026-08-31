@@ -9,7 +9,7 @@ import FlamingoPost from '../models/FlamingoPost.js';
 import User from '../models/User.js';
 import { optionalAuthenticate } from '../middleware/auth.js';
 import { mediaType } from '../utils/mediaType.js';
-import { findFlamingoMedia, flamingoStorageDirectories, removeFlamingoMedia } from '../utils/flamingoStorage.js';
+import { findFlamingoMedia, flamingoMediaName, flamingoStorageDirectories, removeFlamingoMedia } from '../utils/flamingoStorage.js';
 
 const router = express.Router();
 const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -25,7 +25,14 @@ const uploadDirectory = path.resolve(
 // from turning every earlier wall video into a 404.
 const mediaDirectories = flamingoStorageDirectories(
   uploadDirectory,
-  path.join(moduleDirectory, '../data/flamingo-uploads')
+  [
+    // This is the location used by the wall before persistent storage was
+    // enabled. Keep it readable so morning uploads continue to work.
+    path.join(moduleDirectory, '../data/flamingo-uploads'),
+    // Allow an old Render disk/snapshot to be mounted read-only during a
+    // migration without changing where current uploads are written.
+    ...String(process.env.FLAMINGO_LEGACY_UPLOAD_DIRS || '').split(path.delimiter)
+  ]
 );
 const maxBytes = Math.max(1, Number(process.env.FLAMINGO_UPLOAD_MAX_BYTES) || 5 * 1024 ** 3);
 // Keep each request small enough for mobile networks while allowing several
@@ -73,6 +80,10 @@ const withUploadLock = (id, task) => {
 };
 const videoPrice = duration => duration > 40 ? 300 : duration >= 20 ? 200 : 0;
 const premiumPrice = value => Math.min(1_000_000, Math.max(0, Math.floor(Number(value) || 0)));
+export const attachmentDownloadPrice = attachment => {
+  const type = mediaType(attachment?.type, attachment?.name);
+  return attachment?.premium ? premiumPrice(attachment.priceTpg) : type.startsWith('video/') ? videoPrice(attachment?.duration) : 0;
+};
 const ownsPost = (post, token) => {
   if (!post.ownerTokenHash || !token) return false;
   const supplied = Buffer.from(tokenHash(token));
@@ -326,7 +337,7 @@ router.delete('/posts/:id', async (req, res) => {
   if (!post) return res.status(404).json({ error: 'Postimi nuk u gjet.' });
   if (!ownsPost(post, ownerToken(req))) return res.status(403).json({ error: 'Vetëm autori mund ta fshijë postimin.' });
   await post.deleteOne();
-  if (post.attachment?.url) await removeFlamingoMedia(path.basename(post.attachment.url), mediaDirectories);
+  if (post.attachment?.url) await removeFlamingoMedia(flamingoMediaName(post.attachment.url), mediaDirectories);
   res.status(204).end();
 });
 
@@ -335,9 +346,13 @@ router.post('/posts/:id/download', async (req, res) => {
   if (!selector) return res.status(401).json({ error: 'Hyr në llogari për ta shkarkuar videon.' });
   const post = await FlamingoPost.findById(req.params.id).lean();
   if (!post?.attachment?.url) return res.status(404).json({ error: 'Videoja nuk u gjet.' });
-  const price = post.attachment.premium
-    ? premiumPrice(post.attachment.priceTpg)
-    : post.attachment.type.startsWith('video/') ? videoPrice(post.attachment.duration) : 0;
+  const file = flamingoMediaName(post.attachment.url);
+  // Check the morning/legacy location before taking any TPG. Older database
+  // rows can have a missing or generic MIME type, but their original filename
+  // is still sufficient to identify and serve the video.
+  const diskPath = await findFlamingoMedia(file, mediaDirectories);
+  if (!diskPath) return res.status(404).json({ error: 'Videoja origjinale nuk u gjet në hapësirën e ruajtjes.' });
+  const price = attachmentDownloadPrice(post.attachment);
   let user = await User.findOne(selector);
   if (!user) return res.status(404).json({ error: 'Llogaria nuk u gjet.' });
   if (price) {
@@ -348,7 +363,7 @@ router.post('/posts/:id/download', async (req, res) => {
     if (!user) return res.status(402).json({ error: `Të duhen ${price} TPG për ta shkarkuar këtë video.` });
   }
   const grant = randomUUID();
-  downloadGrants.set(grant, { file: path.basename(post.attachment.url), expiresAt: Date.now() + 5 * 60_000 });
+  downloadGrants.set(grant, { file, expiresAt: Date.now() + 5 * 60_000 });
   res.json({ downloadUrl: `/api/flamingo-wall/downloads/${grant}?name=${encodeURIComponent(post.attachment.name)}`, price, balance: user.balance });
 });
 
