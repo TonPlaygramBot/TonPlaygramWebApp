@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { getSocialProvider, SOCIAL_PLATFORMS, validateSocialContent } from '../services/socialProviders.js';
 
 test('provider registry supports every initial platform without hardcoding the composer', () => {
-  assert.deepEqual(SOCIAL_PLATFORMS, ['instagram', 'facebook', 'tiktok', 'youtube', 'x', 'threads']);
+  assert.deepEqual(SOCIAL_PLATFORMS, ['instagram', 'facebook', 'tiktok', 'youtube', 'x', 'threads', 'telegram', 'discord']);
   for (const platform of SOCIAL_PLATFORMS) assert.equal(getSocialProvider(platform).platform, platform);
 });
 
