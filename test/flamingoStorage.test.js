@@ -48,4 +48,17 @@ describe('Protesta Shqiptare media storage migration', () => {
     expect(name).toBe('morning protest.mp4');
     await expect(findFlamingoMedia(name, directories)).resolves.toBe(video);
   });
+
+  test('recovers a missing historical UUID from an identical retried upload', async () => {
+    const retriedVideo = path.join(persistentDirectory, 'new-uuid-21900.mp4');
+    await writeFile(retriedVideo, 'same original video');
+    const directories = flamingoStorageDirectories(persistentDirectory, legacyDirectory);
+
+    await expect(findFlamingoMedia(
+      'missing-old-uuid-21900.mp4', directories, '21900.mp4', 19
+    )).resolves.toBe(retriedVideo);
+    await expect(findFlamingoMedia(
+      'missing-old-uuid-21900.mp4', directories, '21900.mp4', 20
+    )).resolves.toBeNull();
+  });
 });
