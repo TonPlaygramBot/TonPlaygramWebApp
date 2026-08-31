@@ -84,6 +84,45 @@ export const attachmentDownloadPrice = attachment => {
   const type = mediaType(attachment?.type, attachment?.name);
   return attachment?.premium ? premiumPrice(attachment.priceTpg) : type.startsWith('video/') ? videoPrice(attachment?.duration) : 0;
 };
+
+// Mobile browsers depend on byte ranges to read video metadata and to seek.
+// Keep this parser independent from Express so both playback and download
+// endpoints apply identical RFC 7233 single-range behavior.
+export const mediaByteRange = (header, length) => {
+  const value = String(header || '').trim();
+  if (!value) return null;
+  const match = value.match(/^bytes=(\d*)-(\d*)$/i);
+  if (!match || (!match[1] && !match[2]) || !Number.isSafeInteger(length) || length < 1) return false;
+  let start;
+  let end;
+  if (!match[1]) {
+    const suffixLength = Number(match[2]);
+    if (!Number.isSafeInteger(suffixLength) || suffixLength < 1) return false;
+    start = Math.max(0, length - suffixLength);
+    end = length - 1;
+  } else {
+    start = Number(match[1]);
+    end = match[2] ? Math.min(Number(match[2]), length - 1) : length - 1;
+  }
+  if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || start >= length || end < start) return false;
+  return { start, end };
+};
+
+const streamDatabaseMedia = (req, res, databaseFile) => {
+  const range = mediaByteRange(req.get('range'), databaseFile.length);
+  if (range === false) {
+    res.setHeader('Content-Range', `bytes */${databaseFile.length}`);
+    return res.status(416).end();
+  }
+  const { start, end } = range || { start: 0, end: databaseFile.length - 1 };
+  if (range) res.status(206).setHeader('Content-Range', `bytes ${start}-${end}/${databaseFile.length}`);
+  res.setHeader('Accept-Ranges', 'bytes');
+  res.setHeader('Content-Length', end - start + 1);
+  const stream = openFlamingoDatabaseMedia(databaseFile, { start, end: end + 1 });
+  if (!stream) return res.status(404).end();
+  stream.on('error', () => { if (!res.headersSent) res.status(404).end(); else res.destroy(); });
+  stream.pipe(res);
+};
 const ownsPost = (post, token) => {
   if (!post.ownerTokenHash || !token) return false;
   const supplied = Buffer.from(tokenHash(token));
@@ -359,8 +398,6 @@ router.delete('/posts/:id', async (req, res) => {
 });
 
 router.post('/posts/:id/download', async (req, res) => {
-  const selector = userSelector(req);
-  if (!selector) return res.status(401).json({ error: 'Hyr në llogari për ta shkarkuar videon.' });
   const post = await FlamingoPost.findById(req.params.id).lean();
   if (!post?.attachment?.url) return res.status(404).json({ error: 'Videoja nuk u gjet.' });
   const file = flamingoMediaName(post.attachment.url);
@@ -373,8 +410,10 @@ router.post('/posts/:id/download', async (req, res) => {
   ]);
   if (!diskPath && !databaseFile) return res.status(404).json({ error: 'Videoja origjinale nuk u gjet në hapësirën e ruajtjes.' });
   const price = attachmentDownloadPrice(post.attachment);
-  let user = await User.findOne(selector);
-  if (!user) return res.status(404).json({ error: 'Llogaria nuk u gjet.' });
+  const selector = userSelector(req);
+  if (price && !selector) return res.status(401).json({ error: 'Hyr në llogari për ta shkarkuar videon.' });
+  let user = selector ? await User.findOne(selector) : null;
+  if (selector && !user) return res.status(404).json({ error: 'Llogaria nuk u gjet.' });
   if (price) {
     user = await User.findOneAndUpdate({ _id: user._id, balance: { $gte: price } }, {
       $inc: { balance: -price },
@@ -384,7 +423,7 @@ router.post('/posts/:id/download', async (req, res) => {
   }
   const grant = randomUUID();
   downloadGrants.set(grant, { file, originalName: post.attachment.name, size: post.attachment.size, expiresAt: Date.now() + 5 * 60_000 });
-  res.json({ downloadUrl: `/api/flamingo-wall/downloads/${grant}?name=${encodeURIComponent(post.attachment.name)}`, price, balance: user.balance });
+  res.json({ downloadUrl: `/api/flamingo-wall/downloads/${grant}?name=${encodeURIComponent(post.attachment.name)}`, price, balance: user?.balance });
 });
 
 router.get('/downloads/:grant', async (req, res) => {
@@ -399,13 +438,10 @@ router.get('/downloads/:grant', async (req, res) => {
   const diskPath = await findFlamingoMedia(grant.file, mediaDirectories, grant.originalName, grant.size);
   if (diskPath) return res.download(diskPath, requestedName);
   const databaseFile = await findFlamingoDatabaseMedia(grant.file, grant.originalName, grant.size);
-  const stream = openFlamingoDatabaseMedia(databaseFile);
-  if (!stream) return res.status(404).json({ error: 'Videoja nuk u gjet.' });
-  res.setHeader('Content-Length', databaseFile.length);
+  if (!databaseFile) return res.status(404).json({ error: 'Videoja nuk u gjet.' });
   res.setHeader('Content-Type', databaseFile.metadata?.contentType || 'application/octet-stream');
   res.setHeader('Content-Disposition', `attachment; filename="${requestedName}"; filename*=UTF-8''${encodeURIComponent(requestedName)}`);
-  stream.on('error', () => { if (!res.headersSent) res.status(404).end(); else res.destroy(); });
-  stream.pipe(res);
+  return streamDatabaseMedia(req, res, databaseFile);
 });
 
 router.get('/files/:name', async (req, res) => {
@@ -439,23 +475,7 @@ router.get('/files/:name', async (req, res) => {
   }
   const databaseFile = await findFlamingoDatabaseMedia(name, post?.attachment?.name, post?.attachment?.size);
   if (!databaseFile) return res.status(404).end();
-  const range = String(req.get('range') || '').match(/^bytes=(\d*)-(\d*)$/);
-  let start = 0;
-  let end = databaseFile.length - 1;
-  if (range) {
-    start = range[1] ? Number(range[1]) : 0;
-    end = range[2] ? Math.min(Number(range[2]), end) : end;
-    if (!Number.isSafeInteger(start) || start < 0 || start > end) {
-      res.setHeader('Content-Range', `bytes */${databaseFile.length}`);
-      return res.status(416).end();
-    }
-    res.status(206).setHeader('Content-Range', `bytes ${start}-${end}/${databaseFile.length}`);
-  }
-  res.setHeader('Accept-Ranges', 'bytes');
-  res.setHeader('Content-Length', end - start + 1);
-  const stream = openFlamingoDatabaseMedia(databaseFile, { start, end: end + 1 });
-  stream.on('error', () => { if (!res.headersSent) res.status(404).end(); else res.destroy(); });
-  stream.pipe(res);
+  return streamDatabaseMedia(req, res, databaseFile);
 });
 
 export default router;
