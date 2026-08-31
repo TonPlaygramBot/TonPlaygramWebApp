@@ -189,13 +189,13 @@ export default function Home() {
           <Link className="home-protest-card__thumbnail" to="/wall" aria-label="Hap postimin më të fundit">
             {latestProtestPost.attachment.type?.startsWith('video/') ? (
               <video
-                src={resolveWallMediaUrl(API_BASE_URL, latestProtestPost.attachment.url)}
+                src={resolveWallMediaUrl(API_BASE_URL, latestProtestPost.attachment.url, latestProtestPost.attachment.size)}
                 muted
                 playsInline
                 preload="metadata"
               />
             ) : latestProtestPost.attachment.type?.startsWith('image/') ? (
-              <img src={resolveWallMediaUrl(API_BASE_URL, latestProtestPost.attachment.url)} alt="Postimi më i fundit" />
+              <img src={resolveWallMediaUrl(API_BASE_URL, latestProtestPost.attachment.url, latestProtestPost.attachment.size)} alt="Postimi më i fundit" />
             ) : null}
             <span>Postimi më i fundit</span>
           </Link>
