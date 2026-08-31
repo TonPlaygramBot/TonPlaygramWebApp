@@ -6,10 +6,6 @@ services:
     rootDir: bot
     buildCommand: npm install && npm --prefix ../webapp install && WEBAPP_BUILD_MAX_OLD_SPACE_SIZE=1536 npm --prefix ../webapp run build
     startCommand: npm start
-    disk:
-      name: protest-media
-      mountPath: /var/data/tonplaygram
-      sizeGB: 10
     envVars:
       - key: MONGO_URI
         fromSecret: MONGO_URI
@@ -38,9 +34,6 @@ services:
         fromSecret: RPC_URL
       - key: DEV_ACCOUNT_ID
         fromSecret: DEV_ACCOUNT_ID
-      # Community photos and videos must outlive API restarts and deployments.
-      - key: FLAMINGO_UPLOAD_DIR
-        value: /var/data/tonplaygram/flamingo-uploads
       - key: SOCIAL_PROVIDER_MODE
         value: disabled
 
