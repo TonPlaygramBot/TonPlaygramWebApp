@@ -1,15 +1,32 @@
 import Busboy from 'busboy';
 import express from 'express';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { createWriteStream } from 'fs';
 import { mkdir, readFile, rename, rm, truncate, writeFile } from 'fs/promises';
 import { createHash, randomUUID, timingSafeEqual } from 'crypto';
 import FlamingoPost from '../models/FlamingoPost.js';
 import User from '../models/User.js';
 import { optionalAuthenticate } from '../middleware/auth.js';
+import { mediaType } from '../utils/mediaType.js';
+import { findFlamingoMedia, flamingoStorageDirectories, removeFlamingoMedia } from '../utils/flamingoStorage.js';
 
 const router = express.Router();
-const uploadDirectory = path.resolve('data/flamingo-uploads');
+const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
+// Render starts the API from `bot/`, while local tools and tests may start it
+// from the repository root. Resolve the fallback beside the bot instead of
+// against process.cwd(), and let production point it at a persistent disk.
+const uploadDirectory = path.resolve(
+  process.env.FLAMINGO_UPLOAD_DIR || path.join(moduleDirectory, '../data/flamingo-uploads')
+);
+// Keep reading the original application-local directory after production is
+// switched to a persistent disk. Existing database records still point at
+// those file names, so checking both locations prevents a storage migration
+// from turning every earlier wall video into a 404.
+const mediaDirectories = flamingoStorageDirectories(
+  uploadDirectory,
+  path.join(moduleDirectory, '../data/flamingo-uploads')
+);
 const maxBytes = Math.max(1, Number(process.env.FLAMINGO_UPLOAD_MAX_BYTES) || 5 * 1024 ** 3);
 // Keep each request small enough for mobile networks while allowing several
 // independent ranges to be written at once. Six 8 MB requests use less memory
@@ -23,6 +40,10 @@ router.use(optionalAuthenticate);
 
 const safeName = (name) => path.basename(String(name || 'file'))
   .normalize('NFKD').replace(/[^a-zA-Z0-9._-]+/g, '-').slice(-160) || 'file';
+
+const normalizedPost = post => post?.attachment
+  ? { ...post, attachment: { ...post.attachment, type: mediaType(post.attachment.type, post.attachment.name) } }
+  : post;
 
 const decodeHeader = (value, fallback = '') => {
   try { return decodeURIComponent(String(value || fallback)); } catch { return fallback; }
@@ -51,19 +72,22 @@ const withUploadLock = (id, task) => {
   return current.finally(() => { if (uploadLocks.get(id) === current) uploadLocks.delete(id); });
 };
 const videoPrice = duration => duration > 40 ? 300 : duration >= 20 ? 200 : 0;
-const normalizedAuthor = author => String(author || '')
-  .normalize('NFD')
-  .replace(/[\u0300-\u036f]/g, '')
-  .trim()
-  .toLocaleLowerCase('sq');
-const isCommitteeVideo = post => post?.attachment?.type?.startsWith('video/')
-  && normalizedAuthor(post.author) === 'antar i komitetit';
+const premiumPrice = value => Math.min(1_000_000, Math.max(0, Math.floor(Number(value) || 0)));
 const ownsPost = (post, token) => {
   if (!post.ownerTokenHash || !token) return false;
   const supplied = Buffer.from(tokenHash(token));
   const stored = Buffer.from(post.ownerTokenHash);
   return supplied.length === stored.length && timingSafeEqual(supplied, stored);
 };
+
+// Database records are the source of truth for the public wall. In particular,
+// do not hide or delete posts based on their author: a read request must never
+// mutate content that a community member has already published.
+export const serializeWallPosts = (posts, token = '') => posts.map(({ ownerTokenHash, ...post }) => (
+  normalizedPost({ ...post, canManage: ownsPost({ ownerTokenHash }, token) })
+));
+
+export const latestWallPost = post => normalizedPost(post || null);
 
 // Large videos are uploaded in small, retryable requests. This avoids mobile and
 // reverse-proxy timeouts that occur when a multi-gigabyte request stays open.
@@ -83,8 +107,10 @@ router.post('/uploads', async (req, res) => {
     received: 0,
     chunks: {},
     name: safeName(decodeHeader(req.get('x-upload-name'), 'video.mp4')),
-    type: decodeHeader(req.get('x-upload-type'), 'application/octet-stream'),
+    type: mediaType(decodeHeader(req.get('x-upload-type'), 'application/octet-stream'), decodeHeader(req.get('x-upload-name'), 'video.mp4')),
     duration: Math.max(0, Number(req.get('x-upload-duration')) || 0),
+    premium: req.get('x-upload-premium') === '1',
+    priceTpg: premiumPrice(req.get('x-upload-price-tpg')),
     text: decodeHeader(req.get('x-upload-text')).slice(0, 1200),
     ownerTokenHash: tokenHash(ownerToken(req)),
     createdAt: Date.now()
@@ -175,7 +201,7 @@ router.post('/uploads/:id/complete', async (req, res) => {
     await rename(paths.data, path.join(uploadDirectory, storedName));
     await rm(paths.meta, { force: true });
     const user = await resolveUser(req);
-    const attachment = { name: metadata.name, size: metadata.size, type: metadata.type, duration: metadata.duration, url: `/api/flamingo-wall/files/${storedName}` };
+    const attachment = { name: metadata.name, size: metadata.size, type: metadata.type, duration: metadata.duration, premium: metadata.premium && metadata.priceTpg > 0, priceTpg: metadata.premium ? metadata.priceTpg : 0, url: `/api/flamingo-wall/files/${storedName}` };
     const post = await FlamingoPost.create({ text: metadata.text, author: displayName(user), authorAvatar: user?.photo || '', authorAccountId: user?.accountId || '', attachment, ownerTokenHash: metadata.ownerTokenHash });
     res.status(201).json({ post });
   } catch (err) {
@@ -193,19 +219,16 @@ router.post('/uploads/:id/complete', async (req, res) => {
 router.get('/posts', async (req, res) => {
   const token = ownerToken(req);
   const posts = await FlamingoPost.find().select('+ownerTokenHash').sort({ createdAt: -1 }).lean();
-  const committeeVideos = posts.filter(isCommitteeVideo);
-  if (committeeVideos.length) {
-    // Remove the withdrawn committee video from both the feed and storage.
-    // Normalizing the author also catches the previous spelling with "ë".
-    await Promise.allSettled(committeeVideos.map(async post => {
-      await FlamingoPost.deleteOne({ _id: post._id });
-      if (post.attachment?.url) await rm(path.join(uploadDirectory, path.basename(post.attachment.url)), { force: true });
-    }));
-  }
   // The wall is a shared live feed. Never let a browser/proxy reuse an old
   // response while another community member is publishing.
   res.setHeader('Cache-Control', 'no-store');
-  res.json({ posts: posts.filter(post => !isCommitteeVideo(post)).map(({ ownerTokenHash, ...post }) => ({ ...post, canManage: ownsPost({ ownerTokenHash }, token) })) });
+  res.json({ posts: serializeWallPosts(posts, token) });
+});
+
+router.get('/latest-post', async (req, res) => {
+  const post = await FlamingoPost.findOne().sort({ createdAt: -1 }).lean();
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ post: latestWallPost(post) });
 });
 
 router.post('/posts/content', express.json({ limit: '16kb' }), async (req, res) => {
@@ -303,7 +326,7 @@ router.delete('/posts/:id', async (req, res) => {
   if (!post) return res.status(404).json({ error: 'Postimi nuk u gjet.' });
   if (!ownsPost(post, ownerToken(req))) return res.status(403).json({ error: 'Vetëm autori mund ta fshijë postimin.' });
   await post.deleteOne();
-  if (post.attachment?.url) await rm(path.join(uploadDirectory, path.basename(post.attachment.url)), { force: true });
+  if (post.attachment?.url) await removeFlamingoMedia(path.basename(post.attachment.url), mediaDirectories);
   res.status(204).end();
 });
 
@@ -312,7 +335,9 @@ router.post('/posts/:id/download', async (req, res) => {
   if (!selector) return res.status(401).json({ error: 'Hyr në llogari për ta shkarkuar videon.' });
   const post = await FlamingoPost.findById(req.params.id).lean();
   if (!post?.attachment?.url) return res.status(404).json({ error: 'Videoja nuk u gjet.' });
-  const price = post.attachment.type.startsWith('video/') ? videoPrice(post.attachment.duration) : 0;
+  const price = post.attachment.premium
+    ? premiumPrice(post.attachment.priceTpg)
+    : post.attachment.type.startsWith('video/') ? videoPrice(post.attachment.duration) : 0;
   let user = await User.findOne(selector);
   if (!user) return res.status(404).json({ error: 'Llogaria nuk u gjet.' });
   if (price) {
@@ -327,7 +352,7 @@ router.post('/posts/:id/download', async (req, res) => {
   res.json({ downloadUrl: `/api/flamingo-wall/downloads/${grant}?name=${encodeURIComponent(post.attachment.name)}`, price, balance: user.balance });
 });
 
-router.get('/downloads/:grant', (req, res) => {
+router.get('/downloads/:grant', async (req, res) => {
   const grant = downloadGrants.get(req.params.grant);
   if (!grant || grant.expiresAt < Date.now()) return res.status(403).json({ error: 'Lidhja e shkarkimit ka skaduar.' });
   const requestedName = path.basename(String(req.query.name || grant.file)).replace(/["\\\r\n]/g, '');
@@ -336,14 +361,16 @@ router.get('/downloads/:grant', (req, res) => {
   // download continue without transferring the completed bytes again.
   res.setHeader('Accept-Ranges', 'bytes');
   res.setHeader('Cache-Control', 'private, max-age=300');
-  res.download(path.join(uploadDirectory, grant.file), requestedName);
+  const diskPath = await findFlamingoMedia(grant.file, mediaDirectories);
+  if (!diskPath) return res.status(404).json({ error: 'Videoja nuk u gjet.' });
+  res.download(diskPath, requestedName);
 });
 
 router.get('/files/:name', async (req, res) => {
   const name = path.basename(req.params.name);
+  const post = await FlamingoPost.findOne({ 'attachment.url': `/api/flamingo-wall/files/${name}` }).lean();
   if (req.query.download === '1') {
-    const post = await FlamingoPost.findOne({ 'attachment.url': `/api/flamingo-wall/files/${name}` }).lean();
-    if (post?.attachment?.type?.startsWith('video/')) {
+    if (post?.attachment?.type?.startsWith('video/') || post?.attachment?.premium) {
       return res.status(403).json({ error: 'Përdor butonin e shkarkimit që të zbatohet pagesa TPG.' });
     }
   }
@@ -353,7 +380,18 @@ router.get('/files/:name', async (req, res) => {
   res.setHeader('Content-Disposition', `${disposition}; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(requestedName)}`);
   res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.sendFile(path.join(uploadDirectory, name), err => {
+  // Uploaded phone videos do not always keep a recognizable extension (and
+  // older uploads can use MOV/M4V names). With `nosniff`, serving those files
+  // as application/octet-stream makes Safari and Chromium refuse playback.
+  // Use the MIME type captured at upload time so historical videos remain
+  // playable while preserving byte-range support from sendFile.
+  const contentType = mediaType(post?.attachment?.type, post?.attachment?.name || name);
+  if (/^[\w.+-]+\/[\w.+-]+$/.test(contentType)) {
+    res.type(contentType);
+  }
+  const diskPath = await findFlamingoMedia(name, mediaDirectories);
+  if (!diskPath) return res.status(404).end();
+  res.sendFile(diskPath, err => {
     if (err && !res.headersSent) res.status(err.statusCode || 404).end();
   });
 });
