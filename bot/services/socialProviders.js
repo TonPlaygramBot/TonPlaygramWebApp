@@ -1,4 +1,4 @@
-export const SOCIAL_PLATFORMS = ['instagram', 'facebook', 'tiktok', 'youtube', 'x', 'threads', 'telegram', 'discord'];
+export const SOCIAL_PLATFORMS = ['instagram', 'facebook', 'tiktok', 'youtube', 'x', 'threads'];
 
 const limits = {
   instagram: { caption: 2200, mime: ['image/', 'video/'], mediaRequired: true },
@@ -6,9 +6,7 @@ const limits = {
   tiktok: { caption: 2200, mime: ['video/'], mediaRequired: true },
   youtube: { caption: 5000, mime: ['video/'], mediaRequired: true, titleRequired: true },
   x: { caption: 280, mime: ['image/', 'video/'] },
-  threads: { caption: 500, mime: ['image/', 'video/'] },
-  telegram: { caption: 4096, mime: ['image/', 'video/'] },
-  discord: { caption: 2000, mime: ['image/', 'video/'] }
+  threads: { caption: 500, mime: ['image/', 'video/'] }
 };
 
 export function validateSocialContent(platform, content) {
