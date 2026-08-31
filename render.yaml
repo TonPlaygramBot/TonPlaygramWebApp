@@ -1,7 +1,10 @@
 services:
   - type: web
     runtime: node
-    name: tonplaygram-api
+    # This is the public service used by the Telegram and native clients. The
+    # persistent wall-media disk must be mounted here, not on the suspended
+    # legacy `tonplaygram-api` service.
+    name: tonplaygram-bot
     branch: main
     rootDir: bot
     buildCommand: npm install && npm --prefix ../webapp install && WEBAPP_BUILD_MAX_OLD_SPACE_SIZE=1536 npm --prefix ../webapp run build
@@ -56,7 +59,7 @@ services:
       - key: AUTH_REQUIRED
         value: true
       - key: ACCOUNT_API_URL
-        value: https://tonplaygram-api.onrender.com
+        value: https://tonplaygram-bot.onrender.com
       - key: MATCHMAKING_SERVICE_SECRET
         fromSecret: MATCHMAKING_SERVICE_SECRET
       - key: REDIS_URL
