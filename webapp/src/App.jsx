@@ -218,6 +218,7 @@ export default function App() {
               <Route path="/flamingo/*" element={<Navigate to="/wall" replace />} />
               <Route path="/earn" element={<Earn />} />
               <Route path="/social" element={<Social />} />
+              <Route path="/social-manager" element={<SocialAdmin />} />
               <Route path="/mining" element={<Navigate to="/earn#mining" replace />} />
               <Route
                 path="/mining/transactions"
