@@ -2193,6 +2193,16 @@ const POOL_VARIANT_COLOR_SETS = Object.freeze({
       'solid',
       'stripe'
     ]
+  },
+  albanian: {
+    id: 'albanian',
+    label: 'Albanian Billiards · 61',
+    cueColor: 0xffffff,
+    rackLayout: 'triangle',
+    disableSnookerMarkings: true,
+    objectColors: AMERICAN_BALL_SET.objectColors,
+    objectNumbers: AMERICAN_BALL_SET.objectNumbers,
+    objectPatterns: AMERICAN_BALL_SET.objectPatterns
   }
 });
 
@@ -2224,6 +2234,13 @@ function resolvePoolVariant(variantId, ballSet = null) {
   let key = normalized;
   if (normalized === '9' || normalized === 'nineball') {
     key = '9ball';
+  } else if (
+    normalized === 'albanian' ||
+    normalized === 'albanianbilliards' ||
+    normalized === 'bilardoshqiptar' ||
+    normalized === 'rotation61'
+  ) {
+    key = 'albanian';
   } else if (
     normalized === 'american' ||
     normalized === 'americanbilliards' ||
@@ -9334,7 +9351,7 @@ export function Table3D(
 
   const markingsGroup = new THREE.Group();
   const markingMat = new THREE.MeshBasicMaterial({
-    color: resolvedTableOptions?.tableModel?.useReferenceShowoodMapping ? 0xffffff : palette.markings,
+    color: 0xffffff,
     transparent: true,
     opacity: 1,
     side: THREE.DoubleSide,
@@ -9349,7 +9366,9 @@ export function Table3D(
       ? Math.max(0, resolvedTableOptions.tableModel.markingVisualLift)
       : 0;
   const markingHeight = clothPlaneLocal - CLOTH_DROP + MICRO_EPS * 2 + externalMarkingLift;
-  const lineThickness = Math.max(BALL_R * 0.1, 0.1);
+  // A bright, slightly raised head string remains readable on a phone even on
+  // pale cloth textures and externally loaded table models.
+  const lineThickness = Math.max(BALL_R * 0.16, 0.14);
   const baulkLineLength = PLAY_W - SIDE_RAIL_INNER_THICKNESS * 0.4;
   const baulkLineGeom = new THREE.PlaneGeometry(baulkLineLength, lineThickness);
   const baulkLine = new THREE.Mesh(baulkLineGeom, markingMat);
@@ -9357,6 +9376,8 @@ export function Table3D(
   baulkLine.position.set(0, markingHeight, baulkLineZ);
   baulkLine.userData.externalTableKeepVisible = true;
   baulkLine.userData.externalTableAlwaysKeepVisible = true;
+  baulkLine.visible = true;
+  baulkLine.renderOrder = cloth.renderOrder + 30;
   markingsGroup.add(baulkLine);
 
   const dArc = null;
@@ -29234,7 +29255,7 @@ const shotPowerRef = useRef(0);
         let placedFromHand = false;
         const meta = frameSnapshot?.meta;
         if (meta && typeof meta === 'object') {
-          if (meta.variant === 'american' && meta.state) {
+          if ((meta.variant === 'american' || meta.variant === 'albanian') && meta.state) {
             placedFromHand = Boolean(meta.state.ballInHand);
           } else if (meta.variant === '9ball' && meta.state) {
             placedFromHand = Boolean(meta.state.ballInHand);
@@ -30068,7 +30089,7 @@ const shotPowerRef = useRef(0);
           const normalized = normalizeTargetId(assignment);
           if (normalized === 'RED') return ['RED'];
           if (normalized === 'BLUE' || normalized === 'YELLOW') {
-            return variantId === 'american' ? ['SOLID'] : ['YELLOW', 'BLUE'];
+            return variantId === 'american' ? ['SOLID'] : variantId === 'albanian' ? ['BALL_1'] : ['YELLOW', 'BLUE'];
           }
           if (normalized === 'BLACK') return ['BLACK', 'BALL_8'];
           if (normalized === 'SOLID' || normalized === 'SOLIDS') return ['SOLID'];
@@ -30204,7 +30225,7 @@ const shotPowerRef = useRef(0);
           // shot to the endgame instead of only improving late in the frame.
           const shouldAnalyzeLeave = true;
           const isRotationVariant =
-            activeVariantId === 'american' || activeVariantId === '9ball';
+            activeVariantId === 'american' || activeVariantId === 'albanian' || activeVariantId === '9ball';
           const activeBalls = ballsList.filter((b) => b.active);
           const targetOrder = resolveTargetPriorities(state, activeVariantId, activeBalls);
           const legalTargetsRaw = Array.isArray(state?.ballOn) && state.ballOn.length > 0
@@ -30218,7 +30239,7 @@ const shotPowerRef = useRef(0);
               .filter((entry) => entry && isBallTargetId(entry))
           );
           if (legalTargets.size === 0) {
-            if (activeVariantId === 'american' || activeVariantId === '9ball') {
+            if (activeVariantId === 'american' || activeVariantId === 'albanian' || activeVariantId === '9ball') {
               const lowestActive = activeBalls
                 .filter((b) => String(b?.id).toLowerCase() !== 'cue')
                 .reduce(
@@ -30700,7 +30721,7 @@ const shotPowerRef = useRef(0);
               };
             safetyShots.push(safetyPlan);
           });
-          if (!potShots.length && (activeVariantId === 'american' || activeVariantId === '9ball')) {
+          if (!potShots.length && (activeVariantId === 'american' || activeVariantId === 'albanian' || activeVariantId === '9ball')) {
             const targetBall = activeBalls
               .filter((b) => b.id !== cueBall.id)
               .sort((a, b) => a.id - b.id)[0];

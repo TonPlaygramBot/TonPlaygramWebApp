@@ -1,4 +1,7 @@
-# American Billiards (Rotation) — Race to 61
+# Albanian Billiards (15-Ball Rotation) — Race to 61
+
+This mode is deliberately implemented as its own `albanian` ruleset. It does
+not reuse or alter the 8Ball, UK 8Ball, or 9-Ball win conditions.
 
 ## Objective
 - Use balls **1–15**.
@@ -26,3 +29,17 @@
 - Immediate win when a player reaches **61+** points.
 - If all balls are gone before anyone reaches 61, higher score wins.
 - Equal scores at clear table result in a tie.
+
+## Research basis
+
+The Albanian game requested here follows the established 15-ball **rotation**
+family: balls score their printed number, the lowest numbered ball must be hit
+first, any legally pocketed ball counts, and the 120 available points make 61
+the winning majority. These references were consulted while defining the mode:
+
+- [Rotation overview and 61-point scoring](https://en.wikipedia.org/wiki/Rotation_(pool))
+- [Virtual Pool 4 rotation rules](https://vponline.celeris.com/support/rules/id/11)
+- [Albanian Billiards and Snooker Federation rules portal](https://fshbs.al/rregullat/)
+
+Where local rule traditions vary, Pool Royale uses the explicit foul handling
+above so AI, local, and online matches remain deterministic.
