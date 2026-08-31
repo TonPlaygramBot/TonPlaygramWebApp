@@ -220,6 +220,32 @@ public class SpinActivationTests
 
         Assert.That(ball.SpinEffectsEnabled, Is.True);
     }
+
+    [TestCase(0.35)]
+    [TestCase(0.8)]
+    [TestCase(-0.8)]
+    public void EnglishRetainsSpinWithoutDeflectingFromGuide(double sideSpin)
+    {
+        var solver = new BilliardsSolver();
+        solver.InitStandardTable();
+        var ball = new BilliardsSolver.Ball
+        {
+            Position = new Vec2(0.4, 0.5),
+            Velocity = new Vec2(2.0, 0),
+            SideSpin = sideSpin,
+            ForwardSpin = PhysicsConstants.RollingSpinRatio * 2.0,
+            SpinEffectsEnabled = true
+        };
+
+        solver.Step(new List<BilliardsSolver.Ball> { ball }, 0.1);
+
+        Assert.That(ball.Velocity.Y, Is.EqualTo(0).Within(1e-9),
+            "English must not steer the cue ball away from its direction line.");
+        Assert.That(Math.Sign(ball.SideSpin), Is.EqualTo(Math.Sign(sideSpin)),
+            "The selected spin direction must be preserved.");
+        Assert.That(Math.Abs(ball.SideSpin), Is.GreaterThan(0),
+            "Removing deflection must not remove the ball's spin.");
+    }
 }
 
 public class PocketMouthGuardGeometryTests
