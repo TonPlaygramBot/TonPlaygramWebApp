@@ -1,6 +1,7 @@
 import Busboy from 'busboy';
 import express from 'express';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { createWriteStream } from 'fs';
 import { mkdir, readFile, rename, rm, truncate, writeFile } from 'fs/promises';
 import { createHash, randomUUID, timingSafeEqual } from 'crypto';
@@ -9,7 +10,13 @@ import User from '../models/User.js';
 import { optionalAuthenticate } from '../middleware/auth.js';
 
 const router = express.Router();
-const uploadDirectory = path.resolve('data/flamingo-uploads');
+const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
+// Render starts the API from `bot/`, while local tools and tests may start it
+// from the repository root. Resolve the fallback beside the bot instead of
+// against process.cwd(), and let production point it at a persistent disk.
+const uploadDirectory = path.resolve(
+  process.env.FLAMINGO_UPLOAD_DIR || path.join(moduleDirectory, '../data/flamingo-uploads')
+);
 const maxBytes = Math.max(1, Number(process.env.FLAMINGO_UPLOAD_MAX_BYTES) || 5 * 1024 ** 3);
 // Keep each request small enough for mobile networks while allowing several
 // independent ranges to be written at once. Six 8 MB requests use less memory
@@ -51,6 +58,7 @@ const withUploadLock = (id, task) => {
   return current.finally(() => { if (uploadLocks.get(id) === current) uploadLocks.delete(id); });
 };
 const videoPrice = duration => duration > 40 ? 300 : duration >= 20 ? 200 : 0;
+const premiumPrice = value => Math.min(1_000_000, Math.max(0, Math.floor(Number(value) || 0)));
 const normalizedAuthor = author => String(author || '')
   .normalize('NFD')
   .replace(/[\u0300-\u036f]/g, '')
@@ -85,6 +93,8 @@ router.post('/uploads', async (req, res) => {
     name: safeName(decodeHeader(req.get('x-upload-name'), 'video.mp4')),
     type: decodeHeader(req.get('x-upload-type'), 'application/octet-stream'),
     duration: Math.max(0, Number(req.get('x-upload-duration')) || 0),
+    premium: req.get('x-upload-premium') === '1',
+    priceTpg: premiumPrice(req.get('x-upload-price-tpg')),
     text: decodeHeader(req.get('x-upload-text')).slice(0, 1200),
     ownerTokenHash: tokenHash(ownerToken(req)),
     createdAt: Date.now()
@@ -175,7 +185,7 @@ router.post('/uploads/:id/complete', async (req, res) => {
     await rename(paths.data, path.join(uploadDirectory, storedName));
     await rm(paths.meta, { force: true });
     const user = await resolveUser(req);
-    const attachment = { name: metadata.name, size: metadata.size, type: metadata.type, duration: metadata.duration, url: `/api/flamingo-wall/files/${storedName}` };
+    const attachment = { name: metadata.name, size: metadata.size, type: metadata.type, duration: metadata.duration, premium: metadata.premium && metadata.priceTpg > 0, priceTpg: metadata.premium ? metadata.priceTpg : 0, url: `/api/flamingo-wall/files/${storedName}` };
     const post = await FlamingoPost.create({ text: metadata.text, author: displayName(user), authorAvatar: user?.photo || '', authorAccountId: user?.accountId || '', attachment, ownerTokenHash: metadata.ownerTokenHash });
     res.status(201).json({ post });
   } catch (err) {
@@ -206,6 +216,13 @@ router.get('/posts', async (req, res) => {
   // response while another community member is publishing.
   res.setHeader('Cache-Control', 'no-store');
   res.json({ posts: posts.filter(post => !isCommitteeVideo(post)).map(({ ownerTokenHash, ...post }) => ({ ...post, canManage: ownsPost({ ownerTokenHash }, token) })) });
+});
+
+router.get('/latest-post', async (req, res) => {
+  const recentPosts = await FlamingoPost.find().sort({ createdAt: -1 }).limit(10).lean();
+  const post = recentPosts.find(item => !isCommitteeVideo(item)) || null;
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ post });
 });
 
 router.post('/posts/content', express.json({ limit: '16kb' }), async (req, res) => {
@@ -312,7 +329,9 @@ router.post('/posts/:id/download', async (req, res) => {
   if (!selector) return res.status(401).json({ error: 'Hyr në llogari për ta shkarkuar videon.' });
   const post = await FlamingoPost.findById(req.params.id).lean();
   if (!post?.attachment?.url) return res.status(404).json({ error: 'Videoja nuk u gjet.' });
-  const price = post.attachment.type.startsWith('video/') ? videoPrice(post.attachment.duration) : 0;
+  const price = post.attachment.premium
+    ? premiumPrice(post.attachment.priceTpg)
+    : post.attachment.type.startsWith('video/') ? videoPrice(post.attachment.duration) : 0;
   let user = await User.findOne(selector);
   if (!user) return res.status(404).json({ error: 'Llogaria nuk u gjet.' });
   if (price) {
@@ -341,9 +360,9 @@ router.get('/downloads/:grant', (req, res) => {
 
 router.get('/files/:name', async (req, res) => {
   const name = path.basename(req.params.name);
+  const post = await FlamingoPost.findOne({ 'attachment.url': `/api/flamingo-wall/files/${name}` }).lean();
   if (req.query.download === '1') {
-    const post = await FlamingoPost.findOne({ 'attachment.url': `/api/flamingo-wall/files/${name}` }).lean();
-    if (post?.attachment?.type?.startsWith('video/')) {
+    if (post?.attachment?.type?.startsWith('video/') || post?.attachment?.premium) {
       return res.status(403).json({ error: 'Përdor butonin e shkarkimit që të zbatohet pagesa TPG.' });
     }
   }
@@ -353,6 +372,14 @@ router.get('/files/:name', async (req, res) => {
   res.setHeader('Content-Disposition', `${disposition}; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(requestedName)}`);
   res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
   res.setHeader('X-Content-Type-Options', 'nosniff');
+  // Uploaded phone videos do not always keep a recognizable extension (and
+  // older uploads can use MOV/M4V names). With `nosniff`, serving those files
+  // as application/octet-stream makes Safari and Chromium refuse playback.
+  // Use the MIME type captured at upload time so historical videos remain
+  // playable while preserving byte-range support from sendFile.
+  if (post?.attachment?.type && /^[\w.+-]+\/[\w.+-]+$/.test(post.attachment.type)) {
+    res.type(post.attachment.type);
+  }
   res.sendFile(path.join(uploadDirectory, name), err => {
     if (err && !res.headersSent) res.status(err.statusCode || 404).end();
   });
