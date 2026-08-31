@@ -35,19 +35,6 @@ export default function SocialAdmin() {
   const [liveTitle, setLiveTitle] = useState('');
   const [liveTargets, setLiveTargets] = useState([]);
   const [liveSource, setLiveSource] = useState('camera');
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('socialTab') === 'accounts') setTab('accounts');
-    const oauthStatus = params.get('oauthStatus');
-    const oauthPlatform = params.get('oauthPlatform');
-    if (oauthStatus === 'success' && oauthPlatform) {
-      setMessage(`${label(oauthPlatform)} connected successfully.`);
-      refresh();
-    } else if (oauthStatus === 'error') {
-      setMessage(params.get('oauthMessage') || 'The social account could not be connected.');
-    }
-    if (oauthStatus) window.history.replaceState({}, '', window.location.pathname);
-  }, []);
   const refresh = async () => { const [o, p, a] = await Promise.all([socialAdminApi.overview(), socialAdminApi.posts(), socialAdminApi.automations()]); if (!o.error) setOverview(o); if (!p.error) setPosts(p); if (!a.error) setRules(a); };
   useEffect(() => { if (tab === 'overview' || tab === 'posts' || tab === 'scheduled') refresh(); }, [tab]);
   const payload = useMemo(() => ({ caption, link, platforms: selected, overrides, media, scheduledAt: mode === 'schedule' ? scheduledAt : null }), [caption, link, selected, overrides, media, mode, scheduledAt]);

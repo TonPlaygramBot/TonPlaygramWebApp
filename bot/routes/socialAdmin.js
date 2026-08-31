@@ -6,7 +6,6 @@ import Task from '../models/Task.js';
 import { SOCIAL_PLATFORMS, validateSocialContent } from '../services/socialProviders.js';
 import { ensureDefaultRules } from '../services/socialAutomation.js';
 import { queuePublication } from '../services/socialPublishing.js';
-import { completeAuthorization, createAuthorization, encryptCredentials, oauthReturnUrl } from '../services/socialOAuth.js';
 
 const router = Router();
 
@@ -31,7 +30,6 @@ export function hasSocialDeveloperAccess(auth = {}, env = process.env) {
 }
 
 router.use((req, res, next) => {
-  if (req.method === 'GET' && /^\/accounts\/[^/]+\/callback$/.test(req.path)) return next();
   if (!hasSocialDeveloperAccess(req.auth)) {
     return res.status(403).json({ error: 'Developer access required' });
   }
@@ -63,28 +61,19 @@ router.post('/accounts/:platform/connect', async (req, res) => {
   const platform = String(req.params.platform || '').toLowerCase();
   if (!SOCIAL_PLATFORMS.includes(platform)) return res.status(404).json({ error: 'Unsupported social platform' });
 
-  try {
-    const ownerId = req.auth?.accountId || (req.auth?.telegramId ? `telegram:${req.auth.telegramId}` : 'api');
-    res.json(createAuthorization(platform, ownerId));
-  } catch (error) {
-    res.status(503).json({ error: error.message });
+  const authorizationUrl = String(process.env[`SOCIAL_${platform.toUpperCase()}_AUTHORIZATION_URL`] || '').trim();
+  if (authorizationUrl) return res.json({ authorizationUrl });
+
+  if ((process.env.SOCIAL_PROVIDER_MODE || 'mock') !== 'mock') {
+    return res.status(503).json({ error: `${platform} authorization is not configured on the server` });
   }
-});
-router.get('/accounts/:platform/callback', async (req, res) => {
-  const platform = String(req.params.platform || '').toLowerCase();
-  if (!SOCIAL_PLATFORMS.includes(platform)) return res.status(404).send('Unsupported social platform');
-  try {
-    const result = await completeAuthorization(platform, req.query);
-    const expiresIn = Number(result.tokens.expires_in);
-    await SocialAccount.findOneAndUpdate(
-      { platform, ownerId: result.ownerId },
-      { accountName: result.accountName, status: 'CONNECTED', encryptedCredentials: encryptCredentials(result.tokens), tokenExpiresAt: Number.isFinite(expiresIn) ? new Date(Date.now() + expiresIn * 1000) : null, lastSuccessfulUse: new Date() },
-      { new: true, upsert: true, runValidators: true }
-    );
-    res.redirect(303, oauthReturnUrl(platform, 'success'));
-  } catch (error) {
-    res.redirect(303, oauthReturnUrl(platform, 'error', error.message));
-  }
+
+  const account = await SocialAccount.findOneAndUpdate(
+    { platform, accountName: `${platform}-sandbox` },
+    { status: 'CONNECTED', lastSuccessfulUse: new Date() },
+    { new: true, upsert: true, runValidators: true }
+  );
+  res.json({ account, mock: true });
 });
 router.get('/automations', async (_req, res) => { await ensureDefaultRules(); res.json(await SocialAutomationRule.find().sort({ createdAt: 1 }).lean()); });
 router.post('/automations', async (req, res) => res.json(await SocialAutomationRule.create(req.body)));
