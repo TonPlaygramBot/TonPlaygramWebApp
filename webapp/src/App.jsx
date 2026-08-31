@@ -110,6 +110,9 @@ const SnookerRoyal = React.lazy(() => import('./pages/Games/SnookerRoyal.jsx'));
 const SnookerRoyalLobby = React.lazy(
   () => import('./pages/Games/SnookerRoyalLobby.jsx')
 );
+const SnookerRoyalCareer = React.lazy(
+  () => import('./pages/Games/SnookerRoyalCareer.jsx')
+);
 const ShootingRange = React.lazy(
   () => import('./pages/Games/ShootingRange.tsx')
 );
@@ -447,6 +450,10 @@ export default function App() {
                 path="/games/snookerroyale/lobby"
                 element={<SnookerRoyalLobby />}
               />{' '}
+              <Route
+                path="/games/snookerroyale/career"
+                element={<SnookerRoyalCareer />}
+              />
               <Route
                 path="/games/snookerroyale"
                 element={

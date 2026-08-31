@@ -8114,9 +8114,11 @@ function Table3D(
 
   const cushionBrandTexture = createCushionBrandTexture();
   if (cushionBrandTexture) {
-    const brandHeight = Math.max(BALL_R * 1.4, railH * 0.9);
-    const brandWidth = Math.min(PLAY_W * 0.5, Math.max(BALL_R * 13, PLAY_W * 0.35));
-    const brandLift = markingHeight + brandHeight * 0.5 + TABLE.THICK * 0.02;
+    // Keep the short-rail wordmark subtle and seated on the lower, sloping face.
+    // The opposing X rotations follow the physical face rather than floating upright.
+    const brandHeight = Math.max(BALL_R * 0.92, railH * 0.58);
+    const brandWidth = Math.min(PLAY_W * 0.38, Math.max(BALL_R * 9, PLAY_W * 0.27));
+    const brandLift = markingHeight + brandHeight * 0.42 + TABLE.THICK * 0.008;
     const shortRailBrandZ =
       halfH - CUSHION_RAIL_FLUSH - CUSHION_SHORT_RAIL_CENTER_NUDGE - TABLE.THICK * 0.07;
     const brandGeo = new THREE.PlaneGeometry(brandWidth, brandHeight);
@@ -8132,6 +8134,7 @@ function Table3D(
       const brand = new THREE.Mesh(brandGeo, brandMat);
       brand.position.set(0, brandLift, dirZ * shortRailBrandZ);
       brand.rotation.y = dirZ > 0 ? Math.PI : 0;
+      brand.rotation.x = dirZ * THREE.MathUtils.degToRad(-12);
       brand.renderOrder = cloth.renderOrder + 1.3;
       brand.castShadow = false;
       brand.receiveShadow = false;
@@ -26428,7 +26431,10 @@ const powerRef = useRef(hud.power);
             power: (shooting || cueAnimating) ? lastShotPower : (powerRef.current ?? activeAiPlan?.power ?? 0),
             shooting,
             cueAnimating,
-            tableCueVisible: Boolean(cueStick.visible && (cameraBlendRef.current ?? 1) <= 0.55),
+            // Visibility must be driven by the camera itself. Referencing the cue's
+            // previous visibility here made it impossible for a hidden cue to return
+            // when the player lowered the portrait camera.
+            tableCueVisible: Boolean((cameraBlendRef.current ?? 1) <= 0.62),
             spinInput: spinRef.current
           });
         } catch (error) {
@@ -29617,5 +29623,21 @@ const powerRef = useRef(hud.power);
 }
 
 export default function SnookerRoyal() {
-  return <SnookerRoyalGame gameTitle="Snooker Royal" />;
+  const params = new URLSearchParams(window.location.search);
+  return <SnookerRoyalGame
+    gameTitle="Snooker Royal"
+    variantKey={params.get('variant') || 'snooker'}
+    tableSizeKey={params.get('tableSize') || undefined}
+    tableModel={resolveSnookerTableModel(params.get('tableModel'))}
+    playType={params.get('type') || 'regular'}
+    mode={params.get('mode') || 'ai'}
+    trainingMode={params.get('trainingMode') === 'ai' ? 'ai' : 'solo'}
+    trainingRulesEnabled={params.get('rules') !== 'off'}
+    accountId={params.get('accountId') || undefined}
+    tgId={params.get('tgId') || undefined}
+    playerName={params.get('name') || undefined}
+    playerAvatar={params.get('avatar') || undefined}
+    opponentName={params.get('opponent') || undefined}
+    opponentAvatar={params.get('opponentAvatar') || undefined}
+  />;
 }

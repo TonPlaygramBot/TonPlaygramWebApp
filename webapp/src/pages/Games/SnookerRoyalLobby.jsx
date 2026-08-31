@@ -56,6 +56,9 @@ export default function SnookerRoyalLobby() {
   const [aiFlagIndex, setAiFlagIndex] = useState(null);
   const [playType, setPlayType] = useState(initialPlayType);
   const [players, setPlayers] = useState(8);
+  const [trainingMode, setTrainingMode] = useState('solo');
+  const [trainingRules, setTrainingRules] = useState(true);
+  const [trainingFocus, setTrainingFocus] = useState('guided');
   const tableSize = resolveTableSize(searchParams.get('tableSize')).id;
   const tableModel = TABLE_MODEL_OPENSOURCE;
   const [onlinePlayers, setOnlinePlayers] = useState([]);
@@ -236,6 +239,11 @@ export default function SnookerRoyalLobby() {
     applySnookerTableModelParam(params, tableModel);
     params.set('type', playType);
     params.set('mode', mode);
+    if (playType === 'training') {
+      params.set('trainingMode', trainingMode);
+      params.set('rules', trainingRules ? 'on' : 'off');
+      params.set('trainingFocus', trainingFocus);
+    }
     if (isOnlineMatch) {
       if (stake.token) params.set('token', stake.token);
       if (stake.amount) params.set('amount', stake.amount);
@@ -437,6 +445,13 @@ export default function SnookerRoyalLobby() {
                 desc: 'Bracket challenge',
                 accent: 'from-indigo-400/30 via-sky-500/10 to-transparent',
                 icon: '🏆'
+              },
+              {
+                id: 'training',
+                label: 'Training',
+                desc: 'Creative skill lab',
+                accent: 'from-amber-400/30 via-emerald-500/10 to-transparent',
+                icon: '🎯'
               }
             ].map(({ id, label, desc, accent, icon }) => {
               const active = playType === id;
@@ -468,9 +483,24 @@ export default function SnookerRoyalLobby() {
             })}
           </div>
           <p className="text-xs text-white/60 text-center">
-            Tournament mode locks online matchmaking and uses the bracket flow.
+            Train freely, play a match, or enter a tournament bracket.
           </p>
         </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <button type="button" onClick={() => navigate('/games/snookerroyale/career')} className="rounded-2xl border border-amber-300/35 bg-gradient-to-br from-amber-400/20 to-emerald-500/10 p-4 text-left">
+            <span className="text-2xl">👑</span><p className="mt-2 font-bold text-white">Career Mode</p><p className="mt-1 text-[11px] text-white/60">Educational tasks, tougher rivals, TPG and gifts.</p>
+          </button>
+          <button type="button" onClick={() => setPlayType('training')} className="rounded-2xl border border-emerald-300/35 bg-gradient-to-br from-emerald-400/20 to-cyan-500/10 p-4 text-left">
+            <span className="text-2xl">🧪</span><p className="mt-2 font-bold text-white">Training Lab</p><p className="mt-1 text-[11px] text-white/60">Solo or AI, guided rules or free play.</p>
+          </button>
+        </div>
+
+        {playType === 'training' && <div className="space-y-4 rounded-2xl border border-emerald-300/25 bg-emerald-950/30 p-4">
+          <div><h3 className="font-semibold text-white">Training partner</h3><div className="mt-2 grid grid-cols-2 gap-2">{[['solo','Play alone'],['ai','Vs AI']].map(([id,label]) => <button key={id} onClick={() => setTrainingMode(id)} className={`rounded-xl border p-2 text-sm ${trainingMode === id ? 'border-amber-300 bg-amber-300/15 text-amber-100' : 'border-white/10 text-white/60'}`}>{label}</button>)}</div></div>
+          <div><h3 className="font-semibold text-white">Rules</h3><div className="mt-2 grid grid-cols-2 gap-2"><button onClick={() => setTrainingRules(true)} className={`rounded-xl border p-2 text-sm ${trainingRules ? 'border-amber-300 bg-amber-300/15' : 'border-white/10 text-white/60'}`}>Full rules</button><button onClick={() => setTrainingRules(false)} className={`rounded-xl border p-2 text-sm ${!trainingRules ? 'border-amber-300 bg-amber-300/15' : 'border-white/10 text-white/60'}`}>No rules</button></div></div>
+          <div><h3 className="font-semibold text-white">Session focus</h3><div className="mt-2 grid grid-cols-3 gap-2">{[['guided','Guided'],['break','Breaks'],['safety','Safety']].map(([id,label]) => <button key={id} onClick={() => setTrainingFocus(id)} className={`rounded-xl border px-1 py-2 text-xs ${trainingFocus === id ? 'border-emerald-300 bg-emerald-300/15' : 'border-white/10 text-white/60'}`}>{label}</button>)}</div><p className="mt-2 text-[11px] text-white/55">Guided teaches shot order; Breaks builds scoring visits; Safety practices pace and hiding the cue ball.</p></div>
+        </div>}
 
         <div className="space-y-3">
           <div className="flex items-center justify-between">
