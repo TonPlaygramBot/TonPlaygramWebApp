@@ -9,6 +9,7 @@ import FlamingoPost from '../models/FlamingoPost.js';
 import User from '../models/User.js';
 import { optionalAuthenticate } from '../middleware/auth.js';
 import { mediaType } from '../utils/mediaType.js';
+import { findFlamingoMedia, flamingoStorageDirectories, removeFlamingoMedia } from '../utils/flamingoStorage.js';
 
 const router = express.Router();
 const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -17,6 +18,14 @@ const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
 // against process.cwd(), and let production point it at a persistent disk.
 const uploadDirectory = path.resolve(
   process.env.FLAMINGO_UPLOAD_DIR || path.join(moduleDirectory, '../data/flamingo-uploads')
+);
+// Keep reading the original application-local directory after production is
+// switched to a persistent disk. Existing database records still point at
+// those file names, so checking both locations prevents a storage migration
+// from turning every earlier wall video into a 404.
+const mediaDirectories = flamingoStorageDirectories(
+  uploadDirectory,
+  path.join(moduleDirectory, '../data/flamingo-uploads')
 );
 const maxBytes = Math.max(1, Number(process.env.FLAMINGO_UPLOAD_MAX_BYTES) || 5 * 1024 ** 3);
 // Keep each request small enough for mobile networks while allowing several
@@ -214,7 +223,7 @@ router.get('/posts', async (req, res) => {
     // Normalizing the author also catches the previous spelling with "ë".
     await Promise.allSettled(committeeVideos.map(async post => {
       await FlamingoPost.deleteOne({ _id: post._id });
-      if (post.attachment?.url) await rm(path.join(uploadDirectory, path.basename(post.attachment.url)), { force: true });
+      if (post.attachment?.url) await removeFlamingoMedia(path.basename(post.attachment.url), mediaDirectories);
     }));
   }
   // The wall is a shared live feed. Never let a browser/proxy reuse an old
@@ -325,7 +334,7 @@ router.delete('/posts/:id', async (req, res) => {
   if (!post) return res.status(404).json({ error: 'Postimi nuk u gjet.' });
   if (!ownsPost(post, ownerToken(req))) return res.status(403).json({ error: 'Vetëm autori mund ta fshijë postimin.' });
   await post.deleteOne();
-  if (post.attachment?.url) await rm(path.join(uploadDirectory, path.basename(post.attachment.url)), { force: true });
+  if (post.attachment?.url) await removeFlamingoMedia(path.basename(post.attachment.url), mediaDirectories);
   res.status(204).end();
 });
 
@@ -351,7 +360,7 @@ router.post('/posts/:id/download', async (req, res) => {
   res.json({ downloadUrl: `/api/flamingo-wall/downloads/${grant}?name=${encodeURIComponent(post.attachment.name)}`, price, balance: user.balance });
 });
 
-router.get('/downloads/:grant', (req, res) => {
+router.get('/downloads/:grant', async (req, res) => {
   const grant = downloadGrants.get(req.params.grant);
   if (!grant || grant.expiresAt < Date.now()) return res.status(403).json({ error: 'Lidhja e shkarkimit ka skaduar.' });
   const requestedName = path.basename(String(req.query.name || grant.file)).replace(/["\\\r\n]/g, '');
@@ -360,7 +369,9 @@ router.get('/downloads/:grant', (req, res) => {
   // download continue without transferring the completed bytes again.
   res.setHeader('Accept-Ranges', 'bytes');
   res.setHeader('Cache-Control', 'private, max-age=300');
-  res.download(path.join(uploadDirectory, grant.file), requestedName);
+  const diskPath = await findFlamingoMedia(grant.file, mediaDirectories);
+  if (!diskPath) return res.status(404).json({ error: 'Videoja nuk u gjet.' });
+  res.download(diskPath, requestedName);
 });
 
 router.get('/files/:name', async (req, res) => {
@@ -386,7 +397,9 @@ router.get('/files/:name', async (req, res) => {
   if (/^[\w.+-]+\/[\w.+-]+$/.test(contentType)) {
     res.type(contentType);
   }
-  res.sendFile(path.join(uploadDirectory, name), err => {
+  const diskPath = await findFlamingoMedia(name, mediaDirectories);
+  if (!diskPath) return res.status(404).end();
+  res.sendFile(diskPath, err => {
     if (err && !res.headersSent) res.status(err.statusCode || 404).end();
   });
 });
