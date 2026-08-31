@@ -4,12 +4,10 @@ import {
   Gamepad2,
   Gift,
   MessageCircle,
-  ShieldCheck,
   ShoppingBag,
   Sparkles,
   Trophy,
-  WalletCards,
-  Zap
+  WalletCards
 } from 'lucide-react';
 
 import { getGameThumbnail } from '../config/gameAssets.js';
@@ -42,14 +40,20 @@ export default function HomeIntroduction() {
     <section className="home-intro" aria-labelledby="home-intro-title">
       <div className="home-intro__hero">
         <div className="home-intro__glow" aria-hidden="true" />
-        <div className="home-intro__eyebrow"><Zap size={13} fill="currentColor" /> PLAY · CONNECT · EARN</div>
-        <h1 id="home-intro-title">Your world of<br /><span>play, in one place.</span></h1>
-        <p>An independently built, mobile-first gaming ecosystem that brings competitive games, community, rewards and digital collectibles into one connected experience.</p>
+        <h1 id="home-intro-title">TonPlayGram is built for players — not the house.</h1>
+        <div className="home-intro__message">
+          <p>
+            TonPlayGram is a <strong>gaming platform, not a gambling platform</strong>. Players compete against players, and we do not use algorithms to choose, influence, or predetermine winners.
+          </p>
+          <p>
+            There is no house playing against you and no house advantage. <strong>Players win — TonPlayGram simply powers the experience.</strong>
+          </p>
+          <p>A small service fee helps us operate, maintain, and grow the ecosystem.</p>
+        </div>
         <div className="home-intro__actions">
           <Link to="/games" className="home-intro__primary">Explore games <ArrowRight size={17} /></Link>
           <Link to="/ecosystem" className="home-intro__secondary">How it works</Link>
         </div>
-        <div className="home-intro__trust"><ShieldCheck size={16} /><span>One profile. Clear activity. Built for players.</span></div>
         <SocialChannels variant="hero" />
       </div>
 
