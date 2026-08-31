@@ -51,6 +51,7 @@ const withUploadLock = (id, task) => {
   return current.finally(() => { if (uploadLocks.get(id) === current) uploadLocks.delete(id); });
 };
 const videoPrice = duration => duration > 40 ? 300 : duration >= 20 ? 200 : 0;
+const premiumPrice = value => Math.min(1_000_000, Math.max(0, Math.floor(Number(value) || 0)));
 const normalizedAuthor = author => String(author || '')
   .normalize('NFD')
   .replace(/[\u0300-\u036f]/g, '')
@@ -85,6 +86,8 @@ router.post('/uploads', async (req, res) => {
     name: safeName(decodeHeader(req.get('x-upload-name'), 'video.mp4')),
     type: decodeHeader(req.get('x-upload-type'), 'application/octet-stream'),
     duration: Math.max(0, Number(req.get('x-upload-duration')) || 0),
+    premium: req.get('x-upload-premium') === '1',
+    priceTpg: premiumPrice(req.get('x-upload-price-tpg')),
     text: decodeHeader(req.get('x-upload-text')).slice(0, 1200),
     ownerTokenHash: tokenHash(ownerToken(req)),
     createdAt: Date.now()
@@ -175,7 +178,7 @@ router.post('/uploads/:id/complete', async (req, res) => {
     await rename(paths.data, path.join(uploadDirectory, storedName));
     await rm(paths.meta, { force: true });
     const user = await resolveUser(req);
-    const attachment = { name: metadata.name, size: metadata.size, type: metadata.type, duration: metadata.duration, url: `/api/flamingo-wall/files/${storedName}` };
+    const attachment = { name: metadata.name, size: metadata.size, type: metadata.type, duration: metadata.duration, premium: metadata.premium && metadata.priceTpg > 0, priceTpg: metadata.premium ? metadata.priceTpg : 0, url: `/api/flamingo-wall/files/${storedName}` };
     const post = await FlamingoPost.create({ text: metadata.text, author: displayName(user), authorAvatar: user?.photo || '', authorAccountId: user?.accountId || '', attachment, ownerTokenHash: metadata.ownerTokenHash });
     res.status(201).json({ post });
   } catch (err) {
@@ -312,7 +315,9 @@ router.post('/posts/:id/download', async (req, res) => {
   if (!selector) return res.status(401).json({ error: 'Hyr në llogari për ta shkarkuar videon.' });
   const post = await FlamingoPost.findById(req.params.id).lean();
   if (!post?.attachment?.url) return res.status(404).json({ error: 'Videoja nuk u gjet.' });
-  const price = post.attachment.type.startsWith('video/') ? videoPrice(post.attachment.duration) : 0;
+  const price = post.attachment.premium
+    ? premiumPrice(post.attachment.priceTpg)
+    : post.attachment.type.startsWith('video/') ? videoPrice(post.attachment.duration) : 0;
   let user = await User.findOne(selector);
   if (!user) return res.status(404).json({ error: 'Llogaria nuk u gjet.' });
   if (price) {
@@ -343,7 +348,7 @@ router.get('/files/:name', async (req, res) => {
   const name = path.basename(req.params.name);
   if (req.query.download === '1') {
     const post = await FlamingoPost.findOne({ 'attachment.url': `/api/flamingo-wall/files/${name}` }).lean();
-    if (post?.attachment?.type?.startsWith('video/')) {
+    if (post?.attachment?.type?.startsWith('video/') || post?.attachment?.premium) {
       return res.status(403).json({ error: 'Përdor butonin e shkarkimit që të zbatohet pagesa TPG.' });
     }
   }
