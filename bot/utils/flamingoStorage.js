@@ -24,15 +24,28 @@ const bucket = () => {
   return db ? new mongoose.mongo.GridFSBucket(db, { bucketName: BUCKET_NAME }) : null;
 };
 
-export const findFlamingoDatabaseMedia = async (name, originalName, size) => {
-  const db = database();
+export const flamingoDatabaseMediaQuery = (name, originalName, size) => {
   const safeName = path.basename(String(name || ''));
-  if (!db || !safeName) return null;
+  if (!safeName) return null;
   const safeOriginalName = path.basename(String(originalName || ''));
   const expectedSize = Number(size);
-  const aliases = safeOriginalName ? [{ 'metadata.originalName': safeOriginalName }] : [];
+  // The stable GridFS filename is authoritative. Some early post documents
+  // recorded a rounded/partial size, which must not hide an exact stored file.
+  // Size remains mandatory for an original-name alias so two phone uploads
+  // named "video.mp4" cannot be confused during historical recovery.
+  const exactFile = { filename: safeName };
+  const alias = safeOriginalName
+    ? { 'metadata.originalName': safeOriginalName, ...(Number.isSafeInteger(expectedSize) && expectedSize > 0 ? { length: expectedSize } : {}) }
+    : null;
+  return { $or: [exactFile, ...(alias ? [alias] : [])] };
+};
+
+export const findFlamingoDatabaseMedia = async (name, originalName, size) => {
+  const db = database();
+  const query = flamingoDatabaseMediaQuery(name, originalName, size);
+  if (!db || !query) return null;
   return db.collection(`${BUCKET_NAME}.files`).findOne(
-    { $or: [{ filename: safeName }, ...aliases], ...(Number.isSafeInteger(expectedSize) && expectedSize > 0 ? { length: expectedSize } : {}) },
+    query,
     { sort: { uploadDate: -1 } }
   );
 };
