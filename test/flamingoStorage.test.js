@@ -1,7 +1,7 @@
 import os from 'os';
 import path from 'path';
 import { mkdir, mkdtemp, rm, writeFile } from 'fs/promises';
-import { findFlamingoMedia, flamingoMediaName, flamingoStorageDirectories, removeFlamingoMedia } from '../bot/utils/flamingoStorage.js';
+import { findFlamingoMedia, flamingoDatabaseMediaQuery, flamingoMediaName, flamingoStorageDirectories, removeFlamingoMedia } from '../bot/utils/flamingoStorage.js';
 
 describe('Protesta Shqiptare media storage migration', () => {
   let root;
@@ -60,5 +60,23 @@ describe('Protesta Shqiptare media storage migration', () => {
     await expect(findFlamingoMedia(
       'missing-old-uuid-21900.mp4', directories, '21900.mp4', 20
     )).resolves.toBeNull();
+  });
+
+  test('finds the exact GridFS key even when an old post has stale size metadata', () => {
+    expect(flamingoDatabaseMediaQuery('stable-video.mp4', 'video.mp4', 123)).toEqual({
+      $or: [
+        { filename: 'stable-video.mp4' },
+        { 'metadata.originalName': 'video.mp4', length: 123 }
+      ]
+    });
+  });
+
+  test('only uses size to disambiguate recovered GridFS aliases', () => {
+    expect(flamingoDatabaseMediaQuery('../missing-uuid.mp4', '../protest.mp4', 456)).toEqual({
+      $or: [
+        { filename: 'missing-uuid.mp4' },
+        { 'metadata.originalName': 'protest.mp4', length: 456 }
+      ]
+    });
   });
 });

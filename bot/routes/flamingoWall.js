@@ -10,6 +10,7 @@ import FlamingoPost from '../models/FlamingoPost.js';
 import User from '../models/User.js';
 import { optionalAuthenticate } from '../middleware/auth.js';
 import { mediaType } from '../utils/mediaType.js';
+import { setFlamingoMediaResponseHeaders } from '../utils/flamingoMediaResponse.js';
 import { findFlamingoDatabaseMedia, findFlamingoMedia, flamingoMediaName, flamingoStorageDirectories, openFlamingoDatabaseMedia, removeFlamingoMedia, saveFlamingoMediaToDatabase } from '../utils/flamingoStorage.js';
 import { wallMediaPostQuery } from '../utils/flamingoPostLookup.js';
 
@@ -112,6 +113,7 @@ export const mediaByteRange = (header, length) => {
 };
 
 const streamDatabaseMedia = (req, res, databaseFile) => {
+  setFlamingoMediaResponseHeaders(res);
   const range = mediaByteRange(req.get('range'), databaseFile.length);
   if (range === false) {
     res.setHeader('Content-Range', `bytes */${databaseFile.length}`);
@@ -119,7 +121,6 @@ const streamDatabaseMedia = (req, res, databaseFile) => {
   }
   const { start, end } = range || { start: 0, end: databaseFile.length - 1 };
   if (range) res.status(206).setHeader('Content-Range', `bytes ${start}-${end}/${databaseFile.length}`);
-  res.setHeader('Accept-Ranges', 'bytes');
   res.setHeader('Content-Length', end - start + 1);
   const stream = openFlamingoDatabaseMedia(databaseFile, { start, end: end + 1 });
   if (!stream) return res.status(404).end();
@@ -467,7 +468,7 @@ router.get('/downloads/:grant', async (req, res) => {
   // sendFile (used by res.download) supports byte ranges; these headers make
   // that resumable behavior explicit and let a briefly interrupted phone
   // download continue without transferring the completed bytes again.
-  res.setHeader('Accept-Ranges', 'bytes');
+  setFlamingoMediaResponseHeaders(res);
   res.setHeader('Cache-Control', 'private, max-age=300');
   const diskPath = await findFlamingoMedia(grant.file, mediaDirectories, grant.originalName, grant.size);
   if (diskPath) {
@@ -482,6 +483,7 @@ router.get('/downloads/:grant', async (req, res) => {
 });
 
 router.get('/files/:name', async (req, res) => {
+  setFlamingoMediaResponseHeaders(res);
   const name = path.basename(req.params.name);
   const post = await FlamingoPost.findOne(wallMediaPostQuery(name)).lean();
   if (req.query.download === '1') {
