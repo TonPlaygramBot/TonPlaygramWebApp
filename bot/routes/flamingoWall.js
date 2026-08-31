@@ -218,6 +218,13 @@ router.get('/posts', async (req, res) => {
   res.json({ posts: posts.filter(post => !isCommitteeVideo(post)).map(({ ownerTokenHash, ...post }) => ({ ...post, canManage: ownsPost({ ownerTokenHash }, token) })) });
 });
 
+router.get('/latest-post', async (req, res) => {
+  const recentPosts = await FlamingoPost.find().sort({ createdAt: -1 }).limit(10).lean();
+  const post = recentPosts.find(item => !isCommitteeVideo(item)) || null;
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ post });
+});
+
 router.post('/posts/content', express.json({ limit: '16kb' }), async (req, res) => {
   const text = String(req.body?.text || '').trim();
   const title = String(req.body?.title || '').trim();
@@ -353,8 +360,8 @@ router.get('/downloads/:grant', (req, res) => {
 
 router.get('/files/:name', async (req, res) => {
   const name = path.basename(req.params.name);
+  const post = await FlamingoPost.findOne({ 'attachment.url': `/api/flamingo-wall/files/${name}` }).lean();
   if (req.query.download === '1') {
-    const post = await FlamingoPost.findOne({ 'attachment.url': `/api/flamingo-wall/files/${name}` }).lean();
     if (post?.attachment?.type?.startsWith('video/') || post?.attachment?.premium) {
       return res.status(403).json({ error: 'Përdor butonin e shkarkimit që të zbatohet pagesa TPG.' });
     }
@@ -365,6 +372,14 @@ router.get('/files/:name', async (req, res) => {
   res.setHeader('Content-Disposition', `${disposition}; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(requestedName)}`);
   res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
   res.setHeader('X-Content-Type-Options', 'nosniff');
+  // Uploaded phone videos do not always keep a recognizable extension (and
+  // older uploads can use MOV/M4V names). With `nosniff`, serving those files
+  // as application/octet-stream makes Safari and Chromium refuse playback.
+  // Use the MIME type captured at upload time so historical videos remain
+  // playable while preserving byte-range support from sendFile.
+  if (post?.attachment?.type && /^[\w.+-]+\/[\w.+-]+$/.test(post.attachment.type)) {
+    res.type(post.attachment.type);
+  }
   res.sendFile(path.join(uploadDirectory, name), err => {
     if (err && !res.headersSent) res.status(err.statusCode || 404).end();
   });
