@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import { constants as fsConstants, createWriteStream } from 'fs';
 import { access, mkdir, readFile, rename, rm, truncate, writeFile } from 'fs/promises';
 import { createHash, randomUUID, timingSafeEqual } from 'crypto';
+import { EventEmitter } from 'events';
 import mongoose from 'mongoose';
 import FlamingoPost from '../models/FlamingoPost.js';
 import User from '../models/User.js';
@@ -46,6 +47,9 @@ const maxChunkBytes = Math.max(1024 ** 2, Number(process.env.FLAMINGO_UPLOAD_CHU
 const pendingDirectory = path.join(uploadDirectory, '.pending');
 const uploadLocks = new Map();
 const mediaBackfills = new Map();
+const wallEvents = new EventEmitter();
+wallEvents.setMaxListeners(0);
+const publishWallEvent = (action, postId) => wallEvents.emit('change', { action, postId, at: Date.now() });
 
 router.use(optionalAuthenticate);
 
@@ -300,6 +304,7 @@ router.post('/uploads/:id/complete', async (req, res) => {
     const user = await resolveUser(req);
     const attachment = { name: metadata.name, size: metadata.size, type: metadata.type, duration: metadata.duration, premium: metadata.premium && metadata.priceTpg > 0, priceTpg: metadata.premium ? metadata.priceTpg : 0, url: `/api/flamingo-wall/files/${storedName}` };
     const post = await FlamingoPost.create({ text: metadata.text, author: displayName(user), authorAvatar: user?.photo || '', authorAccountId: user?.accountId || '', attachment, ownerTokenHash: metadata.ownerTokenHash });
+    publishWallEvent('created', String(post._id));
     res.status(201).json({ post });
   } catch (err) {
     if (err?.code === 'ENOENT') {
@@ -311,6 +316,19 @@ router.post('/uploads/:id/complete', async (req, res) => {
     }
     res.status(500).json({ error: err.message || 'Publikimi dështoi.' });
   }
+});
+
+router.get('/events', (req, res) => {
+  // Server-sent invalidations make the feed update immediately after another
+  // visitor publishes. The regular feed request remains the source of truth.
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders?.();
+  const send = event => res.write(`event: wall-change\ndata: ${JSON.stringify(event)}\n\n`);
+  const heartbeat = setInterval(() => res.write(': keep-alive\n\n'), 20_000);
+  wallEvents.on('change', send);
+  req.on('close', () => { clearInterval(heartbeat); wallEvents.off('change', send); });
 });
 
 router.get('/posts', async (req, res) => {
@@ -351,6 +369,7 @@ router.post('/posts/content', express.json({ limit: '16kb' }), async (req, res) 
     authorAccountId: user?.accountId || '',
     ownerTokenHash: tokenHash(ownerToken(req))
   });
+  publishWallEvent('created', String(post._id));
   res.status(201).json({ post });
 });
 
@@ -405,6 +424,7 @@ router.post('/posts', async (req, res) => {
       const attachment = upload ? { name: upload.originalName, size: upload.size, type: upload.type, url: `/api/flamingo-wall/files/${upload.storedName}` } : undefined;
       const post = await FlamingoPost.create({ text: text.slice(0, 1200), author, authorAvatar: user?.photo || '', authorAccountId: user?.accountId || '', attachment, ownerTokenHash: tokenHash(ownerToken(req)) });
       completed = true;
+      publishWallEvent('created', String(post._id));
       res.status(201).json({ post });
     } catch (err) {
       if (upload?.diskPath) await rm(upload.diskPath, { force: true });
@@ -420,6 +440,7 @@ router.patch('/posts/:id', express.json({ limit: '16kb' }), async (req, res) => 
   if (!ownsPost(post, ownerToken(req))) return res.status(403).json({ error: 'Vetëm autori mund ta ndryshojë postimin.' });
   post.text = String(req.body?.text || '').trim().slice(0, 1200);
   await post.save();
+  publishWallEvent('updated', String(post._id));
   res.json({ post: { ...post.toObject(), ownerTokenHash: undefined, canManage: true } });
 });
 
@@ -428,6 +449,7 @@ router.delete('/posts/:id', async (req, res) => {
   if (!post) return res.status(404).json({ error: 'Postimi nuk u gjet.' });
   if (!ownsPost(post, ownerToken(req))) return res.status(403).json({ error: 'Vetëm autori mund ta fshijë postimin.' });
   await post.deleteOne();
+  publishWallEvent('deleted', String(post._id));
   if (post.attachment?.url) await removeFlamingoMedia(flamingoMediaName(post.attachment.url), mediaDirectories);
   res.status(204).end();
 });
