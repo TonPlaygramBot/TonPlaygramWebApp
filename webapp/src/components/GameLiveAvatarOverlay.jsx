@@ -101,7 +101,6 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
   const params = useMemo(() => new URLSearchParams(search), [search]);
   const [liveMode, setLiveMode] = useState(false);
   const [anchorElement, setAnchorElement] = useState(null);
-  const [opponentAnchorElement, setOpponentAnchorElement] = useState(null);
   const localVideoRef = useRef(null);
   const [overlayRect, setOverlayRect] = useState({
     top: 96,
@@ -115,7 +114,6 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
     width: 44,
     height: 44
   });
-  const [opponentRect, setOpponentRect] = useState(null);
   const [groupOpponentRects, setGroupOpponentRects] = useState([]);
   const [groupOpponentAnchorElements, setGroupOpponentAnchorElements] = useState([]);
   const [hasBlockingOverlay, setHasBlockingOverlay] = useState(false);
@@ -292,8 +290,6 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
             ? previous
             : opponentBoundsList
         ));
-        setOpponentAnchorElement(gameSlug === 'domino-royal' ? opponentNodes[0] || null : null);
-        setOpponentRect(gameSlug === 'domino-royal' ? opponentBoundsList[0] || null : null);
       }
       setOverlayRect((prev) => {
         if (
@@ -412,16 +408,6 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
   }, [anchorElement, liveMode]);
 
   useEffect(() => {
-    if (!opponentAnchorElement) return undefined;
-    const previousVisibility = opponentAnchorElement.style.visibility;
-    if (liveMode) opponentAnchorElement.style.visibility = 'hidden';
-    else opponentAnchorElement.style.visibility = previousVisibility || '';
-    return () => {
-      opponentAnchorElement.style.visibility = previousVisibility || '';
-    };
-  }, [opponentAnchorElement, liveMode]);
-
-  useEffect(() => {
     const previousVisibility = groupOpponentAnchorElements.map((element) => element.style.visibility);
     groupOpponentAnchorElements.forEach((element) => {
       if (liveMode) element.style.visibility = 'hidden';
@@ -497,31 +483,10 @@ export default function GameLiveAvatarOverlay({ gameSlug, children }) {
           />
         </button>
       ) : null}
-      {liveMode && gameSlug === 'domino-royal' && opponentRect ? (
-        <div
-          className="fixed z-[18] overflow-hidden pointer-events-none"
-          style={{
-            top: `${opponentRect.top}px`,
-            left: `${opponentRect.left}px`,
-            width: `${opponentRect.width}px`,
-            height: `${opponentRect.height}px`,
-            opacity: hasBlockingOverlay ? 0 : 1,
-            ...AVATAR_FRAME_STYLES
-          }}
-        >
-          {liveChat.remotePeers[0] ? (
-            <RemoteVideo peer={liveChat.remotePeers[0]} />
-          ) : (
-            <div className="flex h-full items-center justify-center bg-slate-950 text-center text-[8px] font-semibold text-white/70">
-              Waiting…
-            </div>
-          )}
-        </div>
-      ) : null}
-      {liveMode && gameSlug === 'murlanroyale'
+      {liveMode && (gameSlug === 'domino-royal' || gameSlug === 'murlanroyale')
         ? groupOpponentRects.map((rect, index) => (
             <div
-              key={`murlan-live-seat-${index}`}
+              key={`${gameSlug}-live-seat-${index}`}
               className="fixed z-[25] overflow-hidden rounded-full pointer-events-none"
               style={{
                 top: `${rect.top}px`,
