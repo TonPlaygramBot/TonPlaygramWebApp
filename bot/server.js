@@ -3730,6 +3730,13 @@ io.on('connection', (socket) => {
     if (!normalizedRoomId) return;
 
     const room = ensureLiveChatRoom(normalizedRoomId);
+    if (!room.has(socket.id) && room.size >= 4) {
+      socket.emit('liveChat:room-full', {
+        roomId: String(roomId),
+        message: 'This live video room already has four players.'
+      });
+      return;
+    }
     const safeParticipant = {
       displayName: String(participant?.displayName || 'Player').slice(0, 60),
       mediaState: {
