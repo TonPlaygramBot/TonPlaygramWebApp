@@ -368,8 +368,8 @@ router.post('/posts/:id/download', async (req, res) => {
   // rows can have a missing or generic MIME type, but their original filename
   // is still sufficient to identify and serve the video.
   const [diskPath, databaseFile] = await Promise.all([
-    findFlamingoMedia(file, mediaDirectories),
-    findFlamingoDatabaseMedia(file)
+    findFlamingoMedia(file, mediaDirectories, post.attachment.name, post.attachment.size),
+    findFlamingoDatabaseMedia(file, post.attachment.name, post.attachment.size)
   ]);
   if (!diskPath && !databaseFile) return res.status(404).json({ error: 'Videoja origjinale nuk u gjet në hapësirën e ruajtjes.' });
   const price = attachmentDownloadPrice(post.attachment);
@@ -383,7 +383,7 @@ router.post('/posts/:id/download', async (req, res) => {
     if (!user) return res.status(402).json({ error: `Të duhen ${price} TPG për ta shkarkuar këtë video.` });
   }
   const grant = randomUUID();
-  downloadGrants.set(grant, { file, expiresAt: Date.now() + 5 * 60_000 });
+  downloadGrants.set(grant, { file, originalName: post.attachment.name, size: post.attachment.size, expiresAt: Date.now() + 5 * 60_000 });
   res.json({ downloadUrl: `/api/flamingo-wall/downloads/${grant}?name=${encodeURIComponent(post.attachment.name)}`, price, balance: user.balance });
 });
 
@@ -396,9 +396,9 @@ router.get('/downloads/:grant', async (req, res) => {
   // download continue without transferring the completed bytes again.
   res.setHeader('Accept-Ranges', 'bytes');
   res.setHeader('Cache-Control', 'private, max-age=300');
-  const diskPath = await findFlamingoMedia(grant.file, mediaDirectories);
+  const diskPath = await findFlamingoMedia(grant.file, mediaDirectories, grant.originalName, grant.size);
   if (diskPath) return res.download(diskPath, requestedName);
-  const databaseFile = await findFlamingoDatabaseMedia(grant.file);
+  const databaseFile = await findFlamingoDatabaseMedia(grant.file, grant.originalName, grant.size);
   const stream = openFlamingoDatabaseMedia(databaseFile);
   if (!stream) return res.status(404).json({ error: 'Videoja nuk u gjet.' });
   res.setHeader('Content-Length', databaseFile.length);
@@ -431,13 +431,13 @@ router.get('/files/:name', async (req, res) => {
   if (/^[\w.+-]+\/[\w.+-]+$/.test(contentType)) {
     res.type(contentType);
   }
-  const diskPath = await findFlamingoMedia(name, mediaDirectories);
+  const diskPath = await findFlamingoMedia(name, mediaDirectories, post?.attachment?.name, post?.attachment?.size);
   if (diskPath) {
     return res.sendFile(diskPath, err => {
       if (err && !res.headersSent) res.status(err.statusCode || 404).end();
     });
   }
-  const databaseFile = await findFlamingoDatabaseMedia(name);
+  const databaseFile = await findFlamingoDatabaseMedia(name, post?.attachment?.name, post?.attachment?.size);
   if (!databaseFile) return res.status(404).end();
   const range = String(req.get('range') || '').match(/^bytes=(\d*)-(\d*)$/);
   let start = 0;
