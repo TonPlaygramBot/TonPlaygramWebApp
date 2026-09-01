@@ -92,7 +92,8 @@ describe('PoolRoyaleRules', () => {
     expect(cleared.ballOn).toEqual(['SOLID']);
     expect(clearedMeta?.hud?.next).toBe('solid');
     expect(clearedMeta?.hud?.phase).toBe('groups');
-    expect(cleared.players.A.score).toBe(1);
+    expect(cleared.players.A.score).toBe(0);
+    expect(clearedMeta?.hud?.scores).toEqual({ A: 0, B: 0 });
     expect(cleared.activePlayer).toBe('A');
 
     const scratchEvents: ShotEvent[] = [
