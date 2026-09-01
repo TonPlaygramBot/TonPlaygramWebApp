@@ -1,14 +1,12 @@
 const gamesCatalog = [
   {
     name: 'BLACK TIDE',
-    route: '/games/black-tide/',
+    route: '/games/black-tide/lobby',
     slug: 'black-tide',
     image: '/assets/icons/black-tide.svg',
     description: 'Cinematic 3D action campaign with driving, combat and five missions.',
-    standalone: true,
-    multiplayer: false,
-    badge: 'Single Player',
-    launchLabel: 'Play Campaign'
+    badge: 'Online Co-op',
+    launchLabel: 'Find Match'
   },
   {
     name: "Texas Hold'em",
