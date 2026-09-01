@@ -131,8 +131,13 @@ const CAPTURE_PARK_OUTWARD_OFFSET_BY_TYPE = Object.freeze({
   missile: 0.032,
   firearmRack: 0.044
 });
-// Keep parked capture vehicles and firearms grounded directly on the table surface.
-const CAPTURE_PARKED_LIFT_OFFSET_Y = 0;
+// Keep parked capture vehicles and firearms just above the table surface. A tiny
+// clearance prevents the models from disappearing into the tabletop on mobile
+// GPUs while still reading as parked rather than floating.
+const CAPTURE_PARKED_LIFT_OFFSET_Y = 0.008;
+// Selected table weapons must remain readable in the portrait overview rather
+// than looking like tiny decoration beside the player's reserve pieces.
+const CAPTURE_PARKED_WEAPON_VISUAL_SCALE = 1.24;
 const CAPTURE_PARK_SCALE_BY_TYPE = Object.freeze({
   fighter: 1.4 * 1.2,
   helicopter: 1.2 * 1.2,
@@ -2161,6 +2166,7 @@ async function applyCaptureWeaponDisplay(entry, captureAnimationId) {
     clone,
     CAPTURE_PARK_BOX_TARGET_SIZE * displayTuning.targetSizeMultiplier * weaponRackScaleMultiplier
   );
+  clone.scale.multiplyScalar(CAPTURE_PARKED_WEAPON_VISUAL_SCALE);
   clone.position.x += displayPosition[0];
   clone.position.y += displayPosition[1];
   clone.position.z += displayPosition[2];
@@ -4431,7 +4437,9 @@ const FALLBACK_SEAT_POSITIONS = [
   { left: '52%', top: '24%' },
   { left: '20%', top: '56%' }
 ];
-const SELF_AVATAR_BOTTOM_OFFSET_PERCENT = 10.5;
+// The local player is a screen-space affordance: keep it at the portrait bottom
+// even while the 3D camera looks toward another turn or a capture animation.
+const SELF_AVATAR_SCREEN_POSITION = Object.freeze({ left: '50%', top: '86%' });
 
 const colorNumberToHex = (value) => `#${value.toString(16).padStart(6, '0')}`;
 
@@ -4479,7 +4487,10 @@ const LUDO_CAMERA_PHI_MAX = 1.14;
 const PLAYER_VIEW_SEAT_THETA = Math.PI / 2;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_PORTRAIT = 1.18;
 const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.26;
-const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 2.46;
+// Keep the portrait camera physically behind the local/bottom seat. The old
+// forward offset crossed the table centre after the arena was scaled down,
+// which visually put the AI seat at the bottom and the user's seat at the top.
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.72;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.98;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.36;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.9;
@@ -8842,18 +8853,18 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
     parkedCaptureVehiclesRef.current.clear();
 
     for (let playerIndex = 0; playerIndex < activePlayerCount; playerIndex += 1) {
+      // Start each player's parked display assets together. Loading these one at
+      // a time could leave the table empty for several network round trips on a
+      // phone even though the game itself was already playable.
       // eslint-disable-next-line no-await-in-loop
-      const jetFx = await createCaptureJetFx();
-      // eslint-disable-next-line no-await-in-loop
-      const helicopterFx = await createCaptureHelicopterFx();
-      // eslint-disable-next-line no-await-in-loop
-      const droneFx = await createCaptureDroneFx();
-      // eslint-disable-next-line no-await-in-loop
-      const missileFx = await createCaptureMissileTruckFx();
-      // eslint-disable-next-line no-await-in-loop
-      const droneTruckFx = await createCaptureDroneLauncherTruckFx();
-      // eslint-disable-next-line no-await-in-loop
-      const weaponRackFx = await createCaptureWeaponRackFx();
+      const [jetFx, helicopterFx, droneFx, missileFx, droneTruckFx, weaponRackFx] = await Promise.all([
+        createCaptureJetFx(),
+        createCaptureHelicopterFx(),
+        createCaptureDroneFx(),
+        createCaptureMissileTruckFx(),
+        createCaptureDroneLauncherTruckFx(),
+        createCaptureWeaponRackFx()
+      ]);
       if (!jetFx?.root || !helicopterFx?.root || !droneFx?.root || !missileFx?.root || !droneTruckFx?.root || !weaponRackFx?.root) continue;
       fitCaptureVehicleToPlayerKing(jetFx.root, playerIndex);
       fitCaptureVehicleToPlayerKing(helicopterFx.root, playerIndex);
@@ -14413,18 +14424,23 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
             const fallback =
               FALLBACK_SEAT_POSITIONS[player.index] ||
               FALLBACK_SEAT_POSITIONS[FALLBACK_SEAT_POSITIONS.length - 1];
-            const selfBottomOffset = player.index === 0 ? SELF_AVATAR_BOTTOM_OFFSET_PERCENT : 0;
-            const positionStyle = anchor
+            const positionStyle = player.index === 0
+              ? {
+                  position: 'absolute',
+                  ...SELF_AVATAR_SCREEN_POSITION,
+                  transform: 'translate(-50%, -50%)'
+                }
+              : anchor
               ? {
                   position: 'absolute',
                   left: `${anchor.x}%`,
-                  top: `${anchor.y + selfBottomOffset}%`,
+                  top: `${anchor.y}%`,
                   transform: 'translate(-50%, -50%)'
                 }
               : {
                   position: 'absolute',
                   left: fallback.left,
-                  top: `calc(${fallback.top} + ${selfBottomOffset}%)`,
+                  top: fallback.top,
                   transform: 'translate(-50%, -50%)'
                 };
             const depth = anchor?.depth ?? 3;
