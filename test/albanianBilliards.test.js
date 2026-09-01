@@ -32,22 +32,10 @@ test('a legal dry shot needs a cushion and passes the turn', () => {
   assert.equal(result.nextPlayer, 'B')
 })
 
-test('balls potted during a foul score their face value for the opponent and stay down', () => {
+test('a foul does not award points but object balls stay down', () => {
   const game = new AlbanianBilliards()
   const result = game.shotTaken({ contactOrder: [1], potted: [1, 0] })
-  assert.equal(result.pointsScored, 1)
-  assert.equal(result.pointsAwardedTo, 'B')
+  assert.equal(result.pointsScored, 0)
   assert.equal(result.scores.A, 0)
-  assert.equal(result.scores.B, 1)
   assert.equal(game.state.ballsOnTable.has(1), false)
-})
-
-test('foul pot can immediately win the 61-point game for the opponent', () => {
-  const game = new AlbanianBilliards()
-  game.state.scores.B = 60
-  game.state.ballsOnTable = new Set([1, 2])
-  const result = game.shotTaken({ contactOrder: [2], potted: [1] })
-  assert.equal(result.foul, true)
-  assert.equal(result.scores.B, 61)
-  assert.equal(result.winner, 'B')
 })

@@ -458,7 +458,7 @@ export class PoolRoyaleRules {
       ballOn: lowest != null && !snapshot.frameOver ? [`BALL_${lowest}`] : [],
       frameOver: snapshot.frameOver,
       winner: snapshot.winner === 'TIE' || snapshot.winner == null ? undefined : snapshot.winner,
-      foul: result.foul ? { points: result.pointsScored, reason: result.reason ?? 'foul' } : undefined,
+      foul: result.foul ? { points: 0, reason: result.reason ?? 'foul' } : undefined,
       meta: {
         variant: 'albanian', state: snapshot,
         hud: {
@@ -509,9 +509,7 @@ export class PoolRoyaleRules {
     const pottedCount = potted.filter((colour) => colour !== 'cue').length;
     const snapshot = serializeUkState(game.state);
     const totals = previous ? previous.totals : { blue: UK_TOTAL_PER_COLOUR, red: UK_TOTAL_PER_COLOUR };
-    // Eight-ball is won by clearing a group and the black, not by accumulating
-    // a numerical point total. Potted balls are represented in the match HUD.
-    const playerScores = { A: 0, B: 0 };
+    const playerScores = this.computeUkScores(snapshot, totals);
     const ballOn = this.computeUkBallOn(snapshot);
     const hud: HudInfo = {
       next: ballOn.length === 0 ? 'black' : ballOn.map((entry) => entry.toLowerCase()).join(' / '),
@@ -618,7 +616,7 @@ export class PoolRoyaleRules {
     const pottedCount = potted.filter((id) => id !== 0).length;
     const snapshot = serializeEightBallState(game.state);
     const ballOn = this.computeEightBallBallOn(snapshot);
-    const scores = { A: 0, B: 0 };
+    const scores = this.computeEightBallScores(snapshot);
     const frameOver = snapshot.frameOver;
     const nextLabel =
       ballOn.length === 0
