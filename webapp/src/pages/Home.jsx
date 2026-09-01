@@ -234,7 +234,15 @@ export default function Home() {
           </div>
         )}
 
-        <TonConnectButton />
+        <section className="mt-2 w-full rounded-2xl border border-sky-400/20 bg-sky-400/[0.06] px-4 py-4 text-center" aria-labelledby="gram-wallet-title">
+          <p id="gram-wallet-title" className="text-xs font-bold uppercase tracking-[0.22em] text-sky-300">
+            Gram Wallet
+          </p>
+          <p className="mt-1 text-xs text-subtext">
+            Connect securely with the official TON Connect experience.
+          </p>
+          <TonConnectButton className="flex justify-center" />
+        </section>
         {walletAddress && (
           <div className="mt-2 text-center">
             <p className="text-xs text-subtext">Connected TON balance</p>

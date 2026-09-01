@@ -171,7 +171,7 @@ export default function App() {
   const manifestUrl = useMemo(() => {
     const canon = canonicalOrigin.replace(/\/$/, '');
     // Cache-bust manifest so wallets always read the latest app name/icon.
-    return `${canon}/tonconnect-manifest.json?v=2026-02-18`;
+    return `${canon}/tonconnect-manifest.json?v=2026-09-01`;
   }, [canonicalOrigin]);
   const returnUrl = useMemo(() => {
     if (typeof window !== 'undefined' && window.location?.href) {
