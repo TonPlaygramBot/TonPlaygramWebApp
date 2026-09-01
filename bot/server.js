@@ -58,10 +58,6 @@ import { existsSync, readFileSync } from 'fs';
 import { execSync } from 'child_process';
 import { randomInt, randomUUID } from 'crypto';
 import {
-  getTelegramWebhookConfig,
-  startTelegramBot
-} from './telegramStartup.js';
-import {
   createDominoTableNumber,
   hasConflictingPrimaryTpcIdentities,
   isDominoMatchCompatible,
@@ -473,13 +469,7 @@ function sendIndex(res) {
   else console.log('Skipping Telegram bot launch');
 }
 
-const telegramWebhook = getTelegramWebhookConfig();
-if (telegramWebhook) {
-  app.post(telegramWebhook.path, bot.webhookCallback(telegramWebhook.path));
-}
-
 let botLaunchTriggered = false;
-let telegramBotMode = null;
 function launchBotWithDelay() {
   if (botLaunchTriggered) return;
   botLaunchTriggered = true;
@@ -488,9 +478,13 @@ function launchBotWithDelay() {
   }
   setTimeout(async () => {
     try {
-      const started = await startTelegramBot(bot);
-      telegramBotMode = started.mode;
-      console.log(`Telegram bot started in ${started.mode} mode`);
+      // Ensure no lingering webhook is configured when using polling
+      try {
+        await bot.telegram.deleteWebhook({ drop_pending_updates: true });
+      } catch (err) {
+        console.error('Failed to delete existing webhook:', err.message);
+      }
+      await bot.launch({ dropPendingUpdates: true });
     } catch (err) {
       console.error('Failed to launch Telegram bot:', err.message);
     }
@@ -4288,10 +4282,6 @@ httpServer.listen(PORT, async () => {
 });
 
 if (process.env.BOT_TOKEN && process.env.BOT_TOKEN !== 'dummy') {
-  process.once('SIGINT', () => {
-    if (telegramBotMode === 'polling') bot.stop('SIGINT');
-  });
-  process.once('SIGTERM', () => {
-    if (telegramBotMode === 'polling') bot.stop('SIGTERM');
-  });
+  process.once('SIGINT', () => bot.stop('SIGINT'));
+  process.once('SIGTERM', () => bot.stop('SIGTERM'));
 }
