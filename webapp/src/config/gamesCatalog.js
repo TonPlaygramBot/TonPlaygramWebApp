@@ -1,17 +1,5 @@
 const gamesCatalog = [
   {
-    name: 'Table Tennis', route: '/games/table-tennis/lobby', slug: 'table-tennis',
-    image: '/assets/icons/table-tennis-icon.svg', description: 'Fast 3D rallies, precision spin and live online rivals.'
-  },
-  {
-    name: 'Tennis', route: '/games/tennis/lobby', slug: 'tennis',
-    image: '/assets/icons/tennis-icon.svg', description: 'A portrait-first center-court duel with online matchmaking.'
-  },
-  {
-    name: 'Real Bowling', route: '/games/bowling/lobby', slug: 'bowling',
-    image: '/assets/icons/bowling-icon.svg', description: 'True ten-pin frames, touch aiming and head-to-head play.'
-  },
-  {
     name: "Texas Hold'em",
     route: '/games/texasholdem/lobby',
     slug: 'texasholdem',
@@ -93,20 +81,26 @@ const gamesCatalog = [
     description: 'Backgammon duels with a royal 3D-inspired board and smart AI.'
   },
 
-
   {
     name: 'Ludo Battle Royal',
     route: '/games/ludobattleroyal/lobby',
     slug: 'ludobattleroyal',
     image: '/assets/icons/Ludo%20battle%20Royal%20game%20logo.png',
     description: 'Classic ludo chaos in a battle royale lobby.'
+  },
+  {
+    name: 'Underrun Arena',
+    route: '/games/underrunarena/lobby',
+    slug: 'underrunarena',
+    image: '/assets/icons/underrun-arena.svg',
+    description: 'Survive an auto-fire neon swarm online.'
   }
-];
+]
 
-export default gamesCatalog;
+export default gamesCatalog
 
 export const catalogWithSlugs = gamesCatalog.map((game) => {
-  if (game.slug) return game;
-  const [, , slug] = game.route.split('/');
-  return { ...game, slug };
-});
+  if (game.slug) return game
+  const [, , slug] = game.route.split('/')
+  return { ...game, slug }
+})

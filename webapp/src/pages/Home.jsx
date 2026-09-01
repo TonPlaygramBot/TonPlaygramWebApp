@@ -28,7 +28,9 @@ const xIcon = (
 
 import { Link } from 'react-router-dom';
 
-import { ping, getProfile, fetchTelegramInfo } from '../utils/api.js';
+import { API_BASE_URL, ping, getProfile, fetchTelegramInfo } from '../utils/api.js';
+import MediaWall from '../features/flamingo/MediaWall';
+import '../features/flamingo/community-wall.css';
 
 import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 
@@ -163,9 +165,14 @@ export default function Home() {
       window.removeEventListener('profilePhotoUpdated', handleUpdate);
   }, []);
 
+
+
   return (
     <div className="home-page app-theme-page space-y-4">
       <ThemePicker />
+      <section className="home-wall-embed" aria-label="TonPlayGram Wall">
+        <MediaWall compact />
+      </section>
       <HomeIntroduction />
       <div className="flex flex-col items-center">
         {photoUrl && (

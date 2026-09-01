@@ -431,12 +431,55 @@ namespace Aiming
         float ScoreAttempt(in ShotContext ctx, in ShotInfo info, in AimSolution attempt)
         {
             Vector3 cueDir = (attempt.aimEnd - ctx.cueBallPos).normalized;
-            Vector3 idealDir = (ctx.objectBallPos - ctx.cueBallPos).normalized;
-            float directionalMiss = 1f - Mathf.Clamp01(Vector3.Dot(cueDir, idealDir));
-
+            float impactMiss = CalculateImpactAngularErrorDeg(
+                ctx.cueBallPos, ctx.objectBallPos, ctx.pocketPos, cueDir, ctx.ballRadius);
+            float accuracyWeight = config ? config.impactAccuracyWeight : 2.4f;
+            float missPenalty = Mathf.Clamp01(impactMiss / 90f) * accuracyWeight;
             float cutPenalty = (config ? config.cutAnglePenalty : 0.55f) * (info.angleDeg / 90f);
             float distancePenalty = (config ? config.distancePenalty : 0.2f) * Vector3.Distance(ctx.cueBallPos, attempt.aimEnd);
-            return directionalMiss + cutPenalty + distancePenalty;
+            return missPenalty + cutPenalty + distancePenalty;
+        }
+
+        /// <summary>
+        /// Predicts the object-ball direction from the first equal-sphere impact
+        /// and returns its angular error from the pocket line.  This is a cheap,
+        /// deterministic physical test suitable for evaluating every AI candidate.
+        /// </summary>
+        public static float CalculateImpactAngularErrorDeg(
+            Vector3 cuePosition,
+            Vector3 objectPosition,
+            Vector3 pocketPosition,
+            Vector3 cueDirection,
+            float ballRadius)
+        {
+            cueDirection.y = 0f;
+            Vector3 toObject = objectPosition - cuePosition;
+            toObject.y = 0f;
+            Vector3 desiredDirection = pocketPosition - objectPosition;
+            desiredDirection.y = 0f;
+            if (cueDirection.sqrMagnitude <= 1e-8f || toObject.sqrMagnitude <= 1e-8f ||
+                desiredDirection.sqrMagnitude <= 1e-8f || ballRadius <= 0f)
+                return 180f;
+
+            cueDirection.Normalize();
+            float projectedDistance = Vector3.Dot(toObject, cueDirection);
+            float combinedRadius = ballRadius * 2f;
+            float closestDistanceSq = toObject.sqrMagnitude - projectedDistance * projectedDistance;
+            float radiusSq = combinedRadius * combinedRadius;
+            if (projectedDistance < 0f || closestDistanceSq > radiusSq)
+                return 180f;
+
+            float contactDistance = projectedDistance - Mathf.Sqrt(Mathf.Max(0f, radiusSq - closestDistanceSq));
+            if (contactDistance < 0f)
+                return 180f;
+
+            Vector3 cueAtImpact = cuePosition + cueDirection * contactDistance;
+            Vector3 predictedObjectDirection = objectPosition - cueAtImpact;
+            predictedObjectDirection.y = 0f;
+            if (predictedObjectDirection.sqrMagnitude <= 1e-8f)
+                return 180f;
+
+            return Vector3.Angle(predictedObjectDirection, desiredDirection);
         }
 
         AimSolution SelectWithMonteCarlo(in ShotContext ctx, in ShotInfo info, AimSolution[] solutions, float[] deterministicScores, int count)
@@ -483,24 +526,18 @@ namespace Aiming
 
         float ScoreMonteCarloRollout(in ShotContext ctx, in ShotInfo info, Vector3 cueDir, float shotPower01)
         {
-            Vector3 cueToObject = ctx.objectBallPos - ctx.cueBallPos;
-            float cueToObjectDistance = cueToObject.magnitude;
-            if (cueToObjectDistance <= 1e-6f)
+            float angularError = CalculateImpactAngularErrorDeg(
+                ctx.cueBallPos, ctx.objectBallPos, ctx.pocketPos, cueDir, ctx.ballRadius);
+            if (angularError >= 179f)
                 return 10f;
 
-            Vector3 cueToObjectDir = cueToObject / cueToObjectDistance;
-            Vector3 objectToPocket = ctx.pocketPos - ctx.objectBallPos;
-            float objectToPocketDistance = objectToPocket.magnitude;
-            if (objectToPocketDistance <= 1e-6f)
-                return 10f;
-
-            Vector3 objectToPocketDir = objectToPocket / objectToPocketDistance;
-            float hitAlignment = Mathf.Clamp01(Vector3.Dot(cueDir, cueToObjectDir));
-            float cutAlignment = Mathf.Clamp01(Vector3.Dot(cueToObjectDir, objectToPocketDir));
+            float pocketDistance = Vector3.Distance(ctx.objectBallPos, ctx.pocketPos);
+            float mouthHalfWidth = config ? config.pocketMouthHalfWidth : 0.06f;
+            float clearance = Mathf.Max(0.002f, mouthHalfWidth - ctx.ballRadius);
+            float allowedErrorDeg = Mathf.Atan2(clearance, Mathf.Max(pocketDistance, 0.001f)) * Mathf.Rad2Deg;
+            float normalizedMiss = angularError / Mathf.Max(allowedErrorDeg, 0.1f);
             float powerPenalty = Mathf.Abs(shotPower01 - RecommendPower(info.distBucket, ctx.requiresPower)) * 0.15f;
-            float missPenalty = (1f - hitAlignment) * 1.5f + (1f - cutAlignment) * 1.2f;
-
-            return missPenalty + powerPenalty + (info.angleDeg / 90f) * 0.15f;
+            return normalizedMiss * normalizedMiss + powerPenalty + (info.angleDeg / 90f) * 0.08f;
         }
 
         static Vector3 ApplyDirectionalNoise(Vector3 baseDir, float jitterDeg, int seed)
