@@ -32232,21 +32232,10 @@ const shotPowerRef = useRef(0);
             power: clampPower(plan.power, 0.6)
           });
           if (!ghostAim?.aimDir || ghostAim.aimDir.lengthSq() < 1e-6) return plan;
-          const compensatedAim = ghostAim.aimDir.clone().normalize();
-          const delta = baseAim.angleTo(compensatedAim);
-          const targetDistance = cue.pos.distanceTo(plan.targetBall.pos);
-          const distanceFactor = THREE.MathUtils.clamp(
-            targetDistance / Math.max(PLAY_W * 0.55, BALL_R * 10),
-            0,
-            1
-          );
-          const maxCompensationAngle = THREE.MathUtils.degToRad(4.5 + distanceFactor * 2.5);
-          const blend = THREE.MathUtils.clamp(
-            maxCompensationAngle > 0 ? maxCompensationAngle / Math.max(delta, 1e-6) : 1,
-            0,
-            1
-          );
-          const stableAim = baseAim.lerp(compensatedAim, blend).normalize();
+          // Do not angle-limit this correction. On a thin cut the true ghost-ball
+          // line can legitimately be far from a centre-ball fallback, and a
+          // partial blend no longer sends the object ball at the chosen pocket.
+          const stableAim = ghostAim.aimDir.clone().normalize();
           return {
             ...plan,
             aimDir: stableAim,
