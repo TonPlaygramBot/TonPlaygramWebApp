@@ -104,6 +104,7 @@ import {
 import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
 import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import SnookerShotCoach from './SnookerShotCoach.jsx';
+import { resolveSnookerImpactAudio } from './snookerImpactAudio.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
@@ -14917,7 +14918,7 @@ const powerRef = useRef(hud.power);
     }
   }, []);
 
-  const playBallHit = useCallback((vol = 1) => {
+  const playBallHit = useCallback((vol = 1, playbackRate = 1) => {
     if (vol <= 0) return;
     const ctx = audioContextRef.current;
     const buffer = audioBuffersRef.current.ball;
@@ -14927,6 +14928,7 @@ const powerRef = useRef(hud.power);
     ctx.resume().catch(() => {});
     const source = ctx.createBufferSource();
     source.buffer = buffer;
+    source.playbackRate.value = clamp(playbackRate, 0.94, 1.04);
     const gain = ctx.createGain();
     gain.gain.value = scaled;
     source.connect(gain);
@@ -26735,13 +26737,15 @@ const powerRef = useRef(hud.power);
                   b.vel.set(TMP_VEC3_E.x, TMP_VEC3_E.z);
                 }
                 if (isNewImpact) {
-                  const shotScale = 0.4 + 0.6 * lastShotPower;
-                  const volume = clamp(
-                    (impulse / BALL_COLLISION_SOUND_REFERENCE_SPEED) * shotScale,
-                    0,
-                    1
-                  );
-                  if (volume > 0) playBallHit(volume);
+                  const impactAudio = resolveSnookerImpactAudio({
+                    impulse,
+                    shotPower: lastShotPower,
+                    referenceImpulse: BALL_COLLISION_SOUND_REFERENCE_SPEED,
+                    pairKey
+                  });
+                  if (impactAudio.gain > 0) {
+                    playBallHit(impactAudio.gain, impactAudio.playbackRate);
+                  }
                 }
                 const cueBall = a.id === 'cue' ? a : b.id === 'cue' ? b : null;
                 if (!firstHit) {
