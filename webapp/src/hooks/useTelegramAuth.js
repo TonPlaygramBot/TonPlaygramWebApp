@@ -27,7 +27,6 @@ export default function useTelegramAuth() {
       if (registeredTelegramId.current === user.id) return true;
 
       registeredTelegramId.current = user.id;
-      const acc = localStorage.getItem('accountId');
       localStorage.setItem('telegramId', user.id);
       if (user.username) localStorage.setItem('telegramUsername', user.username);
       if (user.first_name) localStorage.setItem('telegramFirstName', user.first_name);
@@ -37,10 +36,23 @@ export default function useTelegramAuth() {
       // Storage events do not fire in the window that made the change. Profile
       // pages mounted during a Telegram cold start need an explicit wake-up.
       window.dispatchEvent(new CustomEvent('telegramAuthUpdated', { detail: user }));
-      socket.emit('register', { tpcAccountNumber: acc || user.id });
-      createAccount(user.id).catch(err => {
-        console.error('Failed to create account', err);
-      });
+      // Register provisionally with the Telegram id, then replace it with the
+      // authoritative account id returned by the current account endpoint.
+      // A cached accountId can belong to an earlier guest/Google session.
+      socket.emit('register', { tpcAccountNumber: user.id });
+      createAccount(user.id)
+        .then((account) => {
+          if (account?.accountId) {
+            localStorage.setItem('accountId', account.accountId);
+            socket.emit('register', { tpcAccountNumber: account.accountId });
+          }
+          if (account?.walletAddress) {
+            localStorage.setItem('walletAddress', account.walletAddress);
+          }
+        })
+        .catch(err => {
+          console.error('Failed to create account', err);
+        });
       return true;
     };
 
