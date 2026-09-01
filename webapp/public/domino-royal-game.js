@@ -6780,7 +6780,9 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
 const SCALE = MODEL_SCALE * 0.92;
 const DOMINO_SHRINK_FACTOR = 1;
 const DOMINO_EXTRA_SHRINK_FACTOR = 0.54;
-const DOMINO_SIZE_BOOST = 1.86;
+// Keep every domino (hands, boneyard, and played chain) subtly smaller while
+// preserving the existing proportions and spacing calculations.
+const DOMINO_SIZE_BOOST = 1.77;
 const DOMINO_SCALE =
   1.5 *
   1.26 *

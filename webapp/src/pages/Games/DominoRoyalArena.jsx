@@ -5,7 +5,7 @@ import { socket } from '../../utils/socket.js';
 
 const INLINE_STYLE_ID = 'domino-royal-inline-style';
 const GAME_SCRIPT_SELECTOR = 'script[data-domino-royal-script="true"]';
-const DOMINO_ROYAL_SCRIPT_VERSION = '2026-08-31-remove-characters-v74';
+const DOMINO_ROYAL_SCRIPT_VERSION = '2026-09-01-smaller-dominoes-v75';
 
 export default function DominoRoyalArena() {
   useEffect(() => {
