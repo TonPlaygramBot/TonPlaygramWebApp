@@ -232,6 +232,35 @@ describe('online game policy', () => {
     });
   });
 
+  test.each(['2048royale', 'hextrisbattle', 'underrunarena'])(
+    'accepts %s two-player score-race matchmaking',
+    (gameType) => {
+      expect(
+        validateSeatTableRequest({
+          gameType,
+          stake: 100,
+          maxPlayers: 2,
+          matchMeta: {
+            format: 'score-race',
+            durationSeconds: 120,
+            mode: 'online',
+            token: 'TPG'
+          }
+        })
+      ).toMatchObject({
+        ok: true,
+        normalizedGameType: gameType,
+        normalizedMaxPlayers: 2,
+        safeMatchMeta: {
+          format: 'score-race',
+          durationSeconds: '120',
+          mode: 'online',
+          token: 'TPG'
+        }
+      });
+    }
+  );
+
   test.each([
     [
       { variant: 'rounds', mode: 'online', token: 'TPG' },

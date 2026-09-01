@@ -13,6 +13,7 @@ import registerAnnounce from './commands/announce.js';
 import registerAsk from './commands/ask.js';
 import registerWelcome from './commands/welcome.js';
 import registerModeration from './middleware/moderation.js';
+import { registerFlamingoTelegramSync } from './services/flamingoTelegramSync.js';
 const bot = new Telegraf(process.env.BOT_TOKEN, {
   telegram: { agent: proxyAgent }
 });
@@ -30,5 +31,6 @@ registerAnnounce(bot);
 registerAsk(bot);
 registerWelcome(bot);
 registerModeration(bot);
+registerFlamingoTelegramSync(bot);
 
 export default bot;

@@ -1,11 +1,23 @@
 services:
   - type: web
     runtime: node
-    name: tonplaygram-api
+    # This must match the public host used by the Telegram/native clients.
+    # Keeping a second, suspended `tonplaygram-api` service here meant the
+    # profile client reached a different database-backed deployment than the
+    # service managed by this blueprint.
+    name: tonplaygram-bot
     branch: main
     rootDir: bot
     buildCommand: npm install && npm --prefix ../webapp install && WEBAPP_BUILD_MAX_OLD_SPACE_SIZE=1536 npm --prefix ../webapp run build
     startCommand: npm start
+    # Do not route profile traffic until this deployment has its MongoDB
+    # connection. A process-only health check can pass while profile queries
+    # are still buffered waiting for the database.
+    healthCheckPath: /api/health
+    disk:
+      name: protest-media
+      mountPath: /var/data/tonplaygram
+      sizeGB: 10
     envVars:
       - key: MONGO_URI
         fromSecret: MONGO_URI
@@ -30,10 +42,17 @@ services:
         fromSecret: MATCHMAKING_SERVICE_SECRET
       - key: VITE_MATCHMAKING_URL
         value: wss://tonplaygram-chess-matchmaking.onrender.com
+      # Bake the public API into web/native bundles. Same-origin remains the
+      # browser fallback, while installed iOS shells cannot use capacitor://localhost.
+      - key: VITE_API_BASE_URL
+        value: https://tonplaygram-bot.onrender.com
       - key: RPC_URL
         fromSecret: RPC_URL
       - key: DEV_ACCOUNT_ID
         fromSecret: DEV_ACCOUNT_ID
+      # Community photos and videos must outlive API restarts and deployments.
+      - key: FLAMINGO_UPLOAD_DIR
+        value: /var/data/tonplaygram/flamingo-uploads
       - key: SOCIAL_PROVIDER_MODE
         value: disabled
 
@@ -49,7 +68,7 @@ services:
       - key: AUTH_REQUIRED
         value: true
       - key: ACCOUNT_API_URL
-        value: https://tonplaygram-api.onrender.com
+        value: https://tonplaygram-bot.onrender.com
       - key: MATCHMAKING_SERVICE_SECRET
         fromSecret: MATCHMAKING_SERVICE_SECRET
       - key: REDIS_URL

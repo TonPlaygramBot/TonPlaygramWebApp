@@ -1,6 +1,6 @@
-import gamesCatalog from '../config/gamesCatalog.js';
+import { inviteGamesCatalog } from '../config/gamesCatalog.js';
 
-const GAME_SLUGS = new Set(gamesCatalog.map(({ slug }) => slug));
+const GAME_SLUGS = new Set(inviteGamesCatalog.map(({ slug }) => slug));
 
 export function normalizeInviteGame(game) {
   const slug = String(game || '').trim().toLowerCase();
