@@ -1,14 +1,5 @@
 const gamesCatalog = [
   {
-    name: 'BLACK TIDE',
-    route: '/games/black-tide/lobby',
-    slug: 'black-tide',
-    image: '/assets/icons/black-tide.svg',
-    description: 'Cinematic 3D action campaign with driving, combat and five missions.',
-    badge: 'Online Co-op',
-    launchLabel: 'Find Match'
-  },
-  {
     name: "Texas Hold'em",
     route: '/games/texasholdem/lobby',
     slug: 'texasholdem',
