@@ -15215,8 +15215,14 @@ function PoolRoyaleGame({
     [variantKey, ballSetKey]
   );
   const infoText = useMemo(() => {
+    if (activeVariant?.id === 'albanian') {
+      return 'Race to 61 by potting balls in rotation. Ball values are points; balls potted on a foul score for your opponent.';
+    }
+    if (activeVariant?.id === '9ball') {
+      return 'Contact the lowest numbered ball first and legally pocket the 9-ball to win. No pot-count points are used.';
+    }
     if (activeVariant?.id === 'uk') {
-      return 'Pocket your assigned group, then sink the 8-ball to win. Fouls give your opponent ball in hand.';
+      return 'Pocket your assigned group, then sink the 8-ball to win. The match uses groups, not points; fouls give your opponent ball in hand.';
     }
     return 'Pocket your assigned group, then sink the 8-ball to win. Fouls give your opponent ball in hand.';
   }, [activeVariant]);
@@ -36351,6 +36357,18 @@ const shotPowerRef = useRef(0);
     lastOpponentPot != null
       ? String(lastOpponentPot.id ?? lastOpponentPot.color)
       : null;
+  const broadcastVariant = frameState?.meta?.variant || activeVariant?.id || 'uk';
+  const isAlbanianBroadcast = broadcastVariant === 'albanian';
+  const isNineBallBroadcast = broadcastVariant === '9ball';
+  const eightBallAssignments = frameState?.meta?.state?.assignments || {};
+  const formatEightBallGroup = (seat) => {
+    const assignment = eightBallAssignments?.[seat];
+    if (assignment === 'SOLID') return 'SOLIDS';
+    if (assignment === 'STRIPE') return 'STRIPES';
+    if (assignment === 'red') return 'REDS';
+    if (assignment === 'blue') return 'YELLOWS';
+    return 'OPEN TABLE';
+  };
   const bottomHudVisible =
     hud.turn != null && !hud.over && !shotActive && !replayActive && !hideNonEssentialHud;
   const bottomHudScale = usePortraitHudLayout ? uiScale * 1.08 : uiScale * 1.12;
@@ -36421,6 +36439,44 @@ const shotPowerRef = useRef(0);
       </span>
     ),
     [avatarSizeClass]
+  );
+
+  const broadcastPlayer = {
+    seat: playerSeatId,
+    name: player.name || resolveSeatLabel(playerSeatId),
+    avatar: isOnlineMatch
+      ? player.avatar || '/assets/icons/profile.svg'
+      : resolvedPlayerAvatar || '/assets/icons/profile.svg',
+    potted: playerPotted,
+    lastPotId: lastPlayerPotId,
+    active: isPlayerTurn,
+    score: playerSeatId === 'A' ? hud.A : hud.B
+  };
+  const broadcastOpponent = {
+    seat: opponentSeatId,
+    name: opponentDisplayName || resolveSeatLabel(opponentSeatId),
+    avatar: opponentDisplayAvatar || '/assets/icons/profile.svg',
+    potted: opponentPotted,
+    lastPotId: lastOpponentPotId,
+    active: isOpponentTurn,
+    score: opponentSeatId === 'A' ? hud.A : hud.B
+  };
+  const renderBroadcastIdentity = (competitor, reverse = false) => (
+    <div className={`flex min-w-0 items-center gap-2 ${reverse ? 'flex-row-reverse text-right' : ''}`}>
+      <img
+        src={competitor.avatar}
+        alt={`${competitor.name} avatar`}
+        className="h-10 w-10 flex-none rounded-full border-2 border-white/70 object-cover shadow-[0_3px_10px_rgba(0,0,0,0.5)]"
+      />
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-[11px] font-black uppercase tracking-[0.08em] text-white">
+          {competitor.name}
+        </div>
+        <div className={`mt-1 flex ${reverse ? 'justify-end' : 'justify-start'}`}>
+          {renderPottedRow(competitor.potted, competitor.lastPotId, lastPotGlow)}
+        </div>
+      </div>
+    </div>
   );
 
   return (
@@ -37891,113 +37947,56 @@ const shotPowerRef = useRef(0);
             transform: usePortraitHudLayout ? `translateX(${bottomHudOffset + bottomHudLeftPx}px)` : undefined
           }}
         >
-            <div
-              className={`pointer-events-auto flex min-h-[3.35rem] max-w-full items-center justify-center ${isFreePractice ? '' : hudGapClass} rounded-full border border-emerald-400/40 bg-black/70 ${usePortraitHudLayout ? 'pl-7 pr-9 py-2.5' : 'pl-8 pr-10 py-3'} text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur`}
-              style={{
-                transform: `scale(${bottomHudScale})`,
-                transformOrigin: 'bottom center',
-                maxWidth: usePortraitHudLayout ? 'min(34rem, 100%)' : 'min(40rem, 100%)'
-              }}
-            >
-            <div
-              className={isFreePractice ? 'flex min-w-0 justify-center' : playerPanelClass}
-              style={playerPanelStyle}
-              data-player-index="0"
-            >
-              <div className="flex min-w-0 flex-col">
-                <div className="flex min-w-0 items-center gap-2.5">
-                  {isOnlineMatch ? (
-                    <img
-                      src={player.avatar || '/assets/icons/profile.svg'}
-                      alt="You"
-                      data-self-player="true"
-                      className={`${avatarSizeClass} rounded-full object-cover transition-all duration-150 ${
-                        isPlayerTurn
-                          ? 'ring-2 ring-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                          : ''
-                      }`}
-                    />
-                  ) : (
-                    <img
-                      src={resolvedPlayerAvatar || '/assets/icons/profile.svg'}
-                      alt="player avatar"
-                      className={`${avatarSizeClass} rounded-full object-cover transition-all duration-150 ${
-                        isPlayerTurn
-                          ? 'ring-2 ring-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                          : ''
-                      }`}
-                    />
-                  )}
-                  {!isFreePractice && (
-                    <span className={`${nameWidthClass} truncate ${nameTextClass} font-semibold tracking-wide`}>
-                      {player.name}
-                    </span>
-                  )}
+            {isFreePractice ? (
+              <div className="pointer-events-auto rounded-full border border-white/20 bg-black/70 px-6 py-3 backdrop-blur">
+                {renderBroadcastIdentity(broadcastPlayer)}
+              </div>
+            ) : isAlbanianBroadcast ? (
+              <div className="pointer-events-auto grid w-[min(35rem,96vw)] grid-cols-[1fr_auto_1fr] items-stretch overflow-hidden rounded-xl border border-emerald-300/55 bg-[#071612]/92 shadow-[0_12px_32px_rgba(0,0,0,0.55)] backdrop-blur">
+                <div className={`min-w-0 border-l-4 px-2 py-2 ${broadcastPlayer.active ? 'border-emerald-300 bg-emerald-400/15' : 'border-transparent'}`}>
+                  {renderBroadcastIdentity(broadcastPlayer)}
                 </div>
-                <div className="mt-1">
-                  {renderPottedRow(playerPotted, lastPlayerPotId, lastPotGlow)}
+                <div className="grid min-w-[4.8rem] grid-cols-2 border-x border-emerald-200/25 bg-black/45 text-center">
+                  {[broadcastPlayer, broadcastOpponent].map((competitor) => (
+                    <div key={competitor.seat} className="flex flex-col justify-center px-1.5">
+                      <span className="text-[7px] font-black uppercase tracking-[0.18em] text-emerald-200/75">Points</span>
+                      <strong className="text-2xl tabular-nums text-white">{competitor.score}</strong>
+                    </div>
+                  ))}
+                </div>
+                <div className={`min-w-0 border-r-4 px-2 py-2 ${broadcastOpponent.active ? 'border-emerald-300 bg-emerald-400/15' : 'border-transparent'}`}>
+                  {renderBroadcastIdentity(broadcastOpponent, true)}
                 </div>
               </div>
-            </div>
-            {!isFreePractice && (
-              <>
-                <div
-                  className={`flex items-center gap-2 ${usePortraitHudLayout ? 'text-sm' : 'text-base'} font-semibold`}
-                >
-                  <span className="text-amber-300">{hud.A}</span>
-                  <span className="text-white/50">-</span>
-                  <span>{hud.B}</span>
+            ) : isNineBallBroadcast ? (
+              <div className="pointer-events-auto grid w-[min(35rem,96vw)] grid-cols-[1fr_auto_1fr] items-center rounded-full border border-amber-300/55 bg-[#111318]/92 px-2 py-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.55)] backdrop-blur">
+                <div className={`min-w-0 rounded-l-full px-1.5 py-1 ${broadcastPlayer.active ? 'bg-amber-300/15 ring-1 ring-amber-200/60' : ''}`}>
+                  {renderBroadcastIdentity(broadcastPlayer)}
                 </div>
-                <div
-                  className={`${opponentPanelClass} ${usePortraitHudLayout ? 'text-xs' : 'text-sm'}`}
-                  style={opponentPanelStyle}
-                  data-player-index="1"
-                >
-                  {isOnlineMatch ? (
-                    <div className="flex min-w-0 flex-col">
-                      <div className="flex min-w-0 items-center gap-2.5">
-                        <img
-                          src={opponentDisplayAvatar}
-                          alt="opponent avatar"
-                          className={`${avatarSizeClass} rounded-full object-cover transition-all duration-150 ${
-                            isOpponentTurn
-                              ? 'ring-2 ring-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                              : ''
-                          }`}
-                        />
-                        <span className={`${nameWidthClass} truncate ${nameTextClass} font-semibold tracking-wide`}>
-                          {opponentDisplayName}
-                        </span>
-                      </div>
-                      <div className="mt-1">
-                        {renderPottedRow(opponentPotted, lastOpponentPotId, lastPotGlow)}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex min-w-0 flex-col">
-                      <div className="flex min-w-0 items-center gap-2.5">
-                        <img
-                          src={opponentDisplayAvatar || '/assets/icons/profile.svg'}
-                          alt="opponent avatar"
-                          className={`${avatarSizeClass} rounded-full object-cover transition-all duration-150 ${
-                            isOpponentTurn
-                              ? 'ring-2 ring-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                              : ''
-                          }`}
-                        />
-                        <span className="text-[11px] font-semibold uppercase tracking-[0.32em]">
-                          {aiFlagLabel}
-                        </span>
-                      </div>
-                      <div className="mt-1">
-                        {renderPottedRow(opponentPotted, lastOpponentPotId, lastPotGlow)}
-                      </div>
-                    </div>
-                  )}
+                <div className="mx-2 flex h-11 min-w-[3.5rem] flex-col items-center justify-center rounded-md bg-amber-300 text-[#17120a] shadow-inner">
+                  <strong className="text-sm font-black leading-none">9-BALL</strong>
+                  <span className="mt-1 text-[7px] font-black uppercase tracking-[0.12em]">Race</span>
                 </div>
-              </>
+                <div className={`min-w-0 rounded-r-full px-1.5 py-1 ${broadcastOpponent.active ? 'bg-amber-300/15 ring-1 ring-amber-200/60' : ''}`}>
+                  {renderBroadcastIdentity(broadcastOpponent, true)}
+                </div>
+              </div>
+            ) : (
+              <div className="pointer-events-auto grid w-[min(35rem,96vw)] grid-cols-[1fr_auto_1fr] items-stretch overflow-hidden rounded-lg border border-sky-200/50 bg-[#07121f]/92 shadow-[0_12px_32px_rgba(0,0,0,0.55)] backdrop-blur">
+                <div className={`min-w-0 px-2 py-2 ${broadcastPlayer.active ? 'bg-sky-400/20 shadow-[inset_4px_0_0_#7dd3fc]' : ''}`}>
+                  {renderBroadcastIdentity(broadcastPlayer)}
+                  <div className="mt-1 text-[7px] font-black uppercase tracking-[0.18em] text-sky-200/75">{formatEightBallGroup(broadcastPlayer.seat)}</div>
+                </div>
+                <div className="flex min-w-[3.4rem] flex-col items-center justify-center border-x border-sky-100/20 bg-black/40 px-2">
+                  <span className="text-lg font-black text-white">8</span>
+                  <span className="text-[7px] font-black uppercase tracking-[0.16em] text-sky-200">Ball</span>
+                </div>
+                <div className={`min-w-0 px-2 py-2 ${broadcastOpponent.active ? 'bg-sky-400/20 shadow-[inset_-4px_0_0_#7dd3fc]' : ''}`}>
+                  {renderBroadcastIdentity(broadcastOpponent, true)}
+                  <div className="mt-1 text-right text-[7px] font-black uppercase tracking-[0.18em] text-sky-200/75">{formatEightBallGroup(broadcastOpponent.seat)}</div>
+                </div>
+              </div>
             )}
-          </div>
         </div>
       )}
 
