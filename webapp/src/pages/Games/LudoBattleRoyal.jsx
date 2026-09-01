@@ -131,10 +131,8 @@ const CAPTURE_PARK_OUTWARD_OFFSET_BY_TYPE = Object.freeze({
   missile: 0.032,
   firearmRack: 0.044
 });
-// Keep parked capture vehicles and firearms just above the table surface. A tiny
-// clearance prevents the models from disappearing into the tabletop on mobile
-// GPUs while still reading as parked rather than floating.
-const CAPTURE_PARKED_LIFT_OFFSET_Y = 0.008;
+// Keep parked capture vehicles and firearms grounded directly on the table surface.
+const CAPTURE_PARKED_LIFT_OFFSET_Y = 0;
 const CAPTURE_PARK_SCALE_BY_TYPE = Object.freeze({
   fighter: 1.4 * 1.2,
   helicopter: 1.2 * 1.2,
@@ -4433,9 +4431,7 @@ const FALLBACK_SEAT_POSITIONS = [
   { left: '52%', top: '24%' },
   { left: '20%', top: '56%' }
 ];
-// The local player is a screen-space affordance: keep it at the portrait bottom
-// even while the 3D camera looks toward another turn or a capture animation.
-const SELF_AVATAR_SCREEN_POSITION = Object.freeze({ left: '50%', top: '86%' });
+const SELF_AVATAR_BOTTOM_OFFSET_PERCENT = 10.5;
 
 const colorNumberToHex = (value) => `#${value.toString(16).padStart(6, '0')}`;
 
@@ -8846,18 +8842,18 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
     parkedCaptureVehiclesRef.current.clear();
 
     for (let playerIndex = 0; playerIndex < activePlayerCount; playerIndex += 1) {
-      // Start each player's parked display assets together. Loading these one at
-      // a time could leave the table empty for several network round trips on a
-      // phone even though the game itself was already playable.
       // eslint-disable-next-line no-await-in-loop
-      const [jetFx, helicopterFx, droneFx, missileFx, droneTruckFx, weaponRackFx] = await Promise.all([
-        createCaptureJetFx(),
-        createCaptureHelicopterFx(),
-        createCaptureDroneFx(),
-        createCaptureMissileTruckFx(),
-        createCaptureDroneLauncherTruckFx(),
-        createCaptureWeaponRackFx()
-      ]);
+      const jetFx = await createCaptureJetFx();
+      // eslint-disable-next-line no-await-in-loop
+      const helicopterFx = await createCaptureHelicopterFx();
+      // eslint-disable-next-line no-await-in-loop
+      const droneFx = await createCaptureDroneFx();
+      // eslint-disable-next-line no-await-in-loop
+      const missileFx = await createCaptureMissileTruckFx();
+      // eslint-disable-next-line no-await-in-loop
+      const droneTruckFx = await createCaptureDroneLauncherTruckFx();
+      // eslint-disable-next-line no-await-in-loop
+      const weaponRackFx = await createCaptureWeaponRackFx();
       if (!jetFx?.root || !helicopterFx?.root || !droneFx?.root || !missileFx?.root || !droneTruckFx?.root || !weaponRackFx?.root) continue;
       fitCaptureVehicleToPlayerKing(jetFx.root, playerIndex);
       fitCaptureVehicleToPlayerKing(helicopterFx.root, playerIndex);
@@ -14417,23 +14413,18 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
             const fallback =
               FALLBACK_SEAT_POSITIONS[player.index] ||
               FALLBACK_SEAT_POSITIONS[FALLBACK_SEAT_POSITIONS.length - 1];
-            const positionStyle = player.index === 0
-              ? {
-                  position: 'absolute',
-                  ...SELF_AVATAR_SCREEN_POSITION,
-                  transform: 'translate(-50%, -50%)'
-                }
-              : anchor
+            const selfBottomOffset = player.index === 0 ? SELF_AVATAR_BOTTOM_OFFSET_PERCENT : 0;
+            const positionStyle = anchor
               ? {
                   position: 'absolute',
                   left: `${anchor.x}%`,
-                  top: `${anchor.y}%`,
+                  top: `${anchor.y + selfBottomOffset}%`,
                   transform: 'translate(-50%, -50%)'
                 }
               : {
                   position: 'absolute',
                   left: fallback.left,
-                  top: fallback.top,
+                  top: `calc(${fallback.top} + ${selfBottomOffset}%)`,
                   transform: 'translate(-50%, -50%)'
                 };
             const depth = anchor?.depth ?? 3;
