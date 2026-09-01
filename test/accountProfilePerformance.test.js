@@ -22,4 +22,15 @@ describe('account profile performance', () => {
 
     expect(route).toMatch(/profile: \{[\s\S]*?transactions:[\s\S]*?social:/);
   });
+
+  test('paints database profile before waiting for Telegram enrichment', () => {
+    const profile = fs.readFileSync('webapp/src/pages/MyAccount.jsx', 'utf8');
+    const firstPaint = profile.indexOf('setProfile(data)');
+    const telegramEnrichment = profile.indexOf(
+      'if (telegramId && (!data.photo || !data.firstName || !data.lastName))'
+    );
+
+    expect(firstPaint).toBeGreaterThan(-1);
+    expect(telegramEnrichment).toBeGreaterThan(firstPaint);
+  });
 });

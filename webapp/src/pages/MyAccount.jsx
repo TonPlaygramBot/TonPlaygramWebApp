@@ -221,6 +221,21 @@ export default function MyAccount() {
 
       let finalProfile = data;
 
+      // The account endpoint already returns the authoritative database
+      // profile. Paint it before optional Telegram enrichment so a slow Bot
+      // API photo/name lookup can never hold the whole My Account screen on
+      // its loading state. The enriched values are merged in below when they
+      // arrive.
+      if (!cancelled) {
+        setProfile(data);
+        setGoogleLinked(Boolean(data.googleId || googleProfile?.id));
+        setTwitterLink(data.social?.twitter || '');
+        const initialPhoto = telegramId
+          ? getTelegramPhotoUrl()
+          : googleProfile?.photo || '';
+        setPhotoUrl(loadAvatar() || data.photo || initialPhoto);
+      }
+
       if (telegramId && (!data.photo || !data.firstName || !data.lastName)) {
         setAutoUpdating(true);
 
@@ -268,13 +283,15 @@ export default function MyAccount() {
         };
       }
 
-      setProfile(finalProfile);
-      setGoogleLinked(Boolean(finalProfile.googleId || googleProfile?.id));
-      setTwitterLink(finalProfile.social?.twitter || '');
-      const defaultPhoto = telegramId
-        ? getTelegramPhotoUrl()
-        : googleProfile?.photo || '';
-      setPhotoUrl(loadAvatar() || finalProfile.photo || defaultPhoto);
+      if (!cancelled) {
+        setProfile(finalProfile);
+        setGoogleLinked(Boolean(finalProfile.googleId || googleProfile?.id));
+        setTwitterLink(finalProfile.social?.twitter || '');
+        const defaultPhoto = telegramId
+          ? getTelegramPhotoUrl()
+          : googleProfile?.photo || '';
+        setPhotoUrl(loadAvatar() || finalProfile.photo || defaultPhoto);
+      }
       try {
         if (telegramId) {
           const res = await getUnreadCount(telegramId);
