@@ -35751,6 +35751,14 @@ const shotPowerRef = useRef(0);
       onStart: () => {
         captureCueStickAnchor();
       },
+      onFeedback: ({ type, band }) => {
+        if (typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') return;
+        if (type === 'release') {
+          navigator.vibrate(band >= 3 ? [10, 18, 16] : 10);
+          return;
+        }
+        navigator.vibrate(band >= 4 ? 14 : 7);
+      },
       onCommit: (value) => {
         const committedPower = clampPower(value / 100, 0);
         shotPowerRef.current = committedPower;
