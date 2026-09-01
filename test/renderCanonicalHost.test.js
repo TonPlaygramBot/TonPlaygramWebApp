@@ -8,6 +8,9 @@ describe('Render canonical host configuration', () => {
     expect(renderConfig).toMatch(
       /key: ACCOUNT_API_URL\s+value: https:\/\/tonplaygram-bot\.onrender\.com/
     );
+    expect(renderConfig).toMatch(
+      /key: VITE_API_BASE_URL\s+value: https:\/\/tonplaygram-bot\.onrender\.com/
+    );
     expect(renderConfig).not.toMatch(/name: tonplaygram-api/);
   });
 });
