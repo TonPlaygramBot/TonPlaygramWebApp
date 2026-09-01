@@ -21,7 +21,8 @@ const games = [
   { gameType: 'backgammon', maxPlayers: 2, matchMeta: {} },
   { gameType: 'texasholdem', maxPlayers: 8, matchMeta: { tableSize: 8, gameMode: 'standard', buyIn: 100 } },
   { gameType: 'airhockey', maxPlayers: 2, matchMeta: { winScore: 11, arena: 'regular' } },
-  { gameType: 'murlanroyale', maxPlayers: 4, matchMeta: { variant: 'single', players: 4, rules: 'single' } }
+  { gameType: 'murlanroyale', maxPlayers: 4, matchMeta: { variant: 'single', players: 4, rules: 'single' } },
+  { gameType: 'black-tide', maxPlayers: 2, matchMeta: { format: 'co-op-campaign', campaign: 'black-tide' } }
 ];
 
 function waitForEvent(socket, event, predicate = () => true, timeoutMs = 8000) {
@@ -90,7 +91,8 @@ test('Test 1 through Test 8 receive identical lobby and game-start state in ever
       },
       body: JSON.stringify({ accountId: `test-${index}`, amount: 10000, game: 'online-qa' })
     });
-    assert.equal(response.ok, true, `Could not fund Test ${index}`);
+    const responseBody = await response.text();
+    assert.equal(response.ok, true, `Could not fund Test ${index}: ${response.status} ${responseBody}`);
   }
 
   try {

@@ -346,7 +346,9 @@ app.use('/api/influencer', influencerRoutes);
 app.use('/api/referral', referralRoutes);
 app.use('/api/wallet', walletRoutes);
 const requireDatabase = (_req, res, next) => {
-  if (mongoose.connection.readyState === 1) return next();
+  // Account routes have an explicit in-memory implementation for integration
+  // tests. Do not block that store behind Mongo's connection state.
+  if (mongoose.connection.readyState === 1 || process.env.MONGO_URI === 'memory') return next();
   return res.status(503).json({
     error: 'Profile database is temporarily unavailable. Please try again.'
   });
@@ -679,6 +681,7 @@ const texasHoldemStates = new Map();
 const ludoBattleStates = new Map();
 const fourInRowStates = new Map();
 const arcadeRaceStates = new Map();
+const blackTideStates = new Map();
 const dominoRoyalTableNumbers = new Set();
 const chessTableNumbers = new Set();
 
@@ -1941,6 +1944,7 @@ function unseatTableSocket(accountId, tableId, socketId) {
       }
       if (table.gameType === 'ludobattleroyal') ludoBattleStates.delete(tableId);
       if (table.gameType === 'airhockey') airHockeyStates.delete(tableId);
+      if (table.gameType === 'black-tide') blackTideStates.delete(tableId);
       if (table.gameType === 'chess' && table.tableNumber) {
         chessTableNumbers.delete(table.tableNumber);
       }
@@ -3156,6 +3160,56 @@ io.on('connection', (socket) => {
       !table?.players.some((player) => String(player.id) === String(resolvedAccountId))) return;
     const cached = airHockeyStates.get(tableId);
     if (cached?.state) socket.emit('airHockeyState', { tableId, state: cached.state, revision: cached.revision });
+  });
+
+  // BLACK TIDE clients publish compact campaign snapshots. Every matched
+  // player is validated against the lobby table before joining or relaying.
+  socket.on('joinBlackTideTable', async ({ tableId, accountId } = {}) => {
+    const resolvedAccountId = resolveTpcIdentity({ accountId });
+    const table = tableMap.get(tableId);
+    if (!tableId || !ensureRegistered(socket, resolvedAccountId) ||
+      table?.gameType !== 'black-tide' ||
+      !table.players.some((player) => String(player.id) === String(resolvedAccountId))) {
+      socket.emit('blackTideSyncError', { tableId, error: 'seat_required' });
+      return;
+    }
+    socket.join(tableId);
+    await registerConnection({ userId: String(resolvedAccountId), roomId: tableId, socketId: socket.id });
+    socket.emit('blackTideJoined', { tableId, players: table.players });
+    const cached = blackTideStates.get(tableId);
+    if (cached) socket.emit('blackTideState', cached);
+  });
+
+  socket.on('blackTideState', ({ tableId, accountId, state } = {}) => {
+    const resolvedAccountId = resolveTpcIdentity({ accountId });
+    const table = tableMap.get(tableId);
+    if (!state || !socket.rooms.has(tableId) || !ensureRegistered(socket, resolvedAccountId) ||
+      table?.gameType !== 'black-tide' ||
+      !table.players.some((player) => String(player.id) === String(resolvedAccountId))) return;
+    const hostAccountId = String(table.players[0]?.id || '');
+    const isHost = hostAccountId === String(resolvedAccountId);
+    const sharedMission = blackTideStates.get(tableId)?.state;
+    const safeState = {
+      // Only seat zero advances shared campaign state. Both seats still relay
+      // their own transforms, health and equipped weapon for ally rendering.
+      phase: String(isHost ? state.phase : sharedMission?.phase || state.phase || '').slice(0, 24),
+      missionId: String(isHost ? state.missionId : sharedMission?.missionId || state.missionId || '').slice(0, 48),
+      stageIndex: Math.max(0, Number(isHost ? state.stageIndex : sharedMission?.stageIndex ?? state.stageIndex) || 0),
+      playerMode: state.playerMode === 'onFoot' ? 'onFoot' : 'driving',
+      x: Math.max(-72, Math.min(72, Number(state.x) || 0)),
+      z: Math.max(-2035, Math.min(85, Number(state.z) || 0)),
+      heading: Number.isFinite(Number(state.heading)) ? Number(state.heading) : 0,
+      health: Math.max(0, Math.min(100, Number(state.health) || 0)),
+      score: Math.max(0, Number(state.score) || 0),
+      wanted: Math.max(0, Math.min(5, Number(state.wanted) || 0)),
+      weapon: String(state.weapon || '').slice(0, 32),
+      authority: isHost ? 'host' : 'peer',
+      hostAccountId,
+      updatedAt: Date.now()
+    };
+    const payload = { tableId, accountId: String(resolvedAccountId), state: safeState };
+    blackTideStates.set(tableId, payload);
+    socket.to(tableId).emit('blackTideState', payload);
   });
 
   socket.on('airHockeyRematch', ({ tableId, accountId } = {}) => {
