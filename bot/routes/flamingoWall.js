@@ -50,6 +50,9 @@ const mediaBackfills = new Map();
 const wallEvents = new EventEmitter();
 wallEvents.setMaxListeners(0);
 const publishWallEvent = (action, postId) => wallEvents.emit('change', { action, postId, at: Date.now() });
+// This wall intentionally starts fresh on 1 September 2026. Posts published
+// from this point onward remain durable database records and appear for every user.
+const WALL_FRESH_START_AT = new Date(process.env.WALL_FRESH_START_AT || '2026-09-01T00:00:00.000Z');
 
 router.use(optionalAuthenticate);
 
@@ -333,7 +336,7 @@ router.get('/events', (req, res) => {
 
 router.get('/posts', async (req, res) => {
   const token = ownerToken(req);
-  const posts = await FlamingoPost.find().select('+ownerTokenHash').sort({ createdAt: -1 }).lean();
+  const posts = await FlamingoPost.find({ createdAt: { $gte: WALL_FRESH_START_AT } }).select('+ownerTokenHash').sort({ createdAt: -1 }).lean();
   // The wall is a shared live feed. Never let a browser/proxy reuse an old
   // response while another community member is publishing.
   res.setHeader('Cache-Control', 'no-store');
@@ -341,7 +344,7 @@ router.get('/posts', async (req, res) => {
 });
 
 router.get('/latest-post', async (req, res) => {
-  const post = await FlamingoPost.findOne().sort({ createdAt: -1 }).lean();
+  const post = await FlamingoPost.findOne({ createdAt: { $gte: WALL_FRESH_START_AT } }).sort({ createdAt: -1 }).lean();
   res.setHeader('Cache-Control', 'no-store');
   res.json({ post: latestWallPost(post) });
 });
