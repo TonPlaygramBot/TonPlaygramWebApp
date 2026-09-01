@@ -356,13 +356,11 @@ export default function Layout({ children }) {
     !location.pathname.includes('/lobby')
   );
 
-  const isCommunityWall = location.pathname === '/wall';
-
   const isLobby = location.pathname.includes('/lobby');
 
-  const showFooter = !location.pathname.startsWith('/games/') && !isCommunityWall;
+  const showFooter = !location.pathname.startsWith('/games/');
   const showHeader =
-    !isCommunityWall && (!location.pathname.startsWith('/games/') || isLobby);
+    !location.pathname.startsWith('/games/') || isLobby;
 
   useEffect(() => {
     if (location.pathname === '/mining') {
@@ -421,7 +419,7 @@ export default function Layout({ children }) {
       )}
       <main
         className={`flex-grow ${
-          showNavbar && !isCommunityWall
+          showNavbar
             ? isLobby
               ? 'w-full p-4 pb-28'
               : 'container mx-auto p-4 pb-28'
@@ -433,7 +431,7 @@ export default function Layout({ children }) {
 
       {/* Fixed Bottom Navbar */}
 
-      {showNavbar && !isCommunityWall && (
+      {showNavbar && (
         <div className="fixed bottom-0 inset-x-0 z-50">
           <Navbar />
         </div>

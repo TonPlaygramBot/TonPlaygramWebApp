@@ -46,8 +46,6 @@ namespace Aiming
         public float cuePathClearanceRadiusScale = 0.92f;
         [Tooltip("Penalty weight for harder cut angles so easier pots are preferred.")]
         public float cutAnglePenalty = 0.55f;
-        [Tooltip("Weight assigned to predicted first-impact error; higher values strongly prefer physically accurate potting lines.")]
-        [Min(0f)] public float impactAccuracyWeight = 2.4f;
         [Tooltip("Penalty weight for long cue-ball travel.")]
         public float distancePenalty = 0.2f;
         [Tooltip("Enables Monte Carlo rollouts so AI picks aim lines with the best expected pot probability under noise.")]

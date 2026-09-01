@@ -11,10 +11,7 @@ import { IoLogoTiktok } from 'react-icons/io5';
 import { RiTelegramFill } from 'react-icons/ri';
 import {
   BrainCircuit,
-  ArrowUpRight,
   Heart,
-  Megaphone,
-  Radio,
   Rocket,
   Sparkles,
   Users
@@ -31,8 +28,7 @@ const xIcon = (
 
 import { Link } from 'react-router-dom';
 
-import { API_BASE_URL, ping, getProfile, fetchTelegramInfo } from '../utils/api.js';
-import { resolveWallMediaUrl } from '../features/flamingo/mediaUrl.js';
+import { ping, getProfile, fetchTelegramInfo } from '../utils/api.js';
 
 import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 
@@ -54,7 +50,6 @@ const getStoredWalletAddress = () => {
 export default function Home() {
   const [status, setStatus] = useState('checking');
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
-  const [latestProtestPost, setLatestProtestPost] = useState(null);
   const { tpcBalance, tonBalance, tpcWalletBalance } = useTokenBalances();
   const usdValue = useWalletUsdValue(tonBalance, tpcWalletBalance);
   const tonAddress = useTonAddress();
@@ -168,59 +163,9 @@ export default function Home() {
       window.removeEventListener('profilePhotoUpdated', handleUpdate);
   }, []);
 
-  useEffect(() => {
-    let active = true;
-    fetch(`${API_BASE_URL}/api/flamingo-wall/latest-post`, { cache: 'no-store' })
-      .then((response) => (response.ok ? response.json() : Promise.reject()))
-      .then(({ post }) => {
-        if (active) setLatestProtestPost(post || null);
-      })
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, []);
-
   return (
     <div className="home-page app-theme-page space-y-4">
       <ThemePicker />
-      <article className="home-protest-card">
-        {latestProtestPost?.attachment && (
-          <Link className="home-protest-card__thumbnail" to="/wall" aria-label="Hap postimin më të fundit">
-            {latestProtestPost.attachment.type?.startsWith('video/') ? (
-              <video
-                src={resolveWallMediaUrl(API_BASE_URL, latestProtestPost.attachment.url, latestProtestPost.attachment.size)}
-                muted
-                playsInline
-                preload="metadata"
-              />
-            ) : latestProtestPost.attachment.type?.startsWith('image/') ? (
-              <img src={resolveWallMediaUrl(API_BASE_URL, latestProtestPost.attachment.url, latestProtestPost.attachment.size)} alt="Postimi më i fundit" />
-            ) : null}
-            <span>Postimi më i fundit</span>
-          </Link>
-        )}
-        <div className="home-protest-card__glow" aria-hidden="true" />
-        <div className="home-protest-card__topline">
-          <span className="home-protest-card__live"><Radio aria-hidden="true" /> Hapësirë e lirë</span>
-          <span className="home-protest-card__flag" role="img" aria-label="Flamuri shqiptar">🇦🇱</span>
-        </div>
-        <div className="home-protest-card__body">
-          <span className="home-protest-card__icon"><Megaphone aria-hidden="true" /></span>
-          <div>
-            <p>Komuniteti TonPlayGram</p>
-            <h2>Protesta shqiptare</h2>
-            <span>Zëri ynë, pa barriera.</span>
-          </div>
-        </div>
-        <div className="home-protest-card__action">
-          <div><Users aria-hidden="true" /><span><b>Mur i hapur për të gjithë</b><small>Foto, video, artikuj dhe sondazhe nga komuniteti</small></span></div>
-        </div>
-        <div className="home-protest-card__buttons">
-          <Link to="/wall#wall-composer"><Megaphone /> Publiko tani</Link>
-          <Link to="/wall">Hap faqen <ArrowUpRight /></Link>
-        </div>
-      </article>
       <HomeIntroduction />
       <div className="flex flex-col items-center">
         {photoUrl && (

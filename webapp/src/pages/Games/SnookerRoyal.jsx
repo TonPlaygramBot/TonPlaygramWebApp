@@ -5555,15 +5555,6 @@ const TMP_VEC2_AXIS = new THREE.Vector2();
 const TMP_VEC2_VIEW = new THREE.Vector2();
 const TMP_EULER_A = new THREE.Euler();
 const TMP_VEC3_A = new THREE.Vector3();
-// Shared scratch vectors used by the Pool Royale spin/contact solver below.
-// Keep these module-scoped to avoid allocating vectors inside the frame loop.
-const TMP_VEC3_B = new THREE.Vector3();
-const TMP_VEC3_C = new THREE.Vector3();
-const TMP_VEC3_D = new THREE.Vector3();
-const TMP_VEC3_E = new THREE.Vector3();
-const TMP_VEC3_F = new THREE.Vector3();
-const TMP_VEC3_G = new THREE.Vector3();
-const TMP_VEC3_H = new THREE.Vector3();
 const TMP_VEC3_BUTT = new THREE.Vector3();
 const TMP_VEC3_CUE_TIP_OFFSET = new THREE.Vector3();
 const TMP_VEC3_CUE_BUTT_OFFSET = new THREE.Vector3();
@@ -26499,63 +26490,8 @@ const powerRef = useRef(hud.power);
             if (hasSpin) {
               applySpinController(b, stepScale, hasLift);
             }
-            // Match Pool Royale's cue-ball controller: the selected spin is kept
-            // on the ball, but cloth/omega translation starts only after the
-            // first ball or cushion impact. Until then the visible aim line is
-            // the authoritative launch direction at every power level.
-            const preImpactCueSpinLocked = isCue && !b.impacted;
-            if (!hasLift && !preImpactCueSpinLocked) {
-              const dt = SPIN_FIXED_DT * stepScale;
-              if (b.omega) {
-                TMP_VEC3_A.set(b.vel.x, 0, b.vel.y);
-                TMP_VEC3_B.set(0, -BALL_R, 0);
-                TMP_VEC3_C.copy(b.omega);
-                TMP_VEC3_D.copy(TMP_VEC3_C).cross(TMP_VEC3_B);
-                TMP_VEC3_D.add(TMP_VEC3_A);
-                const relSpeed = TMP_VEC3_D.length();
-                if (relSpeed > SPIN_SLIDE_EPS) {
-                  TMP_VEC3_E.copy(TMP_VEC3_D).multiplyScalar(
-                    (-SPIN_KINETIC_FRICTION * BALL_MASS * SPIN_GRAVITY) / relSpeed
-                  );
-                  TMP_VEC3_A.addScaledVector(TMP_VEC3_E, dt / BALL_MASS);
-                  TMP_VEC3_C.addScaledVector(
-                    TMP_VEC3_D.copy(TMP_VEC3_B).cross(TMP_VEC3_E),
-                    dt / BALL_INERTIA
-                  );
-                } else {
-                  const rollFactor = Math.max(0, 1 - SPIN_ROLL_DAMPING * dt);
-                  const spinFactor = Math.max(0, 1 - SPIN_ANGULAR_DAMPING * dt);
-                  TMP_VEC3_A.multiplyScalar(rollFactor);
-                  TMP_VEC3_C.multiplyScalar(spinFactor);
-                }
-                b.vel.x = TMP_VEC3_A.x;
-                b.vel.y = TMP_VEC3_A.z;
-                b.omega.copy(TMP_VEC3_C);
-              }
-            }
-            if (
-              isCue &&
-              !b.impacted &&
-              b.launchDir &&
-              (b.spin?.y ?? 0) < -1e-4
-            ) {
-              const forwardDot = b.vel.dot(b.launchDir);
-              if (forwardDot < 0) {
-                b.vel.addScaledVector(b.launchDir, -forwardDot);
-              }
-            }
-            if (!hasLift) {
-              const rollingDt = SPIN_FIXED_DT * stepScale;
-              const rollingSpeed = b.vel.length();
-              if (rollingSpeed > 1e-6) {
-                const rollingDecel = ROLLING_RESISTANCE * SPIN_GRAVITY * rollingDt;
-                const nextSpeed = Math.max(0, rollingSpeed - rollingDecel);
-                if (nextSpeed < rollingSpeed) {
-                  b.vel.multiplyScalar(nextSpeed / rollingSpeed);
-                }
-              }
-            }
             b.pos.addScaledVector(b.vel, stepScale);
+            b.vel.multiplyScalar(Math.pow(FRICTION, stepScale));
             let speed = b.vel.length();
             let scaledSpeed = speed * stepScale;
             if (scaledSpeed < STOP_EPS) {
@@ -26634,33 +26570,12 @@ const powerRef = useRef(hud.power);
               const dx = b.pos.x - a.pos.x,
                 dy = b.pos.y - a.pos.y;
               const d2 = dx * dx + dy * dy;
-              const targetDist = BALL_R * 2;
-              const minDist = targetDist + BALL_CONTACT_EPS;
-              const min = minDist ** 2;
-              if (d2 <= min) {
-                let d = Math.sqrt(Math.max(d2, 0));
-                let nx = 0;
-                let ny = 0;
-                if (d > 1e-8) {
-                  nx = dx / d;
+              const min = (BALL_R * 2) ** 2;
+              if (d2 > 0 && d2 < min) {
+                const d = Math.sqrt(d2) || 1e-4;
+                const nx = dx / d,
                   ny = dy / d;
-                } else {
-                  TMP_VEC2_A.set(b.vel.x - a.vel.x, b.vel.y - a.vel.y);
-                  if (TMP_VEC2_A.lengthSq() > 1e-10) {
-                    TMP_VEC2_A.normalize();
-                    nx = TMP_VEC2_A.x;
-                    ny = TMP_VEC2_A.y;
-                  } else {
-                    nx = 1;
-                    ny = 0;
-                  }
-                  d = 0;
-                }
-                const penetration = Math.max(0, minDist - d);
-                const overlap =
-                  penetration > BALL_COLLISION_SLOP
-                    ? (penetration - BALL_COLLISION_SLOP) / 2
-                    : 0;
+                const overlap = (BALL_R * 2 - d) / 2;
                 const pairKey =
                   (a.id ?? i) < (b.id ?? j)
                     ? `${a.id ?? i}:${b.id ?? j}`
@@ -26669,69 +26584,81 @@ const powerRef = useRef(hud.power);
                 newCollisions.add(pairKey);
                 const wasColliding = prevCollisions.has(pairKey);
                 const isNewImpact = firstPairCollision && !wasColliding;
-                if (overlap > 0) {
+                const cueBallForPair = a.id === 'cue' ? a : b.id === 'cue' ? b : null;
+                const objectBallForPair = cueBallForPair
+                  ? (cueBallForPair === a ? b : a)
+                  : null;
+                const predictedObjectDir = shotPrediction?.dir?.clone?.() ?? null;
+                const predictedCueDir =
+                  shotPrediction?.cueLineDir?.clone?.() ??
+                  shotPrediction?.cueDir?.clone?.() ??
+                  null;
+                const lockedAimCollision = Boolean(
+                  isNewImpact &&
+                  cueBallForPair &&
+                  objectBallForPair &&
+                  shotPrediction?.ballId &&
+                  String(objectBallForPair.id) === String(shotPrediction.ballId) &&
+                  predictedObjectDir &&
+                  predictedObjectDir.lengthSq() > 1e-8
+                );
+                let impulse = Math.abs(
+                  (b.vel.x * nx + b.vel.y * ny) -
+                  (a.vel.x * nx + a.vel.y * ny)
+                );
+                if (lockedAimCollision) {
+                  predictedObjectDir.normalize();
+                  const predictedTargetCenter =
+                    shotPrediction?.targetInitialPos?.clone?.() ?? null;
+                  const predictedCueImpact = shotPrediction?.impact?.clone?.() ?? null;
+                  if (predictedTargetCenter && predictedCueImpact) {
+                    objectBallForPair.pos.copy(predictedTargetCenter);
+                    cueBallForPair.pos.copy(predictedCueImpact);
+                  } else if (predictedTargetCenter) {
+                    objectBallForPair.pos.copy(predictedTargetCenter);
+                    cueBallForPair.pos.copy(
+                      predictedTargetCenter
+                        .clone()
+                        .addScaledVector(predictedObjectDir, -BALL_R * 2)
+                    );
+                  } else {
+                    const pairMid = a.pos.clone().add(b.pos).multiplyScalar(0.5);
+                    cueBallForPair.pos.copy(
+                      pairMid.clone().addScaledVector(predictedObjectDir, -BALL_R)
+                    );
+                    objectBallForPair.pos.copy(
+                      pairMid.clone().addScaledVector(predictedObjectDir, BALL_R)
+                    );
+                  }
+                  const incomingCueVel = cueBallForPair.vel.clone();
+                  const normalSpeed = Math.max(0, incomingCueVel.dot(predictedObjectDir));
+                  const cueResidual = incomingCueVel.clone().addScaledVector(
+                    predictedObjectDir,
+                    -normalSpeed
+                  );
+                  const cueResidualSpeed = cueResidual.length();
+                  objectBallForPair.vel.copy(predictedObjectDir.clone().multiplyScalar(normalSpeed));
+                  if (predictedCueDir && predictedCueDir.lengthSq() > 1e-8 && cueResidualSpeed > 1e-8) {
+                    cueBallForPair.vel.copy(predictedCueDir.normalize().multiplyScalar(cueResidualSpeed));
+                  } else {
+                    cueBallForPair.vel.set(0, 0);
+                  }
+                  impulse = normalSpeed;
+                } else {
                   a.pos.x -= nx * overlap;
                   a.pos.y -= ny * overlap;
                   b.pos.x += nx * overlap;
                   b.pos.y += ny * overlap;
-                }
-                TMP_VEC3_A.set(nx, 0, ny);
-                TMP_VEC3_B.copy(TMP_VEC3_A).multiplyScalar(BALL_R);
-                TMP_VEC3_C.copy(TMP_VEC3_A).multiplyScalar(-BALL_R);
-                TMP_VEC3_D.set(a.vel.x, 0, a.vel.y);
-                TMP_VEC3_E.set(b.vel.x, 0, b.vel.y);
-                // Pool Royale suppresses cue-tip omega at first contact so
-                // english cannot throw either ball away from its shown line.
-                const cueSpinSuppressedA = a.id === 'cue' && !a.impacted;
-                const cueSpinSuppressedB = b.id === 'cue' && !b.impacted;
-                const omegaA = cueSpinSuppressedA
-                  ? TMP_VEC3_F.set(0, 0, 0)
-                  : a.omega ?? TMP_VEC3_F.set(0, 0, 0);
-                const omegaB = cueSpinSuppressedB
-                  ? TMP_VEC3_G.set(0, 0, 0)
-                  : b.omega ?? TMP_VEC3_G.set(0, 0, 0);
-                TMP_VEC3_H.copy(omegaA).cross(TMP_VEC3_B).add(TMP_VEC3_D);
-                TMP_VEC3_F.copy(omegaB).cross(TMP_VEC3_C).add(TMP_VEC3_E);
-                TMP_VEC3_F.sub(TMP_VEC3_H);
-                const relNormal = TMP_VEC3_F.dot(TMP_VEC3_A);
-                let impulse = 0;
-                if (relNormal < 0) {
-                  const normalImpulseMag =
-                    (-(1 + PHYSICS_PROFILE.restitution) * relNormal * BALL_MASS) / 2;
-                  impulse = Math.abs(normalImpulseMag);
-                  TMP_VEC3_H.copy(TMP_VEC3_A).multiplyScalar(normalImpulseMag);
-                  TMP_VEC3_D.addScaledVector(TMP_VEC3_H, -1 / BALL_MASS);
-                  TMP_VEC3_E.addScaledVector(TMP_VEC3_H, 1 / BALL_MASS);
-                  TMP_VEC3_G.copy(TMP_VEC3_F).sub(
-                    TMP_VEC3_H.copy(TMP_VEC3_A).multiplyScalar(relNormal)
-                  );
-                  const tangentialSpeed = TMP_VEC3_G.length();
-                  if (tangentialSpeed > 1e-8) {
-                    TMP_VEC3_G.multiplyScalar(1 / tangentialSpeed);
-                    const raCrossT = TMP_VEC3_H.copy(TMP_VEC3_B).cross(TMP_VEC3_G).lengthSq();
-                    const rbCrossT = TMP_VEC3_A.copy(TMP_VEC3_C).cross(TMP_VEC3_G).lengthSq();
-                    const denom = 2 / BALL_MASS + (raCrossT + rbCrossT) / BALL_INERTIA;
-                    const jt = -tangentialSpeed / Math.max(denom, 1e-6);
-                    const maxFriction = BALL_BALL_FRICTION * Math.abs(normalImpulseMag);
-                    const clampedJt = clamp(jt, -maxFriction, maxFriction);
-                    TMP_VEC3_G.multiplyScalar(clampedJt);
-                    TMP_VEC3_D.addScaledVector(TMP_VEC3_G, -1 / BALL_MASS);
-                    TMP_VEC3_E.addScaledVector(TMP_VEC3_G, 1 / BALL_MASS);
-                    if (a.omega) {
-                      a.omega.addScaledVector(
-                        TMP_VEC3_H.copy(TMP_VEC3_B).cross(TMP_VEC3_G),
-                        -1 / BALL_INERTIA
-                      );
-                    }
-                    if (b.omega) {
-                      b.omega.addScaledVector(
-                        TMP_VEC3_A.copy(TMP_VEC3_C).cross(TMP_VEC3_G),
-                        1 / BALL_INERTIA
-                      );
-                    }
-                  }
-                  a.vel.set(TMP_VEC3_D.x, TMP_VEC3_D.z);
-                  b.vel.set(TMP_VEC3_E.x, TMP_VEC3_E.z);
+                  const avn = a.vel.x * nx + a.vel.y * ny;
+                  const bvn = b.vel.x * nx + b.vel.y * ny;
+                  const at = a.vel
+                    .clone()
+                    .sub(new THREE.Vector2(nx, ny).multiplyScalar(avn));
+                  const bt = b.vel
+                    .clone()
+                    .sub(new THREE.Vector2(nx, ny).multiplyScalar(bvn));
+                  a.vel.copy(at.add(new THREE.Vector2(nx, ny).multiplyScalar(bvn)));
+                  b.vel.copy(bt.add(new THREE.Vector2(nx, ny).multiplyScalar(avn)));
                 }
                 if (isNewImpact) {
                   const shotScale = 0.4 + 0.6 * lastShotPower;
@@ -26793,6 +26720,19 @@ const powerRef = useRef(hud.power);
                     cueBall.liftVel ?? 0,
                     launchCeiling
                   );
+                  if (spinEnergy > 1e-6 && !lockedAimCollision) {
+                    const spinThrow = Math.min(
+                      spinEnergy * MAX_POWER_SPIN_LATERAL_THROW,
+                      MAX_POWER_BOUNCE_IMPULSE * 0.4
+                    );
+                    if (spinThrow > 0 && cueBall.spin) {
+                      const spinDir = resolveSpinWorldVector(cueBall, TMP_VEC2_SPIN);
+                      if (spinDir && spinDir.lengthSq() > 1e-6) {
+                        spinDir.normalize();
+                        cueBall.vel.add(spinDir.multiplyScalar(spinThrow));
+                      }
+                    }
+                  }
                 }
                 if (
                   hitBallId &&
@@ -26801,7 +26741,7 @@ const powerRef = useRef(hud.power);
                 ) {
                   activeShotView.hitConfirmed = true;
                 }
-                if (cueBall) {
+                if (cueBall && cueBall.spin?.lengthSq() > 0) {
                   cueBall.impacted = true;
                 }
               }
