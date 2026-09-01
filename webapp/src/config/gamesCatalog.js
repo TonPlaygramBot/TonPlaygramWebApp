@@ -81,7 +81,6 @@ const gamesCatalog = [
     description: 'Backgammon duels with a royal 3D-inspired board and smart AI.'
   },
 
-
   {
     name: 'Ludo Battle Royal',
     route: '/games/ludobattleroyal/lobby',
@@ -90,32 +89,18 @@ const gamesCatalog = [
     description: 'Classic ludo chaos in a battle royale lobby.'
   },
   {
-    name: '2048 Royale',
-    route: '/games/2048royale/lobby',
-    slug: '2048royale',
-    image: '/assets/icons/2048-royale.svg',
-    description: 'Merge tiles in a live two-player score race.'
-  },
-  {
-    name: 'Hextris Battle',
-    route: '/games/hextrisbattle/lobby',
-    slug: 'hextrisbattle',
-    image: '/assets/icons/hextris-battle.svg',
-    description: 'Match neon colors and protect your combo.'
-  },
-  {
     name: 'Underrun Arena',
     route: '/games/underrunarena/lobby',
     slug: 'underrunarena',
     image: '/assets/icons/underrun-arena.svg',
     description: 'Survive an auto-fire neon swarm online.'
   }
-];
+]
 
-export default gamesCatalog;
+export default gamesCatalog
 
 export const catalogWithSlugs = gamesCatalog.map((game) => {
-  if (game.slug) return game;
-  const [, , slug] = game.route.split('/');
-  return { ...game, slug };
-});
+  if (game.slug) return game
+  const [, , slug] = game.route.split('/')
+  return { ...game, slug }
+})
