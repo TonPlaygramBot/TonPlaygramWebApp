@@ -1,10 +1,11 @@
 import { ArrowLeft, Bell, PenLine } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 
 import MediaWall from './MediaWall';
 import './community-wall.css';
 
 export default function CommunityWallApp() {
+  const { postId } = useParams();
   return (
     <div className="community-wall-page">
       <header className="community-wall-header">
@@ -23,7 +24,7 @@ export default function CommunityWallApp() {
         </div>
       </header>
       <main>
-        <MediaWall />
+        <MediaWall postId={postId} />
       </main>
     </div>
   );

@@ -29,6 +29,8 @@ const flamingoPostSchema = new mongoose.Schema({
   sourceId: { type: String, default: undefined },
   ownerTokenHash: { type: String, default: undefined, select: false },
   attachment: { type: attachmentSchema, default: undefined },
+  attachments: { type: [attachmentSchema], default: undefined },
+  albumId: { type: String, default: undefined, select: false },
   createdAt: { type: Date, default: Date.now }
 });
 

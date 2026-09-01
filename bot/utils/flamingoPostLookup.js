@@ -13,7 +13,9 @@ export const wallMediaPostQuery = name => {
   return {
     $or: [
       { 'attachment.url': `/api/flamingo-wall/files/${safeName}` },
-      { 'attachment.url': { $regex: new RegExp(`/api/flamingo-wall/files/(?:${alternatives.join('|')})(?:[?#].*)?$`, 'i') } }
+      { 'attachment.url': { $regex: new RegExp(`/api/flamingo-wall/files/(?:${alternatives.join('|')})(?:[?#].*)?$`, 'i') } },
+      { 'attachments.url': `/api/flamingo-wall/files/${safeName}` },
+      { 'attachments.url': { $regex: new RegExp(`/api/flamingo-wall/files/(?:${alternatives.join('|')})(?:[?#].*)?$`, 'i') } }
     ]
   };
 };
