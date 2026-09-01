@@ -151,7 +151,12 @@ const backfillDatabaseMedia = (diskPath, name, attachment = {}) => {
   }).finally(() => mediaBackfills.delete(name));
   mediaBackfills.set(name, task);
 };
-const ownsPost = (post, token) => {
+export const ownsPost = (post, token, accountId = '') => {
+  // The browser token remains useful for anonymous posts, but it is stored in
+  // localStorage and can disappear after reinstalling the mobile app or
+  // clearing site data. Signed-in members must still be able to manage posts
+  // that are permanently associated with their account.
+  if (post.authorAccountId && accountId && String(post.authorAccountId) === String(accountId)) return true;
   if (!post.ownerTokenHash || !token) return false;
   const supplied = Buffer.from(tokenHash(token));
   const stored = Buffer.from(post.ownerTokenHash);
@@ -161,8 +166,8 @@ const ownsPost = (post, token) => {
 // Database records are the source of truth for the public wall. In particular,
 // do not hide or delete posts based on their author: a read request must never
 // mutate content that a community member has already published.
-export const serializeWallPosts = (posts, token = '') => posts.map(({ ownerTokenHash, ...post }) => (
-  normalizedPost({ ...post, canManage: ownsPost({ ownerTokenHash }, token) })
+export const serializeWallPosts = (posts, token = '', accountId = '') => posts.map(({ ownerTokenHash, ...post }) => (
+  normalizedPost({ ...post, canManage: ownsPost({ ...post, ownerTokenHash }, token, accountId) })
 ));
 
 export const latestWallPost = post => normalizedPost(post || null);
@@ -352,7 +357,7 @@ router.get('/posts', async (req, res) => {
   // The wall is a shared live feed. Never let a browser/proxy reuse an old
   // response while another community member is publishing.
   res.setHeader('Cache-Control', 'no-store');
-  res.json({ posts: serializeWallPosts(posts, token) });
+  res.json({ posts: serializeWallPosts(posts, token, req.auth?.accountId) });
 });
 
 router.get('/posts/:id', async (req, res) => {
@@ -360,7 +365,7 @@ router.get('/posts/:id', async (req, res) => {
   const post = await FlamingoPost.findById(req.params.id).select('+ownerTokenHash').lean();
   if (!post) return res.status(404).json({ error: 'Postimi nuk u gjet.' });
   res.setHeader('Cache-Control', 'no-store');
-  res.json({ post: serializeWallPosts([post], ownerToken(req))[0] });
+  res.json({ post: serializeWallPosts([post], ownerToken(req), req.auth?.accountId)[0] });
 });
 
 router.get('/latest-post', async (req, res) => {
@@ -460,7 +465,7 @@ router.post('/posts', async (req, res) => {
 router.patch('/posts/:id', express.json({ limit: '16kb' }), async (req, res) => {
   const post = await FlamingoPost.findById(req.params.id).select('+ownerTokenHash');
   if (!post) return res.status(404).json({ error: 'Postimi nuk u gjet.' });
-  if (!ownsPost(post, ownerToken(req))) return res.status(403).json({ error: 'Vetëm autori mund ta ndryshojë postimin.' });
+  if (!ownsPost(post, ownerToken(req), req.auth?.accountId)) return res.status(403).json({ error: 'Vetëm autori mund ta ndryshojë postimin.' });
   post.text = String(req.body?.text || '').trim().slice(0, 1200);
   await post.save();
   publishWallEvent('updated', String(post._id));
@@ -470,7 +475,7 @@ router.patch('/posts/:id', express.json({ limit: '16kb' }), async (req, res) => 
 router.delete('/posts/:id', async (req, res) => {
   const post = await FlamingoPost.findById(req.params.id).select('+ownerTokenHash');
   if (!post) return res.status(404).json({ error: 'Postimi nuk u gjet.' });
-  if (!ownsPost(post, ownerToken(req))) return res.status(403).json({ error: 'Vetëm autori mund ta fshijë postimin.' });
+  if (!ownsPost(post, ownerToken(req), req.auth?.accountId)) return res.status(403).json({ error: 'Vetëm autori mund ta fshijë postimin.' });
   await post.deleteOne();
   publishWallEvent('deleted', String(post._id));
   const media = post.attachments?.length ? post.attachments : post.attachment ? [post.attachment] : [];
