@@ -301,8 +301,8 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https:'],
       styleSrc: ["'self'", "'unsafe-inline'", 'https:'],
-      imgSrc: ["'self'", 'data:', 'https:'],
-      connectSrc: ["'self'", 'https:', 'wss:'],
+      imgSrc: ["'self'", 'blob:', 'data:', 'https:'],
+      connectSrc: ["'self'", 'blob:', 'https:', 'wss:'],
       // The native/mobile build can load wall videos from the separately
       // hosted API. Without an explicit media policy CSP falls back to
       // default-src 'self' and blocks the player before it reaches Express.

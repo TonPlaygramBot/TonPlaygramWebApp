@@ -24,7 +24,7 @@ const GAME_ENTRYPOINTS = [
 
 const GLTF_MANIFEST_PATH = '/pwa/gltf-assets.json';
 const HALLWAY_MANIFEST_PATH = '/pwa/hallway-assets.json';
-const GLTF_EXTENSIONS = /\.(gltf|glb|bin|ktx2|dds|hdr)$/i;
+const GLTF_EXTENSIONS = /\.(gltf|glb|bin|ktx2|dds|hdr|exr)$/i;
 
 const runWhenIdle = cb => {
   if ('requestIdleCallback' in window) {
