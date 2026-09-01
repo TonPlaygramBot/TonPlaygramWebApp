@@ -6,6 +6,7 @@ import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
+import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
@@ -35,6 +36,15 @@ import {
 } from '../../utils/tableCustomizationOptions.js';
 import { hslToHexNumber, WOOD_FINISH_PRESETS } from '../../utils/woodMaterials.js';
 import { getGameVolume, isGameMuted } from '../../utils/sound.js';
+import {
+  buildTexasHoldemCommentaryLine,
+  TEXAS_HOLDEM_SPEAKERS
+} from '../../utils/texasHoldemCommentary.js';
+import {
+  getSpeechSynthesis,
+  primeSpeechSynthesis,
+  speakCommentaryLines
+} from '../../utils/textToSpeech.js';
 import { TEXAS_DEFAULT_HDRI_ID, TEXAS_HDRI_OPTIONS, TEXAS_TABLE_FINISH_OPTIONS } from '../../config/texasHoldemInventoryConfig.js';
 import { resolveTexasHoldemHdriUrl } from '../../utils/texasHoldemHdriPreload.js';
 import GiftPopup from '../../components/GiftPopup.jsx';
@@ -267,6 +277,83 @@ const DIAMOND_SHAPE_ID = 'diamondEdge';
 // Keep betting units aligned with the 2D classic experience (public/texas-holdem.js uses ANTE = 10).
 const CLASSIC_ANTE = 10;
 const ANTE = CLASSIC_ANTE;
+const COMMENTARY_PRESET_STORAGE_KEY = 'texasHoldemCommentaryPreset';
+const COMMENTARY_MUTE_STORAGE_KEY = 'texasHoldemCommentaryMute';
+const COMMENTARY_QUEUE_LIMIT = 4;
+const COMMENTARY_MIN_INTERVAL_MS = 1200;
+const TEXAS_HOLDEM_COMMENTARY_PRESETS = Object.freeze([
+  {
+    id: 'english',
+    label: 'English',
+    description: 'Mixed voices, classic English',
+    language: 'en',
+    voiceHints: {
+      [TEXAS_HOLDEM_SPEAKERS.lead]: ['en-US', 'English', 'male', 'David', 'Guy', 'Daniel', 'Alex'],
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: ['en-GB', 'English', 'female', 'Sonia', 'Hazel', 'Kate', 'Emma']
+    },
+    speakerSettings: {
+      [TEXAS_HOLDEM_SPEAKERS.lead]: { rate: 1, pitch: 0.96, volume: 1 },
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.06, volume: 1 }
+    }
+  },
+  {
+    id: 'saffron-table',
+    label: 'Indian Table',
+    description: 'Hindi commentary with lively pacing',
+    language: 'hi',
+    voiceHints: {
+      [TEXAS_HOLDEM_SPEAKERS.lead]: ['hi-IN', 'hi', 'Hindi', 'male', 'Raj', 'Amit', 'Arjun'],
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: ['hi-IN', 'hi', 'Hindi', 'female', 'Asha', 'Priya', 'Neha']
+    },
+    speakerSettings: {
+      [TEXAS_HOLDEM_SPEAKERS.lead]: { rate: 1.06, pitch: 1.02, volume: 1 },
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: { rate: 1.08, pitch: 1.08, volume: 1 }
+    }
+  },
+  {
+    id: 'moscow-mics',
+    label: 'Russian Booth',
+    description: 'Russian commentary with steady cadence',
+    language: 'ru',
+    voiceHints: {
+      [TEXAS_HOLDEM_SPEAKERS.lead]: ['ru-RU', 'ru', 'Russian', 'male', 'Dmitri', 'Ivan', 'Sergey', 'Alexey'],
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: ['ru-RU', 'ru', 'Russian', 'female', 'Anna', 'Svetlana', 'Irina', 'Olga']
+    },
+    speakerSettings: {
+      [TEXAS_HOLDEM_SPEAKERS.lead]: { rate: 1, pitch: 0.95, volume: 1 },
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: { rate: 1.03, pitch: 1.02, volume: 1 }
+    }
+  },
+  {
+    id: 'latin-pulse',
+    label: 'Latin Pulse',
+    description: 'Spanish play-by-play with lively color',
+    language: 'es',
+    voiceHints: {
+      [TEXAS_HOLDEM_SPEAKERS.lead]: ['es-ES', 'es-MX', 'Spanish', 'male', 'Jorge', 'Carlos', 'Miguel'],
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: ['es-ES', 'es-MX', 'Spanish', 'female', 'Isabella', 'Lucia', 'Camila']
+    },
+    speakerSettings: {
+      [TEXAS_HOLDEM_SPEAKERS.lead]: { rate: 1.05, pitch: 1, volume: 1 },
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: { rate: 1.08, pitch: 1.1, volume: 1 }
+    }
+  },
+  {
+    id: 'francophone-booth',
+    label: 'Francophone Booth',
+    description: 'French broadcast pairing',
+    language: 'fr',
+    voiceHints: {
+      [TEXAS_HOLDEM_SPEAKERS.lead]: ['fr-FR', 'French', 'male', 'Henri', 'Louis', 'Paul'],
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: ['fr-FR', 'French', 'female', 'Amelie', 'Marie', 'Charlotte']
+    },
+    speakerSettings: {
+      [TEXAS_HOLDEM_SPEAKERS.lead]: { rate: 0.98, pitch: 0.96, volume: 1 },
+      [TEXAS_HOLDEM_SPEAKERS.analyst]: { rate: 1.04, pitch: 1.06, volume: 1 }
+    }
+  }
+]);
+const DEFAULT_COMMENTARY_PRESET_ID = TEXAS_HOLDEM_COMMENTARY_PRESETS[0]?.id || 'english';
 const COMMUNITY_SPACING = CARD_W * 1.08;
 const TABLE_CARD_AREA_FORWARD_SHIFT = 0.72 * MODEL_SCALE;
 const COMMUNITY_CARD_FORWARD_OFFSET = TABLE_CARD_AREA_FORWARD_SHIFT;
@@ -345,6 +432,11 @@ const COMMUNITY_CARD_SCALE = 1.08;
 const HUMAN_CHIP_SCALE = 1;
 const HUMAN_CARD_FACE_TILT = Math.PI * 0.08;
 const HUMAN_CARD_LOWER_OFFSET = CARD_H * 0.37;
+const TEXAS_CHARACTER_REST_HAND_Y = SEAT_THICKNESS + CARD_D * 2.35;
+const TEXAS_CHARACTER_ARMREST_HAND_SIDE = SEAT_WIDTH * 0.38;
+const TEXAS_CHARACTER_ARMREST_HAND_FORWARD = -SEAT_DEPTH * 0.05;
+const TEXAS_CHARACTER_CARD_TOUCH_LIFT = CARD_D * 0.08;
+const TEXAS_CHARACTER_CHIP_TOUCH_LIFT = CARD_D * 0.16;
 const NON_CLASSIC_TABLE_PLAYER_LAYER_DROP = CARD_H * 0.16;
 const NON_CLASSIC_TABLE_PLAYER_LAYER_LOCKED_SHAPES = new Set(['classicOctagon', 'grandOval', 'diamondEdge']);
 const POT_PLAYER_PILE_RADIUS = CARD_W * 1.02;
@@ -518,6 +610,71 @@ function pickBestModelUrl(urls) {
   return glbs[0] || gltfs[0] || null;
 }
 
+
+const POLYHAVEN_CLOTH_MATERIALS = Object.freeze({
+  denim: {
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_rough_1k.jpg'
+  },
+  check: {
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_rough_1k.jpg'
+  },
+  hessian: {
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_rough_1k.jpg'
+  },
+  floral: {
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_rough_1k.jpg'
+  },
+  fleece: {
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_rough_1k.jpg'
+  },
+  picnic: {
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_col_1_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_rough_1k.jpg'
+  }
+});
+
+const TEXAS_DOMINO_CHARACTER_CLOTH_COMBOS = Object.freeze({
+  royalDenim: { upper: { material: 'denim', tint: 0x2f5f9f, repeat: 4.2 }, lower: { material: 'hessian', tint: 0x9b6b3f, repeat: 3.4 }, accent: { material: 'fleece', tint: 0xd8dee9, repeat: 5.0 } },
+  casinoCheck: { upper: { material: 'check', tint: 0xb7375d, repeat: 3.8 }, lower: { material: 'denim', tint: 0x243e70, repeat: 4.4 }, accent: { material: 'hessian', tint: 0xf4d7a1, repeat: 3.2 } },
+  linenStreet: { upper: { material: 'hessian', tint: 0xb68452, repeat: 3.6 }, lower: { material: 'fleece', tint: 0x374151, repeat: 5.2 }, accent: { material: 'denim', tint: 0x4a6fa4, repeat: 4.0 } },
+  jacquardNight: { upper: { material: 'floral', tint: 0x7c3f88, repeat: 3.2 }, lower: { material: 'denim', tint: 0x1f335f, repeat: 4.5 }, accent: { material: 'check', tint: 0xe3c16f, repeat: 4.0 } },
+  softFleece: { upper: { material: 'fleece', tint: 0x556070, repeat: 5.3 }, lower: { material: 'hessian', tint: 0x8b633f, repeat: 3.7 }, accent: { material: 'floral', tint: 0xb88ab8, repeat: 3.0 } },
+  patternedRed: { upper: { material: 'picnic', tint: 0xc44f42, repeat: 3.4 }, lower: { material: 'denim', tint: 0x263f73, repeat: 4.7 }, accent: { material: 'fleece', tint: 0xf1f5f9, repeat: 5.0 } },
+  mixedDenim: { upper: { material: 'denim', tint: 0x3b6ea8, repeat: 4.0 }, lower: { material: 'check', tint: 0x4f6f93, repeat: 4.2 }, accent: { material: 'hessian', tint: 0xd6a35f, repeat: 3.2 } }
+});
+
+const TEXAS_DOMINO_CHARACTER_THEMES = Object.freeze([
+  { id: 'rpm-current-domino', urls: ['https://threejs.org/examples/models/gltf/readyplayer.me.glb'], scale: 1, seatOffsetY: -0.56, seatOffsetZ: 0.52, clothCombo: 'royalDenim', hairColor: 0x24150f, eyeColor: 0x2f5d7c, skinTone: 0xd9a27d },
+  { id: 'rpm-67d411-domino', urls: ['https://models.readyplayer.me/67d411b30787acbf58ce58ac.glb', 'https://api.readyplayer.me/v1/avatars/67d411b30787acbf58ce58ac.glb', 'https://avatars.readyplayer.me/67d411b30787acbf58ce58ac.glb'], scale: 1, seatOffsetY: -0.56, seatOffsetZ: 0.52, clothCombo: 'casinoCheck', hairColor: 0x14100c, eyeColor: 0x5a3d2b, skinTone: 0xc78f68 },
+  { id: 'rpm-67f433-domino', urls: ['https://models.readyplayer.me/67f433b69dc08cf26d2cf585.glb', 'https://api.readyplayer.me/v1/avatars/67f433b69dc08cf26d2cf585.glb', 'https://avatars.readyplayer.me/67f433b69dc08cf26d2cf585.glb'], scale: 1, seatOffsetY: -0.56, seatOffsetZ: 0.52, clothCombo: 'linenStreet', hairColor: 0x2c1b12, eyeColor: 0x406a45, skinTone: 0xe0b18d },
+  { id: 'rpm-67e1b5-domino', urls: ['https://models.readyplayer.me/67e1b51ae11c93725e4395c9.glb', 'https://api.readyplayer.me/v1/avatars/67e1b51ae11c93725e4395c9.glb', 'https://avatars.readyplayer.me/67e1b51ae11c93725e4395c9.glb'], scale: 1, seatOffsetY: -0.56, seatOffsetZ: 0.52, clothCombo: 'jacquardNight', hairColor: 0x3a2418, eyeColor: 0x364f7d, skinTone: 0xb87957 },
+  { id: 'webgl-vietnam-human-domino', urls: ['https://raw.githubusercontent.com/hmthanh/3d-human-model/main/TranThiNgocTham.glb'], scale: 1, seatOffsetY: -0.56, seatOffsetZ: 0.52, clothCombo: 'softFleece', hairColor: 0x120d0a, eyeColor: 0x33271e, skinTone: 0xd39a72 },
+  { id: 'webgl-ai-teacher-domino', urls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar.glb'], scale: 1, seatOffsetY: -0.56, seatOffsetZ: 0.52, clothCombo: 'patternedRed', hairColor: 0x231915, eyeColor: 0x3d5f73, skinTone: 0xc88b64 },
+  { id: 'webgl-ai-teacher-1-domino', urls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb'], scale: 1, seatOffsetY: -0.56, seatOffsetZ: 0.52, clothCombo: 'mixedDenim', hairColor: 0x0f0b08, eyeColor: 0x4c3425, skinTone: 0xe3b08b }
+]);
+const TEXAS_DOMINO_CHARACTER_PROPORTION_SCALE = 1.82;
+const TEXAS_DOMINO_HUMAN_CHARACTER_SCALE_BOOST = 0;
+const TEXAS_MURLAN_SEATED_OFFSET_Y = -0.92;
+const TEXAS_MURLAN_SEATED_OFFSET_Z = -0.24;
+const TEXAS_MURLAN_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.88;
+const TEXAS_MURLAN_CHARACTER_EXTRA_LOWER_OFFSET = 0.28;
+const TEXAS_CHARACTER_TABLE_INWARD_OFFSET = 1.2;
+const TEXAS_HUMAN_CHARACTER_TABLE_INWARD_OFFSET = 1.0;
+const TEXAS_HUMAN_CHARACTER_EXTRA_LOWER_OFFSET = 0.24;
+const TEXAS_CHARACTER_CARD_HAND_LIFT = 0.12 * MODEL_SCALE;
+const texasDominoCharacterTemplateCache = new Map();
+const texasDominoCharacterTextureCache = new Map();
 
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
 const LABEL_SIZE = Object.freeze({ width: 1.34 * MODEL_SCALE, height: 0.64 * MODEL_SCALE });
@@ -1113,6 +1270,485 @@ function disposeObjectResources(object) {
   });
 }
 
+
+function findTexasCharacterBone(root, names = []) {
+  const normalized = names.map((name) => String(name || '').toLowerCase());
+  let found = null;
+  root?.traverse?.((obj) => {
+    if (found || !obj?.isBone) return;
+    const boneName = String(obj.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (normalized.some((name) => boneName.includes(name.replace(/[^a-z0-9]/g, '')))) {
+      found = obj;
+    }
+  });
+  return found;
+}
+
+function captureTexasCharacterPose(bones = {}) {
+  return Object.entries(bones).reduce((pose, [key, bone]) => {
+    if (bone) pose[key] = bone.rotation.clone();
+    return pose;
+  }, {});
+}
+
+function addTexasBoneOffset(bone, x = 0, y = 0, z = 0) {
+  if (!bone) return;
+  bone.rotation.x += x;
+  bone.rotation.y += y;
+  bone.rotation.z += z;
+}
+
+function makeTexasCharacterPose(base = {}, offsets = {}) {
+  const pose = {};
+  Object.entries(base).forEach(([key, rot]) => {
+    pose[key] = rot.clone();
+  });
+  Object.entries(offsets).forEach(([key, delta]) => {
+    const current = base?.[key];
+    if (!current) return;
+    pose[key] = new THREE.Euler(
+      current.x + (delta.x || 0),
+      current.y + (delta.y || 0),
+      current.z + (delta.z || 0)
+    );
+  });
+  return pose;
+}
+
+function applyTexasCharacterPoseBetween(rig, fromPose, targetPose, alpha = 1) {
+  Object.entries(rig?.bones || {}).forEach(([key, bone]) => {
+    const home = rig?.seatedPose?.[key] || rig?.defaultPose?.[key];
+    const from = fromPose?.[key] || home;
+    const target = targetPose?.[key] || home;
+    if (!bone || !target || !from) return;
+    bone.rotation.x = THREE.MathUtils.lerp(from.x, target.x, alpha);
+    bone.rotation.y = THREE.MathUtils.lerp(from.y, target.y, alpha);
+    bone.rotation.z = THREE.MathUtils.lerp(from.z, target.z, alpha);
+  });
+}
+
+function applyTexasCharacterPose(rig, pose, alpha = 1) {
+  applyTexasCharacterPoseBetween(rig, rig?.seatedPose, pose, alpha);
+}
+
+function normalizeTexasCharacterRoot(root) {
+  const bounds = new THREE.Box3().setFromObject(root);
+  if (!bounds.isEmpty()) root.position.y -= bounds.min.y;
+}
+
+function getTexasDominoCharacterThemeForSeat(seatIndex) {
+  return TEXAS_DOMINO_CHARACTER_THEMES[seatIndex % TEXAS_DOMINO_CHARACTER_THEMES.length] || TEXAS_DOMINO_CHARACTER_THEMES[0];
+}
+
+function loadTexasDominoCharacterTexture(url, { isColor = false, repeat = 3 } = {}) {
+  if (!url) return null;
+  const cacheKey = `${url}|${isColor ? 'srgb' : 'linear'}|${repeat}`;
+  if (texasDominoCharacterTextureCache.has(cacheKey)) return texasDominoCharacterTextureCache.get(cacheKey);
+  const texture = new THREE.TextureLoader().load(
+    url,
+    (loaded) => {
+      loaded.wrapS = loaded.wrapT = THREE.RepeatWrapping;
+      loaded.repeat.set(repeat, repeat);
+      loaded.anisotropy = 6;
+      if (isColor) applySRGBColorSpace(loaded);
+      loaded.needsUpdate = true;
+    },
+    undefined,
+    () => texasDominoCharacterTextureCache.delete(cacheKey)
+  );
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(repeat, repeat);
+  if (isColor) applySRGBColorSpace(texture);
+  texasDominoCharacterTextureCache.set(cacheKey, texture);
+  return texture;
+}
+
+function createTexasDominoClothMaterial(comboEntry = {}, fallbackColor = 0x2f5f9f) {
+  const cloth = POLYHAVEN_CLOTH_MATERIALS[comboEntry.material] || POLYHAVEN_CLOTH_MATERIALS.denim;
+  const repeat = comboEntry.repeat || 3.5;
+  const mat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(comboEntry.tint ?? fallbackColor),
+    roughness: 0.74,
+    metalness: 0.025
+  });
+  mat.map = loadTexasDominoCharacterTexture(cloth.color, { isColor: true, repeat });
+  mat.normalMap = loadTexasDominoCharacterTexture(cloth.normal, { repeat });
+  mat.roughnessMap = loadTexasDominoCharacterTexture(cloth.roughness, { repeat });
+  mat.needsUpdate = true;
+  return mat;
+}
+
+function enhanceTexasDominoCharacterMaterials(instance, theme, seatIndex) {
+  const combo = TEXAS_DOMINO_CHARACTER_CLOTH_COMBOS[theme?.clothCombo] || TEXAS_DOMINO_CHARACTER_CLOTH_COMBOS.royalDenim;
+  const clothMaterials = [
+    createTexasDominoClothMaterial(combo.upper, 0x2f5f9f),
+    createTexasDominoClothMaterial(combo.lower, 0x374151),
+    createTexasDominoClothMaterial(combo.accent, 0xd8dee9)
+  ];
+  const skin = new THREE.MeshStandardMaterial({ color: new THREE.Color(theme?.skinTone ?? 0xd9a27d), roughness: 0.52, metalness: 0.02 });
+  const hair = new THREE.MeshStandardMaterial({ color: new THREE.Color(theme?.hairColor ?? 0x24150f), roughness: 0.66, metalness: 0.03 });
+  const eye = new THREE.MeshStandardMaterial({ color: new THREE.Color(theme?.eyeColor ?? 0x2f5d7c), roughness: 0.35, metalness: 0.04 });
+  let meshIndex = 0;
+  instance.traverse((obj) => {
+    if (!obj?.isMesh) return;
+    obj.castShadow = true;
+    obj.receiveShadow = true;
+    const name = String(obj.name || '').toLowerCase();
+    if (name.includes('hair')) {
+      obj.material = hair;
+    } else if (name.includes('eye')) {
+      obj.material = eye;
+    } else if (name.includes('head') || name.includes('skin') || name.includes('hand') || name.includes('arm')) {
+      obj.material = skin;
+    } else if (name.includes('leg') || name.includes('pant') || name.includes('shoe')) {
+      obj.material = clothMaterials[1];
+    } else if (name.includes('shirt') || name.includes('top') || name.includes('body') || name.includes('torso')) {
+      obj.material = clothMaterials[0];
+    } else {
+      obj.material = clothMaterials[(meshIndex + seatIndex) % clothMaterials.length];
+      meshIndex += 1;
+    }
+  });
+}
+
+async function loadTexasDominoCharacterTemplate(theme, renderer = null) {
+  const urls = Array.isArray(theme?.urls) ? theme.urls.filter(Boolean) : [];
+  const cacheKey = `${theme?.id || 'fallback'}:${urls.join('|')}`;
+  if (texasDominoCharacterTemplateCache.has(cacheKey)) return texasDominoCharacterTemplateCache.get(cacheKey);
+  const promise = (async () => {
+    const loader = createConfiguredGLTFLoader(renderer);
+    let lastError = null;
+    for (const url of urls) {
+      try {
+        const gltf = await loader.loadAsync(url);
+        const root = gltf?.scene || gltf?.scenes?.[0];
+        if (root) {
+          prepareLoadedModel(root, { preserveGltfTextureMapping: true });
+          return root;
+        }
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError || new Error(`Texas Holdem GLTF character model unavailable for ${theme?.id || 'unknown theme'}`);
+  })();
+  texasDominoCharacterTemplateCache.set(cacheKey, promise);
+  promise.catch(() => texasDominoCharacterTemplateCache.delete(cacheKey));
+  return promise;
+}
+
+async function loadAnyTexasDominoCharacterTemplate(preferredTheme, renderer = null) {
+  const fallbackThemes = [
+    preferredTheme,
+    ...TEXAS_DOMINO_CHARACTER_THEMES.filter((theme) => theme?.id !== preferredTheme?.id)
+  ].filter(Boolean);
+  let lastError = null;
+  for (const fallbackTheme of fallbackThemes) {
+    try {
+      return await loadTexasDominoCharacterTemplate(fallbackTheme, renderer);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError || new Error('Texas Holdem GLTF character model unavailable for every fallback theme');
+}
+
+function createTexasCharacterRig(instance, seatRoot, seatIndex) {
+  const bones = {
+    hips: findTexasCharacterBone(instance, ['hips', 'pelvis']),
+    spine: findTexasCharacterBone(instance, ['spine', 'chest', 'torso']),
+    head: findTexasCharacterBone(instance, ['head', 'neck']),
+    rightUpperArm: findTexasCharacterBone(instance, ['rightarm', 'arm.r', 'r_upperarm', 'rightshoulder']),
+    rightForeArm: findTexasCharacterBone(instance, ['rightforearm', 'r_forearm', 'rightlowerarm', 'forearmr', 'elbowr']),
+    rightHand: findTexasCharacterBone(instance, ['righthand', 'hand.r', 'r_hand']),
+    rightIndexFinger: findTexasCharacterBone(instance, ['rightindex', 'index.r', 'index_01_r', 'r_index']),
+    rightThumbFinger: findTexasCharacterBone(instance, ['rightthumb', 'thumb.r', 'thumb_01_r', 'r_thumb']),
+    rightMiddleFinger: findTexasCharacterBone(instance, ['rightmiddle', 'middle.r', 'middle_01_r', 'r_middle']),
+    leftUpperArm: findTexasCharacterBone(instance, ['leftarm', 'arm.l', 'l_upperarm', 'leftshoulder']),
+    leftForeArm: findTexasCharacterBone(instance, ['leftforearm', 'l_forearm', 'leftlowerarm', 'forearml', 'elbowl']),
+    leftHand: findTexasCharacterBone(instance, ['lefthand', 'hand.l', 'l_hand']),
+    leftThigh: findTexasCharacterBone(instance, ['leftupleg', 'leftthigh', 'l_thigh']),
+    leftCalf: findTexasCharacterBone(instance, ['leftleg', 'leftcalf', 'l_calf']),
+    rightThigh: findTexasCharacterBone(instance, ['rightupleg', 'rightthigh', 'r_thigh']),
+    rightCalf: findTexasCharacterBone(instance, ['rightleg', 'rightcalf', 'r_calf'])
+  };
+  const rig = { seatIndex, seatRoot, instance, bones, defaultPose: captureTexasCharacterPose(bones), seatedPose: null, actionFrame: null };
+  addTexasBoneOffset(bones.hips, THREE.MathUtils.degToRad(-9), 0, 0);
+  addTexasBoneOffset(bones.spine, THREE.MathUtils.degToRad(-3), 0, 0);
+  addTexasBoneOffset(bones.head, THREE.MathUtils.degToRad(2), 0, 0);
+  // Resting pose: keep both arms relaxed down the sides with hands laid on the chair arm rests.
+  addTexasBoneOffset(bones.leftUpperArm, THREE.MathUtils.degToRad(-56), THREE.MathUtils.degToRad(-18), THREE.MathUtils.degToRad(-8));
+  addTexasBoneOffset(bones.leftForeArm, THREE.MathUtils.degToRad(4), THREE.MathUtils.degToRad(-2), THREE.MathUtils.degToRad(3));
+  addTexasBoneOffset(bones.leftHand, THREE.MathUtils.degToRad(-8), THREE.MathUtils.degToRad(-7), THREE.MathUtils.degToRad(-8));
+  addTexasBoneOffset(bones.rightUpperArm, THREE.MathUtils.degToRad(-58), THREE.MathUtils.degToRad(18), THREE.MathUtils.degToRad(8));
+  addTexasBoneOffset(bones.rightForeArm, THREE.MathUtils.degToRad(4), THREE.MathUtils.degToRad(2), THREE.MathUtils.degToRad(-3));
+  addTexasBoneOffset(bones.rightHand, THREE.MathUtils.degToRad(-8), THREE.MathUtils.degToRad(7), THREE.MathUtils.degToRad(8));
+  addTexasBoneOffset(bones.rightIndexFinger, THREE.MathUtils.degToRad(18), THREE.MathUtils.degToRad(-3), THREE.MathUtils.degToRad(-2));
+  addTexasBoneOffset(bones.rightThumbFinger, THREE.MathUtils.degToRad(-12), THREE.MathUtils.degToRad(4), THREE.MathUtils.degToRad(9));
+  addTexasBoneOffset(bones.rightMiddleFinger, THREE.MathUtils.degToRad(16), THREE.MathUtils.degToRad(-2), THREE.MathUtils.degToRad(-1));
+  addTexasBoneOffset(bones.leftThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(9.2), THREE.MathUtils.degToRad(2.9));
+  addTexasBoneOffset(bones.rightThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(1.7), THREE.MathUtils.degToRad(-1.1));
+  addTexasBoneOffset(bones.leftCalf, THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(1.1), THREE.MathUtils.degToRad(0.6));
+  addTexasBoneOffset(bones.rightCalf, THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(-1.1), THREE.MathUtils.degToRad(-0.6));
+  rig.seatedPose = captureTexasCharacterPose(bones);
+  instance.position.y -= 0.09 * MODEL_SCALE;
+  return rig;
+}
+
+async function attachTexasDominoCharacterToSeat(seatGroup, seatIndex, renderer) {
+  if (!seatGroup?.group) return null;
+  const theme = getTexasDominoCharacterThemeForSeat(seatIndex);
+  const isHumanSeat = Boolean(seatGroup.isHuman);
+
+  const mountInstance = (sourceInstance, { replace = false } = {}) => {
+    if (replace && seatGroup.character?.root?.parent) {
+      const prior = seatGroup.character.root;
+      seatGroup.character.rig?.actionFrame && cancelAnimationFrame(seatGroup.character.rig.actionFrame);
+      prior.parent.remove(prior);
+    }
+    const instance = sourceInstance;
+    enhanceTexasDominoCharacterMaterials(instance, theme, seatIndex);
+    normalizeTexasCharacterRoot(instance);
+    const seatRoot = new THREE.Group();
+    const characterScale = TEXAS_DOMINO_CHARACTER_PROPORTION_SCALE + (isHumanSeat ? TEXAS_DOMINO_HUMAN_CHARACTER_SCALE_BOOST : 0);
+    const seatScale = (theme.scale || 1) * characterScale;
+    const scaleDelta = Math.max(0, characterScale - 1);
+    seatRoot.scale.setScalar(seatScale);
+    const baseSeatOffsetY = (theme.normalizedSeatOffsetY ?? TEXAS_MURLAN_SEATED_OFFSET_Y) - 0.2;
+    const baseSeatOffsetZ = theme.normalizedSeatOffsetZ ?? TEXAS_MURLAN_SEATED_OFFSET_Z;
+    const humanLowerOffset = isHumanSeat ? TEXAS_HUMAN_CHARACTER_EXTRA_LOWER_OFFSET : 0;
+    const humanTableInwardOffset = isHumanSeat ? TEXAS_HUMAN_CHARACTER_TABLE_INWARD_OFFSET : 0;
+    seatRoot.position.set(
+      0,
+      baseSeatOffsetY - 0.22 - scaleDelta * 0.08 - TEXAS_MURLAN_CHARACTER_EXTRA_LOWER_OFFSET - humanLowerOffset,
+      baseSeatOffsetZ -
+        0.03 -
+        TEXAS_MURLAN_CHARACTER_EXTRA_OUTWARD_OFFSET +
+        TEXAS_CHARACTER_TABLE_INWARD_OFFSET +
+        humanTableInwardOffset
+    );
+    seatRoot.add(instance);
+    seatGroup.group.add(seatRoot);
+    const rig = createTexasCharacterRig(instance, seatRoot, seatIndex);
+    seatGroup.character = { root: seatRoot, rig, theme };
+    return seatGroup.character;
+  };
+
+  try {
+    const template = await loadAnyTexasDominoCharacterTemplate(theme, renderer);
+    if (!seatGroup?.group?.parent || !template) return null;
+    return mountInstance(cloneSkeleton(template));
+  } catch (error) {
+    console.warn('Texas Holdem GLTF seated human model failed', theme?.id, error);
+    return null;
+  }
+}
+
+function runTexasCharacterPoseAction(seatGroup, type = 'CARDS') {
+  const rig = seatGroup?.character?.rig;
+  if (!rig?.seatedPose) return;
+  if (rig.actionFrame) {
+    cancelAnimationFrame(rig.actionFrame);
+    rig.actionFrame = null;
+  }
+  const now = performance.now();
+  const base = rig.seatedPose;
+  const poses = {
+    cardsReach: makeTexasCharacterPose(base, {
+      spine: { x: THREE.MathUtils.degToRad(-15) },
+      head: { x: THREE.MathUtils.degToRad(-8) },
+      leftUpperArm: { x: THREE.MathUtils.degToRad(-38), y: THREE.MathUtils.degToRad(10), z: THREE.MathUtils.degToRad(2) },
+      leftForeArm: { x: THREE.MathUtils.degToRad(-34), y: THREE.MathUtils.degToRad(2), z: THREE.MathUtils.degToRad(-2) },
+      leftHand: { x: THREE.MathUtils.degToRad(-18), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-8) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-38), y: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(-2) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-34), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(2) },
+      rightHand: { x: THREE.MathUtils.degToRad(-18), y: THREE.MathUtils.degToRad(2), z: THREE.MathUtils.degToRad(8) }
+    }),
+    cardsFlip: makeTexasCharacterPose(base, {
+      spine: { x: THREE.MathUtils.degToRad(-18) },
+      head: { x: THREE.MathUtils.degToRad(-10) },
+      leftUpperArm: { x: THREE.MathUtils.degToRad(-44), y: THREE.MathUtils.degToRad(10), z: THREE.MathUtils.degToRad(1) },
+      leftForeArm: { x: THREE.MathUtils.degToRad(-42), y: THREE.MathUtils.degToRad(1), z: THREE.MathUtils.degToRad(-2) },
+      leftHand: { x: THREE.MathUtils.degToRad(-38), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-12) },
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-44), y: THREE.MathUtils.degToRad(-10), z: THREE.MathUtils.degToRad(-1) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-42), y: THREE.MathUtils.degToRad(-1), z: THREE.MathUtils.degToRad(2) },
+      rightHand: { x: THREE.MathUtils.degToRad(-38), y: THREE.MathUtils.degToRad(2), z: THREE.MathUtils.degToRad(12) }
+    }),
+    passDown: makeTexasCharacterPose(base, {
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-24), y: THREE.MathUtils.degToRad(-6), z: THREE.MathUtils.degToRad(-7) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-38), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-1) },
+      rightHand: { x: THREE.MathUtils.degToRad(-18), y: THREE.MathUtils.degToRad(-4), z: THREE.MathUtils.degToRad(-3) },
+      rightIndexFinger: { x: THREE.MathUtils.degToRad(18), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-1) },
+      rightThumbFinger: { x: THREE.MathUtils.degToRad(-8), y: THREE.MathUtils.degToRad(3), z: THREE.MathUtils.degToRad(7) },
+      rightMiddleFinger: { x: THREE.MathUtils.degToRad(16), y: THREE.MathUtils.degToRad(-1), z: THREE.MathUtils.degToRad(-1) }
+    }),
+    passTinyLift: makeTexasCharacterPose(base, {
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-17), y: THREE.MathUtils.degToRad(-6), z: THREE.MathUtils.degToRad(-7) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-30), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-1) },
+      rightHand: { x: THREE.MathUtils.degToRad(-12), y: THREE.MathUtils.degToRad(-4), z: THREE.MathUtils.degToRad(-3) },
+      rightIndexFinger: { x: THREE.MathUtils.degToRad(18), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-1) },
+      rightThumbFinger: { x: THREE.MathUtils.degToRad(-8), y: THREE.MathUtils.degToRad(3), z: THREE.MathUtils.degToRad(7) },
+      rightMiddleFinger: { x: THREE.MathUtils.degToRad(16), y: THREE.MathUtils.degToRad(-1), z: THREE.MathUtils.degToRad(-1) }
+    }),
+    chipPlace: makeTexasCharacterPose(base, {
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-20), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-14) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-24), y: THREE.MathUtils.degToRad(-1) },
+      rightHand: { x: THREE.MathUtils.degToRad(-14), y: THREE.MathUtils.degToRad(-5), z: THREE.MathUtils.degToRad(-1) },
+      rightIndexFinger: { x: THREE.MathUtils.degToRad(-5), y: THREE.MathUtils.degToRad(2) },
+      rightThumbFinger: { x: THREE.MathUtils.degToRad(8), z: THREE.MathUtils.degToRad(-6) },
+      rightMiddleFinger: { x: THREE.MathUtils.degToRad(-4), y: THREE.MathUtils.degToRad(1) }
+    }),
+    checkLift: makeTexasCharacterPose(base, {
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-17), y: THREE.MathUtils.degToRad(-6), z: THREE.MathUtils.degToRad(-7) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-30), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-1) },
+      rightHand: { x: THREE.MathUtils.degToRad(-12), y: THREE.MathUtils.degToRad(-4), z: THREE.MathUtils.degToRad(-3) },
+      rightIndexFinger: { x: THREE.MathUtils.degToRad(18), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-1) },
+      rightThumbFinger: { x: THREE.MathUtils.degToRad(-8), y: THREE.MathUtils.degToRad(3), z: THREE.MathUtils.degToRad(7) },
+      rightMiddleFinger: { x: THREE.MathUtils.degToRad(16), y: THREE.MathUtils.degToRad(-1), z: THREE.MathUtils.degToRad(-1) }
+    }),
+    checkTap: makeTexasCharacterPose(base, {
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-24), y: THREE.MathUtils.degToRad(-6), z: THREE.MathUtils.degToRad(-7) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-38), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-1) },
+      rightHand: { x: THREE.MathUtils.degToRad(-18), y: THREE.MathUtils.degToRad(-4), z: THREE.MathUtils.degToRad(-3) },
+      rightIndexFinger: { x: THREE.MathUtils.degToRad(18), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-1) },
+      rightThumbFinger: { x: THREE.MathUtils.degToRad(-8), y: THREE.MathUtils.degToRad(3), z: THREE.MathUtils.degToRad(7) },
+      rightMiddleFinger: { x: THREE.MathUtils.degToRad(16), y: THREE.MathUtils.degToRad(-1), z: THREE.MathUtils.degToRad(-1) }
+    })
+  };
+  const sequence = type === 'FOLD'
+    ? [
+        { at: 0, duration: 240, from: base, pose: poses.passDown },
+        { at: 240, duration: 140, from: poses.passDown, pose: poses.passTinyLift },
+        { at: 380, duration: 140, from: poses.passTinyLift, pose: poses.passDown },
+        { at: 520, duration: 260, from: poses.passDown, pose: base }
+      ]
+    : type === 'CHIP'
+      ? [
+        { at: 0, duration: 560, from: base, pose: poses.chipPlace },
+        { at: 560, duration: 300, from: poses.chipPlace, pose: base }
+      ]
+      : type === 'CHECK'
+        ? [
+          { at: 0, duration: 240, from: base, pose: poses.passDown },
+          { at: 240, duration: 140, from: poses.passDown, pose: poses.passTinyLift },
+          { at: 380, duration: 140, from: poses.passTinyLift, pose: poses.passDown },
+          { at: 520, duration: 260, from: poses.passDown, pose: base }
+        ]
+        : [
+          { at: 0, duration: 180, from: base, pose: poses.cardsReach },
+          { at: 180, duration: 360, from: poses.cardsReach, pose: poses.cardsFlip },
+          { at: 540, duration: 520, from: poses.cardsFlip, pose: poses.cardsFlip },
+          { at: 1060, duration: 300, from: poses.cardsFlip, pose: base }
+        ];
+  const tick = (time) => {
+    const elapsed = time - now;
+    let active = false;
+    for (const step of sequence) {
+      if (elapsed < step.at || elapsed > step.at + step.duration) continue;
+      const localT = Math.min(1, Math.max(0, (elapsed - step.at) / Math.max(1, step.duration)));
+      const easedPose = 1 - Math.pow(1 - localT, 3);
+      applyTexasCharacterPoseBetween(rig, step.from, step.pose, easedPose);
+      if (type === 'CHIP') {
+        const chipPhase = step.pose === poses.chipPlace ? Math.min(1, localT) : 1;
+        updateTexasCharacterChipHands(seatGroup, chipPhase);
+      }
+      active = true;
+      break;
+    }
+    if (elapsed < sequence[sequence.length - 1].at + sequence[sequence.length - 1].duration) {
+      rig.actionFrame = requestAnimationFrame(tick);
+    } else {
+      applyTexasCharacterPose(rig, base, 1);
+      updateTexasCharacterRestingHands(seatGroup);
+      rig.actionFrame = null;
+    }
+    if (!active && elapsed >= 0 && elapsed < sequence[sequence.length - 1].at) {
+      rig.actionFrame = requestAnimationFrame(tick);
+    }
+  };
+  rig.actionFrame = requestAnimationFrame(tick);
+}
+
+function setTexasCharacterHandContactMarkers(seatGroup, targets = []) {
+  const character = seatGroup?.character;
+  if (!character?.root) return;
+  ['leftHandTarget', 'rightHandTarget'].forEach((key, index) => {
+    const target = targets[index];
+    let marker = character[key];
+    if (!marker) {
+      marker = new THREE.Mesh(
+        new THREE.SphereGeometry(0.032 * MODEL_SCALE, 12, 8),
+        new THREE.MeshStandardMaterial({ color: 0xd9a27d, roughness: 0.5 })
+      );
+      marker.name = key;
+      marker.castShadow = true;
+      marker.scale.set(1.35, 0.28, 0.85);
+      character.root.add(marker);
+      character[key] = marker;
+    }
+    if (!target?.isVector3) {
+      marker.visible = false;
+      return;
+    }
+    const localTarget = target.clone();
+    character.root.worldToLocal(localTarget);
+    marker.position.copy(localTarget);
+    marker.visible = true;
+  });
+}
+
+function updateTexasCharacterRestingHands(seatGroup) {
+  const anchor = (seatGroup?.stoolAnchor ?? seatGroup?.seatPos)?.clone?.();
+  if (!anchor || !seatGroup?.right || !seatGroup?.forward) return;
+  const restBase = anchor
+    .clone()
+    .addScaledVector(seatGroup.forward, TEXAS_CHARACTER_ARMREST_HAND_FORWARD)
+    .add(new THREE.Vector3(0, TEXAS_CHARACTER_REST_HAND_Y, 0));
+  setTexasCharacterHandContactMarkers(seatGroup, [
+    restBase.clone().addScaledVector(seatGroup.right, -TEXAS_CHARACTER_ARMREST_HAND_SIDE),
+    restBase.clone().addScaledVector(seatGroup.right, TEXAS_CHARACTER_ARMREST_HAND_SIDE)
+  ]);
+}
+
+function updateTexasCharacterChipHands(seatGroup, phase = 0) {
+  if (!seatGroup?.right || !seatGroup?.forward) return;
+  const pickup = (seatGroup.chipRailAnchor ?? seatGroup.chipAnchor ?? seatGroup.seatPos)?.clone?.();
+  const place = (seatGroup.betAnchor ?? seatGroup.previewAnchor ?? seatGroup.chipAnchor ?? pickup)?.clone?.();
+  if (!pickup || !place) return;
+  const contact = pickup.lerp(place, THREE.MathUtils.clamp(phase, 0, 1));
+  contact.y += TEXAS_CHARACTER_CHIP_TOUCH_LIFT;
+  setTexasCharacterHandContactMarkers(seatGroup, [
+    contact.clone().addScaledVector(seatGroup.right, -CARD_W * 0.12),
+    contact.clone().addScaledVector(seatGroup.right, CARD_W * 0.12)
+  ]);
+}
+
+function updateTexasCharacterCardHands(seatGroup, cardPhase = 0) {
+  const character = seatGroup?.character;
+  if (!character?.root || !seatGroup?.cardMeshes?.length) return;
+  const visibleCards = seatGroup.cardMeshes.filter((mesh) => mesh?.visible);
+  if (!visibleCards.length) {
+    updateTexasCharacterRestingHands(seatGroup);
+    return;
+  }
+  if (cardPhase <= 0.02) {
+    updateTexasCharacterRestingHands(seatGroup);
+    return;
+  }
+  const cardForHand = (handIndex) => visibleCards[Math.min(handIndex, visibleCards.length - 1)];
+  const contactLift = TEXAS_CHARACTER_CARD_TOUCH_LIFT + TEXAS_CHARACTER_CARD_HAND_LIFT * cardPhase;
+  const leftHandWorld = cardForHand(0).position
+    .clone()
+    .addScaledVector(seatGroup.right, -CARD_W * 0.08)
+    .addScaledVector(seatGroup.forward, -CARD_H * 0.08)
+    .add(new THREE.Vector3(0, contactLift, 0));
+  const rightHandWorld = cardForHand(1).position
+    .clone()
+    .addScaledVector(seatGroup.right, CARD_W * 0.08)
+    .addScaledVector(seatGroup.forward, -CARD_H * 0.08)
+    .add(new THREE.Vector3(0, contactLift, 0));
+  setTexasCharacterHandContactMarkers(seatGroup, [leftHandWorld, rightHandWorld]);
+}
 
 function cloneModelWithLocalMaterials(source) {
   if (!source) return source;
@@ -3223,6 +3859,32 @@ function TexasHoldemArena({ search }) {
   }, []);
   const [chatBubbles, setChatBubbles] = useState([]);
   const [muted, setMuted] = useState(isGameMuted());
+  const [commentaryPresetId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(COMMENTARY_PRESET_STORAGE_KEY);
+      if (stored && TEXAS_HOLDEM_COMMENTARY_PRESETS.some((preset) => preset.id === stored)) {
+        return stored;
+      }
+    }
+    return DEFAULT_COMMENTARY_PRESET_ID;
+  });
+  const [commentaryMuted] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(COMMENTARY_MUTE_STORAGE_KEY);
+      if (stored === '1') return true;
+      if (stored === '0') return false;
+    }
+    return false;
+  });
+  const commentaryMutedRef = useRef(commentaryMuted);
+  const commentaryReadyRef = useRef(false);
+  const commentaryQueueRef = useRef([]);
+  const commentarySpeakingRef = useRef(false);
+  const commentaryLastEventAtRef = useRef(0);
+  const pendingCommentaryLinesRef = useRef(null);
+  const commentaryIntroPlayedRef = useRef(false);
+  const commentarySpeakerIndexRef = useRef(0);
+  const commentaryEventRef = useRef({ handId: null, lastActionId: null, stage: null, showdown: false });
   const [chipSelection, setChipSelection] = useState([]);
   const [sliderValue, setSliderValue] = useState(0);
   const [overheadView, setOverheadView] = useState(false);
@@ -3443,6 +4105,111 @@ function TexasHoldemArena({ search }) {
     return () => window.removeEventListener('gameMuteChanged', handleMute);
   }, []);
 
+  const activeCommentaryPreset = useMemo(
+    () =>
+      TEXAS_HOLDEM_COMMENTARY_PRESETS.find((preset) => preset.id === commentaryPresetId) ??
+      TEXAS_HOLDEM_COMMENTARY_PRESETS[0],
+    [commentaryPresetId]
+  );
+  const commentarySpeakers = useMemo(
+    () => [TEXAS_HOLDEM_SPEAKERS.lead, TEXAS_HOLDEM_SPEAKERS.analyst],
+    []
+  );
+  const pickCommentarySpeaker = useCallback(() => {
+    const index = commentarySpeakerIndexRef.current;
+    commentarySpeakerIndexRef.current = index + 1;
+    return commentarySpeakers[index % commentarySpeakers.length] || TEXAS_HOLDEM_SPEAKERS.analyst;
+  }, [commentarySpeakers]);
+
+  useEffect(() => {
+    commentaryMutedRef.current = commentaryMuted;
+    if (commentaryMuted) {
+      const synth = getSpeechSynthesis();
+      synth?.cancel();
+      commentaryQueueRef.current = [];
+      commentarySpeakingRef.current = false;
+      pendingCommentaryLinesRef.current = null;
+    }
+  }, [commentaryMuted]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(COMMENTARY_PRESET_STORAGE_KEY, commentaryPresetId);
+    }
+  }, [commentaryPresetId]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(COMMENTARY_MUTE_STORAGE_KEY, commentaryMuted ? '1' : '0');
+    }
+  }, [commentaryMuted]);
+
+  const playNextCommentary = useCallback(async () => {
+    if (commentarySpeakingRef.current) return;
+    const next = commentaryQueueRef.current.shift();
+    if (!next) return;
+    const synth = getSpeechSynthesis();
+    if (!synth) return;
+    commentarySpeakingRef.current = true;
+    try {
+      synth.cancel();
+    } catch {}
+    await speakCommentaryLines(next.lines, {
+      speakerSettings: next.preset?.speakerSettings,
+      voiceHints: next.preset?.voiceHints
+    });
+    commentarySpeakingRef.current = false;
+    if (commentaryQueueRef.current.length) {
+      playNextCommentary();
+    }
+  }, []);
+
+  const enqueueTexasCommentary = useCallback(
+    (lines, { priority = false, preset = activeCommentaryPreset } = {}) => {
+      if (!Array.isArray(lines) || lines.length === 0) return;
+      if (commentaryMutedRef.current || isGameMuted()) return;
+      if (!commentaryReadyRef.current) {
+        pendingCommentaryLinesRef.current = { lines, priority, preset };
+        return;
+      }
+      const now = performance.now();
+      if (!priority && now - commentaryLastEventAtRef.current < COMMENTARY_MIN_INTERVAL_MS) return;
+      if (!priority && commentaryQueueRef.current.length >= COMMENTARY_QUEUE_LIMIT) return;
+      if (priority) {
+        commentaryQueueRef.current.unshift({ lines, preset });
+      } else {
+        commentaryQueueRef.current.push({ lines, preset });
+      }
+      if (!commentarySpeakingRef.current) {
+        playNextCommentary();
+      }
+      commentaryLastEventAtRef.current = now;
+    },
+    [activeCommentaryPreset, playNextCommentary]
+  );
+
+  const enqueueTexasCommentaryEvent = useCallback(
+    (event, context = {}, options = {}) => {
+      const speaker = options.speaker ?? pickCommentarySpeaker();
+      const text = buildTexasHoldemCommentaryLine({
+        event,
+        speaker,
+        language: activeCommentaryPreset?.language ?? commentaryPresetId,
+        context: {
+          arena: "Texas Hold'em arena",
+          ...context
+        }
+      });
+      enqueueTexasCommentary([{ speaker, text }], options);
+    },
+    [
+      activeCommentaryPreset?.language,
+      commentaryPresetId,
+      enqueueTexasCommentary,
+      pickCommentarySpeaker
+    ]
+  );
+
   const playSound = useCallback((name) => {
     const audio = soundsRef.current?.[name];
     if (!audio || isGameMuted()) return;
@@ -3520,6 +4287,149 @@ function TexasHoldemArena({ search }) {
       soundsRef.current = {};
     };
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const unlockCommentary = () => {
+      if (commentaryReadyRef.current) return;
+      primeSpeechSynthesis();
+      const synth = getSpeechSynthesis();
+      synth?.getVoices?.();
+      commentaryReadyRef.current = true;
+      const pending = pendingCommentaryLinesRef.current;
+      if (pending) {
+        pendingCommentaryLinesRef.current = null;
+        enqueueTexasCommentary(pending.lines, pending);
+      }
+    };
+    window.addEventListener('pointerdown', unlockCommentary);
+    window.addEventListener('click', unlockCommentary);
+    window.addEventListener('touchstart', unlockCommentary);
+    window.addEventListener('keydown', unlockCommentary);
+    return () => {
+      window.removeEventListener('pointerdown', unlockCommentary);
+      window.removeEventListener('click', unlockCommentary);
+      window.removeEventListener('touchstart', unlockCommentary);
+      window.removeEventListener('keydown', unlockCommentary);
+    };
+  }, [enqueueTexasCommentary]);
+
+  useEffect(() => {
+    if (!gameState) return;
+    const snapshot = commentaryEventRef.current;
+    const previousHandId = snapshot.handId;
+    const previousStage = snapshot.stage;
+    const previousActionId = snapshot.lastActionId;
+    const previousShowdown = snapshot.showdown;
+    const players = gameState.players || [];
+    const stage = gameState.stage;
+
+    const resolvePlayerName = (index) => {
+      const player = players[index];
+      if (!player) return `Player ${index + 1}`;
+      return player.name || `Player ${index + 1}`;
+    };
+
+    const resolveOpponentName = (index) => {
+      const opponent = players.find((p, idx) => idx !== index && !p.folded) || players.find((p, idx) => idx !== index);
+      if (!opponent) return 'the table';
+      return opponent.name || `Player ${opponent.seatIndex + 1}`;
+    };
+
+    if (!commentaryIntroPlayedRef.current) {
+      commentaryIntroPlayedRef.current = true;
+      enqueueTexasCommentary(
+        [
+          {
+            speaker: TEXAS_HOLDEM_SPEAKERS.lead,
+            text: buildTexasHoldemCommentaryLine({
+              event: 'intro',
+              speaker: TEXAS_HOLDEM_SPEAKERS.lead,
+              language: activeCommentaryPreset?.language ?? commentaryPresetId,
+              context: { arena: "Texas Hold'em arena" }
+            })
+          },
+          {
+            speaker: TEXAS_HOLDEM_SPEAKERS.analyst,
+            text: buildTexasHoldemCommentaryLine({
+              event: 'introReply',
+              speaker: TEXAS_HOLDEM_SPEAKERS.analyst,
+              language: activeCommentaryPreset?.language ?? commentaryPresetId,
+              context: { arena: "Texas Hold'em arena" }
+            })
+          }
+        ],
+        { priority: true, preset: activeCommentaryPreset }
+      );
+    }
+
+    if (previousHandId !== gameState.handId) {
+      const opener = players[gameState.actionIndex];
+      enqueueTexasCommentaryEvent('newHand', {
+        player: opener?.name || `Player ${gameState.actionIndex + 1}`
+      });
+    }
+
+    if (previousStage && previousStage !== stage) {
+      if (stage === 'flop') {
+        enqueueTexasCommentaryEvent('flop');
+      } else if (stage === 'turn') {
+        enqueueTexasCommentaryEvent('turn');
+      } else if (stage === 'river') {
+        enqueueTexasCommentaryEvent('river');
+      }
+    }
+
+    if (gameState.lastActionId && gameState.lastActionId !== previousActionId) {
+      const action = gameState.lastAction;
+      if (action) {
+        const playerName = resolvePlayerName(action.playerIndex);
+        const opponentName = resolveOpponentName(action.playerIndex);
+        const amountLabel = action.amount > 0
+          ? `${action.amount} ${gameState.token}`
+          : `${Math.max(0, action.toCall)} ${gameState.token}`;
+        const potLabel = `${Math.max(0, Math.round(gameState.pot ?? 0))} ${gameState.token}`;
+        const context = {
+          player: playerName,
+          opponent: opponentName,
+          amount: amountLabel,
+          pot: potLabel,
+          stage: stage
+        };
+        enqueueTexasCommentaryEvent(action.action, context);
+      }
+    }
+
+    if (gameState.showdown && !previousShowdown) {
+      enqueueTexasCommentaryEvent('showdown', {}, { priority: true });
+      const potEntry = Array.isArray(gameState.winners) ? gameState.winners[0] : null;
+      const winners = Array.isArray(potEntry?.winners) ? potEntry.winners : [];
+      if (winners.length) {
+        const names = winners
+          .map((entry) => resolvePlayerName(entry.index))
+          .filter(Boolean);
+        const potLabel = `${Math.max(0, Math.round(potEntry.amount ?? 0))} ${gameState.token}`;
+        const winnerName = names.length > 1 ? names.join(' and ') : names[0];
+        enqueueTexasCommentaryEvent(names.length > 1 ? 'potSplit' : 'potWin', {
+          player: winnerName,
+          pot: potLabel
+        }, { priority: true });
+      }
+    }
+
+    commentaryEventRef.current = {
+      handId: gameState.handId,
+      lastActionId: gameState.lastActionId,
+      stage,
+      showdown: gameState.showdown
+    };
+  }, [
+    activeCommentaryPreset,
+    commentaryPresetId,
+    enqueueTexasCommentary,
+    enqueueTexasCommentaryEvent,
+    gameState
+  ]);
 
   const applyHeadOrientation = useCallback(() => {
     const three = threeRef.current;
@@ -3664,6 +4574,10 @@ function TexasHoldemArena({ search }) {
       quaternion: mesh.quaternion.clone()
     }));
     const startTime = performance.now();
+    if (seat.isHuman) {
+      runTexasCharacterPoseAction(seat, 'CARDS');
+    }
+
     const tick = (now) => {
       const elapsed = now - startTime;
       const t = Math.min(1, elapsed / CARD_PEEK_ANIMATION_MS);
@@ -3690,6 +4604,9 @@ function TexasHoldemArena({ search }) {
         mesh.position.copy(starts[cardIdx].position.clone().add(offset));
         mesh.quaternion.copy(starts[cardIdx].quaternion).premultiply(liftQuaternion);
       });
+      if (seat.isHuman) {
+        updateTexasCharacterCardHands(seat, phase);
+      }
       if (t < 1) {
         const frame = requestAnimationFrame(tick);
         peekCardAnimationRef.current.set(key, { frame });
@@ -4726,6 +5643,10 @@ function TexasHoldemArena({ search }) {
           potDropCount: 0
         };
         seatGroups.push(seatGroup);
+        attachTexasDominoCharacterToSeat(seatGroup, seatIndex, renderer).catch((error) => {
+          console.warn('Failed to attach Texas Holdem Domino-style seated human', seatIndex, error);
+        });
+
         const labelLift = seat.labelOffset?.height ?? LABEL_BASE_HEIGHT;
         const labelForward = seat.labelOffset?.forward ?? 0;
         const labelOffset = seat.forward.clone().setLength(labelForward).add(new THREE.Vector3(0, labelLift, 0));
@@ -5463,6 +6384,7 @@ function TexasHoldemArena({ search }) {
             .addScaledVector(pileForward, foldedOrder * FOLD_PILE_CARD_GAP);
           const pileLookTarget = pilePosition.clone().add(pileForward);
           if (player.folded && !(prevPlayer?.folded)) {
+            if (cardIdx === 0) runTexasCharacterPoseAction(seat, 'FOLD');
             animateFoldCardToPile(mesh, pilePosition, pileLookTarget);
           } else if (!mesh.userData?.foldAnimFrame) {
             mesh.position.copy(pilePosition);
@@ -5533,6 +6455,8 @@ function TexasHoldemArena({ search }) {
         setCardHighlight(mesh, state.showdown && winningCardSet.has(key));
       });
       if (seat.isHuman) {
+        const humanActiveTurn = state.stage !== 'showdown' && idx === state.actionIndex && !player.folded;
+        updateTexasCharacterCardHands(seat, humanActiveTurn ? 0.28 : 0);
       }
 
       if (seat.foldBadge) {
@@ -5612,6 +6536,9 @@ function TexasHoldemArena({ search }) {
             .addScaledVector(seat.forward, CARD_W * 0.28)
           : startBase.clone().lerp(endBase, 0.65);
         midBase.y -= chipHeight * (seat.isHuman ? 0.02 : 0.1);
+        if (seat.isHuman) {
+          runTexasCharacterPoseAction(seat, 'CHIP');
+        }
         chipFactory.animateTransfer(betDelta, {
           scene: arenaGroup,
           start: startBase,
@@ -5675,6 +6602,7 @@ function TexasHoldemArena({ search }) {
         if (currentStatus === 'All-in') {
           playSound('allIn');
         } else if (currentStatus === 'Check') {
+          runTexasCharacterPoseAction(seat, 'CHECK');
           playCheckKnock();
         } else if (
           currentStatus === 'Call' ||

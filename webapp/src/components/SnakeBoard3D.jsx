@@ -9,6 +9,7 @@ import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import {
   createExactUkrainianFallbackDrone,
   isExactUkrainianDroneObject,
@@ -59,11 +60,11 @@ const ARM_DEPTH = SEAT_DEPTH * 0.75;
 const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
 const CARD_SCALE = 0.95;
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
-const SEAT_ROTATION_OFFSET = Math.PI / 8;
+const HUMAN_SEAT_ROTATION_OFFSET = Math.PI / 8;
 const AI_CHAIR_GAP = CARD_W * 0.74;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 1.1;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
-// Portrait calibration: keep the chair ring close to the table.
+// Portrait calibration: keep the chair ring closer to the table while humans sit back toward the chair backs.
 const CHAIR_GLOBAL_PUSHBACK = 0.18 * MODEL_SCALE;
 const SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK = 0.22 * MODEL_SCALE;
 const TABLE_HEIGHT_LIFT = -0.045 * MODEL_SCALE;
@@ -99,9 +100,108 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
-const CHAIR_GROUND_Y = -0.91 * MODEL_SCALE * STOOL_SCALE;
-const WEAPON_ANCHOR_X = SEAT_WIDTH * 0.47;
-const WEAPON_ANCHOR_Z = -SEAT_DEPTH * 0.2;
+const HUMAN_MODEL_URL = 'https://threejs.org/examples/models/gltf/readyplayer.me.glb';
+const HUMAN_MODEL_CACHE = { promise: null, template: null };
+
+const SNAKE_DOMINO_CHARACTER_THEMES = Object.freeze([
+  {
+    id: 'rpm-current-domino',
+    urls: ['https://threejs.org/examples/models/gltf/readyplayer.me.glb'],
+    clothCombo: 'royalDenim',
+    hairColor: '#24150f',
+    eyeColor: '#2f5d7c',
+    skin: ['#f0c2a0', '#d9a27d', '#8f5f42']
+  },
+  {
+    id: 'rpm-67d411-domino',
+    urls: [
+      'https://models.readyplayer.me/67d411b30787acbf58ce58ac.glb',
+      'https://api.readyplayer.me/v1/avatars/67d411b30787acbf58ce58ac.glb',
+      'https://avatars.readyplayer.me/67d411b30787acbf58ce58ac.glb'
+    ],
+    clothCombo: 'casinoCheck',
+    hairColor: '#14100c',
+    eyeColor: '#5a3d2b',
+    skin: ['#edb38d', '#c78f68', '#7a4932']
+  },
+  {
+    id: 'rpm-67f433-domino',
+    urls: [
+      'https://models.readyplayer.me/67f433b69dc08cf26d2cf585.glb',
+      'https://api.readyplayer.me/v1/avatars/67f433b69dc08cf26d2cf585.glb',
+      'https://avatars.readyplayer.me/67f433b69dc08cf26d2cf585.glb'
+    ],
+    clothCombo: 'linenStreet',
+    hairColor: '#2c1b12',
+    eyeColor: '#406a45',
+    skin: ['#f4c8a8', '#e0b18d', '#9a6242']
+  },
+  {
+    id: 'rpm-67e1b5-domino',
+    urls: [
+      'https://models.readyplayer.me/67e1b51ae11c93725e4395c9.glb',
+      'https://api.readyplayer.me/v1/avatars/67e1b51ae11c93725e4395c9.glb',
+      'https://avatars.readyplayer.me/67e1b51ae11c93725e4395c9.glb'
+    ],
+    clothCombo: 'jacquardNight',
+    hairColor: '#3a2418',
+    eyeColor: '#364f7d',
+    skin: ['#daa07d', '#b87957', '#70402d']
+  },
+  {
+    id: 'webgl-vietnam-human-domino',
+    urls: ['https://raw.githubusercontent.com/hmthanh/3d-human-model/main/TranThiNgocTham.glb'],
+    clothCombo: 'softFleece',
+    hairColor: '#120d0a',
+    eyeColor: '#33271e',
+    skin: ['#ebb88f', '#d39a72', '#8b563a']
+  },
+  {
+    id: 'webgl-ai-teacher-domino',
+    urls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar.glb'],
+    clothCombo: 'patternedRed',
+    hairColor: '#231915',
+    eyeColor: '#3d5f73',
+    skin: ['#e8ad87', '#c88b64', '#7c4932']
+  },
+  {
+    id: 'webgl-ai-teacher-1-domino',
+    urls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb'],
+    clothCombo: 'mixedDenim',
+    hairColor: '#0f0b08',
+    eyeColor: '#4c3425',
+    skin: ['#f3c4a0', '#e3b08b', '#9b6445']
+  }
+]);
+const SNAKE_DOMINO_CHARACTER_CACHE = new Map();
+
+function pickUniqueSnakeDominoCharacterThemes(count = DEFAULT_PLAYER_COUNT) {
+  const themes = [...SNAKE_DOMINO_CHARACTER_THEMES];
+  for (let i = themes.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [themes[i], themes[j]] = [themes[j], themes[i]];
+  }
+  return Array.from({ length: count }, (_, index) => themes[index % themes.length]);
+}
+// Keep Snake seated humans aligned with Ludo/Chess Battle Royal scale while sitting farther back on the chairs.
+const SEATED_HUMAN_BASE_HEIGHT = 1.74;
+const SEATED_HUMAN_TARGET_HEIGHT = BACK_HEIGHT * 2.42;
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 1.82;
+// Mirror Chess Battle Royal seated-body anchoring so bottom-half pose/placement is identical.
+const SEATED_HUMAN_SEAT_Y_OFFSET = -5.6 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Z_OFFSET = -SEAT_DEPTH * 0.28;
+// Portrait calibration: nudge the bottom/self human farther outward too so bodies sit closer to chairs than the table.
+const SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET = SEAT_DEPTH * 0.12;
+const SEATED_HUMAN_WEAPON_RIGHT_HAND_X = SEAT_WIDTH * 0.47;
+const SEATED_HUMAN_WEAPON_SIDE_Z = -SEAT_DEPTH * 0.2;
+const SEATED_HUMAN_FACING_Y = 0;
+const SEATED_HUMAN_FOOT_GROUND_Y = -1.55 * MODEL_SCALE * STOOL_SCALE;
+// Portrait calibration: lift only the loaded human meshes relative to the existing chair ring.
+// Keep the shared ground target explicit while moving characters visibly higher on portrait screens.
+const SEATED_HUMAN_VISUAL_UPWARD_LIFT = 0.64 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_GROUND_Y = SEATED_HUMAN_FOOT_GROUND_Y + SEATED_HUMAN_VISUAL_UPWARD_LIFT;
+const HUMAN_FRONT_SIDE_Z = 1;
+const HUMAN_LEG_FRONT_OFFSET = 0;
 const SNAKE_TOKEN_MODEL_URLS = [
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
@@ -244,17 +344,37 @@ const PYRAMID_LEVEL_GAP = TILE_SIZE * 0.12 * PYRAMID_HEIGHT_MULTIPLIER;
 const CAMERA_FOLLOW_MIN_TILE = Infinity;
 const CAMERA_FOLLOW_BACK_TILES = 5;
 
+const SNAKE_SEATED_DICE_PHASES = Object.freeze({
+  reachMs: 180,
+  gripMs: 160,
+  windupMs: 220,
+  releaseMs: 280,
+  followMs: 260
+});
+const SNAKE_SEATED_CAPTURE_PHASES = Object.freeze({
+  pickupMs: 260,
+  aimMs: 520,
+  fireMs: 620,
+  recoverMs: 260
+});
 
 function getSeatAngle(seatIndex, activePlayerCount = DEFAULT_PLAYER_COUNT) {
   if (activePlayerCount === 2) {
     return HEAD_TO_HEAD_CHAIR_ANGLES[seatIndex];
   }
-  const fallbackAngle = Math.PI / 2 - SEAT_ROTATION_OFFSET - (seatIndex / activePlayerCount) * Math.PI * 2;
+  const fallbackAngle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET - (seatIndex / activePlayerCount) * Math.PI * 2;
   return CUSTOM_CHAIR_ANGLES[seatIndex] ?? fallbackAngle;
 }
 
 function getSeatRadius(baseChairRadius, seatIndex) {
   return baseChairRadius + (seatIndex === 0 ? SELF_BOTTOM_CHAIR_EXTRA_PUSHBACK : 0);
+}
+
+function getSeatHumanOffsets(seatIndex) {
+  return {
+    y: SEATED_HUMAN_SEAT_Y_OFFSET,
+    z: SEATED_HUMAN_SEAT_Z_OFFSET + (seatIndex === 0 ? SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET : 0)
+  };
 }
 
 function measureMinYRelativeToParent(object) {
@@ -267,15 +387,22 @@ function measureMinYRelativeToParent(object) {
   return box.min.y - parent.getWorldPosition(new THREE.Vector3()).y;
 }
 
-function alignChairLegsToGround(chair) {
+function alignChairLegsToHumanGround(chair) {
   const group = chair?.group;
   const model = chair?.model;
   if (!group?.isObject3D || !model?.isObject3D) return;
   const localMinY = measureMinYRelativeToParent(model);
   if (!Number.isFinite(localMinY)) return;
-  group.position.y = CHAIR_GROUND_Y - localMinY;
+  group.position.y = SEATED_HUMAN_GROUND_Y - localMinY;
 }
 
+function applyChessBattleSeatedHumanBaseline(seatHuman, seatIndex, timeSeconds = 0, activeLean = 0) {
+  if (!seatHuman?.root) return;
+  const anchorOffset = getSeatHumanOffsets(seatIndex);
+  seatHuman.root.position.set(0, anchorOffset.y, anchorOffset.z);
+  applySeatedHumanPose(seatHuman, timeSeconds, activeLean);
+  alignSeatedHumanFeetToGround(seatHuman);
+}
 
 const TURN_CAMERA_TURN_IN_DURATION = 620;
 const DICE_CAMERA_LOOK_IN_DURATION = 220;
@@ -1940,6 +2067,662 @@ function normalizeMaterialTextures(material, maxAnisotropy = 8, { preserveGltfTe
 
 
 
+const SNAKE_DOMINO_CLOTH_MATERIALS = Object.freeze({
+  denim: {
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_rough_1k.jpg'
+  },
+  check: {
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_rough_1k.jpg'
+  },
+  hessian: {
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_rough_1k.jpg'
+  },
+  floral: {
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_rough_1k.jpg'
+  },
+  fleece: {
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_rough_1k.jpg'
+  },
+  picnic: {
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_col_1_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_rough_1k.jpg'
+  }
+});
+const SNAKE_DOMINO_CLOTH_COMBOS = Object.freeze({
+  royalDenim: { upper: { material: 'denim', tint: '#2f5f9f', repeat: 4.2 }, lower: { material: 'hessian', tint: '#9b6b3f', repeat: 3.4 }, accent: { material: 'fleece', tint: '#d8dee9', repeat: 5.0 } },
+  casinoCheck: { upper: { material: 'check', tint: '#b7375d', repeat: 3.8 }, lower: { material: 'denim', tint: '#243e70', repeat: 4.4 }, accent: { material: 'hessian', tint: '#f4d7a1', repeat: 3.2 } },
+  linenStreet: { upper: { material: 'hessian', tint: '#b68452', repeat: 3.6 }, lower: { material: 'fleece', tint: '#374151', repeat: 5.2 }, accent: { material: 'denim', tint: '#4a6fa4', repeat: 4.0 } },
+  jacquardNight: { upper: { material: 'floral', tint: '#7c3f88', repeat: 3.2 }, lower: { material: 'denim', tint: '#1f335f', repeat: 4.5 }, accent: { material: 'check', tint: '#e3c16f', repeat: 4.0 } },
+  softFleece: { upper: { material: 'fleece', tint: '#556070', repeat: 5.3 }, lower: { material: 'hessian', tint: '#8b633f', repeat: 3.7 }, accent: { material: 'floral', tint: '#b88ab8', repeat: 3.0 } },
+  patternedRed: { upper: { material: 'picnic', tint: '#c44f42', repeat: 3.4 }, lower: { material: 'denim', tint: '#263f73', repeat: 4.7 }, accent: { material: 'fleece', tint: '#f1f5f9', repeat: 5.0 } },
+  mixedDenim: { upper: { material: 'denim', tint: '#3b6ea8', repeat: 4.0 }, lower: { material: 'check', tint: '#4f6f93', repeat: 4.2 }, accent: { material: 'hessian', tint: '#d6a35f', repeat: 3.2 } }
+});
+
+const SNAKE_SEATED_HUMAN_TEXTURE_PROFILES = Object.freeze([
+  Object.freeze({ shirt: 'cotton_jersey', pants: 'denim_fabric_04', jacket: 'brown_leather', shoes: 'leather_white', skin: ['#e2c3a5', '#c99974', '#8f5f42'], hair: '#3b2416', eyes: '#3f6f8f' }),
+  Object.freeze({ shirt: 'waffle_pique_cotton', pants: 'denim_fabric_05', jacket: 'fabric_leather_01', shoes: 'brown_leather', skin: ['#f0c7a8', '#cf946c', '#985d3c'], hair: '#111827', eyes: '#5b7c54' }),
+  Object.freeze({ shirt: 'quatrefoil_jacquard_fabric', pants: 'terry_cloth', jacket: 'leather_red_03', shoes: 'fabric_leather_02', skin: ['#b77955', '#8a5139', '#5a3528'], hair: '#1f1712', eyes: '#4b5563' }),
+  Object.freeze({ shirt: 'fabric_pattern_05', pants: 'poly_wool_herringbone', jacket: 'scuba_suede', shoes: 'fabric_leather_01', skin: ['#d5a17f', '#a86f4f', '#70432f'], hair: '#6b3f23', eyes: '#7c5f37' })
+]);
+
+function createDetailedHumanSkinTexture(tone = ['#d8c0a6', '#b48d6b', '#7c4f36']) {
+  const size = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return new THREE.CanvasTexture(canvas);
+  const [light, mid, deep] = tone;
+  const gradient = ctx.createRadialGradient(size * 0.42, size * 0.32, size * 0.08, size * 0.5, size * 0.52, size * 0.74);
+  gradient.addColorStop(0, light);
+  gradient.addColorStop(0.58, mid);
+  gradient.addColorStop(1, deep);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+  for (let i = 0; i < 780; i += 1) {
+    const x = (i * 137) % size;
+    const y = (i * 197) % size;
+    const r = 0.45 + ((i * 17) % 5) * 0.18;
+    ctx.globalAlpha = 0.035 + (i % 7) * 0.007;
+    ctx.fillStyle = i % 5 === 0 ? 'rgba(92,43,25,0.65)' : 'rgba(255,239,216,0.75)';
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  const texture = new THREE.CanvasTexture(canvas);
+  applySRGBColorSpace(texture);
+  texture.flipY = false;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.anisotropy = 8;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+async function loadSnakeSeatedHumanTextureProfile(renderer = null, seatIndex = 0, characterTheme = null) {
+  const dominoTheme = characterTheme || SNAKE_DOMINO_CHARACTER_THEMES[seatIndex % SNAKE_DOMINO_CHARACTER_THEMES.length];
+  const combo = SNAKE_DOMINO_CLOTH_COMBOS[dominoTheme?.clothCombo] || null;
+  if (combo) {
+    const loadDominoSlot = async (slotName) => {
+      const slot = combo[slotName] || combo.upper;
+      const material = SNAKE_DOMINO_CLOTH_MATERIALS[slot?.material] || SNAKE_DOMINO_CLOTH_MATERIALS.denim;
+      try {
+        const set = await loadSnakeDirectTextureSet(`${dominoTheme.id}:${slotName}:${slot.material}`, material, renderer);
+        return set ? { ...set, repeat: slot.repeat, tint: slot.tint } : null;
+      } catch (error) {
+        console.warn('Snake Domino seated-human cloth texture failed', dominoTheme?.id, slotName, error);
+        return null;
+      }
+    };
+    const [shirt, pants, jacket, shoes] = await Promise.all([
+      loadDominoSlot('upper'),
+      loadDominoSlot('lower'),
+      loadDominoSlot('accent'),
+      loadDominoSlot('accent')
+    ]);
+    return {
+      shirt,
+      pants,
+      jacket,
+      shoes,
+      skinTexture: createDetailedHumanSkinTexture(dominoTheme.skin),
+      skinTone: dominoTheme.skin?.[1] || '#c99974',
+      hairColor: dominoTheme.hairColor || '#2a1a10',
+      eyeColor: dominoTheme.eyeColor || '#3f6f8f'
+    };
+  }
+
+  const profile = SNAKE_SEATED_HUMAN_TEXTURE_PROFILES[seatIndex % SNAKE_SEATED_HUMAN_TEXTURE_PROFILES.length];
+  const loadSet = async (assetId) => {
+    try {
+      return await loadPolyhavenTextureSet(assetId, renderer);
+    } catch (error) {
+      console.warn('Snake seated-human texture failed', assetId, error);
+      return null;
+    }
+  };
+  const [shirt, pants, jacket, shoes] = await Promise.all([
+    loadSet(profile.shirt),
+    loadSet(profile.pants),
+    loadSet(profile.jacket),
+    loadSet(profile.shoes)
+  ]);
+  return {
+    shirt,
+    pants,
+    jacket,
+    shoes,
+    skinTexture: createDetailedHumanSkinTexture(profile.skin),
+    skinTone: profile.skin?.[1] || '#c99974',
+    hairColor: profile.hair || '#2a1a10',
+    eyeColor: profile.eyes || '#3f6f8f'
+  };
+}
+
+function classifySnakeHumanSurface(meshName, materialName) {
+  const label = `${meshName || ''} ${materialName || ''}`.toLowerCase();
+  if (/eye|iris|pupil|cornea|wolf3d_eyes/.test(label)) return 'eyes';
+  if (/hair|beard|mustache|moustache|brow|wolf3d_hair|wolf3d_beard|wolf3d_eyebrow/.test(label)) return 'hair';
+  if (/shoe|boot|sneaker|sole|footwear|wolf3d_outfit_footwear/.test(label)) return 'shoes';
+  if (/jacket|coat|hoodie|outer|blazer|vest|accessor|belt|strap|bag|tie|scarf|hat|cap|glove|sock/.test(label)) return 'jacket';
+  if (/pant|trouser|jean|denim|short|skirt|bottom|legwear|outfit_bottom|wolf3d_outfit_bottom/.test(label)) return 'pants';
+  if (/shirt|tshirt|t-shirt|top|torso|sleeve|bodywear|outfit_top|wolf3d_outfit_top|outfit|cloth|fabric|dress/.test(label)) return 'shirt';
+  if (/head|face|skin|neck|ear|hand|finger|arm|leg|body|wolf3d_head|wolf3d_body|bodymesh/.test(label) && !/outfit|shirt|pants|trouser|shoe|sock|cloth|jacket|hood|dress|skirt|uniform|suit/.test(label)) return 'skin';
+  return 'shirt';
+}
+
+function makeSnakeHumanMaterialsUnique(root) {
+  root?.traverse?.((obj) => {
+    if (!obj?.isMesh || !obj.material) return;
+    obj.material = Array.isArray(obj.material) ? obj.material.map((mat) => mat?.clone?.() || mat) : obj.material.clone?.() || obj.material;
+  });
+}
+
+function applySnakeSeatedHumanMaterialDetail(root, textureProfile, fallbackTextures = {}) {
+  if (!root?.isObject3D || !textureProfile) return;
+  const assignPbrSet = (material, set, fallbackMap = null, repeat = 1.8) => {
+    if (!material) return;
+    const resolvedRepeat = set?.repeat ?? repeat;
+    if (set) {
+      applyTextureSetToMaterial(material, set, resolvedRepeat);
+    } else {
+      material.map = fallbackMap || material.map || null;
+    }
+    normalizeMaterialTextures(material, 8, { preserveGltfTextureMapping: true });
+    if (set?.tint && material.color?.set) material.color.set(set.tint);
+    material.needsUpdate = true;
+  };
+
+  root.traverse((obj) => {
+    if (!obj?.isMesh) return;
+    obj.castShadow = true;
+    obj.receiveShadow = true;
+    obj.frustumCulled = false;
+    const materials = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
+    materials.forEach((mat) => {
+      const kind = classifySnakeHumanSurface(obj.name, mat?.name);
+      if (kind === 'eyes') {
+        mat.map = mat.map || null;
+        mat.color?.set?.(textureProfile.eyeColor);
+        mat.roughness = 0.18;
+        mat.metalness = 0.02;
+      } else if (kind === 'hair') {
+        mat.map = fallbackTextures.hairTex || mat.map || null;
+        mat.color?.set?.(textureProfile.hairColor);
+        mat.roughness = 0.72;
+        mat.metalness = 0.02;
+      } else if (kind === 'skin') {
+        mat.map = textureProfile.skinTexture || fallbackTextures.skinTex || mat.map || null;
+        mat.color?.set?.(textureProfile.skinTone);
+        mat.roughness = 0.58;
+        mat.metalness = 0;
+      } else if (kind === 'shoes') {
+        assignPbrSet(mat, textureProfile.shoes, fallbackTextures.shoesTex || fallbackTextures.clothTex || null, 2.0);
+        if (!textureProfile.shoes?.tint) mat.color?.setHex?.(0xffffff);
+        mat.roughness = Math.max(mat.roughness ?? 0.62, 0.62);
+        mat.metalness = Math.min(mat.metalness ?? 0.08, 0.08);
+      } else if (kind === 'jacket') {
+        assignPbrSet(mat, textureProfile.jacket, fallbackTextures.jacketTex || fallbackTextures.clothTex || null, 1.35);
+        if (!textureProfile.jacket?.tint) mat.color?.setHex?.(0xffffff);
+        mat.roughness = Math.max(mat.roughness ?? 0.46, 0.46);
+        mat.metalness = Math.min(Math.max(mat.metalness ?? 0.08, 0.08), 0.18);
+      } else if (kind === 'pants') {
+        assignPbrSet(mat, textureProfile.pants, fallbackTextures.pantsTex || fallbackTextures.clothTex || null, 2.2);
+        if (!textureProfile.pants?.tint) mat.color?.setHex?.(0xffffff);
+        mat.roughness = Math.max(mat.roughness ?? 0.74, 0.74);
+        mat.metalness = Math.min(mat.metalness ?? 0.04, 0.04);
+      } else {
+        assignPbrSet(mat, textureProfile.shirt, fallbackTextures.shirtTex || fallbackTextures.clothTex || null, 2.4);
+        if (!textureProfile.shirt?.tint) mat.color?.setHex?.(0xffffff);
+        mat.roughness = Math.max(mat.roughness ?? 0.78, 0.78);
+        mat.metalness = Math.min(mat.metalness ?? 0.04, 0.04);
+      }
+      if (mat?.emissiveMap) mat.emissiveMap.needsUpdate = true;
+      mat.needsUpdate = true;
+    });
+  });
+}
+
+function createSeatedHumanFallbackTexture(primary = '#cdb8a0', secondary = '#8a6a4e') {
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return new THREE.CanvasTexture(canvas);
+
+  const grad = ctx.createLinearGradient(0, 0, size, size);
+  grad.addColorStop(0, primary);
+  grad.addColorStop(1, secondary);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+
+  for (let i = 0; i < 180; i += 1) {
+    const x = (i * 53) % size;
+    const y = (i * 79) % size;
+    const w = 8 + ((i * 11) % 22);
+    const h = 4 + ((i * 7) % 14);
+    ctx.globalAlpha = 0.09 + (i % 4) * 0.06;
+    ctx.fillStyle = i % 2 ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.55)';
+    ctx.fillRect(x, y, w, h);
+  }
+
+  ctx.globalAlpha = 1;
+  const tex = new THREE.CanvasTexture(canvas);
+  applySRGBColorSpace(tex);
+  tex.flipY = false;
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = 8;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+function normalizeHumanBoneName(value = '') {
+  return String(value).toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function getModelBones(root) {
+  const bones = [];
+  root?.traverse?.((obj) => {
+    if (obj?.isBone) bones.push(obj);
+  });
+  return bones;
+}
+
+function findModelBone(bones, aliases = []) {
+  const normalizedAliases = aliases.map((alias) => normalizeHumanBoneName(alias));
+  for (const alias of normalizedAliases) {
+    const exact = bones.find((bone) => normalizeHumanBoneName(bone.name) === alias);
+    if (exact) return exact;
+  }
+  for (const alias of normalizedAliases) {
+    const partial = bones.find((bone) => normalizeHumanBoneName(bone.name).includes(alias));
+    if (partial) return partial;
+  }
+  return null;
+}
+
+function captureModelRestPose(root) {
+  const rest = new Map();
+  getModelBones(root).forEach((bone) => {
+    rest.set(bone, {
+      quaternion: bone.quaternion.clone(),
+      rotation: bone.rotation.clone(),
+      position: bone.position.clone()
+    });
+  });
+  return rest;
+}
+
+function composeModelBone(rest, bone, euler) {
+  if (!bone) return;
+  const base = rest.get(bone);
+  if (!base) return;
+  // Match the Murlan/Domino/Ludo seated rigs: apply pose deltas as Euler offsets
+  // from the captured rest rotation instead of post-multiplying quaternions, which
+  // can mirror Mixamo/ReadyPlayerMe lower-body axes and make legs face away.
+  bone.rotation.copy(base.rotation);
+  bone.rotation.x += euler.x;
+  bone.rotation.y += euler.y;
+  bone.rotation.z += euler.z;
+}
+
+function offsetModelBone(rest, bone, x = 0, y = 0, z = 0) {
+  if (!bone) return;
+  const base = rest.get(bone);
+  if (!base) return;
+  bone.position.copy(base.position);
+  bone.position.x += x;
+  bone.position.y += y;
+  bone.position.z += z;
+}
+
+function pushModelBoneFront(rest, bone, amount) {
+  if (!bone) return;
+  const base = rest.get(bone);
+  if (!base) return;
+  bone.position.copy(base.position);
+  bone.position.z += HUMAN_FRONT_SIDE_Z * amount;
+}
+
+function moveHumanLegRootsToFront(bones, rest, amount) {
+  pushModelBoneFront(rest, bones.leftUpLeg, amount);
+  pushModelBoneFront(rest, bones.rightUpLeg, amount);
+}
+
+function buildHumanBoneMap(root) {
+  const bones = getModelBones(root);
+  const map = {
+    hips: findModelBone(bones, ['hips', 'mixamorighips', 'pelvis', 'wolf3dhips']),
+    spine: findModelBone(bones, ['spine', 'mixamorigspine', 'wolf3dspine']),
+    spine1: findModelBone(bones, ['spine1', 'spine01', 'mixamorigspine1', 'chest']),
+    spine2: findModelBone(bones, ['spine2', 'spine02', 'mixamorigspine2', 'upperchest']),
+    neck: findModelBone(bones, ['neck', 'mixamorigneck', 'wolf3dneck']),
+    head: findModelBone(bones, ['head', 'mixamorighead', 'wolf3dhead']),
+    leftShoulder: findModelBone(bones, ['leftshoulder', 'mixamorigleftshoulder']),
+    leftArm: findModelBone(bones, ['leftarm', 'mixamorigleftarm', 'leftupperarm']),
+    leftForeArm: findModelBone(bones, ['leftforearm', 'mixamorigleftforearm', 'leftlowerarm']),
+    rightShoulder: findModelBone(bones, ['rightshoulder', 'mixamorigrightshoulder']),
+    rightArm: findModelBone(bones, ['rightarm', 'mixamorigrightarm', 'rightupperarm']),
+    rightForeArm: findModelBone(bones, ['rightforearm', 'mixamorigrightforearm', 'rightlowerarm']),
+    leftHand: findModelBone(bones, ['lefthand', 'mixamoriglefthand']),
+    rightHand: findModelBone(bones, ['righthand', 'mixamorigrighthand']),
+    leftUpLeg: findModelBone(bones, ['leftupleg', 'mixamorigleftupleg', 'leftthigh']),
+    leftLeg: findModelBone(bones, ['leftleg', 'mixamorigleftleg', 'leftcalf']),
+    leftFoot: findModelBone(bones, ['leftfoot', 'mixamorigleftfoot']),
+    rightUpLeg: findModelBone(bones, ['rightupleg', 'mixamorigrightupleg', 'rightthigh']),
+    rightLeg: findModelBone(bones, ['rightleg', 'mixamorigrightleg', 'rightcalf']),
+    rightFoot: findModelBone(bones, ['rightfoot', 'mixamorigrightfoot'])
+  };
+  map.spine ??= map.spine1 ?? map.spine2 ?? map.hips;
+  map.spine1 ??= map.spine2 ?? map.spine;
+  map.spine2 ??= map.spine1 ?? map.spine;
+  map.leftArm ??= map.leftShoulder;
+  map.rightArm ??= map.rightShoulder;
+  map.leftForeArm ??= map.leftArm;
+  map.rightForeArm ??= map.rightArm;
+  map.leftLeg ??= map.leftUpLeg;
+  map.rightLeg ??= map.rightUpLeg;
+  map.leftFoot ??= map.leftLeg;
+  map.rightFoot ??= map.rightLeg;
+  return map;
+}
+
+function applySeatedHumanPose(seatHuman, timeSeconds = 0, activeLean = 0, actionMode = 'idle', actionIntensity = 0) {
+  const { root, bones, rest, baseScale = 1 } = seatHuman || {};
+  if (!root || !rest || !bones) return;
+  rest.forEach((pose, bone) => {
+    bone.quaternion.copy(pose.quaternion);
+    if (pose.rotation) bone.rotation.copy(pose.rotation);
+    bone.position.copy(pose.position);
+  });
+  root.scale.setScalar(baseScale);
+  const breathe = Math.sin(timeSeconds * 1.05) * 0.012;
+  const action = clamp01(actionIntensity);
+  const dynamicLean = (activeLean + action * (actionMode === 'weaponAim' ? 0.22 : 0.12)) * 0.04;
+  moveHumanLegRootsToFront(bones, rest, HUMAN_LEG_FRONT_OFFSET);
+  offsetModelBone(rest, bones.hips, 0, -0.62, -0.078);
+
+  composeModelBone(
+    rest,
+    bones.hips,
+    new THREE.Euler(-0.16 - dynamicLean * 0.4, 0, 0, 'XYZ')
+  );
+  composeModelBone(rest, bones.spine, new THREE.Euler(0.26 + breathe - dynamicLean * 0.2, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.spine1, new THREE.Euler(0.16, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.spine2, new THREE.Euler(0, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.neck, new THREE.Euler(-0.04, 0, 0, 'XYZ'));
+  composeModelBone(rest, bones.head, new THREE.Euler(-0.06, 0, 0, 'XYZ'));
+
+  // Match Ludo Battle Royal seated lower-body orientation for identical portrait posture.
+  // Mirror lower-body spread inward toward the table while preserving seated location.
+  composeModelBone(rest, bones.leftUpLeg, new THREE.Euler(-1.58, 0.16, 0.05, 'XYZ'));
+  composeModelBone(rest, bones.rightUpLeg, new THREE.Euler(-1.58, 0.03, -0.02, 'XYZ'));
+  composeModelBone(rest, bones.leftLeg, new THREE.Euler(-1.66, 0.02, 0.01, 'XYZ'));
+  composeModelBone(rest, bones.rightLeg, new THREE.Euler(-1.66, -0.02, -0.01, 'XYZ'));
+  composeModelBone(rest, bones.leftFoot, new THREE.Euler(0.26, 0.03, 0.02, 'XYZ'));
+  composeModelBone(rest, bones.rightFoot, new THREE.Euler(0.26, -0.02, -0.01, 'XYZ'));
+
+  let leftArm = new THREE.Euler(-0.28, 0.12, 0.96, 'XYZ');
+  let rightArm = new THREE.Euler(-0.2, -0.02, -0.72, 'XYZ');
+  let leftForeArm = new THREE.Euler(-0.62, 0.05, -0.24, 'XYZ');
+  let rightForeArm = new THREE.Euler(-0.5, -0.04, 0.14, 'XYZ');
+  let leftHand = new THREE.Euler(-0.16, 0, 0, 'XYZ');
+  let rightHand = new THREE.Euler(-0.08, 0, 0.06, 'XYZ');
+
+  if (actionMode === 'diceReach' || actionMode === 'diceHold' || actionMode === 'diceThrow') {
+    const reach = action;
+    const releaseBoost = actionMode === 'diceThrow' ? Math.sin(action * Math.PI) * 0.32 : 0;
+    rightArm = new THREE.Euler(
+      THREE.MathUtils.lerp(rightArm.x, -0.9 - releaseBoost, reach),
+      THREE.MathUtils.lerp(rightArm.y, -0.16, reach),
+      THREE.MathUtils.lerp(rightArm.z, -1.12, reach),
+      'XYZ'
+    );
+    rightForeArm = new THREE.Euler(
+      THREE.MathUtils.lerp(rightForeArm.x, -1.12 + releaseBoost * 0.8, reach),
+      THREE.MathUtils.lerp(rightForeArm.y, -0.22, reach),
+      THREE.MathUtils.lerp(rightForeArm.z, -0.42, reach),
+      'XYZ'
+    );
+    rightHand = new THREE.Euler(
+      THREE.MathUtils.lerp(rightHand.x, actionMode === 'diceThrow' ? -0.25 : -0.58, reach),
+      THREE.MathUtils.lerp(rightHand.y, 0.12, reach),
+      THREE.MathUtils.lerp(rightHand.z, -0.08, reach),
+      'XYZ'
+    );
+  } else if (actionMode === 'weaponPickup' || actionMode === 'weaponAim') {
+    const aim = action;
+    rightArm = new THREE.Euler(
+      THREE.MathUtils.lerp(rightArm.x, -1.02, aim),
+      THREE.MathUtils.lerp(rightArm.y, -0.11, aim),
+      THREE.MathUtils.lerp(rightArm.z, -1.12, aim),
+      'XYZ'
+    );
+    rightForeArm = new THREE.Euler(
+      THREE.MathUtils.lerp(rightForeArm.x, -0.28, aim),
+      THREE.MathUtils.lerp(rightForeArm.y, -0.07, aim),
+      THREE.MathUtils.lerp(rightForeArm.z, 0.14, aim),
+      'XYZ'
+    );
+    rightHand = new THREE.Euler(
+      THREE.MathUtils.lerp(rightHand.x, 0.14, aim),
+      THREE.MathUtils.lerp(rightHand.y, -0.07, aim),
+      THREE.MathUtils.lerp(rightHand.z, -0.22, aim),
+      'XYZ'
+    );
+    leftArm = new THREE.Euler(
+      THREE.MathUtils.lerp(leftArm.x, -0.86, aim * 0.8),
+      THREE.MathUtils.lerp(leftArm.y, 0.04, aim * 0.8),
+      THREE.MathUtils.lerp(leftArm.z, 0.46, aim * 0.8),
+      'XYZ'
+    );
+    leftForeArm = new THREE.Euler(
+      THREE.MathUtils.lerp(leftForeArm.x, -0.36, aim * 0.8),
+      THREE.MathUtils.lerp(leftForeArm.y, 0.08, aim * 0.8),
+      THREE.MathUtils.lerp(leftForeArm.z, -0.18, aim * 0.8),
+      'XYZ'
+    );
+  }
+
+  composeModelBone(rest, bones.leftArm, leftArm);
+  composeModelBone(rest, bones.rightArm, rightArm);
+  composeModelBone(rest, bones.leftForeArm, leftForeArm);
+  composeModelBone(rest, bones.rightForeArm, rightForeArm);
+  composeModelBone(rest, bones.leftHand, leftHand);
+  composeModelBone(rest, bones.rightHand, rightHand);
+}
+
+
+function resolveSnakeSeatedActionPose(actionState, seatIndex, nowMs) {
+  const pose = { mode: 'idle', intensity: 0 };
+  if (!actionState || !Number.isFinite(seatIndex)) return pose;
+  if (actionState.capturePlayer === seatIndex && actionState.captureStartMs > 0) {
+    const elapsed = Math.max(0, nowMs - actionState.captureStartMs);
+    const { pickupMs, aimMs, fireMs, recoverMs } = SNAKE_SEATED_CAPTURE_PHASES;
+    if (elapsed < pickupMs) {
+      pose.mode = 'weaponPickup';
+      pose.intensity = smootherstep01(elapsed / pickupMs);
+    } else if (elapsed < pickupMs + aimMs + fireMs) {
+      pose.mode = 'weaponAim';
+      pose.intensity = 1;
+    } else if (elapsed < pickupMs + aimMs + fireMs + recoverMs) {
+      pose.mode = 'weaponAim';
+      pose.intensity = 1 - smootherstep01((elapsed - pickupMs - aimMs - fireMs) / recoverMs);
+    }
+    return pose;
+  }
+  if (actionState.throwPlayer === seatIndex && actionState.throwStartMs > 0) {
+    const elapsed = Math.max(0, nowMs - actionState.throwStartMs);
+    const { reachMs, gripMs, windupMs, releaseMs, followMs } = SNAKE_SEATED_DICE_PHASES;
+    if (elapsed < reachMs) {
+      pose.mode = 'diceReach';
+      pose.intensity = smootherstep01(elapsed / reachMs);
+    } else if (elapsed < reachMs + gripMs) {
+      pose.mode = 'diceHold';
+      pose.intensity = 1;
+    } else if (elapsed < reachMs + gripMs + windupMs + releaseMs) {
+      pose.mode = 'diceThrow';
+      pose.intensity = smootherstep01((elapsed - reachMs - gripMs) / (windupMs + releaseMs));
+    } else if (elapsed < reachMs + gripMs + windupMs + releaseMs + followMs) {
+      pose.mode = 'diceThrow';
+      pose.intensity = 1 - smootherstep01((elapsed - reachMs - gripMs - windupMs - releaseMs) / followMs);
+    }
+  }
+  return pose;
+}
+
+function createSnakeHandWeaponMesh() {
+  const group = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color: '#1f2937', metalness: 0.72, roughness: 0.34 });
+  const barrelMat = new THREE.MeshStandardMaterial({ color: '#94a3b8', metalness: 0.55, roughness: 0.32 });
+  const gripMat = new THREE.MeshStandardMaterial({ color: '#0f172a', metalness: 0.2, roughness: 0.68 });
+  const add = (geometry, material, position, rotation = [0, 0, 0]) => {
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(...position);
+    mesh.rotation.set(...rotation);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    group.add(mesh);
+    return mesh;
+  };
+  add(new THREE.BoxGeometry(0.26, 0.045, 0.055), bodyMat, [0.09, 0, 0]);
+  add(new THREE.CylinderGeometry(0.014, 0.014, 0.24, 10), barrelMat, [0.25, 0, 0], [0, 0, Math.PI / 2]);
+  add(new THREE.BoxGeometry(0.055, 0.13, 0.045), gripMat, [0, -0.075, 0], [0, 0, 0.24]);
+  add(new THREE.BoxGeometry(0.075, 0.026, 0.04), barrelMat, [0.09, -0.048, 0]);
+  group.rotation.set(0.08, Math.PI * 0.5, -0.04);
+  group.scale.setScalar(0.42);
+  group.name = 'SnakeHandCaptureWeapon';
+  return group;
+}
+
+function setSnakeHandWeaponVisible(seatHuman, visible) {
+  const rightHand = seatHuman?.bones?.rightHand;
+  if (!rightHand?.isBone) return;
+  if (visible) {
+    if (!seatHuman.handWeapon?.isObject3D) {
+      const weapon = createSnakeHandWeaponMesh();
+      weapon.position.set(0.035, 0.012, 0.012);
+      rightHand.add(weapon);
+      seatHuman.handWeapon = weapon;
+    }
+    seatHuman.handWeapon.visible = true;
+  } else if (seatHuman?.handWeapon?.isObject3D) {
+    seatHuman.handWeapon.visible = false;
+  }
+}
+
+function alignSeatedHumanFeetToGround(
+  seatHuman,
+  groundY = SEATED_HUMAN_GROUND_Y
+) {
+  const { root, bones } = seatHuman || {};
+  if (!root || !bones) return;
+  root.updateMatrixWorld(true);
+  const feet = [bones.leftFoot, bones.rightFoot].filter((bone) => bone?.isBone);
+  if (!feet.length) return;
+  let minFootY = Infinity;
+  feet.forEach((bone) => {
+    const worldPos = bone.getWorldPosition(new THREE.Vector3());
+    if (Number.isFinite(worldPos.y)) minFootY = Math.min(minFootY, worldPos.y);
+  });
+  if (!Number.isFinite(minFootY)) return;
+  root.position.y += groundY - minFootY;
+  root.updateMatrixWorld(true);
+}
+
+
+async function loadSeatedHumanTemplate(renderer) {
+  if (HUMAN_MODEL_CACHE.template) return HUMAN_MODEL_CACHE.template;
+  if (!HUMAN_MODEL_CACHE.promise) {
+    HUMAN_MODEL_CACHE.promise = (async () => {
+      const loader = createConfiguredGLTFLoader(renderer);
+      loader.setCrossOrigin('anonymous');
+      const gltf = await loader.loadAsync(HUMAN_MODEL_URL);
+      const scene = gltf?.scene || gltf?.scenes?.[0];
+      if (!scene) {
+        throw new Error('Failed to load seated human template');
+      }
+      const skinTex = createSeatedHumanFallbackTexture('#d8c0a6', '#b48d6b');
+      const clothTex = createSeatedHumanFallbackTexture('#55739a', '#2c3f54');
+      const hairTex = createSeatedHumanFallbackTexture('#7b5d3f', '#3f2f20');
+      scene.traverse((obj) => {
+        if (!obj?.isMesh) return;
+        obj.castShadow = true;
+        obj.receiveShadow = true;
+        obj.frustumCulled = false;
+        const meshName = `${obj.name || ''}`.toLowerCase();
+        const useSkin = /head|face|neck|ear|hand/.test(meshName);
+        const useHair = /hair|beard|mustache|moustache|eyebrow/.test(meshName);
+        const fallbackTex = useHair ? hairTex : useSkin ? skinTex : clothTex;
+        const materials = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
+        materials.forEach((mat) => {
+          if (!mat?.map) mat.map = fallbackTex;
+          if (mat?.color?.setHex) mat.color.setHex(0xffffff);
+          normalizeMaterialTextures(mat, 8, { preserveGltfTextureMapping: true });
+          if (mat?.emissiveMap) mat.emissiveMap.needsUpdate = true;
+          mat.needsUpdate = true;
+        });
+      });
+      HUMAN_MODEL_CACHE.template = scene;
+      return scene;
+    })();
+  }
+  return HUMAN_MODEL_CACHE.promise;
+}
+
+
+async function loadSnakeDominoSeatedHumanTemplate(renderer, seatIndex = 0, characterTheme = null) {
+  const theme = characterTheme || SNAKE_DOMINO_CHARACTER_THEMES[seatIndex % SNAKE_DOMINO_CHARACTER_THEMES.length];
+  if (!theme) return loadSeatedHumanTemplate(renderer);
+  if (SNAKE_DOMINO_CHARACTER_CACHE.has(theme.id)) return SNAKE_DOMINO_CHARACTER_CACHE.get(theme.id);
+  const promise = (async () => {
+    const loader = createConfiguredGLTFLoader(renderer);
+    loader.setCrossOrigin('anonymous');
+    let lastError = null;
+    for (const url of theme.urls || []) {
+      try {
+        const gltf = await loader.loadAsync(url);
+        const scene = gltf?.scene || gltf?.scenes?.[0];
+        if (!scene) throw new Error(`Missing scene for ${theme.id}`);
+        scene.traverse((obj) => {
+          if (!obj?.isMesh) return;
+          obj.castShadow = true;
+          obj.receiveShadow = true;
+          obj.frustumCulled = false;
+          const materials = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
+          materials.forEach((mat) => {
+            if (mat?.map) applySRGBColorSpace(mat.map);
+            if (mat?.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+            normalizeMaterialTextures(mat, 8, { preserveGltfTextureMapping: true });
+            mat.needsUpdate = true;
+          });
+        });
+        return scene;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    console.warn('Snake Domino seated-human avatar failed, using default', theme.id, lastError);
+    return loadSeatedHumanTemplate(renderer);
+  })();
+  SNAKE_DOMINO_CHARACTER_CACHE.set(theme.id, promise);
+  return promise;
+}
+
 function prepareLoadedModel(model) {
   model.traverse((obj) => {
     if (obj.isMesh) {
@@ -2499,7 +3282,7 @@ function computeTurnCameraFocusState(board, camera, turnIndex, players = []) {
   if (direction.lengthSq() < 1e-6) return null;
   direction.normalize();
 
-  // Match Ludo Battle Royal turn broadcasting.
+  // Match Ludo Battle Royal turn broadcasting: every turn aims at the active seated
   // player first, then keeps a little board context so the portrait camera visibly
   // hands off from player -> dice -> moving token.
   target.addScaledVector(direction, TILE_SIZE * 0.28);
@@ -3618,6 +4401,8 @@ function buildArena(
   let chairMaterials = initialChair.materials;
   const chairs = [];
   const activePlayerCount = clamp(Math.trunc(Number(playerCount) || 0), 0, DEFAULT_PLAYER_COUNT);
+  const seatedHumans = [];
+  const seatCharacterThemes = pickUniqueSnakeDominoCharacterThemes(activePlayerCount);
   const refreshChairInstances = () => {
     chairs.forEach((chair) => {
       if (chair.model) {
@@ -3627,8 +4412,11 @@ function buildArena(
         const model = chairTemplate.clone(true);
         chair.group.add(model);
         chair.model = model;
-        alignChairLegsToGround(chair);
+        alignChairLegsToHumanGround(chair);
       }
+    });
+    seatedHumans.forEach((seatHuman, seatIndex) => {
+      applyChessBattleSeatedHumanBaseline(seatHuman, seatIndex, 0, 0);
     });
   };
   for (let i = 0; i < activePlayerCount; i += 1) {
@@ -3644,9 +4432,15 @@ function buildArena(
     avatarAnchor.position.set(0, AVATAR_ANCHOR_HEIGHT, 0);
     group.add(avatarAnchor);
 
+    const humanAnchor = new THREE.Object3D();
+    // The seated pose baseline applies the Murlan/Ludo seat offset to the human root.
+    // Keep this anchor neutral so the offset is not applied twice (which placed bodies below chairs).
+    humanAnchor.position.set(0, 0, 0);
+    humanAnchor.rotation.set(0, SEATED_HUMAN_FACING_Y, 0);
+    group.add(humanAnchor);
 
     const weaponAnchor = new THREE.Object3D();
-    weaponAnchor.position.set(WEAPON_ANCHOR_X, 0, WEAPON_ANCHOR_Z);
+    weaponAnchor.position.set(SEATED_HUMAN_WEAPON_RIGHT_HAND_X, 0, SEATED_HUMAN_WEAPON_SIDE_Z);
     group.add(weaponAnchor);
 
     const chairModel = chairTemplate ? chairTemplate.clone(true) : null;
@@ -3655,8 +4449,8 @@ function buildArena(
     }
 
     arenaGroup.add(group);
-    const chair = { group, anchor: avatarAnchor, model: chairModel, weaponAnchor };
-    alignChairLegsToGround(chair);
+    const chair = { group, anchor: avatarAnchor, model: chairModel, humanAnchor, weaponAnchor };
+    alignChairLegsToHumanGround(chair);
     chairs.push(chair);
   }
 
@@ -3672,6 +4466,67 @@ function buildArena(
     })
     .catch(() => {});
 
+  Promise.all(chairs.map((_, seatIndex) => loadSnakeDominoSeatedHumanTemplate(renderer, seatIndex, seatCharacterThemes[seatIndex])))
+    .then((humanTemplates) => {
+      if (!humanTemplates?.length || disposed) return;
+      chairs.forEach((chair, seatIndex) => {
+        const humanTemplate = humanTemplates[seatIndex] || humanTemplates[0];
+        if (!humanTemplate) return;
+        const instance = cloneSkeleton(humanTemplate);
+        makeSnakeHumanMaterialsUnique(instance);
+        applyOriginalTextureMapping(instance);
+        instance.name = `SnakeSeatHuman_${seatIndex}`;
+        const dominoTheme = seatCharacterThemes[seatIndex] || SNAKE_DOMINO_CHARACTER_THEMES[seatIndex % SNAKE_DOMINO_CHARACTER_THEMES.length];
+        const skinTex = createSeatedHumanFallbackTexture('#d8c0a6', '#b48d6b');
+        const shirtTex = createSeatedHumanFallbackTexture('#55739a', '#2c3f54');
+        const pantsTex = createSeatedHumanFallbackTexture('#1f3f68', '#111827');
+        const jacketTex = createSeatedHumanFallbackTexture('#3b2416', '#160f0b');
+        const shoesTex = createSeatedHumanFallbackTexture('#171717', '#5c4033');
+        const hairTex = createSeatedHumanFallbackTexture('#7b5d3f', '#3f2f20');
+        loadSnakeSeatedHumanTextureProfile(renderer, seatIndex, dominoTheme)
+          .then((textureProfile) => {
+            if (!disposed) {
+              applySnakeSeatedHumanMaterialDetail(instance, textureProfile, {
+                skinTex,
+                shirtTex,
+                pantsTex,
+                jacketTex,
+                shoesTex,
+                hairTex,
+                clothTex: shirtTex
+              });
+            }
+          })
+          .catch(() => {
+            applySnakeSeatedHumanMaterialDetail(instance, {
+              shirt: null,
+              pants: null,
+              jacket: null,
+              shoes: null,
+              skinTexture: skinTex,
+              skinTone: dominoTheme?.skin?.[1] || '#c99974',
+              hairColor: dominoTheme?.hairColor || '#3f2f20',
+              eyeColor: dominoTheme?.eyeColor || '#3f6f8f'
+            }, { skinTex, shirtTex, pantsTex, jacketTex, shoesTex, hairTex, clothTex: shirtTex });
+          });
+        const baseScale =
+          (SEATED_HUMAN_TARGET_HEIGHT / Math.max(SEATED_HUMAN_BASE_HEIGHT, 0.01)) * SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER;
+        instance.scale.setScalar(baseScale);
+        chair.humanAnchor.add(instance);
+        seatedHumans[seatIndex] = {
+          root: instance,
+          bones: buildHumanBoneMap(instance),
+          rest: captureModelRestPose(instance),
+          baseScale,
+          dominoThemeId: dominoTheme?.id
+        };
+        applyChessBattleSeatedHumanBaseline(seatedHumans[seatIndex], seatIndex, 0, 0);
+      });
+    })
+    .catch((error) => {
+      console.warn('Failed to load seated human players', error);
+    });
+
   const updateCameraTarget = () => {
     const radius = camera.position.distanceTo(boardLookTarget);
     const dir = camera.position.clone().sub(boardLookTarget).normalize();
@@ -3685,6 +4540,9 @@ function buildArena(
     disposeChairMaterials(chairMaterials);
     chairs.forEach(({ group }) => {
       group.parent?.remove(group);
+    });
+    seatedHumans.forEach((human) => {
+      human?.root?.parent?.remove(human.root);
     });
     if (tableInfo?.dispose) tableInfo.dispose();
     environmentCleanup?.();
@@ -3701,6 +4559,7 @@ function buildArena(
     tableInfo,
     seatAnchors: chairs.map(({ anchor }) => anchor),
     weaponAnchors: chairs.map(({ weaponAnchor }) => weaponAnchor),
+    seatedHumans,
     startCameraState
   };
 }
@@ -5618,6 +6477,7 @@ function updateSeatWeaponDisplays(board, players = []) {
       holder.position.y = (board.baseLevelTop ?? 0) + WEAPON_PARKING_Y_FROM_GROUND_FLOOR + PARKING_VERTICAL_LIFT;
     }
     // Child meshes carry the tabletop horizontal/vertical orientation so triggers stay beside
+    // each seated human character's right hand without holder lookAt rotations flipping them.
     holder.rotation.set(0, 0, 0);
   }
 
@@ -5687,6 +6547,13 @@ export default function SnakeBoard3D({
   const headLookRef = useRef({ yaw: 0, pitch: 0 });
   const currentTurnRef = useRef(currentTurn);
   const diceEventRef = useRef(diceEvent);
+  const seatedHumanActionRef = useRef({
+    throwPlayer: null,
+    throwStartMs: 0,
+    capturePlayer: null,
+    captureStartMs: 0,
+    captureEndMs: 0
+  });
   const lastFrameTimeRef = useRef(0);
   const frameRateRef = useRef(Math.max(30, frameRate || 90));
   const cameraViewModeRef = useRef(cameraViewMode);
@@ -5717,6 +6584,28 @@ export default function SnakeBoard3D({
 
   useEffect(() => {
     diceEventRef.current = diceEvent;
+    if (!diceEvent) return;
+    const rawSeatIndex = Number.isInteger(diceEvent.seatIndex)
+      ? diceEvent.seatIndex
+      : Number.isInteger(diceEvent.playerIndex)
+      ? diceEvent.playerIndex
+      : Number.isInteger(currentTurnRef.current)
+      ? currentTurnRef.current
+      : 0;
+    if (diceEvent.phase === 'start') {
+      seatedHumanActionRef.current = {
+        ...seatedHumanActionRef.current,
+        throwPlayer: rawSeatIndex,
+        throwStartMs: performance.now()
+      };
+    } else if (diceEvent.phase === 'end') {
+      const current = seatedHumanActionRef.current;
+      seatedHumanActionRef.current = {
+        ...current,
+        throwStartMs: current.throwStartMs || performance.now(),
+        throwPlayer: Number.isInteger(current.throwPlayer) ? current.throwPlayer : rawSeatIndex
+      };
+    }
   }, [diceEvent]);
 
   useEffect(() => {
@@ -5962,6 +6851,7 @@ export default function SnakeBoard3D({
       controls: arena.controls,
       seatAnchors: arena.seatAnchors ?? [],
       weaponAnchors: arena.weaponAnchors ?? [],
+      seatedHumans: arena.seatedHumans ?? [],
       startCameraState: arena.startCameraState ?? null,
       tableInfo: arena.tableInfo ?? null,
       weaponDisplayGroup
@@ -6267,6 +7157,41 @@ export default function SnakeBoard3D({
             },
             deltaSeconds
           );
+        });
+      }
+      if (Array.isArray(board?.seatedHumans) && board.seatedHumans.length) {
+        const activeTurn = Number.isInteger(currentTurnRef.current) ? currentTurnRef.current : -1;
+        const actorState = seatedHumanActionRef.current;
+        const diceTotalMs =
+          SNAKE_SEATED_DICE_PHASES.reachMs +
+          SNAKE_SEATED_DICE_PHASES.gripMs +
+          SNAKE_SEATED_DICE_PHASES.windupMs +
+          SNAKE_SEATED_DICE_PHASES.releaseMs +
+          SNAKE_SEATED_DICE_PHASES.followMs;
+        if (actorState?.throwStartMs > 0 && now - actorState.throwStartMs > diceTotalMs + 80) {
+          actorState.throwPlayer = null;
+          actorState.throwStartMs = 0;
+        }
+        if (actorState?.captureEndMs > 0 && now > actorState.captureEndMs + SNAKE_SEATED_CAPTURE_PHASES.recoverMs + 80) {
+          actorState.capturePlayer = null;
+          actorState.captureStartMs = 0;
+          actorState.captureEndMs = 0;
+        }
+        board.seatedHumans.forEach((seatHuman, seatIndex) => {
+          if (!seatHuman?.root) return;
+          const isActiveSeat = seatIndex === activeTurn;
+          const root = seatHuman.root;
+          const breathe = Math.sin(now * 0.0018 + seatIndex * 0.7) * 0.004;
+          const pose = resolveSnakeSeatedActionPose(actorState, seatIndex, now);
+          const throwLean = isActiveSeat && pose.mode.startsWith('dice') ? 0.18 : 0;
+          root.position.y = breathe;
+          root.rotation.x = 0;
+          root.rotation.y = 0;
+          root.rotation.z = 0;
+          setSnakeHandWeaponVisible(seatHuman, pose.mode === 'weaponPickup' || pose.mode === 'weaponAim');
+          applyChessBattleSeatedHumanBaseline(seatHuman, seatIndex, now * 0.001, throwLean);
+          applySeatedHumanPose(seatHuman, now * 0.001, throwLean, pose.mode, pose.intensity);
+          alignSeatedHumanFeetToGround(seatHuman);
         });
       }
       let hasDiceCenter = false;
@@ -6807,6 +7732,12 @@ export default function SnakeBoard3D({
     if (captureFxIdRef.current === captureEvent.id) return;
     captureFxIdRef.current = captureEvent.id;
     const board = boardRef.current;
+    seatedHumanActionRef.current = {
+      ...seatedHumanActionRef.current,
+      capturePlayer: Number.isInteger(captureEvent.attackerIndex) ? captureEvent.attackerIndex : 0,
+      captureStartMs: performance.now(),
+      captureEndMs: 0
+    };
     const sfxWeaponId = resolveSnakeCaptureWeaponSfxId(captureEvent.weaponType || 'missileJavelin');
     const playCaptureSfx = (stage, multiplier = 1) => {
       playLudoCaptureWeaponSfx(sfxWeaponId, stage, {
@@ -6816,6 +7747,10 @@ export default function SnakeBoard3D({
     };
     const completeCaptureAnimation = () => {
       playCaptureSfx('loopStop');
+      seatedHumanActionRef.current = {
+        ...seatedHumanActionRef.current,
+        captureEndMs: performance.now()
+      };
       onCaptureAnimationComplete?.(captureEvent.id);
     };
     const vehicleKind = normalizeSnakeCaptureWeaponKind(captureEvent.weaponType || 'fighter');
@@ -6915,7 +7850,10 @@ export default function SnakeBoard3D({
       removeAnimationsByType(animationsRef.current, 'cameraDiceZoom');
       removeAnimationsByType(animationsRef.current, 'cameraTokenFollow');
       removeAnimationsByType(animationsRef.current, 'cameraCaptureFocus');
-      const attackerSeatWorld = launch.clone();
+      const attackerSeat = board.seatedHumans?.[captureEvent.attackerIndex]?.root;
+      const attackerSeatWorld = attackerSeat?.isObject3D
+        ? attackerSeat.getWorldPosition(new THREE.Vector3())
+        : launch.clone();
       const weaponDirectorProfile = LUDO_WEAPON_DIRECTOR_BRIDGE.firearmBroadcastProfile;
       const isFirearmDirectorShot = Boolean(
         LUDO_WEAPON_DIRECTOR_BRIDGE.weaponTypeByCaptureAnimationId[captureEvent.weaponType]

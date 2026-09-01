@@ -58,10 +58,6 @@ import { existsSync, readFileSync } from 'fs';
 import { execSync } from 'child_process';
 import { randomInt, randomUUID } from 'crypto';
 import {
-  getTelegramWebhookConfig,
-  startTelegramBot
-} from './telegramStartup.js';
-import {
   createDominoTableNumber,
   hasConflictingPrimaryTpcIdentities,
   isDominoMatchCompatible,
@@ -301,12 +297,8 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https:'],
       styleSrc: ["'self'", "'unsafe-inline'", 'https:'],
-      imgSrc: ["'self'", 'blob:', 'data:', 'https:'],
-      connectSrc: ["'self'", 'blob:', 'https:', 'wss:'],
-      // The native/mobile build can load wall videos from the separately
-      // hosted API. Without an explicit media policy CSP falls back to
-      // default-src 'self' and blocks the player before it reaches Express.
-      mediaSrc: ["'self'", 'blob:', 'data:', 'https:'],
+      imgSrc: ["'self'", 'data:', 'https:'],
+      connectSrc: ["'self'", 'https:', 'wss:'],
       fontSrc: ["'self'", 'data:', 'https:'],
       frameSrc: ["'self'", 'https:']
     }
@@ -345,16 +337,8 @@ app.use('/api/ads', adsRoutes);
 app.use('/api/influencer', influencerRoutes);
 app.use('/api/referral', referralRoutes);
 app.use('/api/wallet', walletRoutes);
-const requireDatabase = (_req, res, next) => {
-  // Account routes have an explicit in-memory implementation for integration
-  // tests. Do not block that store behind Mongo's connection state.
-  if (mongoose.connection.readyState === 1 || process.env.MONGO_URI === 'memory') return next();
-  return res.status(503).json({
-    error: 'Profile database is temporarily unavailable. Please try again.'
-  });
-};
-app.use('/api/account', requireDatabase, accountRoutes);
-app.use('/api/profile', requireDatabase, profileRoutes);
+app.use('/api/account', accountRoutes);
+app.use('/api/profile', profileRoutes);
 app.use('/api/push', pushRoutes);
 if (process.env.ENABLE_TWITTER_OAUTH === 'true') {
   app.use('/api/twitter', twitterAuthRoutes);
@@ -481,13 +465,7 @@ function sendIndex(res) {
   else console.log('Skipping Telegram bot launch');
 }
 
-const telegramWebhook = getTelegramWebhookConfig();
-if (telegramWebhook) {
-  app.post(telegramWebhook.path, bot.webhookCallback(telegramWebhook.path));
-}
-
 let botLaunchTriggered = false;
-let telegramBotMode = null;
 function launchBotWithDelay() {
   if (botLaunchTriggered) return;
   botLaunchTriggered = true;
@@ -496,9 +474,13 @@ function launchBotWithDelay() {
   }
   setTimeout(async () => {
     try {
-      const started = await startTelegramBot(bot);
-      telegramBotMode = started.mode;
-      console.log(`Telegram bot started in ${started.mode} mode`);
+      // Ensure no lingering webhook is configured when using polling
+      try {
+        await bot.telegram.deleteWebhook({ drop_pending_updates: true });
+      } catch (err) {
+        console.error('Failed to delete existing webhook:', err.message);
+      }
+      await bot.launch({ dropPendingUpdates: true });
     } catch (err) {
       console.error('Failed to launch Telegram bot:', err.message);
     }
@@ -513,13 +495,6 @@ app.get('/', (req, res) => {
 });
 app.get('/api/ping', (req, res) => {
   res.json({ message: 'pong' });
-});
-app.get('/api/health', (_req, res) => {
-  const databaseConnected = mongoose.connection.readyState === 1;
-  res.status(databaseConnected ? 200 : 503).json({
-    ok: databaseConnected,
-    database: databaseConnected ? 'connected' : 'disconnected'
-  });
 });
 app.get('/api/version', (req, res) => {
   res.json(loadWebappVersion());
@@ -680,7 +655,6 @@ const airHockeyStates = new Map();
 const texasHoldemStates = new Map();
 const ludoBattleStates = new Map();
 const fourInRowStates = new Map();
-const arcadeRaceStates = new Map();
 const dominoRoyalTableNumbers = new Set();
 const chessTableNumbers = new Set();
 
@@ -2770,6 +2744,21 @@ io.on('connection', (socket) => {
     maybeStartGame(table);
   });
 
+  // Lightweight authoritative room relay for the portrait sports games. Only
+  // a registered, seated player may publish a bounded action to their match.
+  socket.on('sportsAction', (payload = {}, cb) => {
+    const { tableId, gameType, score, power } = payload;
+    const table = tableMap.get(String(tableId || ''));
+    const accountId = String(socket.data?.playerId || '');
+    const supported = new Set(['table-tennis', 'tennis', 'bowling']);
+    if (!table || !supported.has(String(gameType)) || table.gameType !== gameType) return cb?.({ success: false, error: 'invalid_match' });
+    if (!table.players.some((player) => String(player.id) === accountId)) return cb?.({ success: false, error: 'seat_required' });
+    if (isRateLimited(socket, 'sportsAction', 180)) return cb?.({ success: false, error: 'rate_limited' });
+    const safeScore = Array.isArray(score) ? score.slice(0, 2).map((value) => Math.max(0, Math.min(300, Math.floor(Number(value) || 0)))) : [0, 0];
+    socket.to(tableId).emit('sportsAction', { tableId, gameType, score: safeScore, power: Math.max(0, Math.min(100, Number(power) || 0)), playerId: accountId });
+    cb?.({ success: true });
+  });
+
   socket.on('joinRoom', async (payload = {}, cb) => {
     const { roomId, name, avatar } = payload;
     const pid = resolveTpcIdentity(payload);
@@ -4113,84 +4102,6 @@ io.on('connection', (socket) => {
     if (state) io.to(tableId).emit('fourInRowState', state);
   };
 
-  const emitArcadeRaceState = (tableId) => {
-    const state = arcadeRaceStates.get(tableId);
-    if (!state) return;
-    if (!state.winner && Date.now() >= state.endsAt) {
-      const ranked = state.players
-        .map((playerId) => ({ playerId, score: Number(state.scores[playerId] || 0) }))
-        .sort((a, b) => b.score - a.score);
-      state.winner = ranked[0]?.score === ranked[1]?.score ? 'draw' : ranked[0]?.playerId || 'draw';
-      state.revision += 1;
-    }
-    io.to(tableId).emit('arcadeRaceState', state);
-  };
-
-  socket.on('joinArcadeRace', ({ tableId, accountId, gameType } = {}, cb) => {
-    const id = String(tableId || '');
-    const playerId = String(accountId || socket.data.playerId || '');
-    const normalizedGameType = normalizeOnlineGameType(gameType);
-    const table = tableMap.get(id);
-    if (
-      !table ||
-      table.gameType !== normalizedGameType ||
-      !['2048royale', 'hextrisbattle', 'underrunarena'].includes(normalizedGameType) ||
-      !table.players.some((player) => String(player.id) === playerId)
-    ) return cb?.({ success: false, error: 'not_a_table_player' });
-    socket.join(id);
-    if (!arcadeRaceStates.has(id)) {
-      const startsAt = Date.now() + 3000;
-      const durationSeconds = Math.min(180, Math.max(30, Number(table.meta?.durationSeconds) || 120));
-      const players = table.players.map((player) => String(player.id));
-      arcadeRaceStates.set(id, {
-        tableId: id,
-        gameType: normalizedGameType,
-        players,
-        scores: Object.fromEntries(players.map((value) => [value, 0])),
-        finished: {},
-        startsAt,
-        endsAt: startsAt + durationSeconds * 1000,
-        winner: null,
-        revision: 0
-      });
-    }
-    socket.emit('arcadeRaceState', arcadeRaceStates.get(id));
-    return cb?.({ success: true });
-  });
-
-  socket.on('arcadeRaceSyncRequest', ({ tableId } = {}) => {
-    const id = String(tableId || '');
-    if (arcadeRaceStates.has(id)) emitArcadeRaceState(id);
-  });
-
-  socket.on('arcadeRaceScore', ({ tableId, accountId, score } = {}, cb) => {
-    const id = String(tableId || '');
-    const playerId = String(accountId || socket.data.playerId || '');
-    const state = arcadeRaceStates.get(id);
-    const nextScore = Number(score);
-    if (!state || !state.players.includes(playerId)) return cb?.({ success: false, error: 'not_a_table_player' });
-    if (state.winner || Date.now() < state.startsAt || !Number.isSafeInteger(nextScore) || nextScore < 0 || nextScore > 100000000) return cb?.({ success: false, error: 'invalid_score' });
-    if (nextScore < Number(state.scores[playerId] || 0)) return cb?.({ success: false, error: 'score_cannot_decrease' });
-    state.scores[playerId] = nextScore;
-    state.revision += 1;
-    emitArcadeRaceState(id);
-    return cb?.({ success: true, revision: state.revision });
-  });
-
-  socket.on('arcadeRaceFinish', ({ tableId, accountId, score } = {}, cb) => {
-    const id = String(tableId || '');
-    const playerId = String(accountId || socket.data.playerId || '');
-    const state = arcadeRaceStates.get(id);
-    const finalScore = Number(score);
-    if (!state || !state.players.includes(playerId) || !Number.isSafeInteger(finalScore) || finalScore < Number(state.scores[playerId] || 0)) return cb?.({ success: false, error: 'invalid_finish' });
-    state.scores[playerId] = Math.min(finalScore, 100000000);
-    state.finished[playerId] = true;
-    if (state.players.every((idValue) => state.finished[idValue]) || Date.now() >= state.endsAt) state.endsAt = Math.min(state.endsAt, Date.now());
-    state.revision += 1;
-    emitArcadeRaceState(id);
-    return cb?.({ success: true });
-  });
-
   socket.on('joinFourInRow', ({ tableId, accountId } = {}, cb) => {
     const table = tableMap.get(String(tableId || ''));
     const playerId = String(accountId || socket.data.playerId || '');
@@ -4303,10 +4214,6 @@ httpServer.listen(PORT, async () => {
 });
 
 if (process.env.BOT_TOKEN && process.env.BOT_TOKEN !== 'dummy') {
-  process.once('SIGINT', () => {
-    if (telegramBotMode === 'polling') bot.stop('SIGINT');
-  });
-  process.once('SIGTERM', () => {
-    if (telegramBotMode === 'polling') bot.stop('SIGTERM');
-  });
+  process.once('SIGINT', () => bot.stop('SIGINT'));
+  process.once('SIGTERM', () => bot.stop('SIGTERM'));
 }

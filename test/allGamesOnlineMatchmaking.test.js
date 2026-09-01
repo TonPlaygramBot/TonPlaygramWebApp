@@ -90,8 +90,7 @@ test('Test 1 through Test 8 receive identical lobby and game-start state in ever
       },
       body: JSON.stringify({ accountId: `test-${index}`, amount: 10000, game: 'online-qa' })
     });
-    const responseBody = await response.text();
-    assert.equal(response.ok, true, `Could not fund Test ${index}: ${response.status} ${responseBody}`);
+    assert.equal(response.ok, true, `Could not fund Test ${index}`);
   }
 
   try {

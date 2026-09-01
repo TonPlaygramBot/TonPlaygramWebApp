@@ -63,7 +63,7 @@ const PREFETCH_RUNTIME_ASSETS = [
   '/power-slider.css'
 ];
 
-const GLTF_EXTENSIONS = /\.(gltf|glb|bin|ktx2|dds|hdr|exr)$/i;
+const GLTF_EXTENSIONS = /\.(gltf|glb|bin|ktx2|dds|hdr)$/i;
 const REMOTE_CACHEABLE_DESTINATIONS = ['font', 'image', 'model', ''];
 const REMOTE_CACHEABLE_HOSTS = new Set([
   'cdn.jsdelivr.net',

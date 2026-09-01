@@ -12,7 +12,7 @@ import {
 } from '../utils/api.js';
 import { socket } from '../utils/socket.js';
 import LeaderboardCard from '../components/LeaderboardCard.jsx';
-import { inviteGamesCatalog } from '../config/gamesCatalog.js';
+import gamesCatalog from '../config/gamesCatalog.js';
 
 const tabs = [
   { id: 'chats', label: 'Chats', Icon: Send },
@@ -355,7 +355,7 @@ export default function Messages() {
       {actionNote && <div className="messages-toast" role="status">{actionNote}</div>}
       {inviteOpen && <div className="messages-invite-backdrop" role="dialog" aria-modal="true" aria-label="Create game invite"><section className="messages-invite-sheet">
         <header><div><small>PLAY TOGETHER</small><h2>Choose a game</h2></div><button onClick={() => setInviteOpen(false)} aria-label="Close"><X /></button></header>
-        <label className="messages-invite-field"><span>Game</span><select value={inviteGame} onChange={(event) => setInviteGame(event.target.value)}>{inviteGamesCatalog.map((game) => <option key={game.slug} value={game.slug}>{game.name}</option>)}</select></label>
+        <label className="messages-invite-field"><span>Game</span><select value={inviteGame} onChange={(event) => setInviteGame(event.target.value)}>{gamesCatalog.map((game) => <option key={game.slug} value={game.slug}>{game.name}</option>)}</select></label>
         <fieldset><legend>Invite type</legend><button className={inviteMode === '1v1' ? 'active' : ''} onClick={() => setInviteMode('1v1')}><Gamepad2 /><span><strong>1v1</strong><small>Challenge {friendName(selected)}</small></span></button><button className={inviteMode === 'group' ? 'active' : ''} onClick={() => setInviteMode('group')}><Users /><span><strong>Group</strong><small>Invite two or more friends</small></span></button></fieldset>
         {inviteMode === 'group' && <div className="messages-invite-friends"><strong>Select friends</strong>{friends.map((friend) => { const id = String(friend.accountId); const checked = groupFriendIds.includes(id) || id === String(selected.accountId); return <label key={id}><input type="checkbox" checked={checked} disabled={id === String(selected.accountId)} onChange={() => setGroupFriendIds((ids) => ids.includes(id) ? ids.filter((value) => value !== id) : [...ids, id])} /><Avatar friend={friend} /><span>{friendName(friend)}</span></label>; })}</div>}
         <button className="messages-invite-send" onClick={sendGameInvite}><Send /> Send {inviteMode === 'group' ? 'group' : '1v1'} invite</button>

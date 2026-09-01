@@ -13,7 +13,6 @@ import {
 
 const BADGE_STYLES = {
   'Online Ready': 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40',
-  'Single Player': 'bg-cyan-500/20 text-cyan-200 border-cyan-300/40',
   Beta: 'bg-amber-500/20 text-amber-200 border-amber-300/40',
   'Coming Soon': 'bg-slate-500/20 text-slate-200 border-slate-300/30'
 };
@@ -38,19 +37,16 @@ export default function Games() {
       <p className="text-center text-sm text-subtext">
         Jump straight into a lobby. Tap any game to start your next match.
       </p>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-3 gap-3">
         {gamesCatalog.map((game) => {
           const thumbnail = getGameThumbnail(game.slug);
-          const readiness = game.badge
-            ? { label: game.badge }
-            : getOnlineReadiness(game.slug, readinessMap);
+          const readiness = getOnlineReadiness(game.slug, readinessMap);
           const badgeTone =
             BADGE_STYLES[readiness.label] || BADGE_STYLES['Coming Soon'];
           return (
             <Link
               key={game.name}
               to={game.route}
-              reloadDocument={Boolean(game.standalone)}
               className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-surface/90 shadow-lg transition hover:-translate-y-0.5 hover:border-primary/60"
             >
               <div className="relative h-24 overflow-hidden">
@@ -78,7 +74,7 @@ export default function Games() {
                   {readiness.label}
                 </span>
                 <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                  {game.launchLabel || 'Enter Lobby'}
+                  Enter Lobby
                 </span>
               </div>
             </Link>
