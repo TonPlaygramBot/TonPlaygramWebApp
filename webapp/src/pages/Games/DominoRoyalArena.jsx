@@ -5,13 +5,7 @@ import { socket } from '../../utils/socket.js';
 
 const INLINE_STYLE_ID = 'domino-royal-inline-style';
 const GAME_SCRIPT_SELECTOR = 'script[data-domino-royal-script="true"]';
-const DOMINO_ROYAL_SCRIPT_VERSION = '2026-08-31-low-phone-video-safety-v72';
-const DOMINO_CHARACTER_PRECONNECT_URLS = Object.freeze([
-  'https://threejs.org',
-  'https://models.readyplayer.me',
-  'https://api.readyplayer.me',
-  'https://avatars.readyplayer.me'
-]);
+const DOMINO_ROYAL_SCRIPT_VERSION = '2026-08-31-remove-characters-v74';
 
 export default function DominoRoyalArena() {
   useEffect(() => {
@@ -38,17 +32,7 @@ export default function DominoRoyalArena() {
       existingScript.remove();
     }
 
-    window.__DOMINO_ROYAL_ENABLE_SEATED_HUMANS = true;
     window.__DOMINO_ROYAL_SOCKET__ = socket;
-    const characterPreconnectLinks = DOMINO_CHARACTER_PRECONNECT_URLS.map((href) => {
-      const link = document.createElement('link');
-      link.rel = 'preconnect';
-      link.href = href;
-      link.crossOrigin = 'anonymous';
-      link.dataset.dominoRoyalCharacterPreconnect = 'true';
-      document.head.appendChild(link);
-      return link;
-    });
 
     const basePath = import.meta.env.BASE_URL || '/';
     const normalizedBasePath = basePath.endsWith('/') ? basePath : `${basePath}/`;
@@ -56,7 +40,6 @@ export default function DominoRoyalArena() {
     script.type = 'module';
     script.src = `${normalizedBasePath}domino-royal-game.js?v=${DOMINO_ROYAL_SCRIPT_VERSION}`;
     script.dataset.dominoRoyalScript = 'true';
-    script.dataset.dominoRoyalSeatedHumans = 'true';
     script.onload = () => {
       if (statusNode) {
         statusNode.textContent = 'Ready';
@@ -74,8 +57,6 @@ export default function DominoRoyalArena() {
         window.__dominoRoyalCleanup('react-unmount');
       }
       script.remove();
-      characterPreconnectLinks.forEach((link) => link.remove());
-      delete window.__DOMINO_ROYAL_ENABLE_SEATED_HUMANS;
       delete window.__DOMINO_ROYAL_SOCKET__;
       if (appRoot) {
         appRoot.replaceChildren();
