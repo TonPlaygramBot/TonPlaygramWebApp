@@ -172,10 +172,15 @@ export default function MyAccount() {
       }
     };
     window.addEventListener('storage', syncTelegramId);
+    // Telegram can inject its Mini App user after this page has mounted. The
+    // auth hook stores that user in the same window, where `storage` does not
+    // fire, so listen for its explicit ready notification as well.
+    window.addEventListener('telegramAuthUpdated', syncTelegramId);
     const syncGoogle = () => setGoogleProfile(loadGoogleProfile());
     window.addEventListener('googleProfileUpdated', syncGoogle);
     return () => {
       window.removeEventListener('storage', syncTelegramId);
+      window.removeEventListener('telegramAuthUpdated', syncTelegramId);
       window.removeEventListener('googleProfileUpdated', syncGoogle);
     };
   }, []);
