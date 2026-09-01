@@ -82,17 +82,6 @@ const gamesCatalog = [
   },
 
   {
-    name: 'Oligarchs',
-    route: '/games/oligarchs',
-    slug: 'oligarchs',
-    image: '/assets/icons/oligarchs.svg',
-    description: 'Build an empire of energy, media, military power and global influence.',
-    badge: 'Single Player',
-    launchLabel: 'Take control',
-    multiplayer: false
-  },
-
-  {
     name: 'Ludo Battle Royal',
     route: '/games/ludobattleroyal/lobby',
     slug: 'ludobattleroyal',
