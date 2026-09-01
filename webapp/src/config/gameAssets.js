@@ -23,6 +23,7 @@ export const gameThumbnails = {
   fourinrowroyale: '/assets/icons/four-in-row-royale.svg',
   tavullbattleroyal: '/assets/icons/Backgammonroyallogo.png',
   ludobattleroyal: '/assets/icons/Ludo%20battle%20Royal%20game%20logo.png',
+  oligarchs: '/assets/icons/oligarchs.svg',
   shootingrange: '/assets/icons/shooting-range.svg',
   '2048royale': '/assets/icons/2048-royale.svg',
   hextrisbattle: '/assets/icons/hextris-battle.svg',

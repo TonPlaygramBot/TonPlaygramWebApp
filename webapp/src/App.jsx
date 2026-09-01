@@ -66,6 +66,7 @@ const LudoBattleRoyal = React.lazy(
 const LudoBattleRoyalLobby = React.lazy(
   () => import('./pages/Games/LudoBattleRoyalLobby.jsx')
 );
+const Oligarchs = React.lazy(() => import('./pages/Games/Oligarchs.jsx'));
 const TexasHoldem = React.lazy(() => import('./pages/Games/TexasHoldem.jsx'));
 const TexasHoldemLobby = React.lazy(
   () => import('./pages/Games/TexasHoldemLobby.jsx')
@@ -376,6 +377,14 @@ export default function App() {
                   <GameLiveAvatarOverlay gameSlug="ludobattleroyal">
                     <LudoBattleRoyal />
                   </GameLiveAvatarOverlay>
+                }
+              />
+              <Route
+                path="/games/oligarchs"
+                element={
+                  <Suspense fallback={<div className="p-4 text-center">Loading Oligarchs…</div>}>
+                    <Oligarchs />
+                  </Suspense>
                 }
               />
               <Route
