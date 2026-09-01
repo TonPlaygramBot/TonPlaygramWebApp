@@ -120,7 +120,6 @@ const ArcadeRaceLobby = React.lazy(() => import('./pages/Games/ArcadeRaceLobby.j
 const Game2048Royale = React.lazy(() => import('./pages/Games/Game2048Royale.jsx'));
 const HextrisBattle = React.lazy(() => import('./pages/Games/HextrisBattle.jsx'));
 const UnderrunArena = React.lazy(() => import('./pages/Games/UnderrunArena.jsx'));
-const BlackTideLobby = React.lazy(() => import('./pages/Games/BlackTideLobby.jsx'));
 const StoreThumbnailStudioPoolRoyale = React.lazy(
   () => import('./pages/Tools/StoreThumbnailStudioPoolRoyale.jsx')
 );
@@ -223,7 +222,6 @@ export default function App() {
                 element={<MiningTransactions />}
               />
               <Route path="/games" element={<Games />} />
-              <Route path="/games/black-tide/lobby" element={<BlackTideLobby />} />
               <Route
                 path="/games/transactions"
                 element={<GameTransactions />}
