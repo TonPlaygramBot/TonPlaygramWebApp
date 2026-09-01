@@ -718,7 +718,21 @@ export function registerWalletPasskey(telegramId, passkeyId, publicKey) {
 export function createAccount(telegramId, googleProfile, accountId, walletAddress) {
   const body = {};
   const normalizedTelegramId = normalizeTelegramId(telegramId);
-  if (normalizedTelegramId != null) body.telegramId = normalizedTelegramId;
+  if (normalizedTelegramId != null) {
+    body.telegramId = normalizedTelegramId;
+
+    // The API validates Telegram's signed initData from buildHeaders. Forward
+    // the launch user so a cold Mini App profile need not wait on the Bot API.
+    const telegramUser =
+      typeof window !== 'undefined'
+        ? window.Telegram?.WebApp?.initDataUnsafe?.user
+        : null;
+    if (Number(telegramUser?.id) === normalizedTelegramId) {
+      if (telegramUser.first_name) body.firstName = telegramUser.first_name;
+      if (telegramUser.last_name) body.lastName = telegramUser.last_name;
+      if (telegramUser.photo_url) body.photo = telegramUser.photo_url;
+    }
+  }
   const profile =
     typeof googleProfile === 'string'
       ? { id: googleProfile }

@@ -123,9 +123,14 @@ router.post('/create', optionalAuthenticate, async (req, res) => {
 
     if (telegramId) {
       // Telegram is an external service and can be slow or rate limited. The
-      // database is authoritative for an existing profile, so only contact
-      // Telegram while creating a brand-new account.
-      if (!primaryExisting) {
+      // database is authoritative for an existing profile. For a new account,
+      // prefer the signed Mini App launch fields forwarded by the client.
+      const launchProfile = firstName || lastName || photo
+        ? { firstName: firstName || '', lastName: lastName || '', photoUrl: photo || '' }
+        : null;
+      if (!primaryExisting && launchProfile) {
+        telegramProfile = launchProfile;
+      } else if (!primaryExisting) {
         try {
           telegramProfile = await fetchTelegramInfo(telegramId);
         } catch (err) {
