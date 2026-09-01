@@ -1,0 +1,10 @@
+RobotExpressive GLB
+
+Original model by Tomas Laulhe (CC0), converted and modified by Don McCurdy.
+Distributed with the official Three.js glTF examples.
+
+Source:
+https://threejs.org/examples/models/gltf/RobotExpressive/
+
+License: Creative Commons Zero 1.0 Universal (CC0 1.0)
+https://creativecommons.org/publicdomain/zero/1.0/

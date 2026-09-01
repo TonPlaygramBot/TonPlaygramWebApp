@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img" aria-labelledby="title description">
+  <title id="title">BLACK TIDE</title>
+  <desc id="description">A rain-soaked coastal city and a sports car at night.</desc>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#020610"/>
+      <stop offset="0.6" stop-color="#07343b"/>
+      <stop offset="1" stop-color="#02070b"/>
+    </linearGradient>
+    <linearGradient id="road" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#101b20"/>
+      <stop offset="1" stop-color="#010305"/>
+    </linearGradient>
+    <linearGradient id="car" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#172b33"/>
+      <stop offset="0.55" stop-color="#081116"/>
+      <stop offset="1" stop-color="#020507"/>
+    </linearGradient>
+    <linearGradient id="titleFill" x1="0" y1="0" x2="1" y2="0">
+      <stop stop-color="#f3fdff"/>
+      <stop offset="0.48" stop-color="#d9f4f4"/>
+      <stop offset="0.5" stop-color="#62f4dc"/>
+      <stop offset="1" stop-color="#24cdb5"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="640" height="360" fill="url(#sky)"/>
+  <circle cx="500" cy="72" r="58" fill="#7dfbea" opacity="0.1" filter="url(#glow)"/>
+  <g fill="#03090d">
+    <path d="M0 185V96h54v89h18V72h61v113h20v-65h43v65h25V47h79v138h20V89h54v96h24v-48h48v48h24V65h70v120h20v-80h80v80z"/>
+  </g>
+  <g fill="#72f8df" opacity="0.38">
+    <path d="M88 94h6v10h-6zm18 0h6v10h-6zm132-22h8v12h-8zm25 0h8v12h-8zm75 39h6v10h-6zm121-23h7v12h-7zm26 0h7v12h-7zm87 39h8v12h-8z"/>
+  </g>
+  <path d="M0 187h640v173H0z" fill="url(#road)"/>
+  <path d="M312 208h16l44 152H268z" fill="#d4fff7" opacity="0.12"/>
+  <path d="M0 222h640" stroke="#61eed9" stroke-width="3" opacity="0.18"/>
+  <g opacity="0.28" stroke="#b9fff2" stroke-width="2">
+    <path d="M42 0l-38 184m112-184L76 184M196 0l-38 184M279 0l-43 184M380 0l-44 184M480 0l-41 184M586 0l-42 184"/>
+  </g>
+  <ellipse cx="332" cy="313" rx="190" ry="27" fill="#000" opacity="0.78"/>
+  <g>
+    <path d="M147 297l29-64c7-16 23-28 41-31l162-24c21-3 42 5 55 21l49 61 29 17-11 36H154z" fill="url(#car)" stroke="#43616a" stroke-width="3"/>
+    <path d="M228 225l133-20c15-2 30 3 40 14l28 34-232 2z" fill="#09262d" stroke="#4bb6af" stroke-width="3"/>
+    <path d="M302 215l-8 40m78-49l25 48" stroke="#8feee3" stroke-width="3" opacity="0.48"/>
+    <path d="M173 262h42l-13 18h-39zm282-8h31l20 23h-35z" fill="#fa315c" filter="url(#glow)"/>
+    <circle cx="222" cy="305" r="35" fill="#030507" stroke="#53626a" stroke-width="7"/>
+    <circle cx="222" cy="305" r="14" fill="#17252a" stroke="#9ab4b9" stroke-width="4"/>
+    <circle cx="444" cy="305" r="35" fill="#030507" stroke="#53626a" stroke-width="7"/>
+    <circle cx="444" cy="305" r="14" fill="#17252a" stroke="#9ab4b9" stroke-width="4"/>
+  </g>
+  <rect x="0" y="0" width="640" height="360" fill="none" stroke="#66ffe3" stroke-opacity="0.22" stroke-width="5"/>
+  <text x="32" y="62" fill="url(#titleFill)" font-family="Impact,Arial Black,sans-serif" font-size="55" font-style="italic" letter-spacing="1">BLACK TIDE</text>
+  <text x="36" y="88" fill="#a9c9cc" font-family="Arial,sans-serif" font-size="12" font-weight="700" letter-spacing="5">COASTAL CRIME STORY</text>
+</svg>

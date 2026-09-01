@@ -1,5 +1,16 @@
 const gamesCatalog = [
   {
+    name: 'BLACK TIDE',
+    route: '/games/black-tide/',
+    slug: 'black-tide',
+    image: '/assets/icons/black-tide.svg',
+    description: 'Cinematic 3D action campaign with driving, combat and five missions.',
+    standalone: true,
+    multiplayer: false,
+    badge: 'Single Player',
+    launchLabel: 'Play Campaign'
+  },
+  {
     name: "Texas Hold'em",
     route: '/games/texasholdem/lobby',
     slug: 'texasholdem',
@@ -98,6 +109,10 @@ const gamesCatalog = [
 ]
 
 export default gamesCatalog
+
+export const inviteGamesCatalog = gamesCatalog.filter(
+  (game) => game.multiplayer !== false
+)
 
 export const catalogWithSlugs = gamesCatalog.map((game) => {
   if (game.slug) return game

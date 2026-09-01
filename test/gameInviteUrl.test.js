@@ -24,6 +24,10 @@ describe('game invite URLs', () => {
       .toMatch(/^\/games\/snake\?/);
   });
 
+  it('keeps standalone campaigns out of multiplayer invites', () => {
+    expect(normalizeInviteGame('black-tide')).toBe('snake');
+  });
+
   it('preserves the player count for group invites', () => {
     const url = new URL(getGameInvitePath({ roomId: 'group-room', capacity: 4 }), 'https://tonplaygram.test');
     expect(url.searchParams.get('capacity')).toBe('4');

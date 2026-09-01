@@ -11,6 +11,7 @@ const withBase = (path) => {
 };
 
 export const gameThumbnails = {
+  'black-tide': '/assets/icons/black-tide.svg',
   texasholdem: '/assets/icons/Texas%20holdem%20poker%20game%20logo.png',
   'domino-royal': '/assets/icons/Domino%20battle%20Royal%20logo.png',
   poolroyale: '/assets/icons/Pool%20Royal%20game%20logo.png',
