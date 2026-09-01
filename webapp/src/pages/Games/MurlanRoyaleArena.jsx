@@ -3170,7 +3170,9 @@ const CAMERA_SCREEN_DOWN_SHIFT = Object.freeze({
   portrait: 0.19 * MODEL_SCALE,
   landscape: 0.05 * MODEL_SCALE
 });
-const HUMAN_HAND_CARD_SCALE = 1.12;
+// Keep the local player's bottom hand slightly smaller so the full fan remains
+// comfortable to scan on portrait phone screens.
+const HUMAN_HAND_CARD_SCALE = 1.04;
 // Keep the bottom edges tucked together like a real thumb-held fan while the
 // stronger yaw below preserves the open top spread shown in the reference photos.
 const HUMAN_HAND_CARD_SPACING = CARD_W * HUMAN_HAND_CARD_SCALE * 0.16;
