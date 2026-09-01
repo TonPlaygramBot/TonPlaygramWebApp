@@ -209,6 +209,7 @@ export default function App() {
               <Route path="/roadmap" element={<EcosystemTopic topic="roadmap" />} />
               <Route path="/tokenomics" element={<EcosystemTopic topic="tokenomics" />} />
               <Route path="/wall" element={<CommunityWallApp />} />
+              <Route path="/wall/post/:postId" element={<CommunityWallApp />} />
               <Route path="/flamingo/*" element={<Navigate to="/wall" replace />} />
               <Route path="/earn" element={<Earn />} />
               <Route path="/social" element={<Social />} />

@@ -56,9 +56,14 @@ router.use(optionalAuthenticate);
 const safeName = (name) => path.basename(String(name || 'file'))
   .normalize('NFKD').replace(/[^a-zA-Z0-9._-]+/g, '-').slice(-160) || 'file';
 
-const normalizedPost = post => post?.attachment
-  ? { ...post, attachment: { ...post.attachment, type: mediaType(post.attachment.type, post.attachment.name) } }
-  : post;
+const normalizeAttachment = attachment => attachment
+  ? { ...attachment, type: mediaType(attachment.type, attachment.name) }
+  : attachment;
+const normalizedPost = post => post ? {
+  ...post,
+  attachment: normalizeAttachment(post.attachment),
+  attachments: post.attachments?.map(normalizeAttachment)
+} : post;
 
 const decodeHeader = (value, fallback = '') => {
   try { return decodeURIComponent(String(value || fallback)); } catch { return fallback; }
@@ -185,6 +190,7 @@ router.post('/uploads', async (req, res) => {
     premium: req.get('x-upload-premium') === '1',
     priceTpg: premiumPrice(req.get('x-upload-price-tpg')),
     text: decodeHeader(req.get('x-upload-text')).slice(0, 1200),
+    albumId: String(req.get('x-upload-album-id') || '').slice(0, 80),
     ownerTokenHash: tokenHash(ownerToken(req)),
     createdAt: Date.now()
   };
@@ -303,14 +309,23 @@ router.post('/uploads/:id/complete', async (req, res) => {
     await rm(paths.meta, { force: true });
     const user = await resolveUser(req);
     const attachment = { name: metadata.name, size: metadata.size, type: metadata.type, duration: metadata.duration, premium: metadata.premium && metadata.priceTpg > 0, priceTpg: metadata.premium ? metadata.priceTpg : 0, url: `/api/flamingo-wall/files/${storedName}` };
-    const post = await FlamingoPost.create({ text: metadata.text, author: displayName(user), authorAvatar: user?.photo || '', authorAccountId: user?.accountId || '', attachment, ownerTokenHash: metadata.ownerTokenHash });
-    publishWallEvent('created', String(post._id));
+    let post;
+    if (metadata.albumId) {
+      post = await FlamingoPost.findOneAndUpdate(
+        { albumId: metadata.albumId, ownerTokenHash: metadata.ownerTokenHash },
+        { $setOnInsert: { text: metadata.text, author: displayName(user), authorAvatar: user?.photo || '', authorAccountId: user?.accountId || '', ownerTokenHash: metadata.ownerTokenHash, albumId: metadata.albumId }, $push: { attachments: attachment }, $set: { attachment } },
+        { new: true, upsert: true, setDefaultsOnInsert: true }
+      );
+    } else {
+      post = await FlamingoPost.create({ text: metadata.text, author: displayName(user), authorAvatar: user?.photo || '', authorAccountId: user?.accountId || '', attachment, ownerTokenHash: metadata.ownerTokenHash });
+    }
+    publishWallEvent(metadata.albumId ? 'updated' : 'created', String(post._id));
     res.status(201).json({ post });
   } catch (err) {
     if (err?.code === 'ENOENT') {
       // Completion may already have succeeded even if its response was lost.
       // Return the existing post so a safe client retry cannot show failure.
-      const post = await FlamingoPost.findOne({ 'attachment.url': new RegExp(`/files/${id}-`) }).lean();
+      const post = await FlamingoPost.findOne({ $or: [{ 'attachment.url': new RegExp(`/files/${id}-`) }, { 'attachments.url': new RegExp(`/files/${id}-`) }] }).lean();
       if (post) return res.status(200).json({ post });
       return res.status(404).json({ error: 'Ngarkimi nuk u gjet.' });
     }
@@ -338,6 +353,14 @@ router.get('/posts', async (req, res) => {
   // response while another community member is publishing.
   res.setHeader('Cache-Control', 'no-store');
   res.json({ posts: serializeWallPosts(posts, token) });
+});
+
+router.get('/posts/:id', async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: 'Postimi nuk u gjet.' });
+  const post = await FlamingoPost.findById(req.params.id).select('+ownerTokenHash').lean();
+  if (!post) return res.status(404).json({ error: 'Postimi nuk u gjet.' });
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ post: serializeWallPosts([post], ownerToken(req))[0] });
 });
 
 router.get('/latest-post', async (req, res) => {
@@ -450,7 +473,8 @@ router.delete('/posts/:id', async (req, res) => {
   if (!ownsPost(post, ownerToken(req))) return res.status(403).json({ error: 'Vetëm autori mund ta fshijë postimin.' });
   await post.deleteOne();
   publishWallEvent('deleted', String(post._id));
-  if (post.attachment?.url) await removeFlamingoMedia(flamingoMediaName(post.attachment.url), mediaDirectories);
+  const media = post.attachments?.length ? post.attachments : post.attachment ? [post.attachment] : [];
+  await Promise.all(media.filter(item => item?.url).map(item => removeFlamingoMedia(flamingoMediaName(item.url), mediaDirectories)));
   res.status(204).end();
 });
 
@@ -507,8 +531,9 @@ router.get('/files/:name', async (req, res) => {
   setFlamingoMediaResponseHeaders(res);
   const name = path.basename(req.params.name);
   const post = await FlamingoPost.findOne(wallMediaPostQuery(name)).lean();
+  const attachment = post?.attachments?.find(item => flamingoMediaName(item.url) === name) || post?.attachment;
   if (req.query.download === '1') {
-    if (post?.attachment?.type?.startsWith('video/') || post?.attachment?.premium) {
+    if (attachment?.type?.startsWith('video/') || attachment?.premium) {
       return res.status(403).json({ error: 'Përdor butonin e shkarkimit që të zbatohet pagesa TPG.' });
     }
   }
@@ -522,19 +547,19 @@ router.get('/files/:name', async (req, res) => {
   // as application/octet-stream makes Safari and Chromium refuse playback.
   // Use the MIME type captured at upload time so historical videos remain
   // playable while preserving byte-range support from sendFile.
-  const contentType = mediaType(post?.attachment?.type, post?.attachment?.name || name);
+  const contentType = mediaType(attachment?.type, attachment?.name || name);
   if (/^[\w.+-]+\/[\w.+-]+$/.test(contentType)) {
     res.type(contentType);
   }
-  const diskPath = await findFlamingoMedia(name, mediaDirectories, post?.attachment?.name, post?.attachment?.size);
+  const diskPath = await findFlamingoMedia(name, mediaDirectories, attachment?.name, attachment?.size);
   if (diskPath) {
-    backfillDatabaseMedia(diskPath, name, post?.attachment);
+    backfillDatabaseMedia(diskPath, name, attachment);
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     return res.sendFile(diskPath, err => {
       if (err && !res.headersSent) res.status(err.statusCode || 404).end();
     });
   }
-  const databaseFile = await findFlamingoDatabaseMedia(name, post?.attachment?.name, post?.attachment?.size);
+  const databaseFile = await findFlamingoDatabaseMedia(name, attachment?.name, attachment?.size);
   if (!databaseFile) {
     // Never pin a temporarily missing media response in the browser. A disk
     // remount or GridFS recovery should make an older upload playable again.
