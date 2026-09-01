@@ -13,8 +13,8 @@ export default function CommunityWallApp() {
             <ArrowLeft />
           </Link>
           <span>
-            <strong>Protesta shqiptare</strong>
-            <small>Komuniteti TonPlayGram</small>
+            <strong>TonPlayGram Wall</strong>
+            <small>Share. Connect. Belong.</small>
           </span>
         </div>
         <div className="community-wall-header-actions">

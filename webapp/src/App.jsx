@@ -5,6 +5,7 @@ import { TonConnectUIProvider } from '@tonconnect/ui-react';
 import Home from './pages/Home.jsx';
 import Earn from './pages/Earn.jsx';
 import Social from './pages/Social.jsx';
+import WallProfile from './pages/WallProfile';
 import Wallet from './pages/Wallet.jsx';
 import Referral from './pages/Referral.jsx';
 import MyAccount from './pages/MyAccount.jsx';
@@ -209,6 +210,7 @@ export default function App() {
               <Route path="/roadmap" element={<EcosystemTopic topic="roadmap" />} />
               <Route path="/tokenomics" element={<EcosystemTopic topic="tokenomics" />} />
               <Route path="/wall" element={<CommunityWallApp />} />
+              <Route path="/wall/profile/:accountId" element={<WallProfile />} />
               <Route path="/flamingo/*" element={<Navigate to="/wall" replace />} />
               <Route path="/earn" element={<Earn />} />
               <Route path="/social" element={<Social />} />
