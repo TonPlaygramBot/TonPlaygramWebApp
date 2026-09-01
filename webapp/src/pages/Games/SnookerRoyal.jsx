@@ -103,6 +103,7 @@ import {
 } from './snookerRoyalSpinUtils.js';
 import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
 import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
+import SnookerShotCoach from './SnookerShotCoach.jsx';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
@@ -29486,6 +29487,9 @@ const powerRef = useRef(hud.power);
           data-ai-taking-shot={aiTakingShot ? 'true' : 'false'}
           data-player-turn={isPlayerTurn ? 'true' : 'false'}
         >
+          <div className="absolute right-[3.25rem] top-0">
+            <SnookerShotCoach power={hud.power} portrait={isPortrait} />
+          </div>
           <div
             ref={sliderRef}
             style={{
