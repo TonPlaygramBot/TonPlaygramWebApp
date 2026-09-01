@@ -2,26 +2,6 @@ import { PoolRoyaleRules } from '../src/rules/PoolRoyaleRules';
 import { ShotContext, ShotEvent } from '../src/types';
 
 describe('PoolRoyaleRules', () => {
-  test('Albanian Billiards is an isolated 61-point rotation ruleset', () => {
-    const rules = new PoolRoyaleRules('albanian');
-    const initial = rules.getInitialFrame('Tirana', 'Shkodra');
-    expect((initial.meta as any)?.variant).toBe('albanian');
-    expect((initial.meta as any)?.state?.targetScore).toBe(61);
-    expect(initial.ballOn).toEqual(['BALL_1']);
-
-    const scored = rules.applyShot(initial, [
-      { type: 'HIT', firstContact: 1, ballId: 1 },
-      { type: 'POTTED', ball: 1, pocket: 'BL', ballId: 1 }
-    ], { contactMade: true, cushionAfterContact: true });
-    expect(scored.players.A.score).toBe(1);
-    expect(scored.activePlayer).toBe('A');
-    expect(scored.ballOn).toEqual(['BALL_2']);
-
-    const uk = new PoolRoyaleRules('uk').getInitialFrame('A', 'B');
-    expect((uk.meta as any)?.variant).toBe('uk');
-    expect(uk.players.A.score).toBe(0);
-  });
-
   test('UK variant preserves assignments through serialization and updates HUD', () => {
     const rules = new PoolRoyaleRules('uk');
     const initialFrame = rules.getInitialFrame('Player A', 'Player B');

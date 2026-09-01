@@ -63,7 +63,6 @@ export const lobbyOptionIcons = {
     'mode-online': 'lobby/pool-royale/mode-online.webp',
     'variant-uk': '/assets/icons/8ballrack.png',
     'variant-american': '/assets/icons/American%20Billiards%20.png',
-    'variant-albanian': '/assets/icons/American%20Billiards%20.png',
     'variant-9ball': '/assets/icons/9ballrack.png',
     'ball-uk': '/assets/icons/8ballrack.png',
     'ball-american': '/assets/icons/American%20Billiards%20.png'
@@ -153,7 +152,6 @@ export const variantThumbnails = {
   poolroyale: {
     uk: '/assets/icons/8ballrack.png',
     american: '/assets/icons/American%20Billiards%20.png',
-    albanian: '/assets/icons/American%20Billiards%20.png',
     '9ball': '/assets/icons/9ballrack.png'
   }
 };

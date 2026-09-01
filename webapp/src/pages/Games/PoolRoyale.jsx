@@ -2193,16 +2193,6 @@ const POOL_VARIANT_COLOR_SETS = Object.freeze({
       'solid',
       'stripe'
     ]
-  },
-  albanian: {
-    id: 'albanian',
-    label: 'Albanian Billiards · 61',
-    cueColor: 0xffffff,
-    rackLayout: 'triangle',
-    disableSnookerMarkings: true,
-    objectColors: AMERICAN_BALL_SET.objectColors,
-    objectNumbers: AMERICAN_BALL_SET.objectNumbers,
-    objectPatterns: AMERICAN_BALL_SET.objectPatterns
   }
 });
 
@@ -2234,13 +2224,6 @@ function resolvePoolVariant(variantId, ballSet = null) {
   let key = normalized;
   if (normalized === '9' || normalized === 'nineball') {
     key = '9ball';
-  } else if (
-    normalized === 'albanian' ||
-    normalized === 'albanianbilliards' ||
-    normalized === 'bilardoshqiptar' ||
-    normalized === 'rotation61'
-  ) {
-    key = 'albanian';
   } else if (
     normalized === 'american' ||
     normalized === 'americanbilliards' ||
@@ -29255,7 +29238,7 @@ const shotPowerRef = useRef(0);
         let placedFromHand = false;
         const meta = frameSnapshot?.meta;
         if (meta && typeof meta === 'object') {
-          if ((meta.variant === 'american' || meta.variant === 'albanian') && meta.state) {
+          if (meta.variant === 'american' && meta.state) {
             placedFromHand = Boolean(meta.state.ballInHand);
           } else if (meta.variant === '9ball' && meta.state) {
             placedFromHand = Boolean(meta.state.ballInHand);
@@ -30089,7 +30072,7 @@ const shotPowerRef = useRef(0);
           const normalized = normalizeTargetId(assignment);
           if (normalized === 'RED') return ['RED'];
           if (normalized === 'BLUE' || normalized === 'YELLOW') {
-            return variantId === 'american' ? ['SOLID'] : variantId === 'albanian' ? ['BALL_1'] : ['YELLOW', 'BLUE'];
+            return variantId === 'american' ? ['SOLID'] : ['YELLOW', 'BLUE'];
           }
           if (normalized === 'BLACK') return ['BLACK', 'BALL_8'];
           if (normalized === 'SOLID' || normalized === 'SOLIDS') return ['SOLID'];
@@ -30225,7 +30208,7 @@ const shotPowerRef = useRef(0);
           // shot to the endgame instead of only improving late in the frame.
           const shouldAnalyzeLeave = true;
           const isRotationVariant =
-            activeVariantId === 'american' || activeVariantId === 'albanian' || activeVariantId === '9ball';
+            activeVariantId === 'american' || activeVariantId === '9ball';
           const activeBalls = ballsList.filter((b) => b.active);
           const targetOrder = resolveTargetPriorities(state, activeVariantId, activeBalls);
           const legalTargetsRaw = Array.isArray(state?.ballOn) && state.ballOn.length > 0
@@ -30239,7 +30222,7 @@ const shotPowerRef = useRef(0);
               .filter((entry) => entry && isBallTargetId(entry))
           );
           if (legalTargets.size === 0) {
-            if (activeVariantId === 'american' || activeVariantId === 'albanian' || activeVariantId === '9ball') {
+            if (activeVariantId === 'american' || activeVariantId === '9ball') {
               const lowestActive = activeBalls
                 .filter((b) => String(b?.id).toLowerCase() !== 'cue')
                 .reduce(
@@ -30721,7 +30704,7 @@ const shotPowerRef = useRef(0);
               };
             safetyShots.push(safetyPlan);
           });
-          if (!potShots.length && (activeVariantId === 'american' || activeVariantId === 'albanian' || activeVariantId === '9ball')) {
+          if (!potShots.length && (activeVariantId === 'american' || activeVariantId === '9ball')) {
             const targetBall = activeBalls
               .filter((b) => b.id !== cueBall.id)
               .sort((a, b) => a.id - b.id)[0];
@@ -37941,13 +37924,6 @@ const shotPowerRef = useRef(0);
             </div>
             {!isFreePractice && (
               <>
-                <div
-                  className={`flex items-center gap-2 ${usePortraitHudLayout ? 'text-sm' : 'text-base'} font-semibold`}
-                >
-                  <span className="text-amber-300">{hud.A}</span>
-                  <span className="text-white/50">-</span>
-                  <span>{hud.B}</span>
-                </div>
                 <div
                   className={`${opponentPanelClass} ${usePortraitHudLayout ? 'text-xs' : 'text-sm'}`}
                   style={opponentPanelStyle}
