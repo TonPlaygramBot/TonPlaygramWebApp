@@ -17,7 +17,7 @@ export default function Navbar() {
         <NavItem to="/games" icon={AiOutlinePlayCircle} label="Games" />
         <NavItem to="/social" icon={HiOutlineUserGroup} label="Social" />
         <NavItem to="/store" icon={AiOutlineShop} label="Store" />
-        <NavItem to="/profile" icon={AiOutlineUser} label="Profile" />
+        <NavItem to="/account" icon={AiOutlineUser} label="Profile" />
       </div>
     </nav>
   );
