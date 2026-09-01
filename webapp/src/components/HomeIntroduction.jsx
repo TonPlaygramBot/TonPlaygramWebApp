@@ -4,13 +4,12 @@ import {
   Gamepad2,
   Gift,
   MessageCircle,
-  Scale,
   ShieldCheck,
   ShoppingBag,
   Sparkles,
   Trophy,
-  Users,
-  WalletCards
+  WalletCards,
+  Zap
 } from 'lucide-react';
 
 import { getGameThumbnail } from '../config/gameAssets.js';
@@ -43,24 +42,14 @@ export default function HomeIntroduction() {
     <section className="home-intro" aria-labelledby="home-intro-title">
       <div className="home-intro__hero">
         <div className="home-intro__glow" aria-hidden="true" />
-        <div className="home-intro__eyebrow"><ShieldCheck size={13} /> PLAYER-FIRST GAMING</div>
-        <h1 id="home-intro-title"><span>TonPlayGram</span> is built for players, <em>not the house.</em></h1>
-        <p className="home-intro__lede">A competitive gaming platform where skill, strategy and real players decide every match.</p>
-        <div className="home-intro__principles" aria-label="Our player-first principles">
-          <div className="home-intro__principle">
-            <span><Users size={18} /></span>
-            <div><strong>Player vs player</strong><small>You compete with people—not against the platform.</small></div>
-          </div>
-          <div className="home-intro__principle">
-            <span><Scale size={18} /></span>
-            <div><strong>No house advantage</strong><small>No algorithm chooses, influences or predetermines winners.</small></div>
-          </div>
-        </div>
-        <p className="home-intro__fee"><Sparkles size={13} /><span>TonPlayGram powers the experience. A small service fee helps keep it running and growing.</span></p>
+        <div className="home-intro__eyebrow"><Zap size={13} fill="currentColor" /> PLAY · CONNECT · EARN</div>
+        <h1 id="home-intro-title">Your world of<br /><span>play, in one place.</span></h1>
+        <p>An independently built, mobile-first gaming ecosystem that brings competitive games, community, rewards and digital collectibles into one connected experience.</p>
         <div className="home-intro__actions">
           <Link to="/games" className="home-intro__primary">Explore games <ArrowRight size={17} /></Link>
           <Link to="/ecosystem" className="home-intro__secondary">How it works</Link>
         </div>
+        <div className="home-intro__trust"><ShieldCheck size={16} /><span>One profile. Clear activity. Built for players.</span></div>
         <SocialChannels variant="hero" />
       </div>
 

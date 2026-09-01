@@ -1,0 +1,198 @@
+.bowling-hud {
+  position: absolute;
+  top: max(8px, env(safe-area-inset-top));
+  left: 10px;
+  right: 10px;
+  overflow: hidden;
+  color: #f8fafc;
+  background: linear-gradient(
+    145deg,
+    rgba(8, 15, 25, 0.94),
+    rgba(13, 24, 36, 0.82)
+  );
+  border: 1px solid rgba(148, 213, 255, 0.22);
+  border-radius: 16px;
+  box-shadow:
+    0 18px 48px rgba(0, 0, 0, 0.38),
+    inset 0 1px rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(14px) saturate(1.25);
+}
+
+.bowling-hud__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 37px;
+  padding: 7px 10px 6px;
+  background: linear-gradient(
+    90deg,
+    rgba(4, 11, 19, 0.84),
+    rgba(15, 35, 50, 0.58)
+  );
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.bowling-hud__header > div:first-child {
+  display: grid;
+  line-height: 1;
+  gap: 3px;
+}
+.bowling-hud__header strong {
+  font-size: 13px;
+  letter-spacing: 0.12em;
+}
+.bowling-hud__eyebrow {
+  color: #67d4ff;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+}
+.bowling-hud__turn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 8px;
+  font-weight: 850;
+}
+.bowling-hud__turn span,
+.bowling-hud__turn b {
+  padding: 5px 7px;
+  border-radius: 7px;
+}
+.bowling-hud__turn span {
+  color: #a6e5ff;
+  background: rgba(56, 189, 248, 0.1);
+}
+.bowling-hud__turn b {
+  color: #08131d;
+  background: #7ddcff;
+}
+
+.bowling-scorecard {
+  padding: 6px 7px 5px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.bowling-scorecard::-webkit-scrollbar {
+  display: none;
+}
+.bowling-scorecard__frames,
+.bowling-scorecard__row {
+  display: grid;
+  grid-template-columns: 50px repeat(9, minmax(25px, 1fr)) minmax(32px, 1.25fr);
+  gap: 2px;
+  min-width: 340px;
+}
+.bowling-scorecard__frames {
+  margin-bottom: 2px;
+  color: rgba(226, 232, 240, 0.52);
+  font-size: 7px;
+  font-weight: 900;
+  text-align: center;
+}
+.bowling-scorecard__frames span:first-child {
+  text-align: left;
+  padding-left: 5px;
+}
+.bowling-scorecard__row {
+  padding: 2px;
+  border-radius: 7px;
+  opacity: 0.68;
+  transition:
+    opacity 0.2s,
+    background 0.2s;
+}
+.bowling-scorecard__row.is-active {
+  opacity: 1;
+  background: rgba(56, 189, 248, 0.09);
+  box-shadow: inset 2px 0 #38bdf8;
+}
+.bowling-scorecard__player {
+  display: grid;
+  grid-template-columns: 6px 1fr;
+  align-items: center;
+  padding: 0 4px;
+  font-size: 8px;
+  font-weight: 900;
+}
+.bowling-scorecard__player b {
+  grid-column: 2;
+  color: #7ddcff;
+  font-size: 11px;
+  line-height: 1;
+}
+.bowling-scorecard__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #64748b;
+}
+.is-active .bowling-scorecard__dot {
+  background: #38bdf8;
+  box-shadow: 0 0 8px #38bdf8;
+}
+
+.bowling-hud__status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 26px;
+  padding: 4px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  color: #e7f7ff;
+  font-size: 8px;
+  font-weight: 750;
+  text-align: center;
+}
+.bowling-hud__status-light {
+  flex: 0 0 auto;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #4ade80;
+  box-shadow: 0 0 8px #4ade80;
+}
+.bowling-hud__meta {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 10px 6px;
+  color: rgba(186, 230, 253, 0.65);
+  font-size: 6px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.bowling-hud__callout {
+  padding: 5px 10px;
+  color: #052e16;
+  background: #86efac;
+  font-size: 9px;
+  font-weight: 900;
+  text-align: center;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (min-width: 700px) {
+  .bowling-hud {
+    left: 50%;
+    right: auto;
+    width: min(680px, calc(100% - 24px));
+    transform: translateX(-50%);
+  }
+  .bowling-scorecard__frames,
+  .bowling-scorecard__row {
+    min-width: 0;
+    grid-template-columns: 60px repeat(9, 1fr) 1.25fr;
+  }
+}

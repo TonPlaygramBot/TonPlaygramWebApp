@@ -8,10 +8,9 @@ namespace Aiming.Strategies
 
         public AimSolution Solve(in ShotContext ctx, in ShotInfo info, AimingConfig cfg)
         {
-            // The cue-ball centre must occupy this point at impact.  The old
-            // calculation placed the target one radius beyond the object ball,
-            // which made even a visually straight AI shot strike the wrong side.
-            Vector3 ghost = ctx.objectBallPos - info.vOP * (ctx.ballRadius * 2f);
+            Vector3 cpObj = ctx.objectBallPos - info.vOP * ctx.ballRadius;
+            Vector3 toObj = (cpObj - ctx.objectBallPos).normalized;
+            Vector3 ghost = cpObj - toObj * (ctx.ballRadius * 2f);
             return new AimSolution
             {
                 isValid = true,
