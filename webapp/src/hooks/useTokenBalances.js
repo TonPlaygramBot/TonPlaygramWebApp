@@ -16,6 +16,9 @@ export default function useTokenBalances() {
   const [tpcBalance, setTpcBalance] = useState(null);
   const [tonBalance, setTonBalance] = useState(null);
   const [tpcWalletBalance, setTpcWalletBalance] = useState(null);
+  const [externalBalanceStatus, setExternalBalanceStatus] = useState('idle');
+  const [externalBalanceError, setExternalBalanceError] = useState('');
+  const [externalRefreshKey, setExternalRefreshKey] = useState(0);
 
   const connectedWalletAddress = useTonAddress(true);
   const [storedWalletAddress, setStoredWalletAddress] = useState(() => {
@@ -85,8 +88,13 @@ export default function useTokenBalances() {
       if (!walletAddress) {
         setTonBalance(null);
         setTpcWalletBalance(null);
+        setExternalBalanceStatus('idle');
+        setExternalBalanceError('');
         return;
       }
+      setExternalBalanceStatus('loading');
+      setExternalBalanceError('');
+      let tonLoaded = false;
       try {
         const tonapiRes = await fetch(
           `https://tonapi.io/v2/accounts/${encodeURIComponent(walletAddress)}`
@@ -95,15 +103,18 @@ export default function useTokenBalances() {
         const tonapiData = await tonapiRes.json();
         const nanoTonBalance = Number(tonapiData?.balance ?? 0);
         setTonBalance(Number.isFinite(nanoTonBalance) ? nanoTonBalance / 1e9 : 0);
+        tonLoaded = true;
       } catch (err) {
         console.error('Failed to load TON balance from tonapi:', err);
         try {
           const ton = await getTonBalance(walletAddress);
           if (ton?.error) throw new Error(ton.error);
           setTonBalance(ton.balance ?? 0);
+          tonLoaded = true;
         } catch (fallbackErr) {
           console.error('Failed to load TON balance from backend fallback:', fallbackErr);
-          setTonBalance(0);
+          setTonBalance(null);
+          setExternalBalanceError('Balance is temporarily unavailable.');
         }
       }
       try {
@@ -118,9 +129,30 @@ export default function useTokenBalances() {
         console.error('Failed to load TPG balance:', err);
         setTpcWalletBalance(0);
       }
+      setExternalBalanceStatus(tonLoaded ? 'success' : 'error');
     }
     loadExternal();
+  }, [walletAddress, externalRefreshKey]);
+
+  useEffect(() => {
+    if (!walletAddress) return undefined;
+    const refreshOnReturn = () => setExternalRefreshKey((key) => key + 1);
+    window.addEventListener('focus', refreshOnReturn);
+    window.addEventListener('pageshow', refreshOnReturn);
+    return () => {
+      window.removeEventListener('focus', refreshOnReturn);
+      window.removeEventListener('pageshow', refreshOnReturn);
+    };
   }, [walletAddress]);
 
-  return { tpcBalance, tonBalance, tpcWalletBalance, telegramId };
+  return {
+    tpcBalance,
+    tonBalance,
+    tpcWalletBalance,
+    telegramId,
+    walletAddress,
+    externalBalanceStatus,
+    externalBalanceError,
+    refreshExternalBalances: () => setExternalRefreshKey((key) => key + 1),
+  };
 }

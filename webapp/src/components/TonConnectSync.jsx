@@ -31,9 +31,13 @@ export default function TonConnectSync() {
   };
 
   useEffect(() => {
-    const address = getConnectedAddress();
-    syncWalletAddress(address);
     // TonConnect can restore session asynchronously after returning from wallet app.
+    // Do not clear the last known address before restoration finishes: mobile
+    // wallets briefly return an empty SDK state while the Telegram webview is
+    // being brought back to the foreground.
+    const address = getConnectedAddress();
+    if (address) syncWalletAddress(address);
+
     tonConnectUI.connectionRestored.finally(() => {
       syncWalletAddress(getConnectedAddress());
       closeModalIfConnected();
@@ -61,11 +65,15 @@ export default function TonConnectSync() {
     const closeOnReturn = () => {
       closeModalIfConnected();
       let attempts = 0;
-      const maxAttempts = 10;
+      const maxAttempts = 20;
       const interval = window.setInterval(() => {
         attempts += 1;
-        closeModalIfConnected();
-        if (attempts >= maxAttempts || getConnectedAddress()) {
+        const address = getConnectedAddress();
+        if (address) {
+          syncWalletAddress(address);
+          closeModalIfConnected();
+        }
+        if (attempts >= maxAttempts || address) {
           window.clearInterval(interval);
         }
       }, 400);

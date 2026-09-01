@@ -12,6 +12,7 @@ import { RiTelegramFill } from 'react-icons/ri';
 import {
   BrainCircuit,
   ArrowUpRight,
+  CheckCircle2,
   Heart,
   Megaphone,
   Radio,
@@ -55,7 +56,15 @@ export default function Home() {
   const [status, setStatus] = useState('checking');
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
   const [latestProtestPost, setLatestProtestPost] = useState(null);
-  const { tpcBalance, tonBalance, tpcWalletBalance } = useTokenBalances();
+  const {
+    tpcBalance,
+    tonBalance,
+    tpcWalletBalance,
+    walletAddress: balanceWalletAddress,
+    externalBalanceStatus,
+    externalBalanceError,
+    refreshExternalBalances,
+  } = useTokenBalances();
   const usdValue = useWalletUsdValue(tonBalance, tpcWalletBalance);
   const tonAddress = useTonAddress();
   const [walletAddress, setWalletAddress] = useState(
@@ -241,14 +250,34 @@ export default function Home() {
           <p className="mt-1 text-xs text-subtext">
             Connect securely with the official TON Connect experience.
           </p>
-          <TonConnectButton className="flex justify-center" />
+          {walletAddress || balanceWalletAddress ? (
+            <div className="mt-3 flex flex-col items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-green-400/30 bg-green-400/10 px-3 py-1 text-xs font-bold text-green-300">
+                <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                Wallet connected
+              </span>
+              <span className="max-w-full truncate font-mono text-[11px] text-sky-100" aria-label={`Connected wallet ${walletAddress || balanceWalletAddress}`}>
+                {walletAddress || balanceWalletAddress}
+              </span>
+              <TonConnectButton small className="flex justify-center" />
+            </div>
+          ) : (
+            <TonConnectButton className="flex justify-center" />
+          )}
         </section>
-        {walletAddress && (
+        {(walletAddress || balanceWalletAddress) && (
           <div className="mt-2 text-center">
             <p className="text-xs text-subtext">Connected TON balance</p>
             <p className="text-lg font-semibold text-white">
-              {formatValue(tonBalance ?? '...', 4)} TON
+              {externalBalanceStatus === 'loading'
+                ? 'Fetching balance…'
+                : `${formatValue(tonBalance ?? '—', 4)} TON`}
             </p>
+            {externalBalanceError && (
+              <button type="button" onClick={refreshExternalBalances} className="mt-1 text-xs font-semibold text-sky-300 underline underline-offset-2">
+                {externalBalanceError} Tap to retry
+              </button>
+            )}
           </div>
         )}
         <div className="w-full rounded-xl border border-border bg-surface/60 p-3 mb-2 space-y-2">
