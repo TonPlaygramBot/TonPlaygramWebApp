@@ -175,10 +175,12 @@ export default function MyAccount() {
       }
     };
     window.addEventListener('storage', syncTelegramId);
+    window.addEventListener('telegramAuthUpdated', syncTelegramId);
     const syncGoogle = () => setGoogleProfile(loadGoogleProfile());
     window.addEventListener('googleProfileUpdated', syncGoogle);
     return () => {
       window.removeEventListener('storage', syncTelegramId);
+      window.removeEventListener('telegramAuthUpdated', syncTelegramId);
       window.removeEventListener('googleProfileUpdated', syncGoogle);
     };
   }, []);
