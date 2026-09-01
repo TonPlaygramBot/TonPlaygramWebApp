@@ -210,12 +210,30 @@ export default function MyAccount() {
         setTonWalletAddress(walletToStore);
       }
 
-      const data = await getAccountInfo(accountPayload.accountId);
+      // The existing account API already returns the database profile. Use it
+      // immediately and retain the original profile endpoint as a fallback for
+      // older server deployments.
+      const data =
+        accountPayload.profile ||
+        (await getAccountInfo(accountPayload.accountId));
       if (!data || data?.error) {
         throw new Error(data?.error || 'Unable to fetch your profile.');
       }
 
       let finalProfile = data;
+
+      // Telegram name/photo enrichment can depend on the slower Bot API. Paint
+      // the authoritative database data first so that optional enrichment does
+      // not keep the entire profile page in its loading state.
+      if (!cancelled) {
+        setProfile(data);
+        setGoogleLinked(Boolean(data.googleId || googleProfile?.id));
+        setTwitterLink(data.social?.twitter || '');
+        const initialPhoto = telegramId
+          ? getTelegramPhotoUrl()
+          : googleProfile?.photo || '';
+        setPhotoUrl(loadAvatar() || data.photo || initialPhoto);
+      }
 
       if (telegramId && (!data.photo || !data.firstName || !data.lastName)) {
         setAutoUpdating(true);
@@ -264,13 +282,15 @@ export default function MyAccount() {
         };
       }
 
-      setProfile(finalProfile);
-      setGoogleLinked(Boolean(finalProfile.googleId || googleProfile?.id));
-      setTwitterLink(finalProfile.social?.twitter || '');
-      const defaultPhoto = telegramId
-        ? getTelegramPhotoUrl()
-        : googleProfile?.photo || '';
-      setPhotoUrl(loadAvatar() || finalProfile.photo || defaultPhoto);
+      if (!cancelled) {
+        setProfile(finalProfile);
+        setGoogleLinked(Boolean(finalProfile.googleId || googleProfile?.id));
+        setTwitterLink(finalProfile.social?.twitter || '');
+        const defaultPhoto = telegramId
+          ? getTelegramPhotoUrl()
+          : googleProfile?.photo || '';
+        setPhotoUrl(loadAvatar() || finalProfile.photo || defaultPhoto);
+      }
       try {
         if (telegramId) {
           const res = await getUnreadCount(telegramId);
