@@ -17,4 +17,18 @@ describe('mobile profile access', () => {
     expect(navItem).toContain('min-w-0');
     expect(navItem).toContain('aria-label={label}');
   });
+
+  test('loads the profile with the live TonConnect wallet identity', () => {
+    const profile = fs.readFileSync('webapp/src/pages/MyAccount.jsx', 'utf8');
+
+    expect(profile).toContain(
+      'const walletIdentity = connectedTonAddress || tonWalletAddress;'
+    );
+    expect(profile).toMatch(
+      /createAccount\([\s\S]*?telegramId,[\s\S]*?googleProfile,[\s\S]*?undefined,[\s\S]*?walletIdentity[\s\S]*?\)/
+    );
+    expect(profile).toMatch(
+      /\[telegramId, googleProfile\?\.id, walletIdentity, requiresAuth, reloadNonce\]/
+    );
+  });
 });
