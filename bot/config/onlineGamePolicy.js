@@ -61,9 +61,6 @@ const GAME_ONLINE_POLICY = Object.freeze({
     maxPlayers: [2],
     allowMatchMeta: ['winScore', 'arena', 'mode', 'token']
   },
-  'table-tennis': { maxPlayers: [2], allowMatchMeta: ['mode', 'token'] },
-  tennis: { maxPlayers: [2], allowMatchMeta: ['mode', 'token'] },
-  bowling: { maxPlayers: [2], allowMatchMeta: ['mode', 'token'] },
   backgammon: { maxPlayers: [2], allowMatchMeta: ['mode', 'token'] },
   murlanroyale: {
     maxPlayers: [2, 3, 4],
