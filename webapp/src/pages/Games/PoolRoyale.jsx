@@ -9334,7 +9334,7 @@ export function Table3D(
 
   const markingsGroup = new THREE.Group();
   const markingMat = new THREE.MeshBasicMaterial({
-    color: resolvedTableOptions?.tableModel?.useReferenceShowoodMapping ? 0xffffff : palette.markings,
+    color: 0xffffff,
     transparent: true,
     opacity: 1,
     side: THREE.DoubleSide,
@@ -9349,7 +9349,9 @@ export function Table3D(
       ? Math.max(0, resolvedTableOptions.tableModel.markingVisualLift)
       : 0;
   const markingHeight = clothPlaneLocal - CLOTH_DROP + MICRO_EPS * 2 + externalMarkingLift;
-  const lineThickness = Math.max(BALL_R * 0.1, 0.1);
+  // A bright, slightly raised head string remains readable on a phone even on
+  // pale cloth textures and externally loaded table models.
+  const lineThickness = Math.max(BALL_R * 0.16, 0.14);
   const baulkLineLength = PLAY_W - SIDE_RAIL_INNER_THICKNESS * 0.4;
   const baulkLineGeom = new THREE.PlaneGeometry(baulkLineLength, lineThickness);
   const baulkLine = new THREE.Mesh(baulkLineGeom, markingMat);
@@ -9357,6 +9359,8 @@ export function Table3D(
   baulkLine.position.set(0, markingHeight, baulkLineZ);
   baulkLine.userData.externalTableKeepVisible = true;
   baulkLine.userData.externalTableAlwaysKeepVisible = true;
+  baulkLine.visible = true;
+  baulkLine.renderOrder = cloth.renderOrder + 30;
   markingsGroup.add(baulkLine);
 
   const dArc = null;
@@ -32211,21 +32215,10 @@ const shotPowerRef = useRef(0);
             power: clampPower(plan.power, 0.6)
           });
           if (!ghostAim?.aimDir || ghostAim.aimDir.lengthSq() < 1e-6) return plan;
-          const compensatedAim = ghostAim.aimDir.clone().normalize();
-          const delta = baseAim.angleTo(compensatedAim);
-          const targetDistance = cue.pos.distanceTo(plan.targetBall.pos);
-          const distanceFactor = THREE.MathUtils.clamp(
-            targetDistance / Math.max(PLAY_W * 0.55, BALL_R * 10),
-            0,
-            1
-          );
-          const maxCompensationAngle = THREE.MathUtils.degToRad(4.5 + distanceFactor * 2.5);
-          const blend = THREE.MathUtils.clamp(
-            maxCompensationAngle > 0 ? maxCompensationAngle / Math.max(delta, 1e-6) : 1,
-            0,
-            1
-          );
-          const stableAim = baseAim.lerp(compensatedAim, blend).normalize();
+          // Do not angle-limit this correction. On a thin cut the true ghost-ball
+          // line can legitimately be far from a centre-ball fallback, and a
+          // partial blend no longer sends the object ball at the chosen pocket.
+          const stableAim = ghostAim.aimDir.clone().normalize();
           return {
             ...plan,
             aimDir: stableAim,
@@ -35758,6 +35751,14 @@ const shotPowerRef = useRef(0);
       onStart: () => {
         captureCueStickAnchor();
       },
+      onFeedback: ({ type, band }) => {
+        if (typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') return;
+        if (type === 'release') {
+          navigator.vibrate(band >= 3 ? [10, 18, 16] : 10);
+          return;
+        }
+        navigator.vibrate(band >= 4 ? 14 : 7);
+      },
       onCommit: (value) => {
         const committedPower = clampPower(value / 100, 0);
         shotPowerRef.current = committedPower;
@@ -37931,13 +37932,6 @@ const shotPowerRef = useRef(0);
             </div>
             {!isFreePractice && (
               <>
-                <div
-                  className={`flex items-center gap-2 ${usePortraitHudLayout ? 'text-sm' : 'text-base'} font-semibold`}
-                >
-                  <span className="text-amber-300">{hud.A}</span>
-                  <span className="text-white/50">-</span>
-                  <span>{hud.B}</span>
-                </div>
                 <div
                   className={`${opponentPanelClass} ${usePortraitHudLayout ? 'text-xs' : 'text-sm'}`}
                   style={opponentPanelStyle}

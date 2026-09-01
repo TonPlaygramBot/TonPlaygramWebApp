@@ -9,7 +9,6 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
-import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
 import {
@@ -24,7 +23,6 @@ import {
   FOUR_IN_ROW_RING_FINISH_OPTIONS,
   FOUR_IN_ROW_STONE_STYLES,
   FOUR_IN_ROW_TABLE_OPTIONS,
-  FOUR_IN_ROW_HUMAN_CHARACTER_OPTIONS,
   FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT,
   FOUR_IN_ROW_BOARD_LAYOUTS,
   FOUR_IN_ROW_BATTLE_OPTION_LABELS
@@ -35,7 +33,6 @@ import {
   POOL_ROYALE_HDRI_VARIANT_MAP
 } from '../../config/poolRoyaleInventoryConfig.js';
 import { MURLAN_TABLE_FINISHES } from '../../config/murlanTableFinishes.js';
-import { CHESS_HUMAN_CHARACTER_OPTIONS } from '../../config/chessBattleInventoryConfig.js';
 import {
   applyWoodTextures,
   DEFAULT_WOOD_GRAIN_ID,
@@ -155,21 +152,7 @@ const TARGET_CHAIR_SIZE = new THREE.Vector3(
   1.7001562547683715 * CHAIR_SCALE
 );
 
-const FOUR_IN_ROW_CHARACTER_PROPORTION_SCALE = 1.9;
-const FOUR_IN_ROW_CHARACTER_EXTRA_LOWER_OFFSET = 0.4;
-const FOUR_IN_ROW_CHARACTER_EXTRA_OUTWARD_OFFSET = 0.42;
-const FOUR_IN_ROW_CHARACTER_MODEL_CACHE = new Map();
-const FOUR_IN_ROW_DOMINO_HUMAN_OPTIONS = Object.freeze(
-  FOUR_IN_ROW_HUMAN_CHARACTER_OPTIONS.filter((option) => {
-    const urls = Array.isArray(option?.modelUrls) ? option.modelUrls : [option?.url];
-    return urls.filter(Boolean).length > 0;
-  })
-);
-const FOUR_IN_ROW_CHARACTER_ANIMATION_DURATION = 1.2;
-const FOUR_IN_ROW_CHARACTER_LOAD_TIMEOUT_MS = 8000;
 const FOUR_IN_ROW_CHAIR_LOAD_TIMEOUT_MS = 5000;
-const FOUR_IN_ROW_CHARACTER_CHIP_PICKUP_LIFT = 0.18 * MODEL_SCALE;
-const FOUR_IN_ROW_CHARACTER_CHIP_CARRY_LIFT = 0.32 * MODEL_SCALE;
 const FOUR_IN_ROW_MENU_TOP_CLASS = 'top-24';
 
 const GRAPHICS_PRESETS = Object.freeze([
@@ -596,42 +579,6 @@ function normalizeFourInRowPbrTexture(texture, maxAnisotropy = 1) {
   texture.needsUpdate = true;
 }
 
-function normalizeFourInRowHumanModelUrlCandidates(modelUrls = []) {
-  const next = [];
-  const seen = new Set();
-  const push = (value) => {
-    if (!value || typeof value !== 'string') return;
-    const normalized = value.trim();
-    if (!normalized || seen.has(normalized)) return;
-    seen.add(normalized);
-    next.push(normalized);
-  };
-  modelUrls.forEach((url) => {
-    push(url);
-    const normalizedUrl = `${url || ''}`.trim();
-    const lowerUrl = normalizedUrl.toLowerCase();
-    if (lowerUrl.endsWith('.glb')) {
-      push(normalizedUrl.replace(/\.glb(\?.*)?$/i, '.gltf$1'));
-    } else if (lowerUrl.endsWith('.gltf')) {
-      push(normalizedUrl.replace(/\.gltf(\?.*)?$/i, '.glb$1'));
-    }
-    if (lowerUrl.includes('/gltf/')) {
-      push(normalizedUrl.replace(/\/gltf\//i, '/glTF-Binary/'));
-      push(normalizedUrl.replace(/\/gltf\//i, '/glb/'));
-      push(normalizedUrl.replace(/\/gltf\//i, '/GLB/'));
-    }
-    const rawGithubMatch = url.match(
-      /^https?:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/([^/]+)\/(.+)$/
-    );
-    if (rawGithubMatch) {
-      const [, owner, repo, branch, path] = rawGithubMatch;
-      push(`https://cdn.jsdelivr.net/gh/${owner}/${repo}@${branch}/${path}`);
-      push(`https://cdn.statically.io/gh/${owner}/${repo}/${branch}/${path}`);
-    }
-  });
-  return next;
-}
-
 function applyFourInRowTextureQuality(texture, maxAnisotropy = 1) {
   if (!texture) return;
   texture.flipY = false;
@@ -654,273 +601,6 @@ function getFourInRowRenderableMeshBounds(object) {
   return hasMeshBounds ? box : null;
 }
 
-function createFourInRowSeatedHumanFallbackTexture(primary = '#cdb8a0', secondary = '#8a6a4e') {
-  const size = 256;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return new THREE.CanvasTexture(canvas);
-  const grad = ctx.createLinearGradient(0, 0, size, size);
-  grad.addColorStop(0, primary);
-  grad.addColorStop(1, secondary);
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, size, size);
-  for (let i = 0; i < 180; i += 1) {
-    const x = (i * 53) % size;
-    const y = (i * 79) % size;
-    const w = 8 + ((i * 11) % 22);
-    const h = 4 + ((i * 7) % 14);
-    ctx.globalAlpha = 0.09 + (i % 4) * 0.06;
-    ctx.fillStyle = i % 2 ? 'rgba(255,255,255,0.75)' : 'rgba(0,0,0,0.55)';
-    ctx.fillRect(x, y, w, h);
-  }
-  ctx.globalAlpha = 1;
-  const tex = new THREE.CanvasTexture(canvas);
-  applySRGBColorSpace(tex);
-  tex.flipY = false;
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  tex.anisotropy = 8;
-  tex.needsUpdate = true;
-  return tex;
-}
-
-const FOUR_IN_ROW_CHESS_DOMINO_CHARACTER_CLOTH_MATERIALS = Object.freeze({
-  denim: {
-    source: 'Poly Haven denim_fabric 1k glTF CC0',
-    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_diff_1k.jpg',
-    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_nor_gl_1k.jpg',
-    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_rough_1k.jpg',
-    tint: 0x314d86
-  },
-  check: {
-    source: 'Poly Haven gingham_check 1k glTF CC0',
-    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_diff_1k.jpg',
-    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_nor_gl_1k.jpg',
-    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_rough_1k.jpg',
-    tint: 0x9f3651
-  },
-  hessian: {
-    source: 'Poly Haven hessian_230 1k glTF CC0',
-    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_diff_1k.jpg',
-    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_nor_gl_1k.jpg',
-    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_rough_1k.jpg',
-    tint: 0xa27445
-  },
-  floral: {
-    source: 'Poly Haven floral_jacquard 1k glTF CC0',
-    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_diff_1k.jpg',
-    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_nor_gl_1k.jpg',
-    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_rough_1k.jpg',
-    tint: 0x6d3f7f
-  },
-  fleece: {
-    source: 'Poly Haven knitted_fleece 1k glTF CC0',
-    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_diff_1k.jpg',
-    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_nor_gl_1k.jpg',
-    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_rough_1k.jpg',
-    tint: 0x4b5563
-  },
-  picnic: {
-    source: 'Poly Haven fabric_pattern_07 1k glTF CC0',
-    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_col_1_1k.jpg',
-    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_nor_gl_1k.jpg',
-    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_rough_1k.jpg',
-    tint: 0xc44f42
-  }
-});
-
-const FOUR_IN_ROW_CHESS_DOMINO_CHARACTER_CLOTH_COMBOS = Object.freeze({
-  royalDenim: { upper: { material: 'denim', tint: 0x2f5f9f, repeat: 4.2 }, lower: { material: 'hessian', tint: 0x9b6b3f, repeat: 3.4 }, accent: { material: 'fleece', tint: 0xd8dee9, repeat: 5 } },
-  casinoCheck: { upper: { material: 'check', tint: 0xb7375d, repeat: 3.8 }, lower: { material: 'denim', tint: 0x243e70, repeat: 4.4 }, accent: { material: 'hessian', tint: 0xf4d7a1, repeat: 3.2 } },
-  linenStreet: { upper: { material: 'hessian', tint: 0xb68452, repeat: 3.6 }, lower: { material: 'fleece', tint: 0x374151, repeat: 5.2 }, accent: { material: 'denim', tint: 0x4a6fa4, repeat: 4 } },
-  jacquardNight: { upper: { material: 'floral', tint: 0x7c3f88, repeat: 3.2 }, lower: { material: 'denim', tint: 0x1f335f, repeat: 4.5 }, accent: { material: 'check', tint: 0xe3c16f, repeat: 4 } },
-  softFleece: { upper: { material: 'fleece', tint: 0x556070, repeat: 5.3 }, lower: { material: 'hessian', tint: 0x8b633f, repeat: 3.7 }, accent: { material: 'floral', tint: 0xb88ab8, repeat: 3 } },
-  patternedRed: { upper: { material: 'picnic', tint: 0xc44f42, repeat: 3.4 }, lower: { material: 'denim', tint: 0x263f73, repeat: 4.7 }, accent: { material: 'fleece', tint: 0xf1f5f9, repeat: 5 } },
-  mixedDenim: { upper: { material: 'denim', tint: 0x3b6ea8, repeat: 4 }, lower: { material: 'check', tint: 0x4f6f93, repeat: 4.2 }, accent: { material: 'hessian', tint: 0xd6a35f, repeat: 3.2 } }
-});
-
-const fourInRowChessDominoCharacterTextureCache = new Map();
-let fourInRowChessDominoCharacterTextureLoader = null;
-
-function loadFourInRowChessDominoCharacterTexture(url, { isColor = false, repeat = 4, maxAnisotropy = 1 } = {}) {
-  if (!url) return null;
-  const cacheKey = `${url}|${isColor ? 'color' : 'data'}|${repeat}`;
-  if (fourInRowChessDominoCharacterTextureCache.has(cacheKey)) return fourInRowChessDominoCharacterTextureCache.get(cacheKey);
-  if (!fourInRowChessDominoCharacterTextureLoader) {
-    fourInRowChessDominoCharacterTextureLoader = new THREE.TextureLoader();
-    fourInRowChessDominoCharacterTextureLoader.setCrossOrigin?.('anonymous');
-  }
-  const texture = fourInRowChessDominoCharacterTextureLoader.load(url, (loaded) => {
-    loaded.needsUpdate = true;
-  }, undefined, () => fourInRowChessDominoCharacterTextureCache.delete(cacheKey));
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(repeat, repeat);
-  normalizeFourInRowPbrTexture(texture, maxAnisotropy);
-  if (isColor) applySRGBColorSpace(texture);
-  texture.userData.chessDominoCanDispose = false;
-  fourInRowChessDominoCharacterTextureCache.set(cacheKey, texture);
-  return texture;
-}
-
-function isFourInRowChessHumanNearlyWhiteMaterial(mat) {
-  if (!mat?.color) return false;
-  return mat.color.r > 0.82 && mat.color.g > 0.82 && mat.color.b > 0.82 && !mat.map;
-}
-
-function isFourInRowChessHumanLowSaturationLightMaterial(mat) {
-  if (!mat?.color || mat.map) return false;
-  const max = Math.max(mat.color.r, mat.color.g, mat.color.b);
-  const min = Math.min(mat.color.r, mat.color.g, mat.color.b);
-  return max > 0.72 && max - min < 0.18;
-}
-
-function classifyFourInRowChessDominoHumanSurface(obj, mat) {
-  const name = `${obj?.name || ''} ${mat?.name || ''}`.toLowerCase();
-  if (/eye|iris|pupil|cornea|wolf3d_eyes/.test(name)) return 'eye';
-  if (/hair|brow|beard|mustache|moustache|lash|wolf3d_hair|wolf3d_beard|wolf3d_eyebrow/.test(name)) return 'hair';
-  if (/teeth|tooth|tongue|mouth|gum/.test(name)) return 'mouth';
-  if (/shoe|boot|sole|sneaker|footwear|wolf3d_outfit_footwear/.test(name)) return 'shoe';
-  if (/skin|head|face|neck|hand|finger|wolf3d_head|wolf3d_body|bodymesh/.test(name) && !/outfit|shirt|pants|trouser|shoe|sock|cloth|jacket|hood|dress|skirt|uniform|suit/.test(name)) return 'skin';
-  if (/shirt|top|torso|chest|jacket|hood|dress|skirt|sleeve|upper|outfit_top|wolf3d_outfit_top/.test(name)) return 'upperCloth';
-  if (/pants|trouser|jean|short|legging|bottom|outfit_bottom/.test(name)) return 'lowerCloth';
-  if (/earring|necklace|chain|ring|bracelet|watch|jewel|jewelry|pendant|metal/.test(name)) return 'jewelry';
-  if (/button|buttons|btn/.test(name)) return 'buttonAccent';
-  if (/tie|scarf|belt|strap|bag|hat|cap|glove|sock|accessory|accent/.test(name)) return 'accentCloth';
-  if (/cloth|clothing|uniform|outfit|suit/.test(name)) return 'upperCloth';
-  if (isFourInRowChessHumanNearlyWhiteMaterial(mat) && /torso|chest|spine|pelvis|hip|leg|arm|body|mesh/.test(name)) return 'upperCloth';
-  return 'other';
-}
-
-function resolveFourInRowChessDominoClothSlot(option, slot, seatIndex = 0) {
-  const combo = FOUR_IN_ROW_CHESS_DOMINO_CHARACTER_CLOTH_COMBOS[option?.dominoClothTheme] || FOUR_IN_ROW_CHESS_DOMINO_CHARACTER_CLOTH_COMBOS.royalDenim;
-  const slotConfig = combo?.[slot] || combo?.upper || { material: 'denim' };
-  const material = FOUR_IN_ROW_CHESS_DOMINO_CHARACTER_CLOTH_MATERIALS[slotConfig.material] || FOUR_IN_ROW_CHESS_DOMINO_CHARACTER_CLOTH_MATERIALS.denim;
-  const repeatBoost = seatIndex === 0 ? 0.75 : 0;
-  return {
-    ...material,
-    tint: slotConfig.tint ?? material.tint ?? 0xffffff,
-    repeat: (slotConfig.repeat ?? 3.5) + repeatBoost
-  };
-}
-
-function applyFourInRowChessDominoClothMaterial(mat, cloth, maxAnisotropy = 1) {
-  mat.map = loadFourInRowChessDominoCharacterTexture(cloth.color, { isColor: true, repeat: cloth.repeat, maxAnisotropy });
-  mat.normalMap = loadFourInRowChessDominoCharacterTexture(cloth.normal, { repeat: cloth.repeat, maxAnisotropy });
-  mat.roughnessMap = loadFourInRowChessDominoCharacterTexture(cloth.roughness, { repeat: cloth.repeat, maxAnisotropy });
-  mat.color = new THREE.Color(cloth.tint ?? 0xffffff);
-  mat.normalScale = new THREE.Vector2(0.28, 0.28);
-  mat.roughness = 0.86;
-  mat.metalness = 0.015;
-  mat.userData = { ...(mat.userData || {}), chessDominoCloth: cloth.source };
-}
-
-function enhanceFourInRowChessDominoCharacterMaterials(instance, option, maxAnisotropy = 1, seatIndex = 0, stylistSeed = 0) {
-  if (!option?.dominoClothTheme || !instance?.traverse) return;
-  const clothSlots = {
-    upperCloth: resolveFourInRowChessDominoClothSlot(option, 'upper', seatIndex),
-    lowerCloth: resolveFourInRowChessDominoClothSlot(option, 'lower', seatIndex),
-    accentCloth: resolveFourInRowChessDominoClothSlot(option, 'accent', seatIndex)
-  };
-  const skinColor = new THREE.Color(option?.skinTone ?? 0xd2a07c);
-  const hairColor = new THREE.Color(option?.hairColor ?? 0x21150f);
-  const eyeColor = new THREE.Color(option?.eyeColor ?? 0x3f5f75);
-  const jewelryColor = new THREE.Color(((seatIndex + stylistSeed) % 2 === 0) ? 0xd4af37 : 0xc0c0c0);
-
-  instance.traverse((obj) => {
-    if (!obj?.isMesh) return;
-    const sourceMaterials = Array.isArray(obj.material) ? obj.material : [obj.material];
-    const enhancedMaterials = sourceMaterials.map((sourceMat) => {
-      if (!sourceMat) return sourceMat;
-      const mat = sourceMat.clone ? sourceMat.clone() : new THREE.MeshStandardMaterial();
-      const surface = classifyFourInRowChessDominoHumanSurface(obj, mat);
-      if (clothSlots[surface]) {
-        applyFourInRowChessDominoClothMaterial(mat, clothSlots[surface], maxAnisotropy);
-      } else if (surface === 'hair') {
-        mat.map = null;
-        mat.color = hairColor.clone();
-        mat.roughness = 0.56;
-        mat.metalness = 0.02;
-        mat.envMapIntensity = 0.28;
-      } else if (surface === 'eye') {
-        mat.map = null;
-        mat.color = eyeColor.clone();
-        mat.roughness = 0.18;
-        mat.metalness = 0;
-        mat.envMapIntensity = 1.1;
-      } else if (surface === 'skin') {
-        if (isFourInRowChessHumanLowSaturationLightMaterial(mat)) mat.color = skinColor.clone();
-        mat.roughness = Math.min(mat.roughness ?? 0.62, 0.62);
-        mat.metalness = 0;
-      } else if (surface === 'shoe') {
-        if (isFourInRowChessHumanLowSaturationLightMaterial(mat)) mat.color = new THREE.Color(0x111827);
-        mat.roughness = 0.78;
-        mat.metalness = 0.02;
-      } else if (surface === 'buttonAccent') {
-        mat.map = null;
-        mat.color = new THREE.Color(0xe2e8f0);
-        mat.roughness = 0.22;
-        mat.metalness = 0.82;
-        mat.envMapIntensity = 0.9;
-      } else if (surface === 'jewelry') {
-        mat.map = null;
-        mat.color = jewelryColor.clone();
-        mat.roughness = 0.2;
-        mat.metalness = 0.95;
-        mat.envMapIntensity = 1.2;
-      } else if (surface === 'mouth') {
-        if (isFourInRowChessHumanNearlyWhiteMaterial(mat)) mat.color = new THREE.Color(0xf8fafc);
-        mat.roughness = 0.32;
-        mat.metalness = 0;
-      } else if (isFourInRowChessHumanNearlyWhiteMaterial(mat)) {
-        mat.color = skinColor.clone();
-        mat.roughness = 0.58;
-        mat.metalness = 0;
-      }
-      if (mat.map) applyFourInRowTextureQuality(mat.map, maxAnisotropy);
-      if (mat.normalMap) applyFourInRowTextureQuality(mat.normalMap, maxAnisotropy);
-      if (mat.roughnessMap) applyFourInRowTextureQuality(mat.roughnessMap, maxAnisotropy);
-      mat.needsUpdate = true;
-      return mat;
-    });
-    obj.material = Array.isArray(obj.material) ? enhancedMaterials : enhancedMaterials[0];
-  });
-}
-
-function normalizeFourInRowSeatedHumanRootToChair(root) {
-  const box = getFourInRowRenderableMeshBounds(root);
-  if (!box) return;
-  const centerX = (box.min.x + box.max.x) * 0.5;
-  const centerZ = (box.min.z + box.max.z) * 0.5;
-  root.position.x -= centerX;
-  root.position.z -= centerZ;
-  root.position.y -= box.min.y;
-  root.updateMatrixWorld(true);
-}
-
-function loadFourInRowCharacterModelOrFallback(option, renderer, label, seatIndex = 0, stylistSeed = 0) {
-  let timeoutId = null;
-  const timeoutPromise = new Promise((resolve) => {
-    timeoutId = window.setTimeout(() => {
-      console.warn(`Four in Row ${label} human load timed out; using fallback seated character.`, option?.id);
-      resolve(null);
-    }, FOUR_IN_ROW_CHARACTER_LOAD_TIMEOUT_MS);
-  });
-  return Promise.race([
-    loadFourInRowCharacterModel(option, renderer, 1, seatIndex, stylistSeed),
-    timeoutPromise
-  ])
-    .catch((error) => {
-      console.warn(`Four in Row ${label} human failed to load.`, option?.id, error);
-      return null;
-    })
-    .finally(() => {
-      if (timeoutId !== null) window.clearTimeout(timeoutId);
-    });
-}
-
 function createFourInRowChairModelOrFallback(chairTheme, renderer) {
   let timeoutId = null;
   const timeoutPromise = new Promise((resolve) => {
@@ -935,322 +615,6 @@ function createFourInRowChairModelOrFallback(chairTheme, renderer) {
   ]).finally(() => {
     if (timeoutId !== null) window.clearTimeout(timeoutId);
   });
-}
-
-async function loadFourInRowCharacterModel(
-  option,
-  renderer = null,
-  maxAnisotropy = 1,
-  seatIndex = 0,
-  stylistSeed = 0
-) {
-  const fallbackOption = FOUR_IN_ROW_DOMINO_HUMAN_OPTIONS[0] || CHESS_HUMAN_CHARACTER_OPTIONS[0] || {};
-  const selectedOption = option || fallbackOption;
-  const modelUrls = Array.isArray(selectedOption?.modelUrls)
-    ? selectedOption.modelUrls.filter(Boolean)
-    : [selectedOption?.url].filter(Boolean);
-  const candidateUrls = modelUrls.length
-    ? normalizeFourInRowHumanModelUrlCandidates(modelUrls)
-    : normalizeFourInRowHumanModelUrlCandidates(fallbackOption.modelUrls || []);
-  if (!candidateUrls.length) throw new Error('Missing Domino Battle Royal human model URL');
-  const cacheKey = `${selectedOption.id || fallbackOption.id || candidateUrls[0]}::${candidateUrls.join('|')}`;
-  if (FOUR_IN_ROW_CHARACTER_MODEL_CACHE.has(cacheKey)) {
-    return FOUR_IN_ROW_CHARACTER_MODEL_CACHE.get(cacheKey);
-  }
-  const promise = (async () => {
-    const loader = createConfiguredGLTFLoader(renderer);
-    loader.setCrossOrigin?.('anonymous');
-    let gltf = null;
-    let lastError = null;
-    for (const url of candidateUrls) {
-      try {
-        // eslint-disable-next-line no-await-in-loop
-        gltf = await loader.loadAsync(url);
-        if (gltf) break;
-      } catch (error) {
-        lastError = error;
-      }
-    }
-    if (!gltf) throw lastError || new Error(`Character load failed for ${selectedOption.id || 'unknown'}`);
-    const root = gltf.scene || gltf.scenes?.[0];
-    if (!root) throw new Error(`Character scene missing for ${selectedOption.id || 'unknown'}`);
-    normalizeFourInRowSeatedHumanRootToChair(root);
-    preserveOriginalGltfTextureMapping(root);
-    const skinTex = createFourInRowSeatedHumanFallbackTexture('#d8c0a6', '#b48d6b');
-    const clothTex = createFourInRowSeatedHumanFallbackTexture('#55739a', '#2c3f54');
-    const hairTex = createFourInRowSeatedHumanFallbackTexture('#7b5d3f', '#3f2f20');
-    [skinTex, clothTex, hairTex].forEach((texture) => applyFourInRowTextureQuality(texture, maxAnisotropy));
-    root.traverse((obj) => {
-      if (!obj?.isMesh) return;
-      obj.castShadow = true;
-      obj.receiveShadow = true;
-      obj.frustumCulled = false;
-      const meshName = `${obj.name || ''}`.toLowerCase();
-      const useSkin = /head|face|neck|ear|hand/.test(meshName);
-      const useHair = /hair|beard|mustache|moustache|eyebrow/.test(meshName);
-      const fallbackTex = useHair ? hairTex : useSkin ? skinTex : clothTex;
-      const mats = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
-      const hasOriginalTexture = mats.some((mat) =>
-        Boolean(mat?.map || mat?.emissiveMap || mat?.normalMap || mat?.roughnessMap || mat?.metalnessMap)
-      );
-      mats.forEach((mat) => {
-        const needsFallbackMap = !hasOriginalTexture && !mat?.map;
-        if (needsFallbackMap) mat.map = fallbackTex;
-        if (needsFallbackMap && mat?.color?.setHex) mat.color.setHex(0xffffff);
-        if (mat?.map) {
-          applySRGBColorSpace(mat.map);
-          applyFourInRowTextureQuality(mat.map, maxAnisotropy);
-        }
-        if (mat?.emissiveMap) {
-          applySRGBColorSpace(mat.emissiveMap);
-          applyFourInRowTextureQuality(mat.emissiveMap, maxAnisotropy);
-        }
-        if (mat?.normalMap) applyFourInRowTextureQuality(mat.normalMap, maxAnisotropy);
-        if (mat?.roughnessMap) applyFourInRowTextureQuality(mat.roughnessMap, maxAnisotropy);
-        if (mat?.metalnessMap) applyFourInRowTextureQuality(mat.metalnessMap, maxAnisotropy);
-        mat.needsUpdate = true;
-      });
-    });
-    enhanceFourInRowChessDominoCharacterMaterials(
-      root,
-      selectedOption,
-      maxAnisotropy,
-      seatIndex,
-      stylistSeed
-    );
-    const adapter = selectedOption?.seatedAdapter || {};
-    root.userData = {
-      ...(root.userData || {}),
-      seatedScaleMultiplier: Number.isFinite(adapter.seatedScaleMultiplier) ? adapter.seatedScaleMultiplier : 1,
-      seatedYawOffset: Number.isFinite(adapter.seatedYawOffset) ? adapter.seatedYawOffset : 0,
-      seatedYOffset: Number.isFinite(adapter.seatedYOffset) ? adapter.seatedYOffset : 0,
-      seatedZOffset: Number.isFinite(adapter.seatedZOffset) ? adapter.seatedZOffset : 0
-    };
-    return root;
-  })();
-  FOUR_IN_ROW_CHARACTER_MODEL_CACHE.set(cacheKey, promise);
-  promise.catch(() => FOUR_IN_ROW_CHARACTER_MODEL_CACHE.delete(cacheKey));
-  return promise;
-}
-
-function normalizeFourInRowCharacterPivot(characterRoot) {
-  if (!characterRoot) return;
-  const bounds = new THREE.Box3().setFromObject(characterRoot);
-  if (bounds.isEmpty()) return;
-  characterRoot.position.y -= bounds.min.y;
-}
-
-function findFourInRowBone(root, hints = []) {
-  if (!root || !hints.length) return null;
-  let matched = null;
-  root.traverse((obj) => {
-    if (matched || !obj?.isBone) return;
-    const name = String(obj.name || '').toLowerCase();
-    if (hints.some((hint) => name.includes(hint))) matched = obj;
-  });
-  return matched;
-}
-
-function captureFourInRowBoneRotation(bone) {
-  return bone ? bone.rotation.clone() : new THREE.Euler();
-}
-
-function addFourInRowBoneRotation(bone, x = 0, y = 0, z = 0) {
-  if (!bone) return;
-  bone.rotation.x += x;
-  bone.rotation.y += y;
-  bone.rotation.z += z;
-}
-
-function makeFourInRowPoseVariant(basePose, overrides = {}) {
-  const out = { ...basePose };
-  Object.entries(overrides).forEach(([key, delta]) => {
-    const base = basePose?.[key];
-    if (!base) return;
-    out[key] = new THREE.Euler(
-      base.x + (delta.x || 0),
-      base.y + (delta.y || 0),
-      base.z + (delta.z || 0)
-    );
-  });
-  return out;
-}
-
-function lerpFourInRowBone(bone, from, to, t) {
-  if (!bone || !from || !to) return;
-  bone.rotation.x = THREE.MathUtils.lerp(from.x, to.x, t);
-  bone.rotation.y = THREE.MathUtils.lerp(from.y, to.y, t);
-  bone.rotation.z = THREE.MathUtils.lerp(from.z, to.z, t);
-}
-
-function applyFourInRowRigPose(rig, targetPose, alpha = 1) {
-  if (!rig || !targetPose) return;
-  const seated = rig.seatedPose || {};
-  Object.entries(rig.bones || {}).forEach(([key, bone]) => {
-    const from = seated[key] || rig.defaults?.[key];
-    const to = targetPose[key] || seated[key] || from;
-    lerpFourInRowBone(bone, from, to, alpha);
-  });
-}
-
-function createFourInRowCharacterRig(instance, seatRoot, seatConfig, isHumanSeat = false) {
-  const bones = {
-    hips: findFourInRowBone(instance, ['hips', 'pelvis', 'pelvisjoint', 'hip_joint']),
-    spine: findFourInRowBone(instance, ['spine', 'chest', 'torso']),
-    head: findFourInRowBone(instance, ['head', 'neck', 'headjoint', 'head_joint']),
-    rightUpperArm: findFourInRowBone(instance, ['rightarm', 'arm.r', 'r_upperarm', 'rightshoulder', 'armjointr', 'arm_joint_r_1', 'arm_joint_r', 'shoulderr']),
-    rightForeArm: findFourInRowBone(instance, ['rightforearm', 'r_forearm', 'rightlowerarm', 'forearmr', 'elbowr', 'arm_joint_r_2', 'arm_joint_r_3']),
-    rightHand: findFourInRowBone(instance, ['righthand', 'hand.r', 'r_hand', 'handjointr', 'hand_joint_r']),
-    rightIndexFinger: findFourInRowBone(instance, ['rightindex', 'index.r', 'index_01_r', 'r_index']),
-    rightThumbFinger: findFourInRowBone(instance, ['rightthumb', 'thumb.r', 'thumb_01_r', 'r_thumb']),
-    rightMiddleFinger: findFourInRowBone(instance, ['rightmiddle', 'middle.r', 'middle_01_r', 'r_middle']),
-    leftUpperArm: findFourInRowBone(instance, ['leftarm', 'arm.l', 'l_upperarm', 'leftshoulder', 'armjointl', 'arm_joint_l_1', 'arm_joint_l', 'shoulderl']),
-    leftForeArm: findFourInRowBone(instance, ['leftforearm', 'l_forearm', 'leftlowerarm', 'forearml', 'elbowl', 'arm_joint_l_2', 'arm_joint_l_3']),
-    leftHand: findFourInRowBone(instance, ['lefthand', 'hand.l', 'l_hand', 'handjointl', 'hand_joint_l']),
-    leftThigh: findFourInRowBone(instance, ['leftupleg', 'leftthigh', 'l_thigh', 'legjointl1', 'leg_joint_l_1', 'leg_joint_l']),
-    leftCalf: findFourInRowBone(instance, ['leftleg', 'leftcalf', 'l_calf', 'legjointl2', 'leg_joint_l_2', 'leg_joint_l_3']),
-    rightThigh: findFourInRowBone(instance, ['rightupleg', 'rightthigh', 'r_thigh', 'legjointr1', 'leg_joint_r_1', 'leg_joint_r']),
-    rightCalf: findFourInRowBone(instance, ['rightleg', 'rightcalf', 'r_calf', 'legjointr2', 'leg_joint_r_2', 'leg_joint_r_3'])
-  };
-  const defaults = Object.fromEntries(
-    Object.entries(bones).map(([key, bone]) => [key, captureFourInRowBoneRotation(bone)])
-  );
-
-  instance.position.y -= 0.09 * MODEL_SCALE;
-  addFourInRowBoneRotation(bones.hips, THREE.MathUtils.degToRad(-9), 0, 0);
-  addFourInRowBoneRotation(bones.spine, THREE.MathUtils.degToRad(-3), 0, 0);
-  addFourInRowBoneRotation(bones.head, THREE.MathUtils.degToRad(2), 0, 0);
-  addFourInRowBoneRotation(bones.leftUpperArm, THREE.MathUtils.degToRad(-44), THREE.MathUtils.degToRad(-11), THREE.MathUtils.degToRad(-8));
-  addFourInRowBoneRotation(bones.leftForeArm, THREE.MathUtils.degToRad(62), THREE.MathUtils.degToRad(-7), THREE.MathUtils.degToRad(-7));
-  addFourInRowBoneRotation(bones.leftHand, THREE.MathUtils.degToRad(22), THREE.MathUtils.degToRad(-10), THREE.MathUtils.degToRad(-9));
-  addFourInRowBoneRotation(bones.rightUpperArm, THREE.MathUtils.degToRad(-46), THREE.MathUtils.degToRad(11), THREE.MathUtils.degToRad(8));
-  addFourInRowBoneRotation(bones.rightForeArm, THREE.MathUtils.degToRad(62), THREE.MathUtils.degToRad(7), THREE.MathUtils.degToRad(7));
-  addFourInRowBoneRotation(bones.rightHand, THREE.MathUtils.degToRad(24), THREE.MathUtils.degToRad(10), THREE.MathUtils.degToRad(9));
-  addFourInRowBoneRotation(bones.rightIndexFinger, THREE.MathUtils.degToRad(18), THREE.MathUtils.degToRad(-3), THREE.MathUtils.degToRad(-2));
-  addFourInRowBoneRotation(bones.rightThumbFinger, THREE.MathUtils.degToRad(-12), THREE.MathUtils.degToRad(4), THREE.MathUtils.degToRad(9));
-  addFourInRowBoneRotation(bones.rightMiddleFinger, THREE.MathUtils.degToRad(16), THREE.MathUtils.degToRad(-2), THREE.MathUtils.degToRad(-1));
-  if (isHumanSeat) {
-    addFourInRowBoneRotation(bones.rightUpperArm, THREE.MathUtils.degToRad(-8), THREE.MathUtils.degToRad(2), THREE.MathUtils.degToRad(-2));
-    addFourInRowBoneRotation(bones.rightForeArm, THREE.MathUtils.degToRad(-14), THREE.MathUtils.degToRad(-2), THREE.MathUtils.degToRad(-2));
-    addFourInRowBoneRotation(bones.rightHand, THREE.MathUtils.degToRad(-4), THREE.MathUtils.degToRad(-2), THREE.MathUtils.degToRad(-2));
-  }
-  addFourInRowBoneRotation(bones.leftThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(9.2), THREE.MathUtils.degToRad(2.9));
-  addFourInRowBoneRotation(bones.rightThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(1.7), THREE.MathUtils.degToRad(-1.1));
-  addFourInRowBoneRotation(bones.leftCalf, THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(1.1), THREE.MathUtils.degToRad(0.6));
-  addFourInRowBoneRotation(bones.rightCalf, THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(-1.1), THREE.MathUtils.degToRad(-0.6));
-
-  const seatedPose = Object.fromEntries(
-    Object.entries(bones).map(([key, bone]) => [key, captureFourInRowBoneRotation(bone)])
-  );
-  return { seatRoot, seatConfig, bones, defaults, seatedPose, activeAction: null };
-}
-
-function attachFourInRowSeatedCharacter({ template, chair, theme, isHumanSeat = false }) {
-  if (!template || !chair) return null;
-  const instance = cloneSkeleton(template);
-  preserveOriginalGltfTextureMapping(instance);
-  instance.traverse((obj) => {
-    if (!obj?.isMesh) return;
-    obj.castShadow = true;
-    obj.receiveShadow = true;
-  });
-  normalizeFourInRowCharacterPivot(instance);
-
-  const seatRoot = new THREE.Group();
-  const bounds = getFourInRowRenderableMeshBounds(instance) || new THREE.Box3().setFromObject(instance);
-  const measuredHeight = Math.max(0.01, bounds.max.y - bounds.min.y);
-  const targetHeight = Math.max(TARGET_CHAIR_SIZE.y * 1.16, 0.01);
-  const adapterScale = instance.userData?.seatedScaleMultiplier ?? 1;
-  const seatScale = (targetHeight / measuredHeight) * adapterScale * FOUR_IN_ROW_CHARACTER_PROPORTION_SCALE;
-  const scaleDelta = Math.max(0, FOUR_IN_ROW_CHARACTER_PROPORTION_SCALE - 1);
-  seatRoot.scale.multiplyScalar(seatScale);
-  const adapterYOffset = instance.userData?.seatedYOffset ?? 0;
-  const adapterZOffset = instance.userData?.seatedZOffset ?? 0;
-  seatRoot.position.set(
-    0,
-    -0.42 - scaleDelta * 0.08 - FOUR_IN_ROW_CHARACTER_EXTRA_LOWER_OFFSET + adapterYOffset,
-    0.5 - 0.03 - FOUR_IN_ROW_CHARACTER_EXTRA_OUTWARD_OFFSET + adapterZOffset
-  );
-  seatRoot.rotation.set(0, instance.userData?.seatedYawOffset ?? 0, 0);
-  seatRoot.add(instance);
-  chair.add(seatRoot);
-  return createFourInRowCharacterRig(instance, seatRoot, { chair }, isHumanSeat);
-}
-
-function createFourInRowFallbackSeatedHuman(theme, isHumanSeat = false) {
-  const root = new THREE.Group();
-  const skin = new THREE.MeshStandardMaterial({
-    color: theme?.skinTone || (isHumanSeat ? 0xd9a27d : 0xc78f68),
-    roughness: 0.72,
-    metalness: 0.02
-  });
-  const cloth = new THREE.MeshStandardMaterial({
-    color: theme?.thumbnail ? 0x2f6f8a : isHumanSeat ? 0x2f6f8a : 0x7c3f88,
-    roughness: 0.78,
-    metalness: 0.03
-  });
-  const pants = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.8 });
-  const hair = new THREE.MeshStandardMaterial({ color: theme?.hairColor || 0x24150f, roughness: 0.7 });
-
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, 0.34, 8, 18), cloth);
-  torso.position.set(0, 0.7, 0.02);
-  torso.rotation.x = THREE.MathUtils.degToRad(-7);
-
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.15, 24, 18), skin);
-  head.position.set(0, 1.13, 0.02);
-  const hairCap = new THREE.Mesh(new THREE.SphereGeometry(0.154, 24, 10, 0, Math.PI * 2, 0, Math.PI * 0.52), hair);
-  hairCap.position.set(0, 1.17, 0.02);
-
-  const armGeo = new THREE.CapsuleGeometry(0.045, 0.34, 8, 12);
-  const leftArm = new THREE.Mesh(armGeo, cloth);
-  leftArm.position.set(-0.19, 0.66, 0.14);
-  leftArm.rotation.set(THREE.MathUtils.degToRad(63), 0, THREE.MathUtils.degToRad(-18));
-  const rightArm = leftArm.clone();
-  rightArm.position.x = 0.19;
-  rightArm.rotation.z = THREE.MathUtils.degToRad(18);
-  const handGeo = new THREE.SphereGeometry(0.055, 14, 10);
-  const leftHand = new THREE.Mesh(handGeo, skin);
-  leftHand.position.set(-0.25, 0.48, 0.31);
-  const rightHand = leftHand.clone();
-  rightHand.position.x = 0.25;
-
-  const legGeo = new THREE.CapsuleGeometry(0.058, 0.48, 8, 12);
-  const leftLeg = new THREE.Mesh(legGeo, pants);
-  leftLeg.position.set(-0.09, 0.28, 0.26);
-  leftLeg.rotation.x = THREE.MathUtils.degToRad(86);
-  const rightLeg = leftLeg.clone();
-  rightLeg.position.x = 0.09;
-
-  root.add(torso, head, hairCap, leftArm, rightArm, leftHand, rightHand, leftLeg, rightLeg);
-  root.traverse((obj) => {
-    if (!obj?.isMesh) return;
-    obj.castShadow = true;
-    obj.receiveShadow = true;
-  });
-  root.userData.fallbackRightHand = rightHand;
-  return root;
-}
-
-function attachFourInRowFallbackSeatedCharacter({ chair, theme, isHumanSeat = false }) {
-  if (!chair) return null;
-  const seatRoot = new THREE.Group();
-  const character = createFourInRowFallbackSeatedHuman(theme, isHumanSeat);
-  const scaleDelta = Math.max(0, FOUR_IN_ROW_CHARACTER_PROPORTION_SCALE - 1);
-  seatRoot.scale.setScalar(TARGET_CHAIR_SIZE.y * 0.52);
-  seatRoot.position.set(
-    0,
-    -0.42 - scaleDelta * 0.08 - FOUR_IN_ROW_CHARACTER_EXTRA_LOWER_OFFSET,
-    0.5 - 0.03 - FOUR_IN_ROW_CHARACTER_EXTRA_OUTWARD_OFFSET
-  );
-  seatRoot.add(character);
-  chair.add(seatRoot);
-  return {
-    seatRoot,
-    bones: { rightHand: character.userData.fallbackRightHand },
-    defaults: {},
-    seatedPose: {},
-    activeAction: null
-  };
 }
 
 function tintChairModel(model, chairTheme) {
@@ -1505,6 +869,12 @@ const getArenaYOffsetForHdri = (hdriId) => {
   return -groundedHeight;
 };
 
+const vibrate = (pattern) => {
+  if (typeof navigator !== 'undefined' && navigator.vibrate) {
+    navigator.vibrate(pattern);
+  }
+};
+
 export default function FourInRowRoyal() {
   useTelegramBackButton();
   const mountRef = useRef(null);
@@ -1546,8 +916,6 @@ export default function FourInRowRoyal() {
   );
   const tablePartsRef = useRef(null);
   const chairMeshesRef = useRef([]);
-  const characterRigsRef = useRef(new Map());
-  const characterChipActionsRef = useRef([]);
   const boardMaterialsRef = useRef({
     boardFaceMat: null,
     railMat: null,
@@ -1628,14 +996,6 @@ export default function FourInRowRoyal() {
       inventory.environmentHdri?.[0] ||
       FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT.environmentHdri?.[0] ||
       POOL_ROYALE_DEFAULT_HDRI_ID,
-    humanCharacter:
-      FOUR_IN_ROW_HUMAN_CHARACTER_OPTIONS.some(
-        (option) => option.id === params.get('humanCharacter')
-      )
-        ? params.get('humanCharacter')
-        : inventory.humanCharacter?.[0] ||
-          FOUR_IN_ROW_BATTLE_DEFAULT_LOADOUT.humanCharacter?.[0] ||
-          FOUR_IN_ROW_HUMAN_CHARACTER_OPTIONS[0]?.id,
     graphics: GRAPHICS_PRESETS[1]?.id || GRAPHICS_PRESETS[0].id
   }));
 
@@ -1712,14 +1072,12 @@ export default function FourInRowRoyal() {
     winningCellsRef.current = winningCells;
   }, [winningCells]);
   const [configOpen, setConfigOpen] = useState(false);
-  const [characterSeed, setCharacterSeed] = useState(() => Math.floor(Math.random() * 1_000_000));
 
   const resetMatch = () => {
     setBoard(createBoard(rows, cols));
     setTurn('player');
     setWinner(null);
     setWinningCells([]);
-    setCharacterSeed((seed) => seed + 1);
   };
 
   const worldFromCell = (r, c) => [
@@ -1869,105 +1227,6 @@ export default function FourInRowRoyal() {
     return tokenMesh;
   };
 
-  const triggerCharacterChipAction = (token, columnTop) => {
-    const rig = characterRigsRef.current.get(token === 'player' ? 'front' : 'back');
-    const scene = sceneRef.current;
-    if (!rig || !scene || !columnTop) return null;
-
-    const heldChip = createTokenMesh(token);
-    heldChip.scale.setScalar(0.9);
-    scene.add(heldChip);
-
-    const handWorld = new THREE.Vector3();
-    if (rig.bones?.rightHand) {
-      rig.bones.rightHand.getWorldPosition(handWorld);
-    } else {
-      rig.seatRoot.getWorldPosition(handWorld);
-      handWorld.y += 0.34 * MODEL_SCALE;
-    }
-    const forward = token === 'player' ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 0, -1);
-    const lateral = token === 'player' ? -0.22 : 0.22;
-    const pickup = new THREE.Vector3(
-      lateral * BOARD_AND_CHIPS_SCALE,
-      TABLE_HEIGHT + 0.08 * BOARD_AND_CHIPS_SCALE,
-      forward.z * (TABLE_RADIUS * 0.58)
-    );
-    const pickupHover = pickup.clone().add(new THREE.Vector3(0, FOUR_IN_ROW_CHARACTER_CHIP_PICKUP_LIFT, 0));
-    const release = columnTop.clone();
-    release.y += 0.055 * BOARD_AND_CHIPS_SCALE;
-    release.z += forward.z * CHIP_FLICK_FORWARD_OVERSHOOT;
-    const carry = pickupHover.clone().lerp(release, 0.54);
-    carry.y += FOUR_IN_ROW_CHARACTER_CHIP_CARRY_LIFT;
-    const flickApex = release.clone().lerp(columnTop, 0.44);
-    flickApex.y += CHIP_FLICK_ARC_LIFT;
-    flickApex.z += forward.z * CHIP_FLICK_FORWARD_OVERSHOOT * 0.35;
-
-    const basePose = rig.seatedPose;
-    const pinchFingers = {
-      rightIndexFinger: { x: THREE.MathUtils.degToRad(18), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-1) },
-      rightThumbFinger: { x: THREE.MathUtils.degToRad(8), y: THREE.MathUtils.degToRad(4), z: THREE.MathUtils.degToRad(-4) },
-      rightMiddleFinger: { x: THREE.MathUtils.degToRad(15), y: THREE.MathUtils.degToRad(-1), z: THREE.MathUtils.degToRad(-1) }
-    };
-    const releaseFingers = {
-      rightIndexFinger: { x: THREE.MathUtils.degToRad(-5), y: THREE.MathUtils.degToRad(2) },
-      rightThumbFinger: { x: THREE.MathUtils.degToRad(8), z: THREE.MathUtils.degToRad(-6) },
-      rightMiddleFinger: { x: THREE.MathUtils.degToRad(-4), y: THREE.MathUtils.degToRad(1) }
-    };
-    const reachPose = makeFourInRowPoseVariant(basePose, {
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-20), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-14) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(-24), y: THREE.MathUtils.degToRad(-1) },
-      rightHand: { x: THREE.MathUtils.degToRad(-14), y: THREE.MathUtils.degToRad(-5), z: THREE.MathUtils.degToRad(-1) },
-      ...pinchFingers
-    });
-    const carryPose = makeFourInRowPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(4), z: THREE.MathUtils.degToRad(token === 'player' ? -2 : 2) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-18), y: THREE.MathUtils.degToRad(-22), z: THREE.MathUtils.degToRad(-16) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(-18), y: THREE.MathUtils.degToRad(-2) },
-      rightHand: { x: THREE.MathUtils.degToRad(-18), y: THREE.MathUtils.degToRad(-7), z: THREE.MathUtils.degToRad(-3) },
-      ...pinchFingers
-    });
-    const flickWindupPose = makeFourInRowPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(5) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-21), y: THREE.MathUtils.degToRad(-20), z: THREE.MathUtils.degToRad(-15) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(-30), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-1) },
-      rightHand: { x: THREE.MathUtils.degToRad(-22), y: THREE.MathUtils.degToRad(-8), z: THREE.MathUtils.degToRad(-3) },
-      ...pinchFingers
-    });
-    const releasePose = makeFourInRowPoseVariant(basePose, {
-      spine: { x: THREE.MathUtils.degToRad(7) },
-      rightUpperArm: { x: THREE.MathUtils.degToRad(-20), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-14) },
-      rightForeArm: { x: THREE.MathUtils.degToRad(-24), y: THREE.MathUtils.degToRad(-1) },
-      rightHand: { x: THREE.MathUtils.degToRad(-14), y: THREE.MathUtils.degToRad(-5), z: THREE.MathUtils.degToRad(-1) },
-      ...releaseFingers
-    });
-
-    characterChipActionsRef.current.push({
-      rig,
-      heldChip,
-      elapsed: 0,
-      duration: FOUR_IN_ROW_CHARACTER_ANIMATION_DURATION,
-      releaseAt: CHIP_FLICK_RELEASE_RATIO,
-      handWorld,
-      pickup,
-      pickupHover,
-      carry,
-      release,
-      reachPose,
-      carryPose,
-      flickWindupPose,
-      releasePose,
-      released: false
-    });
-
-    return {
-      launchDelay: FOUR_IN_ROW_CHARACTER_ANIMATION_DURATION * CHIP_FLICK_RELEASE_RATIO,
-      release: release.clone(),
-      flickApex,
-      columnTop: columnTop.clone(),
-      airDuration: CHIP_FLICK_AIR_DURATION
-    };
-  };
-
   const renderPieces = (boardState) => {
     const group = piecesGroupRef.current;
     if (!group) return;
@@ -2028,65 +1287,27 @@ export default function FourInRowRoyal() {
     });
   };
 
-  const rebuildChairsAndCharacters = (chairId, humanCharacterId) => {
+  const rebuildChairs = (chairId) => {
     const renderer = rendererRef.current;
     if (!renderer || !chairMeshesRef.current.length) return;
     const buildId = (chairBuildIdRef.current += 1);
-    characterChipActionsRef.current.forEach((action) => {
-      if (action.heldChip?.parent) action.heldChip.parent.remove(action.heldChip);
-    });
-    characterChipActionsRef.current = [];
-    characterRigsRef.current.clear();
-
     const chairTheme =
       FOUR_IN_ROW_CHAIR_OPTIONS.find((item) => item.id === chairId) ||
       FOUR_IN_ROW_CHAIR_OPTIONS[0];
-    const humanOptions = FOUR_IN_ROW_DOMINO_HUMAN_OPTIONS.length
-      ? FOUR_IN_ROW_DOMINO_HUMAN_OPTIONS
-      : CHESS_HUMAN_CHARACTER_OPTIONS;
-    const playerHumanOption =
-      humanOptions.find((option) => option.id === humanCharacterId) ||
-      humanOptions[0] ||
-      CHESS_HUMAN_CHARACTER_OPTIONS[0];
-    const aiHumanPool = humanOptions.filter((option) => option.id !== playerHumanOption?.id);
-    const aiHumanOption =
-      aiHumanPool[(Math.abs(characterSeed) + 1) % Math.max(aiHumanPool.length, 1)] ||
-      humanOptions[1] ||
-      playerHumanOption;
 
-    Promise.all([
-      createFourInRowChairModelOrFallback(chairTheme, renderer),
-      loadFourInRowCharacterModelOrFallback(playerHumanOption, renderer, 'player', 0, characterSeed),
-      loadFourInRowCharacterModelOrFallback(aiHumanOption, renderer, 'opponent', 1, characterSeed)
-    ]).then(([chairTemplate, playerTemplate, aiTemplate]) => {
-      if (chairBuildIdRef.current !== buildId || !arenaRootRef.current) return;
-      characterRigsRef.current.clear();
-      chairMeshesRef.current.forEach((chair) => {
-        chair.clear();
-        chair.userData.seatColor = chairTheme.primary;
-        chair.userData.legColor = chairTheme.legColor;
-        chair.add(chairTemplate.clone(true));
-        const seatId = chair.userData?.seatId || 'front';
-        const isPlayerSeat = chair.userData?.seatRole === 'player';
-        const option = isPlayerSeat ? playerHumanOption : aiHumanOption;
-        const template = isPlayerSeat ? playerTemplate : aiTemplate;
-        const rig = template
-          ? attachFourInRowSeatedCharacter({
-              template,
-              chair,
-              theme: option,
-              isHumanSeat: isPlayerSeat
-            })
-          : attachFourInRowFallbackSeatedCharacter({
-              chair,
-              theme: option,
-              isHumanSeat: isPlayerSeat
-            });
-        if (rig) characterRigsRef.current.set(seatId, rig);
+    createFourInRowChairModelOrFallback(chairTheme, renderer)
+      .then((chairTemplate) => {
+        if (chairBuildIdRef.current !== buildId || !arenaRootRef.current) return;
+        chairMeshesRef.current.forEach((chair) => {
+          chair.clear();
+          chair.userData.seatColor = chairTheme.primary;
+          chair.userData.legColor = chairTheme.legColor;
+          chair.add(chairTemplate.clone(true));
+        });
+      })
+      .catch((error) => {
+        console.warn('Four in Row chair model failed to load.', error);
       });
-    }).catch((error) => {
-      console.warn('Four in Row chair or character model failed to load.', error);
-    });
   };
 
   useEffect(() => {
@@ -2577,54 +1798,6 @@ export default function FourInRowRoyal() {
       const frameBudget = 1 / Math.max(30, preset.fps || 60);
       if (delta < frameBudget * 0.92) return;
 
-      for (let i = characterChipActionsRef.current.length - 1; i >= 0; i -= 1) {
-        const action = characterChipActionsRef.current[i];
-        action.elapsed += delta;
-        const t = Math.min(1, action.elapsed / action.duration);
-        const ease = t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2;
-        let pose = action.reachPose;
-        let poseAlpha = Math.min(1, t / 0.2);
-        if (t >= 0.2 && t < 0.44) {
-          pose = action.carryPose;
-          poseAlpha = Math.min(1, (t - 0.2) / 0.2);
-        } else if (t >= 0.44 && t < action.releaseAt) {
-          pose = action.flickWindupPose;
-          poseAlpha = Math.min(1, (t - 0.44) / Math.max(0.001, action.releaseAt - 0.44));
-        } else if (t >= action.releaseAt && t < 0.72) {
-          pose = action.releasePose;
-          poseAlpha = Math.min(1, (t - action.releaseAt) / Math.max(0.001, 0.72 - action.releaseAt));
-        } else if (t >= 0.72) {
-          pose = action.rig.seatedPose;
-          poseAlpha = Math.min(1, (t - 0.72) / 0.28);
-        }
-        applyFourInRowRigPose(action.rig, pose, poseAlpha);
-
-        const chip = action.heldChip;
-        if (chip && !action.released) {
-          if (t < 0.18) {
-            chip.position.copy(action.handWorld).lerp(action.pickup, ease / 0.18);
-          } else if (t < 0.3) {
-            chip.position.copy(action.pickup).lerp(action.pickupHover, (t - 0.18) / 0.12);
-          } else if (t < action.releaseAt) {
-            const carryT = (t - 0.3) / Math.max(0.001, action.releaseAt - 0.3);
-            const a = action.pickupHover.clone().lerp(action.carry, carryT);
-            const b = action.carry.clone().lerp(action.release, carryT);
-            chip.position.copy(a.lerp(b, carryT));
-            chip.rotation.z += delta * 7.5;
-            chip.rotation.x += delta * 4.5;
-          } else {
-            chip.position.copy(action.release);
-            chip.visible = false;
-            action.released = true;
-          }
-        }
-        if (t >= 1) {
-          applyFourInRowRigPose(action.rig, action.rig.seatedPose, 1);
-          if (action.heldChip?.parent) action.heldChip.parent.remove(action.heldChip);
-          characterChipActionsRef.current.splice(i, 1);
-        }
-      }
-
       for (let i = fallingPiecesRef.current.length - 1; i >= 0; i -= 1) {
         const entry = fallingPiecesRef.current[i];
         entry.elapsed += delta;
@@ -2745,11 +1918,6 @@ export default function FourInRowRoyal() {
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', onResize);
-      characterChipActionsRef.current.forEach((action) => {
-        if (action.heldChip?.parent) action.heldChip.parent.remove(action.heldChip);
-      });
-      characterChipActionsRef.current = [];
-      characterRigsRef.current.clear();
       tableGroupRef.current = null;
       tablePartsRef.current = null;
       chairMeshesRef.current = [];
@@ -2757,7 +1925,6 @@ export default function FourInRowRoyal() {
       mount.removeChild(renderer.domElement);
     };
   }, [
-    characterSeed,
     rows,
     cols,
     boardWidth,
@@ -2864,6 +2031,7 @@ export default function FourInRowRoyal() {
     const row = getDropRow(board, col);
     if (row < 0) {
       playTone(180, 0.05, 'sawtooth', 0.012);
+      vibrate([18, 35, 18]);
       return false;
     }
     const next = cloneBoard(board);
@@ -2875,6 +2043,7 @@ export default function FourInRowRoyal() {
       setWinner(token);
       setWinningCells(winning);
       playConnectFourFx(token);
+      vibrate(token === 'player' ? [35, 45, 70] : 55);
       return true;
     }
     if (isFull(next)) {
@@ -2884,7 +2053,29 @@ export default function FourInRowRoyal() {
       return true;
     }
     setTurn(token === 'player' ? 'ai' : 'player');
+    vibrate(token === 'player' ? 22 : 12);
     return true;
+  };
+
+  const submitColumn = (col) => {
+    if (turn !== 'player' || winner || getDropRow(board, col) < 0) {
+      if (getDropRow(board, col) < 0) {
+        playTone(180, 0.05, 'sawtooth', 0.012);
+        vibrate([18, 35, 18]);
+      }
+      return;
+    }
+    setHoverCol(col);
+    if (onlineMode) {
+      vibrate(14);
+      socket.emit('fourInRowMove', {
+        tableId: onlineTableId,
+        accountId,
+        column: col
+      });
+      return;
+    }
+    playColumn(col, 'player');
   };
 
   useEffect(() => {
@@ -2905,11 +2096,10 @@ export default function FourInRowRoyal() {
             targetZ
           );
           const target = new THREE.Vector3(targetX, targetY, targetZ);
-          const flick = triggerCharacterChipAction(nextCell, columnTop);
           const mesh = createTokenMesh(nextCell);
-          const releaseStart = flick?.release ?? columnTop.clone();
+          const releaseStart = columnTop.clone();
           mesh.position.copy(releaseStart);
-          mesh.visible = !flick;
+          mesh.visible = true;
           mesh.userData.baseY = targetY;
           group.add(mesh);
           piecesMapRef.current.set(`${r}-${c}`, mesh);
@@ -2917,14 +2107,14 @@ export default function FourInRowRoyal() {
             mesh,
             key: `${r}-${c}`,
             token: nextCell,
-            columnTop: flick?.columnTop ?? columnTop,
+            columnTop,
             releaseStart,
-            flickApex: flick?.flickApex ?? columnTop.clone().add(new THREE.Vector3(0, CHIP_FLICK_ARC_LIFT, 0)),
+            flickApex: columnTop.clone().add(new THREE.Vector3(0, CHIP_FLICK_ARC_LIFT, 0)),
             target,
             elapsed: 0,
-            launchDelay: flick?.launchDelay ?? 0,
-            airDuration: flick?.airDuration ?? CHIP_FLICK_AIR_DURATION,
-            phase: flick ? 'wait' : 'preview',
+            launchDelay: 0,
+            airDuration: CHIP_FLICK_AIR_DURATION,
+            phase: 'preview',
             hasLandingSound: false,
             previewDuration: DROP_PREVIEW_DELAY,
             dropDuration:
@@ -3119,8 +2309,8 @@ export default function FourInRowRoyal() {
   }, [appearance.tableId]);
 
   useEffect(() => {
-    rebuildChairsAndCharacters(appearance.chairId, appearance.humanCharacter);
-  }, [appearance.chairId, appearance.humanCharacter, characterSeed]);
+    rebuildChairs(appearance.chairId);
+  }, [appearance.chairId]);
 
   useEffect(() => {
     const { boardFaceMat, railMat, trimMat, holeRimMat } =
@@ -3262,15 +2452,6 @@ export default function FourInRowRoyal() {
       }))
     },
     {
-      key: 'humanCharacter',
-      label: 'Characters',
-      options: FOUR_IN_ROW_HUMAN_CHARACTER_OPTIONS.map((item) => ({
-        id: item.id,
-        label: item.label,
-        thumbnail: item.thumbnail
-      }))
-    },
-    {
       key: 'stoneStyle',
       label: 'Pieces',
       options: FOUR_IN_ROW_STONE_STYLES.map((item) => ({
@@ -3396,6 +2577,47 @@ export default function FourInRowRoyal() {
         </div>
       </div>
 
+      <div
+        className="pointer-events-none absolute inset-x-0 bottom-[15.5%] z-30 flex flex-col items-center gap-2 px-3"
+        aria-live="polite"
+      >
+        <p className="rounded-full border border-white/15 bg-black/65 px-3 py-1.5 text-center text-[11px] font-semibold tracking-wide text-white shadow-lg backdrop-blur">
+          {winner
+            ? winner === 'draw'
+              ? 'Draw — no spaces remain'
+              : winner === 'player'
+                ? 'You connected four!'
+                : 'Rival connected four'
+            : turn === 'player'
+              ? 'Your turn — choose a column'
+              : 'Rival is choosing…'}
+        </p>
+        <div
+          className="pointer-events-auto grid w-full max-w-md gap-1.5"
+          style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+          aria-label="Choose a column"
+        >
+          {Array.from({ length: cols }, (_, col) => {
+            const full = getDropRow(board, col) < 0;
+            return (
+              <button
+                // eslint-disable-next-line react/no-array-index-key
+                key={col}
+                type="button"
+                onClick={() => submitColumn(col)}
+                onPointerEnter={() => setHoverCol(col)}
+                onPointerLeave={() => setHoverCol(null)}
+                disabled={Boolean(winner) || turn !== 'player' || full}
+                aria-label={`Drop piece in column ${col + 1}${full ? ', full' : ''}`}
+                className="flex min-h-11 items-center justify-center rounded-xl border border-cyan-200/35 bg-slate-950/70 text-sm font-bold text-cyan-50 shadow-lg backdrop-blur transition active:scale-95 active:bg-cyan-400/30 disabled:border-white/10 disabled:text-white/30"
+              >
+                {full ? '×' : col + 1}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {winner && (
         <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center">
           <div className="relative w-[min(24rem,90vw)] rounded-3xl border border-yellow-300/30 bg-transparent px-6 pb-6 pt-10 text-center">
@@ -3427,8 +2649,10 @@ export default function FourInRowRoyal() {
                   alt="winner avatar"
                   className="h-full w-full object-cover"
                 />
-              ) : (
+              ) : winner === 'ai' ? (
                 '🤖'
+              ) : (
+                '🤝'
               )}
             </div>
             <p className="text-xs uppercase tracking-[0.26em] text-yellow-300">
