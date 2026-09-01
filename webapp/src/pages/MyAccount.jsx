@@ -208,7 +208,11 @@ export default function MyAccount() {
         setTonWalletAddress(walletToStore);
       }
 
-      const data = await getAccountInfo(accountPayload.accountId);
+      // Current servers include the database profile in the create/fetch
+      // response. Keep the fallback for older deployments during rollout.
+      const data =
+        accountPayload.profile ||
+        (await getAccountInfo(accountPayload.accountId));
       if (!data || data?.error) {
         throw new Error(data?.error || 'Unable to fetch your profile.');
       }

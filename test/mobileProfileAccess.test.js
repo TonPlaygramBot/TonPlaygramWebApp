@@ -31,4 +31,12 @@ describe('mobile profile access', () => {
       /\[telegramId, googleProfile\?\.id, walletIdentity, requiresAuth, reloadNonce\]/
     );
   });
+
+  test('renders the profile returned by account initialization without a second request', () => {
+    const profile = fs.readFileSync('webapp/src/pages/MyAccount.jsx', 'utf8');
+
+    expect(profile).toMatch(
+      /const data =\s*accountPayload\.profile \|\|\s*\(await getAccountInfo\(accountPayload\.accountId\)\)/
+    );
+  });
 });
