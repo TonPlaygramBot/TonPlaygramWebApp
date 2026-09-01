@@ -659,6 +659,7 @@ const airHockeyStates = new Map();
 const texasHoldemStates = new Map();
 const ludoBattleStates = new Map();
 const fourInRowStates = new Map();
+const arcadeRaceStates = new Map();
 const dominoRoyalTableNumbers = new Set();
 const chessTableNumbers = new Set();
 
@@ -4090,6 +4091,84 @@ io.on('connection', (socket) => {
     const state = fourInRowStates.get(tableId);
     if (state) io.to(tableId).emit('fourInRowState', state);
   };
+
+  const emitArcadeRaceState = (tableId) => {
+    const state = arcadeRaceStates.get(tableId);
+    if (!state) return;
+    if (!state.winner && Date.now() >= state.endsAt) {
+      const ranked = state.players
+        .map((playerId) => ({ playerId, score: Number(state.scores[playerId] || 0) }))
+        .sort((a, b) => b.score - a.score);
+      state.winner = ranked[0]?.score === ranked[1]?.score ? 'draw' : ranked[0]?.playerId || 'draw';
+      state.revision += 1;
+    }
+    io.to(tableId).emit('arcadeRaceState', state);
+  };
+
+  socket.on('joinArcadeRace', ({ tableId, accountId, gameType } = {}, cb) => {
+    const id = String(tableId || '');
+    const playerId = String(accountId || socket.data.playerId || '');
+    const normalizedGameType = normalizeOnlineGameType(gameType);
+    const table = tableMap.get(id);
+    if (
+      !table ||
+      table.gameType !== normalizedGameType ||
+      !['2048royale', 'hextrisbattle', 'underrunarena'].includes(normalizedGameType) ||
+      !table.players.some((player) => String(player.id) === playerId)
+    ) return cb?.({ success: false, error: 'not_a_table_player' });
+    socket.join(id);
+    if (!arcadeRaceStates.has(id)) {
+      const startsAt = Date.now() + 3000;
+      const durationSeconds = Math.min(180, Math.max(30, Number(table.meta?.durationSeconds) || 120));
+      const players = table.players.map((player) => String(player.id));
+      arcadeRaceStates.set(id, {
+        tableId: id,
+        gameType: normalizedGameType,
+        players,
+        scores: Object.fromEntries(players.map((value) => [value, 0])),
+        finished: {},
+        startsAt,
+        endsAt: startsAt + durationSeconds * 1000,
+        winner: null,
+        revision: 0
+      });
+    }
+    socket.emit('arcadeRaceState', arcadeRaceStates.get(id));
+    return cb?.({ success: true });
+  });
+
+  socket.on('arcadeRaceSyncRequest', ({ tableId } = {}) => {
+    const id = String(tableId || '');
+    if (arcadeRaceStates.has(id)) emitArcadeRaceState(id);
+  });
+
+  socket.on('arcadeRaceScore', ({ tableId, accountId, score } = {}, cb) => {
+    const id = String(tableId || '');
+    const playerId = String(accountId || socket.data.playerId || '');
+    const state = arcadeRaceStates.get(id);
+    const nextScore = Number(score);
+    if (!state || !state.players.includes(playerId)) return cb?.({ success: false, error: 'not_a_table_player' });
+    if (state.winner || Date.now() < state.startsAt || !Number.isSafeInteger(nextScore) || nextScore < 0 || nextScore > 100000000) return cb?.({ success: false, error: 'invalid_score' });
+    if (nextScore < Number(state.scores[playerId] || 0)) return cb?.({ success: false, error: 'score_cannot_decrease' });
+    state.scores[playerId] = nextScore;
+    state.revision += 1;
+    emitArcadeRaceState(id);
+    return cb?.({ success: true, revision: state.revision });
+  });
+
+  socket.on('arcadeRaceFinish', ({ tableId, accountId, score } = {}, cb) => {
+    const id = String(tableId || '');
+    const playerId = String(accountId || socket.data.playerId || '');
+    const state = arcadeRaceStates.get(id);
+    const finalScore = Number(score);
+    if (!state || !state.players.includes(playerId) || !Number.isSafeInteger(finalScore) || finalScore < Number(state.scores[playerId] || 0)) return cb?.({ success: false, error: 'invalid_finish' });
+    state.scores[playerId] = Math.min(finalScore, 100000000);
+    state.finished[playerId] = true;
+    if (state.players.every((idValue) => state.finished[idValue]) || Date.now() >= state.endsAt) state.endsAt = Math.min(state.endsAt, Date.now());
+    state.revision += 1;
+    emitArcadeRaceState(id);
+    return cb?.({ success: true });
+  });
 
   socket.on('joinFourInRow', ({ tableId, accountId } = {}, cb) => {
     const table = tableMap.get(String(tableId || ''));

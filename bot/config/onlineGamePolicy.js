@@ -42,6 +42,9 @@ const GAME_ONLINE_POLICY = Object.freeze({
     maxPlayers: [2],
     allowMatchMeta: ['boardSize', 'mode', 'token']
   },
+  '2048royale': { maxPlayers: [2], allowMatchMeta: ['format', 'durationSeconds', 'mode', 'token'] },
+  hextrisbattle: { maxPlayers: [2], allowMatchMeta: ['format', 'durationSeconds', 'mode', 'token'] },
+  underrunarena: { maxPlayers: [2], allowMatchMeta: ['format', 'durationSeconds', 'mode', 'token'] },
   'domino-royal': {
     maxPlayers: [2, 3, 4],
     allowMatchMeta: ['variant', 'targetPoints', 'mode', 'token']
