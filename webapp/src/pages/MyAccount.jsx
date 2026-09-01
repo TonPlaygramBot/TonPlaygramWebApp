@@ -83,10 +83,6 @@ export default function MyAccount() {
     () => localStorage.getItem('walletAddress') || ''
   );
   const connectedTonAddress = useTonAddress();
-  // TonConnect updates its hook before the persistence effect below runs. Use
-  // that live value immediately so the first profile request is owned by the
-  // connected wallet instead of accidentally creating/loading a guest account.
-  const walletIdentity = connectedTonAddress || tonWalletAddress;
   const {
     config: lockConfig,
     locked: profileLocked,
@@ -127,7 +123,8 @@ export default function MyAccount() {
   const requiresAuth =
     !telegramId &&
     !googleProfile?.id &&
-    !walletIdentity;
+    !tonWalletAddress &&
+    !connectedTonAddress;
 
   useEffect(() => {
     setGoogleLinked(Boolean(googleProfile?.id));
@@ -175,12 +172,10 @@ export default function MyAccount() {
       }
     };
     window.addEventListener('storage', syncTelegramId);
-    window.addEventListener('telegramAuthUpdated', syncTelegramId);
     const syncGoogle = () => setGoogleProfile(loadGoogleProfile());
     window.addEventListener('googleProfileUpdated', syncGoogle);
     return () => {
       window.removeEventListener('storage', syncTelegramId);
-      window.removeEventListener('telegramAuthUpdated', syncTelegramId);
       window.removeEventListener('googleProfileUpdated', syncGoogle);
     };
   }, []);
@@ -193,7 +188,7 @@ export default function MyAccount() {
         telegramId,
         googleProfile,
         undefined,
-        walletIdentity
+        tonWalletAddress
       );
       if (accountPayload?.error || !accountPayload?.accountId) {
         throw new Error(
@@ -204,37 +199,18 @@ export default function MyAccount() {
       if (accountPayload.accountId) {
         localStorage.setItem('accountId', accountPayload.accountId);
       }
-      const walletToStore = accountPayload.walletAddress || walletIdentity;
+      const walletToStore = accountPayload.walletAddress || tonWalletAddress;
       if (walletToStore) {
         localStorage.setItem('walletAddress', walletToStore);
         setTonWalletAddress(walletToStore);
       }
 
-      // Current servers include the database profile in the create/fetch
-      // response. Keep the fallback for older deployments during rollout.
-      const data =
-        accountPayload.profile ||
-        (await getAccountInfo(accountPayload.accountId));
+      const data = await getAccountInfo(accountPayload.accountId);
       if (!data || data?.error) {
         throw new Error(data?.error || 'Unable to fetch your profile.');
       }
 
       let finalProfile = data;
-
-      // The account endpoint already returns the authoritative database
-      // profile. Paint it before optional Telegram enrichment so a slow Bot
-      // API photo/name lookup can never hold the whole My Account screen on
-      // its loading state. The enriched values are merged in below when they
-      // arrive.
-      if (!cancelled) {
-        setProfile(data);
-        setGoogleLinked(Boolean(data.googleId || googleProfile?.id));
-        setTwitterLink(data.social?.twitter || '');
-        const initialPhoto = telegramId
-          ? getTelegramPhotoUrl()
-          : googleProfile?.photo || '';
-        setPhotoUrl(loadAvatar() || data.photo || initialPhoto);
-      }
 
       if (telegramId && (!data.photo || !data.firstName || !data.lastName)) {
         setAutoUpdating(true);
@@ -283,15 +259,13 @@ export default function MyAccount() {
         };
       }
 
-      if (!cancelled) {
-        setProfile(finalProfile);
-        setGoogleLinked(Boolean(finalProfile.googleId || googleProfile?.id));
-        setTwitterLink(finalProfile.social?.twitter || '');
-        const defaultPhoto = telegramId
-          ? getTelegramPhotoUrl()
-          : googleProfile?.photo || '';
-        setPhotoUrl(loadAvatar() || finalProfile.photo || defaultPhoto);
-      }
+      setProfile(finalProfile);
+      setGoogleLinked(Boolean(finalProfile.googleId || googleProfile?.id));
+      setTwitterLink(finalProfile.social?.twitter || '');
+      const defaultPhoto = telegramId
+        ? getTelegramPhotoUrl()
+        : googleProfile?.photo || '';
+      setPhotoUrl(loadAvatar() || finalProfile.photo || defaultPhoto);
       try {
         if (telegramId) {
           const res = await getUnreadCount(telegramId);
@@ -330,7 +304,7 @@ export default function MyAccount() {
       if (timerRef.current) clearTimeout(timerRef.current);
       cancelled = true;
     };
-  }, [telegramId, googleProfile?.id, walletIdentity, requiresAuth, reloadNonce]);
+  }, [telegramId, googleProfile?.id, requiresAuth, reloadNonce]);
 
   useEffect(() => {
     if (!telegramId && googleProfile?.photo) {
