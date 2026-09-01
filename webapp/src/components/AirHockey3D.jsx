@@ -197,6 +197,10 @@ const AIR_HOCKEY_TOP_VIEW_CAMERA_DISTANCE_SCALE = 0.9;
 const CAMERA_LIFT_STEP = 0.2;
 const CAMERA_LIFT_MIN = 0.45;
 const CAMERA_LIFT_MAX = 1.85;
+// Physics stays at one deterministic rate even when the selected graphics
+// profile renders at 50, 60, 90, 120, or 144 Hz.
+const AIR_HOCKEY_FIXED_STEP_SECONDS = 1 / 120;
+const AIR_HOCKEY_MAX_PHYSICS_STEPS = 12;
 const AIR_HOCKEY_VARIANT = Object.freeze({
   id: 'airhockey',
   roomPrefix: 'air-hockey',
@@ -746,6 +750,7 @@ export default function AirHockey3D({
   });
   const lastFrameTimeRef = useRef(0);
   const frameAccumulatorRef = useRef(0);
+  const physicsAccumulatorRef = useRef(0);
   const selectionsRef = useRef(selections);
   const chatAvatar = useMemo(() => getAvatarUrl(player.avatar), [player.avatar]);
   const liveChatRoomId = useMemo(() => {
@@ -2134,17 +2139,20 @@ export default function AirHockey3D({
         frameAccumulatorRef.current = 0;
       }
 
-      const elapsedMs = Math.min(1000, timestamp - lastFrameTimeRef.current);
+      const elapsedMs = Math.min(100, timestamp - lastFrameTimeRef.current);
+      lastFrameTimeRef.current = timestamp;
       frameAccumulatorRef.current += elapsedMs;
+      physicsAccumulatorRef.current = Math.min(
+        AIR_HOCKEY_FIXED_STEP_SECONDS * AIR_HOCKEY_MAX_PHYSICS_STEPS,
+        physicsAccumulatorRef.current + elapsedMs / 1000
+      );
       const targetInterval = renderSettingsRef.current.targetFrameIntervalMs || 16.67;
       if (frameAccumulatorRef.current < targetInterval * 0.92) {
         raf.current = requestAnimationFrame(tick);
         return;
       }
 
-      const dt = Math.min(0.033, frameAccumulatorRef.current / 1000);
       frameAccumulatorRef.current = Math.max(0, frameAccumulatorRef.current - targetInterval);
-      lastFrameTimeRef.current = timestamp;
 
       if (online && seatIndex === 1) {
         const snapshot = onlineSyncRef.current.snapshot;
@@ -2175,70 +2183,72 @@ export default function AirHockey3D({
         aiMallet.position.z += (clamp(remote.z, -PLAYFIELD.h / 2 + MALLET_RADIUS, -MALLET_RADIUS) - aiMallet.position.z) * 0.8;
       }
 
-      puck.position.x += S.vel.x;
-      puck.position.z += S.vel.z;
-      S.vel.multiplyScalar(Math.pow(S.friction, dt * 60));
-      // keep puck speed manageable
-      S.vel.clampLength(0, MAX_SPEED);
+      let physicsSteps = 0;
+      while (
+        physicsAccumulatorRef.current >= AIR_HOCKEY_FIXED_STEP_SECONDS &&
+        physicsSteps < AIR_HOCKEY_MAX_PHYSICS_STEPS &&
+        !gameOverRef.current
+      ) {
+        const dt = AIR_HOCKEY_FIXED_STEP_SECONDS;
+        const nominalFrameScale = dt * 60;
+        puck.position.x += S.vel.x * nominalFrameScale;
+        puck.position.z += S.vel.z * nominalFrameScale;
+        S.vel.multiplyScalar(Math.pow(S.friction, nominalFrameScale));
+        S.vel.clampLength(0, MAX_SPEED);
 
-      const cornerPocketed = cornerPocketCenters.some((center) => {
-        const dx = puck.position.x - center.x;
-        const dz = puck.position.z - center.y;
-        return dx * dx + dz * dz <= CORNER_POCKET_CAPTURE * CORNER_POCKET_CAPTURE;
-      });
+        const cornerPocketed = cornerPocketCenters.some((center) => {
+          const dx = puck.position.x - center.x;
+          const dz = puck.position.z - center.y;
+          return dx * dx + dz * dz <= CORNER_POCKET_CAPTURE * CORNER_POCKET_CAPTURE;
+        });
 
-      if (cornerPocketed) {
-        const playerGetsPuck = lastTouchRef.current !== 'player';
-        const spawnZ = playerGetsPuck ? PLAYFIELD.h * 0.24 : -PLAYFIELD.h * 0.24;
-        reset(playerGetsPuck, true, spawnZ);
-        playPost();
-        renderer.render(scene, camera);
-        if (!gameOverRef.current) {
-          raf.current = requestAnimationFrame(tick);
-        }
-        return;
-      }
-
-      if (Math.abs(puck.position.x) > PLAYFIELD.w / 2 - PUCK_RADIUS) {
-        puck.position.x = clamp(
-          puck.position.x,
-          -PLAYFIELD.w / 2 + PUCK_RADIUS,
-          PLAYFIELD.w / 2 - PUCK_RADIUS
-        );
-        S.vel.x = -S.vel.x;
-        playHit();
-      }
-
-      const goalHalf = PLAYFIELD.goalW / 2;
-      const atTop = puck.position.z < -PLAYFIELD.h / 2 + PUCK_RADIUS;
-      const atBot = puck.position.z > PLAYFIELD.h / 2 - PUCK_RADIUS;
-      if (atTop || atBot) {
-        if (Math.abs(puck.position.x) <= goalHalf) {
-          const playerScored = atTop;
-          const ended = recordGoal(playerScored);
-          playGoal();
-          S.vel.set(0, 0, 0);
-          clearTimeout(restartTimeoutRef.current);
-          if (!ended) {
-            reset(!atBot, false);
-            restartTimeoutRef.current = setTimeout(() => {
-              servePuck(!atBot);
-            }, GOAL_RESET_DELAY);
-          }
+        if (cornerPocketed) {
+          const playerGetsPuck = lastTouchRef.current !== 'player';
+          const spawnZ = playerGetsPuck ? PLAYFIELD.h * 0.24 : -PLAYFIELD.h * 0.24;
+          reset(playerGetsPuck, true, spawnZ);
+          playPost();
         } else {
-          S.vel.z = -S.vel.z;
-          puck.position.z = clamp(
-            puck.position.z,
-            -PLAYFIELD.h / 2 + PUCK_RADIUS,
-            PLAYFIELD.h / 2 - PUCK_RADIUS
-          );
-          playHit();
-        }
-      }
+          if (Math.abs(puck.position.x) > PLAYFIELD.w / 2 - PUCK_RADIUS) {
+            puck.position.x = clamp(
+              puck.position.x,
+              -PLAYFIELD.w / 2 + PUCK_RADIUS,
+              PLAYFIELD.w / 2 - PUCK_RADIUS
+            );
+            S.vel.x = -S.vel.x;
+            playHit();
+          }
 
-      if (!online) aiUpdate(dt);
-      handleCollision(you, true);
-      handleCollision(aiMallet);
+          const goalHalf = PLAYFIELD.goalW / 2;
+          const atTop = puck.position.z < -PLAYFIELD.h / 2 + PUCK_RADIUS;
+          const atBot = puck.position.z > PLAYFIELD.h / 2 - PUCK_RADIUS;
+          if (atTop || atBot) {
+            if (Math.abs(puck.position.x) <= goalHalf) {
+              const ended = recordGoal(atTop);
+              playGoal();
+              S.vel.set(0, 0, 0);
+              clearTimeout(restartTimeoutRef.current);
+              if (!ended) {
+                reset(!atBot, false);
+                restartTimeoutRef.current = setTimeout(() => servePuck(!atBot), GOAL_RESET_DELAY);
+              }
+            } else {
+              S.vel.z = -S.vel.z;
+              puck.position.z = clamp(
+                puck.position.z,
+                -PLAYFIELD.h / 2 + PUCK_RADIUS,
+                PLAYFIELD.h / 2 - PUCK_RADIUS
+              );
+              playHit();
+            }
+          }
+
+          if (!online) aiUpdate(dt);
+          handleCollision(you, true);
+          handleCollision(aiMallet);
+        }
+        physicsAccumulatorRef.current -= AIR_HOCKEY_FIXED_STEP_SECONDS;
+        physicsSteps += 1;
+      }
       if (online && seatIndex === 0 && timestamp - onlineSyncRef.current.lastSentAt >= 50) {
         onlineSyncRef.current.lastSentAt = timestamp;
         socket.emit('airHockeyState', {
@@ -2276,6 +2286,7 @@ export default function AirHockey3D({
       rendererRef.current = null;
       lastFrameTimeRef.current = 0;
       frameAccumulatorRef.current = 0;
+      physicsAccumulatorRef.current = 0;
       Object.keys(audioRef.current).forEach((key) => {
         const audio = audioRef.current[key];
         if (audio) {

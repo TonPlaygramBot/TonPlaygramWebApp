@@ -11,6 +11,7 @@ export class PowerSlider {
       onStart,
       onCommit,
       onShotRelease,
+      onFeedback,
       theme = 'default',
       labels = false
     } = opts;
@@ -25,6 +26,7 @@ export class PowerSlider {
     this.onStart = onStart;
     this.onCommit = onCommit;
     this.onShotRelease = onShotRelease;
+    this.onFeedback = onFeedback;
     this.locked = false;
     this._returnAnimFrame = null;
     this._shotAnimFrame = null;
@@ -36,6 +38,7 @@ export class PowerSlider {
     this.el.setAttribute('aria-orientation', 'vertical');
     this.el.setAttribute('aria-valuemin', String(this.min));
     this.el.setAttribute('aria-valuemax', String(this.max));
+    this.el.setAttribute('aria-label', 'Shot power. Pull down, then release to shoot.');
 
     this.track = document.createElement('div');
     this.track.className = 'ps-track';
@@ -202,6 +205,7 @@ export class PowerSlider {
     }
     this.tooltip.textContent = `${pctValue}%`;
     this.el.setAttribute('aria-valuenow', String(Math.round(this.value)));
+    this.el.setAttribute('aria-valuetext', `${pctValue} percent shot power`);
     if (ratio >= 0.9) this.el.classList.add('ps-hot');
     else this.el.classList.remove('ps-hot');
     if (this.hasCueImage && (this.theme === 'pool-royale' || this.theme === 'snooker-royale')) {
@@ -244,6 +248,7 @@ export class PowerSlider {
     this._cancelReturnAnimation();
     this._cancelShotAnimation();
     this.dragging = true;
+    this._feedbackBand = getPowerFeedbackBand(this.value, this.min, this.max);
     this.el.classList.add('ps-no-animate');
     this.el.setPointerCapture(e.pointerId);
     if (typeof this.onStart === 'function') this.onStart(this.value);
@@ -256,6 +261,13 @@ export class PowerSlider {
   _pointerMove(e) {
     if (!this.dragging) return;
     this._updateFromClientY(e.clientY);
+    const nextBand = getPowerFeedbackBand(this.value, this.min, this.max);
+    if (nextBand !== this._feedbackBand) {
+      this._feedbackBand = nextBand;
+      if (typeof this.onFeedback === 'function') {
+        this.onFeedback({ type: 'power-band', band: nextBand, value: this.value });
+      }
+    }
   }
 
   _pointerUp(e) {
@@ -271,6 +283,9 @@ export class PowerSlider {
     this.el.removeEventListener('pointercancel', this._onPointerUp);
     this.el.classList.remove('ps-no-animate');
     if (typeof this.onCommit === 'function') this.onCommit(this.value);
+    if (typeof this.onFeedback === 'function') {
+      this.onFeedback({ type: 'release', band: this._feedbackBand, value: this.value });
+    }
     this._playShotAnimation(this.value);
   }
 
@@ -349,4 +364,15 @@ export class PowerSlider {
       this._returnAnimFrame = null;
     }
   }
+}
+
+export function getPowerFeedbackBand(value, min = 0, max = 100) {
+  const range = max - min;
+  if (!Number.isFinite(value) || !Number.isFinite(range) || range <= 0) return 0;
+  const ratio = Math.min(1, Math.max(0, (value - min) / range));
+  if (ratio >= 0.9) return 4;
+  if (ratio >= 0.75) return 3;
+  if (ratio >= 0.5) return 2;
+  if (ratio >= 0.25) return 1;
+  return 0;
 }
