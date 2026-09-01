@@ -33,4 +33,16 @@ describe('account profile performance', () => {
     expect(firstPaint).toBeGreaterThan(-1);
     expect(telegramEnrichment).toBeGreaterThan(firstPaint);
   });
+
+  test('keeps polling when Telegram has not injected its user yet', () => {
+    const authHook = fs.readFileSync(
+      'webapp/src/hooks/useTelegramAuth.js',
+      'utf8'
+    );
+
+    expect(authHook).toContain('if (!user?.id) return false;');
+    expect(authHook).toContain(
+      'if (registeredTelegramId.current === user.id) return true;'
+    );
+  });
 });

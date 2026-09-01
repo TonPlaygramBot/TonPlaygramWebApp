@@ -23,7 +23,11 @@ export default function useTelegramAuth() {
     let pollTimer;
 
     const registerTelegramUser = (user) => {
-      if (!user?.id || registeredTelegramId.current === user.id) return true;
+      // A missing user means Telegram has not injected initData yet. Report
+      // that as "not ready" so cold-start WebViews continue through the poll
+      // path below instead of returning from the effect as if auth succeeded.
+      if (!user?.id) return false;
+      if (registeredTelegramId.current === user.id) return true;
 
       registeredTelegramId.current = user.id;
       const acc = localStorage.getItem('accountId');
