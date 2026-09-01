@@ -120,7 +120,7 @@ const ShootingRangeLobby = React.lazy(
 const ArcadeRaceLobby = React.lazy(() => import('./pages/Games/ArcadeRaceLobby.jsx'));
 const Game2048Royale = React.lazy(() => import('./pages/Games/Game2048Royale.jsx'));
 const HextrisBattle = React.lazy(() => import('./pages/Games/HextrisBattle.jsx'));
-const UnderrunArena = React.lazy(() => import('./pages/Games/UnderrunArena.jsx'));
+const UnderrunArena = React.lazy(() => import('./pages/Games/UnderrunArena.tsx'));
 const StoreThumbnailStudioPoolRoyale = React.lazy(
   () => import('./pages/Tools/StoreThumbnailStudioPoolRoyale.jsx')
 );
