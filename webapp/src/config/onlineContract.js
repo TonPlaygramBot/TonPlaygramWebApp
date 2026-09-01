@@ -8,6 +8,15 @@ export const ONLINE_CONTRACT_CHECKS = Object.freeze({
 });
 
 export const ONLINE_READINESS_BY_GAME = Object.freeze({
+  'table-tennis': {
+    checks: { lobby: true, runtime: true, backend: true, security: true }, label: 'Online Ready'
+  },
+  tennis: {
+    checks: { lobby: true, runtime: true, backend: true, security: true }, label: 'Online Ready'
+  },
+  bowling: {
+    checks: { lobby: true, runtime: true, backend: true, security: true }, label: 'Online Ready'
+  },
   poolroyale: {
     checks: { lobby: true, runtime: true, backend: true, security: true },
     label: 'Online Ready'
@@ -53,18 +62,6 @@ export const ONLINE_READINESS_BY_GAME = Object.freeze({
     label: 'Online Ready'
   },
   murlanroyale: {
-    checks: { lobby: true, runtime: true, backend: true, security: true },
-    label: 'Online Ready'
-  },
-  '2048royale': {
-    checks: { lobby: true, runtime: true, backend: true, security: true },
-    label: 'Online Ready'
-  },
-  hextrisbattle: {
-    checks: { lobby: true, runtime: true, backend: true, security: true },
-    label: 'Online Ready'
-  },
-  underrunarena: {
     checks: { lobby: true, runtime: true, backend: true, security: true },
     label: 'Online Ready'
   },

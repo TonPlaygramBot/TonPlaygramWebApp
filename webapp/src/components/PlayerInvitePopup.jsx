@@ -6,13 +6,13 @@ import GiftIcon from './GiftIcon.jsx';
 import { FaCircle, FaDesktop, FaPhone, FaTimes, FaTv, FaUserPlus, FaVideo } from 'react-icons/fa';
 import { getAccountInfo, getSnakeResults, getWatchCount } from '../utils/api.js';
 import { NFT_GIFTS } from '../utils/nftGifts.js';
-import { inviteGamesCatalog } from '../config/gamesCatalog.js';
+import gamesCatalog from '../config/gamesCatalog.js';
 import { getGameThumbnail } from '../config/gameAssets.js';
 
 function getGameFromTableId(id) {
   if (!id) return 'snake';
   const lowerId = String(id).toLowerCase();
-  const matched = inviteGamesCatalog.find((game) => {
+  const matched = gamesCatalog.find((game) => {
     const slug = String(game.slug || '').toLowerCase();
     if (!slug) return false;
     const normalizedSlug = slug.replace(/[^a-z0-9]/g, '');
@@ -86,7 +86,7 @@ export default function PlayerInvitePopup({
       : statusLabel === 'busy'
         ? 'text-orange-500'
         : 'text-gray-500';
-  const inviteGames = inviteGamesCatalog.map((catalogGame) => ({
+  const inviteGames = gamesCatalog.map((catalogGame) => ({
     id: catalogGame.slug,
     src: getGameThumbnail(catalogGame.slug) || catalogGame.image,
     alt: catalogGame.name,

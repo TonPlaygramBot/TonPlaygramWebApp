@@ -94,7 +94,6 @@ import { giftSounds } from "../../utils/giftSounds.js";
 import { moveSeq, flashHighlight, applyEffect as applyEffectHelper } from "../../utils/moveHelpers.js";
 import { getSnakeInventory, isSnakeOptionUnlocked, snakeAccountId } from "../../utils/snakeInventory.js";
 import { playLudoDiceRollSfx, playLudoTokenStepSfx } from "../../utils/ludoSfx.js";
-import { playGameHaptic } from "../../utils/gameHaptics.js";
 
 const TOKEN_COLOR_OPTIONS = Object.freeze(
   SNAKE_TOKEN_COLOR_OPTIONS.map((option) => ({
@@ -2505,7 +2504,6 @@ export default function SnakeAndLadder() {
     const willCapture = aiPositions.some((p) => p === preview);
 
     setRollResult(value);
-    playGameHaptic('diceLand');
     playDiceRollSound(`local:${currentTurn}:${value}`);
     if (willCapture && preview > 4 && !muted) {
       hahaSoundRef.current.currentTime = 0;
@@ -2636,14 +2634,11 @@ export default function SnakeAndLadder() {
         setTimeout(() => setHighlight(null), 2300);
         const victims = capturePieces(finalPos, 0, { attackerFrom: current });
         if (victims.length) {
-          playGameHaptic('capture');
           const victimLabel = getPlayerName(victims[0]);
         }
         if (type === 'ladder') {
-          playGameHaptic('ladder');
         }
         if (type === 'snake') {
-          playGameHaptic('snake');
         }
         if (finalPos === FINAL_TILE && !ranking.some((r) => r.name === 'You')) {
           const first = ranking.length === 0;
@@ -2661,7 +2656,6 @@ export default function SnakeAndLadder() {
           }
           setRanking((r) => [...r, { name: 'You', photoUrl, amount: winAmt }]);
           if (first) setGameOver(true);
-          if (first) playGameHaptic('win');
           setMessage(`You win ${winAmt} ${token}!`);
           setMessageColor("");
           if (!muted) winSoundRef.current?.play().catch(() => {});
@@ -3137,7 +3131,6 @@ export default function SnakeAndLadder() {
 
   const handleRollButtonClick = useCallback(() => {
     if (!canRoll) return;
-    playGameHaptic('press');
     diceRollerDivRef.current?.click();
   }, [canRoll]);
 

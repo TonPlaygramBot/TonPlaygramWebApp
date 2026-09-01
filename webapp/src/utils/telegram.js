@@ -6,14 +6,6 @@ export function isTelegramWebView() {
   const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
   if (ua.includes('Telegram')) return true;
 
-  // Telegram adds launch parameters before its JavaScript SDK is necessarily
-  // available. Detect those parameters so a cold Mini App does not briefly
-  // create a guest/browser account while waiting for initDataUnsafe.
-  const launchParams = `${window.location?.search || ''}${window.location?.hash || ''}`;
-  if (/(?:^|[?#&])tgWebApp(?:Data|Version|Platform|ThemeParams)=/.test(launchParams)) {
-    return true;
-  }
-
   const tg = window.Telegram?.WebApp;
   if (!tg) return false;
 

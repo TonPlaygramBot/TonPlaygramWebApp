@@ -4,9 +4,8 @@ export default function NavItem({ to, icon: Icon, label }) {
   return (
     <NavLink
       to={to}
-      aria-label={label}
       className={({ isActive }) =>
-        `flex min-w-0 flex-col items-center text-sm -translate-y-2 ${
+        `flex flex-col items-center text-sm -translate-y-2 ${
           isActive
             ? 'text-accent drop-shadow-[0_0_6px_rgba(250,204,21,0.8)]'
             : 'text-text hover:text-accent'

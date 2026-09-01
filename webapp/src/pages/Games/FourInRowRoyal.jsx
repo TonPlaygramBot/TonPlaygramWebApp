@@ -869,12 +869,6 @@ const getArenaYOffsetForHdri = (hdriId) => {
   return -groundedHeight;
 };
 
-const vibrate = (pattern) => {
-  if (typeof navigator !== 'undefined' && navigator.vibrate) {
-    navigator.vibrate(pattern);
-  }
-};
-
 export default function FourInRowRoyal() {
   useTelegramBackButton();
   const mountRef = useRef(null);
@@ -2031,7 +2025,6 @@ export default function FourInRowRoyal() {
     const row = getDropRow(board, col);
     if (row < 0) {
       playTone(180, 0.05, 'sawtooth', 0.012);
-      vibrate([18, 35, 18]);
       return false;
     }
     const next = cloneBoard(board);
@@ -2043,7 +2036,6 @@ export default function FourInRowRoyal() {
       setWinner(token);
       setWinningCells(winning);
       playConnectFourFx(token);
-      vibrate(token === 'player' ? [35, 45, 70] : 55);
       return true;
     }
     if (isFull(next)) {
@@ -2053,29 +2045,7 @@ export default function FourInRowRoyal() {
       return true;
     }
     setTurn(token === 'player' ? 'ai' : 'player');
-    vibrate(token === 'player' ? 22 : 12);
     return true;
-  };
-
-  const submitColumn = (col) => {
-    if (turn !== 'player' || winner || getDropRow(board, col) < 0) {
-      if (getDropRow(board, col) < 0) {
-        playTone(180, 0.05, 'sawtooth', 0.012);
-        vibrate([18, 35, 18]);
-      }
-      return;
-    }
-    setHoverCol(col);
-    if (onlineMode) {
-      vibrate(14);
-      socket.emit('fourInRowMove', {
-        tableId: onlineTableId,
-        accountId,
-        column: col
-      });
-      return;
-    }
-    playColumn(col, 'player');
   };
 
   useEffect(() => {
@@ -2577,47 +2547,6 @@ export default function FourInRowRoyal() {
         </div>
       </div>
 
-      <div
-        className="pointer-events-none absolute inset-x-0 bottom-[15.5%] z-30 flex flex-col items-center gap-2 px-3"
-        aria-live="polite"
-      >
-        <p className="rounded-full border border-white/15 bg-black/65 px-3 py-1.5 text-center text-[11px] font-semibold tracking-wide text-white shadow-lg backdrop-blur">
-          {winner
-            ? winner === 'draw'
-              ? 'Draw — no spaces remain'
-              : winner === 'player'
-                ? 'You connected four!'
-                : 'Rival connected four'
-            : turn === 'player'
-              ? 'Your turn — choose a column'
-              : 'Rival is choosing…'}
-        </p>
-        <div
-          className="pointer-events-auto grid w-full max-w-md gap-1.5"
-          style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
-          aria-label="Choose a column"
-        >
-          {Array.from({ length: cols }, (_, col) => {
-            const full = getDropRow(board, col) < 0;
-            return (
-              <button
-                // eslint-disable-next-line react/no-array-index-key
-                key={col}
-                type="button"
-                onClick={() => submitColumn(col)}
-                onPointerEnter={() => setHoverCol(col)}
-                onPointerLeave={() => setHoverCol(null)}
-                disabled={Boolean(winner) || turn !== 'player' || full}
-                aria-label={`Drop piece in column ${col + 1}${full ? ', full' : ''}`}
-                className="flex min-h-11 items-center justify-center rounded-xl border border-cyan-200/35 bg-slate-950/70 text-sm font-bold text-cyan-50 shadow-lg backdrop-blur transition active:scale-95 active:bg-cyan-400/30 disabled:border-white/10 disabled:text-white/30"
-              >
-                {full ? '×' : col + 1}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
       {winner && (
         <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center">
           <div className="relative w-[min(24rem,90vw)] rounded-3xl border border-yellow-300/30 bg-transparent px-6 pb-6 pt-10 text-center">
@@ -2649,10 +2578,8 @@ export default function FourInRowRoyal() {
                   alt="winner avatar"
                   className="h-full w-full object-cover"
                 />
-              ) : winner === 'ai' ? (
-                '🤖'
               ) : (
-                '🤝'
+                '🤖'
               )}
             </div>
             <p className="text-xs uppercase tracking-[0.26em] text-yellow-300">

@@ -635,15 +635,11 @@ public class BilliardsSolver
             // Cloth friction drives the ball toward natural rolling over time.
             b.ForwardSpin += (-forwardSlip * PhysicsConstants.SpinToRollCoupling) * dt;
 
-            var lateral = new Vec2(-dir.Y, dir.X);
-            double speedFactor = Smoothstep(PhysicsConstants.SwerveMinSpeed, PhysicsConstants.SwervePeakSpeed, speed);
-            if (speed > PhysicsConstants.SwerveSpeedCutoff)
-            {
-                double excess = speed - PhysicsConstants.SwerveSpeedCutoff;
-                speedFactor *= Math.Max(0.0, 1.0 - excess / PhysicsConstants.SwerveSpeedFadeRange);
-            }
-            var swerveAccel = PhysicsConstants.SwerveCoefficient * b.SideSpin * speed * b.MasseFactor * speedFactor;
-            b.Velocity += lateral * swerveAccel * dt;
+            // Side spin must not steer the ball away from the displayed guide.
+            // Keep the english on the ball (including its normal decay and its
+            // interaction with cushions), but do not translate it into a lateral
+            // cloth force. This makes both the cue-ball exit and target-ball path
+            // independent of power/spin while leaving the selected spin intact.
 
             // Side spin bleeds off via cloth contact and faster motion.
             double sideDecayRate =
