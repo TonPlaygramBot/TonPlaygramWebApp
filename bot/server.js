@@ -345,8 +345,14 @@ app.use('/api/ads', adsRoutes);
 app.use('/api/influencer', influencerRoutes);
 app.use('/api/referral', referralRoutes);
 app.use('/api/wallet', walletRoutes);
-app.use('/api/account', accountRoutes);
-app.use('/api/profile', profileRoutes);
+const requireDatabase = (_req, res, next) => {
+  if (mongoose.connection.readyState === 1) return next();
+  return res.status(503).json({
+    error: 'Profile database is temporarily unavailable. Please try again.'
+  });
+};
+app.use('/api/account', requireDatabase, accountRoutes);
+app.use('/api/profile', requireDatabase, profileRoutes);
 app.use('/api/push', pushRoutes);
 if (process.env.ENABLE_TWITTER_OAUTH === 'true') {
   app.use('/api/twitter', twitterAuthRoutes);
