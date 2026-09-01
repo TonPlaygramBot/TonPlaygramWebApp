@@ -83,6 +83,10 @@ export default function MyAccount() {
     () => localStorage.getItem('walletAddress') || ''
   );
   const connectedTonAddress = useTonAddress();
+  // TonConnect updates its hook before the persistence effect below runs. Use
+  // that live value immediately so the first profile request is owned by the
+  // connected wallet instead of accidentally creating/loading a guest account.
+  const walletIdentity = connectedTonAddress || tonWalletAddress;
   const {
     config: lockConfig,
     locked: profileLocked,
@@ -123,8 +127,7 @@ export default function MyAccount() {
   const requiresAuth =
     !telegramId &&
     !googleProfile?.id &&
-    !tonWalletAddress &&
-    !connectedTonAddress;
+    !walletIdentity;
 
   useEffect(() => {
     setGoogleLinked(Boolean(googleProfile?.id));
@@ -188,7 +191,7 @@ export default function MyAccount() {
         telegramId,
         googleProfile,
         undefined,
-        tonWalletAddress
+        walletIdentity
       );
       if (accountPayload?.error || !accountPayload?.accountId) {
         throw new Error(
@@ -199,7 +202,7 @@ export default function MyAccount() {
       if (accountPayload.accountId) {
         localStorage.setItem('accountId', accountPayload.accountId);
       }
-      const walletToStore = accountPayload.walletAddress || tonWalletAddress;
+      const walletToStore = accountPayload.walletAddress || walletIdentity;
       if (walletToStore) {
         localStorage.setItem('walletAddress', walletToStore);
         setTonWalletAddress(walletToStore);
@@ -304,7 +307,7 @@ export default function MyAccount() {
       if (timerRef.current) clearTimeout(timerRef.current);
       cancelled = true;
     };
-  }, [telegramId, googleProfile?.id, requiresAuth, reloadNonce]);
+  }, [telegramId, googleProfile?.id, walletIdentity, requiresAuth, reloadNonce]);
 
   useEffect(() => {
     if (!telegramId && googleProfile?.photo) {
