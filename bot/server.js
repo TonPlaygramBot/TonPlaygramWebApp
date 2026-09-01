@@ -34,8 +34,6 @@ import snookerRoyaleRoutes from './routes/snookerRoyal.js';
 import exchangeRoutes from './routes/exchange.js';
 import pushRoutes from './routes/push.js';
 import matchmakingRoutes from './routes/matchmaking.js';
-import protestVideoRoutes from './routes/protestVideos.js';
-import flamingoWallRoutes from './routes/flamingoWall.js';
 import User from './models/User.js';
 import GameResult from './models/GameResult.js';
 import AdView from './models/AdView.js';
@@ -50,7 +48,6 @@ import PostRecord from './models/PostRecord.js';
 import Task from './models/Task.js';
 import WatchRecord from './models/WatchRecord.js';
 import ActiveConnection from './models/ActiveConnection.js';
-import FlamingoPost from './models/FlamingoPost.js';
 import ChessMatch from './models/ChessMatch.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -142,8 +139,7 @@ const models = [
   Task,
   User,
   WatchRecord,
-  ActiveConnection,
-  FlamingoPost
+  ActiveConnection
 ];
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -313,8 +309,6 @@ app.use(helmet({
   }
 }));
 app.use(compression());
-app.use('/api/protest-videos', protestVideoRoutes);
-app.use('/api/flamingo-wall', flamingoWallRoutes);
 // Increase JSON body limit to handle large photo uploads
 app.use(express.json({ limit: '10mb' }));
 app.use(optionalAuthenticate);
