@@ -288,7 +288,7 @@ describe('cross-game inventory alignment', () => {
     expect(source).toContain('if (entry.selectedCaptureAnimationId === selectedCaptureAnimationId) {');
   });
 
-  test('ludo battle royal shows the selected Ukrainian drone parked and nudges portrait camera closer higher wider', async () => {
+  test('ludo battle royal shows the selected Ukrainian drone parked and frames the portrait camera lower and closer', async () => {
     const source = await readFile('webapp/src/pages/Games/LudoBattleRoyal.jsx', 'utf8');
 
     expect(source).toContain("const CAPTURE_AIR_ATTACK_ID_SET = new Set(['fighterJetAttack', 'helicopterAttack', 'droneAttack', 'ukrainianDroneAttack', 'missileJavelin'])");
@@ -297,8 +297,8 @@ describe('cross-game inventory alignment', () => {
     expect(source).toContain('const CAMERA_FOV = 78;');
     expect(source).toContain('const SEATED_FACE_CAMERA_GAMEPLAY_FORWARD = 0.37 * MODEL_SCALE;');
     expect(source).toContain('const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.78 * MODEL_SCALE;');
-    expect(source).toContain('const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 2.46;');
-    expect(source).toContain('const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.36;');
+    expect(source).toContain('const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.84;');
+    expect(source).toContain('const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.24;');
   });
 
   test('snake store mirrors ludo battle royal capture weapons', () => {

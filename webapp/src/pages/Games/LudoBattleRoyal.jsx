@@ -4490,9 +4490,11 @@ const PLAYER_VIEW_CAMERA_BACK_OFFSET_LANDSCAPE = 1.26;
 // Keep the portrait camera physically behind the local/bottom seat. The old
 // forward offset crossed the table centre after the arena was scaled down,
 // which visually put the AI seat at the bottom and the user's seat at the top.
-const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.72;
+// Bring the portrait viewpoint modestly inward so the table reads larger on a phone.
+const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.84;
 const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_LANDSCAPE = 0.98;
-const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.36;
+// Lower the portrait viewpoint slightly for a more table-level battle view.
+const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.24;
 const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_LANDSCAPE = 0.9;
 const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_PORTRAIT = 0.42 * MODEL_SCALE;
 const PLAYER_VIEW_FIRST_PERSON_EYE_FORWARD_LANDSCAPE = 0.2 * MODEL_SCALE;
