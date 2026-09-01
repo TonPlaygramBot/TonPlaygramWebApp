@@ -24,6 +24,9 @@ export const gameThumbnails = {
   tavullbattleroyal: '/assets/icons/Backgammonroyallogo.png',
   ludobattleroyal: '/assets/icons/Ludo%20battle%20Royal%20game%20logo.png',
   shootingrange: '/assets/icons/shooting-range.svg',
+  '2048royale': '/assets/icons/2048-royale.svg',
+  hextrisbattle: '/assets/icons/hextris-battle.svg',
+  underrunarena: '/assets/icons/underrun-arena.svg',
 };
 
 const buildLobbyIconSet = (keys, icon) =>

@@ -56,6 +56,18 @@ export const ONLINE_READINESS_BY_GAME = Object.freeze({
     checks: { lobby: true, runtime: true, backend: true, security: true },
     label: 'Online Ready'
   },
+  '2048royale': {
+    checks: { lobby: true, runtime: true, backend: true, security: true },
+    label: 'Online Ready'
+  },
+  hextrisbattle: {
+    checks: { lobby: true, runtime: true, backend: true, security: true },
+    label: 'Online Ready'
+  },
+  underrunarena: {
+    checks: { lobby: true, runtime: true, backend: true, security: true },
+    label: 'Online Ready'
+  },
   shootingrange: {
     checks: { lobby: true, runtime: true, backend: false, security: false },
     label: 'Lobby Ready'

@@ -88,6 +88,27 @@ const gamesCatalog = [
     slug: 'ludobattleroyal',
     image: '/assets/icons/Ludo%20battle%20Royal%20game%20logo.png',
     description: 'Classic ludo chaos in a battle royale lobby.'
+  },
+  {
+    name: '2048 Royale',
+    route: '/games/2048royale/lobby',
+    slug: '2048royale',
+    image: '/assets/icons/2048-royale.svg',
+    description: 'Merge tiles in a live two-player score race.'
+  },
+  {
+    name: 'Hextris Battle',
+    route: '/games/hextrisbattle/lobby',
+    slug: 'hextrisbattle',
+    image: '/assets/icons/hextris-battle.svg',
+    description: 'Match neon colors and protect your combo.'
+  },
+  {
+    name: 'Underrun Arena',
+    route: '/games/underrunarena/lobby',
+    slug: 'underrunarena',
+    image: '/assets/icons/underrun-arena.svg',
+    description: 'Survive an auto-fire neon swarm online.'
   }
 ];
 
