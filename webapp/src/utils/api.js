@@ -25,14 +25,19 @@ function normalizeBaseUrl(url) {
   return url.endsWith('/') ? url.slice(0, -1) : url;
 }
 
+export const PRODUCTION_API_BASE_URL = 'https://tonplaygram-bot.onrender.com';
+
 const defaultBase =
   typeof window !== 'undefined' && window.location?.origin ? window.location.origin : '';
-const preferredBase = normalizeBaseUrl(resolvedEnv.VITE_API_BASE_URL || defaultBase);
 const isNative = typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.();
+const preferredBase = normalizeBaseUrl(
+  resolvedEnv.VITE_API_BASE_URL || (isNative ? PRODUCTION_API_BASE_URL : defaultBase)
+);
 
 if (isNative && !resolvedEnv.VITE_API_BASE_URL) {
-  // Native shells must specify the API host explicitly to avoid calling an unexpected origin.
-  console.warn('VITE_API_BASE_URL is required for native builds to enforce HTTPS API access.');
+  // Older installed shells may predate the build-time setting. Keep those
+  // clients on the same production API instead of requesting capacitor://localhost.
+  console.warn('VITE_API_BASE_URL is missing; using the production API host.');
 }
 if (preferredBase && !/^https:\/\//i.test(preferredBase)) {
   console.warn('API base URL is not HTTPS. Set VITE_API_BASE_URL to a production host.');
