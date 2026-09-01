@@ -297,8 +297,8 @@ describe('cross-game inventory alignment', () => {
     expect(source).toContain('const CAMERA_FOV = 78;');
     expect(source).toContain('const SEATED_FACE_CAMERA_GAMEPLAY_FORWARD = 0.37 * MODEL_SCALE;');
     expect(source).toContain('const SEATED_FACE_CAMERA_GAMEPLAY_UP = 0.78 * MODEL_SCALE;');
-    expect(source).toContain('const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.84;');
-    expect(source).toContain('const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.24;');
+    expect(source).toContain('const PLAYER_VIEW_CAMERA_FORWARD_OFFSET_PORTRAIT = 0.96;');
+    expect(source).toContain('const PLAYER_VIEW_CAMERA_HEIGHT_OFFSET_PORTRAIT = 1.1;');
   });
 
   test('snake store mirrors ludo battle royal capture weapons', () => {
