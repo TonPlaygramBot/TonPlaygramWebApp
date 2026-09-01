@@ -10,6 +10,10 @@ services:
     rootDir: bot
     buildCommand: npm install && npm --prefix ../webapp install && WEBAPP_BUILD_MAX_OLD_SPACE_SIZE=1536 npm --prefix ../webapp run build
     startCommand: npm start
+    # Do not route profile traffic until this deployment has its MongoDB
+    # connection. A process-only health check can pass while profile queries
+    # are still buffered waiting for the database.
+    healthCheckPath: /api/health
     disk:
       name: protest-media
       mountPath: /var/data/tonplaygram
