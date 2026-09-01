@@ -21,10 +21,7 @@ namespace Aiming
         {
             var vOP = (ctx.pocketPos - ctx.objectBallPos).normalized;
             var vOC = (ctx.cueBallPos - ctx.objectBallPos).normalized;
-            // vOC points from the object ball back to the cue ball.  Negate it
-            // before comparison so a cue-object-pocket line is classified as
-            // a zero-degree (straight) cut rather than a 180-degree cut.
-            float dot = Mathf.Clamp(Vector3.Dot(vOP, -vOC), -1f, 1f);
+            float dot = Mathf.Clamp(Vector3.Dot(vOP, vOC), -1f, 1f);
             float angle = Mathf.Acos(dot) * Mathf.Rad2Deg;
             bool isStraight = angle <= cfg.straightAngleDeg;
 

@@ -109,28 +109,17 @@ router.post('/create', optionalAuthenticate, async (req, res) => {
     const removeUser = async (payload) =>
       useMemoryStore ? deleteMemoryUser(payload?.accountId) : payload?.deleteOne?.();
 
-    // These identities are independent indexed lookups. Running them together
-    // keeps an account refresh to one database round trip instead of making
-    // profile visitors wait for up to three sequential queries.
-    const [existingByAccountId, existingByTelegram, existingByGoogle] =
-      await Promise.all([
-        accountId ? findUser({ accountId }) : null,
-        telegramId ? findUser({ telegramId }) : null,
-        googleId ? findUser({ googleId }) : null
-      ]);
+    const existingByAccountId = accountId ? await findUser({ accountId }) : null;
+    const existingByTelegram = telegramId ? await findUser({ telegramId }) : null;
+    const existingByGoogle = googleId ? await findUser({ googleId }) : null;
 
     const primaryExisting = existingByAccountId || existingByTelegram || existingByGoogle;
 
     if (telegramId) {
-      // Telegram is an external service and can be slow or rate limited. The
-      // database is authoritative for an existing profile, so only contact
-      // Telegram while creating a brand-new account.
-      if (!primaryExisting) {
-        try {
-          telegramProfile = await fetchTelegramInfo(telegramId);
-        } catch (err) {
-          console.error('fetchTelegramInfo failed:', err);
-        }
+      try {
+        telegramProfile = await fetchTelegramInfo(telegramId);
+      } catch (err) {
+        console.error('fetchTelegramInfo failed:', err);
       }
 
       user = existingByTelegram || primaryExisting;
@@ -288,22 +277,7 @@ router.post('/create', optionalAuthenticate, async (req, res) => {
       walletAddress: user.walletAddress,
       firstName: user.firstName,
       lastName: user.lastName,
-      photo: user.photo,
-      // Let the profile screen render from this same database result rather
-      // than immediately issuing a second /account/info query.
-      profile: {
-        accountId: user.accountId,
-        telegramId: user.telegramId,
-        googleId: user.googleId,
-        nickname: user.nickname,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        photo: user.photo,
-        balance: resolveAccountBalance(user),
-        gifts: Array.isArray(user.gifts) ? user.gifts : [],
-        transactions: Array.isArray(user.transactions) ? user.transactions : [],
-        social: user.social || {}
-      }
+      photo: user.photo
     });
   } catch (err) {
     console.error('Failed to create account:', err);

@@ -26,19 +26,9 @@ MonoBehaviour:
   pocketMouthHalfWidth: 0.06
   pocketBallClearanceRadiusScale: 1.08
   jawFarSideBias: 0.8
-  jawFarSideAutoBias: 0.85
-  jawNearSideDeadZoneRatio: 0.3
-  cornerPocketAxisTowardMin: 0.14
-  cornerPocketSafetyBlend: 0.72
   cuePathClearanceRadiusScale: 0.92
   cutAnglePenalty: 0.55
-  impactAccuracyWeight: 2.4
   distancePenalty: 0.2
-  enableMonteCarlo: 1
-  monteCarloRollouts: 48
-  monteCarloAimJitterDeg: 1.35
-  monteCarloPowerJitter: 0.12
-  monteCarloBlend: 0.7
   sideSpinAmount: 0.35
   verticalSpinAmount: 0.35
   tipOffsetMax: 0.85

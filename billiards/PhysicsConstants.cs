@@ -15,7 +15,9 @@ public static class PhysicsConstants
     public const double AirDrag = 0.05;                // linear damping in flight (m/s^2)
     public const double SpinDecay = 2.0;               // legacy fallback decay for on-table spin
     public const double AirSpinDecay = 0.6;            // per-second decay while airborne
-    public const double SwerveCoefficient = 2.4;       // lateral accel per unit side spin * speed
+    // Retained for saved tuning compatibility. Side spin no longer creates
+    // lateral english deflection; aiming-guide direction is authoritative.
+    public const double SwerveCoefficient = 0.0;
     public const double RollAcceleration = 1.2;        // forward accel per unit top/back spin
     public const double RollingSpinRatio = 0.55;       // forward spin value that corresponds to natural rolling at 1 m/s
     public const double SpinToRollCoupling = 6.5;      // how quickly spin converges toward natural roll state
