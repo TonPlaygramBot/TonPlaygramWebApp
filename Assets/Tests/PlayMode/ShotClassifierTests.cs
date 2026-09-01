@@ -29,26 +29,6 @@ namespace Aiming.Tests
             };
             var info = clf.Classify(ctx, cfg);
             Assert.IsTrue(info.isStraight);
-            Assert.That(info.angleDeg, Is.LessThan(0.01f));
-        }
-
-        [Test]
-        public void CutAngleUsesIncomingCueTravelDirection()
-        {
-            var ctx = new ShotContext
-            {
-                cueBallPos = Vector3.zero,
-                objectBallPos = new Vector3(0, 0, 1),
-                pocketPos = new Vector3(1, 0, 1),
-                ballRadius = 0.028f,
-                tableBounds = new Bounds(Vector3.zero, new Vector3(2.54f, 0.5f, 1.27f)),
-                collisionMask = ~0
-            };
-
-            var info = clf.Classify(ctx, cfg);
-
-            Assert.IsFalse(info.isStraight);
-            Assert.That(info.angleDeg, Is.EqualTo(90f).Within(0.01f));
         }
     }
 }

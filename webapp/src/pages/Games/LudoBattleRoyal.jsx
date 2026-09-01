@@ -4547,7 +4547,8 @@ function createAiUniqueLoadout(activePlayerCount, appearance = DEFAULT_APPEARANC
   const totalPlayers = Math.max(1, Number(activePlayerCount) || 1);
   const byPlayer = Array.from({ length: totalPlayers }, () => ({
     tokenPieceIndex: 0,
-    captureAnimationIndex: 0
+    captureAnimationIndex: 0,
+    humanCharacterIndex: 0
   }));
   const aiIndexes = Array.from({ length: Math.max(0, totalPlayers - 1) }, (_, idx) => idx + 1);
   if (!aiIndexes.length) return byPlayer;
@@ -4566,16 +4567,26 @@ function createAiUniqueLoadout(activePlayerCount, appearance = DEFAULT_APPEARANC
     0,
     Math.min(CAPTURE_ANIMATION_OPTIONS.length - 1, Number(appearance?.captureAnimation) || 0)
   );
+  const playerHumanIndex = Math.max(
+    0,
+    Math.min(HUMAN_CHARACTER_OPTIONS.length - 1, Number(appearance?.humanCharacter) || 0)
+  );
+
   const piecePool = shuffle(
     Array.from({ length: TOKEN_PIECE_OPTIONS.length }, (_, idx) => idx).filter((idx) => idx !== playerTokenPieceIndex)
   );
   const capturePool = shuffle(
     Array.from({ length: CAPTURE_ANIMATION_OPTIONS.length }, (_, idx) => idx).filter((idx) => idx !== playerCaptureIndex)
   );
+  const humanPool = shuffle(
+    Array.from({ length: HUMAN_CHARACTER_OPTIONS.length }, (_, idx) => idx).filter((idx) => idx !== playerHumanIndex)
+  );
+
   aiIndexes.forEach((playerIndex, aiIndex) => {
     byPlayer[playerIndex] = {
       tokenPieceIndex: piecePool[aiIndex % piecePool.length] ?? 0,
-      captureAnimationIndex: capturePool[aiIndex % capturePool.length] ?? 0
+      captureAnimationIndex: capturePool[aiIndex % capturePool.length] ?? 0,
+      humanCharacterIndex: humanPool[aiIndex % humanPool.length] ?? 0
     };
   });
   return byPlayer;
@@ -4602,7 +4613,8 @@ const DEFAULT_APPEARANCE = {
   tokenPalette: 0,
   tokenStyle: 0,
   tokenPiece: 0,
-  captureAnimation: 0
+  captureAnimation: 0,
+  humanCharacter: 0
 };
 
 const CUSTOMIZATION_SECTIONS = [
@@ -4614,7 +4626,8 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'tokenPalette', label: 'Token Palette', options: TOKEN_PALETTE_OPTIONS },
   { key: 'tokenStyle', label: 'Token Style', options: TOKEN_STYLE_OPTIONS },
   { key: 'tokenPiece', label: 'Token Piece', options: TOKEN_PIECE_OPTIONS },
-  { key: 'captureAnimation', label: 'Capture Animation', options: CAPTURE_ANIMATION_OPTIONS }
+  { key: 'captureAnimation', label: 'Capture Animation', options: CAPTURE_ANIMATION_OPTIONS },
+  { key: 'humanCharacter', label: 'Human Character', options: HUMAN_CHARACTER_OPTIONS }
 ];
 
 const FRAME_RATE_STORAGE_KEY = 'ludoFrameRate';
@@ -4695,7 +4708,8 @@ function normalizeAppearance(value = {}) {
     ['tokenPalette', TOKEN_PALETTE_OPTIONS.length],
     ['tokenStyle', TOKEN_STYLE_OPTIONS.length],
     ['tokenPiece', TOKEN_PIECE_OPTIONS.length],
-    ['captureAnimation', CAPTURE_ANIMATION_OPTIONS.length]
+    ['captureAnimation', CAPTURE_ANIMATION_OPTIONS.length],
+    ['humanCharacter', HUMAN_CHARACTER_OPTIONS.length]
   ];
   entries.forEach(([key, max]) => {
     const raw = Number(value?.[key]);
@@ -8450,7 +8464,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
         tokenPalette: TOKEN_PALETTE_OPTIONS,
         tokenStyle: TOKEN_STYLE_OPTIONS,
         tokenPiece: TOKEN_PIECE_OPTIONS,
-        captureAnimation: CAPTURE_ANIMATION_OPTIONS
+        captureAnimation: CAPTURE_ANIMATION_OPTIONS,
+        humanCharacter: HUMAN_CHARACTER_OPTIONS
       };
       let changed = false;
       const next = { ...normalized };
@@ -10669,8 +10684,46 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount, onlin
       arenaGroup.add(group);
       chairs.push({ group, anchor: avatarAnchor, supportsArmrest: chairSupportsArmrest });
     }
-    // Human spectators are intentionally omitted to keep the Ludo arena lightweight.
     seatedHumanActorsRef.current = [];
+    try {
+      const baseScale =
+        (SEATED_HUMAN_TARGET_HEIGHT / Math.max(SEATED_HUMAN_BASE_HEIGHT, 0.01)) * SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER;
+      for (let playerIndex = 0; playerIndex < chairs.length; playerIndex += 1) {
+        const chair = chairs[playerIndex];
+        const humanIndex =
+          playerIndex > 0 ? aiLoadoutByPlayer[playerIndex]?.humanCharacterIndex ?? 0 : appearanceRef.current?.humanCharacter ?? 0;
+        const humanOption = HUMAN_CHARACTER_OPTIONS[humanIndex] ?? HUMAN_CHARACTER_OPTIONS[0];
+        let humanTemplate = null;
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          humanTemplate = await loadSeatedHumanTemplate(renderer, humanOption);
+        } catch (error) {
+          console.warn('AI/human seat model failed, falling back to default seated avatar', playerIndex, humanOption?.id, error);
+          // eslint-disable-next-line no-await-in-loop
+          humanTemplate = await loadSeatedHumanTemplate(renderer, HUMAN_CHARACTER_OPTIONS[0]);
+        }
+        if (!humanTemplate) continue;
+        const actor = cloneSkeleton(humanTemplate);
+        actor.scale.setScalar(baseScale);
+        const seatZOffset = SEATED_HUMAN_SEAT_Z_OFFSET + (playerIndex === 0 ? SELF_BOTTOM_HUMAN_EXTRA_Z_OFFSET : 0);
+        actor.position.set(0, SEATED_HUMAN_SEAT_Y_OFFSET, seatZOffset);
+        actor.rotation.set(0, SEATED_HUMAN_FACING_Y, 0);
+        chair.group.add(actor);
+        const rig = saveBoneRig(actor);
+        applySeatedHumanPose(rig, 'idle', 1, 0, {}, {}, chair.supportsArmrest !== false);
+        alignSeatedHumanFeetToGroundPlane(actor, rig);
+        const actionHelpers = createSeatedHumanActionHelpers(actor, rig);
+        seatedHumanActorsRef.current.push({
+          playerIndex,
+          actor,
+          rig,
+          actionHelpers,
+          chairSupportsArmrest: chair.supportsArmrest !== false
+        });
+      }
+    } catch (error) {
+      console.warn('Unable to attach seated human actors for Ludo chairs', error);
+    }
     controls.minDistance = CAM.minR;
     controls.maxDistance = CAM.maxR * CAMERA_ZOOM_MAX_FACTOR;
     cameraSeatLockPositionRef.current = camera.position.clone();

@@ -32,7 +32,6 @@ const xIcon = (
 import { Link } from 'react-router-dom';
 
 import { API_BASE_URL, ping, getProfile, fetchTelegramInfo } from '../utils/api.js';
-import { resolveWallMediaUrl } from '../features/flamingo/mediaUrl.js';
 
 import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 
@@ -189,13 +188,13 @@ export default function Home() {
           <Link className="home-protest-card__thumbnail" to="/wall" aria-label="Hap postimin më të fundit">
             {latestProtestPost.attachment.type?.startsWith('video/') ? (
               <video
-                src={resolveWallMediaUrl(API_BASE_URL, latestProtestPost.attachment.url, latestProtestPost.attachment.size)}
+                src={`${API_BASE_URL}${latestProtestPost.attachment.url}`}
                 muted
                 playsInline
                 preload="metadata"
               />
             ) : latestProtestPost.attachment.type?.startsWith('image/') ? (
-              <img src={resolveWallMediaUrl(API_BASE_URL, latestProtestPost.attachment.url, latestProtestPost.attachment.size)} alt="Postimi më i fundit" />
+              <img src={`${API_BASE_URL}${latestProtestPost.attachment.url}`} alt="Postimi më i fundit" />
             ) : null}
             <span>Postimi më i fundit</span>
           </Link>

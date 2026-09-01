@@ -8,6 +8,7 @@ import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
+import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import {
   applyRendererSRGB,
@@ -34,6 +35,7 @@ import {
   CHESS_BATTLE_OPTION_LABELS,
   CHESS_BATTLE_OPTION_THUMBNAILS,
   CHESS_CHAIR_OPTIONS,
+  CHESS_HUMAN_CHARACTER_OPTIONS,
   CHESS_TABLE_OPTIONS
 } from '../../config/chessBattleInventoryConfig.js';
 import {
@@ -54,6 +56,13 @@ import {
 } from '../../utils/chessBattleInventory.js';
 import { getCustomHdriVariantsForGame } from '../../utils/customHdriCatalog.js';
 import { socket } from '../../utils/socket.js';
+import {
+  applySeatedHumanPose,
+  applySeatedHumanRightArmIK,
+  getSeatedHumanGripWorldPosition,
+  loadSeatedHumanTemplate,
+  saveSeatedHumanBoneRig
+} from './shared/seatedHumanActors.js';
 import { canControlCheckersTurn } from './shared/checkersTurnControl.js';
 
 const SIZE = 8;
@@ -62,10 +71,11 @@ const clamp01 = (value, fallback = 0) => {
   if (!Number.isFinite(value)) return fallback;
   return Math.min(1, Math.max(0, value));
 };
+const smoothEase = (t) => t * t * (3 - 2 * t);
 const CHECKERS_ARENA_BASE_SCALE = 0.48;
 // Requested visual tuning: keep the Checkers Battle Royal table/board setup
 // compact while preserving layout relationships between the board, table,
-// pieces and chairs.
+// pieces, chairs, and seated humans.
 const CHECKERS_ARENA_SCALE = CHECKERS_ARENA_BASE_SCALE * 0.68;
 const MODEL_SCALE = 0.75 * CHECKERS_ARENA_SCALE;
 const STOOL_SCALE = 1.02 * CHECKERS_ARENA_SCALE;
@@ -89,7 +99,7 @@ const BOARD_MODEL_OUTER_TO_PLAYABLE_RATIO = 1.14;
 // decorative rim.
 const CHECKERS_PLAYABLE_MAPPING_RATIO = 1.44;
 // Keep the seated player stations connected to the table while leaving a
-// little breathing room around the bottom player's chair.
+// little breathing room around the bottom player's chair and human.
 const CHAIR_OUTWARD_OFFSET = -0.075;
 const CHAIR_DISTANCE =
   TABLE_RADIUS + 0.56 * CHECKERS_ARENA_SCALE + CHAIR_OUTWARD_OFFSET;
@@ -104,6 +114,24 @@ const ARM_THICKNESS = 0.125 * MODEL_SCALE * STOOL_SCALE;
 const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
 const ARM_DEPTH = SEAT_DEPTH * 0.75;
 const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
+// Checkers uses the shared Chess Battle seated avatars in a smaller arena;
+// keep them readable while matching the smaller table/chair/board presentation.
+const SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER = 2.496;
+const SEATED_HUMAN_TARGET_HEIGHT =
+  BACK_HEIGHT * 2.95 * SEATED_HUMAN_VISUAL_SCALE_MULTIPLIER;
+const SEATED_HUMAN_SEAT_Y_OFFSET = -0.78 * MODEL_SCALE * STOOL_SCALE;
+const SEATED_HUMAN_SEAT_Z_OFFSET = SEAT_DEPTH * 0.08;
+const SEATED_HUMAN_MOVE_DURATION_MS = 980;
+const SEATED_HUMAN_PICKUP_PHASE_END = 0.34;
+const SEATED_HUMAN_CARRY_PHASE_END = 0.74;
+const SEATED_HUMAN_PICK_LIFT_HEIGHT = 0.16 * CHECKERS_ARENA_SCALE;
+const SEATED_HUMAN_HAND_CONTACT_HEIGHT_MULTIPLIER = 0.19;
+const SEATED_HUMAN_FORWARD_REACH_MIN = 1.1;
+const SEATED_HUMAN_FORWARD_REACH_MAX = 2.04;
+const SEATED_HUMAN_SIDE_REACH_SCALE = 1.42;
+const SEATED_HUMAN_PICKUP_CONTACT_START_RATIO = 0.56;
+const SEATED_HUMAN_PLACE_CONTACT_END_RATIO = 0.94;
+const SEATED_HUMAN_HELD_PIECE_TOP_OFFSET_MULTIPLIER = 0.19;
 const DEFAULT_HDRI_RESOLUTIONS = Object.freeze(['4k']);
 const DEFAULT_HDRI_CAMERA_HEIGHT_M = 1.5;
 const HDRI_UNITS_PER_METER = 1;
@@ -1848,6 +1876,8 @@ export default function CheckersBattleRoyal() {
   const capturedPiecesGroupRef = useRef(null);
   const effectsGroupRef = useRef(null);
   const activeAnimationsRef = useRef([]);
+  const seatedHumanActorsRef = useRef([]);
+  const seatedHumanMoveActionsRef = useRef(new Map());
   const boardOriginRef = useRef({ x: 0, y: 0.75, z: 0, tile: 2.65 });
   const replayStateRef = useRef(null);
   const highlightGroupRef = useRef(null);
@@ -2001,6 +2031,16 @@ export default function CheckersBattleRoyal() {
       ),
     [inventory]
   );
+  const unlockedHumanCharacterOptions = useMemo(
+    () => {
+      const unlocked = CHESS_HUMAN_CHARACTER_OPTIONS.filter((opt) =>
+        isChessOptionUnlocked('humanCharacter', opt.id, inventory)
+      );
+      return unlocked.length ? unlocked : [CHESS_HUMAN_CHARACTER_OPTIONS[0]].filter(Boolean);
+    },
+    [inventory]
+  );
+
   const unlockedHdriOptions = useMemo(
     () => {
       const customVariants = getCustomHdriVariantsForGame(
@@ -2023,7 +2063,9 @@ export default function CheckersBattleRoyal() {
       hdriId: inventory.environmentHdri?.[0] || POOL_ROYALE_DEFAULT_HDRI_ID,
       boardTheme:
         inventory.boardTheme?.[0] || CHECKERS_BOARD_THEME_OPTIONS[0]?.id,
-      headStyle: inventory.headStyle?.[0] || 'current'
+      headStyle: inventory.headStyle?.[0] || 'current',
+      humanCharacter:
+        inventory.humanCharacter?.[0] || CHESS_HUMAN_CHARACTER_OPTIONS[0]?.id
     }),
     [inventory]
   );
@@ -2200,6 +2242,12 @@ export default function CheckersBattleRoyal() {
         appearance.hdriId,
         resolvedAccountId
       );
+    if (appearance.humanCharacter)
+      setChessBattleEquippedOption(
+        'humanCharacter',
+        appearance.humanCharacter,
+        resolvedAccountId
+      );
   }, [
     appearance.boardTheme,
     appearance.chairId,
@@ -2207,6 +2255,7 @@ export default function CheckersBattleRoyal() {
     appearance.tableCloth,
     appearance.tableFinish,
     appearance.tableId,
+    appearance.humanCharacter,
     resolvedAccountId
   ]);
 
@@ -2295,6 +2344,77 @@ export default function CheckersBattleRoyal() {
       }
     },
     [appearance.chairId]
+  );
+
+  const clearSeatedHumans = useCallback(() => {
+    seatedHumanMoveActionsRef.current.clear();
+    seatedHumanActorsRef.current.forEach((entry) => {
+      entry?.actor?.parent?.remove?.(entry.actor);
+      disposeGroupMeshes(entry?.actor, {
+        disposeGeometry: false,
+        disposeMaterials: false
+      });
+    });
+    seatedHumanActorsRef.current = [];
+  }, []);
+
+  const rebuildSeatedHumans = useCallback(
+    async ({ chairs = chairsRef.current, humanCharacterId = CHESS_HUMAN_CHARACTER_OPTIONS[0]?.id } = {}) => {
+      const activeChairs = Array.isArray(chairs) ? chairs.filter(Boolean) : [];
+      if (activeChairs.length < 2) return;
+      const requestId = chairLoadRequestRef.current;
+      const humanOption =
+        CHESS_HUMAN_CHARACTER_OPTIONS.find((option) => option.id === humanCharacterId) ||
+        CHESS_HUMAN_CHARACTER_OPTIONS[0];
+      try {
+        const renderer = rendererRef.current;
+        const maxAnisotropy = renderer?.capabilities?.getMaxAnisotropy?.() || 1;
+        const humanTemplate = await loadSeatedHumanTemplate({
+          option: humanOption,
+          renderer,
+          maxAnisotropy,
+          targetHeight: SEATED_HUMAN_TARGET_HEIGHT,
+          createLoader: createConfiguredGLTFLoader
+        });
+        if (requestId !== chairLoadRequestRef.current) return;
+        clearSeatedHumans();
+        const seatedScale = humanTemplate?.userData?.seatedHumanScale || 1;
+        const seatedYawOffset = Number.isFinite(humanTemplate?.userData?.seatedYawOffset)
+          ? humanTemplate.userData.seatedYawOffset
+          : 0;
+        const seatedYOffset = Number.isFinite(humanTemplate?.userData?.seatedYOffset)
+          ? humanTemplate.userData.seatedYOffset
+          : 0;
+        const seatedZOffset = Number.isFinite(humanTemplate?.userData?.seatedZOffset)
+          ? humanTemplate.userData.seatedZOffset
+          : 0;
+        activeChairs.slice(0, 2).forEach((chair, playerIndex) => {
+          const actor = cloneSkinned(humanTemplate);
+          actor.name = `CheckersSeatedHuman_${playerIndex}`;
+          actor.userData = { ...(actor.userData || {}), humanCharacterId: humanOption?.id };
+          actor.scale.setScalar(seatedScale);
+          actor.position.set(
+            0,
+            SEATED_HUMAN_SEAT_Y_OFFSET + seatedYOffset,
+            SEATED_HUMAN_SEAT_Z_OFFSET + seatedZOffset
+          );
+          actor.rotation.y = seatedYawOffset;
+          actor.traverse?.((obj) => {
+            if (!obj?.isMesh) return;
+            obj.castShadow = true;
+            obj.receiveShadow = true;
+            obj.frustumCulled = false;
+          });
+          chair.add(actor);
+          const rig = saveSeatedHumanBoneRig(actor);
+          applySeatedHumanPose(rig, 'idle', 1, 0);
+          seatedHumanActorsRef.current.push({ playerIndex, chair, actor, rig });
+        });
+      } catch (error) {
+        console.warn('Checkers Battle Royal: unable to attach seated human actors', error);
+      }
+    },
+    [clearSeatedHumans]
   );
 
   const playerName =
@@ -2419,7 +2539,10 @@ export default function CheckersBattleRoyal() {
         moving.scale.setScalar(capture ? 1.05 : 1);
         group.add(moving);
         const startedAt = performance.now();
-        const duration = capture ? CAPTURE_JUMP_DURATION_MS : MOVE_JUMP_DURATION_MS;
+        const duration = Math.max(
+          capture ? CAPTURE_JUMP_DURATION_MS : MOVE_JUMP_DURATION_MS,
+          SEATED_HUMAN_MOVE_DURATION_MS
+        );
         const moveAnimation = {
           type: 'move',
           object: moving,
@@ -2427,13 +2550,117 @@ export default function CheckersBattleRoyal() {
           duration,
           from: fromPos,
           to: toPos,
-          arcHeight: tile * (capture ? 0.72 : 0.52)
+          arcHeight: tile * (capture ? 0.72 : 0.52),
+          handCarried: false,
+          humanPickupT: null,
+          humanReleaseT: null
         };
         activeAnimationsRef.current.push(moveAnimation);
+        const moverSeatIndex = side === 'light' ? 1 : 0;
+        const moverActor = seatedHumanActorsRef.current.find(
+          (entry) => entry?.playerIndex === moverSeatIndex
+        );
+        if (moverActor?.rig) {
+          moveAnimation.humanPickupT =
+            SEATED_HUMAN_PICKUP_PHASE_END * SEATED_HUMAN_PICKUP_CONTACT_START_RATIO;
+          moveAnimation.humanReleaseT = Math.min(
+            0.985,
+            SEATED_HUMAN_CARRY_PHASE_END +
+              (1 - SEATED_HUMAN_CARRY_PHASE_END) * SEATED_HUMAN_PLACE_CONTACT_END_RATIO
+          );
+          seatedHumanMoveActionsRef.current.set(moverSeatIndex, {
+            startedAt,
+            duration,
+            from: fromPos.clone(),
+            to: toPos.clone(),
+            object: moving,
+            tile,
+            capture
+          });
+        }
       },
     [checkerHeadPreset, piecePalette]
   );
 
+  const updateSeatedHumanMoveActions = useCallback((now = performance.now()) => {
+    seatedHumanActorsRef.current.forEach((entry) => {
+      if (!entry?.rig) return;
+      const action = seatedHumanMoveActionsRef.current.get(entry.playerIndex);
+      if (!action) {
+        applySeatedHumanPose(entry.rig, 'idle', 1, 0);
+        return;
+      }
+      const rawT = clamp((now - action.startedAt) / Math.max(action.duration, 1), 0, 1);
+      const contactFrom = action.from.clone();
+      contactFrom.y += action.tile * SEATED_HUMAN_HAND_CONTACT_HEIGHT_MULTIPLIER;
+      const contactTo = action.to.clone();
+      contactTo.y += action.tile * SEATED_HUMAN_HAND_CONTACT_HEIGHT_MULTIPLIER;
+      const carryArc = Math.sin(Math.PI * rawT) * (SEATED_HUMAN_PICK_LIFT_HEIGHT + action.tile * 0.18);
+      const target = new THREE.Vector3().lerpVectors(contactFrom, contactTo, smoothEase(rawT));
+      target.y += carryArc;
+      const fromLocal = entry.actor.worldToLocal(action.from.clone());
+      const toLocal = entry.actor.worldToLocal(action.to.clone());
+      const sideSpan = Math.max(action.tile * 3, 0.001);
+      const reachDistanceRatio = Math.max(Math.abs(fromLocal.z), Math.abs(toLocal.z)) / sideSpan;
+      const forwardReach = clamp(
+        reachDistanceRatio * 1.18 + 0.22,
+        SEATED_HUMAN_FORWARD_REACH_MIN,
+        SEATED_HUMAN_FORWARD_REACH_MAX
+      );
+      const sideReach = clamp(
+        ((fromLocal.x + toLocal.x) / (sideSpan * 2)) * SEATED_HUMAN_SIDE_REACH_SCALE,
+        -1,
+        1
+      );
+      let mode = 'reachPiece';
+      let intensity = 1;
+      let grip = 0;
+      if (rawT < SEATED_HUMAN_PICKUP_PHASE_END) {
+        const phase = rawT / SEATED_HUMAN_PICKUP_PHASE_END;
+        mode = phase < 0.55 ? 'reachPiece' : 'gripPiece';
+        intensity = smoothEase(phase);
+        grip = smoothEase(Math.max(0, (phase - 0.45) / 0.55));
+      } else if (rawT < SEATED_HUMAN_CARRY_PHASE_END) {
+        mode = 'carryPiece';
+        intensity = 1;
+        grip = 1;
+      } else {
+        const phase = (rawT - SEATED_HUMAN_CARRY_PHASE_END) / (1 - SEATED_HUMAN_CARRY_PHASE_END);
+        mode = 'placePiece';
+        intensity = 1;
+        grip = 1 - smoothEase(phase);
+      }
+      applySeatedHumanPose(entry.rig, mode, intensity, grip, {
+        forwardReach,
+        sideReach
+      });
+      applySeatedHumanRightArmIK(entry.rig, target, 0.98);
+      entry.actor.updateMatrixWorld(true);
+      const gripWorld = getSeatedHumanGripWorldPosition(entry.rig);
+      const pickupContactStart =
+        SEATED_HUMAN_PICKUP_PHASE_END * SEATED_HUMAN_PICKUP_CONTACT_START_RATIO;
+      const placeContactEnd = Math.min(
+        0.985,
+        SEATED_HUMAN_CARRY_PHASE_END +
+          (1 - SEATED_HUMAN_CARRY_PHASE_END) * SEATED_HUMAN_PLACE_CONTACT_END_RATIO
+      );
+      const isHandCarrying = rawT >= pickupContactStart && rawT <= placeContactEnd;
+      const linkedAnim = activeAnimationsRef.current.find((anim) => anim.object === action.object);
+      if (linkedAnim) linkedAnim.handCarried = isHandCarrying;
+      if (action.object) action.object.userData.handCarried = isHandCarrying;
+      if (action.object && isHandCarrying) {
+        action.object.position.copy(gripWorld || target);
+        action.object.position.y -= action.tile * SEATED_HUMAN_HELD_PIECE_TOP_OFFSET_MULTIPLIER;
+        action.object.rotation.z = Math.sin(rawT * Math.PI * 2) * 0.05;
+      }
+      if (rawT >= 1) {
+        const linkedAnim = activeAnimationsRef.current.find((anim) => anim.object === action.object);
+        if (linkedAnim) linkedAnim.handCarried = false;
+        applySeatedHumanPose(entry.rig, 'idle', 1, 0);
+        seatedHumanMoveActionsRef.current.delete(entry.playerIndex);
+      }
+    });
+  }, []);
 
   useEffect(() => {
     renderPieces();
@@ -2984,6 +3211,7 @@ export default function CheckersBattleRoyal() {
       }
 
       await rebuildChairs({ scene, chairId: appearance.chairId });
+      await rebuildSeatedHumans({ chairs: chairsRef.current, humanCharacterId: appearance.humanCharacter });
 
       const addVisibleBoardBase = () => {
         const boardBase = new THREE.Group();
@@ -3095,6 +3323,7 @@ export default function CheckersBattleRoyal() {
       const maxFps = Math.max(30, graphicsProfile?.maxFps || 60);
       const minFrameMs = 1000 / maxFps;
       if (now - previousFrameAt < minFrameMs) return;
+      updateSeatedHumanMoveActions(now);
       const animations = activeAnimationsRef.current;
       if (animations.length) {
         for (let i = animations.length - 1; i >= 0; i -= 1) {
@@ -3102,9 +3331,29 @@ export default function CheckersBattleRoyal() {
           const elapsed = now - anim.startedAt;
           const t = Math.max(0, Math.min(1, elapsed / anim.duration));
           if (anim.type === 'move') {
-            anim.object.position.lerpVectors(anim.from, anim.to, t);
-            anim.object.position.y += Math.sin(Math.PI * t) * anim.arcHeight;
-            anim.object.rotation.z = Math.sin(t * Math.PI * 2.1) * 0.1;
+            if (!anim.handCarried) {
+              const hasHumanCarryTiming =
+                Number.isFinite(anim.humanPickupT) && Number.isFinite(anim.humanReleaseT);
+              if (hasHumanCarryTiming && t < anim.humanPickupT) {
+                const pickupSettleT = smoothEase(t / Math.max(anim.humanPickupT, 0.001));
+                anim.object.position.copy(anim.from);
+                anim.object.position.y +=
+                  Math.sin(Math.PI * pickupSettleT) * anim.arcHeight * 0.08;
+                anim.object.rotation.z = Math.sin(pickupSettleT * Math.PI) * 0.035;
+              } else if (hasHumanCarryTiming && t > anim.humanReleaseT) {
+                const releaseT = smoothEase(
+                  (t - anim.humanReleaseT) / Math.max(1 - anim.humanReleaseT, 0.001)
+                );
+                anim.object.position.copy(anim.to);
+                anim.object.position.y +=
+                  Math.sin(Math.PI * releaseT) * anim.arcHeight * 0.05;
+                anim.object.rotation.z = Math.sin(releaseT * Math.PI * 1.5) * 0.025;
+              } else if (!hasHumanCarryTiming) {
+                anim.object.position.lerpVectors(anim.from, anim.to, t);
+                anim.object.position.y += Math.sin(Math.PI * t) * anim.arcHeight;
+                anim.object.rotation.z = Math.sin(t * Math.PI * 2.1) * 0.1;
+              }
+            }
             if (t >= 1) {
               animateSmokePuff(
                 effectsGroupRef.current,
@@ -3169,8 +3418,9 @@ export default function CheckersBattleRoyal() {
         mount.removeChild(renderer.domElement);
       cameraRef.current = null;
       controlsRef.current = null;
+      clearSeatedHumans();
     };
-  }, [graphicsProfile, rebuildChairs]);
+  }, [clearSeatedHumans, graphicsProfile, rebuildChairs, rebuildSeatedHumans, updateSeatedHumanMoveActions]);
 
   useEffect(() => {
     const isOnlineGame = mode === 'online';
@@ -3579,6 +3829,7 @@ export default function CheckersBattleRoyal() {
 
     if (activeChairIdRef.current !== appearance.chairId) {
       void rebuildChairs({ scene, chairId: appearance.chairId }).then(() => {
+        void rebuildSeatedHumans({ chairs: chairsRef.current, humanCharacterId: appearance.humanCharacter });
         alignArenaGroundArtifacts({
           shadowCatcher: shadowCatcherRef.current,
           skybox: envRef.current?.skybox,
@@ -3586,6 +3837,14 @@ export default function CheckersBattleRoyal() {
           board: gltfBoardRef.current,
           chairs: chairsRef.current
         });
+      });
+    } else if (
+      chairsRef.current.length &&
+      seatedHumanActorsRef.current[0]?.actor?.userData?.humanCharacterId !== appearance.humanCharacter
+    ) {
+      void rebuildSeatedHumans({
+        chairs: chairsRef.current,
+        humanCharacterId: appearance.humanCharacter
       });
     }
 
@@ -3685,7 +3944,7 @@ export default function CheckersBattleRoyal() {
     };
 
     void applyHdri();
-  }, [appearance, graphicsProfile, rebuildChairs]);
+  }, [appearance, graphicsProfile, rebuildChairs, rebuildSeatedHumans]);
 
   useEffect(() => {
     const camera = cameraRef.current;
@@ -3936,6 +4195,33 @@ export default function CheckersBattleRoyal() {
                         setAppearance((prev) => ({ ...prev, chairId: opt.id }))
                       }
                       className={`rounded-xl border px-2 py-2 text-[11px] ${appearance.chairId === opt.id ? 'border-cyan-300 bg-cyan-500/20 text-cyan-100' : 'border-white/15 bg-white/5 text-white/70'}`}
+                    >
+                      {opt.thumbnail ? (
+                        <img
+                          src={opt.thumbnail}
+                          alt={`${opt.label} thumbnail`}
+                          className="mb-1 h-10 w-full rounded object-cover"
+                        />
+                      ) : null}
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mb-2 text-[11px] uppercase tracking-[0.2em] text-white/70">
+                  Human Characters
+                </div>
+                <div className="mb-3 grid max-h-40 grid-cols-2 gap-2 overflow-auto">
+                  {unlockedHumanCharacterOptions.map((opt) => (
+                    <button
+                      key={opt.id}
+                      onClick={() =>
+                        setAppearance((prev) => ({
+                          ...prev,
+                          humanCharacter: opt.id
+                        }))
+                      }
+                      className={`rounded-xl border px-2 py-2 text-[11px] ${appearance.humanCharacter === opt.id ? 'border-cyan-300 bg-cyan-500/20 text-cyan-100' : 'border-white/15 bg-white/5 text-white/70'}`}
                     >
                       {opt.thumbnail ? (
                         <img

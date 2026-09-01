@@ -116,10 +116,12 @@ const ShootingRange = React.lazy(
 const ShootingRangeLobby = React.lazy(
   () => import('./pages/Games/ShootingRangeLobby.jsx')
 );
-const ArcadeRaceLobby = React.lazy(() => import('./pages/Games/ArcadeRaceLobby.jsx'));
-const Game2048Royale = React.lazy(() => import('./pages/Games/Game2048Royale.jsx'));
-const HextrisBattle = React.lazy(() => import('./pages/Games/HextrisBattle.jsx'));
-const UnderrunArena = React.lazy(() => import('./pages/Games/UnderrunArena.jsx'));
+const Tennis = React.lazy(() => import('./pages/Games/Tennis.tsx'));
+const TableTennis = React.lazy(() => import('./pages/Games/TableTennis.tsx'));
+const TennisLobby = React.lazy(() => import('./pages/Games/TennisLobby.jsx'));
+const TableTennisLobby = React.lazy(() => import('./pages/Games/TableTennisLobby.jsx'));
+const BowlingRealistic = React.lazy(() => import('./pages/Games/BowlingRealistic.tsx'));
+const BowlingLobby = React.lazy(() => import('./pages/Games/BowlingLobby.jsx'));
 const StoreThumbnailStudioPoolRoyale = React.lazy(
   () => import('./pages/Tools/StoreThumbnailStudioPoolRoyale.jsx')
 );
@@ -227,12 +229,12 @@ export default function App() {
                 element={<GameTransactions />}
               />
               <Route path="/games/:game/lobby" element={<Lobby />} />
-              <Route path="/games/2048royale/lobby" element={<ArcadeRaceLobby gameSlug="2048royale" />} />
-              <Route path="/games/2048royale" element={<GameLiveAvatarOverlay gameSlug="2048royale"><Game2048Royale /></GameLiveAvatarOverlay>} />
-              <Route path="/games/hextrisbattle/lobby" element={<ArcadeRaceLobby gameSlug="hextrisbattle" />} />
-              <Route path="/games/hextrisbattle" element={<GameLiveAvatarOverlay gameSlug="hextrisbattle"><HextrisBattle /></GameLiveAvatarOverlay>} />
-              <Route path="/games/underrunarena/lobby" element={<ArcadeRaceLobby gameSlug="underrunarena" />} />
-              <Route path="/games/underrunarena" element={<GameLiveAvatarOverlay gameSlug="underrunarena"><UnderrunArena /></GameLiveAvatarOverlay>} />
+              <Route path="/games/table-tennis/lobby" element={<TableTennisLobby />} />
+              <Route path="/games/table-tennis" element={<GameLiveAvatarOverlay gameSlug="table-tennis"><TableTennis /></GameLiveAvatarOverlay>} />
+              <Route path="/games/tennis/lobby" element={<TennisLobby />} />
+              <Route path="/games/tennis" element={<GameLiveAvatarOverlay gameSlug="tennis"><Tennis /></GameLiveAvatarOverlay>} />
+              <Route path="/games/bowling/lobby" element={<BowlingLobby />} />
+              <Route path="/games/bowling" element={<GameLiveAvatarOverlay gameSlug="bowling"><BowlingRealistic /></GameLiveAvatarOverlay>} />
               <Route
                 path="/games/snake"
                 element={
@@ -309,7 +311,9 @@ export default function App() {
                       </div>
                     }
                   >
-                    <CheckersBattleRoyal />
+                    <GameLiveAvatarOverlay gameSlug="checkersbattleroyal">
+                      <CheckersBattleRoyal />
+                    </GameLiveAvatarOverlay>
                   </Suspense>
                 }
               />
@@ -485,11 +489,7 @@ export default function App() {
                 path="/trending"
                 element={<Navigate to="/messages" replace />}
               />
-              <Route path="/profile" element={<MyAccount />} />
-              <Route
-                path="/account"
-                element={<Navigate to="/profile" replace />}
-              />
+              <Route path="/account" element={<MyAccount />} />
               <Route path="/privacy" element={<LegalPage type="privacy" />} />
               <Route path="/terms" element={<LegalPage type="terms" />} />
               <Route path="/delete-account" element={<DeleteAccount />} />

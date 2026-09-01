@@ -7,6 +7,7 @@ import { RGBELoader } from '/vendor/three/examples/jsm/loaders/RGBELoader.js';
 import { DRACOLoader } from '/vendor/three/examples/jsm/loaders/DRACOLoader.js';
 import { KTX2Loader } from '/vendor/three/examples/jsm/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from '/vendor/three/examples/jsm/libs/meshopt_decoder.module.js';
+import { clone as cloneSkeleton } from '/vendor/three/examples/jsm/utils/SkeletonUtils.js';
 import './flag-emojis.js';
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -7872,6 +7873,868 @@ if (typeof MutationObserver !== 'undefined') {
   });
 }
 
+/* ---------- Domino Royal seated human characters ---------- */
+const POLYHAVEN_CLOTH_MATERIALS = Object.freeze({
+  denim: {
+    source: 'Poly Haven denim_fabric 1k glTF CC0',
+    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/denim_fabric/denim_fabric_1k.gltf',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/denim_fabric/denim_fabric_rough_1k.jpg',
+    tint: 0x314d86
+  },
+  check: {
+    source: 'Poly Haven gingham_check 1k glTF CC0',
+    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/gingham_check/gingham_check_1k.gltf',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/gingham_check/gingham_check_rough_1k.jpg',
+    tint: 0x9f3651
+  },
+  hessian: {
+    source: 'Poly Haven hessian_230 1k glTF CC0',
+    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/hessian_230/hessian_230_1k.gltf',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/hessian_230/hessian_230_rough_1k.jpg',
+    tint: 0xa27445
+  },
+  floral: {
+    source: 'Poly Haven floral_jacquard 1k glTF CC0',
+    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/floral_jacquard/floral_jacquard_1k.gltf',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/floral_jacquard/floral_jacquard_rough_1k.jpg',
+    tint: 0x6d3f7f
+  },
+  fleece: {
+    source: 'Poly Haven knitted_fleece 1k glTF CC0',
+    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/knitted_fleece/knitted_fleece_1k.gltf',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_diff_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/knitted_fleece/knitted_fleece_rough_1k.jpg',
+    tint: 0x4b5563
+  },
+  picnic: {
+    source: 'Poly Haven fabric_pattern_07 1k glTF CC0',
+    gltf: 'https://dl.polyhaven.org/file/ph-assets/Textures/gltf/1k/fabric_pattern_07/fabric_pattern_07_1k.gltf',
+    color: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_col_1_1k.jpg',
+    normal: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_nor_gl_1k.jpg',
+    roughness: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/fabric_pattern_07/fabric_pattern_07_rough_1k.jpg',
+    tint: 0xc44f42
+  }
+});
+
+const DOMINO_CHARACTER_CLOTH_COMBOS = Object.freeze({
+  royalDenim: {
+    upper: { material: 'denim', tint: 0x2f5f9f, repeat: 4.2 },
+    lower: { material: 'hessian', tint: 0x9b6b3f, repeat: 3.4 },
+    accent: { material: 'fleece', tint: 0xd8dee9, repeat: 5.0 }
+  },
+  casinoCheck: {
+    upper: { material: 'check', tint: 0xb7375d, repeat: 3.8 },
+    lower: { material: 'denim', tint: 0x243e70, repeat: 4.4 },
+    accent: { material: 'hessian', tint: 0xf4d7a1, repeat: 3.2 }
+  },
+  linenStreet: {
+    upper: { material: 'hessian', tint: 0xb68452, repeat: 3.6 },
+    lower: { material: 'fleece', tint: 0x374151, repeat: 5.2 },
+    accent: { material: 'denim', tint: 0x4a6fa4, repeat: 4.0 }
+  },
+  jacquardNight: {
+    upper: { material: 'floral', tint: 0x7c3f88, repeat: 3.2 },
+    lower: { material: 'denim', tint: 0x1f335f, repeat: 4.5 },
+    accent: { material: 'check', tint: 0xe3c16f, repeat: 4.0 }
+  },
+  softFleece: {
+    upper: { material: 'fleece', tint: 0x556070, repeat: 5.3 },
+    lower: { material: 'hessian', tint: 0x8b633f, repeat: 3.7 },
+    accent: { material: 'floral', tint: 0xb88ab8, repeat: 3.0 }
+  },
+  patternedRed: {
+    upper: { material: 'picnic', tint: 0xc44f42, repeat: 3.4 },
+    lower: { material: 'denim', tint: 0x263f73, repeat: 4.7 },
+    accent: { material: 'fleece', tint: 0xf1f5f9, repeat: 5.0 }
+  },
+  mixedDenim: {
+    upper: { material: 'denim', tint: 0x3b6ea8, repeat: 4.0 },
+    lower: { material: 'check', tint: 0x4f6f93, repeat: 4.2 },
+    accent: { material: 'hessian', tint: 0xd6a35f, repeat: 3.2 }
+  }
+});
+
+const DOMINO_CHARACTER_THEMES = Object.freeze([
+  {
+    id: 'rpm-current-domino',
+    urls: ['https://threejs.org/examples/models/gltf/readyplayer.me.glb'],
+    scale: 1,
+    seatOffsetY: -0.56,
+    seatOffsetZ: 0.52,
+    handLift: 1.04,
+    clothCombo: 'royalDenim',
+    hairColor: 0x24150f,
+    eyeColor: 0x2f5d7c,
+    skinTone: 0xd9a27d
+  },
+  {
+    id: 'rpm-67d411-domino',
+    urls: [
+      'https://models.readyplayer.me/67d411b30787acbf58ce58ac.glb',
+      'https://api.readyplayer.me/v1/avatars/67d411b30787acbf58ce58ac.glb',
+      'https://avatars.readyplayer.me/67d411b30787acbf58ce58ac.glb'
+    ],
+    scale: 1,
+    seatOffsetY: -0.56,
+    seatOffsetZ: 0.52,
+    handLift: 1.04,
+    clothCombo: 'casinoCheck',
+    hairColor: 0x14100c,
+    eyeColor: 0x5a3d2b,
+    skinTone: 0xc78f68
+  },
+  {
+    id: 'rpm-67f433-domino',
+    urls: [
+      'https://models.readyplayer.me/67f433b69dc08cf26d2cf585.glb',
+      'https://api.readyplayer.me/v1/avatars/67f433b69dc08cf26d2cf585.glb',
+      'https://avatars.readyplayer.me/67f433b69dc08cf26d2cf585.glb'
+    ],
+    scale: 1,
+    seatOffsetY: -0.56,
+    seatOffsetZ: 0.52,
+    handLift: 1.04,
+    clothCombo: 'linenStreet',
+    hairColor: 0x2c1b12,
+    eyeColor: 0x406a45,
+    skinTone: 0xe0b18d
+  },
+  {
+    id: 'rpm-67e1b5-domino',
+    urls: [
+      'https://models.readyplayer.me/67e1b51ae11c93725e4395c9.glb',
+      'https://api.readyplayer.me/v1/avatars/67e1b51ae11c93725e4395c9.glb',
+      'https://avatars.readyplayer.me/67e1b51ae11c93725e4395c9.glb'
+    ],
+    scale: 1,
+    seatOffsetY: -0.56,
+    seatOffsetZ: 0.52,
+    handLift: 1.04,
+    clothCombo: 'jacquardNight',
+    hairColor: 0x3a2418,
+    eyeColor: 0x364f7d,
+    skinTone: 0xb87957
+  },
+  {
+    id: 'webgl-vietnam-human-domino',
+    urls: ['https://raw.githubusercontent.com/hmthanh/3d-human-model/main/TranThiNgocTham.glb'],
+    scale: 1,
+    seatOffsetY: -0.56,
+    seatOffsetZ: 0.52,
+    handLift: 1.04,
+    clothCombo: 'softFleece',
+    hairColor: 0x120d0a,
+    eyeColor: 0x33271e,
+    skinTone: 0xd39a72
+  },
+  {
+    id: 'webgl-ai-teacher-domino',
+    urls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar.glb'],
+    scale: 1,
+    seatOffsetY: -0.56,
+    seatOffsetZ: 0.52,
+    handLift: 1.04,
+    clothCombo: 'patternedRed',
+    hairColor: 0x231915,
+    eyeColor: 0x3d5f73,
+    skinTone: 0xc88b64
+  },
+  {
+    id: 'webgl-ai-teacher-1-domino',
+    urls: ['https://raw.githubusercontent.com/Surbh77/AI-teacher/main/avatar1.glb'],
+    scale: 1,
+    seatOffsetY: -0.56,
+    seatOffsetZ: 0.52,
+    handLift: 1.04,
+    clothCombo: 'mixedDenim',
+    hairColor: 0x0f0b08,
+    eyeColor: 0x4c3425,
+    skinTone: 0xe3b08b
+  }
+]);
+const DOMINO_CHARACTER_PROPORTION_SCALE = 2.5;
+const DOMINO_HUMAN_CHARACTER_SCALE_BOOST = 0.63;
+// Seat avatars from the chair footprint instead of adding a table-facing Z offset.
+// This keeps every human visually aligned with the chair that owns the seat.
+const DOMINO_CHARACTER_CHAIR_SEAT_OUTWARD_BIAS = 0.02;
+// Slide only the AI/upper-seat characters inward so their hands sit closer to their domino racks.
+const DOMINO_CHARACTER_INWARD_DOMINO_REACH_BIAS = 0.04;
+const DOMINO_HUMAN_CHARACTER_CHAIR_SEAT_OUTWARD_BIAS = 0.12;
+const DOMINO_CHARACTER_EXTRA_LOWER_OFFSET = 1.76;
+const DOMINO_HUMAN_CHARACTER_EXTRA_LOWER_OFFSET = -0.2;
+const ENABLE_DOMINO_CHARACTER_HELD_RACKS = false;
+const DOMINO_CHARACTER_CACHE = new Map();
+const DOMINO_CHARACTER_TEXTURE_CACHE = new Map();
+let dominoCharacterThemeOrder = DOMINO_CHARACTER_THEMES.map((_, index) => index);
+const dominoCharacterInstances = [];
+const dominoCharacterRigs = new Map();
+const dominoCharacterActions = [];
+let dominoCharacterBuildToken = 0;
+
+const ENABLE_DOMINO_SEATED_HUMANS =
+  typeof window === 'undefined' || window.__DOMINO_ROYAL_ENABLE_SEATED_HUMANS !== false;
+
+function buildDominoFallbackCharacterTemplate() {
+  const group = new THREE.Group();
+  const skin = new THREE.MeshStandardMaterial({ color: 0xf2c7a5, roughness: 0.72, metalness: 0.02 });
+  const suit = new THREE.MeshStandardMaterial({ color: 0x1d4ed8, roughness: 0.78, metalness: 0.04 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.84, metalness: 0.02 });
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 24, 18), skin);
+  head.position.set(0, 1.42, 0.02);
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, 0.34, 8, 18), suit);
+  torso.position.set(0, 1.02, 0.01);
+  torso.rotation.x = THREE.MathUtils.degToRad(-7);
+  const makeLimb = (radius, depth, material) => new THREE.Mesh(new THREE.CapsuleGeometry(radius, depth, 6, 12), material);
+  const leftArm = makeLimb(0.045, 0.46, suit);
+  leftArm.position.set(-0.22, 0.8, 0.24);
+  leftArm.rotation.set(THREE.MathUtils.degToRad(62), 0, THREE.MathUtils.degToRad(-14));
+  const rightArm = makeLimb(0.045, 0.46, suit);
+  rightArm.position.set(0.22, 0.8, 0.24);
+  rightArm.rotation.set(THREE.MathUtils.degToRad(62), 0, THREE.MathUtils.degToRad(14));
+  const leftLeg = makeLimb(0.055, 0.56, dark);
+  leftLeg.position.set(-0.1, 0.48, 0.27);
+  leftLeg.rotation.set(THREE.MathUtils.degToRad(86), 0, THREE.MathUtils.degToRad(-4));
+  const rightLeg = makeLimb(0.055, 0.56, dark);
+  rightLeg.position.set(0.1, 0.48, 0.27);
+  rightLeg.rotation.set(THREE.MathUtils.degToRad(86), 0, THREE.MathUtils.degToRad(4));
+  group.add(head, torso, leftArm, rightArm, leftLeg, rightLeg);
+  group.traverse((obj) => {
+    if (!obj?.isMesh) return;
+    obj.castShadow = true;
+    obj.receiveShadow = true;
+  });
+  return group;
+}
+
+async function loadDominoCharacterTemplate(theme) {
+  const urls = Array.isArray(theme?.urls) ? theme.urls.filter(Boolean) : [];
+  if (!urls.length) throw new Error('Missing Domino character URLs');
+  const cacheKey = `${theme.id}:${urls.join('|')}`;
+  if (DOMINO_CHARACTER_CACHE.has(cacheKey)) return DOMINO_CHARACTER_CACHE.get(cacheKey);
+  const promise = (async () => {
+    const loader = createConfiguredGltfLoader();
+    let lastError = null;
+    for (const url of urls) {
+      try {
+        const gltf = await loader.loadAsync(url);
+        const root = gltf?.scene || gltf?.scenes?.[0];
+        if (root) {
+          prepareLoadedModel(root, { preserveGltfTextureMapping: true });
+          return root;
+        }
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError || new Error(`Unable to load Domino character ${theme.id}`);
+  })();
+  DOMINO_CHARACTER_CACHE.set(cacheKey, promise);
+  promise.catch(() => DOMINO_CHARACTER_CACHE.delete(cacheKey));
+  return promise;
+}
+
+
+function shuffleDominoCharacterThemeOrder() {
+  const order = DOMINO_CHARACTER_THEMES.map((_, index) => index);
+  const seedSource =
+    typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function'
+      ? crypto.getRandomValues(new Uint32Array(order.length))
+      : null;
+  for (let index = order.length - 1; index > 0; index -= 1) {
+    const randomValue = seedSource?.[index] ?? Math.floor(Math.random() * 0xffffffff);
+    const swapIndex = randomValue % (index + 1);
+    [order[index], order[swapIndex]] = [order[swapIndex], order[index]];
+  }
+  dominoCharacterThemeOrder = order;
+}
+
+function getDominoCharacterThemeForSeat(seatIndex) {
+  const orderIndex = dominoCharacterThemeOrder[seatIndex % dominoCharacterThemeOrder.length];
+  return DOMINO_CHARACTER_THEMES[orderIndex] || DOMINO_CHARACTER_THEMES[seatIndex % DOMINO_CHARACTER_THEMES.length] || DOMINO_CHARACTER_THEMES[0];
+}
+
+function loadDominoCharacterTexture(url, { isColor = false, repeat = 3 } = {}) {
+  if (!url) return null;
+  const cacheKey = `${url}|${isColor ? 'srgb' : 'linear'}|${repeat}`;
+  if (DOMINO_CHARACTER_TEXTURE_CACHE.has(cacheKey)) return DOMINO_CHARACTER_TEXTURE_CACHE.get(cacheKey);
+  const texture = textureLoader.load(
+    url,
+    (loaded) => {
+      loaded.wrapS = THREE.RepeatWrapping;
+      loaded.wrapT = THREE.RepeatWrapping;
+      loaded.repeat.set(repeat, repeat);
+      normalizePbrTexture(loaded, {
+        isColor,
+        maxAnisotropy: getRendererAnisotropyCap()
+      });
+    },
+    undefined,
+    () => DOMINO_CHARACTER_TEXTURE_CACHE.delete(cacheKey)
+  );
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(repeat, repeat);
+  normalizePbrTexture(texture, {
+    isColor,
+    maxAnisotropy: getRendererAnisotropyCap()
+  });
+  texture.userData.dominoCanDispose = false;
+  DOMINO_CHARACTER_TEXTURE_CACHE.set(cacheKey, texture);
+  return texture;
+}
+
+function isNearlyWhiteMaterial(mat) {
+  if (!mat?.color) return false;
+  return mat.color.r > 0.82 && mat.color.g > 0.82 && mat.color.b > 0.82 && !mat.map;
+}
+
+function isLowSaturationLightMaterial(mat) {
+  if (!mat?.color || mat.map) return false;
+  const max = Math.max(mat.color.r, mat.color.g, mat.color.b);
+  const min = Math.min(mat.color.r, mat.color.g, mat.color.b);
+  return max > 0.72 && max - min < 0.18;
+}
+
+function classifyDominoHumanSurface(obj, mat) {
+  const name = `${obj?.name || ''} ${mat?.name || ''}`.toLowerCase();
+  if (/eye|iris|pupil|cornea|wolf3d_eyes/.test(name)) return 'eye';
+  if (/hair|brow|beard|mustache|moustache|lash|wolf3d_hair|wolf3d_beard|wolf3d_eyebrow/.test(name)) return 'hair';
+  if (/teeth|tooth|tongue|mouth|gum/.test(name)) return 'mouth';
+  if (/shoe|boot|sole|sneaker|footwear|wolf3d_outfit_footwear/.test(name)) return 'shoe';
+  if (/skin|head|face|neck|hand|finger|wolf3d_head|wolf3d_body|bodymesh/.test(name) && !/outfit|shirt|pants|trouser|shoe|sock|cloth|jacket|hood|dress|skirt|uniform|suit/.test(name)) return 'skin';
+  if (/shirt|top|torso|chest|jacket|hood|dress|skirt|sleeve|upper|outfit_top|wolf3d_outfit_top/.test(name)) return 'upperCloth';
+  if (/pants|trouser|jean|short|legging|bottom|outfit_bottom|wolf3d_outfit_bottom/.test(name)) return 'lowerCloth';
+  if (/tie|scarf|belt|strap|bag|hat|cap|glove|sock|accessory|accent/.test(name)) return 'accentCloth';
+  if (/cloth|clothing|uniform|outfit|suit/.test(name)) return 'upperCloth';
+  if (isNearlyWhiteMaterial(mat) && /torso|chest|spine|pelvis|hip|leg|arm|body|mesh/.test(name)) return 'upperCloth';
+  return 'other';
+}
+
+function resolveDominoClothSlot(theme, slot, seatIndex) {
+  const combo = DOMINO_CHARACTER_CLOTH_COMBOS[theme?.clothCombo] || DOMINO_CHARACTER_CLOTH_COMBOS.royalDenim;
+  const slotConfig = combo?.[slot] || combo?.upper || { material: 'denim' };
+  const material = POLYHAVEN_CLOTH_MATERIALS[slotConfig.material] || POLYHAVEN_CLOTH_MATERIALS.denim;
+  const repeatBoost = seatIndex === human ? 0.75 : 0;
+  return {
+    ...material,
+    tint: slotConfig.tint ?? material.tint ?? 0xffffff,
+    repeat: (slotConfig.repeat ?? 3.5) + repeatBoost
+  };
+}
+
+function applyDominoClothMaterial(mat, cloth) {
+  mat.map = loadDominoCharacterTexture(cloth.color, { isColor: true, repeat: cloth.repeat });
+  mat.normalMap = loadDominoCharacterTexture(cloth.normal, { repeat: cloth.repeat });
+  mat.roughnessMap = loadDominoCharacterTexture(cloth.roughness, { repeat: cloth.repeat });
+  mat.color = new THREE.Color(cloth.tint ?? 0xffffff);
+  mat.normalScale = new THREE.Vector2(0.28, 0.28);
+  mat.roughness = 0.86;
+  mat.metalness = 0.015;
+  mat.userData = { ...(mat.userData || {}), polyhavenCloth: cloth.source, polyhavenGltf: cloth.gltf };
+}
+
+function enhanceDominoCharacterMaterials(instance, theme, seatIndex) {
+  const clothSlots = {
+    upperCloth: resolveDominoClothSlot(theme, 'upper', seatIndex),
+    lowerCloth: resolveDominoClothSlot(theme, 'lower', seatIndex),
+    accentCloth: resolveDominoClothSlot(theme, 'accent', seatIndex)
+  };
+  const skinColor = new THREE.Color(theme?.skinTone ?? 0xd2a07c);
+  const hairColor = new THREE.Color(theme?.hairColor ?? 0x21150f);
+  const eyeColor = new THREE.Color(theme?.eyeColor ?? 0x3f5f75);
+
+  instance.traverse((obj) => {
+    if (!obj?.isMesh) return;
+    const sourceMaterials = Array.isArray(obj.material) ? obj.material : [obj.material];
+    const enhancedMaterials = sourceMaterials.map((sourceMat) => {
+      if (!sourceMat) return sourceMat;
+      const mat = sourceMat.clone ? sourceMat.clone() : new THREE.MeshStandardMaterial();
+      const surface = classifyDominoHumanSurface(obj, mat);
+      if (clothSlots[surface]) {
+        applyDominoClothMaterial(mat, clothSlots[surface]);
+      } else if (surface === 'hair') {
+        mat.map = null;
+        mat.color = hairColor.clone();
+        mat.roughness = 0.56;
+        mat.metalness = 0.02;
+        mat.envMapIntensity = 0.28;
+      } else if (surface === 'eye') {
+        mat.map = null;
+        mat.color = eyeColor.clone();
+        mat.roughness = 0.18;
+        mat.metalness = 0;
+        mat.envMapIntensity = 1.1;
+      } else if (surface === 'skin') {
+        if (isLowSaturationLightMaterial(mat)) {
+          mat.color = skinColor.clone();
+        }
+        mat.roughness = Math.min(mat.roughness ?? 0.62, 0.62);
+        mat.metalness = 0;
+      } else if (surface === 'shoe') {
+        if (isLowSaturationLightMaterial(mat)) {
+          mat.color = new THREE.Color(0x111827);
+        }
+        mat.roughness = 0.78;
+        mat.metalness = 0.02;
+      } else if (surface === 'mouth') {
+        if (isNearlyWhiteMaterial(mat)) {
+          mat.color = new THREE.Color(0xf8fafc);
+        }
+        mat.roughness = 0.32;
+        mat.metalness = 0;
+      } else if (isNearlyWhiteMaterial(mat)) {
+        mat.color = skinColor.clone();
+        mat.roughness = 0.58;
+        mat.metalness = 0;
+      }
+      normalizeMaterialTextures(mat, getRendererAnisotropyCap());
+      mat.needsUpdate = true;
+      return mat;
+    });
+    obj.material = Array.isArray(obj.material) ? enhancedMaterials : enhancedMaterials[0];
+  });
+}
+
+function clearDominoCharacters() {
+  dominoCharacterActions.splice(0);
+  dominoCharacterRigs.clear();
+  while (dominoCharacterInstances.length) {
+    const root = dominoCharacterInstances.pop();
+    root?.userData?.dispose?.();
+    root?.parent?.remove(root);
+  }
+}
+
+function findDominoBone(root, hints) {
+  let found = null;
+  root?.traverse?.((obj) => {
+    if (found || !obj?.isBone) return;
+    const name = String(obj.name || '').toLowerCase();
+    if (hints.some((hint) => name.includes(hint))) found = obj;
+  });
+  return found;
+}
+
+function addDominoBoneOffset(bone, x = 0, y = 0, z = 0) {
+  if (!bone) return;
+  bone.rotation.x += x;
+  bone.rotation.y += y;
+  bone.rotation.z += z;
+}
+
+function captureDominoPose(bones) {
+  return Object.fromEntries(
+    Object.entries(bones || {}).map(([key, bone]) => [key, bone ? bone.rotation.clone() : null])
+  );
+}
+
+function makeDominoPose(base, offsets = {}) {
+  const pose = { ...base };
+  Object.entries(offsets).forEach(([key, delta]) => {
+    const currentPose = base?.[key];
+    if (!currentPose) return;
+    pose[key] = new THREE.Euler(
+      currentPose.x + (delta.x || 0),
+      currentPose.y + (delta.y || 0),
+      currentPose.z + (delta.z || 0)
+    );
+  });
+  return pose;
+}
+
+function applyDominoRigPose(rig, pose, alpha = 1) {
+  Object.entries(rig?.bones || {}).forEach(([key, bone]) => {
+    const target = pose?.[key];
+    const home = rig?.seatedPose?.[key] || rig?.defaultPose?.[key];
+    if (!bone || !target || !home) return;
+    bone.rotation.x = THREE.MathUtils.lerp(home.x, target.x, alpha);
+    bone.rotation.y = THREE.MathUtils.lerp(home.y, target.y, alpha);
+    bone.rotation.z = THREE.MathUtils.lerp(home.z, target.z, alpha);
+  });
+}
+
+function applyDominoRigPoseBetween(rig, fromPose, targetPose, alpha = 1) {
+  Object.entries(rig?.bones || {}).forEach(([key, bone]) => {
+    const from = fromPose?.[key] || rig?.seatedPose?.[key] || rig?.defaultPose?.[key];
+    const target = targetPose?.[key] || rig?.seatedPose?.[key] || from;
+    if (!bone || !from || !target) return;
+    bone.rotation.x = THREE.MathUtils.lerp(from.x, target.x, alpha);
+    bone.rotation.y = THREE.MathUtils.lerp(from.y, target.y, alpha);
+    bone.rotation.z = THREE.MathUtils.lerp(from.z, target.z, alpha);
+  });
+}
+
+function normalizeDominoCharacterRoot(root) {
+  const bounds = new THREE.Box3().setFromObject(root);
+  if (!bounds.isEmpty()) root.position.y -= bounds.min.y;
+}
+
+const DOMINO_HELD_RACK_HAND_LIFT = 0.82 * MODEL_SCALE;
+// Keep the non-bottom players' held domino fans lifted and pushed farther
+// outward so their hands read clearly around the top and side seats.
+const DOMINO_HELD_RACK_OUTWARD_OFFSET = 1.1 * MODEL_SCALE;
+const DOMINO_HELD_RACK_BOTTOM_HAND_LIFT = 0.78 * MODEL_SCALE;
+const DOMINO_HELD_RACK_BOTTOM_OUTWARD_OFFSET = 1.04 * MODEL_SCALE;
+
+function createHeldDominoRack(seatIndex, handTiles = []) {
+  const rack = new THREE.Group();
+  const isBottom = seatIndex === human;
+  const horizontalTileSpacing = isBottom ? 0.084 : 0.12;
+  const visibleTiles = Array.isArray(handTiles) ? handTiles.slice(0, 5) : [];
+  const desiredSignature = visibleTiles.map((tile) => `${tile.a}:${tile.b}`).join('|');
+  const tiles = visibleTiles.length ? visibleTiles : [{ a: 6, b: 6 }, { a: 5, b: 4 }];
+  tiles.forEach((tile, index) => {
+    const mini = makeDomino(tile.a ?? 0, tile.b ?? 0, { flat: false, faceUp: true });
+    const centered = index - (tiles.length - 1) / 2;
+    mini.scale.setScalar(0.3);
+    mini.position.set(centered * horizontalTileSpacing * MODEL_SCALE, (1.42 + Math.abs(centered) * 0.014) * MODEL_SCALE, 0.5 * MODEL_SCALE + index * 0.006);
+    mini.rotation.set(THREE.MathUtils.degToRad(-74), THREE.MathUtils.degToRad(centered * -7), THREE.MathUtils.degToRad(centered * 10));
+    rack.add(mini);
+  });
+  const handLift = isBottom ? DOMINO_HELD_RACK_BOTTOM_HAND_LIFT : DOMINO_HELD_RACK_HAND_LIFT;
+  const outwardOffset = isBottom ? DOMINO_HELD_RACK_BOTTOM_OUTWARD_OFFSET : DOMINO_HELD_RACK_OUTWARD_OFFSET;
+  rack.position.set(
+    0,
+    (isBottom ? 1.62 * MODEL_SCALE : 2.58 * MODEL_SCALE) + handLift,
+    (isBottom ? -0.2 * MODEL_SCALE : -1.66 * MODEL_SCALE) - outwardOffset
+  );
+  rack.rotation.set(THREE.MathUtils.degToRad(-18), 0, 0);
+  rack.scale.setScalar(isBottom ? 1.12 : 1.02);
+  rack.userData.signature = desiredSignature;
+  rack.userData.dispose = () => {};
+  return rack;
+}
+
+function createDominoCharacterRig(instance, seatRoot, seatIndex, player) {
+  const bones = {
+    hips: findDominoBone(instance, ['hips', 'pelvis']),
+    spine: findDominoBone(instance, ['spine', 'chest', 'torso']),
+    head: findDominoBone(instance, ['head', 'neck']),
+    rightUpperArm: findDominoBone(instance, ['rightarm', 'arm.r', 'r_upperarm', 'rightshoulder']),
+    rightForeArm: findDominoBone(instance, ['rightforearm', 'r_forearm', 'rightlowerarm', 'forearmr', 'elbowr']),
+    rightHand: findDominoBone(instance, ['righthand', 'hand.r', 'r_hand']),
+    rightThumb: findDominoBone(instance, ['rightthumb', 'thumb.r', 'r_thumb', 'right_hand_thumb']),
+    rightIndex: findDominoBone(instance, ['rightindex', 'index.r', 'r_index', 'right_hand_index']),
+    rightMiddle: findDominoBone(instance, ['rightmiddle', 'middle.r', 'r_middle', 'right_hand_middle']),
+    leftUpperArm: findDominoBone(instance, ['leftarm', 'arm.l', 'l_upperarm', 'leftshoulder']),
+    leftForeArm: findDominoBone(instance, ['leftforearm', 'l_forearm', 'leftlowerarm', 'forearml', 'elbowl']),
+    leftHand: findDominoBone(instance, ['lefthand', 'hand.l', 'l_hand']),
+    leftThigh: findDominoBone(instance, ['leftupleg', 'leftthigh', 'l_thigh']),
+    leftCalf: findDominoBone(instance, ['leftleg', 'leftcalf', 'l_calf']),
+    rightThigh: findDominoBone(instance, ['rightupleg', 'rightthigh', 'r_thigh']),
+    rightCalf: findDominoBone(instance, ['rightleg', 'rightcalf', 'r_calf'])
+  };
+  const rig = { seatIndex, seatRoot, instance, bones, defaultPose: captureDominoPose(bones), heldRack: null, seatedPose: null };
+  addDominoBoneOffset(bones.hips, THREE.MathUtils.degToRad(-9), 0, 0);
+  addDominoBoneOffset(bones.spine, THREE.MathUtils.degToRad(-3), 0, 0);
+  addDominoBoneOffset(bones.head, THREE.MathUtils.degToRad(5), 0, 0);
+  addDominoBoneOffset(bones.leftUpperArm, THREE.MathUtils.degToRad(-65), THREE.MathUtils.degToRad(-5), THREE.MathUtils.degToRad(-2));
+  addDominoBoneOffset(bones.leftForeArm, THREE.MathUtils.degToRad(39), THREE.MathUtils.degToRad(-2), THREE.MathUtils.degToRad(-1));
+  addDominoBoneOffset(bones.leftHand, THREE.MathUtils.degToRad(11), THREE.MathUtils.degToRad(-3), THREE.MathUtils.degToRad(-1));
+  addDominoBoneOffset(bones.rightUpperArm, THREE.MathUtils.degToRad(-72), THREE.MathUtils.degToRad(10), THREE.MathUtils.degToRad(5));
+  addDominoBoneOffset(bones.rightForeArm, THREE.MathUtils.degToRad(41), THREE.MathUtils.degToRad(5), THREE.MathUtils.degToRad(3));
+  addDominoBoneOffset(bones.rightHand, THREE.MathUtils.degToRad(12), THREE.MathUtils.degToRad(5), THREE.MathUtils.degToRad(3));
+  addDominoBoneOffset(bones.leftThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(9.2), THREE.MathUtils.degToRad(2.9));
+  addDominoBoneOffset(bones.rightThigh, THREE.MathUtils.degToRad(-90.5), THREE.MathUtils.degToRad(1.7), THREE.MathUtils.degToRad(-1.1));
+  addDominoBoneOffset(bones.leftCalf, THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(1.1), THREE.MathUtils.degToRad(0.6));
+  addDominoBoneOffset(bones.rightCalf, THREE.MathUtils.degToRad(-95.1), THREE.MathUtils.degToRad(-1.1), THREE.MathUtils.degToRad(-0.6));
+  if (seatIndex === HUMAN_SEAT_INDEX) {
+    addDominoBoneOffset(bones.leftUpperArm, THREE.MathUtils.degToRad(8), THREE.MathUtils.degToRad(-1), THREE.MathUtils.degToRad(0));
+    addDominoBoneOffset(bones.leftForeArm, THREE.MathUtils.degToRad(10), THREE.MathUtils.degToRad(-1), THREE.MathUtils.degToRad(0));
+    addDominoBoneOffset(bones.rightUpperArm, THREE.MathUtils.degToRad(8), THREE.MathUtils.degToRad(1), THREE.MathUtils.degToRad(0));
+    addDominoBoneOffset(bones.rightForeArm, THREE.MathUtils.degToRad(10), THREE.MathUtils.degToRad(1), THREE.MathUtils.degToRad(0));
+    addDominoBoneOffset(bones.head, THREE.MathUtils.degToRad(-7), 0, 0);
+  }
+  rig.seatedPose = captureDominoPose(bones);
+  instance.position.y -= 0.24 * MODEL_SCALE;
+  refreshDominoRigRack(rig, player?.hand || []);
+  return rig;
+}
+
+function refreshDominoRigRack(rig, handTiles = []) {
+  if (!rig) return;
+  if (!ENABLE_DOMINO_CHARACTER_HELD_RACKS) {
+    rig.heldRack?.userData?.dispose?.();
+    rig.heldRack?.parent?.remove(rig.heldRack);
+    rig.heldRack = null;
+    return;
+  }
+  const signature = (Array.isArray(handTiles) ? handTiles.slice(0, 5) : []).map((tile) => `${tile.a}:${tile.b}`).join('|');
+  if (rig.heldRack?.userData?.signature === signature) return;
+  const parent = rig.heldRack?.parent || rig.instance;
+  rig.heldRack?.userData?.dispose?.();
+  rig.heldRack?.parent?.remove(rig.heldRack);
+  rig.heldRack = createHeldDominoRack(rig.seatIndex, handTiles);
+  parent.add(rig.heldRack);
+}
+
+function refreshAllDominoCharacterRacks() {
+  dominoCharacterRigs.forEach((rig, seatIndex) => {
+    refreshDominoRigRack(rig, players[seatIndex]?.hand || []);
+  });
+}
+
+function getDominoChairLocalFootprint(chairWrapper) {
+  const chairModel = chairWrapper?.userData?.dominoCharacterChair;
+  if (!chairWrapper || !chairModel) {
+    return {
+      center: new THREE.Vector3(
+        0,
+        0,
+        TARGET_CHAIR_CENTER_Z * CHAIR_VISUAL_SCALE
+      ),
+      size: new THREE.Vector3(
+        TARGET_CHAIR_SIZE.x * CHAIR_VISUAL_SCALE,
+        TARGET_CHAIR_SIZE.y * CHAIR_VISUAL_SCALE,
+        TARGET_CHAIR_SIZE.z * CHAIR_VISUAL_SCALE
+      )
+    };
+  }
+  chairWrapper.updateWorldMatrix(true, true);
+  const worldBounds = new THREE.Box3().setFromObject(chairModel);
+  if (worldBounds.isEmpty()) {
+    return {
+      center: new THREE.Vector3(
+        0,
+        0,
+        TARGET_CHAIR_CENTER_Z * CHAIR_VISUAL_SCALE
+      ),
+      size: new THREE.Vector3(
+        TARGET_CHAIR_SIZE.x * CHAIR_VISUAL_SCALE,
+        TARGET_CHAIR_SIZE.y * CHAIR_VISUAL_SCALE,
+        TARGET_CHAIR_SIZE.z * CHAIR_VISUAL_SCALE
+      )
+    };
+  }
+  const min = chairWrapper.worldToLocal(worldBounds.min.clone());
+  const max = chairWrapper.worldToLocal(worldBounds.max.clone());
+  const localBounds = new THREE.Box3().setFromPoints([min, max]);
+  return {
+    center: localBounds.getCenter(new THREE.Vector3()),
+    size: localBounds.getSize(new THREE.Vector3())
+  };
+}
+
+function getDominoChairLocalOutwardDirection(chairWrapper) {
+  if (!chairWrapper) return new THREE.Vector3(0, 0, -1);
+  chairWrapper.updateWorldMatrix(true, false);
+  const originWorld = chairWrapper.getWorldPosition(new THREE.Vector3());
+  const tableWorld = tableG?.getWorldPosition
+    ? tableG.getWorldPosition(new THREE.Vector3())
+    : new THREE.Vector3(0, originWorld.y, 0);
+  const outwardWorld = originWorld.clone().sub(tableWorld);
+  outwardWorld.y = 0;
+  if (outwardWorld.lengthSq() === 0) {
+    outwardWorld.set(0, 0, 1);
+  } else {
+    outwardWorld.normalize();
+  }
+  const localOrigin = chairWrapper.worldToLocal(originWorld.clone());
+  const localOutward = chairWrapper.worldToLocal(
+    originWorld.clone().add(outwardWorld)
+  );
+  localOutward.sub(localOrigin);
+  localOutward.y = 0;
+  if (localOutward.lengthSq() === 0) {
+    localOutward.set(0, 0, -1);
+  } else {
+    localOutward.normalize();
+  }
+  return localOutward;
+}
+
+function resolveDominoCharacterSeatPosition(
+  chairWrapper,
+  theme,
+  scaleDelta,
+  isHumanSeat
+) {
+  const visibleSeatLift = Number.isFinite(
+    chairWrapper?.userData?.dominoCharacterSeatLift
+  )
+    ? chairWrapper.userData.dominoCharacterSeatLift
+    : 0;
+  const footprint = getDominoChairLocalFootprint(chairWrapper);
+  const outward = getDominoChairLocalOutwardDirection(chairWrapper);
+  const seatDepth = Math.max(
+    0.01,
+    footprint.size.z || CHAIR_DIMENSIONS.seatDepth * CHAIR_VISUAL_SCALE
+  );
+  const outwardBias =
+    DOMINO_CHARACTER_CHAIR_SEAT_OUTWARD_BIAS +
+    (isHumanSeat
+      ? DOMINO_HUMAN_CHARACTER_CHAIR_SEAT_OUTWARD_BIAS
+      : -DOMINO_CHARACTER_INWARD_DOMINO_REACH_BIAS);
+  const position = footprint.center
+    .clone()
+    .addScaledVector(outward, seatDepth * outwardBias);
+  position.y =
+    visibleSeatLift +
+    (theme.seatOffsetY ?? -0.4) -
+    0.22 -
+    scaleDelta * 0.08 -
+    DOMINO_CHARACTER_EXTRA_LOWER_OFFSET +
+    (isHumanSeat ? DOMINO_HUMAN_CHARACTER_EXTRA_LOWER_OFFSET : 0);
+  return position;
+}
+
+function attachDominoCharacterToChair(template, chair, seatIndex, player) {
+  const theme = getDominoCharacterThemeForSeat(seatIndex);
+  const instance = cloneSkeleton(template);
+  instance.traverse((obj) => {
+    if (!obj?.isMesh) return;
+    obj.castShadow = true;
+    obj.receiveShadow = true;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    mats.forEach((mat) => {
+      if (!mat) return;
+      [mat.map, mat.emissiveMap].filter(Boolean).forEach(applySRGBColorSpace);
+      mat.needsUpdate = true;
+    });
+  });
+  enhanceDominoCharacterMaterials(instance, theme, seatIndex);
+  normalizeDominoCharacterRoot(instance);
+  const seatRoot = new THREE.Group();
+  const isHumanSeat = seatIndex === human;
+  const characterScale = DOMINO_CHARACTER_PROPORTION_SCALE +
+    (isHumanSeat ? DOMINO_HUMAN_CHARACTER_SCALE_BOOST : 0);
+  const seatScale = (theme.scale || 1) * characterScale;
+  const scaleDelta = Math.max(0, characterScale - 1);
+  seatRoot.scale.setScalar(seatScale);
+  seatRoot.position.copy(
+    resolveDominoCharacterSeatPosition(chair, theme, scaleDelta, isHumanSeat)
+  );
+  seatRoot.add(instance);
+  const rig = createDominoCharacterRig(instance, seatRoot, seatIndex, player);
+  seatRoot.userData.dispose = () => rig.heldRack?.userData?.dispose?.();
+  chair.add(seatRoot);
+  dominoCharacterInstances.push(seatRoot);
+  dominoCharacterRigs.set(seatIndex, rig);
+}
+
+async function loadDominoSeatCharacterTemplate(seatIndex) {
+  const primaryTheme = getDominoCharacterThemeForSeat(seatIndex);
+  const fallbackTheme = DOMINO_CHARACTER_THEMES[0];
+  try {
+    return await loadDominoCharacterTemplate(primaryTheme);
+  } catch (primaryError) {
+    console.warn('Domino seat character load failed, trying default avatar', primaryTheme?.id, primaryError);
+    if (fallbackTheme && fallbackTheme !== primaryTheme) {
+      try {
+        return await loadDominoCharacterTemplate(fallbackTheme);
+      } catch (fallbackError) {
+        console.warn('Domino default character load failed, using procedural seated fallback', fallbackError);
+      }
+    }
+  }
+  return buildDominoFallbackCharacterTemplate();
+}
+
+async function rebuildDominoCharactersForChairs() {
+  const token = ++dominoCharacterBuildToken;
+  clearDominoCharacters();
+  const availableChairCount = chairs.filter(Boolean).length;
+  if (!ENABLE_DOMINO_SEATED_HUMANS || !availableChairCount) return;
+  const activeSeatCount = Math.min(N, availableChairCount);
+  const templates = await Promise.all(
+    Array.from({ length: activeSeatCount }, (_, logicalSeatIndex) =>
+      loadDominoSeatCharacterTemplate(logicalSeatIndex)
+    )
+  );
+  if (token !== dominoCharacterBuildToken) return;
+  templates.forEach((template, logicalSeatIndex) => {
+    const chair = chairs[getVisualSeatIndex(logicalSeatIndex)];
+    if (!template) return;
+    attachDominoCharacterToChair(
+      template,
+      chair,
+      logicalSeatIndex,
+      players[logicalSeatIndex] || null
+    );
+  });
+}
+
+function runDominoCharacterAction(seatIndex, type = 'PLAY') {
+  const rig = dominoCharacterRigs.get(seatIndex);
+  if (!rig?.seatedPose) return;
+  const now = performance.now();
+  const base = rig.seatedPose;
+  const existingAnimations = dominoCharacterActions.filter((anim) => anim?.rig === rig);
+  existingAnimations.forEach((anim) => anim.complete?.());
+  for (let i = dominoCharacterActions.length - 1; i >= 0; i--) {
+    if (dominoCharacterActions[i]?.rig === rig) dominoCharacterActions.splice(i, 1);
+  }
+
+  if (type === 'PASS') {
+    // Match Murlan Royale's exact right arm / hand pass gesture and timing.
+    const loosePassFingers = {
+      rightIndex: { x: THREE.MathUtils.degToRad(18), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-1) },
+      rightThumb: { x: THREE.MathUtils.degToRad(-8), y: THREE.MathUtils.degToRad(3), z: THREE.MathUtils.degToRad(7) },
+      rightMiddle: { x: THREE.MathUtils.degToRad(16), y: THREE.MathUtils.degToRad(-1), z: THREE.MathUtils.degToRad(-1) }
+    };
+    const passHandDownGesture = makeDominoPose(base, {
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-24), y: THREE.MathUtils.degToRad(-6), z: THREE.MathUtils.degToRad(-7) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-38), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-1) },
+      rightHand: { x: THREE.MathUtils.degToRad(-18), y: THREE.MathUtils.degToRad(-4), z: THREE.MathUtils.degToRad(-3) },
+      ...loosePassFingers
+    });
+    const passTinyLiftGesture = makeDominoPose(base, {
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-17), y: THREE.MathUtils.degToRad(-6), z: THREE.MathUtils.degToRad(-7) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-30), y: THREE.MathUtils.degToRad(-2), z: THREE.MathUtils.degToRad(-1) },
+      rightHand: { x: THREE.MathUtils.degToRad(-12), y: THREE.MathUtils.degToRad(-4), z: THREE.MathUtils.degToRad(-3) },
+      ...loosePassFingers
+    });
+
+    dominoCharacterActions.push(
+      { rig, start: now, duration: 240, update: (t) => applyDominoRigPose(rig, passHandDownGesture, t) },
+      { rig, start: now + 240, duration: 140, update: (t) => applyDominoRigPoseBetween(rig, passHandDownGesture, passTinyLiftGesture, t) },
+      { rig, start: now + 380, duration: 140, update: (t) => applyDominoRigPoseBetween(rig, passTinyLiftGesture, passHandDownGesture, t) },
+      { rig, start: now + 520, duration: 260, update: (t) => applyDominoRigPoseBetween(rig, passHandDownGesture, base, t) }
+    );
+    return;
+  }
+
+  if (type === 'PLAY' || type === 'DRAW') {
+    // Match Murlan Royale's exact single-card/place gesture for domino table placements.
+    const releaseFingers = {
+      rightIndex: { x: THREE.MathUtils.degToRad(-5), y: THREE.MathUtils.degToRad(2) },
+      rightThumb: { x: THREE.MathUtils.degToRad(8), z: THREE.MathUtils.degToRad(-6) },
+      rightMiddle: { x: THREE.MathUtils.degToRad(-4), y: THREE.MathUtils.degToRad(1) }
+    };
+    const singlePlaceGesture = makeDominoPose(base, {
+      rightUpperArm: { x: THREE.MathUtils.degToRad(-20), y: THREE.MathUtils.degToRad(-18), z: THREE.MathUtils.degToRad(-14) },
+      rightForeArm: { x: THREE.MathUtils.degToRad(-24), y: THREE.MathUtils.degToRad(-1) },
+      rightHand: { x: THREE.MathUtils.degToRad(-14), y: THREE.MathUtils.degToRad(-5), z: THREE.MathUtils.degToRad(-1) },
+      ...releaseFingers
+    });
+
+    dominoCharacterActions.push(
+      { rig, start: now, duration: 560, update: (t) => applyDominoRigPose(rig, singlePlaceGesture, t) },
+      { rig, start: now + 560, duration: 300, update: (t) => applyDominoRigPoseBetween(rig, singlePlaceGesture, base, t) }
+    );
+  }
+}
+
+function stepDominoCharacterActions(now = performance.now()) {
+  for (let i = dominoCharacterActions.length - 1; i >= 0; i--) {
+    const action = dominoCharacterActions[i];
+    const elapsed = now - action.start;
+    if (elapsed < 0) continue;
+    const t = Math.min(1, elapsed / Math.max(1, action.duration || 1));
+    action.update?.(easeInOutCubic(t));
+    if (t >= 1) dominoCharacterActions.splice(i, 1);
+  }
+}
+
 /* ---------- Seating (Texas Hold'em Style Chairs) ---------- */
 const CHAIR_TEXTURE_PROPS = Object.freeze([
   'map',
@@ -7957,6 +8820,8 @@ function placeChairsWithOption(option, chairData, token) {
     chair.scale.multiplyScalar(CHAIR_VISUAL_SCALE);
     chair.position.y = -seatBottomOffset - CHAIR_VERTICAL_DROP;
     wrapper.add(chair);
+    wrapper.userData.dominoCharacterChair = chair;
+    wrapper.userData.dominoCharacterSeatLift = TABLE_HEIGHT - 0.06 * MODEL_SCALE;
 
     wrapper.updateWorldMatrix(true, true);
     tableG.add(wrapper);
@@ -7976,6 +8841,7 @@ function placeChairsWithOption(option, chairData, token) {
 
   refreshSeatBadges(seatAvatarSources, buildSeatNames(N));
   syncArenaGroundToFurniture();
+  rebuildDominoCharactersForChairs();
 }
 
 async function buildChairs(
@@ -8647,6 +9513,7 @@ function renderHands() {
     });
   });
   updateLeaderboardCard();
+  refreshAllDominoCharacterRacks();
 }
 
 /* ---------- Chain Rendering ---------- */
@@ -9229,8 +10096,10 @@ function startGame({ resetRace = true } = {}) {
     raceDisqualifiedPlayers = [];
     raceRoundNumber = 1;
   }
+  shuffleDominoCharacterThemeOrder();
   refreshSeatAvatars();
   players = Array.from({ length: N }, (_, i) => ({ id: i, hand: [] }));
+  rebuildDominoCharactersForChairs();
   boneyard = shuffle(genSet());
   renderBoneyardStack();
   spawnOpeningShuffleAnimation();
@@ -9928,6 +10797,7 @@ renderer.domElement.addEventListener('pointerdown', (ev) => {
         return;
       }
       playedPlacement = placement;
+      runDominoCharacterAction(human, 'PLAY');
       emitDominoOnlineState('play');
     }
     selectedTile = null;
@@ -10052,6 +10922,7 @@ if (btnDraw) {
     if (!t) break;
     players[human].hand.push(t);
     spawnDrawAnimation(startWorld, human);
+    runDominoCharacterAction(human, 'DRAW');
     drewTile = true;
     const canL = t.a === ends?.L?.v || t.b === ends?.L?.v;
     const canR = t.a === ends?.R?.v || t.b === ends?.R?.v;
@@ -10193,6 +11064,7 @@ function applyDominoOnlineState(remoteState = {}) {
   persistDominoOnlineMatch({ waiting: false, startedAt: Date.now() });
   setControlEnabled(true);
   refreshSeatAvatars();
+  rebuildDominoCharactersForChairs();
   renderBoneyardStack();
   renderHands();
   renderChain();
@@ -10293,7 +11165,8 @@ async function bootstrapDominoRoyal() {
         N = Math.max(2, Math.min(4, Number(DOMINO_ONLINE_MATCH?.maxPlayers) || N || 2));
         players = Array.from({ length: N }, (_, i) => ({ id: i, hand: [] }));
         refreshSeatAvatars();
-              renderHands();
+        rebuildDominoCharactersForChairs();
+        renderHands();
         renderChain();
         updateDominoOnlineWaitingStatus();
         dominoOnlineWaitingTimer = setInterval(updateDominoOnlineWaitingStatus, 1000);
@@ -10304,7 +11177,8 @@ async function bootstrapDominoRoyal() {
       } else {
         players = Array.from({ length: N }, (_, i) => ({ id: i, hand: [] }));
         refreshSeatAvatars();
-              renderHands();
+        rebuildDominoCharactersForChairs();
+        renderHands();
         renderChain();
         setStatus('Waiting for host sync…');
         setControlEnabled(false);
@@ -10583,6 +11457,7 @@ function cpuPlay() {
     const picked = player.hand.splice(move.index, 1)[0];
     const placement = placeOnBoard(picked, move.side, { animate: true });
     if (placement.success) {
+      runDominoCharacterAction(current, 'PLAY');
       renderHands();
       if (player.hand.length === 0) {
         concludeHand({
@@ -10854,6 +11729,7 @@ function schedulePassTurnAdvance(
   playerIndex = current,
   delayMs = PASS_TURN_ADVANCE_DELAY_MS
 ) {
+  runDominoCharacterAction(playerIndex, 'PASS');
   showPassBubble(playerIndex);
   if (pendingTurnAdvanceTimeout) {
     clearTimeout(pendingTurnAdvanceTimeout);
@@ -11386,6 +12262,7 @@ function shutdownDominoRoyal(reason = 'unknown') {
     if (leaderboardCard?.parentNode) {
       leaderboardCard.parentNode.removeChild(leaderboardCard);
     }
+    clearDominoCharacters();
     if (reason === 'react-unmount') {
       controls?.dispose?.();
       renderer?.dispose?.();
@@ -11447,6 +12324,7 @@ function tick(now) {
     updateEntrySequence(current);
     updateDrawAnimations(current);
     updatePlacementAnimations(current);
+    stepDominoCharacterActions(current);
     updateWinnerHighlight(current);
     updateSeatBadgePositions();
     updateCameraLookRecentering();
