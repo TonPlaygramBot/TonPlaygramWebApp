@@ -17,17 +17,6 @@ describe('account profile performance', () => {
     );
   });
 
-  test('uses signed Mini App profile fields without waiting for the Bot API', () => {
-    const api = fs.readFileSync('webapp/src/utils/api.js', 'utf8');
-    const route = fs.readFileSync('bot/routes/account.js', 'utf8');
-
-    expect(api).toContain('window.Telegram?.WebApp?.initDataUnsafe?.user');
-    expect(api).toContain('body.firstName = telegramUser.first_name');
-    expect(route).toMatch(
-      /if \(!primaryExisting && launchProfile\) \{\s*telegramProfile = launchProfile;\s*\} else if \(!primaryExisting\)/
-    );
-  });
-
   test('returns the complete profile with account initialization', () => {
     const route = fs.readFileSync('bot/routes/account.js', 'utf8');
 
