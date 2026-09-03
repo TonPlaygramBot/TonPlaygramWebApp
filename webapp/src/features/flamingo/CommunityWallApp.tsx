@@ -9,17 +9,17 @@ export default function CommunityWallApp() {
     <div className="community-wall-page">
       <header className="community-wall-header">
         <div>
-          <Link to="/" aria-label="Kthehu në faqen kryesore">
+          <Link to="/" aria-label="Back to home">
             <ArrowLeft />
           </Link>
           <span>
             <strong>TonPlayGram Social Wall</strong>
-            <small>Komuniteti TonPlayGram</small>
+            <small>TonPlayGram Community</small>
           </span>
         </div>
         <div className="community-wall-header-actions">
-          <button aria-label="Njoftimet"><Bell /></button>
-          <a href="#wall-composer" aria-label="Krijo një postim"><PenLine /></a>
+          <button aria-label="Notifications"><Bell /></button>
+          <a href="#wall-composer" aria-label="Create a post"><PenLine /></a>
         </div>
       </header>
       <main>
