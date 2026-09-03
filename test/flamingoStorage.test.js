@@ -1,7 +1,7 @@
 import os from 'os';
 import path from 'path';
 import { mkdir, mkdtemp, rm, writeFile } from 'fs/promises';
-import { findFlamingoMedia, flamingoDatabaseMediaQuery, flamingoMediaName, flamingoStorageDirectories, removeFlamingoMedia } from '../bot/utils/flamingoStorage.js';
+import { findFlamingoMedia, flamingoDatabaseMediaQuery, flamingoDatabaseStorageEnabled, flamingoMediaName, flamingoStorageDirectories, removeFlamingoMedia } from '../bot/utils/flamingoStorage.js';
 
 describe('Protesta Shqiptare media storage migration', () => {
   let root;
@@ -78,5 +78,12 @@ describe('Protesta Shqiptare media storage migration', () => {
         { 'metadata.originalName': 'protest.mp4', length: 456 }
       ]
     });
+  });
+
+  test('keeps database video backups opt-in so uploads do not exhaust Atlas', () => {
+    expect(flamingoDatabaseStorageEnabled()).toBe(false);
+    expect(flamingoDatabaseStorageEnabled('false')).toBe(false);
+    expect(flamingoDatabaseStorageEnabled('true')).toBe(true);
+    expect(flamingoDatabaseStorageEnabled('1')).toBe(true);
   });
 });

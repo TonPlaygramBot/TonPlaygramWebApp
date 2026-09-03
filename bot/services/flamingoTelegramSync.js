@@ -4,7 +4,7 @@ import { mkdir } from 'fs/promises';
 import { pipeline } from 'stream/promises';
 import { Readable } from 'stream';
 import FlamingoPost from '../models/FlamingoPost.js';
-import { saveFlamingoMediaToDatabase } from '../utils/flamingoStorage.js';
+import { flamingoDatabaseStorageEnabled, saveFlamingoMediaToDatabase } from '../utils/flamingoStorage.js';
 
 // Use the same persistent location as the HTTP wall. Previously Telegram
 // imports always wrote below the process working directory, so their database
@@ -28,14 +28,14 @@ export function registerFlamingoTelegramSync(bot) {
         if (!response.ok || !response.body) throw new Error(`Telegram download failed: ${response.status}`);
         const diskPath = path.join(uploadDirectory, storedName);
         await pipeline(Readable.fromWeb(response.body), createWriteStream(diskPath));
-        // Keep a durable database copy as well as the fast disk copy. This is
-        // the same storage contract used by uploads made inside the web app.
-        await saveFlamingoMediaToDatabase(diskPath, storedName, {
-          contentType: media.mime_type || (post.video ? 'video/mp4' : post.photo ? 'image/jpeg' : 'application/octet-stream'),
-          originalName: media.file_name || storedName,
-          size: media.file_size || 0,
-          telegramFileId: media.file_id
-        });
+        if (flamingoDatabaseStorageEnabled()) {
+          await saveFlamingoMediaToDatabase(diskPath, storedName, {
+            contentType: media.mime_type || (post.video ? 'video/mp4' : post.photo ? 'image/jpeg' : 'application/octet-stream'),
+            originalName: media.file_name || storedName,
+            size: media.file_size || 0,
+            telegramFileId: media.file_id
+          });
+        }
         attachment = {
           name: media.file_name || storedName,
           size: media.file_size || 0,
