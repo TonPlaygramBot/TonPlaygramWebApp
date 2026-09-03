@@ -90,10 +90,10 @@ export const removeFlamingoDatabaseMedia = async name => {
   if (file) await mediaBucket.delete(file._id);
 };
 
-export const pruneFlamingoDatabaseMediaCopies = async directories => {
+export const pruneFlamingoDatabaseMediaCopies = async (directories, { force = false } = {}) => {
   const db = database();
   const mediaBucket = bucket();
-  if (!db || !mediaBucket || flamingoDatabaseStorageEnabled()) return 0;
+  if (!db || !mediaBucket || (!force && flamingoDatabaseStorageEnabled())) return 0;
   const files = await db.collection(`${BUCKET_NAME}.files`).find({}, { projection: { filename: 1 } }).toArray();
   let removed = 0;
   for (const file of files) {

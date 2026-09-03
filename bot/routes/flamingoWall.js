@@ -154,6 +154,34 @@ const pruneDuplicateDatabaseMedia = () => {
     .finally(() => { mediaPrune = undefined; });
   return mediaPrune;
 };
+
+// A GridFS copy is only a backup: the upload has already been durably written
+// to the persistent media volume. Atlas can reject that optional copy when its
+// quota is full, but that must not prevent the tiny wall post document from
+// being published (or expose Atlas' internal error and management URL in UI).
+const isDatabaseQuotaError = error => /space quota|exceeded.*storage|limit=storage|quota.*(?:exceed|full)/i
+  .test(String(error?.message || error || ''));
+const saveOptionalDatabaseBackup = async (diskPath, storedName, metadata) => {
+  if (!flamingoDatabaseStorageEnabled()) {
+    await pruneDuplicateDatabaseMedia();
+    return;
+  }
+  try {
+    await saveFlamingoMediaToDatabase(diskPath, storedName, metadata);
+  } catch (error) {
+    console.error(`Optional Flamingo media backup failed for ${storedName}:`, error.message);
+    // Reclaim old GridFS duplicates that are already safe on disk. This makes
+    // room for the FlamingoPost insert immediately following the failed copy.
+    if (isDatabaseQuotaError(error)) {
+      await pruneFlamingoDatabaseMediaCopies(mediaDirectories, { force: true }).catch(pruneError => {
+        console.error('Flamingo quota recovery cleanup failed:', pruneError.message);
+      });
+    }
+  }
+};
+const publicUploadError = error => isDatabaseQuotaError(error)
+  ? 'Media storage is temporarily full. Your video is safe; please try publishing again shortly.'
+  : 'Publishing failed. Please try again.';
 const ownsPost = (post, token) => {
   if (!post.ownerTokenHash || !token) return false;
   const supplied = Buffer.from(tokenHash(token));
@@ -314,13 +342,9 @@ router.post('/uploads/:id/complete', async (req, res) => {
     }
     // The persistent volume is the primary media store. Duplicating videos in
     // MongoDB can consume the whole Atlas quota and block the post write.
-    if (flamingoDatabaseStorageEnabled()) {
-      await saveFlamingoMediaToDatabase(diskPath, storedName, {
-        contentType: metadata.type, originalName: metadata.name, size: metadata.size
-      });
-    } else {
-      await pruneDuplicateDatabaseMedia();
-    }
+    await saveOptionalDatabaseBackup(diskPath, storedName, {
+      contentType: metadata.type, originalName: metadata.name, size: metadata.size
+    });
     const user = await resolveUser(req);
     const attachment = { name: metadata.name, size: metadata.size, type: metadata.type, duration: metadata.duration, premium: metadata.premium && metadata.priceTpg > 0, priceTpg: metadata.premium ? metadata.priceTpg : 0, url: `/api/flamingo-wall/files/${storedName}` };
     const post = await FlamingoPost.create({ text: metadata.text, author: displayName(user), authorAvatar: user?.photo || '', authorAccountId: user?.accountId || '', attachment, ownerTokenHash: metadata.ownerTokenHash });
@@ -337,7 +361,7 @@ router.post('/uploads/:id/complete', async (req, res) => {
       if (post) return res.status(200).json({ post });
       return res.status(404).json({ error: 'Upload session not found. Please retry.' });
     }
-    res.status(500).json({ error: err.message || 'Publishing failed.' });
+    res.status(500).json({ error: publicUploadError(err) });
   }
 });
 
@@ -439,12 +463,11 @@ router.post('/posts', async (req, res) => {
       if (!text && !upload) return res.status(400).json({ error: 'Write something or select a file.' });
       const user = await resolveUser(req);
       const author = displayName(user).slice(0, 120);
-      if (upload && flamingoDatabaseStorageEnabled()) {
-        await saveFlamingoMediaToDatabase(upload.diskPath, upload.storedName, {
+      if (upload) {
+        await saveOptionalDatabaseBackup(upload.diskPath, upload.storedName, {
           contentType: upload.type, originalName: upload.originalName, size: upload.size
         });
       }
-      if (upload && !flamingoDatabaseStorageEnabled()) await pruneDuplicateDatabaseMedia();
       const attachment = upload ? { name: upload.originalName, size: upload.size, type: upload.type, url: `/api/flamingo-wall/files/${upload.storedName}` } : undefined;
       const post = await FlamingoPost.create({ text: text.slice(0, 1200), author, authorAvatar: user?.photo || '', authorAccountId: user?.accountId || '', attachment, ownerTokenHash: tokenHash(ownerToken(req)) });
       completed = true;
@@ -452,7 +475,7 @@ router.post('/posts', async (req, res) => {
       res.status(201).json({ post });
     } catch (err) {
       if (upload?.diskPath) await rm(upload.diskPath, { force: true });
-      if (!res.headersSent) res.status(500).json({ error: err.message || 'Upload failed.' });
+      if (!res.headersSent) res.status(500).json({ error: publicUploadError(err) });
     }
   });
   req.pipe(busboy);
