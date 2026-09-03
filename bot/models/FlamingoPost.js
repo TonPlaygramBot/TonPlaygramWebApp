@@ -29,6 +29,7 @@ const flamingoPostSchema = new mongoose.Schema({
   sourceId: { type: String, default: undefined },
   ownerTokenHash: { type: String, default: undefined, select: false },
   attachment: { type: attachmentSchema, default: undefined },
+  downloadCount: { type: Number, min: 0, default: 0 },
   createdAt: { type: Date, default: Date.now }
 });
 
