@@ -15,7 +15,6 @@ import { setFlamingoMediaResponseHeaders } from '../utils/flamingoMediaResponse.
 import { findFlamingoDatabaseMedia, findFlamingoMedia, flamingoDatabaseStorageEnabled, flamingoMediaName, flamingoStorageDirectories, openFlamingoDatabaseMedia, pruneFlamingoDatabaseMediaCopies, removeFlamingoMedia, saveFlamingoMediaToDatabase } from '../utils/flamingoStorage.js';
 import { wallMediaPostQuery } from '../utils/flamingoPostLookup.js';
 import { createFlamingoDownloadGrant, readFlamingoDownloadGrant } from '../utils/flamingoDownloadGrant.js';
-import { waitForMongoReady } from '../utils/mongoReadiness.js';
 
 const router = express.Router();
 const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -45,7 +44,6 @@ const maxBytes = Math.max(1, Number(process.env.FLAMINGO_UPLOAD_MAX_BYTES) || 5 
 // independent ranges to be written at once. Six 8 MB requests use less memory
 // than the former three 32 MB requests and no longer queue behind one another.
 const maxChunkBytes = Math.max(1024 ** 2, Number(process.env.FLAMINGO_UPLOAD_CHUNK_BYTES) || 8 * 1024 ** 2);
-const mongoReadWaitMs = Math.max(0, Number(process.env.FLAMINGO_MONGO_READ_WAIT_MS) || 5000);
 const pendingDirectory = path.join(uploadDirectory, '.pending');
 const uploadLocks = new Map();
 const mediaBackfills = new Map();
@@ -151,7 +149,7 @@ const backfillDatabaseMedia = (diskPath, name, attachment = {}) => {
 };
 const pruneDuplicateDatabaseMedia = () => {
   if (flamingoDatabaseStorageEnabled()) return Promise.resolve(0);
-  if (!mediaPrune) mediaPrune = pruneFlamingoDatabaseMediaCopies(mediaDirectories, { migrateMissing: true })
+  if (!mediaPrune) mediaPrune = pruneFlamingoDatabaseMediaCopies(mediaDirectories)
     .catch(error => { console.error('Flamingo duplicate media cleanup failed:', error.message); return 0; })
     .finally(() => { mediaPrune = undefined; });
   return mediaPrune;
@@ -381,10 +379,6 @@ router.get('/events', (req, res) => {
 });
 
 router.get('/posts', async (req, res) => {
-  if (!await waitForMongoReady(mongoose.connection, mongoReadWaitMs)) {
-    res.setHeader('Cache-Control', 'no-store');
-    return res.status(503).json({ error: 'Databaza po rilidhet. Provo përsëri pas pak.' });
-  }
   const token = ownerToken(req);
   const posts = await FlamingoPost.find().select('+ownerTokenHash').sort({ createdAt: -1 }).lean();
   // The wall is a shared live feed. Never let a browser/proxy reuse an old
@@ -394,10 +388,6 @@ router.get('/posts', async (req, res) => {
 });
 
 router.get('/latest-post', async (req, res) => {
-  if (!await waitForMongoReady(mongoose.connection, mongoReadWaitMs)) {
-    res.setHeader('Cache-Control', 'no-store');
-    return res.status(503).json({ error: 'Databaza po rilidhet. Provo përsëri pas pak.' });
-  }
   const post = await FlamingoPost.findOne().sort({ createdAt: -1 }).lean();
   res.setHeader('Cache-Control', 'no-store');
   res.json({ post: latestWallPost(post) });
@@ -563,27 +553,8 @@ router.get('/downloads/:grant', async (req, res) => {
 router.get('/files/:name', async (req, res) => {
   setFlamingoMediaResponseHeaders(res);
   const name = path.basename(req.params.name);
-  // A persistent-disk video must remain playable while MongoDB reconnects.
-  // Post metadata improves MIME detection and enables original-name recovery,
-  // but it is not required to serve a file whose stable name still exists.
-  // Previously this query rejected before the disk lookup, making every old
-  // video appear missing during even a brief database interruption.
-  let post = null;
-  let databaseAvailable = await waitForMongoReady(mongoose.connection, mongoReadWaitMs);
-  if (databaseAvailable) {
-    try {
-      post = await FlamingoPost.findOne(wallMediaPostQuery(name)).lean();
-    } catch (error) {
-      databaseAvailable = false;
-      console.error(`Flamingo post lookup failed for ${name}:`, error.message);
-    }
-  }
+  const post = await FlamingoPost.findOne(wallMediaPostQuery(name)).lean();
   if (req.query.download === '1') {
-    // Do not bypass premium/download rules merely because Mongo is offline.
-    if (!databaseAvailable) {
-      res.setHeader('Cache-Control', 'no-store');
-      return res.status(503).json({ error: 'Databaza po rilidhet. Provo përsëri pas pak.' });
-    }
     if (post?.attachment?.type?.startsWith('video/') || post?.attachment?.premium) {
       return res.status(403).json({ error: 'Use the download button so the TPG payment can be applied.' });
     }
@@ -610,14 +581,12 @@ router.get('/files/:name', async (req, res) => {
       if (err && !res.headersSent) res.status(err.statusCode || 404).end();
     });
   }
-  const databaseFile = databaseAvailable
-    ? await findFlamingoDatabaseMedia(name, post?.attachment?.name, post?.attachment?.size)
-    : null;
+  const databaseFile = await findFlamingoDatabaseMedia(name, post?.attachment?.name, post?.attachment?.size);
   if (!databaseFile) {
     // Never pin a temporarily missing media response in the browser. A disk
     // remount or GridFS recovery should make an older upload playable again.
     res.setHeader('Cache-Control', 'no-store');
-    return res.status(databaseAvailable ? 404 : 503).end();
+    return res.status(404).end();
   }
   res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
   return streamDatabaseMedia(req, res, databaseFile);
