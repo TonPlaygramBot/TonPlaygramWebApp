@@ -19,7 +19,6 @@
     "refund-withdrawals": "node bot/scripts/refundPendingWithdrawals.js",
     "reset-tpc-balances": "node bot/scripts/resetTPCBalances.js",
     "reset-db": "node bot/scripts/resetDatabase.js",
-    "remove:antar-komiteti-posts": "node bot/scripts/removeAntarKomitetiPosts.js",
     "dev": "concurrently -k \"npm --prefix webapp run dev\" \"node bot/server.js\"",
     "build:offline-assets": "node scripts/buildOfflineAssets.mjs",
     "thumbs:pool-table-finishes": "node scripts/generatePoolRoyaleTableFinishThumbs.mjs",

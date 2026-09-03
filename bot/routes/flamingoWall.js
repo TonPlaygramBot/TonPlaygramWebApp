@@ -77,15 +77,6 @@ const userSelector = req => req.auth?.accountId
     ? { telegramId: req.auth.telegramId }
     : req.auth?.googleId ? { googleId: req.auth.googleId } : null;
 const displayName = user => user?.nickname || [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'Community member';
-const escapeHtml = value => String(value || '').replace(/[&<>"']/g, character => ({
-  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-})[character]);
-const absoluteUrl = (req, value) => {
-  if (!value) return '';
-  const forwardedProtocol = String(req.get('x-forwarded-proto') || '').split(',')[0].trim();
-  const protocol = forwardedProtocol || req.protocol;
-  try { return new URL(value, `${protocol}://${req.get('host')}`).href; } catch { return ''; }
-};
 const resolveUser = req => {
   const selector = userSelector(req);
   return selector ? User.findOne(selector) : null;
@@ -396,35 +387,6 @@ router.get('/posts', async (req, res) => {
   res.json({ posts: serializeWallPosts(posts, token) });
 });
 
-router.get('/profiles/:accountId', async (req, res) => {
-  const accountId = String(req.params.accountId || '').slice(0, 120);
-  const user = await User.findOne({ accountId }).select('accountId nickname firstName lastName photo bio').lean();
-  if (!user) return res.status(404).json({ error: 'Profile not found.' });
-  const posts = await FlamingoPost.find({ authorAccountId: accountId }).sort({ createdAt: -1 }).lean();
-  res.setHeader('Cache-Control', 'no-store');
-  res.json({ profile: { accountId, username: displayName(user), photo: user.photo || '', bio: user.bio || '' }, posts: serializeWallPosts(posts) });
-});
-
-router.get('/share/:id', async (req, res) => {
-  const post = await FlamingoPost.findById(req.params.id).lean();
-  if (!post) return res.status(404).send('Post not found.');
-  // The same Render service serves the API and web bundle. Deriving the public
-  // forwarded origin avoids adding/changing database or deployment variables.
-  const frontend = absoluteUrl(req, '/').replace(/\/$/, '');
-  const target = `${frontend}/wall#post-${post._id}`;
-  const media = absoluteUrl(req, post.attachment?.url);
-  const type = mediaType(post.attachment?.type, post.attachment?.name);
-  const title = `${post.author} on TonPlayGram`;
-  const description = String(post.text || post.title || post.attachment?.name || 'TonPlayGram Social Wall').slice(0, 240);
-  const mediaMeta = type.startsWith('image/')
-    ? `<meta property="og:image" content="${escapeHtml(media)}"><meta name="twitter:card" content="summary_large_image">`
-    : type.startsWith('video/')
-      ? `<meta property="og:video" content="${escapeHtml(media)}"><meta property="og:video:type" content="${escapeHtml(type)}"><meta name="twitter:card" content="player">`
-      : '<meta name="twitter:card" content="summary">';
-  res.type('html').setHeader('Cache-Control', 'public, max-age=300');
-  res.send(`<!doctype html><html><head><meta charset="utf-8"><meta property="og:type" content="article"><meta property="og:site_name" content="TonPlayGram"><meta property="og:title" content="${escapeHtml(title)}"><meta property="og:description" content="${escapeHtml(description)}"><meta property="og:url" content="${escapeHtml(absoluteUrl(req, req.originalUrl))}">${mediaMeta}<meta http-equiv="refresh" content="0;url=${escapeHtml(target)}"><title>${escapeHtml(title)}</title></head><body><a href="${escapeHtml(target)}">Open this post on TonPlayGram</a><script>location.replace(${JSON.stringify(target)})</script></body></html>`);
-});
-
 router.get('/latest-post', async (req, res) => {
   const post = await FlamingoPost.findOne().sort({ createdAt: -1 }).lean();
   res.setHeader('Cache-Control', 'no-store');
@@ -564,9 +526,7 @@ router.post('/posts/:id/download', async (req, res) => {
     if (!user) return res.status(402).json({ error: `You need ${price} TPG to download this video.` });
   }
   const grant = createFlamingoDownloadGrant({ file, originalName: post.attachment.name, size: post.attachment.size });
-  const counted = await FlamingoPost.findByIdAndUpdate(post._id, { $inc: { downloadCount: 1 } }, { new: true }).select('downloadCount').lean();
-  publishWallEvent('updated', String(post._id));
-  res.json({ downloadUrl: `/api/flamingo-wall/downloads/${grant}?name=${encodeURIComponent(post.attachment.name)}`, price, balance: user?.balance, downloadCount: counted?.downloadCount || 0 });
+  res.json({ downloadUrl: `/api/flamingo-wall/downloads/${grant}?name=${encodeURIComponent(post.attachment.name)}`, price, balance: user?.balance });
 });
 
 router.get('/downloads/:grant', async (req, res) => {
