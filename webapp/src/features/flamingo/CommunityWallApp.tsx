@@ -13,7 +13,7 @@ export default function CommunityWallApp() {
             <ArrowLeft />
           </Link>
           <span>
-            <strong>Protesta shqiptare</strong>
+            <strong>TonPlayGram Social Wall</strong>
             <small>Komuniteti TonPlayGram</small>
           </span>
         </div>

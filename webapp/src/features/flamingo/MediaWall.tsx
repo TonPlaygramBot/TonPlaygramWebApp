@@ -25,7 +25,11 @@ const DB_NAME = 'flamingo-media-wall';
 const STORE_NAME = 'posts';
 const ENGAGEMENT_KEY = 'fr-media-engagement-v2';
 const OWNER_TOKEN_KEY = 'fr-media-wall-owner-token';
-const UPLOAD_REQUEST_TIMEOUT_MS = 30_000;
+// Phone uploads can spend more than 30 seconds sending an 8 MB chunk on a
+// congested mobile connection. Aborting at that point made healthy uploads
+// repeatedly restart, so leave enough time for slow 4G/5G uplinks.
+const UPLOAD_REQUEST_TIMEOUT_MS = 120_000;
+const UPLOAD_SESSION_ATTEMPTS = 3;
 const imageExtensions = /\.(avif|heic|heif|jpe?g|png|webp)$/i;
 const videoExtensions = /\.(m4v|mov|mp4|webm)$/i;
 const reactionMeta: { id: Reaction; label: string; emoji: string }[] = [
@@ -142,7 +146,9 @@ function FullscreenVideoFeed({ posts, initialPostId, engagement, commentDrafts, 
   </div>, document.body);
 }
 
-async function uploadLargePost(file: Blob, name: string, type: string, text: string, duration: number, premium: boolean, priceTpg: number, onProgress: (percent: number) => void) {
+class UploadSessionMissingError extends Error {}
+
+async function uploadLargePostSession(file: Blob, name: string, type: string, text: string, duration: number, premium: boolean, priceTpg: number, onProgress: (percent: number) => void) {
   const encoded = (value: string) => encodeURIComponent(value);
   const uploadId = postId();
   const started = await fetchUpload(`${API_BASE_URL}/api/flamingo-wall/uploads`, { method: 'POST', headers: identityHeaders({ 'X-Upload-Id': uploadId, 'X-Upload-Size': String(file.size), 'X-Upload-Name': encoded(name), 'X-Upload-Type': encoded(normalizedAttachmentType(type || file.type, name)), 'X-Upload-Text': encoded(text), 'X-Upload-Duration': String(duration || 0), 'X-Upload-Premium': premium ? '1' : '0', 'X-Upload-Price-TPG': String(priceTpg) }) });
@@ -155,20 +161,43 @@ async function uploadLargePost(file: Blob, name: string, type: string, text: str
     const chunk = file.slice(offset, Math.min(offset + chunkSize, file.size));
     let response: Response | undefined;
     response = await fetchUpload(`${API_BASE_URL}/api/flamingo-wall/uploads/${session.uploadId}`, { method: 'PUT', headers: identityHeaders({ 'Content-Type': 'application/octet-stream', 'X-Upload-Offset': String(offset) }), body: chunk }, 5);
-    if (!response?.ok) throw new Error('Lidhja me serverin u ndërpre. Provo përsëri.');
+    if (!response?.ok) {
+      const error = await responsePayload(response);
+      if (response.status === 404) throw new UploadSessionMissingError(error.error || 'Ngarkimi nuk u gjet.');
+      throw new Error(error.error || 'Lidhja me serverin u ndërpre. Provo përsëri.');
+    }
     uploaded += chunk.size;
     onProgress(Math.round(uploaded / file.size * 100));
   };
   // Multiple small requests fill fast Wi-Fi/4G links much better than a few
   // large requests and make retries considerably cheaper on an unstable phone.
-  const workers = Array.from({ length: Math.min(6, offsets.length) }, async () => {
+  const workers = Array.from({ length: Math.min(3, offsets.length) }, async () => {
     while (offsets.length) { const offset = offsets.shift(); if (offset !== undefined) await uploadChunk(offset); }
   });
   await Promise.all(workers);
   const completed = await fetchUpload(`${API_BASE_URL}/api/flamingo-wall/uploads/${session.uploadId}/complete`, { method: 'POST', headers: identityHeaders() });
   const payload = await responsePayload(completed);
-  if (!completed.ok) throw new Error(payload.error || 'Publikimi dështoi.');
+  if (!completed.ok) {
+    if (completed.status === 404) throw new UploadSessionMissingError(payload.error || 'Ngarkimi nuk u gjet.');
+    throw new Error(payload.error || 'Publikimi dështoi.');
+  }
   return payload;
+}
+
+async function uploadLargePost(file: Blob, name: string, type: string, text: string, duration: number, premium: boolean, priceTpg: number, onProgress: (percent: number) => void) {
+  for (let attempt = 1; attempt <= UPLOAD_SESSION_ATTEMPTS; attempt += 1) {
+    try {
+      return await uploadLargePostSession(file, name, type, text, duration, premium, priceTpg, onProgress);
+    } catch (error) {
+      if (!(error instanceof UploadSessionMissingError) || attempt === UPLOAD_SESSION_ATTEMPTS) throw error;
+      // A deployment or server restart can remove an in-progress session. A
+      // fresh session lets the selected phone video continue without forcing
+      // the user to pick the file and compose the post again.
+      onProgress(0);
+      await wait(1_000 * attempt);
+    }
+  }
+  throw new Error('Ngarkimi dështoi. Provo përsëri.');
 }
 
 export default function MediaWall({ compact = false }: { compact?: boolean }) {
@@ -269,7 +298,7 @@ export default function MediaWall({ compact = false }: { compact?: boolean }) {
   const videoPosts = posts.filter(post => post.attachment?.type.startsWith('video/'));
   return <section className={compact ? 'fr-wall compact' : 'fr-wall'}>
     {fullscreenPost && <FullscreenVideoFeed posts={videoPosts} initialPostId={fullscreenPost} engagement={engagement} commentDrafts={commentDrafts} identity={identity} favorites={favorites} onClose={() => setFullscreenPost(undefined)} onReact={react} onComment={addComment} onDraft={(postIdValue, value) => setCommentDrafts(drafts => ({ ...drafts, [postIdValue]: value }))} onShare={post => { share(post).catch(() => setNotice('Ndarja dështoi.')); }} onDownload={post => downloadAttachment(post.attachment!, post.id).catch(error => setNotice(error.message))} onFavorite={postIdValue => setFavorites(items => ({ ...items, [postIdValue]: !items[postIdValue] }))} />}
-    <div className="fr-wall-heading"><div><span className="fr-kicker"><span>🇦🇱</span> PROTESTA SHQIPTARE</span><h1>Zëri ynë, pa barriera.</h1><p>Një hapësirë e lirë ku çdo qytetar mund të publikojë.</p></div><span className="fr-wall-live"><i /> LIVE</span></div>
+    <div className="fr-wall-heading"><div><span className="fr-kicker"><span>🇦🇱</span> TONPLAYGRAM SOCIAL WALL</span><h1>Zëri ynë, pa barriera.</h1><p>Një hapësirë e lirë ku çdo qytetar mund të publikojë.</p></div><span className="fr-wall-live"><i /> LIVE</span></div>
     <div className="fr-discover"><Search /><span>Kërko në komunitet</span><button>Më të rejat <ChevronDown /></button></div>
     <form className="fr-wall-compose" id="wall-composer" onSubmit={publish}>
       <div className="fr-compose-intro"><div className="fr-compose-person">TI</div><button type="button" onClick={() => setPostKind('post')}>Çfarë dëshiron të ndash?</button></div>
