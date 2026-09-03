@@ -12,7 +12,7 @@ import User from '../models/User.js';
 import { optionalAuthenticate } from '../middleware/auth.js';
 import { mediaType } from '../utils/mediaType.js';
 import { setFlamingoMediaResponseHeaders } from '../utils/flamingoMediaResponse.js';
-import { findFlamingoDatabaseMedia, findFlamingoMedia, flamingoMediaName, flamingoStorageDirectories, openFlamingoDatabaseMedia, removeFlamingoMedia, saveFlamingoMediaToDatabase } from '../utils/flamingoStorage.js';
+import { findFlamingoDatabaseMedia, findFlamingoMedia, flamingoDatabaseStorageEnabled, flamingoMediaName, flamingoStorageDirectories, openFlamingoDatabaseMedia, pruneFlamingoDatabaseMediaCopies, removeFlamingoMedia, saveFlamingoMediaToDatabase } from '../utils/flamingoStorage.js';
 import { wallMediaPostQuery } from '../utils/flamingoPostLookup.js';
 import { createFlamingoDownloadGrant, readFlamingoDownloadGrant } from '../utils/flamingoDownloadGrant.js';
 
@@ -47,6 +47,7 @@ const maxChunkBytes = Math.max(1024 ** 2, Number(process.env.FLAMINGO_UPLOAD_CHU
 const pendingDirectory = path.join(uploadDirectory, '.pending');
 const uploadLocks = new Map();
 const mediaBackfills = new Map();
+let mediaPrune;
 const wallEvents = new EventEmitter();
 wallEvents.setMaxListeners(0);
 const publishWallEvent = (action, postId) => wallEvents.emit('change', { action, postId, at: Date.now() });
@@ -136,7 +137,7 @@ const streamDatabaseMedia = (req, res, databaseFile) => {
 // single promise per filename prevents several phone range requests from
 // uploading the same large video to GridFS concurrently.
 const backfillDatabaseMedia = (diskPath, name, attachment = {}) => {
-  if (!diskPath || mongoose.connection.readyState !== 1 || mediaBackfills.has(name)) return;
+  if (!flamingoDatabaseStorageEnabled() || !diskPath || mongoose.connection.readyState !== 1 || mediaBackfills.has(name)) return;
   const task = saveFlamingoMediaToDatabase(diskPath, name, {
     contentType: mediaType(attachment.type, attachment.name || name),
     originalName: attachment.name || name,
@@ -145,6 +146,13 @@ const backfillDatabaseMedia = (diskPath, name, attachment = {}) => {
     console.error(`Flamingo media backfill failed for ${name}:`, error.message);
   }).finally(() => mediaBackfills.delete(name));
   mediaBackfills.set(name, task);
+};
+const pruneDuplicateDatabaseMedia = () => {
+  if (flamingoDatabaseStorageEnabled()) return Promise.resolve(0);
+  if (!mediaPrune) mediaPrune = pruneFlamingoDatabaseMediaCopies(mediaDirectories)
+    .catch(error => { console.error('Flamingo duplicate media cleanup failed:', error.message); return 0; })
+    .finally(() => { mediaPrune = undefined; });
+  return mediaPrune;
 };
 const ownsPost = (post, token) => {
   if (!post.ownerTokenHash || !token) return false;
@@ -294,12 +302,15 @@ router.post('/uploads/:id/complete', async (req, res) => {
       if (err?.code !== 'ENOENT') throw err;
       await rename(paths.data, diskPath);
     }
-    // Commit the original bytes to GridFS before publishing the database row.
-    // The persistent disk remains a fast cache, while MongoDB is the durable
-    // source that survives disk remounts and can serve every application node.
-    await saveFlamingoMediaToDatabase(diskPath, storedName, {
-      contentType: metadata.type, originalName: metadata.name, size: metadata.size
-    });
+    // The persistent volume is the primary media store. Duplicating videos in
+    // MongoDB can consume the whole Atlas quota and block the post write.
+    if (flamingoDatabaseStorageEnabled()) {
+      await saveFlamingoMediaToDatabase(diskPath, storedName, {
+        contentType: metadata.type, originalName: metadata.name, size: metadata.size
+      });
+    } else {
+      await pruneDuplicateDatabaseMedia();
+    }
     await rm(paths.meta, { force: true });
     const user = await resolveUser(req);
     const attachment = { name: metadata.name, size: metadata.size, type: metadata.type, duration: metadata.duration, premium: metadata.premium && metadata.priceTpg > 0, priceTpg: metadata.premium ? metadata.priceTpg : 0, url: `/api/flamingo-wall/files/${storedName}` };
@@ -416,11 +427,12 @@ router.post('/posts', async (req, res) => {
       if (!text && !upload) return res.status(400).json({ error: 'Shkruaj diçka ose zgjidh një skedar.' });
       const user = await resolveUser(req);
       const author = displayName(user).slice(0, 120);
-      if (upload) {
+      if (upload && flamingoDatabaseStorageEnabled()) {
         await saveFlamingoMediaToDatabase(upload.diskPath, upload.storedName, {
           contentType: upload.type, originalName: upload.originalName, size: upload.size
         });
       }
+      if (upload && !flamingoDatabaseStorageEnabled()) await pruneDuplicateDatabaseMedia();
       const attachment = upload ? { name: upload.originalName, size: upload.size, type: upload.type, url: `/api/flamingo-wall/files/${upload.storedName}` } : undefined;
       const post = await FlamingoPost.create({ text: text.slice(0, 1200), author, authorAvatar: user?.photo || '', authorAccountId: user?.accountId || '', attachment, ownerTokenHash: tokenHash(ownerToken(req)) });
       completed = true;

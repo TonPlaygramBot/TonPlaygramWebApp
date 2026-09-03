@@ -50,6 +50,14 @@ export const findFlamingoDatabaseMedia = async (name, originalName, size) => {
   );
 };
 
+// Wall media already lives on the persistent volume configured by the host.
+// Keeping a second, multi-gigabyte copy in GridFS exhausts the MongoDB quota
+// and prevents even the small FlamingoPost document from being created. GridFS
+// is therefore an explicit opt-in fallback, not the default upload target.
+export const flamingoDatabaseStorageEnabled = (value = process.env.FLAMINGO_GRIDFS_BACKUP) => (
+  /^(1|true|yes)$/i.test(String(value || '').trim())
+);
+
 // GridFS keeps the original bytes in MongoDB in small chunks. The filename is
 // the same stable key already stored in FlamingoPost, so old and new API URLs
 // can resolve media without embedding multi-gigabyte data in a post document.
@@ -80,6 +88,20 @@ export const removeFlamingoDatabaseMedia = async name => {
   if (!mediaBucket) return;
   const file = await findFlamingoDatabaseMedia(name);
   if (file) await mediaBucket.delete(file._id);
+};
+
+export const pruneFlamingoDatabaseMediaCopies = async directories => {
+  const db = database();
+  const mediaBucket = bucket();
+  if (!db || !mediaBucket || flamingoDatabaseStorageEnabled()) return 0;
+  const files = await db.collection(`${BUCKET_NAME}.files`).find({}, { projection: { filename: 1 } }).toArray();
+  let removed = 0;
+  for (const file of files) {
+    if (!file?.filename || !await findFlamingoMedia(file.filename, directories)) continue;
+    await mediaBucket.delete(file._id);
+    removed += 1;
+  }
+  return removed;
 };
 
 export const findFlamingoMedia = async (name, directories, originalName, size) => {
