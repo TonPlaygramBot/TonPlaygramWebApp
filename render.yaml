@@ -14,6 +14,10 @@ services:
     # connection. A process-only health check can pass while profile queries
     # are still buffered waiting for the database.
     healthCheckPath: /api/health
+    disk:
+      name: protest-media
+      mountPath: /var/data/tonplaygram
+      sizeGB: 10
     envVars:
       - key: MONGO_URI
         fromSecret: MONGO_URI
@@ -46,6 +50,9 @@ services:
         fromSecret: RPC_URL
       - key: DEV_ACCOUNT_ID
         fromSecret: DEV_ACCOUNT_ID
+      # Community photos and videos must outlive API restarts and deployments.
+      - key: FLAMINGO_UPLOAD_DIR
+        value: /var/data/tonplaygram/flamingo-uploads
       - key: SOCIAL_PROVIDER_MODE
         value: disabled
 
