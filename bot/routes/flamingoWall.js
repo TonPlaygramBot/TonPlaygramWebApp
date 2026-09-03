@@ -76,7 +76,7 @@ const userSelector = req => req.auth?.accountId
   : req.auth?.telegramId
     ? { telegramId: req.auth.telegramId }
     : req.auth?.googleId ? { googleId: req.auth.googleId } : null;
-const displayName = user => user?.nickname || [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'Anëtar i komunitetit';
+const displayName = user => user?.nickname || [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'Community member';
 const resolveUser = req => {
   const selector = userSelector(req);
   return selector ? User.findOne(selector) : null;
@@ -175,7 +175,7 @@ export const latestWallPost = post => normalizedPost(post || null);
 router.post('/uploads', async (req, res) => {
   const size = Number(req.get('x-upload-size'));
   if (!Number.isSafeInteger(size) || size < 1 || size > maxBytes) {
-    return res.status(413).json({ error: `Skedari duhet të jetë më i vogël se ${Math.floor(maxBytes / 1024 ** 3)} GB.` });
+    return res.status(413).json({ error: `The file must be smaller than ${Math.floor(maxBytes / 1024 ** 3)} GB.` });
   }
   // A stable client id makes initiation safe to retry when the phone sent the
   // request but lost the response. No video bytes are transformed at any point.
@@ -202,7 +202,7 @@ router.post('/uploads', async (req, res) => {
     if (existing.size === size && existing.ownerTokenHash === metadata.ownerTokenHash) {
       return res.status(200).json({ uploadId: id, chunkBytes: maxChunkBytes });
     }
-    return res.status(409).json({ error: 'Ky identifikues ngarkimi është përdorur.' });
+    return res.status(409).json({ error: 'This upload identifier is already in use.' });
   } catch (err) {
     if (err?.code !== 'ENOENT') throw err;
   }
@@ -213,18 +213,18 @@ router.post('/uploads', async (req, res) => {
 
 router.put('/uploads/:id', async (req, res) => {
   const id = String(req.params.id || '');
-  if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(404).json({ error: 'Ngarkimi nuk u gjet.' });
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(404).json({ error: 'Upload session not found.' });
   const paths = sessionPaths(id);
   try {
     const offset = Number(req.get('x-upload-offset'));
     const contentLength = Number(req.get('content-length'));
     if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(contentLength) || contentLength < 1 || contentLength > maxChunkBytes) {
-      return res.status(413).json({ error: 'Pjesa e videos është shumë e madhe.' });
+      return res.status(413).json({ error: 'The video chunk is too large.' });
     }
     const metadata = await withUploadLock(id, async () => {
       const metadata = JSON.parse(await readFile(paths.meta, 'utf8'));
       const expectedLength = Math.min(maxChunkBytes, metadata.size - offset);
-      if (offset >= metadata.size || offset % maxChunkBytes !== 0 || contentLength !== expectedLength) throw Object.assign(new Error('Pjesa është jashtë kufijve.'), { status: 409 });
+      if (offset >= metadata.size || offset % maxChunkBytes !== 0 || contentLength !== expectedLength) throw Object.assign(new Error('The video chunk is out of range.'), { status: 409 });
       return metadata;
     });
     const key = String(offset);
@@ -262,8 +262,8 @@ router.put('/uploads/:id', async (req, res) => {
     });
     res.json(result);
   } catch (err) {
-    if (err?.code === 'ENOENT') return res.status(404).json({ error: 'Ngarkimi nuk u gjet.' });
-    res.status(err?.status || 400).json({ error: err.message || 'Pjesa e videos dështoi.' });
+    if (err?.code === 'ENOENT') return res.status(404).json({ error: 'Upload session not found.' });
+    res.status(err?.status || 400).json({ error: err.message || 'The video chunk failed.' });
   }
 });
 
@@ -293,7 +293,17 @@ router.post('/uploads/:id/complete', async (req, res) => {
   const paths = sessionPaths(id);
   try {
     const metadata = JSON.parse(await readFile(paths.meta, 'utf8'));
-    if (metadata.received !== metadata.size) return res.status(409).json({ error: 'Videoja nuk është ngarkuar plotësisht.', received: metadata.received });
+    // Completing an upload is idempotent. Mobile clients retry this request
+    // when a response is lost, so retain the tiny session manifest and return
+    // the post that was already created instead of reporting a false 404 after
+    // the video reached 100%.
+    if (metadata.postId) {
+      const existingPost = await FlamingoPost.findById(metadata.postId).lean();
+      if (existingPost) return res.status(200).json({ post: existingPost });
+    }
+    const existingPost = await FlamingoPost.findOne({ 'attachment.url': new RegExp(`/files/${id}-`) }).lean();
+    if (existingPost) return res.status(200).json({ post: existingPost });
+    if (metadata.received !== metadata.size) return res.status(409).json({ error: 'The video has not finished uploading.', received: metadata.received });
     const storedName = `${id}-${metadata.name}`;
     const diskPath = path.join(uploadDirectory, storedName);
     try {
@@ -311,10 +321,12 @@ router.post('/uploads/:id/complete', async (req, res) => {
     } else {
       await pruneDuplicateDatabaseMedia();
     }
-    await rm(paths.meta, { force: true });
     const user = await resolveUser(req);
     const attachment = { name: metadata.name, size: metadata.size, type: metadata.type, duration: metadata.duration, premium: metadata.premium && metadata.priceTpg > 0, priceTpg: metadata.premium ? metadata.priceTpg : 0, url: `/api/flamingo-wall/files/${storedName}` };
     const post = await FlamingoPost.create({ text: metadata.text, author: displayName(user), authorAvatar: user?.photo || '', authorAccountId: user?.accountId || '', attachment, ownerTokenHash: metadata.ownerTokenHash });
+    metadata.postId = String(post._id);
+    metadata.completedAt = Date.now();
+    await writeFile(paths.meta, JSON.stringify(metadata));
     publishWallEvent('created', String(post._id));
     res.status(201).json({ post });
   } catch (err) {
@@ -323,9 +335,9 @@ router.post('/uploads/:id/complete', async (req, res) => {
       // Return the existing post so a safe client retry cannot show failure.
       const post = await FlamingoPost.findOne({ 'attachment.url': new RegExp(`/files/${id}-`) }).lean();
       if (post) return res.status(200).json({ post });
-      return res.status(404).json({ error: 'Ngarkimi nuk u gjet.' });
+      return res.status(404).json({ error: 'Upload session not found. Please retry.' });
     }
-    res.status(500).json({ error: err.message || 'Publikimi dështoi.' });
+    res.status(500).json({ error: err.message || 'Publishing failed.' });
   }
 });
 
@@ -365,7 +377,7 @@ router.post('/posts/content', express.json({ limit: '16kb' }), async (req, res) 
     ? req.body.poll.options.map(option => String(option).trim()).filter(Boolean).slice(0, 4)
     : [];
   if (!text && !title && (!question || options.length < 2)) {
-    return res.status(400).json({ error: 'Postimi nuk ka përmbajtje.' });
+    return res.status(400).json({ error: 'The post has no content.' });
   }
   const user = await resolveUser(req);
   const poll = question && options.length >= 2
@@ -421,10 +433,10 @@ router.post('/posts', async (req, res) => {
       if (writeDone) await writeDone;
       if (upload?.limited) {
         await rm(upload.diskPath, { force: true });
-        return res.status(413).json({ error: `Skedari tejkalon kufirin maksimal prej ${Math.floor(maxBytes / 1024 ** 3)} GB.` });
+        return res.status(413).json({ error: `The file exceeds the maximum limit of ${Math.floor(maxBytes / 1024 ** 3)} GB.` });
       }
       const text = String(fields.text || '').trim();
-      if (!text && !upload) return res.status(400).json({ error: 'Shkruaj diçka ose zgjidh një skedar.' });
+      if (!text && !upload) return res.status(400).json({ error: 'Write something or select a file.' });
       const user = await resolveUser(req);
       const author = displayName(user).slice(0, 120);
       if (upload && flamingoDatabaseStorageEnabled()) {
@@ -440,7 +452,7 @@ router.post('/posts', async (req, res) => {
       res.status(201).json({ post });
     } catch (err) {
       if (upload?.diskPath) await rm(upload.diskPath, { force: true });
-      if (!res.headersSent) res.status(500).json({ error: err.message || 'Ngarkimi dështoi.' });
+      if (!res.headersSent) res.status(500).json({ error: err.message || 'Upload failed.' });
     }
   });
   req.pipe(busboy);
@@ -448,8 +460,8 @@ router.post('/posts', async (req, res) => {
 
 router.patch('/posts/:id', express.json({ limit: '16kb' }), async (req, res) => {
   const post = await FlamingoPost.findById(req.params.id).select('+ownerTokenHash');
-  if (!post) return res.status(404).json({ error: 'Postimi nuk u gjet.' });
-  if (!ownsPost(post, ownerToken(req))) return res.status(403).json({ error: 'Vetëm autori mund ta ndryshojë postimin.' });
+  if (!post) return res.status(404).json({ error: 'Post not found.' });
+  if (!ownsPost(post, ownerToken(req))) return res.status(403).json({ error: 'Only the author can edit this post.' });
   post.text = String(req.body?.text || '').trim().slice(0, 1200);
   await post.save();
   publishWallEvent('updated', String(post._id));
@@ -458,8 +470,8 @@ router.patch('/posts/:id', express.json({ limit: '16kb' }), async (req, res) => 
 
 router.delete('/posts/:id', async (req, res) => {
   const post = await FlamingoPost.findById(req.params.id).select('+ownerTokenHash');
-  if (!post) return res.status(404).json({ error: 'Postimi nuk u gjet.' });
-  if (!ownsPost(post, ownerToken(req))) return res.status(403).json({ error: 'Vetëm autori mund ta fshijë postimin.' });
+  if (!post) return res.status(404).json({ error: 'Post not found.' });
+  if (!ownsPost(post, ownerToken(req))) return res.status(403).json({ error: 'Only the author can delete this post.' });
   await post.deleteOne();
   publishWallEvent('deleted', String(post._id));
   if (post.attachment?.url) await removeFlamingoMedia(flamingoMediaName(post.attachment.url), mediaDirectories);
@@ -468,7 +480,7 @@ router.delete('/posts/:id', async (req, res) => {
 
 router.post('/posts/:id/download', async (req, res) => {
   const post = await FlamingoPost.findById(req.params.id).lean();
-  if (!post?.attachment?.url) return res.status(404).json({ error: 'Videoja nuk u gjet.' });
+  if (!post?.attachment?.url) return res.status(404).json({ error: 'Video not found.' });
   const file = flamingoMediaName(post.attachment.url);
   // Check the morning/legacy location before taking any TPG. Older database
   // rows can have a missing or generic MIME type, but their original filename
@@ -477,18 +489,18 @@ router.post('/posts/:id/download', async (req, res) => {
     findFlamingoMedia(file, mediaDirectories, post.attachment.name, post.attachment.size),
     findFlamingoDatabaseMedia(file, post.attachment.name, post.attachment.size)
   ]);
-  if (!diskPath && !databaseFile) return res.status(404).json({ error: 'Videoja origjinale nuk u gjet në hapësirën e ruajtjes.' });
+  if (!diskPath && !databaseFile) return res.status(404).json({ error: 'The original video was not found in storage.' });
   const price = attachmentDownloadPrice(post.attachment);
   const selector = userSelector(req);
-  if (price && !selector) return res.status(401).json({ error: 'Hyr në llogari për ta shkarkuar videon.' });
+  if (price && !selector) return res.status(401).json({ error: 'Sign in to download the video.' });
   let user = selector ? await User.findOne(selector) : null;
-  if (selector && !user) return res.status(404).json({ error: 'Llogaria nuk u gjet.' });
+  if (selector && !user) return res.status(404).json({ error: 'Account not found.' });
   if (price) {
     user = await User.findOneAndUpdate({ _id: user._id, balance: { $gte: price } }, {
       $inc: { balance: -price },
       $push: { transactions: { transactionId: randomUUID(), amount: -price, type: 'video_download', token: 'TPG', status: 'delivered', detail: String(post._id) } }
     }, { new: true });
-    if (!user) return res.status(402).json({ error: `Të duhen ${price} TPG për ta shkarkuar këtë video.` });
+    if (!user) return res.status(402).json({ error: `You need ${price} TPG to download this video.` });
   }
   const grant = createFlamingoDownloadGrant({ file, originalName: post.attachment.name, size: post.attachment.size });
   res.json({ downloadUrl: `/api/flamingo-wall/downloads/${grant}?name=${encodeURIComponent(post.attachment.name)}`, price, balance: user?.balance });
@@ -509,7 +521,7 @@ router.get('/downloads/:grant', async (req, res) => {
     return res.download(diskPath, requestedName);
   }
   const databaseFile = await findFlamingoDatabaseMedia(grant.file, grant.originalName, grant.size);
-  if (!databaseFile) return res.status(404).json({ error: 'Videoja nuk u gjet.' });
+  if (!databaseFile) return res.status(404).json({ error: 'Video not found.' });
   res.setHeader('Content-Type', databaseFile.metadata?.contentType || 'application/octet-stream');
   res.setHeader('Content-Disposition', `attachment; filename="${requestedName}"; filename*=UTF-8''${encodeURIComponent(requestedName)}`);
   return streamDatabaseMedia(req, res, databaseFile);
@@ -521,7 +533,7 @@ router.get('/files/:name', async (req, res) => {
   const post = await FlamingoPost.findOne(wallMediaPostQuery(name)).lean();
   if (req.query.download === '1') {
     if (post?.attachment?.type?.startsWith('video/') || post?.attachment?.premium) {
-      return res.status(403).json({ error: 'Përdor butonin e shkarkimit që të zbatohet pagesa TPG.' });
+      return res.status(403).json({ error: 'Use the download button so the TPG payment can be applied.' });
     }
   }
   const disposition = req.query.download === '1' ? 'attachment' : 'inline';
