@@ -53,6 +53,11 @@ services:
       # Community photos and videos must outlive API restarts and deployments.
       - key: FLAMINGO_UPLOAD_DIR
         value: /var/data/tonplaygram/flamingo-uploads
+      # The persistent disk is the canonical wall-media store. Explicitly keep
+      # multi-GB GridFS duplication off so media cannot consume the Mongo quota
+      # required to create feed post records.
+      - key: FLAMINGO_GRIDFS_BACKUP
+        value: false
       - key: SOCIAL_PROVIDER_MODE
         value: disabled
 
