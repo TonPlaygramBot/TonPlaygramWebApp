@@ -36,7 +36,6 @@ import pushRoutes from './routes/push.js';
 import matchmakingRoutes from './routes/matchmaking.js';
 import protestVideoRoutes from './routes/protestVideos.js';
 import flamingoWallRoutes from './routes/flamingoWall.js';
-import { isAllowedApiOrigin } from './utils/corsOrigin.js';
 import User from './models/User.js';
 import GameResult from './models/GameResult.js';
 import AdView from './models/AdView.js';
@@ -183,7 +182,17 @@ const effectiveAllowedOrigins = allowedOrigins.length
     : defaultDevOrigins;
 
 function isAllowedCorsOrigin(origin) {
-  return isAllowedApiOrigin(origin, effectiveAllowedOrigins, process.env.NODE_ENV === 'production');
+  if (!origin) return true;
+  if (effectiveAllowedOrigins.includes(origin)) return true;
+  if (process.env.NODE_ENV !== 'production') {
+    try {
+      const { hostname } = new URL(origin);
+      return hostname === 'localhost' || hostname === '127.0.0.1';
+    } catch {
+      return false;
+    }
+  }
+  return false;
 }
 
 function resolveCorsOrigin(origin, callback) {
