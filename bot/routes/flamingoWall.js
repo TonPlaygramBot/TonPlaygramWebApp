@@ -553,8 +553,27 @@ router.get('/downloads/:grant', async (req, res) => {
 router.get('/files/:name', async (req, res) => {
   setFlamingoMediaResponseHeaders(res);
   const name = path.basename(req.params.name);
-  const post = await FlamingoPost.findOne(wallMediaPostQuery(name)).lean();
+  // A persistent-disk video must remain playable while MongoDB reconnects.
+  // Post metadata improves MIME detection and enables original-name recovery,
+  // but it is not required to serve a file whose stable name still exists.
+  // Previously this query rejected before the disk lookup, making every old
+  // video appear missing during even a brief database interruption.
+  let post = null;
+  let databaseAvailable = mongoose.connection.readyState === 1;
+  if (databaseAvailable) {
+    try {
+      post = await FlamingoPost.findOne(wallMediaPostQuery(name)).lean();
+    } catch (error) {
+      databaseAvailable = false;
+      console.error(`Flamingo post lookup failed for ${name}:`, error.message);
+    }
+  }
   if (req.query.download === '1') {
+    // Do not bypass premium/download rules merely because Mongo is offline.
+    if (!databaseAvailable) {
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(503).json({ error: 'Databaza po rilidhet. Provo përsëri pas pak.' });
+    }
     if (post?.attachment?.type?.startsWith('video/') || post?.attachment?.premium) {
       return res.status(403).json({ error: 'Use the download button so the TPG payment can be applied.' });
     }
@@ -581,12 +600,14 @@ router.get('/files/:name', async (req, res) => {
       if (err && !res.headersSent) res.status(err.statusCode || 404).end();
     });
   }
-  const databaseFile = await findFlamingoDatabaseMedia(name, post?.attachment?.name, post?.attachment?.size);
+  const databaseFile = databaseAvailable
+    ? await findFlamingoDatabaseMedia(name, post?.attachment?.name, post?.attachment?.size)
+    : null;
   if (!databaseFile) {
     // Never pin a temporarily missing media response in the browser. A disk
     // remount or GridFS recovery should make an older upload playable again.
     res.setHeader('Cache-Control', 'no-store');
-    return res.status(404).end();
+    return res.status(databaseAvailable ? 404 : 503).end();
   }
   res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
   return streamDatabaseMedia(req, res, databaseFile);

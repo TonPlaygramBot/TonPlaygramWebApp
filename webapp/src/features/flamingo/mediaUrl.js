@@ -23,3 +23,21 @@ export function resolveWallMediaUrl(apiBaseUrl, storedUrl, revision = '') {
 
   return `${String(apiBaseUrl || '').replace(/\/$/, '')}/${value.replace(/^\/+/, '')}`;
 }
+
+// A video element does not retry a failed metadata request after the API's
+// database connection returns. Give each retry a fresh URL so a phone browser
+// cannot reuse the failed response it received during the interruption.
+export function retryWallMediaUrl(url, attempt) {
+  const value = String(url || '');
+  if (!value || value.startsWith('blob:') || value.startsWith('data:')) return value;
+  try {
+    const parsed = new URL(value, 'https://wall.local');
+    parsed.searchParams.set('retry', String(Math.max(1, Number(attempt) || 1)));
+    return parsed.origin === 'https://wall.local'
+      ? `${parsed.pathname}${parsed.search}${parsed.hash}`
+      : parsed.href;
+  } catch {
+    const separator = value.includes('?') ? '&' : '?';
+    return `${value}${separator}retry=${Math.max(1, Number(attempt) || 1)}`;
+  }
+}
