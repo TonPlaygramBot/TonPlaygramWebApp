@@ -1,7 +1,6 @@
 import path from 'path';
-import { createReadStream, createWriteStream } from 'fs';
-import { access, mkdir, readdir, rename, rm, stat } from 'fs/promises';
-import { pipeline } from 'stream/promises';
+import { createReadStream } from 'fs';
+import { access, readdir, rm, stat } from 'fs/promises';
 import mongoose from 'mongoose';
 
 const BUCKET_NAME = 'flamingoMedia';
@@ -91,40 +90,14 @@ export const removeFlamingoDatabaseMedia = async name => {
   if (file) await mediaBucket.delete(file._id);
 };
 
-export const pruneFlamingoDatabaseMediaCopies = async (directories, { force = false, migrateMissing = false } = {}) => {
+export const pruneFlamingoDatabaseMediaCopies = async (directories, { force = false } = {}) => {
   const db = database();
   const mediaBucket = bucket();
   if (!db || !mediaBucket || (!force && flamingoDatabaseStorageEnabled())) return 0;
-  const files = await db.collection(`${BUCKET_NAME}.files`).find({}, { projection: { filename: 1, length: 1 } }).toArray();
+  const files = await db.collection(`${BUCKET_NAME}.files`).find({}, { projection: { filename: 1 } }).toArray();
   let removed = 0;
   for (const file of files) {
-    if (!file?.filename) continue;
-    let diskPath = await findFlamingoMedia(file.filename, directories);
-    // Older deployments used GridFS as the only media store. Before removing
-    // those bytes from Atlas, evacuate them to the persistent volume so the
-    // corresponding wall post remains playable. This also reclaims database
-    // quota for the small post document created after a phone upload.
-    if (!diskPath && migrateMissing && directories[0]) {
-      const safeName = path.basename(String(file.filename));
-      const destination = path.join(directories[0], safeName);
-      const temporary = path.join(directories[0], `.${safeName}.${file._id}.migrating`);
-      try {
-        await mkdir(directories[0], { recursive: true });
-        await pipeline(mediaBucket.openDownloadStream(file._id), createWriteStream(temporary, { flags: 'wx' }));
-        const copied = await stat(temporary);
-        if (Number.isSafeInteger(file.length) && copied.size !== file.length) throw new Error('The migrated media size does not match GridFS.');
-        await rename(temporary, destination);
-        diskPath = destination;
-      } catch (error) {
-        await rm(temporary, { force: true });
-        // Another request may have completed the same migration while this
-        // one was opening its temporary file. Only delete GridFS after a
-        // durable copy can actually be found.
-        diskPath = await findFlamingoMedia(file.filename, directories);
-        if (!diskPath) throw error;
-      }
-    }
-    if (!diskPath) continue;
+    if (!file?.filename || !await findFlamingoMedia(file.filename, directories)) continue;
     await mediaBucket.delete(file._id);
     removed += 1;
   }
