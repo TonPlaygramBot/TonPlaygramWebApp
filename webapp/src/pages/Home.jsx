@@ -195,41 +195,39 @@ export default function Home() {
       <ThemePicker />
       <article className="home-protest-card">
         {latestProtestPost?.attachment && (
-          <Link className="home-protest-card__thumbnail" to="/wall" aria-label="Open the latest wall post">
+          <Link className="home-protest-card__thumbnail" to="/wall" aria-label="Hap postimin më të fundit">
             {latestProtestPost.attachment.type?.startsWith('video/') ? (
               <video
                 src={resolveWallMediaUrl(API_BASE_URL, latestProtestPost.attachment.url, latestProtestPost.attachment.size)}
                 muted
                 playsInline
-                autoPlay
-                loop
-                preload="auto"
+                preload="metadata"
               />
             ) : latestProtestPost.attachment.type?.startsWith('image/') ? (
-              <img src={resolveWallMediaUrl(API_BASE_URL, latestProtestPost.attachment.url, latestProtestPost.attachment.size)} alt="Latest wall post" />
+              <img src={resolveWallMediaUrl(API_BASE_URL, latestProtestPost.attachment.url, latestProtestPost.attachment.size)} alt="Postimi më i fundit" />
             ) : null}
-            <span>Latest from the wall · playing now</span>
+            <span>Postimi më i fundit</span>
           </Link>
         )}
         <div className="home-protest-card__glow" aria-hidden="true" />
         <div className="home-protest-card__topline">
-          <span className="home-protest-card__live"><Radio aria-hidden="true" /> Community live</span>
-          <span className="home-protest-card__support"><span role="img" aria-label="Albanian flag">🇦🇱</span><b>TonPlayGram supports the protests in Albania</b></span>
+          <span className="home-protest-card__live"><Radio aria-hidden="true" /> Hapësirë e lirë</span>
+          <span className="home-protest-card__flag" role="img" aria-label="Flamuri shqiptar">🇦🇱</span>
         </div>
         <div className="home-protest-card__body">
           <span className="home-protest-card__icon"><Megaphone aria-hidden="true" /></span>
           <div>
-            <p>TonPlayGram Community</p>
-            <h2>TonPlayGram Social Wall</h2>
-            <span>Your voice. No barriers.</span>
+            <p>Komuniteti TonPlayGram</p>
+            <h2>Protesta shqiptare</h2>
+            <span>Zëri ynë, pa barriera.</span>
           </div>
         </div>
         <div className="home-protest-card__action">
-          <div><Users aria-hidden="true" /><span><b>An open wall for everyone</b><small>Photos, videos, articles, and polls from the community</small></span></div>
+          <div><Users aria-hidden="true" /><span><b>Mur i hapur për të gjithë</b><small>Foto, video, artikuj dhe sondazhe nga komuniteti</small></span></div>
         </div>
         <div className="home-protest-card__buttons">
-          <Link to="/wall#wall-composer"><Megaphone /> Publish now</Link>
-          <Link to="/wall">Open wall <ArrowUpRight /></Link>
+          <Link to="/wall#wall-composer"><Megaphone /> Publiko tani</Link>
+          <Link to="/wall">Hap faqen <ArrowUpRight /></Link>
         </div>
       </article>
       <HomeIntroduction />
