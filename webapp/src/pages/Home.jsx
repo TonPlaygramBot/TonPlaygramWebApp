@@ -218,7 +218,7 @@ export default function Home() {
           <span className="home-protest-card__icon"><Megaphone aria-hidden="true" /></span>
           <div>
             <p>Komuniteti TonPlayGram</p>
-            <h2>Protesta shqiptare</h2>
+            <h2>TonPlayGram Social Wall</h2>
             <span>Zëri ynë, pa barriera.</span>
           </div>
         </div>
