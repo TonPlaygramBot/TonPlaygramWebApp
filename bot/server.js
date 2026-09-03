@@ -52,6 +52,7 @@ import Task from './models/Task.js';
 import WatchRecord from './models/WatchRecord.js';
 import ActiveConnection from './models/ActiveConnection.js';
 import FlamingoPost from './models/FlamingoPost.js';
+import { removeAntarKomitetiPosts } from './utils/flamingoMaintenance.js';
 import ChessMatch from './models/ChessMatch.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -2471,6 +2472,14 @@ if (mongoUri === 'memory') {
 
 mongoose.connection.once('open', async () => {
   console.log('Connected to MongoDB');
+  // One-off requested moderation cleanup. Use this established connection so
+  // the wall keeps the exact same MONGO_URI and media-storage configuration.
+  try {
+    const deleted = await removeAntarKomitetiPosts(FlamingoPost);
+    if (deleted) console.log(`Removed ${deleted} Antar komiteti wall post${deleted === 1 ? '' : 's'}.`);
+  } catch (err) {
+    console.error('Failed to remove Antar komiteti wall posts:', err.message);
+  }
   for (const model of models) {
     try {
       await model.syncIndexes();
