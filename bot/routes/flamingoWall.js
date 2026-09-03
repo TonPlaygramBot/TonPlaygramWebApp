@@ -149,7 +149,7 @@ const backfillDatabaseMedia = (diskPath, name, attachment = {}) => {
 };
 const pruneDuplicateDatabaseMedia = () => {
   if (flamingoDatabaseStorageEnabled()) return Promise.resolve(0);
-  if (!mediaPrune) mediaPrune = pruneFlamingoDatabaseMediaCopies(mediaDirectories)
+  if (!mediaPrune) mediaPrune = pruneFlamingoDatabaseMediaCopies(mediaDirectories, { migrateMissing: true })
     .catch(error => { console.error('Flamingo duplicate media cleanup failed:', error.message); return 0; })
     .finally(() => { mediaPrune = undefined; });
   return mediaPrune;
