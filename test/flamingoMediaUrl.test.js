@@ -1,4 +1,4 @@
-import { resolveWallMediaUrl } from '../webapp/src/features/flamingo/mediaUrl.js';
+import { resolveWallMediaUrl, retryWallMediaUrl } from '../webapp/src/features/flamingo/mediaUrl.js';
 
 describe('Protesta Shqiptare historical media URLs', () => {
   const api = 'https://tonplaygram-bot.onrender.com';
@@ -23,5 +23,17 @@ describe('Protesta Shqiptare historical media URLs', () => {
   test('does not rewrite external or local preview media', () => {
     expect(resolveWallMediaUrl(api, 'https://cdn.example/video.mp4')).toBe('https://cdn.example/video.mp4');
     expect(resolveWallMediaUrl(api, 'blob:phone-preview')).toBe('blob:phone-preview');
+  });
+});
+
+describe('Protesta Shqiptare media reconnect retries', () => {
+  test('cache-busts a failed historical video request without losing its revision', () => {
+    expect(retryWallMediaUrl('https://api.example/files/old.mp4?v=123', 2))
+      .toBe('https://api.example/files/old.mp4?v=123&retry=2');
+  });
+
+  test('does not rewrite local preview blobs', () => {
+    expect(retryWallMediaUrl('blob:https://app.example/id', 2))
+      .toBe('blob:https://app.example/id');
   });
 });

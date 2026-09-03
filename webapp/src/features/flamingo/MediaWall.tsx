@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import './media-social.css';
 import { API_BASE_URL } from '../../utils/api.js';
-import { resolveWallMediaUrl } from './mediaUrl.js';
+import { resolveWallMediaUrl, retryWallMediaUrl } from './mediaUrl.js';
 import { reconcileWallPosts } from './wallFeed.js';
 
 type Attachment = { name: string; size: number; type: string; src: string; blob?: Blob; duration?: number; premium?: boolean; priceTpg?: number };
@@ -102,9 +102,30 @@ async function downloadAttachment(file: Attachment, postIdValue?: string) {
   browserDownload();
 }
 function AttachmentPreview({ file, onExpand }: { file: Attachment; onExpand: () => void }) {
-  if (file.type.startsWith('video/')) return <div className="fr-video-frame"><video key={file.src} src={file.src} controls playsInline preload="metadata" /><span><Play /> VIDEO</span><button type="button" className="fr-expand-video" onClick={onExpand} aria-label="Hap videon në ekran të plotë"><Maximize2 /> Ekran i plotë</button></div>;
+  if (file.type.startsWith('video/')) return <div className="fr-video-frame"><RecoverableVideo src={file.src} controls playsInline preload="metadata" /><span><Play /> VIDEO</span><button type="button" className="fr-expand-video" onClick={onExpand} aria-label="Hap videon në ekran të plotë"><Maximize2 /> Ekran i plotë</button></div>;
   if (file.type.startsWith('image/')) return <img className="fr-post-image" src={file.src} alt={file.name} loading="lazy" />;
   return <button type="button" className="fr-file-card" onClick={() => downloadAttachment(file)}><FileText /><span><strong>{file.name}</strong><small>{formatBytes(file.size)} • Prek për ta shkarkuar</small></span><Download /></button>;
+}
+
+function RecoverableVideo({ src, ...props }: React.VideoHTMLAttributes<HTMLVideoElement> & { src: string }) {
+  const [attempt, setAttempt] = useState(0);
+  const retryTimer = useRef<number>();
+  const currentSrc = attempt ? retryWallMediaUrl(src, attempt) : src;
+  useEffect(() => {
+    setAttempt(0);
+    return () => window.clearTimeout(retryTimer.current);
+  }, [src]);
+  useEffect(() => {
+    const retryOnline = () => setAttempt(value => value + 1);
+    window.addEventListener('online', retryOnline);
+    return () => window.removeEventListener('online', retryOnline);
+  }, []);
+  const retry = () => {
+    if (attempt >= 5) return;
+    window.clearTimeout(retryTimer.current);
+    retryTimer.current = window.setTimeout(() => setAttempt(value => value + 1), Math.min(1000 * 2 ** attempt, 15_000));
+  };
+  return <video {...props} key={currentSrc} src={currentSrc} onError={retry} />;
 }
 
 function FullscreenVideoFeed({ posts, initialPostId, engagement, commentDrafts, identity, favorites, onClose, onReact, onComment, onDraft, onShare, onDownload, onFavorite }: { posts: Post[]; initialPostId: string; engagement: Record<string, Engagement>; commentDrafts: Record<string, string>; identity: WallIdentity; favorites: Record<string, boolean>; onClose: () => void; onReact: (postId: string, reaction: Reaction) => void; onComment: (event: FormEvent, postId: string) => void; onDraft: (postId: string, value: string) => void; onShare: (post: Post) => void; onDownload: (post: Post) => void; onFavorite: (postId: string) => void }) {
@@ -126,7 +147,7 @@ function FullscreenVideoFeed({ posts, initialPostId, engagement, commentDrafts, 
   }, [initialPostId]);
   return createPortal(<div ref={feedRef} className="fr-video-fullscreen-feed" role="dialog" aria-modal="true" aria-label="Videot e murit">
     {posts.map(post => { const file = post.attachment!; const data = engagement[post.id] || blankEngagement(); const likes = Object.values(data.counts).reduce((sum, count) => sum + count, 0); return <section className="fr-fullscreen-slide" id={`fullscreen-video-${post.id}`} key={post.id}>
-      <video src={file.src} controls autoPlay={post.id === initialPostId} playsInline loop preload={post.id === initialPostId ? 'auto' : 'metadata'} />
+      <RecoverableVideo src={file.src} controls autoPlay={post.id === initialPostId} playsInline loop preload={post.id === initialPostId ? 'auto' : 'metadata'} />
       <header><button type="button" onClick={() => history.back()} aria-label="Kthehu te muri"><X /></button><strong>{file.name}</strong></header>
       <div className="fr-fullscreen-copy"><strong>{post.author}</strong>{post.text && <p>{post.text}</p>}</div>
       <nav className="fr-fullscreen-actions" aria-label="Veprimet e videos">
