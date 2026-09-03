@@ -198,8 +198,19 @@ function emitBackButtonClick() {
 function installBackButtonHandler() {
   if (!Capacitor.isNativePlatform()) return;
   void CapacitorApp.addListener('backButton', ({ canGoBack }) => {
-    if (backButtonVisible || canGoBack) {
+    // React Router records SPA navigation in history.state.idx. Capacitor's
+    // canGoBack only reflects the native WebView stack on some devices, so it
+    // can be false even though the user previously opened another app page.
+    const historyIndex = window.history.state?.idx;
+    const hasAppHistory =
+      typeof historyIndex === 'number'
+        ? historyIndex > 0
+        : window.history.length > 1;
+
+    if (backButtonVisible || backButtonListeners.size > 0) {
       emitBackButtonClick();
+    } else if (hasAppHistory || canGoBack) {
+      window.history.back();
     } else if (CapacitorApp.exitApp) {
       CapacitorApp.exitApp();
     }
