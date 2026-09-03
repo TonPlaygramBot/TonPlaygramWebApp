@@ -220,7 +220,7 @@ export default function Home() {
           <span className="home-protest-card__icon"><Megaphone aria-hidden="true" /></span>
           <div>
             <p>TonPlayGram Community</p>
-            <h2>TonPlayGram Social Wall</h2>
+            <h2>TonPlayGram Wall</h2>
             <span>Your voice. No barriers.</span>
           </div>
         </div>
