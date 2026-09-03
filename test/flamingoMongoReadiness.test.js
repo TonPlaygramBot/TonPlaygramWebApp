@@ -34,6 +34,19 @@ describe('Protesta Shqiptare MongoDB media readiness', () => {
     await expect(Promise.all(requests)).resolves.toEqual(Array(20).fill(true));
   });
 
+  test('keeps waiting when Atlas reports a transient error during host selection', async () => {
+    const connection = Object.assign(new EventEmitter(), { readyState: 2, db: undefined });
+    const readiness = waitForMongoReady(connection, 100);
+
+    connection.emit('error', new Error('temporary server selection failure'));
+    connection.readyState = 1;
+    connection.db = {};
+    connection.emit('connected');
+
+    await expect(readiness).resolves.toBe(true);
+    expect(connection.listenerCount('error')).toBe(0);
+  });
+
   test('fails quickly and removes listeners when MongoDB stays unavailable', async () => {
     const connection = Object.assign(new EventEmitter(), { readyState: 0, db: undefined });
 

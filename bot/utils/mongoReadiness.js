@@ -18,16 +18,22 @@ export const waitForMongoReady = (connection, timeoutMs = 5000) => {
       clearTimeout(timer);
       connection.removeListener('connected', onConnected);
       connection.removeListener('open', onConnected);
-      connection.removeListener('error', onUnavailable);
+      connection.removeListener('error', onError);
       resolve(ready);
     };
     const onConnected = () => finish(connection.readyState === 1 && Boolean(connection.db));
-    const onUnavailable = () => finish(false);
+    // The driver can emit `error` while it is still selecting another Atlas
+    // host. Treating that event as final makes waiting media requests return a
+    // 503 at exactly the moment the connection is recovering. Keep the
+    // request attached until Mongo connects or the bounded timeout expires.
+    const onError = () => {
+      if (connection.readyState === 1 && connection.db) finish(true);
+    };
     const timer = setTimeout(() => finish(false), timeoutMs);
 
     connection.on('connected', onConnected);
     connection.on('open', onConnected);
-    connection.on('error', onUnavailable);
+    connection.on('error', onError);
 
     // Close the race where Mongo connected between the initial state check and
     // listener registration.
