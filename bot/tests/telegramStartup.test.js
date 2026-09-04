@@ -3,8 +3,37 @@ import assert from 'node:assert/strict';
 import {
   TELEGRAM_WEBHOOK_PATH_PREFIX,
   getTelegramWebhookConfig,
+  isTelegramBotEnabled,
   startTelegramBot
 } from '../telegramStartup.js';
+
+test('disables the shared Telegram bot in Render pull-request previews', async () => {
+  const calls = [];
+  const bot = {
+    telegram: {
+      setWebhook: async () => calls.push('setWebhook'),
+      deleteWebhook: async () => calls.push('deleteWebhook')
+    },
+    launch: async () => calls.push('launch')
+  };
+  const env = {
+    BOT_TOKEN: '123:production-token',
+    RENDER_EXTERNAL_URL: 'https://preview.onrender.com',
+    IS_PULL_REQUEST: 'true'
+  };
+
+  assert.equal(isTelegramBotEnabled(env), false);
+  assert.deepEqual(await startTelegramBot(bot, env), {
+    mode: 'disabled',
+    reason: 'pull-request-preview'
+  });
+  assert.deepEqual(calls, []);
+});
+
+test('keeps the Telegram bot enabled outside pull-request previews', () => {
+  assert.equal(isTelegramBotEnabled({}), true);
+  assert.equal(isTelegramBotEnabled({ IS_PULL_REQUEST: 'false' }), true);
+});
 
 test('uses a stable webhook on Render so deploy instances do not compete for polling', () => {
   const config = getTelegramWebhookConfig({

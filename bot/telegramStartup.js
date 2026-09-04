@@ -2,6 +2,14 @@ import { createHash } from 'crypto';
 
 export const TELEGRAM_WEBHOOK_PATH_PREFIX = '/api/telegram/webhook';
 
+export function isTelegramBotEnabled(env = process.env) {
+  // Render copies secret environment variables into pull-request preview
+  // services. A preview must never take ownership of the production bot's
+  // webhook (or start a second getUpdates loop) merely because it inherited
+  // BOT_TOKEN.
+  return String(env.IS_PULL_REQUEST || '').trim().toLowerCase() !== 'true';
+}
+
 export function getTelegramWebhookConfig(env = process.env) {
   const configuredUrl = String(env.TELEGRAM_WEBHOOK_URL || env.RENDER_EXTERNAL_URL || '').trim();
   const botToken = String(env.BOT_TOKEN || '').trim();
@@ -16,6 +24,10 @@ export function getTelegramWebhookConfig(env = process.env) {
 }
 
 export async function startTelegramBot(bot, env = process.env) {
+  if (!isTelegramBotEnabled(env)) {
+    return { mode: 'disabled', reason: 'pull-request-preview' };
+  }
+
   const webhook = getTelegramWebhookConfig(env);
 
   if (webhook) {
