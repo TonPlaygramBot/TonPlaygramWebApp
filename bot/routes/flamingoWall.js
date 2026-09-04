@@ -8,7 +8,6 @@ import { createHash, randomUUID, timingSafeEqual } from 'crypto';
 import { EventEmitter } from 'events';
 import mongoose from 'mongoose';
 import FlamingoPost from '../models/FlamingoPost.js';
-import FlamingoProfile from '../models/FlamingoProfile.js';
 import User from '../models/User.js';
 import { optionalAuthenticate } from '../middleware/auth.js';
 import { mediaType } from '../utils/mediaType.js';
@@ -298,31 +297,7 @@ router.put('/uploads/:id', async (req, res) => {
 
 router.get('/identity', async (req, res) => {
   const user = await resolveUser(req);
-  const profile = user?.accountId ? await FlamingoProfile.findOne({ accountId: user.accountId }).lean() : null;
-  res.json({ author: displayName(user), authorAvatar: user?.photo || '', accountId: user?.accountId || '', profileVisible: profile?.visible !== false });
-});
-
-router.get('/profiles/:accountId', async (req, res) => {
-  const accountId = String(req.params.accountId || '');
-  const viewer = await resolveUser(req);
-  const owner = viewer?.accountId === accountId;
-  const [user, profile] = await Promise.all([
-    User.findOne({ accountId }).lean(),
-    FlamingoProfile.findOne({ accountId }).lean()
-  ]);
-  if (!user) return res.status(404).json({ error: 'Profile not found.' });
-  if (profile?.visible === false && !owner) return res.status(403).json({ error: 'This profile is private.' });
-  const posts = await FlamingoPost.find({ authorAccountId: accountId }).select('+ownerTokenHash').sort({ createdAt: -1 }).lean();
-  res.setHeader('Cache-Control', 'no-store');
-  res.json({ profile: { accountId, author: displayName(user), authorAvatar: user.photo || '', visible: profile?.visible !== false, owner }, posts: serializeWallPosts(posts, ownerToken(req)) });
-});
-
-router.patch('/profile', express.json({ limit: '2kb' }), async (req, res) => {
-  const user = await resolveUser(req);
-  if (!user?.accountId) return res.status(401).json({ error: 'Sign in to change profile privacy.' });
-  const visible = req.body?.visible !== false;
-  await FlamingoProfile.findOneAndUpdate({ accountId: user.accountId }, { visible, updatedAt: new Date() }, { upsert: true });
-  res.json({ visible });
+  res.json({ author: displayName(user), authorAvatar: user?.photo || '' });
 });
 
 router.get('/health', async (_req, res) => {
