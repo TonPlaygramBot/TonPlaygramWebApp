@@ -35,7 +35,7 @@ import exchangeRoutes from './routes/exchange.js';
 import pushRoutes from './routes/push.js';
 import matchmakingRoutes from './routes/matchmaking.js';
 import protestVideoRoutes from './routes/protestVideos.js';
-import flamingoWallRoutes from './routes/flamingoWall.js';
+import flamingoWallRoutes, { backfillFlamingoWallMedia } from './routes/flamingoWall.js';
 import { isAllowedApiOrigin } from './utils/corsOrigin.js';
 import User from './models/User.js';
 import GameResult from './models/GameResult.js';
@@ -2481,6 +2481,11 @@ mongoose.connection.once('open', async () => {
       console.error(`Failed to sync ${model.modelName} indexes:`, err);
     }
   }
+  backfillFlamingoWallMedia()
+    .then(({ copied, missing, failed }) => {
+      console.log(`Flamingo media backup complete: ${copied} copied, ${missing} missing, ${failed} failed`);
+    })
+    .catch((err) => console.error('Failed to back up Flamingo wall media:', err));
   gameManager
     .loadRooms()
     .catch((err) => console.error('Failed to load game rooms:', err));
