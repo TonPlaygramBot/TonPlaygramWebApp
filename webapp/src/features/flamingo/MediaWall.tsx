@@ -47,8 +47,7 @@ const blankCounts = (): Record<Reaction, number> => ({ like: 0, love: 0, laugh: 
 const blankEngagement = (): Engagement => ({ counts: blankCounts(), comments: [], commentVotes: {} });
 function openMediaDb() { return new Promise<IDBDatabase>((resolve, reject) => { if (!('indexedDB' in window)) return reject(new Error('IndexedDB unavailable')); const request = indexedDB.open(DB_NAME, 1); request.onupgradeneeded = () => { if (!request.result.objectStoreNames.contains(STORE_NAME)) request.result.createObjectStore(STORE_NAME, { keyPath: 'id' }); }; request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); }); }
 async function savedPosts() { const db = await openMediaDb(); return new Promise<Post[]>((resolve, reject) => { const request = db.transaction(STORE_NAME).objectStore(STORE_NAME).getAll(); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); request.transaction.oncomplete = () => db.close(); }); }
-async function cachePosts(posts: Post[]) { const db = await openMediaDb(); return new Promise<void>((resolve, reject) => { const transaction = db.transaction(STORE_NAME, 'readwrite'); const store = transaction.objectStore(STORE_NAME); store.clear(); posts.forEach(post => store.put({ ...post, attachment: post.attachment ? { ...post.attachment, src: '', blob: undefined } : undefined })); transaction.oncomplete = () => { db.close(); resolve(); }; transaction.onerror = () => { db.close(); reject(transaction.error); }; }); }
-function hydrateCachedPost(post: Post) { const attachment = post.attachment as (Attachment & { url?: string }) | undefined; if (!attachment) return post; const src = attachment.url ? resolveWallMediaUrl(API_BASE_URL, attachment.url, attachment.size) : attachment.src; return { ...post, attachment: { ...attachment, src } }; }
+async function savePost(post: Post) { const db = await openMediaDb(); return new Promise<void>((resolve, reject) => { const transaction = db.transaction(STORE_NAME, 'readwrite'); transaction.objectStore(STORE_NAME).put({ ...post, attachment: post.attachment ? { ...post.attachment, src: '' } : undefined }); transaction.oncomplete = () => { db.close(); resolve(); }; transaction.onerror = () => reject(transaction.error); }); }
 function formatBytes(bytes: number) { if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} GB`; if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(1)} MB`; return `${Math.max(1, Math.round(bytes / 1024))} KB`; }
 function attachmentType(file: File) { if (file.type) return file.type; if (imageExtensions.test(file.name)) return 'image/*'; if (videoExtensions.test(file.name)) return 'video/*'; return 'application/octet-stream'; }
 function normalizedAttachmentType(type: string, name: string) { if (type && type !== 'application/octet-stream') return type; if (imageExtensions.test(name)) return 'image/*'; if (videoExtensions.test(name)) return 'video/*'; return type || 'application/octet-stream'; }
@@ -207,13 +206,6 @@ export default function MediaWall({ compact = false }: { compact?: boolean }) {
   useEffect(() => {
     let active = true;
     let loadedOnce = false;
-    // Paint the last complete server snapshot immediately. This is especially
-    // important in an installed phone app, where waking the API can take a few
-    // seconds. The network response below always replaces this cache.
-    savedPosts().then(items => {
-      if (!active || loadedOnce || !items.length) return;
-      setPosts(items.map(hydrateCachedPost));
-    }).catch(() => {});
     const loadPosts = async (showFallback = false) => {
       const requestId = ++latestFeedRequest.current;
       try {
@@ -225,20 +217,16 @@ export default function MediaWall({ compact = false }: { compact?: boolean }) {
         const normalized = payload.posts.map((post: any) => ({ ...post, id: post._id || post.id, createdAt: new Date(post.createdAt).toLocaleString('en-US'), attachment: post.attachment ? { ...post.attachment, src: resolveWallMediaUrl(API_BASE_URL, post.attachment.url, post.attachment.size) } : undefined })).filter((post: Post) => post.id);
         loadedOnce = true;
         setFeedState('live');
-        setPosts(current => {
-          const next = reconcileWallPosts([...normalized, ...initialPosts], current, pendingPostIds.current);
-          // Store one shared-feed snapshot rather than only this device's
-          // posts. Clearing first also removes posts deleted by their authors.
-          cachePosts(next.filter(post => !initialPosts.includes(post))).catch(() => {});
-          return next;
-        });
+        setPosts(current => reconcileWallPosts([...normalized, ...initialPosts], current, pendingPostIds.current));
       } catch {
         if (!active) return;
         setFeedState(loadedOnce ? 'reconnecting' : 'error');
         if (!showFallback) return;
         savedPosts().then(items => {
           if (!active || !items.length) return;
-          setPosts([...items.map(hydrateCachedPost), ...initialPosts]);
+          const hydrated = items.map(post => post.attachment?.blob ? { ...post, attachment: { ...post.attachment, src: URL.createObjectURL(post.attachment.blob) } } : post);
+          hydrated.forEach(post => { if (post.attachment?.src) urls.current.push(post.attachment.src); });
+          setPosts([...hydrated.reverse(), ...initialPosts]);
         }).catch(() => {});
       }
     };
