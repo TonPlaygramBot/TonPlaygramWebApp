@@ -147,6 +147,45 @@ const backfillDatabaseMedia = (diskPath, name, attachment = {}) => {
   }).finally(() => mediaBackfills.delete(name));
   mediaBackfills.set(name, task);
 };
+
+// Copy every legacy attachment that is still present on a mounted disk into
+// GridFS as soon as MongoDB connects. Waiting for a browser to request each
+// file leaves yesterday's uploads exposed to the next ephemeral-disk restart,
+// especially for posts that are below the first screen of the mobile feed.
+// The migration is idempotent because GridFS is queried before each copy.
+export const backfillFlamingoWallMedia = async () => {
+  if (!flamingoDatabaseStorageEnabled() || mongoose.connection.readyState !== 1) {
+    return { copied: 0, missing: 0, failed: 0 };
+  }
+  const posts = await FlamingoPost.find({ 'attachment.url': { $exists: true, $ne: '' } })
+    .select('attachment')
+    .sort({ createdAt: 1 })
+    .lean();
+  const result = { copied: 0, missing: 0, failed: 0 };
+  for (const post of posts) {
+    const attachment = post.attachment;
+    const name = flamingoMediaName(attachment?.url);
+    if (!name) continue;
+    try {
+      if (await findFlamingoDatabaseMedia(name, attachment?.name, attachment?.size)) continue;
+      const diskPath = await findFlamingoMedia(name, mediaDirectories, attachment?.name, attachment?.size);
+      if (!diskPath) {
+        result.missing += 1;
+        continue;
+      }
+      await saveFlamingoMediaToDatabase(diskPath, name, {
+        contentType: mediaType(attachment?.type, attachment?.name || name),
+        originalName: attachment?.name || name,
+        size: attachment?.size
+      });
+      result.copied += 1;
+    } catch (error) {
+      result.failed += 1;
+      console.error(`Flamingo startup media backup failed for ${name}:`, error.message);
+    }
+  }
+  return result;
+};
 const pruneDuplicateDatabaseMedia = () => {
   if (flamingoDatabaseStorageEnabled()) return Promise.resolve(0);
   if (!mediaPrune) mediaPrune = pruneFlamingoDatabaseMediaCopies(mediaDirectories)
