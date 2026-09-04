@@ -3,7 +3,7 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { constants as fsConstants, createWriteStream } from 'fs';
-import { access, mkdir, readFile, rename, rm, truncate, writeFile } from 'fs/promises';
+import { access, mkdir, readFile, rm, truncate, writeFile } from 'fs/promises';
 import { createHash, randomUUID, timingSafeEqual } from 'crypto';
 import { EventEmitter } from 'events';
 import mongoose from 'mongoose';
@@ -12,7 +12,7 @@ import User from '../models/User.js';
 import { optionalAuthenticate } from '../middleware/auth.js';
 import { mediaType } from '../utils/mediaType.js';
 import { setFlamingoMediaResponseHeaders } from '../utils/flamingoMediaResponse.js';
-import { findFlamingoDatabaseMedia, findFlamingoMedia, flamingoDatabaseStorageEnabled, flamingoMediaName, flamingoStorageDirectories, openFlamingoDatabaseMedia, pruneFlamingoDatabaseMediaCopies, removeFlamingoMedia, saveFlamingoMediaToDatabase } from '../utils/flamingoStorage.js';
+import { commitFlamingoMedia, findFlamingoDatabaseMedia, findFlamingoMedia, flamingoDatabaseStorageEnabled, flamingoMediaName, flamingoStorageDirectories, openFlamingoDatabaseMedia, pruneFlamingoDatabaseMediaCopies, removeFlamingoMedia, saveFlamingoMediaToDatabase } from '../utils/flamingoStorage.js';
 import { wallMediaPostQuery } from '../utils/flamingoPostLookup.js';
 import { createFlamingoDownloadGrant, readFlamingoDownloadGrant } from '../utils/flamingoDownloadGrant.js';
 
@@ -334,12 +334,7 @@ router.post('/uploads/:id/complete', async (req, res) => {
     if (metadata.received !== metadata.size) return res.status(409).json({ error: 'The video has not finished uploading.', received: metadata.received });
     const storedName = `${id}-${metadata.name}`;
     const diskPath = path.join(uploadDirectory, storedName);
-    try {
-      await access(diskPath);
-    } catch (err) {
-      if (err?.code !== 'ENOENT') throw err;
-      await rename(paths.data, diskPath);
-    }
+    await commitFlamingoMedia(paths.data, diskPath, metadata.size);
     // The persistent volume is the primary media store. Duplicating videos in
     // MongoDB can consume the whole Atlas quota and block the post write.
     await saveOptionalDatabaseBackup(diskPath, storedName, {

@@ -1,7 +1,7 @@
 import os from 'os';
 import path from 'path';
 import { mkdir, mkdtemp, rm, writeFile } from 'fs/promises';
-import { findFlamingoMedia, flamingoDatabaseMediaQuery, flamingoDatabaseStorageEnabled, flamingoMediaName, flamingoStorageDirectories, removeFlamingoMedia } from '../bot/utils/flamingoStorage.js';
+import { commitFlamingoMedia, findFlamingoMedia, flamingoDatabaseMediaQuery, flamingoDatabaseStorageEnabled, flamingoMediaName, flamingoStorageDirectories, removeFlamingoMedia } from '../bot/utils/flamingoStorage.js';
 
 describe('Protesta Shqiptare media storage migration', () => {
   let root;
@@ -85,5 +85,22 @@ describe('Protesta Shqiptare media storage migration', () => {
     expect(flamingoDatabaseStorageEnabled('false')).toBe(false);
     expect(flamingoDatabaseStorageEnabled('true')).toBe(true);
     expect(flamingoDatabaseStorageEnabled('1')).toBe(true);
+  });
+
+  test('durably commits a complete upload before its public post is created', async () => {
+    const pending = path.join(root, 'pending-video.part');
+    const published = path.join(persistentDirectory, 'published-video.mp4');
+    await writeFile(pending, 'complete video');
+
+    await expect(commitFlamingoMedia(pending, published, 14)).resolves.toBe(published);
+    await expect(findFlamingoMedia('published-video.mp4', [persistentDirectory])).resolves.toBe(published);
+  });
+
+  test('refuses to publish a truncated media file', async () => {
+    const pending = path.join(root, 'truncated-video.part');
+    const published = path.join(persistentDirectory, 'truncated-video.mp4');
+    await writeFile(pending, 'short');
+
+    await expect(commitFlamingoMedia(pending, published, 100)).rejects.toThrow('does not match');
   });
 });

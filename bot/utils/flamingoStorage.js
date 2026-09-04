@@ -1,6 +1,6 @@
 import path from 'path';
 import { createReadStream } from 'fs';
-import { access, readdir, rm, stat } from 'fs/promises';
+import { access, open, readdir, rename, rm, stat } from 'fs/promises';
 import mongoose from 'mongoose';
 
 const BUCKET_NAME = 'flamingoMedia';
@@ -57,6 +57,36 @@ export const findFlamingoDatabaseMedia = async (name, originalName, size) => {
 export const flamingoDatabaseStorageEnabled = (value = process.env.FLAMINGO_GRIDFS_BACKUP) => (
   /^(1|true|yes)$/i.test(String(value || '').trim())
 );
+
+// Publishing the Mongo document before the media bytes are durably committed
+// can leave a public post pointing at a truncated file after a host restart.
+// Keep the final move atomic and fsync both the file and its directory before
+// callers create the FlamingoPost record.
+export const commitFlamingoMedia = async (pendingPath, finalPath, expectedSize) => {
+  try {
+    await access(finalPath);
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error;
+    await rename(pendingPath, finalPath);
+  }
+  const file = await open(finalPath, 'r');
+  try {
+    const details = await file.stat();
+    if (!details.isFile() || details.size !== Number(expectedSize)) {
+      throw new Error('The stored media does not match the completed upload.');
+    }
+    await file.sync();
+  } finally {
+    await file.close();
+  }
+  const directory = await open(path.dirname(finalPath), 'r');
+  try {
+    await directory.sync();
+  } finally {
+    await directory.close();
+  }
+  return finalPath;
+};
 
 // GridFS keeps the original bytes in MongoDB in small chunks. The filename is
 // the same stable key already stored in FlamingoPost, so old and new API URLs
