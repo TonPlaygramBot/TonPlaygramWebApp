@@ -60,6 +60,7 @@ import { execSync } from 'child_process';
 import { randomInt, randomUUID } from 'crypto';
 import {
   getTelegramWebhookConfig,
+  isTelegramBotEnabled,
   startTelegramBot
 } from './telegramStartup.js';
 import {
@@ -468,11 +469,12 @@ function sendIndex(res) {
   } else {
     res.status(503).send('Webapp build not available');
   }
-  if (process.env.SKIP_BOT_LAUNCH !== '1') launchBotWithDelay();
-  else console.log('Skipping Telegram bot launch');
+  if (telegramBotEnabled) launchBotWithDelay();
 }
 
-const telegramWebhook = getTelegramWebhookConfig();
+const telegramBotEnabled =
+  process.env.SKIP_BOT_LAUNCH !== '1' && isTelegramBotEnabled();
+const telegramWebhook = telegramBotEnabled ? getTelegramWebhookConfig() : null;
 if (telegramWebhook) {
   app.post(telegramWebhook.path, bot.webhookCallback(telegramWebhook.path));
 }
@@ -496,8 +498,9 @@ function launchBotWithDelay() {
   }, 5000);
 }
 
-if (process.env.SKIP_BOT_LAUNCH !== '1') launchBotWithDelay();
-else console.log('Skipping Telegram bot launch');
+if (telegramBotEnabled) launchBotWithDelay();
+else if (process.env.SKIP_BOT_LAUNCH === '1') console.log('Skipping Telegram bot launch');
+else console.log('Skipping Telegram bot launch in pull-request preview');
 
 app.get('/', (req, res) => {
   sendIndex(res);
