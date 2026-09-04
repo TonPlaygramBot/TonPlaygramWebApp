@@ -64,6 +64,10 @@
   margin: auto;
   padding: 20px 16px 40px;
 }
+.community-wall-switch { position: sticky; top: 72px; z-index: 30; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 18px; padding: 5px; border: 1px solid #292f38; border-radius: 17px; background: rgb(17 21 26/92%); box-shadow: 0 12px 32px rgb(0 0 0/28%); backdrop-filter: blur(18px); }
+.community-wall-switch a { display: flex; width: auto; height: 44px; align-items: center; justify-content: center; gap: 7px; border: 0; border-radius: 12px; background: transparent; color: #929ba7; font-size: 12px; font-weight: 800; text-decoration: none; }
+.community-wall-switch a.active { background: linear-gradient(135deg, #ef625d, #c83e4a); color: #fff; box-shadow: 0 8px 22px rgb(213 67 73/28%); }
+.community-wall-switch svg { width: 17px; }
 .community-wall-page h1,
 .community-wall-page h2,
 .community-wall-page p {
@@ -91,4 +95,5 @@
   .community-wall-header a,.community-wall-header-actions button,.community-wall-header-actions a { width: 38px; height: 38px; }
   .community-wall-header-actions button { display: none; }
   .community-wall-page main { padding: 14px 10px 34px; }
+  .community-wall-switch { top: 64px; }
 }

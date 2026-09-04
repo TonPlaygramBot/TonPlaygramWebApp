@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  CheckCircle2, ChevronDown, Download, FileText, Heart, Image, Maximize2, MessageCircle,
-  Newspaper, Paperclip, Pencil, Play, Plus, Save, Search, Send, Share2, ThumbsDown,
-  ThumbsUp, Trash2, Upload, Video, Vote, X,
+  CheckCircle2, ChevronDown, Download, Eye, EyeOff, FileText, Heart, Image, Maximize2, MessageCircle,
+  MoreVertical, Newspaper, Paperclip, Pencil, Play, Plus, Save, Search, Send, Share2, ThumbsDown,
+  ThumbsUp, Trash2, Upload, UserRound, Video, Vote, X,
 } from 'lucide-react';
 import './media-social.css';
 import { API_BASE_URL } from '../../utils/api.js';
@@ -14,9 +14,10 @@ type Attachment = { name: string; size: number; type: string; src: string; blob?
 type Reaction = 'like' | 'love' | 'laugh' | 'support' | 'dislike';
 type Comment = { id: string; author: string; text: string; createdAt: string };
 type Poll = { question: string; options: string[]; votes: number[] };
-type Post = { id: string; text: string; title?: string; author: string; authorAvatar?: string; createdAt: string; source?: 'community' | 'telegram'; attachment?: Attachment; poll?: Poll; canManage?: boolean };
+type Post = { id: string; text: string; title?: string; author: string; authorAvatar?: string; authorAccountId?: string; createdAt: string; source?: 'community' | 'telegram'; attachment?: Attachment; poll?: Poll; canManage?: boolean };
 type Engagement = { reaction?: Reaction; counts: Record<Reaction, number>; comments: Comment[]; commentVotes: Record<string, 1 | -1> };
-type WallIdentity = { author: string; authorAvatar: string };
+type WallIdentity = { author: string; authorAvatar: string; accountId?: string; profileVisible?: boolean };
+type VideoQuality = 'auto' | '1080' | '720' | '480';
 
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024 * 1024;
 const TIKTOK_CHANNEL = 'https://www.tiktok.com/@tonplaygram';
@@ -47,7 +48,8 @@ const blankCounts = (): Record<Reaction, number> => ({ like: 0, love: 0, laugh: 
 const blankEngagement = (): Engagement => ({ counts: blankCounts(), comments: [], commentVotes: {} });
 function openMediaDb() { return new Promise<IDBDatabase>((resolve, reject) => { if (!('indexedDB' in window)) return reject(new Error('IndexedDB unavailable')); const request = indexedDB.open(DB_NAME, 1); request.onupgradeneeded = () => { if (!request.result.objectStoreNames.contains(STORE_NAME)) request.result.createObjectStore(STORE_NAME, { keyPath: 'id' }); }; request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); }); }
 async function savedPosts() { const db = await openMediaDb(); return new Promise<Post[]>((resolve, reject) => { const request = db.transaction(STORE_NAME).objectStore(STORE_NAME).getAll(); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); request.transaction.oncomplete = () => db.close(); }); }
-async function savePost(post: Post) { const db = await openMediaDb(); return new Promise<void>((resolve, reject) => { const transaction = db.transaction(STORE_NAME, 'readwrite'); transaction.objectStore(STORE_NAME).put({ ...post, attachment: post.attachment ? { ...post.attachment, src: '' } : undefined }); transaction.oncomplete = () => { db.close(); resolve(); }; transaction.onerror = () => reject(transaction.error); }); }
+async function cachePosts(posts: Post[]) { const db = await openMediaDb(); return new Promise<void>((resolve, reject) => { const transaction = db.transaction(STORE_NAME, 'readwrite'); const store = transaction.objectStore(STORE_NAME); store.clear(); posts.forEach(post => store.put({ ...post, attachment: post.attachment ? { ...post.attachment, src: '', blob: undefined } : undefined })); transaction.oncomplete = () => { db.close(); resolve(); }; transaction.onerror = () => { db.close(); reject(transaction.error); }; }); }
+function hydrateCachedPost(post: Post) { const attachment = post.attachment as (Attachment & { url?: string }) | undefined; if (!attachment) return post; const src = attachment.url ? resolveWallMediaUrl(API_BASE_URL, attachment.url, attachment.size) : attachment.src; return { ...post, attachment: { ...attachment, src } }; }
 function formatBytes(bytes: number) { if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} GB`; if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(1)} MB`; return `${Math.max(1, Math.round(bytes / 1024))} KB`; }
 function attachmentType(file: File) { if (file.type) return file.type; if (imageExtensions.test(file.name)) return 'image/*'; if (videoExtensions.test(file.name)) return 'video/*'; return 'application/octet-stream'; }
 function normalizedAttachmentType(type: string, name: string) { if (type && type !== 'application/octet-stream') return type; if (imageExtensions.test(name)) return 'image/*'; if (videoExtensions.test(name)) return 'video/*'; return type || 'application/octet-stream'; }
@@ -106,7 +108,10 @@ async function downloadAttachment(file: Attachment, postIdValue?: string) {
   browserDownload();
 }
 function AttachmentPreview({ file, onExpand }: { file: Attachment; onExpand: () => void }) {
-  if (file.type.startsWith('video/')) return <div className="fr-video-frame"><video key={file.src} src={file.src} controls playsInline preload="metadata" /><span><Play /> VIDEO</span><button type="button" className="fr-expand-video" onClick={onExpand} aria-label="Open video full screen"><Maximize2 /> Full screen</button></div>;
+  const [quality, setQuality] = useState<VideoQuality>(() => (localStorage.getItem('fr-video-quality') as VideoQuality) || 'auto');
+  const [menu, setMenu] = useState(false);
+  const selectQuality = (value: VideoQuality) => { setQuality(value); setMenu(false); localStorage.setItem('fr-video-quality', value); };
+  if (file.type.startsWith('video/')) return <div className="fr-video-frame"><video key={file.src} src={file.src} controls playsInline preload={quality === 'auto' || quality === '480' ? 'metadata' : 'auto'} data-quality={quality} /><span><Play /> VIDEO</span><button type="button" className="fr-video-menu-button" onClick={() => setMenu(value => !value)} aria-label="Video quality settings" aria-expanded={menu}><MoreVertical /></button>{menu && <div className="fr-video-quality-menu"><strong>Video quality</strong>{(['auto', '1080', '720', '480'] as VideoQuality[]).map(value => <button type="button" className={quality === value ? 'active' : ''} key={value} onClick={() => selectQuality(value)}><span>{value === 'auto' ? 'Auto' : `${value}p`}</span>{quality === value && <CheckCircle2 />}</button>)}<small>Used for playback and downloads when that resolution is available. Original stays available.</small></div>}<button type="button" className="fr-expand-video" onClick={onExpand} aria-label="Open video full screen"><Maximize2 /> Full screen</button></div>;
   if (file.type.startsWith('image/')) return <img className="fr-post-image" src={file.src} alt={file.name} loading="lazy" />;
   return <button type="button" className="fr-file-card" onClick={() => downloadAttachment(file)}><FileText /><span><strong>{file.name}</strong><small>{formatBytes(file.size)} • Tap to download</small></span><Download /></button>;
 }
@@ -201,11 +206,18 @@ async function uploadLargePost(file: Blob, name: string, type: string, text: str
 }
 
 export default function MediaWall({ compact = false }: { compact?: boolean }) {
-  const [posts, setPosts] = useState<Post[]>(initialPosts); const [feedState, setFeedState] = useState<'loading' | 'live' | 'reconnecting' | 'error'>('loading'); const [identity, setIdentity] = useState<WallIdentity>({ author: 'Community member', authorAvatar: '' }); const [text, setText] = useState(''); const [title, setTitle] = useState(''); const [postKind, setPostKind] = useState<'post' | 'article' | 'poll'>('post'); const [pollQuestion, setPollQuestion] = useState(''); const [pollOptions, setPollOptions] = useState(['', '']); const [selected, setSelected] = useState<Attachment[]>([]); const [notice, setNotice] = useState(''); const [loadingFile, setLoadingFile] = useState(false); const [votes, setVotes] = useState<Record<string, number>>(() => JSON.parse(localStorage.getItem('fr-media-votes') || '{}')); const [engagement, setEngagement] = useState<Record<string, Engagement>>(() => { try { return JSON.parse(localStorage.getItem(ENGAGEMENT_KEY) || '{}'); } catch { return {}; } }); const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({}); const [openShare, setOpenShare] = useState<string>(); const [openReactions, setOpenReactions] = useState<string>(); const [editingPost, setEditingPost] = useState<string>(); const [editText, setEditText] = useState(''); const [fullscreenPost, setFullscreenPost] = useState<string>(); const [premium, setPremium] = useState(false); const [priceTpg, setPriceTpg] = useState(''); const [favorites, setFavorites] = useState<Record<string, boolean>>(() => { try { return JSON.parse(localStorage.getItem('fr-video-favorites') || '{}'); } catch { return {}; } }); const urls = useRef<string[]>([]); const pendingPostIds = useRef(new Set<string>()); const latestFeedRequest = useRef(0);
+  const [posts, setPosts] = useState<Post[]>(initialPosts); const [profile, setProfile] = useState<{ accountId: string; author: string; authorAvatar: string; visible: boolean; owner: boolean; posts: Post[] }>(); const [feedState, setFeedState] = useState<'loading' | 'live' | 'reconnecting' | 'error'>('loading'); const [identity, setIdentity] = useState<WallIdentity>({ author: 'Community member', authorAvatar: '' }); const [text, setText] = useState(''); const [title, setTitle] = useState(''); const [postKind, setPostKind] = useState<'post' | 'article' | 'poll'>('post'); const [pollQuestion, setPollQuestion] = useState(''); const [pollOptions, setPollOptions] = useState(['', '']); const [selected, setSelected] = useState<Attachment[]>([]); const [notice, setNotice] = useState(''); const [loadingFile, setLoadingFile] = useState(false); const [votes, setVotes] = useState<Record<string, number>>(() => JSON.parse(localStorage.getItem('fr-media-votes') || '{}')); const [engagement, setEngagement] = useState<Record<string, Engagement>>(() => { try { return JSON.parse(localStorage.getItem(ENGAGEMENT_KEY) || '{}'); } catch { return {}; } }); const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({}); const [openShare, setOpenShare] = useState<string>(); const [openReactions, setOpenReactions] = useState<string>(); const [editingPost, setEditingPost] = useState<string>(); const [editText, setEditText] = useState(''); const [fullscreenPost, setFullscreenPost] = useState<string>(); const [premium, setPremium] = useState(false); const [priceTpg, setPriceTpg] = useState(''); const [favorites, setFavorites] = useState<Record<string, boolean>>(() => { try { return JSON.parse(localStorage.getItem('fr-video-favorites') || '{}'); } catch { return {}; } }); const urls = useRef<string[]>([]); const pendingPostIds = useRef(new Set<string>()); const latestFeedRequest = useRef(0);
   useEffect(() => { fetch(`${API_BASE_URL}/api/flamingo-wall/identity`, { headers: identityHeaders() }).then(response => response.ok ? response.json() : Promise.reject()).then(setIdentity).catch(() => {}); }, []);
   useEffect(() => {
     let active = true;
     let loadedOnce = false;
+    // Paint the last complete server snapshot immediately. This is especially
+    // important in an installed phone app, where waking the API can take a few
+    // seconds. The network response below always replaces this cache.
+    savedPosts().then(items => {
+      if (!active || loadedOnce || !items.length) return;
+      setPosts(items.map(hydrateCachedPost));
+    }).catch(() => {});
     const loadPosts = async (showFallback = false) => {
       const requestId = ++latestFeedRequest.current;
       try {
@@ -217,16 +229,20 @@ export default function MediaWall({ compact = false }: { compact?: boolean }) {
         const normalized = payload.posts.map((post: any) => ({ ...post, id: post._id || post.id, createdAt: new Date(post.createdAt).toLocaleString('en-US'), attachment: post.attachment ? { ...post.attachment, src: resolveWallMediaUrl(API_BASE_URL, post.attachment.url, post.attachment.size) } : undefined })).filter((post: Post) => post.id);
         loadedOnce = true;
         setFeedState('live');
-        setPosts(current => reconcileWallPosts([...normalized, ...initialPosts], current, pendingPostIds.current));
+        setPosts(current => {
+          const next = reconcileWallPosts([...normalized, ...initialPosts], current, pendingPostIds.current);
+          // Store one shared-feed snapshot rather than only this device's
+          // posts. Clearing first also removes posts deleted by their authors.
+          cachePosts(next.filter(post => !initialPosts.includes(post))).catch(() => {});
+          return next;
+        });
       } catch {
         if (!active) return;
         setFeedState(loadedOnce ? 'reconnecting' : 'error');
         if (!showFallback) return;
         savedPosts().then(items => {
           if (!active || !items.length) return;
-          const hydrated = items.map(post => post.attachment?.blob ? { ...post, attachment: { ...post.attachment, src: URL.createObjectURL(post.attachment.blob) } } : post);
-          hydrated.forEach(post => { if (post.attachment?.src) urls.current.push(post.attachment.src); });
-          setPosts([...hydrated.reverse(), ...initialPosts]);
+          setPosts([...items.map(hydrateCachedPost), ...initialPosts]);
         }).catch(() => {});
       }
     };
@@ -295,12 +311,33 @@ export default function MediaWall({ compact = false }: { compact?: boolean }) {
   function openFullscreen(postIdValue: string) { history.pushState({ tonPlaygramVideo: postIdValue }, '', location.href); setFullscreenPost(postIdValue); }
 
 
-  const videoPosts = posts.filter(post => post.attachment?.type.startsWith('video/'));
+  async function openProfile(accountId?: string) {
+    if (!accountId) return setNotice('This community member does not have a linked profile yet.');
+    const response = await fetch(`${API_BASE_URL}/api/flamingo-wall/profiles/${encodeURIComponent(accountId)}`, { headers: identityHeaders(), cache: 'no-store' });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) return setNotice(payload.error || 'Profile could not be opened.');
+    const profilePosts = (payload.posts || []).map((post: any) => ({ ...post, id: post._id || post.id, createdAt: new Date(post.createdAt).toLocaleString('en-US'), attachment: post.attachment ? { ...post.attachment, src: resolveWallMediaUrl(API_BASE_URL, post.attachment.url, post.attachment.size) } : undefined }));
+    setProfile({ ...payload.profile, posts: profilePosts });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  async function setProfileVisibility(visible: boolean) {
+    const response = await fetch(`${API_BASE_URL}/api/flamingo-wall/profile`, { method: 'PATCH', headers: identityHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ visible }) });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) return setNotice(payload.error || 'Privacy setting could not be saved.');
+    setIdentity(current => ({ ...current, profileVisible: visible }));
+    setProfile(current => current ? { ...current, visible } : current);
+    setNotice(visible ? 'Your profile is now visible to everyone.' : 'Your profile is now private.');
+  }
+
+  const visiblePosts = profile ? profile.posts : posts;
+  const videoPosts = visiblePosts.filter(post => post.attachment?.type.startsWith('video/'));
   return <section className={compact ? 'fr-wall compact' : 'fr-wall'}>
     {fullscreenPost && <FullscreenVideoFeed posts={videoPosts} initialPostId={fullscreenPost} engagement={engagement} commentDrafts={commentDrafts} identity={identity} favorites={favorites} onClose={() => setFullscreenPost(undefined)} onReact={react} onComment={addComment} onDraft={(postIdValue, value) => setCommentDrafts(drafts => ({ ...drafts, [postIdValue]: value }))} onShare={post => { share(post).catch(() => setNotice('Sharing failed.')); }} onDownload={post => downloadAttachment(post.attachment!, post.id).catch(error => setNotice(error.message))} onFavorite={postIdValue => setFavorites(items => ({ ...items, [postIdValue]: !items[postIdValue] }))} />}
-    <div className="fr-wall-heading"><div><span className="fr-kicker"><span>🇦🇱</span> TONPLAYGRAM SOCIAL WALL</span><h1>Your voice. No barriers.</h1><p>An open space where every member of the community can speak.</p></div><span className="fr-wall-live"><i /> LIVE</span></div>
-    <div className="fr-discover"><Search /><span>Search the community</span><button>Newest <ChevronDown /></button></div>
-    <form className="fr-wall-compose" id="wall-composer" onSubmit={publish}>
+    {profile && <section className="fr-profile-card"><button type="button" className="fr-profile-back" onClick={() => setProfile(undefined)}><X /> Back to wall</button><div className="fr-profile-identity">{profile.authorAvatar ? <img src={profile.authorAvatar} alt="" /> : <span>{profile.author.slice(0, 2).toUpperCase()}</span>}<div><small>COMMUNITY PROFILE</small><h1>{profile.author}</h1><p><UserRound /> {profile.posts.length} {profile.posts.length === 1 ? 'post' : 'posts'}</p></div></div>{profile.owner && <button type="button" className="fr-privacy-toggle" onClick={() => setProfileVisibility(!profile.visible)}>{profile.visible ? <Eye /> : <EyeOff />}<span><b>{profile.visible ? 'Public profile' : 'Private profile'}</b><small>{profile.visible ? 'Everyone can see your profile and posts.' : 'Only you can see this profile page.'}</small></span></button>}</section>}
+    {!profile && <button type="button" className="fr-my-profile" onClick={() => openProfile(identity.accountId)}><UserRound /> My profile <span>{identity.profileVisible === false ? 'Private' : 'Public'}</span></button>}
+    {!profile && <div className="fr-wall-heading"><div><span className="fr-kicker"><span>🇦🇱</span> TONPLAYGRAM SOCIAL WALL</span><h1>Your voice. No barriers.</h1><p>An open space where every member of the community can speak.</p></div><span className="fr-wall-live"><i /> LIVE</span></div>}
+    {!profile && <div className="fr-discover"><Search /><span>Search the community</span><button>Newest <ChevronDown /></button></div>}
+    {!profile && <form className="fr-wall-compose" id="wall-composer" onSubmit={publish}>
       <div className="fr-compose-intro"><div className="fr-compose-person">YOU</div><button type="button" onClick={() => setPostKind('post')}>What would you like to share?</button></div>
       <div className="fr-compose-kinds"><button type="button" className={postKind === 'post' ? 'active' : ''} onClick={() => setPostKind('post')}><MessageCircle /> Post</button><button type="button" className={postKind === 'article' ? 'active' : ''} onClick={() => setPostKind('article')}><Newspaper /> Article</button><button type="button" className={postKind === 'poll' ? 'active' : ''} onClick={() => setPostKind('poll')}><Vote /> Poll</button></div>
       {postKind === 'article' && <input className="fr-article-title" value={title} onChange={event => setTitle(event.target.value)} maxLength={120} placeholder="Article title" />}
@@ -308,9 +345,9 @@ export default function MediaWall({ compact = false }: { compact?: boolean }) {
       {selected.length > 0 && <div className="fr-selected-files" aria-label={`${selected.length} selected files`}>{selected.map((file, index) => <div className="fr-selected-file" key={`${file.name}-${file.size}-${index}`}><Paperclip /><span>{file.name}<small>{formatBytes(file.size)}</small></span><button type="button" onClick={() => setSelected(items => items.filter((_, itemIndex) => itemIndex !== index))}>Remove</button></div>)}</div>}
       {selected.some(file => file.type.startsWith('image/') || file.type.startsWith('video/')) && <div className={`fr-premium-editor ${premium ? 'active' : ''}`}><label><input type="checkbox" checked={premium} onChange={event => setPremium(event.target.checked)} /><span><b>★ Premium content</b><small>Require payment before download</small></span></label>{premium && <label className="fr-premium-price"><input type="number" inputMode="numeric" min="1" max="1000000" step="1" value={priceTpg} onChange={event => setPriceTpg(event.target.value)} placeholder="0" aria-label="Required TPG amount" /><b>TPG</b></label>}</div>}
       <div className="fr-compose-tools"><label><Image /><span>Photo</span><input type="file" accept="image/*,.heic,.heif" multiple onChange={selectFiles} /></label><label><Video /><span>Video</span><input type="file" accept="video/*,.mov,.m4v" multiple onChange={selectFiles} /></label><label><FileText /><span>Doc.</span><input type="file" accept=".pdf,.doc,.docx,.txt,.zip,.csv" onChange={selectFiles} /></label><button type="submit" disabled={loadingFile}>{loadingFile ? 'Uploading…' : <><Send /> Publish</>}</button></div><small className="fr-upload-limit"><Upload /> Select multiple photos or videos • up to 5 GB total{selected.length ? ` • ${formatBytes(selected.reduce((total, file) => total + file.size, 0))} selected` : ''}</small>
-    </form>
+    </form>}
     {notice && <p className="fr-inline-notice"><CheckCircle2 />{notice}<button onClick={() => setNotice('')} aria-label="Close"><X /></button></p>}
-    <div className="fr-feed-label"><strong>Latest posts</strong><span className={`fr-feed-status ${feedState}`}><i />{feedState === 'loading' ? 'Loading…' : feedState === 'live' ? 'Live updates' : feedState === 'reconnecting' ? 'Reconnecting…' : 'Connection failed'}</span></div>{feedState === 'error' && !posts.length && <div className="fr-feed-empty" role="status"><strong>Posts could not be loaded</strong><span>Check your connection. The wall will retry automatically.</span><button type="button" onClick={() => window.dispatchEvent(new Event('online'))}>Try again</button></div>}<div className="fr-social-feed" aria-label="Media Wall posts" aria-live="polite">{posts.map(post => { const data = engagement[post.id] || blankEngagement(); const totalReactions = Object.values(data.counts).reduce((sum, count) => sum + count, 0); return <article className="fr-social-post" id={`post-${post.id}`} key={post.id}><header>{post.authorAvatar ? <img className="fr-author-avatar" src={post.authorAvatar} alt="" /> : <span>{post.author.slice(0, 2).toUpperCase()}</span>}<div><strong>{post.author}</strong><small>{post.createdAt} · Public</small></div>{post.canManage && <div className="fr-owner-actions"><button type="button" onClick={() => { setEditingPost(post.id); setEditText(post.text); }} aria-label="Edit description"><Pencil /></button><button type="button" onClick={() => deletePost(post)} aria-label="Delete post"><Trash2 /></button></div>}</header>{post.title && <h2 className="fr-post-title">{post.title}</h2>}{editingPost === post.id ? <div className="fr-post-edit"><textarea value={editText} onChange={event => setEditText(event.target.value)} maxLength={1200} aria-label="Video description" /><div><button type="button" onClick={() => setEditingPost(undefined)}><X /> Cancel</button><button type="button" onClick={() => updatePost(post)}><Save /> Save</button></div></div> : post.text && <p>{post.text}</p>}{post.poll && <div className="fr-post-poll"><strong>{post.poll.question}</strong>{post.poll.options.map((option, index) => <button key={option} onClick={() => vote(post.id, index)} className={votes[post.id] === index ? 'selected' : ''}>{option}</button>)}</div>}{post.attachment && <AttachmentPreview file={post.attachment} onExpand={() => openFullscreen(post.id)} />}
+    <div className="fr-feed-label"><strong>Latest posts</strong><span className={`fr-feed-status ${feedState}`}><i />{feedState === 'loading' ? 'Loading…' : feedState === 'live' ? 'Live updates' : feedState === 'reconnecting' ? 'Reconnecting…' : 'Connection failed'}</span></div>{feedState === 'error' && !posts.length && <div className="fr-feed-empty" role="status"><strong>Posts could not be loaded</strong><span>Check your connection. The wall will retry automatically.</span><button type="button" onClick={() => window.dispatchEvent(new Event('online'))}>Try again</button></div>}<div className="fr-social-feed" aria-label="Media Wall posts" aria-live="polite">{visiblePosts.map(post => { const data = engagement[post.id] || blankEngagement(); const totalReactions = Object.values(data.counts).reduce((sum, count) => sum + count, 0); return <article className="fr-social-post" id={`post-${post.id}`} key={post.id}><header>{post.authorAvatar ? <img className="fr-author-avatar" src={post.authorAvatar} alt="" /> : <span>{post.author.slice(0, 2).toUpperCase()}</span>}<button type="button" className="fr-author-link" onClick={() => openProfile(post.authorAccountId)}><strong>{post.author}</strong><small>{post.createdAt} · Public</small></button>{post.canManage && <div className="fr-owner-actions"><button type="button" onClick={() => { setEditingPost(post.id); setEditText(post.text); }} aria-label="Edit description"><Pencil /></button><button type="button" onClick={() => deletePost(post)} aria-label="Delete post"><Trash2 /></button></div>}</header>{post.title && <h2 className="fr-post-title">{post.title}</h2>}{editingPost === post.id ? <div className="fr-post-edit"><textarea value={editText} onChange={event => setEditText(event.target.value)} maxLength={1200} aria-label="Video description" /><div><button type="button" onClick={() => setEditingPost(undefined)}><X /> Cancel</button><button type="button" onClick={() => updatePost(post)}><Save /> Save</button></div></div> : post.text && <p>{post.text}</p>}{post.poll && <div className="fr-post-poll"><strong>{post.poll.question}</strong>{post.poll.options.map((option, index) => <button key={option} onClick={() => vote(post.id, index)} className={votes[post.id] === index ? 'selected' : ''}>{option}</button>)}</div>}{post.attachment && <AttachmentPreview file={post.attachment} onExpand={() => openFullscreen(post.id)} />}
       <div className="fr-engagement-summary"><span>{totalReactions ? reactionMeta.filter(item => data.counts[item.id]).map(item => item.emoji).join(' ') : 'Be the first to react'}</span><span>{totalReactions || ''}{totalReactions && data.comments.length ? ' • ' : ''}{data.comments.length ? `${data.comments.length} comments` : ''}</span></div>
       <div className="fr-post-actions"><div className="fr-reaction-wrap"><button className={data.reaction ? 'active' : ''} onClick={() => setOpenReactions(openReactions === post.id ? undefined : post.id)}>{data.reaction ? <span>{reactionMeta.find(x => x.id === data.reaction)?.emoji}</span> : <ThumbsUp />} {data.reaction ? reactionMeta.find(x => x.id === data.reaction)?.label : 'React'} <ChevronDown /></button>{openReactions === post.id && <div className="fr-reaction-picker">{reactionMeta.map(item => <button key={item.id} title={item.label} onClick={() => react(post.id, item.id)}>{item.emoji}</button>)}</div>}</div><button onClick={() => document.getElementById(`comment-${post.id}`)?.focus()}><MessageCircle /> Comment</button><button onClick={() => setOpenShare(openShare === post.id ? undefined : post.id)}><Share2 /> Share</button></div>
       {openShare === post.id && <div className="fr-share-sheet"><header><strong>Share this voice everywhere</strong><button onClick={() => setOpenShare(undefined)} aria-label="Close"><X /></button></header><div>{socialNetworks.map(network => <button key={network.id} onClick={() => share(post, network.id)}><b className={network.id}>{network.mark}</b><span>{network.label}</span></button>)}</div><button className="fr-more-share" onClick={() => share(post)}><Share2 /> More options</button></div>}

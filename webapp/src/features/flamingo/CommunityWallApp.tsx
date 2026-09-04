@@ -1,10 +1,13 @@
-import { ArrowLeft, Bell, PenLine } from 'lucide-react';
+import { ArrowLeft, Bell, MessageCircle, Newspaper, PenLine } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 
 import MediaWall from './MediaWall';
 import './community-wall.css';
 
 export default function CommunityWallApp() {
+  useTelegramBackButton('/social');
+
   return (
     <div className="community-wall-page">
       <header className="community-wall-header">
@@ -23,6 +26,10 @@ export default function CommunityWallApp() {
         </div>
       </header>
       <main>
+        <nav className="community-wall-switch" aria-label="Social hub navigation">
+          <Link to="/social"><MessageCircle /> Social hub</Link>
+          <Link to="/wall" className="active" aria-current="page"><Newspaper /> Community wall</Link>
+        </nav>
         <MediaWall />
       </main>
     </div>
