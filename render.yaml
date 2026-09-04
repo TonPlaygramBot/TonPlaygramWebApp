@@ -23,6 +23,11 @@ services:
         fromSecret: MONGO_URI
       - key: BOT_TOKEN
         fromSecret: BOT_TOKEN
+      # Force webhook delivery on the canonical service. Render otherwise
+      # exposes only RENDER_EXTERNAL_HOSTNAME, and falling back to long polling
+      # lets overlapping deploy instances trigger Telegram's 409 conflict.
+      - key: TELEGRAM_WEBHOOK_URL
+        value: https://tonplaygram-bot.onrender.com
       # Recommended (set these in Render, even if some are optional):
       - key: ALLOWED_ORIGINS
         fromSecret: ALLOWED_ORIGINS
