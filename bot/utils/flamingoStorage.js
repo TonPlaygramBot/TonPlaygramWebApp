@@ -50,12 +50,12 @@ export const findFlamingoDatabaseMedia = async (name, originalName, size) => {
   );
 };
 
-// Wall media already lives on the persistent volume configured by the host.
-// Keeping a second, multi-gigabyte copy in GridFS exhausts the MongoDB quota
-// and prevents even the small FlamingoPost document from being created. GridFS
-// is therefore an explicit opt-in fallback, not the default upload target.
+// GridFS is enabled by default so a deployment or disk replacement cannot
+// detach a wall post from its photo/video. Operators with a separately backed
+// up permanent volume may explicitly opt out, but an unset value must preserve
+// user media in the same MongoDB deployment as the FlamingoPost document.
 export const flamingoDatabaseStorageEnabled = (value = process.env.FLAMINGO_GRIDFS_BACKUP) => (
-  /^(1|true|yes)$/i.test(String(value || '').trim())
+  !/^(0|false|no|off)$/i.test(String(value ?? '').trim())
 );
 
 // Publishing the Mongo document before the media bytes are durably committed

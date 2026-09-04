@@ -155,32 +155,20 @@ const pruneDuplicateDatabaseMedia = () => {
   return mediaPrune;
 };
 
-// A GridFS copy is only a backup: the upload has already been durably written
-// to the persistent media volume. Atlas can reject that optional copy when its
-// quota is full, but that must not prevent the tiny wall post document from
-// being published (or expose Atlas' internal error and management URL in UI).
 const isDatabaseQuotaError = error => /space quota|exceeded.*storage|limit=storage|quota.*(?:exceed|full)/i
   .test(String(error?.message || error || ''));
-const saveOptionalDatabaseBackup = async (diskPath, storedName, metadata) => {
+// Do not publish a post until its original bytes are in GridFS. A local disk is
+// still retained as a fast fallback, but it may be replaced during a deploy;
+// MongoDB is the durable source that keeps yesterday's uploads retrievable.
+const persistDatabaseMedia = async (diskPath, storedName, metadata) => {
   if (!flamingoDatabaseStorageEnabled()) {
     await pruneDuplicateDatabaseMedia();
     return;
   }
-  try {
-    await saveFlamingoMediaToDatabase(diskPath, storedName, metadata);
-  } catch (error) {
-    console.error(`Optional Flamingo media backup failed for ${storedName}:`, error.message);
-    // Reclaim old GridFS duplicates that are already safe on disk. This makes
-    // room for the FlamingoPost insert immediately following the failed copy.
-    if (isDatabaseQuotaError(error)) {
-      await pruneFlamingoDatabaseMediaCopies(mediaDirectories, { force: true }).catch(pruneError => {
-        console.error('Flamingo quota recovery cleanup failed:', pruneError.message);
-      });
-    }
-  }
+  await saveFlamingoMediaToDatabase(diskPath, storedName, metadata);
 };
 const publicUploadError = error => isDatabaseQuotaError(error)
-  ? 'Media storage is temporarily full. Your video is safe; please try publishing again shortly.'
+  ? 'MongoDB media storage is temporarily full. The post was not published; please try again shortly.'
   : 'Publishing failed. Please try again.';
 const ownsPost = (post, token) => {
   if (!post.ownerTokenHash || !token) return false;
@@ -335,9 +323,7 @@ router.post('/uploads/:id/complete', async (req, res) => {
     const storedName = `${id}-${metadata.name}`;
     const diskPath = path.join(uploadDirectory, storedName);
     await commitFlamingoMedia(paths.data, diskPath, metadata.size);
-    // The persistent volume is the primary media store. Duplicating videos in
-    // MongoDB can consume the whole Atlas quota and block the post write.
-    await saveOptionalDatabaseBackup(diskPath, storedName, {
+    await persistDatabaseMedia(diskPath, storedName, {
       contentType: metadata.type, originalName: metadata.name, size: metadata.size
     });
     const user = await resolveUser(req);
@@ -459,7 +445,7 @@ router.post('/posts', async (req, res) => {
       const user = await resolveUser(req);
       const author = displayName(user).slice(0, 120);
       if (upload) {
-        await saveOptionalDatabaseBackup(upload.diskPath, upload.storedName, {
+        await persistDatabaseMedia(upload.diskPath, upload.storedName, {
           contentType: upload.type, originalName: upload.originalName, size: upload.size
         });
       }
@@ -533,16 +519,16 @@ router.get('/downloads/:grant', async (req, res) => {
   // download continue without transferring the completed bytes again.
   setFlamingoMediaResponseHeaders(res);
   res.setHeader('Cache-Control', 'private, max-age=300');
-  const diskPath = await findFlamingoMedia(grant.file, mediaDirectories, grant.originalName, grant.size);
-  if (diskPath) {
-    backfillDatabaseMedia(diskPath, grant.file, { name: grant.originalName, size: grant.size });
-    return res.download(diskPath, requestedName);
-  }
   const databaseFile = await findFlamingoDatabaseMedia(grant.file, grant.originalName, grant.size);
-  if (!databaseFile) return res.status(404).json({ error: 'Video not found.' });
-  res.setHeader('Content-Type', databaseFile.metadata?.contentType || 'application/octet-stream');
-  res.setHeader('Content-Disposition', `attachment; filename="${requestedName}"; filename*=UTF-8''${encodeURIComponent(requestedName)}`);
-  return streamDatabaseMedia(req, res, databaseFile);
+  if (databaseFile) {
+    res.setHeader('Content-Type', databaseFile.metadata?.contentType || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${requestedName}"; filename*=UTF-8''${encodeURIComponent(requestedName)}`);
+    return streamDatabaseMedia(req, res, databaseFile);
+  }
+  const diskPath = await findFlamingoMedia(grant.file, mediaDirectories, grant.originalName, grant.size);
+  if (!diskPath) return res.status(404).json({ error: 'Video not found.' });
+  backfillDatabaseMedia(diskPath, grant.file, { name: grant.originalName, size: grant.size });
+  return res.download(diskPath, requestedName);
 });
 
 router.get('/files/:name', async (req, res) => {
@@ -568,23 +554,25 @@ router.get('/files/:name', async (req, res) => {
   if (/^[\w.+-]+\/[\w.+-]+$/.test(contentType)) {
     res.type(contentType);
   }
-  const diskPath = await findFlamingoMedia(name, mediaDirectories, post?.attachment?.name, post?.attachment?.size);
-  if (diskPath) {
-    backfillDatabaseMedia(diskPath, name, post?.attachment);
-    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-    return res.sendFile(diskPath, err => {
-      if (err && !res.headersSent) res.status(err.statusCode || 404).end();
-    });
-  }
+  // Prefer MongoDB so wall playback survives host disk replacement. Legacy
+  // disk-only uploads remain readable and are lazily copied into GridFS.
   const databaseFile = await findFlamingoDatabaseMedia(name, post?.attachment?.name, post?.attachment?.size);
-  if (!databaseFile) {
+  if (databaseFile) {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    return streamDatabaseMedia(req, res, databaseFile);
+  }
+  const diskPath = await findFlamingoMedia(name, mediaDirectories, post?.attachment?.name, post?.attachment?.size);
+  if (!diskPath) {
     // Never pin a temporarily missing media response in the browser. A disk
     // remount or GridFS recovery should make an older upload playable again.
     res.setHeader('Cache-Control', 'no-store');
     return res.status(404).end();
   }
+  backfillDatabaseMedia(diskPath, name, post?.attachment);
   res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-  return streamDatabaseMedia(req, res, databaseFile);
+  return res.sendFile(diskPath, err => {
+    if (err && !res.headersSent) res.status(err.statusCode || 404).end();
+  });
 });
 
 export default router;

@@ -80,9 +80,10 @@ describe('Protesta Shqiptare media storage migration', () => {
     });
   });
 
-  test('keeps database video backups opt-in so uploads do not exhaust Atlas', () => {
-    expect(flamingoDatabaseStorageEnabled()).toBe(false);
+  test('keeps database media enabled unless durable GridFS storage is explicitly disabled', () => {
+    expect(flamingoDatabaseStorageEnabled()).toBe(true);
     expect(flamingoDatabaseStorageEnabled('false')).toBe(false);
+    expect(flamingoDatabaseStorageEnabled('off')).toBe(false);
     expect(flamingoDatabaseStorageEnabled('true')).toBe(true);
     expect(flamingoDatabaseStorageEnabled('1')).toBe(true);
   });
