@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft, Bell, BellOff, Camera, CheckCheck, Download, FileText, Gamepad2, Image, Mic, MoreHorizontal,
-  Newspaper, Paperclip, Phone, Plus, Search, Send, ShieldCheck, Smile, Trophy, Users, Video, X
+  Paperclip, Phone, Plus, Search, Send, ShieldCheck, Smile, Trophy, Users, Video, X
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import LoginOptions from '../components/LoginOptions.jsx';
 import { getPlayerId, getTelegramId } from '../utils/telegram.js';
@@ -261,11 +260,6 @@ export default function Messages() {
           <div><span>TONPLAYGRAM</span><h1>Social hub</h1><p>Your people, all in one place</p></div>
           <button aria-label="Start a new chat" onClick={() => { setActiveTab('friends'); setSearch(''); }}><Plus /></button>
         </header>
-
-        <nav className="social-section-switch" aria-label="Social hub navigation">
-          <Link to="/social" className="active" aria-current="page"><Users /> Social hub</Link>
-          <Link to="/wall"><Newspaper /> Community wall</Link>
-        </nav>
 
         <div className="messages-overview" aria-label="Social overview">
           <span><b>{friends.length}</b> Friends</span>
