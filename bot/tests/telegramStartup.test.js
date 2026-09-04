@@ -46,6 +46,15 @@ test('uses a stable webhook on Render so deploy instances do not compete for pol
   assert.equal(config.url.includes('test-token'), false);
 });
 
+test('builds the webhook URL from the hostname provided by Render', () => {
+  const config = getTelegramWebhookConfig({
+    BOT_TOKEN: '123:test-token',
+    RENDER_EXTERNAL_HOSTNAME: 'tonplaygram-bot.onrender.com'
+  });
+
+  assert.equal(config.url, `https://tonplaygram-bot.onrender.com${config.path}`);
+});
+
 test('prefers an explicitly configured public webhook URL', () => {
   const config = getTelegramWebhookConfig({
     BOT_TOKEN: '123:test-token',

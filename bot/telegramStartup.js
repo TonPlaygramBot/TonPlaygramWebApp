@@ -11,7 +11,15 @@ export function isTelegramBotEnabled(env = process.env) {
 }
 
 export function getTelegramWebhookConfig(env = process.env) {
-  const configuredUrl = String(env.TELEGRAM_WEBHOOK_URL || env.RENDER_EXTERNAL_URL || '').trim();
+  // Render exposes the public service address as a hostname (without a
+  // protocol). Keep supporting RENDER_EXTERNAL_URL for other hosts and older
+  // configurations, but prefer the explicit override when one is supplied.
+  const renderHostname = String(env.RENDER_EXTERNAL_HOSTNAME || '').trim();
+  const configuredUrl = String(
+    env.TELEGRAM_WEBHOOK_URL ||
+      env.RENDER_EXTERNAL_URL ||
+      (renderHostname ? `https://${renderHostname}` : '')
+  ).trim();
   const botToken = String(env.BOT_TOKEN || '').trim();
 
   if (!configuredUrl || !botToken || botToken === 'dummy') return null;
