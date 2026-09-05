@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import './media-social.css';
 import { API_BASE_URL } from '../../utils/api.js';
-import { resolveWallMediaUrl, retryWallMediaUrl } from './mediaUrl.js';
+import { resolveWallMediaUrl } from './mediaUrl.js';
 import { reconcileWallPosts } from './wallFeed.js';
 
 type Attachment = { name: string; size: number; type: string; src: string; blob?: Blob; duration?: number; premium?: boolean; priceTpg?: number };
@@ -106,19 +106,8 @@ async function downloadAttachment(file: Attachment, postIdValue?: string) {
   browserDownload();
 }
 function AttachmentPreview({ file, onExpand }: { file: Attachment; onExpand: () => void }) {
-  const [source, setSource] = useState(file.src);
-  const retries = useRef(0);
-  useEffect(() => { setSource(file.src); retries.current = 0; }, [file.src]);
-  const retry = () => {
-    if (retries.current >= 3 || source.startsWith('blob:')) return;
-    retries.current += 1;
-    const nextSource = retryWallMediaUrl(file.src, retries.current);
-    // Storage may be reconnecting or a sleeping API may be waking up. A short
-    // increasing delay avoids three immediate failures on a mobile browser.
-    window.setTimeout(() => setSource(nextSource), retries.current * 1_000);
-  };
-  if (file.type.startsWith('video/')) return <div className="fr-video-frame"><video key={source} src={source} controls playsInline preload="metadata" onError={retry} /><span><Play /> VIDEO</span><button type="button" className="fr-expand-video" onClick={onExpand} aria-label="Open video full screen"><Maximize2 /> Full screen</button></div>;
-  if (file.type.startsWith('image/')) return <img className="fr-post-image" src={source} alt={file.name} loading="lazy" onError={retry} />;
+  if (file.type.startsWith('video/')) return <div className="fr-video-frame"><video key={file.src} src={file.src} controls playsInline preload="metadata" /><span><Play /> VIDEO</span><button type="button" className="fr-expand-video" onClick={onExpand} aria-label="Open video full screen"><Maximize2 /> Full screen</button></div>;
+  if (file.type.startsWith('image/')) return <img className="fr-post-image" src={file.src} alt={file.name} loading="lazy" />;
   return <button type="button" className="fr-file-card" onClick={() => downloadAttachment(file)}><FileText /><span><strong>{file.name}</strong><small>{formatBytes(file.size)} • Tap to download</small></span><Download /></button>;
 }
 
