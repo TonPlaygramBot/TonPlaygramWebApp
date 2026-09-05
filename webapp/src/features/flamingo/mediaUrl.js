@@ -23,3 +23,23 @@ export function resolveWallMediaUrl(apiBaseUrl, storedUrl, revision = '') {
 
   return `${String(apiBaseUrl || '').replace(/\/$/, '')}/${value.replace(/^\/+/, '')}`;
 }
+
+// A phone can keep a failed media request internally even when the server marks
+// the 404 as no-store (video elements do not consistently follow fetch cache
+// semantics). Give a failed attachment a genuinely new URL before retrying it.
+// Keeping the retry marker separate from the stable `v` revision means healthy
+// media remains cacheable across visits.
+export function retryWallMediaUrl(url, attempt) {
+  const value = String(url || '').trim();
+  if (!value || value.startsWith('blob:') || value.startsWith('data:')) return value;
+  try {
+    const parsed = new URL(value, 'https://wall.local');
+    parsed.searchParams.set('retry', String(Math.max(1, Number(attempt) || 1)));
+    return parsed.origin === 'https://wall.local'
+      ? `${parsed.pathname}${parsed.search}${parsed.hash}`
+      : parsed.href;
+  } catch {
+    const separator = value.includes('?') ? '&' : '?';
+    return `${value}${separator}retry=${Math.max(1, Number(attempt) || 1)}`;
+  }
+}

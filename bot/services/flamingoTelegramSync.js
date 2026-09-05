@@ -28,8 +28,9 @@ export function registerFlamingoTelegramSync(bot) {
         if (!response.ok || !response.body) throw new Error(`Telegram download failed: ${response.status}`);
         const diskPath = path.join(uploadDirectory, storedName);
         await pipeline(Readable.fromWeb(response.body), createWriteStream(diskPath));
+        let databaseFile;
         if (flamingoDatabaseStorageEnabled()) {
-          await saveFlamingoMediaToDatabase(diskPath, storedName, {
+          databaseFile = await saveFlamingoMediaToDatabase(diskPath, storedName, {
             contentType: media.mime_type || (post.video ? 'video/mp4' : post.photo ? 'image/jpeg' : 'application/octet-stream'),
             originalName: media.file_name || storedName,
             size: media.file_size || 0,
@@ -40,7 +41,8 @@ export function registerFlamingoTelegramSync(bot) {
           name: media.file_name || storedName,
           size: media.file_size || 0,
           type: media.mime_type || (post.video ? 'video/mp4' : post.photo ? 'image/jpeg' : 'application/octet-stream'),
-          url: `/api/flamingo-wall/files/${storedName}`
+          url: `/api/flamingo-wall/files/${storedName}`,
+          ...(databaseFile?._id ? { databaseFileId: databaseFile._id } : {})
         };
       }
       await FlamingoPost.findOneAndUpdate(
