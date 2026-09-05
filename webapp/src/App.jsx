@@ -17,6 +17,7 @@ import Nfts from './pages/Nfts.jsx';
 import PlatformStatsDetails from './pages/PlatformStatsDetails.jsx';
 import EcosystemGuide from './pages/EcosystemGuide.jsx';
 import EcosystemTopic from './pages/EcosystemTopic.jsx';
+import Tokenomics from './pages/Tokenomics.jsx';
 import Exchange from './pages/Exchange.jsx';
 import SocialAdmin from './pages/SocialAdmin.jsx';
 import SocialPostDetails from './pages/SocialPostDetails.jsx';
@@ -211,7 +212,7 @@ export default function App() {
               <Route path="/ecosystem" element={<EcosystemGuide />} />
               <Route path="/achievements" element={<EcosystemTopic topic="achievements" />} />
               <Route path="/roadmap" element={<EcosystemTopic topic="roadmap" />} />
-              <Route path="/tokenomics" element={<EcosystemTopic topic="tokenomics" />} />
+              <Route path="/tokenomics" element={<Tokenomics />} />
               <Route path="/wall" element={<CommunityWallApp />} />
               <Route path="/flamingo/*" element={<Navigate to="/wall" replace />} />
               <Route path="/earn" element={<Earn />} />
