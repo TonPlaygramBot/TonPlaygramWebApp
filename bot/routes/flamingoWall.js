@@ -167,17 +167,24 @@ export const backfillFlamingoWallMedia = async () => {
     const name = flamingoMediaName(attachment?.url);
     if (!name) continue;
     try {
-      if (await findFlamingoDatabaseMedia(name, attachment?.name, attachment?.size)) continue;
+      const existing = await findFlamingoDatabaseMedia(name, attachment?.name, attachment?.size, attachment?.databaseFileId);
+      if (existing) {
+        if (String(attachment?.databaseFileId || '') !== String(existing._id)) {
+          await FlamingoPost.updateOne({ _id: post._id }, { $set: { 'attachment.databaseFileId': existing._id } });
+        }
+        continue;
+      }
       const diskPath = await findFlamingoMedia(name, mediaDirectories, attachment?.name, attachment?.size);
       if (!diskPath) {
         result.missing += 1;
         continue;
       }
-      await saveFlamingoMediaToDatabase(diskPath, name, {
+      const stored = await saveFlamingoMediaToDatabase(diskPath, name, {
         contentType: mediaType(attachment?.type, attachment?.name || name),
         originalName: attachment?.name || name,
         size: attachment?.size
       });
+      await FlamingoPost.updateOne({ _id: post._id }, { $set: { 'attachment.databaseFileId': stored._id } });
       result.copied += 1;
     } catch (error) {
       result.failed += 1;
@@ -202,9 +209,9 @@ const isDatabaseQuotaError = error => /space quota|exceeded.*storage|limit=stora
 const persistDatabaseMedia = async (diskPath, storedName, metadata) => {
   if (!flamingoDatabaseStorageEnabled()) {
     await pruneDuplicateDatabaseMedia();
-    return;
+    return null;
   }
-  await saveFlamingoMediaToDatabase(diskPath, storedName, metadata);
+  return saveFlamingoMediaToDatabase(diskPath, storedName, metadata);
 };
 const publicUploadError = error => isDatabaseQuotaError(error)
   ? 'MongoDB media storage is temporarily full. The post was not published; please try again shortly.'
@@ -362,11 +369,11 @@ router.post('/uploads/:id/complete', async (req, res) => {
     const storedName = `${id}-${metadata.name}`;
     const diskPath = path.join(uploadDirectory, storedName);
     await commitFlamingoMedia(paths.data, diskPath, metadata.size);
-    await persistDatabaseMedia(diskPath, storedName, {
+    const databaseFile = await persistDatabaseMedia(diskPath, storedName, {
       contentType: metadata.type, originalName: metadata.name, size: metadata.size
     });
     const user = await resolveUser(req);
-    const attachment = { name: metadata.name, size: metadata.size, type: metadata.type, duration: metadata.duration, premium: metadata.premium && metadata.priceTpg > 0, priceTpg: metadata.premium ? metadata.priceTpg : 0, url: `/api/flamingo-wall/files/${storedName}` };
+    const attachment = { name: metadata.name, size: metadata.size, type: metadata.type, duration: metadata.duration, premium: metadata.premium && metadata.priceTpg > 0, priceTpg: metadata.premium ? metadata.priceTpg : 0, url: `/api/flamingo-wall/files/${storedName}`, ...(databaseFile?._id ? { databaseFileId: databaseFile._id } : {}) };
     const post = await FlamingoPost.create({ text: metadata.text, author: displayName(user), authorAvatar: user?.photo || '', authorAccountId: user?.accountId || '', attachment, ownerTokenHash: metadata.ownerTokenHash });
     metadata.postId = String(post._id);
     metadata.completedAt = Date.now();
@@ -484,11 +491,11 @@ router.post('/posts', async (req, res) => {
       const user = await resolveUser(req);
       const author = displayName(user).slice(0, 120);
       if (upload) {
-        await persistDatabaseMedia(upload.diskPath, upload.storedName, {
+        upload.databaseFile = await persistDatabaseMedia(upload.diskPath, upload.storedName, {
           contentType: upload.type, originalName: upload.originalName, size: upload.size
         });
       }
-      const attachment = upload ? { name: upload.originalName, size: upload.size, type: upload.type, url: `/api/flamingo-wall/files/${upload.storedName}` } : undefined;
+      const attachment = upload ? { name: upload.originalName, size: upload.size, type: upload.type, url: `/api/flamingo-wall/files/${upload.storedName}`, ...(upload.databaseFile?._id ? { databaseFileId: upload.databaseFile._id } : {}) } : undefined;
       const post = await FlamingoPost.create({ text: text.slice(0, 1200), author, authorAvatar: user?.photo || '', authorAccountId: user?.accountId || '', attachment, ownerTokenHash: tokenHash(ownerToken(req)) });
       completed = true;
       publishWallEvent('created', String(post._id));
@@ -530,7 +537,7 @@ router.post('/posts/:id/download', async (req, res) => {
   // is still sufficient to identify and serve the video.
   const [diskPath, databaseFile] = await Promise.all([
     findFlamingoMedia(file, mediaDirectories, post.attachment.name, post.attachment.size),
-    findFlamingoDatabaseMedia(file, post.attachment.name, post.attachment.size)
+    findFlamingoDatabaseMedia(file, post.attachment.name, post.attachment.size, post.attachment.databaseFileId)
   ]);
   if (!diskPath && !databaseFile) return res.status(404).json({ error: 'The original video was not found in storage.' });
   const price = attachmentDownloadPrice(post.attachment);
@@ -595,7 +602,7 @@ router.get('/files/:name', async (req, res) => {
   }
   // Prefer MongoDB so wall playback survives host disk replacement. Legacy
   // disk-only uploads remain readable and are lazily copied into GridFS.
-  const databaseFile = await findFlamingoDatabaseMedia(name, post?.attachment?.name, post?.attachment?.size);
+  const databaseFile = await findFlamingoDatabaseMedia(name, post?.attachment?.name, post?.attachment?.size, post?.attachment?.databaseFileId);
   if (databaseFile) {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     return streamDatabaseMedia(req, res, databaseFile);

@@ -40,10 +40,17 @@ export const flamingoDatabaseMediaQuery = (name, originalName, size) => {
   return { $or: [exactFile, ...(alias ? [alias] : [])] };
 };
 
-export const findFlamingoDatabaseMedia = async (name, originalName, size) => {
+export const findFlamingoDatabaseMedia = async (name, originalName, size, databaseFileId) => {
   const db = database();
   const query = flamingoDatabaseMediaQuery(name, originalName, size);
-  if (!db || !query) return null;
+  if (!db) return null;
+  if (databaseFileId && mongoose.isValidObjectId(databaseFileId)) {
+    const exact = await db.collection(`${BUCKET_NAME}.files`).findOne({
+      _id: new mongoose.Types.ObjectId(databaseFileId)
+    });
+    if (exact) return exact;
+  }
+  if (!query) return null;
   return db.collection(`${BUCKET_NAME}.files`).findOne(
     query,
     { sort: { uploadDate: -1 } }

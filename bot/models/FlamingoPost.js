@@ -5,6 +5,11 @@ const attachmentSchema = new mongoose.Schema({
   size: { type: Number, default: 0 },
   type: { type: String, default: 'application/octet-stream' },
   url: { type: String, required: true },
+  // Keep an immutable pointer to the GridFS object. Filenames remain useful
+  // for legacy records, but an id guarantees that playback retrieves the
+  // exact bytes saved for this post even when users upload identically named
+  // photos or videos.
+  databaseFileId: { type: mongoose.Schema.Types.ObjectId, default: undefined },
   duration: { type: Number, default: 0 },
   premium: { type: Boolean, default: false },
   priceTpg: { type: Number, min: 0, max: 1000000, default: 0 }
