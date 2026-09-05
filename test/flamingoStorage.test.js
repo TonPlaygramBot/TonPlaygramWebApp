@@ -80,6 +80,10 @@ describe('Protesta Shqiptare media storage migration', () => {
     });
   });
 
+  test('rejects an empty stable key instead of searching by a shared original name', () => {
+    expect(flamingoDatabaseMediaQuery('', 'video.mp4', 456)).toBeNull();
+  });
+
   test('keeps database media enabled unless durable GridFS storage is explicitly disabled', () => {
     expect(flamingoDatabaseStorageEnabled()).toBe(true);
     expect(flamingoDatabaseStorageEnabled('false')).toBe(false);

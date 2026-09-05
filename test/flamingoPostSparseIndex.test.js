@@ -44,3 +44,18 @@ test('still rejects duplicate imported source ids', { timeout: 20000 }, async ()
     await mongo.stop();
   }
 });
+
+test('stores the exact GridFS id with a wall attachment', () => {
+  const databaseFileId = new mongoose.Types.ObjectId();
+  const post = new FlamingoPost({
+    author: 'Community member',
+    attachment: {
+      name: 'phone-video.mp4',
+      type: 'video/mp4',
+      url: '/api/flamingo-wall/files/stable-phone-video.mp4',
+      databaseFileId
+    }
+  });
+
+  assert.equal(String(post.attachment.databaseFileId), String(databaseFileId));
+});
