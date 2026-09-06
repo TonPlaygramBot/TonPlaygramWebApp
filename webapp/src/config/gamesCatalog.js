@@ -1,4 +1,5 @@
 const gamesCatalog = [
+  {name:'Tennis Royal',route:'/games/tennisroyal/lobby',slug:'tennisroyal',image:'/assets/icons/tennis-royal.svg',description:'3D tennis, career tournaments and same-stake online matches.'},
   {
     name: "Texas Hold'em",
     route: '/games/texasholdem/lobby',
