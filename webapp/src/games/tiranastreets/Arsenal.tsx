@@ -2,6 +2,7 @@ import { useState } from "react";
 import { WEAPONS, WEAPON_BY_ID } from "./shared/weapons.mjs";
 import { wantedStars } from "./shared/cityLife.mjs";
 import type { Player, State } from "./shared/engine.mjs";
+import { WeaponThumbnail } from "./WeaponThumbnail";
 
 export function Arsenal({
   player,
@@ -88,6 +89,7 @@ export function Arsenal({
               key={w.id}
               className={`ts-shop-item ${selected ? "equipped" : ""}`}
             >
+              <WeaponThumbnail model={w.model} label={w.label} />
               <div>
                 <strong>{w.label}</strong>
                 <small>

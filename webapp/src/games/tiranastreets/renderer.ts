@@ -61,6 +61,7 @@ export class CityRenderer {
   private manualUntil = 0;
   private lastTarget = new THREE.Vector3(SPAWN.x, 0, SPAWN.z);
   private landmarkText: THREE.Sprite[] = [];
+  private treePoints: Point[] = [];
   constructor(root: HTMLDivElement) {
     this.root = root;
     this.renderer = new THREE.WebGLRenderer({
@@ -391,53 +392,65 @@ export class CityRenderer {
       if (!WORLD.buildings.some((b) => insidePolygon(x, z, b.p)))
         treePoints.push({ x, z });
     }
-    const trunks = new THREE.InstancedMesh(
-      new THREE.CylinderGeometry(0.19, 0.35, 4, 5),
-      this.material(0x70614b),
-      treePoints.length,
+    this.treePoints = treePoints;
+  }
+  private streetLabel(text: string, parent: THREE.Object3D) {
+    const canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 112;
+    const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = "#14569a";
+    ctx.fillRect(0, 0, 512, 112);
+    ctx.strokeStyle = "#f4f5e9";
+    ctx.lineWidth = 9;
+    ctx.strokeRect(5, 5, 502, 102);
+    ctx.fillStyle = "white";
+    ctx.font = "700 42px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(text.replace(/^Rruga /, "Rr. ").slice(0, 22), 256, 71);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    this.worldTextures.add(texture);
+    const sign = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture }));
+    sign.position.set(0, 2.38, 0.07);
+    sign.scale.set(1.75, 0.38, 1);
+    parent.add(sign);
+  }
+  private async loadStreetFurniture(loader: GLTFLoader) {
+    const gltf = await loader.loadAsync(ASSETS + "street-furniture.glb");
+    const template = (name: string) => gltf.scene.getObjectByName(name);
+    const place = (name: string, x: number, z: number, yaw = 0, scale = 1) => {
+      const source = template(name);
+      if (!source) return;
+      const item = source.clone(true);
+      item.position.set(x, 0.12, z);
+      item.rotation.y = yaw;
+      item.scale.setScalar(scale);
+      item.traverse((o) => {
+        if (o instanceof THREE.Mesh) {
+          o.castShadow = true;
+          o.receiveShadow = true;
+        }
+      });
+      this.scene.add(item);
+      return item;
+    };
+    this.treePoints.slice(0, this.quality === "battery" ? 70 : 180).forEach((p, i) =>
+      place("tree", p.x, p.z, i * 2.399, 0.85 + (i % 5) * 0.07),
     );
-    const leaves = new THREE.InstancedMesh(
-      new THREE.IcosahedronGeometry(2.8, 1),
-      this.material(0x667a41),
-      treePoints.length,
-    );
-    treePoints.forEach((p, i) => {
-      const size = 0.75 + random() * 0.7;
-      tmp.position.set(p.x, 2, p.z);
-      tmp.scale.set(1, 1, 1);
-      tmp.updateMatrix();
-      trunks.setMatrixAt(i, tmp.matrix);
-      tmp.position.y = 5.2;
-      tmp.scale.set(size, size * 1.3, size);
-      tmp.rotation.y = random() * 6;
-      tmp.updateMatrix();
-      leaves.setMatrixAt(i, tmp.matrix);
-      leaves.setColorAt(
-        i,
-        new THREE.Color().setHSL(
-          0.21 + random() * 0.06,
-          0.26,
-          0.27 + random() * 0.12,
-        ),
-      );
+    const streets = WORLD.roads.filter((r, i) => !r.walk && r.name && i % 55 === 0);
+    streets.forEach((r, i) => {
+      const dx = r.b[0] - r.a[0], dz = r.b[1] - r.a[1], d = Math.hypot(dx, dz) || 1;
+      const x = r.a[0] + (dz / d) * (r.w / 2 + 1.5), z = r.a[1] - (dx / d) * (r.w / 2 + 1.5);
+      const sign = place("street_sign", x, z, Math.atan2(dx, dz));
+      if (sign) this.streetLabel(r.name, sign);
+      if (i % 3 === 0) place("traffic_light", r.a[0], r.a[1], Math.atan2(dx, dz));
+      if (i % 4 === 0) place("road_sign", x + dz / d * 2, z - dx / d * 2, Math.atan2(dx, dz));
+      if (i % 2 === 0) place("park_bench", x + dz / d * 3.2, z - dx / d * 3.2, Math.atan2(dx, dz));
     });
-    trunks.castShadow = true;
-    leaves.castShadow = true;
-    this.scene.add(trunks, leaves);
-    const lamps = WORLD.roads.filter((r, i) => !r.walk && i % 36 === 0);
-    const poles = new THREE.InstancedMesh(
-      new THREE.CylinderGeometry(0.07, 0.12, 6, 5),
-      this.material(0x45545a, { metalness: 0.6 }),
-      lamps.length,
-    );
-    lamps.forEach((r, i) => {
-      tmp.position.set(r.a[0] + r.w / 2 + 1, 3, r.a[1]);
-      tmp.rotation.set(0, 0, 0);
-      tmp.scale.set(1, 1, 1);
-      tmp.updateMatrix();
-      poles.setMatrixAt(i, tmp.matrix);
-    });
-    this.scene.add(poles);
+    // GLTF pavement samples add modeled curb depth near the starting district.
+    WORLD.roads.filter((r) => !r.walk && Math.hypot(r.a[0] - SPAWN.x, r.a[1] - SPAWN.z) < 150)
+      .slice(0, 42).forEach((r) => place("pavement_tile", r.a[0] + r.w / 2 + 1.8, r.a[1], 0, 1));
   }
   private label(text: string, x: number, y: number, z: number) {
     const canvas = document.createElement("canvas");
@@ -723,6 +736,9 @@ export class CityRenderer {
     city.scene.visible = false;
     this.scene.add(city.scene);
 
+    onProgress?.("Placing GLTF pavements, trees and traffic signs");
+    await this.loadStreetFurniture(loader);
+
     this.ready = true;
     onProgress?.("City ready");
   }
@@ -1000,7 +1016,7 @@ export class CityRenderer {
       this.lastTarget.lerp(target, Math.min(1, dt * 9));
       const wanted = p?.carId
         ? 9.5 + Math.min(4, Math.abs(p.speed) * 0.11)
-        : 5.8;
+        : 4.25;
       const d = cameraDistance(
         this.lastTarget.x,
         this.lastTarget.z,
@@ -1014,7 +1030,7 @@ export class CityRenderer {
         .add(
           new THREE.Vector3(
             Math.sin(this.yaw) * d,
-            2.4 + this.pitch * d,
+            (p?.carId ? 2.4 : 1.65) + this.pitch * d,
             Math.cos(this.yaw) * d,
           ),
         );
