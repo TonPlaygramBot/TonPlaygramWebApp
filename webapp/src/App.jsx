@@ -120,6 +120,7 @@ const ShootingRangeLobby = React.lazy(
   () => import('./pages/Games/ShootingRangeLobby.jsx')
 );
 const ArcadeRaceLobby = React.lazy(() => import('./pages/Games/ArcadeRaceLobby.jsx'));
+const KartRoyale = React.lazy(() => import('./pages/Games/KartRoyale.jsx'));
 const Game2048Royale = React.lazy(() => import('./pages/Games/Game2048Royale.jsx'));
 const HextrisBattle = React.lazy(() => import('./pages/Games/HextrisBattle.jsx'));
 const UnderrunArena = React.lazy(() => import('./pages/Games/UnderrunArena.jsx'));
@@ -232,6 +233,8 @@ export default function App() {
                 element={<GameTransactions />}
               />
               <Route path="/games/:game/lobby" element={<Lobby />} />
+              <Route path="/games/kartroyale/lobby" element={<KartRoyale />} />
+              <Route path="/games/kartroyale" element={<KartRoyale />} />
               <Route path="/games/2048royale/lobby" element={<ArcadeRaceLobby gameSlug="2048royale" />} />
               <Route path="/games/2048royale" element={<GameLiveAvatarOverlay gameSlug="2048royale"><Game2048Royale /></GameLiveAvatarOverlay>} />
               <Route path="/games/hextrisbattle/lobby" element={<ArcadeRaceLobby gameSlug="hextrisbattle" />} />

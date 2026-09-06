@@ -29,6 +29,7 @@ twitter.env
 .env*
 **/.env*
 /webapp/dist/
+/webapp/dist-kart/
 # Hardhat build artifacts
 artifacts/
 cache/
