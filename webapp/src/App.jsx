@@ -53,6 +53,8 @@ const MiningTransactions = React.lazy(
   () => import('./pages/MiningTransactions.jsx')
 );
 const SpinPage = React.lazy(() => import('./pages/spin.tsx'));
+const TableTennisRoyal = React.lazy(() => import('./pages/Games/TableTennisRoyal.jsx'));
+const TableTennisRoyalLobby = React.lazy(() => import('./pages/Games/TableTennisRoyalLobby.jsx'));
 const TennisRoyal = React.lazy(() => import('./pages/Games/TennisRoyal.jsx'));
 const TennisRoyalLobby = React.lazy(() => import('./pages/Games/TennisRoyalLobby.jsx'));
 const AirHockey = React.lazy(() => import('./pages/Games/AirHockey.jsx'));
@@ -248,6 +250,8 @@ export default function App() {
               />
               <Route path="/games/snake/mp" element={<SnakeMultiplayer />} />
               <Route path="/games/snake/results" element={<SnakeResults />} />
+              <Route path="/games/tabletennisroyal/lobby" element={<TableTennisRoyalLobby />} />
+              <Route path="/games/tabletennisroyal" element={<TableTennisRoyal />} />
               <Route path="/games/tennisroyal/lobby" element={<TennisRoyalLobby />} />
               <Route path="/games/tennisroyal" element={<TennisRoyal />} />
               <Route
