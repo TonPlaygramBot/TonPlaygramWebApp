@@ -36,6 +36,14 @@ interface Props {
   getSocket?: () => Promise<Socket>;
   onExit?: () => void;
   playerName?: string;
+  renderOnlineLobby?: (props: {
+    onMatched: (match: { tableId: string; accountId: string }) => Promise<void>;
+    trackId: string;
+    playerName: string;
+    loaded: boolean;
+    onResume: () => void;
+    canResume: boolean;
+  }) => React.ReactNode;
 }
 const maps = new Map(TRACKS.map((t) => [t.id, makeTrack(t.id)]));
 const modes = [
@@ -85,14 +93,15 @@ function CircuitMap({ id, frame }: { id: string; frame?: Frame | null }) {
 export default function KartRoyale({
   getSocket,
   onExit,
-  playerName = 'Racer'
+  playerName = 'Racer',
+  renderOnlineLobby
 }: Props) {
   const canvas = useRef<HTMLDivElement>(null),
     engine = useRef<KartRenderer | null>(null),
     audio = useRef<KartAudio | null>(null);
   const [loaded, setLoaded] = useState(false),
     [error, setError] = useState(''),
-    [mode, setMode] = useState<Mode>('ai'),
+    [mode, setMode] = useState<Mode>(renderOnlineLobby ? 'online' : 'ai'),
     [trackId, setTrackId] = useState('harbor'),
     [difficulty, setDifficulty] = useState('rookie'),
     [paint, setPaint] = useState(0);
@@ -331,6 +340,14 @@ export default function KartRoyale({
           return;
         setRoom(r);
         setNotice('');
+        if (r.tableId && r.status === 'finished' && !r.racers.length) {
+          setNotice(
+            r.settlement?.status === 'refunded'
+              ? 'Race cancelled. Your TPG stake was refunded.'
+              : 'Race cancelled. Your TPG refund is processing.'
+          );
+          return;
+        }
         if (['countdown', 'racing', 'finished'].includes(r.status)) {
           if (r.status === 'countdown') done.current = false;
           if (r.status !== 'finished') setScreen('race');
@@ -342,7 +359,8 @@ export default function KartRoyale({
         }
       };
       const disconnected = () => {
-        setNotice('Connection lost. Reconnecting to your race…');
+        if (sessionRef.current)
+          setNotice('Connection lost. Reconnecting to your race…');
         engine.current?.clearInput();
       };
       const reconnect = () => {
@@ -411,7 +429,14 @@ export default function KartRoyale({
             : { name: name.trim() || 'Racer', trackId, code };
       if (!data) throw new Error('No saved race session was found.');
       const r = await request(s, action, data),
-        n = { code: r.code!, playerId: r.playerId!, token: r.token! };
+        n = {
+          code: r.code!,
+          playerId: r.playerId!,
+          token: r.token!,
+          ...(r.state?.tableId
+            ? { tableId: r.state.tableId, accountId: r.playerId! }
+            : {})
+        };
       sessionRef.current = n;
       setSession(n);
       saveSession(n);
@@ -428,6 +453,42 @@ export default function KartRoyale({
       setNotice((e as Error).message);
     } finally {
       setBusy(false);
+    }
+  };
+  const joinMatch = async (match: { tableId: string; accountId: string }) => {
+    setBusy(true);
+    try {
+      const s = await connect();
+      const reply = await request(s, 'match', match);
+      if (!mounted.current) {
+        s.emit('kart:leave', {});
+        return;
+      }
+      const next = {
+        code: reply.code!,
+        playerId: reply.playerId!,
+        token: reply.token!,
+        tableId: match.tableId,
+        accountId: match.accountId
+      };
+      sessionRef.current = next;
+      setSession(next);
+      saveSession(next);
+      setResume(false);
+      setNotice('');
+      done.current = false;
+      audio.current?.unlock();
+      if (reply.state) {
+        setRoom(reply.state);
+        if (reply.state.status !== 'waiting') {
+          setScreen('race');
+          engine.current?.networkState(reply.state, next.playerId);
+        }
+      }
+      // The final ready player may receive countdown just before its join ack.
+      await request(s, 'sync');
+    } finally {
+      if (mounted.current) setBusy(false);
     }
   };
   const updateRoom = async (action: string, data: object = {}) => {
@@ -587,7 +648,7 @@ export default function KartRoyale({
                   <button
                     className={`kr-mode ${mode === m.id ? 'active' : ''}`}
                     aria-pressed={mode === m.id}
-                    disabled={!!room}
+                    disabled={!!room || busy}
                     key={m.id}
                     onClick={() => {
                       setMode(m.id);
@@ -708,78 +769,97 @@ export default function KartRoyale({
               {mode === 'online' && (
                 <div className="kr-options kr-online">
                   {!room ? (
-                    <>
-                      <div className="kr-section-line">
-                        <span className="kr-label">
-                          2–6 PLAYERS · FREE RACING
-                        </span>
-                        <Wifi size={16} />
-                      </div>
-                      <input
-                        className="kr-input"
-                        aria-label="Racer name"
-                        value={name}
-                        maxLength={18}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="Your racer name"
-                      />
-                      <div className="kr-row">
-                        <button
-                          className="kr-secondary"
-                          disabled={busy}
-                          onClick={() => roomAction('quick')}
-                        >
-                          Quick match
-                        </button>
-                        <button
-                          className="kr-secondary"
-                          disabled={busy}
-                          onClick={() => roomAction('create')}
-                        >
-                          Create room
-                        </button>
-                      </div>
-                      <div className="kr-row">
+                    renderOnlineLobby ? (
+                      renderOnlineLobby({
+                        onMatched: joinMatch,
+                        trackId,
+                        playerName,
+                        loaded: loaded && !error,
+                        onResume: () => roomAction('resume'),
+                        canResume: resume
+                      })
+                    ) : (
+                      <>
+                        <div className="kr-section-line">
+                          <span className="kr-label">
+                            2–6 PLAYERS · FREE RACING
+                          </span>
+                          <Wifi size={16} />
+                        </div>
                         <input
-                          className="kr-input kr-code"
-                          value={code}
-                          maxLength={6}
-                          onChange={(e) =>
-                            setCode(
-                              e.target.value
-                                .replace(/[^a-f0-9]/gi, '')
-                                .toUpperCase()
-                            )
-                          }
-                          aria-label="Six-character room code"
-                          placeholder="ROOM CODE"
+                          className="kr-input"
+                          aria-label="Racer name"
+                          value={name}
+                          maxLength={18}
+                          onChange={(e) => setName(e.target.value)}
+                          placeholder="Your racer name"
                         />
-                        <button
-                          className="kr-secondary"
-                          disabled={busy || code.length !== 6}
-                          onClick={() => roomAction('join')}
-                        >
-                          Join <ArrowRight size={16} />
-                        </button>
-                      </div>
-                      {resume && (
-                        <button
-                          className="kr-text"
-                          disabled={busy}
-                          onClick={() => roomAction('resume')}
-                        >
-                          Reconnect to previous room
-                        </button>
-                      )}
-                    </>
+                        <div className="kr-row">
+                          <button
+                            className="kr-secondary"
+                            disabled={busy}
+                            onClick={() => roomAction('quick')}
+                          >
+                            Quick match
+                          </button>
+                          <button
+                            className="kr-secondary"
+                            disabled={busy}
+                            onClick={() => roomAction('create')}
+                          >
+                            Create room
+                          </button>
+                        </div>
+                        <div className="kr-row">
+                          <input
+                            className="kr-input kr-code"
+                            value={code}
+                            maxLength={6}
+                            onChange={(e) =>
+                              setCode(
+                                e.target.value
+                                  .replace(/[^a-f0-9]/gi, '')
+                                  .toUpperCase()
+                              )
+                            }
+                            aria-label="Six-character room code"
+                            placeholder="ROOM CODE"
+                          />
+                          <button
+                            className="kr-secondary"
+                            disabled={busy || code.length !== 6}
+                            onClick={() => roomAction('join')}
+                          >
+                            Join <ArrowRight size={16} />
+                          </button>
+                        </div>
+                        {resume && (
+                          <button
+                            className="kr-text"
+                            disabled={busy}
+                            onClick={() => roomAction('resume')}
+                          >
+                            Reconnect to previous room
+                          </button>
+                        )}
+                      </>
+                    )
                   ) : (
                     <>
                       <div className="kr-section-line">
                         <span className="kr-label">
-                          {room.public ? 'PUBLIC ROOM' : 'PRIVATE ROOM'}
+                          {room.tableId
+                            ? `${room.stake?.toLocaleString()} TPG RACE`
+                            : room.public
+                              ? 'PUBLIC ROOM'
+                              : 'PRIVATE ROOM'}
                         </span>
                         <button className="kr-copy" onClick={copy}>
-                          <b>{room.code}</b>
+                          <b>
+                            {room.tableId
+                              ? room.code.slice(-8).toUpperCase()
+                              : room.code}
+                          </b>
                           {copied ? <Check size={15} /> : <Copy size={15} />}
                         </button>
                       </div>
@@ -805,7 +885,8 @@ export default function KartRoyale({
                       </div>
                       <div className="kr-room-bottom">
                         <span>
-                          {room.players.length}/6 ·{' '}
+                          {room.players.length}/
+                          {room.tableId ? room.players.length : 6} ·{' '}
                           {TRACKS.find((t) => t.id === room.trackId)?.name}
                         </span>
                         <button className="kr-text" onClick={leave}>
@@ -813,23 +894,29 @@ export default function KartRoyale({
                         </button>
                       </div>
                       <p className="kr-room-note">
-                        Empty seats fill with AI. Everyone must be ready.
+                        {room.tableId
+                          ? room.status === 'finished'
+                            ? 'Return to the lobby to queue for another race.'
+                            : 'Grid reserved. The countdown starts when every racer joins.'
+                          : 'Empty seats fill with AI. Everyone must be ready.'}
                       </p>
-                      <button
-                        className="kr-secondary kr-full"
-                        disabled={busy}
-                        onClick={() =>
-                          updateRoom('ready', { ready: !me?.ready })
-                        }
-                      >
-                        {me?.ready ? (
-                          <>
-                            <Check size={17} /> You’re ready
-                          </>
-                        ) : (
-                          'Ready to race'
-                        )}
-                      </button>
+                      {!room.tableId && (
+                        <button
+                          className="kr-secondary kr-full"
+                          disabled={busy}
+                          onClick={() =>
+                            updateRoom('ready', { ready: !me?.ready })
+                          }
+                        >
+                          {me?.ready ? (
+                            <>
+                              <Check size={17} /> You’re ready
+                            </>
+                          ) : (
+                            'Ready to race'
+                          )}
+                        </button>
+                      )}
                     </>
                   )}
                   {notice && (
@@ -856,7 +943,8 @@ export default function KartRoyale({
                   <ArrowRight size={23} />
                 </button>
               ) : (
-                room && (
+                room &&
+                !room.tableId && (
                   <button
                     className="kr-start"
                     disabled={
@@ -882,7 +970,9 @@ export default function KartRoyale({
                   {mode === 'career'
                     ? 'Progress saved on this device'
                     : mode === 'online'
-                      ? 'Live races · No entry fee'
+                      ? renderOnlineLobby
+                        ? 'TPG races · Shared Royal matchmaking'
+                        : 'Live races · No entry fee'
                       : 'Auto throttle · Touch & keyboard'}
                 </span>
                 <button onClick={() => setModal('help')}>
@@ -1029,10 +1119,10 @@ export default function KartRoyale({
                     {r.ai ? 'AI' : r.id === result.playerId ? 'YOU' : 'PLAYER'}
                   </small>
                   <span>
-                    {r.disconnected
-                      ? 'LEFT'
-                      : r.finished
-                        ? formatTime(r.finishTime)
+                    {r.finished
+                      ? formatTime(r.finishTime)
+                      : r.disconnected
+                        ? 'LEFT'
                         : session
                           ? 'DNF'
                           : `Lap ${Math.max(1, r.lap)}`}
@@ -1052,17 +1142,36 @@ export default function KartRoyale({
             )}
             {session ? (
               <>
-                <button
-                  className="kr-start"
-                  disabled={!host || busy}
-                  onClick={() => updateRoom('rematch')}
-                >
-                  <RotateCcw size={20} />
-                  {host ? 'REMATCH' : 'WAITING FOR HOST'}
-                </button>
-                <button className="kr-secondary kr-full" onClick={garage}>
-                  Leave room
-                </button>
+                {room?.tableId ? (
+                  <>
+                    <p className="kr-notice" role="status">
+                      {room.settlement?.status === 'paid'
+                        ? room.settlement.winnerAccountId === session.playerId
+                          ? `You won ${room.settlement.amount?.toLocaleString()} TPG. Your balance is updated.`
+                          : 'The race winner received the TPG pot.'
+                        : room.settlement?.status === 'refunded'
+                          ? `${room.settlement.amount?.toLocaleString()} TPG refunded to each racer.`
+                          : 'Confirming the TPG result…'}
+                    </p>
+                    <button className="kr-start" onClick={garage}>
+                      BACK TO TPG LOBBY
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    className="kr-start"
+                    disabled={!host || busy}
+                    onClick={() => updateRoom('rematch')}
+                  >
+                    <RotateCcw size={20} />
+                    {host ? 'REMATCH' : 'WAITING FOR HOST'}
+                  </button>
+                )}
+                {!room?.tableId && (
+                  <button className="kr-secondary kr-full" onClick={garage}>
+                    Leave room
+                  </button>
+                )}
               </>
             ) : (
               <>

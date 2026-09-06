@@ -6,10 +6,10 @@ const gamesCatalog = [
     image: '/assets/kart-royale/cover.webp',
     badge: 'Beta',
     featured: true,
-    modes: ['VS AI', 'Multiplayer', 'Career'],
+    modes: ['VS AI', 'TPG Multiplayer', 'Career'],
     launchLabel: 'Enter Racing Lobby',
     description:
-      'Race through the city in a 3D kart. Master three circuits, win cups, or race friends.'
+      'Enter your racing lobby for TPG matchmaking, private races, free AI practice and career cups.'
   },
   {
     name: "Texas Hold'em",

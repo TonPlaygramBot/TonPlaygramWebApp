@@ -6,6 +6,15 @@ export interface Room {
   trackId: string;
   status: 'waiting' | 'countdown' | 'racing' | 'finished';
   public: boolean;
+  tableId?: string | null;
+  stake?: number;
+  token?: 'TPG' | null;
+  settlement?: {
+    status: 'pending' | 'paid' | 'refunded';
+    winnerAccountId?: string | null;
+    amount?: number;
+    reason?: string;
+  } | null;
   players: { id: string; name: string; ready: boolean; connected: boolean }[];
   racers: Racer[];
   elapsed: number;
@@ -17,6 +26,8 @@ export interface Session {
   code: string;
   playerId: string;
   token: string;
+  tableId?: string;
+  accountId?: string;
 }
 interface Reply {
   ok: boolean;
@@ -26,11 +37,31 @@ interface Reply {
   token?: string;
   state?: Room;
 }
-export function request(
+export async function request(
   socket: Socket,
   event: string,
   data: object = {}
 ): Promise<Reply> {
+  const accountId = (data as { accountId?: string }).accountId;
+  if ((event === 'match' || event === 'resume') && accountId) {
+    await new Promise<void>((resolve, reject) =>
+      socket
+        .timeout(8000)
+        .emit(
+          'register',
+          { tpcAccountNumber: accountId },
+          (error: Error | null, reply: { success?: boolean }) => {
+            if (error || !reply?.success)
+              reject(
+                new Error(
+                  'Sign in to the TPG account that owns this race seat.'
+                )
+              );
+            else resolve();
+          }
+        )
+    );
+  }
   return new Promise((resolve, reject) =>
     socket
       .timeout(8000)

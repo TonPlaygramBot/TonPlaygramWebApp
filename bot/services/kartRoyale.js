@@ -6,9 +6,11 @@ import {
   stepRace,
   standings
 } from '../../webapp/src/games/kartroyale/simulation.mjs';
-// Zero-stake races use the existing authenticated Socket.IO connection.
 // Inputs are untrusted. Physics, lap gates, race clock and results are server owned.
-export function attachKartRoyale(io, { clock = Date.now } = {}) {
+export function attachKartRoyale(
+  io,
+  { clock = Date.now, settleMatch, onMatchClosed = () => {} } = {}
+) {
   const rooms = new Map(),
     memberships = new Map();
   let previous = clock(),
@@ -20,6 +22,10 @@ export function attachKartRoyale(io, { clock = Date.now } = {}) {
     trackId: r.track.id,
     status: r.status,
     public: r.public,
+    tableId: r.tableId || null,
+    stake: r.stake || 0,
+    token: r.tableId ? 'TPG' : null,
+    settlement: r.settlement || null,
     serverNow: clock(),
     players: r.players.map(({ token, socketId, ...p }) => p),
     startsAt: r.startsAt,
@@ -30,12 +36,83 @@ export function attachKartRoyale(io, { clock = Date.now } = {}) {
   const emit = (r) => io.to(`kart:${r.code}`).emit('kart:state', snapshot(r));
   const current = (s) => rooms.get(memberships.get(s.id));
   const player = (r, s) => r?.players.find((p) => p.socketId === s.id);
+  const settle = async (r) => {
+    if (!r.tableId || r.settling || r.settlement?.status !== 'pending') return;
+    r.settling = true;
+    r.settlementAttempt = clock();
+    try {
+      r.settlement = await settleMatch(r.tableId, r.outcome);
+      emit(r);
+    } catch (error) {
+      // Keep the frozen authoritative outcome and retry without accepting any
+      // client winner or amount. The persistent ledger makes retries idempotent.
+      console.error('Kart settlement pending:', r.tableId, error.message);
+    } finally {
+      r.settling = false;
+    }
+  };
+  const finish = (r, reason = 'race_complete') => {
+    if (r.status === 'finished') return;
+    r.status = 'finished';
+    if (r.tableId) {
+      const finishers = standings(r.racers).filter((v) => !v.ai && v.finished);
+      const tied =
+        finishers.length > 1 &&
+        finishers[0].finishTime === finishers[1].finishTime;
+      const winner = reason === 'race_complete' && !tied ? finishers[0] : null;
+      r.outcome = {
+        winnerAccountId: winner?.id || '',
+        reason: winner
+          ? reason
+          : reason === 'race_complete'
+            ? tied
+              ? 'dead_heat_refund'
+              : 'no_finisher_refund'
+            : reason
+      };
+      r.settlement = { status: 'pending' };
+      void settle(r);
+    }
+    emit(r);
+  };
+  const startRace = (r, fillAI = false) => {
+    r.racers = r.players.map((p, i) => createRacer(r.track, p.id, p.name, i));
+    while (fillAI && r.racers.length < 6) {
+      const i = r.racers.length;
+      r.racers.push(
+        createRacer(
+          r.track,
+          `ai-${i}`,
+          ['Aero', 'Nova', 'Rift', 'Jett', 'Onyx', 'Flux'][i],
+          i,
+          true
+        )
+      );
+    }
+    r.status = 'countdown';
+    r.startsAt = clock() + 3500;
+    r.elapsed = 0;
+    emit(r);
+  };
   const leave = (s) => {
     const r = current(s);
     if (!r) return;
     const p = player(r, s);
     memberships.delete(s.id);
     s.leave(`kart:${r.code}`);
+    if (r.tableId) {
+      if (p) {
+        p.connected = false;
+        p.forfeited = true;
+        p.disconnectedAt = clock() - 15001;
+        const racer = r.racers.find((v) => v.id === p.id);
+        if (racer) racer.disconnected = true;
+      }
+      if (r.status === 'waiting' || r.status === 'countdown')
+        finish(r, 'start_cancelled_refund');
+      emit(r);
+      return;
+    }
     if (p) {
       r.players = r.players.filter((v) => v.id !== p.id);
       const racer = r.racers.find((v) => v.id === p.id);
@@ -106,6 +183,35 @@ export function attachKartRoyale(io, { clock = Date.now } = {}) {
           cb
         );
       });
+    listen('match', (d, cb) => {
+      const r = rooms.get(String(d.tableId || ''));
+      const account = String(s.data?.playerId || '');
+      const p = r?.tableId && r.players.find((v) => v.id === account);
+      if (!p || p.forfeited)
+        return cb({
+          ok: false,
+          error: 'A matched TPG lobby seat is required.'
+        });
+      if (r.status === 'finished')
+        return cb({
+          ok: false,
+          error: 'This race ended. Return to the TPG lobby.'
+        });
+      if (current(s) !== r) leave(s);
+      if (p.socketId && p.socketId !== s.id) {
+        io.sockets.sockets.get(p.socketId)?.leave(`kart:${r.code}`);
+        memberships.delete(p.socketId);
+      }
+      const racer = r.racers.find((v) => v.id === p.id);
+      if (racer && !racer.finished) racer.disconnected = false;
+      p.ready = true;
+      bind(r, s, p, cb);
+      if (
+        r.status === 'waiting' &&
+        r.players.every((v) => v.ready && v.connected)
+      )
+        startRace(r);
+    });
     const create = (d, cb) => {
       if (limited(cb)) return;
       if (rooms.size >= 128)
@@ -138,6 +244,7 @@ export function attachKartRoyale(io, { clock = Date.now } = {}) {
       const r = [...rooms.values()].find(
         (r) =>
           r.public &&
+          !r.tableId &&
           r.status === 'waiting' &&
           r.players.length < 6 &&
           r.players.every((p) => p.connected) &&
@@ -156,6 +263,11 @@ export function attachKartRoyale(io, { clock = Date.now } = {}) {
           ok: false,
           error: 'Room not found. Check the six-character code.'
         });
+      if (r.tableId)
+        return cb({
+          ok: false,
+          error: 'Join this race through TPG matchmaking.'
+        });
       if (r.status !== 'waiting')
         return cb({ ok: false, error: 'That race has already started.' });
       if (r.players.length >= 6)
@@ -167,11 +279,15 @@ export function attachKartRoyale(io, { clock = Date.now } = {}) {
     });
     listen('resume', (d, cb) => {
       if (limited(cb)) return;
-      const r = rooms.get(String(d.code || '').toUpperCase()),
+      const r =
+          rooms.get(String(d.code || '')) ||
+          rooms.get(String(d.code || '').toUpperCase()),
         p = r?.players.find((p) => p.id === d.playerId),
         token = String(d.token || '');
       if (
         !p ||
+        (r.tableId &&
+          (p.forfeited || String(s.data?.playerId || '') !== p.id)) ||
         !/^[a-f0-9]{48}$/.test(token) ||
         !timingSafeEqual(Buffer.from(token), Buffer.from(p.token))
       )
@@ -186,12 +302,19 @@ export function attachKartRoyale(io, { clock = Date.now } = {}) {
       if (current(s) !== r) leave(s);
       const racer = r.racers.find((v) => v.id === p.id);
       if (racer && !racer.finished) racer.disconnected = false;
+      if (r.tableId) p.ready = true;
       bind(r, s, p, cb);
+      if (
+        r.tableId &&
+        r.status === 'waiting' &&
+        r.players.every((v) => v.ready && v.connected)
+      )
+        startRace(r);
     });
     listen('ready', (d, cb) => {
       const r = current(s),
         p = player(r, s);
-      if (!p || r.status !== 'waiting')
+      if (!p || r.tableId || r.status !== 'waiting')
         return cb({ ok: false, error: 'Join a waiting room first.' });
       p.ready = d.ready === true;
       emit(r);
@@ -200,7 +323,7 @@ export function attachKartRoyale(io, { clock = Date.now } = {}) {
     listen('start', (_, cb) => {
       const r = current(s),
         p = player(r, s);
-      if (!p || p.id !== r.hostId || r.status !== 'waiting')
+      if (!p || r.tableId || p.id !== r.hostId || r.status !== 'waiting')
         return cb({ ok: false, error: 'Only the host can start this race.' });
       if (
         r.players.length < 2 ||
@@ -210,23 +333,7 @@ export function attachKartRoyale(io, { clock = Date.now } = {}) {
           ok: false,
           error: 'At least two connected players must be ready.'
         });
-      r.racers = r.players.map((p, i) => createRacer(r.track, p.id, p.name, i));
-      while (r.racers.length < 6) {
-        const i = r.racers.length;
-        r.racers.push(
-          createRacer(
-            r.track,
-            `ai-${i}`,
-            ['Aero', 'Nova', 'Rift', 'Jett', 'Onyx', 'Flux'][i],
-            i,
-            true
-          )
-        );
-      }
-      r.status = 'countdown';
-      r.startsAt = clock() + 3500;
-      r.elapsed = 0;
-      emit(r);
+      startRace(r, true);
       cb({ ok: true });
     });
     listen('input', (d) => {
@@ -259,7 +366,7 @@ export function attachKartRoyale(io, { clock = Date.now } = {}) {
     listen('rematch', (_, cb) => {
       const r = current(s),
         p = player(r, s);
-      if (!p || r.hostId !== p.id || r.status !== 'finished')
+      if (!p || r.tableId || r.hostId !== p.id || r.status !== 'finished')
         return cb({
           ok: false,
           error: 'Wait for the host to set up the rematch.'
@@ -298,6 +405,12 @@ export function attachKartRoyale(io, { clock = Date.now } = {}) {
     previous = now;
     while (accumulator >= STEP) {
       for (const room of rooms.values()) {
+        if (
+          room.tableId &&
+          room.status === 'waiting' &&
+          now - room.createdAt > 30000
+        )
+          finish(room, 'loading_timeout_refund');
         if (room.status === 'countdown' && now >= room.startsAt)
           room.status = 'racing';
         if (room.status !== 'racing') continue;
@@ -317,15 +430,17 @@ export function attachKartRoyale(io, { clock = Date.now } = {}) {
                     15000))
           );
         if (allDone || room.elapsed > 240) {
-          room.status = 'finished';
-          emit(room);
+          finish(room);
         }
       }
       accumulator -= STEP;
     }
     if (++snapshots % 3 === 0)
       for (const r of rooms.values()) {
-        if (['waiting', 'finished'].includes(r.status)) {
+        if (r.tableId && r.settlement?.status === 'pending') {
+          if (now - (r.settlementAttempt || 0) > 5000) void settle(r);
+        }
+        if (!r.tableId && ['waiting', 'finished'].includes(r.status)) {
           const before = r.players.length;
           r.players = r.players.filter(
             (p) => p.connected || now - p.disconnectedAt <= 15000
@@ -335,8 +450,12 @@ export function attachKartRoyale(io, { clock = Date.now } = {}) {
           if (before !== r.players.length) emit(r);
         }
         if (
-          now - r.createdAt > 900000 ||
-          r.players.every((p) => !p.connected && now - p.disconnectedAt > 60000)
+          (!r.tableId ||
+            (r.status === 'finished' && r.settlement?.status !== 'pending')) &&
+          (now - r.createdAt > 900000 ||
+            r.players.every(
+              (p) => !p.connected && now - p.disconnectedAt > 60000
+            ))
         ) {
           io.to(`kart:${r.code}`).emit('kart:closed', {
             error: 'This room expired. Create or join another room.'
@@ -346,6 +465,7 @@ export function attachKartRoyale(io, { clock = Date.now } = {}) {
             io.sockets.sockets.get(p.socketId)?.leave(`kart:${r.code}`);
           }
           rooms.delete(r.code);
+          if (r.tableId) onMatchClosed(r.tableId);
           continue;
         }
         if (['racing', 'countdown'].includes(r.status)) emit(r);
@@ -354,6 +474,33 @@ export function attachKartRoyale(io, { clock = Date.now } = {}) {
   timer.unref?.();
   return {
     rooms,
+    createMatch(table) {
+      if (!settleMatch) throw new Error('kart_stake_service_unavailable');
+      if (rooms.has(table.id)) return;
+      if (rooms.size >= 128) throw new Error('kart_lobby_full');
+      rooms.set(table.id, {
+        code: table.id,
+        tableId: table.id,
+        stake: table.stake,
+        hostId: String(table.players[0].id),
+        public: !table.id.includes('-host-'),
+        track: makeTrack(table.meta.trackId),
+        racers: [],
+        status: 'waiting',
+        startsAt: 0,
+        elapsed: 0,
+        createdAt: clock(),
+        players: table.players.map((p) => ({
+          id: String(p.tpcAccountNumber || p.id),
+          name: String(p.name || 'Racer').slice(0, 18),
+          token: randomBytes(24).toString('hex'),
+          socketId: '',
+          connected: false,
+          ready: false,
+          disconnectedAt: clock()
+        }))
+      });
+    },
     close() {
       clearInterval(timer);
       io.off('connection', onConnection);

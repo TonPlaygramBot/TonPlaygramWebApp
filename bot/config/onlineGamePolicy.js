@@ -9,6 +9,10 @@ const BASE_SECURITY_CONTROLS = Object.freeze([
 ]);
 
 const GAME_ONLINE_POLICY = Object.freeze({
+  kartroyale: {
+    maxPlayers: [2, 3, 4, 5, 6],
+    allowMatchMeta: ['trackId', 'mode', 'token']
+  },
   chess: {
     maxPlayers: [2],
     allowMatchMeta: ['preferredSide', 'mode', 'token']
@@ -190,7 +194,14 @@ export function validateSeatTableRequest({
   }
 
   const safeMatchMeta = {};
+  if (normalizedGameType === 'kartroyale') {
+    const trackId = String(matchMeta.trackId || 'harbor').trim().toLowerCase();
+    if (!['harbor', 'neon', 'canyon'].includes(trackId)) return { ok: false, error: 'invalid_track' };
+    if (!Number.isSafeInteger(normalizedStake * normalizedMaxPlayers)) return { ok: false, error: 'invalid_stake' };
+    safeMatchMeta.trackId = trackId;
+  }
   for (const key of policy.allowMatchMeta) {
+    if (key === 'trackId' && normalizedGameType === 'kartroyale') continue;
     const value = sanitizeMetaValue(matchMeta[key]);
     if (value != null && value !== '') {
       safeMatchMeta[key] =

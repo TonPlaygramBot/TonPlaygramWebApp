@@ -9,6 +9,8 @@ import { proxyUrl, proxyAgent } from './utils/proxyAgent.js';
 import http from 'http';
 import { initSocket } from './socket.js';
 import { attachKartRoyale } from './services/kartRoyale.js';
+import { createKartStakeService } from './services/kartStake.js';
+import KartMatch from './models/KartMatch.js';
 import { LudoBattleGame } from './logic/ludoBattleGame.js';
 import { GameRoomManager } from './gameEngine.js';
 import miningRoutes from './routes/mining.js';
@@ -132,6 +134,7 @@ process.on('uncaughtException', (err) => {
 });
 
 const models = [
+  KartMatch,
   AdView,
   Airdrop,
   BurnedTPC,
@@ -265,7 +268,15 @@ io.use((socket, next) => {
   return next(new Error('unauthorized'));
 });
 const gameManager = new GameRoomManager(io);
-attachKartRoyale(io);
+const kartStake = createKartStakeService();
+const kartRoyale = attachKartRoyale(io, {
+  settleMatch: kartStake.settle,
+  onMatchClosed: (tableId) => tableMap.delete(tableId)
+});
+// Expired persisted reservations are refunded even after a process restart.
+setInterval(() => {
+  kartStake.recoverExpired().catch((error) => console.error('Kart recovery:', error.message));
+}, 60_000).unref();
 
 // Expose socket.io instance and userSockets map for routes
 app.set('io', io);
@@ -1772,7 +1783,7 @@ async function settleChessStakeContract(tableId, result = {}) {
 }
 
 function maybeStartGame(table) {
-  if (table.started) return;
+  if (table.started || table.starting) return;
   if (
     table.players.length === table.maxPlayers &&
     table.ready &&
@@ -1790,6 +1801,31 @@ function maybeStartGame(table) {
         return;
       }
       console.log(`Table ${table.id} confirmed by all players. Starting game.`);
+      if (table.gameType === 'kartroyale') {
+        table.starting = true;
+        let reserved = false;
+        const roster = table.players.map((p) => String(p.id)).join('|');
+        try {
+          await kartStake.reserve(table);
+          reserved = true;
+          // A cancellation/disconnect during the transaction must not start a
+          // different roster or leave an unmatched player's stake locked.
+          if (tableMap.get(table.id) !== table || roster !== table.players.map((p) => String(p.id)).join('|') ||
+            table.players.some((p) => !io.sockets.sockets.get(p.socketId)?.connected || !table.ready.has(String(p.id)))) {
+            throw new Error('match_cancelled');
+          }
+          kartRoyale.createMatch(table);
+          table.matchId = table.id;
+        } catch (error) {
+          if (reserved) {
+            try { await kartStake.settle(table.id, { reason: 'start_cancelled_refund' }); }
+            catch (refundError) { console.error('Kart refund pending recovery:', table.id, refundError.message); }
+          }
+          io.to(table.id).emit('matchmakingError', { tableId: table.id, error: error.message || 'match_start_failed' });
+          for (const p of [...table.players]) unseatTableSocket(p.id, table.id, p.socketId);
+          return;
+        } finally { table.starting = false; }
+      }
       if (table.gameType === 'chess') {
         const reservation = await reserveChessStakeContract(table);
         if (!reservation.ok) {
@@ -1885,6 +1921,9 @@ function maybeStartGame(table) {
 
 function unseatTableSocket(accountId, tableId, socketId) {
   if (!tableId) return;
+  // Once handed to the race, kart:leave/resume owns the immutable roster and
+  // stake. A late lobby cancel or disconnect must not release its account lock.
+  if (tableMap.get(tableId)?.gameType === 'kartroyale' && tableMap.get(tableId)?.started) return;
   const map = tableSeats.get(tableId);
   const normalizedAccountId = accountId ? String(accountId) : '';
   // A mobile WebView can reconnect before Socket.IO finishes disconnecting the
@@ -1965,7 +2004,7 @@ function unseatTableSocket(accountId, tableId, socketId) {
     }
   }
   if (accountId) {
-    User.updateOne({ accountId }, { currentTableId: null }).catch(() => {});
+    User.updateOne({ accountId, currentTableId: tableId }, { currentTableId: null }).catch(() => {});
   }
 }
 
@@ -2656,6 +2695,13 @@ io.on('connection', (socket) => {
       }
 
       const safeMeta = validation.safeMatchMeta;
+
+      if (validation.normalizedGameType === 'kartroyale') {
+        try { await kartStake.canQueue(String(resolvedAccountId), validation.normalizedStake, tableId); }
+        catch (error) { return cb && cb({ success: false, error: error.message }); }
+        // The asynchronous balance read may complete after this phone leaves.
+        if (!socket.connected) return;
+      }
 
       let table;
       if (tableId) {

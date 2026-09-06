@@ -9,10 +9,10 @@ catalog at `/games/kartroyale/lobby` (also available at `/games/kartroyale`).
 - **Career:** Rookie, Street and Royale cups. Finish top three in the first two
   cups and first in the finale. Wins unlock the next cup; the first completion
   awards achievement credits. Progress and best times are saved on this device.
-- **Multiplayer:** private six-character rooms and public quick matching for
-  two to six connected players. Everyone readies up, then the host starts.
-  Vacant seats fill with explicitly identified AI drivers. All races are free;
-  this module never reads or changes token balances.
+- **TPG Multiplayer:** choose a stake, circuit and grid of 2–6 human racers in
+  the dedicated garage lobby. Quick Match uses the shared Royal queue; Private
+  Room uses a shared 4–8-character code and identical criteria. A full ready grid
+  starts together. AI and career remain free, and bots never take TPG seats.
 
 Auto throttle starts after the countdown. Touch the left/right buttons to steer,
 BRAKE to slow down, hold DRIFT while steering then release for turbo, or hold
@@ -43,8 +43,46 @@ never includes tokens in room broadcasts. Reconnect has a 15-second grace
 period. Disconnected waiting players are removed and host ownership transfers.
 Empty and expired rooms are collected. The race has a four-minute limit.
 
+### Shared TPG matchmaking
+
+`KartRoyaleMatchmaking.jsx` uses `RoomSelector` (TPG only) and
+`runSimpleOnlineFlow` / `joinRoyalLobby`, the same helpers used by the other
+Royal games. The Games card links to `/games/kartroyale/lobby`; the garage contains
+the matchmaking controls alongside AI and career. `onlineGamePolicy.js` and the
+frontend readiness map register `kartroyale` with 2–6 seats and validated circuits.
+
+The shared flow registers the canonical TPG account, sends `seatTable`, displays
+`lobbyUpdate`, confirms readiness, and waits for `gameStart`. Queue partitions are
+game, TPG stake, circuit and grid size. Paint and display name do not partition a
+queue. Hosted codes stay outside public matching. Cancels and late seat replies
+send `leaveLobby`; reservation failures clear the queue with a visible error.
+
+After `gameStart`, `kart:match` binds the existing account to its server-created
+grid, returns a private session token, and saves `tableId`/`accountId` in session
+storage. All clients must join before the countdown; the load deadline is 30
+seconds. Reconnect requires both the registered account and session token. A
+late lobby cancel cannot mutate a started race's roster or release its stake.
+
+`kartStake.js` reserves all human stakes atomically in the existing User balance
+and transaction ledger when the grid locks, with a durable `KartMatch` record.
+It requires MongoDB transactions (a replica set, as used by the chess contract).
+There is no client-side debit or payout endpoint. The first server-verified
+finisher receives the full pot, with no new house fee. An incomplete start or
+a race without a finisher or an exact dead heat refunds all stakes. Leaving during racing forfeits
+the seat; a valid finisher can still win. Payout/refund receipts appear in the
+results screen. Every new race requires explicitly joining a new TPG queue.
+
+Settlement retries reuse the frozen server result and unique transaction IDs.
+The database transaction prevents partial reservation/payout, negative balances,
+duplicate charges and duplicate payouts. Expired contracts are refunded by a
+minute sweeper after their ten-minute deadline, including after a process restart.
+No funds are reserved while waiting for opponents, so queue cancellation needs
+no compensating client refund. Standalone/free legacy rooms are isolated from
+the TPG grid and cannot add AI or unseated accounts to it.
+
 Run one authoritative game-server process for this initial version. Room state
-is in memory and a server restart ends active races. Scaling requires shared
+is in memory and a server restart ends active races; the persistent TPG recovery
+sweeper refunds their expired contracts. Scaling requires shared
 room ownership and routing players to the owning simulation; adding a broadcast
 adapter alone is insufficient. Career saves are device-local, not account sync.
 
@@ -88,6 +126,10 @@ and displays AI, multiplayer and career modes.
 
 ```sh
 node --test test/kartRoyale.test.mjs
+node --test test/kartTpgMatchmaking.test.mjs test/kartStake.test.mjs
+npx jest test/simpleOnlineFlow.test.js --runInBand --forceExit
+# Use a disposable test replica set, never a production connection:
+KART_TEST_MONGO_URI=mongodb://127.0.0.1:27017/?replicaSet=rs0 node --test test/kartStakeMongo.test.mjs
 cd webapp
 npx tsc -p tsconfig.kart.json
 npm run build
@@ -100,6 +142,14 @@ isolation, input tampering, malformed payloads, reconnect, rematch and cleanup.
 Simulation tests cover all circuits/difficulties, screen-direction steering and
 checkpoint validation. Real-phone visual/FPS and cross-network latency testing
 remain release checks; simulated physics and build checks do not establish them.
+
+The TPG tests cover human-only grids, account-bound reconnect, authoritative
+finish order, settlement retry, load-timeout refunds and no-finisher refunds.
+Ledger repository tests exercise atomic rollback, alias/double-seat rejection,
+idempotent payouts and restart refunds. The separate MongoDB test exercises
+actual transactions and concurrent reservations when `KART_TEST_MONGO_URI` is
+set; it skips otherwise. The development workspace could not start MongoDB
+(`open: Operation not permitted`), so the replica-set test remains a release gate.
 
 The standalone `kart-royale.html` preview runs AI and career without the main
 app's wallet or account providers. Its multiplayer panel clearly states when

@@ -292,9 +292,8 @@ export function stepRace(racers, track, dt, time, difficulty = 'street') {
 export const standings = (racers) =>
   [...racers].sort(
     (a, b) =>
-      Number(a.disconnected) - Number(b.disconnected) ||
       Number(b.finished) - Number(a.finished) ||
       (a.finished && b.finished
         ? a.finishTime - b.finishTime
-        : b.progress - a.progress)
+        : Number(a.disconnected) - Number(b.disconnected) || b.progress - a.progress)
   );
