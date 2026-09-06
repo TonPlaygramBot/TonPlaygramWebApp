@@ -1,0 +1,579 @@
+export type Seat = 0 | 1;
+export type Shot = 'flat' | 'topspin' | 'slice' | 'lob';
+export type Surface = 'hard' | 'clay' | 'grass';
+export type Phase = 'serve' | 'toss' | 'rally' | 'point' | 'over';
+export type Input = {
+  moveX: number | null;
+  moveZ: number | null;
+  aim: number;
+  power: number;
+  shot: Shot;
+  swing: number;
+  assist: boolean;
+};
+export type Score = {
+  points: number[];
+  games: number[];
+  sets: number[];
+  history: number[][];
+  tie: boolean;
+  server: Seat;
+  tieServer: Seat;
+  totalPoints: number;
+};
+export type Player = {
+  x: number;
+  z: number;
+  targetX: number;
+  targetZ: number;
+  swingAt: number;
+  swingId: number;
+  queued: number;
+  stamina: number;
+  lastInput: number;
+};
+export type Event = {
+  id: number;
+  type: 'hit' | 'bounce' | 'point' | 'win' | 'fault' | 'serve';
+  seat: Seat;
+  label: string;
+};
+export type MatchConfig = {
+  ai: boolean;
+  difficulty: number;
+  surface: Surface;
+  gamesToWin: number;
+  setsToWin: number;
+  upgrades: number[];
+  seed: number;
+};
+export type MatchState = {
+  config: MatchConfig;
+  time: number;
+  phase: Phase;
+  phaseAt: number;
+  players: Player[];
+  ball: {
+    x: number;
+    y: number;
+    z: number;
+    vx: number;
+    vy: number;
+    vz: number;
+    bounces: number;
+    last: Seat;
+    serve: boolean;
+    netTouch: boolean;
+    spin: number;
+  };
+  score: Score;
+  inputs: Input[];
+  events: Event[];
+  eventId: number;
+  message: string;
+  winner: Seat | null;
+  lastPoint: Seat | null;
+  fault: number;
+  rally: number;
+  bestRally: number;
+  rng: number;
+  pointCount: number;
+  aiThink: number;
+  aiAim: number;
+  serveInput: Input | null;
+};
+export const HALF_WIDTH = 4.115,
+  HALF_LENGTH = 11.885,
+  SERVICE = 6.4,
+  GRAVITY = 14,
+  BALL_RADIUS = 0.12;
+export const opponent = (p: Seat): Seat => (p === 0 ? 1 : 0);
+export const side = (p: Seat) => (p === 0 ? 1 : -1);
+export const clamp = (v: number, lo: number, hi: number) =>
+  Math.max(lo, Math.min(hi, v));
+export const neutralInput = (): Input => ({
+  moveX: null,
+  moveZ: null,
+  aim: 0,
+  power: 0.55,
+  shot: 'flat',
+  swing: 0,
+  assist: true
+});
+export function initialScore(): Score {
+  return {
+    points: [0, 0],
+    games: [0, 0],
+    sets: [0, 0],
+    history: [],
+    tie: false,
+    server: 0,
+    tieServer: 0,
+    totalPoints: 0
+  };
+}
+export function pointLabels(s: Score): string[] {
+  if (s.tie) return s.points.map(String);
+  if (s.points[0] >= 3 && s.points[1] >= 3)
+    return s.points[0] === s.points[1]
+      ? ['40', '40']
+      : s.points.map((n, i) => (n > s.points[1 - i] ? 'AD' : '40'));
+  return s.points.map((n) => ['0', '15', '30', '40'][Math.min(n, 3)]);
+}
+/** Mutates only the supplied score. A tie-break starts at gamesToWin all. */
+export function awardPoint(
+  s: Score,
+  win: Seat,
+  gamesToWin: number,
+  setsToWin: number
+): { winner: Seat | null; game: boolean; set: boolean } {
+  s.points[win]++;
+  s.totalPoints++;
+  const other = opponent(win),
+    target = s.tie ? 7 : 4;
+  if (s.tie) {
+    const n = s.points[0] + s.points[1];
+    s.server =
+      Math.floor((n + 1) / 2) % 2 === 0 ? s.tieServer : opponent(s.tieServer);
+  }
+  if (s.points[win] < target || s.points[win] - s.points[other] < 2)
+    return { winner: null, game: false, set: false };
+  const wasTie = s.tie;
+  s.games[win]++;
+  s.points = [0, 0];
+  s.server = wasTie ? opponent(s.tieServer) : opponent(s.server);
+  if (
+    wasTie ||
+    (s.games[win] >= gamesToWin &&
+      (gamesToWin === 1 || s.games[win] - s.games[other] >= 2))
+  ) {
+    s.history.push([...s.games]);
+    s.sets[win]++;
+    s.games = [0, 0];
+    s.tie = false;
+    return {
+      winner: s.sets[win] >= setsToWin ? win : null,
+      game: true,
+      set: true
+    };
+  }
+  if (s.games[0] === gamesToWin && s.games[1] === gamesToWin) {
+    s.tie = true;
+    s.tieServer = s.server;
+  }
+  return { winner: null, game: true, set: false };
+}
+export function createMatch(config: Partial<MatchConfig> = {}): MatchState {
+  const c: MatchConfig = {
+    ai: true,
+    difficulty: 1,
+    surface: 'hard',
+    gamesToWin: 1,
+    setsToWin: 1,
+    upgrades: [0, 0, 0],
+    seed: 42117,
+    ...config
+  };
+  const state: MatchState = {
+    config: c,
+    time: 0,
+    phase: 'serve',
+    phaseAt: 0,
+    players: [0, 1].map((i) => ({
+      x: 0,
+      z: i === 0 ? 11 : -10,
+      targetX: 0,
+      targetZ: i === 0 ? 11 : -10,
+      swingAt: -10,
+      swingId: 0,
+      queued: 0,
+      stamina: 1,
+      lastInput: 0
+    })),
+    ball: {
+      x: 0,
+      y: 1.2,
+      z: 11,
+      vx: 0,
+      vy: 0,
+      vz: 0,
+      bounces: 0,
+      last: 0,
+      serve: true,
+      netTouch: false,
+      spin: 0
+    },
+    score: initialScore(),
+    inputs: [neutralInput(), neutralInput()],
+    events: [],
+    eventId: 0,
+    message: 'Your serve',
+    winner: null,
+    lastPoint: null,
+    fault: 0,
+    rally: 0,
+    bestRally: 0,
+    rng: c.seed || 1,
+    pointCount: 0,
+    aiThink: 0,
+    aiAim: 0,
+    serveInput: null
+  };
+  setupServe(state);
+  return state;
+}
+function random(s: MatchState) {
+  s.rng = (Math.imul(s.rng, 1664525) + 1013904223) >>> 0;
+  return s.rng / 4294967296;
+}
+function emit(s: MatchState, type: Event['type'], seat: Seat, label: string) {
+  s.events.push({ id: ++s.eventId, type, seat, label });
+  if (s.events.length > 8) s.events.shift();
+}
+function setupServe(s: MatchState) {
+  const seat = s.score.server,
+    sign = side(seat),
+    deuce = (s.score.points[0] + s.score.points[1]) % 2 === 0;
+  s.phase = 'serve';
+  s.phaseAt = s.time;
+  s.rally = 0;
+  s.serveInput = null;
+  s.players[seat].x = sign * (deuce ? 1.8 : -1.8);
+  s.players[seat].z = sign * 12.4;
+  s.players[opponent(seat)].x = -s.players[seat].x * 0.6;
+  s.players[opponent(seat)].z = -sign * 10.6;
+  s.players.forEach((p) => {
+    p.targetX = p.x;
+    p.targetZ = p.z;
+    p.queued = 0;
+    p.stamina = Math.min(1, p.stamina + 0.3);
+  });
+  s.ball = {
+    x: s.players[seat].x,
+    y: 1.25,
+    z: s.players[seat].z - 0.3 * sign,
+    vx: 0,
+    vy: 0,
+    vz: 0,
+    bounces: 0,
+    last: seat,
+    serve: true,
+    netTouch: false,
+    spin: 0
+  };
+  s.message = s.fault
+    ? 'Second serve'
+    : seat === 0
+      ? 'Your serve'
+      : 'Opponent serves';
+}
+function finishPoint(s: MatchState, win: Seat, reason: string) {
+  if (s.phase === 'point' || s.phase === 'over') return;
+  s.lastPoint = win;
+  s.bestRally = Math.max(s.bestRally, s.rally);
+  s.pointCount++;
+  s.fault = 0;
+  const result = awardPoint(
+    s.score,
+    win,
+    s.config.gamesToWin,
+    s.config.setsToWin
+  );
+  s.phase = result.winner !== null ? 'over' : 'point';
+  s.phaseAt = s.time;
+  s.winner = result.winner;
+  s.ball.vx = 0;
+  s.ball.vy = 0;
+  s.ball.vz = 0;
+  const prefix =
+    result.winner !== null
+      ? 'Match'
+      : result.set
+        ? 'Set'
+        : result.game
+          ? 'Game'
+          : 'Point';
+  s.message = `${reason} · ${prefix} ${win === 0 ? 'you' : 'opponent'}`;
+  emit(s, result.winner !== null ? 'win' : 'point', win, s.message);
+}
+function fault(s: MatchState, reason: string) {
+  s.fault++;
+  if (s.fault >= 2) {
+    finishPoint(s, opponent(s.score.server), 'Double fault');
+    return;
+  }
+  emit(s, 'fault', s.score.server, reason);
+  setupServe(s);
+  s.message = `${reason} · second serve`;
+}
+function trajectory(s: MatchState, seat: Seat, input: Input, isServe: boolean) {
+  const b = s.ball,
+    sign = side(seat),
+    skill = seat === 0 ? s.config.upgrades[1] || 0 : 0;
+  const shot = isServe ? 'flat' : input.shot;
+  let mishit = false;
+  const power = clamp(input.power, 0.1, 1);
+  let flight =
+    shot === 'lob' ? 1.65 : shot === 'slice' ? 1.22 : 1.15 - power * 0.17;
+  let z = -sign * (shot === 'slice' ? 5.5 : 8.3 + power * 1.4),
+    x = input.aim * 3.55;
+  if (isServe) {
+    b.x = s.players[seat].x;
+    b.z = s.players[seat].z - 0.5 * sign;
+    b.y = 2.7;
+    flight = 0.96;
+    z = -sign * (3.8 + power * 1.55);
+    x = -s.players[seat].x * 0.85 + input.aim * 0.65;
+  } else {
+    const error =
+      ((random(s) - 0.5) * (power > 0.9 ? 0.6 : 0.2)) / (1 + skill * 0.1);
+    x += error;
+    z += error * 2;
+    // Human-like unforced errors are real trajectories, never fabricated points.
+    if (
+      seat === 1 &&
+      s.config.ai &&
+      random(s) < [0.12, 0.065, 0.025][s.config.difficulty]
+    ) {
+      mishit = true;
+    }
+  }
+  if (shot === 'lob') z = -sign * 9.6;
+  b.vx = (x - b.x) / flight;
+  b.vz = (z - b.z) / flight;
+  b.vy = (BALL_RADIUS - b.y + 0.5 * GRAVITY * flight * flight) / flight;
+  if (mishit) b.vy -= 5;
+  b.bounces = 0;
+  b.last = seat;
+  b.serve = isServe;
+  b.netTouch = false;
+  b.spin = shot === 'topspin' ? 0.8 : shot === 'slice' ? -0.6 : 0;
+  s.rally++;
+  s.players[seat].swingAt = s.time;
+  s.players[seat].queued = 0;
+  s.players[seat].stamina = Math.max(0.25, s.players[seat].stamina - 0.07);
+  s.phase = 'rally';
+  s.phaseAt = s.time;
+  s.message = isServe
+    ? 'Serve'
+    : shot === 'topspin'
+      ? 'Topspin'
+      : shot === 'slice'
+        ? 'Slice'
+        : shot === 'lob'
+          ? 'Lob'
+          : 'Rally';
+  emit(s, isServe ? 'serve' : 'hit', seat, shot);
+}
+export function setInput(s: MatchState, seat: Seat, input: Input) {
+  const p = s.players[seat];
+  const swing = Number.isFinite(input.swing)
+    ? Math.floor(input.swing)
+    : p.swingId;
+  s.inputs[seat] = {
+    moveX:
+      input.moveX === null ? null : clamp(Number(input.moveX) || 0, -5.2, 5.2),
+    moveZ:
+      input.moveZ === null
+        ? null
+        : clamp(Number(input.moveZ) || 0, 1.8, 13.3) * side(seat),
+    aim: clamp(Number(input.aim) || 0, -1, 1),
+    power: clamp(Number(input.power) || 0.5, 0.1, 1),
+    shot: ['flat', 'topspin', 'slice', 'lob'].includes(input.shot)
+      ? input.shot
+      : 'flat',
+    swing,
+    assist: !!input.assist
+  };
+  p.lastInput = s.time;
+  if (swing > p.swingId) {
+    p.swingId = swing;
+    p.queued = s.time + 0.85;
+  }
+}
+function firstLanding(s: MatchState) {
+  const b = s.ball;
+  const t =
+    (b.vy +
+      Math.sqrt(b.vy * b.vy + 2 * GRAVITY * Math.max(0, b.y - BALL_RADIUS))) /
+    GRAVITY;
+  return { x: clamp(b.x + b.vx * t, -5.1, 5.1), z: b.z + b.vz * t };
+}
+function movePlayers(s: MatchState, dt: number) {
+  for (const seat of [0, 1] as Seat[]) {
+    const p = s.players[seat],
+      inp = s.inputs[seat],
+      sign = side(seat),
+      incoming = s.ball.last !== seat && s.phase === 'rally';
+    const ai = seat === 1 && s.config.ai;
+    const assisted = ai || inp.assist;
+    if (s.phase === 'serve' || s.phase === 'toss') continue;
+    if (incoming && assisted) {
+      const land =
+        s.ball.bounces > 0
+          ? { x: s.ball.x + s.ball.vx * 0.13, z: s.ball.z + s.ball.vz * 0.13 }
+          : firstLanding(s);
+      p.targetX = land.x;
+      p.targetZ = sign * clamp(Math.abs(land.z) + 0.5, 2.5, 12.7);
+    } else if (assisted) {
+      p.targetX = 0;
+      p.targetZ = sign * 10.5;
+    }
+    if (!ai && inp.moveX !== null && s.time - p.lastInput < 0.22)
+      p.targetX = inp.moveX;
+    if (!ai && inp.moveZ !== null && s.time - p.lastInput < 0.22)
+      p.targetZ = inp.moveZ;
+    let speed = ai
+      ? 5.4 + s.config.difficulty * 0.75
+      : 7.2 + (s.config.upgrades[0] || 0) * 0.35;
+    speed *= 0.78 + p.stamina * 0.22;
+    const dx = p.targetX - p.x,
+      dz = p.targetZ - p.z,
+      d = Math.hypot(dx, dz),
+      step = Math.min(d, speed * dt);
+    if (d > 0.015) {
+      p.x += (dx / d) * step;
+      p.z += (dz / d) * step;
+    }
+    p.stamina = Math.min(1, p.stamina + dt * 0.035);
+    if (ai && incoming && s.time > s.aiThink) {
+      s.aiThink = s.time + 0.12 + (2 - s.config.difficulty) * 0.08;
+      s.aiAim = clamp(
+        -s.players[0].x / 4 + (random(s) - 0.5) * 1.5,
+        -0.95,
+        0.95
+      );
+      if (random(s) > (s.config.difficulty === 0 ? 0.16 : 0.02))
+        p.queued = s.time + 0.9;
+    }
+    if (
+      incoming &&
+      p.queued >= s.time &&
+      (s.ball.bounces > 0 || !s.ball.serve) &&
+      s.ball.z * sign > 0.7 &&
+      s.ball.y > 0.22 &&
+      s.ball.y < 2.7 &&
+      Math.hypot(p.x - s.ball.x, p.z - s.ball.z) <
+        2.05 + (seat === 0 ? (s.config.upgrades[2] || 0) * 0.1 : 0)
+    ) {
+      const input = ai
+        ? {
+            ...inp,
+            aim: s.aiAim,
+            power: 0.4 + s.config.difficulty * 0.18,
+            shot: (random(s) > 0.8 ? 'slice' : 'flat') as Shot
+          }
+        : inp;
+      trajectory(s, seat, input, false);
+    }
+  }
+}
+export function stepMatch(s: MatchState, dt = 1 / 120) {
+  if (s.phase === 'over') return;
+  dt = clamp(dt, 0, 1 / 30);
+  s.time += dt;
+  if (s.phase === 'point') {
+    if (s.time - s.phaseAt > 1.55) setupServe(s);
+    return;
+  }
+  const server = s.score.server,
+    p = s.players[server];
+  if (s.phase === 'serve') {
+    if (
+      (s.config.ai && server === 1 && s.time - s.phaseAt > 1.35) ||
+      p.queued >= s.time
+    ) {
+      s.phase = 'toss';
+      s.phaseAt = s.time;
+      s.serveInput = {
+        ...s.inputs[server],
+        aim: server === 1 && s.config.ai ? 0 : s.inputs[server].aim
+      };
+      p.queued = 0;
+    }
+    return;
+  }
+  if (s.phase === 'toss') {
+    const t = s.time - s.phaseAt;
+    s.ball.y = 1.25 + Math.sin(Math.min(1, t / 0.65) * Math.PI * 0.65) * 1.6;
+    if (t >= 0.6) trajectory(s, server, s.serveInput || neutralInput(), true);
+    return;
+  }
+  const b = s.ball,
+    oldZ = b.z;
+  b.x += b.vx * dt;
+  b.z += b.vz * dt;
+  b.y += b.vy * dt;
+  b.vy -= GRAVITY * dt;
+  if (oldZ * b.z <= 0 && Math.abs(b.x) < 5.6 && b.y < 0.98 + BALL_RADIUS) {
+    if (b.serve && b.y > 0.86) {
+      b.netTouch = true;
+      b.vz *= 0.82;
+      b.vy = Math.max(b.vy, 1.5);
+    } else {
+      if (b.serve) fault(s, 'Net');
+      else finishPoint(s, opponent(b.last), 'Net');
+      return;
+    }
+  }
+  if (b.y <= BALL_RADIUS) {
+    b.y = BALL_RADIUS;
+    if (b.bounces === 0) {
+      const inCourt =
+        Math.abs(b.x) <= HALF_WIDTH + BALL_RADIUS &&
+        Math.abs(b.z) <= HALF_LENGTH + BALL_RADIUS &&
+        b.z * side(b.last) < 0;
+      if (b.serve) {
+        const legal =
+          inCourt &&
+          Math.abs(b.z) <= SERVICE + BALL_RADIUS &&
+          b.x * s.players[b.last].x <= BALL_RADIUS;
+        if (!legal) {
+          fault(s, 'Service out');
+          return;
+        }
+        if (b.netTouch) {
+          emit(s, 'fault', b.last, 'Let');
+          setupServe(s);
+          s.message = 'Let · serve again';
+          return;
+        }
+      } else if (!inCourt) {
+        finishPoint(s, opponent(b.last), 'Out');
+        return;
+      }
+    } else {
+      finishPoint(s, b.last, s.rally === 1 ? 'Ace' : 'Second bounce');
+      return;
+    }
+    b.bounces++;
+    b.vy =
+      Math.abs(b.vy) *
+      (s.config.surface === 'clay'
+        ? 0.72
+        : s.config.surface === 'grass'
+          ? 0.58
+          : 0.66) *
+      (1 + b.spin * 0.12);
+    b.vx *= 0.85;
+    b.vz *= s.config.surface === 'clay' ? 0.73 : 0.85;
+    emit(s, 'bounce', b.last, 'Bounce');
+  }
+  if (Math.abs(b.z) > 18 || Math.abs(b.x) > 12) {
+    finishPoint(
+      s,
+      b.bounces ? b.last : opponent(b.last),
+      b.bounces ? 'Winner' : 'Out'
+    );
+    return;
+  }
+  movePlayers(s, dt);
+}
+export function advance(s: MatchState, seconds: number) {
+  let remaining = clamp(seconds, 0, 1);
+  while (remaining > 0) {
+    const dt = Math.min(remaining, 1 / 120);
+    stepMatch(s, dt);
+    remaining -= dt;
+  }
+}

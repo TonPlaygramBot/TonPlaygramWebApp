@@ -9,6 +9,7 @@ import { mongoConnectionOptions } from './config/mongo.js';
 import { proxyUrl, proxyAgent } from './utils/proxyAgent.js';
 import http from 'http';
 import { initSocket } from './socket.js';
+import { createTennisRoyal } from './services/tennisRoyal.js';
 import { LudoBattleGame } from './logic/ludoBattleGame.js';
 import { GameRoomManager } from './gameEngine.js';
 import miningRoutes from './routes/mining.js';
@@ -665,6 +666,7 @@ const liveChatRooms = new Map();
 // Dynamic lobby tables grouped by game type and capacity
 const lobbyTables = {};
 const tableMap = new Map();
+const tennisRoyal = createTennisRoyal({io,tableMap});
 app.set('gameManager', gameManager);
 app.set('tableMap', tableMap);
 const poolStates = new Map();
@@ -1771,7 +1773,7 @@ async function settleChessStakeContract(tableId, result = {}) {
 }
 
 function maybeStartGame(table) {
-  if (table.started) return;
+  if (table.started || table.starting) return;
   if (
     table.players.length === table.maxPlayers &&
     table.ready &&
@@ -1802,6 +1804,16 @@ function maybeStartGame(table) {
             ready: [],
             meta: table.meta
           });
+          return;
+        }
+      }
+      if (table.gameType === 'tennisroyal') {
+        table.starting = true;
+        try { await tennisRoyal.prepare(table); }
+        catch (error) {
+          table.ready.clear();
+          table.starting = false;
+          io.to(table.id).emit('tennisLobbyError', {tableId:table.id,error:error.message});
           return;
         }
       }
@@ -2525,6 +2537,7 @@ function removeSocketFromLiveChat(socket) {
 }
 
 io.on('connection', (socket) => {
+  tennisRoyal.attach(socket);
   const authAccountId = resolveTpcIdentity(socket.handshake?.auth || {});
   if (authAccountId) {
     let set = userSockets.get(String(authAccountId));
