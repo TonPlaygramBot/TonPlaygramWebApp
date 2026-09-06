@@ -29,17 +29,27 @@ export async function wallRequest(
         new Error(
           payload.error || `Request failed (${response.status}). Please retry.`
         ),
-        { status: response.status }
+        {
+          status: response.status,
+          code: payload.code,
+          retryable: payload.retryable
+        }
       );
-      if (response.status < 500 && ![408, 429].includes(response.status))
+      if (
+        failure.retryable === false ||
+        response.status === 507 ||
+        (response.status < 500 && ![408, 429].includes(response.status))
+      )
         throw failure;
     } catch (error) {
       if (signal?.aborted)
         throw new DOMException('Upload paused.', 'AbortError');
       if (
-        error.status &&
-        error.status < 500 &&
-        ![408, 429].includes(error.status)
+        error.retryable === false ||
+        error.status === 507 ||
+        (error.status &&
+          error.status < 500 &&
+          ![408, 429].includes(error.status))
       )
         throw error;
       failure = error.status

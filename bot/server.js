@@ -42,7 +42,8 @@ import exchangeRoutes from './routes/exchange.js';
 import pushRoutes from './routes/push.js';
 import matchmakingRoutes from './routes/matchmaking.js';
 import protestVideoRoutes from './routes/protestVideos.js';
-import flamingoWallRoutes, { backfillFlamingoWallMedia } from './routes/flamingoWall.js';
+import flamingoWallRoutes, { backfillFlamingoWallMedia, startFlamingoWallMaintenance } from './routes/flamingoWall.js';
+import { removeRequestedWallPosts } from './migrations/removeRequestedWallPosts.js';
 import { flamingoDatabaseStorageEnabled } from './utils/flamingoStorage.js';
 import { isAllowedApiOrigin } from './utils/corsOrigin.js';
 import User from './models/User.js';
@@ -2543,6 +2544,13 @@ if (mongoUri === 'memory') {
 
 mongoose.connection.once('open', async () => {
   console.log('Connected to MongoDB');
+  try {
+    const cleanup = await removeRequestedWallPosts({ apply: true });
+    if (cleanup.deletedPosts || cleanup.deletedDiskFiles || cleanup.deletedDatabaseFiles) console.log('Requested wall post removal:', cleanup);
+  } catch (error) {
+    console.error('Requested wall post removal stopped:', error.message);
+  }
+  startFlamingoWallMaintenance();
   for (const model of models) {
     try {
       await model.syncIndexes();

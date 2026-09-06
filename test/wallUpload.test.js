@@ -123,4 +123,24 @@ describe('wall upload recovery', () => {
     ).rejects.toThrow('another session');
     expect(denied).toHaveBeenCalledTimes(1);
   });
+
+  test.each([
+    [507, { error: 'The post database is full.', code: 'WALL_DATABASE_QUOTA' }],
+    [503, { error: 'Media storage is unavailable.', retryable: false }]
+  ])(
+    'does not repeat uploads for a non-retryable storage failure (%s)',
+    async (status, payload) => {
+      const request = jest.fn(async () => ({
+        status,
+        ok: false,
+        json: async () => payload
+      }));
+      const delay = jest.fn();
+      await expect(
+        wallRequest('/upload', {}, { request, delay })
+      ).rejects.toMatchObject({ message: payload.error, status });
+      expect(request).toHaveBeenCalledTimes(1);
+      expect(delay).not.toHaveBeenCalled();
+    }
+  );
 });

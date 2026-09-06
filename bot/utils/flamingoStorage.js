@@ -1,9 +1,12 @@
 import path from 'path';
 import { createReadStream } from 'fs';
 import { access, open, readdir, rename, rm, stat } from 'fs/promises';
+import { pipeline } from 'node:stream/promises';
 import mongoose from 'mongoose';
+import { uploadExpiryMs } from './flamingoUploadStorage.js';
 
 const BUCKET_NAME = 'flamingoMedia';
+const activeDatabaseUploads = new Set();
 
 export const flamingoStorageDirectories = (primaryDirectory, legacyDirectory) => (
   [...new Set([primaryDirectory, ...(Array.isArray(legacyDirectory) ? legacyDirectory : [legacyDirectory])]
@@ -104,15 +107,64 @@ export const saveFlamingoMediaToDatabase = async (diskPath, name, metadata = {})
   const existing = await findFlamingoDatabaseMedia(safeName);
   if (existing?.length === metadata.size || (existing && metadata.size == null)) return existing;
   if (existing) await mediaBucket.delete(existing._id);
-  return new Promise((resolve, reject) => {
-    const input = createReadStream(diskPath);
-    const output = mediaBucket.openUploadStream(safeName, { metadata });
-    input.on('error', reject);
-    output.on('error', reject);
-    output.on('finish', () => resolve({ _id: output.id, filename: safeName, length: output.length }));
-    input.pipe(output);
-  });
+  const input = createReadStream(diskPath);
+  const output = mediaBucket.openUploadStream(safeName, { metadata });
+  activeDatabaseUploads.add(String(output.id));
+  try {
+    await writeFlamingoDatabaseStream(input, output, async () => {
+      // abort() alone rejects when the final metadata insert failed. Bucket
+      // deletion also clears chunks without a files document in that case.
+      await output.abort().catch(() => {});
+      await mediaBucket.delete(output.id).catch(error => {
+        if (!/File not found for id/i.test(error.message)) throw error;
+      });
+    });
+    return { _id: output.id, filename: safeName, length: output.length };
+  } finally {
+    activeDatabaseUploads.delete(String(output.id));
+  }
 };
+
+export async function writeFlamingoDatabaseStream(input, output, cleanup) {
+  try {
+    await pipeline(input, output);
+  } catch (error) {
+    try { await cleanup(); } catch (cleanupError) {
+      console.error('Flamingo failed-upload cleanup deferred:', cleanupError.message);
+    }
+    throw error;
+  }
+}
+
+// Recover historical failed GridFS transfers. Finished files, recently written
+// chunks, active transfers and explicitly referenced ids are always retained.
+export async function pruneFlamingoOrphanChunks({
+  db = database(), now = Date.now(), isReferenced = async () => true, dryRun = false
+} = {}) {
+  if (!db) return { uploads: 0, chunks: 0 };
+  const cutoff = mongoose.Types.ObjectId.createFromTime(Math.floor((now - uploadExpiryMs) / 1000));
+  const chunks = db.collection(`${BUCKET_NAME}.chunks`);
+  const files = db.collection(`${BUCKET_NAME}.files`);
+  const candidates = chunks.aggregate([
+    { $match: { files_id: { $type: 'objectId', $lt: cutoff }, _id: { $type: 'objectId' } } },
+    { $group: { _id: '$files_id', newest: { $max: '$_id' }, chunks: { $sum: 1 } } },
+    { $match: { newest: { $lt: cutoff } } },
+    { $lookup: { from: `${BUCKET_NAME}.files`, localField: '_id', foreignField: '_id', as: 'file' } },
+    { $match: { file: { $size: 0 } } },
+    { $limit: 100 }
+  ]);
+  const result = { uploads: 0, chunks: 0 };
+  for await (const candidate of candidates) {
+    const id = candidate._id;
+    if (activeDatabaseUploads.has(String(id)) || await isReferenced(id) ||
+      await chunks.findOne({ files_id: id, _id: { $gte: cutoff } }, { projection: { _id: 1 } }) ||
+      await files.findOne({ _id: id }, { projection: { _id: 1 } })) continue;
+    const removed = dryRun ? candidate.chunks : (await chunks.deleteMany({ files_id: id })).deletedCount;
+    result.uploads += 1;
+    result.chunks += removed;
+  }
+  return result;
+}
 
 export const openFlamingoDatabaseMedia = (file, options) => {
   const mediaBucket = bucket();
