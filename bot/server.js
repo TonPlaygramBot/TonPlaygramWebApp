@@ -5,12 +5,14 @@ import cors from 'cors';
 import bot from './bot.js';
 import { getInviteUrl, sendInviteNotification } from './utils/notifications.js';
 import mongoose from 'mongoose';
+import { mongoConnectionOptions } from './config/mongo.js';
 import { proxyUrl, proxyAgent } from './utils/proxyAgent.js';
 import http from 'http';
 import { initSocket } from './socket.js';
 import { attachKartRoyale } from './services/kartRoyale.js';
 import { createKartStakeService } from './services/kartStake.js';
 import KartMatch from './models/KartMatch.js';
+import { createTennisRoyal } from './services/tennisRoyal.js';
 import { LudoBattleGame } from './logic/ludoBattleGame.js';
 import { GameRoomManager } from './gameEngine.js';
 import miningRoutes from './routes/mining.js';
@@ -39,6 +41,7 @@ import pushRoutes from './routes/push.js';
 import matchmakingRoutes from './routes/matchmaking.js';
 import protestVideoRoutes from './routes/protestVideos.js';
 import flamingoWallRoutes, { backfillFlamingoWallMedia } from './routes/flamingoWall.js';
+import { flamingoDatabaseStorageEnabled } from './utils/flamingoStorage.js';
 import { isAllowedApiOrigin } from './utils/corsOrigin.js';
 import User from './models/User.js';
 import GameResult from './models/GameResult.js';
@@ -677,6 +680,7 @@ const liveChatRooms = new Map();
 // Dynamic lobby tables grouped by game type and capacity
 const lobbyTables = {};
 const tableMap = new Map();
+const tennisRoyal = createTennisRoyal({io,tableMap});
 app.set('gameManager', gameManager);
 app.set('tableMap', tableMap);
 const poolStates = new Map();
@@ -1842,6 +1846,16 @@ function maybeStartGame(table) {
           return;
         }
       }
+      if (table.gameType === 'tennisroyal') {
+        table.starting = true;
+        try { await tennisRoyal.prepare(table); }
+        catch (error) {
+          table.ready.clear();
+          table.starting = false;
+          io.to(table.id).emit('tennisLobbyError', {tableId:table.id,error:error.message});
+          return;
+        }
+      }
       if (table.matchTimeout) {
         clearTimeout(table.matchTimeout);
         table.matchTimeout = null;
@@ -2480,7 +2494,7 @@ if (mongoUri === 'memory') {
   import('mongodb-memory-server').then(async ({ MongoMemoryServer }) => {
     try {
       const mem = await MongoMemoryServer.create();
-      await mongoose.connect(mem.getUri());
+      await mongoose.connect(mem.getUri(), mongoConnectionOptions());
       console.log('Using in-memory MongoDB');
     } catch (err) {
       console.error('Failed to start in-memory MongoDB:', err.message);
@@ -2493,7 +2507,7 @@ if (mongoUri === 'memory') {
 
   const connectWithRetry = async (attempt = 1) => {
     try {
-      await mongoose.connect(mongoUri);
+      await mongoose.connect(mongoUri, mongoConnectionOptions());
     } catch (err) {
       console.error(`MongoDB connection attempt ${attempt} failed:`, err);
       const delay = Math.min(initialDelayMs * attempt, 60_000);
@@ -2522,11 +2536,15 @@ mongoose.connection.once('open', async () => {
       console.error(`Failed to sync ${model.modelName} indexes:`, err);
     }
   }
-  backfillFlamingoWallMedia()
-    .then(({ copied, missing, failed }) => {
-      console.log(`Flamingo media backup complete: ${copied} copied, ${missing} missing, ${failed} failed`);
-    })
-    .catch((err) => console.error('Failed to back up Flamingo wall media:', err));
+  if (flamingoDatabaseStorageEnabled()) {
+    backfillFlamingoWallMedia()
+      .then(({ copied, missing, failed }) => {
+        console.log(`Flamingo media backup complete: ${copied} copied, ${missing} missing, ${failed} failed`);
+      })
+      .catch((err) => console.error('Failed to back up Flamingo wall media:', err));
+  } else {
+    console.log('Flamingo media backup skipped: media is stored on the persistent disk');
+  }
   gameManager
     .loadRooms()
     .catch((err) => console.error('Failed to load game rooms:', err));
@@ -2565,6 +2583,7 @@ function removeSocketFromLiveChat(socket) {
 }
 
 io.on('connection', (socket) => {
+  tennisRoyal.attach(socket);
   const authAccountId = resolveTpcIdentity(socket.handshake?.auth || {});
   if (authAccountId) {
     let set = userSockets.get(String(authAccountId));

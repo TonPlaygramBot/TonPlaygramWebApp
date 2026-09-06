@@ -332,7 +332,30 @@ router.put('/uploads/:id', async (req, res) => {
 
 router.get('/identity', async (req, res) => {
   const user = await resolveUser(req);
-  res.json({ author: displayName(user), authorAvatar: user?.photo || '' });
+  res.json({ author: displayName(user), authorAvatar: user?.photo || '', accountId: user?.accountId || '' });
+});
+
+router.get('/profiles/:accountId', async (req, res) => {
+  const accountId = String(req.params.accountId || '').trim();
+  if (!accountId || accountId.length > 120) return res.status(400).json({ error: 'Invalid profile.' });
+  const [user, postCount, mediaCount] = await Promise.all([
+    User.findOne({ accountId }).select('accountId nickname firstName lastName photo bio createdAt').lean(),
+    FlamingoPost.countDocuments({ authorAccountId: accountId }),
+    FlamingoPost.countDocuments({ authorAccountId: accountId, attachment: { $exists: true } })
+  ]);
+  if (!user && !postCount) return res.status(404).json({ error: 'Profile not found.' });
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({
+    profile: {
+      accountId,
+      name: user ? displayName(user) : 'Community member',
+      avatar: user?.photo || '',
+      bio: user?.bio || '',
+      joinedAt: user?.createdAt,
+      postCount,
+      mediaCount
+    }
+  });
 });
 
 router.get('/health', async (_req, res) => {
@@ -412,7 +435,10 @@ router.get('/posts', async (req, res) => {
   const cursor = decodeFlamingoWallCursor(req.query.cursor);
   if (req.query.cursor && (!cursor || !mongoose.isValidObjectId(cursor.id))) return res.status(400).json({ error: 'Invalid wall cursor.' });
   const limit = flamingoWallPageSize(req.query.limit);
+  const profileAccountId = String(req.query.profile || '').trim();
+  if (profileAccountId.length > 120) return res.status(400).json({ error: 'Invalid profile.' });
   const query = paginated ? flamingoWallCursorQuery(cursor, id => new mongoose.Types.ObjectId(id)) : {};
+  if (profileAccountId) query.authorAccountId = profileAccountId;
   const result = await FlamingoPost.find(query).select('+ownerTokenHash').sort({ createdAt: -1, _id: -1 }).limit(paginated ? limit + 1 : 0).lean();
   const hasMore = paginated && result.length > limit;
   const posts = paginated ? result.slice(0, limit) : result;
