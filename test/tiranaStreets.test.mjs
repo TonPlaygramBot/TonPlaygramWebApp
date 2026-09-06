@@ -121,6 +121,7 @@ test('untrusted controls are finite, bounded, sequenced and time out', () => {
     yaw: 0,
     fast: false,
     brake: false,
+    fire: false,
     seq: 0
   });
   const input = sanitizeInput({

@@ -1,4 +1,11 @@
 import { WORLD } from "./world.mjs";
+import {
+  equipStarter,
+  initCityLife,
+  lifeAction,
+  updateCityLife,
+} from "./cityLife.mjs";
+import { difficultyOf } from "./weapons.mjs";
 
 export { WORLD };
 export const STEP = 1 / 60;
@@ -12,6 +19,7 @@ export const emptyInput = () => ({
   yaw: 0,
   fast: false,
   brake: false,
+  fire: false,
   seq: 0,
 });
 export const freshCareer = () => ({ completed: [], best: {}, credits: 0 });
@@ -143,6 +151,7 @@ export const MISSIONS = [
   },
   {
     id: "after-hours",
+    stars: 2,
     title: "After hours",
     district: "BLLOKU",
     type: "pursuit",
@@ -193,6 +202,7 @@ export const MISSIONS = [
   },
   {
     id: "city-lights",
+    stars: 4,
     title: "City lights",
     district: "TIRANA",
     type: "pursuit",
@@ -205,6 +215,50 @@ export const MISSIONS = [
       stop("mother", 0, -70),
       stop("blloku", -50, 0),
       stop("rinia", -90, 0),
+      stop("square", -50, 100),
+    ],
+  },
+  {
+    id: "rinia-rescue",
+    title: "Rinia rescue",
+    district: "QENDËR",
+    type: "combat",
+    stars: 1,
+    enemies: 3,
+    time: 240,
+    reward: 650,
+    description:
+      "Clear the armed crew with your loadout, then reach the marked extraction.",
+    stops: [stop("rinia", -85, 0)],
+  },
+  {
+    id: "boulevard-defense",
+    title: "Boulevard defense",
+    district: "LANA",
+    type: "combat",
+    stars: 3,
+    enemies: 6,
+    time: 300,
+    reward: 850,
+    description:
+      "A tougher armed crew holds the boulevard. Clear the area and extract before the patrol closes in.",
+    stops: [stop("pyramid", -75, 0)],
+  },
+  {
+    id: "five-star-escape",
+    title: "Five-star escape",
+    district: "TIRANA",
+    type: "pursuit",
+    stars: 5,
+    time: 330,
+    reward: 1100,
+    description:
+      "Military armor and soldiers join the pursuit. Cross all safe points to complete the city's hardest run.",
+    stops: [
+      stop("rinia", -90, 0),
+      stop("blloku", -40, 0),
+      stop("mother", 0, -70),
+      stop("pyramid", -80, 0),
       stop("square", -50, 100),
     ],
   },
@@ -272,6 +326,34 @@ const cameraBuildings = WORLD.buildings.map((b) => ({
   minZ: Math.min(...b.p.map((p) => p[1])),
   maxZ: Math.max(...b.p.map((p) => p[1])),
 }));
+export function lineOfSight(a, c) {
+  const dx = c.x - a.x,
+    dz = c.z - a.z;
+  for (const b of cameraBuildings) {
+    if (
+      b.h < 1.2 ||
+      Math.max(a.x, c.x) < b.minX ||
+      Math.min(a.x, c.x) > b.maxX ||
+      Math.max(a.z, c.z) < b.minZ ||
+      Math.min(a.z, c.z) > b.maxZ
+    )
+      continue;
+    if (insidePolygon(a.x, a.z, b.p) || insidePolygon(c.x, c.z, b.p))
+      return false;
+    for (let i = 0; i < b.p.length; i++) {
+      const u = b.p[i],
+        v = b.p[(i + 1) % b.p.length],
+        sx = v[0] - u[0],
+        sz = v[1] - u[1],
+        cross = dx * sz - dz * sx;
+      if (Math.abs(cross) < 1e-8) continue;
+      const t = ((u[0] - a.x) * sz - (u[1] - a.z) * sx) / cross,
+        q = ((u[0] - a.x) * dz - (u[1] - a.z) * dx) / cross;
+      if (t >= 0 && t <= 1 && q >= 0 && q <= 1) return false;
+    }
+  }
+  return true;
+}
 export function cameraDistance(x, z, y, yaw, wanted, pitch) {
   const dx = Math.sin(yaw) * wanted,
     dz = Math.cos(yaw) * wanted;
@@ -395,6 +477,7 @@ export function sanitizeInput(raw = {}) {
     yaw: number(raw.yaw, -Math.PI * 2, Math.PI * 2),
     fast: raw.fast === true,
     brake: raw.brake === true,
+    fire: raw.fire === true,
     seq: Math.max(0, Math.floor(number(raw.seq, 0, Number.MAX_SAFE_INTEGER))),
   };
 }
@@ -415,12 +498,16 @@ export function createState(
   missionId = "first-shift",
   mode = "solo",
   sport = false,
+  difficulty = "normal",
 ) {
   const mission =
     missionId === FREE_ROAM.id
       ? FREE_ROAM
       : MISSIONS.find((m) => m.id === missionId) || MISSIONS[0];
   const state = {
+    difficulty: ["easy", "normal", "hard"].includes(difficulty)
+      ? difficulty
+      : "normal",
     elapsed: 0,
     phase: "active",
     missionId: mission.id,
@@ -451,7 +538,7 @@ export function createState(
     state.cars.push(car);
   }
   // Traffic is deterministic, follows connected OSM streets and never teleports.
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 20; i++) {
     const n = (spawnNode + 137 * (i + 1)) % nodes.length,
       p = point(n),
       to = links[n][0]?.[0] ?? n;
@@ -486,22 +573,7 @@ export function createState(
       delay: 10,
     };
   }
-  if (mission.type === "pursuit")
-    state.rival = {
-      ...vehicle(
-        "patrol",
-        SPAWN.x - 18,
-        SPAWN.z + 15,
-        initialHeading,
-        "police",
-      ),
-      path: [],
-      pathIndex: 0,
-      index: 0,
-      finished: false,
-      delay: 15,
-      nextRoute: 0,
-    };
+  initCityLife(state, lifeEnvironment, mission);
   return state;
 }
 export function addPlayer(
@@ -541,6 +613,7 @@ export function addPlayer(
     lastAction: 0,
   };
   collide(p, 0.4);
+  equipStarter(p);
   state.players[p.id] = p;
 }
 export function removePlayer(state, id) {
@@ -562,8 +635,9 @@ export function control(state, id, raw) {
 }
 export function interact(state, id, action) {
   const p = state.players[id];
-  if (!p || p.finished || p.failed || state.elapsed - p.lastAction < 0.3)
-    return;
+  if (!p || p.health <= 0 || p.finished || p.failed) return;
+  if (lifeAction(state, p, action)) return;
+  if (state.elapsed - p.lastAction < 0.3) return;
   p.lastAction = state.elapsed;
   if (action === "recover") {
     const v = p.carId ? state.cars.find((c) => c.id === p.carId) : p;
@@ -607,7 +681,7 @@ export function movePlayer(state, p, dt) {
     state.elapsed - p.inputAt > 0.45
       ? { ...emptyInput(), brake: true }
       : p.input;
-  if (p.finished || p.failed) return;
+  if (p.finished || p.failed || p.health <= 0) return;
   if (p.carId) {
     const c = state.cars.find((c) => c.id === p.carId);
     if (!c) {
@@ -702,6 +776,7 @@ export function stepState(state, dt = STEP) {
         ]?.[0] ?? old;
     }
   }
+  updateCityLife(state, dt, lifeEnvironment, mission);
   const rival = state.rival;
   if (rival && state.elapsed > rival.delay) {
     if (mission.type === "pursuit") {
@@ -722,7 +797,9 @@ export function stepState(state, dt = STEP) {
       along(
         rival,
         rival.path[rival.pathIndex],
-        mission.type === "race" ? 12 : 10.5,
+        mission.type === "race"
+          ? 12 * difficultyOf(state.difficulty).rival
+          : 10.5,
         dt,
       )
     )
@@ -743,6 +820,7 @@ export function stepState(state, dt = STEP) {
       target = mission.stops[idx];
     if (
       target &&
+      !(mission.type === "combat" && state.objectiveRemaining > 0) &&
       distance(p, target) < (mission.type === "delivery" ? 12 : 17) &&
       (mission.type !== "delivery" || Math.abs(p.speed) < 2.5)
     ) {
@@ -750,17 +828,6 @@ export function stepState(state, dt = STEP) {
       if (state.mode === "coop") {
         state.teamIndex++;
         for (const m of Object.values(state.players)) m.index = state.teamIndex;
-      }
-    }
-    if (rival && mission.type === "pursuit" && state.elapsed > rival.delay) {
-      p.heat = clamp(
-        p.heat + (distance(p, rival) < 18 ? 0.17 : -0.075) * dt,
-        0,
-        1,
-      );
-      if (p.heat >= 1) {
-        p.failed = true;
-        state.message = "Caught by the patrol. Try a different route.";
       }
     }
     if (p.index >= mission.stops.length) {
@@ -774,7 +841,7 @@ export function stepState(state, dt = STEP) {
     }
     if (
       !p.finished &&
-      (state.elapsed > mission.time ||
+      (state.elapsed > mission.time * difficultyOf(state.difficulty).time ||
         (rival?.finished && state.mode !== "rivals"))
     ) {
       p.failed = true;
@@ -804,7 +871,7 @@ export function awardCareer(career, state, id) {
   const c = structuredClone(career);
   if (!c.completed.includes(m.id)) {
     c.completed.push(m.id);
-    c.credits += m.reward;
+    c.credits += Math.round(m.reward * difficultyOf(state.difficulty).reward);
   }
   c.best[m.id] = Math.min(c.best[m.id] ?? Infinity, p.finishTime);
   return c;
@@ -818,6 +885,17 @@ export function navigation(state, id) {
   if (!s) return [];
   return route(nearestNode(p.x, p.z), nearestNode(s.x, s.z));
 }
+// D1 can retain a run created by the previous game version. Upgrade that run
+// without deleting the room, changing its owner or resetting chapter progress.
+export function upgradeState(state) {
+  if(state.lifeVersion === 2)return state;
+  state.difficulty ||= "normal";
+  for(const p of Object.values(state.players))if(!p.inventory)equipStarter(p);
+  const mission=MISSIONS.find(m=>m.id===state.missionId)||FREE_ROAM;
+  if(mission.type === "pursuit")state.rival=null;
+  initCityLife(state, lifeEnvironment, mission);
+  return state;
+}
 export function publicState(state) {
   const s = structuredClone(state);
   for (const p of Object.values(s.players)) {
@@ -825,9 +903,30 @@ export function publicState(state) {
     delete p.inputAt;
     delete p.lastAction;
   }
+  for (const n of s.npcs || []) {
+    delete n.path;
+    delete n.origin;
+    delete n.nextShot;
+  }
+  for (const u of s.units || []) {
+    delete u.path;
+    delete u.nextRoute;
+  }
   if (s.rival) {
     delete s.rival.path;
     delete s.rival.nextRoute;
   }
   return s;
 }
+
+const lifeEnvironment = {
+  world: WORLD,
+  spawn: SPAWN,
+  collide,
+  emptyInput,
+  roadPoint,
+  nearestNode,
+  route,
+  along,
+  clear: lineOfSight,
+};

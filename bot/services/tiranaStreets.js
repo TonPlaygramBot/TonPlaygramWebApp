@@ -148,6 +148,7 @@ export function createTiranaStreets({
           {
             mode: payload.mode,
             missionId: payload.missionId,
+            difficulty: payload.difficulty,
             sport: c.completed.length >= 3
           },
           now()

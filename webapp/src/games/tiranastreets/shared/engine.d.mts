@@ -5,6 +5,7 @@ export type Input = {
   yaw: number;
   fast: boolean;
   brake: boolean;
+  fire: boolean;
   seq: number;
 };
 export type Career = {
@@ -33,6 +34,20 @@ export type Player = Point &
     failed: boolean;
     finishTime: number | null;
     heat: number;
+    health: number;
+    armor: number;
+    cash: number;
+    wanted: number;
+    searching?: boolean;
+    lastCrime: number;
+    lastDamage: number;
+    respawnAt: number;
+    nextShot: number;
+    reloadAt: number;
+    weapon: string;
+    inventory: Record<string, { ammo: number; reserve: number }>;
+    kills: number;
+    shopMessage: string;
     input: Input;
     inputAt: number;
     lastAction: number;
@@ -45,9 +60,41 @@ export type Mission = {
   description: string;
   time: number;
   reward: number;
+  stars?: number;
+  enemies?: number;
   stops: (Point & { name: string })[];
 };
+export type NPC = Point & {
+  id: string;
+  kind: string;
+  motion: string;
+  heading: number;
+  speed: number;
+  health: number;
+  weapon: string | null;
+  anim?: string;
+  unit?: string;
+  downUntil: number;
+};
+export type Effect = Point & {
+  id: number;
+  at: number;
+  kind: string;
+  toX: number;
+  toZ: number;
+  owner: string;
+  weapon: string;
+};
 export type State = {
+  lifeVersion:number;
+  difficulty: string;
+  shop: Point & { name: string };
+  npcs: NPC[];
+  units: Car[];
+  effects: Effect[];
+  effectSeq: number;
+  nextDispatch: number;
+  objectiveRemaining?: number;
   elapsed: number;
   phase: string;
   missionId: string;
@@ -128,6 +175,7 @@ export function createState(
   missionId?: string,
   mode?: string,
   sport?: boolean,
+  difficulty?: string,
 ): State;
 export function addPlayer(
   state: State,
@@ -144,3 +192,7 @@ export function advanceState(state: State, seconds: number): void;
 export function awardCareer(career: Career, state: State, id: string): Career;
 export function navigation(state: State, id: string): Point[];
 export function publicState(state: State): State;
+
+export function lineOfSight(a: Point, b: Point): boolean;
+
+export function upgradeState(state:State):State;

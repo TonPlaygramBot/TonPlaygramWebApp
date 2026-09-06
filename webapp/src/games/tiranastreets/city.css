@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap");
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
 .ts-game {
   --ink: #07191e;
   --paper: #eef5e9;
@@ -10,7 +10,7 @@
   background: #19343c;
   color: var(--paper);
   font:
-    14px "DM Sans",
+    14px 'DM Sans',
     sans-serif;
   overflow: hidden;
   overscroll-behavior: none;
@@ -65,7 +65,7 @@
   align-items: center;
   gap: 10px;
   font:
-    800 22px/0.83 "Barlow Condensed",
+    800 22px/0.83 'Barlow Condensed',
     sans-serif;
   letter-spacing: 0.05em;
 }
@@ -77,7 +77,7 @@
 }
 .ts-brand small {
   margin-left: auto;
-  font: 500 10px "DM Sans";
+  font: 500 10px 'DM Sans';
   letter-spacing: 0.08em;
   color: #c3d4cf;
 }
@@ -115,7 +115,7 @@
 }
 .ts-lobby h1 {
   font:
-    800 clamp(45px, 8vh, 78px)/0.89 "Barlow Condensed",
+    800 clamp(45px, 8vh, 78px)/0.89 'Barlow Condensed',
     sans-serif;
   letter-spacing: -0.012em;
   margin: 16px 0;
@@ -278,7 +278,7 @@
   background: transparent;
   color: var(--paper);
   border: 0;
-  font: 600 15px "DM Sans";
+  font: 600 15px 'DM Sans';
   max-width: 225px;
   outline-offset: 4px;
 }
@@ -347,7 +347,7 @@
   border: 1px solid #ffffff2b;
   border-radius: 5px;
   color: var(--paper);
-  font: 600 12px "DM Sans";
+  font: 600 12px 'DM Sans';
   letter-spacing: 0.12em;
   padding: 8px 10px;
   user-select: text;
@@ -399,7 +399,7 @@
   max-width: 470px;
 }
 .ts-crew-panel h1 {
-  font: 800 64px/0.9 "Barlow Condensed";
+  font: 800 64px/0.9 'Barlow Condensed';
   margin: 15px 0 20px;
 }
 .ts-crew-panel h1 em {
@@ -430,7 +430,7 @@
   display: flex;
   gap: 18px;
   align-items: center;
-  font: 700 30px "Barlow Condensed";
+  font: 700 30px 'Barlow Condensed';
   letter-spacing: 0.18em;
   user-select: text;
   touch-action: auto;
@@ -516,7 +516,7 @@
   color: #d8e9e0;
 }
 .ts-hud-header strong {
-  font: 700 22px "Barlow Condensed";
+  font: 700 22px 'Barlow Condensed';
   letter-spacing: 0.025em;
 }
 .ts-performance {
@@ -582,7 +582,7 @@
 }
 .ts-objective > span:last-child {
   margin-left: auto;
-  font: 700 22px "Barlow Condensed";
+  font: 700 22px 'Barlow Condensed';
   color: var(--lime);
 }
 .ts-map-button {
@@ -725,7 +725,7 @@
   filter: drop-shadow(0 1px 4px #0008);
 }
 .ts-speed strong {
-  font: 700 40px/0.9 "Barlow Condensed";
+  font: 700 40px/0.9 'Barlow Condensed';
   display: block;
 }
 .ts-speed small {
@@ -837,7 +837,7 @@
   margin-bottom: 18px;
 }
 .ts-modal h2 {
-  font: 700 29px/1.05 "Barlow Condensed";
+  font: 700 29px/1.05 'Barlow Condensed';
   margin: 0;
   color: var(--paper);
   max-width: 280px;
@@ -892,7 +892,7 @@
   line-height: 1.4;
 }
 .ts-setting select {
-  font: 500 12px "DM Sans";
+  font: 500 12px 'DM Sans';
   color: var(--paper);
   background: #254147;
   border: 1px solid #ffffff33;
@@ -979,7 +979,7 @@
   justify-content: center;
 }
 .ts-result h2 {
-  font: 700 36px/1 "Barlow Condensed";
+  font: 700 36px/1 'Barlow Condensed';
   margin: 14px 0;
   color: var(--paper);
 }
@@ -1002,7 +1002,7 @@
 }
 .ts-result-stats strong {
   display: block;
-  font: 700 29px "Barlow Condensed";
+  font: 700 29px 'Barlow Condensed';
   color: var(--lime);
   margin-bottom: 4px;
 }
@@ -1042,7 +1042,7 @@
   z-index: 30;
 }
 .ts-fatal h2 {
-  font: 700 38px "Barlow Condensed";
+  font: 700 38px 'Barlow Condensed';
   margin: 0;
 }
 .ts-fatal p,
@@ -1202,5 +1202,241 @@
   }
   .ts-actions {
     bottom: 23px;
+  }
+}
+
+/* Portrait combat HUD keeps the movement and driving zones separate. */
+.ts-difficulty {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 22px 12px;
+  flex-wrap: wrap;
+}
+.ts-difficulty button,
+.ts-shop-filters button {
+  border: 1px solid #657360;
+  background: #17211b;
+  color: #dbe5d8;
+  border-radius: 9px;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 11px;
+}
+.ts-difficulty button.active,
+.ts-shop-filters button.active {
+  background: #d2f566;
+  color: #15220f;
+  border-color: #d2f566;
+}
+.ts-difficulty small {
+  color: #bbc5b8;
+  font-size: 10px;
+  margin-left: auto;
+}
+.ts-wanted {
+  letter-spacing: 3px !important;
+  gap: 0 !important;
+}
+.ts-wanted b {
+  color: #637066;
+}
+.ts-wanted b.lit {
+  color: #ffe28b;
+  text-shadow: 0 0 10px #e6b95c55;
+}
+.ts-wanted.searching b.lit {
+  animation: ts-search 1.2s ease-in-out infinite alternate;
+}
+@keyframes ts-search {
+  to {
+    opacity: 0.35;
+  }
+}
+.ts-crosshair {
+  position: absolute;
+  top: 48%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 25px;
+  font-weight: 300;
+  color: #fff;
+  pointer-events: none;
+  text-shadow: 0 1px 4px #000;
+}
+.ts-combat-controls {
+  position: absolute;
+  right: 16px;
+  bottom: calc(196px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  z-index: 12;
+}
+.ts-combat-controls button {
+  min-height: 40px;
+  min-width: 76px;
+  border-radius: 15px;
+  background: #13231fd9;
+  border: 1px solid #ffffff38;
+  color: #fff;
+  font-size: 10px;
+  letter-spacing: 1px;
+  touch-action: none;
+}
+.ts-combat-controls .ts-fire {
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  background: #9b3c29e8;
+  border: 2px solid #ffb890;
+  font-weight: 800;
+  font-size: 13px;
+  box-shadow: 0 0 0 5px #58231933;
+}
+.ts-combat-controls .ts-fire:active {
+  background: #df7543;
+  transform: scale(0.97);
+}
+.ts-combat-controls button:disabled {
+  opacity: 0.4;
+}
+.ts-ammo {
+  position: absolute;
+  left: 16px;
+  bottom: calc(206px + env(safe-area-inset-bottom));
+  max-width: 58%;
+  padding: 8px 11px;
+  background: #11201cd9;
+  border: 1px solid #ffffff22;
+  border-radius: 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  pointer-events: none;
+}
+.ts-ammo strong {
+  font-size: 11px;
+}
+.ts-ammo span {
+  font-size: 17px;
+  color: #d2f566;
+  font-variant-numeric: tabular-nums;
+}
+.ts-shop-prompt {
+  position: absolute;
+  left: 16px;
+  bottom: calc(291px + env(safe-area-inset-bottom));
+  max-width: 58%;
+  background: #d2f566;
+  color: #172a14;
+  padding: 12px;
+  border: 0;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  z-index: 12;
+}
+.ts-respawn {
+  position: absolute;
+  inset: 40% 10% auto;
+  background: #13201df0;
+  text-align: center;
+  padding: 22px;
+  border-radius: 16px;
+  z-index: 14;
+}
+.ts-shop-balance {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: #d2f566;
+  font-size: 12px;
+  margin: 12px 0;
+}
+.ts-shop-filters {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.ts-shop-filters button {
+  text-transform: capitalize;
+  min-height: 36px;
+}
+.ts-shop-feedback {
+  font-size: 12px;
+  color: #e4d894;
+  min-height: 34px;
+  padding: 12px 0;
+}
+.ts-shop-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ts-shop-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #ffffff19;
+  padding: 10px;
+  border-radius: 12px;
+  background: #ffffff04;
+  flex-wrap: wrap;
+}
+.ts-shop-item.equipped {
+  border-color: #d2f56666;
+}
+.ts-shop-item > div {
+  flex: 1;
+  min-width: 130px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.ts-shop-item strong {
+  font-size: 12px;
+}
+.ts-shop-item small {
+  font-size: 10px;
+  color: #adbbb0;
+  text-transform: capitalize;
+}
+.ts-shop-item button {
+  background: #d2f566;
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 7px;
+  font-size: 9px;
+  font-weight: 700;
+  min-height: 38px;
+  color: #15250f;
+}
+.ts-shop-item button:disabled {
+  background: #3b493c;
+  color: #9ba996;
+}
+.ts-shop-note {
+  font-size: 11px !important;
+  opacity: 0.7;
+}
+@media (max-height: 690px) {
+  .ts-combat-controls {
+    bottom: 180px;
+    gap: 4px;
+  }
+  .ts-combat-controls .ts-fire {
+    width: 65px;
+    height: 65px;
+  }
+  .ts-combat-controls button {
+    min-height: 34px;
+  }
+  .ts-ammo {
+    bottom: 183px;
+  }
+  .ts-shop-prompt {
+    bottom: 255px;
   }
 }

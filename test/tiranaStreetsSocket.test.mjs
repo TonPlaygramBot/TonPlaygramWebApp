@@ -97,6 +97,21 @@ test(
       Math.hypot(moved.x - start.x, moved.z - start.z) > 0.2,
       'peer sees authoritative vehicle movement'
     );
+    // Gameplay is authored by the service; neither peer submits hits or star counts.
+    const authoritative=service.rooms.get(roomId).state;
+    const p=authoritative.players[playerId];
+    const car=authoritative.cars.find(c=>c.id===p.carId);car.speed=0;car.vx=0;car.vz=0;
+    p.carId=null;car.driver=null;Object.assign(p,authoritative.shop);
+    const bought=await ask(a,'input',{roomId,input:{seq:10},interaction:'buy:ak47VolleyAttack',actionSeq:10});
+    const cash=bought.room.state.players[playerId].cash;
+    await ask(a,'input',{roomId,input:{seq:11},interaction:'buy:ak47VolleyAttack',actionSeq:10});
+    assert.equal(service.rooms.get(roomId).state.players[playerId].cash,cash,'replayed purchase is ignored');
+    await ask(a,'input',{roomId,input:{seq:12,fire:true,yaw:0}});
+    await new Promise(resolve=>setTimeout(resolve,190));
+    const combatPeer=await ask(b,'input',{roomId,input:{seq:2}});
+    assert.ok(combatPeer.room.state.players[playerId].inventory.ak47VolleyAttack.ammo<30,'peer observes server-owned ammunition');
+    assert.ok(combatPeer.room.state.players[playerId].wanted>0,'peer observes wanted escalation');
+    assert.ok(combatPeer.room.state.effects.some(e=>e.kind==='shot'),'peer receives shot effects');
     a.disconnect();
     const resumed = await connect('socket-a');
     const joined = await ask(resumed, 'join', { roomId });

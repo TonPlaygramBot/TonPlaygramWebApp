@@ -21,3 +21,7 @@ The Pyramid, Clock Tower, mosque and civic square meshes are original artistic r
 Engine sound and mission cues are synthesized by the game; no sampled music or commercial game audio is included.
 
 See `DATA-LICENSE.md`, the adjacent author license files and `sources.json` for provenance and checksums. CC0 terms: https://creativecommons.org/publicdomain/zero/1.0/
+
+## Living city upgrade
+
+See [living/ATTRIBUTION.md](living/ATTRIBUTION.md) for the current human, car, firearms, motorcycle, substitutions and individual licenses. The current human is a Mixamo game-use asset, not CC0.

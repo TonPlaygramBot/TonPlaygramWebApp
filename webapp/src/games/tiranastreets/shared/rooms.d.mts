@@ -4,6 +4,7 @@ export type Room = {
   host: string;
   mode: string;
   missionId: string;
+  difficulty: string;
   phase: string;
   members: Record<
     string,
@@ -20,6 +21,7 @@ export type Snapshot = {
   host: string;
   mode: string;
   missionId: string;
+  difficulty: string;
   phase: string;
   members: (Member & { ready: boolean; connected: boolean })[];
   state: State | null;
@@ -29,7 +31,12 @@ export const ROOM_TTL: number;
 export function makeRoom(
   id: string,
   member: Member,
-  options: { missionId: string; mode?: string; sport?: boolean },
+  options: {
+    missionId: string;
+    mode?: string;
+    sport?: boolean;
+    difficulty?: string;
+  },
   now?: number,
 ): Room;
 export function advanceRoom(room: Room, now: number): void;
