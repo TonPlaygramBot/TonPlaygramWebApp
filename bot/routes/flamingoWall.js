@@ -3,9 +3,10 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { constants as fsConstants, createWriteStream } from 'fs';
-import { access, mkdir, readFile, rm, truncate, writeFile } from 'fs/promises';
+import { access, mkdir, readFile, rename, rm, truncate, writeFile } from 'fs/promises';
 import { createHash, randomUUID, timingSafeEqual } from 'crypto';
 import { EventEmitter } from 'events';
+import { pipeline } from 'stream/promises';
 import mongoose from 'mongoose';
 import FlamingoPost from '../models/FlamingoPost.js';
 import User from '../models/User.js';
@@ -215,8 +216,10 @@ const persistDatabaseMedia = async (diskPath, storedName, metadata) => {
   return saveFlamingoMediaToDatabase(diskPath, storedName, metadata);
 };
 const publicUploadError = error => isDatabaseQuotaError(error)
-  ? 'MongoDB media storage is temporarily full. The post was not published; please try again shortly.'
-  : 'Publishing failed. Please try again.';
+  ? 'Media storage is full. Keep your files selected and try again after storage is restored.'
+  : ['ENOSPC', 'EDQUOT'].includes(error?.code) ? 'Media storage is full. Keep your files selected and try again after storage is restored.'
+  : ['EACCES', 'EROFS'].includes(error?.code) ? 'Media storage is unavailable. Keep your files selected and try again later.'
+  : 'Publishing failed. Your selection is kept; please retry.';
 const ownsPost = (post, token) => {
   if (!post.ownerTokenHash || !token) return false;
   const supplied = Buffer.from(tokenHash(token));
@@ -233,100 +236,117 @@ export const serializeWallPosts = (posts, token = '') => posts.map(({ ownerToken
 
 export const latestWallPost = post => normalizedPost(post || null);
 
-// Large videos are uploaded in small, retryable requests. This avoids mobile and
-// reverse-proxy timeouts that occur when a multi-gigabyte request stays open.
-router.post('/uploads', async (req, res) => {
-  const size = Number(req.get('x-upload-size'));
-  if (!Number.isSafeInteger(size) || size < 1 || size > maxBytes) {
-    return res.status(413).json({ error: `The file must be smaller than ${Math.floor(maxBytes / 1024 ** 3)} GB.` });
+// Each manifest describes acknowledged byte ranges, so retrying on a phone
+// resumes the same file instead of sending gigabytes from the beginning.
+const validUploadId = id => /^[0-9a-f-]{36}$/i.test(id);
+const writeUploadMetadata = async (paths, metadata) => {
+  const temporary = `${paths.meta}.${randomUUID()}.tmp`;
+  await writeFile(temporary, JSON.stringify(metadata));
+  await rename(temporary, paths.meta);
+};
+const uploadResponse = metadata => ({
+  uploadId: metadata.id,
+  chunkBytes: metadata.chunkBytes || maxChunkBytes,
+  receivedOffsets: Object.keys(metadata.chunks || {}).map(Number),
+  received: metadata.received
+});
+const assertUploadOwner = (metadata, req) => {
+  if (!ownerToken(req) || metadata.ownerTokenHash !== tokenHash(ownerToken(req))) {
+    throw Object.assign(new Error('This upload belongs to another session.'), { status: 403 });
   }
-  // A stable client id makes initiation safe to retry when the phone sent the
-  // request but lost the response. No video bytes are transformed at any point.
+};
+router.post('/uploads', express.json({ limit: '64kb' }), async (req, res) => {
+  const size = Number(req.body?.size ?? req.get('x-upload-size'));
+  if (!Number.isSafeInteger(size) || size < 1 || size > maxBytes) return res.status(413).json({ error: 'The file is empty or exceeds the upload limit.' });
+  if (!ownerToken(req)) return res.status(400).json({ error: 'An upload owner token is required.' });
   const requestedId = String(req.get('x-upload-id') || '');
-  const id = /^[0-9a-f-]{36}$/i.test(requestedId) ? requestedId : randomUUID();
+  const id = validUploadId(requestedId) ? requestedId : randomUUID();
   const paths = sessionPaths(id);
+  const originalName = req.body?.name ?? decodeHeader(req.get('x-upload-name'), 'file');
+  const title = String(req.body?.title || '').trim().slice(0, 120);
+  const text = String(req.body?.text ?? decodeHeader(req.get('x-upload-text'))).trim();
+  if (title && !text) return res.status(400).json({ error: 'Write the article body.' });
   const metadata = {
-    id,
-    size,
-    received: 0,
-    chunks: {},
-    name: safeName(decodeHeader(req.get('x-upload-name'), 'video.mp4')),
-    type: mediaType(decodeHeader(req.get('x-upload-type'), 'application/octet-stream'), decodeHeader(req.get('x-upload-name'), 'video.mp4')),
-    duration: Math.max(0, Number(req.get('x-upload-duration')) || 0),
-    premium: req.get('x-upload-premium') === '1',
-    priceTpg: premiumPrice(req.get('x-upload-price-tpg')),
-    text: decodeHeader(req.get('x-upload-text')).slice(0, 1200),
-    ownerTokenHash: tokenHash(ownerToken(req)),
-    createdAt: Date.now()
+    id, size, received: 0, chunks: {}, chunkBytes: maxChunkBytes,
+    name: safeName(originalName),
+    type: mediaType(req.body?.type ?? decodeHeader(req.get('x-upload-type')), originalName),
+    duration: Math.max(0, Number(req.body?.duration ?? req.get('x-upload-duration')) || 0),
+    premium: req.body?.premium === true || req.get('x-upload-premium') === '1',
+    priceTpg: premiumPrice(req.body?.priceTpg ?? req.get('x-upload-price-tpg')),
+    text: text.slice(0, title ? 8000 : 1200), title: title || undefined,
+    ownerTokenHash: tokenHash(ownerToken(req)), createdAt: Date.now()
   };
-  await mkdir(pendingDirectory, { recursive: true });
   try {
-    const existing = JSON.parse(await readFile(paths.meta, 'utf8'));
-    if (existing.size === size && existing.ownerTokenHash === metadata.ownerTokenHash) {
-      return res.status(200).json({ uploadId: id, chunkBytes: maxChunkBytes });
-    }
-    return res.status(409).json({ error: 'This upload identifier is already in use.' });
-  } catch (err) {
-    if (err?.code !== 'ENOENT') throw err;
-  }
-  await Promise.all([writeFile(paths.data, ''), writeFile(paths.meta, JSON.stringify(metadata))]);
-  await truncate(paths.data, size);
-  res.status(201).json({ uploadId: id, chunkBytes: maxChunkBytes });
+    await withUploadLock(id, async () => {
+      await mkdir(pendingDirectory, { recursive: true });
+      try {
+        const existing = JSON.parse(await readFile(paths.meta, 'utf8'));
+        assertUploadOwner(existing, req);
+        if (existing.size !== size || existing.name !== metadata.name) return res.status(409).json({ error: 'This upload identifier is already in use.' });
+        if (existing.postId) {
+          const post = await FlamingoPost.findById(existing.postId).lean();
+          if (post) return res.json({ ...uploadResponse(existing), post });
+          return res.status(410).json({ error: 'This post was deleted. Select the file again to create a new post.' });
+        }
+        Object.assign(existing, { text: metadata.text, title: metadata.title, premium: metadata.premium, priceTpg: metadata.priceTpg });
+        await writeUploadMetadata(paths, existing);
+        return res.json(uploadResponse(existing));
+      } catch (error) { if (error.code !== 'ENOENT') throw error; }
+      // Recover a confirmed publication even if an old pending manifest was lost.
+      const post = await FlamingoPost.findOne({ 'attachment.url': new RegExp(`/files/${id}-`), ownerTokenHash: metadata.ownerTokenHash }).lean();
+      if (post) return res.json({ ...uploadResponse(metadata), post });
+      await writeFile(paths.data, '');
+      await truncate(paths.data, size);
+      await writeUploadMetadata(paths, metadata);
+      res.status(201).json(uploadResponse(metadata));
+    });
+  } catch (error) { if (!res.headersSent) res.status(error.status || 500).json({ error: error.status ? error.message : publicUploadError(error) }); }
 });
 
 router.put('/uploads/:id', async (req, res) => {
   const id = String(req.params.id || '');
-  if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(404).json({ error: 'Upload session not found.' });
+  if (!validUploadId(id)) return res.status(404).json({ error: 'Upload session not found.' });
   const paths = sessionPaths(id);
+  const offset = Number(req.get('x-upload-offset'));
+  const contentLength = Number(req.get('content-length'));
   try {
-    const offset = Number(req.get('x-upload-offset'));
-    const contentLength = Number(req.get('content-length'));
-    if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(contentLength) || contentLength < 1 || contentLength > maxChunkBytes) {
-      return res.status(413).json({ error: 'The video chunk is too large.' });
-    }
-    const metadata = await withUploadLock(id, async () => {
-      const metadata = JSON.parse(await readFile(paths.meta, 'utf8'));
-      const expectedLength = Math.min(maxChunkBytes, metadata.size - offset);
-      if (offset >= metadata.size || offset % maxChunkBytes !== 0 || contentLength !== expectedLength) throw Object.assign(new Error('The video chunk is out of range.'), { status: 409 });
-      return metadata;
-    });
-    const key = String(offset);
-    let received = 0;
-    if (!metadata.chunks?.[key]) {
-      // Stream straight to the preallocated range instead of buffering every
-      // chunk in RAM first. Disk writes now overlap the network transfer and a
-      // busy server can sustain parallel phone uploads without memory spikes.
-      const output = createWriteStream(paths.data, { flags: 'r+', start: offset });
-      await new Promise((resolve, reject) => {
-        req.on('data', chunk => {
-          received += chunk.length;
-          if (received > contentLength) req.destroy(new Error('Invalid chunk length.'));
-        });
-        req.on('error', reject);
-        output.on('error', reject);
-        output.on('finish', resolve);
-        req.pipe(output);
-      });
-      if (received !== contentLength) throw new Error('Incomplete chunk.');
-    } else {
-      // Drain a retried chunk that the server has already committed.
-      for await (const chunk of req) received += chunk.length;
-      if (received !== contentLength) throw new Error('Incomplete chunk.');
-    }
-    const result = await withUploadLock(id, async () => {
-      const latest = JSON.parse(await readFile(paths.meta, 'utf8'));
-      if (!latest.chunks?.[key]) {
-        latest.chunks ||= {};
-        latest.chunks[key] = received;
-        latest.received += received;
-        await writeFile(paths.meta, JSON.stringify(latest));
+    // Serialize retries of the same range, while distinct ranges stream in parallel.
+    const result = await withUploadLock(`${id}:${offset}`, async () => {
+      const metadata = await withUploadLock(id, async () => JSON.parse(await readFile(paths.meta, 'utf8')));
+      assertUploadOwner(metadata, req);
+      const chunkBytes = metadata.chunkBytes || maxChunkBytes;
+      const expectedLength = Math.min(chunkBytes, metadata.size - offset);
+      if (!Number.isSafeInteger(offset) || offset < 0 || offset >= metadata.size || offset % chunkBytes !== 0 || contentLength !== expectedLength) throw Object.assign(new Error('The upload chunk is out of range.'), { status: 409 });
+      const key = String(offset);
+      let received = 0;
+      if (!metadata.chunks?.[key]) {
+        const output = createWriteStream(paths.data, { flags: 'r+', start: offset });
+        // The async iterator enforces the bound before bytes reach the disk;
+        // pipeline destroys both streams on disconnect, releasing the file handle.
+        await pipeline(req, async function* (source) {
+          for await (const chunk of source) {
+            received += chunk.length;
+            if (received > contentLength) throw new Error('Invalid chunk length.');
+            yield chunk;
+          }
+        }, output);
+      } else {
+        for await (const chunk of req) received += chunk.length;
       }
-      return { received: latest.received, complete: latest.received === latest.size };
+      if (received !== contentLength) throw new Error('Incomplete chunk.');
+      return withUploadLock(id, async () => {
+        const latest = JSON.parse(await readFile(paths.meta, 'utf8'));
+        if (!latest.chunks?.[key]) {
+          latest.chunks ||= {}; latest.chunks[key] = received; latest.received += received;
+          await writeUploadMetadata(paths, latest);
+        }
+        return { received: latest.received, complete: latest.received === latest.size };
+      });
     });
     res.json(result);
-  } catch (err) {
-    if (err?.code === 'ENOENT') return res.status(404).json({ error: 'Upload session not found.' });
-    res.status(err?.status || 400).json({ error: err.message || 'The video chunk failed.' });
+  } catch (error) {
+    if (req.destroyed) return;
+    res.status(error.code === 'ENOENT' ? 404 : error.status || 400).json({ error: error.code === 'ENOENT' ? 'Upload session not found. Tap Publish to restart it.' : error.message || 'The upload chunk failed.' });
   }
 });
 
@@ -359,60 +379,58 @@ router.get('/profiles/:accountId', async (req, res) => {
 });
 
 router.get('/health', async (_req, res) => {
-  try {
-    if (mongoose.connection.readyState !== 1 || !mongoose.connection.db) throw new Error('database disconnected');
-    await Promise.all([
-      mongoose.connection.db.command({ ping: 1 }),
-      mkdir(uploadDirectory, { recursive: true }),
-      access(uploadDirectory, fsConstants.R_OK | fsConstants.W_OK)
-    ]);
-    res.setHeader('Cache-Control', 'no-store');
-    res.json({ ok: true, database: 'connected', mediaStorage: 'available' });
-  } catch {
-    res.setHeader('Cache-Control', 'no-store');
-    res.status(503).json({ ok: false, database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected', mediaStorage: 'unavailable' });
-  }
+  res.setHeader('Cache-Control', 'no-store');
+  let database = 'disconnected';
+  let mediaStorage = 'unavailable';
+  await Promise.all([
+    (async () => {
+      if (mongoose.connection.readyState === 1 && mongoose.connection.db) {
+        await mongoose.connection.db.command({ ping: 1 });
+        database = 'connected';
+      }
+    })().catch(() => {}),
+    (async () => {
+      // Check access only after creating the directory, including on first boot.
+      await mkdir(uploadDirectory, { recursive: true });
+      await access(uploadDirectory, fsConstants.R_OK | fsConstants.W_OK);
+      mediaStorage = 'available';
+    })().catch(() => {})
+  ]);
+  const ok = database === 'connected' && mediaStorage === 'available';
+  res.status(ok ? 200 : 503).json({ ok, database, mediaStorage });
 });
 
 router.post('/uploads/:id/complete', async (req, res) => {
   const id = String(req.params.id || '');
+  if (!validUploadId(id)) return res.status(404).json({ error: 'Upload session not found.' });
   const paths = sessionPaths(id);
   try {
-    const metadata = JSON.parse(await readFile(paths.meta, 'utf8'));
-    // Completing an upload is idempotent. Mobile clients retry this request
-    // when a response is lost, so retain the tiny session manifest and return
-    // the post that was already created instead of reporting a false 404 after
-    // the video reached 100%.
-    if (metadata.postId) {
-      const existingPost = await FlamingoPost.findById(metadata.postId).lean();
-      if (existingPost) return res.status(200).json({ post: existingPost });
-    }
-    const existingPost = await FlamingoPost.findOne({ 'attachment.url': new RegExp(`/files/${id}-`) }).lean();
-    if (existingPost) return res.status(200).json({ post: existingPost });
-    if (metadata.received !== metadata.size) return res.status(409).json({ error: 'The video has not finished uploading.', received: metadata.received });
-    const storedName = `${id}-${metadata.name}`;
-    const diskPath = path.join(uploadDirectory, storedName);
-    await commitFlamingoMedia(paths.data, diskPath, metadata.size);
-    const databaseFile = await persistDatabaseMedia(diskPath, storedName, {
-      contentType: metadata.type, originalName: metadata.name, size: metadata.size
+    // A timed-out completion can still be saving media. Join it under the
+    // session lock before checking for its post, instead of creating a duplicate.
+    const post = await withUploadLock(id, async () => {
+      const metadata = JSON.parse(await readFile(paths.meta, 'utf8'));
+      assertUploadOwner(metadata, req);
+      const existing = metadata.postId
+        ? await FlamingoPost.findById(metadata.postId).lean()
+        : await FlamingoPost.findOne({ 'attachment.url': new RegExp(`/files/${id}-`), ownerTokenHash: metadata.ownerTokenHash }).lean();
+      if (existing) return existing;
+      if (metadata.postId) throw Object.assign(new Error('This post was deleted.'), { status: 410 });
+      if (metadata.received !== metadata.size) throw Object.assign(new Error('The file has not finished uploading. Tap Publish to resume.'), { status: 409 });
+      const storedName = `${id}-${metadata.name}`;
+      const diskPath = path.join(uploadDirectory, storedName);
+      await commitFlamingoMedia(paths.data, diskPath, metadata.size);
+      const databaseFile = await persistDatabaseMedia(diskPath, storedName, { contentType: metadata.type, originalName: metadata.name, size: metadata.size });
+      const user = await resolveUser(req);
+      const attachment = { name: metadata.name, size: metadata.size, type: metadata.type, duration: metadata.duration, premium: metadata.premium && metadata.priceTpg > 0, priceTpg: metadata.premium ? metadata.priceTpg : 0, url: `/api/flamingo-wall/files/${storedName}`, ...(databaseFile?._id ? { databaseFileId: databaseFile._id } : {}) };
+      const created = await FlamingoPost.create({ text: metadata.text, title: metadata.title, author: displayName(user), authorAvatar: user?.photo || '', authorAccountId: user?.accountId || '', attachment, ownerTokenHash: metadata.ownerTokenHash });
+      metadata.postId = String(created._id); metadata.completedAt = Date.now();
+      await writeUploadMetadata(paths, metadata);
+      publishWallEvent('created', String(created._id));
+      return created;
     });
-    const user = await resolveUser(req);
-    const attachment = { name: metadata.name, size: metadata.size, type: metadata.type, duration: metadata.duration, premium: metadata.premium && metadata.priceTpg > 0, priceTpg: metadata.premium ? metadata.priceTpg : 0, url: `/api/flamingo-wall/files/${storedName}`, ...(databaseFile?._id ? { databaseFileId: databaseFile._id } : {}) };
-    const post = await FlamingoPost.create({ text: metadata.text, author: displayName(user), authorAvatar: user?.photo || '', authorAccountId: user?.accountId || '', attachment, ownerTokenHash: metadata.ownerTokenHash });
-    metadata.postId = String(post._id);
-    metadata.completedAt = Date.now();
-    await writeFile(paths.meta, JSON.stringify(metadata));
-    publishWallEvent('created', String(post._id));
     res.status(201).json({ post });
-  } catch (err) {
-    if (err?.code === 'ENOENT') {
-      // Completion may already have succeeded even if its response was lost.
-      // Return the existing post so a safe client retry cannot show failure.
-      const post = await FlamingoPost.findOne({ 'attachment.url': new RegExp(`/files/${id}-`) }).lean();
-      if (post) return res.status(200).json({ post });
-      return res.status(404).json({ error: 'Upload session not found. Please retry.' });
-    }
-    res.status(500).json({ error: publicUploadError(err) });
+  } catch (error) {
+    res.status(error.code === 'ENOENT' ? 404 : error.status || 500).json({ error: error.code === 'ENOENT' ? 'Upload session not found. Tap Publish to restart it.' : error.status ? error.message : publicUploadError(error) });
   }
 });
 
@@ -454,31 +472,37 @@ router.get('/latest-post', async (req, res) => {
   res.json({ post: latestWallPost(post) });
 });
 
-router.post('/posts/content', express.json({ limit: '16kb' }), async (req, res) => {
+router.post('/posts/content', express.json({ limit: '64kb' }), async (req, res) => {
   const text = String(req.body?.text || '').trim();
   const title = String(req.body?.title || '').trim();
   const question = String(req.body?.poll?.question || '').trim();
-  const options = Array.isArray(req.body?.poll?.options)
-    ? req.body.poll.options.map(option => String(option).trim()).filter(Boolean).slice(0, 4)
-    : [];
-  if (!text && !title && (!question || options.length < 2)) {
-    return res.status(400).json({ error: 'The post has no content.' });
+  const options = Array.isArray(req.body?.poll?.options) ? req.body.poll.options.map(option => String(option).trim()).filter(Boolean).slice(0, 4) : [];
+  if ((!text && (!question || options.length < 2)) || (title && !text)) return res.status(400).json({ error: 'Write your post or add a question and two choices.' });
+  const clientId = req.body?.clientId;
+  if (clientId && !validUploadId(clientId)) return res.status(400).json({ error: 'Invalid post identifier.' });
+  if (clientId && !ownerToken(req)) return res.status(400).json({ error: 'A post owner token is required.' });
+  try {
+    const user = await resolveUser(req);
+    const content = {
+      text: text.slice(0, title ? 8000 : 1200), title: title ? title.slice(0, 120) : undefined,
+      poll: question && options.length >= 2 ? { question: question.slice(0, 300), options: options.map(option => option.slice(0, 160)), votes: options.map(() => 0) } : undefined,
+      author: displayName(user).slice(0, 120), authorAvatar: user?.photo || '', authorAccountId: user?.accountId || '',
+      ownerTokenHash: tokenHash(ownerToken(req)), ...(clientId ? { clientId } : {})
+    };
+    const query = { clientId, ownerTokenHash: content.ownerTokenHash };
+    const post = clientId
+      ? await FlamingoPost.findOneAndUpdate(query, { $setOnInsert: content }, { upsert: true, new: true, runValidators: true }).lean()
+      : await FlamingoPost.create(content);
+    publishWallEvent('created', String(post._id));
+    res.status(201).json({ post });
+  } catch (error) {
+    // A concurrent request can race the unique upsert; return its confirmed post.
+    if (error.code === 11000 && clientId) {
+      const post = await FlamingoPost.findOne({ clientId, ownerTokenHash: tokenHash(ownerToken(req)) }).lean();
+      if (post) return res.json({ post });
+    }
+    res.status(500).json({ error: 'Your post could not be saved. Please retry.' });
   }
-  const user = await resolveUser(req);
-  const poll = question && options.length >= 2
-    ? { question: question.slice(0, 300), options: options.map(option => option.slice(0, 160)), votes: options.map(() => 0) }
-    : undefined;
-  const post = await FlamingoPost.create({
-    text: text.slice(0, 8000),
-    title: title ? title.slice(0, 120) : undefined,
-    poll,
-    author: displayName(user).slice(0, 120),
-    authorAvatar: user?.photo || '',
-    authorAccountId: user?.accountId || '',
-    ownerTokenHash: tokenHash(ownerToken(req))
-  });
-  publishWallEvent('created', String(post._id));
-  res.status(201).json({ post });
 });
 
 router.post('/posts', async (req, res) => {
@@ -542,11 +566,11 @@ router.post('/posts', async (req, res) => {
   req.pipe(busboy);
 });
 
-router.patch('/posts/:id', express.json({ limit: '16kb' }), async (req, res) => {
+router.patch('/posts/:id', express.json({ limit: '64kb' }), async (req, res) => {
   const post = await FlamingoPost.findById(req.params.id).select('+ownerTokenHash');
   if (!post) return res.status(404).json({ error: 'Post not found.' });
   if (!ownsPost(post, ownerToken(req))) return res.status(403).json({ error: 'Only the author can edit this post.' });
-  post.text = String(req.body?.text || '').trim().slice(0, 1200);
+  post.text = String(req.body?.text || '').trim().slice(0, post.title ? 8000 : 1200);
   await post.save();
   publishWallEvent('updated', String(post._id));
   res.json({ post: { ...post.toObject(), ownerTokenHash: undefined, canManage: true } });

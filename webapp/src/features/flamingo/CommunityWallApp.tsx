@@ -1,4 +1,4 @@
-import { ArrowLeft, Bell, PenLine } from 'lucide-react';
+import { ArrowLeft, PenLine } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import MediaWall from './MediaWall';
@@ -13,13 +13,19 @@ export default function CommunityWallApp() {
             <ArrowLeft />
           </Link>
           <span>
-            <strong>TonPlayGram Social Wall</strong>
-            <small>TonPlayGram Community</small>
+            <strong>TonPlayGram</strong>
+            <small>Social wall</small>
           </span>
         </div>
         <div className="community-wall-header-actions">
-          <button aria-label="Notifications"><Bell /></button>
-          <a href="#wall-composer" aria-label="Create a post"><PenLine /></a>
+          <button
+            type="button"
+            className="wall-header-compose"
+            aria-label="Create a post"
+            onClick={() => window.dispatchEvent(new Event('wall-compose'))}
+          >
+            <PenLine />
+          </button>
         </div>
       </header>
       <main>

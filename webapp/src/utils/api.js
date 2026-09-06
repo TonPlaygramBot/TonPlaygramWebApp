@@ -4,8 +4,10 @@ import { getNativeBridgeHeaders } from './nativeBridge';
 // so the webapp works when served by the Express server in production.
 function loadMetaEnv() {
   try {
-    // eslint-disable-next-line no-new-func
-    const resolved = Function('try { return import.meta.env || {}; } catch (e) { return {}; }')();
+    // Vite replaces direct import.meta.env references at build time. A Function
+    // string is never transformed and import.meta is invalid inside it, which
+    // silently sent static-hosted clients to their frontend instead of the API.
+    const resolved = import.meta.env;
     if (resolved && typeof resolved === 'object') return resolved;
   } catch {
     // ignore
