@@ -10,7 +10,7 @@ const gamesCatalog = [
     featured: true,
     modes: ['Explore + AI', 'Online Crews', 'Career'],
     launchLabel: 'Enter City Lobby',
-    description: 'Explore central Tirana on foot and by car. Take courier jobs, race AI rivals and build your career with online crews.'
+    description: 'Explore an active Tirana with human NPCs, cars, a weapon shop and five-star pursuits. Play nine career missions, AI rivals and online crews.'
   },
   {name:'Tennis Royal',route:'/games/tennisroyal/lobby',slug:'tennisroyal',image:'/assets/icons/tennis-royal.svg',description:'3D tennis, career tournaments and same-stake online matches.'},
   {

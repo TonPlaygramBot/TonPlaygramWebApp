@@ -1,4 +1,7 @@
 import * as THREE from "three";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+import { CityFacades, DETAIL_IDS } from "./cityVisuals";
+import { LivingVisuals } from "./livingVisuals";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { clone } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
@@ -23,6 +26,8 @@ type Actor = {
   run?: THREE.AnimationAction;
   moving?: boolean;
   wheels: THREE.Object3D[];
+  model: string;
+  walk?: THREE.AnimationAction;
 };
 
 export class CityRenderer {
@@ -49,8 +54,9 @@ export class CityRenderer {
   private routeLine: THREE.Line | null = null;
   private beacon = new THREE.Group();
   private cityChunks: THREE.Group[] = [];
-  private pedestrians: { mesh: THREE.Group; path: Point[]; offset: number }[] =
-    [];
+  private shellMaterials: THREE.MeshStandardMaterial[] = [];
+  private facades: CityFacades | null = null;
+  private living: LivingVisuals;
   private worldTextures = new Set<THREE.Texture>();
   private manualUntil = 0;
   private lastTarget = new THREE.Vector3(SPAWN.x, 0, SPAWN.z);
@@ -94,6 +100,14 @@ export class CityRenderer {
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     this.scene.add(ground);
+    const environment = new RoomEnvironment(this.renderer);
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    this.scene.environment = pmrem.fromScene(environment, 0.04).texture;
+    this.worldTextures.add(this.scene.environment);
+    environment.dispose();
+    pmrem.dispose();
+    this.living = new LivingVisuals();
+    this.scene.add(this.living.group);
     this.buildStreets();
     this.buildBlocks();
     this.buildLandmarks();
@@ -292,7 +306,13 @@ export class CityRenderer {
         buckets.set(key, { geos: colors.map(() => []), group });
       }
       const shape = new THREE.Shape(
-        b.p.map((p) => new THREE.Vector2(p[0], -p[1])),
+        b.p.map(
+          (p) =>
+            new THREE.Vector2(
+              DETAIL_IDS.has(b.id) ? cx + (p[0] - cx) * 0.73 : p[0],
+              -(DETAIL_IDS.has(b.id) ? cz + (p[1] - cz) * 0.73 : p[1]),
+            ),
+        ),
       );
       const geo = new THREE.ExtrudeGeometry(shape, {
         depth: b.h,
@@ -300,7 +320,17 @@ export class CityRenderer {
         steps: 1,
       });
       geo.rotateX(-Math.PI / 2);
+      const pos = geo.getAttribute("position"),
+        normal = geo.getAttribute("normal"),
+        uv = geo.getAttribute("uv");
+      for (let i = 0; i < pos.count; i++)
+        uv.setXY(
+          i,
+          (Math.abs(normal.getX(i)) > 0.5 ? pos.getZ(i) : pos.getX(i)) / 5,
+          Math.abs(normal.getY(i)) > 0.5 ? pos.getZ(i) / 5 : pos.getY(i) / 5,
+        );
       buckets.get(key)!.geos[Number(b.id) % colors.length].push(geo);
+      if (DETAIL_IDS.has(b.id)) continue;
       // Window ribbons follow actual facades; geometry is merged, not thousands of draw calls.
       for (let i = 0; i < b.p.length; i++) {
         const a = b.p[i],
@@ -319,7 +349,9 @@ export class CityRenderer {
     }
     for (const bucket of buckets.values())
       bucket.geos.forEach((geos, i) => {
-        const mesh = this.merged(geos, this.material(colors[i]), bucket.group);
+        const material = this.material(colors[i]);
+        this.shellMaterials.push(material);
+        const mesh = this.merged(geos, material, bucket.group);
         if (mesh) mesh.castShadow = true;
       });
     this.merged(
@@ -577,18 +609,41 @@ export class CityRenderer {
   }
   async load(onProgress?: (message: string) => void) {
     const loader = new GLTFLoader();
-    const files = ["character", "sedan", "sedan-sports", "taxi", "police"];
+    const files = [
+      "character",
+      "sedan",
+      "sedan-sports",
+      "taxi",
+      "police",
+      "city-car",
+      "motorbike",
+      "military-suv",
+    ];
     await Promise.all(
       files.map(async (name) => {
-        const gltf = await loader.loadAsync(ASSETS + name + ".glb");
+        const file =
+          name === "character"
+            ? "living/human"
+            : ["city-car", "motorbike", "military-suv"].includes(name)
+              ? "living/" + name
+              : name;
+        const gltf = await loader.loadAsync(ASSETS + file + ".glb");
         if (this.disposed) {
           this.disposeObject(gltf.scene);
           return;
         }
+        if (name === "city-car") this.mergeCarSurfaces(gltf.scene);
+        if (name === "motorbike") gltf.scene.rotation.y = -Math.PI / 2;
+        gltf.scene.updateMatrixWorld(true);
         const box = new THREE.Box3().setFromObject(gltf.scene),
           size = box.getSize(new THREE.Vector3()),
           center = box.getCenter(new THREE.Vector3());
-        const scale = name === "character" ? 1.78 / size.y : 4.25 / size.z;
+        const scale =
+          name === "character"
+            ? 1.78 / size.y
+            : name === "motorbike"
+              ? 2.1 / Math.max(size.x, size.z)
+              : 4.25 / size.z;
         const wrapper = new THREE.Group();
         gltf.scene.position.set(
           -center.x * scale,
@@ -604,8 +659,15 @@ export class CityRenderer {
             const mats = Array.isArray(o.material) ? o.material : [o.material];
             mats.forEach((m) => {
               if (m instanceof THREE.MeshStandardMaterial) {
-                m.roughness = name === "character" ? 0.8 : 0.37;
-                m.metalness = name === "character" ? 0 : 0.25;
+                if (!["character", "city-car"].includes(name)) {
+                  m.roughness = 0.45;
+                  m.metalness = 0.25;
+                }
+                if (
+                  name === "military-suv" &&
+                  !/wheel|tire|glass/i.test(o.name)
+                )
+                  m.color.multiply(new THREE.Color("#77885c"));
               }
             });
           }
@@ -626,87 +688,52 @@ export class CityRenderer {
       this.disposeObject(city.scene);
       return;
     }
-    // PBR city details sit on selected existing footprints. Distant blocks use the merged OSM shell.
-    const detailTemplates = city.scene.children.filter((o) =>
-      o.name.endsWith("_lod"),
-    );
-    const candidates = WORLD.buildings.filter(
-      (b) =>
-        !b.special &&
-        b.h >= 12 &&
-        b.h < 35 &&
-        Math.hypot(b.p[0][0], b.p[0][1] - 300) < 620,
-    );
-    const batches = new Map<
-      string,
-      {
-        geometry: THREE.BufferGeometry;
-        material: THREE.Material | THREE.Material[];
-        matrices: THREE.Matrix4[];
+    this.facades = new CityFacades(city.scene);
+    this.scene.add(this.facades.group);
+    const surfaces: THREE.MeshStandardMaterial[] = [];
+    city.scene.traverse((o) => {
+      if (o instanceof THREE.Mesh)
+        for (const m of Array.isArray(o.material) ? o.material : [o.material])
+          if (
+            m instanceof THREE.MeshStandardMaterial &&
+            /RedBrick|Concrete/.test(m.name) &&
+            !surfaces.includes(m)
+          )
+            surfaces.push(m);
+    });
+    this.shellMaterials.forEach((material, i) => {
+      const surface = surfaces[i % surfaces.length];
+      if (!surface) return;
+      for (const key of ["map", "normalMap", "roughnessMap"] as const) {
+        const original = surface[key];
+        if (!original) continue;
+        const texture = original.clone();
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(1, 1);
+        texture.anisotropy = 2;
+        texture.needsUpdate = true;
+        material[key] = texture;
+        this.worldTextures.add(texture);
       }
-    >();
-    let placed = 0;
-    for (const b of candidates) {
-      if (placed >= 30) break;
-      const xs = b.p.map((p) => p[0]),
-        zs = b.p.map((p) => p[1]);
-      const width = Math.max(...xs) - Math.min(...xs),
-        depth = Math.max(...zs) - Math.min(...zs);
-      if (width < 12 || width > 30 || depth < 12 || depth > 35) continue;
-      const template = detailTemplates[placed % detailTemplates.length];
-      if (!template) continue;
-      const detail = template.clone(true),
-        box = new THREE.Box3().setFromObject(detail),
-        size = box.getSize(new THREE.Vector3());
-      detail.scale.set(width / size.x, b.h / size.y, depth / size.z);
-      detail.position.set(
-        Math.min(...xs) - box.min.x * detail.scale.x,
-        0.05 - box.min.y * detail.scale.y,
-        Math.min(...zs) - box.min.z * detail.scale.z,
-      );
-      detail.updateMatrixWorld(true);
-      detail.traverse((o) => {
-        if (o instanceof THREE.Mesh) {
-          const key =
-            o.geometry.uuid +
-            JSON.stringify(
-              Array.isArray(o.material)
-                ? o.material.map((m) => m.uuid)
-                : o.material.uuid,
-            );
-          if (!batches.has(key))
-            batches.set(key, {
-              geometry: o.geometry,
-              material: o.material,
-              matrices: [],
-            });
-          batches.get(key)!.matrices.push(o.matrixWorld.clone());
-        }
-      });
-      placed++;
-    }
-    for (const batch of batches.values()) {
-      const mesh = new THREE.InstancedMesh(
-        batch.geometry,
-        batch.material,
-        batch.matrices.length,
-      );
-      batch.matrices.forEach((matrix, i) => mesh.setMatrixAt(i, matrix));
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      mesh.computeBoundingSphere();
-      this.scene.add(mesh);
-    }
+      material.normalScale.set(0.45, 0.45);
+      material.roughness = 0.85;
+      material.needsUpdate = true;
+    });
     // Keep the shared GLB source attached invisibly so all geometries/textures are disposed.
     city.scene.visible = false;
     this.scene.add(city.scene);
-    this.addPedestrians();
+
     this.ready = true;
     onProgress?.("City ready");
   }
   private actor(model: string, id: string): Actor {
     const existing = this.actors.get(id);
-    if (existing) return existing;
+    if (existing && existing.model === model) return existing;
+    if (existing) {
+      existing.mixer?.stopAllAction();
+      existing.group.removeFromParent();
+      this.actors.delete(id);
+    }
     const template = this.models.get(model);
     const group = (
       template
@@ -715,45 +742,28 @@ export class CityRenderer {
           : template.clone(true)
         : new THREE.Group()
     ) as THREE.Group;
-    const actor: Actor = { group, wheels: [] };
+    const actor: Actor = { group, wheels: [], model };
     group.traverse((o) => {
-      if (o.name.includes("wheel")) actor.wheels.push(o);
+      if (o.name.toLowerCase().includes("wheel")) actor.wheels.push(o);
     });
     if (model === "character" && this.animations.length) {
       actor.mixer = new THREE.AnimationMixer(group);
       actor.idle = actor.mixer.clipAction(
-        this.animations.find((a) => a.name === "idle")!,
+        this.animations.find((a) => a.name.toLowerCase() === "idle") ||
+          this.animations[0],
       );
       actor.run = actor.mixer.clipAction(
-        this.animations.find((a) => a.name === "sprint")!,
+        this.animations.find((a) =>
+          ["sprint", "run"].includes(a.name.toLowerCase()),
+        ) || this.animations[0],
       );
+      const walk = this.animations.find((a) => a.name.toLowerCase() === "walk");
+      if (walk) actor.walk = actor.mixer.clipAction(walk);
       actor.idle.play();
     }
     this.scene.add(group);
     this.actors.set(id, actor);
     return actor;
-  }
-  private addPedestrians() {
-    const paths = WORLD.roads.filter(
-      (r) =>
-        r.walk &&
-        Math.hypot(r.a[0], r.a[1] - 250) < 550 &&
-        Math.hypot(r.a[0] - r.b[0], r.a[1] - r.b[1]) > 12,
-    );
-    for (let i = 0; i < 18 && paths.length; i++) {
-      const r = paths[(i * 37) % paths.length],
-        a = this.actor("character", `ped-${i}`);
-      a.run?.play();
-      a.idle?.stop();
-      this.pedestrians.push({
-        mesh: a.group,
-        path: [
-          { x: r.a[0], z: r.a[1] },
-          { x: r.b[0], z: r.b[1] },
-        ],
-        offset: i * 0.31,
-      });
-    }
   }
   setRoute(points: Point[]) {
     if (this.routeLine) {
@@ -829,11 +839,18 @@ export class CityRenderer {
       for (const car of [
         ...state.cars,
         ...state.traffic,
+        ...state.units,
         ...(state.rival ? [state.rival] : []),
       ]) {
-        const a = this.actor(car.model, car.id);
+        const close = !p || Math.hypot(car.x - p.x, car.z - p.z) < 45;
+        const detail =
+          close && car.id.startsWith("car-") ? "city-car" : car.model;
+        const a = this.actor(detail, car.id);
         active.add(car.id);
-        a.group.visible = true;
+        a.group.visible =
+          !p ||
+          Math.hypot(car.x - p.x, car.z - p.z) <
+            (this.quality === "battery" ? 180 : 350);
         if (!a.group.userData.placed) {
           a.group.position.set(car.x, 0, car.z);
           a.group.rotation.y = car.heading + Math.PI;
@@ -862,6 +879,7 @@ export class CityRenderer {
         const a = this.actor("character", `player-${pl.id}`);
         active.add(`player-${pl.id}`);
         a.group.visible = !pl.carId;
+        a.group.rotation.x = pl.health <= 0 ? -Math.PI / 2 : 0;
         a.group.position.lerp(
           new THREE.Vector3(pl.x, 0.08, pl.z),
           a.group.userData.placed ? Math.min(1, dt * 20) : 1,
@@ -881,26 +899,92 @@ export class CityRenderer {
           a.moving = moving;
         }
         a.mixer?.update(dt * (moving ? Math.max(0.45, pl.speed / 6) : 1));
+        this.living.pose(`player-${pl.id}`, a.group, pl, state.elapsed);
       }
-      for (const [id, a] of this.actors)
-        if (!active.has(id) && !id.startsWith("ped-")) a.group.visible = false;
+      const citizens = [...state.npcs].sort(
+        (a, b) =>
+          Math.hypot(a.x - (p?.x || 0), a.z - (p?.z || 0)) -
+          Math.hypot(b.x - (p?.x || 0), b.z - (p?.z || 0)),
+      );
+      let rendered = 0;
+      for (const n of citizens) {
+        if (
+          n.motion === "drive" ||
+          Math.hypot(n.x - (p?.x || 0), n.z - (p?.z || 0)) >
+            (this.quality === "battery" ? 85 : 180) ||
+          rendered++ > (this.quality === "battery" ? 12 : 22)
+        )
+          continue;
+        const id = `npc-${n.id}`,
+          a = this.actor("character", id);
+        active.add(id);
+        a.group.visible = true;
+        a.group.position.lerp(
+          new THREE.Vector3(n.x, n.motion === "cycle" ? -0.18 : 0.06, n.z),
+          a.group.userData.placed ? Math.min(1, dt * 12) : 1,
+        );
+        a.group.userData.placed = true;
+        a.group.rotation.set(
+          n.health <= 0 ? -Math.PI / 2 : 0,
+          n.heading + Math.PI,
+          0,
+        );
+        const moving = n.speed > 0.15 && n.health > 0;
+        if (a.moving !== moving) {
+          (moving ? a.walk || a.run : a.idle)?.reset().fadeIn(0.2).play();
+          (moving ? a.idle : a.walk || a.run)?.fadeOut(0.2);
+          a.moving = moving;
+        }
+        a.mixer?.update(dt * (n.anim === "run" ? 1.8 : 1));
+        this.living.pose(id, a.group, n, state.elapsed);
+        if (n.motion === "cycle" && n.health > 0) {
+          const bikeId = `bike-${n.id}`,
+            bike = this.actor("motorbike", bikeId);
+          active.add(bikeId);
+          bike.group.visible = true;
+          bike.group.position.copy(a.group.position);
+          bike.group.position.y = 0;
+          bike.group.rotation.y = n.heading + Math.PI;
+          this.seated(a.group, state.elapsed, true);
+        }
+      }
+      // Visible drivers give nearby moving traffic a human occupant.
+      for (const car of state.traffic) {
+        if (!p || Math.hypot(car.x - p.x, car.z - p.z) > 40) continue;
+        const id = `driver-${car.id}`,
+          a = this.actor("character", id);
+        active.add(id);
+        a.group.visible = true;
+        a.group.position.set(car.x, -0.25, car.z);
+        a.group.rotation.set(0, car.heading + Math.PI, 0);
+        a.mixer?.update(dt);
+        this.seated(a.group, state.elapsed, false);
+        a.group.scale.setScalar(0.83);
+      }
+      for (const [id, a] of this.actors) {
+        if (active.has(id)) {
+          a.group.userData.lastSeen = this.clock;
+          continue;
+        }
+        a.group.visible = false;
+        if (this.clock - (a.group.userData.lastSeen || 0) > 5) {
+          a.mixer?.stopAllAction();
+          a.mixer?.uncacheRoot(a.group);
+          a.group.removeFromParent();
+          a.group.traverse((o) => {
+            if (o instanceof THREE.SkinnedMesh) o.skeleton.dispose();
+          });
+          this.living.forget(id);
+          this.actors.delete(id);
+        }
+      }
+      this.living.update(state, p);
       if (p) {
         target.set(p.x, p.carId ? 1.1 : 1.3, p.z);
         if (p.carId && this.clock > this.manualUntil)
           this.yaw = smoothAngle(this.yaw, p.heading, Math.min(1, dt * 3));
       }
     }
-    this.pedestrians.forEach((p, i) => {
-      const a = p.path[0],
-        b = p.path[1],
-        length = Math.hypot(a.x - b.x, a.z - b.z);
-      const phase = ((this.clock * 1.1) / length + p.offset) % 2,
-        t = phase < 1 ? phase : 2 - phase;
-      p.mesh.position.set(a.x + (b.x - a.x) * t, 0.08, a.z + (b.z - a.z) * t);
-      p.mesh.rotation.y =
-        Math.atan2(b.x - a.x, b.z - a.z) + (phase < 1 ? 0 : Math.PI);
-      this.actors.get(`ped-${i}`)?.mixer?.update(dt * 0.4);
-    });
     if (lobby) {
       const pyramid = WORLD.landmarks.find((p) => p.id === "pyramid")!;
       // The initial view shows the recognizable Pyramid and its boulevard.
@@ -941,6 +1025,7 @@ export class CityRenderer {
       this.camera.fov = 52 + (p?.carId ? Math.abs(p.speed) * 0.28 : 0);
       this.camera.updateProjectionMatrix();
     }
+    this.facades?.update(target, dt, this.quality === "battery");
     this.sunlight.position.set(target.x - 85, 145, target.z - 75);
     this.sunlight.target.position.copy(target);
     for (const chunk of this.cityChunks) chunk.visible = true;
@@ -965,6 +1050,64 @@ export class CityRenderer {
       }
     }
     this.renderer.render(this.scene, this.camera);
+  }
+  private mergeCarSurfaces(root: THREE.Group) {
+    root.updateMatrixWorld(true);
+    const batches = new Map<THREE.Material, THREE.BufferGeometry[]>(),
+      remove: THREE.Mesh[] = [];
+    root.traverse((o) => {
+      if (!(o instanceof THREE.Mesh) || Array.isArray(o.material)) return;
+      let parent: THREE.Object3D | null = o,
+        wheel = false;
+      while (parent) {
+        if (/wheel|tire|rim/i.test(parent.name)) wheel = true;
+        parent = parent.parent;
+      }
+      if (wheel) return;
+      const source = o.geometry.clone(),
+        geometry = source.applyMatrix4(o.matrixWorld).toNonIndexed();
+      if (geometry !== source) source.dispose();
+      for (const key of Object.keys(geometry.attributes))
+        if (!["position", "normal", "uv"].includes(key))
+          geometry.deleteAttribute(key);
+      if (!geometry.getAttribute("normal")) geometry.computeVertexNormals();
+      if (!geometry.getAttribute("uv"))
+        geometry.setAttribute(
+          "uv",
+          new THREE.BufferAttribute(
+            new Float32Array(geometry.getAttribute("position").count * 2),
+            2,
+          ),
+        );
+      if (!batches.has(o.material)) batches.set(o.material, []);
+      batches.get(o.material)!.push(geometry);
+      remove.push(o);
+    });
+    for (const mesh of remove) mesh.removeFromParent();
+    for (const [material, geometries] of batches) {
+      const geometry = mergeGeometries(geometries, false);
+      geometries.forEach((g) => g.dispose());
+      if (geometry) root.add(new THREE.Mesh(geometry, material));
+    }
+    // Original meshes can share buffers with retained tires. Dispose only buffers no longer referenced.
+    const retained = new Set<THREE.BufferGeometry>();
+    root.traverse((o) => {
+      if (o instanceof THREE.Mesh) retained.add(o.geometry);
+    });
+    for (const mesh of remove)
+      if (!retained.has(mesh.geometry)) mesh.geometry.dispose();
+  }
+  private seated(group: THREE.Group, time: number, riding: boolean) {
+    group.traverse((o) => {
+      if (/LeftUpLeg|RightUpLeg/.test(o.name))
+        o.rotation.x =
+          -1.25 +
+          (riding
+            ? Math.sin(time * 5 + (/Left/.test(o.name) ? 0 : Math.PI)) * 0.17
+            : 0);
+      if (/LeftLeg$|RightLeg$/.test(o.name)) o.rotation.x = 1.65;
+      if (/LeftArm$|RightArm$/.test(o.name)) o.rotation.x = -1.1;
+    });
   }
   private disposeObject(root: THREE.Object3D) {
     const geos = new Set<THREE.BufferGeometry>(),
@@ -992,6 +1135,7 @@ export class CityRenderer {
   }
   destroy() {
     this.disposed = true;
+    this.living.dispose();
     this.observer.disconnect();
     for (const a of this.actors.values()) a.mixer?.stopAllAction();
     this.disposeObject(this.scene);

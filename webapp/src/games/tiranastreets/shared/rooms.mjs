@@ -2,6 +2,7 @@ import {
   MISSIONS,
   MAX_PLAYERS,
   createState,
+  upgradeState,
   addPlayer,
   removePlayer,
   control,
@@ -14,7 +15,7 @@ export const ROOM_TTL = 30 * 60 * 1000;
 export function makeRoom(
   id,
   member,
-  { missionId, mode = "rivals", sport = false } = {},
+  { missionId, mode = "rivals", sport = false, difficulty = "normal" } = {},
   now = Date.now(),
 ) {
   if (!["rivals", "coop", "career"].includes(mode))
@@ -26,13 +27,16 @@ export function makeRoom(
     host: member.id,
     mode,
     missionId,
+    difficulty: ["easy", "normal", "hard"].includes(difficulty)
+      ? difficulty
+      : "normal",
     phase: mode === "career" ? "active" : "waiting",
     members: {
       [member.id]: { ...member, ready: true, lastSeen: now, actionSeq: 0 },
     },
     state:
       mode === "career"
-        ? createState([member], missionId, "career", sport)
+        ? createState([member], missionId, "career", sport, difficulty)
         : null,
     updatedAt: now,
     createdAt: now,
@@ -40,6 +44,7 @@ export function makeRoom(
   };
 }
 export function advanceRoom(room, now) {
+  if(room.state)upgradeState(room.state);
   now = Math.max(now, room.updatedAt);
   const seconds = Math.max(0, (now - room.updatedAt) / 1000);
   if (room.state && room.phase === "active") {
@@ -116,6 +121,8 @@ export function applyRoom(
       Object.values(room.members),
       room.missionId,
       room.mode,
+      false,
+      room.difficulty,
     );
     room.phase = "active";
   } else if (action === "input") {
@@ -126,7 +133,7 @@ export function applyRoom(
         payload.actionSeq > seat.actionSeq
       ) {
         seat.actionSeq = payload.actionSeq;
-        if (["vehicle", "recover"].includes(payload.action))
+        if (typeof payload.action === "string" && payload.action.length <= 80)
           interact(room.state, member.id, payload.action);
       }
     }
@@ -142,6 +149,7 @@ export function roomSnapshot(room, playerId) {
     host: room.host,
     mode: room.mode,
     missionId: room.missionId,
+    difficulty: room.difficulty,
     phase: room.phase,
     members: Object.values(room.members).map(
       ({ id, name, ready, lastSeen }) => ({

@@ -51,6 +51,14 @@ import type { Snapshot } from "./shared/rooms.mjs";
 import { CityConnection, httpTransport, type Transport } from "./network";
 import { CityInput } from "./input";
 import { CityAudio } from "./audio";
+import { Arsenal } from "./Arsenal";
+import {
+  DIFFICULTIES,
+  WEAPON_BY_ID,
+  difficultyOf,
+  type Difficulty,
+} from "./shared/weapons.mjs";
+import { wantedStars } from "./shared/cityLife.mjs";
 import type { CityRenderer } from "./renderer";
 import "./city.css";
 
@@ -134,6 +142,49 @@ function CityMap({
               fill="#ff8b5d"
             />
           ))}
+        {state && (
+          <g>
+            <rect
+              x={state.shop.x - size * 2}
+              y={state.shop.z - size * 2}
+              width={size * 4}
+              height={size * 4}
+              fill="#d2f566"
+              stroke="#14291f"
+              strokeWidth="1"
+            />
+            {large && (
+              <text
+                x={state.shop.x + 15}
+                y={state.shop.z - 12}
+                fontSize="18"
+                fill="#d2f566"
+              >
+                Arben · Arsenal
+              </text>
+            )}
+            {state.units.map((u) => (
+              <circle
+                key={u.id}
+                cx={u.x}
+                cy={u.z}
+                r={size * 1.8}
+                fill={u.model === "military-suv" ? "#e0ac59" : "#60adff"}
+              />
+            ))}
+            {state.npcs
+              .filter((n) => n.kind === "gang" && n.health > 0)
+              .map((n) => (
+                <circle
+                  key={n.id}
+                  cx={n.x}
+                  cy={n.z}
+                  r={size * 1.4}
+                  fill="#f77b6a"
+                />
+              ))}
+          </g>
+        )}
         {player && (
           <g
             transform={`translate(${player.x} ${player.z}) rotate(${(-player.heading * 180) / Math.PI})`}
@@ -185,7 +236,8 @@ export default function CityGame({
     [overlay, setOverlayState] = useState<string | null>(null),
     [mode, setMode] = useState<"solo" | "career" | "online">("solo"),
     [missionId, setMissionId] = useState("free-roam"),
-    [crewMode, setCrewMode] = useState("rivals");
+    [crewMode, setCrewMode] = useState("rivals"),
+    [difficulty, setDifficulty] = useState<Difficulty>("normal");
   const [ready, setReady] = useState(false),
     [loading, setLoading] = useState("Preparing central Tirana"),
     [fatal, setFatal] = useState(""),
@@ -252,15 +304,26 @@ export default function CityGame({
       }
     }
   };
+  const sendAction = (action: string) => {
+    if (connection.current) connection.current.interact(action);
+    else if (engine.current) {
+      // Local menus pause simulation; actions still use simulation cooldowns.
+      interact(engine.current, identity.current, action);
+      setView({ ...engine.current, players: { ...engine.current.players } });
+    }
+  };
   const actionRef = useRef<(action: string) => void>(() => {});
   actionRef.current = (action) => {
+    if (action === "arsenal") {
+      setOverlay("arsenal");
+      return;
+    }
     if (action === "pause") {
       setOverlay(overlayRef.current ? null : "pause");
       return;
     }
     if (screenRef.current !== "playing" || overlayRef.current) return;
-    if (connection.current) connection.current.interact(action);
-    else if (engine.current) interact(engine.current, identity.current, action);
+    sendAction(action);
   };
 
   useEffect(() => {
@@ -353,6 +416,7 @@ export default function CityGame({
               lastIndex = p.index;
             }
             audio.current?.update(p.speed, !!p.carId && !overlayRef.current);
+            if (!overlayRef.current) audio.current?.city(state, p, dt);
           } else audio.current?.update(0, false);
           city.render(state, identity.current, dt, !playing);
           if (uiTime > 0.1) {
@@ -454,6 +518,7 @@ export default function CityGame({
         missionId,
         "solo",
         career.completed.length >= 3,
+        difficulty,
       );
       setView(engine.current);
       setScreen("playing");
@@ -468,6 +533,7 @@ export default function CityGame({
       const response = await transportRef.current("create", {
         mode: mode === "career" ? "career" : crewMode,
         missionId,
+        difficulty,
       });
       if (!response.room)
         throw Error("The city room did not open. Please retry.");
@@ -504,6 +570,7 @@ export default function CityGame({
         const r = await transportRef.current("create", {
           mode: crewMode,
           missionId,
+          difficulty,
         });
         if (r.room) connect(r.room, r.career, generation);
       }
@@ -558,7 +625,10 @@ export default function CityGame({
     }
     setStick({ x: 0, y: 0 });
   };
-  const hold = (key: "gas" | "fast" | "brake", value: number | boolean) => ({
+  const hold = (
+    key: "gas" | "fast" | "brake" | "fire",
+    value: number | boolean,
+  ) => ({
     onPointerDown: (e: ReactPointerEvent<HTMLButtonElement>) => {
       e.preventDefault();
       e.currentTarget.setPointerCapture(e.pointerId);
@@ -644,7 +714,9 @@ export default function CityGame({
                   setError("");
                   if (id === "career")
                     setMissionId(
-                      MISSIONS[Math.min(career.completed.length, 5)].id,
+                      MISSIONS[
+                        Math.min(career.completed.length, MISSIONS.length - 1)
+                      ].id,
                     );
                   else if (id === "online" && missionId === "free-roam")
                     setMissionId(MISSIONS[0].id);
@@ -659,7 +731,9 @@ export default function CityGame({
           {mode === "career" && (
             <div className="ts-career-summary">
               <Flag size={17} />
-              <span>{career.completed.length}/6 chapters</span>
+              <span>
+                {career.completed.length}/{MISSIONS.length} chapters
+              </span>
               <strong>{career.credits} REP</strong>
               <span>
                 {career.completed.length >= 3
@@ -701,9 +775,37 @@ export default function CityGame({
                   ? "VS ARDI"
                   : selected.type === "pursuit"
                     ? "AI PURSUIT"
-                    : "COURIER"}
+                    : selected.type === "combat"
+                      ? "ARMED CREW"
+                      : "COURIER"}
               <ChevronRight size={17} />
             </span>
+          </div>
+          <div
+            className="ts-difficulty"
+            role="group"
+            aria-label="Mission difficulty"
+          >
+            {(
+              Object.entries(DIFFICULTIES) as [
+                Difficulty,
+                typeof DIFFICULTIES.normal,
+              ][]
+            ).map(([id, cfg]) => (
+              <button
+                key={id}
+                className={difficulty === id ? "active" : ""}
+                aria-pressed={difficulty === id}
+                onClick={() => setDifficulty(id)}
+              >
+                {cfg.label}
+              </button>
+            ))}
+            <small>
+              {selected.stars
+                ? `${selected.stars}★ starting pursuit`
+                : "No starting pursuit"}
+            </small>
           </div>
           {mode === "online" && (
             <div className="ts-online-options">
@@ -980,14 +1082,21 @@ export default function CityGame({
               <strong>
                 {mission.type === "free"
                   ? "Explore central Tirana"
-                  : mission.stops[player.index]?.name || "Route complete"}
+                  : mission.type === "combat" &&
+                      (view?.objectiveRemaining ?? selected.enemies ?? 0) > 0
+                    ? `${view?.objectiveRemaining ?? selected.enemies} armed rivals remaining`
+                    : mission.stops[player.index]?.name || "Route complete"}
               </strong>
             </div>
             <span>
               {mission.type === "free" ? (
                 <Compass size={19} />
               ) : (
-                clock(mission.time - (view?.elapsed || 0))
+                clock(
+                  mission.time *
+                    difficultyOf(view?.difficulty || difficulty).time -
+                    (view?.elapsed || 0),
+                )
               )}
             </span>
           </div>
@@ -1008,18 +1117,88 @@ export default function CityGame({
                 {mission.stops.length}
               </span>
             )}
-            {mission.type === "pursuit" && (
-              <span className="ts-heat">
-                <Radio size={13} /> HEAT{" "}
-                <i style={{ width: Math.max(4, player.heat * 70) }} />
+            <span
+              className={`ts-wanted ${player.searching ? "searching" : ""}`}
+              aria-label={`${wantedStars(player.wanted)} wanted stars`}
+            >
+              {[1, 2, 3, 4, 5].map((n) => (
+                <b
+                  key={n}
+                  className={n <= wantedStars(player.wanted) ? "lit" : ""}
+                >
+                  ★
+                </b>
+              ))}
+            </span>
+            {player.wanted > 0 && (
+              <span>
+                {wantedStars(player.wanted) === 5
+                  ? "MILITARY PURSUIT"
+                  : player.searching
+                    ? "SEARCHING · STAY OUT OF SIGHT"
+                    : "POLICE PURSUIT"}
               </span>
             )}
+            <span>
+              HP {Math.ceil(player.health)} · ARMOR {Math.ceil(player.armor)}
+            </span>
             {room && room.members.length > 1 && (
               <span>
                 <Users size={13} /> {room.members.length} ONLINE
               </span>
             )}
           </div>
+          {!driving && !result && (
+            <>
+              <div className="ts-crosshair" aria-hidden="true">
+                +
+              </div>
+              <div className="ts-combat-controls">
+                <button
+                  className="ts-fire"
+                  aria-label="Hold to fire toward the camera aim"
+                  disabled={!player.weapon || player.health <= 0}
+                  {...hold("fire", true)}
+                >
+                  FIRE
+                </button>
+                <button
+                  onClick={() => actionRef.current("reload")}
+                  aria-label="Reload weapon"
+                >
+                  RELOAD
+                </button>
+                <button onClick={() => setOverlay("arsenal")}>ARSENAL</button>
+              </div>
+              <div className="ts-ammo">
+                <strong>
+                  {WEAPON_BY_ID.get(player.weapon)?.label || "Unarmed"}
+                </strong>
+                <span>
+                  {player.reloadAt
+                    ? "RELOADING…"
+                    : `${player.inventory[player.weapon]?.ammo ?? 0} / ${player.inventory[player.weapon]?.reserve ?? 0}`}
+                </span>
+              </div>
+            </>
+          )}
+          {!result &&
+            view &&
+            Math.hypot(player.x - view.shop.x, player.z - view.shop.z) < 12 &&
+            !driving && (
+              <button
+                className="ts-shop-prompt"
+                onClick={() => setOverlay("arsenal")}
+              >
+                Talk to Arben · Weapon shop
+              </button>
+            )}
+          {player.health <= 0 && !result && (
+            <div className="ts-respawn">
+              Regrouping… respawn in{" "}
+              {Math.max(0, Math.ceil(player.respawnAt - (view?.elapsed || 0)))}s
+            </div>
+          )}
           {networkError && (
             <div className="ts-network-error" role="alert">
               {networkError} Controls will stop until the connection returns.
@@ -1038,8 +1217,8 @@ export default function CityGame({
                   )
                 ) : (
                   <>
-                    <CarFront size={16} /> Find a parked car and tap the car
-                    button to enter.
+                    <CarFront size={16} /> Drag to aim · FIRE to shoot · Visit
+                    Arben for equipment.
                   </>
                 )}
               </div>
@@ -1214,9 +1393,11 @@ export default function CityGame({
                     ? "MAKE IT YOURS."
                     : overlay === "map"
                       ? "CENTRAL TIRANA"
-                      : overlay === "credits"
-                        ? "BUILT FROM OPEN ASSETS"
-                        : "FIND YOUR WAY."}
+                      : overlay === "arsenal"
+                        ? "ARBEN’S ARSENAL"
+                        : overlay === "credits"
+                          ? "BUILT FROM OPEN ASSETS"
+                          : "FIND YOUR WAY."}
               </h2>
               <button
                 className="ts-icon"
@@ -1226,6 +1407,9 @@ export default function CityGame({
                 <X size={22} />
               </button>
             </div>
+            {overlay === "arsenal" && player && view && (
+              <Arsenal player={player} state={view} onAction={sendAction} />
+            )}
             {overlay === "pause" && (
               <>
                 <p>
@@ -1354,9 +1538,10 @@ export default function CityGame({
                   </p>
                 </div>
                 <p className="ts-muted">
-                  R returns you to a nearby road. Escape opens the menu. Career
-                  chapters save online; Explore + AI runs do not change your
-                  career.
+                  F fires toward your camera aim. R reloads, Q opens your
+                  arsenal and H holsters. Recover to the road from the menu.
+                  Escape opens the menu. Career chapters save online; Explore +
+                  AI runs do not change your career.
                 </p>
               </>
             )}
@@ -1412,13 +1597,13 @@ export default function CityGame({
                   </li>
                   <li>
                     <a
-                      href="https://kenney.nl/assets/mini-characters"
+                      href="https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html"
                       target="_blank"
                       rel="noreferrer"
                     >
-                      Kenney Mini Characters
+                      Adobe / Mixamo · Chess human
                     </a>
-                    <span>Animated character · CC0</span>
+                    <span>Animated human · Free game-use terms</span>
                   </li>
                   <li>
                     <a
@@ -1440,9 +1625,39 @@ export default function CityGame({
                     </a>
                     <span>Road textures · CC0</span>
                   </li>
+                  <li>
+                    <a
+                      href="https://github.com/KhronosGroup/glTF-Sample-Assets/blob/main/Models/CarConcept/README.md"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Eric Chadwick / DGG · Car Concept
+                    </a>
+                    <span>Detailed car · CC BY 4.0</span>
+                  </li>
+                  <li>
+                    <a
+                      href="/assets/tirana-streets/living/ATTRIBUTION.md"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Ludo arsenal · Individual artist credits
+                    </a>
+                    <span>Firearms · CC BY 4.0 / CC0</span>
+                  </li>
+                  <li>
+                    <a
+                      href="https://opengameart.org/content/fancy-motorcycle"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Teh_Bucket · Motorcycle
+                    </a>
+                    <span>Motorcycle · CC0</span>
+                  </li>
                 </ul>
                 <a
-                  href="/assets/tirana-streets/ATTRIBUTION.md"
+                  href="/assets/tirana-streets/living/ATTRIBUTION.md"
                   target="_blank"
                   rel="noreferrer"
                 >

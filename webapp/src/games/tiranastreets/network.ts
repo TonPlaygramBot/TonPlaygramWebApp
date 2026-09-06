@@ -45,9 +45,10 @@ export class CityConnection {
     yaw: 0,
     fast: false,
     brake: false,
+    fire: false,
     seq: 0,
   };
-  private action = "";
+  private actions: { action: string; seq: number }[] = [];
   private actionSeq = Date.now() * 1000;
   constructor(
     private transport: Transport,
@@ -59,8 +60,8 @@ export class CityConnection {
     this.input = { ...input };
   }
   interact(action: string) {
-    this.action = action;
-    this.actionSeq++;
+    if (this.actions.length < 16)
+      this.actions.push({ action, seq: ++this.actionSeq });
   }
   start() {
     this.timer = setInterval(() => void this.tick(), 125);
@@ -69,8 +70,9 @@ export class CityConnection {
   private async tick() {
     if (this.stopped || this.busy) return;
     this.busy = true;
-    const seq = this.actionSeq,
-      action = this.action;
+    const pending = this.actions[0];
+    const seq = pending?.seq ?? this.actionSeq,
+      action = pending?.action ?? "";
     try {
       const r = await this.transport("input", {
         roomId: this.roomId,
@@ -80,7 +82,7 @@ export class CityConnection {
       });
       if (this.stopped) return;
       if (r.room) this.onState(r.room, r.career);
-      if (this.actionSeq === seq) this.action = "";
+      if (pending && this.actions[0]?.seq === seq) this.actions.shift();
       this.onError("");
     } catch (e) {
       if (!this.stopped)

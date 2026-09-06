@@ -1,7 +1,7 @@
 import { emptyInput, type Input } from "./shared/engine.mjs";
 
 export class CityInput {
-  touch = { x: 0, y: 0, gas: 0, fast: false, brake: false };
+  touch = { x: 0, y: 0, gas: 0, fast: false, brake: false, fire: false };
   private keys = new Set<string>();
   private sequence = Date.now() * 1000;
   private enabled = true;
@@ -31,6 +31,9 @@ export class CityInput {
         "d",
         "e",
         "r",
+        "f",
+        "q",
+        "h",
         "Escape",
         "Shift",
       ].includes(e.key)
@@ -39,7 +42,9 @@ export class CityInput {
       this.keys.add(e.key.toLowerCase());
       if (!e.repeat) {
         if (e.key.toLowerCase() === "e") this.onAction("vehicle");
-        if (e.key.toLowerCase() === "r") this.onAction("recover");
+        if (e.key.toLowerCase() === "r") this.onAction("reload");
+        if (e.key.toLowerCase() === "q") this.onAction("arsenal");
+        if (e.key.toLowerCase() === "h") this.onAction("holster");
         if (e.key === "Escape") this.onAction("pause");
       }
     }
@@ -52,7 +57,7 @@ export class CityInput {
   };
   clear = () => {
     this.keys.clear();
-    this.touch = { x: 0, y: 0, gas: 0, fast: false, brake: false };
+    this.touch = { x: 0, y: 0, gas: 0, fast: false, brake: false, fire: false };
   };
   setEnabled(v: boolean) {
     this.enabled = v;
@@ -81,6 +86,7 @@ export class CityInput {
       yaw: Math.atan2(Math.sin(yaw), Math.cos(yaw)),
       fast: this.touch.fast || !!key("shift"),
       brake: this.touch.brake || !!key(" "),
+      fire: this.touch.fire || !!key("f"),
       seq: ++this.sequence,
     };
   }
