@@ -3,6 +3,17 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { createRequire } from 'node:module';
+import { Writable } from 'node:stream';
+
+const compression = createRequire(path.resolve('bot/package.json'))(
+  'compression'
+);
+const mockFilesystem = jest.fn();
+jest.mock('node:fs/promises', () => ({
+  ...jest.requireActual('node:fs/promises'),
+  statfs: (...args) => mockFilesystem(...args)
+}));
 
 const mockPosts = [];
 const mockCreate = jest.fn(async (content) => {
@@ -57,6 +68,7 @@ describe('wall HTTP upload and publication', () => {
     process.env.FLAMINGO_UPLOAD_CHUNK_BYTES = String(1024 ** 2);
     const { default: router } = await import('../bot/routes/flamingoWall.js');
     const app = express();
+    app.use(compression());
     app.use('/api/flamingo-wall', router);
     server = await new Promise((resolve) => {
       const active = app.listen(0, '127.0.0.1', () => resolve(active));
@@ -78,6 +90,9 @@ describe('wall HTTP upload and publication', () => {
   beforeEach(() => {
     mockPosts.length = 0;
     mockCreate.mockClear();
+    mockFilesystem.mockImplementation(
+      jest.requireActual('node:fs/promises').statfs
+    );
   });
   const start = (id, metadata) =>
     fetch(`${base}/uploads`, {
@@ -210,6 +225,106 @@ describe('wall HTTP upload and publication', () => {
     const retry = await (await send()).json();
     expect(first.post.text).toBe(text);
     expect(retry.post._id).toBe(first.post._id);
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+  });
+
+  test('refuses an upload before creating a part when capacity is exhausted and reports that capacity', async () => {
+    mockFilesystem.mockResolvedValue({ bavail: 0, bsize: 1, blocks: 1000 });
+    const log = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const id = randomUUID();
+    try {
+      const response = await start(id, {
+        name: 'large.mp4',
+        size: 555 * 1024 ** 2,
+        type: 'video/mp4'
+      });
+      expect(response.status).toBe(507);
+      expect(await response.json()).toMatchObject({
+        code: 'WALL_DISK_FULL',
+        retryable: false
+      });
+      await expect(
+        readFile(path.join(directory, '.pending', `${id}.part`))
+      ).rejects.toMatchObject({ code: 'ENOENT' });
+      const health = await (await fetch(`${base}/health`)).json();
+      expect(health).toMatchObject({
+        mediaStorage: 'full',
+        storage: { freeBytes: 0, availableBytes: 0, backup: 'disk' }
+      });
+      expect(mockCreate).not.toHaveBeenCalled();
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  test('sends the live-feed connection and changes immediately through compression middleware', async () => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 2000);
+    try {
+      const response = await fetch(`${base}/events`, {
+        signal: controller.signal,
+        headers: { 'Accept-Encoding': 'gzip' }
+      });
+      expect(response.headers.get('content-encoding')).toBeNull();
+      const reader = response.body.getReader();
+      expect(new TextDecoder().decode((await reader.read()).value)).toContain(
+        ': connected'
+      );
+      await fetch(`${base}/posts/content`, {
+        method: 'POST',
+        headers: { ...owner, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: 'A live update', clientId: randomUUID() })
+      });
+      expect(new TextDecoder().decode((await reader.read()).value)).toContain(
+        'event: wall-change'
+      );
+    } finally {
+      clearTimeout(timer);
+      controller.abort();
+    }
+  });
+
+  test('returns a disk-full response for a failed chunk and resumes the same session after recovery', async () => {
+    const id = randomUUID();
+    await start(id, { name: 'phone.jpg', size: 5, type: 'image/jpeg' });
+    const write = jest
+      .spyOn(jest.requireActual('fs'), 'createWriteStream')
+      .mockImplementationOnce(
+        () =>
+          new Writable({
+            write(_chunk, _encoding, done) {
+              done(
+                Object.assign(new Error('No space left on device'), {
+                  code: 'ENOSPC'
+                })
+              );
+            }
+          })
+      );
+    const log = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const failed = await put(id, 0, Buffer.from('photo'));
+      expect(failed.status).toBe(507);
+      expect(await failed.json()).toMatchObject({
+        code: 'WALL_DISK_FULL',
+        retryable: false
+      });
+      expect(
+        JSON.parse(
+          await readFile(path.join(directory, '.pending', `${id}.json`), 'utf8')
+        ).received
+      ).toBe(0);
+      expect(mockCreate).not.toHaveBeenCalled();
+    } finally {
+      write.mockRestore();
+      log.mockRestore();
+    }
+    expect((await put(id, 0, Buffer.from('photo'))).status).toBe(200);
+    const response = await fetch(`${base}/uploads/${id}/complete`, {
+      method: 'POST',
+      headers: owner
+    });
+    expect(response.status).toBe(201);
     expect(mockCreate).toHaveBeenCalledTimes(1);
   });
 });

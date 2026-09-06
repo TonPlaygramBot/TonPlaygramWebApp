@@ -13,7 +13,9 @@ import User from '../models/User.js';
 import { optionalAuthenticate } from '../middleware/auth.js';
 import { mediaType } from '../utils/mediaType.js';
 import { setFlamingoMediaResponseHeaders } from '../utils/flamingoMediaResponse.js';
-import { commitFlamingoMedia, findFlamingoDatabaseMedia, findFlamingoMedia, flamingoDatabaseStorageEnabled, flamingoMediaName, flamingoStorageDirectories, openFlamingoDatabaseMedia, pruneFlamingoDatabaseMediaCopies, removeFlamingoMedia, saveFlamingoMediaToDatabase } from '../utils/flamingoStorage.js';
+import { commitFlamingoMedia, findFlamingoDatabaseMedia, findFlamingoMedia, flamingoDatabaseStorageEnabled, flamingoMediaName, flamingoStorageDirectories, openFlamingoDatabaseMedia, pruneFlamingoDatabaseMediaCopies, pruneFlamingoOrphanChunks, removeFlamingoMedia, saveFlamingoMediaToDatabase } from '../utils/flamingoStorage.js';
+import { createFlamingoUploadStorage, validFlamingoUploadId } from '../utils/flamingoUploadStorage.js';
+import { flamingoUploadFailure } from '../utils/flamingoUploadErrors.js';
 import { wallMediaPostQuery } from '../utils/flamingoPostLookup.js';
 import { createFlamingoDownloadGrant, readFlamingoDownloadGrant } from '../utils/flamingoDownloadGrant.js';
 import { decodeFlamingoWallCursor, encodeFlamingoWallCursor, flamingoWallCursorQuery, flamingoWallPageSize } from '../utils/flamingoWallPagination.js';
@@ -88,6 +90,40 @@ const withUploadLock = (id, task) => {
   const current = previous.catch(() => {}).then(task);
   uploadLocks.set(id, current);
   return current.finally(() => { if (uploadLocks.get(id) === current) uploadLocks.delete(id); });
+};
+const uploadStorage = createFlamingoUploadStorage({
+  directory: uploadDirectory,
+  isBusy: id => [...uploadLocks.keys()].some(key => key === id || key.startsWith(`${id}:`)),
+  withLock: withUploadLock,
+  isPublished: async id => {
+    if (mongoose.connection.readyState !== 1) return true;
+    return Boolean(await FlamingoPost.exists({ 'attachment.url': new RegExp(`/files/${id}-`) }));
+  }
+});
+export const inspectFlamingoWallStorage = () => uploadStorage.inspect();
+let storageRecovery;
+let lastStorageRecovery = 0;
+export const recoverFlamingoWallStorage = (force = false) => {
+  if (storageRecovery) return storageRecovery;
+  if (!force && Date.now() - lastStorageRecovery < 10 * 60 * 1000) return Promise.resolve();
+  storageRecovery = (async () => {
+    const disk = await withUploadLock('$storage', () => uploadStorage.sweep());
+    const database = await pruneFlamingoOrphanChunks({
+      isReferenced: id => FlamingoPost.exists({ 'attachment.databaseFileId': id })
+    });
+    lastStorageRecovery = Date.now();
+    if (disk.removed || database.uploads) console.log('Flamingo expired upload cleanup:', { disk, database });
+    return { disk, database };
+  })().finally(() => { storageRecovery = undefined; });
+  return storageRecovery;
+};
+export const startFlamingoWallMaintenance = () => {
+  const recover = () => recoverFlamingoWallStorage(true)
+    .catch(error => console.error('Flamingo storage recovery failed:', error.message));
+  void recover();
+  const timer = setInterval(recover, 10 * 60 * 1000);
+  timer.unref();
+  return () => clearInterval(timer);
 };
 const videoPrice = duration => duration > 40 ? 300 : duration >= 20 ? 200 : 0;
 const premiumPrice = value => Math.min(1_000_000, Math.max(0, Math.floor(Number(value) || 0)));
@@ -203,11 +239,8 @@ const pruneDuplicateDatabaseMedia = () => {
   return mediaPrune;
 };
 
-const isDatabaseQuotaError = error => /space quota|exceeded.*storage|limit=storage|quota.*(?:exceed|full)/i
-  .test(String(error?.message || error || ''));
-// Do not publish a post until its original bytes are in GridFS. A local disk is
-// still retained as a fast fallback, but it may be replaced during a deploy;
-// MongoDB is the durable source that keeps yesterday's uploads retrievable.
+// The persistent disk holds the original. When GridFS backup is explicitly
+// enabled, finish that backup before publishing the public record as well.
 const persistDatabaseMedia = async (diskPath, storedName, metadata) => {
   if (!flamingoDatabaseStorageEnabled()) {
     await pruneDuplicateDatabaseMedia();
@@ -215,11 +248,11 @@ const persistDatabaseMedia = async (diskPath, storedName, metadata) => {
   }
   return saveFlamingoMediaToDatabase(diskPath, storedName, metadata);
 };
-const publicUploadError = error => isDatabaseQuotaError(error)
-  ? 'Media storage is full. Keep your files selected and try again after storage is restored.'
-  : ['ENOSPC', 'EDQUOT'].includes(error?.code) ? 'Media storage is full. Keep your files selected and try again after storage is restored.'
-  : ['EACCES', 'EROFS'].includes(error?.code) ? 'Media storage is unavailable. Keep your files selected and try again later.'
-  : 'Publishing failed. Your selection is kept; please retry.';
+const sendUploadFailure = (res, error) => {
+  const { status, ...payload } = flamingoUploadFailure(error);
+  if (status >= 500) console.error('Flamingo upload failed:', payload.code || status, error.message);
+  if (!res.headersSent && !res.destroyed) res.status(status).json(payload);
+};
 const ownsPost = (post, token) => {
   if (!post.ownerTokenHash || !token) return false;
   const supplied = Buffer.from(tokenHash(token));
@@ -238,11 +271,16 @@ export const latestWallPost = post => normalizedPost(post || null);
 
 // Each manifest describes acknowledged byte ranges, so retrying on a phone
 // resumes the same file instead of sending gigabytes from the beginning.
-const validUploadId = id => /^[0-9a-f-]{36}$/i.test(id);
+const validUploadId = validFlamingoUploadId;
 const writeUploadMetadata = async (paths, metadata) => {
   const temporary = `${paths.meta}.${randomUUID()}.tmp`;
-  await writeFile(temporary, JSON.stringify(metadata));
-  await rename(temporary, paths.meta);
+  metadata.updatedAt = Date.now();
+  try {
+    await writeFile(temporary, JSON.stringify(metadata));
+    await rename(temporary, paths.meta);
+  } finally {
+    await rm(temporary, { force: true });
+  }
 };
 const uploadResponse = metadata => ({
   uploadId: metadata.id,
@@ -277,7 +315,8 @@ router.post('/uploads', express.json({ limit: '64kb' }), async (req, res) => {
     ownerTokenHash: tokenHash(ownerToken(req)), createdAt: Date.now()
   };
   try {
-    await withUploadLock(id, async () => {
+    await recoverFlamingoWallStorage().catch(error => console.error('Flamingo storage recovery deferred:', error.message));
+    await withUploadLock('$storage', () => withUploadLock(id, async () => {
       await mkdir(pendingDirectory, { recursive: true });
       try {
         const existing = JSON.parse(await readFile(paths.meta, 'utf8'));
@@ -288,6 +327,7 @@ router.post('/uploads', express.json({ limit: '64kb' }), async (req, res) => {
           if (post) return res.json({ ...uploadResponse(existing), post });
           return res.status(410).json({ error: 'This post was deleted. Select the file again to create a new post.' });
         }
+        await uploadStorage.assertCapacity();
         Object.assign(existing, { text: metadata.text, title: metadata.title, premium: metadata.premium, priceTpg: metadata.priceTpg });
         await writeUploadMetadata(paths, existing);
         return res.json(uploadResponse(existing));
@@ -295,12 +335,18 @@ router.post('/uploads', express.json({ limit: '64kb' }), async (req, res) => {
       // Recover a confirmed publication even if an old pending manifest was lost.
       const post = await FlamingoPost.findOne({ 'attachment.url': new RegExp(`/files/${id}-`), ownerTokenHash: metadata.ownerTokenHash }).lean();
       if (post) return res.json({ ...uploadResponse(metadata), post });
-      await writeFile(paths.data, '');
-      await truncate(paths.data, size);
-      await writeUploadMetadata(paths, metadata);
+      await uploadStorage.assertCapacity(size);
+      try {
+        await writeFile(paths.data, '');
+        await truncate(paths.data, size);
+        await writeUploadMetadata(paths, metadata);
+      } catch (error) {
+        await rm(paths.data, { force: true });
+        throw error;
+      }
       res.status(201).json(uploadResponse(metadata));
-    });
-  } catch (error) { if (!res.headersSent) res.status(error.status || 500).json({ error: error.status ? error.message : publicUploadError(error) }); }
+    }));
+  } catch (error) { sendUploadFailure(res, error); }
 });
 
 router.put('/uploads/:id', async (req, res) => {
@@ -321,10 +367,10 @@ router.put('/uploads/:id', async (req, res) => {
       let received = 0;
       if (!metadata.chunks?.[key]) {
         const output = createWriteStream(paths.data, { flags: 'r+', start: offset });
-        // The async iterator enforces the bound before bytes reach the disk;
-        // pipeline destroys both streams on disconnect, releasing the file handle.
-        await pipeline(req, async function* (source) {
-          for await (const chunk of source) {
+        // Keep the HTTP response open on a disk failure so the phone receives
+        // the actionable 507, while pipeline still closes the output handle.
+        await pipeline(async function* () {
+          for await (const chunk of req.iterator({ destroyOnReturn: false })) {
             received += chunk.length;
             if (received > contentLength) throw new Error('Invalid chunk length.');
             yield chunk;
@@ -345,8 +391,8 @@ router.put('/uploads/:id', async (req, res) => {
     });
     res.json(result);
   } catch (error) {
-    if (req.destroyed) return;
-    res.status(error.code === 'ENOENT' ? 404 : error.status || 400).json({ error: error.code === 'ENOENT' ? 'Upload session not found. Tap Publish to restart it.' : error.message || 'The upload chunk failed.' });
+    req.resume();
+    sendUploadFailure(res, error);
   }
 });
 
@@ -382,6 +428,7 @@ router.get('/health', async (_req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   let database = 'disconnected';
   let mediaStorage = 'unavailable';
+  let storage;
   await Promise.all([
     (async () => {
       if (mongoose.connection.readyState === 1 && mongoose.connection.db) {
@@ -393,11 +440,12 @@ router.get('/health', async (_req, res) => {
       // Check access only after creating the directory, including on first boot.
       await mkdir(uploadDirectory, { recursive: true });
       await access(uploadDirectory, fsConstants.R_OK | fsConstants.W_OK);
-      mediaStorage = 'available';
+      storage = { ...await uploadStorage.inspect(), backup: flamingoDatabaseStorageEnabled() ? 'gridfs' : 'disk' };
+      mediaStorage = storage.availableBytes > 0 ? 'available' : 'full';
     })().catch(() => {})
   ]);
   const ok = database === 'connected' && mediaStorage === 'available';
-  res.status(ok ? 200 : 503).json({ ok, database, mediaStorage });
+  res.status(ok ? 200 : 503).json({ ok, database, mediaStorage, storage });
 });
 
 router.post('/uploads/:id/complete', async (req, res) => {
@@ -430,7 +478,7 @@ router.post('/uploads/:id/complete', async (req, res) => {
     });
     res.status(201).json({ post });
   } catch (error) {
-    res.status(error.code === 'ENOENT' ? 404 : error.status || 500).json({ error: error.code === 'ENOENT' ? 'Upload session not found. Tap Publish to restart it.' : error.status ? error.message : publicUploadError(error) });
+    sendUploadFailure(res, error);
   }
 });
 
@@ -438,11 +486,16 @@ router.get('/events', (req, res) => {
   // Server-sent invalidations make the feed update immediately after another
   // visitor publishes. The regular feed request remains the source of truth.
   res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-store');
+  // compression() otherwise buffers small heartbeats until the proxy times
+  // out. no-transform opts this stream out, including on Render.
+  res.setHeader('Cache-Control', 'no-store, no-transform');
   res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
   res.flushHeaders?.();
-  const send = event => res.write(`event: wall-change\ndata: ${JSON.stringify(event)}\n\n`);
-  const heartbeat = setInterval(() => res.write(': keep-alive\n\n'), 20_000);
+  const write = message => { res.write(message); res.flush?.(); };
+  write(': connected\n\n');
+  const send = event => write(`event: wall-change\ndata: ${JSON.stringify(event)}\n\n`);
+  const heartbeat = setInterval(() => write(': keep-alive\n\n'), 20_000);
   wallEvents.on('change', send);
   req.on('close', () => { clearInterval(heartbeat); wallEvents.off('change', send); });
 });
@@ -501,7 +554,7 @@ router.post('/posts/content', express.json({ limit: '64kb' }), async (req, res) 
       const post = await FlamingoPost.findOne({ clientId, ownerTokenHash: tokenHash(ownerToken(req)) }).lean();
       if (post) return res.json({ post });
     }
-    res.status(500).json({ error: 'Your post could not be saved. Please retry.' });
+    sendUploadFailure(res, error);
   }
 });
 
@@ -560,7 +613,7 @@ router.post('/posts', async (req, res) => {
       res.status(201).json({ post });
     } catch (err) {
       if (upload?.diskPath) await rm(upload.diskPath, { force: true });
-      if (!res.headersSent) res.status(500).json({ error: publicUploadError(err) });
+      sendUploadFailure(res, err);
     }
   });
   req.pipe(busboy);
