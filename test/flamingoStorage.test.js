@@ -84,12 +84,14 @@ describe('Protesta Shqiptare media storage migration', () => {
     expect(flamingoDatabaseMediaQuery('', 'video.mp4', 456)).toBeNull();
   });
 
-  test('keeps database media enabled unless durable GridFS storage is explicitly disabled', () => {
-    expect(flamingoDatabaseStorageEnabled()).toBe(true);
+  test('only enables database media when GridFS backup is explicitly requested', () => {
+    expect(flamingoDatabaseStorageEnabled()).toBe(false);
     expect(flamingoDatabaseStorageEnabled('false')).toBe(false);
     expect(flamingoDatabaseStorageEnabled('off')).toBe(false);
     expect(flamingoDatabaseStorageEnabled('true')).toBe(true);
     expect(flamingoDatabaseStorageEnabled('1')).toBe(true);
+    expect(flamingoDatabaseStorageEnabled('yes')).toBe(true);
+    expect(flamingoDatabaseStorageEnabled('on')).toBe(true);
   });
 
   test('durably commits a complete upload before its public post is created', async () => {

@@ -57,12 +57,11 @@ export const findFlamingoDatabaseMedia = async (name, originalName, size, databa
   );
 };
 
-// GridFS is enabled by default so a deployment or disk replacement cannot
-// detach a wall post from its photo/video. Operators with a separately backed
-// up permanent volume may explicitly opt out, but an unset value must preserve
-// user media in the same MongoDB deployment as the FlamingoPost document.
+// The production wall stores media on its mounted persistent disk. GridFS is
+// an opt-in migration/backup mode because enabling it implicitly can exhaust
+// MongoDB storage and makes every deploy rescan irrecoverable legacy records.
 export const flamingoDatabaseStorageEnabled = (value = process.env.FLAMINGO_GRIDFS_BACKUP) => (
-  !/^(0|false|no|off)$/i.test(String(value ?? '').trim())
+  /^(1|true|yes|on)$/i.test(String(value ?? '').trim())
 );
 
 // Publishing the Mongo document before the media bytes are durably committed

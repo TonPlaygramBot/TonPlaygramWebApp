@@ -37,6 +37,7 @@ import pushRoutes from './routes/push.js';
 import matchmakingRoutes from './routes/matchmaking.js';
 import protestVideoRoutes from './routes/protestVideos.js';
 import flamingoWallRoutes, { backfillFlamingoWallMedia } from './routes/flamingoWall.js';
+import { flamingoDatabaseStorageEnabled } from './utils/flamingoStorage.js';
 import { isAllowedApiOrigin } from './utils/corsOrigin.js';
 import User from './models/User.js';
 import GameResult from './models/GameResult.js';
@@ -2482,11 +2483,15 @@ mongoose.connection.once('open', async () => {
       console.error(`Failed to sync ${model.modelName} indexes:`, err);
     }
   }
-  backfillFlamingoWallMedia()
-    .then(({ copied, missing, failed }) => {
-      console.log(`Flamingo media backup complete: ${copied} copied, ${missing} missing, ${failed} failed`);
-    })
-    .catch((err) => console.error('Failed to back up Flamingo wall media:', err));
+  if (flamingoDatabaseStorageEnabled()) {
+    backfillFlamingoWallMedia()
+      .then(({ copied, missing, failed }) => {
+        console.log(`Flamingo media backup complete: ${copied} copied, ${missing} missing, ${failed} failed`);
+      })
+      .catch((err) => console.error('Failed to back up Flamingo wall media:', err));
+  } else {
+    console.log('Flamingo media backup skipped: media is stored on the persistent disk');
+  }
   gameManager
     .loadRooms()
     .catch((err) => console.error('Failed to load game rooms:', err));
