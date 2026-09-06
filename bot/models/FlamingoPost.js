@@ -24,6 +24,7 @@ const pollSchema = new mongoose.Schema({
 const flamingoPostSchema = new mongoose.Schema({
   text: { type: String, default: '', maxlength: 8000 },
   title: { type: String, default: undefined, maxlength: 120 },
+  clientId: { type: String, default: undefined, maxlength: 36 },
   poll: { type: pollSchema, default: undefined },
   author: { type: String, required: true, maxlength: 120 },
   authorAvatar: { type: String, default: '' },
@@ -38,6 +39,7 @@ const flamingoPostSchema = new mongoose.Schema({
 });
 
 flamingoPostSchema.index({ createdAt: -1 });
+flamingoPostSchema.index({ ownerTokenHash: 1, clientId: 1 }, { unique: true, partialFilterExpression: { clientId: { $type: 'string' } } });
 flamingoPostSchema.index(
   { source: 1, sourceId: 1 },
   { unique: true, partialFilterExpression: { sourceId: { $type: 'string' } } }
