@@ -106,16 +106,16 @@ export default function PwaDownloadFrame() {
   const installLabel = pwa.installed ? 'Web app installed' : pwa.installing ? 'Opening install prompt…' : pwa.inTelegram ? 'Open in browser to install' : pwa.canInstall ? 'Install web app' : 'How to install the web app';
 
   return (
-    <section className="tpg-install" aria-labelledby="tpg-install-title">
+    <section id="install-tonplaygram" className="tpg-install" aria-labelledby="tpg-install-title">
       <header className="tpg-install__header">
         <span className="tpg-install__icon" aria-hidden="true"><Smartphone size={25} /></span>
-        <div><span className="tpg-install__eyebrow">TAKE TONPLAYGRAM WITH YOU</span><h3 id="tpg-install-title">Get TonPlaygram</h3></div>
+        <div><span className="tpg-install__eyebrow">TONPLAYGRAM ON YOUR PHONE</span><h3 id="tpg-install-title">Install TonPlayGram</h3></div>
       </header>
-      <p className="tpg-install__intro">Your games, account and wallet. One app on your phone.</p>
+      <p className="tpg-install__intro">Open TonPlayGram from your phone’s home screen. Your games, account and wallet in one app.</p>
 
       <div className="tpg-install__android">
         <div className="tpg-install__row"><strong>Android app</strong><span className="tpg-install__badge">{pwa.native ? 'INSTALLED' : 'APK'}</span></div>
-        <p>{pwa.native ? 'You are using the installed TonPlaygram app.' : 'Download and install TonPlaygram on your Android phone.'}</p>
+        <p>{pwa.native ? 'You are using the installed TonPlaygram app.' : 'Download the full TonPlayGram Android app, open the APK and confirm Install on your phone.'}</p>
         {releaseState === 'available' && androidAllowed ? (
           <a className="tpg-install__primary" href={release.url} onClick={handleDownload} rel="noopener noreferrer" target="_blank">
             <Download size={19} aria-hidden="true" />{pwa.native ? 'Download latest APK' : 'Download Android APK'}<ChevronRight size={18} aria-hidden="true" />
