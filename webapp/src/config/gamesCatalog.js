@@ -1,4 +1,5 @@
 const gamesCatalog = [
+  { name:'Table Tennis Royal', route:'/games/tabletennisroyal/lobby', slug:'tabletennisroyal', image:'/assets/icons/table-tennis-royal.svg', description:'Human players, spin rallies, a career tour and TPC online matches.' },
   {
     name: 'Tirana Streets',
     route: '/games/tiranastreets/lobby',

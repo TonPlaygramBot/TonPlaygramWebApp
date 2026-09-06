@@ -24,6 +24,9 @@ export default defineConfig({
   },
   // SPA fallback for React Router
   server: {
+    host: '0.0.0.0',
+    allowedHosts: ['terminal.local'],
+    fs: { allow: [resolve(__dirname, '..')] },
     historyApiFallback: true
   }
 });

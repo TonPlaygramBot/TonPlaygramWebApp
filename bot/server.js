@@ -9,6 +9,7 @@ import { mongoConnectionOptions } from './config/mongo.js';
 import { proxyUrl, proxyAgent } from './utils/proxyAgent.js';
 import http from 'http';
 import { initSocket } from './socket.js';
+import { createTableTennisRoyal } from './services/tabletennisRoyal.js';
 import { attachKartRoyale } from './services/kartRoyale.js';
 import { createTiranaStreets } from './services/tiranaStreets.js';
 import { createKartStakeService } from './services/kartStake.js';
@@ -683,6 +684,7 @@ const liveChatRooms = new Map();
 const lobbyTables = {};
 const tableMap = new Map();
 const tennisRoyal = createTennisRoyal({io,tableMap});
+const tabletennisRoyal = createTableTennisRoyal({io,tableMap});
 app.set('gameManager', gameManager);
 app.set('tableMap', tableMap);
 const poolStates = new Map();
@@ -1858,6 +1860,16 @@ function maybeStartGame(table) {
           return;
         }
       }
+      if (table.gameType === 'tabletennisroyal') {
+        table.starting = true;
+        try { await tabletennisRoyal.prepare(table); }
+        catch (error) {
+          table.ready.clear();
+          table.starting = false;
+          io.to(table.id).emit('tabletennisLobbyError', {tableId:table.id,error:error.message});
+          return;
+        }
+      }
       if (table.matchTimeout) {
         clearTimeout(table.matchTimeout);
         table.matchTimeout = null;
@@ -2587,6 +2599,7 @@ function removeSocketFromLiveChat(socket) {
 io.on('connection', (socket) => {
   tiranaStreets.attach(socket);
   tennisRoyal.attach(socket);
+  tabletennisRoyal.attach(socket);
   const authAccountId = resolveTpcIdentity(socket.handshake?.auth || {});
   if (authAccountId) {
     let set = userSockets.get(String(authAccountId));

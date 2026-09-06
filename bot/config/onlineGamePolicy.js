@@ -64,6 +64,7 @@ const GAME_ONLINE_POLICY = Object.freeze({
     maxPlayers: [2, 3, 4, 5, 6, 7, 8],
     allowMatchMeta: ['tableSize', 'gameMode', 'buyIn', 'mode', 'token']
   },
+  tabletennisroyal: { maxPlayers:[2], allowMatchMeta:['arena','format','mode','token'] },
   tennisroyal: { maxPlayers: [2], allowMatchMeta: ['surface', 'format', 'mode', 'token'] },
   airhockey: {
     maxPlayers: [2],
@@ -84,6 +85,8 @@ const GAME_ONLINE_POLICY = Object.freeze({
 });
 
 const GAME_TYPE_ALIASES = Object.freeze({
+  tabletennis: 'tabletennisroyal',
+  pingpong: 'tabletennisroyal',
   tennisroyale: 'tennisroyal',
   tennis: 'tennisroyal',
   chessbattle: 'chess',
@@ -196,6 +199,7 @@ export function validateSeatTableRequest({
     return { ok: false, error: 'invalid_game_mode' };
   }
 
+  if (normalizedGameType === 'tabletennisroyal' && (!['quick','set','full'].includes(matchMeta.format) || !['dancingHall','colorfulStudio','neonPhotostudio'].includes(matchMeta.arena))) return {ok:false,error:'invalid_tabletennis_options'};
   if (normalizedGameType === 'tennisroyal' &&
       (!['hard','clay','grass'].includes(matchMeta.surface) ||
        !['quick','set','full'].includes(matchMeta.format))) {
