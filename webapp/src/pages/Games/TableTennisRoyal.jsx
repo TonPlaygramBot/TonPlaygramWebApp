@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import LegacyTableTennisGame from '../../games/tabletennis/LegacyGame';
 import TableTennisGame from '../../games/tabletennis/Game';
 import { createAppTableTennisServices } from '../../games/tabletennis/services';
 import '../../games/tabletennis/game.css';
@@ -28,12 +29,19 @@ export default function TableTennisRoyal() {
   }, [search]);
   const services = useMemo(
     () => createAppTableTennisServices(launch.character),
-    [search]
+    [launch.character]
   );
   useEffect(() => {
+    if (launch.mode === 'ai') return undefined;
     services.activate();
     return () => services.dispose();
-  }, [services]);
+  }, [launch.mode, services]);
+
+  // Restore the portrait, swipe-controlled game from the September 1 build for
+  // solo play. Online and career retain the authoritative TPG runtime so queue,
+  // stake, seat, state and settlement behavior cannot diverge from the server.
+  if (launch.mode === 'ai') return <LegacyTableTennisGame />;
+
   return (
     <TableTennisGame
       key={search}
