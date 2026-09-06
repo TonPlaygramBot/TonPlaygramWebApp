@@ -44,10 +44,12 @@ const mediaDirectories = flamingoStorageDirectories(
   ]
 );
 const maxBytes = Math.max(1, Number(process.env.FLAMINGO_UPLOAD_MAX_BYTES) || 5 * 1024 ** 3);
-// Keep each request small enough for mobile networks while allowing several
-// independent ranges to be written at once. Six 8 MB requests use less memory
-// than the former three 32 MB requests and no longer queue behind one another.
-const maxChunkBytes = Math.max(1024 ** 2, Number(process.env.FLAMINGO_UPLOAD_CHUNK_BYTES) || 8 * 1024 ** 2);
+// Keep every request below the timeout window of mobile WebViews and hosting
+// proxies. An 8 MB chunk routinely took longer than two minutes on a weak
+// cellular uplink, so the browser aborted it and only reported an interrupted
+// connection. Resumability makes small chunks cheap: only the current 1 MB
+// range has to be retried when reception drops.
+const maxChunkBytes = Math.max(1024 ** 2, Number(process.env.FLAMINGO_UPLOAD_CHUNK_BYTES) || 1024 ** 2);
 const pendingDirectory = path.join(uploadDirectory, '.pending');
 const uploadLocks = new Map();
 const mediaBackfills = new Map();

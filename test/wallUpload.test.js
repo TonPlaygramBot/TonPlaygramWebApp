@@ -97,6 +97,35 @@ describe('wall upload recovery', () => {
     expect(calls.some((url) => url.endsWith('/complete'))).toBe(false);
   });
 
+  test('uploads video ranges serially so mobile fetch bodies do not compete', async () => {
+    let active = 0;
+    let peak = 0;
+    const offsets = [];
+    const send = async (url, init) => {
+      if (init.method === 'POST' && !url.endsWith('/complete'))
+        return { uploadId: 'mobile-session', chunkBytes: 4 };
+      if (init.method === 'PUT') {
+        active += 1;
+        peak = Math.max(peak, active);
+        offsets.push(init.headers['X-Upload-Offset']);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        active -= 1;
+        return {};
+      }
+      return { post: { _id: 'published' } };
+    };
+    await uploadWallFile({
+      baseUrl: '',
+      headers: {},
+      file: makeFile(),
+      uploadId: 'mobile-session',
+      text: '',
+      send
+    });
+    expect(offsets).toEqual(['0', '4', '8']);
+    expect(peak).toBe(1);
+  });
+
   test('retries transient server failures but preserves actionable storage errors', async () => {
     const response = (status, error) => ({
       status,
