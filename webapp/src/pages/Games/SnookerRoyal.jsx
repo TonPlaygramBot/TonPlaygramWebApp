@@ -105,6 +105,7 @@ import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
 import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import SnookerShotCoach from './SnookerShotCoach.jsx';
 import { resolveSnookerImpactAudio } from './snookerImpactAudio.js';
+import { findSnookerRespot, SNOOKER_RESPOT_PRIORITY } from './snookerRoyalRespot.ts';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
@@ -7057,91 +7058,9 @@ const SNOOKER_COLOR_SPOTS = {
   PINK: 'pink',
   BLACK: 'black'
 };
-const SNOOKER_SPOT_PRIORITY = ['BLACK', 'PINK', 'BLUE', 'BROWN', 'GREEN', 'YELLOW'];
 const isSnookerColourId = (colorId) => Boolean(SNOOKER_COLOR_SPOTS[colorId]);
-const resolveSnookerSpotKey = (colorId) => SNOOKER_COLOR_SPOTS[colorId] ?? null;
-const isRespotPositionClear = (pos, balls, reserved = [], ignoreId = null) => {
-  if (!pos) return false;
-  const minDistance = BALL_R * 2.02;
-  const minDistanceSq = minDistance * minDistance;
-  for (const ball of balls) {
-    if (!ball?.active) continue;
-    if (ignoreId != null && String(ball.id) === String(ignoreId)) continue;
-    const dx = ball.pos.x - pos.x;
-    const dy = ball.pos.y - pos.z;
-    if (dx * dx + dy * dy < minDistanceSq) return false;
-  }
-  for (const entry of reserved) {
-    const dx = entry.x - pos.x;
-    const dy = entry.z - pos.z;
-    if (dx * dx + dy * dy < minDistanceSq) return false;
-  }
-  return true;
-};
-const resolveSnookerRespotPosition = (colorId, spots, balls, reserved = []) => {
-  if (!spots) return null;
-  const spotKey = resolveSnookerSpotKey(colorId);
-  const spotCoords = spotKey ? spots[spotKey] : null;
-  if (!spotCoords) return null;
-  const baseSpot = { x: spotCoords[0], z: spotCoords[1] };
-  if (isRespotPositionClear(baseSpot, balls, reserved)) {
-    return baseSpot;
-  }
-  const spotCandidates = [];
-  for (const candidate of SNOOKER_SPOT_PRIORITY) {
-    if (candidate === colorId) continue;
-    const candidateKey = resolveSnookerSpotKey(candidate);
-    const coords = candidateKey ? spots[candidateKey] : null;
-    if (!coords) continue;
-    spotCandidates.push({ x: coords[0], z: coords[1] });
-  }
-  for (const candidatePos of spotCandidates) {
-    if (isRespotPositionClear(candidatePos, balls, reserved)) {
-      return candidatePos;
-    }
-  }
-  const minDistance = BALL_R * 2.02;
-  const blockers = balls.filter((ball) => {
-    if (!ball?.active) return false;
-    const dx = ball.pos.x - baseSpot.x;
-    const dz = ball.pos.y - baseSpot.z;
-    return dx * dx + dz * dz < minDistance * minDistance;
-  });
-  const blocker = blockers.reduce((closest, ball) => {
-    if (!ball) return closest;
-    if (!closest) return ball;
-    const distA =
-      (ball.pos.x - baseSpot.x) * (ball.pos.x - baseSpot.x) +
-      (ball.pos.y - baseSpot.z) * (ball.pos.y - baseSpot.z);
-    const distB =
-      (closest.pos.x - baseSpot.x) * (closest.pos.x - baseSpot.x) +
-      (closest.pos.y - baseSpot.z) * (closest.pos.y - baseSpot.z);
-    return distA < distB ? ball : closest;
-  }, null);
-  const maxZ = RAIL_LIMIT_Y - BALL_R * 0.25;
-  const startZ = Math.min(
-    maxZ,
-    Math.max(baseSpot.z, blocker?.pos?.y ?? baseSpot.z) + minDistance
-  );
-  const step = BALL_R * 0.25;
-  const xCandidates = [];
-  const anchorX = blocker?.pos?.x ?? baseSpot.x;
-  xCandidates.push(anchorX);
-  xCandidates.push(baseSpot.x);
-  xCandidates.push(anchorX + BALL_R * 0.6);
-  xCandidates.push(anchorX - BALL_R * 0.6);
-  xCandidates.push(anchorX + BALL_R * 1.1);
-  xCandidates.push(anchorX - BALL_R * 1.1);
-  for (let z = startZ; z <= maxZ + 1e-6; z += step) {
-    for (const x of xCandidates) {
-      const candidatePos = { x, z };
-      if (isRespotPositionClear(candidatePos, balls, reserved)) {
-        return candidatePos;
-      }
-    }
-  }
-  return baseSpot;
-};
+const resolveSnookerRespotPosition = (colorId, spots, balls, reserved = []) =>
+  spots ? findSnookerRespot(colorId, spots, balls, reserved, BALL_R, RAIL_LIMIT_Y - BALL_R * 0.25) : null;
 
 function alignRailsToCushions(table, frame, railMeshes = null) {
   if (!frame || !table?.userData?.cushions?.length) return;
@@ -25271,16 +25190,17 @@ const powerRef = useRef(hud.power);
             [shooterSeat]: null
           };
         }
-        const shouldRespotColours =
-          (currentState?.phase ?? frameState?.phase) === 'REDS_AND_COLORS' &&
-          (currentState?.redsRemaining ?? frameState?.redsRemaining ?? 0) > 0 &&
-          !safeState?.foul &&
-          (!isTraining || trainingRulesRef.current);
+        const shouldRespotColours = shotResolved && (!isTraining || trainingRulesRef.current);
         if (shouldRespotColours && potted.length) {
           const ballsList = ballsRef.current?.length > 0 ? ballsRef.current : balls;
           const spots = snookerSpotsRef.current;
           const reserved = [];
-          potted.forEach((entry) => {
+          // Follow the resolved rules state for fouls and the colour after the
+          // final red too. Spot higher-valued colours first when spots overlap.
+          const colorsToRespot = potted.filter(entry => safeState.balls.some(
+            ball => ball.color === entry.color && ball.onTable && isSnookerColourId(ball.color)
+          )).sort((a, b) => SNOOKER_RESPOT_PRIORITY.indexOf(a.color) - SNOOKER_RESPOT_PRIORITY.indexOf(b.color));
+          colorsToRespot.forEach((entry) => {
             const colorId = entry?.color ? String(entry.color).toUpperCase() : null;
             if (!colorId || !isSnookerColourId(colorId)) return;
             const ball = ballsList.find((candidate) => toBallColorId(candidate.id) === colorId);
@@ -25315,7 +25235,7 @@ const powerRef = useRef(hud.power);
         const metaState =
           safeState && typeof safeState.meta === 'object' ? safeState.meta.state : null;
         if (safeState?.foul) {
-          showRuleToast('Foul');
+          showRuleToast(`Foul: ${safeState.foul.reason} • +${safeState.foul.points} to ${safeState.activePlayer === localSeatRef.current ? 'you' : 'opponent'}`);
         }
         if (metaState && typeof metaState === 'object') {
           const assignments = metaState.assignments || null;
@@ -25411,7 +25331,9 @@ const powerRef = useRef(hud.power);
                 if (!simBall.active) {
                   pocketDropRef.current.delete(simBall.id);
                   simBall.mesh.scale.set(1, 1, 1);
-                  const [sx, sy] = SPOTS[name];
+                  const spot = resolveSnookerRespotPosition(name.toUpperCase(), SPOTS, balls);
+                  if (!spot) return;
+                  const { x: sx, z: sy } = spot;
                   simBall.active = true;
                   simBall.mesh.visible = true;
                   simBall.pos.set(sx, sy);
@@ -28300,8 +28222,8 @@ const powerRef = useRef(hud.power);
         </div>
       )}
       {ruleToast && (
-        <div className="pointer-events-none absolute left-1/2 top-6 z-50 -translate-x-1/2 px-3 text-center">
-          <span className="text-sm font-bold uppercase tracking-[0.24em] text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.45)]">
+        <div role="status" className="pointer-events-none absolute left-1/2 top-6 z-50 w-[calc(100%_-_2rem)] max-w-md -translate-x-1/2 rounded-xl bg-black/85 px-3 py-2 text-center">
+          <span className="text-sm font-semibold text-white">
             {ruleToast}
           </span>
         </div>
@@ -29316,6 +29238,12 @@ const powerRef = useRef(hud.power);
             transform: isPortrait ? `translateX(${bottomHudOffset}px)` : undefined
           }}
         >
+          {!hud.over && (!isTraining || trainingRulesOn) && (
+            <div role="status" aria-live="polite" className="absolute bottom-full left-1/2 mb-2 flex w-max max-w-[calc(100%_-_1rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-x-3 gap-y-1 rounded-full border border-emerald-400/30 bg-black/85 px-3 py-1.5 text-sm text-white">
+              <span>{shotActive ? 'Shot in play' : `${isPlayerTurn ? 'Your turn' : 'Opponent'} · ${frameState.colorOnAfterRed ? 'Colour' : String(frameState.ballOn[0] ?? '').toLowerCase()}`}</span>
+              <span className="text-amber-200">Break {frameState.currentBreak ?? 0}</span>
+            </div>
+          )}
           <div
             className={`pointer-events-auto flex min-h-[3rem] max-w-full items-center justify-center ${hudGapClass} rounded-full border border-emerald-400/40 bg-black/70 ${isPortrait ? 'pl-6 pr-8 py-2' : 'pl-7 pr-9 py-2.5'} text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur`}
             style={{
@@ -29363,9 +29291,9 @@ const powerRef = useRef(hud.power);
             <div
               className={`flex items-center gap-2 ${isPortrait ? 'text-sm' : 'text-base'} font-semibold`}
             >
-              <span className="text-amber-300">{hud.A}</span>
+              <span className="text-amber-300">{frameState.players[playerSeatId].score}</span>
               <span className="text-white/50">-</span>
-              <span>{hud.B}</span>
+              <span>{frameState.players[opponentSeatId].score}</span>
             </div>
             <div
               className={`${opponentPanelClass} ${isPortrait ? 'text-xs' : 'text-sm'}`}

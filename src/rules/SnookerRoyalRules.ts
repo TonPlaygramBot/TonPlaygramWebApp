@@ -162,6 +162,7 @@ export class SnookerRoyalRules {
   }
 
   applyShot(state: FrameState, events: ShotEvent[], context: ShotContext = {}): FrameState {
+    if (state.frameOver) return state;
     const meta = state.meta as SnookerMeta | undefined;
     const colorsRemaining = Array.isArray(meta?.colorsRemaining)
       ? [...meta.colorsRemaining]
@@ -196,7 +197,11 @@ export class SnookerRoyalRules {
       | undefined;
     const firstContact = normalizeColor(hitEvent?.firstContact ?? hitEvent?.ballId);
     const nominatedBall = normalizeColor(context.declaredBall ?? context.nominatedBall);
-    const declaredBall = nominatedBall ?? null;
+    // Treat an unambiguous first colour contact as the nomination when the
+    // caller has not explicitly nominated a colour (the live game and AI).
+    const declaredBall = nominatedBall ??
+      (state.colorOnAfterRed && firstContact && COLOR_ORDER.includes(firstContact)
+        ? firstContact : null);
     const pottedEvents = events.filter((event) => event.type === 'POTTED') as Array<{
       type: 'POTTED';
       ball?: unknown;
@@ -208,7 +213,7 @@ export class SnookerRoyalRules {
       const color = normalizeColor(event.ball ?? event.ballId);
       if (!color) return;
       const resolved = resolvePottedBall(color, event.ballId);
-      if (!resolved) return;
+      if (!resolved || !resolved.onTable || resolved.color !== color) return;
       if (seenBallIds.has(resolved.id)) return;
       seenBallIds.add(resolved.id);
       const snapshot = ballSnapshot.get(resolved.id);
@@ -253,7 +258,7 @@ export class SnookerRoyalRules {
       : inColorsOrder
         ? colorsRemaining[0] ?? null
         : onColorAfterRed
-          ? null
+          ? declaredBall
           : 'RED';
     const foulBallOn = freeBallActive && nominatedFreeBall
       ? [nominatedFreeBall]
@@ -304,7 +309,12 @@ export class SnookerRoyalRules {
       }
     }
 
-    if (!foulReason && inColorsOrder) {
+    if (!foulReason && inColorsOrder && freeBallActive) {
+      const legalColors = [colorsOrderTarget, nominatedFreeBall];
+      if (pottedNonCue.some(entry => !legalColors.includes(entry.color))) {
+        foulReason = 'wrong color order';
+      }
+    } else if (!foulReason && inColorsOrder) {
       const legalColor = freeBallActive ? nominatedFreeBall : colorsRemaining[0] ?? null;
       const colorPotCount = pottedColorsExcludingFreeBall.length + (freeBallPotted ? 1 : 0);
       const legalPotted = Boolean(legalColor && pottedNonCueColors.includes(legalColor));
@@ -400,7 +410,7 @@ export class SnookerRoyalRules {
         const targetPotted = Boolean(target && pottedNonCueColors.includes(target));
         const targetScore = target && targetPotted ? COLOR_VALUES[target] || 0 : 0;
         const freeBallScore =
-          freeBallPotted && target && nominatedFreeBall !== target
+          freeBallPotted && !targetPotted && target && nominatedFreeBall !== target
             ? COLOR_VALUES[target] || 0
             : 0;
         const totalScore = targetScore + freeBallScore;
