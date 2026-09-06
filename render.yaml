@@ -58,6 +58,10 @@ services:
       # Community photos and videos must outlive API restarts and deployments.
       - key: FLAMINGO_UPLOAD_DIR
         value: /var/data/tonplaygram/flamingo-uploads
+      # One-megabyte resumable requests survive slow portrait-phone cellular
+      # uplinks without hitting the proxy/browser request timeout.
+      - key: FLAMINGO_UPLOAD_CHUNK_BYTES
+        value: 1048576
       # The mounted Render disk is the durable source for wall media. Keeping
       # a second copy in MongoDB GridFS exhausts the database quota and blocks
       # otherwise valid video posts even though the media disk has space.

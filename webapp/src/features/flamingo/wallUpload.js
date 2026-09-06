@@ -125,9 +125,11 @@ export async function uploadWallFile({
   if (signal?.aborted) abort();
   let failure;
   try {
-    // Two concurrent streams keep mobile memory and uplink contention bounded.
+    // Send one range at a time. iOS/Android WebViews are prone to cancelling a
+    // sibling fetch when two large request bodies compete on a weak uplink.
+    // Small resumable ranges still make progress without restarting the video.
     await Promise.all(
-      Array.from({ length: Math.min(2, offsets.length) }, async () => {
+      Array.from({ length: Math.min(1, offsets.length) }, async () => {
         try {
           while (offsets.length && !workersController.signal.aborted) {
             const offset = offsets.shift();
