@@ -5,6 +5,7 @@ import cors from 'cors';
 import bot from './bot.js';
 import { getInviteUrl, sendInviteNotification } from './utils/notifications.js';
 import mongoose from 'mongoose';
+import { mongoConnectionOptions } from './config/mongo.js';
 import { proxyUrl, proxyAgent } from './utils/proxyAgent.js';
 import http from 'http';
 import { initSocket } from './socket.js';
@@ -2439,7 +2440,7 @@ if (mongoUri === 'memory') {
   import('mongodb-memory-server').then(async ({ MongoMemoryServer }) => {
     try {
       const mem = await MongoMemoryServer.create();
-      await mongoose.connect(mem.getUri());
+      await mongoose.connect(mem.getUri(), mongoConnectionOptions());
       console.log('Using in-memory MongoDB');
     } catch (err) {
       console.error('Failed to start in-memory MongoDB:', err.message);
@@ -2452,7 +2453,7 @@ if (mongoUri === 'memory') {
 
   const connectWithRetry = async (attempt = 1) => {
     try {
-      await mongoose.connect(mongoUri);
+      await mongoose.connect(mongoUri, mongoConnectionOptions());
     } catch (err) {
       console.error(`MongoDB connection attempt ${attempt} failed:`, err);
       const delay = Math.min(initialDelayMs * attempt, 60_000);
