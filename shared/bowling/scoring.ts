@@ -1,0 +1,103 @@
+export type Frame = { rolls: number[]; cumulative: number | null };
+export type ScorePlayer = { name: string; frames: Frame[]; total: number };
+
+export function newPlayer(name: string): ScorePlayer {
+  return {
+    name,
+    frames: Array.from({ length: 10 }, () => ({ rolls: [], cumulative: null })),
+    total: 0
+  };
+}
+export function frameComplete(frame: Frame, index: number): boolean {
+  const r = frame.rolls;
+  if (index < 9) return r[0] === 10 || r.length === 2;
+  return (
+    r.length >= 2 && (r[0] === 10 || r[0] + r[1] === 10 ? r.length === 3 : true)
+  );
+}
+export function frameIndex(player: ScorePlayer): number {
+  return player.frames.findIndex((frame, i) => !frameComplete(frame, i));
+}
+/** Pins available on the next delivery, including all tenth-frame rack rules. */
+export function availablePins(player: ScorePlayer): number {
+  const i = frameIndex(player);
+  if (i < 0) return 0;
+  const r = player.frames[i].rolls;
+  if (!r.length) return 10;
+  if (i < 9) return 10 - r[0];
+  if (r.length === 1) return r[0] === 10 ? 10 : 10 - r[0];
+  return r[0] === 10 && r[1] !== 10 ? 10 - r[1] : 10;
+}
+export function recompute(player: ScorePlayer): void {
+  const flat = player.frames.flatMap((f) => f.rolls);
+  let at = 0,
+    total = 0,
+    pending = false;
+  player.frames.forEach((frame, i) => {
+    frame.cumulative = null;
+    if (pending) return;
+    const a = flat[at],
+      b = flat[at + 1],
+      c = flat[at + 2];
+    if (i === 9) {
+      if (!frameComplete(frame, i)) return;
+      total += frame.rolls.reduce((sum, pins) => sum + pins, 0);
+    } else if (a === 10) {
+      if (c === undefined) {
+        pending = true;
+        return;
+      }
+      total += 10 + b + c;
+      at++;
+    } else {
+      if (b === undefined || (a + b === 10 && c === undefined)) {
+        pending = true;
+        return;
+      }
+      total += a + b + (a + b === 10 ? c : 0);
+      at += 2;
+    }
+    frame.cumulative = total;
+  });
+  player.total = total;
+}
+export function recordRoll(player: ScorePlayer, pins: number) {
+  const i = frameIndex(player);
+  if (i < 0) throw Error('game_finished');
+  if (!Number.isInteger(pins) || pins < 0 || pins > availablePins(player))
+    throw Error('invalid_pin_count');
+  const rackBefore = availablePins(player);
+  player.frames[i].rolls.push(pins);
+  recompute(player);
+  return {
+    frame: i,
+    ended: frameComplete(player.frames[i], i),
+    strike: rackBefore === 10 && pins === 10,
+    spare: rackBefore < 10 && pins === rackBefore
+  };
+}
+export function symbols(frame: Frame, index: number): string[] {
+  const out: string[] = [];
+  let fresh = true,
+    prior = 0;
+  for (const pins of frame.rolls) {
+    out.push(
+      fresh && pins === 10
+        ? 'X'
+        : !fresh && prior + pins === 10
+          ? '/'
+          : pins === 0
+            ? '–'
+            : String(pins)
+    );
+    if (fresh) {
+      fresh = pins === 10;
+      prior = pins;
+    } else {
+      fresh = true;
+      prior = 0;
+    }
+  }
+  while (out.length < (index === 9 ? 3 : 2)) out.push('');
+  return out;
+}

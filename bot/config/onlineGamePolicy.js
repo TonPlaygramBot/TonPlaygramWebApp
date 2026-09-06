@@ -64,6 +64,7 @@ const GAME_ONLINE_POLICY = Object.freeze({
     maxPlayers: [2, 3, 4, 5, 6, 7, 8],
     allowMatchMeta: ['tableSize', 'gameMode', 'buyIn', 'mode', 'token']
   },
+  bowlingroyal: { maxPlayers: [2], allowMatchMeta: ['format', 'mode', 'token'] },
   tennisroyal: { maxPlayers: [2], allowMatchMeta: ['surface', 'format', 'mode', 'token'] },
   airhockey: {
     maxPlayers: [2],
@@ -84,6 +85,8 @@ const GAME_ONLINE_POLICY = Object.freeze({
 });
 
 const GAME_TYPE_ALIASES = Object.freeze({
+  bowling: 'bowlingroyal',
+  bowlingroyale: 'bowlingroyal',
   tennisroyale: 'tennisroyal',
   tennis: 'tennisroyal',
   chessbattle: 'chess',
@@ -194,6 +197,10 @@ export function validateSeatTableRequest({
     .toLowerCase();
   if (mode !== 'online') {
     return { ok: false, error: 'invalid_game_mode' };
+  }
+
+  if (normalizedGameType === 'bowlingroyal' && (matchMeta.format !== 'tenpin' || !Number.isSafeInteger(normalizedStake * 2))) {
+    return { ok: false, error: 'invalid_bowling_options' };
   }
 
   if (normalizedGameType === 'tennisroyal' &&

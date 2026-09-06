@@ -1,4 +1,5 @@
 const gamesCatalog = [
+  { name: 'Bowling Royal', route: '/games/bowlingroyal/lobby', slug: 'bowlingroyal', image: '/assets/bowling-royal/cover.webp', featured: true, modes: ['Vs AI', 'TPG Multiplayer'], launchLabel: 'Enter Bowling Lobby', description: 'Ten-pin bowling with swipe controls, three AI levels and same-stake online matches.' },
   {
     name: 'Tirana Streets',
     route: '/games/tiranastreets/lobby',
