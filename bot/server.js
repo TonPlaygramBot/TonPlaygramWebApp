@@ -8,6 +8,7 @@ import mongoose from 'mongoose';
 import { proxyUrl, proxyAgent } from './utils/proxyAgent.js';
 import http from 'http';
 import { initSocket } from './socket.js';
+import { attachKartRoyale } from './services/kartRoyale.js';
 import { LudoBattleGame } from './logic/ludoBattleGame.js';
 import { GameRoomManager } from './gameEngine.js';
 import miningRoutes from './routes/mining.js';
@@ -264,6 +265,7 @@ io.use((socket, next) => {
   return next(new Error('unauthorized'));
 });
 const gameManager = new GameRoomManager(io);
+attachKartRoyale(io);
 
 // Expose socket.io instance and userSockets map for routes
 app.set('io', io);

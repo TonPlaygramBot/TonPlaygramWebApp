@@ -1,4 +1,5 @@
 const gamesCatalog = [
+  {name:'Kart Royale',route:'/games/kartroyale/lobby',slug:'kartroyale',image:'/assets/icons/kart-royale.svg',badge:'Beta',description:'3D kart racing with AI, career cups and multiplayer rooms.'},
   {
     name: "Texas Hold'em",
     route: '/games/texasholdem/lobby',

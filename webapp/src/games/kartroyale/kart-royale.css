@@ -1,0 +1,1584 @@
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;0,900;1,800;1,900&family=Barlow:wght@400;500;600;700;800&display=swap');
+.kr-app {
+  --lime: #baff29;
+  --ink: #11181b;
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  height: 100dvh;
+  width: 100%;
+  overflow: hidden;
+  background: #101619;
+  color: #f5f6f3;
+  font:
+    16px/1.35 'Barlow',
+    Arial,
+    sans-serif;
+  color-scheme: dark;
+  -webkit-tap-highlight-color: transparent;
+}
+.kr-app * {
+  box-sizing: border-box;
+}
+.kr-app button,
+.kr-app input,
+.kr-app select {
+  font: inherit;
+}
+.kr-app button {
+  cursor: pointer;
+  color: inherit;
+  border: 0;
+  line-height: 1.2;
+  transition:
+    background 0.16s,
+    transform 0.16s;
+}
+.kr-app button:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+.kr-app button:focus-visible,
+.kr-app input:focus-visible,
+.kr-app select:focus-visible {
+  outline: 2px solid var(--lime);
+  outline-offset: 4px;
+}
+.kr-app button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.kr-app h1,
+.kr-app h2,
+.kr-app h3,
+.kr-app p {
+  margin: 0;
+}
+.kr-canvas {
+  position: absolute;
+  inset: 0;
+}
+.kr-canvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.kr-vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, #0c1215ed, #0c121510 65%),
+    linear-gradient(0deg, #0c1215f0, transparent 34%);
+  pointer-events: none;
+}
+.kr-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 25px 42px;
+  z-index: 2;
+  border-bottom: 1px solid #ffffff10;
+}
+.kr-brand {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  letter-spacing: 2px;
+  font-size: 14px !important;
+  font-weight: 800;
+  background: transparent;
+  text-align: left;
+}
+.kr-brand-symbol {
+  font:
+    900 31px 'Barlow Condensed',
+    Impact,
+    sans-serif;
+  letter-spacing: -3px;
+  background: var(--lime);
+  color: var(--ink);
+  padding: 4px 12px 5px 8px;
+  transform: skew(-8deg);
+}
+.kr-brand small {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 2.5px;
+  color: #99a4a7;
+  margin-top: 4px;
+}
+.kr-header-actions {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+}
+.kr-wallet {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  font-size: 15px;
+}
+.kr-wallet svg {
+  color: var(--lime);
+}
+.kr-wallet small {
+  font-size: 12px;
+  color: #99a4a7;
+}
+.kr-icon {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-content: center;
+  background: #ffffff08;
+  border: 1px solid #ffffff20 !important;
+  border-radius: 50%;
+}
+.kr-icon:hover {
+  background: #ffffff20;
+}
+.kr-lobby-layout {
+  position: relative;
+  height: 100%;
+  pointer-events: none;
+  max-width: 1680px;
+  margin: auto;
+}
+.kr-lobby-layout button,
+.kr-lobby-layout input,
+.kr-lobby-layout select {
+  pointer-events: auto;
+}
+.kr-title {
+  position: absolute;
+  left: 5%;
+  top: 15%;
+}
+.kr-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--lime);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 2px;
+}
+.kr-eyebrow > i {
+  display: block;
+  width: 26px;
+  height: 10px;
+  background: repeating-linear-gradient(
+    110deg,
+    var(--lime) 0 4px,
+    transparent 4px 7px
+  );
+}
+.kr-title h1 {
+  position: relative;
+  font:
+    900 clamp(78px, 8.7vw, 135px)/0.82 'Barlow Condensed',
+    Impact,
+    'Arial Narrow',
+    sans-serif;
+  letter-spacing: -0.5px;
+  margin-top: 23px;
+}
+.kr-title h1 em {
+  font-style: italic;
+  color: var(--lime);
+}
+.kr-title sup {
+  position: absolute;
+  font: 19px Arial;
+  top: 0;
+  right: -25px;
+}
+.kr-title p {
+  margin-top: 22px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 3.4px;
+  color: #a8b3b3;
+}
+.kr-vehicle-info {
+  position: absolute;
+  right: 5%;
+  bottom: 19%;
+  text-align: right;
+}
+.kr-label {
+  font-size: 12px;
+  letter-spacing: 1.7px;
+  font-weight: 700;
+  color: #a3adaf;
+}
+.kr-vehicle-info h2 {
+  font:
+    800 37px 'Barlow Condensed',
+    Impact,
+    sans-serif;
+  letter-spacing: 1px;
+  margin-top: 5px;
+}
+.kr-vehicle-info h2 span {
+  font-weight: 500;
+  color: var(--lime);
+}
+.kr-vehicle-info p {
+  font-size: 10px;
+  letter-spacing: 1.8px;
+  color: #a2aaad;
+  margin-top: 4px;
+}
+.kr-swatches {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 18px;
+}
+.kr-swatches button {
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  background: var(--swatch);
+  border: 3px solid #171c1f !important;
+  outline: 1px solid transparent;
+  box-shadow: 0 0 0 1px #ffffff15;
+}
+.kr-swatches button.active {
+  outline: 2px solid var(--swatch);
+  outline-offset: 3px;
+}
+.kr-controls-panel {
+  position: absolute;
+  left: 5%;
+  bottom: 9.5%;
+  width: 460px;
+  pointer-events: auto;
+}
+.kr-mode-list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 15px;
+}
+.kr-mode {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  align-items: flex-start;
+  background: #1e272bda;
+  border: 1px solid #ffffff15 !important;
+  padding: 16px 13px;
+  border-radius: 7px;
+  text-align: left;
+  backdrop-filter: blur(20px);
+}
+.kr-mode > svg {
+  color: #a1adaf;
+}
+.kr-mode b {
+  display: block;
+  font-size: 13px;
+  letter-spacing: 0.7px;
+}
+.kr-mode small {
+  display: block;
+  color: #9aa5a7;
+  font-size: 11px;
+  margin-top: 5px;
+  white-space: nowrap;
+}
+.kr-mode.active {
+  background: #baff2914;
+  border-color: #baff2970 !important;
+}
+.kr-mode.active > svg {
+  color: var(--lime);
+}
+.kr-mode .kr-tick {
+  position: absolute;
+  right: 11px;
+  top: 15px;
+  color: var(--lime);
+}
+.kr-options {
+  background: #131c20e5;
+  border: 1px solid #ffffff16;
+  border-radius: 7px;
+  padding: 15px 17px;
+  backdrop-filter: blur(25px);
+  margin-bottom: 12px;
+}
+.kr-track-selector {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.kr-track-mini {
+  width: 78px;
+  height: 69px;
+  color: #7b8b8d;
+  flex-shrink: 0;
+}
+.kr-map {
+  height: 100%;
+  width: 100%;
+  overflow: visible;
+}
+.kr-track-selector h3 {
+  font:
+    700 25px 'Barlow Condensed',
+    Impact,
+    sans-serif;
+  letter-spacing: 0.4px;
+  margin: 2px 0 4px;
+}
+.kr-track-selector p {
+  font-size: 13px;
+  color: #aab3b5;
+}
+.kr-track-selector p span {
+  margin: 0 7px;
+}
+.kr-track-arrows {
+  display: flex;
+  margin-left: auto;
+  gap: 7px;
+}
+.kr-track-arrows .kr-icon {
+  width: 30px;
+  height: 38px;
+  border-radius: 4px;
+}
+.kr-difficulty {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid #ffffff13;
+  margin-top: 13px;
+  padding-top: 11px;
+}
+.kr-difficulty > div {
+  display: flex;
+  gap: 4px;
+}
+.kr-difficulty button {
+  font-size: 12px;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: #a9b9bb;
+  background: transparent;
+  padding: 7px 10px;
+  border-radius: 3px;
+}
+.kr-difficulty button.active {
+  color: var(--lime);
+  background: #baff2913;
+}
+.kr-start {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 62px;
+  width: 100%;
+  padding: 16px 21px;
+  background: var(--lime);
+  color: var(--ink) !important;
+  font:
+    800 22px 'Barlow Condensed',
+    Impact,
+    sans-serif !important;
+  letter-spacing: 1px;
+  border-radius: 5px;
+}
+.kr-start > span {
+  flex: 1;
+  text-align: left;
+}
+.kr-start:hover:not(:disabled) {
+  background: #c8ff57;
+}
+.kr-panel-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 13px;
+  gap: 8px;
+  font-size: 11px;
+  color: #a5b2b5;
+}
+.kr-panel-footer button {
+  background: transparent;
+  color: #c0c9ca;
+  font-size: 11px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.kr-panel-footer button b {
+  display: grid;
+  place-content: center;
+  width: 17px;
+  height: 17px;
+  border: 1px solid #66777a;
+  border-radius: 50%;
+  font-size: 11px;
+}
+.kr-garage-bottom {
+  position: absolute;
+  bottom: 25px;
+  left: 5%;
+  right: 5%;
+  display: flex;
+  justify-content: space-between;
+  font-weight: 600;
+  font-size: 10px;
+  letter-spacing: 2.8px;
+  color: #87969b;
+  border-top: 1px solid #ffffff10;
+  padding-top: 15px;
+}
+.kr-section-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.kr-section-line > span:last-child {
+  font-size: 12px;
+  color: #aab4b5;
+}
+.kr-cups {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.kr-cups button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 13px 5px 9px;
+  background: #ffffff05;
+  border: 1px solid #ffffff10 !important;
+  border-radius: 5px;
+}
+.kr-cups button.active {
+  border-color: #baff2960 !important;
+  background: #baff2910;
+}
+.kr-cups b {
+  font-size: 13px;
+  margin-top: 6px;
+}
+.kr-cups small {
+  font-size: 11px;
+  margin-top: 4px;
+  color: #b2beb4;
+}
+.kr-cups svg {
+  color: var(--lime);
+}
+.kr-career-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: #a8b7b9;
+}
+.kr-career-meta b {
+  color: var(--lime);
+}
+.kr-input {
+  border: 1px solid #ffffff23;
+  background: #090f1380;
+  color: #f5f8f5;
+  padding: 12px 13px;
+  width: 100%;
+  min-width: 0;
+  border-radius: 4px;
+  font-size: 14px !important;
+  letter-spacing: 0.3px;
+}
+.kr-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.kr-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  flex: 1;
+  background: #253034;
+  color: #e4e8e7 !important;
+  border: 1px solid #ffffff13 !important;
+  border-radius: 4px;
+  min-height: 42px;
+  padding: 10px 13px;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+}
+.kr-secondary:hover {
+  background: #303f42;
+}
+.kr-row .kr-input {
+  flex: 1;
+  width: 50%;
+}
+.kr-code {
+  letter-spacing: 3px;
+}
+.kr-notice {
+  font-size: 13px !important;
+  line-height: 1.5 !important;
+  color: #ffe8a9 !important;
+  margin-top: 12px !important;
+  letter-spacing: 0 !important;
+}
+.kr-text {
+  background: transparent;
+  color: #b7c4c4 !important;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-size: 12px !important;
+  padding: 7px 0;
+}
+.kr-copy {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  color: var(--lime) !important;
+  background: transparent;
+  letter-spacing: 3px;
+}
+.kr-room-players > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  padding: 7px 0;
+  border-bottom: 1px solid #ffffff0b;
+}
+.kr-room-players b {
+  flex: 1;
+  font-size: 14px;
+}
+.kr-room-players small {
+  font-size: 12px;
+  color: #a7b8bb;
+}
+.kr-room-players .ready {
+  color: var(--lime);
+}
+.kr-room-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #a4b4b4;
+}
+.kr-room-note {
+  font-size: 12px !important;
+  color: #a3b5b7;
+  margin: 4px 0 10px !important;
+}
+.kr-full {
+  width: 100%;
+  margin-top: 10px;
+}
+.kr-online {
+  max-height: 340px;
+  overflow-y: auto;
+}
+.kr-race-ui {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    #0d151b45,
+    transparent 25%,
+    transparent 65%,
+    #0d151b60
+  );
+}
+.kr-race-ui button {
+  pointer-events: auto;
+}
+.kr-race-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: max(22px, env(safe-area-inset-top)) 28px 0;
+}
+.kr-position {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-shadow: 0 2px 8px #0005;
+}
+.kr-position > b {
+  font:
+    800 66px/0.9 'Barlow Condensed',
+    Impact,
+    sans-serif;
+  color: var(--lime);
+}
+.kr-position > span {
+  font-size: 12px;
+  letter-spacing: 1px;
+  line-height: 1.8;
+}
+.kr-lap {
+  margin-right: auto;
+  display: flex;
+  flex-direction: column;
+  padding-top: 3px;
+  text-shadow: 0 2px 8px #000a;
+}
+.kr-lap > span {
+  font-size: 13px;
+  letter-spacing: 1px;
+}
+.kr-lap b {
+  font-size: 24px;
+  padding: 0 6px;
+}
+.kr-lap time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: 1px;
+}
+.kr-race-ui .kr-icon {
+  background: #10202580;
+  backdrop-filter: blur(15px);
+}
+.kr-race-side {
+  position: absolute;
+  right: 28px;
+  top: 85px;
+  text-align: right;
+}
+.kr-race-map {
+  width: 115px;
+  height: 115px;
+  padding: 12px;
+  background: #12232780;
+  border-radius: 12px;
+  color: #d0d9cc70;
+  backdrop-filter: blur(9px);
+}
+.kr-race-side small {
+  font-size: 11px;
+  color: #deeedee0;
+  text-shadow: 0 1px 2px #000;
+}
+.kr-countdown {
+  position: absolute;
+  top: 34%;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-shadow: 0 3px 15px #0004;
+}
+.kr-countdown > span {
+  font-size: 13px;
+  letter-spacing: 5px;
+}
+.kr-countdown > b {
+  font:
+    900 130px/1.05 'Barlow Condensed',
+    Impact,
+    sans-serif;
+  color: var(--lime);
+}
+.kr-countdown > small {
+  font-size: 13px;
+  background: #0b171d9c;
+  padding: 10px 14px;
+  border-radius: 5px;
+  margin: 10px 16px;
+  text-align: center;
+}
+.kr-speed {
+  position: absolute;
+  bottom: 90px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-shadow: 0 2px 15px #0008;
+}
+.kr-speed > b {
+  font:
+    italic 800 56px/0.9 'Barlow Condensed',
+    Impact,
+    sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+.kr-speed > span {
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: #dfebe1;
+  margin-top: 8px;
+}
+.kr-touch-controls {
+  position: absolute;
+  bottom: max(43px, calc(env(safe-area-inset-bottom) + 30px));
+  left: 26px;
+  right: 26px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 80px;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.kr-steering {
+  display: grid;
+  grid-template-columns: repeat(2, 72px);
+  gap: 10px;
+}
+.kr-steering button,
+.kr-drift-button {
+  display: grid;
+  place-content: center;
+  background: #13202585;
+  border: 1px solid #ffffff4a !important;
+  border-radius: 11px;
+  height: 66px;
+  backdrop-filter: blur(10px);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.kr-steering button:active,
+.kr-drift-button:active {
+  background: #baff2933;
+  border-color: var(--lime) !important;
+  transform: none !important;
+}
+.kr-steering .kr-brake {
+  grid-column: span 2;
+  height: 34px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+.kr-pedals {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+.kr-drift-button {
+  width: 80px;
+  height: 57px;
+  font-size: 12px !important;
+  letter-spacing: 1.5px;
+  font-weight: 700;
+}
+.kr-boost-button {
+  isolation: isolate;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 7px;
+  width: 86px;
+  height: 112px;
+  background: #293f2270;
+  color: var(--lime) !important;
+  border: 1px solid #baff2990 !important;
+  overflow: hidden;
+  border-radius: 15px;
+  touch-action: none;
+  backdrop-filter: blur(10px);
+}
+.kr-boost-button > span {
+  font-size: 12px;
+  letter-spacing: 1px;
+  font-weight: 700;
+}
+.kr-boost-button > i {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #baff292d;
+  z-index: -1;
+}
+.kr-boost-button:active {
+  background: #baff295e;
+  transform: none !important;
+}
+.kr-key-hint {
+  position: absolute;
+  bottom: 15px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: #e8eeecb0;
+}
+.kr-key-hint span {
+  margin: 0 20px;
+}
+.kr-drift-label {
+  position: absolute;
+  top: 27%;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--lime);
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: 1.8px;
+  text-shadow: 0 2px 8px #0008;
+  white-space: nowrap;
+}
+.kr-drift-label > div {
+  height: 4px;
+  margin-top: 9px;
+  background: #1b282488;
+  border-radius: 4px;
+}
+.kr-drift-label i {
+  display: block;
+  height: 100%;
+  background: var(--lime);
+  box-shadow: 0 0 12px #baff2980;
+}
+.kr-race-notice {
+  position: absolute;
+  top: 110px;
+  left: 20px;
+  right: 145px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: #ffeaaa;
+  background: #152125bb;
+  padding: 10px;
+  border-radius: 5px;
+  font-size: 13px;
+}
+.kr-results-backdrop,
+.kr-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: #0b121bd6;
+  backdrop-filter: blur(15px);
+  z-index: 10;
+  overflow: auto;
+}
+.kr-results {
+  width: 410px;
+  max-width: 100%;
+  text-align: center;
+  padding: 26px 0;
+}
+.kr-results > .kr-eyebrow {
+  justify-content: center;
+}
+.kr-finish-place {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font:
+    900 130px/1 'Barlow Condensed',
+    Impact,
+    sans-serif;
+  color: var(--lime);
+  margin-top: 12px;
+}
+.kr-finish-place > span {
+  font:
+    700 12px/1.3 'Barlow',
+    Arial,
+    sans-serif;
+  letter-spacing: 4px;
+  margin-top: 3px;
+}
+.kr-results h2 {
+  font:
+    800 25px/1.1 'Barlow Condensed',
+    Impact,
+    sans-serif;
+  margin-top: 20px;
+  letter-spacing: 0.7px;
+}
+.kr-results > p {
+  font-size: 14px;
+  color: #b8c6c5;
+  margin: 10px 0;
+}
+.kr-result-table {
+  margin: 22px 0;
+  display: grid;
+  gap: 4px;
+  text-align: left;
+}
+.kr-result-table > div {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 14px;
+  background: #ffffff05;
+  border: 1px solid #ffffff08;
+  padding: 10px 12px;
+  border-radius: 4px;
+}
+.kr-result-table > div.you {
+  background: #baff2912;
+  border-color: #baff293e;
+  color: var(--lime);
+}
+.kr-result-table b {
+  flex: 1;
+}
+.kr-result-table small {
+  font-size: 10px;
+  color: #afc0b3;
+  border: 1px solid #ffffff20;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+.kr-result-table > div > span:last-child {
+  min-width: 61px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+}
+.kr-results > .kr-start {
+  justify-content: center;
+  margin-top: 12px;
+}
+.kr-reward {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--lime);
+  margin-bottom: 14px;
+}
+.kr-reward > b {
+  margin-left: auto;
+}
+.kr-modal {
+  position: relative;
+  background: #172126;
+  border: 1px solid #ffffff24;
+  padding: 34px 28px;
+  border-radius: 10px;
+  width: 450px;
+  max-width: 100%;
+  box-shadow: 0 35px 100px #0005;
+}
+.kr-close {
+  position: absolute;
+  right: 15px;
+  top: 15px;
+}
+.kr-modal h2 {
+  font:
+    800 35px/1.1 'Barlow Condensed',
+    Impact,
+    sans-serif;
+  margin: 24px 0;
+}
+.kr-modal p {
+  font-size: 15px;
+  line-height: 1.6;
+  color: #b1c1c3;
+  margin: 16px 0;
+}
+.kr-setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 17px 0;
+  background: transparent;
+  border-bottom: 1px solid #ffffff18 !important;
+  font-size: 14px;
+}
+.kr-setting > span {
+  margin-right: auto;
+}
+.kr-setting select {
+  padding: 10px;
+  background: #28373b;
+  border: 1px solid #ffffff20;
+  border-radius: 5px;
+  color: #f4f7f2;
+  font-size: 14px;
+}
+.kr-howto > b {
+  color: var(--lime);
+  font-size: 15px;
+}
+.kr-howto p {
+  margin: 6px 0 17px;
+  font-size: 14px;
+}
+.kr-fatal {
+  position: absolute;
+  z-index: 50;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(420px, calc(100% - 32px));
+  padding: 25px;
+  background: #182326;
+  border: 1px solid #94ae5660;
+  border-radius: 10px;
+  box-shadow: 0 0 0 100vmax #060b10be;
+}
+.kr-fatal h2 {
+  font:
+    800 30px 'Barlow Condensed',
+    Impact,
+    sans-serif;
+}
+.kr-fatal p {
+  font-size: 15px;
+  line-height: 1.5;
+  margin: 15px 0 22px;
+}
+@media (min-width: 901px) and (max-height: 820px) {
+  .kr-title {
+    top: 14%;
+  }
+  .kr-title h1 {
+    font-size: 95px;
+  }
+  .kr-controls-panel {
+    width: 450px;
+    bottom: 8%;
+  }
+  .kr-mode {
+    flex-direction: row;
+    align-items: center;
+    padding: 13px 11px;
+    gap: 8px;
+  }
+  .kr-mode small,
+  .kr-tick {
+    display: none;
+  }
+  .kr-garage-bottom {
+    bottom: 16px;
+  }
+}
+@media (max-width: 900px) {
+  .kr-header {
+    padding: 18px 25px;
+  }
+  .kr-controls-panel {
+    width: 420px;
+    left: 4%;
+    bottom: 8%;
+  }
+  .kr-title {
+    left: 4%;
+    top: 15%;
+  }
+  .kr-title h1 {
+    font-size: 90px;
+  }
+  .kr-vehicle-info {
+    right: 4%;
+    bottom: 48%;
+  }
+  .kr-vehicle-info p {
+    display: none;
+  }
+}
+@media (max-width: 600px) {
+  .kr-header {
+    padding: max(15px, env(safe-area-inset-top)) 20px 13px;
+    border-bottom: 0;
+  }
+  .kr-brand {
+    font-size: 12px !important;
+    gap: 10px;
+    letter-spacing: 1.3px;
+  }
+  .kr-brand-symbol {
+    font-size: 27px;
+    padding: 4px 10px 5px 6px;
+  }
+  .kr-brand small {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+  }
+  .kr-header-actions {
+    gap: 13px;
+  }
+  .kr-wallet {
+    gap: 5px;
+    font-size: 13px;
+  }
+  .kr-wallet svg {
+    width: 14px;
+  }
+  .kr-wallet small {
+    font-size: 10px;
+  }
+  .kr-header .kr-icon {
+    width: 34px;
+    height: 34px;
+  }
+  .kr-vignette {
+    background: linear-gradient(
+      180deg,
+      #0d141bc9 0,
+      transparent 42%,
+      #0d141b30 48%,
+      #0d141be6 65%,
+      #0d141b 100%
+    );
+  }
+  .kr-title {
+    left: 22px;
+    top: 90px;
+  }
+  .kr-title .kr-eyebrow {
+    font-size: 10px;
+    letter-spacing: 1.3px;
+    gap: 7px;
+  }
+  .kr-eyebrow > i {
+    width: 21px;
+    height: 8px;
+  }
+  .kr-title h1 {
+    font-size: 72px;
+    line-height: 0.79;
+    letter-spacing: -0.3px;
+    margin-top: 15px;
+  }
+  .kr-title sup {
+    font-size: 12px;
+    right: -17px;
+  }
+  .kr-title p {
+    font-size: 9px;
+    letter-spacing: 1.6px;
+    margin-top: 12px;
+  }
+  .kr-vehicle-info {
+    right: 22px;
+    bottom: auto;
+    top: 33%;
+  }
+  .kr-vehicle-info .kr-label {
+    font-size: 10px;
+    letter-spacing: 1px;
+  }
+  .kr-vehicle-info h2 {
+    font-size: 27px;
+    margin-top: 1px;
+  }
+  .kr-swatches {
+    gap: 10px;
+    margin-top: 10px;
+  }
+  .kr-swatches button {
+    width: 17px;
+    height: 17px;
+    border-width: 2px !important;
+  }
+  .kr-controls-panel {
+    left: 18px;
+    right: 18px;
+    width: auto;
+    bottom: max(24px, calc(env(safe-area-inset-bottom) + 12px));
+  }
+  .kr-mode-list {
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .kr-mode {
+    padding: 12px 9px;
+    gap: 9px;
+    border-radius: 6px;
+  }
+  .kr-mode > svg {
+    width: 19px;
+    height: 19px;
+  }
+  .kr-mode b {
+    font-size: 12px;
+    letter-spacing: 0;
+  }
+  .kr-mode small {
+    font-size: 10px;
+    margin-top: 3px;
+    letter-spacing: 0;
+  }
+  .kr-mode .kr-tick {
+    right: 8px;
+    top: 13px;
+    width: 12px;
+    height: 12px;
+  }
+  .kr-options {
+    padding: 12px 13px;
+    margin-bottom: 10px;
+  }
+  .kr-track-mini {
+    width: 66px;
+    height: 57px;
+  }
+  .kr-track-selector {
+    gap: 11px;
+  }
+  .kr-track-selector h3 {
+    font-size: 24px;
+    margin: 2px 0;
+  }
+  .kr-label {
+    font-size: 11px;
+    letter-spacing: 1px;
+  }
+  .kr-track-selector p {
+    font-size: 12px;
+  }
+  .kr-track-arrows {
+    gap: 4px;
+  }
+  .kr-track-arrows .kr-icon {
+    width: 26px;
+    height: 34px;
+  }
+  .kr-difficulty {
+    margin-top: 9px;
+    padding-top: 7px;
+  }
+  .kr-difficulty button {
+    font-size: 12px;
+    padding: 6px 9px;
+  }
+  .kr-start {
+    min-height: 55px;
+    padding: 14px 17px;
+    font-size: 20px !important;
+  }
+  .kr-start svg {
+    width: 21px;
+    height: 21px;
+  }
+  .kr-panel-footer {
+    font-size: 10px;
+    margin-top: 11px;
+    gap: 5px;
+  }
+  .kr-panel-footer button {
+    font-size: 11px;
+  }
+  .kr-garage-bottom {
+    display: none;
+  }
+  .kr-cups button {
+    padding: 9px 3px;
+  }
+  .kr-cups b {
+    font-size: 12px;
+  }
+  .kr-cups small {
+    font-size: 10px;
+  }
+  .kr-career-meta {
+    font-size: 12px;
+    margin-top: 9px;
+  }
+  .kr-section-line {
+    margin-bottom: 9px;
+  }
+  .kr-input {
+    padding: 10px 11px;
+  }
+  .kr-online {
+    max-height: 31vh;
+  }
+  .kr-row {
+    gap: 7px;
+    margin-top: 7px;
+  }
+  .kr-online .kr-secondary {
+    min-height: 39px;
+    font-size: 13px !important;
+    padding: 9px;
+  }
+  .kr-notice {
+    font-size: 13px !important;
+    margin-top: 9px !important;
+  }
+  .kr-room-players > div {
+    padding: 5px 0;
+  }
+  .kr-race-top {
+    padding: max(22px, env(safe-area-inset-top)) 20px 0;
+    gap: 18px;
+  }
+  .kr-position > b {
+    font-size: 60px;
+  }
+  .kr-position > span {
+    font-size: 11px;
+  }
+  .kr-lap > span {
+    font-size: 12px;
+  }
+  .kr-lap b {
+    font-size: 22px;
+  }
+  .kr-lap time {
+    font-size: 15px;
+  }
+  .kr-race-side {
+    top: 86px;
+    right: 20px;
+  }
+  .kr-race-map {
+    width: 85px;
+    height: 85px;
+    padding: 9px;
+  }
+  .kr-touch-controls {
+    left: 18px;
+    right: 18px;
+    bottom: max(32px, calc(env(safe-area-inset-bottom) + 20px));
+    gap: 16px;
+  }
+  .kr-steering {
+    grid-template-columns: repeat(2, 59px);
+    gap: 7px;
+  }
+  .kr-steering button {
+    height: 59px;
+    border-radius: 10px;
+  }
+  .kr-steering .kr-brake {
+    height: 30px;
+    font-size: 11px;
+  }
+  .kr-pedals {
+    gap: 9px;
+  }
+  .kr-drift-button {
+    width: 60px;
+    height: 49px;
+    font-size: 11px !important;
+  }
+  .kr-boost-button {
+    width: 68px;
+    height: 97px;
+  }
+  .kr-boost-button > span {
+    font-size: 11px;
+  }
+  .kr-speed {
+    bottom: 154px;
+  }
+  .kr-speed > b {
+    font-size: 54px;
+  }
+  .kr-speed > span {
+    font-size: 10px;
+  }
+  .kr-key-hint {
+    display: none;
+  }
+  .kr-drift-label {
+    top: 26%;
+    font-size: 12px;
+  }
+  .kr-countdown > b {
+    font-size: 118px;
+  }
+  .kr-race-notice {
+    right: 115px;
+    top: 95px;
+    font-size: 12px;
+  }
+  .kr-modal-backdrop,
+  .kr-results-backdrop {
+    padding: 20px;
+  }
+  .kr-modal {
+    padding: 28px 22px;
+    max-height: 90dvh;
+    overflow: auto;
+  }
+  .kr-modal h2 {
+    font-size: 32px;
+    margin: 26px 0 20px;
+  }
+  .kr-results {
+    padding: 18px 0;
+    align-self: safe center;
+  }
+  .kr-finish-place {
+    font-size: 100px;
+  }
+  .kr-results h2 {
+    font-size: 24px;
+    margin-top: 17px;
+  }
+  .kr-result-table {
+    margin: 18px 0;
+  }
+  .kr-result-table > div {
+    padding: 8px 11px;
+    font-size: 14px;
+  }
+  .kr-result-table > div > span:last-child {
+    font-size: 12px;
+  }
+  .kr-modal > .kr-eyebrow {
+    font-size: 11px;
+  }
+}
+@media (max-width: 600px) and (max-height: 740px) {
+  .kr-title {
+    top: 78px;
+  }
+  .kr-title h1 {
+    font-size: 59px;
+    margin-top: 11px;
+  }
+  .kr-title p {
+    display: none;
+  }
+  .kr-vehicle-info {
+    top: 30%;
+  }
+  .kr-vehicle-info h2 {
+    font-size: 22px;
+  }
+  .kr-swatches {
+    gap: 9px;
+    margin-top: 8px;
+  }
+  .kr-controls-panel {
+    bottom: max(15px, env(safe-area-inset-bottom));
+  }
+  .kr-mode {
+    padding: 10px 8px;
+    gap: 7px;
+  }
+  .kr-mode small {
+    display: none;
+  }
+  .kr-mode-list {
+    margin-bottom: 8px;
+  }
+  .kr-options {
+    padding: 10px 12px;
+    margin-bottom: 8px;
+  }
+  .kr-track-mini {
+    height: 49px;
+    width: 60px;
+  }
+  .kr-difficulty {
+    margin-top: 6px;
+    padding-top: 5px;
+  }
+  .kr-start {
+    min-height: 50px;
+    padding: 12px 15px;
+  }
+  .kr-panel-footer {
+    margin-top: 8px;
+  }
+  .kr-online {
+    max-height: 29vh;
+  }
+  .kr-title .kr-eyebrow {
+    font-size: 9px;
+  }
+  .kr-results h2 {
+    font-size: 22px;
+  }
+  .kr-finish-place {
+    font-size: 75px;
+  }
+  .kr-result-table {
+    margin: 12px 0;
+  }
+  .kr-results > p {
+    margin: 6px 0;
+  }
+}
+@media (max-width: 360px) {
+  .kr-header {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .kr-brand small {
+    display: none;
+  }
+  .kr-controls-panel {
+    left: 12px;
+    right: 12px;
+  }
+  .kr-mode b {
+    font-size: 11px;
+  }
+  .kr-mode small {
+    display: none;
+  }
+  .kr-title {
+    left: 17px;
+  }
+  .kr-steering {
+    grid-template-columns: repeat(2, 53px);
+  }
+  .kr-drift-button {
+    width: 52px;
+  }
+  .kr-boost-button {
+    width: 62px;
+  }
+  .kr-track-selector {
+    gap: 8px;
+  }
+  .kr-track-selector h3 {
+    font-size: 22px;
+  }
+  .kr-label {
+    font-size: 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .kr-app button {
+    transition: none;
+  }
+}
