@@ -30,6 +30,7 @@ twitter.env
 **/.env*
 /webapp/dist/
 /webapp/dist-kart/
+/webapp/dist-bowling-preview/
 # Hardhat build artifacts
 artifacts/
 cache/

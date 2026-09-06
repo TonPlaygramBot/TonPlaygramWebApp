@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.tennis.json",
+  "include": [
+    "shared/bowling/*.ts",
+    "webapp/src/games/bowling/*.ts",
+    "webapp/src/games/bowling/*.tsx"
+  ]
+}

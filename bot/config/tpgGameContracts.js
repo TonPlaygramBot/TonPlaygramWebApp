@@ -13,6 +13,7 @@ const CONTRACTS = {
   'domino-royal': ['variant', 'targetPoints', 'players'],
   ludobattleroyal: ['players', 'rules'],
   texasholdem: ['tableSize', 'gameMode', 'buyIn'],
+  bowlingroyal: ['format'],
   tennisroyal: ['surface', 'format'],
   airhockey: ['winScore', 'arena'],
   murlanroyale: ['variant', 'targetPoints', 'players', 'rules'],

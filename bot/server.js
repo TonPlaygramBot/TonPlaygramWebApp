@@ -13,6 +13,7 @@ import { attachKartRoyale } from './services/kartRoyale.js';
 import { createTiranaStreets } from './services/tiranaStreets.js';
 import { createKartStakeService } from './services/kartStake.js';
 import KartMatch from './models/KartMatch.js';
+import { createBowlingRoyal } from './services/bowlingRoyal.js';
 import { createTennisRoyal } from './services/tennisRoyal.js';
 import { LudoBattleGame } from './logic/ludoBattleGame.js';
 import { GameRoomManager } from './gameEngine.js';
@@ -683,6 +684,10 @@ const liveChatRooms = new Map();
 const lobbyTables = {};
 const tableMap = new Map();
 const tennisRoyal = createTennisRoyal({io,tableMap});
+const bowlingRoyal = createBowlingRoyal({io,tableMap,onRelease(tableId){
+  const table=tableMap.get(tableId);
+  if(table){table.started=false;for(const p of [...table.players])unseatTableSocket(p.id,tableId,p.socketId);}
+},telemetry(event){console.info('Bowling match',JSON.stringify(event));}});
 app.set('gameManager', gameManager);
 app.set('tableMap', tableMap);
 const poolStates = new Map();
@@ -1563,6 +1568,7 @@ async function seatTableSocket(
     }
   }
   console.log(`Player ${playerName || accountId} joined table ${tableId}`);
+  if(gameType==='bowlingroyal') console.info('Bowling match',JSON.stringify({tableId,event:table.players.length===2?'matched':'queued'}));
   socket?.join(tableId);
   if (table.gameType === 'domino-royal' && table.players.length === 1 && !table.matchTimeout) {
     table.matchTimeout = setTimeout(() => {
@@ -1848,6 +1854,15 @@ function maybeStartGame(table) {
           return;
         }
       }
+      if (table.gameType === 'bowlingroyal') {
+        table.starting = true;
+        try { await bowlingRoyal.prepare(table); }
+        catch (error) {
+          io.to(table.id).emit('matchmakingError', {tableId:table.id,error:error.message});
+          for (const p of [...table.players]) unseatTableSocket(p.id,table.id,p.socketId);
+          return;
+        } finally { table.starting = false; }
+      }
       if (table.gameType === 'tennisroyal') {
         table.starting = true;
         try { await tennisRoyal.prepare(table); }
@@ -1939,7 +1954,7 @@ function unseatTableSocket(accountId, tableId, socketId) {
   if (!tableId) return;
   // Once handed to the race, kart:leave/resume owns the immutable roster and
   // stake. A late lobby cancel or disconnect must not release its account lock.
-  if (tableMap.get(tableId)?.gameType === 'kartroyale' && tableMap.get(tableId)?.started) return;
+  if (['kartroyale','bowlingroyal'].includes(tableMap.get(tableId)?.gameType) && tableMap.get(tableId)?.started) return;
   const map = tableSeats.get(tableId);
   const normalizedAccountId = accountId ? String(accountId) : '';
   // A mobile WebView can reconnect before Socket.IO finishes disconnecting the
@@ -2587,6 +2602,7 @@ function removeSocketFromLiveChat(socket) {
 io.on('connection', (socket) => {
   tiranaStreets.attach(socket);
   tennisRoyal.attach(socket);
+  bowlingRoyal.attach(socket);
   const authAccountId = resolveTpcIdentity(socket.handshake?.auth || {});
   if (authAccountId) {
     let set = userSockets.get(String(authAccountId));
@@ -2717,6 +2733,11 @@ io.on('connection', (socket) => {
       }
 
       const safeMeta = validation.safeMatchMeta;
+      const activeBowling = bowlingRoyal.activeTableFor(resolvedAccountId);
+      if(activeBowling && (validation.normalizedGameType !== 'bowlingroyal' || tableId !== activeBowling)) {
+        return cb && cb({success:false,error:'account_already_in_active_match'});
+      }
+
 
       if (validation.normalizedGameType === 'kartroyale') {
         try { await kartStake.canQueue(String(resolvedAccountId), validation.normalizedStake, tableId); }

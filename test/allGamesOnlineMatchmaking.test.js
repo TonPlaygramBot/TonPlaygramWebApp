@@ -9,6 +9,7 @@ const apiToken = 'all-games-test-token';
 const distDir = new URL('../webapp/dist/', import.meta.url);
 
 const games = [
+  { gameType: 'bowlingroyal', maxPlayers: 2, matchMeta: { format: 'tenpin' } },
   { gameType: 'chess', maxPlayers: 2, matchMeta: {} },
   { gameType: 'domino-royal', maxPlayers: 4, matchMeta: { variant: 'points', targetPoints: 101 } },
   { gameType: 'poolroyale', maxPlayers: 2, matchMeta: { variant: '8ball', tableSize: '9ft' } },
@@ -153,6 +154,20 @@ test('Test 1 through Test 8 receive identical lobby and game-start state in ever
             start.players.map((player) => player.name),
             Array.from({ length: game.maxPlayers }, (_, index) => `Test ${index + 1}`)
           );
+        }
+        if (game.gameType === 'bowlingroyal') {
+          const joined = await Promise.all(sockets.map((socket, index) => emitAck(socket, 'bowlingJoin', {
+            tableId, accountId: `test-${index + 1}`
+          })));
+          assert.ok(joined.every((result, index) => result.success && result.data.seat === index));
+          assert.deepEqual(joined[0].data.state.players, joined[1].data.state.players);
+          const delivered = await emitAck(sockets[0], 'bowlingThrow', {
+            tableId, accountId: 'test-1', turn: 1,
+            input: { power: 0.85, releaseX: 0.2, targetX: 0.16, hook: 0 }
+          });
+          assert.equal(delivered.success, true);
+          const retired = await emitAck(sockets[0], 'bowlingLeave', { tableId, accountId: 'test-1' });
+          assert.equal(retired.data.state.winner, 1);
         }
         if (game.gameType === 'ludobattleroyal') {
           const initialStates = sockets.map((socket) => waitForEvent(
