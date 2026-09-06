@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "generate:tirana-assets": "node scripts/generate-tirana-street-furniture.mjs",
+    "predev": "npm run generate:tirana-assets",
+    "prebuild": "npm run generate:tirana-assets",
     "dev": "vite",
     "lint": "eslint --no-ignore --no-warn-ignored",
     "build": "node scripts/write-build-metadata.mjs && node scripts/run-vite-build.mjs",

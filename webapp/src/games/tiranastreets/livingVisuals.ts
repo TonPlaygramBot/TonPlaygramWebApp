@@ -6,7 +6,7 @@ import type { State, Player, NPC } from "./shared/engine.mjs";
 
 const BASE = "/assets/tirana-streets/living/";
 // Same Ludo IDs. Unavailable CDN models use the creator's downloadable CC0 pack.
-const variants: Record<string, string> = {
+export const WEAPON_MODEL_VARIANTS: Record<string, string> = {
   polyPistol01Attack: "q-pistol",
   polyRevolver01Attack: "smith",
   polyRevolver02Attack: "smith",
@@ -25,6 +25,8 @@ const variants: Record<string, string> = {
   polyGasTank01Attack: "grenade",
   polyHandGrenade01Attack: "grenade",
 };
+export const weaponModelFile = (model: string) =>
+  WEAPON_MODEL_VARIANTS[model] || model;
 export class LivingVisuals {
   group = new THREE.Group();
   private models = new Map<string, THREE.Group>();
@@ -213,7 +215,7 @@ export class LivingVisuals {
   pose(id: string, actor: THREE.Group, entity: Player | NPC, time: number) {
     const weapon = entity.weapon || "",
       config = WEAPON_BY_ID.get(weapon),
-      name = config ? variants[config.model] || config.model : "";
+      name = config ? weaponModelFile(config.model) : "";
     let holder = this.holders.get(id);
     if (!holder) {
       holder = { group: new THREE.Group(), weapon: "" };
