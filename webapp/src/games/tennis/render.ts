@@ -7,10 +7,32 @@ import { BALL_RADIUS, MatchState, Seat, Surface, side } from './engine';
 export const decode = (data: string) =>
   Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
 const palettes = {
-  hard: { court: 0x237cac, surround: 0x155661, back: 0x092c35 },
+  hard: { court: 0x4f93a7, surround: 0x6b8f57, back: 0x102035 },
   clay: { court: 0xc66643, surround: 0x9d4633, back: 0x302629 },
   grass: { court: 0x5a935d, surround: 0x346348, back: 0x162f29 }
 };
+
+// Visual recipe restored from the September 1 tennis court. Gameplay remains
+// owned by engine.ts; these helpers deliberately affect presentation only.
+function acrylicTexture(base: string, flecks = 9000) {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 256;
+  const context = canvas.getContext('2d');
+  if (!context) return null;
+  context.fillStyle = base;
+  context.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < flecks; i++) {
+    const shade = 145 + Math.floor(Math.random() * 70);
+    context.fillStyle = `rgba(${shade},${shade + 8},${shade + 10},${0.035 + Math.random() * 0.055})`;
+    context.fillRect(Math.random() * 256, Math.random() * 256, 1 + Math.random() * 2, 1);
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(2.2, 5.2);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 4;
+  return texture;
+}
 type Actor = {
   root: THREE.Group;
   model: THREE.Group | null;
@@ -68,8 +90,8 @@ export class TennisRenderer {
     this.renderer.domElement.style.cssText =
       'display:block;width:100%;height:100%;touch-action:none';
     mount.appendChild(this.renderer.domElement);
-    this.scene.background = new THREE.Color(0x0c2833);
-    this.scene.fog = new THREE.Fog(0x0c2833, 42, 95);
+    this.scene.background = new THREE.Color(0x304d62);
+    this.scene.fog = new THREE.Fog(0x304d62, 48, 105);
     this.scene.add(this.root);
     this.scene.add(new THREE.HemisphereLight(0xd9f6ff, 0x5a6b59, 2.1));
     const sun = new THREE.DirectionalLight(0xffe3b1, 3.4);
@@ -106,6 +128,10 @@ export class TennisRenderer {
     };
     this.surround = box(23, 0.22, 38, 0x155661, 0, -0.15, 0);
     this.court = box(10.97, 0.03, 23.77, 0x237cac, 0, 0, 0);
+    (this.surround.material as THREE.MeshStandardMaterial).map =
+      acrylicTexture('#4d8460', 6500);
+    (this.court.material as THREE.MeshStandardMaterial).map =
+      acrylicTexture('#2f6f88', 9000);
     this.surround.renderOrder = -100;
     this.court.renderOrder = -99;
     const line = (x: number, z: number, w: number, d: number) => {
@@ -151,32 +177,32 @@ export class TennisRenderer {
         new THREE.MeshStandardMaterial({ color: 0xffffff })
       )
     );
-    // Batched tiered seats, floodlights and court fencing.
-    const chairG = new THREE.BoxGeometry(0.54, 0.25, 0.57),
-      chairM = new THREE.MeshStandardMaterial({
-        color: 0x34515e,
-        roughness: 0.7
-      });
-    const chairs = new THREE.InstancedMesh(chairG, chairM, 240);
-    const obj = new THREE.Object3D();
-    let index = 0;
-    for (const sign of [-1, 1])
-      for (let row = 0; row < 3; row++)
-        for (let col = 0; col < 40; col++) {
-          obj.position.set(
-            sign * (8.7 + row * 0.78),
-            0.45 + row * 0.52,
-            -14.6 + col * 0.75
-          );
-          obj.updateMatrix();
-          chairs.setMatrixAt(index++, obj.matrix);
-        }
-    this.root.add(chairs);
-    for (const sign of [-1, 1]) {
-      for (let row = 0; row < 3; row++)
-        box(2.7, 0.35, 31, 0x15353f, sign * 9.5, 0.05 + row * 0.45, 0);
-      box(0.15, 1.15, 31, 0x0c343c, sign * 7.6, 0.55, 0);
+    // Restore the intimate outdoor stadium: transparent perimeter fencing,
+    // timber player benches, umpire chair and the original four floodlights.
+    const fenceMaterial = new THREE.MeshStandardMaterial({
+      color: 0x243238,
+      transparent: true,
+      opacity: 0.5,
+      roughness: 0.62
+    });
+    for (const x of [-8.25, 8.25]) {
+      const fence = box(0.045, 2.2, 34, 0x243238, x, 1.1, 0);
+      fence.material = fenceMaterial;
+      for (let z = -16; z <= 16; z += 3.2)
+        box(0.06, 2.45, 0.06, 0x28323a, x, 1.22, z);
     }
+    for (const z of [-16.5, 16.5]) {
+      const fence = box(16.5, 2.2, 0.045, 0x243238, 0, 1.1, z);
+      fence.material = fenceMaterial;
+      for (let x = -8; x <= 8; x += 2.65)
+        box(0.06, 2.45, 0.06, 0x28323a, x, 1.22, z);
+    }
+    for (const x of [-7.05, 7.05]) {
+      box(2.35, 0.13, 0.42, 0x8b5a2b, x, 0.39, x < 0 ? 2 : -2);
+      box(2.35, 0.11, 0.35, 0x8b5a2b, x, 0.72, x < 0 ? 2.18 : -1.82);
+    }
+    box(0.82, 0.12, 0.62, 0xd8dde1, 6.7, 1.45, 0);
+    box(0.82, 0.1, 0.2, 0x0f2d45, 6.7, 1.78, -0.26);
     for (const x of [-7.7, 7.7])
       for (const z of [-14.5, 14.5]) {
         box(0.16, 8, 0.16, 0x527580, x, 4, z);
@@ -186,11 +212,6 @@ export class TennisRenderer {
         );
         (light.material as THREE.MeshStandardMaterial).emissiveIntensity = 2;
       }
-    for (const z of [-16, 16]) {
-      box(16, 1.4, 0.18, 0x10343e, 0, 0.6, z);
-      for (const x of [-5, 0, 5])
-        box(3.7, 0.58, 0.02, 0x234b54, x, 0.75, z - side(seat) * 0.11);
-    }
     const ballMat = new THREE.MeshStandardMaterial({
       color: 0xdcff36,
       roughness: 0.72,
@@ -353,8 +374,11 @@ export class TennisRenderer {
           const mats = Array.isArray(o.material) ? o.material : [o.material];
           for (const m of mats) {
             if (m instanceof THREE.MeshStandardMaterial) {
-              m.roughness = 0.88;
+              // Match the warmer, cloth-like human characters used by the
+              // restored court rather than the newer metallic arena finish.
+              m.roughness = 0.74;
               m.metalness = 0;
+              m.envMapIntensity = 0.35;
             }
           }
         }
