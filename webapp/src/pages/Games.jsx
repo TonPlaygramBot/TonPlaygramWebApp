@@ -15,6 +15,7 @@ const BADGE_STYLES = {
   'Online Ready': 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40',
   'Single Player': 'bg-cyan-500/20 text-cyan-200 border-cyan-300/40',
   Beta: 'bg-amber-500/20 text-amber-200 border-amber-300/40',
+  Alpha: 'bg-lime-500/20 text-lime-200 border-lime-300/40',
   'Coming Soon': 'bg-slate-500/20 text-slate-200 border-slate-300/30'
 };
 
@@ -66,6 +67,7 @@ export default function Games() {
                   }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                {game.attribution && <span className="absolute top-1 right-1 rounded bg-black/60 px-1 text-[9px] text-white">{game.attribution}</span>}
                 <span className="absolute bottom-1 left-1 right-1 text-center text-xs font-semibold text-white">
                   {game.name}
                 </span>

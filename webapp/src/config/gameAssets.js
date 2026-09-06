@@ -12,6 +12,7 @@ const withBase = (path) => {
 
 export const gameThumbnails = {
   tabletennisroyal: '/assets/icons/table-tennis-royal.svg',
+  tiranastreets: '/assets/tirana-streets/map.svg',
   kartroyale: '/assets/kart-royale/cover.webp',
   tennisroyal: '/assets/icons/tennis-royal.svg',
   texasholdem: '/assets/icons/Texas%20holdem%20poker%20game%20logo.png',

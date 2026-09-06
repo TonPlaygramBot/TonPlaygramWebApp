@@ -11,6 +11,7 @@ import http from 'http';
 import { initSocket } from './socket.js';
 import { createTableTennisRoyal } from './services/tabletennisRoyal.js';
 import { attachKartRoyale } from './services/kartRoyale.js';
+import { createTiranaStreets } from './services/tiranaStreets.js';
 import { createKartStakeService } from './services/kartStake.js';
 import KartMatch from './models/KartMatch.js';
 import { createTennisRoyal } from './services/tennisRoyal.js';
@@ -272,6 +273,7 @@ io.use((socket, next) => {
   return next(new Error('unauthorized'));
 });
 const gameManager = new GameRoomManager(io);
+const tiranaStreets = createTiranaStreets();
 const kartStake = createKartStakeService();
 const kartRoyale = attachKartRoyale(io, {
   settleMatch: kartStake.settle,
@@ -2595,6 +2597,7 @@ function removeSocketFromLiveChat(socket) {
 }
 
 io.on('connection', (socket) => {
+  tiranaStreets.attach(socket);
   tennisRoyal.attach(socket);
   tabletennisRoyal.attach(socket);
   const authAccountId = resolveTpcIdentity(socket.handshake?.auth || {});

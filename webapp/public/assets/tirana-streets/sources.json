@@ -1,0 +1,82 @@
+{
+  "assets": [
+    {
+      "path": "Textures/colormap.png",
+      "bytes": 12371,
+      "sha256": "f3622a03a20c6696065cae9cbe391351be873508af190c2ebd1d420c055787a5",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "asphalt-diff.jpg",
+      "bytes": 438264,
+      "sha256": "622a2670ed1395e5197808103bc2673c3229535f428df3b8faec193378b3d37f",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "asphalt-nor_gl.jpg",
+      "bytes": 1193226,
+      "sha256": "f1dd6d06ef9172fbb22265e008ca921b9608f815e8e244c73f8bd3f79d748fbe",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "asphalt-rough.jpg",
+      "bytes": 527585,
+      "sha256": "8d3099d10760fb77feb55261b99c93a06aa3cca149f8f7864bbd05bbd510e4f1",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "character.glb",
+      "bytes": 145196,
+      "sha256": "2ff5a2ad87f0d4d930805f6510be3c16e32949665a38da18bbb0c8cdbc58ff08",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "city.glb",
+      "bytes": 3791548,
+      "sha256": "cd23a3635b18698ca8e6c17416b75586a4af5a6c52b92cc212ba2297236a2b83",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "map.svg",
+      "bytes": 676512,
+      "sha256": "a7864dd72e559e31be28dea8b3161c21425b7438433b905802eed853b4f3f1c1",
+      "license": "ODbL-1.0"
+    },
+    {
+      "path": "police.glb",
+      "bytes": 195336,
+      "sha256": "a617b880594f56239b7ac4cf6fd4d74ebdae3ba6c5d842e77c76a5906eff352a",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "sedan-sports.glb",
+      "bytes": 177676,
+      "sha256": "2889c428ca1dd9c975c3ff760eb8757883490410555ab60b818f712f583826d6",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "sedan.glb",
+      "bytes": 172216,
+      "sha256": "b532ea7d2c59f7f6b22b138cf1955218a2c1898f1cea932af4d3fd563c3959b7",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "taxi.glb",
+      "bytes": 175608,
+      "sha256": "3803539718ffd3b84b515dbce8ed6b489f1ff5be58edb1903d2c5db5c584bdc7",
+      "license": "CC0-1.0"
+    },
+    {
+      "path": "world.json",
+      "bytes": 1237552,
+      "sha256": "7b7cfc6e5d152bef8b86db7d6bf623336db1580c9e96219d70a6924738ef5f85",
+      "license": "ODbL-1.0"
+    }
+  ],
+  "geography": {
+    "source": "https://api.openstreetmap.org/api/0.6/map?bbox=19.809,41.317,19.827,41.331",
+    "license": "ODbL-1.0",
+    "sourceSha256": "fcc7a974d8fc150a8400c6d790fa6785bf16d21dd14e602b0d238582d96bc6e4"
+  },
+  "download": "https://kenney.nl/media/pages/assets/car-kit/1a312ec241-1775131960/kenney_car-kit.zip"
+}
