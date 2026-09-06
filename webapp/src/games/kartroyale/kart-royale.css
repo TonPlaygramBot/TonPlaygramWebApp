@@ -20,6 +20,20 @@
 .kr-app * {
   box-sizing: border-box;
 }
+.kr-credits {
+  margin-top: 18px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.kr-credits summary {
+  cursor: pointer;
+  color: #b8c7c8;
+  padding: 8px 0;
+}
+.kr-credits a {
+  color: var(--lime);
+  text-decoration: underline;
+}
 .kr-app button,
 .kr-app input,
 .kr-app select {

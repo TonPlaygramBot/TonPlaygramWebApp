@@ -1,5 +1,16 @@
 const gamesCatalog = [
-  {name:'Kart Royale',route:'/games/kartroyale/lobby',slug:'kartroyale',image:'/assets/icons/kart-royale.svg',badge:'Beta',description:'3D kart racing with AI, career cups and multiplayer rooms.'},
+  {
+    name: 'Kart Royale',
+    route: '/games/kartroyale/lobby',
+    slug: 'kartroyale',
+    image: '/assets/kart-royale/cover.webp',
+    badge: 'Beta',
+    featured: true,
+    modes: ['VS AI', 'Multiplayer', 'Career'],
+    launchLabel: 'Enter Racing Lobby',
+    description:
+      'Race through the city in a 3D kart. Master three circuits, win cups, or race friends.'
+  },
   {
     name: "Texas Hold'em",
     route: '/games/texasholdem/lobby',
@@ -96,16 +107,16 @@ const gamesCatalog = [
     image: '/assets/icons/underrun-arena.svg',
     description: 'Survive an auto-fire neon swarm online.'
   }
-]
+];
 
-export default gamesCatalog
+export default gamesCatalog;
 
 export const inviteGamesCatalog = gamesCatalog.filter(
   (game) => game.multiplayer !== false
-)
+);
 
 export const catalogWithSlugs = gamesCatalog.map((game) => {
-  if (game.slug) return game
-  const [, , slug] = game.route.split('/')
-  return { ...game, slug }
-})
+  if (game.slug) return game;
+  const [, , slug] = game.route.split('/');
+  return { ...game, slug };
+});

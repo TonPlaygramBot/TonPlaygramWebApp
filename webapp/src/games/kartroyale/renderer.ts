@@ -47,6 +47,24 @@ const neutral = (): Input => ({
   drift: false,
   boost: false
 });
+interface KartRig {
+  body: T.Object3D;
+  steeringWheel?: T.Object3D;
+  wheels: T.Object3D[];
+  front: T.Object3D[];
+  spin: number;
+}
+interface CityPlacement {
+  kind: string;
+  matrix: T.Matrix4;
+  x: number;
+  z: number;
+}
+interface CityBatch {
+  kind: string;
+  lod: boolean;
+  meshes: T.InstancedMesh[];
+}
 export class KartRenderer {
   readonly input = neutral();
   readonly renderer: T.WebGLRenderer;
@@ -57,6 +75,18 @@ export class KartRenderer {
   private showroom = new T.Group();
   private full: T.Group | null = null;
   private low: T.Group | null = null;
+  private city: T.Group | null = null;
+  private textures = new Set<T.Texture>();
+  private roadMaps: T.Texture[] = [];
+  private rigs = new WeakMap<T.Object3D, KartRig>();
+  private cityPlacements: CityPlacement[] = [];
+  private cityBatches: CityBatch[] = [];
+  private cityAt = 0;
+  private skidMesh: T.InstancedMesh | null = null;
+  private skidIndex = 0;
+  private skidAt = 0;
+  private skidPrevious = new Map<string, { x: number; z: number }>();
+  private transform = new T.Object3D();
   private shadow: T.DirectionalLight;
   private environment: T.WebGLRenderTarget;
   private visuals = new Map<string, T.Group>();
@@ -185,17 +215,63 @@ export class KartRenderer {
   }
   async load() {
     const loader = new GLTFLoader();
-    const [full, low] = await Promise.all([
+    const textures = new T.TextureLoader();
+    const results = await Promise.allSettled([
       loader.loadAsync('/assets/kart-royale/apex.glb'),
-      loader.loadAsync('/assets/kart-royale/apex-lod.glb')
+      loader.loadAsync('/assets/kart-royale/apex-lod.glb'),
+      loader.loadAsync('/assets/kart-royale/city.glb'),
+      textures.loadAsync('/assets/kart-royale/asphalt-diff.jpg'),
+      textures.loadAsync('/assets/kart-royale/asphalt-nor_gl.jpg'),
+      textures.loadAsync('/assets/kart-royale/asphalt-rough.jpg')
     ]);
-    if (this.disposed) {
-      this.release(full.scene, true);
-      this.release(low.scene, true);
+    const failed = results.find((r) => r.status === 'rejected');
+    if (this.disposed || failed) {
+      for (const r of results)
+        if (r.status === 'fulfilled') {
+          if (r.value instanceof T.Texture) r.value.dispose();
+          else {
+            this.collectTextures(r.value.scene);
+            this.release(r.value.scene, true);
+          }
+        }
+      this.textures.forEach((t) => t.dispose());
+      this.textures.clear();
+      if (failed && !this.disposed)
+        throw new Error(
+          'The racing assets could not load. Check your connection and reload.'
+        );
       return;
     }
-    this.full = full.scene;
-    this.low = low.scene;
+    // The successful branches are checked above; keep asset types distinct.
+    this.full = (
+      results[0] as PromiseFulfilledResult<
+        import('three/examples/jsm/loaders/GLTFLoader.js').GLTF
+      >
+    ).value.scene;
+    this.low = (
+      results[1] as PromiseFulfilledResult<
+        import('three/examples/jsm/loaders/GLTFLoader.js').GLTF
+      >
+    ).value.scene;
+    this.city = (
+      results[2] as PromiseFulfilledResult<
+        import('three/examples/jsm/loaders/GLTFLoader.js').GLTF
+      >
+    ).value.scene;
+    this.roadMaps = results
+      .slice(3)
+      .map((r) => (r as PromiseFulfilledResult<T.Texture>).value);
+    this.roadMaps.forEach((texture, i) => {
+      texture.wrapS = texture.wrapT = T.RepeatWrapping;
+      texture.anisotropy = Math.min(
+        8,
+        this.renderer.capabilities.getMaxAnisotropy()
+      );
+      if (i === 0) texture.colorSpace = T.SRGBColorSpace;
+      this.textures.add(texture);
+    });
+    for (const group of [this.full, this.low, this.city])
+      this.collectTextures(group);
     this.showroom.add(this.cloneKart(0));
     this.setColor(this.color);
   }
@@ -210,6 +286,18 @@ export class KartRenderer {
         o.material = m;
       }
     });
+    const rig: KartRig = {
+      body: model.getObjectByName('body') || model,
+      steeringWheel: model.getObjectByName('steering_wheel'),
+      wheels: [],
+      front: [],
+      spin: 0
+    };
+    model.traverse((o) => {
+      if (/^wheel_[fr][lr]$/.test(o.name)) rig.wheels.push(o);
+      if (/^steer_f[lr]$/.test(o.name)) rig.front.push(o);
+    });
+    this.rigs.set(model, rig);
     return model;
   }
   setColor(color: string) {
@@ -227,6 +315,7 @@ export class KartRenderer {
     );
     this.renderer.setPixelRatio(this.ratio);
     this.renderer.shadowMap.enabled = q !== 'performance';
+    this.cityAt = 0;
     this.resize();
   }
   private resize() {
@@ -255,6 +344,11 @@ export class KartRenderer {
       this.release(v, false);
     }
     this.visuals.clear();
+    this.cityBatches = [];
+    this.cityPlacements = [];
+    this.skidPrevious.clear();
+    this.skidIndex = 0;
+    this.cityAt = this.skidAt = 0;
     this.release(this.world, true);
     this.world.clear();
     const ground = new T.Mesh(
@@ -266,7 +360,8 @@ export class KartRenderer {
     this.world.add(ground);
     const positions: number[] = [],
       indices: number[] = [],
-      normals: number[] = [];
+      normals: number[] = [],
+      uvs: number[] = [];
     for (let i = 0; i <= 360; i++) {
       const p = track.points[i % 360];
       for (const side of [-1, 1]) {
@@ -276,6 +371,8 @@ export class KartRenderer {
           p.z + Math.sin(p.yaw) * track.width * 0.5 * side
         );
         normals.push(0, 1, 0);
+        const n = positions.length;
+        uvs.push(positions[n - 3] / 3, positions[n - 1] / 3);
       }
       if (i < 360) {
         const a = i * 2;
@@ -285,13 +382,18 @@ export class KartRenderer {
     const geo = new T.BufferGeometry();
     geo.setAttribute('position', new T.Float32BufferAttribute(positions, 3));
     geo.setAttribute('normal', new T.Float32BufferAttribute(normals, 3));
+    geo.setAttribute('uv', new T.Float32BufferAttribute(uvs, 2));
     geo.setIndex(indices);
     const road = new T.Mesh(
       geo,
       new T.MeshStandardMaterial({
-        color: track.id === 'neon' ? '#303447' : '#393f41',
-        roughness: 0.78,
-        metalness: 0.12,
+        color: '#b0b6b9',
+        map: this.roadMaps[0],
+        normalMap: this.roadMaps[1],
+        normalScale: new T.Vector2(0.48, 0.48),
+        roughnessMap: this.roadMaps[2],
+        roughness: 0.93,
+        metalness: 0.02,
         side: T.DoubleSide
       })
     );
@@ -405,6 +507,7 @@ export class KartRenderer {
       ctx.textAlign = 'center';
       ctx.fillText('KART ROYALE', 512, 92);
       const tex = new T.CanvasTexture(canvas);
+      tex.userData.ephemeral = true;
       tex.colorSpace = T.SRGBColorSpace;
       const sign = new T.Mesh(
         new T.PlaneGeometry(track.width, 1),
@@ -414,84 +517,22 @@ export class KartRenderer {
       arch.add(sign);
     }
     this.world.add(arch);
-    const buildings = new T.InstancedMesh(
-      new T.BoxGeometry(1, 1, 1),
-      new T.MeshStandardMaterial({ roughness: 0.86, metalness: 0.1 }),
-      72
+    this.addCity(track);
+    this.skidMesh = new T.InstancedMesh(
+      new T.PlaneGeometry(0.16, 1).rotateX(-Math.PI / 2),
+      new T.MeshBasicMaterial({
+        color: '#0b1012',
+        transparent: true,
+        opacity: 0.38,
+        depthWrite: false
+      }),
+      512
     );
-    for (let i = 0; i < 72; i++) {
-      const a = (i / 72) * Math.PI * 2,
-        r = 1.55 + (i % 3) * 0.2,
-        h = track.id === 'canyon' ? 9 + (i % 7) * 4 : 12 + (i % 9) * 6;
-      m.position.set(
-        Math.cos(a) * track.x * r,
-        h / 2 - 0.1,
-        Math.sin(a) * track.z * r
-      );
-      m.rotation.set(
-        0,
-        track.id === 'canyon' ? a : 0.1 * (i % 4),
-        track.id === 'canyon' ? 0.12 : 0
-      );
-      m.scale.set(10 + (i % 3) * 5, h, 10 + (i % 4) * 4);
-      m.updateMatrix();
-      buildings.setMatrixAt(i, m.matrix);
-      buildings.setColorAt(
-        i,
-        new T.Color(
-          track.id === 'canyon'
-            ? ['#bd8557', '#b4734c', '#d69a68'][i % 3]
-            : ['#4b555b', '#646d71', '#424d55', '#717b7e'][i % 4]
-        )
-      );
-    }
-    this.world.add(buildings);
+    this.skidMesh.count = 0;
+    this.skidMesh.frustumCulled = false;
+    this.skidMesh.instanceMatrix.setUsage(T.DynamicDrawUsage);
+    this.world.add(this.skidMesh);
     m.scale.set(1, 1, 1);
-    if (track.id !== 'canyon') {
-      const containers = new T.InstancedMesh(
-        new T.BoxGeometry(14, 4, 5),
-        new T.MeshStandardMaterial({ metalness: 0.2, roughness: 0.75 }),
-        18
-      );
-      for (let i = 0; i < 18; i++) {
-        m.position.set(
-          ((i % 6) - 2.5) * 16,
-          2 + Math.floor(i / 6) * 4.02,
-          -20 + Math.floor(i / 6) * 6
-        );
-        m.rotation.set(0, 0, 0);
-        m.updateMatrix();
-        containers.setMatrixAt(i, m.matrix);
-        containers.setColorAt(
-          i,
-          new T.Color(['#536566', '#ce7850', '#3c546c'][i % 3])
-        );
-      }
-      this.world.add(containers);
-      const windows = new T.InstancedMesh(
-        new T.BoxGeometry(0.08, 1.2, 1.7),
-        new T.MeshBasicMaterial({
-          color: track.id === 'neon' ? '#ffe1ac' : '#9aaead'
-        }),
-        480
-      );
-      let n = 0;
-      for (let i = 0; i < 24; i++) {
-        const a = (i / 72) * Math.PI * 2,
-          rad = 1.55 + (i % 3) * 0.2;
-        for (let row = 0; row < 5; row++)
-          for (let col = 0; col < 4; col++) {
-            m.position.set(
-              Math.cos(a) * track.x * rad - (10 + (i % 3) * 5) / 2 - 0.09,
-              3 + row * 3.2,
-              Math.sin(a) * track.z * rad + (col - 1.5) * 2.5
-            );
-            m.updateMatrix();
-            windows.setMatrixAt(n++, m.matrix);
-          }
-      }
-      this.world.add(windows);
-    }
     const posts = new T.InstancedMesh(
         new T.BoxGeometry(0.13, 6, 0.13),
         new T.MeshStandardMaterial({ color: '#444f52', metalness: 0.6 }),
@@ -518,6 +559,167 @@ export class KartRenderer {
     this.scene.fog = new T.Fog(track.sky, 80, 390);
     this.garage.visible = false;
     this.world.visible = true;
+  }
+  private addCity(track: Track) {
+    if (track.id === 'canyon') {
+      const cliffs = new T.InstancedMesh(
+        new T.IcosahedronGeometry(1, 1),
+        new T.MeshStandardMaterial({
+          roughness: 1,
+          color: '#b97f56',
+          flatShading: true
+        }),
+        54
+      );
+      const m = this.transform;
+      for (let i = 0; i < 54; i++) {
+        const p = track.points[Math.floor((i / 54) * 360)],
+          offset = 30 + (i % 3) * 12;
+        m.position.set(
+          p.x + Math.cos(p.yaw) * offset,
+          7 + (i % 5) * 2,
+          p.z - Math.sin(p.yaw) * offset
+        );
+        m.rotation.set(i * 0.23, i * 1.31, i * 0.07);
+        m.scale.set(9 + (i % 3) * 3, 12 + (i % 7) * 3, 10 + (i % 4) * 2);
+        m.updateMatrix();
+        cliffs.setMatrixAt(i, m.matrix);
+        cliffs.setColorAt(
+          i,
+          new T.Color(['#b88258', '#d19a6e', '#946446'][i % 3])
+        );
+      }
+      this.world.add(cliffs);
+      return;
+    }
+    if (!this.city) return;
+    const m = this.transform;
+    for (let i = 0; i < 56; i++) {
+      const near = i < 30;
+      const p =
+        track.points[
+          Math.floor((near ? i / 30 : (i - 30 + 0.4) / 26) * 360) % 360
+        ];
+      const offset = track.width / 2 + (near ? 18 : 53 + (i % 3) * 12);
+      m.position.set(
+        p.x + Math.cos(p.yaw) * offset,
+        0,
+        p.z - Math.sin(p.yaw) * offset
+      );
+      m.rotation.set(0, p.yaw - Math.PI / 2, 0);
+      const scale = near ? 0.88 + (i % 3) * 0.08 : 1.05 + (i % 3) * 0.22;
+      m.scale.setScalar(scale);
+      m.updateMatrix();
+      this.cityPlacements.push({
+        kind: i % 2 ? 'corner_block' : 'brick_block',
+        matrix: m.matrix.clone(),
+        x: m.position.x,
+        z: m.position.z
+      });
+    }
+    this.city.updateMatrixWorld(true);
+    for (const kind of ['brick_block', 'corner_block'])
+      for (const lod of [false, true]) {
+        const template = this.city.getObjectByName(kind + (lod ? '_lod' : ''));
+        if (!template) continue;
+        const batch: CityBatch = { kind, lod, meshes: [] };
+        template.traverse((o) => {
+          if (!(o instanceof T.Mesh)) return;
+          const mat = (o.material as T.MeshStandardMaterial).clone();
+          if (mat.name === 'city_glass' && track.id === 'neon') {
+            mat.color.set('#354c60');
+            mat.emissive.set('#cf9d5c');
+            mat.emissiveIntensity = 0.22;
+          }
+          const mesh = new T.InstancedMesh(
+            o.geometry.clone().applyMatrix4(o.matrixWorld),
+            mat,
+            56
+          );
+          mesh.count = 0;
+          mesh.castShadow = !lod;
+          mesh.receiveShadow = true;
+          mesh.frustumCulled = false; // per-placement distance culling below
+          mesh.instanceMatrix.setUsage(T.DynamicDrawUsage);
+          batch.meshes.push(mesh);
+          this.world.add(mesh);
+        });
+        this.cityBatches.push(batch);
+      }
+  }
+  private updateCity(x: number, z: number) {
+    const fullRange = this.quality === 'performance' ? 0 : 64;
+    const farRange = this.quality === 'performance' ? 180 : 250;
+    for (const batch of this.cityBatches) {
+      let count = 0;
+      for (const p of this.cityPlacements) {
+        if (p.kind !== batch.kind) continue;
+        const distance = Math.hypot(p.x - x, p.z - z);
+        if (distance > farRange || distance > fullRange !== batch.lod) continue;
+        for (const mesh of batch.meshes) mesh.setMatrixAt(count, p.matrix);
+        count++;
+      }
+      for (const mesh of batch.meshes) {
+        mesh.count = count;
+        mesh.instanceMatrix.needsUpdate = true;
+      }
+    }
+  }
+  private animateKart(v: T.Group, r: Racer, dt: number, now: number) {
+    const rig = this.rigs.get(v);
+    if (!rig) return;
+    const smooth = 1 - Math.exp(-dt * 10);
+    const steer = Number.isFinite(r.steering) ? r.steering : 0;
+    const yawRate = r.yawRate || 0;
+    rig.spin = (rig.spin + (r.speed / 0.28) * dt) % (Math.PI * 2);
+    for (const wheel of rig.wheels) wheel.rotation.x = rig.spin;
+    for (const front of rig.front)
+      front.rotation.y += (-steer * 0.42 - front.rotation.y) * smooth;
+    if (rig.steeringWheel) rig.steeringWheel.rotation.z = steer * 0.65;
+    // Small chassis flex/load transfer; the wheels stay on the road.
+    rig.body.rotation.z +=
+      (T.MathUtils.clamp(yawRate * r.speed * 0.0018, -0.055, 0.055) -
+        rig.body.rotation.z) *
+      smooth;
+    rig.body.rotation.x +=
+      (T.MathUtils.clamp(-(r.acceleration || 0) * 0.0017, -0.035, 0.055) -
+        rig.body.rotation.x) *
+      smooth;
+    rig.body.position.y =
+      this.state === 'racing' && !this.paused
+        ? Math.sin(now * 0.061 + r.slot) * Math.min(0.007, r.speed * 0.0003)
+        : 0;
+  }
+  private updateSkids() {
+    if (!this.skidMesh || this.paused || this.state !== 'racing') return;
+    let dirty = false;
+    for (const r of this.racers) {
+      const x = r.x - Math.sin(r.yaw) * 1.135,
+        z = r.z - Math.cos(r.yaw) * 1.135;
+      const previous = this.skidPrevious.get(r.id);
+      if (previous && r.speed > 7 && (r.drifting || r.acceleration < -16)) {
+        const length = Math.hypot(x - previous.x, z - previous.z);
+        if (length > 0.02 && length < 6)
+          for (const side of [-1, 1]) {
+            const m = this.transform;
+            m.position.set(
+              (x + previous.x) / 2 + Math.cos(r.yaw) * side * 0.85,
+              0.069,
+              (z + previous.z) / 2 - Math.sin(r.yaw) * side * 0.85
+            );
+            m.rotation.set(0, Math.atan2(x - previous.x, z - previous.z), 0);
+            m.scale.set(1, 1, length + 0.04);
+            m.updateMatrix();
+            this.skidMesh.setMatrixAt(this.skidIndex++ % 512, m.matrix);
+            dirty = true;
+          }
+      }
+      this.skidPrevious.set(r.id, { x, z });
+    }
+    if (dirty) {
+      this.skidMesh.count = Math.min(512, this.skidIndex);
+      this.skidMesh.instanceMatrix.needsUpdate = true;
+    }
   }
   private addRacers() {
     for (const r of this.racers) {
@@ -690,15 +892,28 @@ export class KartRenderer {
         this.vector.set(r.x, 0.08, r.z);
         v.position.lerp(this.vector, smooth);
         v.rotation.y += wrapAngle(r.yaw - v.rotation.y) * smooth;
-        v.rotation.z = r.drifting ? Math.sin(now * 0.04) * 0.012 : 0;
+        this.animateKart(
+          v,
+          r,
+          this.paused || this.state !== 'racing' ? 0 : dt,
+          now
+        );
       }
       const me = this.racers.find((r) => r.id === this.me);
       if (me) {
         const v = this.visuals.get(me.id)!,
-          yaw = v.rotation.y;
+          yaw = v.rotation.y + wrapAngle(me.velocityYaw - v.rotation.y) * 0.22;
+        if (now - this.cityAt > 180) {
+          this.cityAt = now;
+          this.updateCity(me.x, me.z);
+        }
+        if (now - this.skidAt > 65) {
+          this.skidAt = now;
+          this.updateSkids();
+        }
         this.cameraTarget.set(
           v.position.x - Math.sin(yaw) * 9.5,
-          5.2 + me.speed * 0.012,
+          4.4 + me.speed * 0.016,
           v.position.z - Math.cos(yaw) * 9.5
         );
         this.camera.position.lerp(this.cameraTarget, 1 - Math.exp(-dt * 5.5));
@@ -709,7 +924,9 @@ export class KartRenderer {
         );
         this.lookTarget.lerp(this.vector, 1 - Math.exp(-dt * 9));
         this.camera.lookAt(this.lookTarget);
-        this.camera.fov = 58 + me.speed * 0.2;
+        const targetFov = 57 + me.speed * 0.18;
+        this.camera.fov +=
+          (targetFov - this.camera.fov) * (1 - Math.exp(-dt * 5));
         this.camera.updateProjectionMatrix();
         this.shadow.position.set(me.x + 14, 25, me.z + 12);
         this.shadow.target.position.set(me.x, 0, me.z);
@@ -736,6 +953,14 @@ export class KartRenderer {
     }
     this.renderer.render(this.scene, this.camera);
   };
+  private collectTextures(group: T.Object3D) {
+    group.traverse((o) => {
+      if (!(o instanceof T.Mesh)) return;
+      for (const mat of Array.isArray(o.material) ? o.material : [o.material])
+        for (const value of Object.values(mat))
+          if (value instanceof T.Texture) this.textures.add(value);
+    });
+  }
   private release(group: T.Object3D, geometry: boolean) {
     const mats = new Set<T.Material>(),
       geos = new Set<T.BufferGeometry>();
@@ -748,7 +973,8 @@ export class KartRenderer {
     });
     geos.forEach((g) => g.dispose());
     mats.forEach((m) => {
-      (m as T.MeshStandardMaterial).map?.dispose();
+      const texture = (m as T.MeshStandardMaterial).map;
+      if (texture?.userData.ephemeral) texture.dispose();
       m.dispose();
     });
   }
@@ -764,6 +990,9 @@ export class KartRenderer {
     this.release(this.scene, true);
     if (this.full) this.release(this.full, true);
     if (this.low) this.release(this.low, true);
+    if (this.city) this.release(this.city, true);
+    this.textures.forEach((t) => t.dispose());
+    this.textures.clear();
     this.environment.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();

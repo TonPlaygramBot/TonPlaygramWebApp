@@ -565,9 +565,9 @@ export default function KartRoyale({
             <section className="kr-vehicle-info">
               <span className="kr-label">01 / YOUR KART</span>
               <h2>
-                APEX <span>01</span>
+                APEX <span>02</span>
               </h2>
-              <p>LIGHTWEIGHT CHASSIS · BALANCED</p>
+              <p>TUBULAR CHASSIS · RACE TUNED</p>
               <div className="kr-swatches">
                 {COLORS.slice(0, 5).map((c, i) => (
                   <button
@@ -1146,6 +1146,36 @@ export default function KartRoyale({
                 <p>
                   Career progress and achievement credits stay on this device.
                 </p>
+                <details className="kr-credits">
+                  <summary>Free asset credits</summary>
+                  <p>
+                    Kart by{' '}
+                    <a
+                      href="https://poly.pizza/m/fLovOv3TAH"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Scaranto
+                    </a>
+                    , buildings by{' '}
+                    <a
+                      href="https://quaternius.com/packs/downtowncitymegakit.html"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Quaternius
+                    </a>
+                    , asphalt by{' '}
+                    <a
+                      href="https://polyhaven.com/a/asphalt_02"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Rob Tuytel / Poly Haven
+                    </a>
+                    . All CC0. Models and materials adapted for TonPlaygram.
+                  </p>
+                </details>
               </>
             ) : modal === 'help' ? (
               <>

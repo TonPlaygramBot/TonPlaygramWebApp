@@ -15,6 +15,9 @@ export interface Racer {
   yaw: number;
   velocityYaw: number;
   speed: number;
+  steering: number;
+  yawRate: number;
+  acceleration: number;
   boost: number;
   driftCharge: number;
   turbo: number;

@@ -50,6 +50,30 @@ test('left/right steering follows chase-camera screen direction', () => {
     assert.equal(Math.sign(r.yaw - yaw), -direction);
   }
 });
+test('steering reverses progressively and braking stops a kart within a controlled distance', () => {
+  const t = { ...makeTrack(), width: 1000 };
+  const r = createRacer(t, 'handling', 'Driver');
+  r.speed = 25;
+  const input = { steer: 1, brake: false, drift: false, boost: false };
+  for (let i = 0; i < 18; i++) stepRacer(r, input, t, STEP, i * STEP);
+  assert.ok(r.steering > 0.8 && r.steering <= 1);
+  stepRacer(r, { ...input, steer: -1 }, t, STEP, 1);
+  assert.ok(
+    r.steering > 0,
+    'rack must cross center instead of snapping to opposite lock'
+  );
+  for (let i = 0; i < 20; i++)
+    stepRacer(r, { ...input, steer: -1 }, t, STEP, 1 + i * STEP);
+  assert.ok(r.steering < -0.8);
+  const stop = createRacer(t, 'brakes', 'Driver');
+  stop.speed = 25;
+  const start = { x: stop.x, z: stop.z };
+  for (let i = 0; i < 66; i++)
+    stepRacer(stop, { ...input, steer: 0, brake: true }, t, STEP, i * STEP);
+  const distance = Math.hypot(stop.x - start.x, stop.z - start.z);
+  assert.equal(stop.speed, 0);
+  assert.ok(distance > 9 && distance < 13, `braking distance ${distance}`);
+});
 test('finish-line oscillation cannot earn laps; nonfinite steering and empty boost are bounded', () => {
   const t = makeTrack(),
     r = createRacer(t, 'you', 'You');

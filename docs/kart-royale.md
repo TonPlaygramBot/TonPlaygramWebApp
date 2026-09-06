@@ -31,7 +31,7 @@ updates; the HUD updates about ten times per second. Resources and listeners
 are disposed when leaving the game.
 
 `simulation.mjs` is dependency-free and shared with `bot/services/kartRoyale.js`.
-The game loop runs physics and AI at a fixed 60 Hz. Multiplayer clients send
+The game loop runs physics and AI at a fixed 60 Hz. Progressive steering, speed-dependent turn response, tire scrub, braking grip, and engine/drag forces replace instant steering and linear throttle response. Multiplayer clients send
 bounded inputs at 30 Hz and receive room snapshots at approximately 20 Hz. The
 server calculates movement, collision response, ordered lap checkpoints, race
 time and standings. Client position/lap/score fields are ignored. Rendering
@@ -50,11 +50,39 @@ adapter alone is insufficient. Career saves are device-local, not account sync.
 
 ## Assets
 
-`node webapp/scripts/build-kart-royale-assets.mjs` regenerates the two local GLB
-detail levels. The chassis, tires, seat, driver and circuit construction adapt
-the existing `WeaponKartGame.jsx` component approach. Engine audio reuses the
-existing `/assets/sounds/race-care-151963.mp3`. See the adjacent asset attribution
-file. No missing STK paths or remote vehicle models are required.
+The kart is adapted from **Scaranto's CC0 mechanical kart**, with an exposed
+chassis, steering linkage, engine and cables. It adds smooth tires, metal and
+clearcoat finishes, a helmeted driver, and named wheel/steering pivots. Rotating
+wheels, front-wheel steering, steering-wheel movement, restrained chassis flex,
+acceleration/braking pitch and rear-tire marks follow the shared simulation.
+
+The city uses two **Quaternius Downtown City MegaKit (CC0)** buildings with brick,
+trim, roof and normal/roughness maps. Nearby buildings use 12,334 / 19,642-triangle
+templates; distant versions use 3,929 / 5,239. Each template's material primitives
+are instanced, with high detail within 64 m and distance culling at 250 m.
+Performance mode uses only lower detail and a 180 m range. Canyon cliffs use
+irregular rock geometry. **Poly Haven Asphalt 02 (CC0)** supplies local 1K diffuse,
+OpenGL normal and roughness maps with world-scale UVs. Textures are shared across
+instances and disposed when leaving the game. There is no runtime asset CDN.
+
+Original asset pages, creator credits, source hashes, and the pinned unmodified
+building mirror are recorded in `webapp/scripts/kart-royale-sources.json` and
+`webapp/public/assets/kart-royale/ATTRIBUTION.md`. Credits are also visible in the
+game settings. The existing engine recording remains unchanged.
+
+Optional regeneration (ordinary app builds use the checked-in runtime assets):
+
+```sh
+node webapp/scripts/fetch-kart-royale-sources.mjs /tmp/kart-royale-sources
+node webapp/scripts/build-kart-royale-assets.mjs /tmp/kart-royale-sources/scaranto-kart.glb
+node webapp/scripts/build-kart-royale-city.mjs /tmp/kart-royale-sources/city /tmp/kart-royale-sources
+```
+
+The source downloader verifies byte sizes and SHA-256 checksums. The generators
+use the repository's Three.js, sharp and meshoptimizer installation. Derived
+GLBs remain CC0 for source geometry; TonPlaygram additions follow the repository's
+existing terms. The featured Games-page card links directly to the racing lobby
+and displays AI, multiplayer and career modes.
 
 ## Verification and preview
 

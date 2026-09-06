@@ -120,6 +120,9 @@ export function createRacer(track, id, name, slot = 0, ai = false) {
     yaw: p.yaw,
     velocityYaw: p.yaw,
     speed: 0,
+    steering: 0,
+    yawRate: 0,
+    acceleration: 0,
     boost: 100,
     driftCharge: 0,
     turbo: 0,
@@ -161,7 +164,14 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
   if (r.finished || r.disconnected) return;
   const input = raw || {},
     steer = Number.isFinite(input.steer) ? clamp(input.steer, -1, 1) : 0;
-  const drift = input.drift === true && r.speed > 10 && Math.abs(steer) > 0.05,
+  const previousSpeed = r.speed;
+  // A finite steering rack response makes touch buttons progressive. Physics
+  // and the visible wheels share this value on both the client and server.
+  r.steering =
+    (r.steering || 0) +
+    (steer - (r.steering || 0)) * (1 - Math.exp(-dt * (steer ? 8 : 12)));
+  const drift =
+      input.drift === true && r.speed > 10 && Math.abs(r.steering) > 0.08,
     boost = input.boost === true && r.boost > 0 && !input.brake;
   const factor = r.ai
       ? ({ rookie: 0.76, street: 0.88, pro: 0.98 }[difficulty] || 0.88) +
@@ -169,7 +179,14 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
       : 1,
     max = (boost || r.turbo > 0 ? 43 : 31) * factor;
   r.speed = clamp(
-    r.speed + (input.brake ? -31 : 14 - (r.speed / max) * 13.9) * dt,
+    r.speed +
+      (input.brake
+        ? -28
+        : (boost || r.turbo > 0 ? 22 : 13.8) * factor -
+          0.6 -
+          0.16 * r.speed -
+          0.008 * r.speed * r.speed) *
+        dt,
     0,
     max
   );
@@ -183,9 +200,21 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
   r.drifting = drift;
   r.turbo = Math.max(0, r.turbo - dt);
   r.boost = clamp(r.boost + (boost ? -34 : drift ? 17 : 5) * dt, 0, 100);
-  r.yaw -= steer * (drift ? 1.48 : 1.1) * clamp(r.speed / 12, 0, 1) * dt;
+  const turn =
+    (-r.steering * (drift ? 1.48 : 1.15) * clamp(r.speed / 10, 0, 1)) /
+    (1 + Math.max(0, r.speed - 22) * 0.022);
+  r.yawRate =
+    (r.yawRate || 0) +
+    (turn - (r.yawRate || 0)) * (1 - Math.exp(-dt * (drift ? 7 : 12)));
+  r.yaw += r.yawRate * dt;
+  // Tire scrub sheds speed in sustained corners; braking restores grip sooner.
+  r.speed = Math.max(
+    0,
+    r.speed - Math.abs(r.yawRate) * r.speed * (drift ? 0.022 : 0.014) * dt
+  );
   r.velocityYaw +=
-    wrapAngle(r.yaw - r.velocityYaw) * Math.min(1, dt * (drift ? 3 : 11));
+    wrapAngle(r.yaw - r.velocityYaw) *
+    (1 - Math.exp(-dt * (drift ? 3.1 : input.brake ? 14 : 11)));
   r.x += Math.sin(r.velocityYaw) * r.speed * dt;
   r.z += Math.cos(r.velocityYaw) * r.speed * dt;
   const near = nearestPoint(track, r.x, r.z),
@@ -201,6 +230,7 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
     r.velocityYaw += wrapAngle(p.yaw - r.velocityYaw) * Math.min(1, dt * 8);
     r.collision = 0.2;
   }
+  r.acceleration = clamp((r.speed - previousSpeed) / dt, -35, 25);
   // Sequential quarter-track gates reject shortcuts and finish-line oscillation.
   const delta = ((near.index - r.index + 540) % 360) - 180;
   if (delta > 0 && delta < 24) {
