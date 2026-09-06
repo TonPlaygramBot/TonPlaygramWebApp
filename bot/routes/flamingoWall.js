@@ -15,6 +15,7 @@ import { setFlamingoMediaResponseHeaders } from '../utils/flamingoMediaResponse.
 import { commitFlamingoMedia, findFlamingoDatabaseMedia, findFlamingoMedia, flamingoDatabaseStorageEnabled, flamingoMediaName, flamingoStorageDirectories, openFlamingoDatabaseMedia, pruneFlamingoDatabaseMediaCopies, removeFlamingoMedia, saveFlamingoMediaToDatabase } from '../utils/flamingoStorage.js';
 import { wallMediaPostQuery } from '../utils/flamingoPostLookup.js';
 import { createFlamingoDownloadGrant, readFlamingoDownloadGrant } from '../utils/flamingoDownloadGrant.js';
+import { decodeFlamingoWallCursor, encodeFlamingoWallCursor, flamingoWallCursorQuery, flamingoWallPageSize } from '../utils/flamingoWallPagination.js';
 
 const router = express.Router();
 const moduleDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -407,11 +408,18 @@ router.get('/events', (req, res) => {
 
 router.get('/posts', async (req, res) => {
   const token = ownerToken(req);
-  const posts = await FlamingoPost.find().select('+ownerTokenHash').sort({ createdAt: -1 }).lean();
+  const paginated = req.query.paginated === '1';
+  const cursor = decodeFlamingoWallCursor(req.query.cursor);
+  if (req.query.cursor && (!cursor || !mongoose.isValidObjectId(cursor.id))) return res.status(400).json({ error: 'Invalid wall cursor.' });
+  const limit = flamingoWallPageSize(req.query.limit);
+  const query = paginated ? flamingoWallCursorQuery(cursor, id => new mongoose.Types.ObjectId(id)) : {};
+  const result = await FlamingoPost.find(query).select('+ownerTokenHash').sort({ createdAt: -1, _id: -1 }).limit(paginated ? limit + 1 : 0).lean();
+  const hasMore = paginated && result.length > limit;
+  const posts = paginated ? result.slice(0, limit) : result;
   // The wall is a shared live feed. Never let a browser/proxy reuse an old
   // response while another community member is publishing.
   res.setHeader('Cache-Control', 'no-store');
-  res.json({ posts: serializeWallPosts(posts, token) });
+  res.json({ posts: serializeWallPosts(posts, token), hasMore, nextCursor: hasMore ? encodeFlamingoWallCursor(posts.at(-1)) : null });
 });
 
 router.get('/latest-post', async (req, res) => {

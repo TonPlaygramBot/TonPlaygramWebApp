@@ -201,7 +201,7 @@ async function uploadLargePost(file: Blob, name: string, type: string, text: str
 }
 
 export default function MediaWall({ compact = false }: { compact?: boolean }) {
-  const [posts, setPosts] = useState<Post[]>(initialPosts); const [feedState, setFeedState] = useState<'loading' | 'live' | 'reconnecting' | 'error'>('loading'); const [identity, setIdentity] = useState<WallIdentity>({ author: 'Community member', authorAvatar: '' }); const [text, setText] = useState(''); const [title, setTitle] = useState(''); const [postKind, setPostKind] = useState<'post' | 'article' | 'poll'>('post'); const [pollQuestion, setPollQuestion] = useState(''); const [pollOptions, setPollOptions] = useState(['', '']); const [selected, setSelected] = useState<Attachment[]>([]); const [notice, setNotice] = useState(''); const [loadingFile, setLoadingFile] = useState(false); const [votes, setVotes] = useState<Record<string, number>>(() => JSON.parse(localStorage.getItem('fr-media-votes') || '{}')); const [engagement, setEngagement] = useState<Record<string, Engagement>>(() => { try { return JSON.parse(localStorage.getItem(ENGAGEMENT_KEY) || '{}'); } catch { return {}; } }); const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({}); const [openShare, setOpenShare] = useState<string>(); const [openReactions, setOpenReactions] = useState<string>(); const [editingPost, setEditingPost] = useState<string>(); const [editText, setEditText] = useState(''); const [fullscreenPost, setFullscreenPost] = useState<string>(); const [premium, setPremium] = useState(false); const [priceTpg, setPriceTpg] = useState(''); const [favorites, setFavorites] = useState<Record<string, boolean>>(() => { try { return JSON.parse(localStorage.getItem('fr-video-favorites') || '{}'); } catch { return {}; } }); const urls = useRef<string[]>([]); const pendingPostIds = useRef(new Set<string>()); const latestFeedRequest = useRef(0);
+  const [posts, setPosts] = useState<Post[]>(initialPosts); const [feedState, setFeedState] = useState<'loading' | 'live' | 'reconnecting' | 'error'>('loading'); const [nextCursor, setNextCursor] = useState<string>(); const [hasMore, setHasMore] = useState(false); const [loadingOlder, setLoadingOlder] = useState(false); const [identity, setIdentity] = useState<WallIdentity>({ author: 'Community member', authorAvatar: '' }); const [text, setText] = useState(''); const [title, setTitle] = useState(''); const [postKind, setPostKind] = useState<'post' | 'article' | 'poll'>('post'); const [pollQuestion, setPollQuestion] = useState(''); const [pollOptions, setPollOptions] = useState(['', '']); const [selected, setSelected] = useState<Attachment[]>([]); const [notice, setNotice] = useState(''); const [loadingFile, setLoadingFile] = useState(false); const [votes, setVotes] = useState<Record<string, number>>(() => JSON.parse(localStorage.getItem('fr-media-votes') || '{}')); const [engagement, setEngagement] = useState<Record<string, Engagement>>(() => { try { return JSON.parse(localStorage.getItem(ENGAGEMENT_KEY) || '{}'); } catch { return {}; } }); const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({}); const [openShare, setOpenShare] = useState<string>(); const [openReactions, setOpenReactions] = useState<string>(); const [editingPost, setEditingPost] = useState<string>(); const [editText, setEditText] = useState(''); const [fullscreenPost, setFullscreenPost] = useState<string>(); const [premium, setPremium] = useState(false); const [priceTpg, setPriceTpg] = useState(''); const [favorites, setFavorites] = useState<Record<string, boolean>>(() => { try { return JSON.parse(localStorage.getItem('fr-video-favorites') || '{}'); } catch { return {}; } }); const urls = useRef<string[]>([]); const pendingPostIds = useRef(new Set<string>()); const latestFeedRequest = useRef(0); const loadedOlderPosts = useRef(false);
   useEffect(() => { fetch(`${API_BASE_URL}/api/flamingo-wall/identity`, { headers: identityHeaders() }).then(response => response.ok ? response.json() : Promise.reject()).then(setIdentity).catch(() => {}); }, []);
   useEffect(() => {
     let active = true;
@@ -209,15 +209,16 @@ export default function MediaWall({ compact = false }: { compact?: boolean }) {
     const loadPosts = async (showFallback = false) => {
       const requestId = ++latestFeedRequest.current;
       try {
-        const response = await fetch(`${API_BASE_URL}/api/flamingo-wall/posts`, { headers: identityHeaders(), cache: 'no-store' });
+        const response = await fetch(`${API_BASE_URL}/api/flamingo-wall/posts?paginated=1&limit=20`, { headers: identityHeaders(), cache: 'no-store' });
         if (!response.ok) throw new Error('server unavailable');
         const payload = await response.json();
         if (!Array.isArray(payload.posts)) throw new Error('invalid feed');
         if (!active || requestId !== latestFeedRequest.current) return;
         const normalized = payload.posts.map((post: any) => ({ ...post, id: post._id || post.id, createdAt: new Date(post.createdAt).toLocaleString('en-US'), attachment: post.attachment ? { ...post.attachment, src: resolveWallMediaUrl(API_BASE_URL, post.attachment.url, post.attachment.size) } : undefined })).filter((post: Post) => post.id);
+        setNextCursor(payload.nextCursor || undefined); setHasMore(Boolean(payload.hasMore));
         loadedOnce = true;
         setFeedState('live');
-        setPosts(current => reconcileWallPosts([...normalized, ...initialPosts], current, pendingPostIds.current));
+        setPosts(current => { const refreshed = reconcileWallPosts([...normalized, ...initialPosts], current, pendingPostIds.current); if (!loadedOlderPosts.current) return refreshed; const seen = new Set(refreshed.map(post => post.id)); return [...refreshed, ...current.filter(post => !seen.has(post.id))]; });
       } catch {
         if (!active) return;
         setFeedState(loadedOnce ? 'reconnecting' : 'error');
@@ -242,6 +243,20 @@ export default function MediaWall({ compact = false }: { compact?: boolean }) {
     return () => { active = false; events.close(); window.clearInterval(refresh); window.removeEventListener('online', refreshNow); window.removeEventListener('focus', refreshNow); };
   }, []);
   useEffect(() => () => urls.current.forEach(URL.revokeObjectURL), []);
+  async function loadOlderPosts() {
+    if (!nextCursor || loadingOlder) return;
+    setLoadingOlder(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/flamingo-wall/posts?paginated=1&limit=20&cursor=${encodeURIComponent(nextCursor)}`, { headers: identityHeaders(), cache: 'no-store' });
+      const payload = await response.json();
+      if (!response.ok || !Array.isArray(payload.posts)) throw new Error(payload.error || 'Older posts could not be loaded.');
+      const older = payload.posts.map((post: any) => ({ ...post, id: post._id || post.id, createdAt: new Date(post.createdAt).toLocaleString('en-US'), attachment: post.attachment ? { ...post.attachment, src: resolveWallMediaUrl(API_BASE_URL, post.attachment.url, post.attachment.size) } : undefined })).filter((post: Post) => post.id);
+      setPosts(current => { const seen = new Set(current.map(post => post.id)); return [...current, ...older.filter((post: Post) => !seen.has(post.id))]; });
+      loadedOlderPosts.current = true; setNextCursor(payload.nextCursor || undefined); setHasMore(Boolean(payload.hasMore)); setFeedState('live');
+    } catch (error) { setNotice(error instanceof Error ? error.message : 'Older posts could not be loaded.'); }
+    finally { setLoadingOlder(false); }
+  }
+
   useEffect(() => localStorage.setItem(ENGAGEMENT_KEY, JSON.stringify(engagement)), [engagement]);
   useEffect(() => localStorage.setItem('fr-video-favorites', JSON.stringify(favorites)), [favorites]);
   const updateEngagement = (post: string, change: (current: Engagement) => Engagement) => setEngagement(all => ({ ...all, [post]: change(all[post] || blankEngagement()) }));
@@ -316,6 +331,6 @@ export default function MediaWall({ compact = false }: { compact?: boolean }) {
       {openShare === post.id && <div className="fr-share-sheet"><header><strong>Share this voice everywhere</strong><button onClick={() => setOpenShare(undefined)} aria-label="Close"><X /></button></header><div>{socialNetworks.map(network => <button key={network.id} onClick={() => share(post, network.id)}><b className={network.id}>{network.mark}</b><span>{network.label}</span></button>)}</div><button className="fr-more-share" onClick={() => share(post)}><Share2 /> More options</button></div>}
       <div className="fr-comments">{data.comments.map(comment => <div className="fr-comment" key={comment.id}><span>{comment.author.slice(0, 2)}</span><div><p><b>{comment.author}</b>{comment.text}</p><small>{comment.createdAt}<button className={data.commentVotes[comment.id] === 1 ? 'active' : ''} onClick={() => voteComment(post.id, comment.id, 1)}><ThumbsUp /></button><button className={data.commentVotes[comment.id] === -1 ? 'active dislike' : ''} onClick={() => voteComment(post.id, comment.id, -1)}><ThumbsDown /></button></small></div></div>)}<form onSubmit={event => addComment(event, post.id)}><span>{identity.author.slice(0, 2).toUpperCase()}</span><input id={`comment-${post.id}`} value={commentDrafts[post.id] || ''} onChange={event => setCommentDrafts(drafts => ({ ...drafts, [post.id]: event.target.value }))} placeholder="Write a comment…" maxLength={500} /><button aria-label="Send comment"><Send /></button></form></div>
       {post.attachment && <button type="button" className="fr-post-download" onClick={() => downloadAttachment(post.attachment!, post.id).catch(error => setNotice(error.message))}><Download /> Download original{post.attachment.premium ? ` · Premium ${post.attachment.priceTpg} TPG` : post.attachment.type.startsWith('video/') ? ` · ${post.attachment.duration && post.attachment.duration >= 20 ? (post.attachment.duration > 40 ? 300 : 200) : 0} TPG` : ''} <small>{formatBytes(post.attachment.size)}</small></button>}
-    </article>; })}</div>
+    </article>; })}</div>{hasMore && <button type="button" className="fr-load-older" onClick={loadOlderPosts} disabled={loadingOlder}>{loadingOlder ? 'Loading older posts…' : 'Load older posts'}</button>}
   </section>;
 }
