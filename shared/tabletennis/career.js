@@ -51,11 +51,34 @@ export const freshCareer = () => ({
     bestRally: 0,
     completed: false
 });
+export function normalizeCareer(value) {
+    const base = freshCareer();
+    const number = (candidate, fallback = 0) => Number.isFinite(Number(candidate))
+        ? Math.max(0, Math.floor(Number(candidate)))
+        : fallback;
+    const completed = Boolean(value?.completed);
+    const tour = Math.min(number(value?.tour), TOUR.length - 1);
+    const round = completed ? 3 : Math.min(number(value?.round), 2);
+    const upgrades = Array.from({ length: 3 }, (_, index) => Math.min(3, number(value?.upgrades?.[index])));
+    return {
+        ...base,
+        ...value,
+        tour,
+        round,
+        wins: number(value?.wins),
+        losses: number(value?.losses),
+        credits: number(value?.credits),
+        upgrades,
+        bestRally: number(value?.bestRally),
+        completed
+    };
+}
 export function careerResult(c, won, rally) {
+    const current = normalizeCareer(c);
     const n = {
-        ...c,
-        upgrades: [...c.upgrades],
-        bestRally: Math.max(c.bestRally, rally)
+        ...current,
+        upgrades: [...current.upgrades],
+        bestRally: Math.max(current.bestRally, rally)
     };
     if (n.completed)
         return n;

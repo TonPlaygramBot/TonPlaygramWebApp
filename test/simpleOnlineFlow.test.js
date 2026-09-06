@@ -54,6 +54,54 @@ function createState() {
   };
 }
 
+test('cancel during a seat request releases the late authoritative seat', async () => {
+  const socket = new MockSocket({ connected: true });
+  let acknowledge;
+  let cleanup;
+  const original = socket.emit.bind(socket);
+  socket.emit = (event, payload, cb) => {
+    if (event === 'seatTable') { acknowledge = cb; return true; }
+    return original(event, payload, cb);
+  };
+  const state = createState();
+  const pending = runSimpleOnlineFlow({
+    gameType: 'kartroyale', stake: { token: 'TPG', amount: 100 },
+    matchMeta: { trackId: 'harbor' },
+    state: { ...state, setCleanup: (updater) => { cleanup = updater(); } },
+    deps: { socket, ensureAccountId: async () => 'tpg-1', getAccountBalance: async () => ({ balance: 1000 }) }
+  });
+  while (!acknowledge) await new Promise((resolve) => setTimeout(resolve, 0));
+  cleanup();
+  acknowledge({ success: true, tableId: 'late-kart-grid' });
+  await pending;
+  assert.equal(socket.leaveRequests.length, 1);
+  assert.equal(socket.leaveRequests[0].tableId, 'late-kart-grid');
+  assert.equal(state.snapshot.matching, false);
+});
+
+test('reservation errors clear the queue; invalid stakes do not retry forever', async () => {
+  const socket = new MockSocket({ connected: true });
+  const state = createState();
+  const options = {
+    gameType: 'kartroyale', stake: { token: 'TPG', amount: 100 }, state,
+    deps: { socket, ensureAccountId: async () => 'tpg-1', getAccountBalance: async () => ({ balance: 1000 }) }
+  };
+  await runSimpleOnlineFlow(options);
+  socket.emit('matchmakingError', { tableId: 'airhockey-1', error: 'insufficient_balance_or_account_busy' });
+  assert.equal(state.snapshot.matching, false);
+  assert.match(state.snapshot.matchError, /insufficient balance/);
+  const original = socket.emit.bind(socket);
+  let seats = 0;
+  socket.emit = (event, payload, cb) => {
+    if (event === 'seatTable') { seats++; cb({ success: false, error: 'invalid_stake' }); return true; }
+    return original(event, payload, cb);
+  };
+  await runSimpleOnlineFlow(options);
+  assert.equal(seats, 1);
+  assert.match(state.snapshot.matchError, /invalid stake/);
+  assert.equal(state.snapshot.matching, false);
+});
+
 test('runSimpleOnlineFlow reconnects socket before joining a table', async () => {
   const mockSocket = new MockSocket({ connected: false, connectSucceeds: true });
   const state = createState();

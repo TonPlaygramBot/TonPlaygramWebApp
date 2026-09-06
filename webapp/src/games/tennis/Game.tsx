@@ -21,6 +21,7 @@ import {
   freshCareer,
   GameServices,
   matchConfig,
+  normalizeCareer,
   RoomSnapshot,
   TOUR
 } from './career';
@@ -56,6 +57,7 @@ export default function TennisGame({
     pointer = useRef<number | null>(null),
     chargeAt = useRef(0),
     charging = useRef(false),
+    gesture = useRef({ x: 0, y: 0 }),
     nextSwing = useRef(0);
   const [screen, setScreen] = useState<
       'home' | 'career' | 'online' | 'match' | 'help' | 'credits'
@@ -109,7 +111,7 @@ export default function TennisGame({
     services
       .career()
       .then((c) => {
-        if (!cancelled) setCareer(c);
+        if (!cancelled) setCareer(normalizeCareer(c));
       })
       .catch(() => {
         if (!cancelled)
@@ -265,7 +267,7 @@ export default function TennisGame({
     services
       .finishCareer(id, hud.winner === 0, hud.bestRally)
       .then((c) => {
-        setCareer(c);
+        setCareer(normalizeCareer(c));
         setResultSaved(true);
       })
       .catch(() => {
@@ -303,7 +305,7 @@ export default function TennisGame({
       if (mode === 'career') {
         const result = await services.startCareer();
         careerId.current = result.id;
-        c = result.career;
+        c = normalizeCareer(result.career);
         setCareer(c);
       } else careerId.current = '';
       frame.current = createMatch(matchConfig(mode, c, difficulty, surface));
@@ -390,7 +392,7 @@ export default function TennisGame({
   const train = async (stat: number) => {
     setBusy(true);
     try {
-      setCareer(await services.upgrade(stat));
+      setCareer(normalizeCareer(await services.upgrade(stat)));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save upgrade.');
     } finally {
@@ -415,6 +417,25 @@ export default function TennisGame({
     (!room || room.joined) &&
     (hud.phase !== 'serve' || hud.score.server === own);
   const tour = TOUR[career.tour];
+  const touchShot = (deltaY: number) => {
+    if (deltaY < -105) return 'lob' as Shot;
+    if (deltaY < -28) return 'topspin' as Shot;
+    if (deltaY > 28) return 'slice' as Shot;
+    return 'flat' as Shot;
+  };
+  const finishCourtTouch = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (pointer.current !== e.pointerId) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const nextAim = x < 0.36 ? -1 : x > 0.64 ? 1 : 0;
+    const nextShot = touchShot(e.clientY - gesture.current.y);
+    chooseAim(nextAim);
+    chooseShot(nextShot);
+    pointer.current = null;
+    input.current.moveX = null;
+    input.current.moveZ = null;
+    release();
+  };
   return (
     <div className={`tr-game ${inline ? 'tr-inline' : ''}`}>
       {onLobby && screen !== 'match' && (
@@ -429,20 +450,23 @@ export default function TennisGame({
           if (screen !== 'match' || paused) return;
           pointer.current = e.pointerId;
           e.currentTarget.setPointerCapture(e.pointerId);
+          gesture.current = { x: e.clientX, y: e.clientY };
           move(e);
-        }}
-        onPointerMove={move}
-        onPointerUp={(e) => {
-          if (pointer.current === e.pointerId) {
-            pointer.current = null;
-            input.current.moveX = null;
-            input.current.moveZ = null;
+          if (canHit) {
+            unlock();
+            chargeAt.current = performance.now();
+            charging.current = true;
+            setCharge(0.2);
           }
         }}
+        onPointerMove={move}
+        onPointerUp={finishCourtTouch}
         onPointerCancel={() => {
           pointer.current = null;
           input.current.moveX = null;
           input.current.moveZ = null;
+          charging.current = false;
+          setCharge(0);
         }}
       />
       <div className="tr-vignette" />
@@ -543,94 +567,21 @@ export default function TennisGame({
                       ? `${hud.rally} shot rally`
                       : 'Return the serve'}
           </div>
-          <div className="tr-controls">
-            <div className="tr-aim">
-              <span>AIM</span>
-              {[-1, 0, 1].map((v, i) => (
-                <Button
-                  key={v}
-                  aria-pressed={aim === v}
-                  onClick={() => chooseAim(v)}
-                  className={`tr-aim-btn ${aim === v ? 'selected' : ''}`}
-                >
-                  {['Left', 'Centre', 'Right'][i]}
-                </Button>
-              ))}
-              <button
-                className="tr-assist"
-                onClick={() => setAssist(!assist)}
-                aria-pressed={assist}
-              >
-                Footwork
-                <br />
-                <b>{assist ? 'Auto' : 'Manual'}</b>
-              </button>
+          <div className="tr-touch-hud" aria-live="polite">
+            <div className="tr-touch-state">
+              <span>{shot === 'flat' ? 'Drive' : shot}</span>
+              <b>{aim < 0 ? 'Left' : aim > 0 ? 'Right' : 'Centre'}</b>
             </div>
-            <div className="tr-shot-row">
-              <div className="tr-shots">
-                {(['flat', 'topspin', 'slice', 'lob'] as Shot[]).map((v) => (
-                  <Button
-                    key={v}
-                    onClick={() => chooseShot(v)}
-                    aria-pressed={shot === v}
-                    className={`tr-shot ${shot === v ? 'selected' : ''}`}
-                  >
-                    {v === 'flat' ? 'Drive' : v[0].toUpperCase() + v.slice(1)}
-                  </Button>
-                ))}
-              </div>
-              <Button
-                className="tr-hit"
-                disabled={!canHit}
-                onPointerDown={(e) => {
-                  if (!canHit) return;
-                  unlock();
-                  e.preventDefault();
-                  e.currentTarget.setPointerCapture(e.pointerId);
-                  chargeAt.current = performance.now();
-                  charging.current = true;
-                  setCharge(0.2);
-                }}
-                onPointerUp={release}
-                onPointerCancel={() => {
-                  charging.current = false;
-                  setCharge(0);
-                }}
-                onLostPointerCapture={() => {
-                  charging.current = false;
-                  setCharge(0);
-                }}
-                onKeyDown={(e) => {
-                  if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) {
-                    e.preventDefault();
-                    unlock();
-                    chargeAt.current = performance.now();
-                    charging.current = true;
-                  }
-                }}
-                onKeyUp={(e) => {
-                  if (e.key === ' ' || e.key === 'Enter') {
-                    e.preventDefault();
-                    release();
-                  }
-                }}
-              >
-                <span
-                  className="tr-charge-fill"
-                  style={{ height: `${charge * 100}%` }}
-                />
-                <span>
-                  {hud.phase === 'serve' && hud.score.server === own
-                    ? 'SERVE'
-                    : 'HIT'}
-                  <small>
-                    {charge ? `${Math.round(charge * 100)}%` : 'HOLD · RELEASE'}
-                  </small>
-                </span>
-              </Button>
+            <div
+              className="tr-power"
+              aria-label={`Shot power ${Math.round(charge * 100)} percent`}
+            >
+              <i style={{ width: `${charge * 100}%` }} />
             </div>
-            <p className="tr-control-tip">
-              Drag court to move · release HIT as the ball approaches
+            <p>
+              Touch and drag to move · release to hit
+              <br />
+              Swipe up: spin/lob · down: slice · release side to aim
             </p>
           </div>
         </>
@@ -890,29 +841,30 @@ export default function TennisGame({
             <li>
               <b>Serve</b>
               <p>
-                Hold SERVE for power, then release. The serve goes into the
-                diagonal service box.
+                Touch the court and hold for power, then release. Your serve
+                goes into the diagonal service box.
               </p>
             </li>
             <li>
               <b>Return</b>
               <p>
-                When the ball comes towards you, hold HIT and release. Footwork
-                assist helps you reach it.
+                Touch and drag anywhere on court to move, then release as the
+                ball approaches. Release on the visually left, centre, or right
+                of the screen to aim there.
               </p>
             </li>
             <li>
               <b>Find the space</b>
               <p>
-                Choose Left, Centre, or Right to aim. Drag on the court to move
-                yourself.
+                Release on the visually left, centre, or right side of the court
+                to aim there.
               </p>
             </li>
             <li>
               <b>Change the rally</b>
               <p>
-                Drive for pace, topspin for a higher bounce, slice for a shorter
-                shot, or lob over your opponent.
+                Keep your gesture level for a drive, swipe visually up for
+                topspin, farther up for a lob, or visually down for slice.
               </p>
             </li>
           </ol>

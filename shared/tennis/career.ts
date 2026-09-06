@@ -67,11 +67,39 @@ export const freshCareer = (): Career => ({
   bestRally: 0,
   completed: false
 });
+export function normalizeCareer(
+  value: Partial<Career> | null | undefined
+): Career {
+  const base = freshCareer();
+  const number = (candidate: unknown, fallback = 0) =>
+    Number.isFinite(Number(candidate))
+      ? Math.max(0, Math.floor(Number(candidate)))
+      : fallback;
+  const completed = Boolean(value?.completed);
+  const tour = Math.min(number(value?.tour), TOUR.length - 1);
+  const round = completed ? 3 : Math.min(number(value?.round), 2);
+  const upgrades = Array.from({ length: 3 }, (_, index) =>
+    Math.min(3, number(value?.upgrades?.[index]))
+  );
+  return {
+    ...base,
+    ...value,
+    tour,
+    round,
+    wins: number(value?.wins),
+    losses: number(value?.losses),
+    credits: number(value?.credits),
+    upgrades,
+    bestRally: number(value?.bestRally),
+    completed
+  };
+}
 export function careerResult(c: Career, won: boolean, rally: number): Career {
+  const current = normalizeCareer(c);
   const n = {
-    ...c,
-    upgrades: [...c.upgrades],
-    bestRally: Math.max(c.bestRally, rally)
+    ...current,
+    upgrades: [...current.upgrades],
+    bestRally: Math.max(current.bestRally, rally)
   };
   if (n.completed) return n;
   if (won) {
@@ -153,15 +181,16 @@ export const matchConfig = (
   c: Career,
   difficulty: number,
   surface: Surface
-): Partial<MatchConfig> =>
-  mode === 'career'
+): Partial<MatchConfig> => {
+  const career = normalizeCareer(c);
+  return mode === 'career'
     ? {
         ai: true,
-        difficulty: TOUR[c.tour].difficulty,
-        surface: TOUR[c.tour].surface,
+        difficulty: TOUR[career.tour].difficulty,
+        surface: TOUR[career.tour].surface,
         gamesToWin: 3,
         setsToWin: 1,
-        upgrades: c.upgrades,
+        upgrades: career.upgrades,
         seed: Date.now() >>> 0
       }
     : {
@@ -173,3 +202,4 @@ export const matchConfig = (
         upgrades: [0, 0, 0],
         seed: Date.now() >>> 0
       };
+};

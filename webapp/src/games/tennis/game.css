@@ -66,7 +66,7 @@
 }
 .tr-game .tr-court {
   position: absolute;
-  inset: 140px 0 150px;
+  inset: 140px 0 0;
   touch-action: none;
   z-index: 0;
 }
@@ -513,12 +513,51 @@
 .tr-game .tr-network + .tr-call {
   top: 199px;
 }
-.tr-game .tr-controls {
+.tr-game .tr-touch-hud {
   position: absolute;
-  bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   left: 15px;
   right: 15px;
-  z-index: 5;
+  z-index: 3;
+  pointer-events: none;
+  text-align: center;
+}
+.tr-game .tr-touch-state {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  text-transform: capitalize;
+}
+.tr-game .tr-touch-state span,
+.tr-game .tr-touch-state b {
+  background: #082a33cc;
+  border: 1px solid #dfff4f33;
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 11px;
+}
+.tr-game .tr-touch-state b {
+  color: var(--tr-lime);
+}
+.tr-game .tr-power {
+  height: 3px;
+  max-width: 210px;
+  margin: 8px auto;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #ffffff24;
+}
+.tr-game .tr-power i {
+  display: block;
+  height: 100%;
+  background: var(--tr-lime);
+  transition: width 80ms linear;
+}
+.tr-game .tr-touch-hud p {
+  color: #d9e8df;
+  font-size: 10px;
+  line-height: 1.45;
+  text-shadow: 0 1px 4px #001b22;
 }
 .tr-game .tr-aim {
   display: flex;
@@ -816,7 +855,7 @@
     padding: 11px;
   }
   .tr-game .tr-court {
-    inset: 55px 0 135px;
+    inset: 55px 0 0;
   }
   .tr-game .tr-panel {
     inset: 70px 12px 10px;

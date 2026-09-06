@@ -1,0 +1,180 @@
+{
+  "license": "CC0-1.0",
+  "kart": {
+    "author": "scaranto",
+    "page": "https://poly.pizza/m/fLovOv3TAH",
+    "file": "scaranto-kart.glb",
+    "url": "https://static.poly.pizza/72a62c58-cfd6-4a20-a2b1-357e3aaabbc4.glb",
+    "sha256": "00d1b3271d153981a7ce15ba827b7e379112784ac447a07c37d840bebc8ba92d",
+    "bytes": 421576
+  },
+  "buildings": {
+    "author": "Quaternius",
+    "page": "https://quaternius.com/packs/downtowncitymegakit.html",
+    "mirrorCommit": "26e8591ac6a95a44c86bb45861d9a21aec3efcb2",
+    "files": [
+      {
+        "file": "Building_Medium_2_001.bin",
+        "url": "https://raw.githubusercontent.com/AetherRadar/operation-steel-tide/26e8591ac6a95a44c86bb45861d9a21aec3efcb2/assets/models/quaternius_downtown_city/Building_Medium_2_001.bin",
+        "sha256": "8a8bd4462ff5f784e0ea7fbe753b009713f4017192c9d82b467f445eae88a35d",
+        "bytes": 2443288
+      },
+      {
+        "file": "Building_Medium_2_001.gltf",
+        "url": "https://raw.githubusercontent.com/AetherRadar/operation-steel-tide/26e8591ac6a95a44c86bb45861d9a21aec3efcb2/assets/models/quaternius_downtown_city/Building_Medium_2_001.gltf",
+        "sha256": "423f4b3e709ef5633eac4a94a8a1ce25750aa42fe34e3b983d7aac39846f9a1c",
+        "bytes": 25244
+      },
+      {
+        "file": "Building_Small_1.bin",
+        "url": "https://raw.githubusercontent.com/AetherRadar/operation-steel-tide/26e8591ac6a95a44c86bb45861d9a21aec3efcb2/assets/models/quaternius_downtown_city/Building_Small_1.bin",
+        "sha256": "a5fb691fe7ab0d93d5d47eef51af576f2d65bd78103c92c9e714215b26d679a2",
+        "bytes": 1556100
+      },
+      {
+        "file": "Building_Small_1.gltf",
+        "url": "https://raw.githubusercontent.com/AetherRadar/operation-steel-tide/26e8591ac6a95a44c86bb45861d9a21aec3efcb2/assets/models/quaternius_downtown_city/Building_Small_1.gltf",
+        "sha256": "3c864724fffd016ca440191bca169d6ba486e14617bb3cafa09ddbac7532f3d7",
+        "bytes": 27435
+      },
+      {
+        "file": "T_Concrete_Asphalt_BaseColor.png",
+        "url": "https://raw.githubusercontent.com/AetherRadar/operation-steel-tide/26e8591ac6a95a44c86bb45861d9a21aec3efcb2/assets/models/quaternius_downtown_city/T_Concrete_Asphalt_BaseColor.png",
+        "sha256": "140d4e698d8a3c6780d123eb26c9ffeb103a3c1b486a8e5c873b359307ee3660",
+        "bytes": 462975
+      },
+      {
+        "file": "T_Concrete_BaseColor.png",
+        "url": "https://raw.githubusercontent.com/AetherRadar/operation-steel-tide/26e8591ac6a95a44c86bb45861d9a21aec3efcb2/assets/models/quaternius_downtown_city/T_Concrete_BaseColor.png",
+        "sha256": "59f00d23fe8edd16629ecf75628124e282a3115dd667e8a185c3cec300e45adf",
+        "bytes": 642164
+      },
+      {
+        "file": "T_Concrete_Normal.png",
+        "url": "https://raw.githubusercontent.com/AetherRadar/operation-steel-tide/26e8591ac6a95a44c86bb45861d9a21aec3efcb2/assets/models/quaternius_downtown_city/T_Concrete_Normal.png",
+        "sha256": "81d15d3f0d91ba7bd61b1037eaf35a2ed0eb70629b6148a91e39060fd1131ecc",
+        "bytes": 1369214
+      },
+      {
+        "file": "T_Concrete_ORM.png",
+        "url": "https://raw.githubusercontent.com/AetherRadar/operation-steel-tide/26e8591ac6a95a44c86bb45861d9a21aec3efcb2/assets/models/quaternius_downtown_city/T_Concrete_ORM.png",
+        "sha256": "18684d4ff1834bf3743d2c6409e7d9eeec2ee46bb0104f1e005aa17f72a5a4f2",
+        "bytes": 448533
+      },
+      {
+        "file": "T_MarbleFloor_BaseColor.png",
+        "url": "https://raw.githubusercontent.com/AetherRadar/operation-steel-tide/26e8591ac6a95a44c86bb45861d9a21aec3efcb2/assets/models/quaternius_downtown_city/T_MarbleFloor_BaseColor.png",
+        "sha256": "a01f57e2976d3af21a59f1ae18e12be84d2acae7ba3e93d184d2874224f737c0",
+        "bytes": 1095714
+      },
+      {
+        "file": "T_MarbleFloor_Normal.png",
+        "url": "https://raw.githubusercontent.com/AetherRadar/operation-steel-tide/26e8591ac6a95a44c86bb45861d9a21aec3efcb2/assets/models/quaternius_downtown_city/T_MarbleFloor_Normal.png",
+        "sha256": "5b83ef19f39bdbb329c3879d24244d92f43f2f762f85c40f1e9993fdac46b2c3",
+        "bytes": 526119
+      },
+      {
+        "file": "T_MarbleFloor_ORM.png",
+        "url": "https://raw.githubusercontent.com/AetherRadar/operation-steel-tide/26e8591ac6a95a44c86bb45861d9a21aec3efcb2/assets/models/quaternius_downtown_city/T_MarbleFloor_ORM.png",
+        "sha256": "95008e79cdba191b525afce2a95452fe28934efd5546d35919c24ea6cbcc0c22",
+        "bytes": 567860
+      },
+      {
+        "file": "T_MetalConcrete_BaseColor.png",
+        "url": "https://raw.githubusercontent.com/AetherRadar/operation-steel-tide/26e8591ac6a95a44c86bb45861d9a21aec3efcb2/assets/models/quaternius_downtown_city/T_MetalConcrete_BaseColor.png",
+        "sha256": "60b73981cf8f4e12d0e15adb26d5adaf40389a20aa5e648565d423eab56b8eb9",
+        "bytes": 628712
+      },
+      {
+        "file": "T_MetalConcrete_Normal.png",
+        "url": "https://raw.githubusercontent.com/AetherRadar/operation-steel-tide/26e8591ac6a95a44c86bb45861d9a21aec3efcb2/assets/models/quaternius_downtown_city/T_MetalConcrete_Normal.png",
+        "sha256": "d0781f667bf443836a67273d30eb88fc487b11b28c38551056cbcd39f6442be0",
+        "bytes": 1354429
+      },
+      {
+        "file": "T_MetalConcrete_ORM.png",
+        "url": "https://raw.githubusercontent.com/AetherRadar/operation-steel-tide/26e8591ac6a95a44c86bb45861d9a21aec3efcb2/assets/models/quaternius_downtown_city/T_MetalConcrete_ORM.png",
+        "sha256": "fb6bebf7590ad3d5485408f575dcf638ea44f9704550fcbf307ae913cb38ee91",
+        "bytes": 752218
+      },
+      {
+        "file": "T_RedBrick_BaseColor.png",
+        "url": "https://raw.githubusercontent.com/AetherRadar/operation-steel-tide/26e8591ac6a95a44c86bb45861d9a21aec3efcb2/assets/models/quaternius_downtown_city/T_RedBrick_BaseColor.png",
+        "sha256": "bc7d87ef508165388dbd07b37ad09932d1948bbfefbcabf179eb1c13ef4c1445",
+        "bytes": 881052
+      },
+      {
+        "file": "T_RedBrick_Normal.png",
+        "url": "https://raw.githubusercontent.com/AetherRadar/operation-steel-tide/26e8591ac6a95a44c86bb45861d9a21aec3efcb2/assets/models/quaternius_downtown_city/T_RedBrick_Normal.png",
+        "sha256": "fc46074f8ea62e99239261efddf27992ab0de88066a994a67f05d1e49c97f0bb",
+        "bytes": 2461794
+      },
+      {
+        "file": "T_RedBrick_ORM.png",
+        "url": "https://raw.githubusercontent.com/AetherRadar/operation-steel-tide/26e8591ac6a95a44c86bb45861d9a21aec3efcb2/assets/models/quaternius_downtown_city/T_RedBrick_ORM.png",
+        "sha256": "1354cb33d74ae24ccc77c61b41a82542a2c2355179e6f02d14ea075279d9f495",
+        "bytes": 992052
+      },
+      {
+        "file": "T_Trim_BaseColor.png",
+        "url": "https://raw.githubusercontent.com/AetherRadar/operation-steel-tide/26e8591ac6a95a44c86bb45861d9a21aec3efcb2/assets/models/quaternius_downtown_city/T_Trim_BaseColor.png",
+        "sha256": "4f252e3f44739ff100871cc584fd846a373c930d72ddee695e2d36ddf23ba503",
+        "bytes": 1368756
+      },
+      {
+        "file": "T_Trim_Normal.png",
+        "url": "https://raw.githubusercontent.com/AetherRadar/operation-steel-tide/26e8591ac6a95a44c86bb45861d9a21aec3efcb2/assets/models/quaternius_downtown_city/T_Trim_Normal.png",
+        "sha256": "421ca062c014687a03fca852ef727652e8faa2abff4ea6e32a242764e91dc31b",
+        "bytes": 1193906
+      },
+      {
+        "file": "T_Trim_ORM.png",
+        "url": "https://raw.githubusercontent.com/AetherRadar/operation-steel-tide/26e8591ac6a95a44c86bb45861d9a21aec3efcb2/assets/models/quaternius_downtown_city/T_Trim_ORM.png",
+        "sha256": "bebce62c2a32b2b633f3fa7e4aade0d2cd59360c3d339f40f7f4810a5e2c07a4",
+        "bytes": 885665
+      },
+      {
+        "file": "T_dark_interior.png",
+        "url": "https://raw.githubusercontent.com/AetherRadar/operation-steel-tide/26e8591ac6a95a44c86bb45861d9a21aec3efcb2/assets/models/quaternius_downtown_city/T_dark_interior.png",
+        "sha256": "59e5c77292953d93c3cd239c2f06d4e80e393761195da66d886d3887ad59f1dc",
+        "bytes": 325090
+      },
+      {
+        "file": "T_lit_interior_1.png",
+        "url": "https://raw.githubusercontent.com/AetherRadar/operation-steel-tide/26e8591ac6a95a44c86bb45861d9a21aec3efcb2/assets/models/quaternius_downtown_city/T_lit_interior_1.png",
+        "sha256": "d20aa9f249a506eb145d76e264e59667cec4bef66c07e4baace6583a28cc3be4",
+        "bytes": 395226
+      },
+      {
+        "file": "T_lit_interior_2.png",
+        "url": "https://raw.githubusercontent.com/AetherRadar/operation-steel-tide/26e8591ac6a95a44c86bb45861d9a21aec3efcb2/assets/models/quaternius_downtown_city/T_lit_interior_2.png",
+        "sha256": "83c3f1b2ad84b65aab88d5744e6997730a04140e41d230e2cecfe9bfb2ae0559",
+        "bytes": 316427
+      }
+    ]
+  },
+  "asphalt": {
+    "author": "Rob Tuytel / Poly Haven",
+    "page": "https://polyhaven.com/a/asphalt_02",
+    "files": [
+      {
+        "file": "asphalt_diff.jpg",
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/asphalt_02/asphalt_02_diff_1k.jpg",
+        "sha256": "1aa5ce99f58a625c71d48cfc3e68b65ca85ccb00f39e045c0a928608a0ea25ed",
+        "bytes": 731707
+      },
+      {
+        "file": "asphalt_nor_gl.jpg",
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/asphalt_02/asphalt_02_nor_gl_1k.jpg",
+        "sha256": "42a1c381b53204e83a982db2864479a30bc127bbdeebb1006f8ee51bff099df3",
+        "bytes": 1240122
+      },
+      {
+        "file": "asphalt_rough.jpg",
+        "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/asphalt_02/asphalt_02_rough_1k.jpg",
+        "sha256": "70ba3edc65525eb4dc366cf010ca7ae0bd34e0251ff0225c2dad627a873d0712",
+        "bytes": 544032
+      }
+    ]
+  }
+}

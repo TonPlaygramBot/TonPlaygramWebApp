@@ -130,3 +130,19 @@ test('AI matches finish with rallies across all difficulty and match length choi
       );
     }
 });
+
+test('career tolerates partial persisted data without breaking match setup', async () => {
+  const { normalizeCareer, careerResult } =
+    await import('../shared/tabletennis/career.js');
+  const c = normalizeCareer({
+    tour: 999,
+    round: -1,
+    upgrades: [2],
+    credits: NaN
+  });
+  assert.equal(c.tour, 4);
+  assert.equal(c.round, 0);
+  assert.deepEqual(c.upgrades, [2, 0, 0]);
+  assert.equal(c.credits, 0);
+  assert.equal(careerResult({}, true, 8).wins, 1);
+});

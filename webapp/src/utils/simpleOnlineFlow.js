@@ -110,6 +110,7 @@ export async function runSimpleOnlineFlow({
     socketInstance.off('connect', handleReconnect);
     socketInstance.off('connect_error', handleConnectionError);
     socketInstance.off('disconnect', handleDisconnect);
+    socketInstance.off('matchmakingError', handleMatchmakingError);
   };
 
   const cleanup = ({ keepError = false, skipLeave = false } = {}) => {
@@ -150,6 +151,12 @@ export async function runSimpleOnlineFlow({
 
   function handleConnectionError() {
     if (active) setMatchStatus('Lobby connection failed. Reconnecting…');
+  }
+
+  function handleMatchmakingError(payload = {}) {
+    if (!active || !pendingTableId || String(payload.tableId) !== String(pendingTableId)) return;
+    setMatchError(`Could not start this match (${String(payload.error || 'please_retry').replace(/_/g, ' ')}).`);
+    cleanup({ keepError: true });
   }
 
   function handleDisconnect() {
@@ -202,9 +209,15 @@ export async function runSimpleOnlineFlow({
         matchMeta: { ...matchMeta, mode: 'online', token: stake.token }
       }
     });
-    if (!active) return;
+    if (!active) {
+      if (response.success && response.tableId) {
+        socketInstance.emit('leaveLobby', { ...identity(), tableId: response.tableId });
+      }
+      return;
+    }
     if (!response.success || !response.tableId) {
-      const retry = quickMatch || reconnecting || RECOVERABLE_ERRORS.has(response.error);
+      const terminal = /^(invalid_|unsupported_|insufficient_|account_missing|account_already_|match_already_)/.test(response.error || '');
+      const retry = !terminal && (quickMatch || reconnecting || RECOVERABLE_ERRORS.has(response.error));
       if (retry) {
         setMatchStatus('Retrying matchmaking request…');
         if (response.error === 'identity_mismatch') {
@@ -244,8 +257,10 @@ export async function runSimpleOnlineFlow({
 
   try {
     accountId = String(await ensureAccountIdFn() || '');
+    if (!active) return { ok: false, cleanup };
     if (!accountId) throw new Error('missing_account');
     const balance = await getAccountBalanceFn(accountId);
+    if (!active) return { ok: false, cleanup };
     const confirmedBalance = Number(balance?.balance);
     // Some mobile account lookups transiently return the API's zero fallback
     // even though the authoritative matchmaking account has funds.  A real,
@@ -278,6 +293,7 @@ export async function runSimpleOnlineFlow({
     socketInstance.on('connect', handleReconnect);
     socketInstance.on('connect_error', handleConnectionError);
     socketInstance.on('disconnect', handleDisconnect);
+    socketInstance.on('matchmakingError', handleMatchmakingError);
     await seatPlayer();
     return { ok: true, cleanup, accountId };
   } catch {

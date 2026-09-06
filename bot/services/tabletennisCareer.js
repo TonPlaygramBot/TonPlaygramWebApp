@@ -1,7 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import TableTennisCareer from '../models/TableTennisCareer.js';
 import { shouldUseMemoryUserStore } from '../utils/memoryUserStore.js';
-import { freshCareer, careerResult } from '../../shared/tabletennis/career.js';
+import {
+  freshCareer,
+  careerResult,
+  normalizeCareer
+} from '../../shared/tabletennis/career.js';
 const memory = new Map();
 export async function updateTableTennisCareer(accountId, action, body = {}) {
   const inMemory = shouldUseMemoryUserStore();
@@ -17,7 +21,7 @@ export async function updateTableTennisCareer(accountId, action, body = {}) {
     const p = inMemory
       ? structuredClone(memory.get(accountId))
       : await TableTennisCareer.findOne({ accountId }).lean();
-    const c = p.career;
+    const c = normalizeCareer(p.career);
     if (action === 'get') return c;
     const changes = {};
     let result;

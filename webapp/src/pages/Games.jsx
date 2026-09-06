@@ -51,13 +51,15 @@ export default function Games() {
               key={game.name}
               to={game.route}
               reloadDocument={Boolean(game.standalone)}
-              className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-surface/90 shadow-lg transition hover:-translate-y-0.5 hover:border-primary/60"
+              className={`group relative flex flex-col overflow-hidden rounded-2xl border bg-surface/90 shadow-lg transition hover:-translate-y-0.5 hover:border-primary/60 ${game.featured ? 'col-span-2 sm:col-span-1 border-lime-400/40' : 'border-border'}`}
             >
-              <div className="relative h-24 overflow-hidden">
+              <div
+                className={`relative overflow-hidden ${game.featured ? 'h-44 sm:h-32' : 'h-24'}`}
+              >
                 <img
                   src={thumbnail || game.image}
                   alt={game.name}
-                  loading="lazy"
+                  loading={game.featured ? 'eager' : 'lazy'}
                   className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
                   onError={(event) => {
                     event.currentTarget.src = game.image;
@@ -72,6 +74,18 @@ export default function Games() {
                 <p className="text-[10px] text-subtext line-clamp-2">
                   {game.description}
                 </p>
+                {game.modes && (
+                  <div className="mt-2 flex flex-wrap justify-center gap-2">
+                    {game.modes.map((mode) => (
+                      <span
+                        key={mode}
+                        className="rounded bg-lime-400/10 px-2 py-1 text-[10px] font-semibold text-lime-200"
+                      >
+                        {mode}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <span
                   className={`mt-1 inline-flex items-center rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] ${badgeTone}`}
                 >

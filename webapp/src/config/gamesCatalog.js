@@ -2,6 +2,18 @@ const gamesCatalog = [
   { name:'Table Tennis Royal', route:'/games/tabletennisroyal/lobby', slug:'tabletennisroyal', image:'/assets/icons/table-tennis-royal.svg', description:'Human players, spin rallies, a career tour and TPC online matches.' },
   {name:'Tennis Royal',route:'/games/tennisroyal/lobby',slug:'tennisroyal',image:'/assets/icons/tennis-royal.svg',description:'3D tennis, career tournaments and same-stake online matches.'},
   {
+    name: 'Kart Royale',
+    route: '/games/kartroyale/lobby',
+    slug: 'kartroyale',
+    image: '/assets/kart-royale/cover.webp',
+    badge: 'Beta',
+    featured: true,
+    modes: ['VS AI', 'TPG Multiplayer', 'Career'],
+    launchLabel: 'Enter Racing Lobby',
+    description:
+      'Enter your racing lobby for TPG matchmaking, private races, free AI practice and career cups.'
+  },
+  {
     name: "Texas Hold'em",
     route: '/games/texasholdem/lobby',
     slug: 'texasholdem',
@@ -97,16 +109,16 @@ const gamesCatalog = [
     image: '/assets/icons/underrun-arena.svg',
     description: 'Survive an auto-fire neon swarm online.'
   }
-]
+];
 
-export default gamesCatalog
+export default gamesCatalog;
 
 export const inviteGamesCatalog = gamesCatalog.filter(
   (game) => game.multiplayer !== false
-)
+);
 
 export const catalogWithSlugs = gamesCatalog.map((game) => {
-  if (game.slug) return game
-  const [, , slug] = game.route.split('/')
-  return { ...game, slug }
-})
+  if (game.slug) return game;
+  const [, , slug] = game.route.split('/');
+  return { ...game, slug };
+});

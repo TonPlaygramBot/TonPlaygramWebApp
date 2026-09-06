@@ -18,6 +18,7 @@ import {
   GameServices,
   RoomSnapshot,
   freshCareer,
+  normalizeCareer,
   TOUR
 } from './career';
 import { CHARACTERS, ARENAS } from './options';
@@ -86,7 +87,7 @@ export default function TableTennisGame({
         frame.current.bestRally
       );
       if (mounted.current) {
-        setCareer(c);
+        setCareer(normalizeCareer(c));
         setCareerSaved(true);
       }
     } catch {
@@ -114,6 +115,7 @@ export default function TableTennisGame({
         const r = await services.startCareer();
         if (generation !== epoch.current) return;
         careerId.current = r.id;
+        r.career = normalizeCareer(r.career);
         setCareer(r.career);
         const tour = TOUR[r.career.tour];
         setArena(tour.arena);
@@ -295,7 +297,7 @@ export default function TableTennisGame({
         .career()
         .then((c) => {
           if (alive) {
-            setCareer(c);
+            setCareer(normalizeCareer(c));
             setView('career');
           }
         })
@@ -313,7 +315,7 @@ export default function TableTennisGame({
     audio.current?.unlock();
     setBusy(true);
     try {
-      setCareer(await services.career());
+      setCareer(normalizeCareer(await services.career()));
       setView('career');
     } catch (e) {
       setError((e as Error).message);
@@ -634,7 +636,7 @@ export default function TableTennisGame({
                 onClick={async () => {
                   setBusy(true);
                   try {
-                    setCareer(await services.upgrade(i));
+                    setCareer(normalizeCareer(await services.upgrade(i)));
                   } catch (e) {
                     setError((e as Error).message);
                   } finally {

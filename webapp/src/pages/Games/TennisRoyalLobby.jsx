@@ -215,8 +215,7 @@ export default function TennisRoyalLobby() {
           </button>
         )}
         <p className="text-center text-xs text-white/50">
-          Hold and release HIT · drag the court to move · sound and animated
-          players
+          Touch and drag the court to move · release to hit · swipe for spin
         </p>
       </div>
     </main>
