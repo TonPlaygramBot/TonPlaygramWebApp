@@ -13,4 +13,11 @@ describe('Render canonical host configuration', () => {
     );
     expect(renderConfig).not.toMatch(/name: tonplaygram-api/);
   });
+
+  test('stores wall videos on the durable Render disk without duplicating them into MongoDB', () => {
+    expect(renderConfig).toMatch(
+      /key: FLAMINGO_UPLOAD_DIR\s+value: \/var\/data\/tonplaygram\/flamingo-uploads/
+    );
+    expect(renderConfig).toMatch(/key: FLAMINGO_GRIDFS_BACKUP\s+value: false/);
+  });
 });

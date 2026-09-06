@@ -58,6 +58,11 @@ services:
       # Community photos and videos must outlive API restarts and deployments.
       - key: FLAMINGO_UPLOAD_DIR
         value: /var/data/tonplaygram/flamingo-uploads
+      # The mounted Render disk is the durable source for wall media. Keeping
+      # a second copy in MongoDB GridFS exhausts the database quota and blocks
+      # otherwise valid video posts even though the media disk has space.
+      - key: FLAMINGO_GRIDFS_BACKUP
+        value: false
       - key: SOCIAL_PROVIDER_MODE
         value: disabled
 
