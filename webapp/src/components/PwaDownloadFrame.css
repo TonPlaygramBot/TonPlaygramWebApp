@@ -1,0 +1,41 @@
+.tpg-install{position:relative;isolation:isolate;overflow:hidden;box-sizing:border-box;width:100%;border:1px solid #ffffff16;border-radius:24px;padding:20px;background:linear-gradient(145deg,#151a2b,#0b0f19);color:#f4f7ff;box-shadow:0 12px 32px #0003;font-family:inherit}
+.tpg-install *{box-sizing:border-box}
+.tpg-install__header{display:flex;align-items:center;gap:12px}
+.tpg-install__icon{display:grid;place-items:center;flex:0 0 48px;height:48px;border-radius:15px;background:#258bea;color:white}
+.tpg-install__eyebrow{display:block;font-size:9px;letter-spacing:.12em;font-weight:700;color:#89bff2;margin-bottom:4px}
+.tpg-install h3{margin:0;font-size:22px;line-height:1.25;font-weight:750;letter-spacing:-.5px}
+.tpg-install p{margin:8px 0 12px;font-size:13px;line-height:1.6;color:#aebcd0}
+.tpg-install .tpg-install__intro{margin:14px 0 18px;font-size:14px}
+.tpg-install__android{border:1px solid #4aa4ef55;border-radius:17px;background:#288be90b;padding:15px}
+.tpg-install__row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.tpg-install__row strong{font-size:15px;font-weight:650}
+.tpg-install__badge{flex-shrink:0;padding:4px 8px;border-radius:7px;font-size:10px;letter-spacing:.07em;font-weight:750;color:#8cc9ff;background:#359bff20}
+.tpg-install__badge--muted{background:#ffffff0b;color:#bcc9d9}
+.tpg-install__primary,.tpg-install__secondary{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:48px;border:0;border-radius:12px;padding:12px;font:inherit;font-size:13px;line-height:1.4;font-weight:700;text-decoration:none;cursor:pointer;text-align:center;white-space:normal}
+.tpg-install__primary{background:#2998ee;color:white;box-shadow:0 4px 20px #148be51c}
+.tpg-install__primary svg{flex-shrink:0}
+.tpg-install__primary svg:last-child:not(:first-child){margin-left:auto}
+.tpg-install__primary:disabled{background:#26364a;color:#a4b6cc;box-shadow:none;cursor:default}
+.tpg-install__secondary{background:#ffffff07;border:1px solid #ffffff22;color:#e0eaff}
+.tpg-install__secondary:disabled{opacity:.6;cursor:default}
+.tpg-install__primary:focus-visible,.tpg-install__secondary:focus-visible,.tpg-install a:focus-visible,.tpg-install button:focus-visible,.tpg-install summary:focus-visible{outline:2px solid #98d5ff;outline-offset:4px}
+.tpg-install__primary:hover:not(:disabled){filter:brightness(1.08)}
+.tpg-install__meta{display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-top:10px;font-size:11px;line-height:1.55;color:#99abc0}
+.tpg-install__meta a{color:#9acdf9;text-decoration:underline;text-underline-offset:3px}
+.tpg-install__text-button{display:inline-flex;align-items:center;gap:7px;min-height:44px;background:none;border:0;padding:8px 0;color:#9acdf9;font:inherit;font-size:12px;font-weight:650;cursor:pointer;text-align:left}
+.tpg-install__text-button:disabled{opacity:.5;cursor:default}
+.tpg-install__web{padding:19px 0}
+.tpg-install__cache{border-top:1px solid #ffffff15;border-bottom:1px solid #ffffff15}
+.tpg-install__cache>summary{display:flex;align-items:center;gap:9px;min-height:54px;list-style:none;font-size:12px;font-weight:600;color:#c0cddd;cursor:pointer}
+.tpg-install__cache>summary::-webkit-details-marker{display:none}
+.tpg-install__cache>summary svg:last-child{margin-left:auto}
+.tpg-install__cache[open]>summary svg:last-child{transform:rotate(90deg)}
+.tpg-install__help{margin-top:10px;font-size:12px;color:#bed4e9}
+.tpg-install__help summary{min-height:36px;cursor:pointer;line-height:36px}
+.tpg-install__actions{display:flex;align-items:center;gap:14px;margin:10px 0}
+.tpg-install__actions .tpg-install__secondary{flex:1}
+.tpg-install progress{width:100%;height:7px;accent-color:#48adff}
+.tpg-install .tpg-install__notice{font-size:12px;color:#b5c5d9}
+.tpg-install .tpg-install__error{font-size:12px;color:#ffaaaa}
+.tpg-install .tpg-install__footer{font-size:11px;line-height:1.55;color:#93a5be;margin:13px 0 0}
+@media(max-width:359px){.tpg-install{padding:15px}.tpg-install__android{padding:12px}.tpg-install h3{font-size:20px}.tpg-install__eyebrow{font-size:8px}}

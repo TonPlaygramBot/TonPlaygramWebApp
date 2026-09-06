@@ -1,192 +1,161 @@
-import { useMemo, useState } from 'react';
-import {
-  Check,
-  ChevronRight,
-  Chrome,
-  CloudDownload,
-  PackageOpen,
-  RefreshCw,
-  ShieldCheck,
-  Smartphone
-} from 'lucide-react';
-import { cacheOfflineAssets, isTelegramEnvironment } from '../pwa/offlineCache.js';
-import { cacheOpenSourceAssets } from '../pwa/openSourceCache.js';
-import { APP_BUILD } from '../config/buildInfo.js';
+import { useEffect, useRef, useState } from 'react';
+import { Check, ChevronRight, CloudDownload, Download, ExternalLink, RefreshCw, Smartphone } from 'lucide-react';
+import usePwaInstallPrompt from '../hooks/usePwaInstallPrompt.js';
+import { cacheOfflineAssets } from '../pwa/offlineCache.js';
+import { applyWaitingWebUpdate, checkForWebUpdate, fetchAndroidRelease } from '../pwa/installSupport.js';
+import './PwaDownloadFrame.css';
 
 const initialProgress = { completed: 0, total: 0, successes: 0, failures: 0 };
 
 export default function PwaDownloadFrame() {
-  const [offlineState, setOfflineState] = useState({ status: 'idle', progress: initialProgress, error: '' });
-  const [openSourceState, setOpenSourceState] = useState({ status: 'idle', progress: initialProgress, error: '' });
-  const [refreshState, setRefreshState] = useState({ status: 'idle', error: '' });
+  const pwa = usePwaInstallPrompt();
+  const [release, setRelease] = useState(null);
+  const [releaseState, setReleaseState] = useState('loading');
+  const [retry, setRetry] = useState(0);
+  const [instructions, setInstructions] = useState(false);
+  const [installMessage, setInstallMessage] = useState('');
+  const [cacheState, setCacheState] = useState('idle');
+  const [progress, setProgress] = useState(initialProgress);
+  const [cacheError, setCacheError] = useState('');
+  const [updateState, setUpdateState] = useState('idle');
+  const [updateMessage, setUpdateMessage] = useState('');
+  const cacheController = useRef(null);
+  const registration = useRef(null);
+  const mounted = useRef(false);
 
-  const inTelegram = useMemo(() => isTelegramEnvironment(), []);
-  const progress = offlineState.progress.total
-    ? Math.round((offlineState.progress.completed / offlineState.progress.total) * 100)
-    : 0;
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; cacheController.current?.abort(); };
+  }, []);
 
-  const handleOfflineDownload = async (channel) => {
-    setOfflineState({ status: 'loading', progress: initialProgress, error: '' });
-    try {
-      await cacheOfflineAssets({
-        baseUrl: '/',
-        onUpdate: (nextProgress) => setOfflineState({ status: 'loading', progress: nextProgress, error: '' })
+  useEffect(() => {
+    const controller = new AbortController();
+    setReleaseState('loading');
+    fetchAndroidRelease({ signal: controller.signal })
+      .then(result => {
+        if (controller.signal.aborted) return;
+        setRelease(result);
+        setReleaseState(result ? 'available' : 'unavailable');
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setReleaseState('error');
       });
-      setOfflineState({ status: 'success', progress: initialProgress, error: '' });
-      if (channel === 'telegram' && window.Telegram?.WebApp?.showPopup) {
-        window.Telegram.WebApp.showPopup({
-          title: 'Ready to play',
-          message: 'TonPlaygram is saved for faster loading in Telegram.'
-        });
+    return () => controller.abort();
+  }, [retry]);
+
+  const handleInstall = async () => {
+    if (pwa.inTelegram) { pwa.openExternalInstall(); setInstructions(true); return; }
+    if (!pwa.canInstall) { setInstructions(value => !value); return; }
+    const accepted = await pwa.promptToInstall();
+    if (mounted.current) {
+      setInstallMessage(accepted ? 'Installation requested. Follow your browser’s confirmation.' : 'Installation was not completed. You can try again from the browser menu.');
+    }
+  };
+
+  const handleDownload = event => {
+    if (pwa.inTelegram && window.Telegram?.WebApp?.openLink) {
+      try {
+        window.Telegram.WebApp.openLink(release.url, { try_instant_view: false });
+        event.preventDefault();
+      } catch { /* Keep the normal HTTPS link as the fallback. */ }
+    }
+  };
+
+  const handleCache = async () => {
+    if (cacheController.current) return;
+    const controller = new AbortController();
+    cacheController.current = controller;
+    setCacheState('loading'); setCacheError(''); setProgress(initialProgress);
+    try {
+      const result = await cacheOfflineAssets({
+        baseUrl: import.meta.env?.BASE_URL || '/', signal: controller.signal,
+        onUpdate: next => { if (mounted.current) setProgress(next); }
+      });
+      if (mounted.current) {
+        setProgress(result);
+        setCacheState(result.failures ? 'partial' : 'success');
       }
-    } catch (err) {
-      setOfflineState({
-        status: 'error',
-        progress: initialProgress,
-        error: err?.message || 'Download failed. Please try again.'
-      });
-    }
-  };
-
-  const handleOpenSourceDownload = async () => {
-    setOpenSourceState({ status: 'loading', progress: initialProgress, error: '' });
-    try {
-      await cacheOpenSourceAssets({
-        onUpdate: (nextProgress) => setOpenSourceState({ status: 'loading', progress: nextProgress, error: '' })
-      });
-      setOpenSourceState({ status: 'success', progress: initialProgress, error: '' });
-    } catch (err) {
-      setOpenSourceState({
-        status: 'error',
-        progress: initialProgress,
-        error: err?.message || 'Unable to save the open-source files.'
-      });
-    }
-  };
-
-  const handleRefreshToLatest = async () => {
-    setRefreshState({ status: 'loading', error: '' });
-    try {
-      if (!('serviceWorker' in navigator)) throw new Error('Updates are not supported in this browser.');
-
-      const registration = await navigator.serviceWorker.ready;
-      await registration.update();
-      const waitForInstall = registration.installing
-        ? new Promise(resolve => {
-            const worker = registration.installing;
-            worker?.addEventListener('statechange', () => {
-              if (worker.state === 'installed' || worker.state === 'activated') resolve();
-            });
-          })
-        : null;
-
-      const targetWorker = registration.waiting || registration.installing;
-      targetWorker?.postMessage({ type: 'SKIP_WAITING' });
-      if (waitForInstall) {
-        await Promise.race([waitForInstall, new Promise(resolve => setTimeout(resolve, 1500))]);
+    } catch (error) {
+      if (mounted.current) {
+        setCacheState(error.name === 'AbortError' ? 'cancelled' : 'error');
+        setCacheError(error.name === 'AbortError' ? 'Caching stopped. Already saved files can be reused when you retry.' : error.message);
       }
-      const activeWorker = navigator.serviceWorker.controller || registration.active || registration.waiting;
-      activeWorker?.postMessage({ type: 'CHECK_FOR_UPDATE' });
-      setRefreshState({ status: 'success', error: '' });
-      setTimeout(() => window.location.reload(), 500);
-    } catch (err) {
-      setRefreshState({ status: 'error', error: err?.message || 'Unable to update right now.' });
+    } finally { cacheController.current = null; }
+  };
+
+  const handleUpdate = async () => {
+    if (updateState === 'loading') return;
+    setUpdateState('loading'); setUpdateMessage('');
+    try {
+      if (registration.current?.waiting) {
+        await applyWaitingWebUpdate(registration.current);
+      } else {
+        registration.current = await checkForWebUpdate();
+      }
+      if (!mounted.current) return;
+      const ready = Boolean(registration.current?.waiting);
+      setUpdateState(ready ? 'ready' : 'idle');
+      setUpdateMessage(ready ? 'Update ready. Apply it when you have finished playing.' : 'No waiting web-app update was found.');
+    } catch (error) {
+      if (mounted.current) { setUpdateState('error'); setUpdateMessage(error.message); }
     }
   };
 
-  const downloadLabel = offlineState.status === 'loading'
-    ? `Saving ${progress}%`
-    : offlineState.status === 'success'
-      ? 'Ready to play'
-      : 'Choose where you play';
+  const percent = progress.total ? Math.round(progress.completed / progress.total * 100) : 0;
+  const androidAllowed = pwa.platform !== 'ios';
+  const installLabel = pwa.installed ? 'Web app installed' : pwa.installing ? 'Opening install prompt…' : pwa.inTelegram ? 'Open in browser to install' : pwa.canInstall ? 'Install web app' : 'How to install the web app';
 
   return (
-    <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#151a2b] via-[#101522] to-[#0b0f19] shadow-2xl shadow-black/30">
-      <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-primary/20 blur-3xl" />
-      <div className="relative p-4 sm:p-5">
-        <div className="mb-5 flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-white shadow-lg shadow-primary/30">
-              <CloudDownload size={25} strokeWidth={2.2} />
-            </div>
-            <div className="min-w-0">
-              <div className="mb-0.5 flex items-center gap-2">
-                <h3 className="truncate text-lg font-bold text-white">Save TonPlaygram</h3>
-                <span className="rounded-full bg-emerald-400/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-300">PWA</span>
-              </div>
-              <p className="text-sm text-slate-400">Faster launch. Play anywhere.</p>
-            </div>
-          </div>
-          <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-medium text-slate-400">
-            v{APP_BUILD || 'dev'}
-          </span>
-        </div>
+    <section className="tpg-install" aria-labelledby="tpg-install-title">
+      <header className="tpg-install__header">
+        <span className="tpg-install__icon" aria-hidden="true"><Smartphone size={25} /></span>
+        <div><span className="tpg-install__eyebrow">TAKE TONPLAYGRAM WITH YOU</span><h3 id="tpg-install-title">Get TonPlaygram</h3></div>
+      </header>
+      <p className="tpg-install__intro">Your games, account and wallet. One app on your phone.</p>
 
-        <div className="mb-3 grid grid-cols-2 gap-2.5">
-          <button
-            type="button"
-            className={`group relative min-h-[112px] rounded-2xl border p-3 text-left transition active:scale-[0.98] disabled:opacity-60 ${!inTelegram ? 'border-primary/60 bg-primary/10' : 'border-white/10 bg-white/[0.04] hover:border-primary/40'}`}
-            onClick={() => handleOfflineDownload('chrome')}
-            disabled={offlineState.status === 'loading'}
-          >
-            {!inTelegram && <span className="absolute right-2 top-2 rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold uppercase text-white">Best</span>}
-            <Chrome className="mb-3 text-sky-300" size={24} />
-            <p className="font-semibold text-white">Browser</p>
-            <p className="mt-0.5 text-[11px] text-slate-400">Chrome &amp; mobile</p>
+      <div className="tpg-install__android">
+        <div className="tpg-install__row"><strong>Android app</strong><span className="tpg-install__badge">{pwa.native ? 'INSTALLED' : 'APK'}</span></div>
+        <p>{pwa.native ? 'You are using the installed TonPlaygram app.' : 'Download and install TonPlaygram on your Android phone.'}</p>
+        {releaseState === 'available' && androidAllowed ? (
+          <a className="tpg-install__primary" href={release.url} onClick={handleDownload} rel="noopener noreferrer" target="_blank">
+            <Download size={19} aria-hidden="true" />{pwa.native ? 'Download latest APK' : 'Download Android APK'}<ChevronRight size={18} aria-hidden="true" />
+          </a>
+        ) : (
+          <button className="tpg-install__primary" type="button" disabled>
+            <Download size={19} aria-hidden="true" />{!androidAllowed ? 'APK is for Android only' : releaseState === 'loading' ? 'Checking APK availability…' : releaseState === 'error' ? 'APK check unavailable' : 'APK not published yet'}
           </button>
-          <button
-            type="button"
-            className={`group relative min-h-[112px] rounded-2xl border p-3 text-left transition active:scale-[0.98] disabled:opacity-60 ${inTelegram ? 'border-primary/60 bg-primary/10' : 'border-white/10 bg-white/[0.04] hover:border-primary/40'}`}
-            onClick={() => handleOfflineDownload('telegram')}
-            disabled={offlineState.status === 'loading'}
-          >
-            {inTelegram && <span className="absolute right-2 top-2 rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold uppercase text-white">Best</span>}
-            <Smartphone className="mb-3 text-violet-300" size={24} />
-            <p className="font-semibold text-white">Telegram</p>
-            <p className="mt-0.5 text-[11px] text-slate-400">In-app access</p>
-          </button>
+        )}
+        <div className="tpg-install__meta" aria-live="polite">
+          {releaseState === 'available' ? <><span>v{release.version} · {(release.size / 1024 / 1024).toFixed(1)} MB</span><a href={release.checksumUrl} target="_blank" rel="noopener noreferrer">SHA-256</a></> :
+            <span>{releaseState === 'error' ? 'Could not check the release. Check your connection.' : releaseState === 'unavailable' ? 'The download will appear after the Android release is published.' : 'Checking the official release…'}</span>}
         </div>
-
-        <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-xs font-medium text-slate-300">
-              {offlineState.status === 'success' ? <Check size={15} className="text-emerald-400" /> : <ShieldCheck size={15} className="text-emerald-400" />}
-              {downloadLabel}
-            </div>
-            <button
-              type="button"
-              onClick={handleRefreshToLatest}
-              disabled={refreshState.status === 'loading'}
-              className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-primary transition hover:bg-primary/10 disabled:opacity-60"
-            >
-              <RefreshCw size={13} className={refreshState.status === 'loading' ? 'animate-spin' : ''} />
-              {refreshState.status === 'success' ? 'Updated' : 'Update'}
-            </button>
-          </div>
-          {offlineState.status === 'loading' && (
-            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
-              <div className="h-full rounded-full bg-gradient-to-r from-primary to-cyan-300 transition-all" style={{ width: `${progress}%` }} />
-            </div>
-          )}
-          {(offlineState.error || refreshState.error) && (
-            <p className="mt-2 text-xs text-red-400">{offlineState.error || refreshState.error}</p>
-          )}
-        </div>
-
-        <div className="mt-3 flex items-center gap-2 border-t border-white/10 pt-3">
-          <PackageOpen size={17} className="shrink-0 text-slate-400" />
-          <button
-            type="button"
-            onClick={handleOpenSourceDownload}
-            disabled={openSourceState.status === 'loading'}
-            className="flex min-w-0 flex-1 items-center justify-between text-left text-xs font-medium text-slate-400 transition hover:text-white disabled:opacity-60"
-          >
-            <span>{openSourceState.status === 'loading' ? 'Saving source files…' : openSourceState.status === 'success' ? 'Source files saved' : 'Save open-source files'}</span>
-            <ChevronRight size={16} />
-          </button>
-        </div>
-        {openSourceState.error && <p className="mt-2 text-xs text-red-400">{openSourceState.error}</p>}
+        {['error', 'unavailable'].includes(releaseState) && <button type="button" className="tpg-install__text-button" onClick={() => setRetry(value => value + 1)}>Check again</button>}
+        {release && androidAllowed && <details className="tpg-install__help"><summary>How to install the APK</summary><p>Download the file, open it and follow Android’s installation prompts. Allow installation from your browser only when you trust the downloaded release. Never disable Play Protect.</p></details>}
       </div>
+
+      {!pwa.native && <div className="tpg-install__web">
+        <div className="tpg-install__row"><strong>Prefer the web app?</strong><span className="tpg-install__badge tpg-install__badge--muted">PWA</span></div>
+        <p>Add TonPlaygram to your home screen from a supported browser.</p>
+        <button type="button" className="tpg-install__secondary" onClick={handleInstall} disabled={pwa.installed || pwa.installing} aria-expanded={instructions}>
+          {pwa.installed ? <Check size={18} aria-hidden="true" /> : <ExternalLink size={18} aria-hidden="true" />}{installLabel}
+        </button>
+        {instructions && <p className="tpg-install__notice">{pwa.inTelegram ? 'Open this page in your regular browser, then use its Install app or Add to Home Screen option. Installation may not be available inside Telegram.' : pwa.platform === 'ios' ? 'Open TonPlaygram in Safari. Use Share, then Add to Home Screen. Turn on Open as Web App when offered.' : 'Open your browser menu and look for Install app or Add to Home Screen. The option depends on your browser and whether the app is already installed.'}</p>}
+        {(installMessage || pwa.error) && <p className="tpg-install__notice" role="status">{pwa.error || installMessage}</p>}
+      </div>}
+
+      {!pwa.native && <details className="tpg-install__cache">
+        <summary><CloudDownload size={17} aria-hidden="true" /><span>Cache &amp; web-app updates</span><ChevronRight size={17} aria-hidden="true" /></summary>
+        <p>Optionally save public game files for faster loading. This uses browser storage and is not an app installation. Large games may use substantial data; use Wi-Fi.</p>
+        <div className="tpg-install__actions">
+          <button type="button" className="tpg-install__secondary" onClick={handleCache} disabled={cacheState === 'loading'}>{cacheState === 'loading' ? `Processing ${percent}%` : cacheState === 'partial' ? 'Retry missing files' : 'Cache game files'}</button>
+          {cacheState === 'loading' && <button type="button" className="tpg-install__text-button" onClick={() => cacheController.current?.abort()}>Cancel</button>}
+        </div>
+        {progress.total > 0 && <><progress max={progress.total} value={progress.completed} aria-label="Game files processed" /><p className="tpg-install__notice" role="status">{progress.successes} of {progress.total} files cached{progress.failures ? ` · ${progress.failures} unavailable` : ''}.{cacheState === 'success' ? ' Listed files saved; this does not guarantee every game works offline.' : ''}</p></>}
+        {cacheError && <p className="tpg-install__error" role="alert">{cacheError}</p>}
+        <button type="button" className="tpg-install__text-button" disabled={updateState === 'loading' || cacheState === 'loading'} onClick={handleUpdate}><RefreshCw size={15} aria-hidden="true" />{updateState === 'loading' ? 'Checking…' : registration.current?.waiting ? 'Apply update & reload' : 'Check for web-app updates'}</button>
+        {updateMessage && <p className="tpg-install__notice" role="status">{updateMessage}</p>}
+      </details>}
+      <p className="tpg-install__footer">Online games, account services and wallet transactions still need internet.</p>
     </section>
   );
 }

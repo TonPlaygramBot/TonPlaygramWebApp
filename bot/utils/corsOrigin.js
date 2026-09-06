@@ -1,10 +1,10 @@
-// Capacitor serves installed applications from a local, non-HTTP origin. The
-// origin is still trustworthy: it can only be produced by the installed app,
-// while browser pages cannot claim a capacitor:// or ionic:// origin.
+// Capacitor origins used by the installed web views. CORS is not authentication:
+// these origins must still pass the normal account/session/wallet authorization.
 export const nativeAppOrigins = new Set([
   'capacitor://localhost',
   'ionic://localhost',
-  'http://localhost'
+  'http://localhost',
+  'https://localhost'
 ]);
 
 export function isAllowedApiOrigin(origin, allowedOrigins = [], production = false) {

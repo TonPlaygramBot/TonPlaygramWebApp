@@ -1,311 +1,127 @@
-/* Build-aware service worker: this file is copied as-is from /public. The build
- * marker in /pwa/app-build.js is generated at build time to keep caches in sync
- * with the currently packaged assets. */
-
+/* Build marker is generated alongside the bundled web assets. */
 self.__TONPLAYGRAM_APP_BUILD__ = self.__TONPLAYGRAM_APP_BUILD__ || 'dev';
-try {
-  importScripts('/pwa/app-build.js');
-} catch (err) {
-  // Best-effort: fall back to the bundled default when the marker is missing.
-}
-
-const APP_BUILD =
-  typeof self.__TONPLAYGRAM_APP_BUILD__ === 'string' &&
-  self.__TONPLAYGRAM_APP_BUILD__.trim()
-    ? self.__TONPLAYGRAM_APP_BUILD__.trim()
-    : 'dev';
-
+try { importScripts('/pwa/app-build.js'); } catch { /* Keep the existing dev fallback. */ }
+const APP_BUILD = String(self.__TONPLAYGRAM_APP_BUILD__ || 'dev').trim() || 'dev';
 const STATIC_CACHE = `tonplaygram-static-${APP_BUILD}`;
 const RUNTIME_CACHE = `tonplaygram-runtime-${APP_BUILD}`;
 const OFFLINE_FALLBACK = '/offline.html';
-const GLTF_MANIFEST_PATH = '/pwa/gltf-assets.json';
-const HALLWAY_MANIFEST_PATH = '/pwa/hallway-assets.json';
-const VERSION_ASSETS = ['/version.json', '/pwa/app-build.js'];
-
-const APP_SHELL = [
-  '/',
-  '/index.html',
-  OFFLINE_FALLBACK,
-  '/manifest.webmanifest',
-  GLTF_MANIFEST_PATH,
-  HALLWAY_MANIFEST_PATH,
-  '/tonconnect-manifest.json',
-  '/power-slider.css',
-  ...VERSION_ASSETS,
-  '/assets/icons/generated/app-icon-192.png',
-  '/assets/icons/generated/app-icon-512.png',
-  '/assets/icons/file_00000000efd081f78539cff614489f91.png',
-  '/assets/icons/file_000000003f7861f481d50537fb031e13.png',
-  '/assets/splash/splash-828x1792.png',
-  '/assets/splash/splash-1125x2436.png',
-  '/assets/splash/splash-1170x2532.png',
-  '/assets/splash/splash-1242x2688.png',
-  '/assets/splash/splash-1284x2778.png'
-];
-
-const PREFETCH_RUNTIME_ASSETS = [
-  '/flag-emojis.js',
-  '/init.js',
-  '/texas-holdem.js',
-  '/lib/texasHoldem.js',
-  '/lib/texasHoldemGame.js',
-  '/domino-royal-game.js',
-  '/roulette.html',
-  '/chess-royale.html',
-  '/pool-royale-bracket.html',
-  '/pool-royale-api.js',
-  '/lib/poolAi.js',
-  '/snooker-royale-bracket.html',
-  '/snooker-royale-api.js',
-  '/game-preloads/pool-royale-preload.txt',
-  '/game-preloads/snooker-royale-preload.txt',
-  '/power-slider.js',
-  '/power-slider.css'
-];
-
-const GLTF_EXTENSIONS = /\.(gltf|glb|bin|ktx2|dds|hdr|exr)$/i;
-const REMOTE_CACHEABLE_DESTINATIONS = ['font', 'image', 'model', ''];
-const REMOTE_CACHEABLE_HOSTS = new Set([
-  'cdn.jsdelivr.net',
-  'fastly.jsdelivr.net',
-  'raw.githubusercontent.com',
-  'dl.polyhaven.org',
-  'api.polyhaven.com'
-]);
-
-const enableNavigationPreload = async () => {
-  if (self.registration?.navigationPreload) {
-    await self.registration.navigationPreload.enable();
-  }
+const APP_SHELL = ['/', '/index.html', OFFLINE_FALLBACK, '/manifest.webmanifest',
+  '/assets/icons/generated/app-icon-192.png', '/assets/icons/generated/app-icon-512.png'];
+const REMOTE_HOSTS = new Set(['cdn.jsdelivr.net', 'fastly.jsdelivr.net', 'raw.githubusercontent.com', 'dl.polyhaven.org']);
+const ASSET_EXTENSIONS = /\.(?:js|mjs|css|woff2?|ttf|png|jpe?g|webp|avif|svg|gif|mp3|ogg|wav|mp4|webm|glb|gltf|bin|ktx2|dds|hdr|exr|wasm)$/i;
+const PRIVATE_PATH = /^\/(?:api|auth|socket\.io)(?:\/|$)/i;
+const privatePath = pathname => {
+  try { return PRIVATE_PATH.test(decodeURIComponent(pathname)); } catch { return true; }
 };
+const isMetadata = pathname => ['/version.json', '/pwa/app-build.js', '/manifest.webmanifest'].includes(pathname) || /^\/pwa\/.*\.json$/.test(pathname);
+const isPublicAsset = url => !url.search && !url.hash && !privatePath(url.pathname) && ASSET_EXTENSIONS.test(url.pathname) &&
+  (url.origin === self.location.origin || REMOTE_HOSTS.has(url.hostname));
 
-const precache = async () => {
-  const cache = await caches.open(STATIC_CACHE);
-  await cache.addAll(APP_SHELL.map(path => new Request(path, { cache: 'reload' })));
-};
-
-const prewarmRuntimeCache = async () => {
-  const cache = await caches.open(RUNTIME_CACHE);
-  await Promise.all(
-    PREFETCH_RUNTIME_ASSETS.map(async asset => {
-      try {
-        const request = new Request(asset, { cache: 'reload' });
-        const response = await fetch(request);
-        if (response.ok) {
-          await cache.put(request, response.clone());
-        }
-      } catch (err) {
-        // Ignore failed warmups to avoid breaking install
-      }
-    })
-  );
-};
-
-const warmGltfAssets = async ({ forceReload = false } = {}) => {
-  try {
-    const manifestResponse = await fetch(GLTF_MANIFEST_PATH, { cache: 'no-store' });
-    if (!manifestResponse.ok) return;
-    const manifest = await manifestResponse.json();
-    if (!Array.isArray(manifest) || !manifest.length) return;
-
-    const cache = await caches.open(RUNTIME_CACHE);
-    await Promise.all(
-      manifest.map(async asset => {
-        if (typeof asset !== 'string' || !GLTF_EXTENSIONS.test(asset)) return;
-        try {
-          const request = new Request(asset, {
-            cache: forceReload ? 'reload' : 'default',
-            mode: 'cors'
-          });
-          const response = await fetch(request);
-          if (response?.ok) {
-            await cache.put(request, response.clone());
-          }
-        } catch (err) {
-          // GLTF warming is best-effort
-        }
-      })
-    );
-  } catch (err) {
-    // Ignore manifest failures to avoid blocking install
-  }
-};
-
-const warmHallwayAssets = async ({ forceReload = false } = {}) => {
-  try {
-    const manifestResponse = await fetch(HALLWAY_MANIFEST_PATH, { cache: 'no-store' });
-    if (!manifestResponse.ok) return;
-    const manifest = await manifestResponse.json();
-    if (!Array.isArray(manifest) || !manifest.length) return;
-
-    const cache = await caches.open(RUNTIME_CACHE);
-    await Promise.all(
-      manifest.map(async asset => {
-        if (typeof asset !== 'string') return;
-        try {
-          const request = new Request(asset, {
-            cache: forceReload ? 'reload' : 'default',
-            mode: 'cors'
-          });
-          const response = await fetch(request);
-          if (response?.ok) {
-            await cache.put(request, response.clone());
-          }
-        } catch (err) {
-          // hallway warming is best-effort
-        }
-      })
-    );
-  } catch (err) {
-    // Ignore manifest failures to avoid blocking install
-  }
-};
+async function enableNavigationPreload() {
+  try { await self.registration.navigationPreload?.enable(); } catch { /* Optional optimization. */ }
+}
 
 self.addEventListener('install', event => {
-  event.waitUntil(
-    Promise.all([precache(), prewarmRuntimeCache(), warmGltfAssets(), warmHallwayAssets(), enableNavigationPreload()]).catch(() => {})
-  );
-  self.skipWaiting();
+  // A missing app shell must fail installation instead of replacing a good worker.
+  // Large games are cached on demand, not all downloaded on every deployment.
+  event.waitUntil((async () => {
+    const cache = await caches.open(STATIC_CACHE);
+    await cache.addAll(APP_SHELL.map(path => new Request(path, { cache: 'reload', credentials: 'omit' })));
+    await enableNavigationPreload();
+  })());
+  // Do not skipWaiting here: the player chooses when an update can activate.
 });
-
-const cleanupCaches = async () => {
-  const cacheNames = await caches.keys();
-  const deletions = cacheNames
-    .filter(name => ![STATIC_CACHE, RUNTIME_CACHE].includes(name))
-    .map(name => caches.delete(name));
-  await Promise.all(deletions);
-};
 
 self.addEventListener('activate', event => {
-  event.waitUntil(
-    Promise.all([
-      cleanupCaches(),
-      self.clients.claim(),
-      warmGltfAssets({ forceReload: true }),
-      warmHallwayAssets({ forceReload: true }),
-      enableNavigationPreload()
-    ]).catch(() => {})
-  );
+  event.waitUntil((async () => {
+    const names = await caches.keys();
+    await Promise.all(names
+      .filter(name => /^(tonplaygram-static-|tonplaygram-runtime-)/.test(name) && ![STATIC_CACHE, RUNTIME_CACHE].includes(name))
+      .map(name => caches.delete(name)));
+    await self.clients.claim();
+    await enableNavigationPreload();
+  })());
 });
+
+async function cacheResponse(cacheName, request, response) {
+  if (!response || response.status !== 200 || response.type === 'opaque' || response.redirected) return;
+  if (/\b(private|no-store)\b/i.test(response.headers.get('cache-control') || '')) return;
+  const cache = await caches.open(cacheName);
+  try { await cache.put(request, response.clone()); } catch { /* Cache quota must not break network playback. */ }
+}
+
+async function navigationResponse(event) {
+  const request = event.request;
+  let preload;
+  try { preload = await event.preloadResponse; } catch { /* Try normal navigation. */ }
+  try {
+    const response = preload || await fetch(request, { cache: 'no-store' });
+    // Query strings may contain Telegram/auth data; never persist those responses.
+    if (!new URL(request.url).search) await cacheResponse(RUNTIME_CACHE, request, response);
+    return response;
+  } catch {
+    const exact = !new URL(request.url).search ? await caches.match(request) : null;
+    return exact || await caches.match('/index.html') || await caches.match(OFFLINE_FALLBACK) || Response.error();
+  }
+}
+
+async function staleWhileRevalidate(event) {
+  const cache = await caches.open(RUNTIME_CACHE);
+  const cached = await cache.match(event.request);
+  const fresh = fetch(event.request).then(async response => {
+    await cacheResponse(RUNTIME_CACHE, event.request, response);
+    return response;
+  });
+  event.waitUntil(fresh.then(() => undefined, () => undefined));
+  return cached || fresh.catch(() => Response.error());
+}
+
+async function warmManifest(path) {
+  try {
+    const response = await fetch(path, { cache: 'no-store', credentials: 'omit' });
+    if (!response.ok) return;
+    const assets = await response.json();
+    if (!Array.isArray(assets)) return;
+    // Explicit legacy warm requests remain supported, with bounded concurrency.
+    let index = 0;
+    await Promise.all(Array.from({ length: 3 }, async () => {
+      while (index < assets.length) {
+        const asset = assets[index++];
+        try {
+          if (typeof asset !== 'string') continue;
+          const url = new URL(asset, self.location.origin);
+          if (!isPublicAsset(url)) continue;
+          const request = new Request(url.href, { credentials: 'omit' });
+          await cacheResponse(RUNTIME_CACHE, request, await fetch(request));
+        } catch { /* Individual assets are best effort. */ }
+      }
+    }));
+  } catch { /* Keep the installed worker usable while offline. */ }
+}
 
 self.addEventListener('message', event => {
-  const { type } = event.data || {};
-  if (type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
-  if (type === 'CHECK_FOR_UPDATE' && self.registration?.update) {
-    event.waitUntil(self.registration.update());
-  }
-  if (type === 'WARM_GLTF_ASSETS') {
-    event.waitUntil(warmGltfAssets({ forceReload: true }));
-  }
-  if (type === 'WARM_HALLWAY_ASSETS') {
-    event.waitUntil(warmHallwayAssets({ forceReload: true }));
-  }
+  const type = event.data?.type;
+  if (type === 'SKIP_WAITING') event.waitUntil(self.skipWaiting());
+  if (type === 'CHECK_FOR_UPDATE') event.waitUntil(self.registration.update());
+  if (type === 'WARM_GLTF_ASSETS') event.waitUntil(warmManifest('/pwa/gltf-assets.json'));
+  if (type === 'WARM_HALLWAY_ASSETS') event.waitUntil(warmManifest('/pwa/hallway-assets.json'));
 });
 
-const cacheResponse = async (cacheName, request, response) => {
-  if (!response || response.status !== 200 || response.type === 'opaque') return;
-  const cache = await caches.open(cacheName);
-  await cache.put(request, response.clone());
-};
-
-const navigationPreloadResponse = async event => {
-  try {
-    return await event.preloadResponse;
-  } catch (err) {
-    return null;
-  }
-};
-
-const networkFirst = async (event, request) => {
-  const preloadResponse = await navigationPreloadResponse(event);
-  if (preloadResponse) return preloadResponse;
-
-  try {
-    const freshResponse = await fetch(request, { cache: 'no-store' });
-    await cacheResponse(RUNTIME_CACHE, request, freshResponse);
-    return freshResponse.clone();
-  } catch (err) {
-    const cached =
-      (await caches.match(request)) ||
-      (await caches.match('/index.html')) ||
-      (await caches.match(OFFLINE_FALLBACK));
-    if (cached) return cached;
-    throw err;
-  }
-};
-
-const staleWhileRevalidate = async request => {
-  const cache = await caches.open(RUNTIME_CACHE);
-  const cached = await cache.match(request);
-  const fetchPromise = fetch(request)
-    .then(async response => {
-      await cacheResponse(RUNTIME_CACHE, request, response);
-      return response.clone();
-    })
-    .catch(error => {
-      if (cached) return cached;
-      throw error;
-    });
-
-  if (cached) {
-    fetchPromise.catch(() => {});
-    return cached;
-  }
-
-  try {
-    const response = await fetchPromise;
-    if (response) return response;
-  } catch (error) {
-    // fall through to deterministic error response
-  }
-
-  return Response.error();
-};
-
-const handleNavigationRequest = event => {
-  event.respondWith(
-    networkFirst(event, event.request).catch(async () => {
-      const cached = (await caches.match('/index.html')) || (await caches.match(OFFLINE_FALLBACK));
-      return cached || Response.error();
-    })
-  );
-};
-
 self.addEventListener('fetch', event => {
-  const { request } = event;
-
-  if (request.method !== 'GET') return;
-
+  const request = event.request;
+  if (request.method !== 'GET' || request.headers.has('range')) return;
   const url = new URL(request.url);
-  if (VERSION_ASSETS.includes(url.pathname)) {
-    event.respondWith(networkFirst(event, request));
+  // Never cache APKs, release metadata, authenticated requests or API/wallet data.
+  if (privatePath(url.pathname) || /\.(?:apk|aab|sha256)$/i.test(url.pathname) ||
+      (request.credentials === 'include' && request.mode !== 'navigate') || ['authorization', 'x-telegram-init-data', 'x-tpc-account-id', 'x-google-id', 'x-native-auth'].some(name => request.headers.has(name))) return;
+  if (url.origin === self.location.origin && isMetadata(url.pathname)) {
+    event.respondWith(fetch(request, { cache: 'no-store' }));
     return;
   }
-
-  if (request.mode === 'navigate') {
-    handleNavigationRequest(event);
+  if (url.origin === self.location.origin && request.mode === 'navigate') {
+    event.respondWith(navigationResponse(event));
     return;
   }
-
-  const isSameOrigin = url.origin === self.location.origin;
-  const destination = request.destination;
-  const cacheableDestinations = ['script', 'style', 'font', 'image', 'audio', 'video', 'model'];
-  const shouldCacheGltf = GLTF_EXTENSIONS.test(url.pathname);
-
-  if (isSameOrigin && (cacheableDestinations.includes(destination) || shouldCacheGltf)) {
-    event.respondWith(staleWhileRevalidate(request));
-    return;
-  }
-
-  if (
-    !isSameOrigin &&
-    (REMOTE_CACHEABLE_DESTINATIONS.includes(destination) || shouldCacheGltf || REMOTE_CACHEABLE_HOSTS.has(url.host))
-  ) {
-    event.respondWith(staleWhileRevalidate(request));
-    return;
-  }
-
-  event.respondWith(fetch(request));
+  if (isPublicAsset(url)) event.respondWith(staleWhileRevalidate(event));
+  // All other requests pass through normally, including third-party fetch APIs.
 });
