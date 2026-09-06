@@ -51,11 +51,34 @@ export const freshCareer = () => ({
     bestRally: 0,
     completed: false
 });
+export function normalizeCareer(value) {
+    const base = freshCareer();
+    const number = (candidate, fallback = 0) => Number.isFinite(Number(candidate))
+        ? Math.max(0, Math.floor(Number(candidate)))
+        : fallback;
+    const completed = Boolean(value?.completed);
+    const tour = Math.min(number(value?.tour), TOUR.length - 1);
+    const round = completed ? 3 : Math.min(number(value?.round), 2);
+    const upgrades = Array.from({ length: 3 }, (_, index) => Math.min(3, number(value?.upgrades?.[index])));
+    return {
+        ...base,
+        ...value,
+        tour,
+        round,
+        wins: number(value?.wins),
+        losses: number(value?.losses),
+        credits: number(value?.credits),
+        upgrades,
+        bestRally: number(value?.bestRally),
+        completed
+    };
+}
 export function careerResult(c, won, rally) {
+    const current = normalizeCareer(c);
     const n = {
-        ...c,
-        upgrades: [...c.upgrades],
-        bestRally: Math.max(c.bestRally, rally)
+        ...current,
+        upgrades: [...current.upgrades],
+        bestRally: Math.max(current.bestRally, rally)
     };
     if (n.completed)
         return n;
@@ -113,22 +136,25 @@ export function previewServices() {
         leaveRoom: async () => { }
     };
 }
-export const matchConfig = (mode, c, difficulty, surface) => mode === 'career'
-    ? {
-        ai: true,
-        difficulty: TOUR[c.tour].difficulty,
-        surface: TOUR[c.tour].surface,
-        gamesToWin: 3,
-        setsToWin: 1,
-        upgrades: c.upgrades,
-        seed: Date.now() >>> 0
-    }
-    : {
-        ai: true,
-        difficulty,
-        surface,
-        gamesToWin: mode === 'full' ? 6 : mode === 'set' ? 3 : 1,
-        setsToWin: mode === 'full' ? 2 : 1,
-        upgrades: [0, 0, 0],
-        seed: Date.now() >>> 0
-    };
+export const matchConfig = (mode, c, difficulty, surface) => {
+    const career = normalizeCareer(c);
+    return mode === 'career'
+        ? {
+            ai: true,
+            difficulty: TOUR[career.tour].difficulty,
+            surface: TOUR[career.tour].surface,
+            gamesToWin: 3,
+            setsToWin: 1,
+            upgrades: career.upgrades,
+            seed: Date.now() >>> 0
+        }
+        : {
+            ai: true,
+            difficulty,
+            surface,
+            gamesToWin: mode === 'full' ? 6 : mode === 'set' ? 3 : 1,
+            setsToWin: mode === 'full' ? 2 : 1,
+            upgrades: [0, 0, 0],
+            seed: Date.now() >>> 0
+        };
+};
