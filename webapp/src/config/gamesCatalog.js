@@ -1,4 +1,17 @@
 const gamesCatalog = [
+  {
+    name: 'Tirana Streets',
+    route: '/games/tiranastreets/lobby',
+    slug: 'tiranastreets',
+    inviteFlow: 'room-code',
+    attribution: '© OpenStreetMap',
+    image: '/assets/tirana-streets/map.svg',
+    badge: 'Alpha',
+    featured: true,
+    modes: ['Explore + AI', 'Online Crews', 'Career'],
+    launchLabel: 'Enter City Lobby',
+    description: 'Explore central Tirana on foot and by car. Take courier jobs, race AI rivals and build your career with online crews.'
+  },
   {name:'Tennis Royal',route:'/games/tennisroyal/lobby',slug:'tennisroyal',image:'/assets/icons/tennis-royal.svg',description:'3D tennis, career tournaments and same-stake online matches.'},
   {
     name: 'Kart Royale',
@@ -113,7 +126,7 @@ const gamesCatalog = [
 export default gamesCatalog;
 
 export const inviteGamesCatalog = gamesCatalog.filter(
-  (game) => game.multiplayer !== false
+  (game) => game.multiplayer !== false && game.inviteFlow !== 'room-code'
 );
 
 export const catalogWithSlugs = gamesCatalog.map((game) => {
