@@ -66,6 +66,45 @@ export async function wallRequest(
   throw failure;
 }
 
+export async function uploadObjectPart(
+  url,
+  chunk,
+  { signal, request = fetch } = {}
+) {
+  const result = await wallRequest(
+    url,
+    {
+      method: 'PUT',
+      body: chunk,
+      credentials: 'omit',
+      headers: { 'Content-Type': 'application/octet-stream' }
+    },
+    {
+      signal,
+      timeoutMs: 300_000,
+      request: async (destination, init) => {
+        const response = await request(destination, init);
+        const etag = response.headers.get('etag');
+        await response.body?.cancel?.();
+        return {
+          ok: response.ok,
+          status: response.status,
+          json: async () => ({
+            etag,
+            error:
+              'Media upload interrupted. Keep your file selected and retry.'
+          })
+        };
+      }
+    }
+  );
+  if (!result.etag)
+    throw new Error(
+      'The upload could not be confirmed. Keep your file selected and retry.'
+    );
+  return result.etag;
+}
+
 export async function uploadWallFile({
   baseUrl,
   headers,
@@ -79,7 +118,8 @@ export async function uploadWallFile({
   restorePostId = undefined,
   signal,
   onProgress = (_bytes, _phase) => {},
-  send = wallRequest
+  send = wallRequest,
+  sendObjectPart = uploadObjectPart
 }) {
   const root = `${baseUrl}/api/flamingo-wall/uploads`;
   const metadata = {
@@ -139,19 +179,40 @@ export async function uploadWallFile({
               offset,
               Math.min(offset + chunkSize, file.size)
             );
-            await send(
-              `${root}/${session.uploadId}`,
-              {
-                method: 'PUT',
-                headers: {
-                  ...headers,
-                  'Content-Type': 'application/octet-stream',
-                  'X-Upload-Offset': String(offset)
+            if (session.transport === 's3-multipart') {
+              const partNumber = offset / chunkSize + 1;
+              const partRoot = `${root}/${session.uploadId}/parts/${partNumber}`;
+              const ticket = await send(
+                `${partRoot}/sign`,
+                { method: 'POST', headers },
+                { signal: workersController.signal }
+              );
+              const etag = await sendObjectPart(ticket.url, chunk, {
+                signal: workersController.signal
+              });
+              await send(
+                `${partRoot}/ack`,
+                {
+                  method: 'POST',
+                  headers: { ...headers, 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ etag })
                 },
-                body: chunk
-              },
-              { signal: workersController.signal }
-            );
+                { signal: workersController.signal }
+              );
+            } else
+              await send(
+                `${root}/${session.uploadId}`,
+                {
+                  method: 'PUT',
+                  headers: {
+                    ...headers,
+                    'Content-Type': 'application/octet-stream',
+                    'X-Upload-Offset': String(offset)
+                  },
+                  body: chunk
+                },
+                { signal: workersController.signal }
+              );
             uploaded += chunk.size;
             onProgress(uploaded, 'uploading');
           }

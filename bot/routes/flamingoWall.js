@@ -14,6 +14,8 @@ import { mediaType } from '../utils/mediaType.js';
 import { setFlamingoMediaResponseHeaders } from '../utils/flamingoMediaResponse.js';
 import { commitFlamingoMedia, findFlamingoDatabaseMedia, findFlamingoMedia, flamingoDatabaseStorageEnabled, flamingoMediaName, flamingoStorageDirectories, openFlamingoDatabaseMedia, pruneFlamingoOrphanChunks, removeFlamingoMedia, saveFlamingoMediaToDatabase } from '../utils/flamingoStorage.js';
 import { assertFlamingoDurability, flamingoUploadDirectory, flamingoLocalDirectory, inspectFlamingoDurability } from '../utils/flamingoDurability.js';
+import { objectStorageEnabled, flamingoObjectStorage, objectAttachment } from '../utils/flamingoObjectStorage.js';
+import { objectUploads } from '../services/flamingoObjectUploads.js';
 import { createFlamingoUploadStorage, validFlamingoUploadId } from '../utils/flamingoUploadStorage.js';
 import { flamingoUploadFailure } from '../utils/flamingoUploadErrors.js';
 import { wallMediaPostQuery } from '../utils/flamingoPostLookup.js';
@@ -104,14 +106,22 @@ const uploadStorage = createFlamingoUploadStorage({
     ] }));
   }
 });
-export const inspectFlamingoWallStorage = async () => ({ ...await uploadStorage.inspect(), durability: await inspectFlamingoDurability(uploadDirectory) });
+export const inspectFlamingoWallStorage = async () => objectStorageEnabled()
+  ? flamingoObjectStorage().health()
+  : ({ ...await uploadStorage.inspect(), provider: 'disk', durability: await inspectFlamingoDurability(uploadDirectory) });
 let storageRecovery;
 let lastStorageRecovery = 0;
 export const recoverFlamingoWallStorage = (force = false) => {
   if (storageRecovery) return storageRecovery;
   if (!force && Date.now() - lastStorageRecovery < 10 * 60 * 1000) return Promise.resolve();
   storageRecovery = (async () => {
-    const disk = await withUploadLock('$storage', () => uploadStorage.sweep());
+    // A missing/full Render upload directory must not block object uploads.
+    const disk = objectStorageEnabled() ? { removed: 0, recoveredBytes: 0 }
+      : await withUploadLock('$storage', () => uploadStorage.sweep());
+    if (objectStorageEnabled()) await objectUploads.recover({
+      isBusy: id => uploadLocks.has(id), withLock: withUploadLock,
+      referenced: key => FlamingoPost.exists({ 'attachment.objectKey': key })
+    });
     const database = await pruneFlamingoOrphanChunks({
       isReferenced: id => FlamingoPost.exists({ 'attachment.databaseFileId': id })
     });
@@ -259,6 +269,10 @@ const ownsPost = (post, token) => {
 const locatePostMedia = async (post, { aliases = true } = {}) => {
   const attachment = post?.attachment;
   if (!attachment?.url) return null;
+  if (attachment.objectKey) {
+    const object = await flamingoObjectStorage().head(attachment.objectKey, attachment.objectBucket);
+    return object ? { object } : null;
+  }
   const name = flamingoMediaName(attachment.url);
   const originalName = aliases ? attachment.name : undefined;
   const databaseFile = await findFlamingoDatabaseMedia(name, originalName, attachment.size, attachment.databaseFileId);
@@ -340,6 +354,20 @@ router.post('/uploads', express.json({ limit: '64kb' }), async (req, res) => {
       // only the post's committed media reference confirms completion.
       if (await locatePostMedia(target, { aliases: false })) return res.json({ post: serializeWallPosts([target], ownerToken(req))[0] });
     }
+    if (objectStorageEnabled()) {
+      return await withUploadLock(id, async () => {
+        const existing = await FlamingoPost.findOne({ $or: [{ clientId: id }, { 'attachment.url': new RegExp(`/files/${id}-`) }] }).select('+ownerTokenHash').lean();
+        if (existing && !ownsPost(existing, ownerToken(req))) return res.status(403).json({ error: 'This upload belongs to another session.' });
+        if (existing) return res.json({ post: serializeWallPosts([existing], ownerToken(req))[0] });
+        const { session, response } = await objectUploads.start(metadata);
+        if (session.postId) {
+          const post = await FlamingoPost.findById(session.postId).select('+ownerTokenHash').lean();
+          if (!post) return res.status(410).json({ error: 'This post was deleted.' });
+          return res.json({ post: serializeWallPosts([post], ownerToken(req))[0] });
+        }
+        res.status(201).json(response);
+      });
+    }
     await assertFlamingoDurability(uploadDirectory);
     await recoverFlamingoWallStorage().catch(error => console.error('Flamingo storage recovery deferred:', error.message));
     await withUploadLock('$storage', () => withUploadLock(id, async () => {
@@ -376,6 +404,7 @@ router.post('/uploads', express.json({ limit: '64kb' }), async (req, res) => {
 });
 
 router.put('/uploads/:id', async (req, res) => {
+  if (objectStorageEnabled()) { req.resume(); return res.status(409).json({ error: 'Refresh the wall to use direct media uploads.', retryable: false }); }
   const id = String(req.params.id || '');
   if (!validUploadId(id)) return res.status(404).json({ error: 'Upload session not found.' });
   const paths = sessionPaths(id);
@@ -423,6 +452,20 @@ router.put('/uploads/:id', async (req, res) => {
   }
 });
 
+router.post('/uploads/:id/parts/:number/sign', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  try {
+    if (!validUploadId(req.params.id) || !ownerToken(req)) return res.status(403).json({ error: 'Upload owner token required.' });
+    res.json(await objectUploads.sign(req.params.id, tokenHash(ownerToken(req)), Number(req.params.number)));
+  } catch (error) { sendUploadFailure(res, error); }
+});
+router.post('/uploads/:id/parts/:number/ack', express.json({ limit: '2kb' }), async (req, res) => {
+  try {
+    if (!validUploadId(req.params.id) || !ownerToken(req)) return res.status(403).json({ error: 'Upload owner token required.' });
+    res.json(await objectUploads.acknowledge(req.params.id, tokenHash(ownerToken(req)), Number(req.params.number), req.body?.etag));
+  } catch (error) { sendUploadFailure(res, error); }
+});
+
 router.get('/identity', async (req, res) => {
   const user = await resolveUser(req);
   res.json({ author: displayName(user), authorAvatar: publicWallAvatar(user?.photo || ''), accountId: user?.accountId || '' });
@@ -464,6 +507,11 @@ router.get('/health', async (_req, res) => {
       }
     })().catch(() => {}),
     (async () => {
+      if (objectStorageEnabled()) {
+        storage = await inspectFlamingoWallStorage();
+        mediaStorage = 'available';
+        return;
+      }
       // Check access only after creating the directory, including on first boot.
       await mkdir(uploadDirectory, { recursive: true });
       await access(uploadDirectory, fsConstants.R_OK | fsConstants.W_OK);
@@ -484,6 +532,43 @@ router.post('/uploads/:id/complete', async (req, res) => {
     // A timed-out completion can still be saving media. Join it under the
     // session lock before checking for its post, instead of creating a duplicate.
     const post = await withUploadLock(id, async () => {
+      if (objectStorageEnabled()) {
+        const session = await objectUploads.load(id, tokenHash(ownerToken(req)));
+        const existing = session.postId
+          ? await FlamingoPost.findById(session.postId).select('+ownerTokenHash').lean()
+          : await FlamingoPost.findOne({ 'attachment.objectKey': session.key, ownerTokenHash: session.ownerTokenHash }).select('+ownerTokenHash').lean();
+        if (existing) return existing;
+        if (session.postId) throw Object.assign(new Error('This post was deleted.'), { status: 410 });
+        await objectUploads.finish(session);
+        const metadata = session.details;
+        if (metadata.restorePostId) return withUploadLock(`restore:${metadata.restorePostId}`, async () => {
+          const target = await restoreTarget(metadata.restorePostId, req, metadata.size);
+          if (await locatePostMedia(target, { aliases: false })) return target;
+          const restored = await FlamingoPost.findOneAndUpdate(
+            { _id: target._id, ownerTokenHash: session.ownerTokenHash, 'attachment.url': target.attachment.url },
+            { $set: { attachment: objectAttachment(session, target.attachment) } }, { new: true, runValidators: true }
+          ).select('+ownerTokenHash').lean();
+          if (!restored) throw Object.assign(new Error('This post changed during restoration. Refresh the wall.'), { status: 409 });
+          await objectUploads.published(session, restored._id);
+          publishWallEvent('updated', String(restored._id));
+          return restored;
+        });
+        const user = await resolveUser(req);
+        const content = { clientId: id, text: metadata.text, title: metadata.title, author: displayName(user),
+          authorAvatar: publicWallAvatar(user?.photo || ''), authorAccountId: user?.accountId || '',
+          ownerTokenHash: session.ownerTokenHash, attachment: objectAttachment(session) };
+        let created;
+        try {
+          created = await FlamingoPost.findOneAndUpdate({ clientId: id, ownerTokenHash: session.ownerTokenHash }, { $setOnInsert: content }, { upsert: true, new: true, runValidators: true }).select('+ownerTokenHash').lean();
+        } catch (error) {
+          if (error.code !== 11000) throw error;
+          created = await FlamingoPost.findOne({ clientId: id, ownerTokenHash: session.ownerTokenHash }).select('+ownerTokenHash').lean();
+          if (!created) throw error;
+        }
+        await objectUploads.published(session, created._id);
+        publishWallEvent('created', String(created._id));
+        return created;
+      }
       const metadata = JSON.parse(await readFile(paths.meta, 'utf8'));
       assertUploadOwner(metadata, req);
       const existing = metadata.postId
@@ -623,6 +708,7 @@ router.post('/posts/content', express.json({ limit: '64kb' }), async (req, res) 
 });
 
 router.post('/posts', async (req, res) => {
+  if (objectStorageEnabled()) { req.resume(); return res.status(409).json({ error: 'Refresh the wall to use direct media uploads.', retryable: false }); }
   try { await assertFlamingoDurability(uploadDirectory); } catch (error) { return sendUploadFailure(res, error); }
   await mkdir(uploadDirectory, { recursive: true });
   const busboy = Busboy({ headers: req.headers, limits: { fileSize: maxBytes, files: 1, fields: 3 } });
@@ -700,7 +786,12 @@ router.delete('/posts/:id', async (req, res) => {
   if (!ownsPost(post, ownerToken(req))) return res.status(403).json({ error: 'Only the author can delete this post.' });
   await post.deleteOne();
   publishWallEvent('deleted', String(post._id));
-  if (post.attachment?.url) await removeFlamingoMedia(flamingoMediaName(post.attachment.url), mediaDirectories);
+  if (post.attachment?.objectKey) {
+    try {
+      if (!await FlamingoPost.exists({ 'attachment.objectKey': post.attachment.objectKey }))
+        await flamingoObjectStorage().remove(post.attachment.objectKey, post.attachment.objectBucket);
+    } catch (error) { return sendUploadFailure(res, error); }
+  } else if (post.attachment?.url) await removeFlamingoMedia(flamingoMediaName(post.attachment.url), mediaDirectories);
   res.status(204).end();
 });
 
@@ -711,11 +802,10 @@ router.post('/posts/:id/download', async (req, res) => {
   // Check the morning/legacy location before taking any TPG. Older database
   // rows can have a missing or generic MIME type, but their original filename
   // is still sufficient to identify and serve the video.
-  const [diskPath, databaseFile] = await Promise.all([
-    findFlamingoMedia(file, mediaDirectories, post.attachment.name, post.attachment.size),
-    findFlamingoDatabaseMedia(file, post.attachment.name, post.attachment.size, post.attachment.databaseFileId)
-  ]);
-  if (!diskPath && !databaseFile) return res.status(404).json({ error: 'The original video was not found in storage.' });
+  let media;
+  try { media = await locatePostMedia(post); }
+  catch (error) { return sendUploadFailure(res, error); }
+  if (!media) return res.status(404).json({ error: 'The original video was not found in storage.' });
   const price = attachmentDownloadPrice(post.attachment);
   const selector = userSelector(req);
   if (price && !selector) return res.status(401).json({ error: 'Sign in to download the video.' });
@@ -728,7 +818,8 @@ router.post('/posts/:id/download', async (req, res) => {
     }, { new: true });
     if (!user) return res.status(402).json({ error: `You need ${price} TPG to download this video.` });
   }
-  const grant = createFlamingoDownloadGrant({ file, originalName: post.attachment.name, size: post.attachment.size });
+  const grant = createFlamingoDownloadGrant({ file, originalName: post.attachment.name, size: post.attachment.size,
+    ...(post.attachment.objectKey ? { objectKey: post.attachment.objectKey, objectBucket: post.attachment.objectBucket, type: post.attachment.type } : {}) });
   res.json({ downloadUrl: `/api/flamingo-wall/downloads/${grant}?name=${encodeURIComponent(post.attachment.name)}`, price, balance: user?.balance });
 });
 
@@ -741,6 +832,15 @@ router.get('/downloads/:grant', async (req, res) => {
   // download continue without transferring the completed bytes again.
   setFlamingoMediaResponseHeaders(res);
   res.setHeader('Cache-Control', 'private, max-age=300');
+  if (grant.objectKey) {
+    try {
+      const store = flamingoObjectStorage();
+      if (!await store.head(grant.objectKey, grant.objectBucket)) return res.status(404).json({ error: 'Video not found.' });
+      const url = await store.readUrl(grant.objectKey, grant.objectBucket, { name: grant.originalName || requestedName, type: grant.type, download: true });
+      res.setHeader('Cache-Control', 'no-store');
+      return res.redirect(307, url);
+    } catch (error) { return sendUploadFailure(res, error); }
+  }
   const databaseFile = await findFlamingoDatabaseMedia(grant.file, grant.originalName, grant.size);
   if (databaseFile) {
     res.setHeader('Content-Type', databaseFile.metadata?.contentType || 'application/octet-stream');
@@ -775,6 +875,17 @@ router.get('/files/:name', async (req, res) => {
   const contentType = mediaType(post?.attachment?.type, post?.attachment?.name || name);
   if (/^[\w.+-]+\/[\w.+-]+$/.test(contentType)) {
     res.type(contentType);
+  }
+  if (post?.attachment?.objectKey) {
+    try {
+      const store = flamingoObjectStorage();
+      res.setHeader('Cache-Control', 'no-store');
+      if (!await store.head(post.attachment.objectKey, post.attachment.objectBucket)) return res.status(404).type('application/json').json({ code: 'WALL_MEDIA_MISSING', error: 'The original media is not available in storage.' });
+      const url = await store.readUrl(post.attachment.objectKey, post.attachment.objectBucket, { name: post.attachment.name, type: contentType, download: disposition === 'attachment' });
+      // Keep the feed's stable API URL. Each playback gets a fresh signed
+      // location, and range/seek traffic is served directly by the bucket.
+      return res.redirect(307, url);
+    } catch (error) { return sendUploadFailure(res, error); }
   }
   // Prefer MongoDB so wall playback survives host disk replacement. Legacy
   // disk-only uploads remain readable and are lazily copied into GridFS.

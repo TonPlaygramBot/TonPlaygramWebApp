@@ -69,6 +69,9 @@ services:
       # otherwise valid video posts even though the media disk has space.
       - key: FLAMINGO_GRIDFS_BACKUP
         value: false
+      # For scalable direct media uploads, configure FLAMINGO_MEDIA_STORAGE=s3
+      # and the bucket credentials in the service environment after following
+      # docs/social-wall-object-storage.md. Credentials must remain server-only.
       - key: SOCIAL_PROVIDER_MODE
         value: disabled
 

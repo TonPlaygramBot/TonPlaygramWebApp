@@ -10,6 +10,8 @@
     "reset-social-wall": "node scripts/resetSocialWall.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1127.0",
+    "@aws-sdk/s3-request-presigner": "3.1127.0",
     "busboy": "^1.6.0",
     "cannon-es": "0.20.0",
     "canvas": "^2.11.2",
@@ -33,7 +35,7 @@
     "ton-x": "^2.1.0-preview",
     "tonweb": "^0.0.66",
     "twitter-api-v2": "^1.24.0",
-    "uuid": "^9.0.1",
-    "undici": "^7.16.0"
+    "undici": "^7.16.0",
+    "uuid": "^9.0.1"
   }
 }
