@@ -10,6 +10,8 @@ export const MATERIALS = Object.freeze({
   bronze: { color: 0x425147, roughness: .57, metalness: .72 },
   gold: { color: 0xb09560, roughness: .54, metalness: .55 },
   purple: { color: 0x655569, roughness: .36, metalness: .48 },
+  tile: { color: 0xa06b50, roughness: .89, metalness: 0 },
+  slate: { color: 0x384b54, roughness: .42, metalness: .4 },
   coral: { color: 0xce7357, roughness: .78, metalness: 0 },
   blue: { color: 0x79a9b1, roughness: .72, metalness: .04 }
 });
@@ -110,10 +112,10 @@ function mosque(b,detail){
   b.box('stone',14.6,.35,14.6,0,7.55,0);
   b.tube('pale',[0,7.6,0],[0,8.7,0],6.75,6.75,detail?32:16);
   b.sphere('roof',[0,8.7,0],[6.75,5.1,6.75],detail?32:16,detail?14:7,true);
-  b.tube('gold',[0,13.6,0],[0,15,0],.08,.025,8);
+  b.tube('pale',[0,13.6,0],[0,15,0],.08,.025,8);
   for(let i=0;i<6;i++)b.tube('pale',[-7+i*2.8,.4,9],[-7+i*2.8,5.5,9],.26,.22,detail?12:6);
   b.box('stone',16.1,.5,5.1,0,5.65,8.7);
-  b.frustum('roof',16.8,5.8,5.9,1.8,13.8,1.8,0,8.7);
+  b.frustum('tile',16.8,5.8,5.9,1.8,13.8,1.8,0,8.7);
   b.box('stone',2.5,3.4,2.5,-8.1,1.7,-3);
   b.tube('pale',[-8.1,3.4,-3],[-8.1,23.7,-3],1,.65,detail?20:10);
   b.tube('stone',[-8.1,21.3,-3],[-8.1,21.8,-3],1.5,1.5,detail?24:12);
@@ -158,8 +160,8 @@ function museum(b,detail){
   b.box('stone',18.8,.75,30,-37,18.25,0);b.box('stone',18.8,.75,30,37,18.25,0);
   b.box('shadow',49,5,.10,0,3.1,30.06);
   b.box('stone',53,2,5,0,7.2,31);
-  b.box('coral',42,7.7,.35,0,12.7,30.23);
-  for(let x=-24;x<=24;x+=6)b.box('stone',.65,5.1,1,x,3.15,31.8);
+  b.box('gold',42,7.7,.35,0,12.7,30.23);
+  for(let i=0;i<6;i++){const x=-22.5+i*9;b.box('stone',.65,5.1,1,x,3.15,31.8);}
   if(detail){
     for(let x=-42;x<=42;x+=3.5){
       b.box('stone',.24,16.5,.18,x,9,30.18);
@@ -175,20 +177,20 @@ function museum(b,detail){
   }
 }
 function eyes(b,detail){
-  b.box('purple',46,24,32,0,12,0);
+  b.box('slate',46,24,32,0,12,0);
   b.frustum('glass',27,24,24,107,33,28);
-  b.box('purple',33.4,1.3,28.4,0,131.5,0);
-  b.frustum('purple',33.4,28.4,132.15,2.85,28,21);
+  b.box('slate',33.4,1.3,28.4,0,131.5,0);
+  b.frustum('slate',33.4,28.4,132.15,2.85,28,21);
   const floors=detail?31:12;
   for(let i=0;i<floors;i++){
     const y=24+(107*i)/floors,t=(y-24)/107,w=27+6*t,d=24+4*t;
-    b.box('purple',w+.4,.28,d+.4,0,y,0);
+    b.box('slate',w+.4,.28,d+.4,0,y,0);
   }
   if(detail)for(let side=0;side<4;side++){
     const yaw=side*Math.PI/2,half=side%2?12:13.5;
     for(let i=-7;i<=7;i++){
       const x=i*(half*2/15),a=turn([x,24,side%2?13.65:12.15],yaw),c=turn([x*1.22,132+(i%3)*.55,side%2?16.65:14.15],yaw);
-      b.tube(i%4?'purple':'gold',a,c,.15,.18,4);
+      b.tube(i%4?'slate':'gold',a,c,.15,.18,4);
     }
     for(let floor=1;floor<6;floor++)for(let x=-(side%2?12:20);x<=(side%2?12:20);x+=4){
       const p=turn([x,floor*3.8,side%2?23.06:16.06],yaw);

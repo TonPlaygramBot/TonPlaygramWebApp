@@ -1,3 +1,8 @@
+import { nativeReplacementIds } from '../../tirana-landmarks/nativeLocations.mjs';
+import { nativeLandmarkObstacles } from '../../tirana-landmarks/nativeCollision.mjs';
+import { buildingProfile } from '../../tiranastreets/shared/architecture.mjs';
+import { STREET_SOLIDS } from '../../tiranastreets/shared/streetDressing.mjs';
+import { RAILINGS } from '../../tiranastreets/shared/landscape.mjs';
 import { WORLD } from '../../tiranastreets/shared/world.mjs';
 
 // Only a translation: east remains +X, south +Z, and one unit remains one meter.
@@ -44,9 +49,8 @@ export const buildings = WORLD.buildings.map((b, i) => {
     zs = footprint.map((p) => p[1]);
   const x = (Math.min(...xs) + Math.max(...xs)) / 2,
     z = (Math.min(...zs) + Math.max(...zs)) / 2;
-  const road = nearestRoad(x, z);
-  // The existing right-hand facade faces -X. Turn that facade toward its street.
-  const rot = Math.atan2(road.z - z, -(road.x - x));
+  // Exact world-space footprint; its bounds are only the broad-phase index.
+  const rot = 0;
   return {
     id: b.id,
     x,
@@ -54,21 +58,21 @@ export const buildings = WORLD.buildings.map((b, i) => {
     rot,
     template: i % 10,
     footprint,
-    w: 11,
-    d: 12,
-    h: 24
+    w: Math.max(...xs) - Math.min(...xs),
+    d: Math.max(...zs) - Math.min(...zs),
+    h: buildingProfile(b).height ?? b.h
   };
 });
-const s = nearestRoad(0, 0);
-export const START = Object.freeze({ x: s.x, z: s.z });
+// Begin in the renovated pedestrian square, with the city's landmarks visible.
+export const START = Object.freeze({ x: -55 - ORIGIN.x, z: -110 - ORIGIN.z });
 export const SPAWNS = Object.freeze(
   Array.from({ length: 8 }, (_, i) => {
     const a = (i * Math.PI) / 4,
-      p = nearestRoad(START.x + Math.sin(a) * 48, START.z + Math.cos(a) * 48);
+      p = { x: START.x + Math.sin(a) * 48, z: START.z + Math.cos(a) * 48 };
     return Object.freeze({ x: p.x, z: p.z });
   })
 );
-const exit = nearestRoad(START.x, START.z - 65);
+const exit = { x: START.x - 15, z: START.z - 65 };
 export const EXTRACTION = Object.freeze({ x: exit.x, z: exit.z });
 const originals = [
   [-4, 9, 3.4, 1, 0.95],
@@ -105,4 +109,14 @@ export const props = originals.map(([sx, sz, w, d, h], i) => {
     rot: Math.atan2(dx, dz)
   };
 });
-export const OBSTACLES = Object.freeze([...buildings, ...props]);
+// Fixtures are shared with the renderer, including open bus-shelter interiors.
+export const streetObstacles = STREET_SOLIDS.map(p => {
+  const [x0,z0,x1,z1] = p.box, x=(x0+x1)/2, z=(z0+z1)/2;
+  return {x:p.x-ORIGIN.x+x*Math.cos(p.yaw)+z*Math.sin(p.yaw),
+    z:p.z-ORIGIN.z-x*Math.sin(p.yaw)+z*Math.cos(p.yaw),
+    w:x1-x0,d:z1-z0,h:p.name==='bus_shelter'?2.5:p.name==='utility_cabinet'?1.55:.8,rot:p.yaw};
+});
+export const railingObstacles = RAILINGS.map(r=>({x:r.x-ORIGIN.x,z:r.z-ORIGIN.z,w:.1,d:r.length,h:1.05,rot:r.yaw}));
+const replaced = nativeReplacementIds(WORLD);
+export const landmarkObstacles = nativeLandmarkObstacles(WORLD, ORIGIN);
+export const OBSTACLES = Object.freeze([...buildings.filter(b=>!replaced.has(b.id)), ...landmarkObstacles, ...props, ...streetObstacles, ...railingObstacles]);

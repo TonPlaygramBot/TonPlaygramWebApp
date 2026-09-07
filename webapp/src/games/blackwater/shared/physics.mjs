@@ -1,3 +1,4 @@
+import { footprintDistance, polygonContains } from '../../tiranastreets/shared/architecture.mjs';
 export { MAP, EXTRACTION } from './layout.mjs';
 import { MAP } from './layout.mjs';
 export const WEAPONS = Object.freeze({
@@ -66,6 +67,11 @@ export function collides(x, z, r, obstacles) {
   )
     return true;
   for (const o of nearby(x, z, r, obstacles)) {
+    if (o.minY > 1.7) continue;
+    if (o.footprint) {
+      if (footprintDistance(x, z, o.footprint) < r) return true;
+      continue;
+    }
     const c = Math.cos(o.rot || 0),
       s = Math.sin(o.rot || 0),
       px = c * (x - o.x) - s * (z - o.z),
@@ -83,7 +89,34 @@ export function moveCircle(p, dx, dz, r, obstacles) {
     if (!collides(p.x, p.z + dz / steps, r, obstacles)) p.z += dz / steps;
   }
 }
+/** A ray through the actual extruded polygon, including concave courtyards.
+ * Rectangular props retain their oriented slab intersection. */
 export function rayBox(origin, dir, o) {
+  if (o.footprint) {
+    const p=o.footprint;
+    // Reject the broad-phase box before walking potentially long wall outlines.
+    let enter=0,leave=Infinity;
+    for(const [axis,lo,hi] of [['x',o.x-o.w/2,o.x+o.w/2],['z',o.z-o.d/2,o.z+o.d/2],['y',0,o.h]]) {
+      if(Math.abs(dir[axis])<1e-9) {if(origin[axis]<lo || origin[axis]>hi) return Infinity;}
+      else {let a=(lo-origin[axis])/dir[axis],b=(hi-origin[axis])/dir[axis];if(a>b)[a,b]=[b,a];enter=Math.max(enter,a);leave=Math.min(leave,b);if(enter>leave)return Infinity;}
+    }
+    if (origin.y>=0 && origin.y<=o.h && polygonContains(origin.x,origin.z,p)) return 0;
+    let nearest=Infinity;
+    for (let i=0;i<p.length;i++) {
+      const a=p[i],b=p[(i+1)%p.length],ex=b[0]-a[0],ez=b[1]-a[1];
+      const denominator=dir.x*ez-dir.z*ex;
+      if (Math.abs(denominator)<1e-9) continue;
+      const ax=a[0]-origin.x,az=a[1]-origin.z;
+      const t=(ax*ez-az*ex)/denominator,u=(ax*dir.z-az*dir.x)/denominator;
+      const y=origin.y+dir.y*t;
+      if (t>=0 && u>=0 && u<=1 && y>=0 && y<=o.h) nearest=Math.min(nearest,t);
+    }
+    if (Math.abs(dir.y)>1e-9) for (const y of [0,o.h]) {
+      const t=(y-origin.y)/dir.y;
+      if (t>=0 && polygonContains(origin.x+dir.x*t,origin.z+dir.z*t,p)) nearest=Math.min(nearest,t);
+    }
+    return nearest;
+  }
   const c = Math.cos(o.rot || 0),
     s = Math.sin(o.rot || 0),
     ox = origin.x - o.x,
@@ -94,7 +127,7 @@ export function rayBox(origin, dir, o) {
     far = 1e6;
   for (const [axis, min, max] of [
     ['x', -o.w / 2, o.w / 2],
-    ['y', 0, o.h],
+    ['y', o.minY || 0, o.h],
     ['z', -o.d / 2, o.d / 2]
   ]) {
     if (Math.abs(d[axis]) < 1e-8) {
@@ -118,7 +151,10 @@ export function lineClear(a, b, obstacles) {
     y: (b.y - a.y) / length,
     z: (b.z - a.z) / length
   };
-  return !obstacles.some((o) => rayBox(a, dir, o) < length - 0.15);
+  // A short sightline only visits nearby city cells, on client and server alike.
+  const candidates = nearby((a.x+b.x)/2, (a.z+b.z)/2, Math.hypot(b.x-a.x,b.z-a.z)/2+.1, obstacles);
+  for (const o of candidates) if (rayBox(a,dir,o) < length-.15) return false;
+  return true;
 }
 function walkClear(a, b, r, obstacles) {
   const d = Math.hypot(b.x - a.x, b.z - a.z),
@@ -139,16 +175,16 @@ function walkClear(a, b, r, obstacles) {
 export function findPath(start, goal, obstacles) {
   if (walkClear(start, goal, 0.42, obstacles))
     return [{ x: goal.x, z: goal.z }];
-  const step = 1.5,
-    minX = Math.max(MAP.minX, Math.min(start.x, goal.x) - 14),
-    minZ = Math.max(MAP.minZ, Math.min(start.z, goal.z) - 14);
+  const step = .9,
+    minX = Math.max(MAP.minX, Math.min(start.x, goal.x) - 45),
+    minZ = Math.max(MAP.minZ, Math.min(start.z, goal.z) - 45);
   const w = Math.min(
-      160,
-      Math.ceil((Math.max(start.x, goal.x) + 14 - minX) / step)
+      240,
+      Math.ceil((Math.max(start.x, goal.x) + 45 - minX) / step)
     ),
     h = Math.min(
-      160,
-      Math.ceil((Math.max(start.z, goal.z) + 14 - minZ) / step)
+      240,
+      Math.ceil((Math.max(start.z, goal.z) + 45 - minZ) / step)
     );
   const cell = (p) => ({
       x: clamp(Math.round((p.x - minX) / step), 0, w - 1),
@@ -180,7 +216,7 @@ export function findPath(start, goal, obstacles) {
     closed = new Set();
   let best = open[0],
     bestDist = Infinity;
-  for (let iter = 0; open.length && iter < 2400; iter++) {
+  for (let iter = 0; open.length && iter < 16000; iter++) {
     let pick = 0,
       score = Infinity;
     for (let i = 0; i < open.length; i++) {
@@ -207,7 +243,8 @@ export function findPath(start, goal, obstacles) {
       [1, 0],
       [-1, 0],
       [0, 1],
-      [0, -1]
+      [0, -1],
+      [1, 1], [1, -1], [-1, 1], [-1, -1]
     ]) {
       const nx = cx + dx,
         nz = cz + dz,
@@ -219,7 +256,7 @@ export function findPath(start, goal, obstacles) {
         !walkClear(point(cx, cz), p, 0.42, obstacles)
       )
         continue;
-      const nc = (cost.get(current) ?? 0) + 1;
+      const nc = (cost.get(current) ?? 0) + Math.hypot(dx, dz);
       if (nc < (cost.get(n) ?? Infinity)) {
         cost.set(n, nc);
         came.set(n, current);

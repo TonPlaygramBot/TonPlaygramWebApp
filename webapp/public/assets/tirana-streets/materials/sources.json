@@ -1,0 +1,44 @@
+[
+  {
+    "file": "materials/grass_path_2-diff.jpg",
+    "source": "https://polyhaven.com/a/grass_path_2",
+    "license": "CC0-1.0",
+    "resolution": "2048px",
+    "sha256": "e6b353085d0fc0062832e70cfdf1b77f8b886a1fbb303541479e4f99a3b3ee79"
+  },
+  {
+    "file": "materials/grass_path_2-nor_gl.jpg",
+    "source": "https://polyhaven.com/a/grass_path_2",
+    "license": "CC0-1.0",
+    "resolution": "2048px",
+    "sha256": "e25c3e4574021fafb3737c56a2b7373c84f1f0b9bce99b94c2b565b8cd7fd55e"
+  },
+  {
+    "file": "materials/grass_path_2-rough.jpg",
+    "source": "https://polyhaven.com/a/grass_path_2",
+    "license": "CC0-1.0",
+    "resolution": "2048px",
+    "sha256": "96bc66d10e0f29ca5d1a9efda7734fd0522b5e0c01ba4a828415176d754667b5"
+  },
+  {
+    "file": "materials/plastered_wall_02-diff.jpg",
+    "source": "https://polyhaven.com/a/plastered_wall_02",
+    "license": "CC0-1.0",
+    "resolution": "2048px",
+    "sha256": "caa72056d9157f08912a4c86c844296f93f323f8b30f418895625b052c837d0c"
+  },
+  {
+    "file": "materials/plastered_wall_02-nor_gl.jpg",
+    "source": "https://polyhaven.com/a/plastered_wall_02",
+    "license": "CC0-1.0",
+    "resolution": "2048px",
+    "sha256": "7667573e538a6116892a3139fbecf5acb85728bf10e715111b87080af756cd78"
+  },
+  {
+    "file": "materials/plastered_wall_02-rough.jpg",
+    "source": "https://polyhaven.com/a/plastered_wall_02",
+    "license": "CC0-1.0",
+    "resolution": "2048px",
+    "sha256": "01b41c22151f7b3d7d6e78720205a6df9b36ed11ae36bbe6ea35994fba0c1d82"
+  }
+]

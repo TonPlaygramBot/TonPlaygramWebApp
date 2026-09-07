@@ -20,7 +20,7 @@ export default function Blackwater() {
       joining = false,
       retry;
     if (!tableId) {
-      setConnection('Choose an operation from the BLACKWATER lobby.');
+      setConnection('Choose an operation from the Tirana Streets lobby.');
       return;
     }
     const state = (data) => {
@@ -113,7 +113,7 @@ export default function Blackwater() {
         sessionStorage.removeItem('blackwater-match');
       } catch {}
     }
-    navigate('/games/blackwater/lobby');
+    navigate('/games/tiranastreets/lobby');
   };
   return (
     <>
@@ -131,7 +131,7 @@ export default function Blackwater() {
         >
           <p>{connection}</p>
           <button className="mt-3 underline" onClick={exit}>
-            Return to BLACKWATER lobby
+            Return to Tirana Streets lobby
           </button>
         </div>
       ) : null}

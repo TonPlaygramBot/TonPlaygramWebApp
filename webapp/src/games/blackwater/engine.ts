@@ -260,7 +260,7 @@ export class GameEngine {
     );
     this.renderer.setPixelRatio(dpr * (q === 'auto' ? this.quality : 1));
     this.renderer.shadowMap.enabled = q !== 'low' && this.quality > 0.65;
-    this.world.rain.visible = q !== 'low';
+    this.world.rain.visible = this.world.rain.userData.enabled !== false && q !== 'low';
     this.resize();
   }
   start(weapon: WeaponId, difficulty: Difficulty) {
