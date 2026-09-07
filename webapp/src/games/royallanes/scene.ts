@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { Reflector } from 'three/addons/objects/Reflector.js';
-import { PIN_COM, pinSpots } from './shared/physics.mjs';
+import { PIN_COM, pinSpots } from './shared/physicsCore.mjs';
 import { HumanBowler } from './bowlers';
 import type { MatchView, Shot } from './types';
 import { BowlingAudio } from './audio';

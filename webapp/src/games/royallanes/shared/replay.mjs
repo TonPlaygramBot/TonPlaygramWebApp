@@ -1,4 +1,4 @@
-import { BowlingPhysics, FIXED_STEP, pinSpots } from './physics.mjs';
+import { FIXED_STEP, pinSpots } from './physicsCore.mjs';
 export const ALL_PINS = Object.freeze(pinSpots().map((p) => p.id));
 export const APPROACH_MS = 1150;
 export const RESULT_MS = 2400;
@@ -29,7 +29,7 @@ function bodyFrame(body) {
   ].map(round);
 }
 /** Actual physics, never a client pin-count or win claim. Used identically by both workers. */
-export function simulateRoll({ shot, standing = ALL_PINS }) {
+export function simulateRoll({ shot, standing = ALL_PINS }, BowlingPhysics) {
   const input = sanitizeShot(shot);
   if (
     !input ||
