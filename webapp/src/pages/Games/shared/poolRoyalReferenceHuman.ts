@@ -367,7 +367,7 @@ function driveHuman(human: HumanRig, frame: HumanFrame) {
   twistBone(b.rightUpperLeg, frame.forward, 0.03 * ik);
   setHandBasis(b.rightFoot, frame.side, frame.up, frame.forward, 0.02 * ik, CFG.footLockStrength * ik);
 }
-export function updateHumanPose(human: HumanRig, dt: number, state: ShotState, rootTarget: THREE.Vector3, aimForward: THREE.Vector3, bridgeTarget: THREE.Vector3, idleRight: THREE.Vector3, idleLeft: THREE.Vector3, cueBack: THREE.Vector3, cueTip: THREE.Vector3, power: number) {
+export function updateHumanPose(human: HumanRig, dt: number, state: ShotState, rootTarget: THREE.Vector3, aimForward: THREE.Vector3, bridgeTarget: THREE.Vector3, idleRight: THREE.Vector3, idleLeft: THREE.Vector3, cueBack: THREE.Vector3, cueTip: THREE.Vector3, power: number, clothY = CFG.tableTopY) {
   human.poseT = dampScalar(human.poseT, state === "idle" ? 0 : 1, CFG.poseLambda, dt);
   human.breathT += dt * (state === "idle" ? 1.05 : 0.5);
   human.settleT = dampScalar(human.settleT, state === "dragging" ? 1 : 0, 5.5, dt);
@@ -402,7 +402,7 @@ export function updateHumanPose(human: HumanRig, dt: number, state: ShotState, r
   const rightHip = local(new THREE.Vector3(0.13 * CFG.scale, 0.92 * CFG.scale, 0.02 * CFG.scale));
   const leftFoot = local(new THREE.Vector3(-0.13 * CFG.scale, CFG.footGroundY, 0.03 * CFG.scale + walk * 0.018 * CFG.scale).lerp(new THREE.Vector3(-CFG.stanceWidth * 0.42, CFG.footGroundY, -0.34 * CFG.scale), t));
   const rightFoot = local(new THREE.Vector3(0.13 * CFG.scale, CFG.footGroundY, -0.03 * CFG.scale - walk * 0.018 * CFG.scale).lerp(new THREE.Vector3(CFG.stanceWidth * 0.5, CFG.footGroundY, 0.34 * CFG.scale), t));
-  const bridgePalmTarget = bridgeTarget.clone().addScaledVector(forward, -0.006 * CFG.scale * t).addScaledVector(side, -0.012 * CFG.scale * t).setY(CFG.tableTopY + CFG.bridgePalmTableLift).addScaledVector(UP, -0.01 * CFG.scale * human.settleT);
+  const bridgePalmTarget = bridgeTarget.clone().addScaledVector(forward, -0.006 * CFG.scale * t).addScaledVector(side, -0.012 * CFG.scale * t).setY(clothY + CFG.bridgePalmTableLift).addScaledVector(UP, -0.01 * CFG.scale * human.settleT);
   const leftHand = idleLeft.clone().lerp(bridgePalmTarget, t);
   const cueDirForHand = cueTip.clone().sub(cueBack).normalize();
   const handIk = easeInOut(clamp01(t));

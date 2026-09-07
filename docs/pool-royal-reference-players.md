@@ -1,23 +1,37 @@
 # Pool Royal reference players
 
-Pool Royal now creates two human player rigs and gives the active seat the supplied aiming and striking poses. The previous spawn function only removed characters, and its inactive animation code used different body targets.
+Pool Royal uses two independently skinned copies of the supplied Ready Player Me character. The original reference equations live in `poolRoyalReferenceHuman.ts`; their default behavior remains covered by the unchanged 67-bone reference fixture.
 
-`webapp/src/pages/Games/shared/poolRoyalReferenceHuman.ts` contains the character equations from the supplied `Pasted text(20260907-065835).txt`. It preserves the original model yaw of `Math.PI`, root yaw convention, body and limb targets, wrist bases, finger poses, easing, breathing, walking and strike lock. In particular, the original wrist quaternions are retained without normalization or new facing corrections.
+## Table calibration and player perspective
 
-`PoolRoyalHumanPlayers.ts` loads the same Ready Player Me character once and creates independent skinned clones for seats A and B. The pose solver runs in an untransformed scene; the rendered characters receive a positive uniform scale and a floor offset to match the game's cloth height. Table-edge selection uses the game's table dimensions. This avoids applying the game world's transform twice to bones.
+The first integration scaled the entire character by the floor-to-cloth distance. On Pool Royal's tall table that made the standing model approximately 124.5 game units high. The calibrated model is 88.97 units high, about 28.5% smaller. `PoolRoyalHumanPlayers.ts` uses the actual table footprint, a minimum reach proportion, and the loaded model's measured height. Its scale remains uniform; the model's original `Math.PI` orientation and bind matrices are unchanged.
 
-The game supplies its turn, charge/strike state, shot power, aim and current cue endpoints after updating the existing cue timeline. Characters do not move the gameplay cue, apply shots, update ball physics, change the camera, or decide turns. The inactive player holds the upright reference cue. During a strike, the shooter retains the initial ball position, aim, root and yaw; during replay, live characters are hidden because replay recordings do not contain character tracks. Scene disposal also handles a model load that completes after leaving the game.
+The cloth target is independent of body size and now uses the rendered cloth plane, including its lift and drop. Stance selection stays behind the shot line with clearance at the table perimeter. The original easing, breathing, turn ownership, and frozen strike root/heading remain in use.
+
+`poolRoyalPlayerPose.ts` applies the requested game-specific refinements after the reference pose:
+
+- Lower the shooting head through the spine while retaining the hips and original foot stance.
+- Solve the bridge arm with its measured bone lengths. For longer reaches, slide the bridge back along the cue line instead of stretching bones.
+- Orient the left hand using its actual longitudinal +Y axis and a unit, orthonormal wrist rotation.
+- Spread the supporting fingers, fit their visible skinned pads to the cloth, and position the thumb alongside the index to leave a cue channel. The arm and fingers keep their original bone lengths.
+- Average the two eye bones, apply a small forward offset, and aim along the shot line. All returned camera points are in the game world's local coordinates. The game applies the parent transform once and blends to the eye pose as the cue camera lowers.
+
+In player view, only the active player's face and headwear meshes are hidden to prevent the hat or face from covering the camera. Both heads reappear in the other views. Top view, shot cameras, and replay retain their existing ownership. Characters do not advance shots, change cue motion, alter ball physics, or decide turns.
 
 ## Verification
 
-- `npm run test:pool-players`: five behavioral tests, including 24 pose snapshots across four aim headings. Every snapshot compares all 67 original bones against values generated directly from the uploaded reference solver, rounded to eight decimal places.
-- `npx jest --runInBand test/poolRoyaleCueStrokeTimeline.test.js test/poolRoyaleShotState.test.js`: existing cue and shot regressions.
-- `npm run build --prefix webapp`: production bundle and local model asset.
+- `npm run test:pool-players`: nine tests covering the unchanged reference trace, independent seats, transformed parents, strike lock, replay/disposal, real-table size reduction, cloth contact across four headings and three power levels, eye position/head visibility, and a cue-axis intersection check against the actual skinned hand triangles.
+- `node_modules/.bin/jest --runInBand test/poolRoyaleCueStrokeTimeline.test.js test/poolRoyaleShotState.test.js`: nine existing cue/shot tests.
+- TypeScript check of the preview and imported character modules; full `npm run build --prefix webapp`.
 
-The numerical fixture is `test/fixtures/poolRoyalReferencePose.json`. Do not regenerate it from the new implementation; a change requires comparison with the supplied reference.
+The numerical reference fixture is `test/fixtures/poolRoyalReferencePose.json`. It is generated from the original supplied solver and is not rewritten to accommodate the calibrated pose.
 
-## Character preview
+## Visual inspection loop
 
-Run `node scripts/build-pool-players-preview.mjs /workspace/pool-royal-players.html` to create an inline React/Three.js preview with Stand, Aim, Strike, direction, power and seat controls. It imports the production character modules. It displays a simple table for inspecting the characters, rather than the full game UI. On narrow screens the camera pulls back along the original viewing direction. Only preview textures are reduced to 256 pixels; vertex positions, skinning, skeletons and animation calculations are unchanged. The preview uses the existing Three.js software renderer if WebGL is unavailable. Production continues to use WebGL.
+Run `node scripts/build-pool-players-preview.mjs /workspace/pool-royal-player-view.html`. The React/Three.js preview uses the production controller and reads the actual game dimensions, cloth/ball heights, cue length and baseline pull distances through `scripts/read-pool-royal-metrics.mjs`. Its table is a simplified inspection model, not the complete arena. Player view uses the game's 66-degree lens; table view frames both figures; bridge view exposes the finger contact. Stand, Aim, Strike, seat, power, direction and pause controls support repeatable inspection.
 
-The full-resolution production asset is `webapp/public/assets/pool-royale/readyplayer.me.glb`, copied unchanged from the URL in the supplied code: https://threejs.org/examples/models/gltf/readyplayer.me.glb. The GLB identifies its generator and copyright holder as Ready Player Me. Its embedded metadata is preserved. The supplied Sketchfab table and its separate assets are not used by this change.
+Portrait review exposed an obstructing hat, a too-high shooting head, and a cue/bridge intersection. Each was corrected and rendered again. Geometry checks now verify the cloth contact and cue channel. The review browser has WebGL disabled; its visual checks use the existing software renderer with the same meshes and skeletons. Full arena lighting and on-device WebGL performance remain an on-device review item. The software renderer has limited near-plane clipping and depth sorting; the inspection table is subdivided to keep its cloth visible in the close view. Preview textures are reduced to 256 pixels, while production uses the unchanged original model.
+
+## Asset provenance
+
+`webapp/public/assets/pool-royale/readyplayer.me.glb` is unchanged from https://threejs.org/examples/models/gltf/readyplayer.me.glb, the URL supplied in the reference. It identifies Ready Player Me as its generator and copyright holder. Its original metadata is retained. The supplied Sketchfab table is not used.

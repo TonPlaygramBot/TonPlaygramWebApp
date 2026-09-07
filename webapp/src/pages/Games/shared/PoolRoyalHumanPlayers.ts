@@ -2,10 +2,11 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import {
-  CFG, HUMAN_URL, chooseHumanEdgePosition, createCue, createReferenceHuman,
+  CFG, HUMAN_URL, createCue, createReferenceHuman,
   cuePoseFromGrip, setCuePose, updateHumanPose,
   type HumanRig, type ShotState
 } from './poolRoyalReferenceHuman.ts';
+import { refinePoolRoyalBridge, poolRoyalEyeView, type HumanEyeView } from './poolRoyalPlayerPose.ts';
 
 export type PlayerSeat = 'A' | 'B';
 export type PlayerFrame = {
@@ -27,6 +28,7 @@ type Player = {
   state: ShotState;
   shotBall: THREE.Vector3;
   shotAim: THREE.Vector3;
+  headMeshes: THREE.Object3D[];
 };
 type Options = {
   floorY: number;
@@ -61,28 +63,42 @@ function disposeResources(root: THREE.Object3D) {
   textures.forEach(texture => texture.dispose());
 }
 
+export function choosePoolRoyalStance(ball: THREE.Vector3, forward: THREE.Vector3, tableW: number, tableL: number) {
+  const margin = 0.25 * CFG.humanScale;
+  const x = Math.abs(forward.x) > 1e-6
+    ? (tableW / 2 + margin + Math.sign(forward.x) * ball.x) / Math.abs(forward.x) : Infinity;
+  const z = Math.abs(forward.z) > 1e-6
+    ? (tableL / 2 + margin + Math.sign(forward.z) * ball.z) / Math.abs(forward.z) : Infinity;
+  return ball.clone().addScaledVector(forward, -Math.max(Math.min(x, z), CFG.desiredShootDistance)).setY(0);
+}
+
 /**
  * The solver works in the supplied demo's coordinate space. Only a positive,
  * uniform scale and floor translation connect it to Pool Royal. Solving in an
  * unparented scene keeps the host's table/world scale out of bone quaternions.
- * No camera-relative flips, facing heuristics, or bind-pose edits are applied.
+ * Table-specific reach and bridge corrections preserve handedness and bind matrices.
  */
 export class PoolRoyalHumanPlayers {
   readonly group = new THREE.Group();
   readonly players: Player[] = [];
   readonly ready: Promise<boolean>;
-  readonly referenceScale: number;
+  readonly humanHeight: number;
+  eyeView: HumanEyeView | null = null;
+  private scale = 1;
+  get referenceScale() { return this.scale; }
   private readonly solverScene = new THREE.Scene();
   private disposed = false;
   private readonly options: Options;
 
   constructor(parent: THREE.Object3D, options: Options) {
     this.options = options;
-    this.referenceScale = (options.clothY - options.floorY) / CFG.tableTopY;
-    if (!(this.referenceScale > 0)) throw new Error('Character floor must be below the cloth.');
+    const clothHeight = options.clothY - options.floorY;
+    if (!(clothHeight > 0) || !(options.tableW > 0) || !(options.tableL > 0)) throw new Error('Character floor and table dimensions must be valid.');
+    // Footprint determines body size. A minimum height preserves arm reach on
+    // Pool Royal's unusually tall table without reintroducing oversized players.
+    this.humanHeight = Math.max(Math.max(options.tableW, options.tableL) * 0.82, clothHeight * 1.8);
     this.group.name = 'PoolRoyalReferencePlayers';
     this.group.position.y = options.floorY;
-    this.group.scale.setScalar(this.referenceScale);
     parent.add(this.group);
     const load = options.model
       ? Promise.resolve(options.model)
@@ -96,10 +112,19 @@ export class PoolRoyalHumanPlayers {
         // Object3D.clone alone shares bone references between skinned players.
         const human = createReferenceHuman(cloneSkeleton(model));
         if (!human.activeGlb) throw new Error('The reference character skeleton is incomplete.');
+        if (!this.players.length) {
+          const height = new THREE.Box3().setFromObject(human.modelRoot).getSize(new THREE.Vector3()).y;
+          this.scale = this.humanHeight / height;
+          this.group.scale.setScalar(this.scale);
+        }
         const cue = createCue();
+        const headMeshes: THREE.Object3D[] = [];
+        human.model!.traverse(object => {
+          if ((object as THREE.Mesh).isMesh && /^(EyeLeft|EyeRight|Wolf3D_(Head|Teeth|Beard|Headwear))$/.test(object.name)) headMeshes.push(object);
+        });
         this.group.add(human.modelRoot, cue.group);
         this.players.push({ seat, human, cue, initialized: false, state: 'idle',
-          shotBall: new THREE.Vector3(), shotAim: new THREE.Vector3() });
+          shotBall: new THREE.Vector3(), shotAim: new THREE.Vector3(), headMeshes });
       }
       return true;
     }).catch(error => {
@@ -114,16 +139,23 @@ export class PoolRoyalHumanPlayers {
       .divideScalar(this.referenceScale);
   }
 
+  setFirstPerson(enabled: boolean, seat: PlayerSeat) {
+    for (const player of this.players) for (const mesh of player.headMeshes) {
+      mesh.visible = !(enabled && player.seat === seat);
+    }
+  }
+
   update(dt: number, frame: PlayerFrame) {
     if (this.disposed || !Number.isFinite(dt) || dt < 0) return;
     this.group.visible = !frame.hidden;
-    if (frame.hidden) return;
+    if (frame.hidden) { this.eyeView = null; return; }
     const ball = this.toReference(frame.cueBall);
     const forward = frame.aimForward.clone().setY(0);
     if (!Number.isFinite(forward.lengthSq()) || forward.lengthSq() < 1e-8) return;
     forward.normalize();
     const tableW = this.options.tableW / this.referenceScale;
     const tableL = this.options.tableL / this.referenceScale;
+    const clothY = (this.options.clothY - this.options.floorY) / this.referenceScale;
     const power = THREE.MathUtils.clamp(frame.power, 0, 1);
     for (const player of this.players) {
       const active = player.seat === frame.activeSeat;
@@ -136,7 +168,7 @@ export class PoolRoyalHumanPlayers {
       const aim = state === 'striking' ? player.shotAim.clone() : forward.clone();
       const cueBall = state === 'striking' ? player.shotBall : ball;
       const rootTarget = active
-        ? chooseHumanEdgePosition(cueBall, aim, tableW, tableL)
+        ? choosePoolRoyalStance(cueBall, aim, tableW, tableL)
         : new THREE.Vector3(
           (player.seat === 'A' ? -1 : 1) * (tableW / 2 + CFG.edgeMargin * 2),
           0, (player.seat === 'A' ? 1 : -1) * tableL * 0.36
@@ -151,7 +183,7 @@ export class PoolRoyalHumanPlayers {
       const side = new THREE.Vector3(aim.z, 0, -aim.x).normalize();
       const bridge = cueBall.clone().addScaledVector(aim, -CFG.bridgeHandBackFromBall)
         .addScaledVector(side, CFG.bridgeHandSide)
-        .setY(CFG.tableTopY + CFG.bridgePalmTableLift);
+        .setY(clothY + CFG.bridgePalmTableLift);
       const idleRight = rootTarget.clone().add(new THREE.Vector3(
         CFG.idleRightHandX, CFG.idleRightHandY, CFG.idleRightHandZ
       ).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw));
@@ -185,7 +217,8 @@ export class PoolRoyalHumanPlayers {
       this.solverScene.add(human.modelRoot);
       this.solverScene.updateMatrixWorld(true);
       updateHumanPose(human, Math.min(dt, 0.033), state, rootTarget, aim, bridge,
-        idleRight, idleLeft, back, tip, active ? power : 0);
+        idleRight, idleLeft, back, tip, active ? power : 0, clothY);
+      refinePoolRoyalBridge(human, cueBall, aim, clothY);
       this.group.add(human.modelRoot);
       setCuePose(player.cue, back, tip);
       // While aiming, the gameplay cue is the visible cue; the parked player
@@ -193,11 +226,16 @@ export class PoolRoyalHumanPlayers {
       player.cue.group.visible = state === 'idle' || !(frame.cueBack && frame.cueTip);
       player.state = state;
     }
+    const shooter = this.players.find(player => player.seat === frame.activeSeat);
+    this.eyeView = shooter && frame.state !== 'idle'
+      ? poolRoyalEyeView(shooter.human, this.group, frame.cueBall, forward,
+        Math.max(0.01, frame.cueBall.y - this.options.clothY)) : null;
   }
 
   dispose() {
     if (this.disposed) return;
     this.disposed = true;
+    this.eyeView = null;
     disposeResources(this.group);
     this.group.removeFromParent();
     this.group.clear();
