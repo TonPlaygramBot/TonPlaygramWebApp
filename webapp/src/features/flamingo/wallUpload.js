@@ -110,10 +110,42 @@ export async function uploadObjectPart(
   return result.etag;
 }
 
+async function readUploadBytes(file, offset, end, signal) {
+  if (signal.aborted) throw new DOMException('Upload paused.', 'AbortError');
+  // Android content-provider Files can be readable by the File API while a
+  // fetch with a file-backed Blob body fails before sending any bytes. Keep
+  // the original picker File and materialize only this bounded range.
+  let abort;
+  try {
+    const bytes = await Promise.race([
+      file.slice(offset, end).arrayBuffer(),
+      new Promise((_resolve, reject) => {
+        abort = () => reject(new DOMException('Upload paused.', 'AbortError'));
+        signal.addEventListener('abort', abort, { once: true });
+        if (signal.aborted) abort();
+      })
+    ]);
+    if (bytes.byteLength !== end - offset)
+      throw new Error('Incomplete file read.');
+    return bytes;
+  } catch (error) {
+    if (signal.aborted) throw new DOMException('Upload paused.', 'AbortError');
+    throw Object.assign(
+      new Error(
+        'This file could not be read from your phone. Remove it and select it again from your device.'
+      ),
+      { code: 'WALL_FILE_UNREADABLE', retryable: false, cause: error }
+    );
+  } finally {
+    if (abort) signal.removeEventListener('abort', abort);
+  }
+}
+
 export async function uploadWallFile({
   baseUrl,
   headers,
   file,
+  type = file.type,
   uploadId,
   text,
   title,
@@ -133,7 +165,7 @@ export async function uploadWallFile({
     text,
     title,
     name: file.name,
-    type: file.type,
+    type,
     size: file.size,
     duration,
     premium,
@@ -159,7 +191,7 @@ export async function uploadWallFile({
     throw new Error(
       'The upload server returned an invalid session. Please retry.'
     );
-  // Keep only a few Blob slices in flight, independent of the video's size.
+  // Keep only a few byte ranges in flight, independent of the video's size.
   // Unknown WebViews start conservatively; slow links and low-memory phones
   // retain the single-range path. S3 parts share the same 16 MiB budget.
   let concurrency = Math.min(
@@ -203,9 +235,11 @@ export async function uploadWallFile({
               !workersController.signal.aborted
             ) {
               const offset = offsets.shift();
-              const chunk = file.slice(
+              const chunk = await readUploadBytes(
+                file,
                 offset,
-                Math.min(offset + chunkSize, file.size)
+                Math.min(offset + chunkSize, file.size),
+                workersController.signal
               );
               if (session.transport === 's3-multipart') {
                 const partNumber = offset / chunkSize + 1;
@@ -242,7 +276,7 @@ export async function uploadWallFile({
                   },
                   { signal: workersController.signal, onRetry }
                 );
-              uploaded += chunk.size;
+              uploaded += chunk.byteLength;
               onProgress(uploaded, 'uploading');
             }
           } catch (error) {

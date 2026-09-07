@@ -33,7 +33,9 @@ describe('wall upload recovery', () => {
     });
     expect(result.post._id).toBe('post');
     expect(sendObjectPart).toHaveBeenCalledTimes(2);
-    expect(await sendObjectPart.mock.calls[0][1].text()).toBe('efgh');
+    expect(await new Blob([sendObjectPart.mock.calls[0][1]]).text()).toBe(
+      'efgh'
+    );
     expect(
       calls
         .filter(([url]) => url.endsWith('/ack'))
@@ -96,7 +98,10 @@ describe('wall upload recovery', () => {
         };
       }
       if (init.method === 'PUT') {
-        chunks.push([init.headers['X-Upload-Offset'], await init.body.text()]);
+        chunks.push([
+          init.headers['X-Upload-Offset'],
+          await new Blob([init.body]).text()
+        ]);
         return {};
       }
       completions += 1;
@@ -219,10 +224,10 @@ describe('wall upload recovery', () => {
     const send = async (url, init) => {
       if (url.endsWith('/uploads')) return { uploadId: 'id', chunkBytes };
       if (init.method === 'PUT') {
-        activeBytes += init.body.size;
+        activeBytes += init.body.byteLength;
         peakBytes = Math.max(peakBytes, activeBytes);
         await new Promise((resolve) => setTimeout(resolve, 1));
-        activeBytes -= init.body.size;
+        activeBytes -= init.body.byteLength;
       }
       return {};
     };
@@ -291,6 +296,109 @@ describe('wall upload recovery', () => {
     expect(offsets).toEqual([0, 4, 8, 12, 16, 20]);
     expect(progress).toEqual([0, 4, 8, 12, 16, 20, 24, 24]);
     expect(completions).toBe(1);
+  });
+
+  test('sends materialized bytes and explicit MIME metadata without uploading a file-backed fetch body', async () => {
+    const file = Object.assign(new Blob(['abcdefghij']), { name: 'phone.mp4' });
+    const chunks = [];
+    const send = async (url, init) => {
+      if (url.endsWith('/uploads')) {
+        expect(JSON.parse(init.body)).toMatchObject({
+          name: 'phone.mp4',
+          type: 'video/mp4',
+          size: 10
+        });
+        return { uploadId: 'id', chunkBytes: 4 };
+      }
+      if (init.method === 'PUT') {
+        // The Android regression happens before the server receives a range.
+        if (init.body instanceof Blob) throw new TypeError('Failed to fetch');
+        expect(init.body).toBeInstanceOf(ArrayBuffer);
+        chunks.push([
+          Number(init.headers['X-Upload-Offset']),
+          Buffer.from(init.body).toString()
+        ]);
+        return {};
+      }
+      return { post: { _id: 'published' } };
+    };
+    expect(
+      await uploadWallFile({
+        baseUrl: '',
+        headers: {},
+        uploadId: 'id',
+        file,
+        type: 'video/mp4',
+        send
+      })
+    ).toEqual({ post: { _id: 'published' } });
+    expect(chunks.sort((a, b) => a[0] - b[0])).toEqual([
+      [0, 'abcd'],
+      [4, 'efgh'],
+      [8, 'ij']
+    ]);
+  });
+
+  test.each(['unreadable', 'incomplete'])(
+    'reports an %s phone file instead of a connection failure',
+    async (kind) => {
+      const file = {
+        name: 'phone.mp4',
+        type: 'video/mp4',
+        size: 4,
+        slice: () => ({
+          arrayBuffer: async () => {
+            if (kind === 'unreadable')
+              throw new DOMException(
+                'Permission to the selected file expired.',
+                'NotReadableError'
+              );
+            return new ArrayBuffer(0);
+          }
+        })
+      };
+      const send = jest.fn(async () => ({ uploadId: 'id', chunkBytes: 4 }));
+      await expect(
+        uploadWallFile({ baseUrl: '', headers: {}, uploadId: 'id', file, send })
+      ).rejects.toMatchObject({
+        code: 'WALL_FILE_UNREADABLE',
+        retryable: false,
+        message: expect.stringContaining('select it again')
+      });
+      expect(send).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  test('pausing during a phone file read stops without sending or publishing bytes', async () => {
+    const controller = new AbortController();
+    let reading;
+    const started = new Promise((resolve) => {
+      reading = resolve;
+    });
+    const file = {
+      name: 'phone.mp4',
+      type: 'video/mp4',
+      size: 4,
+      slice: () => ({
+        arrayBuffer: () => {
+          reading();
+          return new Promise(() => {});
+        }
+      })
+    };
+    const send = jest.fn(async () => ({ uploadId: 'id', chunkBytes: 4 }));
+    const upload = uploadWallFile({
+      baseUrl: '',
+      headers: {},
+      uploadId: 'id',
+      file,
+      signal: controller.signal,
+      send
+    });
+    await started;
+    controller.abort();
+    await expect(upload).rejects.toMatchObject({ name: 'AbortError' });
+    expect(send).toHaveBeenCalledTimes(1);
   });
 
   test('retries transient server failures but preserves actionable storage errors', async () => {

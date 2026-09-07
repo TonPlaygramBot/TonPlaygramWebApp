@@ -46,7 +46,7 @@ const fileType = (file: File) =>
             : 'application/octet-stream';
 
 function videoDuration(file: File) {
-  if (!file.type.startsWith('video/')) return Promise.resolve(0);
+  if (!fileType(file).startsWith('video/')) return Promise.resolve(0);
   return new Promise<number>((resolve) => {
     const video = document.createElement('video');
     const src = URL.createObjectURL(file);
@@ -128,7 +128,7 @@ export default function WallComposer({
       selected.length &&
       (next === 'poll' ||
         (next === 'article' &&
-          (selected.length > 1 || !selected[0].file.type.startsWith('image/'))))
+          (selected.length > 1 || !fileType(selected[0].file).startsWith('image/'))))
     ) {
       setError(
         next === 'poll'
@@ -174,11 +174,9 @@ export default function WallComposer({
     setError('');
     try {
       const next: Selection[] = [];
-      for (const original of incoming) {
-        const file = new File([original], original.name, {
-          type: fileType(original),
-          lastModified: original.lastModified
-        });
+      for (const file of incoming) {
+        // Keep the picker file intact; infer its MIME type separately for
+        // mobile file providers that omit it or return a generic type.
         next.push({
           id: id(),
           file,
@@ -231,6 +229,7 @@ export default function WallComposer({
             baseUrl: apiBase,
             headers: headers(),
             file: item.file,
+            type: fileType(item.file),
             uploadId: item.id,
             text: text.trim(),
             title: kind === 'article' ? title.trim() : undefined,
@@ -471,9 +470,9 @@ export default function WallComposer({
               <div className="wall-selected-media">
                 {selected.map((item) => (
                   <div className="wall-media-tile" key={item.id}>
-                    {item.file.type.startsWith('image/') ? (
+                    {fileType(item.file).startsWith('image/') ? (
                       <img src={item.src} alt={item.file.name} />
-                    ) : item.file.type.startsWith('video/') ? (
+                    ) : fileType(item.file).startsWith('video/') ? (
                       <video
                         src={item.src}
                         muted
@@ -535,7 +534,7 @@ export default function WallComposer({
               )}
             </div>
           )}
-          {selected.some((item) => /^(image|video)\//.test(item.file.type)) && (
+          {selected.some((item) => /^(image|video)\//.test(fileType(item.file))) && (
             <details className="wall-premium">
               <summary>Download settings</summary>
               <label>

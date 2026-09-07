@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "test:navigation": "vitest run --config vitest.navigation.config.mjs",
+    "test:wall": "vitest run --config vitest.wall.config.mjs",
     "generate:tirana-assets": "node scripts/generate-tirana-street-furniture.mjs",
     "predev": "npm run generate:tirana-assets",
     "prebuild": "npm run generate:tirana-assets",
