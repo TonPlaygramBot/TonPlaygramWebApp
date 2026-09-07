@@ -29,7 +29,7 @@ function Markers({player,state,route,scale,destination}:Props & {scale:number}) 
     {state&&Object.values(state.players).map(p=><circle key={p.id} cx={p.x} cy={p.z} r={4*scale} fill="#f49268"/>)}
     {state&&<><rect x={state.shop.x-5*scale} y={state.shop.z-5*scale} width={10*scale} height={10*scale} fill="#d8fa69"/>
       {state.units.map(u=><circle key={u.id} cx={u.x} cy={u.z} r={4*scale} fill={u.model==='military-suv'?'#e0ac59':'#60adff'}/>)}
-      {state.npcs.filter(n=>n.kind==='gang'&&n.health>0).map(n=><circle key={n.id} cx={n.x} cy={n.z} r={3*scale} fill="#f77b6a"}/>)}</>}
+      {state.npcs.filter(n=>n.kind==='gang'&&n.health>0).map(n=><circle key={n.id} cx={n.x} cy={n.z} r={3*scale} fill="#f77b6a"/>)}</>}
     {destination&&<g><circle cx={destination.x} cy={destination.z} r={8*scale} fill="#ed9168" stroke="#fff" strokeWidth={2*scale}/><circle cx={destination.x} cy={destination.z} r={2*scale} fill="#fff"/></g>}
     {player&&<g transform={`translate(${player.x} ${player.z}) rotate(${(-player.heading*180)/Math.PI})`}><circle r={10*scale} fill="#d8fa69" opacity=".25"/><path d={`M0 ${-9*scale}L${6*scale} ${7*scale}L0 ${4*scale}L${-6*scale} ${7*scale}Z`} fill="#f2ffcd" stroke="#12282f" strokeWidth={scale}/></g>}
   </g>;
@@ -81,10 +81,10 @@ function ExplorerMap(props:Props) {
     const existing=favorites.find(p=>Math.hypot(p.x-selected.x,p.z-selected.z)<1),id=selected.id||`pin:${Math.round(selected.x)}:${Math.round(selected.z)}`;
     if(!existing&&favorites.length>=MAX_FAVORITES){setSaveMessage(`Maximum ${MAX_FAVORITES} saved places.`);return;}
     const next=existing?favorites.map(p=>p===existing?{...selected,id:existing.id}:p):[...favorites,{...selected,id}];
-    setFavorites(next);setSaveMessage(writeFavorites(storage(),next,WORLD)?'Saved on this device.':'Saved for this session only; device storage is unavailable.');
+    setFavorites(next);setSaveMessage(writeFavorites(storage(),next,WORLD)?'Saved on this device.':'Saved until this map closes; device storage is unavailable.');
   };
   const zoom=(factor:number)=>{const v=liveView.current;change(zoomView(v,factor,{x:v.x+v.w/2,z:v.z+v.h/2},WORLD.bounds));};
-  const remove=(p:Place)=>{const next=favorites.filter(f=>f.id!==p.id);setFavorites(next);setSaveMessage(writeFavorites(storage(),next,WORLD)?'Removed from favourites.':'Storage is unavailable; removal applies to this session.');};
+  const remove=(p:Place)=>{const next=favorites.filter(f=>f.id!==p.id);setFavorites(next);setSaveMessage(writeFavorites(storage(),next,WORLD)?'Removed from favourites.':'Storage is unavailable; removal applies until this map closes.');};
   const scale=view.w/width;
   return <div className="ts-explorer-map">
     <div className="ts-map-search"><input type="search" value={query} maxLength={80} placeholder="Search places or favourites" aria-label="Search Tirana places" onChange={e=>setQuery(e.target.value)}/></div>
@@ -100,7 +100,7 @@ function ExplorerMap(props:Props) {
       </svg>
       <span className="ts-map-compass" aria-label="North is up">↑ N</span>
       <div className="ts-map-zoom"><button onClick={()=>zoom(1.5)} aria-label="Zoom in">+</button><button onClick={()=>zoom(1/1.5)} aria-label="Zoom out">−</button><button onClick={()=>{const v=liveView.current;if(player)change(constrainView({...v,x:player.x-v.w/2,z:player.z-v.h/2},WORLD.bounds));}} disabled={!player} aria-label="Centre on player">◎</button><button onClick={()=>change(fitView(WORLD.bounds,view.w/view.h))} aria-label="Show whole city">▣</button></div>
-      <span className="ts-map-scale">{Math.round(scale*70)} m ━</span>
+      <span className="ts-map-scale">{Math.round(scale*70)} m<i aria-hidden="true"/></span>
     </div>
     {selected&&<section className="ts-map-selection" aria-label="Selected place">
       <input value={selected.name} maxLength={80} aria-label="Place name" onChange={e=>setSelected({...selected,name:e.target.value})}/>
