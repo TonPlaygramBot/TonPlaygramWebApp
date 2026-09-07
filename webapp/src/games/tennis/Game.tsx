@@ -436,14 +436,13 @@ export default function TennisGame({
         : room
           ? room.players?.[op]?.name || 'Online player'
           : ['Club AI', 'Tour AI', 'Pro AI'][difficulty];
-  const canHit =
+  const canHit = () =>
     screen === 'match' &&
     !paused &&
     !reviewActive(frame.current) &&
-    hud.phase !== 'point' &&
-    hud.phase !== 'over' &&
+    (frame.current.phase === 'serve' || frame.current.phase === 'rally') &&
     (!room || room.joined) &&
-    (hud.phase !== 'serve' || hud.score.server === own);
+    (frame.current.phase !== 'serve' || frame.current.score.server === own);
   const tour = TOUR[career.tour];
   const finishCourtTouch = (e: React.PointerEvent<HTMLDivElement>) => {
     if (pointer.current !== e.pointerId || !gesture.current) return;
@@ -453,7 +452,7 @@ export default function TennisGame({
       renderer.current?.shotDirection(dx, dy, frame.current) ?? null;
     // A tap has no heading: softly return towards centre (diagonal on serve).
     chooseAim(dx);
-    if (canHit) release(power);
+    if (canHit()) release(power);
     else charging.current = false;
     pointer.current = null;
     gesture.current = null;
@@ -490,7 +489,7 @@ export default function TennisGame({
             e.currentTarget.clientWidth
           );
           move(e);
-          if (canHit) {
+          if (canHit()) {
             unlock();
             charging.current = true;
             setCharge(TAP_POWER);
@@ -605,15 +604,17 @@ export default function TennisGame({
                   ? 'Second serve'
                   : 'Your serve'
                 : 'Opponent serves'
-              : hud.phase === 'point'
-                ? `${hud.lastPoint === own ? 'Your' : 'Opponent'} point`
-                : hud.phase === 'toss'
-                  ? 'Ball toss'
-                  : hud.phase === 'over'
-                    ? ''
-                    : hud.rally > 1
-                      ? `${hud.rally} shot rally`
-                      : 'Return the serve'}
+              : hud.phase === 'fault'
+                ? hud.message
+                : hud.phase === 'point'
+                  ? `${hud.message.split(' · ')[0]} · ${hud.lastPoint === own ? 'Your' : 'Opponent'} point`
+                  : hud.phase === 'toss'
+                    ? 'Ball toss'
+                    : hud.phase === 'over'
+                      ? ''
+                      : hud.rally > 1
+                        ? `${hud.rally} shot rally`
+                        : 'Return the serve'}
           </div>
           <div className="tr-touch-hud" hidden={reviewActive(hud)}>
             <div className="tr-touch-state">

@@ -2,14 +2,13 @@ import {
   BALL_RADIUS,
   GRAVITY,
   REVIEW_SECONDS,
-  groundTime,
-  bounceVelocity,
   lineCall,
   reviewActive,
   type CloseCall,
   type Review
 } from './court.js';
 import { aiSpeed, predictIntercept, planAiShot } from './ai.js';
+import { advanceBall, ballAtRest } from './physics.js';
 export {
   BALL_RADIUS,
   GRAVITY,
@@ -23,7 +22,7 @@ export {
 export type Seat = 0 | 1;
 export type Shot = 'flat' | 'topspin' | 'slice' | 'lob';
 export type Surface = 'hard' | 'clay' | 'grass';
-export type Phase = 'serve' | 'toss' | 'rally' | 'point' | 'over';
+export type Phase = 'serve' | 'toss' | 'rally' | 'fault' | 'point' | 'over';
 export type Input = {
   moveX: number | null;
   moveZ: number | null;
@@ -323,9 +322,10 @@ function finishPoint(s: MatchState, win: Seat, reason: string) {
   startReview(s);
   if (s.review) s.phaseAt += REVIEW_SECONDS - 0.75;
   s.winner = result.winner;
-  s.ball.vx = 0;
-  s.ball.vy = 0;
-  s.ball.vz = 0;
+  s.players.forEach((p) => {
+    p.queued = 0;
+    p.queuedInput = null;
+  });
   const prefix =
     result.winner !== null
       ? 'Match'
@@ -345,8 +345,12 @@ function fault(s: MatchState, reason: string) {
   }
   emit(s, 'fault', s.score.server, reason);
   startReview(s);
-  setupServe(s);
-  if (reviewActive(s)) s.phaseAt += REVIEW_SECONDS;
+  s.phase = 'fault';
+  s.phaseAt = s.time + (reviewActive(s) ? REVIEW_SECONDS - 0.75 : 0);
+  s.players.forEach((p) => {
+    p.queued = 0;
+    p.queuedInput = null;
+  });
   s.message = `${reason} · second serve`;
 }
 function trajectory(s: MatchState, seat: Seat, input: Input, isServe: boolean) {
@@ -463,7 +467,7 @@ export function setInput(s: MatchState, seat: Seat, input: Input) {
   p.lastInput = s.time;
   if (swing > p.swingId) {
     p.swingId = swing;
-    if (!reviewActive(s) && s.phase !== 'point' && s.phase !== 'over') {
+    if (!reviewActive(s) && (s.phase === 'serve' || s.phase === 'rally')) {
       p.queued = s.time + 0.85;
       p.queuedInput = { ...s.inputs[seat] };
     }
@@ -531,14 +535,15 @@ function movePlayers(s: MatchState, dt: number) {
   }
 }
 export function stepMatch(s: MatchState, dt = 1 / 120) {
-  if (s.phase === 'over' && !reviewActive(s)) return;
+  if (!Number.isFinite(dt) || dt <= 0) return;
+  if (s.phase === 'over' && !reviewActive(s) && ballAtRest(s.ball)) return;
   dt = clamp(dt, 0, 1 / 30);
   s.time += dt;
   if (reviewActive(s)) return;
   s.review = null;
-  if (s.phase === 'over') return;
-  if (s.phase === 'point') {
-    if (s.time - s.phaseAt > 1.55) setupServe(s);
+  if (s.phase === 'over' || s.phase === 'point' || s.phase === 'fault') {
+    advanceBall(s.ball, dt, s.config.surface);
+    if (s.phase !== 'over' && s.time - s.phaseAt > 1.55) setupServe(s);
     return;
   }
   const server = s.score.server,
@@ -565,70 +570,59 @@ export function stepMatch(s: MatchState, dt = 1 / 120) {
     return;
   }
   const b = s.ball;
-  const landing = groundTime(b);
-  const netTime = b.vz === 0 ? Infinity : -b.z / b.vz;
-  const travel = Math.min(dt, landing);
-  // Resolve the earliest exact intersection, so frame size cannot move a line call.
-  if (netTime > 1e-9 && netTime <= travel) {
-    const nx = b.x + b.vx * netTime;
-    const ny = b.y + b.vy * netTime - (GRAVITY * netTime * netTime) / 2;
-    if (Math.abs(nx) < 5.6 && ny < 0.98 + BALL_RADIUS) {
-      if (b.serve && ny > 0.86) {
-        b.netTouch = true;
-        b.x = nx;
-        b.z = Math.sign(b.vz) * 0.001;
-        b.y = ny;
-        b.vz *= 0.82;
-        b.vy = Math.max(b.vy - GRAVITY * netTime, 1.5);
-        return;
+  advanceBall(b, dt, s.config.surface, {
+    net: (letCandidate) => {
+      if (!letCandidate && s.phase === 'rally') {
+        if (b.serve) fault(s, 'Net');
+        else finishPoint(s, opponent(b.last), 'Net');
       }
-      if (b.serve) fault(s, 'Net');
-      else finishPoint(s, opponent(b.last), 'Net');
-      return;
+      return !reviewActive(s);
+    },
+    bounce: (impact, rebound, elapsed, first) => {
+      emit(s, 'bounce', b.last, 'Bounce');
+      if (s.phase !== 'rally') return !reviewActive(s);
+      if (first) {
+        const call = lineCall(
+          impact.x,
+          impact.z,
+          b.last,
+          b.serve,
+          s.players[b.last].x
+        );
+        if (call.close && !b.netTouch)
+          s.closeCall = {
+            call,
+            impact,
+            rebound,
+            players: s.players.map(({ x, z }) => ({ x, z })),
+            flightTime: Math.min(0.65, s.time - s.phaseAt - dt + elapsed)
+          };
+        if (!call.in) {
+          if (b.serve) fault(s, 'Service out');
+          else finishPoint(s, opponent(b.last), 'Out');
+        } else if (b.serve && b.netTouch) {
+          emit(s, 'fault', b.last, 'Let');
+          s.phase = 'fault';
+          s.phaseAt = s.time;
+          s.closeCall = null;
+          s.players.forEach((p) => {
+            p.queued = 0;
+            p.queuedInput = null;
+          });
+          s.message = 'Let · serve again';
+        }
+      } else finishPoint(s, b.last, s.rally === 1 ? 'Ace' : 'Second bounce');
+      if (s.phase === 'rally' && rebound.vy === 0)
+        finishPoint(s, b.last, 'Ball stopped');
+      return !reviewActive(s);
     }
-  }
-  b.x += b.vx * travel;
-  b.z += b.vz * travel;
-  b.y += b.vy * travel - (GRAVITY * travel * travel) / 2;
-  b.vy -= GRAVITY * travel;
-  if (landing <= dt) {
-    b.y = BALL_RADIUS;
-    const rebound = bounceVelocity(b, s.config.surface, b.spin);
-    if (b.bounces === 0) {
-      const call = lineCall(b.x, b.z, b.last, b.serve, s.players[b.last].x);
-      if (call.close && !b.netTouch)
-        s.closeCall = {
-          call,
-          impact: { x: b.x, y: b.y, z: b.z, vx: b.vx, vy: b.vy, vz: b.vz },
-          rebound,
-          players: s.players.map(({ x, z }) => ({ x, z })),
-          flightTime: Math.min(0.65, s.time - s.phaseAt - dt + travel)
-        };
-      if (!call.in) {
-        if (b.serve) fault(s, 'Service out');
-        else finishPoint(s, opponent(b.last), 'Out');
-        return;
-      }
-      if (b.serve && b.netTouch) {
-        emit(s, 'fault', b.last, 'Let');
-        setupServe(s);
-        s.message = 'Let · serve again';
-        return;
-      }
-    } else {
-      finishPoint(s, b.last, s.rally === 1 ? 'Ace' : 'Second bounce');
-      return;
-    }
-    b.bounces++;
-    Object.assign(b, rebound);
-    const rest = dt - travel;
-    b.x += b.vx * rest;
-    b.z += b.vz * rest;
-    b.y += b.vy * rest - (GRAVITY * rest * rest) / 2;
-    b.vy -= GRAVITY * rest;
-    emit(s, 'bounce', b.last, 'Bounce');
-  }
+  });
+  if (s.phase !== 'rally') return;
   if (Math.abs(b.z) > 18 || Math.abs(b.x) > 12) {
+    if (b.serve && b.bounces === 0) {
+      fault(s, 'Service out');
+      return;
+    }
     finishPoint(
       s,
       b.bounces ? b.last : opponent(b.last),

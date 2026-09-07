@@ -5,6 +5,7 @@ import {
   neutralInput,
   reviewActive
 } from '../../shared/tennis/engine.js';
+import { ballAtRest } from '../../shared/tennis/physics.js';
 import {
   reserveTennisStake,
   settleTennisStake,
@@ -128,6 +129,16 @@ export function createTennisRoyal({
     const time = now();
     for (const r of rooms.values()) {
       if (r.result) {
+        // Settlement is already decided. Keep the final rebound visible in
+        // authoritative snapshots until the ball settles behind the result UI.
+        if (r.result.reason === 'completed' && !ballAtRest(r.state.ball)) {
+          advance(
+            r.state,
+            Math.min(0.1, Math.max(0, (time - r.updated) / 1000))
+          );
+          r.revision++;
+        }
+        r.updated = time;
         if (
           r.settlement?.status === 'pending' &&
           time - (r.retryAt || 0) > 5000
