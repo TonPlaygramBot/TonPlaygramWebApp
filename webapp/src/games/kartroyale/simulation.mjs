@@ -246,6 +246,9 @@ export function createRacer(track, id, name, slot = 0, ai = false) {
     wallContact: false,
     impactId: 0,
     impact: 0,
+    impactNx: 0,
+    impactNz: 1,
+    impactCooldown: 0,
     damageFront: 0,
     damageRear: 0,
     damageSide: 0,
@@ -303,6 +306,7 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
   const previousSpeed = r.speed;
   r.health = Number.isFinite(r.health) ? r.health : 100;
   r.hitFlash = Math.max(0, (r.hitFlash || 0) - dt);
+  r.impactCooldown = Math.max(0, (r.impactCooldown || 0) - dt);
   // A finite steering rack response makes touch buttons progressive. Physics
   // and the visible wheels share this value on both the client and server.
   r.steering =
@@ -315,7 +319,7 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
       ? ({ rookie: 0.76, street: 0.88, pro: 0.98 }[difficulty] || 0.88) +
         r.slot * 0.006
       : 1,
-    damageFactor = 0.55 + r.health * 0.0045,
+    damageFactor = 0.82 + r.health * 0.0018,
     max = (boost || r.turbo > 0 ? 43 : 31) * factor * damageFactor;
   r.speed = clamp(
     r.speed +

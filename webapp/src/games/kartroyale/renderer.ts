@@ -17,6 +17,10 @@ import {
 import type { Input, Racer, Track } from './simulation.mjs';
 import { TiranaScenery } from './tiranaScenery';
 import { Supporters } from './supporters';
+import { prepareHuman } from './supporterHuman';
+import { RaceEffects } from './raceEffects';
+import type { FoodKind } from './foodFlight.mjs';
+export type CameraMode = 'driver' | 'chase';
 export type Quality = 'auto' | 'high' | 'performance';
 export interface Frame {
   speed: number;
@@ -35,6 +39,8 @@ export interface Frame {
   impactId: number;
   impact: number;
   retired: boolean;
+  foodHitId: number;
+  foodKind: FoodKind;
 }
 export interface Result {
   racers: Racer[];
@@ -64,6 +70,14 @@ interface KartRig {
   spin: number;
   smoke: T.Mesh;
   chassisScale: T.Vector3;
+  bodyPosition: T.Vector3;
+  bodyRotation: T.Euler;
+  lastImpact: number;
+  crashAge: number;
+  kickPitch: number;
+  kickRoll: number;
+  kickSize: number;
+  driverParts: T.Object3D[];
 }
 export class KartRenderer {
   readonly input = neutral();
@@ -80,6 +94,12 @@ export class KartRenderer {
   private flagTexture: T.Texture | null = null;
   private scenery: TiranaScenery | null = null;
   private supporters: Supporters | null = null;
+  private humanTemplates: T.Group[] = [];
+  private effects: RaceEffects | null = null;
+  private cameraMode: CameraMode = 'driver';
+  private motionTime = 0;
+  private reducedMotion = matchMedia('(prefers-reduced-motion: reduce)')
+    .matches;
   private textures = new Set<T.Texture>();
   private roadMaps: T.Texture[] = [];
   private rigs = new WeakMap<T.Object3D, KartRig>();
@@ -170,7 +190,13 @@ export class KartRenderer {
     });
     this.shadow.shadow.normalBias = 0.035;
     this.shadow.shadow.bias = -0.0001;
-    this.scene.add(this.shadow, this.shadow.target, this.world, this.garage);
+    this.scene.add(
+      this.shadow,
+      this.shadow.target,
+      this.world,
+      this.garage,
+      this.camera
+    );
     const floor = new T.Mesh(
       new T.PlaneGeometry(300, 300),
       new T.MeshStandardMaterial({
@@ -227,7 +253,9 @@ export class KartRenderer {
       textures.loadAsync('/assets/kart-royale/asphalt-rough.jpg'),
       ...KARTS.slice(1).map((k) =>
         loader.loadAsync(`/assets/kart-royale/kenney-${k.id}.glb`)
-      )
+      ),
+      loader.loadAsync('/assets/table-tennis/athlete-male.glb'),
+      loader.loadAsync('/assets/table-tennis/athlete-female.glb')
     ]);
     const failed = results.find((r) => r.status === 'rejected');
     if (this.disposed || failed) {
@@ -277,6 +305,15 @@ export class KartRenderer {
       this.kartModels.set(k.id, scene);
       this.collectTextures(scene);
     });
+    this.humanTemplates = results.slice(5 + KARTS.length).map((result, i) => {
+      const source = (
+        result as PromiseFulfilledResult<
+          import('three/examples/jsm/loaders/GLTFLoader.js').GLTF
+        >
+      ).value.scene;
+      this.collectTextures(source);
+      return prepareHuman(source, i === 1);
+    });
     this.roadMaps = results
       .slice(3, 6)
       .map((r) => (r as PromiseFulfilledResult<T.Texture>).value);
@@ -319,6 +356,14 @@ export class KartRenderer {
       front: [],
       spin: 0,
       chassisScale: new T.Vector3(1, 1, 1),
+      bodyPosition: new T.Vector3(),
+      bodyRotation: new T.Euler(),
+      lastImpact: 0,
+      crashAge: 10,
+      kickPitch: 0,
+      kickRoll: 0,
+      kickSize: 0,
+      driverParts: [],
       smoke: new T.Mesh(
         new T.IcosahedronGeometry(0.24, 1),
         new T.MeshBasicMaterial({
@@ -331,10 +376,14 @@ export class KartRenderer {
     };
     rig.smoke.geometry.userData.kartOwned = true;
     rig.chassisScale.copy(rig.body.scale);
+    rig.bodyPosition.copy(rig.body.position);
+    rig.bodyRotation.copy(rig.body.rotation);
     rig.smoke.position.set(0.45, 0.8, -0.8);
     rig.smoke.visible = false;
     model.add(rig.smoke);
     model.traverse((o) => {
+      if (/^(character|body_suit|body_visor)$/.test(o.name))
+        rig.driverParts.push(o);
       if (/^wheel_[fr][lr]$/.test(o.name) || o.name.startsWith('wheel-'))
         rig.wheels.push(o);
       if (/^steer_f[lr]$/.test(o.name)) rig.front.push(o);
@@ -395,6 +444,10 @@ export class KartRenderer {
         (o.material as T.MeshStandardMaterial).color.set(color);
     });
   }
+  setCameraMode(mode: CameraMode) {
+    this.cameraMode = mode === 'chase' ? 'chase' : 'driver';
+    if (this.state !== 'garage') this.snapCamera();
+  }
   setQuality(q: Quality) {
     this.quality = q;
     this.ratio = Math.min(
@@ -419,6 +472,7 @@ export class KartRenderer {
     this.network = false;
     this.paused = false;
     this.clearInput();
+    this.effects?.clear();
     this.world.visible = false;
     this.garage.visible = true;
     this.scene.background = new T.Color('#101619');
@@ -433,7 +487,11 @@ export class KartRenderer {
     }
     this.visuals.clear();
     this.scenery = null;
+    this.supporters?.dispose();
     this.supporters = null;
+    this.effects?.dispose();
+    this.effects = null;
+    this.motionTime = 0;
     this.skidPrevious.clear();
     this.skidIndex = 0;
     this.cityAt = this.skidAt = 0;
@@ -613,9 +671,15 @@ export class KartRenderer {
     this.scenery = new TiranaScenery(track);
     this.world.add(this.scenery.group);
     if (this.flagTexture) {
-      this.supporters = new Supporters(track, this.flagTexture);
+      this.supporters = new Supporters(
+        track,
+        this.flagTexture,
+        this.humanTemplates
+      );
       this.world.add(this.supporters.group);
     }
+    this.effects = new RaceEffects(this.camera);
+    this.world.add(this.effects.group);
     this.skidMesh = new T.InstancedMesh(
       new T.PlaneGeometry(0.16, 1).rotateX(-Math.PI / 2),
       new T.MeshBasicMaterial({
@@ -669,34 +733,56 @@ export class KartRenderer {
     for (const front of rig.front)
       front.rotation.y += (-steer * 0.42 - front.rotation.y) * smooth;
     if (rig.steeringWheel) rig.steeringWheel.rotation.z = steer * 0.65;
-    // Small chassis flex/load transfer; the wheels stay on the road.
-    rig.body.rotation.z +=
-      (T.MathUtils.clamp(yawRate * r.speed * 0.0018, -0.055, 0.055) -
-        rig.body.rotation.z) *
-      smooth;
-    rig.body.rotation.x +=
-      (T.MathUtils.clamp(-(r.acceleration || 0) * 0.0017, -0.035, 0.055) -
-        rig.body.rotation.x) *
-      smooth;
-    rig.body.position.y =
-      this.state === 'racing' && !this.paused
-        ? Math.sin(now * 0.061 + r.slot) * Math.min(0.007, r.speed * 0.0003)
-        : 0;
-    rig.smoke.visible = r.health < 40 && !r.retired;
+    const driver =
+      this.cameraMode === 'driver' &&
+      r.id === this.me &&
+      this.state !== 'garage';
+    rig.driverParts.forEach((part) => (part.visible = !driver));
+    if ((r.impactId || 0) > rig.lastImpact) {
+      rig.lastImpact = r.impactId;
+      rig.crashAge = 0;
+      rig.kickSize = r.impact;
+      rig.kickPitch =
+        (Math.sin(r.yaw) * r.impactNx + Math.cos(r.yaw) * r.impactNz) *
+        r.impact *
+        0.15;
+      rig.kickRoll =
+        (Math.cos(r.yaw) * r.impactNx - Math.sin(r.yaw) * r.impactNz) *
+        r.impact *
+        0.18;
+      this.effects?.crash(r);
+    }
+    rig.crashAge += dt;
+    const spring = Math.sin(rig.crashAge * 23) * Math.exp(-rig.crashAge * 7);
+    const bounce =
+      Math.sin(Math.min(Math.PI, rig.crashAge * 16)) *
+      Math.exp(-rig.crashAge * 7);
+    rig.body.rotation.z =
+      rig.bodyRotation.z +
+      T.MathUtils.clamp(yawRate * r.speed * 0.0018, -0.055, 0.055) +
+      spring * rig.kickRoll;
+    rig.body.rotation.x =
+      rig.bodyRotation.x +
+      T.MathUtils.clamp(-(r.acceleration || 0) * 0.0017, -0.035, 0.055) +
+      spring * rig.kickPitch;
+    rig.body.position.copy(rig.bodyPosition);
+    rig.body.position.y +=
+      bounce * rig.kickSize * 0.1 +
+      (r.speed > 1 ? Math.sin(this.motionTime * 28 + r.slot) * 0.005 : 0);
+    rig.body.position.x += spring * rig.kickRoll * 0.3;
+    rig.smoke.visible = r.health < 25 && !r.retired;
     if (rig.smoke.visible) {
-      rig.smoke.position.y = 0.8 + ((now * 0.0008) % 1.1);
-      rig.smoke.scale.setScalar(1 + ((now * 0.0008) % 1.1) * 1.5);
+      rig.smoke.position.y = 0.8 + ((this.motionTime * 0.8) % 1.1);
+      rig.smoke.scale.setScalar(1 + ((this.motionTime * 0.8) % 1.1) * 1.5);
     }
     rig.body.scale.set(
-      rig.chassisScale.x * (1 - (r.damageSide || 0) * 0.0007),
+      rig.chassisScale.x * (1 - (r.damageSide || 0) * 0.00035),
       rig.chassisScale.y,
       rig.chassisScale.z *
-        (1 - ((r.damageFront || 0) + (r.damageRear || 0)) * 0.0009)
+        (1 - ((r.damageFront || 0) + (r.damageRear || 0)) * 0.00045)
     );
-    if ((r.hitFlash || 0) > 0)
-      rig.body.position.x = Math.sin(now * 0.08) * 0.045;
-    else rig.body.position.x *= 0.72;
   }
+
   private updateSkids() {
     if (!this.skidMesh || this.paused || this.state !== 'racing') return;
     let dirty = false;
@@ -816,14 +902,35 @@ export class KartRenderer {
   private snapCamera() {
     const r = this.racers.find((r) => r.id === this.me);
     if (!r) return;
+    const driver = this.cameraMode === 'driver';
     this.camera.position.set(
-      r.x - Math.sin(r.yaw) * 10,
-      6,
-      r.z - Math.cos(r.yaw) * 10
+      r.x - Math.sin(r.yaw) * (driver ? 0.1 : 10),
+      driver ? 1.16 : 6,
+      r.z - Math.cos(r.yaw) * (driver ? 0.1 : 10)
     );
-    this.lookTarget.set(r.x, 1, r.z);
+    this.lookTarget.set(
+      r.x + Math.sin(r.yaw) * 24,
+      driver ? 1.0 : 1.25,
+      r.z + Math.cos(r.yaw) * 24
+    );
     this.camera.lookAt(this.lookTarget);
+    this.camera.fov = this.raceFov(r.speed);
+    this.camera.updateProjectionMatrix();
   }
+  private raceFov(speed: number) {
+    if (this.cameraMode === 'chase') return 57 + speed * 0.18;
+    // Preserve useful horizontal sight in portrait without rotating the screen.
+    return (
+      T.MathUtils.clamp(
+        T.MathUtils.radToDeg(
+          2 * Math.atan(Math.tan(T.MathUtils.degToRad(28)) / this.camera.aspect)
+        ),
+        68,
+        96
+      ) + Math.min(3, speed * 0.065)
+    );
+  }
+
   private animate = (now: number) => {
     if (this.disposed) return;
     this.raf = requestAnimationFrame(this.animate);
@@ -865,6 +972,7 @@ export class KartRenderer {
       this.camera.lookAt(this.vector);
       this.camera.updateProjectionMatrix();
     } else {
+      if (!this.paused && this.state !== 'finished') this.motionTime += dt;
       if (!this.paused) {
         if (this.state === 'countdown' && !this.network) {
           this.countdown -= dt;
@@ -941,33 +1049,70 @@ export class KartRenderer {
           this.cityAt = now;
           this.scenery?.update(me.x, me.z, this.quality === 'performance');
         }
+        const running = this.state === 'racing' && !this.paused;
         this.supporters?.update(
-          this.paused ? this.time : now / 1000,
-          me.x,
-          me.z,
-          this.quality === 'performance'
+          this.time,
+          me,
+          this.racers,
+          this.quality === 'performance',
+          running,
+          (origin, target, kind, seed) =>
+            this.effects?.launch(origin, target, kind, seed)
         );
         if (now - this.skidAt > 65) {
           this.skidAt = now;
           this.updateSkids();
         }
-        this.cameraTarget.set(
-          v.position.x - Math.sin(yaw) * 9.5,
-          4.4 + me.speed * 0.016,
-          v.position.z - Math.cos(yaw) * 9.5
-        );
-        this.camera.position.lerp(this.cameraTarget, 1 - Math.exp(-dt * 5.5));
-        this.vector.set(
-          v.position.x + Math.sin(yaw) * 6,
-          1.25,
-          v.position.z + Math.cos(yaw) * 6
-        );
-        this.lookTarget.lerp(this.vector, 1 - Math.exp(-dt * 9));
-        this.camera.lookAt(this.lookTarget);
-        const targetFov = 57 + me.speed * 0.18;
+        const driver = this.cameraMode === 'driver';
+        if (driver) {
+          const rig = this.rigs.get(v);
+          const spring =
+            rig && !this.reducedMotion
+              ? Math.sin(rig.crashAge * 24) * Math.exp(-rig.crashAge * 8)
+              : 0;
+          const steerYaw = v.rotation.y;
+          const bob = this.reducedMotion
+            ? 0
+            : Math.sin(this.motionTime * 27) *
+              Math.min(0.004, me.speed * 0.0002);
+          // Fixed head mount prevents camera lag from leaving the seat in turns.
+          this.camera.position.set(
+            v.position.x - Math.sin(steerYaw) * 0.1,
+            1.16 + bob + spring * 0.028,
+            v.position.z - Math.cos(steerYaw) * 0.1
+          );
+          this.lookTarget.set(
+            v.position.x + Math.sin(steerYaw) * 24,
+            1.0 + spring * (rig?.kickPitch || 0) * 3,
+            v.position.z + Math.cos(steerYaw) * 24
+          );
+          this.camera.lookAt(this.lookTarget);
+          this.camera.rotateZ(spring * (rig?.kickRoll || 0) * 0.18);
+        } else {
+          this.cameraTarget.set(
+            v.position.x - Math.sin(yaw) * 9.5,
+            4.4 + me.speed * 0.016,
+            v.position.z - Math.cos(yaw) * 9.5
+          );
+          this.camera.position.lerp(this.cameraTarget, 1 - Math.exp(-dt * 5.5));
+          this.vector.set(
+            v.position.x + Math.sin(yaw) * 6,
+            1.25,
+            v.position.z + Math.cos(yaw) * 6
+          );
+          this.lookTarget.lerp(this.vector, 1 - Math.exp(-dt * 9));
+          this.camera.lookAt(this.lookTarget);
+        }
         this.camera.fov +=
-          (targetFov - this.camera.fov) * (1 - Math.exp(-dt * 5));
+          (this.raceFov(me.speed) - this.camera.fov) * (1 - Math.exp(-dt * 5));
         this.camera.updateProjectionMatrix();
+        this.effects?.update(
+          running ? dt : 0,
+          this.racers,
+          this.visuals,
+          this.me,
+          driver
+        );
         this.shadow.position.set(me.x + 14, 25, me.z + 12);
         this.shadow.target.position.set(me.x, 0, me.z);
         if (now - this.uiAt > 90) {
@@ -990,7 +1135,9 @@ export class KartRenderer {
             health: me.health ?? 100,
             impactId: me.impactId ?? 0,
             impact: me.impact ?? 0,
-            retired: me.retired ?? false
+            retired: me.retired ?? false,
+            foodHitId: this.effects?.foodHitId ?? 0,
+            foodKind: this.effects?.lastFoodKind ?? 'egg'
           });
         }
       }
@@ -1031,7 +1178,10 @@ export class KartRenderer {
       'webglcontextlost',
       this.contextLost
     );
+    this.supporters?.dispose();
+    this.effects?.dispose();
     this.release(this.scene, true);
+    this.humanTemplates.forEach((model) => this.release(model, true));
     if (this.full) this.release(this.full, true);
     if (this.low) this.release(this.low, true);
     this.kartModels.forEach((model) => this.release(model, true));

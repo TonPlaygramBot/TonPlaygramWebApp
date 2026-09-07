@@ -7,6 +7,11 @@ import {
 } from '../webapp/src/games/kartroyale/collisions.mjs';
 import { TIRANA_ROUTES } from '../webapp/src/games/kartroyale/tirana-routes.mjs';
 import { WORLD } from '../webapp/src/games/tiranastreets/shared/world.mjs';
+import {
+  launchFood,
+  stepFood,
+  foodHit
+} from '../webapp/src/games/kartroyale/foodFlight.mjs';
 import { validateSeatTableRequest } from '../bot/config/onlineGamePolicy.js';
 const {
   TRACKS,
@@ -99,10 +104,93 @@ test('grazing a wall preserves tangential momentum; head-on impact causes greate
   resolveWallContact(head, n, 10, STEP);
   resolveWallContact(glance, n, 10, STEP);
   assert.ok(head.health < glance.health);
-  assert.ok(head.health >= 58 && head.health > 0);
+  assert.ok(
+    head.health > 91 && head.health < 93,
+    '25 m/s hit costs about 8 integrity'
+  );
   assert.ok(glance.speed > 22 && head.speed < 5);
   assert.equal(head.z, 3.95);
   assert.equal(head.impactId, 1);
+});
+test('minor bumps are harmless, severe impacts are capped, and one contact cannot charge twice', () => {
+  const r = racer();
+  r.z = 5;
+  r.speed = 3;
+  resolveWallContact(r, { x: 0, z: 0, distance: 5 }, 10, STEP);
+  assert.equal(r.health, 100);
+  assert.equal(
+    r.impactId,
+    1,
+    'even a harmless bump gets visual/audio feedback'
+  );
+  r.impactCooldown = 0;
+  r.wallContact = false;
+  r.z = 5;
+  r.speed = 43;
+  r.velocityYaw = 0;
+  resolveWallContact(r, { x: 0, z: 0, distance: 5 }, 10, STEP);
+  assert.equal(r.health, 86);
+  assert.equal(r.retired, false);
+  assert.equal(r.impactNz, 1);
+  r.wallContact = false;
+  r.z = 5;
+  r.speed = 43;
+  r.velocityYaw = 0;
+  resolveWallContact(r, { x: 0, z: 0, distance: 5 }, 10, STEP);
+  assert.equal(
+    r.health,
+    86,
+    'recontact within 300 ms does not double-charge damage'
+  );
+});
+test('food follows frame-independent ballistic arcs, can miss, and never mutates racers', () => {
+  const r = racer();
+  r.speed = 20;
+  const before = structuredClone(r);
+  const origin = { x: 9, y: 1.6, z: 7 };
+  const a = launchFood(origin, r, 'egg', 42),
+    b = { ...a };
+  for (let i = 0; i < 60; i++) stepFood(a, 1 / 120);
+  for (let i = 0; i < 30; i++) stepFood(b, 1 / 60);
+  assert.ok(Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z) < 1e-8);
+  assert.deepEqual(r, before);
+  assert.equal(
+    foodHit({ x: 8, y: 1, z: -2 }, { x: 8, y: 1, z: 2 }, r, r),
+    null
+  );
+  assert.equal(
+    foodHit({ x: 0, y: 3, z: -2 }, { x: 0, y: 3, z: 2 }, r, r),
+    null
+  );
+});
+test('swept food collisions catch fast crossing karts instead of tunnelling', () => {
+  assert.ok(
+    foodHit(
+      { x: -4, y: 1, z: 0 },
+      { x: 4, y: 0.7, z: 0 },
+      { x: 0, z: -3 },
+      { x: 0, z: 3 }
+    )
+  );
+  const stationary = { x: 0, z: 0 };
+  assert.ok(
+    foodHit(
+      { x: 0, y: 0.8, z: -10 },
+      { x: 0, y: 0.7, z: 10 },
+      stationary,
+      stationary
+    )
+  );
+});
+test('six unique kart types are selectable and stale IDs cannot bypass validation', () => {
+  assert.ok(simulation.KARTS.length >= 5);
+  assert.equal(
+    new Set(simulation.KARTS.map((k) => k.id)).size,
+    simulation.KARTS.length
+  );
+  for (const k of simulation.KARTS)
+    assert.equal(simulation.normalizeKart(k.id), k.id);
+  assert.equal(simulation.normalizeKart('unknown'), 'apex');
 });
 test('same-speed touching karts do not damage each other; a rear impact transfers speed and loses energy', () => {
   const a = racer(),
