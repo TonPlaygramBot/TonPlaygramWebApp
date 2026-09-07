@@ -44,6 +44,30 @@ export const TRACKS = [
     sky: '#d5bfa1',
     ground: '#ad7950',
     accent: '#ffb968'
+  },
+  {
+    id: 'alpine',
+    name: 'Alpine Pass',
+    district: 'SNOWLINE SUMMIT',
+    x: 88,
+    z: 72,
+    bend: 0.31,
+    width: 15,
+    sky: '#b9d5e4',
+    ground: '#d7e2e4',
+    accent: '#ff4b3e'
+  },
+  {
+    id: 'coast',
+    name: 'Azure Coast',
+    district: 'MEDITERRANEAN',
+    x: 106,
+    z: 67,
+    bend: 0.27,
+    width: 16,
+    sky: '#79c9ed',
+    ground: '#c8ad76',
+    accent: '#25e0d0'
   }
 ];
 export const CUPS = [
@@ -69,6 +93,7 @@ export const CUPS = [
     reward: 500
   }
 ];
+export const POWERUPS = ['rocket', 'shield', 'repair', 'nitro'];
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 export const wrapAngle = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 export function makeTrack(id = 'harbor') {
@@ -135,7 +160,12 @@ export function createRacer(track, id, name, slot = 0, ai = false) {
     finished: false,
     finishTime: 0,
     collision: 0,
-    input: { steer: 0, brake: false, drift: false, boost: false },
+    health: 100,
+    shield: 0,
+    weapon: null,
+    weaponCooldown: 0,
+    hitFlash: 0,
+    input: { steer: 0, brake: false, drift: false, boost: false, use: false },
     lastInput: 0,
     disconnected: false
   };
@@ -165,6 +195,10 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
   const input = raw || {},
     steer = Number.isFinite(input.steer) ? clamp(input.steer, -1, 1) : 0;
   const previousSpeed = r.speed;
+  r.health = Number.isFinite(r.health) ? r.health : 100;
+  r.shield = Math.max(0, (r.shield || 0) - dt);
+  r.weaponCooldown = Math.max(0, (r.weaponCooldown || 0) - dt);
+  r.hitFlash = Math.max(0, (r.hitFlash || 0) - dt);
   // A finite steering rack response makes touch buttons progressive. Physics
   // and the visible wheels share this value on both the client and server.
   r.steering =
@@ -177,7 +211,8 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
       ? ({ rookie: 0.76, street: 0.88, pro: 0.98 }[difficulty] || 0.88) +
         r.slot * 0.006
       : 1,
-    max = (boost || r.turbo > 0 ? 43 : 31) * factor;
+    damageFactor = 0.62 + r.health * 0.0038,
+    max = (boost || r.turbo > 0 ? 43 : 31) * factor * damageFactor;
   r.speed = clamp(
     r.speed +
       (input.brake
@@ -253,6 +288,49 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
     ? LAPS + 1
     : Math.max(-1, r.lap - 1) + near.index / 360;
 }
+export function collectPowerup(r, kind) {
+  if (!POWERUPS.includes(kind)) return false;
+  if (kind === 'repair') {
+    if (r.health >= 100) return false;
+    r.health = Math.min(100, r.health + 38);
+  } else if (kind === 'shield') {
+    r.shield = Math.max(r.shield || 0, 6);
+  } else if (kind === 'nitro') {
+    r.turbo = Math.max(r.turbo || 0, 3.2);
+    r.boost = Math.min(100, (r.boost || 0) + 35);
+  } else r.weapon = 'rocket';
+  return true;
+}
+export function damageRacer(r, amount) {
+  if (r.shield > 0) {
+    r.shield = Math.max(0, r.shield - amount * 0.035);
+    return 0;
+  }
+  const damage = Math.min(r.health, amount);
+  r.health -= damage;
+  r.speed *= Math.max(0.35, 1 - damage / 90);
+  r.hitFlash = 0.45;
+  return damage;
+}
+export function useWeapon(r, racers) {
+  if (r.weapon !== 'rocket' || r.weaponCooldown > 0) return null;
+  const targets = racers
+    .filter((other) => other !== r && !other.finished && !other.disconnected)
+    .map((other) => ({
+      racer: other,
+      distance: Math.hypot(other.x - r.x, other.z - r.z),
+      angle: Math.abs(
+        wrapAngle(Math.atan2(other.x - r.x, other.z - r.z) - r.yaw)
+      )
+    }))
+    .filter((candidate) => candidate.distance < 42 && candidate.angle < 0.7)
+    .sort((a, b) => a.distance - b.distance)[0];
+  if (!targets) return null;
+  r.weapon = null;
+  r.weaponCooldown = 0.7;
+  damageRacer(targets.racer, 34);
+  return targets.racer.id;
+}
 export function stepRace(racers, track, dt, time, difficulty = 'street') {
   for (const r of racers)
     stepRacer(
@@ -263,6 +341,17 @@ export function stepRace(racers, track, dt, time, difficulty = 'street') {
       time,
       difficulty
     );
+  for (const r of racers) {
+    if (r.input?.use) useWeapon(r, racers);
+    // Four collectible lanes repeat each lap. Cooldown prevents recollecting
+    // while a kart remains over the same pickup gate.
+    const gate = Math.round(r.index / 45) * 45;
+    if (Math.abs(r.index - gate) <= 1 && r.weaponCooldown <= 0) {
+      const kind =
+        POWERUPS[(gate / 45 + Math.max(0, r.lap - 1)) % POWERUPS.length];
+      if (collectPowerup(r, kind)) r.weaponCooldown = 1.2;
+    }
+  }
   for (let i = 0; i < racers.length; i++)
     for (let j = i + 1; j < racers.length; j++) {
       const a = racers[i],
@@ -285,6 +374,10 @@ export function stepRace(racers, track, dt, time, difficulty = 'street') {
         b.z -= (dz / d) * push;
         a.speed *= 0.992;
         b.speed *= 0.992;
+        if (Math.max(a.speed, b.speed) > 18) {
+          damageRacer(a, 0.09);
+          damageRacer(b, 0.09);
+        }
         a.collision = b.collision = 0.15;
       }
     }
@@ -295,5 +388,6 @@ export const standings = (racers) =>
       Number(b.finished) - Number(a.finished) ||
       (a.finished && b.finished
         ? a.finishTime - b.finishTime
-        : Number(a.disconnected) - Number(b.disconnected) || b.progress - a.progress)
+        : Number(a.disconnected) - Number(b.disconnected) ||
+          b.progress - a.progress)
   );

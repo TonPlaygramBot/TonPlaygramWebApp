@@ -26,6 +26,9 @@ export interface Frame {
   racers: Racer[];
   track: Track;
   drawCalls: number;
+  health: number;
+  shield: number;
+  weapon: 'rocket' | null;
 }
 export interface Result {
   racers: Racer[];
@@ -45,7 +48,8 @@ const neutral = (): Input => ({
   steer: 0,
   brake: false,
   drift: false,
-  boost: false
+  boost: false,
+  use: false
 });
 interface KartRig {
   body: T.Object3D;
@@ -53,6 +57,7 @@ interface KartRig {
   wheels: T.Object3D[];
   front: T.Object3D[];
   spin: number;
+  shield: T.Mesh;
 }
 interface CityPlacement {
   kind: string;
@@ -291,8 +296,24 @@ export class KartRenderer {
       steeringWheel: model.getObjectByName('steering_wheel'),
       wheels: [],
       front: [],
-      spin: 0
+      spin: 0,
+      shield: new T.Mesh(
+        new T.SphereGeometry(1.75, 24, 16),
+        new T.MeshPhysicalMaterial({
+          color: '#56d9ff',
+          emissive: '#087ea4',
+          emissiveIntensity: 0.55,
+          transparent: true,
+          opacity: 0.22,
+          roughness: 0.08,
+          metalness: 0.15,
+          side: T.DoubleSide
+        })
+      )
     };
+    rig.shield.position.y = 0.9;
+    rig.shield.visible = false;
+    model.add(rig.shield);
     model.traverse((o) => {
       if (/^wheel_[fr][lr]$/.test(o.name)) rig.wheels.push(o);
       if (/^steer_f[lr]$/.test(o.name)) rig.front.push(o);
@@ -476,6 +497,27 @@ export class KartRenderer {
       );
     }
     this.world.add(checker);
+    const pickupColors = ['#ff5b42', '#4ad9ff', '#6dff85', '#c778ff'];
+    for (let i = 0; i < 8; i++) {
+      const p = track.points[i * 45];
+      const pickup = new T.Group();
+      const ring = new T.Mesh(
+        new T.TorusGeometry(0.72, 0.12, 10, 28),
+        new T.MeshStandardMaterial({
+          color: pickupColors[i % 4],
+          emissive: pickupColors[i % 4],
+          emissiveIntensity: 1.8,
+          metalness: 0.5,
+          roughness: 0.22
+        })
+      );
+      ring.rotation.x = Math.PI / 2;
+      pickup.add(ring);
+      pickup.position.set(p.x, 1.05, p.z);
+      pickup.userData.powerup = true;
+      pickup.userData.phase = i * 0.7;
+      this.world.add(pickup);
+    }
     const arch = new T.Group();
     arch.position.set(start.x, 0, start.z);
     arch.rotation.y = start.yaw;
@@ -505,7 +547,7 @@ export class KartRenderer {
       ctx.fillStyle = '#172018';
       ctx.font = '900 78px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('KART ROYALE', 512, 92);
+      ctx.fillText('RACING ROYAL', 512, 92);
       const tex = new T.CanvasTexture(canvas);
       tex.userData.ephemeral = true;
       tex.colorSpace = T.SRGBColorSpace;
@@ -561,12 +603,12 @@ export class KartRenderer {
     this.world.visible = true;
   }
   private addCity(track: Track) {
-    if (track.id === 'canyon') {
+    if (track.id === 'canyon' || track.id === 'alpine') {
       const cliffs = new T.InstancedMesh(
         new T.IcosahedronGeometry(1, 1),
         new T.MeshStandardMaterial({
           roughness: 1,
-          color: '#b97f56',
+          color: track.id === 'alpine' ? '#dce8ec' : '#b97f56',
           flatShading: true
         }),
         54
@@ -586,11 +628,30 @@ export class KartRenderer {
         cliffs.setMatrixAt(i, m.matrix);
         cliffs.setColorAt(
           i,
-          new T.Color(['#b88258', '#d19a6e', '#946446'][i % 3])
+          new T.Color(
+            track.id === 'alpine'
+              ? ['#edf5f6', '#b9ced5', '#829ba6'][i % 3]
+              : ['#b88258', '#d19a6e', '#946446'][i % 3]
+          )
         );
       }
       this.world.add(cliffs);
       return;
+    }
+    if (track.id === 'coast') {
+      const water = new T.Mesh(
+        new T.CircleGeometry(420, 96),
+        new T.MeshPhysicalMaterial({
+          color: '#1689ad',
+          roughness: 0.18,
+          metalness: 0.08,
+          transmission: 0.08,
+          clearcoat: 0.8
+        })
+      );
+      water.rotation.x = -Math.PI / 2;
+      water.position.y = -0.06;
+      this.world.add(water);
     }
     if (!this.city) return;
     const m = this.transform;
@@ -689,6 +750,15 @@ export class KartRenderer {
       this.state === 'racing' && !this.paused
         ? Math.sin(now * 0.061 + r.slot) * Math.min(0.007, r.speed * 0.0003)
         : 0;
+    rig.shield.visible = (r.shield || 0) > 0;
+    if (rig.shield.visible) {
+      const pulse = 1 + Math.sin(now * 0.01) * 0.035;
+      rig.shield.scale.setScalar(pulse);
+      rig.shield.rotation.y = now * 0.001;
+    }
+    if ((r.hitFlash || 0) > 0)
+      rig.body.position.x = Math.sin(now * 0.08) * 0.045;
+    else rig.body.position.x *= 0.72;
   }
   private updateSkids() {
     if (!this.skidMesh || this.paused || this.state !== 'racing') return;
@@ -852,6 +922,12 @@ export class KartRenderer {
       this.camera.lookAt(this.vector);
       this.camera.updateProjectionMatrix();
     } else {
+      this.world.children.forEach((object) => {
+        if (!object.userData.powerup) return;
+        object.rotation.y = now * 0.0025 + object.userData.phase;
+        object.position.y =
+          1.05 + Math.sin(now * 0.004 + object.userData.phase) * 0.18;
+      });
       if (!this.paused) {
         if (this.state === 'countdown' && !this.network) {
           this.countdown -= dt;
@@ -946,7 +1022,10 @@ export class KartRenderer {
             fps: Math.round(this.fps),
             racers: this.racers.map((r) => ({ ...r })),
             track: this.track,
-            drawCalls: this.renderer.info.render.calls
+            drawCalls: this.renderer.info.render.calls,
+            health: me.health ?? 100,
+            shield: me.shield ?? 0,
+            weapon: me.weapon ?? null
           });
         }
       }
