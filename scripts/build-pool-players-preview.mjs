@@ -3,10 +3,11 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 import { build } from 'esbuild';
+import { readPoolRoyalMetrics } from './read-pool-royal-metrics.mjs';
 import sharp from '../webapp/node_modules/sharp/lib/index.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const output = process.argv[2] || '/workspace/pool-royal-players.html';
+const output = process.argv[2] || '/workspace/pool-royal-player-view.html';
 const source = await readFile(resolve(root, 'webapp/public/assets/pool-royale/readyplayer.me.glb'));
 const jsonLength = source.readUInt32LE(12);
 const gltf = JSON.parse(source.subarray(20, 20 + jsonLength).toString());
@@ -41,7 +42,7 @@ const result = await build({
   entryPoints: [resolve(root, 'webapp/src/previews/PoolRoyalPlayersPreview.tsx')],
   bundle: true, format: 'esm', platform: 'browser', jsx: 'automatic', minify: true,
   target: 'es2022', write: false,
-  define: { POOL_PREVIEW_MODEL: JSON.stringify(model) },
+  define: { POOL_PREVIEW_MODEL: JSON.stringify(model), POOL_PREVIEW_TABLE: JSON.stringify(await readPoolRoyalMetrics()) },
   plugins: [{ name: 'inline-cdn-imports', setup(api) {
     api.onResolve({ filter: /^(three|react|react-dom)(\/.*)?$/ }, args => {
       if (args.path === 'three') return { path: 'https://cdn.jsdelivr.net/npm/three@0.164.0/build/three.module.js', external: true };
@@ -52,7 +53,7 @@ const result = await build({
   } }]
 });
 const fragment = (await readFile(resolve(root, 'scripts/pool-players-preview.fragment.html'), 'utf8'))
-  .replace('/* POOL_PLAYERS_PREVIEW */', result.outputFiles[0].text);
+  .replace('/* POOL_PLAYERS_PREVIEW */', () => result.outputFiles[0].text);
 if (Buffer.byteLength(fragment) > 1_000_000) throw new Error('Inline preview exceeds 1 MB.');
 await writeFile(output, fragment);
 console.log(`Character preview written: ${output} (${Buffer.byteLength(fragment)} bytes)`);

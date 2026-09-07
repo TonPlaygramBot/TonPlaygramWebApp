@@ -2003,12 +2003,8 @@ const HUMAN_DESIRED_SHOOT_DISTANCE = 2.08; // keep the shooter much farther back
 const HUMAN_SHOOT_BLEND_THRESHOLD = 0.96; // enter shooting pose immediately when the portrait cue camera starts lowering
 const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 4.55; // widen the perimeter walk ring so feet never step onto the table mesh
 const HUMAN_TABLE_BLOCKER_MARGIN = TABLE.WALL * 1.95; // collision helper margin so characters never cut through the table body
-const HUMAN_EYE_CAMERA_HEIGHT_OFFSET = 0.032; // lower the low cue camera close to cloth height for portrait aiming
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
-const HUMAN_EYE_CAMERA_FORWARD_OFFSET = BALL_R * 2.34; // move the low cue camera closer toward the table while staying behind the bridge hand
-const HUMAN_EYE_CAMERA_SIDE_OFFSET = -BALL_R * 0.22; // preserve subtle right-eye bias without exposing too much of the avatar body
 const HUMAN_EYE_CAMERA_MIN_BLEND = 0.06; // only engage eye camera when cue view is noticeably lowered
-const HUMAN_EYE_CAMERA_SMOOTH = 0.48; // smooth eye-camera blending into the cue camera for portrait stability
 const HUMAN_BRIDGE_HAND_BACK_FROM_BALL = 0.34; // set the bridge farther behind the cue ball to match real pool hand placement
 const HUMAN_BRIDGE_HAND_SIDE = -0.008; // match Bilardo Shqip bridge hand lateral placement
 const HUMAN_BRIDGE_CUE_LIFT = 0.018; // flatten the cue closer to the cloth like the reference shooting photos
@@ -22394,21 +22390,11 @@ const shotPowerRef = useRef(0);
           const cueBias = 1 - cueBlend;
           if (cueBias <= HUMAN_EYE_CAMERA_MIN_BLEND) return null;
           const cuePose = activeHumanCueViewRef.current;
-          if (!cuePose?.cueBack || !cuePose?.bridgeTarget || !cuePose?.aimForward || !cuePose?.side) {
-            return null;
-          }
-          const eyePos = cuePose.cueBack
-            .clone()
-            .addScaledVector(cuePose.aimForward, HUMAN_EYE_CAMERA_FORWARD_OFFSET)
-            .addScaledVector(cuePose.side, HUMAN_EYE_CAMERA_SIDE_OFFSET)
-            .addScaledVector(WORLD_UP, HUMAN_EYE_CAMERA_HEIGHT_OFFSET);
+          if (!cuePose?.position || !cuePose?.target) return null;
           return {
-            blend: THREE.MathUtils.clamp(
-              (cueBias - HUMAN_EYE_CAMERA_MIN_BLEND) / (1 - HUMAN_EYE_CAMERA_MIN_BLEND),
-              0,
-              1
-            ),
-            position: eyePos
+            blend: THREE.MathUtils.smoothstep(cueBias, HUMAN_EYE_CAMERA_MIN_BLEND, 1) * cuePose.blend,
+            position: world.localToWorld(cuePose.position.clone()),
+            target: world.localToWorld(cuePose.target.clone())
           };
         };
 
@@ -23639,20 +23625,9 @@ const shotPowerRef = useRef(0);
           }
           const humanEyePose = resolveActiveHumanEyePose();
           if (humanEyePose) {
-            const lerpT = THREE.MathUtils.clamp(
-              humanEyePose.blend * HUMAN_EYE_CAMERA_SMOOTH,
-              0,
-              1
-            );
-            if (lerpT > 1e-4) {
-              const preservedViewDir = lookTarget
-                ? lookTarget.clone().sub(camera.position)
-                : null;
-              camera.position.lerp(humanEyePose.position, lerpT);
-              if (preservedViewDir && preservedViewDir.lengthSq() > 1e-8) {
-                lookTarget = camera.position.clone().add(preservedViewDir);
-              }
-            }
+            const lerpT = THREE.MathUtils.clamp(humanEyePose.blend, 0, 1);
+            camera.position.lerp(humanEyePose.position, lerpT);
+            lookTarget = lookTarget.clone().lerp(humanEyePose.target, lerpT);
           }
           camera.lookAt(lookTarget);
           renderCamera = camera;
@@ -26417,15 +26392,16 @@ const shotPowerRef = useRef(0);
       const disposePlayerCharacters = () => {
         referencePlayers?.dispose();
         referencePlayers = null;
+        activeHumanCueViewRef.current = null;
       };
       const spawnPlayerCharacters = () => {
         disposePlayerCharacters();
         if (disposed) return;
         referencePlayers = new PoolRoyalHumanPlayers(world, {
           floorY,
-          clothY: TABLE_Y + BALL_CENTER_Y - BALL_R,
-          tableW: TABLE.W,
-          tableL: TABLE.H,
+          clothY: TABLE_Y + CLOTH_TOP_LOCAL + CLOTH_LIFT - CLOTH_DROP,
+          tableW: Math.max(TABLE.W, PLAY_W),
+          tableL: Math.max(TABLE.H, PLAY_H),
           onError: (error) => console.warn('Pool Royal reference players could not load', error)
         });
       };
@@ -26472,6 +26448,10 @@ const shotPowerRef = useRef(0);
           cueTip,
           hidden: Boolean(replayPlaybackRef.current)
         });
+        activeHumanCueViewRef.current = referencePlayers.eyeView;
+        referencePlayers.setFirstPerson(Boolean(referencePlayers.eyeView) &&
+          !topViewRef.current && !shootingRef.current && !replayPlaybackRef.current &&
+          (cameraBlendRef.current ?? 1) < 0.35, activeSeat);
         if (referencePlayers.players.length === 2 && state === 'idle' && !replayPlaybackRef.current) {
           // The standing shooter already holds the upright reference cue.
           // Keep the extra aiming cue out of the rendered idle frame.
