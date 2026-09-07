@@ -24,6 +24,7 @@ import SocialPostDetails from './pages/SocialPostDetails.jsx';
 import LegalPage from './pages/LegalPage.jsx';
 import DeleteAccount from './pages/DeleteAccount.jsx';
 import Layout from './components/Layout.jsx';
+import BackNavigationProvider from './components/BackNavigationProvider.jsx';
 import TonConnectSync from './components/TonConnectSync.jsx';
 import GameLiveAvatarOverlay from './components/GameLiveAvatarOverlay.jsx';
 import useTelegramAuth from './hooks/useTelegramAuth.js';
@@ -210,6 +211,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <BackNavigationProvider>
       <TonConnectUIProvider
         manifestUrl={manifestUrl}
         actionsConfiguration={actionsConfiguration}
@@ -536,6 +538,7 @@ export default function App() {
           </Suspense>
         </Layout>
       </TonConnectUIProvider>
+      </BackNavigationProvider>
     </BrowserRouter>
   );
 }

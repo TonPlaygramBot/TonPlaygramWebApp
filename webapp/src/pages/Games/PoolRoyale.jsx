@@ -37172,13 +37172,16 @@ export default function PoolRoyale() {
     const handlePopState = () => {
       confirmExit().then((confirmed) => {
         if (!confirmed) {
-          window.history.pushState(null, '', window.location.href);
+          window.history.pushState({ ...window.history.state, poolExitGuard: true }, '', window.location.href);
         } else {
           window.location.assign('/games/poolroyale/lobby');
         }
       });
     };
-    window.history.pushState(null, '', window.location.href);
+    // Preserve Router's index/key; StrictMode must not add a second guard.
+    if (!window.history.state?.poolExitGuard) {
+      window.history.pushState({ ...window.history.state, poolExitGuard: true }, '', window.location.href);
+    }
     window.addEventListener('beforeunload', handleBeforeUnload);
     window.addEventListener('popstate', handlePopState);
     return () => {

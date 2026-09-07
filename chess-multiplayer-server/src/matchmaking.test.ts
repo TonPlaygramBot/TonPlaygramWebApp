@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { boot, type ColyseusTestServer } from '@colyseus/testing';
-import { chessServerConfig } from './app.config.js';
+import { createChessServerConfig } from './app.config.js';
 
 const options = (accountId: string) => ({ accountId, name: accountId, visibility: 'public' as const, invitationCode: '', stake: 100, token: 'TPG' });
 const waitForPatch = () => new Promise((resolve) => setTimeout(resolve, 80));
@@ -8,7 +8,7 @@ const waitForPatch = () => new Promise((resolve) => setTimeout(resolve, 80));
 describe('chess_lobby matchmaking', () => {
   let server: ColyseusTestServer;
 
-  beforeAll(async () => { server = await boot(chessServerConfig as any); });
+  beforeAll(async () => { server = await boot(createChessServerConfig() as any); });
   afterAll(async () => { await server.shutdown(); });
 
   it('pairs two clients, reserves both seats, assigns opposite colours, and seats a third separately', async () => {
