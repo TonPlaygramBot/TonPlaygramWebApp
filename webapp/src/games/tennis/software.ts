@@ -129,7 +129,18 @@ export class SoftwareRenderer {
             const p = projected[index ? index.getX(n) : n],
               q = projected[index ? index.getX(n + 1) : n + 1],
               r = line ? q : projected[index ? index.getX(n + 2) : n + 2];
-            if (!p || !q || !r || p[2] > 1 || q[2] > 1 || r[2] > 1) continue;
+            if (
+              !p ||
+              !q ||
+              !r ||
+              p[2] > 1 ||
+              q[2] > 1 ||
+              r[2] > 1 ||
+              p[2] < -1 ||
+              q[2] < -1 ||
+              r[2] < -1
+            )
+              continue;
             if (
               Math.max(p[0], q[0], r[0]) < 0 ||
               Math.min(p[0], q[0], r[0]) > w ||

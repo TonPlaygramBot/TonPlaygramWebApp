@@ -3,7 +3,7 @@ import { clamp, side, type Seat, type Shot } from './engine.js';
 type Sample = { x: number; y: number; time: number };
 export type Swipe = { width: number; start: Sample; samples: Sample[] };
 const WINDOW_MS = 120;
-export const TAP_POWER = 0.2;
+export const TAP_POWER = 0.1;
 
 export function beginSwipe(
   x: number,
@@ -58,7 +58,15 @@ export function readSwipe(
   const power =
     TAP_POWER +
     (1 - TAP_POWER) * Math.pow(clamp((speed - 0.25) / 3.75, 0, 1), 0.8);
-  return { speed, power };
+  const dx = last.x - start.x,
+    dy = last.y - start.y;
+  const length = Math.hypot(dx, dy);
+  return {
+    speed,
+    power,
+    dx: speed ? dx / length : 0,
+    dy: speed ? dy / length : 0
+  };
 }
 
 export function swipeShot(swipe: Swipe): Shot {

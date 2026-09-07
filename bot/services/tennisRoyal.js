@@ -2,7 +2,8 @@ import {
   createMatch,
   advance,
   setInput,
-  neutralInput
+  neutralInput,
+  reviewActive
 } from '../../shared/tennis/engine.js';
 import {
   reserveTennisStake,
@@ -63,7 +64,13 @@ export function createTennisRoyal({
     }
   }
   function end(r, winner, reason) {
-    if (r.state.phase !== 'over') {
+    if (!r.result) {
+      if (r.state.phase === 'over' && r.state.winner !== null) {
+        winner = r.state.winner;
+        reason = 'completed';
+      }
+      r.state.review = null;
+      r.state.closeCall = null;
       r.state.phase = 'over';
       r.state.winner = winner;
       r.state.message = reason;
@@ -161,7 +168,7 @@ export function createTennisRoyal({
       if (live.every(Boolean)) {
         advance(r.state, Math.min(0.1, Math.max(0, (time - r.updated) / 1000)));
         r.revision++;
-        if (r.state.phase === 'over') {
+        if (r.state.phase === 'over' && !reviewActive(r.state)) {
           r.result = { winner: r.state.winner, reason: 'completed' };
           r.endedAt = time;
           finish(r, r.result.winner, 'completed');

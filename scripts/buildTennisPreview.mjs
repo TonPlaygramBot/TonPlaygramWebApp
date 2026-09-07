@@ -75,8 +75,9 @@ const template = await readFile(
   'utf8'
 );
 const fragment = template
-  .replace('/* TENNIS_CSS */', css)
-  .replace('/* TENNIS_JS */', result.outputFiles[0].text);
+  // Callback replacements preserve literal $&/$` sequences in minified code.
+  .replace('/* TENNIS_CSS */', () => css)
+  .replace('/* TENNIS_JS */', () => result.outputFiles[0].text);
 if (Buffer.byteLength(fragment) > 1_000_000)
   throw Error('Preview exceeds 1 MB');
 const destination = process.argv[2] || '/workspace/tennis-royal.html';
