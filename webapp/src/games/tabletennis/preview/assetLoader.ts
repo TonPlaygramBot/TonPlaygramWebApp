@@ -1,6 +1,12 @@
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
-import { DataTexture, HalfFloatType, RGBAFormat } from 'three';
+import {
+  DataTexture,
+  HalfFloatType,
+  RGBAFormat,
+  LinearFilter,
+  LinearSRGBColorSpace
+} from 'three';
 import { models, environments } from './packed';
 async function unpack(text: string) {
   const bytes = Uint8Array.from(atob(text), (c) => c.charCodeAt(0));
@@ -32,5 +38,7 @@ export async function loadEnvironment(id: string) {
   );
   texture.needsUpdate = true;
   texture.flipY = true;
+  texture.minFilter = texture.magFilter = LinearFilter;
+  texture.colorSpace = LinearSRGBColorSpace;
   return texture;
 }

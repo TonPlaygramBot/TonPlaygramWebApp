@@ -1,5 +1,9 @@
 import { CHESS_HUMAN_CHARACTER_OPTIONS } from '../../config/chessBattleInventoryConfig.js';
 import { POOL_ROYALE_HDRI_VARIANTS } from '../../config/poolRoyaleInventoryConfig.js';
+import {
+  getChessBattleInventory,
+  isChessOptionUnlocked
+} from '../../utils/chessBattleInventory.js';
 export const CHESS_CHARACTER = CHESS_HUMAN_CHARACTER_OPTIONS.find(
   (c: { id: string }) => c.id === 'rpm-current'
 );
@@ -48,3 +52,44 @@ export const ARENAS = ['dancingHall', 'colorfulStudio', 'neonPhotostudio'].map(
     return { id: a.id, name: a.name, assetId: a.assetId };
   }
 );
+export const SHARED_CHARACTERS = CHESS_HUMAN_CHARACTER_OPTIONS.map((c) => ({
+  id: c.id,
+  name: c.label,
+  description: 'Shared human character',
+  color: '#c69264',
+  model: c.id === 'rpm-current' ? 'chess-human' : c.id,
+  urls: c.modelUrls
+}));
+export const SHARED_ARENAS = POOL_ROYALE_HDRI_VARIANTS.map((a) => ({
+  id: a.id,
+  name: a.name,
+  assetId: a.assetId
+}));
+export function arenaPlacement(id: string) {
+  const a = POOL_ROYALE_HDRI_VARIANTS.find((a) => a.id === id);
+  return { height: a?.cameraHeightM || 1.58, rotation: a?.rotationY || 0 };
+}
+export type AppearanceChoices = {
+  characters: typeof CHARACTERS;
+  arenas: typeof ARENAS;
+};
+/** Preserve the solo game's owned cosmetics when moving to the shared runtime. */
+export function ownedAppearance(): AppearanceChoices {
+  const inventory = getChessBattleInventory();
+  return {
+    characters: [
+      ...CHARACTERS,
+      ...SHARED_CHARACTERS.filter((c) =>
+        isChessOptionUnlocked('humanCharacter', c.id, inventory)
+      )
+    ],
+    arenas: [
+      ...ARENAS,
+      ...SHARED_ARENAS.filter(
+        (a) =>
+          !ARENAS.some((base) => base.id === a.id) &&
+          isChessOptionUnlocked('environmentHdri', a.id, inventory)
+      )
+    ]
+  };
+}

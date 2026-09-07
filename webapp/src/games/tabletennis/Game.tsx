@@ -6,8 +6,6 @@ import {
   createMatch,
   neutralInput,
   setInput,
-  side,
-  clamp,
   Input,
   MatchState,
   Seat,
@@ -21,7 +19,18 @@ import {
   normalizeCareer,
   TOUR
 } from './career';
-import { CHARACTERS, ARENAS } from './options';
+import { CHARACTERS, ARENAS, type AppearanceChoices } from './options';
+import {
+  beginSwipe,
+  sampleSwipe,
+  readSwipe,
+  TAP_POWER,
+  type SwipeGesture
+} from '../../../../shared/tabletennis/swipe';
+import {
+  BroadcastScoreboard,
+  type PlayerIdentity
+} from './BroadcastScoreboard';
 export type Launch = {
   mode: string;
   arena: string;
@@ -34,13 +43,19 @@ export default function TableTennisGame({
   services,
   launch,
   onLobby,
+  profile = { name: 'You' },
+  appearanceChoices,
   inline = false
 }: {
   services: GameServices;
   launch?: Launch;
   onLobby?: () => void;
+  profile?: PlayerIdentity;
+  appearanceChoices?: AppearanceChoices;
   inline?: boolean;
 }) {
+  const characterChoices = appearanceChoices?.characters || CHARACTERS;
+  const arenaChoices = appearanceChoices?.arenas || ARENAS;
   const host = useRef<HTMLDivElement>(null),
     renderer = useRef<TableTennisRenderer | null>(null),
     audio = useRef<TableTennisAudio | null>(null);
@@ -64,10 +79,9 @@ export default function TableTennisGame({
     [busy, setBusy] = useState(false),
     [paused, setPaused] = useState(false),
     [sound, setSound] = useState(true),
-    [auto, setAuto] = useState(true),
+    [auto, setAuto] = useState(false),
     [shot, setShot] = useState<Shot>('drive'),
-    [aim, setAim] = useState(0),
-    [power, setPower] = useState(0.5),
+    [power, setPower] = useState(TAP_POWER),
     [network, setNetwork] = useState(''),
     [careerSaved, setCareerSaved] = useState(false),
     [help, setHelp] = useState(false),
@@ -77,6 +91,32 @@ export default function TableTennisGame({
     mounted = useRef(true),
     lastEvent = useRef(0),
     seat = room.current?.seat ?? 0;
+  const gesture = useRef<{
+    id: number;
+    swipe: SwipeGesture;
+    element: HTMLElement;
+  } | null>(null);
+  function cancelGesture() {
+    const current = gesture.current;
+    gesture.current = null;
+    if (current?.element.hasPointerCapture(current.id))
+      current.element.releasePointerCapture(current.id);
+  }
+  function canSwing() {
+    const s = frame.current,
+      n = room.current?.seat ?? 0;
+    return (
+      active.current &&
+      !pauseRef.current &&
+      ((s.phase === 'rally' && s.ball.last !== n) ||
+        (s.phase === 'serve' && s.score.server === n))
+    );
+  }
+  function pause() {
+    cancelGesture();
+    pauseRef.current = !room.current;
+    setPaused(true);
+  }
   async function saveCareer() {
     if (saved.current || !careerId.current) return;
     saved.current = true;
@@ -109,6 +149,7 @@ export default function TableTennisGame({
         difficulty,
         gamesToWin: format === 'quick' ? 1 : format === 'full' ? 3 : 2,
         upgrades: [0, 0, 0],
+        firstServer: (inline || Math.random() < 0.5 ? 0 : 1) as Seat,
         seed: Date.now() >>> 0
       };
       if (mode === 'career') {
@@ -146,7 +187,7 @@ export default function TableTennisGame({
       input.current = {
         ...neutralInput(),
         shot,
-        aim: aim * side(room.current?.seat ?? 0),
+        aim: 0,
         power,
         autoHit: auto
       };
@@ -160,6 +201,7 @@ export default function TableTennisGame({
     }
   }
   function exit() {
+    cancelGesture();
     epoch.current++;
     active.current = false;
     pauseRef.current = false;
@@ -173,7 +215,11 @@ export default function TableTennisGame({
     else setView('home');
   }
   function hit() {
+    if (!canSwing()) return;
     audio.current?.unlock();
+    input.current.direction = null;
+    input.current.power = TAP_POWER;
+    setPower(TAP_POWER);
     input.current.swing++;
   }
   useEffect(() => {
@@ -196,9 +242,13 @@ export default function TableTennisGame({
     }
     const tick = (t: number) => {
       if (!mounted.current) return;
-      const dt = Math.min(0.25, (t - last) / 1000);
+      const dt = Math.max(0, Math.min(0.25, (t - last) / 1000));
       last = t;
       if (active.current) {
+        if (frame.current.phase === 'point' || frame.current.phase === 'over') {
+          cancelGesture();
+          input.current.direction = null;
+        }
         if (room.current) {
           if (!syncing.current && t > nextSync) {
             nextSync = t + 50;
@@ -263,6 +313,7 @@ export default function TableTennisGame({
     };
     raf = requestAnimationFrame(tick);
     const hidden = () => {
+      if (document.hidden) cancelGesture();
       if (document.hidden && !room.current && active.current) {
         pauseRef.current = true;
         setPaused(true);
@@ -271,6 +322,7 @@ export default function TableTennisGame({
     document.addEventListener('visibilitychange', hidden);
     return () => {
       mounted.current = false;
+      cancelGesture();
       epoch.current++;
       cancelAnimationFrame(raf);
       document.removeEventListener('visibilitychange', hidden);
@@ -323,31 +375,55 @@ export default function TableTennisGame({
       setBusy(false);
     }
   };
-  const changeAim = (value: number) => {
-    setAim(value);
-    input.current.aim = value * side(room.current?.seat ?? 0);
+  const pointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!e.isPrimary || e.button !== 0 || gesture.current || !canSwing())
+      return;
+    audio.current?.unlock();
+    gesture.current = {
+      id: e.pointerId,
+      element: e.currentTarget,
+      swipe: beginSwipe(
+        e.clientX,
+        e.clientY,
+        e.timeStamp,
+        e.currentTarget.clientWidth
+      )
+    };
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setPower(TAP_POWER);
   };
-  const move = (e: React.PointerEvent) => {
-    if (!active.current || paused) return;
-    const r = e.currentTarget.getBoundingClientRect();
-    const x = clamp(((e.clientX - r.left) / r.width) * 2 - 1, -1, 1);
-    changeAim(x);
-    if (!input.current.assist)
-      input.current.moveX = x * side(room.current?.seat ?? 0);
+  const pointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const g = gesture.current;
+    if (!g || g.id !== e.pointerId) return;
+    sampleSwipe(g.swipe, e.clientX, e.clientY, e.timeStamp);
+    setPower(readSwipe(g.swipe).power);
+  };
+  const pointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    const g = gesture.current;
+    if (!g || g.id !== e.pointerId) return;
+    sampleSwipe(g.swipe, e.clientX, e.clientY, e.timeStamp);
+    const stroke = readSwipe(g.swipe);
+    cancelGesture();
+    if (!canSwing()) return;
+    input.current.power = stroke.power;
+    input.current.direction =
+      renderer.current?.shotDirection(stroke.dx, stroke.dy, frame.current) ??
+      null;
+    input.current.swing++;
+    setPower(stroke.power);
   };
   const currentTour = TOUR[career.tour],
     r = score,
     other = 1 - seat,
     online = modeRef.current === 'online' && view === 'match';
   return (
-    <div className={`tt-game ${inline ? 'tt-inline' : ''}`}>
+    <div className={`tt-game ${inline ? 'tt-inline' : ''}`} data-view={view}>
       <header className="tt-header">
         <button
           className="tt-brand"
           onClick={() => {
             if (view === 'match') {
-              pauseRef.current = !online;
-              setPaused(true);
+              pause();
             } else if (onLobby) onLobby();
             else setView('home');
           }}
@@ -369,12 +445,14 @@ export default function TableTennisGame({
       <div
         className="tt-scene"
         ref={host}
-        onPointerDown={(e) => {
-          e.currentTarget.setPointerCapture(e.pointerId);
-          move(e);
+        onPointerDown={pointerDown}
+        onPointerMove={pointerMove}
+        onPointerUp={pointerUp}
+        onPointerCancel={(e) => {
+          if (gesture.current?.id === e.pointerId) cancelGesture();
         }}
-        onPointerMove={(e) => {
-          if (e.buttons) move(e);
+        onLostPointerCapture={(e) => {
+          if (gesture.current?.id === e.pointerId) cancelGesture();
         }}
       />
       <div className="tt-vignette" />
@@ -425,66 +503,54 @@ export default function TableTennisGame({
       )}
       {view === 'match' && (
         <>
-          <section className="tt-score" aria-label="Match score">
-            <div>
-              <small>
-                {online ? room.current?.players?.[seat]?.name || 'You' : 'YOU'}{' '}
-                {r.score.server === seat ? '●' : ''}
-              </small>
-              <strong>{r.score.points[seat]}</strong>
-              <span>{r.score.games[seat]} games</span>
-            </div>
-            <div className="tt-score-label">
-              <span>TO 11</span>
-              <small>
-                {online
-                  ? 'TPC MATCH'
-                  : modeRef.current === 'career'
-                    ? 'CAREER'
-                    : 'EXHIBITION'}
-              </small>
-              <b>Best of {r.config.gamesToWin * 2 - 1}</b>
-            </div>
-            <div>
-              <small>
-                {online
-                  ? room.current?.players?.[other]?.name || 'Opponent'
-                  : modeRef.current === 'career'
-                    ? currentTour.opponents[career.round]
-                    : ['CLUB AI', 'TOUR AI', 'PRO AI'][difficulty]}{' '}
-                {r.score.server === other ? '●' : ''}
-              </small>
-              <strong>{r.score.points[other]}</strong>
-              <span>{r.score.games[other]} games</span>
-            </div>
-          </section>
+          <BroadcastScoreboard
+            state={r}
+            seat={seat}
+            label={
+              online
+                ? 'TPC MATCH'
+                : modeRef.current === 'career'
+                  ? 'ROYAL TOUR'
+                  : 'EXHIBITION'
+            }
+            players={
+              online
+                ? [
+                    room.current?.players?.[0] || { name: 'Player 1' },
+                    room.current?.players?.[1] || { name: 'Player 2' }
+                  ]
+                : [
+                    profile,
+                    {
+                      name:
+                        modeRef.current === 'career'
+                          ? currentTour.opponents[career.round]
+                          : ['Club AI', 'Tour AI', 'Pro AI'][difficulty]
+                    }
+                  ]
+            }
+          />
           <div className="tt-call" role="status">
             {r.phase === 'serve'
               ? r.score.server === seat
-                ? 'Your serve · tap SERVE'
+                ? 'Your serve · tap softly or swipe'
                 : 'Opponent serves'
               : r.message}
             {r.phase === 'rally' && <small>{r.rally} shot rally</small>}
           </div>
           <div className="tt-controls">
             <div className="tt-control-top">
-              <button
-                onClick={() => {
-                  pauseRef.current = !online;
-                  setPaused(true);
-                }}
-              >
-                {online ? 'Leave' : 'Pause'}
-              </button>
-              <span>{online ? network : 'Drag the table to aim'}</span>
+              <button onClick={pause}>{online ? 'Leave' : 'Pause'}</button>
+              <span>{online ? network : 'Tap soft · swipe for speed'}</span>
               <button
                 aria-pressed={auto}
                 onClick={() => {
+                  cancelGesture();
                   setAuto(!auto);
                   input.current.autoHit = !auto;
                 }}
               >
-                Auto return {auto ? 'on' : 'off'}
+                Auto hit {auto ? 'on' : 'off'}
               </button>
             </div>
             <div className="tt-shots">
@@ -503,43 +569,34 @@ export default function TableTennisGame({
                 )
               )}
             </div>
-            <div className="tt-aim">
-              {[-0.85, 0, 0.85].map((n, i) => (
-                <button
-                  key={i}
-                  aria-pressed={Math.abs(aim - n) < 0.3}
-                  onClick={() => changeAim(n)}
+            <div className="tt-swipe-meter">
+              <div>
+                <span>
+                  SWIPE POWER <b>{Math.round(power * 100)}%</b>
+                </span>
+                <div
+                  className="tt-power-track"
+                  role="meter"
+                  aria-label="Swipe power"
+                  aria-valuenow={Math.round(power * 100)}
+                  aria-valuemin={10}
+                  aria-valuemax={100}
                 >
-                  {['← Left', 'Centre', 'Right →'][i]}
-                </button>
-              ))}
-            </div>
-            <div className="tt-hit-row">
-              <label>
-                Power{' '}
-                <input
-                  aria-label="Shot power"
-                  type="range"
-                  min="0"
-                  max="1"
-                  step=".05"
-                  value={power}
-                  onChange={(e) => {
-                    setPower(+e.target.value);
-                    input.current.power = +e.target.value;
-                  }}
-                />
-              </label>
+                  <i style={{ width: `${power * 100}%` }} />
+                </div>
+                <small>Follow your finger · automatic footwork</small>
+              </div>
               <button
                 className="tt-hit"
                 disabled={
                   r.phase === 'point' ||
                   r.phase === 'over' ||
+                  r.phase === 'toss' ||
                   (r.phase === 'serve' && r.score.server !== seat)
                 }
                 onClick={hit}
               >
-                {r.phase === 'serve' ? 'SERVE' : 'HIT'}
+                {r.phase === 'serve' ? 'SOFT SERVE' : 'SOFT HIT'}
               </button>
             </div>
           </div>
@@ -558,7 +615,7 @@ export default function TableTennisGame({
               value={character}
               onChange={(e) => setCharacter(e.target.value)}
             >
-              {CHARACTERS.map((c) => (
+              {characterChoices.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name} · {c.description}
                 </option>
@@ -568,7 +625,7 @@ export default function TableTennisGame({
           <label>
             Shared HDRI arena
             <select value={arena} onChange={(e) => setArena(e.target.value)}>
-              {ARENAS.map((a) => (
+              {arenaChoices.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.name}
                 </option>
@@ -721,13 +778,14 @@ export default function TableTennisGame({
             <span className="tt-eyebrow">YOUR FIRST RALLY</span>
             <h2>Serve. Aim. Spin.</h2>
             <p>
-              Tap SERVE to toss and serve. Drag across the table or tap Left /
-              Centre / Right to aim where you see it on your screen.
+              Tap the table for a soft shot. Swipe faster for more power. The
+              ball follows the direction of your finger on the screen, including
+              diagonals.
             </p>
             <p>
-              Auto return handles timing. Turn it off and tap HIT as the ball
-              arrives after its bounce. Try topspin for pace or backspin for a
-              shorter return.
+              Your player handles footwork. Swipe as the ball arrives; a
+              slightly early swipe waits for its legal bounce. Choose topspin,
+              backspin or smash. Auto hit is optional.
             </p>
             <p>
               Win by two at 11. Two serves each; alternate every point from
@@ -744,6 +802,60 @@ export default function TableTennisGame({
         <div className="tt-modal">
           <div>
             <h2>{online ? 'Leave this match?' : 'Take a breather.'}</h2>
+            {!online && (
+              <div className="tt-pause-appearance">
+                <label>
+                  Player
+                  <select
+                    aria-label="Human player"
+                    value={character}
+                    onChange={(e) => {
+                      setCharacter(e.target.value);
+                      if (!inline)
+                        try {
+                          localStorage.setItem(
+                            'tableTennisSelectedHumanCharacter',
+                            e.target.value
+                          );
+                        } catch {
+                          /* Session choice still works. */
+                        }
+                    }}
+                  >
+                    {characterChoices.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Arena
+                  <select
+                    aria-label="Arena"
+                    value={arena}
+                    onChange={(e) => {
+                      setArena(e.target.value);
+                      if (!inline)
+                        try {
+                          localStorage.setItem(
+                            'tableTennisSelectedHdri',
+                            e.target.value
+                          );
+                        } catch {
+                          /* Session choice still works. */
+                        }
+                    }}
+                  >
+                    {arenaChoices.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            )}
             {online && (
               <p>
                 Leaving counts as retirement. Your opponent wins the staked

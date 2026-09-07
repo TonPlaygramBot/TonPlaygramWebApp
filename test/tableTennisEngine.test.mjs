@@ -80,7 +80,7 @@ test('net, missed table and second bounce award the correct player', () => {
     s.phase = 'rally';
     s.inputs.forEach((i) => (i.autoHit = false));
     Object.assign(s.ball, { last: 0, serve: false, ...patch });
-    advance(s, 0.04);
+    for (let n = 0; n < 240 && s.phase === 'rally'; n++) advance(s, 1 / 240);
     assert.equal(s.score.points[winner], 1);
   }
 });

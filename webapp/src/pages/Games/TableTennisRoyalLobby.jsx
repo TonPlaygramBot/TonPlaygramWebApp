@@ -7,6 +7,7 @@ import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { runSimpleOnlineFlow } from '../../utils/simpleOnlineFlow.js';
 import {
   getTelegramFirstName,
+  getTelegramUsername,
   getTelegramPhotoUrl
 } from '../../utils/telegram.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
@@ -62,7 +63,9 @@ export default function TableTennisRoyalLobby() {
         gameType: 'tabletennisroyal',
         stake,
         maxPlayers: 2,
-        playerName: getTelegramFirstName() || 'Player',
+        playerName: getTelegramUsername()
+          ? `@${getTelegramUsername()}`
+          : getTelegramFirstName() || 'Player',
         avatar: loadAvatar() || getTelegramPhotoUrl() || '',
         matchMeta: { arena, format },
         state: {

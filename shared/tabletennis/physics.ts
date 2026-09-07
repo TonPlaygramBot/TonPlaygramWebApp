@@ -1,0 +1,210 @@
+import {
+  BALL_RADIUS as R,
+  GRAVITY,
+  HALF_WIDTH as W,
+  HALF_LENGTH as L,
+  TABLE_HEIGHT as H,
+  NET_HEIGHT,
+  NET_POST_OUTSIDE,
+  TABLE_RESTITUTION,
+  TABLE_GRIP
+} from './rules.js';
+export type BallMotion = {
+  x: number;
+  y: number;
+  z: number;
+  vx: number;
+  vy: number;
+  vz: number;
+  spin: number;
+  netTouch: boolean;
+};
+export type Contact = {
+  kind: 'table' | 'edge' | 'side' | 'net' | 'floor';
+  x: number;
+  y: number;
+  z: number;
+  speed: number;
+};
+const clamp = (v: number, lo: number, hi: number) =>
+  Math.max(lo, Math.min(hi, v));
+export const gravity = (b: BallMotion) => GRAVITY + clamp(b.spin, -1, 1) * 0.8;
+export function downTime(y: number, vy: number, level: number, g = GRAVITY) {
+  if (y < level - 1e-9) return Infinity;
+  const height = Math.max(0, y - level),
+    root = Math.sqrt(vy * vy + 2 * g * height);
+  return vy < 0 ? (2 * height) / (root - vy) : (vy + root) / g;
+}
+function at(b: BallMotion, t: number, g: number) {
+  return {
+    x: b.x + b.vx * t,
+    y: b.y + b.vy * t - (g * t * t) / 2,
+    z: b.z + b.vz * t
+  };
+}
+function fly(b: BallMotion, t: number, g: number) {
+  Object.assign(b, at(b, t, g));
+  b.vy -= g * t;
+}
+const supported = (b: BallMotion) =>
+  b.y <= R + 1e-8 ||
+  (Math.abs(b.x) <= W && Math.abs(b.z) <= L && Math.abs(b.y - H - R) < 1e-6);
+export const ballAtRest = (b: BallMotion) =>
+  supported(b) && b.vy === 0 && b.vx === 0 && b.vz === 0;
+
+/** Swept sphere against the upper playing rectangle. Rounded top-edge contact
+ * counts; the vertical apron below it is a separate, non-playing surface. */
+export function tableTime(b: BallMotion, dt: number, g = gravity(b)) {
+  if (b.vy >= 0 && b.y >= H + R - 1e-8) return Infinity;
+  if (b.y < H - 1e-9) return Infinity;
+  const enter = Math.max(0, b.y <= H + R ? 0 : downTime(b.y, b.vy, H + R, g));
+  const end = Math.min(dt, downTime(b.y, b.vy, H, g));
+  if (enter > end || !Number.isFinite(enter)) return Infinity;
+  const gap = (t: number) => {
+    const p = at(b, t, g);
+    return (
+      Math.hypot(
+        Math.max(Math.abs(p.x) - W, 0),
+        p.y - H,
+        Math.max(Math.abs(p.z) - L, 0)
+      ) - R
+    );
+  };
+  const p = at(b, enter, g);
+  if (Math.abs(p.x) <= W && Math.abs(p.z) <= L) return enter;
+  // The near-contact interval is tiny at 240 Hz. Locate its convex minimum,
+  // then bisect the entering root, including high-speed glancing edge contacts.
+  let lo = enter,
+    hi = end;
+  for (let i = 0; i < 22; i++) {
+    const a = (2 * lo + hi) / 3,
+      c = (lo + 2 * hi) / 3;
+    if (gap(a) < gap(c)) hi = c;
+    else lo = a;
+  }
+  const closest = (lo + hi) / 2;
+  if (gap(closest) > 1e-9) return Infinity;
+  lo = enter;
+  hi = closest;
+  for (let i = 0; i < 26; i++) {
+    const m = (lo + hi) / 2;
+    if (gap(m) > 0) lo = m;
+    else hi = m;
+  }
+  return hi;
+}
+
+export function advanceBall(
+  b: BallMotion,
+  seconds: number,
+  contact?: (c: Contact) => void
+) {
+  if (!Number.isFinite(seconds) || seconds <= 0) return;
+  let remaining = Math.min(seconds, 1 / 30);
+  for (let iteration = 0; remaining > 1e-9 && iteration < 8; iteration++) {
+    if (supported(b) && b.vy === 0) {
+      const decay = Math.exp(-3.4 * remaining),
+        distance = (1 - decay) / 3.4;
+      const height = b.y < H ? R : H + R;
+      b.x += b.vx * distance;
+      b.z += b.vz * distance;
+      b.vx *= decay;
+      b.vz *= decay;
+      b.y = height;
+      if (Math.hypot(b.vx, b.vz) < 0.04) b.vx = b.vz = 0;
+      return;
+    }
+    const g = gravity(b),
+      table = tableTime(b, remaining, g),
+      floor = downTime(b.y, b.vy, R, g);
+    let time = Math.min(remaining, table, floor),
+      kind: Contact['kind'] | null =
+        table <= time ? 'table' : floor <= time ? 'floor' : null;
+    const net = Math.abs(b.vz) > 1e-9 ? -b.z / b.vz : Infinity;
+    if (net > 1e-8 && net <= time) {
+      const p = at(b, net, g);
+      if (
+        Math.abs(p.x) <= W + NET_POST_OUTSIDE + R &&
+        p.y + R >= H &&
+        p.y - R <= H + NET_HEIGHT
+      ) {
+        time = net;
+        kind = 'net';
+      }
+    }
+    for (const axis of ['x', 'z'] as const) {
+      const limit = axis === 'x' ? W : L,
+        v = axis === 'x' ? b.vx : b.vz;
+      if (Math.abs(v) < 1e-9 || Math.abs(b[axis]) <= limit + R) continue;
+      const side = (Math.sign(b[axis]) * (limit + R) - b[axis]) / v;
+      if (side < 0 || side > time) continue;
+      const p = at(b, side, g),
+        other = axis === 'x' ? Math.abs(p.z) <= L : Math.abs(p.x) <= W;
+      if (other && p.y < H && p.y + R > H - 0.045) {
+        time = side;
+        kind = 'side';
+      }
+    }
+    fly(b, time, g);
+    remaining -= time;
+    if (!kind) return;
+    const c: Contact = {
+      kind,
+      x: b.x,
+      y: b.y,
+      z: b.z,
+      speed: Math.hypot(b.vx, b.vy, b.vz)
+    };
+    if (kind === 'table') {
+      const dx = b.x - clamp(b.x, -W, W),
+        dz = b.z - clamp(b.z, -L, L);
+      if (Math.hypot(dx, dz) > 1e-7) {
+        c.kind = 'edge';
+        const dy = Math.max(1e-6, b.y - H),
+          norm = Math.hypot(dx, dy, dz);
+        const dot = (b.vx * dx + b.vy * dy + b.vz * dz) / norm;
+        if (dot < 0) {
+          b.vx -= ((1 + TABLE_RESTITUTION) * dot * dx) / norm;
+          b.vy -= ((1 + TABLE_RESTITUTION) * dot * dy) / norm;
+          b.vz -= ((1 + TABLE_RESTITUTION) * dot * dz) / norm;
+        }
+        b.y += 1e-7;
+      } else {
+        b.y = H + R + 1e-8;
+        b.vy = Math.max(0, -b.vy) * TABLE_RESTITUTION;
+        b.vx *= TABLE_GRIP;
+        b.vz *= TABLE_GRIP;
+        if (b.vy < 0.08) b.vy = 0;
+      }
+    } else if (kind === 'floor') {
+      b.y = R;
+      b.vy = Math.max(0, -b.vy) * 0.62;
+      b.vx *= 0.77;
+      b.vz *= 0.77;
+      b.spin *= 0.6;
+      if (b.vy < 0.18) b.vy = 0;
+    } else if (kind === 'net') {
+      b.netTouch = true;
+      if (b.y > H + NET_HEIGHT - 0.01) {
+        b.z = Math.sign(b.vz) * 0.002;
+        b.vx *= 0.72;
+        b.vz *= 0.72;
+        b.vy = Math.max(0.45, b.vy * 0.3);
+      } else {
+        b.z = -Math.sign(b.vz) * (R + 0.002);
+        b.vx *= 0.55;
+        b.vz *= -0.15;
+        b.vy = Math.min(0, b.vy) * 0.4;
+      }
+    } else {
+      if (Math.abs(b.x) >= W) {
+        b.vx *= -0.45;
+        b.x += Math.sign(b.x) * 1e-6;
+      } else {
+        b.vz *= -0.45;
+        b.z += Math.sign(b.z) * 1e-6;
+      }
+    }
+    contact?.(c);
+  }
+}

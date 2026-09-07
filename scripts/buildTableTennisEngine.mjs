@@ -1,6 +1,6 @@
 import ts from 'typescript';
 import { readFileSync, writeFileSync } from 'node:fs';
-for (const name of ['engine', 'career']) {
+for (const name of ['rules', 'physics', 'engine', 'career', 'swipe']) {
   const path = new URL(`../shared/tabletennis/${name}`, import.meta.url);
   const source = readFileSync(`${path.pathname}.ts`, 'utf8');
   const output = ts.transpileModule(source, {

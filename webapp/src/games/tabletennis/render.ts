@@ -2,8 +2,10 @@ import * as THREE from 'three';
 import { SoftwareRenderer } from './software';
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { loadCharacter, loadEnvironment } from './assetLoader';
-import { CHARACTERS } from './options';
+import { CHARACTERS, arenaPlacement } from './options';
 import { MatchState, Seat, side, clamp } from './engine';
+import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
+import { SCENE_SCALE, tableCamera, tableFingerDirection } from './camera';
 
 type Actor = {
   root: THREE.Group;
@@ -27,6 +29,7 @@ export class TableTennisRenderer {
   dead = false;
   seat: Seat = 0;
   environment: THREE.Texture | null = null;
+  skybox: GroundedSkybox | null = null;
   envId = '';
   envRequest = 0;
   constructor(
@@ -56,9 +59,9 @@ export class TableTennisRenderer {
     this.scene.background = new THREE.Color('#16272d');
     this.scene.add(
       this.stage,
-      new THREE.HemisphereLight(0xdbefff, 0x444d34, 2)
+      new THREE.HemisphereLight(0xdbefff, 0x444d34, 0.9)
     );
-    const light = new THREE.DirectionalLight(0xfff1df, 3);
+    const light = new THREE.DirectionalLight(0xfff1df, 1.4);
     light.position.set(2, 6, 3);
     light.castShadow = true;
     light.shadow.mapSize.set(1024, 1024);
@@ -70,17 +73,17 @@ export class TableTennisRenderer {
     });
     light.shadow.bias = -0.001;
     this.scene.add(light);
-    const fill = new THREE.DirectionalLight(0x82d5ff, 1);
+    const fill = new THREE.DirectionalLight(0x82d5ff, 0.45);
     fill.position.set(-3, 3, -3);
     this.scene.add(fill);
     this.table();
     const bmat = new THREE.MeshStandardMaterial({
       color: '#fff7dc',
-      roughness: 0.25,
+      roughness: 0.9,
       emissive: '#7b642b',
       emissiveIntensity: 0.25
     });
-    this.ball = new THREE.Mesh(new THREE.SphereGeometry(0.028, 16, 12), bmat);
+    this.ball = new THREE.Mesh(new THREE.SphereGeometry(0.02, 16, 12), bmat);
     this.ball.castShadow = true;
     this.stage.add(this.ball);
     this.shadow = new THREE.Mesh(
@@ -128,10 +131,7 @@ export class TableTennisRenderer {
       h = this.host.clientHeight;
     if (!w || !h) return;
     this.renderer.setSize(w, h);
-    this.camera.aspect = w / h;
-    this.camera.position.set(0, 3.45, 4.7);
-    this.camera.lookAt(0, 0.85, 0);
-    this.camera.updateProjectionMatrix();
+    tableCamera(this.camera, w, h);
   }
   private box(
     w: number,
@@ -174,13 +174,13 @@ export class TableTennisRenderer {
       }
       this.box(1.15, 0.055, 0.05, 0, 0.23, z, '#a3b1b4', 0.65);
     }
-    for (const x of [-0.85, 0.85])
+    for (const x of [-0.915, 0.915])
       this.box(0.025, 0.22, 0.035, x, 0.82, 0, '#e7e4cf', 0.4);
     const pts: number[] = [];
-    for (let x = -0.84; x <= 0.84; x += 0.025)
+    for (let x = -0.915; x <= 0.915; x += 0.025)
       pts.push(x, 0.76, 0, x, 0.9125, 0);
     for (let y = 0.76; y <= 0.915; y += 0.018)
-      pts.push(-0.84, y, 0, 0.84, y, 0);
+      pts.push(-0.915, y, 0, 0.915, y, 0);
     const net = new THREE.LineSegments(
       new THREE.BufferGeometry().setAttribute(
         'position',
@@ -194,7 +194,7 @@ export class TableTennisRenderer {
     );
     net.renderOrder = 0;
     this.stage.add(net);
-    this.box(1.72, 0.009, 0.012, 0, 0.913, 0, '#fffae7');
+    this.box(1.83, 0.009, 0.012, 0, 0.908, 0, '#fffae7');
     for (const z of [-2.8, 2.8]) {
       this.box(4, 0.48, 0.035, 0, 0.24, z, '#123d46').renderOrder = -8;
       this.box(4, 0.022, 0.05, 0, 0.49, z, '#56c6b1');
@@ -229,29 +229,52 @@ export class TableTennisRenderer {
     return g;
   }
   async appearance(arena: string, characters: string[]) {
-    if (this.envId !== arena) {
-      this.envId = arena;
-      const request = ++this.envRequest;
-      try {
-        const t = await loadEnvironment(arena);
-        if (this.dead || request !== this.envRequest) {
-          t.dispose();
-          return;
+    const environmentTask = (async () => {
+      if (this.envId !== arena) {
+        this.envId = arena;
+        const request = ++this.envRequest;
+        try {
+          const t = await loadEnvironment(arena);
+          if (this.dead || request !== this.envRequest) {
+            t.dispose();
+            return;
+          }
+          t.mapping = THREE.EquirectangularReflectionMapping;
+          this.environment?.dispose();
+          this.environment = t;
+          this.scene.environment = t;
+          this.scene.background = t;
+          this.scene.backgroundBlurriness = 0;
+          this.scene.backgroundIntensity = 0.85;
+          if (this.skybox) {
+            this.scene.remove(this.skybox);
+            this.skybox.geometry.dispose();
+            this.skybox.material.dispose();
+          }
+          if (this.renderer instanceof THREE.WebGLRenderer) {
+            const placement = arenaPlacement(arena);
+            this.skybox = new GroundedSkybox(
+              t,
+              placement.height,
+              SCENE_SCALE.roomRadius,
+              96
+            );
+            this.skybox.position.y = placement.height;
+            this.skybox.rotation.y = placement.rotation;
+            this.scene.environmentRotation.y = placement.rotation;
+            this.scene.backgroundRotation.y = placement.rotation;
+            this.skybox.renderOrder = -100;
+            this.scene.add(this.skybox);
+          }
+        } catch {
+          if (!this.dead)
+            this.report('Environment unavailable · studio lights active');
         }
-        t.mapping = THREE.EquirectangularReflectionMapping;
-        this.environment?.dispose();
-        this.environment = t;
-        this.scene.environment = t;
-        this.scene.background = t;
-        this.scene.backgroundBlurriness = 0.08;
-        this.scene.backgroundIntensity = 0.65;
-      } catch {
-        if (!this.dead)
-          this.report('Environment unavailable · studio lights active');
       }
-    }
-    await Promise.all(
-      characters.map(async (id, n) => {
+    })();
+    await Promise.all([
+      environmentTask,
+      ...characters.map(async (id, n) => {
         const a = this.actors[n];
         if (a.id === id) return;
         a.id = id;
@@ -271,8 +294,8 @@ export class TableTennisRenderer {
           a.rest.clear();
           const box = new THREE.Box3().setFromObject(model),
             height = box.max.y - box.min.y;
-          model.scale.multiplyScalar(1.73 / height);
-          model.position.y = (-box.min.y * 1.73) / height;
+          model.scale.multiplyScalar(SCENE_SCALE.playerHeight / height);
+          model.position.y = (-box.min.y * SCENE_SCALE.playerHeight) / height;
           model.updateMatrixWorld(true);
           const option = CHARACTERS.find((c) => c.id === id) || CHARACTERS[1];
           model.traverse((o) => {
@@ -354,7 +377,7 @@ export class TableTennisRenderer {
             this.report('Character could not load. Choose another player.');
         }
       })
-    );
+    ]);
   }
   private aim(
     a: Actor,
@@ -414,7 +437,8 @@ export class TableTennisRenderer {
   draw(s: MatchState, seat: Seat, playing: boolean) {
     if (this.dead) return;
     this.seat = seat;
-    this.stage.rotation.y = seat === 1 ? Math.PI : 0;
+    this.stage.rotation.y = side(seat, s) < 0 ? Math.PI : 0;
+    this.stage.updateWorldMatrix(true, false);
     this.ball.position.set(s.ball.x, s.ball.y, s.ball.z);
     this.shadow.position.set(s.ball.x, 0.766, s.ball.z);
     this.shadow.visible =
@@ -423,14 +447,14 @@ export class TableTennisRenderer {
     this.target.position.set(
       s.inputs[seat].aim * 0.53,
       0.765,
-      -side(seat) * 1.03
+      -side(seat, s) * 1.03
     );
-    this.target.visible = playing;
+    this.target.visible = false;
     this.actors.forEach((a, n) => {
       const p = s.players[n],
-        sign = n === 0 ? -1 : 1;
+        sign = -side(n as Seat, s);
       a.root.position.set(p.x, 0, p.z);
-      a.root.rotation.y = n === 0 ? Math.PI : 0;
+      a.root.rotation.y = sign < 0 ? Math.PI : 0;
       for (const [name, q] of a.rest) a.bones.get(name)?.quaternion.copy(q);
       a.root.updateWorldMatrix(true, true);
       const swing = Math.max(0, 1 - (s.time - p.swingAt) / 0.28),
@@ -458,7 +482,9 @@ export class TableTennisRenderer {
         a,
         ['LeftForeArm', 'lowerarm_l'],
         ['LeftHand', 'hand_l'],
-        toWorld(p.x - sign * 0.19, 1.24, p.z + sign * 0.28)
+        s.score.server === n && s.phase === 'serve'
+          ? toWorld(s.ball.x, s.ball.y - 0.045, s.ball.z)
+          : toWorld(p.x - sign * 0.35, 1.1, p.z)
       );
       const right = a.bones.get('RightHand') || a.bones.get('hand_r');
       if (right) {
@@ -469,6 +495,9 @@ export class TableTennisRenderer {
       a.paddle.rotation.set(-0.22, sign * 0.25 + swing * 1.1, 0.15 * sign);
     });
     this.renderer.render(this.scene, this.camera);
+  }
+  shotDirection(dx: number, dy: number, s: MatchState) {
+    return tableFingerDirection(this.camera, this.stage, s.ball, dx, dy);
   }
   private disposeObject(root: THREE.Object3D) {
     root.traverse((o) => {
