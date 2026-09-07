@@ -18,7 +18,7 @@ services:
     disk:
       name: protest-media
       mountPath: /var/data/tonplaygram
-      sizeGB: 10
+      sizeGB: 100
     # Keep existing secret values in Render; prompt only when creating a Blueprint.
     envVars:
       - key: MONGO_URI
