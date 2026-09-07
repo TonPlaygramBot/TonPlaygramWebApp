@@ -1,3 +1,5 @@
+> Superseded city presentation: BLACKWATER is now the FPS engine inside the single Tirana Streets game. See [the combined game](tirana-fps-city.md). Backend protocol and stake compatibility described below remain in use.
+
 # BLACKWATER in TonPlaygram
 
 BLACKWATER appears in the Games catalog and opens `/games/blackwater/lobby`.

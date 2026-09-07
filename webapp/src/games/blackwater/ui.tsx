@@ -44,6 +44,7 @@ import {
   roads,
   buildings,
   START,
+  ORIGIN,
   EXTRACTION,
   ATTRIBUTION
 } from './shared/layout.mjs';
@@ -172,7 +173,7 @@ export function Game({
       data-game-phase={state.phase}
     >
       <div className="scene-stage">
-        <canvas ref={canvas} aria-label="Blackwater 3D combat scene" />
+        <canvas ref={canvas} aria-label="Tirana Streets first-person combat scene" />
       </div>
       <div
         ref={surface}
@@ -190,12 +191,12 @@ export function Game({
       <header className="topbar">
         <div className="brand">
           <span className="brand-mark">
-            B<span>/</span>W
+            T<span>/</span>S
           </span>
           <span className="brand-name">
-            BLACKWATER
+            TIRANA STREETS
             <small>
-              {mode === 'online' ? 'TPG MULTIPLAYER' : 'SOLO OPERATIONS'}
+              {state.z + ORIGIN.z < 100 ? 'SHESHI SKËNDERBEJ' : state.z + ORIGIN.z > 730 ? 'BLLOKU' : 'TIRANA · LANA'}
             </small>
           </span>
         </div>
@@ -241,7 +242,7 @@ export function Game({
               BUT <em>THROUGH.</em>
             </h1>
             <p>
-              Tirana. Three waves.
+              Tirana streets. Three waves.
               <br />
               One way out.
             </p>
@@ -928,13 +929,9 @@ const MiniMap = memo(function MiniMap({ state }: { state: Snapshot }) {
               Math.abs(b.z - state.z) < size * 0.6
           )
           .map((b) => (
-            <rect
+            <polygon
               key={b.id}
-              x={x(b.x) - (b.w / size) * 50}
-              y={z(b.z) - (b.d / size) * 50}
-              width={(b.w / size) * 100}
-              height={(b.d / size) * 100}
-              transform={`rotate(${(-b.rot * 180) / Math.PI},${x(b.x)},${z(b.z)})`}
+              points={b.footprint.map(p => `${x(p[0])},${z(p[1])}`).join(' ')}
               fill="#7b8c84"
             />
           ))}

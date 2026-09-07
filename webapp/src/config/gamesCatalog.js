@@ -10,18 +10,6 @@ const gamesCatalog = [
     description: 'Realistic 3D bowling, human players, touch controls and ten-frame TPG matches.'
   },
   {
-    name: 'BLACKWATER',
-    route: '/games/blackwater/lobby',
-    slug: 'blackwater',
-    image: '/assets/blackwater/mark.svg',
-    badge: 'Beta',
-    featured: true,
-    modes: ['Solo operation', 'TPG Multiplayer'],
-    launchLabel: 'Enter BLACKWATER Lobby',
-    attribution: '© OpenStreetMap',
-    description: 'Mobile FPS on the streets of Tirana. Three-wave solo operations and 2–4 player TPG matches.'
-  },
-  {
     name: 'Table Tennis Royal',
     route: '/games/tabletennisroyal/lobby',
     slug: 'tabletennisroyal',
@@ -33,15 +21,14 @@ const gamesCatalog = [
     name: 'Tirana Streets',
     route: '/games/tiranastreets/lobby',
     slug: 'tiranastreets',
-    inviteFlow: 'room-code',
     attribution: '© OpenStreetMap',
     image: '/assets/tirana-streets/map.svg',
-    badge: 'Alpha',
+    badge: 'Beta',
     featured: true,
-    modes: ['Explore + AI', 'Online Crews', 'Career'],
-    launchLabel: 'Enter City Lobby',
+    modes: ['Solo operation', 'TPG Multiplayer'],
+    launchLabel: 'Enter Tirana Streets',
     description:
-      'Explore an active Tirana with human NPCs, cars, a weapon shop and five-star pursuits. Play nine career missions, AI rivals and online crews.'
+      'First-person action on Tirana’s mapped streets. Three-wave operations, city landmarks and 2–4 player TPG matches.'
   },
   {
     name: 'Tennis Royal',

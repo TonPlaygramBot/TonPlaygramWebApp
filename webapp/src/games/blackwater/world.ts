@@ -18,7 +18,7 @@ function texture(kind:'concrete'|'road'|'metal'){
 function signTexture(text:string,bg:string,fg:string){
  const c=document.createElement('canvas');c.width=1024;c.height=256;const ctx=c.getContext('2d')!;ctx.fillStyle=bg;ctx.fillRect(0,0,1024,256);ctx.strokeStyle=fg;ctx.globalAlpha=.4;ctx.strokeRect(18,18,988,220);ctx.globalAlpha=1;ctx.fillStyle=fg;ctx.font='bold 90px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(text,512,134,940);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t;
 }
-export function makeWorld(scene:THREE.Scene,camera:THREE.PerspectiveCamera,renderer:THREE.WebGLRenderer):World{
+export function makeWorld(scene:THREE.Scene,camera:THREE.PerspectiveCamera,renderer:THREE.WebGLRenderer, cityShell=true):World{
   rng=createRng(45192);
   const resources:{dispose:()=>void}[]=[];
   if(renderer instanceof THREE.WebGLRenderer){const pmrem=new THREE.PMREMGenerator(renderer),room=new RoomEnvironment(),env=pmrem.fromScene(room,.06);scene.environment=env.texture;scene.environmentIntensity=.42;resources.push(env);room.dispose();pmrem.dispose();}
@@ -44,6 +44,7 @@ export function makeWorld(scene:THREE.Scene,camera:THREE.PerspectiveCamera,rende
   function sign(text:string,x:number,y:number,z:number,w:number,h:number,rot:number,bg='#1c2d30',fg='#e5c491'){
     const t=signTexture(text,bg,fg);const m=new THREE.MeshStandardMaterial({map:t,emissiveMap:t,emissive:'#ffffff',emissiveIntensity:.24,roughness:.45});const mesh=new THREE.Mesh(new THREE.PlaneGeometry(w,h),m);mesh.position.set(x,y,z);mesh.rotation.y=rot;scene.add(mesh);
   }
+  if (cityShell) {
   box(0,-.2,-5,160,.4,160,mats.road);
   for(const side of [-1,1]){
     box(side*14.8,.10,-5,4.1,.2,64,mats.concrete);box(side*12.72,.14,-5,.18,.28,64,mats.trim);
@@ -103,6 +104,8 @@ export function makeWorld(scene:THREE.Scene,camera:THREE.PerspectiveCamera,rende
   // Overhead utility wires.
   for(const z of [-20,1,21])for(let k=0;k<3;k++){const points=[];for(let i=0;i<=12;i++){const x=-17+i*34/12;points.push(new THREE.Vector3(x,10-1.1*Math.sin(i/12*Math.PI)+k*.13,z+k*.3));}scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points),new THREE.LineBasicMaterial({color:'#273d40'})));}
   for(const [mat,transforms] of batches){const mesh=new THREE.InstancedMesh(boxGeo,mat,transforms.length);transforms.forEach((m,i)=>mesh.setMatrixAt(i,m));mesh.castShadow=mat!==mats.glow&&mat!==mats.cyan;mesh.receiveShadow=true;mesh.computeBoundingSphere();scene.add(mesh);}
+  }
+  resources.push(boxGeo, concreteMap, roadMap, metalMap, ...Object.values(mats));
   const rainData=new Float32Array(550*6);for(let i=0;i<550;i++){const x=rng()*54-27,y=rng()*22,z=rng()*70-40;rainData.set([x,y,z,x+.04,y+.38,z+.02],i*6);}
   const rainGeo=new THREE.BufferGeometry();rainGeo.setAttribute('position',new THREE.BufferAttribute(rainData,3).setUsage(THREE.DynamicDrawUsage));const rain=new THREE.LineSegments(rainGeo,new THREE.LineBasicMaterial({color:'#c1d4d5',transparent:true,opacity:.19,depthWrite:false}));rain.frustumCulled=false;scene.add(rain);
   const extraction=new THREE.Group();extraction.position.set(0,.04,-29);const ring=new THREE.Mesh(new THREE.RingGeometry(2.3,2.4,48),new THREE.MeshBasicMaterial({color:'#a3e3b8',side:THREE.DoubleSide,transparent:true,opacity:.8}));ring.rotation.x=-Math.PI/2;extraction.add(ring);for(const x of [-2,2]){const stick=new THREE.Mesh(new THREE.CylinderGeometry(.035,.035,1.1,8),mats.cyan);stick.position.set(x,.55,0);extraction.add(stick);}extraction.visible=false;scene.add(extraction);

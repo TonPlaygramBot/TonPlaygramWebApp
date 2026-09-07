@@ -5,7 +5,9 @@ export type Obstacle = {
   w: number;
   d: number;
   h: number;
+  minY?: number;
   rot?: number;
+  footprint?: number[][];
 };
 export type Phase = 'menu' | 'playing' | 'paused' | 'upgrade' | 'won' | 'lost';
 export type WeaponId = 'ar' | 'smg';

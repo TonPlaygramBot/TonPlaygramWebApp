@@ -58,7 +58,7 @@ export default function BlackwaterLobby() {
         );
       } catch {}
     }
-    navigate(`/games/blackwater?${query}`);
+    navigate(`/games/tiranastreets?${query}`);
   };
   async function start() {
     if (starting.current || matching) return;
@@ -121,7 +121,7 @@ export default function BlackwaterLobby() {
       );
       if (match?.tableId)
         navigate(
-          `/games/blackwater?${new URLSearchParams({ mode: 'online', tableId: match.tableId, weapon: match.weapon || 'ar' })}`
+          `/games/tiranastreets?${new URLSearchParams({ mode: 'online', tableId: match.tableId, weapon: match.weapon || 'ar' })}`
         );
       else setError('No previous operation to reconnect to.');
     } catch {
@@ -137,10 +137,10 @@ export default function BlackwaterLobby() {
           ← Games
         </Link>
         <GameLobbyHeader
-          slug="blackwater"
-          title="BLACKWATER Lobby"
+          slug="tiranastreets"
+          title="Tirana Streets"
           badge="TIRANA · FPS"
-          description="Original BLACKWATER combat and assets. The streets and building positions of Tirana."
+          description="First-person operations through Tirana’s mapped streets, landmarks and city infrastructure."
         />
         <fieldset disabled={matching} className="space-y-5">
           <legend className="mb-3 text-xs uppercase tracking-widest text-white/60">
