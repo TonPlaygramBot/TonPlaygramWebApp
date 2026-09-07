@@ -167,33 +167,130 @@ describe('wall upload recovery', () => {
     expect(calls.some((url) => url.endsWith('/complete'))).toBe(false);
   });
 
-  test('uploads video ranges serially so mobile fetch bodies do not compete', async () => {
-    let active = 0;
-    let peak = 0;
-    const offsets = [];
+  test.each([
+    ['4g', { effectiveType: '4g' }, 8, 3],
+    ['unknown WebView', null, undefined, 2],
+    ['data saver', { effectiveType: '4g', saveData: true }, 8, 1],
+    ['3g', { effectiveType: '3g' }, 8, 1],
+    ['2g', { effectiveType: '2g' }, 8, 1],
+    ['slow 2g', { effectiveType: 'slow-2g' }, 8, 1],
+    ['low memory', { effectiveType: '4g' }, 2, 1]
+  ])(
+    'bounds video requests on %s phones',
+    async (_name, connection, deviceMemory, expectedPeak) => {
+      let active = 0;
+      let peak = 0;
+      const offsets = [];
+      const send = async (url, init) => {
+        if (init.method === 'POST' && !url.endsWith('/complete'))
+          return { uploadId: 'mobile-session', chunkBytes: 4 };
+        if (init.method === 'PUT') {
+          active += 1;
+          peak = Math.max(peak, active);
+          offsets.push(init.headers['X-Upload-Offset']);
+          await new Promise((resolve) => setTimeout(resolve, 5));
+          active -= 1;
+          return {};
+        }
+        return { post: { _id: 'published' } };
+      };
+      await uploadWallFile({
+        baseUrl: '',
+        headers: {},
+        file: makeFile(),
+        uploadId: 'mobile-session',
+        text: '',
+        connection,
+        deviceMemory,
+        send
+      });
+      expect(offsets).toEqual(['0', '4', '8']);
+      expect(peak).toBe(expectedPeak);
+    }
+  );
+
+  test('limits larger chunks to a small in-flight byte budget', async () => {
+    const chunkBytes = 8 * 1024 ** 2;
+    let activeBytes = 0;
+    let peakBytes = 0;
+    const file = Object.assign(new Blob([new Uint8Array(chunkBytes * 4)]), {
+      name: 'large-video.mp4'
+    });
     const send = async (url, init) => {
-      if (init.method === 'POST' && !url.endsWith('/complete'))
-        return { uploadId: 'mobile-session', chunkBytes: 4 };
+      if (url.endsWith('/uploads')) return { uploadId: 'id', chunkBytes };
       if (init.method === 'PUT') {
-        active += 1;
-        peak = Math.max(peak, active);
-        offsets.push(init.headers['X-Upload-Offset']);
-        await new Promise((resolve) => setTimeout(resolve, 5));
-        active -= 1;
-        return {};
+        activeBytes += init.body.size;
+        peakBytes = Math.max(peakBytes, activeBytes);
+        await new Promise((resolve) => setTimeout(resolve, 1));
+        activeBytes -= init.body.size;
       }
-      return { post: { _id: 'published' } };
+      return {};
     };
     await uploadWallFile({
       baseUrl: '',
       headers: {},
-      file: makeFile(),
-      uploadId: 'mobile-session',
-      text: '',
+      file,
+      uploadId: 'id',
+      connection: { effectiveType: '4g' },
+      deviceMemory: 8,
       send
     });
-    expect(offsets).toEqual(['0', '4', '8']);
-    expect(peak).toBe(1);
+    expect(peakBytes).toBe(16 * 1024 ** 2);
+  });
+
+  test('drains parallel requests after a retry and finishes remaining ranges serially', async () => {
+    const pending = new Map();
+    const offsets = [];
+    const progress = [];
+    let completions = 0;
+    const send = async (url, init, options) => {
+      if (url.endsWith('/uploads')) return { uploadId: 'id', chunkBytes: 4 };
+      if (init.method === 'PUT') {
+        const offset = Number(init.headers['X-Upload-Offset']);
+        offsets.push(offset);
+        await new Promise((resolve) => {
+          pending.set(offset, {
+            resolve: () => {
+              pending.delete(offset);
+              resolve();
+            },
+            options
+          });
+        });
+        return {};
+      }
+      completions += 1;
+      return { post: { _id: 'post' } };
+    };
+    const upload = uploadWallFile({
+      baseUrl: '',
+      headers: {},
+      uploadId: 'id',
+      file: Object.assign(new Blob(['abcdefghijklmnopqrstuvwx']), {
+        name: 'video.mp4'
+      }),
+      connection: { effectiveType: '4g' },
+      deviceMemory: 8,
+      send,
+      onProgress: (bytes) => progress.push(bytes)
+    });
+    const settle = () => new Promise((resolve) => setImmediate(resolve));
+    await settle();
+    expect(offsets).toEqual([0, 4, 8]);
+    pending.get(4).options.onRetry(new Error('Connection interrupted'), 1);
+    pending.get(8).resolve();
+    pending.get(4).resolve();
+    await settle();
+    expect(offsets).toEqual([0, 4, 8]);
+    for (const offset of [0, 12, 16, 20]) {
+      expect([...pending.keys()]).toEqual([offset]);
+      pending.get(offset).resolve();
+      await settle();
+    }
+    expect(await upload).toEqual({ post: { _id: 'post' } });
+    expect(offsets).toEqual([0, 4, 8, 12, 16, 20]);
+    expect(progress).toEqual([0, 4, 8, 12, 16, 20, 24, 24]);
+    expect(completions).toBe(1);
   });
 
   test('retries transient server failures but preserves actionable storage errors', async () => {
@@ -209,9 +306,15 @@ describe('wall upload recovery', () => {
       .fn()
       .mockResolvedValueOnce(response(503, 'Storage unavailable'))
       .mockResolvedValueOnce(response(200));
+    const onRetry = jest.fn();
     await expect(
-      wallRequest('/upload', {}, { request, delay: async () => {} })
+      wallRequest('/upload', {}, { request, onRetry, delay: async () => {} })
     ).resolves.toMatchObject({ post: { _id: 'ok' } });
+    expect(onRetry).toHaveBeenCalledTimes(1);
+    expect(onRetry).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 503 }),
+      1
+    );
     const denied = jest
       .fn()
       .mockResolvedValue(
