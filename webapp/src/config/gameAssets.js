@@ -11,6 +11,7 @@ const withBase = (path) => {
 };
 
 export const gameThumbnails = {
+  archeryroyal: '/assets/icons/archery-royal.svg',
   royallanes: '/assets/royal-lanes/mark.svg',
   blackwater: '/assets/blackwater/mark.svg',
   tabletennisroyal: '/assets/icons/table-tennis-royal.svg',

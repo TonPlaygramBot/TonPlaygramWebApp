@@ -1,0 +1,9 @@
+{
+  "extends": "./webapp/tsconfig.json",
+  "compilerOptions": { "noEmit": true, "allowJs": true },
+  "include": [
+    "webapp/src/games/archeryroyal/**/*.ts",
+    "webapp/src/games/archeryroyal/**/*.tsx",
+    "webapp/src/pages/Games/ArcheryRoyal.tsx"
+  ]
+}
