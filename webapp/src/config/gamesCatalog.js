@@ -1,16 +1,5 @@
 const gamesCatalog = [
   {
-    name: 'Archery Royal',
-    route: '/games/archeryroyal/lobby',
-    slug: 'archeryroyal',
-    image: '/assets/icons/archery-royal.svg',
-    badge: 'New',
-    featured: true,
-    modes: ['VS AI', 'TPG Online', 'Career'],
-    launchLabel: 'Enter Archery Range',
-    description: 'Precision 3D target archery with wind physics, tournament career and authoritative TPG duels.'
-  },
-  {
     name: 'Royal Lanes Bowling',
     route: '/games/royallanes/lobby',
     slug: 'royallanes',

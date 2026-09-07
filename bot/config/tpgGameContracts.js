@@ -1,5 +1,4 @@
 const CONTRACTS = {
-  archeryroyal: ['arena', 'format'],
   poolroyale: ['variant'],
   snookerroyale: ['playType', 'tableSize'],
   snookerchampion: ['playType', 'tableSize'],

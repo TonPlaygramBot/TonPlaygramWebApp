@@ -10,7 +10,6 @@ const BASE_SECURITY_CONTROLS = Object.freeze([
 ]);
 
 const GAME_ONLINE_POLICY = Object.freeze({
-  archeryroyal: { maxPlayers: [2], allowMatchMeta: ['arena', 'format', 'mode', 'token'] },
   royallanes: { maxPlayers: [2], allowMatchMeta: ['format', 'mode', 'token'] },
   blackwater: { maxPlayers: [2, 3, 4], allowMatchMeta: ['mapId', 'mode', 'token'] },
   kartroyale: {
@@ -204,7 +203,6 @@ export function validateSeatTableRequest({
   }
 
   if (normalizedGameType === 'tabletennisroyal' && (!['quick','set','full'].includes(matchMeta.format) || !['dancingHall','colorfulStudio','neonPhotostudio'].includes(matchMeta.arena))) return {ok:false,error:'invalid_tabletennis_options'};
-  if (normalizedGameType === 'archeryroyal' && (!['royal-grounds','alpine-range','neon-arena'].includes(matchMeta.arena) || matchMeta.format !== 'standard')) return {ok:false,error:'invalid_archery_options'};
   if (normalizedGameType === 'tennisroyal' &&
       (!['hard','clay','grass'].includes(matchMeta.surface) ||
        !['quick','set','full'].includes(matchMeta.format))) {
