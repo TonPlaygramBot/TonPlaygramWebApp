@@ -11,8 +11,8 @@ const receipt = (match) => ({
   amount: match.amount || 0,
   reason: match.reason || ''
 });
-const transaction = (match, account, kind, amount, detail) => ({
-  transactionId: `kart:${match.tableId}:${kind}:${account}`,
+const makeTransaction = (prefix, gameType, match, account, kind, amount, detail) => ({
+  transactionId: `${prefix}:${match.tableId}:${kind}:${account}`,
   amount,
   type:
     kind === 'reserve'
@@ -22,7 +22,7 @@ const transaction = (match, account, kind, amount, detail) => ({
         : 'stake_refund',
   token: 'TPG',
   status: kind === 'reserve' ? 'reserved' : 'delivered',
-  game: 'kartroyale',
+  game: gameType,
   players: match.accounts.length,
   detail: detail || match.tableId
 });
@@ -31,8 +31,12 @@ const transaction = (match, account, kind, amount, detail) => ({
 export function createKartStakeService({
   UserModel = User,
   MatchModel = KartMatch,
-  database = mongoose
+  database = mongoose,
+  gameType = 'kartroyale',
+  ledgerPrefix = 'kart',
+  maxPlayers = 6
 } = {}) {
+  const transaction = (...args) => makeTransaction(ledgerPrefix, gameType, ...args);
   async function canQueue(account, stake, tableId = '') {
     if (database.connection.readyState !== 1)
       throw new Error('matchmaker_unavailable');
@@ -54,14 +58,14 @@ export function createKartStakeService({
     const stake = Number(table.stake);
     if (
       accounts.length < 2 ||
-      accounts.length > 6 ||
+      accounts.length > maxPlayers ||
       accounts.some((id) => !id) ||
       new Set(accounts).size !== accounts.length ||
       !Number.isSafeInteger(stake) ||
       stake <= 0 ||
       !Number.isSafeInteger(stake * accounts.length)
     )
-      throw new Error('invalid_kart_stake_contract');
+      throw new Error(`invalid_${ledgerPrefix}_stake_contract`);
     const session = await database.startSession();
     try {
       await session.withTransaction(async () => {

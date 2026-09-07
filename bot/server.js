@@ -11,6 +11,8 @@ import http from 'http';
 import { initSocket } from './socket.js';
 import { createTableTennisRoyal } from './services/tabletennisRoyal.js';
 import { attachKartRoyale } from './services/kartRoyale.js';
+import { attachBlackwater } from './services/blackwater.js';
+import { createBlackwaterStakeService } from './services/blackwaterStake.js';
 import { createTiranaStreets } from './services/tiranaStreets.js';
 import { createKartStakeService } from './services/kartStake.js';
 import KartMatch from './models/KartMatch.js';
@@ -280,9 +282,15 @@ const kartRoyale = attachKartRoyale(io, {
   settleMatch: kartStake.settle,
   onMatchClosed: (tableId) => tableMap.delete(tableId)
 });
+const blackwaterStake = createBlackwaterStakeService();
+const blackwater = attachBlackwater(io, {
+  settleMatch: blackwaterStake.settle,
+  onMatchClosed: (tableId) => tableMap.delete(tableId)
+});
 // Expired persisted reservations are refunded even after a process restart.
 setInterval(() => {
   kartStake.recoverExpired().catch((error) => console.error('Kart recovery:', error.message));
+  blackwaterStake.recoverExpired().catch((error) => console.error('Blackwater recovery:', error.message));
 }, 60_000).unref();
 
 // Expose socket.io instance and userSockets map for routes
@@ -1810,12 +1818,14 @@ function maybeStartGame(table) {
         return;
       }
       console.log(`Table ${table.id} confirmed by all players. Starting game.`);
-      if (table.gameType === 'kartroyale') {
+      if (['kartroyale', 'blackwater'].includes(table.gameType)) {
+        const stakeService = table.gameType === 'blackwater' ? blackwaterStake : kartStake;
+        const runtime = table.gameType === 'blackwater' ? blackwater : kartRoyale;
         table.starting = true;
         let reserved = false;
         const roster = table.players.map((p) => String(p.id)).join('|');
         try {
-          await kartStake.reserve(table);
+          await stakeService.reserve(table);
           reserved = true;
           // A cancellation/disconnect during the transaction must not start a
           // different roster or leave an unmatched player's stake locked.
@@ -1823,12 +1833,12 @@ function maybeStartGame(table) {
             table.players.some((p) => !io.sockets.sockets.get(p.socketId)?.connected || !table.ready.has(String(p.id)))) {
             throw new Error('match_cancelled');
           }
-          kartRoyale.createMatch(table);
+          runtime.createMatch(table);
           table.matchId = table.id;
         } catch (error) {
           if (reserved) {
-            try { await kartStake.settle(table.id, { reason: 'start_cancelled_refund' }); }
-            catch (refundError) { console.error('Kart refund pending recovery:', table.id, refundError.message); }
+            try { await stakeService.settle(table.id, { reason: 'start_cancelled_refund' }); }
+            catch (refundError) { console.error('Match refund pending recovery:', table.id, refundError.message); }
           }
           io.to(table.id).emit('matchmakingError', { tableId: table.id, error: error.message || 'match_start_failed' });
           for (const p of [...table.players]) unseatTableSocket(p.id, table.id, p.socketId);
@@ -1950,9 +1960,9 @@ function maybeStartGame(table) {
 
 function unseatTableSocket(accountId, tableId, socketId) {
   if (!tableId) return;
-  // Once handed to the race, kart:leave/resume owns the immutable roster and
-  // stake. A late lobby cancel or disconnect must not release its account lock.
-  if (tableMap.get(tableId)?.gameType === 'kartroyale' && tableMap.get(tableId)?.started) return;
+  // Once started, the game runtime owns the immutable roster and stake.
+  // A late lobby cancel or disconnect must not release its account lock.
+  if (['kartroyale', 'blackwater'].includes(tableMap.get(tableId)?.gameType) && tableMap.get(tableId)?.started) return;
   const map = tableSeats.get(tableId);
   const normalizedAccountId = accountId ? String(accountId) : '';
   // A mobile WebView can reconnect before Socket.IO finishes disconnecting the
@@ -2739,8 +2749,9 @@ io.on('connection', (socket) => {
 
       const safeMeta = validation.safeMatchMeta;
 
-      if (validation.normalizedGameType === 'kartroyale') {
-        try { await kartStake.canQueue(String(resolvedAccountId), validation.normalizedStake, tableId); }
+      if (['kartroyale', 'blackwater'].includes(validation.normalizedGameType)) {
+        const stakeService = validation.normalizedGameType === 'blackwater' ? blackwaterStake : kartStake;
+        try { await stakeService.canQueue(String(resolvedAccountId), validation.normalizedStake, tableId); }
         catch (error) { return cb && cb({ success: false, error: error.message }); }
         // The asynchronous balance read may complete after this phone leaves.
         if (!socket.connected) return;

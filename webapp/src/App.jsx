@@ -122,6 +122,8 @@ const ShootingRangeLobby = React.lazy(
   () => import('./pages/Games/ShootingRangeLobby.jsx')
 );
 const ArcadeRaceLobby = React.lazy(() => import('./pages/Games/ArcadeRaceLobby.jsx'));
+const Blackwater = React.lazy(() => import('./pages/Games/Blackwater.jsx'));
+const BlackwaterLobby = React.lazy(() => import('./pages/Games/BlackwaterLobby.jsx'));
 const KartRoyale = React.lazy(() => import('./pages/Games/KartRoyale.jsx'));
 const TiranaStreets = React.lazy(() => import('./pages/Games/TiranaStreets.jsx'));
 const Game2048Royale = React.lazy(() => import('./pages/Games/Game2048Royale.jsx'));
@@ -236,6 +238,8 @@ export default function App() {
                 element={<GameTransactions />}
               />
               <Route path="/games/:game/lobby" element={<Lobby />} />
+              <Route path="/games/blackwater/lobby" element={<BlackwaterLobby />} />
+              <Route path="/games/blackwater" element={<Blackwater />} />
               <Route path="/games/kartroyale/lobby" element={<KartRoyale />} />
               <Route path="/games/kartroyale" element={<KartRoyale />} />
               <Route path="/games/tiranastreets/lobby" element={<TiranaStreets />} />
