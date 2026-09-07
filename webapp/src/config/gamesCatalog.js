@@ -1,5 +1,15 @@
 const gamesCatalog = [
   {
+    name: 'Royal Lanes Bowling',
+    route: '/games/royallanes/lobby',
+    slug: 'royallanes',
+    image: '/assets/royal-lanes/mark.svg',
+    featured: true,
+    modes: ['VS AI', 'TPG Online'],
+    launchLabel: 'Enter Bowling Lobby',
+    description: 'Realistic 3D bowling, human players, touch controls and ten-frame TPG matches.'
+  },
+  {
     name: 'BLACKWATER',
     route: '/games/blackwater/lobby',
     slug: 'blackwater',

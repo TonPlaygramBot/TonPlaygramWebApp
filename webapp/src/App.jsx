@@ -104,6 +104,8 @@ const TavullBattleRoyal = React.lazy(
 const TavullBattleRoyalLobby = React.lazy(
   () => import('./pages/Games/TavullBattleRoyalLobby.jsx')
 );
+const RoyalLanes = React.lazy(() => import('./pages/Games/RoyalLanes.tsx'));
+const RoyalLanesLobby = React.lazy(() => import('./pages/Games/RoyalLanesLobby.jsx'));
 const PoolRoyale = React.lazy(() => import('./pages/Games/PoolRoyale.jsx'));
 const PoolRoyaleLobby = React.lazy(
   () => import('./pages/Games/PoolRoyaleLobby.jsx')
@@ -238,6 +240,8 @@ export default function App() {
                 element={<GameTransactions />}
               />
               <Route path="/games/:game/lobby" element={<Lobby />} />
+              <Route path="/games/royallanes/lobby" element={<RoyalLanesLobby />} />
+              <Route path="/games/royallanes" element={<RoyalLanes />} />
               <Route path="/games/blackwater/lobby" element={<BlackwaterLobby />} />
               <Route path="/games/blackwater" element={<Blackwater />} />
               <Route path="/games/kartroyale/lobby" element={<KartRoyale />} />

@@ -34,7 +34,8 @@ export function createKartStakeService({
   database = mongoose,
   gameType = 'kartroyale',
   ledgerPrefix = 'kart',
-  maxPlayers = 6
+  maxPlayers = 6,
+  reservationTtlMs = 10 * 60_000
 } = {}) {
   const transaction = (...args) => makeTransaction(ledgerPrefix, gameType, ...args);
   async function canQueue(account, stake, tableId = '') {
@@ -90,7 +91,7 @@ export function createKartStakeService({
           tableId: table.id,
           accounts,
           stake,
-          expiresAt: new Date(Date.now() + 10 * 60_000)
+          expiresAt: new Date(Date.now() + reservationTtlMs)
         };
         // Conditional writes and the transaction prevent a double seat, partial
         // reservation, negative balance, or aliases charging the same user twice.
