@@ -9,6 +9,7 @@ import { mongoConnectionOptions } from './config/mongo.js';
 import { proxyUrl, proxyAgent } from './utils/proxyAgent.js';
 import http from 'http';
 import { initSocket } from './socket.js';
+import { createChessGateway } from '../chess-multiplayer-server/dist/embedded.js';
 import { createTableTennisRoyal } from './services/tabletennisRoyal.js';
 import { attachKartRoyale } from './services/kartRoyale.js';
 import { attachRoyalLanes } from './services/royalLanes.js';
@@ -225,14 +226,25 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 const httpServer = http.createServer(app);
+const chessGateway = await createChessGateway({
+  accountApiUrl: `http://127.0.0.1:${PORT}`,
+  allowOrigin: (origin) => !origin || isAllowedCorsOrigin(origin)
+});
+app.use('/colyseus', chessGateway.handleRequest);
 const io = initSocket(httpServer, {
   cors: {
     origin: resolveCorsOrigin,
     methods: ['GET', 'POST']
   },
   transports: ['websocket', 'polling'],
+  // Colyseus upgrades share this HTTP server with Socket.IO.
+  destroyUpgrade: false,
   pingInterval: 25000,
   pingTimeout: 60000
+});
+httpServer.on('upgrade', (req, socket, head) => {
+  if (chessGateway.handleUpgrade(req, socket, head)) return;
+  if (!req.url?.startsWith('/socket.io/')) socket.destroy();
 });
 io.use((socket, next) => {
   const authHeader = socket.handshake.headers?.authorization || '';

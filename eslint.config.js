@@ -9,6 +9,7 @@ export default [
     ignores: [
       'webapp/**',
       'bot/**',
+      'chess-multiplayer-server/dist/**',
       'examples/**',
       'scripts/**',
       'test/**',

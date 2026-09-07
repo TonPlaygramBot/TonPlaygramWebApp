@@ -8,6 +8,7 @@ services:
     name: tonplaygram-bot
     branch: main
     rootDir: bot
+    # bot's postinstall also installs/builds the embedded chess module.
     buildCommand: npm install && npm --prefix ../webapp install && WEBAPP_BUILD_MAX_OLD_SPACE_SIZE=1536 npm --prefix ../webapp run build
     startCommand: npm start
     # Do not route profile traffic until this deployment has its MongoDB
@@ -47,7 +48,7 @@ services:
       - key: MATCHMAKING_SERVICE_SECRET
         sync: false
       - key: VITE_MATCHMAKING_URL
-        value: wss://tonplaygram-chess-matchmaking.onrender.com
+        value: wss://tonplaygram-bot.onrender.com/colyseus
       # Bake the public API into web/native bundles. Same-origin remains the
       # browser fallback, while installed iOS shells cannot use capacitor://localhost.
       - key: VITE_API_BASE_URL
@@ -75,21 +76,3 @@ services:
       # docs/social-wall-object-storage.md. Credentials must remain server-only.
       - key: SOCIAL_PROVIDER_MODE
         value: disabled
-
-  - type: web
-    runtime: node
-    name: tonplaygram-chess-matchmaking
-    branch: main
-    rootDir: chess-multiplayer-server
-    buildCommand: npm install && npm run build
-    startCommand: npm start
-    healthCheckPath: /health
-    envVars:
-      - key: AUTH_REQUIRED
-        value: "true"
-      - key: ACCOUNT_API_URL
-        value: https://tonplaygram-bot.onrender.com
-      - key: MATCHMAKING_SERVICE_SECRET
-        sync: false
-      - key: REDIS_URL
-        sync: false

@@ -1,0 +1,43 @@
+name: Single service and phone navigation
+
+on:
+  pull_request:
+    paths:
+      - 'bot/server.js'
+      - 'bot/package*.json'
+      - 'chess-multiplayer-server/**'
+      - 'render.yaml'
+      - 'webapp/package*.json'
+      - 'webapp/src/App.jsx'
+      - 'webapp/src/components/BackNavigation*'
+      - 'webapp/src/hooks/useTelegramBackButton.js'
+      - 'webapp/src/utils/backNavigation.js'
+      - 'webapp/src/utils/nativeBridge*'
+      - 'webapp/src/utils/matchmakingEndpoint*'
+      - 'webapp/src/pages/Games/ChessMultiplayerLobby.tsx'
+      - 'webapp/src/pages/Games/PoolRoyale.jsx'
+      - 'webapp/vitest.navigation.config.mjs'
+      - '.github/workflows/single-service-navigation.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            chess-multiplayer-server/package-lock.json
+            webapp/package-lock.json
+      - run: npm ci --prefix chess-multiplayer-server --ignore-scripts
+      - run: npm run build --prefix chess-multiplayer-server
+      - run: npm test --prefix chess-multiplayer-server
+      - run: npm ci --prefix webapp --ignore-scripts
+      - run: npm run test:navigation --prefix webapp
+      - run: node --check bot/server.js

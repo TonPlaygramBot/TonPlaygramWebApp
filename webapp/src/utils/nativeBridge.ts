@@ -1,6 +1,7 @@
 import { App as CapacitorApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
+import { dispatchAppBack, handleNativeBack } from './backNavigation.js';
 
 type TelegramWebAppShim = {
   initData?: string;
@@ -59,7 +60,7 @@ const STORAGE_KEYS = {
 };
 
 const backButtonListeners = new Set<BackButtonListener>();
-let backButtonVisible = false;
+let backButtonHandlerInstalled = false;
 const bridgeState: BridgeState = {};
 
 function parseUserFromUrl(url?: string): BridgeUser | undefined {
@@ -178,31 +179,26 @@ function buildInitDataString(user?: BridgeUser, startParam?: string): string {
 }
 
 function emitBackButtonClick() {
-  if (!backButtonVisible && !backButtonListeners.size) return;
-  backButtonListeners.forEach((listener) => {
-    try {
-      listener();
-    } catch (err) {
-      console.warn('BackButton listener failed', err);
-    }
-  });
-  if (!backButtonListeners.size) {
-    try {
-      window.history.back();
-    } catch {
-      // ignore
-    }
-  }
+  const listener = [...backButtonListeners].at(-1);
+  if (!listener) return false;
+  listener();
+  return true;
 }
 
 function installBackButtonHandler() {
-  if (!Capacitor.isNativePlatform()) return;
+  if (!Capacitor.isNativePlatform() || backButtonHandlerInstalled) return;
+  backButtonHandlerInstalled = true;
   void CapacitorApp.addListener('backButton', ({ canGoBack }) => {
-    if (backButtonVisible || canGoBack) {
-      emitBackButtonClick();
-    } else if (CapacitorApp.exitApp) {
-      CapacitorApp.exitApp();
-    }
+    handleNativeBack({
+      canGoBack,
+      appResult: dispatchAppBack(),
+      notifyListeners: emitBackButtonClick,
+      history: window.history,
+      exit: () => { void CapacitorApp.exitApp(); }
+    });
+  }).catch((error) => {
+    backButtonHandlerInstalled = false;
+    console.warn('Could not install the native Back handler', error);
   });
 }
 
@@ -219,11 +215,9 @@ function createTelegramShim(user?: BridgeUser, startParam?: string) {
     isVisible: false,
     show() {
       this.isVisible = true;
-      backButtonVisible = true;
     },
     hide() {
       this.isVisible = false;
-      backButtonVisible = false;
     },
     onClick(callback: BackButtonListener) {
       backButtonListeners.add(callback);
@@ -283,13 +277,13 @@ async function applyInitialUrl(url?: string) {
 
 export async function initNativeBridge() {
   if (!Capacitor.isNativePlatform()) return;
+  // Hardware Back is required even if a Telegram object already exists.
+  installBackButtonHandler();
   if (window.Telegram?.WebApp?.initDataUnsafe) return;
 
   const [storedUser, storedStart] = await Promise.all([loadStoredUser(), loadStoredStartParam()]);
   createTelegramShim(storedUser, storedStart);
   if (storedUser || storedStart) bridgeState.source = 'storage';
-
-  installBackButtonHandler();
 
   try {
     const launchUrl = (CapacitorApp as any)?.getLaunchUrl ? await (CapacitorApp as any).getLaunchUrl() : undefined;

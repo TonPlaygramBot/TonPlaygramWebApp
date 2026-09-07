@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Client, Room } from '@colyseus/sdk';
 import { useNavigate } from 'react-router-dom';
 import { ensureAccountId, getTelegramFirstName, getTelegramPhotoUrl, getTpcAccountId } from '../../utils/telegram.js';
+import { API_BASE_URL } from '../../utils/api.js';
+import { resolveChessEndpoint } from '../../utils/matchmakingEndpoint.js';
 
 type Player = { sessionId: string; accountId: string; name: string; avatar: string; ready: boolean; connected: boolean };
 type LobbySnapshot = { players: Player[]; phase: string; invitationCode: string; countdownEndsAt: number; minPlayers: number; maxPlayers: number; tableNumber: string };
@@ -10,14 +12,8 @@ const ROOM_NAME = 'chess_lobby';
 const CONNECTION_TIMEOUT_MS = 10_000;
 
 export function resolveMatchmakingEndpoint(configured = import.meta.env.VITE_MATCHMAKING_URL || import.meta.env.VITE_CHESS_COLYSEUS_URL) {
-  const localPage = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
-  const fallback = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.hostname}${localPage ? ':2567' : '/colyseus'}`;
-  const endpoint = new URL(configured || fallback, location.href);
-  endpoint.protocol = location.protocol === 'https:' ? 'wss:' : endpoint.protocol === 'https:' ? 'wss:' : endpoint.protocol === 'http:' ? 'ws:' : endpoint.protocol;
-  if (!localPage && ['localhost', '127.0.0.1', '[::1]'].includes(endpoint.hostname)) {
-    throw new Error('Matchmaking is configured for localhost, which is unreachable from this device. Set VITE_MATCHMAKING_URL to the public Colyseus server.');
-  }
-  return endpoint.toString().replace(/\/$/, '');
+  return resolveChessEndpoint({ configured, apiBase: API_BASE_URL, pageUrl: location.href,
+    native: Boolean((window as any).Capacitor?.isNativePlatform?.()) });
 }
 
 let sharedClient: Client | undefined;
@@ -120,19 +116,9 @@ export default function ChessMultiplayerLobby() {
       if (visibility === 'private' && !code) throw new Error('Enter an invitation code.');
       const options = { ...identity, visibility, invitationCode: code, stake: selectedStake, token: 'TPG' };
       // Joining a private code must never create a second, isolated room when the
-      // host code is missing or mistyped. Hosts create; guests locate and join.
+      // host code is missing or mistyped. The server filters by code and stake.
       const joinRequest = visibility === 'private' && !createPrivate
-        ? getClient().getAvailableRooms(ROOM_NAME).then((rooms) => {
-            const target = rooms.find((candidate) => {
-              const metadata = (candidate.metadata || {}) as Record<string, unknown>;
-              return metadata.visibility === 'private'
-                && String(metadata.invitationCode || '').toUpperCase() === code
-                && Number(metadata.stake) === selectedStake
-                && candidate.clients < candidate.maxClients;
-            });
-            if (!target) throw new Error('Private match not found. Check the code and stake.');
-            return getClient().joinById(target.roomId, options);
-          })
+        ? getClient().join(ROOM_NAME, options)
         : getClient().joinOrCreate(ROOM_NAME, options);
       let timedOut = false;
       let timeoutId = 0;
