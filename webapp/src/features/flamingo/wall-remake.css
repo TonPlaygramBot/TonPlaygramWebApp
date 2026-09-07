@@ -784,3 +784,4 @@
     scroll-behavior: auto !important;
   }
 }
+.wall-restore-file { overflow-wrap: anywhere; }

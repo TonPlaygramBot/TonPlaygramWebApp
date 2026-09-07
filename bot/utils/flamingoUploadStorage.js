@@ -134,7 +134,7 @@ export function createFlamingoUploadStorage({
           ? path.join(directory, `${id}-${metadata.name}`)
           : null;
         const final = finalPath ? await fileDetails(finalPath) : null;
-        if (final && (!final.isFile() || (await isPublished(id)))) return;
+        if (final && (!final.isFile() || (await isPublished(id, metadata)))) return;
         // A failed database save can leave the completed original beside the
         // manifest. Delete it only after confirming no published post uses it.
         if (final) {

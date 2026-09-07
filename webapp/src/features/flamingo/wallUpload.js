@@ -76,6 +76,7 @@ export async function uploadWallFile({
   duration = 0,
   premium = false,
   priceTpg = 0,
+  restorePostId = undefined,
   signal,
   onProgress = (_bytes, _phase) => {},
   send = wallRequest
@@ -89,7 +90,8 @@ export async function uploadWallFile({
     size: file.size,
     duration,
     premium,
-    priceTpg
+    priceTpg,
+    ...(restorePostId ? { restorePostId } : {})
   };
   const session = await send(
     root,

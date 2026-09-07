@@ -24,6 +24,22 @@ const posts = [
     text: 'Some moments deserve more than a caption. Articles give your ideas space, with a headline, a cover photo, and a body that readers can open right in the feed.\n\nShare a game guide, a match recap, a community update, or a story from your day. Readers can open the full article without leaving the wall.\n\nThis is a sample article in the interactive preview. Use the composer to try a photo, a video from your phone, or an article. Preview posts stay in this tab.'
   }
 ];
+// Reproduce a missing original without contacting or changing the live wall.
+const previewOptions = new URLSearchParams(globalThis.location?.search);
+if (previewOptions.get('missing') === '1')
+  posts.unshift({
+    _id: '000000000000000000000007',
+    author: identity.author,
+    createdAt: new Date(now - 7 * 3600000).toISOString(),
+    canManage: true,
+    text: 'My video caption stays on this post.',
+    attachment: {
+      name: 'restore-demo.mp4',
+      type: 'video/mp4',
+      size: Number(previewOptions.get('bytes')) || 5,
+      url: '/missing-preview-video.mp4'
+    }
+  });
 const sessions = new Map();
 const listeners = new Set();
 const changed = () => listeners.forEach((listener) => listener());
@@ -52,6 +68,17 @@ export async function fetch(input, init = {}) {
     });
   if (route === '/identity') return reply(identity);
   if (route === '/posts') return reply({ posts, hasMore: false });
+  const mediaStatus = route.match(/^\/posts\/([^/]+)\/media-status$/);
+  if (mediaStatus) {
+    const post = posts.find((post) => post._id === mediaStatus[1]);
+    if (!post) return reply({ code: 'WALL_POST_NOT_FOUND' }, 404);
+    const available = post.attachment?.url !== '/missing-preview-video.mp4';
+    return reply({
+      available,
+      code: available ? 'WALL_MEDIA_AVAILABLE' : 'WALL_MEDIA_MISSING',
+      canRestore: !available && post.canManage
+    });
+  }
   const makePost = (fields) => {
     const post = {
       ...fields,
@@ -98,7 +125,7 @@ export async function fetch(input, init = {}) {
             .map(([, chunk]) => chunk),
           { type: session.type }
         );
-        session.post = makePost({
+        const fields = {
           text: session.text,
           title: session.title,
           attachment: {
@@ -108,7 +135,25 @@ export async function fetch(input, init = {}) {
             duration: session.duration,
             url: URL.createObjectURL(blob)
           }
-        });
+        };
+        if (session.restorePostId) {
+          const target = posts.find(
+            (post) => post._id === session.restorePostId
+          );
+          if (!target?.canManage)
+            return reply(
+              { error: 'Only the author can restore this media.' },
+              403
+            );
+          if (target.attachment.size !== blob.size)
+            return reply({ error: 'Choose the original file.' }, 409);
+          target.attachment = {
+            ...target.attachment,
+            url: fields.attachment.url
+          };
+          session.post = target;
+          changed();
+        } else session.post = makePost(fields);
       }
       return reply({ post: session.post });
     }

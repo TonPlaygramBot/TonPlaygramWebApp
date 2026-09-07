@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import {
-  AlertCircle,
   ChevronDown,
   Download,
   FileText,
@@ -24,6 +23,7 @@ import {
 import './media-social.css';
 import './wall-remake.css';
 import WallComposer from './WallComposer';
+import WallMediaRecovery from './WallMediaRecovery';
 import { API_BASE_URL } from '../../utils/api.js';
 import { resolveWallMediaUrl } from './mediaUrl.js';
 import { reconcileWallPosts } from './wallFeed.js';
@@ -208,10 +208,16 @@ async function downloadAttachment(file: Attachment, postIdValue?: string) {
 }
 function AttachmentPreview({
   file,
-  onExpand
+  onExpand,
+  postId,
+  canManage,
+  onRestored
 }: {
   file: Attachment;
   onExpand: () => void;
+  postId: string;
+  canManage?: boolean;
+  onRestored: (post: any) => void;
 }) {
   const [failed, setFailed] = useState(false);
   const [revision, setRevision] = useState(0);
@@ -222,14 +228,18 @@ function AttachmentPreview({
   };
   if (failed || !file.src)
     return (
-      <div className="wall-media-error" role="status">
-        <AlertCircle />
-        <strong>Media could not be loaded</strong>
-        <span>Try again when your connection is ready.</span>
-        <button type="button" onClick={retry}>
-          Retry media
-        </button>
-      </div>
+      <WallMediaRecovery
+        apiBase={API_BASE_URL}
+        postId={postId}
+        file={file}
+        canManage={canManage}
+        headers={identityHeaders}
+        onRetry={retry}
+        onRestored={(post) => {
+          retry();
+          onRestored(post);
+        }}
+      />
     );
   if (file.type.startsWith('video/'))
     return (
@@ -782,6 +792,28 @@ export default function MediaWall({
     setPosts((items) => [post, ...items.filter((item) => item.id !== post.id)]);
     setFilter('all');
   }
+  function onRestored(remote: any) {
+    setPosts((current) =>
+      current.map((post) =>
+        post.id === remote._id
+          ? {
+              ...remote,
+              id: remote._id,
+              canManage: true,
+              attachment: {
+                ...remote.attachment,
+                src: resolveWallMediaUrl(
+                  API_BASE_URL,
+                  remote.attachment.url,
+                  remote.attachment.size
+                )
+              }
+            }
+          : post
+      )
+    );
+    setNotice('Original media restored.');
+  }
   function react(postIdValue: string, reaction: Reaction) {
     updateEngagement(postIdValue, (current) => {
       const counts = { ...blankCounts(), ...current.counts };
@@ -1159,6 +1191,9 @@ export default function MediaWall({
                 )}
                 {post.attachment && (
                   <AttachmentPreview
+                    postId={post.id}
+                    canManage={post.canManage}
+                    onRestored={onRestored}
                     file={post.attachment}
                     onExpand={() => openFullscreen(post.id)}
                   />
