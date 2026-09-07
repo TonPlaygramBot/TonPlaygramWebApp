@@ -3,6 +3,7 @@ export interface Input {
   brake: boolean;
   drift: boolean;
   boost: boolean;
+  use: boolean;
 }
 export interface Racer {
   id: string;
@@ -30,6 +31,11 @@ export interface Racer {
   finished: boolean;
   finishTime: number;
   collision: number;
+  health: number;
+  shield: number;
+  weapon: 'rocket' | null;
+  weaponCooldown: number;
+  hitFlash: number;
   input: Input;
   lastInput: number;
   disconnected: boolean;
@@ -54,6 +60,7 @@ export const STEP: number,
   LAPS: number,
   COLORS: string[],
   TRACKS: TrackConfig[];
+export const POWERUPS: string[];
 export const CUPS: {
   name: string;
   track: string;
@@ -92,3 +99,6 @@ export function stepRace(
   d?: string
 ): void;
 export function standings(r: Racer[]): Racer[];
+export function collectPowerup(r: Racer, kind: string): boolean;
+export function damageRacer(r: Racer, amount: number): number;
+export function useWeapon(r: Racer, racers: Racer[]): string | null;

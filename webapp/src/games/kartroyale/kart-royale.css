@@ -67,6 +67,87 @@
 .kr-app p {
   margin: 0;
 }
+.kr-combat-hud {
+  position: absolute;
+  left: 50%;
+  bottom: max(132px, calc(env(safe-area-inset-bottom) + 112px));
+  transform: translateX(-50%);
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  z-index: 4;
+}
+.kr-health {
+  width: 142px;
+  padding: 9px 11px;
+  border: 1px solid #ffffff26;
+  background: #10181cdd;
+  backdrop-filter: blur(12px);
+  border-radius: 8px;
+}
+.kr-health > span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #b9c5c7;
+  font-size: 9px;
+  letter-spacing: 1.2px;
+}
+.kr-health > div {
+  height: 5px;
+  background: #ffffff16;
+  margin: 7px 0 4px;
+  overflow: hidden;
+}
+.kr-health i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #ff503c, var(--lime));
+  transition: width 0.25s;
+}
+.kr-health b {
+  font: 800 13px 'Barlow Condensed';
+}
+.kr-shield {
+  position: absolute;
+  bottom: 70px;
+  left: 0;
+  display: flex;
+  gap: 5px;
+  color: #5fe5ff;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+.kr-weapon {
+  width: 92px;
+  height: 68px;
+  display: grid;
+  grid-template-columns: 27px 1fr;
+  align-items: center;
+  padding: 9px;
+  text-align: left;
+  border: 1px solid #ffffff20 !important;
+  border-radius: 9px;
+  background: #141c20e8;
+}
+.kr-weapon.ready {
+  border-color: #ff694d !important;
+  box-shadow: 0 0 28px #ff4b302f;
+}
+.kr-weapon.ready svg {
+  color: #ff694d;
+  filter: drop-shadow(0 0 8px #ff3d22);
+}
+.kr-weapon span {
+  font: 900 14px 'Barlow Condensed';
+}
+.kr-weapon small {
+  grid-column: 1 / -1;
+  font-size: 7px;
+  letter-spacing: 0.8px;
+  color: #94a2a5;
+}
 .kr-canvas {
   position: absolute;
   inset: 0;

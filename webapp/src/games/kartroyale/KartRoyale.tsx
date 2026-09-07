@@ -21,7 +21,10 @@ import {
   RotateCcw,
   Cpu,
   Wifi,
-  WifiOff
+  WifiOff,
+  Rocket,
+  ShieldCheck,
+  Wrench
 } from 'lucide-react';
 import { KartRenderer } from './renderer';
 import type { Quality, Frame, Result } from './renderer';
@@ -248,7 +251,8 @@ export default function KartRoyale({
           'd',
           's',
           ' ',
-          'Shift'
+          'Shift',
+          'f'
         ].includes(e.key)
       ) {
         e.preventDefault();
@@ -256,9 +260,15 @@ export default function KartRoyale({
         apply();
       }
       if (e.key === 'Escape') setModal('pause');
+      if (e.key === 'f') {
+        const i = engine.current?.input;
+        if (i) i.use = true;
+      }
     };
     const up = (e: KeyboardEvent) => {
       keys.delete(e.key);
+      if (e.key === 'f' && engine.current?.input)
+        engine.current.input.use = false;
       if (!modalRef.current) apply();
     };
     const blur = () => {
@@ -538,7 +548,10 @@ export default function KartRoyale({
     );
   };
   const hold =
-    (key: 'steer' | 'drift' | 'boost' | 'brake', value: number | boolean) =>
+    (
+      key: 'steer' | 'drift' | 'boost' | 'brake' | 'use',
+      value: number | boolean
+    ) =>
     (e: React.PointerEvent<HTMLButtonElement>) => {
       e.preventDefault();
       e.currentTarget.setPointerCapture(e.pointerId);
@@ -546,14 +559,15 @@ export default function KartRoyale({
       const i = engine.current?.input;
       if (i) (i as unknown as Record<string, number | boolean>)[key] = value;
     };
-  const release = (key: 'steer' | 'drift' | 'boost' | 'brake') => () => {
-    const i = engine.current?.input;
-    if (i)
-      (i as unknown as Record<string, number | boolean>)[key] =
-        key === 'steer' ? 0 : false;
-  };
+  const release =
+    (key: 'steer' | 'drift' | 'boost' | 'brake' | 'use') => () => {
+      const i = engine.current?.input;
+      if (i)
+        (i as unknown as Record<string, number | boolean>)[key] =
+          key === 'steer' ? 0 : false;
+    };
   const touch = (
-    key: 'steer' | 'drift' | 'boost' | 'brake',
+    key: 'steer' | 'drift' | 'boost' | 'brake' | 'use',
     value: number | boolean
   ) => ({
     onPointerDown: hold(key, value),
@@ -616,15 +630,15 @@ export default function KartRoyale({
                 STREET RACING · VOL. 01
               </div>
               <h1>
-                KART
+                RACING
                 <br />
-                <em>ROYALE</em>
+                <em>ROYAL</em>
                 <sup>®</sup>
               </h1>
               <p>YOUR STREETS. YOUR RACE.</p>
             </section>
             <section className="kr-vehicle-info">
-              <span className="kr-label">01 / YOUR KART</span>
+              <span className="kr-label">01 / YOUR RACE CAR</span>
               <h2>
                 APEX <span>02</span>
               </h2>
@@ -690,8 +704,8 @@ export default function KartRoyale({
                               TRACKS[
                                 (TRACKS.findIndex((t) => t.id === trackId) +
                                   d +
-                                  3) %
-                                  3
+                                  TRACKS.length) %
+                                  TRACKS.length
                               ].id
                             )
                           }
@@ -1046,6 +1060,35 @@ export default function KartRoyale({
             <b>{Math.round((hud?.speed || 0) * 3.6)}</b>
             <span>KM/H</span>
           </div>
+          <div className="kr-combat-hud">
+            <div
+              className="kr-health"
+              aria-label={`${Math.round(hud?.health || 100)} percent car health`}
+            >
+              <span>
+                <Wrench size={14} /> INTEGRITY
+              </span>
+              <div>
+                <i style={{ width: `${hud?.health ?? 100}%` }} />
+              </div>
+              <b>{Math.round(hud?.health ?? 100)}</b>
+            </div>
+            {(hud?.shield || 0) > 0 && (
+              <span className="kr-shield">
+                <ShieldCheck size={16} /> SHIELD {Math.ceil(hud!.shield)}s
+              </span>
+            )}
+            <button
+              className={`kr-weapon ${hud?.weapon ? 'ready' : ''}`}
+              disabled={!hud?.weapon}
+              aria-label={hud?.weapon ? 'Fire rocket' : 'Collect a power-up'}
+              {...touch('use', true)}
+            >
+              <Rocket size={25} />
+              <span>{hud?.weapon ? 'FIRE' : 'EMPTY'}</span>
+              <small>{hud?.weapon ? 'ROCKET LOCKED' : 'FIND A PICKUP'}</small>
+            </button>
+          </div>
           <div className="kr-touch-controls">
             <div className="kr-steering">
               <button aria-label="Steer left" {...touch('steer', -1)}>
@@ -1078,7 +1121,7 @@ export default function KartRoyale({
             </div>
           </div>
           <div className="kr-key-hint">
-            ← → STEER <span>SPACE DRIFT</span> SHIFT BOOST <span>↓ BRAKE</span>
+            ← → STEER <span>SPACE DRIFT</span> SHIFT BOOST <span>F FIRE</span>
           </div>
         </div>
       )}
@@ -1207,7 +1250,7 @@ export default function KartRoyale({
             >
               <X size={21} />
             </button>
-            <div className="kr-eyebrow">KART ROYALE</div>
+            <div className="kr-eyebrow">RACING ROYAL</div>
             <h2>
               {modal === 'settings'
                 ? 'Make it yours.'

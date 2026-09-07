@@ -1,5 +1,12 @@
 const gamesCatalog = [
-  { name:'Table Tennis Royal', route:'/games/tabletennisroyal/lobby', slug:'tabletennisroyal', image:'/assets/icons/table-tennis-royal.svg', description:'Human players, spin rallies, a career tour and TPC online matches.' },
+  {
+    name: 'Table Tennis Royal',
+    route: '/games/tabletennisroyal/lobby',
+    slug: 'tabletennisroyal',
+    image: '/assets/icons/table-tennis-royal.svg',
+    description:
+      'Human players, spin rallies, a career tour and TPC online matches.'
+  },
   {
     name: 'Tirana Streets',
     route: '/games/tiranastreets/lobby',
@@ -11,11 +18,18 @@ const gamesCatalog = [
     featured: true,
     modes: ['Explore + AI', 'Online Crews', 'Career'],
     launchLabel: 'Enter City Lobby',
-    description: 'Explore an active Tirana with human NPCs, cars, a weapon shop and five-star pursuits. Play nine career missions, AI rivals and online crews.'
+    description:
+      'Explore an active Tirana with human NPCs, cars, a weapon shop and five-star pursuits. Play nine career missions, AI rivals and online crews.'
   },
-  {name:'Tennis Royal',route:'/games/tennisroyal/lobby',slug:'tennisroyal',image:'/assets/icons/tennis-royal.svg',description:'3D tennis, career tournaments and same-stake online matches.'},
   {
-    name: 'Kart Royale',
+    name: 'Tennis Royal',
+    route: '/games/tennisroyal/lobby',
+    slug: 'tennisroyal',
+    image: '/assets/icons/tennis-royal.svg',
+    description: '3D tennis, career tournaments and same-stake online matches.'
+  },
+  {
+    name: 'Racing Royal',
     route: '/games/kartroyale/lobby',
     slug: 'kartroyale',
     image: '/assets/kart-royale/cover.webp',
