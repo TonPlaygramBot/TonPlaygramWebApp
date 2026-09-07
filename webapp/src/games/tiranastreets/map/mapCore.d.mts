@@ -1,0 +1,17 @@
+export type Point={x:number;z:number};
+export type View=Point&{w:number;h:number};
+export type Place=Point&{id:string;name:string;available?:boolean};
+export const FAVORITES_KEY:string; export const MAX_FAVORITES:number;
+export function validPoint(p:unknown):boolean;
+export function inBounds(p:Point,b:readonly number[]):boolean;
+export function fitView(b:readonly number[],aspect?:number):View;
+export function constrainView(v:View,b:readonly number[]):View;
+export function zoomView(v:View,f:number,p:Point,b:readonly number[]):View;
+export function panView(v:View,dx:number,dy:number,w:number,h:number,b:readonly number[]):View;
+export function screenPoint(v:View,p:{x:number;y:number},rect:{left:number;top:number;width:number;height:number}):Point;
+export function toGeo(world:any,p:Point):{latitude:number;longitude:number};
+export function fromGeo(world:any,p:{latitude:number;longitude:number}):Point;
+export function readFavorites(storage:Storage|undefined,world:any):Place[];
+export function writeFavorites(storage:Storage|undefined,places:any[],world:any):boolean;
+export function buildMapGraph(world:any,mode?:'walk'|'drive'):any;
+export function findMapRoute(graph:any,start:Point,target:Point):{points:Point[];distance:number;message:string;reachable:boolean;accessDistance:number};

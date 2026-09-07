@@ -1,0 +1,29 @@
+name: Tirana map and detail contracts
+on:
+  push:
+    branches: [feat/tirana-map-and-detail-kit]
+  pull_request:
+    paths:
+      - 'webapp/src/games/tiranastreets/map/**'
+      - 'webapp/src/games/tirana-detail-kit/**'
+      - 'webapp/src/games/blackwater/ui.tsx'
+      - 'webapp/src/games/blackwater/cityWorld.ts'
+      - 'webapp/src/games/kartroyale/tiranaScenery.ts'
+      - 'webapp/scripts/tirana/**'
+      - 'test/tiranaMap.test.mjs'
+      - 'test/tiranaDetailKit.test.mjs'
+      - 'test/tiranaLakeSource.test.mjs'
+permissions:
+  contents: read
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test test/tiranaMap.test.mjs test/tiranaDetailKit.test.mjs test/tiranaLakeSource.test.mjs
+      - run: node webapp/scripts/export-tirana-detail-recipes.mjs /tmp/tirana-recipes.json
+      - run: python -m py_compile webapp/scripts/blender/build_tirana_details.py
