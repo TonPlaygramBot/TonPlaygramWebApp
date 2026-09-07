@@ -1,0 +1,177 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import * as simulation from '../webapp/src/games/kartroyale/simulation.mjs';
+import {
+  resolveKartContact,
+  resolveWallContact
+} from '../webapp/src/games/kartroyale/collisions.mjs';
+import { TIRANA_ROUTES } from '../webapp/src/games/kartroyale/tirana-routes.mjs';
+import { WORLD } from '../webapp/src/games/tiranastreets/shared/world.mjs';
+import { validateSeatTableRequest } from '../bot/config/onlineGamePolicy.js';
+const {
+  TRACKS,
+  makeTrack,
+  createRacer,
+  damageRacer,
+  stepRacer,
+  stepRace,
+  STEP
+} = simulation;
+const blank = { steer: 0, brake: true, drift: false, boost: false };
+const racer = (id = 'a', slot = 0) => {
+  const r = createRacer(makeTrack(), id, id, slot);
+  Object.assign(r, { x: 0, z: 0, yaw: 0, velocityYaw: 0, speed: 0 });
+  return r;
+};
+const energy = (rs) => rs.reduce((s, r) => s + r.speed * r.speed, 0);
+
+test('all five circuits use closed, unique paths from Tirana Streets road segments', () => {
+  assert.deepEqual(
+    TRACKS.map((t) => t.id),
+    ['skanderbeg', 'blloku', 'lana', 'pyramid', 'stadium']
+  );
+  const edges = new Set(
+    WORLD.roads
+      .filter((r) => !r.walk)
+      .flatMap((r) => [JSON.stringify([r.a, r.b]), JSON.stringify([r.b, r.a])])
+  );
+  for (const route of TIRANA_ROUTES) {
+    assert.equal(
+      new Set(route.points.map((p) => p.join(','))).size,
+      route.points.length
+    );
+    route.points.forEach((p, i) =>
+      assert.ok(
+        edges.has(
+          JSON.stringify([p, route.points[(i + 1) % route.points.length]])
+        ),
+        `${route.id} street continuity`
+      )
+    );
+    const track = makeTrack(route.id);
+    assert.equal(track.points.length, 360);
+    assert.ok(track.length > 800 && track.length < 2000);
+    for (const p of track.points)
+      assert.ok(
+        Number.isFinite(p.x) && Number.isFinite(p.z) && Number.isFinite(p.yaw)
+      );
+    assert.ok(route.streets.length >= 3);
+  }
+});
+test('every Tirana circuit is valid in the shared TPG queue; legacy names migrate', () => {
+  for (const trackId of [
+    ...TRACKS.map((t) => t.id),
+    'harbor',
+    'neon',
+    'canyon',
+    'alpine',
+    'coast'
+  ]) {
+    const result = validateSeatTableRequest({
+      gameType: 'kartroyale',
+      stake: 100,
+      maxPlayers: 2,
+      matchMeta: { token: 'TPG', mode: 'online', trackId }
+    });
+    assert.equal(result.ok, true, trackId);
+  }
+  assert.equal(makeTrack('harbor').id, 'skanderbeg');
+  assert.equal(makeTrack('coast').id, 'stadium');
+});
+test('combat and automatic pickups are absent, including stale client inputs', () => {
+  assert.equal(simulation.POWERUPS, undefined);
+  assert.equal(simulation.useWeapon, undefined);
+  const t = makeTrack(),
+    r = createRacer(t, 'a', 'a');
+  r.health = 50;
+  r.input = { ...blank, use: true };
+  stepRace([r], t, STEP, 1);
+  assert.equal(r.health, 50);
+  assert.equal(r.weapon, undefined);
+  assert.equal(r.shield, undefined);
+});
+test('grazing a wall preserves tangential momentum; head-on impact causes greater gradual damage', () => {
+  const head = racer(),
+    glance = racer();
+  Object.assign(head, { z: 5, speed: 25 });
+  Object.assign(glance, { z: 5, speed: 25, velocityYaw: Math.acos(0.15) });
+  const n = { x: 0, z: 0, distance: 5 };
+  resolveWallContact(head, n, 10, STEP);
+  resolveWallContact(glance, n, 10, STEP);
+  assert.ok(head.health < glance.health);
+  assert.ok(head.health >= 58 && head.health > 0);
+  assert.ok(glance.speed > 22 && head.speed < 5);
+  assert.equal(head.z, 3.95);
+  assert.equal(head.impactId, 1);
+});
+test('same-speed touching karts do not damage each other; a rear impact transfers speed and loses energy', () => {
+  const a = racer(),
+    b = racer('b', 1);
+  b.z = 2;
+  a.speed = b.speed = 24;
+  resolveKartContact(a, b);
+  assert.equal(a.health, 100);
+  assert.equal(b.health, 100);
+  a.z = 0;
+  b.z = 2;
+  a.speed = 28;
+  b.speed = 7;
+  const before = energy([a, b]);
+  resolveKartContact(a, b);
+  assert.ok(a.speed < 28 && b.speed > 7);
+  assert.ok(energy([a, b]) <= before);
+  assert.ok(a.health < 100 && b.health < 100);
+  assert.ok(Math.hypot(a.x - b.x, a.z - b.z) >= 2.1);
+});
+test('separating and exactly overlapping karts never gain energy or produce NaNs', () => {
+  const a = racer(),
+    b = racer('b', 1);
+  b.z = 1.9;
+  b.speed = 25;
+  resolveKartContact(a, b);
+  assert.equal(a.health, 100);
+  assert.equal(b.health, 100);
+  a.x = b.x = 0;
+  a.z = b.z = 0;
+  a.speed = b.speed = 0;
+  resolveKartContact(a, b);
+  assert.ok(Math.hypot(a.x - b.x, a.z - b.z) >= 2.1);
+  assert.ok(Number.isFinite(a.speed) && Number.isFinite(b.speed));
+});
+test('scrape damage scales with elapsed time, and invalid damage cannot heal or corrupt a kart', () => {
+  const scrape = (dt) => {
+    const r = racer();
+    r.wallContact = true;
+    for (let t = 0; t < 1 - 1e-6; t += dt) {
+      r.x = 0;
+      r.z = 5;
+      r.speed = 6;
+      r.velocityYaw = 0;
+      r.wallContact = true;
+      resolveWallContact(r, { x: 0, z: 0, distance: 5 }, 10, dt);
+    }
+    return r.health;
+  };
+  assert.ok(Math.abs(scrape(1 / 60) - scrape(1 / 120)) < 1e-6);
+  const r = racer();
+  for (const value of [NaN, Infinity, -10])
+    assert.equal(damageRacer(r, value), 0);
+  assert.equal(r.health, 100);
+});
+test('damage accumulates to retirement; retired karts cannot move or finish laps', () => {
+  const t = makeTrack(),
+    r = createRacer(t, 'a', 'a');
+  damageRacer(r, 35);
+  assert.equal(r.health, 65);
+  assert.equal(r.retired, false);
+  damageRacer(r, 35);
+  assert.equal(r.health, 30);
+  damageRacer(r, 35);
+  assert.equal(r.health, 0);
+  assert.equal(r.retired, true);
+  const p = { x: r.x, z: r.z, gates: r.gates };
+  stepRacer(r, { ...blank, brake: false, boost: true }, t, STEP, 2);
+  assert.deepEqual({ x: r.x, z: r.z, gates: r.gates }, p);
+  assert.equal(r.finished, false);
+  assert.equal(r.speed, 0);
+});

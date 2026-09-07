@@ -21,7 +21,7 @@ test('all AI drivers complete three ordered laps on all circuits and difficultie
           createRacer(track, String(i), 'AI', i, true)
         );
       let time = 0;
-      for (; time < 200 && !racers.every((r) => r.finished); time += STEP)
+      for (; time < 480 && !racers.every((r) => r.finished); time += STEP)
         stepRace(racers, track, STEP, time, d);
       assert.ok(
         racers.every((r) => r.finished),
@@ -158,6 +158,11 @@ test('real multiplayer clients: ready/start, authority, isolation, reconnect, fi
   assert.equal(joined.ok, true);
   assert.equal((await emit(b, 'start')).ok, false);
   assert.equal((await emit(a, 'start')).ok, false);
+  assert.equal((await emit(a, 'appearance', { kartId: 'oodi' })).ok, true);
+  assert.equal(
+    (await emit(outsider, 'appearance', { kartId: 'oozi' })).ok,
+    false
+  );
   await emit(a, 'ready', { ready: true });
   await emit(b, 'ready', { ready: true });
   const resume = {
@@ -173,6 +178,7 @@ test('real multiplayer clients: ready/start, authority, isolation, reconnect, fi
   assert.equal((await emit(a, 'start')).ok, true);
   const room = service.rooms.get(created.code);
   assert.equal(room.racers.length, 6);
+  assert.equal(room.racers[0].kartId, 'oodi');
   assert.equal(room.racers.filter((r) => r.ai).length, 4);
   const originalX = room.racers[0].x;
   a.emit('kart:input', {
@@ -181,7 +187,11 @@ test('real multiplayer clients: ready/start, authority, isolation, reconnect, fi
     lap: 100,
     speed: 9999,
     x: 1e9,
-    z: 1e9
+    z: 1e9,
+    health: 999999,
+    shield: 999999,
+    weapon: 'rocket',
+    use: true
   });
   outsider.emit('kart:input', {
     playerId: created.playerId,
@@ -195,6 +205,9 @@ test('real multiplayer clients: ready/start, authority, isolation, reconnect, fi
   assert.ok(room.racers[0].lap < 2);
   assert.ok(Math.abs(room.racers[0].x - originalX) < 20);
   assert.ok(room.racers[0].speed < 45);
+  assert.ok(room.racers[0].health <= 100);
+  assert.equal(room.racers[0].weapon, undefined);
+  assert.equal(room.racers[0].shield, undefined);
   assert.equal(
     (await emit(outsider, 'join', { code: created.code })).ok,
     false

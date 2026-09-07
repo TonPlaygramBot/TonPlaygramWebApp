@@ -1,11 +1,11 @@
-# Kart Royale
+# Racing Royal — Tirana street series
 
 Kart Royale adds a dedicated portrait-first 3D racing game to TonPlaygram's games
 catalog at `/games/kartroyale/lobby` (also available at `/games/kartroyale`).
 
 ## Play
 
-- **VS AI:** six racers, three circuits, Rookie / Street / Pro opponents.
+- **VS AI:** six racers, five Tirana street circuits, Rookie / Street / Pro opponents.
 - **Career:** Rookie, Street and Royale cups. Finish top three in the first two
   cups and first in the finale. Wins unlock the next cup; the first completion
   awards achievement credits. Progress and best times are saved on this device.
@@ -41,7 +41,7 @@ The server is attached to the existing authenticated Socket.IO connection. It
 issues a private reconnect token in the joining client's acknowledgement and
 never includes tokens in room broadcasts. Reconnect has a 15-second grace
 period. Disconnected waiting players are removed and host ownership transfers.
-Empty and expired rooms are collected. The race has a four-minute limit.
+Empty and expired rooms are collected. The race has an eight-minute limit for the full-size Tirana circuits.
 
 ### Shared TPG matchmaking
 
@@ -94,19 +94,46 @@ clearcoat finishes, a helmeted driver, and named wheel/steering pivots. Rotating
 wheels, front-wheel steering, steering-wheel movement, restrained chassis flex,
 acceleration/braking pitch and rear-tire marks follow the shared simulation.
 
-The city uses two **Quaternius Downtown City MegaKit (CC0)** buildings with brick,
-trim, roof and normal/roughness maps. Nearby buildings use 12,334 / 19,642-triangle
-templates; distant versions use 3,929 / 5,239. Each template's material primitives
-are instanced, with high detail within 64 m and distance culling at 250 m.
-Performance mode uses only lower detail and a 180 m range. Canyon cliffs use
-irregular rock geometry. **Poly Haven Asphalt 02 (CC0)** supplies local 1K diffuse,
-OpenGL normal and roughness maps with world-scale UVs. Textures are shared across
-instances and disposed when leaving the game. There is no runtime asset CDN.
+The racing city now reuses the Tirana Streets OSM road network, building footprints,
+parks, river and landmark positions, with chunked building shells and batched windows.
+The Pyramid, clock tower and mosque reuse the existing authored landmark silhouettes.
+This is geographic street geometry with simplified buildings, not photogrammetry.
+Each circuit follows a closed path of actual street segments; corner smoothing stays
+close to the original centerline. Roads are widened to a ten-meter closed race corridor.
+Barriers and crowds keep other streets outside the playable racing area.
+
+| Circuit | Area | Approx. lap distance |
+| --- | --- | --- |
+| Skënderbej Circuit | City centre, Dedë Gjo Luli, Abdi Toptani | 1.87 km |
+| Blloku Sprint | Ismail Qemali, Sami Frashëri, Ibrahim Rugova | 1.06 km |
+| Lana Riverside | Bajram Curri, Gjergj Fishta, Zhan d’Ark | 1.45 km |
+| Pyramid Loop | Dëshmorët e Kombit, Papa Gjon Pali II | 0.98 km |
+| Nënë Tereza Run | Mother Teresa Square, Sheshi Italia | 0.88 km |
+
+The three career cups use the first three circuits. All five are available in AI
+and TPG matchmaking. Previous circuit IDs remain aliases and normalize to the new
+IDs in server queue validation; career medals and credits are retained, while old
+circuit best times are not reused for different geometry.
+
+Five additional **Kenney Car Kit 3.1 (CC0)** models provide six selectable karts with
+the original Apex. New choices have different front fairing, sidepod or rear-wing
+adaptations. All choices use identical physics; the chosen appearance is validated
+by the server before racing and included in snapshots/reconnects. Models, textures,
+source URLs, original licenses and SHA-256 hashes are shipped locally.
+
+Human spectators stand behind barriers on both sides of roads, face the circuit,
+cheer and wave red Albanian flags with the black double-headed eagle. Instanced
+body parts, distance culling and a shared flag shader keep crowd draw calls bounded.
+
+**Poly Haven Asphalt 02 (CC0)** supplies the retained PBR road maps. The Albanian
+flag comes from **flag-icons (MIT)** with its license retained. Visible OSM attribution
+and downloadable derived data accompany the map; this data is ODbL, separately from
+CC0 models and application code.
 
 Original asset pages, creator credits, source hashes, and the pinned unmodified
 building mirror are recorded in `webapp/scripts/kart-royale-sources.json` and
 `webapp/public/assets/kart-royale/ATTRIBUTION.md`. Credits are also visible in the
-game settings. The existing engine recording remains unchanged.
+game settings. Racing audio now uses local Web Audio synthesis, unlocked by a user gesture.
 
 Optional regeneration (ordinary app builds use the checked-in runtime assets):
 
@@ -156,3 +183,40 @@ app's wallet or account providers. Its multiplayer panel clearly states when
 there is no game-server connection. The integrated route obtains the existing
 authenticated socket lazily. Deploy both the webapp and updated `bot/server.js`
 to enable live multiplayer in TonPlaygram.
+
+## Driving, damage and sound
+
+- No rockets, shields, pickup spawning, weapon button or firing input. Brake, drift
+  and driver-controlled boost remain. Health never refills from a pickup.
+- At a barrier, contact normal velocity determines damage. Glancing scrapes retain
+  more forward motion; a fast head-on hit rebounds, loses momentum and damages more.
+- Kart contacts use equal-mass impulses, small restitution, friction and positional
+  separation. Same-speed contact and separating overlaps do not generate damage.
+- Impact damage accumulates, with front/rear/side body deformation, reduced engine
+  acceleration/top speed and smoke below 40 integrity. At zero, the kart retires
+  as DNF; it cannot move, gain laps, earn a best time or win career rewards.
+- Retired humans count as done for server completion. A verified finisher can win
+  the existing TPG pot; all-retired/no-finisher races follow the existing refund path.
+- Engine pitch follows speed; tire, airflow, impact, countdown, finish and crowd
+  clap effects are synthesized locally. Mute and selected kart persist on this
+  device. Pause, backgrounding and leaving a race silence continuous effects.
+
+This is a physically motivated planar kart simulation, not a soft-body crash
+solver. Building detail and crowd motion are approximations designed for phones.
+
+## Rebuild and validation
+
+```sh
+python3 webapp/scripts/build-racing-tirana.py
+node webapp/node_modules/typescript/bin/tsc -p webapp/tsconfig.kart.json
+node webapp/node_modules/vite/bin/vite.js build --config webapp/vite.kart.config.js
+node --test test/racingRoyalTirana.test.mjs test/kartRoyale.test.mjs test/kartTpgMatchmaking.test.mjs test/kartStake.test.mjs
+```
+
+The standalone entry uses the same game modules as the app route. Its private
+preview provides AI and career; TPG multiplayer requires the TonPlaygram app server.
+The route builder is deterministic and reads the checked-in Tirana Streets snapshot.
+Tests cover all five road paths, all fifteen circuit/difficulty AI races, collision
+energy/damage behavior, retirement, server input authority, cosmetics, reconnect,
+TPG results and settlement. Visual rendering, audio playback and FPS still need a
+WebGL-capable phone check before production release.

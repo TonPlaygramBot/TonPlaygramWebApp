@@ -10,6 +10,7 @@ import {
 } from '../bot/config/onlineGamePolicy.js';
 import {
   aiInput,
+  damageRacer,
   standings
 } from '../webapp/src/games/kartroyale/simulation.mjs';
 
@@ -167,7 +168,7 @@ test('matched TPG seats synchronize a human-only race, bind account reconnects a
   );
   const replacement = await connect('TPG-A');
   assert.equal((await emit(replacement, 'resume', credentials)).ok, true);
-  for (let i = 0; i < 1600 && room.status !== 'finished'; i++) {
+  for (let i = 0; i < 2700 && room.status !== 'finished'; i++) {
     for (const [s, account] of [
       [replacement, 'TPG-A'],
       [b, 'TPG-B']
@@ -234,4 +235,26 @@ test('an incomplete grid start refunds; leaving a race without a finisher also r
   assert.equal(settlements[1].reason, 'no_finisher_refund');
   assert.equal(settlements[1].winnerAccountId, '');
   assert.equal((await emit(a, 'match', { tableId: 'no-finisher' })).ok, false);
+});
+
+test('all-retired TPG race closes with the existing no-finisher refund outcome', async (t) => {
+  let outcome;
+  const { service, connect, emit, tick } = await setup(t, async (_, result) => {
+    outcome = result;
+    return { status: 'refunded', reason: result.reason };
+  });
+  const a = await connect('TPG-A'),
+    b = await connect('TPG-B'),
+    id = 'retired-grid';
+  service.createMatch(table(id));
+  await emit(a, 'match', { tableId: id });
+  await emit(b, 'match', { tableId: id });
+  await tick(4000);
+  const room = service.rooms.get(id);
+  room.racers.forEach((r) => damageRacer(r, 100));
+  await tick(100);
+  assert.equal(room.status, 'finished');
+  assert.ok(room.racers.every((r) => r.retired && !r.finished));
+  assert.equal(outcome.winnerAccountId, '');
+  assert.equal(outcome.reason, 'no_finisher_refund');
 });
