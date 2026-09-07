@@ -1,3 +1,25 @@
+import {
+  BALL_RADIUS,
+  GRAVITY,
+  REVIEW_SECONDS,
+  groundTime,
+  bounceVelocity,
+  lineCall,
+  reviewActive,
+  type CloseCall,
+  type Review
+} from './court.js';
+import { aiSpeed, predictIntercept, planAiShot } from './ai.js';
+export {
+  BALL_RADIUS,
+  GRAVITY,
+  HALF_WIDTH,
+  HALF_LENGTH,
+  SERVICE,
+  CONTACT_RADIUS,
+  REVIEW_SECONDS,
+  reviewActive
+} from './court.js';
 export type Seat = 0 | 1;
 export type Shot = 'flat' | 'topspin' | 'slice' | 'lob';
 export type Surface = 'hard' | 'clay' | 'grass';
@@ -10,6 +32,9 @@ export type Input = {
   shot: Shot;
   swing: number;
   assist: boolean;
+  /** Unit direction on the court, projected from the finger vector. Null = soft/legacy aimed shot. */
+  direction?: { x: number; z: number } | null;
+  depth?: number;
 };
 export type Score = {
   points: number[];
@@ -31,6 +56,7 @@ export type Player = {
   queued: number;
   stamina: number;
   lastInput: number;
+  queuedInput: Input | null;
 };
 export type Event = {
   id: number;
@@ -79,14 +105,10 @@ export type MatchState = {
   rng: number;
   pointCount: number;
   aiThink: number;
-  aiAim: number;
   serveInput: Input | null;
+  closeCall: CloseCall | null;
+  review: Review | null;
 };
-export const HALF_WIDTH = 4.115,
-  HALF_LENGTH = 11.885,
-  SERVICE = 6.4,
-  GRAVITY = 14,
-  BALL_RADIUS = 0.12;
 export const opponent = (p: Seat): Seat => (p === 0 ? 1 : 0);
 export const side = (p: Seat) => (p === 0 ? 1 : -1);
 export const clamp = (v: number, lo: number, hi: number) =>
@@ -166,7 +188,7 @@ export function awardPoint(
 export function createMatch(config: Partial<MatchConfig> = {}): MatchState {
   const c: MatchConfig = {
     ai: true,
-    difficulty: 1,
+    difficulty: 2,
     surface: 'hard',
     gamesToWin: 1,
     setsToWin: 1,
@@ -174,6 +196,7 @@ export function createMatch(config: Partial<MatchConfig> = {}): MatchState {
     seed: 42117,
     ...config
   };
+  c.difficulty = clamp(Math.floor(c.difficulty) || 0, 0, 2);
   const state: MatchState = {
     config: c,
     time: 0,
@@ -188,7 +211,8 @@ export function createMatch(config: Partial<MatchConfig> = {}): MatchState {
       swingId: 0,
       queued: 0,
       stamina: 1,
-      lastInput: 0
+      lastInput: 0,
+      queuedInput: null
     })),
     ball: {
       x: 0,
@@ -216,8 +240,9 @@ export function createMatch(config: Partial<MatchConfig> = {}): MatchState {
     rng: c.seed || 1,
     pointCount: 0,
     aiThink: 0,
-    aiAim: 0,
-    serveInput: null
+    serveInput: null,
+    closeCall: null,
+    review: null
   };
   setupServe(state);
   return state;
@@ -238,6 +263,9 @@ function setupServe(s: MatchState) {
   s.phaseAt = s.time;
   s.rally = 0;
   s.serveInput = null;
+  s.closeCall = null;
+  if (!reviewActive(s)) s.review = null;
+  s.aiThink = s.time + [0.3, 0.18, 0.1][s.config.difficulty];
   s.players[seat].x = sign * (deuce ? 1.8 : -1.8);
   s.players[seat].z = sign * 12.4;
   s.players[opponent(seat)].x = -s.players[seat].x * 0.6;
@@ -246,6 +274,7 @@ function setupServe(s: MatchState) {
     p.targetX = p.x;
     p.targetZ = p.z;
     p.queued = 0;
+    p.queuedInput = null;
     p.stamina = Math.min(1, p.stamina + 0.3);
   });
   s.ball = {
@@ -267,6 +296,16 @@ function setupServe(s: MatchState) {
       ? 'Your serve'
       : 'Opponent serves';
 }
+function startReview(s: MatchState) {
+  if (!s.closeCall) return;
+  s.review = { ...s.closeCall, id: s.eventId + 1, startedAt: s.time };
+  s.closeCall = null;
+  // No live input can leak into the next point while the broadcast is running.
+  s.players.forEach((p) => {
+    p.queued = 0;
+    p.queuedInput = null;
+  });
+}
 function finishPoint(s: MatchState, win: Seat, reason: string) {
   if (s.phase === 'point' || s.phase === 'over') return;
   s.lastPoint = win;
@@ -281,6 +320,8 @@ function finishPoint(s: MatchState, win: Seat, reason: string) {
   );
   s.phase = result.winner !== null ? 'over' : 'point';
   s.phaseAt = s.time;
+  startReview(s);
+  if (s.review) s.phaseAt += REVIEW_SECONDS - 0.75;
   s.winner = result.winner;
   s.ball.vx = 0;
   s.ball.vy = 0;
@@ -303,54 +344,66 @@ function fault(s: MatchState, reason: string) {
     return;
   }
   emit(s, 'fault', s.score.server, reason);
+  startReview(s);
   setupServe(s);
+  if (reviewActive(s)) s.phaseAt += REVIEW_SECONDS;
   s.message = `${reason} · second serve`;
 }
 function trajectory(s: MatchState, seat: Seat, input: Input, isServe: boolean) {
   const b = s.ball,
     sign = side(seat),
-    skill = seat === 0 ? s.config.upgrades[1] || 0 : 0;
-  const shot = isServe ? 'flat' : input.shot;
-  let mishit = false;
-  const power = clamp(input.power, 0.1, 1);
-  // Power changes flight time for every stroke, so a faster swipe produces
-  // greater ball velocity while the ballistic arc still lands on the court.
-  let flight =
-    shot === 'lob'
-      ? 2.05 - power * 0.32
-      : shot === 'slice'
-        ? 1.55 - power * 0.38
-        : shot === 'topspin'
-          ? 1.43 - power * 0.35
-          : 1.38 - power * 0.36;
-  let z = -sign * (shot === 'slice' ? 5.5 : 8.3 + power * 1.4),
-    x = input.aim * 3.55;
+    ai = seat === 1 && s.config.ai;
+  const power = clamp(input.power, 0.1, 1),
+    shot = isServe ? 'flat' : input.shot;
   if (isServe) {
     b.x = s.players[seat].x;
     b.z = s.players[seat].z - 0.5 * sign;
     b.y = 2.7;
-    flight = 1.2 - power * 0.25;
-    z = -sign * (3.8 + power * 1.55);
-    x = -s.players[seat].x * 0.85 + input.aim * 0.65;
-  } else {
-    const error =
-      ((random(s) - 0.5) * (power > 0.9 ? 0.6 : 0.2)) / (1 + skill * 0.1);
-    x += error;
-    z += error * 2;
-    // Human-like unforced errors are real trajectories, never fabricated points.
-    if (
-      seat === 1 &&
-      s.config.ai &&
-      random(s) < [0.12, 0.065, 0.025][s.config.difficulty]
-    ) {
-      mishit = true;
-    }
   }
-  if (shot === 'lob') z = -sign * 9.6;
-  b.vx = (x - b.x) / flight;
-  b.vz = (z - b.z) / flight;
+  let depth = isServe ? 2.6 + power * 2.9 : 1.8 + power * 8.4;
+  if (!isServe && input.depth !== undefined) depth = 1.8 + input.depth * 8.8;
+  if (shot === 'slice') depth = Math.min(depth, 5.5);
+  if (shot === 'lob') depth = 9.6;
+  let x = isServe
+    ? -s.players[seat].x * 0.85 + input.aim * 1.1
+    : input.aim * (ai && s.config.difficulty === 2 ? 4.05 : 3.65);
+  const z = -sign * depth;
+  // Legacy/button shots retain placement. Human finger shots have no random aim error.
+  if (ai && !isServe)
+    x += (random(s) - 0.5) * [0.65, 0.28, 0.09][s.config.difficulty];
+  let dx = x - b.x,
+    dz = z - b.z;
+  const length = Math.hypot(dx, dz);
+  const direction = input.direction;
+  if (direction && Math.hypot(direction.x, direction.z) > 0.5) {
+    // Never snap a sideways or backwards gesture to a different heading.
+    dx = direction.x * length;
+    dz = direction.z * length;
+  }
+  const pace =
+    (shot === 'lob' ? 7.5 : shot === 'slice' ? 8.5 : 9) +
+    power * (isServe ? 11 : 16);
+  let flight = Math.max(0.65, length / pace);
+  if (shot === 'lob') flight = Math.max(flight, 2.15 - power * 0.45);
+  // Increase the arc, not horizontal speed, when a soft touch needs net clearance.
+  const netFraction = -b.z / dz;
+  if (netFraction > 0 && netFraction < 1) {
+    const netY = 1.16 + (shot === 'topspin' ? 0.28 : 0.08);
+    const baseY = b.y * (1 - netFraction) + BALL_RADIUS * netFraction;
+    const clearFlight = Math.sqrt(
+      Math.max(
+        0,
+        (2 * (netY - baseY)) / (GRAVITY * netFraction * (1 - netFraction))
+      )
+    );
+    flight = Math.max(flight, clearFlight);
+  }
+  b.vx = dx / flight;
+  b.vz = dz / flight;
   b.vy = (BALL_RADIUS - b.y + 0.5 * GRAVITY * flight * flight) / flight;
-  if (mishit) b.vy -= 5;
+  // Lower levels can make physical unforced errors; Pro retains bounded accuracy.
+  if (ai && !isServe && random(s) < [0.1, 0.035, 0.006][s.config.difficulty])
+    b.vy -= 3;
   b.bounces = 0;
   b.last = seat;
   b.serve = isServe;
@@ -359,6 +412,8 @@ function trajectory(s: MatchState, seat: Seat, input: Input, isServe: boolean) {
   s.rally++;
   s.players[seat].swingAt = s.time;
   s.players[seat].queued = 0;
+  s.players[seat].queuedInput = null;
+  s.aiThink = s.time + [0.28, 0.16, 0.085][s.config.difficulty];
   s.players[seat].stamina = Math.max(0.25, s.players[seat].stamina - 0.07);
   s.phase = 'rally';
   s.phaseAt = s.time;
@@ -378,6 +433,13 @@ export function setInput(s: MatchState, seat: Seat, input: Input) {
   const swing = Number.isFinite(input.swing)
     ? Math.floor(input.swing)
     : p.swingId;
+  const rawDirection = input.direction;
+  const norm =
+    rawDirection &&
+    Number.isFinite(rawDirection.x) &&
+    Number.isFinite(rawDirection.z)
+      ? Math.hypot(rawDirection.x, rawDirection.z)
+      : 0;
   s.inputs[seat] = {
     moveX:
       input.moveX === null ? null : clamp(Number(input.moveX) || 0, -5.2, 5.2),
@@ -386,7 +448,12 @@ export function setInput(s: MatchState, seat: Seat, input: Input) {
         ? null
         : clamp(Number(input.moveZ) || 0, 1.8, 13.3) * side(seat),
     aim: clamp(Number(input.aim) || 0, -1, 1),
-    power: clamp(Number(input.power) || 0.5, 0.1, 1),
+    power: clamp(Number.isFinite(input.power) ? input.power : 0.1, 0.1, 1),
+    direction:
+      rawDirection && norm > 0.001
+        ? { x: rawDirection.x / norm, z: rawDirection.z / norm }
+        : null,
+    depth: Number.isFinite(input.depth) ? clamp(input.depth!, 0, 1) : undefined,
     shot: ['flat', 'topspin', 'slice', 'lob'].includes(input.shot)
       ? input.shot
       : 'flat',
@@ -396,16 +463,11 @@ export function setInput(s: MatchState, seat: Seat, input: Input) {
   p.lastInput = s.time;
   if (swing > p.swingId) {
     p.swingId = swing;
-    p.queued = s.time + 0.85;
+    if (!reviewActive(s) && s.phase !== 'point' && s.phase !== 'over') {
+      p.queued = s.time + 0.85;
+      p.queuedInput = { ...s.inputs[seat] };
+    }
   }
-}
-function firstLanding(s: MatchState) {
-  const b = s.ball;
-  const t =
-    (b.vy +
-      Math.sqrt(b.vy * b.vy + 2 * GRAVITY * Math.max(0, b.y - BALL_RADIUS))) /
-    GRAVITY;
-  return { x: clamp(b.x + b.vx * t, -5.1, 5.1), z: b.z + b.vz * t };
 }
 function movePlayers(s: MatchState, dt: number) {
   for (const seat of [0, 1] as Seat[]) {
@@ -416,24 +478,29 @@ function movePlayers(s: MatchState, dt: number) {
     const ai = seat === 1 && s.config.ai;
     const assisted = ai || inp.assist;
     if (s.phase === 'serve' || s.phase === 'toss') continue;
-    if (incoming && assisted) {
-      const land =
-        s.ball.bounces > 0
-          ? { x: s.ball.x + s.ball.vx * 0.13, z: s.ball.z + s.ball.vz * 0.13 }
-          : firstLanding(s);
-      p.targetX = land.x;
-      p.targetZ = sign * clamp(Math.abs(land.z) + 0.5, 2.5, 12.7);
-    } else if (assisted) {
-      p.targetX = 0;
-      p.targetZ = sign * 10.5;
-    }
-    if (!ai && inp.moveX !== null && s.time - p.lastInput < 0.22)
-      p.targetX = inp.moveX;
-    if (!ai && inp.moveZ !== null && s.time - p.lastInput < 0.22)
-      p.targetZ = inp.moveZ;
     let speed = ai
-      ? 5.4 + s.config.difficulty * 0.75
+      ? aiSpeed(s.config.difficulty)
       : 7.2 + (s.config.upgrades[0] || 0) * 0.35;
+    if (incoming && assisted && (!ai || s.time >= s.aiThink)) {
+      const intercept = predictIntercept(
+        s,
+        seat,
+        speed * (0.78 + p.stamina * 0.22)
+      );
+      p.targetX = intercept.x;
+      p.targetZ = intercept.z;
+      if (ai) {
+        s.aiThink = s.time + [0.28, 0.16, 0.085][s.config.difficulty];
+        p.queued = s.time + 0.5;
+      }
+    } else if (!incoming && assisted) {
+      p.targetX = ai ? clamp(s.ball.x * 0.35, -1.65, 1.65) : 0;
+      p.targetZ = sign * (ai && s.ball.spin < 0 ? 8.2 : 10.5);
+    }
+    if (!ai && !inp.assist && inp.moveX !== null && s.time - p.lastInput < 0.22)
+      p.targetX = inp.moveX;
+    if (!ai && !inp.assist && inp.moveZ !== null && s.time - p.lastInput < 0.22)
+      p.targetZ = inp.moveZ;
     speed *= 0.78 + p.stamina * 0.22;
     const dx = p.targetX - p.x,
       dz = p.targetZ - p.z,
@@ -444,42 +511,32 @@ function movePlayers(s: MatchState, dt: number) {
       p.z += (dz / d) * step;
     }
     p.stamina = Math.min(1, p.stamina + dt * 0.035);
-    if (ai && incoming && s.time > s.aiThink) {
-      s.aiThink = s.time + 0.12 + (2 - s.config.difficulty) * 0.08;
-      s.aiAim = clamp(
-        -s.players[0].x / 4 + (random(s) - 0.5) * 1.5,
-        -0.95,
-        0.95
-      );
-      if (random(s) > (s.config.difficulty === 0 ? 0.16 : 0.02))
-        p.queued = s.time + 0.9;
-    }
     if (
       incoming &&
       p.queued >= s.time &&
       (s.ball.bounces > 0 || !s.ball.serve) &&
       s.ball.z * sign > 0.7 &&
       s.ball.y > 0.22 &&
+      (!ai || s.ball.y >= 0.7 || s.ball.vy < 0) &&
       s.ball.y < 2.7 &&
       Math.hypot(p.x - s.ball.x, p.z - s.ball.z) <
-        2.05 + (seat === 0 ? (s.config.upgrades[2] || 0) * 0.1 : 0)
+        (ai ? 1.85 : 2.05) +
+          (seat === 0 ? (s.config.upgrades[2] || 0) * 0.1 : 0)
     ) {
       const input = ai
-        ? {
-            ...inp,
-            aim: s.aiAim,
-            power: 0.4 + s.config.difficulty * 0.18,
-            shot: (random(s) > 0.8 ? 'slice' : 'flat') as Shot
-          }
-        : inp;
+        ? planAiShot(s, random(s) * 2 - 1)
+        : p.queuedInput || inp;
       trajectory(s, seat, input, false);
     }
   }
 }
 export function stepMatch(s: MatchState, dt = 1 / 120) {
-  if (s.phase === 'over') return;
+  if (s.phase === 'over' && !reviewActive(s)) return;
   dt = clamp(dt, 0, 1 / 30);
   s.time += dt;
+  if (reviewActive(s)) return;
+  s.review = null;
+  if (s.phase === 'over') return;
   if (s.phase === 'point') {
     if (s.time - s.phaseAt > 1.55) setupServe(s);
     return;
@@ -493,10 +550,10 @@ export function stepMatch(s: MatchState, dt = 1 / 120) {
     ) {
       s.phase = 'toss';
       s.phaseAt = s.time;
-      s.serveInput = {
-        ...s.inputs[server],
-        aim: server === 1 && s.config.ai ? 0 : s.inputs[server].aim
-      };
+      s.serveInput =
+        s.config.ai && server === 1
+          ? planAiShot(s, random(s) * 2 - 1, true)
+          : { ...(p.queuedInput || s.inputs[server]) };
       p.queued = 0;
     }
     return;
@@ -507,47 +564,55 @@ export function stepMatch(s: MatchState, dt = 1 / 120) {
     if (t >= 0.6) trajectory(s, server, s.serveInput || neutralInput(), true);
     return;
   }
-  const b = s.ball,
-    oldZ = b.z;
-  b.x += b.vx * dt;
-  b.z += b.vz * dt;
-  b.y += b.vy * dt;
-  b.vy -= GRAVITY * dt;
-  if (oldZ * b.z <= 0 && Math.abs(b.x) < 5.6 && b.y < 0.98 + BALL_RADIUS) {
-    if (b.serve && b.y > 0.86) {
-      b.netTouch = true;
-      b.vz *= 0.82;
-      b.vy = Math.max(b.vy, 1.5);
-    } else {
+  const b = s.ball;
+  const landing = groundTime(b);
+  const netTime = b.vz === 0 ? Infinity : -b.z / b.vz;
+  const travel = Math.min(dt, landing);
+  // Resolve the earliest exact intersection, so frame size cannot move a line call.
+  if (netTime > 1e-9 && netTime <= travel) {
+    const nx = b.x + b.vx * netTime;
+    const ny = b.y + b.vy * netTime - (GRAVITY * netTime * netTime) / 2;
+    if (Math.abs(nx) < 5.6 && ny < 0.98 + BALL_RADIUS) {
+      if (b.serve && ny > 0.86) {
+        b.netTouch = true;
+        b.x = nx;
+        b.z = Math.sign(b.vz) * 0.001;
+        b.y = ny;
+        b.vz *= 0.82;
+        b.vy = Math.max(b.vy - GRAVITY * netTime, 1.5);
+        return;
+      }
       if (b.serve) fault(s, 'Net');
       else finishPoint(s, opponent(b.last), 'Net');
       return;
     }
   }
-  if (b.y <= BALL_RADIUS) {
+  b.x += b.vx * travel;
+  b.z += b.vz * travel;
+  b.y += b.vy * travel - (GRAVITY * travel * travel) / 2;
+  b.vy -= GRAVITY * travel;
+  if (landing <= dt) {
     b.y = BALL_RADIUS;
+    const rebound = bounceVelocity(b, s.config.surface, b.spin);
     if (b.bounces === 0) {
-      const inCourt =
-        Math.abs(b.x) <= HALF_WIDTH + BALL_RADIUS &&
-        Math.abs(b.z) <= HALF_LENGTH + BALL_RADIUS &&
-        b.z * side(b.last) < 0;
-      if (b.serve) {
-        const legal =
-          inCourt &&
-          Math.abs(b.z) <= SERVICE + BALL_RADIUS &&
-          b.x * s.players[b.last].x <= BALL_RADIUS;
-        if (!legal) {
-          fault(s, 'Service out');
-          return;
-        }
-        if (b.netTouch) {
-          emit(s, 'fault', b.last, 'Let');
-          setupServe(s);
-          s.message = 'Let · serve again';
-          return;
-        }
-      } else if (!inCourt) {
-        finishPoint(s, opponent(b.last), 'Out');
+      const call = lineCall(b.x, b.z, b.last, b.serve, s.players[b.last].x);
+      if (call.close && !b.netTouch)
+        s.closeCall = {
+          call,
+          impact: { x: b.x, y: b.y, z: b.z, vx: b.vx, vy: b.vy, vz: b.vz },
+          rebound,
+          players: s.players.map(({ x, z }) => ({ x, z })),
+          flightTime: Math.min(0.65, s.time - s.phaseAt - dt + travel)
+        };
+      if (!call.in) {
+        if (b.serve) fault(s, 'Service out');
+        else finishPoint(s, opponent(b.last), 'Out');
+        return;
+      }
+      if (b.serve && b.netTouch) {
+        emit(s, 'fault', b.last, 'Let');
+        setupServe(s);
+        s.message = 'Let · serve again';
         return;
       }
     } else {
@@ -555,16 +620,12 @@ export function stepMatch(s: MatchState, dt = 1 / 120) {
       return;
     }
     b.bounces++;
-    b.vy =
-      Math.abs(b.vy) *
-      (s.config.surface === 'clay'
-        ? 0.72
-        : s.config.surface === 'grass'
-          ? 0.58
-          : 0.66) *
-      (1 + b.spin * 0.12);
-    b.vx *= 0.85;
-    b.vz *= s.config.surface === 'clay' ? 0.73 : 0.85;
+    Object.assign(b, rebound);
+    const rest = dt - travel;
+    b.x += b.vx * rest;
+    b.z += b.vz * rest;
+    b.y += b.vy * rest - (GRAVITY * rest * rest) / 2;
+    b.vy -= GRAVITY * rest;
     emit(s, 'bounce', b.last, 'Bounce');
   }
   if (Math.abs(b.z) > 18 || Math.abs(b.x) > 12) {

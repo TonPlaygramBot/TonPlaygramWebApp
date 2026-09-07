@@ -3,7 +3,17 @@ import { SoftwareRenderer } from './software';
 import { loadAthlete } from './assetLoader';
 import { dressAthlete, poseAthlete, disposeAthlete } from './athlete';
 import { buildStadium, courtTexture } from './stadium';
-import { BALL_RADIUS, MatchState, Seat, Surface, side } from './engine';
+import {
+  BALL_RADIUS,
+  MatchState,
+  Seat,
+  Surface,
+  side,
+  reviewActive,
+  CONTACT_RADIUS
+} from './engine';
+import { reviewBall, CENTRE_LINE_HALF } from '../../../../shared/tennis/court';
+import { playerCamera, fingerDirection } from './camera';
 
 export const decode = (data: string) =>
   Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
@@ -38,6 +48,24 @@ export class TennisRenderer {
   resize: ResizeObserver;
   disposed = false;
   loadError = '';
+  reviewing = false;
+  reviewMark = new THREE.Mesh(
+    new THREE.CircleGeometry(CONTACT_RADIUS, 40),
+    new THREE.MeshBasicMaterial({
+      color: 0xdfff4f,
+      depthTest: false,
+      transparent: true,
+      opacity: 0.8
+    })
+  );
+  reviewPath = new THREE.LineSegments(
+    new THREE.BufferGeometry(),
+    new THREE.LineBasicMaterial({
+      color: 0xf9f4d9,
+      transparent: true,
+      opacity: 0.65
+    })
+  );
   constructor(
     public mount: HTMLElement,
     public seat: Seat = 0,
@@ -70,6 +98,11 @@ export class TennisRenderer {
     this.scene.background = new THREE.Color(0x9bbbc8);
     this.scene.fog = new THREE.Fog(0x9bbbc8, 58, 120);
     this.scene.add(this.root);
+    this.reviewMark.rotation.x = -Math.PI / 2;
+    this.reviewMark.renderOrder = 10;
+    this.reviewMark.visible = false;
+    this.reviewPath.visible = false;
+    this.root.add(this.reviewMark, this.reviewPath);
     this.scene.add(new THREE.HemisphereLight(0xd9edfa, 0x526a52, 1.65));
     const sun = new THREE.DirectionalLight(0xffedcf, 2.5);
     sun.position.set(-13, 25, 12);
@@ -113,12 +146,12 @@ export class TennisRenderer {
       m.renderOrder = -98;
       return m;
     };
-    for (const x of [-5.485, -4.115, 4.115, 5.485]) line(x, 0, 0.048, 23.82);
-    for (const z of [-11.885, 11.885]) line(0, z, 10.97, 0.055);
-    for (const z of [-6.4, 6.4]) line(0, z, 8.23, 0.045);
-    line(0, 0, 0.045, 12.8);
-    line(0, 11.73, 0.055, 0.3);
-    line(0, -11.73, 0.055, 0.3);
+    for (const x of [-5.461, -4.091, 4.091, 5.461]) line(x, 0, 0.048, 23.82);
+    for (const z of [-11.8575, 11.8575]) line(0, z, 10.97, 0.055);
+    for (const z of [-6.3775, 6.3775]) line(0, z, 8.23, 0.045);
+    line(0, 0, CENTRE_LINE_HALF * 2, 12.8);
+    line(0, 11.835, 0.05, 0.1);
+    line(0, -11.835, 0.05, 0.1);
     for (const x of [-5.65, 5.65]) {
       const p = box(0.12, 1.14, 0.12, 0x152129, x, 0.57, 0);
       p.castShadow = true;
@@ -226,18 +259,18 @@ export class TennisRenderer {
     if (!w || !h) return;
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
-    // The scoreboard and touch HUD make the court canvas wider than the phone.
-    // Frame by phone width so players behind the near baseline keep their feet visible.
-    const portrait = w <= 600;
-    this.camera.fov = portrait ? 42 : 39;
-    this.camera.position.set(
-      0,
-      portrait ? 24 : 22,
-      side(this.seat) * (portrait ? 27 : 25)
+    playerCamera(
+      this.camera,
+      this.seat,
+      { x: 0, z: side(this.seat) * 12.4 },
+      10
     );
-    this.camera.lookAt(0, 0, 1 * side(this.seat));
-    this.camera.updateProjectionMatrix();
   }
+  shotDirection(dx: number, dy: number, s: MatchState) {
+    const p = s.players[this.seat];
+    return fingerDirection(this.camera, { x: p.x, y: 1.2, z: p.z }, dx, dy);
+  }
+
   setSurface(surface: Surface) {
     if (this.surface === surface) return;
     this.surface = surface;
@@ -348,10 +381,90 @@ export class TennisRenderer {
   }
   draw(s: MatchState, dt: number, smooth = false) {
     this.clock += dt;
+    const review = reviewActive(s) ? s.review : null;
+    this.stadium.group.visible = !review;
+    if (review) {
+      const elapsed = s.time - review.startedAt;
+      const points: number[] = [];
+      if (!this.reviewing) {
+        for (let i = 0; i < 36; i++) {
+          for (const t of [-0.45 + i * 0.015, -0.45 + (i + 1) * 0.015]) {
+            const p = reviewBall(review, t);
+            points.push(p.x, p.y - BALL_RADIUS + CONTACT_RADIUS, p.z);
+          }
+        }
+        this.reviewPath.geometry.dispose();
+        this.reviewPath.geometry = new THREE.BufferGeometry();
+        this.reviewPath.geometry.setAttribute(
+          'position',
+          new THREE.Float32BufferAttribute(points, 3)
+        );
+      }
+      const call = review.call,
+        verdict = elapsed >= 2.6;
+      const ball = reviewBall(
+        review,
+        verdict ? 0 : Math.min(0.1, -0.5 + elapsed * 0.25)
+      );
+      this.ball.position.set(
+        ball.x,
+        ball.y - BALL_RADIUS + CONTACT_RADIUS,
+        ball.z
+      );
+      this.ball.scale.setScalar(CONTACT_RADIUS / BALL_RADIUS);
+      this.ball.visible = !verdict;
+      this.ballShadow.visible = false;
+      this.trail.forEach((t) => {
+        t.visible = false;
+      });
+      this.actors.forEach((a) => {
+        a.root.visible = false;
+      });
+      this.reviewMark.visible = verdict;
+      this.reviewMark.position.set(call.x, 0.04, call.z);
+      (this.reviewMark.material as THREE.MeshBasicMaterial).color.setHex(
+        call.in ? 0xb9f33b : 0xff624c
+      );
+      this.reviewPath.visible = !verdict;
+      this.camera.fov = verdict ? 40 : 50;
+      if (verdict) {
+        this.camera.up.set(0, 0, -side(this.seat));
+        this.camera.position.set(call.x, 1.15, call.z);
+        this.camera.lookAt(call.x, 0, call.z);
+      } else {
+        this.camera.up.set(0, 1, 0);
+        const speed = Math.hypot(review.impact.vx, review.impact.vz) || 1;
+        this.camera.position.set(
+          call.x - (review.impact.vx / speed) * 3.2 + 1.4,
+          1.9,
+          call.z - (review.impact.vz / speed) * 3.2
+        );
+        this.camera.lookAt(call.x, 0.3, call.z);
+      }
+      this.camera.updateProjectionMatrix();
+      this.reviewing = true;
+      this.renderer.render(this.scene, this.camera);
+      return;
+    }
+    playerCamera(
+      this.camera,
+      this.seat,
+      s.players[this.seat],
+      this.reviewing ? 10 : dt
+    );
+    this.reviewing = false;
+    this.reviewMark.visible = this.reviewPath.visible = false;
+    this.ball.scale.setScalar(1);
+    this.ball.visible = this.ballShadow.visible = true;
+    this.actors.forEach((a) => {
+      a.root.visible = true;
+    });
     this.setSurface(s.config.surface);
     // Keep the stand closest to the camera from hiding the playable court.
     this.stadium.ends[0].visible = this.seat === 0;
     this.stadium.ends[1].visible = this.seat === 1;
+    this.stadium.enclosures[0].visible = this.seat === 0;
+    this.stadium.enclosures[1].visible = this.seat === 1;
     for (let i = 0; i < 2; i++) {
       const a = this.actors[i],
         p = s.players[i];

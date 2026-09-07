@@ -279,11 +279,95 @@ test('Ported engine keeps deuce and completes a full rally-based match', () => {
   assert.deepEqual(score.points, [4, 4]);
   const s = createMatch();
   for (let i = 0; i < 36000 && s.phase !== 'over'; i++) {
-    if (i % 30 === 0)
+    // Fixed human timing leaves realistic gaps between buffered swings.
+    if (i % 150 === 0)
       setInput(s, 0, { ...neutralInput(), swing: i + 1, aim: 0.85 });
     advance(s, 1 / 120);
   }
   assert.equal(s.phase, 'over');
   assert.ok(s.bestRally > 2);
   assert.ok(s.pointCount >= 4);
+});
+
+test('both online seats share line replays; final review settles once and retirement preserves the winner', async () => {
+  for (const retireDuringReview of [false, true]) {
+    const prefix = retireDuringReview ? 'review-retire' : 'review-complete';
+    const ids = [`${prefix}-a`, `${prefix}-b`];
+    ids.forEach((id) => user(id));
+    const t = table(prefix, ids);
+    let clock = 900000;
+    const service = createTennisRoyal({
+      io: {},
+      tableMap: new Map([[t.id, t]]),
+      autoTick: false,
+      now: () => clock
+    });
+    await service.prepare(t);
+    const a = fakeSocket(`${prefix}-sa`, ids[0]),
+      b = fakeSocket(`${prefix}-sb`, ids[1]);
+    [a, b].forEach(service.attach);
+    await a.request('tennisJoin', { tableId: t.id });
+    await b.request('tennisJoin', { tableId: t.id });
+    const r = service.rooms.get(t.id),
+      s = r.state;
+    s.config.gamesToWin = 1;
+    const nearOut = () => {
+      s.phase = 'rally';
+      s.phaseAt = s.time - 1;
+      Object.assign(s.ball, {
+        x: 4.155,
+        y: 0.14,
+        z: -8,
+        vx: 0,
+        vy: -4,
+        vz: 0,
+        serve: false,
+        bounces: 0,
+        last: 0
+      });
+    };
+    nearOut();
+    clock += 33;
+    service.tick();
+    const sa = await a.request('tennisInput', {
+      tableId: t.id,
+      input: neutralInput()
+    });
+    const sb = await b.request('tennisInput', {
+      tableId: t.id,
+      input: neutralInput()
+    });
+    assert.deepEqual(sa.data.state.review, sb.data.state.review);
+    assert.equal(s.review.call.in, false);
+    assert.equal(s.pointCount, 1);
+    for (let i = 0; i < 180; i++) {
+      clock += 33;
+      service.tick();
+    }
+    assert.equal(s.phase, 'serve');
+    assert.equal(s.pointCount, 1);
+    s.score.points = [0, 3];
+    nearOut();
+    clock += 33;
+    service.tick();
+    assert.equal(s.phase, 'over');
+    assert.equal(s.winner, 1);
+    assert.ok(s.review);
+    assert.equal(r.result, null);
+    assert.equal(funds(ids[0]), 900);
+    assert.equal(funds(ids[1]), 900);
+    if (retireDuringReview) await b.request('tennisLeave', { tableId: t.id });
+    else
+      for (let i = 0; i < 145; i++) {
+        clock += 33;
+        service.tick();
+      }
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(r.result.winner, 1);
+    assert.equal(funds(ids[0]), 900);
+    assert.equal(funds(ids[1]), 1100);
+    await b.request('tennisLeave', { tableId: t.id });
+    assert.equal(funds(ids[1]), 1100);
+    service.close();
+  }
 });

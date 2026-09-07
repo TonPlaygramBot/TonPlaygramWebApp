@@ -66,7 +66,7 @@
 }
 .tr-game .tr-court {
   position: absolute;
-  inset: 160px 0 100px;
+  inset: 155px 0 105px;
   touch-action: none;
   z-index: 0;
 }
@@ -530,12 +530,22 @@
   text-transform: capitalize;
 }
 .tr-game .tr-touch-state span,
-.tr-game .tr-touch-state b {
+.tr-game .tr-touch-state b,
+.tr-game .tr-stroke-picker {
   background: #082a33cc;
   border: 1px solid #dfff4f33;
   border-radius: 20px;
   padding: 5px 12px;
   font-size: 14px;
+}
+.tr-game .tr-stroke-picker {
+  pointer-events: auto;
+  color: #edf5dd;
+  text-transform: capitalize;
+  min-height: 44px;
+}
+.tr-game .tr-touch-state {
+  align-items: center;
 }
 .tr-game .tr-touch-state b {
   color: var(--tr-lime);
@@ -559,6 +569,72 @@
   font-size: 12px;
   line-height: 1.45;
   text-shadow: 0 1px 4px #001b22;
+}
+.tr-game .tr-review {
+  position: absolute;
+  inset: 178px 12px 18px;
+  z-index: 6;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.tr-game .tr-review-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 12px;
+  color: #f4f7e9;
+  background: #092730ed;
+  font-size: 11px;
+  letter-spacing: 0.8px;
+}
+.tr-game .tr-review-label > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #e9ff76;
+}
+.tr-game .tr-review-label > b {
+  margin-left: auto;
+  font-size: 10px;
+  color: #dfff4f;
+}
+.tr-game .tr-review-verdict {
+  padding: 12px 18px;
+  background: #092730f5;
+  text-align: center;
+}
+.tr-game .tr-review-verdict small {
+  display: block;
+  color: #c8dbd4;
+  font-size: 12px;
+}
+.tr-game .tr-review-verdict strong {
+  display: block;
+  font:
+    700 42px/1.1 'Barlow Condensed',
+    sans-serif;
+  letter-spacing: 2px;
+}
+.tr-game .tr-review-in {
+  color: #dfff4f;
+}
+.tr-game .tr-review-out {
+  color: #ff937e;
+}
+.tr-game .tr-review-verdict p {
+  font-size: 12px;
+}
+.tr-game .tr-review-progress {
+  height: 3px;
+  margin-top: 10px;
+  background: #ffffff20;
+}
+.tr-game .tr-review-progress i {
+  display: block;
+  height: 100%;
+  background: #dfff4f;
 }
 .tr-game .tr-aim {
   display: flex;
