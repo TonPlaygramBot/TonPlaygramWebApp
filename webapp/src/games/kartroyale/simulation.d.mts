@@ -3,7 +3,6 @@ export interface Input {
   brake: boolean;
   drift: boolean;
   boost: boolean;
-  use: boolean;
 }
 export interface Racer {
   id: string;
@@ -32,9 +31,14 @@ export interface Racer {
   finishTime: number;
   collision: number;
   health: number;
-  shield: number;
-  weapon: 'rocket' | null;
-  weaponCooldown: number;
+  kartId: string;
+  retired: boolean;
+  wallContact: boolean;
+  impactId: number;
+  impact: number;
+  damageFront: number;
+  damageRear: number;
+  damageSide: number;
   hitFlash: number;
   input: Input;
   lastInput: number;
@@ -44,9 +48,7 @@ export interface TrackConfig {
   id: string;
   name: string;
   district: string;
-  x: number;
-  z: number;
-  bend: number;
+  streets: string[];
   width: number;
   sky: string;
   ground: string;
@@ -55,12 +57,21 @@ export interface TrackConfig {
 export interface Track extends TrackConfig {
   points: { x: number; z: number; yaw: number; distance: number }[];
   length: number;
+  x: number;
+  z: number;
+  bend: number;
+  center: { x: number; z: number };
+  bounds: number[];
 }
 export const STEP: number,
   LAPS: number,
   COLORS: string[],
   TRACKS: TrackConfig[];
-export const POWERUPS: string[];
+export const RACE_LIMIT: number;
+export const KARTS: { id: string; name: string; detail: string }[];
+export const TRACK_ALIASES: Record<string, string>;
+export function normalizeTrack(id: string): string;
+export function normalizeKart(id: string): string;
 export const CUPS: {
   name: string;
   track: string;
@@ -74,7 +85,14 @@ export function nearestPoint(
   t: Track,
   x: number,
   z: number
-): { index: number; distance: number; lane: number };
+): {
+  index: number;
+  distance: number;
+  lane: number;
+  x: number;
+  z: number;
+  yaw: number;
+};
 export function createRacer(
   t: Track,
   id: string,
@@ -99,6 +117,4 @@ export function stepRace(
   d?: string
 ): void;
 export function standings(r: Racer[]): Racer[];
-export function collectPowerup(r: Racer, kind: string): boolean;
 export function damageRacer(r: Racer, amount: number): number;
-export function useWeapon(r: Racer, racers: Racer[]): string | null;

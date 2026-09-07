@@ -1,0 +1,57 @@
+{
+  "verified": "2026-09-07",
+  "karts": {
+    "creator": "Kenney",
+    "license": "CC0-1.0",
+    "page": "https://kenney.nl/assets/car-kit",
+    "archive": "https://kenney.nl/media/pages/assets/car-kit/1a312ec241-1775131960/kenney_car-kit.zip",
+    "version": "3.1",
+    "archiveSha256": "fac7dacac5c7874348cf19729af3ef205f3d366493edaf0a827d93f4fdf3d0c4",
+    "files": [
+      {
+        "file": "kenney-oobi.glb",
+        "sha256": "035c80531d201f050fb38c3edb348833fd0f6be0b2a132fe8d804f52a15e5756",
+        "bytes": 251516
+      },
+      {
+        "file": "kenney-oodi.glb",
+        "sha256": "1a6d7dc227d7f1edb8aebcecaeef0749c614dcb168b69a59e0127ad6a3a71a59",
+        "bytes": 230984
+      },
+      {
+        "file": "kenney-ooli.glb",
+        "sha256": "8b496397361b92f481e83dd5d0b74649571bae53e900ffbd785bb2d384182cc2",
+        "bytes": 233380
+      },
+      {
+        "file": "kenney-oopi.glb",
+        "sha256": "09c1a7522345761dec9d0d1efbf6093aa1611a5ccbd825e1e3260b1607a2d8ab",
+        "bytes": 236196
+      },
+      {
+        "file": "kenney-oozi.glb",
+        "sha256": "116afde6ab8e4b94ff8f2d79ea0ef8cca15bab3a3aad2c5d73c0dc0fed5da654",
+        "bytes": 240776
+      },
+      {
+        "file": "Textures/colormap.png",
+        "sha256": "f3622a03a20c6696065cae9cbe391351be873508af190c2ebd1d420c055787a5",
+        "bytes": 12371
+      }
+    ],
+    "adaptation": "Runtime scale normalization, wheel pivots and different nose, sidepod or rear-wing additions; identical physics."
+  },
+  "flag": {
+    "creator": "lipis/flag-icons contributors",
+    "license": "MIT",
+    "url": "https://raw.githubusercontent.com/lipis/flag-icons/v7.3.2/flags/4x3/al.svg",
+    "sha256": "4ae4d2950f6a08528639700e48d19930b964478a2548cb9bf41b898c2b757b11",
+    "bytes": 3126
+  },
+  "geography": {
+    "source": "Tirana Streets shared/world.mjs",
+    "license": "ODbL-1.0",
+    "attribution": "© OpenStreetMap contributors",
+    "sourceSha256": "fcc7a974d8fc150a8400c6d790fa6785bf16d21dd14e602b0d238582d96bc6e4"
+  }
+}

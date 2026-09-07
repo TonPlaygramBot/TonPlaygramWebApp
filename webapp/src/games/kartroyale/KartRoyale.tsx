@@ -22,13 +22,18 @@ import {
   Cpu,
   Wifi,
   WifiOff,
-  Rocket,
-  ShieldCheck,
   Wrench
 } from 'lucide-react';
 import { KartRenderer } from './renderer';
 import type { Quality, Frame, Result } from './renderer';
-import { COLORS, TRACKS, CUPS, makeTrack } from './simulation.mjs';
+import {
+  COLORS,
+  TRACKS,
+  CUPS,
+  KARTS,
+  makeTrack,
+  normalizeKart
+} from './simulation.mjs';
 import { loadCareer, recordRace, formatTime } from './career';
 import { KartAudio } from './audio';
 import { request, saveSession, loadSession } from './network';
@@ -56,9 +61,9 @@ const modes = [
 ] as const;
 function CircuitMap({ id, frame }: { id: string; frame?: Frame | null }) {
   const t = frame?.track || maps.get(id)!,
-    extent = Math.max(t.x, t.z) * (1 + t.bend) + 12;
+    extent = Math.max(t.x, t.z) + 12;
   const project = (x: number, z: number) =>
-    `${((x / extent) * 42 + 50).toFixed(2)},${((z / extent) * 42 + 50).toFixed(2)}`;
+    `${(((x - t.center.x) / extent) * 42 + 50).toFixed(2)},${(((z - t.center.z) / extent) * 42 + 50).toFixed(2)}`;
   return (
     <svg
       className="kr-map"
@@ -82,8 +87,8 @@ function CircuitMap({ id, frame }: { id: string; frame?: Frame | null }) {
         .map((r) => (
           <circle
             key={r.id}
-            cx={(r.x / extent) * 42 + 50}
-            cy={(r.z / extent) * 42 + 50}
+            cx={((r.x - t.center.x) / extent) * 42 + 50}
+            cy={((r.z - t.center.z) / extent) * 42 + 50}
             r={r.ai ? 2 : 3}
             fill={r.color}
             stroke="#101819"
@@ -105,9 +110,18 @@ export default function KartRoyale({
   const [loaded, setLoaded] = useState(false),
     [error, setError] = useState(''),
     [mode, setMode] = useState<Mode>(renderOnlineLobby ? 'online' : 'ai'),
-    [trackId, setTrackId] = useState('harbor'),
+    [trackId, setTrackId] = useState('skanderbeg'),
     [difficulty, setDifficulty] = useState('rookie'),
-    [paint, setPaint] = useState(0);
+    [paint, setPaint] = useState(0),
+    [kartId, setKartId] = useState(() => {
+      try {
+        return normalizeKart(
+          localStorage.getItem('racingRoyal.kart') || 'apex'
+        );
+      } catch {
+        return 'apex';
+      }
+    });
   const [screen, setScreen] = useState<'lobby' | 'race' | 'results'>('lobby'),
     [hud, setHud] = useState<Frame | null>(null),
     [result, setResult] = useState<Result | null>(null),
@@ -115,7 +129,13 @@ export default function KartRoyale({
     [cup, setCup] = useState(0),
     [reward, setReward] = useState(0),
     [saved, setSaved] = useState(true);
-  const [muted, setMuted] = useState(true),
+  const [muted, setMuted] = useState(() => {
+      try {
+        return localStorage.getItem('racingRoyal.muted') === 'true';
+      } catch {
+        return false;
+      }
+    }),
     [quality, setQuality] = useState<Quality>('auto'),
     [modal, setModal] = useState<'settings' | 'help' | 'pause' | null>(null);
   const [room, setRoom] = useState<Room | null>(null),
@@ -150,6 +170,7 @@ export default function KartRoyale({
     setScreen('results');
     setModal(null);
     engine.current?.clearInput();
+    audio.current?.silence();
     audio.current?.beep(880, 0.3);
     if (!sessionRef.current) {
       const me = r.racers.find((p) => p.id === r.playerId)!,
@@ -157,8 +178,8 @@ export default function KartRoyale({
         n = recordRace(
           careerRef.current,
           r.trackId,
-          place,
-          me.finishTime || r.elapsed,
+          me.finished ? place : 7,
+          me.finished ? me.finishTime : 0,
           raceCup.current
         );
       setCareer(n.career);
@@ -177,7 +198,7 @@ export default function KartRoyale({
           if (!active) return;
           setHud(f);
           audio.current?.update(
-            f.speed,
+            f,
             screenRef.current === 'race' && !modalRef.current
           );
           if (f.countdown !== count.current) {
@@ -217,10 +238,19 @@ export default function KartRoyale({
     engine.current?.setColor(COLORS[paint]);
   }, [paint, loaded]);
   useEffect(() => {
+    engine.current?.setKart(kartId);
+    try {
+      localStorage.setItem('racingRoyal.kart', kartId);
+    } catch {}
+  }, [kartId, loaded]);
+  useEffect(() => {
     engine.current?.setQuality(quality);
   }, [quality]);
   useEffect(() => {
     audio.current?.setMuted(muted);
+    try {
+      localStorage.setItem('racingRoyal.muted', String(muted));
+    } catch {}
   }, [muted]);
   useEffect(() => {
     const keys = new Set<string>();
@@ -251,8 +281,7 @@ export default function KartRoyale({
           'd',
           's',
           ' ',
-          'Shift',
-          'f'
+          'Shift'
         ].includes(e.key)
       ) {
         e.preventDefault();
@@ -260,20 +289,15 @@ export default function KartRoyale({
         apply();
       }
       if (e.key === 'Escape') setModal('pause');
-      if (e.key === 'f') {
-        const i = engine.current?.input;
-        if (i) i.use = true;
-      }
     };
     const up = (e: KeyboardEvent) => {
       keys.delete(e.key);
-      if (e.key === 'f' && engine.current?.input)
-        engine.current.input.use = false;
       if (!modalRef.current) apply();
     };
     const blur = () => {
       keys.clear();
       engine.current?.clearInput();
+      audio.current?.silence();
       if (screenRef.current === 'race' && !sessionRef.current)
         setModal('pause');
     };
@@ -293,7 +317,10 @@ export default function KartRoyale({
   }, []);
   useEffect(() => {
     engine.current?.pause(modal === 'pause' && !session);
-    if (modal) engine.current?.clearInput();
+    if (modal) {
+      engine.current?.clearInput();
+      audio.current?.silence();
+    }
     if (!modal) return;
     const prior = document.activeElement as HTMLElement | null,
       dialog = document.querySelector('.kr-modal');
@@ -364,6 +391,7 @@ export default function KartRoyale({
           engine.current?.networkState(r, sessionRef.current.playerId);
         } else if (screenRef.current !== 'lobby') {
           engine.current?.showGarage();
+          audio.current?.silence();
           setScreen('lobby');
           setResult(null);
         }
@@ -386,6 +414,7 @@ export default function KartRoyale({
         setRoom(null);
         setScreen('lobby');
         engine.current?.showGarage();
+        audio.current?.silence();
         setNotice(d.error);
       };
       s.on('kart:state', state);
@@ -450,6 +479,8 @@ export default function KartRoyale({
       sessionRef.current = n;
       setSession(n);
       saveSession(n);
+      if (r.state && ['waiting', 'countdown'].includes(r.state.status))
+        await request(s, 'appearance', { kartId }).catch(() => {});
       setResume(false);
       if (r.state) {
         setRoom(r.state);
@@ -484,6 +515,7 @@ export default function KartRoyale({
       sessionRef.current = next;
       setSession(next);
       saveSession(next);
+      await request(s, 'appearance', { kartId }).catch(() => {});
       setResume(false);
       setNotice('');
       done.current = false;
@@ -521,6 +553,7 @@ export default function KartRoyale({
     setScreen('lobby');
     setModal(null);
     engine.current?.showGarage();
+    audio.current?.silence();
   };
   const garage = () => {
     if (session) {
@@ -528,6 +561,7 @@ export default function KartRoyale({
       return;
     }
     engine.current?.showGarage();
+    audio.current?.silence();
     setScreen('lobby');
     setModal(null);
     setResult(null);
@@ -548,10 +582,7 @@ export default function KartRoyale({
     );
   };
   const hold =
-    (
-      key: 'steer' | 'drift' | 'boost' | 'brake' | 'use',
-      value: number | boolean
-    ) =>
+    (key: 'steer' | 'drift' | 'boost' | 'brake', value: number | boolean) =>
     (e: React.PointerEvent<HTMLButtonElement>) => {
       e.preventDefault();
       e.currentTarget.setPointerCapture(e.pointerId);
@@ -559,15 +590,14 @@ export default function KartRoyale({
       const i = engine.current?.input;
       if (i) (i as unknown as Record<string, number | boolean>)[key] = value;
     };
-  const release =
-    (key: 'steer' | 'drift' | 'boost' | 'brake' | 'use') => () => {
-      const i = engine.current?.input;
-      if (i)
-        (i as unknown as Record<string, number | boolean>)[key] =
-          key === 'steer' ? 0 : false;
-    };
+  const release = (key: 'steer' | 'drift' | 'boost' | 'brake') => () => {
+    const i = engine.current?.input;
+    if (i)
+      (i as unknown as Record<string, number | boolean>)[key] =
+        key === 'steer' ? 0 : false;
+  };
   const touch = (
-    key: 'steer' | 'drift' | 'boost' | 'brake' | 'use',
+    key: 'steer' | 'drift' | 'boost' | 'brake',
     value: number | boolean
   ) => ({
     onPointerDown: hold(key, value),
@@ -592,8 +622,19 @@ export default function KartRoyale({
       ? result.racers.findIndex((r) => r.id === result.playerId) + 1
       : 0;
   return (
-    <div className={`kr-app kr-${screen}`}>
+    <div
+      className={`kr-app kr-${screen}`}
+      onPointerDownCapture={() => audio.current?.unlock()}
+    >
       <div ref={canvas} className="kr-canvas" />
+      <a
+        className="kr-map-credit"
+        href="https://www.openstreetmap.org/copyright"
+        target="_blank"
+        rel="noreferrer"
+      >
+        © OpenStreetMap contributors
+      </a>
       {screen === 'lobby' && (
         <>
           <div className="kr-vignette" />
@@ -627,7 +668,7 @@ export default function KartRoyale({
             <section className="kr-title">
               <div className="kr-eyebrow">
                 <i />
-                STREET RACING · VOL. 01
+                TIRANA STREET SERIES · 01
               </div>
               <h1>
                 RACING
@@ -638,11 +679,39 @@ export default function KartRoyale({
               <p>YOUR STREETS. YOUR RACE.</p>
             </section>
             <section className="kr-vehicle-info">
-              <span className="kr-label">01 / YOUR RACE CAR</span>
-              <h2>
-                APEX <span>02</span>
-              </h2>
-              <p>TUBULAR CHASSIS · RACE TUNED</p>
+              <span className="kr-label">YOUR KART · 6 CHASSIS</span>
+              <h2>{KARTS.find((k) => k.id === kartId)?.name}</h2>
+              <p>{KARTS.find((k) => k.id === kartId)?.detail}</p>
+              <div className="kr-kart-picker" aria-label="Choose your kart">
+                {[-1, 1].map((d) => (
+                  <button
+                    key={d}
+                    className="kr-icon"
+                    disabled={!!room || busy}
+                    aria-label={d < 0 ? 'Previous kart' : 'Next kart'}
+                    onClick={() =>
+                      setKartId(
+                        KARTS[
+                          (KARTS.findIndex((k) => k.id === kartId) +
+                            d +
+                            KARTS.length) %
+                            KARTS.length
+                        ].id
+                      )
+                    }
+                  >
+                    {d < 0 ? (
+                      <ChevronLeft size={20} />
+                    ) : (
+                      <ChevronRight size={20} />
+                    )}
+                  </button>
+                ))}
+                <span>
+                  {KARTS.findIndex((k) => k.id === kartId) + 1} / {KARTS.length}{' '}
+                  · SAME RACE PERFORMANCE
+                </span>
+              </div>
               <div className="kr-swatches">
                 {COLORS.slice(0, 5).map((c, i) => (
                   <button
@@ -662,7 +731,9 @@ export default function KartRoyale({
                   <button
                     className={`kr-mode ${mode === m.id ? 'active' : ''}`}
                     aria-pressed={mode === m.id}
-                    disabled={!!room || busy}
+                    disabled={
+                      !!room || busy || (m.id === 'online' && !getSocket)
+                    }
                     key={m.id}
                     onClick={() => {
                       setMode(m.id);
@@ -672,7 +743,11 @@ export default function KartRoyale({
                     <m.icon size={21} />
                     <span>
                       <b>{m.title}</b>
-                      <small>{m.sub}</small>
+                      <small>
+                        {m.id === 'online' && !getSocket
+                          ? 'In TonPlaygram'
+                          : m.sub}
+                      </small>
                     </span>
                     {mode === m.id && <Check className="kr-tick" size={13} />}
                   </button>
@@ -688,7 +763,8 @@ export default function KartRoyale({
                       <span className="kr-label">{track.district}</span>
                       <h3>{track.name}</h3>
                       <p>
-                        3 laps <span>·</span> 6 racers
+                        {(maps.get(trackId)!.length / 1000).toFixed(2)} km{' '}
+                        <span>·</span> 3 laps
                       </p>
                     </div>
                     <div className="kr-track-arrows">
@@ -782,6 +858,24 @@ export default function KartRoyale({
               )}
               {mode === 'online' && (
                 <div className="kr-options kr-online">
+                  {!room && (
+                    <label className="kr-circuit-choice">
+                      Tirana circuit
+                      <select
+                        className="kr-input"
+                        aria-label="Online racing circuit"
+                        value={trackId}
+                        disabled={busy}
+                        onChange={(e) => setTrackId(e.target.value)}
+                      >
+                        {TRACKS.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
                   {!room ? (
                     renderOnlineLobby ? (
                       renderOnlineLobby({
@@ -995,7 +1089,7 @@ export default function KartRoyale({
               </div>
             </section>
             <div className="kr-garage-bottom">
-              <span>OPEN WHEEL. FULL SEND.</span>
+              <span>FIVE CIRCUITS. ONE TIRANA.</span>
               <span>EST. TONPLAYGRAM</span>
             </div>
           </main>
@@ -1007,7 +1101,8 @@ export default function KartRoyale({
             <div className="kr-position">
               <b>{hud?.position || 1}</b>
               <span>
-                / 6<br />
+                / {hud?.racers.length || 6}
+                <br />
                 POSITION
               </span>
             </div>
@@ -1060,10 +1155,10 @@ export default function KartRoyale({
             <b>{Math.round((hud?.speed || 0) * 3.6)}</b>
             <span>KM/H</span>
           </div>
-          <div className="kr-combat-hud">
+          <div className="kr-integrity-hud">
             <div
               className="kr-health"
-              aria-label={`${Math.round(hud?.health || 100)} percent car health`}
+              aria-label={`${Math.round(hud?.health ?? 100)} percent car health`}
             >
               <span>
                 <Wrench size={14} /> INTEGRITY
@@ -1073,21 +1168,13 @@ export default function KartRoyale({
               </div>
               <b>{Math.round(hud?.health ?? 100)}</b>
             </div>
-            {(hud?.shield || 0) > 0 && (
-              <span className="kr-shield">
-                <ShieldCheck size={16} /> SHIELD {Math.ceil(hud!.shield)}s
-              </span>
-            )}
-            <button
-              className={`kr-weapon ${hud?.weapon ? 'ready' : ''}`}
-              disabled={!hud?.weapon}
-              aria-label={hud?.weapon ? 'Fire rocket' : 'Collect a power-up'}
-              {...touch('use', true)}
-            >
-              <Rocket size={25} />
-              <span>{hud?.weapon ? 'FIRE' : 'EMPTY'}</span>
-              <small>{hud?.weapon ? 'ROCKET LOCKED' : 'FIND A PICKUP'}</small>
-            </button>
+            <small>
+              {(hud?.health ?? 100) > 70
+                ? 'RACE READY'
+                : (hud?.health ?? 100) > 40
+                  ? 'BODYWORK DAMAGED'
+                  : 'ENGINE DAMAGED · SLOW DOWN'}
+            </small>
           </div>
           <div className="kr-touch-controls">
             <div className="kr-steering">
@@ -1121,7 +1208,7 @@ export default function KartRoyale({
             </div>
           </div>
           <div className="kr-key-hint">
-            ← → STEER <span>SPACE DRIFT</span> SHIFT BOOST <span>F FIRE</span>
+            ← → STEER <span>SPACE DRIFT</span> SHIFT BOOST
           </div>
         </div>
       )}
@@ -1138,7 +1225,9 @@ export default function KartRoyale({
                   ? place === 1
                     ? 'VICTORY'
                     : 'FINISH POSITION'
-                  : 'RACE ENDED'}
+                  : finishedMe?.retired
+                    ? 'KART RETIRED'
+                    : 'RACE ENDED'}
               </span>
             </div>
             <h2>
@@ -1309,13 +1398,13 @@ export default function KartRoyale({
                     >
                       Scaranto
                     </a>
-                    , buildings by{' '}
+                    , karts by{' '}
                     <a
-                      href="https://quaternius.com/packs/downtowncitymegakit.html"
+                      href="https://kenney.nl/assets/car-kit"
                       target="_blank"
                       rel="noreferrer"
                     >
-                      Quaternius
+                      Kenney
                     </a>
                     , asphalt by{' '}
                     <a
@@ -1325,7 +1414,32 @@ export default function KartRoyale({
                     >
                       Rob Tuytel / Poly Haven
                     </a>
-                    . All CC0. Models and materials adapted for TonPlaygram.
+                    . Models and asphalt: CC0. Adapted for TonPlaygram. Tirana
+                    geography:{' '}
+                    <a
+                      href="https://www.openstreetmap.org/copyright"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      © OpenStreetMap contributors · ODbL
+                    </a>
+                    . Albanian flag:{' '}
+                    <a
+                      href="https://github.com/lipis/flag-icons"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      flag-icons · MIT
+                    </a>
+                    .
+                    <a
+                      href="/assets/kart-royale/ATTRIBUTION.md"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Credits and sources
+                    </a>
+                    .
                   </p>
                 </details>
               </>
@@ -1345,7 +1459,8 @@ export default function KartRoyale({
                   <b>03 · Make your move.</b>
                   <p>
                     Hold BOOST on the straights. Finish three complete laps. The
-                    barriers slow you down if you cut a corner.
+                    harder you crash, the more bodywork and engine damage you
+                    take. At zero integrity your kart retires.
                   </p>
                 </div>
                 <p>

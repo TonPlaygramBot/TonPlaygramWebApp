@@ -1,3 +1,4 @@
+import { TRACKS, normalizeTrack } from '../../webapp/src/games/kartroyale/simulation.mjs';
 const BASE_SECURITY_CONTROLS = Object.freeze([
   'tpg_account_number_required',
   'authoritative_lobby_server',
@@ -208,8 +209,8 @@ export function validateSeatTableRequest({
 
   const safeMatchMeta = {};
   if (normalizedGameType === 'kartroyale') {
-    const trackId = String(matchMeta.trackId || 'harbor').trim().toLowerCase();
-    if (!['harbor', 'neon', 'canyon'].includes(trackId)) return { ok: false, error: 'invalid_track' };
+    const trackId = normalizeTrack(String(matchMeta.trackId || 'skanderbeg').trim().toLowerCase());
+    if (!TRACKS.some(t => t.id === trackId)) return { ok: false, error: 'invalid_track' };
     if (!Number.isSafeInteger(normalizedStake * normalizedMaxPlayers)) return { ok: false, error: 'invalid_stake' };
     safeMatchMeta.trackId = trackId;
   }

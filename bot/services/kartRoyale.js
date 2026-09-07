@@ -1,6 +1,8 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import {
   STEP,
+  RACE_LIMIT,
+  normalizeKart,
   makeTrack,
   createRacer,
   stepRace,
@@ -76,7 +78,10 @@ export function attachKartRoyale(
     emit(r);
   };
   const startRace = (r, fillAI = false) => {
-    r.racers = r.players.map((p, i) => createRacer(r.track, p.id, p.name, i));
+    r.racers = r.players.map((p, i) => ({
+      ...createRacer(r.track, p.id, p.name, i),
+      kartId: normalizeKart(p.kartId)
+    }));
     while (fillAI && r.racers.length < 6) {
       const i = r.racers.length;
       r.racers.push(
@@ -244,6 +249,7 @@ export function attachKartRoyale(
       const r = [...rooms.values()].find(
         (r) =>
           r.public &&
+          r.track.id === makeTrack(d.trackId).id &&
           !r.tableId &&
           r.status === 'waiting' &&
           r.players.length < 6 &&
@@ -336,6 +342,20 @@ export function attachKartRoyale(
       startRace(r, true);
       cb({ ok: true });
     });
+    listen('appearance', (d, cb) => {
+      const room = current(s),
+        p = player(room, s);
+      if (!p || !['waiting', 'countdown'].includes(room.status))
+        return cb({
+          ok: false,
+          error: 'Choose your kart before the race starts.'
+        });
+      p.kartId = normalizeKart(d.kartId);
+      const racer = room.racers.find((r) => r.id === p.id);
+      if (racer) racer.kartId = p.kartId;
+      cb({ ok: true });
+      emit(room);
+    });
     listen('input', (d) => {
       if (clock() - inputAt > 1000) {
         inputAt = clock();
@@ -424,12 +444,13 @@ export function attachKartRoyale(
           .every(
             (r) =>
               r.finished ||
+              r.retired ||
               (r.disconnected &&
                 (!room.players.some((p) => p.id === r.id) ||
                   now - room.players.find((p) => p.id === r.id).disconnectedAt >
                     15000))
           );
-        if (allDone || room.elapsed > 240) {
+        if (allDone || room.elapsed >= RACE_LIMIT) {
           finish(room);
         }
       }
