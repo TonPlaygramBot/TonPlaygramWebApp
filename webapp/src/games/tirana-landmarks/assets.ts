@@ -1,10 +1,7 @@
 import type { LandmarkAsset } from './placement';
 
-/**
- * Intentionally empty: the September 7 source catalogue contains zero downloaded
- * or tested models. Do not turn source-listing URLs into runtime asset URLs.
- * Add a record only after the actual self-contained GLB, model anchor, orientation,
- * units, location, attribution, and rights have been checked. Approval here is
- * project review metadata, not a substitute for the asset owner's permission.
- */
+/** Third-party catalogue downloads only. None have been acquired or approved.
+ * The six original recreated runtime meshes are independent of this intake list:
+ * see nativeModels.mjs, nativeLocations.mjs and NativeLandmarkLayer.ts.
+ * Do not substitute a listing URL for an acquired self-contained GLB. */
 export const APPROVED_TIRANA_LANDMARK_ASSETS: readonly LandmarkAsset[] = Object.freeze([]);

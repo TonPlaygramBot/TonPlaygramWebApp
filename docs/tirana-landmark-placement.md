@@ -1,45 +1,116 @@
-# Tirana landmark asset integration — preparation only
+# Shared Tirana landmarks — six original mesh recreations
 
-Status on 2026-09-07: **zero model files acquired, zero new models installed, no renderer wiring, no visual verification**. The earlier Tirana catalogue was a list of sources, not a mesh pack. This change must not be described as adding the listed buildings or statues to the games. Existing scenes, collision, missions and production behavior are unchanged.
+## Delivered in this branch
 
-## Implemented and tested
+Six original, approximate 3D mesh reconstructions are synchronously built into the
+Tirana Streets, Racing Royal (`kartroyale`) and BlackWater scene entry points:
+Clock Tower, Et’hem Bey Mosque, Pyramid, National History Museum, Eyes of Tirana,
+and the Skanderbeg equestrian monument. They are NOT Google Earth extracts,
+photogrammetry, or the models linked in the earlier source catalogue.
 
-`webapp/src/games/tirana-landmarks/placement.ts` is a dependency-free TypeScript preflight module. It projects latitude/longitude using the same origin and metre conversion as `webapp/scripts/build-tirana-map.py`, or resolves an existing `WORLD.landmarks` ID without moving it to a nearby road. It preserves a measured model anchor under uniform scaling and yaw. It rejects unknown/ambiguous locations, missing review metadata, source-page URLs, invalid transforms, duplicate physical landmarks and anchors outside the current map.
+`nativeModels.mjs` produces the same numeric mesh data used by the Three.js layer
+and the GLB exporter. All meshes have normals, PBR material parameters, near/far
+LODs and metre-based dimensions. There are no model downloads, external textures,
+credentials, runtime map requests or asynchronous landmark loading races.
 
-`assets.ts` intentionally exports an empty immutable approval list. The URL/approval checks validate metadata only: they do not prove file existence, permission, mesh accuracy, terrain alignment or collision suitability.
+The former Tirana/Racing renderers are preserved byte-for-byte as
+`cityBaseRenderer.ts` and `baseTiranaScenery.ts`. BlackWater's `baseCityWorld.ts`
+retains the original assembler with an explicit excluded-building-ID parameter. Small public
+entry-point wrappers compose the new shared landmark layer without changing
+input, networking, missions, weapons, race rules or camera directions. The
+compatibility adapter retires the old special landmark meshes, prunes verified
+museum/tower footprint triangles from merged scenery, and skips replaced
+BlackWater building archetypes before batching by ID, not by proximity. Retired meshes remain owned by their
+original scene for disposal; BlackWater and Tirana explicitly detach/dispose the
+new layer on teardown. Racing's existing group teardown owns its layer.
 
-## The three game coordinate systems
+`cityVisuals.ts` excludes replacement landmark IDs from generic instanced facades
+so asynchronous city-asset loading cannot draw another building over them.
 
-Tirana Streets and **Racing Royal** (the `kartroyale` implementation) use the same Tirana `WORLD` coordinates. BlackWater subtracts its existing `ORIGIN` from them; at the inspected base commit that value is `{ x: -220, z: 600 }`. There is no scale change or rotation. When connecting a real asset, BlackWater must pass the `ORIGIN` exported by its own layout rather than copy those numbers into the shared asset record.
+## Placement and accuracy
 
-The preflight call is `planGamePlacements(WORLD, approvedAssets, { game: 'tiranastreets' })` or `{ game: 'kartroyale' }`; BlackWater uses `{ game: 'blackwater', mapOrigin: ORIGIN }`. The shared module deliberately does not import BlackWater's full layout into the other games.
+`nativeLocations.mjs` is the single shared registry. It retains the map builder's
+projection (origin latitude 41.3275, longitude 19.8188). Clock, mosque and Pyramid
+use their existing OSM-derived `WORLD.landmarks` anchors and way IDs. The statue
+uses the mapped artwork node 13137823114. Museum and Eyes use sourced building/site
+coordinates. BlackWater applies its imported `ORIGIN` once; no scale or axis swap
+is introduced. Racing includes landmarks within its existing track-district margin.
 
-Integration sites inspected:
+These are source/map positions, not survey-accurate registrations. Eyes currently
+uses a mapped SITE centre; its exact tower base still needs an in-game alignment
+review. Dimensions, facade details and yaw are artist approximations, not surveyed
+measurements. The museum relief is an original abstract panel, not a reproduction
+of the copyrighted mosaic. Et’hem Bey Mosque is not the separately listed Great
+Mosque. The new statue is Skanderbeg, not a substitute labelled as Stalin, Partisan
+Girl or Freedom/Victory.
 
-- Tirana Streets: `webapp/src/games/tiranastreets/renderer.ts`.
-- Racing Royal: `webapp/src/games/kartroyale/tiranaScenery.ts`.
-- BlackWater: `webapp/src/games/blackwater/cityWorld.ts`, with the transform from `shared/layout.mjs`.
+Footprint replacement requires an exact OSM way, an unambiguous nearby name match,
+or an unnamed footprint containing the source point. A differently named neighbour
+is never removed. If identification fails, the sourced landmark is still placed,
+the existing shell is retained, and a diagnostic is exposed in
+`scene.userData.tiranaLandmarks` (Racing: `group.userData.tiranaLandmarks`). Check
+these diagnostics and any remaining overlaps in the actual full game before merge.
 
-These call sites are **not modified** in this preparation change. Existing OSM footprint/landmark anchors are source-data positions, not newly surveyed coordinates. No precise location is invented for an unverified statue. An out-of-map landmark must not be relocated into the playable district to make it appear.
+Gameplay colliders are unchanged. The new statue is scenery-only in this pass;
+its plinth is NOT a new authoritative collision obstacle. Existing building
+colliders remain the shared simulation's original footprints/archetype data and
+must be reviewed against the recreated silhouettes before a production release.
+No distant/out-of-map monument is moved into central Tirana.
 
-## Blocked asset intake
+## Original catalogue status
 
-`tirana-landmark-source-status.json` retains the eleven source listings and their unacquired status. Both clock-tower listings can refer to the existing `clock` anchor, but only one model of that physical landmark should ultimately be approved. All other model locations still require verification against the exact physical object represented by the acquired file.
+All eleven third-party catalogue entries remain unacquired/unapproved. The old
+`APPROVED_TIRANA_LANDMARK_ASSETS` list intentionally tracks only that external
+intake and stays empty. The native recreation registry is separate and nonempty.
+Petrelë Castle and the unverified statue listings are not added. This is not a
+complete recreation of the city or the original catalogue.
 
-Completion requires acquiring the original permitted model files and their textures, checking rights/attribution and current appearance, validating each GLB, measuring its units, local ground anchor and orientation, and confirming geographic placement. Only then should the appropriate existing shell be replaced, preserving correct collision and avoiding double buildings. Statues need separate collision decisions; these are not provided by visual-only placement math.
+## Reproduce checks and GLBs
 
-The three live renderers still need loader lifetime/error handling, asset replacement, distance/LOD management, disposal, collision review and visual testing on a portrait viewport. This branch does not implement or certify those steps. There are no invented asset URLs, Google Earth exports, copied third-party meshes, or generated substitute statues in this change.
-
-## Validation performed
-
-Run from the repository root with Node 22 supporting TypeScript stripping:
+From repository root on Node 22:
 
 ```sh
-node --experimental-strip-types --test test/tiranaLandmarkPlacement.test.mjs
+node --experimental-strip-types --test test/tiranaLandmarkPlacement.test.mjs test/tiranaNativeLandmarks.test.mjs
+node webapp/scripts/export-tirana-landmarks.mjs /tmp/tirana-landmark-glbs
 ```
 
-Executed locally on Node 22.16.0: **20 tests passed, 0 failed**. Tests use clearly labelled synthetic anchors/model metadata, not downloaded models. They exercise projection/round trips, all three game mapping branches, BlackWater's explicit origin requirement, anchor transforms, bounds and invalid inputs, duplicate rejection, and the empty registry.
+Executed in this session: **53 tests passed, 0 failed**. Numeric tests cover every
+near/far model, finite/nondegenerate geometry, unit normals, orientation consistency,
+GLB embedded buffers/accessors, deterministic builds, smaller LODs, geospatial
+transforms, BlackWater translation, duplicate and invalid input handling, footprint
+identity and conservative triangle pruning. Geographic fixtures are explicitly
+synthetic; these tests are not a full-map visual registration test.
 
-No full webapp build, TypeScript compiler check, Three.js rendering, model download, collision test, physical-phone test or gameplay regression run was performed. The local runtime could not resolve GitHub or the npm registry; repository inspection and branch writes use the connected GitHub tool.
+All 12 exported GLBs were independently parsed with Python trimesh. Six 390×844
+CPU z-buffer review images were rendered from those exported GLBs and inspected.
+They are offline model renders, NOT Three.js or actual-game screenshots.
+TypeScript transpilation/syntax checks passed for the new/changed local TS files;
+this is not dependency-aware typechecking or a full webapp build.
 
-Inspected repository base: `d7488a41623f4e9840b008e554e28f8ef6eb6b74`.
+**Not completed:** full application build, actual Three.js/gameplay/browser GPU
+verification, multiplayer/collision regression, physical iOS/Android performance,
+thermal and touch checks. The local runtime cannot download dependencies; Chromium
+also blocked local URLs and could not create a WebGL context for an in-memory
+fixture. Do not describe those blocked checks as passed. GitHub Actions had no
+reported run when checked; the committed workflow is future reproducible validation,
+not evidence of a successful CI run. This branch is for review, not production.
+
+## Reference provenance
+
+Geography retains © OpenStreetMap contributors / ODbL attribution. The registry
+contains exact coordinate-source URLs and distinguishes existing map anchors,
+mapped building centre, site centre, and statue node. Architectural references:
+
+- Clock: https://www.openstreetmap.org/way/233519333
+- Et’hem Bey: https://www.openstreetmap.org/way/175108083
+- Pyramid footprint: https://www.openstreetmap.org/way/174510408
+- Pyramid transformation: https://www.mvrdv.com/projects/312/the-pyramid-of-tirana
+- Museum coordinate: https://mapcarta.com/35570648
+- Museum description: https://tirana.al/en/points-of-interest/museums/national-historical-museum
+- Eyes site: https://mapcarta.com/W764634562
+- Eyes author submission: https://www.theplan.it/award-2025-large/eyes-of-tirana-tower-sculptural-landmark-with-iridescent-facade-and-sustainable-design-in-albanias-capital-xplan-studio
+- Skanderbeg: https://www.openstreetmap.org/node/13137823114 and https://mapcarta.com/N13137823114
+
+No third-party reference images, map imagery, proprietary meshes or font files are
+embedded in the runtime assets. Inspected base commit:
+`d7488a41623f4e9840b008e554e28f8ef6eb6b74`.
