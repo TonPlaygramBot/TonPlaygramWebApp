@@ -87,8 +87,11 @@ unchanged. Old cached clients that do not support direct uploads must refresh.
 
 The API creates a private multipart upload and saves a MongoDB manifest. Each
 short-lived upload ticket signs one part and its exact byte length. The phone
-sends one 5 MiB part at a time directly to the bucket with no wall authorization
-headers or cookies. The API checks each provider ETag and byte count before
+sends bounded concurrent 5 MiB parts directly to the bucket with no wall authorization
+headers or cookies (up to three on normal connections, two when network information
+is unavailable, and one on slow/data-saving links or low-memory devices). Any
+request retry reduces the remaining upload to one worker after active requests
+drain. The API checks each provider ETag and byte count before
 acknowledging progress, and verifies the final object size before publishing.
 Retries reuse acknowledged parts; a completed object survives a failed database
 save without duplicate upload or duplicate publication. Completed upload receipts

@@ -2,9 +2,10 @@ import express from 'express';
 import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { Writable } from 'node:stream';
+import { uploadWallFile } from '../webapp/src/features/flamingo/wallUpload.js';
 
 const compression = createRequire(path.resolve('bot/package.json'))(
   'compression'
@@ -173,6 +174,76 @@ describe('wall HTTP upload and publication', () => {
     );
     const retry = await (await start(id, metadata)).json();
     expect(retry.post._id).toBe(first.post._id);
+  }, 15000);
+
+  test('resumes concurrent out-of-order ranges without double counting or corrupting the video', async () => {
+    const id = randomUUID();
+    const chunkBytes = 1024 ** 2;
+    const bytes = Buffer.alloc(5 * chunkBytes + 37);
+    for (let offset = 0; offset < bytes.length; offset += chunkBytes)
+      bytes.fill(
+        offset / chunkBytes + 1,
+        offset,
+        Math.min(offset + chunkBytes, bytes.length)
+      );
+    const metadata = {
+      name: 'parallel.mp4',
+      size: bytes.length,
+      type: 'video/mp4',
+      text: 'My video'
+    };
+    expect((await start(id, metadata)).status).toBe(201);
+    // Simulate distinct in-flight ranges, a lost receipt, and a duplicate retry.
+    const results = await Promise.all(
+      [2, 0, 1, 2].map((index) =>
+        put(
+          id,
+          index * chunkBytes,
+          bytes.subarray(index * chunkBytes, (index + 1) * chunkBytes)
+        )
+      )
+    );
+    expect(results.map((response) => response.status)).toEqual([
+      200, 200, 200, 200
+    ]);
+    const resumed = await (await start(id, metadata)).json();
+    expect(resumed.receivedOffsets.sort((a, b) => a - b)).toEqual([
+      0,
+      chunkBytes,
+      2 * chunkBytes
+    ]);
+    expect(resumed.received).toBe(3 * chunkBytes);
+    const progress = [];
+    const file = Object.assign(new Blob([bytes], { type: metadata.type }), {
+      name: metadata.name
+    });
+    const result = await uploadWallFile({
+      baseUrl: base.replace('/api/flamingo-wall', ''),
+      headers: owner,
+      file,
+      uploadId: id,
+      text: metadata.text,
+      connection: { effectiveType: '4g' },
+      deviceMemory: 8,
+      onProgress: (received) => progress.push(received)
+    });
+    expect(progress[0]).toBe(3 * chunkBytes);
+    expect(progress.at(-1)).toBe(bytes.length);
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+    const stored = await readFile(path.join(directory, `${id}-parallel.mp4`));
+    expect(stored.length).toBe(bytes.length);
+    const digest = (value) => createHash('sha256').update(value).digest('hex');
+    expect(digest(stored)).toBe(digest(bytes));
+    const playback = await fetch(`${base}/files/${id}-parallel.mp4`, {
+      headers: { Range: `bytes=${chunkBytes - 5}-${chunkBytes + 5}` }
+    });
+    expect(playback.status).toBe(206);
+    expect(Buffer.from(await playback.arrayBuffer())).toEqual(
+      bytes.subarray(chunkBytes - 5, chunkBytes + 6)
+    );
+    expect((await (await start(id, metadata)).json()).post._id).toBe(
+      result.post._id
+    );
   }, 15000);
 
   test('publishes an 8,000-character Unicode article with its photo without dropping the body', async () => {

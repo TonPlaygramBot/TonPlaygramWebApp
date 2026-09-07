@@ -8,6 +8,7 @@ export async function wallRequest(
     attempts = 4,
     timeoutMs = 120_000,
     request = fetch,
+    onRetry = (_error, _attempt) => {},
     delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
   } = {}
 ) {
@@ -61,7 +62,10 @@ export async function wallRequest(
       clearTimeout(timer);
       signal?.removeEventListener('abort', abort);
     }
-    if (attempt + 1 < attempts) await delay(750 * 2 ** attempt);
+    if (attempt + 1 < attempts) {
+      onRetry(failure, attempt + 1);
+      await delay(750 * 2 ** attempt);
+    }
   }
   throw failure;
 }
@@ -69,7 +73,7 @@ export async function wallRequest(
 export async function uploadObjectPart(
   url,
   chunk,
-  { signal, request = fetch } = {}
+  { signal, request = fetch, onRetry } = {}
 ) {
   const result = await wallRequest(
     url,
@@ -81,6 +85,7 @@ export async function uploadObjectPart(
     },
     {
       signal,
+      onRetry,
       timeoutMs: 300_000,
       request: async (destination, init) => {
         const response = await request(destination, init);
@@ -117,6 +122,8 @@ export async function uploadWallFile({
   priceTpg = 0,
   restorePostId = undefined,
   signal,
+  connection = globalThis.navigator?.connection,
+  deviceMemory = globalThis.navigator?.deviceMemory,
   onProgress = (_bytes, _phase) => {},
   send = wallRequest,
   sendObjectPart = uploadObjectPart
@@ -152,6 +159,24 @@ export async function uploadWallFile({
     throw new Error(
       'The upload server returned an invalid session. Please retry.'
     );
+  // Keep only a few Blob slices in flight, independent of the video's size.
+  // Unknown WebViews start conservatively; slow links and low-memory phones
+  // retain the single-range path. S3 parts share the same 16 MiB budget.
+  let concurrency = Math.min(
+    connection ? 3 : 2,
+    Math.max(1, Math.floor((16 * 1024 ** 2) / chunkSize))
+  );
+  if (
+    connection?.saveData ||
+    ['slow-2g', '2g', '3g'].includes(connection?.effectiveType) ||
+    (deviceMemory > 0 && deviceMemory <= 2)
+  )
+    concurrency = 1;
+  // Let existing requests finish, then retire extra workers for the rest of
+  // this attempt. Do not cancel sibling requests or discard acknowledged bytes.
+  const onRetry = () => {
+    concurrency = 1;
+  };
   const received = new Set((session.receivedOffsets || []).map(Number));
   const offsets = [];
   let uploaded = 0;
@@ -167,60 +192,65 @@ export async function uploadWallFile({
   if (signal?.aborted) abort();
   let failure;
   try {
-    // Send one range at a time. iOS/Android WebViews are prone to cancelling a
-    // sibling fetch when two large request bodies compete on a weak uplink.
-    // Small resumable ranges still make progress without restarting the video.
     await Promise.all(
-      Array.from({ length: Math.min(1, offsets.length) }, async () => {
-        try {
-          while (offsets.length && !workersController.signal.aborted) {
-            const offset = offsets.shift();
-            const chunk = file.slice(
-              offset,
-              Math.min(offset + chunkSize, file.size)
-            );
-            if (session.transport === 's3-multipart') {
-              const partNumber = offset / chunkSize + 1;
-              const partRoot = `${root}/${session.uploadId}/parts/${partNumber}`;
-              const ticket = await send(
-                `${partRoot}/sign`,
-                { method: 'POST', headers },
-                { signal: workersController.signal }
+      Array.from(
+        { length: Math.min(concurrency, offsets.length) },
+        async (_value, workerIndex) => {
+          try {
+            while (
+              offsets.length &&
+              workerIndex < concurrency &&
+              !workersController.signal.aborted
+            ) {
+              const offset = offsets.shift();
+              const chunk = file.slice(
+                offset,
+                Math.min(offset + chunkSize, file.size)
               );
-              const etag = await sendObjectPart(ticket.url, chunk, {
-                signal: workersController.signal
-              });
-              await send(
-                `${partRoot}/ack`,
-                {
-                  method: 'POST',
-                  headers: { ...headers, 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ etag })
-                },
-                { signal: workersController.signal }
-              );
-            } else
-              await send(
-                `${root}/${session.uploadId}`,
-                {
-                  method: 'PUT',
-                  headers: {
-                    ...headers,
-                    'Content-Type': 'application/octet-stream',
-                    'X-Upload-Offset': String(offset)
+              if (session.transport === 's3-multipart') {
+                const partNumber = offset / chunkSize + 1;
+                const partRoot = `${root}/${session.uploadId}/parts/${partNumber}`;
+                const ticket = await send(
+                  `${partRoot}/sign`,
+                  { method: 'POST', headers },
+                  { signal: workersController.signal, onRetry }
+                );
+                const etag = await sendObjectPart(ticket.url, chunk, {
+                  signal: workersController.signal,
+                  onRetry
+                });
+                await send(
+                  `${partRoot}/ack`,
+                  {
+                    method: 'POST',
+                    headers: { ...headers, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ etag })
                   },
-                  body: chunk
-                },
-                { signal: workersController.signal }
-              );
-            uploaded += chunk.size;
-            onProgress(uploaded, 'uploading');
+                  { signal: workersController.signal, onRetry }
+                );
+              } else
+                await send(
+                  `${root}/${session.uploadId}`,
+                  {
+                    method: 'PUT',
+                    headers: {
+                      ...headers,
+                      'Content-Type': 'application/octet-stream',
+                      'X-Upload-Offset': String(offset)
+                    },
+                    body: chunk
+                  },
+                  { signal: workersController.signal, onRetry }
+                );
+              uploaded += chunk.size;
+              onProgress(uploaded, 'uploading');
+            }
+          } catch (error) {
+            failure ||= error;
+            workersController.abort();
           }
-        } catch (error) {
-          failure ||= error;
-          workersController.abort();
         }
-      })
+      )
     );
     if (failure) throw failure;
     if (signal?.aborted) throw new DOMException('Upload paused.', 'AbortError');
