@@ -5,11 +5,12 @@ import { pipeline } from 'stream/promises';
 import { Readable } from 'stream';
 import FlamingoPost from '../models/FlamingoPost.js';
 import { flamingoDatabaseStorageEnabled, saveFlamingoMediaToDatabase } from '../utils/flamingoStorage.js';
+import { assertFlamingoDurability, flamingoUploadDirectory } from '../utils/flamingoDurability.js';
 
 // Use the same persistent location as the HTTP wall. Previously Telegram
 // imports always wrote below the process working directory, so their database
 // rows survived a deployment while their video bytes did not.
-const uploadDirectory = path.resolve(process.env.FLAMINGO_UPLOAD_DIR || 'data/flamingo-uploads');
+const uploadDirectory = flamingoUploadDirectory();
 
 export function registerFlamingoTelegramSync(bot) {
   bot.on('channel_post', async (ctx, next) => {
@@ -20,6 +21,7 @@ export function registerFlamingoTelegramSync(bot) {
       const media = post.document || post.video || post.photo?.at(-1);
       let attachment;
       if (media?.file_id) {
+        await assertFlamingoDurability(uploadDirectory);
         await mkdir(uploadDirectory, { recursive: true });
         const file = await ctx.telegram.getFile(media.file_id);
         const extension = path.extname(file.file_path || '') || (post.video ? '.mp4' : post.photo ? '.jpg' : '');

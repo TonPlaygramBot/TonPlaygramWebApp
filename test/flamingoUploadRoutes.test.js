@@ -1,5 +1,5 @@
 import express from 'express';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -16,6 +16,11 @@ jest.mock('node:fs/promises', () => ({
 }));
 
 const mockPosts = [];
+const mockUpdates = jest.fn();
+const mockQuery = (callback) => {
+  const query = { lean: callback, select: () => query };
+  return query;
+};
 const mockCreate = jest.fn(async (content) => {
   const post = {
     ...content,
@@ -40,18 +45,23 @@ jest.mock('../bot/models/FlamingoPost.js', () => ({
   __esModule: true,
   default: {
     create: (...args) => mockCreate(...args),
-    findOne: (query) => ({
-      lean: async () =>
-        mockPosts.find((post) => mockMatches(post, query)) || null
-    }),
-    findById: (id) => ({
-      lean: async () => mockPosts.find((post) => post._id === id) || null
-    }),
-    findOneAndUpdate: (query, update) => ({
-      lean: async () =>
-        mockPosts.find((post) => mockMatches(post, query)) ||
-        mockCreate(update.$setOnInsert)
-    })
+    findOne: (query) =>
+      mockQuery(
+        async () => mockPosts.find((post) => mockMatches(post, query)) || null
+      ),
+    findById: (id) =>
+      mockQuery(async () => mockPosts.find((post) => post._id === id) || null),
+    findOneAndUpdate: (query, update) =>
+      mockQuery(async () => {
+        const post = mockPosts.find((post) => mockMatches(post, query));
+        if (update.$set) {
+          mockUpdates(query, update);
+          if (!post) return null;
+          Object.assign(post, update.$set);
+          return post;
+        }
+        return post || mockCreate(update.$setOnInsert);
+      })
   }
 }));
 
@@ -87,9 +97,15 @@ describe('wall HTTP upload and publication', () => {
       else process.env[key] = value;
     }
   });
-  beforeEach(() => {
+  beforeEach(async () => {
+    await Promise.all(
+      (await readdir(directory)).map((name) =>
+        rm(path.join(directory, name), { recursive: true, force: true })
+      )
+    );
     mockPosts.length = 0;
     mockCreate.mockClear();
+    mockUpdates.mockReset();
     mockFilesystem.mockImplementation(
       jest.requireActual('node:fs/promises').statfs
     );
@@ -326,5 +342,234 @@ describe('wall HTTP upload and publication', () => {
     });
     expect(response.status).toBe(201);
     expect(mockCreate).toHaveBeenCalledTimes(1);
+  });
+
+  test('blocks Render uploads on an unverified disk and reports durability instead of healthy storage', async () => {
+    const before = process.env.RENDER;
+    const log = jest.spyOn(console, 'error').mockImplementation(() => {});
+    process.env.RENDER = 'true';
+    try {
+      const response = await start(randomUUID(), {
+        name: 'phone.mp4',
+        size: 5,
+        type: 'video/mp4'
+      });
+      expect(response.status).toBe(503);
+      expect(await response.json()).toMatchObject({
+        code: 'WALL_STORAGE_NOT_DURABLE',
+        retryable: false
+      });
+      const health = await (await fetch(`${base}/health`)).json();
+      expect(health).toMatchObject({
+        ok: false,
+        mediaStorage: 'not-durable',
+        storage: { durability: { required: true, persistent: false } }
+      });
+      expect(mockCreate).not.toHaveBeenCalled();
+    } finally {
+      if (before === undefined) delete process.env.RENDER;
+      else process.env.RENDER = before;
+      log.mockRestore();
+    }
+  });
+
+  test('public wall responses strip owner hashes and credential-bearing Telegram avatar URLs', async () => {
+    const { serializeWallPosts, latestWallPost } =
+      await import('../bot/routes/flamingoWall.js');
+    const post = {
+      _id: 'example',
+      author: 'Example',
+      authorAvatar:
+        'https://api.telegram.org/file/bot000:FAKE_TEST_CREDENTIAL/avatar.jpg',
+      ownerTokenHash: 'private-hash'
+    };
+    expect(serializeWallPosts([post])[0]).toEqual({
+      _id: 'example',
+      author: 'Example',
+      authorAvatar: '',
+      canManage: false
+    });
+    expect(
+      latestWallPost({ ...post, ownerTokenHash: undefined }).authorAvatar
+    ).toBe('');
+    expect(
+      serializeWallPosts([
+        { ...post, authorAvatar: 'https://example.com/avatar.jpg' }
+      ])[0].authorAvatar
+    ).toBe('https://example.com/avatar.jpg');
+  });
+
+  async function missingVideo() {
+    const original = randomUUID();
+    await start(original, {
+      name: 'original.mp4',
+      size: 5,
+      type: 'video/mp4',
+      text: 'Keep my caption'
+    });
+    await put(original, 0, Buffer.from('video'));
+    const response = await fetch(`${base}/uploads/${original}/complete`, {
+      method: 'POST',
+      headers: owner
+    });
+    const { post } = await response.json();
+    await rm(path.join(directory, `${original}-original.mp4`));
+    return post;
+  }
+
+  test('restores missing bytes into the same post without losing its caption, date or owner', async () => {
+    const original = await missingVideo();
+    const status = await (
+      await fetch(`${base}/posts/${original._id}/media-status`, {
+        headers: owner
+      })
+    ).json();
+    expect(status).toEqual({
+      available: false,
+      code: 'WALL_MEDIA_MISSING',
+      canRestore: true
+    });
+    const id = randomUUID();
+    const metadata = {
+      name: 'renamed-on-phone.mp4',
+      size: 5,
+      type: 'video/mp4',
+      restorePostId: original._id,
+      text: 'must not replace caption'
+    };
+    expect((await start(id, metadata)).status).toBe(201);
+    await put(id, 0, Buffer.from('video'));
+    expect((await (await start(id, metadata)).json()).receivedOffsets).toEqual([
+      0
+    ]);
+    const complete = () =>
+      fetch(`${base}/uploads/${id}/complete`, {
+        method: 'POST',
+        headers: owner
+      });
+    const restored = await (await complete()).json();
+    expect(restored.post).toMatchObject({
+      _id: original._id,
+      text: original.text,
+      createdAt: original.createdAt,
+      author: original.author,
+      canManage: true
+    });
+    expect(restored.post.ownerTokenHash).toBeUndefined();
+    expect((await (await complete()).json()).post).toMatchObject({
+      _id: original._id,
+      canManage: true
+    });
+    expect(mockPosts).toHaveLength(1);
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+    expect(mockUpdates).toHaveBeenCalledTimes(1);
+    const video = await fetch(
+      `http://127.0.0.1:${server.address().port}${restored.post.attachment.url}`,
+      { headers: { Range: 'bytes=1-3' } }
+    );
+    expect(video.status).toBe(206);
+    expect(await video.text()).toBe('ide');
+    expect(
+      await (
+        await fetch(`${base}/posts/${original._id}/media-status`, {
+          headers: owner
+        })
+      ).json()
+    ).toEqual({
+      available: true,
+      code: 'WALL_MEDIA_AVAILABLE',
+      canRestore: false
+    });
+  });
+
+  test('rejects restoration by another owner or with a different file size', async () => {
+    const post = await missingVideo();
+    const denied = await fetch(`${base}/uploads`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Wall-Owner-Token': 'another-phone'
+      },
+      body: JSON.stringify({
+        name: 'original.mp4',
+        size: 5,
+        restorePostId: post._id
+      })
+    });
+    expect(denied.status).toBe(403);
+    expect(
+      (
+        await start(randomUUID(), {
+          name: 'original.mp4',
+          size: 6,
+          restorePostId: post._id
+        })
+      ).status
+    ).toBe(409);
+    expect(mockUpdates).not.toHaveBeenCalled();
+  });
+
+  test('retries restoration after committing bytes but failing to save the post reference', async () => {
+    const post = await missingVideo();
+    const id = randomUUID();
+    await start(id, { name: 'original.mp4', size: 5, restorePostId: post._id });
+    await put(id, 0, Buffer.from('video'));
+    mockUpdates.mockImplementationOnce(() => {
+      throw new Error('Database temporarily unavailable');
+    });
+    const log = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const complete = () =>
+        fetch(`${base}/uploads/${id}/complete`, {
+          method: 'POST',
+          headers: owner
+        });
+      expect((await complete()).status).toBe(500);
+      const resumed = await (
+        await start(id, {
+          name: 'original.mp4',
+          size: 5,
+          restorePostId: post._id
+        })
+      ).json();
+      expect(resumed.post).toBeUndefined();
+      expect(resumed.receivedOffsets).toEqual([0]);
+      const { post: restored } = await (await complete()).json();
+      expect(restored._id).toBe(post._id);
+      expect(restored.attachment.url).toContain(id);
+      expect(mockPosts).toHaveLength(1);
+      expect(
+        await readFile(path.join(directory, `${id}-original.mp4`), 'utf8')
+      ).toBe('video');
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  test('preserves committed original bytes and reads them after the API process state restarts', async () => {
+    const id = randomUUID();
+    await start(id, { name: 'restart.mp4', size: 5, type: 'video/mp4' });
+    await put(id, 0, Buffer.from('video'));
+    const { post } = await (
+      await fetch(`${base}/uploads/${id}/complete`, {
+        method: 'POST',
+        headers: owner
+      })
+    ).json();
+    await new Promise((resolve) => server.close(resolve));
+    jest.resetModules();
+    const { default: router } = await import('../bot/routes/flamingoWall.js');
+    const restarted = express();
+    restarted.use('/api/flamingo-wall', router);
+    server = await new Promise((resolve) => {
+      const active = restarted.listen(0, '127.0.0.1', () => resolve(active));
+    });
+    base = `http://127.0.0.1:${server.address().port}/api/flamingo-wall`;
+    const response = await fetch(
+      `http://127.0.0.1:${server.address().port}${post.attachment.url}`,
+      { headers: { Range: 'bytes=0-4' } }
+    );
+    expect(response.status).toBe(206);
+    expect(await response.text()).toBe('video');
   });
 });

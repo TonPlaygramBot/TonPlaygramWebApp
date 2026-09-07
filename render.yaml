@@ -58,6 +58,8 @@ services:
       # Community photos and videos must outlive API restarts and deployments.
       - key: FLAMINGO_UPLOAD_DIR
         value: /var/data/tonplaygram/flamingo-uploads
+      - key: FLAMINGO_PERSISTENT_MOUNT_PATH
+        value: /var/data/tonplaygram
       # One-megabyte resumable requests survive slow portrait-phone cellular
       # uplinks without hitting the proxy/browser request timeout.
       - key: FLAMINGO_UPLOAD_CHUNK_BYTES

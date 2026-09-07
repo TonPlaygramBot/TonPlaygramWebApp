@@ -4,6 +4,23 @@ import {
 } from '../webapp/src/features/flamingo/wallUpload.js';
 
 describe('wall upload recovery', () => {
+  test('restoration uses the resumable protocol and returns the original post id', async () => {
+    const send = jest.fn(async (_url, init) => {
+      expect(JSON.parse(init.body).restorePostId).toBe('existing-post');
+      return { post: { _id: 'existing-post' } };
+    });
+    expect(
+      await uploadWallFile({
+        baseUrl: '',
+        headers: {},
+        file: Object.assign(new Blob(['video']), { name: 'original.mp4' }),
+        uploadId: 'session',
+        restorePostId: 'existing-post',
+        send
+      })
+    ).toEqual({ post: { _id: 'existing-post' } });
+    expect(send).toHaveBeenCalledTimes(1);
+  });
   const makeFile = () =>
     Object.assign(new Blob(['abcdefghij'], { type: 'video/mp4' }), {
       name: 'phone.mp4'
