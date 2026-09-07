@@ -27,6 +27,7 @@ export interface Racer {
   gates: number;
   index: number;
   progress: number;
+  routeDistance: number;
   finished: boolean;
   finishTime: number;
   collision: number;
@@ -51,6 +52,8 @@ export interface TrackConfig {
   id: string;
   name: string;
   district: string;
+  open: boolean;
+  destination: string;
   streets: string[];
   width: number;
   sky: string;
@@ -74,6 +77,7 @@ export const RACE_LIMIT: number;
 export const KARTS: { id: string; name: string; detail: string }[];
 export const TRACK_ALIASES: Record<string, string>;
 export function normalizeTrack(id: string): string;
+export function randomTrack(random?: () => number): string;
 export function normalizeKart(id: string): string;
 export const CUPS: {
   name: string;
@@ -92,6 +96,7 @@ export function nearestPoint(
   index: number;
   distance: number;
   lane: number;
+  along: number;
   x: number;
   z: number;
   yaw: number;

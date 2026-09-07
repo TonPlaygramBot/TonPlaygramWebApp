@@ -2,7 +2,7 @@ import { TIRANA_ROUTES } from './tirana-routes.mjs';
 import { resolveWallContact, resolveKartContact } from './collisions.mjs';
 export { damageRacer } from './collisions.mjs';
 export const STEP = 1 / 60,
-  LAPS = 3;
+  LAPS = 1;
 export const COLORS = [
   '#baff29',
   '#44caff',
@@ -11,7 +11,7 @@ export const COLORS = [
   '#ffb64d',
   '#f3f6f2'
 ];
-export const RACE_LIMIT = 480;
+export const RACE_LIMIT = 900;
 export const KARTS = [
   { id: 'apex', name: 'Apex 02', detail: 'Exposed chassis · mechanical kart' },
   { id: 'oobi', name: 'Eagle', detail: 'Compact body · classic sprint' },
@@ -30,67 +30,27 @@ export const TRACK_ALIASES = {
   coast: 'stadium'
 };
 export const normalizeTrack = (id) => TRACK_ALIASES[id] || id;
-export const TRACKS = [
-  {
-    id: 'skanderbeg',
-    name: 'Skënderbej Circuit',
-    district: 'TIRANA · CITY CENTRE',
-    accent: '#ed3f45'
-  },
-  {
-    id: 'blloku',
-    name: 'Blloku Sprint',
-    district: 'TIRANA · BLLOKU',
-    accent: '#ffd26f'
-  },
-  {
-    id: 'lana',
-    name: 'Lana Riverside',
-    district: 'TIRANA · LANA',
-    accent: '#5de1d4'
-  },
-  {
-    id: 'pyramid',
-    name: 'Pyramid Loop',
-    district: 'TIRANA · PIRAMIDA',
-    accent: '#bece54'
-  },
-  {
-    id: 'stadium',
-    name: 'Nënë Tereza Run',
-    district: 'TIRANA · SHESHI ITALIA',
-    accent: '#7dcaff'
-  }
-].map((config) => ({
+export const TRACKS = TIRANA_ROUTES.map((config) => ({
   ...config,
-  width: 10,
+  width: 6.2,
   sky: '#adc8d2',
-  ground: '#a6a58e',
-  ...TIRANA_ROUTES.find((r) => r.id === config.id)
+  ground: '#a6a58e'
 }));
-export const CUPS = [
-  {
-    name: 'Rookie Cup',
-    track: 'skanderbeg',
-    difficulty: 'rookie',
-    target: 3,
-    reward: 150
-  },
-  {
-    name: 'Street Cup',
-    track: 'blloku',
-    difficulty: 'street',
-    target: 3,
-    reward: 250
-  },
-  {
-    name: 'Royale Cup',
-    track: 'lana',
-    difficulty: 'pro',
-    target: 1,
-    reward: 500
-  }
-];
+export const CUPS = TRACKS.map((t, i) => ({
+  name: `${String(i + 1).padStart(2, '0')} · ${t.district.split(' · ')[0]}`,
+  track: t.id,
+  difficulty: i < 3 ? 'rookie' : i < 7 ? 'street' : 'pro',
+  target: i < 7 ? 3 : 1,
+  reward: 150 + i * 50
+}));
+export function randomTrack(random = Math.random) {
+  return TRACKS[
+    Math.min(
+      TRACKS.length - 1,
+      Math.max(0, Math.floor(random() * TRACKS.length))
+    )
+  ].id;
+}
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 export const wrapAngle = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const cache = new Map();
@@ -100,65 +60,59 @@ export function makeTrack(id = 'skanderbeg') {
   if (cache.has(config.id)) return cache.get(config.id);
   // Keep real street geometry. Resample before rounding so long straight roads
   // are never turned into invented oval tracks or curves through city blocks.
+  // Open polylines retain both endpoints. Never close an 8km route across blocks.
   let raw = config.points.flatMap((p, i) => {
-    const q = config.points[(i + 1) % config.points.length];
-    const n = Math.max(1, Math.ceil(Math.hypot(q[0] - p[0], q[1] - p[1]) / 3));
+    if (i === config.points.length - 1) return [p];
+    const q = config.points[i + 1],
+      n = Math.max(1, Math.ceil(Math.hypot(q[0] - p[0], q[1] - p[1]) / 3));
     return Array.from({ length: n }, (_, j) => [
       p[0] + ((q[0] - p[0]) * j) / n,
       p[1] + ((q[1] - p[1]) * j) / n
     ]);
   });
-  for (let pass = 0; pass < 2; pass++)
-    raw = raw.flatMap((p, i) => {
-      const q = raw[(i + 1) % raw.length];
-      return [
+  for (let pass = 0; pass < 2; pass++) {
+    const rounded = [raw[0]];
+    for (let i = 0; i < raw.length - 1; i++) {
+      const p = raw[i],
+        q = raw[i + 1];
+      rounded.push(
         [p[0] * 0.75 + q[0] * 0.25, p[1] * 0.75 + q[1] * 0.25],
         [p[0] * 0.25 + q[0] * 0.75, p[1] * 0.25 + q[1] * 0.75]
-      ];
-    });
-  const distances = [0];
-  raw.forEach((p, i) => {
-    const q = raw[(i + 1) % raw.length];
-    distances.push(distances[i] + Math.hypot(q[0] - p[0], q[1] - p[1]));
-  });
-  const total = distances.at(-1);
-  let seg = 0;
-  let points = Array.from({ length: 360 }, (_, i) => {
-    const distance = (i * total) / 360;
-    while (distances[seg + 1] < distance) seg++;
-    const p = raw[seg],
-      q = raw[(seg + 1) % raw.length],
-      f = (distance - distances[seg]) / (distances[seg + 1] - distances[seg]);
-    return { x: p[0] + (q[0] - p[0]) * f, z: p[1] + (q[1] - p[1]) * f };
-  });
-  // Put the grid on a straight: all six racers face the same road direction.
-  let start = 0,
-    best = Infinity;
-  for (let i = 0; i < 360; i++) {
-    let score = 0;
-    for (let k = -16; k < 12; k++) {
-      const a = points[(i + k + 720) % 360],
-        b = points[(i + k + 721) % 360],
-        c = points[(i + k + 722) % 360];
-      score += Math.abs(
-        wrapAngle(
-          Math.atan2(c.x - b.x, c.z - b.z) - Math.atan2(b.x - a.x, b.z - a.z)
-        )
       );
     }
-    if (score < best) {
-      best = score;
-      start = i;
-    }
+    rounded.push(raw.at(-1));
+    raw = rounded;
   }
-  points = points.slice(start).concat(points.slice(0, start));
-  let length = 0;
-  points.forEach((p, i) => {
-    const q = points[(i + 1) % 360];
-    p.yaw = Math.atan2(q.x - p.x, q.z - p.z);
-    p.distance = length;
-    length += Math.hypot(q.x - p.x, q.z - p.z);
+  const distances = [0];
+  for (let i = 1; i < raw.length; i++)
+    distances.push(
+      distances[i - 1] +
+        Math.hypot(raw[i][0] - raw[i - 1][0], raw[i][1] - raw[i - 1][1])
+    );
+  const total = distances.at(-1),
+    count = Math.max(360, Math.ceil(total / 3) + 1);
+  let seg = 0;
+  const points = Array.from({ length: count }, (_, i) => {
+    const distance = (i * total) / (count - 1);
+    while (seg < raw.length - 2 && distances[seg + 1] < distance) seg++;
+    const p = raw[seg],
+      q = raw[seg + 1],
+      f =
+        (distance - distances[seg]) /
+        (distances[seg + 1] - distances[seg] || 1);
+    return {
+      x: p[0] + (q[0] - p[0]) * f,
+      z: p[1] + (q[1] - p[1]) * f,
+      distance,
+      yaw: 0
+    };
   });
+  points.forEach((p, i) => {
+    const a = points[Math.max(0, i - 1)],
+      q = points[Math.min(count - 1, i + 1)];
+    p.yaw = Math.atan2(q.x - a.x, q.z - a.z);
+  });
+  const length = total;
   const xs = points.map((p) => p.x),
     zs = points.map((p) => p.z);
   const bounds = [
@@ -180,12 +134,48 @@ export function makeTrack(id = 'skanderbeg') {
   cache.set(config.id, result);
   return result;
 }
+const segmentGrids = new WeakMap();
+function nearbySegments(track, x, z) {
+  let grid = segmentGrids.get(track);
+  if (!grid) {
+    grid = new Map();
+    for (let i = 0; i < track.points.length - 1; i++) {
+      const a = track.points[i],
+        b = track.points[i + 1];
+      for (
+        let gx = Math.floor(Math.min(a.x, b.x) / 24);
+        gx <= Math.floor(Math.max(a.x, b.x) / 24);
+        gx++
+      )
+        for (
+          let gz = Math.floor(Math.min(a.z, b.z) / 24);
+          gz <= Math.floor(Math.max(a.z, b.z) / 24);
+          gz++
+        ) {
+          const key = `${gx}:${gz}`;
+          if (!grid.has(key)) grid.set(key, []);
+          grid.get(key).push(i);
+        }
+    }
+    segmentGrids.set(track, grid);
+  }
+  const candidates = new Set(),
+    gx = Math.floor(x / 24),
+    gz = Math.floor(z / 24);
+  for (let dx = -1; dx <= 1; dx++)
+    for (let dz = -1; dz <= 1; dz++)
+      for (const i of grid.get(`${gx + dx}:${gz + dz}`) || [])
+        candidates.add(i);
+  return candidates.size
+    ? candidates
+    : Array.from({ length: track.points.length - 1 }, (_, i) => i);
+}
 export function nearestPoint(track, x, z) {
   let best = { index: 0, distance: Infinity, lane: 0, x: 0, z: 0, yaw: 0 },
     distanceSq = Infinity;
-  for (let i = 0; i < 360; i++) {
+  for (const i of nearbySegments(track, x, z)) {
     const p = track.points[i],
-      q = track.points[(i + 1) % 360],
+      q = track.points[i + 1],
       dx = q.x - p.x,
       dz = q.z - p.z;
     const u = clamp(
@@ -204,16 +194,23 @@ export function nearestPoint(track, x, z) {
         lane: (x - px) * -Math.cos(p.yaw) + (z - pz) * Math.sin(p.yaw),
         x: px,
         z: pz,
-        yaw: p.yaw
+        yaw: p.yaw,
+        along: p.distance + u * Math.hypot(dx, dz)
       };
     }
   }
   return best;
 }
 export function createRacer(track, id, name, slot = 0, ai = false) {
-  const index = 355 - Math.floor(slot / 2) * 4,
+  const index = Math.max(
+      1,
+      Math.round(
+        (18 - Math.floor(slot / 2) * 6) /
+          (track.length / (track.points.length - 1))
+      )
+    ),
     p = track.points[index],
-    lane = slot % 2 ? 2.1 : -2.1;
+    lane = slot % 2 ? 1.3 : -1.3;
   return {
     id,
     name: String(name).slice(0, 18),
@@ -232,11 +229,12 @@ export function createRacer(track, id, name, slot = 0, ai = false) {
     driftCharge: 0,
     turbo: 0,
     drifting: false,
-    lap: 0,
-    nextGate: 0,
+    lap: 1,
+    nextGate: 1,
     gates: 0,
     index,
-    progress: (index - 360) / 360,
+    progress: 0,
+    routeDistance: p.distance,
     finished: false,
     finishTime: 0,
     collision: 0,
@@ -260,10 +258,10 @@ export function createRacer(track, id, name, slot = 0, ai = false) {
 }
 export function aiInput(r, track, time, difficulty = 'street') {
   const n = nearestPoint(track, r.x, r.z),
-    spacing = track.length / 360;
+    spacing = track.length / (track.points.length - 1);
+  const at = (i) => track.points[Math.min(track.points.length - 1, i)];
   const look = clamp(5 + r.speed * 0.34, 6, 17);
-  const p =
-    track.points[(n.index + Math.max(2, Math.round(look / spacing))) % 360];
+  const p = at(n.index + Math.max(2, Math.round(look / spacing)));
   const lane = Math.sin(time * 0.2 + r.slot * 2) * 0.65;
   const turn = wrapAngle(
     Math.atan2(
@@ -274,8 +272,8 @@ export function aiInput(r, track, time, difficulty = 'street') {
   let safeSpeed = 32;
   // Brake before the corner, from its curvature and the remaining stop distance.
   for (let d = 1; d <= Math.ceil(45 / spacing); d++) {
-    const a = track.points[(n.index + d) % 360],
-      b = track.points[(n.index + d + 1) % 360];
+    const a = at(n.index + d),
+      b = at(n.index + d + 1);
     const curve = Math.abs(wrapAngle(b.yaw - a.yaw)) / spacing;
     if (curve > 0.005)
       safeSpeed = Math.min(
@@ -365,27 +363,38 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
   resolveWallContact(r, near, track.width, dt);
   if (r.retired) return;
   r.acceleration = clamp((r.speed - previousSpeed) / dt, -35, 25);
-  // Sequential quarter-track gates reject shortcuts and finish-line oscillation.
-  const delta = ((near.index - r.index + 540) % 360) - 180;
-  if (delta > 0 && delta < 24) {
-    const crossed = (r.nextGate * 90 - r.index + 360) % 360;
-    if (crossed > 0 && crossed <= delta) {
-      r.gates++;
-      if (r.nextGate === 0) {
-        r.lap++;
-        if (r.lap > LAPS) {
-          r.finished = true;
-          r.finishTime = time;
-          r.speed = 0;
-        }
+  // Every 20m gate must be crossed in order. Local nearest points at parallel
+  // roads cannot award progress: accepted arc movement is bounded by actual travel.
+  const along = near.along,
+    prior = r.routeDistance ?? 0;
+  const advance = along - prior;
+  const maxAdvance = Math.max(4, r.speed * dt * 2 + 1);
+  if (
+    advance >= 0 &&
+    advance <= maxAdvance &&
+    near.distance <= track.width / 2
+  ) {
+    const gate = Math.floor(along / 20);
+    if (gate <= r.nextGate) {
+      if (gate === r.nextGate) {
+        r.gates++;
+        r.nextGate++;
       }
-      r.nextGate = (r.nextGate + 1) % 4;
+      r.routeDistance = along;
+      r.progress = along / track.length;
+      if (
+        track.length - along < 2.2 &&
+        r.nextGate >= Math.floor(track.length / 20)
+      ) {
+        r.finished = true;
+        r.finishTime = time;
+        r.speed = 0;
+        r.progress = 1;
+        r.lap = 2;
+      }
     }
-  }
+  } else if (advance < 0 && advance > -maxAdvance) r.routeDistance = along;
   r.index = near.index;
-  r.progress = r.finished
-    ? LAPS + 1
-    : Math.max(-1, r.lap - 1) + near.index / 360;
 }
 export function stepRace(racers, track, dt, time, difficulty = 'street') {
   for (const r of racers)

@@ -1,25 +1,35 @@
-import {TiranaScenery as BaseTiranaScenery} from './baseTiranaScenery';
-import {WORLD} from '../tiranastreets/shared/world.mjs';
-import type {Track} from './simulation.mjs';
-import {resolveNativeLandmarks} from '../tirana-landmarks/nativeLocations.mjs';
-import {NativeLandmarkLayer} from '../tirana-landmarks/NativeLandmarkLayer';
-import {replaceLegacyCityLandmarks} from '../tirana-landmarks/legacyReplacement';
-export {inside,occupied} from './baseTiranaScenery';
+import * as T from 'three';
+import { FpsCity } from '../tiranastreets/FpsCity';
+import { WORLD } from '../tiranastreets/shared/world.mjs';
+import { RACING_REGION } from '../tiranastreets/shared/racingRegion.mjs';
+import type { Track } from './simulation.mjs';
+import { polygonContains } from '../tiranastreets/shared/architecture.mjs';
+export const inside = polygonContains;
+export function occupied(x: number, z: number) {
+  return [...WORLD.buildings, ...RACING_REGION.buildings].some((b) =>
+    polygonContains(x, z, b.p)
+  );
+}
 
-export class TiranaScenery extends BaseTiranaScenery {
-  readonly nativeLandmarks:NativeLandmarkLayer;
-  constructor(track:Track) {
-    super(track);
-    const {landmarks,issues}=resolveNativeLandmarks(WORLD), b=track.bounds;
-    // Include the same district margin as the existing street scenery.
-    const local=landmarks.filter(l=>l.x>b[0]-200&&l.x<b[2]+200&&l.z>b[1]-200&&l.z<b[3]+200);
-    const replacement=replaceLegacyCityLandmarks(this.group,local,'kartroyale');
-    this.nativeLandmarks=new NativeLandmarkLayer(local);
-    this.group.add(this.nativeLandmarks.group);
-    this.group.userData.tiranaLandmarks={issues,...replacement};
+/** Racing and FPS use the same mapped buildings, pavements and city assets. */
+export class TiranaScenery {
+  readonly city: FpsCity;
+  readonly group: T.Group;
+  private camera = new T.Vector3();
+  constructor(_track: Track, loadAssets = true) {
+    this.city = new FpsCity(loadAssets, {
+      ...WORLD,
+      roads: [...WORLD.roads, ...RACING_REGION.roads],
+      buildings: [...WORLD.buildings, ...RACING_REGION.buildings],
+      bounds: RACING_REGION.bounds
+    });
+    this.group = this.city.group;
   }
-  override update(x:number,z:number,performance:boolean) {
-    super.update(x,z,performance);
-    this.nativeLandmarks.setBatteryMode(performance);
+  update(x: number, z: number, performance: boolean, time = 0) {
+    this.camera.set(x, 1.4, z);
+    this.city.update(this.camera, time, performance);
+  }
+  dispose() {
+    this.city.dispose();
   }
 }

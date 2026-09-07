@@ -13,7 +13,7 @@ import {
   STEP,
   TRACKS
 } from '../webapp/src/games/kartroyale/simulation.mjs';
-test('all AI drivers complete three ordered laps on all circuits and difficulties', () => {
+test('all AI drivers complete the ten ordered Parliament missions on all difficulties', () => {
   for (const t of TRACKS)
     for (const d of ['rookie', 'street', 'pro']) {
       const track = makeTrack(t.id),
@@ -21,15 +21,15 @@ test('all AI drivers complete three ordered laps on all circuits and difficultie
           createRacer(track, String(i), 'AI', i, true)
         );
       let time = 0;
-      for (; time < 480 && !racers.every((r) => r.finished); time += STEP)
+      for (; time < 900 && !racers.every((r) => r.finished); time += STEP)
         stepRace(racers, track, STEP, time, d);
       assert.ok(
         racers.every((r) => r.finished),
         `${t.id}/${d} stuck driver`
       );
       for (const r of racers) {
-        assert.equal(r.lap, 4);
-        assert.equal(r.gates, 13);
+        assert.equal(r.lap, 2);
+        assert.ok(r.gates >= Math.floor(track.length / 20) - 1);
         assert.ok(r.finishTime > 30);
       }
     }

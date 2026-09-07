@@ -1,6 +1,7 @@
 import * as T from 'three';
 import type { Track, Racer } from './simulation.mjs';
 import type { FoodKind, Point3 } from './foodFlight.mjs';
+import type { ThrowEvent } from './protestResponse.mjs';
 import { randomUnit } from './foodFlight.mjs';
 import { occupied } from './tiranaScenery';
 import { cloneHuman, bakeHuman, poseHuman, type Human } from './supporterHuman';
@@ -14,6 +15,7 @@ type Fan = {
   scale: number;
   variant: number;
   nextThrow: number;
+  wetUntil: number;
 };
 type Throw = {
   at: number;
@@ -32,6 +34,15 @@ export type CrowdLaunch = (
 /** Nearby skeletal throwers and distant instanced copies of the same game humans. */
 export class Supporters {
   group = new T.Group();
+  readonly events: ThrowEvent[] = [];
+  private eventId = 0;
+  wet(seed: number, time: number) {
+    const fan = this.fans.find((f) => f.seed === seed);
+    if (fan) {
+      fan.wetUntil = time + 4.5;
+      fan.nextThrow = time + 7;
+    }
+  }
   private fans: Fan[] = [];
   private batches: T.InstancedMesh[][] = [];
   private actors: Actor[][] = [];
@@ -51,8 +62,11 @@ export class Supporters {
   });
   private heldGeometry = new T.SphereGeometry(0.11, 12, 8);
   constructor(track: Track, flagTexture: T.Texture, templates: T.Group[]) {
-    const stride = Math.max(2, Math.round(11 / (track.length / 360)));
-    for (let i = 10; i < 345; i += stride)
+    const stride = Math.max(
+      2,
+      Math.round(11 / (track.length / (track.points.length - 1)))
+    );
+    for (let i = 10; i < track.points.length - 1; i += stride)
       for (const side of [-1, 1]) {
         const p = track.points[i],
           offset = track.width / 2 + 2.3 + (i % 3) * 0.28;
@@ -68,7 +82,8 @@ export class Supporters {
           flag: i % 3 !== 0,
           scale: 0.95 + randomUnit(seed) * 0.1,
           variant: seed % templates.length,
-          nextThrow: 0
+          nextThrow: 0,
+          wetUntil: 0
         });
       }
     for (const template of templates) {
@@ -86,14 +101,17 @@ export class Supporters {
         if (o instanceof T.SkinnedMesh) o.skeleton.dispose();
       });
       this.actors.push(
-        Array.from({ length: 7 }, () => {
-          const human = cloneHuman(template);
-          const held = new T.Mesh(this.heldGeometry, this.egg);
-          held.visible = false;
-          human.root.add(held);
-          this.group.add(human.root);
-          return { human, fan: null, held };
-        })
+        Array.from(
+          { length: Math.max(1, Math.floor(14 / templates.length)) },
+          () => {
+            const human = cloneHuman(template);
+            const held = new T.Mesh(this.heldGeometry, this.egg);
+            held.visible = false;
+            human.root.add(held);
+            this.group.add(human.root);
+            return { human, fan: null, held };
+          }
+        )
       );
     }
     const poleMaterial = new T.MeshStandardMaterial({
@@ -157,7 +175,7 @@ export class Supporters {
             Math.hypot(a.x - me.x, a.z - me.z) -
             Math.hypot(b.x - me.x, b.z - me.z)
         )
-        .slice(0, performance ? 3 : 7);
+        .slice(0, performance ? 1 : pool.length);
       // Keep a winding-up thrower assigned until release/recovery completes.
       for (const actor of pool)
         if (
@@ -243,7 +261,7 @@ export class Supporters {
     for (const fan of near) {
       const actor = assignments.get(fan),
         m = this.transform;
-      m.position.set(fan.x, 0.04, fan.z);
+      m.position.set(fan.x, 0.23, fan.z);
       m.rotation.set(0, fan.yaw, 0);
       m.scale.setScalar(fan.scale);
       m.updateMatrix();
@@ -274,7 +292,22 @@ export class Supporters {
             human.root.rotation.y += turn * (1 - Math.exp(-dt * 12));
           }
         }
-        poseHuman(human, time + fan.seed, age, fan.flag);
+        poseHuman(
+          human,
+          time + fan.seed,
+          fan.wetUntil > time ? -1 : age,
+          fan.flag
+        );
+        if (fan.wetUntil > time) {
+          const w = Math.sin(
+            (Math.min(1, (fan.wetUntil - time) / 0.4) * Math.PI) / 2
+          );
+          human.root.position.y -= 0.16 * w;
+          human.root.rotation.x = -0.12 * w;
+          human.root.updateWorldMatrix(true, true);
+          actor.throw = undefined;
+          actor.held.visible = false;
+        } else human.root.rotation.x = 0;
         const throwHand = human.bones
           .get('hand_r')?.[0]
           ?.getWorldPosition(new T.Vector3());
@@ -287,8 +320,17 @@ export class Supporters {
           if (age >= 0.68 && !actor.throw.released) {
             actor.throw.released = true;
             const target = racers.find((r) => r.id === actor.throw!.targetId);
-            if (running && target && !target.finished && !target.retired)
+            if (running && target && !target.finished && !target.retired) {
               launch(throwHand, target, actor.throw.kind, actor.throw.seed);
+              this.events.unshift({
+                id: ++this.eventId,
+                time,
+                x: fan.x,
+                z: fan.z,
+                seed: fan.seed
+              });
+              this.events.length = Math.min(16, this.events.length);
+            }
           }
         }
         if (age > 1.45) actor.throw = undefined;

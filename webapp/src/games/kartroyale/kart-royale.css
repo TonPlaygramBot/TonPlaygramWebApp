@@ -1806,3 +1806,35 @@
     margin-top: 3px;
   }
 }
+
+.kr-random-route {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #657162;
+  border-radius: 12px;
+  background: #17251d;
+  color: #edf1e6;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.kr-cups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  max-height: 245px;
+  overflow-y: auto;
+}
+.kr-cups button {
+  min-width: 0;
+}
+.kr-destination {
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.4;
+  color: #eaf0db;
+}
+.kr-destination span {
+  font-size: 9px;
+  opacity: 0.75;
+}

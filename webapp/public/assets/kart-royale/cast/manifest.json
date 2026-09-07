@@ -1,0 +1,64 @@
+{
+  "generator": "Blender 4.5.3 LTS",
+  "license": "MIT (original meshes)",
+  "portraitImagesEmbedded": false,
+  "characters": [
+    {
+      "id": "edi-rama",
+      "name": "Edi Rama"
+    },
+    {
+      "id": "belinda-balluku",
+      "name": "Belinda Balluku"
+    },
+    {
+      "id": "erion-brace",
+      "name": "Erion Braçe"
+    },
+    {
+      "id": "ulsi-manja",
+      "name": "Ulsi Manja"
+    },
+    {
+      "id": "blendi-gonxhe",
+      "name": "Blendi Gonxhe"
+    }
+  ],
+  "files": [
+    {
+      "file": "belinda-balluku.glb",
+      "bytes": 664840,
+      "sha256": "9537519d42d295baddc18a7e943725b2fb67bb531b72911e73b1709c3cbc4680"
+    },
+    {
+      "file": "blendi-gonxhe.glb",
+      "bytes": 482188,
+      "sha256": "38c8287ae2e14c0b4d5aa1acb57428009ff391967c2fb2942ac7264c0a9ed277"
+    },
+    {
+      "file": "edi-rama.glb",
+      "bytes": 522424,
+      "sha256": "763bd03f029b4dfae5a2282792ca6efb564163c3cfd3653426aa4c55f820c3d9"
+    },
+    {
+      "file": "erion-brace.glb",
+      "bytes": 539920,
+      "sha256": "f9f41e752f302f6b1692551839c31e39651db588a08554bc007993ba1bdda959"
+    },
+    {
+      "file": "police.glb",
+      "bytes": 535084,
+      "sha256": "4670b841cb50df04c6b5664276bdcc87f852e313b321c385869ca2d3ce3055b3"
+    },
+    {
+      "file": "ulsi-manja.glb",
+      "bytes": 536236,
+      "sha256": "87a6bd6e13cd464ab46baff8c8a3a1def5befd32262ae461882481914b90300e"
+    },
+    {
+      "file": "water-cannon.glb",
+      "bytes": 164772,
+      "sha256": "92a4df5a0f24323d4bd7eae6105be43713d2b4b9a5eeff1415f8cb627f86b619"
+    }
+  ]
+}

@@ -38,3 +38,7 @@ model geometry and textures are shipped in the repository and served locally.
 - Egg/tomato geometry, ballistic flight, shell fragments, pulp, droplets, spreading/dripping splats and crash recoil are original runtime effects.
 - Engine, tire skid, airflow, crash, egg crack/tomato splat, countdown, finish and crowd-clap effects use original Web Audio synthesis. Racing Royal no longer loads the old engine recording.
 - The old Quaternius `city.glb` is retained for compatibility with earlier work; Tirana races use the geographic city renderer instead.
+
+## Parliament mission update
+
+The racing map now shares Tirana Streets city code and adds OSM-derived outer routes under ODbL 1.0. Download `tirana-region.json` and `tirana-routes.json` for the derived databases. Five original Blender cast models, a police model and water-cannon truck use the repository MIT license; see [cast sources](cast/SOURCES.md) and [asset hashes](cast/manifest.json). Portraits are reference-only and not redistributed.

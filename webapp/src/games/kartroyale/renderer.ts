@@ -16,6 +16,7 @@ import {
 } from './simulation.mjs';
 import type { Input, Racer, Track } from './simulation.mjs';
 import { TiranaScenery } from './tiranaScenery';
+import { PoliceResponse } from './policeResponse';
 import { Supporters } from './supporters';
 import { prepareHuman } from './supporterHuman';
 import { RaceEffects } from './raceEffects';
@@ -26,6 +27,8 @@ export interface Frame {
   speed: number;
   boost: number;
   lap: number;
+  routeProgress: number;
+  remaining: number;
   position: number;
   time: number;
   countdown: number;
@@ -95,6 +98,9 @@ export class KartRenderer {
   private scenery: TiranaScenery | null = null;
   private supporters: Supporters | null = null;
   private humanTemplates: T.Group[] = [];
+  private policeTemplate?: T.Group;
+  private truckTemplate?: T.Group;
+  private police?: PoliceResponse;
   private effects: RaceEffects | null = null;
   private cameraMode: CameraMode = 'driver';
   private motionTime = 0;
@@ -255,7 +261,16 @@ export class KartRenderer {
         loader.loadAsync(`/assets/kart-royale/kenney-${k.id}.glb`)
       ),
       loader.loadAsync('/assets/table-tennis/athlete-male.glb'),
-      loader.loadAsync('/assets/table-tennis/athlete-female.glb')
+      loader.loadAsync('/assets/table-tennis/athlete-female.glb'),
+      ...[
+        'edi-rama',
+        'belinda-balluku',
+        'erion-brace',
+        'ulsi-manja',
+        'blendi-gonxhe',
+        'police',
+        'water-cannon'
+      ].map((id) => loader.loadAsync(`/assets/kart-royale/cast/${id}.glb`))
     ]);
     const failed = results.find((r) => r.status === 'rejected');
     if (this.disposed || failed) {
@@ -305,15 +320,25 @@ export class KartRenderer {
       this.kartModels.set(k.id, scene);
       this.collectTextures(scene);
     });
-    this.humanTemplates = results.slice(5 + KARTS.length).map((result, i) => {
-      const source = (
-        result as PromiseFulfilledResult<
+    this.humanTemplates = results
+      .slice(5 + KARTS.length, 12 + KARTS.length)
+      .map((result, i) => {
+        const source = (
+          result as PromiseFulfilledResult<
+            import('three/examples/jsm/loaders/GLTFLoader.js').GLTF
+          >
+        ).value.scene;
+        this.collectTextures(source);
+        return prepareHuman(source, i === 1);
+      });
+    const getScene = (i: number) =>
+      (
+        results[i] as PromiseFulfilledResult<
           import('three/examples/jsm/loaders/GLTFLoader.js').GLTF
         >
       ).value.scene;
-      this.collectTextures(source);
-      return prepareHuman(source, i === 1);
-    });
+    this.policeTemplate = prepareHuman(getScene(results.length - 2), false);
+    this.truckTemplate = getScene(results.length - 1);
     this.roadMaps = results
       .slice(3, 6)
       .map((r) => (r as PromiseFulfilledResult<T.Texture>).value);
@@ -486,6 +511,9 @@ export class KartRenderer {
       this.release(v, false);
     }
     this.visuals.clear();
+    this.scenery?.dispose();
+    this.police?.dispose();
+    this.police = undefined;
     this.scenery = null;
     this.supporters?.dispose();
     this.supporters = null;
@@ -498,7 +526,7 @@ export class KartRenderer {
     this.release(this.world, true);
     this.world.clear();
     const ground = new T.Mesh(
-      new T.PlaneGeometry(4000, 4000),
+      new T.PlaneGeometry(18000, 18000),
       new T.MeshStandardMaterial({ color: track.ground, roughness: 0.95 })
     );
     ground.rotation.x = -Math.PI / 2;
@@ -508,19 +536,20 @@ export class KartRenderer {
       indices: number[] = [],
       normals: number[] = [],
       uvs: number[] = [];
-    for (let i = 0; i <= 360; i++) {
-      const p = track.points[i % 360];
+    const segments = track.points.length - 1;
+    for (let i = 0; i <= segments; i++) {
+      const p = track.points[i];
       for (const side of [-1, 1]) {
         positions.push(
           p.x - Math.cos(p.yaw) * track.width * 0.5 * side,
-          0.045,
+          0.11,
           p.z + Math.sin(p.yaw) * track.width * 0.5 * side
         );
         normals.push(0, 1, 0);
         const n = positions.length;
         uvs.push(positions[n - 3] / 3, positions[n - 1] / 3);
       }
-      if (i < 360) {
+      if (i < segments) {
         const a = i * 2;
         indices.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
       }
@@ -549,21 +578,21 @@ export class KartRenderer {
       curb = new T.InstancedMesh(
         new T.BoxGeometry(0.55, 0.14, 1),
         new T.MeshStandardMaterial({ roughness: 0.7 }),
-        720
+        segments * 2
       ),
       walls = new T.InstancedMesh(
         new T.BoxGeometry(0.45, 0.9, 1),
         new T.MeshStandardMaterial({ roughness: 0.84 }),
-        720
+        segments * 2
       ),
       marks = new T.InstancedMesh(
         new T.BoxGeometry(0.12, 0.01, 1.8),
         new T.MeshBasicMaterial({ color: '#e2e7d8' }),
-        90
+        Math.ceil(segments / 4)
       );
-    for (let i = 0; i < 360; i++) {
+    for (let i = 0; i < segments; i++) {
       const p = track.points[i],
-        q = track.points[(i + 1) % 360],
+        q = track.points[i + 1],
         segmentLength = Math.hypot(q.x - p.x, q.z - p.z);
       [-1, 1].forEach((side, s) => {
         m.position.set(
@@ -604,7 +633,7 @@ export class KartRenderer {
       }
     }
     this.world.add(curb, walls, marks);
-    const start = track.points[0],
+    const start = track.points[track.points.length - 1],
       checker = new T.InstancedMesh(
         new T.BoxGeometry(track.width / 15, 0.02, 1.2),
         new T.MeshStandardMaterial({ roughness: 0.7 }),
@@ -656,7 +685,7 @@ export class KartRenderer {
       ctx.fillStyle = '#172018';
       ctx.font = '900 78px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('TIRANA · RACING ROYAL', 512, 92);
+      ctx.fillText('KUVENDI · FINISH', 512, 92);
       const tex = new T.CanvasTexture(canvas);
       tex.userData.ephemeral = true;
       tex.colorSpace = T.SRGBColorSpace;
@@ -677,6 +706,14 @@ export class KartRenderer {
         this.humanTemplates
       );
       this.world.add(this.supporters.group);
+    }
+    if (this.policeTemplate && this.truckTemplate) {
+      this.police = new PoliceResponse(
+        track,
+        this.policeTemplate,
+        this.truckTemplate
+      );
+      this.world.add(this.police.group);
     }
     this.effects = new RaceEffects(this.camera);
     this.world.add(this.effects.group);
@@ -706,7 +743,7 @@ export class KartRenderer {
         24
       );
     for (let i = 0; i < 24; i++) {
-      const p = track.points[i * 15],
+      const p = track.points[Math.floor((i * segments) / 24)],
         o = track.width / 2 + 3;
       m.position.set(p.x - Math.cos(p.yaw) * o, 3, p.z + Math.sin(p.yaw) * o);
       m.rotation.set(0, p.yaw, 0);
@@ -1047,7 +1084,12 @@ export class KartRenderer {
           yaw = v.rotation.y + wrapAngle(me.velocityYaw - v.rotation.y) * 0.22;
         if (now - this.cityAt > 180) {
           this.cityAt = now;
-          this.scenery?.update(me.x, me.z, this.quality === 'performance');
+          this.scenery?.update(
+            me.x,
+            me.z,
+            this.quality === 'performance',
+            this.motionTime
+          );
         }
         const running = this.state === 'racing' && !this.paused;
         this.supporters?.update(
@@ -1058,6 +1100,14 @@ export class KartRenderer {
           running,
           (origin, target, kind, seed) =>
             this.effects?.launch(origin, target, kind, seed)
+        );
+        this.police?.update(
+          this.time,
+          me,
+          this.supporters?.events || [],
+          running,
+          this.quality === 'performance',
+          (seed, time) => this.supporters?.wet(seed, time)
         );
         if (now - this.skidAt > 65) {
           this.skidAt = now;
@@ -1120,7 +1170,9 @@ export class KartRenderer {
           this.onFrame({
             speed: me.speed,
             boost: me.boost,
-            lap: Math.min(3, Math.max(1, me.lap)),
+            lap: 1,
+            routeProgress: me.progress,
+            remaining: Math.max(0, this.track.length - (me.routeDistance || 0)),
             position:
               standings(this.racers).findIndex((r) => r.id === this.me) + 1,
             time: this.time,
@@ -1178,6 +1230,10 @@ export class KartRenderer {
       'webglcontextlost',
       this.contextLost
     );
+    this.scenery?.dispose();
+    this.police?.dispose();
+    if (this.policeTemplate) this.release(this.policeTemplate, true);
+    if (this.truckTemplate) this.release(this.truckTemplate, true);
     this.supporters?.dispose();
     this.effects?.dispose();
     this.release(this.scene, true);
