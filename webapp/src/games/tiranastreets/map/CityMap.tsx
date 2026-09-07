@@ -30,7 +30,7 @@ function Markers({player,state,route,scale,destination}:Props & {scale:number}) 
     {state&&Object.values(state.players).map(p=><circle key={p.id} cx={p.x} cy={p.z} r={4*scale} fill="#f49268"/>)}
     {state&&<><rect x={state.shop.x-5*scale} y={state.shop.z-5*scale} width={10*scale} height={10*scale} fill="#d8fa69"/>
       {state.units.map(u=><circle key={u.id} cx={u.x} cy={u.z} r={4*scale} fill={u.model==='military-suv'?'#e0ac59':'#60adff'}/>)}
-      {state.npcs.filter(n=>n.kind==='gang'&&n.health>0).map(n=><circle key={n.id} cx={n.x} cy={n.z} r={3*scale} fill="#f77b6a"}/>)}</>}
+      {state.npcs.filter(n=>n.kind==='gang'&&n.health>0).map(n=><circle key={n.id} cx={n.x} cy={n.z} r={3*scale} fill={'#f77b6a'}/>)}</>}
     {destination&&<g><circle cx={destination.x} cy={destination.z} r={8*scale} fill="#ed9168" stroke="#fff" strokeWidth={2*scale}/><circle cx={destination.x} cy={destination.z} r={2*scale} fill="#fff"/></g>}
     {player&&<g transform={`translate(${player.x} ${player.z}) rotate(${(-player.heading*180)/Math.PI})`}><circle r={10*scale} fill="#d8fa69" opacity=".25"/><path d={`M0 ${-9*scale}L${6*scale} ${7*scale}L0 ${4*scale}L${-6*scale} ${7*scale}Z`} fill="#f2ffcd" stroke="#12282f" strokeWidth={scale}/></g>}
   </g>;
