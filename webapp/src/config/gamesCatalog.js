@@ -47,7 +47,7 @@ const gamesCatalog = [
     modes: ['VS AI', 'TPG Multiplayer', 'Career'],
     launchLabel: 'Enter Racing Lobby',
     description:
-      'Enter your racing lobby for TPG matchmaking, private races, free AI practice and career cups.'
+      'Race from ten Tirana locations to Parliament, including Surrel and Farka. Six karts, driver view, AI missions and TPG multiplayer.'
   },
   {
     name: "Texas Hold'em",

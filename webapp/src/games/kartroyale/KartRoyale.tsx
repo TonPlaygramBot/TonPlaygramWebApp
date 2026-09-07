@@ -30,6 +30,7 @@ import type { Quality, Frame, Result, CameraMode } from './renderer';
 import {
   COLORS,
   TRACKS,
+  randomTrack,
   CUPS,
   KARTS,
   makeTrack,
@@ -70,13 +71,13 @@ function CircuitMap({ id, frame }: { id: string; frame?: Frame | null }) {
       className="kr-map"
       viewBox="0 0 100 100"
       role="img"
-      aria-label={`${t.name} circuit map`}
+      aria-label={`${t.name}: route to Parliament`}
     >
       <polyline
         points={t.points
           .filter((_, i) => i % 3 === 0)
           .map((p) => project(p.x, p.z))
-          .concat(project(t.points[0].x, t.points[0].z))
+          .concat(project(t.points.at(-1)!.x, t.points.at(-1)!.z))
           .join(' ')}
         fill="none"
         stroke="currentColor"
@@ -111,7 +112,7 @@ export default function KartRoyale({
   const [loaded, setLoaded] = useState(false),
     [error, setError] = useState(''),
     [mode, setMode] = useState<Mode>(renderOnlineLobby ? 'online' : 'ai'),
-    [trackId, setTrackId] = useState('skanderbeg'),
+    [trackId, setTrackId] = useState(() => randomTrack()),
     [difficulty, setDifficulty] = useState('rookie'),
     [paint, setPaint] = useState(0),
     [kartId, setKartId] = useState(() => {
@@ -780,7 +781,7 @@ export default function KartRoyale({
                       <h3>{track.name}</h3>
                       <p>
                         {(maps.get(trackId)!.length / 1000).toFixed(2)} km{' '}
-                        <span>·</span> 3 laps
+                        <span>·</span> Parliament
                       </p>
                     </div>
                     <div className="kr-track-arrows">
@@ -789,7 +790,7 @@ export default function KartRoyale({
                           key={d}
                           className="kr-icon"
                           aria-label={
-                            d < 0 ? 'Previous circuit' : 'Next circuit'
+                            d < 0 ? 'Previous mission' : 'Next mission'
                           }
                           onClick={() =>
                             setTrackId(
@@ -811,6 +812,12 @@ export default function KartRoyale({
                       ))}
                     </div>
                   </div>
+                  <button
+                    className="kr-random-route"
+                    onClick={() => setTrackId(randomTrack())}
+                  >
+                    Random departure · 10 Tirana locations
+                  </button>
                   <div className="kr-difficulty">
                     <span className="kr-label">AI LEVEL</span>
                     <div>
@@ -831,8 +838,11 @@ export default function KartRoyale({
               {mode === 'career' && (
                 <div className="kr-options">
                   <div className="kr-section-line">
-                    <span className="kr-label">THE ROAD TO ROYALE</span>
-                    <span>{career.cups.filter(Boolean).length}/3 CUPS</span>
+                    <span className="kr-label">TEN ROADS TO PARLIAMENT</span>
+                    <span>
+                      {career.cups.filter(Boolean).length}/{CUPS.length}{' '}
+                      MISSIONS
+                    </span>
                   </div>
                   <div className="kr-cups">
                     {CUPS.map((c, i) => {
@@ -852,10 +862,10 @@ export default function KartRoyale({
                           <b>{c.name}</b>
                           <small>
                             {locked
-                              ? 'Win previous cup'
+                              ? 'Complete previous mission'
                               : career.cups[i]
                                 ? '★'.repeat(career.cups[i])
-                                : i === 2
+                                : c.target === 1
                                   ? 'Finish 1st'
                                   : 'Finish top 3'}
                           </small>
@@ -865,8 +875,8 @@ export default function KartRoyale({
                   </div>
                   <div className="kr-career-meta">
                     <span>
-                      {TRACKS.find((t) => t.id === CUPS[cup].track)?.name} · 3
-                      laps
+                      {TRACKS.find((t) => t.id === CUPS[cup].track)?.name} ·
+                      Parliament
                     </span>
                     <b>+{CUPS[cup].reward} CR</b>
                   </div>
@@ -876,10 +886,10 @@ export default function KartRoyale({
                 <div className="kr-options kr-online">
                   {!room && (
                     <label className="kr-circuit-choice">
-                      Tirana circuit
+                      Tirana mission
                       <select
                         className="kr-input"
-                        aria-label="Online racing circuit"
+                        aria-label="Online racing mission"
                         value={trackId}
                         disabled={busy}
                         onChange={(e) => setTrackId(e.target.value)}
@@ -1124,7 +1134,7 @@ export default function KartRoyale({
             </div>
             <div className="kr-lap">
               <span>
-                LAP <b>{hud?.lap || 1}</b> / 3
+                TO KUVENDI <b>{Math.round((hud?.routeProgress || 0) * 100)}%</b>
               </span>
               <time>{formatTime(hud?.time || 0)}</time>
             </div>
@@ -1140,6 +1150,11 @@ export default function KartRoyale({
             <div className="kr-race-map">
               <CircuitMap id={trackId} frame={hud} />
             </div>
+            <p className="kr-destination">
+              KUVENDI
+              <br />
+              <span>George W. Bush</span>
+            </p>
             <small>{hud?.fps || '—'} FPS</small>
           </div>
           <button
@@ -1282,7 +1297,7 @@ export default function KartRoyale({
                         ? 'LEFT'
                         : session
                           ? 'DNF'
-                          : `Lap ${Math.max(1, r.lap)}`}
+                          : `${Math.round(r.progress * 100)}% of route`}
                   </span>
                 </div>
               ))}
@@ -1479,6 +1494,11 @@ export default function KartRoyale({
                     </a>
                     .
                   </p>
+                  <p>
+                    Original Blender cast: Edi Rama, Belinda Balluku, Erion
+                    Braçe, Ulsi Manja and Blendi Gonxhe. Stylized fictional
+                    portrayals alongside the civilian crowd.
+                  </p>
                 </details>
               </>
             ) : modal === 'help' ? (
@@ -1496,16 +1516,18 @@ export default function KartRoyale({
                   </p>
                   <b>03 · Make your move.</b>
                   <p>
-                    Hold BOOST on the straights. Finish three complete laps. The
-                    harder you crash, the more bodywork and engine damage you
-                    take. Small bumps are forgiving. At zero integrity your kart
-                    retires.
+                    Hold BOOST on the straights. Follow the marked route to
+                    Parliament via George W. Bush Street. The harder you crash,
+                    the more bodywork and engine damage you take. Small bumps
+                    are forgiving. At zero integrity your kart retires.
                   </p>
                   <b>04 · Watch the crowd.</b>
                   <p>
                     Supporters throw eggs and tomatoes. Steer away from their
                     flight paths. Splashes clear automatically and do not damage
-                    your kart. Tap the camera button to change your view.
+                    your kart. Police react to throwers, and a water cannon
+                    operates beside the Parliament entrance. Tap the camera
+                    button to change your view.
                   </p>
                 </div>
                 <p>

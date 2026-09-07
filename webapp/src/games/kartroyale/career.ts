@@ -1,6 +1,6 @@
 import { CUPS } from './simulation.mjs';
 export interface Career {
-  version: 1;
+  version: 2;
   cups: number[];
   best: Record<string, number>;
   credits: number;
@@ -11,14 +11,14 @@ const key = 'tonplaygram.kartroyale.career.v1';
 export function loadCareer(): Career {
   try {
     const d = JSON.parse(localStorage.getItem(key) || '{}');
-    if (d.version === 1)
+    if (d.version === 1 || d.version === 2)
       return {
-        version: 1,
+        version: 2,
         cups: CUPS.map((_, i) =>
           Math.max(0, Math.min(3, Number(d.cups?.[i]) || 0))
         ),
         best: Object.fromEntries(
-          Object.entries(d.best || {}).filter(
+          Object.entries(d.version === 2 ? d.best || {} : {}).filter(
             (e): e is [string, number] =>
               typeof e[1] === 'number' && Number.isFinite(e[1]) && e[1] > 0
           )
@@ -29,8 +29,8 @@ export function loadCareer(): Career {
       };
   } catch {}
   return {
-    version: 1,
-    cups: [0, 0, 0],
+    version: 2,
+    cups: CUPS.map(() => 0),
     best: {},
     credits: 0,
     races: 0,

@@ -6,6 +6,7 @@ import {
   resolveWallContact
 } from '../webapp/src/games/kartroyale/collisions.mjs';
 import { TIRANA_ROUTES } from '../webapp/src/games/kartroyale/tirana-routes.mjs';
+import { RACING_REGION } from '../webapp/src/games/tiranastreets/shared/racingRegion.mjs';
 import { WORLD } from '../webapp/src/games/tiranastreets/shared/world.mjs';
 import {
   launchFood,
@@ -30,13 +31,24 @@ const racer = (id = 'a', slot = 0) => {
 };
 const energy = (rs) => rs.reduce((s, r) => s + r.speed * r.speed, 0);
 
-test('all five circuits use closed, unique paths from Tirana Streets road segments', () => {
+test('ten open missions follow connected mapped roads into Parliament', () => {
   assert.deepEqual(
     TRACKS.map((t) => t.id),
-    ['skanderbeg', 'blloku', 'lana', 'pyramid', 'stadium']
+    [
+      'skanderbeg',
+      'blloku',
+      'lana',
+      'pyramid',
+      'stadium',
+      'myslym',
+      'pazari',
+      'toptani',
+      'farka',
+      'surrel'
+    ]
   );
   const edges = new Set(
-    WORLD.roads
+    [...WORLD.roads, ...RACING_REGION.roads]
       .filter((r) => !r.walk)
       .flatMap((r) => [JSON.stringify([r.a, r.b]), JSON.stringify([r.b, r.a])])
   );
@@ -45,17 +57,22 @@ test('all five circuits use closed, unique paths from Tirana Streets road segmen
       new Set(route.points.map((p) => p.join(','))).size,
       route.points.length
     );
-    route.points.forEach((p, i) =>
-      assert.ok(
-        edges.has(
-          JSON.stringify([p, route.points[(i + 1) % route.points.length]])
-        ),
-        `${route.id} street continuity`
-      )
-    );
+    route.points
+      .slice(0, -1)
+      .forEach((p, i) =>
+        assert.ok(
+          edges.has(JSON.stringify([p, route.points[i + 1]])),
+          `${route.id} street continuity`
+        )
+      );
     const track = makeTrack(route.id);
-    assert.equal(track.points.length, 360);
-    assert.ok(track.length > 800 && track.length < 2000);
+    assert.ok(track.points.length >= 360);
+    assert.deepEqual(
+      [track.points.at(-1).x, track.points.at(-1).z],
+      route.points.at(-1)
+    );
+    assert.equal(route.open, true);
+    assert.ok(track.length > 800 && track.length < 10000);
     for (const p of track.points)
       assert.ok(
         Number.isFinite(p.x) && Number.isFinite(p.z) && Number.isFinite(p.yaw)
