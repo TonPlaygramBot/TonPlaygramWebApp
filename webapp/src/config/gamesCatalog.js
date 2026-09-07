@@ -1,5 +1,17 @@
 const gamesCatalog = [
   {
+    name: 'BLACKWATER',
+    route: '/games/blackwater/lobby',
+    slug: 'blackwater',
+    image: '/assets/blackwater/mark.svg',
+    badge: 'Beta',
+    featured: true,
+    modes: ['Solo operation', 'TPG Multiplayer'],
+    launchLabel: 'Enter BLACKWATER Lobby',
+    attribution: '© OpenStreetMap',
+    description: 'Mobile FPS on the streets of Tirana. Three-wave solo operations and 2–4 player TPG matches.'
+  },
+  {
     name: 'Table Tennis Royal',
     route: '/games/tabletennisroyal/lobby',
     slug: 'tabletennisroyal',
