@@ -1,0 +1,26 @@
+{
+  "date": "2026-09-07",
+  "originalRecreationCount": 6,
+  "modelIds": ["clock", "mosque", "pyramid", "museum", "eyes", "skanderbeg"],
+  "thirdPartyCatalogueModelsAcquired": 0,
+  "generatedGlbFiles": 12,
+  "entryPointsWired": ["tiranastreets/renderer.ts", "kartroyale/tiranaScenery.ts", "blackwater/cityWorld.ts"],
+  "numericTestsPassed": 53,
+  "numericTestsFailed": 0,
+  "independentGlbParser": "Python trimesh",
+  "offlineModelRenders": 6,
+  "renderViewport": [390, 844],
+  "renderMethod": "CPU z-buffer of exported GLB geometry; not Three.js or a live game",
+  "fullApplicationBuildVerified": false,
+  "browserWebGlVerified": false,
+  "actualGamePlacementVisuallyVerified": false,
+  "physicsCollidersChanged": false,
+  "productionDeployed": false,
+  "reviewNotes": [
+    "Original approximate meshes, not Google Earth/Sketchfab downloads.",
+    "Eyes anchor is a mapped site centre; final alignment needs review.",
+    "Unknown source footprints produce diagnostics and retain existing shells.",
+    "Skanderbeg is scenery-only; it has no new authoritative plinth collider.",
+    "Physical phone and full-game regression checks remain required."
+  ]
+}

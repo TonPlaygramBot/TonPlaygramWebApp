@@ -1,0 +1,12 @@
+import type {NativeModelId} from './nativeModels.mjs';
+export type Point = {x:number;z:number};
+export type WorldInput = {origin:readonly number[];bounds:readonly number[];landmarks:readonly {id:string;x:number;z:number}[];buildings:readonly {id:string|number;name?:string;p:number[][]}[]};
+export type NativeLandmark = Point & {id:NativeModelId;name:string;yaw:number;groundY:number;buildingId:string|null;footprint:number[][]|null;source:string;accuracy:string;geometryAccuracy:string;orientationAccuracy:string};
+export const NATIVE_LANDMARK_SPECS: readonly {id:NativeModelId;name:string;way?:string;landmark?:string;lat?:number;lon?:number;yaw:number;source:string;accuracy:string}[];
+export function containsPoint(x:number,z:number,poly:readonly number[][]):boolean;
+export function distanceToPolygon(x:number,z:number,poly:readonly number[][]):number;
+export function projectLocation(world:WorldInput,lat:number,lon:number):Point;
+export function resolveNativeLandmarks(world:WorldInput):{landmarks:NativeLandmark[];issues:string[]};
+export function nativeReplacementIds(world:WorldInput):Set<string>;
+export function translateNativeLandmarks(items:NativeLandmark[],origin?:Point):NativeLandmark[];
+export function triangleInReplacement(vertices:number[][],footprints:number[][][],tolerance?:number):boolean;

@@ -1,0 +1,33 @@
+name: Tirana landmark geometry and placement
+on:
+  push:
+    branches: [feat/tirana-shared-landmarks]
+  pull_request:
+    paths:
+      - 'webapp/src/games/tirana-landmarks/**'
+      - 'webapp/src/games/tiranastreets/**'
+      - 'webapp/src/games/kartroyale/**'
+      - 'webapp/src/games/blackwater/**'
+      - 'webapp/scripts/export-tirana-landmarks.mjs'
+      - 'test/tirana*Landmark*.mjs'
+      - '.github/workflows/tirana-landmarks.yml'
+permissions:
+  contents: read
+jobs:
+  geometry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Numeric geometry, GLB, placement and fallback regression tests
+        run: node --experimental-strip-types --test test/tiranaLandmarkPlacement.test.mjs test/tiranaNativeLandmarks.test.mjs test/tiranaLandmarkFallback.test.mjs
+      - name: Export original near and far meshes
+        run: node webapp/scripts/export-tirana-landmarks.mjs /tmp/tirana-landmarks
+      - uses: actions/upload-artifact@v4
+        with:
+          name: original-tirana-landmark-glbs
+          path: /tmp/tirana-landmarks
+          retention-days: 7
