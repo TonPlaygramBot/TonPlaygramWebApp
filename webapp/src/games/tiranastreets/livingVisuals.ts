@@ -1,29 +1,30 @@
-import * as THREE from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { WEAPON_BY_ID } from "./shared/weapons.mjs";
-import type { State, Player, NPC } from "./shared/engine.mjs";
+import { WeaponShop, SHOP_DISPLAYS } from './weaponShop';
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { WEAPON_BY_ID } from './shared/weapons.mjs';
+import type { State, Player, NPC } from './shared/engine.mjs';
 
-const BASE = "/assets/tirana-streets/living/";
+const BASE = '/assets/tirana-streets/living/';
 // Same Ludo IDs. Unavailable CDN models use the creator's downloadable CC0 pack.
 export const WEAPON_MODEL_VARIANTS: Record<string, string> = {
-  polyPistol01Attack: "q-pistol",
-  polyRevolver01Attack: "smith",
-  polyRevolver02Attack: "smith",
-  polyShotgun01Attack: "q-shotgun",
-  polyShotgun02Attack: "q-shotgun",
-  polyShotgun03Attack: "q-shotgun",
-  polySawedOff01Attack: "q-shotgun",
-  polySmg01Attack: "q-smg",
-  polyAssaultRifle01Attack: "q-rifle",
-  polyRobotLargeGunAttack: "q-rifle",
-  polyRobotFlyingGunAttack: "q-smg",
-  polyBazooka01Attack: "launcher",
-  polyGrenadeLauncher01Attack: "launcher",
-  polyDynamiteBomb01Attack: "grenade",
-  polyMolotov01Attack: "grenade",
-  polyGasTank01Attack: "grenade",
-  polyHandGrenade01Attack: "grenade",
+  polyPistol01Attack: 'q-pistol',
+  polyRevolver01Attack: 'smith',
+  polyRevolver02Attack: 'smith',
+  polyShotgun01Attack: 'q-shotgun',
+  polyShotgun02Attack: 'q-shotgun',
+  polyShotgun03Attack: 'q-shotgun',
+  polySawedOff01Attack: 'q-shotgun',
+  polySmg01Attack: 'q-smg',
+  polyAssaultRifle01Attack: 'q-rifle',
+  polyRobotLargeGunAttack: 'q-rifle',
+  polyRobotFlyingGunAttack: 'q-smg',
+  polyBazooka01Attack: 'launcher',
+  polyGrenadeLauncher01Attack: 'launcher',
+  polyDynamiteBomb01Attack: 'grenade',
+  polyMolotov01Attack: 'grenade',
+  polyGasTank01Attack: 'grenade',
+  polyHandGrenade01Attack: 'grenade'
 };
 export const weaponModelFile = (model: string) =>
   WEAPON_MODEL_VARIANTS[model] || model;
@@ -35,15 +36,15 @@ export class LivingVisuals {
   private holders = new Map<string, { group: THREE.Group; weapon: string }>();
   private tracers: THREE.LineSegments;
   private marks: THREE.InstancedMesh;
-  private shop = new THREE.Group();
+  private shopInterior = new WeaponShop();
   private dealerLabel: THREE.Sprite | null = null;
   private disposed = false;
   private stamp = 0;
   constructor() {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute(
-      "position",
-      new THREE.BufferAttribute(new Float32Array(48 * 6), 3),
+      'position',
+      new THREE.BufferAttribute(new Float32Array(48 * 6), 3)
     );
     this.tracers = new THREE.LineSegments(
       geometry,
@@ -51,8 +52,8 @@ export class LivingVisuals {
         color: 0xffd783,
         transparent: true,
         opacity: 0.85,
-        depthWrite: false,
-      }),
+        depthWrite: false
+      })
     );
     this.tracers.frustumCulled = false;
     this.group.add(this.tracers);
@@ -62,70 +63,16 @@ export class LivingVisuals {
         color: 0xffb657,
         transparent: true,
         opacity: 0.55,
-        depthWrite: false,
+        depthWrite: false
       }),
-      48,
+      48
     );
     this.marks.count = 0;
     this.marks.frustumCulled = false;
     this.group.add(this.marks);
-    const ring = new THREE.Mesh(
-      new THREE.RingGeometry(2.6, 3, 48),
-      new THREE.MeshBasicMaterial({
-        color: 0xd2f566,
-        side: THREE.DoubleSide,
-        transparent: true,
-        opacity: 0.8,
-      }),
-    );
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.y = 0.11;
-    this.shop.add(ring);
-    const counter = new THREE.Mesh(
-      new THREE.BoxGeometry(2.1, 0.95, 0.75),
-      new THREE.MeshStandardMaterial({
-        color: 0x314239,
-        metalness: 0.45,
-        roughness: 0.6,
-      }),
-    );
-    counter.position.set(0, 0.48, 1.6);
-    counter.castShadow = true;
-    this.shop.add(counter);
-    const canopy = new THREE.Mesh(
-      new THREE.BoxGeometry(3.8, 0.16, 3),
-      new THREE.MeshStandardMaterial({ color: 0x566347, roughness: 0.85 }),
-    );
-    canopy.position.y = 2.65;
-    canopy.castShadow = true;
-    this.shop.add(canopy);
-    for (const x of [-1.7, 1.7]) {
-      const pole = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.05, 0.05, 2.6, 6),
-        new THREE.MeshStandardMaterial({ color: 0x606861, metalness: 0.6 }),
-      );
-      pole.position.set(x, 1.3, 1);
-      this.shop.add(pole);
-    }
-    const canvas = document.createElement("canvas");
-    canvas.width = 512;
-    canvas.height = 96;
-    const c = canvas.getContext("2d")!;
-    c.fillStyle = "#14291f";
-    c.fillRect(0, 0, 512, 96);
-    c.fillStyle = "#d2f566";
-    c.font = "bold 34px sans-serif";
-    c.textAlign = "center";
-    c.fillText("ARBEN · ARSENAL", 256, 60);
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    this.dealerLabel = new THREE.Sprite(
-      new THREE.SpriteMaterial({ map: texture }),
-    );
-    this.dealerLabel.position.set(0, 3.1, 0);
-    this.dealerLabel.scale.set(4.8, 0.9, 1);
-    this.shop.add(this.dealerLabel);
-    this.group.add(this.shop);
+    this.group.add(this.shopInterior.group);
+    for (const name of new Set(SHOP_DISPLAYS.map((s) => s.model)))
+      void this.load(name);
   }
   private async load(name: string) {
     if (
@@ -137,7 +84,7 @@ export class LivingVisuals {
       return;
     this.loading.add(name);
     try {
-      const gltf = await new GLTFLoader().loadAsync(BASE + name + ".glb");
+      const gltf = await new GLTFLoader().loadAsync(BASE + name + '.glb');
       if (this.disposed) {
         this.disposeModel(gltf.scene);
         return;
@@ -150,7 +97,7 @@ export class LivingVisuals {
           const source = o.geometry.clone();
           if (o instanceof THREE.SkinnedMesh) {
             o.skeleton.update();
-            const position = source.getAttribute("position"),
+            const position = source.getAttribute('position'),
               vertex = new THREE.Vector3();
             for (let i = 0; i < position.count; i++) {
               o.getVertexPosition(i, vertex);
@@ -160,16 +107,16 @@ export class LivingVisuals {
           const geometry = source.applyMatrix4(o.matrixWorld).toNonIndexed();
           if (geometry !== source) source.dispose();
           for (const key of Object.keys(geometry.attributes))
-            if (!["position", "normal", "uv"].includes(key))
+            if (!['position', 'normal', 'uv'].includes(key))
               geometry.deleteAttribute(key);
-          if (!geometry.getAttribute("normal")) geometry.computeVertexNormals();
-          if (!geometry.getAttribute("uv"))
+          if (!geometry.getAttribute('normal')) geometry.computeVertexNormals();
+          if (!geometry.getAttribute('uv'))
             geometry.setAttribute(
-              "uv",
+              'uv',
               new THREE.BufferAttribute(
-                new Float32Array(geometry.getAttribute("position").count * 2),
-                2,
-              ),
+                new Float32Array(geometry.getAttribute('position').count * 2),
+                2
+              )
             );
           if (!batches.has(o.material)) batches.set(o.material, []);
           batches.get(o.material)!.push(geometry);
@@ -207,18 +154,18 @@ export class LivingVisuals {
       });
     } catch (error) {
       this.failed.add(name);
-      console.warn("Tirana weapon asset unavailable:", name, error);
+      console.warn('Tirana weapon asset unavailable:', name, error);
     } finally {
       this.loading.delete(name);
     }
   }
   pose(id: string, actor: THREE.Group, entity: Player | NPC, time: number) {
-    const weapon = entity.weapon || "",
+    const weapon = entity.weapon || '',
       config = WEAPON_BY_ID.get(weapon),
-      name = config ? weaponModelFile(config.model) : "";
+      name = config ? weaponModelFile(config.model) : '';
     let holder = this.holders.get(id);
     if (!holder) {
-      holder = { group: new THREE.Group(), weapon: "" };
+      holder = { group: new THREE.Group(), weapon: '' };
       actor.add(holder.group);
       this.holders.set(id, holder);
     }
@@ -229,17 +176,25 @@ export class LivingVisuals {
       holder.weapon = name;
     } else if (name && !this.models.has(name)) void this.load(name);
     const shot =
-      "nextShot" in entity &&
-      typeof entity.nextShot === "number" &&
+      'nextShot' in entity &&
+      typeof entity.nextShot === 'number' &&
       entity.nextShot - time > 0.01;
-    const reload = "reloadAt" in entity && entity.reloadAt > time;
+    const reload = 'reloadAt' in entity && entity.reloadAt > time;
     holder.group.scale.setScalar(
-      config?.category === "sidearm" ? 0.5 : config?.radius ? 0.85 : 1,
+      config?.category === 'sidearm' ? 0.5 : config?.radius ? 0.85 : 1
     );
-    holder.group.position.set(-0.22, 1.15, 0.33 - (shot ? 0.05 : 0));
-    holder.group.rotation.set(reload ? -0.65 : 0, 0.05, 0);
-    const w = actor.getObjectByName("mixamorigRightArm"),
-      left = actor.getObjectByName("mixamorigLeftArm");
+    holder.group.position.set(0.22, 1.15, -0.33 + (shot ? 0.05 : 0));
+    const aimPitch = 'input' in entity ? entity.input?.aimPitch || 0 : 0;
+    holder.group.rotation.set(reload ? -0.65 : aimPitch, Math.PI - 0.05, 0);
+    const bone = (suffix: string) => {
+      let match: THREE.Object3D | undefined;
+      actor.traverse((o) => {
+        if (o.name.replace(/[:_]/g, '').endsWith(suffix)) match = o;
+      });
+      return match;
+    };
+    const w = bone('RightArm'),
+      left = bone('LeftArm');
     // Layer an aiming pose over the locomotion mixer, never edit shared skeletons.
     if (name && entity.health > 0) {
       if (w) w.rotation.set(-0.85, 0, -0.45);
@@ -247,13 +202,9 @@ export class LivingVisuals {
     }
   }
   update(state: State, target: Player | undefined) {
-    this.shop.position.set(state.shop.x, 0, state.shop.z);
-    if (this.dealerLabel)
-      this.dealerLabel.visible =
-        !target ||
-        Math.hypot(target.x - state.shop.x, target.z - state.shop.z) < 110;
+    this.shopInterior.update(target, this.models);
     const attr = this.tracers.geometry.getAttribute(
-      "position",
+      'position'
     ) as THREE.BufferAttribute;
     const temp = new THREE.Object3D();
     let count = 0,
@@ -261,14 +212,14 @@ export class LivingVisuals {
     for (const e of state.effects) {
       const age = state.elapsed - e.at;
       if (age < 0 || age > 0.2 || count >= 48) continue;
-      if (e.kind === "shot") {
-        attr.setXYZ(count * 2, e.x, 1.2, e.z);
-        attr.setXYZ(count * 2 + 1, e.toX, 1.1, e.toZ);
+      if (e.kind === 'shot') {
+        attr.setXYZ(count * 2, e.x, e.fromY ?? 1.35, e.z);
+        attr.setXYZ(count * 2 + 1, e.toX, e.toY ?? 1.1, e.toZ);
         count++;
       }
-      if ((e.kind === "explosion" || e.kind === "hit") && marks < 48) {
-        temp.position.set(e.toX, 1, e.toZ);
-        temp.scale.setScalar(e.kind === "explosion" ? 1 + age * 14 : 0.18);
+      if ((e.kind === 'explosion' || e.kind === 'hit') && marks < 48) {
+        temp.position.set(e.toX, e.toY ?? 1.1, e.toZ);
+        temp.scale.setScalar(e.kind === 'explosion' ? 1 + age * 14 : 0.18);
         temp.updateMatrix();
         this.marks.setMatrixAt(marks++, temp.matrix);
       }
@@ -301,6 +252,7 @@ export class LivingVisuals {
   }
   dispose() {
     this.disposed = true;
+    this.shopInterior.dispose();
     this.disposeModel(this.group);
     for (const m of this.models.values()) this.disposeModel(m);
     this.tracers.geometry.dispose();

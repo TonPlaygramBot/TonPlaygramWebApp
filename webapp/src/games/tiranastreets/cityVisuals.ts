@@ -1,5 +1,5 @@
-import * as THREE from "three";
-import { WORLD, insidePolygon, type Point } from "./shared/engine.mjs";
+import * as THREE from 'three';
+import { WORLD, insidePolygon, type Point } from './shared/engine.mjs';
 
 type Placement = {
   id: string;
@@ -46,9 +46,9 @@ export const CITY_DETAILS: Placement[] = WORLD.buildings.flatMap((b, i) => {
           insidePolygon(
             x + dx * width * 0.5 * cos - dz * depth * 0.5 * sin,
             z + dx * width * 0.5 * sin + dz * depth * 0.5 * cos,
-            b.p,
-          ),
-        ),
+            b.p
+          )
+        )
       )
     )
       return [
@@ -59,9 +59,9 @@ export const CITY_DETAILS: Placement[] = WORLD.buildings.flatMap((b, i) => {
           width,
           depth,
           height: b.h + 0.3,
-          variant: i % 2,
-          yaw: -angle,
-        },
+          variant: b.h < 12 ? 1 : b.h > 29 ? 2 : i % 2 ? 0 : 3,
+          yaw: -angle
+        }
       ];
   }
   return [];
@@ -82,11 +82,16 @@ export class CityFacades {
   private matrix = new THREE.Matrix4();
   private object = new THREE.Object3D();
   constructor(source: THREE.Group) {
-    const names = ["brick_block", "corner_block"];
+    const names = [
+      'tirana_apartment',
+      'tirana_lowrise',
+      'tirana_modern',
+      'tirana_courtyard'
+    ];
     for (const [variant, name] of names.entries())
       for (const lod of [false, true]) {
         const template = source.children.find(
-          (o) => o.name === name + (lod ? "_lod" : ""),
+          (o) => o.name === name + (lod ? '_lod' : '')
         );
         if (!template) continue;
         template.updateMatrixWorld(true);
@@ -96,8 +101,22 @@ export class CityFacades {
           if (o instanceof THREE.Mesh) {
             const mesh = new THREE.InstancedMesh(
               o.geometry,
-              o.material,
-              lod ? 120 : 10,
+              Array.isArray(o.material)
+                ? o.material
+                : (() => {
+                    const material = o.material.clone();
+                    if (
+                      material instanceof THREE.MeshStandardMaterial &&
+                      /Tirana_PBR_Plaster/.test(material.name)
+                    ) {
+                      material.color.set(
+                        [0xd6cdb9, 0xe3dac5, 0xb9c6c3, 0xd8b69b][variant]
+                      );
+                      material.normalScale.set(0.35, 0.35);
+                    }
+                    return material;
+                  })(),
+              lod ? 300 : 28
             );
             mesh.count = 0;
             mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -112,7 +131,7 @@ export class CityFacades {
               variant,
               lod,
               size,
-              min: box.min.clone(),
+              min: box.min.clone()
             });
           }
         });
@@ -124,14 +143,35 @@ export class CityFacades {
     this.time = 0.4;
     const near = CITY_DETAILS.map((p) => ({
       p,
-      d: Math.hypot(p.x - target.x, p.z - target.z),
+      d: Math.hypot(p.x - target.x, p.z - target.z)
     }))
       .filter((v) => v.d < (battery ? 180 : 340))
       .sort((a, b) => a.d - b.d)
       .slice(0, battery ? 35 : 100);
+    const modules = near.flatMap(({ p, d }) => {
+      const nx = Math.max(1, Math.ceil(p.width / 28)),
+        nz = Math.max(1, Math.ceil(p.depth / 24));
+      const result: { p: Placement; d: number }[] = [];
+      for (let x = 0; x < nx; x++)
+        for (let z = 0; z < nz; z++) {
+          const dx = ((x + 0.5 - nx / 2) * p.width) / nx,
+            dz = ((z + 0.5 - nz / 2) * p.depth) / nz;
+          result.push({
+            d,
+            p: {
+              ...p,
+              width: p.width / nx,
+              depth: p.depth / nz,
+              x: p.x + dx * Math.cos(p.yaw) + dz * Math.sin(p.yaw),
+              z: p.z - dx * Math.sin(p.yaw) + dz * Math.cos(p.yaw)
+            }
+          });
+        }
+      return result;
+    });
     for (const batch of this.batches) {
       let count = 0;
-      for (const { p, d } of near) {
+      for (const { p, d } of modules) {
         const full = !battery && d < 70;
         if (
           p.variant !== batch.variant ||
@@ -142,7 +182,7 @@ export class CityFacades {
         this.object.scale.set(
           p.width / batch.size.x,
           p.height / batch.size.y,
-          p.depth / batch.size.z,
+          p.depth / batch.size.z
         );
         this.object.rotation.set(0, p.yaw, 0);
         const cx = (batch.min.x + batch.size.x / 2) * this.object.scale.x,
@@ -150,7 +190,7 @@ export class CityFacades {
         this.object.position.set(
           p.x - cx * Math.cos(p.yaw) - cz * Math.sin(p.yaw),
           0.03 - batch.min.y * this.object.scale.y,
-          p.z + cx * Math.sin(p.yaw) - cz * Math.cos(p.yaw),
+          p.z + cx * Math.sin(p.yaw) - cz * Math.cos(p.yaw)
         );
         this.object.updateMatrix();
         this.matrix.multiplyMatrices(this.object.matrix, batch.local);

@@ -1,0 +1,14 @@
+{
+  "pavementCells": 531,
+  "pavementTriangles": 84857,
+  "pavementAreaM2": 241613,
+  "propModels": [
+    "bus_shelter",
+    "bicycle_rack",
+    "utility_cabinet",
+    "stone_planter",
+    "hydrant",
+    "manhole_cover",
+    "tactile_tile"
+  ]
+}

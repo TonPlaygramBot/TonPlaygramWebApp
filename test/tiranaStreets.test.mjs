@@ -119,6 +119,8 @@ test('untrusted controls are finite, bounded, sequenced and time out', () => {
     x: 0,
     y: 0,
     yaw: 0,
+    aimYaw: 0,
+    aimPitch: 0,
     fast: false,
     brake: false,
     fire: false,

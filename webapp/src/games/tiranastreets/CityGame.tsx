@@ -1,11 +1,7 @@
-"use client";
+'use client';
+import { canReachCounter, insideShop } from './shared/streetLayout.mjs';
 
-import {
-  useEffect,
-  useRef,
-  useState,
-  type PointerEvent as ReactPointerEvent,
-} from "react";
+import { useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -29,8 +25,8 @@ import {
   Users,
   Volume2,
   VolumeX,
-  X,
-} from "lucide-react";
+  X
+} from 'lucide-react';
 import {
   advanceState,
   control,
@@ -45,22 +41,27 @@ import {
   WORLD,
   type Career,
   type State,
-  type Point,
-} from "./shared/engine.mjs";
-import type { Snapshot } from "./shared/rooms.mjs";
-import { CityConnection, httpTransport, type Transport } from "./network";
-import { CityInput } from "./input";
-import { CityAudio } from "./audio";
-import { Arsenal } from "./Arsenal";
+  type Point
+} from './shared/engine.mjs';
+import type { Snapshot } from './shared/rooms.mjs';
+import { CityConnection, httpTransport, type Transport } from './network';
+import { CityInput } from './input';
+import { CityAudio } from './audio';
+import { Arsenal } from './Arsenal';
 import {
   DIFFICULTIES,
   WEAPON_BY_ID,
   difficultyOf,
-  type Difficulty,
-} from "./shared/weapons.mjs";
-import { wantedStars } from "./shared/cityLife.mjs";
-import type { CityRenderer } from "./renderer";
-import "./city.css";
+  type Difficulty
+} from './shared/weapons.mjs';
+import { wantedStars } from './shared/cityLife.mjs';
+import { LOCAL_MAP_STATUS, type CityMapStatus } from './mapTypes';
+import { MobileControls } from './MobileControls';
+import { GoogleMapCredits } from './GoogleMapCredits';
+import { mapService } from './mapService';
+import type { CityRenderer } from './renderer';
+import './city.css';
+import './mobile.css';
 
 type Props = {
   playerName?: string;
@@ -68,21 +69,21 @@ type Props = {
   transport?: Transport;
 };
 const MODES = [
-  { id: "solo", label: "Explore + AI", icon: Compass },
-  { id: "career", label: "Career", icon: Flag },
-  { id: "online", label: "Online", icon: Users },
+  { id: 'solo', label: 'Explore + AI', icon: Compass },
+  { id: 'career', label: 'Career', icon: Flag },
+  { id: 'online', label: 'Online', icon: Users }
 ] as const;
 const clock = (seconds: number) =>
   `${Math.floor(Math.max(0, seconds) / 60)}:${Math.floor(
-    Math.max(0, seconds) % 60,
+    Math.max(0, seconds) % 60
   )
     .toString()
-    .padStart(2, "0")}`;
+    .padStart(2, '0')}`;
 function CityMap({
   player,
   state,
   route,
-  large = false,
+  large = false
 }: {
   player?: { x: number; z: number; heading: number };
   state: State | null;
@@ -94,10 +95,10 @@ function CityMap({
       ? `${b[0]} ${b[1]} ${b[2] - b[0]} ${b[3] - b[1]}`
       : player
         ? `${player.x - 120} ${player.z - 120} 240 240`
-        : "-150 0 300 300";
+        : '-150 0 300 300';
   const size = large ? 7 : 3.3;
   return (
-    <div className={large ? "ts-map-large" : "ts-minimap"}>
+    <div className={large ? 'ts-map-large' : 'ts-minimap'}>
       <svg
         viewBox={view}
         role="img"
@@ -112,7 +113,7 @@ function CityMap({
         />
         {route.length > 1 && (
           <polyline
-            points={route.map((p) => `${p.x},${p.z}`).join(" ")}
+            points={route.map((p) => `${p.x},${p.z}`).join(' ')}
             fill="none"
             stroke="#ddf67d"
             strokeWidth={large ? 5 : 3}
@@ -169,11 +170,11 @@ function CityMap({
                 cx={u.x}
                 cy={u.z}
                 r={size * 1.8}
-                fill={u.model === "military-suv" ? "#e0ac59" : "#60adff"}
+                fill={u.model === 'military-suv' ? '#e0ac59' : '#60adff'}
               />
             ))}
             {state.npcs
-              .filter((n) => n.kind === "gang" && n.health > 0)
+              .filter((n) => n.kind === 'gang' && n.health > 0)
               .map((n) => (
                 <circle
                   key={n.id}
@@ -214,9 +215,9 @@ function CityMap({
 }
 
 export default function CityGame({
-  playerName = "Driver",
+  playerName = 'Driver',
   onExit,
-  transport = httpTransport,
+  transport = httpTransport
 }: Props) {
   const mount = useRef<HTMLDivElement>(null),
     renderer = useRef<CityRenderer | null>(null),
@@ -224,45 +225,53 @@ export default function CityGame({
     audio = useRef<CityAudio | null>(null),
     connection = useRef<CityConnection | null>(null);
   const engine = useRef<State | null>(null),
-    identity = useRef("local"),
-    screenRef = useRef("lobby"),
+    identity = useRef('local'),
+    screenRef = useRef('lobby'),
     overlayRef = useRef<string | null>(null),
     alive = useRef(true),
     requestGeneration = useRef(0),
     transportRef = useRef(transport),
     routeRef = useRef<Point[]>([]);
   transportRef.current = transport;
-  const [screen, setScreenState] = useState("lobby"),
+  const [screen, setScreenState] = useState('lobby'),
     [overlay, setOverlayState] = useState<string | null>(null),
-    [mode, setMode] = useState<"solo" | "career" | "online">("solo"),
-    [missionId, setMissionId] = useState("free-roam"),
-    [crewMode, setCrewMode] = useState("rivals"),
-    [difficulty, setDifficulty] = useState<Difficulty>("normal");
+    [mode, setMode] = useState<'solo' | 'career' | 'online'>('solo'),
+    [missionId, setMissionId] = useState('free-roam'),
+    [crewMode, setCrewMode] = useState('rivals'),
+    [difficulty, setDifficulty] = useState<Difficulty>('normal');
   const [ready, setReady] = useState(false),
-    [loading, setLoading] = useState("Preparing central Tirana"),
-    [fatal, setFatal] = useState(""),
+    [loading, setLoading] = useState('Preparing central Tirana'),
+    [fatal, setFatal] = useState(''),
     [busy, setBusy] = useState(false),
-    [error, setError] = useState(""),
-    [networkError, setNetworkError] = useState("");
+    [error, setError] = useState(''),
+    [networkError, setNetworkError] = useState('');
   const [career, setCareer] = useState<Career>(freshCareer),
     [profileLoaded, setProfileLoaded] = useState(false),
     [activeRoom, setActiveRoom] = useState<string | null>(null),
     [room, setRoom] = useState<Snapshot | null>(null),
-    [roomCode, setRoomCode] = useState("");
+    [roomCode, setRoomCode] = useState('');
   const [view, setView] = useState<State | null>(null),
     [fps, setFps] = useState(60),
-    [quality, setQuality] = useState<"auto" | "high" | "battery">("auto"),
+    [quality, setQuality] = useState<'auto' | 'high' | 'battery'>('auto'),
     [sound, setSound] = useState(true),
-    [stick, setStick] = useState({ x: 0, y: 0 }),
     [copied, setCopied] = useState(false);
+  const [mapStatus, setMapStatus] = useState<CityMapStatus>(LOCAL_MAP_STATUS);
+  const [googleCity, setGoogleCity] = useState(true);
+  const [lookSensitivity, setLookSensitivity] = useState(1);
+  useEffect(() => {
+    try {
+      const value = Number(localStorage.getItem('tirana.lookSensitivity'));
+      if (value >= 0.5 && value <= 1.5) setLookSensitivity(value);
+    } catch {}
+  }, []);
   const modal = useRef<HTMLElement | null>(null);
   const mission =
-      view?.missionId === "free-roam"
+      view?.missionId === 'free-roam'
         ? FREE_ROAM
         : MISSIONS.find((m) => m.id === (view?.missionId || missionId)) ||
           MISSIONS[0],
     selected =
-      missionId === "free-roam"
+      missionId === 'free-roam'
         ? FREE_ROAM
         : MISSIONS.find((m) => m.id === missionId) || MISSIONS[0],
     player = view?.players[identity.current],
@@ -275,8 +284,7 @@ export default function CityGame({
     overlayRef.current = v;
     setOverlayState(v);
     input.current?.clear();
-    input.current?.setEnabled(!v && screenRef.current === "playing");
-    setStick({ x: 0, y: 0 });
+    input.current?.setEnabled(!v && screenRef.current === 'playing');
   };
   const receive = (snapshot: Snapshot, saved?: Career) => {
     if (!alive.current) return;
@@ -291,15 +299,15 @@ export default function CityGame({
         p.lastAction = 0;
       }
       if (
-        snapshot.phase === "finished" &&
-        (snapshot.mode !== "career" ||
+        snapshot.phase === 'finished' &&
+        (snapshot.mode !== 'career' ||
           snapshot.state.players[snapshot.playerId]?.failed ||
           saved?.completed.includes(snapshot.missionId))
       )
         connection.current?.stop();
       engine.current = snapshot.state;
-      if (snapshot.phase === "active" || snapshot.phase === "finished") {
-        setScreen("playing");
+      if (snapshot.phase === 'active' || snapshot.phase === 'finished') {
+        setScreen('playing');
         input.current?.setEnabled(!overlayRef.current);
       }
     }
@@ -314,15 +322,15 @@ export default function CityGame({
   };
   const actionRef = useRef<(action: string) => void>(() => {});
   actionRef.current = (action) => {
-    if (action === "arsenal") {
-      setOverlay("arsenal");
+    if (action === 'arsenal') {
+      setOverlay('arsenal');
       return;
     }
-    if (action === "pause") {
-      setOverlay(overlayRef.current ? null : "pause");
+    if (action === 'pause') {
+      setOverlay(overlayRef.current ? null : 'pause');
       return;
     }
-    if (screenRef.current !== "playing" || overlayRef.current) return;
+    if (screenRef.current !== 'playing' || overlayRef.current) return;
     sendAction(action);
   };
 
@@ -332,16 +340,16 @@ export default function CityGame({
     const focusables = () =>
       Array.from(
         modal.current?.querySelectorAll<HTMLElement>(
-          'button:not(:disabled),a[href],select,input,[tabindex="0"]',
-        ) || [],
+          'button:not(:disabled),a[href],select,input,[tabindex="0"]'
+        ) || []
       );
     focusables()[0]?.focus();
     const keys = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         e.preventDefault();
         setOverlay(null);
       }
-      if (e.key === "Tab") {
+      if (e.key === 'Tab') {
         const items = focusables(),
           first = items[0],
           last = items[items.length - 1];
@@ -354,9 +362,9 @@ export default function CityGame({
         }
       }
     };
-    window.addEventListener("keydown", keys);
+    window.addEventListener('keydown', keys);
     return () => {
-      window.removeEventListener("keydown", keys);
+      window.removeEventListener('keydown', keys);
       previous?.focus();
     };
   }, [overlay]);
@@ -375,13 +383,13 @@ export default function CityGame({
     inputs.setEnabled(false);
     audio.current = new CityAudio();
     engine.current = createState(
-      [{ id: "local", name: playerName }],
-      MISSIONS[0].id,
+      [{ id: 'local', name: playerName }],
+      MISSIONS[0].id
     );
-    void import("./renderer").then(async ({ CityRenderer }) => {
+    void import('./renderer').then(async ({ CityRenderer }) => {
       if (cancelled || !alive.current || !mount.current) return;
       try {
-        const city = new CityRenderer(mount.current);
+        const city = new CityRenderer(mount.current, mapService);
         renderer.current = city;
         const draw = (now: number) => {
           if (cancelled || !alive.current) return;
@@ -391,13 +399,17 @@ export default function CityGame({
           routeTime += dt;
           const state = engine.current,
             p = state?.players[identity.current],
-            playing = screenRef.current === "playing";
+            playing = screenRef.current === 'playing';
           if (state && playing && p) {
-            const controls = inputs.read(city.yaw, !!p.carId);
+            const controls = inputs.read(
+              city.yaw,
+              !!p.carId,
+              city.aim(state, p.id)
+            );
             control(state, p.id, controls);
             connection.current?.controls(controls);
             if (connection.current) {
-              if (!overlayRef.current && state.phase === "active") {
+              if (!overlayRef.current && state.phase === 'active') {
                 state.elapsed += dt;
                 movePlayer(state, p, dt);
               }
@@ -423,6 +435,7 @@ export default function CityGame({
             uiTime = 0;
             setView(state ? { ...state, players: { ...state.players } } : null);
             setFps(city.fps);
+            setMapStatus(city.mapStatus);
           }
           frame = requestAnimationFrame(draw);
         };
@@ -433,11 +446,11 @@ export default function CityGame({
         if (!cancelled && alive.current) setReady(true);
       } catch (e) {
         if (!cancelled && alive.current)
-          setFatal(e instanceof Error ? e.message : "WebGL could not start.");
+          setFatal(e instanceof Error ? e.message : 'WebGL could not start.');
       }
     });
     void transportRef
-      .current("profile")
+      .current('profile')
       .then((r) => {
         if (cancelled || !alive.current) return;
         if (r.career) setCareer(r.career);
@@ -465,11 +478,11 @@ export default function CityGame({
   const connect = (
     snapshot: Snapshot,
     c?: Career,
-    generation = requestGeneration.current,
+    generation = requestGeneration.current
   ) => {
     if (!alive.current || generation !== requestGeneration.current) {
       void transportRef
-        .current("leave", { roomId: snapshot.id })
+        .current('leave', { roomId: snapshot.id })
         .catch(() => {});
       return;
     }
@@ -479,21 +492,21 @@ export default function CityGame({
       (a, p) => transportRef.current(a, p),
       snapshot.id,
       receive,
-      setNetworkError,
+      setNetworkError
     );
     connection.current = ctn;
     ctn.start();
-    if (snapshot.phase === "waiting") setScreen("crew");
+    if (snapshot.phase === 'waiting') setScreen('crew');
   };
   async function runRequest(task: () => Promise<void>) {
     setBusy(true);
-    setError("");
+    setError('');
     try {
       await task();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Please try again.");
+      setError(e instanceof Error ? e.message : 'Please try again.');
       void transportRef
-        .current("profile")
+        .current('profile')
         .then((r) => {
           if (alive.current) {
             setActiveRoom(r.activeRoom || null);
@@ -508,20 +521,20 @@ export default function CityGame({
   }
   async function launch() {
     void audio.current?.unlock();
-    if (mode === "solo") {
-      identity.current = "local";
+    if (mode === 'solo') {
+      identity.current = 'local';
       connection.current?.stop();
       connection.current = null;
       setRoom(null);
       engine.current = createState(
-        [{ id: "local", name: playerName }],
+        [{ id: 'local', name: playerName }],
         missionId,
-        "solo",
+        'solo',
         career.completed.length >= 3,
-        difficulty,
+        difficulty
       );
       setView(engine.current);
-      setScreen("playing");
+      setScreen('playing');
       setOverlay(null);
       renderer.current!.yaw = engine.current.players.local.heading;
       renderer.current?.setRoute([]);
@@ -530,15 +543,15 @@ export default function CityGame({
     }
     const generation = ++requestGeneration.current;
     await runRequest(async () => {
-      const response = await transportRef.current("create", {
-        mode: mode === "career" ? "career" : crewMode,
+      const response = await transportRef.current('create', {
+        mode: mode === 'career' ? 'career' : crewMode,
         missionId,
-        difficulty,
+        difficulty
       });
       if (!response.room)
-        throw Error("The city room did not open. Please retry.");
+        throw Error('The city room did not open. Please retry.');
       if (!alive.current || generation !== requestGeneration.current) {
-        void transportRef.current("leave", { roomId: response.room.id });
+        void transportRef.current('leave', { roomId: response.room.id });
         return;
       }
       connect(response.room, response.career);
@@ -551,8 +564,8 @@ export default function CityGame({
     const generation = ++requestGeneration.current;
     void audio.current?.unlock();
     await runRequest(async () => {
-      const r = await transportRef.current("join", {
-        roomId: code.trim().toUpperCase(),
+      const r = await transportRef.current('join', {
+        roomId: code.trim().toUpperCase()
       });
       if (r.room) connect(r.room, r.career, generation);
     });
@@ -560,17 +573,17 @@ export default function CityGame({
   async function quickJoin() {
     const generation = ++requestGeneration.current;
     await runRequest(async () => {
-      const list = await transportRef.current("list");
+      const list = await transportRef.current('list');
       if (!alive.current || generation !== requestGeneration.current) return;
       const open = list.rooms?.find((r) => r.mode === crewMode);
       if (open) {
-        const r = await transportRef.current("join", { roomId: open.id });
+        const r = await transportRef.current('join', { roomId: open.id });
         if (r.room) connect(r.room, r.career, generation);
       } else {
-        const r = await transportRef.current("create", {
+        const r = await transportRef.current('create', {
           mode: crewMode,
           missionId,
-          difficulty,
+          difficulty
         });
         if (r.room) connect(r.room, r.career, generation);
       }
@@ -585,83 +598,40 @@ export default function CityGame({
     connection.current = null;
     if (id) {
       try {
-        const r = await transportRef.current("leave", { roomId: id });
+        const r = await transportRef.current('leave', { roomId: id });
         if (r.career) setCareer(r.career);
         setActiveRoom(null);
       } catch (e) {
         setError(
-          "The room will release your seat shortly. You can resume it from the lobby.",
+          'The room will release your seat shortly. You can resume it from the lobby.'
         );
         setActiveRoom(id);
       }
     }
     setRoom(null);
-    setNetworkError("");
+    setNetworkError('');
     setOverlay(null);
-    setScreen("lobby");
+    setScreen('lobby');
     input.current?.setEnabled(false);
     engine.current = createState(
-      [{ id: "local", name: playerName }],
-      missionId,
+      [{ id: 'local', name: playerName }],
+      missionId
     );
-    identity.current = "local";
+    identity.current = 'local';
   }
-  const joystick = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (!input.current) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    let x = (e.clientX - rect.left - rect.width / 2) / 42,
-      y = (e.clientY - rect.top - rect.height / 2) / 42;
-    const length = Math.max(1, Math.hypot(x, y));
-    x /= length;
-    y /= length;
-    input.current.touch.x = x;
-    input.current.touch.y = -y;
-    setStick({ x: x * 34, y: y * 34 });
-  };
-  const resetStick = () => {
-    if (input.current) {
-      input.current.touch.x = 0;
-      input.current.touch.y = 0;
-    }
-    setStick({ x: 0, y: 0 });
-  };
-  const hold = (
-    key: "gas" | "fast" | "brake" | "fire",
-    value: number | boolean,
-  ) => ({
-    onPointerDown: (e: ReactPointerEvent<HTMLButtonElement>) => {
-      e.preventDefault();
-      e.currentTarget.setPointerCapture(e.pointerId);
-      if (input.current) (input.current.touch[key] as number | boolean) = value;
-    },
-    onPointerUp: () => {
-      if (input.current)
-        (input.current.touch[key] as number | boolean) =
-          typeof value === "number" ? 0 : false;
-    },
-    onPointerCancel: () => {
-      if (input.current)
-        (input.current.touch[key] as number | boolean) =
-          typeof value === "number" ? 0 : false;
-    },
-    onLostPointerCapture: () => {
-      if (input.current)
-        (input.current.touch[key] as number | boolean) =
-          typeof value === "number" ? 0 : false;
-    },
-  });
-  const cameraPointer = useRef<{ id: number; x: number; y: number } | null>(
-    null,
-  );
   const readyCount = room?.members.filter((m) => m.ready).length || 0;
   const result =
-    player && (player.finished || player.failed || view?.phase === "finished");
+    player && (player.finished || player.failed || view?.phase === 'finished');
 
   return (
-    <main className="ts-game" aria-label="Tirana Streets game">
+    <main
+      className={`ts-game ${screen === 'playing' ? 'ts-playing' : ''} ${mission.type === 'free' ? 'ts-free-roam' : ''}`}
+      aria-label="Tirana Streets game"
+    >
       <div className="ts-world" ref={mount} />
-      {screen !== "playing" && <div className="ts-vignette" />}
-      {screen !== "playing" && (
+      <GoogleMapCredits status={mapStatus} />
+      {screen !== 'playing' && <div className="ts-vignette" />}
+      {screen !== 'playing' && (
         <header className="ts-brand">
           {onExit ? (
             <button
@@ -682,14 +652,14 @@ export default function CityGame({
           <small>ALBANIA · 41.3275° N</small>
           <button
             className="ts-icon"
-            onClick={() => setOverlay("settings")}
+            onClick={() => setOverlay('settings')}
             aria-label="Settings"
           >
             <Settings2 size={19} />
           </button>
         </header>
       )}
-      {screen === "lobby" && (
+      {screen === 'lobby' && (
         <section className="ts-lobby">
           <p className="ts-eyebrow">
             <span /> CENTRAL TIRANA · GOLDEN HOUR
@@ -711,24 +681,24 @@ export default function CityGame({
                 aria-selected={mode === id}
                 onClick={() => {
                   setMode(id);
-                  setError("");
-                  if (id === "career")
+                  setError('');
+                  if (id === 'career')
                     setMissionId(
                       MISSIONS[
                         Math.min(career.completed.length, MISSIONS.length - 1)
-                      ].id,
+                      ].id
                     );
-                  else if (id === "online" && missionId === "free-roam")
+                  else if (id === 'online' && missionId === 'free-roam')
                     setMissionId(MISSIONS[0].id);
                 }}
-                className={mode === id ? "selected" : ""}
+                className={mode === id ? 'selected' : ''}
               >
                 <Icon size={20} />
                 <span>{label}</span>
               </button>
             ))}
           </div>
-          {mode === "career" && (
+          {mode === 'career' && (
             <div className="ts-career-summary">
               <Flag size={17} />
               <span>
@@ -737,47 +707,47 @@ export default function CityGame({
               <strong>{career.credits} REP</strong>
               <span>
                 {career.completed.length >= 3
-                  ? "Sports car unlocked"
-                  : "Sports car at chapter 3"}
+                  ? 'Sports car unlocked'
+                  : 'Sports car at chapter 3'}
               </span>
             </div>
           )}
           <div className="ts-job-select">
             <div>
-              <span>{mode === "career" ? "CAREER CHAPTER" : "CITY JOB"}</span>
+              <span>{mode === 'career' ? 'CAREER CHAPTER' : 'CITY JOB'}</span>
               <select
                 aria-label="Choose mission"
                 value={missionId}
                 onChange={(e) => setMissionId(e.target.value)}
               >
-                {mode === "solo" && (
+                {mode === 'solo' && (
                   <option value="free-roam">Free roam · No timer</option>
                 )}
                 {MISSIONS.map((m, i) => (
                   <option
                     key={m.id}
                     value={m.id}
-                    disabled={mode === "career" && i > career.completed.length}
+                    disabled={mode === 'career' && i > career.completed.length}
                   >
                     {i + 1}. {m.title}
-                    {mode === "career" && i > career.completed.length
-                      ? " · Locked"
-                      : ""}
-                    {career.completed.includes(m.id) ? " ✓" : ""}
+                    {mode === 'career' && i > career.completed.length
+                      ? ' · Locked'
+                      : ''}
+                    {career.completed.includes(m.id) ? ' ✓' : ''}
                   </option>
                 ))}
               </select>
             </div>
             <span className="ts-job-kind">
-              {selected.type === "free"
-                ? "OPEN CITY"
-                : selected.type === "race"
-                  ? "VS ARDI"
-                  : selected.type === "pursuit"
-                    ? "AI PURSUIT"
-                    : selected.type === "combat"
-                      ? "ARMED CREW"
-                      : "COURIER"}
+              {selected.type === 'free'
+                ? 'OPEN CITY'
+                : selected.type === 'race'
+                  ? 'VS ARDI'
+                  : selected.type === 'pursuit'
+                    ? 'AI PURSUIT'
+                    : selected.type === 'combat'
+                      ? 'ARMED CREW'
+                      : 'COURIER'}
               <ChevronRight size={17} />
             </span>
           </div>
@@ -789,12 +759,12 @@ export default function CityGame({
             {(
               Object.entries(DIFFICULTIES) as [
                 Difficulty,
-                typeof DIFFICULTIES.normal,
+                typeof DIFFICULTIES.normal
               ][]
             ).map(([id, cfg]) => (
               <button
                 key={id}
-                className={difficulty === id ? "active" : ""}
+                className={difficulty === id ? 'active' : ''}
                 aria-pressed={difficulty === id}
                 onClick={() => setDifficulty(id)}
               >
@@ -804,21 +774,21 @@ export default function CityGame({
             <small>
               {selected.stars
                 ? `${selected.stars}★ starting pursuit`
-                : "No starting pursuit"}
+                : 'No starting pursuit'}
             </small>
           </div>
-          {mode === "online" && (
+          {mode === 'online' && (
             <div className="ts-online-options">
               <div className="ts-segment">
                 <button
-                  className={crewMode === "rivals" ? "active" : ""}
-                  onClick={() => setCrewMode("rivals")}
+                  className={crewMode === 'rivals' ? 'active' : ''}
+                  onClick={() => setCrewMode('rivals')}
                 >
                   Rivals
                 </button>
                 <button
-                  className={crewMode === "coop" ? "active" : ""}
-                  onClick={() => setCrewMode("coop")}
+                  className={crewMode === 'coop' ? 'active' : ''}
+                  onClick={() => setCrewMode('coop')}
                 >
                   Co-op crew
                 </button>
@@ -852,13 +822,13 @@ export default function CityGame({
               {error}
             </p>
           )}
-          {!profileLoaded && mode !== "solo" && (
+          {!profileLoaded && mode !== 'solo' && (
             <button
               className="ts-text-button"
               disabled={busy}
               onClick={() =>
                 void runRequest(async () => {
-                  const r = await transportRef.current("profile");
+                  const r = await transportRef.current('profile');
                   if (r.career) setCareer(r.career);
                   setActiveRoom(r.activeRoom || null);
                   setProfileLoaded(true);
@@ -878,7 +848,7 @@ export default function CityGame({
                 disabled={busy}
                 onClick={() =>
                   void runRequest(async () => {
-                    await transportRef.current("leave", { roomId: activeRoom });
+                    await transportRef.current('leave', { roomId: activeRoom });
                     setActiveRoom(null);
                   })
                 }
@@ -892,31 +862,31 @@ export default function CityGame({
             disabled={
               !ready ||
               busy ||
-              (mode !== "solo" && (!profileLoaded || !!activeRoom))
+              (mode !== 'solo' && (!profileLoaded || !!activeRoom))
             }
             onClick={() => void launch()}
           >
             <CarFront size={22} />
             {busy
-              ? "CONNECTING…"
+              ? 'CONNECTING…'
               : !ready
                 ? loading
-                : mode === "online"
-                  ? "CREATE CITY ROOM"
-                  : mode === "career"
-                    ? "CONTINUE YOUR STORY"
-                    : "ENTER TIRANA"}
+                : mode === 'online'
+                  ? 'CREATE CITY ROOM'
+                  : mode === 'career'
+                    ? 'CONTINUE YOUR STORY'
+                    : 'ENTER TIRANA'}
             <ArrowUpRight size={22} />
           </button>
           <div className="ts-lobby-foot">
-            <button onClick={() => setOverlay("help")}>TOUCH + KEYBOARD</button>
-            <button onClick={() => setOverlay("credits")}>
+            <button onClick={() => setOverlay('help')}>TOUCH + KEYBOARD</button>
+            <button onClick={() => setOverlay('credits')}>
               CITY + ASSET CREDITS
             </button>
           </div>
         </section>
       )}
-      {screen === "crew" && room && (
+      {screen === 'crew' && room && (
         <section className="ts-crew-panel">
           <p className="ts-eyebrow">
             <span /> YOUR CITY LOBBY
@@ -936,7 +906,7 @@ export default function CityGame({
                     setCopied(true);
                     setTimeout(() => setCopied(false), 2000);
                   })
-                  .catch(() => setError("Select and copy the room code."));
+                  .catch(() => setError('Select and copy the room code.'));
               }}
             >
               {room.id}
@@ -944,9 +914,9 @@ export default function CityGame({
             </button>
           </div>
           <p>
-            {room.mode === "coop"
-              ? "Complete deliveries together."
-              : "Compete to finish the city job first."}{" "}
+            {room.mode === 'coop'
+              ? 'Complete deliveries together.'
+              : 'Compete to finish the city job first.'}{' '}
             Up to four players.
           </p>
           <ul className="ts-members">
@@ -958,18 +928,18 @@ export default function CityGame({
                   {m.id === room.host && <small> HOST</small>}
                   {m.id === room.playerId && <small> · YOU</small>}
                 </span>
-                <span className={m.ready ? "ts-ready" : ""}>
+                <span className={m.ready ? 'ts-ready' : ''}>
                   {!m.connected
-                    ? "Reconnecting"
+                    ? 'Reconnecting'
                     : m.ready
-                      ? "Ready"
-                      : "Getting ready"}
+                      ? 'Ready'
+                      : 'Getting ready'}
                 </span>
               </li>
             ))}
           </ul>
           <p className="ts-crew-count">
-            {room.members.length}/4 players · {readyCount} ready ·{" "}
+            {room.members.length}/4 players · {readyCount} ready ·{' '}
             {MISSIONS.find((m) => m.id === room.missionId)?.title}
           </p>
           {room.members.length < 2 && (
@@ -993,20 +963,20 @@ export default function CityGame({
             onClick={() =>
               void runRequest(async () => {
                 if (room.host === room.playerId)
-                  await connection.current?.command("start");
+                  await connection.current?.command('start');
                 else
-                  await connection.current?.command("ready", {
+                  await connection.current?.command('ready', {
                     ready: !room.members.find((m) => m.id === room.playerId)
-                      ?.ready,
+                      ?.ready
                   });
               })
             }
           >
             {room.host === room.playerId
-              ? "START CITY RUN"
+              ? 'START CITY RUN'
               : room.members.find((m) => m.id === room.playerId)?.ready
-                ? "NOT READY"
-                : "I’M READY"}
+                ? 'NOT READY'
+                : 'I’M READY'}
             <ArrowRight size={20} />
           </button>
           <button className="ts-text-button" onClick={() => void leave()}>
@@ -1014,54 +984,52 @@ export default function CityGame({
           </button>
         </section>
       )}
-      {screen === "playing" && player && (
+      {screen === 'playing' && player && (
         <>
-          <div
-            className="ts-camera-zone"
-            aria-label="Drag to look around"
-            onPointerDown={(e) => {
-              e.currentTarget.setPointerCapture(e.pointerId);
-              cameraPointer.current = {
-                id: e.pointerId,
-                x: e.clientX,
-                y: e.clientY,
-              };
-            }}
-            onPointerMove={(e) => {
-              const p = cameraPointer.current;
-              if (p?.id !== e.pointerId) return;
-              renderer.current?.orbit(e.clientX - p.x, e.clientY - p.y);
-              p.x = e.clientX;
-              p.y = e.clientY;
-            }}
-            onPointerUp={() => {
-              cameraPointer.current = null;
-            }}
-            onPointerCancel={() => {
-              cameraPointer.current = null;
-            }}
-          />
+          {!result && (
+            <MobileControls
+              input={input}
+              driving={driving}
+              disabled={!!overlay || player.health <= 0}
+              armed={!!player.weapon}
+              canEnter={
+                driving ||
+                !!view?.cars.some(
+                  (c) =>
+                    !c.driver && Math.hypot(c.x - player.x, c.z - player.z) < 7
+                )
+              }
+              onLook={(dx, dy) =>
+                renderer.current?.orbit(
+                  dx * lookSensitivity,
+                  dy * lookSensitivity
+                )
+              }
+              onAction={(action) => actionRef.current(action)}
+              onArsenal={() => setOverlay('arsenal')}
+            />
+          )}
           <header className="ts-hud-header">
             <button
               className="ts-icon"
               aria-label="Pause menu"
-              onClick={() => setOverlay("pause")}
+              onClick={() => setOverlay('pause')}
             >
               <Pause size={20} />
             </button>
             <div>
               <small>
                 {room
-                  ? room.mode === "career"
-                    ? "CAREER"
+                  ? room.mode === 'career'
+                    ? 'CAREER'
                     : `${room.mode.toUpperCase()} · ${room.id}`
-                  : "EXPLORE + AI"}
+                  : 'EXPLORE + AI'}
               </small>
               <strong>{mission.title}</strong>
             </div>
             <button
               className="ts-performance"
-              onClick={() => setOverlay("settings")}
+              onClick={() => setOverlay('settings')}
               aria-label="Graphics settings"
             >
               <i />
@@ -1075,34 +1043,34 @@ export default function CityGame({
             </span>
             <div>
               <small>
-                {mission.type === "free"
-                  ? "FREE ROAM · NO TIMER"
-                  : `${Math.min(player.index + 1, mission.stops.length)} / ${mission.stops.length} · ${mission.type === "delivery" ? "STOP TO DELIVER" : "REACH CHECKPOINT"}`}
+                {mission.type === 'free'
+                  ? 'FREE ROAM · NO TIMER'
+                  : `${Math.min(player.index + 1, mission.stops.length)} / ${mission.stops.length} · ${mission.type === 'delivery' ? 'STOP TO DELIVER' : 'REACH CHECKPOINT'}`}
               </small>
               <strong>
-                {mission.type === "free"
-                  ? "Explore central Tirana"
-                  : mission.type === "combat" &&
+                {mission.type === 'free'
+                  ? 'Explore central Tirana'
+                  : mission.type === 'combat' &&
                       (view?.objectiveRemaining ?? selected.enemies ?? 0) > 0
                     ? `${view?.objectiveRemaining ?? selected.enemies} armed rivals remaining`
-                    : mission.stops[player.index]?.name || "Route complete"}
+                    : mission.stops[player.index]?.name || 'Route complete'}
               </strong>
             </div>
             <span>
-              {mission.type === "free" ? (
+              {mission.type === 'free' ? (
                 <Compass size={19} />
               ) : (
                 clock(
                   mission.time *
                     difficultyOf(view?.difficulty || difficulty).time -
-                    (view?.elapsed || 0),
+                    (view?.elapsed || 0)
                 )
               )}
             </span>
           </div>
           <button
             className="ts-map-button"
-            onClick={() => setOverlay("map")}
+            onClick={() => setOverlay('map')}
             aria-label="Open city map"
           >
             <CityMap player={player} state={view} route={routeRef.current} />
@@ -1111,20 +1079,20 @@ export default function CityGame({
             </span>
           </button>
           <div className="ts-status-stack">
-            {view?.rival && mission.type === "race" && (
+            {view?.rival && mission.type === 'race' && (
               <span>
                 <Flag size={13} /> ARDI {view.rival.index}/
                 {mission.stops.length}
               </span>
             )}
             <span
-              className={`ts-wanted ${player.searching ? "searching" : ""}`}
+              className={`ts-wanted ${player.searching ? 'searching' : ''}`}
               aria-label={`${wantedStars(player.wanted)} wanted stars`}
             >
               {[1, 2, 3, 4, 5].map((n) => (
                 <b
                   key={n}
-                  className={n <= wantedStars(player.wanted) ? "lit" : ""}
+                  className={n <= wantedStars(player.wanted) ? 'lit' : ''}
                 >
                   ★
                 </b>
@@ -1133,10 +1101,10 @@ export default function CityGame({
             {player.wanted > 0 && (
               <span>
                 {wantedStars(player.wanted) === 5
-                  ? "MILITARY PURSUIT"
+                  ? 'MILITARY PURSUIT'
                   : player.searching
-                    ? "SEARCHING · STAY OUT OF SIGHT"
-                    : "POLICE PURSUIT"}
+                    ? 'SEARCHING · STAY OUT OF SIGHT'
+                    : 'POLICE PURSUIT'}
               </span>
             )}
             <span>
@@ -1153,30 +1121,13 @@ export default function CityGame({
               <div className="ts-crosshair" aria-hidden="true">
                 +
               </div>
-              <div className="ts-combat-controls">
-                <button
-                  className="ts-fire"
-                  aria-label="Hold to fire toward the camera aim"
-                  disabled={!player.weapon || player.health <= 0}
-                  {...hold("fire", true)}
-                >
-                  FIRE
-                </button>
-                <button
-                  onClick={() => actionRef.current("reload")}
-                  aria-label="Reload weapon"
-                >
-                  RELOAD
-                </button>
-                <button onClick={() => setOverlay("arsenal")}>ARSENAL</button>
-              </div>
               <div className="ts-ammo">
                 <strong>
-                  {WEAPON_BY_ID.get(player.weapon)?.label || "Unarmed"}
+                  {WEAPON_BY_ID.get(player.weapon)?.label || 'Unarmed'}
                 </strong>
                 <span>
                   {player.reloadAt
-                    ? "RELOADING…"
+                    ? 'RELOADING…'
                     : `${player.inventory[player.weapon]?.ammo ?? 0} / ${player.inventory[player.weapon]?.reserve ?? 0}`}
                 </span>
               </div>
@@ -1188,14 +1139,18 @@ export default function CityGame({
             !driving && (
               <button
                 className="ts-shop-prompt"
-                onClick={() => setOverlay("arsenal")}
+                onClick={() => setOverlay('arsenal')}
               >
-                Talk to Arben · Weapon shop
+                {canReachCounter(player, view.shop)
+                  ? 'Talk to Arben · Browse weapons'
+                  : insideShop(player, view.shop)
+                    ? 'Walk to the display counter'
+                    : 'Arben’s shop · Enter through the glass door'}
               </button>
             )}
           {player.health <= 0 && !result && (
             <div className="ts-respawn">
-              Regrouping… respawn in{" "}
+              Regrouping… respawn in{' '}
               {Math.max(0, Math.ceil(player.respawnAt - (view?.elapsed || 0)))}s
             </div>
           )}
@@ -1206,100 +1161,28 @@ export default function CityGame({
           )}
           {!result && (
             <>
-              <div className="ts-driving-hint">
+              <div
+                className="ts-driving-hint"
+                hidden={!driving && (view?.elapsed || 0) > 12}
+              >
                 {driving ? (
-                  mission.type === "free" ? (
-                    "Explore the city. Open the map to find a landmark."
-                  ) : mission.type === "delivery" ? (
-                    "Brake inside the marker to deliver"
+                  mission.type === 'free' ? (
+                    'Explore the city. Open the map to find a landmark.'
+                  ) : mission.type === 'delivery' ? (
+                    'Brake inside the marker to deliver'
                   ) : (
-                    "Follow the lime route"
+                    'Follow the lime route'
                   )
                 ) : (
-                  <>
-                    <CarFront size={16} /> Drag to aim · FIRE to shoot · Visit
-                    Arben for equipment.
-                  </>
+                  <>Push the left stick to run · Hold and drag FIRE to aim</>
                 )}
               </div>
-              <div
-                className="ts-joystick"
-                role="group"
-                aria-label={driving ? "Steering joystick" : "Movement joystick"}
-                onPointerDown={(e) => {
-                  e.preventDefault();
-                  e.currentTarget.setPointerCapture(e.pointerId);
-                  joystick(e);
-                }}
-                onPointerMove={(e) => {
-                  if (e.currentTarget.hasPointerCapture(e.pointerId))
-                    joystick(e);
-                }}
-                onPointerUp={resetStick}
-                onPointerCancel={resetStick}
-                onLostPointerCapture={resetStick}
-              >
-                <div className="ts-stick-cross">+</div>
-                <div
-                  className="ts-stick"
-                  style={{ transform: `translate(${stick.x}px,${stick.y}px)` }}
-                />
-                <span>{driving ? "STEER" : "MOVE"}</span>
-              </div>
-              <div className="ts-speed">
-                <strong>
-                  {driving ? (
-                    Math.round(Math.abs(player.speed) * 3.6)
-                  ) : (
-                    <Footprints size={26} />
-                  )}
-                </strong>
-                <small>{driving ? "KM/H" : "ON FOOT"}</small>
-              </div>
-              <div className="ts-actions">
-                <button
-                  className="ts-vehicle"
-                  aria-label={
-                    driving ? "Stop and exit car" : "Enter nearby car"
-                  }
-                  onClick={() => actionRef.current("vehicle")}
-                >
-                  <CarFront size={23} />
-                  <small>{driving ? "EXIT" : "ENTER"}</small>
-                </button>
-                {driving ? (
-                  <>
-                    <button
-                      className="ts-gas"
-                      aria-label="Hold to accelerate"
-                      {...hold("gas", 1)}
-                    >
-                      <ChevronRight
-                        size={29}
-                        style={{ transform: "rotate(-90deg)" }}
-                      />
-                      <small>GAS</small>
-                    </button>
-                    <button
-                      className="ts-brake"
-                      aria-label="Hold to brake or reverse"
-                      {...hold("gas", -1)}
-                    >
-                      <span>II</span>
-                      <small>BRAKE</small>
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    className="ts-gas"
-                    aria-label="Hold to sprint"
-                    {...hold("fast", true)}
-                  >
-                    <Footprints size={24} />
-                    <small>SPRINT</small>
-                  </button>
-                )}
-              </div>
+              {driving && (
+                <div className="ts-speed">
+                  <strong>{Math.round(Math.abs(player.speed) * 3.6)}</strong>
+                  <small>KM/H</small>
+                </div>
+              )}
             </>
           )}
 
@@ -1314,17 +1197,17 @@ export default function CityGame({
               </span>
               <p className="ts-eyebrow">
                 {player.finished && !player.failed
-                  ? "JOB COMPLETE"
-                  : "RUN ENDED"}
+                  ? 'JOB COMPLETE'
+                  : 'RUN ENDED'}
               </p>
               <h2>
                 {player.finished && !player.failed
-                  ? room?.mode === "rivals"
+                  ? room?.mode === 'rivals'
                     ? view?.winner === player.id
-                      ? "YOU WON THE CITY RUN."
-                      : "ROUTE COMPLETE."
-                    : "A NAME IN THE CITY."
-                  : "ANOTHER WAY THROUGH."}
+                      ? 'YOU WON THE CITY RUN.'
+                      : 'ROUTE COMPLETE.'
+                    : 'A NAME IN THE CITY.'
+                  : 'ANOTHER WAY THROUGH.'}
               </h2>
               <p>{view?.message}</p>
               <div className="ts-result-stats">
@@ -1342,20 +1225,20 @@ export default function CityGame({
                 </span>
                 <span>
                   <strong>
-                    {room?.mode === "career"
+                    {room?.mode === 'career'
                       ? career.credits
                       : player.finished
-                        ? "✓"
-                        : "—"}
+                        ? '✓'
+                        : '—'}
                   </strong>
-                  {room?.mode === "career" ? "CAREER REP" : "FINISHED"}
+                  {room?.mode === 'career' ? 'CAREER REP' : 'FINISHED'}
                 </span>
               </div>
-              {room?.mode === "career" && (
+              {room?.mode === 'career' && (
                 <p className="ts-muted">
                   {career.completed.includes(mission.id)
-                    ? "Chapter saved to your career."
-                    : "Career result is syncing with the city service."}
+                    ? 'Chapter saved to your career.'
+                    : 'Career result is syncing with the city service.'}
                 </p>
               )}
               <button className="ts-primary" onClick={() => void leave()}>
@@ -1380,24 +1263,24 @@ export default function CityGame({
         >
           <section
             ref={modal}
-            className={`ts-modal ${overlay === "map" ? "ts-map-modal" : ""}`}
+            className={`ts-modal ${overlay === 'map' ? 'ts-map-modal' : ''}`}
             role="dialog"
             aria-modal="true"
             aria-label={overlay}
           >
             <div className="ts-modal-title">
               <h2>
-                {overlay === "pause"
-                  ? "YOUR CITY. YOUR PACE."
-                  : overlay === "settings"
-                    ? "MAKE IT YOURS."
-                    : overlay === "map"
-                      ? "CENTRAL TIRANA"
-                      : overlay === "arsenal"
-                        ? "ARBEN’S ARSENAL"
-                        : overlay === "credits"
-                          ? "BUILT FROM OPEN ASSETS"
-                          : "FIND YOUR WAY."}
+                {overlay === 'pause'
+                  ? 'YOUR CITY. YOUR PACE.'
+                  : overlay === 'settings'
+                    ? 'MAKE IT YOURS.'
+                    : overlay === 'map'
+                      ? 'CENTRAL TIRANA'
+                      : overlay === 'arsenal'
+                        ? 'ARBEN’S ARSENAL'
+                        : overlay === 'credits'
+                          ? 'BUILT FROM OPEN ASSETS'
+                          : 'FIND YOUR WAY.'}
               </h2>
               <button
                 className="ts-icon"
@@ -1407,34 +1290,34 @@ export default function CityGame({
                 <X size={22} />
               </button>
             </div>
-            {overlay === "arsenal" && player && view && (
+            {overlay === 'arsenal' && player && view && (
               <Arsenal player={player} state={view} onAction={sendAction} />
             )}
-            {overlay === "pause" && (
+            {overlay === 'pause' && (
               <>
                 <p>
                   {room
-                    ? "Career and online mission clocks continue while this menu is open."
-                    : "Your AI run is paused."}
+                    ? 'Career and online mission clocks continue while this menu is open.'
+                    : 'Your AI run is paused.'}
                 </p>
                 <button className="ts-primary" onClick={() => setOverlay(null)}>
                   <Play size={18} /> KEEP EXPLORING <ArrowRight size={18} />
                 </button>
                 <button
                   className="ts-menu-row"
-                  onClick={() => setOverlay("map")}
+                  onClick={() => setOverlay('map')}
                 >
                   <Map size={19} /> City map <ChevronRight size={18} />
                 </button>
                 <button
                   className="ts-menu-row"
-                  onClick={() => setOverlay("settings")}
+                  onClick={() => setOverlay('settings')}
                 >
                   <Settings2 size={19} /> Settings <ChevronRight size={18} />
                 </button>
                 <button
                   className="ts-menu-row"
-                  onClick={() => setOverlay("help")}
+                  onClick={() => setOverlay('help')}
                 >
                   <HelpCircle size={19} /> Controls <ChevronRight size={18} />
                 </button>
@@ -1442,7 +1325,7 @@ export default function CityGame({
                   className="ts-menu-row"
                   onClick={() => {
                     setOverlay(null);
-                    actionRef.current("recover");
+                    actionRef.current('recover');
                   }}
                 >
                   <RotateCcw size={19} /> Return to nearest road
@@ -1452,8 +1335,67 @@ export default function CityGame({
                 </button>
               </>
             )}
-            {overlay === "settings" && (
+            {overlay === 'settings' && (
               <>
+                <label className="ts-setting">
+                  <span>
+                    City scenery<small>{mapStatus.message}</small>
+                  </span>
+                  <select
+                    aria-label="City scenery"
+                    value={
+                      googleCity && mapStatus.available ? 'google' : 'local'
+                    }
+                    disabled={!mapStatus.available}
+                    onChange={(e) => {
+                      const enabled = e.target.value === 'google';
+                      setGoogleCity(enabled);
+                      renderer.current?.setGoogleCity(enabled);
+                    }}
+                  >
+                    <option value="local">Built city</option>
+                    <option value="google" disabled={!mapStatus.available}>
+                      Google 3D + playable streets
+                    </option>
+                  </select>
+                </label>
+                {mapStatus.phase === 'unavailable' && mapStatus.available && (
+                  <button
+                    className="ts-menu-row"
+                    onClick={() => {
+                      setGoogleCity(true);
+                      renderer.current?.setGoogleCity(true);
+                    }}
+                  >
+                    Retry Google 3D
+                  </button>
+                )}
+                <label className="ts-setting ts-look-setting">
+                  <span>
+                    Look sensitivity
+                    <small>
+                      Finger movement stays in your screen direction.
+                    </small>
+                  </span>
+                  <input
+                    type="range"
+                    min="0.5"
+                    max="1.5"
+                    step="0.05"
+                    value={lookSensitivity}
+                    aria-label="Look sensitivity"
+                    onChange={(e) => {
+                      const value = Number(e.target.value);
+                      setLookSensitivity(value);
+                      try {
+                        localStorage.setItem(
+                          'tirana.lookSensitivity',
+                          String(value)
+                        );
+                      } catch {}
+                    }}
+                  />
+                </label>
                 <label className="ts-setting">
                   <span>
                     Graphics
@@ -1493,21 +1435,21 @@ export default function CityGame({
                 </p>
                 <button
                   className="ts-menu-row"
-                  onClick={() => setOverlay("help")}
+                  onClick={() => setOverlay('help')}
                 >
-                  <HelpCircle size={19} /> Touch and keyboard controls{" "}
+                  <HelpCircle size={19} /> Touch and keyboard controls{' '}
                   <ChevronRight size={18} />
                 </button>
                 <button
                   className="ts-menu-row"
-                  onClick={() => setOverlay("credits")}
+                  onClick={() => setOverlay('credits')}
                 >
-                  <Compass size={19} /> City and asset credits{" "}
+                  <Compass size={19} /> City and asset credits{' '}
                   <ChevronRight size={18} />
                 </button>
               </>
             )}
-            {overlay === "help" && (
+            {overlay === 'help' && (
               <>
                 <p>
                   Move the left stick in the direction you want to go. Drag the
@@ -1522,13 +1464,14 @@ export default function CityGame({
                   <Gauge />
                   <p>
                     <strong>Drive</strong>Left stick steers. Hold GAS to
-                    accelerate; BRAKE slows, then reverses. Keyboard: WASD or
-                    arrows, Space for handbrake.
+                    accelerate; BRAKE stops and REVERSE backs up. Keyboard: WASD
+                    or arrows, Space for handbrake.
                   </p>
                   <Footprints />
                   <p>
                     <strong>Walk</strong>Left stick moves relative to the
-                    camera. Hold SPRINT to run. Keyboard: WASD + Shift.
+                    camera. Push to the outer ring to run. Keyboard: WASD +
+                    Shift.
                   </p>
                   <Flag />
                   <p>
@@ -1538,14 +1481,15 @@ export default function CityGame({
                   </p>
                 </div>
                 <p className="ts-muted">
-                  F fires toward your camera aim. R reloads, Q opens your
-                  arsenal and H holsters. Recover to the road from the menu.
-                  Escape opens the menu. Career chapters save online; Explore +
-                  AI runs do not change your career.
+                  Hold and drag FIRE to aim up, down, left or right while
+                  shooting. F fires toward your camera aim. R reloads, Q opens
+                  your arsenal and H holsters. Recover to the road from the
+                  menu. Escape opens the menu. Career chapters save online;
+                  Explore + AI runs do not change your career.
                 </p>
               </>
             )}
-            {overlay === "map" && (
+            {overlay === 'map' && (
               <>
                 <CityMap
                   player={player}
@@ -1554,7 +1498,7 @@ export default function CityGame({
                   large
                 />
                 <p className="ts-muted">
-                  Street layout and footprints:{" "}
+                  Street layout and footprints:{' '}
                   <a
                     href="https://www.openstreetmap.org/copyright"
                     target="_blank"
@@ -1567,7 +1511,7 @@ export default function CityGame({
                 </p>
               </>
             )}
-            {overlay === "credits" && (
+            {overlay === 'credits' && (
               <>
                 <p>
                   An original, fictional city sandbox set on real central Tirana
@@ -1575,6 +1519,35 @@ export default function CityGame({
                   facades and landmark models are artistic approximations.
                 </p>
                 <ul className="ts-credits-list">
+                  <li>
+                    <a
+                      href="https://polyhaven.com/a/pavement_02"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Poly Haven · Pavement 02
+                    </a>
+                    <span>
+                      Charlotte Baglioni / Dario Barresi · Scanned pavers · CC0
+                    </span>
+                  </li>
+                  <li>
+                    <a
+                      href="https://polyhaven.com/a/bark_brown_02"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Poly Haven · Bark Brown 02
+                    </a>
+                    <span>Rob Tuytel · Scanned tree bark · CC0</span>
+                  </li>
+                  <li>
+                    <strong>TonPlaygram · Blender street kit</strong>
+                    <span>
+                      Continuous pavements, shelters, racks, planters and street
+                      utilities · Original models
+                    </span>
+                  </li>
                   <li>
                     <a
                       href="https://www.openstreetmap.org/copyright"

@@ -1,3 +1,4 @@
+import { canReachCounter } from "./shared/streetLayout.mjs";
 import { useState } from "react";
 import { WEAPONS, WEAPON_BY_ID } from "./shared/weapons.mjs";
 import { wantedStars } from "./shared/cityLife.mjs";
@@ -14,10 +15,9 @@ export function Arsenal({
   onAction: (action: string) => void;
 }) {
   const [category, setCategory] = useState("all");
-  const near =
-    !player.carId &&
-    Math.hypot(player.x - state.shop.x, player.z - state.shop.z) <= 9;
-  const canShop = near && wantedStars(player.wanted) === 0 && player.health > 0;
+  const near = canReachCounter(player, state.shop);
+  const canShop =
+    near && wantedStars(player.wanted) === 0 && player.health > 0;
   return (
     <div className="ts-arsenal">
       <div className="ts-shop-balance">
@@ -26,7 +26,7 @@ export function Arsenal({
       </div>
       <p>
         {!near
-          ? "Find Arben’s lime shop marker near your starting car to buy equipment."
+          ? "Enter Arben’s shop through the open glass doorway, then walk to the counter."
           : player.wanted
             ? "Arben is closed during a pursuit. Lose your wanted stars first."
             : "Choose a weapon or refill its ammunition. Health and armor are available here."}
@@ -94,7 +94,9 @@ export function Arsenal({
                 <strong>{w.label}</strong>
                 <small>
                   {w.category} · {w.magazine} rounds
-                  {owned ? ` · ${owned.ammo + owned.reserve} available` : ""}
+                  {owned
+                    ? ` · ${owned.ammo + owned.reserve} available`
+                    : ""}
                 </small>
               </div>
               {owned && (

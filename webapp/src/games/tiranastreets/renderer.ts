@@ -1,20 +1,26 @@
-import * as THREE from "three";
-import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
-import { CityFacades, DETAIL_IDS } from "./cityVisuals";
-import { LivingVisuals } from "./livingVisuals";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { clone } from "three/examples/jsm/utils/SkeletonUtils.js";
-import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { GoogleCity, type CityMapService } from './googleCity';
+import { LandscapeVisuals } from './landscapeVisuals';
+import * as THREE from 'three';
+import { Sky } from 'three/examples/jsm/objects/Sky.js';
+import { dragLook, DEFAULT_PITCH } from './shared/aim.mjs';
+import { CityFacades, DETAIL_IDS } from './cityVisuals';
+import { LivingVisuals } from './livingVisuals';
+import { StreetVisuals } from './streetVisuals';
+import { pavementHeight, insideShop } from './shared/streetLayout.mjs';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {
   WORLD,
   SPAWN,
   insidePolygon,
   cameraDistance,
   type State,
-  type Point,
-} from "./shared/engine.mjs";
+  type Point
+} from './shared/engine.mjs';
 
-const ASSETS = "/assets/tirana-streets/";
+const ASSETS = '/assets/tirana-streets/';
 const Y = new THREE.Vector3(0, 1, 0);
 const tmp = new THREE.Object3D();
 const smoothAngle = (a: number, b: number, t: number) =>
@@ -25,6 +31,7 @@ type Actor = {
   idle?: THREE.AnimationAction;
   run?: THREE.AnimationAction;
   moving?: boolean;
+  activeAction?: THREE.AnimationAction;
   wheels: THREE.Object3D[];
   model: string;
   walk?: THREE.AnimationAction;
@@ -33,11 +40,11 @@ type Actor = {
 export class CityRenderer {
   renderer: THREE.WebGLRenderer;
   scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(52, 1, 0.15, 1800);
+  camera = new THREE.PerspectiveCamera(58, 1, 0.15, 1800);
   yaw = 0;
-  pitch = 0.32;
+  pitch = DEFAULT_PITCH;
   fps = 60;
-  quality: "auto" | "high" | "battery" = "auto";
+  quality: 'auto' | 'high' | 'battery' = 'auto';
   ready = false;
   disposed = false;
   private root: HTMLDivElement;
@@ -50,6 +57,10 @@ export class CityRenderer {
   private models = new Map<string, THREE.Group>();
   private actors = new Map<string, Actor>();
   private animations: THREE.AnimationClip[] = [];
+  private wardrobe = new Map<string, THREE.Material>();
+  private draco = new DRACOLoader()
+    .setDecoderPath(ASSETS + 'draco/')
+    .setWorkerLimit(2);
   private sunlight = new THREE.DirectionalLight(0xffe3a4, 3.4);
   private routeLine: THREE.Line | null = null;
   private beacon = new THREE.Group();
@@ -59,15 +70,26 @@ export class CityRenderer {
   private living: LivingVisuals;
   private worldTextures = new Set<THREE.Texture>();
   private manualUntil = 0;
+  private following = false;
   private lastTarget = new THREE.Vector3(SPAWN.x, 0, SPAWN.z);
   private landmarkText: THREE.Sprite[] = [];
   private treePoints: Point[] = [];
-  constructor(root: HTMLDivElement) {
+  private streets: StreetVisuals | null = null;
+  private landscape: LandscapeVisuals;
+  private localCity = new THREE.Group();
+  private google: GoogleCity;
+  get mapStatus() {
+    return this.google.status;
+  }
+  setGoogleCity(enabled: boolean) {
+    this.google.setEnabled(enabled);
+  }
+  constructor(root: HTMLDivElement, mapService?: CityMapService) {
     this.root = root;
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
       alpha: false,
-      powerPreference: "high-performance",
+      powerPreference: 'high-performance'
     });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -77,9 +99,9 @@ export class CityRenderer {
     this.dpr = Math.min(window.devicePixelRatio || 1, 1.65);
     this.renderer.setPixelRatio(this.dpr);
     root.appendChild(this.renderer.domElement);
-    this.scene.background = new THREE.Color("#b8d0d1");
-    this.scene.fog = new THREE.FogExp2("#b8c6bf", 0.00085);
-    this.scene.add(new THREE.HemisphereLight(0xc8e6f5, 0x8a7e60, 2.1));
+    this.scene.background = new THREE.Color('#b8d0d1');
+    this.scene.fog = new THREE.FogExp2('#b8c6bf', 0.00085);
+    this.scene.add(new THREE.HemisphereLight(0xc8e6f5, 0x8a7e60, 1.2));
     this.sunlight.position.set(-100, 160, -90);
     this.sunlight.castShadow = true;
     this.sunlight.shadow.mapSize.set(1024, 1024);
@@ -89,29 +111,46 @@ export class CityRenderer {
       top: 65,
       bottom: -65,
       near: 1,
-      far: 420,
+      far: 420
     });
     this.sunlight.shadow.bias = -0.0007;
     this.sunlight.shadow.normalBias = 0.08;
     this.scene.add(this.sunlight, this.sunlight.target);
-    const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(3800, 3800),
-      new THREE.MeshStandardMaterial({ color: 0xaeb5a1, roughness: 1 }),
-    );
-    ground.rotation.x = -Math.PI / 2;
-    ground.receiveShadow = true;
-    this.scene.add(ground);
-    const environment = new RoomEnvironment(this.renderer);
+    this.landscape = new LandscapeVisuals();
+    this.scene.add(this.landscape.group);
+    const sky = new Sky();
+    sky.scale.setScalar(8000);
+    const skyUniforms = sky.material.uniforms;
+    skyUniforms.turbidity.value = 5;
+    skyUniforms.rayleigh.value = 1.65;
+    skyUniforms.mieCoefficient.value = 0.004;
+    skyUniforms.mieDirectionalG.value = 0.8;
+    skyUniforms.sunPosition.value.copy(this.sunlight.position).normalize();
+    const environment = new THREE.Scene();
+    environment.add(sky);
     const pmrem = new THREE.PMREMGenerator(this.renderer);
-    this.scene.environment = pmrem.fromScene(environment, 0.04).texture;
+    this.scene.environment = pmrem.fromScene(
+      environment,
+      0.015,
+      0.1,
+      20000
+    ).texture;
     this.worldTextures.add(this.scene.environment);
-    environment.dispose();
+    this.scene.add(sky);
     pmrem.dispose();
     this.living = new LivingVisuals();
     this.scene.add(this.living.group);
+    const existing = new Set(this.scene.children);
     this.buildStreets();
     this.buildBlocks();
     this.buildLandmarks();
+    for (const child of [...this.scene.children])
+      if (!existing.has(child)) this.localCity.add(child);
+    this.localCity.add(this.landscape.group);
+    this.scene.add(this.localCity);
+    this.google = new GoogleCity(this.renderer, this.camera, mapService);
+    this.scene.add(this.google.group);
+    this.google.patch(this.localCity);
     this.buildBeacon();
     this.observer = new ResizeObserver(() => this.resize());
     this.observer.observe(root);
@@ -119,12 +158,12 @@ export class CityRenderer {
   }
   private material(
     color: number | string,
-    options: THREE.MeshStandardMaterialParameters = {},
+    options: THREE.MeshStandardMaterialParameters = {}
   ) {
     return new THREE.MeshStandardMaterial({
       color,
       roughness: 0.8,
-      ...options,
+      ...options
     });
   }
   private box(
@@ -135,7 +174,7 @@ export class CityRenderer {
     y: number,
     z: number,
     material: THREE.Material,
-    group: THREE.Object3D = this.scene,
+    group: THREE.Object3D = this.scene
   ) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
     m.position.set(x, y, z);
@@ -148,17 +187,17 @@ export class CityRenderer {
     points: number[][],
     height: number,
     color: number,
-    y = 0.035,
+    y = 0.035
   ) {
     if (points.length < 3) return;
     const shape = new THREE.Shape(
-      points.map((p) => new THREE.Vector2(p[0], -p[1])),
+      points.map((p) => new THREE.Vector2(p[0], -p[1]))
     );
     const geo = height
       ? new THREE.ExtrudeGeometry(shape, {
           depth: height,
           bevelEnabled: false,
-          steps: 1,
+          steps: 1
         })
       : new THREE.ShapeGeometry(shape);
     geo.rotateX(-Math.PI / 2);
@@ -177,8 +216,8 @@ export class CityRenderer {
     g.rotateX(-Math.PI / 2);
     g.rotateY(Math.atan2(dx, dz));
     g.translate((a[0] + b[0]) / 2, y, (a[1] + b[1]) / 2);
-    const positions = g.getAttribute("position"),
-      uv = g.getAttribute("uv");
+    const positions = g.getAttribute('position'),
+      uv = g.getAttribute('uv');
     for (let i = 0; i < positions.count; i++)
       uv.setXY(i, positions.getX(i) / 8, positions.getZ(i) / 8);
     return g;
@@ -186,7 +225,7 @@ export class CityRenderer {
   private merged(
     geos: THREE.BufferGeometry[],
     mat: THREE.Material,
-    group: THREE.Object3D = this.scene,
+    group: THREE.Object3D = this.scene
   ) {
     if (!geos.length) return;
     const geo = mergeGeometries(geos, false);
@@ -198,7 +237,6 @@ export class CityRenderer {
     return mesh;
   }
   private buildStreets() {
-    for (const p of WORLD.parks) this.polygon(p, 0, 0x6e8754, 0.04);
     for (const p of WORLD.areas) this.polygon(p, 0, 0xc7b8a0, 0.06);
     const paving = this.material(0xb8aea0),
       asphalt = this.material(0x555d5c),
@@ -211,10 +249,9 @@ export class CityRenderer {
     for (const r of WORLD.roads) {
       const len = Math.hypot(r.a[0] - r.b[0], r.a[1] - r.b[1]);
       (r.walk ? walkGeo : roadGeo).push(
-        this.strip(r.a, r.b, r.w, r.bridge ? 0.16 : 0.09),
+        this.strip(r.a, r.b, r.w, r.bridge ? 0.16 : 0.09)
       );
       if (!r.walk) {
-        sideGeo.push(this.strip(r.a, r.b, r.w + 3.8, 0.07));
         if (r.w > 5 && len > 5)
           for (let d = 1; d < len - 2; d += 8) {
             const n = Math.min(d + 3, len),
@@ -230,7 +267,7 @@ export class CityRenderer {
     this.merged(paintGeo, white);
     const loader = new THREE.TextureLoader();
     // Local PBR road textures are shared by all road segments; no runtime asset CDN.
-    loader.load(ASSETS + "asphalt-diff.jpg", (t) => {
+    loader.load(ASSETS + 'asphalt-diff.jpg', (t) => {
       if (this.disposed) {
         t.dispose();
         return;
@@ -244,8 +281,8 @@ export class CityRenderer {
       this.worldTextures.add(t);
     });
     for (const [file, key] of [
-      ["asphalt-nor_gl.jpg", "normalMap"],
-      ["asphalt-rough.jpg", "roughnessMap"],
+      ['asphalt-nor_gl.jpg', 'normalMap'],
+      ['asphalt-rough.jpg', 'roughnessMap']
     ] as const)
       loader.load(ASSETS + file, (t) => {
         if (this.disposed) {
@@ -260,13 +297,13 @@ export class CityRenderer {
       });
     for (const water of WORLD.water) {
       if (Array.isArray(water)) this.polygon(water, 0, 0x507f83, 0.075);
-      else {
+      else if (water.width < 8) {
         const geos = water.line
           .slice(1)
           .map((b, i) => this.strip(water.line[i], b, water.width, 0.075));
         this.merged(
           geos,
-          this.material(0x497a7e, { metalness: 0.3, roughness: 0.25 }),
+          this.material(0x497a7e, { metalness: 0.3, roughness: 0.25 })
         );
       }
     }
@@ -275,7 +312,7 @@ export class CityRenderer {
     for (let i = 0; i < 13; i++) {
       const mountain = new THREE.Mesh(
         new THREE.ConeGeometry(260 + (i % 3) * 50, 160 + (i % 4) * 45, 6),
-        mountainMat,
+        mountainMat
       );
       mountain.position.set(1600 + (i % 2) * 180, 30, -1200 + i * 240);
       mountain.rotation.y = i;
@@ -285,7 +322,7 @@ export class CityRenderer {
   private buildBlocks() {
     const colors = [
       0xc9bda7, 0xaebbaf, 0xdfbd9d, 0xe1d2b7, 0x909a96, 0xdab48e, 0xbfa9a6,
-      0xcdd3c6,
+      0xcdd3c6
     ];
     const buckets = new Map<
       string,
@@ -298,7 +335,7 @@ export class CityRenderer {
       const cx = b.p.reduce((s, p) => s + p[0], 0) / b.p.length,
         cz = b.p.reduce((s, p) => s + p[1], 0) / b.p.length;
       // Eight city shell draws are cheaper on phones than hundreds of tiny chunks.
-      const key = "city";
+      const key = 'city';
       if (!buckets.has(key)) {
         const group = new THREE.Group();
         group.userData.center = { x: cx, z: cz };
@@ -311,24 +348,24 @@ export class CityRenderer {
           (p) =>
             new THREE.Vector2(
               DETAIL_IDS.has(b.id) ? cx + (p[0] - cx) * 0.73 : p[0],
-              -(DETAIL_IDS.has(b.id) ? cz + (p[1] - cz) * 0.73 : p[1]),
-            ),
-        ),
+              -(DETAIL_IDS.has(b.id) ? cz + (p[1] - cz) * 0.73 : p[1])
+            )
+        )
       );
       const geo = new THREE.ExtrudeGeometry(shape, {
         depth: b.h,
         bevelEnabled: false,
-        steps: 1,
+        steps: 1
       });
       geo.rotateX(-Math.PI / 2);
-      const pos = geo.getAttribute("position"),
-        normal = geo.getAttribute("normal"),
-        uv = geo.getAttribute("uv");
+      const pos = geo.getAttribute('position'),
+        normal = geo.getAttribute('normal'),
+        uv = geo.getAttribute('uv');
       for (let i = 0; i < pos.count; i++)
         uv.setXY(
           i,
           (Math.abs(normal.getX(i)) > 0.5 ? pos.getZ(i) : pos.getX(i)) / 5,
-          Math.abs(normal.getY(i)) > 0.5 ? pos.getZ(i) / 5 : pos.getY(i) / 5,
+          Math.abs(normal.getY(i)) > 0.5 ? pos.getZ(i) / 5 : pos.getY(i) / 5
         );
       buckets.get(key)!.geos[Number(b.id) % colors.length].push(geo);
       if (DETAIL_IDS.has(b.id)) continue;
@@ -357,7 +394,7 @@ export class CityRenderer {
       });
     this.merged(
       windowGeos,
-      this.material(0x506971, { metalness: 0.45, roughness: 0.27 }),
+      this.material(0x506971, { metalness: 0.45, roughness: 0.27 })
     );
     let seed = 6129;
     const random = () => {
@@ -373,7 +410,7 @@ export class CityRenderer {
         maxZ = Math.max(...zs);
       const count = Math.min(
         110,
-        Math.floor(((maxX - minX) * (maxZ - minZ)) / 110),
+        Math.floor(((maxX - minX) * (maxZ - minZ)) / 110)
       );
       for (let i = 0; i < count; i++) {
         const x = minX + random() * (maxX - minX),
@@ -394,74 +431,38 @@ export class CityRenderer {
     }
     this.treePoints = treePoints;
   }
-  private streetLabel(text: string, parent: THREE.Object3D) {
-    const canvas = document.createElement("canvas");
-    canvas.width = 512;
-    canvas.height = 112;
-    const ctx = canvas.getContext("2d")!;
-    ctx.fillStyle = "#14569a";
-    ctx.fillRect(0, 0, 512, 112);
-    ctx.strokeStyle = "#f4f5e9";
-    ctx.lineWidth = 9;
-    ctx.strokeRect(5, 5, 502, 102);
-    ctx.fillStyle = "white";
-    ctx.font = "700 42px sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText(text.replace(/^Rruga /, "Rr. ").slice(0, 22), 256, 71);
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    this.worldTextures.add(texture);
-    const sign = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture }));
-    sign.position.set(0, 2.38, 0.07);
-    sign.scale.set(1.75, 0.38, 1);
-    parent.add(sign);
-  }
   private async loadStreetFurniture(loader: GLTFLoader) {
-    const gltf = await loader.loadAsync(ASSETS + "street-furniture.glb");
-    const template = (name: string) => gltf.scene.getObjectByName(name);
-    const place = (name: string, x: number, z: number, yaw = 0, scale = 1) => {
-      const source = template(name);
-      if (!source) return;
-      const item = source.clone(true);
-      item.position.set(x, 0.12, z);
-      item.rotation.y = yaw;
-      item.scale.setScalar(scale);
-      item.traverse((o) => {
-        if (o instanceof THREE.Mesh) {
-          o.castShadow = true;
-          o.receiveShadow = true;
-        }
-      });
-      this.scene.add(item);
-      return item;
-    };
-    this.treePoints.slice(0, this.quality === "battery" ? 70 : 180).forEach((p, i) =>
-      place("tree", p.x, p.z, i * 2.399, 0.85 + (i % 5) * 0.07),
-    );
-    const streets = WORLD.roads.filter((r, i) => !r.walk && r.name && i % 55 === 0);
-    streets.forEach((r, i) => {
-      const dx = r.b[0] - r.a[0], dz = r.b[1] - r.a[1], d = Math.hypot(dx, dz) || 1;
-      const x = r.a[0] + (dz / d) * (r.w / 2 + 1.5), z = r.a[1] - (dx / d) * (r.w / 2 + 1.5);
-      const sign = place("street_sign", x, z, Math.atan2(dx, dz));
-      if (sign) this.streetLabel(r.name, sign);
-      if (i % 3 === 0) place("traffic_light", r.a[0], r.a[1], Math.atan2(dx, dz));
-      if (i % 4 === 0) place("road_sign", x + dz / d * 2, z - dx / d * 2, Math.atan2(dx, dz));
-      if (i % 2 === 0) place("park_bench", x + dz / d * 3.2, z - dx / d * 3.2, Math.atan2(dx, dz));
-    });
-    // GLTF pavement samples add modeled curb depth near the starting district.
-    WORLD.roads.filter((r) => !r.walk && Math.hypot(r.a[0] - SPAWN.x, r.a[1] - SPAWN.z) < 150)
-      .slice(0, 42).forEach((r) => place("pavement_tile", r.a[0] + r.w / 2 + 1.8, r.a[1], 0, 1));
+    const results = await Promise.allSettled([
+      loader.loadAsync(ASSETS + 'street-furniture.glb'),
+      loader.loadAsync(ASSETS + 'street-kit.glb')
+    ]);
+    const [furniture, kit] = results;
+    if (furniture.status === 'rejected' || kit.status === 'rejected') {
+      for (const result of results)
+        if (result.status === 'fulfilled')
+          this.disposeObject(result.value.scene);
+      throw new Error('Street models could not be loaded. Reload to retry.');
+    }
+    const gltf = furniture.value;
+    gltf.scene.add(kit.value.scene);
+    if (this.disposed) {
+      this.disposeObject(gltf.scene);
+      return;
+    }
+    this.streets = new StreetVisuals(gltf.scene, this.treePoints);
+    this.localCity.add(this.streets.group);
+    this.google.patch(this.streets.group);
   }
   private label(text: string, x: number, y: number, z: number) {
-    const canvas = document.createElement("canvas");
+    const canvas = document.createElement('canvas');
     canvas.width = 512;
     canvas.height = 96;
-    const ctx = canvas.getContext("2d")!;
-    ctx.fillStyle = "rgba(7,25,30,.8)";
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = 'rgba(7,25,30,.8)';
     ctx.fillRect(0, 0, 512, 96);
-    ctx.fillStyle = "#ddf67d";
-    ctx.font = "600 30px sans-serif";
-    ctx.textAlign = "center";
+    ctx.fillStyle = '#ddf67d';
+    ctx.font = '600 30px sans-serif';
+    ctx.textAlign = 'center';
     ctx.fillText(text, 256, 59);
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
@@ -470,8 +471,8 @@ export class CityRenderer {
       new THREE.SpriteMaterial({
         map: texture,
         depthTest: true,
-        transparent: true,
-      }),
+        transparent: true
+      })
     );
     sprite.position.set(x, y, z);
     sprite.scale.set(40, 7.5, 1);
@@ -485,14 +486,14 @@ export class CityRenderer {
       glass = this.material(0x497a84, { metalness: 0.5, roughness: 0.18 });
     const get = (id: string) => WORLD.landmarks.find((p) => p.id === id)!;
     // Original meshes inspired by the named landmarks; footprints and positions come from OSM.
-    const mosque = get("mosque");
+    const mosque = get('mosque');
     const g = new THREE.Group();
     g.position.set(mosque.x, 0, mosque.z);
     this.scene.add(g);
     this.box(15, 7, 15, 0, 3.5, 0, cream, g);
     const dome = new THREE.Mesh(
       new THREE.SphereGeometry(7.4, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2),
-      roof,
+      roof
     );
     dome.position.y = 7;
     dome.castShadow = true;
@@ -502,7 +503,7 @@ export class CityRenderer {
     this.box(17, 0.6, 6, 0, 5.4, 10, stone, g);
     const minaret = new THREE.Mesh(
       new THREE.CylinderGeometry(0.8, 1.2, 26, 12),
-      cream,
+      cream
     );
     minaret.position.set(-10, 13, -5);
     minaret.castShadow = true;
@@ -510,7 +511,7 @@ export class CityRenderer {
     const spire = new THREE.Mesh(new THREE.ConeGeometry(1.6, 5, 12), roof);
     spire.position.set(-10, 28, -5);
     g.add(spire);
-    const clock = get("clock");
+    const clock = get('clock');
     const cg = new THREE.Group();
     cg.position.set(clock.x, 0, clock.z);
     this.scene.add(cg);
@@ -526,18 +527,18 @@ export class CityRenderer {
       face.position.set(
         Math.sin((a * Math.PI) / 2) * 3.79,
         29,
-        Math.cos((a * Math.PI) / 2) * 3.79,
+        Math.cos((a * Math.PI) / 2) * 3.79
       );
       const disc = new THREE.Mesh(
         new THREE.CircleGeometry(1.25, 24),
-        new THREE.MeshBasicMaterial({ color: 0xf4ebd3 }),
+        new THREE.MeshBasicMaterial({ color: 0xf4ebd3 })
       );
       face.add(disc);
       this.box(0.08, 0.95, 0.04, 0, 0.25, 0.03, this.material(0x1a3033), face);
       this.box(0.8, 0.08, 0.04, 0.28, 0, 0.04, this.material(0x1a3033), face);
       cg.add(face);
     }
-    const pyramid = get("pyramid"),
+    const pyramid = get('pyramid'),
       pg = new THREE.Group();
     pg.position.set(pyramid.x, 0, pyramid.z);
     pg.rotation.y = 0.19;
@@ -561,7 +562,7 @@ export class CityRenderer {
           n * 0.68 + 0.35,
           35 - n * 1.17,
           stone,
-          stairs,
+          stairs
         );
     }
     const accents = [0xea815b, 0xdea2bc, 0x98c4ce, 0xe5c962];
@@ -576,20 +577,20 @@ export class CityRenderer {
     this.box(6, 4, 6, -48, 2, 33, this.material(0x8e8f85));
     const monument = new THREE.Mesh(
       new THREE.CylinderGeometry(0.5, 1.4, 5, 6),
-      this.material(0x526354, { metalness: 0.65 }),
+      this.material(0x526354, { metalness: 0.65 })
     );
     monument.position.set(-48, 6.5, 33);
     this.scene.add(monument);
     for (const l of WORLD.landmarks) {
-      if (l.id === "lana" || l.id === "blloku") continue;
+      if (l.id === 'lana' || l.id === 'blloku') continue;
       this.label(
         l.name.toUpperCase(),
         l.x,
-        l.id === "pyramid" ? 34 : l.id === "clock" ? 47 : 24,
-        l.z,
+        l.id === 'pyramid' ? 34 : l.id === 'clock' ? 47 : 24,
+        l.z
       );
     }
-    const mother = get("mother");
+    const mother = get('mother');
     this.box(
       110,
       19,
@@ -597,7 +598,7 @@ export class CityRenderer {
       mother.x,
       9.5,
       mother.z + 72,
-      this.material(0xceaf86),
+      this.material(0xceaf86)
     );
     for (let i = 0; i < 14; i++)
       this.box(1.8, 13, 4, mother.x - 48 + i * 7.5, 9, mother.z + 57, cream);
@@ -605,14 +606,14 @@ export class CityRenderer {
   private buildBeacon() {
     const ring = new THREE.Mesh(
       new THREE.TorusGeometry(9, 0.18, 6, 48),
-      new THREE.MeshBasicMaterial({ color: 0xddf67d }),
+      new THREE.MeshBasicMaterial({ color: 0xddf67d })
     );
     ring.rotation.x = Math.PI / 2;
     ring.position.y = 0.3;
     this.beacon.add(ring);
     const cone = new THREE.Mesh(
       new THREE.ConeGeometry(1.4, 2.5, 4),
-      new THREE.MeshBasicMaterial({ color: 0xddf67d }),
+      new THREE.MeshBasicMaterial({ color: 0xddf67d })
     );
     cone.rotation.z = Math.PI;
     cone.position.y = 6;
@@ -621,47 +622,47 @@ export class CityRenderer {
     this.beacon.visible = false;
   }
   async load(onProgress?: (message: string) => void) {
-    const loader = new GLTFLoader();
+    const loader = new GLTFLoader().setDRACOLoader(this.draco);
     const files = [
-      "character",
-      "sedan",
-      "sedan-sports",
-      "taxi",
-      "police",
-      "city-car",
-      "motorbike",
-      "military-suv",
+      'character',
+      'sedan',
+      'sedan-sports',
+      'taxi',
+      'police',
+      'city-car',
+      'motorbike',
+      'military-suv'
     ];
     await Promise.all(
       files.map(async (name) => {
         const file =
-          name === "character"
-            ? "living/human"
-            : ["city-car", "motorbike", "military-suv"].includes(name)
-              ? "living/" + name
+          name === 'character'
+            ? 'living/human'
+            : ['city-car', 'motorbike', 'military-suv'].includes(name)
+              ? 'living/' + name
               : name;
-        const gltf = await loader.loadAsync(ASSETS + file + ".glb");
+        const gltf = await loader.loadAsync(ASSETS + file + '.glb');
         if (this.disposed) {
           this.disposeObject(gltf.scene);
           return;
         }
-        if (name === "city-car") this.mergeCarSurfaces(gltf.scene);
-        if (name === "motorbike") gltf.scene.rotation.y = -Math.PI / 2;
+        if (name === 'city-car') this.mergeCarSurfaces(gltf.scene);
+        if (name === 'motorbike') gltf.scene.rotation.y = -Math.PI / 2;
         gltf.scene.updateMatrixWorld(true);
         const box = new THREE.Box3().setFromObject(gltf.scene),
           size = box.getSize(new THREE.Vector3()),
           center = box.getCenter(new THREE.Vector3());
         const scale =
-          name === "character"
+          name === 'character'
             ? 1.78 / size.y
-            : name === "motorbike"
+            : name === 'motorbike'
               ? 2.1 / Math.max(size.x, size.z)
               : 4.25 / size.z;
         const wrapper = new THREE.Group();
         gltf.scene.position.set(
           -center.x * scale,
           -box.min.y * scale,
-          -center.z * scale,
+          -center.z * scale
         );
         gltf.scene.scale.setScalar(scale);
         wrapper.add(gltf.scene);
@@ -672,44 +673,45 @@ export class CityRenderer {
             const mats = Array.isArray(o.material) ? o.material : [o.material];
             mats.forEach((m) => {
               if (m instanceof THREE.MeshStandardMaterial) {
-                if (!["character", "city-car"].includes(name)) {
+                if (!['character', 'city-car'].includes(name)) {
                   m.roughness = 0.45;
                   m.metalness = 0.25;
                 }
                 if (
-                  name === "military-suv" &&
+                  name === 'military-suv' &&
                   !/wheel|tire|glass/i.test(o.name)
                 )
-                  m.color.multiply(new THREE.Color("#77885c"));
+                  m.color.multiply(new THREE.Color('#77885c'));
               }
             });
           }
         });
         this.models.set(name, wrapper);
-        if (name === "character") this.animations = gltf.animations;
+        if (name === 'character') this.animations = gltf.animations;
         onProgress?.(
-          name === "character"
-            ? "Your character is ready"
-            : "Loading city vehicles",
+          name === 'character'
+            ? 'Your character is ready'
+            : 'Loading city vehicles'
         );
-      }),
+      })
     );
     if (this.disposed) return;
-    onProgress?.("Adding textured city facades");
-    const city = await loader.loadAsync(ASSETS + "city.glb");
+    onProgress?.('Adding textured city facades');
+    const city = await loader.loadAsync(ASSETS + 'tirana-buildings.glb');
     if (this.disposed) {
       this.disposeObject(city.scene);
       return;
     }
     this.facades = new CityFacades(city.scene);
-    this.scene.add(this.facades.group);
+    this.localCity.add(this.facades.group);
+    this.google.patch(this.facades.group);
     const surfaces: THREE.MeshStandardMaterial[] = [];
     city.scene.traverse((o) => {
       if (o instanceof THREE.Mesh)
         for (const m of Array.isArray(o.material) ? o.material : [o.material])
           if (
             m instanceof THREE.MeshStandardMaterial &&
-            /RedBrick|Concrete/.test(m.name) &&
+            /Tirana_PBR_Plaster/.test(m.name) &&
             !surfaces.includes(m)
           )
             surfaces.push(m);
@@ -717,7 +719,7 @@ export class CityRenderer {
     this.shellMaterials.forEach((material, i) => {
       const surface = surfaces[i % surfaces.length];
       if (!surface) return;
-      for (const key of ["map", "normalMap", "roughnessMap"] as const) {
+      for (const key of ['map', 'normalMap', 'roughnessMap'] as const) {
         const original = surface[key];
         if (!original) continue;
         const texture = original.clone();
@@ -736,11 +738,12 @@ export class CityRenderer {
     city.scene.visible = false;
     this.scene.add(city.scene);
 
-    onProgress?.("Placing GLTF pavements, trees and traffic signs");
+    onProgress?.('Placing GLTF pavements, trees and traffic signs');
     await this.loadStreetFurniture(loader);
 
+    this.draco.dispose();
     this.ready = true;
-    onProgress?.("City ready");
+    onProgress?.('City ready');
   }
   private actor(model: string, id: string): Actor {
     const existing = this.actors.get(id);
@@ -753,29 +756,68 @@ export class CityRenderer {
     const template = this.models.get(model);
     const group = (
       template
-        ? model === "character"
+        ? model === 'character'
           ? clone(template)
           : template.clone(true)
         : new THREE.Group()
     ) as THREE.Group;
     const actor: Actor = { group, wheels: [], model };
+    // Each person owns their skeleton; a small shared wardrobe palette avoids
+    // allocating a new texture or duplicating meshes for every pedestrian.
+    if (model === 'character' && !id.startsWith('player-')) {
+      let hash = 0;
+      for (const c of id) hash = (hash * 31 + c.charCodeAt(0)) >>> 0;
+      const palette = [
+        '#a6b3c0',
+        '#8b7370',
+        '#647f89',
+        '#b2ac98',
+        '#7b856b',
+        '#887b96'
+      ];
+      group.scale.set(
+        0.9 + (hash % 5) * 0.045,
+        0.93 + (hash % 7) * 0.019,
+        0.95
+      );
+      group.traverse((o) => {
+        if (!(o instanceof THREE.Mesh)) return;
+        const tint = (m: THREE.Material) => {
+          const key = `wardrobe-${m.uuid}-${hash % palette.length}`;
+          let copy = this.wardrobe.get(key);
+          if (!copy) {
+            copy = m.clone();
+            if (copy instanceof THREE.MeshStandardMaterial)
+              copy.color.multiply(
+                new THREE.Color(palette[hash % palette.length])
+              );
+            this.wardrobe.set(key, copy);
+          }
+          return copy;
+        };
+        o.material = Array.isArray(o.material)
+          ? o.material.map(tint)
+          : tint(o.material);
+      });
+    }
     group.traverse((o) => {
-      if (o.name.toLowerCase().includes("wheel")) actor.wheels.push(o);
+      if (o.name.toLowerCase().includes('wheel')) actor.wheels.push(o);
     });
-    if (model === "character" && this.animations.length) {
+    if (model === 'character' && this.animations.length) {
       actor.mixer = new THREE.AnimationMixer(group);
       actor.idle = actor.mixer.clipAction(
-        this.animations.find((a) => a.name.toLowerCase() === "idle") ||
-          this.animations[0],
+        this.animations.find((a) => a.name.toLowerCase() === 'idle') ||
+          this.animations[0]
       );
       actor.run = actor.mixer.clipAction(
         this.animations.find((a) =>
-          ["sprint", "run"].includes(a.name.toLowerCase()),
-        ) || this.animations[0],
+          ['sprint', 'run'].includes(a.name.toLowerCase())
+        ) || this.animations[0]
       );
-      const walk = this.animations.find((a) => a.name.toLowerCase() === "walk");
+      const walk = this.animations.find((a) => a.name.toLowerCase() === 'walk');
       if (walk) actor.walk = actor.mixer.clipAction(walk);
       actor.idle.play();
+      actor.activeAction = actor.idle;
     }
     this.scene.add(group);
     this.actors.set(id, actor);
@@ -791,29 +833,85 @@ export class CityRenderer {
     if (points.length < 2) return;
     this.routeLine = new THREE.Line(
       new THREE.BufferGeometry().setFromPoints(
-        points.map((p) => new THREE.Vector3(p.x, 0.24, p.z)),
+        points.map((p) => new THREE.Vector3(p.x, 0.24, p.z))
       ),
       new THREE.LineBasicMaterial({
         color: 0xddf67d,
         transparent: true,
-        opacity: 0.85,
-      }),
+        opacity: 0.85
+      })
     );
     this.scene.add(this.routeLine);
   }
   orbit(dx: number, dy: number) {
-    this.yaw -= dx * 0.006;
-    this.pitch = THREE.MathUtils.clamp(this.pitch + dy * 0.004, 0.12, 0.85);
+    const look = dragLook(
+      this.yaw,
+      this.pitch,
+      dx,
+      dy,
+      this.root.clientWidth,
+      this.root.clientHeight
+    );
+    this.yaw = look.yaw;
+    this.pitch = look.pitch;
     this.manualUntil = this.clock + 2.8;
   }
-  setQuality(quality: "auto" | "high" | "battery") {
+  aim(state: State, id: string) {
+    const player = state.players[id];
+    if (!player) return { aimYaw: this.yaw, aimPitch: this.pitch };
+    const direction = new THREE.Vector3(
+      -Math.sin(this.yaw) * Math.cos(this.pitch),
+      Math.sin(this.pitch),
+      -Math.cos(this.yaw) * Math.cos(this.pitch)
+    );
+    const ray = new THREE.Ray(this.camera.position, direction);
+    let distance = 65;
+    // Gentle reticle assist, bounded to the visible body cone. The server still validates every hit.
+    for (const npc of [...state.npcs, ...Object.values(state.players)]) {
+      if (
+        npc.id === id ||
+        npc.health <= 0 ||
+        ('kind' in npc && npc.kind === 'dealer')
+      )
+        continue;
+      const center = new THREE.Vector3(
+        npc.x,
+        pavementHeight(npc.x, npc.z) + 1.1,
+        npc.z
+      );
+      const along = center.clone().sub(ray.origin).dot(direction);
+      if (
+        along > 1 &&
+        along < distance &&
+        ray.distanceToPoint(center) < 0.5 + Math.min(0.8, along * 0.022)
+      )
+        distance = along;
+    }
+    const point = ray.at(distance, new THREE.Vector3());
+    const dx = point.x - player.x,
+      dz = point.z - player.z;
+    return {
+      aimYaw: Math.atan2(-dx, -dz),
+      aimPitch: Math.atan2(
+        point.y - pavementHeight(player.x, player.z) - 1.35,
+        Math.hypot(dx, dz)
+      )
+    };
+  }
+  setQuality(quality: 'auto' | 'high' | 'battery') {
     this.quality = quality;
     this.dpr = Math.min(
       window.devicePixelRatio || 1,
-      quality === "high" ? 2 : quality === "battery" ? 1 : 1.65,
+      quality === 'high' ? 2 : quality === 'battery' ? 1 : 1.65
     );
     this.renderer.setPixelRatio(this.dpr);
-    this.renderer.shadowMap.enabled = quality !== "battery";
+    this.renderer.shadowMap.enabled = quality !== 'battery';
+    const shadowSize = quality === 'high' ? 2048 : 1024;
+    if (this.sunlight.shadow.mapSize.x !== shadowSize) {
+      this.sunlight.shadow.map?.dispose();
+      this.sunlight.shadow.map = null;
+      this.sunlight.shadow.mapSize.set(shadowSize, shadowSize);
+    }
     this.resize();
   }
   private resize() {
@@ -832,7 +930,7 @@ export class CityRenderer {
     this.frames++;
     if (this.sampleTime >= 2) {
       this.fps = Math.round(this.frames / this.sampleTime);
-      if (this.quality === "auto") {
+      if (this.quality === 'auto') {
         const next =
           this.fps < 42
             ? Math.max(0.85, this.dpr - 0.15)
@@ -856,17 +954,17 @@ export class CityRenderer {
         ...state.cars,
         ...state.traffic,
         ...state.units,
-        ...(state.rival ? [state.rival] : []),
+        ...(state.rival ? [state.rival] : [])
       ]) {
         const close = !p || Math.hypot(car.x - p.x, car.z - p.z) < 45;
         const detail =
-          close && car.id.startsWith("car-") ? "city-car" : car.model;
+          close && car.id.startsWith('car-') ? 'city-car' : car.model;
         const a = this.actor(detail, car.id);
         active.add(car.id);
         a.group.visible =
           !p ||
           Math.hypot(car.x - p.x, car.z - p.z) <
-            (this.quality === "battery" ? 180 : 350);
+            (this.quality === 'battery' ? 180 : 350);
         if (!a.group.userData.placed) {
           a.group.position.set(car.x, 0, car.z);
           a.group.rotation.y = car.heading + Math.PI;
@@ -874,88 +972,102 @@ export class CityRenderer {
         }
         a.group.position.lerp(
           new THREE.Vector3(car.x, 0.03, car.z),
-          Math.min(1, dt * 18),
+          Math.min(1, dt * 18)
         );
         a.group.rotation.y = smoothAngle(
           a.group.rotation.y,
           car.heading + Math.PI,
-          Math.min(1, dt * 14),
+          Math.min(1, dt * 14)
         );
         a.group.rotation.z = THREE.MathUtils.lerp(
           a.group.rotation.z,
           -car.steering * car.speed * 0.0018,
-          Math.min(1, dt * 6),
+          Math.min(1, dt * 6)
         );
         for (const w of a.wheels) {
           w.rotation.x += car.speed * dt * 2;
-          if (w.name.includes("front")) w.rotation.y = -car.steering * 0.32;
+          if (w.name.includes('front')) w.rotation.y = -car.steering * 0.32;
         }
       }
       for (const pl of Object.values(state.players)) {
-        const a = this.actor("character", `player-${pl.id}`);
+        const a = this.actor('character', `player-${pl.id}`);
         active.add(`player-${pl.id}`);
         a.group.visible = !pl.carId;
         a.group.rotation.x = pl.health <= 0 ? -Math.PI / 2 : 0;
         a.group.position.lerp(
-          new THREE.Vector3(pl.x, 0.08, pl.z),
-          a.group.userData.placed ? Math.min(1, dt * 20) : 1,
+          new THREE.Vector3(pl.x, pavementHeight(pl.x, pl.z), pl.z),
+          a.group.userData.placed ? Math.min(1, dt * 20) : 1
         );
         a.group.userData.placed = true;
         a.group.rotation.y = smoothAngle(
           a.group.rotation.y,
-          pl.heading + Math.PI,
-          Math.min(1, dt * 15),
+          // Imported human feet face -Z, exactly like the simulation heading.
+          pl.heading,
+          Math.min(1, dt * 15)
         );
         const moving = pl.speed > 0.2 && !pl.carId;
-        if (a.moving !== moving) {
-          const next = moving ? a.run : a.idle,
-            prev = moving ? a.idle : a.run;
+        const running = moving && pl.speed > 5;
+        const next = moving ? (running ? a.run : a.walk || a.run) : a.idle;
+        if (a.activeAction !== next) {
           next?.reset().fadeIn(0.15).play();
-          prev?.fadeOut(0.15);
-          a.moving = moving;
+          a.activeAction?.fadeOut(0.15);
+          a.activeAction = next;
         }
-        a.mixer?.update(dt * (moving ? Math.max(0.45, pl.speed / 6) : 1));
+        a.mixer?.update(
+          dt * (moving ? Math.max(0.6, pl.speed / (running ? 6 : 2.5)) : 1)
+        );
         this.living.pose(`player-${pl.id}`, a.group, pl, state.elapsed);
       }
       const citizens = [...state.npcs].sort(
         (a, b) =>
           Math.hypot(a.x - (p?.x || 0), a.z - (p?.z || 0)) -
-          Math.hypot(b.x - (p?.x || 0), b.z - (p?.z || 0)),
+          Math.hypot(b.x - (p?.x || 0), b.z - (p?.z || 0))
       );
       let rendered = 0;
       for (const n of citizens) {
         if (
-          n.motion === "drive" ||
+          n.motion === 'drive' ||
           Math.hypot(n.x - (p?.x || 0), n.z - (p?.z || 0)) >
-            (this.quality === "battery" ? 85 : 180) ||
-          rendered++ > (this.quality === "battery" ? 12 : 22)
+            (this.quality === 'battery' ? 85 : 180) ||
+          rendered++ >= (this.quality === 'battery' ? 18 : 38)
         )
           continue;
         const id = `npc-${n.id}`,
-          a = this.actor("character", id);
+          a = this.actor('character', id);
         active.add(id);
         a.group.visible = true;
         a.group.position.lerp(
-          new THREE.Vector3(n.x, n.motion === "cycle" ? -0.18 : 0.06, n.z),
-          a.group.userData.placed ? Math.min(1, dt * 12) : 1,
+          new THREE.Vector3(
+            n.x,
+            n.motion === 'cycle' ? -0.18 : pavementHeight(n.x, n.z),
+            n.z
+          ),
+          a.group.userData.placed ? Math.min(1, dt * 12) : 1
         );
         a.group.userData.placed = true;
-        a.group.rotation.set(
-          n.health <= 0 ? -Math.PI / 2 : 0,
-          n.heading + Math.PI,
-          0,
-        );
+        a.group.rotation.set(n.health <= 0 ? -Math.PI / 2 : 0, n.heading, 0);
         const moving = n.speed > 0.15 && n.health > 0;
-        if (a.moving !== moving) {
-          (moving ? a.walk || a.run : a.idle)?.reset().fadeIn(0.2).play();
-          (moving ? a.idle : a.walk || a.run)?.fadeOut(0.2);
-          a.moving = moving;
+        const next =
+          !moving || n.motion === 'cycle'
+            ? a.idle
+            : n.anim === 'run'
+              ? a.run
+              : a.walk || a.run;
+        if (a.activeAction !== next) {
+          next?.reset().fadeIn(0.2).play();
+          a.activeAction?.fadeOut(0.2);
+          a.activeAction = next;
         }
-        a.mixer?.update(dt * (n.anim === "run" ? 1.8 : 1));
+        a.mixer?.update(
+          dt *
+            (moving && n.motion !== 'cycle'
+              ? Math.max(0.65, n.speed / (n.anim === 'run' ? 6 : 1.5))
+              : 1)
+        );
         this.living.pose(id, a.group, n, state.elapsed);
-        if (n.motion === "cycle" && n.health > 0) {
+        if (n.motion === 'cycle' && n.health > 0) {
           const bikeId = `bike-${n.id}`,
-            bike = this.actor("motorbike", bikeId);
+            bike = this.actor('motorbike', bikeId);
           active.add(bikeId);
           bike.group.visible = true;
           bike.group.position.copy(a.group.position);
@@ -968,11 +1080,11 @@ export class CityRenderer {
       for (const car of state.traffic) {
         if (!p || Math.hypot(car.x - p.x, car.z - p.z) > 40) continue;
         const id = `driver-${car.id}`,
-          a = this.actor("character", id);
+          a = this.actor('character', id);
         active.add(id);
         a.group.visible = true;
         a.group.position.set(car.x, -0.25, car.z);
-        a.group.rotation.set(0, car.heading + Math.PI, 0);
+        a.group.rotation.set(0, car.heading, 0);
         a.mixer?.update(dt);
         this.seated(a.group, state.elapsed, false);
         a.group.scale.setScalar(0.83);
@@ -996,52 +1108,64 @@ export class CityRenderer {
       }
       this.living.update(state, p);
       if (p) {
-        target.set(p.x, p.carId ? 1.1 : 1.3, p.z);
+        target.set(p.x, p.carId ? 2.1 : pavementHeight(p.x, p.z) + 1.8, p.z);
         if (p.carId && this.clock > this.manualUntil)
           this.yaw = smoothAngle(this.yaw, p.heading, Math.min(1, dt * 3));
       }
     }
     if (lobby) {
-      const pyramid = WORLD.landmarks.find((p) => p.id === "pyramid")!;
+      this.following = false;
+      const pyramid = WORLD.landmarks.find((p) => p.id === 'pyramid')!;
       // The initial view shows the recognizable Pyramid and its boulevard.
       const a = -0.65 + Math.sin(this.clock * 0.025) * 0.12;
       this.camera.position.set(
         pyramid.x + Math.sin(a) * 125,
         66,
-        pyramid.z + Math.cos(a) * 125,
+        pyramid.z + Math.cos(a) * 125
       );
       this.camera.lookAt(pyramid.x, 5, pyramid.z);
       target.set(pyramid.x, 0, pyramid.z);
     } else {
+      if (!this.following) {
+        this.lastTarget.copy(target);
+        this.following = true;
+      }
       this.lastTarget.lerp(target, Math.min(1, dt * 9));
       const wanted = p?.carId
         ? 9.5 + Math.min(4, Math.abs(p.speed) * 0.11)
-        : 4.25;
+        : p && insideShop(p)
+          ? 2.25
+          : 3.8;
       const d = cameraDistance(
         this.lastTarget.x,
         this.lastTarget.z,
         this.lastTarget.y,
         this.yaw,
         wanted,
-        this.pitch,
+        -Math.sin(this.pitch)
       );
       const pos = this.lastTarget
         .clone()
         .add(
           new THREE.Vector3(
-            Math.sin(this.yaw) * d,
-            (p?.carId ? 2.4 : 1.65) + this.pitch * d,
-            Math.cos(this.yaw) * d,
-          ),
+            Math.sin(this.yaw) * d + Math.cos(this.yaw) * 0.38,
+            -Math.sin(this.pitch) * d,
+            Math.cos(this.yaw) * d - Math.sin(this.yaw) * 0.38
+          )
         );
-      this.camera.position.lerp(pos, Math.min(1, dt * 10));
-      this.camera.lookAt(
-        this.lastTarget.clone().add(new THREE.Vector3(0, 0.7, 0)),
+      pos.y = Math.max(pavementHeight(pos.x, pos.z) + 0.35, pos.y);
+      // Follow translation softly; apply finger rotation immediately so aiming never trails the thumb.
+      this.camera.position.copy(pos);
+      const forward = new THREE.Vector3(
+        -Math.sin(this.yaw) * Math.cos(this.pitch),
+        Math.sin(this.pitch),
+        -Math.cos(this.yaw) * Math.cos(this.pitch)
       );
-      this.camera.fov = 52 + (p?.carId ? Math.abs(p.speed) * 0.28 : 0);
+      this.camera.lookAt(pos.clone().add(forward));
+      this.camera.fov = 58 + (p?.carId ? Math.abs(p.speed) * 0.28 : 0);
       this.camera.updateProjectionMatrix();
     }
-    this.facades?.update(target, dt, this.quality === "battery");
+    this.facades?.update(target, dt, this.quality === 'battery');
     this.sunlight.position.set(target.x - 85, 145, target.z - 75);
     this.sunlight.target.position.copy(target);
     for (const chunk of this.cityChunks) chunk.visible = true;
@@ -1050,21 +1174,32 @@ export class CityRenderer {
     this.beacon.visible =
       !lobby &&
       !!state &&
-      state.phase === "active" &&
-      state.missionId !== "free-roam";
+      state.phase === 'active' &&
+      state.missionId !== 'free-roam';
     if (this.beacon.visible && p && state) {
       const mission = state.missionId;
-      const end = this.routeLine?.geometry.getAttribute("position");
+      const end = this.routeLine?.geometry.getAttribute('position');
       if (end?.count) {
         this.beacon.position.set(
           end.getX(end.count - 1),
           0,
-          end.getZ(end.count - 1),
+          end.getZ(end.count - 1)
         );
         this.beacon.children[1].position.y = 6 + Math.sin(this.clock * 2) * 0.7;
         this.beacon.children[1].rotation.y = this.clock;
       }
     }
+    this.landscape.update(
+      this.camera.position,
+      this.clock,
+      this.quality === 'battery'
+    );
+    this.streets?.update(
+      this.camera.position,
+      state?.elapsed || this.clock,
+      this.quality
+    );
+    this.google.update(target, this.quality);
     this.renderer.render(this.scene, this.camera);
   }
   private mergeCarSurfaces(root: THREE.Group) {
@@ -1084,16 +1219,16 @@ export class CityRenderer {
         geometry = source.applyMatrix4(o.matrixWorld).toNonIndexed();
       if (geometry !== source) source.dispose();
       for (const key of Object.keys(geometry.attributes))
-        if (!["position", "normal", "uv"].includes(key))
+        if (!['position', 'normal', 'uv'].includes(key))
           geometry.deleteAttribute(key);
-      if (!geometry.getAttribute("normal")) geometry.computeVertexNormals();
-      if (!geometry.getAttribute("uv"))
+      if (!geometry.getAttribute('normal')) geometry.computeVertexNormals();
+      if (!geometry.getAttribute('uv'))
         geometry.setAttribute(
-          "uv",
+          'uv',
           new THREE.BufferAttribute(
-            new Float32Array(geometry.getAttribute("position").count * 2),
-            2,
-          ),
+            new Float32Array(geometry.getAttribute('position').count * 2),
+            2
+          )
         );
       if (!batches.has(o.material)) batches.set(o.material, []);
       batches.get(o.material)!.push(geometry);
@@ -1135,7 +1270,7 @@ export class CityRenderer {
         o instanceof THREE.Sprite ||
         o instanceof THREE.Line
       ) {
-        if ("geometry" in o) geos.add(o.geometry);
+        if ('geometry' in o) geos.add(o.geometry);
         const ms = Array.isArray(o.material) ? o.material : [o.material];
         ms.forEach((m) => {
           mats.add(m);
@@ -1151,12 +1286,18 @@ export class CityRenderer {
   }
   destroy() {
     this.disposed = true;
+    this.google.dispose();
+    this.draco.dispose();
+    this.streets?.dispose();
+    this.landscape.dispose();
     this.living.dispose();
     this.observer.disconnect();
     for (const a of this.actors.values()) a.mixer?.stopAllAction();
     this.disposeObject(this.scene);
     this.models.forEach((m) => this.disposeObject(m));
     this.worldTextures.forEach((t) => t.dispose());
+    this.wardrobe.forEach((m) => m.dispose());
+    this.wardrobe.clear();
     this.renderer.dispose();
     this.renderer.forceContextLoss();
     this.renderer.domElement.remove();

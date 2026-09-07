@@ -1,0 +1,58 @@
+[
+  {
+    "file": "pavement_02-diff.jpg",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/pavement_02/pavement_02_diff_2k.jpg",
+    "bytes": 5016531,
+    "sha256": "a524dd1d0a298f441719f1d28c3db45cc7a4e6eb6fcccb8407d0fe22ed927b6f",
+    "license": "CC0",
+    "source": "https://polyhaven.com/a/pavement_02"
+  },
+  {
+    "file": "pavement_02-nor_gl.jpg",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/pavement_02/pavement_02_nor_gl_2k.jpg",
+    "bytes": 3241087,
+    "sha256": "f3986ff819f6224caaf1e606978093868e4ac4a418cf261686f70f14234bc2b0",
+    "license": "CC0",
+    "source": "https://polyhaven.com/a/pavement_02"
+  },
+  {
+    "file": "pavement_02-rough.jpg",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/pavement_02/pavement_02_rough_1k.jpg",
+    "bytes": 574371,
+    "sha256": "128302c7d47c1273c8e1e1891d11556ebef8aa317f9b5bb111b49aba0dedc7d2",
+    "license": "CC0",
+    "source": "https://polyhaven.com/a/pavement_02"
+  },
+  {
+    "file": "pavement_02-ao.jpg",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/pavement_02/pavement_02_ao_1k.jpg",
+    "bytes": 977487,
+    "sha256": "2a55b8792cca4624985cf26e7376cbf023f294e3268cc839c37bc1fa51d4bf39",
+    "license": "CC0",
+    "source": "https://polyhaven.com/a/pavement_02"
+  },
+  {
+    "file": "bark_brown_02-diff.jpg",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/bark_brown_02/bark_brown_02_diff_1k.jpg",
+    "bytes": 659592,
+    "sha256": "920fa0bed0c9d78c1d530e99795113afd532d7db746de440f4a85d7c83ed0f1a",
+    "license": "CC0",
+    "source": "https://polyhaven.com/a/bark_brown_02"
+  },
+  {
+    "file": "bark_brown_02-nor_gl.jpg",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/bark_brown_02/bark_brown_02_nor_gl_1k.jpg",
+    "bytes": 1015623,
+    "sha256": "0d5e691e8ad8bcd093a3587887fda2a6b4a948b5708a4f256f7919584c6eb857",
+    "license": "CC0",
+    "source": "https://polyhaven.com/a/bark_brown_02"
+  },
+  {
+    "file": "bark_brown_02-rough.jpg",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/bark_brown_02/bark_brown_02_rough_1k.jpg",
+    "bytes": 337946,
+    "sha256": "68125592de36e15bae7aa6db85c4d135aeb7e5653199ba226483a70f6d69837d",
+    "license": "CC0",
+    "source": "https://polyhaven.com/a/bark_brown_02"
+  }
+]

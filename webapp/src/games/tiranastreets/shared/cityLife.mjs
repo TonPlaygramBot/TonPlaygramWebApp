@@ -1,9 +1,18 @@
-import { WEAPON_BY_ID, STARTER_WEAPON, difficultyOf } from "./weapons.mjs";
+import { inAimHeight } from './aim.mjs';
+import {
+  SHOP,
+  CITIZEN_COUNT,
+  canReachCounter,
+  SIGNALS,
+  signalsNear,
+  pedestrianGreen
+} from './streetLayout.mjs';
+import { WEAPON_BY_ID, STARTER_WEAPON, difficultyOf } from './weapons.mjs';
 
 // Gameplay-only, bounded systems. The server owns these values in connected runs.
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const bounded = (n, a, b) => Math.max(a, Math.min(b, n));
-const armed = (n) => ["gang", "police", "soldier"].includes(n.kind);
+const armed = (n) => ['gang', 'police', 'soldier'].includes(n.kind);
 export const wantedStars = (points) =>
   points <= 0 ? 0 : Math.min(5, Math.ceil(points / 100));
 export function equipStarter(p) {
@@ -19,49 +28,60 @@ export function equipStarter(p) {
   p.nextShot = 0;
   p.reloadAt = 0;
   p.kills = 0;
-  p.shopMessage = "";
+  p.shopMessage = '';
 }
 export function initCityLife(state, env, mission) {
-  state.lifeVersion = 2;
+  state.lifeVersion = 3;
   state.npcs = [];
   state.units = [];
   state.effects = [];
   state.effectSeq = 0;
   state.nextDispatch = 8;
-  state.shop = {
-    x: env.spawn.x + 12,
-    z: env.spawn.z + 2,
-    name: "Arben · Arsenal",
-  };
-  env.collide(state.shop, 1);
+  state.shop = { ...SHOP };
   state.npcs.push({
     ...state.shop,
-    id: "dealer",
-    kind: "dealer",
-    motion: "idle",
-    heading: 0,
+    z: state.shop.z - 3.25,
+    id: 'dealer',
+    kind: 'dealer',
+    motion: 'idle',
+    heading: Math.PI,
     speed: 0,
     health: 100,
     weapon: null,
-    downUntil: 0,
+    downUntil: 0
   });
   const paths = env.world.roads
     .filter(
       (r) =>
-        r.walk && dist({ x: r.a[0], z: r.a[1] }, { x: r.b[0], z: r.b[1] }) > 10,
+        r.walk && dist({ x: r.a[0], z: r.a[1] }, { x: r.b[0], z: r.b[1] }) > 10
     )
     .sort(
       (a, b) =>
         dist({ x: a.a[0], z: a.a[1] }, env.spawn) -
-        dist({ x: b.a[0], z: b.a[1] }, env.spawn),
+        dist({ x: b.a[0], z: b.a[1] }, env.spawn)
     );
-  for (let i = 0; i < 28 && paths.length; i++) {
-    const r = paths[i < 16 ? i * 2 : (i * 59) % paths.length];
+  const sidewalks = env.world.roads
+    .filter(
+      (r) =>
+        !r.walk &&
+        !r.bridge &&
+        Math.hypot(r.b[0] - r.a[0], r.b[1] - r.a[1]) > 30
+    )
+    .sort(
+      (a, b) =>
+        dist({ x: a.a[0], z: a.a[1] }, env.spawn) -
+        dist({ x: b.a[0], z: b.a[1] }, env.spawn)
+    );
+  for (let i = 0; i < CITIZEN_COUNT && paths.length; i++) {
+    const r =
+      paths[
+        i < 48 ? (i * 3) % Math.min(paths.length, 105) : (i * 59) % paths.length
+      ];
     const t = (i * 0.173) % 1;
     const n = {
       id: `citizen-${i}`,
-      kind: "civilian",
-      motion: i % 7 === 0 ? "cycle" : "walk",
+      kind: 'civilian',
+      motion: i % 7 === 0 ? 'cycle' : 'walk',
       x: r.a[0] + (r.b[0] - r.a[0]) * t,
       z: r.a[1] + (r.b[1] - r.a[1]) * t,
       heading: 0,
@@ -70,31 +90,67 @@ export function initCityLife(state, env, mission) {
       weapon: null,
       path: [
         { x: r.a[0], z: r.a[1] },
-        { x: r.b[0], z: r.b[1] },
+        { x: r.b[0], z: r.b[1] }
       ],
-      pathIndex: 1,
+      pathIndex: i % 2,
+      pauseUntil: i % 9 === 0 ? 1.5 + (i % 4) : 0,
+      walkPace: 1.05 + (i % 7) * 0.11,
       panicUntil: 0,
-      downUntil: 0,
+      downUntil: 0
     };
+    if (i >= 48 && i < 64 && sidewalks.length) {
+      const road = sidewalks[((i - 48) * 3) % Math.min(sidewalks.length, 80)],
+        dx = road.b[0] - road.a[0],
+        dz = road.b[1] - road.a[1],
+        length = Math.hypot(dx, dz),
+        side = i % 2 ? 1 : -1,
+        offset = road.w / 2 + 1.2;
+      n.path = [
+        {
+          x: road.a[0] + (dx / length) * 6 + (dz / length) * offset * side,
+          z: road.a[1] + (dz / length) * 6 - (dx / length) * offset * side
+        },
+        {
+          x: road.b[0] - (dx / length) * 6 + (dz / length) * offset * side,
+          z: road.b[1] - (dz / length) * 6 - (dx / length) * offset * side
+        }
+      ];
+      n.x = n.path[0].x + (n.path[1].x - n.path[0].x) * t;
+      n.z = n.path[0].z + (n.path[1].z - n.path[0].z) * t;
+    }
+    if (i >= 64 && SIGNALS.length) {
+      const crossing = SIGNALS[((i - 64) * 3) % SIGNALS.length],
+        ux = Math.sin(crossing.yaw),
+        uz = Math.cos(crossing.yaw),
+        width = crossing.width / 2 + 1.1;
+      n.path = [-1, 1].map((side) => ({
+        x: crossing.x - ux * 2.1 + uz * width * side,
+        z: crossing.z - uz * 2.1 - ux * width * side
+      }));
+      Object.assign(n, n.path[i % 2]);
+      n.pathIndex = 1 - (i % 2);
+      n.motion = 'walk';
+      n.pauseUntil = 0;
+    }
     env.collide(n, 0.4);
     state.npcs.push(n);
   }
-  if (mission.type === "combat") {
+  if (mission.type === 'combat') {
     const target = mission.stops[0];
     for (let i = 0; i < mission.enemies; i++) {
       const n = {
         id: `gang-${i}`,
-        kind: "gang",
-        motion: "walk",
+        kind: 'gang',
+        motion: 'walk',
         x: target.x + Math.cos(i * 1.7) * 10,
         z: target.z + Math.sin(i * 1.7) * 10,
         heading: 0,
         speed: 0,
         health: 65,
-        weapon: i % 2 ? "uziSprayAttack" : "ak47VolleyAttack",
+        weapon: i % 2 ? 'uziSprayAttack' : 'ak47VolleyAttack',
         nextShot: 3 + i,
         downUntil: 0,
-        origin: { ...target },
+        origin: { ...target }
       };
       env.collide(n, 0.45);
       state.npcs.push(n);
@@ -110,9 +166,9 @@ export function reportCrime(state, p, amount) {
   const previous = wantedStars(p.wanted);
   p.wanted = bounded(p.wanted + amount, 0, 500);
   p.lastCrime = state.elapsed;
-  if (wantedStars(p.wanted) > previous) emit(state, "alert", p, p, p.id);
+  if (wantedStars(p.wanted) > previous) emit(state, 'alert', p, p, p.id);
 }
-function emit(state, kind, from, to, owner, weapon = "") {
+function emit(state, kind, from, to, owner, weapon = '') {
   state.effects.push({
     id: ++state.effectSeq,
     at: state.elapsed,
@@ -121,28 +177,30 @@ function emit(state, kind, from, to, owner, weapon = "") {
     z: from.z,
     toX: to.x,
     toZ: to.z,
+    fromY: from.y ?? 1.35,
+    toY: to.y ?? 1.1,
     owner,
-    weapon,
+    weapon
   });
   if (state.effects.length > 48)
     state.effects.splice(0, state.effects.length - 48);
 }
 export function lifeAction(state, p, action) {
-  if (action === "reload") {
+  if (action === 'reload') {
     const w = WEAPON_BY_ID.get(p.weapon),
       inv = p.inventory[p.weapon];
     if (w && inv && inv.ammo < w.magazine && inv.reserve > 0 && !p.reloadAt) {
       p.reloadAt = state.elapsed + w.reload;
-      emit(state, "reload", p, p, p.id);
+      emit(state, 'reload', p, p, p.id);
     }
     return true;
   }
-  if (action === "holster") {
-    p.weapon = p.weapon ? "" : Object.keys(p.inventory)[0];
+  if (action === 'holster') {
+    p.weapon = p.weapon ? '' : Object.keys(p.inventory)[0];
     p.reloadAt = 0;
     return true;
   }
-  if (action.startsWith("equip:")) {
+  if (action.startsWith('equip:')) {
     const id = action.slice(6);
     if (p.inventory[id] && WEAPON_BY_ID.has(id)) {
       p.weapon = id;
@@ -150,47 +208,47 @@ export function lifeAction(state, p, action) {
     }
     return true;
   }
-  if (!action.startsWith("buy:")) return false;
-  p.shopMessage = "";
-  if (p.carId || dist(p, state.shop) > 9 || p.health <= 0) {
-    p.shopMessage = "Walk up to Arben to shop.";
+  if (!action.startsWith('buy:')) return false;
+  p.shopMessage = '';
+  if (!canReachCounter(p, state.shop) || p.health <= 0) {
+    p.shopMessage = 'Enter Arben’s shop and walk up to the counter.';
     return true;
   }
   if (wantedStars(p.wanted) > 0) {
-    p.shopMessage = "Lose your wanted stars before shopping.";
+    p.shopMessage = 'Lose your wanted stars before shopping.';
     return true;
   }
   const id = action.slice(4);
-  if (id === "medkit" || id === "armor") {
-    const price = id === "medkit" ? 90 : 180;
-    if ((id === "medkit" ? p.health : p.armor) >= 100) {
-      p.shopMessage = "Already full.";
+  if (id === 'medkit' || id === 'armor') {
+    const price = id === 'medkit' ? 90 : 180;
+    if ((id === 'medkit' ? p.health : p.armor) >= 100) {
+      p.shopMessage = 'Already full.';
       return true;
     }
     if (p.cash < price) {
-      p.shopMessage = "Not enough street cash.";
+      p.shopMessage = 'Not enough street cash.';
       return true;
     }
     p.cash -= price;
-    if (id === "medkit") p.health = 100;
+    if (id === 'medkit') p.health = 100;
     else p.armor = 100;
-    p.shopMessage = id === "medkit" ? "Health restored." : "Armor equipped.";
-    emit(state, "purchase", p, p, p.id);
+    p.shopMessage = id === 'medkit' ? 'Health restored.' : 'Armor equipped.';
+    emit(state, 'purchase', p, p, p.id);
     return true;
   }
   const w = WEAPON_BY_ID.get(id);
   if (!w) {
-    p.shopMessage = "That item is unavailable.";
+    p.shopMessage = 'That item is unavailable.';
     return true;
   }
   const own = p.inventory[id],
     price = own ? Math.max(30, Math.round(w.price * 0.2)) : w.price;
   if (own && own.reserve >= w.magazine * 8) {
-    p.shopMessage = "Ammo is full.";
+    p.shopMessage = 'Ammo is full.';
     return true;
   }
   if (p.cash < price) {
-    p.shopMessage = "Not enough street cash.";
+    p.shopMessage = 'Not enough street cash.';
     return true;
   }
   p.cash -= price;
@@ -198,14 +256,14 @@ export function lifeAction(state, p, action) {
   else p.inventory[id] = { ammo: w.magazine, reserve: w.magazine * 3 };
   p.weapon = id;
   p.reloadAt = 0;
-  p.shopMessage = own ? "Ammo restocked." : `${w.label} equipped.`;
-  emit(state, "purchase", p, p, p.id);
+  p.shopMessage = own ? 'Ammo restocked.' : `${w.label} equipped.`;
+  emit(state, 'purchase', p, p, p.id);
   return true;
 }
 function harm(state, target, amount, attacker, env) {
   if (
     target.health <= 0 ||
-    target.kind === "dealer" ||
+    target.kind === 'dealer' ||
     target.finished ||
     target.failed
   )
@@ -214,8 +272,8 @@ function harm(state, target, amount, attacker, env) {
     target.health = Math.max(0, target.health - amount);
     target.panicUntil = state.elapsed + 12;
     if (!target.health) {
-      target.downUntil = state.elapsed + (target.kind === "gang" ? 3600 : 35);
-      if (attacker?.inventory && target.kind === "gang") {
+      target.downUntil = state.elapsed + (target.kind === 'gang' ? 3600 : 35);
+      if (attacker?.inventory && target.kind === 'gang') {
         attacker.kills++;
         attacker.cash += 75;
       }
@@ -237,13 +295,13 @@ function harm(state, target, amount, attacker, env) {
       target.speed = 0;
       target.reloadAt = 0;
       target.respawnAt = state.elapsed + 4;
-      if (state.missionId !== "free-roam") {
+      if (state.missionId !== 'free-roam') {
         target.failed = true;
-        state.message = "Run ended. Regroup and try again.";
+        state.message = 'Run ended. Regroup and try again.';
       }
     }
   }
-  emit(state, "hit", target, target, attacker?.id || "");
+  emit(state, 'hit', target, target, attacker?.id || '');
 }
 function fire(state, p, env) {
   const w = WEAPON_BY_ID.get(p.weapon),
@@ -258,24 +316,29 @@ function fire(state, p, env) {
   )
     return;
   if (!inv.ammo) {
-    lifeAction(state, p, "reload");
+    lifeAction(state, p, 'reload');
     return;
   }
   inv.ammo--;
   p.nextShot = state.elapsed + w.interval;
-  p.heading = p.input.yaw;
-  const dx = -Math.sin(p.input.yaw),
-    dz = -Math.cos(p.input.yaw);
+  const yaw = p.input.aimYaw ?? p.input.yaw,
+    pitch = p.input.aimPitch || 0;
+  p.heading = yaw;
+  const dx = -Math.sin(yaw),
+    dz = -Math.cos(yaw);
   let target = null,
-    nearest = w.range;
+    nearest = Math.min(
+      w.range,
+      pitch < -0.001 ? 1.25 / -Math.tan(pitch) : w.range
+    );
   const candidates = [
     ...state.npcs,
     ...Object.values(state.players).filter(
-      (o) => o.id !== p.id && state.mode === "rivals",
-    ),
+      (o) => o.id !== p.id && state.mode === 'rivals'
+    )
   ];
   for (const n of candidates) {
-    if (n.health <= 0 || n.kind === "dealer" || n.finished || n.failed)
+    if (n.health <= 0 || n.kind === 'dealer' || n.finished || n.failed)
       continue;
     const x = n.x - p.x,
       z = n.z - p.z,
@@ -285,6 +348,7 @@ function fire(state, p, env) {
     if (
       forward > 0 &&
       forward < nearest &&
+      inAimHeight(pitch, forward) &&
       side < 0.7 + Math.min(1.4, forward * 0.035) &&
       env.clear(p, n)
     ) {
@@ -304,33 +368,40 @@ function fire(state, p, env) {
     end = { x: p.x + dx * low, z: p.z + dz * low };
     target = null;
   }
+  end.y = Math.max(
+    0.1,
+    1.35 + Math.tan(pitch) * Math.hypot(end.x - p.x, end.z - p.z)
+  );
   const hostile = target && armed(target);
   reportCrime(
     state,
     p,
-    hostile && target.kind === "gang"
+    hostile && target.kind === 'gang'
       ? 4
-      : target?.kind === "civilian"
+      : target?.kind === 'civilian'
         ? 85
         : target
           ? 60
-          : 12,
+          : 12
   );
-  emit(state, w.radius ? "explosion" : "shot", p, end, p.id, w.id);
+  emit(state, w.radius ? 'explosion' : 'shot', p, end, p.id, w.id);
   if (w.radius) {
     for (const n of candidates)
-      if (dist(n, end) < w.radius && env.clear(end, n))
+      if (
+        Math.hypot(n.x - end.x, n.z - end.z, 1.1 - end.y) < w.radius &&
+        env.clear(end, n)
+      )
         harm(
           state,
           n,
           w.damage * (1 - dist(n, end) / (w.radius * 1.3)),
           p,
-          env,
+          env
         );
     if (dist(p, end) < w.radius) harm(state, p, w.damage * 0.4, p, env);
   } else if (target) harm(state, target, w.damage, p, env);
   for (const n of state.npcs)
-    if (n.kind === "civilian" && dist(p, n) < 55)
+    if (n.kind === 'civilian' && dist(p, n) < 55)
       n.panicUntil = state.elapsed + 10;
 }
 function dispatch(state, p, stars, env) {
@@ -342,35 +413,35 @@ function dispatch(state, p, stars, env) {
   const unit = {
     ...pos,
     id,
-    model: military ? "military-suv" : "police",
-    kind: military ? "military" : stars >= 4 ? "tactical" : "patrol",
+    model: military ? 'military-suv' : 'police',
+    kind: military ? 'military' : stars >= 4 ? 'tactical' : 'patrol',
     heading: 0,
     speed: 0,
     vx: 0,
     vz: 0,
     steering: 0,
-    driver: "npc",
+    driver: 'npc',
     target: p.id,
     path: [],
     pathIndex: 0,
-    nextRoute: 0,
+    nextRoute: 0
   };
   state.units.push(unit);
   for (let i = 0; i < (military ? 2 : 1); i++)
     state.npcs.push({
       id: `${id}-officer-${i}`,
       unit: id,
-      kind: military ? "soldier" : "police",
-      motion: "drive",
+      kind: military ? 'soldier' : 'police',
+      motion: 'drive',
       x: pos.x + i,
       z: pos.z,
       heading: 0,
       speed: 0,
       health: military ? 150 : 100,
-      weapon: military ? "ak47VolleyAttack" : "polyPistol01Attack",
+      weapon: military ? 'ak47VolleyAttack' : 'polyPistol01Attack',
       nextShot: state.elapsed + 3 + i,
       downUntil: 0,
-      panicUntil: 0,
+      panicUntil: 0
     });
 }
 export function updateCityLife(state, dt, env, mission) {
@@ -380,7 +451,7 @@ export function updateCityLife(state, dt, env, mission) {
     cfg = difficultyOf(state.difficulty);
   for (const p of players) {
     if (p.health <= 0) {
-      if (state.missionId === "free-roam" && state.elapsed >= p.respawnAt) {
+      if (state.missionId === 'free-roam' && state.elapsed >= p.respawnAt) {
         Object.assign(p, env.spawn);
         p.health = 100;
         p.armor = 0;
@@ -409,15 +480,15 @@ export function updateCityLife(state, dt, env, mission) {
       p.health = Math.min(100, p.health + dt * 1.5);
     const visible = state.npcs.some(
       (n) =>
-        ["police", "soldier"].includes(n.kind) &&
+        ['police', 'soldier'].includes(n.kind) &&
         n.health > 0 &&
         dist(n, p) < 60 &&
-        env.clear(n, p),
+        env.clear(n, p)
     );
     if (!visible && state.elapsed - p.lastCrime > 14)
       p.wanted = Math.max(
         0,
-        p.wanted - dt * (state.difficulty === "hard" ? 5 : 8),
+        p.wanted - dt * (state.difficulty === 'hard' ? 5 : 8)
       );
     p.searching = p.wanted > 0 && !visible;
     p.heat = wantedStars(p.wanted) / 5;
@@ -431,7 +502,7 @@ export function updateCityLife(state, dt, env, mission) {
     state.nextDispatch = state.elapsed + 5;
     if (
       state.units.length < capacity ||
-      (stars === 5 && !state.units.some((u) => u.kind === "military"))
+      (stars === 5 && !state.units.some((u) => u.kind === 'military'))
     ) {
       if (state.units.length >= 6) {
         const old = state.units.shift();
@@ -450,7 +521,7 @@ export function updateCityLife(state, dt, env, mission) {
     if (state.elapsed >= unit.nextRoute) {
       unit.path = env.route(
         env.nearestNode(unit.x, unit.z),
-        env.nearestNode(p.x, p.z),
+        env.nearestNode(p.x, p.z)
       );
       unit.pathIndex = 0;
       unit.nextRoute = state.elapsed + 3.5;
@@ -463,8 +534,8 @@ export function updateCityLife(state, dt, env, mission) {
       env.along(
         unit,
         unit.path[unit.pathIndex],
-        unit.model === "military-suv" ? 10 : 11 + stars,
-        dt,
+        unit.model === 'military-suv' ? 10 : 11 + stars,
+        dt
       )
     )
       unit.pathIndex++;
@@ -472,41 +543,69 @@ export function updateCityLife(state, dt, env, mission) {
   for (const n of state.npcs) {
     if (n.health <= 0) {
       n.speed = 0;
-      if (n.kind === "civilian" && state.elapsed > n.downUntil) {
+      if (n.kind === 'civilian' && state.elapsed > n.downUntil) {
         n.health = 100;
         n.panicUntil = 0;
       }
       continue;
     }
-    if (n.kind === "dealer") continue;
-    if (n.kind === "civilian") {
+    if (n.kind === 'dealer') continue;
+    if (n.kind === 'civilian') {
       const danger = players.find(
-        (p) => state.elapsed - p.lastCrime < 9 && dist(p, n) < 40,
+        (p) => state.elapsed - p.lastCrime < 9 && dist(p, n) < 40
       );
       const panic = state.elapsed < n.panicUntil;
       if (panic && danger) {
         const d = dist(n, danger) || 1,
           to = {
             x: n.x + ((n.x - danger.x) / d) * 6,
-            z: n.z + ((n.z - danger.z) / d) * 6,
+            z: n.z + ((n.z - danger.z) / d) * 6
           };
-        env.along(n, to, n.motion === "cycle" ? 6 : 4.8, dt);
+        env.along(n, to, n.motion === 'cycle' ? 6 : 4.8, dt);
         env.collide(n, 0.45);
       } else if (n.path?.length) {
+        if (state.elapsed < (n.pauseUntil || 0)) {
+          n.speed = 0;
+          n.anim = 'idle';
+          continue;
+        }
+        const crossing = signalsNear(n.x, n.z).find(
+          (s) => Math.hypot(n.x - s.x, n.z - s.z) < s.width / 2 + 3
+        );
+        const destination = n.path[n.pathIndex];
+        if (crossing && !pedestrianGreen(crossing, state.elapsed)) {
+          const ux = Math.sin(crossing.yaw),
+            uz = Math.cos(crossing.yaw);
+          const side = (n.x - crossing.x) * uz - (n.z - crossing.z) * ux;
+          const nextSide =
+            (destination.x - crossing.x) * uz -
+            (destination.z - crossing.z) * ux;
+          if (
+            side * nextSide < 0 &&
+            Math.abs(side) > crossing.width / 2 - 0.5
+          ) {
+            n.speed = 0;
+            n.anim = 'idle';
+            continue;
+          }
+        }
         if (
           env.along(
             n,
             n.path[n.pathIndex],
-            n.motion === "cycle" ? 4.5 : 1.3,
-            dt,
+            n.motion === 'cycle' ? 4.5 : n.walkPace || 1.3,
+            dt
           )
-        )
+        ) {
           n.pathIndex = 1 - n.pathIndex;
+          n.pauseUntil =
+            state.elapsed + 0.6 + (Number(n.id.split('-').pop()) % 4) * 0.7;
+        }
         env.collide(n, 0.4);
       }
-      n.anim = panic ? "run" : n.motion === "cycle" ? "ride" : "walk";
+      n.anim = panic ? 'run' : n.motion === 'cycle' ? 'ride' : 'walk';
       const car = state.cars.find(
-        (c) => c.driver && Math.abs(c.speed) > 6 && dist(c, n) < 1.6,
+        (c) => c.driver && Math.abs(c.speed) > 6 && dist(c, n) < 1.6
       );
       if (car && state.elapsed - (n.hitAt || -10) > 2) {
         n.hitAt = state.elapsed;
@@ -525,7 +624,7 @@ export function updateCityLife(state, dt, env, mission) {
           p.health > 0 &&
           !p.failed &&
           !p.finished &&
-          (n.kind === "gang" || p.wanted > 0),
+          (n.kind === 'gang' || p.wanted > 0)
       )
       .sort((a, b) => dist(a, n) - dist(b, n))[0];
     if (!p) {
@@ -535,34 +634,34 @@ export function updateCityLife(state, dt, env, mission) {
     const unit = n.unit && state.units.find((u) => u.id === n.unit),
       d = dist(n, p);
     if (unit && dist(unit, p) > 23) {
-      n.motion = "drive";
+      n.motion = 'drive';
       n.x = unit.x;
       n.z = unit.z;
       n.heading = unit.heading;
       continue;
     }
-    n.motion = "walk";
-    n.anim = "aim";
+    n.motion = 'walk';
+    n.anim = 'aim';
     if (d > 16 && d < 100) {
-      env.along(n, p, n.kind === "soldier" ? 3.6 : 2.7, dt);
+      env.along(n, p, n.kind === 'soldier' ? 3.6 : 2.7, dt);
       env.collide(n, 0.45);
-      n.anim = "run";
+      n.anim = 'run';
     } else n.speed = 0;
     n.heading = Math.atan2(n.x - p.x, n.z - p.z);
     if (d < 46 && state.elapsed >= n.nextShot && env.clear(n, p)) {
       n.nextShot =
-        state.elapsed + (n.kind === "soldier" ? 0.85 : 1.6) / cfg.damage;
+        state.elapsed + (n.kind === 'soldier' ? 0.85 : 1.6) / cfg.damage;
       // Grace period and readable cadence give touch players time to react.
       if (state.elapsed - p.lastDamage > 0.35)
-        harm(state, p, (n.kind === "soldier" ? 8 : 5) * cfg.damage, n, env);
-      emit(state, "shot", n, p, n.id, n.weapon);
+        harm(state, p, (n.kind === 'soldier' ? 8 : 5) * cfg.damage, n, env);
+      emit(state, 'shot', n, p, n.id, n.weapon);
     }
   }
-  if (mission.type === "combat") {
+  if (mission.type === 'combat') {
     const remaining = state.npcs.filter(
-      (n) => n.kind === "gang" && n.health > 0,
+      (n) => n.kind === 'gang' && n.health > 0
     ).length;
     state.objectiveRemaining = remaining;
-    if (!remaining) state.message = "Area clear. Reach the extraction marker.";
+    if (!remaining) state.message = 'Area clear. Reach the extraction marker.';
   }
 }

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap");
 .ts-game {
   --ink: #07191e;
   --paper: #eef5e9;
@@ -10,7 +10,7 @@
   background: #19343c;
   color: var(--paper);
   font:
-    14px 'DM Sans',
+    14px "DM Sans",
     sans-serif;
   overflow: hidden;
   overscroll-behavior: none;
@@ -65,7 +65,7 @@
   align-items: center;
   gap: 10px;
   font:
-    800 22px/0.83 'Barlow Condensed',
+    800 22px/0.83 "Barlow Condensed",
     sans-serif;
   letter-spacing: 0.05em;
 }
@@ -77,7 +77,7 @@
 }
 .ts-brand small {
   margin-left: auto;
-  font: 500 10px 'DM Sans';
+  font: 500 10px "DM Sans";
   letter-spacing: 0.08em;
   color: #c3d4cf;
 }
@@ -115,7 +115,7 @@
 }
 .ts-lobby h1 {
   font:
-    800 clamp(45px, 8vh, 78px)/0.89 'Barlow Condensed',
+    800 clamp(45px, 8vh, 78px)/0.89 "Barlow Condensed",
     sans-serif;
   letter-spacing: -0.012em;
   margin: 16px 0;
@@ -278,7 +278,7 @@
   background: transparent;
   color: var(--paper);
   border: 0;
-  font: 600 15px 'DM Sans';
+  font: 600 15px "DM Sans";
   max-width: 225px;
   outline-offset: 4px;
 }
@@ -347,7 +347,7 @@
   border: 1px solid #ffffff2b;
   border-radius: 5px;
   color: var(--paper);
-  font: 600 12px 'DM Sans';
+  font: 600 12px "DM Sans";
   letter-spacing: 0.12em;
   padding: 8px 10px;
   user-select: text;
@@ -399,7 +399,7 @@
   max-width: 470px;
 }
 .ts-crew-panel h1 {
-  font: 800 64px/0.9 'Barlow Condensed';
+  font: 800 64px/0.9 "Barlow Condensed";
   margin: 15px 0 20px;
 }
 .ts-crew-panel h1 em {
@@ -430,7 +430,7 @@
   display: flex;
   gap: 18px;
   align-items: center;
-  font: 700 30px 'Barlow Condensed';
+  font: 700 30px "Barlow Condensed";
   letter-spacing: 0.18em;
   user-select: text;
   touch-action: auto;
@@ -516,7 +516,7 @@
   color: #d8e9e0;
 }
 .ts-hud-header strong {
-  font: 700 22px 'Barlow Condensed';
+  font: 700 22px "Barlow Condensed";
   letter-spacing: 0.025em;
 }
 .ts-performance {
@@ -582,7 +582,7 @@
 }
 .ts-objective > span:last-child {
   margin-left: auto;
-  font: 700 22px 'Barlow Condensed';
+  font: 700 22px "Barlow Condensed";
   color: var(--lime);
 }
 .ts-map-button {
@@ -725,7 +725,7 @@
   filter: drop-shadow(0 1px 4px #0008);
 }
 .ts-speed strong {
-  font: 700 40px/0.9 'Barlow Condensed';
+  font: 700 40px/0.9 "Barlow Condensed";
   display: block;
 }
 .ts-speed small {
@@ -837,7 +837,7 @@
   margin-bottom: 18px;
 }
 .ts-modal h2 {
-  font: 700 29px/1.05 'Barlow Condensed';
+  font: 700 29px/1.05 "Barlow Condensed";
   margin: 0;
   color: var(--paper);
   max-width: 280px;
@@ -892,7 +892,7 @@
   line-height: 1.4;
 }
 .ts-setting select {
-  font: 500 12px 'DM Sans';
+  font: 500 12px "DM Sans";
   color: var(--paper);
   background: #254147;
   border: 1px solid #ffffff33;
@@ -979,7 +979,7 @@
   justify-content: center;
 }
 .ts-result h2 {
-  font: 700 36px/1 'Barlow Condensed';
+  font: 700 36px/1 "Barlow Condensed";
   margin: 14px 0;
   color: var(--paper);
 }
@@ -1002,7 +1002,7 @@
 }
 .ts-result-stats strong {
   display: block;
-  font: 700 29px 'Barlow Condensed';
+  font: 700 29px "Barlow Condensed";
   color: var(--lime);
   margin-bottom: 4px;
 }
@@ -1042,7 +1042,7 @@
   z-index: 30;
 }
 .ts-fatal h2 {
-  font: 700 38px 'Barlow Condensed';
+  font: 700 38px "Barlow Condensed";
   margin: 0;
 }
 .ts-fatal p,
@@ -1255,7 +1255,7 @@
 }
 .ts-crosshair {
   position: absolute;
-  top: 48%;
+  top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   font-size: 25px;
@@ -1395,26 +1395,6 @@
   flex-direction: column;
   gap: 5px;
 }
-.ts-weapon-thumb {
-  width: 76px;
-  height: 52px;
-  flex: 0 0 76px;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  border-radius: 9px;
-  background: radial-gradient(circle at 50% 42%, #52655b, #101b18 72%);
-  border: 1px solid #ffffff20;
-}
-.ts-weapon-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-.ts-weapon-thumb span {
-  color: #d2f566;
-  font-weight: 800;
-}
 .ts-shop-item strong {
   font-size: 12px;
 }
@@ -1459,4 +1439,72 @@
   .ts-shop-prompt {
     bottom: 255px;
   }
+}
+
+.ts-fire small {
+  display: block;
+  margin-top: 4px;
+  font-size: 9px;
+  opacity: 0.8;
+  letter-spacing: 0.7px;
+}
+
+/* Always visible above the game controls; details stay inside the map window. */
+.ts-google-attribution {
+  position: absolute;
+  bottom: max(5px, env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px 5px;
+  max-width: calc(100% - 20px);
+  color: #fff;
+  background: rgba(17, 28, 32, 0.94);
+  border-radius: 6px;
+  font:
+    12px/1.4 Arial,
+    sans-serif;
+}
+.ts-google-wordmark {
+  font:
+    500 16px/19px Arial,
+    sans-serif;
+  white-space: nowrap;
+}
+.ts-google-attribution summary {
+  cursor: pointer;
+  white-space: nowrap;
+  padding: 3px 0;
+}
+.ts-google-sources {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(340px, calc(100vw - 24px));
+  max-height: 40dvh;
+  overflow-y: auto;
+  padding: 16px;
+  background: #15242b;
+  border: 1px solid #5e7379;
+  border-radius: 10px;
+  overflow-wrap: anywhere;
+}
+.ts-google-sources p {
+  margin: 8px 0;
+}
+.ts-google-sources hr {
+  margin: 14px 0;
+  border: 0;
+  border-top: 1px solid #5e7379;
+}
+.ts-google-sources a {
+  color: #afe1e9;
+  text-decoration: underline;
+}
+.ts-setting select:disabled {
+  opacity: 0.65;
 }
