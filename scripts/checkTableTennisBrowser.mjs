@@ -8,6 +8,7 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const base = path.join(root, 'webapp/src/games/tabletennis');
+const software = process.env.TABLE_TENNIS_SOFTWARE === '1';
 const output =
   process.env.TABLE_TENNIS_BROWSER_OUTPUT_DIR ||
   (await mkdtemp(path.join(tmpdir(), 'table-tennis-browser-')));
@@ -49,16 +50,24 @@ await build({
         (globalThis as any).__ttProbe = {
           read: () => ({ state: structuredClone(frame.current), input: structuredClone(input.current),
             visual: renderer.current?.ball.position.toArray(), webgl: renderer.current?.renderer.constructor.name,
-            models: renderer.current?.actors.map(a => Boolean(a.model)), skybox: Boolean(renderer.current?.skybox), env: renderer.current?.envId,
+            models: renderer.current?.actors.map(a => Boolean(a.model)), nativeEnvironment: renderer.current?.scene.background === renderer.current?.environment, env: renderer.current?.envId,
+            floorOrRail: renderer.current?.stage.children.some((m:any) => m.geometry?.parameters?.width === 5 || m.geometry?.parameters?.depth === 5.6 || m.geometry?.parameters?.width === 4),
+            backgroundRotation: renderer.current?.scene.backgroundRotation.toArray().slice(0,3),
+            arms: renderer.current?.actors.map(a => a.rig?.bones.rightUpperArm?.quaternion.toArray()),
+            distinctArms: renderer.current?.actors.map(a => Boolean(a.rig?.right && a.rig?.left && a.rig.right.upper !== a.rig.left.upper)),
+            hairFollows: renderer.current?.actors.map(a => a.rig?.followers.length),
+            torso: renderer.current?.actors.map(a => a.rig?.bones.spine?.quaternion.toArray()),
+            held: renderer.current?.actors.map(a => a.rig?.bones.rightHand ? renderer.current!.stage.worldToLocal(a.rig.bones.rightHand.getWorldPosition(a.paddle.position.clone())).distanceTo(a.paddle.position) : null),
             envLoaded: renderer.current?.environment?.uuid, actorModels: renderer.current?.actors.map(a => a.model?.uuid) }),
           fresh: (config: any) => createMatch(config),
           load: (s: MatchState) => { cancelGesture(); frame.current = s; input.current = { ...neutralInput(), autoHit: false };
             room.current = null; active.current = true; pauseRef.current = false; setPaused(false); setAuto(false); setView('match'); setScore({ ...s }); },
-          projection: (seat: Seat, ends: boolean, dx: number, dy: number) => {
+          projection: (seat: Seat, ends: boolean, dx: number, dy: number, movement = false) => {
             const r = renderer.current!, s = createMatch({ ai: false }); s.endsSwapped = ends;
             s.ball.z = (seat === 0 ? 1 : -1) * (ends ? -1 : 1) * 1.2;
-            r.draw(s, seat, true); const h = r.shotDirection(dx, dy, s)!;
-            const v = r.ball.position.clone(), a = r.stage.localToWorld(v.clone()).project(r.camera);
+            s.players.forEach((p,n) => p.z = (n === 0 ? 1 : -1) * (ends ? -1 : 1) * 1.7);
+            r.draw(s, seat, true); const h = movement ? r.moveOffset(s, seat, dx, dy) : r.shotDirection(dx, dy, s)!;
+            const v = movement ? r.actors[seat].root.position.clone() : r.ball.position.clone(), a = r.stage.localToWorld(v.clone()).project(r.camera);
             v.x += h.x * .001; v.z += h.z * .001;
             const b = r.stage.localToWorld(v).project(r.camera);
             const x = (b.x - a.x) * r.camera.aspect, y = -(b.y - a.y), length = Math.hypot(x, y);
@@ -99,10 +108,50 @@ try {
     hasTouch: true,
     isMobile: true
   });
+  const cdp = await page.context().newCDPSession(page);
+  const twoTouch = async (distance = 0) => {
+    const fingers = [
+      { id: 10, x: 12, y: 680 },
+      { id: 11, x: 378, y: 680 }
+    ];
+    await cdp.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: fingers
+    });
+    for (let n = 1; n <= 4; n++) {
+      await page.clock.runFor(16);
+      if (distance)
+        await cdp.send('Input.dispatchTouchEvent', {
+          type: 'touchMove',
+          touchPoints: fingers.map((f) => ({
+            ...f,
+            y: f.y + (distance * n) / 4
+          }))
+        });
+    }
+    await cdp.send('Input.dispatchTouchEvent', {
+      type: 'touchEnd',
+      touchPoints: []
+    });
+    await page.clock.runFor(32);
+  };
   const errors = [];
+  if (software)
+    await page.addInitScript(() => {
+      const original = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = function (kind, ...args) {
+        return kind.includes('webgl')
+          ? null
+          : original.call(this, kind, ...args);
+      };
+    });
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (e) => {
-    if (e.type() === 'error') errors.push(e.text());
+    if (
+      e.type() === 'error' &&
+      !(software && /Error creating WebGL context/.test(e.text()))
+    )
+      errors.push(e.text());
   });
   await page.clock.install();
   await page.clock.pauseAt(Date.now());
@@ -131,7 +180,9 @@ try {
   await page.goto('http://table-tennis.test/');
   await page.clock.runFor(320);
   await page.waitForFunction(
-    () => __ttProbe?.read().models?.every(Boolean) && __ttProbe.read().skybox
+    () =>
+      __ttProbe?.read().models?.every(Boolean) &&
+      __ttProbe.read().nativeEnvironment
   );
   const load = async (patch) => {
     await page.evaluate((patch) => {
@@ -145,7 +196,25 @@ try {
   await load();
   assert.match(
     await page.evaluate(() => __ttProbe.read().webgl),
-    /WebGLRenderer/
+    software ? /SoftwareRenderer/ : /WebGLRenderer/
+  );
+  assert.ok(
+    await page.evaluate(() => __ttProbe.read().distinctArms.every(Boolean)),
+    'Both anatomical arms have separate complete chains'
+  );
+  assert.ok(
+    await page.evaluate(() => __ttProbe.read().hairFollows.every((n) => n > 0)),
+    'Separate hair skeletons follow body animation'
+  );
+  assert.equal(
+    await page.evaluate(() => __ttProbe.read().floorOrRail),
+    false,
+    'No procedural platform or rails'
+  );
+  assert.deepEqual(
+    await page.evaluate(() => __ttProbe.read().backgroundRotation),
+    [0, 0, 0],
+    'Original panorama orientation'
   );
   let projectionCases = 0;
   for (const width of [320, 390, 480]) {
@@ -172,9 +241,23 @@ try {
             (h.x * dx + h.y * dy) / Math.hypot(dx, dy) > 0.99999,
             'Finger heading must stay aligned on screen'
           );
+          const m = await page.evaluate(
+            ({ seat, ends, dx, dy }) =>
+              __ttProbe.projection(seat, ends, dx, dy, true),
+            { seat, ends, dx, dy }
+          );
+          assert.ok(
+            (m.x * dx + m.y * dy) / Math.hypot(dx, dy) > 0.99999,
+            'Dragging must follow the finger on screen at both ends'
+          );
           projectionCases++;
         }
     await load();
+    assert.equal(
+      await page.locator('.tt-game button:visible').count(),
+      0,
+      'No visible in-game buttons'
+    );
     await page.screenshot({ path: path.join(output, `portrait-${width}.png`) });
     assert.equal(
       await page.evaluate(
@@ -202,6 +285,39 @@ try {
     );
   }
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => {
+    const s = __ttProbe.fresh({ ai: false });
+    s.phase = 'rally';
+    Object.assign(s.ball, {
+      serve: false,
+      last: 0,
+      x: 0,
+      y: 5,
+      z: 0,
+      vx: 0,
+      vy: 0,
+      vz: 0
+    });
+    __ttProbe.load(s);
+  });
+  await page.mouse.move(100, 680);
+  await page.mouse.down();
+  for (let n = 1; n <= 4; n++) {
+    await page.mouse.move(100 + n * 10, 680);
+    await page.clock.runFor(16);
+  }
+  assert.ok(
+    await page.evaluate(() => __ttProbe.read().state.players[0].x > 0.1),
+    'Drag can reposition the player while their shot travels away'
+  );
+  assert.equal(await page.evaluate(() => __ttProbe.read().input.assist), false);
+  await page.mouse.up();
+  assert.equal(await page.evaluate(() => __ttProbe.read().input.assist), true);
+  assert.equal(
+    await page.evaluate(() => __ttProbe.read().input.swing),
+    0,
+    'Movement during an outgoing shot must not double hit'
+  );
   await load();
   await page.touchscreen.tap(190, 440);
   await page.clock.runFor(32);
@@ -246,16 +362,90 @@ try {
   await load();
   await page.mouse.move(190, 500);
   await page.mouse.down();
-  await page.getByRole('button', { name: 'Pause', exact: true }).focus();
-  await page.keyboard.press('Enter');
+  await page.locator('.tt-game').focus();
+  await page.keyboard.press('Escape');
   await page.mouse.up();
-  await page.getByRole('button', { name: 'KEEP PLAYING' }).click();
+  await page.keyboard.press('Escape');
   await page.clock.runFor(40);
   assert.equal(
     await page.evaluate(() => __ttProbe.read().state.phase),
     'serve',
     'Pause cancels held gesture'
   );
+  await load();
+  await twoTouch();
+  assert.equal(
+    await page.locator('.tt-pause-appearance').count(),
+    1,
+    'Two-finger tap opens settings'
+  );
+  assert.equal(
+    await page.locator('.tt-game button:visible').count(),
+    0,
+    'No buttons in the touch menu'
+  );
+  await twoTouch();
+  assert.equal(
+    await page.locator('.tt-modal').count(),
+    0,
+    'Two-finger tap resumes'
+  );
+  assert.equal(
+    await page.evaluate(() => __ttProbe.read().state.phase),
+    'serve',
+    'Menu gesture never serves'
+  );
+  await twoTouch(-100);
+  assert.equal(
+    await page.evaluate(() => __ttProbe.read().input.shot),
+    'backspin',
+    'Two-finger swipe chooses backspin'
+  );
+  assert.ok(
+    await page.evaluate(() => __ttProbe.read().input.direction.z < 0),
+    'Two-finger shot retains screen direction'
+  );
+  await page.evaluate(() => {
+    const s = __ttProbe.fresh({ ai: false });
+    s.phase = 'rally';
+    s.time = 5;
+    s.phaseAt = 4;
+    Object.assign(s.players[0], {
+      swingAt: 5,
+      hitX: -0.2,
+      hitY: 1.05,
+      hitZ: 1.2
+    });
+    Object.assign(s.ball, {
+      serve: false,
+      last: 0,
+      x: -0.2,
+      y: 1.05,
+      z: 1.2,
+      vx: 0,
+      vy: 1,
+      vz: -3
+    });
+    __ttProbe.load(s);
+  });
+  await page.clock.runFor(32);
+  const prep = await page.evaluate(() => __ttProbe.read());
+  await page.screenshot({ path: path.join(output, 'stroke-contact.png') });
+  await page.clock.runFor(160);
+  const follow = await page.evaluate(() => __ttProbe.read());
+  assert.ok(
+    prep.arms[0].some((q, i) => Math.abs(q - follow.arms[0][i]) > 0.04),
+    'Restored arm follow-through animates'
+  );
+  assert.ok(
+    prep.torso[0].some((q, i) => Math.abs(q - follow.torso[0][i]) > 0.005),
+    'Restored torso rotation animates'
+  );
+  assert.ok(
+    follow.held.every((d) => Math.abs(d - 0.115) < 0.001),
+    'Paddles stay in the hands'
+  );
+  await page.screenshot({ path: path.join(output, 'stroke-follow.png') });
   const bounces = [];
   for (const kind of ['legal', 'out', 'second', 'side'])
     for (const seat of [0, 1]) {
@@ -299,14 +489,14 @@ try {
       env: __ttProbe.read().env,
       loaded: __ttProbe.read().envLoaded
     }));
-    await page.getByRole('button', { name: 'Pause', exact: true }).click();
+    await twoTouch();
     await page.getByLabel('Arena', { exact: true }).selectOption(arena);
     if (previous.env !== arena)
       await page.waitForFunction(
         (old) => __ttProbe.read().envLoaded !== old,
         previous.loaded
       );
-    await page.getByRole('button', { name: 'KEEP PLAYING' }).click();
+    await page.keyboard.press('Escape');
     await page.clock.runFor(120);
     await page.screenshot({ path: path.join(output, `arena-${arena}.png`) });
   }
@@ -314,7 +504,7 @@ try {
   const oldCharacter = await page.evaluate(
     () => __ttProbe.read().actorModels[0]
   );
-  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  await twoTouch();
   await page
     .getByLabel('Human player', { exact: true })
     .selectOption('chess-human');
@@ -322,7 +512,7 @@ try {
     (old) => __ttProbe.read().actorModels[0] !== old,
     oldCharacter
   );
-  await page.getByRole('button', { name: 'KEEP PLAYING' }).click();
+  await page.keyboard.press('Escape');
   await page.clock.runFor(120);
   await page.screenshot({ path: path.join(output, 'chess-human.png') });
   await page.evaluate(() => {
@@ -344,7 +534,7 @@ try {
     __ttProbe.load(s);
   });
   await page.clock.runFor(160);
-  await page.getByRole('button', { name: 'Rematch', exact: true }).click();
+  await page.touchscreen.tap(190, 680);
   await page.clock.runFor(160);
   assert.equal(await page.evaluate(() => __ttProbe.read().state.pointCount), 0);
   assert.equal(

@@ -17,6 +17,8 @@ export type BcaShotInput = {
   cueOffTable?: boolean;
   noCushionAfterContact?: boolean;
   placedFromHand?: boolean;
+  objectBallsToRailAfterContact?: string[];
+  railContactsAfterFirstHit?: number;
 };
 
 export type BcaShotResult = {

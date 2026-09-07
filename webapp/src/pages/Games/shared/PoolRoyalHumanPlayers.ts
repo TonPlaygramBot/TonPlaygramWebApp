@@ -7,6 +7,7 @@ import {
   type HumanRig, type ShotState
 } from './poolRoyalReferenceHuman.ts';
 import { refinePoolRoyalBridge, poolRoyalEyeView, type HumanEyeView } from './poolRoyalPlayerPose.ts';
+import { posePoolRoyalCue } from './createPoolRoyalCue.ts';
 
 export type PlayerSeat = 'A' | 'B';
 export type PlayerFrame = {
@@ -29,6 +30,7 @@ type Player = {
   shotBall: THREE.Vector3;
   shotAim: THREE.Vector3;
   headMeshes: THREE.Object3D[];
+  cueModel?: THREE.Object3D;
 };
 type Options = {
   floorY: number;
@@ -89,6 +91,7 @@ export class PoolRoyalHumanPlayers {
   private readonly solverScene = new THREE.Scene();
   private disposed = false;
   private readonly options: Options;
+  private cueAppearance: { body: THREE.Object3D; tip: THREE.Vector3; butt: THREE.Vector3 } | null = null;
 
   constructor(parent: THREE.Object3D, options: Options) {
     this.options = options;
@@ -126,6 +129,7 @@ export class PoolRoyalHumanPlayers {
         this.players.push({ seat, human, cue, initialized: false, state: 'idle',
           shotBall: new THREE.Vector3(), shotAim: new THREE.Vector3(), headMeshes });
       }
+      if (this.cueAppearance) this.setCueAppearance(this.cueAppearance.body, this.cueAppearance.tip, this.cueAppearance.butt);
       return true;
     }).catch(error => {
       if (!this.disposed) options.onError?.(error);
@@ -142,6 +146,32 @@ export class PoolRoyalHumanPlayers {
   setFirstPerson(enabled: boolean, seat: PlayerSeat) {
     for (const player of this.players) for (const mesh of player.headMeshes) {
       mesh.visible = !(enabled && player.seat === seat);
+    }
+  }
+
+  /** Clones share the selected gameplay finish, so switching a cue updates every holder. */
+  setCueAppearance(body: THREE.Object3D, tip: THREE.Vector3, butt: THREE.Vector3) {
+    this.cueAppearance = { body, tip: tip.clone(), butt: butt.clone() };
+    for (const player of this.players) {
+      player.cueModel?.removeFromParent();
+      player.cueModel = body.clone(true);
+      this.group.add(player.cueModel);
+    }
+  }
+
+  /** Final-camera occlusion check also covers AI action/pocket camera handoffs. */
+  updateCameraVisibility(camera: THREE.Camera, target: THREE.Vector3, firstPersonSeat?: PlayerSeat) {
+    const cameraPos = camera.getWorldPosition(new THREE.Vector3());
+    const ray = target.clone().sub(cameraPos);
+    const targetDistance = ray.length(); ray.normalize();
+    for (const player of this.players) {
+      const head = player.human.bones.head!.getWorldPosition(new THREE.Vector3());
+      const offset = head.sub(cameraPos), along = offset.dot(ray);
+      const scale = this.group.getWorldScale(new THREE.Vector3()).x;
+      const radius = CFG.humanScale * 0.15 * scale;
+      const blocksView = offset.length() < radius * 5 && along > -radius && along < targetDistance &&
+        offset.clone().addScaledVector(ray, -along).length() < radius * 1.2;
+      for (const mesh of player.headMeshes) mesh.visible = !(player.seat === firstPersonSeat || blocksView);
     }
   }
 
@@ -192,7 +222,8 @@ export class PoolRoyalHumanPlayers {
       ).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw));
       const idleCue = cuePoseFromGrip(idleRight,
         CFG.idleCueDir.clone().applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw),
-        CFG.idleCueGripFromBack);
+        CFG.idleCueGripFromBack, this.cueAppearance
+          ? this.cueAppearance.tip.distanceTo(this.cueAppearance.butt) / this.referenceScale : CFG.cueLength);
       let back = idleCue.back;
       let tip = idleCue.tip;
       if (state !== 'idle') {
@@ -224,6 +255,11 @@ export class PoolRoyalHumanPlayers {
       // While aiming, the gameplay cue is the visible cue; the parked player
       // continues to hold the original upright reference cue.
       player.cue.group.visible = state === 'idle' || !(frame.cueBack && frame.cueTip);
+      if (player.cueModel && this.cueAppearance) {
+        posePoolRoyalCue(player.cueModel, back, tip, this.cueAppearance.tip, this.cueAppearance.butt);
+        player.cueModel.visible = player.cue.group.visible;
+        player.cue.group.visible = false;
+      }
       player.state = state;
     }
     const shooter = this.players.find(player => player.seat === frame.activeSeat);
@@ -236,6 +272,9 @@ export class PoolRoyalHumanPlayers {
     if (this.disposed) return;
     this.disposed = true;
     this.eyeView = null;
+    // The gameplay cue owns shared geometry/materials; do not dispose its copies here.
+    for (const player of this.players) player.cueModel?.removeFromParent();
+    this.cueAppearance = null;
     disposeResources(this.group);
     this.group.removeFromParent();
     this.group.clear();

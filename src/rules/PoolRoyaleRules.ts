@@ -28,6 +28,7 @@ type UkSerializedState = {
   frameOver: boolean;
   winner: 'A' | 'B' | null;
   mustPlayFromBaulk: boolean;
+  ballInHand: boolean;
 };
 
 type EightBallSerializedState = {
@@ -102,7 +103,8 @@ function serializeUkState(state: UkPool['state']): UkSerializedState {
     lastEvent: state.lastEvent,
     frameOver: state.frameOver,
     winner: state.winner,
-    mustPlayFromBaulk: state.mustPlayFromBaulk
+    mustPlayFromBaulk: state.mustPlayFromBaulk,
+    ballInHand: Boolean(state.ballInHand)
   };
 }
 
@@ -121,7 +123,8 @@ function applyUkState(game: UkPool, snapshot: UkSerializedState) {
     lastEvent: snapshot.lastEvent,
     frameOver: snapshot.frameOver,
     winner: snapshot.winner,
-    mustPlayFromBaulk: snapshot.mustPlayFromBaulk
+    mustPlayFromBaulk: snapshot.mustPlayFromBaulk,
+    ballInHand: Boolean(snapshot.ballInHand ?? snapshot.mustPlayFromBaulk)
   };
 }
 
@@ -489,7 +492,9 @@ export class PoolRoyaleRules {
       potted,
       cueOffTable: Boolean(context.cueBallPotted),
       placedFromHand: Boolean(context.placedFromHand),
-      noCushionAfterContact: Boolean(context.noCushionAfterContact)
+      noCushionAfterContact: Boolean(context.noCushionAfterContact),
+      objectBallsToRailAfterContact: context.objectBallsToRailAfterContact,
+      railContactsAfterFirstHit: Number(context.railContactCountAfterContact ?? 0)
     });
     const pottedCount = potted.filter((id) => id !== 0).length;
     const snapshot = serializeEightBallState(game.state);
@@ -600,13 +605,16 @@ export class PoolRoyaleRules {
       placedFromHand: Boolean(context.placedFromHand),
       noCushionAfterContact: Boolean(context.noCushionAfterContact),
       breakShot: Boolean(previous?.state?.breakInProgress),
-      railContactsAfterFirstHit: Number(context.railContactCountAfterContact ?? 0)
+      railContactsAfterFirstHit: Number(context.railContactCountAfterContact ?? 0),
+      objectBallsToRailAfterContact: context.objectBallsToRailAfterContact
     });
     const pottedCount = potted.filter((id) => id !== 0).length;
     const snapshot = serializeNineState(game.state);
     const lowest = lowestBall(snapshot.ballsOnTable);
+    const foulWarning = !snapshot.gameOver && snapshot.foulStreak[snapshot.currentPlayer] === 2
+      ? ' · 2 fouls: next foul loses' : '';
     const hud: HudInfo = {
-      next: snapshot.gameOver ? 'frame over' : lowest != null ? `ball ${lowest}` : 'nine',
+      next: snapshot.gameOver ? 'frame over' : (lowest != null ? `ball ${lowest}` : 'nine') + foulWarning,
       phase: snapshot.gameOver ? 'complete' : 'run',
       scores: { A: 0, B: 0 }
     };

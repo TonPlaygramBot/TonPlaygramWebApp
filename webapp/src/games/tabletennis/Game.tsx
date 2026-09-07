@@ -20,13 +20,8 @@ import {
   TOUR
 } from './career';
 import { CHARACTERS, ARENAS, type AppearanceChoices } from './options';
-import {
-  beginSwipe,
-  sampleSwipe,
-  readSwipe,
-  TAP_POWER,
-  type SwipeGesture
-} from '../../../../shared/tabletennis/swipe';
+import { TAP_POWER } from '../../../../shared/tabletennis/swipe';
+import { TableTouches, touchShot, type TouchResult } from './touch';
 import {
   BroadcastScoreboard,
   type PlayerIdentity
@@ -82,6 +77,8 @@ export default function TableTennisGame({
     [auto, setAuto] = useState(false),
     [shot, setShot] = useState<Shot>('drive'),
     [power, setPower] = useState(TAP_POWER),
+    [touchActive, setTouchActive] = useState(false),
+    [feedbackUntil, setFeedbackUntil] = useState(0),
     [network, setNetwork] = useState(''),
     [careerSaved, setCareerSaved] = useState(false),
     [help, setHelp] = useState(false),
@@ -91,16 +88,34 @@ export default function TableTennisGame({
     mounted = useRef(true),
     lastEvent = useRef(0),
     seat = room.current?.seat ?? 0;
-  const gesture = useRef<{
-    id: number;
-    swipe: SwipeGesture;
-    element: HTMLElement;
+  const touches = useRef(new TableTouches());
+  const captured = useRef(new Map<number, HTMLElement>());
+  const drag = useRef<{
+    x: number;
+    y: number;
+    playerX: number;
+    playerZ: number;
+    canPlay: boolean;
   } | null>(null);
+  const previousPhase = useRef(frame.current.phase);
+  function releaseCapture(id: number) {
+    const element = captured.current.get(id);
+    captured.current.delete(id);
+    if (element?.hasPointerCapture(id)) element.releasePointerCapture(id);
+  }
   function cancelGesture() {
-    const current = gesture.current;
-    gesture.current = null;
-    if (current?.element.hasPointerCapture(current.id))
-      current.element.releasePointerCapture(current.id);
+    touches.current.clear();
+    drag.current = null;
+    for (const id of captured.current.keys()) releaseCapture(id);
+    input.current.assist = true;
+    input.current.moveX = null;
+    input.current.moveZ = null;
+    setTouchActive(false);
+  }
+  function resume() {
+    cancelGesture();
+    pauseRef.current = false;
+    setPaused(false);
   }
   function canSwing() {
     const s = frame.current,
@@ -131,7 +146,8 @@ export default function TableTennisGame({
         setCareerSaved(true);
       }
     } catch {
-      if (mounted.current) setError('Result not saved. Tap Retry save.');
+      if (mounted.current)
+        setError('Result not saved. Retry save: tap the screen.');
     }
   }
   async function start(mode = 'ai') {
@@ -219,7 +235,10 @@ export default function TableTennisGame({
     audio.current?.unlock();
     input.current.direction = null;
     input.current.power = TAP_POWER;
+    input.current.shot = 'drive';
+    setShot('drive');
     setPower(TAP_POWER);
+    setFeedbackUntil(frame.current.time + 0.8);
     input.current.swing++;
   }
   useEffect(() => {
@@ -245,10 +264,14 @@ export default function TableTennisGame({
       const dt = Math.max(0, Math.min(0.25, (t - last) / 1000));
       last = t;
       if (active.current) {
-        if (frame.current.phase === 'point' || frame.current.phase === 'over') {
+        if (
+          previousPhase.current !== frame.current.phase &&
+          (frame.current.phase === 'point' || frame.current.phase === 'over')
+        ) {
           cancelGesture();
           input.current.direction = null;
         }
+        previousPhase.current = frame.current.phase;
         if (room.current) {
           if (!syncing.current && t > nextSync) {
             nextSync = t + 50;
@@ -375,86 +398,191 @@ export default function TableTennisGame({
       setBusy(false);
     }
   };
-  const pointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!e.isPrimary || e.button !== 0 || gesture.current || !canSwing())
-      return;
-    audio.current?.unlock();
-    gesture.current = {
-      id: e.pointerId,
-      element: e.currentTarget,
-      swipe: beginSwipe(
-        e.clientX,
-        e.clientY,
-        e.timeStamp,
-        e.currentTarget.clientWidth
+  function finishTouch(stroke: TouchResult, canPlay: boolean) {
+    if (paused) {
+      if (
+        stroke.fingers === 2 &&
+        stroke.kind === 'swipe' &&
+        stroke.travelY > 80
       )
-    };
-    e.currentTarget.setPointerCapture(e.pointerId);
-    setPower(TAP_POWER);
-  };
-  const pointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    const g = gesture.current;
-    if (!g || g.id !== e.pointerId) return;
-    sampleSwipe(g.swipe, e.clientX, e.clientY, e.timeStamp);
-    setPower(readSwipe(g.swipe).power);
-  };
-  const pointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    const g = gesture.current;
-    if (!g || g.id !== e.pointerId) return;
-    sampleSwipe(g.swipe, e.clientX, e.clientY, e.timeStamp);
-    const stroke = readSwipe(g.swipe);
-    cancelGesture();
-    if (!canSwing()) return;
+        exit();
+      else if (stroke.kind === 'tap' || stroke.kind === 'menu') resume();
+      return;
+    }
+    if (frame.current.phase === 'over') {
+      if (error.includes('Retry save')) {
+        saved.current = false;
+        setError('');
+        void saveCareer();
+        return;
+      }
+      if (stroke.kind === 'menu' || modeRef.current !== 'ai') exit();
+      else if (stroke.kind === 'tap') void start();
+      return;
+    }
+    if (stroke.kind === 'menu') {
+      pause();
+      return;
+    }
+    if (!canPlay || !canSwing()) return;
+    const selected = touchShot(
+      stroke,
+      frame.current.phase === 'rally' && frame.current.ball.y > 1.12
+    );
     input.current.power = stroke.power;
+    input.current.shot = selected;
     input.current.direction =
       renderer.current?.shotDirection(stroke.dx, stroke.dy, frame.current) ??
       null;
     input.current.swing++;
     setPower(stroke.power);
+    setShot(selected);
+    setFeedbackUntil(frame.current.time + 0.8);
+  }
+  const pointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (
+      view !== 'match' ||
+      e.button !== 0 ||
+      (e.target as HTMLElement).closest('input,select,option,label,a,button')
+    )
+      return;
+    audio.current?.unlock();
+    if (!touches.current.fingers.size) {
+      const p = frame.current.players[room.current?.seat ?? 0];
+      drag.current = {
+        x: e.clientX,
+        y: e.clientY,
+        playerX: p.x,
+        playerZ: p.z,
+        canPlay: !paused && canSwing()
+      };
+    }
+    touches.current.down(
+      e.pointerId,
+      e.clientX,
+      e.clientY,
+      e.timeStamp,
+      e.currentTarget.clientWidth
+    );
+    captured.current.set(e.pointerId, e.currentTarget);
+    e.currentTarget.setPointerCapture(e.pointerId);
+    if (!paused && frame.current.phase !== 'over') {
+      setTouchActive(true);
+      setPower(TAP_POWER);
+    }
+  };
+  const pointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!touches.current.fingers.has(e.pointerId)) return;
+    touches.current.move(e.pointerId, e.clientX, e.clientY, e.timeStamp);
+    const stroke = touches.current.read();
+    if (stroke) setPower(stroke.power);
+    const d = drag.current,
+      n = room.current?.seat ?? 0;
+    if (
+      d &&
+      active.current &&
+      e.pointerId === touches.current.primary &&
+      frame.current.phase === 'rally' &&
+      !paused
+    ) {
+      const s = frame.current;
+      const offset = renderer.current?.moveOffset(
+        {
+          ...s,
+          players: s.players.map((p, i) =>
+            i === n ? { ...p, x: d.playerX, z: d.playerZ } : p
+          )
+        },
+        n,
+        e.clientX - d.x,
+        e.clientY - d.y
+      );
+      if (offset) {
+        input.current.assist = false;
+        input.current.moveX = d.playerX + offset.x;
+        input.current.moveZ = d.playerZ + offset.z;
+      }
+    }
+  };
+  const pointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    const canPlay = drag.current?.canPlay ?? false;
+    const stroke = touches.current.up(
+      e.pointerId,
+      e.clientX,
+      e.clientY,
+      e.timeStamp
+    );
+    releaseCapture(e.pointerId);
+    if (!touches.current.fingers.size) {
+      cancelGesture();
+      if (stroke) finishTouch(stroke, canPlay);
+    }
+  };
+  const keyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (view !== 'match' || (e.target as HTMLElement).closest('input,select'))
+      return;
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      paused ? resume() : pause();
+    }
+    if (e.code === 'Space' && !e.repeat) {
+      e.preventDefault();
+      if (paused) resume();
+      else if (frame.current.phase === 'over')
+        modeRef.current === 'ai' ? void start() : exit();
+      else hit();
+    }
   };
   const currentTour = TOUR[career.tour],
     r = score,
     other = 1 - seat,
     online = modeRef.current === 'online' && view === 'match';
   return (
-    <div className={`tt-game ${inline ? 'tt-inline' : ''}`} data-view={view}>
-      <header className="tt-header">
-        <button
-          className="tt-brand"
-          onClick={() => {
-            if (view === 'match') {
-              pause();
-            } else if (onLobby) onLobby();
-            else setView('home');
-          }}
-        >
-          TABLE TENNIS <b>ROYAL</b>
-        </button>
-        <button
-          className="tt-icon"
-          aria-label={sound ? 'Mute sound' : 'Enable sound'}
-          onClick={() => {
-            audio.current?.unlock();
-            setSound(!sound);
-            if (audio.current) audio.current.enabled = !sound;
-          }}
-        >
-          {sound ? 'Sound on' : 'Muted'}
-        </button>
-      </header>
-      <div
-        className="tt-scene"
-        ref={host}
-        onPointerDown={pointerDown}
-        onPointerMove={pointerMove}
-        onPointerUp={pointerUp}
-        onPointerCancel={(e) => {
-          if (gesture.current?.id === e.pointerId) cancelGesture();
-        }}
-        onLostPointerCapture={(e) => {
-          if (gesture.current?.id === e.pointerId) cancelGesture();
-        }}
-      />
+    <div
+      className={`tt-game ${inline ? 'tt-inline' : ''}`}
+      data-view={view}
+      tabIndex={view === 'match' ? 0 : undefined}
+      aria-label="Table tennis touch court"
+      aria-describedby="tt-touch-help"
+      onPointerDown={pointerDown}
+      onPointerMove={pointerMove}
+      onPointerUp={pointerUp}
+      onKeyDown={keyDown}
+      onPointerCancel={() => cancelGesture()}
+      onLostPointerCapture={(e) => {
+        if (captured.current.has(e.pointerId)) cancelGesture();
+      }}
+      onContextMenu={(e) => {
+        if (view === 'match') e.preventDefault();
+      }}
+    >
+      {view !== 'match' && (
+        <header className="tt-header">
+          <button
+            className="tt-brand"
+            onClick={() => {
+              if (view === 'match') {
+                pause();
+              } else if (onLobby) onLobby();
+              else setView('home');
+            }}
+          >
+            TABLE TENNIS <b>ROYAL</b>
+          </button>
+          <button
+            className="tt-icon"
+            aria-label={sound ? 'Mute sound' : 'Enable sound'}
+            onClick={() => {
+              audio.current?.unlock();
+              setSound(!sound);
+              if (audio.current) audio.current.enabled = !sound;
+            }}
+          >
+            {sound ? 'Sound on' : 'Muted'}
+          </button>
+        </header>
+      )}
+      <div className="tt-scene" ref={host} />
       <div className="tt-vignette" />
       {view === 'home' && (
         <>
@@ -538,68 +666,21 @@ export default function TableTennisGame({
               : r.message}
             {r.phase === 'rally' && <small>{r.rally} shot rally</small>}
           </div>
-          <div className="tt-controls">
-            <div className="tt-control-top">
-              <button onClick={pause}>{online ? 'Leave' : 'Pause'}</button>
-              <span>{online ? network : 'Tap soft · swipe for speed'}</span>
-              <button
-                aria-pressed={auto}
-                onClick={() => {
-                  cancelGesture();
-                  setAuto(!auto);
-                  input.current.autoHit = !auto;
-                }}
-              >
-                Auto hit {auto ? 'on' : 'off'}
-              </button>
-            </div>
-            <div className="tt-shots">
-              {(['drive', 'topspin', 'backspin', 'smash'] as Shot[]).map(
-                (s) => (
-                  <button
-                    key={s}
-                    aria-pressed={shot === s}
-                    onClick={() => {
-                      setShot(s);
-                      input.current.shot = s;
-                    }}
-                  >
-                    {s}
-                  </button>
-                )
-              )}
-            </div>
-            <div className="tt-swipe-meter">
-              <div>
-                <span>
-                  SWIPE POWER <b>{Math.round(power * 100)}%</b>
-                </span>
-                <div
-                  className="tt-power-track"
-                  role="meter"
-                  aria-label="Swipe power"
-                  aria-valuenow={Math.round(power * 100)}
-                  aria-valuemin={10}
-                  aria-valuemax={100}
-                >
-                  <i style={{ width: `${power * 100}%` }} />
-                </div>
-                <small>Follow your finger · automatic footwork</small>
-              </div>
-              <button
-                className="tt-hit"
-                disabled={
-                  r.phase === 'point' ||
-                  r.phase === 'over' ||
-                  r.phase === 'toss' ||
-                  (r.phase === 'serve' && r.score.server !== seat)
-                }
-                onClick={hit}
-              >
-                {r.phase === 'serve' ? 'SOFT SERVE' : 'SOFT HIT'}
-              </button>
-            </div>
-          </div>
+          <p
+            id="tt-touch-help"
+            className="tt-touch-help"
+            data-visible={r.time < 8 || paused}
+          >
+            Tap soft · swipe to hit · two-finger tap for settings
+          </p>
+          {(touchActive || r.time < feedbackUntil) &&
+            !paused &&
+            r.phase !== 'over' && (
+              <output className="tt-touch-feedback" aria-live="off">
+                {shot} · {Math.round(power * 100)}%
+              </output>
+            )}
+          {online && <span className="tt-connection">{network}</span>}
         </>
       )}
       {view === 'setup' && (
@@ -783,9 +864,15 @@ export default function TableTennisGame({
               diagonals.
             </p>
             <p>
-              Your player handles footwork. Swipe as the ball arrives; a
-              slightly early swipe waits for its legal bounce. Choose topspin,
-              backspin or smash. Auto hit is optional.
+              Drag to move your player; release to hit. Footwork is assisted
+              between touches. Fast swipes add topspin, a fast swipe on a high
+              ball smashes, and a two-finger swipe adds backspin. Slightly early
+              swipes wait for the legal bounce.
+            </p>
+            <p>
+              Tap with two fingers for settings. Tap empty space to resume;
+              swipe down with two fingers while in settings to return to the
+              lobby. Space plays a soft shot and Escape opens settings.
             </p>
             <p>
               Win by two at 11. Two serves each; alternate every point from
@@ -862,18 +949,43 @@ export default function TableTennisGame({
                 match.
               </p>
             )}
-            <button
-              className="tt-primary"
-              onClick={() => {
-                setPaused(false);
-                pauseRef.current = false;
-              }}
-            >
-              KEEP PLAYING <span>↗</span>
-            </button>
-            <button className="tt-secondary" onClick={exit}>
-              {online ? 'Retire from match' : 'Return to lobby'}
-            </button>
+            <div className="tt-touch-settings">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={sound}
+                  onChange={(e) => {
+                    setSound(e.target.checked);
+                    if (audio.current) audio.current.enabled = e.target.checked;
+                  }}
+                />{' '}
+                Sound
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={auto}
+                  onChange={(e) => {
+                    setAuto(e.target.checked);
+                    input.current.autoHit = e.target.checked;
+                  }}
+                />{' '}
+                Automatic hitting
+              </label>
+            </div>
+            <p className="tt-gesture-guide">
+              One-finger swipe: drive or topspin.
+              <br />
+              Fast swipe on a high ball: smash.
+              <br />
+              Two-finger swipe: backspin.
+            </p>
+            <p className="tt-touch-return">
+              Tap empty space to resume.
+              <br />
+              Swipe down with two fingers to{' '}
+              {online ? 'retire from this match' : 'return to the lobby'}.
+            </p>
           </div>
         </div>
       )}
@@ -904,17 +1016,13 @@ export default function TableTennisGame({
             {modeRef.current === 'career' && (
               <p>{careerSaved ? 'Career saved.' : 'Saving career result…'}</p>
             )}
-            <button className="tt-primary" onClick={exit}>
-              {modeRef.current === 'career'
-                ? 'BACK TO CAREER'
-                : 'BACK TO LOBBY'}{' '}
-              <span>↗</span>
-            </button>
-            {!online && modeRef.current !== 'career' && (
-              <button className="tt-secondary" onClick={() => start()}>
-                Rematch
-              </button>
-            )}
+            <p className="tt-touch-return">
+              {error.includes('Retry save')
+                ? 'Tap to retry saving this result'
+                : online || modeRef.current === 'career'
+                  ? 'Tap to return to the lobby'
+                  : 'Tap to play again · two-finger tap for the lobby'}
+            </p>
           </div>
         </div>
       )}
@@ -926,7 +1034,7 @@ export default function TableTennisGame({
       {(error || notice) && (
         <div className="tt-toast" role={error ? 'alert' : 'status'}>
           <span>{error || notice}</span>
-          {error.includes('Retry save') && (
+          {view !== 'match' && error.includes('Retry save') && (
             <button
               onClick={() => {
                 saved.current = false;
@@ -937,15 +1045,17 @@ export default function TableTennisGame({
               Retry save
             </button>
           )}
-          <button
-            aria-label="Dismiss message"
-            onClick={() => {
-              setError('');
-              setNotice('');
-            }}
-          >
-            ×
-          </button>
+          {view !== 'match' && (
+            <button
+              aria-label="Dismiss message"
+              onClick={() => {
+                setError('');
+                setNotice('');
+              }}
+            >
+              ×
+            </button>
+          )}
         </div>
       )}
     </div>

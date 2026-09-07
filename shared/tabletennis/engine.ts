@@ -19,6 +19,7 @@ export * from './rules.js';
 export type Shot = 'drive' | 'topspin' | 'backspin' | 'smash';
 export type Input = {
   moveX: number | null;
+  moveZ: number | null;
   aim: number;
   power: number;
   shot: Shot;
@@ -92,6 +93,7 @@ export const clamp = (n: number, lo: number, hi: number) =>
   Math.max(lo, Math.min(hi, n));
 export const neutralInput = (): Input => ({
   moveX: null,
+  moveZ: null,
   aim: 0,
   power: 0.5,
   shot: 'drive',
@@ -200,9 +202,22 @@ export function setInput(s: MatchState, seat: Seat, p: Partial<Input>) {
       : 0;
   s.inputs[seat] = {
     moveX:
-      p.moveX === null
-        ? null
-        : clamp(finite(p.moveX, old.moveX ?? 0), -1.12, 1.12),
+      p.moveX === undefined
+        ? old.moveX
+        : p.moveX === null
+          ? null
+          : clamp(finite(p.moveX, old.moveX ?? 0), -1.12, 1.12),
+    moveZ:
+      p.moveZ === undefined
+        ? (old.moveZ ?? null)
+        : p.moveZ === null
+          ? null
+          : side(seat, s) *
+            clamp(
+              finite(p.moveZ, old.moveZ ?? side(seat, s) * 1.7) * side(seat, s),
+              1.55,
+              2.27
+            ),
     aim: clamp(finite(p.aim, old.aim), -1, 1),
     power: clamp(finite(p.power, old.power), 0.1, 1),
     shot: ['drive', 'topspin', 'backspin', 'smash'].includes(p.shot || '')
@@ -502,11 +517,17 @@ function movePlayers(s: MatchState, dt: number) {
       -1.12,
       1.12
     );
+    const targetZ =
+      input.assist || ai
+        ? sign * (incoming ? clamp(b.z * sign + 0.48, 1.55, 2.27) : 1.7)
+        : (input.moveZ ?? p.z);
+    p.z += clamp(targetZ - p.z, -speed * dt, speed * dt);
     const queued = s.time - p.queued < 0.7;
     if (
       incoming &&
       b.z * sign > 0.78 &&
       b.z * sign < 2.15 &&
+      Math.abs(p.z - b.z) < 0.9 &&
       b.y > TABLE_HEIGHT + 0.03 &&
       b.y < 1.8 &&
       Math.abs(p.x - b.x) <

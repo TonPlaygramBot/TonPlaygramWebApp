@@ -16,7 +16,7 @@ describe('Pool Royale cue stroke timeline', () => {
   it('arms impact during the dedicated strike window before hold begins', () => {
     const preStrike = sampleCueStrokeTimeline({ elapsed: 277, ...options });
     const strikeStart = sampleCueStrokeTimeline({ elapsed: 278, ...options });
-    const armedStrike = sampleCueStrokeTimeline({ elapsed: 282, ...options });
+    const armedStrike = sampleCueStrokeTimeline({ elapsed: 288, ...options });
     expect(preStrike.phase).toBe('release');
     expect(preStrike.hitArmed).toBe(false);
     expect(strikeStart.phase).toBe('strike');

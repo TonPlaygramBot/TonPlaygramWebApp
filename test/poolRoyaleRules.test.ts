@@ -1,4 +1,5 @@
 import { PoolRoyaleRules } from '../src/rules/PoolRoyaleRules';
+import { poolRoyalBallInHand, poolRoyalBallsToSpot } from '../webapp/src/pages/Games/poolRoyaleShotLifecycle.js';
 import { ShotContext, ShotEvent } from '../src/types';
 
 describe('PoolRoyaleRules', () => {
@@ -69,10 +70,10 @@ describe('PoolRoyaleRules', () => {
 
     expect(clearedMeta?.breakInProgress).toBe(false);
     expect(clearedMeta?.state?.ballInHand).toBe(false);
-    expect(cleared.ballOn).toEqual(['SOLID']);
-    expect(clearedMeta?.hud?.next).toBe('solid');
+    expect(cleared.ballOn).toEqual(['SOLID', 'STRIPE']);
+    expect(clearedMeta?.hud?.next).toBe('solid / stripe');
     expect(clearedMeta?.hud?.phase).toBe('groups');
-    expect(cleared.players.A.score).toBe(1);
+    expect(cleared.players.A.score).toBe(0);
     expect(cleared.activePlayer).toBe('A');
 
     const scratchEvents: ShotEvent[] = [
@@ -87,8 +88,8 @@ describe('PoolRoyaleRules', () => {
     expect(scratchMeta?.state?.ballInHand).toBe(true);
     expect(scratchMeta?.breakInProgress).toBe(false);
     expect(scratch.activePlayer).toBe('B');
-    expect(scratch.ballOn).toEqual(['STRIPE']);
-    expect(scratchMeta?.hud?.next).toBe('stripe');
+    expect(scratch.ballOn).toEqual(['SOLID', 'STRIPE']);
+    expect(scratchMeta?.hud?.next).toBe('solid / stripe');
     expect(scratchMeta?.hud?.phase).toBe('groups');
   });
 
@@ -161,6 +162,8 @@ describe('PoolRoyaleRules', () => {
     expect(initialMeta?.variant).toBe('8ball');
     expect(initial.ballOn).toEqual(['SOLID', 'STRIPE']);
 
+    // Group assignment is tested on an open table AFTER the break.
+    initialMeta.state.breakInProgress = false;
     const assignSolid = rules.applyShot(
       initial,
       [
@@ -201,4 +204,32 @@ describe('PoolRoyaleRules', () => {
     expect(blackFinish.frameOver).toBe(true);
     expect(blackFinish.winner).toBe('A');
   });
+});
+
+
+test('raw game IDs survive rule resolution, nine spotting, and ball-in-hand', () => {
+  const rules = new PoolRoyaleRules('9ball');
+  const initial = rules.getInitialFrame('Shooter', 'Opponent');
+  const result = rules.applyShot(initial, [
+    { type: 'HIT', firstContact: 1, ballId: 'ball_1' },
+    { type: 'POTTED', ball: 9, ballId: 'ball_9', pocket: 'TM' },
+    { type: 'POTTED', ball: 'CUE', ballId: 'cue', pocket: 'TM' }
+  ], { contactMade: true, cueBallPotted: true });
+  expect(result.activePlayer).toBe('B');
+  expect(result.frameOver).toBe(false);
+  expect(poolRoyalBallInHand(result)).toBe(true);
+  const balls = [{ id: 'cue', active: false }, { id: 'ball_9', active: false }, { id: 'ball_1', active: true }];
+  expect(poolRoyalBallsToSpot(balls, result).map((ball: { id: string }) => ball.id)).toEqual(['ball_9']);
+});
+
+test('nine-ball HUD warns the returning player before a third consecutive foul', () => {
+  const rules = new PoolRoyaleRules('9ball');
+  let frame = rules.getInitialFrame('Shooter', 'Opponent');
+  (frame.meta as any).state.breakInProgress = false;
+  for (let i = 0; i < 2; i++) {
+    frame = rules.applyShot(frame, [{ type: 'HIT', firstContact: 2, ballId: 'ball_2' }], { contactMade: true });
+    frame = rules.applyShot(frame, [{ type: 'HIT', firstContact: 1, ballId: 'ball_1' }], { contactMade: true, cushionAfterContact: true });
+  }
+  expect(frame.activePlayer).toBe('A');
+  expect((frame.meta as any).hud.next).toContain('2 fouls: next foul loses');
 });

@@ -154,7 +154,7 @@ export function poolRoyalEyeView(human: HumanRig, group: THREE.Group, ball: THRE
   group.parent!.worldToLocal(eye);
   // A small forward nudge clears the face and brings the table closer while
   // retaining the height of the actual eyes and the shooter's handedness.
-  eye.addScaledVector(forward, ballRadius * 1.15);
+  eye.addScaledVector(forward, ballRadius * 2);
   const target = ball.clone().addScaledVector(forward, ballRadius * 5);
   return { position: eye, target, blend: THREE.MathUtils.smoothstep(human.poseT, 0.2, 0.95) };
 }

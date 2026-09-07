@@ -65,10 +65,6 @@ export const SHARED_ARENAS = POOL_ROYALE_HDRI_VARIANTS.map((a) => ({
   name: a.name,
   assetId: a.assetId
 }));
-export function arenaPlacement(id: string) {
-  const a = POOL_ROYALE_HDRI_VARIANTS.find((a) => a.id === id);
-  return { height: a?.cameraHeightM || 1.58, rotation: a?.rotationY || 0 };
-}
 export type AppearanceChoices = {
   characters: typeof CHARACTERS;
   arenas: typeof ARENAS;

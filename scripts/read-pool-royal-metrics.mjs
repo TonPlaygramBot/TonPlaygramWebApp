@@ -52,8 +52,7 @@ export async function readPoolRoyalMetrics() {
     railH: value('RAIL_HEIGHT'), thickness: table.THICK,
     cueLength: 1.5 * (value('BALL_R') / 0.0525) * value('CUE_LENGTH_MULTIPLIER'),
     cueRadius: value('CUE_TIP_RADIUS'), cueGap: value('CUE_TIP_GAP'),
-    cuePull: value('CUE_PULL_BASE') * value('CUE_PULL_VISUAL_MULTIPLIER') * value('CUE_PULL_DISTANCE_SCALE') *
-      value('CUE_PULL_GLOBAL_VISIBILITY_BOOST') * (1 - value('CUE_PULL_CUE_CAMERA_DAMPING')) * (1 + value('CUE_PULL_ALIGNMENT_BOOST')),
+    cuePull: value('BALL_R') * (0.42 / 0.045),
     cueButtLift: value('CUE_BUTT_LIFT')
   };
 }

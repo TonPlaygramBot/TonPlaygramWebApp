@@ -4,7 +4,7 @@
   width: 100%;
   max-width: 480px;
   height: 100dvh;
-  min-height: 650px;
+  min-height: 520px;
   max-height: 1050px;
   margin: auto;
   background: #10282e;
@@ -101,7 +101,28 @@
   height: 100%;
 }
 .tt-game[data-view='match'] .tt-scene {
-  top: 170px;
+  inset: 0;
+}
+.tt-game[data-view='match'] {
+  touch-action: none;
+}
+.tt-game[data-view='match']:focus-visible {
+  outline: 3px solid #d5ff89;
+  outline-offset: -3px;
+}
+.tt-game[data-view='match'] .tt-broadcast {
+  top: max(12px, env(safe-area-inset-top));
+}
+.tt-game[data-view='match'] .tt-call {
+  top: 153px;
+}
+.tt-game[data-view='match'] .tt-vignette {
+  background: linear-gradient(
+    #10282e55,
+    transparent 30%,
+    transparent 80%,
+    #10282e33
+  );
 }
 .tt-game .tt-vignette {
   position: absolute;
@@ -382,98 +403,6 @@
   margin-top: 5px;
   font-size: 10px;
 }
-.tt-game .tt-controls {
-  position: absolute;
-  z-index: 4;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 3px 12px max(10px, env(safe-area-inset-bottom));
-  background: linear-gradient(#10282ef5, #10282e);
-  border-top: 1px solid #b7d2c82b;
-}
-.tt-game .tt-control-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 5px;
-  font-size: 10px;
-  color: #b9d0c8;
-}
-.tt-game .tt-control-top button {
-  background: none;
-  min-height: 40px;
-  padding: 0 5px;
-  font-size: 11px;
-}
-.tt-game .tt-control-top button[aria-pressed='true'] {
-  color: #d5ff89;
-}
-.tt-game .tt-shots {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 5px;
-}
-.tt-game .tt-shots button {
-  text-transform: capitalize;
-  min-height: 44px;
-  border-radius: 6px;
-  font-size: 11px;
-  background: #23464b;
-}
-.tt-game .tt-shots button[aria-pressed='true'] {
-  background: #c4e8b2;
-  color: #163639;
-  font-weight: 700;
-}
-.tt-game .tt-swipe-meter {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding-top: 9px;
-}
-.tt-game .tt-swipe-meter > div {
-  flex: 1;
-  min-width: 0;
-}
-.tt-game .tt-swipe-meter span {
-  display: flex;
-  justify-content: space-between;
-  font-size: 10px;
-  letter-spacing: 0.6px;
-  color: #c1d7d0;
-}
-.tt-game .tt-swipe-meter b {
-  color: #d5ff89;
-}
-.tt-game .tt-swipe-meter small {
-  display: block;
-  font-size: 9px;
-  color: #9cbcb5;
-  margin-top: 5px;
-}
-.tt-game .tt-power-track {
-  height: 4px;
-  background: #355359;
-  border-radius: 4px;
-  overflow: hidden;
-  margin-top: 6px;
-}
-.tt-game .tt-power-track i {
-  display: block;
-  height: 100%;
-  background: #d5ff89;
-}
-.tt-game .tt-hit {
-  min-height: 44px;
-  min-width: 90px;
-  padding: 0 10px;
-  border-radius: 6px;
-  background: #d5ff89;
-  color: #153738;
-  font-size: 10px;
-  font-weight: 800;
-}
 .tt-game .tt-modal {
   position: absolute;
   z-index: 12;
@@ -584,9 +513,6 @@
   .tt-game .tt-brand {
     font-size: 10px;
   }
-  .tt-game .tt-control-top span {
-    max-width: 100px;
-  }
   .tt-game .tt-panel {
     padding: 12px;
   }
@@ -614,4 +540,67 @@
   border: 1px solid #507074;
   border-radius: 6px;
   font-size: 16px;
+}
+
+.tt-game .tt-touch-help {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 20px;
+  font-size: 11px;
+  text-align: center;
+  color: #f0f8ee;
+  text-shadow: 0 1px 4px #000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s;
+}
+.tt-game .tt-touch-help[data-visible='true'] {
+  opacity: 1;
+}
+.tt-game .tt-touch-feedback {
+  position: absolute;
+  bottom: 55px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+  text-transform: capitalize;
+  border-radius: 30px;
+  padding: 8px 14px;
+  background: #102e3bdb;
+  color: #d5ff89;
+  pointer-events: none;
+}
+.tt-game .tt-connection {
+  position: absolute;
+  bottom: 8px;
+  right: 12px;
+  font-size: 10px;
+  pointer-events: none;
+}
+.tt-game .tt-touch-settings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin: 15px 0;
+}
+.tt-game .tt-touch-settings label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  min-height: 44px;
+}
+.tt-game .tt-touch-settings input {
+  width: 20px;
+  height: 20px;
+  accent-color: #d5ff89;
+}
+.tt-game .tt-gesture-guide {
+  color: #cce2d9;
+  font-size: 12px;
+}
+.tt-game .tt-touch-return {
+  color: #d5ff89;
+  font-size: 12px;
 }

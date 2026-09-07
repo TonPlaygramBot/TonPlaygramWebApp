@@ -20,7 +20,7 @@ import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
-import { resolvePoolRoyaleShotPowerScale } from './poolRoyaleShotState.js';
+import { resolvePoolRoyaleShotPowerScale, resolvePoolRoyalReleasePower } from './poolRoyaleShotState.js';
 import '../../../../pool-royale-power-slider.css';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -123,7 +123,10 @@ import {
   buildPoolSuggestionKey,
   shouldApplyPoolSuggestion
 } from './poolRoyaleAimSuggestion.js';
-import { sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
+import { advancePoolRoyalCueStroke, POOL_ROYAL_STROKE, referenceCuePull, referenceCueFeather, resolveCueBallContact } from './poolRoyaleCueStrokeTimeline.js';
+import { PoolRoyalShotCamera } from './shared/poolRoyalShotCamera.ts';
+import { createPoolRoyalCue } from './shared/createPoolRoyalCue.ts';
+import { isPoolRoyalBreak, poolRoyalBallInHand, recordPoolRoyalRail, findPoolRoyalSpot, poolRoyalBallsToSpot } from './poolRoyaleShotLifecycle.js';
 import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
 import { computeCueDriveBoost } from './cueShotImpact.js';
@@ -2004,7 +2007,6 @@ const HUMAN_SHOOT_BLEND_THRESHOLD = 0.96; // enter shooting pose immediately whe
 const HUMAN_WALK_RING_MARGIN = TABLE.WALL * 4.55; // widen the perimeter walk ring so feet never step onto the table mesh
 const HUMAN_TABLE_BLOCKER_MARGIN = TABLE.WALL * 1.95; // collision helper margin so characters never cut through the table body
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
-const HUMAN_EYE_CAMERA_MIN_BLEND = 0.06; // only engage eye camera when cue view is noticeably lowered
 const HUMAN_BRIDGE_HAND_BACK_FROM_BALL = 0.34; // set the bridge farther behind the cue ball to match real pool hand placement
 const HUMAN_BRIDGE_HAND_SIDE = -0.008; // match Bilardo Shqip bridge hand lateral placement
 const HUMAN_BRIDGE_CUE_LIFT = 0.018; // flatten the cue closer to the cloth like the reference shooting photos
@@ -2250,18 +2252,7 @@ function resolvePoolVariant(variantId, ballSet = null) {
 }
 
 function deriveInHandFromFrame(frame) {
-  const meta = frame && typeof frame === 'object' ? frame.meta : null;
-  if (!meta || typeof meta !== 'object') return false;
-  if (meta.variant === '9ball' && meta.state) {
-    return Boolean(meta.state.ballInHand);
-  }
-  if (meta.variant === '8ball' && meta.state) {
-    return Boolean(meta.state.ballInHand);
-  }
-  if (meta.variant === 'uk' && meta.state) {
-    return Boolean(meta.state.ballInHand || meta.state.mustPlayFromBaulk);
-  }
-  return false;
+  return poolRoyalBallInHand(frame);
 }
 
 
@@ -17291,6 +17282,7 @@ function PoolRoyaleGame({
   const hospitalityGroupsRef = useRef([]);
   const spawnPlayerCharactersRef = useRef(() => {});
   const activeHumanCueViewRef = useRef(null);
+  const activeHumanPlayersRef = useRef(null);
   const characterShotStartedAtRef = useRef(0);
   const characterShotShooterRef = useRef('A');
   const hospitalityLayoutRunRef = useRef(null);
@@ -22384,18 +22376,16 @@ const shotPowerRef = useRef(0);
           return vec;
         };
 
+        const humanShotCamera = new PoolRoyalShotCamera();
         const resolveActiveHumanEyePose = () => {
-          if (topViewRef.current || shootingRef.current || replayPlaybackRef.current) return null;
-          const cueBlend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
-          const cueBias = 1 - cueBlend;
-          if (cueBias <= HUMAN_EYE_CAMERA_MIN_BLEND) return null;
-          const cuePose = activeHumanCueViewRef.current;
-          if (!cuePose?.position || !cuePose?.target) return null;
-          return {
-            blend: THREE.MathUtils.smoothstep(cueBias, HUMAN_EYE_CAMERA_MIN_BLEND, 1) * cuePose.blend,
-            position: world.localToWorld(cuePose.position.clone()),
-            target: world.localToWorld(cuePose.target.clone())
-          };
+          const pose = humanShotCamera.resolve({
+            eye: activeHumanCueViewRef.current,
+            stroke: Boolean(cueStrokeStateRef.current), shooting: shootingRef.current,
+            cueBlend: cameraBlendRef.current ?? 1, now: performance.now(),
+            excluded: Boolean(topViewRef.current || replayPlaybackRef.current || cueGalleryStateRef.current?.active)
+          });
+          return pose ? { ...pose, position: world.localToWorld(pose.position.clone()),
+            target: world.localToWorld(pose.target.clone()) } : null;
         };
 
 
@@ -23623,12 +23613,6 @@ const shotPowerRef = useRef(0);
               syncBlendToSpherical();
             }
           }
-          const humanEyePose = resolveActiveHumanEyePose();
-          if (humanEyePose) {
-            const lerpT = THREE.MathUtils.clamp(humanEyePose.blend, 0, 1);
-            camera.position.lerp(humanEyePose.position, lerpT);
-            lookTarget = lookTarget.clone().lerp(humanEyePose.target, lerpT);
-          }
           camera.lookAt(lookTarget);
           renderCamera = camera;
           broadcastArgs.focusWorld =
@@ -23637,6 +23621,21 @@ const shotPowerRef = useRef(0);
           broadcastArgs.lerp = 0.22;
         }
           }
+          // Apply after choosing the actual render camera, including AI/action/pocket views.
+          const humanEyePose = resolveActiveHumanEyePose();
+          if (humanEyePose) {
+            renderCamera.position.lerp(humanEyePose.position, humanEyePose.blend);
+            lookTarget = (lookTarget ?? humanEyePose.target).clone().lerp(humanEyePose.target, humanEyePose.blend);
+            renderCamera.lookAt(lookTarget);
+            if (renderCamera.isPerspectiveCamera) {
+              renderCamera.fov = THREE.MathUtils.lerp(renderCamera.fov, STANDING_VIEW_FOV, humanEyePose.blend);
+              renderCamera.updateProjectionMatrix();
+            }
+          }
+          if (!replayPlaybackActive && lookTarget) activeHumanPlayersRef.current?.updateCameraVisibility(
+            renderCamera, lookTarget, humanEyePose?.blend > 0.55
+              ? (shootingRef.current ? characterShotShooterRef.current : frameRef.current?.activePlayer === 'B' ? 'B' : 'A') : undefined
+          );
           if (lookTarget) {
             lastCameraTargetRef.current.copy(lookTarget);
           }
@@ -24871,192 +24870,16 @@ const shotPowerRef = useRef(0);
             syncCueShadow();
             return false;
           }
-          const {
-            startTime,
-            idlePos,
-            pullPos,
-            impactPos,
-            followPos,
-            pullbackDuration,
-            strikeDuration,
-            holdDuration,
-            recoverDuration,
-            baseRotationX,
-            baseRotationY,
-            strikeDip,
-            forwardOnly,
-            strikeImpactThreshold
-          } = stroke;
-          const elapsed = Math.max(0, now - startTime);
-          if (forwardOnly) {
-            const safeStrikeDuration = Math.max(1, strikeDuration ?? 110);
-            const safeHoldDuration = Math.max(0, holdDuration ?? 45);
-            const safeRecoverDuration = Math.max(0, recoverDuration ?? 0);
-            const resolvedIdlePos = idlePos ?? impactPos ?? stroke.contactPos ?? pullPos;
-            const normalizedStroke = ensureCueStrokeForwardMotion({
-              pullPos: pullPos ?? resolvedIdlePos,
-              impactPos: resolvedIdlePos ?? pullPos,
-              fallbackDirection: tmpCueStrokeB.set(Math.sin(baseRotationY ?? 0), 0, Math.cos(baseRotationY ?? 0))
-            });
-            const resolvedPullPos = normalizedStroke.pullPos ?? pullPos ?? resolvedIdlePos;
-            const resolvedContactPos = resolvedIdlePos ?? stroke.contactPos ?? impactPos ?? pullPos;
-            const strikeProgress = THREE.MathUtils.clamp(
-              elapsed / Math.max(safeStrikeDuration, 1e-6),
-              0,
-              1
-            );
-            const strikeEase = easeOutCubic(strikeProgress);
-            cueStick.visible = true;
-            cueStick.position.lerpVectors(resolvedPullPos, resolvedContactPos, strikeEase);
-            cueStick.position.y -= (strikeDip ?? 0.0035) * strikeEase;
-            cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
-            cueStick.rotation.y =
-              (baseRotationY ?? cueStick.rotation.y) +
-              Math.sin(strikeProgress * Math.PI) * 0.0014;
-
-            const impactThreshold = THREE.MathUtils.clamp(strikeImpactThreshold ?? 0.88, 0.05, 0.995);
-            if (!stroke.shotApplied && strikeProgress >= impactThreshold) {
-              stroke.shotApplied = true;
-              stroke.onImpact?.();
-            }
-
-            if (elapsed < safeStrikeDuration + safeHoldDuration) {
-              cueAnimating = true;
-              syncCueShadow();
-              return true;
-            }
-            const recoverT = THREE.MathUtils.clamp(
-              (elapsed - (safeStrikeDuration + safeHoldDuration)) / Math.max(safeRecoverDuration || 1, 1),
-              0,
-              1
-            );
-            if (recoverT < 1) {
-              cueStick.position.lerpVectors(
-                resolvedContactPos,
-                resolvedIdlePos ?? impactPos ?? pullPos,
-                easeInOutCubic(recoverT)
-              );
-              cueAnimating = true;
-              syncCueShadow();
-              return true;
-            }
-            cueStick.position.copy(resolvedIdlePos ?? followPos ?? impactPos);
-            cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
-            cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
-            cueStick.visible = false;
-            syncCueShadow();
-            cueAnimating = false;
-            cuePullCurrentRef.current = 0;
-            cuePullTargetRef.current = 0;
-            cueStrokeStateRef.current = null;
-            pendingImpactRef.current = null;
-            if (cameraRef.current && sphRef.current) {
-              topViewRef.current = false;
-              topViewLockedRef.current = false;
-              setIsTopDownView(false);
-              const sph = sphRef.current;
-              sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
-              updateCamera();
-            }
-            return false;
-          }
-          const timelineElapsed = stroke.releaseStartsFromCurrentPull
-            ? elapsed + Math.max(0, pullbackDuration ?? 0)
-            : elapsed;
-          const sample = sampleCueStrokeTimeline({
-            elapsed: timelineElapsed,
-            pullbackDuration,
-            strikeDuration,
-            holdDuration,
-            recoverDuration,
-            animationStyle: stroke.animationStyle ?? cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE
-          });
-          cueStick.visible = true;
+          cueStick.rotation.x = stroke.baseRotationX ?? cueStick.rotation.x;
+          cueStick.rotation.y = stroke.baseRotationY ?? cueStick.rotation.y;
+          const sample = advancePoolRoyalCueStroke(cueStick, stroke, now);
           cueAnimating = !sample.done;
-          if (!stroke.shotApplied && sample.hitArmed) {
-            stroke.shotApplied = true;
-            stroke.onImpact?.();
-          }
-          if (sample.phase === 'pullback') {
-            const eased = easeInOutCubic(sample.t);
-            cueStick.position.lerpVectors(idlePos, pullPos, eased);
-            cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
-            cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
-            syncCueShadow();
-            return true;
-          }
-          if (sample.phase === 'release') {
-            const animationStyle = stroke.animationStyle ?? cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
-            const eased = (() => {
-              switch (animationStyle) {
-                case 'linear':
-                  return sample.t;
-                case 'snap':
-                  return Math.ceil(sample.t * 4) / 4;
-                case 'whip':
-                  return Math.pow(sample.t, 0.62);
-                case 'spring': {
-                  const damped = 1 - Math.exp(-7.4 * sample.t) * (1 + 7.4 * sample.t);
-                  return THREE.MathUtils.clamp(damped, 0, 1);
-                }
-                case 'classic':
-                default:
-                  return easeInOutCubic(sample.t);
-              }
-            })();
-            const wobble = Math.sin(sample.t * Math.PI) * (wobbleAmount ?? 0.0018);
-            cueStick.position.lerpVectors(pullPos, impactPos, eased);
-            cueStick.position.y -= (strikeDip ?? 0.003) * eased * 0.72;
-            cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
-            cueStick.rotation.y = (baseRotationY ?? cueStick.rotation.y) + wobble;
-            syncCueShadow();
-            return true;
-          }
-          if (sample.phase === 'strike') {
-            const punchT = 1 - Math.pow(1 - THREE.MathUtils.clamp(sample.t, 0, 1), 4);
-            const contactPos = stroke.contactPos ?? impactPos;
-            cueStick.position.lerpVectors(impactPos, contactPos, punchT);
-            cueStick.position.y -= (strikeDip ?? 0.003) * (0.72 + punchT * 0.38);
-            cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
-            cueStick.rotation.y =
-              (baseRotationY ?? cueStick.rotation.y) +
-              Math.sin(punchT * Math.PI) * (wobbleAmount ?? 0.0018) * 0.48;
-            syncCueShadow();
-            return true;
-          }
-          if (sample.phase === 'hold') {
-            cueStick.position.copy(followPos ?? stroke.contactPos ?? impactPos);
-            cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
-            cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
-            syncCueShadow();
-            return true;
-          }
-          if (sample.phase === 'recover') {
-            const eased = easeInOutCubic(sample.t);
-            cueStick.position.lerpVectors(followPos ?? impactPos, idlePos ?? impactPos, eased);
-            cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
-            cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
-            syncCueShadow();
-            return true;
-          }
-          cueStick.position.copy(idlePos ?? followPos ?? impactPos);
-          cueStick.rotation.x = baseRotationX ?? cueStick.rotation.x;
-          cueStick.rotation.y = baseRotationY ?? cueStick.rotation.y;
-          cueStick.visible = false;
           syncCueShadow();
-          cueAnimating = false;
+          if (!sample.done) return true;
           cuePullCurrentRef.current = 0;
           cuePullTargetRef.current = 0;
           cueStrokeStateRef.current = null;
           pendingImpactRef.current = null;
-          if (cameraRef.current && sphRef.current) {
-            topViewRef.current = false;
-            topViewLockedRef.current = false;
-            setIsTopDownView(false);
-            const sph = sphRef.current;
-            sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
-            updateCamera();
-          }
           return false;
         };
 
@@ -26391,6 +26214,7 @@ const shotPowerRef = useRef(0);
       let referencePlayers = null;
       const disposePlayerCharacters = () => {
         referencePlayers?.dispose();
+        activeHumanPlayersRef.current = null;
         referencePlayers = null;
         activeHumanCueViewRef.current = null;
       };
@@ -26404,6 +26228,7 @@ const shotPowerRef = useRef(0);
           tableL: Math.max(TABLE.H, PLAY_H),
           onError: (error) => console.warn('Pool Royal reference players could not load', error)
         });
+        activeHumanPlayersRef.current = referencePlayers;
       };
       spawnPlayerCharactersRef.current = spawnPlayerCharacters;
 
@@ -26413,15 +26238,10 @@ const shotPowerRef = useRef(0);
         const ballsMoving = Boolean(shootingRef.current);
         const activeSeat = ballsMoving || stroke
           ? characterShotShooterRef.current
-          : hudRef.current?.turn === 1 ? 'B' : 'A';
+          : frameRef.current?.activePlayer === 'B' ? 'B' : 'A';
         let state = 'idle';
         if (stroke) {
-          const elapsed = Math.max(0, nowMs - stroke.startTime);
-          const pullback = stroke.forwardOnly ? 0 : (stroke.pullbackDuration ?? 0);
-          if (elapsed < pullback) state = 'dragging';
-          else if (elapsed < pullback + (stroke.strikeDuration ?? 120) + (stroke.holdDuration ?? 50)) {
-            state = 'striking';
-          }
+          state = stroke.phase === 'pullback' ? 'dragging' : 'striking';
         } else if (!ballsMoving && !hudRef.current?.over && !hudRef.current?.inHand && (
           sliderInstanceRef.current?.dragging ||
           (powerRef.current ?? 0) > 0.01 ||
@@ -26449,11 +26269,8 @@ const shotPowerRef = useRef(0);
           hidden: Boolean(replayPlaybackRef.current)
         });
         activeHumanCueViewRef.current = referencePlayers.eyeView;
-        referencePlayers.setFirstPerson(Boolean(referencePlayers.eyeView) &&
-          !topViewRef.current && !shootingRef.current && !replayPlaybackRef.current &&
-          (cameraBlendRef.current ?? 1) < 0.35, activeSeat);
         if (referencePlayers.players.length === 2 && state === 'idle' && !replayPlaybackRef.current) {
-          // The standing shooter already holds the upright reference cue.
+          // The standing shooter already holds a copy of the selected game cue.
           // Keep the extra aiming cue out of the rendered idle frame.
           cueStick.visible = false;
         }
@@ -27002,191 +26819,16 @@ const shotPowerRef = useRef(0);
       const initialIndexRaw = cueStyleIndexRef.current ?? cueStyleIndex ?? 0;
       const initialIndex =
         ((initialIndexRaw % paletteLength) + paletteLength) % paletteLength;
-      const shaftMaterial = new THREE.MeshPhysicalMaterial({
-        color: 0xffffff,
-        map: null,
-        normalMap: null,
-        roughnessMap: null,
-        bumpScale: 0.02 * SCALE,
-        roughness: 0.4,
-        metalness: 0.0,
-        clearcoat: 0.48,
-        clearcoatRoughness: 0.3
-      });
-      shaftMaterial.userData = shaftMaterial.userData || {};
-      shaftMaterial.userData.isCueWood = true;
-      shaftMaterial.userData.cueOptionIndex = initialIndex;
-      shaftMaterial.userData.cueOptionColor = getCueColorFromIndex(initialIndex);
-      cueMaterialsRef.current.shaft = shaftMaterial;
-      cueMaterialsRef.current.buttMaterial = null;
-      cueMaterialsRef.current.buttRingMaterial = null;
-      cueMaterialsRef.current.buttCapMaterial = null;
-      cueMaterialsRef.current.styleIndex = initialIndex;
-      const frontLength = THREE.MathUtils.clamp(
-        cueLen * CUE_FRONT_SECTION_RATIO,
-        cueLen * 0.1,
-        cueLen * 0.5
-      );
-      const rearLength = Math.max(cueLen - frontLength, 1e-4);
-      const rearStart = -rearLength / 2 + frontLength / 2;
-      const buttLength = Math.min(rearLength * 0.45, rearLength);
-      const rearShaftLength = Math.max(rearLength - buttLength, 0);
-      const tipShaftRadius = 0.008 * SCALE;
-      const buttShaftRadius = 0.025 * SCALE;
-      const joinRadius = THREE.MathUtils.lerp(
-        tipShaftRadius,
-        buttShaftRadius,
-        THREE.MathUtils.clamp(frontLength / Math.max(cueLen, 1e-4), 0, 1)
-      );
-
-      if (rearShaftLength > 1e-4) {
-        const rearShaft = new THREE.Mesh(
-          new THREE.CylinderGeometry(joinRadius, buttShaftRadius, rearShaftLength, 32),
-          shaftMaterial
-        );
-        rearShaft.rotation.x = -Math.PI / 2;
-        rearShaft.position.z = rearStart + rearShaftLength / 2;
-        cueBody.add(rearShaft);
-      }
-
-      // group for tip & front shaft so the whole thin end moves for spin
-      const tipGroup = new THREE.Group();
-      tipGroup.position.z = -cueLen / 2;
-      cueBody.add(tipGroup);
-      tipGroupRef.current = tipGroup;
-
-      if (frontLength > 1e-4) {
-        const frontShaft = new THREE.Mesh(
-          new THREE.CylinderGeometry(tipShaftRadius, joinRadius, frontLength, 32),
-          shaftMaterial
-        );
-        frontShaft.rotation.x = -Math.PI / 2;
-        frontShaft.position.z = frontLength / 2;
-        tipGroup.add(frontShaft);
-      }
-
-      // subtle leather-like texture for the tip
-      const tipCanvas = document.createElement('canvas');
-      tipCanvas.width = tipCanvas.height = 64;
-      const tipCtx = tipCanvas.getContext('2d');
-      tipCtx.fillStyle = '#1b3f75';
-      tipCtx.fillRect(0, 0, 64, 64);
-      tipCtx.strokeStyle = 'rgba(255,255,255,0.08)';
-      tipCtx.lineWidth = 2;
-      for (let i = 0; i < 64; i += 8) {
-        tipCtx.beginPath();
-        tipCtx.moveTo(i, 0);
-        tipCtx.lineTo(i, 64);
-        tipCtx.stroke();
-      }
-      tipCtx.globalAlpha = 0.2;
-      tipCtx.fillStyle = 'rgba(12, 24, 60, 0.65)';
-      for (let i = 0; i < 80; i++) {
-        const x = Math.random() * 64;
-        const y = Math.random() * 64;
-        const w = 6 + Math.random() * 10;
-        const h = 2 + Math.random() * 4;
-        tipCtx.beginPath();
-        tipCtx.ellipse(x, y, w, h, Math.random() * Math.PI, 0, Math.PI * 2);
-        tipCtx.fill();
-      }
-      tipCtx.globalAlpha = 1;
-      const tipTex = new THREE.CanvasTexture(tipCanvas);
-
-      const connectorHeight = 0.015 * SCALE;
-      const tipRadius = CUE_TIP_RADIUS;
-      const tipLen = 0.015 * SCALE * 1.5;
-      const tipMaterial = new THREE.MeshStandardMaterial({
-        color: 0x1f3f73,
-        roughness: 1,
-        metalness: 0,
-        map: tipTex
-      });
-      const tip = new THREE.Group();
-      const tipBodyLength = Math.max(0, tipLen - tipRadius);
-      if (tipBodyLength > 0) {
-        const tipBody = new THREE.Mesh(
-          new THREE.CylinderGeometry(tipRadius, tipRadius, tipBodyLength, 20),
-          tipMaterial
-        );
-        tipBody.rotation.x = -Math.PI / 2;
-        tipBody.position.z = -(tipBodyLength / 2);
-        tip.add(tipBody);
-      }
-      const tipCapGeometry = new THREE.SphereGeometry(tipRadius, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2);
-      tipCapGeometry.rotateX(Math.PI / 2);
-      const tipCap = new THREE.Mesh(tipCapGeometry, tipMaterial);
-      tipCap.position.z = -tipBodyLength;
-      tip.add(tipCap);
-      tip.position.z = -connectorHeight;
-      tipGroup.add(tip);
-
-      const connector = new THREE.Mesh(
-        new THREE.CylinderGeometry(
-          tipRadius,
-          0.008 * SCALE,
-          connectorHeight,
-          32
-        ),
-        new THREE.MeshPhysicalMaterial({
-          color: 0xcd7f32,
-          metalness: 0.8,
-          roughness: 0.5
-        })
-      );
-      connector.rotation.x = -Math.PI / 2;
-      connector.position.z = -connectorHeight / 2;
-      tipGroup.add(connector);
-
-      const buttMaterial = shaftMaterial;
-      cueMaterialsRef.current.buttMaterial = buttMaterial;
-      if (buttLength > 1e-4) {
-        const butt = new THREE.Mesh(
-          new THREE.CylinderGeometry(buttShaftRadius, buttShaftRadius, buttLength, 48),
-          buttMaterial
-        );
-        butt.rotation.x = -Math.PI / 2;
-        butt.position.z = rearStart + rearShaftLength + buttLength / 2;
-        cueBody.add(butt);
-      }
-
-      const stripeLength = rearLength * 0.42;
-      const stripeCenter = frontLength / 2 + rearLength * 0.32;
-
-      const buttCap = new THREE.Mesh(
-        new THREE.SphereGeometry(0.03 * SCALE, 32, 16),
-        buttMaterial
-      );
-      buttCap.position.z = cueLen / 2;
-      cueBody.add(buttCap);
-      cueMaterialsRef.current.buttCapMaterial = buttCap.material;
-
-      const stripeOverlay = new THREE.Mesh(
-        new THREE.CylinderGeometry(
-          buttShaftRadius * 1.001,
-          buttShaftRadius * 1.001,
-          stripeLength,
-          64,
-          1,
-          true
-        ),
-        new THREE.MeshPhysicalMaterial({
-          transparent: true,
-          roughness: 0.32,
-          metalness: 0.1,
-          clearcoat: 0.12,
-          depthWrite: false,
-          side: THREE.DoubleSide,
-          polygonOffset: true,
-          polygonOffsetFactor: -0.5,
-          polygonOffsetUnits: -0.5
-        })
-      );
-      stripeOverlay.rotation.x = -Math.PI / 2;
-      stripeOverlay.position.z = stripeCenter;
-      stripeOverlay.userData.isCueStripe = true;
-      cueMaterialsRef.current.stripe = stripeOverlay.material;
-      cueBody.add(stripeOverlay);
+      const originalCue = createPoolRoyalCue({ ballRadius: BALL_R, length: cueLen,
+        tipRadius: CUE_TIP_RADIUS, frontSectionRatio: CUE_FRONT_SECTION_RATIO,
+        styleIndex: initialIndex, color: getCueColorFromIndex(initialIndex) });
+      cueBody.add(originalCue.body);
+      cueMaterialsRef.current = { shaft: originalCue.shaftMaterial,
+        buttMaterial: originalCue.buttMaterial, buttRingMaterial: null,
+        buttCapMaterial: originalCue.buttCapMaterial, stripe: originalCue.stripeMaterial, styleIndex: initialIndex };
+      tipGroupRef.current = originalCue.tipGroup;
+      cueTipLocal.copy(originalCue.tipLocal);
+      referencePlayers?.setCueAppearance(originalCue.body, originalCue.tipLocal, originalCue.buttLocal);
 
       cueStick.position.set(cue.pos.x, CUE_Y, cue.pos.y + 1.2 * SCALE);
       applyCueButtTilt(cueStick, 0);
@@ -28131,27 +27773,12 @@ const shotPowerRef = useRef(0);
         );
       };
 
-      const resolveCueStrokeProfile = (_styleId, powerRatio = 0) => {
-        const p = THREE.MathUtils.clamp(powerRatio ?? 0, 0, 1);
-        const pullbackDuration = THREE.MathUtils.lerp(110, 190, p);
-        const strikeDuration = THREE.MathUtils.lerp(128, 92, p);
-        const holdDuration = THREE.MathUtils.lerp(40, 68, p);
-        return {
-          // Snooker Royal-style live stroke: slider pull maps directly to cue pullback,
-          // then release performs one forward push back to the original cue-start pose.
-          motion: 'classic',
-          pullRatio: p,
-          pullSmoothing: 1,
-          strikeDuration,
-          holdDuration,
-          pullbackDuration,
-          recoverDuration: 0,
-          impactThreshold: 0.86,
-          forwardOnly: true,
-          cameraExtraHoldMs: 240,
-          spinScale: 0.22
-        };
-      };
+      const resolveCueStrokeProfile = (_styleId, powerRatio = 0) => ({
+        ...POOL_ROYAL_STROKE, motion: 'classic',
+        pullRatio: 1 - Math.pow(1 - THREE.MathUtils.clamp(powerRatio ?? 0, 0, 1), 3),
+        pullSmoothing: 1, pullbackDuration: 0, recoverDuration: 0,
+        forwardOnly: true, cameraExtraHoldMs: 240, spinScale: 0.22
+      });
 
       const computeCuePull = (
         pullTarget = 0,
@@ -28192,51 +27819,10 @@ const shotPowerRef = useRef(0);
         cuePullCurrentRef.current = nextPull;
         return nextPull;
       };
-      const applyVisualPullCompensation = (pullValue, dirVec3) => {
-        const basePull = Math.max(pullValue ?? 0, 0);
-        if (basePull <= 1e-6 || !dirVec3) return basePull;
-        const cam =
-          activeRenderCameraRef.current ??
-          cameraRef.current ??
-          camera;
-        TMP_VEC3_CUE_DIR.set(dirVec3.x, 0, dirVec3.z);
-        if (TMP_VEC3_CUE_DIR.lengthSq() > 1e-8) {
-          TMP_VEC3_CUE_DIR.normalize();
-        } else {
-          TMP_VEC3_CUE_DIR.set(0, 0, 1);
-        }
-        let alignment = 0;
-        if (cam?.getWorldDirection) {
-          cam.getWorldDirection(TMP_VEC3_CAM_DIR);
-          TMP_VEC3_CAM_DIR.y = 0;
-          if (TMP_VEC3_CAM_DIR.lengthSq() > 1e-8) {
-            TMP_VEC3_CAM_DIR.normalize();
-            alignment = Math.abs(TMP_VEC3_CAM_DIR.dot(TMP_VEC3_CUE_DIR));
-          }
-        }
-        const blend = THREE.MathUtils.clamp(cameraBlendRef.current ?? 1, 0, 1);
-        const cameraPullScale = THREE.MathUtils.lerp(
-          1 - CUE_PULL_CUE_CAMERA_DAMPING,
-          1 + CUE_PULL_STANDING_CAMERA_BONUS,
-          blend
-        );
-        const alignmentBoost = 1 + alignment * CUE_PULL_ALIGNMENT_BOOST;
-        const compensated =
-          basePull * alignmentBoost * cameraPullScale;
-        const maxScale = 1 + CUE_PULL_MAX_VISUAL_BONUS;
-        return Math.min(compensated, basePull * maxScale);
-      };
-      const computePullTargetFromPower = (power, maxPull = CUE_PULL_BASE) => {
-        const ratio = THREE.MathUtils.clamp(power ?? 0, 0, 1);
-        const style = cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
-        const styleRatio = resolveCueStrokeProfile(style, ratio).pullRatio;
-        const effectiveMax = Number.isFinite(maxPull) ? Math.max(maxPull, 0) : CUE_PULL_BASE;
-        const amplifiedMax = Math.max(effectiveMax, CUE_PULL_MIN_VISUAL);
-        const visualMax = effectiveMax + CUE_PULL_VISUAL_FUDGE;
-        const target =
-          amplifiedMax * styleRatio * CUE_PULL_VISUAL_MULTIPLIER * CUE_PULL_DISTANCE_SCALE;
-        return Math.min(target, visualMax);
-      };
+      const applyVisualPullCompensation = (pullValue) => Math.max(0, pullValue ?? 0) +
+        referenceCueFeather(powerRef.current ?? 0, BALL_R, performance.now());
+      const computePullTargetFromPower = (power, maxPull = CUE_PULL_BASE) =>
+        Math.min(referenceCuePull(power, BALL_R), Math.max(0, maxPull));
       // Easing adapted from easings.net (MIT) for a smoother pull/release cue stroke.
       const easeInOutCubic = (t) =>
         t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -28417,6 +28003,12 @@ const shotPowerRef = useRef(0);
 
       // Fire (slider triggers on release)
       const fire = (committedPowerOverride = null) => {
+        const clampedPower = resolvePoolRoyalReleasePower({
+          busy: Boolean(shootingRef.current || cueStrokeStateRef.current || pendingImpactRef.current),
+          committedPower: committedPowerOverride, currentPower: powerRef.current,
+          minPower: MIN_SHOT_POWER_TO_FIRE
+        });
+        if (clampedPower === null) return;
         const currentHud = hudRef.current;
         const frameSnapshot = frameRef.current ?? frameState;
         const fullTableHandPlacement =
@@ -28464,7 +28056,7 @@ const shotPowerRef = useRef(0);
         let placedFromHand = false;
         const meta = frameSnapshot?.meta;
         if (meta && typeof meta === 'object') {
-          if (meta.variant === 'american' && meta.state) {
+          if ((meta.variant === '8ball' || meta.variant === 'american') && meta.state) {
             placedFromHand = Boolean(meta.state.ballInHand);
           } else if (meta.variant === '9ball' && meta.state) {
             placedFromHand = Boolean(meta.state.ballInHand);
@@ -28521,20 +28113,10 @@ const shotPowerRef = useRef(0);
         } else {
           aimDir.normalize();
         }
-        const sourcePower = Math.max(
-          Number.isFinite(committedPowerOverride) ? committedPowerOverride : 0,
-          Number.isFinite(shotPowerRef.current) ? shotPowerRef.current : 0,
-          Number.isFinite(powerRef.current) ? powerRef.current : 0
-        );
-        const clampedPower = clampPower(sourcePower, 0);
-        if (clampedPower < MIN_SHOT_POWER_TO_FIRE) {
-          setShootingState(false);
-          return;
-        }
         shotPowerRef.current = clampedPower;
         powerRef.current = clampedPower;
         characterShotStartedAtRef.current = shotStartTime;
-        characterShotShooterRef.current = currentHud?.turn === 1 ? 'B' : 'A';
+        characterShotShooterRef.current = frameSnapshot?.activePlayer === 'B' ? 'B' : 'A';
         const strokeStyle = cueStrokeAnimationStyleRef.current ?? DEFAULT_CUE_STROKE_STYLE;
         const strokeProfile = resolveCueStrokeProfile(strokeStyle, clampedPower);
         const rawSpin = applySpinConstraints(aimDir, true);
@@ -28613,7 +28195,7 @@ const shotPowerRef = useRef(0);
           const preferZoomReplay =
             replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
           const frameStateCurrent = frameRef.current ?? null;
-          const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
+          const isBreakShot = isPoolRoyalBreak(frameStateCurrent);
           const shotPowerScale = resolvePoolRoyaleShotPowerScale(clampedPower);
           const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * shotPowerScale;
           const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
@@ -28849,24 +28431,9 @@ const shotPowerRef = useRef(0);
           if (cue?.pos) {
             cueStickAnchorRef.current.set(cue.pos.x, CUE_Y, cue.pos.y);
           }
-          const backInfo = calcTarget(
-            cue,
-            aimDir.clone().multiplyScalar(-1),
-            balls
-          );
-          const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
-          const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
-          // Rebuilt stroke pullback: tie visible pull directly to slider power
-          // and the currently available room behind the cue ball.
-          const pullRange = THREE.MathUtils.clamp(
-            maxPull * 0.92,
-            CUE_PULL_MIN_VISUAL,
-            Math.max(CUE_PULL_MIN_VISUAL, maxPull)
-          );
-          const pullTarget = pullRange * strokeProfile.pullRatio;
-          const pulledNow = cuePullCurrentRef.current ?? pullTarget;
-          const startPull = THREE.MathUtils.clamp(pulledNow, 0, Math.max(maxPull, 0));
-          const visualPull = applyVisualPullCompensation(startPull, dir);
+          const startPull = Math.max(0, cuePullCurrentRef.current ?? referenceCuePull(clampedPower, BALL_R));
+          const visualPull = startPull;
+          const renderedReleasePosition = cueStick.visible ? cueStick.position.clone() : null;
           shotImpactPayload.pullDistance = visualPull;
           cuePullCurrentRef.current = startPull;
           cuePullTargetRef.current = startPull;
@@ -28910,7 +28477,7 @@ const shotPowerRef = useRef(0);
           const idlePos = buildCuePosition(0);
           // Start the release exactly from the computed pull position so the
           // cue always pushes forward from the same pulled depth the player set.
-          const releaseStartPos = buildCuePosition(visualPull);
+          const releaseStartPos = renderedReleasePosition ?? buildCuePosition(visualPull);
           cueStick.position.copy(releaseStartPos);
           TMP_VEC3_BUTT.copy(cueStick.position).add(TMP_VEC3_CUE_BUTT_OFFSET);
           cueAnimating = true;
@@ -28922,16 +28489,15 @@ const shotPowerRef = useRef(0);
           const strikeHoldDuration = strokeProfile.holdDuration ?? LIVE_CUE_IMPACT_HOLD_MS;
           const pullbackDuration = 0;
           const startTime = performance.now();
-          const impactPos = idlePos.clone();
-          const contactAdvance = 0; // push forward only to the original idle pose where the slider pull began
-          shotImpactPayload.contactAdvance = contactAdvance;
-          const contactPos = impactPos
-            .clone()
-            .addScaledVector(dir, contactAdvance);
-          const followDistance = 0; // stop at cue-ball contact instead of visually following the moving cue ball
-          const followPos = contactPos
-            .clone()
-            .addScaledVector(dir, followDistance);
+          const cueAxis = new THREE.Vector3(0, 0, -1).applyEuler(cueStick.rotation).normalize();
+          const ballCenter = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
+          const idleTip = idlePos.clone().add(TMP_VEC3_CUE_TIP_OFFSET);
+          const contactTip = resolveCueBallContact(ballCenter, cueAxis,
+            idleTip.clone().sub(ballCenter), BALL_R, CUE_TIP_RADIUS);
+          const contactPos = contactTip.sub(TMP_VEC3_CUE_TIP_OFFSET);
+          const impactPos = contactPos.clone();
+          shotImpactPayload.contactAdvance = contactPos.distanceTo(idlePos);
+          const followPos = contactPos.clone();
           const followDurationResolved = strikeHoldDuration;
           const recoverDuration = strokeProfile.recoverDuration ?? 0;
           const forwardPreviewHold =
@@ -29054,10 +28620,9 @@ const shotPowerRef = useRef(0);
               baseRotationY: cueStick.rotation.y,
               strikeDip: THREE.MathUtils.lerp(0.0028, 0.0054, clampedPower),
               wobbleAmount: THREE.MathUtils.lerp(0.0014, 0.0036, clampedPower),
-              strikeImpactThreshold: 0.9,
+              hitArmRatio: POOL_ROYAL_STROKE.hitArmRatio,
               strikeExtraFollow: Math.min(0.018, Math.max(0, (rawSpin?.y ?? 0) * clampedPower) * 0.016),
-              // Match Snooker Royal's release: push from the pulled pose and
-              // stop exactly at the cue's original idle/contact pose.
+              // Hold the contact pose against the frozen shot anchor; never chase the ball.
               forwardOnly: Boolean(strokeProfile.forwardOnly),
               onImpact: () => applyShotImpactOnce(),
               animationStyle: strokeStyle,
@@ -31558,6 +31123,7 @@ const shotPowerRef = useRef(0);
           contactMade: shotContextRef.current.contactMade,
           cushionAfterContact: shotContextRef.current.cushionAfterContact,
           railContactCountAfterContact: shotContextRef.current.railContactCountAfterContact ?? 0,
+          objectBallsToRailAfterContact: shotContextRef.current.objectBallsToRailAfterContact ?? [],
           doubleBanked: (shotContextRef.current.railContactCountAfterContact ?? 0) >= 2,
           noCushionAfterContact,
           variant: variantId
@@ -31632,111 +31198,6 @@ const shotPowerRef = useRef(0);
             });
           }
           trainingOutOfAttempts = remainingTrainingShots <= 0;
-        }
-        const shooterPlayer = currentState?.activePlayer === 'B' ? 'B' : 'A';
-        const otherPlayer = shooterPlayer === 'B' ? 'A' : 'B';
-        const safeMetaState =
-          safeState && typeof safeState.meta === 'object' ? safeState.meta.state : null;
-        const currentMetaState =
-          currentState && typeof currentState.meta === 'object' ? currentState.meta.state : null;
-        const openingBreakInProgress =
-          Boolean(safeMetaState?.breakInProgress || currentMetaState?.breakInProgress) ||
-          (currentState?.currentBreak ?? 0) === 0;
-        if (!isTraining && openingBreakInProgress && !cueBallPotted && !safeState?.foul) {
-          const breakPotCount = potted.filter(
-            (entry) => String(entry?.id || '').toLowerCase() !== 'cue'
-          ).length;
-          const breakNextPlayer = breakPotCount > 0 ? shooterPlayer : otherPlayer;
-          const nextMeta =
-            safeState && typeof safeState.meta === 'object' ? { ...safeState.meta } : safeState?.meta;
-          if (nextMeta?.state && typeof nextMeta.state === 'object') {
-            nextMeta.state = {
-              ...nextMeta.state,
-              currentPlayer: breakNextPlayer,
-              ballInHand: false
-            };
-          }
-          safeState = {
-            ...safeState,
-            activePlayer: breakNextPlayer,
-            meta: nextMeta ?? safeState.meta
-          };
-        }
-        if (!isTraining && cueBallPotted) {
-          const nextPlayer = currentState?.activePlayer === 'B' ? 'A' : 'B';
-          const nextMeta =
-            safeState && typeof safeState.meta === 'object' ? { ...safeState.meta } : safeState?.meta;
-          if (nextMeta?.state && typeof nextMeta.state === 'object') {
-            nextMeta.state = {
-              ...nextMeta.state,
-              currentPlayer: nextPlayer,
-              ballInHand: true
-            };
-          }
-          safeState = {
-            ...safeState,
-            activePlayer: nextPlayer,
-            foul: safeState?.foul ?? { points: 0, reason: 'scratch' },
-            meta: nextMeta ?? safeState.meta
-          };
-        }
-        if (!isTraining && safeState?.foul) {
-          const foulNextPlayer = currentState?.activePlayer === 'B' ? 'A' : 'B';
-          const nextMeta =
-            safeState && typeof safeState.meta === 'object' ? { ...safeState.meta } : safeState?.meta;
-          if (nextMeta?.state && typeof nextMeta.state === 'object') {
-            nextMeta.state = {
-              ...nextMeta.state,
-              currentPlayer: foulNextPlayer,
-              ballInHand: true
-            };
-          }
-          safeState = {
-            ...safeState,
-            activePlayer: foulNextPlayer,
-            meta: nextMeta ?? safeState.meta
-          };
-        }
-        if (!isTraining && !safeState?.foul) {
-          const activeSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
-          const metaVariant = currentMetaState?.variant;
-          const assignments = currentMetaState?.state?.assignments;
-          const assignedGroup = assignments?.[activeSeat] ?? null;
-          const pottedObjectBalls = potted.filter((entry) => String(entry?.id || '').toLowerCase() !== 'cue');
-          const pottedOpponentGroupBall = pottedObjectBalls.some((entry) => {
-            if (!entry) return false;
-            if (metaVariant === '8ball' && assignedGroup) {
-              const numericId = Number(entry.id);
-              if (!Number.isFinite(numericId) || numericId === 8) return false;
-              if (assignedGroup === 'SOLID') return numericId >= 9 && numericId <= 15;
-              if (assignedGroup === 'STRIPE') return numericId >= 1 && numericId <= 7;
-            }
-            if (metaVariant === 'uk' && assignedGroup) {
-              const colour = String(entry.color || '').toLowerCase();
-              if (!colour) return false;
-              if (assignedGroup === 'red') return colour.includes('yellow') || colour.includes('blue');
-              if (assignedGroup === 'blue') return colour.includes('red');
-            }
-            return false;
-          });
-          if (pottedOpponentGroupBall) {
-            const foulNextPlayer = activeSeat === 'B' ? 'A' : 'B';
-            const nextMeta =
-              safeState && typeof safeState.meta === 'object' ? { ...safeState.meta } : safeState?.meta;
-            if (nextMeta?.state && typeof nextMeta.state === 'object') {
-              nextMeta.state = {
-                ...nextMeta.state,
-                currentPlayer: foulNextPlayer,
-                ballInHand: true
-              };
-            }
-            safeState = {
-              ...safeState,
-              activePlayer: foulNextPlayer,
-              foul: { points: 0, reason: 'opponent ball potted' },
-              meta: nextMeta ?? safeState.meta
-            };
-          }
         }
         if (shotRecording) {
           shotRecording.replayFoul = safeState?.foul
@@ -31851,6 +31312,10 @@ const shotPowerRef = useRef(0);
         if (safeState?.foul) {
           showRuleToast('Foul');
         }
+        if (safeState.meta?.variant === '9ball' && !safeState.frameOver &&
+          metaState?.foulStreak?.[shooterSeat] === 2 && safeState.foul) {
+          showRuleToast(`${currentState.players[shooterSeat].name}: 2 fouls. Next foul loses the rack.`);
+        }
         const potCount = potted.filter((entry) => entry.id !== 'cue').length;
         const seatTracker = perfectRunTrackerRef.current?.[shooterSeat];
         if (seatTracker) {
@@ -31964,6 +31429,17 @@ const shotPowerRef = useRef(0);
                 playCheer(1);
               }
             }
+            if (!isTraining) {
+              for (const ball of poolRoyalBallsToSpot(balls, safeState)) {
+                const spot = findPoolRoyalSpot(balls, ball.id, { x: SPOTS.penalty[0], y: SPOTS.penalty[1],
+                  minY: -RAIL_LIMIT_Y, maxY: RAIL_LIMIT_Y, radius: BALL_R });
+                if (!spot) continue;
+                removePocketDropEntry(ball.id);
+                ball.active = true; ball.mesh.visible = true; ball.mesh.scale.set(1, 1, 1);
+                ball.pos.set(spot.x, spot.y); ball.mesh.position.set(spot.x, BALL_CENTER_Y, spot.y);
+                ball.vel.set(0, 0); ball.spin?.set(0, 0); ball.pendingSpin?.set(0, 0); ball.omega?.set(0, 0, 0);
+              }
+            }
             const colourNames = ['yellow', 'green', 'brown', 'blue', 'pink', 'black'];
             colourNames.forEach((name) => {
               const simBall = colors[name];
@@ -32023,14 +31499,8 @@ const shotPowerRef = useRef(0);
             const nextMeta = safeState.meta;
             if (isTraining) {
               nextInHand = cueBallPotted;
-            } else if (nextMeta && typeof nextMeta === 'object') {
-              if (nextMeta.variant === 'american' && nextMeta.state) {
-                nextInHand = cueBallPotted || Boolean(nextMeta.state.ballInHand);
-              } else if (nextMeta.variant === '9ball' && nextMeta.state) {
-                nextInHand = cueBallPotted || Boolean(nextMeta.state.ballInHand);
-              } else if (nextMeta.variant === 'uk' && nextMeta.state) {
-                nextInHand = cueBallPotted || Boolean(nextMeta.state.mustPlayFromBaulk);
-              }
+            } else {
+              nextInHand = poolRoyalBallInHand(safeState);
             }
             if (usesCareerAttempts && trainingOutOfAttempts) {
               nextInHand = false;
@@ -32232,8 +31702,7 @@ const shotPowerRef = useRef(0);
             }
             const frameCamera = updateCamera();
             if (cueStick?.visible) {
-              cueStick.position.y = Math.max(cueStick.position.y, CUE_Y + BALL_R * 0.06);
-            }
+                }
             if (referencePlayers) referencePlayers.group.visible = false;
             renderer.render(scene, frameCamera ?? camera);
             const finished = elapsed >= duration || elapsed - duration >= REPLAY_TIMEOUT_GRACE_MS;
@@ -32251,7 +31720,6 @@ const shotPowerRef = useRef(0);
         updateCueStroke(nowMs);
         if (ENABLE_CUE_STROKE_ANIMATION && cueStick && cueStrokeStateRef.current) {
           cueStick.visible = true;
-          cueStick.position.y = Math.max(cueStick.position.y, CUE_Y + BALL_R * 0.06);
         }
         if (pendingInHandResetRef.current && hudRef.current?.inHand) {
           pendingInHandResetRef.current = false;
@@ -33478,9 +32946,7 @@ const shotPowerRef = useRef(0);
             const railImpact = reflectRails(b);
             if (railImpact && b.id === 'cue') b.impacted = true;
             if (railImpact && shotContextRef.current.contactMade) {
-              shotContextRef.current.cushionAfterContact = true;
-              shotContextRef.current.railContactCountAfterContact =
-                (shotContextRef.current.railContactCountAfterContact ?? 0) + 1;
+              recordPoolRoyalRail(shotContextRef.current, b.id);
               if (
                 (shotContextRef.current.railContactCountAfterContact ?? 0) >= 1 &&
                 !shotContextRef.current.doubleBankBroadcastCutApplied
