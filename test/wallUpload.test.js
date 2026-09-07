@@ -339,6 +339,199 @@ describe('wall upload recovery', () => {
     ]);
   });
 
+  describe('phone FileReader compatibility', () => {
+    let originalFileReader;
+    beforeEach(() => {
+      originalFileReader = Object.getOwnPropertyDescriptor(
+        globalThis,
+        'FileReader'
+      );
+    });
+    afterEach(() => {
+      if (originalFileReader)
+        Object.defineProperty(globalThis, 'FileReader', originalFileReader);
+      else delete globalThis.FileReader;
+    });
+
+    const installReader = (read) => {
+      const readers = [];
+      globalThis.FileReader = class {
+        readyState = 0;
+        constructor() {
+          readers.push(this);
+        }
+        readAsArrayBuffer(chunk) {
+          this.readyState = 1;
+          read(this, chunk);
+        }
+        abort = jest.fn(() => {
+          this.readyState = 2;
+          this.onabort?.();
+        });
+      };
+      return readers;
+    };
+    const makeProviderFile = (method = 'rejected') => {
+      const source = makeFile();
+      return {
+        name: source.name,
+        type: source.type,
+        size: source.size,
+        slice: jest.fn((start, end) => {
+          const chunk = source.slice(start, end);
+          chunk.arrayBuffer =
+            method === 'missing'
+              ? undefined
+              : jest.fn(async () => {
+                  throw new DOMException(
+                    'Blob read failed.',
+                    'NotReadableError'
+                  );
+                });
+          return chunk;
+        })
+      };
+    };
+
+    test.each(['missing', 'rejected'])(
+      'reads only missing bounded ranges through FileReader when arrayBuffer is %s',
+      async (method) => {
+        const file = makeProviderFile(method);
+        const ranges = [];
+        const readers = installReader((reader, chunk) => {
+          ranges.push(chunk.size);
+          Blob.prototype.arrayBuffer.call(chunk).then((result) => {
+            reader.result = result;
+            reader.readyState = 2;
+            reader.onload();
+          });
+        });
+        const uploaded = [];
+        const send = jest.fn(async (url, init) => {
+          if (url.endsWith('/uploads'))
+            return { uploadId: 'id', chunkBytes: 4, receivedOffsets: [0] };
+          if (init.method === 'PUT') {
+            expect(init.body).toBeInstanceOf(ArrayBuffer);
+            uploaded.push([
+              init.headers['X-Upload-Offset'],
+              Buffer.from(init.body).toString()
+            ]);
+            return {};
+          }
+          return { post: { _id: 'published' } };
+        });
+        await expect(
+          uploadWallFile({
+            baseUrl: '',
+            headers: {},
+            uploadId: 'id',
+            file,
+            send
+          })
+        ).resolves.toEqual({ post: { _id: 'published' } });
+        expect(file.slice.mock.calls).toEqual([
+          [4, 8],
+          [8, 10]
+        ]);
+        expect(ranges).toEqual([4, 2]);
+        expect(uploaded).toEqual([
+          ['4', 'efgh'],
+          ['8', 'ij']
+        ]);
+        expect(readers).toHaveLength(2);
+        for (const reader of readers) {
+          expect(reader.onload).toBeNull();
+          expect(reader.onerror).toBeNull();
+          expect(reader.onabort).toBeNull();
+          expect(reader.abort).not.toHaveBeenCalled();
+        }
+      }
+    );
+
+    test('keeps successful arrayBuffer reads on the original path', async () => {
+      globalThis.FileReader = jest.fn();
+      const send = jest.fn(async () => ({ uploadId: 'id', chunkBytes: 4 }));
+      await uploadWallFile({
+        baseUrl: '',
+        headers: {},
+        uploadId: 'id',
+        file: makeFile(),
+        send
+      });
+      expect(globalThis.FileReader).not.toHaveBeenCalled();
+    });
+
+    test.each(['error', 'incomplete', 'throws'])(
+      'stops after a FileReader %s without sending or publishing bytes',
+      async (kind) => {
+        const readers = installReader((reader) => {
+          if (kind === 'throws') throw new Error('Provider access expired.');
+          queueMicrotask(() => {
+            reader.readyState = 2;
+            if (kind === 'error') {
+              reader.error = new DOMException(
+                'Access expired.',
+                'NotReadableError'
+              );
+              reader.onerror();
+            } else {
+              reader.result = new ArrayBuffer(0);
+              reader.onload();
+            }
+          });
+        });
+        const file = makeProviderFile();
+        file.size = 4;
+        const send = jest.fn(async () => ({ uploadId: 'id', chunkBytes: 4 }));
+        await expect(
+          uploadWallFile({
+            baseUrl: '',
+            headers: {},
+            uploadId: 'id',
+            file,
+            send
+          })
+        ).rejects.toMatchObject({
+          code: 'WALL_FILE_UNREADABLE',
+          retryable: false
+        });
+        expect(send).toHaveBeenCalledTimes(1);
+        expect(readers).toHaveLength(1);
+        expect(readers[0].onload).toBeNull();
+        expect(readers[0].onerror).toBeNull();
+        expect(readers[0].onabort).toBeNull();
+      }
+    );
+
+    test('aborts an active fallback reader and clears its handlers', async () => {
+      const controller = new AbortController();
+      let start;
+      const started = new Promise((resolve) => {
+        start = resolve;
+      });
+      const readers = installReader(() => start());
+      const file = makeProviderFile();
+      file.size = 4;
+      const send = jest.fn(async () => ({ uploadId: 'id', chunkBytes: 4 }));
+      const upload = uploadWallFile({
+        baseUrl: '',
+        headers: {},
+        uploadId: 'id',
+        file,
+        signal: controller.signal,
+        send
+      });
+      await started;
+      controller.abort();
+      await expect(upload).rejects.toMatchObject({ name: 'AbortError' });
+      expect(send).toHaveBeenCalledTimes(1);
+      expect(readers[0].abort).toHaveBeenCalledTimes(1);
+      expect(readers[0].onload).toBeNull();
+      expect(readers[0].onerror).toBeNull();
+      expect(readers[0].onabort).toBeNull();
+    });
+  });
+
   test.each(['unreadable', 'incomplete'])(
     'reports an %s phone file instead of a connection failure',
     async (kind) => {

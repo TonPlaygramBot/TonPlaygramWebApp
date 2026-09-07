@@ -66,3 +66,40 @@ failure/cancellation, resume, storage and publication using a temporary disk and
 a mocked post database. Cloud browser URL policy blocked the local and offline
 previews in this environment. The reporting phone's actual Telegram file picker
 has not been verified here; reselect the video after reopening the updated app.
+
+## Unreadable native selections
+
+A subsequent Telegram screenshot reached `WALL_FILE_UNREADABLE`, narrowing the
+failure to the local byte-read stage. This does not identify the native cause:
+provider permissions, changed content and browser API behavior remain possible.
+
+The composer now retains a connected native input for each accepted selection
+batch until its last attachment is removed or published. Another picker visit
+uses a fresh input, preserving previous selections and retry IDs. Rejected
+selections may be cleared. This is conservative lifecycle hardening; Chromium's
+input setter clears its file list, and there is no confirmed evidence that it
+revokes the retained JavaScript File's access.
+
+Each bounded chunk read can fall back once from `Blob.arrayBuffer()` to
+`FileReader.readAsArrayBuffer()`. Cancellation aborts an active fallback reader;
+incomplete or unreadable data still cannot be uploaded or published. Both APIs
+share underlying storage access in Chromium, so this fallback is compatibility
+support and cannot repair a denied or stale native provider handle.
+
+When both reading methods fail, **Choose from Files** opens the standard picker
+without a media filter. The OS controls which picker appears. Choosing a saved
+copy replaces just the failed attachment with a fresh upload ID and preserves
+the caption, article fields and download settings. Canceling or choosing an
+invalid replacement retains the existing selection. A replacement never resumes
+the old file's partial bytes. The layout and existing capacity are unchanged.
+
+Regression coverage includes retained inputs across retries and multiple
+batches, cleanup after removal/publication, bounded fallback reads and aborts,
+and replacing unreadable videos/article covers without losing draft content.
+These tests model the lifecycle and API failures; they do not simulate the
+reporting Android device's native picker.
+
+Primary references: [Chromium file input](https://github.com/chromium/chromium/blob/main/third_party/blink/renderer/core/html/forms/file_input_type.cc),
+[Chromium Blob reads](https://github.com/chromium/chromium/blob/main/third_party/blink/renderer/core/fileapi/blob.cc),
+[File API error conditions](https://www.w3.org/TR/FileAPI/#errorsAndExceptions),
+and [Telegram's picker bridge](https://github.com/DrKLO/Telegram/blob/master/TMessagesProj/src/main/java/org/telegram/ui/web/BotWebViewContainer.java).

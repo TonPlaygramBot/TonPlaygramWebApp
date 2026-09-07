@@ -22,7 +22,13 @@ import {
 import { uploadWallFile, wallRequest } from './wallUpload.js';
 
 type Kind = 'post' | 'article' | 'poll';
-type Selection = { id: string; file: File; src: string; duration: number };
+type Selection = {
+  id: string;
+  pickerId: string;
+  file: File;
+  src: string;
+  duration: number;
+};
 type Identity = { author: string; authorAvatar: string };
 const MAX_BYTES = 5 * 1024 ** 3;
 export const formatUploadBytes = (bytes: number) =>
@@ -88,9 +94,11 @@ export default function WallComposer({
   const [question, setQuestion] = useState('');
   const [options, setOptions] = useState(['', '']);
   const [selected, setSelected] = useState<Selection[]>([]);
+  const [pickers, setPickers] = useState(() => [id()]);
   const [busy, setBusy] = useState(false);
   const [preparing, setPreparing] = useState(false);
   const [error, setError] = useState('');
+  const [unreadableId, setUnreadableId] = useState<string>();
   const [premium, setPremium] = useState(false);
   const [price, setPrice] = useState('');
   const [progress, setProgress] = useState<{
@@ -113,6 +121,17 @@ export default function WallComposer({
     []
   );
   useEffect(() => {
+    // Keep each native selection connected until its last attachment is
+    // removed or published. A fresh input handles the next picker visit.
+    const retained = new Set(selected.map((item) => item.pickerId));
+    setPickers((current) => {
+      const next = current.filter(
+        (picker, index) => index === current.length - 1 || retained.has(picker)
+      );
+      return next.length === current.length ? current : next;
+    });
+  }, [selected]);
+  useEffect(() => {
     const show = () => {
       setOpen(true);
       document
@@ -128,7 +147,8 @@ export default function WallComposer({
       selected.length &&
       (next === 'poll' ||
         (next === 'article' &&
-          (selected.length > 1 || !fileType(selected[0].file).startsWith('image/'))))
+          (selected.length > 1 ||
+            !fileType(selected[0].file).startsWith('image/'))))
     ) {
       setError(
         next === 'poll'
@@ -141,52 +161,74 @@ export default function WallComposer({
     setOpen(true);
     setError('');
   }
-  function pick(accept: string) {
+  function pick(accept: string, replaceId?: string) {
     if (busy || preparing) return;
     setOpen(true);
     if (files.current) {
       files.current.accept = accept;
-      files.current.multiple = kind === 'post';
+      files.current.multiple = kind === 'post' && !replaceId;
+      files.current.dataset.replaceId = replaceId || '';
       files.current.click();
     }
   }
   async function selectFiles(event: ChangeEvent<HTMLInputElement>) {
-    const incoming = Array.from(event.target.files || []);
-    event.target.value = '';
+    const input = event.currentTarget;
+    const incoming = Array.from(input.files || []);
     if (!incoming.length || busy || preparing) return;
+    const replaceId = input.dataset.replaceId;
+    const remaining = selected.filter((item) => item.id !== replaceId);
+    const reject = (message: string) => {
+      // Clear rejected selections only. Preserve the native picker lifetime
+      // alongside accepted Files throughout previewing and upload retries.
+      input.value = '';
+      setError(message);
+    };
     if (incoming.some((file) => !file.size))
-      return setError('Empty files cannot be uploaded. Choose another file.');
+      return reject('Empty files cannot be uploaded. Choose another file.');
     if (
-      selected.reduce((sum, item) => sum + item.file.size, 0) +
+      remaining.reduce((sum, item) => sum + item.file.size, 0) +
         incoming.reduce((sum, file) => sum + file.size, 0) >
       MAX_BYTES
     )
-      return setError('Select up to 5 GB of files in total.');
-    if (selected.length + incoming.length > 20)
-      return setError('Select up to 20 files at a time.');
+      return reject('Select up to 5 GB of files in total.');
+    if (remaining.length + incoming.length > 20)
+      return reject('Select up to 20 files at a time.');
     if (
       kind === 'article' &&
-      (selected.length + incoming.length > 1 ||
+      (remaining.length + incoming.length > 1 ||
         incoming.some((file) => !fileType(file).startsWith('image/')))
     )
-      return setError('Choose one photo for the article cover.');
+      return reject('Choose one photo for the article cover.');
+    if (replaceId && incoming.length !== 1)
+      return reject('Choose one file to replace this attachment.');
     setPreparing(true);
     setError('');
+    const next: Selection[] = [];
     try {
-      const next: Selection[] = [];
       for (const file of incoming) {
         // Keep the picker file intact; infer its MIME type separately for
         // mobile file providers that omit it or return a generic type.
         next.push({
           id: id(),
+          pickerId: input.dataset.wallPicker!,
           file,
           src: URL.createObjectURL(file),
           duration: await videoDuration(file)
         });
       }
-      setSelected((current) => [...current, ...next]);
+      selected
+        .filter((item) => item.id === replaceId)
+        .forEach((item) => URL.revokeObjectURL(item.src));
+      setSelected((current) =>
+        replaceId && current.some((item) => item.id === replaceId)
+          ? current.flatMap((item) => (item.id === replaceId ? next : [item]))
+          : [...current, ...next]
+      );
+      setPickers((current) => [...current, id()]);
+      if (replaceId === unreadableId) setUnreadableId(undefined);
     } catch {
-      setError('This file could not be opened. Choose it again.');
+      next.forEach((item) => URL.revokeObjectURL(item.src));
+      reject('This file could not be opened. Choose it again.');
     } finally {
       setPreparing(false);
     }
@@ -195,6 +237,10 @@ export default function WallComposer({
     URL.revokeObjectURL(item.src);
     setSelected((current) => current.filter((file) => file.id !== item.id));
     setProgress(undefined);
+    if (item.id === unreadableId) {
+      setUnreadableId(undefined);
+      setError('');
+    }
   }
   async function publish(event: FormEvent) {
     event.preventDefault();
@@ -218,13 +264,16 @@ export default function WallComposer({
     controller.current = abort;
     setBusy(true);
     setError('');
+    setUnreadableId(undefined);
     let published = 0;
+    let activeAttachment: string | undefined;
     try {
       if (selected.length) {
         const total = selected.reduce((sum, item) => sum + item.file.size, 0);
         let completed = 0;
         for (let index = 0; index < selected.length; index += 1) {
           const item = selected[index];
+          activeAttachment = item.id;
           const result = await uploadWallFile({
             baseUrl: apiBase,
             headers: headers(),
@@ -296,6 +345,13 @@ export default function WallComposer({
           : 'Your post is published.'
       );
     } catch (failure) {
+      if (
+        failure &&
+        typeof failure === 'object' &&
+        'code' in failure &&
+        failure.code === 'WALL_FILE_UNREADABLE'
+      )
+        setUnreadableId(activeAttachment);
       const message =
         failure instanceof Error && failure.name === 'AbortError'
           ? 'Upload paused. Keep this page open and tap Publish to resume.'
@@ -367,13 +423,17 @@ export default function WallComposer({
           </button>
         </div>
       )}
-      <input
-        ref={files}
-        type="file"
-        hidden
-        onChange={selectFiles}
-        aria-label="Choose attachments"
-      />
+      {pickers.map((picker, index) => (
+        <input
+          key={picker}
+          ref={index === pickers.length - 1 ? files : undefined}
+          data-wall-picker={picker}
+          type="file"
+          hidden
+          onChange={selectFiles}
+          aria-label="Choose attachments"
+        />
+      ))}
       <div id="wall-compose-editor" hidden={!open}>
         <fieldset disabled={busy || preparing}>
           <div className="wall-compose-tabs" aria-label="Post format">
@@ -534,7 +594,9 @@ export default function WallComposer({
               )}
             </div>
           )}
-          {selected.some((item) => /^(image|video)\//.test(fileType(item.file))) && (
+          {selected.some((item) =>
+            /^(image|video)\//.test(fileType(item.file))
+          ) && (
             <details className="wall-premium">
               <summary>Download settings</summary>
               <label>
@@ -605,7 +667,19 @@ export default function WallComposer({
       {error && (
         <div className="wall-compose-error" role="alert">
           <AlertCircle />
-          <span>{error}</span>
+          <div>
+            <span>{error}</span>
+            {unreadableId && (
+              <button
+                className="wall-text-button"
+                type="button"
+                disabled={busy || preparing}
+                onClick={() => pick('*/*', unreadableId)}
+              >
+                Choose from Files
+              </button>
+            )}
+          </div>
         </div>
       )}
     </form>

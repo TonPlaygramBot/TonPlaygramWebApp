@@ -110,6 +110,36 @@ export async function uploadObjectPart(
   return result.etag;
 }
 
+function readWithFileReader(chunk, signal) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    const cleanup = () => {
+      reader.onload = reader.onerror = reader.onabort = null;
+      signal.removeEventListener('abort', abort);
+    };
+    const finish = (settle, value) => {
+      cleanup();
+      settle(value);
+    };
+    const abort = () => {
+      cleanup();
+      if (reader.readyState === 1) reader.abort();
+      reject(new DOMException('Upload paused.', 'AbortError'));
+    };
+    reader.onload = () => finish(resolve, reader.result);
+    reader.onerror = () => finish(reject, reader.error);
+    reader.onabort = () =>
+      finish(reject, new DOMException('Upload paused.', 'AbortError'));
+    signal.addEventListener('abort', abort, { once: true });
+    if (signal.aborted) return abort();
+    try {
+      reader.readAsArrayBuffer(chunk);
+    } catch (error) {
+      finish(reject, error);
+    }
+  });
+}
+
 async function readUploadBytes(file, offset, end, signal) {
   if (signal.aborted) throw new DOMException('Upload paused.', 'AbortError');
   // Android content-provider Files can be readable by the File API while a
@@ -117,8 +147,23 @@ async function readUploadBytes(file, offset, end, signal) {
   // the original picker File and materialize only this bounded range.
   let abort;
   try {
+    const chunk = file.slice(offset, end);
+    const reading = Promise.resolve()
+      .then(() => {
+        if (signal.aborted)
+          throw new DOMException('Upload paused.', 'AbortError');
+        return chunk.arrayBuffer();
+      })
+      .catch((error) => {
+        if (signal.aborted)
+          throw new DOMException('Upload paused.', 'AbortError');
+        if (typeof globalThis.FileReader !== 'function') throw error;
+        // Some phone WebViews expose a FileReader path even when the newer
+        // Blob method is unavailable or fails. Retry this range once only.
+        return readWithFileReader(chunk, signal);
+      });
     const bytes = await Promise.race([
-      file.slice(offset, end).arrayBuffer(),
+      reading,
       new Promise((_resolve, reject) => {
         abort = () => reject(new DOMException('Upload paused.', 'AbortError'));
         signal.addEventListener('abort', abort, { once: true });
@@ -132,7 +177,7 @@ async function readUploadBytes(file, offset, end, signal) {
     if (signal.aborted) throw new DOMException('Upload paused.', 'AbortError');
     throw Object.assign(
       new Error(
-        'This file could not be read from your phone. Remove it and select it again from your device.'
+        'This file could not be read. Save a copy on your phone and select it again.'
       ),
       { code: 'WALL_FILE_UNREADABLE', retryable: false, cause: error }
     );
