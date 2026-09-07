@@ -26,6 +26,12 @@ bucket, plus the bucket metadata permission used by `HeadBucket`.
 
 These settings are opt-in. The Blueprint keeps its current disk configuration so
 merging the code alone cannot silently move production to an unconfigured bucket.
+The Blueprint uses Render's supported `sync: false` setting for secrets; existing
+service values must be managed in Render. A manually created service does not
+automatically apply `render.yaml` when code is merged. Verify the actual service's
+Disks and Environment pages. The repository declares a 10 GB disk mounted at
+`/var/data/tonplaygram`, with uploads under its `flamingo-uploads` subdirectory;
+this declaration alone does not prove the live disk is attached or writable.
 Verify the bucket before switching the running service to `s3`. Changing bucket
 or endpoint later requires migrating the original objects; stored post pointers
 must continue resolving. Existing disk and GridFS posts remain readable through

@@ -18,11 +18,12 @@ services:
       name: protest-media
       mountPath: /var/data/tonplaygram
       sizeGB: 10
+    # Keep existing secret values in Render; prompt only when creating a Blueprint.
     envVars:
       - key: MONGO_URI
-        fromSecret: MONGO_URI
+        sync: false
       - key: BOT_TOKEN
-        fromSecret: BOT_TOKEN
+        sync: false
       # Force webhook delivery on the canonical service. Render otherwise
       # exposes only RENDER_EXTERNAL_HOSTNAME, and falling back to long polling
       # lets overlapping deploy instances trigger Telegram's 409 conflict.
@@ -30,21 +31,21 @@ services:
         value: https://tonplaygram-bot.onrender.com
       # Recommended (set these in Render, even if some are optional):
       - key: ALLOWED_ORIGINS
-        fromSecret: ALLOWED_ORIGINS
+        sync: false
       - key: API_AUTH_TOKEN
-        fromSecret: API_AUTH_TOKEN
+        sync: false
       - key: OWNER_TELEGRAM_ID
-        fromSecret: OWNER_TELEGRAM_ID
+        sync: false
       - key: WITHDRAW_ENABLED
-        value: false
+        value: "false"
       - key: MOBILE_STORE_MODE
-        value: true
+        value: "true"
       - key: CLAIM_CONTRACT_ADDRESS
-        fromSecret: CLAIM_CONTRACT_ADDRESS
+        sync: false
       - key: CLAIM_WALLET_MNEMONIC
-        fromSecret: CLAIM_WALLET_MNEMONIC
+        sync: false
       - key: MATCHMAKING_SERVICE_SECRET
-        fromSecret: MATCHMAKING_SERVICE_SECRET
+        sync: false
       - key: VITE_MATCHMAKING_URL
         value: wss://tonplaygram-chess-matchmaking.onrender.com
       # Bake the public API into web/native bundles. Same-origin remains the
@@ -52,9 +53,9 @@ services:
       - key: VITE_API_BASE_URL
         value: https://tonplaygram-bot.onrender.com
       - key: RPC_URL
-        fromSecret: RPC_URL
+        sync: false
       - key: DEV_ACCOUNT_ID
-        fromSecret: DEV_ACCOUNT_ID
+        sync: false
       # Community photos and videos must outlive API restarts and deployments.
       - key: FLAMINGO_UPLOAD_DIR
         value: /var/data/tonplaygram/flamingo-uploads
@@ -68,7 +69,7 @@ services:
       # a second copy in MongoDB GridFS exhausts the database quota and blocks
       # otherwise valid video posts even though the media disk has space.
       - key: FLAMINGO_GRIDFS_BACKUP
-        value: false
+        value: "false"
       # For scalable direct media uploads, configure FLAMINGO_MEDIA_STORAGE=s3
       # and the bucket credentials in the service environment after following
       # docs/social-wall-object-storage.md. Credentials must remain server-only.
@@ -85,10 +86,10 @@ services:
     healthCheckPath: /health
     envVars:
       - key: AUTH_REQUIRED
-        value: true
+        value: "true"
       - key: ACCOUNT_API_URL
         value: https://tonplaygram-bot.onrender.com
       - key: MATCHMAKING_SERVICE_SECRET
-        fromSecret: MATCHMAKING_SERVICE_SECRET
+        sync: false
       - key: REDIS_URL
-        fromSecret: REDIS_URL
+        sync: false
