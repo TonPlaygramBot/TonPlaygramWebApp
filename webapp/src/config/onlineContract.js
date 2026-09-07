@@ -8,6 +8,7 @@ export const ONLINE_CONTRACT_CHECKS = Object.freeze({
 });
 
 export const ONLINE_READINESS_BY_GAME = Object.freeze({
+  royallanes: { checks: { lobby: true, runtime: true, backend: true, security: true }, label: 'Online Ready' },
   blackwater: { checks: { lobby: true, runtime: true, backend: true, security: true }, label: 'Online Ready' },
   tabletennisroyal: {checks:{lobby:true,runtime:true,backend:true,security:true},label:'Online Ready'},
   kartroyale: {

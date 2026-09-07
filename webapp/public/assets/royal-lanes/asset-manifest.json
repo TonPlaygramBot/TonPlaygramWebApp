@@ -1,0 +1,72 @@
+{
+  "license": "CC0-1.0",
+  "license_url": "https://polyhaven.com/license",
+  "wood_source": "https://polyhaven.com/a/white_maple_veneer",
+  "environment_source": "https://polyhaven.com/a/billiard_hall",
+  "wood_author": "Jenelle van Heerden",
+  "environment_authors": [
+    "Greg Zaal (photography)",
+    "Jarod Guest (processing)"
+  ],
+  "wood_physical_tile_width_m": 1.0,
+  "wood_grain_orientation": "Predominantly horizontal, along texture U; map U along lane length. Continuous veneer without board seams.",
+  "files": [
+    {
+      "role": "color",
+      "filename": "white_maple_veneer_diff_4k.jpg",
+      "path": "/workspace/scratch/a4c9afbbbeb1/bowling-assets/white_maple_veneer_diff_4k.jpg",
+      "bytes": 6716314,
+      "dimensions": [
+        4096,
+        4096
+      ],
+      "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/4k/white_maple_veneer/white_maple_veneer_diff_4k.jpg",
+      "md5": "f8fcc20a1dcbd8a0a4f917f5d946664f",
+      "sha256": "f5c5788ed517c5801999c62d4e5397765eaec04360155793694292dd1aa9af7c",
+      "verified_against_provider": true
+    },
+    {
+      "role": "normal_gl",
+      "filename": "white_maple_veneer_nor_gl_2k.jpg",
+      "path": "/workspace/scratch/a4c9afbbbeb1/bowling-assets/white_maple_veneer_nor_gl_2k.jpg",
+      "bytes": 1288607,
+      "dimensions": [
+        2048,
+        2048
+      ],
+      "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/white_maple_veneer/white_maple_veneer_nor_gl_2k.jpg",
+      "md5": "a61302105f0631a55b5bf13b68ac7599",
+      "sha256": "c70d14bdb6a0953ab4a9f23af16c07324f94c597e30d058c7cd33d14d2d4fb59",
+      "verified_against_provider": true
+    },
+    {
+      "role": "roughness",
+      "filename": "white_maple_veneer_rough_2k.jpg",
+      "path": "/workspace/scratch/a4c9afbbbeb1/bowling-assets/white_maple_veneer_rough_2k.jpg",
+      "bytes": 2958169,
+      "dimensions": [
+        2048,
+        2048
+      ],
+      "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/white_maple_veneer/white_maple_veneer_rough_2k.jpg",
+      "md5": "7f25e842a72ddcf8658a0913ffcab7d4",
+      "sha256": "1184ebdeb279f7450852d5a5ce648bc96a045470acfa98aa3001dd38b65cfb51",
+      "verified_against_provider": true
+    },
+    {
+      "role": "environment",
+      "filename": "billiard_hall_1k.hdr",
+      "path": "/workspace/scratch/a4c9afbbbeb1/bowling-assets/billiard_hall_1k.hdr",
+      "bytes": 1629669,
+      "dimensions": [
+        1024,
+        512
+      ],
+      "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/billiard_hall_1k.hdr",
+      "md5": "1733d3312d8ed5bd31717979903902e7",
+      "sha256": "c4db78fffe0f022735c70dda4dddc6df8de3fc0b47628f2573e2599309e657ff",
+      "verified_against_provider": true
+    }
+  ],
+  "total_asset_bytes": 12592759
+}

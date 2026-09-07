@@ -10,6 +10,7 @@ const BASE_SECURITY_CONTROLS = Object.freeze([
 ]);
 
 const GAME_ONLINE_POLICY = Object.freeze({
+  royallanes: { maxPlayers: [2], allowMatchMeta: ['format', 'mode', 'token'] },
   blackwater: { maxPlayers: [2, 3, 4], allowMatchMeta: ['mapId', 'mode', 'token'] },
   kartroyale: {
     maxPlayers: [2, 3, 4, 5, 6],
@@ -209,6 +210,10 @@ export function validateSeatTableRequest({
   }
 
   const safeMatchMeta = {};
+  if (normalizedGameType === 'royallanes') {
+    if (matchMeta.format !== 'tenpin' || !Number.isSafeInteger(normalizedStake * 2)) return { ok: false, error: 'invalid_bowling_options' };
+    safeMatchMeta.format = 'tenpin';
+  }
   if (normalizedGameType === 'blackwater') {
     if (matchMeta.mapId !== 'tirana' || !Number.isSafeInteger(normalizedStake * normalizedMaxPlayers)) return { ok: false, error: 'invalid_blackwater_options' };
     safeMatchMeta.mapId = 'tirana';
