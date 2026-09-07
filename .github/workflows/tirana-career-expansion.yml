@@ -8,6 +8,7 @@ on:
       - 'webapp/src/games/blackwater/**'
       - 'webapp/src/games/kartroyale/**'
       - 'test/tiranaCareerExpansion.test.mjs'
+      - 'test/tiranaDajtiAtlas.test.mjs'
       - 'webapp/scripts/export-tirana-expansion.mjs'
       - '.github/workflows/tirana-career-expansion.yml'
 permissions:
@@ -22,7 +23,10 @@ jobs:
         with:
           node-version: '22'
       - name: Numeric and contract regressions (not a browser test)
-        run: node --test test/tiranaCareerExpansion.test.mjs test/tiranaMap.test.mjs test/tiranaDetailKit.test.mjs test/tiranaLakeSource.test.mjs
+        run: node --test test/tiranaCareerExpansion.test.mjs test/tiranaDajtiAtlas.test.mjs test/tiranaMap.test.mjs test/tiranaDetailKit.test.mjs test/tiranaLakeSource.test.mjs
+      - name: Preserve the original city data
+        run: |
+          test "$(git hash-object webapp/src/games/tiranastreets/shared/world.mjs)" = "69157413d6ebc8eeb2c822436dde2761e793b6b7"
       - name: Export original glTF models
         run: node webapp/scripts/export-tirana-expansion.mjs /tmp/tirana-original-models
       - uses: actions/upload-artifact@v4
