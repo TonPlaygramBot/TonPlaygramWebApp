@@ -1,46 +1,17 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { SoftwareRenderer } from './software';
-import { assets } from './assets';
+import { loadAthlete } from './assetLoader';
+import { dressAthlete, poseAthlete, disposeAthlete } from './athlete';
+import { buildStadium, courtTexture } from './stadium';
 import { BALL_RADIUS, MatchState, Seat, Surface, side } from './engine';
 
 export const decode = (data: string) =>
   Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
-const palettes = {
-  hard: { court: 0x4f93a7, surround: 0x6b8f57, back: 0x102035 },
-  clay: { court: 0xc66643, surround: 0x9d4633, back: 0x302629 },
-  grass: { court: 0x5a935d, surround: 0x346348, back: 0x162f29 }
-};
-
-// Visual recipe restored from the September 1 tennis court. Gameplay remains
-// owned by engine.ts; these helpers deliberately affect presentation only.
-function acrylicTexture(base: string, flecks = 9000) {
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = 256;
-  const context = canvas.getContext('2d');
-  if (!context) return null;
-  context.fillStyle = base;
-  context.fillRect(0, 0, 256, 256);
-  for (let i = 0; i < flecks; i++) {
-    const shade = 145 + Math.floor(Math.random() * 70);
-    context.fillStyle = `rgba(${shade},${shade + 8},${shade + 10},${0.035 + Math.random() * 0.055})`;
-    context.fillRect(Math.random() * 256, Math.random() * 256, 1 + Math.random() * 2, 1);
-  }
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(2.2, 5.2);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = 4;
-  return texture;
-}
 type Actor = {
   root: THREE.Group;
   model: THREE.Group | null;
-  mixer: THREE.AnimationMixer | null;
-  actions: Record<string, THREE.AnimationAction>;
-  active: string;
-  arm: THREE.Object3D | null;
-  armRest: THREE.Quaternion;
+  rig: ReturnType<typeof dressAthlete> | null;
+  stride: number;
   lastX: number;
   lastZ: number;
   marker: THREE.Mesh;
@@ -58,6 +29,12 @@ export class TennisRenderer {
   trail: THREE.Mesh[] = [];
   court: THREE.Mesh;
   surround: THREE.Mesh;
+  stadium: ReturnType<typeof buildStadium>;
+  surface: Surface | null = null;
+  surfaceMaps = new Map<
+    Surface,
+    [THREE.Texture | null, THREE.Texture | null]
+  >();
   resize: ResizeObserver;
   disposed = false;
   loadError = '';
@@ -80,21 +57,21 @@ export class TennisRenderer {
     );
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.35;
+    this.renderer.toneMappingExposure = 1.08;
     this.renderer.shadowMap.enabled = quality !== 'low';
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.domElement.setAttribute(
       'aria-label',
-      'Tennis court. Drag to move your player.'
+      'Tennis court. Swipe faster for more power and release to hit.'
     );
     this.renderer.domElement.style.cssText =
       'display:block;width:100%;height:100%;touch-action:none';
     mount.appendChild(this.renderer.domElement);
-    this.scene.background = new THREE.Color(0x304d62);
-    this.scene.fog = new THREE.Fog(0x304d62, 48, 105);
+    this.scene.background = new THREE.Color(0x9bbbc8);
+    this.scene.fog = new THREE.Fog(0x9bbbc8, 58, 120);
     this.scene.add(this.root);
-    this.scene.add(new THREE.HemisphereLight(0xd9f6ff, 0x5a6b59, 2.1));
-    const sun = new THREE.DirectionalLight(0xffe3b1, 3.4);
+    this.scene.add(new THREE.HemisphereLight(0xd9edfa, 0x526a52, 1.65));
+    const sun = new THREE.DirectionalLight(0xffedcf, 2.5);
     sun.position.set(-13, 25, 12);
     sun.castShadow = true;
     sun.shadow.mapSize.set(1024, 1024);
@@ -126,12 +103,9 @@ export class TennisRenderer {
       this.root.add(m);
       return m;
     };
-    this.surround = box(23, 0.22, 38, 0x155661, 0, -0.15, 0);
-    this.court = box(10.97, 0.03, 23.77, 0x237cac, 0, 0, 0);
-    (this.surround.material as THREE.MeshStandardMaterial).map =
-      acrylicTexture('#4d8460', 6500);
-    (this.court.material as THREE.MeshStandardMaterial).map =
-      acrylicTexture('#2f6f88', 9000);
+    this.surround = box(23, 0.22, 38, 0xffffff, 0, -0.15, 0);
+    this.court = box(10.97, 0.03, 23.77, 0xffffff, 0, 0, 0);
+    this.setSurface('hard');
     this.surround.renderOrder = -100;
     this.court.renderOrder = -99;
     const line = (x: number, z: number, w: number, d: number) => {
@@ -160,9 +134,9 @@ export class TennisRenderer {
     const net = new THREE.LineSegments(
       ng,
       new THREE.LineBasicMaterial({
-        color: 0xc1d1ca,
+        color: 0x162a27,
         transparent: true,
-        opacity: 0.35
+        opacity: 0.8
       })
     );
     this.root.add(net);
@@ -177,41 +151,12 @@ export class TennisRenderer {
         new THREE.MeshStandardMaterial({ color: 0xffffff })
       )
     );
-    // Restore the intimate outdoor stadium: transparent perimeter fencing,
-    // timber player benches, umpire chair and the original four floodlights.
-    const fenceMaterial = new THREE.MeshStandardMaterial({
-      color: 0x243238,
-      transparent: true,
-      opacity: 0.5,
-      roughness: 0.62
-    });
-    for (const x of [-8.25, 8.25]) {
-      const fence = box(0.045, 2.2, 34, 0x243238, x, 1.1, 0);
-      fence.material = fenceMaterial;
-      for (let z = -16; z <= 16; z += 3.2)
-        box(0.06, 2.45, 0.06, 0x28323a, x, 1.22, z);
-    }
-    for (const z of [-16.5, 16.5]) {
-      const fence = box(16.5, 2.2, 0.045, 0x243238, 0, 1.1, z);
-      fence.material = fenceMaterial;
-      for (let x = -8; x <= 8; x += 2.65)
-        box(0.06, 2.45, 0.06, 0x28323a, x, 1.22, z);
-    }
-    for (const x of [-7.05, 7.05]) {
-      box(2.35, 0.13, 0.42, 0x8b5a2b, x, 0.39, x < 0 ? 2 : -2);
-      box(2.35, 0.11, 0.35, 0x8b5a2b, x, 0.72, x < 0 ? 2.18 : -1.82);
-    }
-    box(0.82, 0.12, 0.62, 0xd8dde1, 6.7, 1.45, 0);
-    box(0.82, 0.1, 0.2, 0x0f2d45, 6.7, 1.78, -0.26);
-    for (const x of [-7.7, 7.7])
-      for (const z of [-14.5, 14.5]) {
-        box(0.16, 8, 0.16, 0x527580, x, 4, z);
-        const light = box(2, 0.32, 0.4, 0xeaffee, x, 8, z);
-        (light.material as THREE.MeshStandardMaterial).emissive.setHex(
-          0xc1e7ff
-        );
-        (light.material as THREE.MeshStandardMaterial).emissiveIntensity = 2;
-      }
+    this.stadium = buildStadium(
+      this.root,
+      quality === 'low' || this.renderer instanceof SoftwareRenderer
+    );
+    const centreStrap = box(0.045, 0.91, 0.05, 0xf3f1df, 0, 0.46, 0.008);
+    centreStrap.castShadow = true;
     const ballMat = new THREE.MeshStandardMaterial({
       color: 0xdcff36,
       roughness: 0.72,
@@ -223,6 +168,27 @@ export class TennisRenderer {
       ballMat
     );
     this.ball.castShadow = true;
+    const seam = Array.from({ length: 65 }, (_, i) => {
+      const t = (i / 64) * Math.PI * 2,
+        bend = Math.sin(t * 2) * 0.7;
+      return new THREE.Vector3(
+        Math.sin(t),
+        Math.cos(t) * Math.cos(bend),
+        Math.cos(t) * Math.sin(bend)
+      ).multiplyScalar(BALL_RADIUS * 1.005);
+    });
+    this.ball.add(
+      new THREE.Mesh(
+        new THREE.TubeGeometry(
+          new THREE.CatmullRomCurve3(seam, true),
+          64,
+          0.006,
+          3,
+          true
+        ),
+        new THREE.MeshStandardMaterial({ color: 0xf3f5d7, roughness: 1 })
+      )
+    );
     this.root.add(this.ball);
     this.ballShadow = new THREE.Mesh(
       new THREE.CircleGeometry(0.24, 20),
@@ -260,7 +226,9 @@ export class TennisRenderer {
     if (!w || !h) return;
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
-    const portrait = w / h < 0.8;
+    // The scoreboard and touch HUD make the court canvas wider than the phone.
+    // Frame by phone width so players behind the near baseline keep their feet visible.
+    const portrait = w <= 600;
     this.camera.fov = portrait ? 42 : 39;
     this.camera.position.set(
       0,
@@ -271,11 +239,20 @@ export class TennisRenderer {
     this.camera.updateProjectionMatrix();
   }
   setSurface(surface: Surface) {
-    const p = palettes[surface];
-    (this.court.material as THREE.MeshStandardMaterial).color.setHex(p.court);
-    (this.surround.material as THREE.MeshStandardMaterial).color.setHex(
-      p.surround
-    );
+    if (this.surface === surface) return;
+    this.surface = surface;
+    let maps = this.surfaceMaps.get(surface);
+    if (!maps) {
+      maps = [courtTexture(surface), courtTexture(surface, true)];
+      this.surfaceMaps.set(surface, maps);
+    }
+    [this.court, this.surround].forEach((mesh, i) => {
+      const material = mesh.material as THREE.MeshStandardMaterial;
+      material.color.setHex(0xffffff);
+      material.map = maps![i];
+      material.roughness = surface === 'hard' ? 0.91 : 1;
+      material.needsUpdate = true;
+    });
   }
   async createActor(seat: Seat) {
     const group = new THREE.Group();
@@ -304,12 +281,13 @@ export class TennisRenderer {
       })
     );
     head.scale.y = 1.26;
+    head.position.y = 0.5;
     racket.add(head);
     const grip = new THREE.Mesh(
       new THREE.CylinderGeometry(0.025, 0.033, 0.33, 8),
       new THREE.MeshStandardMaterial({ color: 0xeeeeeb })
     );
-    grip.position.y = -0.43;
+    grip.position.y = 0.1;
     racket.add(grip);
     const strings: number[] = [];
     for (let n = -0.16; n <= 0.17; n += 0.055) {
@@ -331,6 +309,7 @@ export class TennisRenderer {
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(strings, 3));
+    geo.translate(0, 0.5, 0);
     racket.add(
       new THREE.LineSegments(
         geo,
@@ -344,11 +323,8 @@ export class TennisRenderer {
     const actor: Actor = {
       root: group,
       model: null,
-      mixer: null,
-      actions: {},
-      active: '',
-      arm: null,
-      armRest: new THREE.Quaternion(),
+      rig: null,
+      stride: 0,
       lastX: 0,
       lastZ: 0,
       marker,
@@ -356,52 +332,15 @@ export class TennisRenderer {
     };
     this.actors[seat] = actor;
     try {
-      const loader = new GLTFLoader();
-      const gltf = await loader.parseAsync(
-        decode(seat === 0 ? assets.player : assets.opponent).buffer,
-        ''
-      );
-      if (this.disposed) return;
-      const model = gltf.scene;
-      const bounds = new THREE.Box3().setFromObject(model);
-      const scale = 1.85 / (bounds.max.y - bounds.min.y);
-      model.scale.setScalar(scale);
-      model.position.y = -bounds.min.y * scale;
-      model.traverse((o) => {
-        if (o instanceof THREE.Mesh) {
-          o.castShadow = true;
-          o.receiveShadow = true;
-          const mats = Array.isArray(o.material) ? o.material : [o.material];
-          for (const m of mats) {
-            if (m instanceof THREE.MeshStandardMaterial) {
-              // Match the warmer, cloth-like human characters used by the
-              // restored court rather than the newer metallic arena finish.
-              m.roughness = 0.74;
-              m.metalness = 0;
-              m.envMapIntensity = 0.35;
-            }
-          }
-        }
-      });
-      group.add(model);
-      actor.model = model;
-      const mixer = new THREE.AnimationMixer(model);
-      actor.mixer = mixer;
-      for (const clip of gltf.animations)
-        actor.actions[clip.name] = mixer.clipAction(clip);
-      actor.arm = model.getObjectByName('arm-right') || null;
-      if (actor.arm) {
-        actor.armRest.copy(actor.arm.quaternion);
-        actor.arm.add(racket);
-        racket.scale.setScalar(1 / scale);
-        racket.position.set(0, -0.65 / scale, 0.15 / scale);
-        racket.rotation.x = Math.PI / 2;
-      } else {
-        group.add(racket);
-        racket.position.set(0.65, 0.85, 0);
+      const model = await loadAthlete(seat);
+      if (this.disposed) {
+        disposeAthlete(model);
+        return;
       }
-      actor.actions.idle?.play();
-      actor.active = 'idle';
+      actor.rig = dressAthlete(model, seat);
+      group.add(model);
+      group.add(racket);
+      actor.model = model;
     } catch (e) {
       this.loadError = 'Player model could not load. Reload to retry.';
       console.error(e);
@@ -410,6 +349,9 @@ export class TennisRenderer {
   draw(s: MatchState, dt: number, smooth = false) {
     this.clock += dt;
     this.setSurface(s.config.surface);
+    // Keep the stand closest to the camera from hiding the playable court.
+    this.stadium.ends[0].visible = this.seat === 0;
+    this.stadium.ends[1].visible = this.seat === 1;
     for (let i = 0; i < 2; i++) {
       const a = this.actors[i],
         p = s.players[i];
@@ -424,31 +366,14 @@ export class TennisRenderer {
           1 - Math.exp(-dt * 22)
         );
       else a.root.position.set(p.x, 0, p.z);
-      const swing = s.time - p.swingAt;
-      const name =
-        s.phase === 'over' && s.winner === i
-          ? 'emote-yes'
-          : s.phase === 'toss' && s.score.server === i
-            ? 'jump'
-            : swing < 0.4
-              ? 'attack-melee-right'
-              : speed > 0.4
-                ? 'sprint'
-                : 'idle';
-      if (name !== a.active && a.actions[name]) {
-        a.actions[a.active]?.fadeOut(0.13);
-        a.actions[name].reset().fadeIn(0.13).play();
-        a.active = name;
-      }
-      a.mixer?.update(dt);
+      const distance = Math.min(0.2, speed * dt);
+      a.stride += distance * 8;
+      if (a.rig)
+        poseAthlete(a.rig, a.root, a.racket, s, i as Seat, a.stride, speed);
       if (a.marker.material instanceof THREE.MeshBasicMaterial) {
         a.marker.material.opacity =
           s.phase === 'serve' && s.score.server === i ? 0.9 : 0.55;
         a.marker.material.color.setHex(i === this.seat ? 0xddff47 : 0xff8772);
-      }
-      if (a.arm && swing >= 0 && swing < 0.5) {
-        a.arm.rotation.x += Math.sin((swing / 0.5) * Math.PI) * 1.2;
-        a.arm.rotation.z += Math.sin((swing / 0.5) * Math.PI) * 0.8;
       }
     }
     if (smooth && s.phase === 'rally')
@@ -477,10 +402,11 @@ export class TennisRenderer {
   dispose() {
     this.disposed = true;
     this.resize.disconnect();
-    this.actors.forEach((a) => a.mixer?.stopAllAction());
+    this.surfaceMaps.forEach((maps) => maps.forEach((map) => map?.dispose()));
     this.scene.traverse((o) => {
       if (o instanceof THREE.Mesh || o instanceof THREE.LineSegments) {
         o.geometry?.dispose();
+        if (o instanceof THREE.SkinnedMesh) o.skeleton.dispose();
         const ms = Array.isArray(o.material) ? o.material : [o.material];
         ms.forEach((m) => {
           Object.values(m).forEach((v) => {

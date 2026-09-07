@@ -66,7 +66,7 @@
 }
 .tr-game .tr-court {
   position: absolute;
-  inset: 140px 0 0;
+  inset: 160px 0 100px;
   touch-action: none;
   z-index: 0;
 }
@@ -77,9 +77,9 @@
   background: linear-gradient(
     180deg,
     #09232b 0.5%,
-    transparent 24%,
-    transparent 63%,
-    #09232b 93%
+    transparent 25%,
+    transparent 80%,
+    #09232b 96%
   );
   z-index: 1;
 }
@@ -526,6 +526,7 @@
   display: flex;
   justify-content: center;
   gap: 8px;
+  flex-wrap: wrap;
   text-transform: capitalize;
 }
 .tr-game .tr-touch-state span,
@@ -534,14 +535,14 @@
   border: 1px solid #dfff4f33;
   border-radius: 20px;
   padding: 5px 12px;
-  font-size: 11px;
+  font-size: 14px;
 }
 .tr-game .tr-touch-state b {
   color: var(--tr-lime);
 }
 .tr-game .tr-power {
-  height: 3px;
-  max-width: 210px;
+  height: 6px;
+  max-width: 280px;
   margin: 8px auto;
   overflow: hidden;
   border-radius: 4px;
@@ -555,7 +556,7 @@
 }
 .tr-game .tr-touch-hud p {
   color: #d9e8df;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.45;
   text-shadow: 0 1px 4px #001b22;
 }
@@ -855,7 +856,7 @@
     padding: 11px;
   }
   .tr-game .tr-court {
-    inset: 55px 0 0;
+    inset: 150px 0 104px;
   }
   .tr-game .tr-panel {
     inset: 70px 12px 10px;
