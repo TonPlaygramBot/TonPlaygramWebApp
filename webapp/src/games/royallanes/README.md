@@ -12,7 +12,9 @@ There are no gameplay buttons or sliders. Horizontal drag aims in the same visib
 
 ## Architecture
 
-Game.tsx handles read-only HUD and lifecycle. touch.ts owns gestures. scene.ts renders GLB equipment, authoritative replay poses and a head-position camera. bowlers.ts clones the existing rig and poses actual limbs and fingers. audio.ts synthesizes impacts and rolling sounds. localSession.ts and onlineSession.ts implement a shared session contract. Browser simulation.worker.ts and the bot worker pool both use shared/physics.mjs, replay.mjs, match.mjs and scoring.mjs.
+Game.tsx handles read-only HUD and lifecycle. touch.ts owns gestures. scene.ts renders GLB equipment, authoritative replay poses and a head-position camera. bowlers.ts clones the existing rig and poses actual limbs and fingers. audio.ts synthesizes impacts and rolling sounds. localSession.ts and onlineSession.ts implement a shared session contract. Browser simulation.worker.ts and the bot worker pool both use shared/physicsCore.mjs, replay.mjs, match.mjs and scoring.mjs.
+
+The browser adapter (shared/physics.mjs) and bot worker each import their own installed cannon-es package and pass the same solver into simulateRoll. cannon-es is a production dependency of both packages. Shared match rules and replay utilities do not import either runtime's dependencies, so the bot can start and simulate online matches without webapp/node_modules or root node_modules. Keep both runtimes on the same Cannon version when upgrading.
 
 The physical solver runs at 1/180 second. Ball/pin transforms are sampled at 24 Hz for interpolated playback. Online clients submit only bounded shot intent plus a turn ID and idempotency ID. They never submit pinfall, scores, winners or stake changes. The backend computes physical trajectories in a bounded worker pool, owns turn order and scores, and broadcasts the same replay to both players. A whole frame, including a spare attempt, belongs to one player before the other bowls.
 
@@ -27,11 +29,12 @@ A match waits up to 90 seconds for both clients to load, then starts after three
 Run from the repository root:
 
 ```sh
+node --test bot/tests/bowlingDeployment.test.js
 node --test test/royalLanes.test.mjs test/royalLanesOnline.test.mjs test/royalLanesStake.test.mjs test/royalLanesTouch.test.mjs test/royalLanesBowlers.test.mjs test/kartStake.test.mjs test/blackwaterStake.test.mjs
 npm test -- --runInBand test/onlineGamePolicy.test.js test/simpleOnlineFlow.test.js
 npm --prefix webapp run build
 ```
 
-The new tests exercise physical worker pinfall and reachable corner spares; score and frame edge cases; real Socket.IO identity, replay, timing and reconnect protocol; a complete tied match and exactly-once settlement; transaction rollback/refund/recovery with the repository’s database double; visible gesture directions and cancellation; and actual GLB skeleton, eye height, independent poses, grounded feet and delivery release.
+The deployment test imports the bowling service, creates a match and runs real collision workers in a temporary directory containing only the bot's declared Cannon dependency, with no frontend or root dependencies. Other tests exercise physical worker pinfall and reachable corner spares; score and frame edge cases; real Socket.IO identity, replay, timing and reconnect protocol; a complete tied match and exactly-once settlement; transaction rollback/refund/recovery with the repository’s database double; visible gesture directions and cancellation; and actual GLB skeleton, eye height, independent poses, grounded feet and delivery release.
 
 A real MongoDB replica-set transaction run and browser GPU/physical-phone performance are not verified here. The standalone Sites preview runs the same free AI renderer and simulation; TPG online play requires the TonPlaygram frontend and bot changes together.

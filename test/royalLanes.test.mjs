@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {BowlingPhysics} from '../webapp/src/games/royallanes/shared/physics.mjs';
 import assert from 'node:assert/strict';
 import {createBowlingMatch,openTurn,beginShot,startReplay,completeRoll,nextTurn,activePlayer} from '../webapp/src/games/royallanes/shared/match.mjs';
 import {newGame,recordRoll,totalScore,pinsAvailable,rollSymbols} from '../webapp/src/games/royallanes/shared/scoring.mjs';
@@ -13,4 +14,22 @@ test('bowler keeps the lane for a spare; turn changes only when their frame ends
 test('two complete perfect scorecards earn all bonus rolls and finish as a draw',()=>{const m=match();let count=0;while(m.phase!=='finished'&&count<30){apply(m,10);count++;}assert.equal(count,24);assert.equal(m.phase,'finished');assert.equal(m.reason,'tie_refund');assert.ok(m.players.every(p=>totalScore(p.score)===300));});
 test('strict shot and matchmaking contracts reject forged data and incompatible queues',()=>{for(const shot of [{aim:NaN,hook:0,power:75},{aim:0,hook:Infinity,power:75},{aim:0,hook:0,power:999},{aim:'0',hook:0,power:75}])assert.equal(sanitizeShot(shot),null);const m=match();assert.equal(beginShot(m,'B',{turnId:1,shot:{aim:0,hook:0,power:75}}).error,'not_your_turn');assert.equal(beginShot(m,'A',{turnId:0,shot:{aim:0,hook:0,power:75}}).error,'stale_turn');const request={gameType:'royallanes',stake:100,maxPlayers:2,matchMeta:{format:'tenpin',mode:'online',token:'TPG'}};assert.equal(validateSeatTableRequest(request).ok,true);assert.equal(validateSeatTableRequest({...request,maxPlayers:3}).ok,false);assert.equal(validateSeatTableRequest({...request,matchMeta:{...request.matchMeta,format:'client-wins'}}).ok,false);assert.equal(validateSeatTableRequest({...request,matchMeta:{...request.matchMeta,token:'BTC'}}).ok,false);});
 test('worker solves real collisions off the socket thread and returns finite replay poses',async()=>{const pool=createBowlingSimulationPool();try{const [hit,gutter]=await Promise.all([pool.simulate({shot:{aim:.055,hook:0,power:75},standing:ALL_PINS}),pool.simulate({shot:{aim:1.2,hook:0,power:75},standing:ALL_PINS})]);assert.ok(hit.knocked>=6);assert.equal(gutter.knocked,0);assert.equal(gutter.gutter,true);assert.ok(hit.frames.length>70);assert.ok(hit.frames.every(f=>f.length===77&&f.every(Number.isFinite)));assert.equal(hit.knocked+hit.standing.length,10);}finally{await pool.close();}});
-test('AI aims at real remaining pins and uses the same pin physics',()=>{const corner=chooseAiShot([6],'pro',()=>.5);assert.ok(corner.aim<-.4);const result=simulateRoll({shot:corner,standing:[6]});assert.equal(result.knocked,1);assert.equal(result.gutter,false);});
+test('AI aims at real remaining pins and uses the same pin physics',()=>{const corner=chooseAiShot([6],'pro',()=>.5);assert.ok(corner.aim<-.4);const result=simulateRoll({shot:corner,standing:[6]},BowlingPhysics);assert.equal(result.knocked,1);assert.equal(result.gutter,false);});
+
+test('browser and backend physics adapters produce identical replays', async () => {
+  const pool = createBowlingSimulationPool({ size: 1 });
+  try {
+    for (const payload of [
+      { shot: { aim: 0.055, hook: 0, power: 75 }, standing: ALL_PINS },
+      { shot: { aim: -0.1, hook: 0.45, power: 82 }, standing: ALL_PINS },
+      { shot: chooseAiShot([6], 'pro', () => 0.5), standing: [6] }
+    ]) {
+      assert.deepEqual(
+        await pool.simulate(payload),
+        simulateRoll(payload, BowlingPhysics)
+      );
+    }
+  } finally {
+    await pool.close();
+  }
+});
