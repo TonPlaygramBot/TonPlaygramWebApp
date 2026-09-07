@@ -1,0 +1,102 @@
+import type { Input, MatchState, Seat } from './engine.js';
+import { BALL_RADIUS, GRAVITY, bounceVelocity, groundTime } from './court.js';
+
+const clamp = (v: number, lo: number, hi: number) =>
+  Math.max(lo, Math.min(hi, v));
+export const aiSpeed = (difficulty: number) =>
+  [5.7, 6.8, 7.7][difficulty] ?? 6.8;
+
+/** Search reachable contact positions through the first bounce, with the same
+ * gravity and surface response as the authoritative simulation. No teleporting. */
+export function predictIntercept(s: MatchState, seat: Seat, speed: number) {
+  const p = s.players[seat],
+    b = { ...s.ball },
+    sign = seat === 0 ? 1 : -1;
+  const first = groundTime(b);
+  let fallback = {
+    x: clamp(b.x + b.vx * first, -5.2, 5.2),
+    z: sign * clamp(Math.abs(b.z + b.vz * first) + 0.45, 1.8, 13.3)
+  };
+  for (let t = 0.025; t <= 3; t += 0.025) {
+    let dt = 0.025;
+    const landing = groundTime(b);
+    if (landing <= dt) {
+      b.x += b.vx * landing;
+      b.z += b.vz * landing;
+      b.vy -= GRAVITY * landing;
+      b.y = BALL_RADIUS;
+      if (b.bounces >= 1) break;
+      Object.assign(b, bounceVelocity(b, s.config.surface, b.spin));
+      b.bounces++;
+      dt -= landing;
+    }
+    b.x += b.vx * dt;
+    b.z += b.vz * dt;
+    b.y += b.vy * dt - (GRAVITY * dt * dt) / 2;
+    b.vy -= GRAVITY * dt;
+    if (
+      (b.serve && b.bounces === 0) ||
+      b.z * sign < 1 ||
+      b.y < 0.65 ||
+      b.y > 2.1
+    )
+      continue;
+    const target = {
+      x: clamp(b.x, -5.2, 5.2),
+      z: sign * clamp(b.z * sign + 0.35, 1.8, 13.3)
+    };
+    if (Math.hypot(target.x - p.x, target.z - p.z) <= speed * t + 1.35)
+      return target;
+    fallback = target;
+  }
+  return fallback;
+}
+
+/** Position-aware tactics with bounded, seeded execution error. */
+export function planAiShot(s: MatchState, noise: number, serve = false): Input {
+  const d = s.config.difficulty,
+    other = s.players[0],
+    p = s.players[1];
+  const input: Input = {
+    ...s.inputs[1],
+    direction: null,
+    depth: 0.8,
+    power: [0.48, 0.68, 0.88][d],
+    shot: 'topspin'
+  };
+  if (serve) {
+    input.aim = noise > 0 ? 0.85 : -0.7;
+    input.power = s.fault ? 0.58 : input.power;
+    return input;
+  }
+  // Anticipate the opponent's recovery; alternate between open court and behind
+  // a player who is already sprinting across the centre.
+  const travel = clamp(other.targetX - other.x, -1, 1);
+  const futureX = other.x + travel * 0.65;
+  let target = futureX >= 0 ? -1 : 1;
+  if (d === 2 && Math.abs(travel) > 0.7 && noise > 0.65)
+    target = -Math.sign(travel);
+  input.aim = target * [0.57, 0.79, 0.94][d] + noise * [0.22, 0.1, 0.035][d];
+  input.aim = clamp(input.aim, -0.99, 0.99);
+  input.depth = d === 2 ? 0.94 : 0.72;
+  const stretched = Math.hypot(s.ball.x - p.x, s.ball.z - p.z) > 1.8;
+  if (other.z < 5.5) {
+    input.shot = 'lob';
+    input.power = 0.65;
+  } else if (
+    d > 0 &&
+    other.z > 9.5 &&
+    Math.abs(p.z) < 9 &&
+    !stretched &&
+    noise > 0.2
+  ) {
+    input.shot = 'slice';
+    input.power = 0.3;
+    input.depth = 0.16;
+  } else if (stretched || s.ball.y < 0.55) {
+    input.shot = 'slice';
+    input.power *= 0.8;
+    input.aim *= 0.75;
+  }
+  return input;
+}

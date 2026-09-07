@@ -19,6 +19,7 @@ export class SoftwareRenderer {
   height = 1;
   last = 0;
   ratio = 1;
+  fillTriangleSeams = false;
   textures = new WeakMap<T.Texture, ImageData>();
   constructor() {
     const c = this.domElement.getContext('2d');
@@ -128,7 +129,18 @@ export class SoftwareRenderer {
             const p = projected[index ? index.getX(n) : n],
               q = projected[index ? index.getX(n + 1) : n + 1],
               r = line ? q : projected[index ? index.getX(n + 2) : n + 2];
-            if (!p || !q || !r || p[2] > 1 || q[2] > 1 || r[2] > 1) continue;
+            if (
+              !p ||
+              !q ||
+              !r ||
+              p[2] > 1 ||
+              q[2] > 1 ||
+              r[2] > 1 ||
+              p[2] < -1 ||
+              q[2] < -1 ||
+              r[2] < -1
+            )
+              continue;
             if (
               Math.max(p[0], q[0], r[0]) < 0 ||
               Math.min(p[0], q[0], r[0]) > w ||
@@ -238,6 +250,11 @@ export class SoftwareRenderer {
         c.closePath();
         c.fillStyle = f.color;
         c.fill();
+        if (this.fillTriangleSeams) {
+          c.strokeStyle = f.color;
+          c.lineWidth = 0.5;
+          c.stroke();
+        }
       }
     }
     c.globalAlpha = 1;

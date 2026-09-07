@@ -10,6 +10,6 @@ if (root)
     <TennisGame
       services={previewServices()}
       inline
-      launch={{ mode: 'ai', surface: 'hard', difficulty: 0, format: 'quick' }}
+      launch={{ mode: 'ai', surface: 'hard', difficulty: 2, format: 'quick' }}
     />
   );

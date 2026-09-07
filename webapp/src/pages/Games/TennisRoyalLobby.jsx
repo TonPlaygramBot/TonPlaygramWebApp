@@ -34,7 +34,7 @@ export default function TennisRoyalLobby() {
   const [mode, setMode] = useState('ai'),
     [surface, setSurface] = useState('hard'),
     [format, setFormat] = useState('set'),
-    [difficulty, setDifficulty] = useState(1),
+    [difficulty, setDifficulty] = useState(2),
     [stake, setStake] = useState({ token: 'TPG', amount: 100 });
   const [matching, setMatching] = useState(false),
     [status, setStatus] = useState(''),

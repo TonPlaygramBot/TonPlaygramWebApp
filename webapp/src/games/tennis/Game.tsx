@@ -3,12 +3,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Button } from './Button';
 import { TennisRenderer } from './render';
 import { TennisAudio } from './audio';
+import { LineReview } from './LineReview';
 import {
   beginSwipe,
   readSwipe,
   sampleSwipe,
-  screenAim,
-  swipeShot,
+  TAP_POWER,
   type Swipe
 } from '../../../../shared/tennis/swipe';
 import {
@@ -16,6 +16,7 @@ import {
   createMatch,
   neutralInput,
   pointLabels,
+  reviewActive,
   setInput,
   side,
   Input,
@@ -76,7 +77,7 @@ export default function TennisGame({
     [paused, setPaused] = useState(false),
     [muted, setMuted] = useState(false),
     [assist, setAssist] = useState(true),
-    [difficulty, setDifficulty] = useState(launch?.difficulty ?? 1),
+    [difficulty, setDifficulty] = useState(launch?.difficulty ?? 2),
     [surface, setSurface] = useState<Surface>(launch?.surface ?? 'hard'),
     [format, setFormat] = useState(launch?.format ?? 'quick'),
     [shot, setShot] = useState<Shot>('flat'),
@@ -385,6 +386,7 @@ export default function TennisGame({
         );
       sampleSwipe(gesture.current, e.clientX, e.clientY, e.timeStamp);
     }
+    if (input.current.assist) return;
     const rect = e.currentTarget.getBoundingClientRect();
     input.current.moveX =
       (((e.clientX - rect.left) / rect.width) * 2 - 1) * 5.15 * side(own);
@@ -434,23 +436,23 @@ export default function TennisGame({
         : room
           ? room.players?.[op]?.name || 'Online player'
           : ['Club AI', 'Tour AI', 'Pro AI'][difficulty];
-  const canHit =
+  const canHit = () =>
     screen === 'match' &&
     !paused &&
-    hud.phase !== 'point' &&
-    hud.phase !== 'over' &&
+    !reviewActive(frame.current) &&
+    (frame.current.phase === 'serve' || frame.current.phase === 'rally') &&
     (!room || room.joined) &&
-    (hud.phase !== 'serve' || hud.score.server === own);
+    (frame.current.phase !== 'serve' || frame.current.score.server === own);
   const tour = TOUR[career.tour];
   const finishCourtTouch = (e: React.PointerEvent<HTMLDivElement>) => {
     if (pointer.current !== e.pointerId || !gesture.current) return;
     sampleSwipe(gesture.current, e.clientX, e.clientY, e.timeStamp);
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    const { power } = readSwipe(gesture.current);
-    chooseAim(screenAim(x, 0));
-    chooseShot(swipeShot(gesture.current));
-    if (canHit) release(power);
+    const { power, dx, dy } = readSwipe(gesture.current);
+    input.current.direction =
+      renderer.current?.shotDirection(dx, dy, frame.current) ?? null;
+    // A tap has no heading: softly return towards centre (diagonal on serve).
+    chooseAim(dx);
+    if (canHit()) release(power);
     else charging.current = false;
     pointer.current = null;
     gesture.current = null;
@@ -473,6 +475,7 @@ export default function TennisGame({
           if (
             screen !== 'match' ||
             paused ||
+            reviewActive(frame.current) ||
             pointer.current !== null ||
             e.button !== 0
           )
@@ -486,10 +489,10 @@ export default function TennisGame({
             e.currentTarget.clientWidth
           );
           move(e);
-          if (canHit) {
+          if (canHit()) {
             unlock();
             charging.current = true;
-            setCharge(0.2);
+            setCharge(TAP_POWER);
           }
         }}
         onPointerMove={move}
@@ -594,26 +597,42 @@ export default function TennisGame({
               {!onLobby && <b>{room.code}</b>} · {onlineStatus}
             </div>
           )}
-          <div className="tr-call" role="status">
+          <div className="tr-call" role="status" hidden={reviewActive(hud)}>
             {hud.phase === 'serve'
               ? hud.score.server === own
                 ? hud.fault
                   ? 'Second serve'
                   : 'Your serve'
                 : 'Opponent serves'
-              : hud.phase === 'point'
-                ? `${hud.lastPoint === own ? 'Your' : 'Opponent'} point`
-                : hud.phase === 'toss'
-                  ? 'Ball toss'
-                  : hud.phase === 'over'
-                    ? ''
-                    : hud.rally > 1
-                      ? `${hud.rally} shot rally`
-                      : 'Return the serve'}
+              : hud.phase === 'fault'
+                ? hud.message
+                : hud.phase === 'point'
+                  ? `${hud.message.split(' · ')[0]} · ${hud.lastPoint === own ? 'Your' : 'Opponent'} point`
+                  : hud.phase === 'toss'
+                    ? 'Ball toss'
+                    : hud.phase === 'over'
+                      ? ''
+                      : hud.rally > 1
+                        ? `${hud.rally} shot rally`
+                        : 'Return the serve'}
           </div>
-          <div className="tr-touch-hud">
+          <div className="tr-touch-hud" hidden={reviewActive(hud)}>
             <div className="tr-touch-state">
-              <span>{shot === 'flat' ? 'Drive' : shot}</span>
+              <button
+                type="button"
+                className="tr-stroke-picker"
+                aria-label={`Shot type: ${shot}. Change stroke`}
+                onClick={() =>
+                  chooseShot(
+                    (['flat', 'topspin', 'slice', 'lob'] as Shot[])[
+                      (['flat', 'topspin', 'slice', 'lob'].indexOf(shot) + 1) %
+                        4
+                    ]
+                  )
+                }
+              >
+                {shot === 'flat' ? 'Drive' : shot} ▾
+              </button>
               <b>{aim < -0.15 ? 'Left' : aim > 0.15 ? 'Right' : 'Centre'}</b>
               <span className="tr-power-value">
                 {Math.round(charge * 100)}% power
@@ -630,11 +649,14 @@ export default function TennisGame({
               <i style={{ width: `${charge * 100}%` }} />
             </div>
             <p>
-              Faster swipe = more power · release to hit
+              Tap softly · swipe faster to hit harder
               <br />
-              Aim where you release · up: topspin · down: slice
+              Swipe toward your opponent · angle to steer
             </p>
           </div>
+          {reviewActive(hud) && hud.review && (
+            <LineReview review={hud.review} time={hud.time} />
+          )}
         </>
       )}
       {screen === 'home' && (
@@ -892,31 +914,34 @@ export default function TennisGame({
             <li>
               <b>Serve</b>
               <p>
-                Swipe across the court and release. A faster swipe hits harder;
-                holding still does not add power. Your serve goes into the
-                diagonal service box.
+                Tap for a soft diagonal serve, or swipe toward the opposite
+                service box. Faster finger movement gives the ball more speed;
+                holding still does not build power.
               </p>
             </li>
             <li>
               <b>Return</b>
               <p>
-                Touch and drag anywhere on court to move, then release as the
-                ball approaches. Release on the visually left, centre, or right
-                of the screen to aim there.
+                Your player moves to intercept the ball. Tap for a soft return
+                or release a swipe as the ball approaches. You can queue a shot
+                just before it reaches your racket.
               </p>
             </li>
             <li>
               <b>Find the space</b>
               <p>
-                Release on the visually left, centre, or right side of the court
-                to aim there.
+                Swipe toward the opponent and angle your finger left or right to
+                steer. The direction follows your movement, wherever the gesture
+                starts on screen. Tap the stroke badge to choose drive, topspin,
+                slice or lob without changing your swipe direction.
               </p>
             </li>
             <li>
-              <b>Change the rally</b>
+              <b>Close line calls</b>
               <p>
-                Swipe level for a drive, visually up for topspin, or visually
-                down for slice. A long, slow swipe up plays a lob.
+                A bounce on or close to a line is replayed after the point.
+                Watch the slow-motion approach and the ball mark with the IN or
+                OUT decision. Play resumes automatically.
               </p>
             </li>
           </ol>
@@ -991,7 +1016,7 @@ export default function TennisGame({
           </div>
         </div>
       )}
-      {hud.phase === 'over' && screen === 'match' && (
+      {hud.phase === 'over' && !reviewActive(hud) && screen === 'match' && (
         <div className="tr-modal">
           <div className="tr-modal-card">
             <span className="tr-eyebrow">GAME. SET. MATCH.</span>

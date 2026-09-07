@@ -17,7 +17,8 @@ catalog at `/games/kartroyale/lobby` (also available at `/games/kartroyale`).
 Auto throttle starts after the countdown. Touch the left/right buttons to steer,
 BRAKE to slow down, hold DRIFT while steering then release for turbo, or hold
 BOOST on a straight. Keyboard: arrows or A/D, down/S, Space, Shift. Left always
-turns visually left from the chase camera. Portrait is never rotated.
+turns visually left in both driver and chase view. Driver view is the default; the
+camera button switches views and saves the preference. Portrait is never rotated.
 
 ## Implementation
 
@@ -121,9 +122,13 @@ adaptations. All choices use identical physics; the chosen appearance is validat
 by the server before racing and included in snapshots/reconnects. Models, textures,
 source URLs, original licenses and SHA-256 hashes are shipped locally.
 
-Human spectators stand behind barriers on both sides of roads, face the circuit,
-cheer and wave red Albanian flags with the black double-headed eagle. Instanced
-body parts, distance culling and a shared flag shader keep crowd draw calls bounded.
+Human spectators reuse the exact male/female Quaternius GLBs from Table Tennis
+Royal (`/assets/table-tennis/athlete-{male,female}.glb`, CC0). They wear red/ivory
+shirts and dark trousers, stand behind the barriers, and wave Albanian flags.
+Nearby supporters use articulated skeletons for windup, release and follow-through;
+distant people are instanced baked poses of the same models. The animated pool is
+bounded to 14 humans (6 in performance mode); distant people and flags are culled.
+The original Table Tennis credits and Quaternius license remain alongside the assets.
 
 **Poly Haven Asphalt 02 (CC0)** supplies the retained PBR road maps. The Albanian
 flag comes from **flag-icons (MIT)** with its license retained. Visible OSM attribution
@@ -193,7 +198,7 @@ to enable live multiplayer in TonPlaygram.
 - Kart contacts use equal-mass impulses, small restitution, friction and positional
   separation. Same-speed contact and separating overlaps do not generate damage.
 - Impact damage accumulates, with front/rear/side body deformation, reduced engine
-  acceleration/top speed and smoke below 40 integrity. At zero, the kart retires
+  acceleration/top speed and smoke below 25 integrity. At zero, the kart retires
   as DNF; it cannot move, gain laps, earn a best time or win career rewards.
 - Retired humans count as done for server completion. A verified finisher can win
   the existing TPG pot; all-retired/no-finisher races follow the existing refund path.
@@ -220,3 +225,35 @@ Tests cover all five road paths, all fifteen circuit/difficulty AI races, collis
 energy/damage behavior, retirement, server input authority, cosmetics, reconnect,
 TPG results and settlement. Visual rendering, audio playback and FPS still need a
 WebGL-capable phone check before production release.
+
+## Driver view, forgiving crashes and crowd throws
+
+Driver view mounts the camera at kart head height, follows the chassis heading,
+and hides the local driver's obstructing body. Portrait field of view keeps
+corners visible; steering directions match the phone screen. Chase view remains
+one tap away. Camera recoil is brief and small; reduced-motion preference removes
+camera shake and bob.
+
+Crash feedback is independent of damage: impacts animate a damped chassis pitch,
+roll and suspension bounce, tire dust and small debris. Contacts below 3.5 m/s
+normal closing speed do not damage the kart. A 25 m/s head-on collision removes
+about 8.3 integrity; even a full-speed impact is capped at 14 (previously 42).
+A 300 ms impact cooldown prevents a single contact from repeatedly charging damage.
+Scrape damage remains time-scaled at a lower rate. Engine degradation is limited
+to 18% before retirement. Existing collision impulse, lap, retirement and settlement
+rules remain authoritative.
+
+Supporters alternate eggs and tomatoes. Throwers aim and wind up before releasing
+from their actual hand, then follow through. Projectiles follow a gravity arc,
+lead the target at release and can miss when a racer changes direction. Swept
+moving-kart collision checks prevent tunnelling. Eggs break into shell fragments,
+white and yolk; tomatoes burst into pulp and droplets. Impacts add a spreading,
+dripping splat to the kart or road and a distinct local sound. Player hits create
+at most two side-of-visor splashes, clearing automatically within 2.65 seconds.
+No food hit changes integrity, steering, speed, lap progress or rewards. Crowd
+throws are local presentation effects; TPG race physics stays server-authoritative.
+
+Projectile, fragment, splat and animated-human pools are bounded. Pause freezes
+flight, splats and human throws; returning to the garage clears the effects.
+Sources are local, with no new asset dependency or texture-CDN request. This remains
+a planar racing simulation with animated impact feedback, not soft-body destruction.

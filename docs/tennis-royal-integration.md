@@ -19,30 +19,59 @@ The Games catalog and shared lobby header use the included Tennis Royal thumbnai
 
 The game uses React, TypeScript and Three.js with two rigged **Quaternius Universal Base Characters** athletes. These replace the Kenney Mini Characters. The optimized male/female meshes and hair are reused from `webapp/public/assets/table-tennis/athlete-{male,female}.glb`; their CC0 license and original provenance remain in that directory's `Quaternius-LICENSE.txt` and `CREDITS.md`. Source: https://quaternius.com/packs/universalbasecharacters.html . These are anatomical game characters, not photorealistic scans. Tennis adds opaque, smoothed clothing shells, sports-kit colors, articulated running/ready/serve/stroke poses, hand-anchored rackets, and head-attached hair. No paid or Ready Player Me assets are used by tennis.
 
-The stadium includes instanced seating and spectators, concrete tiers and aisles, drainage, windscreens, courtside benches, an umpire chair and floodlights. The court retains regulation dimensions and uses deterministic surface-specific acrylic, clay and grass textures, a dark mesh net with centre strap, soft shadows and a seamed ball. The closest end stand is hidden for each camera seat to preserve visibility. Texture generation is cached per surface. Software rendering retains athlete/seat colors and omits spectators to reduce CPU work.
+The stadium includes instanced seating and spectators, concrete tiers and aisles, drainage, windscreens, courtside benches, an umpire chair and floodlights. The court retains regulation dimensions and uses deterministic surface-specific acrylic, clay and grass textures, a dark mesh net with centre strap, soft shadows and a seamed ball. The closest end stand and windscreen/fence are hidden for each camera seat to preserve visibility. Texture generation is cached per surface. Software rendering retains athlete/seat colors and omits spectators to reduce CPU work.
 
 Kenney Impact Sounds remain embedded; their CC0 license is in `shared/tennis`. Crowd and fanfare are synthesized. Character binaries are loaded from the app's own assets. No runtime dependencies were added.
 
-## Swipe controls
+## Player camera and swipe controls
 
-Shot power comes from the last 120 ms of pointer movement, measured in court-screen widths per second. CSS coordinates make the response independent of device pixel ratio; interpolation handles sparse/coalesced pointer events. A stationary hold stays at 20% power, while a quick flick reaches 100%. Released power remains visible on the HUD. Canceled/lost pointers, secondary touches, pause and backgrounding do not release a shot.
+The low third-person camera sits behind the player at 4.8 m elevation, with 64° vertical field of view and smooth lateral/depth following. It keeps the player's body visible on 320–480 px phones and preserves screen axes for either online seat. The near fence is hidden so it cannot obstruct this closer camera.
 
-Release position continuously aims visually left/right, mapped for either camera seat. Swipe visually up for topspin, down for slice, or level for a drive; a long, slow upward gesture produces a lob. A fast upward flick stays topspin. Each stroke and serve varies flight time with power in the shared authoritative engine, so increased power actually increases ball pace. The existing serve capture, input clamping, collision rules and 120 Hz simulation remain in effect.
+Power and direction come from the last 120 ms of pointer movement, measured in court-screen widths per second. CSS coordinates and timestamp interpolation make equivalent gestures consistent across phone widths, pixel ratios and sparse/coalesced events. A stationary tap/hold is 10% power; a fast flick reaches 100%. Holding does not charge power. The stroke badge separately selects drive, topspin, slice or lob.
 
-`shared/tennis/engine.ts`, `career.ts` and `swipe.ts` are the canonical shared sources. Run `node scripts/buildTennisEngine.mjs` after editing them, and commit the generated `.js` files consumed by Node and Vite.
+The camera projection converts the finger's movement vector into a unit court direction. Starting or releasing on a different part of the screen does not change that direction. Diagonal and sideways gestures retain their angle; a backwards gesture is not forced toward the opponent. Swipe toward the opponent and angle left/right to steer. A tap without direction makes a soft central return or a diagonal serve. Assisted movement follows the interception point, so swiping no longer drags the player away from the ball. Manual movement remains available through the existing input contract.
 
-`node scripts/buildTennisPreview.mjs` builds a playable conversation fragment at `/workspace/tennis-royal.html`, using the same game, renderer, rig and gesture logic. It embeds the app's existing reduced Quaternius preview meshes and uses in-memory AI/career services. The normal app continues to load the full athlete meshes and its account/online services.
+The engine snapshots each queued shot's direction, power and spin, including serves, so subsequent input does not overwrite a released shot. Invalid/nonfinite directions are discarded and valid directions normalized on the server. Human placement has no random error. Power changes actual ball pace and depth; arcs retain net clearance for soft returns. Canceled/lost pointers, extra touches, pause and backgrounding do not release a shot.
+
+## Pro AI
+
+Exhibitions and the conversation preview default to Pro; Club and Tour remain selectable and career retains its progression. The deterministic opponent predicts reachable contact points through a surface-specific bounce, has level-specific reaction intervals and movement speeds, waits for a useful contact height, recovers according to court position, attacks open space and sometimes plays behind a recovering opponent. It selects a lob against a net player, a drop against a deep player, and safer strokes under pressure. It never teleports or awards itself points.
+
+This is a tuned game AI policy, not a newly trained neural model. A reproducible 30-seed benchmark uses an assisted reference player hitting right at 55% power every 1.25 seconds. With the corrected bounce response, Club/Tour/Pro win 0/27/30 matches respectively. This is a regression/calibration fixture, not a claim about win rates against real players.
+
+## Ball contact and point transitions
+
+`physics.ts` advances the ball to the exact floor or net contact, applies the physical response, then lets the match engine adjudicate it. Legal landings, out balls, second bounces and double faults all rebound. A scoring decision no longer sets velocity to zero. A first service fault or let enters a 1.55-second `fault` phase so the rebound remains visible before the next serve. Swings during toss, faults, point breaks and reviews cannot queue a later shot. A serve that escapes the play area before landing counts as a fault instead of awarding an immediate point.
+
+Hard, clay and grass use different rebound, sliding and rolling responses. Horizontal grip preserves the incoming heading; vertical restitution and bounded spin control the rebound. Repeated contacts lose energy and eventually settle into rolling friction. Exact ground intersections and processing the remaining step prevent fast balls tunnelling through the court or small bounces sinking below it. A net strike deflects the ball back and lets it fall and bounce; a legal net-cord serve repeats the same serve attempt.
+
+Line reviews intentionally pause the saved live rebound while showing the recorded contact. After the review, ball motion resumes without awarding another point. Both online seats receive the same physical state. After a completed online match, the server continues the final ball motion behind the result panel; winner and settlement remain final.
+
+## Television-style line review
+
+`court.ts` owns painted line extents, circle/rectangle contact (including corners), exact ground-intersection time and the replay trajectory. Court dimensions use the outer paint edge, and line contact counts as inside, following Rules 1 and 12 of the [2026 ITF Rules of Tennis](https://www.itftennis.com/media/7221/2026-rules-of-tennis-english.pdf). The live ball is enlarged to 0.12 m radius for visibility, but calls and the magnified replay use a 0.0335 m contact radius. Contact with a line is IN; a footprint that misses it is OUT. This is the game's deterministic footprint model, not a claim of real camera tracking or deformable-ball measurement.
+
+A first bounce within 0.18 m of the contact boundary records its actual impact velocity, position and rebound. Legal rallies continue; after the point, a 4.4-second review shows the final approach at quarter speed, then a top-down ball mark with IN/OUT and distance in millimetres. Near-line first faults are reviewed before the second serve. The review uses recorded physics, including surface restitution, and never re-awards a score.
+
+Online snapshots carry the same review for both seats. The authoritative clock pauses live play, consumes stray swing IDs during the review and resumes automatically. Match-winning reviews finish before normal settlement; leaving during a final review preserves the already-decided winner and settles once. Disconnects retain the existing account/room rules.
+
+`shared/tennis/{court,physics,ai,engine,career,swipe}.ts` are canonical. Run `node scripts/buildTennisEngine.mjs` after editing them and commit the generated JavaScript consumed by Node and Vite.
+
+`node scripts/buildTennisPreview.mjs /workspace/tennis-bounce-fixed.html` builds a playable conversation fragment from the actual game, renderer and engine. It embeds the existing reduced Quaternius meshes and uses in-memory AI/career services. The full app retains its full meshes and account/online services.
 
 ## Validation
 
 - `npx tsc -p tsconfig.tennis.json`
-- `node --test test/tennisRoyalIntegration.test.mjs test/tennisRoyalSocket.test.mjs test/tennisSwipe.test.mjs`
+- `node --test test/tennisRoyalIntegration.test.mjs test/tennisRoyalSocket.test.mjs test/tennisSwipe.test.mjs test/tennisLineReview.test.mjs test/tennisPlayerView.test.mjs test/tennisBounce.test.mjs`
+- `node scripts/checkTennisBrowser.mjs` (install Chromium with Playwright first, or set `TENNIS_BROWSER_EXECUTABLE`; set `TENNIS_BROWSER_OUTPUT_DIR` to retain screenshots and contact traces)
 - `npx jest test/onlineGamePolicy.test.js test/tpgGameContracts.test.js test/simpleOnlineFlow.test.js --runInBand`
 - `npm --prefix webapp run build`
 
 These cover the actual tennis service and Socket.IO transport, engine completion, stake accounting, replay protection, input/seat restrictions, reconnects, timeout refunds, cancellation during reservation, and career persistence. Stake unit tests use the repository's isolated memory user store; production MongoDB transactions need the staging check below.
 
-Swipe regressions also verify equal-distance fast/slow gestures, stationary holds and pauses, flicks after holding, screen-size and sampling-rate equivalence, noisy timestamps, screen-relative aiming for both seats, and increased ball pace with legal first bounces for every stroke and serve. The September 7 upgrade passed all 13 tennis tests, the tennis TypeScript check, and the full webapp build. Athlete skeletal/garment geometry was inspected offline; physical-device visual performance remains a staging check.
+All 37 tennis tests, the strict tennis TypeScript check and the full webapp Vite build passed. The regression loop includes 108 complete physical trajectories across three courts, four step sizes, three speeds and three spins, plus 180 seeded matches (90 AI calibration matches and 90 with varied stroke timing, type, power and aim). It checks contact energy loss, heading preservation, settling, score-once behavior, faults, lets, airborne point endings, review resumption and matching online rebounds through final settlement. Existing swipe, camera, account and replay checks remain in the suite.
+
+The browser loop bundles the actual React/Three game with a test-only state probe, serves its existing assets through Playwright request interception, and checks 24 visible landing cases across courts and seats. It also checks real pointer input at 320/390/480 px portrait widths, taps versus fast swipes, pause/resume, canceled gestures, stroke selection, line review and rematch. Chromium 149 with SwiftShader passed these checks. No game JavaScript errors occurred; Google Fonts was unavailable in the test environment, so screenshots use the existing fallback fonts. The probe is not included in the production build. Physical touch feel, device audio and hardware performance still need a phone playtest.
 
 The monolithic `allGamesOnlineMatchmaking` server test could not start in this workspace because the repository's native `canvas` module was unavailable; rebuilding it failed in node-gyp header extraction. No test bypass or production dependency change was added.
 

@@ -199,6 +199,9 @@ export function buildStadium(parent: THREE.Group, low = false) {
   makeStand(23.5, 0, -20, Math.PI, true);
   makeStand(23.5, 0, 20, 0, true);
 
+  // End enclosures can be hidden when the player camera sits behind them.
+  const enclosures = [new THREE.Group(), new THREE.Group()];
+  stadium.add(...enclosures);
   // Courtside windscreen branding and a slim chain-link enclosure.
   const canvas = document.createElement('canvas');
   canvas.width = 1024;
@@ -225,28 +228,29 @@ export function buildStadium(parent: THREE.Group, low = false) {
       );
       banner.position.set(0, 0.62, z);
       if (z > 0) banner.rotation.y = Math.PI;
-      stadium.add(banner);
+      enclosures[z < 0 ? 0 : 1].add(banner);
     }
   }
-  const fence: number[] = [];
   for (const z of [-18.4, 18.4]) {
+    const enclosure = enclosures[z < 0 ? 0 : 1];
+    const fence: number[] = [];
     for (let x = -11.4; x <= 11.4; x += 2.85)
-      box(stadium, 0.065, 3.6, 0.065, steel, x, 1.8, z);
+      box(enclosure, 0.065, 3.6, 0.065, steel, x, 1.8, z);
     for (let x = -11.4; x < 11.4; x += 0.32) fence.push(x, 1.15, z, x, 3.6, z);
     for (let y = 1.15; y < 3.6; y += 0.32) fence.push(-11.4, y, z, 11.4, y, z);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(fence, 3));
+    enclosure.add(
+      new THREE.LineSegments(
+        geo,
+        new THREE.LineBasicMaterial({
+          color: 0x7e9c96,
+          transparent: true,
+          opacity: 0.24
+        })
+      )
+    );
   }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(fence, 3));
-  stadium.add(
-    new THREE.LineSegments(
-      geo,
-      new THREE.LineBasicMaterial({
-        color: 0x7e9c96,
-        transparent: true,
-        opacity: 0.24
-      })
-    )
-  );
 
   for (const x of [-8.2, 8.2]) {
     const z = x < 0 ? 3 : -3;
@@ -279,5 +283,5 @@ export function buildStadium(parent: THREE.Group, low = false) {
       for (let i = -1; i <= 1; i++)
         box(stadium, 0.55, 0.3, 0.32, lamp, x + i * 0.65, 8.84, z);
     }
-  return { ends, group: stadium };
+  return { ends, enclosures, group: stadium };
 }

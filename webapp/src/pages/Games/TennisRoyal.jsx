@@ -16,7 +16,9 @@ export default function TennisRoyal() {
       surface: ['hard', 'clay', 'grass'].includes(p.get('surface'))
         ? p.get('surface')
         : 'hard',
-      difficulty: Math.max(0, Math.min(2, Number(p.get('difficulty')) || 0)),
+      difficulty: ['0', '1', '2'].includes(p.get('difficulty'))
+        ? Number(p.get('difficulty'))
+        : 2,
       format: ['quick', 'set', 'full'].includes(p.get('format'))
         ? p.get('format')
         : 'quick',

@@ -20,12 +20,13 @@ import {
   Zap,
   RotateCcw,
   Cpu,
+  Camera,
   Wifi,
   WifiOff,
   Wrench
 } from 'lucide-react';
 import { KartRenderer } from './renderer';
-import type { Quality, Frame, Result } from './renderer';
+import type { Quality, Frame, Result, CameraMode } from './renderer';
 import {
   COLORS,
   TRACKS,
@@ -129,6 +130,15 @@ export default function KartRoyale({
     [cup, setCup] = useState(0),
     [reward, setReward] = useState(0),
     [saved, setSaved] = useState(true);
+  const [cameraMode, setCameraMode] = useState<CameraMode>(() => {
+    try {
+      return localStorage.getItem('racingRoyal.camera') === 'chase'
+        ? 'chase'
+        : 'driver';
+    } catch {
+      return 'driver';
+    }
+  });
   const [muted, setMuted] = useState(() => {
       try {
         return localStorage.getItem('racingRoyal.muted') === 'true';
@@ -246,6 +256,12 @@ export default function KartRoyale({
   useEffect(() => {
     engine.current?.setQuality(quality);
   }, [quality]);
+  useEffect(() => {
+    engine.current?.setCameraMode(cameraMode);
+    try {
+      localStorage.setItem('racingRoyal.camera', cameraMode);
+    } catch {}
+  }, [cameraMode, loaded]);
   useEffect(() => {
     audio.current?.setMuted(muted);
     try {
@@ -1126,6 +1142,15 @@ export default function KartRoyale({
             </div>
             <small>{hud?.fps || '—'} FPS</small>
           </div>
+          <button
+            className="kr-camera-toggle"
+            aria-label={`Switch to ${cameraMode === 'driver' ? 'chase' : 'driver'} camera`}
+            onClick={() =>
+              setCameraMode((v) => (v === 'driver' ? 'chase' : 'driver'))
+            }
+          >
+            <Camera size={17} /> {cameraMode === 'driver' ? 'DRIVER' : 'CHASE'}
+          </button>
           {(hud?.countdown || 0) > 0 && (
             <div className="kr-countdown">
               <span>GET READY</span>
@@ -1352,6 +1377,18 @@ export default function KartRoyale({
             {modal === 'settings' ? (
               <>
                 <label className="kr-setting">
+                  <span>Camera</span>
+                  <select
+                    value={cameraMode}
+                    onChange={(e) =>
+                      setCameraMode(e.target.value as CameraMode)
+                    }
+                  >
+                    <option value="driver">Driver view</option>
+                    <option value="chase">Chase view</option>
+                  </select>
+                </label>
+                <label className="kr-setting">
                   <span>Graphics</span>
                   <select
                     value={quality}
@@ -1414,8 +1451,9 @@ export default function KartRoyale({
                     >
                       Rob Tuytel / Poly Haven
                     </a>
-                    . Models and asphalt: CC0. Adapted for TonPlaygram. Tirana
-                    geography:{' '}
+                    . Karts and asphalt: CC0. Supporters reuse the male and
+                    female Quaternius characters from Table Tennis Royal (CC0).
+                    Adapted for TonPlaygram. Tirana geography:{' '}
                     <a
                       href="https://www.openstreetmap.org/copyright"
                       target="_blank"
@@ -1460,7 +1498,14 @@ export default function KartRoyale({
                   <p>
                     Hold BOOST on the straights. Finish three complete laps. The
                     harder you crash, the more bodywork and engine damage you
-                    take. At zero integrity your kart retires.
+                    take. Small bumps are forgiving. At zero integrity your kart
+                    retires.
+                  </p>
+                  <b>04 · Watch the crowd.</b>
+                  <p>
+                    Supporters throw eggs and tomatoes. Steer away from their
+                    flight paths. Splashes clear automatically and do not damage
+                    your kart. Tap the camera button to change your view.
                   </p>
                 </div>
                 <p>
