@@ -4,6 +4,13 @@ export const isDatabaseQuotaError = (error) =>
   );
 
 export function flamingoUploadFailure(error) {
+  if (String(error?.code || '').startsWith('WALL_OBJECT_STORAGE_'))
+    return {
+      status: error.status || 503,
+      code: error.code,
+      retryable: error.retryable === true,
+      error: error.message
+    };
   if (error?.code === 'WALL_STORAGE_NOT_DURABLE')
     return {
       status: 503,

@@ -67,6 +67,16 @@ export async function fetch(input, init = {}) {
       headers: { 'Content-Type': 'application/json' }
     });
   if (route === '/identity') return reply(identity);
+  if (route.startsWith('/direct-upload/')) {
+    const [, , id, number] = route.split('/');
+    const session = sessions.get(id);
+    if (!session) return reply({ error: 'Preview session expired.' }, 410);
+    session.chunks.set((Number(number) - 1) * 5 * 1024 ** 2, init.body);
+    return new Response('', {
+      status: 200,
+      headers: { ETag: `"preview-part-${number}"` }
+    });
+  }
   if (route === '/posts') return reply({ posts, hasMore: false });
   const mediaStatus = route.match(/^\/posts\/([^/]+)\/media-status$/);
   if (mediaStatus) {
@@ -104,19 +114,33 @@ export async function fetch(input, init = {}) {
     const previous = sessions.get(id);
     if (previous)
       return reply({
+        transport: 's3-multipart',
         uploadId: id,
-        chunkBytes: 1024 ** 2,
+        chunkBytes: 5 * 1024 ** 2,
         receivedOffsets: [...previous.chunks.keys()],
         post: previous.post
       });
     const metadata = JSON.parse(init.body);
     sessions.set(id, { ...metadata, chunks: new Map() });
-    return reply({ uploadId: id, chunkBytes: 1024 ** 2, receivedOffsets: [] });
+    return reply({
+      transport: 's3-multipart',
+      uploadId: id,
+      chunkBytes: 5 * 1024 ** 2,
+      receivedOffsets: []
+    });
   }
   if (route.startsWith('/uploads/')) {
     const [, , id, action] = route.split('/');
     const session = sessions.get(id);
     if (!session) return reply({ error: 'Preview upload not found.' }, 404);
+    if (action === 'parts') {
+      const segments = route.split('/');
+      return reply(
+        segments[5] === 'sign'
+          ? { url: `https://preview.local/direct-upload/${id}/${segments[4]}` }
+          : {}
+      );
+    }
     if (action === 'complete') {
       if (!session.post) {
         const blob = new Blob(

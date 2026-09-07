@@ -1,9 +1,62 @@
 import {
   uploadWallFile,
+  uploadObjectPart,
   wallRequest
 } from '../webapp/src/features/flamingo/wallUpload.js';
 
 describe('wall upload recovery', () => {
+  test('object uploads resume only missing parts and acknowledge provider receipts before publication', async () => {
+    const calls = [];
+    const send = async (url, init) => {
+      calls.push([url, init]);
+      if (url.endsWith('/uploads'))
+        return {
+          uploadId: 'id',
+          transport: 's3-multipart',
+          chunkBytes: 4,
+          receivedOffsets: [0]
+        };
+      if (url.endsWith('/sign'))
+        return { url: 'https://bucket.test/signed-part' };
+      if (url.endsWith('/complete')) return { post: { _id: 'post' } };
+      return {};
+    };
+    const sendObjectPart = jest.fn(async () => 'provider-etag');
+    const file = Object.assign(new Blob(['abcdefghij']), { name: 'video.mp4' });
+    const result = await uploadWallFile({
+      baseUrl: '',
+      headers: { 'X-Wall-Owner-Token': 'owner' },
+      file,
+      uploadId: 'id',
+      send,
+      sendObjectPart
+    });
+    expect(result.post._id).toBe('post');
+    expect(sendObjectPart).toHaveBeenCalledTimes(2);
+    expect(await sendObjectPart.mock.calls[0][1].text()).toBe('efgh');
+    expect(
+      calls
+        .filter(([url]) => url.endsWith('/ack'))
+        .map(([, init]) => JSON.parse(init.body))
+    ).toEqual([{ etag: 'provider-etag' }, { etag: 'provider-etag' }]);
+    expect(calls.at(-1)[0]).toMatch(/complete$/);
+  });
+  test('direct upload requests never forward wall credentials or cookies to the bucket', async () => {
+    const request = jest.fn(
+      async () =>
+        new Response('', { status: 200, headers: { ETag: 'receipt' } })
+    );
+    expect(
+      await uploadObjectPart('https://bucket.test/part', new Blob(['video']), {
+        request
+      })
+    ).toBe('receipt');
+    const init = request.mock.calls[0][1];
+    expect(init.credentials).toBe('omit');
+    expect(init.headers).toEqual({
+      'Content-Type': 'application/octet-stream'
+    });
+  });
   test('restoration uses the resumable protocol and returns the original post id', async () => {
     const send = jest.fn(async (_url, init) => {
       expect(JSON.parse(init.body).restorePostId).toBe('existing-post');

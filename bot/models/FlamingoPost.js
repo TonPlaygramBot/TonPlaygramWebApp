@@ -10,6 +10,8 @@ const attachmentSchema = new mongoose.Schema({
   // exact bytes saved for this post even when users upload identically named
   // photos or videos.
   databaseFileId: { type: mongoose.Schema.Types.ObjectId, default: undefined },
+  objectKey: { type: String, default: undefined },
+  objectBucket: { type: String, default: undefined },
   duration: { type: Number, default: 0 },
   premium: { type: Boolean, default: false },
   priceTpg: { type: Number, min: 0, max: 1000000, default: 0 }
@@ -39,6 +41,7 @@ const flamingoPostSchema = new mongoose.Schema({
 });
 
 flamingoPostSchema.index({ createdAt: -1 });
+flamingoPostSchema.index({ 'attachment.objectKey': 1 }, { sparse: true });
 flamingoPostSchema.index({ ownerTokenHash: 1, clientId: 1 }, { unique: true, partialFilterExpression: { clientId: { $type: 'string' } } });
 flamingoPostSchema.index(
   { source: 1, sourceId: 1 },
