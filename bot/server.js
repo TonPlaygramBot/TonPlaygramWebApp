@@ -12,12 +12,14 @@ import { initSocket } from './socket.js';
 import { createTableTennisRoyal } from './services/tabletennisRoyal.js';
 import { attachKartRoyale } from './services/kartRoyale.js';
 import { attachRoyalLanes } from './services/royalLanes.js';
+import { attachArcheryRoyal } from './services/archeryRoyal.js';
 import { createBowlingStakeService } from './services/bowlingStake.js';
 import { attachBlackwater } from './services/blackwater.js';
 import { createBlackwaterStakeService } from './services/blackwaterStake.js';
 import { createTiranaStreets } from './services/tiranaStreets.js';
 import { createKartStakeService } from './services/kartStake.js';
 import KartMatch from './models/KartMatch.js';
+import ArcheryMatch from './models/ArcheryMatch.js';
 import { createTennisRoyal } from './services/tennisRoyal.js';
 import { LudoBattleGame } from './logic/ludoBattleGame.js';
 import { GameRoomManager } from './gameEngine.js';
@@ -294,11 +296,23 @@ const royalLanes = attachRoyalLanes(io, {
   settleMatch: bowlingStake.settle,
   onMatchClosed: (tableId) => tableMap.delete(tableId)
 });
+const archeryStake = createKartStakeService({
+  MatchModel: ArcheryMatch,
+  gameType: 'archeryroyal',
+  ledgerPrefix: 'archery',
+  maxPlayers: 2,
+  reservationTtlMs: 20 * 60_000
+});
+const archeryRoyal = attachArcheryRoyal(io, {
+  settleMatch: archeryStake.settle,
+  onMatchClosed: (tableId) => tableMap.delete(tableId)
+});
 // Expired persisted reservations are refunded even after a process restart.
 setInterval(() => {
   bowlingStake.recoverExpired().catch((error) => console.error('Bowling recovery:', error.message));
   kartStake.recoverExpired().catch((error) => console.error('Kart recovery:', error.message));
   blackwaterStake.recoverExpired().catch((error) => console.error('Blackwater recovery:', error.message));
+  archeryStake.recoverExpired().catch((error) => console.error('Archery recovery:', error.message));
 }, 60_000).unref();
 
 // Expose socket.io instance and userSockets map for routes
@@ -1826,9 +1840,9 @@ function maybeStartGame(table) {
         return;
       }
       console.log(`Table ${table.id} confirmed by all players. Starting game.`);
-      if (['kartroyale', 'blackwater', 'royallanes'].includes(table.gameType)) {
-        const stakeService = table.gameType === 'royallanes' ? bowlingStake : table.gameType === 'blackwater' ? blackwaterStake : kartStake;
-        const runtime = table.gameType === 'royallanes' ? royalLanes : table.gameType === 'blackwater' ? blackwater : kartRoyale;
+      if (['kartroyale', 'blackwater', 'royallanes', 'archeryroyal'].includes(table.gameType)) {
+        const stakeService = table.gameType === 'royallanes' ? bowlingStake : table.gameType === 'blackwater' ? blackwaterStake : table.gameType === 'archeryroyal' ? archeryStake : kartStake;
+        const runtime = table.gameType === 'royallanes' ? royalLanes : table.gameType === 'blackwater' ? blackwater : table.gameType === 'archeryroyal' ? archeryRoyal : kartRoyale;
         table.starting = true;
         let reserved = false;
         const roster = table.players.map((p) => String(p.id)).join('|');
@@ -1970,7 +1984,7 @@ function unseatTableSocket(accountId, tableId, socketId) {
   if (!tableId) return;
   // Once started, the game runtime owns the immutable roster and stake.
   // A late lobby cancel or disconnect must not release its account lock.
-  if (['kartroyale', 'blackwater', 'royallanes'].includes(tableMap.get(tableId)?.gameType) && tableMap.get(tableId)?.started) return;
+  if (['kartroyale', 'blackwater', 'royallanes', 'archeryroyal'].includes(tableMap.get(tableId)?.gameType) && tableMap.get(tableId)?.started) return;
   const map = tableSeats.get(tableId);
   const normalizedAccountId = accountId ? String(accountId) : '';
   // A mobile WebView can reconnect before Socket.IO finishes disconnecting the
@@ -2757,8 +2771,8 @@ io.on('connection', (socket) => {
 
       const safeMeta = validation.safeMatchMeta;
 
-      if (['kartroyale', 'blackwater', 'royallanes'].includes(validation.normalizedGameType)) {
-        const stakeService = validation.normalizedGameType === 'royallanes' ? bowlingStake : validation.normalizedGameType === 'blackwater' ? blackwaterStake : kartStake;
+      if (['kartroyale', 'blackwater', 'royallanes', 'archeryroyal'].includes(validation.normalizedGameType)) {
+        const stakeService = validation.normalizedGameType === 'royallanes' ? bowlingStake : validation.normalizedGameType === 'blackwater' ? blackwaterStake : validation.normalizedGameType === 'archeryroyal' ? archeryStake : kartStake;
         try { await stakeService.canQueue(String(resolvedAccountId), validation.normalizedStake, tableId); }
         catch (error) { return cb && cb({ success: false, error: error.message }); }
         // The asynchronous balance read may complete after this phone leaves.
