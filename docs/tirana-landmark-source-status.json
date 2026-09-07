@@ -1,0 +1,138 @@
+{
+  "status": "Preparation only; source listings are not model files",
+  "catalogueDate": "2026-09-07",
+  "acquiredModelCount": 0,
+  "installedModelCount": 0,
+  "visuallyVerifiedModelCount": 0,
+  "records": [
+    {
+      "id": "eyes-of-tirana",
+      "name": "Eyes of Tirana",
+      "source": "https://sketchfab.com/3d-models/eyes-of-tirana-d25c07d8c69e46b2a5a9f100e33464d8",
+      "listedLicense": "CC Attribution (version not established)",
+      "catalogueStatus": "Open-license candidate",
+      "acquired": false,
+      "approved": false,
+      "modelUrl": null,
+      "locationBinding": null
+    },
+    {
+      "id": "petrela-castle",
+      "name": "Petrelë Castle — Petrela, Tirana",
+      "source": "https://sketchfab.com/3d-models/petrele-castle-petrela-tirana-drone-3d-scan-61fc55a9f5134e5288795be60ef56dd9",
+      "listedLicense": "CC Attribution (version not established)",
+      "catalogueStatus": "Open-license candidate",
+      "acquired": false,
+      "approved": false,
+      "modelUrl": null,
+      "locationBinding": null
+    },
+    {
+      "id": "clock-tower-warehouse",
+      "name": "Kulla e Sahatit — Clock Tower",
+      "source": "https://embed-3dwarehouse-classic.sketchup.com/model/6a3c730fad539dc2560bdb48063c438a/Kulla-e-Sahatit",
+      "listedLicense": "3D Warehouse General Model License; not verified as an open-content license",
+      "catalogueStatus": "Separate license review",
+      "acquired": false,
+      "approved": false,
+      "modelUrl": null,
+      "locationBinding": {
+        "kind": "world-landmark",
+        "landmarkId": "clock",
+        "source": "Existing WORLD.landmarks: OSM way 233519333; source-data anchor, not a new survey"
+      }
+    },
+    {
+      "id": "national-museum-warehouse",
+      "name": "Muzeu Historik Kombëtar — National History Museum",
+      "source": "https://embed-3dwarehouse-classic.sketchup.com/model/ef0e980cc2315363a862b991e78616fa/Muzeu-Historik-Kombetar",
+      "listedLicense": "3D Warehouse General Model License; not verified as an open-content license",
+      "catalogueStatus": "Separate license review",
+      "acquired": false,
+      "approved": false,
+      "modelUrl": null,
+      "locationBinding": null
+    },
+    {
+      "id": "great-mosque",
+      "name": "Great Mosque of Tirana",
+      "source": "https://sketchfab.com/3d-models/great-mosque-of-tirana-albania-60af8a8211ff45729f2ce88a285a6443",
+      "listedLicense": "CC Attribution-NonCommercial; NoAI label",
+      "catalogueStatus": "Excluded from commercial/open asset selection",
+      "acquired": false,
+      "approved": false,
+      "modelUrl": null,
+      "locationBinding": null
+    },
+    {
+      "id": "tirana-terrain",
+      "name": "Tirana — regional terrain/map model",
+      "source": "https://sketchfab.com/3d-models/tirana-2c9d602041a5435a8840280037fab7c7",
+      "listedLicense": "CC Attribution-NonCommercial-ShareAlike",
+      "catalogueStatus": "Excluded from commercial/open asset selection",
+      "acquired": false,
+      "approved": false,
+      "modelUrl": null,
+      "locationBinding": null
+    },
+    {
+      "id": "national-museum-stl",
+      "name": "National Museum of History — printable model",
+      "source": "https://cults3d.com/en/3d-model/architecture/national-museum-of-history-albania",
+      "listedLicense": "CC BY-NC-SA; No AI label",
+      "catalogueStatus": "Excluded from commercial/open asset selection",
+      "acquired": false,
+      "approved": false,
+      "modelUrl": null,
+      "locationBinding": null
+    },
+    {
+      "id": "clock-tower-sketchfab",
+      "name": "The Clock Tower of Tirana",
+      "source": "https://sketchfab.com/3d-models/the-clock-tower-of-tirana-3af4fe9407684ade9430149454c246b2",
+      "listedLicense": "No reuse license verified",
+      "catalogueStatus": "Viewing listing; download not verified",
+      "acquired": false,
+      "approved": false,
+      "modelUrl": null,
+      "locationBinding": {
+        "kind": "world-landmark",
+        "landmarkId": "clock",
+        "source": "Existing WORLD.landmarks: OSM way 233519333; source-data anchor, not a new survey"
+      }
+    },
+    {
+      "id": "stalin-statue",
+      "name": "Stalin statue with three LODs — Albania Heritage",
+      "source": "https://sketchfab.com/3d-models/stalin-statue-w-3-lod-albania-heritage-1d140bc1b29645e6b65d175e24daad7b",
+      "listedLicense": "Legacy store listing; current license not verified",
+      "catalogueStatus": "Not verified as a free asset",
+      "acquired": false,
+      "approved": false,
+      "modelUrl": null,
+      "locationBinding": null
+    },
+    {
+      "id": "partisan-girl",
+      "name": "Communist Partisan Girl with LODs — Albania Heritage",
+      "source": "https://sketchfab.com/3d-models/communist-partisan-girl-w-lod-albania-heritage-b00b9d4014b443018ecc4d08de057737",
+      "listedLicense": "Legacy store listing; current license not verified",
+      "catalogueStatus": "Not verified as a free asset",
+      "acquired": false,
+      "approved": false,
+      "modelUrl": null,
+      "locationBinding": null
+    },
+    {
+      "id": "freedom-victory",
+      "name": "Freedom/Victory — original plaster-model scan",
+      "source": "https://zenodo.org/records/20364752",
+      "listedLicense": "Mesh reuse license not established",
+      "catalogueStatus": "Research reference; mesh download not verified",
+      "acquired": false,
+      "approved": false,
+      "modelUrl": null,
+      "locationBinding": null
+    }
+  ]
+}
