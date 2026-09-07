@@ -1,0 +1,10 @@
+export type Point={x:number;z:number};export type CablePoint=Point&{y:number};
+export const REFERENCES:Record<'lower'|'upper',{id:string;name:string;latitude:number;longitude:number;osm:string;source:string;accuracy:string}>;
+export const CIVIC_SITES:readonly {id:string;way:string;name:string;material:string;source:string}[];
+export function project(origin:readonly number[],latitude:number,longitude:number):Point;
+export function unproject(origin:readonly number[],p:Point):{latitude:number;longitude:number};
+export function referenceLinks(origin:readonly number[],p:Point):Record<'satellite'|'streetView'|'openMap',string>;
+export function civicSites(world:any):{id:string;way:string;name:string;material:string;source:string;x:number;z:number;footprint:number[][];height:number}[];
+export function mountainHeight(x:number,z:number,origin:readonly number[]):number;
+export function cablePath(origin:readonly number[],samples?:number):CablePoint[];
+export function cablePose(path:CablePoint[],t:number,returning?:boolean,lane?:number):CablePoint&{yaw:number};
