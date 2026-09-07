@@ -45,6 +45,7 @@ export interface ShotContext {
   contactMade?: boolean;
   cushionAfterContact?: boolean;
   railContactCountAfterContact?: number;
+  objectBallsToRailAfterContact?: string[];
   noCushionAfterContact?: boolean;
   nominatedBall?: BallColor|string;
   declaredBall?: BallColor|string;
