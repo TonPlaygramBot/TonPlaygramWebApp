@@ -4,7 +4,6 @@ const gamesCatalog = [
     route: '/games/royallanes/lobby',
     slug: 'royallanes',
     image: '/assets/royal-lanes/mark.svg',
-    featured: true,
     modes: ['VS AI', 'TPG Online'],
     launchLabel: 'Enter Bowling Lobby',
     description: 'Realistic 3D bowling, human players, touch controls and ten-frame TPG matches.'
@@ -24,7 +23,6 @@ const gamesCatalog = [
     attribution: '© OpenStreetMap',
     image: '/assets/tirana-streets/map.svg',
     badge: 'Beta',
-    featured: true,
     modes: ['Solo operation', 'TPG Multiplayer'],
     launchLabel: 'Enter Tirana Streets',
     description:
@@ -43,7 +41,6 @@ const gamesCatalog = [
     slug: 'kartroyale',
     image: '/assets/kart-royale/cover.webp',
     badge: 'Beta',
-    featured: true,
     modes: ['VS AI', 'TPG Multiplayer', 'Career'],
     launchLabel: 'Enter Racing Lobby',
     description:
@@ -137,24 +134,17 @@ const gamesCatalog = [
     slug: 'ludobattleroyal',
     image: '/assets/icons/Ludo%20battle%20Royal%20game%20logo.png',
     description: 'Classic ludo chaos in a battle royale lobby.'
-  },
-  {
-    name: 'Underrun Arena',
-    route: '/games/underrunarena/lobby',
-    slug: 'underrunarena',
-    image: '/assets/icons/underrun-arena.svg',
-    description: 'Survive an auto-fire neon swarm online.'
   }
-];
+]
 
-export default gamesCatalog;
+export default gamesCatalog
 
 export const inviteGamesCatalog = gamesCatalog.filter(
   (game) => game.multiplayer !== false && game.inviteFlow !== 'room-code'
-);
+)
 
 export const catalogWithSlugs = gamesCatalog.map((game) => {
-  if (game.slug) return game;
-  const [, , slug] = game.route.split('/');
-  return { ...game, slug };
-});
+  if (game.slug) return game
+  const [, , slug] = game.route.split('/')
+  return { ...game, slug }
+})
