@@ -48,17 +48,11 @@ const r = await build({
 });
 const css = await readFile(base + '/game.css', 'utf8'),
   js = r.outputFiles[0].text;
-const fragment =
-  '<div id="table-tennis-preview"></div>\n<style>\n' +
-  css +
-  '\n</style>\n<script type="module">\n' +
-  js +
-  '\n</script>\n';
+const template = await readFile(base + '/preview/fragment.html', 'utf8');
+const fragment = template
+  .replace('/* TABLE_TENNIS_CSS */', () => css)
+  .replace('/* TABLE_TENNIS_JS */', () => js);
 if (Buffer.byteLength(fragment) > 1000000) throw Error('Preview exceeds 1 MB');
-await writeFile('/workspace/table-tennis-royal.html', fragment);
-const wrapper =
-  '<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Table Tennis Royal</title><style>body{margin:0;background:#0a1e26}#table-tennis-preview{width:390px;max-width:100%;margin:auto}</style></head><body>' +
-  fragment +
-  '</body></html>';
-await writeFile('/workspace/scratch/table-tennis-browser.html', wrapper);
-console.log('Preview bytes', Buffer.byteLength(fragment));
+const output = process.argv[2] || '/workspace/table-tennis-broadcast.html';
+await writeFile(output, fragment);
+console.log('Preview', output, 'bytes', Buffer.byteLength(fragment));

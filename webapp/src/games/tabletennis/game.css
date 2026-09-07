@@ -4,7 +4,7 @@
   width: 100%;
   max-width: 480px;
   height: 100dvh;
-  min-height: 650px;
+  min-height: 520px;
   max-height: 1050px;
   margin: auto;
   background: #10282e;
@@ -92,7 +92,7 @@
 }
 .tt-game .tt-scene {
   position: absolute;
-  inset: 80px 0 177px;
+  inset: 62px 0 150px;
   touch-action: none;
 }
 .tt-game .tt-scene canvas {
@@ -100,15 +100,39 @@
   width: 100%;
   height: 100%;
 }
+.tt-game[data-view='match'] .tt-scene {
+  inset: 0;
+}
+.tt-game[data-view='match'] {
+  touch-action: none;
+}
+.tt-game[data-view='match']:focus-visible {
+  outline: 3px solid #d5ff89;
+  outline-offset: -3px;
+}
+.tt-game[data-view='match'] .tt-broadcast {
+  top: max(12px, env(safe-area-inset-top));
+}
+.tt-game[data-view='match'] .tt-call {
+  top: 153px;
+}
+.tt-game[data-view='match'] .tt-vignette {
+  background: linear-gradient(
+    #10282e55,
+    transparent 30%,
+    transparent 80%,
+    #10282e33
+  );
+}
 .tt-game .tt-vignette {
   position: absolute;
   inset: 0;
   pointer-events: none;
   background: linear-gradient(
-    #10282e 4%,
-    #10282e00 32%,
-    #10282e00 70%,
-    #10282e 84%
+    #10282e99 0%,
+    #10282e00 25%,
+    #10282e00 72%,
+    #10282e66 100%
   );
 }
 .tt-game .tt-hero {
@@ -246,161 +270,138 @@
   color: #c4d5cf;
   margin-top: 12px;
 }
-.tt-game .tt-score {
+.tt-game .tt-broadcast {
   position: absolute;
-  z-index: 3;
-  top: 77px;
-  left: 16px;
-  right: 16px;
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  background: #123039e8;
-  border: 1px solid #bcd5c025;
-  border-radius: 12px;
-  padding: 9px 10px;
-  text-align: center;
-}
-.tt-game .tt-score small {
-  display: block;
-  font-size: 10px;
+  z-index: 4;
+  top: 76px;
+  left: 14px;
+  right: 14px;
+  border-radius: 10px;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.tt-game .tt-score strong {
-  display: block;
-  font-size: 38px;
-  line-height: 1.1;
+  background: #10252bea;
+  box-shadow: 0 8px 24px #0003;
+  border: 1px solid #d7f6e329;
+  pointer-events: none;
   font-variant-numeric: tabular-nums;
 }
-.tt-game .tt-score div:first-child strong {
-  color: #d5ff89;
-}
-.tt-game .tt-score span {
-  font-size: 10px;
-  color: #c5d7d4;
-}
-.tt-game .tt-score .tt-score-label {
+.tt-game .tt-broadcast-heading {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 5px;
-}
-.tt-game .tt-score-label span {
-  font-size: 15px;
-  letter-spacing: 2px;
-  color: #eff5e9;
-}
-.tt-game .tt-score-label small {
-  font-size: 8px;
-  letter-spacing: 1px;
-  color: #d5ff89;
-}
-.tt-game .tt-score-label b {
+  justify-content: space-between;
+  gap: 6px;
+  padding: 8px 10px;
+  background: #153e45;
   font-size: 10px;
-  font-weight: 400;
+  letter-spacing: 0.6px;
+  color: #d9eee4;
+}
+.tt-game .tt-broadcast-heading i {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #cffa87;
+  margin-right: 3px;
+}
+.tt-game .tt-score-columns,
+.tt-game .tt-score-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px 48px;
+}
+.tt-game .tt-score-columns {
+  color: #99b5b4;
+  font-size: 9px;
+  padding: 5px 0;
+  text-align: center;
+}
+.tt-game .tt-score-columns span:first-child {
+  text-align: left;
+  padding-left: 11px;
+}
+.tt-game .tt-score-row {
+  align-items: center;
+  height: 40px;
+  border-top: 1px solid #d7f6e315;
+}
+.tt-game .tt-score-player {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.tt-game .tt-score-player > span:nth-child(2) {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.tt-game .tt-avatar {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  border-radius: 50%;
+  background: #35565e;
+  color: #eaf5f1;
+  overflow: hidden;
+}
+.tt-game .tt-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.tt-game .tt-server {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 50%;
+  margin-left: auto;
+}
+.tt-game .tt-server[data-serving='true'] {
+  background: #dcff94;
+  box-shadow: 0 0 6px #dcff9450;
+}
+.tt-game .tt-game-count {
+  text-align: center;
+  font-weight: 700;
+  color: #b3ccc8;
+}
+.tt-game .tt-score-row strong {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  font-size: 24px;
+  color: #122b2c;
+  background: #d6efba;
+}
+.tt-game .tt-score-row[data-leading='true'] strong {
+  background: #d5ff89;
+}
+.tt-game .tt-expedite {
+  padding: 5px 10px;
+  font-size: 10px;
+  color: #d5ff89;
 }
 .tt-game .tt-call {
   position: absolute;
-  top: 172px;
-  left: 10px;
-  right: 10px;
+  z-index: 3;
+  top: 217px;
+  left: 14px;
+  right: 14px;
   text-align: center;
-  font-size: 13px;
   pointer-events: none;
-  text-shadow: 0 2px 8px #0a202b;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 700;
+  text-shadow: 0 1px 5px #000;
 }
 .tt-game .tt-call small {
   display: block;
-  font-size: 10px;
-  margin-top: 4px;
   color: #d5ff89;
-}
-.tt-game .tt-controls {
-  position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: 12px;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-}
-.tt-game .tt-control-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 4px;
-  margin-bottom: 4px;
-}
-.tt-game .tt-control-top button {
-  background: none;
+  margin-top: 5px;
   font-size: 10px;
-  padding: 7px 3px;
-  min-height: 36px;
-  color: #d6e4d9;
-}
-.tt-game .tt-control-top span {
-  font-size: 10px;
-  color: #bed2cf;
-  text-align: center;
-}
-.tt-game .tt-shots {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 5px;
-}
-.tt-game .tt-shots button {
-  min-height: 42px;
-  text-transform: capitalize;
-  font-size: 11px;
-  background: #23474f;
-  border-radius: 7px;
-}
-.tt-game .tt-shots button[aria-pressed='true'] {
-  background: #d5ff89;
-  color: #153439;
-}
-.tt-game .tt-aim {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 5px;
-  margin-top: 6px;
-}
-.tt-game .tt-aim button {
-  min-height: 36px;
-  font-size: 11px;
-  background: #1a3a42;
-  border: 1px solid #8cbcb125;
-  border-radius: 7px;
-}
-.tt-game .tt-aim button[aria-pressed='true'] {
-  border-color: #d5ff89;
-  color: #d5ff89;
-}
-.tt-game .tt-hit-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 18px;
-  align-items: center;
-  margin-top: 8px;
-}
-.tt-game .tt-hit-row label {
-  font-size: 11px;
-  color: #d0e0d5;
-}
-.tt-game .tt-hit-row input {
-  width: 100%;
-  accent-color: #d5ff89;
-  height: 22px;
-  display: block;
-}
-.tt-game .tt-hit {
-  background: #d5ff89;
-  color: #142c31;
-  border-radius: 9px;
-  min-height: 51px;
-  font-size: 17px;
-  font-weight: 800;
-  letter-spacing: 1px;
 }
 .tt-game .tt-modal {
   position: absolute;
@@ -512,13 +513,94 @@
   .tt-game .tt-brand {
     font-size: 10px;
   }
-  .tt-game .tt-control-top span {
-    max-width: 100px;
-  }
   .tt-game .tt-panel {
     padding: 12px;
   }
   .tt-game .tt-header {
     padding: 10px 12px;
   }
+}
+
+.tt-game .tt-pause-appearance {
+  display: grid;
+  gap: 12px;
+  margin: 14px 0;
+}
+.tt-game .tt-pause-appearance label {
+  font-size: 12px;
+  display: grid;
+  gap: 6px;
+}
+.tt-game .tt-pause-appearance select {
+  width: 100%;
+  min-height: 44px;
+  padding: 7px;
+  color: #f0f7ed;
+  background: #21444c;
+  border: 1px solid #507074;
+  border-radius: 6px;
+  font-size: 16px;
+}
+
+.tt-game .tt-touch-help {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 20px;
+  font-size: 11px;
+  text-align: center;
+  color: #f0f8ee;
+  text-shadow: 0 1px 4px #000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s;
+}
+.tt-game .tt-touch-help[data-visible='true'] {
+  opacity: 1;
+}
+.tt-game .tt-touch-feedback {
+  position: absolute;
+  bottom: 55px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+  text-transform: capitalize;
+  border-radius: 30px;
+  padding: 8px 14px;
+  background: #102e3bdb;
+  color: #d5ff89;
+  pointer-events: none;
+}
+.tt-game .tt-connection {
+  position: absolute;
+  bottom: 8px;
+  right: 12px;
+  font-size: 10px;
+  pointer-events: none;
+}
+.tt-game .tt-touch-settings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin: 15px 0;
+}
+.tt-game .tt-touch-settings label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  min-height: 44px;
+}
+.tt-game .tt-touch-settings input {
+  width: 20px;
+  height: 20px;
+  accent-color: #d5ff89;
+}
+.tt-game .tt-gesture-guide {
+  color: #cce2d9;
+  font-size: 12px;
+}
+.tt-game .tt-touch-return {
+  color: #d5ff89;
+  font-size: 12px;
 }

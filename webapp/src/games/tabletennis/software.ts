@@ -21,6 +21,10 @@ export class SoftwareRenderer {
   ratio = 1;
   textures = new WeakMap<T.Texture, ImageData>();
   backgrounds = new WeakMap<T.Texture, HTMLCanvasElement>();
+  backgroundViews = new WeakMap<
+    T.Texture,
+    { key: string; canvas: HTMLCanvasElement }
+  >();
   constructor() {
     const c = this.domElement.getContext('2d');
     if (!c) throw Error('Canvas unavailable');
@@ -75,19 +79,62 @@ export class SoftwareRenderer {
         ctx.putImageData(pixels, 0, 0);
         this.backgrounds.set(t, bg);
       }
-      c.drawImage(
-        bg,
-        bg.width * 0.35,
-        bg.height * 0.23,
-        bg.width * 0.24,
-        bg.height * 0.48,
-        0,
-        0,
+      camera.updateMatrixWorld();
+      const perspective = camera as T.PerspectiveCamera;
+      const key = [
         w,
-        h
-      );
-      c.fillStyle = '#122e3433';
-      c.fillRect(0, 0, w, h);
+        h,
+        perspective.fov,
+        ...camera.matrixWorld.elements.slice(0, 12)
+      ].join(',');
+      let view = this.backgroundViews.get(t);
+      if (!view || view.key !== key) {
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.ceil(w / 2);
+        canvas.height = Math.ceil(h / 2);
+        const ctx = canvas.getContext('2d')!,
+          out = ctx.createImageData(canvas.width, canvas.height);
+        const src = bg
+          .getContext('2d')!
+          .getImageData(0, 0, bg.width, bg.height).data;
+        const tan = Math.tan((perspective.fov * Math.PI) / 360),
+          m = camera.matrixWorld.elements;
+        for (let y = 0; y < canvas.height; y++)
+          for (let x = 0; x < canvas.width; x++) {
+            const rx =
+                ((2 * (x + 0.5)) / canvas.width - 1) * tan * perspective.aspect,
+              ry = (1 - (2 * (y + 0.5)) / canvas.height) * tan;
+            const dx = m[0] * rx + m[4] * ry - m[8],
+              dy = m[1] * rx + m[5] * ry - m[9],
+              dz = m[2] * rx + m[6] * ry - m[10];
+            const u = (Math.atan2(dz, dx) / (Math.PI * 2) + 0.5) * bg.width;
+            const v =
+              (0.5 - Math.asin(dy / Math.hypot(dx, dy, dz)) / Math.PI) *
+              (bg.height - 1);
+            const sx = Math.floor(u),
+              sy = Math.floor(v),
+              fx = u - sx,
+              fy = v - sy,
+              index = (y * canvas.width + x) * 4;
+            for (let k = 0; k < 3; k++) {
+              const at = (ix: number, iy: number) =>
+                src[
+                  (Math.min(bg.height - 1, Math.max(0, iy)) * bg.width +
+                    ((ix + bg.width) % bg.width)) *
+                    4 +
+                    k
+                ];
+              out.data[index + k] =
+                (at(sx, sy) * (1 - fx) + at(sx + 1, sy) * fx) * (1 - fy) +
+                (at(sx, sy + 1) * (1 - fx) + at(sx + 1, sy + 1) * fx) * fy;
+            }
+            out.data[index + 3] = 255;
+          }
+        ctx.putImageData(out, 0, 0);
+        view = { key, canvas };
+        this.backgroundViews.set(t, view);
+      }
+      c.drawImage(view.canvas, 0, 0, w, h);
     }
     scene.updateMatrixWorld();
     camera.updateMatrixWorld();
@@ -274,6 +321,11 @@ export class SoftwareRenderer {
         c.closePath();
         c.fillStyle = f.color;
         c.fill();
+        // Cover canvas antialiasing seams between opaque skin triangles.
+        if (f.alpha === 1) {
+          c.strokeStyle = f.color;
+          c.stroke();
+        }
       }
     }
     c.globalAlpha = 1;

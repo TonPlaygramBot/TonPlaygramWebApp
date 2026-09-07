@@ -290,3 +290,59 @@ test('Career persists by account, rejects replay and awards only skill points', 
   );
   assert.equal(funds('career'), 1000);
 });
+
+test('completed online match settles once while final ball motion continues', async () => {
+  let clock = 900000,
+    settlements = 0;
+  const t = table('terminal-motion', ['motion-a', 'motion-b']);
+  const service = createTableTennisRoyal({
+    io: {},
+    tableMap: new Map([[t.id, t]]),
+    autoTick: false,
+    now: () => clock,
+    reserve: async () => ({ accounts: ['motion-a', 'motion-b'] }),
+    settle: async (id, winner) => {
+      settlements++;
+      return { status: 'finished', winner };
+    }
+  });
+  await service.prepare(t);
+  const r = service.rooms.get(t.id);
+  r.loaded = [true, true];
+  r.seen = [clock, clock];
+  r.state = createMatch({ ai: false, gamesToWin: 1 });
+  r.state.phase = 'rally';
+  r.state.score.points = [10, 4];
+  r.state.inputs.forEach((i) => (i.autoHit = false));
+  Object.assign(r.state.ball, {
+    last: 0,
+    serve: false,
+    bounces: 1,
+    x: 0,
+    y: 0.81,
+    z: -0.7,
+    vx: 0.2,
+    vy: -2,
+    vz: -0.3
+  });
+  clock += 40;
+  service.tick();
+  await new Promise((r) => setImmediate(r));
+  assert.equal(r.state.phase, 'over');
+  assert.equal(r.state.winner, 0);
+  assert.equal(settlements, 1);
+  const y = r.state.ball.y,
+    score = structuredClone(r.state.score);
+  clock += 40;
+  service.tick();
+  assert.ok(r.state.ball.y > y);
+  assert.deepEqual(r.state.score, score);
+  for (let i = 0; i < 100; i++) {
+    clock += 100;
+    service.tick();
+  }
+  assert.equal(settlements, 1);
+  assert.equal(r.state.pointCount, 1);
+  assert.deepEqual(r.state.score, score);
+  service.close();
+});

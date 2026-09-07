@@ -4,6 +4,7 @@ import {
   setInput,
   neutralInput
 } from '../../shared/tabletennis/engine.js';
+import { ballAtRest } from '../../shared/tabletennis/physics.js';
 import {
   reserveTableTennisStake,
   settleTableTennisStake,
@@ -67,7 +68,7 @@ export function createTableTennisRoyal({
       r.state.phase = 'over';
       r.state.winner = winner;
       r.state.message = reason;
-      r.state.ball.vx = r.state.ball.vy = r.state.ball.vz = 0;
+      r.state.phaseAt = r.state.time;
       r.result = { winner, reason };
       r.endedAt = now();
     }
@@ -90,6 +91,7 @@ export function createTableTennisRoyal({
     const format = table.meta?.format || 'set';
     const state = createMatch({
       ai: false,
+      firstServer: Math.random() < 0.5 ? 0 : 1,
       gamesToWin: format === 'quick' ? 1 : format === 'full' ? 3 : 2,
       seed: Math.floor(Math.random() * 2147483647)
     });
@@ -118,6 +120,14 @@ export function createTableTennisRoyal({
     const time = now();
     for (const r of rooms.values()) {
       if (r.result) {
+        if (!ballAtRest(r.state.ball)) {
+          advance(
+            r.state,
+            Math.min(0.1, Math.max(0, (time - r.updated) / 1000))
+          );
+          r.revision++;
+        }
+        r.updated = time;
         if (
           r.settlement?.status === 'pending' &&
           time - (r.retryAt || 0) > 5000

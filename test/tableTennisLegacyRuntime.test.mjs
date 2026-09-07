@@ -2,15 +2,25 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 
-const page = fs.readFileSync('webapp/src/pages/Games/TableTennisRoyal.jsx', 'utf8');
-const lobby = fs.readFileSync('webapp/src/pages/Games/TableTennisRoyalLobby.jsx', 'utf8');
-const legacy = fs.readFileSync('webapp/src/games/tabletennis/LegacyGame.tsx', 'utf8');
+const page = fs.readFileSync(
+  'webapp/src/pages/Games/TableTennisRoyal.jsx',
+  'utf8'
+);
+const lobby = fs.readFileSync(
+  'webapp/src/pages/Games/TableTennisRoyalLobby.jsx',
+  'utf8'
+);
+const runtime = fs.readFileSync(
+  'webapp/src/games/tabletennis/Game.tsx',
+  'utf8'
+);
 
-test('solo table tennis uses the restored portrait game', () => {
-  assert.match(page, /if \(launch\.mode === 'ai'\) return <LegacyTableTennisGame \/>/);
-  assert.match(legacy, /export default function MobileRealisticTableTennisGame/);
-  assert.match(legacy, /Swipe up to serve/);
-  assert.match(legacy, /camera\.aspect < 0\.72/);
+test('solo and online route through the same metre-based swipe runtime', () => {
+  assert.doesNotMatch(page, /LegacyTableTennisGame/);
+  assert.match(page, /<TableTennisGame/);
+  assert.match(page, /ownedAppearance/);
+  assert.match(runtime, /onPointerUp=\{pointerUp\}/);
+  assert.match(runtime, /BroadcastScoreboard/);
 });
 
 test('TPG matchmaking and authoritative online runtime remain connected', () => {

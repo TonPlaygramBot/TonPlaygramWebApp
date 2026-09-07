@@ -6,8 +6,6 @@ import {
   createMatch,
   neutralInput,
   setInput,
-  side,
-  clamp,
   Input,
   MatchState,
   Seat,
@@ -21,7 +19,13 @@ import {
   normalizeCareer,
   TOUR
 } from './career';
-import { CHARACTERS, ARENAS } from './options';
+import { CHARACTERS, ARENAS, type AppearanceChoices } from './options';
+import { TAP_POWER } from '../../../../shared/tabletennis/swipe';
+import { TableTouches, touchShot, type TouchResult } from './touch';
+import {
+  BroadcastScoreboard,
+  type PlayerIdentity
+} from './BroadcastScoreboard';
 export type Launch = {
   mode: string;
   arena: string;
@@ -34,13 +38,19 @@ export default function TableTennisGame({
   services,
   launch,
   onLobby,
+  profile = { name: 'You' },
+  appearanceChoices,
   inline = false
 }: {
   services: GameServices;
   launch?: Launch;
   onLobby?: () => void;
+  profile?: PlayerIdentity;
+  appearanceChoices?: AppearanceChoices;
   inline?: boolean;
 }) {
+  const characterChoices = appearanceChoices?.characters || CHARACTERS;
+  const arenaChoices = appearanceChoices?.arenas || ARENAS;
   const host = useRef<HTMLDivElement>(null),
     renderer = useRef<TableTennisRenderer | null>(null),
     audio = useRef<TableTennisAudio | null>(null);
@@ -64,10 +74,11 @@ export default function TableTennisGame({
     [busy, setBusy] = useState(false),
     [paused, setPaused] = useState(false),
     [sound, setSound] = useState(true),
-    [auto, setAuto] = useState(true),
+    [auto, setAuto] = useState(false),
     [shot, setShot] = useState<Shot>('drive'),
-    [aim, setAim] = useState(0),
-    [power, setPower] = useState(0.5),
+    [power, setPower] = useState(TAP_POWER),
+    [touchActive, setTouchActive] = useState(false),
+    [feedbackUntil, setFeedbackUntil] = useState(0),
     [network, setNetwork] = useState(''),
     [careerSaved, setCareerSaved] = useState(false),
     [help, setHelp] = useState(false),
@@ -77,6 +88,50 @@ export default function TableTennisGame({
     mounted = useRef(true),
     lastEvent = useRef(0),
     seat = room.current?.seat ?? 0;
+  const touches = useRef(new TableTouches());
+  const captured = useRef(new Map<number, HTMLElement>());
+  const drag = useRef<{
+    x: number;
+    y: number;
+    playerX: number;
+    playerZ: number;
+    canPlay: boolean;
+  } | null>(null);
+  const previousPhase = useRef(frame.current.phase);
+  function releaseCapture(id: number) {
+    const element = captured.current.get(id);
+    captured.current.delete(id);
+    if (element?.hasPointerCapture(id)) element.releasePointerCapture(id);
+  }
+  function cancelGesture() {
+    touches.current.clear();
+    drag.current = null;
+    for (const id of captured.current.keys()) releaseCapture(id);
+    input.current.assist = true;
+    input.current.moveX = null;
+    input.current.moveZ = null;
+    setTouchActive(false);
+  }
+  function resume() {
+    cancelGesture();
+    pauseRef.current = false;
+    setPaused(false);
+  }
+  function canSwing() {
+    const s = frame.current,
+      n = room.current?.seat ?? 0;
+    return (
+      active.current &&
+      !pauseRef.current &&
+      ((s.phase === 'rally' && s.ball.last !== n) ||
+        (s.phase === 'serve' && s.score.server === n))
+    );
+  }
+  function pause() {
+    cancelGesture();
+    pauseRef.current = !room.current;
+    setPaused(true);
+  }
   async function saveCareer() {
     if (saved.current || !careerId.current) return;
     saved.current = true;
@@ -91,7 +146,8 @@ export default function TableTennisGame({
         setCareerSaved(true);
       }
     } catch {
-      if (mounted.current) setError('Result not saved. Tap Retry save.');
+      if (mounted.current)
+        setError('Result not saved. Retry save: tap the screen.');
     }
   }
   async function start(mode = 'ai') {
@@ -109,6 +165,7 @@ export default function TableTennisGame({
         difficulty,
         gamesToWin: format === 'quick' ? 1 : format === 'full' ? 3 : 2,
         upgrades: [0, 0, 0],
+        firstServer: (inline || Math.random() < 0.5 ? 0 : 1) as Seat,
         seed: Date.now() >>> 0
       };
       if (mode === 'career') {
@@ -146,7 +203,7 @@ export default function TableTennisGame({
       input.current = {
         ...neutralInput(),
         shot,
-        aim: aim * side(room.current?.seat ?? 0),
+        aim: 0,
         power,
         autoHit: auto
       };
@@ -160,6 +217,7 @@ export default function TableTennisGame({
     }
   }
   function exit() {
+    cancelGesture();
     epoch.current++;
     active.current = false;
     pauseRef.current = false;
@@ -173,7 +231,14 @@ export default function TableTennisGame({
     else setView('home');
   }
   function hit() {
+    if (!canSwing()) return;
     audio.current?.unlock();
+    input.current.direction = null;
+    input.current.power = TAP_POWER;
+    input.current.shot = 'drive';
+    setShot('drive');
+    setPower(TAP_POWER);
+    setFeedbackUntil(frame.current.time + 0.8);
     input.current.swing++;
   }
   useEffect(() => {
@@ -196,9 +261,17 @@ export default function TableTennisGame({
     }
     const tick = (t: number) => {
       if (!mounted.current) return;
-      const dt = Math.min(0.25, (t - last) / 1000);
+      const dt = Math.max(0, Math.min(0.25, (t - last) / 1000));
       last = t;
       if (active.current) {
+        if (
+          previousPhase.current !== frame.current.phase &&
+          (frame.current.phase === 'point' || frame.current.phase === 'over')
+        ) {
+          cancelGesture();
+          input.current.direction = null;
+        }
+        previousPhase.current = frame.current.phase;
         if (room.current) {
           if (!syncing.current && t > nextSync) {
             nextSync = t + 50;
@@ -263,6 +336,7 @@ export default function TableTennisGame({
     };
     raf = requestAnimationFrame(tick);
     const hidden = () => {
+      if (document.hidden) cancelGesture();
       if (document.hidden && !room.current && active.current) {
         pauseRef.current = true;
         setPaused(true);
@@ -271,6 +345,7 @@ export default function TableTennisGame({
     document.addEventListener('visibilitychange', hidden);
     return () => {
       mounted.current = false;
+      cancelGesture();
       epoch.current++;
       cancelAnimationFrame(raf);
       document.removeEventListener('visibilitychange', hidden);
@@ -323,60 +398,191 @@ export default function TableTennisGame({
       setBusy(false);
     }
   };
-  const changeAim = (value: number) => {
-    setAim(value);
-    input.current.aim = value * side(room.current?.seat ?? 0);
+  function finishTouch(stroke: TouchResult, canPlay: boolean) {
+    if (paused) {
+      if (
+        stroke.fingers === 2 &&
+        stroke.kind === 'swipe' &&
+        stroke.travelY > 80
+      )
+        exit();
+      else if (stroke.kind === 'tap' || stroke.kind === 'menu') resume();
+      return;
+    }
+    if (frame.current.phase === 'over') {
+      if (error.includes('Retry save')) {
+        saved.current = false;
+        setError('');
+        void saveCareer();
+        return;
+      }
+      if (stroke.kind === 'menu' || modeRef.current !== 'ai') exit();
+      else if (stroke.kind === 'tap') void start();
+      return;
+    }
+    if (stroke.kind === 'menu') {
+      pause();
+      return;
+    }
+    if (!canPlay || !canSwing()) return;
+    const selected = touchShot(
+      stroke,
+      frame.current.phase === 'rally' && frame.current.ball.y > 1.12
+    );
+    input.current.power = stroke.power;
+    input.current.shot = selected;
+    input.current.direction =
+      renderer.current?.shotDirection(stroke.dx, stroke.dy, frame.current) ??
+      null;
+    input.current.swing++;
+    setPower(stroke.power);
+    setShot(selected);
+    setFeedbackUntil(frame.current.time + 0.8);
+  }
+  const pointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (
+      view !== 'match' ||
+      e.button !== 0 ||
+      (e.target as HTMLElement).closest('input,select,option,label,a,button')
+    )
+      return;
+    audio.current?.unlock();
+    if (!touches.current.fingers.size) {
+      const p = frame.current.players[room.current?.seat ?? 0];
+      drag.current = {
+        x: e.clientX,
+        y: e.clientY,
+        playerX: p.x,
+        playerZ: p.z,
+        canPlay: !paused && canSwing()
+      };
+    }
+    touches.current.down(
+      e.pointerId,
+      e.clientX,
+      e.clientY,
+      e.timeStamp,
+      e.currentTarget.clientWidth
+    );
+    captured.current.set(e.pointerId, e.currentTarget);
+    e.currentTarget.setPointerCapture(e.pointerId);
+    if (!paused && frame.current.phase !== 'over') {
+      setTouchActive(true);
+      setPower(TAP_POWER);
+    }
   };
-  const move = (e: React.PointerEvent) => {
-    if (!active.current || paused) return;
-    const r = e.currentTarget.getBoundingClientRect();
-    const x = clamp(((e.clientX - r.left) / r.width) * 2 - 1, -1, 1);
-    changeAim(x);
-    if (!input.current.assist)
-      input.current.moveX = x * side(room.current?.seat ?? 0);
+  const pointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!touches.current.fingers.has(e.pointerId)) return;
+    touches.current.move(e.pointerId, e.clientX, e.clientY, e.timeStamp);
+    const stroke = touches.current.read();
+    if (stroke) setPower(stroke.power);
+    const d = drag.current,
+      n = room.current?.seat ?? 0;
+    if (
+      d &&
+      active.current &&
+      e.pointerId === touches.current.primary &&
+      frame.current.phase === 'rally' &&
+      !paused
+    ) {
+      const s = frame.current;
+      const offset = renderer.current?.moveOffset(
+        {
+          ...s,
+          players: s.players.map((p, i) =>
+            i === n ? { ...p, x: d.playerX, z: d.playerZ } : p
+          )
+        },
+        n,
+        e.clientX - d.x,
+        e.clientY - d.y
+      );
+      if (offset) {
+        input.current.assist = false;
+        input.current.moveX = d.playerX + offset.x;
+        input.current.moveZ = d.playerZ + offset.z;
+      }
+    }
+  };
+  const pointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    const canPlay = drag.current?.canPlay ?? false;
+    const stroke = touches.current.up(
+      e.pointerId,
+      e.clientX,
+      e.clientY,
+      e.timeStamp
+    );
+    releaseCapture(e.pointerId);
+    if (!touches.current.fingers.size) {
+      cancelGesture();
+      if (stroke) finishTouch(stroke, canPlay);
+    }
+  };
+  const keyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (view !== 'match' || (e.target as HTMLElement).closest('input,select'))
+      return;
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      paused ? resume() : pause();
+    }
+    if (e.code === 'Space' && !e.repeat) {
+      e.preventDefault();
+      if (paused) resume();
+      else if (frame.current.phase === 'over')
+        modeRef.current === 'ai' ? void start() : exit();
+      else hit();
+    }
   };
   const currentTour = TOUR[career.tour],
     r = score,
     other = 1 - seat,
     online = modeRef.current === 'online' && view === 'match';
   return (
-    <div className={`tt-game ${inline ? 'tt-inline' : ''}`}>
-      <header className="tt-header">
-        <button
-          className="tt-brand"
-          onClick={() => {
-            if (view === 'match') {
-              pauseRef.current = !online;
-              setPaused(true);
-            } else if (onLobby) onLobby();
-            else setView('home');
-          }}
-        >
-          TABLE TENNIS <b>ROYAL</b>
-        </button>
-        <button
-          className="tt-icon"
-          aria-label={sound ? 'Mute sound' : 'Enable sound'}
-          onClick={() => {
-            audio.current?.unlock();
-            setSound(!sound);
-            if (audio.current) audio.current.enabled = !sound;
-          }}
-        >
-          {sound ? 'Sound on' : 'Muted'}
-        </button>
-      </header>
-      <div
-        className="tt-scene"
-        ref={host}
-        onPointerDown={(e) => {
-          e.currentTarget.setPointerCapture(e.pointerId);
-          move(e);
-        }}
-        onPointerMove={(e) => {
-          if (e.buttons) move(e);
-        }}
-      />
+    <div
+      className={`tt-game ${inline ? 'tt-inline' : ''}`}
+      data-view={view}
+      tabIndex={view === 'match' ? 0 : undefined}
+      aria-label="Table tennis touch court"
+      aria-describedby="tt-touch-help"
+      onPointerDown={pointerDown}
+      onPointerMove={pointerMove}
+      onPointerUp={pointerUp}
+      onKeyDown={keyDown}
+      onPointerCancel={() => cancelGesture()}
+      onLostPointerCapture={(e) => {
+        if (captured.current.has(e.pointerId)) cancelGesture();
+      }}
+      onContextMenu={(e) => {
+        if (view === 'match') e.preventDefault();
+      }}
+    >
+      {view !== 'match' && (
+        <header className="tt-header">
+          <button
+            className="tt-brand"
+            onClick={() => {
+              if (view === 'match') {
+                pause();
+              } else if (onLobby) onLobby();
+              else setView('home');
+            }}
+          >
+            TABLE TENNIS <b>ROYAL</b>
+          </button>
+          <button
+            className="tt-icon"
+            aria-label={sound ? 'Mute sound' : 'Enable sound'}
+            onClick={() => {
+              audio.current?.unlock();
+              setSound(!sound);
+              if (audio.current) audio.current.enabled = !sound;
+            }}
+          >
+            {sound ? 'Sound on' : 'Muted'}
+          </button>
+        </header>
+      )}
+      <div className="tt-scene" ref={host} />
       <div className="tt-vignette" />
       {view === 'home' && (
         <>
@@ -425,124 +631,56 @@ export default function TableTennisGame({
       )}
       {view === 'match' && (
         <>
-          <section className="tt-score" aria-label="Match score">
-            <div>
-              <small>
-                {online ? room.current?.players?.[seat]?.name || 'You' : 'YOU'}{' '}
-                {r.score.server === seat ? '●' : ''}
-              </small>
-              <strong>{r.score.points[seat]}</strong>
-              <span>{r.score.games[seat]} games</span>
-            </div>
-            <div className="tt-score-label">
-              <span>TO 11</span>
-              <small>
-                {online
-                  ? 'TPC MATCH'
-                  : modeRef.current === 'career'
-                    ? 'CAREER'
-                    : 'EXHIBITION'}
-              </small>
-              <b>Best of {r.config.gamesToWin * 2 - 1}</b>
-            </div>
-            <div>
-              <small>
-                {online
-                  ? room.current?.players?.[other]?.name || 'Opponent'
-                  : modeRef.current === 'career'
-                    ? currentTour.opponents[career.round]
-                    : ['CLUB AI', 'TOUR AI', 'PRO AI'][difficulty]}{' '}
-                {r.score.server === other ? '●' : ''}
-              </small>
-              <strong>{r.score.points[other]}</strong>
-              <span>{r.score.games[other]} games</span>
-            </div>
-          </section>
+          <BroadcastScoreboard
+            state={r}
+            seat={seat}
+            label={
+              online
+                ? 'TPC MATCH'
+                : modeRef.current === 'career'
+                  ? 'ROYAL TOUR'
+                  : 'EXHIBITION'
+            }
+            players={
+              online
+                ? [
+                    room.current?.players?.[0] || { name: 'Player 1' },
+                    room.current?.players?.[1] || { name: 'Player 2' }
+                  ]
+                : [
+                    profile,
+                    {
+                      name:
+                        modeRef.current === 'career'
+                          ? currentTour.opponents[career.round]
+                          : ['Club AI', 'Tour AI', 'Pro AI'][difficulty]
+                    }
+                  ]
+            }
+          />
           <div className="tt-call" role="status">
             {r.phase === 'serve'
               ? r.score.server === seat
-                ? 'Your serve · tap SERVE'
+                ? 'Your serve · tap softly or swipe'
                 : 'Opponent serves'
               : r.message}
             {r.phase === 'rally' && <small>{r.rally} shot rally</small>}
           </div>
-          <div className="tt-controls">
-            <div className="tt-control-top">
-              <button
-                onClick={() => {
-                  pauseRef.current = !online;
-                  setPaused(true);
-                }}
-              >
-                {online ? 'Leave' : 'Pause'}
-              </button>
-              <span>{online ? network : 'Drag the table to aim'}</span>
-              <button
-                aria-pressed={auto}
-                onClick={() => {
-                  setAuto(!auto);
-                  input.current.autoHit = !auto;
-                }}
-              >
-                Auto return {auto ? 'on' : 'off'}
-              </button>
-            </div>
-            <div className="tt-shots">
-              {(['drive', 'topspin', 'backspin', 'smash'] as Shot[]).map(
-                (s) => (
-                  <button
-                    key={s}
-                    aria-pressed={shot === s}
-                    onClick={() => {
-                      setShot(s);
-                      input.current.shot = s;
-                    }}
-                  >
-                    {s}
-                  </button>
-                )
-              )}
-            </div>
-            <div className="tt-aim">
-              {[-0.85, 0, 0.85].map((n, i) => (
-                <button
-                  key={i}
-                  aria-pressed={Math.abs(aim - n) < 0.3}
-                  onClick={() => changeAim(n)}
-                >
-                  {['← Left', 'Centre', 'Right →'][i]}
-                </button>
-              ))}
-            </div>
-            <div className="tt-hit-row">
-              <label>
-                Power{' '}
-                <input
-                  aria-label="Shot power"
-                  type="range"
-                  min="0"
-                  max="1"
-                  step=".05"
-                  value={power}
-                  onChange={(e) => {
-                    setPower(+e.target.value);
-                    input.current.power = +e.target.value;
-                  }}
-                />
-              </label>
-              <button
-                className="tt-hit"
-                disabled={
-                  r.phase === 'point' ||
-                  r.phase === 'over' ||
-                  (r.phase === 'serve' && r.score.server !== seat)
-                }
-                onClick={hit}
-              >
-                {r.phase === 'serve' ? 'SERVE' : 'HIT'}
-              </button>
-            </div>
-          </div>
+          <p
+            id="tt-touch-help"
+            className="tt-touch-help"
+            data-visible={r.time < 8 || paused}
+          >
+            Tap soft · swipe to hit · two-finger tap for settings
+          </p>
+          {(touchActive || r.time < feedbackUntil) &&
+            !paused &&
+            r.phase !== 'over' && (
+              <output className="tt-touch-feedback" aria-live="off">
+                {shot} · {Math.round(power * 100)}%
+              </output>
+            )}
+          {online && <span className="tt-connection">{network}</span>}
         </>
       )}
       {view === 'setup' && (
@@ -558,7 +696,7 @@ export default function TableTennisGame({
               value={character}
               onChange={(e) => setCharacter(e.target.value)}
             >
-              {CHARACTERS.map((c) => (
+              {characterChoices.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name} · {c.description}
                 </option>
@@ -568,7 +706,7 @@ export default function TableTennisGame({
           <label>
             Shared HDRI arena
             <select value={arena} onChange={(e) => setArena(e.target.value)}>
-              {ARENAS.map((a) => (
+              {arenaChoices.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.name}
                 </option>
@@ -721,13 +859,20 @@ export default function TableTennisGame({
             <span className="tt-eyebrow">YOUR FIRST RALLY</span>
             <h2>Serve. Aim. Spin.</h2>
             <p>
-              Tap SERVE to toss and serve. Drag across the table or tap Left /
-              Centre / Right to aim where you see it on your screen.
+              Tap the table for a soft shot. Swipe faster for more power. The
+              ball follows the direction of your finger on the screen, including
+              diagonals.
             </p>
             <p>
-              Auto return handles timing. Turn it off and tap HIT as the ball
-              arrives after its bounce. Try topspin for pace or backspin for a
-              shorter return.
+              Drag to move your player; release to hit. Footwork is assisted
+              between touches. Fast swipes add topspin, a fast swipe on a high
+              ball smashes, and a two-finger swipe adds backspin. Slightly early
+              swipes wait for the legal bounce.
+            </p>
+            <p>
+              Tap with two fingers for settings. Tap empty space to resume;
+              swipe down with two fingers while in settings to return to the
+              lobby. Space plays a soft shot and Escape opens settings.
             </p>
             <p>
               Win by two at 11. Two serves each; alternate every point from
@@ -744,24 +889,103 @@ export default function TableTennisGame({
         <div className="tt-modal">
           <div>
             <h2>{online ? 'Leave this match?' : 'Take a breather.'}</h2>
+            {!online && (
+              <div className="tt-pause-appearance">
+                <label>
+                  Player
+                  <select
+                    aria-label="Human player"
+                    value={character}
+                    onChange={(e) => {
+                      setCharacter(e.target.value);
+                      if (!inline)
+                        try {
+                          localStorage.setItem(
+                            'tableTennisSelectedHumanCharacter',
+                            e.target.value
+                          );
+                        } catch {
+                          /* Session choice still works. */
+                        }
+                    }}
+                  >
+                    {characterChoices.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Arena
+                  <select
+                    aria-label="Arena"
+                    value={arena}
+                    onChange={(e) => {
+                      setArena(e.target.value);
+                      if (!inline)
+                        try {
+                          localStorage.setItem(
+                            'tableTennisSelectedHdri',
+                            e.target.value
+                          );
+                        } catch {
+                          /* Session choice still works. */
+                        }
+                    }}
+                  >
+                    {arenaChoices.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            )}
             {online && (
               <p>
                 Leaving counts as retirement. Your opponent wins the staked
                 match.
               </p>
             )}
-            <button
-              className="tt-primary"
-              onClick={() => {
-                setPaused(false);
-                pauseRef.current = false;
-              }}
-            >
-              KEEP PLAYING <span>↗</span>
-            </button>
-            <button className="tt-secondary" onClick={exit}>
-              {online ? 'Retire from match' : 'Return to lobby'}
-            </button>
+            <div className="tt-touch-settings">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={sound}
+                  onChange={(e) => {
+                    setSound(e.target.checked);
+                    if (audio.current) audio.current.enabled = e.target.checked;
+                  }}
+                />{' '}
+                Sound
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={auto}
+                  onChange={(e) => {
+                    setAuto(e.target.checked);
+                    input.current.autoHit = e.target.checked;
+                  }}
+                />{' '}
+                Automatic hitting
+              </label>
+            </div>
+            <p className="tt-gesture-guide">
+              One-finger swipe: drive or topspin.
+              <br />
+              Fast swipe on a high ball: smash.
+              <br />
+              Two-finger swipe: backspin.
+            </p>
+            <p className="tt-touch-return">
+              Tap empty space to resume.
+              <br />
+              Swipe down with two fingers to{' '}
+              {online ? 'retire from this match' : 'return to the lobby'}.
+            </p>
           </div>
         </div>
       )}
@@ -792,17 +1016,13 @@ export default function TableTennisGame({
             {modeRef.current === 'career' && (
               <p>{careerSaved ? 'Career saved.' : 'Saving career result…'}</p>
             )}
-            <button className="tt-primary" onClick={exit}>
-              {modeRef.current === 'career'
-                ? 'BACK TO CAREER'
-                : 'BACK TO LOBBY'}{' '}
-              <span>↗</span>
-            </button>
-            {!online && modeRef.current !== 'career' && (
-              <button className="tt-secondary" onClick={() => start()}>
-                Rematch
-              </button>
-            )}
+            <p className="tt-touch-return">
+              {error.includes('Retry save')
+                ? 'Tap to retry saving this result'
+                : online || modeRef.current === 'career'
+                  ? 'Tap to return to the lobby'
+                  : 'Tap to play again · two-finger tap for the lobby'}
+            </p>
           </div>
         </div>
       )}
@@ -814,7 +1034,7 @@ export default function TableTennisGame({
       {(error || notice) && (
         <div className="tt-toast" role={error ? 'alert' : 'status'}>
           <span>{error || notice}</span>
-          {error.includes('Retry save') && (
+          {view !== 'match' && error.includes('Retry save') && (
             <button
               onClick={() => {
                 saved.current = false;
@@ -825,15 +1045,17 @@ export default function TableTennisGame({
               Retry save
             </button>
           )}
-          <button
-            aria-label="Dismiss message"
-            onClick={() => {
-              setError('');
-              setNotice('');
-            }}
-          >
-            ×
-          </button>
+          {view !== 'match' && (
+            <button
+              aria-label="Dismiss message"
+              onClick={() => {
+                setError('');
+                setNotice('');
+              }}
+            >
+              ×
+            </button>
+          )}
         </div>
       )}
     </div>

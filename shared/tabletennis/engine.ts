@@ -1,14 +1,33 @@
-/** Deterministic singles table tennis. Metres, seconds; 240 Hz collision steps. */
-export type Seat = 0 | 1;
+/** Deterministic singles table tennis. Metres, seconds; shared 240 Hz physics. */
+import {
+  HALF_WIDTH,
+  HALF_LENGTH,
+  TABLE_HEIGHT,
+  BALL_RADIUS,
+  GRAVITY,
+  NET_HEIGHT,
+  TABLE_GRIP,
+  TABLE_RESTITUTION,
+  initialScore,
+  awardPoint,
+  opponent,
+  type Seat,
+  type Score
+} from './rules.js';
+import { advanceBall, ballAtRest, gravity, type Contact } from './physics.js';
+export * from './rules.js';
 export type Shot = 'drive' | 'topspin' | 'backspin' | 'smash';
 export type Input = {
   moveX: number | null;
+  moveZ: number | null;
   aim: number;
   power: number;
   shot: Shot;
   swing: number;
   assist: boolean;
   autoHit: boolean;
+  /** Unit heading projected from the actual finger vector, in court coordinates. */
+  direction?: { x: number; z: number } | null;
 };
 export type MatchConfig = {
   ai: boolean;
@@ -16,14 +35,7 @@ export type MatchConfig = {
   gamesToWin: number;
   seed: number;
   upgrades: number[];
-};
-export type Score = {
-  points: number[];
-  games: number[];
-  history: number[][];
-  server: Seat;
   firstServer: Seat;
-  totalPoints: number;
 };
 export type MatchState = {
   config: MatchConfig;
@@ -31,12 +43,14 @@ export type MatchState = {
   time: number;
   remainder: number;
   phaseAt: number;
+  endsSwapped: boolean;
   players: {
     x: number;
     z: number;
     swingAt: number;
     swingId: number;
     queued: number;
+    queuedInput: Input | null;
     hitX: number;
     hitY: number;
     hitZ: number;
@@ -61,82 +75,64 @@ export type MatchState = {
   eventId: number;
   message: string;
   winner: Seat | null;
+  lastPoint: Seat | null;
   rally: number;
   bestRally: number;
   rng: number;
   aiAim: number;
   aiError: number;
+  aiThink: number;
   pointCount: number;
+  serveInput: Input | null;
+  gamePlayTime: number;
+  receiverReturns: number;
 };
-export const HALF_WIDTH = 0.7625,
-  HALF_LENGTH = 1.37,
-  TABLE_HEIGHT = 0.76,
-  NET_HEIGHT = 0.1525,
-  BALL_RADIUS = 0.02,
-  GRAVITY = 9.81;
-export const side = (s: Seat) => (s === 0 ? 1 : -1);
-export const opponent = (s: Seat): Seat => (s === 0 ? 1 : 0);
-export const clamp = (n: number, a: number, b: number) =>
-  Math.max(a, Math.min(b, n));
+export const side = (seat: Seat, state?: { endsSwapped: boolean }) =>
+  (seat === 0 ? 1 : -1) * (state?.endsSwapped ? -1 : 1);
+export const clamp = (n: number, lo: number, hi: number) =>
+  Math.max(lo, Math.min(hi, n));
 export const neutralInput = (): Input => ({
   moveX: null,
+  moveZ: null,
   aim: 0,
   power: 0.5,
   shot: 'drive',
   swing: 0,
   assist: true,
-  autoHit: true
+  autoHit: true,
+  direction: null
 });
-export const initialScore = (): Score => ({
-  points: [0, 0],
-  games: [0, 0],
-  history: [],
-  server: 0,
-  firstServer: 0,
-  totalPoints: 0
-});
-export function awardPoint(s: Score, winner: Seat, gamesToWin = 2): boolean {
-  s.points[winner]++;
-  s.totalPoints++;
-  const p = s.points;
-  if (p[winner] >= 11 && p[winner] - p[1 - winner] >= 2) {
-    s.history.push([...p]);
-    s.games[winner]++;
-    if (s.games[winner] >= gamesToWin) return true;
-    s.points = [0, 0];
-    s.firstServer = opponent(s.firstServer);
-    s.server = s.firstServer;
-  } else {
-    const n = p[0] + p[1];
-    // Two serves each; one each from 10–10 onward.
-    const turn = p[0] >= 10 && p[1] >= 10 ? n - 20 : Math.floor(n / 2);
-    s.server = turn % 2 ? opponent(s.firstServer) : s.firstServer;
-  }
-  return false;
-}
 export function createMatch(config: Partial<MatchConfig> = {}): MatchState {
-  const c = {
+  const c: MatchConfig = {
     ai: true,
     difficulty: 1,
     gamesToWin: 2,
     upgrades: [0, 0, 0],
     seed: 41237,
+    firstServer: 0,
     ...config
   };
   c.gamesToWin = [1, 2, 3].includes(c.gamesToWin) ? c.gamesToWin : 2;
-  c.difficulty = clamp(Math.floor(c.difficulty), 0, 2);
+  c.difficulty = clamp(
+    Number.isFinite(c.difficulty) ? Math.floor(c.difficulty) : 1,
+    0,
+    2
+  );
+  c.firstServer = c.firstServer === 1 ? 1 : 0;
   const s: MatchState = {
     config: c,
     phase: 'serve',
     time: 0,
     remainder: 0,
     phaseAt: 0,
-    players: [0, 1].map((i) => ({
+    endsSwapped: false,
+    players: [0, 1].map((n) => ({
       x: 0,
-      z: i === 0 ? 1.62 : -1.62,
+      z: n === 0 ? 1.7 : -1.7,
       swingAt: -10,
       swingId: 0,
       queued: -10,
+      queuedInput: null,
       hitX: 0,
       hitY: 1.1,
       hitZ: 0
@@ -144,30 +140,36 @@ export function createMatch(config: Partial<MatchConfig> = {}): MatchState {
     ball: {
       x: 0,
       y: 1.04,
-      z: 1.53,
+      z: 1.58,
       vx: 0,
       vy: 0,
       vz: 0,
-      last: 0,
+      last: c.firstServer,
       bounces: 0,
       serve: true,
       serveStage: 0,
       netTouch: false,
       spin: 0
     },
-    score: initialScore(),
+    score: initialScore(c.firstServer),
     inputs: [neutralInput(), neutralInput()],
     events: [],
     eventId: 0,
     message: 'Your serve',
     winner: null,
+    lastPoint: null,
     rally: 0,
     bestRally: 0,
     rng: c.seed >>> 0,
     aiAim: 0,
     aiError: 0,
-    pointCount: 0
+    aiThink: 0,
+    pointCount: 0,
+    serveInput: null,
+    gamePlayTime: 0,
+    receiverReturns: 0
   };
+  resetPoint(s);
   return s;
 }
 function rand(s: MatchState) {
@@ -178,53 +180,110 @@ function event(s: MatchState, type: string, seat: Seat, label: string) {
   s.events.push({ id: ++s.eventId, type, seat, label });
   if (s.events.length > 12) s.events.shift();
 }
+function clearSwings(s: MatchState) {
+  s.players.forEach((p) => {
+    p.queued = -10;
+    p.queuedInput = null;
+  });
+}
 export function setInput(s: MatchState, seat: Seat, p: Partial<Input>) {
   if (seat !== 0 && seat !== 1) return;
   const old = s.inputs[seat],
-    finite = (v: unknown, f: number) =>
-      typeof v === 'number' && Number.isFinite(v) ? v : f;
+    finite = (v: unknown, fallback: number) =>
+      typeof v === 'number' && Number.isFinite(v) ? v : fallback;
   const swing =
     Number.isSafeInteger(p.swing) && p.swing! >= old.swing
       ? p.swing!
       : old.swing;
+  const raw = p.direction === undefined ? old.direction : p.direction;
+  const norm =
+    raw && Number.isFinite(raw.x) && Number.isFinite(raw.z)
+      ? Math.hypot(raw.x, raw.z)
+      : 0;
   s.inputs[seat] = {
     moveX:
-      p.moveX === null
-        ? null
-        : clamp(finite(p.moveX, old.moveX ?? 0), -1.12, 1.12),
+      p.moveX === undefined
+        ? old.moveX
+        : p.moveX === null
+          ? null
+          : clamp(finite(p.moveX, old.moveX ?? 0), -1.12, 1.12),
+    moveZ:
+      p.moveZ === undefined
+        ? (old.moveZ ?? null)
+        : p.moveZ === null
+          ? null
+          : side(seat, s) *
+            clamp(
+              finite(p.moveZ, old.moveZ ?? side(seat, s) * 1.7) * side(seat, s),
+              1.55,
+              2.27
+            ),
     aim: clamp(finite(p.aim, old.aim), -1, 1),
-    power: clamp(finite(p.power, old.power), 0, 1),
+    power: clamp(finite(p.power, old.power), 0.1, 1),
     shot: ['drive', 'topspin', 'backspin', 'smash'].includes(p.shot || '')
       ? p.shot!
       : old.shot,
     swing,
     assist: typeof p.assist === 'boolean' ? p.assist : old.assist,
-    autoHit: typeof p.autoHit === 'boolean' ? p.autoHit : old.autoHit
+    autoHit: typeof p.autoHit === 'boolean' ? p.autoHit : old.autoHit,
+    direction:
+      raw && norm > 0.001 && Number.isFinite(norm)
+        ? { x: raw.x / norm, z: raw.z / norm }
+        : null
   };
-  if (swing > old.swing) s.players[seat].queued = s.time;
+  if (swing > old.swing) {
+    s.players[seat].swingId = swing;
+    if (s.phase === 'serve' || s.phase === 'rally') {
+      s.players[seat].queued = s.time;
+      s.players[seat].queuedInput = structuredClone(s.inputs[seat]);
+    }
+  }
 }
-function point(s: MatchState, w: Seat, label: string) {
+function point(s: MatchState, winner: Seat, label: string) {
   if (s.phase === 'over' || s.phase === 'point') return;
-  const over = awardPoint(s.score, w, s.config.gamesToWin);
+  const previousGames = s.score.history.length;
+  const over = awardPoint(s.score, winner, s.config.gamesToWin);
+  if (previousGames !== s.score.history.length) s.gamePlayTime = 0;
   s.phase = over ? 'over' : 'point';
   s.phaseAt = s.time;
   s.message = label;
   s.pointCount++;
-  s.winner = over ? w : null;
-  s.ball.vx = s.ball.vy = s.ball.vz = 0;
-  event(s, over ? 'win' : 'point', w, label);
+  s.winner = over ? winner : null;
+  s.lastPoint = winner;
+  clearSwings(s);
+  event(s, over ? 'win' : 'point', winner, label);
+}
+function letPoint(s: MatchState, label: string) {
+  s.phase = 'point';
+  s.phaseAt = s.time;
+  s.message = label;
+  s.lastPoint = null;
+  clearSwings(s);
+  event(s, 'let', s.score.server, label);
 }
 function resetPoint(s: MatchState) {
-  const seat = s.score.server,
-    p = s.players[seat];
+  if (s.endsSwapped !== s.score.endsSwapped) {
+    s.endsSwapped = s.score.endsSwapped;
+    s.players.forEach((p) => {
+      p.x = -p.x;
+      p.z = -p.z;
+    });
+  }
+  const seat = s.score.server;
   s.phase = 'serve';
   s.phaseAt = s.time;
   s.rally = 0;
+  s.receiverReturns = 0;
+  s.serveInput = null;
   s.message = seat === 0 ? 'Your serve' : 'Opponent serves';
+  s.players.forEach((p, n) => {
+    p.z = side(n as Seat, s) * 1.7;
+    p.x = clamp(p.x, -0.45, 0.45);
+  });
   Object.assign(s.ball, {
-    x: clamp(p.x, -0.55, 0.55),
+    x: s.players[seat].x,
     y: 1.04,
-    z: side(seat) * 1.53,
+    z: side(seat, s) * 1.58,
     vx: 0,
     vy: 0,
     vz: 0,
@@ -235,238 +294,303 @@ function resetPoint(s: MatchState) {
     netTouch: false,
     spin: 0
   });
-  s.players.forEach((p) => (p.queued = -10));
+  clearSwings(s);
 }
 function toss(s: MatchState) {
+  const seat = s.score.server;
+  s.serveInput = structuredClone(s.players[seat].queuedInput || s.inputs[seat]);
   s.phase = 'toss';
   s.phaseAt = s.time;
-  s.ball.vy = 2.15; // 23.6 cm vertical toss, no spin.
-  event(s, 'serve', s.score.server, 'Serve');
+  s.ball.vy = 2.15;
+  clearSwings(s);
+  event(s, 'serve', seat, 'Serve');
+}
+function recordHit(s: MatchState, seat: Seat, input: Input, serve: boolean) {
+  const b = s.ball;
+  Object.assign(s.players[seat], {
+    swingAt: s.time,
+    queued: -10,
+    queuedInput: null,
+    hitX: b.x,
+    hitY: b.y,
+    hitZ: b.z
+  });
+  b.last = seat;
+  b.bounces = 0;
+  b.serve = serve;
+  b.serveStage = 0;
+  b.netTouch = false;
+  s.phase = 'rally';
+  s.phaseAt = s.time;
+  s.rally++;
+  s.bestRally = Math.max(s.rally, s.bestRally);
+  s.aiThink = s.time + [0.24, 0.14, 0.07][s.config.difficulty];
+  s.aiAim = (rand(s) * 2 - 1) * 0.9;
+  s.aiError = (rand(s) * 2 - 1) * [0.18, 0.07, 0.02][s.config.difficulty];
+  if (rand(s) < [0.08, 0.035, 0.01][s.config.difficulty])
+    s.aiError += (rand(s) > 0.5 ? 1 : -1) * 0.7;
+  s.message = serve ? 'Serve' : 'Rally';
+  event(s, 'hit', seat, serve ? 'Serve' : input.shot);
 }
 function serve(s: MatchState) {
   const seat = s.score.server,
     b = s.ball,
-    i = s.inputs[seat],
-    t = 0.32;
-  b.vx = (i.aim * 0.4 - b.x) / 0.8;
-  b.vz = -side(seat) * 3.0;
-  b.vy = (TABLE_HEIGHT + BALL_RADIUS - b.y + 0.5 * GRAVITY * t * t) / t;
+    i = s.serveInput || s.inputs[seat],
+    sign = side(seat, s);
+  const heading = i.direction || { x: i.aim * 0.16, z: -sign };
+  const norm = Math.hypot(heading.x, heading.z),
+    pace = 2.4 + clamp(i.power, 0.1, 1) * 2.8;
+  b.vx = (heading.x / norm) * pace;
+  b.vz = (heading.z / norm) * pace;
+  const forwardPace = -b.vz * sign;
+  let flight = 0.34;
+  if (forwardPace > 0.5) {
+    // Solve both bounces together, while preserving the swipe heading and pace.
+    const end = b.z * sign,
+      depth = 0.4 + i.power * 0.72;
+    const e = TABLE_RESTITUTION * TABLE_GRIP,
+      a = 1 + e;
+    const c =
+      (2 * e * (b.y - TABLE_HEIGHT - BALL_RADIUS) * forwardPace ** 2) / GRAVITY;
+    const root = Math.sqrt(Math.max(0, (end + depth) ** 2 - 4 * a * c));
+    const distances = [
+      (end + depth - root) / (2 * a),
+      (end + depth + root) / (2 * a)
+    ];
+    const distance =
+      distances.find((d) => end - d > 0.2 && end - d < HALF_LENGTH - 0.03) ||
+      distances[1];
+    flight = Math.max(0.08, distance / forwardPace);
+  }
+  b.vy =
+    (TABLE_HEIGHT + BALL_RADIUS - b.y + (GRAVITY * flight * flight) / 2) /
+    flight;
   b.spin = 0;
-  b.last = seat;
-  s.phase = 'rally';
-  s.phaseAt = s.time;
-  s.message = 'Serve';
-  Object.assign(s.players[seat], {
-    swingAt: s.time,
-    queued: -10,
-    hitX: b.x,
-    hitY: b.y,
-    hitZ: b.z
-  });
-  event(s, 'hit', seat, 'Serve');
+  recordHit(s, seat, i, true);
 }
 function shot(s: MatchState, seat: Seat) {
   const b = s.ball,
-    i = s.inputs[seat];
-  if (b.serve && b.serveStage !== 2) return;
-  if (b.bounces !== 1 || b.last === seat) return;
-  const miss = seat === 1 && s.config.ai ? s.aiError : 0;
-  const depth = i.shot === 'backspin' ? 0.55 : 1.03;
-  const targetX = i.aim * (0.53 + (i.shot === 'smash' ? 0.08 : 0)) + miss;
+    p = s.players[seat],
+    ai = seat === 1 && s.config.ai;
+  const i =
+    ai || s.inputs[seat].autoHit
+      ? s.inputs[seat]
+      : p.queuedInput || s.inputs[seat];
+  if (b.bounces !== 1 || b.last === seat || (b.serve && b.serveStage !== 2))
+    return;
   const power = clamp(
-    i.power + (seat === 0 ? (s.config.upgrades[1] || 0) * 0.06 : 0),
-    0,
+    i.power + (seat === 0 ? (s.config.upgrades[1] || 0) * 0.04 : 0),
+    0.1,
     1
   );
-  const t =
-    i.shot === 'smash'
-      ? 0.44
-      : i.shot === 'backspin'
-        ? 0.68
-        : 0.6 - power * 0.075;
-  const spin = i.shot === 'topspin' ? 1 : i.shot === 'backspin' ? -1 : 0;
-  const gravity = GRAVITY + spin * 2;
-  b.vx = (targetX - b.x) / t;
-  b.vz = (-side(seat) * depth - b.z) / t;
-  b.vy = (TABLE_HEIGHT + BALL_RADIUS - b.y + 0.5 * gravity * t * t) / t;
-  b.last = seat;
-  b.bounces = 0;
-  b.serve = false;
-  b.spin = spin;
-  b.netTouch = false;
-  Object.assign(s.players[seat], {
-    swingAt: s.time,
-    queued: -10,
-    hitX: b.x,
-    hitY: b.y,
-    hitZ: b.z
-  });
-  s.rally++;
-  s.bestRally = Math.max(s.rally, s.bestRally);
-  s.message = 'Rally';
-  s.aiAim = (rand(s) * 2 - 1) * 0.95;
-  s.aiError = (rand(s) * 2 - 1) * [0.24, 0.11, 0.04][s.config.difficulty];
-  if (rand(s) < [0.12, 0.06, 0.022][s.config.difficulty])
-    s.aiError = (rand(s) > 0.5 ? 1 : -1) * 1.25;
-  event(s, 'hit', seat, i.shot);
+  const depth =
+    i.shot === 'backspin' ? 0.35 + power * 0.45 : 0.45 + power * 0.65;
+  const x = i.aim * (i.shot === 'smash' ? 0.65 : 0.61) + (ai ? s.aiError : 0),
+    z = -side(seat, s) * depth;
+  const length = Math.hypot(x - b.x, z - b.z),
+    heading = i.direction;
+  const dx = heading ? heading.x * length : x - b.x,
+    dz = heading ? heading.z * length : z - b.z;
+  const pace =
+    (i.shot === 'backspin' ? 2.5 : 3) + power * (i.shot === 'smash' ? 9 : 7);
+  b.spin = i.shot === 'topspin' ? 0.85 : i.shot === 'backspin' ? -0.75 : 0;
+  const g = gravity(b);
+  let flight = Math.max(0.15, length / pace);
+  const netFraction = -b.z / dz;
+  if (netFraction > 0 && netFraction < 1) {
+    const base =
+      b.y * (1 - netFraction) + (TABLE_HEIGHT + BALL_RADIUS) * netFraction;
+    const clearance = TABLE_HEIGHT + NET_HEIGHT + BALL_RADIUS + 0.035;
+    flight = Math.max(
+      flight,
+      Math.sqrt(
+        Math.max(
+          0,
+          (2 * (clearance - base)) / (g * netFraction * (1 - netFraction))
+        )
+      )
+    );
+  }
+  b.vx = dx / flight;
+  b.vz = dz / flight;
+  b.vy =
+    (TABLE_HEIGHT + BALL_RADIUS - b.y + (g * flight * flight) / 2) / flight;
+  recordHit(s, seat, i, false);
 }
-function physics(s: MatchState, dt: number) {
-  const b = s.ball,
-    prev = { x: b.x, y: b.y, z: b.z };
-  b.vy -= (GRAVITY + b.spin * 2) * dt;
-  b.x += b.vx * dt;
-  b.y += b.vy * dt;
-  b.z += b.vz * dt;
-  // Swept net test prevents fast shots passing through between frames.
-  if (prev.z * b.z < 0) {
-    const t = prev.z / (prev.z - b.z),
-      y = prev.y + (b.y - prev.y) * t,
-      x = prev.x + (b.x - prev.x) * t;
-    if (
-      Math.abs(x) <= HALF_WIDTH + 0.1525 &&
-      y - BALL_RADIUS <= TABLE_HEIGHT + NET_HEIGHT
-    ) {
-      if (b.serve && y > TABLE_HEIGHT + NET_HEIGHT - 0.07) {
-        b.netTouch = true;
-        b.vz *= 0.86;
-        b.vy = Math.max(b.vy, 0.8);
-      } else {
-        point(s, opponent(b.last), 'Into the net');
+function contact(s: MatchState, c: Contact) {
+  if (c.kind === 'net') {
+    event(s, 'net', s.ball.last, 'Net contact');
+    return;
+  }
+  if (c.kind === 'table' || c.kind === 'edge') {
+    const b = s.ball,
+      landed: Seat = c.z * side(0, s) >= 0 ? 0 : 1;
+    event(
+      s,
+      'bounce',
+      landed,
+      c.kind === 'edge' ? 'Top edge · in' : 'Table bounce'
+    );
+    if (s.phase !== 'rally') return;
+    if (b.serve) {
+      if (b.serveStage >= 2) {
+        point(s, b.last, 'Second bounce');
+        return;
+      }
+      if (landed !== (b.serveStage === 0 ? b.last : opponent(b.last))) {
+        point(s, opponent(b.last), 'Service fault');
+        return;
+      }
+      b.serveStage++;
+      if (b.serveStage === 2) {
+        b.bounces = 1;
+        if (b.netTouch) {
+          letPoint(s, 'Let · serve again');
+          return;
+        }
+      }
+    } else {
+      if (b.bounces >= 1) {
+        point(s, b.last, 'Second bounce');
+        return;
+      }
+      if (landed === b.last) {
+        point(s, opponent(b.last), 'Wrong side of the table');
+        return;
+      }
+      b.bounces = 1;
+      if (
+        s.score.expedite &&
+        b.last !== s.score.server &&
+        ++s.receiverReturns >= 13
+      ) {
+        point(s, b.last, 'Expedite · 13 returns');
         return;
       }
     }
-  }
-  if (
-    prev.y > TABLE_HEIGHT + BALL_RADIUS &&
-    b.y <= TABLE_HEIGHT + BALL_RADIUS &&
-    b.vy < 0
-  ) {
-    const t = (prev.y - TABLE_HEIGHT - BALL_RADIUS) / (prev.y - b.y),
-      x = prev.x + (b.x - prev.x) * t,
-      z = prev.z + (b.z - prev.z) * t;
-    if (Math.abs(x) <= HALF_WIDTH && Math.abs(z) <= HALF_LENGTH) {
-      const landed: Seat = z >= 0 ? 0 : 1;
-      if (b.serve) {
-        const expected = b.serveStage === 0 ? b.last : opponent(b.last);
-        if (landed !== expected) {
-          point(s, opponent(b.last), 'Service fault');
-          return;
-        }
-        b.serveStage++;
-        if (b.serveStage === 2 && b.netTouch) {
-          s.phase = 'point';
-          s.phaseAt = s.time;
-          s.message = 'Let · serve again';
-          event(s, 'let', b.last, s.message);
-          return;
-        }
-        if (b.serveStage > 2) {
-          point(s, b.last, 'Second bounce');
-          return;
-        }
-        b.bounces = b.serveStage === 2 ? 1 : 0;
-      } else {
-        if (landed === b.last) {
-          point(s, opponent(b.last), 'Wrong side of the table');
-          return;
-        }
-        b.bounces++;
-        if (b.bounces > 1) {
-          point(s, b.last, 'Second bounce');
-          return;
-        }
-      }
-      b.y = TABLE_HEIGHT + BALL_RADIUS + 0.001;
-      b.vy = -b.vy * (b.serve ? 0.91 : 0.83);
-      b.vz *= 1 + b.spin * 0.06;
-      event(s, 'bounce', landed, 'Table bounce');
-    }
-  }
-  if (b.y < 0.1 || Math.abs(b.z) > 3.2 || Math.abs(b.x) > 2.6) {
+    if (b.bounces === 1 && b.vy === 0) point(s, b.last, 'Unreturned');
+  } else if (s.phase === 'rally') {
     point(
       s,
-      b.bounces === 1 ? b.last : opponent(b.last),
-      b.bounces === 1 ? 'Unreturned' : 'Out'
+      s.ball.bounces === 1 ? s.ball.last : opponent(s.ball.last),
+      c.kind === 'side'
+        ? 'Vertical side · out'
+        : s.ball.bounces === 1
+          ? 'Unreturned'
+          : s.ball.serve
+            ? 'Service fault'
+            : 'Out'
     );
   }
 }
-function step(s: MatchState, dt: number) {
-  s.time += dt;
-  if (s.phase === 'over') return;
-  if (s.phase === 'point') {
-    if (s.time - s.phaseAt > 1.1) resetPoint(s);
-    return;
-  }
+function movePlayers(s: MatchState, dt: number) {
   const b = s.ball;
-  for (let n = 0; n < 2; n++) {
-    const seat = n as Seat,
-      p = s.players[n],
-      input = s.inputs[n],
-      ai = n === 1 && s.config.ai;
+  for (const seat of [0, 1] as Seat[]) {
+    const p = s.players[seat],
+      input = s.inputs[seat],
+      ai = seat === 1 && s.config.ai;
+    const incoming = b.last !== seat && s.phase === 'rally',
+      sign = side(seat, s);
     if (ai) {
-      input.aim = s.aiAim;
-      input.power = [0.25, 0.5, 0.85][s.config.difficulty];
+      const other = s.players[0];
+      input.aim =
+        s.config.difficulty === 2 ? (other.x > 0 ? -0.92 : 0.92) : s.aiAim;
+      input.direction = null;
+      input.power = [0.3, 0.55, 0.85][s.config.difficulty];
       input.shot =
-        s.config.difficulty === 2 && s.rally % 3 === 0
+        b.y > 1.12 && s.config.difficulty === 2
           ? 'smash'
           : s.rally % 4 === 0
-            ? 'topspin'
-            : 'drive';
+            ? 'backspin'
+            : 'topspin';
     }
-    const incoming = b.last !== n && s.phase === 'rally';
     let target = input.moveX ?? p.x;
-    if (ai || input.assist)
-      target = incoming
-        ? b.x + b.vx * Math.max(0, (side(seat) * 1.12 - b.z) / (b.vz || 1))
-        : clamp(p.x, -0.4, 0.4);
+    if ((ai && s.time >= s.aiThink) || (!ai && input.assist)) {
+      const t = Math.max(0, Math.min(0.45, (sign * 1.22 - b.z) / (b.vz || 1)));
+      target = incoming ? b.x + b.vx * t : 0;
+    }
     const speed = ai
       ? [2.2, 3.1, 4][s.config.difficulty]
-      : 2.05 + (s.config.upgrades[0] || 0) * 0.22;
-    p.x += clamp(target - p.x, -speed * dt, speed * dt);
-    p.x = clamp(p.x, -1.12, 1.12);
-    const queued = s.time - p.queued < 0.85;
+      : 2.8 + (s.config.upgrades[0] || 0) * 0.22;
+    p.x = clamp(
+      p.x + clamp(target - p.x, -speed * dt, speed * dt),
+      -1.12,
+      1.12
+    );
+    const targetZ =
+      input.assist || ai
+        ? sign * (incoming ? clamp(b.z * sign + 0.48, 1.55, 2.27) : 1.7)
+        : (input.moveZ ?? p.z);
+    p.z += clamp(targetZ - p.z, -speed * dt, speed * dt);
+    const queued = s.time - p.queued < 0.7;
     if (
       incoming &&
-      b.bounces === 1 &&
-      Math.abs(b.z) > 1.08 &&
-      Math.abs(b.z) < 2.15 &&
-      b.y > 0.8 &&
+      b.z * sign > 0.78 &&
+      b.z * sign < 2.15 &&
+      Math.abs(p.z - b.z) < 0.9 &&
+      b.y > TABLE_HEIGHT + 0.03 &&
       b.y < 1.8 &&
       Math.abs(p.x - b.x) <
-        0.34 + (seat === 0 ? (s.config.upgrades[2] || 0) * 0.025 : 0) &&
-      (ai || input.autoHit || queued)
-    )
-      shot(s, seat);
-    else if (
-      incoming &&
-      queued &&
-      !input.autoHit &&
-      b.bounces === 0 &&
-      Math.abs(b.z) > 1.2 &&
-      Math.abs(p.x - b.x) < 0.22
+        0.37 + (seat === 0 ? (s.config.upgrades[2] || 0) * 0.025 : 0)
     ) {
-      point(s, opponent(seat), 'Volley · let the ball bounce');
-      return;
+      if (b.bounces === 1 && (ai || input.autoHit || queued)) shot(s, seat);
+      // Early gestures are buffered; the paddle only strikes after a legal bounce.
     }
   }
+}
+function step(s: MatchState, dt: number) {
+  if (s.phase === 'over' && ballAtRest(s.ball)) return;
+  s.time += dt;
+  if (s.phase === 'point' || s.phase === 'over') {
+    advanceBall(s.ball, dt, (c) => contact(s, c));
+    if (s.phase !== 'over' && s.time - s.phaseAt >= 1.25) resetPoint(s);
+    return;
+  }
   if (s.phase === 'serve') {
-    b.x = clamp(s.players[s.score.server].x, -0.55, 0.55);
+    const server = s.score.server;
+    s.ball.x = clamp(s.players[server].x, -0.55, 0.55);
     if (
-      (s.score.server === 1 && s.config.ai && s.time - s.phaseAt > 0.8) ||
-      s.time - s.players[s.score.server].queued < 0.85
+      (server === 1 && s.config.ai && s.time - s.phaseAt > 0.9) ||
+      s.time - s.players[server].queued < 0.7
     )
       toss(s);
-    else if (s.time - s.phaseAt > 20)
-      point(s, opponent(s.score.server), 'Serve clock expired');
+    return;
+  }
+  s.gamePlayTime += dt;
+  if (
+    !s.score.expedite &&
+    s.gamePlayTime >= 600 &&
+    s.score.points[0] + s.score.points[1] < 18
+  ) {
+    s.score.expedite = true;
+    s.score.expediteServer = s.score.server;
+    s.score.expediteBase = s.score.points[0] + s.score.points[1];
+    letPoint(s, 'Expedite · same serve');
     return;
   }
   if (s.phase === 'toss') {
-    b.vy -= GRAVITY * dt;
-    b.y += b.vy * dt;
-    if (b.vy < 0 && b.y <= 1.2) serve(s);
+    s.ball.y += s.ball.vy * dt - (GRAVITY * dt * dt) / 2;
+    s.ball.vy -= GRAVITY * dt;
+    if (s.ball.vy < 0 && s.ball.y <= 0.98) {
+      s.ball.y = 0.98;
+      serve(s);
+    }
     return;
   }
-  physics(s, dt);
+  advanceBall(s.ball, dt, (c) => contact(s, c));
+  if (s.phase !== 'rally') return;
+  const b = s.ball;
+  const missedEnd =
+    b.bounces === 0 && b.z * side(b.last, s) < -HALF_LENGTH - BALL_RADIUS;
+  if (missedEnd || Math.abs(b.z) > 4 || Math.abs(b.x) > 3.2) {
+    point(
+      s,
+      b.bounces === 1 ? b.last : opponent(b.last),
+      b.bounces === 1 ? 'Unreturned' : b.serve ? 'Service fault' : 'Out'
+    );
+    return;
+  }
+  movePlayers(s, dt);
 }
 export function advance(s: MatchState, elapsed: number) {
   if (!Number.isFinite(elapsed) || elapsed <= 0) return;
