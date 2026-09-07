@@ -1,5 +1,5 @@
-import type { Career, Input } from "./shared/engine.mjs";
-import type { Snapshot } from "./shared/rooms.mjs";
+import type { Career, Input } from './shared/engine.mjs';
+import type { Snapshot } from './shared/rooms.mjs';
 
 export type ResponseData = {
   room?: Snapshot;
@@ -10,25 +10,25 @@ export type ResponseData = {
 };
 export type Transport = (
   action: string,
-  payload?: Record<string, unknown>,
+  payload?: Record<string, unknown>
 ) => Promise<ResponseData>;
 export const httpTransport: Transport = async (action, payload = {}) => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 9000);
   try {
-    const response = await fetch("/api/city", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    const response = await fetch('/api/city', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, ...payload }),
-      signal: controller.signal,
+      signal: controller.signal
     });
     const data = (await response.json()) as ResponseData & { error?: string };
     if (!response.ok || data.error)
-      throw Error(data.error || "City service is unavailable.");
+      throw Error(data.error || 'City service is unavailable.');
     return data;
   } catch (e) {
-    if (e instanceof DOMException && e.name === "AbortError")
-      throw Error("Connection timed out. Check your network and retry.");
+    if (e instanceof DOMException && e.name === 'AbortError')
+      throw Error('Connection timed out. Check your network and retry.');
     throw e;
   } finally {
     clearTimeout(timer);
@@ -43,10 +43,12 @@ export class CityConnection {
     x: 0,
     y: 0,
     yaw: 0,
+    aimYaw: 0,
+    aimPitch: 0,
     fast: false,
     brake: false,
     fire: false,
-    seq: 0,
+    seq: 0
   };
   private actions: { action: string; seq: number }[] = [];
   private actionSeq = Date.now() * 1000;
@@ -54,7 +56,7 @@ export class CityConnection {
     private transport: Transport,
     public roomId: string,
     private onState: (r: Snapshot, c?: Career) => void,
-    private onError: (message: string) => void,
+    private onError: (message: string) => void
   ) {}
   controls(input: Input) {
     this.input = { ...input };
@@ -72,22 +74,22 @@ export class CityConnection {
     this.busy = true;
     const pending = this.actions[0];
     const seq = pending?.seq ?? this.actionSeq,
-      action = pending?.action ?? "";
+      action = pending?.action ?? '';
     try {
-      const r = await this.transport("input", {
+      const r = await this.transport('input', {
         roomId: this.roomId,
         input: this.input,
         actionSeq: seq,
-        interaction: action,
+        interaction: action
       });
       if (this.stopped) return;
       if (r.room) this.onState(r.room, r.career);
       if (pending && this.actions[0]?.seq === seq) this.actions.shift();
-      this.onError("");
+      this.onError('');
     } catch (e) {
       if (!this.stopped)
         this.onError(
-          e instanceof Error ? e.message : "Connection interrupted.",
+          e instanceof Error ? e.message : 'Connection interrupted.'
         );
     } finally {
       this.busy = false;

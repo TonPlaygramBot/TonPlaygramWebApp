@@ -70,8 +70,8 @@ test('connected action replay does not repeat purchases',()=>{
  applyRoom(r,member,'input',action,130);assert.equal(r.state.players.p.cash,cash);
 });
 test('city contains server-owned walkers, riders, traffic and dealer; public snapshots omit NPC paths',()=>{
- const s=createState([{id:'p',name:'P'}],'free-roam');assert.equal(s.npcs.length,29);assert.equal(s.traffic.length,20);assert.ok(s.npcs.some(n=>n.motion==='cycle'));
- const before=s.npcs[1].x+','+s.npcs[1].z;advanceState(s,.5);assert.notEqual(s.npcs[1].x+','+s.npcs[1].z,before);
+ const s=createState([{id:'p',name:'P'}],'free-roam');assert.equal(s.npcs.length,73);assert.equal(s.traffic.length,20);assert.ok(s.npcs.some(n=>n.motion==='cycle'));
+ const walker=s.npcs.find(n=>n.id==='citizen-1');const before=walker.x+','+walker.z;advanceState(s,.5);assert.notEqual(walker.x+','+walker.z,before);
  const pub=publicState(s);assert.ok(!('path' in pub.npcs[1]));assert.ok(!('input' in pub.players.p));
 });
 test('combat extraction cannot finish while armed mission NPCs remain',()=>{
@@ -97,6 +97,16 @@ test('actual building walls block city fire rays in both directions',()=>{
 test('older persisted preview rooms gain city systems without losing progress',()=>{
  const s=createState([{id:'p',name:'P'}],'first-shift');s.players.p.index=1;s.elapsed=24;
  delete s.lifeVersion;delete s.npcs;delete s.units;delete s.effects;delete s.players.p.inventory;
- upgradeState(s);assert.equal(s.players.p.index,1);assert.equal(s.elapsed,24);assert.equal(s.lifeVersion,2);assert.equal(s.npcs.length,29);assert.ok(s.players.p.inventory);
+ upgradeState(s);assert.equal(s.players.p.index,1);assert.equal(s.elapsed,24);assert.equal(s.lifeVersion,3);assert.equal(s.npcs.length,73);assert.ok(s.players.p.inventory);
  s.players.p.cash=123;upgradeState(s);assert.equal(s.players.p.cash,123);
+});
+
+
+test('finger vertical aim changes hit validation and tracer elevation; sky shots cannot hit a person',()=>{
+ for(const pitch of [0,.6,-.6]){
+  const s=scene(),p=s.players.p;s.npcs=[target()];p.input={...emptyInput(),fire:true,aimPitch:pitch};p.inputAt=s.elapsed;
+  tick(s,.02);assert.equal(s.npcs[0].health,pitch===0?76:100);
+  const shot=s.effects.find(e=>e.kind==='shot');assert.ok(shot);
+  assert.ok(pitch===0?Math.abs(shot.toY-1.35)<.001:pitch>0?shot.toY>5:shot.toY<.2);
+ }
 });

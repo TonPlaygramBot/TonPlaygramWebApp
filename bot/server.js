@@ -1,3 +1,4 @@
+import tirana3dRoutes from './routes/tirana3d.js';
 import './loadEnv.js';
 import { validateEnv } from './env.js';
 import express from 'express';
@@ -320,6 +321,7 @@ app.use(helmet({
       // default-src 'self' and blocks the player before it reaches Express.
       mediaSrc: ["'self'", 'blob:', 'data:', 'https:'],
       fontSrc: ["'self'", 'data:', 'https:'],
+      workerSrc: ["'self'", 'blob:'],
       frameSrc: ["'self'", 'https:']
     }
   }
@@ -330,6 +332,8 @@ app.use('/api/flamingo-wall', flamingoWallRoutes);
 // Increase JSON body limit to handle large photo uploads
 app.use(express.json({ limit: '10mb' }));
 app.use(optionalAuthenticate);
+// Streamed map tiles have a separate authenticated request budget.
+app.use('/api/tirana-3d', tirana3dRoutes);
 const apiLimiter = rateLimit({
   windowMs: rateLimitWindowMs,
   limit: rateLimitMax,

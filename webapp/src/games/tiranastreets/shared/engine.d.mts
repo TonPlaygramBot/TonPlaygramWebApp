@@ -3,6 +3,8 @@ export type Input = {
   x: number;
   y: number;
   yaw: number;
+  aimYaw: number;
+  aimPitch: number;
   fast: boolean;
   brake: boolean;
   fire: boolean;
@@ -80,13 +82,15 @@ export type Effect = Point & {
   id: number;
   at: number;
   kind: string;
+  fromY?: number;
+  toY?: number;
   toX: number;
   toZ: number;
   owner: string;
   weapon: string;
 };
 export type State = {
-  lifeVersion:number;
+  lifeVersion: number;
   difficulty: string;
   shop: Point & { name: string };
   npcs: NPC[];
@@ -167,7 +171,7 @@ export function cameraDistance(
   y: number,
   yaw: number,
   wanted: number,
-  pitch: number,
+  pitch: number
 ): number;
 export function sanitizeInput(raw?: Partial<Input>): Input;
 export function createState(
@@ -175,13 +179,13 @@ export function createState(
   missionId?: string,
   mode?: string,
   sport?: boolean,
-  difficulty?: string,
+  difficulty?: string
 ): State;
 export function addPlayer(
   state: State,
   member: Member,
   slot?: number,
-  sport?: boolean,
+  sport?: boolean
 ): void;
 export function removePlayer(state: State, id: string): void;
 export function control(state: State, id: string, raw: Partial<Input>): void;
@@ -195,4 +199,4 @@ export function publicState(state: State): State;
 
 export function lineOfSight(a: Point, b: Point): boolean;
 
-export function upgradeState(state:State):State;
+export function upgradeState(state: State): State;

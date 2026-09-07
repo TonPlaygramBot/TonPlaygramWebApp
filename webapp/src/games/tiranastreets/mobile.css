@@ -1,0 +1,268 @@
+/* Portrait: keep both thumbs below the view, with an unobstructed centre. */
+.ts-mobile-controls {
+  position: absolute;
+  inset: auto 0 0;
+  height: 224px;
+  pointer-events: none;
+  z-index: 13;
+  --touch-bottom: max(42px, calc(env(safe-area-inset-bottom) + 24px));
+}
+.ts-mobile-controls[data-disabled='true'] {
+  visibility: hidden;
+}
+.ts-thumb-move {
+  position: absolute;
+  left: max(18px, env(safe-area-inset-left));
+  bottom: var(--touch-bottom);
+  width: 124px;
+  height: 124px;
+  border-radius: 50%;
+  border: 1px solid #e4eddf55;
+  background: #14252969;
+  box-shadow:
+    inset 0 0 0 13px #e7f8dd0d,
+    0 4px 20px #0002;
+  pointer-events: auto;
+  touch-action: none;
+}
+.ts-thumb-ring {
+  position: absolute;
+  inset: 16px;
+  border: 1px dashed #e3efd74a;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.ts-thumb-knob {
+  position: absolute;
+  inset: 38px;
+  border-radius: 50%;
+  background: #edf5e8aa;
+  border: 1px solid #ffffffba;
+  box-shadow: 0 2px 8px #0004;
+  pointer-events: none;
+  will-change: transform;
+}
+.ts-thumb-move > span {
+  position: absolute;
+  left: -6px;
+  right: -6px;
+  bottom: -23px;
+  text-align: center;
+  color: #f2f5eb;
+  font:
+    600 11px/1.15 Arial,
+    sans-serif;
+  text-shadow: 0 1px 5px #000;
+  pointer-events: none;
+}
+.ts-thumb-actions {
+  position: absolute;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: var(--touch-bottom);
+  display: grid;
+  grid-template-columns: 58px 84px;
+  grid-template-rows: 58px 84px;
+  align-items: center;
+  justify-items: center;
+  gap: 10px;
+  pointer-events: auto;
+}
+.ts-thumb-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 3px;
+  padding: 0;
+  color: #f6f4e9;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 3px 10px #0004;
+}
+.ts-thumb-actions button small {
+  font:
+    700 11px/1 Arial,
+    sans-serif;
+  letter-spacing: 0.025em;
+}
+.ts-touch-secondary {
+  height: 58px;
+  width: 58px;
+  border: 1px solid #e0e8da70;
+  border-radius: 19px;
+  background: #14282cce;
+}
+.ts-touch-primary {
+  height: 84px;
+  width: 84px;
+  border: 2px solid #ffe2b5b0;
+  border-radius: 50%;
+  background: #8d3725e6;
+}
+.ts-touch-primary small {
+  font-size: 12px !important;
+}
+.ts-touch-primary.ts-throttle {
+  background: #425e30e6;
+  border-color: #d7edbcb0;
+}
+.ts-thumb-actions button:active {
+  background: #7b8262e8;
+  border-color: #f1f9d3;
+}
+.ts-thumb-actions .ts-trigger:active {
+  background: #c6623ee8;
+}
+.ts-thumb-actions button:disabled {
+  opacity: 0.42;
+}
+.ts-playing .ts-speed {
+  left: 80px;
+  bottom: calc(181px + env(safe-area-inset-bottom));
+}
+.ts-playing .ts-speed strong {
+  font-size: 28px;
+}
+.ts-playing .ts-speed small {
+  font-size: 11px;
+}
+.ts-playing .ts-ammo {
+  left: auto;
+  right: 17px;
+  bottom: calc(219px + env(safe-area-inset-bottom));
+  max-width: 176px;
+  background: #102024b8;
+  padding: 7px 11px;
+}
+.ts-playing .ts-ammo strong {
+  font-size: 12px;
+}
+.ts-playing .ts-ammo span {
+  font-size: 21px;
+}
+.ts-playing .ts-shop-prompt {
+  left: 17px;
+  bottom: calc(235px + env(safe-area-inset-bottom));
+  max-width: calc(100% - 216px);
+  min-width: 110px;
+  font-size: 12px;
+  padding: 10px;
+}
+.ts-playing .ts-driving-hint {
+  bottom: calc(296px + env(safe-area-inset-bottom));
+  font-size: 12px;
+  background: #11282b9c;
+}
+.ts-driving-hint[hidden] {
+  display: none;
+}
+.ts-playing .ts-hud-header {
+  top: max(13px, env(safe-area-inset-top));
+  left: 14px;
+  right: 14px;
+}
+.ts-playing .ts-hud-header strong {
+  font-size: 17px;
+}
+.ts-playing .ts-hud-header small {
+  font-size: 11px;
+}
+.ts-playing .ts-map-button {
+  left: 15px;
+  top: calc(73px + env(safe-area-inset-top));
+}
+.ts-playing .ts-minimap {
+  width: 92px;
+  height: 92px;
+}
+.ts-playing .ts-map-button > span {
+  font-size: 11px;
+}
+.ts-playing .ts-north {
+  font-size: 11px;
+}
+.ts-playing .ts-status-stack {
+  right: 15px;
+  top: calc(74px + env(safe-area-inset-top));
+  gap: 4px;
+}
+.ts-playing .ts-status-stack > span {
+  font-size: 11px;
+  padding: 5px 7px;
+  background: #13272ca8;
+}
+.ts-playing .ts-objective {
+  top: calc(189px + env(safe-area-inset-top));
+  min-height: 48px;
+}
+.ts-playing.ts-free-roam .ts-objective {
+  display: none;
+}
+.ts-playing .ts-crosshair {
+  font-size: 22px;
+  opacity: 0.84;
+}
+.ts-look-setting {
+  flex-wrap: wrap;
+}
+.ts-look-setting input {
+  width: 150px;
+  min-height: 44px;
+  accent-color: var(--lime);
+}
+@media (min-width: 650px) {
+  .ts-thumb-move {
+    left: 36px;
+  }
+  .ts-thumb-actions {
+    right: 36px;
+  }
+}
+@media (max-width: 350px) {
+  .ts-thumb-move {
+    width: 112px;
+    height: 112px;
+    left: 12px;
+  }
+  .ts-thumb-knob {
+    inset: 33px;
+  }
+  .ts-thumb-actions {
+    right: 10px;
+    gap: 8px;
+    grid-template-columns: 54px 78px;
+    grid-template-rows: 54px 78px;
+  }
+  .ts-touch-secondary {
+    width: 54px;
+    height: 54px;
+  }
+  .ts-touch-primary {
+    width: 78px;
+    height: 78px;
+  }
+}
+@media (max-height: 650px) {
+  .ts-playing .ts-map-button {
+    top: calc(68px + env(safe-area-inset-top));
+  }
+  .ts-playing .ts-minimap {
+    width: 76px;
+    height: 76px;
+  }
+  .ts-playing .ts-objective {
+    top: calc(163px + env(safe-area-inset-top));
+  }
+  .ts-playing .ts-driving-hint {
+    display: none;
+  }
+  .ts-playing .ts-shop-prompt {
+    bottom: calc(212px + env(safe-area-inset-bottom));
+  }
+}
+
+.ts-playing .ts-camera-zone {
+  inset: 0;
+}
