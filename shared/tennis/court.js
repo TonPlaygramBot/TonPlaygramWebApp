@@ -57,17 +57,23 @@ export function lineCall(x, z, hitter, serve = false, serverX = 0) {
     };
 }
 export function groundTime(b) {
-    return ((b.vy +
-        Math.sqrt(b.vy * b.vy + 2 * GRAVITY * Math.max(0, b.y - BALL_RADIUS))) /
-        GRAVITY);
+    const height = Math.max(0, b.y - BALL_RADIUS);
+    if (height < 1e-10 && b.vy <= 0)
+        return 0;
+    const speed = Math.sqrt(b.vy * b.vy + 2 * GRAVITY * height);
+    // The alternate quadratic root avoids cancellation on fast downward contacts.
+    return b.vy < 0 ? (2 * height) / (speed - b.vy) : (b.vy + speed) / GRAVITY;
 }
 export function bounceVelocity(b, surface, spin) {
+    const grip = surface === 'clay' ? 0.73 : surface === 'grass' ? 0.88 : 0.85;
+    const restitution = surface === 'clay' ? 0.76 : surface === 'grass' ? 0.62 : 0.74;
+    const boundedSpin = Number.isFinite(spin)
+        ? Math.max(-1, Math.min(1, spin))
+        : 0;
     return {
-        vx: b.vx * 0.85,
-        vz: b.vz * (surface === 'clay' ? 0.73 : 0.85),
-        vy: Math.abs(b.vy) *
-            (surface === 'clay' ? 0.72 : surface === 'grass' ? 0.58 : 0.66) *
-            (1 + spin * 0.12)
+        vx: b.vx * grip,
+        vz: b.vz * grip,
+        vy: Math.max(0, -b.vy) * restitution * (1 + boundedSpin * 0.12)
     };
 }
 export function reviewActive(s) {

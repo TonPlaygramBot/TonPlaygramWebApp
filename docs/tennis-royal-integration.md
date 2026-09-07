@@ -37,7 +37,15 @@ The engine snapshots each queued shot's direction, power and spin, including ser
 
 Exhibitions and the conversation preview default to Pro; Club and Tour remain selectable and career retains its progression. The deterministic opponent predicts reachable contact points through a surface-specific bounce, has level-specific reaction intervals and movement speeds, waits for a useful contact height, recovers according to court position, attacks open space and sometimes plays behind a recovering opponent. It selects a lob against a net player, a drop against a deep player, and safer strokes under pressure. It never teleports or awards itself points.
 
-This is a tuned game AI policy, not a newly trained neural model. A reproducible 30-seed benchmark uses an assisted reference player hitting right at 55% power every 1.25 seconds. Club/Tour/Pro win 4/28/30 matches respectively. This is a regression/calibration fixture, not a claim about win rates against real players.
+This is a tuned game AI policy, not a newly trained neural model. A reproducible 30-seed benchmark uses an assisted reference player hitting right at 55% power every 1.25 seconds. With the corrected bounce response, Club/Tour/Pro win 0/27/30 matches respectively. This is a regression/calibration fixture, not a claim about win rates against real players.
+
+## Ball contact and point transitions
+
+`physics.ts` advances the ball to the exact floor or net contact, applies the physical response, then lets the match engine adjudicate it. Legal landings, out balls, second bounces and double faults all rebound. A scoring decision no longer sets velocity to zero. A first service fault or let enters a 1.55-second `fault` phase so the rebound remains visible before the next serve. Swings during toss, faults, point breaks and reviews cannot queue a later shot. A serve that escapes the play area before landing counts as a fault instead of awarding an immediate point.
+
+Hard, clay and grass use different rebound, sliding and rolling responses. Horizontal grip preserves the incoming heading; vertical restitution and bounded spin control the rebound. Repeated contacts lose energy and eventually settle into rolling friction. Exact ground intersections and processing the remaining step prevent fast balls tunnelling through the court or small bounces sinking below it. A net strike deflects the ball back and lets it fall and bounce; a legal net-cord serve repeats the same serve attempt.
+
+Line reviews intentionally pause the saved live rebound while showing the recorded contact. After the review, ball motion resumes without awarding another point. Both online seats receive the same physical state. After a completed online match, the server continues the final ball motion behind the result panel; winner and settlement remain final.
 
 ## Television-style line review
 
@@ -47,20 +55,23 @@ A first bounce within 0.18 m of the contact boundary records its actual impact v
 
 Online snapshots carry the same review for both seats. The authoritative clock pauses live play, consumes stray swing IDs during the review and resumes automatically. Match-winning reviews finish before normal settlement; leaving during a final review preserves the already-decided winner and settles once. Disconnects retain the existing account/room rules.
 
-`shared/tennis/{court,ai,engine,career,swipe}.ts` are canonical. Run `node scripts/buildTennisEngine.mjs` after editing them and commit the generated JavaScript consumed by Node and Vite.
+`shared/tennis/{court,physics,ai,engine,career,swipe}.ts` are canonical. Run `node scripts/buildTennisEngine.mjs` after editing them and commit the generated JavaScript consumed by Node and Vite.
 
-`node scripts/buildTennisPreview.mjs /workspace/tennis-player-view.html` builds a playable conversation fragment from the actual game, renderer and engine. It embeds the existing reduced Quaternius meshes and uses in-memory AI/career services. The full app retains its full meshes and account/online services.
+`node scripts/buildTennisPreview.mjs /workspace/tennis-bounce-fixed.html` builds a playable conversation fragment from the actual game, renderer and engine. It embeds the existing reduced Quaternius meshes and uses in-memory AI/career services. The full app retains its full meshes and account/online services.
 
 ## Validation
 
 - `npx tsc -p tsconfig.tennis.json`
-- `node --test test/tennisRoyalIntegration.test.mjs test/tennisRoyalSocket.test.mjs test/tennisSwipe.test.mjs test/tennisLineReview.test.mjs test/tennisPlayerView.test.mjs`
+- `node --test test/tennisRoyalIntegration.test.mjs test/tennisRoyalSocket.test.mjs test/tennisSwipe.test.mjs test/tennisLineReview.test.mjs test/tennisPlayerView.test.mjs test/tennisBounce.test.mjs`
+- `node scripts/checkTennisBrowser.mjs` (install Chromium with Playwright first, or set `TENNIS_BROWSER_EXECUTABLE`; set `TENNIS_BROWSER_OUTPUT_DIR` to retain screenshots and contact traces)
 - `npx jest test/onlineGamePolicy.test.js test/tpgGameContracts.test.js test/simpleOnlineFlow.test.js --runInBand`
 - `npm --prefix webapp run build`
 
 These cover the actual tennis service and Socket.IO transport, engine completion, stake accounting, replay protection, input/seat restrictions, reconnects, timeout refunds, cancellation during reservation, and career persistence. Stake unit tests use the repository's isolated memory user store; production MongoDB transactions need the staging check below.
 
-All 26 tennis tests, the strict tennis TypeScript check and the full webapp Vite build passed. The tennis regressions cover gesture timing/width invariance, screen-vector angle preservation for both seats, queued input capture, actual speed differences, painted-line/corner contact, fast-ball intersections at multiple time steps, near-line first faults, delayed IN reviews, match-ending reviews and identical online state with one settlement. The AI fixture runs 90 seeded matches. Camera framing is checked at 320/390/480 px widths and multiple portrait heights. The actual game scene and magnified line mark were also rendered offline with the existing software fallback. Hardware WebGL, physical touch feel, audio and performance still need a phone playtest.
+All 37 tennis tests, the strict tennis TypeScript check and the full webapp Vite build passed. The regression loop includes 108 complete physical trajectories across three courts, four step sizes, three speeds and three spins, plus 180 seeded matches (90 AI calibration matches and 90 with varied stroke timing, type, power and aim). It checks contact energy loss, heading preservation, settling, score-once behavior, faults, lets, airborne point endings, review resumption and matching online rebounds through final settlement. Existing swipe, camera, account and replay checks remain in the suite.
+
+The browser loop bundles the actual React/Three game with a test-only state probe, serves its existing assets through Playwright request interception, and checks 24 visible landing cases across courts and seats. It also checks real pointer input at 320/390/480 px portrait widths, taps versus fast swipes, pause/resume, canceled gestures, stroke selection, line review and rematch. Chromium 149 with SwiftShader passed these checks. No game JavaScript errors occurred; Google Fonts was unavailable in the test environment, so screenshots use the existing fallback fonts. The probe is not included in the production build. Physical touch feel, device audio and hardware performance still need a phone playtest.
 
 The monolithic `allGamesOnlineMatchmaking` server test could not start in this workspace because the repository's native `canvas` module was unavailable; rebuilding it failed in node-gyp header extraction. No test bypass or production dependency change was added.
 
