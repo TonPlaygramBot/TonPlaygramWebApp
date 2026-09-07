@@ -1,77 +1,62 @@
-import * as THREE from 'three'
+import * as THREE from 'three';
 
-export const sampleCueStrokeTimeline = ({
-  elapsed = 0,
-  pullbackDuration = 0,
-  strikeDuration = 120,
-  holdDuration = 50,
-  recoverDuration = 0,
-  animationStyle = 'classic',
-  strikeWindowRatio = 0.22,
-  hitArmRatio = 0.82
-} = {}) => {
-  const pullback = Math.max(0, pullbackDuration ?? 0)
-  const release = Math.max(0, strikeDuration ?? 120)
-  const hold = Math.max(0, holdDuration ?? 50)
-  const recover = Math.max(0, recoverDuration ?? 0)
-  const safeElapsed = Math.max(0, elapsed)
+const unit = value => THREE.MathUtils.clamp(Number.isFinite(value) ? value : 0, 0, 1);
+const easeOut = t => 1 - (1 - unit(t)) ** 3;
 
-  const pullEnd = pullback
-  const releaseEnd = pullEnd + release
-  const holdEnd = releaseEnd + hold
-  const recoverEnd = holdEnd + recover
+// Ratios and timing from the supplied human/cue demo, scaled by the live ball.
+export const POOL_ROYAL_STROKE = Object.freeze({ strikeDuration: 120, holdDuration: 50, hitArmRatio: 0.88 });
+export const referenceCuePull = (power, radius) => radius * (0.42 / 0.045) * easeOut(power);
+export const referenceCueFeather = (power, radius, now) => Math.sin(now * 0.012) * radius * (0.035 / 0.045) * (0.25 + unit(power) * 0.75);
 
-  if (safeElapsed <= pullEnd && pullback > 0) {
-    return { phase: 'pullback', t: THREE.MathUtils.clamp(safeElapsed / Math.max(pullback, 1e-6), 0, 1), hitArmed: false, done: false }
+export function sampleCueStrokeTimeline({ elapsed = 0, pullbackDuration = 0,
+  strikeDuration = 120, holdDuration = 50, recoverDuration = 0,
+  animationStyle = 'classic', strikeWindowRatio = 0.22, hitArmRatio = 0.88 } = {}) {
+  const pull = Math.max(0, pullbackDuration), strike = Math.max(0, strikeDuration);
+  const hold = Math.max(0, holdDuration), recover = Math.max(0, recoverDuration);
+  const time = Math.max(0, elapsed);
+  if (pull > 0 && time < pull) return { phase: 'pullback', t: unit(time / pull), hitArmed: false, done: false };
+  if (strike > 0 && time < pull + strike) {
+    const progress = unit((time - pull) / strike);
+    // A single continuous push; phase boundaries must never move the cue backward.
+    const contactTime = THREE.MathUtils.clamp(hitArmRatio, 0.5, 1);
+    const t = unit(progress / contactTime);
+    const eased = animationStyle === 'linear' ? t : easeOut(t);
+    return { phase: progress < 1 - strikeWindowRatio ? 'release' : 'strike', t: eased,
+      hitArmed: progress >= contactTime, done: false };
   }
-  if (safeElapsed <= releaseEnd && release > 0) {
-    const releaseElapsed = safeElapsed - pullEnd
-    const baseT = THREE.MathUtils.clamp(releaseElapsed / Math.max(release, 1e-6), 0, 1)
-    const strikeShare = THREE.MathUtils.clamp(strikeWindowRatio, 0.05, 0.45)
-    const strikeStartT = 1 - strikeShare
-    const hitT = THREE.MathUtils.clamp(hitArmRatio, strikeStartT, 0.98)
-    const styleT = (() => {
-      switch (animationStyle) {
-        case 'linear':
-          return baseT
-        case 'snap':
-          return THREE.MathUtils.smoothstep(baseT, 0, 1)
-        case 'spring': {
-          // Use a critically-damped spring approximation so release motion
-          // stays monotonic (never snaps backward toward pullback).
-          const spring = 1 - Math.exp(-7.4 * baseT) * (1 + 7.4 * baseT)
-          return THREE.MathUtils.clamp(spring, 0, 1)
-        }
-        case 'whip':
-          return Math.pow(baseT, 0.72)
-        case 'classic':
-        default:
-          return 1 - Math.pow(1 - baseT, 3)
-      }
-    })()
-    if (baseT < strikeStartT) {
-      const releaseT = THREE.MathUtils.clamp(baseT / Math.max(strikeStartT, 1e-6), 0, 1)
-      const easedReleaseT = 1 - Math.pow(1 - releaseT, 2)
-      return {
-        phase: 'release',
-        t: easedReleaseT,
-        hitArmed: false,
-        done: false
-      }
-    }
-    const strikeT = THREE.MathUtils.clamp((baseT - strikeStartT) / Math.max(strikeShare, 1e-6), 0, 1)
-    return {
-      phase: 'strike',
-      t: Math.max(styleT, strikeT),
-      hitArmed: baseT >= hitT,
-      done: false
-    }
+  if (hold > 0 && time < pull + strike + hold) return { phase: 'hold', t: 1, hitArmed: true, done: false };
+  if (recover > 0 && time < pull + strike + hold + recover) return {
+    phase: 'recover', t: unit((time - pull - strike - hold) / recover), hitArmed: true, done: false
+  };
+  return { phase: 'done', t: 1, hitArmed: true, done: true };
+}
+
+/** The rounded leather cap touches the sphere, including spin and cue tilt. */
+export function resolveCueBallContact(ball, direction, offset, ballRadius, tipRadius) {
+  const axis = direction.clone().normalize();
+  const lateral = offset.clone().addScaledVector(axis, -offset.dot(axis));
+  lateral.clampLength(0, ballRadius * 0.85);
+  const along = Math.sqrt(Math.max(0, (ballRadius + tipRadius) ** 2 - lateral.lengthSq()));
+  return ball.clone().add(lateral).addScaledVector(axis, tipRadius - along);
+}
+
+/** Move the visible cue BEFORE launching physics; even a skipped frame hits once. */
+export function advancePoolRoyalCueStroke(cue, stroke, now) {
+  let sample = sampleCueStrokeTimeline({ ...stroke, elapsed: now - stroke.startTime });
+  if (sample.phase === 'pullback') cue.position.lerpVectors(stroke.idlePos, stroke.pullPos, THREE.MathUtils.smoothstep(sample.t, 0, 1));
+  else if (sample.phase === 'recover') cue.position.lerpVectors(stroke.contactPos, stroke.idlePos, sample.t);
+  else cue.position.lerpVectors(stroke.pullPos, stroke.contactPos, sample.t);
+  if (sample.hitArmed && !stroke.shotApplied) {
+    cue.position.copy(stroke.contactPos);
+    stroke.shotApplied = true;
+    stroke.impactAt = now;
+    stroke.onImpact?.();
   }
-  if (safeElapsed <= holdEnd && hold > 0) {
-    return { phase: 'hold', t: THREE.MathUtils.clamp((safeElapsed - releaseEnd) / Math.max(hold, 1e-6), 0, 1), hitArmed: true, done: false }
+  // A dropped mobile frame must still display contact before the cue disappears.
+  if (sample.done && now - stroke.impactAt < (stroke.holdDuration ?? 50)) {
+    sample = { phase: 'hold', t: 1, hitArmed: true, done: false };
   }
-  if (safeElapsed <= recoverEnd && recover > 0) {
-    return { phase: 'recover', t: THREE.MathUtils.clamp((safeElapsed - holdEnd) / Math.max(recover, 1e-6), 0, 1), hitArmed: true, done: false }
-  }
-  return { phase: 'done', t: 1, hitArmed: true, done: true }
+  stroke.phase = sample.phase;
+  cue.visible = !sample.done;
+  return sample;
 }

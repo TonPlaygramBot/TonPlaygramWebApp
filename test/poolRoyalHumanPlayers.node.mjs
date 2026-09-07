@@ -158,7 +158,7 @@ test('eye camera uses the actual eyes under a transformed parent and restores bo
   const human = players.players[0].human;
   const eye = human.model.getObjectByName('LeftEye').getWorldPosition(new THREE.Vector3())
     .lerp(human.model.getObjectByName('RightEye').getWorldPosition(new THREE.Vector3()), 0.5);
-  parent.worldToLocal(eye).addScaledVector(frame.aimForward, (ball.y - metrics.clothY) * 1.15);
+  parent.worldToLocal(eye).addScaledVector(frame.aimForward, (ball.y - metrics.clothY) * 2);
   assert.ok(eye.distanceTo(players.eyeView.position) < 1e-7);
   players.setFirstPerson(true, 'A');
   assert.ok(players.players[0].headMeshes.every(mesh => !mesh.visible));

@@ -27,3 +27,10 @@ export const resolvePoolRoyaleShotPowerScale = (power) => {
 };
 
 export const easeOut = (t) => 1 - Math.pow(1 - THREE.MathUtils.clamp(t, 0, 1), 3);
+
+export function resolvePoolRoyalReleasePower({ busy, committedPower, currentPower, minPower = 0.02 }) {
+  if (busy) return null;
+  const value = Number.isFinite(committedPower) ? committedPower : currentPower;
+  const power = THREE.MathUtils.clamp(Number.isFinite(value) ? value : 0, 0, 1);
+  return power >= minPower ? power : null;
+}
