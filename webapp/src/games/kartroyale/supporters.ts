@@ -1,6 +1,9 @@
 import * as T from 'three';
-import type { Track } from './simulation.mjs';
+import type { Track, Racer } from './simulation.mjs';
+import type { FoodKind, Point3 } from './foodFlight.mjs';
+import { randomUnit } from './foodFlight.mjs';
 import { occupied } from './tiranaScenery';
+import { cloneHuman, bakeHuman, poseHuman, type Human } from './supporterHuman';
 
 type Fan = {
   x: number;
@@ -9,17 +12,45 @@ type Fan = {
   seed: number;
   flag: boolean;
   scale: number;
+  variant: number;
+  nextThrow: number;
 };
-/** Batched human supporters. All feet remain beyond the closed-course barrier. */
+type Throw = {
+  at: number;
+  released: boolean;
+  targetId: string;
+  kind: FoodKind;
+  seed: number;
+};
+type Actor = { human: Human; fan: Fan | null; throw?: Throw; held: T.Mesh };
+export type CrowdLaunch = (
+  origin: Point3,
+  target: Racer,
+  kind: FoodKind,
+  seed: number
+) => void;
+/** Nearby skeletal throwers and distant instanced copies of the same game humans. */
 export class Supporters {
   group = new T.Group();
   private fans: Fan[] = [];
-  private parts = new Map<string, T.InstancedMesh>();
+  private batches: T.InstancedMesh[][] = [];
+  private actors: Actor[][] = [];
+  private poles: T.InstancedMesh;
+  private flags: T.InstancedMesh;
   private transform = new T.Object3D();
-  private parent = new T.Object3D();
-  private matrix = new T.Matrix4();
   private clock = { value: 0 };
-  constructor(track: Track, flagTexture: T.Texture) {
+  private nextThrow = 2;
+  private lastTime = 0;
+  private egg = new T.MeshStandardMaterial({
+    color: '#f5e7cf',
+    roughness: 0.36
+  });
+  private tomato = new T.MeshStandardMaterial({
+    color: '#dc2713',
+    roughness: 0.22
+  });
+  private heldGeometry = new T.SphereGeometry(0.11, 12, 8);
+  constructor(track: Track, flagTexture: T.Texture, templates: T.Group[]) {
     const stride = Math.max(2, Math.round(11 / (track.length / 360)));
     for (let i = 10; i < 345; i += stride)
       for (const side of [-1, 1]) {
@@ -28,78 +59,58 @@ export class Supporters {
         const x = p.x - Math.cos(p.yaw) * offset * side,
           z = p.z + Math.sin(p.yaw) * offset * side;
         if (occupied(x, z)) continue;
+        const seed = i * 2 + (side + 1) / 2;
         this.fans.push({
           x,
           z,
           yaw: Math.atan2(p.x - x, p.z - z),
-          seed: i + side * 12,
+          seed,
           flag: i % 3 !== 0,
-          scale: 0.93 + (i % 5) * 0.035
+          scale: 0.95 + randomUnit(seed) * 0.1,
+          variant: seed % templates.length,
+          nextThrow: 0
         });
       }
-    const part = (
-      name: string,
-      g: T.BufferGeometry,
-      mat: T.Material,
-      mult = 1
-    ) => {
-      const m = new T.InstancedMesh(g, mat, this.fans.length * mult);
-      m.count = 0;
-      m.frustumCulled = false;
-      m.instanceMatrix.setUsage(T.DynamicDrawUsage);
-      this.group.add(m);
-      this.parts.set(name, m);
-    };
-    part(
-      'shirt',
-      new T.BoxGeometry(0.48, 0.57, 0.28),
-      new T.MeshStandardMaterial({ roughness: 1 })
+    for (const template of templates) {
+      const h = cloneHuman(template);
+      const batches = bakeHuman(h).map(({ geometry, material }) => {
+        const mesh = new T.InstancedMesh(geometry, material, this.fans.length);
+        mesh.frustumCulled = false;
+        mesh.instanceMatrix.setUsage(T.DynamicDrawUsage);
+        mesh.count = 0;
+        this.group.add(mesh);
+        return mesh;
+      });
+      this.batches.push(batches);
+      h.root.traverse((o) => {
+        if (o instanceof T.SkinnedMesh) o.skeleton.dispose();
+      });
+      this.actors.push(
+        Array.from({ length: 7 }, () => {
+          const human = cloneHuman(template);
+          const held = new T.Mesh(this.heldGeometry, this.egg);
+          held.visible = false;
+          human.root.add(held);
+          this.group.add(human.root);
+          return { human, fan: null, held };
+        })
+      );
+    }
+    const poleMaterial = new T.MeshStandardMaterial({
+      color: '#dcd6bf',
+      metalness: 0.2
+    });
+    this.poles = new T.InstancedMesh(
+      new T.CylinderGeometry(0.016, 0.016, 1.4, 5),
+      poleMaterial,
+      this.fans.length
     );
-    part(
-      'legs',
-      new T.CylinderGeometry(0.09, 0.07, 0.76, 6),
-      new T.MeshStandardMaterial({ color: '#27323b', roughness: 1 }),
-      2
-    );
-    part(
-      'shoes',
-      new T.BoxGeometry(0.18, 0.11, 0.29),
-      new T.MeshStandardMaterial({ color: '#ece6d7', roughness: 1 }),
-      2
-    );
-    part(
-      'head',
-      new T.SphereGeometry(0.19, 10, 8),
-      new T.MeshStandardMaterial({ roughness: 1 })
-    );
-    part(
-      'hair',
-      new T.SphereGeometry(0.194, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2),
-      new T.MeshStandardMaterial({ color: '#30251f', roughness: 1 })
-    );
-    part(
-      'arms',
-      new T.CylinderGeometry(0.07, 0.065, 0.5, 6),
-      new T.MeshStandardMaterial({ roughness: 1 }),
-      2
-    );
-    part(
-      'eyes',
-      new T.SphereGeometry(0.018, 5, 4),
-      new T.MeshBasicMaterial({ color: '#282020' }),
-      2
-    );
-    part(
-      'pole',
-      new T.CylinderGeometry(0.016, 0.016, 1.8, 5),
-      new T.MeshStandardMaterial({ color: '#dcd6bf', metalness: 0.2 })
-    );
-    const mat = new T.MeshStandardMaterial({
+    const flagMaterial = new T.MeshStandardMaterial({
       map: flagTexture,
       side: T.DoubleSide,
-      roughness: 1
+      roughness: 0.85
     });
-    mat.onBeforeCompile = (shader) => {
+    flagMaterial.onBeforeCompile = (shader) => {
       shader.uniforms.fanTime = this.clock;
       shader.vertexShader = 'uniform float fanTime;\n' + shader.vertexShader;
       shader.vertexShader = shader.vertexShader.replace(
@@ -107,66 +118,237 @@ export class Supporters {
         '#include <begin_vertex>\ntransformed.z += sin(position.x * 8.0 + fanTime * 4.8) * (position.x + 0.55) * 0.10;'
       );
     };
-    part('flag', new T.PlaneGeometry(1.1, 0.78, 8, 2), mat);
+    this.flags = new T.InstancedMesh(
+      new T.PlaneGeometry(1.1, 0.78, 8, 2),
+      flagMaterial,
+      this.fans.length
+    );
+    for (const mesh of [this.poles, this.flags]) {
+      mesh.frustumCulled = false;
+      mesh.instanceMatrix.setUsage(T.DynamicDrawUsage);
+      mesh.count = 0;
+      this.group.add(mesh);
+    }
   }
-  update(time: number, x: number, z: number, performance: boolean) {
+  update(
+    time: number,
+    me: Racer,
+    racers: Racer[],
+    performance: boolean,
+    running: boolean,
+    launch: CrowdLaunch
+  ) {
+    const dt = Math.max(0, Math.min(0.1, time - this.lastTime));
+    this.lastTime = time;
     this.clock.value = time;
-    const counts = new Map<string, number>();
-    const draw = (
-      name: string,
-      px: number,
-      py: number,
-      pz: number,
-      rz = 0,
-      color?: string
-    ) => {
-      const mesh = this.parts.get(name)!,
-        i = counts.get(name) || 0;
-      this.transform.position.set(px, py, pz);
-      this.transform.rotation.set(0, 0, rz);
-      this.transform.updateMatrix();
-      this.matrix.multiplyMatrices(this.parent.matrix, this.transform.matrix);
-      mesh.setMatrixAt(i, this.matrix);
-      if (color) mesh.setColorAt(i, new T.Color(color));
-      counts.set(name, i + 1);
-    };
-    for (const f of this.fans) {
-      if (Math.hypot(f.x - x, f.z - z) > (performance ? 85 : 145)) continue;
-      const wave = Math.sin(time * 3 + f.seed) * 0.14;
-      this.parent.position.set(f.x, 0.06, f.z);
-      this.parent.rotation.set(0, f.yaw, 0);
-      this.parent.scale.setScalar(f.scale);
-      this.parent.updateMatrix();
-      const skin = ['#dbac84', '#b97f59', '#e0bb98', '#8f5e42'][
-        Math.abs(f.seed) % 4
-      ];
-      draw(
-        'shirt',
-        0,
-        1.13,
-        0,
-        0,
-        ['#d82832', '#edebe0', '#111f2e'][Math.abs(f.seed) % 3]
+    const near = this.fans.filter(
+      (f) => Math.hypot(f.x - me.x, f.z - me.z) < (performance ? 85 : 120)
+    );
+    const assignments = new Map<Fan, Actor>();
+    this.actors.forEach((pool, variant) => {
+      const wanted = near
+        .filter(
+          (f) =>
+            f.variant === variant &&
+            Math.hypot(f.x - me.x, f.z - me.z) < (performance ? 29 : 45)
+        )
+        .sort(
+          (a, b) =>
+            Math.hypot(a.x - me.x, a.z - me.z) -
+            Math.hypot(b.x - me.x, b.z - me.z)
+        )
+        .slice(0, performance ? 3 : 7);
+      // Keep a winding-up thrower assigned until release/recovery completes.
+      for (const actor of pool)
+        if (
+          actor.throw &&
+          actor.fan &&
+          time - actor.throw.at < 1.45 &&
+          !wanted.includes(actor.fan)
+        )
+          wanted.push(actor.fan);
+      for (const actor of pool)
+        if (actor.fan && wanted.includes(actor.fan))
+          assignments.set(actor.fan, actor);
+      for (const fan of wanted) {
+        if (assignments.has(fan)) continue;
+        const actor = pool.find((a) => !a.fan || !wanted.includes(a.fan));
+        if (actor) {
+          actor.fan = fan;
+          actor.throw = undefined;
+          assignments.set(fan, actor);
+        }
+      }
+      for (const actor of pool) {
+        actor.human.root.visible =
+          !!actor.fan && assignments.get(actor.fan) === actor;
+        if (!actor.human.root.visible) {
+          actor.fan = null;
+          actor.throw = undefined;
+          actor.held.visible = false;
+        }
+      }
+    });
+    if (running && time >= this.nextThrow) {
+      const candidates = [...assignments.entries()].filter(
+        ([f, a]) => !a.throw && f.nextThrow <= time
       );
-      for (const s of [-1, 1]) {
-        draw('legs', s * 0.12, 0.45, 0, s * 0.04);
-        draw('shoes', s * 0.14, 0.08, 0.06);
-        draw('eyes', s * 0.065, 1.66, 0.175);
+      let selected: {
+        fan: Fan;
+        actor: Actor;
+        target: Racer;
+        score: number;
+      } | null = null;
+      for (const [fan, actor] of candidates)
+        for (const target of racers) {
+          if (
+            target.finished ||
+            target.retired ||
+            target.disconnected ||
+            target.speed < 3
+          )
+            continue;
+          const dx = fan.x - target.x,
+            dz = fan.z - target.z;
+          const distance = Math.hypot(dx, dz),
+            ahead = dx * Math.sin(target.yaw) + dz * Math.cos(target.yaw);
+          if (distance < 9 || distance > 28 || ahead < 2) continue;
+          const score =
+            distance +
+            (target.id === me.id ? 0 : 8) +
+            randomUnit(fan.seed + Math.floor(time)) * 5;
+          if (!selected || score < selected.score)
+            selected = { fan, actor, target, score };
+        }
+      if (selected) {
+        const { fan, actor, target } = selected,
+          seed = fan.seed + Math.floor(time * 10);
+        actor.throw = {
+          at: time,
+          released: false,
+          targetId: target.id,
+          kind: Math.floor(time / 1.8) % 2 ? 'tomato' : 'egg',
+          seed
+        };
+        actor.human.root.rotation.y = Math.atan2(
+          target.x - fan.x,
+          target.z - fan.z
+        );
+        fan.nextThrow = time + 8;
+        this.nextThrow = time + 1.8;
+      } else this.nextThrow = time + 0.3;
+    }
+    const counts = this.batches.map(() => 0);
+    let flags = 0;
+    for (const fan of near) {
+      const actor = assignments.get(fan),
+        m = this.transform;
+      m.position.set(fan.x, 0.04, fan.z);
+      m.rotation.set(0, fan.yaw, 0);
+      m.scale.setScalar(fan.scale);
+      m.updateMatrix();
+      let hand: T.Vector3 | undefined;
+      if (actor) {
+        const { human } = actor;
+        human.root.position.copy(m.position);
+        human.root.scale.copy(m.scale);
+        if (!actor.throw) human.root.rotation.y = fan.yaw;
+        const age = actor.throw ? time - actor.throw.at : -1;
+        if (actor.throw && age < 0.68) {
+          const target = racers.find((r) => r.id === actor.throw!.targetId);
+          if (target) {
+            const lead = Math.max(0, 0.68 - age) + 0.6;
+            const aimYaw = Math.atan2(
+              target.x +
+                Math.sin(target.velocityYaw) * target.speed * lead -
+                fan.x,
+              target.z +
+                Math.cos(target.velocityYaw) * target.speed * lead -
+                fan.z
+            );
+            const turn =
+              T.MathUtils.euclideanModulo(
+                aimYaw - human.root.rotation.y + Math.PI,
+                Math.PI * 2
+              ) - Math.PI;
+            human.root.rotation.y += turn * (1 - Math.exp(-dt * 12));
+          }
+        }
+        poseHuman(human, time + fan.seed, age, fan.flag);
+        const throwHand = human.bones
+          .get('hand_r')?.[0]
+          ?.getWorldPosition(new T.Vector3());
+        actor.held.visible = !!actor.throw && age < 0.68;
+        if (throwHand && actor.throw) {
+          actor.held.position.copy(human.root.worldToLocal(throwHand.clone()));
+          actor.held.material =
+            actor.throw.kind === 'egg' ? this.egg : this.tomato;
+          actor.held.scale.set(1, actor.throw.kind === 'egg' ? 1.3 : 0.9, 1);
+          if (age >= 0.68 && !actor.throw.released) {
+            actor.throw.released = true;
+            const target = racers.find((r) => r.id === actor.throw!.targetId);
+            if (running && target && !target.finished && !target.retired)
+              launch(throwHand, target, actor.throw.kind, actor.throw.seed);
+          }
+        }
+        if (age > 1.45) actor.throw = undefined;
+        hand = human.bones
+          .get('hand_l')?.[0]
+          ?.getWorldPosition(new T.Vector3());
+      } else {
+        const index = counts[fan.variant]++;
+        this.batches[fan.variant].forEach((mesh) =>
+          mesh.setMatrixAt(index, m.matrix)
+        );
       }
-      draw('head', 0, 1.64, 0, 0, skin);
-      draw('hair', 0, 1.69, -0.013);
-      draw('arms', -0.38, 1.39, 0, -0.7 - wave, skin);
-      draw('arms', 0.39, 1.52, 0, -0.62 + wave, skin);
-      if (f.flag) {
-        draw('pole', 0.51, 2.42, 0.01, wave * 0.15);
-        draw('flag', 1.05, 2.95, 0.025, wave * 0.15);
+      if (fan.flag) {
+        const right = new T.Vector3(Math.cos(fan.yaw), 0, -Math.sin(fan.yaw));
+        const origin =
+          hand ||
+          new T.Vector3(fan.x, 1.48, fan.z).addScaledVector(right, 0.34);
+        m.position.copy(origin).add(new T.Vector3(0, 0.5, 0));
+        m.rotation.set(0, fan.yaw, Math.sin(time * 3 + fan.seed) * 0.055);
+        m.scale.setScalar(1);
+        m.updateMatrix();
+        this.poles.setMatrixAt(flags, m.matrix);
+        m.position
+          .copy(origin)
+          .add(new T.Vector3(0, 0.9, 0))
+          .addScaledVector(right, 0.54);
+        m.updateMatrix();
+        this.flags.setMatrixAt(flags++, m.matrix);
       }
     }
-    for (const [name, mesh] of this.parts) {
-      mesh.count = counts.get(name) || 0;
+    this.batches.forEach((batch, i) =>
+      batch.forEach((mesh) => {
+        mesh.count = counts[i];
+        mesh.instanceMatrix.needsUpdate = true;
+      })
+    );
+    for (const mesh of [this.flags, this.poles]) {
+      mesh.count = flags;
       mesh.instanceMatrix.needsUpdate = true;
-      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     }
+  }
+  dispose() {
+    this.group.removeFromParent();
+    this.batches.flat().forEach((m) => {
+      m.geometry.dispose();
+      m.dispose();
+    });
+    for (const m of [this.poles, this.flags]) {
+      m.geometry.dispose();
+      (m.material as T.Material).dispose();
+      m.dispose();
+    }
+    this.actors.flat().forEach((a) =>
+      a.human.root.traverse((o) => {
+        if (o instanceof T.SkinnedMesh) o.skeleton.dispose();
+      })
+    );
+    this.heldGeometry.dispose();
+    this.egg.dispose();
+    this.tomato.dispose();
   }
   get count() {
     return this.fans.length;

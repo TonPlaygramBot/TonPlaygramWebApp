@@ -27,13 +27,19 @@ function applyVelocity(r, x, z) {
   if (r.speed > 0.01) r.velocityYaw = Math.atan2(x, z);
 }
 function impact(r, normalSpeed, nx, nz) {
+  // Feedback stays punchy, but ordinary racing contacts must not end a race.
+  // One physical collision can span several contacts/steps: charge it once.
+  if ((r.impactCooldown || 0) > 0) return;
   const damage = damageRacer(
     r,
-    Math.min(42, Math.max(0, normalSpeed - 1.8) ** 2 * 0.075)
+    Math.min(14, Math.max(0, normalSpeed - 3.5) ** 2 * 0.018)
   );
-  if (damage > 0.08) {
+  if (normalSpeed > 1.5) {
     r.impactId = (r.impactId || 0) + 1;
     r.impact = clamp(normalSpeed / 28, 0.08, 1);
+    r.impactNx = nx;
+    r.impactNz = nz;
+    r.impactCooldown = 0.3;
     const front = Math.sin(r.yaw) * nx + Math.cos(r.yaw) * nz;
     const key =
       front > 0.35
@@ -70,7 +76,7 @@ export function resolveWallContact(r, near, width, dt, damage = true) {
     );
     if (damage) {
       if (!r.wallContact) impact(r, closing, nx, nz);
-      else damageRacer(r, Math.max(0, closing - 1.8) * 0.12 * dt);
+      else damageRacer(r, Math.max(0, closing - 3.5) * 0.035 * dt);
     }
     r.yawRate += clamp(
       (Math.sin(r.yaw) * nz - Math.cos(r.yaw) * nx) * closing * 0.035,

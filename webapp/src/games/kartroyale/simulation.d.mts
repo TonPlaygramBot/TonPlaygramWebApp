@@ -36,6 +36,9 @@ export interface Racer {
   wallContact: boolean;
   impactId: number;
   impact: number;
+  impactNx: number;
+  impactNz: number;
+  impactCooldown: number;
   damageFront: number;
   damageRear: number;
   damageSide: number;
