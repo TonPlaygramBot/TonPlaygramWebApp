@@ -19,6 +19,7 @@ export class SoftwareRenderer {
   height = 1;
   last = 0;
   ratio = 1;
+  fillTriangleSeams = false;
   textures = new WeakMap<T.Texture, ImageData>();
   constructor() {
     const c = this.domElement.getContext('2d');
@@ -238,6 +239,11 @@ export class SoftwareRenderer {
         c.closePath();
         c.fillStyle = f.color;
         c.fill();
+        if (this.fillTriangleSeams) {
+          c.strokeStyle = f.color;
+          c.lineWidth = 0.5;
+          c.stroke();
+        }
       }
     }
     c.globalAlpha = 1;
