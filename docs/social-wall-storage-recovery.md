@@ -58,7 +58,7 @@ Check `/api/flamingo-wall/health` for `storage.freeBytes`, `reservedBytes`,
 MongoDB plan has spare quota; the hosting/database dashboards remain authoritative
 for plan limits. Review service logs for the specific upload failure code.
 
-The existing Render configuration specifies a 10 GB persistent disk at
+The Render configuration specifies a 100 GB persistent disk at
 `/var/data/tonplaygram` and disables GridFS backup. Verify that the running service
 actually has that disk mounted and `FLAMINGO_GRIDFS_BACKUP=false`. A source change
 to `render.yaml` alone does not verify an existing service's environment. Keep
