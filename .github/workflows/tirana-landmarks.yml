@@ -22,8 +22,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Numeric geometry, GLB and placement regression tests
-        run: node --experimental-strip-types --test test/tiranaLandmarkPlacement.test.mjs test/tiranaNativeLandmarks.test.mjs
+      - name: Numeric geometry, GLB, placement and fallback regression tests
+        run: node --experimental-strip-types --test test/tiranaLandmarkPlacement.test.mjs test/tiranaNativeLandmarks.test.mjs test/tiranaLandmarkFallback.test.mjs
       - name: Export original near and far meshes
         run: node webapp/scripts/export-tirana-landmarks.mjs /tmp/tirana-landmarks
       - uses: actions/upload-artifact@v4

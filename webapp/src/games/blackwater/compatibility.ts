@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { updateAutomaticLods } from '../tirana-landmarks/automaticLods.mjs';
 // A bounded Canvas renderer for browsers without WebGL. Uses the same Three.js scene,
 // camera and simulation; lower visual detail is explicitly disclosed in the UI.
 type Point={x:number;y:number;z:number;u:number;v:number};
@@ -14,6 +15,8 @@ export class CompatibilityRenderer {
     const ctx=this.context,w=this.width,h=this.height;ctx.setTransform(this.ratio,0,0,this.ratio,0,0);ctx.globalAlpha=1;
     const gradient=ctx.createLinearGradient(0,0,0,h*.65);gradient.addColorStop(0,'#405b69');gradient.addColorStop(.8,'#a4b1af');gradient.addColorStop(1,'#56676a');ctx.fillStyle=gradient;ctx.fillRect(0,0,w,h);
     scene.updateMatrixWorld();camera.updateMatrixWorld();camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
+    // Canvas fallback must select one LOD just as WebGLRenderer does.
+    updateAutomaticLods(scene, camera);
     const faces:Face[]=[],viewFaces:Face[]=[],matrix=new THREE.Matrix4(),mv=new THREE.Matrix4(),instance=new THREE.Matrix4(),fog=new THREE.Color('#819496'),light=new THREE.Vector3(-.35,.85,-.65).transformDirection(camera.matrixWorldInverse),frustum=new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));
     const focus=h/(2*Math.tan(camera.fov*Math.PI/360));
     const collect=(mesh:THREE.Mesh,world:THREE.Matrix4,viewModel:boolean)=>{
