@@ -4,6 +4,7 @@ import {WORLD} from '../shared/world.mjs';
 import type {State,Point} from '../shared/engine.mjs';
 import {fitView, constrainView, panView, zoomView, screenPoint, inBounds, readFavorites, writeFavorites, MAX_FAVORITES} from './mapCore.mjs';
 import './map.css';
+import {civicSites,referenceLinks,unproject,REFERENCES,project} from '../../tirana-expansion/geography.mjs';
 type Place = Point & {id?:string; name:string; available?:boolean};
 type Props = {player?:Point & {heading:number};state:State|null;route:Point[];large?:boolean;destination?:Place|null;onDestination?:(p:Place|null)=>void;routeNotice?:string};
 type View = {x:number;z:number;w:number;h:number};
@@ -29,7 +30,7 @@ function Markers({player,state,route,scale,destination}:Props & {scale:number}) 
     {state&&Object.values(state.players).map(p=><circle key={p.id} cx={p.x} cy={p.z} r={4*scale} fill="#f49268"/>)}
     {state&&<><rect x={state.shop.x-5*scale} y={state.shop.z-5*scale} width={10*scale} height={10*scale} fill="#d8fa69"/>
       {state.units.map(u=><circle key={u.id} cx={u.x} cy={u.z} r={4*scale} fill={u.model==='military-suv'?'#e0ac59':'#60adff'}/>)}
-      {state.npcs.filter(n=>n.kind==='gang'&&n.health>0).map(n=><circle key={n.id} cx={n.x} cy={n.z} r={3*scale} fill="#f77b6a"/>)}</>}
+      {state.npcs.filter(n=>n.kind==='gang'&&n.health>0).map(n=><circle key={n.id} cx={n.x} cy={n.z} r={3*scale} fill="#f77b6a"}/>)}</>}
     {destination&&<g><circle cx={destination.x} cy={destination.z} r={8*scale} fill="#ed9168" stroke="#fff" strokeWidth={2*scale}/><circle cx={destination.x} cy={destination.z} r={2*scale} fill="#fff"/></g>}
     {player&&<g transform={`translate(${player.x} ${player.z}) rotate(${(-player.heading*180)/Math.PI})`}><circle r={10*scale} fill="#d8fa69" opacity=".25"/><path d={`M0 ${-9*scale}L${6*scale} ${7*scale}L0 ${4*scale}L${-6*scale} ${7*scale}Z`} fill="#f2ffcd" stroke="#12282f" strokeWidth={scale}/></g>}
   </g>;
@@ -56,7 +57,9 @@ function ExplorerMap(props:Props) {
     return()=>{observer.disconnect();el.removeEventListener('wheel',wheel);};
   },[]);
   const places=useMemo<Place[]>(()=>{
-    const list=WORLD.landmarks.map(p=>({...p}));
+    const list:Place[]=WORLD.landmarks.map(p=>({...p}));
+    for(const ref of Object.values(REFERENCES))list.push({id:ref.id,name:ref.name,...project(WORLD.origin,ref.latitude,ref.longitude),available:false});
+    for(const site of civicSites(WORLD))if(!list.some(p=>p.name===site.name))list.push({id:site.id,name:site.name,x:site.x,z:site.z});
     for(const b of WORLD.buildings)if(b.name?.trim()&&!list.some(p=>p.name===b.name))list.push({id:`building:${b.id}`,name:b.name,x:b.p.reduce((s,p)=>s+p[0],0)/b.p.length,z:b.p.reduce((s,p)=>s+p[1],0)/b.p.length});
     return list;
   },[]);
@@ -104,8 +107,11 @@ function ExplorerMap(props:Props) {
     </div>
     {selected&&<section className="ts-map-selection" aria-label="Selected place">
       <input value={selected.name} maxLength={80} aria-label="Place name" onChange={e=>setSelected({...selected,name:e.target.value})}/>
-      <div><button disabled={!selected.name.trim()||selected.available===false||!player} onClick={()=>onDestination?.(selected)}>Set direction</button><button disabled={!selected.name.trim()} onClick={save}>★ Save favourite</button></div>
+      <div><button disabled={!onDestination||!selected.name.trim()||selected.available===false||!player} onClick={()=>onDestination?.(selected)}>Set direction</button><button disabled={!selected.name.trim()} onClick={save}>★ Save favourite</button></div>
       {selected.available===false&&<small>Saved place is outside the current playable district.</small>}
+      <small>{unproject(WORLD.origin,selected).latitude.toFixed(7)}° N · {unproject(WORLD.origin,selected).longitude.toFixed(7)}° E</small>
+      <div className="ts-map-references"><a href={referenceLinks(WORLD.origin,selected).satellite} target="_blank" rel="noopener noreferrer">Satellite reference ↗</a><a href={referenceLinks(WORLD.origin,selected).streetView} target="_blank" rel="noopener noreferrer">Street View ↗</a><a href={referenceLinks(WORLD.origin,selected).openMap} target="_blank" rel="noopener noreferrer">OSM ↗</a></div>
+      <small>Source-map position, not a survey guarantee. Reference imagery opens separately; no imagery is copied into the game.</small>
     </section>}
     {destination&&<div className="ts-map-route-status"><span>To {destination.name}<small>{props.routeNotice}</small></span><button onClick={()=>onDestination?.(null)}>Clear route</button></div>}
     <p className="ts-map-save-status" role="status">{saveMessage||'Drag to pan · Pinch to zoom · Tap a place or drop a pin'}</p>

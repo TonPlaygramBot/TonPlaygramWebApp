@@ -15,3 +15,5 @@
 .ts-map-place-list{max-height:150px;overflow:auto;overscroll-behavior:contain;display:grid;gap:4px}.ts-map-place-list>div{display:flex;gap:4px}.ts-map-place-list>div>button:first-child{text-align:left;flex:1;overflow-wrap:anywhere}.ts-map-place-list p{font-size:13px;margin:5px}
 .ts-game .ts-map-modal{width:min(96vw,620px);max-height:94dvh;overflow:auto;padding:14px!important}.ts-game .ts-map-modal .ts-modal-title{position:sticky;top:-14px;z-index:2;background:#142a32;padding:8px 0}
 .ts-map-scale i{display:block;width:70px;height:5px;margin-top:3px;border:solid currentColor;border-width:0 2px 2px;box-sizing:border-box}
+
+.ts-map-references{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}.ts-map-references a{color:#dbefa7;font:11px/1.4 system-ui;text-decoration:underline;min-height:32px;display:inline-flex;align-items:center}.ts-map-selection>small{display:block;font:11px/1.45 system-ui;margin-top:6px;color:#c5d7d6}

@@ -1,0 +1,32 @@
+name: Tirana career and Dajti source checks
+on:
+  pull_request:
+    paths:
+      - 'webapp/src/games/tirana-expansion/**'
+      - 'webapp/src/games/tiranastreets/career/**'
+      - 'webapp/src/games/tiranastreets/map/**'
+      - 'webapp/src/games/blackwater/**'
+      - 'webapp/src/games/kartroyale/**'
+      - 'test/tiranaCareerExpansion.test.mjs'
+      - 'webapp/scripts/export-tirana-expansion.mjs'
+      - '.github/workflows/tirana-career-expansion.yml'
+permissions:
+  contents: read
+jobs:
+  source-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Numeric and contract regressions (not a browser test)
+        run: node --test test/tiranaCareerExpansion.test.mjs test/tiranaMap.test.mjs test/tiranaDetailKit.test.mjs test/tiranaLakeSource.test.mjs
+      - name: Export original glTF models
+        run: node webapp/scripts/export-tirana-expansion.mjs /tmp/tirana-original-models
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tirana-civic-dajti-gltf
+          path: /tmp/tirana-original-models
+          retention-days: 7

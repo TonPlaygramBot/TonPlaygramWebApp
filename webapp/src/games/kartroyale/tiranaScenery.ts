@@ -1,3 +1,6 @@
+import * as THREE from 'three';
+import {WorldEnhancements} from '../tirana-expansion/WorldEnhancements';
+import {publishAtlas,clearAtlas} from './raceAtlasStore';
 import {TiranaScenery as BaseTiranaScenery} from './baseTiranaScenery';
 import {WORLD} from '../tiranastreets/shared/world.mjs';
 import type {Track} from './simulation.mjs';
@@ -10,8 +13,16 @@ export {inside,occupied} from './baseTiranaScenery';
 export class TiranaScenery extends BaseTiranaScenery {
   readonly nativeLandmarks:NativeLandmarkLayer;
   readonly urbanDetails:UrbanDetailLayer;
+  readonly enhancements=new WorldEnhancements();
+  private atlasTrack:Track;
   constructor(track:Track) {
     super(track);
+    this.atlasTrack=track;
+    this.group.add(this.enhancements.group);
+    // The existing race renderer owns group disposal. Retire async parsers when
+    // its traversal disposes this sentinel; do not remove siblings mid-traversal.
+    const lifetime=new THREE.BufferGeometry();lifetime.addEventListener('dispose',()=>{this.enhancements.retire();clearAtlas();});
+    const sentinel=new THREE.Mesh(lifetime,new THREE.MeshBasicMaterial());sentinel.visible=false;sentinel.name='Tirana:async-lifetime';this.group.add(sentinel);
     const {landmarks,issues}=resolveNativeLandmarks(WORLD), b=track.bounds;
     const near=(x:number,z:number)=>x>b[0]-200&&x<b[2]+200&&z>b[1]-200&&z<b[3]+200;
     const local=landmarks.filter(l=>near(l.x,l.z));
@@ -26,6 +37,10 @@ export class TiranaScenery extends BaseTiranaScenery {
     super.update(x,z,performance);
     this.nativeLandmarks.setBatteryMode(performance);
     this.urbanDetails.update({x,z},performance);
+    publishAtlas(x,z,this.atlasTrack);
+    let root:THREE.Object3D=this.group;while(root.parent)root=root.parent;
+    const camera=root.children.find(o=>o instanceof THREE.PerspectiveCamera) as THREE.PerspectiveCamera|undefined;
+    this.enhancements.update(globalThis.performance.now()/1000,camera);
   }
   // The owning race renderer traverses this group to dispose its geometry/materials.
 }

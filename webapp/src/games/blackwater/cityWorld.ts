@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {attachEnhancements} from '../tirana-expansion/WorldEnhancements';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { makeWorld, type World } from './world';
 import { FpsCity, disposeObject } from '../tiranastreets/FpsCity';
@@ -11,6 +12,7 @@ import { UrbanDetailLayer } from '../tirana-detail-kit/UrbanDetailLayer';
 /** The active Tirana Streets FPS retains one simulation, camera and game loop. */
 export function makeCityWorld(scene:THREE.Scene,camera:THREE.PerspectiveCamera,renderer:THREE.WebGLRenderer):World {
   const world = makeWorld(scene, camera, renderer, false);
+  const enhancements=attachEnhancements(scene,ORIGIN);
   const webgl = renderer instanceof THREE.WebGLRenderer;
   const city = new FpsCity(webgl);
   city.group.position.set(-ORIGIN.x, 0, -ORIGIN.z);
@@ -62,6 +64,7 @@ export function makeCityWorld(scene:THREE.Scene,camera:THREE.PerspectiveCamera,r
   const point = new THREE.Vector3();
   let shadowX = Infinity, shadowZ = Infinity;
   world.update = position => {
+    enhancements.update(performance.now()/1000,camera);
     point.copy(position);point.x+=ORIGIN.x;point.z+=ORIGIN.z;
     city.update(point, performance.now()/1000, !renderer.shadowMap.enabled);
     details.update(point,!webgl||!renderer.shadowMap.enabled);
@@ -74,6 +77,6 @@ export function makeCityWorld(scene:THREE.Scene,camera:THREE.PerspectiveCamera,r
   };
   world.update(new THREE.Vector3(START.x,1.68,START.z));
   const dispose = world.dispose;
-  world.dispose=()=>{disposed=true;details.dispose();city.dispose();dispose();concrete.dispose();metal.dispose();};
+  world.dispose=()=>{disposed=true;enhancements.dispose();details.dispose();city.dispose();dispose();concrete.dispose();metal.dispose();};
   return world;
 }
