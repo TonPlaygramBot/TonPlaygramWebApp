@@ -313,15 +313,23 @@ function trajectory(s: MatchState, seat: Seat, input: Input, isServe: boolean) {
   const shot = isServe ? 'flat' : input.shot;
   let mishit = false;
   const power = clamp(input.power, 0.1, 1);
+  // Power changes flight time for every stroke, so a faster swipe produces
+  // greater ball velocity while the ballistic arc still lands on the court.
   let flight =
-    shot === 'lob' ? 1.65 : shot === 'slice' ? 1.22 : 1.15 - power * 0.17;
+    shot === 'lob'
+      ? 2.05 - power * 0.32
+      : shot === 'slice'
+        ? 1.55 - power * 0.38
+        : shot === 'topspin'
+          ? 1.43 - power * 0.35
+          : 1.38 - power * 0.36;
   let z = -sign * (shot === 'slice' ? 5.5 : 8.3 + power * 1.4),
     x = input.aim * 3.55;
   if (isServe) {
     b.x = s.players[seat].x;
     b.z = s.players[seat].z - 0.5 * sign;
     b.y = 2.7;
-    flight = 0.96;
+    flight = 1.2 - power * 0.25;
     z = -sign * (3.8 + power * 1.55);
     x = -s.players[seat].x * 0.85 + input.aim * 0.65;
   } else {

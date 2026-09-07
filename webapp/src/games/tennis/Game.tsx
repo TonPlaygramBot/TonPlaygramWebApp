@@ -4,6 +4,14 @@ import { Button } from './Button';
 import { TennisRenderer } from './render';
 import { TennisAudio } from './audio';
 import {
+  beginSwipe,
+  readSwipe,
+  sampleSwipe,
+  screenAim,
+  swipeShot,
+  type Swipe
+} from '../../../../shared/tennis/swipe';
+import {
   advance,
   createMatch,
   neutralInput,
@@ -55,9 +63,8 @@ export default function TennisGame({
     careerId = useRef(''),
     settledId = useRef(''),
     pointer = useRef<number | null>(null),
-    chargeAt = useRef(0),
     charging = useRef(false),
-    gesture = useRef({ x: 0, y: 0 }),
+    gesture = useRef<Swipe | null>(null),
     nextSwing = useRef(0);
   const [screen, setScreen] = useState<
       'home' | 'career' | 'online' | 'match' | 'help' | 'credits'
@@ -153,9 +160,8 @@ export default function TennisGame({
           acc -= 1 / 120;
         }
       }
-      if (charging.current) {
-        const power = Math.min(1, 0.2 + (now - chargeAt.current) / 1050);
-        input.current.power = power;
+      if (charging.current && gesture.current) {
+        const { power } = readSwipe(gesture.current, now);
         if (now - lastHud > 80) setCharge(power);
       }
       view.draw(frame.current, dt, !!roomRef.current);
@@ -182,6 +188,10 @@ export default function TennisGame({
     const hidden = () => {
       if (document.hidden) {
         charging.current = false;
+        pointer.current = null;
+        gesture.current = null;
+        input.current.moveX = null;
+        input.current.moveZ = null;
         setCharge(0);
         if (running.current && !roomRef.current) {
           pausedRef.current = true;
@@ -283,6 +293,8 @@ export default function TennisGame({
   const reset = () => {
     input.current = { ...neutralInput(), assist };
     charging.current = false;
+    pointer.current = null;
+    gesture.current = null;
     setCharge(0);
     nextSwing.current = 0;
     setShot('flat');
@@ -338,17 +350,19 @@ export default function TennisGame({
     pausedRef.current = next;
     setPaused(next);
     charging.current = false;
+    pointer.current = null;
+    gesture.current = null;
+    input.current.moveX = null;
+    input.current.moveZ = null;
     setCharge(0);
   };
-  const release = () => {
+  const release = (power: number) => {
     if (!charging.current) return;
     charging.current = false;
-    input.current.power = Math.max(
-      0.2,
-      Math.min(1, (performance.now() - chargeAt.current) / 1050 + 0.2)
-    );
+    input.current.power = power;
     input.current.swing = ++nextSwing.current;
-    setCharge(0);
+    // Keep the released power visible until the next gesture.
+    setCharge(power);
   };
   const chooseAim = (v: number) => {
     setAim(v);
@@ -360,6 +374,17 @@ export default function TennisGame({
   };
   const move = (e: React.PointerEvent<HTMLDivElement>) => {
     if (pointer.current !== e.pointerId) return;
+    if (gesture.current) {
+      const coalesced = e.nativeEvent.getCoalescedEvents?.() || [];
+      for (const point of coalesced)
+        sampleSwipe(
+          gesture.current,
+          point.clientX,
+          point.clientY,
+          point.timeStamp
+        );
+      sampleSwipe(gesture.current, e.clientX, e.clientY, e.timeStamp);
+    }
     const rect = e.currentTarget.getBoundingClientRect();
     input.current.moveX =
       (((e.clientX - rect.left) / rect.width) * 2 - 1) * 5.15 * side(own);
@@ -417,24 +442,22 @@ export default function TennisGame({
     (!room || room.joined) &&
     (hud.phase !== 'serve' || hud.score.server === own);
   const tour = TOUR[career.tour];
-  const touchShot = (deltaY: number) => {
-    if (deltaY < -105) return 'lob' as Shot;
-    if (deltaY < -28) return 'topspin' as Shot;
-    if (deltaY > 28) return 'slice' as Shot;
-    return 'flat' as Shot;
-  };
   const finishCourtTouch = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (pointer.current !== e.pointerId) return;
+    if (pointer.current !== e.pointerId || !gesture.current) return;
+    sampleSwipe(gesture.current, e.clientX, e.clientY, e.timeStamp);
     const rect = e.currentTarget.getBoundingClientRect();
     const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    const nextAim = x < 0.36 ? -1 : x > 0.64 ? 1 : 0;
-    const nextShot = touchShot(e.clientY - gesture.current.y);
-    chooseAim(nextAim);
-    chooseShot(nextShot);
+    const { power } = readSwipe(gesture.current);
+    chooseAim(screenAim(x, 0));
+    chooseShot(swipeShot(gesture.current));
+    if (canHit) release(power);
+    else charging.current = false;
     pointer.current = null;
+    gesture.current = null;
     input.current.moveX = null;
     input.current.moveZ = null;
-    release();
+    if (e.currentTarget.hasPointerCapture(e.pointerId))
+      e.currentTarget.releasePointerCapture(e.pointerId);
   };
   return (
     <div className={`tr-game ${inline ? 'tr-inline' : ''}`}>
@@ -447,22 +470,43 @@ export default function TennisGame({
         className="tr-court"
         ref={canvas}
         onPointerDown={(e) => {
-          if (screen !== 'match' || paused) return;
+          if (
+            screen !== 'match' ||
+            paused ||
+            pointer.current !== null ||
+            e.button !== 0
+          )
+            return;
           pointer.current = e.pointerId;
           e.currentTarget.setPointerCapture(e.pointerId);
-          gesture.current = { x: e.clientX, y: e.clientY };
+          gesture.current = beginSwipe(
+            e.clientX,
+            e.clientY,
+            e.timeStamp,
+            e.currentTarget.clientWidth
+          );
           move(e);
           if (canHit) {
             unlock();
-            chargeAt.current = performance.now();
             charging.current = true;
             setCharge(0.2);
           }
         }}
         onPointerMove={move}
         onPointerUp={finishCourtTouch}
-        onPointerCancel={() => {
+        onLostPointerCapture={(e) => {
+          if (pointer.current !== e.pointerId) return;
           pointer.current = null;
+          gesture.current = null;
+          input.current.moveX = null;
+          input.current.moveZ = null;
+          charging.current = false;
+          setCharge(0);
+        }}
+        onPointerCancel={(e) => {
+          if (pointer.current !== e.pointerId) return;
+          pointer.current = null;
+          gesture.current = null;
           input.current.moveX = null;
           input.current.moveZ = null;
           charging.current = false;
@@ -567,21 +611,28 @@ export default function TennisGame({
                       ? `${hud.rally} shot rally`
                       : 'Return the serve'}
           </div>
-          <div className="tr-touch-hud" aria-live="polite">
+          <div className="tr-touch-hud">
             <div className="tr-touch-state">
               <span>{shot === 'flat' ? 'Drive' : shot}</span>
-              <b>{aim < 0 ? 'Left' : aim > 0 ? 'Right' : 'Centre'}</b>
+              <b>{aim < -0.15 ? 'Left' : aim > 0.15 ? 'Right' : 'Centre'}</b>
+              <span className="tr-power-value">
+                {Math.round(charge * 100)}% power
+              </span>
             </div>
             <div
               className="tr-power"
+              role="meter"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(charge * 100)}
               aria-label={`Shot power ${Math.round(charge * 100)} percent`}
             >
               <i style={{ width: `${charge * 100}%` }} />
             </div>
             <p>
-              Touch and drag to move · release to hit
+              Faster swipe = more power · release to hit
               <br />
-              Swipe up: spin/lob · down: slice · release side to aim
+              Aim where you release · up: topspin · down: slice
             </p>
           </div>
         </>
@@ -841,8 +892,9 @@ export default function TennisGame({
             <li>
               <b>Serve</b>
               <p>
-                Touch the court and hold for power, then release. Your serve
-                goes into the diagonal service box.
+                Swipe across the court and release. A faster swipe hits harder;
+                holding still does not add power. Your serve goes into the
+                diagonal service box.
               </p>
             </li>
             <li>
@@ -863,8 +915,8 @@ export default function TennisGame({
             <li>
               <b>Change the rally</b>
               <p>
-                Keep your gesture level for a drive, swipe visually up for
-                topspin, farther up for a lob, or visually down for slice.
+                Swipe level for a drive, visually up for topspin, or visually
+                down for slice. A long, slow swipe up plays a lob.
               </p>
             </li>
           </ol>
@@ -894,15 +946,15 @@ export default function TennisGame({
             Original tennis.
           </h2>
           <p>
-            Animated player models:{' '}
+            Human player models:{' '}
             <a
-              href="https://kenney.nl/assets/mini-characters"
+              href="https://quaternius.com/packs/universalbasecharacters.html"
               target="_blank"
               rel="noreferrer"
             >
-              Kenney Mini Characters
+              Quaternius Universal Base Characters
             </a>
-            , CC0. Unused animations removed; tennis swings adapted.
+            , CC0. Tennis kits and skeletal movement adapted for this game.
           </p>
           <p>
             Impact and footstep samples:{' '}

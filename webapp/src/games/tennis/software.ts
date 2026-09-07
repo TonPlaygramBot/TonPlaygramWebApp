@@ -64,7 +64,8 @@ export class SoftwareRenderer {
       normal = new T.Vector3(),
       ab = new T.Vector3(),
       ad = new T.Vector3(),
-      color = new T.Color();
+      color = new T.Color(),
+      tint = new T.Color();
     scene.traverseVisible((o) => {
       if (!(o instanceof T.Mesh || o instanceof T.LineSegments)) return;
       if (o instanceof T.SkinnedMesh) o.skeleton.update();
@@ -180,6 +181,22 @@ export class SoftwareRenderer {
                   T.SRGBColorSpace
                 );
               }
+            }
+            if (!line && mat.vertexColors && geo.attributes.color) {
+              const colors = geo.attributes.color;
+              const ids = [n, n + 1, n + 2].map((i) =>
+                index ? index.getX(i) : i
+              );
+              tint.setRGB(
+                ids.reduce((sum, id) => sum + colors.getX(id), 0) / 3,
+                ids.reduce((sum, id) => sum + colors.getY(id), 0) / 3,
+                ids.reduce((sum, id) => sum + colors.getZ(id), 0) / 3
+              );
+              color.multiply(tint);
+            }
+            if (o instanceof T.InstancedMesh && o.instanceColor) {
+              o.getColorAt(instance, tint);
+              color.multiply(tint);
             }
             if (!line && mat instanceof T.MeshStandardMaterial) {
               a.set(p[3], p[4], p[5]);
