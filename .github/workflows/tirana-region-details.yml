@@ -1,0 +1,32 @@
+name: Tirana regional details
+on:
+  pull_request:
+    paths:
+      - 'webapp/src/games/tirana-region/**'
+      - 'webapp/src/games/tirana-expansion/**'
+      - 'webapp/src/games/tiranastreets/map/**'
+      - 'webapp/src/games/kartroyale/tiranaScenery.ts'
+      - 'webapp/scripts/tirana/regionImport.mjs'
+      - 'test/tirana*'
+      - '.github/workflows/tirana-region-details.yml'
+permissions:
+  contents: read
+jobs:
+  source-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Source contracts and existing map/career regression tests
+        run: node --test test/tiranaRegionalDetails.test.mjs test/tiranaRegionSource.test.mjs test/tiranaDajtiAtlas.test.mjs test/tiranaMap.test.mjs test/tiranaCareerExpansion.test.mjs
+      - name: Preserved implementations retain their exact Git blob identities
+        run: |
+          test "$(git hash-object webapp/src/games/tirana-expansion/BaseWorldEnhancements.ts)" = 209b115fcd9e7d7c9016dc28b650d547389563a1
+          test "$(git hash-object webapp/src/games/tiranastreets/map/CityMapCore.tsx)" = 8aba7d1b3a21f20d268fe3b7fc7e3844a69800b5
+      - name: Blender authoring script syntax only
+        run: python -m py_compile tools/blender/tirana_shopfronts.py
