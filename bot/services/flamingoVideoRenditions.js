@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import {
   lstat,
   mkdir,
@@ -75,6 +75,63 @@ function run(binary, args, signal, timeout = 30_000) {
     );
   });
 }
+// Consume progress as a stream: buffering an hour of FFmpeg output would hit
+// execFile's maxBuffer and discard an otherwise successful conversion.
+export function encodeVideo(
+  binary,
+  args,
+  signal,
+  timeout,
+  onProgress = () => {}
+) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(binary, args, {
+      signal,
+      timeout,
+      killSignal: 'SIGKILL',
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
+    let pending = '',
+      stderr = '',
+      failure;
+    let values = {};
+    child.on('error', (error) => {
+      failure = error;
+    });
+    child.stderr.on('data', (chunk) => {
+      stderr = (stderr + chunk.toString()).slice(-64 * 1024);
+    });
+    child.stdout.on('data', (chunk) => {
+      pending += chunk.toString();
+      let newline;
+      while ((newline = pending.indexOf('\n')) !== -1) {
+        const line = pending.slice(0, newline).trim();
+        pending = pending.slice(newline + 1);
+        const equals = line.indexOf('=');
+        if (equals < 0) continue;
+        const key = line.slice(0, equals),
+          value = line.slice(equals + 1);
+        if (['out_time_us', 'speed'].includes(key)) values[key] = value;
+        if (key === 'progress') {
+          onProgress({
+            seconds: Number(values.out_time_us) / 1e6,
+            speed: Number(String(values.speed).replace(/x$/, ''))
+          });
+          values = {};
+        }
+      }
+      if (pending.length > 8192) pending = '';
+    });
+    // Wait for the child to close, including on abort, before removing files
+    // or starting another encoder on this single-CPU service.
+    child.on('close', (code) => {
+      if (failure) reject(failure);
+      else if (code !== 0)
+        reject(new Error(stderr || 'Video encoder stopped.'));
+      else resolve();
+    });
+  });
+}
 export async function probeVideo(file, signal) {
   const result = JSON.parse(
     await run(
@@ -141,15 +198,15 @@ export function renditionDimensions(source, quality) {
   };
 }
 
-// A single bounded queue uses the existing service/disk. Only requested
-// resolutions are encoded; originals and upload sessions are never overwritten.
+// One encoder uses the existing service/disk. Metadata has its own lightweight
+// worker so a long encode cannot block other videos' resolution menus.
 export function createVideoRenditions({
   directory,
   getSource,
   getPost,
   inspectSpace,
   probe = probeVideo,
-  encode = run,
+  encode = encodeVideo,
   cacheBytes = 10 * 1024 ** 3
 }) {
   const root = path.join(directory, '.qualities');
@@ -157,7 +214,9 @@ export function createVideoRenditions({
   const errors = new Map();
   const protectedUntil = new Map();
   const queue = [];
-  let running = false;
+  const running = { probe: false, encode: false };
+  const warming = new Map();
+  let activeEncode;
   const location = (post) =>
     path.join(root, `${post._id}-${videoSourceKey(post)}`);
   const jobKey = (post, quality) => `${videoSourceKey(post)}:${quality}`;
@@ -235,9 +294,31 @@ export function createVideoRenditions({
     const deadline = setTimeout(() => controller.abort(), 65 * 60_000);
     deadline.unref?.();
     try {
-      source = await getSource(post, folder, signal);
-      const info =
-        (await metadata(post)) || (await probe(source.diskPath, signal));
+      if (quality !== 'probe' && (await file(post, quality))) return;
+      let info = await metadata(post);
+      // A ready 1080p/720p copy is much cheaper to decode than the 4K phone
+      // original. Use the smallest adequate copy, never upscale a lower one.
+      if (info && quality !== 'probe') {
+        const target = Number(quality.slice(0, -1));
+        renditionDimensions(info, target);
+        for (const candidate of videoQualities.filter(
+          (value) => value > target
+        )) {
+          const cached = await file(post, `${candidate}p`);
+          if (
+            cached &&
+            (cached.size < post.attachment.size ||
+              cached.width * cached.height < info.width * info.height) &&
+            Math.min(cached.width, cached.height) >= target
+          ) {
+            source = { diskPath: cached.diskPath, quality: cached.quality };
+            break;
+          }
+        }
+      }
+      if (!info || quality !== 'probe')
+        source ||= await getSource(post, folder, signal);
+      info ||= await probe(source.diskPath, signal);
       await current(post);
       await writeJson(path.join(folder, 'metadata.json'), info);
       if (quality === 'probe' || (await file(post, quality))) return;
@@ -276,12 +357,19 @@ export function createVideoRenditions({
         }
       }, 2000);
       monitor.unref?.();
+      job.phase = 'encoding';
+      job.progress = 0;
       await encode(
         process.env.FFMPEG_PATH || 'ffmpeg',
         [
           '-nostdin',
           '-v',
           'error',
+          '-nostats',
+          '-progress',
+          'pipe:1',
+          '-stats_period',
+          '1',
           '-y',
           '-threads',
           '1',
@@ -298,13 +386,13 @@ export function createVideoRenditions({
           '-map_metadata',
           '-1',
           '-vf',
-          `scale=${dimensions.width}:${dimensions.height},setsar=1`,
+          `fps=fps='min(source_fps,30)':eof_action=pass,scale=${dimensions.width}:${dimensions.height}:flags=fast_bilinear,setsar=1`,
           '-filter_threads',
           '1',
           '-c:v',
           'libx264',
           '-preset',
-          'veryfast',
+          'superfast',
           '-crf',
           '23',
           '-threads',
@@ -316,11 +404,7 @@ export function createVideoRenditions({
           '-bufsize',
           `${bitrate[target] * 2}k`,
           '-c:a',
-          'aac',
-          '-b:a',
-          '128k',
-          '-ac',
-          '2',
+          ...(source.quality ? ['copy'] : ['aac', '-b:a', '128k', '-ac', '2']),
           '-movflags',
           '+faststart',
           '-fs',
@@ -328,8 +412,22 @@ export function createVideoRenditions({
           output
         ],
         signal,
-        60 * 60_000
+        60 * 60_000,
+        ({ seconds, speed }) => {
+          if (Number.isFinite(seconds) && seconds >= 0) {
+            job.progress = Math.max(
+              job.progress,
+              Math.min(99, Math.floor((seconds / info.duration) * 100))
+            );
+            job.remainingSeconds =
+              speed > 0 && seconds > 0
+                ? Math.max(1, Math.ceil((info.duration - seconds) / speed))
+                : undefined;
+          }
+        }
       );
+      job.phase = 'finishing';
+      job.remainingSeconds = undefined;
       const converted = await probe(output, signal);
       if (
         converted.width !== dimensions.width ||
@@ -345,6 +443,8 @@ export function createVideoRenditions({
       const details = {
         ...dimensions,
         quality,
+        sourceQuality: source.quality || 'original',
+        preparedMs: Date.now() - job.startedAt,
         size: (await lstat(output)).size,
         type: 'video/mp4',
         name: `${path.parse(post.attachment.name).name}-${quality}.mp4`
@@ -355,41 +455,78 @@ export function createVideoRenditions({
       clearTimeout(deadline);
       clearInterval(monitor);
       await rm(output, { force: true });
-      await rm(path.join(folder, `${quality}.request.json`), { force: true });
+      if (!job.preempted)
+        await rm(path.join(folder, `${quality}.request.json`), { force: true });
       await source?.cleanup?.();
     }
   }
-  async function drain() {
-    if (running) return;
-    running = true;
+  async function drain(worker) {
+    if (running[worker]) return;
+    running[worker] = true;
     try {
-      while (queue.length) {
-        const job = queue.shift();
+      for (;;) {
+        const index = queue.findIndex(
+          (job) => (job.quality === 'probe' ? 'probe' : 'encode') === worker
+        );
+        if (index < 0) break;
+        const [job] = queue.splice(index, 1);
+        if (worker === 'encode') activeEncode = job;
         job.state = 'processing';
+        job.phase = 'reading';
+        job.startedAt = Date.now();
+        let succeeded = false;
         try {
           await perform(job);
+          succeeded = true;
         } catch (error) {
-          const message = error.status
-            ? error.message
-            : 'This resolution could not be prepared. The original is still available.';
-          errors.set(job.key, { message, at: Date.now() });
-          if (errors.size > 256) errors.delete(errors.keys().next().value);
-          console.warn(
-            'Wall video conversion:',
-            error.code || error.message?.slice(0, 180)
-          );
+          if (!job.preempted) {
+            const message = error.status
+              ? error.message
+              : 'This resolution could not be prepared. The original is still available.';
+            errors.set(job.key, { message, at: Date.now() });
+            if (errors.size > 256) errors.delete(errors.keys().next().value);
+            console.warn(
+              'Wall video conversion:',
+              error.code || error.message?.slice(0, 180)
+            );
+          }
         } finally {
+          if (activeEncode === job) activeEncode = undefined;
           jobs.delete(job.key);
           job.done();
+          if (job.preempted && !job.cancelled)
+            enqueue(job.post, job.quality, {
+              background: true,
+              warm: job.warm
+            });
+          else if (succeeded && job.warm && !job.cancelled)
+            await warm(job.post);
         }
       }
     } finally {
-      running = false;
+      running[worker] = false;
     }
   }
-  function enqueue(post, quality) {
+  function enqueue(post, quality, { background = false, warm = false } = {}) {
     const key = jobKey(post, quality);
-    if (jobs.has(key)) return;
+    const existing = jobs.get(key);
+    if (existing) {
+      existing.warm ||= warm;
+      if (!background) {
+        existing.background = false;
+        queue.sort((a, b) => Number(a.background) - Number(b.background));
+        if (
+          activeEncode?.background &&
+          activeEncode.key !== key &&
+          quality !== 'probe'
+        ) {
+          activeEncode.preempted = true;
+          activeEncode.controller.abort();
+        }
+      }
+      return existing;
+    }
+    if (background && jobs.size >= 10) return null;
     if (jobs.size >= 20)
       throw fail('Video processing is busy. Please try again shortly.', 429);
     const failure = errors.get(key);
@@ -403,6 +540,8 @@ export function createVideoRenditions({
     const job = {
       post,
       quality,
+      background,
+      warm,
       key,
       state: 'queued',
       controller: new AbortController(),
@@ -411,7 +550,46 @@ export function createVideoRenditions({
     };
     jobs.set(key, job);
     queue.push(job);
-    void drain();
+    queue.sort((a, b) => Number(a.background) - Number(b.background));
+    if (!background && quality !== 'probe' && activeEncode?.background) {
+      activeEncode.preempted = true;
+      activeEncode.controller.abort();
+    }
+    void drain(quality === 'probe' ? 'probe' : 'encode');
+    return job;
+  }
+  // Prime useful resolutions after publication, one queued copy per post.
+  // User selections take priority over this interruptible background work.
+  function warm(post) {
+    if (!post?.attachment?.type?.startsWith('video/')) return Promise.resolve();
+    const key = videoSourceKey(post);
+    if (warming.has(key)) return warming.get(key);
+    const task = (async () => {
+      const info = await metadata(post);
+      if (!info) {
+        if (!errors.has(jobKey(post, 'probe')))
+          enqueue(post, 'probe', { background: true, warm: true });
+        return;
+      }
+      for (const target of [1080, 720, 480, 360, 240, 144]) {
+        if (target >= Math.min(info.width, info.height)) continue;
+        const quality = `${target}p`;
+        if (await file(post, quality)) continue;
+        const failure = errors.get(jobKey(post, quality));
+        if (failure && Date.now() - failure.at < 10 * 60_000) return;
+        if (!jobs.has(jobKey(post, quality)) && jobs.size >= 10) return;
+        await mkdir(location(post), { recursive: true });
+        const marker = path.join(location(post), `${quality}.request.json`);
+        await writeJson(marker, { at: Date.now(), background: true });
+        if (!enqueue(post, quality, { background: true, warm: true }))
+          await rm(marker, { force: true });
+        return;
+      }
+    })()
+      .catch((error) => console.warn('Wall video preparation:', error.message))
+      .finally(() => warming.delete(key));
+    warming.set(key, task);
+    return task;
   }
   async function status(post) {
     const info = await metadata(post);
@@ -438,7 +616,7 @@ export function createVideoRenditions({
     }
     const qualities = [original];
     for (const target of videoQualities
-      .filter((value) => value <= Math.min(info.width, info.height))
+      .filter((value) => value < Math.min(info.width, info.height))
       .reverse()) {
       const quality = `${target}p`;
       const ready = await file(post, quality);
@@ -448,8 +626,12 @@ export function createVideoRenditions({
           path.join(location(post), `${quality}.request.json`)
         );
         if (requested && Date.now() - requested.at < 48 * 60 * 60_000)
-          enqueue(post, quality);
+          enqueue(post, quality, {
+            background: requested.background === true,
+            warm: requested.background === true
+          });
       }
+      const job = jobs.get(key);
       qualities.push({
         quality,
         label: quality,
@@ -464,7 +646,20 @@ export function createVideoRenditions({
           : {}),
         status: ready
           ? 'ready'
-          : jobs.get(key)?.state || (errors.has(key) ? 'failed' : 'available'),
+          : job?.state || (errors.has(key) ? 'failed' : 'available'),
+        ...(job
+          ? {
+              phase: job.phase,
+              progress: job.progress,
+              remainingSeconds: job.remainingSeconds,
+              queuePosition:
+                job.state === 'queued'
+                  ? queue
+                      .filter((item) => item.quality !== 'probe')
+                      .indexOf(job) + 1
+                  : undefined
+            }
+          : {}),
         error: errors.get(key)?.message
       });
     }
@@ -489,7 +684,9 @@ export function createVideoRenditions({
         409
       );
     renditionDimensions(info, Number(quality.slice(0, -1)));
-    if (!(await file(post, quality)) && !jobs.has(jobKey(post, quality))) {
+    if (Number(quality.slice(0, -1)) === Math.min(info.width, info.height))
+      throw fail('Choose Original to use this resolution immediately.', 400);
+    if (!(await file(post, quality))) {
       const marker = path.join(location(post), `${quality}.request.json`);
       await writeJson(marker, { at: Date.now() });
       try {
@@ -506,6 +703,9 @@ export function createVideoRenditions({
       (job) => String(job.post._id) === String(postId)
     );
     matching.forEach((job) => {
+      job.cancelled = true;
+      job.preempted = false;
+      job.warm = false;
       job.controller.abort();
       if (job.state === 'queued') {
         const index = queue.indexOf(job);
@@ -542,11 +742,15 @@ export function createVideoRenditions({
     status,
     request,
     file,
+    warm,
     remove,
     sweep,
     idle: async () => {
-      while (jobs.size)
-        await Promise.all([...jobs.values()].map((job) => job.finished));
+      while (jobs.size || warming.size)
+        await Promise.all([
+          ...[...jobs.values()].map((job) => job.finished),
+          ...warming.values()
+        ]);
     }
   };
 }

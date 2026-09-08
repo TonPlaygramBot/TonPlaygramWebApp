@@ -58,6 +58,7 @@ describe('wall video resolution controls', () => {
     container.remove();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
   const click = async (selector: string) => {
     await act(async () =>
@@ -69,7 +70,11 @@ describe('wall video resolution controls', () => {
     await act(async () => root.render(<WallVideo {...props} />));
     expect(fetch).not.toHaveBeenCalled();
     const video = container.querySelector('video')!;
-    Object.defineProperty(video, 'playbackRate', { configurable: true, writable: true, value: 1 });
+    Object.defineProperty(video, 'playbackRate', {
+      configurable: true,
+      writable: true,
+      value: 1
+    });
     Object.defineProperty(video, 'paused', {
       configurable: true,
       value: false
@@ -121,7 +126,7 @@ describe('wall video resolution controls', () => {
     expect(container.querySelector('video')?.getAttribute('src')).toBe(
       '/original.mp4'
     );
-    expect(container.textContent).toContain('Preparing 720p');
+    expect(container.textContent).toContain('720p: Preparing');
     const call = vi
       .mocked(fetch)
       .mock.calls.find(([, init]) => init?.method === 'POST');
@@ -141,6 +146,84 @@ describe('wall video resolution controls', () => {
       '/original.mp4'
     );
     expect(onError).not.toHaveBeenCalled();
+  });
+  it('shows actual progress and queue position, then switches automatically when the copy is ready', async () => {
+    vi.useFakeTimers();
+    let quality = {
+      ...ready,
+      status: 'available',
+      progress: undefined as number | undefined,
+      remainingSeconds: undefined as number | undefined,
+      queuePosition: undefined as number | undefined
+    };
+    vi.mocked(fetch).mockImplementation(async (_url, init) => {
+      if (init?.method === 'POST')
+        quality = {
+          ...quality,
+          status: 'processing',
+          progress: 45,
+          remainingSeconds: 36
+        };
+      return {
+        ok: true,
+        json: async () => ({
+          qualities: [original, quality],
+          processing: quality.status !== 'ready'
+        })
+      } as Response;
+    });
+    await act(async () => root.render(<WallVideo {...props} />));
+    const video = container.querySelector('video')!;
+    Object.defineProperty(video, 'duration', { configurable: true, value: 60 });
+    video.currentTime = 12;
+    await click('[aria-label="Video options"]');
+    await click('[role="menuitemradio"]:last-of-type');
+    expect(container.textContent).toContain('45%');
+    expect(container.textContent).toContain('about 40s left');
+    expect(video.getAttribute('src')).toBe('/original.mp4');
+    quality = { ...quality, status: 'queued', queuePosition: 2 };
+    await act(async () => vi.advanceTimersByTimeAsync(2000));
+    expect(container.textContent).toContain('Queued · position 2');
+    quality = { ...quality, ...ready };
+    await act(async () => vi.advanceTimersByTimeAsync(2000));
+    expect(video.getAttribute('src')).toBe('https://api.example.test/720p.mp4');
+    video.currentTime = 0;
+    await act(async () => video.dispatchEvent(new Event('loadedmetadata')));
+    expect(video.currentTime).toBe(12);
+  });
+  it('promotes a queued download selection and leaves an original download usable during background work', async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        qualities: [original, { ...ready, status: 'queued', queuePosition: 3 }],
+        processing: true
+      })
+    } as Response);
+    const onDownload = vi.fn(async () => {});
+    await act(async () =>
+      root.render(
+        <WallVideoDownload
+          {...props}
+          onClose={() => {}}
+          onDownload={onDownload}
+        />
+      )
+    );
+    expect(
+      document.querySelector<HTMLButtonElement>('.wall-download-confirm')!
+        .disabled
+    ).toBe(false);
+    expect(document.body.textContent).not.toContain('Keep this window open');
+    await click('[role="radio"]:last-of-type');
+    expect(document.body.textContent).toContain('Queued · position 3');
+    expect(document.body.textContent).toContain(
+      'You can close this window and come back'
+    );
+    const call = vi
+      .mocked(fetch)
+      .mock.calls.find(([, init]) => init?.method === 'POST');
+    expect(JSON.parse(call![1]!.body as string)).toEqual({ quality: '720p' });
+    expect(onDownload).not.toHaveBeenCalled();
   });
   it('confirms the selected download resolution and price without charging on selection', async () => {
     const onDownload = vi.fn(async () => {}),
