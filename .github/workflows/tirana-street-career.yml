@@ -1,0 +1,44 @@
+name: Tirana street career
+on:
+  pull_request:
+    paths:
+      - 'webapp/src/games/tiranastreets/**'
+      - 'webapp/src/games/blackwater/ui.tsx'
+      - 'webapp/src/games/tabletennis/options.ts'
+      - 'webapp/src/config/chessBattleInventoryConfig.js'
+      - 'test/tiranaStreetCareer*'
+      - '.github/workflows/tirana-street-career.yml'
+permissions:
+  contents: read
+concurrency:
+  group: tirana-street-career-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  simulation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test test/tiranaStreetCareer.test.mjs test/tiranaStreetCareer.integration.test.mjs test/tiranaCityLife.test.mjs test/tiranaCareerExpansion.test.mjs
+  application:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - run: npm ci --prefix webapp
+      - run: npm run build --prefix webapp
+      - name: Dependency-aware typecheck (no error suppression)
+        working-directory: webapp
+        run: npx --no-install tsc --noEmit
