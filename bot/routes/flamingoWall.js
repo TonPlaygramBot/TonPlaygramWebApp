@@ -1,4 +1,5 @@
 import Busboy from 'busboy';
+import { receiveNativeWallFile } from '../utils/flamingoNativeUpload.js';
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
@@ -23,7 +24,7 @@ import { flamingoUploadFailure } from '../utils/flamingoUploadErrors.js';
 import { wallMediaPostQuery } from '../utils/flamingoPostLookup.js';
 import { createFlamingoDownloadGrant, readFlamingoDownloadGrant } from '../utils/flamingoDownloadGrant.js';
 import { decodeFlamingoWallCursor, encodeFlamingoWallCursor, flamingoWallCursorQuery, flamingoWallPageSize } from '../utils/flamingoWallPagination.js';
-import { createVideoRenditions, videoSourceKey } from '../services/flamingoVideoRenditions.js';
+import { createVideoRenditions, probeVideo, videoSourceKey } from '../services/flamingoVideoRenditions.js';
 
 const router = express.Router();
 // Render starts the API from `bot/`, while local tools and tests may start it
@@ -88,6 +89,7 @@ const decodeHeader = (value, fallback = '') => {
 
 const sessionPaths = (id) => ({
   data: path.join(pendingDirectory, `${id}.part`),
+  native: path.join(pendingDirectory, `${id}.native`),
   meta: path.join(pendingDirectory, `${id}.json`)
 });
 const tokenHash = token => createHash('sha256').update(String(token || '')).digest('hex');
@@ -421,6 +423,7 @@ const writeUploadMetadata = async (paths, metadata) => {
 };
 const uploadResponse = metadata => ({
   uploadId: metadata.id,
+  nativeFileUpload: true,
   chunkBytes: metadata.chunkBytes || maxChunkBytes,
   receivedOffsets: Object.keys(metadata.chunks || {}).map(Number),
   received: metadata.received
@@ -515,11 +518,13 @@ router.put('/uploads/:id', async (req, res) => {
   if (objectStorageEnabled()) { req.resume(); return res.status(409).json({ error: 'Refresh the wall to use direct media uploads.', retryable: false }); }
   const id = String(req.params.id || '');
   if (!validUploadId(id)) return res.status(404).json({ error: 'Upload session not found.' });
+  if (uploadLocks.has(`${id}:native`)) { req.resume(); return res.status(409).json({ error: 'The original file is already uploading. Wait for it to finish.' }); }
   const paths = sessionPaths(id);
   const offset = Number(req.get('x-upload-offset'));
   const contentLength = Number(req.get('content-length'));
   try {
     await assertFlamingoDurability(uploadDirectory);
+    if (uploadLocks.has(`${id}:native`)) { req.resume(); return res.status(409).json({ error: 'The original file is already uploading. Wait for it to finish.' }); }
     // Serialize retries of the same range, while distinct ranges stream in parallel.
     const result = await withUploadLock(`${id}:${offset}`, async () => {
       const metadata = await withUploadLock(id, async () => JSON.parse(await readFile(paths.meta, 'utf8')));
@@ -552,6 +557,85 @@ router.put('/uploads/:id', async (req, res) => {
         }
         return { received: latest.received, complete: latest.received === latest.size };
       });
+    });
+    res.json(result);
+  } catch (error) {
+    req.resume();
+    sendUploadFailure(res, error);
+  }
+});
+
+router.post('/uploads/:id/file', async (req, res) => {
+  if (objectStorageEnabled()) { req.resume(); return res.status(409).json({ error: 'Native file upload is not supported by this storage provider.', retryable: false }); }
+  const id = String(req.params.id || '');
+  if (!validUploadId(id)) { req.resume(); return res.status(404).json({ error: 'Upload session not found.' }); }
+  const paths = sessionPaths(id);
+  try {
+    const result = await withUploadLock(`${id}:native`, async () => {
+      let admitted = false;
+      try {
+        // The native-session lock rejects new range writes. Drain older ones
+        // before staging a replacement so file-open/rename races are impossible.
+        await Promise.allSettled([...uploadLocks.entries()]
+          .filter(([key]) => key.startsWith(`${id}:`) && key !== `${id}:native`)
+          .map(([, pending]) => pending));
+        const metadata = await withUploadLock('$storage', () => withUploadLock(id, async () => {
+          const current = JSON.parse(await readFile(paths.meta, 'utf8'));
+          assertUploadOwner(current, req);
+          if (current.received === current.size || current.postId) return current;
+          await assertFlamingoDurability(uploadDirectory);
+          // Recover an interrupted native attempt owned by this session. Account
+          // for both staging files so simultaneous uploads cannot overbook disk.
+          await rm(paths.native, { force: true });
+          delete current.nativeUploadSize;
+          await writeUploadMetadata(paths, current);
+          await uploadStorage.assertCapacity(current.size);
+          admitted = true;
+          await writeFile(paths.native, '');
+          await truncate(paths.native, current.size);
+          current.nativeUploadSize = current.size;
+          await writeUploadMetadata(paths, current);
+          return current;
+        }));
+        if (!admitted) { req.resume(); return { received: metadata.size, complete: true }; }
+        await receiveNativeWallFile(req, paths.native, { size: metadata.size, name: metadata.name, normalizeName: safeName });
+        // A failed phone preview can leave duration at zero. Recover it from
+        // the received original so existing video download pricing still works.
+        let duration = metadata.duration;
+        if (metadata.type.startsWith('video/') && !duration) {
+          try { duration = (await probeVideo(paths.native)).duration; }
+          catch { throw Object.assign(new Error('The uploaded video could not be verified. Choose a playable copy from Files.'), { status: 422 }); }
+        }
+        return await withUploadLock(id, async () => {
+          const latest = JSON.parse(await readFile(paths.meta, 'utf8'));
+          assertUploadOwner(latest, req);
+          if (!latest.postId) {
+            // Replace prior partial ranges only after exact name/size validation.
+            await rename(paths.native, paths.data);
+            latest.received = latest.size;
+            latest.duration = duration;
+            latest.chunks = {};
+            const chunkBytes = latest.chunkBytes || maxChunkBytes;
+            for (let offset = 0; offset < latest.size; offset += chunkBytes) {
+              latest.chunks[String(offset)] = Math.min(chunkBytes, latest.size - offset);
+            }
+          }
+          delete latest.nativeUploadSize;
+          await writeUploadMetadata(paths, latest);
+          return { received: latest.size, complete: true };
+        });
+      } finally {
+        if (admitted) {
+          await rm(paths.native, { force: true });
+          await withUploadLock(id, async () => {
+            const metadata = JSON.parse(await readFile(paths.meta, 'utf8'));
+            if (metadata.nativeUploadSize) {
+              delete metadata.nativeUploadSize;
+              await writeUploadMetadata(paths, metadata);
+            }
+          });
+        }
+      }
     });
     res.json(result);
   } catch (error) {
@@ -635,6 +719,7 @@ router.get('/health', async (_req, res) => {
 router.post('/uploads/:id/complete', async (req, res) => {
   const id = String(req.params.id || '');
   if (!validUploadId(id)) return res.status(404).json({ error: 'Upload session not found.' });
+  if (uploadLocks.has(`${id}:native`)) return res.status(409).json({ error: 'The video is still uploading. Wait for it to finish.' });
   const paths = sessionPaths(id);
   try {
     // A timed-out completion can still be saving media. Join it under the

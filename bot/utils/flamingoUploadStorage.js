@@ -30,6 +30,7 @@ export function createFlamingoUploadStorage({
   const pending = path.join(directory, '.pending');
   const paths = (id) => ({
     meta: path.join(pending, `${id}.json`),
+    native: path.join(pending, `${id}.native`),
     data: path.join(pending, `${id}.part`)
   });
   async function entries() {
@@ -71,6 +72,13 @@ export function createFlamingoUploadStorage({
           0,
           record.metadata.size - allocatedBytes(part)
         );
+      if (record.metadata.nativeUploadSize === record.metadata.size) {
+        const native = await fileDetails(record.locations.native);
+        reservedBytes += Math.max(
+          0,
+          record.metadata.size - (native?.isFile() ? allocatedBytes(native) : 0)
+        );
+      }
     }
     const space = await filesystem(directory);
     const freeBytes = Number(space.bavail) * Number(space.bsize);
@@ -105,8 +113,8 @@ export function createFlamingoUploadStorage({
     const names = await entries();
     const ids = new Set(
       names
-        .filter((name) => /\.(part|json)$/.test(name))
-        .map((name) => name.slice(0, -5))
+        .filter((name) => /\.(part|json|native)$/.test(name))
+        .map((name) => name.slice(0, name.lastIndexOf('.')))
         .filter(validFlamingoUploadId)
     );
     let removed = 0;
@@ -117,6 +125,7 @@ export function createFlamingoUploadStorage({
         const record = await manifest(id);
         const locations = paths(id);
         const part = await fileDetails(locations.data);
+        const native = await fileDetails(locations.native);
         const meta = await fileDetails(locations.meta);
         // Keep malformed manifests for inspection. Never follow links or infer
         // a final filename from unvalidated metadata.
@@ -126,15 +135,18 @@ export function createFlamingoUploadStorage({
         const lastActivity = Math.max(
           meta?.mtimeMs || 0,
           part?.mtimeMs || 0,
+          native?.mtimeMs || 0,
           Number(metadata?.updatedAt || metadata?.createdAt) || 0
         );
         if (lastActivity > now() - expiryMs) return;
         if (part && !part.isFile()) return;
+        if (native && !native.isFile()) return;
         const finalPath = metadata
           ? path.join(directory, `${id}-${metadata.name}`)
           : null;
         const final = finalPath ? await fileDetails(finalPath) : null;
-        if (final && (!final.isFile() || (await isPublished(id, metadata)))) return;
+        if (final && (!final.isFile() || (await isPublished(id, metadata))))
+          return;
         // A failed database save can leave the completed original beside the
         // manifest. Delete it only after confirming no published post uses it.
         if (final) {
@@ -145,8 +157,12 @@ export function createFlamingoUploadStorage({
           await rm(locations.data);
           recoveredBytes += allocatedBytes(part);
         }
+        if (native) {
+          await rm(locations.native);
+          recoveredBytes += allocatedBytes(native);
+        }
         if (meta) await rm(locations.meta);
-        if (part || meta || final) removed += 1;
+        if (part || meta || final || native) removed += 1;
       });
     }
     return { removed, recoveredBytes };

@@ -233,6 +233,61 @@ describe('transfers across app navigation', () => {
     expect(container.textContent).toContain('Your post is published.');
   });
 
+  it('continues the native fallback on another page after the selected file rejects range reads', async () => {
+    const actual =
+      await vi.importActual<typeof import('./wallUpload.js')>(
+        './wallUpload.js'
+      );
+    const { uploadNativeWallFile } = await import('./wallNativeUpload.js');
+    const xhr: any = {
+      upload: {},
+      status: 200,
+      responseText: JSON.stringify({ received: 10, complete: true }),
+      open: vi.fn(),
+      send: vi.fn(),
+      setRequestHeader: vi.fn(),
+      abort: vi.fn()
+    };
+    const send = vi.fn(async (url: string) =>
+      url.endsWith('/uploads')
+        ? {
+            uploadId: 'same-native-session',
+            chunkBytes: 4,
+            nativeFileUpload: true
+          }
+        : { post: { _id: 'native-post' } }
+    );
+    vi.mocked(uploadWallFile).mockImplementation((options: any) =>
+      actual.uploadWallFile({
+        ...options,
+        send,
+        sendNativeFile: (native: any) =>
+          uploadNativeWallFile({ ...native, createRequest: () => xhr })
+      })
+    );
+    const file = new File(['1234567890'], 'phone.mp4', { type: 'video/mp4' });
+    vi.spyOn(file, 'slice').mockImplementation(() => {
+      throw new DOMException('Unreadable range', 'NotReadableError');
+    });
+    const input = await select([file]);
+    await publish();
+    expect(xhr.send.mock.calls[0][0].get('file')).toBe(file);
+    await click('Explore games');
+    expect(input.isConnected).toBe(true);
+    expect(xhr.abort).not.toHaveBeenCalled();
+    await act(async () => {
+      xhr.upload.onprogress({ loaded: 50, total: 100, lengthComputable: true });
+    });
+    await expandTransfers();
+    expect(container.textContent).toContain('Uploading · 50%');
+    await act(async () => xhr.onload());
+    expect(container.textContent).toContain('Your post is published.');
+    expect(container.textContent).toContain('Games page');
+    expect(
+      send.mock.calls.filter(([url]) => url.endsWith('/complete'))
+    ).toHaveLength(1);
+  });
+
   it('keeps download preparation visible after navigating away and hands off without replacing the app', async () => {
     const pending = deferred();
     vi.stubGlobal(

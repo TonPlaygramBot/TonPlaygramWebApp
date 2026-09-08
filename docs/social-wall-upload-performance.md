@@ -103,3 +103,38 @@ Primary references: [Chromium file input](https://github.com/chromium/chromium/b
 [Chromium Blob reads](https://github.com/chromium/chromium/blob/main/third_party/blink/renderer/core/fileapi/blob.cc),
 [File API error conditions](https://www.w3.org/TR/FileAPI/#errorsAndExceptions),
 and [Telegram's picker bridge](https://github.com/DrKLO/Telegram/blob/master/TMessagesProj/src/main/java/org/telegram/ui/web/BotWebViewContainer.java).
+
+## Native file transport after a phone read failure
+
+The September 8 report again showed a successful upload-session POST but no
+media PUTs, alongside `WALL_FILE_UNREADABLE`. Keeping the original picker and
+adding FileReader had not resolved this phone's read path. Those earlier tests
+verified lifecycle and compatibility behavior, not the reporting device.
+
+The disk-backed session response now advertises `nativeFileUpload`. After a
+JavaScript range read fails, the uploader can send the original picker File in
+native FormData through XMLHttpRequest to `/uploads/:id/file`. This avoids
+calling JavaScript slice/read APIs for the transfer and retains the original
+session, owner, caption, article and download settings. Chromium encodes a
+file-backed FormData entry through its native file-upload path; see
+[the FormData implementation](https://github.com/chromium/chromium/blob/33600f14f485508d360473a037ff508b3cba9cf0/third_party/blink/renderer/core/html/forms/form_data.cc).
+This is an alternative transport, not proof that every denied provider handle
+can be read. A file that the native uploader also cannot access still requires
+a fresh readable selection from the device.
+
+The server streams into a separately reserved temporary file and replaces prior
+partial data only after exact size/name validation. It checks ownership, drains
+older range writers and rejects overlapping chunk writes. Truncated or aborted
+requests preserve existing acknowledged bytes. The normal completion endpoint
+still creates the post once. When the phone could not read video duration, the
+server probes the received original before accepting it, preserving duration-
+based download pricing. Temporary native staging is accounted for in capacity
+admission and the existing abandoned-session cleanup.
+
+The Transfers panel still owns the original file and abort signal across route
+changes. Native progress comes from the upload request; it is an estimate until
+the server receipt. Pause cancels that request. A native retry sends the whole
+file again; successful normal chunk uploads continue to resume missing ranges.
+Native transfers use an inactivity timeout so actively transferring large files
+are not cancelled by a fixed two-minute total deadline. Render/proxy and OS
+limits still apply. No service, disk allocation, plan or dependency was added.

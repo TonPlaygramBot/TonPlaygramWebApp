@@ -5,6 +5,167 @@ import {
 } from '../webapp/src/features/flamingo/wallUpload.js';
 
 describe('wall upload recovery', () => {
+  test('falls back to the original native file after JavaScript reading fails and completes the same session', async () => {
+    const file = {
+      name: 'phone.mp4',
+      size: 10,
+      type: 'video/mp4',
+      slice: jest.fn(() => {
+        throw new DOMException(
+          'Provider cannot read ranges',
+          'NotReadableError'
+        );
+      })
+    };
+    const send = jest.fn(async (url) =>
+      url.endsWith('/uploads')
+        ? { uploadId: 'native-session', chunkBytes: 4, nativeFileUpload: true }
+        : { post: { _id: 'native-post' } }
+    );
+    const native = jest.fn(async (options) => {
+      expect(options.file).toBe(file);
+      expect(options.url).toBe(
+        '/api/flamingo-wall/uploads/native-session/file'
+      );
+      expect(options.headers).toEqual({ 'X-Wall-Owner-Token': 'owner' });
+      options.onProgress(6);
+      return { received: 10, complete: true };
+    });
+    const progress = jest.fn();
+    const result = await uploadWallFile({
+      baseUrl: '',
+      headers: { 'X-Wall-Owner-Token': 'owner' },
+      file,
+      uploadId: 'native-session',
+      text: 'My caption',
+      title: 'Article',
+      premium: true,
+      priceTpg: 30,
+      send,
+      sendNativeFile: native,
+      onProgress: progress
+    });
+    expect(result.post._id).toBe('native-post');
+    expect(native).toHaveBeenCalledTimes(1);
+    expect(send.mock.calls.map(([url]) => url)).toEqual([
+      '/api/flamingo-wall/uploads',
+      '/api/flamingo-wall/uploads/native-session/complete'
+    ]);
+    expect(JSON.parse(send.mock.calls[0][1].body)).toMatchObject({
+      text: 'My caption',
+      title: 'Article',
+      premium: true,
+      priceTpg: 30
+    });
+    expect(progress).toHaveBeenCalledWith(6, 'native-uploading');
+  });
+
+  test('retries a failed native transfer without repeating the broken reader or changing its upload ID', async () => {
+    const file = {
+      name: 'phone.mp4',
+      size: 10,
+      slice: jest.fn(() => {
+        throw new DOMException('Unreadable', 'NotReadableError');
+      })
+    };
+    const send = jest.fn(async (url) =>
+      url.endsWith('/uploads')
+        ? {
+            uploadId: 'same-id',
+            chunkBytes: 4,
+            nativeFileUpload: true,
+            receivedOffsets: [0]
+          }
+        : { post: { _id: 'post' } }
+    );
+    const native = jest
+      .fn()
+      .mockRejectedValueOnce(new Error('Connection lost'))
+      .mockResolvedValue({ received: 10, complete: true });
+    const options = {
+      baseUrl: '',
+      headers: {},
+      file,
+      uploadId: 'same-id',
+      send,
+      sendNativeFile: native
+    };
+    await expect(uploadWallFile(options)).rejects.toThrow('Connection lost');
+    expect(send.mock.calls.some(([url]) => url.endsWith('/complete'))).toBe(
+      false
+    );
+    const reads = file.slice.mock.calls.length;
+    await expect(uploadWallFile(options)).resolves.toEqual({
+      post: { _id: 'post' }
+    });
+    expect(file.slice).toHaveBeenCalledTimes(reads);
+    expect(
+      native.mock.calls.every(
+        ([args]) => args.file === file && args.url.endsWith('/same-id/file')
+      )
+    ).toBe(true);
+  });
+
+  test('does not publish when native transport returns a truncated receipt', async () => {
+    const file = {
+      name: 'phone.mp4',
+      size: 10,
+      slice() {
+        throw new Error('Read failed');
+      }
+    };
+    const send = jest.fn(async () => ({
+      uploadId: 'id',
+      chunkBytes: 4,
+      nativeFileUpload: true
+    }));
+    await expect(
+      uploadWallFile({
+        baseUrl: '',
+        headers: {},
+        file,
+        uploadId: 'id',
+        send,
+        sendNativeFile: async () => ({ received: 9, complete: true })
+      })
+    ).rejects.toThrow('did not confirm');
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  test('never switches to native transport after a pause or a storage response', async () => {
+    const file = makeFile();
+    const native = jest.fn();
+    const controller = new AbortController();
+    const send = jest.fn(async (url) => {
+      if (url.endsWith('/uploads'))
+        return { uploadId: 'id', chunkBytes: 4, nativeFileUpload: true };
+      throw Object.assign(new Error('Disk full'), { status: 507 });
+    });
+    await expect(
+      uploadWallFile({
+        baseUrl: '',
+        headers: {},
+        file,
+        uploadId: 'id',
+        send,
+        sendNativeFile: native
+      })
+    ).rejects.toMatchObject({ status: 507 });
+    controller.abort();
+    await expect(
+      uploadWallFile({
+        baseUrl: '',
+        headers: {},
+        file,
+        uploadId: 'id',
+        signal: controller.signal,
+        send,
+        sendNativeFile: native
+      })
+    ).rejects.toMatchObject({ name: 'AbortError' });
+    expect(native).not.toHaveBeenCalled();
+  });
+
   test('object uploads resume only missing parts and acknowledge provider receipts before publication', async () => {
     const calls = [];
     const send = async (url, init) => {
