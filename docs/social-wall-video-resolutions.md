@@ -25,9 +25,9 @@ claim of adaptive bitrate streaming. FFprobe inspects aspect/rotation metadata,
 and FFmpeg preserves visible orientation while producing H.264/AAC MP4 files
 with a fast-start header. [FFmpeg scale reference](https://ffmpeg.org/ffmpeg-filters.html#scale-1).
 
-Only an explicitly requested resolution is encoded. One queue processes at
-most one job at a time, with one encoder/filter thread, bounded subprocess
-output and timeouts. Both the output dimensions and complete duration are
+Common resolutions are prepared in the background; other resolutions are
+prepared when requested. At most one encoder runs at a time, with one
+encoder/filter thread, bounded subprocess output and timeouts. Both the output dimensions and complete duration are
 checked before advertising a rendition as ready. The original is never changed.
 
 Copies and request markers live under the existing upload disk's `.qualities`
@@ -46,6 +46,40 @@ Disk originals are read in place. Legacy GridFS/object originals are temporarily
 streamed to the same disk with a size bound, then removed after the job.
 
 ## API and verification
+
+### Faster preparation
+
+Common copies (1080p, 720p, 480p, 360p, 240p and 144p, below the original's
+resolution) now start preparing after publication. Maintenance primes the latest
+20 video posts, including after a restart. This work is asynchronous and does not
+delay an upload's completion response. Only one background copy per post is
+queued at a time, leaving queue space for viewer selections.
+
+A viewer's explicit choice takes priority over background work. An active
+background encode can be interrupted, cleaned up and requeued, so a long
+background conversion cannot block a requested copy. Metadata inspection has a
+separate lightweight worker; opening another video's menu no longer waits for
+the active encode to finish. Non-disk sources use unique temporary paths for
+these independent jobs.
+
+Encoding reuses the smallest adequate prepared copy instead of repeatedly
+decoding the large original. Lower-resolution copies use at most 30 fps, faster
+scaling and the superfast encoder preset; AAC audio is copied when reusing a
+prepared source. The original retains its frame rate and quality. The original's
+native resolution is offered as Original, avoiding an unnecessary same-size
+conversion. 1440p and 2160p remain available on demand for larger sources.
+
+FFmpeg's streamed [progress output](https://ffmpeg.org/ffmpeg.html#Main-options)
+supplies actual percentage and approximate remaining time. The UI distinguishes
+queued, reading, encoding and finishing states. Download preparation continues
+after the popup closes, and choosing the original stays available during other
+background work. A ready resolution requires no new conversion.
+
+The existing disk reserve, cache cap, source identity checks, availability-before-
+payment checks and signed download grants remain in effect. First-time preparation of large originals can
+still take time on the existing single-CPU service; the change moves common
+preparation earlier and eliminates repeated expensive decoding when a usable
+copy is already present.
 
 - `GET /api/flamingo-wall/posts/:id/video-qualities`: original metadata and actual
   ready/available/queued/processing/failed choices; first use queues a probe.

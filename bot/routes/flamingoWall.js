@@ -57,7 +57,18 @@ const uploadLocks = new Map();
 const mediaBackfills = new Map();
 const wallEvents = new EventEmitter();
 wallEvents.setMaxListeners(0);
-const publishWallEvent = (action, postId) => wallEvents.emit('change', { action, postId, at: Date.now() });
+const publishWallEvent = (action, postId) => {
+  wallEvents.emit('change', { action, postId, at: Date.now() });
+  // Publication stays fast; common playback copies are prepared afterwards.
+  if (['created', 'updated'].includes(action)) {
+    setImmediate(() => {
+      if (mongoose.connection.readyState !== 1) return;
+      void FlamingoPost.findById(postId).lean()
+        .then(post => videoRenditions.warm(normalizedPost(post)))
+        .catch(error => console.warn('Video preparation scheduling:', error.message));
+    });
+  }
+};
 
 router.use(optionalAuthenticate);
 
@@ -138,7 +149,10 @@ export const startFlamingoWallMaintenance = () => {
   const recover = () => {
     void recoverFlamingoWallStorage(true).catch(error => console.error('Flamingo storage recovery failed:', error.message));
     // Rendition cleanup must never lengthen an upload's admission request.
-    if (mongoose.connection.readyState === 1) void videoRenditions.sweep().catch(error => console.warn('Video cache cleanup:', error.message));
+    if (mongoose.connection.readyState === 1) void (async () => {
+      await videoRenditions.sweep();
+      await warmRecentFlamingoVideos();
+    })().catch(error => console.warn('Video cache maintenance:', error.message));
   };
   void recover();
   const timer = setInterval(recover, 10 * 60 * 1000);
@@ -295,32 +309,48 @@ export const videoRenditions = createVideoRenditions({
     const name = flamingoMediaName(attachment.url);
     const diskPath = !attachment.objectKey && await findFlamingoMedia(name, mediaDirectories, attachment.name, attachment.size);
     if (diskPath) return { diskPath };
-    await uploadStorage.assertCapacity(attachment.size + 512 * 1024 ** 2);
-    const temporary = path.join(folder, 'source.partial');
-    const cleanup = () => rm(temporary, { force: true });
-    try {
-      let input;
-      if (attachment.objectKey) {
-        const url = await flamingoObjectStorage().readUrl(attachment.objectKey, attachment.objectBucket);
-        const response = await fetch(url, { signal });
-        if (!response.ok || !response.body) throw Object.assign(new Error('The original video is unavailable.'), { status: 404 });
-        input = Readable.fromWeb(response.body);
-      } else {
-        const stored = await findFlamingoDatabaseMedia(name, attachment.name, attachment.size, attachment.databaseFileId);
-        if (stored) input = openFlamingoDatabaseMedia(stored);
-      }
-      if (!input) throw Object.assign(new Error('The original video is unavailable.'), { status: 404 });
-      let copied = 0;
-      const bounded = new Transform({ transform(chunk, _encoding, done) {
-        copied += chunk.length;
-        if (copied > attachment.size + 1024 ** 2) done(new Error('Unexpected source video size.'));
-        else done(null, chunk);
-      } });
-      await pipeline(input, bounded, createWriteStream(temporary), { signal });
-      return { diskPath: temporary, cleanup };
-    } catch (error) { await cleanup(); throw error; }
+    // Serialize large legacy source copies. The next worker checks capacity
+    // after the previous copy occupies disk, rather than both reserving the
+    // same free bytes. Encodes still run independently of metadata probes.
+    return withUploadLock('$video-source', async () => {
+      signal.throwIfAborted();
+      await uploadStorage.assertCapacity(attachment.size + 512 * 1024 ** 2);
+      const temporary = path.join(folder, `source-${randomUUID()}.partial`);
+      const cleanup = () => rm(temporary, { force: true });
+      try {
+        let input;
+        if (attachment.objectKey) {
+          const url = await flamingoObjectStorage().readUrl(attachment.objectKey, attachment.objectBucket);
+          const response = await fetch(url, { signal });
+          if (!response.ok || !response.body) throw Object.assign(new Error('The original video is unavailable.'), { status: 404 });
+          input = Readable.fromWeb(response.body);
+        } else {
+          const stored = await findFlamingoDatabaseMedia(name, attachment.name, attachment.size, attachment.databaseFileId);
+          if (stored) input = openFlamingoDatabaseMedia(stored);
+        }
+        if (!input) throw Object.assign(new Error('The original video is unavailable.'), { status: 404 });
+        let copied = 0;
+        const bounded = new Transform({ transform(chunk, _encoding, done) {
+          copied += chunk.length;
+          if (copied > attachment.size + 1024 ** 2) done(new Error('Unexpected source video size.'));
+          else done(null, chunk);
+        } });
+        await pipeline(input, bounded, createWriteStream(temporary), { signal });
+        return { diskPath: temporary, cleanup };
+      } catch (error) { await cleanup(); throw error; }
+    });
   }
 });
+let warmingRecent;
+export const warmRecentFlamingoVideos = () => {
+  if (warmingRecent) return warmingRecent;
+  warmingRecent = (async () => {
+    const posts = await FlamingoPost.find({ 'attachment.type': /^video\// })
+      .sort({ createdAt: -1 }).limit(20).select('attachment').lean();
+    for (const post of posts) await videoRenditions.warm(post);
+  })().finally(() => { warmingRecent = undefined; });
+  return warmingRecent;
+};
 const videoConversionLimit = rateLimit({
   windowMs: 60_000, limit: 20, standardHeaders: true, legacyHeaders: false,
   // Requests pass through Render; use the authenticated viewer where known.

@@ -8,6 +8,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import {
   createVideoRenditions,
+  encodeVideo,
   probeVideo,
   renditionDimensions,
   videoSourceKey
@@ -53,6 +54,7 @@ test('real portrait renditions preserve orientation, audio and original bytes, p
       }
     };
     let encodes = 0;
+    const progress = [];
     const options = {
       directory,
       getPost: async () => post,
@@ -61,9 +63,12 @@ test('real portrait renditions preserve orientation, audio and original bytes, p
     };
     const service = createVideoRenditions({
       ...options,
-      encode: async (binary, args, signal, timeout) => {
+      encode: async (binary, args, signal, timeout, onProgress) => {
         encodes++;
-        return execute(binary, args, { signal, timeout });
+        return encodeVideo(binary, args, signal, timeout, (value) => {
+          progress.push(value);
+          onProgress(value);
+        });
       }
     });
     const first = await service.status(post);
@@ -73,17 +78,22 @@ test('real portrait renditions preserve orientation, audio and original bytes, p
     const manifest = await service.status(post);
     assert.deepEqual(
       manifest.qualities.map((item) => item.quality),
-      ['original', '360p', '240p', '144p']
+      ['original', '240p', '144p']
     );
     assert.equal(manifest.qualities[0].width, 360);
     assert.equal(manifest.qualities[0].height, 640);
     await assert.rejects(service.request(post, '720p'), { status: 400 });
+    await assert.rejects(service.request(post, '360p'), /Choose Original/);
     await Promise.all([
       service.request(post, '240p'),
       service.request(post, '240p')
     ]);
     await service.idle();
     assert.equal(encodes, 1);
+    assert.ok(
+      progress.some((value) => value.seconds > 0),
+      'Reports actual encoder progress'
+    );
     const ready = (await service.status(post)).qualities.find(
       (item) => item.quality === '240p'
     );
@@ -179,6 +189,7 @@ test('real portrait renditions preserve orientation, audio and original bytes, p
     assert.equal((await recovering.status(post)).processing, true);
     await recovering.idle();
     assert.equal((await recovering.file(post, '144p')).quality, '144p');
+    assert.equal((await recovering.file(post, '144p')).sourceQuality, '240p');
     const oldKey = videoSourceKey(post);
     post = {
       ...post,
@@ -249,3 +260,199 @@ test('full storage leaves the original available and does not launch an encoder'
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test(
+  'metadata bypasses a long encode and viewer requests preempt background preparation without concurrent encoders',
+  { timeout: 15000 },
+  async () => {
+    const directory = await mkdtemp(
+      path.join(tmpdir(), 'wall-quality-priority-')
+    );
+    const posts = [1, 2].map((value) => ({
+      _id: String(value).padStart(24, '0'),
+      attachment: {
+        url: `/files/${value}.mp4`,
+        name: `${value}.mp4`,
+        size: 1_000_000,
+        type: 'video/mp4'
+      }
+    }));
+    const info = { width: 720, height: 1280, duration: 2 };
+    let firstStarted;
+    const started = new Promise((resolve) => {
+      firstStarted = resolve;
+    });
+    let active = 0,
+      maximum = 0,
+      interrupted = false;
+    const calls = [];
+    const service = createVideoRenditions({
+      directory,
+      getPost: async (id) => posts.find((post) => post._id === id),
+      getSource: async (post) => ({
+        diskPath: path.join(directory, `${post._id}.mp4`)
+      }),
+      inspectSpace: async () => ({ availableBytes: 10 * 1024 ** 3 }),
+      probe: async (file) => {
+        const target = path.basename(file).match(/^(\d+)p\.partial\.mp4$/);
+        return target
+          ? { ...renditionDimensions(info, Number(target[1])), duration: 2 }
+          : info;
+      },
+      encode: async (_binary, args, signal, _timeout, progress) => {
+        const output = args.at(-1);
+        const firstPost = output.includes(posts[0]._id);
+        const label = `${firstPost ? 'background' : 'viewer'}:${path.basename(output)}`;
+        calls.push(label);
+        active++;
+        maximum = Math.max(maximum, active);
+        try {
+          progress({ seconds: 1, speed: 2 });
+          if (calls.length === 1) {
+            firstStarted();
+            await new Promise((resolve, reject) => {
+              signal.addEventListener(
+                'abort',
+                () => {
+                  interrupted = true;
+                  reject(signal.reason);
+                },
+                { once: true }
+              );
+              if (signal.aborted) reject(signal.reason);
+            });
+          }
+          await writeFile(output, Buffer.alloc(64));
+        } finally {
+          active--;
+        }
+      }
+    });
+    try {
+      await service.warm(posts[0]);
+      await started;
+      const working = (await service.status(posts[0])).qualities.find(
+        (item) => item.quality === '480p'
+      );
+      assert.equal(working.progress, 50);
+      assert.equal(working.remainingSeconds, 1);
+      // Reading another video's details must complete even though the first
+      // encoder deliberately never finishes without a priority interrupt.
+      await service.status(posts[1]);
+      let details;
+      for (let attempt = 0; attempt < 100; attempt++) {
+        details = await service.status(posts[1]);
+        if (details.qualities.length > 1) break;
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      assert.ok(details.qualities.length > 1);
+      assert.equal(interrupted, false);
+      await service.request(posts[1], '240p');
+      await service.idle();
+      assert.equal(interrupted, true);
+      assert.equal(maximum, 1);
+      assert.match(calls[1], /^viewer:240p/);
+      assert.match(calls[2], /^background:480p/);
+      assert.equal((await service.file(posts[1], '240p')).quality, '240p');
+      const warmed = (await service.status(posts[0])).qualities;
+      assert.ok(warmed.every((item) => item.status === 'ready'));
+      assert.equal(
+        (await service.file(posts[0], '360p')).sourceQuality,
+        '480p'
+      );
+    } finally {
+      await Promise.all(posts.map((post) => service.remove(post._id)));
+      await rm(directory, { recursive: true, force: true });
+    }
+  }
+);
+
+test(
+  'prepares common copies ahead of selection and bounds high frame rate conversion to 30 fps',
+  { timeout: 20000 },
+  async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'wall-quality-warm-'));
+    try {
+      const source = path.join(directory, 'high-frame-rate.mp4');
+      await execute('ffmpeg', [
+        '-v',
+        'error',
+        '-f',
+        'lavfi',
+        '-i',
+        'testsrc2=size=480x854:rate=60',
+        '-t',
+        '1.2',
+        '-c:v',
+        'libx264',
+        '-threads',
+        '1',
+        '-preset',
+        'ultrafast',
+        source
+      ]);
+      const post = {
+        _id: '000000000000000000000004',
+        attachment: {
+          url: '/files/high-frame-rate.mp4',
+          name: 'high-frame-rate.mp4',
+          type: 'video/mp4',
+          size: (await readFile(source)).length
+        }
+      };
+      let encodes = 0,
+        originalReads = 0;
+      const service = createVideoRenditions({
+        directory,
+        getPost: async () => post,
+        getSource: async () => {
+          originalReads++;
+          return { diskPath: source };
+        },
+        inspectSpace: async () => ({ availableBytes: 10 * 1024 ** 3 }),
+        encode: (...args) => {
+          encodes++;
+          return encodeVideo(...args);
+        }
+      });
+      await service.warm(post);
+      await service.idle();
+      assert.ok(
+        (await service.status(post)).qualities.every(
+          (item) => item.status === 'ready'
+        )
+      );
+      assert.equal(encodes, 3);
+      assert.equal(
+        originalReads,
+        2,
+        'Only the probe and first encode read the original'
+      );
+      const copy = await service.file(post, '360p');
+      const streams = JSON.parse(
+        (
+          await execute('ffprobe', [
+            '-v',
+            'error',
+            '-show_entries',
+            'stream=avg_frame_rate,width,height',
+            '-of',
+            'json',
+            copy.diskPath
+          ])
+        ).stdout
+      ).streams;
+      assert.equal(streams[0].avg_frame_rate, '30/1');
+      assert.equal(streams[0].width, 360);
+      await service.request(post, '240p');
+      await service.idle();
+      assert.equal(
+        encodes,
+        3,
+        'Choosing a prepared resolution launches no encoder'
+      );
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  }
+);

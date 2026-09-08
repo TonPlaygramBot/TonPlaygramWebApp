@@ -23,6 +23,10 @@ export type VideoQuality = {
   width?: number;
   height?: number;
   error?: string;
+  phase?: string;
+  progress?: number;
+  remainingSeconds?: number;
+  queuePosition?: number;
 };
 type QualityManifest = {
   qualities: VideoQuality[];
@@ -52,6 +56,23 @@ const original = (file: VideoFile): VideoQuality => ({
 });
 const absolute = (apiBase: string, url: string) =>
   /^https?:|^blob:/i.test(url) ? url : `${apiBase}${url}`;
+const preparation = (choice?: VideoQuality) => {
+  if (choice?.status === 'queued')
+    return choice.queuePosition && choice.queuePosition > 1
+      ? `Queued · position ${choice.queuePosition}`
+      : 'Queued · next to prepare';
+  if (choice?.phase === 'finishing') return 'Finishing video…';
+  if (choice?.phase === 'reading') return 'Reading video…';
+  if (choice?.progress != null) {
+    const seconds = choice.remainingSeconds;
+    const remaining =
+      seconds && seconds > 0
+        ? ` · about ${seconds < 60 ? `${Math.ceil(seconds / 5) * 5}s` : `${Math.ceil(seconds / 60)} min`} left`
+        : '';
+    return `Preparing · ${choice.progress}%${remaining}`;
+  }
+  return 'Preparing…';
+};
 let scrollLocks = 0;
 let previousOverflow = '';
 export function lockWallVideoScroll() {
@@ -246,6 +267,9 @@ export default function WallVideo(
       );
     }
   };
+  const pendingChoice = qualities.qualities.find(
+    (item) => item.quality === pending
+  );
   return (
     <div className={`wall-video-player ${className}`}>
       <video
@@ -354,7 +378,7 @@ export default function WallVideo(
                         ? `${item.width} × ${item.height}`
                         : 'As uploaded'
                       : ['queued', 'processing'].includes(item.status)
-                        ? 'Preparing…'
+                        ? preparation(item)
                         : 'Prepare this resolution'}
                   </small>
                 </span>
@@ -402,7 +426,9 @@ export default function WallVideo(
       </div>
       {(pending || notice) && (
         <div className="wall-video-notice" role={notice ? 'alert' : 'status'}>
-          {pending ? `Preparing ${pending}… You can keep watching.` : notice}
+          {pending
+            ? `${pending}: ${preparation(pendingChoice)} You can keep watching.`
+            : notice}
         </div>
       )}
     </div>
@@ -447,11 +473,7 @@ export function WallVideoDownload(
   const select = async (item: VideoQuality) => {
     setSelected(item.quality);
     setError('');
-    if (
-      item.status === 'ready' ||
-      ['queued', 'processing'].includes(item.status)
-    )
-      return;
+    if (item.status === 'ready') return;
     try {
       await qualities.prepare(item.quality);
     } catch (failure) {
@@ -549,7 +571,7 @@ export function WallVideoDownload(
                   {item.status === 'ready'
                     ? ''
                     : ['queued', 'processing'].includes(item.status)
-                      ? ' · Preparing…'
+                      ? ` · ${preparation(item)}`
                       : ' · Prepare for download'}
                 </small>
               </span>
@@ -560,8 +582,14 @@ export function WallVideoDownload(
             </button>
           ))}
         </div>
-        {qualities.processing && (
-          <p role="status">Preparing video options. Keep this window open.</p>
+        {choice && ['queued', 'processing'].includes(choice.status) && (
+          <p role="status">
+            {choice.label}: {preparation(choice)} You can close this window and
+            come back.
+          </p>
+        )}
+        {qualities.processing && qualities.qualities.length === 1 && (
+          <p role="status">Reading video details…</p>
         )}
         {(error || choice?.error || qualities.error) && (
           <p role="alert">{error || choice?.error || qualities.error}</p>
@@ -592,7 +620,7 @@ export function WallVideoDownload(
           {busy
             ? 'Starting download…'
             : choice?.status !== 'ready'
-              ? 'Preparing resolution…'
+              ? preparation(choice)
               : `Download${price ? ` · ${price} TPG` : ''}`}
         </button>
       </div>
