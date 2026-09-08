@@ -4,7 +4,8 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "postinstall": "npm run build:matchmaking",
+    "postinstall": "npm run build:matchmaking && npm run check:video-tools",
+    "check:video-tools": "ffmpeg -version && ffprobe -version",
     "build:matchmaking": "npm --prefix ../chess-multiplayer-server ci --include=dev && npm --prefix ../chess-multiplayer-server run build",
     "start": "node server.js",
     "receipt:preview": "node scripts/generate-receipt-preview.js",
