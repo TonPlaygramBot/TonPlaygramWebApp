@@ -1,6 +1,7 @@
 import React, { Suspense, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { TonConnectUIProvider } from '@tonconnect/ui-react';
+import { WallTransfersProvider } from './features/flamingo/WallTransfers';
 
 import Home from './pages/Home.jsx';
 import Earn from './pages/Earn.jsx';
@@ -217,6 +218,7 @@ export default function App() {
         actionsConfiguration={actionsConfiguration}
       >
         <TonConnectSync />
+        <WallTransfersProvider>
         <Layout>
           <Suspense
             fallback={
@@ -537,6 +539,7 @@ export default function App() {
             </Routes>
           </Suspense>
         </Layout>
+        </WallTransfersProvider>
       </TonConnectUIProvider>
       </BackNavigationProvider>
     </BrowserRouter>

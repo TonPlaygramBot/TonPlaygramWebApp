@@ -22,7 +22,8 @@ import {
 } from 'lucide-react';
 import './media-social.css';
 import './wall-remake.css';
-import WallComposer from './WallComposer';
+import { WallComposerSlot as WallComposer } from './WallTransfers';
+import { startWallDownload } from './wallDownloads';
 import WallMediaRecovery from './WallMediaRecovery';
 import WallVideo, { WallVideoDownload, lockWallVideoScroll, type VideoQuality } from './WallVideo';
 import { API_BASE_URL } from '../../utils/api.js';
@@ -154,61 +155,19 @@ function identityHeaders(extra: Record<string, string> = {}) {
 const OWNER_TOKEN = localStorage.getItem(OWNER_TOKEN_KEY) || postId();
 localStorage.setItem(OWNER_TOKEN_KEY, OWNER_TOKEN);
 async function downloadAttachment(file: Attachment, postIdValue?: string, choice?: VideoQuality) {
-  let url = downloadUrl(file);
-  let downloadName = choice?.name || file.name;
-  if (
-    postIdValue &&
-    /^[a-f\d]{24}$/i.test(postIdValue) &&
-    (file.type.startsWith('video/') || file.premium)
-  ) {
-    const response = await fetch(
-      `${API_BASE_URL}/api/flamingo-wall/posts/${postIdValue}/download`,
-      { method: 'POST', headers: identityHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ quality: choice?.quality || 'original' }) }
-    );
-    const payload = await response.json();
-    if (!response.ok) throw new Error(payload.error || 'Download failed.');
-    url = `${API_BASE_URL}${payload.downloadUrl}`;
-    downloadName = payload.name || downloadName;
-  }
-  const telegram = (window as any).Telegram?.WebApp;
-  const absoluteUrl = url.startsWith('blob:')
-    ? url
-    : new URL(url, location.href).href;
-  const browserDownload = () => {
-    if (!url.startsWith('blob:') && typeof telegram?.openLink === 'function') {
-      telegram.openLink(absoluteUrl, { try_instant_view: false });
-      return;
-    }
-    const link = document.createElement('a');
-    link.href = absoluteUrl;
-    link.download = downloadName;
-    link.target = '_blank';
-    link.rel = 'noopener';
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-  };
-  if (
-    !url.startsWith('blob:') &&
-    typeof telegram?.downloadFile === 'function'
-  ) {
-    // Telegram requires the callback argument. Falling back when the native
-    // download prompt is unavailable also covers older Android/iOS clients.
-    try {
-      telegram.downloadFile(
-        { url: absoluteUrl, file_name: downloadName },
-        (accepted: boolean) => {
-          if (!accepted) browserDownload();
-        }
-      );
-      return;
-    } catch {
-      browserDownload();
-      return;
-    }
-  }
-  browserDownload();
+  const requiresGrant = postIdValue && /^[a-f\d]{24}$/i.test(postIdValue) &&
+    (file.type.startsWith('video/') || file.premium);
+  startWallDownload({
+    url: downloadUrl(file),
+    name: choice?.name || file.name,
+    ...(requiresGrant ? { grant: {
+      url: `${API_BASE_URL}/api/flamingo-wall/posts/${postIdValue}/download`,
+      headers: identityHeaders(),
+      quality: choice?.quality || 'original'
+    } } : {})
+  });
 }
+
 function AttachmentPreview({
   file,
   onExpand,

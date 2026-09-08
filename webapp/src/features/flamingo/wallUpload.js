@@ -4,7 +4,7 @@ export async function wallRequest(
   url,
   init = {},
   {
-    signal = undefined,
+    signal = /** @type {AbortSignal | undefined} */ (undefined),
     attempts = 4,
     timeoutMs = 120_000,
     request = fetch,
@@ -56,7 +56,7 @@ export async function wallRequest(
       failure = error.status
         ? error
         : new Error(
-            'Connection interrupted. Keep this page open and retry to resume your upload.'
+            'Connection interrupted. Resume your upload from Transfers anywhere in the app.'
           );
     } finally {
       clearTimeout(timer);

@@ -1,0 +1,93 @@
+.wall-transfers {
+  position: fixed;
+  right: 12px;
+  bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+  z-index: 2147483646;
+  width: min(350px, calc(100vw - 24px));
+  color: #f6f7fb;
+  font:
+    14px/1.45 system-ui,
+    sans-serif;
+  pointer-events: none;
+}
+.wall-transfers button {
+  min-height: 44px;
+  cursor: pointer;
+  font: inherit;
+}
+.wall-transfers button:focus-visible {
+  outline: 2px solid #68f5f5;
+  outline-offset: 3px;
+}
+.wall-transfers svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.wall-transfers-toggle {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-left: auto;
+  padding: 8px 14px;
+  color: #071217;
+  background: #68f5f5;
+  border: 1px solid #8effff;
+  border-radius: 24px;
+  box-shadow: 0 4px 20px #0006;
+}
+.wall-transfers-toggle .is-open {
+  transform: rotate(180deg);
+}
+.wall-transfer-list {
+  pointer-events: auto;
+  margin-top: 8px;
+  padding: 14px;
+  max-height: min(55dvh, 500px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: #15191f;
+  border: 1px solid #39404b;
+  border-radius: 18px;
+  box-shadow: 0 8px 30px #0009;
+}
+.wall-transfer-list > p {
+  margin: 0 0 12px;
+  color: #bdc3cd;
+  font-size: 12px;
+}
+.wall-transfer-item {
+  display: grid;
+  gap: 6px;
+  padding: 12px 0;
+  border-top: 1px solid #303743;
+}
+.wall-transfer-item strong {
+  overflow-wrap: anywhere;
+}
+.wall-transfer-item small {
+  color: #bdc3cd;
+  overflow-wrap: anywhere;
+}
+.wall-transfer-item progress {
+  width: 100%;
+  accent-color: #68f5f5;
+}
+.wall-transfer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.wall-transfer-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid #4d5868;
+  border-radius: 10px;
+  background: #222933;
+  color: inherit;
+}

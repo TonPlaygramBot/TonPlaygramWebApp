@@ -1,10 +1,13 @@
 import {
   useEffect,
+  useImperativeHandle,
   useRef,
   useState,
   type ChangeEvent,
-  type FormEvent
+  type FormEvent,
+  type Ref
 } from 'react';
+import { createPortal } from 'react-dom';
 import {
   AlertCircle,
   ChevronUp,
@@ -20,6 +23,21 @@ import {
   X
 } from 'lucide-react';
 import { uploadWallFile, wallRequest } from './wallUpload.js';
+import { retainWallTransfer } from './wallTransferActivity.js';
+
+export type UploadTransfer = {
+  phase: 'idle' | 'uploading' | 'paused' | 'error' | 'complete';
+  label: string;
+  percent: number;
+  detail: string;
+  unreadable: boolean;
+};
+export type UploadControls = {
+  pause: () => void;
+  resume: () => void;
+  reselect: () => void;
+  dismiss: () => void;
+};
 
 type Kind = 'post' | 'article' | 'poll';
 type Selection = {
@@ -79,13 +97,19 @@ export default function WallComposer({
   apiBase,
   headers,
   onPublished,
-  onNotice
+  onNotice,
+  portalTarget,
+  onTransfer,
+  transferRef
 }: {
   identity: Identity;
   apiBase: string;
   headers: () => Record<string, string>;
   onPublished: (post: any) => void;
   onNotice: (message: string) => void;
+  portalTarget?: HTMLElement | null;
+  onTransfer?: (transfer: UploadTransfer) => void;
+  transferRef?: Ref<UploadControls>;
 }) {
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<Kind>('post');
@@ -101,6 +125,10 @@ export default function WallComposer({
   const [unreadableId, setUnreadableId] = useState<string>();
   const [premium, setPremium] = useState(false);
   const [price, setPrice] = useState('');
+  const [transferPhase, setTransferPhase] =
+    useState<UploadTransfer['phase']>('idle');
+  const [transferLabel, setTransferLabel] = useState('');
+  const [transferDetail, setTransferDetail] = useState('');
   const [progress, setProgress] = useState<{
     bytes: number;
     total: number;
@@ -113,9 +141,25 @@ export default function WallComposer({
   const selectionRef = useRef(selected);
   selectionRef.current = selected;
   const contentId = useRef(id());
+  const activityId = useRef(Symbol('wall-upload'));
+  const uploadIdentity = useRef<{
+    apiBase: string;
+    headers: Record<string, string>;
+  }>();
+  useEffect(() => {
+    retainWallTransfer(
+      activityId.current,
+      busy ||
+        preparing ||
+        selected.length > 0 ||
+        transferPhase === 'paused' ||
+        transferPhase === 'error'
+    );
+  }, [busy, preparing, selected.length, transferPhase]);
   useEffect(
     () => () => {
       controller.current?.abort();
+      retainWallTransfer(activityId.current, false);
       selectionRef.current.forEach((item) => URL.revokeObjectURL(item.src));
     },
     []
@@ -233,18 +277,22 @@ export default function WallComposer({
       setPreparing(false);
     }
   }
-  function remove(item: Selection) {
+  function remove(item: Selection, published = false) {
     URL.revokeObjectURL(item.src);
     setSelected((current) => current.filter((file) => file.id !== item.id));
-    setProgress(undefined);
+    if (!published) {
+      setProgress(undefined);
+      setTransferPhase('idle');
+      uploadIdentity.current = undefined;
+    }
     if (item.id === unreadableId) {
       setUnreadableId(undefined);
       setError('');
     }
   }
-  async function publish(event: FormEvent) {
-    event.preventDefault();
-    if (busy || preparing) return;
+  async function publish(event?: FormEvent) {
+    event?.preventDefault();
+    if (controller.current || busy || preparing) return;
     const choices = options.map((value) => value.trim()).filter(Boolean);
     if (kind === 'article' && (!title.trim() || !text.trim()))
       return setError('Add a title and write your article.');
@@ -262,7 +310,21 @@ export default function WallComposer({
       return setError('Enter a whole premium price from 1 to 1,000,000 TPG.');
     const abort = new AbortController();
     controller.current = abort;
+    // Preserve the original owner for every file and every retry in a batch.
+    uploadIdentity.current ||= { apiBase, headers: headers() };
+    const owner = uploadIdentity.current;
     setBusy(true);
+    setTransferPhase('uploading');
+    setTransferLabel(
+      selected.length === 1
+        ? selected[0].file.name
+        : selected.length
+          ? `${selected.length} attachments`
+          : kind === 'article'
+            ? title.trim()
+            : 'Your post'
+    );
+    setTransferDetail('Publishing…');
     setError('');
     setUnreadableId(undefined);
     let published = 0;
@@ -275,8 +337,8 @@ export default function WallComposer({
           const item = selected[index];
           activeAttachment = item.id;
           const result = await uploadWallFile({
-            baseUrl: apiBase,
-            headers: headers(),
+            baseUrl: owner.apiBase,
+            headers: owner.headers,
             file: item.file,
             type: fileType(item.file),
             uploadId: item.id,
@@ -302,14 +364,14 @@ export default function WallComposer({
           onPublished(result.post);
           published += 1;
           completed += item.file.size;
-          remove(item);
+          remove(item, true);
         }
       } else {
         const result = await wallRequest(
-          `${apiBase}/api/flamingo-wall/posts/content`,
+          `${owner.apiBase}/api/flamingo-wall/posts/content`,
           {
             method: 'POST',
-            headers: { ...headers(), 'Content-Type': 'application/json' },
+            headers: { ...owner.headers, 'Content-Type': 'application/json' },
             body: JSON.stringify({
               clientId: contentId.current,
               text: kind === 'poll' ? '' : text.trim(),
@@ -339,12 +401,25 @@ export default function WallComposer({
       setOpen(false);
       setProgress(undefined);
       contentId.current = id();
+      uploadIdentity.current = undefined;
+      setTransferPhase('complete');
+      setTransferDetail(
+        published > 1
+          ? `${published} posts published.`
+          : 'Your post is published.'
+      );
       onNotice(
         published > 1
           ? `${published} posts published.`
           : 'Your post is published.'
       );
     } catch (failure) {
+      const paused =
+        abort.signal.aborted ||
+        (failure &&
+          typeof failure === 'object' &&
+          'name' in failure &&
+          failure.name === 'AbortError');
       if (
         failure &&
         typeof failure === 'object' &&
@@ -352,13 +427,16 @@ export default function WallComposer({
         failure.code === 'WALL_FILE_UNREADABLE'
       )
         setUnreadableId(activeAttachment);
-      const message =
-        failure instanceof Error && failure.name === 'AbortError'
-          ? 'Upload paused. Keep this page open and tap Publish to resume.'
-          : failure instanceof Error
-            ? failure.message
-            : 'Publishing failed. Please retry.';
+      const message = paused
+        ? 'Upload paused. Resume here or from Transfers anywhere in the app.'
+        : failure instanceof Error
+          ? failure.message
+          : 'Publishing failed. Please retry.';
       setError(
+        `${published ? `${published} posts published. ` : ''}${message}`
+      );
+      setTransferPhase(paused ? 'paused' : 'error');
+      setTransferDetail(
         `${published ? `${published} posts published. ` : ''}${message}`
       );
     } finally {
@@ -369,7 +447,37 @@ export default function WallComposer({
   const percent = progress
     ? Math.min(100, Math.round((progress.bytes / progress.total) * 100))
     : 0;
-  return (
+  useImperativeHandle(transferRef, () => ({
+    pause: () => controller.current?.abort(),
+    resume: () => {
+      void publish();
+    },
+    reselect: () => pick('*/*', unreadableId),
+    dismiss: () => setTransferPhase('idle')
+  }));
+  useEffect(() => {
+    onTransfer?.({
+      phase: transferPhase,
+      label: transferLabel,
+      percent: transferPhase === 'complete' ? 100 : percent,
+      detail:
+        transferPhase === 'uploading' && progress
+          ? progress.phase === 'publishing'
+            ? `Saving post ${progress.index} of ${progress.count}…`
+            : `${formatUploadBytes(progress.bytes)} of ${formatUploadBytes(progress.total)} · File ${progress.index} of ${progress.count}`
+          : transferDetail,
+      unreadable: !!unreadableId
+    });
+  }, [
+    onTransfer,
+    transferPhase,
+    transferLabel,
+    transferDetail,
+    percent,
+    progress,
+    unreadableId
+  ]);
+  const form = (
     <form
       className={`wall-composer ${open ? 'is-open' : ''}`}
       id="wall-composer"
@@ -423,17 +531,6 @@ export default function WallComposer({
           </button>
         </div>
       )}
-      {pickers.map((picker, index) => (
-        <input
-          key={picker}
-          ref={index === pickers.length - 1 ? files : undefined}
-          data-wall-picker={picker}
-          type="file"
-          hidden
-          onChange={selectFiles}
-          aria-label="Choose attachments"
-        />
-      ))}
       <div id="wall-compose-editor" hidden={!open}>
         <fieldset disabled={busy || preparing}>
           <div className="wall-compose-tabs" aria-label="Post format">
@@ -657,7 +754,7 @@ export default function WallComposer({
                 />
                 <small>
                   {formatUploadBytes(progress.bytes)} of{' '}
-                  {formatUploadBytes(progress.total)} · Keep this page open
+                  {formatUploadBytes(progress.total)} · You can browse the app
                 </small>
               </>
             )}
@@ -683,5 +780,27 @@ export default function WallComposer({
         </div>
       )}
     </form>
+  );
+  return (
+    <>
+      {/* Native picker nodes must never move between route/portal containers:
+          Android may revoke file access when the original input disconnects. */}
+      {pickers.map((picker, index) => (
+        <input
+          key={picker}
+          ref={index === pickers.length - 1 ? files : undefined}
+          data-wall-picker={picker}
+          type="file"
+          hidden
+          onChange={selectFiles}
+          aria-label="Choose attachments"
+        />
+      ))}
+      {portalTarget === undefined
+        ? form
+        : portalTarget
+          ? createPortal(form, portalTarget)
+          : null}
+    </>
   );
 }

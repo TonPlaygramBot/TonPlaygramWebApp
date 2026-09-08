@@ -906,6 +906,8 @@ router.delete('/posts/:id', async (req, res) => {
 
 router.post('/posts/:id/download', express.json({ limit: '1kb' }), async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ error: 'Invalid post.' });
+  const requestId = req.body?.requestId;
+  if (requestId !== undefined && (typeof requestId !== 'string' || !/^[a-f\d]{8}-(?:[a-f\d]{4}-){3}[a-f\d]{12}$/i.test(requestId))) return res.status(400).json({ error: 'Invalid download request.' });
   const post = await FlamingoPost.findById(req.params.id).lean();
   if (!post?.attachment?.url) return res.status(404).json({ error: 'Video not found.' });
   const file = flamingoMediaName(post.attachment.url);
@@ -921,17 +923,32 @@ router.post('/posts/:id/download', express.json({ limit: '1kb' }), async (req, r
   // A missing/pending rendition must never charge the viewer or silently
   // substitute the original after they selected a smaller resolution.
   if (quality !== 'original' && !rendition) return res.status(409).json({ error: 'This resolution is not ready. Prepare it before downloading.' });
-  const price = attachmentDownloadPrice(post.attachment);
+  let price = attachmentDownloadPrice(post.attachment);
   const selector = userSelector(req);
   if (price && !selector) return res.status(401).json({ error: 'Sign in to download the video.' });
   let user = selector ? await User.findOne(selector) : null;
   if (selector && !user) return res.status(404).json({ error: 'Account not found.' });
   if (price) {
-    user = await User.findOneAndUpdate({ _id: user._id, balance: { $gte: price } }, {
-      $inc: { balance: -price },
-      $push: { transactions: { transactionId: randomUUID(), amount: -price, type: 'video_download', token: 'TPG', status: 'delivered', detail: String(post._id) } }
-    }, { new: true });
-    if (!user) return res.status(402).json({ error: `You need ${price} TPG to download this video.` });
+    // A phone may lose the response after payment, or need a fresh signed URL.
+    // Scope retry IDs to owner, original media and quality. This also respects
+    // the global unique transaction index and cannot unlock another video.
+    const transactionId = requestId ? `wall-download:${createHash('sha256').update(JSON.stringify([String(user._id), String(post._id), videoSourceKey(post), quality, requestId])).digest('hex')}` : randomUUID();
+    const previousPayment = (account) => account?.transactions?.find((entry) => entry.transactionId === transactionId && entry.type === 'video_download');
+    let paid = previousPayment(user);
+    if (!paid) {
+      const accountId = user._id;
+      user = await User.findOneAndUpdate({ _id: accountId, balance: { $gte: price }, 'transactions.transactionId': { $ne: transactionId } }, {
+        $inc: { balance: -price },
+        $push: { transactions: { transactionId, amount: -price, type: 'video_download', token: 'TPG', status: 'delivered', detail: String(post._id) } }
+      }, { new: true });
+      if (!user && requestId) {
+        user = await User.findOne({ _id: accountId });
+        paid = previousPayment(user);
+        if (!paid) return res.status(402).json({ error: `You need ${price} TPG to download this video.` });
+      }
+      if (!user) return res.status(402).json({ error: `You need ${price} TPG to download this video.` });
+    }
+    if (paid) price = Math.abs(paid.amount);
   }
   const downloadName = rendition?.name || post.attachment.name;
   const grant = createFlamingoDownloadGrant(rendition ? {

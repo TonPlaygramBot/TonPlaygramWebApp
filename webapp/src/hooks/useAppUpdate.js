@@ -2,13 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { APP_BUILD } from '../config/buildInfo.js';
 import { API_BASE_URL } from '../utils/api.js';
+import { createAppReloadScheduler } from './scheduleAppReload.js';
 
 const VERSION_PATHS = ['/api/version', '/version.json'];
 const STORAGE_KEY = 'tonplaygram-app-build';
 const DEFAULT_BUILD = APP_BUILD || 'dev';
 const POLL_INTERVAL_MS = 5 * 60 * 1000;
-const GAME_ACTIVE_KEY = 'tonplaygram-game-active';
-const UPDATE_PENDING_KEY = 'tonplaygram-update-pending';
 
 function normalizeBuild(payload) {
   if (!payload || typeof payload !== 'object') return null;
@@ -58,42 +57,16 @@ export default function useAppUpdate() {
   useEffect(() => {
     let cancelled = false;
 
-    const isGameActive = () => {
-      try {
-        return localStorage.getItem(GAME_ACTIVE_KEY) === 'true';
-      } catch {
-        return false;
-      }
-    };
-
-    const executeReload = () => {
-      setIsUpdating(true);
-      setTimeout(() => {
+    const reload = createAppReloadScheduler({
+      onUpdating: setIsUpdating,
+      onReload: () => {
         if (Capacitor.isNativePlatform()) {
           window.location.replace(window.location.href);
         } else {
           window.location.reload();
         }
-      }, 750);
-    };
-
-    const reloadApp = () => {
-      if (isGameActive()) {
-        try {
-          localStorage.setItem(UPDATE_PENDING_KEY, '1');
-        } catch {}
-        const handleGameEnd = () => {
-          if (isGameActive()) return;
-          try {
-            localStorage.removeItem(UPDATE_PENDING_KEY);
-          } catch {}
-          executeReload();
-        };
-        window.addEventListener('tonplaygram-game-ended', handleGameEnd, { once: true });
-        return;
       }
-      executeReload();
-    };
+    });
 
     const storeBuild = (build) => {
       try {
@@ -114,15 +87,15 @@ export default function useAppUpdate() {
       const latest = await fetchRemoteBuild();
       if (!latest) return;
 
-      setRemoteBuild(latest);
       if (cancelled) return;
+      setRemoteBuild(latest);
       if (baseline && latest === baseline) {
         storeBuild(latest);
         return;
       }
 
       storeBuild(latest);
-      reloadApp();
+      reload.request();
     };
 
     checkVersion().catch(() => {});
@@ -133,6 +106,7 @@ export default function useAppUpdate() {
 
     return () => {
       cancelled = true;
+      reload.dispose();
       window.clearInterval(intervalId);
       window.removeEventListener('focus', checkVersion);
     };
