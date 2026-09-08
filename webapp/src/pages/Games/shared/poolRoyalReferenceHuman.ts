@@ -53,6 +53,8 @@ type HumanFrame = {
   rightFootWorld: THREE.Vector3;
   cueBackWorld: THREE.Vector3;
   cueTipWorld: THREE.Vector3;
+  supportMode: "hand" | "mechanical-rest";
+  supportDirection?: THREE.Vector3;
 };
 
 
@@ -356,10 +358,17 @@ function driveHuman(human: HumanRig, frame: HumanFrame) {
   aimTwoBone(b.leftUpperArm, b.leftLowerArm, leftElbow, leftHand, frame.side.clone().multiplyScalar(-1).addScaledVector(UP, 0.1).normalize(), 0.98 * ik, 1.0 * ik);
   twistBone(b.leftUpperArm, frame.forward, -0.2 * ik);
   twistBone(b.leftLowerArm, frame.forward, 0.025 * ik);
-  const bridgeSide = frame.side.clone().multiplyScalar(-1).addScaledVector(frame.forward, -0.52).normalize();
-  const bridgeUp = UP.clone().multiplyScalar(0.78).addScaledVector(frame.forward, -0.28).addScaledVector(frame.side, -0.16).normalize();
-  setHandBasis(b.leftHand, bridgeSide, bridgeUp, cueDir, -0.68 * ik, 1.0 * ik);
-  poseFingers(human.leftFingers, "bridge", ik);
+  if (frame.supportMode === "mechanical-rest") {
+    const restUp = frame.supportDirection?.clone().normalize() ?? frame.forward.clone();
+    const restForward = new THREE.Vector3().crossVectors(frame.side, restUp).normalize();
+    setHandBasis(b.leftHand, frame.side, restUp, restForward, -0.28 * ik, 1.0 * ik);
+    poseFingers(human.leftFingers, "grip", 0.94 * ik);
+  } else {
+    const bridgeSide = frame.side.clone().multiplyScalar(-1).addScaledVector(frame.forward, -0.52).normalize();
+    const bridgeUp = UP.clone().multiplyScalar(0.78).addScaledVector(frame.forward, -0.28).addScaledVector(frame.side, -0.16).normalize();
+    setHandBasis(b.leftHand, bridgeSide, bridgeUp, cueDir, -0.68 * ik, 1.0 * ik);
+    poseFingers(human.leftFingers, "bridge", ik);
+  }
   aimTwoBone(b.leftUpperLeg, b.leftLowerLeg, frame.leftKnee, frame.leftFootWorld, frame.forward.clone().addScaledVector(UP, 0.18).normalize(), 0.9 * ik, 1.0 * ik);
   twistBone(b.leftUpperLeg, frame.forward, -0.035 * ik);
   setHandBasis(b.leftFoot, frame.side, frame.up, frame.forward, -0.02 * ik, CFG.footLockStrength * ik);
@@ -367,7 +376,7 @@ function driveHuman(human: HumanRig, frame: HumanFrame) {
   twistBone(b.rightUpperLeg, frame.forward, 0.03 * ik);
   setHandBasis(b.rightFoot, frame.side, frame.up, frame.forward, 0.02 * ik, CFG.footLockStrength * ik);
 }
-export function updateHumanPose(human: HumanRig, dt: number, state: ShotState, rootTarget: THREE.Vector3, aimForward: THREE.Vector3, bridgeTarget: THREE.Vector3, idleRight: THREE.Vector3, idleLeft: THREE.Vector3, cueBack: THREE.Vector3, cueTip: THREE.Vector3, power: number, clothY = CFG.tableTopY) {
+export function updateHumanPose(human: HumanRig, dt: number, state: ShotState, rootTarget: THREE.Vector3, aimForward: THREE.Vector3, bridgeTarget: THREE.Vector3, idleRight: THREE.Vector3, idleLeft: THREE.Vector3, cueBack: THREE.Vector3, cueTip: THREE.Vector3, power: number, clothY = CFG.tableTopY, supportMode: "hand" | "mechanical-rest" = "hand", supportDirection?: THREE.Vector3, rearGripOffset = 0) {
   human.poseT = dampScalar(human.poseT, state === "idle" ? 0 : 1, CFG.poseLambda, dt);
   human.breathT += dt * (state === "idle" ? 1.05 : 0.5);
   human.settleT = dampScalar(human.settleT, state === "dragging" ? 1 : 0, 5.5, dt);
@@ -402,7 +411,8 @@ export function updateHumanPose(human: HumanRig, dt: number, state: ShotState, r
   const rightHip = local(new THREE.Vector3(0.13 * CFG.scale, 0.92 * CFG.scale, 0.02 * CFG.scale));
   const leftFoot = local(new THREE.Vector3(-0.13 * CFG.scale, CFG.footGroundY, 0.03 * CFG.scale + walk * 0.018 * CFG.scale).lerp(new THREE.Vector3(-CFG.stanceWidth * 0.42, CFG.footGroundY, -0.34 * CFG.scale), t));
   const rightFoot = local(new THREE.Vector3(0.13 * CFG.scale, CFG.footGroundY, -0.03 * CFG.scale - walk * 0.018 * CFG.scale).lerp(new THREE.Vector3(CFG.stanceWidth * 0.5, CFG.footGroundY, 0.34 * CFG.scale), t));
-  const bridgePalmTarget = bridgeTarget.clone().addScaledVector(forward, -0.006 * CFG.scale * t).addScaledVector(side, -0.012 * CFG.scale * t).setY(clothY + CFG.bridgePalmTableLift).addScaledVector(UP, -0.01 * CFG.scale * human.settleT);
+  const bridgePalmTarget = bridgeTarget.clone().addScaledVector(forward, -0.006 * CFG.scale * t).addScaledVector(side, -0.012 * CFG.scale * t);
+  if (supportMode === "hand") bridgePalmTarget.setY(clothY + CFG.bridgePalmTableLift).addScaledVector(UP, -0.01 * CFG.scale * human.settleT);
   const leftHand = idleLeft.clone().lerp(bridgePalmTarget, t);
   const cueDirForHand = cueTip.clone().sub(cueBack).normalize();
   const handIk = easeInOut(clamp01(t));
@@ -416,14 +426,15 @@ export function updateHumanPose(human: HumanRig, dt: number, state: ShotState, r
   const smallPractice = state === "dragging" ? dragStroke * 0.035 * CFG.scale : 0;
   const forearmStroke = pullBack + pushForward + smallPractice;
   const forearmBase = lockedRightElbow.clone().addScaledVector(side, CFG.rightForearmOutward * t).addScaledVector(UP, -CFG.rightForearmDown * t).addScaledVector(UP, CFG.rightHandShotLift * t).addScaledVector(forward, -CFG.rightForearmBack * t).addScaledVector(cueDirForHand, CFG.rightForearmLength);
-  const liveCueGripPoint = forearmBase.clone().addScaledVector(cueDirForHand, forearmStroke);
+  const liveCueGripPoint = forearmBase.clone()
+    .addScaledVector(cueDirForHand, forearmStroke - Math.max(0, rearGripOffset) * t);
   const idleWristTarget = idleRight.clone().sub(cueSocketOffsetWorld(idleGripSide, idleGripUp, cueDirForHand, CFG.rightHandRollIdle));
   const liveWristTarget = liveCueGripPoint.clone().sub(cueSocketOffsetWorld(liveGripSide, liveGripUp, cueDirForHand, lerp(CFG.rightHandRollIdle, CFG.rightHandRollShoot - CFG.rightHandDownPose, handIk)));
   const rightHand = idleWristTarget.clone().lerp(liveWristTarget, t);
   const leftElbow = leftShoulder.clone().lerp(leftHand, 0.62).addScaledVector(UP, 0.006 * CFG.scale * t).addScaledVector(side, -0.044 * CFG.scale * t).addScaledVector(forward, 0.065 * CFG.scale * t);
   const leftKnee = leftHip.clone().lerp(leftFoot, 0.53).addScaledVector(UP, lerp(0.2 * CFG.scale, CFG.kneeBendShot, t)).addScaledVector(forward, 0.04 * CFG.scale * t).addScaledVector(side, -0.012 * CFG.scale * t);
   const rightKnee = rightHip.clone().lerp(rightFoot, 0.52).addScaledVector(UP, lerp(0.2 * CFG.scale, CFG.kneeBendShot * 0.88, t)).addScaledVector(forward, -0.03 * CFG.scale * t).addScaledVector(side, 0.014 * CFG.scale * t);
-  driveHuman(human, { t, stroke: forearmStroke / CFG.scale, follow: strikeFollow, walkAmount, forward, side, up: UP, rootWorld, torsoCenterWorld: torso, chestCenterWorld: chest, neckWorld: neck, headCenterWorld: head, leftElbow, rightElbow: lockedRightElbow, leftHandWorld: leftHand, rightHandWorld: rightHand, leftKnee, rightKnee, leftFootWorld: leftFoot, rightFootWorld: rightFoot, cueBackWorld: cueBack, cueTipWorld: cueTip });
+  driveHuman(human, { t, stroke: forearmStroke / CFG.scale, follow: strikeFollow, walkAmount, forward, side, up: UP, rootWorld, torsoCenterWorld: torso, chestCenterWorld: chest, neckWorld: neck, headCenterWorld: head, leftElbow, rightElbow: lockedRightElbow, leftHandWorld: leftHand, rightHandWorld: rightHand, leftKnee, rightKnee, leftFootWorld: leftFoot, rightFootWorld: rightFoot, cueBackWorld: cueBack, cueTipWorld: cueTip, supportMode, supportDirection });
 }
 
 export function chooseHumanEdgePosition(cueBallWorld: THREE.Vector3, aimForward: THREE.Vector3, tableW = CFG.tableW, tableL = CFG.tableL) {

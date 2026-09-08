@@ -8,6 +8,13 @@ import {
 } from './poolRoyalReferenceHuman.ts';
 import { refinePoolRoyalBridge, poolRoyalEyeView, type HumanEyeView } from './poolRoyalPlayerPose.ts';
 import { posePoolRoyalCue } from './createPoolRoyalCue.ts';
+import {
+  createCueReachEquipment,
+  hideCueReachEquipment,
+  poseCueReachEquipment,
+  resolveCueReachProfile,
+  type CueReachEquipment
+} from './cueReachEquipment.ts';
 
 export type PlayerSeat = 'A' | 'B';
 export type PlayerFrame = {
@@ -30,6 +37,7 @@ type Player = {
   shotBall: THREE.Vector3;
   shotAim: THREE.Vector3;
   headMeshes: THREE.Object3D[];
+  reachEquipment: CueReachEquipment;
   cueModel?: THREE.Object3D;
 };
 type Options = {
@@ -121,13 +129,14 @@ export class PoolRoyalHumanPlayers {
           this.group.scale.setScalar(this.scale);
         }
         const cue = createCue();
+        const reachEquipment = createCueReachEquipment();
         const headMeshes: THREE.Object3D[] = [];
         human.model!.traverse(object => {
           if ((object as THREE.Mesh).isMesh && /^(EyeLeft|EyeRight|Wolf3D_(Head|Teeth|Beard|Headwear))$/.test(object.name)) headMeshes.push(object);
         });
-        this.group.add(human.modelRoot, cue.group);
+        this.group.add(human.modelRoot, cue.group, reachEquipment.group);
         this.players.push({ seat, human, cue, initialized: false, state: 'idle',
-          shotBall: new THREE.Vector3(), shotAim: new THREE.Vector3(), headMeshes });
+          shotBall: new THREE.Vector3(), shotAim: new THREE.Vector3(), headMeshes, reachEquipment });
       }
       if (this.cueAppearance) this.setCueAppearance(this.cueAppearance.body, this.cueAppearance.tip, this.cueAppearance.butt);
       return true;
@@ -211,7 +220,7 @@ export class PoolRoyalHumanPlayers {
         player.initialized = true;
       }
       const side = new THREE.Vector3(aim.z, 0, -aim.x).normalize();
-      const bridge = cueBall.clone().addScaledVector(aim, -CFG.bridgeHandBackFromBall)
+      let bridge = cueBall.clone().addScaledVector(aim, -CFG.bridgeHandBackFromBall)
         .addScaledVector(side, CFG.bridgeHandSide)
         .setY(clothY + CFG.bridgePalmTableLift);
       const idleRight = rootTarget.clone().add(new THREE.Vector3(
@@ -245,11 +254,40 @@ export class PoolRoyalHumanPlayers {
             .add(new THREE.Vector3(0, 0.024 * CFG.scale, 0));
         }
       }
+      const cueAxis = tip.clone().sub(back);
+      if (cueAxis.lengthSq() > 1e-8) {
+        cueAxis.normalize();
+        bridge = tip.clone().addScaledVector(cueAxis, -CFG.bridgeHandBackFromBall)
+          .addScaledVector(side, CFG.bridgeHandSide)
+          .setY(clothY + CFG.bridgePalmTableLift);
+      }
+      const reachProfile = resolveCueReachProfile({
+        cueBall,
+        aimForward: aim,
+        tableW,
+        tableL
+      });
+      const reachPose = active && state !== 'idle'
+        ? poseCueReachEquipment(player.reachEquipment, {
+          cueBack: back,
+          cueTip: tip,
+          cueBall,
+          aimForward: aim,
+          rootTarget,
+          clothY,
+          profile: reachProfile,
+          scale: CFG.scale
+        })
+        : null;
+      if (!reachPose) hideCueReachEquipment(player.reachEquipment);
+      const supportMode = reachPose ? 'mechanical-rest' : 'hand';
+      if (reachPose) bridge = reachPose.restGrip;
       this.solverScene.add(human.modelRoot);
       this.solverScene.updateMatrixWorld(true);
       updateHumanPose(human, Math.min(dt, 0.033), state, rootTarget, aim, bridge,
-        idleRight, idleLeft, back, tip, active ? power : 0, clothY);
-      refinePoolRoyalBridge(human, cueBall, aim, clothY);
+        idleRight, idleLeft, back, tip, active ? power : 0, clothY, supportMode,
+        reachPose?.restDirection, reachPose ? reachProfile.extensionLength * 0.32 : 0);
+      if (!reachPose) refinePoolRoyalBridge(human, bridge, aim, clothY);
       this.group.add(human.modelRoot);
       setCuePose(player.cue, back, tip);
       // While aiming, the gameplay cue is the visible cue; the parked player
