@@ -1,3 +1,4 @@
+import { detailPostObstacles } from '../../tirana-street-detail/sharedRoadDetails.mjs';
 import { nativeReplacementIds } from '../../tirana-landmarks/nativeLocations.mjs';
 import { nativeLandmarkObstacles } from '../../tirana-landmarks/nativeCollision.mjs';
 import { buildingProfile } from '../../tiranastreets/shared/architecture.mjs';
@@ -119,4 +120,4 @@ export const streetObstacles = STREET_SOLIDS.map(p => {
 export const railingObstacles = RAILINGS.map(r=>({x:r.x-ORIGIN.x,z:r.z-ORIGIN.z,w:.1,d:r.length,h:1.05,rot:r.yaw}));
 const replaced = nativeReplacementIds(WORLD);
 export const landmarkObstacles = nativeLandmarkObstacles(WORLD, ORIGIN);
-export const OBSTACLES = Object.freeze([...buildings.filter(b=>!replaced.has(b.id)), ...landmarkObstacles, ...props, ...streetObstacles, ...railingObstacles]);
+export const OBSTACLES = Object.freeze([...buildings.filter(b=>!replaced.has(b.id)), ...landmarkObstacles, ...props, ...streetObstacles, ...railingObstacles, ...detailPostObstacles(ORIGIN)]);

@@ -17,6 +17,7 @@ export function makeCityWorld(scene:THREE.Scene,camera:THREE.PerspectiveCamera,r
   const city = new FpsCity(webgl);
   city.group.position.set(-ORIGIN.x, 0, -ORIGIN.z);
   scene.add(city.group);
+  enhancements.bindBuildings(city.group,[city.landmarks.group]);
   // FpsCity already owns street facades. Add only rooftop modules, and leave its
   // researched civic profiles/native landmarks free of generic fixture dressing.
   const excluded=new Set([...nativeReplacementIds(WORLD),...Object.keys(BUILDING_PROFILES)]);

@@ -1,0 +1,57 @@
+name: Tirana lobby and street detail integration
+on:
+  pull_request:
+    paths:
+      - 'webapp/src/pages/Games/TiranaStreetsLobby.jsx'
+      - 'webapp/src/games/tirana-street-detail/**'
+      - 'webapp/src/games/tiranastreets/street-career/**'
+      - 'webapp/src/games/blackwater/cityWorld.ts'
+      - 'webapp/src/games/blackwater/shared/layout.mjs'
+      - 'webapp/src/games/kartroyale/tiranaScenery.ts'
+      - 'webapp/src/games/tirana-expansion/WorldEnhancements.ts'
+      - 'webapp/scripts/export-tirana-street-detail.mjs'
+      - 'test/tiranaStreetDetail*'
+      - '.github/workflows/tirana-street-details.yml'
+permissions:
+  contents: read
+concurrency:
+  group: tirana-detail-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  source-and-real-city:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: New contracts, actual WORLD and preserved career tests
+        run: node --test test/tiranaStreetDetail.test.mjs test/tiranaStreetDetail.integration.test.mjs test/tiranaStreetCareer.test.mjs test/tiranaStreetCareer.integration.test.mjs test/tiranaCareerExpansion.test.mjs test/tiranaMap.test.mjs
+  application-and-export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - run: npm ci --prefix webapp
+      - name: Full webapp production build
+        run: npm run build --prefix webapp
+      - name: Dependency-aware TypeScript check
+        working-directory: webapp
+        run: npx --no-install tsc --noEmit
+      - name: Export real 2K PNG and core-glTF assets
+        run: node webapp/scripts/export-tirana-street-detail.mjs artifacts/tirana-street-detail 2048
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tirana-street-detail-assets
+          path: artifacts/tirana-street-detail/
+          retention-days: 7

@@ -13,14 +13,14 @@ export {inside,occupied} from './baseTiranaScenery';
 export class TiranaScenery extends BaseTiranaScenery {
   readonly nativeLandmarks:NativeLandmarkLayer;
   readonly urbanDetails:UrbanDetailLayer;
-  readonly enhancements=new WorldEnhancements();
+  readonly enhancements:WorldEnhancements;
   private atlasTrack:Track;
   constructor(track:Track) {
     super(track);
     this.atlasTrack=track;
+    this.enhancements=new WorldEnhancements({profile:'racing',track});
     this.group.add(this.enhancements.group);
-    // The existing race renderer owns group disposal. Retire async parsers when
-    // its traversal disposes this sentinel; do not remove siblings mid-traversal.
+    // Race-owned disposal retires async work before the scene traversal.
     const lifetime=new THREE.BufferGeometry();lifetime.addEventListener('dispose',()=>{this.enhancements.retire();clearAtlas();});
     const sentinel=new THREE.Mesh(lifetime,new THREE.MeshBasicMaterial());sentinel.visible=false;sentinel.name='Tirana:async-lifetime';this.group.add(sentinel);
     const {landmarks,issues}=resolveNativeLandmarks(WORLD), b=track.bounds;
@@ -31,6 +31,7 @@ export class TiranaScenery extends BaseTiranaScenery {
     const buildings=WORLD.buildings.filter(item=>item.p.some(p=>near(p[0],p[1])));
     this.urbanDetails=new UrbanDetailLayer({...WORLD,buildings},new Set(landmarks.flatMap(l=>l.buildingId?[l.buildingId]:[])));
     this.group.add(this.nativeLandmarks.group,this.urbanDetails.group);
+    this.enhancements.bindBuildings(this.group,[this.nativeLandmarks.group,this.urbanDetails.group]);
     this.group.userData.tiranaLandmarks={issues,...replacement};
   }
   override update(x:number,z:number,performance:boolean) {
