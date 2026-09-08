@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {TurnGuideLayer} from './TurnGuideLayer';
 import {WorldEnhancements} from '../tirana-expansion/WorldEnhancements';
 import {publishAtlas,clearAtlas} from './raceAtlasStore';
 import {TiranaScenery as BaseTiranaScenery} from './baseTiranaScenery';
@@ -18,6 +19,7 @@ export class TiranaScenery extends BaseTiranaScenery {
   constructor(track:Track) {
     super(track);
     this.atlasTrack=track;
+    this.group.add(new TurnGuideLayer(track).group);
     this.enhancements=new WorldEnhancements({profile:'racing',track});
     this.group.add(this.enhancements.group);
     // Race-owned disposal retires async work before the scene traversal.

@@ -1,0 +1,16 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {createCaptureGuard} from '../webapp/src/games/tirana-social/captureGuard.mjs';
+import {pavingProfile,seededParkPoints,polygonHas,roadCorridor} from '../webapp/src/games/tirana-environment/surfaceCore.mjs';
+const square=[[0,0],[100,0],[100,100],[0,100],[0,0]],hole=[[35,35],[65,35],[65,65],[35,65],[35,35]];
+test('only one media permission request may be pending',()=>{const c=createCaptureGuard();assert.equal(c.begin(),1);assert.equal(c.begin(),null);});
+test('cancelling pending capture does not permit a concurrent permission request',()=>{const c=createCaptureGuard();c.begin();c.cancel();assert.equal(c.begin(),null);c.finish();assert.notEqual(c.begin(),null);});
+test('late permission result after stopping kills every track',()=>{const c=createCaptureGuard(),t=c.begin(),stopped=[];c.cancel();assert.equal(c.adopt(t,{getTracks:()=>[1,2].map(id=>({stop:()=>stopped.push(id)}))}),false);assert.deepEqual(stopped,[1,2]);});
+test('current permission result is retained without killing tracks',()=>{const c=createCaptureGuard(),t=c.begin();assert.equal(c.adopt(t,{getTracks:()=>[{stop:()=>assert.fail()}]}),true);});
+test('old permission ticket cannot activate a newly selected call',()=>{const c=createCaptureGuard(),a=c.begin();c.cancel();c.finish();const b=c.begin();assert.equal(c.current(a),false);assert.equal(c.current(b),true);});
+test('unknown paving is never called surveyed stone',()=>{assert.equal(pavingProfile({w:12,name:'Tirana boulevard'}).kind,'unknown');assert.equal(pavingProfile({}).verifiedMaterial,false);});
+test('tagged asphalt and stone remain different material families',()=>{assert.equal(pavingProfile({surface:'asphalt'}).kind,'asphalt');assert.equal(pavingProfile({surface:'paving_stones'}).kind,'stone-pavers');assert.equal(pavingProfile({surface:'cobblestone'}).kind,'setts');});
+test('vegetation remains inside park rings and outside island holes',()=>{const p=[square,hole],pts=seededParkPoints([p]);assert.ok(pts.length>5);for(const q of pts)assert.ok(polygonHas([q.x,q.z],p));});
+test('vegetation respects paths and a hard instance budget',()=>{const pts=seededParkPoints([[square]],{limit:12,excluded:(x,z)=>x>40&&x<65});assert.equal(pts.length,12);assert.ok(pts.every(p=>p.x<=40||p.x>=65));});
+test('vegetation is deterministic and has no per-frame random reshuffling',()=>assert.deepEqual(seededParkPoints([[square]]),seededParkPoints([[square]])));
+test('invalid vegetation budgets and geometry do not loop forever',()=>{for(const spacing of [0,-1,Infinity,NaN])assert.throws(()=>seededParkPoints([[square]],{spacing}));assert.deepEqual(seededParkPoints([[[[NaN,0],[0,1],[1,0]]]]),[]);});
+test('road-cut polygon preserves direction and expected width',()=>{const r=roadCorridor({a:[0,0],b:[0,100],w:8},2);assert.equal(r.length,5);assert.ok(polygonHas([0,50],[r]));assert.ok(!polygonHas([7,50],[r]));assert.equal(roadCorridor({a:[0,0],b:[0,0],w:8}),null);});

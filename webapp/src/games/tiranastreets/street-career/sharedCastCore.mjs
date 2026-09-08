@@ -19,6 +19,8 @@ export function buildSharedGameCast(chess) {
 }
 export function chooseSharedHuman(entity, cast) {
   const role=actorRole(entity.kind);
+  const selected=cast.find(a=>a.id===entity.characterId&&a.roles.includes(role));
+  if(selected)return selected;
   // Police and ordinary street contacts primarily use the same Chess avatars.
   const chess=cast.filter(a=>a.roles.includes(role)&&(a.id.startsWith('rpm-')||a.id==='chess-human'));
   const all=cast.filter(a=>a.roles.includes(role));
