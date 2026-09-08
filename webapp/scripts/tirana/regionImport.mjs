@@ -1,5 +1,6 @@
 import {projectRegion,REGION_BBOX} from '../../src/games/tirana-region/regionCore.mjs';
-const legalNumber=s=>typeof s==='string'&&/^\d+(\.\d+)?\s*(m)?$/.test(s.trim())?Number.parseFloat(s):null;
+import {validatePolygonRing,containsRing,holesOverlap} from './polygonValidation.mjs';
+const legalNumber=s=>{if(typeof s!=='string'||!/^\d+(\.\d+)?\s*(m)?$/.test(s.trim()))return null;const n=Number.parseFloat(s);return Number.isFinite(n)?n:null;};
 /** Assemble OSM relation members by identity, preserving holes and all vertices. */
 export function stitchRegionRings(chains){
  const todo=chains.map(c=>[...c]);const degree=new Map();
@@ -8,25 +9,25 @@ export function stitchRegionRings(chains){
  const rings=[];
  while(todo.length){const ring=todo.shift();let guard=todo.length+1;
   while(ring[0]!==ring.at(-1)){if(guard--<=0)throw Error('Open multipolygon');const matches=todo.map((c,i)=>({c,i})).filter(({c})=>c[0]===ring.at(-1)||c.at(-1)===ring.at(-1));if(matches.length!==1)throw Error('Open or ambiguous multipolygon');const {c,i}=matches[0];todo.splice(i,1);if(c.at(-1)===ring.at(-1))c.reverse();ring.push(...c.slice(1));}
-  if(ring.length<4)throw Error('Degenerate multipolygon');rings.push(ring);
+  if(ring.length<4||new Set(ring.slice(0,-1)).size!==ring.length-1)throw Error('Degenerate or ambiguous multipolygon: repeated vertex');rings.push(ring);
  }return rings;
 }
-function polygonContains(point,ring){let inside=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const a=ring[i],b=ring[j];if((a[1]>point[1])!==(b[1]>point[1])&&point[0]<(b[0]-a[0])*(point[1]-a[1])/(b[1]-a[1])+a[0])inside=!inside;}return inside;}
 /** Input must be a full OSM JSON body, including referenced nodes. No fake data,
  * geographic smoothing, spatial-junction inference or Google extraction. */
 export function importRegionSource(raw,{origin,sourceURL,acquiredAt,sha256}={}){
  if(!raw||raw.remark||!Array.isArray(raw.elements))throw Error('Incomplete OSM response');
  if(!sourceURL||!/^https:\/\//.test(sourceURL)||!acquiredAt||!Number.isFinite(Date.parse(acquiredAt))||!sha256||!/^[a-f0-9]{64}$/.test(sha256))throw Error('Provenance URL, timestamp and SHA256 required');
+ try{const u=new URL(sourceURL);if(u.protocol!=='https:'||!u.hostname)throw Error();}catch{throw Error('Provenance requires a valid HTTPS URL');}
  projectRegion(origin,origin?.[0],origin?.[1]);
  const nodes=new Map(),ways=new Map(),relations=[],ids=new Set();
  for(const e of raw.elements){if(!e||!['node','way','relation'].includes(e.type)||!Number.isSafeInteger(e.id)||e.id<=0)throw Error('Invalid OSM identity');const key=`${e.type}/${e.id}`;if(ids.has(key))throw Error(`Duplicate ${key}`);ids.add(key);if(e.type==='node'){if(![e.lat,e.lon].every(Number.isFinite))throw Error(`Missing coordinate ${key}`);nodes.set(e.id,e);}if(e.type==='way')ways.set(e.id,e);if(e.type==='relation')relations.push(e);}
  const point=id=>{const n=nodes.get(id);if(!n)throw Error(`Missing source node ${id}`);const p=projectRegion(origin,n.lat,n.lon);return [p.x,p.z];};
- const ring=w=>{if(!w?.nodes||w.nodes.length<4||w.nodes[0]!==w.nodes.at(-1))throw Error(`Unclosed polygon ${w?.id}`);return w.nodes.slice(0,-1).map(point);};
+ const ring=w=>{if(!w?.nodes||w.nodes.length<4||w.nodes[0]!==w.nodes.at(-1))throw Error(`Unclosed polygon ${w?.id}`);return validatePolygonRing(w.nodes.slice(0,-1).map(point),`way/${w.id}`);};
  const roads=[],buildings=[],water=[],warnings=[],waterMembers=new Set();
  for(const r of relations){const t=r.tags||{};if(t.type!=='multipolygon'||!(t.natural==='water'||t.landuse==='reservoir'))continue;
   const member=role=>(r.members||[]).filter(m=>m.type==='way'&&(m.role===role||role==='outer'&&!m.role)).map(m=>{const w=ways.get(m.ref);if(!w)throw Error(`Missing relation member ${m.ref}`);waterMembers.add(m.ref);w.nodes.forEach(point);return w.nodes;});
-  const outer=stitchRegionRings(member('outer')).map(c=>c.slice(0,-1).map(point)),inner=stitchRegionRings(member('inner')).map(c=>c.slice(0,-1).map(point));if(!outer.length)throw Error('Water relation has no outer ring');
-  const polygons=outer.map(p=>({outer:p,holes:[]}));for(const hole of inner){const owners=polygons.filter(p=>polygonContains(hole[0],p.outer));if(owners.length!==1)throw Error('Water hole has no unique outer owner');owners[0].holes.push(hole);}
+  const outer=stitchRegionRings(member('outer')).map(c=>validatePolygonRing(c.slice(0,-1).map(point),`relation/${r.id}`)),inner=stitchRegionRings(member('inner')).map(c=>validatePolygonRing(c.slice(0,-1).map(point),`relation/${r.id}`));if(!outer.length)throw Error('Water relation has no outer ring');
+  const polygons=outer.map(p=>({outer:p,holes:[]}));for(const hole of inner){const owners=polygons.filter(p=>containsRing(p.outer,hole));if(owners.length!==1)throw Error('Water hole has no unique outer owner');if(owners[0].holes.some(h=>holesOverlap(h,hole)))throw Error('Overlapping or nested water holes are ambiguous');owners[0].holes.push(hole);}
   water.push({id:`relation/${r.id}`,polygons,source:`https://www.openstreetmap.org/relation/${r.id}`});
  }
  for(const w of ways.values()){

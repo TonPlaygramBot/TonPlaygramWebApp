@@ -22,17 +22,30 @@ export function facadeSites(world,excluded=new Set()){
       const mid={x:(a[0]+q[0])/2,z:(a[1]+q[1])/2},nx=(area>0?dz:-dz)/length,nz=(area>0?-dx:dx)/length;
       const roads=cells.get(`${Math.floor(mid.x/128)},${Math.floor(mid.z/128)}`)||[];
       let distance=Infinity;for(const r of roads){const d=distanceToSegment(mid,r.a,r.b),out=distanceToSegment({x:mid.x+nx,z:mid.z+nz},r.a,r.b);if(out<d&&d>(Number(r.w)||0)/2+.3)distance=Math.min(distance,d);}
-      if(distance>22||best&&best.distance<=distance)continue;
-      best={id:String(b.id),x:mid.x+nx*.045,z:mid.z+nz*.045,yaw:Math.atan2(nx||0,nz||0),width:Math.min(5.5,length-.8),height:h,distance,variant:stableHash(b.id)%AD_BRANDS.length};
+      if(distance>22)continue;
+      const candidate={id:String(b.id),x:mid.x+nx*.045,z:mid.z+nz*.045,yaw:Math.atan2(nx||0,nz||0),width:Math.min(5.5,length-.8),height:h,distance,variant:stableHash(b.id)%AD_BRANDS.length};
+      if(!best||distance<best.distance-1e-8||Math.abs(distance-best.distance)<=1e-8&&(candidate.x<best.x||candidate.x===best.x&&candidate.z<best.z))best=candidate;
     }if(best)result.push(best);
   }return result.sort((a,b)=>a.id.localeCompare(b.id));
 }
 /** Grid query avoids a world-wide sort each frame; chosen slots have a hard cap. */
 export function createSiteIndex(sites,cellSize=128){
-  const cells=new Map();for(const site of sites){const key=`${Math.floor(site.x/cellSize)},${Math.floor(site.z/cellSize)}`;if(!cells.has(key))cells.set(key,[]);cells.get(key).push(site);}
+  if(!Number.isFinite(cellSize)||cellSize<=0)throw Error('Invalid spatial cell size');
+  const cells=new Map();
+  for(const input of sites){
+    if(!input||![input.x,input.z].every(Number.isFinite))throw Error('Invalid facade site coordinate');
+    const site=Object.freeze({...input,id:String(input.id)}),key=`${Math.floor(site.x/cellSize)},${Math.floor(site.z/cellSize)}`;
+    if(!cells.has(key))cells.set(key,[]);cells.get(key).push(site);
+  }
   return (viewer,radius=240,limit=48)=>{
-    if(!viewer||![viewer.x,viewer.z,radius,limit].every(Number.isFinite)||radius<0||limit<0)return [];
-    const hits=[];for(let x=Math.floor((viewer.x-radius)/cellSize);x<=Math.floor((viewer.x+radius)/cellSize);x++)for(let z=Math.floor((viewer.z-radius)/cellSize);z<=Math.floor((viewer.z+radius)/cellSize);z++)for(const s of cells.get(`${x},${z}`)||[]){const d=Math.hypot(s.x-viewer.x,s.z-viewer.z);if(d<=radius)hits.push({s,d});}
+    if(!viewer||![viewer.x,viewer.z,radius,limit].every(Number.isFinite)||radius<0||limit<1)return [];
+    const hits=[],visit=list=>{for(const s of list||[]){const d=Math.hypot(s.x-viewer.x,s.z-viewer.z);if(d<=radius)hits.push({s,d});}};
+    const x0=Math.floor((viewer.x-radius)/cellSize),x1=Math.floor((viewer.x+radius)/cellSize),z0=Math.floor((viewer.z-radius)/cellSize),z1=Math.floor((viewer.z+radius)/cellSize);
+    // Sparse fallback keeps huge finite radii/coordinates from scanning empty cells
+    // or entering a loop whose floating-point counter can no longer advance.
+    if(![x0,x1,z0,z1].every(Number.isSafeInteger)||(x1-x0+1)*(z1-z0+1)>Math.max(1,cells.size*2)){
+      for(const list of cells.values())visit(list);
+    }else for(let x=x0;x<=x1;x++)for(let z=z0;z<=z1;z++)visit(cells.get(`${x},${z}`));
     return hits.sort((a,b)=>a.d-b.d||a.s.id.localeCompare(b.s.id)).slice(0,Math.min(96,Math.floor(limit))).map(h=>h.s);
   };
 }
