@@ -132,6 +132,7 @@ import { resolveAiPotGhostAim } from './poolRoyaleAiAimCompensation.js';
 import { computeCueDriveBoost } from './cueShotImpact.js';
 import { polyHavenThumb } from '../../config/storeThumbnails.js';
 import { createMurlanStyleTable } from '../../utils/murlanTable.js';
+import { showPoolGuideMarkings } from './shared/poolTableMarkings.js';
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/v1/decoders/';
 const BASIS_TRANSCODER_PATH =
   'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/';
@@ -26402,13 +26403,7 @@ const shotPowerRef = useRef(0);
       cue = add('cue', cueColor, -BALL_R * 2, baulkZ);
 
       if (variantConfig?.disableSnookerMarkings && table?.userData?.markings) {
-        const { dArc, spots } = table.userData.markings;
-        if (dArc) dArc.visible = false;
-        if (Array.isArray(spots)) {
-          spots.forEach((spot) => {
-            if (spot) spot.visible = false;
-          });
-        }
+        showPoolGuideMarkings(table.userData.markings);
       }
 
       const placeTrainingLayout = (layout) => {

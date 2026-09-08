@@ -125,7 +125,9 @@ test('bridge skin rests on the actual cloth with unit wrist rotations through he
     const players = new PoolRoyalHumanPlayers(parent, { ...metrics, model: await loadPoseModel() });
     await players.ready;
     const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw);
-    const ball = new THREE.Vector3(0, metrics.ballY, 0);
+    const halfLength = Math.abs(forward.x) > 0.5 ? metrics.tableW / 2 : metrics.tableL / 2;
+    const ball = forward.clone().multiplyScalar(-(halfLength - metrics.tableW * 0.12));
+    ball.y = metrics.ballY;
     for (const power of [0, 0.55, 1]) {
       const cueTip = ball.clone().addScaledVector(forward, -(metrics.cueGap + metrics.cuePull * power));
       const cueBack = cueTip.clone().addScaledVector(forward, -metrics.cueLength).setY(cueTip.y + metrics.cueButtLift);
@@ -146,6 +148,25 @@ test('bridge skin rests on the actual cloth with unit wrist rotations through he
     }
     players.dispose();
   }
+});
+
+test('a long reach equips only the active player and raises the support hand onto the rest', async () => {
+  const metrics = await readPoolRoyalMetrics();
+  const players = new PoolRoyalHumanPlayers(new THREE.Scene(), { ...metrics, model: await loadPoseModel() });
+  await players.ready;
+  const longFrame = {
+    ...frame,
+    cueBall: new THREE.Vector3(0, metrics.ballY, 0),
+    aimForward: new THREE.Vector3(0, 0, -1),
+    power: 0.65
+  };
+  for (let i = 0; i < 90; i++) players.update(1 / 60, longFrame);
+  assert.equal(players.players[0].reachEquipment.group.visible, true);
+  assert.equal(players.players[1].reachEquipment.group.visible, false);
+  assert.ok(bridgeSkinBounds(players.players[0].human).min.y > metrics.clothY + metrics.ballR * 0.2);
+  players.update(1 / 60, { ...longFrame, state: 'idle' });
+  assert.equal(players.players[0].reachEquipment.group.visible, false);
+  players.dispose();
 });
 
 test('eye camera uses the actual eyes under a transformed parent and restores both heads outside player view', async () => {

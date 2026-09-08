@@ -89,7 +89,7 @@ export function bridgeSkinBounds(human: HumanRig) {
   return box;
 }
 
-export function refinePoolRoyalBridge(human: HumanRig, ball: THREE.Vector3,
+export function refinePoolRoyalBridge(human: HumanRig, bridgeTarget: THREE.Vector3,
   forward: THREE.Vector3, clothY: number) {
   const weight = THREE.MathUtils.smoothstep(human.poseT, 0.1, 0.95);
   if (!weight) return;
@@ -111,8 +111,13 @@ export function refinePoolRoyalBridge(human: HumanRig, ball: THREE.Vector3,
   const rotation = palmQuaternion(forward, side);
   const bones = [b.leftUpperArm!, b.leftLowerArm!, b.leftHand!, ...human.leftFingers];
   const previous = bones.map(bone => bone.quaternion.clone().normalize());
-  const wrist = ball.clone().addScaledVector(forward, -0.28 * CFG.humanScale)
-    .addScaledVector(side, 0.075 * CFG.humanScale).setY(clothY + 0.034 * CFG.humanScale);
+  // Start from the actual rendered cue axis rather than a fixed ball offset,
+  // then place the palm slightly beside it so the thumb/index channel supports
+  // the shaft without the wrist floating or intersecting the cue.
+  const wrist = bridgeTarget.clone()
+    .addScaledVector(side, 0.1 * CFG.humanScale)
+    .addScaledVector(forward, -0.033 * CFG.humanScale)
+    .setY(clothY + 0.031 * CFG.humanScale);
   const shoulder = point(b.leftUpperArm!);
   const reach = (shoulder.distanceTo(point(b.leftLowerArm!)) + point(b.leftLowerArm!).distanceTo(point(b.leftHand!))) * 0.97;
   const delta = wrist.clone().sub(shoulder);
