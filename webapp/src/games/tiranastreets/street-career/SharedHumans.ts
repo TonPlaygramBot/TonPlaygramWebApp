@@ -3,7 +3,10 @@ import {GLTFLoader, type GLTF} from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {clone} from 'three/examples/jsm/utils/SkeletonUtils.js';
 import {LivingVisuals} from '../livingVisuals';
 import type {NPC, Point} from '../shared/engine.mjs';
-import {humanFor, nearbyHumans, actorRole, stableActorHash, type HumanAsset} from './humanRoster.mjs';
+import {nearbyHumans, actorRole, stableActorHash, type HumanAsset} from './humanRoster.mjs';
+
+import {chooseSharedHuman, type SharedAsset} from './sharedCastCore.mjs';
+import {SHARED_GAME_CAST} from './SharedGameCast';
 
 type Joint={bone:T.Bone;rest:T.Quaternion;name:string};
 type Actor={root:T.Group;model:T.Object3D;asset:string;role:string;joints:Joint[];mixer:T.AnimationMixer;clips:T.AnimationClip[];action?:T.AnimationAction;motion:string;label:T.Sprite};
@@ -13,17 +16,18 @@ function disposeResources(root:T.Object3D) {
   root.traverse(o=>{if(o instanceof T.SkinnedMesh)skeletons.add(o.skeleton);if(o instanceof T.Mesh||o instanceof T.Sprite){if(o instanceof T.Mesh)geometries.add(o.geometry);for(const m of Array.isArray(o.material)?o.material:[o.material]){materials.add(m);for(const t of Object.values(m))if(t instanceof T.Texture)textures.add(t);}}});
   skeletons.forEach(s=>s.dispose());geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());
 }
-/** Reuses four already bundled GLBs. Skeletons are private; source geometry and
- * original PBR textures are shared until the entire layer is disposed. */
+/** Reuses the actual Chess catalog plus the already bundled game humans.
+ * Skeletons are private; original PBR geometry/textures are shared per source. */
 export class SharedHumans {
   readonly group=new T.Group(); readonly errors:string[]=[];
   private bike?:T.Group;private bikes=new Map<string,T.Group>();
   private sources=new Map<string,GLTF>(); private requested=new Set<string>();
-  private actors=new Map<string,Actor>(); private queue:HumanAsset[]=[];private loading=0;
+  private actors=new Map<string,Actor>(); private queue:SharedAsset[]=[];private loading=0;
+  private aborts=new Set<AbortController>();
   private dead=false;private held=new LivingVisuals();
   private signs=new Map<string,T.SpriteMaterial>();
   private loader=new GLTFLoader();
-  constructor(){
+  constructor(private cast:readonly SharedAsset[]=SHARED_GAME_CAST){
     this.group.name='Tirana:shared-games-human-NPCs';
     void this.loader.loadAsync('/assets/tirana-streets/living/motorbike.glb').then(g=>{
       if(this.dead){disposeResources(g.scene);return;}
@@ -36,21 +40,45 @@ export class SharedHumans {
   }
   has(id:string){return this.actors.has(id);}
   get loadedCount(){return this.actors.size;}
-  private request(asset:HumanAsset){
+  private request(asset:SharedAsset){
     if(this.requested.has(asset.url)||this.dead)return;
     this.requested.add(asset.url);this.queue.push(asset);this.pump();
   }
   private pump(){
     while(!this.dead&&this.loading<2&&this.queue.length){
       const asset=this.queue.shift()!;this.loading++;
-      this.loader.loadAsync(asset.url).then(g=>{
+      this.loadCatalogAsset(asset).then(g=>{
         if(this.dead){disposeResources(g.scene);return;}
         const box=new T.Box3().setFromObject(g.scene),height=box.max.y-box.min.y;
         let skinned=false;g.scene.traverse(o=>{if(o instanceof T.SkinnedMesh)skinned=true;});
         if(!skinned||!Number.isFinite(height)||height<.01){disposeResources(g.scene);throw Error('Not a usable rigged full-body human');}
         this.sources.set(asset.url,g);
-      }).catch(e=>{if(!this.dead)this.errors.push(`${asset.label}: ${String(e)}. Existing Tirana human retained.`);}).finally(()=>{this.loading--;this.pump();});
+      }).catch(e=>{if(!this.dead){this.errors.push(`${asset.label}: ${String(e)}. Bundled Chess fallback is used.`);}}).finally(()=>{this.loading--;this.pump();});
     }
+  }
+  private async loadCatalogAsset(asset:SharedAsset):Promise<GLTF>{
+    const urls=asset.urls||[asset.url];let last:unknown;
+    for(const url of urls){
+      if(this.dead)throw Error('Disposed');
+      const abort=new AbortController();this.aborts.add(abort);const timer=setTimeout(()=>abort.abort(),10000);
+      try{
+        const absolute=new URL(url,window.location.href);
+        const response=await fetch(absolute,{signal:abort.signal,credentials:'omit'});
+        if(!response.ok)throw Error(`HTTP ${response.status}`);
+        if(Number(response.headers.get('content-length')||0)>16*1024*1024)throw Error('Avatar exceeds 16 MB budget');
+        const limit=16*1024*1024,reader=response.body?.getReader();
+        let bytes:ArrayBuffer;
+        if(reader){
+          const chunks:Uint8Array[]= [];let size=0;
+          try{for(;;){const part=await reader.read();if(part.done)break;size+=part.value.byteLength;if(size>limit){await reader.cancel();throw Error('Avatar exceeds 16 MB budget');}chunks.push(part.value);}}
+          finally{reader.releaseLock();}
+          const combined=new Uint8Array(size);let offset=0;for(const chunk of chunks){combined.set(chunk,offset);offset+=chunk.byteLength;}bytes=combined.buffer;
+        }else bytes=await response.arrayBuffer();
+        if(bytes.byteLength>16*1024*1024||bytes.byteLength<12||new DataView(bytes).getUint32(0,true)!==0x46546c67)throw Error('Invalid/budget-exceeding GLB');
+        return await this.loader.parseAsync(bytes,new URL('.',absolute).href);
+      }catch(e){last=e;}finally{clearTimeout(timer);this.aborts.delete(abort);}
+    }
+    throw last||Error('No catalog source');
   }
   private sign(text:string){
     let material=this.signs.get(text);if(material)return material;
@@ -102,7 +130,7 @@ export class SharedHumans {
   update(npcs:readonly NPC[],viewer:Point,time:number,dt:number,battery=false){
     if(this.dead)return;const selected=nearbyHumans(npcs,viewer,battery),keep=new Set(selected.map(n=>n.id));
     for(const [id] of this.actors)if(!keep.has(id))this.remove(id);
-    for(const n of selected){const asset=humanFor(n);this.request(asset);const source=this.sources.get(asset.url);if(!source||n.motion==='cycle'&&!this.bike)continue;
+    for(const n of selected){let asset=chooseSharedHuman(n,this.cast);this.request(asset);if(!this.sources.has(asset.url)){const fallback=this.cast.find(a=>a.id==='rpm-current'||a.id==='chess-human');if(fallback&&actorRole(n.kind)!=='soldier'){asset=fallback;this.request(asset);}}const source=this.sources.get(asset.url);if(!source||n.motion==='cycle'&&!this.bike)continue;
       let a=this.actors.get(n.id);if(a&&(a.asset!==asset.id||a.role!==actorRole(n.kind))){this.remove(n.id);a=undefined;}
       a ||= this.create(n,asset,source);
       a.root.position.set(n.x,n.motion==='cycle'?-.18:.06,n.z);a.root.rotation.set(n.health<=0?-Math.PI/2:0,n.heading+Math.PI,0);
@@ -121,7 +149,7 @@ export class SharedHumans {
     a.root.removeFromParent();this.actors.delete(id);
   }
   dispose(){
-    if(this.dead)return;this.dead=true;this.queue=[];
+    if(this.dead)return;this.dead=true;this.queue=[];for(const abort of this.aborts)abort.abort();this.aborts.clear();
     for(const id of [...this.actors.keys()])this.remove(id);
     this.held.dispose();if(this.bike)disposeResources(this.bike);for(const g of this.sources.values())disposeResources(g.scene);this.sources.clear();
     for(const m of this.signs.values()){m.map?.dispose();m.dispose();}this.signs.clear();this.group.removeFromParent();

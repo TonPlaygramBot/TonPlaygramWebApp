@@ -1,5 +1,6 @@
 import {createState,advanceState,control,interact,navigation,emptyInput,MISSIONS,FREE_ROAM,type State,type Point} from '../shared/engine.mjs';
 import {WEAPONS,STARTER_WEAPON} from '../shared/weapons.mjs';
+import {collideDetailPosts} from '../../tirana-street-detail/sharedRoadDetails.mjs';
 import {CityInput} from '../input';
 import {CityAudio} from '../audio';
 import {StreetRenderer} from './StreetRenderer';
@@ -48,11 +49,22 @@ export class StreetCareerRuntime {
     if(this.paused&&!/^(buy:|equip:|holster$)/.test(action))return;
     interact(this.state,'local',action);if(this.state.missionId===FREE_ROAM.id)this.persist();this.emit();
   }
+  private stepSimulation(dt:number){
+    const p=this.state.players.local;advanceState(this.state,dt);
+    const car=p.carId?this.state.cars.find(c=>c.id===p.carId):undefined;
+    if(collideDetailPosts(car||p,car?1.35:.34)){
+      if(car){car.speed*=.45;car.vx*=.3;car.vz*=.3;p.x=car.x;p.z=car.z;p.speed=car.speed;}else p.speed=0;
+    }
+    for(const n of this.state.npcs)if(n.motion!=='drive')collideDetailPosts(n,.34);
+  }
   private loop=(now:number)=>{
     if(this.disposed)return;const dt=this.last?Math.min(.1,Math.max(0,(now-this.last)/1000)):0;this.last=now;
     const p=this.state.players.local;
     if(!this.paused&&this.ready){
-      control(this.state,'local',this.input.read(this.renderer.yaw,!!p.carId));advanceState(this.state,dt);
+      control(this.state,'local',this.input.read(this.renderer.yaw,!!p.carId));
+      // Match the simulation's fixed substeps so a fast car cannot tunnel through
+      // the same concrete-post envelope rendered by the shared detail layer.
+      for(let remaining=dt;remaining>0;){const step=Math.min(1/60,remaining);this.stepSimulation(step);remaining-=step;}
       if(this.state.phase==='finished'){
         const complete=campaign.resolve(this.profile,this.state,'local');
         if(complete){this.profile=complete;campaign.apply(p,this.profile.loadout);this.audio.cue(true);}
