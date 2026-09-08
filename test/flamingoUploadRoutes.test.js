@@ -5,6 +5,9 @@ import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { Writable } from 'node:stream';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import http from 'node:http';
 import { uploadWallFile } from '../webapp/src/features/flamingo/wallUpload.js';
 
 const compression = createRequire(path.resolve('bot/package.json'))(
@@ -131,6 +134,226 @@ describe('wall HTTP upload and publication', () => {
       },
       body
     });
+
+  const native = (id, bytes, { name = 'phone.mp4', headers = owner } = {}) => {
+    const body = new FormData();
+    body.append('file', new Blob([bytes], { type: 'video/mp4' }), name);
+    return fetch(`${base}/uploads/${id}/file`, {
+      method: 'POST',
+      headers,
+      body
+    });
+  };
+
+  test('streams a native File into the same session, preserves settings and publishes it once', async () => {
+    const id = randomUUID();
+    const bytes = Buffer.alloc(2 * 1024 ** 2 + 17, 23);
+    const metadata = {
+      name: 'phone.mp4',
+      size: bytes.length,
+      type: 'video/mp4',
+      duration: 42,
+      text: 'Caption preserved',
+      premium: true,
+      priceTpg: 35
+    };
+    const session = await (await start(id, metadata)).json();
+    expect(session.nativeFileUpload).toBe(true);
+    await put(id, 0, bytes.subarray(0, 1024 ** 2));
+    const uploaded = await native(id, bytes);
+    expect(uploaded.status).toBe(200);
+    expect(await uploaded.json()).toEqual({
+      received: bytes.length,
+      complete: true
+    });
+    const resumed = await (await start(id, metadata)).json();
+    expect(resumed.receivedOffsets).toEqual([0, 1024 ** 2, 2 * 1024 ** 2]);
+    expect(mockCreate).not.toHaveBeenCalled();
+    const complete = () =>
+      fetch(`${base}/uploads/${id}/complete`, {
+        method: 'POST',
+        headers: owner
+      });
+    const first = await (await complete()).json();
+    expect(first.post).toMatchObject({
+      text: 'Caption preserved',
+      attachment: {
+        duration: 42,
+        premium: true,
+        priceTpg: 35,
+        size: bytes.length
+      }
+    });
+    expect((await (await complete()).json()).post._id).toBe(first.post._id);
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+    expect(await readFile(path.join(directory, `${id}-phone.mp4`))).toEqual(
+      bytes
+    );
+    expect(
+      (await readdir(path.join(directory, '.pending'))).some((name) =>
+        name.endsWith('.native')
+      )
+    ).toBe(false);
+  }, 40000);
+
+  test('replaces no acknowledged bytes after a truncated native body and supports a clean retry', async () => {
+    const id = randomUUID();
+    const bytes = Buffer.alloc(1024 ** 2 + 15, 19);
+    const metadata = {
+      name: 'phone.mp4',
+      size: bytes.length,
+      type: 'video/mp4',
+      duration: 10
+    };
+    await start(id, metadata);
+    await put(id, 0, bytes.subarray(0, 1024 ** 2));
+    const part = path.join(directory, '.pending', `${id}.part`);
+    const before = await readFile(part);
+    expect((await native(id, Buffer.alloc(90, 7))).status).toBe(409);
+    expect(await readFile(part)).toEqual(before);
+    const state = await (await start(id, metadata)).json();
+    expect(state.receivedOffsets).toEqual([0]);
+    expect(state.received).toBe(1024 ** 2);
+    expect(
+      (await readdir(path.join(directory, '.pending'))).some((name) =>
+        name.endsWith('.native')
+      )
+    ).toBe(false);
+    expect((await native(id, bytes)).status).toBe(200);
+    expect(await readFile(part)).toEqual(bytes);
+    expect(mockCreate).not.toHaveBeenCalled();
+  }, 40000);
+
+  test('enforces native file ownership, name, size and file count before publication', async () => {
+    const id = randomUUID();
+    const bytes = Buffer.alloc(32, 1);
+    await start(id, {
+      name: 'phone.mp4',
+      size: bytes.length,
+      type: 'video/mp4',
+      duration: 10
+    });
+    expect(
+      (
+        await native(id, bytes, {
+          headers: { 'X-Wall-Owner-Token': 'other-owner' }
+        })
+      ).status
+    ).toBe(403);
+    expect((await native(id, bytes, { name: 'different.mp4' })).status).toBe(
+      409
+    );
+    expect((await native(id, Buffer.alloc(33))).status).toBe(413);
+    const body = new FormData();
+    body.append('file', new Blob([bytes]), 'phone.mp4');
+    body.append('file', new Blob([bytes]), 'phone.mp4');
+    expect(
+      (
+        await fetch(`${base}/uploads/${id}/file`, {
+          method: 'POST',
+          headers: owner,
+          body
+        })
+      ).status
+    ).toBe(400);
+    expect(
+      (
+        await fetch(`${base}/uploads/${id}/complete`, {
+          method: 'POST',
+          headers: owner
+        })
+      ).status
+    ).toBe(409);
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  test('cleans a disconnected native request and allows the same session to retry', async () => {
+    const id = randomUUID();
+    const bytes = Buffer.alloc(32 * 1024, 5);
+    const metadata = {
+      name: 'phone.mp4',
+      size: bytes.length,
+      type: 'video/mp4',
+      duration: 5
+    };
+    await start(id, metadata);
+    const boundary = 'native-phone-boundary';
+    const prefix = `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="phone.mp4"\r\nContent-Type: video/mp4\r\n\r\n`;
+    const suffix = `\r\n--${boundary}--\r\n`;
+    const connection = http.request(`${base}/uploads/${id}/file`, {
+      method: 'POST',
+      headers: {
+        ...owner,
+        'Content-Type': `multipart/form-data; boundary=${boundary}`,
+        'Content-Length':
+          Buffer.byteLength(prefix) + bytes.length + Buffer.byteLength(suffix)
+      }
+    });
+    connection.on('error', () => {});
+    connection.write(prefix);
+    connection.write(bytes.subarray(0, 1024));
+    const hasNative = async () =>
+      (await readdir(path.join(directory, '.pending'))).includes(
+        `${id}.native`
+      );
+    const waitFor = async (condition) => {
+      for (let i = 0; i < 200; i++) {
+        if (await condition()) return;
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      throw new Error('Native request did not settle');
+    };
+    await waitFor(hasNative);
+    connection.destroy();
+    await waitFor(async () => !(await hasNative()));
+    const resumed = await (await start(id, metadata)).json();
+    expect(resumed.received).toBe(0);
+    expect(mockCreate).not.toHaveBeenCalled();
+    expect((await native(id, bytes)).status).toBe(200);
+    expect(
+      await readFile(path.join(directory, '.pending', `${id}.part`))
+    ).toEqual(bytes);
+  });
+
+  test('recovers duration from real received video bytes when the phone preview could not read metadata', async () => {
+    const fixture = path.join(directory, 'native-source.mp4');
+    await promisify(execFile)('ffmpeg', [
+      '-v',
+      'error',
+      '-f',
+      'lavfi',
+      '-i',
+      'color=size=96x160:rate=10',
+      '-t',
+      '2',
+      '-c:v',
+      'libx264',
+      '-threads',
+      '1',
+      '-pix_fmt',
+      'yuv420p',
+      fixture
+    ]);
+    const bytes = await readFile(fixture);
+    const id = randomUUID();
+    await start(id, {
+      name: 'phone.mp4',
+      size: bytes.length,
+      type: 'video/mp4',
+      duration: 0
+    });
+    expect((await native(id, bytes)).status).toBe(200);
+    const result = await (
+      await fetch(`${base}/uploads/${id}/complete`, {
+        method: 'POST',
+        headers: owner
+      })
+    ).json();
+    expect(result.post.attachment.duration).toBeCloseTo(2);
+    expect(await readFile(path.join(directory, `${id}-phone.mp4`))).toEqual(
+      bytes
+    );
+  });
 
   test('uploads original video bytes, resumes after interruption, and serves seekable media', async () => {
     const id = randomUUID();

@@ -1,5 +1,8 @@
 // Upload state belongs to the selected file. Retrying uses the same session,
 // skips acknowledged ranges, and never publishes the same file twice.
+import { uploadNativeWallFile } from './wallNativeUpload.js';
+
+const nativeFiles = new WeakSet();
 export async function wallRequest(
   url,
   init = {},
@@ -203,7 +206,8 @@ export async function uploadWallFile({
   deviceMemory = globalThis.navigator?.deviceMemory,
   onProgress = (_bytes, _phase) => {},
   send = wallRequest,
-  sendObjectPart = uploadObjectPart
+  sendObjectPart = uploadObjectPart,
+  sendNativeFile = uploadNativeWallFile
 }) {
   const root = `${baseUrl}/api/flamingo-wall/uploads`;
   const metadata = {
@@ -263,74 +267,107 @@ export async function uploadWallFile({
     else offsets.push(offset);
   }
   onProgress(uploaded, 'uploading');
+  const supportsNative =
+    session.nativeFileUpload === true &&
+    session.transport !== 's3-multipart' &&
+    (sendNativeFile !== uploadNativeWallFile ||
+      typeof XMLHttpRequest === 'function');
   const workersController = new AbortController();
   const abort = () => workersController.abort();
   signal?.addEventListener('abort', abort, { once: true });
   if (signal?.aborted) abort();
   let failure;
   try {
-    await Promise.all(
-      Array.from(
-        { length: Math.min(concurrency, offsets.length) },
-        async (_value, workerIndex) => {
-          try {
-            while (
-              offsets.length &&
-              workerIndex < concurrency &&
-              !workersController.signal.aborted
-            ) {
-              const offset = offsets.shift();
-              const chunk = await readUploadBytes(
-                file,
-                offset,
-                Math.min(offset + chunkSize, file.size),
-                workersController.signal
-              );
-              if (session.transport === 's3-multipart') {
-                const partNumber = offset / chunkSize + 1;
-                const partRoot = `${root}/${session.uploadId}/parts/${partNumber}`;
-                const ticket = await send(
-                  `${partRoot}/sign`,
-                  { method: 'POST', headers },
-                  { signal: workersController.signal, onRetry }
+    if (!nativeFiles.has(file) || !supportsNative)
+      await Promise.all(
+        Array.from(
+          { length: Math.min(concurrency, offsets.length) },
+          async (_value, workerIndex) => {
+            try {
+              while (
+                offsets.length &&
+                workerIndex < concurrency &&
+                !workersController.signal.aborted
+              ) {
+                const offset = offsets.shift();
+                const chunk = await readUploadBytes(
+                  file,
+                  offset,
+                  Math.min(offset + chunkSize, file.size),
+                  workersController.signal
                 );
-                const etag = await sendObjectPart(ticket.url, chunk, {
-                  signal: workersController.signal,
-                  onRetry
-                });
-                await send(
-                  `${partRoot}/ack`,
-                  {
-                    method: 'POST',
-                    headers: { ...headers, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ etag })
-                  },
-                  { signal: workersController.signal, onRetry }
-                );
-              } else
-                await send(
-                  `${root}/${session.uploadId}`,
-                  {
-                    method: 'PUT',
-                    headers: {
-                      ...headers,
-                      'Content-Type': 'application/octet-stream',
-                      'X-Upload-Offset': String(offset)
+                if (session.transport === 's3-multipart') {
+                  const partNumber = offset / chunkSize + 1;
+                  const partRoot = `${root}/${session.uploadId}/parts/${partNumber}`;
+                  const ticket = await send(
+                    `${partRoot}/sign`,
+                    { method: 'POST', headers },
+                    { signal: workersController.signal, onRetry }
+                  );
+                  const etag = await sendObjectPart(ticket.url, chunk, {
+                    signal: workersController.signal,
+                    onRetry
+                  });
+                  await send(
+                    `${partRoot}/ack`,
+                    {
+                      method: 'POST',
+                      headers: {
+                        ...headers,
+                        'Content-Type': 'application/json'
+                      },
+                      body: JSON.stringify({ etag })
                     },
-                    body: chunk
-                  },
-                  { signal: workersController.signal, onRetry }
-                );
-              uploaded += chunk.byteLength;
-              onProgress(uploaded, 'uploading');
+                    { signal: workersController.signal, onRetry }
+                  );
+                } else
+                  await send(
+                    `${root}/${session.uploadId}`,
+                    {
+                      method: 'PUT',
+                      headers: {
+                        ...headers,
+                        'Content-Type': 'application/octet-stream',
+                        'X-Upload-Offset': String(offset)
+                      },
+                      body: chunk
+                    },
+                    { signal: workersController.signal, onRetry }
+                  );
+                uploaded += chunk.byteLength;
+                onProgress(uploaded, 'uploading');
+              }
+            } catch (error) {
+              failure ||= error;
+              workersController.abort();
             }
-          } catch (error) {
-            failure ||= error;
-            workersController.abort();
           }
-        }
-      )
-    );
+        )
+      );
+    if (signal?.aborted) throw new DOMException('Upload paused.', 'AbortError');
+    if (
+      supportsNative &&
+      (failure?.code === 'WALL_FILE_UNREADABLE' || nativeFiles.has(file)) &&
+      uploaded < file.size
+    ) {
+      nativeFiles.add(file);
+      onProgress(uploaded, 'native-uploading');
+      // All range workers have stopped before the fallback starts. Reuse the
+      // same session and original File; the server stages the body atomically.
+      const receipt = await sendNativeFile({
+        url: `${root}/${session.uploadId}/file`,
+        headers,
+        file,
+        signal,
+        onProgress: (bytes) => onProgress(bytes, 'native-uploading')
+      });
+      if (receipt.received !== file.size || receipt.complete !== true) {
+        throw new Error(
+          'The server did not confirm the full video. Resume to check your upload.'
+        );
+      }
+      failure = undefined;
+    }
     if (failure) throw failure;
     if (signal?.aborted) throw new DOMException('Upload paused.', 'AbortError');
     onProgress(file.size, 'publishing');

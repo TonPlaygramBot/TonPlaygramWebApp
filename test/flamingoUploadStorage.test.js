@@ -93,6 +93,39 @@ describe('wall storage admission and expiry', () => {
     for (const file of [busy, fresh, completed])
       await expect(lstat(file.part)).resolves.toBeDefined();
   });
+
+  test('reserves native staging space and expires abandoned native copies with their sessions', async () => {
+    const size = 1024 ** 2;
+    const file = await session({
+      size,
+      data: '',
+      metadata: { nativeUploadSize: size }
+    });
+    const native = path.join(pending, `${file.id}.native`);
+    await writeFile(native, '');
+    await truncate(native, size);
+    await utimes(native, old, old);
+    const allocated =
+      (await lstat(file.part)).blocks * 512 +
+      (await lstat(native)).blocks * 512;
+    expect((await storage().inspect()).reservedBytes).toBe(
+      2 * size - allocated
+    );
+    expect((await storage().sweep()).removed).toBe(1);
+    await expect(lstat(native)).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  test('cleans old orphan native staging files without touching an active transfer', async () => {
+    const id = randomUUID();
+    const native = path.join(pending, `${id}.native`);
+    await writeFile(native, 'partial native data');
+    await utimes(native, old, old);
+    expect(
+      (await storage({ isBusy: (value) => value === id }).sweep()).removed
+    ).toBe(0);
+    expect((await storage().sweep()).removed).toBe(1);
+    await expect(lstat(native)).rejects.toMatchObject({ code: 'ENOENT' });
+  });
   test('keeps acknowledged ranges when a chunk is recent even if the manifest is old', async () => {
     const file = await session();
     await utimes(file.part, new Date(now), new Date(now));
