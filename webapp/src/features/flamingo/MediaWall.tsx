@@ -24,6 +24,7 @@ import './media-social.css';
 import './wall-remake.css';
 import WallComposer from './WallComposer';
 import WallMediaRecovery from './WallMediaRecovery';
+import WallVideo, { WallVideoDownload, lockWallVideoScroll, type VideoQuality } from './WallVideo';
 import { API_BASE_URL } from '../../utils/api.js';
 import { resolveWallMediaUrl } from './mediaUrl.js';
 import { reconcileWallPosts } from './wallFeed.js';
@@ -152,8 +153,9 @@ function identityHeaders(extra: Record<string, string> = {}) {
 }
 const OWNER_TOKEN = localStorage.getItem(OWNER_TOKEN_KEY) || postId();
 localStorage.setItem(OWNER_TOKEN_KEY, OWNER_TOKEN);
-async function downloadAttachment(file: Attachment, postIdValue?: string) {
+async function downloadAttachment(file: Attachment, postIdValue?: string, choice?: VideoQuality) {
   let url = downloadUrl(file);
+  let downloadName = choice?.name || file.name;
   if (
     postIdValue &&
     /^[a-f\d]{24}$/i.test(postIdValue) &&
@@ -161,11 +163,12 @@ async function downloadAttachment(file: Attachment, postIdValue?: string) {
   ) {
     const response = await fetch(
       `${API_BASE_URL}/api/flamingo-wall/posts/${postIdValue}/download`,
-      { method: 'POST', headers: identityHeaders() }
+      { method: 'POST', headers: identityHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify({ quality: choice?.quality || 'original' }) }
     );
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || 'Download failed.');
     url = `${API_BASE_URL}${payload.downloadUrl}`;
+    downloadName = payload.name || downloadName;
   }
   const telegram = (window as any).Telegram?.WebApp;
   const absoluteUrl = url.startsWith('blob:')
@@ -178,7 +181,7 @@ async function downloadAttachment(file: Attachment, postIdValue?: string) {
     }
     const link = document.createElement('a');
     link.href = absoluteUrl;
-    link.download = file.name;
+    link.download = downloadName;
     link.target = '_blank';
     link.rel = 'noopener';
     document.body.appendChild(link);
@@ -193,7 +196,7 @@ async function downloadAttachment(file: Attachment, postIdValue?: string) {
     // download prompt is unavailable also covers older Android/iOS clients.
     try {
       telegram.downloadFile(
-        { url: absoluteUrl, file_name: file.name },
+        { url: absoluteUrl, file_name: downloadName },
         (accepted: boolean) => {
           if (!accepted) browserDownload();
         }
@@ -244,12 +247,12 @@ function AttachmentPreview({
   if (file.type.startsWith('video/'))
     return (
       <div className="fr-video-frame">
-        <video
+        <WallVideo
           key={`${file.src}-${revision}`}
-          src={file.src}
-          controls
-          playsInline
-          preload="metadata"
+          file={file}
+          postId={postId}
+          apiBase={API_BASE_URL}
+          headers={identityHeaders}
           onError={() => setFailed(true)}
         />
         <button
@@ -375,8 +378,7 @@ function FullscreenVideoFeed({
   onCloseRef.current = onClose;
   const [commentsFor, setCommentsFor] = useState<string>();
   useEffect(() => {
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    const releaseScroll = lockWallVideoScroll();
     const closeFromHistory = () => onCloseRef.current();
     const closeFromKeyboard = (event: KeyboardEvent) => {
       if (event.key === 'Escape') history.back();
@@ -403,7 +405,7 @@ function FullscreenVideoFeed({
       .forEach((slide) => observer.observe(slide));
     return () => {
       observer.disconnect();
-      document.body.style.overflow = previous;
+      releaseScroll();
       window.removeEventListener('popstate', closeFromHistory);
       window.removeEventListener('keydown', closeFromKeyboard);
     };
@@ -429,11 +431,12 @@ function FullscreenVideoFeed({
             id={`fullscreen-video-${post.id}`}
             key={post.id}
           >
-            <video
-              src={file.src}
-              controls
+            <WallVideo
+              file={file}
+              postId={post.id}
+              apiBase={API_BASE_URL}
+              headers={identityHeaders}
               autoPlay={post.id === initialPostId}
-              playsInline
               loop
               preload={post.id === initialPostId ? 'auto' : 'metadata'}
             />
@@ -567,6 +570,7 @@ export default function MediaWall({
     authorAvatar: ''
   });
   const [notice, setNotice] = useState('');
+  const [downloadPost, setDownloadPost] = useState<Post>();
   const [votes, setVotes] = useState<Record<string, number>>(() => {
     try {
       return JSON.parse(localStorage.getItem('fr-media-votes') || '{}');
@@ -934,6 +938,10 @@ export default function MediaWall({
     history.pushState({ tonPlaygramVideo: postIdValue }, '', location.href);
     setFullscreenPost(postIdValue);
   }
+  function requestDownload(post: Post) {
+    if (post.attachment?.type.startsWith('video/')) setDownloadPost(post);
+    else if (post.attachment) void downloadAttachment(post.attachment, post.id).catch(error => setNotice(error.message));
+  }
 
   const videoPosts = posts.filter((post) =>
     post.attachment?.type.startsWith('video/')
@@ -957,11 +965,7 @@ export default function MediaWall({
           onShare={(post) => {
             share(post).catch(() => setNotice('Sharing failed.'));
           }}
-          onDownload={(post) =>
-            downloadAttachment(post.attachment!, post.id).catch((error) =>
-              setNotice(error.message)
-            )
-          }
+          onDownload={requestDownload}
           onFavorite={(postIdValue) =>
             setFavorites((items) => ({
               ...items,
@@ -1359,13 +1363,9 @@ export default function MediaWall({
                   <button
                     type="button"
                     className="fr-post-download"
-                    onClick={() =>
-                      downloadAttachment(post.attachment!, post.id).catch(
-                        (error) => setNotice(error.message)
-                      )
-                    }
+                    onClick={() => requestDownload(post)}
                   >
-                    <Download /> Download original
+                    <Download /> {post.attachment.type.startsWith('video/') ? 'Download video' : 'Download original'}
                     {post.attachment.premium
                       ? ` · Premium ${post.attachment.priceTpg} TPG`
                       : post.attachment.type.startsWith('video/')
@@ -1378,6 +1378,15 @@ export default function MediaWall({
             );
           })}
       </div>
+      {downloadPost?.attachment && <WallVideoDownload
+        key={downloadPost.id}
+        file={downloadPost.attachment}
+        postId={downloadPost.id}
+        apiBase={API_BASE_URL}
+        headers={identityHeaders}
+        onClose={() => setDownloadPost(undefined)}
+        onDownload={choice => downloadAttachment(downloadPost.attachment!, downloadPost.id, choice)}
+      />}
       {hasMore && (
         <button
           type="button"

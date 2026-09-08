@@ -1,11 +1,13 @@
 import Busboy from 'busboy';
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { constants as fsConstants, createWriteStream } from 'fs';
 import { access, mkdir, readFile, rename, rm, truncate, writeFile } from 'fs/promises';
 import { createHash, randomUUID, timingSafeEqual } from 'crypto';
 import { EventEmitter } from 'events';
 import { pipeline } from 'stream/promises';
+import { Readable, Transform } from 'stream';
 import mongoose from 'mongoose';
 import FlamingoPost from '../models/FlamingoPost.js';
 import User from '../models/User.js';
@@ -21,6 +23,7 @@ import { flamingoUploadFailure } from '../utils/flamingoUploadErrors.js';
 import { wallMediaPostQuery } from '../utils/flamingoPostLookup.js';
 import { createFlamingoDownloadGrant, readFlamingoDownloadGrant } from '../utils/flamingoDownloadGrant.js';
 import { decodeFlamingoWallCursor, encodeFlamingoWallCursor, flamingoWallCursorQuery, flamingoWallPageSize } from '../utils/flamingoWallPagination.js';
+import { createVideoRenditions, videoSourceKey } from '../services/flamingoVideoRenditions.js';
 
 const router = express.Router();
 // Render starts the API from `bot/`, while local tools and tests may start it
@@ -132,8 +135,11 @@ export const recoverFlamingoWallStorage = (force = false) => {
   return storageRecovery;
 };
 export const startFlamingoWallMaintenance = () => {
-  const recover = () => recoverFlamingoWallStorage(true)
-    .catch(error => console.error('Flamingo storage recovery failed:', error.message));
+  const recover = () => {
+    void recoverFlamingoWallStorage(true).catch(error => console.error('Flamingo storage recovery failed:', error.message));
+    // Rendition cleanup must never lengthen an upload's admission request.
+    if (mongoose.connection.readyState === 1) void videoRenditions.sweep().catch(error => console.warn('Video cache cleanup:', error.message));
+  };
   void recover();
   const timer = setInterval(recover, 10 * 60 * 1000);
   timer.unref();
@@ -280,6 +286,78 @@ const locatePostMedia = async (post, { aliases = true } = {}) => {
   const diskPath = await findFlamingoMedia(name, mediaDirectories, originalName, attachment.size);
   return diskPath ? { diskPath } : null;
 };
+export const videoRenditions = createVideoRenditions({
+  directory: uploadDirectory,
+  getPost: id => FlamingoPost.findById(id).lean(),
+  inspectSpace: () => uploadStorage.inspect(),
+  getSource: async (post, folder, signal) => {
+    const attachment = post.attachment;
+    const name = flamingoMediaName(attachment.url);
+    const diskPath = !attachment.objectKey && await findFlamingoMedia(name, mediaDirectories, attachment.name, attachment.size);
+    if (diskPath) return { diskPath };
+    await uploadStorage.assertCapacity(attachment.size + 512 * 1024 ** 2);
+    const temporary = path.join(folder, 'source.partial');
+    const cleanup = () => rm(temporary, { force: true });
+    try {
+      let input;
+      if (attachment.objectKey) {
+        const url = await flamingoObjectStorage().readUrl(attachment.objectKey, attachment.objectBucket);
+        const response = await fetch(url, { signal });
+        if (!response.ok || !response.body) throw Object.assign(new Error('The original video is unavailable.'), { status: 404 });
+        input = Readable.fromWeb(response.body);
+      } else {
+        const stored = await findFlamingoDatabaseMedia(name, attachment.name, attachment.size, attachment.databaseFileId);
+        if (stored) input = openFlamingoDatabaseMedia(stored);
+      }
+      if (!input) throw Object.assign(new Error('The original video is unavailable.'), { status: 404 });
+      let copied = 0;
+      const bounded = new Transform({ transform(chunk, _encoding, done) {
+        copied += chunk.length;
+        if (copied > attachment.size + 1024 ** 2) done(new Error('Unexpected source video size.'));
+        else done(null, chunk);
+      } });
+      await pipeline(input, bounded, createWriteStream(temporary), { signal });
+      return { diskPath: temporary, cleanup };
+    } catch (error) { await cleanup(); throw error; }
+  }
+});
+const videoConversionLimit = rateLimit({
+  windowMs: 60_000, limit: 20, standardHeaders: true, legacyHeaders: false,
+  // Requests pass through Render; use the authenticated viewer where known.
+  keyGenerator: req => String(req.auth?.accountId || req.auth?.telegramId || req.ip),
+  validate: { xForwardedForHeader: false },
+  message: { error: 'Please wait a moment before preparing more resolutions.' }
+});
+const videoPost = async id => {
+  if (!mongoose.isValidObjectId(id)) throw Object.assign(new Error('Invalid video.'), { status: 400 });
+  const post = await FlamingoPost.findById(id).lean();
+  if (!post?.attachment || !mediaType(post.attachment.type, post.attachment.name).startsWith('video/'))
+    throw Object.assign(new Error('Video not found.'), { status: 404 });
+  return post;
+};
+const videoFailure = (res, error) => res.status(error.status || 503).json({ error: error.status ? error.message : 'Video resolutions are temporarily unavailable. The original can still be used.' });
+router.get('/posts/:id/video-qualities', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  try { res.json(await videoRenditions.status(await videoPost(req.params.id))); }
+  catch (error) { videoFailure(res, error); }
+});
+router.post('/posts/:id/video-qualities', videoConversionLimit, express.json({ limit: '1kb' }), async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  try { res.status(202).json(await videoRenditions.request(await videoPost(req.params.id), req.body?.quality)); }
+  catch (error) { videoFailure(res, error); }
+});
+router.get('/posts/:id/video/:quality', async (req, res) => {
+  try {
+    const post = await videoPost(req.params.id);
+    if (req.query.download === '1') return res.status(403).json({ error: 'Use the download button to choose a resolution and confirm any TPG price.' });
+    if (req.query.v && req.query.v !== videoSourceKey(post)) return res.status(410).json({ error: 'This video was replaced. Refresh the wall.' });
+    const rendition = await videoRenditions.file(post, req.params.quality);
+    if (!rendition) return res.status(404).json({ error: 'This resolution is not ready yet.' });
+    setFlamingoMediaResponseHeaders(res);
+    res.type('video/mp4').setHeader('Cache-Control', 'public, max-age=3600');
+    res.sendFile(rendition.diskPath, error => { if (error && !res.headersSent) res.status(error.statusCode || 404).end(); });
+  } catch (error) { videoFailure(res, error); }
+});
 const restoreTarget = async (id, req, size) => {
   if (!mongoose.isValidObjectId(id)) throw Object.assign(new Error('Invalid post.'), { status: 400 });
   const post = await FlamingoPost.findById(id).select('+ownerTokenHash').lean();
@@ -786,6 +864,7 @@ router.delete('/posts/:id', async (req, res) => {
   if (!ownsPost(post, ownerToken(req))) return res.status(403).json({ error: 'Only the author can delete this post.' });
   await post.deleteOne();
   publishWallEvent('deleted', String(post._id));
+  await videoRenditions.remove(String(post._id));
   if (post.attachment?.objectKey) {
     try {
       if (!await FlamingoPost.exists({ 'attachment.objectKey': post.attachment.objectKey }))
@@ -795,7 +874,8 @@ router.delete('/posts/:id', async (req, res) => {
   res.status(204).end();
 });
 
-router.post('/posts/:id/download', async (req, res) => {
+router.post('/posts/:id/download', express.json({ limit: '1kb' }), async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ error: 'Invalid post.' });
   const post = await FlamingoPost.findById(req.params.id).lean();
   if (!post?.attachment?.url) return res.status(404).json({ error: 'Video not found.' });
   const file = flamingoMediaName(post.attachment.url);
@@ -806,6 +886,11 @@ router.post('/posts/:id/download', async (req, res) => {
   try { media = await locatePostMedia(post); }
   catch (error) { return sendUploadFailure(res, error); }
   if (!media) return res.status(404).json({ error: 'The original video was not found in storage.' });
+  const quality = req.body?.quality || 'original';
+  const rendition = quality === 'original' ? null : await videoRenditions.file(post, quality);
+  // A missing/pending rendition must never charge the viewer or silently
+  // substitute the original after they selected a smaller resolution.
+  if (quality !== 'original' && !rendition) return res.status(409).json({ error: 'This resolution is not ready. Prepare it before downloading.' });
   const price = attachmentDownloadPrice(post.attachment);
   const selector = userSelector(req);
   if (price && !selector) return res.status(401).json({ error: 'Sign in to download the video.' });
@@ -818,9 +903,13 @@ router.post('/posts/:id/download', async (req, res) => {
     }, { new: true });
     if (!user) return res.status(402).json({ error: `You need ${price} TPG to download this video.` });
   }
-  const grant = createFlamingoDownloadGrant({ file, originalName: post.attachment.name, size: post.attachment.size,
+  const downloadName = rendition?.name || post.attachment.name;
+  const grant = createFlamingoDownloadGrant(rendition ? {
+    file: `${quality}.mp4`, originalName: downloadName, size: rendition.size,
+    postId: String(post._id), quality, sourceKey: videoSourceKey(post)
+  } : { file, originalName: post.attachment.name, size: post.attachment.size,
     ...(post.attachment.objectKey ? { objectKey: post.attachment.objectKey, objectBucket: post.attachment.objectBucket, type: post.attachment.type } : {}) });
-  res.json({ downloadUrl: `/api/flamingo-wall/downloads/${grant}?name=${encodeURIComponent(post.attachment.name)}`, price, balance: user?.balance });
+  res.json({ downloadUrl: `/api/flamingo-wall/downloads/${grant}?name=${encodeURIComponent(downloadName)}`, name: downloadName, quality, price, balance: user?.balance });
 });
 
 router.get('/downloads/:grant', async (req, res) => {
@@ -832,6 +921,16 @@ router.get('/downloads/:grant', async (req, res) => {
   // download continue without transferring the completed bytes again.
   setFlamingoMediaResponseHeaders(res);
   res.setHeader('Cache-Control', 'private, max-age=300');
+  if (grant.quality) {
+    try {
+      const post = await videoPost(grant.postId);
+      if (grant.sourceKey !== videoSourceKey(post)) return res.status(410).json({ error: 'This video was replaced.' });
+      const rendition = await videoRenditions.file(post, grant.quality);
+      if (!rendition || rendition.size !== grant.size) return res.status(404).json({ error: 'This video resolution is no longer available.' });
+      res.type('video/mp4');
+      return res.download(rendition.diskPath, grant.originalName);
+    } catch (error) { return videoFailure(res, error); }
+  }
   if (grant.objectKey) {
     try {
       const store = flamingoObjectStorage();
