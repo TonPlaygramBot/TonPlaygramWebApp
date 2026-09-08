@@ -40,7 +40,7 @@ export class TiranaScenery extends BaseTiranaScenery {
     publishAtlas(x,z,this.atlasTrack);
     let root:THREE.Object3D=this.group;while(root.parent)root=root.parent;
     const camera=root.children.find(o=>o instanceof THREE.PerspectiveCamera) as THREE.PerspectiveCamera|undefined;
-    this.enhancements.update(globalThis.performance.now()/1000,camera);
+    this.enhancements.update(globalThis.performance.now()/1000,camera,{x,z},performance);
   }
   // The owning race renderer traverses this group to dispose its geometry/materials.
 }

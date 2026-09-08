@@ -1,0 +1,212 @@
+name: Tirana regional details
+'on':
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'webapp/src/games/tirana-region/**'
+      - 'webapp/src/games/tirana-expansion/**'
+      - 'webapp/src/games/tiranastreets/**'
+      - 'webapp/src/games/blackwater/**'
+      - 'webapp/src/games/kartroyale/**'
+      - 'webapp/scripts/**'
+      - 'webapp/package*.json'
+      - 'webapp/tsconfig*.json'
+      - 'package*.json'
+      - 'test/tirana*'
+      - 'test/blackwater*'
+      - 'test/kart*'
+      - 'test/racing*'
+      - 'scripts/verify-tirana-preview.mjs'
+      - 'tools/blender/tirana_shopfronts.py'
+      - '.github/workflows/tirana-region-details.yml'
+  push:
+    branches: ['codex/tirana-regional-detail-20260908']
+permissions:
+  contents: read
+concurrency:
+  group: tirana-region-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+defaults:
+  run:
+    shell: bash
+env:
+  CI: 'true'
+jobs:
+  source-contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --prefix webapp
+      - name: All discovered city, career, FPS and racing Node regression files
+        run: |
+          mkdir -p artifacts/tirana-checks
+          node --input-type=module <<'JS' 2>&1 | tee artifacts/tirana-checks/regressions.log
+          import {readdirSync} from 'node:fs';
+          import {spawnSync} from 'node:child_process';
+          const files=readdirSync('test').filter(f=>/^(tirana|blackwater|kart|racing).*\.test\.mjs$/.test(f)).sort().map(f=>`test/${f}`);
+          if(!files.length)throw Error('No regression test files discovered');
+          console.log('Selected test files:',files);
+          const result=spawnSync(process.execPath,['--test',...files],{stdio:'inherit'});
+          if(result.error)throw result.error;
+          process.exit(result.status??1);
+          JS
+      - name: Preserve the original map and Dajti implementations
+        run: |
+          test "$(git hash-object webapp/src/games/tirana-expansion/BaseWorldEnhancements.ts)" = 209b115fcd9e7d7c9016dc28b650d547389563a1
+          test "$(git hash-object webapp/src/games/tiranastreets/map/CityMapCore.tsx)" = 8aba7d1b3a21f20d268fe3b7fc7e3844a69800b5
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tirana-source-checks
+          path: artifacts/tirana-checks/
+          retention-days: 7
+  webapp:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [build, types]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --prefix webapp
+      - name: Full webapp build or dependency-aware typecheck
+        env:
+          CHECK: ${{ matrix.check }}
+        run: |
+          mkdir -p artifacts/tirana-checks
+          if [ "$CHECK" = build ]; then
+            npm run build --prefix webapp 2>&1 | tee artifacts/tirana-checks/build.log
+          else
+            (cd webapp && node node_modules/typescript/bin/tsc --noEmit -p tsconfig.json) 2>&1 | tee artifacts/tirana-checks/types.log
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tirana-webapp-${{ matrix.check }}
+          path: artifacts/tirana-checks/
+          retention-days: 7
+  export-assets:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --prefix webapp
+      - run: node webapp/scripts/export-tirana-shopfronts.mjs artifacts/tirana-shopfronts 2048
+      - name: Actual exported files and embedded PNG dimensions
+        run: |
+          python - <<'PY'
+          import base64,json,struct
+          from pathlib import Path
+          root=Path('artifacts/tirana-shopfronts')
+          assert (root/'preview.html').stat().st_size>1000
+          for brand in ('lana','drita','lagjja','velo'):
+              g=json.loads((root/f'{brand}.gltf').read_text())
+              assert g['asset']['version']=='2.0'
+              assert len(g['materials'])==6
+              data=base64.b64decode(g['images'][0]['uri'].split(',',1)[1],validate=True)
+              assert data[:8]==b'\x89PNG\r\n\x1a\n'
+              assert struct.unpack('>II',data[16:24])==(2048,512)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tirana-original-shopfronts
+          path: artifacts/tirana-shopfronts/
+          if-no-files-found: error
+          retention-days: 7
+  asset-browser:
+    needs: export-assets
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install the lockfile-pinned browser driver without unrelated root lifecycle scripts
+        run: npm ci --ignore-scripts
+      - run: node_modules/.bin/playwright install --with-deps chromium
+      - uses: actions/download-artifact@v4
+        with:
+          name: tirana-original-shopfronts
+          path: artifacts/tirana-shopfronts
+      - name: Portrait asset-viewer interactions with software WebGL
+        run: node scripts/verify-tirana-preview.mjs artifacts/tirana-shopfronts artifacts/tirana-browser
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tirana-asset-browser
+          path: artifacts/tirana-browser/
+          retention-days: 7
+  blender:
+    needs: export-assets
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: tirana-original-shopfronts
+          path: artifacts/tirana-shopfronts
+      - run: sudo apt-get update && sudo apt-get install -y blender
+      - name: Execute Blender, not just Python syntax compilation
+        run: |
+          mkdir -p artifacts/tirana-blender
+          blender --version | tee artifacts/tirana-blender/version.txt
+          blender --background --factory-startup --python-exit-code 1 --python tools/blender/tirana_shopfronts.py -- --assets artifacts/tirana-shopfronts --output artifacts/tirana-blender --samples 16 2>&1 | tee artifacts/tirana-blender/render.log
+      - name: Verify saved scenes and real render outputs
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import struct
+          root=Path('artifacts/tirana-blender')
+          for name in ('original-shopfronts.blend','original-coffee-studio.blend'):
+              assert (root/name).read_bytes()[:7]==b'BLENDER', name
+          for name,size in [('original-shopfront-gallery.png',(2560,1440)),('original-coffee-studio.png',(2048,1024))]:
+              data=(root/name).read_bytes()
+              assert data[:8]==b'\x89PNG\r\n\x1a\n', name
+              assert struct.unpack('>II',data[16:24])==size, name
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tirana-blender-renders
+          path: artifacts/tirana-blender/
+          retention-days: 7
+  automated-gate:
+    if: always()
+    needs: [source-contracts, webapp, export-assets, asset-browser, blender]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Every automated job must actually succeed
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python - <<'PY'
+          import json,os
+          results=json.loads(os.environ['RESULTS'])
+          failed={name:job['result'] for name,job in results.items() if job['result']!='success'}
+          print(json.dumps(results,indent=2))
+          if failed: raise SystemExit(f'Failed, skipped or cancelled checks: {failed}')
+          print('Automated checks passed. Actual-game and physical-phone validation remain separate release gates.')
+          PY
