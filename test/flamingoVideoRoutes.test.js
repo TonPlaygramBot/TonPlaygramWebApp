@@ -6,10 +6,22 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
 let mockPost;
-const mockCharge = jest.fn(async (_query, update) => ({
-  _id: 'viewer',
-  balance: 1000 + update.$inc.balance
-}));
+let mockUsers;
+const mockCharge = jest.fn(async (query, update) => {
+  const user = mockUsers[query._id];
+  const transaction = update.$push.transactions;
+  if (
+    !user ||
+    user.balance < query.balance.$gte ||
+    user.transactions.some(
+      (entry) => entry.transactionId === query['transactions.transactionId'].$ne
+    )
+  )
+    return null;
+  user.balance += update.$inc.balance;
+  user.transactions.push(transaction);
+  return structuredClone(user);
+});
 jest.mock('../bot/models/FlamingoPost.js', () => ({
   __esModule: true,
   default: {
@@ -22,13 +34,15 @@ jest.mock('../bot/models/FlamingoPost.js', () => ({
 jest.mock('../bot/models/User.js', () => ({
   __esModule: true,
   default: {
-    findOne: async () => ({ _id: 'viewer', balance: 1000 }),
+    findOne: async (query) =>
+      structuredClone(mockUsers[query._id || query.accountId] || null),
     findOneAndUpdate: (...args) => mockCharge(...args)
   }
 }));
 jest.mock('../bot/middleware/auth.js', () => ({
   optionalAuthenticate: (req, _res, next) => {
-    if (req.get('x-test-account')) req.auth = { accountId: 'viewer' };
+    if (req.get('x-test-account'))
+      req.auth = { accountId: req.get('x-test-account') };
     next();
   }
 }));
@@ -100,7 +114,15 @@ describe('video resolution playback and download routes', () => {
     variant = await renditions.file(mockPost, '240p');
     expect(variant).not.toBeNull();
   }, 15000);
-  beforeEach(() => mockCharge.mockClear());
+  beforeEach(() => {
+    mockCharge.mockClear();
+    mockUsers = Object.fromEntries(
+      ['viewer', 'viewer-two'].map((id) => [
+        id,
+        { _id: id, balance: 1000, transactions: [] }
+      ])
+    );
+  });
   afterAll(async () => {
     if (renditions) await renditions.idle();
     if (server) await new Promise((resolve) => server.close(resolve));
@@ -110,14 +132,22 @@ describe('video resolution playback and download routes', () => {
       else process.env[key] = value;
     }
   });
-  const download = (quality, authenticated = false) =>
+  const download = (quality, authenticated = false, requestId) =>
     fetch(`${base}/api/flamingo-wall/posts/${mockPost._id}/download`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(authenticated ? { 'x-test-account': 'viewer' } : {})
+        ...(authenticated
+          ? {
+              'x-test-account':
+                authenticated === true ? 'viewer' : authenticated
+            }
+          : {})
       },
-      body: JSON.stringify({ quality })
+      body: JSON.stringify({
+        quality,
+        ...(requestId !== undefined ? { requestId } : {})
+      })
     });
 
   test('lists real output dimensions and serves the chosen seekable MP4', async () => {
@@ -189,5 +219,59 @@ describe('video resolution playback and download routes', () => {
     expect(Buffer.from(await media.arrayBuffer())).toEqual(
       await readFile(path.join(directory, 'source.mp4'))
     );
+  });
+
+  test('renews grants for the same request without charging twice, including concurrent retries', async () => {
+    const requestId = '12345678-1234-4321-abcd-123456789012';
+    const responses = await Promise.all([
+      download('240p', true, requestId),
+      download('240p', true, requestId)
+    ]);
+    for (const response of responses) {
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({
+        quality: '240p',
+        price: 25,
+        balance: 975
+      });
+    }
+    const renewed = await download('240p', true, requestId);
+    expect(renewed.status).toBe(200);
+    expect(await renewed.json()).toMatchObject({ price: 25, balance: 975 });
+    expect(mockUsers.viewer.balance).toBe(975);
+    expect(mockUsers.viewer.transactions).toHaveLength(1);
+    expect(mockUsers.viewer.transactions[0]).toMatchObject({
+      type: 'video_download',
+      amount: -25,
+      detail: mockPost._id
+    });
+  });
+
+  test('scopes download retry IDs to the viewer and selected resolution', async () => {
+    const requestId = '12345678-1234-4321-abcd-123456789012';
+    expect((await download('240p', true, requestId)).status).toBe(200);
+    expect((await download('original', true, requestId)).status).toBe(200);
+    expect((await download('240p', 'viewer-two', requestId)).status).toBe(200);
+    expect(mockUsers.viewer.balance).toBe(950);
+    expect(mockUsers['viewer-two'].balance).toBe(975);
+    const ids = [
+      ...mockUsers.viewer.transactions,
+      ...mockUsers['viewer-two'].transactions
+    ].map((entry) => entry.transactionId);
+    expect(new Set(ids).size).toBe(3);
+  });
+
+  test('rejects malformed requests and keeps insufficient-balance checks intact', async () => {
+    expect((await download('240p', true, 'not-a-request-id')).status).toBe(400);
+    expect(mockCharge).not.toHaveBeenCalled();
+    mockUsers.viewer.balance = 20;
+    const response = await download(
+      '240p',
+      true,
+      '12345678-1234-4321-abcd-123456789012'
+    );
+    expect(response.status).toBe(402);
+    expect(mockUsers.viewer.balance).toBe(20);
+    expect(mockUsers.viewer.transactions).toHaveLength(0);
   });
 });
