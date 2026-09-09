@@ -1,7 +1,7 @@
 import { detailPostObstacles } from '../../tirana-street-detail/sharedRoadDetails.mjs';
 import { nativeReplacementIds } from '../../tirana-landmarks/nativeLocations.mjs';
 import { nativeLandmarkObstacles } from '../../tirana-landmarks/nativeCollision.mjs';
-import { buildingProfile } from '../../tiranastreets/shared/architecture.mjs';
+import { buildingProfile, footprintDistance } from '../../tiranastreets/shared/architecture.mjs';
 import { STREET_SOLIDS } from '../../tiranastreets/shared/streetDressing.mjs';
 import { RAILINGS } from '../../tiranastreets/shared/landscape.mjs';
 import { WORLD } from '../../tiranastreets/shared/world.mjs';
@@ -121,3 +121,10 @@ export const railingObstacles = RAILINGS.map(r=>({x:r.x-ORIGIN.x,z:r.z-ORIGIN.z,
 const replaced = nativeReplacementIds(WORLD);
 export const landmarkObstacles = nativeLandmarkObstacles(WORLD, ORIGIN);
 export const OBSTACLES = Object.freeze([...buildings.filter(b=>!replaced.has(b.id)), ...landmarkObstacles, ...props, ...streetObstacles, ...railingObstacles, ...detailPostObstacles(ORIGIN)]);
+const clear = (x,z,r=.5) => !OBSTACLES.some(o=>o.footprint?footprintDistance(x,z,o.footprint)<r:Math.hypot(x-o.x,z-o.z)<Math.hypot(o.w,o.d)/2+r);
+const safeNear = (x,z) => {x=Math.max(MAP.minX+2,Math.min(MAP.maxX-2,x));z=Math.max(MAP.minZ+2,Math.min(MAP.maxZ-2,z));const road=nearestRoad(x,z); if(clear(road.x,road.z))return {x:road.x,z:road.z}; for(let radius=4;radius<60;radius+=4)for(let i=0;i<16;i++){const p=nearestRoad(x+Math.cos(i*Math.PI/8)*radius,z+Math.sin(i*Math.PI/8)*radius);if(clear(p.x,p.z)&&p.x>MAP.minX+.5&&p.x<MAP.maxX-.5&&p.z>MAP.minZ+.5&&p.z<MAP.maxZ-.5)return {x:p.x,z:p.z};} return {x:START.x,z:START.z}; };
+// Ten operation maps are sectors of the one detailed, streamed Tirana world.
+const sector = (id,name,worldX,worldZ) => {const start=safeNear(worldX-ORIGIN.x,worldZ-ORIGIN.z),extraction=safeNear(start.x+18,start.z-42);return Object.freeze({id,name,start:Object.freeze(start),extraction:Object.freeze(extraction)});};
+export const BATTLEFIELD_MAPS = Object.freeze([
+ sector('skanderbeg','Skanderbeg Square',-55,-110),sector('blloku','Blloku Night Run',-165,520),sector('lana','Lana Riverfront',40,260),sector('pyramid','Pyramid District',120,85),sector('bazaar','New Bazaar',175,-155),sector('stadium','Air Albania',285,245),sector('station','Railway Approach',-120,-340),sector('park','Grand Park Gate',35,690),sector('embassy','Embassy Quarter',-330,170),sector('dajti-gate','Dajti Gateway',360,-25)
+]);

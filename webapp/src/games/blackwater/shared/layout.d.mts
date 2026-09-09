@@ -1,4 +1,4 @@
-import type { Obstacle, Vec2 } from '../core';
+import type { BattlefieldMapId, Obstacle, Vec2 } from '../core';
 export type Road = {
   id: number;
   a: number[];
@@ -34,6 +34,7 @@ export const OBSTACLES: readonly Obstacle[];
 export const START: Readonly<Vec2>;
 export const EXTRACTION: Readonly<Vec2>;
 export const SPAWNS: readonly Readonly<Vec2>[];
+export const BATTLEFIELD_MAPS: readonly Readonly<{id:BattlefieldMapId;name:string;start:Readonly<Vec2>;extraction:Readonly<Vec2>}>[];
 export function nearestRoad(
   x: number,
   z: number

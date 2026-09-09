@@ -36,6 +36,7 @@ export class CityRenderer {
   camera = new THREE.PerspectiveCamera(52, 1, 0.15, 1800);
   yaw = 0;
   pitch = 0.32;
+  firstPerson = false;
   fps = 60;
   quality: "auto" | "high" | "battery" = "auto";
   ready = false;
@@ -803,9 +804,10 @@ export class CityRenderer {
   }
   orbit(dx: number, dy: number) {
     this.yaw -= dx * 0.006;
-    this.pitch = THREE.MathUtils.clamp(this.pitch + dy * 0.004, 0.12, 0.85);
+    this.pitch = this.firstPerson ? THREE.MathUtils.clamp(this.pitch - dy * 0.004, -1.05, 1.05) : THREE.MathUtils.clamp(this.pitch + dy * 0.004, 0.12, 0.85);
     this.manualUntil = this.clock + 2.8;
   }
+  setFirstPerson(enabled: boolean) { this.firstPerson = enabled; this.pitch = enabled ? 0 : 0.32; }
   setQuality(quality: "auto" | "high" | "battery") {
     this.quality = quality;
     this.dpr = Math.min(
@@ -894,7 +896,7 @@ export class CityRenderer {
       for (const pl of Object.values(state.players)) {
         const a = this.actor("character", `player-${pl.id}`);
         active.add(`player-${pl.id}`);
-        a.group.visible = !pl.carId;
+        a.group.visible = !pl.carId && !(this.firstPerson && pl.id === id);
         a.group.rotation.x = pl.health <= 0 ? -Math.PI / 2 : 0;
         a.group.position.lerp(
           new THREE.Vector3(pl.x, 0.08, pl.z),
@@ -1012,6 +1014,14 @@ export class CityRenderer {
       );
       this.camera.lookAt(pyramid.x, 5, pyramid.z);
       target.set(pyramid.x, 0, pyramid.z);
+    } else if (this.firstPerson && p) {
+      this.lastTarget.set(p.x, p.carId ? 1.28 : 1.68, p.z);
+      if (p.carId && this.clock > this.manualUntil) this.yaw = smoothAngle(this.yaw, p.heading, Math.min(1, dt * 4));
+      this.camera.position.lerp(this.lastTarget, Math.min(1, dt * 14));
+      const direction = new THREE.Vector3(-Math.sin(this.yaw) * Math.cos(this.pitch), Math.sin(this.pitch), -Math.cos(this.yaw) * Math.cos(this.pitch));
+      this.camera.lookAt(this.camera.position.clone().add(direction));
+      this.camera.fov = 74 + (p.carId ? Math.min(8, Math.abs(p.speed) * .2) : 0);
+      this.camera.updateProjectionMatrix();
     } else {
       this.lastTarget.lerp(target, Math.min(1, dt * 9));
       const wanted = p?.carId
