@@ -3,3 +3,8 @@
 .te-audio-unlock{position:absolute;top:120px;left:20px;right:20px;z-index:12;min-height:44px}
 
 .te-loading{position:absolute;z-index:4;top:90px;left:16px;right:16px;background:#142b35;padding:12px;border-radius:8px;color:#fff4d5}
+
+.rr-career-card{display:block;width:100%;margin:8px 0;text-align:left}
+.rr-steering{left:12px;right:auto;max-width:48%;display:flex;gap:6px}
+.te-game .te-actions button{touch-action:none;user-select:none;-webkit-user-select:none}
+.te-error button{margin-top:8px;min-height:44px}

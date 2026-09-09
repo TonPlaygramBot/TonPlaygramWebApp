@@ -1,17 +1,28 @@
 import {lazy,Suspense,useState,type ComponentProps} from 'react';
-import BaseKartRoyale from './BaseKartRoyale';
+import type BaseKartRoyale from './BaseKartRoyale';
 import {RacingAtlas} from './RacingAtlas';
+import {GameModeBoundary} from '../shared/GameModeBoundary';
+import {racingActivity} from './racingModeCore.mjs';
 import '../tirana-street-detail/lobby.css';
+const Race=lazy(()=>import('./BaseKartRoyale'));
 const Career=lazy(()=>import('./RacingCareerGame').then(m=>({default:m.RacingCareerGame})));
 const Explore=lazy(()=>import('../tirana-social/ExploreGame').then(m=>({default:m.ExploreGame})));
+/** Restore the original garage and its VS AI / MULTIPLAYER / CAREER tabs.
+ * Explore is optional and owns no kart race, stake, renderer or media until opened. */
 export default function KartRoyale(props:ComponentProps<typeof BaseKartRoyale>){
-  const [mode,setMode]=useState(()=>{const p=new URLSearchParams(window.location.search);return p.get('mode')==='online'||p.has('tableId')?'multiplayer':p.get('activity')==='explore'?'explore':p.get('activity')==='racing-career'||p.get('mode')==='career'?'career':'modes';});
-  if(mode==='multiplayer')return <><BaseKartRoyale {...props} onExit={()=>setMode('modes')}/><RacingAtlas/></>;
-  if(mode==='career')return <Suspense fallback={<p>Loading racing career…</p>}><Career onExit={()=>setMode('modes')}/><RacingAtlas/></Suspense>;
-  if(mode==='explore')return <Suspense fallback={<p>Loading the shared Tirana city…</p>}><Explore sourceGame="racing" onExit={()=>setMode('modes')}/></Suspense>;
-  return <main className="tsl-root"><section className="tsl-careers"><button className="tsl-back" onClick={props.onExit}>← Games</button><p className="tsl-eyebrow">RACING ROYAL</p><h1>Race. Progress. Explore.</h1><div className="tsl-modes">{[
-    ['multiplayer','Multiplayer racing','The existing online racing lobby, private rooms and TPG rules.'],
-    ['career','Career mode','Win cups, preserve your progress and unlock longer Grand circuits.'],
-    ['explore','Explore together','Free shared Tirana. Walk, drive, chat, add friends and opt in to live voice/video.']
-  ].map(([id,title,description])=><article key={id} className="tsl-card"><h2>{title}</h2><p>{description}</p><button className="tsl-launch" onClick={()=>setMode(id)}>OPEN {title.toUpperCase()}</button></article>)}</div></section></main>;
+  const [mode,setMode]=useState(()=>racingActivity(typeof window==='undefined'?'':window.location.search));
+  const [retry,setRetry]=useState(0);
+  const back=()=>{setMode('race');setRetry(n=>n+1);};
+  return <GameModeBoundary key={`${mode}:${retry}`} onBack={back}>
+    <Suspense fallback={<main className="tsl-root"><section className="tsl-careers"><h1>Racing Royal</h1><p role="status">Loading {mode==='explore'?'shared exploration':mode==='career'?'kart career':'the original racing garage'}…</p><button onClick={props.onExit}>Back to Games</button></section></main>}>
+      {mode==='explore'?<Explore sourceGame="racing" onExit={back}/>:
+       mode==='career'?<><Career onExit={back}/><RacingAtlas/></>:
+       <><Race {...props} renderOnlineLobby={props.renderOnlineLobby?lobby=><>
+         <nav aria-label="Additional Racing Royal modes" style={{display:'flex',flexWrap:'wrap',gap:8,marginBottom:16}}>
+           <button className="kr-button" onClick={()=>setMode('career')}>KART MISSIONS</button>
+           <button className="kr-button" onClick={()=>setMode('explore')}>EXPLORE TIRANA</button>
+         </nav>{props.renderOnlineLobby!(lobby)}
+       </>:undefined}/><RacingAtlas/></>}
+    </Suspense>
+  </GameModeBoundary>;
 }

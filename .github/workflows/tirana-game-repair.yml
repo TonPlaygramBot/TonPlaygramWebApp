@@ -1,0 +1,41 @@
+name: Tirana game repair
+on:
+  pull_request:
+    paths:
+      - 'webapp/src/games/kartroyale/**'
+      - 'webapp/src/games/tirana-social/**'
+      - 'webapp/src/games/tiranastreets/street-career/**'
+      - 'webapp/src/games/blackwater/ui.tsx'
+      - 'webapp/src/games/shared/GameModeBoundary.tsx'
+      - 'test/tiranaRepair*'
+      - '.github/workflows/tirana-game-repair.yml'
+permissions:
+  contents: read
+concurrency:
+  group: tirana-repair-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install the existing webapp lockfile
+        run: npm ci --prefix webapp --no-audit --no-fund
+      - name: Actual input lifecycle, kart objectives and 108 AI kart finishes
+        run: node --test test/tiranaRepairCore.test.mjs test/tiranaRepairRuntime.test.cjs test/tiranaRepairDriving.test.mjs
+      - name: Existing focused game regressions
+        run: node --test test/tiranaStreetCareer.test.mjs test/tiranaRegionalDetails.test.mjs test/tiranaRegionSource.test.mjs test/tiranaRegionalValidation.test.mjs test/tiranaStreetDetail.test.mjs test/tiranaSocialExplore.test.mjs test/tiranaGrandCircuits.test.mjs test/tiranaExploreMediaGround.test.mjs
+      - name: Strict restored simulation declarations
+        working-directory: webapp
+        run: npx tsc --noEmit --strict --module NodeNext --moduleResolution NodeNext --target ES2022 --lib ES2022,DOM ../test/tiranaRepairTypes.mts
+      - name: Full dependency-aware application type check
+        working-directory: webapp
+        run: npx tsc --noEmit -p tsconfig.json
+      - name: Full production build
+        run: npm --prefix webapp run build
