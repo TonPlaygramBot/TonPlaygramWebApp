@@ -1,27 +1,95 @@
 import {useEffect,useRef,useState} from 'react';
 import {KartRenderer,type Frame,type Result} from './renderer';
-import {CUPS,GRAND_ROUTE_DIAGNOSTICS} from './simulation.mjs';
+import {CUPS,TRACKS,GRAND_ROUTE_DIAGNOSTICS} from './simulation.mjs';
 import {loadCareer,recordRace,formatTime} from './career';
+import {createHeldRaceInput} from './heldRaceInput.mjs';
+import {KART_TASKS,loadKartTasks,saveKartTasks,finishKartTask,kartTaskXP} from './kartTaskCore.mjs';
 import '../tirana-social/explore.css';
+const storage=()=>{try{return window.localStorage;}catch{return undefined;}};
+/** Existing KartRenderer and cups; new tasks are optional device-local goals.
+ * A single renderer and input owner are mounted for a career session. */
 export function RacingCareerGame({onExit}:{onExit:()=>void}){
-  const host=useRef<HTMLDivElement>(null),engine=useRef<KartRenderer|null>(null),active=useRef<number|null>(null),finished=useRef(true);
-  const [ready,setReady]=useState(false),[error,setError]=useState(''),[career,setCareer]=useState(loadCareer),[hud,setHud]=useState<Frame|null>(null),[result,setResult]=useState<Result|null>(null),[racing,setRacing]=useState(false),[paused,setPaused]=useState(false),[saved,setSaved]=useState(true);
-  const progress=useRef(career);progress.current=career;
-  useEffect(()=>{let alive=true;let game:KartRenderer|undefined;
-    try{if(host.current){game=new KartRenderer(host.current,f=>{if(alive)setHud(f);},r=>{if(!alive||finished.current)return;finished.current=true;const i=r.racers.findIndex(p=>p.id===r.playerId),me=r.racers[i],n=recordRace(progress.current,r.trackId,me?.finished?i+1:7,me?.finished?me.finishTime:0,active.current);progress.current=n.career;setCareer(n.career);setSaved(n.saved);setResult(r);setRacing(false);},setError);engine.current=game;game.setCameraMode('chase');void game.load().then(()=>{if(alive)setReady(true);}).catch(e=>{if(alive)setError(String(e));});}}
-    catch(e){setError(e instanceof Error?e.message:'Renderer unavailable');}
-    const blur=()=>{game?.pause(true);setPaused(true);};const visibility=()=>{if(document.hidden)blur();};window.addEventListener('blur',blur);document.addEventListener('visibilitychange',visibility);
-    return()=>{alive=false;window.removeEventListener('blur',blur);document.removeEventListener('visibilitychange',visibility);game?.destroy();engine.current=null;};
+  const host=useRef<HTMLDivElement>(null),engine=useRef<KartRenderer|null>(null);
+  const active=useRef<number|null>(null),task=useRef<string|null>(null),finished=useRef(true);
+  const held=useRef(createHeldRaceInput());
+  const [ready,setReady]=useState(false),[error,setError]=useState('');
+  const [career,setCareer]=useState(loadCareer),[tasks,setTasks]=useState(()=>loadKartTasks(storage()));
+  const [hud,setHud]=useState<Frame|null>(null),[result,setResult]=useState<Result|null>(null);
+  const [racing,setRacing]=useState(false),[paused,setPaused]=useState(false),[saved,setSaved]=useState(true),[notice,setNotice]=useState('');
+  const progress=useRef(career),taskProgress=useRef(tasks),pausedRef=useRef(paused);
+  progress.current=career;taskProgress.current=tasks;pausedRef.current=paused;
+  const clear=()=>{held.current.clear();engine.current?.clearInput();};
+  const pause=(p:boolean)=>{pausedRef.current=p;setPaused(p);clear();engine.current?.pause(p);};
+  useEffect(()=>{
+    let alive=true,game:KartRenderer|undefined;
+    try{
+      if(host.current){
+        game=new KartRenderer(host.current,f=>{if(alive)setHud(f);},r=>{
+          if(!alive||finished.current)return;
+          finished.current=true;held.current.clear();game?.clearInput();
+          const me=r.racers.find(p=>p.id===r.playerId),place=me?.finished?r.racers.indexOf(me)+1:7;
+          const n=recordRace(progress.current,r.trackId,place,me?.finished?me.finishTime:0,active.current);
+          progress.current=n.career;setCareer(n.career);
+          let taskSaved=true;
+          if(task.current){
+            const out=finishKartTask(taskProgress.current,task.current,r);
+            taskProgress.current=out.profile;setTasks(out.profile);taskSaved=saveKartTasks(storage(),out.profile);
+            setNotice(`${out.reason}${out.xp?` +${out.xp} task XP`:''}`);
+          }
+          setSaved(n.saved&&taskSaved);setResult(r);setRacing(false);setPaused(false);pausedRef.current=false;
+        },message=>{if(alive)setError(message);});
+        engine.current=game;game.setCameraMode('chase');
+        void game.load().then(()=>{if(alive)setReady(true);}).catch(e=>{if(alive)setError(String(e));});
+      }
+    }catch(e){setError(e instanceof Error?e.message:'Renderer unavailable');}
+    const blur=()=>{if(!alive)return;held.current.clear();game?.clearInput();game?.pause(true);pausedRef.current=true;setPaused(true);};
+    const visibility=()=>{if(document.hidden)blur();};
+    const keymap:Record<string,['steer'|'brake'|'boost',number|boolean]>={arrowleft:['steer',-1],a:['steer',-1],arrowright:['steer',1],d:['steer',1],' ':['brake',true],s:['brake',true],shift:['boost',true]};
+    const down=(e:KeyboardEvent)=>{
+      if((e.target as HTMLElement)?.closest?.('input,textarea,select,[contenteditable="true"]')||e.ctrlKey||e.metaKey||e.altKey)return;
+      const key=e.key.toLowerCase(),value=keymap[key];
+      if(!value||finished.current||pausedRef.current)return;e.preventDefault();held.current.hold(`key:${key}`,...value);if(game)Object.assign(game.input,held.current.read());
+    };
+    const up=(e:KeyboardEvent)=>{held.current.release(`key:${e.key.toLowerCase()}`);if(game)Object.assign(game.input,held.current.read());};
+    window.addEventListener('blur',blur);document.addEventListener('visibilitychange',visibility);
+    window.addEventListener('keydown',down);window.addEventListener('keyup',up);
+    return()=>{alive=false;held.current.clear();window.removeEventListener('blur',blur);document.removeEventListener('visibilitychange',visibility);window.removeEventListener('keydown',down);window.removeEventListener('keyup',up);game?.destroy();engine.current=null;};
   },[]);
-  const drive=(key:'steer'|'brake'|'boost',value:number|boolean)=>{if(!engine.current||paused)return;const input=engine.current.input;if(key==='steer')input.steer=Number(value);else input[key]=!!value;};
-  const clear=()=>engine.current?.clearInput();
-  function start(index:number){if(!ready||index>0&&!career.cups[index-1])return;active.current=index;finished.current=false;setResult(null);setPaused(false);engine.current?.startLocal(CUPS[index].track,CUPS[index].difficulty);setRacing(true);}
-  return <main className="te-game" aria-label="Racing Royal Career"><div className="te-canvas" ref={host}/><header className="te-header"><div><b>RACING ROYAL · CAREER</b><small>{hud?`${Math.round(hud.speed)} · LAP ${hud.lap} · ${hud.position} PLACE`:'PREPARING CITY'}</small></div><button onClick={()=>{const p=!paused;setPaused(p);engine.current?.pause(p);}}>{paused?'RESUME':'PAUSE'}</button><button onClick={onExit}>MODES</button></header>
+  function start(index:number|null,taskId?:string){
+    if(!ready||!engine.current)return;
+    const mission=taskId?KART_TASKS.find(t=>t.id===taskId):undefined;
+    if(mission&&KART_TASKS.indexOf(mission)>taskProgress.current.completed.length)return;
+    if(index!==null&&(index<0||index>=CUPS.length||index>0&&!progress.current.cups[index-1]))return;
+    const config=mission||(index===null?undefined:CUPS[index]);if(!config)return;
+    if(!TRACKS.some(t=>t.id===config.track)){setError('This route is unavailable in the current game files.');return;}
+    clear();setError('');setNotice('');setResult(null);pause(false);
+    try{
+      active.current=index;task.current=taskId||null;finished.current=false;
+      engine.current.startLocal(config.track,config.difficulty);setRacing(true);
+    }catch(e){finished.current=true;setRacing(false);setError(e instanceof Error?e.message:'Race could not start.');}
+  }
+  function hold(id:string,key:'steer'|'brake'|'boost',value:number|boolean){if(pausedRef.current||finished.current)return;held.current.hold(id,key,value);if(engine.current)Object.assign(engine.current.input,held.current.read());}
+  function release(id:string){held.current.release(id);if(engine.current)Object.assign(engine.current.input,held.current.read());}
+  const button=(key:'steer'|'brake'|'boost',value:number|boolean,label:string)=><button key={label} aria-label={label}
+    onPointerDown={e=>{e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);hold(`touch:${e.pointerId}`,key,value);}}
+    onPointerUp={e=>release(`touch:${e.pointerId}`)} onPointerCancel={e=>release(`touch:${e.pointerId}`)}
+    onLostPointerCapture={e=>release(`touch:${e.pointerId}`)}>{label}</button>;
+  return <main className="te-game" aria-label="Racing Royal Career"><div className="te-canvas" ref={host}/>
+    <header className="te-header"><div><b>RACING ROYAL · KART CAREER</b><small>{hud?`${Math.round(hud.speed)} · LAP ${hud.lap} · ${hud.position} PLACE`:'PREPARING CITY'}</small></div>
+      <button onClick={()=>pause(!paused)}>{paused?'RESUME':'PAUSE'}</button><button onClick={onExit}>GARAGE</button></header>
     {error&&<p className="te-error" role="alert">{error}</p>}
-    {!racing&&<section className="te-panel"><h1>Your racing career</h1><p>Existing progress and credits are retained. Grand cups use larger connected road circuits where the map supports a valid closed route.</p><p>{career.credits} career credits · {career.wins} wins · saved on this device, not TPG.</p>{!saved&&<p role="alert">Device save failed. Keep this session open.</p>}{result&&<p>Race complete · {formatTime(result.elapsed)}</p>}
-      {CUPS.map((cup,index)=><button key={`${cup.track}:${index}`} style={{display:'block',width:'100%',margin:'8px 0',textAlign:'left'}} disabled={!ready||index>0&&!career.cups[index-1]} onClick={()=>start(index)}><b>{index+1}. {cup.name}</b><br/><small>{career.cups[index]?'Completed · replay':`Finish in the top ${cup.target}`} · {cup.reward} first-completion credits</small></button>)}
-      {!!GRAND_ROUTE_DIAGNOSTICS.length&&<details><summary>Map coverage</summary><p>{GRAND_ROUTE_DIAGNOSTICS.join('; ')}</p></details>}
+    {!racing&&<section className="te-panel"><h1>Your racing career</h1>
+      <p>{career.credits} career credits · {career.wins} wins · {kartTaskXP(tasks)} task XP. Saved on this device, not TPG.</p>
+      {!saved&&<p role="alert">Device save failed. Progress remains in this session.</p>}
+      {result&&<p>Race complete · {formatTime(result.elapsed)}</p>}{notice&&<p role="status">{notice}</p>}
+      <h2>Championship cups</h2>
+      {CUPS.map((cup,index)=><button className="rr-career-card" key={`${cup.track}:${index}`} disabled={!ready||index>0&&!career.cups[index-1]} onClick={()=>start(index)}>
+        <b>{index+1}. {cup.name}</b><br/><small>{career.cups[index]?'Completed · replay':`Finish in the top ${cup.target}`} · {cup.reward} first-completion credits</small></button>)}
+      <h2>Kart driving missions</h2>
+      {KART_TASKS.map((mission,index)=><button className="rr-career-card" key={mission.id} disabled={!ready||index>tasks.completed.length||!TRACKS.some(t=>t.id===mission.track)} onClick={()=>start(null,mission.id)}>
+        <b>{mission.title}{tasks.completed.includes(mission.id)?' · COMPLETE':''}</b><br/><small>{mission.description} · {mission.xp} first-completion XP</small></button>)}
+      {!!GRAND_ROUTE_DIAGNOSTICS.length&&<details><summary>Route availability</summary><p>{GRAND_ROUTE_DIAGNOSTICS.join('; ')}</p></details>}
     </section>}
-    {racing&&<><div className="te-actions" style={{left:12,right:'auto',maxWidth:'45%',display:'flex'}}>{[-1,1].map(d=><button key={d} onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);drive('steer',d);}} onPointerUp={clear} onPointerCancel={clear} onLostPointerCapture={clear}>{d<0?'←':'→'}</button>)}</div><div className="te-actions">{(['brake','boost'] as const).map(key=><button key={key} onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);drive(key,true);}} onPointerUp={clear} onPointerCancel={clear} onLostPointerCapture={clear}>{key.toUpperCase()}</button>)}</div></>}
+    {racing&&<><div className="te-actions rr-steering">{button('steer',-1,'← LEFT')}{button('steer',1,'RIGHT →')}</div><div className="te-actions">{button('brake',true,'BRAKE')}{button('boost',true,'BOOST')}</div></>}
   </main>;
 }

@@ -29,6 +29,7 @@ export class SharedHumans {
   private loader=new GLTFLoader();
   constructor(private cast:readonly SharedAsset[]=SHARED_GAME_CAST){
     this.group.name='Tirana:shared-games-human-NPCs';
+    this.primeLocalHumans();
     void this.loader.loadAsync('/assets/tirana-streets/living/motorbike.glb').then(g=>{
       if(this.dead){disposeResources(g.scene);return;}
       g.scene.rotation.y=-Math.PI/2;g.scene.updateMatrixWorld(true);
@@ -37,6 +38,15 @@ export class SharedHumans {
       g.scene.scale.setScalar(scale);g.scene.position.set(-c.x*scale,-b.min.y*scale,-c.z*scale);
       this.bike=new T.Group();this.bike.add(g.scene);
     }).catch(e=>{if(!this.dead)this.errors.push(`Existing two-wheeler: ${String(e)}`);});
+  }
+  private primeLocalHumans(){
+    const priority=['rpm-current','chess-human','athlete-male','athlete-female','mixamo-soldier'];
+    for(const id of priority){const asset=this.cast.find(a=>a.id===id&&a.url.startsWith('/'));if(asset)this.request(asset);}
+  }
+  retryFailed(){
+    if(this.dead)return;
+    for(const asset of this.cast)if(!this.sources.has(asset.url))this.requested.delete(asset.url);
+    this.primeLocalHumans();
   }
   has(id:string){return this.actors.has(id);}
   get loadedCount(){return this.actors.size;}
@@ -130,7 +140,7 @@ export class SharedHumans {
   update(npcs:readonly NPC[],viewer:Point,time:number,dt:number,battery=false){
     if(this.dead)return;const selected=nearbyHumans(npcs,viewer,battery),keep=new Set(selected.map(n=>n.id));
     for(const [id] of this.actors)if(!keep.has(id))this.remove(id);
-    for(const n of selected){let asset=chooseSharedHuman(n,this.cast);this.request(asset);if(!this.sources.has(asset.url)){const fallback=this.cast.find(a=>a.id==='rpm-current'||a.id==='chess-human');if(fallback&&actorRole(n.kind)!=='soldier'){asset=fallback;this.request(asset);}}const source=this.sources.get(asset.url);if(!source||n.motion==='cycle'&&!this.bike)continue;
+    for(const n of selected){let asset=chooseSharedHuman(n,this.cast);this.request(asset);if(!this.sources.has(asset.url)){const role=actorRole(n.kind);const fallback=this.cast.find(a=>a.url.startsWith('/')&&a.roles.includes(role)&&this.sources.has(a.url));if(fallback)asset=fallback;}const source=this.sources.get(asset.url);if(!source||n.motion==='cycle'&&!this.bike)continue;
       let a=this.actors.get(n.id);if(a&&(a.asset!==asset.id||a.role!==actorRole(n.kind))){this.remove(n.id);a=undefined;}
       a ||= this.create(n,asset,source);
       a.root.position.set(n.x,n.motion==='cycle'?-.18:.06,n.z);a.root.rotation.set(n.health<=0?-Math.PI/2:0,n.heading+Math.PI,0);
