@@ -1,5 +1,6 @@
 import { TIRANA_ROUTES } from './tirana-routes.mjs';
 import { resolveWallContact, resolveKartContact } from './collisions.mjs';
+import { resampleCircuit } from './grandRouteCore.mjs';
 export { damageRacer } from './collisions.mjs';
 export const STEP = 1 / 60,
   LAPS = 3;
@@ -63,7 +64,9 @@ export const TRACKS = [
   }
 ].map((config) => ({
   ...config,
-  width: 10,
+  // Closed-event barriers widen the playable ribbon without scaling or moving
+  // any of the source street centreline coordinates.
+  width: 12,
   sky: '#adc8d2',
   ground: '#a6a58e',
   ...TIRANA_ROUTES.find((r) => r.id === config.id)
@@ -98,67 +101,10 @@ export function makeTrack(id = 'skanderbeg') {
   id = normalizeTrack(id);
   const config = TRACKS.find((t) => t.id === id) || TRACKS[0];
   if (cache.has(config.id)) return cache.get(config.id);
-  // Keep real street geometry. Resample before rounding so long straight roads
-  // are never turned into invented oval tracks or curves through city blocks.
-  let raw = config.points.flatMap((p, i) => {
-    const q = config.points[(i + 1) % config.points.length];
-    const n = Math.max(1, Math.ceil(Math.hypot(q[0] - p[0], q[1] - p[1]) / 3));
-    return Array.from({ length: n }, (_, j) => [
-      p[0] + ((q[0] - p[0]) * j) / n,
-      p[1] + ((q[1] - p[1]) * j) / n
-    ]);
-  });
-  for (let pass = 0; pass < 2; pass++)
-    raw = raw.flatMap((p, i) => {
-      const q = raw[(i + 1) % raw.length];
-      return [
-        [p[0] * 0.75 + q[0] * 0.25, p[1] * 0.75 + q[1] * 0.25],
-        [p[0] * 0.25 + q[0] * 0.75, p[1] * 0.25 + q[1] * 0.75]
-      ];
-    });
-  const distances = [0];
-  raw.forEach((p, i) => {
-    const q = raw[(i + 1) % raw.length];
-    distances.push(distances[i] + Math.hypot(q[0] - p[0], q[1] - p[1]));
-  });
-  const total = distances.at(-1);
-  let seg = 0;
-  let points = Array.from({ length: 360 }, (_, i) => {
-    const distance = (i * total) / 360;
-    while (distances[seg + 1] < distance) seg++;
-    const p = raw[seg],
-      q = raw[(seg + 1) % raw.length],
-      f = (distance - distances[seg]) / (distances[seg + 1] - distances[seg]);
-    return { x: p[0] + (q[0] - p[0]) * f, z: p[1] + (q[1] - p[1]) * f };
-  });
-  // Put the grid on a straight: all six racers face the same road direction.
-  let start = 0,
-    best = Infinity;
-  for (let i = 0; i < 360; i++) {
-    let score = 0;
-    for (let k = -16; k < 12; k++) {
-      const a = points[(i + k + 720) % 360],
-        b = points[(i + k + 721) % 360],
-        c = points[(i + k + 722) % 360];
-      score += Math.abs(
-        wrapAngle(
-          Math.atan2(c.x - b.x, c.z - b.z) - Math.atan2(b.x - a.x, b.z - a.z)
-        )
-      );
-    }
-    if (score < best) {
-      best = score;
-      start = i;
-    }
-  }
-  points = points.slice(start).concat(points.slice(0, start));
-  let length = 0;
-  points.forEach((p, i) => {
-    const q = points[(i + 1) % 360];
-    p.yaw = Math.atan2(q.x - p.x, q.z - p.z);
-    p.distance = length;
-    length += Math.hypot(q.x - p.x, q.z - p.z);
-  });
+  // Retain every mapped corner exactly. The previous two-pass corner cutting
+  // visibly rounded Tirana intersections and could move the racing line away
+  // from the checked-in road centreline.
+  const { points, length } = resampleCircuit(config.points, 360);
   const xs = points.map((p) => p.x),
     zs = points.map((p) => p.z);
   const bounds = [
