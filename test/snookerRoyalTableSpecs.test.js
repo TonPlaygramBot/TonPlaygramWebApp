@@ -41,4 +41,14 @@ describe('Snooker Royal physical table specs', () => {
     assert.doesNotMatch(source, /const BALL_D_REF = 57\.15;/);
     assert.doesNotMatch(source, /const TARGET_RATIO = 1\.83;/);
   });
+
+  test('uses a smaller character and the Pool Royale release-to-shoot handoff', async () => {
+    const source = await readFile('webapp/src/pages/Games/SnookerRoyal.jsx', 'utf8');
+
+    assert.match(source, /heightScale: 0\.9/);
+    assert.match(source, /const committedPower = clampPower\(value \/ 100, 0\);/);
+    assert.match(source, /shotPowerRef\.current = committedPower;/);
+    assert.match(source, /powerRef\.current = committedPower;/);
+    assert.match(source, /fireRef\.current\?\.\(committedPower\);/);
+  });
 });

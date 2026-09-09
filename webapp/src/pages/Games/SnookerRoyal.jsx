@@ -14291,11 +14291,16 @@ const showRuleToast = useCallback((message) => {
   }, 3000);
 }, []);
 const powerRef = useRef(hud.power);
+const shotPowerRef = useRef(0);
+  const clampPower = useCallback((value, fallback = 0) => {
+    if (!Number.isFinite(value)) return fallback;
+    return THREE.MathUtils.clamp(value, 0, 1);
+  }, []);
   const applyPower = useCallback((nextPower) => {
-    const clampedPower = THREE.MathUtils.clamp(nextPower ?? 0, 0, 1);
+    const clampedPower = clampPower(nextPower, 0);
     powerRef.current = clampedPower;
     setHud((prev) => ({ ...prev, power: clampedPower }));
-  }, []);
+  }, [clampPower]);
   useEffect(() => {
     inHandPlacementModeRef.current = inHandPlacementMode;
   }, [inHandPlacementMode]);
@@ -21946,6 +21951,7 @@ const powerRef = useRef(hud.power);
         clothY: TABLE_Y + CLOTH_TOP_LOCAL + CLOTH_LIFT - CLOTH_DROP,
         tableW: Math.max(TABLE.W, PLAY_W),
         tableL: Math.max(TABLE.H, PLAY_H),
+        heightScale: 0.9,
         onError: (error) => console.warn('Snooker Royal player characters could not load', error)
       });
       referencePlayers.setCueAppearance(cueBody, cueTipLocal, cueButtLocal);
@@ -21975,7 +21981,7 @@ const powerRef = useRef(hud.power);
           state,
           cueBall: characterCueBall.set(cue.pos.x, TABLE_Y + BALL_CENTER_Y, cue.pos.y),
           aimForward: characterAim.set(aimDirRef.current.x, 0, aimDirRef.current.y),
-          power: state === 'striking' ? lastShotPower : powerRef.current,
+          power: state === 'striking' ? shotPowerRef.current : powerRef.current,
           nowMs,
           cueBack,
           cueTip,
@@ -27783,8 +27789,19 @@ const powerRef = useRef(hud.power);
       onStart: () => {
         captureCueStickAnchor();
       },
-      onCommit: (committedValue) => {
-        fireRef.current?.(committedValue / 100);
+      onFeedback: ({ type, band }) => {
+        if (typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') return;
+        if (type === 'release') {
+          navigator.vibrate(band >= 3 ? [10, 18, 16] : 10);
+          return;
+        }
+        navigator.vibrate(band >= 4 ? 14 : 7);
+      },
+      onCommit: (value) => {
+        const committedPower = clampPower(value / 100, 0);
+        shotPowerRef.current = committedPower;
+        powerRef.current = committedPower;
+        fireRef.current?.(committedPower);
         requestAnimationFrame(() => {
           slider.set(slider.min, { animate: true });
           applyPower(0);
@@ -27797,7 +27814,7 @@ const powerRef = useRef(hud.power);
       sliderInstanceRef.current = null;
       slider.destroy();
     };
-  }, [applySliderLock, captureCueStickAnchor, showPowerSlider]);
+  }, [applySliderLock, applyPower, captureCueStickAnchor, clampPower, showPowerSlider]);
   useEffect(() => {
     if (shotActive || hud.over || hud.turn !== 0) return;
     const slider = sliderInstanceRef.current;
@@ -27805,6 +27822,7 @@ const powerRef = useRef(hud.power);
       slider.set(slider.min, { animate: true });
     }
     applyPower(0);
+    shotPowerRef.current = 0;
     cuePullCurrentRef.current = 0;
     cuePullTargetRef.current = 0;
   }, [applyPower, hud.over, hud.turn, shotActive]);
