@@ -21,13 +21,7 @@ export const WEAPONS = Object.freeze({
     reload: 1.3,
     spread: 0.007,
     recoil: 0.012
-  },
-  ak47: { name: 'AK-47', role: 'LUDO ASSAULT', mag: 30, damage: 40, interval: .135, reload: 2.05, spread: .006, recoil: .022 },
-  shotgun: { name: 'M1014', role: 'BATTLE SHOTGUN', mag: 7, damage: 82, interval: .78, reload: 2.35, spread: .022, recoil: .042 },
-  mosin: { name: 'MOSIN', role: 'CHESS MARKSMAN', mag: 5, damage: 96, interval: 1.05, reload: 2.6, spread: .0015, recoil: .05 },
-  uzi: { name: 'UZI', role: 'LUDO SMG', mag: 28, damage: 23, interval: .07, reload: 1.45, spread: .01, recoil: .014 },
-  sigsauer: { name: 'SIG SAUER', role: 'TACTICAL SIDEARM', mag: 16, damage: 38, interval: .24, reload: 1.2, spread: .005, recoil: .018 },
-  smith: { name: 'S&W', role: 'HEAVY SIDEARM', mag: 8, damage: 57, interval: .42, reload: 1.55, spread: .004, recoil: .03 }
+  }
 });
 export const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 const indices = new WeakMap();

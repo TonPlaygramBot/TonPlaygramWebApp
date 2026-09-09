@@ -46,15 +46,13 @@ import {
   START,
   ORIGIN,
   EXTRACTION,
-  ATTRIBUTION,
-  BATTLEFIELD_MAPS
+  ATTRIBUTION
 } from './shared/layout.mjs';
 import { GameEngine, type Snapshot } from './engine';
 import {
   WEAPONS,
   clamp,
   type WeaponId,
-  type BattlefieldMapId,
   type Difficulty,
   type Settings
 } from './core';
@@ -102,14 +100,12 @@ export function Game({
   mode = 'ai',
   initialWeapon = 'ar',
   initialDifficulty = 'recruit',
-  initialMap = 'skanderbeg',
   onExit,
   onEngine
 }: {
   mode?: 'ai' | 'online';
   initialWeapon?: WeaponId;
   initialDifficulty?: Difficulty;
-  initialMap?: BattlefieldMapId;
   onExit: () => void;
   onEngine?: (game: GameEngine) => void;
 }) {
@@ -119,7 +115,6 @@ export function Game({
   const [state, setState] = useState(initial),
     [error, setError] = useState(''),
     [weapon, setWeapon] = useState<WeaponId>(initialWeapon),
-    [battlefieldMap, setBattlefieldMap] = useState<BattlefieldMapId>(initialMap),
     [difficulty, setDifficulty] = useState<Difficulty>(initialDifficulty),
     [settingsOpen, setSettingsOpen] = useState(false),
     [helpOpen, setHelpOpen] = useState(false),
@@ -141,7 +136,7 @@ export function Game({
       );
       engine.current = game;
       setSettings(game.settings);
-      if (mode === 'ai') game.start(initialWeapon, initialDifficulty, initialMap);
+      if (mode === 'ai') game.start(initialWeapon, initialDifficulty);
       onEngine?.(game);
     } catch (e) {
       setError(
@@ -154,7 +149,7 @@ export function Game({
       game?.dispose();
       engine.current = null;
     };
-  }, [mode, initialWeapon, initialDifficulty, initialMap, onEngine]);
+  }, [mode, initialWeapon, initialDifficulty, onEngine]);
   const playing = state.phase === 'playing',
     hud = state.phase !== 'menu',
     ended = state.phase === 'won' || state.phase === 'lost';
@@ -267,7 +262,7 @@ export function Game({
               </span>
             </div>
             <div className="loadout-label">
-              CHOOSE YOUR LOADOUT <span>8 SHARED WEAPONS</span>
+              CHOOSE YOUR LOADOUT <span>01 / 02</span>
             </div>
             <RadioGroup
               value={weapon}
@@ -275,11 +270,27 @@ export function Game({
               className="loadout-options"
               aria-label="Weapon loadout"
             >
-              {(Object.entries(WEAPONS) as [WeaponId,(typeof WEAPONS)[WeaponId]][]).map(([id,item])=><label key={id} className={`loadout-card ${weapon===id?'selected':''}`}><RadioGroupItem value={id} aria-label={item.name}/><div><strong>{item.name}</strong><small>{item.role}</small></div>{item.interval<.1?<Zap size={25}/>:<Crosshair size={25}/>}</label>)}
+              <label
+                className={`loadout-card ${weapon === 'ar' ? 'selected' : ''}`}
+              >
+                <RadioGroupItem value="ar" aria-label="MK18 assault rifle" />
+                <div>
+                  <strong>MK18</strong>
+                  <small>CONTROL & PRECISION</small>
+                </div>
+                <Crosshair size={25} />
+              </label>
+              <label
+                className={`loadout-card ${weapon === 'smg' ? 'selected' : ''}`}
+              >
+                <RadioGroupItem value="smg" aria-label="MP9 submachine gun" />
+                <div>
+                  <strong>MP9</strong>
+                  <small>SPEED & MOBILITY</small>
+                </div>
+                <Zap size={25} />
+              </label>
             </RadioGroup>
-            <label className="battlefield-map-label">BATTLEFIELD MAP
-              <select value={battlefieldMap} onChange={e=>setBattlefieldMap(e.target.value as BattlefieldMapId)}>{BATTLEFIELD_MAPS.map(map=><option key={map.id} value={map.id}>{map.name}</option>)}</select>
-            </label>
             <RadioGroup
               value={difficulty}
               onValueChange={(v) => setDifficulty(v as Difficulty)}
@@ -299,11 +310,11 @@ export function Game({
             <button
               className="deploy-btn"
               disabled={!state.ready || !!error}
-              onClick={() => engine.current?.start(weapon, difficulty, battlefieldMap)}
+              onClick={() => engine.current?.start(weapon, difficulty)}
             >
               <span>
                 {state.ready
-                  ? `DEPLOY / ${BATTLEFIELD_MAPS.find(map=>map.id===battlefieldMap)?.name.toUpperCase()}`
+                  ? 'DEPLOY TO TIRANA / BLLOKU'
                   : 'PREPARING OPERATION'}
               </span>
               <ArrowUpRight size={24} />

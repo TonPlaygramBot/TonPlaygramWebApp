@@ -5,7 +5,7 @@ import { GameInput } from './input';
 import { makeEnemy, type ActorVisual, type World } from './world';
 import { makeCityWorld } from './cityWorld';
 import { spawnPoint } from './shared/match.mjs';
-import { START, SPAWNS, BATTLEFIELD_MAPS } from './shared/layout.mjs';
+import { START, SPAWNS } from './shared/layout.mjs';
 import type { OnlineState, OnlineTransport } from './online';
 import {
   WEAPONS,
@@ -22,7 +22,6 @@ import {
   type Vec2,
   type Phase,
   type WeaponId,
-  type BattlefieldMapId,
   type Difficulty,
   type Settings
 } from './core';
@@ -85,7 +84,6 @@ type Effect = {
   max: number;
   velocity: THREE.Vector3;
 };
-type Loot = { mesh: THREE.Group; weapon: WeaponId; ammo: number; life: number };
 const defaults: Settings = {
   sensitivity: 1,
   volume: 0.55,
@@ -102,7 +100,6 @@ export class GameEngine {
   phase: Phase = 'menu';
   settings = { ...defaults };
   weapon: WeaponId = 'ar';
-  battlefieldMap: BattlefieldMapId = 'skanderbeg';
   difficulty: Difficulty = 'recruit';
   player = { ...START };
   yaw = 0;
@@ -128,8 +125,6 @@ export class GameEngine {
   private remoteTarget: Vec2 | null = null;
   private enemies: Enemy[] = [];
   private effects: Effect[] = [];
-  private loot: Loot[] = [];
-  private extractionPoint = { ...EXTRACTION };
   private rng = createRng(451);
   private cooldown = 0;
   private reloadTimer = 0;
@@ -268,17 +263,13 @@ export class GameEngine {
     this.world.rain.visible = this.world.rain.userData.enabled !== false && q !== 'low';
     this.resize();
   }
-  start(weapon: WeaponId, difficulty: Difficulty, mapId: BattlefieldMapId = 'skanderbeg') {
+  start(weapon: WeaponId, difficulty: Difficulty) {
     this.clearActors();
     this.effects.forEach((e) => this.scene.remove(e.mesh));
     this.effects = [];
     this.weapon = weapon;
-    this.battlefieldMap = mapId;
     this.difficulty = difficulty;
-    const sector = BATTLEFIELD_MAPS.find((map) => map.id === mapId) || BATTLEFIELD_MAPS[0];
-    this.player = { ...sector.start };
-    this.extractionPoint = { ...sector.extraction };
-    this.world.extraction.position.set(this.extractionPoint.x, .12, this.extractionPoint.z);
+    this.player = { ...START };
     this.yaw = 0;
     this.pitch = -0.01;
     this.health = this.maxHealth = 100;
@@ -324,8 +315,6 @@ export class GameEngine {
       materials.forEach((m) => m.dispose());
     }
     this.enemies = [];
-    for (const item of this.loot) this.scene.remove(item.mesh);
-    this.loot = [];
   }
   private spawnWave() {
     this.clearActors();
@@ -598,7 +587,6 @@ export class GameEngine {
         const points = head ? 175 : 100;
         this.score += points;
         this.reserve += 8;
-        this.dropLoot(victim.group.position);
         this.audio.kill();
         this.notify(
           head ? `HEADSHOT  +${points}` : `HOSTILE DOWN  +${points}`,
@@ -608,21 +596,6 @@ export class GameEngine {
     } else if (nearest < 80) this.sparks(end, 3);
     if (this.ammo === 0)
       this.notify('MAGAZINE EMPTY  /  RELOAD', 'warning', 1.2);
-  }
-  private dropLoot(position: THREE.Vector3) {
-    const ids = Object.keys(WEAPONS) as WeaponId[];
-    const weapon = ids[Math.floor(this.rng() * ids.length)];
-    const mesh = new THREE.Group();
-    const crate = new THREE.Mesh(new THREE.BoxGeometry(.75,.16,.32),new THREE.MeshStandardMaterial({color:0x29383a,metalness:.65,roughness:.3}));
-    const glow = new THREE.Mesh(new THREE.RingGeometry(.55,.62,24),new THREE.MeshBasicMaterial({color:0xd8fa69,transparent:true,opacity:.72,side:THREE.DoubleSide}));
-    glow.rotation.x=-Math.PI/2;glow.position.y=.03;crate.position.y=.22;mesh.add(crate,glow);mesh.position.copy(position);mesh.position.y=0;this.scene.add(mesh);
-    this.loot.push({mesh,weapon,ammo:Math.max(WEAPONS[weapon].mag,Math.round(WEAPONS[weapon].mag*1.5)),life:0});
-  }
-  private updateLoot(dt:number) {
-    for (let i=this.loot.length-1;i>=0;i--) {const item=this.loot[i];item.life+=dt;item.mesh.rotation.y+=dt*.8;item.mesh.position.y=.04+Math.sin(item.life*3)*.025;
-      if(Math.hypot(this.player.x-item.mesh.position.x,this.player.z-item.mesh.position.z)<1.55){this.weapon=item.weapon;this.ammo=WEAPONS[item.weapon].mag;this.reserve+=item.ammo;this.notify(`${WEAPONS[item.weapon].name} PICKED UP  +${item.ammo} AMMO`,'good',2.4);this.scene.remove(item.mesh);item.mesh.traverse(o=>{if(o instanceof THREE.Mesh){o.geometry.dispose();(o.material as THREE.Material).dispose();}});this.loot.splice(i,1);}
-      else if(item.life>45){this.scene.remove(item.mesh);this.loot.splice(i,1);}
-    }
   }
   private tracer(start: THREE.Vector3, end: THREE.Vector3, enemy: boolean) {
     if (this.effects.length > 65) return;
@@ -740,7 +713,6 @@ export class GameEngine {
     if (this.elapsed - this.lastDamage > 6 && this.health < this.maxHealth)
       this.health = Math.min(this.maxHealth, this.health + dt * 4);
     for (const e of this.enemies) this.updateEnemy(e, dt);
-    this.updateLoot(dt);
     if (this.phase !== 'playing') return;
     if (
       this.enemies.length &&
@@ -763,8 +735,8 @@ export class GameEngine {
     }
     if (this.extraction) {
       const distance = Math.hypot(
-        this.player.x - this.extractionPoint.x,
-        this.player.z - this.extractionPoint.z
+        this.player.x - EXTRACTION.x,
+        this.player.z - EXTRACTION.z
       );
       this.extractProgress =
         distance < 2.6
@@ -1091,7 +1063,7 @@ export class GameEngine {
       extract: this.extraction,
       extraction: this.extractProgress,
       distance: Math.round(
-        Math.hypot(this.player.x - this.extractionPoint.x, this.player.z - this.extractionPoint.z)
+        Math.hypot(this.player.x - EXTRACTION.x, this.player.z - EXTRACTION.z)
       ),
       hit: this.hit,
       hurt: this.hurt,
