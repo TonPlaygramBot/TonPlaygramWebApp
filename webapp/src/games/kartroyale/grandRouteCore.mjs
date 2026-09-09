@@ -46,8 +46,8 @@ export function resampleCircuit(raw,count=360){
   const total=lengths.reduce((a,b)=>a+b,0),extra=count-corners.length,alloc=lengths.map(l=>1+Math.floor(extra*l/total));
   let left=count-alloc.reduce((a,b)=>a+b,0);const fractions=lengths.map((l,i)=>({i,f:(extra*l/total)%1})).sort((a,b)=>b.f-a.f||a.i-b.i);for(let i=0;i<left;i++)alloc[fractions[i].i]++;
   let points=corners.flatMap((a,i)=>Array.from({length:alloc[i]},(_,j)=>{const b=corners[(i+1)%corners.length];return {x:a[0]+(b[0]-a[0])*j/alloc[i],z:a[1]+(b[1]-a[1])*j/alloc[i]};}));
-  const wrap=a=>Math.atan2(Math.sin(a),Math.cos(a));let start=0,score=Infinity;
-  for(let i=0;i<count;i++){let s=0;for(let k=-16;k<12;k++){const a=points[(i+k+count*2)%count],b=points[(i+k+1+count*2)%count],c=points[(i+k+2+count*2)%count];s+=Math.abs(wrap(Math.atan2(c.x-b.x,c.z-b.z)-Math.atan2(b.x-a.x,b.z-a.z)));}if(s<score){score=s;start=i;}}
+  const wrap=a=>Math.atan2(Math.sin(a),Math.cos(a)),index=i=>((i%count)+count)%count;let start=0,score=Infinity;
+  for(let i=0;i<count;i++){let s=0;for(let k=-16;k<12;k++){const a=points[index(i+k)],b=points[index(i+k+1)],c=points[index(i+k+2)];s+=Math.abs(wrap(Math.atan2(c.x-b.x,c.z-b.z)-Math.atan2(b.x-a.x,b.z-a.z)));}if(s<score){score=s;start=i;}}
   points=points.slice(start).concat(points.slice(0,start));let distance=0;points.forEach((p,i)=>{const q=points[(i+1)%count];p.yaw=Math.atan2(q.x-p.x,q.z-p.z);p.distance=distance;distance+=Math.hypot(q.x-p.x,q.z-p.z);});return {points,length:distance};
 }
 /** Join adjacent existing race loops by removing their shared corridor.
