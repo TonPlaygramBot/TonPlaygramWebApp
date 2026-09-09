@@ -102,6 +102,7 @@ import {
   SPIN_STUN_RADIUS
 } from './snookerRoyalSpinUtils.js';
 import { resolveCueBallContact, sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
+import { resolvePoolRoyalReleasePower } from './poolRoyaleShotState.js';
 import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import SnookerShotCoach from './SnookerShotCoach.jsx';
 import { resolveSnookerImpactAudio } from './snookerImpactAudio.js';
@@ -15917,6 +15918,7 @@ const powerRef = useRef(hud.power);
       let shooting = false; // track when a shot is in progress
       let shotStartedAt = 0;
       let shotImpactPending = false;
+      let shotImpactFallbackTimer = null;
       let shotRecording = null;
       let replayPlayback = null;
       let pausedPocketDrops = null;
@@ -15934,6 +15936,10 @@ const powerRef = useRef(hud.power);
         shotStartedAt = shooting ? getNow() : 0;
         if (!shooting) {
           shotImpactPending = false;
+          if (shotImpactFallbackTimer) {
+            clearTimeout(shotImpactFallbackTimer);
+            shotImpactFallbackTimer = null;
+          }
           maxPowerLiftTriggered = false;
           cueImpactCameraRef.current = null;
         }
@@ -22834,7 +22840,13 @@ const powerRef = useRef(hud.power);
       };
 
       // Fire (slider triggers on release)
-      const fire = () => {
+      const fire = (committedPowerOverride = null) => {
+        const clampedPower = resolvePoolRoyalReleasePower({
+          busy: Boolean(shooting || shotImpactPending),
+          committedPower: committedPowerOverride,
+          currentPower: powerRef.current
+        });
+        if (clampedPower === null) return;
         const currentHud = hudRef.current;
         const frameSnapshot = frameRef.current ?? frameState;
         const fullTableHandPlacement =
@@ -22943,7 +22955,6 @@ const powerRef = useRef(hud.power);
             pocketSwitchIntentRef.current = null;
           }
           lastPocketBallRef.current = null;
-          const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
           lastShotPower = clampedPower;
           const isMaxPowerShot = clampedPower >= MAX_POWER_BOUNCE_THRESHOLD;
           const maxPowerHoldUntil = isMaxPowerShot
@@ -23139,6 +23150,10 @@ const powerRef = useRef(hud.power);
             if (shotImpactApplied) return;
             shotImpactApplied = true;
             shotImpactPending = false;
+            if (shotImpactFallbackTimer) {
+              clearTimeout(shotImpactFallbackTimer);
+              shotImpactFallbackTimer = null;
+            }
             cue.vel.copy(base);
             if (cue.spin) cue.spin.set(spinSide, spinTop);
             if (cue.pendingSpin) cue.pendingSpin.set(0, 0);
@@ -23341,6 +23356,17 @@ const powerRef = useRef(hud.power);
             smoothedPos: cameraRef.current?.position?.clone?.() ?? null,
             smoothedTarget: lastCameraTargetRef.current?.clone?.() ?? null
           };
+          // Physics must never depend on one animation callback arriving. The
+          // visual loop normally applies impact at rendered tip contact; this
+          // guarded fallback performs the same one-shot transition if a mobile
+          // browser drops or heavily throttles that frame.
+          if (shotImpactFallbackTimer) clearTimeout(shotImpactFallbackTimer);
+          shotImpactFallbackTimer = window.setTimeout(() => {
+            shotImpactFallbackTimer = null;
+            if (disposed || shotImpactApplied) return;
+            cueStick.position.copy(impactPos);
+            applyCueBallImpact();
+          }, Math.max(16, impactTime - performance.now() + 48));
           const holdUntil = powerImpactHoldRef.current || 0;
           const holdActive = holdUntil > performance.now();
           if (holdActive) {
@@ -27531,6 +27557,10 @@ const powerRef = useRef(hud.power);
 
       return () => {
         disposed = true;
+        if (shotImpactFallbackTimer) {
+          clearTimeout(shotImpactFallbackTimer);
+          shotImpactFallbackTimer = null;
+        }
         cancelCameraBlendTween();
         applyWorldScaleRef.current = () => {};
         topViewControlsRef.current = { enter: () => {}, exit: () => {} };
@@ -27753,8 +27783,8 @@ const powerRef = useRef(hud.power);
       onStart: () => {
         captureCueStickAnchor();
       },
-      onCommit: () => {
-        fireRef.current?.();
+      onCommit: (committedValue) => {
+        fireRef.current?.(committedValue / 100);
         requestAnimationFrame(() => {
           slider.set(slider.min, { animate: true });
           applyPower(0);

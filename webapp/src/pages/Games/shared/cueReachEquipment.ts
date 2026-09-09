@@ -6,6 +6,8 @@ export type CueReachProfile = {
   needsExtension: boolean;
   rearRailDistance: number;
   normalReach: number;
+  longAxisAlignment: number;
+  farSideThreshold: number;
   extensionLength: number;
 };
 
@@ -30,7 +32,14 @@ export type CueReachPose = {
 const finitePositive = (value: number, fallback: number) =>
   Number.isFinite(value) && value > 0 ? value : fallback;
 
-/** Distance from the cue ball to the table edge behind the shot direction. */
+/**
+ * Distance from the cue ball to the short rail behind the shot direction.
+ *
+ * A mechanical rest is reached from an end of the table, never from whichever
+ * side cushion a ray happens to intersect first. Returning zero for a shot
+ * perpendicular to the long axis also prevents the extension appearing during
+ * ordinary side-rail shots.
+ */
 export function distanceToRearRail(
   cueBall: THREE.Vector3,
   aimForward: THREE.Vector3,
@@ -39,21 +48,19 @@ export function distanceToRearRail(
 ) {
   const width = finitePositive(tableW, 1);
   const length = finitePositive(tableL, 1);
-  const back = aimForward.clone().setY(0).multiplyScalar(-1);
-  if (!Number.isFinite(back.lengthSq()) || back.lengthSq() < 1e-8) return 0;
-  back.normalize();
-  const distances: number[] = [];
-  if (Math.abs(back.x) > 1e-8) {
-    const edge = back.x > 0 ? width / 2 : -width / 2;
-    const distance = (edge - cueBall.x) / back.x;
-    if (distance >= 0) distances.push(distance);
-  }
-  if (Math.abs(back.z) > 1e-8) {
-    const edge = back.z > 0 ? length / 2 : -length / 2;
-    const distance = (edge - cueBall.z) / back.z;
-    if (distance >= 0) distances.push(distance);
-  }
-  return distances.length ? Math.min(...distances) : 0;
+  const forward = aimForward.clone().setY(0);
+  if (!Number.isFinite(forward.lengthSq()) || forward.lengthSq() < 1e-8) return 0;
+  forward.normalize();
+  const longSideIsX = width > length;
+  const component = longSideIsX ? forward.x : forward.z;
+  if (Math.abs(component) < 1e-8) return 0;
+  const coordinate = longSideIsX ? cueBall.x : cueBall.z;
+  const longSide = longSideIsX ? width : length;
+  // The player stands behind -forward, so a positive aim component uses the
+  // negative short rail and vice versa.
+  return component > 0
+    ? THREE.MathUtils.clamp(coordinate + longSide / 2, 0, longSide)
+    : THREE.MathUtils.clamp(longSide / 2 - coordinate, 0, longSide);
 }
 
 /** Select reach equipment from table geometry, independent of camera or input. */
@@ -68,16 +75,35 @@ export function resolveCueReachProfile({
   tableW: number;
   tableL: number;
 }): CueReachProfile {
-  const shortSide = Math.min(finitePositive(tableW, 1), finitePositive(tableL, 1));
-  const rearRailDistance = distanceToRearRail(cueBall, aimForward, tableW, tableL);
-  const normalReach = shortSide * 0.38;
-  const overreach = Math.max(0, rearRailDistance - normalReach);
-  const activationMargin = shortSide * 0.035;
-  const needsExtension = overreach > activationMargin;
-  const extensionLength = needsExtension
-    ? THREE.MathUtils.clamp(overreach * 0.62, shortSide * 0.14, shortSide * 0.34)
+  const width = finitePositive(tableW, 1);
+  const length = finitePositive(tableL, 1);
+  const shortSide = Math.min(width, length);
+  const longSide = Math.max(width, length);
+  const forward = aimForward.clone().setY(0);
+  const validAim = Number.isFinite(forward.lengthSq()) && forward.lengthSq() >= 1e-8;
+  if (validAim) forward.normalize();
+  const longAxisAlignment = validAim
+    ? Math.abs(width > length ? forward.x : forward.z)
     : 0;
-  return { needsExtension, rearRailDistance, normalReach, extensionLength };
+  const rearRailDistance = distanceToRearRail(cueBall, aimForward, tableW, tableL);
+  // An adult can bridge roughly three quarters of the table width from an end
+  // rail. Requiring the cue ball to be beyond the table midpoint models the
+  // explicit short-rail-to-opposite-half situation requested by the game.
+  const normalReach = shortSide * 0.74;
+  const farSideThreshold = Math.max(normalReach, longSide * 0.55);
+  const overreach = Math.max(0, rearRailDistance - normalReach);
+  const needsExtension = longAxisAlignment >= 0.72 && rearRailDistance > farSideThreshold;
+  const extensionLength = needsExtension
+    ? THREE.MathUtils.clamp(overreach * 0.55, shortSide * 0.14, shortSide * 0.34)
+    : 0;
+  return {
+    needsExtension,
+    rearRailDistance,
+    normalReach,
+    longAxisAlignment,
+    farSideThreshold,
+    extensionLength
+  };
 }
 
 function segment(mesh: THREE.Mesh, start: THREE.Vector3, end: THREE.Vector3, radius: number) {

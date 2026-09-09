@@ -83,6 +83,50 @@ export function choosePoolRoyalStance(ball: THREE.Vector3, forward: THREE.Vector
 }
 
 /**
+ * Keep the planted bridge hand tied to the cue ball and shot line, not to the
+ * cue tip's longitudinal pull. A small lateral correction preserves side-spin
+ * alignment while the shaft is free to slide through the fingers.
+ */
+export function resolvePoolRoyalBridgeAnchor({
+  cueBall,
+  aimForward,
+  cueTip,
+  clothY
+}: {
+  cueBall: THREE.Vector3;
+  aimForward: THREE.Vector3;
+  cueTip?: THREE.Vector3;
+  clothY: number;
+}) {
+  const forward = aimForward.clone().setY(0);
+  if (!Number.isFinite(forward.lengthSq()) || forward.lengthSq() < 1e-8) forward.set(0, 0, -1);
+  else forward.normalize();
+  const side = new THREE.Vector3(forward.z, 0, -forward.x).normalize();
+  const lateralCueOffset = cueTip
+    ? THREE.MathUtils.clamp(cueTip.clone().sub(cueBall).dot(side), -CFG.ballR * 0.82, CFG.ballR * 0.82)
+    : 0;
+  return cueBall.clone()
+    .addScaledVector(forward, -CFG.bridgeHandBackFromBall)
+    .addScaledVector(side, CFG.bridgeHandSide + lateralCueOffset)
+    .setY(clothY + CFG.bridgePalmTableLift);
+}
+
+/** The rear hand grips the rendered cue, so it follows the exact pull/impact path. */
+export function resolvePoolRoyalRearGrip(
+  cueBack: THREE.Vector3,
+  cueTip: THREE.Vector3,
+  extensionGripOffset = 0
+) {
+  const cueAxis = cueTip.clone().sub(cueBack);
+  if (!Number.isFinite(cueAxis.lengthSq()) || cueAxis.lengthSq() < 1e-8) return cueBack.clone();
+  const cueLength = cueAxis.length();
+  cueAxis.divideScalar(cueLength);
+  return cueBack.clone()
+    .addScaledVector(cueAxis, Math.min(CFG.shootCueGripFromBack, cueLength * 0.45))
+    .addScaledVector(cueAxis, -Math.max(0, extensionGripOffset));
+}
+
+/**
  * The solver works in the supplied demo's coordinate space. Only a positive,
  * uniform scale and floor translation connect it to Pool Royal. Solving in an
  * unparented scene keeps the host's table/world scale out of bone quaternions.
@@ -219,10 +263,7 @@ export class PoolRoyalHumanPlayers {
         human.yaw = yaw;
         player.initialized = true;
       }
-      const side = new THREE.Vector3(aim.z, 0, -aim.x).normalize();
-      let bridge = cueBall.clone().addScaledVector(aim, -CFG.bridgeHandBackFromBall)
-        .addScaledVector(side, CFG.bridgeHandSide)
-        .setY(clothY + CFG.bridgePalmTableLift);
+      let bridge = resolvePoolRoyalBridgeAnchor({ cueBall, aimForward: aim, clothY });
       const idleRight = rootTarget.clone().add(new THREE.Vector3(
         CFG.idleRightHandX, CFG.idleRightHandY, CFG.idleRightHandZ
       ).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw));
@@ -254,13 +295,7 @@ export class PoolRoyalHumanPlayers {
             .add(new THREE.Vector3(0, 0.024 * CFG.scale, 0));
         }
       }
-      const cueAxis = tip.clone().sub(back);
-      if (cueAxis.lengthSq() > 1e-8) {
-        cueAxis.normalize();
-        bridge = tip.clone().addScaledVector(cueAxis, -CFG.bridgeHandBackFromBall)
-          .addScaledVector(side, CFG.bridgeHandSide)
-          .setY(clothY + CFG.bridgePalmTableLift);
-      }
+      bridge = resolvePoolRoyalBridgeAnchor({ cueBall, aimForward: aim, cueTip: tip, clothY });
       const reachProfile = resolveCueReachProfile({
         cueBall,
         aimForward: aim,
@@ -282,11 +317,13 @@ export class PoolRoyalHumanPlayers {
       if (!reachPose) hideCueReachEquipment(player.reachEquipment);
       const supportMode = reachPose ? 'mechanical-rest' : 'hand';
       if (reachPose) bridge = reachPose.restGrip;
+      const rearGripOffset = reachPose ? reachProfile.extensionLength * 0.32 : 0;
+      const rearGrip = state === 'idle' ? undefined : resolvePoolRoyalRearGrip(back, tip, rearGripOffset);
       this.solverScene.add(human.modelRoot);
       this.solverScene.updateMatrixWorld(true);
       updateHumanPose(human, Math.min(dt, 0.033), state, rootTarget, aim, bridge,
         idleRight, idleLeft, back, tip, active ? power : 0, clothY, supportMode,
-        reachPose?.restDirection, reachPose ? reachProfile.extensionLength * 0.32 : 0);
+        reachPose?.restDirection, rearGripOffset, rearGrip);
       if (!reachPose) refinePoolRoyalBridge(human, bridge, aim, clothY);
       this.group.add(human.modelRoot);
       setCuePose(player.cue, back, tip);

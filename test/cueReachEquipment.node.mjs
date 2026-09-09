@@ -11,35 +11,54 @@ import {
 } from '../webapp/src/pages/Games/shared/cueReachEquipment.ts';
 import { showPoolGuideMarkings } from '../webapp/src/pages/Games/shared/poolTableMarkings.js';
 
-test('long shots select reach equipment from the available space behind the cue ball', () => {
+test('reach equipment is reserved for short-rail-to-opposite-half shots', () => {
   const aim = new THREE.Vector3(0, 0, -1);
   assert.equal(distanceToRearRail(new THREE.Vector3(0, 0, 0), aim, 5.4, 9), 4.5);
   assert.equal(distanceToRearRail(new THREE.Vector3(0, 0, 3.5), aim, 5.4, 9), 1);
+  assert.equal(distanceToRearRail(new THREE.Vector3(0, 0, -3), aim, 5.4, 9), 7.5);
 
   const longReach = resolveCueReachProfile({
+    cueBall: new THREE.Vector3(0, 0, -3), aimForward: aim, tableW: 5.4, tableL: 9
+  });
+  const centerReach = resolveCueReachProfile({
     cueBall: new THREE.Vector3(0, 0, 0), aimForward: aim, tableW: 5.4, tableL: 9
   });
-  const normalReach = resolveCueReachProfile({
-    cueBall: new THREE.Vector3(0, 0, 3.5), aimForward: aim, tableW: 5.4, tableL: 9
+  const sideRailShot = resolveCueReachProfile({
+    cueBall: new THREE.Vector3(0, 0, -3), aimForward: new THREE.Vector3(1, 0, 0), tableW: 5.4, tableL: 9
   });
   assert.equal(longReach.needsExtension, true);
   assert.ok(longReach.extensionLength > 0);
-  assert.equal(normalReach.needsExtension, false);
-  assert.equal(normalReach.extensionLength, 0);
+  assert.ok(longReach.rearRailDistance > longReach.farSideThreshold);
+  assert.equal(centerReach.needsExtension, false);
+  assert.equal(centerReach.extensionLength, 0);
+  assert.equal(sideRailShot.needsExtension, false);
+  assert.equal(sideRailShot.longAxisAlignment, 0);
+});
+
+test('short-rail logic follows the actual long axis on a rotated table', () => {
+  const profile = resolveCueReachProfile({
+    cueBall: new THREE.Vector3(3, 0, 0),
+    aimForward: new THREE.Vector3(1, 0, 0),
+    tableW: 9,
+    tableL: 5.4
+  });
+  assert.equal(profile.needsExtension, true);
+  assert.equal(profile.longAxisAlignment, 1);
+  assert.equal(profile.rearRailDistance, 7.5);
 });
 
 test('the procedural extension and four-prong rest follow the cue and return a hand grip', () => {
   const equipment = createCueReachEquipment();
   const profile = resolveCueReachProfile({
-    cueBall: new THREE.Vector3(0, 1, 0),
+    cueBall: new THREE.Vector3(0, 1, -3),
     aimForward: new THREE.Vector3(0, 0, -1),
     tableW: 5.4,
     tableL: 9
   });
   const pose = poseCueReachEquipment(equipment, {
     cueBack: new THREE.Vector3(0, 1.1, 2),
-    cueTip: new THREE.Vector3(0, 1, 0.2),
-    cueBall: new THREE.Vector3(0, 1, 0),
+    cueTip: new THREE.Vector3(0, 1, -2.8),
+    cueBall: new THREE.Vector3(0, 1, -3),
     aimForward: new THREE.Vector3(0, 0, -1),
     rootTarget: new THREE.Vector3(0, 0, 3),
     clothY: 0.9,
@@ -83,5 +102,8 @@ test('Snooker Royal starts physics at rendered tip contact and waits before shot
   const impact = source.indexOf('applyCueBallImpact();', snap);
   assert.ok(contact > 0 && snap > contact && impact > snap);
   assert.match(source, /if \(shooting && !shotImpactPending\)/);
+  assert.match(source, /resolvePoolRoyalReleasePower\(\{/);
+  assert.match(source, /fireRef\.current\?\.\(committedValue \/ 100\)/);
+  assert.match(source, /shotImpactFallbackTimer = window\.setTimeout/);
   assert.match(source, /new PoolRoyalHumanPlayers\(world,/);
 });

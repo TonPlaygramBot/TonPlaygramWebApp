@@ -152,6 +152,38 @@ function enableShadow(obj: THREE.Object3D) {
   });
   return obj;
 }
+
+/** Calibrate the bundled avatar's existing PBR maps for the billiards HDR lighting. */
+function enhanceReferenceHumanMaterials(obj: THREE.Object3D) {
+  const tuned = new Set<THREE.Material>();
+  obj.traverse((child) => {
+    const mesh = child as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const meshName = cleanName(mesh.name);
+    for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+      if (!material || tuned.has(material)) continue;
+      tuned.add(material);
+      const pbr = material as THREE.MeshStandardMaterial;
+      if (!pbr.isMeshStandardMaterial) continue;
+      const materialName = cleanName(material.name);
+      const name = `${meshName}${materialName}`;
+      pbr.envMapIntensity = /eye/.test(name) ? 1.35 : /head|skin|body/.test(name) ? 0.82 : 1.05;
+      if (/eye/.test(name)) {
+        pbr.roughness = Math.min(pbr.roughness, 0.18);
+        pbr.metalness = 0;
+      } else if (/head|skin|body/.test(name)) {
+        pbr.roughness = THREE.MathUtils.clamp(pbr.roughness, 0.42, 0.58);
+        pbr.metalness = 0;
+      } else if (/hair|beard/.test(name)) {
+        pbr.roughness = THREE.MathUtils.clamp(pbr.roughness, 0.48, 0.7);
+        pbr.metalness = 0;
+      } else {
+        pbr.roughness = THREE.MathUtils.clamp(pbr.roughness, 0.32, 0.76);
+      }
+      pbr.needsUpdate = true;
+    }
+  });
+}
 function createUnitCylinder(color: number) {
   return new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 18), createMaterial(color, 0.7, 0.03));
 }
@@ -376,7 +408,7 @@ function driveHuman(human: HumanRig, frame: HumanFrame) {
   twistBone(b.rightUpperLeg, frame.forward, 0.03 * ik);
   setHandBasis(b.rightFoot, frame.side, frame.up, frame.forward, 0.02 * ik, CFG.footLockStrength * ik);
 }
-export function updateHumanPose(human: HumanRig, dt: number, state: ShotState, rootTarget: THREE.Vector3, aimForward: THREE.Vector3, bridgeTarget: THREE.Vector3, idleRight: THREE.Vector3, idleLeft: THREE.Vector3, cueBack: THREE.Vector3, cueTip: THREE.Vector3, power: number, clothY = CFG.tableTopY, supportMode: "hand" | "mechanical-rest" = "hand", supportDirection?: THREE.Vector3, rearGripOffset = 0) {
+export function updateHumanPose(human: HumanRig, dt: number, state: ShotState, rootTarget: THREE.Vector3, aimForward: THREE.Vector3, bridgeTarget: THREE.Vector3, idleRight: THREE.Vector3, idleLeft: THREE.Vector3, cueBack: THREE.Vector3, cueTip: THREE.Vector3, power: number, clothY = CFG.tableTopY, supportMode: "hand" | "mechanical-rest" = "hand", supportDirection?: THREE.Vector3, rearGripOffset = 0, rearGripTarget?: THREE.Vector3) {
   human.poseT = dampScalar(human.poseT, state === "idle" ? 0 : 1, CFG.poseLambda, dt);
   human.breathT += dt * (state === "idle" ? 1.05 : 0.5);
   human.settleT = dampScalar(human.settleT, state === "dragging" ? 1 : 0, 5.5, dt);
@@ -426,7 +458,7 @@ export function updateHumanPose(human: HumanRig, dt: number, state: ShotState, r
   const smallPractice = state === "dragging" ? dragStroke * 0.035 * CFG.scale : 0;
   const forearmStroke = pullBack + pushForward + smallPractice;
   const forearmBase = lockedRightElbow.clone().addScaledVector(side, CFG.rightForearmOutward * t).addScaledVector(UP, -CFG.rightForearmDown * t).addScaledVector(UP, CFG.rightHandShotLift * t).addScaledVector(forward, -CFG.rightForearmBack * t).addScaledVector(cueDirForHand, CFG.rightForearmLength);
-  const liveCueGripPoint = forearmBase.clone()
+  const liveCueGripPoint = rearGripTarget?.clone() ?? forearmBase.clone()
     .addScaledVector(cueDirForHand, forearmStroke - Math.max(0, rearGripOffset) * t);
   const idleWristTarget = idleRight.clone().sub(cueSocketOffsetWorld(idleGripSide, idleGripUp, cueDirForHand, CFG.rightHandRollIdle));
   const liveWristTarget = liveCueGripPoint.clone().sub(cueSocketOffsetWorld(liveGripSide, liveGripUp, cueDirForHand, lerp(CFG.rightHandRollIdle, CFG.rightHandRollShoot - CFG.rightHandDownPose, handIk)));
@@ -461,6 +493,7 @@ export function createReferenceHuman(model: THREE.Object3D): HumanRig {
   };
   human.root.visible = false;
   normalizeHuman(model);
+  enhanceReferenceHumanMaterials(model);
   enableShadow(model);
   human.bones = buildAvatarBones(model);
   human.leftFingers = collectFingerBones(human.bones.leftHand);
