@@ -2,7 +2,11 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 import * as THREE from '../webapp/node_modules/three/build/three.module.js';
-import { PoolRoyalHumanPlayers } from '../webapp/src/pages/Games/shared/PoolRoyalHumanPlayers.ts';
+import {
+  PoolRoyalHumanPlayers,
+  resolvePoolRoyalBridgeAnchor,
+  resolvePoolRoyalRearGrip
+} from '../webapp/src/pages/Games/shared/PoolRoyalHumanPlayers.ts';
 import { CFG, updateHumanPose } from '../webapp/src/pages/Games/shared/poolRoyalReferenceHuman.ts';
 import { bridgeSkinBounds } from '../webapp/src/pages/Games/shared/poolRoyalPlayerPose.ts';
 import { readPoolRoyalMetrics } from '../scripts/read-pool-royal-metrics.mjs';
@@ -84,6 +88,29 @@ test('striking freezes the root and yaw even when the aim and ball move', async 
   players.dispose();
 });
 
+test('the bridge stays planted while the rear grip follows the live cue stroke', () => {
+  const cueBall = new THREE.Vector3(0, 4.3, -7);
+  const aim = new THREE.Vector3(0, 0, -1);
+  const addressTip = new THREE.Vector3(0.08, 4.3, -6.7);
+  const pulledTip = addressTip.clone().addScaledVector(aim, -1.25);
+  const addressBack = addressTip.clone().addScaledVector(aim, -6);
+  const pulledBack = addressBack.clone().addScaledVector(aim, -1.25);
+  const addressBridge = resolvePoolRoyalBridgeAnchor({
+    cueBall, aimForward: aim, cueTip: addressTip, clothY: 4
+  });
+  const pulledBridge = resolvePoolRoyalBridgeAnchor({
+    cueBall, aimForward: aim, cueTip: pulledTip, clothY: 4
+  });
+  assert.ok(addressBridge.distanceTo(pulledBridge) < 1e-10, 'longitudinal cue pull cannot move the bridge');
+
+  const addressGrip = resolvePoolRoyalRearGrip(addressBack, addressTip);
+  const pulledGrip = resolvePoolRoyalRearGrip(pulledBack, pulledTip);
+  const cueTravel = pulledTip.clone().sub(addressTip);
+  assert.ok(pulledGrip.clone().sub(addressGrip).distanceTo(cueTravel) < 1e-10,
+    'rear hand follows the same pull vector as the rendered cue');
+  assert.equal(addressBridge.x, pulledBridge.x, 'side-spin alignment remains planted');
+});
+
 test('hidden replay frames and disposal leave no stale visible or late-loading players', async () => {
   const parent = new THREE.Scene();
   const model = await loadPoseModel();
@@ -156,7 +183,7 @@ test('a long reach equips only the active player and raises the support hand ont
   await players.ready;
   const longFrame = {
     ...frame,
-    cueBall: new THREE.Vector3(0, metrics.ballY, 0),
+    cueBall: new THREE.Vector3(0, metrics.ballY, -metrics.tableL * 0.32),
     aimForward: new THREE.Vector3(0, 0, -1),
     power: 0.65
   };
