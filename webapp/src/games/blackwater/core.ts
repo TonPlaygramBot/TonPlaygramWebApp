@@ -10,7 +10,8 @@ export type Obstacle = {
   footprint?: number[][];
 };
 export type Phase = 'menu' | 'playing' | 'paused' | 'upgrade' | 'won' | 'lost';
-export type WeaponId = 'ar' | 'smg';
+export type WeaponId = 'ar' | 'smg' | 'ak47' | 'shotgun' | 'mosin' | 'uzi' | 'sigsauer' | 'smith';
+export type BattlefieldMapId = 'skanderbeg' | 'blloku' | 'lana' | 'pyramid' | 'bazaar' | 'stadium' | 'station' | 'park' | 'embassy' | 'dajti-gate';
 export type Difficulty = 'recruit' | 'veteran';
 export type Settings = {
   sensitivity: number;
