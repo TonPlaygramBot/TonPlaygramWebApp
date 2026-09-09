@@ -1,3 +1,4 @@
+import {BattleHumanLayer} from '../tiranastreets/street-career/BattleHumanLayer';
 import * as THREE from 'three';
 import {attachEnhancements} from '../tirana-expansion/WorldEnhancements';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -14,6 +15,7 @@ export function makeCityWorld(scene:THREE.Scene,camera:THREE.PerspectiveCamera,r
   const world = makeWorld(scene, camera, renderer, false);
   const enhancements=attachEnhancements(scene,ORIGIN);
   const webgl = renderer instanceof THREE.WebGLRenderer;
+  const battleHumans=webgl?new BattleHumanLayer(scene):null;
   const city = new FpsCity(webgl);
   city.group.position.set(-ORIGIN.x, 0, -ORIGIN.z);
   scene.add(city.group);
@@ -65,6 +67,7 @@ export function makeCityWorld(scene:THREE.Scene,camera:THREE.PerspectiveCamera,r
   const point = new THREE.Vector3();
   let shadowX = Infinity, shadowZ = Infinity;
   world.update = position => {
+    battleHumans?.update(position,performance.now()/1000,!renderer.shadowMap.enabled);
     enhancements.update(performance.now()/1000,camera);
     point.copy(position);point.x+=ORIGIN.x;point.z+=ORIGIN.z;
     city.update(point, performance.now()/1000, !renderer.shadowMap.enabled);
@@ -78,6 +81,6 @@ export function makeCityWorld(scene:THREE.Scene,camera:THREE.PerspectiveCamera,r
   };
   world.update(new THREE.Vector3(START.x,1.68,START.z));
   const dispose = world.dispose;
-  world.dispose=()=>{disposed=true;enhancements.dispose();details.dispose();city.dispose();dispose();concrete.dispose();metal.dispose();};
+  world.dispose=()=>{disposed=true;battleHumans?.dispose();enhancements.dispose();details.dispose();city.dispose();dispose();concrete.dispose();metal.dispose();};
   return world;
 }
