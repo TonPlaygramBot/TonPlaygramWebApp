@@ -1,0 +1,44 @@
+name: Tirana and Racing game repair
+on:
+  pull_request:
+    paths:
+      - 'webapp/src/games/tirana-social/**'
+      - 'webapp/src/games/tirana-environment/**'
+      - 'webapp/src/games/tiranastreets/street-career/**'
+      - 'webapp/src/games/blackwater/**'
+      - 'webapp/src/games/kartroyale/**'
+      - 'bot/services/exploreRooms.mjs'
+      - 'test/tirana*'
+      - 'test/helpers/loadGameModule.cjs'
+      - '.github/workflows/tirana-game-repair.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install existing frontend lockfile
+        run: npm ci --prefix webapp --include=dev
+      - name: Reproduced controller, room, mission and rendering-contract regressions
+        env:
+          NODE_PATH: ${{ github.workspace }}/webapp/node_modules
+        run: >-
+          node --test test/tiranaRecovery.test.mjs test/tiranaKartMissions.test.mjs
+          test/tiranaCityRepair.test.mjs test/tiranaSocialExplore.test.mjs
+          test/tiranaExploreMediaGround.test.mjs test/tiranaGrandCircuits.test.mjs
+          test/tiranaStreetCareer.test.mjs test/tiranaStreetDetail.test.mjs
+          test/tiranaRegionalDetails.test.mjs test/tiranaRegionSource.test.mjs
+          test/tiranaRegionalValidation.test.mjs
+      - name: Preserve original operation world and equipment factory
+        run: test "$(git hash-object webapp/src/games/blackwater/primitiveWorld.ts)" = 4bdf5cacc17778e58ad04ee7469630974a086a82
+      - name: Full application typecheck
+        run: cd webapp && node node_modules/typescript/bin/tsc --noEmit -p tsconfig.json
+      - name: Full application production build
+        run: npm --prefix webapp run build

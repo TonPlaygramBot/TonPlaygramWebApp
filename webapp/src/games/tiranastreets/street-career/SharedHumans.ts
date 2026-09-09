@@ -21,15 +21,18 @@ function disposeResources(root:T.Object3D) {
 export class SharedHumans {
   readonly group=new T.Group(); readonly errors:string[]=[];
   private bike?:T.Group;private bikes=new Map<string,T.Group>();
-  private sources=new Map<string,GLTF>(); private requested=new Set<string>();
+  private sources=new Map<string,GLTF>(); private requested=new Set<string>();private failed=new Map<string,SharedAsset>();
   private actors=new Map<string,Actor>(); private queue:SharedAsset[]=[];private loading=0;
   private aborts=new Set<AbortController>();
   private dead=false;private held=new LivingVisuals();
   private signs=new Map<string,T.SpriteMaterial>();
   private loader=new GLTFLoader();
-  constructor(private cast:readonly SharedAsset[]=SHARED_GAME_CAST){
+  constructor(private cast:readonly SharedAsset[]=SHARED_GAME_CAST,private options:{bikes?:boolean;labels?:boolean;armed?:boolean}={}){
     this.group.name='Tirana:shared-games-human-NPCs';
-    void this.loader.loadAsync('/assets/tirana-streets/living/motorbike.glb').then(g=>{
+    // A local, already-shipped human gets the first loading slot. Remote Chess
+    // variants cannot queue in front of the fallback required by every mode.
+    const local=this.cast.find(a=>a.id==='rpm-current'||a.id==='chess-human');if(local)this.request(local);
+    if(options.bikes!==false)void this.loader.loadAsync('/assets/tirana-streets/living/motorbike.glb').then(g=>{
       if(this.dead){disposeResources(g.scene);return;}
       g.scene.rotation.y=-Math.PI/2;g.scene.updateMatrixWorld(true);
       const b=new T.Box3().setFromObject(g.scene),size=b.getSize(new T.Vector3()),c=b.getCenter(new T.Vector3()),scale=2.1/Math.max(size.x,size.z);
@@ -39,6 +42,8 @@ export class SharedHumans {
     }).catch(e=>{if(!this.dead)this.errors.push(`Existing two-wheeler: ${String(e)}`);});
   }
   has(id:string){return this.actors.has(id);}
+  actor(id:string){return this.actors.get(id)?.root;}
+  retryFailed(){if(this.dead)return;for(const asset of this.failed.values()){this.requested.delete(asset.url);this.queue.push(asset);this.requested.add(asset.url);}this.failed.clear();this.pump();}
   get loadedCount(){return this.actors.size;}
   private request(asset:SharedAsset){
     if(this.requested.has(asset.url)||this.dead)return;
@@ -53,7 +58,7 @@ export class SharedHumans {
         let skinned=false;g.scene.traverse(o=>{if(o instanceof T.SkinnedMesh)skinned=true;});
         if(!skinned||!Number.isFinite(height)||height<.01){disposeResources(g.scene);throw Error('Not a usable rigged full-body human');}
         this.sources.set(asset.url,g);
-      }).catch(e=>{if(!this.dead){this.errors.push(`${asset.label}: ${String(e)}. Bundled Chess fallback is used.`);}}).finally(()=>{this.loading--;this.pump();});
+      }).catch(e=>{if(!this.dead){this.failed.set(asset.url,asset);this.errors.push(`${asset.label}: ${String(e)}. Bundled Chess fallback is used.`);}}).finally(()=>{this.loading--;this.pump();});
     }
   }
   private async loadCatalogAsset(asset:SharedAsset):Promise<GLTF>{
@@ -108,6 +113,7 @@ export class SharedHumans {
     this.actors.set(n.id,actor);this.group.add(root);return actor;
   }
   private pose(a:Actor,n:NPC,time:number,dt:number){
+    const armed=!!n.weapon||this.options.armed===true;
     const moving=n.speed>.15&&n.health>0,cycle=n.motion==='cycle',running=n.anim==='run'||n.speed>3;
     const motion=moving?(running?'run':'walk'):'idle';
     const clip=a.clips.find(c=>new RegExp(motion,'i').test(c.name));
@@ -120,21 +126,22 @@ export class SharedHumans {
         else if(/(rightupleg|thighr|upperlegr)$/.test(name))x=cycle?-1.15-swing*.35:-swing;
         else if(/(leftleg|calfl|lowerlegl)$/.test(name))x=cycle?1.3:Math.max(0,-swing)*.75;
         else if(/(rightleg|calfr|lowerlegr)$/.test(name))x=cycle?1.3:Math.max(0,swing)*.75;
-        else if(/(leftarm|leftupperarm|upperarml)$/.test(name)){z=-1.0;x=n.weapon?-.9:-swing;}
-        else if(/(rightarm|rightupperarm|upperarmr)$/.test(name)){z=1.0;x=n.weapon?-.9:swing;}
-        else if(/(leftforearm|rightforearm|lowerarm[lr])$/.test(name))x=n.weapon?-.45:-.1;
+        else if(/(leftarm|leftupperarm|upperarml)$/.test(name)){z=-1.0;x=armed?-.9:-swing;}
+        else if(/(rightarm|rightupperarm|upperarmr)$/.test(name)){z=1.0;x=armed?-.9:swing;}
+        else if(/(leftforearm|rightforearm|lowerarm[lr])$/.test(name))x=armed?-.45:-.1;
         j.bone.quaternion.copy(j.rest).multiply(rotation.setFromEuler(euler.set(x,0,z)));
       }
     }
   }
-  update(npcs:readonly NPC[],viewer:Point,time:number,dt:number,battery=false){
-    if(this.dead)return;const selected=nearbyHumans(npcs,viewer,battery),keep=new Set(selected.map(n=>n.id));
+  update(npcs:readonly NPC[],viewer:Point,time:number,dt:number,battery=false,priority:readonly string[]=[]){
+    if(this.dead)return;const first=new Set(priority);
+    const selected=[...npcs.filter(n=>first.has(n.id)),...nearbyHumans(npcs.filter(n=>!first.has(n.id)),viewer,battery)].slice(0,battery?12:24),keep=new Set(selected.map(n=>n.id));
     for(const [id] of this.actors)if(!keep.has(id))this.remove(id);
     for(const n of selected){let asset=chooseSharedHuman(n,this.cast);this.request(asset);if(!this.sources.has(asset.url)){const fallback=this.cast.find(a=>a.id==='rpm-current'||a.id==='chess-human');if(fallback&&actorRole(n.kind)!=='soldier'){asset=fallback;this.request(asset);}}const source=this.sources.get(asset.url);if(!source||n.motion==='cycle'&&!this.bike)continue;
       let a=this.actors.get(n.id);if(a&&(a.asset!==asset.id||a.role!==actorRole(n.kind))){this.remove(n.id);a=undefined;}
       a ||= this.create(n,asset,source);
       a.root.position.set(n.x,n.motion==='cycle'?-.18:.06,n.z);a.root.rotation.set(n.health<=0?-Math.PI/2:0,n.heading+Math.PI,0);
-      a.label.visible=n.health>0&&Math.hypot(n.x-viewer.x,n.z-viewer.z)<18;
+      a.label.visible=this.options.labels!==false&&n.health>0&&Math.hypot(n.x-viewer.x,n.z-viewer.z)<18;
       if(n.health>0)this.pose(a,n,time,dt);
       this.held.pose(`shared-${n.id}`,a.root,n,time);
       if(n.motion==='cycle'&&this.bike&&n.health>0){let bike=this.bikes.get(n.id);if(!bike){bike=this.bike.clone(true);this.bikes.set(n.id,bike);this.group.add(bike);}bike.position.set(n.x,0,n.z);bike.rotation.y=n.heading+Math.PI;}

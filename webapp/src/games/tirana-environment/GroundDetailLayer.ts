@@ -1,3 +1,4 @@
+import {createClipIndex} from './clipIndex.mjs';
 import * as T from 'three';
 import polygonClipping from 'polygon-clipping';
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -15,8 +16,9 @@ export class GroundDetailLayer {
     const closed=(ring:number[][])=>[...ring,...(ring.length&&ring[0].join(',')!==ring.at(-1)!.join(',')?[ring[0]]:[])];
     const waterCuts=(world.water||[]).flatMap((w:any)=>Array.isArray(w)?[w]:(w.line||[]).slice(1).map((b:number[],i:number)=>roadCorridor({a:w.line[i],b,w:w.width},.5)).filter(Boolean));
     const cuts=[...waterCuts,...(world.areas||[]),...(world.buildings||[]).map((b:any)=>b.p),...(world.roads||[]).map((r:any)=>roadCorridor(r,r.walk?.2:2.5)).filter(Boolean)].map((p:number[][])=>[closed(p)]);
+    const nearbyCuts=createClipIndex(cuts);
     let parks:Polygon[]=[];
-    try{for(const p of world.parks||[]){if(p.length<3)continue;const box=[Math.min(...p.map((v:number[])=>v[0])),Math.min(...p.map((v:number[])=>v[1])),Math.max(...p.map((v:number[])=>v[0])),Math.max(...p.map((v:number[])=>v[1]))];const nearby=cuts.filter((poly:number[][][])=>Math.max(...poly[0].map(v=>v[0]))>=box[0]&&Math.min(...poly[0].map(v=>v[0]))<=box[2]&&Math.max(...poly[0].map(v=>v[1]))>=box[1]&&Math.min(...poly[0].map(v=>v[1]))<=box[3]);const result=nearby.length?polygonClipping.difference([closed(p)] as any,...nearby as any):[[closed(p)]];parks.push(...result as Polygon[]);}}
+    try{for(const p of world.parks||[]){if(p.length<3)continue;const box=[Math.min(...p.map((v:number[])=>v[0])),Math.min(...p.map((v:number[])=>v[1])),Math.max(...p.map((v:number[])=>v[0])),Math.max(...p.map((v:number[])=>v[1]))];const nearby=nearbyCuts(box);const result=nearby.length?polygonClipping.difference([closed(p)] as any,...nearby as any):[[closed(p)]];parks.push(...result as Polygon[]);}}
     catch(e){errors.push(`Park clipping failed: ${String(e)}`);parks=[];}
     const make=(polygon:Polygon,y:number)=>{const shape=new T.Shape(polygon[0].map(p=>new T.Vector2(p[0],-p[1])));for(const h of polygon.slice(1))shape.holes.push(new T.Path(h.map(p=>new T.Vector2(p[0],-p[1]))));const geo=new T.ShapeGeometry(shape).rotateX(-Math.PI/2).translate(0,y,0),pos=geo.getAttribute('position'),uv=geo.getAttribute('uv');for(let i=0;i<pos.count;i++)uv.setXY(i,pos.getX(i)/6,pos.getZ(i)/6);return geo;};
     const add=(polygons:Polygon[],y:number,material:T.Material)=>{for(const p of polygons){const geo=make(p,y),mesh=new T.Mesh(geo,material);mesh.receiveShadow=true;this.group.add(mesh);}};

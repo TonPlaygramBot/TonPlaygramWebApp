@@ -4,7 +4,7 @@ import {EXPLORE_VERSION,EXPLORE_LIMITS as L,APPEARANCES,cleanText,avatarURL,expl
  * service. No balances, career stores, client positions or match rewards. */
 export function createExploreRooms({engine,resolveProfile,now=Date.now,autoTick=true,onReport=report=>console.warn('Explore report',report)}={}) {
   if(!engine||typeof resolveProfile!=='function')throw Error('Explore requires simulation and identity resolver');
-  const rooms=new Map(),members=new Map(),joining=new Set(),rates=new Map();
+  const rooms=new Map(),members=new Map(),joining=new Map(),rates=new Map();
   let stopped=false;
   const idOf=id=>createHash('sha256').update(`explore:${id}`).digest('hex').slice(0,24);
   function authorize(socket,payload) {
@@ -38,6 +38,7 @@ export function createExploreRooms({engine,resolveProfile,now=Date.now,autoTick=
     if(!room.members.size)rooms.delete(room.id);else broadcast(room);
   }
   function removeSocket(socket) {
+    for(const pending of joining.values())if(pending.socket===socket)pending.cancelled=true;
     for(const [id,m] of members)if(m.socket===socket)leave(id);
     for(const key of rates.keys())if(key.startsWith(`${socket.id}:`))rates.delete(key);
   }
@@ -57,14 +58,24 @@ export function createExploreRooms({engine,resolveProfile,now=Date.now,autoTick=
     const accountId=authorize(socket,payload);rate(socket,'all',40,1000);
     const action=payload.action,clientId=typeof payload.clientId==='string'?payload.clientId:'';
     if(!/^[A-Za-z0-9-]{1,80}$/.test(clientId))throw Error('Missing exploration client session');
+    if(action==='leave') {
+      const pending=joining.get(accountId);
+      if(pending&&pending.socket===socket&&pending.clientId===clientId){pending.cancelled=true;return {left:true};}
+      const current=members.get(accountId);
+      if(current&&current.socket===socket&&current.clientId===clientId&&(!payload.roomId||payload.roomId===current.roomId)){leave(accountId);return {left:true};}
+      // Cleanup is idempotent only when there is no newer session to protect.
+      if(current||pending)throw Error('Join this exploration room first');
+      return {left:true};
+    }
     if(action==='join') {
       rate(socket,'join',4,15000);
       const current=members.get(accountId);
       if(current){if(current.socket!==socket||current.clientId!==clientId)throw Error('Explore is already open on another connection.');return snapshot(rooms.get(current.roomId),current);}
-      if(joining.has(accountId))throw Error('Joining is in progress');
-      joining.add(accountId);
+      if(joining.has(accountId)&&!joining.get(accountId).cancelled)throw Error('Joining is in progress');
+      const pending={socket,clientId,cancelled:false};joining.set(accountId,pending);
       try {
         const profile=await resolveProfile(accountId);
+        if(pending.cancelled)throw Error('Explore join cancelled');
         if(stopped||socket.connected===false)throw Error('Connection closed');
         if(!profile||profile.isBanned||String(profile.accountId)!==accountId)throw Error('Account cannot join exploration');
         let room;
@@ -80,7 +91,7 @@ export function createExploreRooms({engine,resolveProfile,now=Date.now,autoTick=
         engine.addPlayer(room.state,{id:m.id,name:m.name},room.members.size);
         const p=room.state.players[m.id];p.weapon='';p.inventory={};p.wanted=0;p.cash=0;
         members.set(accountId,m);room.members.set(m.id,m);broadcast(room);return snapshot(room,m);
-      } finally {joining.delete(accountId);}
+      } finally {if(joining.get(accountId)===pending)joining.delete(accountId);}
     }
     const me=members.get(accountId),room=me&&rooms.get(me.roomId);
     if(!me||!room||me.socket!==socket||me.clientId!==clientId||payload.roomId!==room.id)throw Error('Join this exploration room first');
