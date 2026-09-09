@@ -1,9 +1,9 @@
-import type { Obstacle, Vec2, WeaponId } from '../core';
+import type { Obstacle, Vec2 } from '../core';
 type Vec3 = Vec2 & { y: number };
 export { MAP, EXTRACTION } from './layout.mjs';
 export const WEAPONS: Readonly<
   Record<
-    WeaponId,
+    'ar' | 'smg',
     {
       name: string;
       role: string;

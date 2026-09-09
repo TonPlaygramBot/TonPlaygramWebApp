@@ -11,10 +11,7 @@ export default function Blackwater() {
     [connection, setConnection] = useState('');
   const tableId = params.get('tableId') || '',
     mode = params.get('mode') === 'online' ? 'online' : 'ai',
-    weaponIds = ['ar','smg','ak47','shotgun','mosin','uzi','sigsauer','smith'],
-    weapon = weaponIds.includes(params.get('weapon')) ? params.get('weapon') : 'ar',
-    mapIds = ['skanderbeg','blloku','lana','pyramid','bazaar','stadium','station','park','embassy','dajti-gate'],
-    battlefieldMap = mapIds.includes(params.get('map')) ? params.get('map') : 'skanderbeg',
+    weapon = params.get('weapon') === 'smg' ? 'smg' : 'ar',
     difficulty = params.get('difficulty') === 'veteran' ? 'veteran' : 'recruit';
   const ready = useCallback((game) => setEngine(game), []);
   useEffect(() => {
@@ -124,7 +121,6 @@ export default function Blackwater() {
         mode={mode}
         initialWeapon={weapon}
         initialDifficulty={difficulty}
-        initialMap={battlefieldMap}
         onExit={exit}
         onEngine={ready}
       />
