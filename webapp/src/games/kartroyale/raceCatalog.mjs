@@ -11,7 +11,7 @@ export function buildRaceCatalog(legacy, routes) {
     const samples=resampleCircuit(route.points);
     const xs=samples.points.map(p=>p.x),zs=samples.points.map(p=>p.z);
     const bounds=[Math.min(...xs),Math.min(...zs),Math.max(...xs),Math.max(...zs)];
-    const config={...old,...route,...samples,width:10,name:'Lana–Pyramid · Grand',bounds,
+    const config={...old,...route,...samples,width:12,name:'Lana–Pyramid · Grand',bounds,
       center:{x:(bounds[0]+bounds[2])/2,z:(bounds[1]+bounds[3])/2},
       x:(bounds[2]-bounds[0])/2,z:(bounds[3]-bounds[1])/2,bend:0};
     extra.push(config);cache.set(config.id,config);
