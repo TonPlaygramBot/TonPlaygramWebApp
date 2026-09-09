@@ -31,7 +31,7 @@ jobs:
         run: node --test test/tiranaRepairCore.test.mjs test/tiranaRepairRuntime.test.cjs test/tiranaRepairDriving.test.mjs
       - name: Existing focused game regressions
         run: node --test test/tiranaStreetCareer.test.mjs test/tiranaRegionalDetails.test.mjs test/tiranaRegionSource.test.mjs test/tiranaRegionalValidation.test.mjs test/tiranaStreetDetail.test.mjs test/tiranaSocialExplore.test.mjs test/tiranaGrandCircuits.test.mjs test/tiranaExploreMediaGround.test.mjs
-      - name: Strict restored simulation declarations
+      - name: Strict existing simulation declarations
         working-directory: webapp
         run: npx tsc --noEmit --strict --module NodeNext --moduleResolution NodeNext --target ES2022 --lib ES2022,DOM ../test/tiranaRepairTypes.mts
       - name: Full dependency-aware application type check

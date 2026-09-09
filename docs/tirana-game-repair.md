@@ -18,7 +18,7 @@ The dedicated kart career reuses `KartRenderer` and the original cup save key. F
 
 Independent pointer/keyboard owners keep steering held when a brake or boost finger is released. Pointer cancellation, focus loss, pause and race end release controls. Left/right input signs and the original kart physics remain unchanged.
 
-The earlier simulation rename omitted `legacySimulation.d.mts`; this change restores the public type declarations. Optional game chunks have a recovery boundary in both game entries.
+The final GitHub diff confirmed that `legacySimulation.d.mts` already exists on main; it was absent only from the local source bundle. Its original blob is preserved unchanged, and the earlier missing-declaration diagnosis is withdrawn. The new strict public-contract test uses those existing declarations. Optional game chunks have a recovery boundary in both game entries.
 
 ## Startup and track compatibility
 
