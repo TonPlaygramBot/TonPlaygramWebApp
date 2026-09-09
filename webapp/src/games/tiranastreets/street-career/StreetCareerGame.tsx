@@ -14,7 +14,7 @@ export function StreetCareerGame({onExit}:{onExit:()=>void}){
   const [view,setView]=useState<StreetView|null>(null),[panel,setPanel]=useState<Panel>('journal'),[error,setError]=useState(''),[loading,setLoading]=useState('Loading Tirana'),[difficulty,setDifficulty]=useState('normal'),[stick,setStick]=useState({x:0,y:0});
   const look=useRef<{id:number;x:number;y:number}|null>(null),stickId=useRef<number|null>(null);
   useEffect(()=>{let g:StreetCareerRuntime|undefined,cancelled=false;
-    try{if(root.current){g=new StreetCareerRuntime(root.current,v=>{if(!cancelled)setView({...v});},storage(),p=>{if(!cancelled)setPanel(p);});runtime.current=g;void g.load(m=>{if(!cancelled)setLoading(m);}).catch(e=>{if(!cancelled)setError(String(e));});}}catch(e){setError(String(e));}
+    try{if(root.current){g=new StreetCareerRuntime(root.current,v=>{if(!cancelled)setView({...v});},storage(),p=>{if(!cancelled)setPanel(p);});runtime.current=g;void g.load(m=>{if(!cancelled)setLoading(m);}).then(()=>{if(!cancelled&&new URLSearchParams(window.location.search).get('explore')==='1'){g?.explore();setPanel(null);}}).catch(e=>{if(!cancelled)setError(String(e));});}}catch(e){setError(String(e));}
     return()=>{cancelled=true;g?.dispose();runtime.current=undefined;};
   },[]);
   useEffect(()=>{const d=modal.current;if(panel&&d&&!d.open)d.showModal();if(!panel)d?.close();return()=>{d?.close();};},[panel]);
