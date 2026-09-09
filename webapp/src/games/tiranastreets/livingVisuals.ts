@@ -1,6 +1,10 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { clone as cloneSkeleton } from "three/examples/jsm/utils/SkeletonUtils.js";
+import {
+  prepareWeaponScene, releaseBatchedSourceGeometry,
+  clearWeaponInstance, disposeWeaponResources,
+} from "./weaponModelResources";
 import { WEAPON_BY_ID } from "./shared/weapons.mjs";
 import type { State, Player, NPC } from "./shared/engine.mjs";
 
@@ -136,55 +140,21 @@ export class LivingVisuals {
     )
       return;
     this.loading.add(name);
+    let source: THREE.Group | undefined;
+    let prepared: THREE.Group | undefined;
     try {
       const gltf = await new GLTFLoader().loadAsync(BASE + name + ".glb");
+      source = gltf.scene;
       if (this.disposed) {
-        this.disposeModel(gltf.scene);
+        this.disposeModel(source);
+        source = undefined;
         return;
       }
-      // Held weapons are rigid props; merge by material to collapse tiny imported meshes.
-      gltf.scene.updateMatrixWorld(true);
-      const batches = new Map<THREE.Material, THREE.BufferGeometry[]>();
-      gltf.scene.traverse((o) => {
-        if (o instanceof THREE.Mesh && !Array.isArray(o.material)) {
-          const source = o.geometry.clone();
-          if (o instanceof THREE.SkinnedMesh) {
-            o.skeleton.update();
-            const position = source.getAttribute("position"),
-              vertex = new THREE.Vector3();
-            for (let i = 0; i < position.count; i++) {
-              o.getVertexPosition(i, vertex);
-              position.setXYZ(i, vertex.x, vertex.y, vertex.z);
-            }
-          }
-          const geometry = source.applyMatrix4(o.matrixWorld).toNonIndexed();
-          if (geometry !== source) source.dispose();
-          for (const key of Object.keys(geometry.attributes))
-            if (!["position", "normal", "uv"].includes(key))
-              geometry.deleteAttribute(key);
-          if (!geometry.getAttribute("normal")) geometry.computeVertexNormals();
-          if (!geometry.getAttribute("uv"))
-            geometry.setAttribute(
-              "uv",
-              new THREE.BufferAttribute(
-                new Float32Array(geometry.getAttribute("position").count * 2),
-                2,
-              ),
-            );
-          if (!batches.has(o.material)) batches.set(o.material, []);
-          batches.get(o.material)!.push(geometry);
-        }
-      });
+      prepared = prepareWeaponScene(source);
+      // A separate normalization frame preserves imported root transforms.
       const result = new THREE.Group();
-      for (const [material, geos] of batches) {
-        const merged = mergeGeometries(geos, false);
-        geos.forEach((g) => g.dispose());
-        if (merged) {
-          const mesh = new THREE.Mesh(merged, material);
-          mesh.castShadow = true;
-          result.add(mesh);
-        }
-      }
+      result.add(prepared);
+      result.traverse((o) => { if (o instanceof THREE.Mesh) o.castShadow = true; });
       const box = new THREE.Box3().setFromObject(result),
         size = box.getSize(new THREE.Vector3());
       // Model long axis follows +Z, matching the source character's facing direction.
@@ -195,24 +165,32 @@ export class LivingVisuals {
       const rotated = new THREE.Box3().setFromObject(result),
         center = rotated.getCenter(new THREE.Vector3()),
         extent = rotated.getSize(new THREE.Vector3());
-      const scale = 0.8 / Math.max(extent.x, extent.y, extent.z);
+      const longest = Math.max(extent.x, extent.y, extent.z);
+      if (!Number.isFinite(longest) || longest <= 0.0001)
+        throw new Error("Weapon glTF has invalid or empty bounds");
+      const scale = 0.8 / longest;
       result.scale.setScalar(scale);
       result.position.copy(center.multiplyScalar(-scale));
       const wrapper = new THREE.Group();
       wrapper.add(result);
+      if (prepared !== source) releaseBatchedSourceGeometry(source);
       this.models.set(name, wrapper);
-      // Original geometry is no longer used; materials/textures are retained in merged meshes.
-      gltf.scene.traverse((o) => {
-        if (o instanceof THREE.Mesh) o.geometry.dispose();
-      });
+      source = undefined;
+      prepared = undefined;
     } catch (error) {
-      this.failed.add(name);
-      console.warn("Tirana weapon asset unavailable:", name, error);
+      disposeWeaponResources([source, prepared].filter(
+        (root): root is THREE.Group => root !== undefined,
+      ));
+      if (!this.disposed) {
+        this.failed.add(name);
+        console.warn("Tirana weapon asset unavailable:", name, error);
+      }
     } finally {
       this.loading.delete(name);
     }
   }
   pose(id: string, actor: THREE.Group, entity: Player | NPC, time: number) {
+    if (this.disposed) return;
     const weapon = entity.weapon || "",
       config = WEAPON_BY_ID.get(weapon),
       name = config ? weaponModelFile(config.model) : "";
@@ -222,12 +200,19 @@ export class LivingVisuals {
       actor.add(holder.group);
       this.holders.set(id, holder);
     }
-    holder.group.visible = !!name && entity.health > 0;
-    if (name && holder.weapon !== name && this.models.has(name)) {
-      holder.group.clear();
-      holder.group.add(this.models.get(name)!.clone(true));
-      holder.weapon = name;
-    } else if (name && !this.models.has(name)) void this.load(name);
+    if (holder.group.parent !== actor) actor.add(holder.group);
+    if (holder.weapon !== name) {
+      clearWeaponInstance(holder.group);
+      holder.weapon = "";
+      const model = name ? this.models.get(name) : undefined;
+      if (model) {
+        holder.group.add(cloneSkeleton(model));
+        holder.weapon = name;
+      }
+    }
+    if (name && !this.models.has(name)) void this.load(name);
+    // Never display yesterday's gun using the newly selected weapon's stats.
+    holder.group.visible = !!name && holder.weapon === name && entity.health > 0;
     const shot =
       "nextShot" in entity &&
       typeof entity.nextShot === "number" &&
@@ -247,6 +232,7 @@ export class LivingVisuals {
     }
   }
   update(state: State, target: Player | undefined) {
+    if (this.disposed) return;
     this.shop.position.set(state.shop.x, 0, state.shop.z);
     if (this.dealerLabel)
       this.dealerLabel.visible =
@@ -282,30 +268,29 @@ export class LivingVisuals {
     }
     this.stamp = state.elapsed;
   }
+  retryFailedAssets() {
+    if (!this.disposed) this.failed.clear();
+  }
   forget(id: string) {
     const holder = this.holders.get(id);
-    holder?.group.removeFromParent();
+    if (holder) {
+      clearWeaponInstance(holder.group);
+      holder.group.removeFromParent();
+    }
     this.holders.delete(id);
   }
   private disposeModel(root: THREE.Object3D) {
-    root.traverse((o) => {
-      if (o instanceof THREE.Mesh) {
-        o.geometry.dispose();
-        for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
-          for (const v of Object.values(m))
-            if (v instanceof THREE.Texture) v.dispose();
-          m.dispose();
-        }
-      }
-    });
+    disposeWeaponResources([root]);
   }
   dispose() {
+    if (this.disposed) return;
     this.disposed = true;
-    this.disposeModel(this.group);
-    for (const m of this.models.values()) this.disposeModel(m);
-    this.tracers.geometry.dispose();
-    (this.tracers.material as THREE.Material).dispose();
-    this.dealerLabel?.material.map?.dispose();
-    this.dealerLabel?.material.dispose();
+    for (const id of [...this.holders.keys()]) this.forget(id);
+    disposeWeaponResources([this.group, ...this.models.values()]);
+    this.models.clear();
+    this.failed.clear();
+    this.loading.clear();
+    this.group.clear();
+    this.group.removeFromParent();
   }
 }

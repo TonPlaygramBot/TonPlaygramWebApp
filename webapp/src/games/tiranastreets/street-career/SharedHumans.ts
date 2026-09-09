@@ -22,6 +22,7 @@ export class SharedHumans {
   readonly group=new T.Group(); readonly errors:string[]=[];
   private bike?:T.Group;private bikes=new Map<string,T.Group>();
   private sources=new Map<string,GLTF>(); private requested=new Set<string>();
+  private failed=new Set<string>();
   private actors=new Map<string,Actor>(); private queue:SharedAsset[]=[];private loading=0;
   private aborts=new Set<AbortController>();
   private dead=false;private held=new LivingVisuals();
@@ -45,7 +46,10 @@ export class SharedHumans {
   }
   retryFailed(){
     if(this.dead)return;
-    for(const asset of this.cast)if(!this.sources.has(asset.url))this.requested.delete(asset.url);
+    // Only failed requests may lose their deduplication entry. Queued and
+    // in-flight models remain owned by the existing request.
+    for(const url of this.failed)this.requested.delete(url);
+    this.failed.clear();
     this.primeLocalHumans();
   }
   has(id:string){return this.actors.has(id);}
@@ -62,8 +66,8 @@ export class SharedHumans {
         const box=new T.Box3().setFromObject(g.scene),height=box.max.y-box.min.y;
         let skinned=false;g.scene.traverse(o=>{if(o instanceof T.SkinnedMesh)skinned=true;});
         if(!skinned||!Number.isFinite(height)||height<.01){disposeResources(g.scene);throw Error('Not a usable rigged full-body human');}
-        this.sources.set(asset.url,g);
-      }).catch(e=>{if(!this.dead){this.errors.push(`${asset.label}: ${String(e)}. Bundled Chess fallback is used.`);}}).finally(()=>{this.loading--;this.pump();});
+        this.failed.delete(asset.url);this.sources.set(asset.url,g);
+      }).catch(e=>{if(!this.dead){this.failed.add(asset.url);this.errors.push(`${asset.label}: ${String(e)}. Compatible loaded human or existing actor is retained.`);}}).finally(()=>{this.loading--;this.pump();});
     }
   }
   private async loadCatalogAsset(asset:SharedAsset):Promise<GLTF>{
@@ -154,7 +158,7 @@ export class SharedHumans {
   private remove(id:string){
     const a=this.actors.get(id);if(!a)return;
     this.bikes.get(id)?.removeFromParent();this.bikes.delete(id);this.held.forget(`shared-${id}`);a.mixer.stopAllAction();a.mixer.uncacheRoot(a.model);
-    a.model.traverse(o=>{if(o instanceof T.SkinnedMesh)o.skeleton.dispose();});
+    const skeletons=new Set<T.Skeleton>();a.model.traverse(o=>{if(o instanceof T.SkinnedMesh)skeletons.add(o.skeleton);});skeletons.forEach(s=>s.dispose());
     const band=a.root.getObjectByName('role-armband');if(band)disposeResources(band);
     a.root.removeFromParent();this.actors.delete(id);
   }
@@ -162,6 +166,6 @@ export class SharedHumans {
     if(this.dead)return;this.dead=true;this.queue=[];for(const abort of this.aborts)abort.abort();this.aborts.clear();
     for(const id of [...this.actors.keys()])this.remove(id);
     this.held.dispose();if(this.bike)disposeResources(this.bike);for(const g of this.sources.values())disposeResources(g.scene);this.sources.clear();
-    for(const m of this.signs.values()){m.map?.dispose();m.dispose();}this.signs.clear();this.group.removeFromParent();
+    for(const m of this.signs.values()){m.map?.dispose();m.dispose();}this.signs.clear();this.failed.clear();this.requested.clear();this.group.removeFromParent();
   }
 }

@@ -1,6 +1,7 @@
 import { TIRANA_ROUTES } from './tirana-routes.mjs';
 import { resolveWallContact, resolveKartContact } from './collisions.mjs';
 import { resampleCircuit } from './grandRouteCore.mjs';
+import { pointAhead, cornerSpeedLimit } from './circuitMetrics.mjs';
 export { damageRacer } from './collisions.mjs';
 export const STEP = 1 / 60,
   LAPS = 3;
@@ -205,11 +206,9 @@ export function createRacer(track, id, name, slot = 0, ai = false) {
   };
 }
 export function aiInput(r, track, time, difficulty = 'street') {
-  const n = nearestPoint(track, r.x, r.z),
-    spacing = track.length / 360;
+  const n = nearestPoint(track, r.x, r.z);
   const look = clamp(5 + r.speed * 0.34, 6, 17);
-  const p =
-    track.points[(n.index + Math.max(2, Math.round(look / spacing))) % 360];
+  const p = pointAhead(track, n, look);
   const lane = Math.sin(time * 0.2 + r.slot * 2) * 0.65;
   const turn = wrapAngle(
     Math.atan2(
@@ -217,19 +216,7 @@ export function aiInput(r, track, time, difficulty = 'street') {
       p.z + Math.sin(p.yaw) * lane - r.z
     ) - r.yaw
   );
-  let safeSpeed = 32;
-  // Brake before the corner, from its curvature and the remaining stop distance.
-  for (let d = 1; d <= Math.ceil(45 / spacing); d++) {
-    const a = track.points[(n.index + d) % 360],
-      b = track.points[(n.index + d + 1) % 360];
-    const curve = Math.abs(wrapAngle(b.yaw - a.yaw)) / spacing;
-    if (curve > 0.005)
-      safeSpeed = Math.min(
-        safeSpeed,
-        Math.sqrt(4.2 / curve + 2 * 16 * Math.max(0, d * spacing - 8))
-      );
-  }
-  safeSpeed = Math.max(7, safeSpeed);
+  const safeSpeed = cornerSpeedLimit(track, n);
   return {
     steer: clamp(-turn * 3.6, -1, 1),
     brake: r.speed > safeSpeed || (Math.abs(turn) > 0.55 && r.speed > 8),
