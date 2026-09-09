@@ -1,172 +1,63 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createAccount, getAccountInfo, convertGifts } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
-import { NFT_GIFTS } from '../utils/nftGifts.js';
+import { loadGoogleProfile } from '../utils/google.js';
+import { NFT_GIFTS, GIFT_BY_ID } from '../utils/nftGifts.js';
 import GiftIcon from './GiftIcon.jsx';
 import GiftShopPopup from './GiftShopPopup.jsx';
-import InfoPopup from './InfoPopup.jsx';
-import ConfirmPopup from './ConfirmPopup.jsx';
-import { loadGoogleProfile } from '../utils/google.js';
-
+import GiftDialog from './gifts/GiftDialog.jsx';
+import { GiftInspection } from './gifts/GiftExperience.jsx';
+import { formatGiftPrice } from './gifts/giftCheckout.js';
+import './gifts/gifts.css';
 export default function NftGiftCard({ accountId: propAccountId }) {
-  const [accountId, setAccountId] = useState(propAccountId || '');
-  const [gifts, setGifts] = useState([]);
-  const [open, setOpen] = useState(false);
-  const [previewIndex, setPreviewIndex] = useState(null);
-  const [touchX, setTouchX] = useState(null);
-  const [confirmConvert, setConfirmConvert] = useState(false);
-  const [infoMsg, setInfoMsg] = useState('');
-
-  useEffect(() => {
-    async function ensureAccount() {
-      let id = propAccountId || localStorage.getItem('accountId');
-      if (!id) {
-        try {
-          const acc = await createAccount(
-            getTelegramId(),
-            loadGoogleProfile()
-          );
-          if (acc?.accountId) {
-            id = acc.accountId;
-            localStorage.setItem('accountId', id);
-            if (acc.walletAddress) {
-              localStorage.setItem('walletAddress', acc.walletAddress);
-            }
-          }
-        } catch {}
-      }
-      if (id) setAccountId(id);
-    }
-    ensureAccount();
-  }, [propAccountId]);
-
-  useEffect(() => {
-    if (!accountId) return;
-    getAccountInfo(accountId)
-      .then((info) => {
-        if (info && Array.isArray(info.gifts)) setGifts(info.gifts);
-      })
-      .catch(() => {});
-  }, [accountId, open]);
-
-  const previewGift =
-    previewIndex != null && gifts[previewIndex] ? gifts[previewIndex] : null;
-  const previewInfo =
-    previewGift &&
-    (NFT_GIFTS.find((x) => x.id === previewGift.gift) || {});
-
-  return (
-    <div className="relative prism-box p-6 space-y-3 flex flex-col items-center text-center overflow-hidden min-h-40 wide-card mx-auto">
-      <img
-        src="/assets/icons/snakes_and_ladders.webp"
-        className="background-behind-board object-cover"
-        alt=""
-        onError={(e) => {
-          e.currentTarget.style.display = 'none';
-        }}
-      />
-      <h3 className="text-lg font-bold text-center">NFT Gifts</h3>
-      <div className="flex space-x-2 overflow-x-auto pb-2 text-sm w-full flex-grow justify-center">
-        {gifts.length ? (
-          gifts.map((g, idx) => {
-            const info = NFT_GIFTS.find((x) => x.id === g.gift) || {};
-            return (
-              <div
-                key={g._id}
-                onClick={() => setPreviewIndex(idx)}
-                className="flex-shrink-0 flex flex-col items-center space-y-1 border border-border rounded p-2 min-w-[72px] cursor-pointer"
-              >
-                <GiftIcon icon={info.icon} className="w-12 h-12" />
-                <span className="text-center">{info.name || g.gift}</span>
-                <span className="text-xs">{g.price} TPG</span>
-              </div>
-            );
-          })
-        ) : (
-          <p className="text-center text-subtext w-full">No NFTs</p>
-        )}
+  const [accountId,setAccountId]=useState(propAccountId || ''), [gifts,setGifts]=useState([]), [loading,setLoading]=useState(true);
+  const [error,setError]=useState(''), [notice,setNotice]=useState(''), [open,setOpen]=useState(false), [preview,setPreview]=useState(null);
+  const [confirm,setConfirm]=useState(false), [busy,setBusy]=useState(false), [convertError,setConvertError]=useState(''), [revision,setRevision]=useState(0);
+  const inFlight=useRef(false);
+  useEffect(()=>{
+    let cancelled=false;
+    (async()=>{
+      try {
+        let id=propAccountId || localStorage.getItem('accountId');
+        if(!id){const account=await createAccount(getTelegramId(),loadGoogleProfile());id=account?.accountId;if(id)localStorage.setItem('accountId',id);}
+        if(!cancelled){setAccountId(id || '');if(!id)setLoading(false);}
+      }catch{if(!cancelled){setError('Sign in to load your gift collection.');setLoading(false);}}
+    })();return()=>{cancelled=true;};
+  },[propAccountId]);
+  useEffect(()=>{
+    const refresh=()=>setRevision(n=>n+1);window.addEventListener('tpg:gifts-updated',refresh);return()=>window.removeEventListener('tpg:gifts-updated',refresh);
+  },[]);
+  useEffect(()=>{
+    if(!accountId)return;
+    let cancelled=false;setLoading(true);setError('');
+    getAccountInfo(accountId).then(info=>{if(info?.error)throw new Error(info.error);if(!cancelled)setGifts(Array.isArray(info?.gifts)?info.gifts:[]);}).catch(()=>{if(!cancelled)setError('Your collection could not load. Please try again.');}).finally(()=>{if(!cancelled)setLoading(false);});
+    return()=>{cancelled=true;};
+  },[accountId,revision]);
+  const closePreview=()=>{if(inFlight.current)return;setPreview(null);setConfirm(false);setConvertError('');};
+  const convert=async()=>{
+    if(inFlight.current||!preview?._id)return;
+    inFlight.current=true;setBusy(true);setConvertError('');
+    try {
+      const response=await convertGifts(accountId,[preview._id],'burn');
+      if(!response||response.error||response.success===false)throw new Error(response?.error || 'Conversion could not be confirmed. Check your balance before trying again.');
+      if(Array.isArray(response.gifts))setGifts(response.gifts);
+      setPreview(null);setConfirm(false);setNotice('Gift converted. Your collection is updating.');
+      window.dispatchEvent(new CustomEvent('tpg:gifts-updated',{detail:{accountId}}));
+    }catch(err){setConvertError(err?.message || 'Conversion could not be confirmed. Check your balance before trying again.');}
+    finally{inFlight.current=false;setBusy(false);}
+  };
+  const details=preview?GIFT_BY_ID[preview.gift]:null;
+  return <section className="gift-shelf-card" aria-label="Your gift collection">
+    <div className="gift-shelf-heading"><div><p className="gift-eyebrow">GIVE SOMETHING GOOD</p><h3>NFT gifts</h3></div><span>{gifts.length} collected</span></div>
+    {loading ? <p className="gift-status" role="status">Loading your collection…</p> : error ? <div className="gift-error" role="alert">{error}<button type="button" className="gift-secondary" onClick={()=>setRevision(n=>n+1)}>Try again</button></div> : gifts.length ? <div className="gift-shelf-items">{gifts.map((item,index)=>{const info=GIFT_BY_ID[item.gift];return <button type="button" key={item._id || `${item.gift}-${index}`} onClick={()=>{setPreview(item);setConvertError('');setConfirm(false);}} aria-label={`View owned ${info?.name || item.gift}`}><GiftIcon icon={info?.icon}/><strong>{info?.name || item.gift}</strong><small>{formatGiftPrice(Number(item.price)||0)} TPG · recorded price</small></button>;})}</div> : <div className="gift-shelf-empty"><div aria-hidden="true">{['saturn_silk','royal_crown','cloud_bunny'].map(id=><GiftIcon key={id} gift={GIFT_BY_ID[id]}/>)}</div><p>Your collection starts with a little joy.<br/>Keep a favourite, or make someone’s day.</p></div>}
+    {notice && <p role="status" className="gift-success">{notice}</p>}
+    <button type="button" className="gift-primary" onClick={()=>setOpen(true)}>Explore {NFT_GIFTS.length} gifts <span aria-hidden="true">↗</span></button><p className="gift-muted">Original artwork. Thoughtful little gestures.</p>
+    <GiftShopPopup open={open} onClose={()=>setOpen(false)} accountId={accountId}/>
+    {preview && <GiftDialog title="Your collectible" onClose={closePreview} busy={busy}><div className="gift-scroll">
+      {details && !confirm && <GiftInspection gift={details}/>}
+      <div className="gift-inventory-meta"><p className="gift-eyebrow">{details?.collection || 'Your collection'}</p><h3>{confirm?'Convert this gift?':details?.name || preview.gift}</h3>
+        {confirm ? <><p className="gift-muted">This permanently removes this gift from your collection. The server determines the TPG conversion amount; the catalog price is not a refund quote.</p><div className="gift-order-form">{convertError && <p role="alert" className="gift-error">{convertError}</p>}<button type="button" className="gift-primary" disabled={busy||Boolean(convertError)} onClick={convert}>{busy?'Converting…':'Confirm conversion'}</button><button type="button" className="gift-secondary" disabled={busy} onClick={()=>{setConfirm(false);setConvertError('');}}>Keep my gift</button></div></> : <><p className="gift-muted">In-app collectible. A token ID alone does not confirm on-chain ownership.</p><div className="gift-order-form"><button type="button" className="gift-secondary" disabled={!preview._id} onClick={()=>setConfirm(true)}>Convert gift</button></div></>}
       </div>
-      <button
-        onClick={() => setOpen(true)}
-        className="mt-auto w-48 mx-auto px-3 py-1 bg-primary hover:bg-primary-hover rounded text-white-shadow"
-      >
-        Buy / Send Gift
-      </button>
-      <GiftShopPopup open={open} onClose={() => setOpen(false)} accountId={accountId} />
-      <InfoPopup
-        open={previewIndex != null}
-        onClose={() => setPreviewIndex(null)}
-        widthClass="w-[28rem]"
-      >
-        {previewInfo && (
-          <div
-            className="flex flex-col items-center h-80"
-            onTouchStart={(e) => setTouchX(e.touches[0].clientX)}
-            onTouchEnd={(e) => {
-              if (touchX != null) {
-                const diff = e.changedTouches[0].clientX - touchX;
-                if (Math.abs(diff) > 30) {
-                  if (diff < 0) {
-                    setPreviewIndex((i) => (i + 1) % gifts.length);
-                  } else {
-                    setPreviewIndex((i) => (i - 1 + gifts.length) % gifts.length);
-                  }
-                }
-              }
-              setTouchX(null);
-            }}
-          >
-            <p className="font-bold text-lg mb-2 text-center w-full">
-              {previewInfo.name}
-            </p>
-            <div className="flex-grow flex items-center justify-center w-full">
-              <GiftIcon
-                icon={previewInfo.icon}
-                className="max-h-48 w-auto object-contain"
-              />
-            </div>
-            <div className="mt-auto flex flex-col items-center space-y-2 w-full">
-              <span className="flex items-center space-x-1 text-lg">
-                <span>{previewInfo.price}</span>
-                <img src="/assets/icons/file_00000000362481f7978631c42572193f.png" alt="TPG" className="w-6 h-6" />
-              </span>
-              <button
-                onClick={() => setConfirmConvert(true)}
-                className="w-full max-w-xs px-4 py-2 bg-primary hover:bg-primary-hover rounded text-white-shadow text-lg"
-              >
-                Convert
-              </button>
-            </div>
-          </div>
-        )}
-      </InfoPopup>
-      <ConfirmPopup
-        open={confirmConvert}
-        message="Convert this gift for TPG?"
-        onConfirm={async () => {
-          if (!previewGift?._id) return;
-          setConfirmConvert(false);
-          try {
-            const res = await convertGifts(accountId, [previewGift._id], 'burn');
-            if (!res?.error) {
-              setGifts(res.gifts);
-              setPreviewIndex(null);
-              setInfoMsg('Converted');
-            } else {
-              setInfoMsg(res.error);
-            }
-          } catch {
-            setInfoMsg('Conversion failed');
-          }
-        }}
-        onCancel={() => setConfirmConvert(false)}
-      />
-      <InfoPopup
-        open={!!infoMsg}
-        onClose={() => setInfoMsg('')}
-        title="Gift"
-        info={infoMsg}
-      />
-    </div>
-  );
+    </div></GiftDialog>}
+  </section>;
 }
