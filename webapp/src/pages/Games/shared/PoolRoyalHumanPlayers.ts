@@ -45,6 +45,8 @@ type Options = {
   clothY: number;
   tableW: number;
   tableL: number;
+  /** Per-game visual sizing without changing the shared stance or pose solver. */
+  heightScale?: number;
   modelUrl?: string;
   model?: THREE.Object3D;
   onError?: (error: unknown) => void;
@@ -151,7 +153,10 @@ export class PoolRoyalHumanPlayers {
     if (!(clothHeight > 0) || !(options.tableW > 0) || !(options.tableL > 0)) throw new Error('Character floor and table dimensions must be valid.');
     // Footprint determines body size. A minimum height preserves arm reach on
     // Pool Royal's unusually tall table without reintroducing oversized players.
-    this.humanHeight = Math.max(Math.max(options.tableW, options.tableL) * 0.82, clothHeight * 1.8);
+    const heightScale = Number.isFinite(options.heightScale) && options.heightScale! > 0
+      ? options.heightScale!
+      : 1;
+    this.humanHeight = Math.max(Math.max(options.tableW, options.tableL) * 0.82, clothHeight * 1.8) * heightScale;
     this.group.name = 'PoolRoyalReferencePlayers';
     this.group.position.y = options.floorY;
     parent.add(this.group);

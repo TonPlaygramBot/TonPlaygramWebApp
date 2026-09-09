@@ -145,6 +145,18 @@ test('production-table calibration makes the original model smaller without chan
   players.dispose();
 });
 
+test('a game-specific height scale shrinks characters uniformly', async () => {
+  const model = await loadPoseModel();
+  const standard = new PoolRoyalHumanPlayers(new THREE.Scene(), { ...options, model });
+  const smaller = new PoolRoyalHumanPlayers(new THREE.Scene(), { ...options, model, heightScale: 0.9 });
+  await Promise.all([standard.ready, smaller.ready]);
+  assert.ok(Math.abs(smaller.humanHeight / standard.humanHeight - 0.9) < 1e-10);
+  assert.ok(Math.abs(smaller.referenceScale / standard.referenceScale - 0.9) < 1e-10);
+  assert.equal(smaller.group.scale.x, smaller.group.scale.y);
+  assert.equal(smaller.group.scale.y, smaller.group.scale.z);
+  standard.dispose(); smaller.dispose();
+});
+
 test('bridge skin rests on the actual cloth with unit wrist rotations through headings and power changes', async () => {
   const metrics = await readPoolRoyalMetrics();
   for (const yaw of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
