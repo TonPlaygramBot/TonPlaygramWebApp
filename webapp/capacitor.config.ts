@@ -3,12 +3,9 @@ import type { CapacitorConfig } from '@capacitor/cli';
 const config: CapacitorConfig = {
   appId: 'com.tonplaygram.app',
   appName: 'TonPlaygram',
+  // Bundle the complete Vite output, not a remote homepage/launcher URL.
   webDir: 'dist',
-  cordova: {
-    preferences: {
-      Orientation: 'portrait'
-    }
-  },
+  cordova: { preferences: { Orientation: 'portrait' } },
   plugins: {
     SplashScreen: {
       backgroundColor: '#0B1224',
@@ -18,21 +15,12 @@ const config: CapacitorConfig = {
       launchShowDuration: 0
     }
   },
-  extra: {
-    appBuild: process.env.APP_BUILD || 'dev'
-  },
   server: {
     androidScheme: 'https',
-    // Production host used by the Android shell.
-    hostname: 'tonplaygram-bot.onrender.com',
-    allowNavigation: [
-      'tonplaygram-bot.onrender.com',
-      // Keep existing production domains for future migrations.
-      'tonplaygram.com',
-      'api.tonplaygram.com'
-    ],
-    urlScheme: 'tonplaygram',
-    urlHostname: 'tonplaygram'
+    // Keep bundled resources separate from the real HTTPS API origin.
+    // Native API/socket URLs must be supplied by the release build environment.
+    hostname: 'localhost',
+    allowNavigation: []
   }
 };
 

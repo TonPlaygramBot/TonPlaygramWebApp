@@ -1,0 +1,162 @@
+name: Android signed APK (full app)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: 'Version name, for example 1.1.1'
+        required: true
+        default: '1.1.1'
+        type: string
+      version_code:
+        description: 'Integer greater than every previously distributed version code'
+        required: true
+        default: '3'
+        type: string
+      publish:
+        description: 'Publish the signed APK on the home page after device testing'
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+concurrency:
+  group: android-direct-release
+  cancel-in-progress: false
+
+jobs:
+  signed-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: mobile-store-release
+    defaults:
+      run:
+        working-directory: webapp
+    env:
+      APP_BUILD: ${{ github.sha }}
+      ANDROID_VERSION_NAME: ${{ inputs.version_name }}
+      ANDROID_VERSION_CODE: ${{ inputs.version_code }}
+      VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+      VITE_SOCKET_URL: ${{ secrets.VITE_SOCKET_URL }}
+      VITE_SOCKET_PATH: ${{ secrets.VITE_SOCKET_PATH }}
+      VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Install matching Android SDK
+        run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+      - name: Validate release configuration
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node --input-type=module <<'JS'
+          const { ANDROID_VERSION_NAME: version, ANDROID_VERSION_CODE: code, VITE_API_BASE_URL: api, VITE_SOCKET_URL: socket } = process.env;
+          if (!/^\d+\.\d+\.\d+$/.test(version) || !/^\d+$/.test(code) || Number(code) <= 2 || Number(code) > 2100000000) throw new Error('Invalid Android version.');
+          for (const [name, value] of [['VITE_API_BASE_URL', api], ['VITE_SOCKET_URL', socket]]) {
+            if (!value) throw new Error(`${name} is required for a standalone Android app.`);
+            const url = new URL(value);
+            if (url.protocol !== 'https:' || url.username || url.password || ['localhost', '127.0.0.1'].includes(url.hostname)) throw new Error(`${name} must use the production HTTPS server.`);
+          }
+          const response = await fetch(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/releases/latest`, { headers: { Authorization: `Bearer ${process.env.GH_TOKEN}` } });
+          if (response.status !== 404) {
+            if (!response.ok) throw new Error('Unable to verify the previous release version.');
+            const last = await response.json();
+            const match = /^android-v\d+\.\d+\.\d+-(\d+)$/.exec(last.tag_name || '');
+            if (match && Number(code) <= Number(match[1])) throw new Error('Increment version_code above the latest published APK.');
+          }
+          JS
+      - name: Test installation and cache helpers
+        run: node --experimental-vm-modules --test ../tests/pwa-install.test.mjs
+      - name: Build the complete web app and sync Android
+        run: |
+          npm ci
+          npm run generate:native-assets
+          npm run build
+          npx --no-install cap sync android
+          test -s android/app/src/main/assets/public/index.html
+      - name: Configure release signing (never a generated debug key)
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          python3 - <<'PY'
+          import base64, os, pathlib
+          names = ['ANDROID_KEYSTORE_BASE64', 'ANDROID_KEYSTORE_PASSWORD', 'ANDROID_KEY_ALIAS', 'ANDROID_KEY_PASSWORD']
+          if any(not os.environ.get(name) for name in names):
+              raise SystemExit('Configure all four Android signing secrets in mobile-store-release.')
+          def escape(value):
+              # Escape UTF-16 code units for java.util.Properties, including emoji.
+              raw = value.encode('utf-16-be')
+              return ''.join('\\u%04x' % int.from_bytes(raw[i:i+2], 'big') for i in range(0, len(raw), 2))
+          key = pathlib.Path(os.environ['RUNNER_TEMP']) / 'tonplaygram-release.jks'
+          key.write_bytes(base64.b64decode(os.environ['ANDROID_KEYSTORE_BASE64'], validate=True))
+          key.chmod(0o600)
+          props = pathlib.Path('android/keystore.properties')
+          values = {'storeFile':str(key), 'storePassword':os.environ['ANDROID_KEYSTORE_PASSWORD'], 'keyAlias':os.environ['ANDROID_KEY_ALIAS'], 'keyPassword':os.environ['ANDROID_KEY_PASSWORD']}
+          props.write_text('\n'.join(f'{name}={escape(value)}' for name, value in values.items()), encoding='ascii')
+          props.chmod(0o600)
+          PY
+      - name: Build and verify signed APK
+        run: |
+          chmod +x android/gradlew
+          (cd android && ./gradlew --no-daemon clean testReleaseUnitTest lintRelease assembleRelease)
+          mkdir -p release-output
+          cp android/app/build/outputs/apk/release/app-release.apk release-output/TonPlaygram.apk
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs release-output/TonPlaygram.apk
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging release-output/TonPlaygram.apk > release-output/package.txt
+          ! grep -q 'application-debuggable' release-output/package.txt
+          grep -q "package: name='com.tonplaygram.app'" release-output/package.txt
+          unzip -p release-output/TonPlaygram.apk assets/public/index.html > release-output/packaged-index.html
+          test -s release-output/packaged-index.html
+          (cd release-output && sha256sum TonPlaygram.apk > TonPlaygram.apk.sha256)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TonPlaygram-signed-apk-${{ inputs.version_code }}
+          path: |
+            webapp/release-output/TonPlaygram.apk
+            webapp/release-output/TonPlaygram.apk.sha256
+          if-no-files-found: error
+          retention-days: 14
+      - name: Remove signing material
+        if: always()
+        run: rm -f android/keystore.properties "$RUNNER_TEMP/tonplaygram-release.jks"
+
+  publish:
+    if: inputs.publish && github.ref == 'refs/heads/main'
+    needs: signed-apk
+    runs-on: ubuntu-latest
+    environment: mobile-store-release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: TonPlaygram-signed-apk-${{ inputs.version_code }}
+          path: release-output
+      - name: Publish the verified APK and checksum
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ inputs.version_name }}
+          CODE: ${{ inputs.version_code }}
+        run: |
+          cd release-output
+          sha256sum --check TonPlaygram.apk.sha256
+          gh release create "android-v${VERSION}-${CODE}" TonPlaygram.apk TonPlaygram.apk.sha256 \
+            --target "$GITHUB_SHA" --latest \
+            --title "TonPlaygram Android ${VERSION}" \
+            --notes 'Full TonPlaygram Android app with bundled web assets. Online services require internet. Download TonPlaygram.apk; the adjacent SHA-256 file identifies this build. Back up the release signing key for future updates.'

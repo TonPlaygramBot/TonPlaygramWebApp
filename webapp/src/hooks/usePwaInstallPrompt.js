@@ -1,90 +1,90 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useSyncExternalStore } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { isTelegramEnvironment, readStorage, writeStorage } from '../pwa/installSupport.js';
 
 const STORAGE_KEY = 'tonplaygram-pwa-dismissed';
+const subscribers = new Set();
+const serverState = { promptEvent: null, installed: false, dismissed: false, native: false, inTelegram: false, platform: 'other', installing: false, error: '' };
+let state = serverState;
+let initialized = false;
+const emit = patch => {
+  state = { ...state, ...patch };
+  subscribers.forEach(listener => listener());
+};
+const getSnapshot = () => state;
+const getServerSnapshot = () => serverState;
+const subscribe = listener => { subscribers.add(listener); return () => subscribers.delete(listener); };
 
-const isStandalone = () =>
-  window.matchMedia?.('(display-mode: standalone)').matches ||
-  window.navigator.standalone === true;
+function initialize() {
+  if (initialized || typeof window === 'undefined') return;
+  initialized = true;
+  const native = Capacitor.isNativePlatform();
+  const media = window.matchMedia?.('(display-mode: standalone)');
+  const ua = navigator.userAgent || '';
+  const ios = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  emit({
+    native, installed: native || Boolean(media?.matches || navigator.standalone),
+    dismissed: readStorage(STORAGE_KEY) === '1',
+    inTelegram: isTelegramEnvironment(), platform: ios ? 'ios' : /Android/i.test(ua) ? 'android' : 'other'
+  });
+  // One shared event: the layout banner and home card cannot consume it twice.
+  window.addEventListener('beforeinstallprompt', event => {
+    if (native) return;
+    event.preventDefault();
+    emit({ promptEvent: event, error: '' });
+  });
+  window.addEventListener('appinstalled', () => emit({ installed: true, promptEvent: null, installing: false }));
+  const onDisplayMode = () => emit({ installed: native || Boolean(media?.matches || navigator.standalone) });
+  if (media?.addEventListener) media.addEventListener('change', onDisplayMode);
+  else media?.addListener?.(onDisplayMode);
+}
+initialize();
 
-const isTelegramWebApp = () => Boolean(window.Telegram?.WebApp);
+function dismiss() {
+  writeStorage(STORAGE_KEY, '1');
+  emit({ dismissed: true });
+}
 
-export default function usePwaInstallPrompt() {
-  const [promptEvent, setPromptEvent] = useState(null);
-  const [installed, setInstalled] = useState(isStandalone());
-  const [dismissed, setDismissed] = useState(() => localStorage.getItem(STORAGE_KEY) === '1');
-  const [telegramDetected, setTelegramDetected] = useState(() => isTelegramWebApp());
-
-  useEffect(() => {
-    const handler = event => {
-      event.preventDefault();
-      setPromptEvent(event);
-    };
-    window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
-  }, []);
-
-  useEffect(() => {
-    const onInstalled = () => {
-      setInstalled(true);
-      setPromptEvent(null);
-    };
-    window.addEventListener('appinstalled', onInstalled);
-    return () => window.removeEventListener('appinstalled', onInstalled);
-  }, []);
-
-  useEffect(() => {
-    if (isTelegramWebApp()) {
-      setTelegramDetected(true);
-    }
-  }, []);
-
-  const markDismissed = () => {
-    setDismissed(true);
-    localStorage.setItem(STORAGE_KEY, '1');
-  };
-
-  const promptToInstall = async () => {
-    if (!promptEvent) return false;
-    promptEvent.prompt();
-    const result = await promptEvent.userChoice.catch(() => ({ outcome: 'dismissed' }));
-    if (result?.outcome === 'accepted') {
-      setInstalled(true);
-      setPromptEvent(null);
-      return true;
-    }
-    markDismissed();
+async function promptToInstall() {
+  const event = state.promptEvent;
+  if (!event || state.native || state.installed || state.installing) return false;
+  emit({ promptEvent: null, installing: true, error: '' });
+  try {
+    // Keep this in the user's click call stack; no network request before prompt().
+    const result = await event.prompt();
+    const choice = result?.outcome ? result : await event.userChoice;
+    if (choice?.outcome === 'accepted') return true;
+    dismiss();
     return false;
-  };
+  } catch {
+    emit({ error: 'The install prompt could not open. Use your browser menu to install.' });
+    return false;
+  } finally {
+    // Acceptance is not proof of installation; appinstalled/display-mode confirms it.
+    emit({ installing: false });
+  }
+}
 
-  const canInstall = useMemo(
-    () => !installed && !dismissed && Boolean(promptEvent),
-    [dismissed, installed, promptEvent]
-  );
-
-  const canShowTelegramInstall = useMemo(
-    () => !installed && !dismissed && telegramDetected && !promptEvent,
-    [dismissed, installed, promptEvent, telegramDetected]
-  );
-
-  const openExternalInstall = () => {
-    const url = window.location.href;
-    if (window.Telegram?.WebApp?.openLink) {
+function openExternalInstall() {
+  // Do not forward Telegram initData, account IDs or auth fragments into another browser.
+  const url = new URL(import.meta.env?.BASE_URL || '/', window.location.origin).href;
+  try {
+    if (isTelegramEnvironment() && window.Telegram?.WebApp?.openLink) {
       window.Telegram.WebApp.openLink(url, { try_instant_view: false });
       return;
     }
-    window.open(url, '_blank', 'noopener,noreferrer');
-  };
+  } catch { /* Fall back to an ordinary external browser window. */ }
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
 
-  const mode = canInstall ? 'prompt' : canShowTelegramInstall ? 'telegram' : 'none';
-
+export default function usePwaInstallPrompt() {
+  initialize();
+  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const canInstall = !snapshot.native && !snapshot.installed && !snapshot.installing && Boolean(snapshot.promptEvent);
+  const canShowTelegramInstall = !snapshot.native && !snapshot.installed && !snapshot.dismissed && snapshot.inTelegram && !snapshot.promptEvent;
   return {
-    canInstall,
-    canShowTelegramInstall,
-    mode,
-    installed,
-    dismissed,
-    promptToInstall,
-    openExternalInstall,
-    dismiss: markDismissed
+    ...snapshot, canInstall, canShowTelegramInstall,
+    mode: canInstall && !snapshot.dismissed ? 'prompt' : canShowTelegramInstall ? 'telegram' : 'none',
+    promptToInstall, openExternalInstall, dismiss
   };
 }

@@ -1,149 +1,34 @@
 import { Capacitor } from '@capacitor/core';
 import { APP_BUILD } from '../config/buildInfo.js';
 
-const TELEGRAM_ONLY = false;
-const REFRESH_FLAG_KEY = 'tonplaygram-sw-refreshed';
-const UPDATE_PENDING_KEY = 'tonplaygram-sw-update-pending';
-const GAME_ACTIVE_KEY = 'tonplaygram-game-active';
-const UPDATE_CHECK_INTERVAL_MS = 5 * 60 * 1000;
-const SERVICE_WORKER_URL = `/service-worker.js?v=${APP_BUILD}`;
-let gameEndListenerAttached = false;
-
-function shouldRegisterForTelegram() {
-  if (!('serviceWorker' in navigator)) return false;
-  if (Capacitor?.isNativePlatform?.() && Capacitor.getPlatform() !== 'web') return false;
-  const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-  if (isLocalhost) return true;
-  if (TELEGRAM_ONLY && !window.Telegram?.WebApp) return false;
-  return true;
-}
-
-function markRefreshed() {
-  sessionStorage.setItem(REFRESH_FLAG_KEY, '1');
-}
-
-function hasRefreshedAlready() {
-  return sessionStorage.getItem(REFRESH_FLAG_KEY) === '1';
-}
-
-function isGameActive() {
-  try {
-    return localStorage.getItem(GAME_ACTIVE_KEY) === 'true';
-  } catch {
-    return false;
-  }
-}
-
-function markPendingUpdate() {
-  sessionStorage.setItem(UPDATE_PENDING_KEY, '1');
-}
-
-function clearPendingUpdate() {
-  sessionStorage.removeItem(UPDATE_PENDING_KEY);
-}
-
-function hasPendingUpdate() {
-  return sessionStorage.getItem(UPDATE_PENDING_KEY) === '1';
-}
-
-function attachGameEndListener() {
-  if (gameEndListenerAttached) return;
-  gameEndListenerAttached = true;
-  window.addEventListener('tonplaygram-game-ended', () => {
-    if (!hasPendingUpdate() || isGameActive()) return;
-    clearPendingUpdate();
-    forceReloadOnceReady();
-  });
-}
-
-function forceReloadOnceReady() {
-  if (hasRefreshedAlready()) return;
-  if (isGameActive()) {
-    markPendingUpdate();
-    attachGameEndListener();
-    return;
-  }
-  markRefreshed();
-  window.location.reload();
-}
-
-function wireUpdateFlow(registration, shouldReload) {
-  const pushToActive = worker => {
-    if (!worker) return;
-    worker.addEventListener('statechange', () => {
-      if (worker.state === 'installed') {
-        worker.postMessage({ type: 'SKIP_WAITING' });
-      }
-    });
-  };
-
-  if (registration.waiting) {
-    registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-  }
-
-  if (registration.installing) {
-    pushToActive(registration.installing);
-  }
-
-  registration.addEventListener('updatefound', () => {
-    pushToActive(registration.installing);
-  });
-
-  if (shouldReload) {
-    navigator.serviceWorker.addEventListener('controllerchange', forceReloadOnceReady);
-  }
-}
-
-async function requestPersistentStorage() {
-  if (!navigator.storage?.persist) return;
-  try {
-    const alreadyPersisted = await navigator.storage.persisted();
-    if (!alreadyPersisted) {
-      await navigator.storage.persist();
-    }
-  } catch (err) {
-    // Persistence is best-effort; ignore errors
-  }
-}
-
-function setupUpdatePolling(registration) {
-  const runUpdate = () => {
-    registration.update().catch(() => {});
-  };
-
-  const intervalId = setInterval(runUpdate, UPDATE_CHECK_INTERVAL_MS);
-  window.addEventListener(
-    'beforeunload',
-    () => {
-      clearInterval(intervalId);
-    },
-    { once: true }
-  );
-  window.addEventListener('online', runUpdate);
-}
+let registrationPromise;
+const SERVICE_WORKER_URL = `/service-worker.js?v=${encodeURIComponent(APP_BUILD)}`;
 
 export async function registerTelegramServiceWorker() {
-  if (!shouldRegisterForTelegram()) return;
-
-  try {
-    const hadController = Boolean(navigator.serviceWorker.controller);
-    const registration = await navigator.serviceWorker.register(SERVICE_WORKER_URL, {
-      scope: '/',
-      updateViaCache: 'none'
-    });
-
-    wireUpdateFlow(registration, hadController);
-    registration.update();
-    setupUpdatePolling(registration);
-    requestPersistentStorage();
-
-    // Refresh in-session to pick up any new build without prompting the user
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') {
-        registration.update();
-      }
-    });
-  } catch (err) {
-    console.error('Service worker registration failed', err);
-  }
+  if (typeof window === 'undefined' || !window.isSecureContext ||
+      !navigator.serviceWorker || Capacitor.isNativePlatform()) return;
+  if (registrationPromise) return registrationPromise;
+  registrationPromise = (async () => {
+    try {
+      const registration = await navigator.serviceWorker.register(SERVICE_WORKER_URL, {
+        scope: '/', updateViaCache: 'none'
+      });
+      const check = () => registration.update().catch(() => {});
+      const intervalId = setInterval(check, 5 * 60 * 1000);
+      window.addEventListener('online', check);
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') check();
+      });
+      window.addEventListener('beforeunload', () => clearInterval(intervalId), { once: true });
+      check();
+      // A waiting worker stays waiting. Only an explicit home-card action activates
+      // it and reloads; do not interrupt a match on controllerchange or tab focus.
+      return registration;
+    } catch (error) {
+      console.error('Service worker registration failed', error);
+      registrationPromise = undefined;
+      return undefined;
+    }
+  })();
+  return registrationPromise;
 }
