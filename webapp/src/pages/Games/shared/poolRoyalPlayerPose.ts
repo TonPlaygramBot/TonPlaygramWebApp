@@ -45,8 +45,13 @@ function palmQuaternion(forward: THREE.Vector3, side: THREE.Vector3) {
   )).normalize();
 }
 
-function bridgeFingers(human: HumanRig, rotation: THREE.Quaternion) {
-  const spreads = { Index: -0.035, Middle: 0.02, Ring: 0.20, Pinky: 0.40 };
+function bridgeFingers(human: HumanRig, rotation: THREE.Quaternion,
+  style: 'open' | 'compact' | 'raised' = 'open') {
+  const spreads = style === 'compact'
+    ? { Index: -0.02, Middle: 0.08, Ring: 0.24, Pinky: 0.34 }
+    : style === 'raised'
+      ? { Index: -0.12, Middle: 0.18, Ring: 0.34, Pinky: 0.48 }
+      : { Index: -0.035, Middle: 0.02, Ring: 0.20, Pinky: 0.40 };
   for (const [name, spread] of Object.entries(spreads)) {
     const chain = human.leftFingers.filter(bone => bone.name.includes(name)).sort((a, b) => a.name.localeCompare(b.name));
     for (let i = 0; i < chain.length - 1; i++) {
@@ -90,7 +95,7 @@ export function bridgeSkinBounds(human: HumanRig) {
 }
 
 export function refinePoolRoyalBridge(human: HumanRig, bridgeTarget: THREE.Vector3,
-  forward: THREE.Vector3, clothY: number) {
+  forward: THREE.Vector3, clothY: number, style: 'open' | 'compact' | 'raised' = 'open') {
   const weight = THREE.MathUtils.smoothstep(human.poseT, 0.1, 0.95);
   if (!weight) return;
   const b = human.bones;
@@ -133,7 +138,7 @@ export function refinePoolRoyalBridge(human: HumanRig, bridgeTarget: THREE.Vecto
     solveArm(b.leftUpperArm!, b.leftLowerArm!, b.leftHand!, wrist, pole);
     worldQuaternion(b.leftHand!, rotation);
   };
-  place(); bridgeFingers(human, rotation);
+  place(); bridgeFingers(human, rotation, style);
   // Lift/lower the wrist until the skinned finger pads meet the cloth; the
   // correction translates the target and resolves the arm at its real length.
   for (let i = 0; i < 4; i++) {

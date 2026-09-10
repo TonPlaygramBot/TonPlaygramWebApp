@@ -5243,14 +5243,14 @@ const CAMERA_LOWEST_PHI = CUE_SHOT_PHI - 0.1; // match Pool Royale standing-view
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.54);
 const CAMERA_MAX_PHI = CAMERA_LOWEST_PHI; // halt the downward sweep right above the cue while still enabling the lower AI cue height for players
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0119; // bring the player's standing/cue camera closer to the table
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0105; // move the portrait player perspective visibly closer to the table
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 0.96;
 const STANDING_VIEW_MARGIN_PORTRAIT = 0.94;
-const STANDING_VIEW_DISTANCE_SCALE = 0.16; // pull the standing camera closer so the table fills more of portrait screens
+const STANDING_VIEW_DISTANCE_SCALE = 0.145; // tighter address framing while retaining the whole near cushion
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -15987,6 +15987,10 @@ const shotPowerRef = useRef(0);
       const setShootingState = (value) => {
         if (shooting === value) return;
         shooting = value;
+        // Keep input locking synchronous with the Three.js shot state. Waiting
+        // for React's effect left a one-frame mobile release race in which the
+        // slider could reset/remount before the cue impact was committed.
+        shootingRef.current = value;
         shotStartedAt = shooting ? getNow() : 0;
         if (!shooting) {
           shotImpactPending = false;
@@ -22000,7 +22004,8 @@ const shotPowerRef = useRef(0);
         clothY: TABLE_Y + CLOTH_TOP_LOCAL + CLOTH_LIFT - CLOTH_DROP,
         tableW: Math.max(TABLE.W, PLAY_W),
         tableL: Math.max(TABLE.H, PLAY_H),
-        heightScale: 0.9,
+        // A player reads as exactly one quarter taller than the selected cue.
+        targetHeight: cueLen * 1.25,
         onError: (error) => console.warn('Snooker Royal player characters could not load', error)
       });
       referencePlayers.setCueAppearance(cueBody, cueTipLocal, cueButtLocal);
@@ -22034,6 +22039,13 @@ const shotPowerRef = useRef(0);
           nowMs,
           cueBack,
           cueTip,
+          bridgeObstacles: balls
+            .filter((ball) => ball.active && ball !== cue)
+            .map((ball) => ({
+              position: new THREE.Vector3(ball.pos.x, TABLE_Y + BALL_CENTER_Y, ball.pos.y),
+              radius: BALL_R
+            })),
+          bridgeBounds: { halfWidth: PLAY_W / 2, halfLength: PLAY_H / 2 },
           hidden: Boolean(replayPlaybackRef.current || cueGalleryStateRef.current?.active)
         });
         if (referencePlayers.players.length === 2 && state === 'idle') cueStick.visible = false;
