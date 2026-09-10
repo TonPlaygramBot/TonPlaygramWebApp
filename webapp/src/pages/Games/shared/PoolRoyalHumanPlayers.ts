@@ -15,6 +15,7 @@ import {
   resolveCueReachProfile,
   type CueReachEquipment
 } from './cueReachEquipment.ts';
+import { resolveSafeBridgeAnchor, type BridgeBounds, type BridgeObstacle } from './poolRoyalBridgeSafety.ts';
 
 export type PlayerSeat = 'A' | 'B';
 export type PlayerFrame = {
@@ -27,6 +28,8 @@ export type PlayerFrame = {
   cueBack?: THREE.Vector3;
   cueTip?: THREE.Vector3;
   hidden?: boolean;
+  bridgeObstacles?: BridgeObstacle[];
+  bridgeBounds?: BridgeBounds;
 };
 type Player = {
   seat: PlayerSeat;
@@ -47,6 +50,8 @@ type Options = {
   tableL: number;
   /** Per-game visual sizing without changing the shared stance or pose solver. */
   heightScale?: number;
+  /** Exact desired character height in game-world units. */
+  targetHeight?: number;
   modelUrl?: string;
   model?: THREE.Object3D;
   onError?: (error: unknown) => void;
@@ -156,7 +161,9 @@ export class PoolRoyalHumanPlayers {
     const heightScale = Number.isFinite(options.heightScale) && options.heightScale! > 0
       ? options.heightScale!
       : 1;
-    this.humanHeight = Math.max(Math.max(options.tableW, options.tableL) * 0.82, clothHeight * 1.8) * heightScale;
+    this.humanHeight = options.targetHeight && options.targetHeight > 0
+      ? options.targetHeight
+      : Math.max(Math.max(options.tableW, options.tableL) * 0.82, clothHeight * 1.8) * heightScale;
     this.group.name = 'PoolRoyalReferencePlayers';
     this.group.position.y = options.floorY;
     parent.add(this.group);
@@ -269,6 +276,24 @@ export class PoolRoyalHumanPlayers {
         player.initialized = true;
       }
       let bridge = resolvePoolRoyalBridgeAnchor({ cueBall, aimForward: aim, clothY });
+      let bridgeStyle: 'open' | 'compact' | 'raised' = 'open';
+      if (active && state !== 'idle' && frame.bridgeBounds) {
+        const safety = resolveSafeBridgeAnchor(
+          bridge,
+          aim,
+          (frame.bridgeObstacles ?? []).map(obstacle => ({
+            position: this.toReference(obstacle.position),
+            radius: obstacle.radius / this.referenceScale
+          })),
+          {
+            halfWidth: frame.bridgeBounds.halfWidth / this.referenceScale,
+            halfLength: frame.bridgeBounds.halfLength / this.referenceScale
+          },
+          CFG.humanScale * 0.12
+        );
+        bridge = safety.anchor;
+        bridgeStyle = safety.style;
+      }
       const idleRight = rootTarget.clone().add(new THREE.Vector3(
         CFG.idleRightHandX, CFG.idleRightHandY, CFG.idleRightHandZ
       ).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw));
@@ -329,7 +354,7 @@ export class PoolRoyalHumanPlayers {
       updateHumanPose(human, Math.min(dt, 0.033), state, rootTarget, aim, bridge,
         idleRight, idleLeft, back, tip, active ? power : 0, clothY, supportMode,
         reachPose?.restDirection, rearGripOffset, rearGrip);
-      if (!reachPose) refinePoolRoyalBridge(human, bridge, aim, clothY);
+      if (!reachPose) refinePoolRoyalBridge(human, bridge, aim, clothY, bridgeStyle);
       this.group.add(human.modelRoot);
       setCuePose(player.cue, back, tip);
       // While aiming, the gameplay cue is the visible cue; the parked player
