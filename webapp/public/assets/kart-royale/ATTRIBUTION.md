@@ -1,5 +1,20 @@
 # Kart Royale asset credits
 
+## Military and armoured additions
+
+`military/{shota,brabus-g,defender,brabus-s65}.glb` and their `-lod.glb` variants
+are original reference-inspired geometry under the repository MIT license.
+Their embedded paint, fabric and rubber PBR textures are original procedural
+CC0 1.0 assets; see `military/TEXTURE-LICENSE.txt`. Model sources and texture
+generation are in `webapp/scripts/military-vehicles/`.
+SHOTA reuses the flag-icons Albanian flag credited below. Badge glyphs derive
+from the Three.js helvetiker font; see `military/FONT-LICENSE.txt`.
+These are estimated visual game reconstructions and custom interiors, not
+manufacturer CAD or ballistic certifications. See
+`docs/racing-royal-military-vehicles.md` for model notes and references.
+
+## Existing racing assets
+
 The original kart, city templates and road textures in the first table are **CC0 1.0 Universal**
 (public domain dedication), free to use, modify and redistribute commercially.
 The Tirana-series flag and geographic data have separate licenses recorded below.

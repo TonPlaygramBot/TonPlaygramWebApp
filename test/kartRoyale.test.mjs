@@ -4,6 +4,7 @@ import { createServer } from 'node:http';
 import { Server } from 'socket.io';
 import { io as client } from 'socket.io-client';
 import { attachKartRoyale } from '../bot/services/kartRoyale.js';
+import { MILITARY_VEHICLES } from '../webapp/src/games/kartroyale/militaryVehicleCatalog.mjs';
 import {
   makeTrack,
   createRacer,
@@ -158,6 +159,21 @@ test('real multiplayer clients: ready/start, authority, isolation, reconnect, fi
   assert.equal(joined.ok, true);
   assert.equal((await emit(b, 'start')).ok, false);
   assert.equal((await emit(a, 'start')).ok, false);
+  for (const vehicle of MILITARY_VEHICLES) {
+    assert.equal(
+      (await emit(b, 'appearance', { kartId: vehicle.id })).ok,
+      true
+    );
+    const state = await emit(b, 'resume', {
+      code: created.code,
+      playerId: joined.playerId,
+      token: joined.token
+    });
+    assert.equal(
+      state.state.players.find((p) => p.id === joined.playerId).kartId,
+      vehicle.id
+    );
+  }
   assert.equal((await emit(a, 'appearance', { kartId: 'oodi' })).ok, true);
   assert.equal(
     (await emit(outsider, 'appearance', { kartId: 'oozi' })).ok,
@@ -177,6 +193,10 @@ test('real multiplayer clients: ready/start, authority, isolation, reconnect, fi
   );
   assert.equal((await emit(a, 'start')).ok, true);
   const room = service.rooms.get(created.code);
+  assert.equal(
+    room.racers.find((r) => r.id === joined.playerId).kartId,
+    'brabus-s65'
+  );
   assert.equal(room.racers.length, 6);
   assert.equal(room.racers[0].kartId, 'oodi');
   assert.equal(room.racers.filter((r) => r.ai).length, 4);

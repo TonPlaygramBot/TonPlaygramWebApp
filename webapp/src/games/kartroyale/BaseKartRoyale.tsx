@@ -27,6 +27,7 @@ import {
   Shield,
   Crosshair
 } from 'lucide-react';
+import { isMilitaryVehicle } from './militaryVehicleCatalog.mjs';
 import { KartRenderer } from './renderer';
 import type { Quality, Frame, Result, CameraMode } from './renderer';
 import {
@@ -706,42 +707,36 @@ export default function KartRoyale({
               </h1>
               <p>YOUR STREETS. YOUR RACE.</p>
             </section>
-            <section className="kr-vehicle-info">
+            <section
+              className={`kr-vehicle-info ${isMilitaryVehicle(kartId) ? 'kr-military-info' : ''}`}
+            >
               <span className="kr-label">
-                YOUR KART · 5 PERFORMANCE CLASSES
+                YOUR VEHICLE · {KARTS.length} CLASSES
               </span>
               <h2>{KARTS.find((k) => k.id === kartId)?.name}</h2>
               <p>{KARTS.find((k) => k.id === kartId)?.detail}</p>
-              <div className="kr-kart-picker" aria-label="Choose your kart">
-                {[-1, 1].map((d) => (
-                  <button
-                    key={d}
-                    className="kr-icon"
-                    disabled={!!room || busy}
-                    aria-label={d < 0 ? 'Previous kart' : 'Next kart'}
-                    onClick={() =>
-                      setKartId(
-                        KARTS[
-                          (KARTS.findIndex((k) => k.id === kartId) +
-                            d +
-                            KARTS.length) %
-                            KARTS.length
-                        ].id
-                      )
-                    }
-                  >
-                    {d < 0 ? (
-                      <ChevronLeft size={20} />
-                    ) : (
-                      <ChevronRight size={20} />
-                    )}
-                  </button>
-                ))}
-                <span>
-                  {KARTS.findIndex((k) => k.id === kartId) + 1} / {KARTS.length}{' '}
-                  · UNIQUE PERFORMANCE
-                </span>
-              </div>
+              <select
+                className="kr-vehicle-select"
+                aria-label="Choose vehicle"
+                value={kartId}
+                disabled={!!room || busy}
+                onChange={(e) => setKartId(normalizeKart(e.target.value))}
+              >
+                <optgroup label="Karts">
+                  {KARTS.filter((k) => !isMilitaryVehicle(k.id)).map((k) => (
+                    <option key={k.id} value={k.id}>
+                      {k.name}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Military & armoured">
+                  {KARTS.filter((k) => isMilitaryVehicle(k.id)).map((k) => (
+                    <option key={k.id} value={k.id}>
+                      {k.name}
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
               {(() => {
                 const k = KARTS.find((k) => k.id === kartId)!;
                 return (
@@ -764,18 +759,20 @@ export default function KartRoyale({
                   </div>
                 );
               })()}
-              <div className="kr-swatches">
-                {COLORS.slice(0, 5).map((c, i) => (
-                  <button
-                    key={c}
-                    aria-label={`Select ${['lime', 'blue', 'pink', 'violet', 'orange'][i]} paint`}
-                    aria-pressed={paint === i}
-                    className={paint === i ? 'active' : ''}
-                    style={{ '--swatch': c } as React.CSSProperties}
-                    onClick={() => setPaint(i)}
-                  />
-                ))}
-              </div>
+              {!isMilitaryVehicle(kartId) && (
+                <div className="kr-swatches">
+                  {COLORS.slice(0, 5).map((c, i) => (
+                    <button
+                      key={c}
+                      aria-label={`Select ${['lime', 'blue', 'pink', 'violet', 'orange'][i]} paint`}
+                      aria-pressed={paint === i}
+                      className={paint === i ? 'active' : ''}
+                      style={{ '--swatch': c } as React.CSSProperties}
+                      onClick={() => setPaint(i)}
+                    />
+                  ))}
+                </div>
+              )}
             </section>
             <section className="kr-controls-panel">
               <div className="kr-mode-list" aria-label="Race mode">

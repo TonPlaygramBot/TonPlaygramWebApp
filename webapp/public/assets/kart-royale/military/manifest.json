@@ -1,0 +1,94 @@
+{
+  "format": "glTF 2.0",
+  "generator": "webapp/scripts/build-military-vehicles.mjs",
+  "models": [
+    {
+      "file": "shota.glb",
+      "bytes": 2511324,
+      "triangles": 37924,
+      "drawCalls": 82,
+      "bounds": [
+        3.045999982357025,
+        3.8364826798439027,
+        6.4019999504089355
+      ]
+    },
+    {
+      "file": "shota-lod.glb",
+      "bytes": 1242724,
+      "triangles": 23368,
+      "drawCalls": 32,
+      "bounds": [
+        3.045999982357025,
+        3.8364826798439027,
+        6.3500001430511475
+      ]
+    },
+    {
+      "file": "brabus-g.glb",
+      "bytes": 3091192,
+      "triangles": 74376,
+      "drawCalls": 32,
+      "bounds": [
+        2.359999895095825,
+        2.015699988603592,
+        4.904999985694885
+      ]
+    },
+    {
+      "file": "brabus-g-lod.glb",
+      "bytes": 924232,
+      "triangles": 23068,
+      "drawCalls": 25,
+      "bounds": [
+        2.359999895095825,
+        2.0099999964237214,
+        4.886999979019165
+      ]
+    },
+    {
+      "file": "defender.glb",
+      "bytes": 2597472,
+      "triangles": 57052,
+      "drawCalls": 31,
+      "bounds": [
+        2.359999895095825,
+        2.2656149876117704,
+        5.1549999094009396
+      ]
+    },
+    {
+      "file": "defender-lod.glb",
+      "bytes": 717244,
+      "triangles": 16584,
+      "drawCalls": 24,
+      "bounds": [
+        2.359999895095825,
+        2.2599999916553495,
+        5.136999902725219
+      ]
+    },
+    {
+      "file": "brabus-s65.glb",
+      "bytes": 2544472,
+      "triangles": 58700,
+      "drawCalls": 29,
+      "bounds": [
+        2.3399999141693115,
+        1.532500022649765,
+        5.36899995803833
+      ]
+    },
+    {
+      "file": "brabus-s65-lod.glb",
+      "bytes": 750592,
+      "triangles": 17680,
+      "drawCalls": 21,
+      "bounds": [
+        2.3399999141693115,
+        1.532500022649765,
+        5.36899995803833
+      ]
+    }
+  ]
+}

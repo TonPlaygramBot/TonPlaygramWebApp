@@ -1,0 +1,4 @@
+All paint_*, rubber_*, fabric_* PNG files in this package are original procedural textures dedicated to the public domain under Creative Commons CC0 1.0 Universal.
+https://creativecommons.org/publicdomain/zero/1.0/
+
+These are synthetic PBR textures created for this model. No ambientCG downloaded asset is included. Generator: webapp/scripts/military-vehicles/textures.py. You may copy, modify and redistribute these texture files, including commercially, without attribution.
