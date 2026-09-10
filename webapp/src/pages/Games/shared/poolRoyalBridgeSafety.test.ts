@@ -1,34 +1,36 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { bridgeIsClear, bridgeRequiredLift, findBridgeRetraction } from './poolRoyalBridgeSafety.ts';
+import { resolveSafeBridgeAnchor } from './poolRoyalBridgeSafety.ts';
 
-const part = new THREE.Box3(new THREE.Vector3(-0.1, 0.8, 0.4), new THREE.Vector3(0.1, 0.9, 0.7));
-const bounds = { halfWidth: 1, halfLength: 2, cushionTopY: 1 };
+describe('resolveSafeBridgeAnchor', () => {
+  const bounds = { halfWidth: 1, halfLength: 2 };
 
-describe('posed bridge volume safety', () => {
-  it('checks finger tips beyond the palm and retains a visible gap from balls', () => {
-    const environment = { bounds, obstacles: [{ position: new THREE.Vector3(0.12, 0.85, 0.65), radius: 0.06 }] };
-    expect(bridgeIsClear([part], environment, 0.01)).toBe(false);
-    const forward = new THREE.Vector3(0, 0, -1);
-    const offset = findBridgeRetraction([part], forward, environment, 0.01, 0.5)!;
-    expect(offset.dot(forward)).toBeLessThan(0);
-    expect(Math.abs(offset.x)).toBe(0);
-    expect(bridgeIsClear([part], environment, 0.01, offset)).toBe(true);
+  it('keeps a clear preferred bridge position', () => {
+    const preferred = new THREE.Vector3(0, 0.8, 0.5);
+    const result = resolveSafeBridgeAnchor(preferred, new THREE.Vector3(0, 0, -1), [], bounds, 0.1);
+    expect(result.style).toBe('open');
+    expect(result.anchor.toArray()).toEqual(preferred.toArray());
   });
 
-  it('reports a blocked search and computes enough lift to clear the actual sphere', () => {
-    const environment = { bounds, obstacles: [{ position: new THREE.Vector3(0, 0.85, 0.5), radius: 0.4 }] };
-    expect(findBridgeRetraction([part], new THREE.Vector3(0, 0, -1), environment, 0.01, 0.1)).toBeNull();
-    const lift = bridgeRequiredLift([part], environment, 0.01);
-    expect(lift).toBeGreaterThan(0.4);
-    expect(bridgeIsClear([part], environment, 0.01, new THREE.Vector3(0, lift + 1e-8, 0))).toBe(true);
+  it('moves the hand rather than overlapping another ball', () => {
+    const preferred = new THREE.Vector3(0, 0.8, 0.5);
+    const obstacle = { position: preferred.clone(), radius: 0.06 };
+    const result = resolveSafeBridgeAnchor(preferred, new THREE.Vector3(0, 0, -1), [obstacle], bounds, 0.1);
+    const planarDistance = Math.hypot(
+      result.anchor.x - obstacle.position.x,
+      result.anchor.z - obstacle.position.z
+    );
+    expect(planarDistance).toBeGreaterThanOrEqual(0.16);
+    expect(result.style).toBe('compact');
   });
 
-  it('raises a corner bridge above both cushion faces without clamping it across the ball', () => {
-    const corner = part.clone().translate(new THREE.Vector3(1, 0, 1.5));
-    const environment = { bounds, obstacles: [] };
-    expect(bridgeIsClear([corner], environment, 0.01)).toBe(false);
-    const lift = bridgeRequiredLift([corner], environment, 0.01);
-    expect(bridgeIsClear([corner], environment, 0.01, new THREE.Vector3(0, lift + 1e-8, 0))).toBe(true);
+  it('allows cushion contact but clamps the hand footprint inside it', () => {
+    const result = resolveSafeBridgeAnchor(
+      new THREE.Vector3(2, 0.8, 3),
+      new THREE.Vector3(0, 0, -1),
+      [], bounds, 0.1
+    );
+    expect(result.anchor.x).toBeCloseTo(0.9);
+    expect(result.anchor.z).toBeCloseTo(1.9);
   });
 });

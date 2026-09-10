@@ -22377,7 +22377,7 @@ const shotPowerRef = useRef(0);
           return vec;
         };
 
-        const humanShotCamera = new PoolRoyalShotCamera(true);
+        const humanShotCamera = new PoolRoyalShotCamera();
         const resolveActiveHumanEyePose = () => {
           const pose = humanShotCamera.resolve({
             eye: activeHumanCueViewRef.current,
@@ -23625,10 +23625,8 @@ const shotPowerRef = useRef(0);
           // Apply after choosing the actual render camera, including AI/action/pocket views.
           const humanEyePose = resolveActiveHumanEyePose();
           if (humanEyePose) {
-            // Eye coordinates are world-space; broadcast cameras may have rig parents.
-            renderCamera = camera;
-            renderCamera.position.copy(humanEyePose.position);
-            lookTarget = humanEyePose.target.clone();
+            renderCamera.position.lerp(humanEyePose.position, humanEyePose.blend);
+            lookTarget = (lookTarget ?? humanEyePose.target).clone().lerp(humanEyePose.target, humanEyePose.blend);
             renderCamera.lookAt(lookTarget);
             if (renderCamera.isPerspectiveCamera) {
               renderCamera.fov = THREE.MathUtils.lerp(renderCamera.fov, STANDING_VIEW_FOV, humanEyePose.blend);
@@ -26225,7 +26223,6 @@ const shotPowerRef = useRef(0);
         disposePlayerCharacters();
         if (disposed) return;
         referencePlayers = new PoolRoyalHumanPlayers(world, {
-          followPlayerEyes: true,
           floorY,
           clothY: TABLE_Y + CLOTH_TOP_LOCAL + CLOTH_LIFT - CLOTH_DROP,
           tableW: Math.max(TABLE.W, PLAY_W),
@@ -26270,15 +26267,6 @@ const shotPowerRef = useRef(0);
           nowMs,
           cueBack,
           cueTip,
-          bridgeObstacles: (ballsRef.current ?? []).filter(ball => ball.active).map(ball => ({
-            position: new THREE.Vector3(ball.pos.x, TABLE_Y + BALL_CENTER_Y, ball.pos.y),
-            radius: BALL_R
-          })),
-          bridgeBounds: {
-            halfWidth: RAIL_LIMIT_X + BALL_R,
-            halfLength: RAIL_LIMIT_Y + BALL_R,
-            cushionTopY: TABLE_Y + (table?.userData?.cushionTopLocal ?? TABLE_RAIL_TOP_Y)
-          },
           hidden: Boolean(replayPlaybackRef.current)
         });
         activeHumanCueViewRef.current = referencePlayers.eyeView;
