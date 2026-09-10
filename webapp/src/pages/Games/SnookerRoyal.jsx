@@ -103,6 +103,7 @@ import {
 } from './snookerRoyalSpinUtils.js';
 import { resolveCueBallContact, sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
 import { resolvePoolRoyalReleasePower } from './poolRoyaleShotState.js';
+import { BILARDO_MIN_RELEASE_POWER } from './shared/bilardoShotModel';
 import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import SnookerShotCoach from './SnookerShotCoach.jsx';
 import { resolveSnookerImpactAudio } from './snookerImpactAudio.js';
@@ -1681,6 +1682,9 @@ const CUE_FOLLOW_MAX_MS = 420;
 const CUE_FOLLOW_SPEED_MIN = BALL_R * 12;
 const CUE_FOLLOW_SPEED_MAX = BALL_R * 24;
 const ENABLE_CUE_STROKE_ANIMATION = true;
+// Use the same intentional-release threshold as Pool Royale so a portrait pull
+// gesture commits consistently in both billiards games.
+const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER;
 const CUE_FOLLOW_THROUGH_MIN = BALL_R * 0.18; // ensure the forward push is visible even on short strokes
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 1.8; // cap the forward travel so the cue never overshoots the ball too far
 const PLAYER_CUE_FORWARD_MIN_MS = 450;
@@ -22004,8 +22008,9 @@ const shotPowerRef = useRef(0);
         clothY: TABLE_Y + CLOTH_TOP_LOCAL + CLOTH_LIFT - CLOTH_DROP,
         tableW: Math.max(TABLE.W, PLAY_W),
         tableL: Math.max(TABLE.H, PLAY_H),
-        // A player reads as exactly one quarter taller than the selected cue.
-        targetHeight: cueLen * 1.25,
+        // Match Pool Royale's cue-relative proportions, with a slightly taller
+        // silhouette that remains grounded at the venue floor.
+        targetHeight: cueLen * 1.3,
         onError: (error) => console.warn('Snooker Royal player characters could not load', error)
       });
       referencePlayers.setCueAppearance(cueBody, cueTipLocal, cueButtLocal);
@@ -22909,9 +22914,12 @@ const shotPowerRef = useRef(0);
       // Fire (slider triggers on release)
       const fire = (committedPowerOverride = null) => {
         const clampedPower = resolvePoolRoyalReleasePower({
-          busy: Boolean(shooting || shotImpactPending),
+          // Read the synchronized refs used by Pool Royale. This avoids a stale
+          // render closure rejecting a mobile pointer release before impact.
+          busy: Boolean(shootingRef.current || cueAnimating || shotImpactPending),
           committedPower: committedPowerOverride,
-          currentPower: powerRef.current
+          currentPower: powerRef.current,
+          minPower: MIN_SHOT_POWER_TO_FIRE
         });
         if (clampedPower === null) return;
         const currentHud = hudRef.current;
@@ -22924,7 +22932,7 @@ const shotPowerRef = useRef(0);
         if (
           !cue?.active ||
           (inHandPlacementActive && !cueBallPlacedFromHandRef.current) ||
-          !allStopped(balls) ||
+          !allStopped(ballsRef.current?.length > 0 ? ballsRef.current : balls) ||
           currentHud?.over ||
           replayPlaybackRef.current
         )
