@@ -90,6 +90,6 @@ export function RacingCareerGame({onExit}:{onExit:()=>void}){
         <b>{mission.title}{tasks.completed.includes(mission.id)?' · COMPLETE':''}</b><br/><small>{mission.description} · {mission.xp} first-completion XP</small></button>)}
       {!!GRAND_ROUTE_DIAGNOSTICS.length&&<details><summary>Route availability</summary><p>{GRAND_ROUTE_DIAGNOSTICS.join('; ')}</p></details>}
     </section>}
-    {racing&&<><div className="te-actions rr-steering">{button('steer',-1,'← LEFT')}{button('steer',1,'RIGHT →')}</div><div className="te-actions">{button('brake',true,'BRAKE')}{button('boost',true,'BOOST')}</div></>}
+    {racing&&<><div className="te-actions rr-steering">{button('steer',-1,'← LEFT')}{button('steer',1,'RIGHT →')}</div><div className="te-actions rr-pedals">{button('brake',true,'BRAKE')}{button('boost',true,'BOOST')}</div></>}
   </main>;
 }
