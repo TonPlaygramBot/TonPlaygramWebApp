@@ -42,9 +42,9 @@ const gamesCatalog = [
     image: '/assets/kart-royale/cover.webp',
     badge: 'Beta',
     modes: ['VS AI', 'TPG Multiplayer', 'Career'],
-    launchLabel: 'Enter Racing Lobby',
+    launchLabel: 'Play Racing Royal',
     description:
-      'Enter your racing lobby for TPG matchmaking, private races, free AI practice and career cups.'
+      'Race the Alpine Grand Loop with Ferrari, Buggy and weapon pickups. TPG and career remain in Modes.'
   },
   {
     name: "Texas Hold'em",

@@ -9,8 +9,9 @@ const routes=JSON.parse(readFileSync(new URL('./fixtures/tiranaRaceSourcePair.js
 const original={id:'lana',name:'Lana',width:10},oldCup={name:'Original',track:'lana',target:3};
 const legacy={TRACKS:[original],CUPS:[oldCup],makeTrack:()=>original};
 function result(task,extra={}){return {trackId:task.track,playerId:'you',racers:[{id:'you',finished:true,finishTime:180,health:100,...extra}]};}
-test('original garage opens by default and AI URLs do not open a nested menu',()=>{
- assert.equal(racingActivity(''),'race');assert.equal(racingActivity('?mode=ai'),'race');
+test('supplied Alpine game opens directly by default and for free AI URLs',()=>{
+ assert.equal(racingActivity(''),'alpine');assert.equal(racingActivity('?mode=ai'),'alpine');
+ assert.equal(racingActivity('?activity=garage'),'race');
 });
 test('paid multiplayer/table URLs take priority over Explore or local Career',()=>{
  for(const paid of ['mode=online','tableId=paid-seat','code=ABC123'])assert.equal(racingActivity(`?${paid}&activity=explore`),'race');
