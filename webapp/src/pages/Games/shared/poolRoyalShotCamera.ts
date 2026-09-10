@@ -3,6 +3,10 @@ import type { HumanEyeView } from './poolRoyalPlayerPose.ts';
 
 /** Own the shot view across ALL render-camera branches, including AI/action cameras. */
 export class PoolRoyalShotCamera {
+  private readonly followPlayerEyes: boolean;
+
+  constructor(followPlayerEyes = false) { this.followPlayerEyes = followPlayerEyes; }
+
   private held: HumanEyeView | null = null;
   private lastStrokeAt = -Infinity;
 
@@ -11,6 +15,10 @@ export class PoolRoyalShotCamera {
     cueBlend: number; now: number; excluded?: boolean;
   }): HumanEyeView | null {
     if (excluded) { this.reset(); return null; }
+    // Pool Royal opts into continuous eye attachment. Other games retain their
+    // existing shot hold and broadcast handoff until explicitly enabled.
+    if (this.followPlayerEyes) return eye
+      ? { position: eye.position.clone(), target: eye.target.clone(), blend: 1 } : null;
     if (stroke && eye) {
       this.held = { position: eye.position.clone(), target: eye.target.clone(), blend: 1 };
       this.lastStrokeAt = now;

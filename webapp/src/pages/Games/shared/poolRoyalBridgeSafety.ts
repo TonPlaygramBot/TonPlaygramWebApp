@@ -1,56 +1,55 @@
 import * as THREE from 'three';
 
 export type BridgeObstacle = { position: THREE.Vector3; radius: number };
-export type BridgeBounds = { halfWidth: number; halfLength: number };
+export type BridgeBounds = { halfWidth: number; halfLength: number; cushionTopY?: number };
+export type BridgeStyle = 'open' | 'compact' | 'raised' | 'rail';
+export type BridgeEnvironment = { obstacles: BridgeObstacle[]; bounds: BridgeBounds; clothY?: number };
 
-export type SafeBridgeResult = {
-  anchor: THREE.Vector3;
-  style: 'open' | 'compact' | 'raised';
-};
+/** All boxes contain posed skin triangles, including the webbing between fingers. */
+export function bridgeIsClear(parts: THREE.Box3[], environment: BridgeEnvironment,
+  clearance: number, offset = new THREE.Vector3()) {
+  const { bounds, obstacles } = environment;
+  const box = new THREE.Box3();
+  for (const part of parts) {
+    box.copy(part).translate(offset);
+    if (environment.clothY !== undefined && box.min.y < environment.clothY) return false;
+    if ((box.min.x < -bounds.halfWidth + clearance || box.max.x > bounds.halfWidth - clearance ||
+      box.min.z < -bounds.halfLength + clearance || box.max.z > bounds.halfLength - clearance) &&
+      box.min.y < (bounds.cushionTopY ?? Infinity) + clearance) return false;
+    if (obstacles.some(ball => box.distanceToPoint(ball.position) < ball.radius + clearance)) return false;
+  }
+  return true;
+}
 
-/**
- * Finds a planted-hand position without putting the palm through a ball or a
- * cushion. Candidates remain behind the cue ball, so the hand cannot cross the
- * strike line. Clamping to the playable rectangle permits cushion contact but
- * never overlap.
- */
-export function resolveSafeBridgeAnchor(
-  preferred: THREE.Vector3,
-  forwardInput: THREE.Vector3,
-  obstacles: BridgeObstacle[],
-  bounds: BridgeBounds,
-  handRadius: number
-): SafeBridgeResult {
-  const forward = forwardInput.clone().setY(0);
-  if (forward.lengthSq() < 1e-8) forward.set(0, 0, -1);
-  else forward.normalize();
-  const side = new THREE.Vector3(forward.z, 0, -forward.x);
-  const insetX = Math.max(0, bounds.halfWidth - handRadius);
-  const insetZ = Math.max(0, bounds.halfLength - handRadius);
-  const clampToCloth = (point: THREE.Vector3) => point.set(
-    THREE.MathUtils.clamp(point.x, -insetX, insetX),
-    preferred.y,
-    THREE.MathUtils.clamp(point.z, -insetZ, insetZ)
-  );
-  const isClear = (point: THREE.Vector3) => obstacles.every(({ position, radius }) => {
-    const dx = point.x - position.x;
-    const dz = point.z - position.z;
-    return dx * dx + dz * dz >= (handRadius + radius) ** 2;
-  });
+/** Search along the shaft. Never clamp toward/across the cue ball or move the cue channel sideways. */
+export function findBridgeRetraction(parts: THREE.Box3[], forward: THREE.Vector3,
+  environment: BridgeEnvironment, clearance: number, maxDistance: number) {
+  const offset = new THREE.Vector3();
+  for (let step = 0; step <= 12; step++) {
+    offset.copy(forward).multiplyScalar(-maxDistance * step / 12);
+    if (bridgeIsClear(parts, environment, clearance, offset)) return offset.clone();
+  }
+  return null;
+}
 
-  const lateralSteps = [0, 0.75, -0.75, 1.5, -1.5, 2.25, -2.25];
-  const rearSteps = [0, 0.65, 1.3, 2];
-  for (const rear of rearSteps) for (const lateral of lateralSteps) {
-    const candidate = clampToCloth(preferred.clone()
-      .addScaledVector(forward, -rear * handRadius)
-      .addScaledVector(side, lateral * handRadius));
-    if (isClear(candidate)) {
-      const moved = candidate.distanceToSquared(preferred) > handRadius * handRadius * 0.2;
-      return { anchor: candidate, style: moved ? 'compact' : 'open' };
+/** Minimum vertical translation that clears both balls and the cushion volume. */
+export function bridgeRequiredLift(parts: THREE.Box3[], environment: BridgeEnvironment, clearance: number) {
+  let lift = 0;
+  const { bounds, obstacles } = environment;
+  for (const box of parts) {
+    if (environment.clothY !== undefined) lift = Math.max(lift, environment.clothY + clearance - box.min.y);
+    if (box.min.x < -bounds.halfWidth + clearance || box.max.x > bounds.halfWidth - clearance ||
+      box.min.z < -bounds.halfLength + clearance || box.max.z > bounds.halfLength - clearance) {
+      lift = Math.max(lift, (bounds.cushionTopY ?? box.min.y) + clearance - box.min.y);
+    }
+    for (const ball of obstacles) {
+      const dx = Math.max(box.min.x - ball.position.x, 0, ball.position.x - box.max.x);
+      const dz = Math.max(box.min.z - ball.position.z, 0, ball.position.z - box.max.z);
+      const radius = ball.radius + clearance;
+      if (dx * dx + dz * dz < radius * radius) {
+        lift = Math.max(lift, ball.position.y + Math.sqrt(radius * radius - dx * dx - dz * dz) - box.min.y);
+      }
     }
   }
-
-  // A crowded rail shot uses a raised bridge: retain a legal cloth footprint
-  // while the pose solver lifts/curls the fingers above nearby balls.
-  return { anchor: clampToCloth(preferred.clone()), style: 'raised' };
+  return Math.max(0, lift);
 }
