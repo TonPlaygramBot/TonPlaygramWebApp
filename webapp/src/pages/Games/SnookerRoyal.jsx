@@ -102,6 +102,7 @@ import {
   SPIN_STUN_RADIUS
 } from './snookerRoyalSpinUtils.js';
 import { resolveCueBallContact, sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
+import { resolvePoolRoyalReleasePower } from './poolRoyaleShotState.js';
 import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import SnookerShotCoach from './SnookerShotCoach.jsx';
 import { resolveSnookerImpactAudio } from './snookerImpactAudio.js';
@@ -22050,7 +22051,7 @@ const shotPowerRef = useRef(0);
         tableL: Math.max(TABLE.H, PLAY_H),
         // Match Pool Royale's cue-relative proportions, with a slightly taller
         // silhouette that remains grounded at the venue floor.
-        targetHeight: cueLen * 1.34,
+        targetHeight: cueLen * 1.38,
         onError: (error) => console.warn('Snooker Royal player characters could not load', error)
       });
       referencePlayers.setCueAppearance(cueBody, cueTipLocal, cueButtLocal);
@@ -22953,7 +22954,17 @@ const shotPowerRef = useRef(0);
       };
 
       // Fire (slider triggers on release)
-      const fire = () => {
+      const fire = (committedPowerOverride = null) => {
+        // The slider resets as soon as the release is committed. Capture the
+        // released value instead of relying on powerRef, which can already be
+        // back at zero on mobile by the time this callback runs.
+        const clampedPower = resolvePoolRoyalReleasePower({
+          busy: Boolean(shootingRef.current || cueAnimating || shotImpactPending),
+          committedPower: committedPowerOverride,
+          currentPower: powerRef.current,
+          minPower: 0
+        });
+        if (clampedPower === null || clampedPower <= 0) return;
         const currentHud = hudRef.current;
         const frameSnapshot = frameRef.current ?? frameState;
         const fullTableHandPlacement =
@@ -22969,10 +22980,6 @@ const shotPowerRef = useRef(0);
           replayPlaybackRef.current
         )
           return;
-        // Restore the original Snooker Royal release model: every valid slider
-        // release fires with its current normalized power. The cue-stick stroke
-        // timeline below remains unchanged and still gates the physical impact.
-        const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
         if (currentHud?.inHand && (fullTableHandPlacement || inHandPlacementActive)) {
           hudRef.current = { ...currentHud, inHand: false };
           setHud((prev) => ({ ...prev, inHand: false }));

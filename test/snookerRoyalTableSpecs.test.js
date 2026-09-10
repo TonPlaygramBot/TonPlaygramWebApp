@@ -42,10 +42,12 @@ describe('Snooker Royal physical table specs', () => {
     assert.doesNotMatch(source, /const TARGET_RATIO = 1\.83;/);
   });
 
-  test('uses a smaller character and the Pool Royale release-to-shoot handoff', async () => {
+  test('uses the enlarged character and the captured release-to-shoot handoff', async () => {
     const source = await readFile('webapp/src/pages/Games/SnookerRoyal.jsx', 'utf8');
 
-    assert.match(source, /heightScale: 0\.9/);
+    assert.match(source, /targetHeight: cueLen \* 1\.38/);
+    assert.match(source, /const fire = \(committedPowerOverride = null\) =>/);
+    assert.match(source, /committedPower: committedPowerOverride/);
     assert.match(source, /const committedPower = clampPower\(value \/ 100, 0\);/);
     assert.match(source, /shotPowerRef\.current = committedPower;/);
     assert.match(source, /powerRef\.current = committedPower;/);
