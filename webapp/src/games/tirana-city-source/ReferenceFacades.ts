@@ -4,6 +4,7 @@ import { WORLD } from '../tiranastreets/shared/world.mjs';
 import { REFERENCE_BUILDINGS, type ReferenceProfile } from './profiles.mjs';
 import { facadeEdges, type FacadeEdge } from './sourceCore.mjs';
 import { landmarkBuildings } from './landmarkCatalog.mjs';
+import { civicBuildingDetails } from './CivicBuildingDetails';
 import { landmarkDetails } from './LandmarkDetails';
 
 /** Recognizable, photo-informed details fitted to existing footprints. Dimensions
@@ -13,9 +14,10 @@ export class ReferenceFacades {
   private entries:{group:T.Group;x:number;z:number}[]=[];
   private materials=new Map<number,T.MeshStandardMaterial>();
   private disposed=false;
-  constructor(world=WORLD) {
+  constructor(world=WORLD, onlyIds?:ReadonlySet<string>) {
     this.group.name='Tirana:photo-referenced-institution-facades';
     for(const b of landmarkBuildings(world)){
+      if(onlyIds&&!onlyIds.has(b.id))continue;
       const profile=REFERENCE_BUILDINGS[b.id];if(!profile)continue;
       const group=new T.Group(),height=profile.height??b.h;
       group.name=profile.name;group.userData={osmWay:b.id,site:b.site,reference:profile.source,referenceDate:profile.date,
@@ -28,7 +30,7 @@ export class ReferenceFacades {
       };
       const shape=new T.Shape(b.p.map(p=>new T.Vector2(p[0],-p[1])));
       for(const hole of b.holes??[])shape.holes.push(new T.Path(hole.map(p=>new T.Vector2(p[0],-p[1]))));
-      const shellHeight=profile.style==='sky'?height-12:height;
+      const shellHeight=profile.shellHeight??(profile.style==='sky'?height-12:height);
       add(profile.color,new T.ExtrudeGeometry(shape,{depth:shellHeight,bevelEnabled:false,steps:1}).rotateX(-Math.PI/2));
       const edges=facadeEdges(b.p);
       const wall=(e:FacadeEdge,color:number,u:number,y:number,w:number,h:number,d:number,offset=.04)=>{
@@ -41,7 +43,7 @@ export class ReferenceFacades {
         box(color,e.a[0]+e.ux*u+e.nx*offset,y,e.a[1]+e.uz*u+e.nz*offset,w,h,d,-Math.atan2(e.uz,e.ux));
       };
       const centre={x:b.p.reduce((s,p)=>s+p[0],0)/b.p.length,z:b.p.reduce((s,p)=>s+p[1],0)/b.p.length};
-      const detailed=landmarkDetails(profile,edges,height,add,box,wall,centre);
+      const detailed=civicBuildingDetails(profile,edges,height,b.p,b.holes??[],add,box,wall)||landmarkDetails(profile,edges,height,add,box,wall,centre);
       if(profile.style==='stadium'&&b.holes?.length){
         const hole=b.holes[0],pitch=new T.Shape(hole.map(p=>new T.Vector2(p[0],-p[1])));
         add(0x4f7846,new T.ShapeGeometry(pitch).rotateX(-Math.PI/2).translate(0,.08,0));

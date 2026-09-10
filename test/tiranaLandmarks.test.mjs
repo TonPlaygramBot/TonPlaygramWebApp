@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {LANDMARK_DATA} from '../webapp/src/games/tirana-city-source/landmarkData.mjs';
+import {LANDMARK_DATA} from '../webapp/src/games/tirana-city-source/allLandmarks.mjs';
 import {LANDMARK_CATALOG,LANDMARK_REPLACED_IDS,landmarkBuildings} from '../webapp/src/games/tirana-city-source/landmarkCatalog.mjs';
 import {REFERENCE_BUILDINGS} from '../webapp/src/games/tirana-city-source/profiles.mjs';
 import {CITY_PLACES} from '../webapp/src/games/tirana-city-source/registry.mjs';

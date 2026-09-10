@@ -30,7 +30,10 @@ import { validateSeatTableRequest } from '../bot/config/onlineGamePolicy.js';
 
 test('the complete Tirana Streets layout retains its metric scale and east/south axes', () => {
   assert.equal(roads.length, WORLD.roads.length);
-  assert.equal(buildings.length, WORLD.buildings.length);
+  const originalIds=new Set(WORLD.buildings.map(b=>b.id));
+  const added=buildings.filter(b=>!originalIds.has(b.id));
+  assert.deepEqual(added.map(b=>b.id).sort(),['384505310','459085861','469978008'].sort());
+  assert.equal(buildings.length, WORLD.buildings.length+added.length);
   roads.forEach((r, i) => {
     for (const end of ['a', 'b']) {
       assert.ok(Math.abs(r[end][0] + ORIGIN.x - WORLD.roads[i][end][0]) < 1e-8);
@@ -38,8 +41,10 @@ test('the complete Tirana Streets layout retains its metric scale and east/south
     }
     assert.equal(r.w, WORLD.roads[i].w);
   });
-  buildings.forEach((b, i) => assert.equal(b.id, WORLD.buildings[i].id));
-  buildings.forEach((b, i) => assert.deepEqual(b.footprint, WORLD.buildings[i].p.map(([x,z]) => [x-ORIGIN.x,z-ORIGIN.z])));
+  for(const original of WORLD.buildings){
+    const b=buildings.find(b=>b.id===original.id);assert.ok(b,original.id);
+    assert.deepEqual(b.footprint,original.p.map(([x,z])=>[x-ORIGIN.x,z-ORIGIN.z]));
+  }
   assert.equal(MAP.minX + ORIGIN.x, WORLD.bounds[0]);
   const assets = readFileSync(
     new URL('../webapp/src/games/blackwater/world.ts', import.meta.url),

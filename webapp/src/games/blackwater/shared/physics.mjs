@@ -75,7 +75,7 @@ export function collides(x, z, r, obstacles) {
   for (const o of nearby(x, z, r, obstacles)) {
     if (o.minY > 1.7) continue;
     if (o.footprint) {
-      if (footprintDistance(x, z, o.footprint) < r) return true;
+      if (footprintDistance(x, z, o.footprint, o.holes) < r) return true;
       continue;
     }
     const c = Math.cos(o.rot || 0),
@@ -106,10 +106,10 @@ export function rayBox(origin, dir, o) {
       if(Math.abs(dir[axis])<1e-9) {if(origin[axis]<lo || origin[axis]>hi) return Infinity;}
       else {let a=(lo-origin[axis])/dir[axis],b=(hi-origin[axis])/dir[axis];if(a>b)[a,b]=[b,a];enter=Math.max(enter,a);leave=Math.min(leave,b);if(enter>leave)return Infinity;}
     }
-    if (origin.y>=0 && origin.y<=o.h && polygonContains(origin.x,origin.z,p)) return 0;
+    if (origin.y>=0 && origin.y<=o.h && polygonContains(origin.x,origin.z,p,o.holes)) return 0;
     let nearest=Infinity;
-    for (let i=0;i<p.length;i++) {
-      const a=p[i],b=p[(i+1)%p.length],ex=b[0]-a[0],ez=b[1]-a[1];
+    for (const ring of [p,...(o.holes??[])]) for (let i=0;i<ring.length;i++) {
+      const a=ring[i],b=ring[(i+1)%ring.length],ex=b[0]-a[0],ez=b[1]-a[1];
       const denominator=dir.x*ez-dir.z*ex;
       if (Math.abs(denominator)<1e-9) continue;
       const ax=a[0]-origin.x,az=a[1]-origin.z;
@@ -119,7 +119,7 @@ export function rayBox(origin, dir, o) {
     }
     if (Math.abs(dir.y)>1e-9) for (const y of [0,o.h]) {
       const t=(y-origin.y)/dir.y;
-      if (t>=0 && polygonContains(origin.x+dir.x*t,origin.z+dir.z*t,p)) nearest=Math.min(nearest,t);
+      if (t>=0 && polygonContains(origin.x+dir.x*t,origin.z+dir.z*t,p,o.holes)) nearest=Math.min(nearest,t);
     }
     return nearest;
   }

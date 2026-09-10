@@ -1,0 +1,189 @@
+{
+  "photos": [
+    {
+      "file": "city-orthodox.jpg",
+      "source": "https://commons.wikimedia.org/wiki/File:Orthodox_Church_Tirana_2016_albania.jpg",
+      "date": "2016-09-26",
+      "author": "Photo: Daniel Flickr: https://www.flickr.com/photos/da-ni-el/",
+      "license": "CC BY-SA 2.0",
+      "changes": "Resized and JPEG recompressed; no generative alteration.",
+      "sha256": "591ae5cd22a01c3b7add95097cec1967244998ee250b6bce6eb2c28807d95f10",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0/"
+    },
+    {
+      "file": "city-st-paul.jpg",
+      "source": "https://commons.wikimedia.org/wiki/File:Moderni_katolicka_katedrala_v_Tirane%2C_v_popredi_ricka_Lan.jpg",
+      "date": "Capture date unavailable",
+      "author": "Martin Brož",
+      "license": "CC BY 3.0",
+      "changes": "Resized and JPEG recompressed; no generative alteration.",
+      "sha256": "facd99c3994b67b7b96c66fae49bee1424d2f95ef230b62e77258e63f729493c",
+      "licenseUrl": "https://creativecommons.org/licenses/by/3.0/"
+    },
+    {
+      "file": "city-namazgja.jpg",
+      "source": "https://commons.wikimedia.org/wiki/File:Tiran%C3%AB%2C_Albania%2C_2_January_2023_-_Namazgjah_Mosque.jpg",
+      "date": "2022-12-31",
+      "author": "Sharon Hahn Darlin",
+      "license": "CC BY 2.0",
+      "changes": "Resized and JPEG recompressed; no generative alteration.",
+      "sha256": "4bac046091e0cfa098664c8f68134281c1245dfe6823e2681dc70c0df8daf6f6",
+      "licenseUrl": "https://creativecommons.org/licenses/by/2.0/"
+    },
+    {
+      "file": "city-prime-minister.jpg",
+      "source": "https://commons.wikimedia.org/wiki/File:Nd%C3%ABrtesa_e_Kryeministris%C3%AB%2C_Tiran%C3%AB._The_Building_of_the_Prime_Ministry_of_Albania._Foto_by_Dritan_Mardodaj..jpg",
+      "date": "2014-10-10",
+      "author": "Dritan Mardodaj",
+      "license": "CC BY-SA 4.0",
+      "changes": "Resized and JPEG recompressed; no generative alteration.",
+      "sha256": "99917e48e5cc209c8e6d253ab042a7cf4825142036ab27f61e8e5b3d5885a1af",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+    },
+    {
+      "file": "city-presidency.jpg",
+      "source": "https://commons.wikimedia.org/wiki/File:Albanian_president.jpg",
+      "date": "2016-11-05",
+      "author": "Ervis.Reci",
+      "license": "CC BY-SA 4.0",
+      "changes": "Resized and JPEG recompressed; no generative alteration.",
+      "sha256": "d6696e3f55bbe1b40ba800c10d61c7cc5921d82de805d42e7a77d884e59e07e6",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+    },
+    {
+      "file": "city-parliament.jpg",
+      "source": "https://commons.wikimedia.org/wiki/File:Kuvendi_i_Shqip%C3%ABris%C3%AB.jpg",
+      "date": "2017-12-26",
+      "author": "Kj1595",
+      "license": "CC BY-SA 4.0",
+      "changes": "Resized and JPEG recompressed; no generative alteration.",
+      "sha256": "22332969b894d4f9943c73bceb49e3233d4e775b7d58a065a5a296614ccf002e",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+    },
+    {
+      "file": "city-gallery.jpg",
+      "source": "https://commons.wikimedia.org/wiki/File:Galeria_Kombetare_e_Arteve%2C_Tirana.JPG",
+      "date": "2014-09-24",
+      "author": "Saranda",
+      "license": "CC BY-SA 4.0",
+      "changes": "Resized and JPEG recompressed; no generative alteration.",
+      "sha256": "2a57c7231dee72f3ed43cb579edfdc085b20dea2d55b60771a64d4087c4c336a",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+    },
+    {
+      "file": "city-hotel-dajti.jpg",
+      "source": "https://commons.wikimedia.org/wiki/File:Hotel_Dajti_2023_01.jpg",
+      "date": "2023-08-08",
+      "author": "BBB2021",
+      "license": "CC BY-SA 4.0",
+      "changes": "Resized and JPEG recompressed; no generative alteration.",
+      "sha256": "d2a1ef532c42996a38f44e361adf5c044672ea2a24908b85c9efb9e257d1863e",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+    },
+    {
+      "file": "city-children-theatre.jpg",
+      "source": "https://commons.wikimedia.org/wiki/File:NationalPuppetTheatreAfterRestoration.jpg",
+      "date": "2024-12-16",
+      "author": "Andis Rado",
+      "license": "CC BY-SA 4.0",
+      "changes": "Resized and JPEG recompressed; no generative alteration.",
+      "sha256": "d4a28946d0e48b2c3e26e751414098f7a11bec21e172194da6bbc23141634976",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+    },
+    {
+      "file": "city-house-leaves.jpg",
+      "source": "https://commons.wikimedia.org/wiki/File:Muzeu_Komb%C3%ABtar_i_P%C3%ABrgjimeve%2C_%E2%80%9CSht%C3%ABpia_me_Gjethe%E2%80%9D.jpg",
+      "date": "2018-12-23",
+      "author": "Bes-ART",
+      "license": "CC BY-SA 3.0",
+      "changes": "Resized and JPEG recompressed; no generative alteration.",
+      "sha256": "65d406bc6a599b73893ae262600164e382e5af451c1927c784c17f66ab19b3e6",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/"
+    },
+    {
+      "file": "city-archaeology.jpg",
+      "source": "https://commons.wikimedia.org/wiki/File:Tirana%2C_museo_archeologico%2C_facciata_01.JPG",
+      "date": "2015-06-20",
+      "author": "Sailko",
+      "license": "CC BY-SA 4.0",
+      "changes": "Resized and JPEG recompressed; no generative alteration.",
+      "sha256": "df53bd1290c4b41a65a90276ab59db20cc32a38d64b34ee5d4d15cb52a6e4af9",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+    },
+    {
+      "file": "city-polytechnic.jpg",
+      "source": "https://commons.wikimedia.org/wiki/File:Tirana_University_%28April_2014%29.jpg",
+      "date": "2014-04-10",
+      "author": "Kj1595",
+      "license": "CC BY-SA 4.0",
+      "changes": "Resized and JPEG recompressed; no generative alteration.",
+      "sha256": "84b28d80cb88dcbe5f7d7bd50cb8e5856d730ca2decb59c2a7a7f8683bc4b10e",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+    },
+    {
+      "file": "city-infrastructure.jpg",
+      "source": "https://commons.wikimedia.org/wiki/File:Tirana_-_Ministry_of_Public_Works,_Transportation_and_Telecommunications.JPG",
+      "date": "2014-08-17",
+      "author": "Pudelek / Marcin Szala",
+      "license": "CC BY-SA 4.0",
+      "changes": "Resized and JPEG recompressed; no generative alteration.",
+      "sha256": "be0ce665a3378c3b5ea7ff8a9b71b3d770f09d51bb3d0af413308c95684f1561",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+    },
+    {
+      "file": "city-twin-towers.jpg",
+      "source": "https://commons.wikimedia.org/wiki/File:Twin_Towers_Tirana,_Albania_2017.jpg",
+      "date": "2017-05-14",
+      "author": "Arne Olejnik",
+      "license": "CC BY-SA 2.0",
+      "changes": "Resized and JPEG recompressed; no generative alteration.",
+      "sha256": "712473e72c6098fa639c42dd26c07d5b1d9ae458139e47c64deda646a2502441",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0/"
+    },
+    {
+      "file": "city-jordan-misja.jpg",
+      "source": "https://commons.wikimedia.org/wiki/File:Liceu_Artistik_Jordan_Misja.jpeg",
+      "date": "2023-05-25T16:24:22",
+      "author": "Albinfo",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": null,
+      "changes": "Resized and JPEG recompressed.",
+      "sha256": "b972cb08db22ad8117072e75110ccf6b39337a3fa7247cac8c0f5445b2bee1dd"
+    },
+    {
+      "file": "city-education.jpg",
+      "source": "https://commons.wikimedia.org/wiki/File:Ministria_e_Arsimit_Sportit_dhe_Rinis%C3%AB.jpg",
+      "date": "2018-09-29T17:14:05",
+      "author": "Kristina Millona",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": null,
+      "changes": "Resized and JPEG recompressed.",
+      "sha256": "b9d987e8006e25e65cd9661bbc9549f7981a1b9ca9f6e10f4a94c75026bd0368"
+    },
+    {
+      "file": "city-agriculture.jpg",
+      "source": "https://commons.wikimedia.org/wiki/File:Building_to_the_Ministry_of_Agriculture_and_Rural_Development_of_Albania.jpg",
+      "date": "2018-06-10T15:44:37",
+      "author": "Radoslaw Botev",
+      "license": "CC BY 3.0 Poland",
+      "licenseUrl": "https://creativecommons.org/licenses/by/3.0/pl/deed.en",
+      "attribution": "Fundacja Nomos",
+      "changes": "Resized and JPEG recompressed.",
+      "sha256": "3e275d82042f37c123e368e2118a225b6613c5cc4755718f1f958b4f2d17acc4"
+    },
+    {
+      "file": "city-finance.jpg",
+      "source": "https://commons.wikimedia.org/wiki/File:Ministria_e_FINANCES_01.jpg",
+      "date": "2019-10",
+      "author": "Gklea",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": null,
+      "changes": "Resized and JPEG recompressed.",
+      "sha256": "e1289bc2c4ee966ebbe5bf27c8c062d55984f9d6b9a6e5e7f57e40330f60f22b"
+    }
+  ],
+  "note": "Photographs retain their individual licenses. Resized references are displayed alongside original game geometry; they are not facade textures."
+}

@@ -1,8 +1,11 @@
-import { LANDMARK_DATA } from './landmarkData.mjs';
+import { LANDMARK_DATA } from './allLandmarks.mjs';
+
+import {CITY_BUILDING_CATALOG} from './cityBuildingCatalog.mjs';
 
 /** Exterior interpretations. Footprints are mapped; untagged dimensions, exact
  * bay counts, finishes and terrain elevations still require a measured survey. */
 export const LANDMARK_CATALOG = {
+ ...CITY_BUILDING_CATALOG,
  'delijorgji': {name:'Kompleksi Delijorgji',style:'delijorgji',category:'residential',color:0xd3c7ad,trim:0xf1eee2,source:'https://duashpi.al/en/property/675dd193aad07cd14402ace9/11-apartment-for-sale-at-delijorgji-complex.html',date:'2024-12-14 listing; capture undated',features:'Mapped courtyard blocks; repeated balconies and pale facade bands. Selected core buildings, not the entire neighbourhood.'},
  'grand': {name:'Pallati Grand · ish-Tregu Elektrik',style:'grand',category:'residential',color:0xcbd0c6,trim:0xdce3ac,source:'https://wikimapia.org/14185230/sq/Kompleksi-Grand',date:'Undated exterior',features:'Nine mapped levels; pale green bands, pink window frames, curved balcony edges and timber rooftop pergolas.'},
  'studenti': {name:'Qyteti Studenti',style:'studenti',category:'university',color:0xdcd9c7,trim:0xf1eee3,source:'https://www.openstreetmap.org/way/234270352',date:'2026-09-10 OSM snapshot',features:'Separate mapped dormitories retain open courts. Building-specific renovation colours and elevations remain unverified.'},
@@ -23,7 +26,7 @@ export const LANDMARK_CATALOG = {
 export const LANDMARK_PROFILES = Object.fromEntries(LANDMARK_DATA.buildings.map((b,index)=>{
  const site=LANDMARK_CATALOG[b.site];
  return [b.id,{...site,name:b.tags.name||site.name,site:b.site,floor:site.style==='toptani'?6:3.2,window:1.7,
-   height:site.height??b.h,photo:site.photo??null,credit:site.credit??'Visual reference only; no source image redistributed',
+   height:site.height??b.h,...(b.variant?{style:b.variant,height:b.h,shellHeight:undefined}:{}),photo:site.photo??null,credit:site.credit??'Visual reference only; no source image redistributed',
    ...(['467502142','467502143'].includes(b.id)?{style:'studenti-renovated',source:'https://shqiptarja.com/lajm/perfundon-rikonstruktimi-i-godines-27-ne-qytet-studenti-veliaj-ne-vere-do-nderhyjme-ne-dhoma',date:'2019-04-24 article',features:'White balconies with red recesses; photographed shared 26/27 entrance. Other dormitories remain neutral.'}:{}),
    // Colours are palette interpretations, not claimed per-wing measurements.
    ...(site.style==='mangalem'?{color:[0xefe9d7,0x1ba9b5,0x9fb66c,0xe8e3db,0xdf8878,0xe3cba8][index%6],trim:[0xc94a88,0xf2b94f,0x728895][index%3]}:{})}];
