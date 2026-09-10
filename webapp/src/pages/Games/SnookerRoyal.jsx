@@ -103,6 +103,10 @@ import {
 } from './snookerRoyalSpinUtils.js';
 import { resolveCueBallContact, sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
 import { resolvePoolRoyalReleasePower } from './poolRoyaleShotState.js';
+import {
+  deliverOrQueueSnookerShot,
+  drainQueuedSnookerShot
+} from './snookerShotRelease.js';
 import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import SnookerShotCoach from './SnookerShotCoach.jsx';
 import { resolveSnookerImpactAudio } from './snookerImpactAudio.js';
@@ -14542,7 +14546,11 @@ const shotPowerRef = useRef(0);
   }, [applyLightingPreset, lightingId]);
   const [err, setErr] = useState(null);
   const [renderResetKey, setRenderResetKey] = useState(0);
-  const fireRef = useRef(() => {}); // set from effect so slider can trigger fire()
+  // The controls can become interactive before the async Three.js scene has
+  // installed its fire handler. Preserve an early mobile release rather than
+  // silently sending it to a placeholder no-op.
+  const fireRef = useRef(null);
+  const pendingShotPowerRef = useRef(null);
   const sceneRef = useRef(null);
   const updateEnvironmentRef = useRef(() => {});
   const disposeEnvironmentRef = useRef(null);
@@ -25260,6 +25268,7 @@ const shotPowerRef = useRef(0);
         };
 
         fireRef.current = fire;
+        drainQueuedSnookerShot({ fire, pendingRef: pendingShotPowerRef });
 
         const selectReplayBanner = (tag = 'default') => {
           const pool = REPLAY_BANNER_VARIANTS[tag] ?? REPLAY_BANNER_VARIANTS.default;
@@ -27684,6 +27693,7 @@ const shotPowerRef = useRef(0);
 
       return () => {
         disposed = true;
+        if (fireRef.current === fire) fireRef.current = null;
         if (shotImpactFallbackTimer) {
           clearTimeout(shotImpactFallbackTimer);
           shotImpactFallbackTimer = null;
@@ -27922,7 +27932,11 @@ const shotPowerRef = useRef(0);
         const committedPower = clampPower(value / 100, 0);
         shotPowerRef.current = committedPower;
         powerRef.current = committedPower;
-        fireRef.current?.(committedPower);
+        deliverOrQueueSnookerShot({
+          fire: fireRef.current,
+          power: committedPower,
+          pendingRef: pendingShotPowerRef
+        });
         requestAnimationFrame(() => {
           slider.set(slider.min, { animate: true });
           applyPower(0);

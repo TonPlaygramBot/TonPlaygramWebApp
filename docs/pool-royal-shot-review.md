@@ -2,23 +2,13 @@
 
 ## Camera and cue
 
-The AI shot used a camera path that bypassed the avatar eye view. The eye override now runs after the final render camera is selected, covering the local and AI stroke, action view and pocket view. Pool Royal now follows the live eye bones continuously through aiming, movement, impact and standing recovery, regardless of the old orbit blend. Snooker keeps its existing shot hold through an opt-in camera setting. Explicit top view, the cue gallery and replay keep their own cameras. Head/hat occlusion is checked against the final camera each frame, with visibility restored when the head clears the view. Shooter ownership uses the frame's A/B seat, including a local online player seated as B.
+The AI shot used a camera path that bypassed the avatar eye view. The eye override now runs after the final render camera is selected, covering the local and AI stroke, action view and pocket view. It holds the eyes through contact and for 600 ms after the stroke, then releases over 300 ms. Explicit top view, the cue gallery and replay keep their own cameras. Head/hat occlusion is checked against the final camera each frame, with visibility restored when the head clears the view. Shooter ownership uses the frame's A/B seat, including a local online player seated as B.
 
-The camera sits at the measured eye midpoint, without a forward offset. The final override uses the scene camera so world-space eye coordinates cannot be interpreted in a broadcast rig's local space. Body scale, handedness, bone bind matrices and the original reference solver remain unchanged.
+The camera advances two ball radii from the measured eyes while retaining their height. Body scale, handedness, bone bind matrices and the original reference solver remain unchanged.
 
 The detailed wooden cue predates the character commits (`4923114` and `395483a`). `createPoolRoyalCue.ts` extracts that geometry and its material slots. Gameplay and both standing holders now use it; holders share the selected finish and stripe materials without owning their disposal. The blue leather cap is corrected to face forward. Tip markers match the actual cap surface, rather than the front shaft/ferrule boundary.
 
 Pullback follows the supplied demo's cubic power curve, 0.42/0.045 ball-radius ratio and small practice stroke. Release begins at the rendered pull position, uses a 120 ms cubic forward stroke and a 50 ms hold, and reaches physical rounded-tip contact at the reference's 0.88 impact threshold. Contact accounts for cue tilt and spin offset. Physics launches once, after the visible cue moves to contact. The cue stays anchored to the shot start instead of following the moving ball. Dropped frames retain a visible contact hold. Repeated releases and zero-power releases do not mutate the turn, timer or shot state; an explicit release power takes precedence over stale power.
-
-## Bridge placement update — 10 September 2026
-
-The gameplay update supplies active ball positions/radii and the table's current cushion limits/top. Placement runs after cue alignment, arm IK and pose blending, so the corrected hand cannot be overwritten by the cue-tip calculation or animation easing.
-
-Cached hand-triangle membership produces conservative skin bounds for the palm, fingers and webbing. A blocked open bridge tries retraction along the shaft, compact fingers and a raised finger pose. A rail bridge rests above the cushion top; a crowded fallback clears the measured ball surface. Curled fingers are checked against the cloth as well. Only bone rotations change; limb lengths and bind matrices remain intact. The original mechanical-rest path is retained.
-
-The current update passes 19 focused Node checks, 3 bridge-volume checks, a scoped TypeScript check and the webapp production build. New checks inspect actual skinned triangles for both players at five headings, including diagonal corners, through aiming and strikes. The broader `test:pool-players` command also includes a pre-existing Snooker source-pattern failure in `cueReachEquipment.node.mjs`; it was reproduced before this change. Phone GPU performance and full arena visual QA were not run in this update.
-
-The portrait inspection now offers Open table, Nearby balls, Against cushion and Corner cushion layouts, with Player view and Bridge hand cameras. It imports the production character/camera/placement code and original model, using a simplified table and illustrative ball travel rather than the complete game arena.
 
 ## Gameplay corrections
 
@@ -32,7 +22,7 @@ The portrait inspection now offers Open table, Nearby balls, Against cushion and
 
 The relevant comparison is the [WPA rules of play](https://wpapool.com/wp-content/uploads/2026/01/2026.01.02-WPA-Rules.pdf), sections 3.13, 4.3–4.4, 4.7, 5.3 and 5.6–5.8. This is a review of the implemented game, not a claim of complete tournament-rule certification. The game still has house rules and no full called-pocket, push-out or tournament break-choice workflow.
 
-## Earlier shot/rules review verification
+## Verification
 
 The review covers shot commitment, cue contact, human and AI camera ownership, turn retention/change, scratches and ball-in-hand, group assignment, legal/early eight-ball finishes, break legality, nine-ball foul streaks/spotting, ball separation, spin mapping, AI aim/planning, training/career progress, table selection and mocked matchmaking flow.
 
