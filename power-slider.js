@@ -272,6 +272,7 @@ export class PowerSlider {
 
   _pointerUp(e) {
     if (!this.dragging) return;
+    const cancelled = isPowerPointerCancel(e);
     this.dragging = false;
     try {
       this.el.releasePointerCapture(e.pointerId);
@@ -282,6 +283,14 @@ export class PowerSlider {
     this.el.removeEventListener('pointerup', this._onPointerUp);
     this.el.removeEventListener('pointercancel', this._onPointerUp);
     this.el.classList.remove('ps-no-animate');
+    if (cancelled) {
+      this._feedbackBand = 0;
+      this.animateToMin({ duration: 120 });
+      if (typeof this.onFeedback === 'function') {
+        this.onFeedback({ type: 'cancel', band: 0, value: this.value });
+      }
+      return;
+    }
     if (typeof this.onCommit === 'function') this.onCommit(this.value);
     if (typeof this.onFeedback === 'function') {
       this.onFeedback({ type: 'release', band: this._feedbackBand, value: this.value });
@@ -364,6 +373,10 @@ export class PowerSlider {
       this._returnAnimFrame = null;
     }
   }
+}
+
+export function isPowerPointerCancel(event) {
+  return event?.type === 'pointercancel';
 }
 
 export function getPowerFeedbackBand(value, min = 0, max = 100) {
