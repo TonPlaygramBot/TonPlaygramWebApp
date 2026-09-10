@@ -1,5 +1,5 @@
 export class GameInput {
-  keys=new Set<string>();move={x:0,y:0};firing=false;aiming=false;crouching=false;active=false;
+  keys=new Set<string>();move={x:0,y:0};firing=false;aiming=false;crouching=false;sprinting=false;active=false;
   onLook:(dx:number,dy:number)=>void=()=>{};onFire:()=>void=()=>{};onReload:()=>void=()=>{};onPause:()=>void=()=>{};onHeal:()=>void=()=>{};
   private cleanup:(()=>void)[]=[];private pointer:number|null=null;private last={x:0,y:0};
   constructor(private surface:HTMLElement){
@@ -15,7 +15,7 @@ export class GameInput {
     on(surface,'pointerup',end as EventListener);on(surface,'pointercancel',end as EventListener);on(surface,'lostpointercapture',end as EventListener);
     on(document,'pointerlockchange',(()=>{if(!document.pointerLockElement&&this.active)this.onPause();}) as EventListener);
   }
-  clear(){this.keys.clear();this.move={x:0,y:0};this.firing=false;this.aiming=false;this.pointer=null;}
+  clear(){this.keys.clear();this.move={x:0,y:0};this.firing=false;this.aiming=false;this.sprinting=false;this.pointer=null;}
   lock(){try{const result=this.surface.requestPointerLock?.();if(result)void result.catch(()=>{});}catch{ /* Drag aiming remains available. */ }}
   dispose(){this.cleanup.forEach(f=>f());this.clear();}
 }

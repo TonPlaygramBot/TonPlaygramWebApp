@@ -484,6 +484,21 @@ export function Game({
               </div>
               <div className="touch-controls">
                 <Joystick engine={engine.current} />
+                <button
+                  className="sprint-btn"
+                  aria-label="Hold to sprint"
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.setPointerCapture(e.pointerId);
+                    if (engine.current) engine.current.input.sprinting = true;
+                  }}
+                  onPointerUp={() => { if (engine.current) engine.current.input.sprinting = false; }}
+                  onPointerCancel={() => { if (engine.current) engine.current.input.sprinting = false; }}
+                  onLostPointerCapture={() => { if (engine.current) engine.current.input.sprinting = false; }}
+                >
+                  <Footprints size={22} />
+                  <span>SPRINT</span>
+                </button>
                 <div className="right-controls">
                   <LookFire engine={engine.current} />
                   <button

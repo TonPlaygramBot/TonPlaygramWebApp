@@ -706,7 +706,8 @@ export class GameEngine {
     if (k.has('ArrowUp')) this.pitch = clamp(this.pitch + dt, -1.15, 1.15);
     if (k.has('ArrowDown')) this.pitch = clamp(this.pitch - dt, -1.15, 1.15);
     const sprint =
-      (k.has('ShiftLeft') ||
+      (this.input.sprinting ||
+        k.has('ShiftLeft') ||
         k.has('Space') ||
         Math.hypot(this.input.move.x, this.input.move.y) > 0.92) &&
       !this.input.aiming &&
@@ -1245,7 +1246,8 @@ export class GameEngine {
       crouch: this.input.crouching,
       sprint:
         active &&
-        (k.has('ShiftLeft') ||
+        (this.input.sprinting ||
+          k.has('ShiftLeft') ||
           k.has('Space') ||
           Math.hypot(this.input.move.x, this.input.move.y) > 0.92),
       reload: active && this.pendingReload,
