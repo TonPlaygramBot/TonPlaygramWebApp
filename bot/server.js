@@ -44,6 +44,7 @@ import onlineRoutes from './routes/online.js';
 import poolRoyaleRoutes from './routes/poolRoyale.js';
 import snookerRoyaleRoutes from './routes/snookerRoyal.js';
 import exchangeRoutes from './routes/exchange.js';
+import tiranaStoreRoutes from './routes/tiranaStore.js';
 import pushRoutes from './routes/push.js';
 import matchmakingRoutes from './routes/matchmaking.js';
 import protestVideoRoutes from './routes/protestVideos.js';
@@ -410,6 +411,7 @@ app.use('/api/matchmaking', matchmakingRoutes);
 app.use('/api/pool-royale', poolRoyaleRoutes);
 app.use('/api/snooker-royale', snookerRoyaleRoutes);
 app.use('/api/exchange', exchangeRoutes);
+app.use('/api/tirana-store', requireDatabase, tiranaStoreRoutes);
 
 const socialScheduler = setInterval(() => queueDueSocialPosts().catch((error) => console.error('Social scheduler failed:', error.message)), 30_000);
 socialScheduler.unref?.();

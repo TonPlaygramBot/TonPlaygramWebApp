@@ -1,5 +1,7 @@
-import { useState } from "react";
-import { WEAPONS, WEAPON_BY_ID } from "./shared/weapons.mjs";
+import { useEffect, useState } from "react";
+import { WEAPON_BY_ID } from "./shared/weapons.mjs";
+import { WEAPON_STORE_CATALOG } from './weaponStoreCatalog.mjs';
+import { loadWeaponStoreAccount, purchaseWeapon } from './weaponStoreApi';
 import { wantedStars } from "./shared/cityLife.mjs";
 import type { Player, State } from "./shared/engine.mjs";
 import { WeaponThumbnail } from "./WeaponThumbnail";
@@ -14,6 +16,16 @@ export function Arsenal({
   onAction: (action: string) => void;
 }) {
   const [category, setCategory] = useState("all");
+  const [account, setAccount] = useState<{balanceTPG:number; ownedWeaponIds:string[]}|null>(null);
+  const [pending, setPending] = useState('');
+  const [feedback, setFeedback] = useState('Checking your TPG account…');
+  useEffect(() => {
+    let live = true;
+    loadWeaponStoreAccount().then((next) => {
+      if (live) { setAccount(next); setFeedback('Select a display to purchase or equip.'); }
+    }).catch((error) => live && setFeedback(error.message));
+    return () => { live = false; };
+  }, []);
   const near =
     !player.carId &&
     Math.hypot(player.x - state.shop.x, player.z - state.shop.z) <= 9;
@@ -22,14 +34,14 @@ export function Arsenal({
     <div className="ts-arsenal">
       <div className="ts-shop-balance">
         <span>{near ? "Arben · Weapon dealer" : "Your loadout"}</span>
-        <strong>${player.cash.toLocaleString()} street cash</strong>
+        <strong>{account ? `${account.balanceTPG.toLocaleString()} TPG` : 'TPG —'}</strong>
       </div>
       <p>
         {!near
           ? "Find Arben’s lime shop marker near your starting car to buy equipment."
           : player.wanted
             ? "Arben is closed during a pursuit. Lose your wanted stars first."
-            : "Choose a weapon or refill its ammunition. Health and armor are available here."}
+            : "Choose a weapon from the physical display. Purchases use your verified TPG account."}
       </p>
       <div
         className="ts-shop-filters"
@@ -55,66 +67,54 @@ export function Arsenal({
         ))}
       </div>
       <div className="ts-shop-feedback" role="status">
-        {player.shopMessage || "Owned weapons can be equipped anywhere."}
+        {pending ? 'Transaction pending — keep the shop open…' : feedback || player.shopMessage}
       </div>
       <div className="ts-shop-list">
-        <div className="ts-shop-item">
-          <div>
-            <strong>Health / armor</strong>
-            <small>Recover and prepare for your next run.</small>
-          </div>
-          <button
-            disabled={!canShop || player.cash < 90 || player.health >= 100}
-            onClick={() => onAction("buy:medkit")}
-          >
-            HEAL $90
-          </button>
-          <button
-            disabled={!canShop || player.cash < 180 || player.armor >= 100}
-            onClick={() => onAction("buy:armor")}
-          >
-            ARMOR $180
-          </button>
-        </div>
-        {WEAPONS.filter(
+        {WEAPON_STORE_CATALOG.filter(
           (w) => category === "all" || w.category === category,
         ).map((w) => {
-          const owned = player.inventory[w.id],
-            selected = player.weapon === w.id;
-          const price = owned
-            ? Math.max(30, Math.round(w.price * 0.2))
-            : w.price;
+          const owned = account?.ownedWeaponIds.includes(w.weaponId),
+            selected = player.weapon === w.weaponId;
           return (
             <div
               key={w.id}
               className={`ts-shop-item ${selected ? "equipped" : ""}`}
             >
-              <WeaponThumbnail model={w.model} label={w.label} />
+              <WeaponThumbnail model={w.model} label={w.displayName} />
               <div>
-                <strong>{w.label}</strong>
+                <strong>{w.displayName}</strong>
                 <small>
-                  {w.category} · {w.magazine} rounds
-                  {owned ? ` · ${owned.ammo + owned.reserve} available` : ""}
+                  {w.category} · {w.priceTPG.toLocaleString()} TPG
                 </small>
               </div>
               {owned && (
                 <button
                   aria-pressed={selected}
                   disabled={selected}
-                  onClick={() => onAction(`equip:${w.id}`)}
+                  onClick={() => onAction(`equip:${w.weaponId}`)}
                 >
                   {selected ? "EQUIPPED" : "EQUIP"}
                 </button>
               )}
               <button
                 disabled={
-                  !canShop ||
-                  player.cash < price ||
-                  (!!owned && owned.reserve >= w.magazine * 8)
+                  !canShop || !account || !!owned || pending === w.id || account.balanceTPG < w.priceTPG
                 }
-                onClick={() => onAction(`buy:${w.id}`)}
+                onClick={async () => {
+                  setPending(w.id); setFeedback('Validating price and balance…');
+                  try {
+                    const receipt = await purchaseWeapon(w.id, crypto.randomUUID());
+                    setAccount(receipt);
+                    // The unlock below mirrors the server receipt into this run;
+                    // persistent ownership remains server authoritative.
+                    player.inventory[w.weaponId] ||= { ammo: WEAPON_BY_ID.get(w.weaponId)?.magazine || 16, reserve: (WEAPON_BY_ID.get(w.weaponId)?.magazine || 16) * 4 };
+                    onAction(`equip:${w.weaponId}`);
+                    setFeedback(`${w.displayName} unlocked. ${receipt.balanceTPG.toLocaleString()} TPG remaining.`);
+                  } catch (error) { setFeedback(error instanceof Error ? error.message : 'Purchase failed.'); }
+                  finally { setPending(''); }
+                }}
               >
-                {owned ? "AMMO" : "BUY"} ${price}
+                {owned ? "OWNED" : `BUY ${w.priceTPG.toLocaleString()} TPG`}
               </button>
             </div>
           );
@@ -126,8 +126,8 @@ export function Arsenal({
           : "Draw your weapon"}
       </button>
       <p className="ts-shop-note">
-        Street cash and ammunition are for this run. Career reputation and
-        chapter unlocks save to your account.
+        Weapon ownership is validated, charged and saved by the TPG backend.
+        Interrupted requests are safe to retry with the same transaction key.
       </p>
     </div>
   );

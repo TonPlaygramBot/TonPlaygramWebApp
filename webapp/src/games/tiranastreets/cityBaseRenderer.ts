@@ -903,8 +903,7 @@ export class CityRenderer {
           a.group.userData.placed ? Math.min(1, dt * 20) : 1,
         );
         a.group.userData.placed = true;
-        const role = (n as NPC & { role?: string }).role;
-        a.group.scale.setScalar(role === "child" ? 0.68 : 1);
+        a.group.scale.setScalar(1);
         a.group.rotation.y = smoothAngle(
           a.group.rotation.y,
           pl.heading + Math.PI,
@@ -928,6 +927,7 @@ export class CityRenderer {
       );
       let rendered = 0;
       for (const n of citizens) {
+        const role = (n as NPC & { role?: string }).role;
         if (
           n.motion === "drive" ||
           Math.hypot(n.x - (p?.x || 0), n.z - (p?.z || 0)) >

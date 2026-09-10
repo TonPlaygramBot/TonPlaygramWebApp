@@ -152,6 +152,9 @@ const userSchema = new mongoose.Schema({
   // Persist Air Hockey unlocks server-side for cross-device sync
   airHockeyInventory: { type: Object, default: undefined },
 
+  // Server-authoritative Tirana Streets weapon ownership.
+  tiranaStreetsInventory: { type: Object, default: undefined },
+
 });
 
 // Index commonly queried fields
