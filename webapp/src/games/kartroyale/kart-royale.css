@@ -294,7 +294,25 @@
   gap: 12px;
   margin-top: 18px;
 }
-.kr-kart-stats{display:flex;justify-content:flex-end;gap:6px;margin-top:12px;flex-wrap:wrap}.kr-kart-stats span{font-size:9px;color:#9eaaac;border:1px solid #ffffff20;padding:4px 6px;border-radius:5px;background:#10191dcc}.kr-kart-stats b{color:var(--lime);margin-left:3px}
+.kr-kart-stats {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.kr-kart-stats span {
+  font-size: 9px;
+  color: #9eaaac;
+  border: 1px solid #ffffff20;
+  padding: 4px 6px;
+  border-radius: 5px;
+  background: #10191dcc;
+}
+.kr-kart-stats b {
+  color: var(--lime);
+  margin-left: 3px;
+}
 .kr-swatches button {
   width: 21px;
   height: 21px;
@@ -858,7 +876,51 @@
   align-items: flex-end;
   gap: 12px;
 }
-.kr-combat-buttons{display:grid;gap:7px}.kr-combat-buttons button{width:68px;height:48px;border-radius:12px;border:1px solid #ffffff55;background:#15242acc;display:flex;align-items:center;justify-content:center;gap:3px;flex-direction:column;font-size:9px;font-weight:800}.kr-shield-button{color:#66dfff!important}.kr-fire-button{color:#ffb347!important}.kr-combat-hud{position:absolute;right:22px;top:190px;display:flex;gap:6px}.kr-combat-hud span{display:flex;gap:4px;align-items:center;padding:6px 8px;border-radius:7px;background:#102025cc;font:700 11px 'Barlow'}
+.kr-combat-buttons {
+  display: grid;
+  gap: 7px;
+}
+.kr-combat-buttons button {
+  width: 68px;
+  height: 48px;
+  border-radius: 12px;
+  border: 1px solid #ffffff55;
+  background: #15242acc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  flex-direction: column;
+  font-size: 9px;
+  font-weight: 800;
+  touch-action: none;
+}
+.kr-shield-button {
+  color: #66dfff !important;
+}
+.kr-fire-button {
+  color: #ffb347 !important;
+}
+.kr-combat-buttons button:active:not(:disabled) {
+  background: #ffffff24;
+  transform: none !important;
+}
+.kr-combat-hud {
+  position: absolute;
+  right: 22px;
+  top: 190px;
+  display: flex;
+  gap: 6px;
+}
+.kr-combat-hud span {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 7px;
+  background: #102025cc;
+  font: 700 11px 'Barlow';
+}
 .kr-drift-button {
   width: 80px;
   height: 57px;
@@ -1463,10 +1525,18 @@
     font-size: 11px;
   }
   .kr-pedals {
-    gap: 9px;
+    gap: 7px;
+  }
+  .kr-combat-buttons {
+    gap: 5px;
+  }
+  .kr-combat-buttons button {
+    width: 56px;
+    min-height: 44px;
+    height: 46px;
   }
   .kr-drift-button {
-    width: 60px;
+    width: 56px;
     height: 49px;
     font-size: 11px !important;
   }

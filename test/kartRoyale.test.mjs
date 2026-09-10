@@ -181,6 +181,7 @@ test('real multiplayer clients: ready/start, authority, isolation, reconnect, fi
   assert.equal(room.racers[0].kartId, 'oodi');
   assert.equal(room.racers.filter((r) => r.ai).length, 4);
   const originalX = room.racers[0].x;
+  const originalShield = room.racers[0].shield;
   a.emit('kart:input', {
     steer: 0,
     boost: true,
@@ -207,7 +208,11 @@ test('real multiplayer clients: ready/start, authority, isolation, reconnect, fi
   assert.ok(room.racers[0].speed < 45);
   assert.ok(room.racers[0].health <= 100);
   assert.equal(room.racers[0].weapon, undefined);
-  assert.equal(room.racers[0].shield, undefined);
+  assert.equal(
+    room.racers[0].shield,
+    originalShield,
+    'clients cannot overwrite server-authoritative shield reserves'
+  );
   assert.equal(
     (await emit(outsider, 'join', { code: created.code })).ok,
     false
