@@ -11,3 +11,5 @@ runtime. No Google imagery, tiles, video frames or photogrammetry is distributed
 
 OSM data is not a survey and can contain stale identities. Missing heights,
 widths, crown sizes, species and facade details are not verified measurements.
+
+`landmarkData.mjs` is a second ODbL derivative containing the regional building footprints, stadium relation rings and Taivani fountain from the 2026-09-10 extracts. It records source file hashes and height provenance; see `docs/tirana-landmark-expansion.md` for selections and reproduction.
