@@ -9,7 +9,10 @@ services:
     branch: main
     rootDir: bot
     # bot's postinstall also installs/builds the embedded chess module.
-    buildCommand: npm install && npm --prefix ../webapp install && WEBAPP_BUILD_MAX_OLD_SPACE_SIZE=1536 npm --prefix ../webapp run build
+    # The complete game bundle now exceeds a 1.5 GB V8 heap while Rollup is
+    # transforming the larger Three.js scenes. This is a build-time limit only;
+    # it does not change the memory available to the running bot service.
+    buildCommand: npm install && npm --prefix ../webapp install && WEBAPP_BUILD_MAX_OLD_SPACE_SIZE=3072 npm --prefix ../webapp run build
     startCommand: npm start
     # Do not route profile traffic until this deployment has its MongoDB
     # connection. A process-only health check can pass while profile queries
