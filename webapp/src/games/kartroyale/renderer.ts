@@ -551,7 +551,15 @@ export class KartRenderer {
     );
     road.receiveShadow = true;
     this.world.add(road);
-    const m = new T.Object3D(),
+    const edges = Array.from({ length: 360 }, (_, i) => {
+        const p = track.points[i],
+          q = track.points[(i + 1) % 360],
+          edge = segmentFrame(p, q, track.width / 2);
+        return { p, edge, tireCount: Math.max(1, Math.ceil(edge.length / 0.76)) };
+      }),
+      tireBaseCount = edges.reduce((sum, edge) => sum + edge.tireCount * 2, 0),
+      tireCapacity = tireBaseCount + Math.ceil(tireBaseCount / 3),
+      m = new T.Object3D(),
       curb = new T.InstancedMesh(
         new T.BoxGeometry(0.55, 0.14, 1),
         new T.MeshStandardMaterial({ roughness: 0.7 }),
@@ -561,22 +569,21 @@ export class KartRenderer {
       tires = new T.InstancedMesh(
         tireGeometry,
         new T.MeshStandardMaterial({ roughness: 0.9, metalness: 0.02 }),
-        960
+        tireCapacity
       ),
       tireTreads = new T.InstancedMesh(
         new T.TorusGeometry(0.4, 0.105, 8, 16),
         new T.MeshStandardMaterial({ color: '#17191a', roughness: 0.98 }),
-        960
+        tireCapacity
       ),
       marks = new T.InstancedMesh(
         new T.BoxGeometry(0.12, 0.01, 1.8),
         new T.MeshBasicMaterial({ color: '#e2e7d8' }),
         90
       );
+    let tireAt = 0;
     for (let i = 0; i < 360; i++) {
-      const p = track.points[i],
-        q = track.points[(i + 1) % 360],
-        edge = segmentFrame(p,q,track.width/2);
+      const { p, edge, tireCount } = edges[i];
       [-1, 1].forEach((side, s) => {
         const curbPoint=edge.side(side,-0.1);
         m.position.set(
@@ -592,28 +599,35 @@ export class KartRenderer {
           i * 2 + s,
           new T.Color(i % 6 < 3 ? track.accent : '#e7e6d9')
         );
-        const tirePoint = edge.side(side, 0.72),
-          n = i * 2 + s;
-        m.position.set(tirePoint.x, 0.18, tirePoint.z);
-        m.rotation.set(Math.PI / 2, edge.yaw, 0);
-        m.scale.set(1, 1, 1);
-        m.updateMatrix();
-        tires.setMatrixAt(n, m.matrix);
-        tires.setColorAt(
-          n,
-          new T.Color(i % 2 === 0 ? '#c82424' : '#eeeae0')
-        );
-        tireTreads.setMatrixAt(n, m.matrix);
-        if (i % 3 === 0) {
-          const upper = 720 + (i / 3) * 2 + s;
-          m.position.y = 0.49;
+        for (let j = 0; j < tireCount; j++) {
+          // Use the segment midpoint cells so neighbouring segments meet without
+          // leaving the visible holes produced by one tyre per route sample.
+          const along = ((j + 0.5) / tireCount - 0.5) * edge.length,
+            tirePoint = edge.side(side, 0.72);
+          tirePoint.x += Math.sin(edge.yaw) * along;
+          tirePoint.z += Math.cos(edge.yaw) * along;
+          const n = tireAt++;
+          m.position.set(tirePoint.x, 0.18, tirePoint.z);
+          m.rotation.set(Math.PI / 2, edge.yaw, 0);
+          m.scale.set(1, 1, 1);
           m.updateMatrix();
-          tires.setMatrixAt(upper, m.matrix);
+          tires.setMatrixAt(n, m.matrix);
           tires.setColorAt(
-            upper,
-            new T.Color(i % 2 === 0 ? '#eeeae0' : '#c82424')
+            n,
+            new T.Color((i + j) % 2 === 0 ? '#c82424' : '#eeeae0')
           );
-          tireTreads.setMatrixAt(upper, m.matrix);
+          tireTreads.setMatrixAt(n, m.matrix);
+          if ((i + j) % 3 === 0) {
+            const upper = tireAt++;
+            m.position.y = 0.49;
+            m.updateMatrix();
+            tires.setMatrixAt(upper, m.matrix);
+            tires.setColorAt(
+              upper,
+              new T.Color((i + j) % 2 === 0 ? '#eeeae0' : '#c82424')
+            );
+            tireTreads.setMatrixAt(upper, m.matrix);
+          }
         }
       });
       m.scale.set(1, 1, 1);
@@ -624,7 +638,7 @@ export class KartRenderer {
         marks.setMatrixAt(i / 4, m.matrix);
       }
     }
-    tires.count = tireTreads.count = 960;
+    tires.count = tireTreads.count = tireAt;
     tires.receiveShadow = tireTreads.receiveShadow = true;
     this.world.add(curb, tires, tireTreads, marks);
     const start = track.points[0],
