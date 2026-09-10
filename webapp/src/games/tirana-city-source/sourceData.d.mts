@@ -1,0 +1,2 @@
+export type SourceFeature={id:string;version:number;editedAt:string|null;tags:Record<string,string>;p:number[]|number[][];category?:string;nodes?:string[]};
+export const CITY_SOURCE:{schema:number;origin:number[];bounds:number[];source:string;acquiredAt:string;sourceSha256:string;attribution:string;accuracy:string;coverage:Record<string,string>;trees:any[];roads:any[];buildings:any[];places:any[];entrances:any[]};

@@ -53,7 +53,7 @@ export function Game(props:ComponentProps<typeof OriginalGame>){
       <header><h2 id="ts-city-map-title">TIRANA · EXPLORE</h2><button onClick={close} aria-label="Close city map">×</button></header>
       <CityMap player={player} state={null} route={route} large destination={destination} onDestination={setDestination} routeNotice={notice}/>
       <p className="ts-fps-map-notice">{props.mode==='online'?'Online play continues while the map is open. Close the map and resume from the pause menu.':'Your solo operation is paused while the map is open.'} Routes guide you on mapped paths; they do not move your character or change mission objectives.</p>
-      <p className="ts-fps-map-notice">© OpenStreetMap contributors · ODbL. Building exteriors and fixture positions are artistic approximations. The current playable district does not yet include the full lake area.</p>
+      <p className="ts-fps-map-notice">© OpenStreetMap contributors · ODbL. Tree centres and cycling routes use mapped sources; exteriors and unsurveyed dimensions remain approximations. <a href="/assets/tirana-streets/references/ATTRIBUTION.md" target="_blank" rel="noreferrer">City sources and credits</a></p>
     </dialog>}
   </>;
 }

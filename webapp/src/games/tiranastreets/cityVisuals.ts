@@ -2,13 +2,14 @@ import * as THREE from "three";
 import { WORLD, insidePolygon, type Point } from "./shared/engine.mjs";
 import { nativeReplacementIds } from "../tirana-landmarks/nativeLocations.mjs";
 
+import { INSTITUTION_BUILDING_IDS } from '../tirana-city-source/registry.mjs';
 const replacedLandmarkIds = nativeReplacementIds(WORLD);
 type Placement = {
   id: string; x: number; z: number; width: number; depth: number;
   height: number; variant: number; yaw: number;
 };
 export const CITY_DETAILS: Placement[] = WORLD.buildings.flatMap((b, i) => {
-  if (replacedLandmarkIds.has(String(b.id)) || b.special || b.h < 6 || b.h > 60) return [];
+  if (INSTITUTION_BUILDING_IDS.has(String(b.id)) || replacedLandmarkIds.has(String(b.id)) || b.special || b.h < 6 || b.h > 60) return [];
   let longest = 0, angle = 0;
   for (let j = 0; j < b.p.length; j++) {
     const a = b.p[j], c = b.p[(j + 1) % b.p.length], d = Math.hypot(c[0] - a[0], c[1] - a[1]);

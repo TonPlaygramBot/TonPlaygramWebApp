@@ -2,6 +2,8 @@ import * as T from 'three';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { ReferenceFacades } from '../tirana-city-source/ReferenceFacades';
+import { REFERENCE_BUILDINGS } from '../tirana-city-source/profiles.mjs';
 import { WORLD } from './shared/world.mjs';
 import { buildingProfile, polygonContains } from './shared/architecture.mjs';
 import { onCarriageway, SIGNALS } from './shared/streetLayout.mjs';
@@ -19,6 +21,7 @@ const BASE = '/assets/tirana-streets/';
 export class FpsCity {
   readonly group = new T.Group();
   readonly landmarks = new NativeLandmarkLayer(resolveNativeLandmarks(WORLD).landmarks);
+  readonly referenceFacades = new ReferenceFacades();
   private cells: Cell[] = [];
   private batches = new Map<string, Batch>();
   private materials = new Map<string, T.MeshStandardMaterial>();
@@ -41,7 +44,7 @@ export class FpsCity {
     this.buildings();
     this.square();
     this.flush();
-    this.group.add(this.landmarks.group);
+    this.group.add(this.landmarks.group, this.referenceFacades.group);
     this.ready = loadAssets ? this.loadFixtures() : Promise.resolve();
   }
 
@@ -140,23 +143,14 @@ export class FpsCity {
       if (Array.isArray(water)) this.mesh(this.polygon(water, 0, -.1), this.material(0x557a70));
       else this.merge(water.line.slice(1).map((p, i) => this.strip(water.line[i], p, water.width, -1.13)), this.material(0x557a70));
     }
-    let seed = 173;
-    const random = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
-    for (const park of WORLD.parks) {
-      const xs = park.map(p => p[0]), zs = park.map(p => p[1]);
-      const x0 = Math.min(...xs), x1 = Math.max(...xs), z0 = Math.min(...zs), z1 = Math.max(...zs);
-      for (let i = 0; i < Math.min(80, (x1 - x0) * (z1 - z0) / 130); i++) {
-        const x = x0 + random() * (x1 - x0), z = z0 + random() * (z1 - z0);
-        if (polygonContains(x, z, park)) this.trees.push({ x, z });
-      }
-    }
+
   }
   private buildings() {
     const replaced = new Set(resolveNativeLandmarks(WORLD).landmarks.map(l => l.buildingId));
     const shells = new Map<string, { parts: T.BufferGeometry[]; material: T.Material; x: number; z: number }>();
     const glass = this.material(0x355560, true), dark = this.material(0x4e514b), shutters = this.material(0x64776a);
     for (const b of WORLD.buildings) {
-      if (replaced.has(String(b.id))) continue;
+      if (replaced.has(String(b.id)) || REFERENCE_BUILDINGS[b.id]) continue;
       const p = buildingProfile(b), height = p.height ?? b.h;
       const cx = b.p.reduce((s, v) => s + v[0], 0) / b.p.length, cz = b.p.reduce((s, v) => s + v[1], 0) / b.p.length;
       const key = `${Math.floor(cx / 140)}:${Math.floor(cz / 140)}:${p.color}`;
@@ -274,9 +268,11 @@ export class FpsCity {
     this.streets?.update(camera, time, battery ? 'battery' : 'high');
     this.landscape?.update(camera, time, battery);
     this.landmarks.setBatteryMode(battery);
+    this.referenceFacades.update(camera, battery);
   }
   dispose() {
     this.disposed = true;
+    this.referenceFacades.dispose();
     this.draco?.dispose();
     this.streets?.dispose(); this.landscape?.dispose(); this.landmarks.dispose();
     disposeObject(this.group);

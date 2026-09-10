@@ -1,5 +1,6 @@
 import { STREET_PROPS } from './shared/streetDressing.mjs';
-import { RAILINGS, RIVER_TREES } from './shared/landscape.mjs';
+import { RAILINGS } from './shared/landscape.mjs';
+import { MAPPED_TREES } from '../tirana-city-source/registry.mjs';
 import * as T from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { WORLD } from './shared/world.mjs';
@@ -40,7 +41,7 @@ export class StreetVisuals {
   private off = new T.MeshStandardMaterial({ color: 0x172122, roughness: 0.4 });
   constructor(
     private source: T.Group,
-    points: Point[]
+    _points: Point[]
   ) {
     this.group.name = 'Tirana streets and local GLTF fixtures';
     this.surfaceMaterials();
@@ -54,21 +55,9 @@ export class StreetVisuals {
       !onCarriageway(x, z, 0.35) &&
       Math.abs(x - SHOP.x) + Math.abs(z - SHOP.z) > 13 &&
       !WORLD.buildings.some((b) => insidePolygon(x, z, b.p));
-    [...points, ...RIVER_TREES]
-      .filter(
-        (p) =>
-          free(p.x, p.z) &&
-          !STREET_PROPS.some((q) => Math.hypot(q.x - p.x, q.z - p.z) < 2.5)
-      )
-      .forEach((p, i) =>
-        add(
-          ['tree_plane', 'tree_linden', 'tree_cypress'][i % 3],
-          p.x,
-          p.z,
-          i * 2.399,
-          0.82 + (i % 7) * 0.065
-        )
-      );
+    // Actual mapped tree centres replace the park scatter and roadside rhythm.
+    // Species and dimensions remain generic where the source supplies none.
+    MAPPED_TREES.forEach((p, i) => add(p.model, p.x, p.z, i * 2.399, p.scale));
     const roads = WORLD.roads.filter(
       (r) =>
         !r.walk &&
@@ -101,17 +90,6 @@ export class StreetVisuals {
           yaw - Math.PI / 2
         );
         add('litter_bin', x + (dx / length) * 5, z + (dz / length) * 5);
-      }
-      if (i % 2 === 0) {
-        const tx = x - (dx / length) * 6,
-          tz = z - (dz / length) * 6;
-        if (
-          free(tx, tz) &&
-          !STREET_PROPS.some((q) => Math.hypot(q.x - tx, q.z - tz) < 2.5)
-        ) {
-          add('tree_linden', tx, tz, yaw, 0.83 + (i % 4) * 0.08);
-          add('tree_grate', tx, tz, yaw);
-        }
       }
       if (i % 3 === 0) {
         const x2 = r.a[0] + dx * 0.5 + rx * (r.w / 2 - 0.28),
@@ -398,37 +376,13 @@ export class StreetVisuals {
       }
     }
     const paint: T.BufferGeometry[] = [];
-    const cyclePaint: T.BufferGeometry[] = [];
     const castleStone: T.BufferGeometry[] = [];
-    const cycleRoads = new Set([
-      'Bulevardi Dëshmorët e Kombit',
-      'Bulevardi Bajram Curri',
-      'Rruga e Dibrës',
-      'Rruga Sami Frashëri',
-      'Rruga Myslym Shyri'
-    ]);
     for (const road of WORLD.roads) {
       const dx = road.b[0] - road.a[0],
         dz = road.b[1] - road.a[1];
       const length = Math.hypot(dx, dz);
       if (length < 1) continue;
       const yaw = Math.atan2(dx, dz);
-      if (!road.walk && road.w >= 6 && cycleRoads.has(road.name)) {
-        const rx = dz / length,
-          rz = -dx / length;
-        for (const side of [-1, 1]) {
-          const offset = side * Math.max(1.2, road.w / 2 - 0.82);
-          const lane = new T.PlaneGeometry(1.45, length);
-          lane.rotateX(-Math.PI / 2);
-          lane.rotateY(yaw);
-          lane.translate(
-            (road.a[0] + road.b[0]) / 2 + rx * offset,
-            0.106,
-            (road.a[1] + road.b[1]) / 2 + rz * offset
-          );
-          cyclePaint.push(lane);
-        }
-      }
       if (road.walk && /Murat Toptani/.test(road.name)) {
         const stone = new T.PlaneGeometry(road.w, length);
         stone.rotateX(-Math.PI / 2);
@@ -482,17 +436,7 @@ export class StreetVisuals {
         polygonOffsetFactor: -2
       })
     );
-    // Tirana's protected lanes use a muted terracotta-red surface rather than
-    // a saturated game marker. These strips follow the checked-in OSM roads.
-    merge(
-      cyclePaint,
-      new T.MeshStandardMaterial({
-        color: 0xa94f35,
-        roughness: 0.94,
-        polygonOffset: true,
-        polygonOffsetFactor: -3
-      })
-    );
+    // Cycling is drawn once by StreetDetailLayer from retained OSM evidence.
     const stone = new T.MeshStandardMaterial({ color: 0xffffff, roughness: 1 });
     const loader = new T.TextureLoader();
     for (const [suffix, key] of [

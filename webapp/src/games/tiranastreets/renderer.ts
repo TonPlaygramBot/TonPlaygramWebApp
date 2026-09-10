@@ -8,7 +8,7 @@ import type {State} from './shared/engine.mjs';
 import {WeaponStoreInterior} from './WeaponStoreInterior';
 
 /** Preserve input, loading, gameplay and camera implementation while replacing
- * the city's landmark layer. cityBaseRenderer is the unmodified former file. */
+ * the city's landmark layer. Base renderer also owns source-informed façades. */
 export class CityRenderer extends BaseCityRenderer {
   readonly nativeLandmarks: NativeLandmarkLayer;
   readonly airMobility: AirMobilityVisuals;

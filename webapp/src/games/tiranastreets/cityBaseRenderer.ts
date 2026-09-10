@@ -14,6 +14,10 @@ import {
   type Point,
 } from "./shared/engine.mjs";
 
+import { ReferenceFacades } from '../tirana-city-source/ReferenceFacades';
+import { REFERENCE_BUILDINGS } from '../tirana-city-source/profiles.mjs';
+import { MAPPED_TREES } from '../tirana-city-source/registry.mjs';
+
 const ASSETS = "/assets/tirana-streets/";
 const Y = new THREE.Vector3(0, 1, 0);
 const tmp = new THREE.Object3D();
@@ -62,7 +66,9 @@ export class CityRenderer {
   private manualUntil = 0;
   private lastTarget = new THREE.Vector3(SPAWN.x, 0, SPAWN.z);
   private landmarkText: THREE.Sprite[] = [];
+  readonly referenceFacades = new ReferenceFacades();
   private treePoints: Point[] = [];
+  private mappedTreeCells: {group: THREE.Group; x:number; z:number}[] = [];
   constructor(root: HTMLDivElement) {
     this.root = root;
     this.renderer = new THREE.WebGLRenderer({
@@ -112,6 +118,7 @@ export class CityRenderer {
     this.scene.add(this.living.group);
     this.buildStreets();
     this.buildBlocks();
+    this.scene.add(this.referenceFacades.group);
     this.buildLandmarks();
     this.buildBeacon();
     this.observer = new ResizeObserver(() => this.resize());
@@ -293,9 +300,8 @@ export class CityRenderer {
       { geos: THREE.BufferGeometry[][]; group: THREE.Group }
     >();
     const windowGeos: THREE.BufferGeometry[] = [];
-    const treePoints: Point[] = [];
     for (const b of WORLD.buildings) {
-      if (b.special) continue;
+      if (b.special || REFERENCE_BUILDINGS[b.id]) continue;
       const cx = b.p.reduce((s, p) => s + p[0], 0) / b.p.length,
         cz = b.p.reduce((s, p) => s + p[1], 0) / b.p.length;
       // Eight city shell draws are cheaper on phones than hundreds of tiny chunks.
@@ -360,40 +366,7 @@ export class CityRenderer {
       windowGeos,
       this.material(0x506971, { metalness: 0.45, roughness: 0.27 }),
     );
-    let seed = 6129;
-    const random = () => {
-      seed = (seed * 1664525 + 1013904223) >>> 0;
-      return seed / 4294967296;
-    };
-    for (const park of WORLD.parks) {
-      const xs = park.map((p) => p[0]),
-        zs = park.map((p) => p[1]);
-      const minX = Math.min(...xs),
-        maxX = Math.max(...xs),
-        minZ = Math.min(...zs),
-        maxZ = Math.max(...zs);
-      const count = Math.min(
-        110,
-        Math.floor(((maxX - minX) * (maxZ - minZ)) / 110),
-      );
-      for (let i = 0; i < count; i++) {
-        const x = minX + random() * (maxX - minX),
-          z = minZ + random() * (maxZ - minZ);
-        if (insidePolygon(x, z, park)) treePoints.push({ x, z });
-      }
-    }
-    for (let i = 0; i < WORLD.roads.length; i += 28) {
-      const r = WORLD.roads[i];
-      if (r.walk) continue;
-      const dx = r.b[0] - r.a[0],
-        dz = r.b[1] - r.a[1],
-        d = Math.hypot(dx, dz);
-      const x = r.a[0] + (dz / d) * (r.w / 2 + 2),
-        z = r.a[1] - (dx / d) * (r.w / 2 + 2);
-      if (!WORLD.buildings.some((b) => insidePolygon(x, z, b.p)))
-        treePoints.push({ x, z });
-    }
-    this.treePoints = treePoints;
+    this.treePoints = MAPPED_TREES;
   }
   private streetLabel(text: string, parent: THREE.Object3D) {
     const canvas = document.createElement("canvas");
@@ -436,9 +409,33 @@ export class CityRenderer {
       this.scene.add(item);
       return item;
     };
-    this.treePoints.slice(0, this.quality === "battery" ? 70 : 180).forEach((p, i) =>
-      place("tree", p.x, p.z, i * 2.399, 0.85 + (i % 5) * 0.07),
-    );
+    if (this.disposed) { this.disposeObject(gltf.scene); return; }
+    const tree = template("tree");
+    if (tree) {
+      tree.updateWorldMatrix(true, true);
+      const cells = new Map<string, Point[]>();
+      for (const point of this.treePoints) {
+        const key = `${Math.floor(point.x / 100)}:${Math.floor(point.z / 100)}`;
+        if (!cells.has(key)) cells.set(key, []);
+        cells.get(key)!.push(point);
+      }
+      for (const points of cells.values()) {
+        const group = new THREE.Group();
+        const x = Math.floor(points[0].x / 100) * 100 + 50;
+        const z = Math.floor(points[0].z / 100) * 100 + 50;
+        tree.traverse(o => {
+          if (!(o instanceof THREE.Mesh)) return;
+          const mesh = new THREE.InstancedMesh(o.geometry, o.material, points.length);
+          points.forEach((point, i) => {
+            const matrix = new THREE.Matrix4().makeTranslation(point.x, .12, point.z).multiply(o.matrixWorld);
+            mesh.setMatrixAt(i, matrix);
+          });
+          mesh.computeBoundingSphere(); mesh.receiveShadow = true; group.add(mesh);
+        });
+        group.visible = false;
+        this.scene.add(group); this.mappedTreeCells.push({group,x,z});
+      }
+    }
     const streets = WORLD.roads.filter((r, i) => !r.walk && r.name && i % 55 === 0);
     streets.forEach((r, i) => {
       const dx = r.b[0] - r.a[0], dz = r.b[1] - r.a[1], d = Math.hypot(dx, dz) || 1;
@@ -1087,6 +1084,10 @@ export class CityRenderer {
         this.beacon.children[1].rotation.y = this.clock;
       }
     }
+    this.referenceFacades.update(this.camera.position, this.quality === "battery");
+    for (const cell of this.mappedTreeCells) cell.group.visible =
+      Math.hypot(cell.x - this.camera.position.x, cell.z - this.camera.position.z) <
+      (this.quality === "battery" ? 140 : 260);
     this.renderer.render(this.scene, this.camera);
   }
   private mergeCarSurfaces(root: THREE.Group) {
@@ -1173,6 +1174,7 @@ export class CityRenderer {
   }
   destroy() {
     this.disposed = true;
+    this.referenceFacades.dispose();
     this.living.dispose();
     this.observer.disconnect();
     for (const a of this.actors.values()) a.mixer?.stopAllAction();
