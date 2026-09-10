@@ -1,4 +1,10 @@
-import { SHOT_STATE, resolveCommittedShot, resolvePoolRoyaleShotPowerScale, easeOut } from '../webapp/src/pages/Games/poolRoyaleShotState.js';
+import {
+  SHOT_STATE,
+  resolveCommittedShot,
+  resolvePoolRoyaleShotPowerScale,
+  resolvePoolRoyalReleasePower,
+  easeOut
+} from '../webapp/src/pages/Games/poolRoyaleShotState.js';
 
 describe('Pool Royale shot state commit flow', () => {
   it('stays idle for low/zero captured power', () => {
@@ -33,5 +39,23 @@ describe('Pool Royale shot state commit flow', () => {
     expect(easeOut(0)).toBe(0);
     expect(easeOut(1)).toBe(1);
     expect(easeOut(0.6)).toBeCloseTo(0.936, 3);
+  });
+
+  it('keeps the captured release power when the live slider has already reset', () => {
+    expect(resolvePoolRoyalReleasePower({
+      busy: false,
+      committedPower: 0.72,
+      currentPower: 0,
+      minPower: 0
+    })).toBeCloseTo(0.72, 6);
+  });
+
+  it('rejects duplicate releases while a cue stroke is in progress', () => {
+    expect(resolvePoolRoyalReleasePower({
+      busy: true,
+      committedPower: 0.72,
+      currentPower: 0.72,
+      minPower: 0
+    })).toBeNull();
   });
 });
