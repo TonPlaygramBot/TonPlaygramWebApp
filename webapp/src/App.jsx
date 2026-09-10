@@ -127,6 +127,10 @@ const ShootingRangeLobby = React.lazy(
 );
 const ArcadeRaceLobby = React.lazy(() => import('./pages/Games/ArcadeRaceLobby.jsx'));
 const KartRoyale = React.lazy(() => import('./pages/Games/KartRoyale.jsx'));
+const ExploreAlbania = React.lazy(() => import('./pages/Games/ExploreAlbania.jsx'));
+const ExploreAlbaniaLobby = React.lazy(
+  () => import('./pages/Games/ExploreAlbaniaLobby.jsx')
+);
 function LegacyTiranaRoute({ lobby = false }) {
   const { search } = useLocation();
   return <Navigate replace to={`/games/tiranastreets${lobby ? '/lobby' : ''}${search}`} />;
@@ -253,6 +257,8 @@ export default function App() {
               <Route path="/games/blackwater" element={<LegacyTiranaRoute />} />
               <Route path="/games/kartroyale/lobby" element={<KartRoyale />} />
               <Route path="/games/kartroyale" element={<KartRoyale />} />
+              <Route path="/games/explorealbania/lobby" element={<ExploreAlbaniaLobby />} />
+              <Route path="/games/explorealbania" element={<ExploreAlbania />} />
               <Route path="/games/tiranastreets/lobby" element={<TiranaStreetsLobby />} />
               <Route path="/games/tiranastreets" element={<TiranaStreets />} />
               <Route path="/games/2048royale/lobby" element={<ArcadeRaceLobby gameSlug="2048royale" />} />

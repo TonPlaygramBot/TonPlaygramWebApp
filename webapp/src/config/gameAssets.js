@@ -11,6 +11,7 @@ const withBase = (path) => {
 };
 
 export const gameThumbnails = {
+  explorealbania: '/assets/icons/explore-albania.svg',
   royallanes: '/assets/royal-lanes/mark.svg',
   blackwater: '/assets/blackwater/mark.svg',
   tabletennisroyal: '/assets/icons/table-tennis-royal.svg',
