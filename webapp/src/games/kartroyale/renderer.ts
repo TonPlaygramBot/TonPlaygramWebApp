@@ -6,6 +6,7 @@ import {
   RACE_LIMIT,
   KARTS,
   normalizeKart,
+  equipKart,
   COLORS,
   makeTrack,
   createRacer,
@@ -36,6 +37,8 @@ export interface Frame {
   track: Track;
   drawCalls: number;
   health: number;
+  shield: number;
+  ammunition: number;
   impactId: number;
   impact: number;
   retired: boolean;
@@ -60,7 +63,9 @@ const neutral = (): Input => ({
   steer: 0,
   brake: false,
   drift: false,
-  boost: false
+  boost: false,
+  shield: false,
+  fire: false
 });
 interface KartRig {
   body: T.Object3D;
@@ -853,7 +858,7 @@ export class KartRenderer {
       )
     );
     this.racers[0].color = this.color;
-    this.racers[0].kartId = this.kartId;
+    equipKart(this.racers[0], this.kartId);
     this.createWorld(this.track);
     this.addRacers();
     this.state = 'countdown';
@@ -1133,6 +1138,8 @@ export class KartRenderer {
             track: this.track,
             drawCalls: this.renderer.info.render.calls,
             health: me.health ?? 100,
+            shield: me.shield ?? 0,
+            ammunition: me.ammunition ?? 0,
             impactId: me.impactId ?? 0,
             impact: me.impact ?? 0,
             retired: me.retired ?? false,

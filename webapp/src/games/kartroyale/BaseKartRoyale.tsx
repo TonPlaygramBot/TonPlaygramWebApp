@@ -23,7 +23,9 @@ import {
   Camera,
   Wifi,
   WifiOff,
-  Wrench
+  Wrench,
+  Shield,
+  Crosshair
 } from 'lucide-react';
 import { KartRenderer } from './renderer';
 import type { Quality, Frame, Result, CameraMode } from './renderer';
@@ -598,7 +600,7 @@ export default function KartRoyale({
     );
   };
   const hold =
-    (key: 'steer' | 'drift' | 'boost' | 'brake', value: number | boolean) =>
+    (key: 'steer' | 'drift' | 'boost' | 'brake' | 'shield' | 'fire', value: number | boolean) =>
     (e: React.PointerEvent<HTMLButtonElement>) => {
       e.preventDefault();
       e.currentTarget.setPointerCapture(e.pointerId);
@@ -606,14 +608,14 @@ export default function KartRoyale({
       const i = engine.current?.input;
       if (i) (i as unknown as Record<string, number | boolean>)[key] = value;
     };
-  const release = (key: 'steer' | 'drift' | 'boost' | 'brake') => () => {
+  const release = (key: 'steer' | 'drift' | 'boost' | 'brake' | 'shield' | 'fire') => () => {
     const i = engine.current?.input;
     if (i)
       (i as unknown as Record<string, number | boolean>)[key] =
         key === 'steer' ? 0 : false;
   };
   const touch = (
-    key: 'steer' | 'drift' | 'boost' | 'brake',
+    key: 'steer' | 'drift' | 'boost' | 'brake' | 'shield' | 'fire',
     value: number | boolean
   ) => ({
     onPointerDown: hold(key, value),
@@ -695,7 +697,7 @@ export default function KartRoyale({
               <p>YOUR STREETS. YOUR RACE.</p>
             </section>
             <section className="kr-vehicle-info">
-              <span className="kr-label">YOUR KART · 6 CHASSIS</span>
+              <span className="kr-label">YOUR KART · 5 PERFORMANCE CLASSES</span>
               <h2>{KARTS.find((k) => k.id === kartId)?.name}</h2>
               <p>{KARTS.find((k) => k.id === kartId)?.detail}</p>
               <div className="kr-kart-picker" aria-label="Choose your kart">
@@ -725,9 +727,13 @@ export default function KartRoyale({
                 ))}
                 <span>
                   {KARTS.findIndex((k) => k.id === kartId) + 1} / {KARTS.length}{' '}
-                  · SAME RACE PERFORMANCE
+                  · UNIQUE PERFORMANCE
                 </span>
               </div>
+              {(() => { const k=KARTS.find(k=>k.id===kartId)!; return <div className="kr-kart-stats">
+                <span>SPD <b>{Math.round(k.speed*100)}</b></span><span>HND <b>{Math.round(k.handling*100)}</b></span>
+                <span>BRK <b>{Math.round(k.brake*100)}</b></span><span>SHD <b>{k.shield}</b></span><span>AMMO <b>{k.ammunition}</b></span>
+              </div>; })()}
               <div className="kr-swatches">
                 {COLORS.slice(0, 5).map((c, i) => (
                   <button
@@ -1201,6 +1207,7 @@ export default function KartRoyale({
                   : 'ENGINE DAMAGED · SLOW DOWN'}
             </small>
           </div>
+          <div className="kr-combat-hud"><span><Shield size={13}/> {Math.round(hud?.shield || 0)}</span><span><Crosshair size={13}/> {hud?.ammunition || 0}</span></div>
           <div className="kr-touch-controls">
             <div className="kr-steering">
               <button aria-label="Steer left" {...touch('steer', -1)}>
@@ -1218,6 +1225,10 @@ export default function KartRoyale({
               </button>
             </div>
             <div className="kr-pedals">
+              <div className="kr-combat-buttons">
+                <button className="kr-shield-button" aria-label="Hold shield" {...touch('shield', true)}><Shield size={22}/><span>SHIELD</span></button>
+                <button className="kr-fire-button" aria-label="Fire missile" disabled={!hud?.ammunition} {...touch('fire', true)}><Crosshair size={22}/><span>FIRE</span></button>
+              </div>
               <button className="kr-drift-button" {...touch('drift', true)}>
                 DRIFT
               </button>

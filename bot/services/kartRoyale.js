@@ -3,6 +3,7 @@ import {
   STEP,
   RACE_LIMIT,
   normalizeKart,
+  equipKart,
   makeTrack,
   createRacer,
   stepRace,
@@ -78,10 +79,9 @@ export function attachKartRoyale(
     emit(r);
   };
   const startRace = (r, fillAI = false) => {
-    r.racers = r.players.map((p, i) => ({
-      ...createRacer(r.track, p.id, p.name, i),
-      kartId: normalizeKart(p.kartId)
-    }));
+    r.racers = r.players.map((p, i) =>
+      equipKart(createRacer(r.track, p.id, p.name, i), p.kartId)
+    );
     while (fillAI && r.racers.length < 6) {
       const i = r.racers.length;
       r.racers.push(
@@ -352,7 +352,7 @@ export function attachKartRoyale(
         });
       p.kartId = normalizeKart(d.kartId);
       const racer = room.racers.find((r) => r.id === p.id);
-      if (racer) racer.kartId = p.kartId;
+      if (racer) equipKart(racer, p.kartId);
       cb({ ok: true });
       emit(room);
     });
@@ -373,7 +373,9 @@ export function attachKartRoyale(
           : 0,
         brake: d.brake === true,
         drift: d.drift === true,
-        boost: d.boost === true
+        boost: d.boost === true,
+        shield: d.shield === true,
+        fire: d.fire === true
       };
       r.lastInput = clock();
     });
@@ -413,7 +415,7 @@ export function attachKartRoyale(
       const racer = r.racers.find((v) => v.id === p.id);
       if (racer) {
         racer.disconnected = true;
-        racer.input = { steer: 0, brake: true, drift: false, boost: false };
+        racer.input = { steer: 0, brake: true, drift: false, boost: false, shield:false, fire:false };
       }
       emit(r);
     });
@@ -437,7 +439,7 @@ export function attachKartRoyale(
         room.elapsed += STEP;
         for (const r of room.racers)
           if (!r.ai && now - r.lastInput > 900)
-            r.input = { steer: 0, brake: true, drift: false, boost: false };
+            r.input = { steer: 0, brake: true, drift: false, boost: false, shield:false, fire:false };
         stepRace(room.racers, room.track, STEP, room.elapsed, 'street');
         const allDone = room.racers
           .filter((r) => !r.ai)

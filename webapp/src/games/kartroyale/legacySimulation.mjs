@@ -1,8 +1,8 @@
 import { TIRANA_ROUTES } from './tirana-routes.mjs';
-import { resolveWallContact, resolveKartContact } from './collisions.mjs';
+import { resolveWallContact, resolveKartContact, damageRacer } from './collisions.mjs';
 import { resampleCircuit } from './grandRouteCore.mjs';
 import { pointAhead, cornerSpeedLimit } from './circuitMetrics.mjs';
-export { damageRacer } from './collisions.mjs';
+export { damageRacer };
 export const STEP = 1 / 60,
   LAPS = 3;
 export const COLORS = [
@@ -15,15 +15,20 @@ export const COLORS = [
 ];
 export const RACE_LIMIT = 480;
 export const KARTS = [
-  { id: 'apex', name: 'Apex 02', detail: 'Exposed chassis · mechanical kart' },
-  { id: 'oobi', name: 'Eagle', detail: 'Compact body · classic sprint' },
-  { id: 'oodi', name: 'Illyrian', detail: 'Front fairing · road racer' },
-  { id: 'ooli', name: 'Besa', detail: 'Wide sidepods · touring kart' },
-  { id: 'oopi', name: 'Dajti', detail: 'Rear aero · club racer' },
-  { id: 'oozi', name: 'Lana', detail: 'Low nose · street special' }
+  { id: 'apex', name: 'Apex 02', detail: 'Balanced mechanical kart', speed: 1, handling: 1, brake: 1, shield: 80, ammunition: 3 },
+  { id: 'oobi', name: 'Eagle', detail: 'Fast sprint chassis', speed: 1.1, handling: .93, brake: .94, shield: 62, ammunition: 3 },
+  { id: 'oodi', name: 'Illyrian', detail: 'Agile road racer', speed: .97, handling: 1.12, brake: 1.05, shield: 70, ammunition: 4 },
+  { id: 'ooli', name: 'Besa', detail: 'Armoured touring kart', speed: .92, handling: .9, brake: 1.12, shield: 100, ammunition: 2 },
+  { id: 'oopi', name: 'Dajti', detail: 'Aero attack kart', speed: 1.05, handling: 1.03, brake: .98, shield: 72, ammunition: 5 }
 ];
 export const normalizeKart = (id) =>
   KARTS.some((k) => k.id === id) ? id : 'apex';
+export function equipKart(r, id) {
+  const kartId=normalizeKart(id), kart=KARTS.find(k=>k.id===kartId);
+  r.kartId=kartId; r.shieldMax=kart.shield; r.shield=kart.shield;
+  r.ammunition=kart.ammunition; r.fireCooldown=0;
+  return r;
+}
 export const TRACK_ALIASES = {
   harbor: 'skanderbeg',
   neon: 'blloku',
@@ -67,7 +72,7 @@ export const TRACKS = [
   ...config,
   // Closed-event barriers widen the playable ribbon without scaling or moving
   // any of the source street centreline coordinates.
-  width: 12,
+  width: 16,
   sky: '#adc8d2',
   ground: '#a6a58e',
   ...TIRANA_ROUTES.find((r) => r.id === config.id)
@@ -161,6 +166,7 @@ export function createRacer(track, id, name, slot = 0, ai = false) {
   const index = 355 - Math.floor(slot / 2) * 4,
     p = track.points[index],
     lane = slot % 2 ? 2.1 : -2.1;
+  const kart = KARTS[slot % KARTS.length];
   return {
     id,
     name: String(name).slice(0, 18),
@@ -188,7 +194,13 @@ export function createRacer(track, id, name, slot = 0, ai = false) {
     finishTime: 0,
     collision: 0,
     health: 100,
-    kartId: KARTS[slot % KARTS.length].id,
+    kartId: kart.id,
+    shield: kart.shield,
+    shieldMax: kart.shield,
+    shieldActive: false,
+    ammunition: kart.ammunition,
+    fireCooldown: 0,
+    missileHits: 0,
     retired: false,
     wallContact: false,
     impactId: 0,
@@ -200,7 +212,7 @@ export function createRacer(track, id, name, slot = 0, ai = false) {
     damageRear: 0,
     damageSide: 0,
     hitFlash: 0,
-    input: { steer: 0, brake: false, drift: false, boost: false },
+    input: { steer: 0, brake: false, drift: false, boost: false, shield: false, fire: false },
     lastInput: 0,
     disconnected: false
   };
@@ -240,6 +252,12 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
   r.health = Number.isFinite(r.health) ? r.health : 100;
   r.hitFlash = Math.max(0, (r.hitFlash || 0) - dt);
   r.impactCooldown = Math.max(0, (r.impactCooldown || 0) - dt);
+  r.fireCooldown = Math.max(0, (r.fireCooldown || 0) - dt);
+  const kart = KARTS.find(k => k.id === r.kartId) || KARTS[0];
+  r.shieldMax = Number.isFinite(r.shieldMax) ? r.shieldMax : kart.shield;
+  r.shield = clamp(Number.isFinite(r.shield) ? r.shield : r.shieldMax, 0, r.shieldMax);
+  r.shieldActive = input.shield === true && r.shield > 0;
+  r.shield = clamp(r.shield + (r.shieldActive ? -18 : 4) * dt, 0, r.shieldMax);
   // A finite steering rack response makes touch buttons progressive. Physics
   // and the visible wheels share this value on both the client and server.
   r.steering =
@@ -253,12 +271,12 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
         r.slot * 0.006
       : 1,
     damageFactor = 0.82 + r.health * 0.0018,
-    max = (boost || r.turbo > 0 ? 43 : 31) * factor * damageFactor;
+    max = (boost || r.turbo > 0 ? 43 : 31) * kart.speed * factor * damageFactor;
   r.speed = clamp(
     r.speed +
       (input.brake
-        ? -28
-        : (boost || r.turbo > 0 ? 22 : 13.8) * factor * damageFactor -
+        ? -28 * kart.brake
+        : (boost || r.turbo > 0 ? 22 : 13.8) * kart.speed * factor * damageFactor -
           0.6 -
           0.16 * r.speed -
           0.008 * r.speed * r.speed) *
@@ -277,7 +295,7 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
   r.turbo = Math.max(0, r.turbo - dt);
   r.boost = clamp(r.boost + (boost ? -34 : drift ? 17 : 5) * dt, 0, 100);
   const turn =
-    (-r.steering * (drift ? 1.48 : 1.15) * clamp(r.speed / 10, 0, 1)) /
+    (-r.steering * kart.handling * (drift ? 1.48 : 1.15) * clamp(r.speed / 10, 0, 1)) /
     (1 + Math.max(0, r.speed - 22) * 0.022);
   r.yawRate =
     (r.yawRate || 0) +
@@ -330,6 +348,22 @@ export function stepRace(racers, track, dt, time, difficulty = 'street') {
       time,
       difficulty
     );
+  for (const r of racers) {
+    if (!r.input?.fire || r.fireCooldown > 0 || r.ammunition <= 0 || r.finished || r.retired) continue;
+    r.fireCooldown = .65; r.ammunition--;
+    let target = null, best = 42;
+    for (const other of racers) {
+      if (other === r || other.finished || other.retired || other.disconnected) continue;
+      const dx=other.x-r.x,dz=other.z-r.z,forward=dx*Math.sin(r.yaw)+dz*Math.cos(r.yaw),side=Math.abs(dx*Math.cos(r.yaw)-dz*Math.sin(r.yaw));
+      if (forward>2 && forward<best && side<5) { target=other; best=forward; }
+    }
+    if (target) {
+      const blocked=target.shieldActive&&target.shield>0;
+      if(blocked) target.shield=Math.max(0,target.shield-28);
+      damageRacer(target,blocked?3:14); target.hitFlash=.45; target.impactId=(target.impactId||0)+1; r.missileHits=(r.missileHits||0)+1;
+    }
+    r.input.fire=false;
+  }
   // A second positional pass prevents multi-kart contacts from leaving bodies
   // interpenetrating or pushed through a track barrier.
   for (let pass = 0; pass < 2; pass++) {
