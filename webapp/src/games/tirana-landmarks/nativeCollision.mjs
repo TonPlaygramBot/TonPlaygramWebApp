@@ -26,7 +26,7 @@ export function nativeLandmarkObstacles(world, origin = {x:0,z:0}) {
       add(l,0,0,46,32,24);add(l,0,0,33.4,28.4,135,24);
     }
     if(l.id==='skanderbeg') {
-      add(l,0,0,9,7.2,3.4);add(l,0,-.6,2.2,4.8,10.5,3.4);
+      add(l,0,0,4.85,7.2,3.4);add(l,0,-.1,2.4,6.2,10.94,3.4);
     }
   }
   return obstacles;

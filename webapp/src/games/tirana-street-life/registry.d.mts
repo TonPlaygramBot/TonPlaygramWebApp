@@ -1,0 +1,10 @@
+export type StreetSite={id:string;x:number;z:number;yaw:number;name:string;street?:string;placementAccuracy:string};
+export type Storefront=StreetSite&{buildingId:string;kind:string;shop:string|null;width:number;terrace:boolean;point:number[]};
+export type BusStop=StreetSite&{shelter:boolean;sourceShelter:boolean;bench:boolean;point:number[]};
+export type FuelSite=StreetSite&{canopy:boolean;width:number;depth:number;ring:number[][]|null;point:number[]};
+export type MatureTree={id:string;x:number;z:number;shape:string;height:number;crown:number;seed:number;zone:string;dimensionsAccuracy:string;speciesAccuracy:string};
+export type StreetLifeData={acquired:string;attribution:string;license:string;storefronts:Storefront[];stops:BusStop[];fuel:FuelSite[];trees:MatureTree[];advertising:StreetSite[]};
+export const STREET_LIFE:StreetLifeData;
+export const REAL_STOREFRONT_BUILDING_IDS:Set<string>;
+export const MATURE_TREE_IDS:Set<string>;
+export {FUEL_CANOPY_IDS} from './fuelCollision.mjs';

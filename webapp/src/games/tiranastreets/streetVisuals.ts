@@ -1,6 +1,7 @@
 import { STREET_PROPS } from './shared/streetDressing.mjs';
 import { RAILINGS } from './shared/landscape.mjs';
 import { MAPPED_TREES } from '../tirana-city-source/registry.mjs';
+import {MATURE_TREE_IDS,STREET_LIFE} from '../tirana-street-life/registry.mjs';
 import * as T from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { WORLD } from './shared/world.mjs';
@@ -57,7 +58,7 @@ export class StreetVisuals {
       !WORLD.buildings.some((b) => insidePolygon(x, z, b.p));
     // Actual mapped tree centres replace the park scatter and roadside rhythm.
     // Species and dimensions remain generic where the source supplies none.
-    MAPPED_TREES.forEach((p, i) => add(p.model, p.x, p.z, i * 2.399, p.scale));
+    MAPPED_TREES.filter(p=>!MATURE_TREE_IDS.has(p.id)).forEach((p, i) => add(p.model, p.x, p.z, i * 2.399, p.scale));
     const roads = WORLD.roads.filter(
       (r) =>
         !r.walk &&
@@ -115,12 +116,12 @@ export class StreetVisuals {
       if (i % 17 === 0) {
         const ax = x + (dx / length) * 8,
           az = z + (dz / length) * 8;
-        if (free(ax, az)) {
+        if (free(ax, az) && !STREET_LIFE.storefronts.some(p=>Math.hypot(p.x-ax,p.z-az)<12)) {
           add('cafe_terrace', ax, az, yaw - Math.PI / 2, 0.92);
           add('litter_bin', ax + (dx / length) * 2.4, az + (dz / length) * 2.4);
         }
       }
-      if (i % 31 === 0) {
+      if (i % 31 === 0 && !STREET_LIFE.advertising.length) {
         const bx = x - (dx / length) * 9,
           bz = z - (dz / length) * 9;
         if (free(bx, bz)) {

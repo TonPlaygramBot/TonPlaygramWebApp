@@ -4,18 +4,21 @@ import {CityMap as ExistingCityMap} from './CityMapCore';
 import {RegionalAtlas} from '../../tirana-region/RegionalAtlas';
 import '../../tirana-region/region.css';
 const LandmarkExplorer=lazy(()=>import('../../tirana-city-source/LandmarkExplorer'));
+const StreetLifeExplorer=lazy(()=>import('../../tirana-street-life/StreetLifeExplorer'));
 /** Preserve original minimap, routes, favourites and city framing verbatim. */
 export function CityMap(props:ComponentProps<typeof ExistingCityMap>){
- const [tab,setTab]=useState<'city'|'regional'|'buildings'>('city');
+ const [tab,setTab]=useState<'city'|'regional'|'buildings'|'streets'>('city');
  if(!props.large)return <ExistingCityMap {...props}/>;
  return <div className="tr-atlas-shell">
   <div className="tr-tabs" role="group" aria-label="Tirana map coverage">
    <button aria-pressed={tab==='city'} onClick={()=>setTab('city')}>CITY &amp; ROUTES</button>
    <button aria-pressed={tab==='regional'} onClick={()=>setTab('regional')}>GREATER TIRANA</button>
    <button aria-pressed={tab==='buildings'} onClick={()=>setTab('buildings')}>BUILDINGS</button>
+   <button aria-pressed={tab==='streets'} onClick={()=>setTab('streets')}>STREETS</button>
   </div>
   <div hidden={tab!=='city'}><ExistingCityMap {...props}/></div>
   {tab==='regional'&&<RegionalAtlas player={props.player}/>}
   {tab==='buildings'&&<Suspense fallback={<p role="status">Loading Tirana buildings…</p>}><LandmarkExplorer/></Suspense>}
+  {tab==='streets'&&<Suspense fallback={<p role="status">Loading Tirana streets…</p>}><StreetLifeExplorer/></Suspense>}
  </div>;
 }

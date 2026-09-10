@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { WORLD } from '../tiranastreets/shared/world.mjs';
 import { RIVER_TREES } from '../tiranastreets/shared/landscape.mjs';
 import { onCarriageway } from '../tiranastreets/shared/streetLayout.mjs';
+import {STREET_LIFE} from '../tirana-street-life/registry.mjs';
 
 type Point = { x: number; z: number };
 type Site = Point & { yaw: number; district: number };
@@ -31,26 +32,11 @@ function amenitySites(): Site[] {
     const ux = dx / length, uz = dz / length, side = index % 2 ? -1 : 1;
     const x = road.a[0] + dx * (0.35 + hash(index) * 0.3) + uz * side * (road.w / 2 + 3.3);
     const z = road.a[1] + dz * (0.35 + hash(index) * 0.3) - ux * side * (road.w / 2 + 3.3);
-    if (onCarriageway(x, z, 0.8) || buildingContains(x, z) || occupied.some((p) => Math.hypot(p.x - x, p.z - z) < 42)) return;
+    if (onCarriageway(x, z, 0.8) || buildingContains(x, z) || occupied.some((p) => Math.hypot(p.x - x, p.z - z) < 42) || [...STREET_LIFE.storefronts,...STREET_LIFE.stops,...STREET_LIFE.advertising].some(p=>Math.hypot(p.x-x,p.z-z)<12)) return;
     occupied.push({ x, z });
     sites.push({ x, z, yaw: Math.atan2(dx, dz), district: index % 5 });
   });
   return sites.slice(0, 38);
-}
-
-function canvasTexture(text: string, background: string, foreground = '#fff3cf') {
-  const canvas = document.createElement('canvas');
-  canvas.width = 768; canvas.height = 256;
-  const context = canvas.getContext('2d')!;
-  const gradient = context.createLinearGradient(0, 0, 768, 256);
-  gradient.addColorStop(0, background); gradient.addColorStop(1, '#101b20');
-  context.fillStyle = gradient; context.fillRect(0, 0, 768, 256);
-  context.strokeStyle = 'rgba(255,255,255,.28)'; context.lineWidth = 10; context.strokeRect(14, 14, 740, 228);
-  context.fillStyle = foreground; context.font = '800 74px Arial'; context.textAlign = 'center'; context.textBaseline = 'middle';
-  context.fillText(text, 384, 116, 700);
-  context.font = '600 28px Arial'; context.fillText('TIRANË · HAPUR ÇDO DITË', 384, 196, 700);
-  const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = 4; return texture;
 }
 
 /** Batched street life for the full shared city. All decorative objects remain
@@ -90,7 +76,7 @@ export class UrbanLifeLayer {
     const put = (mesh: THREE.InstancedMesh, x: number, y: number, z: number, yaw = 0, sx = 1, sy = 1, sz = 1) => {
       dummy.position.set(x, y, z); dummy.rotation.set(0, yaw, 0); dummy.scale.set(sx, sy, sz); dummy.updateMatrix(); mesh.setMatrixAt(mesh.count++, dummy.matrix);
     };
-    sites.forEach((site, index) => {
+    sites.forEach((site) => {
       const d = site.district, c = Math.cos(site.yaw), s = Math.sin(site.yaw);
       put(tops[d], site.x, 0.76, site.z); put(legs[d], site.x, 0.38, site.z);
       for (let chairIndex = 0; chairIndex < 4; chairIndex++) {
@@ -99,7 +85,6 @@ export class UrbanLifeLayer {
       }
       put(bins[d], site.x + c * 2.35, 0.45, site.z - s * 2.35);
       for (const side of [-1, 1]) put(planters[d], site.x + c * 2.9 + s * side * 1.6, 0.28, site.z - s * 2.9 + c * side * 1.6);
-      if (index % 3 === 0) this.addSign(site, ['KAFE LANA', 'BUKA TIRANË', 'BISTRO BLLOKU', 'TPG CITY'][index % 4]);
     });
     // Extra small bins follow the river-tree rhythm instead of arbitrary grids.
     RIVER_TREES.filter((_, i) => i % 11 === 0).slice(0, 55).forEach((p, i) => put(bins[i % 5], p.x + 1.7, 0.45, p.z - 1.7, i));
@@ -110,16 +95,6 @@ export class UrbanLifeLayer {
   private material(color: number, roughness: number, metalness = 0) {
     const material = new THREE.MeshStandardMaterial({ color, roughness, metalness }); this.materials.push(material); return material;
   }
-  private addSign(site: Site, text: string) {
-    const texture = canvasTexture(text, ['#8d202a', '#17475b', '#5f3a20', '#1d513c'][site.district % 4]); this.textures.push(texture);
-    const material = new THREE.MeshStandardMaterial({ map: texture, emissiveMap: texture, emissive: 0xffffff, emissiveIntensity: 0.12, roughness: 0.5 });
-    this.materials.push(material); this.signs.push(material);
-    const panel = new THREE.Mesh(this.geometry(new THREE.BoxGeometry(4.8, 1.65, 0.13)), material);
-    panel.position.set(site.x, 3.25, site.z); panel.rotation.y = site.yaw; panel.castShadow = true; this.districts[site.district].add(panel);
-    const frame = new THREE.Mesh(this.geometry(new THREE.BoxGeometry(5.05, 1.9, 0.09)), this.material(0x20292d, 0.5, 0.72));
-    frame.position.copy(panel.position); frame.position.y -= 0.02; frame.rotation.copy(panel.rotation); frame.translateZ(-0.08); this.districts[site.district].add(frame);
-  }
-
   update(seconds: number, viewer?: Point, battery = false) {
     if (this.disposed) return;
     this.signs.forEach((material, i) => { material.emissiveIntensity = 0.12 + Math.max(0, Math.sin(seconds * 0.75 + i)) * 0.08; });

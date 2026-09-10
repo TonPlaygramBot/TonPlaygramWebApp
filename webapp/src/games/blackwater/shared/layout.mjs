@@ -1,6 +1,7 @@
 import { detailPostObstacles } from '../../tirana-street-detail/sharedRoadDetails.mjs';
 import { nativeReplacementIds } from '../../tirana-landmarks/nativeLocations.mjs';
 import { nativeLandmarkObstacles } from '../../tirana-landmarks/nativeCollision.mjs';
+import {FUEL_CANOPY_IDS,fuelCanopyObstacles} from '../../tirana-street-life/fuelCollision.mjs';
 import { buildingProfile, footprintDistance } from '../../tiranastreets/shared/architecture.mjs';
 import { STREET_SOLIDS } from '../../tiranastreets/shared/streetDressing.mjs';
 import { RAILINGS } from '../../tiranastreets/shared/landscape.mjs';
@@ -127,7 +128,7 @@ export const streetObstacles = STREET_SOLIDS.map(p => {
 export const railingObstacles = RAILINGS.map(r=>({x:r.x-ORIGIN.x,z:r.z-ORIGIN.z,w:.1,d:r.length,h:1.05,rot:r.yaw}));
 const replaced = nativeReplacementIds(WORLD);
 export const landmarkObstacles = nativeLandmarkObstacles(WORLD, ORIGIN);
-export const OBSTACLES = Object.freeze([...buildings.filter(b=>!replaced.has(b.id)), ...landmarkObstacles, ...props, ...streetObstacles, ...railingObstacles, ...detailPostObstacles(ORIGIN)]);
+export const OBSTACLES = Object.freeze([...buildings.filter(b=>!replaced.has(b.id)&&!FUEL_CANOPY_IDS.has(b.id)), ...fuelCanopyObstacles(ORIGIN), ...landmarkObstacles, ...props, ...streetObstacles, ...railingObstacles, ...detailPostObstacles(ORIGIN)]);
 const clear = (x,z,r=.5) => !OBSTACLES.some(o=>o.footprint?footprintDistance(x,z,o.footprint,o.holes)<r:Math.hypot(x-o.x,z-o.z)<Math.hypot(o.w,o.d)/2+r);
 const safeNear = (x,z) => {x=Math.max(MAP.minX+2,Math.min(MAP.maxX-2,x));z=Math.max(MAP.minZ+2,Math.min(MAP.maxZ-2,z));const road=nearestRoad(x,z); if(clear(road.x,road.z))return {x:road.x,z:road.z}; for(let radius=4;radius<60;radius+=4)for(let i=0;i<16;i++){const p=nearestRoad(x+Math.cos(i*Math.PI/8)*radius,z+Math.sin(i*Math.PI/8)*radius);if(clear(p.x,p.z)&&p.x>MAP.minX+.5&&p.x<MAP.maxX-.5&&p.z>MAP.minZ+.5&&p.z<MAP.maxZ-.5)return {x:p.x,z:p.z};} return {x:START.x,z:START.z}; };
 // Ten operation maps are sectors of the one detailed, streamed Tirana world.

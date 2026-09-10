@@ -4,6 +4,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { ReferenceFacades } from '../tirana-city-source/ReferenceFacades';
 import { REFERENCE_BUILDINGS } from '../tirana-city-source/profiles.mjs';
+import {FUEL_CANOPY_IDS} from '../tirana-street-life/fuelCollision.mjs';
 import { LANDMARK_REPLACED_IDS } from '../tirana-city-source/landmarkCatalog.mjs';
 import { WORLD } from './shared/world.mjs';
 import { buildingProfile, polygonContains } from './shared/architecture.mjs';
@@ -151,7 +152,7 @@ export class FpsCity {
     const shells = new Map<string, { parts: T.BufferGeometry[]; material: T.Material; x: number; z: number }>();
     const glass = this.material(0x355560, true), dark = this.material(0x4e514b), shutters = this.material(0x64776a);
     for (const b of WORLD.buildings) {
-      if (replaced.has(String(b.id)) || REFERENCE_BUILDINGS[b.id] || LANDMARK_REPLACED_IDS.has(String(b.id))) continue;
+      if (replaced.has(String(b.id)) || REFERENCE_BUILDINGS[b.id] || LANDMARK_REPLACED_IDS.has(String(b.id)) || FUEL_CANOPY_IDS.has(String(b.id))) continue;
       const p = buildingProfile(b), height = p.height ?? b.h;
       const cx = b.p.reduce((s, v) => s + v[0], 0) / b.p.length, cz = b.p.reduce((s, v) => s + v[1], 0) / b.p.length;
       const key = `${Math.floor(cx / 140)}:${Math.floor(cz / 140)}:${p.color}`;
