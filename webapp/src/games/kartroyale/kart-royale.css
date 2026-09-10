@@ -864,28 +864,12 @@
   border-color: var(--lime) !important;
   transform: none !important;
 }
-.kr-pedal-column {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 8px;
-}
-.kr-brake {
-  width: 86px;
-  height: 38px;
-  border-radius: 11px;
-  border: 1px solid #ffb34790 !important;
-  background: #31251ecc;
-  color: #ffd19a !important;
+.kr-steering .kr-brake {
+  grid-column: span 2;
+  height: 34px;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 2px;
-  backdrop-filter: blur(10px);
-  touch-action: none;
-}
-.kr-brake:active {
-  background: #ff9f334d;
-  transform: none !important;
 }
 .kr-pedals {
   display: flex;
@@ -1536,6 +1520,10 @@
     height: 59px;
     border-radius: 10px;
   }
+  .kr-steering .kr-brake {
+    height: 30px;
+    font-size: 11px;
+  }
   .kr-pedals {
     gap: 7px;
   }
@@ -1555,11 +1543,6 @@
   .kr-boost-button {
     width: 68px;
     height: 97px;
-  }
-  .kr-brake {
-    width: 68px;
-    height: 34px;
-    font-size: 11px;
   }
   .kr-boost-button > span {
     font-size: 11px;
@@ -1726,9 +1709,6 @@
     width: 52px;
   }
   .kr-boost-button {
-    width: 62px;
-  }
-  .kr-brake {
     width: 62px;
   }
   .kr-track-selector {
