@@ -28398,7 +28398,6 @@ const shotPowerRef = useRef(0);
             strikeDuration: strokeProfile.strikeDuration ?? LIVE_CUE_FORWARD_DURATION_MS,
             applied: false
           };
-          applyShotAtImpact(shotImpactPayload);
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
