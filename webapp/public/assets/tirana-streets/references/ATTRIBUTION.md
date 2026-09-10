@@ -24,3 +24,13 @@ this work must not be described as a completed Street View survey.
 
 Geography: [© OpenStreetMap contributors, ODbL 1.0](https://www.openstreetmap.org/copyright).
 National flags: [artwork provenance](../flags/ATTRIBUTION.md).
+# Additional landmark photographs (September 2026 expansion)
+
+| Local file | Original and author | License | Capture date | Modification |
+| --- | --- | --- | --- | --- |
+| air-albania-2024.jpg | [Air Albania Stadium 2024](https://commons.wikimedia.org/wiki/File:Air_Albania_Stadium_2024.jpg), BBB2021 | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) | 2024-09-05 | Resized to fit 960 px; JPEG recompression |
+| teg-2016.jpg | [TEG Tirana 2016](https://commons.wikimedia.org/wiki/File:TEG_Tirana_2016.jpg), Kj1595 | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) | 2016-10-28 | Resized to fit 960 px; JPEG recompression |
+| mak-hotel-2019.jpg | [MAK Hotel Tirana](https://commons.wikimedia.org/wiki/File:MAK_Hotel_Tirana.jpg), Andrew Milligan sumo | [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/) | 2019-08-19 | Resized to fit 960 px; JPEG recompression |
+
+Unlicensed operator, architect, listing and Wikimapia images were inspected as
+references only. They are linked in the research notes and are not bundled.

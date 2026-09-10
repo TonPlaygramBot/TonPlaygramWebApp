@@ -1,68 +1,17 @@
 import * as T from 'three';
 import { disposeTree } from '../tirana-expansion/BaseWorldEnhancements';
+import { RiniaFountain } from '../tirana-city-source/RiniaFountain';
 
-/** Small, mobile-budget park landmarks in the shared Tirana metre frame.
- * Rinia's anchor comes from the checked-in OSM-derived world. The attraction
- * layout is an artistic gameplay treatment, not a surveyed inventory. */
+/** Mapped Taivani fountain plus retained artistic park rides. */
 export class ParkAttractions {
   readonly group = new T.Group();
   private wheel = new T.Group();
   private carousel = new T.Group();
-  private water: T.Points;
-  private readonly jets: { radius: number; phase: number }[] = [];
+  private readonly fountain = new RiniaFountain();
   constructor(world: any) {
     this.group.name = 'Tirana:animated-park-attractions';
-    this.group.userData = {
-      accuracy:
-        'Rinia anchor and park polygons are mapped; ride and fountain details are artistic'
-    };
-    const rinia = world.landmarks?.find((p: any) => p.id === 'rinia');
-    const centre = new T.Vector3(rinia?.x ?? -37.14, 0.08, rinia?.z ?? 277.45);
-    const stone = new T.MeshStandardMaterial({
-      color: 0x9b9589,
-      roughness: 0.82,
-      metalness: 0.04
-    });
-    const waterMaterial = new T.PointsMaterial({
-      color: 0xbbeeff,
-      size: 0.18,
-      transparent: true,
-      opacity: 0.78,
-      depthWrite: false
-    });
-    const basin = new T.Mesh(new T.CylinderGeometry(5.2, 5.4, 0.55, 40), stone);
-    basin.position.copy(centre);
-    basin.position.y = 0.28;
-    basin.name = 'Parku Rinia fountain basin';
-    basin.receiveShadow = true;
-    this.group.add(basin);
-    const pool = new T.Mesh(
-      new T.CircleGeometry(4.75, 40),
-      new T.MeshPhysicalMaterial({
-        color: 0x4593a7,
-        roughness: 0.18,
-        metalness: 0.08,
-        transparent: true,
-        opacity: 0.78
-      })
-    );
-    pool.rotation.x = -Math.PI / 2;
-    pool.position.copy(centre);
-    pool.position.y = 0.58;
-    pool.name = 'Parku Rinia fountain water';
-    this.group.add(pool);
-    const positions = new Float32Array(25 * 3);
-    for (let i = 0; i < 25; i++)
-      this.jets.push({ radius: i ? 1.3 + (i % 8) * 0.34 : 0, phase: i * 0.57 });
-    this.water = new T.Points(
-      new T.BufferGeometry().setAttribute(
-        'position',
-        new T.BufferAttribute(positions, 3)
-      ),
-      waterMaterial
-    );
-    this.water.name = 'Parku Rinia animated fountain jets';
-    this.group.add(this.water);
+    this.group.userData = { accuracy: 'Mapped Taivani basin and jets; amusement rides are artistic' };
+    this.group.add(this.fountain.group);
     this.makeAmusement(new T.Vector3(205, 0.05, 782));
   }
   private makeAmusement(at: T.Vector3) {
@@ -132,22 +81,11 @@ export class ParkAttractions {
       this.wheel.rotation.z = seconds * 0.08;
       this.carousel.rotation.y = seconds * 0.18;
     }
-    const p = this.water.geometry.getAttribute('position') as T.BufferAttribute;
-    for (let i = 0; i < this.jets.length; i++) {
-      const j = this.jets[i],
-        a = j.phase + seconds * 0.35,
-        t = (seconds * 0.62 + j.phase) % 1;
-      p.setXYZ(
-        i,
-        -37.14 + Math.cos(a) * j.radius,
-        0.6 + Math.sin(t * Math.PI) * (i ? 2.6 : 4.8),
-        277.45 + Math.sin(a) * j.radius
-      );
-    }
-    p.needsUpdate = true;
+    this.fountain.update(seconds, viewer, battery);
   }
   retire() {}
   dispose() {
+    this.fountain.dispose();
     disposeTree(this.group);
   }
 }

@@ -9,6 +9,9 @@ import { CITY_SOURCE } from './sourceData.mjs';
 import { frontage } from './sourceCore.mjs';
 import { WORLD } from '../tiranastreets/shared/world.mjs';
 const EMPTY_URLS: Record<string, string> = {};
+// This original single-building review view only lists footprints in WORLD.
+// Multi-building campuses and regional sites use LandmarkExplorer in CityMap.
+const CENTRAL_PROFILES=Object.entries(REFERENCE_BUILDINGS).filter(([id])=>WORLD.buildings.some(b=>b.id===id));
 
 /** Review-only view of the actual game models; never a second gameplay route. */
 export function CityReferencePreview({ photos = EMPTY_URLS, flags = EMPTY_URLS }: {
@@ -91,7 +94,7 @@ export function CityReferencePreview({ photos = EMPTY_URLS, flags = EMPTY_URLS }
     <div className="tirana-review-toolbar">
       <label htmlFor="tirana-review-building">Tirana · Building details</label>
       <select id="tirana-review-building" value={selected} onChange={event=>setSelected(event.target.value)}>
-        {Object.entries(REFERENCE_BUILDINGS).map(([id,p])=><option key={id} value={id}>{p.name}</option>)}
+        {CENTRAL_PROFILES.map(([id,p])=><option key={id} value={id}>{p.name}</option>)}
       </select>
     </div>
     <div className="tirana-review-model" ref={mount} />

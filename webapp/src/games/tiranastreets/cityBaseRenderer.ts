@@ -16,6 +16,7 @@ import {
 
 import { ReferenceFacades } from '../tirana-city-source/ReferenceFacades';
 import { REFERENCE_BUILDINGS } from '../tirana-city-source/profiles.mjs';
+import { LANDMARK_REPLACED_IDS } from '../tirana-city-source/landmarkCatalog.mjs';
 import { MAPPED_TREES } from '../tirana-city-source/registry.mjs';
 
 const ASSETS = "/assets/tirana-streets/";
@@ -301,7 +302,7 @@ export class CityRenderer {
     >();
     const windowGeos: THREE.BufferGeometry[] = [];
     for (const b of WORLD.buildings) {
-      if (b.special || REFERENCE_BUILDINGS[b.id]) continue;
+      if (b.special || REFERENCE_BUILDINGS[b.id] || LANDMARK_REPLACED_IDS.has(String(b.id))) continue;
       const cx = b.p.reduce((s, p) => s + p[0], 0) / b.p.length,
         cz = b.p.reduce((s, p) => s + p[1], 0) / b.p.length;
       // Eight city shell draws are cheaper on phones than hundreds of tiny chunks.

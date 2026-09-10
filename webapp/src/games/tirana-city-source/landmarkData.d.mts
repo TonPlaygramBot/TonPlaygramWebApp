@@ -1,0 +1,2 @@
+export type LandmarkBuilding={id:string;site:string;p:number[][];h:number;holes?:number[][][];replaces?:string[];tags:Record<string,string>;heightBasis:string};
+export const LANDMARK_DATA:{origin:number[];acquired:string;license:string;attribution:string;sources:{file:string;sha256:string}[];buildings:LandmarkBuilding[];fountain:{id:string;p:number[][];jets:{id:string;p:number[]}[]};campuses:Record<string,number[][]>};

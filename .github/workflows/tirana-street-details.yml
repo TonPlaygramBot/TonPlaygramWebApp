@@ -7,6 +7,12 @@ on:
       - 'webapp/src/games/tirana-city-source/**'
       - 'webapp/public/assets/tirana-streets/flags/**'
       - 'webapp/scripts/import-tirana-city-details.py'
+      - 'webapp/scripts/import-tirana-landmarks.py'
+      - 'webapp/scripts/verify-tirana-landmark-geometry.mjs'
+      - 'webapp/src/games/tiranastreets/map/CityMap.tsx'
+      - 'webapp/src/games/tirana-environment/ParkAttractions.ts'
+      - 'webapp/public/assets/tirana-streets/references/**'
+      - 'test/tiranaLandmarks.test.mjs'
       - 'test/tiranaCitySource.test.mjs'
       - 'webapp/src/games/tiranastreets/street-career/**'
       - 'webapp/src/games/blackwater/cityWorld.ts'
@@ -33,7 +39,7 @@ jobs:
         with:
           node-version: '22'
       - name: New contracts, actual WORLD and preserved career tests
-        run: node --test test/tiranaCitySource.test.mjs test/tiranaFpsCity.test.mjs test/tiranaStreetDetail.test.mjs test/tiranaStreetDetail.integration.test.mjs test/tiranaStreetCareer.test.mjs test/tiranaStreetCareer.integration.test.mjs test/tiranaCareerExpansion.test.mjs test/tiranaMap.test.mjs
+        run: node --test test/tiranaLandmarks.test.mjs test/tiranaCitySource.test.mjs test/tiranaFpsCity.test.mjs test/tiranaStreetDetail.test.mjs test/tiranaStreetDetail.integration.test.mjs test/tiranaStreetCareer.test.mjs test/tiranaStreetCareer.integration.test.mjs test/tiranaCareerExpansion.test.mjs test/tiranaMap.test.mjs
   application-and-export:
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -47,6 +53,8 @@ jobs:
           cache: npm
           cache-dependency-path: webapp/package-lock.json
       - run: npm ci --prefix webapp
+      - name: Landmark geometry, stadium opening and disposal
+        run: node webapp/scripts/verify-tirana-landmark-geometry.mjs
       - name: Full webapp production build
         run: npm run build --prefix webapp
       - name: Dependency-aware TypeScript check

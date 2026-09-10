@@ -3,6 +3,8 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { WORLD } from '../tiranastreets/shared/world.mjs';
 import { REFERENCE_BUILDINGS, type ReferenceProfile } from './profiles.mjs';
 import { facadeEdges, type FacadeEdge } from './sourceCore.mjs';
+import { landmarkBuildings } from './landmarkCatalog.mjs';
+import { landmarkDetails } from './LandmarkDetails';
 
 /** Recognizable, photo-informed details fitted to existing footprints. Dimensions
  * retain game estimates. No claim of photogrammetry, surveyed height or exact bays. */
@@ -13,10 +15,10 @@ export class ReferenceFacades {
   private disposed=false;
   constructor(world=WORLD) {
     this.group.name='Tirana:photo-referenced-institution-facades';
-    for(const b of world.buildings){
+    for(const b of landmarkBuildings(world)){
       const profile=REFERENCE_BUILDINGS[b.id];if(!profile)continue;
       const group=new T.Group(),height=profile.height??b.h;
-      group.name=profile.name;group.userData={osmWay:b.id,reference:profile.source,referenceDate:profile.date,
+      group.name=profile.name;group.userData={osmWay:b.id,site:b.site,reference:profile.source,referenceDate:profile.date,
         geometryAccuracy:'Original interpretation on retained footprint; dimensions not surveyed'};
       const parts=new Map<number,T.BufferGeometry[]>();
       const add=(color:number,geometry:T.BufferGeometry)=>{if(!parts.has(color))parts.set(color,[]);if(geometry.index){const original=geometry;geometry=original.toNonIndexed();original.dispose();}parts.get(color)!.push(geometry);};
@@ -25,12 +27,32 @@ export class ReferenceFacades {
         add(color,new T.BoxGeometry(w,h,d).rotateY(yaw).translate(x,y,z));
       };
       const shape=new T.Shape(b.p.map(p=>new T.Vector2(p[0],-p[1])));
-      add(profile.color,new T.ExtrudeGeometry(shape,{depth:height,bevelEnabled:false,steps:1}).rotateX(-Math.PI/2));
+      for(const hole of b.holes??[])shape.holes.push(new T.Path(hole.map(p=>new T.Vector2(p[0],-p[1]))));
+      const shellHeight=profile.style==='sky'?height-12:height;
+      add(profile.color,new T.ExtrudeGeometry(shape,{depth:shellHeight,bevelEnabled:false,steps:1}).rotateX(-Math.PI/2));
       const edges=facadeEdges(b.p);
       const wall=(e:FacadeEdge,color:number,u:number,y:number,w:number,h:number,d:number,offset=.04)=>{
+        // Thin cladding and window fronts need two triangles, not six hidden
+        // box faces. Projecting balconies/fins retain their solid geometry.
+        if(profile.site&&d<=.2){
+          add(color,new T.PlaneGeometry(w,h).rotateY(Math.atan2(e.nx,e.nz)).translate(e.a[0]+e.ux*u+e.nx*(offset+d/2),y,e.a[1]+e.uz*u+e.nz*(offset+d/2)));
+          return;
+        }
         box(color,e.a[0]+e.ux*u+e.nx*offset,y,e.a[1]+e.uz*u+e.nz*offset,w,h,d,-Math.atan2(e.uz,e.ux));
       };
-      for(const e of edges){
+      const centre={x:b.p.reduce((s,p)=>s+p[0],0)/b.p.length,z:b.p.reduce((s,p)=>s+p[1],0)/b.p.length};
+      const detailed=landmarkDetails(profile,edges,height,add,box,wall,centre);
+      if(profile.style==='stadium'&&b.holes?.length){
+        const hole=b.holes[0],pitch=new T.Shape(hole.map(p=>new T.Vector2(p[0],-p[1])));
+        add(0x4f7846,new T.ShapeGeometry(pitch).rotateX(-Math.PI/2).translate(0,.08,0));
+        // Source inner roof opening stays open all the way to the field.
+        const xs=hole.map(p=>p[0]),zs=hole.map(p=>p[1]);
+        const x=(Math.min(...xs)+Math.max(...xs))/2,z=(Math.min(...zs)+Math.max(...zs))/2;
+        for(const side of [-1,1]){box(0xe8e9d5,x+side*34,.1,z,.12,.025,105);box(0xe8e9d5,x,.1,z+side*52.5,68,.025,.12);}
+        box(0xe8e9d5,x,.1,z,68,.025,.12);
+        add(0xe8e9d5,new T.TorusGeometry(9.15,.08,4,48).rotateX(-Math.PI/2).translate(x,.12,z));
+      }
+      for(const e of detailed?[]:edges){
         // Segment-by-segment cornices preserve rounded and irregular corners.
         wall(e,profile.trim,e.length/2,height-.12,e.length+.02,.24,.32,.06);
         wall(e,profile.trim,e.length/2,height-.48,e.length+.02,.12,.24,.07);

@@ -1,0 +1,28 @@
+import {build} from 'esbuild';
+import {fileURLToPath} from 'node:url';
+import path from 'node:path';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+const result=await build({stdin:{contents:`
+import assert from 'node:assert/strict';
+import * as T from 'three';
+import {ReferenceFacades} from './src/games/tirana-city-source/ReferenceFacades';
+import {RiniaFountain} from './src/games/tirana-city-source/RiniaFountain';
+import {LANDMARK_DATA} from './src/games/tirana-city-source/landmarkData.mjs';
+const layer=new ReferenceFacades(),fountain=new RiniaFountain();
+let triangles=0,meshes=0;
+layer.group.traverse(o=>{if(o instanceof T.Mesh){meshes++;const p=o.geometry.getAttribute('position');assert.ok(Array.from(p.array).every(Number.isFinite));triangles+=(o.geometry.index?.count??p.count)/3;}});
+assert.ok(triangles<900000,'mobile triangle budget: '+triangles);
+assert.ok(meshes<300,'batched material budget');
+for(const b of LANDMARK_DATA.buildings)assert.equal(layer.group.children.filter(g=>g.userData.osmWay===b.id).length,1,b.id);
+const stadium=layer.group.children.find(g=>g.userData.osmWay==='relation/10311002');
+const hole=LANDMARK_DATA.buildings.find(b=>b.id==='relation/10311002').holes[0];
+const x=hole.reduce((s,p)=>s+p[0],0)/hole.length,z=hole.reduce((s,p)=>s+p[1],0)/hole.length;
+stadium.updateMatrixWorld(true);
+const hits=new T.Raycaster(new T.Vector3(x,140,z),new T.Vector3(0,-1,0)).intersectObject(stadium,true);
+assert.ok(hits.length);assert.ok(hits.every(hit=>hit.point.y<1),'stadium pitch is not sealed by a roof');
+fountain.update(3);const points=fountain.group.children.find(c=>c instanceof T.Points);assert.ok(Array.from(points.geometry.getAttribute('position').array).every(Number.isFinite));
+layer.update({x:0,z:0},true);assert.equal(layer.group.children.find(g=>g.userData.osmWay==='293898197').visible,false);
+layer.dispose();layer.dispose();fountain.dispose();fountain.dispose();assert.equal(layer.group.children.length,0);assert.equal(fountain.group.children.length,0);
+console.log(JSON.stringify({buildings:LANDMARK_DATA.buildings.length,meshes,triangles,stadiumOpening:'clear',disposal:'passed'}));
+`,resolveDir:root,loader:'ts'},bundle:true,write:false,format:'esm',platform:'node',logLevel:'warning'});
+await import('data:text/javascript;base64,'+Buffer.from(result.outputFiles[0].contents).toString('base64'));
