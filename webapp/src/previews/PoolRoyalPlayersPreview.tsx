@@ -10,15 +10,16 @@ import { advancePoolRoyalCueStroke, referenceCuePull, referenceCueFeather, resol
 import { SoftwareRenderer } from '../games/tennis/software.ts';
 
 declare const POOL_PREVIEW_MODEL: string;
-declare const POOL_PREVIEW_TABLE: { floorY: number; clothY: number; ballY: number; ballR: number; tableW: number; tableL: number; playW: number; playL: number; railH: number; thickness: number; cueLength: number; cueRadius: number; cueGap: number; cuePull: number; cueButtLift: number };
+declare const POOL_PREVIEW_TABLE: { floorY: number; clothY: number; ballY: number; ballR: number; tableW: number; tableL: number; playW: number; playL: number; bridgeHalfW: number; bridgeHalfL: number; railTopY: number; railH: number; thickness: number; cueLength: number; cueRadius: number; cueGap: number; cuePull: number; cueButtLift: number };
 const METRICS = Object.fromEntries(Object.entries(POOL_PREVIEW_TABLE).map(([key, value]) => [key,
-  (value - (['clothY', 'ballY', 'floorY'].includes(key) ? POOL_PREVIEW_TABLE.floorY : 0)) / 12
+  (value - (['clothY', 'ballY', 'floorY', 'railTopY'].includes(key) ? POOL_PREVIEW_TABLE.floorY : 0)) / 12
 ])) as typeof POOL_PREVIEW_TABLE;
 type View = 'player' | 'table' | 'bridge';
+type Layout = 'open' | 'cluster' | 'rail' | 'corner';
 
 function CharacterPreview() {
   const stage = useRef<HTMLDivElement>(null);
-  const live = useRef({ state: 'dragging' as ShotState, view: 'player' as View, paused: false, power: 0.25, yaw: 0, seat: 'A' as PlayerSeat, strikeAt: 0, shotId: 0, resetId: 0, elapsed: 0, slow: false, ai: false, inspectContact: false });
+  const live = useRef({ state: 'dragging' as ShotState, view: 'player' as View, paused: false, power: 0.25, yaw: 0, seat: 'A' as PlayerSeat, strikeAt: 0, shotId: 0, resetId: 0, elapsed: 0, slow: false, ai: false, inspectContact: false, layout: 'open' as Layout });
   const [state, setState] = useState<ShotState>('dragging');
   const [paused, setPaused] = useState(false);
   const [view, setView] = useState<View>('player');
@@ -29,6 +30,8 @@ function CharacterPreview() {
   const [ready, setReady] = useState(false);
   const [slow, setSlow] = useState(false);
   const [phase, setPhase] = useState('Aiming');
+  const [layout, setLayout] = useState<Layout>('open');
+  const [bridgeStyle, setBridgeStyle] = useState('Open');
   const changeState = (next: ShotState) => {
     live.current.paused = false; setPaused(false);
     live.current.state = next;
@@ -94,8 +97,11 @@ function CharacterPreview() {
     tableBase.visible = !(renderer instanceof SoftwareRenderer);
     box([w, 0.16, l], [0, METRICS.clothY - 0.08, 0], 0x1f6f43);
     for (const sign of [-1, 1]) {
-      box([0.28, 0.2, l], [sign * w / 2, METRICS.clothY + 0.1, 0], 0x174c31);
-      box([w, 0.2, 0.28], [0, METRICS.clothY + 0.1, sign * l / 2], 0x174c31);
+      const railHeight = Math.max(METRICS.railTopY - METRICS.clothY, METRICS.ballR);
+      const railY = METRICS.clothY + railHeight / 2;
+      const sideWidth = Math.max(0.28, w / 2 - METRICS.bridgeHalfW);
+      box([sideWidth, railHeight, l], [sign * (METRICS.bridgeHalfW + sideWidth / 2), railY, 0], 0x174c31);
+      box([w, railHeight, 0.28], [0, railY, sign * (METRICS.bridgeHalfL + 0.14)], 0x174c31);
       for (const end of [-1, 1]) box([0.48, METRICS.clothY - 0.65, 0.48],
         [sign * (w / 2 - 0.6), (METRICS.clothY - 0.65) / 2, end * (l / 2 - 0.7)], 0x36271f);
     }
@@ -103,23 +109,30 @@ function CharacterPreview() {
     const ballGeometry = new THREE.SphereGeometry(METRICS.ballR, 24, 16);
     const cueBall = new THREE.Mesh(ballGeometry, new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.16 }));
     cueBall.position.copy(ballPosition); cueBall.castShadow = true; scene.add(cueBall);
+    const objectBalls: THREE.Mesh[] = [];
     let ballNumber = 0;
     for (let row = 0; row < 5; row++) for (let col = 0; col <= row; col++) {
       const ball = new THREE.Mesh(ballGeometry, new THREE.MeshStandardMaterial({
         color: [0xe0ac27, 0x296ba6, 0xba302a, 0x744596, 0xd86d22, 0x286945, 0x873232, 0x151515][ballNumber++ % 8], roughness: 0.23
       }));
       ball.position.set((col - row / 2) * METRICS.ballR * 2.05, ballPosition.y,
-        -METRICS.tableL * 0.18 - row * METRICS.ballR * 1.88); ball.castShadow = true; scene.add(ball);
+        -METRICS.tableL * 0.18 - row * METRICS.ballR * 1.88); ball.castShadow = true; scene.add(ball); objectBalls.push(ball);
     }
+    const blockers = [0xe0ac27, 0x296ba6, 0xba302a].map(color => {
+      const ball = new THREE.Mesh(ballGeometry, new THREE.MeshStandardMaterial({ color, roughness: 0.23 }));
+      ball.castShadow = true; ball.visible = false; scene.add(ball); return ball;
+    });
+    const bridgeBounds = { halfWidth: METRICS.bridgeHalfW, halfLength: METRICS.bridgeHalfL,
+      cushionTopY: Math.max(METRICS.railTopY, METRICS.clothY + METRICS.ballR) };
     const aimLine = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xb7d9c9, transparent: true, opacity: 0.65 }));
     scene.add(aimLine);
     const liveCue = createPoolRoyalCue({ ballRadius: METRICS.ballR, length: METRICS.cueLength, tipRadius: METRICS.cueRadius });
     liveCue.shaftMaterial.color.setHex(0xdeb887);
     scene.add(liveCue.body);
-    const shotCamera = new PoolRoyalShotCamera();
+    const shotCamera = new PoolRoyalShotCamera(true);
     const shotTip = { position: new THREE.Vector3(), visible: true };
     let stroke: any = null;
-    let seenShot = 0, seenReset = 0, simulationTime = 0, lastPhase = '';
+    let seenShot = 0, seenReset = 0, simulationTime = 0, lastPhase = '', lastBridgeStyle = '';
     const shotAnchor = ballPosition.clone();
     const shotDirection = new THREE.Vector3();
     let travel = 0;
@@ -132,7 +145,7 @@ function CharacterPreview() {
     const stream = new Blob([packed]).stream().pipeThrough(new DecompressionStream('gzip'));
     new Response(stream).arrayBuffer().then(buffer => new GLTFLoader().parseAsync(buffer, '')).then(async gltf => {
       if (disposed) return;
-      players = new PoolRoyalHumanPlayers(scene, { floorY: 0, clothY: METRICS.clothY,
+      players = new PoolRoyalHumanPlayers(scene, { followPlayerEyes: true, floorY: 0, clothY: METRICS.clothY,
         tableW: METRICS.tableW, tableL: METRICS.tableL, model: gltf.scene });
       players.setCueAppearance(liveCue.body, liveCue.tipLocal, liveCue.buttLocal);
       const loaded = await players.ready;
@@ -159,6 +172,25 @@ function CharacterPreview() {
       current.strikeAt = now;
       if (!current.paused) { current.elapsed += stepMs; simulationTime += stepMs; }
       const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(THREE.Object3D.DEFAULT_UP, current.yaw);
+      const side = new THREE.Vector3(forward.z, 0, -forward.x);
+      const rearDistance = Math.min(
+        Math.abs(forward.x) > 1e-6 ? (bridgeBounds.halfWidth - METRICS.ballR * 1.1) / Math.abs(forward.x) : Infinity,
+        Math.abs(forward.z) > 1e-6 ? (bridgeBounds.halfLength - METRICS.ballR * 1.1) / Math.abs(forward.z) : Infinity);
+      if (current.layout === 'rail' || current.layout === 'corner') {
+        ballPosition.copy(forward).multiplyScalar(-rearDistance).setY(METRICS.ballY);
+        if (current.layout === 'corner') {
+          ballPosition.x = Math.sign(ballPosition.x || -1) * (bridgeBounds.halfWidth - METRICS.ballR * 1.1);
+          ballPosition.z = Math.sign(ballPosition.z || 1) * (bridgeBounds.halfLength - METRICS.ballR * 1.1);
+        }
+      } else ballPosition.set(0, METRICS.ballY, METRICS.tableL * 0.31);
+      blockers.forEach((ball, index) => {
+        ball.visible = current.layout === 'cluster';
+        ball.position.copy(ballPosition).addScaledVector(forward, -METRICS.ballR * (6 + index * 2.2))
+          .addScaledVector(side, METRICS.ballR * 2.4);
+      });
+      if (!stroke) cueBall.position.copy(ballPosition);
+      const bridgeObstacles = [cueBall, ...objectBalls, ...blockers].filter(ball => ball.visible)
+        .map(ball => ({ position: ball.position.clone(), radius: METRICS.ballR }));
       const axis = forward.clone().addScaledVector(THREE.Object3D.DEFAULT_UP, -METRICS.cueButtLift / cueLength).normalize();
       if (seenReset !== current.resetId) {
         seenReset = current.resetId; stroke = null; travel = 0; cueBall.position.copy(ballPosition); shotCamera.reset();
@@ -188,9 +220,11 @@ function CharacterPreview() {
       const cueBack = cueTip.clone().addScaledVector(axis, -cueLength);
       posePoolRoyalCue(liveCue.body, cueBack, cueTip, liveCue.tipLocal, liveCue.buttLocal);
       liveCue.body.visible = stroke ? shotTip.visible : current.state !== 'idle';
-      if (current.inspectContact) for (let i = 0; i < 65; i++) players?.update(1 / 60, { activeSeat: current.seat, state: 'dragging', power: current.power, cueBall: ballPosition, aimForward: forward, nowMs: simulationTime, cueBack, cueTip });
+      if (current.inspectContact) for (let i = 0; i < 65; i++) players?.update(1 / 60, { activeSeat: current.seat, state: 'dragging', power: current.power, cueBall: ballPosition, aimForward: forward, nowMs: simulationTime, cueBack, cueTip, bridgeBounds, bridgeObstacles });
       if (!current.paused) players?.update(dt, { activeSeat: current.seat, state: characterState, power: current.power,
-        cueBall: shotAnchor.copy(ballPosition), aimForward: forward, nowMs: simulationTime, cueBack, cueTip });
+        cueBall: shotAnchor.copy(ballPosition), aimForward: forward, nowMs: simulationTime, cueBack, cueTip, bridgeBounds, bridgeObstacles });
+      const nextBridgeStyle = players?.players.find(player => player.seat === current.seat)?.bridgeStyle ?? 'open';
+      if (nextBridgeStyle !== lastBridgeStyle) { lastBridgeStyle = nextBridgeStyle; setBridgeStyle(nextBridgeStyle); }
       // Inspection motion begins only at the production stroke's impact callback.
       // Ball collisions/rules are verified separately against the game modules.
       if (travel > 0 && !current.paused && !current.inspectContact) {
@@ -275,12 +309,18 @@ function CharacterPreview() {
   }, []);
 
   return <div className="pool-preview">
-    <div className="viz-row"><span>Pool Royal · Shot inspection</span>
+    <div className="viz-row"><span>Pool Royal · Player perspective</span>
       <select className="form-select" aria-label="Active player" value={seat} onChange={event => {
         const next = event.target.value as PlayerSeat; setSeat(next); live.current.seat = next; changeState('dragging');
       }}><option value="A">Player 1</option><option value="B">AI player</option></select>
     </div>
     <div ref={stage} className="pool-preview-stage" role="img" aria-label="Pool Royal players at calibrated table scale, with eye-level and bridge views" />
+    <div className="viz-controls"><label className="form-label">Shot position
+      <select className="form-select" value={layout} onChange={event => {
+        const next = event.target.value as Layout; setLayout(next); live.current.layout = next; changeState('dragging');
+      }}><option value="open">Open table</option><option value="cluster">Nearby balls</option>
+        <option value="rail">Against cushion</option><option value="corner">Corner cushion</option></select>
+      </label><span className="text-small">Bridge: {bridgeStyle}</span></div>
     <div className="viz-controls" aria-label="Camera view">
       {(['player', 'table', 'bridge'] as View[]).map(value => <button key={value} className="btn" aria-pressed={view === value}
         onClick={() => { setView(value); live.current.view = value;  }}>

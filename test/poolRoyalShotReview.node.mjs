@@ -6,6 +6,22 @@ import { createPoolRoyalCue, posePoolRoyalCue } from '../webapp/src/pages/Games/
 import { PoolRoyalHumanPlayers } from '../webapp/src/pages/Games/shared/PoolRoyalHumanPlayers.ts';
 import { loadPoseModel } from './fixtures/poolRoyalPoseTrace.mjs';
 
+test('player camera follows the live eyes at every orbit blend through aim, impact and standing recovery', () => {
+  for (const cueBlend of [0, 0.9, 1]) {
+    const camera = new PoolRoyalShotCamera(true);
+    const eye = { position: new THREE.Vector3(0, 5, 9), target: new THREE.Vector3(0, 4, 0), blend: 0.9 };
+    for (const [stroke, shooting, now] of [[false, false, 0], [true, true, 100], [false, true, 500], [false, true, 1500], [false, false, 2000]]) {
+      eye.position.x += 2;
+      const view = camera.resolve({ eye, stroke, shooting, cueBlend, now });
+      assert.equal(view.blend, 1);
+      assert.deepEqual(view.position, eye.position);
+      assert.notEqual(view.position, eye.position, 'camera must not mutate the rig eyes');
+    }
+    assert.equal(camera.resolve({ eye, stroke: true, shooting: true, cueBlend, now: 2200, excluded: true }), null);
+    assert.equal(camera.resolve({ eye: null, stroke: false, shooting: false, cueBlend, now: 2300 }), null);
+  }
+});
+
 test('AI and human strokes override broadcast camera ownership and retain the eyes through impact', () => {
   for (const cueBlend of [0, 0.9, 1]) {
     const camera = new PoolRoyalShotCamera();
@@ -20,7 +36,6 @@ test('AI and human strokes override broadcast camera ownership and retain the ey
     assert.equal(camera.resolve({ eye, stroke: true, shooting: true, cueBlend, now: 1200, excluded: true }), null);
   }
 });
-
 test('the original cue tip and butt align exactly for all shot headings', () => {
   const cue = createPoolRoyalCue({ ballRadius: 1, length: 38, tipRadius: 0.17 });
   const bounds = new THREE.Box3().setFromObject(cue.body);
