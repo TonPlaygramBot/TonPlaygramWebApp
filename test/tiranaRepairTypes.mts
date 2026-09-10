@@ -13,9 +13,8 @@ const track:Track=makeTrack(TRACKS[0].id);
 const racer:Racer=createRacer(track,'contract','Contract');
 const input:Input=aiInput(racer,track,0);
 const held=createHeldRaceInput();held.hold('finger','steer',1);
-// The legacy held-controls helper has no combat buttons; supply neutral actions.
-const current:Input={...held.read(),shield:false,fire:false};racer.input=current;
+const current:Input=held.read();racer.input=current;
 stepRace([racer],track,1/60,1/60);
 const progress:KartTasks=finishKartTask(freshKartTasks(),'qender-qualifier',{}).profile;
-const mode:'alpine'|'race'|'career'|'explore'=racingActivity('');
+const mode:'race'|'career'|'explore'=racingActivity('');
 void [input,progress,mode,CUPS];

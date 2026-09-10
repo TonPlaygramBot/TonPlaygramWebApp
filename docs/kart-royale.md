@@ -1,61 +1,9 @@
-# Racing Royal — supplied Alpine game and Tirana street series
+# Racing Royal — Tirana street series
 
 Kart Royale adds a dedicated portrait-first 3D racing game to TonPlaygram's games
 catalog at `/games/kartroyale/lobby` (also available at `/games/kartroyale`).
 
-## Default game: supplied Alpine Grand Loop
-
-The Games card now opens the supplied Ferrari + Go-Kart Weapon Bubble Game.
-`SuppliedRacingRoyal.tsx` is based on the complete user attachment from 2026-09-10,
-not a replacement simulation. The byte-identical reference is retained at
-`test/fixtures/racingRoyalSupplied-20260910.tsx` (SHA-256
-`1fd6efae1b9d61e049e98660e3154854191f010bb916ad60aee3ce55a23a783c`).
-
-The supplied Alpine control points, 8.8-unit road width, three-lap race, Ferrari,
-Buggy, three opponents, all 18 weapon definitions/URLs/fallbacks, pickups, damage,
-shields, inventory, semi-auto driving, camera and mobile controls are retained.
-This is a local race, **not** a TPG match. Existing paid table/code/online URLs
-continue to use the authoritative multiplayer implementation below. Use
-**TPG / MODES** (or `?activity=garage`) for the previous garage, Tirana circuits,
-kart choices and additional modes. **GAMES** returns to the app's game catalog.
-
-Intentional differences from the attachment:
-
-- Tires retain the seven-cylinder stack and original rubber/rim materials. Their
-  centers no longer overlap. Each side is measured independently along its offset
-  curve, with equal closed-loop spacing and tangent alignment, including turns.
-  Four instanced material batches keep the denser rows practical to render.
-- Joined red/white curbs use the same samples as the asphalt; start-grid tiles fit
-  the road exactly without overlapping. Trees, hills, road and other scenery remain.
-- The player target-lane sign is corrected: right drag/D/right-arrow moves screen
-  right in the chase camera. All other `updateVehicle` code is source-identical.
-- App navigation, safe-area offsets and a non-overlapping minimap column are added.
-  Restart/exit releases resources and inputs; blur/visibility loss clears held
-  controls, pointer cancellation does not fire, and load errors offer retry/exit.
-
-The supplied asset URLs are still external, including their original procedural
-fallbacks and load timeouts. No different models were substituted and no new asset
-license assumptions were made. External asset availability and a real-device
-WebGL play-through must be verified before release; source parity and geometric
-tests do not establish visual loading or mobile frame rate.
-
-Focused checks (after installing `webapp` dependencies):
-
-```sh
-node --test test/racingRoyalSupplied.test.mjs test/tiranaRepairCore.test.mjs test/racing-precision.test.mjs
-cd webapp
-npx vite build --config vite.kart.config.ts
-```
-
-The regression tests verify attachment integrity, unchanged gameplay/assets,
-left/right controls, separate edge lengths, seam spacing, corner clearance,
-non-overlapping tires, joined curbs, instancing, shared-resource disposal, three-lap
-player/AI runs, inventory selection and the supplied projectile/shield damage.
-
-## Existing Tirana modes: Play
-
-The remaining sections describe the retained Tirana garage/runtime, not the new
-default Alpine game.
+## Play
 
 - **VS AI:** six racers, five Tirana street circuits, Rookie / Street / Pro opponents.
 - **Career:** Rookie, Street and Royale cups. Finish top three in the first two
