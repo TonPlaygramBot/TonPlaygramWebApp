@@ -116,9 +116,9 @@ and TPG matchmaking. Previous circuit IDs remain aliases and normalize to the ne
 IDs in server queue validation; career medals and credits are retained, while old
 circuit best times are not reused for different geometry.
 
-Five additional **Kenney Car Kit 3.1 (CC0)** models provide six selectable karts with
+Four additional **Kenney Car Kit 3.1 (CC0)** models provide five selectable karts with
 the original Apex. New choices have different front fairing, sidepod or rear-wing
-adaptations. All choices use identical physics; the chosen appearance is validated
+adaptations. Each class has distinct speed, handling, braking, shield and ammunition; the chosen appearance is validated
 by the server before racing and included in snapshots/reconnects. Models, textures,
 source URLs, original licenses and SHA-256 hashes are shipped locally.
 
@@ -191,8 +191,9 @@ to enable live multiplayer in TonPlaygram.
 
 ## Driving, damage and sound
 
-- No rockets, shields, pickup spawning, weapon button or firing input. Brake, drift
-  and driver-controlled boost remain. Health never refills from a pickup.
+- Each kart starts with finite lock-on missiles and a rechargeable hold-to-use shield.
+  Missiles only acquire a kart ahead in the same road corridor; shield energy absorbs
+  most crash and missile damage. Brake, drift and driver-controlled boost remain.
 - At a barrier, contact normal velocity determines damage. Glancing scrapes retain
   more forward motion; a fast head-on hit rebounds, loses momentum and damages more.
 - Kart contacts use equal-mass impulses, small restitution, friction and positional
