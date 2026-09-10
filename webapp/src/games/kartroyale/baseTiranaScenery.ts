@@ -146,6 +146,8 @@ export class TiranaScenery {
         group: T.Group;
         walls: T.BufferGeometry[][];
         windows: T.BufferGeometry[];
+        roofs: T.BufferGeometry[];
+        rooftop: T.BufferGeometry[];
       }
     >();
     for (const building of WORLD.buildings) {
@@ -162,7 +164,13 @@ export class TiranaScenery {
         const group = new T.Group();
         this.group.add(group);
         this.chunks.push({ group, x: cx * 100 + 50, z: cz * 100 + 50 });
-        buckets.set(key, { group, walls: colors.map(() => []), windows: [] });
+        buckets.set(key, {
+          group,
+          walls: colors.map(() => []),
+          windows: [],
+          roofs: [],
+          rooftop: []
+        });
       }
       const batch = buckets.get(key)!;
       const shape = new T.Shape(p.map((p) => new T.Vector2(p[0], -p[1])));
@@ -181,6 +189,15 @@ export class TiranaScenery {
       }
       geo.setAttribute('color', new T.BufferAttribute(vertexColors, 3));
       batch.walls[Number(building.id) % colors.length].push(geo);
+      batch.roofs.push(surface(p, building.h + 0.025));
+      if (building.h > 12) {
+        const utility = new T.BoxGeometry(2.4, 1.25, 1.9).translate(
+          x,
+          building.h + 0.625,
+          z
+        );
+        batch.rooftop.push(utility);
+      }
       for (let i = 0; i < p.length; i++) {
         const a = p[i],
           c = p[(i + 1) % p.length],
@@ -199,13 +216,30 @@ export class TiranaScenery {
     for (const batch of buckets.values()) {
       merged(batch.walls.flat(), wallMaterial, batch.group, true);
       merged(batch.windows, glass, batch.group);
+      merged(
+        batch.roofs,
+        new T.MeshStandardMaterial({ color: '#aaa28f', roughness: 0.94 }),
+        batch.group
+      );
+      merged(
+        batch.rooftop,
+        new T.MeshStandardMaterial({ color: '#777b78', roughness: 0.86 }),
+        batch.group,
+        true
+      );
     }
     const trees: { x: number; z: number }[] = [];
     for (const p of WORLD.parks) {
       const x = p.reduce((s, p) => s + p[0], 0) / p.length,
         z = p.reduce((s, p) => s + p[1], 0) / p.length;
-      if (near(x, z) && inside(x, z, p) && !occupied(x, z))
-        trees.push({ x, z });
+      if (!near(x, z)) continue;
+      // A small deterministic grove reads as a real park from the race camera,
+      // while keeping the instance count stable across devices.
+      for (const [ox, oz] of [[0, 0], [3.2, -2.4], [-2.8, 2.7]]) {
+        const tx = x + ox,
+          tz = z + oz;
+        if (inside(tx, tz, p) && !occupied(tx, tz)) trees.push({ x: tx, z: tz });
+      }
     }
     const trunk = new T.InstancedMesh(
       new T.CylinderGeometry(0.2, 0.28, 3, 6),
