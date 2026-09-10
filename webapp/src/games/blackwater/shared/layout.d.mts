@@ -13,6 +13,7 @@ export type Building = Obstacle & {
   rot: number;
   template: number;
   footprint: number[][];
+  holes?: number[][][];
 };
 export type Prop = Obstacle & { sx: number; sz: number; rot: number };
 export const ORIGIN: Readonly<Vec2>;

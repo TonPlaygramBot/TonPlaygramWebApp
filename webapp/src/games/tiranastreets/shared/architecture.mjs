@@ -23,17 +23,19 @@ export function buildingProfile(b) {
     floor: 3.2, window: 1.3, style: b.h > 45 ? 'tower' : institutional ? 'institution' : tags.tourism === 'hotel' ? 'hotel' : 'residential', source: 'OSM footprint; district palette approximation' };
 }
 
-export function polygonContains(x, z, polygon) {
+export function polygonContains(x, z, polygon, holes = []) {
   let inside = false;
   for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
     const a = polygon[i], b = polygon[j];
     if ((a[1] > z) !== (b[1] > z) && x < (b[0] - a[0]) * (z - a[1]) / (b[1] - a[1]) + a[0]) inside = !inside;
   }
-  return inside;
+  return inside && !holes.some(hole => polygonContains(x, z, hole));
 }
 
-export function footprintDistance(x, z, polygon) {
-  if (polygonContains(x, z, polygon)) return 0;
+export function footprintDistance(x, z, polygon, holes = []) {
+  const hole = holes.find(hole => polygonContains(x, z, hole));
+  if (hole) polygon = hole;
+  else if (polygonContains(x, z, polygon)) return 0;
   let distance = Infinity;
   for (let i = 0; i < polygon.length; i++) {
     const a = polygon[i], b = polygon[(i + 1) % polygon.length];

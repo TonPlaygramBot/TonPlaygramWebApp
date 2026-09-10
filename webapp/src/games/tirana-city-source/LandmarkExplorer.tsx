@@ -2,9 +2,11 @@ import {useEffect,useId,useRef,useState} from 'react';
 import * as T from 'three';
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
 import {ReferenceFacades} from './ReferenceFacades';
+import {InstitutionLayer} from './InstitutionLayer';
+import {CITY_PLACES} from './registry.mjs';
 import {RiniaFountain} from './RiniaFountain';
 import {LANDMARK_CATALOG} from './landmarkCatalog.mjs';
-import {LANDMARK_DATA} from './landmarkData.mjs';
+import {LANDMARK_DATA} from './allLandmarks.mjs';
 import './landmarkExplorer.css';
 
 const EMPTY_PHOTOS:Record<string,string>={};
@@ -12,7 +14,7 @@ const EMPTY_PHOTOS:Record<string,string>={};
 /** Uses the same meshes as gameplay. Never teleports players outside WORLD.
  * Camera fitting uses the current portrait aspect ratio and the whole campus. */
 export default function LandmarkExplorer({photos=EMPTY_PHOTOS}:{photos?:Record<string,string>}) {
- const [selected,setSelected]=useState('air-albania'),[error,setError]=useState('');
+ const [selected,setSelected]=useState('namazgja'),[error,setError]=useState('');
  const host=useRef<HTMLDivElement>(null),select=useRef<(id:string)=>void>(()=>{});
  const selection=useRef(selected),labelId=useId();
  const site=LANDMARK_CATALOG[selected];
@@ -33,14 +35,15 @@ export default function LandmarkExplorer({photos=EMPTY_PHOTOS}:{photos?:Record<s
   controls.maxPolarAngle=Math.PI*.49;controls.minDistance=10;controls.maxDistance=2400;
   scene.add(new T.HemisphereLight(0xe4f0fc,0x8a8576,2.6));
   const sun=new T.DirectionalLight(0xffeacf,3);sun.position.set(-150,250,150);scene.add(sun);
-  const layer=new ReferenceFacades(),fountain=new RiniaFountain();scene.add(layer.group,fountain.group);
+  let layer:ReferenceFacades|undefined, identities:InstitutionLayer|undefined;
+  const fountain=new RiniaFountain();scene.add(fountain.group);
   const ground=new T.Mesh(new T.PlaneGeometry(1800,1800),new T.MeshStandardMaterial({color:0x9ea595,roughness:1}));
   ground.rotation.x=-Math.PI/2;scene.add(ground);
   let selectedId=selection.current;
   const fit=()=>{
    const bounds=new T.Box3();
    const wanted=new Set(LANDMARK_DATA.buildings.filter(b=>b.site===selectedId).map(b=>b.id));
-   layer.group.children.forEach(g=>{g.visible=wanted.has(g.userData.osmWay);if(g.visible)bounds.expandByObject(g);});
+   layer?.group.children.forEach(g=>{if(wanted.has(g.userData.osmWay))bounds.expandByObject(g);});
    fountain.group.visible=selectedId==='taivani';if(fountain.group.visible)bounds.expandByObject(fountain.group);
    if(bounds.isEmpty())return;
    const centre=bounds.getCenter(new T.Vector3()),size=bounds.getSize(new T.Vector3());
@@ -51,14 +54,23 @@ export default function LandmarkExplorer({photos=EMPTY_PHOTOS}:{photos?:Record<s
    controls.target.copy(centre);controls.maxDistance=Math.max(500,distance*2.5);controls.update();
    ground.position.set(centre.x,-.035,centre.z);
   };
-  select.current=id=>{selectedId=id;fit();};
+  select.current=id=>{
+   if(selectedId===id&&layer)return;
+   selectedId=id;layer?.dispose();identities?.dispose();
+   layer=new ReferenceFacades(undefined,new Set(LANDMARK_DATA.buildings.filter(b=>b.site===id).map(b=>b.id)));
+   scene.add(layer.group);
+   const ids=new Set(LANDMARK_DATA.buildings.filter(b=>b.site===id).map(b=>b.id));
+   identities=new InstitutionLayer(CITY_PLACES.sites.filter(s=>ids.has(s.buildingId)),[],country=>photos['flag-'+country]||`/assets/tirana-streets/flags/${country.toLowerCase()}.svg`);
+   scene.add(identities.group);identities.group.children.forEach(g=>g.visible=true);fit();
+  };
+  select.current(selectedId);
   const resize=()=>{const w=Math.max(1,mount.clientWidth),h=Math.max(1,mount.clientHeight);renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();fit();};
   const observer=new ResizeObserver(resize);observer.observe(mount);resize();
   let visible=true,frame=0;const visibility=new IntersectionObserver(([entry])=>{visible=entry.isIntersecting;});visibility.observe(mount);
   const reduced=matchMedia('(prefers-reduced-motion: reduce)');
-  const render=(ms:number)=>{if(visible&&!document.hidden){if(selectedId==='taivani')fountain.update(reduced.matches?0:ms/1000);renderer.render(scene,camera);}frame=requestAnimationFrame(render);};
+  const render=(ms:number)=>{if(visible&&!document.hidden){identities?.update(reduced.matches?0:ms/1000);if(selectedId==='taivani')fountain.update(reduced.matches?0:ms/1000);renderer.render(scene,camera);}frame=requestAnimationFrame(render);};
   frame=requestAnimationFrame(render);
-  return()=>{cancelAnimationFrame(frame);observer.disconnect();visibility.disconnect();controls.dispose();layer.dispose();fountain.dispose();ground.geometry.dispose();(ground.material as T.Material).dispose();renderer.dispose();renderer.domElement.remove();select.current=()=>{};};
+  return()=>{cancelAnimationFrame(frame);observer.disconnect();visibility.disconnect();controls.dispose();layer?.dispose();identities?.dispose();fountain.dispose();ground.geometry.dispose();(ground.material as T.Material).dispose();renderer.dispose();renderer.domElement.remove();select.current=()=>{};};
  },[]);
  useEffect(()=>{selection.current=selected;select.current(selected);},[selected]);
  return <section className="tr-landmark-explorer" aria-label="Tirana landmarks">

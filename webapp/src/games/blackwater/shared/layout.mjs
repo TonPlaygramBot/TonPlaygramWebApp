@@ -4,6 +4,7 @@ import { nativeLandmarkObstacles } from '../../tirana-landmarks/nativeCollision.
 import { buildingProfile, footprintDistance } from '../../tiranastreets/shared/architecture.mjs';
 import { STREET_SOLIDS } from '../../tiranastreets/shared/streetDressing.mjs';
 import { RAILINGS } from '../../tiranastreets/shared/landscape.mjs';
+import { CITY_BUILDING_DATA } from '../../tirana-city-source/cityBuildingData.mjs';
 import { WORLD } from '../../tiranastreets/shared/world.mjs';
 
 // Only a translation: east remains +X, south +Z, and one unit remains one meter.
@@ -44,7 +45,12 @@ export function nearestRoad(x, z) {
   }
   return best;
 }
-export const buildings = WORLD.buildings.map((b, i) => {
+const catalogBuildings = new Map(CITY_BUILDING_DATA.buildings.map(b=>[b.id,b]));
+const innerMembers = new Set(CITY_BUILDING_DATA.buildings.flatMap(b=>b.replaces??[]));
+const existingBuildingIds=new Set(WORLD.buildings.map(b=>b.id));
+const collisionBuildings=[...WORLD.buildings,...CITY_BUILDING_DATA.buildings.filter(b=>
+  !existingBuildingIds.has(b.id)&&b.p.every(([x,z])=>x>=WORLD.bounds[0]&&x<=WORLD.bounds[2]&&z>=WORLD.bounds[1]&&z<=WORLD.bounds[3]))];
+export const buildings = collisionBuildings.filter(b=>!innerMembers.has(b.id)).map((b, i) => {
   const footprint = b.p.map((p) => [p[0] - ORIGIN.x, p[1] - ORIGIN.z]);
   const xs = footprint.map((p) => p[0]),
     zs = footprint.map((p) => p[1]);
@@ -59,6 +65,7 @@ export const buildings = WORLD.buildings.map((b, i) => {
     rot,
     template: i % 10,
     footprint,
+    holes: (catalogBuildings.get(b.id)?.holes??[]).map(r=>r.map(p=>[p[0]-ORIGIN.x,p[1]-ORIGIN.z])),
     w: Math.max(...xs) - Math.min(...xs),
     d: Math.max(...zs) - Math.min(...zs),
     h: buildingProfile(b).height ?? b.h
@@ -121,7 +128,7 @@ export const railingObstacles = RAILINGS.map(r=>({x:r.x-ORIGIN.x,z:r.z-ORIGIN.z,
 const replaced = nativeReplacementIds(WORLD);
 export const landmarkObstacles = nativeLandmarkObstacles(WORLD, ORIGIN);
 export const OBSTACLES = Object.freeze([...buildings.filter(b=>!replaced.has(b.id)), ...landmarkObstacles, ...props, ...streetObstacles, ...railingObstacles, ...detailPostObstacles(ORIGIN)]);
-const clear = (x,z,r=.5) => !OBSTACLES.some(o=>o.footprint?footprintDistance(x,z,o.footprint)<r:Math.hypot(x-o.x,z-o.z)<Math.hypot(o.w,o.d)/2+r);
+const clear = (x,z,r=.5) => !OBSTACLES.some(o=>o.footprint?footprintDistance(x,z,o.footprint,o.holes)<r:Math.hypot(x-o.x,z-o.z)<Math.hypot(o.w,o.d)/2+r);
 const safeNear = (x,z) => {x=Math.max(MAP.minX+2,Math.min(MAP.maxX-2,x));z=Math.max(MAP.minZ+2,Math.min(MAP.maxZ-2,z));const road=nearestRoad(x,z); if(clear(road.x,road.z))return {x:road.x,z:road.z}; for(let radius=4;radius<60;radius+=4)for(let i=0;i<16;i++){const p=nearestRoad(x+Math.cos(i*Math.PI/8)*radius,z+Math.sin(i*Math.PI/8)*radius);if(clear(p.x,p.z)&&p.x>MAP.minX+.5&&p.x<MAP.maxX-.5&&p.z>MAP.minZ+.5&&p.z<MAP.maxZ-.5)return {x:p.x,z:p.z};} return {x:START.x,z:START.z}; };
 // Ten operation maps are sectors of the one detailed, streamed Tirana world.
 const sector = (id,name,worldX,worldZ) => {const start=safeNear(worldX-ORIGIN.x,worldZ-ORIGIN.z),extraction=safeNear(start.x+18,start.z-42);return Object.freeze({id,name,start:Object.freeze(start),extraction:Object.freeze(extraction)});};
