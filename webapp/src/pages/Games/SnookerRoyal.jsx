@@ -102,12 +102,11 @@ import {
   SPIN_STUN_RADIUS
 } from './snookerRoyalSpinUtils.js';
 import { resolveCueBallContact, sampleCueStrokeTimeline } from './poolRoyaleCueStrokeTimeline.js';
-import { resolvePoolRoyalReleasePower } from './poolRoyaleShotState.js';
-import { BILARDO_MIN_RELEASE_POWER } from './shared/bilardoShotModel';
 import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import SnookerShotCoach from './SnookerShotCoach.jsx';
 import { resolveSnookerImpactAudio } from './snookerImpactAudio.js';
 import { PoolRoyalHumanPlayers } from './shared/PoolRoyalHumanPlayers.ts';
+import { PoolRoyalShotCamera } from './shared/poolRoyalShotCamera.ts';
 import {
   buildSnookerViewerHud,
   resolveSnookerShotClockExpiry,
@@ -1682,9 +1681,6 @@ const CUE_FOLLOW_MAX_MS = 420;
 const CUE_FOLLOW_SPEED_MIN = BALL_R * 12;
 const CUE_FOLLOW_SPEED_MAX = BALL_R * 24;
 const ENABLE_CUE_STROKE_ANIMATION = true;
-// Use the same intentional-release threshold as Pool Royale so a portrait pull
-// gesture commits consistently in both billiards games.
-const MIN_SHOT_POWER_TO_FIRE = BILARDO_MIN_RELEASE_POWER;
 const CUE_FOLLOW_THROUGH_MIN = BALL_R * 0.18; // ensure the forward push is visible even on short strokes
 const CUE_FOLLOW_THROUGH_MAX = BALL_R * 1.8; // cap the forward travel so the cue never overshoots the ball too far
 const PLAYER_CUE_FORWARD_MIN_MS = 450;
@@ -14566,6 +14562,7 @@ const shotPowerRef = useRef(0);
   const broadcastCamerasRef = useRef(null);
   const lightingRigRef = useRef(null);
   const activeRenderCameraRef = useRef(null);
+  const activeHumanCueViewRef = useRef(null);
   const pocketSwitchIntentRef = useRef(null);
   const lastPocketBallRef = useRef(null);
   const cameraBlendRef = useRef(ACTION_CAMERA_START_BLEND);
@@ -18092,6 +18089,29 @@ const shotPowerRef = useRef(0);
           envSkyboxScaleRef.current = nextScale;
         };
 
+        const humanShotCamera = new PoolRoyalShotCamera();
+        const resolveActiveHumanEyePose = () => {
+          const pose = humanShotCamera.resolve({
+            eye: activeHumanCueViewRef.current,
+            stroke: Boolean(cueAnimating),
+            shooting: shootingRef.current,
+            cueBlend: cameraBlendRef.current ?? 1,
+            now: performance.now(),
+            excluded: Boolean(
+              topViewRef.current ||
+              replayPlaybackRef.current ||
+              cueGalleryStateRef.current?.active
+            )
+          });
+          return pose
+            ? {
+                ...pose,
+                position: world.localToWorld(pose.position.clone()),
+                target: world.localToWorld(pose.target.clone())
+              }
+            : null;
+        };
+
         const updateCamera = () => {
           const replayPlaybackActive = Boolean(replayPlaybackRef.current);
           let renderCamera = camera;
@@ -19113,6 +19133,26 @@ const shotPowerRef = useRef(0);
           broadcastArgs.targetWorld = null;
           broadcastArgs.lerp = 0.22;
         }
+          }
+          // During address and the cue stroke, put the render camera at the
+          // shooter's animated eyes. Because the eye pose is recomputed every
+          // frame, the view follows head and body movement rather than orbiting
+          // around a stale cue-ball anchor.
+          const humanEyePose = resolveActiveHumanEyePose();
+          if (humanEyePose) {
+            renderCamera.position.lerp(humanEyePose.position, humanEyePose.blend);
+            lookTarget = (lookTarget ?? humanEyePose.target)
+              .clone()
+              .lerp(humanEyePose.target, humanEyePose.blend);
+            renderCamera.lookAt(lookTarget);
+            if (renderCamera.isPerspectiveCamera) {
+              renderCamera.fov = THREE.MathUtils.lerp(
+                renderCamera.fov,
+                STANDING_VIEW_FOV,
+                humanEyePose.blend
+              );
+              renderCamera.updateProjectionMatrix();
+            }
           }
           if (lookTarget) {
             lastCameraTargetRef.current.copy(lookTarget);
@@ -22010,7 +22050,7 @@ const shotPowerRef = useRef(0);
         tableL: Math.max(TABLE.H, PLAY_H),
         // Match Pool Royale's cue-relative proportions, with a slightly taller
         // silhouette that remains grounded at the venue floor.
-        targetHeight: cueLen * 1.3,
+        targetHeight: cueLen * 1.34,
         onError: (error) => console.warn('Snooker Royal player characters could not load', error)
       });
       referencePlayers.setCueAppearance(cueBody, cueTipLocal, cueButtLocal);
@@ -22053,6 +22093,7 @@ const shotPowerRef = useRef(0);
           bridgeBounds: { halfWidth: PLAY_W / 2, halfLength: PLAY_H / 2 },
           hidden: Boolean(replayPlaybackRef.current || cueGalleryStateRef.current?.active)
         });
+        activeHumanCueViewRef.current = referencePlayers.eyeView;
         if (referencePlayers.players.length === 2 && state === 'idle') cueStick.visible = false;
       };
 
@@ -22912,16 +22953,7 @@ const shotPowerRef = useRef(0);
       };
 
       // Fire (slider triggers on release)
-      const fire = (committedPowerOverride = null) => {
-        const clampedPower = resolvePoolRoyalReleasePower({
-          // Read the synchronized refs used by Pool Royale. This avoids a stale
-          // render closure rejecting a mobile pointer release before impact.
-          busy: Boolean(shootingRef.current || cueAnimating || shotImpactPending),
-          committedPower: committedPowerOverride,
-          currentPower: powerRef.current,
-          minPower: MIN_SHOT_POWER_TO_FIRE
-        });
-        if (clampedPower === null) return;
+      const fire = () => {
         const currentHud = hudRef.current;
         const frameSnapshot = frameRef.current ?? frameState;
         const fullTableHandPlacement =
@@ -22937,6 +22969,10 @@ const shotPowerRef = useRef(0);
           replayPlaybackRef.current
         )
           return;
+        // Restore the original Snooker Royal release model: every valid slider
+        // release fires with its current normalized power. The cue-stick stroke
+        // timeline below remains unchanged and still gates the physical impact.
+        const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
         if (currentHud?.inHand && (fullTableHandPlacement || inHandPlacementActive)) {
           hudRef.current = { ...currentHud, inHand: false };
           setHud((prev) => ({ ...prev, inHand: false }));
@@ -27537,7 +27573,16 @@ const shotPowerRef = useRef(0);
           const renderCamera = frameCamera ?? camera;
           characterLookTarget.set(cue.pos.x, TABLE_Y + BALL_CENTER_Y, cue.pos.y);
           world.localToWorld(characterLookTarget);
-          referencePlayers.updateCameraVisibility(renderCamera, characterLookTarget);
+          referencePlayers.updateCameraVisibility(
+            renderCamera,
+            characterLookTarget,
+            activeHumanCueViewRef.current &&
+              (cueAnimating || (!shooting && (cameraBlendRef.current ?? 1) < 0.94))
+              ? (shooting || cueAnimating
+                  ? characterShotShooter
+                  : frameRef.current?.activePlayer === 'B' ? 'B' : 'A')
+              : undefined
+          );
           renderer.render(scene, renderCamera);
           const shouldStreamAim =
             isOnlineMatch &&
