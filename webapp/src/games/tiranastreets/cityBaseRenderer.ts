@@ -903,6 +903,8 @@ export class CityRenderer {
           a.group.userData.placed ? Math.min(1, dt * 20) : 1,
         );
         a.group.userData.placed = true;
+        const role = (n as NPC & { role?: string }).role;
+        a.group.scale.setScalar(role === "child" ? 0.68 : 1);
         a.group.rotation.y = smoothAngle(
           a.group.rotation.y,
           pl.heading + Math.PI,
@@ -955,6 +957,16 @@ export class CityRenderer {
         }
         a.mixer?.update(dt * (n.anim === "run" ? 1.8 : 1));
         this.living.pose(id, a.group, n, state.elapsed);
+        if (role === "dog-walker") {
+          const dogId = `dog-${n.id}`,
+            dog = this.actor("character", dogId);
+          active.add(dogId);
+          dog.group.visible = true;
+          dog.group.scale.set(.42, .28, .58);
+          dog.group.position.set(n.x + Math.cos(n.heading) * 1.15, .02, n.z - Math.sin(n.heading) * 1.15);
+          dog.group.rotation.y = n.heading + Math.PI;
+          dog.mixer?.update(dt * 1.6);
+        }
         if (n.motion === "cycle" && n.health > 0) {
           const bikeId = `bike-${n.id}`,
             bike = this.actor("motorbike", bikeId);
