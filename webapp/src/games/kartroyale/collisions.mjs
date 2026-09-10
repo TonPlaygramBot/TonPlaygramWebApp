@@ -6,6 +6,11 @@ export function damageRacer(r, amount) {
   if (!Number.isFinite(amount) || amount <= 0 || r.retired || r.finished)
     return 0;
   r.health = clamp(Number.isFinite(r.health) ? r.health : 100, 0, 100);
+  if (r.shieldActive && r.shield > 0) {
+    const absorbed = Math.min(r.shield, amount * .8);
+    r.shield -= absorbed;
+    amount -= absorbed;
+  }
   const damage = Math.min(r.health, amount);
   r.health -= damage;
   r.hitFlash = Math.max(r.hitFlash || 0, Math.min(0.5, damage / 20));
