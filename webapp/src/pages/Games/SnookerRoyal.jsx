@@ -107,6 +107,11 @@ import { resolvePocketMouthAimPoint } from './poolRoyalePocketAim.js';
 import SnookerShotCoach from './SnookerShotCoach.jsx';
 import { resolveSnookerImpactAudio } from './snookerImpactAudio.js';
 import { PoolRoyalHumanPlayers } from './shared/PoolRoyalHumanPlayers.ts';
+import {
+  buildSnookerViewerHud,
+  resolveSnookerShotClockExpiry,
+  resolveSnookerViewerScores
+} from './snookerRoyalMatchQuality.js';
 
 const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 const BASIS_TRANSCODER_PATH =
@@ -14638,6 +14643,7 @@ const shotPowerRef = useRef(0);
   const [timer, setTimer] = useState(60);
   const timerRef = useRef(null);
   const timerWarnedRef = useRef(false);
+  const shotClockExpiryPendingRef = useRef(false);
   const timerValueRef = useRef(timer);
   useEffect(() => {
     timerValueRef.current = timer;
@@ -15477,36 +15483,42 @@ const shotPowerRef = useRef(0);
       handleRemotePayload(payload);
       applyRemoteState({ state: payload.state, hud: payload.hud, layout: payload.layout });
     };
+    const handleSyncError = (payload = {}) => {
+      if (payload.tableId && payload.tableId !== tableId) return;
+      const message = payload.error === 'seat_required'
+        ? 'Online seat lost • return to lobby and rejoin'
+        : 'Online synchronization failed • reconnecting';
+      showRuleToast(message);
+    };
 
     const joinAndSync = () => {
       socket.emit('register', { playerId: accountId }, (registered) => {
-        if (!registered?.success) return;
+        if (!registered?.success) {
+          showRuleToast('Online registration failed • reconnecting');
+          return;
+        }
         socket.emit('joinSnookerTable', { tableId, accountId }, (joined) => {
-          if (joined?.success) socket.emit('snookerSyncRequest', { tableId, accountId });
+          if (joined?.success) {
+            socket.emit('snookerSyncRequest', { tableId, accountId });
+          } else {
+            handleSyncError({ tableId, error: joined?.error });
+          }
         });
       });
     };
     socket.on('snookerState', handlePoolState);
     socket.on('snookerFrame', handlePoolFrame);
+    socket.on('snookerSyncError', handleSyncError);
     socket.on('connect', joinAndSync);
     joinAndSync();
 
     return () => {
       socket.off('snookerState', handlePoolState);
       socket.off('snookerFrame', handlePoolFrame);
+      socket.off('snookerSyncError', handleSyncError);
       socket.off('connect', joinAndSync);
     };
-  }, [accountId, applyRemoteState, handleRemotePayload, isOnlineMatch, tableId]);
-
-  useEffect(() => {
-    if (!isOnlineMatch || !tableId) return;
-    const state = frameRef.current;
-    if (!state) return;
-    const layout = captureBallSnapshotRef.current
-      ? captureBallSnapshotRef.current()
-      : null;
-    socket.emit('snookerShot', { tableId, state, hud: hudRef.current, layout });
-  }, [isOnlineMatch, tableId]);
+  }, [accountId, applyRemoteState, handleRemotePayload, isOnlineMatch, showRuleToast, tableId]);
 
   useEffect(() => {
     let wakeLock;
@@ -15558,32 +15570,34 @@ const shotPowerRef = useRef(0);
     ctx.fillText(`Time: ${t}`, 100, 200);
   };
 
+  const { playerScore, opponentScore } = resolveSnookerViewerScores(hud, localSeat);
+
   const updateHudPanels = useCallback(() => {
     const panels = panelsRef.current;
     if (!panels) return;
     const { A, B, C, D, logo, playerImg } = panels;
     const opponentHudName = aiOpponentEnabled ? aiFlagLabel : opponentDisplayName;
     const opponentHudAvatar = aiOpponentEnabled ? null : opponentDisplayAvatar;
-    drawHudPanel(A.ctx, logo, playerImg, player.name, hud.A, timer);
+    drawHudPanel(A.ctx, logo, playerImg, player.name, playerScore, timer);
     A.tex.needsUpdate = true;
     drawHudPanel(
       B.ctx,
       logo,
       opponentHudAvatar,
       opponentHudName,
-      hud.B,
+      opponentScore,
       timer,
       aiOpponentEnabled ? aiFlag : null
     );
     B.tex.needsUpdate = true;
-    drawHudPanel(C.ctx, logo, playerImg, player.name, hud.A, timer);
+    drawHudPanel(C.ctx, logo, playerImg, player.name, playerScore, timer);
     C.tex.needsUpdate = true;
     drawHudPanel(
       D.ctx,
       logo,
       opponentHudAvatar,
       opponentHudName,
-      hud.B,
+      opponentScore,
       timer,
       aiOpponentEnabled ? aiFlag : null
     );
@@ -15592,17 +15606,48 @@ const shotPowerRef = useRef(0);
     aiFlag,
     aiFlagLabel,
     aiOpponentEnabled,
-    hud.A,
-    hud.B,
     opponentDisplayAvatar,
     opponentDisplayName,
+    opponentScore,
     player.name,
+    playerScore,
     timer
   ]);
 
   useEffect(() => {
     updateHudPanels();
   }, [updateHudPanels]);
+
+  const commitShotClockExpiry = useCallback(() => {
+    const expiredState = resolveSnookerShotClockExpiry({
+      rules,
+      state: frameRef.current,
+      localSeat: localSeatRef.current
+    });
+    shotClockExpiryPendingRef.current = false;
+    if (!expiredState) return;
+    const nextHud = buildSnookerViewerHud(
+      expiredState,
+      hudRef.current,
+      localSeatRef.current
+    );
+    frameRef.current = expiredState;
+    hudRef.current = nextHud;
+    setFrameState(expiredState);
+    setHud(nextHud);
+    setTurnCycle((value) => value + 1);
+    showRuleToast(`Shot clock foul • ${expiredState.foul?.points ?? 4} points`);
+    if (isOnlineMatch && tableId) {
+      const layout = captureBallSnapshotRef.current?.() ?? null;
+      socket.emit('snookerShot', {
+        tableId,
+        accountId: accountIdRef.current || accountId || '',
+        state: expiredState,
+        hud: nextHud,
+        layout
+      });
+    }
+  }, [accountId, isOnlineMatch, rules, showRuleToast, tableId]);
 
   useEffect(() => {
     const isSoloTraining = isTraining && trainingModeState === 'solo';
@@ -15615,6 +15660,7 @@ const shotPowerRef = useRef(0);
     const duration = playerTurn === 0 ? 60 : 3;
     setTimer(duration);
     timerWarnedRef.current = false;
+    shotClockExpiryPendingRef.current = false;
     clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
       setTimer((t) => {
@@ -15631,7 +15677,10 @@ const shotPowerRef = useRef(0);
         if (next === 0) {
           clearInterval(timerRef.current);
           if (playerTurn === 0) {
-            setHud((s) => ({ ...s, turn: 1 - s.turn }));
+            if (!shotClockExpiryPendingRef.current) {
+              shotClockExpiryPendingRef.current = true;
+              queueMicrotask(commitShotClockExpiry);
+            }
           } else if (aiOpponentEnabled) {
             aiShoot.current();
           }
@@ -15641,7 +15690,7 @@ const shotPowerRef = useRef(0);
       });
     }, 1000);
     return () => clearInterval(timerRef.current);
-  }, [aiOpponentEnabled, hud.turn, hud.over, playTurnKnock, isTraining, trainingModeState, turnCycle]);
+  }, [aiOpponentEnabled, commitShotClockExpiry, hud.turn, hud.over, playTurnKnock, isTraining, trainingModeState, turnCycle]);
 
   useEffect(() => {
     if (hud.over) {
@@ -29487,9 +29536,9 @@ const shotPowerRef = useRef(0);
             <div
               className={`flex items-center gap-2 ${isPortrait ? 'text-sm' : 'text-base'} font-semibold`}
             >
-              <span className="text-amber-300">{hud.A}</span>
+              <span className="text-amber-300">{playerScore}</span>
               <span className="text-white/50">-</span>
-              <span>{hud.B}</span>
+              <span>{opponentScore}</span>
             </div>
             <div
               className={`${opponentPanelClass} ${isPortrait ? 'text-xs' : 'text-sm'}`}
