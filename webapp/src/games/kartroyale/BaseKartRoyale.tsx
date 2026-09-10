@@ -1253,13 +1253,6 @@ export default function KartRoyale({
               <button aria-label="Steer right" {...touch('steer', 1)}>
                 <ChevronRight size={35} />
               </button>
-              <button
-                className="kr-brake"
-                aria-label="Brake"
-                {...touch('brake', true)}
-              >
-                BRAKE
-              </button>
             </div>
             <div className="kr-pedals">
               <div className="kr-combat-buttons">
@@ -1285,15 +1278,24 @@ export default function KartRoyale({
               <button className="kr-drift-button" {...touch('drift', true)}>
                 DRIFT
               </button>
-              <button
-                className="kr-boost-button"
-                aria-label="Hold boost"
-                {...touch('boost', true)}
-              >
-                <Zap size={28} />
-                <span>BOOST</span>
-                <i style={{ height: `${hud?.boost || 0}%` }} />
-              </button>
+              <div className="kr-pedal-column">
+                <button
+                  className="kr-brake"
+                  aria-label="Brake"
+                  {...touch('brake', true)}
+                >
+                  BRAKE
+                </button>
+                <button
+                  className="kr-boost-button"
+                  aria-label="Hold boost"
+                  {...touch('boost', true)}
+                >
+                  <Zap size={28} />
+                  <span>BOOST</span>
+                  <i style={{ height: `${hud?.boost || 0}%` }} />
+                </button>
+              </div>
             </div>
           </div>
           <div className="kr-key-hint">

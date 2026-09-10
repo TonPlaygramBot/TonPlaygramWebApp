@@ -6,5 +6,6 @@
 
 .rr-career-card{display:block;width:100%;margin:8px 0;text-align:left}
 .rr-steering{left:12px;right:auto;max-width:48%;display:flex;gap:6px}
+.rr-pedals{display:flex;flex-direction:column;align-items:stretch;gap:14px}.rr-pedals button{width:76px}.rr-pedals button:first-child{transform:translateY(-8px);border-color:#ffb34790;background:#31251ecc;color:#ffd19a}.rr-pedals button:first-child:active{transform:translateY(-8px)}
 .te-game .te-actions button{touch-action:none;user-select:none;-webkit-user-select:none}
 .te-error button{margin-top:8px;min-height:44px}
