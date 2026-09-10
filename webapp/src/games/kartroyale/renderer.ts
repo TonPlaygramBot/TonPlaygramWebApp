@@ -20,7 +20,16 @@ import { TiranaScenery } from './tiranaScenery';
 import { Supporters } from './supporters';
 import { prepareHuman } from './supporterHuman';
 import { RaceEffects } from './raceEffects';
-import { segmentFrame } from './trackEdges.mjs';
+import { makeRacingRoad } from './RacingRoad';
+import {
+  LOCAL_KART_IDS,
+  isSuppliedKart,
+  loadSuppliedKart,
+  disposeKartSource
+} from './SuppliedKartModels';
+import { raceCombat, selectedWeapon } from './raceCombat.mjs';
+import type { CombatSnapshot } from './raceCombat.mjs';
+import { RaceWeapons } from './RaceWeapons';
 import type { FoodKind } from './foodFlight.mjs';
 export type CameraMode = 'driver' | 'chase';
 export type Quality = 'auto' | 'high' | 'performance';
@@ -40,6 +49,9 @@ export interface Frame {
   health: number;
   shield: number;
   ammunition: number;
+  weaponName: string;
+  weaponIcon: string;
+  respawn: number;
   impactId: number;
   impact: number;
   retired: boolean;
@@ -59,6 +71,7 @@ export interface ServerRace {
   elapsed: number;
   startsAt: number;
   serverNow: number;
+  combat?: CombatSnapshot;
 }
 const neutral = (): Input => ({
   steer: 0,
@@ -66,7 +79,8 @@ const neutral = (): Input => ({
   drift: false,
   boost: false,
   shield: false,
-  fire: false
+  fire: false,
+  weaponId: ''
 });
 interface KartRig {
   body: T.Object3D;
@@ -96,6 +110,10 @@ export class KartRenderer {
   private full: T.Group | null = null;
   private low: T.Group | null = null;
   private kartModels = new Map<string, T.Group>();
+  private modelRequests = new Set<string>();
+  private weapons: RaceWeapons | null = null;
+  private remoteCombat: CombatSnapshot | null = null;
+  private combatReceivedAt = 0;
   private kartId = 'apex';
   private flagTexture: T.Texture | null = null;
   private scenery: TiranaScenery | null = null;
@@ -107,7 +125,6 @@ export class KartRenderer {
   private reducedMotion = matchMedia('(prefers-reduced-motion: reduce)')
     .matches;
   private textures = new Set<T.Texture>();
-  private roadMaps: T.Texture[] = [];
   private rigs = new WeakMap<T.Object3D, KartRig>();
   private cityAt = 0;
   private skidMesh: T.InstancedMesh | null = null;
@@ -155,7 +172,8 @@ export class KartRenderer {
     private host: HTMLElement,
     private onFrame: (frame: Frame) => void,
     private onFinish: (r: Result) => void,
-    private onError: (s: string) => void
+    private onError: (s: string) => void,
+    private onModelNotice: (s: string) => void = () => {}
   ) {
     this.renderer = new T.WebGLRenderer({
       antialias: true,
@@ -254,11 +272,8 @@ export class KartRenderer {
       loader.loadAsync('/assets/kart-royale/apex.glb'),
       loader.loadAsync('/assets/kart-royale/apex-lod.glb'),
       textures.loadAsync('/assets/kart-royale/albania.svg'),
-      textures.loadAsync('/assets/kart-royale/asphalt-diff.jpg'),
-      textures.loadAsync('/assets/kart-royale/asphalt-nor_gl.jpg'),
-      textures.loadAsync('/assets/kart-royale/asphalt-rough.jpg'),
-      ...KARTS.slice(1).map((k) =>
-        loader.loadAsync(`/assets/kart-royale/kenney-${k.id}.glb`)
+      ...LOCAL_KART_IDS.map((id) =>
+        loader.loadAsync(`/assets/kart-royale/kenney-${id}.glb`)
       ),
       loader.loadAsync('/assets/table-tennis/athlete-male.glb'),
       loader.loadAsync('/assets/table-tennis/athlete-female.glb')
@@ -295,9 +310,9 @@ export class KartRenderer {
     this.flagTexture = (results[2] as PromiseFulfilledResult<T.Texture>).value;
     this.flagTexture.colorSpace = T.SRGBColorSpace;
     this.textures.add(this.flagTexture);
-    KARTS.slice(1).forEach((k, i) => {
+    LOCAL_KART_IDS.forEach((id, i) => {
       const scene = (
-        results[i + 6] as PromiseFulfilledResult<
+        results[i + 3] as PromiseFulfilledResult<
           import('three/examples/jsm/loaders/GLTFLoader.js').GLTF
         >
       ).value.scene;
@@ -308,41 +323,34 @@ export class KartRenderer {
       scene.updateMatrixWorld(true);
       const floor = new T.Box3().setFromObject(scene);
       scene.position.y = -floor.min.y;
-      this.kartModels.set(k.id, scene);
+      this.kartModels.set(id, scene);
       this.collectTextures(scene);
     });
-    this.humanTemplates = results.slice(5 + KARTS.length).map((result, i) => {
-      const source = (
-        result as PromiseFulfilledResult<
-          import('three/examples/jsm/loaders/GLTFLoader.js').GLTF
-        >
-      ).value.scene;
-      this.collectTextures(source);
-      return prepareHuman(source, i === 1);
-    });
-    this.roadMaps = results
-      .slice(3, 6)
-      .map((r) => (r as PromiseFulfilledResult<T.Texture>).value);
-    this.roadMaps.forEach((texture, i) => {
-      texture.wrapS = texture.wrapT = T.RepeatWrapping;
-      texture.anisotropy = Math.min(
-        8,
-        this.renderer.capabilities.getMaxAnisotropy()
-      );
-      if (i === 0) texture.colorSpace = T.SRGBColorSpace;
-      this.textures.add(texture);
-    });
+    this.humanTemplates = results
+      .slice(3 + LOCAL_KART_IDS.length)
+      .map((result, i) => {
+        const source = (
+          result as PromiseFulfilledResult<
+            import('three/examples/jsm/loaders/GLTFLoader.js').GLTF
+          >
+        ).value.scene;
+        this.collectTextures(source);
+        return prepareHuman(source, i === 1);
+      });
     for (const group of [this.full, this.low]) this.collectTextures(group);
     this.showroom.add(this.cloneKart(0, false, this.kartId));
     this.setColor(this.color);
   }
   private cloneKart(slot: number, low = false, kartId = 'apex') {
+    this.requestSuppliedKart(kartId);
     const source =
       kartId === 'apex'
         ? low
           ? this.low
           : this.full
-        : this.kartModels.get(kartId);
+        : this.kartModels.get(kartId) ||
+          this.kartModels.get(kartId === 'buggy' ? 'oodi' : 'oozi') ||
+          this.full;
     const model = new T.Group();
     if (source) model.add(source.clone(true));
     model.userData.kartId = kartId;
@@ -350,9 +358,14 @@ export class KartRenderer {
       if (o instanceof T.Mesh) {
         o.castShadow = true;
         o.receiveShadow = true;
-        const m = (o.material as T.MeshStandardMaterial).clone();
-        if (m.name === 'paint') m.color.set(COLORS[slot % 6]);
-        o.material = m;
+        const copy = (material: T.Material) => {
+          const m = material.clone() as T.MeshStandardMaterial;
+          if (m.name === 'paint') m.color.set(COLORS[slot % 6]);
+          return m;
+        };
+        o.material = Array.isArray(o.material)
+          ? o.material.map(copy)
+          : copy(o.material);
       }
     });
     const rig: KartRig = {
@@ -394,7 +407,7 @@ export class KartRenderer {
         rig.wheels.push(o);
       if (/^steer_f[lr]$/.test(o.name)) rig.front.push(o);
     });
-    if (kartId !== 'apex') {
+    if (kartId !== 'apex' && !isSuppliedKart(kartId)) {
       for (const wheel of rig.wheels.filter((w) => w.name.includes('front'))) {
         const pivot = new T.Group();
         pivot.position.copy(wheel.position);
@@ -403,7 +416,7 @@ export class KartRenderer {
         wheel.position.set(0, 0, 0);
         rig.front.push(pivot);
       }
-      // Distinct CC0 chassis adaptations; every choice keeps identical physics.
+      // Keep the existing CC0 chassis details; KARTS owns performance tuning.
       const index = KARTS.findIndex((k) => k.id === kartId),
         paint = new T.MeshStandardMaterial({
           name: 'paint',
@@ -443,6 +456,47 @@ export class KartRenderer {
     this.showroom.add(this.cloneKart(0, false, this.kartId));
     this.setColor(this.color);
   }
+  modelNotice(id: string) {
+    return isSuppliedKart(id) && !this.kartModels.has(id)
+      ? `${id === 'ferrari' ? 'Ferrari' : 'Buggy'}: local kart preview while the supplied model loads; it stays playable if the download is unavailable.`
+      : '';
+  }
+  private requestSuppliedKart(id: string) {
+    if (!isSuppliedKart(id) || this.modelRequests.has(id) || this.disposed)
+      return;
+    this.modelRequests.add(id);
+    void loadSuppliedKart(id)
+      .then((model) => {
+        if (this.disposed) {
+          disposeKartSource(model);
+          return;
+        }
+        this.kartModels.set(id, model);
+        this.collectTextures(model);
+        if (this.state === 'garage' && this.kartId === id) {
+          this.setKart(id);
+          this.onModelNotice('');
+        }
+        for (const visual of this.visuals.values())
+          if (visual.userData.kartId === id) visual.userData.kartId = '';
+      })
+      .catch(() => {
+        if (!this.disposed && this.kartId === id)
+          this.onModelNotice(
+            `${id === 'ferrari' ? 'Ferrari' : 'Buggy'} model is unavailable. Using the local ${id === 'ferrari' ? 'Veloce' : 'Illyrian'} body with your selected kart stats.`
+          );
+      });
+  }
+  cycleWeapon() {
+    const me = this.racers.find((r) => r.id === this.me);
+    if (!me) return;
+    const items = (me.inventory || []).filter((w) => w.ammo > 0);
+    if (!items.length) return;
+    const current = items.findIndex(
+      (w) => w.id === (this.input.weaponId || me.weaponId)
+    );
+    this.input.weaponId = items[(current + 1) % items.length].id;
+  }
   setColor(color: string) {
     this.color = color;
     this.showroom.traverse((o) => {
@@ -479,6 +533,7 @@ export class KartRenderer {
     this.paused = false;
     this.clearInput();
     this.effects?.clear();
+    this.weapons?.clear();
     this.world.visible = false;
     this.garage.visible = true;
     this.scene.background = new T.Color('#101619');
@@ -487,6 +542,8 @@ export class KartRenderer {
     this.shadow.target.position.set(0, 0, 0);
   }
   private createWorld(track: Track) {
+    this.weapons?.dispose();
+    this.weapons = null;
     for (const v of this.visuals.values()) {
       this.world.remove(v);
       this.release(v, false);
@@ -510,137 +567,21 @@ export class KartRenderer {
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     this.world.add(ground);
-    const positions: number[] = [],
-      indices: number[] = [],
-      normals: number[] = [],
-      uvs: number[] = [];
-    for (let i = 0; i <= 360; i++) {
-      const p = track.points[i % 360];
-      for (const side of [-1, 1]) {
-        positions.push(
-          p.x - Math.cos(p.yaw) * track.width * 0.5 * side,
-          0.045,
-          p.z + Math.sin(p.yaw) * track.width * 0.5 * side
-        );
-        normals.push(0, 1, 0);
-        const n = positions.length;
-        uvs.push(positions[n - 3] / 3, positions[n - 1] / 3);
-      }
-      if (i < 360) {
-        const a = i * 2;
-        indices.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
-      }
-    }
-    const geo = new T.BufferGeometry();
-    geo.setAttribute('position', new T.Float32BufferAttribute(positions, 3));
-    geo.setAttribute('normal', new T.Float32BufferAttribute(normals, 3));
-    geo.setAttribute('uv', new T.Float32BufferAttribute(uvs, 2));
-    geo.setIndex(indices);
-    const road = new T.Mesh(
-      geo,
-      new T.MeshStandardMaterial({
-        color: '#858b8d',
-        map: this.roadMaps[0],
-        normalMap: this.roadMaps[1],
-        normalScale: new T.Vector2(0.48, 0.48),
-        roughnessMap: this.roadMaps[2],
-        roughness: 0.93,
-        metalness: 0.02,
-        side: T.DoubleSide
-      })
+    this.world.add(makeRacingRoad(track));
+    const m = new T.Object3D();
+    const marks = new T.InstancedMesh(
+      new T.BoxGeometry(0.12, 0.01, 1.8),
+      new T.MeshBasicMaterial({ color: 0xf7f7f2 }),
+      90
     );
-    road.receiveShadow = true;
-    this.world.add(road);
-    const edges = Array.from({ length: 360 }, (_, i) => {
-        const p = track.points[i],
-          q = track.points[(i + 1) % 360],
-          edge = segmentFrame(p, q, track.width / 2);
-        return { p, edge, tireCount: Math.max(1, Math.ceil(edge.length / 0.76)) };
-      }),
-      tireBaseCount = edges.reduce((sum, edge) => sum + edge.tireCount * 2, 0),
-      tireCapacity = tireBaseCount + Math.ceil(tireBaseCount / 3),
-      m = new T.Object3D(),
-      curb = new T.InstancedMesh(
-        new T.BoxGeometry(0.55, 0.14, 1),
-        new T.MeshStandardMaterial({ roughness: 0.7 }),
-        720
-      ),
-      tireGeometry = new T.TorusGeometry(0.43, 0.14, 8, 16),
-      tires = new T.InstancedMesh(
-        tireGeometry,
-        new T.MeshStandardMaterial({ roughness: 0.9, metalness: 0.02 }),
-        tireCapacity
-      ),
-      tireTreads = new T.InstancedMesh(
-        new T.TorusGeometry(0.4, 0.105, 8, 16),
-        new T.MeshStandardMaterial({ color: '#17191a', roughness: 0.98 }),
-        tireCapacity
-      ),
-      marks = new T.InstancedMesh(
-        new T.BoxGeometry(0.12, 0.01, 1.8),
-        new T.MeshBasicMaterial({ color: '#e2e7d8' }),
-        90
-      );
-    let tireAt = 0;
-    for (let i = 0; i < 360; i++) {
-      const { p, edge, tireCount } = edges[i];
-      [-1, 1].forEach((side, s) => {
-        const curbPoint=edge.side(side,-0.1);
-        m.position.set(
-          curbPoint.x,
-          0.1,
-          curbPoint.z
-        );
-        m.rotation.set(0, edge.yaw, 0);
-        m.scale.set(1, 1, edge.length + 0.4);
-        m.updateMatrix();
-        curb.setMatrixAt(i * 2 + s, m.matrix);
-        curb.setColorAt(
-          i * 2 + s,
-          new T.Color(i % 6 < 3 ? track.accent : '#e7e6d9')
-        );
-        for (let j = 0; j < tireCount; j++) {
-          // Use the segment midpoint cells so neighbouring segments meet without
-          // leaving the visible holes produced by one tyre per route sample.
-          const along = ((j + 0.5) / tireCount - 0.5) * edge.length,
-            tirePoint = edge.side(side, 0.72);
-          tirePoint.x += Math.sin(edge.yaw) * along;
-          tirePoint.z += Math.cos(edge.yaw) * along;
-          const n = tireAt++;
-          m.position.set(tirePoint.x, 0.18, tirePoint.z);
-          m.rotation.set(Math.PI / 2, edge.yaw, 0);
-          m.scale.set(1, 1, 1);
-          m.updateMatrix();
-          tires.setMatrixAt(n, m.matrix);
-          tires.setColorAt(
-            n,
-            new T.Color((i + j) % 2 === 0 ? '#c82424' : '#eeeae0')
-          );
-          tireTreads.setMatrixAt(n, m.matrix);
-          if ((i + j) % 3 === 0) {
-            const upper = tireAt++;
-            m.position.y = 0.49;
-            m.updateMatrix();
-            tires.setMatrixAt(upper, m.matrix);
-            tires.setColorAt(
-              upper,
-              new T.Color((i + j) % 2 === 0 ? '#eeeae0' : '#c82424')
-            );
-            tireTreads.setMatrixAt(upper, m.matrix);
-          }
-        }
-      });
-      m.scale.set(1, 1, 1);
-      if (i % 4 === 0) {
-        m.position.set(p.x, 0.061, p.z);
-        m.rotation.set(0, p.yaw, 0);
-        m.updateMatrix();
-        marks.setMatrixAt(i / 4, m.matrix);
-      }
+    for (let i = 0; i < 90; i++) {
+      const p = track.points[i * 4];
+      m.position.set(p.x, 0.061, p.z);
+      m.rotation.set(0, p.yaw, 0);
+      m.updateMatrix();
+      marks.setMatrixAt(i, m.matrix);
     }
-    tires.count = tireTreads.count = tireAt;
-    tires.receiveShadow = tireTreads.receiveShadow = true;
-    this.world.add(curb, tires, tireTreads, marks);
+    this.world.add(marks);
     const start = track.points[0],
       checker = new T.InstancedMesh(
         new T.BoxGeometry(track.width / 15, 0.02, 1.2),
@@ -717,6 +658,8 @@ export class KartRenderer {
     }
     this.effects = new RaceEffects(this.camera);
     this.world.add(this.effects.group);
+    this.weapons = new RaceWeapons(track);
+    this.world.add(this.weapons.group);
     this.skidMesh = new T.InstancedMesh(
       new T.PlaneGeometry(0.16, 1).rotateX(-Math.PI / 2),
       new T.MeshBasicMaterial({
@@ -876,6 +819,7 @@ export class KartRenderer {
     this.difficulty = difficulty;
     this.me = 'you';
     this.network = false;
+    this.remoteCombat = null;
     this.time = 0;
     this.countdown = 3;
     this.accumulator = 0;
@@ -909,6 +853,8 @@ export class KartRenderer {
     this.time = next.elapsed;
     this.countdown = Math.max(0, (next.startsAt - next.serverNow) / 1000);
     this.racers = next.racers.map((r) => ({ ...r }));
+    this.remoteCombat = next.combat || null;
+    this.combatReceivedAt = performance.now();
     if (fresh) {
       this.track = makeTrack(next.trackId);
       this.createWorld(this.track);
@@ -1150,6 +1096,18 @@ export class KartRenderer {
           this.me,
           driver
         );
+        this.weapons?.update(
+          this.network
+            ? this.remoteCombat
+            : raceCombat(this.racers, this.track),
+          this.racers,
+          this.motionTime,
+          me,
+          this.quality === 'performance',
+          this.network
+            ? Math.min(0.08, (now - this.combatReceivedAt) / 1000)
+            : 0
+        );
         this.shadow.position.set(me.x + 14, 25, me.z + 12);
         this.shadow.target.position.set(me.x, 0, me.z);
         if (now - this.uiAt > 90) {
@@ -1172,6 +1130,9 @@ export class KartRenderer {
             health: me.health ?? 100,
             shield: me.shield ?? 0,
             ammunition: me.ammunition ?? 0,
+            weaponName: selectedWeapon(me)?.name || 'No weapon',
+            weaponIcon: selectedWeapon(me)?.icon || '—',
+            respawn: me.respawn || 0,
             impactId: me.impactId ?? 0,
             impact: me.impact ?? 0,
             retired: me.retired ?? false,
@@ -1196,6 +1157,7 @@ export class KartRenderer {
       geos = new Set<T.BufferGeometry>();
     group.traverse((o) => {
       if (o instanceof T.Mesh) {
+        if (o instanceof T.InstancedMesh) o.dispose();
         if (geometry || o.geometry.userData.kartOwned) geos.add(o.geometry);
         for (const m of Array.isArray(o.material) ? o.material : [o.material])
           mats.add(m);
@@ -1219,6 +1181,7 @@ export class KartRenderer {
     );
     this.supporters?.dispose();
     this.effects?.dispose();
+    this.weapons?.dispose();
     this.release(this.scene, true);
     this.humanTemplates.forEach((model) => this.release(model, true));
     if (this.full) this.release(this.full, true);

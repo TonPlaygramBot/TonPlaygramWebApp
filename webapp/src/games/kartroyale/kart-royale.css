@@ -928,7 +928,8 @@
   display: flex;
   gap: 6px;
 }
-.kr-combat-hud span {
+.kr-combat-hud span,
+.kr-combat-hud button {
   display: flex;
   gap: 4px;
   align-items: center;
@@ -936,6 +937,15 @@
   border-radius: 7px;
   background: #102025cc;
   font: 700 11px 'Barlow';
+}
+.kr-combat-hud button {
+  position: relative;
+  min-width: 44px;
+}
+.kr-combat-hud button::after {
+  content: '';
+  position: absolute;
+  inset: -10px 0;
 }
 .kr-drift-button {
   width: 80px;

@@ -5,6 +5,7 @@ export interface Input {
   boost: boolean;
   shield: boolean;
   fire: boolean;
+  weaponId?: string;
 }
 export interface Racer {
   id: string;
@@ -38,6 +39,11 @@ export interface Racer {
   shieldMax: number;
   shieldActive: boolean;
   ammunition: number;
+  inventory: { id: string; ammo: number }[];
+  weaponId: string;
+  respawn: number;
+  shotId: number;
+  pickupId: number;
   fireCooldown: number;
   missileHits: number;
   retired: boolean;
@@ -79,7 +85,16 @@ export const STEP: number,
   COLORS: string[],
   TRACKS: TrackConfig[];
 export const RACE_LIMIT: number;
-export const KARTS: { id: string; name: string; detail: string; speed:number; handling:number; brake:number; shield:number; ammunition:number }[];
+export const KARTS: {
+  id: string;
+  name: string;
+  detail: string;
+  speed: number;
+  handling: number;
+  brake: number;
+  shield: number;
+  ammunition: number;
+}[];
 export const TRACK_ALIASES: Record<string, string>;
 export function normalizeTrack(id: string): string;
 export function normalizeKart(id: string): string;

@@ -26,15 +26,38 @@ continue to reuse TonPlaygram's existing work. Engine recording:
 its existing license terms still apply). New third-party files above do not
 change the licensing of pre-existing TonPlaygram code or audio.
 
-No model, texture CDN or paid asset service is contacted while playing. All
-model geometry and textures are shipped in the repository and served locally.
+The original kart choices, city, weapon displays and vegetation are served
+locally. The optional Ferrari and Buggy choices described below request the
+external URLs supplied by the user only when selected or needed by a racer.
 
 ## Racing Royal — Tirana street series (2026-09-07)
 
-- Five new kart assets `kenney-{oobi,oodi,ooli,oopi,oozi}.glb`: **Kenney, Car Kit 3.1**, CC0 1.0. https://kenney.nl/assets/car-kit . Original models are retained byte-for-byte. Runtime adaptations normalize size, animate the wheels, and add distinct front fairing, wide sidepod or rear-wing details. All choices share the same performance. The license is retained in `licenses/kenney-car-kit.txt`; hashes and the download URL are in `tirana-sources.json`.
+- Five kart assets `kenney-{oobi,oodi,ooli,oopi,oozi}.glb`: **Kenney, Car Kit 3.1**, CC0 1.0. https://kenney.nl/assets/car-kit . Original models are retained byte-for-byte. Runtime adaptations normalize size, animate the wheels, and add distinct front fairing, wide sidepod or rear-wing details. Racing choices have distinct speed, handling, brake, shield and starting-ammunition parameters. The license is retained in `licenses/kenney-car-kit.txt`; hashes and the download URL are in `tirana-sources.json`.
 - `albania.svg`: **lipis/flag-icons contributors**, MIT, version 7.3.2. https://github.com/lipis/flag-icons/blob/v7.3.2/flags/4x3/al.svg . The full license is retained in `licenses/flag-icons.txt`.
 - Roads, building footprints, parks, river and landmark coordinates reuse **Tirana Streets' OpenStreetMap snapshot**. © OpenStreetMap contributors, **ODbL 1.0**, https://www.openstreetmap.org/copyright . Editable source: [world.json](../tirana-streets/world.json); selected road centerlines: [tirana-routes.json](./tirana-routes.json). See [DATA-LICENSE.md](../tirana-streets/DATA-LICENSE.md). Heights, facades, landmark meshes and race widening are gameplay approximations, not photogrammetry.
 - Human supporters reuse **Quaternius Universal Base Characters, Standard (CC0)**: the male and female GLBs already bundled with Table Tennis Royal at `../table-tennis/athlete-male.glb` and `../table-tennis/athlete-female.glb`. [Existing credits](../table-tennis/CREDITS.md) and [original license](../table-tennis/Quaternius-LICENSE.txt). Source: https://quaternius.com/packs/universalbasecharacters.html . Racing adds clothing colors, articulated throwing/cheering, and distant baked poses. Landmark representations reuse TonPlaygram's existing Tirana Streets constructions.
 - Egg/tomato geometry, ballistic flight, shell fragments, pulp, droplets, spreading/dripping splats and crash recoil are original runtime effects.
 - Engine, tire skid, airflow, crash, egg crack/tomato splat, countdown, finish and crowd-clap effects use original Web Audio synthesis. Racing Royal no longer loads the old engine recording.
 - The old Quaternius `city.glb` is retained for compatibility with earlier work; Tirana races use the geographic city renderer instead.
+
+## Tirana racing additions (2026-09-10)
+
+- Veloce enables the existing, locally bundled Kenney `kenney-oozi.glb` chassis.
+- Ferrari and Buggy retain the model URLs in the user's supplied source; no
+  copies are redistributed by this change. Ferrari's Three.js example credits
+  **vicent091036**, [Ferrari 458 Italia](https://sketchfab.com/models/57bf6cc56931426e87494f554df1dab6).
+  This credit is not a claim that the external model is CC0. The optional Buggy
+  uses the supplied Khronos sample-model URLs. External availability and the
+  individual model licenses were not verified. A local CC0 kart body stays
+  visible with the selected performance parameters when either download fails.
+- Weapon display models reuse the local Tirana GLBs and their existing
+  [per-model credits](../tirana-streets/living/ATTRIBUTION.md). The 18 weapon
+  names, tuning and original URL catalog come from the supplied source.
+- Asphalt, tire, rim, bubble and projectile material/geometry values reuse the
+  supplied source. Road centerlines remain the existing OSM-derived Tirana
+  streets; the 24-metre racing corridor and clipped facade edges are authored
+  gameplay adaptations.
+- Park trees reuse TonPlaygram's generated plane, linden and cypress GLTFs,
+  including distance LODs. Grass tufts, shrubs, flowers and wind deformation are
+  original additions to the same generator. Bark and grass PBR maps retain the
+  existing [Tirana material credits](../tirana-streets/STREET-KIT-ATTRIBUTION.md).

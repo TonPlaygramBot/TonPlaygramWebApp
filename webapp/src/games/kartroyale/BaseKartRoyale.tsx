@@ -219,7 +219,10 @@ export default function KartRoyale({
           }
         },
         (r) => finish.current(r),
-        setError
+        setError,
+        (message) => {
+          if (active) setNotice(message);
+        }
       );
       engine.current = view;
       view
@@ -251,6 +254,7 @@ export default function KartRoyale({
   }, [paint, loaded]);
   useEffect(() => {
     engine.current?.setKart(kartId);
+    setNotice(engine.current?.modelNotice(kartId) || '');
     try {
       localStorage.setItem('racingRoyal.kart', kartId);
     } catch {}
@@ -312,6 +316,10 @@ export default function KartRoyale({
         apply();
       }
       if (e.key === 'Escape') setModal('pause');
+      if (key === 'r' && !e.repeat) {
+        e.preventDefault();
+        engine.current?.cycleWeapon();
+      }
     };
     const up = (e: KeyboardEvent) => {
       const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
@@ -708,7 +716,7 @@ export default function KartRoyale({
             </section>
             <section className="kr-vehicle-info">
               <span className="kr-label">
-                YOUR KART · 5 PERFORMANCE CLASSES
+                YOUR KART · {KARTS.length} PERFORMANCE CLASSES
               </span>
               <h2>{KARTS.find((k) => k.id === kartId)?.name}</h2>
               <p>{KARTS.find((k) => k.id === kartId)?.detail}</p>
@@ -1141,7 +1149,7 @@ export default function KartRoyale({
               </div>
             </section>
             <div className="kr-garage-bottom">
-              <span>FIVE CIRCUITS. ONE TIRANA.</span>
+              <span>SIX CIRCUITS. ONE TIRANA.</span>
               <span>EST. TONPLAYGRAM</span>
             </div>
           </main>
@@ -1230,20 +1238,28 @@ export default function KartRoyale({
               <b>{Math.round(hud?.health ?? 100)}</b>
             </div>
             <small>
-              {(hud?.health ?? 100) > 70
-                ? 'RACE READY'
-                : (hud?.health ?? 100) > 40
-                  ? 'BODYWORK DAMAGED'
-                  : 'ENGINE DAMAGED · SLOW DOWN'}
+              {(hud?.respawn || 0) > 0
+                ? `REPAIRING · ${Math.ceil(hud!.respawn)}s`
+                : (hud?.health ?? 100) > 70
+                  ? 'RACE READY'
+                  : (hud?.health ?? 100) > 40
+                    ? 'BODYWORK DAMAGED'
+                    : 'ENGINE DAMAGED · SLOW DOWN'}
             </small>
           </div>
           <div className="kr-combat-hud" aria-label="Combat supplies">
             <span>
               <Shield size={13} /> {Math.round(hud?.shield || 0)}
             </span>
-            <span>
-              <Crosshair size={13} /> {hud?.ammunition || 0}
-            </span>
+            <button
+              type="button"
+              aria-label={`${hud?.weaponName || 'Weapon'} · ${hud?.ammunition || 0} ammo. Tap to select next collected weapon.`}
+              title={hud?.weaponName}
+              onClick={() => engine.current?.cycleWeapon()}
+            >
+              <Crosshair size={13} /> {hud?.weaponIcon || 'P'} ·{' '}
+              {hud?.ammunition || 0} ↻
+            </button>
           </div>
           <div className="kr-touch-controls">
             <div className="kr-steering">
@@ -1267,7 +1283,7 @@ export default function KartRoyale({
                 </button>
                 <button
                   className="kr-fire-button"
-                  aria-label="Fire missile"
+                  aria-label={`Fire ${hud?.weaponName || 'weapon'}`}
                   disabled={!hud?.ammunition}
                   {...touch('fire', true)}
                 >
@@ -1577,7 +1593,9 @@ export default function KartRoyale({
                 </div>
                 <p>
                   Keyboard: arrows or A/D to steer, Space to drift, Shift to
-                  boost, down arrow to brake, Q to shield and E to fire.
+                  boost, down arrow to brake, Q to shield and E to fire. Collect
+                  weapon bubbles, then tap the ammo badge or press R to switch
+                  weapons.
                 </p>
               </>
             ) : (

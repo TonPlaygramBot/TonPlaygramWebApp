@@ -151,7 +151,80 @@ for (const lod of [false, true])
     for (const child of g.children)
       if (child.material !== bark) child.material.side = T.DoubleSide;
   }
-let g = group('traffic_light');
+// Small original glTF undergrowth meshes for the Tirana racing park layer.
+// Blade roots remain at y=0 so the renderer can sway only their upper vertices.
+let g = group('race_grass');
+const grassMaterial = mat('Racing grass blades', 0x638747, 0.97);
+grassMaterial.side = T.DoubleSide;
+for (let i = 0; i < 22; i++) {
+  const angle = i * 2.399,
+    r = 0.12 + rand() * 0.28,
+    x = Math.cos(angle) * r,
+    z = Math.sin(angle) * r,
+    h = 0.2 + rand() * 0.28,
+    w = 0.018 + rand() * 0.024;
+  const p = [],
+    uv = [];
+  for (let j = 0; j < 3; j++) {
+    const y = j / 3,
+      yy = (j + 1) / 3,
+      bend = y * y * 0.14,
+      nextBend = yy * yy * 0.14;
+    const a = [x - w * (1 - y), y * h, z + bend],
+      b = [x + w * (1 - y), y * h, z + bend],
+      c = [x - w * (1 - yy), yy * h, z + nextBend],
+      d = [x + w * (1 - yy), yy * h, z + nextBend];
+    for (const v of [a, b, c, c, b, d]) p.push(...v);
+    uv.push(0, y, 1, y, 0, yy, 0, yy, 1, y, 1, yy);
+  }
+  const geo = new T.BufferGeometry();
+  geo.setAttribute('position', new T.Float32BufferAttribute(p, 3));
+  geo.setAttribute('uv', new T.Float32BufferAttribute(uv, 2));
+  geo.computeVertexNormals();
+  geo.rotateY(angle);
+  mesh(g, geo, grassMaterial, 0, 0, 0);
+}
+bake(g);
+g = group('race_shrub');
+const shrubMaterial = mat('Racing shrub leaves', 0x3f673b, 0.95);
+for (let i = 0; i < 8; i++) {
+  const a = i * 2.399,
+    r = 0.4 + rand() * 0.35,
+    y = 0.45 + rand() * 0.45;
+  branch(g, [0, 0, 0], [Math.cos(a) * r, y, Math.sin(a) * r], 0.035, 0.007);
+  for (let j = 0; j < 4; j++)
+    mesh(
+      g,
+      new T.IcosahedronGeometry(0.23 + rand() * 0.15, 0).scale(1, 0.7, 1),
+      shrubMaterial,
+      Math.cos(a) * r + (rand() - 0.5) * 0.4,
+      y + (rand() - 0.5) * 0.3,
+      Math.sin(a) * r + (rand() - 0.5) * 0.4
+    );
+}
+bake(g);
+g = group('race_flowers');
+const petals = mat('Racing wildflower petals', 0xe1bd71, 0.87);
+for (let i = 0; i < 7; i++) {
+  const a = i * 2.399,
+    x = Math.cos(a) * 0.23,
+    z = Math.sin(a) * 0.23,
+    h = 0.25 + rand() * 0.18;
+  branch(g, [x, 0, z], [x, h, z], 0.009, 0.006, grassMaterial);
+  for (let j = 0; j < 5; j++) {
+    const angle = (j * Math.PI * 2) / 5;
+    mesh(
+      g,
+      new T.IcosahedronGeometry(0.055, 0).scale(1, 0.35, 1),
+      petals,
+      x + Math.cos(angle) * 0.05,
+      h,
+      z + Math.sin(angle) * 0.05
+    );
+  }
+}
+bake(g);
+g = group('traffic_light');
 branch(g, [0, 0, 0], [0, 3.55, 0], 0.075, 0.055, metal);
 box(g, metal, 0.49, 1.25, 0.34, 0, 3.45, 0, 'housing');
 box(g, metal, 0.23, 0.08, 0.23, 0, 0.06, 0);
@@ -233,12 +306,20 @@ for (const side of [-1, 1]) {
 branch(g, [0, 0.76, 0], [0, 2.65, 0], 0.035, 0.025, metal);
 for (let i = 0; i < 8; i++) {
   const a = (i / 8) * Math.PI * 2;
-  const panel = mesh(g, new T.ConeGeometry(1.72, 0.48, 3, 1, false, a), i % 2 ? cafeCream : cafeFabric, 0, 2.56, 0);
+  const panel = mesh(
+    g,
+    new T.ConeGeometry(1.72, 0.48, 3, 1, false, a),
+    i % 2 ? cafeCream : cafeFabric,
+    0,
+    2.56,
+    0
+  );
   panel.rotation.y = a;
 }
 bake(g);
 g = group('city_billboard');
-for (const x of [-1.75, 1.75]) branch(g, [x, 0, 0], [x, 3.3, 0], 0.07, 0.05, metal);
+for (const x of [-1.75, 1.75])
+  branch(g, [x, 0, 0], [x, 3.3, 0], 0.07, 0.05, metal);
 box(g, metal, 4.4, 2.15, 0.16, 0, 3.55, 0);
 box(g, cafeCream, 4.12, 1.87, 0.025, 0, 3.55, 0.095, 'advert_face');
 bake(g);

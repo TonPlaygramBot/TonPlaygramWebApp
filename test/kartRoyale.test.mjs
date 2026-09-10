@@ -192,6 +192,9 @@ test('real multiplayer clients: ready/start, authority, isolation, reconnect, fi
     health: 999999,
     shield: 999999,
     weapon: 'rocket',
+    weaponId: 'awp',
+    ammunition: 999999,
+    inventory: [{ id: 'awp', ammo: 999999 }],
     use: true
   });
   outsider.emit('kart:input', {
@@ -208,6 +211,17 @@ test('real multiplayer clients: ready/start, authority, isolation, reconnect, fi
   assert.ok(room.racers[0].speed < 45);
   assert.ok(room.racers[0].health <= 100);
   assert.equal(room.racers[0].weapon, undefined);
+  assert.equal(
+    room.racers[0].weaponId,
+    'pistol',
+    'valid but unowned weapon IDs cannot equip a weapon'
+  );
+  assert.deepEqual(room.racers[0].inventory, [{ id: 'pistol', ammo: 4 }]);
+  const combatState = (await emit(a, 'resume', resume)).state.combat;
+  assert.equal(combatState.pickups.length, 24);
+  assert.ok(
+    Array.isArray(combatState.shots) && Array.isArray(combatState.explosions)
+  );
   assert.equal(
     room.racers[0].shield,
     originalShield,
