@@ -281,8 +281,11 @@ export default function KartRoyale({
       i.brake = keys.has('ArrowDown') || keys.has('s');
       i.drift = keys.has(' ');
       i.boost = keys.has('Shift');
+      i.shield = keys.has('q');
+      i.fire = keys.has('e');
     };
     const down = (e: KeyboardEvent) => {
+      const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
       if (
         screenRef.current !== 'race' ||
         modalRef.current ||
@@ -299,17 +302,20 @@ export default function KartRoyale({
           'd',
           's',
           ' ',
-          'Shift'
-        ].includes(e.key)
+          'Shift',
+          'q',
+          'e'
+        ].includes(key)
       ) {
         e.preventDefault();
-        keys.add(e.key);
+        keys.add(key);
         apply();
       }
       if (e.key === 'Escape') setModal('pause');
     };
     const up = (e: KeyboardEvent) => {
-      keys.delete(e.key);
+      const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+      keys.delete(key);
       if (!modalRef.current) apply();
     };
     const blur = () => {
@@ -600,7 +606,10 @@ export default function KartRoyale({
     );
   };
   const hold =
-    (key: 'steer' | 'drift' | 'boost' | 'brake' | 'shield' | 'fire', value: number | boolean) =>
+    (
+      key: 'steer' | 'drift' | 'boost' | 'brake' | 'shield' | 'fire',
+      value: number | boolean
+    ) =>
     (e: React.PointerEvent<HTMLButtonElement>) => {
       e.preventDefault();
       e.currentTarget.setPointerCapture(e.pointerId);
@@ -608,12 +617,13 @@ export default function KartRoyale({
       const i = engine.current?.input;
       if (i) (i as unknown as Record<string, number | boolean>)[key] = value;
     };
-  const release = (key: 'steer' | 'drift' | 'boost' | 'brake' | 'shield' | 'fire') => () => {
-    const i = engine.current?.input;
-    if (i)
-      (i as unknown as Record<string, number | boolean>)[key] =
-        key === 'steer' ? 0 : false;
-  };
+  const release =
+    (key: 'steer' | 'drift' | 'boost' | 'brake' | 'shield' | 'fire') => () => {
+      const i = engine.current?.input;
+      if (i)
+        (i as unknown as Record<string, number | boolean>)[key] =
+          key === 'steer' ? 0 : false;
+    };
   const touch = (
     key: 'steer' | 'drift' | 'boost' | 'brake' | 'shield' | 'fire',
     value: number | boolean
@@ -697,7 +707,9 @@ export default function KartRoyale({
               <p>YOUR STREETS. YOUR RACE.</p>
             </section>
             <section className="kr-vehicle-info">
-              <span className="kr-label">YOUR KART · 5 PERFORMANCE CLASSES</span>
+              <span className="kr-label">
+                YOUR KART · 5 PERFORMANCE CLASSES
+              </span>
               <h2>{KARTS.find((k) => k.id === kartId)?.name}</h2>
               <p>{KARTS.find((k) => k.id === kartId)?.detail}</p>
               <div className="kr-kart-picker" aria-label="Choose your kart">
@@ -730,10 +742,28 @@ export default function KartRoyale({
                   · UNIQUE PERFORMANCE
                 </span>
               </div>
-              {(() => { const k=KARTS.find(k=>k.id===kartId)!; return <div className="kr-kart-stats">
-                <span>SPD <b>{Math.round(k.speed*100)}</b></span><span>HND <b>{Math.round(k.handling*100)}</b></span>
-                <span>BRK <b>{Math.round(k.brake*100)}</b></span><span>SHD <b>{k.shield}</b></span><span>AMMO <b>{k.ammunition}</b></span>
-              </div>; })()}
+              {(() => {
+                const k = KARTS.find((k) => k.id === kartId)!;
+                return (
+                  <div className="kr-kart-stats">
+                    <span>
+                      SPD <b>{Math.round(k.speed * 100)}</b>
+                    </span>
+                    <span>
+                      HND <b>{Math.round(k.handling * 100)}</b>
+                    </span>
+                    <span>
+                      BRK <b>{Math.round(k.brake * 100)}</b>
+                    </span>
+                    <span>
+                      SHD <b>{k.shield}</b>
+                    </span>
+                    <span>
+                      AMMO <b>{k.ammunition}</b>
+                    </span>
+                  </div>
+                );
+              })()}
               <div className="kr-swatches">
                 {COLORS.slice(0, 5).map((c, i) => (
                   <button
@@ -1207,7 +1237,14 @@ export default function KartRoyale({
                   : 'ENGINE DAMAGED · SLOW DOWN'}
             </small>
           </div>
-          <div className="kr-combat-hud"><span><Shield size={13}/> {Math.round(hud?.shield || 0)}</span><span><Crosshair size={13}/> {hud?.ammunition || 0}</span></div>
+          <div className="kr-combat-hud" aria-label="Combat supplies">
+            <span>
+              <Shield size={13} /> {Math.round(hud?.shield || 0)}
+            </span>
+            <span>
+              <Crosshair size={13} /> {hud?.ammunition || 0}
+            </span>
+          </div>
           <div className="kr-touch-controls">
             <div className="kr-steering">
               <button aria-label="Steer left" {...touch('steer', -1)}>
@@ -1226,8 +1263,24 @@ export default function KartRoyale({
             </div>
             <div className="kr-pedals">
               <div className="kr-combat-buttons">
-                <button className="kr-shield-button" aria-label="Hold shield" {...touch('shield', true)}><Shield size={22}/><span>SHIELD</span></button>
-                <button className="kr-fire-button" aria-label="Fire missile" disabled={!hud?.ammunition} {...touch('fire', true)}><Crosshair size={22}/><span>FIRE</span></button>
+                <button
+                  className="kr-shield-button"
+                  aria-label="Hold shield"
+                  disabled={!hud?.shield}
+                  {...touch('shield', true)}
+                >
+                  <Shield size={22} />
+                  <span>SHIELD</span>
+                </button>
+                <button
+                  className="kr-fire-button"
+                  aria-label="Fire missile"
+                  disabled={!hud?.ammunition}
+                  {...touch('fire', true)}
+                >
+                  <Crosshair size={22} />
+                  <span>FIRE</span>
+                </button>
               </div>
               <button className="kr-drift-button" {...touch('drift', true)}>
                 DRIFT
@@ -1244,7 +1297,7 @@ export default function KartRoyale({
             </div>
           </div>
           <div className="kr-key-hint">
-            ← → STEER <span>SPACE DRIFT</span> SHIFT BOOST
+            ← → STEER <span>SPACE DRIFT</span> SHIFT BOOST · Q SHIELD · E FIRE
           </div>
         </div>
       )}
@@ -1507,10 +1560,11 @@ export default function KartRoyale({
                   </p>
                   <b>03 · Make your move.</b>
                   <p>
-                    Hold BOOST on the straights. Finish three complete laps. The
-                    harder you crash, the more bodywork and engine damage you
-                    take. Small bumps are forgiving. At zero integrity your kart
-                    retires.
+                    Hold BOOST on the straights. Use SHIELD to absorb attacks
+                    and FIRE when you have ammunition. Finish three complete
+                    laps. The harder you crash, the more bodywork and engine
+                    damage you take. Small bumps are forgiving. At zero
+                    integrity your kart retires.
                   </p>
                   <b>04 · Watch the crowd.</b>
                   <p>
@@ -1521,7 +1575,7 @@ export default function KartRoyale({
                 </div>
                 <p>
                   Keyboard: arrows or A/D to steer, Space to drift, Shift to
-                  boost, down arrow to brake.
+                  boost, down arrow to brake, Q to shield and E to fire.
                 </p>
               </>
             ) : (
