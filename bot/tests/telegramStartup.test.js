@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   TELEGRAM_WEBHOOK_PATH_PREFIX,
+  canUseTelegramPolling,
   getTelegramWebhookConfig,
   isTelegramBotEnabled,
   startTelegramBot
@@ -41,7 +42,10 @@ test('uses a stable webhook on Render so deploy instances do not compete for pol
     RENDER_EXTERNAL_URL: 'https://tonplaygram.onrender.com/'
   });
 
-  assert.match(config.path, new RegExp(`^${TELEGRAM_WEBHOOK_PATH_PREFIX}/[a-f0-9]{32}$`));
+  assert.match(
+    config.path,
+    new RegExp(`^${TELEGRAM_WEBHOOK_PATH_PREFIX}/[a-f0-9]{32}$`)
+  );
   assert.equal(config.url, `https://tonplaygram.onrender.com${config.path}`);
   assert.equal(config.url.includes('test-token'), false);
 });
@@ -52,7 +56,10 @@ test('builds the webhook URL from the hostname provided by Render', () => {
     RENDER_EXTERNAL_HOSTNAME: 'tonplaygram-bot.onrender.com'
   });
 
-  assert.equal(config.url, `https://tonplaygram-bot.onrender.com${config.path}`);
+  assert.equal(
+    config.url,
+    `https://tonplaygram-bot.onrender.com${config.path}`
+  );
 });
 
 test('prefers an explicitly configured public webhook URL', () => {
@@ -68,7 +75,9 @@ test('prefers an explicitly configured public webhook URL', () => {
 test('keeps polling for local development', async () => {
   const calls = [];
   const bot = {
-    telegram: { deleteWebhook: async (options) => calls.push(['deleteWebhook', options]) },
+    telegram: {
+      deleteWebhook: async (options) => calls.push(['deleteWebhook', options])
+    },
     launch: async (options) => calls.push(['launch', options])
   };
 
@@ -79,6 +88,37 @@ test('keeps polling for local development', async () => {
     ['deleteWebhook', { drop_pending_updates: true }],
     ['launch', { dropPendingUpdates: true }]
   ]);
+});
+
+test('refuses unsafe long polling on hosted production instances', async () => {
+  const calls = [];
+  const bot = {
+    telegram: { deleteWebhook: async () => calls.push('deleteWebhook') },
+    launch: async () => calls.push('launch')
+  };
+  const env = {
+    BOT_TOKEN: '123:test-token',
+    NODE_ENV: 'production',
+    RENDER: 'true'
+  };
+
+  assert.equal(canUseTelegramPolling(env), false);
+  await assert.rejects(
+    startTelegramBot(bot, env),
+    /Set TELEGRAM_WEBHOOK_URL.*Telegram 409 conflicts/
+  );
+  assert.deepEqual(calls, []);
+});
+
+test('allows an explicit polling override for a single-instance deployment', () => {
+  assert.equal(
+    canUseTelegramPolling({
+      NODE_ENV: 'production',
+      RENDER: 'true',
+      TELEGRAM_UPDATE_MODE: 'polling'
+    }),
+    true
+  );
 });
 
 test('registers a webhook without starting Telegram long polling', async () => {
