@@ -147,7 +147,13 @@ export class StreetVisuals {
           bz = z - (dz / length) * 9;
         if (free(bx, bz)) {
           add('city_billboard', bx, bz, yaw - Math.PI / 2, 0.88);
-          const advert = this.textFace('TIRANA · JETO QYTETIN', 3.62, 1.58, '#ebd7ad', '#9f242d');
+          const advert = this.textFace(
+            'TIRANA · JETO QYTETIN',
+            3.62,
+            1.58,
+            '#ebd7ad',
+            '#9f242d'
+          );
           advert.position.set(bx, 3.55 + pavementHeight(bx, bz), bz);
           advert.rotation.y = yaw - Math.PI / 2;
           advert.translateZ(0.1);
@@ -392,6 +398,49 @@ export class StreetVisuals {
       }
     }
     const paint: T.BufferGeometry[] = [];
+    const cyclePaint: T.BufferGeometry[] = [];
+    const castleStone: T.BufferGeometry[] = [];
+    const cycleRoads = new Set([
+      'Bulevardi Dëshmorët e Kombit',
+      'Bulevardi Bajram Curri',
+      'Rruga e Dibrës',
+      'Rruga Sami Frashëri',
+      'Rruga Myslym Shyri'
+    ]);
+    for (const road of WORLD.roads) {
+      const dx = road.b[0] - road.a[0],
+        dz = road.b[1] - road.a[1];
+      const length = Math.hypot(dx, dz);
+      if (length < 1) continue;
+      const yaw = Math.atan2(dx, dz);
+      if (!road.walk && road.w >= 6 && cycleRoads.has(road.name)) {
+        const rx = dz / length,
+          rz = -dx / length;
+        for (const side of [-1, 1]) {
+          const offset = side * Math.max(1.2, road.w / 2 - 0.82);
+          const lane = new T.PlaneGeometry(1.45, length);
+          lane.rotateX(-Math.PI / 2);
+          lane.rotateY(yaw);
+          lane.translate(
+            (road.a[0] + road.b[0]) / 2 + rx * offset,
+            0.106,
+            (road.a[1] + road.b[1]) / 2 + rz * offset
+          );
+          cyclePaint.push(lane);
+        }
+      }
+      if (road.walk && /Murat Toptani/.test(road.name)) {
+        const stone = new T.PlaneGeometry(road.w, length);
+        stone.rotateX(-Math.PI / 2);
+        stone.rotateY(yaw);
+        stone.translate(
+          (road.a[0] + road.b[0]) / 2,
+          0.112,
+          (road.a[1] + road.b[1]) / 2
+        );
+        castleStone.push(stone);
+      }
+    }
     for (const s of SIGNALS) {
       const rx = Math.cos(s.yaw),
         rz = -Math.sin(s.yaw),
@@ -433,6 +482,37 @@ export class StreetVisuals {
         polygonOffsetFactor: -2
       })
     );
+    // Tirana's protected lanes use a muted terracotta-red surface rather than
+    // a saturated game marker. These strips follow the checked-in OSM roads.
+    merge(
+      cyclePaint,
+      new T.MeshStandardMaterial({
+        color: 0xa94f35,
+        roughness: 0.94,
+        polygonOffset: true,
+        polygonOffsetFactor: -3
+      })
+    );
+    const stone = new T.MeshStandardMaterial({ color: 0xffffff, roughness: 1 });
+    const loader = new T.TextureLoader();
+    for (const [suffix, key] of [
+      ['diff', 'map'],
+      ['nor_gl', 'normalMap'],
+      ['rough', 'roughnessMap']
+    ] as const) {
+      loader.load(
+        `/assets/tirana-streets/materials/plastered_wall_02-${suffix}.jpg`,
+        (texture) => {
+          texture.wrapS = texture.wrapT = T.RepeatWrapping;
+          texture.repeat.set(0.4, 0.4);
+          if (key === 'map') texture.colorSpace = T.SRGBColorSpace;
+          stone[key] = texture;
+          stone.needsUpdate = true;
+          this.textures.push(texture);
+        }
+      );
+    }
+    merge(castleStone, stone);
   }
   update(camera: T.Vector3, time: number, quality: string) {
     const radius = quality === 'battery' ? 160 : 330;
