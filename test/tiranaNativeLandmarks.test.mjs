@@ -7,7 +7,7 @@ import {encodeLandmarkGLB} from '../webapp/scripts/export-tirana-landmarks.mjs';
 for(const id of NATIVE_MODEL_IDS)for(const lod of ['near','far']){
   test(`${id} ${lod}: finite, nondegenerate outward-consistent triangles and unit normals`,()=>{
     const model=buildNativeModel(id,lod);
-    assert.ok(model.triangles>100&&model.triangles<6500);
+    assert.ok(model.triangles>100&&model.triangles<(id==='skanderbeg'&&lod==='near'?33000:6500));
     assert.ok(model.meshes.length<=5);
     assert.ok(model.bounds.min[1]>=0&&model.bounds.min[1]<=.15);
     for(const mesh of model.meshes){

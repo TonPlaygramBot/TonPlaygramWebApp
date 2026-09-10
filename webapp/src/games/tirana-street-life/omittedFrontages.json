@@ -1,0 +1,2874 @@
+[
+  {
+    "id": "node/577934806",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/1832395403",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/2608270254",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/2608288886",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/2614424866",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/2638136211",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/2751715032",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/2782651275",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/2782651320",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/2800779133",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/2850923012",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/3007436376",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/3090710286",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/3377273226",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/3377274357",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/3507566590",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/3507604525",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/3508350028",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/3508686138",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/3530842520",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/3530868021",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/3596834818",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/3623164991",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/3834781802",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/3834794929",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/3834806700",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/3834811362",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/3835993303",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/3836006265",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/3836018257",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/3836036857",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/3836041804",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/3836047382",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/3836050667",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/3836988074",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/3841889257",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/3843390694",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/3856707966",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/3856715857",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/3856715876",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/3856743457",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/3883783036",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/3895517666",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/3992590484",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4003116545",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4180363030",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4182901142",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4182975530",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4182980321",
+    "reason": "overlapping storefront assignment"
+  },
+  {
+    "id": "node/4182993096",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4191485855",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4191485856",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4191485858",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4191485859",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4191485861",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4191490480",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4191490482",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4191490485",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4191510476",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4191510477",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4191510478",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4191510481",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4191510486",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4191510487",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4191580042",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/4191580043",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/4191580044",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/4191580045",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/4191580046",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/4191580047",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/4191580048",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/4191602802",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/4191602805",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/4191602809",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/4191602810",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/4191602811",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/4191602812",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/4191791896",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4191791899",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4191804695",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4191804697",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4191807194",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4191837489",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4191837589",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4191837689",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4191837789",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4191838089",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4191934273",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4191934274",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/4191934279",
+    "reason": "overlapping storefront assignment"
+  },
+  {
+    "id": "node/4191941000",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4192054193",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4306375014",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4316934291",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4326903299",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4332267795",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4332290096",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4332291292",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4357685000",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4357685190",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4357686092",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4357715894",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4359282899",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4370809722",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4370811617",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4371565389",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4381343404",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4405487891",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4405608890",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4439733290",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4464771354",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4464774754",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4464774755",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/4477201222",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4479361792",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4479412790",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4506752789",
+    "reason": "overlapping storefront assignment"
+  },
+  {
+    "id": "node/4506752989",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4519028490",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4523953589",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4527199790",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4527236989",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4534487564",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4546590511",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4554643331",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4554643775",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4557814222",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4558835305",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4565202806",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/4566808319",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4568827889",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4568877869",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4587859199",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4589297393",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4602171357",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4602180886",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4602186973",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4602213774",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4602240781",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4602242981",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4602243171",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4602818416",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4603882064",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4617165921",
+    "reason": "overlapping storefront assignment"
+  },
+  {
+    "id": "node/4629560023",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4630154290",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4631410696",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4631410697",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4631410698",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4631477091",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4631490289",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4639470507",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4639470508",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4639470509",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4642356904",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4647393576",
+    "reason": "overlapping storefront assignment"
+  },
+  {
+    "id": "node/4664234411",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4664234432",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4664234503",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4680731289",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4770979922",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4790075922",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4790114621",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4790114721",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4802513070",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4825856122",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4851791521",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4851791621",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4855879331",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4862032413",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/4873996021",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4883142521",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4900466721",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4922883121",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4966407222",
+    "reason": "overlapping storefront assignment"
+  },
+  {
+    "id": "node/4975672622",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/4988919521",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/4999668522",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/5001570122",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/5002113624",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/5004783222",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/5039745821",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/5069950022",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/5088790325",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/5096966924",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/5102243022",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/5102245323",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/5102245324",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/5102245325",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/5102251421",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/5111965591",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/5111973569",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/5111977954",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/5111977955",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/5111978707",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/5111982634",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/5189144097",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/5252933962",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/5324412944",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/5327509551",
+    "reason": "overlapping storefront assignment"
+  },
+  {
+    "id": "node/5327525591",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/5327534378",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/5327534383",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/5327535898",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/5401138821",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/5418315322",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/5522270024",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/5528394418",
+    "reason": "overlapping storefront assignment"
+  },
+  {
+    "id": "node/5531835569",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/5541483020",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/5600216221",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/5620292280",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/5631126835",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/5809085154",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/5836162786",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/5836238685",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/5836276686",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/5836282785",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/5887776778",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/5894590096",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/5919181557",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/5920650022",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/5922574692",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/5922575603",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/5922575605",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/5935614615",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/5940781088",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/5942100385",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/5974275379",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/5992911187",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/6029415955",
+    "reason": "overlapping storefront assignment"
+  },
+  {
+    "id": "node/6053784085",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/6053785588",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/6053785687",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/6080368898",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/6288660285",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/6292763385",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/6312166649",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/6326936652",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/6369831130",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/6369831132",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/6369831134",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/6387343384",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/6387344885",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/6387344893",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/6414010759",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/6442256742",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/6442256746",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/6442424394",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/6442424402",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/6442479113",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/6604998705",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/6766525486",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/6793907486",
+    "reason": "overlapping storefront assignment"
+  },
+  {
+    "id": "node/6818140807",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/6837105891",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/6837105893",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/6837133186",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/6837133187",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/6837133188",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/6837133288",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/6838143787",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/6838657471",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/6838798123",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/6838962494",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/6841192686",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/6841201386",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/6841201387",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/6841201390",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/6841216694",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/6841216700",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/6841226685",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/6841226688",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/6841226789",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/6841226798",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/6841226801",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/6841226805",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/6841226810",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/6841226812",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/6841232486",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/6841232591",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/6841232685",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/6841232885",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/6841245194",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/6841245195",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/6841245596",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/6841544453",
+    "reason": "overlapping storefront assignment"
+  },
+  {
+    "id": "node/6841544456",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/6879711586",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/6892584585",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/6892969885",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/6992131983",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/7212528285",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/7214507485",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/7214952285",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/7723854085",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/7799363759",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/7804261655",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/7804261656",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/7838137419",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/7838137420",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/7838154634",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/7838154635",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/7838154636",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/7838154637",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/7838154638",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/7838154639",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/7855411926",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/7855411927",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/7855411928",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/7855411929",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/7855411930",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/7855411931",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/7855411932",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/7855411933",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/7914256509",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/8047287785",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/8442269217",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/8687916792",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/8895953066",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/8895979521",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/8911338417",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/9064647280",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/9124938538",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/9124938540",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/9124938622",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/9124938667",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/9124938680",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/9124938759",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/9124938760",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/9124938876",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/9124938882",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/9124938886",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/9124938930",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/9124939033",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/9124944623",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/9128749319",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/9128749320",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/9128749426",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/9128749473",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/9128749474",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/9128749884",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/9128749891",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/9128749892",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/9128750017",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/9128751919",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/9169798914",
+    "reason": "overlapping storefront assignment"
+  },
+  {
+    "id": "node/9264657577",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/9264701329",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/9264781023",
+    "reason": "overlapping storefront assignment"
+  },
+  {
+    "id": "node/9282711811",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/9282711824",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/9382022254",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/9382045413",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/9389054439",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/9536060480",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/9727885563",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/9730413717",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/9741251394",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/9753009781",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/9790412917",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/9851364717",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/9948081253",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/9990138441",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/10058791582",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10090575553",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/10101317204",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10101317205",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/10101317206",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/10101317207",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/10101317208",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/10101317209",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/10101317210",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/10101317211",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/10101317212",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10101317213",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/10101317214",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/10101317216",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/10101347117",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10101347118",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10101347120",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10101347122",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10101347124",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10101347130",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10101347139",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10101347141",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/10101347143",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10101347144",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/10101347145",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10101347148",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10101347149",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10101347151",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10101347152",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10101347153",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10101347157",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/10101347159",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10101347160",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/10101347161",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/10101347162",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10101347163",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/10101347168",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10101347169",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10101347171",
+    "reason": "overlapping storefront assignment"
+  },
+  {
+    "id": "node/10101347172",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10146690217",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10189420315",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10215119026",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10226460491",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10234526380",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/10269228047",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10274944740",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10284745616",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/10294021009",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/10313229609",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/10560351920",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10568151939",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/10568151940",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10598565512",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/10671869364",
+    "reason": "overlapping storefront assignment"
+  },
+  {
+    "id": "node/10712753126",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/10793503062",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10793534928",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/10841753512",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10841753572",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10865763748",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10865763749",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10937966249",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/10960664797",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/10965411611",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/10965412807",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10968359244",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10977224205",
+    "reason": "overlapping storefront assignment"
+  },
+  {
+    "id": "node/10977923721",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10981745740",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/10981745743",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/10981745744",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11010765956",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11029530005",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11051294972",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11067827305",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11084398821",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11093246684",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11093246928",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11093246929",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11099856605",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11106093749",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11107166243",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11107791811",
+    "reason": "overlapping storefront assignment"
+  },
+  {
+    "id": "node/11117968900",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11129833538",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11137311490",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11137311492",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11137335705",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11137335706",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11159807131",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11159807134",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11159817332",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11159817342",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11168323818",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11172704650",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11173011364",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11177872775",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11177892580",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11180620474",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11180736506",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11182219611",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11197280648",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11197294525",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11197310918",
+    "reason": "overlapping storefront assignment"
+  },
+  {
+    "id": "node/11197333435",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11197337880",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11197343537",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11197343538",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11201719461",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/11202338218",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11202823033",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11215357353",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11215357355",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11215357357",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11215357359",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11215357360",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11215357361",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/11215357362",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11215357364",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11215357365",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11215357371",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11224714007",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11224720722",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11329275381",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11348892950",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/11348931367",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11348941773",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11349433122",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11367989369",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11386157570",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11386228860",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11394057520",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11418618577",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11495576844",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11497169904",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11497169906",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11497169907",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11497169908",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11497169912",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11497169916",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11497169922",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11497169923",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11497169924",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11497169925",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11497169927",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11511437369",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11511437379",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11511437380",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11511437381",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11511437382",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11511437383",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11511437385",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11511437386",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11511437387",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11511437388",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/11511437389",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11511437391",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11511437392",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11511437394",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11511437415",
+    "reason": "overlapping storefront assignment"
+  },
+  {
+    "id": "node/11517722614",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11610647869",
+    "reason": "overlapping storefront assignment"
+  },
+  {
+    "id": "node/11620102140",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11643279496",
+    "reason": "overlapping storefront assignment"
+  },
+  {
+    "id": "node/11643289704",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11649336673",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11786668613",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11793837790",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11844676338",
+    "reason": "overlapping storefront assignment"
+  },
+  {
+    "id": "node/11879291516",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11965378992",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11970784389",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11975211314",
+    "reason": "overlapping storefront assignment"
+  },
+  {
+    "id": "node/11975211315",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11975211318",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11982507700",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/11985182592",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11987921472",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11990140873",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/11990888160",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/11990888161",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/11990888162",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/11990888163",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/11990888164",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/11990888166",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/11990888167",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/11990888168",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/12066363840",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/12090355265",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/12095683128",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/12100734901",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/12104235543",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/12121969479",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/12122731465",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/12122731471",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/12122731480",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/12122731481",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/12122731482",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/12122731483",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/12122731484",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/12122731485",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/12122731493",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/12122731494",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/12122731495",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/12122731496",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/12122731497",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/12122731498",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/12122731499",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/12122731500",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/12122764201",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/12122764202",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/12122764203",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/12122764204",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/12122764206",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/12122764207",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/12122764208",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/12122764209",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/12122764210",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/12122764211",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/12122764212",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/12122764213",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/12122764214",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/12122764215",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/12122764220",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/12122764223",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/12122764224",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/12122764225",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/12122764226",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/12122764227",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/12122764229",
+    "reason": "overlapping storefront assignment"
+  },
+  {
+    "id": "node/12122764232",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/12122764234",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/12122764235",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/12122764237",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/12122764238",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/12122764239",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/12122764240",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/12184854753",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/12197891984",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/12216259584",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/12339660854",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/12371962596",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/12412726738",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/12419769330",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/12450974462",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/12451008749",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/12469646004",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/12473883929",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/12474067899",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/12474102898",
+    "reason": "overlapping storefront assignment"
+  },
+  {
+    "id": "node/12485204710",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/12582885522",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/12650761786",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/12779107687",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/12812418389",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/12812418390",
+    "reason": "overlapping storefront assignment"
+  },
+  {
+    "id": "node/12813554901",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/12818806901",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/12892579086",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/12997137322",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/12997137324",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/12997137333",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/13096082901",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13106637126",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/13106885422",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13107582601",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/13112445601",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13113043501",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13171689951",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13261212248",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/13306334101",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/13311943001",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/13532472701",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13608370046",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13608370047",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/13705984957",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13713016765",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13769784148",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/13938485779",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/13938485780",
+    "reason": "overlapping storefront assignment"
+  },
+  {
+    "id": "node/13938485781",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13938485784",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13938485785",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13938485786",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13938485790",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13938485791",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13938485793",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13938485796",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13938485798",
+    "reason": "overlapping storefront assignment"
+  },
+  {
+    "id": "node/13938507206",
+    "reason": "overlapping storefront assignment"
+  },
+  {
+    "id": "node/13938507209",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/13938507210",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13938507215",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13938507217",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/13938507218",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13938507220",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/13938507221",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13938507222",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/13938507223",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13938507224",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13938507226",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13938507229",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/13938507230",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/13938507232",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/13938507236",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/13938507237",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/13938507238",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/13938507239",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/13938507240",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/13938507241",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/13938507246",
+    "reason": "not verified at street level"
+  },
+  {
+    "id": "node/13938507247",
+    "reason": "overlapping storefront assignment"
+  },
+  {
+    "id": "node/13938507250",
+    "reason": "overlapping storefront assignment"
+  },
+  {
+    "id": "node/13938507263",
+    "reason": "overlapping storefront assignment"
+  },
+  {
+    "id": "node/13962186867",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13962186868",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13962186883",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13962186884",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13962186885",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13962186889",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13962186893",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13962186894",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13962186895",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13962186899",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13962186900",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13962189201",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13962189202",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13962189203",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/13962189204",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13962189206",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13962189215",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13962189217",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/13962189218",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13962189219",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13962189220",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/13975232893",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/14001159408",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/14006607463",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/14054793301",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "node/14075051683",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/14109556768",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "node/14157332302",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "way/397522193",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "way/418943099",
+    "reason": "no unambiguous eligible building"
+  },
+  {
+    "id": "way/459085891",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "way/551284767",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "way/551284768",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "way/667133685",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "way/708757393",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "way/1174006988",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "way/1174006989",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "way/1174006992",
+    "reason": "no nearby main-street facade"
+  },
+  {
+    "id": "way/1174006998",
+    "reason": "no nearby main-street facade"
+  }
+]

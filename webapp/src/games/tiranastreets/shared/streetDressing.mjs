@@ -1,4 +1,5 @@
 import { WORLD } from './world.mjs';
+import {BUS_STOPS} from '../../tirana-street-life/transitData.mjs';
 import {
   SIGNALS,
   SHOP,
@@ -54,7 +55,7 @@ function fits(p) {
     );
   });
 }
-let lastShelter = null;
+
 for (const [i, r] of WORLD.roads.entries()) {
   const dx = r.b[0] - r.a[0],
     dz = r.b[1] - r.a[1],
@@ -63,12 +64,7 @@ for (const [i, r] of WORLD.roads.entries()) {
   const ux = dx / len,
     uz = dz / len;
   for (const side of [-1, 1]) {
-    const canShelter =
-      r.w >= 8 &&
-      len > 38 &&
-      side === 1 &&
-      (!lastShelter ||
-        Math.hypot(r.a[0] - lastShelter.x, r.a[1] - lastShelter.z) > 160);
+    const canShelter = false; // Mapped stops are owned by StreetLifeLayer.
     const name = canShelter
       ? 'bus_shelter'
       : ['utility_cabinet', 'hydrant', 'stone_planter', 'bicycle_rack'][i % 4];
@@ -83,7 +79,7 @@ for (const [i, r] of WORLD.roads.entries()) {
     };
     if (fits(p)) {
       STREET_PROPS.push(p);
-      if (canShelter) lastShelter = p;
+
     }
   }
   if (i % 11 === 0 && len > 36)
@@ -133,6 +129,14 @@ for (const p of STREET_PROPS) {
           ]
         ];
   for (const box of boxes) STREET_SOLIDS.push({ ...p, box });
+}
+// Physical backs, sides, poles and benches of the mapped stop models. Open
+// fronts stay traversable; no solid rectangle around the whole shelter.
+for (const stop of BUS_STOPS) {
+  const boxes=[[-.045,.075,.045,.165]];
+  if(stop.shelter)boxes.push([-1.79,-1.28,-1.71,-.1],[1.71,-1.28,1.79,-.1],[-1.72,-1.26,1.72,-1.22]);
+  if(stop.bench)boxes.push([-.85,-1.09,.85,-.65]);
+  for(const box of boxes)STREET_SOLIDS.push({name:'bus_shelter',sourceId:stop.id,x:stop.x,z:stop.z,yaw:stop.yaw,scale:1,box});
 }
 const cells = new Map();
 for (const s of STREET_SOLIDS)

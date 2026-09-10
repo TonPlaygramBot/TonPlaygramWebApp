@@ -1,3 +1,4 @@
+import {skanderbeg} from './skanderbegModel.mjs';
 /** Original game meshes, not Google/Sketchfab extracts. All lengths are metres.
  * Tessellation is dependency-free so the exact runtime vertices can be tested
  * and exported as GLB without a browser or a model service. */
@@ -7,7 +8,7 @@ export const MATERIALS = Object.freeze({
   shadow: { color: 0x343c3b, roughness: .69, metalness: .05 },
   roof: { color: 0x667e7d, roughness: .51, metalness: .38 },
   glass: { color: 0x365e6a, roughness: .21, metalness: .62 },
-  bronze: { color: 0x425147, roughness: .57, metalness: .72 },
+  bronze: { color: 0x514b3e, roughness: .63, metalness: .72 },
   gold: { color: 0xb09560, roughness: .54, metalness: .55 },
   purple: { color: 0x655569, roughness: .36, metalness: .48 },
   tile: { color: 0xa06b50, roughness: .89, metalness: 0 },
@@ -196,48 +197,6 @@ function eyes(b,detail){
       const p=turn([x,floor*3.8,side%2?23.06:16.06],yaw);
       b.box('glass',3.3,2.7,.08,...p,yaw);
     }
-  }
-}
-function skanderbeg(b,detail){
-  for(let i=0;i<4;i++)b.frustum('stone',9-i*1.05,7.2-i*.75,i*.85,.85,8.55-i*1.05,6.9-i*.75,0,0,i%2*.035);
-  const sph=(p,r)=>b.sphere('bronze',p,r,detail?24:12,detail?14:7);
-  const tube=(a,c,r,s=r)=>b.tube('bronze',a,c,r,s,detail?14:8);
-  sph([0,6.05,.15],[.83,1.04,1.8]);sph([0,6.6,-.95],[.74,1.03,.8]);
-  tube([0,6.5,-1],[0,8.05,-1.7],.63,.42);sph([0,8.18,-1.92],[.42,.67,.58]);sph([0,7.98,-2.39],[.4,.32,.54]);
-  for(const x of [-.26,.26])tube([x,8.62,-1.7],[x*1.18,9.27,-1.67],.16,.025);
-  for(const x of [-.61,.61]){
-    tube([x,6,1.25],[x*1.13,4.9,1.32],.32,.19);tube([x*1.13,4.9,1.32],[x*.96,3.58,1.5],.19,.11);
-    b.box('bronze',.36,.24,.48,x*.96,3.52,1.4);
-    const raise=x<0?.22:0;
-    tube([x,6.45,-1],[x*1.05,6.45+raise,-2],.25,.16);tube([x*1.05,6.45+raise,-2],[x*.96,5.55+raise,-1.72],.16,.10);
-    b.box('bronze',.31,.26,.38,x*.96,5.49+raise,-1.77);
-  }
-  tube([0,6.5,1.6],[.05,5.45,2.12],.24,.22);tube([.05,5.45,2.12],[.48,4.08,1.87],.22,.07);
-  b.box('shadow',1.32,.32,1.4,0,7.12,.15);
-  sph([0,8.03,.13],[.51,.88,.36]);sph([0,9.17,.08],[.34,.46,.32]);
-  b.sphere('bronze',[0,9.42,.08],[.4,.29,.38],detail?16:12,detail?8:6,true);
-  tube([0,9.37,.08],[0,9.44,.08],.405,.405);
-  tube([0,9.68,.08],[0,10.22,.08],.11,.10);
-  if(detail){
-    b.sphere('bronze',[0,9.1,-.245],[.1,.14,.15],10,6);
-    tube([0,8.99,-.19],[0,8.77,-.3],.17,.055);
-    for(const x of [-.125,.125])b.sphere('shadow',[x,9.25,-.215],[.038,.026,.02],8,5);
-    for(const x of [-.34,.34])b.sphere('bronze',[x,9.17,.06],[.07,.15,.08],10,6);
-  }
-  for(const x of [-1,1]){
-    tube([x*.13,10.07,.08],[x*.35,10.45,-.08],.07,.045);tube([x*.35,10.45,-.08],[x*.27,10.7,-.18],.045,.012);
-    tube([x*.42,7.55,.14],[x*.81,6.65,-.28],.25,.2);tube([x*.81,6.65,-.28],[x*.77,5.55,-.72],.2,.13);
-    b.box('bronze',.38,.28,.7,x*.77,5.49,-.89);
-    tube([x*.43,8.53,.08],[x*.7,8.05,-.35],.2,.16);tube([x*.7,8.05,-.35],[x*.33,8.03,-.96],.16,.10);
-  }
-  b.frustum('bronze',1.75,.25,6.72,2.05,.85,.3,0,.74);
-  if(detail){
-    for(const x of [-.43,.43]){
-      b.tube('shadow',[x,8.07,-2.4],[x*.7,8.03,-.96],.035,.035,6);
-      b.tube('gold',[x,7.92,-2.6],[x,8.5,-1.88],.035,.035,6);
-    }
-    tube([-.72,7.15,.23],[-.83,8.67,.46],.06,.055);
-    for(let n=0;n<9;n++)b.tube('shadow',[0,7.1+n*.13,-1.1-n*.07],[.02,6.86+n*.13,-.9-n*.07],.09,.03,6);
   }
 }
 const BUILDERS={clock,mosque,pyramid,museum,eyes,skanderbeg};

@@ -1,4 +1,5 @@
 import { WORLD } from './world.mjs';
+import {FUEL_CANOPY_IDS,fuelCanopyObstacles} from '../../tirana-street-life/fuelCollision.mjs';
 import {
   equipStarter,
   initCityLife,
@@ -325,7 +326,8 @@ const waterSegments = WORLD.water.flatMap((w) =>
     ? []
     : w.line.slice(1).map((b, i) => ({ a: w.line[i], b, width: w.width }))
 );
-const cameraBuildings = WORLD.buildings.map((b) => ({
+const collisionBuildings = [...WORLD.buildings.filter(b=>!FUEL_CANOPY_IDS.has(b.id)),...fuelCanopyObstacles().filter(b=>b.minY===0)];
+const cameraBuildings = collisionBuildings.map((b) => ({
   ...b,
   minX: Math.min(...b.p.map((p) => p[0])),
   maxX: Math.max(...b.p.map((p) => p[0])),
@@ -393,7 +395,7 @@ export function cameraDistance(x, z, y, yaw, wanted, pitch) {
   }
   return Math.max(1.15, wanted * fraction - 0.5);
 }
-for (const b of WORLD.buildings) {
+for (const b of collisionBuildings) {
   const xs = b.p.map((p) => p[0]),
     zs = b.p.map((p) => p[1]);
   for (
