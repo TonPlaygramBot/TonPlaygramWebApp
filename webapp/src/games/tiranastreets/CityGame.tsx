@@ -266,7 +266,13 @@ export default function CityGame({
         ? FREE_ROAM
         : MISSIONS.find((m) => m.id === missionId) || MISSIONS[0],
     player = view?.players[identity.current],
-    driving = !!player?.carId;
+    driving = !!player?.carId,
+    flying = !!player?.aircraftId,
+    helicopterNearby = !!(
+      player &&
+      view?.helicopter &&
+      Math.hypot(player.x - view.helicopter.stairX, player.z - view.helicopter.stairZ) < 12
+    );
   const setScreen = (v: string) => {
     screenRef.current = v;
     setScreenState(v);
@@ -1156,11 +1162,11 @@ export default function CityGame({
               <div className="ts-combat-controls">
                 <button
                   className="ts-fire"
-                  aria-label="Hold to fire toward the camera aim"
+                  aria-label={flying ? "Hold to launch helicopter missiles" : "Hold to fire toward the camera aim"}
                   disabled={!player.weapon || player.health <= 0}
                   {...hold("fire", true)}
                 >
-                  FIRE
+                  {flying ? "MISSILE" : "FIRE"}
                 </button>
                 <button
                   onClick={() => actionRef.current("reload")}
@@ -1263,11 +1269,31 @@ export default function CityGame({
                     driving ? "Stop and exit car" : "Enter nearby car"
                   }
                   onClick={() => actionRef.current("vehicle")}
+                  disabled={flying}
                 >
                   <CarFront size={23} />
                   <small>{driving ? "EXIT" : "ENTER"}</small>
                 </button>
-                {driving ? (
+                {(flying || helicopterNearby) && (
+                  <button
+                    className="ts-vehicle ts-helicopter"
+                    aria-label={flying ? "Land and exit helicopter" : "Climb emergency stairs and take helicopter"}
+                    onClick={() => actionRef.current("helicopter")}
+                  >
+                    <ArrowUpRight size={23} />
+                    <small>{flying ? "LAND / EXIT" : "CLIMB / FLY"}</small>
+                  </button>
+                )}
+                {flying ? (
+                  <>
+                    <button className="ts-gas" aria-label="Hold to lift helicopter higher" {...hold("fast", true)}>
+                      <ArrowUpRight size={25} /><small>LIFT</small>
+                    </button>
+                    <button className="ts-brake" aria-label="Hold to lower helicopter" {...hold("brake", true)}>
+                      <span>↓</span><small>LOWER</small>
+                    </button>
+                  </>
+                ) : driving ? (
                   <>
                     <button
                       className="ts-gas"

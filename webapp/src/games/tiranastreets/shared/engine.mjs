@@ -5,6 +5,7 @@ import {
   lifeAction,
   updateCityLife,
 } from "./cityLife.mjs";
+import { airAction, initAirMobility, updateAirMobility } from "./airMobility.mjs";
 import { difficultyOf } from "./weapons.mjs";
 
 export { WORLD };
@@ -574,6 +575,7 @@ export function createState(
     };
   }
   initCityLife(state, lifeEnvironment, mission);
+  initAirMobility(state, WORLD);
   return state;
 }
 export function addPlayer(
@@ -636,7 +638,7 @@ export function control(state, id, raw) {
 export function interact(state, id, action) {
   const p = state.players[id];
   if (!p || p.health <= 0 || p.finished || p.failed) return;
-  if (lifeAction(state, p, action)) return;
+  if (airAction(state, p, action) || lifeAction(state, p, action)) return;
   if (state.elapsed - p.lastAction < 0.3) return;
   p.lastAction = state.elapsed;
   if (action === "recover") {
@@ -682,6 +684,7 @@ export function movePlayer(state, p, dt) {
       ? { ...emptyInput(), brake: true }
       : p.input;
   if (p.finished || p.failed || p.health <= 0) return;
+  if (p.aircraftId) return;
   if (p.carId) {
     const c = state.cars.find((c) => c.id === p.carId);
     if (!c) {
@@ -760,6 +763,7 @@ export function stepState(state, dt = STEP) {
     state.missionId === FREE_ROAM.id
       ? FREE_ROAM
       : MISSIONS.find((m) => m.id === state.missionId);
+  updateAirMobility(state, dt);
   for (const p of Object.values(state.players)) movePlayer(state, p, dt);
   for (const t of state.traffic) {
     const ahead = Object.values(state.players).some(

@@ -29,6 +29,7 @@ export type Player = Point &
     heading: number;
     speed: number;
     carId: string | null;
+    aircraftId?: string | null;
     index: number;
     finished: boolean;
     failed: boolean;
@@ -86,6 +87,7 @@ export type Effect = Point & {
   weapon: string;
 };
 export type State = {
+  helicopter?: Point & { id:string; y:number; roofY:number; stairX:number; stairZ:number; heading:number; speed:number; pilot:string|null; airborne:boolean; nextMissile:number };
   lifeVersion:number;
   difficulty: string;
   shop: Point & { name: string };

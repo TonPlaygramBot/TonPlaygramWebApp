@@ -79,6 +79,46 @@ export function initCityLife(state, env, mission) {
     env.collide(n, 0.4);
     state.npcs.push(n);
   }
+  // Distinct, deterministic neighborhood routines keep the city readable online.
+  const parks = env.world.parks.filter((p) => p.length >= 3);
+  for (let i = 0; i < Math.min(8, parks.length * 2); i++) {
+    const park = parks[i % parks.length];
+    const a = park[(i * 2) % park.length], b = park[(i * 2 + 1) % park.length];
+    state.npcs.push({
+      id: `park-child-${i}`,
+      kind: "civilian",
+      role: "child",
+      motion: "play",
+      x: a[0], z: a[1], heading: 0, speed: 0, health: 100, weapon: null,
+      path: [{ x: a[0], z: a[1] }, { x: b[0], z: b[1] }],
+      pathIndex: 1, panicUntil: 0, downUntil: 0,
+    });
+  }
+  for (let i = 0; i < 6 && paths.length; i++) {
+    const r = paths[(i * 7 + 3) % paths.length];
+    state.npcs.push({
+      id: `dog-walker-${i}`,
+      kind: "civilian",
+      role: "dog-walker",
+      motion: "walk",
+      x: r.a[0], z: r.a[1], heading: 0, speed: 0, health: 100, weapon: null,
+      path: [{ x: r.a[0], z: r.a[1] }, { x: r.b[0], z: r.b[1] }],
+      pathIndex: 1, panicUntil: 0, downUntil: 0,
+    });
+  }
+  // Ambulance, fire brigade and patrol vehicles share the road graph and can be
+  // promoted to incident responders without a second traffic simulation.
+  for (const [i, service] of ["ambulance", "fire-brigade", "police-patrol"].entries()) {
+    const node = env.nearestNode(env.spawn.x + 35 + i * 14, env.spawn.z - 30);
+    const p = env.world.graph.nodes[node];
+    const next = env.world.graph.edges.find((e) => e[0] === node)?.[1] ?? node;
+    state.traffic.push({
+      id: `service-${service}`,
+      x: p[0], z: p[1], heading: 0, speed: 0, vx: 0, vz: 0, steering: 0,
+      driver: null, model: service === "police-patrol" ? "police" : service === "ambulance" ? "taxi" : "sedan",
+      service, responding: false, node, next, seed: 700 + i * 41, cruise: 7 + i,
+    });
+  }
   if (mission.type === "combat") {
     const target = mission.stops[0];
     for (let i = 0; i < mission.enemies; i++) {
@@ -378,6 +418,14 @@ export function updateCityLife(state, dt, env, mission) {
   state.effects = state.effects.filter((e) => state.elapsed - e.at < 0.7);
   const players = Object.values(state.players),
     cfg = difficultyOf(state.difficulty);
+  const activeEmergency = players.some((p) => p.wanted > 0 || state.elapsed - p.lastDamage < 8);
+  for (const vehicle of state.traffic || []) {
+    if (!vehicle.service) continue;
+    vehicle.responding = activeEmergency;
+    vehicle.cruise = activeEmergency
+      ? vehicle.service === "police-patrol" ? 15 : 12
+      : vehicle.service === "police-patrol" ? 8 : 7;
+  }
   for (const p of players) {
     if (p.health <= 0) {
       if (state.missionId === "free-roam" && state.elapsed >= p.respawnAt) {
@@ -404,7 +452,7 @@ export function updateCityLife(state, dt, env, mission) {
       }
       p.reloadAt = 0;
     }
-    if (state.elapsed - p.inputAt < 0.45 && p.input.fire) fire(state, p, env);
+    if (!p.aircraftId && state.elapsed - p.inputAt < 0.45 && p.input.fire) fire(state, p, env);
     if (state.elapsed - p.lastDamage > 18 && p.health < 100)
       p.health = Math.min(100, p.health + dt * 1.5);
     const visible = state.npcs.some(
@@ -497,14 +545,14 @@ export function updateCityLife(state, dt, env, mission) {
           env.along(
             n,
             n.path[n.pathIndex],
-            n.motion === "cycle" ? 4.5 : 1.3,
+            n.motion === "cycle" ? 4.5 : n.role === "child" ? 2.1 : 1.3,
             dt,
           )
         )
           n.pathIndex = 1 - n.pathIndex;
         env.collide(n, 0.4);
       }
-      n.anim = panic ? "run" : n.motion === "cycle" ? "ride" : "walk";
+      n.anim = panic ? "run" : n.motion === "cycle" ? "ride" : n.role === "child" ? "run" : "walk";
       const car = state.cars.find(
         (c) => c.driver && Math.abs(c.speed) > 6 && dist(c, n) < 1.6,
       );

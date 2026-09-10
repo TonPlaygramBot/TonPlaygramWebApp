@@ -70,7 +70,7 @@ test('connected action replay does not repeat purchases',()=>{
  applyRoom(r,member,'input',action,130);assert.equal(r.state.players.p.cash,cash);
 });
 test('city contains server-owned walkers, riders, traffic and dealer; public snapshots omit NPC paths',()=>{
- const s=createState([{id:'p',name:'P'}],'free-roam');assert.equal(s.npcs.length,29);assert.equal(s.traffic.length,20);assert.ok(s.npcs.some(n=>n.motion==='cycle'));
+ const s=createState([{id:'p',name:'P'}],'free-roam');assert.ok(s.npcs.length>=43);assert.equal(s.traffic.length,23);assert.ok(s.npcs.some(n=>n.motion==='cycle'));
  const before=s.npcs[1].x+','+s.npcs[1].z;advanceState(s,.5);assert.notEqual(s.npcs[1].x+','+s.npcs[1].z,before);
  const pub=publicState(s);assert.ok(!('path' in pub.npcs[1]));assert.ok(!('input' in pub.players.p));
 });
@@ -97,6 +97,6 @@ test('actual building walls block city fire rays in both directions',()=>{
 test('older persisted preview rooms gain city systems without losing progress',()=>{
  const s=createState([{id:'p',name:'P'}],'first-shift');s.players.p.index=1;s.elapsed=24;
  delete s.lifeVersion;delete s.npcs;delete s.units;delete s.effects;delete s.players.p.inventory;
- upgradeState(s);assert.equal(s.players.p.index,1);assert.equal(s.elapsed,24);assert.equal(s.lifeVersion,2);assert.equal(s.npcs.length,29);assert.ok(s.players.p.inventory);
+ upgradeState(s);assert.equal(s.players.p.index,1);assert.equal(s.elapsed,24);assert.equal(s.lifeVersion,2);assert.ok(s.npcs.length>=43);assert.ok(s.players.p.inventory);
  s.players.p.cash=123;upgradeState(s);assert.equal(s.players.p.cash,123);
 });
