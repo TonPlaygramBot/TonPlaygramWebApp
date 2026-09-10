@@ -10,6 +10,7 @@ import {
 } from '../tirana-street-detail/StreetDetailLayer';
 import { STREET_DETAILS } from '../tirana-street-detail/sharedRoadDetails.mjs';
 import { ParkAttractions } from '../tirana-environment/ParkAttractions';
+import { UrbanLifeLayer } from './UrbanLifeLayer';
 export {
   disposeTree,
   originalAsset,
@@ -26,6 +27,7 @@ export class WorldEnhancements extends ExistingEnhancements {
   readonly streets: StreetDetailLayer;
   readonly ground: GroundDetailLayer;
   readonly attractions = new ParkAttractions(WORLD);
+  readonly urbanLife = new UrbanLifeLayer();
   constructor(options: StreetDetailOptions = {}) {
     super();
     this.ground = new GroundDetailLayer(WORLD, options, this.civic.errors);
@@ -39,7 +41,8 @@ export class WorldEnhancements extends ExistingEnhancements {
     this.group.add(
       this.shopfronts.group,
       this.streets.group,
-      this.attractions.group
+      this.attractions.group,
+      this.urbanLife.group
     );
   }
   bindBuildings(root: T.Object3D, excluded: readonly T.Object3D[] = []) {
@@ -64,11 +67,13 @@ export class WorldEnhancements extends ExistingEnhancements {
     this.streets.update(seconds, viewer, battery);
     this.ground.update(viewer, battery);
     this.attractions.update(seconds, viewer, battery);
+    this.urbanLife.update(seconds, viewer, battery);
   }
   override retire() {
     this.ground.retire();
     this.streets.retire();
     this.shopfronts.retire();
+    this.urbanLife.retire();
     super.retire();
   }
   override dispose() {
@@ -76,6 +81,7 @@ export class WorldEnhancements extends ExistingEnhancements {
     this.ground.dispose();
     this.streets.dispose();
     this.shopfronts.dispose();
+    this.urbanLife.dispose();
     super.dispose();
   }
 }

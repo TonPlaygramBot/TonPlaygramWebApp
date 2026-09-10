@@ -132,6 +132,28 @@ export class StreetVisuals {
         face.translateZ(0.044);
         this.group.add(face);
       }
+      // Sparse, deterministic social terraces and roadside advertising add
+      // recognizable activity without blocking lanes or flooding mobile GPUs.
+      if (i % 17 === 0) {
+        const ax = x + (dx / length) * 8,
+          az = z + (dz / length) * 8;
+        if (free(ax, az)) {
+          add('cafe_terrace', ax, az, yaw - Math.PI / 2, 0.92);
+          add('litter_bin', ax + (dx / length) * 2.4, az + (dz / length) * 2.4);
+        }
+      }
+      if (i % 31 === 0) {
+        const bx = x - (dx / length) * 9,
+          bz = z - (dz / length) * 9;
+        if (free(bx, bz)) {
+          add('city_billboard', bx, bz, yaw - Math.PI / 2, 0.88);
+          const advert = this.textFace('TIRANA · JETO QYTETIN', 3.62, 1.58, '#ebd7ad', '#9f242d');
+          advert.position.set(bx, 3.55 + pavementHeight(bx, bz), bz);
+          advert.rotation.y = yaw - Math.PI / 2;
+          advert.translateZ(0.1);
+          this.group.add(advert);
+        }
+      }
     });
     for (const s of SIGNALS) {
       const rx = Math.cos(s.yaw),

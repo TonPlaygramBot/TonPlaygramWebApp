@@ -217,6 +217,31 @@ mesh(g, new T.CylinderGeometry(0.32, 0.28, 0.86, 14), metal, 0, 0.48, 0);
 mesh(g, new T.CylinderGeometry(0.35, 0.35, 0.065, 14), metal, 0, 0.94, 0);
 box(g, dark, 0.32, 0.12, 0.012, 0, 0.8, 0.29);
 bake(g);
+// A complete pavement cafe module: two occupied sides remain open so it reads
+// clearly and does not turn a narrow phone-screen street into a solid wall.
+g = group('cafe_terrace');
+const cafeWood = mat('Cafe oak', 0x8b5c35, 0.76),
+  cafeFabric = mat('Cafe awning fabric', 0xb52f32, 0.88),
+  cafeCream = mat('Cafe awning stripe', 0xf3dfbd, 0.9);
+mesh(g, new T.CylinderGeometry(0.62, 0.62, 0.065, 18), cafeWood, 0, 0.74, 0);
+branch(g, [0, 0.05, 0], [0, 0.72, 0], 0.055, 0.045, metal);
+for (const side of [-1, 1]) {
+  box(g, cafeWood, 0.68, 0.07, 0.62, side * 1.03, 0.46, 0);
+  box(g, metal, 0.055, 0.46, 0.055, side * 1.03, 0.23, 0);
+  box(g, cafeWood, 0.68, 0.72, 0.07, side * 1.03, 0.78, -0.28);
+}
+branch(g, [0, 0.76, 0], [0, 2.65, 0], 0.035, 0.025, metal);
+for (let i = 0; i < 8; i++) {
+  const a = (i / 8) * Math.PI * 2;
+  const panel = mesh(g, new T.ConeGeometry(1.72, 0.48, 3, 1, false, a), i % 2 ? cafeCream : cafeFabric, 0, 2.56, 0);
+  panel.rotation.y = a;
+}
+bake(g);
+g = group('city_billboard');
+for (const x of [-1.75, 1.75]) branch(g, [x, 0, 0], [x, 3.3, 0], 0.07, 0.05, metal);
+box(g, metal, 4.4, 2.15, 0.16, 0, 3.55, 0);
+box(g, cafeCream, 4.12, 1.87, 0.025, 0, 3.55, 0.095, 'advert_face');
+bake(g);
 g = group('bollard');
 mesh(g, new T.CylinderGeometry(0.065, 0.09, 0.86, 10), metal, 0, 0.47, 0);
 mesh(g, new T.CylinderGeometry(0.068, 0.068, 0.09, 10), white, 0, 0.75, 0);
