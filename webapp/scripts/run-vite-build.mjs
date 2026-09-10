@@ -6,8 +6,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const webappRoot = join(__dirname, '..');
 const viteBin = join(webappRoot, 'node_modules', 'vite', 'bin', 'vite.js');
 
-const isRender = Boolean(process.env.RENDER) || process.env.CI === 'true';
-const defaultLimitMb = isRender ? 1536 : 3072;
+// Production builds include every game and its Three.js scene. They now need
+// more than Node's previous 1536 MB Render allowance during Vite's transform
+// phase, so use the same 3 GB ceiling locally and in hosted CI builds.
+const defaultLimitMb = 3072;
 const requested = Number.parseInt(process.env.WEBAPP_BUILD_MAX_OLD_SPACE_SIZE ?? '', 10);
 const memoryLimitMb = Number.isFinite(requested) && requested > 0 ? requested : defaultLimitMb;
 
