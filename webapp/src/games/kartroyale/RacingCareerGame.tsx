@@ -1,10 +1,11 @@
 import {useEffect,useRef,useState} from 'react';
 import {KartRenderer,type Frame,type Result} from './renderer';
-import {CUPS,TRACKS,GRAND_ROUTE_DIAGNOSTICS} from './simulation.mjs';
+import {CUPS,TRACKS,KARTS,normalizeKart,GRAND_ROUTE_DIAGNOSTICS} from './simulation.mjs';
 import {loadCareer,recordRace,formatTime} from './career';
 import {createHeldRaceInput} from './heldRaceInput.mjs';
 import {KART_TASKS,loadKartTasks,saveKartTasks,finishKartTask,kartTaskXP} from './kartTaskCore.mjs';
 import '../tirana-social/explore.css';
+import './kart-royale.css';
 const storage=()=>{try{return window.localStorage;}catch{return undefined;}};
 /** Existing KartRenderer and cups; new tasks are optional device-local goals.
  * A single renderer and input owner are mounted for a career session. */
@@ -12,6 +13,7 @@ export function RacingCareerGame({onExit}:{onExit:()=>void}){
   const host=useRef<HTMLDivElement>(null),engine=useRef<KartRenderer|null>(null);
   const active=useRef<number|null>(null),task=useRef<string|null>(null),finished=useRef(true);
   const held=useRef(createHeldRaceInput());
+  const [kartId,setKartId]=useState(()=>{try{return normalizeKart(storage()?.getItem('racingRoyal.kart')||'apex');}catch{return 'apex';}});
   const [ready,setReady]=useState(false),[error,setError]=useState('');
   const [career,setCareer]=useState(loadCareer),[tasks,setTasks]=useState(()=>loadKartTasks(storage()));
   const [hud,setHud]=useState<Frame|null>(null),[result,setResult]=useState<Result|null>(null);
@@ -39,7 +41,7 @@ export function RacingCareerGame({onExit}:{onExit:()=>void}){
           setSaved(n.saved&&taskSaved);setResult(r);setRacing(false);setPaused(false);pausedRef.current=false;
         },message=>{if(alive)setError(message);});
         engine.current=game;game.setCameraMode('chase');
-        void game.load().then(()=>{if(alive)setReady(true);}).catch(e=>{if(alive)setError(String(e));});
+        void game.load().then(()=>{if(alive){game?.setKart(kartId);setReady(true);}}).catch(e=>{if(alive)setError(String(e));});
       }
     }catch(e){setError(e instanceof Error?e.message:'Renderer unavailable');}
     const blur=()=>{if(!alive)return;held.current.clear();game?.clearInput();game?.pause(true);pausedRef.current=true;setPaused(true);};
@@ -55,6 +57,7 @@ export function RacingCareerGame({onExit}:{onExit:()=>void}){
     window.addEventListener('keydown',down);window.addEventListener('keyup',up);
     return()=>{alive=false;held.current.clear();window.removeEventListener('blur',blur);document.removeEventListener('visibilitychange',visibility);window.removeEventListener('keydown',down);window.removeEventListener('keyup',up);game?.destroy();engine.current=null;};
   },[]);
+  function chooseVehicle(id:string){const next=normalizeKart(id);setKartId(next);engine.current?.setKart(next);try{storage()?.setItem('racingRoyal.kart',next);}catch{/* Session choice still works without storage. */}}
   function start(index:number|null,taskId?:string){
     if(!ready||!engine.current)return;
     const mission=taskId?KART_TASKS.find(t=>t.id===taskId):undefined;
@@ -82,6 +85,7 @@ export function RacingCareerGame({onExit}:{onExit:()=>void}){
       <p>{career.credits} career credits · {career.wins} wins · {kartTaskXP(tasks)} task XP. Saved on this device, not TPG.</p>
       {!saved&&<p role="alert">Device save failed. Progress remains in this session.</p>}
       {result&&<p>Race complete · {formatTime(result.elapsed)}</p>}{notice&&<p role="status">{notice}</p>}
+      <label className="rr-career-vehicle">Vehicle<select aria-label="Career vehicle" value={kartId} disabled={!ready} onChange={e=>chooseVehicle(e.target.value)}>{KARTS.map(k=><option value={k.id} key={k.id}>{k.name}</option>)}</select></label>
       <h2>Championship cups</h2>
       {CUPS.map((cup,index)=><button className="rr-career-card" key={`${cup.track}:${index}`} disabled={!ready||index>0&&!career.cups[index-1]} onClick={()=>start(index)}>
         <b>{index+1}. {cup.name}</b><br/><small>{career.cups[index]?'Completed · replay':`Finish in the top ${cup.target}`} · {cup.reward} first-completion credits</small></button>)}

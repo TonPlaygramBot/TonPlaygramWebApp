@@ -1,5 +1,8 @@
 import * as T from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { isMilitaryVehicle } from './militaryVehicleCatalog.mjs';
+import { vehicleAssetUrl } from './vehicleAssetConfig.mjs';
+import { prepareVehicleAsset } from './vehicleAssetAdapter';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import {
   STEP,
@@ -74,6 +77,8 @@ interface KartRig {
   wheels: T.Object3D[];
   front: T.Object3D[];
   spin: number;
+  wheelRadius: number;
+  driverEye?: T.Vector3;
   smoke: T.Mesh;
   chassisScale: T.Vector3;
   bodyPosition: T.Vector3;
@@ -96,6 +101,7 @@ export class KartRenderer {
   private full: T.Group | null = null;
   private low: T.Group | null = null;
   private kartModels = new Map<string, T.Group>();
+  private kartLowModels = new Map<string, T.Group>();
   private kartId = 'apex';
   private flagTexture: T.Texture | null = null;
   private scenery: TiranaScenery | null = null;
@@ -257,11 +263,12 @@ export class KartRenderer {
       textures.loadAsync('/assets/kart-royale/asphalt-diff.jpg'),
       textures.loadAsync('/assets/kart-royale/asphalt-nor_gl.jpg'),
       textures.loadAsync('/assets/kart-royale/asphalt-rough.jpg'),
-      ...KARTS.slice(1).map((k) =>
-        loader.loadAsync(`/assets/kart-royale/kenney-${k.id}.glb`)
-      ),
+      ...KARTS.slice(1).map((k) => loader.loadAsync(vehicleAssetUrl(k.id))),
       loader.loadAsync('/assets/table-tennis/athlete-male.glb'),
-      loader.loadAsync('/assets/table-tennis/athlete-female.glb')
+      loader.loadAsync('/assets/table-tennis/athlete-female.glb'),
+      ...KARTS.filter((k) => isMilitaryVehicle(k.id)).map((k) =>
+        loader.loadAsync(vehicleAssetUrl(k.id, true))
+      )
     ]);
     const failed = results.find((r) => r.status === 'rejected');
     if (this.disposed || failed) {
@@ -301,24 +308,35 @@ export class KartRenderer {
           import('three/examples/jsm/loaders/GLTFLoader.js').GLTF
         >
       ).value.scene;
-      // Keep creator geometry and texture; normalize to the shared physical kart size.
-      const bounds = new T.Box3().setFromObject(scene),
-        size = bounds.getSize(new T.Vector3());
-      scene.scale.setScalar(2.7 / size.z);
-      scene.updateMatrixWorld(true);
-      const floor = new T.Box3().setFromObject(scene);
-      scene.position.y = -floor.min.y;
+      // One adapter owns fitting, seat mounts and wheel radii for imported cars.
+      prepareVehicleAsset(scene, k.id);
       this.kartModels.set(k.id, scene);
       this.collectTextures(scene);
     });
-    this.humanTemplates = results.slice(5 + KARTS.length).map((result, i) => {
-      const source = (
-        result as PromiseFulfilledResult<
+    this.humanTemplates = results
+      .slice(5 + KARTS.length, 7 + KARTS.length)
+      .map((result, i) => {
+        const source = (
+          result as PromiseFulfilledResult<
+            import('three/examples/jsm/loaders/GLTFLoader.js').GLTF
+          >
+        ).value.scene;
+        this.collectTextures(source);
+        return prepareHuman(source, i === 1);
+      });
+    KARTS.filter((k) => isMilitaryVehicle(k.id)).forEach((k, i) => {
+      const scene = (
+        results[7 + KARTS.length + i] as PromiseFulfilledResult<
           import('three/examples/jsm/loaders/GLTFLoader.js').GLTF
         >
       ).value.scene;
-      this.collectTextures(source);
-      return prepareHuman(source, i === 1);
+      prepareVehicleAsset(
+        scene,
+        k.id,
+        this.kartModels.get(k.id)!.userData.vehicleFit
+      );
+      this.kartLowModels.set(k.id, scene);
+      this.collectTextures(scene);
     });
     this.roadMaps = results
       .slice(3, 6)
@@ -342,7 +360,8 @@ export class KartRenderer {
         ? low
           ? this.low
           : this.full
-        : this.kartModels.get(kartId);
+        : (low ? this.kartLowModels.get(kartId) : undefined) ||
+          this.kartModels.get(kartId);
     const model = new T.Group();
     if (source) model.add(source.clone(true));
     model.userData.kartId = kartId;
@@ -361,6 +380,12 @@ export class KartRenderer {
       wheels: [],
       front: [],
       spin: 0,
+      wheelRadius: source?.userData.wheelRadius || 0.28,
+      driverEye: source?.userData.driverEye
+        ? new T.Vector3(
+            ...(source.userData.driverEye as [number, number, number])
+          )
+        : undefined,
       chassisScale: new T.Vector3(1, 1, 1),
       bodyPosition: new T.Vector3(),
       bodyRotation: new T.Euler(),
@@ -394,7 +419,7 @@ export class KartRenderer {
         rig.wheels.push(o);
       if (/^steer_f[lr]$/.test(o.name)) rig.front.push(o);
     });
-    if (kartId !== 'apex') {
+    if (kartId !== 'apex' && !isMilitaryVehicle(kartId)) {
       for (const wheel of rig.wheels.filter((w) => w.name.includes('front'))) {
         const pivot = new T.Group();
         pivot.position.copy(wheel.position);
@@ -403,7 +428,7 @@ export class KartRenderer {
         wheel.position.set(0, 0, 0);
         rig.front.push(pivot);
       }
-      // Distinct CC0 chassis adaptations; every choice keeps identical physics.
+      // Keep the original CC0 kart adaptations off the authored vehicle bodies.
       const index = KARTS.findIndex((k) => k.id === kartId),
         paint = new T.MeshStandardMaterial({
           name: 'paint',
@@ -555,7 +580,11 @@ export class KartRenderer {
         const p = track.points[i],
           q = track.points[(i + 1) % 360],
           edge = segmentFrame(p, q, track.width / 2);
-        return { p, edge, tireCount: Math.max(1, Math.ceil(edge.length / 0.76)) };
+        return {
+          p,
+          edge,
+          tireCount: Math.max(1, Math.ceil(edge.length / 0.76))
+        };
       }),
       tireBaseCount = edges.reduce((sum, edge) => sum + edge.tireCount * 2, 0),
       tireCapacity = tireBaseCount + Math.ceil(tireBaseCount / 3),
@@ -585,12 +614,8 @@ export class KartRenderer {
     for (let i = 0; i < 360; i++) {
       const { p, edge, tireCount } = edges[i];
       [-1, 1].forEach((side, s) => {
-        const curbPoint=edge.side(side,-0.1);
-        m.position.set(
-          curbPoint.x,
-          0.1,
-          curbPoint.z
-        );
+        const curbPoint = edge.side(side, -0.1);
+        m.position.set(curbPoint.x, 0.1, curbPoint.z);
         m.rotation.set(0, edge.yaw, 0);
         m.scale.set(1, 1, edge.length + 0.4);
         m.updateMatrix();
@@ -765,7 +790,7 @@ export class KartRenderer {
     const smooth = 1 - Math.exp(-dt * 10);
     const steer = Number.isFinite(r.steering) ? r.steering : 0;
     const yawRate = r.yawRate || 0;
-    rig.spin = (rig.spin + (r.speed / 0.28) * dt) % (Math.PI * 2);
+    rig.spin = (rig.spin + (r.speed / rig.wheelRadius) * dt) % (Math.PI * 2);
     for (const wheel of rig.wheels) wheel.rotation.x = rig.spin;
     for (const front of rig.front)
       front.rotation.y += (-steer * 0.42 - front.rotation.y) * smooth;
@@ -940,16 +965,29 @@ export class KartRenderer {
     const r = this.racers.find((r) => r.id === this.me);
     if (!r) return;
     const driver = this.cameraMode === 'driver';
-    this.camera.position.set(
-      r.x - Math.sin(r.yaw) * (driver ? 0.1 : 10),
-      driver ? 1.16 : 6,
-      r.z - Math.cos(r.yaw) * (driver ? 0.1 : 10)
-    );
-    this.lookTarget.set(
-      r.x + Math.sin(r.yaw) * 24,
-      driver ? 1.0 : 1.25,
-      r.z + Math.cos(r.yaw) * 24
-    );
+    const visual = this.visuals.get(r.id),
+      eye = visual && this.rigs.get(visual)?.driverEye;
+    if (driver && eye && visual) {
+      visual.updateMatrixWorld(true);
+      this.camera.position.copy(eye).applyMatrix4(visual.matrixWorld);
+      this.lookTarget.set(
+        this.camera.position.x + Math.sin(r.yaw) * 24,
+        this.camera.position.y - 0.08,
+        this.camera.position.z + Math.cos(r.yaw) * 24
+      );
+    } else {
+      this.camera.position.set(
+        r.x - Math.sin(r.yaw) * (driver ? 0.1 : 10),
+        driver ? 1.16 : 6,
+        r.z - Math.cos(r.yaw) * (driver ? 0.1 : 10)
+      );
+      this.lookTarget.set(
+        r.x + Math.sin(r.yaw) * 24,
+        driver ? 1 : 1.25,
+        r.z + Math.cos(r.yaw) * 24
+      );
+    }
+    this.camera.near = driver && eye ? 0.04 : 0.15;
     this.camera.lookAt(this.lookTarget);
     this.camera.fov = this.raceFov(r.speed);
     this.camera.updateProjectionMatrix();
@@ -1112,20 +1150,36 @@ export class KartRenderer {
             ? 0
             : Math.sin(this.motionTime * 27) *
               Math.min(0.004, me.speed * 0.0002);
-          // Fixed head mount prevents camera lag from leaving the seat in turns.
-          this.camera.position.set(
-            v.position.x - Math.sin(steerYaw) * 0.1,
-            1.16 + bob + spring * 0.028,
-            v.position.z - Math.cos(steerYaw) * 0.1
-          );
-          this.lookTarget.set(
-            v.position.x + Math.sin(steerYaw) * 24,
-            1.0 + spring * (rig?.kickPitch || 0) * 3,
-            v.position.z + Math.cos(steerYaw) * 24
-          );
+          // Model-specific head mounts stay inside the left seat through turns.
+          if (rig?.driverEye) {
+            v.updateMatrixWorld(true);
+            this.camera.position
+              .copy(rig.driverEye)
+              .applyMatrix4(v.matrixWorld);
+            this.camera.position.y += bob + spring * 0.02;
+            this.lookTarget.set(
+              this.camera.position.x + Math.sin(steerYaw) * 24,
+              this.camera.position.y - 0.08,
+              this.camera.position.z + Math.cos(steerYaw) * 24
+            );
+            this.camera.near = 0.04;
+          } else {
+            this.camera.position.set(
+              v.position.x - Math.sin(steerYaw) * 0.1,
+              1.16 + bob + spring * 0.028,
+              v.position.z - Math.cos(steerYaw) * 0.1
+            );
+            this.lookTarget.set(
+              v.position.x + Math.sin(steerYaw) * 24,
+              1 + spring * (rig?.kickPitch || 0) * 3,
+              v.position.z + Math.cos(steerYaw) * 24
+            );
+            this.camera.near = 0.15;
+          }
           this.camera.lookAt(this.lookTarget);
           this.camera.rotateZ(spring * (rig?.kickRoll || 0) * 0.18);
         } else {
+          this.camera.near = 0.15;
           this.cameraTarget.set(
             v.position.x - Math.sin(yaw) * 9.5,
             4.4 + me.speed * 0.016,
@@ -1224,6 +1278,7 @@ export class KartRenderer {
     if (this.full) this.release(this.full, true);
     if (this.low) this.release(this.low, true);
     this.kartModels.forEach((model) => this.release(model, true));
+    this.kartLowModels.forEach((model) => this.release(model, true));
     this.textures.forEach((t) => t.dispose());
     this.textures.clear();
     this.environment.dispose();

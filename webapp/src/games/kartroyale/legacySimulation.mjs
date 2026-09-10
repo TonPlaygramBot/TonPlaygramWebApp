@@ -1,3 +1,4 @@
+import { MILITARY_VEHICLES } from './militaryVehicleCatalog.mjs';
 import { TIRANA_ROUTES } from './tirana-routes.mjs';
 import { resolveWallContact, resolveKartContact, damageRacer } from './collisions.mjs';
 import { resampleCircuit } from './grandRouteCore.mjs';
@@ -19,7 +20,8 @@ export const KARTS = [
   { id: 'oobi', name: 'Eagle', detail: 'Fast sprint chassis', speed: 1.1, handling: .93, brake: .94, shield: 62, ammunition: 3 },
   { id: 'oodi', name: 'Illyrian', detail: 'Agile road racer', speed: .97, handling: 1.12, brake: 1.05, shield: 70, ammunition: 4 },
   { id: 'ooli', name: 'Besa', detail: 'Armoured touring kart', speed: .92, handling: .9, brake: 1.12, shield: 100, ammunition: 2 },
-  { id: 'oopi', name: 'Dajti', detail: 'Aero attack kart', speed: 1.05, handling: 1.03, brake: .98, shield: 72, ammunition: 5 }
+  { id: 'oopi', name: 'Dajti', detail: 'Aero attack kart', speed: 1.05, handling: 1.03, brake: .98, shield: 72, ammunition: 5 },
+  ...MILITARY_VEHICLES
 ];
 export const normalizeKart = (id) =>
   KARTS.some((k) => k.id === id) ? id : 'apex';

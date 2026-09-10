@@ -234,7 +234,7 @@
 .kr-title h1 {
   position: relative;
   font:
-    900 clamp(78px, 8.7vw, 135px)/0.82 'Barlow Condensed',
+    900 clamp(78px, 8.7vw, 135px) / 0.82 'Barlow Condensed',
     Impact,
     'Arial Narrow',
     sans-serif;
@@ -1835,6 +1835,60 @@
   align-items: center;
   gap: 5px;
   margin-top: 7px;
+}
+
+/* Direct vehicle selection replaces the arrows without adding a second row. */
+.kr-vehicle-select {
+  width: min(100%, 240px);
+  min-height: 44px;
+  margin-top: 7px;
+  padding: 7px 10px;
+  background: #152126;
+  color: #eef4ee;
+  border: 1px solid #566464;
+  border-radius: 5px;
+  font: inherit;
+  font-size: 16px;
+}
+.kr-military-info h2 {
+  max-width: 280px;
+  font-size: clamp(21px, 2.4vw, 32px);
+  line-height: 1.12;
+}
+.rr-career-vehicle {
+  display: grid;
+  gap: 7px;
+  margin: 12px 0;
+  font-size: 16px;
+}
+.rr-career-vehicle select {
+  min-height: 44px;
+  padding: 9px;
+  border-radius: 6px;
+  background: #192b28;
+  color: #edf4ec;
+  font: inherit;
+}
+@media (max-width: 600px) {
+  .kr-vehicle-select {
+    width: 205px;
+    max-width: 100%;
+  }
+  .kr-vehicle-info.kr-military-info h2 {
+    font-size: 21px;
+    max-width: 205px;
+  }
+  .kr-vehicle-info .kr-kart-stats {
+    max-width: 205px;
+  }
+}
+@media (max-width: 600px) and (max-height: 740px) {
+  .kr-vehicle-info.kr-military-info h2 {
+    font-size: 18px;
+  }
+  .kr-vehicle-select {
+    margin-top: 3px;
+  }
 }
 .kr-kart-picker > span {
   font-size: 10px;

@@ -23,7 +23,8 @@
     "fetch:murlan-agent47": "node scripts/fetch-murlan-agent47.mjs --asset agent-47",
     "fetch:murlan-characters": "node scripts/fetch-murlan-agent47.mjs --asset all",
     "fetch:pool-royale-showood-table": "node scripts/fetch-pool-royale-showood-table.mjs",
-    "fetch:sketchfab-assets": "node scripts/fetch-sketchfab-assets.mjs"
+    "fetch:sketchfab-assets": "node scripts/fetch-sketchfab-assets.mjs",
+    "generate:military-vehicles": "node scripts/build-military-vehicles.mjs"
   },
   "type": "module",
   "dependencies": {
