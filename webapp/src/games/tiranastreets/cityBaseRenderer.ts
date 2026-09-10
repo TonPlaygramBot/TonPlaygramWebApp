@@ -932,7 +932,7 @@ export class CityRenderer {
           n.motion === "drive" ||
           Math.hypot(n.x - (p?.x || 0), n.z - (p?.z || 0)) >
             (this.quality === "battery" ? 85 : 180) ||
-          rendered++ > (this.quality === "battery" ? 12 : 22)
+          rendered++ > (this.quality === "battery" ? 14 : 32)
         )
           continue;
         const id = `npc-${n.id}`,
