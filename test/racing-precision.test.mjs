@@ -35,3 +35,16 @@ test('the six-circuit catalog remains intact; unvalidated Grand routes stay reje
 test('invalid circuit coordinates remain rejected',()=>{
   for(const raw of [[],[[0,0],[1,0],[NaN,3]],[[0,0],[0,0],[0,0]]])assert.throws(()=>geometry.resampleCircuit(raw));
 });
+test('five kart classes expose distinct race parameters',()=>{
+  assert.equal(sim.KARTS.length,5);
+  assert.equal(new Set(sim.KARTS.map(k=>`${k.speed}/${k.handling}/${k.brake}/${k.shield}/${k.ammunition}`)).size,5);
+});
+test('shield absorbs impacts and missiles consume finite ammunition',()=>{
+  const track=sim.makeTrack('skanderbeg'), shooter=sim.createRacer(track,'a','A',0), target=sim.createRacer(track,'b','B',1);
+  shooter.x=0; shooter.z=0; shooter.yaw=0; shooter.ammunition=2; shooter.input.fire=true;
+  target.x=0; target.z=12; target.shieldActive=true; target.input.shield=true;
+  const health=target.health;
+  sim.stepRace([shooter,target],track,sim.STEP,1);
+  assert.equal(shooter.ammunition,1); assert.equal(shooter.missileHits,1);
+  assert.ok(target.health>health-5); assert.ok(target.shield<target.shieldMax);
+});
