@@ -539,7 +539,7 @@ export class KartRenderer {
     const road = new T.Mesh(
       geo,
       new T.MeshStandardMaterial({
-        color: '#858b8d',
+        color: '#b0b6b9',
         map: this.roadMaps[0],
         normalMap: this.roadMaps[1],
         normalScale: new T.Vector2(0.48, 0.48),
@@ -557,16 +557,10 @@ export class KartRenderer {
         new T.MeshStandardMaterial({ roughness: 0.7 }),
         720
       ),
-      tireGeometry = new T.TorusGeometry(0.43, 0.14, 8, 16),
-      tires = new T.InstancedMesh(
-        tireGeometry,
-        new T.MeshStandardMaterial({ roughness: 0.9, metalness: 0.02 }),
-        960
-      ),
-      tireTreads = new T.InstancedMesh(
-        new T.TorusGeometry(0.4, 0.105, 8, 16),
-        new T.MeshStandardMaterial({ color: '#17191a', roughness: 0.98 }),
-        960
+      walls = new T.InstancedMesh(
+        new T.BoxGeometry(0.45, 0.9, 1),
+        new T.MeshStandardMaterial({ roughness: 0.84 }),
+        720
       ),
       marks = new T.InstancedMesh(
         new T.BoxGeometry(0.12, 0.01, 1.8),
@@ -592,28 +586,16 @@ export class KartRenderer {
           i * 2 + s,
           new T.Color(i % 6 < 3 ? track.accent : '#e7e6d9')
         );
-        const tirePoint = edge.side(side, 0.72),
-          n = i * 2 + s;
-        m.position.set(tirePoint.x, 0.18, tirePoint.z);
-        m.rotation.set(Math.PI / 2, edge.yaw, 0);
-        m.scale.set(1, 1, 1);
-        m.updateMatrix();
-        tires.setMatrixAt(n, m.matrix);
-        tires.setColorAt(
-          n,
-          new T.Color(i % 2 === 0 ? '#c82424' : '#eeeae0')
-        );
-        tireTreads.setMatrixAt(n, m.matrix);
-        if (i % 3 === 0) {
-          const upper = 720 + (i / 3) * 2 + s;
-          m.position.y = 0.49;
+        {
+          const wallPoint=edge.side(side,0.4);
+          m.position.set(wallPoint.x,0.48,wallPoint.z);
           m.updateMatrix();
-          tires.setMatrixAt(upper, m.matrix);
-          tires.setColorAt(
-            upper,
-            new T.Color(i % 2 === 0 ? '#eeeae0' : '#c82424')
+          const n = i * 2 + s;
+          walls.setMatrixAt(n, m.matrix);
+          walls.setColorAt(
+            n,
+            new T.Color(i % 12 < 6 ? '#252c30' : track.accent)
           );
-          tireTreads.setMatrixAt(upper, m.matrix);
         }
       });
       m.scale.set(1, 1, 1);
@@ -624,9 +606,7 @@ export class KartRenderer {
         marks.setMatrixAt(i / 4, m.matrix);
       }
     }
-    tires.count = tireTreads.count = 960;
-    tires.receiveShadow = tireTreads.receiveShadow = true;
-    this.world.add(curb, tires, tireTreads, marks);
+    this.world.add(curb, walls, marks);
     const start = track.points[0],
       checker = new T.InstancedMesh(
         new T.BoxGeometry(track.width / 15, 0.02, 1.2),
