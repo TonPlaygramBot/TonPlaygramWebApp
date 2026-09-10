@@ -26,7 +26,7 @@ export function referenceLinks(p){
 }
 export function buildRegionQuery(){
   const [w,s,e,n]=REGION_BBOX,b=`${s},${w},${n},${e}`;
-  return `[out:json][timeout:180];(way[highway](${b});way[building](${b});way[waterway](${b});way[natural=water](${b});relation[natural=water](${b});relation[landuse=reservoir](${b});relation(20772795););(._;>>;);out body;`;
+  return `[out:json][timeout:180];(way[highway](${b});way[building](${b});way[waterway](${b});way[natural=water](${b});relation[natural=water](${b});relation[landuse=reservoir](${b});way[landuse=reservoir](${b});relation[waterway=riverbank](${b});way[landuse~"^(farmland|meadow|grass|forest|orchard|vineyard|allotments|plant_nursery)$"](${b});relation[landuse~"^(farmland|meadow|grass|forest|orchard|vineyard|allotments|plant_nursery)$"](${b});way[natural~"^(wood|scrub|grassland|heath|wetland|bare_rock|scree|sand)$"](${b});relation[natural~"^(wood|scrub|grassland|heath|wetland|bare_rock|scree|sand)$"](${b});way[leisure~"^(park|garden|pitch|golf_course)$"](${b});relation[leisure~"^(park|garden|pitch|golf_course)$"](${b});relation(20772795););(._;>>;);out body;`;
 }
 /** Bilinear sampling in map metres. Missing/no-data elevations stay missing.
  * sourceDatum / sceneDatum must be explicit; never flatten a failed DEM to zero. */
