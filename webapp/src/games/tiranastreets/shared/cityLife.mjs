@@ -106,6 +106,20 @@ export function initCityLife(state, env, mission) {
       pathIndex: 1, panicUntil: 0, downUntil: 0,
     });
   }
+  // Cafe regulars complement the moving crowd with small, readable social
+  // groups. They use the same shared character roster as every other citizen.
+  for (let i = 0; i < 10 && paths.length; i++) {
+    const r = paths[(i * 13 + 5) % paths.length], t = 0.35 + (i % 3) * 0.12;
+    const x = r.a[0] + (r.b[0] - r.a[0]) * t,
+      z = r.a[1] + (r.b[1] - r.a[1]) * t;
+    state.npcs.push({
+      id: `cafe-regular-${i}`, kind: "civilian", role: "cafe-guest",
+      motion: "idle", x, z, heading: Math.atan2(r.b[0] - r.a[0], r.b[1] - r.a[1]) + (i % 2 ? Math.PI : 0),
+      speed: 0, health: 100, weapon: null,
+      path: [{ x, z }, { x: x + 0.01, z }], pathIndex: 1,
+      panicUntil: 0, downUntil: 0,
+    });
+  }
   // Ambulance, fire brigade and patrol vehicles share the road graph and can be
   // promoted to incident responders without a second traffic simulation.
   for (const [i, service] of ["ambulance", "fire-brigade", "police-patrol"].entries()) {
