@@ -20,12 +20,14 @@ import {
   HelpCircle,
   LockKeyhole,
   Map,
+  MapPin,
   Navigation,
   Pause,
   Play,
   Radio,
   RotateCcw,
   Settings2,
+  SunMedium,
   Users,
   Volume2,
   VolumeX,
@@ -78,6 +80,18 @@ const clock = (seconds: number) =>
   )
     .toString()
     .padStart(2, "0")}`;
+const nearestDistrict = (x = 0, z = 0) =>
+  WORLD.landmarks.reduce(
+    (nearest, landmark) => {
+      const distance = Math.hypot(landmark.x - x, landmark.z - z);
+      return distance < nearest.distance ? { name: landmark.name, distance } : nearest;
+    },
+    { name: "Central Tirana", distance: Number.POSITIVE_INFINITY },
+  ).name;
+const cityClock = (elapsed = 0) => {
+  const minutes = (17 * 60 + 24 + Math.floor(elapsed / 3)) % (24 * 60);
+  return `${Math.floor(minutes / 60).toString().padStart(2, "0")}:${(minutes % 60).toString().padStart(2, "0")}`;
+};
 function CityMap({
   player,
   state,
@@ -272,7 +286,10 @@ export default function CityGame({
       player &&
       view?.helicopter &&
       Math.hypot(player.x - view.helicopter.stairX, player.z - view.helicopter.stairZ) < 12
-    );
+    ),
+    district = nearestDistrict(player?.x, player?.z),
+    streetPopulation = view?.npcs.filter((npc) => npc.health > 0).length || 0,
+    activeTraffic = (view?.traffic.length || 0) + (view?.cars.length || 0);
   const setScreen = (v: string) => {
     screenRef.current = v;
     setScreenState(v);
@@ -709,6 +726,11 @@ export default function CityGame({
             From Skanderbeg Square to Blloku. Find your ride, take a job and
             make a name for yourself.
           </p>
+          <div className="ts-city-pulse" aria-label="Live city simulation">
+            <span><SunMedium size={15} /><b>17:24</b><small>GOLDEN HOUR</small></span>
+            <span><CarFront size={15} /><b>LIVE</b><small>TRAFFIC</small></span>
+            <span><Footprints size={15} /><b>ACTIVE</b><small>CITY LIFE</small></span>
+          </div>
           <div className="ts-modes" role="tablist" aria-label="Game mode">
             {MODES.map(({ id, label, icon: Icon }) => (
               <button
@@ -1117,6 +1139,10 @@ export default function CityGame({
             </span>
           </button>
           <div className="ts-status-stack">
+            <span className="ts-location"><MapPin size={13} /> {district}</span>
+            <span className="ts-city-status">
+              <SunMedium size={13} /> {cityClock(view?.elapsed)} · {activeTraffic} CARS · {streetPopulation} PEOPLE
+            </span>
             {view?.rival && mission.type === "race" && (
               <span>
                 <Flag size={13} /> ARDI {view.rival.index}/

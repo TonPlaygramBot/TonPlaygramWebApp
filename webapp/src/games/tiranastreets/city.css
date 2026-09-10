@@ -131,6 +131,26 @@
   max-width: 345px;
   margin: 14px 0 22px;
 }
+.ts-city-pulse {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+  margin: -8px 0 17px;
+}
+.ts-city-pulse > span {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 19px 1fr;
+  align-items: center;
+  padding: 9px 8px;
+  border: 1px solid #ffffff1c;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #dff58012, #07191e70);
+  backdrop-filter: blur(10px);
+}
+.ts-city-pulse svg { color: var(--lime); grid-row: 1 / 3; }
+.ts-city-pulse b { font: 700 12px 'Barlow Condensed'; letter-spacing: .05em; }
+.ts-city-pulse small { color: #98afa9; font-size: 7px; letter-spacing: .08em; white-space: nowrap; }
 .ts-modes {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -645,6 +665,19 @@
   padding: 7px 9px;
   font-size: 9px;
   letter-spacing: 0.06em;
+}
+.ts-status-stack .ts-location {
+  color: var(--paper);
+  max-width: 175px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ts-status-stack .ts-city-status {
+  color: #d8ebdf;
+  font-size: 8px;
+  background: linear-gradient(90deg, #0b252ce8, #183d42c9);
 }
 .ts-heat {
   color: var(--orange);

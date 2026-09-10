@@ -55,7 +55,8 @@ export function initCityLife(state, env, mission) {
         dist({ x: a.a[0], z: a.a[1] }, env.spawn) -
         dist({ x: b.a[0], z: b.a[1] }, env.spawn),
     );
-  for (let i = 0; i < 28 && paths.length; i++) {
+  // Populate the full city; the renderer selects only nearby pedestrians.
+  for (let i = 0; i < 44 && paths.length; i++) {
     const r = paths[i < 16 ? i * 2 : (i * 59) % paths.length];
     const t = (i * 0.173) % 1;
     const n = {

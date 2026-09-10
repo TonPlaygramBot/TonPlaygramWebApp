@@ -544,7 +544,8 @@ export function createState(
     state.cars.push(car);
   }
   // Traffic is deterministic, follows connected OSM streets and never teleports.
-  for (let i = 0; i < 20; i++) {
+  // Distance culling keeps the broader road population affordable on phones.
+  for (let i = 0; i < 28; i++) {
     const n = (spawnNode + 137 * (i + 1)) % nodes.length,
       p = point(n),
       to = links[n][0]?.[0] ?? n;
