@@ -51,7 +51,7 @@ export class Supporters {
   });
   private heldGeometry = new T.SphereGeometry(0.11, 12, 8);
   constructor(track: Track, flagTexture: T.Texture, templates: T.Group[]) {
-    const stride = Math.max(2, Math.round(11 / (track.length / 360)));
+    const stride = Math.max(2, Math.round(8 / (track.length / 360)));
     for (let i = 10; i < 345; i += stride)
       for (const side of [-1, 1]) {
         const p = track.points[i],
@@ -86,7 +86,7 @@ export class Supporters {
         if (o instanceof T.SkinnedMesh) o.skeleton.dispose();
       });
       this.actors.push(
-        Array.from({ length: 7 }, () => {
+        Array.from({ length: 10 }, () => {
           const human = cloneHuman(template);
           const held = new T.Mesh(this.heldGeometry, this.egg);
           held.visible = false;
@@ -157,7 +157,7 @@ export class Supporters {
             Math.hypot(a.x - me.x, a.z - me.z) -
             Math.hypot(b.x - me.x, b.z - me.z)
         )
-        .slice(0, performance ? 3 : 7);
+        .slice(0, performance ? 4 : 10);
       // Keep a winding-up thrower assigned until release/recovery completes.
       for (const actor of pool)
         if (

@@ -20,6 +20,7 @@ import { TiranaScenery } from './tiranaScenery';
 import { Supporters } from './supporters';
 import { prepareHuman } from './supporterHuman';
 import { RaceEffects } from './raceEffects';
+import { segmentFrame } from './trackEdges.mjs';
 import type { FoodKind } from './foodFlight.mjs';
 export type CameraMode = 'driver' | 'chase';
 export type Quality = 'auto' | 'high' | 'performance';
@@ -569,16 +570,16 @@ export class KartRenderer {
     for (let i = 0; i < 360; i++) {
       const p = track.points[i],
         q = track.points[(i + 1) % 360],
-        segmentLength = Math.hypot(q.x - p.x, q.z - p.z);
+        edge = segmentFrame(p,q,track.width/2);
       [-1, 1].forEach((side, s) => {
+        const curbPoint=edge.side(side,-0.1);
         m.position.set(
-          (p.x + q.x) / 2 - Math.cos(p.yaw) * (track.width / 2 - 0.1) * side,
+          curbPoint.x,
           0.1,
-          (p.z + q.z) / 2 + Math.sin(p.yaw) * (track.width / 2 - 0.1) * side
+          curbPoint.z
         );
-        m.rotation.set(0, p.yaw, 0);
-        m.updateMatrix();
-        m.scale.set(1, 1, segmentLength + 0.4);
+        m.rotation.set(0, edge.yaw, 0);
+        m.scale.set(1, 1, edge.length + 0.4);
         m.updateMatrix();
         curb.setMatrixAt(i * 2 + s, m.matrix);
         curb.setColorAt(
@@ -586,11 +587,8 @@ export class KartRenderer {
           new T.Color(i % 6 < 3 ? track.accent : '#e7e6d9')
         );
         {
-          m.position.set(
-            (p.x + q.x) / 2 - Math.cos(p.yaw) * (track.width / 2 + 0.4) * side,
-            0.48,
-            (p.z + q.z) / 2 + Math.sin(p.yaw) * (track.width / 2 + 0.4) * side
-          );
+          const wallPoint=edge.side(side,0.4);
+          m.position.set(wallPoint.x,0.48,wallPoint.z);
           m.updateMatrix();
           const n = i * 2 + s;
           walls.setMatrixAt(n, m.matrix);

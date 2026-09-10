@@ -100,7 +100,9 @@ parks, river and landmark positions, with chunked building shells and batched wi
 The Pyramid, clock tower and mosque reuse the existing authored landmark silhouettes.
 This is geographic street geometry with simplified buildings, not photogrammetry.
 Each circuit follows a closed path of actual street segments; corner smoothing stays
-close to the original centerline. Roads are widened to a ten-meter closed race corridor.
+close to the original centerline. Roads are widened to a sixteen-meter closed race
+corridor. Curbs and barriers use the exact tangent and normal of every sampled
+segment, keeping both sides parallel, symmetrical and at a tested constant distance.
 Barriers and crowds keep other streets outside the playable racing area.
 
 | Circuit | Area | Approx. lap distance |
@@ -127,7 +129,8 @@ Royal (`/assets/table-tennis/athlete-{male,female}.glb`, CC0). They wear red/ivo
 shirts and dark trousers, stand behind the barriers, and wave Albanian flags.
 Nearby supporters use articulated skeletons for windup, release and follow-through;
 distant people are instanced baked poses of the same models. The animated pool is
-bounded to 14 humans (6 in performance mode); distant people and flags are culled.
+bounded to 20 humans (8 in performance mode); denser distant people and flags remain
+instanced and distance-culled.
 The original Table Tennis credits and Quaternius license remain alongside the assets.
 
 **Poly Haven Asphalt 02 (CC0)** supplies the retained PBR road maps. The Albanian

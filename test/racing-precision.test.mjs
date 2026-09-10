@@ -6,6 +6,7 @@ const root=process.env.UPGRADE_ROOT||path.resolve(import.meta.dirname,'..');
 const load=file=>import(pathToFileURL(path.join(root,'webapp/src/games/kartroyale',file)));
 const sim=await load('legacySimulation.mjs');
 const geometry=await load('grandRouteCore.mjs');
+const edges=await load('trackEdges.mjs');
 const {buildRaceCatalog}=await load('raceCatalog.mjs');
 const {TIRANA_ROUTES}=await load('tirana-routes.mjs');
 function rectangle(counts){
@@ -34,6 +35,16 @@ test('the six-circuit catalog remains intact; unvalidated Grand routes stay reje
 });
 test('invalid circuit coordinates remain rejected',()=>{
   for(const raw of [[],[[0,0],[1,0],[NaN,3]],[[0,0],[0,0],[0,0]]])assert.throws(()=>geometry.resampleCircuit(raw));
+});
+for(const route of TIRANA_ROUTES)test(`${route.id}: rendered sides stay exactly parallel and equidistant`,()=>{
+  const track=sim.makeTrack(route.id);
+  for(let i=0;i<track.points.length;i++){
+    const a=track.points[i],b=track.points[(i+1)%track.points.length],f=edges.segmentFrame(a,b,track.width/2),left=f.side(-1),right=f.side(1);
+    assert.ok(Math.abs(Math.hypot(left.x-f.x,left.z-f.z)-track.width/2)<1e-9);
+    assert.ok(Math.abs(Math.hypot(right.x-f.x,right.z-f.z)-track.width/2)<1e-9);
+    assert.ok(Math.abs((right.x-left.x)*f.tx+(right.z-left.z)*f.tz)<1e-9);
+    assert.ok(Math.abs((left.x+right.x)/2-f.x)<1e-9&&Math.abs((left.z+right.z)/2-f.z)<1e-9);
+  }
 });
 test('five kart classes expose distinct race parameters',()=>{
   assert.equal(sim.KARTS.length,5);
