@@ -1,12 +1,17 @@
-import { WORLD } from "./world.mjs";
+import { WORLD } from './world.mjs';
 import {
   equipStarter,
   initCityLife,
   lifeAction,
-  updateCityLife,
-} from "./cityLife.mjs";
-import { airAction, initAirMobility, updateAirMobility } from "./airMobility.mjs";
-import { difficultyOf } from "./weapons.mjs";
+  updateCityLife
+} from './cityLife.mjs';
+import {
+  airAction,
+  initAirMobility,
+  updateAirMobility
+} from './airMobility.mjs';
+import { difficultyOf } from './weapons.mjs';
+import { stopForSignal } from './streetLayout.mjs';
 
 export { WORLD };
 export const STEP = 1 / 60;
@@ -21,19 +26,19 @@ export const emptyInput = () => ({
   fast: false,
   brake: false,
   fire: false,
-  seq: 0,
+  seq: 0
 });
 export const freshCareer = () => ({ completed: [], best: {}, credits: 0 });
 export const FREE_ROAM = {
-  id: "free-roam",
-  title: "The city is yours",
-  district: "TIRANA",
-  type: "free",
+  id: 'free-roam',
+  title: 'The city is yours',
+  district: 'TIRANA',
+  type: 'free',
   description:
-    "Explore central Tirana with no clock. Walk, drive and discover the landmarks.",
+    'Explore central Tirana with no clock. Walk, drive and discover the landmarks.',
   time: 0,
   reward: 0,
-  stops: [],
+  stops: []
 };
 const nodes = WORLD.graph.nodes;
 const links = nodes.map(() => []);
@@ -119,150 +124,150 @@ const stop = (id, dx = 0, dz = 0) => {
 };
 export const MISSIONS = [
   {
-    id: "first-shift",
-    title: "First shift",
-    district: "QENDËR",
-    type: "delivery",
+    id: 'first-shift',
+    title: 'First shift',
+    district: 'QENDËR',
+    type: 'delivery',
     description:
-      "Your first courier job. Collect a parcel, then make two city deliveries.",
+      'Your first courier job. Collect a parcel, then make two city deliveries.',
     time: 210,
     reward: 150,
     stops: [
-      stop("rinia", -85, 0),
-      stop("pyramid", -75, 0),
-      stop("square", -50, 100),
-    ],
+      stop('rinia', -85, 0),
+      stop('pyramid', -75, 0),
+      stop('square', -50, 100)
+    ]
   },
   {
-    id: "lana-run",
-    title: "The Lana run",
-    district: "LANA",
-    type: "race",
+    id: 'lana-run',
+    title: 'The Lana run',
+    district: 'LANA',
+    type: 'race',
     description:
-      "Beat Ardi through the river corridor. Follow the street route to each checkpoint.",
+      'Beat Ardi through the river corridor. Follow the street route to each checkpoint.',
     time: 280,
     reward: 250,
     stops: [
-      stop("pyramid", -80, 50),
-      stop("lana", 0, 0),
-      stop("blloku", 0, 0),
-      stop("rinia", -95, 0),
-      stop("square", -50, 100),
-    ],
+      stop('pyramid', -80, 50),
+      stop('lana', 0, 0),
+      stop('blloku', 0, 0),
+      stop('rinia', -95, 0),
+      stop('square', -50, 100)
+    ]
   },
   {
-    id: "after-hours",
+    id: 'after-hours',
     stars: 2,
-    title: "After hours",
-    district: "BLLOKU",
-    type: "pursuit",
+    title: 'After hours',
+    district: 'BLLOKU',
+    type: 'pursuit',
     description:
-      "Reach the safe points while the fictional patrol gives chase. Keep your car moving.",
+      'Reach the safe points while the fictional patrol gives chase. Keep your car moving.',
     time: 240,
     reward: 300,
     stops: [
-      stop("rinia", -90, 50),
-      stop("blloku", -40, 0),
-      stop("mother", 0, -70),
-      stop("pyramid", -80, 0),
-    ],
+      stop('rinia', -90, 50),
+      stop('blloku', -40, 0),
+      stop('mother', 0, -70),
+      stop('pyramid', -80, 0)
+    ]
   },
   {
-    id: "express",
-    title: "Blloku express",
-    district: "BLLOKU",
-    type: "delivery",
+    id: 'express',
+    title: 'Blloku express',
+    district: 'BLLOKU',
+    type: 'delivery',
     description:
-      "A longer express route. Stop at every marked delivery before the shift ends.",
+      'A longer express route. Stop at every marked delivery before the shift ends.',
     time: 300,
     reward: 350,
     stops: [
-      stop("blloku", -50, 0),
-      stop("mother", 0, -65),
-      stop("pyramid", -75, 0),
-      stop("rinia", -90, 0),
-      stop("square", -50, 100),
-    ],
+      stop('blloku', -50, 0),
+      stop('mother', 0, -65),
+      stop('pyramid', -75, 0),
+      stop('rinia', -90, 0),
+      stop('square', -50, 100)
+    ]
   },
   {
-    id: "capital-circuit",
-    title: "Capital circuit",
-    district: "TIRANA",
-    type: "race",
+    id: 'capital-circuit',
+    title: 'Capital circuit',
+    district: 'TIRANA',
+    type: 'race',
     description:
-      "Race Ardi around central Tirana. A sports car unlocks after three completed chapters.",
+      'Race Ardi around central Tirana. A sports car unlocks after three completed chapters.',
     time: 300,
     reward: 450,
     stops: [
-      stop("rinia", -90, 0),
-      stop("blloku", -50, 0),
-      stop("mother", 0, -70),
-      stop("pyramid", 80, 0),
-      stop("square", -50, 100),
-    ],
+      stop('rinia', -90, 0),
+      stop('blloku', -50, 0),
+      stop('mother', 0, -70),
+      stop('pyramid', 80, 0),
+      stop('square', -50, 100)
+    ]
   },
   {
-    id: "city-lights",
+    id: 'city-lights',
     stars: 4,
-    title: "City lights",
-    district: "TIRANA",
-    type: "pursuit",
+    title: 'City lights',
+    district: 'TIRANA',
+    type: 'pursuit',
     description:
-      "The final run: cross the city, escape the patrol and return to the square.",
+      'The final run: cross the city, escape the patrol and return to the square.',
     time: 300,
     reward: 600,
     stops: [
-      stop("pyramid", -80, 0),
-      stop("mother", 0, -70),
-      stop("blloku", -50, 0),
-      stop("rinia", -90, 0),
-      stop("square", -50, 100),
-    ],
+      stop('pyramid', -80, 0),
+      stop('mother', 0, -70),
+      stop('blloku', -50, 0),
+      stop('rinia', -90, 0),
+      stop('square', -50, 100)
+    ]
   },
   {
-    id: "rinia-rescue",
-    title: "Rinia rescue",
-    district: "QENDËR",
-    type: "combat",
+    id: 'rinia-rescue',
+    title: 'Rinia rescue',
+    district: 'QENDËR',
+    type: 'combat',
     stars: 1,
     enemies: 3,
     time: 240,
     reward: 650,
     description:
-      "Clear the armed crew with your loadout, then reach the marked extraction.",
-    stops: [stop("rinia", -85, 0)],
+      'Clear the armed crew with your loadout, then reach the marked extraction.',
+    stops: [stop('rinia', -85, 0)]
   },
   {
-    id: "boulevard-defense",
-    title: "Boulevard defense",
-    district: "LANA",
-    type: "combat",
+    id: 'boulevard-defense',
+    title: 'Boulevard defense',
+    district: 'LANA',
+    type: 'combat',
     stars: 3,
     enemies: 6,
     time: 300,
     reward: 850,
     description:
-      "A tougher armed crew holds the boulevard. Clear the area and extract before the patrol closes in.",
-    stops: [stop("pyramid", -75, 0)],
+      'A tougher armed crew holds the boulevard. Clear the area and extract before the patrol closes in.',
+    stops: [stop('pyramid', -75, 0)]
   },
   {
-    id: "five-star-escape",
-    title: "Five-star escape",
-    district: "TIRANA",
-    type: "pursuit",
+    id: 'five-star-escape',
+    title: 'Five-star escape',
+    district: 'TIRANA',
+    type: 'pursuit',
     stars: 5,
     time: 330,
     reward: 1100,
     description:
       "Military armor and soldiers join the pursuit. Cross all safe points to complete the city's hardest run.",
     stops: [
-      stop("rinia", -90, 0),
-      stop("blloku", -40, 0),
-      stop("mother", 0, -70),
-      stop("pyramid", -80, 0),
-      stop("square", -50, 100),
-    ],
-  },
+      stop('rinia', -90, 0),
+      stop('blloku', -40, 0),
+      stop('mother', 0, -70),
+      stop('pyramid', -80, 0),
+      stop('square', -50, 100)
+    ]
+  }
 ];
 export const SPAWN = roadPoint(-60, 130);
 const spawnNode = nearestNode(SPAWN.x, SPAWN.z);
@@ -292,7 +297,7 @@ function closest(x, z, a, b) {
   const t = clamp(
     ((x - a[0]) * dx + (z - a[1]) * dz) / (dx * dx + dz * dz || 1),
     0,
-    1,
+    1
   );
   return [a[0] + dx * t, a[1] + dz * t];
 }
@@ -318,14 +323,14 @@ for (const road of WORLD.roads) {
 const waterSegments = WORLD.water.flatMap((w) =>
   Array.isArray(w)
     ? []
-    : w.line.slice(1).map((b, i) => ({ a: w.line[i], b, width: w.width })),
+    : w.line.slice(1).map((b, i) => ({ a: w.line[i], b, width: w.width }))
 );
 const cameraBuildings = WORLD.buildings.map((b) => ({
   ...b,
   minX: Math.min(...b.p.map((p) => p[0])),
   maxX: Math.max(...b.p.map((p) => p[0])),
   minZ: Math.min(...b.p.map((p) => p[1])),
-  maxZ: Math.max(...b.p.map((p) => p[1])),
+  maxZ: Math.max(...b.p.map((p) => p[1]))
 }));
 export function lineOfSight(a, c) {
   const dx = c.x - a.x,
@@ -448,7 +453,7 @@ export function collide(entity, radius) {
     if (d >= limit) continue;
     const nearRoad =
       roadCells.get(
-        `${Math.floor(entity.x / 40)},${Math.floor(entity.z / 40)}`,
+        `${Math.floor(entity.x / 40)},${Math.floor(entity.z / 40)}`
       ) || [];
     const crossing = nearRoad.some((r) => {
       const p = closest(entity.x, entity.z, r.a, r.b);
@@ -469,9 +474,9 @@ export function collide(entity, radius) {
   return hit || x !== entity.x || z !== entity.z;
 }
 export function sanitizeInput(raw = {}) {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) raw = {};
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) raw = {};
   const number = (v, min, max) =>
-    typeof v === "number" && Number.isFinite(v) ? clamp(v, min, max) : 0;
+    typeof v === 'number' && Number.isFinite(v) ? clamp(v, min, max) : 0;
   return {
     x: number(raw.x, -1, 1),
     y: number(raw.y, -1, 1),
@@ -479,10 +484,10 @@ export function sanitizeInput(raw = {}) {
     fast: raw.fast === true,
     brake: raw.brake === true,
     fire: raw.fire === true,
-    seq: Math.max(0, Math.floor(number(raw.seq, 0, Number.MAX_SAFE_INTEGER))),
+    seq: Math.max(0, Math.floor(number(raw.seq, 0, Number.MAX_SAFE_INTEGER)))
   };
 }
-const vehicle = (id, x, z, heading, model = "sedan") => ({
+const vehicle = (id, x, z, heading, model = 'sedan') => ({
   id,
   x,
   z,
@@ -492,25 +497,25 @@ const vehicle = (id, x, z, heading, model = "sedan") => ({
   vx: 0,
   vz: 0,
   steering: 0,
-  driver: null,
+  driver: null
 });
 export function createState(
   members,
-  missionId = "first-shift",
-  mode = "solo",
+  missionId = 'first-shift',
+  mode = 'solo',
   sport = false,
-  difficulty = "normal",
+  difficulty = 'normal'
 ) {
   const mission =
     missionId === FREE_ROAM.id
       ? FREE_ROAM
       : MISSIONS.find((m) => m.id === missionId) || MISSIONS[0];
   const state = {
-    difficulty: ["easy", "normal", "hard"].includes(difficulty)
+    difficulty: ['easy', 'normal', 'hard'].includes(difficulty)
       ? difficulty
-      : "normal",
+      : 'normal',
     elapsed: 0,
-    phase: "active",
+    phase: 'active',
     missionId: mission.id,
     mode,
     players: {},
@@ -518,11 +523,11 @@ export function createState(
     traffic: [],
     rival: null,
     winner: null,
-    message: "Find your ride. Follow the lime route.",
-    teamIndex: 0,
+    message: 'Find your ride. Follow the lime route.',
+    teamIndex: 0
   };
   members.forEach((m, i) => addPlayer(state, m, i, sport));
-  for (const [i, id] of ["rinia", "pyramid", "blloku", "mother"].entries()) {
+  for (const [i, id] of ['rinia', 'pyramid', 'blloku', 'mother'].entries()) {
     const place = landmark(id),
       n = nearestNode(place.x - 70, place.z),
       p = point(n),
@@ -533,7 +538,7 @@ export function createState(
       p.x + Math.cos(heading) * 2.5,
       p.z - Math.sin(heading) * 2.5,
       heading,
-      i % 2 ? "taxi" : "sedan",
+      i % 2 ? 'taxi' : 'sedan'
     );
     collide(car, 1.35);
     state.cars.push(car);
@@ -544,14 +549,14 @@ export function createState(
       p = point(n),
       to = links[n][0]?.[0] ?? n;
     state.traffic.push({
-      ...vehicle(`traffic-${i}`, p.x, p.z, 0, i % 4 === 0 ? "taxi" : "sedan"),
+      ...vehicle(`traffic-${i}`, p.x, p.z, 0, i % 4 === 0 ? 'taxi' : 'sedan'),
       node: n,
       next: to,
       seed: 11 + i * 29,
-      cruise: 5 + (i % 4),
+      cruise: 5 + (i % 4)
     });
   }
-  if (mission.type === "race") {
+  if (mission.type === 'race') {
     let from = nearestNode(SPAWN.x, SPAWN.z),
       path = [];
     for (const s of mission.stops) {
@@ -561,17 +566,17 @@ export function createState(
     }
     state.rival = {
       ...vehicle(
-        "rival",
+        'rival',
         SPAWN.x - Math.cos(initialHeading) * 3.5,
         SPAWN.z + Math.sin(initialHeading) * 3.5,
         initialHeading,
-        "sedan-sports",
+        'sedan-sports'
       ),
       path,
       pathIndex: 0,
       index: 0,
       finished: false,
-      delay: 10,
+      delay: 10
     };
   }
   initCityLife(state, lifeEnvironment, mission);
@@ -582,24 +587,24 @@ export function addPlayer(
   state,
   member,
   slot = Object.keys(state.players).length,
-  sport = false,
+  sport = false
 ) {
   if (state.players[member.id]) return;
   if (Object.keys(state.players).length >= MAX_PLAYERS)
-    throw Error("This city room is full.");
+    throw Error('This city room is full.');
   // Put each parked car along the road; resolve its collision before placing the driver.
   const c = vehicle(
     `car-${member.id}`,
     SPAWN.x - Math.sin(initialHeading) * slot * 6,
     SPAWN.z - Math.cos(initialHeading) * slot * 6,
     initialHeading,
-    sport ? "sedan-sports" : "sedan",
+    sport ? 'sedan-sports' : 'sedan'
   );
   collide(c, 1.4);
   state.cars.push(c);
   const p = {
     id: member.id,
-    name: String(member.name || "Driver").slice(0, 18),
+    name: String(member.name || 'Driver').slice(0, 18),
     x: c.x + Math.cos(initialHeading) * 2.8,
     z: c.z - Math.sin(initialHeading) * 2.8,
     heading: initialHeading,
@@ -612,7 +617,7 @@ export function addPlayer(
     heat: 0,
     input: emptyInput(),
     inputAt: 0,
-    lastAction: 0,
+    lastAction: 0
   };
   collide(p, 0.4);
   equipStarter(p);
@@ -641,7 +646,7 @@ export function interact(state, id, action) {
   if (airAction(state, p, action) || lifeAction(state, p, action)) return;
   if (state.elapsed - p.lastAction < 0.3) return;
   p.lastAction = state.elapsed;
-  if (action === "recover") {
+  if (action === 'recover') {
     const v = p.carId ? state.cars.find((c) => c.id === p.carId) : p;
     const s = roadPoint(v.x, v.z);
     v.x = s.x;
@@ -655,7 +660,7 @@ export function interact(state, id, action) {
     p.heat = Math.min(p.heat + 0.08, 0.9);
     return;
   }
-  if (action !== "vehicle") return;
+  if (action !== 'vehicle') return;
   if (p.carId) {
     const c = state.cars.find((c) => c.id === p.carId);
     if (!c || Math.abs(c.speed) > 2.5) return;
@@ -696,11 +701,11 @@ export function movePlayer(state, p, dt) {
     if (input.brake) accel -= Math.sign(c.speed) * 30;
     c.speed += accel * dt;
     c.speed *= Math.exp(-(input.y === 0 ? 1.25 : 0.12) * dt);
-    c.speed = clamp(c.speed, -7, c.model === "sedan-sports" ? 32 : 24);
+    c.speed = clamp(c.speed, -7, c.model === 'sedan-sports' ? 32 : 24);
     // Positive steering is screen-right when the chase camera faces forward.
     c.heading = angle(
       c.heading -
-        ((c.steering * c.speed) / (2.8 + Math.abs(c.speed) * 0.55)) * dt,
+        ((c.steering * c.speed) / (2.8 + Math.abs(c.speed) * 0.55)) * dt
     );
     const grip = input.brake ? 3 : 10;
     c.vx += (-Math.sin(c.heading) * c.speed - c.vx) * Math.min(1, dt * grip);
@@ -756,7 +761,7 @@ function along(v, target, speed, dt) {
   return d <= speed * dt + 0.1;
 }
 export function stepState(state, dt = STEP) {
-  if (state.phase !== "active") return;
+  if (state.phase !== 'active') return;
   dt = clamp(dt, 0, 0.05);
   state.elapsed += dt;
   const mission =
@@ -766,10 +771,18 @@ export function stepState(state, dt = STEP) {
   updateAirMobility(state, dt);
   for (const p of Object.values(state.players)) movePlayer(state, p, dt);
   for (const t of state.traffic) {
-    const ahead = Object.values(state.players).some(
-      (p) => p.carId && distance(p, t) < 8,
-    );
-    if (along(t, point(t.next), ahead ? 0 : t.cruise, dt)) {
+    const forwardX = -Math.sin(t.heading),
+      forwardZ = -Math.cos(t.heading);
+    const blocked = [...state.cars, ...state.traffic].some((vehicle) => {
+      if (vehicle.id === t.id) return false;
+      const dx = vehicle.x - t.x,
+        dz = vehicle.z - t.z,
+        forward = dx * forwardX + dz * forwardZ,
+        side = Math.abs(dx * forwardZ - dz * forwardX);
+      return forward > 0 && forward < 8 && side < 2.2;
+    });
+    const speed = blocked || stopForSignal(t, state.elapsed) ? 0 : t.cruise;
+    if (along(t, point(t.next), speed, dt)) {
       const old = t.node;
       t.node = t.next;
       t.seed = (t.seed * 1664525 + 1013904223) >>> 0;
@@ -783,14 +796,14 @@ export function stepState(state, dt = STEP) {
   updateCityLife(state, dt, lifeEnvironment, mission);
   const rival = state.rival;
   if (rival && state.elapsed > rival.delay) {
-    if (mission.type === "pursuit") {
+    if (mission.type === 'pursuit') {
       const target = Object.values(state.players)
         .filter((p) => !p.finished && !p.failed)
         .sort((a, b) => distance(a, rival) - distance(b, rival))[0];
       if (target && state.elapsed >= rival.nextRoute) {
         rival.path = route(
           nearestNode(rival.x, rival.z),
-          nearestNode(target.x, target.z),
+          nearestNode(target.x, target.z)
         );
         rival.pathIndex = 0;
         rival.nextRoute = state.elapsed + 3;
@@ -801,14 +814,14 @@ export function stepState(state, dt = STEP) {
       along(
         rival,
         rival.path[rival.pathIndex],
-        mission.type === "race"
+        mission.type === 'race'
           ? 12 * difficultyOf(state.difficulty).rival
           : 10.5,
-        dt,
+        dt
       )
     )
       rival.pathIndex++;
-    if (mission.type === "race") {
+    if (mission.type === 'race') {
       if (
         mission.stops[rival.index] &&
         distance(rival, mission.stops[rival.index]) < 13
@@ -818,18 +831,18 @@ export function stepState(state, dt = STEP) {
     }
   }
   for (const p of Object.values(state.players)) {
-    if (mission.type === "free") continue;
+    if (mission.type === 'free') continue;
     if (p.finished || p.failed) continue;
-    const idx = state.mode === "coop" ? state.teamIndex : p.index,
+    const idx = state.mode === 'coop' ? state.teamIndex : p.index,
       target = mission.stops[idx];
     if (
       target &&
-      !(mission.type === "combat" && state.objectiveRemaining > 0) &&
-      distance(p, target) < (mission.type === "delivery" ? 12 : 17) &&
-      (mission.type !== "delivery" || Math.abs(p.speed) < 2.5)
+      !(mission.type === 'combat' && state.objectiveRemaining > 0) &&
+      distance(p, target) < (mission.type === 'delivery' ? 12 : 17) &&
+      (mission.type !== 'delivery' || Math.abs(p.speed) < 2.5)
     ) {
       p.index++;
-      if (state.mode === "coop") {
+      if (state.mode === 'coop') {
         state.teamIndex++;
         for (const m of Object.values(state.players)) m.index = state.teamIndex;
       }
@@ -839,26 +852,26 @@ export function stepState(state, dt = STEP) {
       p.finishTime = state.elapsed;
       if (!state.winner) state.winner = p.id;
       state.message =
-        state.mode === "coop"
-          ? "Crew job complete."
+        state.mode === 'coop'
+          ? 'Crew job complete.'
           : `${p.name} finished the route.`;
     }
     if (
       !p.finished &&
       (state.elapsed > mission.time * difficultyOf(state.difficulty).time ||
-        (rival?.finished && state.mode !== "rivals"))
+        (rival?.finished && state.mode !== 'rivals'))
     ) {
       p.failed = true;
       state.message = rival?.finished
-        ? "Ardi reached the finish first."
-        : "Shift ended. Give the route another try.";
+        ? 'Ardi reached the finish first.'
+        : 'Shift ended. Give the route another try.';
     }
   }
   if (
     Object.values(state.players).length &&
     Object.values(state.players).every((p) => p.finished || p.failed)
   )
-    state.phase = "finished";
+    state.phase = 'finished';
 }
 export function advanceState(state, seconds) {
   let remaining = clamp(seconds, 0, 2);
@@ -892,11 +905,12 @@ export function navigation(state, id) {
 // D1 can retain a run created by the previous game version. Upgrade that run
 // without deleting the room, changing its owner or resetting chapter progress.
 export function upgradeState(state) {
-  if(state.lifeVersion === 2)return state;
-  state.difficulty ||= "normal";
-  for(const p of Object.values(state.players))if(!p.inventory)equipStarter(p);
-  const mission=MISSIONS.find(m=>m.id===state.missionId)||FREE_ROAM;
-  if(mission.type === "pursuit")state.rival=null;
+  if (state.lifeVersion === 2) return state;
+  state.difficulty ||= 'normal';
+  for (const p of Object.values(state.players))
+    if (!p.inventory) equipStarter(p);
+  const mission = MISSIONS.find((m) => m.id === state.missionId) || FREE_ROAM;
+  if (mission.type === 'pursuit') state.rival = null;
   initCityLife(state, lifeEnvironment, mission);
   return state;
 }
@@ -932,5 +946,5 @@ const lifeEnvironment = {
   nearestNode,
   route,
   along,
-  clear: lineOfSight,
+  clear: lineOfSight
 };
