@@ -30,10 +30,10 @@ const racer = (id = 'a', slot = 0) => {
 };
 const energy = (rs) => rs.reduce((s, r) => s + r.speed * r.speed, 0);
 
-test('all five circuits use closed, unique paths from Tirana Streets road segments', () => {
+test('five original street circuits and their validated Grand union remain available', () => {
   assert.deepEqual(
     TRACKS.map((t) => t.id),
-    ['skanderbeg', 'blloku', 'lana', 'pyramid', 'stadium']
+    ['skanderbeg', 'blloku', 'lana', 'pyramid', 'stadium', 'lana-pyramid-grand']
   );
   const edges = new Set(
     WORLD.roads
@@ -83,7 +83,7 @@ test('every Tirana circuit is valid in the shared TPG queue; legacy names migrat
   assert.equal(makeTrack('harbor').id, 'skanderbeg');
   assert.equal(makeTrack('coast').id, 'stadium');
 });
-test('combat and automatic pickups are absent, including stale client inputs', () => {
+test('legacy use input is ignored; shield and finite starter inventory are explicit', () => {
   assert.equal(simulation.POWERUPS, undefined);
   assert.equal(simulation.useWeapon, undefined);
   const t = makeTrack(),
@@ -93,7 +93,10 @@ test('combat and automatic pickups are absent, including stale client inputs', (
   stepRace([r], t, STEP, 1);
   assert.equal(r.health, 50);
   assert.equal(r.weapon, undefined);
-  assert.equal(r.shield, undefined);
+  assert.ok(Number.isFinite(r.shield) && r.shield > 0);
+  assert.deepEqual(r.inventory, [
+    { id: 'pistol', ammo: simulation.KARTS[0].ammunition }
+  ]);
 });
 test('grazing a wall preserves tangential momentum; head-on impact causes greater gradual damage', () => {
   const head = racer(),

@@ -2,6 +2,8 @@ import * as T from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { WORLD } from '../tiranastreets/shared/world.mjs';
 import type { Track } from './simulation.mjs';
+import { suppliedAsphalt } from './RacingRoad';
+import { raceCityBuildings } from './racingRoadCore.mjs';
 
 export function inside(x: number, z: number, polygon: number[][]) {
   let yes = false;
@@ -98,11 +100,7 @@ export class TiranaScenery {
       new T.MeshStandardMaterial({ color: '#bdbaa9', roughness: 1 }),
       this.group
     );
-    merged(
-      asphalt,
-      new T.MeshStandardMaterial({ color: '#626563', roughness: 1 }),
-      this.group
-    );
+    merged(asphalt, suppliedAsphalt(), this.group);
     merged(
       walk,
       new T.MeshStandardMaterial({ color: '#c8c2ad', roughness: 1 }),
@@ -150,7 +148,7 @@ export class TiranaScenery {
         rooftop: T.BufferGeometry[];
       }
     >();
-    for (const building of WORLD.buildings) {
+    for (const building of raceCityBuildings(track, WORLD.buildings)) {
       const p = building.p,
         x = p.reduce((s, p) => s + p[0], 0) / p.length,
         z = p.reduce((s, p) => s + p[1], 0) / p.length;
@@ -228,39 +226,7 @@ export class TiranaScenery {
         true
       );
     }
-    const trees: { x: number; z: number }[] = [];
-    for (const p of WORLD.parks) {
-      const x = p.reduce((s, p) => s + p[0], 0) / p.length,
-        z = p.reduce((s, p) => s + p[1], 0) / p.length;
-      if (!near(x, z)) continue;
-      // A small deterministic grove reads as a real park from the race camera,
-      // while keeping the instance count stable across devices.
-      for (const [ox, oz] of [[0, 0], [3.2, -2.4], [-2.8, 2.7]]) {
-        const tx = x + ox,
-          tz = z + oz;
-        if (inside(tx, tz, p) && !occupied(tx, tz)) trees.push({ x: tx, z: tz });
-      }
-    }
-    const trunk = new T.InstancedMesh(
-      new T.CylinderGeometry(0.2, 0.28, 3, 6),
-      new T.MeshStandardMaterial({ color: '#65503e' }),
-      trees.length
-    );
-    const crown = new T.InstancedMesh(
-      new T.IcosahedronGeometry(2.1, 1),
-      new T.MeshStandardMaterial({ color: '#527146', roughness: 1 }),
-      trees.length
-    );
-    const matrix = new T.Object3D();
-    trees.forEach((p, i) => {
-      matrix.position.set(p.x, 1.5, p.z);
-      matrix.updateMatrix();
-      trunk.setMatrixAt(i, matrix.matrix);
-      matrix.position.y = 4;
-      matrix.updateMatrix();
-      crown.setMatrixAt(i, matrix.matrix);
-    });
-    this.group.add(trunk, crown);
+    // GroundDetailLayer owns clipped glTF vegetation, including tree canopies.
     this.landmarks(near);
   }
   update(x: number, z: number, performance: boolean) {

@@ -1,5 +1,9 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import {
+  combatSnapshot,
+  validWeaponId
+} from '../../webapp/src/games/kartroyale/raceCombat.mjs';
+import {
   STEP,
   RACE_LIMIT,
   normalizeKart,
@@ -34,6 +38,7 @@ export function attachKartRoyale(
     startsAt: r.startsAt,
     elapsed: r.elapsed,
     racers: r.racers,
+    combat: combatSnapshot(r.racers, r.track),
     results: r.status === 'finished' ? standings(r.racers) : []
   });
   const emit = (r) => io.to(`kart:${r.code}`).emit('kart:state', snapshot(r));
@@ -375,7 +380,8 @@ export function attachKartRoyale(
         drift: d.drift === true,
         boost: d.boost === true,
         shield: d.shield === true,
-        fire: d.fire === true
+        fire: d.fire === true,
+        weaponId: validWeaponId(d.weaponId)
       };
       r.lastInput = clock();
     });
@@ -415,7 +421,14 @@ export function attachKartRoyale(
       const racer = r.racers.find((v) => v.id === p.id);
       if (racer) {
         racer.disconnected = true;
-        racer.input = { steer: 0, brake: true, drift: false, boost: false, shield:false, fire:false };
+        racer.input = {
+          steer: 0,
+          brake: true,
+          drift: false,
+          boost: false,
+          shield: false,
+          fire: false
+        };
       }
       emit(r);
     });
@@ -439,7 +452,14 @@ export function attachKartRoyale(
         room.elapsed += STEP;
         for (const r of room.racers)
           if (!r.ai && now - r.lastInput > 900)
-            r.input = { steer: 0, brake: true, drift: false, boost: false, shield:false, fire:false };
+            r.input = {
+              steer: 0,
+              brake: true,
+              drift: false,
+              boost: false,
+              shield: false,
+              fire: false
+            };
         stepRace(room.racers, room.track, STEP, room.elapsed, 'street');
         const allDone = room.racers
           .filter((r) => !r.ai)

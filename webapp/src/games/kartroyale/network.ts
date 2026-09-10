@@ -1,5 +1,6 @@
 import type { Socket } from 'socket.io-client';
 import type { Racer } from './simulation.mjs';
+import type { CombatSnapshot } from './raceCombat.mjs';
 export interface Room {
   code: string;
   hostId: string;
@@ -17,6 +18,7 @@ export interface Room {
   } | null;
   players: { id: string; name: string; ready: boolean; connected: boolean }[];
   racers: Racer[];
+  combat?: CombatSnapshot;
   elapsed: number;
   startsAt: number;
   serverNow: number;

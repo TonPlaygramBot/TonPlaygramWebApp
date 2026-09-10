@@ -3,11 +3,17 @@
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 export const KART_RADIUS = 1.05;
 export function damageRacer(r, amount) {
-  if (!Number.isFinite(amount) || amount <= 0 || r.retired || r.finished)
+  if (
+    !Number.isFinite(amount) ||
+    amount <= 0 ||
+    r.retired ||
+    r.finished ||
+    r.respawn > 0
+  )
     return 0;
   r.health = clamp(Number.isFinite(r.health) ? r.health : 100, 0, 100);
   if (r.shieldActive && r.shield > 0) {
-    const absorbed = Math.min(r.shield, amount * .8);
+    const absorbed = Math.min(r.shield, amount * 0.8);
     r.shield -= absorbed;
     amount -= absorbed;
   }
@@ -99,7 +105,9 @@ export function resolveKartContact(a, b) {
     a.disconnected ||
     b.disconnected ||
     a.retired ||
-    b.retired
+    b.retired ||
+    a.respawn > 0 ||
+    b.respawn > 0
   )
     return;
   let dx = b.x - a.x,
