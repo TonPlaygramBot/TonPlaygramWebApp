@@ -1,0 +1,14 @@
+export type CitySite={id:string;sourceId:string;buildingId:string;name:string;category:string;country:string|null;footprint:number[][];x:number;z:number;height:number;tags:Record<string,string>;match:string;source:string;website:string|null;placementAccuracy:string;anchor:number[]|null};
+export type FacadeEdge={a:number[];b:number[];length:number;ux:number;uz:number;nx:number;nz:number;x:number;z:number;yaw:number};
+export type MappedTree={id:string;x:number;z:number;height:number|null;crown:number|null;model:string;scale:number;dimensionsAccuracy:string;speciesAccuracy:string;tags:Record<string,string>};
+export const CLOSED_PLACES:Readonly<Record<string,{reason:string;source:string}>>;
+export const FLAG_COUNTRIES:readonly string[];
+export function metres(value:unknown):number|null;
+export function resolvePlaces(world:any,source:any):{sites:CitySite[];issues:{id:string;reason:string}[]};
+export function facadeEdges(footprint:number[][]):FacadeEdge[];
+export function frontage(site:CitySite,roads:any[],entrances?:any[]):FacadeEdge|undefined;
+export function segmentDistance(x:number,z:number,a:number[],b:number[]):number;
+export function sourceSegmentIndex(source:any):Map<string,any>;
+export function mappedCycling(world:any,source:any):{segments:any[];issues:{id:string;reason:string}[]};
+export function cyclingDecals(segments:any[],world:any,exclude?:(x:number,z:number)=>boolean):any[];
+export function mappedTrees(world:any,source:any):MappedTree[];

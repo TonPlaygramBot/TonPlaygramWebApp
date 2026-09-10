@@ -51,7 +51,7 @@ export function ribbonExclusion(track){
   const near=gridIndex(segments,s=>[Math.min(s.a[0],s.b[0])-width/2,Math.min(s.a[1],s.b[1])-width/2,Math.max(s.a[0],s.b[0])+width/2,Math.max(s.a[1],s.b[1])+width/2]);
   return (x,z,pad=0)=>{if(![x,z,pad].every(finite)||pad<0)return true;return near(x,z,pad+1).some(s=>segmentDistance(x,z,s.a,s.b)<width/2+pad+1);};
 }
-export function buildRoadDetails(world,{signals=[],river=[],exclude=()=>false}={}){
+export function buildRoadDetails(world,{signals=[],river=[],exclude=()=>false,includeCycling=true}={}){
   const roads=(world.roads||[]).filter(r=>point(r.a)&&point(r.b)&&finite(r.w)&&r.w>0&&r.w<=80&&Math.hypot(r.b[0]-r.a[0],r.b[1]-r.a[1])<10000);
   const buildings=(world.buildings||[]).filter(b=>Array.isArray(b.p)&&b.p.length>=3&&b.p.every(point));
   const masks=signals.filter(s=>[s.x,s.z,s.yaw,s.width].every(finite)&&s.width>1);
@@ -73,7 +73,7 @@ export function buildRoadDetails(world,{signals=[],river=[],exclude=()=>false}={
   for(const r of roads){
     const dx=r.b[0]-r.a[0],dz=r.b[1]-r.a[1],length=Math.hypot(dx,dz);
     if(length<1||r.bridge||r.tunnel||['private','no'].includes(r.access))continue;
-    const ux=dx/length,uz=dz/length,rx=-uz,rz=ux,yaw=Math.atan2(dx,dz),cycle=cyclingSide(r,river);
+    const ux=dx/length,uz=dz/length,rx=-uz,rz=ux,yaw=Math.atan2(dx,dz),cycle=includeCycling?cyclingSide(r,river):null;
     if(cycle)for(const side of cycle.sides)cycles.push({a:[...r.a],b:[...r.b],width:cycle.width,side,evidence:cycle.evidence,name:r.name||''});
     for(let d=1;d<length-1;d+=2){
       const take=Math.min(2,length-1-d),x=r.a[0]+ux*(d+take/2),z=r.a[1]+uz*(d+take/2);

@@ -1,0 +1,107 @@
+{
+  "upstream": "https://github.com/hampusborgos/country-flags",
+  "commit": "c09927e63705529bbf59ca6684cd9b23225dddad",
+  "licenseNote": "Upstream identifies flag artwork as public domain, sourced from Wikimedia Commons. Original proportions retained.",
+  "flags": {
+    "AL": {
+      "source": "https://raw.githubusercontent.com/hampusborgos/country-flags/c09927e63705529bbf59ca6684cd9b23225dddad/svg/al.svg",
+      "aspect": 1.4,
+      "sha256": "9e00bfa393c4bd5f04b118b981692d998f3c5c4b817f309e03a35b9b4bb4b9ad"
+    },
+    "AM": {
+      "source": "https://raw.githubusercontent.com/hampusborgos/country-flags/c09927e63705529bbf59ca6684cd9b23225dddad/svg/am.svg",
+      "aspect": 2.0,
+      "sha256": "b52bf90a8165cecd27e6cacfab8a52934566e090aa33d17b0c418bf385d3d1b8"
+    },
+    "CA": {
+      "source": "https://raw.githubusercontent.com/hampusborgos/country-flags/c09927e63705529bbf59ca6684cd9b23225dddad/svg/ca.svg",
+      "aspect": 2.0,
+      "sha256": "5e20d135da10da02888954ba621c0ae58135776ab17b67c8c69d83c9dcc5b2e1"
+    },
+    "CH": {
+      "source": "https://raw.githubusercontent.com/hampusborgos/country-flags/c09927e63705529bbf59ca6684cd9b23225dddad/svg/ch.svg",
+      "aspect": 1.0,
+      "sha256": "4c6adad3941f5a3188b3bcf3a64f9ab6b351c504f5b7c4d01548c74e72fa5149"
+    },
+    "DK": {
+      "source": "https://raw.githubusercontent.com/hampusborgos/country-flags/c09927e63705529bbf59ca6684cd9b23225dddad/svg/dk.svg",
+      "aspect": 1.3214285714285714,
+      "sha256": "dc4827058fb343b6fa6383fb5e3471f4ab744a82d0f6ec9d895e8ce5d2a969ff"
+    },
+    "EE": {
+      "source": "https://raw.githubusercontent.com/hampusborgos/country-flags/c09927e63705529bbf59ca6684cd9b23225dddad/svg/ee.svg",
+      "aspect": 1.5714285714285714,
+      "sha256": "e084ea92ab4ce39bb662d479ac651be00678baaab3259863e3b82bfbab695af5"
+    },
+    "EU": {
+      "source": "https://raw.githubusercontent.com/hampusborgos/country-flags/c09927e63705529bbf59ca6684cd9b23225dddad/svg/eu.svg",
+      "aspect": 1.5,
+      "sha256": "b7f82e5b83c675919ccd40c289dfa74eac97e04584105ff3c29039705bd94f11"
+    },
+    "IL": {
+      "source": "https://raw.githubusercontent.com/hampusborgos/country-flags/c09927e63705529bbf59ca6684cd9b23225dddad/svg/il.svg",
+      "aspect": 1.375,
+      "sha256": "14a4df274e784e760d44219b813e1b2849b16d373b5d945fb169d27cccc47dc7"
+    },
+    "IT": {
+      "source": "https://raw.githubusercontent.com/hampusborgos/country-flags/c09927e63705529bbf59ca6684cd9b23225dddad/svg/it.svg",
+      "aspect": 1.5,
+      "sha256": "15777a0dc5a5dd8af5d75deacec27d2d6dab190aa7295d61db601a28a71b5c6f"
+    },
+    "LK": {
+      "source": "https://raw.githubusercontent.com/hampusborgos/country-flags/c09927e63705529bbf59ca6684cd9b23225dddad/svg/lk.svg",
+      "aspect": 2.0,
+      "sha256": "099fd7a4517b9ea45a9fc847d903672ae9c0bfd7f74a085679661f04a76cb473"
+    },
+    "ME": {
+      "source": "https://raw.githubusercontent.com/hampusborgos/country-flags/c09927e63705529bbf59ca6684cd9b23225dddad/svg/me.svg",
+      "aspect": 2.0,
+      "sha256": "699a6eeb24d29d413543c6f9d5b86d5858a43ba0202e9840ce73e2b5c810f864"
+    },
+    "NL": {
+      "source": "https://raw.githubusercontent.com/hampusborgos/country-flags/c09927e63705529bbf59ca6684cd9b23225dddad/svg/nl.svg",
+      "aspect": 1.5,
+      "sha256": "0d04d9eadc49c5514881c1c3f7c465a10a37ead378bc5e61cf96fdfcb3599e54"
+    },
+    "QA": {
+      "source": "https://raw.githubusercontent.com/hampusborgos/country-flags/c09927e63705529bbf59ca6684cd9b23225dddad/svg/qa.svg",
+      "aspect": 2.5454545454545454,
+      "sha256": "64aa892eda2ab88830fb5feb195be1a6c8d57218cb0dca91b4c84a923673483a"
+    },
+    "RS": {
+      "source": "https://raw.githubusercontent.com/hampusborgos/country-flags/c09927e63705529bbf59ca6684cd9b23225dddad/svg/rs.svg",
+      "aspect": 1.4999900811363052,
+      "sha256": "a985cc8f262e923dc1d83eeff6c495281bdb4f8ce6df38ccaa1e0f94e2cdb3c1"
+    },
+    "RU": {
+      "source": "https://raw.githubusercontent.com/hampusborgos/country-flags/c09927e63705529bbf59ca6684cd9b23225dddad/svg/ru.svg",
+      "aspect": 1.5,
+      "sha256": "d3186a06e97966a28552e0134f08ffd6e30fb7325bd2d8b27c235193ed24fdf1"
+    },
+    "SI": {
+      "source": "https://raw.githubusercontent.com/hampusborgos/country-flags/c09927e63705529bbf59ca6684cd9b23225dddad/svg/si.svg",
+      "aspect": 2.0,
+      "sha256": "cb5fec5ac8527646e5e4afe2896b2bf6b978555ade411edc50d512ad296d6936"
+    },
+    "UA": {
+      "source": "https://raw.githubusercontent.com/hampusborgos/country-flags/c09927e63705529bbf59ca6684cd9b23225dddad/svg/ua.svg",
+      "aspect": 1.5,
+      "sha256": "8b72b27e5bb712f269e28182fd85175175b65ebf8fd31fbff8e255a0058c54b9"
+    },
+    "US": {
+      "source": "https://raw.githubusercontent.com/hampusborgos/country-flags/c09927e63705529bbf59ca6684cd9b23225dddad/svg/us.svg",
+      "aspect": 1.9,
+      "sha256": "6b234bd17b00d498ac8d1c645a00025817e624641289fe4faec164c52eb43f20"
+    },
+    "VA": {
+      "source": "https://raw.githubusercontent.com/hampusborgos/country-flags/c09927e63705529bbf59ca6684cd9b23225dddad/svg/va.svg",
+      "aspect": 1.0,
+      "sha256": "c9752de8d48075be6253e2e0a933e40819ae7f2b623c3d3a06dd7f29630104c9"
+    },
+    "XK": {
+      "source": "https://raw.githubusercontent.com/hampusborgos/country-flags/c09927e63705529bbf59ca6684cd9b23225dddad/svg/xk.svg",
+      "aspect": 1.4,
+      "sha256": "b99d21fab5c2e9d106a9d48ec7e300dd068b116f71126a48b116c2cc539c7bba"
+    }
+  }
+}

@@ -4,6 +4,10 @@ on:
     paths:
       - 'webapp/src/pages/Games/TiranaStreetsLobby.jsx'
       - 'webapp/src/games/tirana-street-detail/**'
+      - 'webapp/src/games/tirana-city-source/**'
+      - 'webapp/public/assets/tirana-streets/flags/**'
+      - 'webapp/scripts/import-tirana-city-details.py'
+      - 'test/tiranaCitySource.test.mjs'
       - 'webapp/src/games/tiranastreets/street-career/**'
       - 'webapp/src/games/blackwater/cityWorld.ts'
       - 'webapp/src/games/blackwater/shared/layout.mjs'
@@ -29,7 +33,7 @@ jobs:
         with:
           node-version: '22'
       - name: New contracts, actual WORLD and preserved career tests
-        run: node --test test/tiranaStreetDetail.test.mjs test/tiranaStreetDetail.integration.test.mjs test/tiranaStreetCareer.test.mjs test/tiranaStreetCareer.integration.test.mjs test/tiranaCareerExpansion.test.mjs test/tiranaMap.test.mjs
+        run: node --test test/tiranaCitySource.test.mjs test/tiranaFpsCity.test.mjs test/tiranaStreetDetail.test.mjs test/tiranaStreetDetail.integration.test.mjs test/tiranaStreetCareer.test.mjs test/tiranaStreetCareer.integration.test.mjs test/tiranaCareerExpansion.test.mjs test/tiranaMap.test.mjs
   application-and-export:
     runs-on: ubuntu-latest
     timeout-minutes: 25

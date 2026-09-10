@@ -7,6 +7,7 @@ import { ORIGIN, OBSTACLES, START, EXTRACTION, props } from './shared/layout.mjs
 import { WORLD } from '../tiranastreets/shared/world.mjs';
 import { BUILDING_PROFILES } from '../tiranastreets/shared/architecture.mjs';
 import { nativeReplacementIds } from '../tirana-landmarks/nativeLocations.mjs';
+import { INSTITUTION_BUILDING_IDS } from '../tirana-city-source/registry.mjs';
 import { UrbanDetailLayer } from '../tirana-detail-kit/UrbanDetailLayer';
 
 /** The active Tirana Streets FPS retains one simulation, camera and game loop. */
@@ -17,10 +18,10 @@ export function makeCityWorld(scene:THREE.Scene,camera:THREE.PerspectiveCamera,r
   const city = new FpsCity(webgl);
   city.group.position.set(-ORIGIN.x, 0, -ORIGIN.z);
   scene.add(city.group);
-  enhancements.bindBuildings(city.group,[city.landmarks.group]);
+  enhancements.bindBuildings(city.group,[city.landmarks.group, city.referenceFacades.group]);
   // FpsCity already owns street facades. Add only rooftop modules, and leave its
   // researched civic profiles/native landmarks free of generic fixture dressing.
-  const excluded=new Set([...nativeReplacementIds(WORLD),...Object.keys(BUILDING_PROFILES)]);
+  const excluded=new Set([...nativeReplacementIds(WORLD),...Object.keys(BUILDING_PROFILES),...INSTITUTION_BUILDING_IDS]);
   const details=new UrbanDetailLayer(WORLD,excluded,{roofsOnly:true});
   details.group.position.set(-ORIGIN.x,0,-ORIGIN.z);scene.add(details.group);
   scene.userData.tiranaCity = city.group.userData;

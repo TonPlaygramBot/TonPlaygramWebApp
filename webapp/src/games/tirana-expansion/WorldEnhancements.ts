@@ -1,4 +1,6 @@
 import * as T from 'three';
+import { InstitutionLayer } from '../tirana-city-source/InstitutionLayer';
+import { INSTITUTION_BUILDING_IDS } from '../tirana-city-source/registry.mjs';
 import { GroundDetailLayer } from '../tirana-environment/GroundDetailLayer';
 import { WorldEnhancements as ExistingEnhancements } from './BaseWorldEnhancements';
 import { ShopfrontDetails } from '../tirana-region/ShopfrontDetails';
@@ -21,15 +23,21 @@ export {
 export class WorldEnhancements extends ExistingEnhancements {
   readonly shopfronts = new ShopfrontDetails(
     WORLD,
-    new Set(CIVIC_SITES.map((s) => s.way)),
+    new Set([...CIVIC_SITES.map((s) => s.way), ...INSTITUTION_BUILDING_IDS]),
     this.civic.errors
   );
+  readonly institutions = new InstitutionLayer(undefined, this.civic.errors);
   readonly streets: StreetDetailLayer;
   readonly ground: GroundDetailLayer;
   readonly attractions = new ParkAttractions(WORLD);
   readonly urbanLife = new UrbanLifeLayer();
   constructor(options: StreetDetailOptions = {}) {
     super();
+    // Photo-informed full façades now replace these three generic bay kits.
+    if (options.profile !== "racing") {
+      this.civic.retire();
+      this.civic.group.visible = false;
+    }
     this.ground = new GroundDetailLayer(WORLD, options, this.civic.errors);
     this.group.add(this.ground.group);
     this.streets = new StreetDetailLayer(
@@ -39,6 +47,7 @@ export class WorldEnhancements extends ExistingEnhancements {
       options
     );
     this.group.add(
+      this.institutions.group,
       this.shopfronts.group,
       this.streets.group,
       this.attractions.group,
@@ -63,6 +72,7 @@ export class WorldEnhancements extends ExistingEnhancements {
       );
       viewer = { x: p.x, z: p.z };
     }
+    this.institutions.update(seconds, viewer, battery);
     this.shopfronts.update(seconds, viewer, battery);
     this.streets.update(seconds, viewer, battery);
     this.ground.update(viewer, battery);
@@ -70,6 +80,7 @@ export class WorldEnhancements extends ExistingEnhancements {
     this.urbanLife.update(seconds, viewer, battery);
   }
   override retire() {
+    this.institutions.retire();
     this.ground.retire();
     this.streets.retire();
     this.shopfronts.retire();
@@ -77,6 +88,7 @@ export class WorldEnhancements extends ExistingEnhancements {
     super.retire();
   }
   override dispose() {
+    this.institutions.dispose();
     this.attractions.dispose();
     this.ground.dispose();
     this.streets.dispose();

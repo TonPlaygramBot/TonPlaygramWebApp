@@ -8,7 +8,7 @@ import {nearbyHumans} from './humanRoster.mjs';
 export class StreetRenderer extends CityRenderer {
   readonly humans=new SharedHumans();
   readonly details:ReturnType<typeof attachEnhancements>;
-  constructor(root:HTMLDivElement){super(root);this.setFirstPerson(true);this.scene.add(this.humans.group);this.details=attachEnhancements(this.scene);this.details.bindBuildings(this.scene,[this.nativeLandmarks.group,this.humans.group]);}
+  constructor(root:HTMLDivElement){super(root);this.setFirstPerson(true);this.scene.add(this.humans.group);this.details=attachEnhancements(this.scene);this.details.bindBuildings(this.scene,[this.nativeLandmarks.group,this.referenceFacades.group,this.humans.group]);}
   override render(state:State|null,id:string,dt:number,lobby:boolean){
     if(this.disposed)return;
     const p=state?.players[id];
