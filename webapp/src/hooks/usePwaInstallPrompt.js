@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 const STORAGE_KEY = 'tonplaygram-pwa-dismissed';
 
 const isStandalone = () =>
-  window.matchMedia?.('(display-mode: standalone)')?.matches ||
+  window.matchMedia?.('(display-mode: standalone)').matches ||
   window.navigator.standalone === true;
 
 const isTelegramWebApp = () => Boolean(window.Telegram?.WebApp);
@@ -11,9 +11,7 @@ const isTelegramWebApp = () => Boolean(window.Telegram?.WebApp);
 export default function usePwaInstallPrompt() {
   const [promptEvent, setPromptEvent] = useState(null);
   const [installed, setInstalled] = useState(isStandalone());
-  const [dismissed, setDismissed] = useState(() => {
-    try { return localStorage.getItem(STORAGE_KEY) === '1'; } catch { return false; }
-  });
+  const [dismissed, setDismissed] = useState(() => localStorage.getItem(STORAGE_KEY) === '1');
   const [telegramDetected, setTelegramDetected] = useState(() => isTelegramWebApp());
 
   useEffect(() => {
@@ -42,17 +40,16 @@ export default function usePwaInstallPrompt() {
 
   const markDismissed = () => {
     setDismissed(true);
-    try { localStorage.setItem(STORAGE_KEY, '1'); } catch { /* Storage may be disabled. */ }
+    localStorage.setItem(STORAGE_KEY, '1');
   };
 
   const promptToInstall = async () => {
     if (!promptEvent) return false;
-    const event = promptEvent;
-    setPromptEvent(null); // A browser install prompt can only be used once.
-    await event.prompt();
-    const result = await event.userChoice.catch(() => ({ outcome: 'dismissed' }));
+    promptEvent.prompt();
+    const result = await promptEvent.userChoice.catch(() => ({ outcome: 'dismissed' }));
     if (result?.outcome === 'accepted') {
-      // appinstalled confirms completion; accepting the prompt is not installation.
+      setInstalled(true);
+      setPromptEvent(null);
       return true;
     }
     markDismissed();
