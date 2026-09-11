@@ -16,7 +16,6 @@ import {
 import { MILITARY_VEHICLES } from '../webapp/src/games/kartroyale/militaryVehicleCatalog.mjs';
 import {
   vehicleAssetUrl,
-  vehicleTargetLength,
   normaliseVehicleDimensions,
   vehicleDriverMount
 } from '../webapp/src/games/kartroyale/vehicleAssetConfig.mjs';
@@ -34,7 +33,7 @@ function glb(url) {
   );
   return j;
 }
-test('full-size vehicles extend the restored original karts without changing old IDs', () => {
+test('four requested vehicles extend the original five without changing old IDs', () => {
   assert.deepEqual(
     KARTS.slice(0, 5).map((k) => k.id),
     ['apex', 'oobi', 'oodi', 'ooli', 'oopi']
@@ -43,14 +42,7 @@ test('full-size vehicles extend the restored original karts without changing old
     MILITARY_VEHICLES.map((k) => k.id),
     ['shota', 'brabus-g', 'defender', 'brabus-s65']
   );
-  assert.equal(KARTS[5].id, 'ferrari');
-  assert.equal(
-    vehicleAssetUrl('ferrari'),
-    'https://threejs.org/examples/models/gltf/ferrari.glb'
-  );
-  assert.equal(vehicleTargetLength('ferrari'), 4.63);
-  assert(MILITARY_VEHICLES.every((v) => vehicleTargetLength(v.id) >= 4.9));
-  assert.equal(new Set(KARTS.map((k) => k.id)).size, 10);
+  assert.equal(new Set(KARTS.map((k) => k.id)).size, 9);
   for (const v of MILITARY_VEHICLES) {
     assert.equal(normalizeKart(v.id), v.id);
     const r = equipKart(createRacer(makeTrack(), 'p', 'Player'), v.id);
