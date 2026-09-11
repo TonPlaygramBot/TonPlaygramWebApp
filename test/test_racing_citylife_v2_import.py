@@ -23,7 +23,10 @@ class ImporterTests(unittest.TestCase):
         for rel in (mod.LOCK, mod.STATUS):
             dest = self.root / rel
             dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(ROOT / rel, dest)
+            if rel == mod.STATUS:
+                dest.write_text(mod.DISABLED)
+            else:
+                shutil.copyfile(ROOT / rel, dest)
         self.git('init', '-q', '-b', 'review/racing-royal-citylife-v2')
         self.git('config', 'user.name', 'CityLife Import Test')
         self.git('config', 'user.email', 'citylife-test@example.invalid')
