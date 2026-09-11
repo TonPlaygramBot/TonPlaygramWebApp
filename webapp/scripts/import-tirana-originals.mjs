@@ -29,6 +29,10 @@ const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 async function importAsset(item) {
   const file=join(root,'public',item.localUrl);
   try{const existing=await readFile(file);if(hash(existing)===item.sha256)return;}catch{}
+  // These exact originals ship with the repository because their host blocks CI.
+  if(new URL(item.sourceUrl).hostname==='static.poly.pizza') {
+    throw Error(`Bundled original missing or corrupt: ${item.name} (${item.localUrl}). Restore this file from Git; its SHA-256 must match manifest.json.`);
+  }
   let bytes=await fetchBytes(item.sourceUrl);
   if(item.localUrl.endsWith('.gltf')){
     const doc=JSON.parse(bytes);
