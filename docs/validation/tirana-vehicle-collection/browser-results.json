@@ -1,0 +1,302 @@
+{
+  "scope": "Actual in-game vehicle layer in portrait software WebGL; production CSP; original GLBs and game human",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "models": [
+    {
+      "ready": true,
+      "id": "benz",
+      "triangles": 261182,
+      "meshes": 43,
+      "size": [
+        5.2200000286102295,
+        1.5063360929489136,
+        2.113741159439087
+      ],
+      "driver": {
+        "role": "npc-driver",
+        "carId": "probe",
+        "character": "chess-human",
+        "seated": true
+      },
+      "driverVisible": true,
+      "driverPosition": [
+        -0.12,
+        0.57,
+        -0.43
+      ],
+      "driverBounds": [
+        0.8858499832528955,
+        1.242142691346227,
+        0.46781146307288146
+      ],
+      "errors": {}
+    },
+    {
+      "ready": true,
+      "id": "bmw",
+      "triangles": 28555,
+      "meshes": 8,
+      "size": [
+        4.75,
+        1.3826935291290283,
+        1.9765240550041199
+      ],
+      "driver": {
+        "role": "npc-driver",
+        "carId": "probe",
+        "character": "chess-human",
+        "seated": true
+      },
+      "driverVisible": true,
+      "driverPosition": [
+        -0.24,
+        0.47,
+        -0.42
+      ],
+      "driverBounds": [
+        0.8858603028369216,
+        1.1426344383164508,
+        0.4678114630728814
+      ],
+      "errors": {}
+    },
+    {
+      "ready": true,
+      "id": "range",
+      "triangles": 523720,
+      "meshes": 15,
+      "size": [
+        4.870000123977661,
+        1.8073318004608154,
+        2.172074794769287
+      ],
+      "driver": {
+        "role": "npc-driver",
+        "carId": "probe",
+        "character": "chess-human",
+        "seated": true
+      },
+      "driverVisible": true,
+      "driverPosition": [
+        -0.12,
+        0.85,
+        -0.43
+      ],
+      "driverBounds": [
+        0.8858453520694864,
+        1.312105389835885,
+        0.46781146307288146
+      ],
+      "errors": {}
+    },
+    {
+      "ready": true,
+      "id": "audi",
+      "triangles": 774882,
+      "meshes": 32,
+      "size": [
+        5.170000314712524,
+        1.487999439239502,
+        2.1459572315216064
+      ],
+      "driver": {
+        "role": "npc-driver",
+        "carId": "probe",
+        "character": "chess-human",
+        "seated": true
+      },
+      "driverVisible": true,
+      "driverPosition": [
+        -0.08,
+        0.55,
+        -0.43
+      ],
+      "driverBounds": [
+        0.8858517021626636,
+        1.2222051120186026,
+        0.46781146307288146
+      ],
+      "errors": {}
+    },
+    {
+      "ready": true,
+      "id": "ford",
+      "triangles": 47684,
+      "meshes": 8,
+      "size": [
+        4.059999942779541,
+        1.5723010301589966,
+        1.826794981956482
+      ],
+      "driver": {
+        "role": "npc-driver",
+        "carId": "probe",
+        "character": "chess-human",
+        "seated": true
+      },
+      "driverVisible": true,
+      "driverPosition": [
+        -0.2,
+        0.61,
+        -0.39
+      ],
+      "driverBounds": [
+        0.8858470748352679,
+        1.282085443419684,
+        0.4678114630728816
+      ],
+      "errors": {}
+    },
+    {
+      "ready": true,
+      "id": "fiat",
+      "triangles": 35538,
+      "meshes": 9,
+      "size": [
+        3.759999990463257,
+        1.7362756729125977,
+        1.9221205115318298
+      ],
+      "driver": {
+        "role": "npc-driver",
+        "carId": "probe",
+        "character": "chess-human",
+        "seated": true
+      },
+      "driverVisible": true,
+      "driverPosition": [
+        -0.1,
+        0.51,
+        -0.37
+      ],
+      "driverBounds": [
+        0.8858556666167205,
+        1.1823890578372622,
+        0.4678114630728817
+      ],
+      "errors": {}
+    },
+    {
+      "ready": true,
+      "id": "jaguar",
+      "triangles": 274814,
+      "meshes": 38,
+      "size": [
+        4.680000066757202,
+        1.603254795074463,
+        2.0794687271118164
+      ],
+      "driver": {
+        "role": "npc-driver",
+        "carId": "probe",
+        "character": "chess-human",
+        "seated": true
+      },
+      "driverVisible": true,
+      "driverPosition": [
+        -0.1,
+        0.68,
+        -0.42
+      ],
+      "driverBounds": [
+        0.8858453520694864,
+        1.3121053898358852,
+        0.4678114630728814
+      ],
+      "errors": {}
+    },
+    {
+      "ready": true,
+      "id": "ferrari",
+      "triangles": 358788,
+      "meshes": 17,
+      "size": [
+        4.5299999713897705,
+        1.2349133491516113,
+        2.2553367614746094
+      ],
+      "driver": {
+        "role": "npc-driver",
+        "carId": "probe",
+        "character": "chess-human",
+        "seated": true
+      },
+      "driverVisible": true,
+      "driverPosition": [
+        -0.32,
+        0.38,
+        -0.38
+      ],
+      "driverBounds": [
+        0.8858724691782189,
+        1.0596076681625588,
+        0.4678114630728817
+      ],
+      "errors": {}
+    },
+    {
+      "ready": true,
+      "id": "bugatti",
+      "triangles": 240180,
+      "meshes": 17,
+      "size": [
+        4.539999961853027,
+        1.1363942623138428,
+        2.016184091567993
+      ],
+      "driver": {
+        "role": "npc-driver",
+        "carId": "probe",
+        "character": "chess-human",
+        "seated": true
+      },
+      "driverVisible": true,
+      "driverPosition": [
+        -0.12,
+        0.23,
+        -0.38
+      ],
+      "driverBounds": [
+        0.8858598995400522,
+        1.0328546866914525,
+        0.4678114630728816
+      ],
+      "errors": {}
+    },
+    {
+      "ready": true,
+      "id": "landrover",
+      "triangles": 637279,
+      "meshes": 16,
+      "size": [
+        5.019999742507935,
+        2.036067485809326,
+        2.1208837032318115
+      ],
+      "driver": {
+        "role": "npc-driver",
+        "carId": "probe",
+        "character": "chess-human",
+        "seated": true
+      },
+      "driverVisible": true,
+      "driverPosition": [
+        0.06,
+        1.02,
+        -0.43
+      ],
+      "driverBounds": [
+        0.8858453520694867,
+        1.312105389835885,
+        0.4678114630728816
+      ],
+      "errors": {}
+    }
+  ],
+  "playerSeatHandoff": true,
+  "errors": [],
+  "cspViolations": []
+}

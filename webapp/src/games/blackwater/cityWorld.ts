@@ -1,3 +1,4 @@
+import {CollectionVehicleVisuals} from '../tiranastreets/CollectionVehicleVisuals';
 import {ImportedAssetVisuals} from '../tiranastreets/ImportedAssetVisuals';
 import { AlbanianForcesVisuals, type ForceFrame } from '../tiranastreets/AlbanianForcesVisuals';
 import * as THREE from 'three';
@@ -52,6 +53,9 @@ export function makeCityWorld(scene:THREE.Scene,camera:THREE.PerspectiveCamera,r
   let disposed = false;
   const forces = webgl ? new AlbanianForcesVisuals() : undefined;
   if (forces) scene.add(forces.group);
+  const collection=webgl?new CollectionVehicleVisuals():undefined;
+  if(collection)scene.add(collection.group);
+  const collectionCars=props.filter(p=>p.collectionVehicle).map(p=>({id:`collection-${p.collectionVehicle}`,collectionVehicle:p.collectionVehicle,x:p.x,z:p.z,heading:p.rot-Math.PI,npcDriver:true}));
   const fleet: ForceFrame = {cars: props.filter(p => p.forceVehicle).map((p, i) => ({
     id: `battlefield-fleet-${i}`, forceVehicle: p.forceVehicle, model: 'police',
     x: p.x, z: p.z, heading: p.rot - Math.PI, speed: 0, steering: 0,
@@ -61,6 +65,8 @@ export function makeCityWorld(scene:THREE.Scene,camera:THREE.PerspectiveCamera,r
   const importedFallbacks = new Map<string, THREE.Object3D>();
   const fleetFallbacks = new Map<string, THREE.Object3D>();
   for (const p of props) {
+    // Original models own these props. Never draw a low-detail substitute.
+    if(p.collectionVehicle)continue;
     if(p.racingAsset||p.assetId) {
       const entry=importedPlacements.find(e=>e.racingAsset===p.racingAsset&&e.assetId===p.assetId)!;
       const placeholder=new THREE.Mesh(new THREE.BoxGeometry(p.w,p.h,p.d),metal);
@@ -92,6 +98,8 @@ export function makeCityWorld(scene:THREE.Scene,camera:THREE.PerspectiveCamera,r
     const now = performance.now() / 1000;
     forces?.update(fleet, position, now, Math.min(.05, now - forceTime), !renderer.shadowMap.enabled);
     imported.update(importedPlacements,position,!renderer.shadowMap.enabled);
+    collection?.update(collectionCars,position,Math.min(.05,now-forceTime));
+    city.group.userData.collectionErrors=collection?Object.fromEntries(collection.errors):{};
     for(const [id,fallback] of importedFallbacks)fallback.visible=!imported.has(id);
     forceTime = now;
     for (const [id, fallback] of fleetFallbacks) fallback.visible = !forces?.has(id);
@@ -108,6 +116,6 @@ export function makeCityWorld(scene:THREE.Scene,camera:THREE.PerspectiveCamera,r
   };
   world.update(new THREE.Vector3(START.x,1.68,START.z));
   const dispose = world.dispose;
-  world.dispose=()=>{disposed=true;imported.dispose();forces?.dispose();enhancements.dispose();details.dispose();city.dispose();dispose();concrete.dispose();metal.dispose();};
+  world.dispose=()=>{disposed=true;collection?.dispose();imported.dispose();forces?.dispose();enhancements.dispose();details.dispose();city.dispose();dispose();concrete.dispose();metal.dispose();};
   return world;
 }

@@ -78,6 +78,6 @@ export class StreetCareerRuntime {
     if(now-this.uiAt>125){this.emit();this.uiAt=now;}
     this.raf=requestAnimationFrame(this.loop);
   };
-  private emit(){this.publish({profile:this.profile,state:this.state,paused:this.paused,ready:this.ready,route:this.route,fps:this.renderer.fps,storageOK:this.storageOK,assetErrors:[...this.renderer.humans.errors,...this.renderer.details.civic.errors,...this.renderer.details.dajti.errors]});}
+  private emit(){this.publish({profile:this.profile,state:this.state,paused:this.paused,ready:this.ready,route:this.route,fps:this.renderer.fps,storageOK:this.storageOK,assetErrors:[...this.renderer.collectionFleet.errors.values(),...this.renderer.humans.errors,...this.renderer.details.civic.errors,...this.renderer.details.dajti.errors]});}
   dispose(){if(this.disposed)return;this.persist();this.disposed=true;cancelAnimationFrame(this.raf);window.removeEventListener('blur',this.blur);window.removeEventListener('pagehide',this.blur);document.removeEventListener('visibilitychange',this.visibility);this.renderer.renderer.domElement.removeEventListener('webglcontextlost',this.contextLost);this.input.destroy();this.audio.destroy();this.renderer.destroy();}
 }

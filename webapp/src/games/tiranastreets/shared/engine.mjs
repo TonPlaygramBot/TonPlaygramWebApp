@@ -1,4 +1,6 @@
 import {importedFleet,IMPORTED_PLACEMENT_ORIGIN} from '../../blackwater/shared/importedPlacements.mjs';
+import {VEHICLE_COLLECTION} from './vehicleCollection.mjs';
+import {COLLECTION_PLACEMENTS} from './collectionPlacements.mjs';
 import {KARTS} from '../../kartroyale/vehicleCatalog.mjs';
 import { WORLD } from './world.mjs';
 import {FUEL_CANOPY_IDS,fuelCanopyObstacles} from '../../tirana-street-life/fuelCollision.mjs';
@@ -555,6 +557,12 @@ export function createState(
     const car=vehicle(`royal-${kart.id}`,p.x+Math.cos(heading)*2.8,p.z-Math.sin(heading)*2.8,heading,'sport');
     car.racingAsset=kart.id;collide(car,1.35);state.cars.push(car);
   });
+  // All ten originals are enterable parked cars in checked city locations.
+  for (const placement of COLLECTION_PLACEMENTS) {
+    const car=vehicle(placement.id,placement.x,placement.z,placement.heading,'sedan');
+    car.collectionVehicle=placement.collectionVehicle;car.npcDriver=true;
+    state.cars.push(car);
+  }
   // Traffic is deterministic, follows connected OSM streets and never teleports.
   // Distance culling keeps the broader road population affordable on phones.
   for (let i = 0; i < 28; i++) {
@@ -563,6 +571,8 @@ export function createState(
       to = links[n][0]?.[0] ?? n;
     state.traffic.push({
       ...vehicle(`traffic-${i}`, p.x, p.z, 0, i % 4 === 0 ? 'taxi' : 'sedan'),
+      collectionVehicle: VEHICLE_COLLECTION[i % VEHICLE_COLLECTION.length].id,
+      npcDriver: true,
       node: n,
       next: to,
       seed: 11 + i * 29,
@@ -690,6 +700,7 @@ export function interact(state, id, action) {
     if (c && distance(c, p) < 7) {
       p.carId = c.id;
       c.driver = id;
+      if(c.collectionVehicle)c.npcDriver=false;
       p.x = c.x;
       p.z = c.z;
       p.heading = c.heading;

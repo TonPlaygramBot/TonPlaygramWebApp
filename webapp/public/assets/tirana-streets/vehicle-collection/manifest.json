@@ -1,0 +1,222 @@
+[
+  {
+    "id": "benz",
+    "name": "Mercedes-Benz S 65 AMG W221",
+    "triangles": 261182,
+    "meshes": 43,
+    "bytes": 5001948,
+    "dimensions": [
+      5.220000267028809,
+      2.113741159439087,
+      1.5063360929489136
+    ],
+    "author": "supercarmodels",
+    "license": "CC BY 4.0",
+    "source": "https://sketchfab.com/3d-models/2011-mercedes-benz-s-65-amg-w221-8ffa2d947cce478eb0a60cf1a230c592",
+    "mirror": "https://github.com/tapader13/car-company-3d/blob/main/public/carThree-transformed.glb",
+    "compression": "Draco",
+    "units": "metres",
+    "scale_note": "Approximate visual scale; not engineering dimensions",
+    "modifications": "Blender preparation; transform cleanup; PBR material adaptation; Poly Haven leather and studio; ground origin; Draco GLB export",
+    "url": "/assets/tirana-streets/vehicle-collection/benz.glb",
+    "sha256": "e648902e335047042efad448ea7fd1c658dfd4dc2d2ae58b076e2294aec9ad80"
+  },
+  {
+    "id": "bmw",
+    "name": "BMW M3 GT3",
+    "triangles": 28555,
+    "meshes": 8,
+    "bytes": 3610124,
+    "dimensions": [
+      4.75,
+      1.9765241146087646,
+      1.3826935291290283
+    ],
+    "author": "Neubi; CryHam (interior/import); Neubi (Ford wheels)",
+    "license": "CC0 body/interior; CC BY-SA wheels (version unspecified in upstream notice)",
+    "source": "https://www.blendswap.com/blends/view/19869",
+    "mirror": "https://github.com/stuntrally/blendfiles/tree/master/cars/XZ",
+    "compression": "Draco",
+    "units": "metres",
+    "scale_note": "Approximate visual scale; not engineering dimensions",
+    "modifications": "Blender preparation; transform cleanup; PBR material adaptation; Poly Haven leather and studio; ground origin; Draco GLB export",
+    "url": "/assets/tirana-streets/vehicle-collection/bmw.glb",
+    "sha256": "4d73b3d7896e48933c4647946704ec7fc9d83d3c6b7dc8b923ef9d5f9ae25bd5"
+  },
+  {
+    "id": "range",
+    "name": "Range Rover Sport 2018",
+    "triangles": 523720,
+    "meshes": 15,
+    "bytes": 7551144,
+    "dimensions": [
+      4.869999885559082,
+      2.172074794769287,
+      1.8073318004608154
+    ],
+    "compression": "Draco",
+    "author": "diw3d",
+    "license": "CC BY 4.0",
+    "source": "https://sketchfab.com/3d-models/range-rover-sport-2018-d1fe581b3baf4af89275e9aa9a1392e2",
+    "mirror": "https://github.com/aditya-bansal-7/Land-Rover-Website-Reimagine",
+    "units": "metres",
+    "scale_note": "Approximate visual scale; not engineering dimensions",
+    "modifications": "Blender preparation; transform cleanup; PBR material adaptation; Poly Haven leather and studio; ground origin; Draco GLB export",
+    "url": "/assets/tirana-streets/vehicle-collection/range.glb",
+    "sha256": "25dbd07c141712c57bd011aebe51702b32246cc83c6783ec11c52b24e74edd45"
+  },
+  {
+    "id": "audi",
+    "name": "Audi A8 Custom 2018",
+    "triangles": 774882,
+    "meshes": 32,
+    "bytes": 6959904,
+    "dimensions": [
+      5.170000076293945,
+      2.1459572315216064,
+      1.487999439239502
+    ],
+    "compression": "Draco",
+    "author": "everhard",
+    "license": "CC BY 4.0",
+    "source": "https://sketchfab.com/3d-models/audi-a8-custom-2018-cd094d03f7684809900a929a9c88c8db",
+    "mirror": "https://github.com/ViktorVelizarov/Custom-Cars-3D/blob/master/public/audiA8.gltf",
+    "units": "metres",
+    "scale_note": "Approximate visual scale; not engineering dimensions",
+    "modifications": "Blender preparation; transform cleanup; PBR material adaptation; Poly Haven leather and studio; ground origin; Draco GLB export",
+    "url": "/assets/tirana-streets/vehicle-collection/audi.glb",
+    "sha256": "fdb03e19a9a3598b06dcffc6a2ac894766b9c765f435efb08f50a1389f56cb96"
+  },
+  {
+    "id": "ford",
+    "name": "Ford Focus",
+    "triangles": 47684,
+    "meshes": 8,
+    "bytes": 3476592,
+    "dimensions": [
+      4.059999942779541,
+      1.826794981956482,
+      1.5723010301589966
+    ],
+    "compression": "Draco",
+    "author": "Neubi; CryHam (import/settings)",
+    "license": "CC BY-SA (version unspecified in upstream notice)",
+    "source": "https://www.blendswap.com/blends/view/15406",
+    "mirror": "https://github.com/stuntrally/blendfiles/tree/master/cars/FN",
+    "units": "metres",
+    "scale_note": "Approximate visual scale; not engineering dimensions",
+    "modifications": "Blender preparation; transform cleanup; PBR material adaptation; Poly Haven leather and studio; ground origin; Draco GLB export",
+    "url": "/assets/tirana-streets/vehicle-collection/ford.glb",
+    "sha256": "e48610296f748220ff77ef254934734b07a77e1db12f1ee03c87070aecb4cdcb"
+  },
+  {
+    "id": "fiat",
+    "name": "Fiat Punto GT 1995",
+    "triangles": 35538,
+    "meshes": 9,
+    "bytes": 16341268,
+    "dimensions": [
+      3.759999990463257,
+      1.9221205711364746,
+      1.7362756729125977
+    ],
+    "compression": "Draco",
+    "author": "Karol Miklas",
+    "license": "CC BY 4.0",
+    "source": "https://sketchfab.com/3d-models/free-1995-fiat-punto-gt-48db6facb4b64e99b60f36b8c01185e1",
+    "mirror": "https://github.com/Dziuras98/car-game",
+    "units": "metres",
+    "scale_note": "Approximate visual scale; not engineering dimensions",
+    "modifications": "Blender preparation; transform cleanup; PBR material adaptation; Poly Haven leather and studio; ground origin; Draco GLB export",
+    "url": "/assets/tirana-streets/vehicle-collection/fiat.glb",
+    "sha256": "1e831d44bc6b3ff253d5e8496a226d2e422068efb9d45022e3f155ddac5c9bcb"
+  },
+  {
+    "id": "jaguar",
+    "name": "Jaguar I-Pace",
+    "triangles": 274814,
+    "meshes": 38,
+    "bytes": 3621176,
+    "dimensions": [
+      4.680000305175781,
+      2.0794687271118164,
+      1.603254795074463
+    ],
+    "compression": "Draco",
+    "author": "GT Cars / Car2022",
+    "license": "CC BY 4.0",
+    "source": "https://sketchfab.com/3d-models/jaguar-i-pace-296a97a6c07041cf9c48f8a303315ed2",
+    "mirror": "https://github.com/Sumegh-git/xworld/blob/main/public/assets/world/models/jaguar-ipace.glb",
+    "units": "metres",
+    "scale_note": "Approximate visual scale; not engineering dimensions",
+    "modifications": "Blender preparation; transform cleanup; PBR material adaptation; Poly Haven leather and studio; ground origin; Draco GLB export",
+    "url": "/assets/tirana-streets/vehicle-collection/jaguar.glb",
+    "sha256": "332470befbafc6e443905fb713e50ab9304d25a67e1a2f5c8d259c871b10b5a0"
+  },
+  {
+    "id": "ferrari",
+    "name": "Ferrari 458 Spider",
+    "triangles": 358788,
+    "meshes": 17,
+    "bytes": 3967680,
+    "dimensions": [
+      4.529999732971191,
+      2.2553367614746094,
+      1.2349133491516113
+    ],
+    "compression": "Draco",
+    "author": "vicent091036",
+    "license": "CC BY 4.0",
+    "source": "https://sketchfab.com/3d-models/ferrari-458-italia-57bf6cc56931426e87494f554df1dab6",
+    "mirror": "https://github.com/mrdoob/three.js/blob/dev/examples/models/gltf/ferrari.glb",
+    "units": "metres",
+    "scale_note": "Approximate visual scale; not engineering dimensions",
+    "modifications": "Blender preparation; transform cleanup; PBR material adaptation; Poly Haven leather and studio; ground origin; Draco GLB export",
+    "url": "/assets/tirana-streets/vehicle-collection/ferrari.glb",
+    "sha256": "f61dd84634a03205ba59cc839006489757f3579f26dfda1c76fb55492036c5ac"
+  },
+  {
+    "id": "bugatti",
+    "name": "Bugatti La Voiture Noire 2019",
+    "triangles": 240180,
+    "meshes": 17,
+    "bytes": 4784968,
+    "dimensions": [
+      4.539999961853027,
+      2.016184091567993,
+      1.1363942623138428
+    ],
+    "compression": "Draco",
+    "author": "Ddiaz Design",
+    "license": "CC BY 4.0",
+    "source": "https://sketchfab.com/3d-models/2019-bugatti-la-voiture-noire-5a4f0bad5ecb4fccafa2ea36f9bfaeea",
+    "mirror": "https://github.com/jules-sys/bugatti-3d-model",
+    "units": "metres",
+    "scale_note": "Approximate visual scale; not engineering dimensions",
+    "modifications": "Blender preparation; transform cleanup; PBR material adaptation; Poly Haven leather and studio; ground origin; Draco GLB export",
+    "url": "/assets/tirana-streets/vehicle-collection/bugatti.glb",
+    "sha256": "03adf35a5462c92d3dbecbd7cc433a5983751c7d924966f3bba996c50ce84e99"
+  },
+  {
+    "id": "landrover",
+    "name": "Land Rover Defender Grasmere",
+    "triangles": 637279,
+    "meshes": 16,
+    "bytes": 5733524,
+    "dimensions": [
+      5.0199995040893555,
+      2.1208837032318115,
+      2.036067485809326
+    ],
+    "compression": "Draco",
+    "author": "PROJECT CAR90 / Samuel Carvalho",
+    "license": "CC BY 4.0",
+    "source": "https://sketchfab.com/3d-models/land-rover-defender-edition-grasmere-green-b7596dc0abc749c3b076d1f830715a54",
+    "mirror": "https://github.com/aditya-bansal-7/Land-Rover-Website-Reimagine",
+    "units": "metres",
+    "scale_note": "Approximate visual scale; not engineering dimensions",
+    "modifications": "Blender preparation; transform cleanup; PBR material adaptation; Poly Haven leather and studio; ground origin; Draco GLB export",
+    "url": "/assets/tirana-streets/vehicle-collection/landrover.glb",
+    "sha256": "90753148ceedd1087ed6a388def51b1809d0b00623589860e29c6f49bc73b2e2"
+  }
+]
