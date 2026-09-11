@@ -83,22 +83,22 @@ export class KartAudio {
       now = c.currentTime;
     const running = active && !frame.retired && frame.countdown === 0;
     this.engine?.frequency.setTargetAtTime(
-      40 + frame.speed * 5.4 + (100 - frame.health) * 0.04,
+      40 + Math.abs(frame.speed) * 5.4 + (100 - frame.health) * 0.04,
       now,
       0.08
     );
     this.engineGain?.gain.setTargetAtTime(
-      running ? 0.04 + frame.speed * 0.002 : 0,
+      running ? 0.04 + Math.abs(frame.speed) * 0.002 : 0,
       now,
       0.08
     );
     this.tire?.gain.setTargetAtTime(
-      running && frame.drifting ? Math.min(0.16, frame.speed * 0.008) : 0,
+      running && frame.drifting ? Math.min(0.16, Math.abs(frame.speed) * 0.008) : 0,
       now,
       0.05
     );
     this.air?.gain.setTargetAtTime(
-      running ? frame.speed * 0.0012 : 0,
+      running ? Math.abs(frame.speed) * 0.0012 : 0,
       now,
       0.08
     );

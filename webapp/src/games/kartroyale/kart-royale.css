@@ -1952,3 +1952,14 @@
     margin-top: 3px;
   }
 }
+
+/* Reverse is a separate hold input; lost capture releases it immediately. */
+.kr-pedal-column .kr-brake { min-height: 44px; }
+
+/* Swipe the vehicle or its details; vertical scrolling and pinch zoom remain native. */
+.kr-lobby .kr-canvas, .kr-vehicle-info { touch-action: pan-y pinch-zoom; }
+.kr-vehicle-carousel { display:flex;align-items:center;gap:8px;margin-top:8px;max-width:240px; }
+.kr-vehicle-carousel button { display:grid;place-items:center;flex:0 0 44px;width:44px;height:44px;border:1px solid #566464;background:#152126;color:#eef4ee;border-radius:8px; }
+.kr-vehicle-carousel button:disabled { opacity:.4; }
+.kr-vehicle-carousel > span { flex:1;text-align:center;color:#eef4ee;font-size:14px;white-space:nowrap; }
+.kr-vehicle-carousel small { display:block;font-size:10px;letter-spacing:0;margin-top:3px;color:#c6d3d3; }

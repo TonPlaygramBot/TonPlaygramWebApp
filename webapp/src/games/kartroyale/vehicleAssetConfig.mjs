@@ -1,3 +1,17 @@
+export const KART_ASSETS = Object.freeze(
+  Object.fromEntries(
+    [
+      ['apex', 0.265],
+      ['oobi', 0.265],
+      ['oodi', 0.275],
+      ['ooli', 0.285],
+      ['oopi', 0.34]
+    ].map(([file, wheelRadius]) => [
+      file,
+      { file, wheelRadius, eye: [0, file === 'oopi' ? 1.15 : 1.05, -0.28] }
+    ])
+  )
+);
 /** Authored in metres, Y up, +Z forward. Driver eyes are on the vehicle's left
  * (+X when facing +Z); scale/centering are applied by the asset adapter. */
 export const MILITARY_ASSETS = Object.freeze({
@@ -11,9 +25,11 @@ export const MILITARY_ASSETS = Object.freeze({
   }
 });
 export function vehicleAssetUrl(id, low = false) {
-  if(id==='apex') return `/assets/kart-royale/apex${low?'-lod':''}.glb`;
-  if(id==='ferrari'||id==='buggy') return `/assets/tirana-streets/imported/${id}.glb`;
+  if (id === 'ferrari' || id === 'buggy')
+    return `/assets/tirana-streets/imported/${id}.glb`;
   const config = MILITARY_ASSETS[id];
+  if (KART_ASSETS[id])
+    return `/assets/kart-royale/karts/${id}${low ? '-lod' : ''}.glb`;
   return config
     ? `/assets/kart-royale/military/${config.file}${low ? '-lod' : ''}.glb`
     : `/assets/kart-royale/kenney-${id}.glb`;
@@ -39,7 +55,7 @@ export function normaliseVehicleDimensions({ min, max }, targetLength = 3.25) {
   };
 }
 export function vehicleDriverMount(id, fit) {
-  const eye = MILITARY_ASSETS[id]?.eye;
+  const eye = (MILITARY_ASSETS[id] || KART_ASSETS[id])?.eye;
   return eye
     ? eye.map((v, i) => v * fit.scale + fit.offset[i])
     : [0, 1.08, -0.1];

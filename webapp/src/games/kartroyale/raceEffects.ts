@@ -1,3 +1,4 @@
+import {TyreSmoke} from './tyreSmoke';
 import * as T from 'three';
 import type { Racer } from './simulation.mjs';
 import {
@@ -93,6 +94,7 @@ const splatMaterial = (kind: FoodKind, seed: number) =>
 /** Bounded projectile/particle pools; animation is separate from authoritative physics. */
 export class RaceEffects {
   group = new T.Group();
+  private smoke = new TyreSmoke();
   foodHitId = 0;
   lastFoodKind: FoodKind = 'egg';
   private food: Food[] = [];
@@ -106,6 +108,7 @@ export class RaceEffects {
   private droplets: T.InstancedMesh;
   private shards: T.InstancedMesh;
   constructor(private camera: T.PerspectiveCamera) {
+    this.group.add(this.smoke.mesh);
     const mesh = (g: T.BufferGeometry, m: T.Material, count: number) => {
       const instance = new T.InstancedMesh(g, m, count);
       instance.count = 0;
@@ -285,6 +288,7 @@ export class RaceEffects {
     driver: boolean
   ) {
     dt = Math.min(0.1, Math.max(0, dt));
+    this.smoke.update(dt, racers);
     const survivors: Food[] = [];
     for (const p of this.food) {
       const from = { x: p.x, y: p.y, z: p.z };
@@ -388,6 +392,7 @@ export class RaceEffects {
     }
   }
   clear() {
+    this.smoke.clear();
     this.food = [];
     this.particles = [];
     this.previous.clear();
@@ -400,6 +405,7 @@ export class RaceEffects {
   }
   dispose() {
     this.clear();
+    this.smoke.dispose();
     this.group.removeFromParent();
     [this.eggs, this.tomatoes, this.leaves, this.droplets, this.shards].forEach(
       (m) => {

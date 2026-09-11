@@ -1,3 +1,4 @@
+export const KART_ASSETS: typeof MILITARY_ASSETS;
 export const MILITARY_ASSETS: Readonly<
   Record<
     string,

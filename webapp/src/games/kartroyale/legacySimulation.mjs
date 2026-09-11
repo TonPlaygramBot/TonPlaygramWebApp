@@ -1,3 +1,4 @@
+import { stepRollover } from './kartDynamics.mjs';
 import {KARTS} from './vehicleCatalog.mjs';
 export {KARTS};
 import { TIRANA_ROUTES } from './tirana-routes.mjs';
@@ -173,6 +174,7 @@ export function createRacer(track, id, name, slot = 0, ai = false) {
     yaw: p.yaw,
     velocityYaw: p.yaw,
     speed: 0,
+    rollTime: 0, rollAngle: 0, rollDirection: 1, rollCooldown: 0, lift: 0,
     steering: 0,
     yawRate: 0,
     acceleration: 0,
@@ -243,6 +245,10 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
   dt = Math.min(dt, STEP * 3);
   const input = raw || {},
     steer = Number.isFinite(input.steer) ? clamp(input.steer, -1, 1) : 0;
+  if (stepRollover(r, dt)) {
+    resolveWallContact(r, nearestPoint(track, r.x, r.z), track.width, dt, false);
+    return;
+  }
   const previousSpeed = r.speed;
   r.health = Number.isFinite(r.health) ? r.health : 100;
   r.hitFlash = Math.max(0, (r.hitFlash || 0) - dt);
@@ -260,7 +266,7 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
     (steer - (r.steering || 0)) * (1 - Math.exp(-dt * (steer ? 8 : 12)));
   const drift =
       input.drift === true && r.speed > 10 && Math.abs(r.steering) > 0.08,
-    boost = input.boost === true && r.boost > 0 && !input.brake;
+    boost = input.boost === true && r.boost > 0 && !input.brake && !input.reverse && r.speed >= 0;
   const factor = r.ai
       ? ({ rookie: 0.76, street: 0.88, pro: 0.98 }[difficulty] || 0.88) +
         r.slot * 0.006
@@ -269,16 +275,19 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
     max = (boost || r.turbo > 0 ? 43 : 31) * kart.speed * factor * damageFactor;
   r.speed = clamp(
     r.speed +
-      (input.brake
-        ? -28 * kart.brake
+      (input.reverse === true
+        ? (r.speed > 0 ? -28 * kart.brake : -7)
+        : input.brake
+        ? -Math.sign(r.speed) * 28 * kart.brake
         : (boost || r.turbo > 0 ? 22 : 13.8) * kart.speed * factor * damageFactor -
           0.6 -
           0.16 * r.speed -
           0.008 * r.speed * r.speed) *
         dt,
-    0,
+    input.reverse === true || r.speed < 0 ? -7 : 0,
     max
   );
+  if (input.brake && !input.reverse && Math.sign(r.speed) !== Math.sign(previousSpeed)) r.speed = 0;
   if (drift) {
     r.speed = Math.max(0, r.speed - 0.75 * dt);
     r.driftCharge = Math.min(1.5, r.driftCharge + dt);
@@ -290,17 +299,14 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
   r.turbo = Math.max(0, r.turbo - dt);
   r.boost = clamp(r.boost + (boost ? -34 : drift ? 17 : 5) * dt, 0, 100);
   const turn =
-    (-r.steering * kart.handling * (drift ? 1.48 : 1.15) * clamp(r.speed / 10, 0, 1)) /
+    (-r.steering * kart.handling * (drift ? 1.48 : 1.15) * clamp(r.speed / 10, -1, 1)) /
     (1 + Math.max(0, r.speed - 22) * 0.022);
   r.yawRate =
     (r.yawRate || 0) +
     (turn - (r.yawRate || 0)) * (1 - Math.exp(-dt * (drift ? 7 : 12)));
   r.yaw += r.yawRate * dt;
   // Tire scrub sheds speed in sustained corners; braking restores grip sooner.
-  r.speed = Math.max(
-    0,
-    r.speed - Math.abs(r.yawRate) * r.speed * (drift ? 0.022 : 0.014) * dt
-  );
+  r.speed *= Math.max(0, 1 - Math.abs(r.yawRate) * (drift ? 0.022 : 0.014) * dt);
   r.velocityYaw +=
     wrapAngle(r.yaw - r.velocityYaw) *
     (1 - Math.exp(-dt * (drift ? 3.1 : input.brake ? 14 : 11)));
