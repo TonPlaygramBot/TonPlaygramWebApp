@@ -14,7 +14,7 @@ test('acquisition covers every requested district in contiguous bounded tiles',(
  assert.throws(()=>acquisitionTiles([0,0,1,1],.01),/100/);assert.throws(()=>acquisitionTiles(REGION_BBOX,0),/step/);
 });
 test('query includes businesses, government, public services and attractions',()=>{
- const q=buildRegionQuery();for(const tag of ['nwr[shop]','nwr[amenity]','nwr[office=government]','nwr[tourism]','nwr[historic]','way[aeroway]'])assert.ok(q.includes(tag));
+ const q=buildRegionQuery();for(const tag of ['nwr[shop]','nwr[amenity]','nwr[office]','nwr[tourism]','nwr[historic]','way[aeroway]','relation[building]','way["building:part"]'])assert.ok(q.includes(tag));
  assert.throws(()=>buildRegionQuery([20,42,19,41]),/bbox/);
 });
 test('tile merge deduplicates complete identities and fails on partial or conflicting data',()=>{

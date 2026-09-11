@@ -23,22 +23,26 @@ export function importRegionSource(raw,{origin,sourceURL,acquiredAt,sha256}={}){
  for(const e of raw.elements){if(!e||!['node','way','relation'].includes(e.type)||!Number.isSafeInteger(e.id)||e.id<=0)throw Error('Invalid OSM identity');const key=`${e.type}/${e.id}`;if(ids.has(key))throw Error(`Duplicate ${key}`);ids.add(key);if(e.type==='node'){if(![e.lat,e.lon].every(Number.isFinite))throw Error(`Missing coordinate ${key}`);nodes.set(e.id,e);}if(e.type==='way')ways.set(e.id,e);if(e.type==='relation')relations.push(e);}
  const point=id=>{const n=nodes.get(id);if(!n)throw Error(`Missing source node ${id}`);const p=projectRegion(origin,n.lat,n.lon);return [p.x,p.z];};
  const ring=w=>{if(!w?.nodes||w.nodes.length<4||w.nodes[0]!==w.nodes.at(-1))throw Error(`Unclosed polygon ${w?.id}`);return validatePolygonRing(w.nodes.slice(0,-1).map(point),`way/${w.id}`);};
- const roads=[],buildings=[],water=[],places=[],warnings=[],waterMembers=new Set();
- for(const r of relations){const t=r.tags||{};if(t.type!=='multipolygon'||!(t.natural==='water'||t.landuse==='reservoir'))continue;
-  const member=role=>(r.members||[]).filter(m=>m.type==='way'&&(m.role===role||role==='outer'&&!m.role)).map(m=>{const w=ways.get(m.ref);if(!w)throw Error(`Missing relation member ${m.ref}`);waterMembers.add(m.ref);w.nodes.forEach(point);return w.nodes;});
+ const roads=[],buildings=[],water=[],places=[],warnings=[],waterMembers=new Set(),buildingMembers=new Set();
+ const building=(id,t,polygons,source)=>({id,p:polygons.length===1?polygons[0].outer:null,polygons,h:legalNumber(t.height),levels:legalNumber(t['building:levels']),minHeight:legalNumber(t.min_height),roofHeight:legalNumber(t['roof:height']),roofShape:t['roof:shape']||null,part:!!t['building:part']&&t['building:part']!=='no',name:t.name||'',tags:{...t},source,heightSource:legalNumber(t.height)!==null?'OSM height tag':'unknown'});
+ for(const r of relations){const t=r.tags||{},isWater=t.natural==='water'||t.landuse==='reservoir',isBuilding=t.building&&t.building!=='no'||t['building:part']&&t['building:part']!=='no';if(t.type!=='multipolygon'||!isWater&&!isBuilding)continue;
+  if((r.members||[]).some(m=>m.type==='relation'||m.type==='way'&&!['outer','inner',''].includes(m.role||'')))throw Error(`Unsupported polygon member in relation/${r.id}`);
+  const member=role=>(r.members||[]).filter(m=>m.type==='way'&&(m.role===role||role==='outer'&&!m.role)).map(m=>{const w=ways.get(m.ref);if(!w)throw Error(`Missing relation member ${m.ref}`);if(isWater)waterMembers.add(m.ref);if(isBuilding&&(m.role==='outer'||!m.role))buildingMembers.add(m.ref);if(!Array.isArray(w.nodes))throw Error(`Invalid relation member ${m.ref}`);w.nodes.forEach(point);return w.nodes;});
   const outer=stitchRegionRings(member('outer')).map(c=>validatePolygonRing(c.slice(0,-1).map(point),`relation/${r.id}`)),inner=stitchRegionRings(member('inner')).map(c=>validatePolygonRing(c.slice(0,-1).map(point),`relation/${r.id}`));if(!outer.length)throw Error('Water relation has no outer ring');
   const polygons=outer.map(p=>({outer:p,holes:[]}));for(const hole of inner){const owners=polygons.filter(p=>containsRing(p.outer,hole));if(owners.length!==1)throw Error('Water hole has no unique outer owner');if(owners[0].holes.some(h=>holesOverlap(h,hole)))throw Error('Overlapping or nested water holes are ambiguous');owners[0].holes.push(hole);}
-  water.push({id:`relation/${r.id}`,polygons,source:`https://www.openstreetmap.org/relation/${r.id}`});
+  const source=`https://www.openstreetmap.org/relation/${r.id}`;
+  if(isWater)water.push({id:`relation/${r.id}`,polygons,source});
+  if(isBuilding)buildings.push(building(`relation/${r.id}`,t,polygons,source));
  }
  for(const w of ways.values()){
   if(!Array.isArray(w.nodes)||w.nodes.length<2)throw Error(`Invalid way ${w.id}`);w.nodes.forEach(point);const t=w.tags||{},source=`https://www.openstreetmap.org/way/${w.id}`;
   if(t.highway){const unbuilt=['construction','proposed','abandoned'].includes(t.highway)||t.construction||t.proposed;
-   if(unbuilt){warnings.push(`${source}: unbuilt highway excluded`);continue;}
-   for(let i=1;i<w.nodes.length;i++){const a=point(w.nodes[i-1]),b=point(w.nodes[i]);if(Math.hypot(a[0]-b[0],a[1]-b[1])<.001)continue;
-    roads.push({id:`${w.id}:${i-1}`,way:String(w.id),a,b,nodeA:String(w.nodes[i-1]),nodeB:String(w.nodes[i]),name:t.name||'',highway:t.highway,oneway:t.oneway==='no'?false:t.oneway==='-1'?-1:['yes','1','true'].includes(t.oneway)||t.junction==='roundabout'?true:false,layer:Number.isFinite(Number(t.layer))?Number(t.layer):0,bridge:!!t.bridge&&t.bridge!=='no',tunnel:!!t.tunnel&&t.tunnel!=='no',access:t.access||'yes',foot:t.foot||null,bicycle:t.bicycle||null,motorVehicle:t.motor_vehicle||t.motorcar||null,cycleway:t.cycleway||null,cyclewayLeft:t['cycleway:left']||null,cyclewayRight:t['cycleway:right']||null,walk:['footway','path','pedestrian','steps'].includes(t.highway),cycle:t.highway==='cycleway',width:legalNumber(t.width),source});
+   if(unbuilt)warnings.push(`${source}: unbuilt highway excluded`);
+   for(let i=1;!unbuilt&&i<w.nodes.length;i++){const a=point(w.nodes[i-1]),b=point(w.nodes[i]);if(Math.hypot(a[0]-b[0],a[1]-b[1])<.001)continue;
+    roads.push({id:`${w.id}:${i-1}`,way:String(w.id),a,b,nodeA:String(w.nodes[i-1]),nodeB:String(w.nodes[i]),name:t.name||'',highway:t.highway,oneway:t.oneway==='no'?false:t.oneway==='-1'?-1:['yes','1','true'].includes(t.oneway)||t.junction==='roundabout'?true:false,layer:Number.isFinite(Number(t.layer))?Number(t.layer):0,bridge:!!t.bridge&&t.bridge!=='no',tunnel:!!t.tunnel&&t.tunnel!=='no',access:t.access||null,foot:t.foot||null,bicycle:t.bicycle||null,motorVehicle:t.motor_vehicle||t.motorcar||null,cycleway:t.cycleway||null,cyclewayLeft:t['cycleway:left']||null,cyclewayRight:t['cycleway:right']||null,walk:['footway','path','pedestrian','steps'].includes(t.highway),cycle:t.highway==='cycleway',width:legalNumber(t.width),tags:{...t},source});
    }
   }
-  if(t.building&&t.building!=='no')buildings.push({id:String(w.id),p:ring(w),h:legalNumber(t.height),levels:legalNumber(t['building:levels']),name:t.name||'',source,heightSource:t.height?'OSM height tag':'unknown'});
+  if((t.building&&t.building!=='no'||t['building:part']&&t['building:part']!=='no')&&!buildingMembers.has(w.id))buildings.push(building(String(w.id),t,[{outer:ring(w),holes:[]}],source));
   if(!waterMembers.has(w.id)&&(t.natural==='water'||t.landuse==='reservoir'))water.push({id:`way/${w.id}`,polygons:[{outer:ring(w),holes:[]}],source});
   else if(t.waterway&&t.waterway!=='dam')water.push({id:`way/${w.id}`,line:w.nodes.map(point),width:legalNumber(t.width),waterway:t.waterway,source});
  }
@@ -46,13 +50,15 @@ export function importRegionSource(raw,{origin,sourceURL,acquiredAt,sha256}={}){
  const bounds=[Infinity,Infinity,-Infinity,-Infinity];for(const r of roads)for(const p of [r.a,r.b]){bounds[0]=Math.min(bounds[0],p[0]);bounds[1]=Math.min(bounds[1],p[1]);bounds[2]=Math.max(bounds[2],p[0]);bounds[3]=Math.max(bounds[3],p[1]);}
  // Public places retain their own identity and full tags. A campus polygon or
  // nearby point must not be promoted into an invented building footprint.
+ const buildingBySource=new Map(buildings.map(b=>[b.source,b]));
  for(const e of raw.elements){
   const t=e.tags||{};
-  if(!(t.shop||t.amenity||t.office==='government'||t.tourism||t.historic))continue;
+  if(!(t.shop||t.amenity||t.office||t.tourism||t.historic))continue;
   const id=`${e.type}/${e.id}`;
   const geometry=e.type==='node'?{point:point(e.id)}:e.type==='way'?{outline:e.nodes.map(point)}:{members:e.members||[]};
-  places.push({id,name:t.name||t['name:en']||'',tags:{...t},...geometry,source:`https://www.openstreetmap.org/${id}`,buildingId:e.type==='way'&&t.building&&t.building!=='no'?String(e.id):null});
+  const linked=buildingBySource.get(`https://www.openstreetmap.org/${id}`);
+  places.push({id,name:t.name||t['name:en']||'',tags:{...t},...geometry,source:`https://www.openstreetmap.org/${id}`,buildingId:linked?.id??null});
  }
  const hasRingRelation=relations.some(r=>r.id===20772795);if(!hasRingRelation)warnings.push('Unaza e Madhe route relation absent; ring completeness is unverified');
- return {version:1,stage:'source-review',runtimeReady:false,origin:[...origin],bounds,requestedBbox:[...REGION_BBOX],roads,buildings,water,places,source:{url:sourceURL,acquiredAt,sha256,license:'ODbL-1.0',attribution:'© OpenStreetMap contributors'},warnings,releaseGates:['Review real data coverage at Rinas, Vaqarr, Sauk, Farkë, Kamza, TEG/Elbasan and Dajti','Supply a licensed DEM with horizontal and vertical datum','Validate bridges, tunnels, grades and water collisions','Build shared navigation and simulation bounds in both games','Run actual-game and phone performance checks']};
+ return {version:1,stage:'source-review',runtimeReady:false,origin:[...origin],bounds,requestedBbox:[...REGION_BBOX],roads,buildings,water,places,source:{url:sourceURL,acquiredAt,sha256,license:'ODbL-1.0',attribution:'© OpenStreetMap contributors',...(raw.selection?{selection:raw.selection}:{})},warnings,releaseGates:['Review real data coverage at Rinas, Vaqarr, Sauk, Farkë, Kamza, TEG/Elbasan and Dajti','Supply a licensed DEM with horizontal and vertical datum','Validate bridges, tunnels, grades and water collisions','Build shared navigation and simulation bounds in both games','Run actual-game and phone performance checks']};
 }
