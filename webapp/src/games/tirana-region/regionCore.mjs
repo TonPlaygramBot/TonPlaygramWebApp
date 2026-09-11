@@ -1,6 +1,10 @@
 /** Regional references are NOT roads or survey control points. WGS84 degrees.
  * No new coordinates are written into the original playable WORLD. */
 export const REGION_REFERENCES = Object.freeze([
+  {id:'rinas',name:'Rinas · Aeroporti Nënë Tereza',latitude:41.41472,longitude:19.72056,source:'https://en.wikipedia.org/wiki/Tirana_International_Airport_N%C3%ABn%C3%AB_Tereza',accuracy:'Published airport reference coordinate; not the terminal entrance'},
+  {id:'vaqarr',name:'Vaqarr',latitude:41.300,longitude:19.750,source:'https://en.wikipedia.org/wiki/Vaqarr',accuracy:'Rounded administrative-unit reference; not a building or village entrance'},
+  {id:'sauk',name:'Sauk',latitude:41.300,longitude:19.833,source:'https://en.wikipedia.org/wiki/Sauk,_Albania',accuracy:'Rounded settlement reference; not a road junction'},
+  {id:'farke',name:'Farkë',latitude:41.283,longitude:19.850,source:'https://en.wikipedia.org/wiki/Fark%C3%AB',accuracy:'Rounded administrative-unit reference; not the lake shoreline'},
   {id:'kamza-turn',name:'Kthesa e Kamzës',latitude:41.34357,longitude:19.77643,source:'https://mapcarta.com/N10909820605',osm:'node/10909820605',accuracy:'Rounded OSM bus-stop position, not interchange geometry'},
   {id:'teg',name:'TEG · Rruga e Elbasanit',latitude:41.28316,longitude:19.85720,source:'https://mapcarta.com/W293898197',osm:'way/293898197',accuracy:'Rounded OSM building centre, not a road entrance'},
   {id:'dajti-lower',name:'Dajti · stacioni i poshtëm',latitude:41.35078,longitude:19.86106,source:'https://mapcarta.com/N1911239826',osm:'node/1911239826',accuracy:'Rounded OSM terminal reference'},
@@ -8,7 +12,7 @@ export const REGION_REFERENCES = Object.freeze([
   {id:'dajti-summit',name:'Mali i Dajtit · maja',latitude:41.3666378,longitude:19.9240231,source:'https://mapy.com/en/?id=6304596&source=osm',accuracy:'OSM mirror peak position; not a drivable destination'}
 ].map(Object.freeze));
 // Authored acquisition envelope, not an administrative boundary or ring-road line.
-export const REGION_BBOX = Object.freeze([19.740,41.270,19.945,41.405]); // west,south,east,north
+export const REGION_BBOX = Object.freeze([19.680,41.240,19.980,41.460]); // west,south,east,north
 export const REGION_STATUS='Regional extent and references. Continuous roads, terrain and collision require the reviewed regional import.';
 export function projectRegion(origin,latitude,longitude){
   if(!Array.isArray(origin)||origin.length!==2||![...origin,latitude,longitude].every(Number.isFinite)||Math.abs(origin[0])>=89||Math.abs(origin[1])>180||Math.abs(latitude)>90||Math.abs(longitude)>180)throw Error('Invalid WGS84 coordinate');
@@ -24,9 +28,10 @@ export function referenceLinks(p){
   projectRegion([0,0],p.latitude,p.longitude);const c=`${p.latitude.toFixed(7)},${p.longitude.toFixed(7)}`;
   return {satellite:`https://www.google.com/maps/@?api=1&map_action=map&center=${c}&zoom=18&basemap=satellite`,streetView:`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${c}`,earth:'https://earth.google.com/web/',osm:p.osm?`https://www.openstreetmap.org/${p.osm}`:`https://www.openstreetmap.org/?mlat=${p.latitude}&mlon=${p.longitude}`};
 }
-export function buildRegionQuery(){
-  const [w,s,e,n]=REGION_BBOX,b=`${s},${w},${n},${e}`;
-  return `[out:json][timeout:180];(way[highway](${b});way[building](${b});way[waterway](${b});way[natural=water](${b});relation[natural=water](${b});relation[landuse=reservoir](${b});relation(20772795););(._;>>;);out body;`;
+export function buildRegionQuery(bbox=REGION_BBOX){
+  if(!Array.isArray(bbox)||bbox.length!==4||!bbox.every(Number.isFinite)||bbox[0]>=bbox[2]||bbox[1]>=bbox[3]||bbox[0]<-180||bbox[2]>180||bbox[1]<-90||bbox[3]>90)throw Error('Invalid acquisition bbox');
+  const [w,s,e,n]=bbox,b=`${s},${w},${n},${e}`;
+  return `[out:json][timeout:180];(way[highway](${b});way[building](${b});way[waterway](${b});way[natural=water](${b});relation[natural=water](${b});relation[landuse=reservoir](${b});relation(20772795);nwr[shop](${b});nwr[amenity](${b});nwr[office=government](${b});nwr[tourism](${b});nwr[historic](${b});way[aeroway](${b});way[natural=coastline](${b}););(._;>>;);out body;`;
 }
 /** Bilinear sampling in map metres. Missing/no-data elevations stay missing.
  * sourceDatum / sceneDatum must be explicit; never flatten a failed DEM to zero. */

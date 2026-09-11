@@ -5,5 +5,5 @@ export function projectRegion(origin:readonly number[],latitude:number,longitude
 export function regionalReferences(origin:readonly number[]):(RegionReference&{x:number;z:number;available:false})[];
 export function regionalBounds(origin:readonly number[],cityBounds:readonly number[]):readonly number[];
 export function referenceLinks(p:RegionReference):Record<'satellite'|'streetView'|'earth'|'osm',string>;
-export function buildRegionQuery():string;
+export function buildRegionQuery(bbox?:readonly number[]):string;
 export function sampleHeight(grid:{width:number;height:number;bounds:readonly number[];values:readonly (number|null)[];noData?:number},x:number,z:number):number|null;
