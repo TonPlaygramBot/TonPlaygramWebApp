@@ -1,4 +1,5 @@
 import { WEAPON_BY_ID, STARTER_WEAPON, difficultyOf } from "./weapons.mjs";
+import { forceDispatch } from "./albanianForces.mjs";
 
 // Gameplay-only, bounded systems. The server owns these values in connected runs.
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -132,6 +133,7 @@ export function initCityLife(state, env, mission) {
       x: p[0], z: p[1], heading: 0, speed: 0, vx: 0, vz: 0, steering: 0,
       driver: null, model: service === "police-patrol" ? "police" : service === "ambulance" ? "taxi" : "sedan",
       service, responding: false, node, next, seed: 700 + i * 41, cruise: 7 + i,
+      ...(service === "police-patrol" ? {forceVehicle: "patrol_sedan", forceCharacter: "patrol_officer"} : {}),
     });
   }
   if (mission.type === "combat") {
@@ -394,8 +396,10 @@ function dispatch(state, p, stars, env) {
   const pos = env.roadPoint(p.x + Math.cos(a) * 95, p.z + Math.sin(a) * 95);
   const military = stars === 5,
     id = `unit-${state.effectSeq}-${Math.floor(state.elapsed * 1000)}-${slot}`;
+  const force = forceDispatch(stars, slot + Math.floor(state.elapsed / 30));
   const unit = {
     ...pos,
+    ...force,
     id,
     model: military ? "military-suv" : "police",
     kind: military ? "military" : stars >= 4 ? "tactical" : "patrol",
@@ -415,6 +419,7 @@ function dispatch(state, p, stars, env) {
     state.npcs.push({
       id: `${id}-officer-${i}`,
       unit: id,
+      forceCharacter: force.forceCharacter,
       kind: military ? "soldier" : "police",
       motion: "drive",
       x: pos.x + i,
