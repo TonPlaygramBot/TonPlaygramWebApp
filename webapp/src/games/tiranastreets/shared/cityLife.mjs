@@ -1,5 +1,6 @@
 import { WEAPON_BY_ID, STARTER_WEAPON, difficultyOf } from "./weapons.mjs";
-import { forceDispatch } from "./albanianForces.mjs";
+import { forceDispatch, FORCE_VEHICLE_BOUNDS } from "./albanianForces.mjs";
+import { deployment, tacticalGoal, vehicleBlocks, avoidVehicles } from "./forceTactics.mjs";
 
 // Gameplay-only, bounded systems. The server owns these values in connected runs.
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -343,7 +344,7 @@ function fire(state, p, env) {
       forward > 0 &&
       forward < nearest &&
       side < 0.7 + Math.min(1.4, forward * 0.035) &&
-      env.clear(p, n)
+      env.clear(p, n) && ![...state.cars,...(state.traffic||[]),...state.units].some(c=>vehicleBlocks(p,n,c))
     ) {
       target = n;
       nearest = forward;
@@ -391,47 +392,30 @@ function fire(state, p, env) {
       n.panicUntil = state.elapsed + 10;
 }
 function dispatch(state, p, stars, env) {
-  const slot = state.units.length,
-    a = state.elapsed * 1.3 + slot * 2.1;
-  const pos = env.roadPoint(p.x + Math.cos(a) * 95, p.z + Math.sin(a) * 95);
-  const military = stars === 5,
-    id = `unit-${state.effectSeq}-${Math.floor(state.elapsed * 1000)}-${slot}`;
-  const force = forceDispatch(stars, slot + Math.floor(state.elapsed / 30));
-  const unit = {
-    ...pos,
-    ...force,
-    id,
-    model: military ? "military-suv" : "police",
-    kind: military ? "military" : stars >= 4 ? "tactical" : "patrol",
-    heading: 0,
-    speed: 0,
-    vx: 0,
-    vz: 0,
-    steering: 0,
-    driver: "npc",
-    target: p.id,
-    path: [],
-    pathIndex: 0,
-    nextRoute: 0,
-  };
-  state.units.push(unit);
-  for (let i = 0; i < (military ? 2 : 1); i++)
-    state.npcs.push({
-      id: `${id}-officer-${i}`,
-      unit: id,
-      forceCharacter: force.forceCharacter,
-      kind: military ? "soldier" : "police",
-      motion: "drive",
-      x: pos.x + i,
-      z: pos.z,
-      heading: 0,
-      speed: 0,
-      health: military ? 150 : 100,
-      weapon: military ? "ak47VolleyAttack" : "polyPistol01Attack",
-      nextShot: state.elapsed + 3 + i,
-      downUntil: 0,
-      panicUntil: 0,
+  const plan = deployment(stars, p.wanted - (stars - 1) * 100 + (state.difficulty === 'hard' ? 100 : 0));
+  const squadId = `squad-${state.effectSeq}-${Math.floor(state.elapsed*1000)}`;
+  const a = state.elapsed * 1.3;
+  const pos = env.roadPoint(p.x + Math.cos(a)*95, p.z + Math.sin(a)*95);
+  const heading = Math.atan2(pos.x-p.x,pos.z-p.z);
+  let member=0;
+  plan.vehicles.forEach((forceVehicle, vehicleIndex) => {
+    const id = `${squadId}-${vehicleIndex}`;
+    const unit = {...pos, ...forceDispatch(stars,vehicleIndex), forceVehicle,
+      forceCharacter: plan.character, squadId, role:plan.role, id,
+      model: stars===5?'military-suv':'police', kind:stars===5?'military':stars>=3?'tactical':'patrol',
+      heading, speed:0,vx:0,vz:0,steering:0,driver:'npc',target:p.id,path:[],pathIndex:0,nextRoute:0,
+      x:pos.x+Math.sin(heading)*vehicleIndex*8,z:pos.z+Math.cos(heading)*vehicleIndex*8,
+      ...FORCE_VEHICLE_BOUNDS.find(b=>b.id===forceVehicle)};
+    unit.id=id;
+    env.collide(unit,1.4);
+    state.units.push(unit);
+    for(let seat=0;seat<plan.seats[vehicleIndex];seat++,member++) state.npcs.push({
+      id:`${id}-officer-${seat}`,unit:id,squadId,seat,formationIndex:member,forceCharacter:plan.character,
+      kind:stars===5?'soldier':'police',motion:'drive',anim:forceVehicle.includes('bike')?'ride':'drive',x:unit.x,z:unit.z,heading,speed:0,
+      health:stars===5?150:100,weapon:stars>=2?'ak47VolleyAttack':'polyPistol01Attack',
+      nextShot:state.elapsed+3+member*.2,downUntil:0,panicUntil:0,
     });
+  });
 }
 export function updateCityLife(state, dt, env, mission) {
   // Retain a short, bounded event window so polling clients receive audiovisual events.
@@ -494,18 +478,13 @@ export function updateCityLife(state, dt, env, mission) {
     .filter((p) => p.health > 0 && !p.failed && !p.finished)
     .sort((a, b) => b.wanted - a.wanted)[0];
   const stars = wantedStars(target?.wanted || 0);
-  const capacity = stars ? Math.min(6, stars + 1) : 0;
   if (target && stars && state.elapsed >= state.nextDispatch) {
-    state.nextDispatch = state.elapsed + 5;
-    if (
-      state.units.length < capacity ||
-      (stars === 5 && !state.units.some((u) => u.kind === "military"))
-    ) {
-      if (state.units.length >= 6) {
-        const old = state.units.shift();
-        state.npcs = state.npcs.filter((n) => n.unit !== old.id);
-      }
-      dispatch(state, target, stars, env);
+    state.nextDispatch = state.elapsed + 8;
+    const expected = deployment(stars).role;
+    // Replace a complete response together, never orphan officers by trimming vehicles.
+    if (!state.units.some(u=>u.role===expected)) {
+      state.units=[]; state.npcs=state.npcs.filter(n=>!n.unit);
+      dispatch(state,target,stars,env);
     }
   }
   if (!stars) {
@@ -514,16 +493,20 @@ export function updateCityLife(state, dt, env, mission) {
   }
   for (const unit of state.units) {
     const p = state.players[unit.target] || target;
+    const convoy=state.units.filter(u=>u.squadId===unit.squadId),index=convoy.indexOf(unit),preceding=convoy[index-1];
     if (!p) continue;
-    if (state.elapsed >= unit.nextRoute) {
+    if (state.elapsed >= unit.nextRoute && (!unit.path.length || unit.pathIndex >= unit.path.length || !unit.routeTarget || dist(p,unit.routeTarget)>20)) {
       unit.path = env.route(
         env.nearestNode(unit.x, unit.z),
         env.nearestNode(p.x, p.z),
       );
       unit.pathIndex = 0;
       unit.nextRoute = state.elapsed + 3.5;
+      unit.routeTarget={x:p.x,z:p.z};
     }
     const d = dist(unit, p);
+    if(preceding && dist(preceding,unit)<8){unit.speed=0;continue;}
+    if(state.npcs.some(n=>n.unit===unit.id && n.deployed)) {unit.speed=0;continue;}
     unit.speed = 0;
     if (
       d > 16 &&
@@ -602,22 +585,40 @@ export function updateCityLife(state, dt, env, mission) {
     }
     const unit = n.unit && state.units.find((u) => u.id === n.unit),
       d = dist(n, p);
-    if (unit && dist(unit, p) > 23) {
+    const squadLead=unit && state.units.find(u=>u.squadId===unit.squadId);
+    if (unit && !n.deployed && dist(squadLead||unit, p) > 23) {
       n.motion = "drive";
-      n.x = unit.x;
-      n.z = unit.z;
+      const seatOffset = n.seat ? .38 : -.32;
+      n.x = unit.x + Math.sin(unit.heading)*seatOffset;
+      n.z = unit.z + Math.cos(unit.heading)*seatOffset;
+      n.speed = unit.speed;
+      n.anim = unit.forceVehicle.includes("bike") ? "ride" : "drive";
       n.heading = unit.heading;
       continue;
     }
+    if(n.unit && !n.deployed) {
+      n.deployed=true;
+      n.x += Math.cos(n.heading)*(n.seat%2?1:-1)*2;
+      n.z -= Math.sin(n.heading)*(n.seat%2?1:-1)*2;
+      env.collide(n,.45);
+    }
     n.motion = "walk";
-    n.anim = "aim";
-    if (d > 16 && d < 100) {
-      env.along(n, p, n.kind === "soldier" ? 3.6 : 2.7, dt);
-      env.collide(n, 0.45);
-      n.anim = "run";
-    } else n.speed = 0;
-    n.heading = Math.atan2(n.x - p.x, n.z - p.z);
-    if (d < 46 && state.elapsed >= n.nextShot && env.clear(n, p)) {
+    const cars=[...state.cars,...(state.traffic||[]),...state.units];
+    const tactic = n.unit ? tacticalGoal(n,p,state.npcs.filter(o=>o.squadId===n.squadId),cars,state.elapsed,env.clear)
+      : {goal:p,anim:d>16?'run':'aim'};
+    n.anim=tactic.anim; n.coverId=tactic.coverId; n.speed=0;
+    if(n.anim==='run'||n.anim==='walk') {
+      env.along(n,avoidVehicles(n,tactic.goal,cars),n.anim==='run'?3.6:1.45,dt); env.collide(n,.45);
+    }
+    // Personal space prevents overlapping squad members even while converging.
+    for(const other of state.npcs) if(other!==n && other.health>0 && other.motion!=='drive') {
+      const dx=n.x-other.x,dz=n.z-other.z,l=Math.hypot(dx,dz);
+      if(l<.85 && l>0.001){n.x+=dx/l*(.85-l)*.5;n.z+=dz/l*(.85-l)*.5;}
+    }
+    env.collide(n,.45);
+    if(n.anim==='aim'||n.anim==='cover') n.heading=Math.atan2(n.x-p.x,n.z-p.z);
+    const canShoot=n.anim==='aim' && !cars.some(c=>vehicleBlocks(n,p,c));
+    if (canShoot && d < 46 && state.elapsed >= n.nextShot && env.clear(n, p)) {
       n.nextShot =
         state.elapsed + (n.kind === "soldier" ? 0.85 : 1.6) / cfg.damage;
       // Grace period and readable cadence give touch players time to react.

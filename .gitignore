@@ -58,3 +58,9 @@ webapp/public/models/pool-royale/pool-table-traditional-fizyman/
 
 # Generated from webapp/scripts/generate-tirana-street-furniture.mjs during dev/build.
 webapp/public/assets/tirana-streets/street-furniture.glb
+
+# Original 26-model pack: verified and bundled by import-tirana-originals.mjs.
+webapp/public/assets/tirana-streets/imported/*.glb
+webapp/public/assets/tirana-streets/imported/*.gltf
+webapp/public/assets/tirana-streets/imported/*.tmp
+webapp/public/assets/tirana-streets/imported/draco/

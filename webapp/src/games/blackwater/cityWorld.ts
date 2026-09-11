@@ -1,3 +1,4 @@
+import {ImportedAssetVisuals} from '../tiranastreets/ImportedAssetVisuals';
 import { AlbanianForcesVisuals, type ForceFrame } from '../tiranastreets/AlbanianForcesVisuals';
 import * as THREE from 'three';
 import {attachEnhancements} from '../tirana-expansion/WorldEnhancements';
@@ -55,8 +56,16 @@ export function makeCityWorld(scene:THREE.Scene,camera:THREE.PerspectiveCamera,r
     id: `battlefield-fleet-${i}`, forceVehicle: p.forceVehicle, model: 'police',
     x: p.x, z: p.z, heading: p.rot - Math.PI, speed: 0, steering: 0,
   })), traffic: [], units: [], npcs: []};
+  const imported=new ImportedAssetVisuals();scene.add(imported.group);
+  const importedPlacements=props.filter(p=>p.racingAsset||p.assetId).map((p,i)=>({id:`imported-${i}`,x:p.x,z:p.z,heading:p.rot,racingAsset:p.racingAsset,assetId:p.assetId}));
+  const importedFallbacks = new Map<string, THREE.Object3D>();
   const fleetFallbacks = new Map<string, THREE.Object3D>();
   for (const p of props) {
+    if(p.racingAsset||p.assetId) {
+      const entry=importedPlacements.find(e=>e.racingAsset===p.racingAsset&&e.assetId===p.assetId)!;
+      const placeholder=new THREE.Mesh(new THREE.BoxGeometry(p.w,p.h,p.d),metal);
+      placeholder.position.set(p.x,p.h/2,p.z);cover.add(placeholder);importedFallbacks.set(entry.id,placeholder);continue;
+    }
     const car = p.sx===8 && p.sz===12 || p.sx===-9 && p.sz===-24;
     const fallback = new THREE.Mesh(new THREE.BoxGeometry(p.w,p.h,p.d),car?metal:concrete);
     fallback.position.set(p.x,p.h/2,p.z); fallback.rotation.y=p.rot;
@@ -82,6 +91,8 @@ export function makeCityWorld(scene:THREE.Scene,camera:THREE.PerspectiveCamera,r
   world.update = position => {
     const now = performance.now() / 1000;
     forces?.update(fleet, position, now, Math.min(.05, now - forceTime), !renderer.shadowMap.enabled);
+    imported.update(importedPlacements,position,!renderer.shadowMap.enabled);
+    for(const [id,fallback] of importedFallbacks)fallback.visible=!imported.has(id);
     forceTime = now;
     for (const [id, fallback] of fleetFallbacks) fallback.visible = !forces?.has(id);
     enhancements.update(performance.now()/1000,camera);
@@ -97,6 +108,6 @@ export function makeCityWorld(scene:THREE.Scene,camera:THREE.PerspectiveCamera,r
   };
   world.update(new THREE.Vector3(START.x,1.68,START.z));
   const dispose = world.dispose;
-  world.dispose=()=>{disposed=true;forces?.dispose();enhancements.dispose();details.dispose();city.dispose();dispose();concrete.dispose();metal.dispose();};
+  world.dispose=()=>{disposed=true;imported.dispose();forces?.dispose();enhancements.dispose();details.dispose();city.dispose();dispose();concrete.dispose();metal.dispose();};
   return world;
 }

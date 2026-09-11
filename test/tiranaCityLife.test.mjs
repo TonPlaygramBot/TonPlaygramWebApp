@@ -16,7 +16,7 @@ test('all Ludo firearm/ordnance entries are represented with unique balanced IDs
  const source=readFileSync(new URL('../webapp/src/config/ludoBattleOptions.js',import.meta.url),'utf8').split('export const CAPTURE_ANIMATION_OPTIONS')[1].split('export const')[0];
  const ids=[...source.matchAll(/id: '([^']+)'/g)].map(m=>m[1]).filter(id=>!['missileJavelin','droneAttack','ukrainianDroneAttack','fighterJetAttack','helicopterAttack','polyTank01Attack'].includes(id));
  for(const id of ids)assert.ok(WEAPON_BY_ID.has(id),id);
- assert.equal(new Set(WEAPONS.map(w=>w.id)).size,WEAPONS.length);assert.equal(WEAPONS.length,33);
+ assert.equal(new Set(WEAPONS.map(w=>w.id)).size,WEAPONS.length);assert.equal(WEAPONS.length,35);
  for(const w of WEAPONS){assert.ok(w.interval>=.08);assert.ok(w.magazine>0);assert.ok(w.price>0);}
 });
 test('dealer enforces proximity, wanted status, funds and ammo capacity',()=>{
@@ -47,7 +47,7 @@ test('innocent NPCs flee and five-star pursuit dispatches armed military with a 
  tick(s,.02);assert.ok(s.npcs[0].panicUntil>s.elapsed);assert.ok(p.wanted>0);assert.ok(s.npcs[0].z<-10);
  reportCrime(s,p,1000);assert.equal(wantedStars(p.wanted),5);s.nextDispatch=0;p.lastCrime=1000;
  tick(s,.1);assert.ok(s.units.some(u=>u.kind==='military'));assert.ok(s.npcs.some(n=>n.kind==='soldier'&&n.weapon));
- tick(s,60);assert.ok(s.units.length<=6);assert.ok(s.npcs.length<=13);
+ tick(s,60);assert.ok(s.units.length<=6);assert.ok(s.npcs.length<=21);
 });
 test('wanted levels decay out of sight and free roam recovers after defeat',()=>{
  const s=scene(),p=s.players.p;p.wanted=80;p.lastCrime=-50;tick(s,12);assert.equal(p.wanted,0);
@@ -70,7 +70,7 @@ test('connected action replay does not repeat purchases',()=>{
  applyRoom(r,member,'input',action,130);assert.equal(r.state.players.p.cash,cash);
 });
 test('city contains server-owned walkers, riders, traffic and dealer; public snapshots omit NPC paths',()=>{
- const s=createState([{id:'p',name:'P'}],'free-roam');assert.ok(s.npcs.length>=43);assert.equal(s.traffic.length,23);assert.ok(s.npcs.some(n=>n.motion==='cycle'));
+ const s=createState([{id:'p',name:'P'}],'free-roam');assert.ok(s.npcs.length>=43);assert.equal(s.traffic.length,31);assert.ok(s.npcs.some(n=>n.motion==='cycle'));
  const before=s.npcs[1].x+','+s.npcs[1].z;advanceState(s,.5);assert.notEqual(s.npcs[1].x+','+s.npcs[1].z,before);
  const pub=publicState(s);assert.ok(!('path' in pub.npcs[1]));assert.ok(!('input' in pub.players.p));
 });

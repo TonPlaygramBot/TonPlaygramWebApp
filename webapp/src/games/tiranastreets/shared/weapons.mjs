@@ -429,7 +429,9 @@ export const WEAPONS = Object.freeze([
     "price": 130,
     "radius": 0
   }
-].map(Object.freeze));
+  ,{id:'awpSniperAttack',label:'AWP Sniper',category:'marksman',model:'awpSniperAttack',magazine:5,damage:76,interval:1.3,range:85,reload:2.8,price:420,radius:0},
+  {id:'mrtkGunAttack',label:'MRTK Gun',category:'rifle',model:'mrtkGunAttack',magazine:24,damage:20,interval:.16,range:42,reload:2.1,price:300,radius:0}
+].map(w=>Object.freeze({...w,model: ['fpsGunAttack','glockSidearmAttack','uziSprayAttack','ak47VolleyAttack','krsvBurstAttack','smithSidearmAttack','mosinMarksmanAttack'].includes(w.id)?w.id:w.model})));
 export const WEAPON_BY_ID = new Map(WEAPONS.map(w => [w.id, w]));
 export const STARTER_WEAPON = "polyPistol01Attack";
 export const DIFFICULTIES = Object.freeze({ easy: {label:"Explorer", damage:0.55, time:1.35, rival:0.8, reward:0.8}, normal: {label:"Street", damage:1, time:1, rival:1, reward:1}, hard: {label:"Veteran", damage:1.45, time:0.85, rival:1.14, reward:1.25} });
