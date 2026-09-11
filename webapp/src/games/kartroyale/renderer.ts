@@ -1,5 +1,6 @@
 import * as T from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { isMilitaryVehicle } from './militaryVehicleCatalog.mjs';
 import { vehicleAssetUrl } from './vehicleAssetConfig.mjs';
 import { prepareVehicleAsset } from './vehicleAssetAdapter';
@@ -254,7 +255,9 @@ export class KartRenderer {
     this.raf = requestAnimationFrame(this.animate);
   }
   async load() {
-    const loader = new GLTFLoader();
+    const draco = new DRACOLoader();
+    draco.setDecoderPath('/assets/tirana-streets/draco/');
+    const loader = new GLTFLoader().setDRACOLoader(draco);
     const textures = new T.TextureLoader();
     const results = await Promise.allSettled([
       loader.loadAsync('/assets/kart-royale/apex.glb'),
@@ -270,6 +273,7 @@ export class KartRenderer {
         loader.loadAsync(vehicleAssetUrl(k.id, true))
       )
     ]);
+    draco.dispose();
     const failed = results.find((r) => r.status === 'rejected');
     if (this.disposed || failed) {
       for (const r of results)
