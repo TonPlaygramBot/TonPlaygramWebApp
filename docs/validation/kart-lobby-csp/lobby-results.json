@@ -1,0 +1,28 @@
+{
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "productionCsp": "default-src 'self';script-src 'self' 'unsafe-inline' 'unsafe-eval' https:;style-src 'self' 'unsafe-inline' https:;img-src 'self' blob: data: https:;connect-src 'self' blob: data: https: wss:;media-src 'self' blob: data: https:;font-src 'self' data: https:;frame-src 'self' https:;worker-src 'self' blob:",
+  "wrapper": "Actual pages/Games/KartRoyale route with TPG matchmaking",
+  "vehicles": [
+    "apex",
+    "oobi",
+    "oodi",
+    "ooli",
+    "oopi",
+    "ferrari",
+    "buggy",
+    "shota",
+    "brabus-g",
+    "defender",
+    "brabus-s65"
+  ],
+  "swipeLeft": "apex → oobi",
+  "swipeRight": "oobi → apex",
+  "start": {
+    "id": "apex",
+    "count": 6
+  },
+  "errors": []
+}
