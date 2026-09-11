@@ -21,7 +21,6 @@ export const KARTS = [
   { id: 'oodi', name: 'Illyrian', detail: 'Agile road racer', speed: .97, handling: 1.12, brake: 1.05, shield: 70, ammunition: 4 },
   { id: 'ooli', name: 'Besa', detail: 'Armoured touring kart', speed: .92, handling: .9, brake: 1.12, shield: 100, ammunition: 2 },
   { id: 'oopi', name: 'Dajti', detail: 'Aero attack kart', speed: 1.05, handling: 1.03, brake: .98, shield: 72, ammunition: 5 },
-  { id: 'ferrari', name: 'Ferrari', detail: 'Full-size road racer', speed: 1.12, handling: 1.02, brake: 1.08, shield: 68, ammunition: 3 },
   ...MILITARY_VEHICLES
 ];
 export const normalizeKart = (id) =>
