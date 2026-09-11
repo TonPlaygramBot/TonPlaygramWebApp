@@ -88,6 +88,7 @@ import {
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
+import { contentSecurityPolicy } from './config/contentSecurityPolicy.js';
 import authenticate, { optionalAuthenticate, verifyTelegramInitData } from './middleware/auth.js';
 import {
   registerConnection,
@@ -336,23 +337,7 @@ bot.action(/^reject_invite:(.+)/, async (ctx) => {
 });
 
 // Middleware and routes
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https:'],
-      styleSrc: ["'self'", "'unsafe-inline'", 'https:'],
-      imgSrc: ["'self'", 'blob:', 'data:', 'https:'],
-      connectSrc: ["'self'", 'blob:', 'https:', 'wss:'],
-      // The native/mobile build can load wall videos from the separately
-      // hosted API. Without an explicit media policy CSP falls back to
-      // default-src 'self' and blocks the player before it reaches Express.
-      mediaSrc: ["'self'", 'blob:', 'data:', 'https:'],
-      fontSrc: ["'self'", 'data:', 'https:'],
-      frameSrc: ["'self'", 'https:']
-    }
-  }
-}));
+app.use(helmet({ contentSecurityPolicy }));
 app.use(compression());
 app.use('/api/protest-videos', protestVideoRoutes);
 app.use('/api/flamingo-wall', flamingoWallRoutes);

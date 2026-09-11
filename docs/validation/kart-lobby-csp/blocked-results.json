@@ -1,0 +1,10 @@
+{
+  "selectionDisabled": true,
+  "modelCount": 0,
+  "violations": [
+    {
+      "directive": "worker-src",
+      "blocked": "blob"
+    }
+  ]
+}

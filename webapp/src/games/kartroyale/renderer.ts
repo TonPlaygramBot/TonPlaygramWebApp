@@ -255,9 +255,9 @@ export class KartRenderer {
     this.raf = requestAnimationFrame(this.animate);
   }
   async load() {
-    const draco = new DRACOLoader().setDecoderPath(
-      '/assets/tirana-streets/imported/draco/'
-    );
+    const draco = new DRACOLoader()
+      .setWorkerLimit(1)
+      .setDecoderPath('/assets/tirana-streets/imported/draco/');
     const loader = new GLTFLoader().setDRACOLoader(draco);
     const textures = new T.TextureLoader();
     const results = await Promise.allSettled([
