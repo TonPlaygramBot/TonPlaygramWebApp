@@ -64,9 +64,6 @@ describe('Snooker Royal quality safeguards', () => {
     slider._onPointerMove = () => {};
     slider._onPointerUp = () => {};
     slider.el = {
-      ownerDocument: {
-        removeEventListener: jest.fn()
-      },
       releasePointerCapture: jest.fn(),
       removeEventListener: jest.fn(),
       classList: { remove: jest.fn() }
@@ -82,42 +79,5 @@ describe('Snooker Royal quality safeguards', () => {
     expect(slider._playShotAnimation).not.toHaveBeenCalled();
     expect(slider.animateToMin).toHaveBeenCalledWith({ duration: 120 });
     expect(slider.onFeedback).toHaveBeenCalledWith({ type: 'cancel', band: 0, value: 78 });
-  });
-
-  test('portrait drag release is handled outside the narrow slider track', () => {
-    const listeners = new Map();
-    const ownerDocument = {
-      addEventListener: jest.fn((type, handler) => listeners.set(type, handler)),
-      removeEventListener: jest.fn((type) => listeners.delete(type))
-    };
-    const slider = Object.create(PowerSlider.prototype);
-    slider.locked = false;
-    slider.value = 0;
-    slider.min = 0;
-    slider.max = 100;
-    slider.step = 1;
-    slider.el = {
-      ownerDocument,
-      classList: { add: jest.fn(), remove: jest.fn() },
-      setPointerCapture: jest.fn(() => { throw new Error('capture unavailable'); }),
-      releasePointerCapture: jest.fn(),
-      getBoundingClientRect: () => ({ top: 100, height: 400 })
-    };
-    slider._onPointerMove = slider._pointerMove.bind(slider);
-    slider._onPointerUp = slider._pointerUp.bind(slider);
-    slider._cancelReturnAnimation = jest.fn();
-    slider._cancelShotAnimation = jest.fn();
-    slider._update = jest.fn();
-    slider.set = jest.fn((value) => { slider.value = slider._clamp(slider._step(value)); });
-    slider.onCommit = jest.fn();
-    slider._playShotAnimation = jest.fn();
-
-    slider._pointerDown({ preventDefault: jest.fn(), pointerId: 4, clientY: 180 });
-    listeners.get('pointermove')({ pointerId: 4, clientY: 420 });
-    listeners.get('pointerup')({ type: 'pointerup', pointerId: 4 });
-
-    expect(slider.onCommit).toHaveBeenCalledWith(80);
-    expect(slider._playShotAnimation).toHaveBeenCalledWith(80);
-    expect(slider.dragging).toBe(false);
   });
 });

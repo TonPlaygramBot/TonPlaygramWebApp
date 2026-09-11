@@ -74,24 +74,9 @@
 }
 
 @media (pointer: coarse) {
-  .ps.ps-theme-pool-royale {
-    --ps-width: 38px;
-    --ps-height: min(68vh, 580px);
-  }
-
   .ps.ps-theme-pool-royale::before {
     content: '';
     position: absolute;
-    inset: -22px -30px;
-  }
-
-  .ps.ps-theme-pool-royale .ps-handle {
-    min-height: 72px;
-  }
-}
-
-@media (pointer: coarse) and (orientation: portrait) {
-  .ps.ps-theme-pool-royale {
-    --ps-height: min(58vh, 500px);
+    inset: -18px -22px;
   }
 }

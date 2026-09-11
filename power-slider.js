@@ -169,7 +169,6 @@ export class PowerSlider {
 
   destroy() {
     this._cancelReturnAnimation();
-    this._removeDragListeners();
     this.el.removeEventListener('pointerdown', this._onPointerDown);
     this.el.removeEventListener('wheel', this._onWheel);
     this.el.removeEventListener('keydown', this._onKeyDown);
@@ -249,22 +248,18 @@ export class PowerSlider {
     this._cancelReturnAnimation();
     this._cancelShotAnimation();
     this.dragging = true;
-    this._activePointerId = e.pointerId;
     this._feedbackBand = getPowerFeedbackBand(this.value, this.min, this.max);
     this.el.classList.add('ps-no-animate');
-    try {
-      this.el.setPointerCapture(e.pointerId);
-    } catch {
-      // Some embedded mobile browsers expose Pointer Events without capture.
-      // Document-level listeners below still guarantee that release is seen.
-    }
+    this.el.setPointerCapture(e.pointerId);
     if (typeof this.onStart === 'function') this.onStart(this.value);
     this._updateFromClientY(e.clientY);
-    this._addDragListeners();
+    this.el.addEventListener('pointermove', this._onPointerMove);
+    this.el.addEventListener('pointerup', this._onPointerUp);
+    this.el.addEventListener('pointercancel', this._onPointerUp);
   }
 
   _pointerMove(e) {
-    if (!this.dragging || (this._activePointerId != null && e.pointerId !== this._activePointerId)) return;
+    if (!this.dragging) return;
     this._updateFromClientY(e.clientY);
     const nextBand = getPowerFeedbackBand(this.value, this.min, this.max);
     if (nextBand !== this._feedbackBand) {
@@ -276,16 +271,17 @@ export class PowerSlider {
   }
 
   _pointerUp(e) {
-    if (!this.dragging || (this._activePointerId != null && e.pointerId !== this._activePointerId)) return;
+    if (!this.dragging) return;
     const cancelled = isPowerPointerCancel(e);
     this.dragging = false;
-    this._activePointerId = null;
     try {
       this.el.releasePointerCapture(e.pointerId);
     } catch {
       // ignore
     }
-    this._removeDragListeners();
+    this.el.removeEventListener('pointermove', this._onPointerMove);
+    this.el.removeEventListener('pointerup', this._onPointerUp);
+    this.el.removeEventListener('pointercancel', this._onPointerUp);
     this.el.classList.remove('ps-no-animate');
     if (cancelled) {
       this._feedbackBand = 0;
@@ -300,23 +296,6 @@ export class PowerSlider {
       this.onFeedback({ type: 'release', band: this._feedbackBand, value: this.value });
     }
     this._playShotAnimation(this.value);
-  }
-
-  _addDragListeners() {
-    const target = this.el.ownerDocument || this.el;
-    this._dragEventTarget = target;
-    target.addEventListener('pointermove', this._onPointerMove, { passive: false });
-    target.addEventListener('pointerup', this._onPointerUp);
-    target.addEventListener('pointercancel', this._onPointerUp);
-  }
-
-  _removeDragListeners() {
-    const target = this._dragEventTarget;
-    if (!target) return;
-    target.removeEventListener('pointermove', this._onPointerMove);
-    target.removeEventListener('pointerup', this._onPointerUp);
-    target.removeEventListener('pointercancel', this._onPointerUp);
-    this._dragEventTarget = null;
   }
 
   _wheel(e) {
