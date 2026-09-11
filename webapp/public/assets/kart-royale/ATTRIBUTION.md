@@ -46,6 +46,8 @@ model geometry and textures are shipped in the repository and served locally.
 
 ## Racing Royal — Tirana street series (2026-09-07)
 
+- Ferrari: restored from the Three.js examples model library using its upstream HTTPS asset URL, so the Ferrari and original `apex.glb` go-kart remain selectable without storing another binary in this repository.
+
 - Five new kart assets `kenney-{oobi,oodi,ooli,oopi,oozi}.glb`: **Kenney, Car Kit 3.1**, CC0 1.0. https://kenney.nl/assets/car-kit . Original models are retained byte-for-byte. Runtime adaptations normalize size, animate the wheels, and add distinct front fairing, wide sidepod or rear-wing details. All choices share the same performance. The license is retained in `licenses/kenney-car-kit.txt`; hashes and the download URL are in `tirana-sources.json`.
 - `albania.svg`: **lipis/flag-icons contributors**, MIT, version 7.3.2. https://github.com/lipis/flag-icons/blob/v7.3.2/flags/4x3/al.svg . The full license is retained in `licenses/flag-icons.txt`.
 - Roads, building footprints, parks, river and landmark coordinates reuse **Tirana Streets' OpenStreetMap snapshot**. © OpenStreetMap contributors, **ODbL 1.0**, https://www.openstreetmap.org/copyright . Editable source: [world.json](../tirana-streets/world.json); selected road centerlines: [tirana-routes.json](./tirana-routes.json). See [DATA-LICENSE.md](../tirana-streets/DATA-LICENSE.md). Heights, facades, landmark meshes and race widening are gameplay approximations, not photogrammetry.
