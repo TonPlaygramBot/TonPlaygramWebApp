@@ -3,9 +3,12 @@ import {GLTFLoader, type GLTF} from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {clone} from 'three/examples/jsm/utils/SkeletonUtils.js';
 import {clearWeaponInstance, disposeWeaponResources} from './weaponModelResources';
 import {forceVehicleFor, forceCharacterFor, type ForceAsset} from './shared/albanianForces.mjs';
-import type {State, Point, NPC, Car} from './shared/engine.mjs';
+import type {Point, NPC, Car} from './shared/engine.mjs';
 
-type Candidate = {key: string; asset: ForceAsset; entity: Car | NPC; distance: number; flashing: boolean};
+export type ForceCar = Pick<Car, 'id' | 'x' | 'z' | 'heading' | 'speed' | 'steering' | 'model' | 'forceVehicle' | 'responding'>;
+export type ForceNPC = Pick<NPC, 'id' | 'x' | 'z' | 'heading' | 'speed' | 'kind' | 'motion' | 'health' | 'forceCharacter'>;
+export type ForceFrame = {cars: ForceCar[]; traffic: ForceCar[]; units: ForceCar[]; npcs: ForceNPC[]};
+type Candidate = {key: string; asset: ForceAsset; entity: ForceCar | ForceNPC; distance: number; flashing: boolean};
 type Source = {gltf: GLTF; frame: T.Group; used: number};
 type Actor = {
   root: T.Group; asset: ForceAsset; wheels: T.Object3D[]; steering: T.Object3D[];
@@ -99,7 +102,7 @@ export class AlbanianForcesVisuals {
     return actor;
   }
 
-  update(state: State, viewer: Point, time: number, dt: number, battery = false) {
+  update(state: ForceFrame, viewer: Point, time: number, dt: number, battery = false) {
     if (this.dead) return;
     this.frame++;
     const distance = (e: Point) => Math.hypot(e.x - viewer.x, e.z - viewer.z);
@@ -138,7 +141,7 @@ export class AlbanianForcesVisuals {
       actor.root.rotation.y += Math.atan2(Math.sin(e.heading + Math.PI - actor.root.rotation.y), Math.cos(e.heading + Math.PI - actor.root.rotation.y)) * (first ? 1 : Math.min(1, dt * 14));
       actor.root.userData.placed = true;
       if (person) {
-        const npc = e as NPC, moving = npc.speed > .15 && npc.health > 0;
+        const npc = e as ForceNPC, moving = npc.speed > .15 && npc.health > 0;
         actor.root.rotation.x = npc.health <= 0 ? -Math.PI / 2 : 0;
         if (actor.moving !== moving) {
           (moving ? actor.walk : actor.idle)?.reset().fadeIn(.18).play();
@@ -147,7 +150,7 @@ export class AlbanianForcesVisuals {
         }
         if (npc.health > 0) actor.mixer?.update(dt * (moving ? Math.min(2.3, Math.max(.6, npc.speed / 1.4)) : 1));
       } else {
-        const car = e as Car;
+        const car = e as ForceCar;
         for (const wheel of actor.wheels) wheel.rotation.z -= car.speed * dt / actor.asset.wheelRadius;
         for (const steer of actor.steering) steer.rotation.y = -car.steering * .32;
         actor.lamps.forEach((lamp, i) => {

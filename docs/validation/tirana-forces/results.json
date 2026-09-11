@@ -1,0 +1,39 @@
+{
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "scope": "Actual Battlefield Game/engine, frozen AI, software WebGL; not physical-phone performance",
+  "visible": {
+    "fallbackHidden": true,
+    "errors": [],
+    "groups": [
+      [
+        "battlefield-fleet-0",
+        "battlefield-fleet-1"
+      ],
+      [
+        "npc-0"
+      ]
+    ]
+  },
+  "requests": [
+    {
+      "url": "/assets/tirana-streets/albanian-forces/glb/patrol_hatch.glb",
+      "status": 200
+    },
+    {
+      "url": "/assets/tirana-streets/albanian-forces/glb/patrol_sedan.glb",
+      "status": 200
+    },
+    {
+      "url": "/assets/tirana-streets/albanian-forces/glb/patrol_officer.glb",
+      "status": 200
+    },
+    {
+      "url": "/assets/tirana-streets/albanian-forces/glb/shqiponja_compact.glb",
+      "status": 200
+    }
+  ],
+  "errors": []
+}

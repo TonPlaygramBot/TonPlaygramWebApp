@@ -1,3 +1,4 @@
+import { BattlefieldForces } from './BattlefieldForces';
 import * as THREE from 'three';
 import { CompatibilityRenderer } from './compatibility';
 import { GameAudio } from './audio';
@@ -127,6 +128,7 @@ export class GameEngine {
   private pendingHeal = false;
   private remoteTarget: Vec2 | null = null;
   private enemies: Enemy[] = [];
+  private forces?: BattlefieldForces;
   private effects: Effect[] = [];
   private loot: Loot[] = [];
   private extractionPoint = { ...EXTRACTION };
@@ -214,6 +216,7 @@ export class GameEngine {
       /* Storage can be unavailable in private frames. */
     }
     this.world = makeCityWorld(this.scene, this.camera, this.renderer);
+    if (this.renderer instanceof THREE.WebGLRenderer) this.forces = new BattlefieldForces(this.scene);
     this.input = new GameInput(surface);
     this.input.onLook = (dx, dy) => this.look(dx, dy);
     this.input.onFire = () => this.beginFire();
@@ -311,6 +314,7 @@ export class GameEngine {
     this.emit();
   }
   private clearActors() {
+    this.forces?.clear();
     for (const e of this.enemies) {
       this.scene.remove(e.group);
       const materials = new Set<THREE.Material>();
@@ -1062,6 +1066,7 @@ export class GameEngine {
       0,
       this.camera.position.z
     );
+    this.forces?.update(this.enemies, this.player, this.totalTime, dt, this.settings.quality === 'low');
     this.renderer.render(this.scene, this.camera);
     this.uiTime += dt;
     if (this.uiTime > 0.1) {
@@ -1335,6 +1340,7 @@ export class GameEngine {
       this.contextLost
     );
     this.clearActors();
+    this.forces?.dispose();
     this.world.dispose();
     this.tracerGeo.dispose();
     this.sparkGeo.dispose();

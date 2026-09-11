@@ -50,11 +50,12 @@ test('the complete Tirana Streets layout retains its metric scale and east/south
     new URL('../webapp/src/games/blackwater/world.ts', import.meta.url),
     'utf8'
   );
+  // Preserve the original gun; actor bodies now support original Albanian uniforms.
   // Original BLACKWATER source commit 1f60946e2a6251f0f66b444c8a17243cc4721bff.
   const sha = (text) => createHash('sha256').update(text).digest('hex');
   assert.equal(
-    sha(assets.slice(assets.indexOf('function makeGun()'))),
-    '59e8646be0b09079f2bbb97f49b03f64fbefbc39be2e0cef671bbff6621cc0a8'
+    sha(assets.slice(assets.indexOf('function makeGun()'), assets.indexOf('export type ActorVisual'))),
+    'f7fc99e54898ba13d646440eb41b9f3186eab4eafe3f53e0b02179b66211b9ef'
   );
 
 });

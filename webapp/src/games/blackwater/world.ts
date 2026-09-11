@@ -135,18 +135,18 @@ function makeGun(){
   const muzzle=new THREE.Mesh(new THREE.OctahedronGeometry(.11,0),new THREE.MeshBasicMaterial({color:'#ffe7a3',transparent:true,opacity:.9,blending:THREE.AdditiveBlending,depthWrite:false}));muzzle.position.set(0,.025,-.79);muzzle.scale.set(.8,.8,2.5);muzzle.visible=false;gun.add(muzzle);const gunLight=new THREE.PointLight('#ffc381',0,6);gunLight.position.copy(muzzle.position);gun.add(gunLight);
   return {gun,muzzle,gunLight};
 }
-export type ActorVisual={group:THREE.Group;legs:THREE.Group[];arms:THREE.Group[];flash:THREE.Mesh;materials:THREE.Material[]};
+export type ActorVisual={group:THREE.Group;body:THREE.Group;legs:THREE.Group[];arms:THREE.Group[];flash:THREE.Mesh;materials:THREE.Material[]};
 export function makeEnemy():ActorVisual{
-  const group=new THREE.Group();const cloth=material('#50574c'),vest=material('#303a34',.85),gear=material('#777966',.6),dark=material('#1d292a',.45),visor=new THREE.MeshStandardMaterial({color:'#392e28',emissive:'#f06d44',emissiveIntensity:1.1,metalness:.4,roughness:.3});
+  const group=new THREE.Group(),body=new THREE.Group();group.add(body);const cloth=material('#50574c'),vest=material('#303a34',.85),gear=material('#777966',.6),dark=material('#1d292a',.45),visor=new THREE.MeshStandardMaterial({color:'#392e28',emissive:'#f06d44',emissiveIntensity:1.1,metalness:.4,roughness:.3});
   function box(parent:THREE.Object3D,x:number,y:number,z:number,w:number,h:number,d:number,m:THREE.Material){const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);mesh.position.set(x,y,z);parent.add(mesh);return mesh;}
   function capsule(parent:THREE.Object3D,x:number,y:number,z:number,r:number,l:number,m:THREE.Material){const mesh=new THREE.Mesh(new THREE.CapsuleGeometry(r,l,3,6),m);mesh.position.set(x,y,z);parent.add(mesh);return mesh;}
-  capsule(group,0,1.13,0,.26,.40,cloth);box(group,0,1.2,-.055,.55,.54,.33,vest);box(group,0,1.17,.22,.39,.52,.20,vest);
-  for(const x of [-.15,0,.15])box(group,x,1.07,-.25,.12,.19,.1,gear);box(group,0,.84,0,.50,.10,.32,dark);
-  capsule(group,0,1.71,0,.195,.12,dark);capsule(group,0,1.83,.015,.219,.04,cloth);box(group,0,1.75,-.185,.32,.10,.06,visor);box(group,0,1.64,-.19,.18,.1,.05,dark);
+  capsule(body,0,1.13,0,.26,.40,cloth);box(body,0,1.2,-.055,.55,.54,.33,vest);box(body,0,1.17,.22,.39,.52,.20,vest);
+  for(const x of [-.15,0,.15])box(body,x,1.07,-.25,.12,.19,.1,gear);box(body,0,.84,0,.50,.10,.32,dark);
+  capsule(body,0,1.71,0,.195,.12,dark);capsule(body,0,1.83,.015,.219,.04,cloth);box(body,0,1.75,-.185,.32,.10,.06,visor);box(body,0,1.64,-.19,.18,.1,.05,dark);
   const legs:THREE.Group[]=[],arms:THREE.Group[]=[];
-  for(const side of [-1,1]){const leg=new THREE.Group();leg.position.set(side*.16,.85,0);capsule(leg,0,-.21,0,.12,.25,cloth);capsule(leg,0,-.57,.018,.10,.26,cloth);box(leg,0,-.72,-.07,.21,.14,.36,dark);box(leg,0,-.44,-.11,.18,.2,.10,gear);group.add(leg);legs.push(leg);
-    const arm=new THREE.Group();arm.position.set(side*.31,1.4,0);capsule(arm,0,-.13,-.02,.10,.2,cloth);capsule(arm,side*-.03,-.3,-.20,.08,.24,cloth).rotation.x=1.0;box(arm,-side*.06,-.29,-.33,.12,.13,.14,gear);group.add(arm);arms.push(arm);}
+  for(const side of [-1,1]){const leg=new THREE.Group();leg.position.set(side*.16,.85,0);capsule(leg,0,-.21,0,.12,.25,cloth);capsule(leg,0,-.57,.018,.10,.26,cloth);box(leg,0,-.72,-.07,.21,.14,.36,dark);box(leg,0,-.44,-.11,.18,.2,.10,gear);body.add(leg);legs.push(leg);
+    const arm=new THREE.Group();arm.position.set(side*.31,1.4,0);capsule(arm,0,-.13,-.02,.10,.2,cloth);capsule(arm,side*-.03,-.3,-.20,.08,.24,cloth).rotation.x=1.0;box(arm,-side*.06,-.29,-.33,.12,.13,.14,gear);body.add(arm);arms.push(arm);}
   box(group,.14,1.12,-.38,.09,.13,.52,dark);box(group,.14,1.10,-.70,.04,.04,.18,dark);box(group,.14,1.20,-.39,.08,.09,.10,gear);
   const flash=new THREE.Mesh(new THREE.OctahedronGeometry(.12),new THREE.MeshBasicMaterial({color:'#ffd293',blending:THREE.AdditiveBlending}));flash.position.set(.14,1.11,-.84);flash.visible=false;group.add(flash);
-  return{group,legs,arms,flash,materials:[cloth,vest,gear,dark,visor]};
+  return{group,body,legs,arms,flash,materials:[cloth,vest,gear,dark,visor]};
 }
