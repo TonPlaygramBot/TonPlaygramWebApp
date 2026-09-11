@@ -1,3 +1,4 @@
+import { beginRollover } from './kartDynamics.mjs';
 // Equal-mass planar contact response, shared by browser and authoritative server.
 // Damage uses closing velocity along the contact normal, never absolute speed.
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -28,8 +29,9 @@ function velocity(r) {
   };
 }
 function applyVelocity(r, x, z) {
-  r.speed = Math.hypot(x, z);
-  if (r.speed > 0.01) r.velocityYaw = Math.atan2(x, z);
+  const sign = r.speed < 0 ? -1 : 1;
+  r.speed = Math.hypot(x, z) * sign;
+  if (Math.abs(r.speed) > 0.01) r.velocityYaw = Math.atan2(x * sign, z * sign);
 }
 function impact(r, normalSpeed, nx, nz) {
   // Feedback stays punchy, but ordinary racing contacts must not end a race.
@@ -39,6 +41,7 @@ function impact(r, normalSpeed, nx, nz) {
     r,
     Math.min(14, Math.max(0, normalSpeed - 3.5) ** 2 * 0.018)
   );
+  beginRollover(r, normalSpeed, nx, nz);
   if (normalSpeed > 1.5) {
     r.impactId = (r.impactId || 0) + 1;
     r.impact = clamp(normalSpeed / 28, 0.08, 1);

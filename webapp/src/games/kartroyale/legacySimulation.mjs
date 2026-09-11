@@ -1,3 +1,4 @@
+import { stepRollover } from './kartDynamics.mjs';
 import { MILITARY_VEHICLES } from './militaryVehicleCatalog.mjs';
 import { TIRANA_ROUTES } from './tirana-routes.mjs';
 import { resolveWallContact, resolveKartContact, damageRacer } from './collisions.mjs';
@@ -16,11 +17,11 @@ export const COLORS = [
 ];
 export const RACE_LIMIT = 480;
 export const KARTS = [
-  { id: 'apex', name: 'Apex 02', detail: 'Balanced mechanical kart', speed: 1, handling: 1, brake: 1, shield: 80, ammunition: 3 },
-  { id: 'oobi', name: 'Eagle', detail: 'Fast sprint chassis', speed: 1.1, handling: .93, brake: .94, shield: 62, ammunition: 3 },
-  { id: 'oodi', name: 'Illyrian', detail: 'Agile road racer', speed: .97, handling: 1.12, brake: 1.05, shield: 70, ammunition: 4 },
-  { id: 'ooli', name: 'Besa', detail: 'Armoured touring kart', speed: .92, handling: .9, brake: 1.12, shield: 100, ammunition: 2 },
-  { id: 'oopi', name: 'Dajti', detail: 'Aero attack kart', speed: 1.05, handling: 1.03, brake: .98, shield: 72, ammunition: 5 },
+  { id: 'apex', name: 'Apex Sprint', detail: 'Open tubular sprint chassis', speed: 1, handling: 1, brake: 1, shield: 80, ammunition: 3 },
+  { id: 'oobi', name: 'Eagle Shifter', detail: 'Radiator and manual shifter', speed: 1.1, handling: .93, brake: .94, shield: 62, ammunition: 3 },
+  { id: 'oodi', name: 'Illyrian Drift', detail: 'Low wing and drift chassis', speed: .97, handling: 1.12, brake: 1.05, shield: 70, ammunition: 4 },
+  { id: 'ooli', name: 'Besa Endurance', detail: 'Faired endurance racer', speed: .92, handling: .9, brake: 1.12, shield: 100, ammunition: 2 },
+  { id: 'oopi', name: 'Dajti Cross', detail: 'Knobby tyres and roll hoop', speed: 1.05, handling: 1.03, brake: .98, shield: 72, ammunition: 5 },
   ...MILITARY_VEHICLES
 ];
 export const normalizeKart = (id) =>
@@ -180,6 +181,7 @@ export function createRacer(track, id, name, slot = 0, ai = false) {
     yaw: p.yaw,
     velocityYaw: p.yaw,
     speed: 0,
+    rollTime: 0, rollAngle: 0, rollDirection: 1, rollCooldown: 0, lift: 0,
     steering: 0,
     yawRate: 0,
     acceleration: 0,
@@ -250,6 +252,10 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
   dt = Math.min(dt, STEP * 3);
   const input = raw || {},
     steer = Number.isFinite(input.steer) ? clamp(input.steer, -1, 1) : 0;
+  if (stepRollover(r, dt)) {
+    resolveWallContact(r, nearestPoint(track, r.x, r.z), track.width, dt, false);
+    return;
+  }
   const previousSpeed = r.speed;
   r.health = Number.isFinite(r.health) ? r.health : 100;
   r.hitFlash = Math.max(0, (r.hitFlash || 0) - dt);
@@ -267,7 +273,7 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
     (steer - (r.steering || 0)) * (1 - Math.exp(-dt * (steer ? 8 : 12)));
   const drift =
       input.drift === true && r.speed > 10 && Math.abs(r.steering) > 0.08,
-    boost = input.boost === true && r.boost > 0 && !input.brake;
+    boost = input.boost === true && r.boost > 0 && !input.brake && !input.reverse && r.speed >= 0;
   const factor = r.ai
       ? ({ rookie: 0.76, street: 0.88, pro: 0.98 }[difficulty] || 0.88) +
         r.slot * 0.006
@@ -276,16 +282,19 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
     max = (boost || r.turbo > 0 ? 43 : 31) * kart.speed * factor * damageFactor;
   r.speed = clamp(
     r.speed +
-      (input.brake
-        ? -28 * kart.brake
+      (input.reverse === true
+        ? (r.speed > 0 ? -28 * kart.brake : -7)
+        : input.brake
+        ? -Math.sign(r.speed) * 28 * kart.brake
         : (boost || r.turbo > 0 ? 22 : 13.8) * kart.speed * factor * damageFactor -
           0.6 -
           0.16 * r.speed -
           0.008 * r.speed * r.speed) *
         dt,
-    0,
+    input.reverse === true || r.speed < 0 ? -7 : 0,
     max
   );
+  if (input.brake && !input.reverse && Math.sign(r.speed) !== Math.sign(previousSpeed)) r.speed = 0;
   if (drift) {
     r.speed = Math.max(0, r.speed - 0.75 * dt);
     r.driftCharge = Math.min(1.5, r.driftCharge + dt);
@@ -297,17 +306,14 @@ export function stepRacer(r, raw, track, dt, time, difficulty = 'street') {
   r.turbo = Math.max(0, r.turbo - dt);
   r.boost = clamp(r.boost + (boost ? -34 : drift ? 17 : 5) * dt, 0, 100);
   const turn =
-    (-r.steering * kart.handling * (drift ? 1.48 : 1.15) * clamp(r.speed / 10, 0, 1)) /
+    (-r.steering * kart.handling * (drift ? 1.48 : 1.15) * clamp(r.speed / 10, -1, 1)) /
     (1 + Math.max(0, r.speed - 22) * 0.022);
   r.yawRate =
     (r.yawRate || 0) +
     (turn - (r.yawRate || 0)) * (1 - Math.exp(-dt * (drift ? 7 : 12)));
   r.yaw += r.yawRate * dt;
   // Tire scrub sheds speed in sustained corners; braking restores grip sooner.
-  r.speed = Math.max(
-    0,
-    r.speed - Math.abs(r.yawRate) * r.speed * (drift ? 0.022 : 0.014) * dt
-  );
+  r.speed *= Math.max(0, 1 - Math.abs(r.yawRate) * (drift ? 0.022 : 0.014) * dt);
   r.velocityYaw +=
     wrapAngle(r.yaw - r.velocityYaw) *
     (1 - Math.exp(-dt * (drift ? 3.1 : input.brake ? 14 : 11)));

@@ -1,0 +1,109 @@
+{
+  "generator": "Blender 4.2.9 LTS",
+  "units": "metres",
+  "up": "+Y",
+  "forward": "+Z",
+  "assets": [
+    {
+      "id": "apex",
+      "name": "Apex Sprint",
+      "lod": false,
+      "file": "apex.glb",
+      "bytes": 430908,
+      "wheelRadius": 0.265,
+      "triangles": 12560,
+      "drawPrimitives": 20
+    },
+    {
+      "id": "apex",
+      "name": "Apex Sprint",
+      "lod": true,
+      "file": "apex-lod.glb",
+      "bytes": 169652,
+      "wheelRadius": 0.265,
+      "triangles": 3928,
+      "drawPrimitives": 20
+    },
+    {
+      "id": "oobi",
+      "name": "Eagle Shifter",
+      "lod": false,
+      "file": "oobi.glb",
+      "bytes": 446232,
+      "wheelRadius": 0.265,
+      "triangles": 12996,
+      "drawPrimitives": 21
+    },
+    {
+      "id": "oobi",
+      "name": "Eagle Shifter",
+      "lod": true,
+      "file": "oobi-lod.glb",
+      "bytes": 179440,
+      "wheelRadius": 0.265,
+      "triangles": 4172,
+      "drawPrimitives": 21
+    },
+    {
+      "id": "oodi",
+      "name": "Illyrian Drift",
+      "lod": false,
+      "file": "oodi.glb",
+      "bytes": 448244,
+      "wheelRadius": 0.275,
+      "triangles": 13056,
+      "drawPrimitives": 20
+    },
+    {
+      "id": "oodi",
+      "name": "Illyrian Drift",
+      "lod": true,
+      "file": "oodi-lod.glb",
+      "bytes": 180304,
+      "wheelRadius": 0.275,
+      "triangles": 4200,
+      "drawPrimitives": 20
+    },
+    {
+      "id": "ooli",
+      "name": "Besa Endurance",
+      "lod": false,
+      "file": "ooli.glb",
+      "bytes": 453776,
+      "wheelRadius": 0.285,
+      "triangles": 13232,
+      "drawPrimitives": 22
+    },
+    {
+      "id": "ooli",
+      "name": "Besa Endurance",
+      "lod": true,
+      "file": "ooli-lod.glb",
+      "bytes": 187044,
+      "wheelRadius": 0.285,
+      "triangles": 4360,
+      "drawPrimitives": 22
+    },
+    {
+      "id": "oopi",
+      "name": "Dajti Cross",
+      "lod": false,
+      "file": "oopi.glb",
+      "bytes": 943524,
+      "wheelRadius": 0.34,
+      "triangles": 31096,
+      "drawPrimitives": 20
+    },
+    {
+      "id": "oopi",
+      "name": "Dajti Cross",
+      "lod": true,
+      "file": "oopi-lod.glb",
+      "bytes": 336644,
+      "wheelRadius": 0.34,
+      "triangles": 9360,
+      "drawPrimitives": 20
+    }
+  ],
+  "sharedTexturesBytes": 1658244
+}

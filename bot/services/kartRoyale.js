@@ -372,6 +372,7 @@ export function attachKartRoyale(
           ? Math.max(-1, Math.min(1, d.steer))
           : 0,
         brake: d.brake === true,
+        reverse: d.reverse === true,
         drift: d.drift === true,
         boost: d.boost === true,
         shield: d.shield === true,

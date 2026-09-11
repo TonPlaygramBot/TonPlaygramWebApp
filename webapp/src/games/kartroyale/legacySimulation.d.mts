@@ -1,6 +1,7 @@
 export interface Input {
   steer: number;
   brake: boolean;
+  reverse?: boolean;
   drift: boolean;
   boost: boolean;
   shield: boolean;
@@ -17,6 +18,11 @@ export interface Racer {
   yaw: number;
   velocityYaw: number;
   speed: number;
+  rollTime: number;
+  rollAngle: number;
+  rollDirection: number;
+  rollCooldown: number;
+  lift: number;
   steering: number;
   yawRate: number;
   acceleration: number;

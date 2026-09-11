@@ -111,6 +111,10 @@ export default function KartRoyale({
   const canvas = useRef<HTMLDivElement>(null),
     engine = useRef<KartRenderer | null>(null),
     audio = useRef<KartAudio | null>(null);
+  const swipeStart = useRef<{ x: number; y: number; pointer: number } | null>(
+    null
+  );
+  const slideDirection = useRef(0);
   const [loaded, setLoaded] = useState(false),
     [error, setError] = useState(''),
     [mode, setMode] = useState<Mode>(renderOnlineLobby ? 'online' : 'ai'),
@@ -251,7 +255,8 @@ export default function KartRoyale({
     engine.current?.setColor(COLORS[paint]);
   }, [paint, loaded]);
   useEffect(() => {
-    engine.current?.setKart(kartId);
+    engine.current?.setKart(kartId, slideDirection.current);
+    slideDirection.current = 0;
     try {
       localStorage.setItem('racingRoyal.kart', kartId);
     } catch {}
@@ -280,6 +285,7 @@ export default function KartRoyale({
         Number(keys.has('ArrowRight') || keys.has('d')) -
         Number(keys.has('ArrowLeft') || keys.has('a'));
       i.brake = keys.has('ArrowDown') || keys.has('s');
+      i.reverse = keys.has('r');
       i.drift = keys.has(' ');
       i.boost = keys.has('Shift');
       i.shield = keys.has('q');
@@ -608,7 +614,8 @@ export default function KartRoyale({
   };
   const hold =
     (
-      key: 'steer' | 'drift' | 'boost' | 'brake' | 'shield' | 'fire',
+      key:
+        'steer' | 'drift' | 'boost' | 'brake' | 'reverse' | 'shield' | 'fire',
       value: number | boolean
     ) =>
     (e: React.PointerEvent<HTMLButtonElement>) => {
@@ -619,14 +626,17 @@ export default function KartRoyale({
       if (i) (i as unknown as Record<string, number | boolean>)[key] = value;
     };
   const release =
-    (key: 'steer' | 'drift' | 'boost' | 'brake' | 'shield' | 'fire') => () => {
+    (
+      key: 'steer' | 'drift' | 'boost' | 'brake' | 'reverse' | 'shield' | 'fire'
+    ) =>
+    () => {
       const i = engine.current?.input;
       if (i)
         (i as unknown as Record<string, number | boolean>)[key] =
           key === 'steer' ? 0 : false;
     };
   const touch = (
-    key: 'steer' | 'drift' | 'boost' | 'brake' | 'shield' | 'fire',
+    key: 'steer' | 'drift' | 'boost' | 'brake' | 'reverse' | 'shield' | 'fire',
     value: number | boolean
   ) => ({
     onPointerDown: hold(key, value),
@@ -644,6 +654,19 @@ export default function KartRoyale({
       setNotice(`Share this room code: ${room.code}`);
     }
   };
+  const changeVehicle = (direction: number) => {
+    if (!loaded || room || busy || screen !== 'lobby') return;
+    slideDirection.current = direction;
+    setKartId(
+      (current) =>
+        KARTS[
+          (KARTS.findIndex((k) => k.id === current) +
+            direction +
+            KARTS.length) %
+            KARTS.length
+        ].id
+    );
+  };
   const me = room?.players.find((p) => p.id === session?.playerId),
     host = room?.hostId === session?.playerId,
     finishedMe = result?.racers.find((r) => r.id === result.playerId),
@@ -653,7 +676,37 @@ export default function KartRoyale({
   return (
     <div
       className={`kr-app kr-${screen}`}
-      onPointerDownCapture={() => audio.current?.unlock()}
+      onPointerDownCapture={(e) => {
+        audio.current?.unlock();
+        if (screen !== 'lobby' || !loaded || room || busy || modal) return;
+        if (
+          (e.target as HTMLElement).closest(
+            'button, a, input, select, textarea, [role="dialog"]'
+          )
+        )
+          return;
+        swipeStart.current = {
+          x: e.clientX,
+          y: e.clientY,
+          pointer: e.pointerId
+        };
+        e.currentTarget.setPointerCapture(e.pointerId);
+      }}
+      onPointerUp={(e) => {
+        const start = swipeStart.current;
+        swipeStart.current = null;
+        if (!start || start.pointer !== e.pointerId) return;
+        const dx = e.clientX - start.x,
+          dy = e.clientY - start.y;
+        if (Math.abs(dx) >= 40 && Math.abs(dx) > Math.abs(dy) * 1.3)
+          changeVehicle(dx < 0 ? 1 : -1);
+      }}
+      onPointerCancel={() => {
+        swipeStart.current = null;
+      }}
+      onLostPointerCapture={() => {
+        swipeStart.current = null;
+      }}
     >
       <div ref={canvas} className="kr-canvas" />
       <a
@@ -715,28 +768,30 @@ export default function KartRoyale({
               </span>
               <h2>{KARTS.find((k) => k.id === kartId)?.name}</h2>
               <p>{KARTS.find((k) => k.id === kartId)?.detail}</p>
-              <select
-                className="kr-vehicle-select"
-                aria-label="Choose vehicle"
-                value={kartId}
-                disabled={!!room || busy}
-                onChange={(e) => setKartId(normalizeKart(e.target.value))}
+              <div
+                className="kr-vehicle-carousel"
+                role="group"
+                aria-label="Choose vehicle by swiping left or right"
               >
-                <optgroup label="Karts">
-                  {KARTS.filter((k) => !isMilitaryVehicle(k.id)).map((k) => (
-                    <option key={k.id} value={k.id}>
-                      {k.name}
-                    </option>
-                  ))}
-                </optgroup>
-                <optgroup label="Military & armoured">
-                  {KARTS.filter((k) => isMilitaryVehicle(k.id)).map((k) => (
-                    <option key={k.id} value={k.id}>
-                      {k.name}
-                    </option>
-                  ))}
-                </optgroup>
-              </select>
+                <button
+                  aria-label="Previous vehicle"
+                  disabled={!loaded || !!room || busy}
+                  onClick={() => changeVehicle(-1)}
+                >
+                  <ChevronLeft size={22} />
+                </button>
+                <span aria-live="polite">
+                  {KARTS.findIndex((k) => k.id === kartId) + 1} / {KARTS.length}
+                  <small>SWIPE LEFT / RIGHT</small>
+                </span>
+                <button
+                  aria-label="Next vehicle"
+                  disabled={!loaded || !!room || busy}
+                  onClick={() => changeVehicle(1)}
+                >
+                  <ChevronRight size={22} />
+                </button>
+              </div>
               {(() => {
                 const k = KARTS.find((k) => k.id === kartId)!;
                 return (
@@ -1284,6 +1339,13 @@ export default function KartRoyale({
                   BRAKE
                 </button>
                 <button
+                  className="kr-brake kr-reverse"
+                  aria-label="Hold to reverse"
+                  {...touch('reverse', true)}
+                >
+                  REV
+                </button>
+                <button
                   className="kr-boost-button"
                   aria-label="Hold boost"
                   {...touch('boost', true)}
@@ -1296,7 +1358,8 @@ export default function KartRoyale({
             </div>
           </div>
           <div className="kr-key-hint">
-            ← → STEER <span>SPACE DRIFT</span> SHIFT BOOST · Q SHIELD · E FIRE
+            ← → STEER <span>SPACE DRIFT</span> SHIFT BOOST · R REVERSE · Q
+            SHIELD · E FIRE
           </div>
         </div>
       )}

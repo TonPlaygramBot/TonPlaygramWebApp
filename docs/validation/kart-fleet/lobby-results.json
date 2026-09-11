@@ -1,0 +1,24 @@
+{
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "vehicles": [
+    "apex",
+    "oobi",
+    "oodi",
+    "ooli",
+    "oopi",
+    "shota",
+    "brabus-g",
+    "defender",
+    "brabus-s65"
+  ],
+  "swipeLeft": "apex → oobi",
+  "swipeRight": "oobi → apex",
+  "start": {
+    "id": "apex",
+    "count": 6
+  },
+  "errors": []
+}

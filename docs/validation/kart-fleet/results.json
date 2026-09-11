@@ -1,0 +1,203 @@
+{
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "scope": "Actual KartRenderer, software WebGL; rollover visual check seeds server-owned timer. No physical-phone benchmark.",
+  "rigs": [
+    {
+      "id": "apex",
+      "wheels": 4,
+      "steering": 2,
+      "body": "body"
+    },
+    {
+      "id": "oobi",
+      "wheels": 4,
+      "steering": 2,
+      "body": "body"
+    },
+    {
+      "id": "oodi",
+      "wheels": 4,
+      "steering": 2,
+      "body": "body"
+    },
+    {
+      "id": "ooli",
+      "wheels": 4,
+      "steering": 2,
+      "body": "body"
+    },
+    {
+      "id": "oopi",
+      "wheels": 4,
+      "steering": 2,
+      "body": "body"
+    }
+  ],
+  "reverse": -5.483333333333329,
+  "requests": [
+    {
+      "path": "/assets/kart-royale/karts/apex.glb",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/apex-lod.glb",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/oobi.glb",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/oodi.glb",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/ooli.glb",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/oopi.glb",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/oobi-lod.glb",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/oodi-lod.glb",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/ooli-lod.glb",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/oopi-lod.glb",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/textures/c6b6739eac2c75cc.jpg",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/textures/2e58720aa3fa6702.jpg",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/textures/994f851a84d52b51.jpg",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/textures/c6b6739eac2c75cc.jpg",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/textures/2e58720aa3fa6702.jpg",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/textures/994f851a84d52b51.jpg",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/textures/c6b6739eac2c75cc.jpg",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/textures/2e58720aa3fa6702.jpg",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/textures/994f851a84d52b51.jpg",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/textures/2e58720aa3fa6702.jpg",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/textures/c6b6739eac2c75cc.jpg",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/textures/994f851a84d52b51.jpg",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/textures/2e58720aa3fa6702.jpg",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/textures/c6b6739eac2c75cc.jpg",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/textures/2e58720aa3fa6702.jpg",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/textures/994f851a84d52b51.jpg",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/textures/c6b6739eac2c75cc.jpg",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/textures/994f851a84d52b51.jpg",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/textures/c6b6739eac2c75cc.jpg",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/textures/2e58720aa3fa6702.jpg",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/textures/994f851a84d52b51.jpg",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/textures/c6b6739eac2c75cc.jpg",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/textures/2e58720aa3fa6702.jpg",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/textures/994f851a84d52b51.jpg",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/textures/c6b6739eac2c75cc.jpg",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/textures/2e58720aa3fa6702.jpg",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/textures/994f851a84d52b51.jpg",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/textures/c6b6739eac2c75cc.jpg",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/textures/2e58720aa3fa6702.jpg",
+      "status": 200
+    },
+    {
+      "path": "/assets/kart-royale/karts/textures/994f851a84d52b51.jpg",
+      "status": 200
+    }
+  ],
+  "errors": []
+}

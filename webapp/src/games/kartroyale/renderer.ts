@@ -1,7 +1,7 @@
 import * as T from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { isMilitaryVehicle } from './militaryVehicleCatalog.mjs';
-import { vehicleAssetUrl } from './vehicleAssetConfig.mjs';
+import { KART_ASSETS, vehicleAssetUrl } from './vehicleAssetConfig.mjs';
 import { prepareVehicleAsset } from './vehicleAssetAdapter';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import {
@@ -257,8 +257,8 @@ export class KartRenderer {
     const loader = new GLTFLoader();
     const textures = new T.TextureLoader();
     const results = await Promise.allSettled([
-      loader.loadAsync('/assets/kart-royale/apex.glb'),
-      loader.loadAsync('/assets/kart-royale/apex-lod.glb'),
+      loader.loadAsync(vehicleAssetUrl('apex')),
+      loader.loadAsync(vehicleAssetUrl('apex', true)),
       textures.loadAsync('/assets/kart-royale/albania.svg'),
       textures.loadAsync('/assets/kart-royale/asphalt-diff.jpg'),
       textures.loadAsync('/assets/kart-royale/asphalt-nor_gl.jpg'),
@@ -266,7 +266,7 @@ export class KartRenderer {
       ...KARTS.slice(1).map((k) => loader.loadAsync(vehicleAssetUrl(k.id))),
       loader.loadAsync('/assets/table-tennis/athlete-male.glb'),
       loader.loadAsync('/assets/table-tennis/athlete-female.glb'),
-      ...KARTS.filter((k) => isMilitaryVehicle(k.id)).map((k) =>
+      ...KARTS.filter((k) => k.id !== 'apex').map((k) =>
         loader.loadAsync(vehicleAssetUrl(k.id, true))
       )
     ]);
@@ -299,6 +299,8 @@ export class KartRenderer {
         import('three/examples/jsm/loaders/GLTFLoader.js').GLTF
       >
     ).value.scene;
+    prepareVehicleAsset(this.full, 'apex');
+    prepareVehicleAsset(this.low, 'apex', this.full.userData.vehicleFit);
     this.flagTexture = (results[2] as PromiseFulfilledResult<T.Texture>).value;
     this.flagTexture.colorSpace = T.SRGBColorSpace;
     this.textures.add(this.flagTexture);
@@ -324,7 +326,7 @@ export class KartRenderer {
         this.collectTextures(source);
         return prepareHuman(source, i === 1);
       });
-    KARTS.filter((k) => isMilitaryVehicle(k.id)).forEach((k, i) => {
+    KARTS.filter((k) => k.id !== 'apex').forEach((k, i) => {
       const scene = (
         results[7 + KARTS.length + i] as PromiseFulfilledResult<
           import('three/examples/jsm/loaders/GLTFLoader.js').GLTF
@@ -366,7 +368,7 @@ export class KartRenderer {
     if (source) model.add(source.clone(true));
     // Apex is authored at the old scale; imported vehicles are fitted to the
     // same final length by vehicleAssetAdapter.
-    if (kartId === 'apex') model.scale.setScalar(3.25 / 2.7);
+
     model.userData.kartId = kartId;
     model.traverse((o) => {
       if (o instanceof T.Mesh) {
@@ -422,7 +424,11 @@ export class KartRenderer {
         rig.wheels.push(o);
       if (/^steer_f[lr]$/.test(o.name)) rig.front.push(o);
     });
-    if (kartId !== 'apex' && !isMilitaryVehicle(kartId)) {
+    if (
+      kartId !== 'apex' &&
+      !isMilitaryVehicle(kartId) &&
+      !KART_ASSETS[kartId]
+    ) {
       for (const wheel of rig.wheels.filter((w) => w.name.includes('front'))) {
         const pivot = new T.Group();
         pivot.position.copy(wheel.position);
@@ -461,14 +467,26 @@ export class KartRenderer {
     this.rigs.set(model, rig);
     return model;
   }
-  setKart(id: string) {
+  setKart(id: string, slideDirection = 0) {
     this.kartId = normalizeKart(id);
     if (!this.full) return;
     for (const child of [...this.showroom.children]) {
       this.release(child, false);
       this.showroom.remove(child);
     }
-    this.showroom.add(this.cloneKart(0, false, this.kartId));
+    const model = this.cloneKart(0, false, this.kartId);
+    this.showroom.add(model);
+    if (
+      slideDirection &&
+      !matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+      this.camera.updateMatrixWorld();
+      this.showroom.updateMatrixWorld();
+      model.position
+        .setFromMatrixColumn(this.camera.matrixWorld, 0)
+        .transformDirection(this.showroom.matrixWorld.clone().invert())
+        .multiplyScalar(slideDirection * 0.6);
+    }
     this.setColor(this.color);
   }
   setColor(color: string) {
@@ -546,11 +564,7 @@ export class KartRenderer {
     for (let i = 0; i <= 360; i++) {
       for (const side of ['left', 'right'] as const) {
         const p = sides[side][i % 360];
-        positions.push(
-          p.x,
-          0.045,
-          p.z
-        );
+        positions.push(p.x, 0.045, p.z);
         normals.push(0, 1, 0);
         const n = positions.length;
         uvs.push(positions[n - 3] / 3, positions[n - 1] / 3);
@@ -581,7 +595,8 @@ export class KartRenderer {
     road.receiveShadow = true;
     this.world.add(road);
     const edges = Array.from({ length: 360 }, (_, i) => {
-        const p = track.points[i], q = track.points[(i + 1) % 360],
+        const p = track.points[i],
+          q = track.points[(i + 1) % 360],
           centerEdge = segmentFrame(p, q, track.width / 2),
           sideEdges = [-1, 1].map((side) => {
             const key = side < 0 ? 'left' : 'right';
@@ -591,7 +606,10 @@ export class KartRenderer {
           p,
           edge: centerEdge,
           sideEdges,
-          tireCount: Math.max(1, Math.ceil(Math.max(...sideEdges.map((e) => e.length)) / 0.76))
+          tireCount: Math.max(
+            1,
+            Math.ceil(Math.max(...sideEdges.map((e) => e.length)) / 0.76)
+          )
         };
       }),
       tireBaseCount = edges.reduce((sum, edge) => sum + edge.tireCount * 2, 0),
@@ -622,7 +640,8 @@ export class KartRenderer {
     for (let i = 0; i < 360; i++) {
       const { p, edge, sideEdges, tireCount } = edges[i];
       [-1, 1].forEach((side, s) => {
-        const sideEdge = sideEdges[s], curbPoint = sideEdge.side(side, -0.1);
+        const sideEdge = sideEdges[s],
+          curbPoint = sideEdge.side(side, -0.1);
         m.position.set(curbPoint.x, 0.1, curbPoint.z);
         m.rotation.set(0, sideEdge.yaw, 0);
         m.scale.set(1, 1, sideEdge.length + 0.12);
@@ -829,6 +848,7 @@ export class KartRenderer {
       Math.exp(-rig.crashAge * 7);
     rig.body.rotation.z =
       rig.bodyRotation.z +
+      (r.rollAngle || 0) +
       T.MathUtils.clamp(yawRate * r.speed * 0.0018, -0.055, 0.055) +
       spring * rig.kickRoll;
     rig.body.rotation.x =
@@ -837,6 +857,7 @@ export class KartRenderer {
       spring * rig.kickPitch;
     rig.body.position.copy(rig.bodyPosition);
     rig.body.position.y +=
+      (r.lift || 0) / (rig.body.parent?.scale.y || 1) +
       bounce * rig.kickSize * 0.1 +
       (r.speed > 1 ? Math.sin(this.motionTime * 28 + r.slot) * 0.005 : 0);
     rig.body.position.x += spring * rig.kickRoll * 0.3;
@@ -1036,16 +1057,19 @@ export class KartRenderer {
       }
     }
     if (this.state === 'garage') {
+      for (const model of this.showroom.children)
+        model.position.multiplyScalar(Math.exp(-dt * 14));
       this.showroom.rotation.y = matchMedia('(prefers-reduced-motion: reduce)')
         .matches
         ? -0.48
         : Math.sin(now * 0.00012) * 0.3 - 0.48;
       const mobile = this.camera.aspect < 0.85;
       this.camera.fov = mobile ? 42 : 38;
+      const portraitFit = mobile ? Math.max(1, 0.72 / this.camera.aspect) : 1;
       this.camera.position.set(
-        mobile ? 4.7 : 5.7,
-        mobile ? 3.35 : 3.2,
-        mobile ? 6.4 : 6.5
+        mobile ? 4.7 * portraitFit : 5.7,
+        mobile ? 3.35 * portraitFit : 3.2,
+        mobile ? 6.4 * portraitFit : 6.5
       );
       this.vector.set(
         mobile ? 0 : -1.5,
