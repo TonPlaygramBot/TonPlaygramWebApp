@@ -144,6 +144,8 @@ export const WORLD: {
     walk: boolean;
     name: string;
     bridge: boolean;
+    neighbourhood?: boolean;
+    tunnel?: boolean;
   }[];
   buildings: {
     id: string;
@@ -151,12 +153,16 @@ export const WORLD: {
     h: number;
     name: string;
     special: string;
+    neighbourhood?: boolean;
+    holes?: number[][][];
+    minHeight?: number;
   }[];
   parks: number[][][];
   water: (number[][] | { line: number[][]; width: number })[];
   areas: number[][][];
   landmarks: (Point & { id: string; name: string })[];
-  graph: { nodes: number[][]; edges: number[][] };
+  graph: { nodes: number[][]; edges: number[][]; directions?: number[] };
+  sourceNodeAliases?: Record<string,string>;
   attribution: string;
   source: string;
   sourceSha256: string;

@@ -228,6 +228,7 @@ export class CityRenderer {
       sideGeo: THREE.BufferGeometry[] = [],
       paintGeo: THREE.BufferGeometry[] = [];
     for (const r of WORLD.roads) {
+      if(r.neighbourhood&&r.tunnel)continue;
       const len = Math.hypot(r.a[0] - r.b[0], r.a[1] - r.b[1]);
       (r.walk ? walkGeo : roadGeo).push(
         this.strip(r.a, r.b, r.w, r.bridge ? 0.16 : 0.09),
@@ -312,6 +313,7 @@ export class CityRenderer {
     >();
     const windowGeos: THREE.BufferGeometry[] = [];
     for (const b of WORLD.buildings) {
+      if(b.neighbourhood)continue; // Shared Blender/mapped-neighbourhood layer.
       if (b.special || REFERENCE_BUILDINGS[b.id] || LANDMARK_REPLACED_IDS.has(String(b.id)) || FUEL_CANOPY_IDS.has(String(b.id))) continue;
       const cx = b.p.reduce((s, p) => s + p[0], 0) / b.p.length,
         cz = b.p.reduce((s, p) => s + p[1], 0) / b.p.length;

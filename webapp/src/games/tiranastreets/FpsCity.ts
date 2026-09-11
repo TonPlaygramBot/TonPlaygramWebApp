@@ -116,6 +116,7 @@ export class FpsCity {
     const asphalt = this.material(0x666965), paving = this.material(0xbab5a6), paint = this.material(0xe5e2d4);
     const roads: T.BufferGeometry[] = [], walks: T.BufferGeometry[] = [], shoulders: T.BufferGeometry[] = [], markings: T.BufferGeometry[] = [];
     for (const r of WORLD.roads) {
+      if(r.neighbourhood&&r.tunnel)continue;
       const dx = r.b[0] - r.a[0], dz = r.b[1] - r.a[1], length = Math.hypot(dx, dz);
       if (length < .05) continue;
       (r.walk ? walks : roads).push(this.strip(r.a, r.b, r.w, r.bridge ? .16 : .09));
@@ -152,6 +153,7 @@ export class FpsCity {
     const shells = new Map<string, { parts: T.BufferGeometry[]; material: T.Material; x: number; z: number }>();
     const glass = this.material(0x355560, true), dark = this.material(0x4e514b), shutters = this.material(0x64776a);
     for (const b of WORLD.buildings) {
+      if(b.neighbourhood)continue; // Shared Blender/mapped-neighbourhood layer.
       if (replaced.has(String(b.id)) || REFERENCE_BUILDINGS[b.id] || LANDMARK_REPLACED_IDS.has(String(b.id)) || FUEL_CANOPY_IDS.has(String(b.id))) continue;
       const p = buildingProfile(b), height = p.height ?? b.h;
       const cx = b.p.reduce((s, v) => s + v[0], 0) / b.p.length, cz = b.p.reduce((s, v) => s + v[1], 0) / b.p.length;

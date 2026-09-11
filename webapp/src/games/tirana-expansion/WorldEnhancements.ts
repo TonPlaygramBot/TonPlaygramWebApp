@@ -1,4 +1,5 @@
 import {RegionalPanorama} from '../tirana-region/RegionalPanorama';
+import {NeighbourhoodLayer} from '../tirana-neighbourhood/NeighbourhoodLayer';
 import * as T from 'three';
 import { InstitutionLayer } from '../tirana-city-source/InstitutionLayer';
 import { INSTITUTION_BUILDING_IDS } from '../tirana-city-source/registry.mjs';
@@ -29,7 +30,7 @@ export class WorldEnhancements extends ExistingEnhancements {
   private panoramaViewer = new T.Vector3();
   readonly shopfronts = new ShopfrontDetails(
     WORLD,
-    new Set([...CIVIC_SITES.map((s) => s.way), ...INSTITUTION_BUILDING_IDS, ...REAL_STOREFRONT_BUILDING_IDS, ...FUEL_CANOPY_IDS]),
+    new Set([...WORLD.buildings.filter(b=>b.neighbourhood).map(b=>b.id), ...CIVIC_SITES.map((s) => s.way), ...INSTITUTION_BUILDING_IDS, ...REAL_STOREFRONT_BUILDING_IDS, ...FUEL_CANOPY_IDS]),
     this.civic.errors
   );
   readonly institutions = new InstitutionLayer(undefined, this.civic.errors);
@@ -39,8 +40,10 @@ export class WorldEnhancements extends ExistingEnhancements {
   readonly urbanLife = new UrbanLifeLayer();
   readonly streetLife: StreetLifeLayer;
   readonly matureTrees: MatureTreeLayer;
+  readonly neighbourhood: NeighbourhoodLayer;
   constructor(options: StreetDetailOptions = {}) {
     super();
+    this.neighbourhood=new NeighbourhoodLayer(options);
     this.streetLife=new StreetLifeLayer(undefined,options);
     this.matureTrees=new MatureTreeLayer(undefined,options);
     // Photo-informed full façades now replace these three generic bay kits.
@@ -63,7 +66,8 @@ export class WorldEnhancements extends ExistingEnhancements {
       this.attractions.group,
       this.urbanLife.group,
       this.streetLife.group,
-      this.matureTrees.group
+      this.matureTrees.group,
+      this.neighbourhood.group
     );
   }
   bindBuildings(root: T.Object3D, excluded: readonly T.Object3D[] = []) {
@@ -98,6 +102,7 @@ export class WorldEnhancements extends ExistingEnhancements {
     this.urbanLife.update(seconds, viewer, battery);
     this.streetLife.update(seconds,viewer,battery);
     this.matureTrees.update(seconds,viewer,battery);
+    this.neighbourhood.update(seconds,viewer,battery);
   }
   override retire() {
     this.institutions.retire();
@@ -107,6 +112,7 @@ export class WorldEnhancements extends ExistingEnhancements {
     this.urbanLife.retire();
     this.streetLife.retire();
     this.matureTrees.retire();
+    this.neighbourhood.retire();
     super.retire();
   }
   override dispose() {
@@ -119,6 +125,7 @@ export class WorldEnhancements extends ExistingEnhancements {
     this.urbanLife.dispose();
     this.streetLife.dispose();
     this.matureTrees.dispose();
+    this.neighbourhood.dispose();
     super.dispose();
   }
 }

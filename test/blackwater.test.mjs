@@ -32,7 +32,8 @@ test('the complete Tirana Streets layout retains its metric scale and east/south
   assert.equal(roads.length, WORLD.roads.length);
   const originalIds=new Set(WORLD.buildings.map(b=>b.id));
   const added=buildings.filter(b=>!originalIds.has(b.id));
-  assert.deepEqual(added.map(b=>b.id).sort(),['384505310','459085861','469978008'].sort());
+  // Expanded Ali Demi bounds also admit six already sourced catalog buildings.
+  assert.deepEqual(added.map(b=>b.id).sort(),['384505310','387444374','410277109','410277110','410277119','410277120','459085861','469978008','470298324'].sort());
   assert.equal(buildings.length, WORLD.buildings.length+added.length);
   roads.forEach((r, i) => {
     for (const end of ['a', 'b']) {

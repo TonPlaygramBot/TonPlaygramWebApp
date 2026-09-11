@@ -20,12 +20,13 @@ export class StreetLifeLayer {
  private dummy=new T.Object3D();private parent=new T.Object3D();private color=new T.Color();
  private columns=8;private rows=1;
  private material:T.MeshStandardMaterial;private glassMaterial:T.MeshStandardMaterial;private signMaterial:T.MeshStandardMaterial;
- constructor(data:Data=STREET_LIFE,options:StreetDetailOptions={}){
+ constructor(data:Data=STREET_LIFE,options:StreetDetailOptions={},private labelsOnly=false){
   this.group.name='Tirana:mapped-storefronts-stops-and-fuel';
   const blocked=options.track?ribbonExclusion(options.track):null;
   const models:Model[]=[];
   for(const [key,type] of [['storefronts','storefront'],['stops','stop'],['fuel','fuel'],['advertising','advertising']] as const)
    for(const s of data[key])if(!blocked||!blocked(s.x,s.z,Math.max(4,'width' in s?Number(s.width):0)))models.push(buildStreetModel(s,type));
+  if(this.labelsOnly)for(const model of models)for(const sign of model.signs)sign.p[2]=.238;
   const signs:Sign[]=[],signIndex=new Map<string,number>();
   for(const sign of models.flatMap(m=>m.signs)){const key=JSON.stringify([sign.text,sign.bg,sign.fg]);if(!signIndex.has(key)){signIndex.set(key,signs.length);signs.push(sign);}sign.atlas=signIndex.get(key)!;}
   this.rows=Math.max(1,Math.ceil(signs.length/this.columns));
@@ -41,7 +42,8 @@ export class StreetLifeLayer {
   this.material=new T.MeshStandardMaterial({color:0xffffff,roughness:.66,metalness:.15});
   this.glassMaterial=new T.MeshStandardMaterial({color:0xffffff,roughness:.23,metalness:.48});
   // 96 selected models x a tested maximum of 70 parts, with independent budgets.
-  for(const [shape,geo] of [['box',new T.BoxGeometry(1,1,1)],['glass',new T.BoxGeometry(1,1,1)],['cylinder',new T.CylinderGeometry(1,1,1,8)]] as const){
+  for(const shape of this.labelsOnly?[]:['box','glass','cylinder']){
+   const geo=shape==='cylinder'?new T.CylinderGeometry(1,1,1,8):new T.BoxGeometry(1,1,1);
    const mesh=new T.InstancedMesh(geo,shape==='glass'?this.glassMaterial:this.material,6720);mesh.count=0;mesh.frustumCulled=false;mesh.receiveShadow=true;mesh.castShadow=true;mesh.instanceMatrix.setUsage(T.DynamicDrawUsage);this.meshes.set(shape,mesh);this.group.add(mesh);
   }
   this.signMaterial=new T.MeshStandardMaterial({map:this.atlas,roughness:.7,emissiveMap:this.atlas,emissive:0xffffff,emissiveIntensity:.07});
@@ -56,12 +58,12 @@ export class StreetLifeLayer {
  }
  update(seconds:number,viewer?:Point,battery=false,force=false){
   if(this.dead||!viewer||(!force&&seconds-this.last<.2))return;this.last=seconds;
-  const selected=this.near(viewer,battery?100:185,battery?40:96);
+  const selected=this.near(viewer,battery?100:185,this.labelsOnly?(battery?24:48):(battery?40:96));
   this.meshes.forEach(m=>m.count=0);this.labels.count=0;
   const uv=this.labels.geometry.getAttribute('instanceAtlas') as T.InstancedBufferAttribute;
   for(const model of selected){
    this.parent.position.set(model.x,.12,model.z);this.parent.rotation.set(0,model.yaw,0);this.parent.updateMatrix();
-   for(const p of model.parts){
+   for(const p of this.labelsOnly?[]:model.parts){
     const mesh=this.meshes.get(p.shape)!;if(mesh.count>=mesh.instanceMatrix.count)continue;
     this.dummy.position.fromArray(p.p);this.dummy.scale.fromArray(p.s);this.dummy.rotation.set(p.pitch||0,0,0);this.dummy.updateMatrix();
     mesh.setMatrixAt(mesh.count,this.dummy.matrix.premultiply(this.parent.matrix));mesh.setColorAt(mesh.count++,this.color.setHex(p.color));

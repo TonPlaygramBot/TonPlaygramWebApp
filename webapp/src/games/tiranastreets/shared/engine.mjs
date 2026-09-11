@@ -47,10 +47,11 @@ export const FREE_ROAM = {
 };
 const nodes = WORLD.graph.nodes;
 const links = nodes.map(() => []);
-for (const [a, b] of WORLD.graph.edges) {
+for (const [index,[a, b]] of WORLD.graph.edges.entries()) {
   const d = Math.hypot(nodes[a][0] - nodes[b][0], nodes[a][1] - nodes[b][1]);
-  links[a].push([b, d]);
-  links[b].push([a, d]);
+  const direction=WORLD.graph.directions?.[index]??0;
+  if(direction!==-1)links[a].push([b, d]);
+  if(direction!==1)links[b].push([a, d]);
 }
 export function nearestNode(x, z) {
   let best = 0,
@@ -330,6 +331,11 @@ const waterSegments = WORLD.water.flatMap((w) =>
     ? []
     : w.line.slice(1).map((b, i) => ({ a: w.line[i], b, width: w.width }))
 );
+const waterCells=new Map();
+for(const water of waterSegments){const margin=water.width/2+6;
+ for(let x=Math.floor((Math.min(water.a[0],water.b[0])-margin)/40);x<=Math.floor((Math.max(water.a[0],water.b[0])+margin)/40);x++)
+  for(let z=Math.floor((Math.min(water.a[1],water.b[1])-margin)/40);z<=Math.floor((Math.max(water.a[1],water.b[1])+margin)/40);z++){const key=`${x},${z}`;if(!waterCells.has(key))waterCells.set(key,[]);waterCells.get(key).push(water);}
+}
 const importedSolids=importedFleet.filter(a=>a.assetId).map(a=>{const x=a.x+IMPORTED_PLACEMENT_ORIGIN.x,z=a.z+IMPORTED_PLACEMENT_ORIGIN.z;return {id:'imported-'+a.assetId,h:a.h,p:[[x-a.w/2,z-a.d/2],[x+a.w/2,z-a.d/2],[x+a.w/2,z+a.d/2],[x-a.w/2,z+a.d/2]]};});
 const collisionBuildings = [...importedSolids,...WORLD.buildings.filter(b=>!FUEL_CANOPY_IDS.has(b.id)),...fuelCanopyObstacles().filter(b=>b.minY===0)];
 const cameraBuildings = collisionBuildings.map((b) => ({
@@ -351,11 +357,13 @@ export function lineOfSight(a, c) {
       Math.min(a.z, c.z) > b.maxZ
     )
       continue;
-    if (insidePolygon(a.x, a.z, b.p) || insidePolygon(c.x, c.z, b.p))
+    if((b.minHeight??0)>1.8)continue;
+    const solidAt=p=>insidePolygon(p.x,p.z,b.p)&&!(b.holes??[]).some(h=>insidePolygon(p.x,p.z,h));
+    if (solidAt(a) || solidAt(c))
       return false;
-    for (let i = 0; i < b.p.length; i++) {
-      const u = b.p[i],
-        v = b.p[(i + 1) % b.p.length],
+    for(const ring of [b.p,...(b.holes??[])])for (let i = 0; i < ring.length; i++) {
+      const u = ring[i],
+        v = ring[(i + 1) % ring.length],
         sx = v[0] - u[0],
         sz = v[1] - u[1],
         cross = dx * sz - dz * sx;
@@ -379,9 +387,9 @@ export function cameraDistance(x, z, y, yaw, wanted, pitch) {
       Math.min(z, z + dz) > b.maxZ
     )
       continue;
-    for (let i = 0; i < b.p.length; i++) {
-      const a = b.p[i],
-        c = b.p[(i + 1) % b.p.length],
+    for(const ring of [b.p,...(b.holes??[])])for (let i = 0; i < ring.length; i++) {
+      const a = ring[i],
+        c = ring[(i + 1) % ring.length],
         sx = c[0] - a[0],
         sz = c[1] - a[1],
         cross = dx * sz - dz * sx;
@@ -393,7 +401,8 @@ export function cameraDistance(x, z, y, yaw, wanted, pitch) {
         t < fraction &&
         u >= 0 &&
         u <= 1 &&
-        y + (2.4 + pitch * wanted) * t < b.h
+        y + (2.4 + pitch * wanted) * t < b.h &&
+        y + (2.4 + pitch * wanted) * t > (b.minHeight??0)
       )
         fraction = t;
     }
@@ -401,6 +410,7 @@ export function cameraDistance(x, z, y, yaw, wanted, pitch) {
   return Math.max(1.15, wanted * fraction - 0.5);
 }
 for (const b of collisionBuildings) {
+  if((b.minHeight??0)>1.8)continue;
   const xs = b.p.map((p) => p[0]),
     zs = b.p.map((p) => p[1]);
   for (
@@ -415,7 +425,7 @@ for (const b of collisionBuildings) {
     ) {
       const key = `${x},${z}`;
       if (!cells.has(key)) cells.set(key, []);
-      cells.get(key).push(b.p);
+      cells.get(key).push(b);
     }
 }
 export function collide(entity, radius) {
@@ -423,18 +433,19 @@ export function collide(entity, radius) {
   const polys =
     cells.get(`${Math.floor(entity.x / 40)},${Math.floor(entity.z / 40)}`) ||
     [];
-  for (const p of polys) {
+  for (const building of polys) {
+    const p=building.p,holes=building.holes??[];
     let q = null,
       d = Infinity;
-    for (let i = 0; i < p.length; i++) {
-      const c = closest(entity.x, entity.z, p[i], p[(i + 1) % p.length]);
+    for(const ring of [p,...holes])for (let i = 0; i < ring.length; i++) {
+      const c = closest(entity.x, entity.z, ring[i], ring[(i + 1) % ring.length]);
       const n = Math.hypot(entity.x - c[0], entity.z - c[1]);
       if (n < d) {
         d = n;
         q = c;
       }
     }
-    const inside = insidePolygon(entity.x, entity.z, p);
+    const inside = insidePolygon(entity.x, entity.z, p)&&!holes.some(h=>insidePolygon(entity.x,entity.z,h));
     if (q && (inside || d < radius)) {
       let nx = entity.x - q[0],
         nz = entity.z - q[1];
@@ -451,7 +462,7 @@ export function collide(entity, radius) {
     }
   }
   // River banks block driving and walking; mapped road/foot bridges remain open.
-  for (const water of waterSegments) {
+  for (const water of waterCells.get(`${Math.floor(entity.x/40)},${Math.floor(entity.z/40)}`)??[]) {
     const q = closest(entity.x, entity.z, water.a, water.b),
       dx = entity.x - q[0],
       dz = entity.z - q[1],

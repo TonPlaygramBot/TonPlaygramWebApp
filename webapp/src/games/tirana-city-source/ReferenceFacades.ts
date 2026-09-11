@@ -17,6 +17,9 @@ export class ReferenceFacades {
   constructor(world=WORLD, onlyIds?:ReadonlySet<string>) {
     this.group.name='Tirana:photo-referenced-institution-facades';
     for(const b of landmarkBuildings(world)){
+      // Live game uses the Blender replacement; standalone legacy explorer
+      // keeps its selected-site fallback until its own asset finishes loading.
+      if(!onlyIds&&'neighbourhood' in b&&b.neighbourhood)continue;
       if(onlyIds&&!onlyIds.has(b.id))continue;
       const profile=REFERENCE_BUILDINGS[b.id];if(!profile)continue;
       const group=new T.Group(),height=profile.height??b.h;
