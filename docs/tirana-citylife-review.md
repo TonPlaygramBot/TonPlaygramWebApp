@@ -4,7 +4,7 @@ This is the previously delivered CityLife implementation, not the requested visu
 
 ## Status: draft, not playable from this commit alone
 
-The four source modules and tests are committed. The 30 GLB files, HDR and asset manifest are still in the conversation attachment `Tirana-CityLife-Review-Pack.zip`; **the binary assets are not committed here**. CareerRuntime, CareerGame and careerCore are deliberately unchanged until the exact assets are imported. Merging this staging commit alone does not activate CityLife. No deployed game, multiplayer authority, currency balance, map origin or Racing Royal code is changed.
+The four source modules and tests are committed. The 30 GLB files, HDR and asset manifest are still in the conversation attachment `Tirana-CityLife-Review-Pack.zip`; **the binary assets are not committed here**. CareerRuntime, CareerGame and careerCore are deliberately unchanged until the exact assets are imported. Merging this staging commit alone does not activate CityLife. No deployed game, multiplayer authority, currency balance, map origin or Racing Royal code is changed. Existing `shared/cityLife.mjs` gameplay and its `test/tiranaCityLife.test.mjs` suite are preserved; this separate review module is for the solo career runtime.
 
 The delivered archive has SHA-256:
 
@@ -25,6 +25,7 @@ Requires Node.js, Python 3, Git, the exact archive already delivered in the conv
 ```sh
 node scripts/import-tirana-citylife.mjs /absolute/path/Tirana-CityLife-Review-Pack.zip --check
 node scripts/import-tirana-citylife.mjs /absolute/path/Tirana-CityLife-Review-Pack.zip --apply
+node --test test/tiranaCityLifeReviewPack.test.mjs
 node --test test/tiranaCityLife.test.mjs
 ```
 
@@ -33,9 +34,10 @@ The check pins the complete archive, compares the four staged modules byte-for-b
 ## Validation performed for this PR
 
 - Strict standalone TypeScript compilation of the original CityLifeCore passed.
-- All 21 original simulation tests passed again. The repository test harness transpiles the current TypeScript source instead of relying on a stale generated JS copy.
+- All 21 original review-pack simulation tests passed again. The repository test harness transpiles the current TypeScript source instead of relying on a stale generated JS copy.
 - The import wrapper passed `node --check`; complete import/build/gameplay was not executed in this session.
 - The original installer's three source hashes still matched main when checked through the connected repository.
+- The existing shared CityLife test suite is unchanged; it was not rerun in this environment.
 
 ## Merge blockers and known limitations
 
