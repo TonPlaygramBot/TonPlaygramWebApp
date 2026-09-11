@@ -1,0 +1,27 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import {CATALOG} from '../webapp/src/games/kartroyale/citylife-v2/catalog.mjs';
+import {LIMITS,GROUPS,makeSites,safeSite,segmentDistance,inPolygon,selectSites} from '../webapp/src/games/kartroyale/citylife-v2/placement.mjs';
+import {verifyAsset} from '../webapp/src/games/kartroyale/citylife-v2/verify.mjs';
+const track={width:8,points:[{x:-50,z:-50},{x:50,z:-50},{x:50,z:50},{x:-50,z:50}]};
+const world={areas:[[[-200,-200],[200,-200],[200,200],[-200,200]]],buildings:[],roads:[],water:[]};
+const snapshot=x=>JSON.stringify(x);
+test('catalog exactly matches latest revised manifest, with 11 unique V2 models',async()=>{const lock=JSON.parse(await readFile(new URL('../assets-source/racing-citylife-v2/archive-manifest.json',import.meta.url)));assert.equal(lock.version,2);assert.equal(CATALOG.length,11);assert.equal(new Set(CATALOG.map(a=>a.id)).size,11);for(const a of CATALOG){const b=lock.assets.find(b=>b.id===a.id);for(const key of Object.keys(a))assert.deepEqual(a[key],b[key]);assert(!a.file.includes('lod'));}});
+test('vehicle and human facing conventions are retained',()=>{for(const a of CATALOG)assert.equal(a.facing,a.kind==='vehicle'?'+X':'+Z');});
+test('every catalog model has a placement group',()=>{assert.deepEqual([...GROUPS.flat()].sort(),CATALOG.map(a=>a.id).sort());});
+test('segment distance handles endpoints and zero length',()=>{assert.equal(segmentDistance({x:3,z:4},[0,0],[0,0]),5);assert.equal(segmentDistance({x:3,z:4},[0,0],[8,0]),4);});
+test('polygon containment distinguishes exterior',()=>{assert(inPolygon({x:0,z:0},world.areas[0]));assert(!inPolygon({x:300,z:0},world.areas[0]));});
+test('closing edge of the race track is protected',()=>{assert(!safeSite({x:-50,z:0},.65,track,world));assert(!safeSite({x:-55,z:0},.65,track,world));});
+test('full building footprint clearance is required',()=>{assert(!safeSite({x:65,z:0},.65,track,{...world,buildings:[{p:[[65.2,-2],[67,-2],[67,2],[65.2,2]]}]}));});
+test('water and ordinary road corridors are protected',()=>{const p={x:70,z:0};assert(!safeSite(p,.65,track,{...world,water:[{line:[[70,-10],[70,10]],width:8}]}));assert(!safeSite(p,.65,track,{...world,roads:[{a:[70,-10],b:[70,10],w:8}]}));});
+test('unknown pavement means no placement rather than fabricated access',()=>{assert(!safeSite({x:70,z:0},.65,track,{}));assert.deepEqual(makeSites(track,{}),[]);});
+test('invalid placement input is rejected',()=>{assert(!safeSite({x:NaN,z:0},.65,track,world));assert(!safeSite({x:70,z:0},NaN,track,world));assert(!safeSite({x:70,z:0},.65,{...track,width:NaN},world));});
+test('placement is deterministic, bounded and does not mutate the city',()=>{const before=snapshot({track,world}),a=makeSites(track,world),b=makeSites(track,world);assert.deepEqual(a,b);assert(a.length>0&&a.length<=11);assert.equal(snapshot({track,world}),before);for(const p of a)assert(safeSite(p,p.radius,track,world));});
+test('near-camera and battery budgets do not imply dense crowds',()=>{const s=CATALOG.map((a,i)=>({asset:a.id,x:i,z:0,radius:.65,yaw:0}));assert.equal(selectSites(s,{x:0,z:0}).length,LIMITS.normal);assert.equal(selectSites(s,{x:0,z:0},true).length,1);assert.equal(selectSites(s,{x:1000,z:0}).length,0);});
+function minimalGLB(){const json=Buffer.from('{"asset":{"version":"2.0"}} '),b=Buffer.alloc(20+json.length);b.writeUInt32LE(0x46546c67,0);b.writeUInt32LE(2,4);b.writeUInt32LE(b.length,8);b.writeUInt32LE(json.length,12);b.writeUInt32LE(0x4e4f534a,16);json.copy(b,20);return b;}
+const ab=b=>b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength);
+test('runtime byte verifier accepts matching self-contained GLB',async()=>{const b=minimalGLB();await verifyAsset(ab(b),{id:'fixture',bytes:b.length,sha256:createHash('sha256').update(b).digest('hex')});});
+test('runtime byte verifier rejects wrong size, header and checksum',async()=>{const b=minimalGLB();await assert.rejects(()=>verifyAsset(ab(b),{id:'fixture',bytes:b.length+4,sha256:''}));await assert.rejects(()=>verifyAsset(ab(b),{id:'fixture',bytes:b.length,sha256:'0'.repeat(64)}));b[0]=0;await assert.rejects(()=>verifyAsset(ab(b),{id:'fixture',bytes:b.length,sha256:''}));});
+test('racing hook is present without changing race simulation',async()=>{const text=await readFile(new URL('../webapp/src/games/kartroyale/tiranaScenery.ts',import.meta.url),'utf8');assert(text.includes('new RacingCityLifeV2Layer(track,WORLD)'));assert(text.includes('this.cityLifeV2.retire()'));assert(text.includes('this.cityLifeV2.update('));assert(!text.includes("'../tiranastreets/citylife/CityLifeCore'"));});

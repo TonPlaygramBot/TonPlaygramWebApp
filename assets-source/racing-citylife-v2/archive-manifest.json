@@ -1,0 +1,232 @@
+{
+  "version": 2,
+  "assets": [
+    {
+      "id": "albanian_fire_engine",
+      "file": "albanian_fire_engine.glb",
+      "triangles": 115650,
+      "bytes": 3079476,
+      "sha256": "a60634892970fc339e8dc10591a0e246b8f43dda7903e13aa3b8c6766b8b5276",
+      "animations": [],
+      "revision": 2,
+      "kind": "vehicle",
+      "role": "fire_engine",
+      "facing": "+X",
+      "wheelbase": 4.89,
+      "wheelRadius": 0.53,
+      "sockets": {
+        "crewExit": [
+          1.0,
+          0,
+          1.65
+        ],
+        "hoseOutlet": [
+          -4.46,
+          1.5,
+          0
+        ]
+      },
+      "design": "Authored European cab-over rescue appliance, Albanian game livery; not a surveyed fleet replica.",
+      "drawCalls": 41
+    },
+    {
+      "id": "paramedic_red",
+      "file": "paramedic_red.glb",
+      "triangles": 59662,
+      "bytes": 5255544,
+      "sha256": "73f55248a7dc0e41a49d333dbf08b70412faccf901441a0443f4c4bf7e4643c9",
+      "animations": [
+        "Idle",
+        "Walk",
+        "Run"
+      ],
+      "revision": 2,
+      "kind": "human",
+      "role": "paramedic",
+      "facing": "+Z",
+      "heightApprox": 1.9,
+      "base": "Shared licensed MakeHuman adult male topology; fitted wardrobe and modest face/proportion variants. Not five independent scanned humans.",
+      "drawCalls": 15
+    },
+    {
+      "id": "albanian_ambulance",
+      "file": "albanian_ambulance.glb",
+      "triangles": 213064,
+      "bytes": 6835100,
+      "sha256": "9ecbe10b5d676366906c46f8570717b4c5de98f9fe12239b53dbc1d6ee2fd4b3",
+      "animations": [],
+      "revision": 2,
+      "kind": "vehicle",
+      "role": "ambulance",
+      "facing": "+X",
+      "wheelbase": 4.325,
+      "wheelRadius": 0.375,
+      "sockets": {
+        "crewExit": [
+          0.6,
+          0,
+          1.5
+        ],
+        "patientPickup": [
+          -3.7,
+          0,
+          0
+        ]
+      },
+      "design": "Licensed Webots Sprinter donor; body-conforming authored Albanian livery. Not an exact current-fleet replica.",
+      "drawCalls": 43
+    },
+    {
+      "id": "paramedic_navy",
+      "file": "paramedic_navy.glb",
+      "triangles": 59662,
+      "bytes": 5262804,
+      "sha256": "8fb26b2bac62126ddc1f9dd242b2ced379cdb20e5394c6da2f31606750818b07",
+      "animations": [
+        "Idle",
+        "Walk",
+        "Run"
+      ],
+      "revision": 2,
+      "kind": "human",
+      "role": "paramedic",
+      "facing": "+Z",
+      "heightApprox": 1.9,
+      "base": "Shared licensed MakeHuman adult male topology; fitted wardrobe and modest face/proportion variants. Not five independent scanned humans.",
+      "drawCalls": 15
+    },
+    {
+      "id": "firefighter_rescue",
+      "file": "firefighter_rescue.glb",
+      "triangles": 64044,
+      "bytes": 4314832,
+      "sha256": "a06e76c102dd0a03b5d427f337ef7c0961fdb74fb29e8e3e7f0d1e3b9b364d9b",
+      "animations": [
+        "Idle",
+        "Walk",
+        "Run"
+      ],
+      "revision": 2,
+      "kind": "human",
+      "role": "firefighter",
+      "facing": "+Z",
+      "heightApprox": 1.94,
+      "base": "Shared licensed MakeHuman adult male topology; fitted wardrobe and modest face/proportion variants. Not five independent scanned humans.",
+      "drawCalls": 16
+    },
+    {
+      "id": "firefighter_operator",
+      "file": "firefighter_operator.glb",
+      "triangles": 64044,
+      "bytes": 4322092,
+      "sha256": "6867bcc76c195f0c2d5eae9969e6fcbd1de49dfd2e1a07839e52780b8f28aec1",
+      "animations": [
+        "Idle",
+        "Walk",
+        "Run"
+      ],
+      "revision": 2,
+      "kind": "human",
+      "role": "firefighter",
+      "facing": "+Z",
+      "heightApprox": 1.94,
+      "base": "Shared licensed MakeHuman adult male topology; fitted wardrobe and modest face/proportion variants. Not five independent scanned humans.",
+      "drawCalls": 16
+    },
+    {
+      "id": "civilian_student",
+      "file": "civilian_student.glb",
+      "triangles": 54514,
+      "bytes": 4954284,
+      "sha256": "b77f2be557675423581e50c53db3273636491052c0111b906106bae8d35aec25",
+      "animations": [
+        "Idle",
+        "Walk",
+        "Run"
+      ],
+      "revision": 2,
+      "kind": "human",
+      "role": "civilian",
+      "facing": "+Z",
+      "heightApprox": 1.9,
+      "base": "Shared licensed MakeHuman adult male topology; fitted wardrobe and modest face/proportion variants. Not five independent scanned humans.",
+      "drawCalls": 10
+    },
+    {
+      "id": "civilian_worker",
+      "file": "civilian_worker.glb",
+      "triangles": 54054,
+      "bytes": 4948364,
+      "sha256": "b3fef1e9a36c6dba56ff9cd4bc632c19f5595dce03153f6e087d60e2f6626123",
+      "animations": [
+        "Idle",
+        "Walk",
+        "Run"
+      ],
+      "revision": 2,
+      "kind": "human",
+      "role": "civilian",
+      "facing": "+Z",
+      "heightApprox": 1.9,
+      "base": "Shared licensed MakeHuman adult male topology; fitted wardrobe and modest face/proportion variants. Not five independent scanned humans.",
+      "drawCalls": 11
+    },
+    {
+      "id": "civilian_courier",
+      "file": "civilian_courier.glb",
+      "triangles": 59870,
+      "bytes": 5190488,
+      "sha256": "dab52455380f256feebf3412a20645221f1d809906b41a985f940fac3d51824c",
+      "animations": [
+        "Idle",
+        "Walk",
+        "Run"
+      ],
+      "revision": 2,
+      "kind": "human",
+      "role": "civilian",
+      "facing": "+Z",
+      "heightApprox": 1.9,
+      "base": "Shared licensed MakeHuman adult male topology; fitted wardrobe and modest face/proportion variants. Not five independent scanned humans.",
+      "drawCalls": 11
+    },
+    {
+      "id": "civilian_business",
+      "file": "civilian_business.glb",
+      "triangles": 55310,
+      "bytes": 4995792,
+      "sha256": "37724b3afef51bb58c0b1ecd4821ca4d65dd61f4a3fc801acb4336e406362046",
+      "animations": [
+        "Idle",
+        "Walk",
+        "Run"
+      ],
+      "revision": 2,
+      "kind": "human",
+      "role": "civilian",
+      "facing": "+Z",
+      "heightApprox": 1.9,
+      "base": "Shared licensed MakeHuman adult male topology; fitted wardrobe and modest face/proportion variants. Not five independent scanned humans.",
+      "drawCalls": 11
+    },
+    {
+      "id": "civilian_local",
+      "file": "civilian_local.glb",
+      "triangles": 53426,
+      "bytes": 4942828,
+      "sha256": "1f1c0291d50ae24a02d9c6e8131d3da5eec78272acded47c71e854dc669338aa",
+      "animations": [
+        "Idle",
+        "Walk",
+        "Run"
+      ],
+      "revision": 2,
+      "kind": "human",
+      "role": "civilian",
+      "facing": "+Z",
+      "heightApprox": 1.9,
+      "base": "Shared licensed MakeHuman adult male topology; fitted wardrobe and modest face/proportion variants. Not five independent scanned humans.",
+      "drawCalls": 9
+    }
+  ]
+}
