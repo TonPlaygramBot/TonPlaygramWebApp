@@ -5,7 +5,7 @@ import {
   vehicleDriverMount,
   type VehicleFit
 } from './vehicleAssetConfig.mjs';
-/** The race keeps its existing 2.7-unit kart footprint. Exported GLBs stay in
+/** The race uses a consistent road-scale vehicle footprint. Exported GLBs stay in
  * metres; this adapter alone scales the visual, cockpit mount and wheel radius. */
 export function prepareVehicleAsset(
   scene: T.Group,

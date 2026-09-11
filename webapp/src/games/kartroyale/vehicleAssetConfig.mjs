@@ -16,7 +16,9 @@ export function vehicleAssetUrl(id, low = false) {
     ? `/assets/kart-royale/military/${config.file}${low ? '-lod' : ''}.glb`
     : `/assets/kart-royale/kenney-${id}.glb`;
 }
-export function normaliseVehicleDimensions({ min, max }, targetLength = 2.7) {
+// 3.25 m keeps the stylised racers substantial beside the widened street
+// circuit (the former 2.7 m target read like a toy on a phone display).
+export function normaliseVehicleDimensions({ min, max }, targetLength = 3.25) {
   const length = max[2] - min[2];
   if (
     ![...min, ...max, targetLength].every(Number.isFinite) ||

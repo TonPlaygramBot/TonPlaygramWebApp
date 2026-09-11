@@ -140,7 +140,7 @@ test('asset fitting applies one scale to the body, floor and actual left-hand se
     min: [-1.5, 0.04, -2.9],
     max: [1.5, 3.8, 3.5]
   });
-  assert(Math.abs(fit.scale * 6.4 - 2.7) < 1e-10);
+  assert(Math.abs(fit.scale * 6.4 - 3.25) < 1e-10);
   assert.equal(0.04 * fit.scale + fit.offset[1], 0);
   const eye = vehicleDriverMount('shota', fit);
   assert(eye[0] > 0, 'Vehicle-left is screen-left facing +Z');
