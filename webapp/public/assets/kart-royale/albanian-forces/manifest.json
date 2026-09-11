@@ -1,0 +1,290 @@
+[
+  {
+    "id": "patrol_hatch",
+    "category": "vehicle",
+    "file": "patrol_hatch.glb",
+    "low": false,
+    "bytes": 1757772,
+    "triangles": 48884,
+    "animations": []
+  },
+  {
+    "id": "patrol_hatch",
+    "category": "vehicle",
+    "file": "patrol_hatch-lod.glb",
+    "low": true,
+    "bytes": 666224,
+    "triangles": 14199,
+    "animations": []
+  },
+  {
+    "id": "patrol_sedan",
+    "category": "vehicle",
+    "file": "patrol_sedan.glb",
+    "low": false,
+    "bytes": 2173788,
+    "triangles": 62269,
+    "animations": []
+  },
+  {
+    "id": "patrol_sedan",
+    "category": "vehicle",
+    "file": "patrol_sedan-lod.glb",
+    "low": true,
+    "bytes": 782616,
+    "triangles": 16701,
+    "animations": []
+  },
+  {
+    "id": "shqiponja_compact",
+    "category": "vehicle",
+    "file": "shqiponja_compact.glb",
+    "low": false,
+    "bytes": 1792928,
+    "triangles": 50540,
+    "animations": []
+  },
+  {
+    "id": "shqiponja_compact",
+    "category": "vehicle",
+    "file": "shqiponja_compact-lod.glb",
+    "low": true,
+    "bytes": 631464,
+    "triangles": 13440,
+    "animations": []
+  },
+  {
+    "id": "police_van",
+    "category": "vehicle",
+    "file": "police_van.glb",
+    "low": false,
+    "bytes": 6851368,
+    "triangles": 190443,
+    "animations": []
+  },
+  {
+    "id": "police_van",
+    "category": "vehicle",
+    "file": "police_van-lod.glb",
+    "low": true,
+    "bytes": 3005340,
+    "triangles": 70347,
+    "animations": []
+  },
+  {
+    "id": "fnsh_armored_van",
+    "category": "vehicle",
+    "file": "fnsh_armored_van.glb",
+    "low": false,
+    "bytes": 6823088,
+    "triangles": 191643,
+    "animations": []
+  },
+  {
+    "id": "fnsh_armored_van",
+    "category": "vehicle",
+    "file": "fnsh_armored_van-lod.glb",
+    "low": true,
+    "bytes": 2985512,
+    "triangles": 70535,
+    "animations": []
+  },
+  {
+    "id": "renea_armored_van",
+    "category": "vehicle",
+    "file": "renea_armored_van.glb",
+    "low": false,
+    "bytes": 1839704,
+    "triangles": 32224,
+    "animations": []
+  },
+  {
+    "id": "renea_armored_van",
+    "category": "vehicle",
+    "file": "renea_armored_van-lod.glb",
+    "low": true,
+    "bytes": 902516,
+    "triangles": 15378,
+    "animations": []
+  },
+  {
+    "id": "traffic_bike",
+    "category": "vehicle",
+    "file": "traffic_bike.glb",
+    "low": false,
+    "bytes": 2349716,
+    "triangles": 49261,
+    "animations": []
+  },
+  {
+    "id": "traffic_bike",
+    "category": "vehicle",
+    "file": "traffic_bike-lod.glb",
+    "low": true,
+    "bytes": 852268,
+    "triangles": 14601,
+    "animations": []
+  },
+  {
+    "id": "shqiponja_bike",
+    "category": "vehicle",
+    "file": "shqiponja_bike.glb",
+    "low": false,
+    "bytes": 2279140,
+    "triangles": 48061,
+    "animations": []
+  },
+  {
+    "id": "shqiponja_bike",
+    "category": "vehicle",
+    "file": "shqiponja_bike-lod.glb",
+    "low": true,
+    "bytes": 772384,
+    "triangles": 13101,
+    "animations": []
+  },
+  {
+    "id": "patrol_officer",
+    "category": "person",
+    "file": "patrol_officer.glb",
+    "low": false,
+    "bytes": 5332320,
+    "triangles": 129028,
+    "animations": [
+      "Idle",
+      "Walk"
+    ]
+  },
+  {
+    "id": "patrol_officer",
+    "category": "person",
+    "file": "patrol_officer-lod.glb",
+    "low": true,
+    "bytes": 971308,
+    "triangles": 16203,
+    "animations": [
+      "Idle",
+      "Walk"
+    ]
+  },
+  {
+    "id": "traffic_officer",
+    "category": "person",
+    "file": "traffic_officer.glb",
+    "low": false,
+    "bytes": 5342568,
+    "triangles": 129028,
+    "animations": [
+      "Idle",
+      "Walk"
+    ]
+  },
+  {
+    "id": "traffic_officer",
+    "category": "person",
+    "file": "traffic_officer-lod.glb",
+    "low": true,
+    "bytes": 975284,
+    "triangles": 16198,
+    "animations": [
+      "Idle",
+      "Walk"
+    ]
+  },
+  {
+    "id": "shqiponja_officer",
+    "category": "person",
+    "file": "shqiponja_officer.glb",
+    "low": false,
+    "bytes": 5742592,
+    "triangles": 133428,
+    "animations": [
+      "Idle",
+      "Walk"
+    ]
+  },
+  {
+    "id": "shqiponja_officer",
+    "category": "person",
+    "file": "shqiponja_officer-lod.glb",
+    "low": true,
+    "bytes": 1303376,
+    "triangles": 19237,
+    "animations": [
+      "Idle",
+      "Walk"
+    ]
+  },
+  {
+    "id": "fnsh_officer",
+    "category": "person",
+    "file": "fnsh_officer.glb",
+    "low": false,
+    "bytes": 5581336,
+    "triangles": 130804,
+    "animations": [
+      "Idle",
+      "Walk"
+    ]
+  },
+  {
+    "id": "fnsh_officer",
+    "category": "person",
+    "file": "fnsh_officer-lod.glb",
+    "low": true,
+    "bytes": 1261600,
+    "triangles": 18762,
+    "animations": [
+      "Idle",
+      "Walk"
+    ]
+  },
+  {
+    "id": "renea_officer",
+    "category": "person",
+    "file": "renea_officer.glb",
+    "low": false,
+    "bytes": 5512780,
+    "triangles": 130716,
+    "animations": [
+      "Idle",
+      "Walk"
+    ]
+  },
+  {
+    "id": "renea_officer",
+    "category": "person",
+    "file": "renea_officer-lod.glb",
+    "low": true,
+    "bytes": 1194552,
+    "triangles": 16690,
+    "animations": [
+      "Idle",
+      "Walk"
+    ]
+  },
+  {
+    "id": "army_soldier",
+    "category": "person",
+    "file": "army_soldier.glb",
+    "low": false,
+    "bytes": 5910796,
+    "triangles": 135488,
+    "animations": [
+      "Idle",
+      "Walk"
+    ]
+  },
+  {
+    "id": "army_soldier",
+    "category": "person",
+    "file": "army_soldier-lod.glb",
+    "low": true,
+    "bytes": 1337896,
+    "triangles": 19561,
+    "animations": [
+      "Idle",
+      "Walk"
+    ]
+  }
+]

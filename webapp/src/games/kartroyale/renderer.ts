@@ -1,3 +1,5 @@
+import { isAlbanianForcesVehicle } from './albanianForcesCatalog.mjs';
+import { AlbanianForcesLayer, disposeForcesModel } from './AlbanianForcesLayer';
 import * as T from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { isMilitaryVehicle } from './militaryVehicleCatalog.mjs';
@@ -77,6 +79,8 @@ interface KartRig {
   wheels: T.Object3D[];
   front: T.Object3D[];
   spin: number;
+  wheelAxis: 'x' | 'z';
+  emergencyLights: T.MeshStandardMaterial[];
   wheelRadius: number;
   driverEye?: T.Vector3;
   smoke: T.Mesh;
@@ -103,6 +107,9 @@ export class KartRenderer {
   private kartModels = new Map<string, T.Group>();
   private kartLowModels = new Map<string, T.Group>();
   private kartId = 'apex';
+  private vehicleLoads = new Map<string, Promise<void>>();
+  private failedVehicles = new Set<string>();
+  private officials: AlbanianForcesLayer | null = null;
   private flagTexture: T.Texture | null = null;
   private scenery: TiranaScenery | null = null;
   private supporters: Supporters | null = null;
@@ -256,6 +263,7 @@ export class KartRenderer {
   async load() {
     const loader = new GLTFLoader();
     const textures = new T.TextureLoader();
+    const startupKarts = KARTS.filter((k) => !isAlbanianForcesVehicle(k.id));
     const results = await Promise.allSettled([
       loader.loadAsync('/assets/kart-royale/apex.glb'),
       loader.loadAsync('/assets/kart-royale/apex-lod.glb'),
@@ -263,7 +271,9 @@ export class KartRenderer {
       textures.loadAsync('/assets/kart-royale/asphalt-diff.jpg'),
       textures.loadAsync('/assets/kart-royale/asphalt-nor_gl.jpg'),
       textures.loadAsync('/assets/kart-royale/asphalt-rough.jpg'),
-      ...KARTS.slice(1).map((k) => loader.loadAsync(vehicleAssetUrl(k.id))),
+      ...startupKarts
+        .slice(1)
+        .map((k) => loader.loadAsync(vehicleAssetUrl(k.id))),
       loader.loadAsync('/assets/table-tennis/athlete-male.glb'),
       loader.loadAsync('/assets/table-tennis/athlete-female.glb'),
       ...KARTS.filter((k) => isMilitaryVehicle(k.id)).map((k) =>
@@ -302,7 +312,7 @@ export class KartRenderer {
     this.flagTexture = (results[2] as PromiseFulfilledResult<T.Texture>).value;
     this.flagTexture.colorSpace = T.SRGBColorSpace;
     this.textures.add(this.flagTexture);
-    KARTS.slice(1).forEach((k, i) => {
+    startupKarts.slice(1).forEach((k, i) => {
       const scene = (
         results[i + 6] as PromiseFulfilledResult<
           import('three/examples/jsm/loaders/GLTFLoader.js').GLTF
@@ -314,7 +324,7 @@ export class KartRenderer {
       this.collectTextures(scene);
     });
     this.humanTemplates = results
-      .slice(5 + KARTS.length, 7 + KARTS.length)
+      .slice(5 + startupKarts.length, 7 + startupKarts.length)
       .map((result, i) => {
         const source = (
           result as PromiseFulfilledResult<
@@ -326,7 +336,7 @@ export class KartRenderer {
       });
     KARTS.filter((k) => isMilitaryVehicle(k.id)).forEach((k, i) => {
       const scene = (
-        results[7 + KARTS.length + i] as PromiseFulfilledResult<
+        results[7 + startupKarts.length + i] as PromiseFulfilledResult<
           import('three/examples/jsm/loaders/GLTFLoader.js').GLTF
         >
       ).value.scene;
@@ -354,15 +364,58 @@ export class KartRenderer {
     this.showroom.add(this.cloneKart(0, false, this.kartId));
     this.setColor(this.color);
   }
+  private ensureVehicle(id: string, low = false): Promise<void> {
+    if (!isAlbanianForcesVehicle(id) || this.disposed) return Promise.resolve();
+    const models = low ? this.kartLowModels : this.kartModels;
+    if (models.has(id)) return Promise.resolve();
+    const key = `${id}:${low}`;
+    const pending = this.vehicleLoads.get(key);
+    if (pending) return pending;
+    const request = new GLTFLoader()
+      .loadAsync(vehicleAssetUrl(id, low))
+      .then((gltf) => {
+        if (this.disposed) {
+          disposeForcesModel(gltf.scene);
+          return;
+        }
+        const scene = prepareVehicleAsset(
+          gltf.scene,
+          id,
+          this.kartModels.get(id)?.userData.vehicleFit
+        );
+        models.set(id, scene);
+        this.collectTextures(scene);
+        this.failedVehicles.delete(key);
+      })
+      .catch((error) => {
+        this.failedVehicles.add(key);
+        throw error;
+      })
+      .finally(() => {
+        this.vehicleLoads.delete(key);
+      });
+    this.vehicleLoads.set(key, request);
+    return request;
+  }
   private cloneKart(slot: number, low = false, kartId = 'apex') {
-    const source =
+    let source =
       kartId === 'apex'
         ? low
           ? this.low
           : this.full
         : (low ? this.kartLowModels.get(kartId) : undefined) ||
           this.kartModels.get(kartId);
+    const ready = !!source;
+    if (!source && isAlbanianForcesVehicle(kartId)) {
+      if (!this.failedVehicles.has(`${kartId}:${low}`)) {
+        void this.ensureVehicle(kartId, low).catch((error) =>
+          console.warn(`Vehicle ${kartId} could not load`, error)
+        );
+      }
+      source = this.low; // Continue simulation while a remote visual downloads.
+    }
     const model = new T.Group();
+    model.userData.assetReady = ready;
     if (source) model.add(source.clone(true));
     model.userData.kartId = kartId;
     model.traverse((o) => {
@@ -375,11 +428,17 @@ export class KartRenderer {
       }
     });
     const rig: KartRig = {
-      body: model.getObjectByName('body') || model.children[0] || model,
+      body:
+        model.getObjectByName('forces-body') ||
+        model.getObjectByName('body') ||
+        model.children[0] ||
+        model,
       steeringWheel: model.getObjectByName('steering_wheel'),
       wheels: [],
       front: [],
       spin: 0,
+      wheelAxis: ready && isAlbanianForcesVehicle(kartId) ? 'z' : 'x',
+      emergencyLights: [],
       wheelRadius: source?.userData.wheelRadius || 0.28,
       driverEye: source?.userData.driverEye
         ? new T.Vector3(
@@ -415,11 +474,24 @@ export class KartRenderer {
     model.traverse((o) => {
       if (/^(character|body_suit|body_visor)$/.test(o.name))
         rig.driverParts.push(o);
-      if (/^wheel_[fr][lr]$/.test(o.name) || o.name.startsWith('wheel-'))
+      if (/^wheel_[fr][lr]?$/i.test(o.name) || o.name.startsWith('wheel-'))
         rig.wheels.push(o);
-      if (/^steer_f[lr]$/.test(o.name)) rig.front.push(o);
+      if (/^steer_f[lr]?$/i.test(o.name)) rig.front.push(o);
+      if (o instanceof T.Mesh && ready && isAlbanianForcesVehicle(kartId)) {
+        for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+          if (
+            m instanceof T.MeshStandardMaterial &&
+            m.name.startsWith('Blue emergency')
+          )
+            rig.emergencyLights.push(m);
+        }
+      }
     });
-    if (kartId !== 'apex' && !isMilitaryVehicle(kartId)) {
+    if (
+      kartId !== 'apex' &&
+      !isMilitaryVehicle(kartId) &&
+      !isAlbanianForcesVehicle(kartId)
+    ) {
       for (const wheel of rig.wheels.filter((w) => w.name.includes('front'))) {
         const pivot = new T.Group();
         pivot.position.copy(wheel.position);
@@ -458,9 +530,13 @@ export class KartRenderer {
     this.rigs.set(model, rig);
     return model;
   }
-  setKart(id: string) {
-    this.kartId = normalizeKart(id);
+  async setKart(id: string) {
+    const selected = normalizeKart(id);
+    this.kartId = selected;
     if (!this.full) return;
+    this.failedVehicles.delete(`${selected}:false`);
+    await this.ensureVehicle(selected);
+    if (this.disposed || this.kartId !== selected) return;
     for (const child of [...this.showroom.children]) {
       this.release(child, false);
       this.showroom.remove(child);
@@ -512,12 +588,15 @@ export class KartRenderer {
     this.shadow.target.position.set(0, 0, 0);
   }
   private createWorld(track: Track) {
+    this.failedVehicles.clear();
     for (const v of this.visuals.values()) {
       this.world.remove(v);
       this.release(v, false);
     }
     this.visuals.clear();
     this.scenery = null;
+    this.officials?.dispose();
+    this.officials = null;
     this.supporters?.dispose();
     this.supporters = null;
     this.effects?.dispose();
@@ -732,6 +811,8 @@ export class KartRenderer {
     this.world.add(arch);
     this.scenery = new TiranaScenery(track);
     this.world.add(this.scenery.group);
+    this.officials = new AlbanianForcesLayer(track);
+    this.world.add(this.officials.group);
     if (this.flagTexture) {
       this.supporters = new Supporters(
         track,
@@ -791,7 +872,16 @@ export class KartRenderer {
     const steer = Number.isFinite(r.steering) ? r.steering : 0;
     const yawRate = r.yawRate || 0;
     rig.spin = (rig.spin + (r.speed / rig.wheelRadius) * dt) % (Math.PI * 2);
-    for (const wheel of rig.wheels) wheel.rotation.x = rig.spin;
+    for (const wheel of rig.wheels)
+      wheel.rotation[rig.wheelAxis] =
+        rig.wheelAxis === 'z' ? -rig.spin : rig.spin;
+    rig.emergencyLights.forEach((m, i) => {
+      m.emissiveIntensity = this.reducedMotion
+        ? 0.8
+        : Math.sin(now * 0.016 + i * 2) > 0
+          ? 4
+          : 0.15;
+    });
     for (const front of rig.front)
       front.rotation.y += (-steer * 0.42 - front.rotation.y) * smooth;
     if (rig.steeringWheel) rig.steeringWheel.rotation.z = steer * 0.65;
@@ -1028,6 +1118,11 @@ export class KartRenderer {
       }
     }
     if (this.state === 'garage') {
+      for (const child of this.showroom.children) {
+        this.rigs.get(child)?.emergencyLights.forEach((m) => {
+          m.emissiveIntensity = 0.8;
+        });
+      }
       this.showroom.rotation.y = matchMedia('(prefers-reduced-motion: reduce)')
         .matches
         ? -0.48
@@ -1085,7 +1180,14 @@ export class KartRenderer {
       for (const r of this.racers) {
         let v = this.visuals.get(r.id);
         if (!v) continue;
-        if (v.userData.kartId !== r.kartId && r.kartId) {
+        const modelReady =
+          (r.id !== this.me ? this.kartLowModels.get(r.kartId) : undefined) ||
+          this.kartModels.get(r.kartId);
+        if (
+          r.kartId &&
+          (v.userData.kartId !== r.kartId ||
+            (!v.userData.assetReady && modelReady))
+        ) {
           const old = v;
           v = this.cloneKart(r.slot, r.id !== this.me, r.kartId);
           v.traverse((o) => {
@@ -1197,6 +1299,12 @@ export class KartRenderer {
         this.camera.fov +=
           (this.raceFov(me.speed) - this.camera.fov) * (1 - Math.exp(-dt * 5));
         this.camera.updateProjectionMatrix();
+        this.officials?.update(
+          me.x,
+          me.z,
+          running ? dt : 0,
+          this.quality === 'performance'
+        );
         this.effects?.update(
           running ? dt : 0,
           this.racers,
@@ -1272,6 +1380,7 @@ export class KartRenderer {
       this.contextLost
     );
     this.supporters?.dispose();
+    this.officials?.dispose();
     this.effects?.dispose();
     this.release(this.scene, true);
     this.humanTemplates.forEach((model) => this.release(model, true));

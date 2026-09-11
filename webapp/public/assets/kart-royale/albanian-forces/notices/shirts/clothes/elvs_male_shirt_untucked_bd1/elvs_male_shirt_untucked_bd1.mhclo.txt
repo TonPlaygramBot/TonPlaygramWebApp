@@ -1,0 +1,4 @@
+# Exported from MakeClothes (TM)
+# author Elvaerwyn
+# license CC_by
+# homepage http://www.makehuman.org/

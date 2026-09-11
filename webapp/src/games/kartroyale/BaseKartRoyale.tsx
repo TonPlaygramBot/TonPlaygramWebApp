@@ -1,3 +1,4 @@
+import { isAlbanianForcesVehicle } from './albanianForcesCatalog.mjs';
 import React, { useEffect, useRef, useState } from 'react';
 import type { Socket } from 'socket.io-client';
 import {
@@ -126,6 +127,10 @@ export default function KartRoyale({
         return 'apex';
       }
     });
+  const [loadedKartId, setLoadedKartId] = useState('');
+  const [vehicleError, setVehicleError] = useState('');
+  const [vehicleRetry, setVehicleRetry] = useState(0);
+  const vehicleReady = loaded && loadedKartId === kartId;
   const [screen, setScreen] = useState<'lobby' | 'race' | 'results'>('lobby'),
     [hud, setHud] = useState<Frame | null>(null),
     [result, setResult] = useState<Result | null>(null),
@@ -251,11 +256,27 @@ export default function KartRoyale({
     engine.current?.setColor(COLORS[paint]);
   }, [paint, loaded]);
   useEffect(() => {
-    engine.current?.setKart(kartId);
+    if (!loaded || !engine.current) return;
+    let active = true;
+    setVehicleError('');
+    void engine.current
+      .setKart(kartId)
+      .then(() => {
+        if (active) setLoadedKartId(kartId);
+      })
+      .catch(() => {
+        if (active)
+          setVehicleError(
+            'This vehicle could not load. Retry or choose another vehicle.'
+          );
+      });
     try {
       localStorage.setItem('racingRoyal.kart', kartId);
     } catch {}
-  }, [kartId, loaded]);
+    return () => {
+      active = false;
+    };
+  }, [kartId, loaded, vehicleRetry]);
   useEffect(() => {
     engine.current?.setQuality(quality);
   }, [quality]);
@@ -592,7 +613,7 @@ export default function KartRoyale({
     setResult(null);
   };
   const start = () => {
-    if (!loaded) return;
+    if (!vehicleReady) return;
     audio.current?.unlock();
     done.current = false;
     raceCup.current = mode === 'career' ? cup : null;
@@ -708,7 +729,7 @@ export default function KartRoyale({
               <p>YOUR STREETS. YOUR RACE.</p>
             </section>
             <section
-              className={`kr-vehicle-info ${isMilitaryVehicle(kartId) ? 'kr-military-info' : ''}`}
+              className={`kr-vehicle-info ${isMilitaryVehicle(kartId) || isAlbanianForcesVehicle(kartId) ? 'kr-military-info' : ''}`}
             >
               <span className="kr-label">
                 YOUR VEHICLE · {KARTS.length} CLASSES
@@ -723,7 +744,10 @@ export default function KartRoyale({
                 onChange={(e) => setKartId(normalizeKart(e.target.value))}
               >
                 <optgroup label="Karts">
-                  {KARTS.filter((k) => !isMilitaryVehicle(k.id)).map((k) => (
+                  {KARTS.filter(
+                    (k) =>
+                      !isMilitaryVehicle(k.id) && !isAlbanianForcesVehicle(k.id)
+                  ).map((k) => (
                     <option key={k.id} value={k.id}>
                       {k.name}
                     </option>
@@ -736,7 +760,30 @@ export default function KartRoyale({
                     </option>
                   ))}
                 </optgroup>
+                <optgroup label="Albanian Forces">
+                  {KARTS.filter((k) => isAlbanianForcesVehicle(k.id)).map(
+                    (k) => (
+                      <option key={k.id} value={k.id}>
+                        {k.name}
+                      </option>
+                    )
+                  )}
+                </optgroup>
               </select>
+              {loaded && !vehicleReady && !vehicleError && (
+                <p role="status">Loading vehicle…</p>
+              )}
+              {vehicleError && (
+                <p role="alert">
+                  {vehicleError}{' '}
+                  <button
+                    type="button"
+                    onClick={() => setVehicleRetry((n) => n + 1)}
+                  >
+                    Retry
+                  </button>
+                </p>
+              )}
               {(() => {
                 const k = KARTS.find((k) => k.id === kartId)!;
                 return (
@@ -759,20 +806,21 @@ export default function KartRoyale({
                   </div>
                 );
               })()}
-              {!isMilitaryVehicle(kartId) && (
-                <div className="kr-swatches">
-                  {COLORS.slice(0, 5).map((c, i) => (
-                    <button
-                      key={c}
-                      aria-label={`Select ${['lime', 'blue', 'pink', 'violet', 'orange'][i]} paint`}
-                      aria-pressed={paint === i}
-                      className={paint === i ? 'active' : ''}
-                      style={{ '--swatch': c } as React.CSSProperties}
-                      onClick={() => setPaint(i)}
-                    />
-                  ))}
-                </div>
-              )}
+              {!isMilitaryVehicle(kartId) &&
+                !isAlbanianForcesVehicle(kartId) && (
+                  <div className="kr-swatches">
+                    {COLORS.slice(0, 5).map((c, i) => (
+                      <button
+                        key={c}
+                        aria-label={`Select ${['lime', 'blue', 'pink', 'violet', 'orange'][i]} paint`}
+                        aria-pressed={paint === i}
+                        className={paint === i ? 'active' : ''}
+                        style={{ '--swatch': c } as React.CSSProperties}
+                        onClick={() => setPaint(i)}
+                      />
+                    ))}
+                  </div>
+                )}
             </section>
             <section className="kr-controls-panel">
               <div className="kr-mode-list" aria-label="Race mode">
@@ -931,7 +979,7 @@ export default function KartRoyale({
                         onMatched: joinMatch,
                         trackId,
                         playerName,
-                        loaded: loaded && !error,
+                        loaded: vehicleReady && !error,
                         onResume: () => roomAction('resume'),
                         canResume: resume
                       })
@@ -1086,12 +1134,12 @@ export default function KartRoyale({
               {mode !== 'online' ? (
                 <button
                   className="kr-start"
-                  disabled={!loaded || !!error}
+                  disabled={!vehicleReady || !!error}
                   onClick={start}
                 >
                   <Flag size={23} />
                   <span>
-                    {!loaded
+                    {!vehicleReady
                       ? 'LOADING YOUR KART…'
                       : mode === 'career'
                         ? 'RACE FOR THE CUP'
@@ -1109,7 +1157,7 @@ export default function KartRoyale({
                       !host ||
                       room.players.length < 2 ||
                       room.players.some((p) => !p.ready || !p.connected) ||
-                      !loaded
+                      !vehicleReady
                     }
                     onClick={() => {
                       audio.current?.unlock();
@@ -1516,7 +1564,18 @@ export default function KartRoyale({
                     </a>
                     . Karts and asphalt: CC0. Supporters reuse the male and
                     female Quaternius characters from Table Tennis Royal (CC0).
-                    Adapted for TonPlaygram. Tirana geography:{' '}
+                    Adapted for TonPlaygram. Albanian Forces vehicles and
+                    officials: MakeHuman, Elvaerwyn, Punkduck, Mindfront, MRT,
+                    Neubi, lubomircenovsky, Cyberbotics, gakpoenya and Poly
+                    Haven; mixed CC0, CC-BY, CC-BY-SA and Apache-2.0 licenses.{' '}
+                    <a
+                      href="/assets/kart-royale/albanian-forces/ATTRIBUTION.md"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Albanian Forces credits and modifications
+                    </a>
+                    . Tirana geography:{' '}
                     <a
                       href="https://www.openstreetmap.org/copyright"
                       target="_blank"

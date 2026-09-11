@@ -42,7 +42,8 @@ test('four requested vehicles extend the original five without changing old IDs'
     MILITARY_VEHICLES.map((k) => k.id),
     ['shota', 'brabus-g', 'defender', 'brabus-s65']
   );
-  assert.equal(new Set(KARTS.map((k) => k.id)).size, 9);
+  assert.equal(new Set(KARTS.map((k) => k.id)).size, KARTS.length);
+  assert.deepEqual(KARTS.slice(5, 9).map(k => k.id), MILITARY_VEHICLES.map(k => k.id));
   for (const v of MILITARY_VEHICLES) {
     assert.equal(normalizeKart(v.id), v.id);
     const r = equipKart(createRacer(makeTrack(), 'p', 'Player'), v.id);

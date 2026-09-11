@@ -1,3 +1,8 @@
+import {
+  ALBANIAN_FORCES_ASSETS,
+  isAlbanianForcesVehicle,
+  albanianForcesAssetUrl
+} from './albanianForcesCatalog.mjs';
 /** Authored in metres, Y up, +Z forward. Driver eyes are on the vehicle's left
  * (+X when facing +Z); scale/centering are applied by the asset adapter. */
 export const MILITARY_ASSETS = Object.freeze({
@@ -11,6 +16,7 @@ export const MILITARY_ASSETS = Object.freeze({
   }
 });
 export function vehicleAssetUrl(id, low = false) {
+  if (isAlbanianForcesVehicle(id)) return albanianForcesAssetUrl(id, low);
   const config = MILITARY_ASSETS[id];
   return config
     ? `/assets/kart-royale/military/${config.file}${low ? '-lod' : ''}.glb`
@@ -35,7 +41,7 @@ export function normaliseVehicleDimensions({ min, max }, targetLength = 2.7) {
   };
 }
 export function vehicleDriverMount(id, fit) {
-  const eye = MILITARY_ASSETS[id]?.eye;
+  const eye = (MILITARY_ASSETS[id] || ALBANIAN_FORCES_ASSETS[id])?.eye;
   return eye
     ? eye.map((v, i) => v * fit.scale + fit.offset[i])
     : [0, 1.08, -0.1];

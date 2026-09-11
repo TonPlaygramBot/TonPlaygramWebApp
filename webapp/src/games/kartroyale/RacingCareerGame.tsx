@@ -15,6 +15,7 @@ export function RacingCareerGame({onExit}:{onExit:()=>void}){
   const held=useRef(createHeldRaceInput());
   const [kartId,setKartId]=useState(()=>{try{return normalizeKart(storage()?.getItem('racingRoyal.kart')||'apex');}catch{return 'apex';}});
   const [ready,setReady]=useState(false),[error,setError]=useState('');
+  const [loadedKartId,setLoadedKartId]=useState(''),[vehicleError,setVehicleError]=useState(''),[vehicleRetry,setVehicleRetry]=useState(0);
   const [career,setCareer]=useState(loadCareer),[tasks,setTasks]=useState(()=>loadKartTasks(storage()));
   const [hud,setHud]=useState<Frame|null>(null),[result,setResult]=useState<Result|null>(null);
   const [racing,setRacing]=useState(false),[paused,setPaused]=useState(false),[saved,setSaved]=useState(true),[notice,setNotice]=useState('');
@@ -41,7 +42,7 @@ export function RacingCareerGame({onExit}:{onExit:()=>void}){
           setSaved(n.saved&&taskSaved);setResult(r);setRacing(false);setPaused(false);pausedRef.current=false;
         },message=>{if(alive)setError(message);});
         engine.current=game;game.setCameraMode('chase');
-        void game.load().then(()=>{if(alive){game?.setKart(kartId);setReady(true);}}).catch(e=>{if(alive)setError(String(e));});
+        void game.load().then(()=>{if(alive){setReady(true);}}).catch(e=>{if(alive)setError(String(e));});
       }
     }catch(e){setError(e instanceof Error?e.message:'Renderer unavailable');}
     const blur=()=>{if(!alive)return;held.current.clear();game?.clearInput();game?.pause(true);pausedRef.current=true;setPaused(true);};
@@ -57,9 +58,16 @@ export function RacingCareerGame({onExit}:{onExit:()=>void}){
     window.addEventListener('keydown',down);window.addEventListener('keyup',up);
     return()=>{alive=false;held.current.clear();window.removeEventListener('blur',blur);document.removeEventListener('visibilitychange',visibility);window.removeEventListener('keydown',down);window.removeEventListener('keyup',up);game?.destroy();engine.current=null;};
   },[]);
-  function chooseVehicle(id:string){const next=normalizeKart(id);setKartId(next);engine.current?.setKart(next);try{storage()?.setItem('racingRoyal.kart',next);}catch{/* Session choice still works without storage. */}}
-  function start(index:number|null,taskId?:string){
+  useEffect(()=>{
     if(!ready||!engine.current)return;
+    let active=true;setVehicleError('');
+    void engine.current.setKart(kartId).then(()=>{if(active)setLoadedKartId(kartId);}).catch(()=>{if(active)setVehicleError('This vehicle could not load. Retry or choose another vehicle.');});
+    return()=>{active=false;};
+  },[kartId,ready,vehicleRetry]);
+  const vehicleReady=ready&&loadedKartId===kartId;
+  function chooseVehicle(id:string){const next=normalizeKart(id);setKartId(next);try{storage()?.setItem('racingRoyal.kart',next);}catch{/* Session choice still works without storage. */}}
+  function start(index:number|null,taskId?:string){
+    if(!vehicleReady||!engine.current)return;
     const mission=taskId?KART_TASKS.find(t=>t.id===taskId):undefined;
     if(mission&&KART_TASKS.indexOf(mission)>taskProgress.current.completed.length)return;
     if(index!==null&&(index<0||index>=CUPS.length||index>0&&!progress.current.cups[index-1]))return;
@@ -86,11 +94,13 @@ export function RacingCareerGame({onExit}:{onExit:()=>void}){
       {!saved&&<p role="alert">Device save failed. Progress remains in this session.</p>}
       {result&&<p>Race complete · {formatTime(result.elapsed)}</p>}{notice&&<p role="status">{notice}</p>}
       <label className="rr-career-vehicle">Vehicle<select aria-label="Career vehicle" value={kartId} disabled={!ready} onChange={e=>chooseVehicle(e.target.value)}>{KARTS.map(k=><option value={k.id} key={k.id}>{k.name}</option>)}</select></label>
+      {!vehicleReady&&!vehicleError&&<p role="status">Loading vehicle…</p>}
+      {vehicleError&&<p role="alert">{vehicleError} <button onClick={()=>setVehicleRetry(n=>n+1)}>Retry</button></p>}
       <h2>Championship cups</h2>
-      {CUPS.map((cup,index)=><button className="rr-career-card" key={`${cup.track}:${index}`} disabled={!ready||index>0&&!career.cups[index-1]} onClick={()=>start(index)}>
+      {CUPS.map((cup,index)=><button className="rr-career-card" key={`${cup.track}:${index}`} disabled={!vehicleReady||index>0&&!career.cups[index-1]} onClick={()=>start(index)}>
         <b>{index+1}. {cup.name}</b><br/><small>{career.cups[index]?'Completed · replay':`Finish in the top ${cup.target}`} · {cup.reward} first-completion credits</small></button>)}
       <h2>Kart driving missions</h2>
-      {KART_TASKS.map((mission,index)=><button className="rr-career-card" key={mission.id} disabled={!ready||index>tasks.completed.length||!TRACKS.some(t=>t.id===mission.track)} onClick={()=>start(null,mission.id)}>
+      {KART_TASKS.map((mission,index)=><button className="rr-career-card" key={mission.id} disabled={!vehicleReady||index>tasks.completed.length||!TRACKS.some(t=>t.id===mission.track)} onClick={()=>start(null,mission.id)}>
         <b>{mission.title}{tasks.completed.includes(mission.id)?' · COMPLETE':''}</b><br/><small>{mission.description} · {mission.xp} first-completion XP</small></button>)}
       {!!GRAND_ROUTE_DIAGNOSTICS.length&&<details><summary>Route availability</summary><p>{GRAND_ROUTE_DIAGNOSTICS.join('; ')}</p></details>}
     </section>}

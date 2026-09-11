@@ -46,9 +46,9 @@ for(const route of TIRANA_ROUTES)test(`${route.id}: rendered sides stay exactly 
     assert.ok(Math.abs((left.x+right.x)/2-f.x)<1e-9&&Math.abs((left.z+right.z)/2-f.z)<1e-9);
   }
 });
-test('nine vehicle classes expose distinct race parameters',()=>{
-  assert.equal(sim.KARTS.length,9);
-  assert.equal(new Set(sim.KARTS.map(k=>`${k.speed}/${k.handling}/${k.brake}/${k.shield}/${k.ammunition}`)).size,9);
+test('vehicle classes expose distinct race parameters',()=>{
+  assert.equal(sim.KARTS.length,17);
+  assert.equal(new Set(sim.KARTS.map(k=>`${k.speed}/${k.handling}/${k.brake}/${k.shield}/${k.ammunition}`)).size,sim.KARTS.length);
 });
 test('shield absorbs impacts and missiles consume finite ammunition',()=>{
   const track=sim.makeTrack('skanderbeg'), shooter=sim.createRacer(track,'a','A',0), target=sim.createRacer(track,'b','B',1);
