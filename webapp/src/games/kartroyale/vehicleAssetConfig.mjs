@@ -11,6 +11,8 @@ export const MILITARY_ASSETS = Object.freeze({
   }
 });
 export function vehicleAssetUrl(id, low = false) {
+  if(id==='apex') return `/assets/kart-royale/apex${low?'-lod':''}.glb`;
+  if(id==='ferrari'||id==='buggy') return `/assets/tirana-streets/imported/${id}.glb`;
   const config = MILITARY_ASSETS[id];
   return config
     ? `/assets/kart-royale/military/${config.file}${low ? '-lod' : ''}.glb`

@@ -1,3 +1,4 @@
+import {deployment} from '../webapp/src/games/tiranastreets/shared/forceTactics.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -54,12 +55,14 @@ test('actual wanted responses retain matching uniforms through public snapshots'
     const state = createState([{id: 'p', name: 'Player'}], 'free-roam');
     const p = state.players.p; p.wanted = stars * 100; p.lastCrime = 0;
     state.nextDispatch = 0; stepState(state);
-    assert.equal(state.units.length, 1);
+    const plan=deployment(stars,100);
+    assert.equal(state.units.length, plan.vehicles.length);
+    assert.equal(state.npcs.filter(n=>n.unit).length,plan.seats.reduce((a,b)=>a+b,0));
     const snapshot = publicState(state), unit = snapshot.units[0];
     const officers = snapshot.npcs.filter(n => n.unit === unit.id);
     assert.ok(officers.length > 0);
-    assert.equal(unit.forceVehicle, forceDispatch(stars, 0).forceVehicle);
-    assert.ok(officers.every(n => n.forceCharacter === forceDispatch(stars, 0).forceCharacter));
+    assert.equal(unit.forceVehicle, plan.vehicles[0]);
+    assert.ok(officers.every(n => n.forceCharacter === plan.character));
     assert.equal(unit.model, stars === 5 ? 'military-suv' : 'police');
     assert.ok(officers.every(n => n.kind === (stars === 5 ? 'soldier' : 'police')));
     assert.ok(!('path' in unit));

@@ -1,3 +1,5 @@
+import {importedFleet,IMPORTED_PLACEMENT_ORIGIN} from '../../blackwater/shared/importedPlacements.mjs';
+import {KARTS} from '../../kartroyale/vehicleCatalog.mjs';
 import { WORLD } from './world.mjs';
 import {FUEL_CANOPY_IDS,fuelCanopyObstacles} from '../../tirana-street-life/fuelCollision.mjs';
 import {
@@ -326,7 +328,8 @@ const waterSegments = WORLD.water.flatMap((w) =>
     ? []
     : w.line.slice(1).map((b, i) => ({ a: w.line[i], b, width: w.width }))
 );
-const collisionBuildings = [...WORLD.buildings.filter(b=>!FUEL_CANOPY_IDS.has(b.id)),...fuelCanopyObstacles().filter(b=>b.minY===0)];
+const importedSolids=importedFleet.filter(a=>a.assetId).map(a=>{const x=a.x+IMPORTED_PLACEMENT_ORIGIN.x,z=a.z+IMPORTED_PLACEMENT_ORIGIN.z;return {id:'imported-'+a.assetId,h:a.h,p:[[x-a.w/2,z-a.d/2],[x+a.w/2,z-a.d/2],[x+a.w/2,z+a.d/2],[x-a.w/2,z+a.d/2]]};});
+const collisionBuildings = [...importedSolids,...WORLD.buildings.filter(b=>!FUEL_CANOPY_IDS.has(b.id)),...fuelCanopyObstacles().filter(b=>b.minY===0)];
 const cameraBuildings = collisionBuildings.map((b) => ({
   ...b,
   minX: Math.min(...b.p.map((p) => p[0])),
@@ -545,6 +548,13 @@ export function createState(
     collide(car, 1.35);
     state.cars.push(car);
   }
+  // Every Racing Royal class is an enterable city car; reuse the same catalog.
+  KARTS.forEach((kart,i)=>{
+    const n=(spawnNode+37*(i+1))%nodes.length,p=point(n),to=links[n][0]?.[0]??n;
+    const heading=Math.atan2(p.x-nodes[to][0],p.z-nodes[to][1]);
+    const car=vehicle(`royal-${kart.id}`,p.x+Math.cos(heading)*2.8,p.z-Math.sin(heading)*2.8,heading,'sport');
+    car.racingAsset=kart.id;collide(car,1.35);state.cars.push(car);
+  });
   // Traffic is deterministic, follows connected OSM streets and never teleports.
   // Distance culling keeps the broader road population affordable on phones.
   for (let i = 0; i < 28; i++) {

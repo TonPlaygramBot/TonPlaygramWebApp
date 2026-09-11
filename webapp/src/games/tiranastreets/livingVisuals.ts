@@ -1,3 +1,4 @@
+import {IMPORTED_BY_ID} from './shared/importedAssets.mjs';
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { clone as cloneSkeleton } from "three/examples/jsm/utils/SkeletonUtils.js";
@@ -30,7 +31,8 @@ export const WEAPON_MODEL_VARIANTS: Record<string, string> = {
   polyHandGrenade01Attack: "grenade",
 };
 export const weaponModelFile = (model: string) =>
-  WEAPON_MODEL_VARIANTS[model] || model;
+  IMPORTED_BY_ID.has(model) ? model : WEAPON_MODEL_VARIANTS[model] || model;
+export const weaponModelUrl = (model:string) => IMPORTED_BY_ID.get(weaponModelFile(model))?.localUrl || BASE + weaponModelFile(model) + ".glb";
 export class LivingVisuals {
   group = new THREE.Group();
   private models = new Map<string, THREE.Group>();
@@ -143,7 +145,7 @@ export class LivingVisuals {
     let source: THREE.Group | undefined;
     let prepared: THREE.Group | undefined;
     try {
-      const gltf = await new GLTFLoader().loadAsync(BASE + name + ".glb");
+      const gltf = await new GLTFLoader().loadAsync(weaponModelUrl(name));
       source = gltf.scene;
       if (this.disposed) {
         this.disposeModel(source);
@@ -212,7 +214,7 @@ export class LivingVisuals {
     }
     if (name && !this.models.has(name)) void this.load(name);
     // Never display yesterday's gun using the newly selected weapon's stats.
-    holder.group.visible = !!name && holder.weapon === name && entity.health > 0;
+    holder.group.visible = !!name && holder.weapon === name && entity.health > 0 && !("motion" in entity && entity.motion === "drive");
     const shot =
       "nextShot" in entity &&
       typeof entity.nextShot === "number" &&
@@ -221,8 +223,9 @@ export class LivingVisuals {
     holder.group.scale.setScalar(
       config?.category === "sidearm" ? 0.5 : config?.radius ? 0.85 : 1,
     );
-    holder.group.position.set(-0.22, 1.15, 0.33 - (shot ? 0.05 : 0));
-    holder.group.rotation.set(reload ? -0.65 : 0, 0.05, 0);
+    const aiming=!("anim" in entity) || entity.anim==="aim";
+    holder.group.position.set(-0.22, aiming?1.3:1.02, (aiming?.43:.3) - (shot ? 0.05 : 0));
+    holder.group.rotation.set(reload ? -0.65 : aiming?0:.5, 0.05, 0);
     const w = actor.getObjectByName("mixamorigRightArm"),
       left = actor.getObjectByName("mixamorigLeftArm");
     // Layer an aiming pose over the locomotion mixer, never edit shared skeletons.

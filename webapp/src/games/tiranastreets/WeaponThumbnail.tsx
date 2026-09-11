@@ -1,16 +1,15 @@
 import { useEffect, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { weaponModelFile } from "./livingVisuals";
+import { weaponModelUrl } from "./livingVisuals";
 
 const cache = new Map<string, string>();
 let queue = Promise.resolve();
 
 async function renderThumbnail(model: string) {
   if (cache.has(model)) return cache.get(model)!;
-  const file = weaponModelFile(model);
   const gltf = await new GLTFLoader().loadAsync(
-    `/assets/tirana-streets/living/${file}.glb`,
+    weaponModelUrl(model),
   );
   const canvas = document.createElement("canvas");
   canvas.width = 192;
