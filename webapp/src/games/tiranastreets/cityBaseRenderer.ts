@@ -1,3 +1,5 @@
+import {CollectionVehicleVisuals} from './CollectionVehicleVisuals';
+import {collectionVehicleFor} from './shared/vehicleCollection.mjs';
 import {ImportedAssetVisuals} from './ImportedAssetVisuals';
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
@@ -69,6 +71,7 @@ export class CityRenderer {
   private living: LivingVisuals;
   private forces = new AlbanianForcesVisuals();
   private racingFleet = new ImportedAssetVisuals();
+  readonly collectionFleet = new CollectionVehicleVisuals();
   private worldTextures = new Set<THREE.Texture>();
   private manualUntil = 0;
   private lastTarget = new THREE.Vector3(SPAWN.x, 0, SPAWN.z);
@@ -123,7 +126,7 @@ export class CityRenderer {
     pmrem.dispose();
     this.living = new LivingVisuals();
     this.scene.add(this.living.group);
-    this.scene.add(this.forces.group,this.racingFleet.group);
+    this.scene.add(this.forces.group,this.racingFleet.group,this.collectionFleet.group);
     this.buildStreets();
     this.buildBlocks();
     this.scene.add(this.referenceFacades.group);
@@ -859,6 +862,7 @@ export class CityRenderer {
     const p = state?.players[playerId];
     if (this.ready && state) {
       const active = new Set<string>();
+      this.collectionFleet.update([...state.cars,...state.traffic],p||SPAWN,dt,p?.carId);
       this.racingFleet.update(state.cars.filter(c=>c.racingAsset),p||SPAWN,this.quality==="battery");
       this.forces.update(state, p || SPAWN, state.elapsed, dt, this.quality === "battery");
       for (const npc of state.npcs) {
@@ -874,6 +878,7 @@ export class CityRenderer {
         ...state.units,
         ...(state.rival ? [state.rival] : []),
       ]) {
+        if(collectionVehicleFor(car))continue;
         const close = !p || Math.hypot(car.x - p.x, car.z - p.z) < 45;
         const detail =
           close && car.id.startsWith("car-") ? "city-car" : car.model;
@@ -999,7 +1004,7 @@ export class CityRenderer {
       }
       // Visible drivers give nearby moving traffic a human occupant.
       for (const car of state.traffic) {
-        if (this.forces.has(car.id)) continue;
+        if (collectionVehicleFor(car) || this.forces.has(car.id)) continue;
         if (!p || Math.hypot(car.x - p.x, car.z - p.z) > 40) continue;
         const id = `driver-${car.id}`,
           a = this.actor("character", id);
@@ -1201,6 +1206,7 @@ export class CityRenderer {
     this.living.dispose();
     this.forces.dispose();
     this.racingFleet.dispose();
+    this.collectionFleet.dispose();
     this.observer.disconnect();
     for (const a of this.actors.values()) a.mixer?.stopAllAction();
     this.disposeObject(this.scene);

@@ -22,6 +22,8 @@ export type Car = Point & {
   vz: number;
   steering: number;
   model: string;
+  collectionVehicle?: string;
+  npcDriver?: boolean;
   racingAsset?: string;
   forceVehicle?: string;
   forceCharacter?: string;

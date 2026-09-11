@@ -1,0 +1,37 @@
+{
+  "route": "/games/tiranastreets?activity=street-career&mode=ai&qaOnDemand=1",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "gpuMode": "On-demand: UI, simulation and asset loading run normally; continuous GPU draws suppressed in local test hook",
+  "actualFreeRoamButton": true,
+  "actualEnterCarButton": true,
+  "actualExitCarButton": true,
+  "before": {
+    "original": {
+      "collectionVehicle": "benz",
+      "sourceURL": "/assets/tirana-streets/vehicle-collection/benz.glb",
+      "sha256": "e648902e335047042efad448ea7fd1c658dfd4dc2d2ae58b076e2294aec9ad80"
+    },
+    "children": [
+      {
+        "name": "Scene",
+        "visible": true
+      },
+      {
+        "name": "npc-driver:collection-benz",
+        "role": "npc-driver",
+        "visible": true
+      }
+    ],
+    "errors": {}
+  },
+  "after": {
+    "driver": null,
+    "npcDriver": false,
+    "errors": {},
+    "cspViolations": []
+  },
+  "errors": []
+}

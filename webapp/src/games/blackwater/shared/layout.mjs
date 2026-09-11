@@ -1,3 +1,4 @@
+import {COLLECTION_PLACEMENTS} from '../../tiranastreets/shared/collectionPlacements.mjs';
 import {importedFleet} from './importedPlacements.mjs';
 import { FORCE_VEHICLE_BOUNDS } from '../../tiranastreets/shared/albanianForces.mjs';
 import { detailPostObstacles } from '../../tirana-street-detail/sharedRoadDetails.mjs';
@@ -158,7 +159,8 @@ for (const [index, asset] of FORCE_VEHICLE_BOUNDS.entries()) {
   fleet.push({...spot,sx:0,sz:0,forceVehicle:asset.id,w:asset.w,d:asset.d,h:asset.h+.03,rot:0});
 }
 const baseObstacles=[...cityObstacles,...fleet,...smallProps];
-export const props = [...fleet,...smallProps,...importedFleet];
+const collectionProps=COLLECTION_PLACEMENTS.map(p=>({collectionVehicle:p.collectionVehicle,x:p.x-ORIGIN.x,z:p.z-ORIGIN.z,w:p.w,d:p.d,h:p.h,sx:0,sz:0,rot:p.heading+Math.PI}));
+export const props = [...fleet,...smallProps,...importedFleet,...collectionProps];
 export const OBSTACLES = Object.freeze([...cityObstacles,...props]);
 // Ten operation maps are sectors of the one detailed, streamed Tirana world.
 const sector = (id,name,worldX,worldZ) => {const start=safeNear(worldX-ORIGIN.x,worldZ-ORIGIN.z,baseObstacles),extraction=safeNear(start.x+18,start.z-42,baseObstacles);return Object.freeze({id,name,start:Object.freeze(start),extraction:Object.freeze(extraction)});};
