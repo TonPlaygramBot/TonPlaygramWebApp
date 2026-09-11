@@ -1,0 +1,11 @@
+import {build} from 'esbuild';
+import {readFile,writeFile} from 'node:fs/promises';
+import {fileURLToPath} from 'node:url';
+import {WORLD} from '../src/games/tiranastreets/shared/world.mjs';
+const root=fileURLToPath(new URL('../',import.meta.url));
+const subset={origin:WORLD.origin,bounds:WORLD.bounds,source:WORLD.source,buildings:WORLD.buildings.map(({p,h})=>({p,h})),roads:WORLD.roads.map(({a,b,walk})=>({a,b,walk}))};
+const result=await build({stdin:{contents:"import React from 'react';import {createRoot} from 'react-dom/client';import Preview from './src/games/tirana-region/PanoramaPreview';createRoot(document.getElementById('tirana-panorama-preview')).render(React.createElement(Preview));",resolveDir:root,loader:'tsx'},bundle:true,write:false,minify:true,format:'esm',jsx:'automatic',target:'es2022',external:['react','react/*','react-dom/*','three','three/*'],plugins:[{name:'preview-source',setup(b){b.onLoad({filter:/tiranastreets\/shared\/world\.mjs$/},()=>({contents:'export const WORLD='+JSON.stringify(subset),loader:'js'}));}}]});
+const template=await readFile(new URL('./tirana-panorama-preview.fragment.html',import.meta.url),'utf8');
+const html=template.replace('/*__SCRIPT__*/',result.outputFiles[0].text);
+if(Buffer.byteLength(html)>1000000)throw Error('Preview exceeds 1 MB');
+await writeFile(process.argv[2]||'/workspace/tirana-panorama-preview.html',html);console.log(Buffer.byteLength(html)+' bytes');

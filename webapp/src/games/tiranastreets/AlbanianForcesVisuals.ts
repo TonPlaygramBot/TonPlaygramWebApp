@@ -1,4 +1,5 @@
 import * as T from 'three';
+import {resetForcePose,poseForce} from './forcePose';
 import {GLTFLoader, type GLTF} from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {clone} from 'three/examples/jsm/utils/SkeletonUtils.js';
 import {clearWeaponInstance, disposeWeaponResources} from './weaponModelResources';
@@ -6,7 +7,7 @@ import {forceVehicleFor, forceCharacterFor, type ForceAsset} from './shared/alba
 import type {Point, NPC, Car} from './shared/engine.mjs';
 
 export type ForceCar = Pick<Car, 'id' | 'x' | 'z' | 'heading' | 'speed' | 'steering' | 'model' | 'forceVehicle' | 'responding'>;
-export type ForceNPC = Pick<NPC, 'id' | 'x' | 'z' | 'heading' | 'speed' | 'kind' | 'motion' | 'health' | 'forceCharacter'>;
+export type ForceNPC = Pick<NPC, 'id' | 'x' | 'z' | 'heading' | 'speed' | 'kind' | 'motion' | 'health' | 'forceCharacter' | 'anim'>;
 export type ForceFrame = {cars: ForceCar[]; traffic: ForceCar[]; units: ForceCar[]; npcs: ForceNPC[]};
 type Candidate = {key: string; asset: ForceAsset; entity: ForceCar | ForceNPC; distance: number; flashing: boolean};
 type Source = {gltf: GLTF; frame: T.Group; used: number};
@@ -117,13 +118,13 @@ export class AlbanianForcesVisuals {
     const people: Candidate[] = [];
     for (const npc of state.npcs) {
       const asset = forceCharacterFor(npc), d = distance(npc);
-      if (asset && npc.motion !== 'drive' && d < (battery ? 24 : 45)) people.push({
+      if (asset && (npc.motion !== 'drive' || npc.anim === 'ride') && d < (battery ? 24 : 45)) people.push({
         key: `npc-${npc.id}`, asset, entity: npc, distance: d, flashing: false,
       });
     }
     const nearest = (a: Candidate, b: Candidate) => a.distance - b.distance || a.key.localeCompare(b.key);
     const cap = battery ? 2 : 3;
-    const selected = [...vehicles.sort(nearest).slice(0, cap), ...people.sort(nearest).slice(0, cap)];
+    const selected = [...vehicles.sort(nearest).slice(0, cap), ...people.sort(nearest).slice(0, battery ? 4 : 8)];
     const keep = new Set(selected.map(c => c.key));
     for (const key of this.actors.keys()) if (!keep.has(key)) this.remove(key);
     this.desired = new Map(selected.map(c => [c.asset.id, c.asset]));
@@ -141,7 +142,9 @@ export class AlbanianForcesVisuals {
       actor.root.rotation.y += Math.atan2(Math.sin(e.heading + Math.PI - actor.root.rotation.y), Math.cos(e.heading + Math.PI - actor.root.rotation.y)) * (first ? 1 : Math.min(1, dt * 14));
       actor.root.userData.placed = true;
       if (person) {
-        const npc = e as ForceNPC, moving = npc.speed > .15 && npc.health > 0;
+        const npc = e as ForceNPC, riding = npc.motion === 'drive', moving = npc.speed > .15 && npc.health > 0 && !riding;
+        resetForcePose(actor.root);
+        actor.root.position.y = riding ? .38 : npc.anim === 'cover' ? -.32 : .06;
         actor.root.rotation.x = npc.health <= 0 ? -Math.PI / 2 : 0;
         if (actor.moving !== moving) {
           (moving ? actor.walk : actor.idle)?.reset().fadeIn(.18).play();
@@ -149,6 +152,7 @@ export class AlbanianForcesVisuals {
           actor.moving = moving;
         }
         if (npc.health > 0) actor.mixer?.update(dt * (moving ? Math.min(2.3, Math.max(.6, npc.speed / 1.4)) : 1));
+        poseForce(actor.root, npc.anim || (moving ? 'walk' : 'idle'), npc.health > 0);
       } else {
         const car = e as ForceCar;
         for (const wheel of actor.wheels) wheel.rotation.z -= car.speed * dt / actor.asset.wheelRadius;

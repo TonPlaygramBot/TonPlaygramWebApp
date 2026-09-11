@@ -25,6 +25,8 @@ export const MILITARY_ASSETS = Object.freeze({
   }
 });
 export function vehicleAssetUrl(id, low = false) {
+  if (id === 'ferrari' || id === 'buggy')
+    return `/assets/tirana-streets/imported/${id}.glb`;
   const config = MILITARY_ASSETS[id];
   if (KART_ASSETS[id])
     return `/assets/kart-royale/karts/${id}${low ? '-lod' : ''}.glb`;

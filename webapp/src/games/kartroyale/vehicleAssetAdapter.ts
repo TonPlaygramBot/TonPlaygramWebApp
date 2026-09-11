@@ -13,6 +13,8 @@ export function prepareVehicleAsset(
   id: string,
   referenceFit?: VehicleFit
 ) {
+  if (id === 'ferrari') scene.rotation.y = Math.PI;
+  scene.updateMatrixWorld(true);
   const bounds = new T.Box3().setFromObject(scene);
   const fit =
     referenceFit ||
@@ -22,7 +24,8 @@ export function prepareVehicleAsset(
     });
   // Existing Kenney karts retain their original horizontal authoring origin.
   const config = MILITARY_ASSETS[id] || KART_ASSETS[id];
-  if (!config) fit.offset = [0, fit.offset[1], 0];
+  if (!config && !['ferrari', 'buggy'].includes(id))
+    fit.offset = [0, fit.offset[1], 0];
   scene.scale.setScalar(fit.scale);
   scene.position.set(...(fit.offset as [number, number, number]));
   scene.userData.vehicleFit = fit;

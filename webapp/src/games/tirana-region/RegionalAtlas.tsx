@@ -1,13 +1,15 @@
-import {useMemo,useRef,useState} from 'react';
+import {lazy,Suspense,useMemo,useRef,useState} from 'react';
 import type {PointerEvent as PE} from 'react';
 import {WORLD} from '../tiranastreets/shared/world.mjs';
 import {fitView,panView,zoomView,screenPoint} from '../tiranastreets/map/mapCore.mjs';
 import {regionalBounds,regionalReferences,referenceLinks,REGION_STATUS} from './regionCore.mjs';
 import './region.css';
+const PanoramaPreview=lazy(()=>import('./PanoramaPreview'));
 type P={x:number;z:number};type V=P&{w:number;h:number};
 const bounds=regionalBounds(WORLD.origin,WORLD.bounds),places=regionalReferences(WORLD.origin);
 /** Regional planning atlas, deliberately not a substitute for playable roads. */
 export function RegionalAtlas({player}:{player?:P}){
+ const [panorama,setPanorama]=useState(false);
  const [view,setView]=useState<V>(()=>fitView(bounds,390/480)),[selected,setSelected]=useState(places[0]);
  const live=useRef(view),pointers=useRef(new Map<number,{x:number;y:number}>()),gesture=useRef<{view:V;points:{x:number;y:number}[]}|null>(null);
  const change=(v:V)=>{live.current=v;setView(v);};
@@ -19,7 +21,9 @@ export function RegionalAtlas({player}:{player?:P}){
  const cityRoads=useMemo(()=>WORLD.roads.map(r=>`M${r.a.join(',')}L${r.b.join(',')}`).join(''),[]);
  const s=view.w/390,b=WORLD.bounds,links=referenceLinks(selected);
  return <section className="tr-region" aria-label="Greater Tirana regional atlas">
-  <header><strong>KAMZË · TIRANË · DAJTI · TEG</strong><span>Regional coverage / source review</span></header>
+  <header><strong>RINAS · TIRANË · DAJTI · VAQARR · SAUK · FARKË</strong><span>Regional coverage / source review</span></header>
+  <button onClick={()=>setPanorama(p=>!p)} aria-expanded={panorama}>PANORAMA NGA DAJTI</button>
+  {panorama&&<Suspense fallback={<p role="status">Duke hapur panoramën…</p>}><PanoramaPreview/></Suspense>}
   <div className="tr-region-map">
    <svg viewBox={`${view.x} ${view.z} ${view.w} ${view.h}`} preserveAspectRatio="none" role="application" aria-label="Regional map. Drag in the direction you want the map to move; pinch to zoom." tabIndex={0} onPointerDown={down} onPointerMove={move} onPointerUp={end} onPointerCancel={end} onLostPointerCapture={end} onKeyDown={e=>{if(e.key==='+'||e.key==='='){zoom(1.4);e.preventDefault();}else if(e.key==='-'){zoom(1/1.4);e.preventDefault();}else if(e.key.startsWith('Arrow')){const v=live.current;change(panView(v,e.key==='ArrowRight'?40:e.key==='ArrowLeft'?-40:0,e.key==='ArrowDown'?40:e.key==='ArrowUp'?-40:0,390,480,bounds));e.preventDefault();}}}>
     <rect x={b[0]} y={b[1]} width={b[2]-b[0]} height={b[3]-b[1]} fill="#2d4c4c" stroke="#adc2b9" strokeWidth={s}/>

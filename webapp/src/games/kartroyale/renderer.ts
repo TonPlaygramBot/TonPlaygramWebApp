@@ -1,5 +1,6 @@
 import * as T from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { isMilitaryVehicle } from './militaryVehicleCatalog.mjs';
 import { KART_ASSETS, vehicleAssetUrl } from './vehicleAssetConfig.mjs';
 import { prepareVehicleAsset } from './vehicleAssetAdapter';
@@ -254,7 +255,10 @@ export class KartRenderer {
     this.raf = requestAnimationFrame(this.animate);
   }
   async load() {
-    const loader = new GLTFLoader();
+    const draco = new DRACOLoader().setDecoderPath(
+      '/assets/tirana-streets/imported/draco/'
+    );
+    const loader = new GLTFLoader().setDRACOLoader(draco);
     const textures = new T.TextureLoader();
     const results = await Promise.allSettled([
       loader.loadAsync(vehicleAssetUrl('apex')),
@@ -270,6 +274,7 @@ export class KartRenderer {
         loader.loadAsync(vehicleAssetUrl(k.id, true))
       )
     ]);
+    draco.dispose();
     const failed = results.find((r) => r.status === 'rejected');
     if (this.disposed || failed) {
       for (const r of results)
@@ -427,7 +432,8 @@ export class KartRenderer {
     if (
       kartId !== 'apex' &&
       !isMilitaryVehicle(kartId) &&
-      !KART_ASSETS[kartId]
+      !KART_ASSETS[kartId] &&
+      !['ferrari', 'buggy'].includes(kartId)
     ) {
       for (const wheel of rig.wheels.filter((w) => w.name.includes('front'))) {
         const pivot = new T.Group();

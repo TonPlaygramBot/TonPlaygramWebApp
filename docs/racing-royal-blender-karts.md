@@ -48,4 +48,6 @@ cd webapp && npm run build
 
 Browser evidence is captured at 390×844 in the actual `KartRenderer`, with successful model and texture responses, four wheels/two steering pivots per kart, reverse movement, inverted pose and recovery. The rollover visual check seeds its timer; unit tests exercise collision triggering. Software WebGL is not a physical-phone frame-rate benchmark.
 
-The lobby picker uses horizontal touch swipes and previous/next buttons, with wraparound through all nine vehicles. It locks while a multiplayer room owns the selected appearance. The actual React lobby browser check verifies all nine rigs, both native touch swipe directions and starting the selected kart with the race button. Run `node test/racingKartLobby.browser.mjs`.
+The lobby picker uses horizontal touch swipes and previous/next buttons, with wraparound through all eleven vehicles. It locks while a multiplayer room owns the selected appearance. The actual React lobby browser check verifies all eleven loaded vehicles, both native touch swipe directions and starting the selected kart with the race button. Run `node test/racingKartLobby.browser.mjs`.
+
+Compatibility merge: preserve main’s shared vehicle catalog, Ferrari/buggy imports, Draco decoder and Ferrari orientation. The five authored karts keep their new models and names. Final focused TypeScript and 26 dynamics/military tests pass after this merge.

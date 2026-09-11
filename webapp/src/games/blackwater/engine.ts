@@ -1,3 +1,5 @@
+import { tacticalGoal } from '../tiranastreets/shared/forceTactics.mjs';
+import { props as cityCover } from './shared/layout.mjs';
 import { BattlefieldForces } from './BattlefieldForces';
 import * as THREE from 'three';
 import { CompatibilityRenderer } from './compatibility';
@@ -75,7 +77,11 @@ type Enemy = ActorVisual & {
   path: Vec2[];
   repath: number;
   deadTime: number;
-  state: 'advance' | 'fire' | 'dead';
+  state: 'advance' | 'fire' | 'dead' | 'cover';
+  anim?: string;
+  forceCharacter?: string;
+  aimTime?: number;
+  coverId?: string;
   flashTime: number;
   walk: number;
   hurt: number;
@@ -340,8 +346,9 @@ export class GameEngine {
     for (let i = 0; i < waveCount(this.wave); i++) {
       const visual = makeEnemy();
       const [x, z] =
-        positions[(i + (this.wave === 1 ? 0 : 2)) % positions.length];
-      visual.group.position.set(x, 0, z);
+        positions[(this.wave === 1 ? 0 : 2) % positions.length];
+      visual.group.position.set(x + (i%4-1.5)*1.7, 0, z + Math.floor(i/4)*1.8);
+      moveCircle(visual.group.position, 0, 0, .4, this.world.obstacles);
       let dist = Math.hypot(x - this.player.x, z - this.player.z);
       if (dist < 8) {
         const far = SPAWNS.reduce((a, b) =>
@@ -356,6 +363,7 @@ export class GameEngine {
       const e: Enemy = {
         ...visual,
         id: i,
+        forceCharacter: this.wave===1?'fnsh_officer':this.wave===2?'renea_officer':'army_soldier',
         hp: this.wave === 3 ? 115 : 100,
         cooldown: 3 + i * 0.45,
         path: [],
@@ -562,19 +570,19 @@ export class GameEngine {
       const headD = this.rayDistance(
         origin,
         dir,
-        new THREE.Vector3(p.x, 1.79, p.z),
+        new THREE.Vector3(p.x, p.y+1.79, p.z),
         0.24
       );
       const bodyD = this.rayDistance(
         origin,
         dir,
-        new THREE.Vector3(p.x, 1.16, p.z),
+        new THREE.Vector3(p.x, p.y+1.16, p.z),
         0.45
       );
       const legsD = this.rayDistance(
         origin,
         dir,
-        new THREE.Vector3(p.x, 0.56, p.z),
+        new THREE.Vector3(p.x, p.y+0.56, p.z),
         0.3
       );
       const d = Math.min(headD, bodyD, legsD);
@@ -848,21 +856,20 @@ export class GameEngine {
     e.group.rotation.y = Math.atan2(-dx, -dz);
     e.cooldown -= dt;
     e.repath -= dt;
-    e.state = visible && distance < 15 ? 'fire' : 'advance';
-    if (e.state === 'advance' || (visible && distance < 5)) {
-      let goal: Vec2 = this.player;
-      if (visible) {
-        const side = e.id % 2 ? 1 : -1;
-        goal = {
-          x: this.player.x + side * 3,
-          z: this.player.z + (this.player.z < p.z ? 5 : -5)
-        };
-      }
+    const squad = this.enemies.map(o=>({id:String(o.id),x:o.group.position.x,z:o.group.position.z,health:o.hp,kind:'police'}));
+    const tactic = tacticalGoal({id:String(e.id),x:p.x,z:p.z,health:e.hp,kind:'police',coverId:e.coverId},this.player,squad,
+      cityCover.filter(c=>c.h>1.1).map((c,i)=>({...c,id:String(i),heading:c.rot,speed:0})),this.elapsed,
+      (a:Vec2,b:Vec2)=>lineClear(new THREE.Vector3(a.x,1.5,a.z),new THREE.Vector3(b.x,1.5,b.z),this.world.obstacles));
+    e.anim=tactic.anim;e.coverId=tactic.coverId;
+    e.state=e.anim==='cover'?'cover':e.anim==='aim'?'fire':'advance';
+    e.aimTime=e.state==='fire'?(e.aimTime||0)+dt:0;
+    if (e.state === 'advance') {
+      const goal:Vec2=tactic.goal;
       if (e.repath <= 0) {
         e.repath = 0.8 + this.rng() * 0.5;
         e.path = findPath(p, goal, this.world.obstacles);
       }
-      const next = visible ? goal : e.path[0];
+      const next = e.path[0] || goal;
       if (next) {
         const x = next.x - p.x,
           z = next.z - p.z,
@@ -871,8 +878,8 @@ export class GameEngine {
           const old = { x: p.x, z: p.z };
           moveCircle(
             p,
-            (x / d) * dt * (1.45 + this.wave * 0.14),
-            (z / d) * dt * (1.45 + this.wave * 0.14),
+            (x / d) * dt * (e.anim==='run'?3.3:1.45),
+            (z / d) * dt * (e.anim==='run'?3.3:1.45),
             0.4,
             this.world.obstacles
           );
@@ -884,10 +891,14 @@ export class GameEngine {
     for (let i = 0; i < 2; i++)
       e.legs[i].rotation.x =
         Math.sin(e.walk + i * Math.PI) * (e.state === 'advance' ? 0.52 : 0.03);
-    e.group.position.y = Math.sin(e.walk * 2) * 0.015;
+    e.group.position.y = (e.anim==='cover'?-.38:0) + Math.sin(e.walk * 2) * 0.015;
+    for(const other of this.enemies) if(other!==e && other.hp>0) {
+      const dx=p.x-other.group.position.x,dz=p.z-other.group.position.z,d=Math.hypot(dx,dz);
+      if(d>.001 && d<.85)moveCircle(p,dx/d*(.85-d)*.5,dz/d*(.85-d)*.5,.4,this.world.obstacles);
+    }
     if (e.hurt > 0) e.group.rotation.x = -e.hurt * 0.6;
     else e.group.rotation.x = 0;
-    if (visible && e.cooldown <= 0) {
+    if (visible && e.state==='fire' && (e.aimTime||0)>.55 && e.cooldown <= 0) {
       e.cooldown =
         (this.difficulty === 'recruit' ? 1.7 : 1.05) +
         this.rng() * 0.8 -

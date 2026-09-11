@@ -77,3 +77,14 @@ test('failed downloads retain fallback availability and dispose prevents late sc
     assert.equal(layer.group.children.length,0);assert.equal(layer.sources.size,0);
   } finally {globalThis.fetch=goodFetch;console.warn=warn;layer.dispose();}
 });
+test('aiming changes private arm bones and cover lowers the visible officer',async()=>{
+ const layer=new AlbanianForcesVisuals();
+ try{
+  const s=state();s.npcs=[{...npc('pose'),speed:0,anim:'idle'}];
+  layer.update(s,{x:0,z:0},0,1/60);await settle(layer);layer.update(s,{x:0,z:0},1,1/60);
+  const root=layer.getRoot('npc-pose'),bone=root.getObjectByName(T.PropertyBinding.sanitizeNodeName('upperarm01.R'));assert.ok(bone);
+  const idle=bone.quaternion.clone();s.npcs[0].anim='aim';layer.update(s,{x:0,z:0},2,1/60);assert.ok(bone.quaternion.angleTo(idle)>.1);
+  const standing=root.position.y;s.npcs[0].anim='cover';layer.update(s,{x:0,z:0},3,1/60);assert.ok(root.position.y<standing-.25);
+  s.npcs[0].anim='ride';s.npcs[0].motion='drive';layer.update(s,{x:0,z:0},4,1/60);assert.ok(layer.has('npc-pose'),'motorcycle passengers are rendered');
+ }finally{layer.dispose();}
+});

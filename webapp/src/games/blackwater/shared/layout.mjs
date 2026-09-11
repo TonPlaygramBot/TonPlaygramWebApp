@@ -1,3 +1,4 @@
+import {importedFleet} from './importedPlacements.mjs';
 import { FORCE_VEHICLE_BOUNDS } from '../../tiranastreets/shared/albanianForces.mjs';
 import { detailPostObstacles } from '../../tirana-street-detail/sharedRoadDetails.mjs';
 import { nativeReplacementIds } from '../../tirana-landmarks/nativeLocations.mjs';
@@ -156,10 +157,11 @@ for (const [index, asset] of FORCE_VEHICLE_BOUNDS.entries()) {
   if (!spot) throw new Error(`No clear deployment space for ${asset.id}`);
   fleet.push({...spot,sx:0,sz:0,forceVehicle:asset.id,w:asset.w,d:asset.d,h:asset.h+.03,rot:0});
 }
-export const props = [...fleet,...smallProps];
+const baseObstacles=[...cityObstacles,...fleet,...smallProps];
+export const props = [...fleet,...smallProps,...importedFleet];
 export const OBSTACLES = Object.freeze([...cityObstacles,...props]);
 // Ten operation maps are sectors of the one detailed, streamed Tirana world.
-const sector = (id,name,worldX,worldZ) => {const start=safeNear(worldX-ORIGIN.x,worldZ-ORIGIN.z),extraction=safeNear(start.x+18,start.z-42);return Object.freeze({id,name,start:Object.freeze(start),extraction:Object.freeze(extraction)});};
+const sector = (id,name,worldX,worldZ) => {const start=safeNear(worldX-ORIGIN.x,worldZ-ORIGIN.z,baseObstacles),extraction=safeNear(start.x+18,start.z-42,baseObstacles);return Object.freeze({id,name,start:Object.freeze(start),extraction:Object.freeze(extraction)});};
 export const BATTLEFIELD_MAPS = Object.freeze([
  sector('skanderbeg','Skanderbeg Square',-55,-110),sector('blloku','Blloku Night Run',-165,520),sector('lana','Lana Riverfront',40,260),sector('pyramid','Pyramid District',120,85),sector('bazaar','New Bazaar',175,-155),sector('stadium','Air Albania',285,245),sector('station','Railway Approach',-120,-340),sector('park','Grand Park Gate',35,690),sector('embassy','Embassy Quarter',-330,170),sector('dajti-gate','Dajti Gateway',360,-25)
 ]);

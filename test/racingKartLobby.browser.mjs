@@ -28,14 +28,14 @@ try{
  await next.waitFor();await page.waitForFunction(()=>!document.querySelector('[aria-label="Next vehicle"]').disabled,{},{timeout:60000});
  await page.evaluate(()=>window.game.setQuality('performance'));
  assert.equal(await page.locator('select.kr-vehicle-select').count(),0);
- const seen=[];
- for(let i=0;i<9;i++){
+ const seen=[];const total=await page.evaluate(()=>Number(document.querySelector('.kr-vehicle-carousel > span').textContent.split('/')[1].match(/\d+/)[0]));
+ for(let i=0;i<total;i++){
   const id=await page.evaluate(()=>window.game.kartId);
   const rig=await page.evaluate(()=>{const g=window.game,r=g.rigs.get(g.showroom.children[0]);return {wheels:r.wheels.length,steering:r.front.length};});
-  assert.equal(rig.wheels,4,id);assert.equal(rig.steering,2,id);seen.push(id);
+  if(!['ferrari','buggy'].includes(id)){assert.equal(rig.wheels,4,id);assert.equal(rig.steering,2,id);}assert.ok(await page.evaluate(()=>window.game.showroom.children[0].getObjectByProperty('isMesh',true)));seen.push(id);
   await next.click();
  }
- assert.equal(new Set(seen).size,9);
+ assert.equal(new Set(seen).size,total);
  const panel=await page.locator('.kr-vehicle-info').boundingBox();
  const cdp=await page.context().newCDPSession(page);
  const x=panel.x+Math.min(panel.width-10,160),y=panel.y+8;
@@ -54,5 +54,5 @@ try{
  assert.equal(start.id,'apex');assert.equal(start.count,6);
  assert.deepEqual(errors,[]);assert.ok(requests.every(r=>r.status===200));
  await writeFile(join(out,'lobby-results.json'),JSON.stringify({viewport:{width:390,height:844},vehicles:seen,swipeLeft:'apex → oobi',swipeRight:'oobi → apex',start,errors},null,2));
- console.log('All nine lobby vehicles load, both touch swipe directions work, and the race button starts the chosen kart.');
+ console.log('All eleven lobby vehicles load, both touch swipe directions work, and the race button starts the chosen kart.');
 }finally{await browser?.close();await new Promise(r=>server.close(r));}

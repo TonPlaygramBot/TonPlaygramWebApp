@@ -1,3 +1,4 @@
+import {ImportedAssetVisuals} from './ImportedAssetVisuals';
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { CityFacades, DETAIL_IDS } from "./cityVisuals";
@@ -67,6 +68,7 @@ export class CityRenderer {
   private facades: CityFacades | null = null;
   private living: LivingVisuals;
   private forces = new AlbanianForcesVisuals();
+  private racingFleet = new ImportedAssetVisuals();
   private worldTextures = new Set<THREE.Texture>();
   private manualUntil = 0;
   private lastTarget = new THREE.Vector3(SPAWN.x, 0, SPAWN.z);
@@ -121,7 +123,7 @@ export class CityRenderer {
     pmrem.dispose();
     this.living = new LivingVisuals();
     this.scene.add(this.living.group);
-    this.scene.add(this.forces.group);
+    this.scene.add(this.forces.group,this.racingFleet.group);
     this.buildStreets();
     this.buildBlocks();
     this.scene.add(this.referenceFacades.group);
@@ -857,6 +859,7 @@ export class CityRenderer {
     const p = state?.players[playerId];
     if (this.ready && state) {
       const active = new Set<string>();
+      this.racingFleet.update(state.cars.filter(c=>c.racingAsset),p||SPAWN,this.quality==="battery");
       this.forces.update(state, p || SPAWN, state.elapsed, dt, this.quality === "battery");
       for (const npc of state.npcs) {
         const key = `npc-${npc.id}`, root = this.forces.getRoot(key);
@@ -876,7 +879,7 @@ export class CityRenderer {
           close && car.id.startsWith("car-") ? "city-car" : car.model;
         const a = this.actor(detail, car.id);
         active.add(car.id);
-        a.group.visible = !this.forces.has(car.id) && (
+        a.group.visible = !this.forces.has(car.id) && !this.racingFleet.has(car.id) && (
           !p ||
           Math.hypot(car.x - p.x, car.z - p.z) <
             (this.quality === "battery" ? 180 : 350));
@@ -1197,6 +1200,7 @@ export class CityRenderer {
     this.referenceFacades.dispose();
     this.living.dispose();
     this.forces.dispose();
+    this.racingFleet.dispose();
     this.observer.disconnect();
     for (const a of this.actors.values()) a.mixer?.stopAllAction();
     this.disposeObject(this.scene);

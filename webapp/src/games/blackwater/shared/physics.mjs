@@ -279,7 +279,7 @@ export function findPath(start, goal, obstacles) {
   path.unshift(point(s.x, s.z));
   return path;
 }
-export const waveCount = (wave) => [0, 4, 6, 8][wave] ?? 8;
+export const waveCount = (wave) => [0, 10, 15, 20][wave] ?? 20;
 export const afterWave = (wave) => (wave >= 3 ? 'extract' : 'upgrade');
 export function reloadAmmo(ammo, reserve, capacity) {
   const add = Math.max(0, Math.min(capacity - ammo, reserve));

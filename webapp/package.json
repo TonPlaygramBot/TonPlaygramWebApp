@@ -6,8 +6,8 @@
     "test:navigation": "vitest run --config vitest.navigation.config.mjs",
     "test:wall": "vitest run --config vitest.wall.config.mjs",
     "generate:tirana-assets": "node scripts/generate-tirana-street-furniture.mjs",
-    "predev": "npm run generate:tirana-assets",
-    "prebuild": "npm run generate:tirana-assets",
+    "predev": "npm run generate:tirana-assets && node scripts/import-tirana-originals.mjs",
+    "prebuild": "npm run generate:tirana-assets && node scripts/import-tirana-originals.mjs",
     "dev": "vite",
     "lint": "eslint --no-ignore --no-warn-ignored",
     "build": "node scripts/write-build-metadata.mjs && node scripts/run-vite-build.mjs",
@@ -24,7 +24,8 @@
     "fetch:murlan-characters": "node scripts/fetch-murlan-agent47.mjs --asset all",
     "fetch:pool-royale-showood-table": "node scripts/fetch-pool-royale-showood-table.mjs",
     "fetch:sketchfab-assets": "node scripts/fetch-sketchfab-assets.mjs",
-    "generate:military-vehicles": "node scripts/build-military-vehicles.mjs"
+    "generate:military-vehicles": "node scripts/build-military-vehicles.mjs",
+    "import:tirana-originals": "node scripts/import-tirana-originals.mjs"
   },
   "type": "module",
   "dependencies": {

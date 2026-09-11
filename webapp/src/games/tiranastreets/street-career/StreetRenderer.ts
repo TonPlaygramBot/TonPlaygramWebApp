@@ -16,7 +16,7 @@ export class StreetRenderer extends CityRenderer {
     if(state&&p)this.humans.update(state.npcs.filter(n=>!forceCharacterFor(n)),p,state.elapsed,dt,this.quality==='battery');
     this.details.update(state?.elapsed||0,this.camera,p,this.quality==='battery');
     // Renderer-only view: authoritative/local simulation retains every real NPC.
-    const visible=state&&p?nearbyHumans(state.npcs,p,this.quality==='battery'):[];
+    const visible=state&&p?[...state.npcs.filter(n=>forceCharacterFor(n)),...nearbyHumans(state.npcs.filter(n=>!forceCharacterFor(n)),p,this.quality==='battery')]:[];
     super.render(state?{...state,npcs:visible.filter(n=>!this.humans.has(n.id))}:null,id,dt,lobby);
   }
   override destroy(){if(this.disposed)return;this.humans.dispose();this.details.dispose();super.destroy();}
