@@ -1,3 +1,5 @@
+import { COLLECTION_BY_ID } from '../tiranastreets/shared/vehicleCollection.mjs';
+
 export const KART_ASSETS = Object.freeze(
   Object.fromEntries(
     [
@@ -25,7 +27,9 @@ export const MILITARY_ASSETS = Object.freeze({
   }
 });
 export function vehicleAssetUrl(id, low = false) {
-  if (id === 'ferrari' || id === 'buggy')
+  const collection = COLLECTION_BY_ID.get(id);
+  if (collection) return collection.url;
+  if (id === 'buggy')
     return `/assets/tirana-streets/imported/${id}.glb`;
   const config = MILITARY_ASSETS[id];
   if (KART_ASSETS[id])
@@ -55,6 +59,14 @@ export function normaliseVehicleDimensions({ min, max }, targetLength = 3.25) {
   };
 }
 export function vehicleDriverMount(id, fit) {
+  const collection = COLLECTION_BY_ID.get(id);
+  if (collection) {
+    // Collection cars are authored nose +X. After the adapter turns them to
+    // race-forward +Z, native [x,y,z] becomes [-z,y,x].
+    const [x, y, z] = collection.driverSeat;
+    return [-z * fit.scale + fit.offset[0], y * fit.scale + fit.offset[1],
+      x * fit.scale + fit.offset[2]];
+  }
   const eye = (MILITARY_ASSETS[id] || KART_ASSETS[id])?.eye;
   return eye
     ? eye.map((v, i) => v * fit.scale + fit.offset[i])

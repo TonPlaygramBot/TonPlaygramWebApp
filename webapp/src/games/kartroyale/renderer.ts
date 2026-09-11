@@ -433,6 +433,7 @@ export class KartRenderer {
       kartId !== 'apex' &&
       !isMilitaryVehicle(kartId) &&
       !KART_ASSETS[kartId] &&
+      !this.kartModels.get(kartId)?.userData.factoryFinish &&
       !['ferrari', 'buggy'].includes(kartId)
     ) {
       for (const wheel of rig.wheels.filter((w) => w.name.includes('front'))) {
