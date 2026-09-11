@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import ProjectAchievementsCard from '../components/ProjectAchievementsCard.jsx';
+import AppDownloadCard from '../components/AppDownloadCard.jsx';
 import PwaDownloadFrame from '../components/PwaDownloadFrame.jsx';
 import ThemePicker from '../components/ThemePicker.jsx';
 import HomeIntroduction from '../components/HomeIntroduction.jsx';
@@ -193,6 +194,7 @@ export default function Home() {
   return (
     <div className="home-page app-theme-page space-y-4">
       <ThemePicker />
+      <AppDownloadCard />
       <article className="home-protest-card">
         {latestProtestPost?.attachment && (
           <Link className="home-protest-card__thumbnail" to="/wall" aria-label="Open the latest wall post">
