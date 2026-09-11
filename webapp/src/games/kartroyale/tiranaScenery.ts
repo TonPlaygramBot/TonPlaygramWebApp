@@ -8,6 +8,7 @@ import type {Track} from './simulation.mjs';
 import {resolveNativeLandmarks} from '../tirana-landmarks/nativeLocations.mjs';
 import {NativeLandmarkLayer} from '../tirana-landmarks/NativeLandmarkLayer';
 import {replaceLegacyCityLandmarks} from '../tirana-landmarks/legacyReplacement';
+import {RacingCityLifeV2Layer} from './citylife-v2/RacingCityLifeV2Layer';
 import {UrbanDetailLayer} from '../tirana-detail-kit/UrbanDetailLayer';
 export {inside,occupied} from './baseTiranaScenery';
 
@@ -15,6 +16,7 @@ export class TiranaScenery extends BaseTiranaScenery {
   readonly nativeLandmarks:NativeLandmarkLayer;
   readonly urbanDetails:UrbanDetailLayer;
   readonly enhancements:WorldEnhancements;
+  readonly cityLifeV2:RacingCityLifeV2Layer;
   private atlasTrack:Track;
   constructor(track:Track) {
     super(track);
@@ -22,8 +24,10 @@ export class TiranaScenery extends BaseTiranaScenery {
     this.group.add(new TurnGuideLayer(track).group);
     this.enhancements=new WorldEnhancements({profile:'racing',track});
     this.group.add(this.enhancements.group);
+    this.cityLifeV2=new RacingCityLifeV2Layer(track,WORLD);
+    this.group.add(this.cityLifeV2.group);
     // Race-owned disposal retires async work before the scene traversal.
-    const lifetime=new THREE.BufferGeometry();lifetime.addEventListener('dispose',()=>{this.enhancements.retire();clearAtlas();});
+    const lifetime=new THREE.BufferGeometry();lifetime.addEventListener('dispose',()=>{this.enhancements.retire();this.cityLifeV2.retire();clearAtlas();});
     const sentinel=new THREE.Mesh(lifetime,new THREE.MeshBasicMaterial());sentinel.visible=false;sentinel.name='Tirana:async-lifetime';this.group.add(sentinel);
     const {landmarks,issues}=resolveNativeLandmarks(WORLD), b=track.bounds;
     const near=(x:number,z:number)=>x>b[0]-200&&x<b[2]+200&&z>b[1]-200&&z<b[3]+200;
@@ -40,6 +44,7 @@ export class TiranaScenery extends BaseTiranaScenery {
     super.update(x,z,performance);
     this.nativeLandmarks.setBatteryMode(performance);
     this.urbanDetails.update({x,z},performance);
+    this.cityLifeV2.update(globalThis.performance.now()/1000,x,z,performance);
     publishAtlas(x,z,this.atlasTrack);
     let root:THREE.Object3D=this.group;while(root.parent)root=root.parent;
     const camera=root.children.find(o=>o instanceof THREE.PerspectiveCamera) as THREE.PerspectiveCamera|undefined;

@@ -1,0 +1,12 @@
+export type Point={x:number;z:number};
+export type Site=Point&{asset:string;radius:number;yaw:number};
+export type Road={a:number[];b:number[];w?:number;walk?:boolean;access?:string};
+export type World={buildings?:{p:number[][]}[];water?:(number[][]|{line:number[][];width:number})[];roads?:Road[];areas?:number[][][]};
+export type Track={points:Point[];width:number};
+export const LIMITS:Readonly<{normal:number;battery:number;enter:number;leave:number;parallel:number}>;
+export const GROUPS:readonly (readonly string[])[];
+export function segmentDistance(p:Point,a:Point|number[],b:Point|number[]):number;
+export function inPolygon(p:Point,poly:number[][]):boolean;
+export function safeSite(p:Point,radius:number,track:Track,world:World):boolean;
+export function makeSites(track:Track,world:World):Site[];
+export function selectSites(sites:Site[],eye:Point,battery?:boolean):Site[];
