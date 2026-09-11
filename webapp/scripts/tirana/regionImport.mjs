@@ -23,7 +23,7 @@ export function importRegionSource(raw,{origin,sourceURL,acquiredAt,sha256}={}){
  for(const e of raw.elements){if(!e||!['node','way','relation'].includes(e.type)||!Number.isSafeInteger(e.id)||e.id<=0)throw Error('Invalid OSM identity');const key=`${e.type}/${e.id}`;if(ids.has(key))throw Error(`Duplicate ${key}`);ids.add(key);if(e.type==='node'){if(![e.lat,e.lon].every(Number.isFinite))throw Error(`Missing coordinate ${key}`);nodes.set(e.id,e);}if(e.type==='way')ways.set(e.id,e);if(e.type==='relation')relations.push(e);}
  const point=id=>{const n=nodes.get(id);if(!n)throw Error(`Missing source node ${id}`);const p=projectRegion(origin,n.lat,n.lon);return [p.x,p.z];};
  const ring=w=>{if(!w?.nodes||w.nodes.length<4||w.nodes[0]!==w.nodes.at(-1))throw Error(`Unclosed polygon ${w?.id}`);return validatePolygonRing(w.nodes.slice(0,-1).map(point),`way/${w.id}`);};
- const roads=[],buildings=[],water=[],warnings=[],waterMembers=new Set();
+ const roads=[],buildings=[],water=[],places=[],warnings=[],waterMembers=new Set();
  for(const r of relations){const t=r.tags||{};if(t.type!=='multipolygon'||!(t.natural==='water'||t.landuse==='reservoir'))continue;
   const member=role=>(r.members||[]).filter(m=>m.type==='way'&&(m.role===role||role==='outer'&&!m.role)).map(m=>{const w=ways.get(m.ref);if(!w)throw Error(`Missing relation member ${m.ref}`);waterMembers.add(m.ref);w.nodes.forEach(point);return w.nodes;});
   const outer=stitchRegionRings(member('outer')).map(c=>validatePolygonRing(c.slice(0,-1).map(point),`relation/${r.id}`)),inner=stitchRegionRings(member('inner')).map(c=>validatePolygonRing(c.slice(0,-1).map(point),`relation/${r.id}`));if(!outer.length)throw Error('Water relation has no outer ring');
@@ -44,6 +44,15 @@ export function importRegionSource(raw,{origin,sourceURL,acquiredAt,sha256}={}){
  }
  if(!roads.length)throw Error('Regional import contains no road segments');
  const bounds=[Infinity,Infinity,-Infinity,-Infinity];for(const r of roads)for(const p of [r.a,r.b]){bounds[0]=Math.min(bounds[0],p[0]);bounds[1]=Math.min(bounds[1],p[1]);bounds[2]=Math.max(bounds[2],p[0]);bounds[3]=Math.max(bounds[3],p[1]);}
+ // Public places retain their own identity and full tags. A campus polygon or
+ // nearby point must not be promoted into an invented building footprint.
+ for(const e of raw.elements){
+  const t=e.tags||{};
+  if(!(t.shop||t.amenity||t.office==='government'||t.tourism||t.historic))continue;
+  const id=`${e.type}/${e.id}`;
+  const geometry=e.type==='node'?{point:point(e.id)}:e.type==='way'?{outline:e.nodes.map(point)}:{members:e.members||[]};
+  places.push({id,name:t.name||t['name:en']||'',tags:{...t},...geometry,source:`https://www.openstreetmap.org/${id}`,buildingId:e.type==='way'&&t.building&&t.building!=='no'?String(e.id):null});
+ }
  const hasRingRelation=relations.some(r=>r.id===20772795);if(!hasRingRelation)warnings.push('Unaza e Madhe route relation absent; ring completeness is unverified');
- return {version:1,stage:'source-review',runtimeReady:false,origin:[...origin],bounds,requestedBbox:[...REGION_BBOX],roads,buildings,water,source:{url:sourceURL,acquiredAt,sha256,license:'ODbL-1.0',attribution:'© OpenStreetMap contributors'},warnings,releaseGates:['Review real data coverage at Kamza, TEG/Elbasan and Dajti','Supply a licensed DEM with horizontal and vertical datum','Validate bridges, tunnels, grades and water collisions','Build shared navigation and simulation bounds in both games','Run actual-game and phone performance checks']};
+ return {version:1,stage:'source-review',runtimeReady:false,origin:[...origin],bounds,requestedBbox:[...REGION_BBOX],roads,buildings,water,places,source:{url:sourceURL,acquiredAt,sha256,license:'ODbL-1.0',attribution:'© OpenStreetMap contributors'},warnings,releaseGates:['Review real data coverage at Rinas, Vaqarr, Sauk, Farkë, Kamza, TEG/Elbasan and Dajti','Supply a licensed DEM with horizontal and vertical datum','Validate bridges, tunnels, grades and water collisions','Build shared navigation and simulation bounds in both games','Run actual-game and phone performance checks']};
 }

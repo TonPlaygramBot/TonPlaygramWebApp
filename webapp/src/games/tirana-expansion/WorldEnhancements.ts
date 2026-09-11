@@ -1,3 +1,4 @@
+import {RegionalPanorama} from '../tirana-region/RegionalPanorama';
 import * as T from 'three';
 import { InstitutionLayer } from '../tirana-city-source/InstitutionLayer';
 import { INSTITUTION_BUILDING_IDS } from '../tirana-city-source/registry.mjs';
@@ -24,6 +25,8 @@ export {
 } from './BaseWorldEnhancements';
 /** One shared street-detail integration, using the unchanged city metre frame. */
 export class WorldEnhancements extends ExistingEnhancements {
+  readonly panorama = new RegionalPanorama();
+  private panoramaViewer = new T.Vector3();
   readonly shopfronts = new ShopfrontDetails(
     WORLD,
     new Set([...CIVIC_SITES.map((s) => s.way), ...INSTITUTION_BUILDING_IDS, ...REAL_STOREFRONT_BUILDING_IDS, ...FUEL_CANOPY_IDS]),
@@ -46,7 +49,7 @@ export class WorldEnhancements extends ExistingEnhancements {
       this.civic.group.visible = false;
     }
     this.ground = new GroundDetailLayer(WORLD, options, this.civic.errors);
-    this.group.add(this.ground.group);
+    this.group.add(this.ground.group, this.panorama.group);
     this.streets = new StreetDetailLayer(
       WORLD,
       STREET_DETAILS,
@@ -73,6 +76,12 @@ export class WorldEnhancements extends ExistingEnhancements {
     battery = false
   ) {
     super.update(seconds, camera);
+    if(camera){
+      this.group.updateWorldMatrix(true,false);
+      camera.getWorldPosition(this.panoramaViewer);
+      this.group.worldToLocal(this.panoramaViewer);
+      this.panorama.update(this.panoramaViewer,camera);
+    }
     let viewer = worldViewer;
     if (!viewer && camera) {
       this.group.updateWorldMatrix(true, false);
@@ -101,6 +110,7 @@ export class WorldEnhancements extends ExistingEnhancements {
     super.retire();
   }
   override dispose() {
+    this.panorama.dispose();
     this.institutions.dispose();
     this.attractions.dispose();
     this.ground.dispose();
