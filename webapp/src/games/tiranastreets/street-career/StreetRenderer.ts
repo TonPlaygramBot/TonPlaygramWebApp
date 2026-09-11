@@ -3,6 +3,7 @@ import type {State} from '../shared/engine.mjs';
 import {attachEnhancements} from '../../tirana-expansion/WorldEnhancements';
 import {SharedHumans} from './SharedHumans';
 import {nearbyHumans} from './humanRoster.mjs';
+import {forceCharacterFor} from '../shared/albanianForces.mjs';
 /** Local career only. Reuses the original driving renderer and the newer shared
  * city details without editing map coordinates, physics or paid-match actors. */
 export class StreetRenderer extends CityRenderer {
@@ -12,7 +13,7 @@ export class StreetRenderer extends CityRenderer {
   override render(state:State|null,id:string,dt:number,lobby:boolean){
     if(this.disposed)return;
     const p=state?.players[id];
-    if(state&&p)this.humans.update(state.npcs,p,state.elapsed,dt,this.quality==='battery');
+    if(state&&p)this.humans.update(state.npcs.filter(n=>!forceCharacterFor(n)),p,state.elapsed,dt,this.quality==='battery');
     this.details.update(state?.elapsed||0,this.camera,p,this.quality==='battery');
     // Renderer-only view: authoritative/local simulation retains every real NPC.
     const visible=state&&p?nearbyHumans(state.npcs,p,this.quality==='battery'):[];

@@ -1628,6 +1628,12 @@ export default function CityGame({
                 </p>
                 <ul className="ts-credits-list">
                   <li>
+                    <a href="/assets/tirana-streets/albanian-forces/ATTRIBUTION.md" target="_blank" rel="noreferrer">
+                      Forcat e Shqipërisë · Vehicles and uniforms
+                    </a>
+                    <span>MakeHuman community, Neubi, lubomircenovsky, Cyberbotics, gakpoenya · CC0 / CC BY / CC BY-SA / Apache 2.0</span>
+                  </li>
+                  <li>
                     <a
                       href="https://www.openstreetmap.org/copyright"
                       target="_blank"

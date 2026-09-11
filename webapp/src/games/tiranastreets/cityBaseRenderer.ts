@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { CityFacades, DETAIL_IDS } from "./cityVisuals";
 import { LivingVisuals } from "./livingVisuals";
+import { AlbanianForcesVisuals } from "./AlbanianForcesVisuals";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { clone } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
@@ -12,6 +13,7 @@ import {
   cameraDistance,
   type State,
   type Point,
+  type NPC,
 } from "./shared/engine.mjs";
 
 import { ReferenceFacades } from '../tirana-city-source/ReferenceFacades';
@@ -64,6 +66,7 @@ export class CityRenderer {
   private shellMaterials: THREE.MeshStandardMaterial[] = [];
   private facades: CityFacades | null = null;
   private living: LivingVisuals;
+  private forces = new AlbanianForcesVisuals();
   private worldTextures = new Set<THREE.Texture>();
   private manualUntil = 0;
   private lastTarget = new THREE.Vector3(SPAWN.x, 0, SPAWN.z);
@@ -118,6 +121,7 @@ export class CityRenderer {
     pmrem.dispose();
     this.living = new LivingVisuals();
     this.scene.add(this.living.group);
+    this.scene.add(this.forces.group);
     this.buildStreets();
     this.buildBlocks();
     this.scene.add(this.referenceFacades.group);
@@ -853,6 +857,14 @@ export class CityRenderer {
     const p = state?.players[playerId];
     if (this.ready && state) {
       const active = new Set<string>();
+      this.forces.update(state, p || SPAWN, state.elapsed, dt, this.quality === "battery");
+      for (const npc of state.npcs) {
+        const key = `npc-${npc.id}`, root = this.forces.getRoot(key);
+        if (root) {
+          active.add(key);
+          this.living.pose(key, root, npc, state.elapsed);
+        }
+      }
       for (const car of [
         ...state.cars,
         ...state.traffic,
@@ -864,10 +876,10 @@ export class CityRenderer {
           close && car.id.startsWith("car-") ? "city-car" : car.model;
         const a = this.actor(detail, car.id);
         active.add(car.id);
-        a.group.visible =
+        a.group.visible = !this.forces.has(car.id) && (
           !p ||
           Math.hypot(car.x - p.x, car.z - p.z) <
-            (this.quality === "battery" ? 180 : 350);
+            (this.quality === "battery" ? 180 : 350));
         if (!a.group.userData.placed) {
           a.group.position.set(car.x, 0, car.z);
           a.group.rotation.y = car.heading + Math.PI;
@@ -895,7 +907,7 @@ export class CityRenderer {
       for (const pl of Object.values(state.players)) {
         const a = this.actor("character", `player-${pl.id}`);
         active.add(`player-${pl.id}`);
-        a.group.visible = !pl.carId && !(this.firstPerson && pl.id === id);
+        a.group.visible = !pl.carId && !(this.firstPerson && pl.id === playerId);
         a.group.rotation.x = pl.health <= 0 ? -Math.PI / 2 : 0;
         a.group.position.lerp(
           new THREE.Vector3(pl.x, 0.08, pl.z),
@@ -934,8 +946,13 @@ export class CityRenderer {
           rendered++ > (this.quality === "battery" ? 14 : 32)
         )
           continue;
-        const id = `npc-${n.id}`,
-          a = this.actor("character", id);
+        const id = `npc-${n.id}`;
+        if (this.forces.has(id)) {
+          const fallback = this.actors.get(id);
+          if (fallback) fallback.group.visible = false;
+          continue;
+        }
+        const a = this.actor("character", id);
         active.add(id);
         a.group.visible = true;
         a.group.position.lerp(
@@ -979,6 +996,7 @@ export class CityRenderer {
       }
       // Visible drivers give nearby moving traffic a human occupant.
       for (const car of state.traffic) {
+        if (this.forces.has(car.id)) continue;
         if (!p || Math.hypot(car.x - p.x, car.z - p.z) > 40) continue;
         const id = `driver-${car.id}`,
           a = this.actor("character", id);
@@ -1178,6 +1196,7 @@ export class CityRenderer {
     this.disposed = true;
     this.referenceFacades.dispose();
     this.living.dispose();
+    this.forces.dispose();
     this.observer.disconnect();
     for (const a of this.actors.values()) a.mixer?.stopAllAction();
     this.disposeObject(this.scene);

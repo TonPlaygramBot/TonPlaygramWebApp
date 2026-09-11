@@ -22,6 +22,9 @@ export type Car = Point & {
   vz: number;
   steering: number;
   model: string;
+  forceVehicle?: string;
+  forceCharacter?: string;
+  responding?: boolean;
   driver: string | null;
 };
 export type Player = Point &
@@ -75,6 +78,7 @@ export type NPC = Point & {
   weapon: string | null;
   anim?: string;
   unit?: string;
+  forceCharacter?: string;
   downUntil: number;
 };
 export type Effect = Point & {
