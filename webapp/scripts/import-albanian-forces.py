@@ -1,14 +1,13 @@
 """Rebuild the runtime pack from the supplied Albanian-Forces-Asset-Pack.zip.
 
-Run after npm ci in webapp. Source notices and the original input hashes are
-retained; editable Blender scenes stay in the original authoring ZIP.
+Copies every runtime GLB byte-for-byte: no mesh simplification, texture resize,
+or recompression. No npm dependencies are needed. Source notices and input
+hashes are retained; editable Blender scenes stay in the original authoring ZIP.
 """
 import hashlib
 import json
 from pathlib import Path
 import re
-import struct
-import subprocess
 import sys
 import zipfile
 
@@ -44,16 +43,9 @@ with zipfile.ZipFile(sys.argv[1]) as archive:
         entry['sourceTriangles'] = entry['triangles']
         write(f'glb/{name}.glb', data)
         write(f'thumbnails/{name}.jpg', archive.read(prefix + f'thumbnails/{name}.jpg'))
-        path = out / f'glb/{name}.glb'
-        budget = '45000' if entry['category'] == 'person' else '40000'
-        subprocess.run(['node', 'scripts/optimize-tirana-glb.mjs', str(path), budget], cwd=webapp, check=True)
-        subprocess.run(['node', 'scripts/optimize-albanian-force-textures.mjs', str(path)], cwd=webapp, check=True)
-        data = path.read_bytes()
-        doc = json.loads(data[20:20 + struct.unpack_from('<I', data, 12)[0]])
-        entry.update(file=f'/assets/tirana-streets/albanian-forces/glb/{name}.glb',
-                     bytes=len(data), sha256=hashlib.sha256(data).hexdigest(),
-                     triangles=doc['asset']['extras']['tiranaGeometry']['triangles'],
-                     maxTextureSize=1024)
+        entry.update(file=f'/assets/tirana-streets/albanian-forces/glb/{name}.glb?v=original-v2',
+                     bytes=len(data), sha256=entry['sourceSha256'],
+                     quality='original')
     for name in ['ATTRIBUTION.md', 'REFERENCES.md', 'README.md']:
         write('PACK-README.md' if name == 'README.md' else name, archive.read(prefix + name))
     for name in notices:
