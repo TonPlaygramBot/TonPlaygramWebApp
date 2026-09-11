@@ -1,3 +1,4 @@
+import { FORCE_VEHICLE_BOUNDS } from '../../tiranastreets/shared/albanianForces.mjs';
 import { detailPostObstacles } from '../../tirana-street-detail/sharedRoadDetails.mjs';
 import { nativeReplacementIds } from '../../tirana-landmarks/nativeLocations.mjs';
 import { nativeLandmarkObstacles } from '../../tirana-landmarks/nativeCollision.mjs';
@@ -97,7 +98,7 @@ const originals = [
   [12, -22, 1.1, 1.1, 1.18],
   [-12, -16, 1.1, 1.1, 1.18]
 ];
-export const props = originals.map(([sx, sz, w, d, h], i) => {
+const legacyProps = originals.map(([sx, sz, w, d, h], i) => {
   const a = i * Math.PI * 0.47,
     p = nearestRoad(
       START.x + Math.sin(a) * (13 + i * 3),
@@ -128,9 +129,35 @@ export const streetObstacles = STREET_SOLIDS.map(p => {
 export const railingObstacles = RAILINGS.map(r=>({x:r.x-ORIGIN.x,z:r.z-ORIGIN.z,w:.1,d:r.length,h:1.05,rot:r.yaw}));
 const replaced = nativeReplacementIds(WORLD);
 export const landmarkObstacles = nativeLandmarkObstacles(WORLD, ORIGIN);
-export const OBSTACLES = Object.freeze([...buildings.filter(b=>!replaced.has(b.id)&&!FUEL_CANOPY_IDS.has(b.id)), ...fuelCanopyObstacles(ORIGIN), ...landmarkObstacles, ...props, ...streetObstacles, ...railingObstacles, ...detailPostObstacles(ORIGIN)]);
-const clear = (x,z,r=.5) => !OBSTACLES.some(o=>o.footprint?footprintDistance(x,z,o.footprint,o.holes)<r:Math.hypot(x-o.x,z-o.z)<Math.hypot(o.w,o.d)/2+r);
-const safeNear = (x,z) => {x=Math.max(MAP.minX+2,Math.min(MAP.maxX-2,x));z=Math.max(MAP.minZ+2,Math.min(MAP.maxZ-2,z));const road=nearestRoad(x,z); if(clear(road.x,road.z))return {x:road.x,z:road.z}; for(let radius=4;radius<60;radius+=4)for(let i=0;i<16;i++){const p=nearestRoad(x+Math.cos(i*Math.PI/8)*radius,z+Math.sin(i*Math.PI/8)*radius);if(clear(p.x,p.z)&&p.x>MAP.minX+.5&&p.x<MAP.maxX-.5&&p.z>MAP.minZ+.5&&p.z<MAP.maxZ-.5)return {x:p.x,z:p.z};} return {x:START.x,z:START.z}; };
+const cityObstacles = [...buildings.filter(b=>!replaced.has(b.id)&&!FUEL_CANOPY_IDS.has(b.id)), ...fuelCanopyObstacles(ORIGIN), ...landmarkObstacles, ...streetObstacles, ...railingObstacles, ...detailPostObstacles(ORIGIN)];
+const clear = (x,z,r=.5,obstacles=OBSTACLES) => !obstacles.some(o=>o.footprint?footprintDistance(x,z,o.footprint,o.holes)<r:Math.hypot(x-o.x,z-o.z)<Math.hypot(o.w,o.d)/2+r);
+const safeNear = (x,z,obstacles=OBSTACLES) => {x=Math.max(MAP.minX+2,Math.min(MAP.maxX-2,x));z=Math.max(MAP.minZ+2,Math.min(MAP.maxZ-2,z));const road=nearestRoad(x,z); if(clear(road.x,road.z,.5,obstacles))return {x:road.x,z:road.z}; for(let radius=4;radius<60;radius+=4)for(let i=0;i<16;i++){const p=nearestRoad(x+Math.cos(i*Math.PI/8)*radius,z+Math.sin(i*Math.PI/8)*radius);if(clear(p.x,p.z,.5,obstacles)&&p.x>MAP.minX+.5&&p.x<MAP.maxX-.5&&p.z>MAP.minZ+.5&&p.z<MAP.maxZ-.5)return {x:p.x,z:p.z};} return {x:START.x,z:START.z}; };
+const fleet = [];
+const smallProps = legacyProps.slice(8);
+const forceSpawn = safeNear(START.x, START.z, [...cityObstacles, ...smallProps]);
+const protectedPoints = [START, EXTRACTION, forceSpawn, ...SPAWNS];
+// Several legacy covers snapped onto the same distant road point. Place the
+// fleet in clear space near deployment, with room for the full original hull.
+for (const [index, asset] of FORCE_VEHICLE_BOUNDS.entries()) {
+  const r = Math.hypot(asset.w, asset.d) / 2 + .5;
+  let spot;
+  for (let radius = 12 + index; radius <= 100 && !spot; radius += 5) {
+    for (let step = 0; step < 32; step++) {
+      const angle = (step + index * 4) * Math.PI / 16;
+      const x = forceSpawn.x + Math.sin(angle) * radius, z = forceSpawn.z - Math.cos(angle) * radius;
+      if (x < MAP.minX+r || x > MAP.maxX-r || z < MAP.minZ+r || z > MAP.maxZ-r) continue;
+      if (protectedPoints.some(p=>Math.hypot(x-p.x,z-p.z)<r+3)) continue;
+      if ([...cityObstacles,...smallProps,...fleet].some(o => o.footprint
+        ? footprintDistance(x,z,o.footprint,o.holes) < r
+        : Math.hypot(x-o.x,z-o.z) < r+Math.hypot(o.w,o.d)/2)) continue;
+      spot = {x,z}; break;
+    }
+  }
+  if (!spot) throw new Error(`No clear deployment space for ${asset.id}`);
+  fleet.push({...spot,sx:0,sz:0,forceVehicle:asset.id,w:asset.w,d:asset.d,h:asset.h+.03,rot:0});
+}
+export const props = [...fleet,...smallProps];
+export const OBSTACLES = Object.freeze([...cityObstacles,...props]);
 // Ten operation maps are sectors of the one detailed, streamed Tirana world.
 const sector = (id,name,worldX,worldZ) => {const start=safeNear(worldX-ORIGIN.x,worldZ-ORIGIN.z),extraction=safeNear(start.x+18,start.z-42);return Object.freeze({id,name,start:Object.freeze(start),extraction:Object.freeze(extraction)});};
 export const BATTLEFIELD_MAPS = Object.freeze([

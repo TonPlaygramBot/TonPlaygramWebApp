@@ -50,3 +50,16 @@ export function forceCharacterFor(npc) {
   return explicit?.category === 'person' ? explicit
     : FORCE_ASSET_BY_ID.get(npc.kind === 'police' ? 'patrol_officer' : 'army_soldier');
 }
+
+// Metre bounds measured from the unmodified GLBs after +X-to-+Z orientation.
+// Rounded outwards so collision cover contains the complete original mesh.
+export const FORCE_VEHICLE_BOUNDS = Object.freeze([
+  ['patrol_hatch', 1.827, 4.189, 1.933],
+  ['patrol_sedan', 1.984, 4.426, 1.925],
+  ['shqiponja_compact', 1.827, 4.189, 1.933],
+  ['police_van', 2.467, 7.018, 2.822],
+  ['fnsh_armored_van', 2.467, 7.018, 2.822],
+  ['renea_armored_van', 2.600, 5.043, 2.971],
+  ['traffic_bike', 1.149, 2.276, 1.543],
+  ['shqiponja_bike', 1.149, 2.276, 1.543],
+].map(([id, w, d, h]) => Object.freeze({id, w, d, h})));

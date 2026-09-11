@@ -1,3 +1,4 @@
+import { AlbanianForcesVisuals, type ForceFrame } from '../tiranastreets/AlbanianForcesVisuals';
 import * as THREE from 'three';
 import {attachEnhancements} from '../tirana-expansion/WorldEnhancements';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -48,11 +49,23 @@ export function makeCityWorld(scene:THREE.Scene,camera:THREE.PerspectiveCamera,r
   const concrete = new THREE.MeshStandardMaterial({color:0x999c91,roughness:.95});
   const metal = new THREE.MeshStandardMaterial({color:0x526457,roughness:.7,metalness:.25});
   let disposed = false;
+  const forces = webgl ? new AlbanianForcesVisuals() : undefined;
+  if (forces) scene.add(forces.group);
+  const fleet: ForceFrame = {cars: props.filter(p => p.forceVehicle).map((p, i) => ({
+    id: `battlefield-fleet-${i}`, forceVehicle: p.forceVehicle, model: 'police',
+    x: p.x, z: p.z, heading: p.rot - Math.PI, speed: 0, steering: 0,
+  })), traffic: [], units: [], npcs: []};
+  const fleetFallbacks = new Map<string, THREE.Object3D>();
   for (const p of props) {
     const car = p.sx===8 && p.sz===12 || p.sx===-9 && p.sz===-24;
     const fallback = new THREE.Mesh(new THREE.BoxGeometry(p.w,p.h,p.d),car?metal:concrete);
     fallback.position.set(p.x,p.h/2,p.z); fallback.rotation.y=p.rot;
     fallback.castShadow=true; fallback.receiveShadow=true; cover.add(fallback);
+    if (p.forceVehicle) {
+      const entry = fleet.cars.find(c => c.forceVehicle === p.forceVehicle)!;
+      fleetFallbacks.set(entry.id, fallback);
+      continue;
+    }
     if (car && webgl) new GLTFLoader().load('/assets/tirana-streets/'+(p.sx===8?'taxi':'sedan')+'.glb', gltf=>{
       if(disposed){disposeObject(gltf.scene);return;}
       const box=new THREE.Box3().setFromObject(gltf.scene),size=box.getSize(new THREE.Vector3());
@@ -65,8 +78,12 @@ export function makeCityWorld(scene:THREE.Scene,camera:THREE.PerspectiveCamera,r
     },undefined,()=>city.group.userData.assetErrors.push('parked car'));
   }
   const point = new THREE.Vector3();
-  let shadowX = Infinity, shadowZ = Infinity;
+  let shadowX = Infinity, shadowZ = Infinity, forceTime = performance.now() / 1000;
   world.update = position => {
+    const now = performance.now() / 1000;
+    forces?.update(fleet, position, now, Math.min(.05, now - forceTime), !renderer.shadowMap.enabled);
+    forceTime = now;
+    for (const [id, fallback] of fleetFallbacks) fallback.visible = !forces?.has(id);
     enhancements.update(performance.now()/1000,camera);
     point.copy(position);point.x+=ORIGIN.x;point.z+=ORIGIN.z;
     city.update(point, performance.now()/1000, !renderer.shadowMap.enabled);
@@ -80,6 +97,6 @@ export function makeCityWorld(scene:THREE.Scene,camera:THREE.PerspectiveCamera,r
   };
   world.update(new THREE.Vector3(START.x,1.68,START.z));
   const dispose = world.dispose;
-  world.dispose=()=>{disposed=true;enhancements.dispose();details.dispose();city.dispose();dispose();concrete.dispose();metal.dispose();};
+  world.dispose=()=>{disposed=true;forces?.dispose();enhancements.dispose();details.dispose();city.dispose();dispose();concrete.dispose();metal.dispose();};
   return world;
 }

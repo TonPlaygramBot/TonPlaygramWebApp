@@ -15,7 +15,7 @@ export type Building = Obstacle & {
   footprint: number[][];
   holes?: number[][][];
 };
-export type Prop = Obstacle & { sx: number; sz: number; rot: number };
+export type Prop = Obstacle & { forceVehicle?: string; sx: number; sz: number; rot: number };
 export const ORIGIN: Readonly<Vec2>;
 export const MAP: Readonly<{
   minX: number;

@@ -66,3 +66,43 @@ node --test test/tiranaAlbanianForces.test.mjs test/tiranaAlbanianForcesRuntime.
 cd webapp
 npm run build
 ```
+
+## Battlefield visibility correction
+
+The public `/games/tiranastreets` Battlefield route mounts
+`blackwater/ui.tsx` and `GameEngine`, not `CityRenderer`. The original integration
+only connected CityRenderer/Street Career; the original GLBs were deployed but
+Battlefield never requested them.
+
+- `BattlefieldForces` now adapts the actual FPS opponents to the existing original
+  GLB loader, cycling all six uniforms. Only the procedural body is hidden after
+  the GLB arrives; the gameplay parent, gun, muzzle, hitboxes, AI, death timers and
+  network ownership remain intact. Match restart clears the visual instances.
+- `makeCityWorld` mounts the eight original vehicles as parked cover. The same
+  source-metre bounds are used by the shared client/server collision layout.
+- The fleet is placed around the actual Skanderbeg sector deployment point
+  (12–19 metres away), not the older city spawn. Placement excludes buildings,
+  fixtures, other vehicles and spawn/extraction points. The previous generic
+  covers snapped several objects onto one distant road point.
+- Original GLB bytes, textures, rigs and clips are unchanged. The existing nearby
+  detail caps and distant/loading fallbacks remain. Other sectors retain the
+  uniform integration; the parked fleet is at Skanderbeg deployment.
+
+### Repeatable visual check
+
+With root and webapp dependencies installed, and Playwright Chromium available:
+
+```sh
+node test/tiranaBattlefield.browser.mjs /tmp/tirana-force-evidence
+```
+
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` can select an existing Chromium executable.
+The check mounts the actual Battlefield `Game` and `GameEngine` at 390×844,
+bypassing account/API wrappers. It freezes AI and puts one existing opponent in
+view, verifies successful original-model responses and hidden fallback geometry,
+and captures the officer and patrol vehicle. These are software WebGL checks,
+not physical-phone performance measurements. Existing distant/loading fallbacks
+can still be visible until the nearby original finishes loading.
+
+![Original officer in Battlefield](validation/tirana-forces/original-officer.png)
+![Original patrol car in Battlefield](validation/tirana-forces/original-patrol.png)
