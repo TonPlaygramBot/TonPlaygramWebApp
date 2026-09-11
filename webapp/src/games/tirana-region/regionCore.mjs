@@ -31,7 +31,7 @@ export function referenceLinks(p){
 export function buildRegionQuery(bbox=REGION_BBOX){
   if(!Array.isArray(bbox)||bbox.length!==4||!bbox.every(Number.isFinite)||bbox[0]>=bbox[2]||bbox[1]>=bbox[3]||bbox[0]<-180||bbox[2]>180||bbox[1]<-90||bbox[3]>90)throw Error('Invalid acquisition bbox');
   const [w,s,e,n]=bbox,b=`${s},${w},${n},${e}`;
-  return `[out:json][timeout:180];(way[highway](${b});way[building](${b});way[waterway](${b});way[natural=water](${b});relation[natural=water](${b});relation[landuse=reservoir](${b});relation(20772795);nwr[shop](${b});nwr[amenity](${b});nwr[office=government](${b});nwr[tourism](${b});nwr[historic](${b});way[aeroway](${b});way[natural=coastline](${b}););(._;>>;);out body;`;
+  return `[out:json][timeout:180];(way[highway](${b});way[building](${b});way["building:part"](${b});relation[building](${b});relation["building:part"](${b});way[waterway](${b});way[natural=water](${b});relation[natural=water](${b});relation[landuse=reservoir](${b});relation(20772795);nwr[shop](${b});nwr[amenity](${b});nwr[office](${b});nwr[tourism](${b});nwr[historic](${b});way[aeroway](${b});way[natural=coastline](${b}););(._;>>;);out body;`;
 }
 /** Bilinear sampling in map metres. Missing/no-data elevations stay missing.
  * sourceDatum / sceneDatum must be explicit; never flatten a failed DEM to zero. */
