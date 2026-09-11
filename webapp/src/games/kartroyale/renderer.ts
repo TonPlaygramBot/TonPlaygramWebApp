@@ -23,7 +23,7 @@ import { TiranaScenery } from './tiranaScenery';
 import { Supporters } from './supporters';
 import { prepareHuman } from './supporterHuman';
 import { RaceEffects } from './raceEffects';
-import { segmentFrame } from './trackEdges.mjs';
+import { circuitSides, segmentFrame } from './trackEdges.mjs';
 import type { FoodKind } from './foodFlight.mjs';
 export type CameraMode = 'driver' | 'chase';
 export type Quality = 'auto' | 'high' | 'performance';
@@ -364,6 +364,9 @@ export class KartRenderer {
           this.kartModels.get(kartId);
     const model = new T.Group();
     if (source) model.add(source.clone(true));
+    // Apex is authored at the old scale; imported vehicles are fitted to the
+    // same final length by vehicleAssetAdapter.
+    if (kartId === 'apex') model.scale.setScalar(3.25 / 2.7);
     model.userData.kartId = kartId;
     model.traverse((o) => {
       if (o instanceof T.Mesh) {
@@ -535,17 +538,18 @@ export class KartRenderer {
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     this.world.add(ground);
-    const positions: number[] = [],
+    const sides = circuitSides(track.points, track.width / 2),
+      positions: number[] = [],
       indices: number[] = [],
       normals: number[] = [],
       uvs: number[] = [];
     for (let i = 0; i <= 360; i++) {
-      const p = track.points[i % 360];
-      for (const side of [-1, 1]) {
+      for (const side of ['left', 'right'] as const) {
+        const p = sides[side][i % 360];
         positions.push(
-          p.x - Math.cos(p.yaw) * track.width * 0.5 * side,
+          p.x,
           0.045,
-          p.z + Math.sin(p.yaw) * track.width * 0.5 * side
+          p.z
         );
         normals.push(0, 1, 0);
         const n = positions.length;
@@ -577,13 +581,17 @@ export class KartRenderer {
     road.receiveShadow = true;
     this.world.add(road);
     const edges = Array.from({ length: 360 }, (_, i) => {
-        const p = track.points[i],
-          q = track.points[(i + 1) % 360],
-          edge = segmentFrame(p, q, track.width / 2);
+        const p = track.points[i], q = track.points[(i + 1) % 360],
+          centerEdge = segmentFrame(p, q, track.width / 2),
+          sideEdges = [-1, 1].map((side) => {
+            const key = side < 0 ? 'left' : 'right';
+            return segmentFrame(sides[key][i], sides[key][(i + 1) % 360], 0);
+          });
         return {
           p,
-          edge,
-          tireCount: Math.max(1, Math.ceil(edge.length / 0.76))
+          edge: centerEdge,
+          sideEdges,
+          tireCount: Math.max(1, Math.ceil(Math.max(...sideEdges.map((e) => e.length)) / 0.76))
         };
       }),
       tireBaseCount = edges.reduce((sum, edge) => sum + edge.tireCount * 2, 0),
@@ -612,12 +620,12 @@ export class KartRenderer {
       );
     let tireAt = 0;
     for (let i = 0; i < 360; i++) {
-      const { p, edge, tireCount } = edges[i];
+      const { p, edge, sideEdges, tireCount } = edges[i];
       [-1, 1].forEach((side, s) => {
-        const curbPoint = edge.side(side, -0.1);
+        const sideEdge = sideEdges[s], curbPoint = sideEdge.side(side, -0.1);
         m.position.set(curbPoint.x, 0.1, curbPoint.z);
-        m.rotation.set(0, edge.yaw, 0);
-        m.scale.set(1, 1, edge.length + 0.4);
+        m.rotation.set(0, sideEdge.yaw, 0);
+        m.scale.set(1, 1, sideEdge.length + 0.12);
         m.updateMatrix();
         curb.setMatrixAt(i * 2 + s, m.matrix);
         curb.setColorAt(
@@ -627,13 +635,13 @@ export class KartRenderer {
         for (let j = 0; j < tireCount; j++) {
           // Use the segment midpoint cells so neighbouring segments meet without
           // leaving the visible holes produced by one tyre per route sample.
-          const along = ((j + 0.5) / tireCount - 0.5) * edge.length,
-            tirePoint = edge.side(side, 0.72);
-          tirePoint.x += Math.sin(edge.yaw) * along;
-          tirePoint.z += Math.cos(edge.yaw) * along;
+          const along = ((j + 0.5) / tireCount - 0.5) * sideEdge.length,
+            tirePoint = sideEdge.side(side, 0.72);
+          tirePoint.x += sideEdge.tx * along;
+          tirePoint.z += sideEdge.tz * along;
           const n = tireAt++;
           m.position.set(tirePoint.x, 0.18, tirePoint.z);
-          m.rotation.set(Math.PI / 2, edge.yaw, 0);
+          m.rotation.set(Math.PI / 2, sideEdge.yaw, 0);
           m.scale.set(1, 1, 1);
           m.updateMatrix();
           tires.setMatrixAt(n, m.matrix);

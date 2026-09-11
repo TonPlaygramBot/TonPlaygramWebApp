@@ -38,6 +38,10 @@ test('invalid circuit coordinates remain rejected',()=>{
 });
 for(const route of TIRANA_ROUTES)test(`${route.id}: rendered sides stay exactly parallel and equidistant`,()=>{
   const track=sim.makeTrack(route.id);
+  assert.equal(track.width,20,'all rebuilt circuits use the wider event ribbon');
+  const sides=edges.circuitSides(track.points,track.width/2);
+  assert.equal(sides.left.length,track.points.length);assert.equal(sides.right.length,track.points.length);
+  for(const side of [...sides.left,...sides.right])assert.ok(Number.isFinite(side.x)&&Number.isFinite(side.z));
   for(let i=0;i<track.points.length;i++){
     const a=track.points[i],b=track.points[(i+1)%track.points.length],f=edges.segmentFrame(a,b,track.width/2),left=f.side(-1),right=f.side(1);
     assert.ok(Math.abs(Math.hypot(left.x-f.x,left.z-f.z)-track.width/2)<1e-9);
@@ -45,6 +49,11 @@ for(const route of TIRANA_ROUTES)test(`${route.id}: rendered sides stay exactly 
     assert.ok(Math.abs((right.x-left.x)*f.tx+(right.z-left.z)*f.tz)<1e-9);
     assert.ok(Math.abs((left.x+right.x)/2-f.x)<1e-9&&Math.abs((left.z+right.z)/2-f.z)<1e-9);
   }
+});
+test('joined road sides meet precisely at square corners',()=>{
+  const points=rectangle([1,1,1,1]).points,sides=edges.circuitSides(points,10);
+  assert.deepEqual(sides.left.map(p=>[Math.round(p.x),Math.round(p.z)]),[[-10,-10],[110,-10],[110,110],[-10,110]]);
+  assert.deepEqual(sides.right.map(p=>[Math.round(p.x),Math.round(p.z)]),[[10,10],[90,10],[90,90],[10,90]]);
 });
 test('nine vehicle classes expose distinct race parameters',()=>{
   assert.equal(sim.KARTS.length,9);

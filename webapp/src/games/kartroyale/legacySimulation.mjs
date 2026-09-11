@@ -72,9 +72,9 @@ export const TRACKS = [
   }
 ].map((config) => ({
   ...config,
-  // Closed-event barriers widen the playable ribbon without scaling or moving
-  // any of the source street centreline coordinates.
-  width: 16,
+  // A full five-lane event ribbon gives the larger vehicles believable room
+  // while preserving every mapped Tirana street centreline coordinate.
+  width: 20,
   sky: '#adc8d2',
   ground: '#a6a58e',
   ...TIRANA_ROUTES.find((r) => r.id === config.id)
