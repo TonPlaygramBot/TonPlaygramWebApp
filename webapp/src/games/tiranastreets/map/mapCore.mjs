@@ -73,15 +73,18 @@ export function buildMapGraph(world,mode='walk') {
   };
   if(mode==='drive' && world.graph?.nodes?.length){
     world.graph.nodes.forEach((p,i)=>node(p,String(i)));
-    for(const [a,b] of world.graph.edges) if(nodes[a]&&nodes[b])edge(a,b);
+    for(const [i,[a,b]] of world.graph.edges.entries()) if(nodes[a]&&nodes[b])edge(a,b,world.graph.directions?.[i]??0);
   } else {
     for(const r of world.roads){
       if(mode==='drive'&&r.walk||r.access==='private'||r.access==='no')continue;
+      if(mode==='walk'&&r.foot==='no'||mode==='drive'&&['no','private'].includes(r.motorVehicle))continue;
+      if(r.neighbourhood&&(r.tunnel||r.bridge||r.layer!==0))continue; // Flat gameplay cannot route through unsurveyed grades.
       if(mode==='walk'&&['motorway','motorway_link'].includes(r.highway))continue;
       // Shared node IDs, when available, join bridge approaches correctly.
       // Without them only equal stored endpoints connect: no crossing shortcuts.
-      const a=node(r.a,r.nodeA?String(r.nodeA):`${r.a[0]}:${r.a[1]}:${r.layer||0}`);
-      const b=node(r.b,r.nodeB?String(r.nodeB):`${r.b[0]}:${r.b[1]}:${r.layer||0}`);
+      const key=(id,p)=>id?(world.sourceNodeAliases?.[String(id)]??String(id)):`${p[0]}:${p[1]}:${r.layer||0}`;
+      const a=node(r.a,key(r.nodeA,r.a));
+      const b=node(r.b,key(r.nodeB,r.b));
       edge(a,b,mode==='drive'?(r.oneway===-1?-1:r.oneway===true||r.oneway===1?1:0):0);
     }
   }

@@ -1,0 +1,80 @@
+{
+  "receipts": [
+    {
+      "file": "grand.osm",
+      "url": "https://api.openstreetmap.org/api/0.6/map?bbox=19.828,41.318,19.839,41.330",
+      "bbox": [
+        19.828,
+        41.318,
+        19.839,
+        41.33
+      ],
+      "acquiredAt": "2026-09-11T10:48:35.098586+00:00",
+      "sha256": "0c7b645c8974009dc7b2b9da014efc8186568c0b3e5ef171804c85e921b351d4"
+    },
+    {
+      "file": "west-bridge.osm",
+      "url": "https://api.openstreetmap.org/api/0.6/map?bbox=19.821,41.318,19.828,41.33",
+      "bbox": [
+        19.821,
+        41.318,
+        19.828,
+        41.33
+      ],
+      "acquiredAt": "2026-09-11T10:50:25.143413+00:00",
+      "sha256": "7b3587bdb435a44591608cc89eb6a8c2be10350c6fe59cf1071528995f837e98"
+    },
+    {
+      "file": "ali-demi.osm",
+      "url": "https://api.openstreetmap.org/api/0.6/map?bbox=19.839,41.318,19.85,41.33",
+      "bbox": [
+        19.839,
+        41.318,
+        19.85,
+        41.33
+      ],
+      "acquiredAt": "2026-09-11T10:50:36.224644+00:00",
+      "sha256": "f3311994d16065391af41a0a07e4e387bcdbe03a7fe040c9301c6d2b5ed3d03b"
+    },
+    {
+      "file": "flabina.osm",
+      "url": "https://api.openstreetmap.org/api/0.6/map?bbox=19.828,41.306,19.839,41.318",
+      "bbox": [
+        19.828,
+        41.306,
+        19.839,
+        41.318
+      ],
+      "acquiredAt": "2026-09-11T10:50:47.808762+00:00",
+      "sha256": "ac6bcb79159a957a87cf646a9baf27481f03a9228574913fb9626c2ee6828530"
+    },
+    {
+      "file": "depo-ujit.osm",
+      "url": "https://api.openstreetmap.org/api/0.6/map?bbox=19.819,41.3,19.83,41.312",
+      "bbox": [
+        19.819,
+        41.3,
+        19.83,
+        41.312
+      ],
+      "acquiredAt": "2026-09-11T10:50:58.135387+00:00",
+      "sha256": "fc818e374e44589bc6fbf5f5d5fb83d6fa0cc1c8d8258baffe2cdd0018c4e97c"
+    },
+    {
+      "file": "east-south.osm",
+      "url": "https://api.openstreetmap.org/api/0.6/map?bbox=19.839,41.306,19.85,41.318",
+      "bbox": [
+        19.839,
+        41.306,
+        19.85,
+        41.318
+      ],
+      "acquiredAt": "2026-09-11T10:51:09.738397+00:00",
+      "sha256": "edf7b7db5fb7d8d7847e0e79b89592da73567741e22d3b0f0041be1535cca7f8"
+    }
+  ],
+  "sha256": "5c61e9375916a0dd00c446447d139273f7c088be38fa81fd7b6c28f9c314f77d",
+  "license": "ODbL-1.0",
+  "attribution": "\u00a9 OpenStreetMap contributors",
+  "privacy": "Usernames, contributor UIDs and changeset IDs removed; object IDs, versions and edit times retained."
+}

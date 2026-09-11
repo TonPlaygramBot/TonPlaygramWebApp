@@ -1,6 +1,7 @@
 import {memo, useEffect, useMemo, useRef, useState} from 'react';
 import type {PointerEvent as PE} from 'react';
 import {WORLD} from '../shared/world.mjs';
+import {NEIGHBOURHOOD} from '../../tirana-neighbourhood/data.mjs';
 import type {State,Point} from '../shared/engine.mjs';
 import {fitView, constrainView, panView, zoomView, screenPoint, inBounds, readFavorites, writeFavorites, MAX_FAVORITES} from './mapCore.mjs';
 import './map.css';
@@ -23,18 +24,22 @@ function RegionalReferences({scale}:{scale:number}) {
 }
 function storage() { try {return window.localStorage;} catch {return undefined;} }
 const path = (points:number[][]) => points.length ? `M${points.map(p=>p.join(',')).join('L')}Z` : '';
+const ringDirection=(p:number[][],positive:boolean)=>{
+ const area=p.reduce((s,a,i)=>{const b=p[(i+1)%p.length];return s+a[0]*b[1]-b[0]*a[1];},0);
+ return (area>0)===positive?p:[...p].reverse();
+};
 const Geometry = memo(function Geometry() {
   const paths=useMemo(()=>({
-    buildings:WORLD.buildings.map(b=>path(b.p)).join(''),
+    buildings:WORLD.buildings.map(b=>path(ringDirection(b.p,true))+(b.holes??[]).map(h=>path(ringDirection(h,false))).join('')).join(''),
     parks:WORLD.parks.map(p=>path(p)).join(''),
     areas:WORLD.areas.map(p=>path(p)).join(''),
-    water:WORLD.water.filter(p=>Array.isArray(p)).map(p=>path(p as number[][])).join(''),
+    water:WORLD.water.filter(p=>Array.isArray(p)).map(p=>path(p as number[][])).join('')+NEIGHBOURHOOD.water.flatMap(w=>w.polygons??[]).map(p=>path(p.outer)+p.holes.map(path).join('')).join(''),
     roads:WORLD.roads.reduce((out,r)=>{const key=`${r.walk?'walk':'road'}:${r.w}`;out[key]=(out[key]||'')+`M${r.a.join(',')}L${r.b.join(',')}`;return out;},{} as Record<string,string>)
   }),[]);
   return <g aria-hidden="true"><path d={paths.parks} fill="#274b3d" fillRule="evenodd"/><path d={paths.areas} fill="#455351"/>
     <path d={paths.water} fill="#246c84" fillRule="evenodd"/>
     {WORLD.water.filter(p=>!Array.isArray(p)).map((p:any,i)=><polyline key={i} points={p.line.map((a:number[])=>a.join(',')).join(' ')} fill="none" stroke="#246c84" strokeWidth={p.width}/>)}
-    <path d={paths.buildings} fill="#465d66" stroke="#677b82" strokeWidth=".5"/>
+    <path d={paths.buildings} fill="#465d66" fillRule="nonzero" stroke="#677b82" strokeWidth=".5"/>
     {Object.entries(paths.roads).map(([key,d])=><path key={key} d={d} fill="none" stroke={key.startsWith('walk')?'#78958a':'#bbc3b5'} strokeWidth={Number(key.split(':')[1])} strokeLinecap="round"/>)}</g>;
 });
 function Markers({player,state,route,scale,destination}:Props & {scale:number}) {
@@ -74,6 +79,8 @@ function ExplorerMap(props:Props) {
     for(const ref of Object.values(REFERENCES))list.push({id:ref.id,name:ref.name,...project(WORLD.origin,ref.latitude,ref.longitude),available:false});
     for(const site of civicSites(WORLD))if(!list.some(p=>p.name===site.name))list.push({id:site.id,name:site.name,x:site.x,z:site.z});
     for(const b of WORLD.buildings)if(b.name?.trim()&&!list.some(p=>p.name===b.name))list.push({id:`building:${b.id}`,name:b.name,x:b.p.reduce((s,p)=>s+p[0],0)/b.p.length,z:b.p.reduce((s,p)=>s+p[1],0)/b.p.length});
+    const ids=new Set(list.map(p=>p.id));
+    for(const p of NEIGHBOURHOOD.places)if(p.name?.trim()&&!ids.has(p.id)){list.push({id:p.id,name:p.name,x:p.point[0],z:p.point[1]});ids.add(p.id);}
     return list;
   },[]);
   const normalized=(s:string)=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
@@ -106,7 +113,7 @@ function ExplorerMap(props:Props) {
   const fit=(bounds:readonly number[])=>{pointers.current.clear();gesture.current=null;change(fitView(bounds,view.w/view.h));};
   return <div className="ts-explorer-map">
     <div className="ts-map-search"><input type="search" value={query} maxLength={80} placeholder="Search places or favourites" aria-label="Search Tirana places" onChange={e=>setQuery(e.target.value)}/></div>
-    <div className="ts-map-tabs" role="group" aria-label="Map extent"><button onClick={()=>fit(WORLD.bounds)}>Tirana centre</button><button onClick={()=>fit(ATLAS_BOUNDS)}>Tirana + Dajti</button></div>
+    <div className="ts-map-tabs" role="group" aria-label="Map extent"><button onClick={()=>fit(WORLD.bounds)}>Tirana + Ali Demi</button><button onClick={()=>fit(ATLAS_BOUNDS)}>Tirana + Dajti</button></div>
     <div className="ts-map-viewport">
       <svg ref={svg} viewBox={`${view.x} ${view.z} ${view.w} ${view.h}`} preserveAspectRatio="none" role="application" aria-label="Interactive Tirana map. Drag to pan, pinch or use plus and minus to zoom. Tap to drop a pin." tabIndex={0}
         onPointerDown={down} onPointerMove={move} onPointerUp={e=>up(e)} onPointerCancel={e=>up(e,true)} onLostPointerCapture={e=>up(e,true)}

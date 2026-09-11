@@ -1,0 +1,145 @@
+{
+  "blender": "4.2.9 LTS",
+  "models": [
+    {
+      "asset": "amavita",
+      "origin": [
+        900.275,
+        684.1229999999999
+      ],
+      "file": "amavita.glb",
+      "triangles": 2076,
+      "bytes": 150052,
+      "sha256": "77cc8799cc9d9ef0939fd0db81438e10924e08b46a570bb5b8465b7c506ddaf7"
+    },
+    {
+      "asset": "grand",
+      "origin": [
+        1471.9580392156865,
+        443.6746078431372
+      ],
+      "file": "grand.glb",
+      "triangles": 36452,
+      "bytes": 2488252,
+      "sha256": "f85fc034f1445366bfa114185851da5932fb472439455a026b4132a399bfe9a9"
+    },
+    {
+      "asset": "britaniku",
+      "origin": [
+        1184.639777777778,
+        225.6266666666667
+      ],
+      "file": "britaniku.glb",
+      "triangles": 16556,
+      "bytes": 1161472,
+      "sha256": "6417aa8813a62e03bda818a1a690fbbcc7ff3ba7fd68a872843ac175048f8f43"
+    },
+    {
+      "asset": "njesia-2",
+      "origin": [
+        959.7819999999999,
+        181.98399999999998
+      ],
+      "file": "njesia-2.glb",
+      "triangles": 5068,
+      "bytes": 359240,
+      "sha256": "dae85d8394de787e44c0f5b87b87eee788bba2ba73a6b84129530ec7a173f00c"
+    },
+    {
+      "asset": "market",
+      "origin": [
+        -700,
+        0
+      ],
+      "file": "market.glb",
+      "triangles": 552,
+      "bytes": 45488,
+      "sha256": "6afc32b4be7ad51f7e2c1d3b56b0c4c68bca30118c713fa1ad8a3b392dcef032"
+    },
+    {
+      "asset": "pharmacy",
+      "origin": [
+        -700,
+        8
+      ],
+      "file": "pharmacy.glb",
+      "triangles": 432,
+      "bytes": 36928,
+      "sha256": "f5a7972f3a64bb390c812e32fc5f0dc0e224ff304783740cf57d328b37255027"
+    },
+    {
+      "asset": "barber",
+      "origin": [
+        -700,
+        16
+      ],
+      "file": "barber.glb",
+      "triangles": 624,
+      "bytes": 44956,
+      "sha256": "7327d12c7c2db20ffc932e3fcd7eb070c288220ebfd919c6ede9b50a0cc481f1"
+    },
+    {
+      "asset": "produce",
+      "origin": [
+        -700,
+        24
+      ],
+      "file": "produce.glb",
+      "triangles": 1512,
+      "bytes": 105052,
+      "sha256": "6e20b8f3c7a2e08c2d7fc3c1bb7d373f8018222881815322b569e324ef092368"
+    },
+    {
+      "asset": "cafe",
+      "origin": [
+        -700,
+        32
+      ],
+      "file": "cafe.glb",
+      "triangles": 168,
+      "bytes": 18148,
+      "sha256": "f9b2d7c590a78e23fded056ae76522ca5d477fb1ff93ac03d3e380b9f8d74a3b"
+    },
+    {
+      "asset": "civic",
+      "origin": [
+        -700,
+        40
+      ],
+      "file": "civic.glb",
+      "triangles": 336,
+      "bytes": 36420,
+      "sha256": "9ec979567eb4b28d5f729356e331d8488232b43d5de3fa99c38e72d1f458a7d3"
+    },
+    {
+      "asset": "clinic",
+      "origin": [
+        -700,
+        48
+      ],
+      "file": "clinic.glb",
+      "triangles": 144,
+      "bytes": 16492,
+      "sha256": "abd0948ea6bc5a90fcc332026164639fef2b98dc62c855f6b4d4d033d38c5fce"
+    }
+  ],
+  "geometryLicense": "CC0-1.0 for original detailing; OSM-derived footprints ODbL-1.0",
+  "materials": "Poly Haven plastered_wall_02 CC0; other surfaces authored PBR colors",
+  "textures": [
+    {
+      "file": "textures/00e7859ea95f80fc04d6.jpg",
+      "bytes": 117115,
+      "sha256": "00e7859ea95f80fc04d6967560bb00028f003727d3f356904f8dc3cc5429d615"
+    },
+    {
+      "file": "textures/5bfa573f0f5043eaea64.jpg",
+      "bytes": 14053,
+      "sha256": "5bfa573f0f5043eaea640f1ed1ed12402d5f6dde8516aecf09bc7a095b9fbf9b"
+    },
+    {
+      "file": "textures/5bfcaef476f2fdfbfc02.jpg",
+      "bytes": 478568,
+      "sha256": "5bfcaef476f2fdfbfc02143a732698c18043a153803aface26b6fbbc7c9cb391"
+    }
+  ]
+}

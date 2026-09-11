@@ -68,10 +68,11 @@ export const buildings = collisionBuildings.filter(b=>!innerMembers.has(b.id)).m
     rot,
     template: i % 10,
     footprint,
-    holes: (catalogBuildings.get(b.id)?.holes??[]).map(r=>r.map(p=>[p[0]-ORIGIN.x,p[1]-ORIGIN.z])),
+    holes: (b.holes??catalogBuildings.get(b.id)?.holes??[]).map(r=>r.map(p=>[p[0]-ORIGIN.x,p[1]-ORIGIN.z])),
     w: Math.max(...xs) - Math.min(...xs),
     d: Math.max(...zs) - Math.min(...zs),
-    h: buildingProfile(b).height ?? b.h
+    h: buildingProfile(b).height ?? b.h,
+    minY:b.minHeight??0
   };
 });
 // Begin in the renovated pedestrian square, with the city's landmarks visible.

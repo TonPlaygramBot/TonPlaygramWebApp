@@ -7,6 +7,7 @@ import {CITY_PLACES} from './registry.mjs';
 import {RiniaFountain} from './RiniaFountain';
 import {LANDMARK_CATALOG} from './landmarkCatalog.mjs';
 import {LANDMARK_DATA} from './allLandmarks.mjs';
+import {WORLD} from '../tiranastreets/shared/world.mjs';
 import './landmarkExplorer.css';
 
 const EMPTY_PHOTOS:Record<string,string>={};
@@ -19,7 +20,7 @@ export default function LandmarkExplorer({photos=EMPTY_PHOTOS}:{photos?:Record<s
  const selection=useRef(selected),labelId=useId();
  const site=LANDMARK_CATALOG[selected];
  const buildings=LANDMARK_DATA.buildings.filter(b=>b.site===selected);
- const inCity=buildings.every(b=>b.p.every(([x,z])=>x>=-805&&x<=660&&z>=-380&&z<=1150));
+ const inCity=buildings.every(b=>b.p.every(([x,z])=>x>=WORLD.bounds[0]&&x<=WORLD.bounds[2]&&z>=WORLD.bounds[1]&&z<=WORLD.bounds[3]));
  useEffect(()=>{
   if(!host.current)return;
   const mount=host.current;
