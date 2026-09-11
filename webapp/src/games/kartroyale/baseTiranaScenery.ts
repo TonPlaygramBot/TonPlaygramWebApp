@@ -66,6 +66,13 @@ export class TiranaScenery {
   group = new T.Group();
   private chunks: { group: T.Group; x: number; z: number }[] = [];
   constructor(track: Track) {
+    this.group.name = 'Tirana Streets shared city map';
+    this.group.userData = {
+      source: WORLD.source,
+      attribution: WORLD.attribution,
+      buildings: WORLD.buildings.length,
+      roads: WORLD.roads.length
+    };
     const b = track.bounds,
       near = (x: number, z: number) =>
         x > b[0] - 200 && x < b[2] + 200 && z > b[1] - 200 && z < b[3] + 200;

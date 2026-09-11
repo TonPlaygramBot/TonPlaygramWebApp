@@ -14,6 +14,7 @@ import {
   aiInput
 } from '../webapp/src/games/kartroyale/simulation.mjs';
 import { MILITARY_VEHICLES } from '../webapp/src/games/kartroyale/militaryVehicleCatalog.mjs';
+import { VEHICLE_COLLECTION } from '../webapp/src/games/tiranastreets/shared/vehicleCollection.mjs';
 import {
   vehicleAssetUrl,
   normaliseVehicleDimensions,
@@ -33,7 +34,7 @@ function glb(url) {
   );
   return j;
 }
-test('four requested vehicles extend the original five without changing old IDs', () => {
+test('military and Tirana Streets vehicles extend the original fleet without changing old IDs', () => {
   assert.deepEqual(
     KARTS.slice(0, 5).map((k) => k.id),
     ['apex', 'oobi', 'oodi', 'ooli', 'oopi']
@@ -42,7 +43,16 @@ test('four requested vehicles extend the original five without changing old IDs'
     MILITARY_VEHICLES.map((k) => k.id),
     ['shota', 'brabus-g', 'defender', 'brabus-s65']
   );
-  assert.equal(new Set(KARTS.map((k) => k.id)).size, 11);
+  assert.equal(new Set(KARTS.map((k) => k.id)).size, KARTS.length);
+  assert.deepEqual(
+    VEHICLE_COLLECTION.map((vehicle) => vehicle.id),
+    KARTS.slice(6, 6 + VEHICLE_COLLECTION.length).map((vehicle) => vehicle.id)
+  );
+  for (const vehicle of VEHICLE_COLLECTION) {
+    assert.equal(vehicleAssetUrl(vehicle.id), vehicle.url);
+    assert.equal(vehicleAssetUrl(vehicle.id, true), vehicle.url);
+    assert.equal(normalizeKart(vehicle.id), vehicle.id);
+  }
   for (const v of MILITARY_VEHICLES) {
     assert.equal(normalizeKart(v.id), v.id);
     const r = equipKart(createRacer(makeTrack(), 'p', 'Player'), v.id);
