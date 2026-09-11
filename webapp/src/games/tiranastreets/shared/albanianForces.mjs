@@ -17,7 +17,7 @@ export const FORCE_ASSETS = Object.freeze([
   ['renea_officer', 'Operatori RENEA', 'person', 0],
   ['army_soldier', 'Ushtari', 'person', 0],
 ].map(([id, label, category, wheelRadius]) => Object.freeze({
-  id, label, category, wheelRadius, url: `${BASE}glb/${id}.glb`,
+  id, label, category, wheelRadius, url: `${BASE}glb/${id}.glb?v=original-v2`,
 })));
 export const FORCE_ASSET_BY_ID = new Map(FORCE_ASSETS.map(a => [a.id, a]));
 const PATROL = [

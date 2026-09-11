@@ -1,38 +1,40 @@
 # Albanian Forces in Tirana Streets
 
-Runtime derivatives of the user-supplied **Albanian-Forces-Asset-Pack.zip**,
+Original runtime assets from the user-supplied **Albanian-Forces-Asset-Pack.zip**,
 revision 2: eight vehicles and six uniformed characters.
 
-`glb/` contains self-contained PBR models. `thumbnails/` contains the supplied
-renders. `manifest.json` records the shipped hashes, sizes and triangle counts,
-plus original hashes and counts. `PACK-README.md` is the original pack README;
-its Blender/rebuild folders are available in the original ZIP, not this runtime
-directory. This directory is not the full editable authoring pack.
+`glb/` contains all 14 self-contained PBR models, copied byte-for-byte from the
+ZIP. `thumbnails/` contains all 14 supplied thumbnails, also unchanged.
+`manifest.json` records shipped and original SHA-256 hashes, sizes and triangle
+counts; each shipped value matches its source. `PACK-README.md` is the original
+pack README. Editable Blender scenes and rebuild sources remain in the original
+ZIP; they are not required by the game and are not served in this runtime folder.
 
-The game derivatives retain the pack's metre scale, wheel/steering pivots,
-materials, skins, joints and Idle/Walk clips. Geometry was simplified with the
-existing `optimize-tirana-glb.mjs` pipeline (locked boundaries). Textures larger
-than 1024 pixels were resized, preserving their channels. All 14 exports passed
-Khronos glTF Validator with zero errors after these changes.
+No geometry simplification, texture resizing, recompression, material replacement,
+or rig/animation conversion is applied. Embedded textures, metre scale,
+wheel/steering pivots, skins, joints and Idle/Walk clips remain intact.
+The runtime URLs use `?v=original-v2` to avoid cached reduced models.
 
-Total: 668,883 triangles and 48,161,160 bytes, down from 1,524,661 triangles and
-73,560,264 bytes. These are the shipped source totals, not per-frame draw counts.
-The game streams at most two files concurrently and displays up to three nearby
-vehicles plus three nearby officers (two of each in battery mode). Existing game
-actors provide loading, failure and distant fallbacks. Templates share geometry
-and textures; character instances have independent skeletons.
+Total: 1,524,661 triangles and 73,560,264 bytes across the 14 GLBs. These are pack
+totals, not per-frame draw counts. Full-detail assets cost more GPU memory and
+bandwidth than the previous reduced manifest. The game streams at most two
+files concurrently and displays up to three nearby vehicles plus three nearby
+officers (two of each in battery mode). Existing game actors provide loading,
+failure and distant fallbacks. Templates share geometry and textures; character
+instances have independent skeletons. Physical-phone performance is not verified.
 
 ## Credits and licenses
 
 Keep [ATTRIBUTION.md](ATTRIBUTION.md), [REFERENCES.md](REFERENCES.md) and all
-upstream notices in `notices/` with these derivatives. Licenses are mixed:
+upstream notices in `notices/` with these assets. Licenses are mixed:
 CC0, CC BY, CC BY-SA and Apache 2.0, as documented per source. Vehicle derivatives
-retain the applicable ShareAlike terms. Geometry simplification and texture
-resizing do not change those terms. The game's asset-credits panel links to the
-attribution document.
+retain the applicable ShareAlike terms. The game's asset-credits panel links to
+the attribution document.
 
-To reproduce, install the webapp's locked dependencies and run from the repo root:
+To reproduce, run from the repo root with Python (no npm install required):
 
 ```sh
 python webapp/scripts/import-albanian-forces.py /path/to/Albanian-Forces-Asset-Pack.zip
 ```
+
+The importer deliberately does not invoke either optimization script.

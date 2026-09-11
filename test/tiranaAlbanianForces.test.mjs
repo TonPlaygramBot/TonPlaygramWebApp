@@ -22,6 +22,13 @@ test('all 14 force assets are self-contained GLBs with intact rigs and pivots', 
     const entry = manifest.find(m => m.id === a.id);
     assert.equal(entry.file, a.url);
     assert.equal(entry.bytes, b.length);
+    assert.equal(entry.bytes, entry.sourceBytes, `${a.id}: keep the original file size`);
+    assert.equal(entry.sha256, entry.sourceSha256, `${a.id}: no lossy asset processing`);
+    assert.equal(entry.triangles, entry.sourceTriangles, `${a.id}: no mesh simplification`);
+    assert.equal(entry.quality, 'original');
+    assert.equal(entry.maxTextureSize, undefined, `${a.id}: no texture cap`);
+    assert.equal(doc.asset.extras?.tiranaTextureMaxSize, undefined);
+    assert.equal(doc.asset.extras?.tiranaGeometry, undefined);
     assert.equal(entry.sha256, createHash('sha256').update(b).digest('hex'));
     if (a.category === 'person') {
       assert.deepEqual(doc.animations.map(a => a.name).sort(), ['Idle', 'Walk']);

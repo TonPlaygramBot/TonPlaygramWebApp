@@ -34,18 +34,32 @@ Running reuses Walk at a faster rate. This change adds no new drivable-vehicle
 ownership or character-selection flow. Vehicles retain their physical metre
 scale; no browser or phone frame-rate claim is made.
 
+## Original-quality asset restoration
+
+The repository previously tracked the loader, credits and reduced manifest but
+not the GLB or thumbnail files. All 14 original GLBs and 14 thumbnails are now
+committed from the supplied ZIP. Each GLB matches its source SHA-256 and byte
+count. The importer now copies originals without mesh simplification or texture
+resizing; the manifest retains the original triangle counts. Cache-versioned
+model URLs prevent reuse of an older reduced model.
+
+The full pack is 73,560,264 bytes and 1,524,661 triangles, with embedded PBR
+textures, skeletons, pivots and clips unchanged. Existing distance/count limits,
+loading fallbacks, wanted-level dispatch and Street Career integration remain.
+Full-detail assets have higher bandwidth and GPU-memory costs; physical-phone
+performance has not been measured. Blender authoring scenes and rebuild sources
+remain in the supplied ZIP, outside the browser runtime.
+
 ## Verification
 
 - Full webapp production build passed.
-- The new visual module passed focused strict TypeScript checking.
-- All 14 optimized GLBs passed Khronos glTF Validator with zero errors.
-- Seven new tests passed: pack hashes/rigs/pivots, full dispatch coverage, actual
-  simulation snapshots, legacy roles, real vehicle loading/orientation/wheels,
-  independent animated officer skeletons, and failed/late-load cleanup.
-- The existing City Life + Street Career suites report 40 passes and two failures
-  on both the modified tree and the original `b080689` main source: stale traffic
-  count (`23` expected, `31` actual), and a source-text online-guard assertion.
-- Browser/phone visual testing was unavailable in this session.
+- All 14 GLBs and thumbnails in both source and production output match the
+  uploaded ZIP byte-for-byte.
+- Seven integration tests pass, covering pack hashes/rigs/pivots, all dispatch
+  roles, simulation snapshots, legacy roles, real vehicle loading/orientation/
+  wheels, independent animated officer skeletons, and failed/late-load cleanup.
+- Headless runtime tests stub image decoding; they do not establish browser
+  pixel output or phone frame rate.
 
 ```sh
 node --test test/tiranaAlbanianForces.test.mjs test/tiranaAlbanianForcesRuntime.test.mjs
