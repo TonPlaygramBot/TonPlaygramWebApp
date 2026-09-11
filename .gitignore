@@ -64,3 +64,6 @@ webapp/public/assets/tirana-streets/imported/*.glb
 webapp/public/assets/tirana-streets/imported/*.gltf
 webapp/public/assets/tirana-streets/imported/*.tmp
 webapp/public/assets/tirana-streets/imported/draco/
+
+# Keep verified Quaternius originals: their host rejects Render downloads (403).
+!webapp/public/assets/tirana-streets/imported/poly*Attack.glb
