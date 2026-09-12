@@ -1,0 +1,2374 @@
+{
+  "source": {
+    "archiveSha256": "dca70c5d585b90c6c042b033bb4bfb001da8b297d7767b2cd927bb1875611602",
+    "acquiredAt": "2026-09-12T11:48:52.394445+00:00",
+    "origin": [
+      41.3275,
+      19.8188
+    ],
+    "license": "ODbL-1.0",
+    "attribution": "© OpenStreetMap contributors",
+    "satelliteVerified": false
+  },
+  "sourceTreeNodes": 10702,
+  "sourceRows": 68,
+  "addedTrees": 110,
+  "addedMappedTrunks": 2,
+  "addedRowSamples": 108,
+  "limitations": [
+    "Satellite services could not be accessed; no per-tree satellite verification was performed.",
+    "This is not a census of every tree in Tirana.",
+    "Row interpolation is labelled separately from mapped individual trunks.",
+    "Coordinates are never shifted to hide a road/building conflict."
+  ],
+  "omitted": [
+    {
+      "id": "node/2613776117",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4543857792",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4543857840",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4546690582",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4546692097",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4546692099",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4546692209",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4546692210",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4546692211",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4546692212",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4546692213",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4546692214",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4572948614",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4572948615",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4572948616",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4572948617",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4572948618",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4572948619",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4572948620",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4572948621",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4572948622",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4572948623",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4572948624",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4572948625",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4572948626",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4572948627",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4572948628",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4572948839",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4572948840",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4572948873",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4573018009",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4573018010",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4573018012",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4573018013",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4573018015",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4573018016",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4573018028",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4573018029",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4573018030",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4573018031",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4573018033",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4573018035",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4573018036",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4573018037",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4573018038",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4573018039",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4573018040",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4573018041",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4573038635",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4573038636",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4573038637",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4576337043",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4576337064",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4576337066",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4576337069",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4576337158",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4578210532",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4578210533",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4578210534",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4578210536",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4578210547",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4578210548",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4578210549",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4578210552",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4578210553",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4578210557",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4578210558",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4578210561",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4578210562",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4578210564",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4578210565",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4578210566",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4578210570",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4578210576",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4578210584",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4578210686",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4578210691",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4578210692",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4578210736",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4578288341",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4578288361",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4579867874",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4579868031",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4579868047",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4579868058",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4579868059",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4579868105",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4579868188",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4579868264",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4579868301",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4579868353",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4579868354",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4579868355",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4579868356",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4579868357",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4579868382",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4579868409",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4579868411",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4579868417",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4579868429",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4584040159",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4584040160",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4584040161",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4597958156",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4639509592",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4642419901",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4644404747",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4644404748",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4644570786",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4644571400",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4644571452",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4644571453",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4644571454",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4644777198",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4647392105",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4647974964",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4647974965",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4647974966",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4647974967",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4647975310",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4647975311",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4647975312",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4647975318",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4647975319",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4647975320",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4647975321",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4647975322",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4647975323",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4647975324",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4647975325",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4647975330",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4647976518",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4647976535",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4652701882",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4652702604",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4652702636",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4652702637",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4652898083",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4652898633",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4652898634",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4652898651",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4653353528",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4653353529",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4653353531",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4653353533",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4653353567",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4653353568",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4653353569",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4653353570",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4653353571",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4653419547",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4653419556",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4653419557",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4653419561",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4653419563",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4653419564",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4653420218",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4653420220",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4653420242",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4653420243",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655254352",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655254354",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655254360",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655254367",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655258646",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655258737",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655259204",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655259207",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655259208",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655547887",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655548812",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655548813",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655548816",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655548825",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655548989",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655549936",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655549937",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655549938",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655549940",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655549942",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655549943",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655549946",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655549947",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655549948",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655549960",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655549961",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655549962",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655549963",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655549964",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655549965",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655549966",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655549967",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655549970",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655549971",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655549972",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655549973",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655549974",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655549976",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655549977",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655549978",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655549980",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655550159",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655550160",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655550927",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655550928",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655550929",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655550950",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655550952",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655550959",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655550966",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655550967",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655550968",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655550969",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655550970",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655550971",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655550972",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655550973",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655550974",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655550975",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655550976",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655550977",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655550978",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655550979",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655550980",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655550981",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655550984",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655550988",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655551391",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655551392",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655551393",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655551394",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655551395",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655551396",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655758453",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655758454",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655758458",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655758459",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655760139",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655760141",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655760264",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655760273",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655760276",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4655760278",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4659446280",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4659446281",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4659446282",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4659446283",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4659446284",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4659446285",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4659446639",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4659447123",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4659447144",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4659447145",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4659447146",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4659447147",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4659466155",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4659466157",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4659466159",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4659466160",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4659466161",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4659466162",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4663046432",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4663046463",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4663046464",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4663046465",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4663046466",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4663046880",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4663046954",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4663046956",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4663046957",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4663046993",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4663131092",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4663131094",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4663131095",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4663131099",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4663131100",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4663131104",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4663131119",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4663131152",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4663131153",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4663283634",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4663283641",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4663283879",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4664867540",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4664867541",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4664903968",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4664903969",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4664903970",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4664903971",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4664904348",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4664904360",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4664924177",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4668092774",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4668092775",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4668092784",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4668094401",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4668094413",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4668094458",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4668094459",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4668094501",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4668094502",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4668094503",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4668094504",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4668094505",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4668094506",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4668094507",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4676729935",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4676729936",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4676729937",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4676729939",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4676730556",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4676775929",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4676775947",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4676776202",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4676776204",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4676776221",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4676776222",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4676776225",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4678091906",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4678091941",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4678091945",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4679916279",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4679916336",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4679916377",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4679916378",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4679916382",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4679916383",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4679916399",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4679916404",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4679916443",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4679916461",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4679916487",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4679916509",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4679916527",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4679916528",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4679916537",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4679916558",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4679916561",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/4679916593",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/5218174515",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/5218174517",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/5218174518",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/5219795921",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/5219795922",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/5336036449",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/5887951681",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/5893074247",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6178478674",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6178478675",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6178478677",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6178478678",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6178478679",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6178478680",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6178478681",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6178478682",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6178478683",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296431491",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296431532",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296431533",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296431539",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296431712",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296431713",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296431714",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296431715",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296431716",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296431717",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296431718",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296431719",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296431720",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296431721",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296431722",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296431723",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296431724",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296431725",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296431726",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296431727",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296431728",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296431729",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296431730",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296431731",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296431732",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296431733",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296566610",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296566615",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296566616",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296566617",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296566618",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296568978",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296568984",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296569219",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296569220",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296569221",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296569222",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296569228",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296569229",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296569252",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296569257",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296569258",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296569261",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296569264",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296569265",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296569266",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296569267",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296569268",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296569269",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296569270",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296569291",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296569294",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296569491",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296569499",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296569501",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296569502",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6296569503",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6326523251",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6326523252",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6333088368",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6333088369",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6333089728",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6333089729",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6333089731",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6333089742",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373576374",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373576375",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373576377",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577401",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577402",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577403",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577404",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577405",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577406",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577407",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577408",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577419",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577468",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577470",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577486",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577490",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577491",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577497",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577498",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577499",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577533",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577541",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577542",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577544",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577570",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577571",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577572",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577574",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577583",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577584",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577590",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577598",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577621",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577627",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577628",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577666",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577674",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577678",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373577679",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373611277",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373611278",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612186",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612209",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612210",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612211",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612212",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612213",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612214",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612215",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612216",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612217",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612218",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612219",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612220",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612221",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612222",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612223",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612224",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612225",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612226",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612227",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612229",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612230",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612231",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612232",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612233",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612234",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612235",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612236",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612237",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612238",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612239",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612240",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612241",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612242",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612243",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612244",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612245",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612248",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612251",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6373612253",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6970991130",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6970991131",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6970991132",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6970991133",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6970991134",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6970991135",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6970991136",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6970991137",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6970991138",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6970991139",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6970991140",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6970999296",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6970999297",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6970999298",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6970999299",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6970999300",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6971000800",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6971000801",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6971000802",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6971000803",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6971000804",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6971000805",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6971000806",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6987320509",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6987320510",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/6987320511",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/7439928711",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/7439928713",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/7439928729",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/7793571944",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/7793571945",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/7888053893",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/9282711821",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/9282711822",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/11006413583",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/11006413584",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/11006413585",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/11006413586",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/11006413587",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/13159534291",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/13159534292",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/13159534293",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/13159534294",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/13202662367",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/13202662368",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "node/13206407039",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/468350998/68",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/468350998/76",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/468350998/84",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/468350998/92",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/468350998/100",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/468350998/108",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/468350998/116",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/468350998/124",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/468350998/132",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/468350998/140",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/468350998/148",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/468350998/156",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/468350998/164",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/468350998/172",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/468350998/180",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/468350998/188",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/468350998/196",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/468350998/204",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/468350998/212",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/744872701/20",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/744872701/28",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/744872702/4",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/744872703/20",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/744872704/12",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/744872704/44",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/1553446468/44",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/1553446468/52",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/1553446468/60",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/1553446468/68",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/1553446468/76",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/1553446468/84",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/1553446468/92",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/1553446468/100",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/1553446468/108",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/1553446468/116",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/1553446469/4",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/1553446495/4",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/1553446495/12",
+      "reason": "road, building, water or coverage conflict"
+    },
+    {
+      "id": "row/1553446495/20",
+      "reason": "road, building, water or coverage conflict"
+    }
+  ]
+}

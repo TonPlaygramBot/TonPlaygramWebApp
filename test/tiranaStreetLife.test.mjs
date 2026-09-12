@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {CANOPY_TREES} from '../webapp/src/games/tirana-street-life/canopyRegistry.mjs';
 import assert from 'node:assert/strict';
 import {WORLD} from '../webapp/src/games/tiranastreets/shared/world.mjs';
 import {STREET_SOURCE} from '../webapp/src/games/tirana-street-life/streetSourceData.mjs';
@@ -41,7 +42,7 @@ test('44 bus source IDs remain separate; shelters require an explicit tag and ro
  assert.ok(STREET_SOLIDS.some(s=>s.sourceId===stop.id));
 });
 test('mapped tall trees cover both boulevard verges and square gardens without duplicate trunks',()=>{
- assert.equal(S.trees.length,929);assert.equal(MATURE_TREE_IDS.size,S.trees.length);const raw=new Map(MAPPED_TREES.map(t=>[t.id,t]));
+ assert.equal(S.trees.length,929);assert.equal(MATURE_TREE_IDS.size,CANOPY_TREES.length);assert.ok(MAPPED_TREES.every(t=>MATURE_TREE_IDS.has(t.id)));const raw=new Map(MAPPED_TREES.map(t=>[t.id,t]));
  for(const t of S.trees){assert.equal(t.x,raw.get(t.id).x);assert.equal(t.z,raw.get(t.id).z);assert.ok(t.height>=5&&t.height<=30);assert.ok(t.crown>0&&t.crown<15);assert.ok(t.dimensionsAccuracy);}
  const boulevard=S.trees.filter(t=>t.zone==='boulevard');assert.equal(boulevard.length,156);
  for(const sign of [-1,1])assert.ok(boulevard.filter(t=>sign*(t.x-(.208*t.z-12.3))>5).length>30);

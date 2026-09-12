@@ -1,0 +1,2862 @@
+{
+  "source": {
+    "archiveSha256": "dca70c5d585b90c6c042b033bb4bfb001da8b297d7767b2cd927bb1875611602",
+    "attribution": "© OpenStreetMap contributors",
+    "license": "ODbL-1.0",
+    "municipality": "https://tirana.al/pikat-e-interesit/shkolla-qender-komunitare",
+    "kindergartens": "https://tirana.al/pikat-e-interesit/kopshte",
+    "ministry": "https://arsimi.gov.al/arsimi-i-larte/lista-e-institucioneve-te-arsimit-te-larte-publik-dhe-privat/arsimi-i-larte-publik/",
+    "accuracy": "Named mapped institutions matched to existing individual building outlines. Ministry/city directories consulted for context, not a survey of elevations."
+  },
+  "mappedPlaces": 308,
+  "matchedBuildings": 397,
+  "categories": {
+    "university": 86,
+    "school": 252,
+    "kindergarten": 48,
+    "college": 11
+  },
+  "sites": [
+    {
+      "name": "Akademia e Filmit dhe Multimedias Marubi",
+      "buildingId": "283934483",
+      "category": "university",
+      "country": null,
+      "match": "source-building-id"
+    },
+    {
+      "name": "Albanian University - Fakulteti i Mjekësisë",
+      "buildingId": "318665821",
+      "category": "university",
+      "country": null,
+      "match": "source-building-id"
+    },
+    {
+      "name": "Kopështi Nr. 36 \"Kësulkuqja\"",
+      "buildingId": "318665825",
+      "category": "school",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Canadian Kindergarten",
+      "buildingId": "359190864",
+      "category": "kindergarten",
+      "country": null,
+      "match": "source-building-id"
+    },
+    {
+      "name": "Kopështi Nr. 41",
+      "buildingId": "380249694",
+      "category": "school",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Çerdhe Nr. 52 \"Cicërimat\"",
+      "buildingId": "380374989",
+      "category": "school",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Kopështi nr. 18",
+      "buildingId": "380376919",
+      "category": "school",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Çerdhja Nr.24 \"Sinët\"",
+      "buildingId": "400651227",
+      "category": "school",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Kopshti \"Emanuel\"",
+      "buildingId": "407714909",
+      "category": "school",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Akademia e Studimeve Albanologjike - ASA",
+      "buildingId": "410328914",
+      "category": "university",
+      "country": null,
+      "match": "source-building-id"
+    },
+    {
+      "name": "Rektorati i Universitetit të Tiranës",
+      "buildingId": "410328915",
+      "category": "university",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Çerdhja Nr. 47 \"Ylber\"",
+      "buildingId": "414647017",
+      "category": "school",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Kopështi Nr. 17 \"Yjet\"",
+      "buildingId": "414665216",
+      "category": "school",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Çerdhja Nr. 11 \"Fluturat\"",
+      "buildingId": "448517397",
+      "category": "school",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Kopështi Nr. 19 \"101 Dalmatët\"",
+      "buildingId": "450801701",
+      "category": "school",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Shkolla Jopublike Tirana Jonë",
+      "buildingId": "457488061",
+      "category": "school",
+      "country": null,
+      "match": "source-building-id"
+    },
+    {
+      "name": "Çerdhja Nr. 35 \"Filizat\"",
+      "buildingId": "462413216",
+      "category": "school",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Kopështi Nr. 2",
+      "buildingId": "462413218",
+      "category": "school",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Çerdhja Nr. 45 \"Yjet e Vegjël\"",
+      "buildingId": "471736106",
+      "category": "school",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Çerdhja Nr. 13 \"Mrekullia\"",
+      "buildingId": "471761463",
+      "category": "school",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Çerdhja Nr. 14",
+      "buildingId": "473159005",
+      "category": "school",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Kopështi Nr. 25/1",
+      "buildingId": "538952043",
+      "category": "school",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Mustafa Greblleshi\"",
+      "buildingId": "541896551",
+      "category": "school",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Çerdhja Nr. 54 \"Lindja e Diellit\"",
+      "buildingId": "620128512",
+      "category": "school",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Universiteti Mesdhetar i Shqipërisë",
+      "buildingId": "624739134",
+      "category": "university",
+      "country": null,
+      "match": "source-building-id"
+    },
+    {
+      "name": "Çerdhja Nr. 48",
+      "buildingId": "682536518",
+      "category": "kindergarten",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Kopësht1 Nr. 51 \"Tommy & Jerry\"",
+      "buildingId": "682536521",
+      "category": "kindergarten",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Kopshti Nils Holgersson",
+      "buildingId": "712377191",
+      "category": "school",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Kopshti Bletëzat",
+      "buildingId": "725988531",
+      "category": "kindergarten",
+      "country": null,
+      "match": "source-building-id"
+    },
+    {
+      "name": "Çerdhja Nr. 10 \"Buzëqeshja\"",
+      "buildingId": "762965484",
+      "category": "school",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Kopështi Nr. 24",
+      "buildingId": "928993272",
+      "category": "school",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Kopështi Nr. 1",
+      "buildingId": "1005873029",
+      "category": "school",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Çerdhja Nr. 56",
+      "buildingId": "1005873030",
+      "category": "school",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Çerdhja Nr. 15 \"Dielli\"",
+      "buildingId": "1005873031",
+      "category": "school",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Çerdhja Nr. 42 \"Dallëndyshet\"",
+      "buildingId": "1005891654",
+      "category": "kindergarten",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Kopështi Nr. 39 \"Fatbardh Pikaloshi\"",
+      "buildingId": "1005891657",
+      "category": "kindergarten",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Kopështi Nr. 27 \"Harry Potter\"",
+      "buildingId": "1006129211",
+      "category": "kindergarten",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Kopështi Nr. 4 \"Stinët\"",
+      "buildingId": "1006129212",
+      "category": "school",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Çerdhja Nr. 57 \"Pinoku\"",
+      "buildingId": "1006133226",
+      "category": "school",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Çerdhja Nr. 61 \"Xixëllonjat\"",
+      "buildingId": "1006243333",
+      "category": "kindergarten",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Kopështi Nr. 6 \"Bob Ndërtuesi\"",
+      "buildingId": "1006251756",
+      "category": "school",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Çerdhja Nr. 23 \"Ëngjëjt\"",
+      "buildingId": "1006286659",
+      "category": "school",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Çerdhja Nr. 59 \"Kësulkuqja\"",
+      "buildingId": "1006286661",
+      "category": "kindergarten",
+      "country": "AL",
+      "match": "source-building-id"
+    },
+    {
+      "name": "Cicerimat",
+      "buildingId": "1162764599",
+      "category": "kindergarten",
+      "country": null,
+      "match": "source-building-id"
+    },
+    {
+      "name": "Kopshtit 37",
+      "buildingId": "1192769602",
+      "category": "kindergarten",
+      "country": null,
+      "match": "source-building-id"
+    },
+    {
+      "name": "Maple Bear Canadian Kindergarten",
+      "buildingId": "1290358415",
+      "category": "school",
+      "country": null,
+      "match": "source-building-id"
+    },
+    {
+      "name": "Çerdhe Nr. 1",
+      "buildingId": "1305334994",
+      "category": "kindergarten",
+      "country": null,
+      "match": "source-building-id"
+    },
+    {
+      "name": "Kopshti dhe Çerdhja \"Winnie the Pooh\"",
+      "buildingId": "1306206051",
+      "category": "kindergarten",
+      "country": null,
+      "match": "source-building-id"
+    },
+    {
+      "name": "Shkolla Mrekullia",
+      "buildingId": "1311879718",
+      "category": "school",
+      "country": null,
+      "match": "source-building-id"
+    },
+    {
+      "name": "Universiteti Medikadent",
+      "buildingId": "229658197",
+      "category": "university",
+      "country": null,
+      "match": "unique-containing-footprint"
+    },
+    {
+      "name": "Tirana Business University",
+      "buildingId": "446590825",
+      "category": "university",
+      "country": null,
+      "match": "unique-containing-footprint"
+    },
+    {
+      "name": "Kolegji Universitar “Wisdom”",
+      "buildingId": "762702554",
+      "category": "university",
+      "country": null,
+      "match": "unique-containing-footprint"
+    },
+    {
+      "name": "Universiteti Logos",
+      "buildingId": "173988956",
+      "category": "school",
+      "country": null,
+      "match": "unique-containing-footprint"
+    },
+    {
+      "name": "Kolegji Universitar i Biznesit",
+      "buildingId": "1268266143",
+      "category": "university",
+      "country": null,
+      "match": "unique-containing-footprint"
+    },
+    {
+      "name": "Shkolla e Mesme Jo Publike \"Njuton\"",
+      "buildingId": "548719341",
+      "category": "school",
+      "country": null,
+      "match": "unique-containing-footprint"
+    },
+    {
+      "name": "Shkolla Performance",
+      "buildingId": "542673544",
+      "category": "school",
+      "country": null,
+      "match": "unique-containing-footprint"
+    },
+    {
+      "name": "Kopështi \"Bregu i Lumit\"",
+      "buildingId": "1006286662",
+      "category": "kindergarten",
+      "country": "AL",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "name": "Kopështi Nr. 11 \"Cicërimat\"",
+      "buildingId": "440680124",
+      "category": "school",
+      "country": "AL",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "name": "Kopështi Nr. 34",
+      "buildingId": "1006129210",
+      "category": "kindergarten",
+      "country": "AL",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare private \"Elitë\"",
+      "buildingId": "543118581",
+      "category": "school",
+      "country": null,
+      "match": "unique-containing-footprint"
+    },
+    {
+      "name": "Qendra Sociale Multidisplinare",
+      "buildingId": "206840699",
+      "category": "school",
+      "country": null,
+      "match": "unique-containing-footprint"
+    },
+    {
+      "name": "Çerdhja Nr. 34",
+      "buildingId": "1006133227",
+      "category": "school",
+      "country": "AL",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "name": "Çerdhja Nr. 16 \"Borëbardha\"",
+      "buildingId": "345785209",
+      "category": "school",
+      "country": "AL",
+      "match": "unique-containing-footprint"
+    },
+    {
+      "name": "Fakulteti i Arkitekturës dhe Urbanistikës",
+      "buildingId": "relation/6955902",
+      "category": "university",
+      "country": null,
+      "match": "unique-containing-footprint"
+    },
+    {
+      "name": "Kopshti dhe Çerdhja “Ishulli i Thesarit\"",
+      "buildingId": "1112905995",
+      "category": "kindergarten",
+      "country": null,
+      "match": "unique-containing-footprint"
+    },
+    {
+      "name": "Kopshti Moduli+",
+      "buildingId": "405310200",
+      "category": "kindergarten",
+      "country": null,
+      "match": "unique-containing-footprint"
+    },
+    {
+      "name": "New Generation",
+      "buildingId": "682780221",
+      "category": "school",
+      "country": null,
+      "match": "unique-containing-footprint"
+    },
+    {
+      "name": "Udha e Shkronjave",
+      "buildingId": "1210632753",
+      "category": "school",
+      "country": null,
+      "match": "unique-containing-footprint"
+    },
+    {
+      "name": "Lulet e Jetës",
+      "buildingId": "1255735894",
+      "category": "kindergarten",
+      "country": null,
+      "match": "unique-containing-footprint"
+    },
+    {
+      "name": "Kopshti 71",
+      "buildingId": "relation/17718751",
+      "category": "kindergarten",
+      "country": null,
+      "match": "unique-containing-footprint"
+    },
+    {
+      "name": "Little Dora",
+      "buildingId": "503835253",
+      "category": "kindergarten",
+      "country": null,
+      "match": "unique-containing-footprint"
+    },
+    {
+      "name": "Maarif Tirana Campus - New York Schools",
+      "buildingId": "464203114",
+      "category": "school",
+      "country": null,
+      "match": "unique-containing-footprint"
+    },
+    {
+      "name": "Kopshti Am-El",
+      "buildingId": "1106661060",
+      "category": "kindergarten",
+      "country": null,
+      "match": "unique-containing-footprint"
+    },
+    {
+      "name": "Shkolla Fillore F@ik Koni©a",
+      "buildingId": "331543897",
+      "category": "school",
+      "country": null,
+      "match": "unique-containing-footprint"
+    },
+    {
+      "name": "Shkolla e mesma “Sevasti Qiriazi”",
+      "buildingId": "relation/17718751",
+      "category": "school",
+      "country": null,
+      "match": "unique-containing-footprint"
+    },
+    {
+      "name": "Kophsti Kleis",
+      "buildingId": "712377298",
+      "category": "kindergarten",
+      "country": null,
+      "match": "unique-containing-footprint"
+    },
+    {
+      "name": "Kopshti Çufoja dhe Bubi Kaçurrel",
+      "buildingId": "443666801",
+      "category": "kindergarten",
+      "country": null,
+      "match": "unique-containing-footprint"
+    },
+    {
+      "name": "Happy Kids",
+      "buildingId": "1337785662",
+      "category": "kindergarten",
+      "country": null,
+      "match": "unique-containing-footprint"
+    },
+    {
+      "name": "Kopshti \"Lulebore\"",
+      "buildingId": "1307723688",
+      "category": "kindergarten",
+      "country": null,
+      "match": "unique-containing-footprint"
+    },
+    {
+      "name": "Kopsht & Çerdhe Gjeniu i Vogël",
+      "buildingId": "331542509",
+      "category": "kindergarten",
+      "country": null,
+      "match": "unique-containing-footprint"
+    },
+    {
+      "name": "Kopshti Buçko",
+      "buildingId": "1527888259",
+      "category": "kindergarten",
+      "country": null,
+      "match": "unique-containing-footprint"
+    },
+    {
+      "name": "Gjon Buzuku",
+      "buildingId": "539429680",
+      "category": "school",
+      "country": null,
+      "match": "unique-containing-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"E Kuqe\"",
+      "buildingId": "539393620",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Mihal Grameno\"",
+      "buildingId": "548701000",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Qyteti Studenti",
+      "buildingId": "344111044",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Qyteti Studenti",
+      "buildingId": "344111176",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Qyteti Studenti",
+      "buildingId": "344111190",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Qyteti Studenti",
+      "buildingId": "356918583",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Qyteti Studenti",
+      "buildingId": "467502149",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Qyteti Studenti",
+      "buildingId": "467502176",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Qyteti Studenti",
+      "buildingId": "469388081",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Qyteti Studenti",
+      "buildingId": "542612278",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Qyteti Studenti",
+      "buildingId": "542612279",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Qyteti Studenti",
+      "buildingId": "542612280",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Qyteti Studenti",
+      "buildingId": "542669124",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Qyteti Studenti",
+      "buildingId": "1298751542",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Medreseja e Tiranës",
+      "buildingId": "674575528",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Medreseja e Tiranës",
+      "buildingId": "674575530",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Avni Rustemi\"",
+      "buildingId": "471375335",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Avni Rustemi\"",
+      "buildingId": "471375336",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Avni Rustemi\"",
+      "buildingId": "471375340",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti Metropolitan Tirana",
+      "buildingId": "542670215",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti Metropolitan Tirana",
+      "buildingId": "542670217",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti Politeknik i Tiranës",
+      "buildingId": "387444374",
+      "category": "university",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti Politeknik i Tiranës",
+      "buildingId": "410277109",
+      "category": "university",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti Politeknik i Tiranës",
+      "buildingId": "410277110",
+      "category": "university",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti Politeknik i Tiranës",
+      "buildingId": "410277119",
+      "category": "university",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti Politeknik i Tiranës",
+      "buildingId": "410277120",
+      "category": "university",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti Politeknik i Tiranës",
+      "buildingId": "470298324",
+      "category": "university",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti Politeknik i Tiranës",
+      "buildingId": "530482865",
+      "category": "university",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Fakulteti i Gjeologjisë dhe i Minierave",
+      "buildingId": "249218070",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Fakulteti i Gjeologjisë dhe i Minierave",
+      "buildingId": "249218071",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Gjimnazi “Luan Hajdaraga”",
+      "buildingId": "1314239011",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Gjimnazi “Luan Hajdaraga”",
+      "buildingId": "1314239012",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Gjimnazi “Luan Hajdaraga”",
+      "buildingId": "1314239013",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Vatra e Dijes\"",
+      "buildingId": "1315558652",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Instituti \"Harry Fultz\"",
+      "buildingId": "318665805",
+      "category": "college",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Instituti \"Harry Fultz\"",
+      "buildingId": "318665809",
+      "category": "college",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Instituti \"Harry Fultz\"",
+      "buildingId": "318665817",
+      "category": "college",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Instituti \"Harry Fultz\"",
+      "buildingId": "318665823",
+      "category": "college",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Instituti \"Harry Fultz\"",
+      "buildingId": "318665829",
+      "category": "college",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Instituti \"Harry Fultz\"",
+      "buildingId": "318665834",
+      "category": "college",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Instituti \"Harry Fultz\"",
+      "buildingId": "472608910",
+      "category": "college",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Instituti \"Harry Fultz\"",
+      "buildingId": "472608916",
+      "category": "college",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Instituti \"Harry Fultz\"",
+      "buildingId": "472608933",
+      "category": "college",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Instituti \"Harry Fultz\"",
+      "buildingId": "622141613",
+      "category": "college",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Çerdhja Nr. 62",
+      "buildingId": "relation/8706034",
+      "category": "kindergarten",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"1 Qershori\"",
+      "buildingId": "459618749",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Turgut Ozal College",
+      "buildingId": "332168610",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Turgut Ozal College",
+      "buildingId": "460065283",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Turgut Ozal College",
+      "buildingId": "460065289",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Turgut Ozal College",
+      "buildingId": "460065291",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Turgut Ozal College",
+      "buildingId": "460065292",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Turgut Ozal College",
+      "buildingId": "460065293",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Turgut Ozal College",
+      "buildingId": "460065294",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Turgut Ozal College",
+      "buildingId": "460065295",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Turgut Ozal College",
+      "buildingId": "460065296",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Pal Engjelli\"",
+      "buildingId": "542052850",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Pal Engjelli\"",
+      "buildingId": "542052852",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "University of New York Tirana",
+      "buildingId": "462413223",
+      "category": "college",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Gjimnazi \"Eqrem Çabej\"",
+      "buildingId": "462869479",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Gjon Buzuku\"",
+      "buildingId": "539429680",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti Zoja e Këshillit të Mirë",
+      "buildingId": "relation/6955901",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti Zoja e Këshillit të Mirë",
+      "buildingId": "173614243",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti Zoja e Këshillit të Mirë",
+      "buildingId": "1175428901",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Marie Logoreci\"",
+      "buildingId": "467613396",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla e Mesme \"Petro Nini Luarasi\"",
+      "buildingId": "410005627",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla e Mesme \"Petro Nini Luarasi\"",
+      "buildingId": "410005629",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla e Mesme \"Petro Nini Luarasi\"",
+      "buildingId": "410005619",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla e Mesme \"Petro Nini Luarasi\"",
+      "buildingId": "410005632",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla e Mesme \"Petro Nini Luarasi\"",
+      "buildingId": "410005638",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla e Mesme \"Petro Nini Luarasi\"",
+      "buildingId": "470621615",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Dora D'Istria\"",
+      "buildingId": "471127192",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Pjetër Budi\"",
+      "buildingId": "255157557",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Kopështi Nr.3",
+      "buildingId": "471407796",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Fakulteti i Shkencave të Natyrës",
+      "buildingId": "318665789",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Fakulteti i Shkencave të Natyrës",
+      "buildingId": "318665794",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Fakulteti i Shkencave të Natyrës",
+      "buildingId": "382389610",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Fakulteti i Shkencave të Natyrës",
+      "buildingId": "382389740",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Fakulteti i Shkencave të Natyrës",
+      "buildingId": "382389800",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"7 Marsi\"",
+      "buildingId": "471428723",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Jeronim De Rada\"",
+      "buildingId": "471428751",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Jeronim De Rada\"",
+      "buildingId": "1222795749",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Hasan Vogli\"",
+      "buildingId": "471428763",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Kopështi Nr.8 \"Bambi\"",
+      "buildingId": "471428773",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Lidhja e Prizrenit\"",
+      "buildingId": "449528514",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Gjimnazi \"Sami Frashëri\"",
+      "buildingId": "relation/14761294",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla \"Woodrow Wilson\"",
+      "buildingId": "473807075",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla \"Woodrow Wilson\"",
+      "buildingId": "473807079",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla \"Woodrow Wilson\"",
+      "buildingId": "473807080",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla \"Woodrow Wilson\"",
+      "buildingId": "473807086",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla \"Woodrow Wilson\"",
+      "buildingId": "788681580",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla e Mesme \"Qemal Stafa\"",
+      "buildingId": "318665778",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla e Mesme \"Qemal Stafa\"",
+      "buildingId": "478273043",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla e Mesme \"Qemal Stafa\"",
+      "buildingId": "1182609285",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Dëshmorët e Lirisë\"",
+      "buildingId": "538949267",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"26 Nëntori\"",
+      "buildingId": "538965671",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Konferenca e Pezës\"",
+      "buildingId": "538973237",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Vasil Shanto\"",
+      "buildingId": "539167659",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla e Mesme \"Arben Broci\"",
+      "buildingId": "462397720",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"1 Maji\"",
+      "buildingId": "539206730",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Kushtrimi i Lirisë\"",
+      "buildingId": "539208061",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Hasan Prishtina\"",
+      "buildingId": "relation/17938120",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Hasan Prishtina\"",
+      "buildingId": "1307862335",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Gjimnazi \"Abdulla Keta\"",
+      "buildingId": "relation/7717962",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"28 Nëntori\"",
+      "buildingId": "relation/7718149",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"4 Dëshmorët\"",
+      "buildingId": "175334674",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla e Mesme \"Andon Zako Çajupi\"",
+      "buildingId": "449529538",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Ahmet Gashi\"",
+      "buildingId": "448518604",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla e Mesme \"Aleks Buda\"",
+      "buildingId": "539238050",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Ali Demi\"",
+      "buildingId": "236689120",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla e Mesme \"Asim Vokshi\"",
+      "buildingId": "457278508",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"At Zef Pllumi\"",
+      "buildingId": "459473476",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"At Zef Pllumi\"",
+      "buildingId": "459473478",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Bajram Curri\"",
+      "buildingId": "310930873",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla e Mesme \"Besnik Sykja\"",
+      "buildingId": "459604906",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla e Mesme \"Besnik Sykja\"",
+      "buildingId": "459604911",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Dhora Leka\"",
+      "buildingId": "331542786",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Edith Durham\"",
+      "buildingId": "1536979964",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Emin Duraku\"",
+      "buildingId": "56016318",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Emin Duraku\"",
+      "buildingId": "1317214596",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Emin Duraku\"",
+      "buildingId": "1317710970",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Fan S. Noli\"",
+      "buildingId": "449523920",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Gjergj Fishta\"",
+      "buildingId": "539428347",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Gustav Mayer\"",
+      "buildingId": "relation/7721123",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Gustav Mayer\"",
+      "buildingId": "539433022",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Hoxha Tahsim\"",
+      "buildingId": "471749036",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla e Mesme \"Hoteleri Turizëm\"",
+      "buildingId": "712391790",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla e Mesme \"Hoteleri Turizëm\"",
+      "buildingId": "1006116536",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Ibrahim Brahja\"",
+      "buildingId": "539446516",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Ibrahim Brahja\"",
+      "buildingId": "539446517",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Isa Boletini\"",
+      "buildingId": "539448850",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Gjimnazi \"Ismail Qemali\"",
+      "buildingId": "232534482",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla e Mesme \"Kostandin Kristoforidhi\"",
+      "buildingId": "405763925",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla e Mesme e Ndërtimit \"Karl Gega\"",
+      "buildingId": "459616370",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Kolë Jakova\"",
+      "buildingId": "539615268",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Kolë Jakova\"",
+      "buildingId": "539615272",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Kongresi i Lushnjës\"",
+      "buildingId": "relation/7723166",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Kongresi i Manastirit\"",
+      "buildingId": "539622700",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla Kombëtare Koreografike",
+      "buildingId": "443993963",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Lasgush Poradeci\"",
+      "buildingId": "1104099023",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Lasgush Poradeci\"",
+      "buildingId": "1104099024",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Luigj Gurakuqi\"",
+      "buildingId": "541871519",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Luigj Gurakuqi\"",
+      "buildingId": "541871520",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Luigj Gurakuqi\"",
+      "buildingId": "541871521",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Luigj Gurakuqi\"",
+      "buildingId": "541871522",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Mustafa Qemal Ataturk\"",
+      "buildingId": "541887465",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Misto Mame\"",
+      "buildingId": "457218940",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Murat Toptani\"",
+      "buildingId": "460056653",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Murat Toptani\"",
+      "buildingId": "524499416",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Musine Kokalari\"",
+      "buildingId": "relation/7746961",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla e Mesme \"Sandër Prosi\"",
+      "buildingId": "relation/7746967",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla e Mesme \"Myslym Keta\"",
+      "buildingId": "relation/7746974",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Naim Frashëri\"",
+      "buildingId": "541900309",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Niket Dardani\"",
+      "buildingId": "472082495",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Osman Myderizi\"",
+      "buildingId": "344184653",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla e Mesme \"Partizani\"",
+      "buildingId": "177437136",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Qazim Turdiu\"",
+      "buildingId": "1006283493",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Qazim Turdiu\"",
+      "buildingId": "1115270343",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Ramazan Jarani\"",
+      "buildingId": "380237705",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Sabaudin Gabrani\"",
+      "buildingId": "542075914",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Shyqyri Peza\"",
+      "buildingId": "542077711",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla e Mesme \"Sinan Tafaj\"",
+      "buildingId": "405907497",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla e Mesme \"Sinan Tafaj\"",
+      "buildingId": "542079262",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Siri Kodra\"",
+      "buildingId": "471736068",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Skënder Çaçi\"",
+      "buildingId": "457219537",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Skënder Çaçi\"",
+      "buildingId": "542080741",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Skënder Luarasi\"",
+      "buildingId": "542081669",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Xhezmi Delli\"",
+      "buildingId": "relation/7749934",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Instituti nxënësit që nuk dëgjojnë 2",
+      "buildingId": "452042068",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Instituti i Nxënësve që nuk Dëgjojnë 1",
+      "buildingId": "542242820",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Ardian Klosi\"",
+      "buildingId": "1266348765",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Kopësht Nr. 34",
+      "buildingId": "1266348767",
+      "category": "kindergarten",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Betim Muco\"",
+      "buildingId": "1006129202",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Betim Muco\"",
+      "buildingId": "1006129203",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Betim Muco\"",
+      "buildingId": "1006129204",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti i Mjekësisë",
+      "buildingId": "457216793",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla Teknike Elektrike \"Gjergj Canco\"",
+      "buildingId": "1116965579",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Servete Maçi\"",
+      "buildingId": "731114346",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Kolegji Turgut Ozal",
+      "buildingId": "729982410",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Kolegji Turgut Ozal",
+      "buildingId": "1162622691",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Kolegji Turgut Ozal",
+      "buildingId": "1162622692",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Kolegji Mehmet Akif",
+      "buildingId": "1238664909",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 12-Vjeçare jopublike \"Nobel\"",
+      "buildingId": "748648324",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 12-Vjeçare jopublike \"Nobel\"",
+      "buildingId": "748648325",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 12-Vjeçare jopublike \"Nobel\"",
+      "buildingId": "748648326",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Kolegji Saadi",
+      "buildingId": "1162622681",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Kolegji Saadi",
+      "buildingId": "1162622683",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti Bujqësor i Tiranës",
+      "buildingId": "454111147",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti Bujqësor i Tiranës",
+      "buildingId": "454112062",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti Bujqësor i Tiranës",
+      "buildingId": "454112063",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti Bujqësor i Tiranës",
+      "buildingId": "454112193",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti Bujqësor i Tiranës",
+      "buildingId": "454113216",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti Bujqësor i Tiranës",
+      "buildingId": "463102794",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti Bujqësor i Tiranës",
+      "buildingId": "463102796",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti Bujqësor i Tiranës",
+      "buildingId": "463102798",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti Bujqësor i Tiranës",
+      "buildingId": "463102800",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti Bujqësor i Tiranës",
+      "buildingId": "463102802",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti Bujqësor i Tiranës",
+      "buildingId": "463102805",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti Bujqësor i Tiranës",
+      "buildingId": "463102806",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti Bujqësor i Tiranës",
+      "buildingId": "1122447510",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti Bujqësor i Tiranës",
+      "buildingId": "1122447511",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti Bujqësor i Tiranës",
+      "buildingId": "1122447512",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti Bujqësor i Tiranës",
+      "buildingId": "1174636156",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti Bujqësor i Tiranës",
+      "buildingId": "1174636157",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Kosova\"",
+      "buildingId": "562091538",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Nënë Tereza\" dhe Gjimnazi \"John F. Kennedy\"",
+      "buildingId": "1122419168",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Andrea Stefani\"",
+      "buildingId": "relation/14905544",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Liceu Artistik “Jordan Misja”",
+      "buildingId": "568915589",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Liceu Artistik “Jordan Misja”",
+      "buildingId": "854883380",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-Vjeçare \"Bashkim Fino\"",
+      "buildingId": "1112905995",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti Luarasi",
+      "buildingId": "249218079",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Montessori International School of Tirana",
+      "buildingId": "999851879",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Montessori International School of Tirana",
+      "buildingId": "999851880",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Montessori International School of Tirana",
+      "buildingId": "999851881",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Kopështi Nr. 56 \"'Beni Ecën Vetë\"",
+      "buildingId": "1005822587",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Çerdhja Nr. 60 “Rreze Drite”",
+      "buildingId": "1005854682",
+      "category": "kindergarten",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Çerdhja Nr. 51 \"Luleshqerrat\"",
+      "buildingId": "1244163065",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Kopështi Nr. 27/A \"Maçoku me Çizme\"",
+      "buildingId": "1005891652",
+      "category": "kindergarten",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Çerdhja Nr. 4 \"Hapi i Parë\"",
+      "buildingId": "1006129207",
+      "category": "kindergarten",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Drita Pelinku\"",
+      "buildingId": "460142680",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Gjimnazi \"Myslym Shima\"",
+      "buildingId": "1176659267",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Mëzez\"",
+      "buildingId": "1006404375",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Fakulteti i Drejtësisë",
+      "buildingId": "174612980",
+      "category": "university",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Fakulteti i Ekonomisë",
+      "buildingId": "457216791",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Fakulteti i Gjuhëve të Huaja",
+      "buildingId": "249218084",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Fakulteti i Gjuhëve të Huaja",
+      "buildingId": "457216788",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Fakulteti i Shkencave Sociale",
+      "buildingId": "405050965",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "9 Vjecare \"Tufine\"",
+      "buildingId": "1059412505",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Kopshti KEI",
+      "buildingId": "1090961111",
+      "category": "kindergarten",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Albanian International School",
+      "buildingId": "575673657",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti i Sporteve",
+      "buildingId": "472949017",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti i Sporteve",
+      "buildingId": "476441787",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti i Sporteve",
+      "buildingId": "476441788",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti i Sporteve",
+      "buildingId": "476441789",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 12-vjeçare Sarina 2002",
+      "buildingId": "1171440699",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Lidhja e Prizrenit\"",
+      "buildingId": "1193437838",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Kopështi Nr. 35",
+      "buildingId": "459674944",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla e Magjistraturës e Republikës së Shqipërisë",
+      "buildingId": "relation/11106107",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Çerdhja Nr. 17 \"Foleja e Zogjve\"",
+      "buildingId": "1006243334",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Kopështi Nr. 26",
+      "buildingId": "1180327811",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Kopështi Nr. 31 \"Simba\"",
+      "buildingId": "400645198",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Kopështi Nr. 31 \"Simba\"",
+      "buildingId": "400645199",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Çerdhja & Kopshti i Katarit \"Sunny Hill\"",
+      "buildingId": "400645197",
+      "category": "kindergarten",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Arkos, Shkolla 9-vjeçare Jopublike",
+      "buildingId": "713103763",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Iliria, Shkolla 9-vjeçare jo publike",
+      "buildingId": "449519296",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Dua të rritem",
+      "buildingId": "655089646",
+      "category": "kindergarten",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Kolegji Universitar Bedër",
+      "buildingId": "1222375548",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Kolegji Universitar Bedër",
+      "buildingId": "1345233007",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "University of New York Tirana, East Campus",
+      "buildingId": "1007088906",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-Vjeçare \"Kasem Shima\"",
+      "buildingId": "1238643383",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Lekë Gjiknuri\"",
+      "buildingId": "1243561275",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Kopshti Nr.15, \"Borëbardha\"",
+      "buildingId": "1243594301",
+      "category": "kindergarten",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Gjimnazi \"Isa Boletini\"",
+      "buildingId": "1243594298",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Gjimnazi \"Isa Boletini\"",
+      "buildingId": "1243594299",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla Jopublike \"Hafiz Ibrahim Dalliu\"",
+      "buildingId": "475524301",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Qendra Sociale \"Gjon Bosko\"",
+      "buildingId": "1255735894",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Qendra Sociale \"Gjon Bosko\"",
+      "buildingId": "1255735899",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Kopshti Nr. 28 \"Avatar\"",
+      "buildingId": "1006283489",
+      "category": "kindergarten",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti Barleti",
+      "buildingId": "318664635",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti Barleti",
+      "buildingId": "1202404710",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Kopshti \"Lulet e Jetës\"",
+      "buildingId": "443994543",
+      "category": "kindergarten",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Çerdhja Nr. 8 \"Pranverat\"",
+      "buildingId": "405311015",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Kopështi Nr. 40 \"Nënë Tereza\"",
+      "buildingId": "1005873032",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti Barleti",
+      "buildingId": "1273961688",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti Barleti",
+      "buildingId": "1273961689",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti Barleti",
+      "buildingId": "1273961692",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Kopështi Nr. 38",
+      "buildingId": "1006129209",
+      "category": "kindergarten",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Gjimnazi \"Gramoz Palushi\"",
+      "buildingId": "1275880285",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Tahir Sinani\"",
+      "buildingId": "1285241055",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Ibrahim Basha\"",
+      "buildingId": "753011795",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Kopështi Nr. 25/A \"Duarartët\"",
+      "buildingId": "1005891659",
+      "category": "kindergarten",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Kopshti Borëbardha",
+      "buildingId": "457043685",
+      "category": "kindergarten",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Kopështi Nr. 21 \"Heidi\"",
+      "buildingId": "968587407",
+      "category": "kindergarten",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla Rreze Drite",
+      "buildingId": "469339382",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla Rreze Drite",
+      "buildingId": "1302613010",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Çerdhja Nr. 19 \"Lulet e Jetës\"",
+      "buildingId": "1005891655",
+      "category": "kindergarten",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Azem Hajdari\"",
+      "buildingId": "1305334990",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Çerdhja Nr. 26 \"Lepurushat\"",
+      "buildingId": "459674538",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Kopështi Nr. 29",
+      "buildingId": "1005873028",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Kopështi Nr. 52 \"Mickey Mouse\"",
+      "buildingId": "440680132",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Kopështi Nr. 20 \"Çufo\"",
+      "buildingId": "1005873026",
+      "category": "school",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Çerdhja Nr. 50",
+      "buildingId": "1207229983",
+      "category": "kindergarten",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Kopësht & Çerdhja jopublike AJSI",
+      "buildingId": "1232492684",
+      "category": "kindergarten",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Kopështi Shkozë",
+      "buildingId": "1302686837",
+      "category": "kindergarten",
+      "country": "AL",
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Klodian Tanushi\"",
+      "buildingId": "1313105619",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Klodian Tanushi\"",
+      "buildingId": "1313105620",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Klodian Tanushi\"",
+      "buildingId": "1313105621",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Albanian College Tirana II",
+      "buildingId": "450817497",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla Teknike Ekonomike",
+      "buildingId": "409325636",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"17 Shkurti\" Qesarakë",
+      "buildingId": "1315492700",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Hillary Clinton\"",
+      "buildingId": "1318353089",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Fatos Lami\"",
+      "buildingId": "1318355376",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Kopështi Nr. 12 “Topolino”",
+      "buildingId": "1318356566",
+      "category": "kindergarten",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare \"Jashar Hoxha\"",
+      "buildingId": "1318364351",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Kopshti Nr. 14 \"Zarife Hasanaj\"",
+      "buildingId": "1318364353",
+      "category": "kindergarten",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti i Arteve",
+      "buildingId": "410277105",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti i Arteve",
+      "buildingId": "410277106",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti i Arteve",
+      "buildingId": "410277107",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti i Arteve",
+      "buildingId": "410277108",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti i Arteve",
+      "buildingId": "410277122",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti i Arteve",
+      "buildingId": "470276352",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti i Arteve",
+      "buildingId": "1206246655",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Universiteti i Arteve",
+      "buildingId": "1333769605",
+      "category": "university",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare jopublike \"Dituria\"",
+      "buildingId": "762702539",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla franko-shqiptare \"Viktor Hygo\"",
+      "buildingId": "762702526",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla franko-shqiptare \"Viktor Hygo\"",
+      "buildingId": "762736001",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla franko-shqiptare \"Viktor Hygo\"",
+      "buildingId": "762736003",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla franko-shqiptare \"Viktor Hygo\"",
+      "buildingId": "1319696256",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla franko-shqiptare \"Viktor Hygo\"",
+      "buildingId": "1319696257",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Green School",
+      "buildingId": "439424469",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare Farkë e Vogël",
+      "buildingId": "1322392237",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Shkolla 9-vjeçare Halit Coka",
+      "buildingId": "1259532518",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Gjimnazi Aristoteli",
+      "buildingId": "1348684861",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Gjimnazi Dertliu",
+      "buildingId": "459473493",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Gjimnazi Guinnes",
+      "buildingId": "1483947197",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    },
+    {
+      "name": "Gjimnazi Guinnes",
+      "buildingId": "1483947201",
+      "category": "school",
+      "country": null,
+      "match": "campus-contained-footprint"
+    }
+  ],
+  "unmatched": [
+    {
+      "id": "node/727761898",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/2614424862",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/4532102191",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/4553206325",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/4553206326",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/4661149383",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/6809890462",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/11702587427",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/11959239397",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/11976575886",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/12349585886",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "node/12501309711",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "way/461536752",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "way/539428715",
+      "reason": "No unambiguous existing building footprint"
+    },
+    {
+      "id": "way/1006243337",
+      "reason": "No unambiguous existing building footprint"
+    }
+  ]
+}

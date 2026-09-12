@@ -19,6 +19,7 @@ import { ParkAttractions } from '../tirana-environment/ParkAttractions';
 import { UrbanLifeLayer } from './UrbanLifeLayer';
 import {StreetLifeLayer} from '../tirana-street-life/StreetLifeLayer';
 import {MatureTreeLayer} from '../tirana-street-life/MatureTreeLayer';
+import {BuildingBrandLayer} from '../tirana-city-source/BuildingBrandLayer';
 import {REAL_STOREFRONT_BUILDING_IDS,FUEL_CANOPY_IDS} from '../tirana-street-life/registry.mjs';
 export {
   disposeTree,
@@ -36,6 +37,7 @@ export class WorldEnhancements extends ExistingEnhancements {
     this.civic.errors
   );
   readonly institutions = new InstitutionLayer(undefined, this.civic.errors);
+  readonly buildingBrands = new BuildingBrandLayer();
   readonly streets: StreetDetailLayer;
   readonly ground: GroundDetailLayer;
   readonly attractions = new ParkAttractions(WORLD);
@@ -68,6 +70,7 @@ export class WorldEnhancements extends ExistingEnhancements {
     );
     this.group.add(
       this.institutions.group,
+      this.buildingBrands.group,
       this.shopfronts.group,
       this.streets.group,
       this.attractions.group,
@@ -102,6 +105,7 @@ export class WorldEnhancements extends ExistingEnhancements {
       viewer = { x: p.x, z: p.z };
     }
     this.institutions.update(seconds, viewer, battery);
+    this.buildingBrands.update(seconds, viewer, battery);
     this.shopfronts.update(seconds, viewer, battery);
     this.streets.update(seconds, viewer, battery);
     this.ground.update(viewer, battery);
@@ -115,6 +119,7 @@ export class WorldEnhancements extends ExistingEnhancements {
   }
   override retire() {
     this.institutions.retire();
+    this.buildingBrands.retire();
     this.ground.retire();
     this.streets.retire();
     this.shopfronts.retire();
@@ -129,6 +134,7 @@ export class WorldEnhancements extends ExistingEnhancements {
   override dispose() {
     this.panorama.dispose();
     this.institutions.dispose();
+    this.buildingBrands.dispose();
     this.attractions.dispose();
     this.ground.dispose();
     this.streets.dispose();

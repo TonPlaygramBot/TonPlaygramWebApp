@@ -134,9 +134,9 @@ export class FpsCity {
       if(r.neighbourhood || r.tunnel)continue;
       const dx = r.b[0] - r.a[0], dz = r.b[1] - r.a[1], length = Math.hypot(dx, dz);
       if (length < .05) continue;
-      (r.walk ? walks : roads).push(this.strip(r.a, r.b, r.w, r.bridge ? .16 : .09));
+      // UrbanRoadCells owns asphalt and clipped pedestrian surfaces.
       if (r.walk) continue;
-      shoulders.push(this.strip(r.a, r.b, r.w + 4.8, .06));
+
       if (r.w >= 6) for (let d = 4; d < length - 4; d += 7) {
         const x = r.a[0] + dx * d / length, z = r.a[1] + dz * d / length;
         // Keep paint out of intersections and pedestrian crossing approaches.
@@ -270,7 +270,7 @@ export class FpsCity {
     furniture.scene.add(kit.scene);
     this.streets = new StreetVisuals(furniture.scene, this.trees);
     this.group.add(this.streets.group);
-    this.fallbackPavements.visible = false;
+    // Shared streamed pavements remain the sole surface owner.
   }
   update(camera: T.Vector3, time: number, battery: boolean) {
     for (const cell of this.cells) {

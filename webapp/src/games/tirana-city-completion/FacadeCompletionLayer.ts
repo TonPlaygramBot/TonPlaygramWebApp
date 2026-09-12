@@ -6,6 +6,7 @@ import {COMPLETED_BUILDING_IDS} from './buildingRegistry.mjs';
 import {facadeModules} from './facadeCore.mjs';
 import {bakedParts,bakedMaterial} from './bakedGeometry';
 import {bounds,spatialIndex} from './placementCore.mjs';
+import {NEIGHBOURHOOD_REFERENCE_PROFILES} from '../tirana-city-source/neighbourhoodProfiles.mjs';
 /** Blender-made surrounds, sills, recessed glazing, balcony rails and AC units
  * on known-height source shells. Nearby buildings share every GPU resource. */
 export class FacadeCompletionLayer {
@@ -15,7 +16,7 @@ export class FacadeCompletionLayer {
  private batches=new Map<string,T.InstancedMesh[]>();private materials=new Map<string,T.Material>();
  private dummy=new T.Object3D();private last=-Infinity;private dead=false;
  constructor(buildings:any[]=NEIGHBOURHOOD.buildings){
-  const eligible=buildings.filter(b=>!HERO_IDS.has(b.id)&&!COMPLETED_BUILDING_IDS.has(b.id)&&!AGED_HOUSING_IDS.has(b.id));
+  const eligible=buildings.filter(b=>!HERO_IDS.has(b.id)&&!COMPLETED_BUILDING_IDS.has(b.id)&&!AGED_HOUSING_IDS.has(b.id)&&!NEIGHBOURHOOD_REFERENCE_PROFILES[b.id]);
   this.near=spatialIndex(eligible,(b:any)=>bounds(b.p));this.group.name='Tirana:Blender-near-facade-completion';
   for(const name of ['window_bay','balcony_bay','air_conditioner','entrance_bay']){
    const capacity=name==='window_bay'?900:180;

@@ -1,0 +1,1174 @@
+{
+  "source": {
+    "attribution": "© OpenStreetMap contributors",
+    "license": "ODbL-1.0",
+    "archiveSha256": "dca70c5d585b90c6c042b033bb4bfb001da8b297d7767b2cd927bb1875611602",
+    "accuracy": "Mapped green-space boundaries; estimated individual trunk positions and dimensions. Not satellite surveyed.",
+    "satelliteVerified": false
+  },
+  "addedTrees": 1918,
+  "counts": {
+    "garden": 1903,
+    "woodland": 15
+  },
+  "sites": [
+    {
+      "sourceId": "way/174415401",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/233519313",
+      "name": "Parku Zoologjik i Tiranës",
+      "kind": "garden",
+      "trees": 76
+    },
+    {
+      "sourceId": "way/233519313/surface-2",
+      "name": "Parku Zoologjik i Tiranës",
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/233519313/surface-3",
+      "name": "Parku Zoologjik i Tiranës",
+      "kind": "garden",
+      "trees": 2
+    },
+    {
+      "sourceId": "way/236566865",
+      "name": null,
+      "kind": "garden",
+      "trees": 22
+    },
+    {
+      "sourceId": "way/248353858",
+      "name": null,
+      "kind": "garden",
+      "trees": 3
+    },
+    {
+      "sourceId": "way/248355616",
+      "name": "Parku i Galerisë Kombëtare të Arteve",
+      "kind": "garden",
+      "trees": 3
+    },
+    {
+      "sourceId": "way/248355618",
+      "name": "Parku Rinia",
+      "kind": "garden",
+      "trees": 55
+    },
+    {
+      "sourceId": "way/248989209",
+      "name": null,
+      "kind": "garden",
+      "trees": 2
+    },
+    {
+      "sourceId": "way/248989211",
+      "name": null,
+      "kind": "garden",
+      "trees": 16
+    },
+    {
+      "sourceId": "way/248989217",
+      "name": null,
+      "kind": "garden",
+      "trees": 26
+    },
+    {
+      "sourceId": "way/248993232",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/248993233",
+      "name": null,
+      "kind": "garden",
+      "trees": 5
+    },
+    {
+      "sourceId": "way/248993235",
+      "name": null,
+      "kind": "garden",
+      "trees": 8
+    },
+    {
+      "sourceId": "way/248993236",
+      "name": null,
+      "kind": "garden",
+      "trees": 5
+    },
+    {
+      "sourceId": "way/248993238",
+      "name": null,
+      "kind": "garden",
+      "trees": 12
+    },
+    {
+      "sourceId": "way/248993239",
+      "name": null,
+      "kind": "garden",
+      "trees": 12
+    },
+    {
+      "sourceId": "way/248993240",
+      "name": null,
+      "kind": "garden",
+      "trees": 7
+    },
+    {
+      "sourceId": "way/248993242",
+      "name": null,
+      "kind": "garden",
+      "trees": 11
+    },
+    {
+      "sourceId": "way/248993243",
+      "name": null,
+      "kind": "garden",
+      "trees": 11
+    },
+    {
+      "sourceId": "way/248993245",
+      "name": null,
+      "kind": "garden",
+      "trees": 11
+    },
+    {
+      "sourceId": "way/248993246",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/248993649",
+      "name": null,
+      "kind": "garden",
+      "trees": 4
+    },
+    {
+      "sourceId": "way/248993651",
+      "name": null,
+      "kind": "garden",
+      "trees": 5
+    },
+    {
+      "sourceId": "way/248993654",
+      "name": null,
+      "kind": "garden",
+      "trees": 11
+    },
+    {
+      "sourceId": "way/248993655",
+      "name": null,
+      "kind": "garden",
+      "trees": 11
+    },
+    {
+      "sourceId": "way/248993656",
+      "name": null,
+      "kind": "garden",
+      "trees": 8
+    },
+    {
+      "sourceId": "way/248993657",
+      "name": null,
+      "kind": "garden",
+      "trees": 13
+    },
+    {
+      "sourceId": "way/248993659",
+      "name": "Parku Ali Demi",
+      "kind": "garden",
+      "trees": 6
+    },
+    {
+      "sourceId": "way/248993660",
+      "name": null,
+      "kind": "garden",
+      "trees": 6
+    },
+    {
+      "sourceId": "way/248993661",
+      "name": null,
+      "kind": "garden",
+      "trees": 6
+    },
+    {
+      "sourceId": "way/249185550",
+      "name": null,
+      "kind": "garden",
+      "trees": 10
+    },
+    {
+      "sourceId": "way/267654108",
+      "name": null,
+      "kind": "garden",
+      "trees": 42
+    },
+    {
+      "sourceId": "way/358955857",
+      "name": null,
+      "kind": "garden",
+      "trees": 68
+    },
+    {
+      "sourceId": "way/379558197",
+      "name": "Parku 1 Kilometër",
+      "kind": "garden",
+      "trees": 40
+    },
+    {
+      "sourceId": "way/410298399",
+      "name": "Kopshti Botanik i Tiranës",
+      "kind": "garden",
+      "trees": 321
+    },
+    {
+      "sourceId": "way/457445473",
+      "name": null,
+      "kind": "garden",
+      "trees": 2
+    },
+    {
+      "sourceId": "way/457448799",
+      "name": null,
+      "kind": "garden",
+      "trees": 2
+    },
+    {
+      "sourceId": "way/457450962",
+      "name": null,
+      "kind": "garden",
+      "trees": 2
+    },
+    {
+      "sourceId": "way/457753490",
+      "name": "Parku i Institutit Bujqësor",
+      "kind": "garden",
+      "trees": 355
+    },
+    {
+      "sourceId": "way/457888631",
+      "name": "Çerdhja Nr. 62",
+      "kind": "garden",
+      "trees": 6
+    },
+    {
+      "sourceId": "way/457897573",
+      "name": null,
+      "kind": "garden",
+      "trees": 58
+    },
+    {
+      "sourceId": "way/458265875",
+      "name": null,
+      "kind": "garden",
+      "trees": 9
+    },
+    {
+      "sourceId": "way/458307653",
+      "name": null,
+      "kind": "garden",
+      "trees": 4
+    },
+    {
+      "sourceId": "way/458516534",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/458516545",
+      "name": null,
+      "kind": "garden",
+      "trees": 2
+    },
+    {
+      "sourceId": "way/459076215",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/459076228",
+      "name": null,
+      "kind": "garden",
+      "trees": 8
+    },
+    {
+      "sourceId": "way/459076233",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/461850139",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/461850153",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/461850173",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/461850175",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/462228070",
+      "name": null,
+      "kind": "garden",
+      "trees": 8
+    },
+    {
+      "sourceId": "way/462228071",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/462228072",
+      "name": null,
+      "kind": "garden",
+      "trees": 4
+    },
+    {
+      "sourceId": "way/462228074",
+      "name": null,
+      "kind": "garden",
+      "trees": 21
+    },
+    {
+      "sourceId": "way/462228077",
+      "name": null,
+      "kind": "garden",
+      "trees": 2
+    },
+    {
+      "sourceId": "way/462228078",
+      "name": null,
+      "kind": "garden",
+      "trees": 2
+    },
+    {
+      "sourceId": "way/462228079",
+      "name": null,
+      "kind": "garden",
+      "trees": 2
+    },
+    {
+      "sourceId": "way/462228080",
+      "name": null,
+      "kind": "garden",
+      "trees": 2
+    },
+    {
+      "sourceId": "way/462228081",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/462228083",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/462228084",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/462228089",
+      "name": null,
+      "kind": "garden",
+      "trees": 14
+    },
+    {
+      "sourceId": "way/462228092",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/462228093",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/462228094",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/462228095",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/462228096",
+      "name": null,
+      "kind": "garden",
+      "trees": 2
+    },
+    {
+      "sourceId": "way/462618136",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/462618228",
+      "name": null,
+      "kind": "garden",
+      "trees": 2
+    },
+    {
+      "sourceId": "way/463102791",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/463102792",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/463677541",
+      "name": null,
+      "kind": "garden",
+      "trees": 5
+    },
+    {
+      "sourceId": "way/464176792",
+      "name": null,
+      "kind": "garden",
+      "trees": 6
+    },
+    {
+      "sourceId": "way/464282339",
+      "name": null,
+      "kind": "garden",
+      "trees": 4
+    },
+    {
+      "sourceId": "way/464285484",
+      "name": null,
+      "kind": "garden",
+      "trees": 2
+    },
+    {
+      "sourceId": "way/464506662",
+      "name": null,
+      "kind": "garden",
+      "trees": 4
+    },
+    {
+      "sourceId": "way/464712563",
+      "name": null,
+      "kind": "woodland",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/464712567",
+      "name": null,
+      "kind": "woodland",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/464712571",
+      "name": null,
+      "kind": "woodland",
+      "trees": 13
+    },
+    {
+      "sourceId": "way/465410507",
+      "name": "Vëllezërit Frashëri",
+      "kind": "garden",
+      "trees": 2
+    },
+    {
+      "sourceId": "way/465751203",
+      "name": null,
+      "kind": "garden",
+      "trees": 9
+    },
+    {
+      "sourceId": "way/467590517",
+      "name": null,
+      "kind": "garden",
+      "trees": 3
+    },
+    {
+      "sourceId": "way/467590550",
+      "name": "Kryegjyshata Botërore e Bektashinjve",
+      "kind": "garden",
+      "trees": 83
+    },
+    {
+      "sourceId": "way/468691736",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/468691745",
+      "name": null,
+      "kind": "garden",
+      "trees": 29
+    },
+    {
+      "sourceId": "way/468691746",
+      "name": null,
+      "kind": "garden",
+      "trees": 21
+    },
+    {
+      "sourceId": "way/468719344",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/469038705",
+      "name": null,
+      "kind": "garden",
+      "trees": 26
+    },
+    {
+      "sourceId": "way/469069096",
+      "name": null,
+      "kind": "garden",
+      "trees": 3
+    },
+    {
+      "sourceId": "way/470276335",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/470276346",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/470276348",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/470276365",
+      "name": null,
+      "kind": "garden",
+      "trees": 4
+    },
+    {
+      "sourceId": "way/470567570",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/470567595",
+      "name": null,
+      "kind": "garden",
+      "trees": 3
+    },
+    {
+      "sourceId": "way/470621698",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/470621706",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/471104381",
+      "name": null,
+      "kind": "garden",
+      "trees": 2
+    },
+    {
+      "sourceId": "way/471104382",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/471104416",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/471104418",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/471176412",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/472066301",
+      "name": null,
+      "kind": "garden",
+      "trees": 2
+    },
+    {
+      "sourceId": "way/472066302",
+      "name": null,
+      "kind": "garden",
+      "trees": 14
+    },
+    {
+      "sourceId": "way/472895495",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/472948760",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/472948765",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/472948774",
+      "name": null,
+      "kind": "garden",
+      "trees": 2
+    },
+    {
+      "sourceId": "way/472948853",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/473587911",
+      "name": null,
+      "kind": "garden",
+      "trees": 2
+    },
+    {
+      "sourceId": "way/473587913",
+      "name": null,
+      "kind": "garden",
+      "trees": 2
+    },
+    {
+      "sourceId": "way/478276694",
+      "name": null,
+      "kind": "garden",
+      "trees": 10
+    },
+    {
+      "sourceId": "way/530482862",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/543914248",
+      "name": "Panorama",
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/576205977",
+      "name": null,
+      "kind": "garden",
+      "trees": 10
+    },
+    {
+      "sourceId": "way/576872664",
+      "name": null,
+      "kind": "garden",
+      "trees": 2
+    },
+    {
+      "sourceId": "way/583282344",
+      "name": "Parku i postes",
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/588967834",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/624093777",
+      "name": "Parku Europa",
+      "kind": "garden",
+      "trees": 6
+    },
+    {
+      "sourceId": "way/624093780",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/624093782",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/624093787",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/624093788",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/624093792",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/624093795",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/624093803",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/624093804",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/624093826",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/624093827",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/624093828",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/624093833",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/624093842",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/624093865",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/624093868",
+      "name": null,
+      "kind": "garden",
+      "trees": 2
+    },
+    {
+      "sourceId": "way/624093870",
+      "name": null,
+      "kind": "garden",
+      "trees": 6
+    },
+    {
+      "sourceId": "way/639377608",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/639377610",
+      "name": null,
+      "kind": "garden",
+      "trees": 2
+    },
+    {
+      "sourceId": "way/639377616",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/657621678",
+      "name": "Sheshi Adem Jashari",
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/657646043",
+      "name": "Lulishtja Fan Stilian Noli",
+      "kind": "garden",
+      "trees": 6
+    },
+    {
+      "sourceId": "way/666625519",
+      "name": null,
+      "kind": "garden",
+      "trees": 4
+    },
+    {
+      "sourceId": "way/672484138",
+      "name": "Sheshi Rekreativ Tika",
+      "kind": "garden",
+      "trees": 11
+    },
+    {
+      "sourceId": "way/672493814",
+      "name": "Sheshi Rekreativ tek Sitki Çiço",
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/673540711",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/673540740",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/674228681",
+      "name": null,
+      "kind": "garden",
+      "trees": 4
+    },
+    {
+      "sourceId": "way/675387167",
+      "name": null,
+      "kind": "garden",
+      "trees": 4
+    },
+    {
+      "sourceId": "way/713797728",
+      "name": null,
+      "kind": "garden",
+      "trees": 10
+    },
+    {
+      "sourceId": "way/733807435",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/733807443",
+      "name": null,
+      "kind": "garden",
+      "trees": 2
+    },
+    {
+      "sourceId": "way/733807445",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/744842333",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/744842334",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/744842335",
+      "name": null,
+      "kind": "garden",
+      "trees": 2
+    },
+    {
+      "sourceId": "way/744842336",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/748648309",
+      "name": null,
+      "kind": "garden",
+      "trees": 9
+    },
+    {
+      "sourceId": "way/748648316",
+      "name": null,
+      "kind": "garden",
+      "trees": 11
+    },
+    {
+      "sourceId": "way/748941473",
+      "name": null,
+      "kind": "garden",
+      "trees": 9
+    },
+    {
+      "sourceId": "way/957688195",
+      "name": "Parku Helen",
+      "kind": "garden",
+      "trees": 13
+    },
+    {
+      "sourceId": "way/964246668",
+      "name": "Parku i Artit",
+      "kind": "garden",
+      "trees": 16
+    },
+    {
+      "sourceId": "way/1110875044",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/1112987565",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/1117904408",
+      "name": "The \" Rose Garden\"",
+      "kind": "garden",
+      "trees": 3
+    },
+    {
+      "sourceId": "way/1153248057",
+      "name": "Tre Manjolat",
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/1172623444",
+      "name": null,
+      "kind": "garden",
+      "trees": 3
+    },
+    {
+      "sourceId": "way/1173153938",
+      "name": null,
+      "kind": "garden",
+      "trees": 3
+    },
+    {
+      "sourceId": "way/1174085531",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/1174630453",
+      "name": null,
+      "kind": "garden",
+      "trees": 2
+    },
+    {
+      "sourceId": "way/1174887915",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/1181852086",
+      "name": null,
+      "kind": "garden",
+      "trees": 2
+    },
+    {
+      "sourceId": "way/1183566324",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/1184325631",
+      "name": null,
+      "kind": "garden",
+      "trees": 3
+    },
+    {
+      "sourceId": "way/1185183942",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/1192763991",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/1193038788",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/1230720772",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/1239624358",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/1242343974",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/1267738459",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/1285796039",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/1289721031",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/1291703569",
+      "name": "American Corner",
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/1291888575",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/1301395739",
+      "name": null,
+      "kind": "garden",
+      "trees": 1
+    },
+    {
+      "sourceId": "way/1302362332",
+      "name": null,
+      "kind": "garden",
+      "trees": 4
+    },
+    {
+      "sourceId": "way/1302371983",
+      "name": null,
+      "kind": "garden",
+      "trees": 3
+    },
+    {
+      "sourceId": "way/1331172846",
+      "name": null,
+      "kind": "garden",
+      "trees": 21
+    },
+    {
+      "sourceId": "way/1375064015",
+      "name": null,
+      "kind": "garden",
+      "trees": 53
+    },
+    {
+      "sourceId": "way/1524779368",
+      "name": null,
+      "kind": "garden",
+      "trees": 5
+    },
+    {
+      "sourceId": "way/1524779369",
+      "name": null,
+      "kind": "garden",
+      "trees": 4
+    }
+  ]
+}

@@ -6,5 +6,29 @@
     "retrieved": "2026-09-12",
     "sha256": "74dec7c852abd834a8003e549e01f3c944b44de3317da6cf5f289dccb1d658a9",
     "usage": "Brand sign reference on existing mapped Mulliri storefronts; billboard placements remain authored. Brand artwork is not CC0."
+  },
+  {
+    "file": "spar-logo.png",
+    "sourceUrl": "https://spar.al/images/logos/Logo-Spar.png",
+    "referencePage": "https://spar.al/",
+    "retrieved": "2026-09-12",
+    "sha256": "03936b8a053d24319c4f438c2fd4c1176b4ba2f2a22fe76ea0f89bcb1a84097b",
+    "usage": "Brand identity on mapped locations, authored mounting. Artwork remains owned by its brand, not CC0. Unchanged official artwork; atlas crops outer blank margins."
+  },
+  {
+    "file": "mon-cheri-logo.jpg",
+    "sourceUrl": "https://toptani.com.al/img/cms/dyqanet/moncherilogo.jpg",
+    "referencePage": "https://toptani.com.al/en/content/132-mon-cheri",
+    "retrieved": "2026-09-12",
+    "sha256": "0e8357009bbdaad10f5c7417d39521b7328ee24acdcb22cd0fda6a49a83c1ba7",
+    "usage": "Brand identity on mapped locations, authored mounting. Artwork remains owned by its brand, not CC0. Operator tenant directory logo."
+  },
+  {
+    "file": "toptani-logo.svg",
+    "sourceUrl": "https://toptani.com.al/logo-toptani.svg",
+    "referencePage": "https://toptani.com.al/en/",
+    "retrieved": "2026-09-12",
+    "sha256": "24732001452beb9830fb74bb046c84b7c412e1405cd1d0e27f4403bfdc1faa65",
+    "usage": "Brand identity on mapped locations, authored mounting. Artwork remains owned by its brand, not CC0. SVG intrinsic dimensions reduced to 638\u00d7184; paths and viewBox retained."
   }
 ]

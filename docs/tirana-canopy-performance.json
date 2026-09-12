@@ -1,0 +1,25 @@
+{
+  "environment": "Node/Three.js CPU benchmark in container; not phone FPS or WebGL timing",
+  "buildings": 300,
+  "fullDetail": {
+    "milliseconds": 159.55,
+    "triangles": 71355
+  },
+  "distantShells": {
+    "milliseconds": 15.22,
+    "triangles": 9017
+  },
+  "triangleReductionPercent": 87.4,
+  "buildingRadius": {
+    "before": 1050,
+    "after": 1800
+  },
+  "treeRadius": {
+    "before": 340,
+    "after": 1400
+  },
+  "roadRadius": {
+    "before": 1200,
+    "after": 1800
+  }
+}

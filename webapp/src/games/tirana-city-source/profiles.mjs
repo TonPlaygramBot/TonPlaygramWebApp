@@ -1,8 +1,10 @@
 /** Dated visual references, NOT measured facade surveys. Colors, bay spacing and
  * ornament depth are authored interpretations; source footprints are preserved. */
 import { LANDMARK_PROFILES } from './landmarkCatalog.mjs';
+import {NEIGHBOURHOOD_REFERENCE_PROFILES} from './neighbourhoodProfiles.mjs';
 export const REFERENCE_BUILDINGS = Object.freeze({
   ...LANDMARK_PROFILES,
+  ...NEIGHBOURHOOD_REFERENCE_PROFILES,
   '470567580': {name:'Ambasada e Zvicrës',style:'swiss',color:0xe2dfcd,trim:0xc6c4b7,
     floor:4.5,window:1.15,photo:null,date:'2015 filename; capture date unverified',
     source:'https://www.eda.admin.ch/countries/albania/en/home/representations/embassy-tirana.html',

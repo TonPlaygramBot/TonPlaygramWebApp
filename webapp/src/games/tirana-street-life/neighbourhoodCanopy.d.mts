@@ -1,0 +1,1 @@
+export const NEIGHBOURHOOD_CANOPY:{source:{accuracy:string;satelliteVerified:false};trees:{id:string;x:number;z:number;height:number;crown:number;seed:number;shape:string;zone:string;sourceId:string}[]};

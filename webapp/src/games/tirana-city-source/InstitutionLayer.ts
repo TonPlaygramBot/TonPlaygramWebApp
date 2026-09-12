@@ -1,5 +1,6 @@
 import * as T from 'three';
 import { FLAG_RATIOS } from './flagRatios.mjs';
+import { FLAG_ARTWORK } from './flagArtwork.mjs';
 import { WORLD } from '../tiranastreets/shared/world.mjs';
 import { CITY_SOURCE } from './sourceData.mjs';
 import { CITY_PLACES } from './registry.mjs';
@@ -21,7 +22,7 @@ export class InstitutionLayer {
   private textures=new Set<T.Texture>();
   private materials=new Set<T.Material>();
   private geometries=new Set<T.BufferGeometry>();
-  constructor(sites:CitySite[]=CITY_PLACES.sites, private errors:string[]=[], flagUrl:(country:string)=>string=country=>`${flagBase}${country.toLowerCase()}.svg`) {
+  constructor(sites:CitySite[]=CITY_PLACES.sites, private errors:string[]=[], flagUrl:(country:string)=>string=country=>FLAG_ARTWORK[country]||`${flagBase}${country.toLowerCase()}.svg`) {
     this.group.name='Tirana:institution-identities-and-national-flags';
     this.group.userData={source:CITY_SOURCE.source,accuracy:'Mapped building identity; authored exterior sign and flag mounts',
       omitted:CITY_PLACES.issues};
@@ -37,6 +38,7 @@ export class InstitutionLayer {
     const clothGeometry=new T.PlaneGeometry(1,1,16,8).translate(.5,-.5,0);
     this.geometries.add(poleGeometry);this.geometries.add(clothGeometry);
     const flagMaterials=new Map<string,T.MeshStandardMaterial>();
+    const flagReady=new Map<string,Promise<void>>();
     const load:Promise<void>[]=[];
     items.forEach(({site,edge},i)=>{
       const group=new T.Group();group.name=site.name||site.category;group.userData={...site};
@@ -53,7 +55,7 @@ export class InstitutionLayer {
       if(site.country){
         const country=site.country;
         if(!flagMaterials.has(country)){
-          const material=new T.MeshStandardMaterial({color:0xffffff,side:T.DoubleSide,roughness:.93});
+          const material=new T.MeshStandardMaterial({color:0xffffff,side:T.DoubleSide,roughness:.93,emissive:0xffffff,emissiveIntensity:.16});
           material.onBeforeCompile=shader=>{
             shader.uniforms.flagTime=this.time;
             shader.vertexShader='uniform float flagTime;\n'+shader.vertexShader;
@@ -65,38 +67,44 @@ export class InstitutionLayer {
           };
           material.customProgramCacheKey=()=> 'tirana-national-cloth-v1';
           flagMaterials.set(country,material);this.materials.add(material);
-          load.push(new Promise<void>(resolve=>new T.TextureLoader().load(flagUrl(country),texture=>{
+          const ready=new Promise<void>(resolve=>new T.TextureLoader().load(flagUrl(country),texture=>{
             if(this.dead){texture.dispose();resolve();return;}
             texture.colorSpace=T.SRGBColorSpace;texture.anisotropy=2;
-            material.map=texture;material.needsUpdate=true;this.textures.add(texture);resolve();
-          },undefined,()=>{if(!this.dead){this.errors.push(`${country}: national flag texture unavailable`);material.visible=false;}resolve();})));
+            material.map=texture;material.emissiveMap=texture;material.needsUpdate=true;this.textures.add(texture);resolve();
+          },undefined,()=>{if(!this.dead){this.errors.push(`${country}: national flag texture unavailable`);material.visible=false;}resolve();}));
+          flagReady.set(country,ready);load.push(ready);
         }
         const pole=new T.Mesh(poleGeometry,poleMaterial);
-        pole.position.set(-Math.min(2.7,edge.length*.34),4.35,.4);group.add(pole);
+        pole.position.set(-Math.min(2.7,edge.length*.34),4.35,1.55);group.add(pole);
+        const bracketGeometry=new T.BoxGeometry(.075,.075,1.5);this.geometries.add(bracketGeometry);
+        for(const y of [3,4.6]){const bracket=new T.Mesh(bracketGeometry,poleMaterial);bracket.position.set(pole.position.x,y,.8);group.add(bracket);}
         const cloth=new T.Mesh(clothGeometry,flagMaterials.get(country)!);
         const width=2.15,height=width/FLAG_RATIOS[country];
-        cloth.position.set(pole.position.x,5.94,.43);cloth.scale.set(width,height,1);
+        cloth.position.set(pole.position.x,5.94,1.59);cloth.scale.set(width,height,1);cloth.rotation.y=-.18;
+        cloth.frustumCulled=false;
         cloth.name=`${country} flag`;cloth.visible=false;
         group.add(cloth);
         // Never show an untextured white rectangle as a country's flag.
-        void Promise.all(load).then(()=>{if(!this.dead)cloth.visible=Boolean((cloth.material as T.MeshStandardMaterial).map);});
+        void flagReady.get(country)!.then(()=>{if(!this.dead)cloth.visible=Boolean((cloth.material as T.MeshStandardMaterial).map);});
       }
       this.group.add(group);this.entries.push({group,x:edge.x,z:edge.z});group.visible=false;
     });
     this.ready=Promise.all(load).then(()=>{});
   }
   private signAtlas(items:SignItem[]) {
-    const canvas=document.createElement('canvas');canvas.width=2048;canvas.height=Math.max(64,Math.ceil(items.length/8)*64);
+    const rows=Math.max(1,Math.ceil(items.length/8)),cellHeight=Math.min(64,Math.floor(4096/rows));
+    const canvas=document.createElement('canvas');canvas.width=2048;canvas.height=rows*cellHeight;
     const ctx=canvas.getContext('2d');if(!ctx)throw Error('Institution sign canvas unavailable');
     for(let i=0;i<items.length;i++){
-      const site=items[i].site,x=(i%8)*256,y=Math.floor(i/8)*64;
-      ctx.fillStyle=['hotel','casino'].includes(site.category)?'#242528':'#173c59';ctx.fillRect(x,y,256,64);
-      ctx.strokeStyle='#c7b982';ctx.lineWidth=1;ctx.strokeRect(x+3,y+3,250,58);
+      const site=items[i].site,x=(i%8)*256,y=Math.floor(i/8)*cellHeight;
+      ctx.fillStyle=['hotel','casino'].includes(site.category)?'#242528':'#173c59';ctx.fillRect(x,y,256,cellHeight);
+      ctx.strokeStyle='#c7b982';ctx.lineWidth=1;ctx.strokeRect(x+3,y+3,250,cellHeight-6);
       ctx.fillStyle='#fff9e9';ctx.font='600 14px Arial';ctx.textAlign='center';ctx.textBaseline='middle';
       const words=(site.name||'').split(/\s+/),lines:string[]=[];let line='';
       for(const word of words){const candidate=line?`${line} ${word}`:word;if(ctx.measureText(candidate).width>232&&line){lines.push(line);line=word;}else line=candidate;}
       if(line)lines.push(line);
-      lines.slice(0,3).forEach((text,j)=>ctx.fillText(text,x+128,y+32+(j-(Math.min(lines.length,3)-1)/2)*17,232));
+      const lineHeight=Math.min(17,(cellHeight-10)/3);
+      lines.slice(0,3).forEach((text,j)=>ctx.fillText(text,x+128,y+cellHeight/2+(j-(Math.min(lines.length,3)-1)/2)*lineHeight,232));
     }
     const texture=new T.CanvasTexture(canvas);texture.colorSpace=T.SRGBColorSpace;texture.generateMipmaps=false;texture.minFilter=T.LinearFilter;
     this.textures.add(texture);return texture;
@@ -105,7 +113,7 @@ export class InstitutionLayer {
     if(this.dead)return;
     this.time.value=seconds;
     if(!viewer||seconds>=this.last&&seconds-this.last<.25)return;this.last=seconds;
-    const radius=battery?120:250;
+    const radius=battery?180:420;
     for(const entry of this.entries)entry.group.visible=Math.hypot(entry.x-viewer.x,entry.z-viewer.z)<radius;
   }
   retire(){this.dead=true;}

@@ -54,7 +54,7 @@ export type Actor = {
 export class CityRenderer {
   renderer: THREE.WebGLRenderer;
   scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(52, 1, 0.15, 1800);
+  camera = new THREE.PerspectiveCamera(52, 1, 0.15, 2800);
   yaw = 0;
   pitch = 0.32;
   firstPerson = false;
@@ -244,11 +244,9 @@ export class CityRenderer {
     for (const r of WORLD.roads) {
       if(r.neighbourhood || r.tunnel)continue;
       const len = Math.hypot(r.a[0] - r.b[0], r.a[1] - r.b[1]);
-      (r.walk ? walkGeo : roadGeo).push(
-        this.strip(r.a, r.b, r.w, r.bridge ? 0.16 : 0.09),
-      );
+      // UrbanRoadCells owns asphalt and clipped pedestrian surfaces.
       if (!r.walk) {
-        sideGeo.push(this.strip(r.a, r.b, r.w + 3.8, 0.07));
+
         if (r.w > 5 && len > 5)
           for (let d = 1; d < len - 2; d += 8) {
             const n = Math.min(d + 3, len),
@@ -463,9 +461,10 @@ export class CityRenderer {
       if (i % 4 === 0) place("road_sign", x + dz / d * 2, z - dx / d * 2, Math.atan2(dx, dz));
       if (i % 2 === 0) place("park_bench", x + dz / d * 3.2, z - dx / d * 3.2, Math.atan2(dx, dz));
     });
-    // GLTF pavement samples add modeled curb depth near the starting district.
-    WORLD.roads.filter((r) => !r.walk && Math.hypot(r.a[0] - SPAWN.x, r.a[1] - SPAWN.z) < 150)
-      .slice(0, 42).forEach((r) => place("pavement_tile", r.a[0] + r.w / 2 + 1.8, r.a[1], 0, 1));
+    // Pavement tiles had fixed world-X offsets and crossed angled roads.
+    // The shared clipped road cells now own every sidewalk.
+    gltf.scene.visible=false;this.scene.add(gltf.scene);
+
   }
   private label(text: string, x: number, y: number, z: number) {
     const canvas = document.createElement("canvas");

@@ -1,0 +1,27 @@
+import {readFile,writeFile} from 'node:fs/promises';
+import {fileURLToPath} from 'node:url';
+import {gzipSync} from 'node:zlib';
+import path from 'node:path';
+import {build} from 'esbuild';
+import {WORLD} from '../src/games/tiranastreets/shared/world.mjs';
+import {CANOPY_TREES} from '../src/games/tirana-street-life/canopyRegistry.mjs';
+import {CITY_COMPLETION} from '../src/games/tirana-city-completion/data.mjs';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+const box=[-1200,-800,1200,1900],inside=(x,z)=>x>box[0]&&x<box[2]&&z>box[1]&&z<box[3];
+const intersects=points=>{const xs=points.map(p=>p[0]),zs=points.map(p=>p[1]);return Math.min(...xs)<box[2]&&Math.max(...xs)>box[0]&&Math.min(...zs)<box[3]&&Math.max(...zs)>box[1];};
+const subset={graph:{nodes:[],edges:[]},origin:WORLD.origin,bounds:box,landmarks:WORLD.landmarks,water:WORLD.water.filter(w=>Array.isArray(w)?intersects(w):w.line&&intersects(w.line)),roads:WORLD.roads.filter(r=>intersects([r.a,r.b])).map(({a,b,w,walk,bridge,tunnel})=>({a,b,w,walk,bridge,tunnel})),buildings:WORLD.buildings.filter(b=>intersects(b.p)).map(({id,p,h,holes,minHeight})=>({id,p,h,holes,minHeight})),parks:WORLD.parks.filter(intersects),areas:WORLD.areas.filter(intersects)};
+const trees=[...CANOPY_TREES,...CITY_COMPLETION.trees].filter(t=>inside(t.x,t.z));
+const packedExport=(name,data)=>`import {decodeSource} from ${JSON.stringify(path.join(root,'src/games/tirana-neighbourhood/decodeSource.mjs'))};export const ${name}=decodeSource(['${gzipSync(JSON.stringify(data),{level:9}).toString('base64')}']);`;
+const result=await build({entryPoints:[path.join(root,'src/games/tirana-environment/CanopyReview.tsx')],write:false,bundle:true,minify:true,format:'esm',platform:'browser',plugins:[{name:'canopy-in-chat',setup(b){
+ b.onResolve({filter:/^(three|react|react-dom)(\/.*)?$/},({path:s})=>({path:`https://esm.sh/${s.startsWith('three')?s.replace('three','three@0.164.0'):s.startsWith('react-dom')?s.replace('react-dom','react-dom@18.2.0'):s.replace('react','react@18.2.0')}`,external:true}));
+ b.onResolve({filter:/^polygon-clipping$/},()=>({path:'https://esm.sh/polygon-clipping@0.15.7',external:true}));
+ b.onLoad({filter:/tiranastreets\/shared\/world\.mjs$/},()=>({contents:packedExport('WORLD',subset),loader:'js'}));
+ b.onLoad({filter:/tirana-street-life\/canopyRegistry\.mjs$/},()=>({contents:packedExport('CANOPY_TREES',trees),loader:'js'}));
+ b.onLoad({filter:/tirana-street-life\/registry\.mjs$/},()=>({contents:'export const STREET_LIFE={trees:[],storefronts:[],stops:[],fuel:[],advertising:[]};export const MATURE_TREE_IDS=new Set();export const FUEL_CANOPY_IDS=new Set();export const REAL_STOREFRONT_BUILDING_IDS=new Set();',loader:'js'}));
+ b.onLoad({filter:/tirana-city-completion\/data\.mjs$/},()=>({contents:'export const CITY_COMPLETION={trees:[]};',loader:'js'}));
+ b.onLoad({filter:/tirana-city-source\/housingRegistry\.mjs$/},()=>({contents:'export const AGED_HOUSING_IDS=new Set();',loader:'js'}));
+ b.onLoad({filter:/tiranastreets\/shared\/landscape\.mjs$/},()=>({contents:'export const RAILINGS=[];',loader:'js'}));
+}}]});
+const template=await readFile(path.join(root,'scripts/tirana-canopy-preview.fragment.html'),'utf8');const html=template.replace('/*__CANOPY_REVIEW_BUNDLE__*/',result.outputFiles[0].text.replace(/<\/script/gi,'<\\/script'));
+if(Buffer.byteLength(html)>1000000)throw Error('Preview exceeds 1 MB: '+Buffer.byteLength(html));
+await writeFile(process.argv[2]||'/workspace/tirana-canopy-streaming.html',html);console.log({bytes:Buffer.byteLength(html),buildings:subset.buildings.length,roads:subset.roads.length,trees:trees.length,bounds:box});

@@ -1,3 +1,8 @@
+import {footprintIndex} from '../tirana-city-source/footprintIndex.mjs';
+import {treeOccupancy} from '../tirana-street-life/canopyCore.mjs';
+import {cutRoads} from '../tirana-environment/roadSurfaceRegistry';
+import {roadRing} from '../tirana-environment/roadSurfaceCore.mjs';
+import {surfaceGeometry} from '../tirana-environment/riverGeometry';
 import { STREET_PROPS } from './shared/streetDressing.mjs';
 import { MAPPED_TREES } from '../tirana-city-source/registry.mjs';
 import {MATURE_TREE_IDS,STREET_LIFE} from '../tirana-street-life/registry.mjs';
@@ -51,10 +56,11 @@ export class StreetVisuals {
       if (!placements.has(name)) placements.set(name, []);
       placements.get(name)!.push({ x, z, yaw, scale });
     };
+    const buildingsNear=footprintIndex(WORLD.buildings);
     const free = (x: number, z: number) =>
       !onCarriageway(x, z, 0.35) &&
       Math.abs(x - SHOP.x) + Math.abs(z - SHOP.z) > 13 &&
-      !WORLD.buildings.some((b) => insidePolygon(x, z, b.p));
+      !buildingsNear(x,z).some((b:any) => insidePolygon(x, z, b.p)&&!(b.holes||[]).some((h:number[][])=>insidePolygon(x,z,h)));
     // Actual mapped tree centres replace the park scatter and roadside rhythm.
     // Species and dimensions remain generic where the source supplies none.
     MAPPED_TREES.filter(p=>!MATURE_TREE_IDS.has(p.id)).forEach((p, i) => add(p.model, p.x, p.z, i * 2.399, p.scale));
@@ -64,7 +70,7 @@ export class StreetVisuals {
         !r.bridge &&
         Math.hypot(r.b[0] - r.a[0], r.b[1] - r.a[1]) > 24
     );
-    const occupied: Point[] = [];
+    const occupied=treeOccupancy([],22);
     roads.forEach((r, i) => {
       const dx = r.b[0] - r.a[0],
         dz = r.b[1] - r.a[1],
@@ -77,10 +83,10 @@ export class StreetVisuals {
         z = r.a[1] + (dz / length) * d + rz * (r.w / 2 + 1.65);
       if (
         !free(x, z) ||
-        occupied.some((p) => Math.hypot(p.x - x, p.z - z) < 22)
+        occupied.has(x,z)
       )
         return;
-      occupied.push({ x, z });
+      occupied.add({x,z});
       // Landscape's shared UrbanLighting owns lamps in every city mode.
       if (i % 3 === 0) {
         add(
@@ -350,22 +356,8 @@ export class StreetVisuals {
     }
   }
   private pavements() {
-    const pavement = this.source.getObjectByName('pavement_network');
-    if (pavement) {
-      pavement.updateMatrixWorld(true);
-      for (const source of pavement.children) {
-        if (!(source instanceof T.Mesh)) continue;
-        const mesh = source.clone();
-        mesh.applyMatrix4(pavement.matrixWorld);
-        mesh.receiveShadow = true;
-        const group = new T.Group();
-        group.add(mesh);
-        this.group.add(group);
-        const box = new T.Box3().setFromObject(mesh),
-          center = box.getCenter(new T.Vector3());
-        this.tiles.push({ group, x: center.x, z: center.z, lod: 0 });
-      }
-    }
+    // The baked pavement network predates the extended road map.
+    // UrbanRoadCells owns clipped paving in all adapters.
     const paint: T.BufferGeometry[] = [];
     const castleStone: T.BufferGeometry[] = [];
     for (const road of WORLD.roads) {
@@ -375,15 +367,7 @@ export class StreetVisuals {
       if (length < 1) continue;
       const yaw = Math.atan2(dx, dz);
       if (road.walk && /Murat Toptani/.test(road.name)) {
-        const stone = new T.PlaneGeometry(road.w, length);
-        stone.rotateX(-Math.PI / 2);
-        stone.rotateY(yaw);
-        stone.translate(
-          (road.a[0] + road.b[0]) / 2,
-          0.112,
-          (road.a[1] + road.b[1]) / 2
-        );
-        castleStone.push(stone);
+        const ring=roadRing(road);if(ring)for(const polygon of cutRoads([ring]))castleStone.push(surfaceGeometry(polygon,.112));
       }
     }
     for (const s of SIGNALS) {

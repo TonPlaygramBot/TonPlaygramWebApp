@@ -14,6 +14,8 @@ try{
 }finally{await rm(temporary,{recursive:true,force:true});}
 const {T,GLTFLoader,NeighbourhoodLayer,NEIGHBOURHOOD:n}=api;
 // Canvas text is stubbed; actual Three geometry/GLTF parsing/lifecycle executes.
+// The shared sign atlas now also requests the already-verified local logo.
+globalThis.Image=class { set src(_value){} };
 globalThis.document={createElement:()=>({width:0,height:0,getContext:()=>({fillRect(){},fillText(){}})})};
 // Geometry/lifecycle test has no DOM image decoder. Real texture files are
 // validated separately; complete texture loads still exercise resource ownership.

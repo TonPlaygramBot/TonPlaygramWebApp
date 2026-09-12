@@ -2,6 +2,7 @@ import * as T from 'three';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {largeBuildingAprons} from './urbanLightingCore.mjs';
 import {cutChannels,surfaceGeometry} from './riverGeometry';
+import {cutRoads} from './roadSurfaceRegistry';
 type Cell={x:number;z:number;buildings:any[];mesh?:T.Mesh;used:number};
 /** Paving is streamed with the city rather than triangulating the full district
  * at startup. The height stays below road asphalt and above decorative grass. */
@@ -24,7 +25,7 @@ export class PavementAprons {
   for(const cell of near){
    cell.used=this.tick;
    if(!cell.mesh&&budget-->0){
-    const parts=largeBuildingAprons({buildings:cell.buildings}).flatMap(ring=>cutChannels(ring).map(p=>surfaceGeometry(p,.074)));
+    const parts=largeBuildingAprons({buildings:cell.buildings}).flatMap(ring=>cutChannels(ring).flatMap(p=>cutRoads(p).map(dry=>surfaceGeometry(dry,.074))));
     const geometry=parts.length?mergeGeometries(parts,false):new T.BufferGeometry();parts.forEach(g=>g.dispose());
     if(geometry){cell.mesh=new T.Mesh(geometry,this.material);cell.mesh.name='Pavement apron cell';cell.mesh.receiveShadow=true;this.group.add(cell.mesh);}
    }
