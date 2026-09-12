@@ -61,6 +61,22 @@ Online snapshots carry the same review for both seats. The authoritative clock p
 
 ## Validation
 
+### Portrait play and feedback update
+
+The match HUD labels sets/games/points, contains long player names, and offers a direct stroke selector with descriptions. Contextual cues distinguish serving, receiving, queued strokes and recovery. Match/break/set-point labels reuse `awardPoint` on a cloned score, including deuce and tie-breaks. A translucent guide highlights the opposite service box; disabling coaching hides the guide and cues. Shot direction and camera projection retain the existing shared-engine rules.
+
+The pause panel exposes auto movement, coaching, sound and battery saver. Battery saver reduces pixel ratio and disables real-time shadows. Idle/paused rendering is limited to 30 fps; hidden pages stop drawing, cancel gestures and pause local matches. Online synchronization remains server-authoritative. Additional touches cancel the active stroke, and pause/background/context loss clear pointer state. Graphics context interruption pauses local play. Athletes finish loading before a match starts, and load errors are reported once.
+
+Point audio uses the connected player's seat. Audio resumes during the input gesture before decoding samples, and mute fades the master gain to silence currently playing sounds. The result panel shows points won, shots hit and the best rally, deduplicating event IDs across repeated snapshots. Online shot/point counts are scoped to the current joined session. Leaving a running match requires an in-game confirmation; dialogs contain keyboard focus.
+
+This update passed all 42 tennis tests (37 existing, five new in `test/tennisFeedback.test.mjs`), the strict tennis TypeScript check, conversation bundling, and Vite application compilation. The full `npm --prefix webapp run build` pipeline could not complete because the disk-constrained sparse checkout omits unrelated Tirana assets required by its prebuild step. Direct Vite compilation is not a complete asset package and was not deployed.
+
+Browser visual QA was blocked by the cloud browser's URL security policy and local server isolation. No browser, physical-phone touch, GPU-performance, or device-audio pass is claimed for this update. `scripts/checkTennisBrowser.mjs` was updated for the direct stroke menu but remains to be run in a browser-enabled environment. Before merging, check 320/390/480 px portrait layouts, serving, every stroke, interrupted two-finger gestures, pause toggles, rematch and both online seats. The existing staging checks below still apply.
+
+Run the new cases with `node --test test/tennisFeedback.test.mjs` alongside the existing suite below.
+
+### Earlier bounce update validation
+
 - `npx tsc -p tsconfig.tennis.json`
 - `node --test test/tennisRoyalIntegration.test.mjs test/tennisRoyalSocket.test.mjs test/tennisSwipe.test.mjs test/tennisLineReview.test.mjs test/tennisPlayerView.test.mjs test/tennisBounce.test.mjs`
 - `node scripts/checkTennisBrowser.mjs` (install Chromium with Playwright first, or set `TENNIS_BROWSER_EXECUTABLE`; set `TENNIS_BROWSER_OUTPUT_DIR` to retain screenshots and contact traces)

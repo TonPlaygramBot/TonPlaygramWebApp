@@ -46,6 +46,17 @@ export class TennisRenderer {
     [THREE.Texture | null, THREE.Texture | null]
   >();
   resize: ResizeObserver;
+  ready: Promise<void>;
+  guides = true;
+  serviceBox = new THREE.Mesh(
+    new THREE.PlaneGeometry(4.06, 6.32),
+    new THREE.MeshBasicMaterial({
+      color: 0xdfff4f,
+      transparent: true,
+      opacity: 0.14,
+      depthWrite: false
+    })
+  );
   disposed = false;
   loadError = '';
   reviewing = false;
@@ -98,6 +109,9 @@ export class TennisRenderer {
     this.scene.background = new THREE.Color(0x9bbbc8);
     this.scene.fog = new THREE.Fog(0x9bbbc8, 58, 120);
     this.scene.add(this.root);
+    this.serviceBox.rotation.x = -Math.PI / 2;
+    this.serviceBox.visible = false;
+    this.root.add(this.serviceBox);
     this.reviewMark.rotation.x = -Math.PI / 2;
     this.reviewMark.renderOrder = 10;
     this.reviewMark.visible = false;
@@ -248,10 +262,34 @@ export class TennisRenderer {
       this.root.add(t);
       this.trail.push(t);
     }
-    for (const seat of [0, 1] as Seat[]) this.createActor(seat);
+    this.ready = Promise.all(
+      ([0, 1] as Seat[]).map((seat) => this.createActor(seat))
+    ).then(() => {});
     this.resize = new ResizeObserver(() => this.resizeToFit());
     this.resize.observe(mount);
     this.resizeToFit();
+  }
+  setQuality(quality: 'low' | 'high') {
+    this.quality = quality;
+    this.renderer.setPixelRatio(
+      Math.min(devicePixelRatio || 1, quality === 'low' ? 1 : 1.65)
+    );
+    this.renderer.shadowMap.enabled = quality !== 'low';
+    this.scene.traverse((object) => {
+      if (object instanceof THREE.Mesh) {
+        const materials = Array.isArray(object.material)
+          ? object.material
+          : [object.material];
+        materials.forEach((material) => {
+          material.needsUpdate = true;
+        });
+      }
+    });
+    this.renderer.setSize(
+      this.mount.clientWidth,
+      this.mount.clientHeight,
+      false
+    );
   }
   resizeToFit() {
     const w = this.mount.clientWidth,
@@ -382,6 +420,15 @@ export class TennisRenderer {
   draw(s: MatchState, dt: number, smooth = false) {
     this.clock += dt;
     const review = reviewActive(s) ? s.review : null;
+    this.serviceBox.visible =
+      this.guides && !review && (s.phase === 'serve' || s.phase === 'toss');
+    if (this.serviceBox.visible) {
+      this.serviceBox.position.set(
+        -Math.sign(s.players[s.score.server].x) * 2.0575,
+        0.043,
+        -side(s.score.server) * 3.2
+      );
+    }
     this.stadium.group.visible = !review;
     if (review) {
       const elapsed = s.time - review.startedAt;
