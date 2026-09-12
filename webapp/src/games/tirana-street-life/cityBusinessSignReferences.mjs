@@ -1,0 +1,38 @@
+/** Explicit mapped operator identities. Residence Inn is the independent Tirana
+ * hotel; its artwork is unrelated to Marriott's Residence Inn chain. */
+const logo=(id,match,source,background='#ffffff')=>({id,match,logo:`/assets/tirana-streets/signs/${id}-logo.png`,source,background,foreground:background==='#ffffff'?'#222222':'#ffffff',crop:null});
+export const CITY_BUSINESS_SIGN_REFERENCES=[
+ logo('mulaj',/^(?:hotel )?mulaj(?: hotel)?$/i,'https://hotelmulaj.com/'),
+ logo('opera',/^(?:hotel )?opera(?: hotel)?$/i,'https://hotelopera.al/'),
+ logo('iliria',/^iliria boutique hotel$/i,'https://www.iliriahoteltirana.com/'),
+ logo('arka',/^arka (?:art hotel|rooftop)$/i,'https://arkahotel.al/'),
+ logo('black-diamond',/^black diamond hotel$/i,'https://blackdiamond-hotel.com/','#18202a'),
+ logo('hilton',/^hilton garden inn tirana$/i,'https://www.hilton.com/en/hotels/tiagigi-hilton-garden-inn-tirana/'),
+ logo('imperator',/^hotel imperator$/i,'https://imperatorhotel.al/'),
+ logo('triss',/^triss(?: hotel)?$/i,'https://trisshotel.com/','#222222'),
+ logo('privilege',/^privilege hotel & spa$/i,'https://hotelprivilege.al/'),
+ logo('victoria',/^hotel victoria$/i,'https://hotelvictoria.al/'),
+ logo('emerald',/^emerald boutique hotel$/i,'https://emeraldhotel.al/'),
+ logo('bonsai',/^hotel bonsai$/i,'https://bonsai.al/'),
+ logo('residence-inn',/^residence inn hotel$/i,'https://residenceinn.al/','#222222'),
+ logo('chateau-linza',/^chateau linza resort$/i,'https://chateaulinzaresort.al/','#222222'),
+ logo('colosseo',/^(?:hotel )?colosseo$/i,'https://hotelcolosseotirana.com/'),
+ logo('sarotel',/^sar['’]?otel$/i,'https://sarotel.com/'),
+ logo('boka',/^(?:hotel )?boka$/i,'https://bokahotel.al/','#1d3034'),
+ logo('marriott',/^marriott tirana$/i,'https://www.marriott.com/en-us/hotels/tiamc-tirana-marriott/overview/'),
+ logo('moncafe',/^moncafe boutique hotel & spa$/i,'https://moncafeboutiquehotel.com/','#222222'),
+ logo('light',/^light hotel$/i,'https://lighthotel.al/','#222222'),
+ logo('vila-verde',/^vila verde(?: hotel)?$/i,'https://www.vilaverde.al/','#222222'),
+ logo('deluxe',/^hotel deluxe$/i,'https://hoteldeluxe.al/','#222222'),
+ logo('radisson',/^radisson collection morina hotel tirana$/i,'https://www.radissonhotels.com/en-us/hotels/radisson-collection-morina-tirana'),
+ logo('neranxi',/^neranxi$/i,'https://neranxi.al/'),
+ logo('pizzahut',/^pizza hut$/i,'https://www.pizzahut.al/'),
+ logo('qtu',/^qtu(?: - qendra tregtare univers)?$/i,'https://www.qtu.al/'),
+ logo('teg',/^teg(?: - tirana east gate)?$/i,'https://www.teg.al/'),
+ logo('rossmann-lala',/^rossmann & lala$/i,'https://www.rossmann-lala.al/'),
+ logo('diambe',/^diambe(?: market)?$/i,'https://alma-m.mk/diambe-albania/'),
+ logo('intersport',/^intersport$/i,'https://toptani.com.al/en/content/71-intersport'),
+ logo('adidas',/^adidas$/i,'https://toptani.com.al/en/content/15-brand-adidas'),
+ logo('vodafone',/^vodafone$/i,'https://www.vodafone.al/'),
+ logo('one',/^one$/i,'https://www.one.al/')
+];
