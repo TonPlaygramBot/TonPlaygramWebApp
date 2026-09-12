@@ -51,7 +51,11 @@ async function writeVersionJson(buildId, generatedAt) {
 
 async function writeServiceWorkerMarker(buildId) {
   const markerPath = path.join(pwaDir, 'app-build.js');
-  const contents = `self.__TONPLAYGRAM_APP_BUILD__ = ${JSON.stringify(buildId)};\n`;
+  const contents = [
+    `self.__TONPLAYGRAM_APP_BUILD__ = ${JSON.stringify(buildId)};`,
+    "try { importScripts('/pwa/game-pack-service-worker.js'); } catch {}",
+    ''
+  ].join('\n');
   await fs.writeFile(markerPath, contents);
   return markerPath;
 }

@@ -64,6 +64,19 @@ const PREFETCH_RUNTIME_ASSETS = [
 ];
 
 const GLTF_EXTENSIONS = /\.(gltf|glb|bin|ktx2|dds|hdr|exr)$/i;
+const MANAGED_GAME_ASSET_PREFIXES = [
+  '/assets/tirana-streets/',
+  '/assets/tirana-detail-kit/',
+  '/assets/tirana-landmarks/',
+  '/assets/blackwater/',
+  '/assets/kart-royale/',
+  '/assets/pool-royale/',
+  '/models/pool-royale/',
+  '/assets/table-tennis/',
+  '/assets/royal-lanes/'
+];
+const shouldWarmAsset = asset =>
+  !MANAGED_GAME_ASSET_PREFIXES.some(prefix => asset.startsWith(prefix));
 const REMOTE_CACHEABLE_DESTINATIONS = ['font', 'image', 'model', ''];
 const REMOTE_CACHEABLE_HOSTS = new Set([
   'cdn.jsdelivr.net',
@@ -111,7 +124,7 @@ const warmGltfAssets = async ({ forceReload = false } = {}) => {
     const cache = await caches.open(RUNTIME_CACHE);
     await Promise.all(
       manifest.map(async asset => {
-        if (typeof asset !== 'string' || !GLTF_EXTENSIONS.test(asset)) return;
+        if (typeof asset !== 'string' || !GLTF_EXTENSIONS.test(asset) || !shouldWarmAsset(asset)) return;
         try {
           const request = new Request(asset, {
             cache: forceReload ? 'reload' : 'default',
